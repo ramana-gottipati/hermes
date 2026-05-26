@@ -1,8 +1,18 @@
+from pathlib import Path
+
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Anchor .env to the project root (parent of src/) so it loads regardless of cwd.
+# We use python-dotenv directly with override=True because pydantic-settings'
+# built-in env_file loader gets shadowed when something earlier in the import
+# chain seeds os.environ with empty strings for these keys.
+ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(ENV_PATH, override=True)
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore")
 
     anthropic_api_key: str = ""
     default_model: str = "claude-sonnet-4-6"
