@@ -3,9 +3,32 @@
 from src.core.db import get_conn
 
 
-def create_conversation(title: str | None = None) -> int:
+def create_conversation(title: str | None = None, telegram_user_id: int | None = None) -> int:
     with get_conn() as conn:
-        cur = conn.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
+        cur = conn.execute(
+            "INSERT INTO conversations (title, telegram_user_id) VALUES (?, ?)",
+            (title, telegram_user_id),
+        )
+        return int(cur.lastrowid)
+
+
+def get_or_create_for_telegram(telegram_user_id: int) -> int:
+    """Return the most recent conversation for this Telegram user, creating one if needed.
+
+    One ongoing conversation per Telegram user. To start a fresh one, call
+    create_conversation(telegram_user_id=...) explicitly (e.g. on a /reset command).
+    """
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM conversations WHERE telegram_user_id = ? ORDER BY id DESC LIMIT 1",
+            (telegram_user_id,),
+        ).fetchone()
+        if row:
+            return int(row["id"])
+        cur = conn.execute(
+            "INSERT INTO conversations (telegram_user_id, title) VALUES (?, ?)",
+            (telegram_user_id, f"telegram:{telegram_user_id}"),
+        )
         return int(cur.lastrowid)
 
 

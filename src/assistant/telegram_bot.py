@@ -1,0 +1,168 @@
+"""Telegram front-end for Hermes.
+
+Polls Telegram for incoming messages, routes them through chat.handle() with
+the same SQLite-backed memory the HTTP /chat endpoint uses, replies back in
+Telegram. Each Telegram user gets their own ongoing conversation.
+
+Run standalone:
+    python -m src.assistant.telegram_bot
+
+Authorization model:
+- TELEGRAM_ALLOWED_USER_IDS in .env is a comma-separated list of integer user IDs
+- An empty list = nobody is authorized (bot replies with the sender's user ID
+  so the owner can paste it into .env)
+- Anyone not in the list gets a polite rejection — and no Anthropic credits are spent
+"""
+
+import asyncio
+import logging
+
+from telegram import Update
+from telegram.constants import ChatAction
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
+
+from src.assistant import chat, conversations
+from src.core.settings import settings
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+log = logging.getLogger("hermes.telegram")
+
+
+def _allowed_user_ids() -> set[int]:
+    raw = settings.telegram_allowed_user_ids or ""
+    return {int(x.strip()) for x in raw.split(",") if x.strip().isdigit()}
+
+
+def _is_authorized(user_id: int) -> bool:
+    return user_id in _allowed_user_ids()
+
+
+def _unauthorized_message(user_id: int) -> str:
+    return (
+        "Hi — you're not authorized to chat with this bot.\n\n"
+        f"Your Telegram user ID is:\n<code>{user_id}</code>\n\n"
+        "If you're the bot's owner, add this ID to TELEGRAM_ALLOWED_USER_IDS in "
+        ".env (comma-separated for multiple) and restart Hermes."
+    )
+
+
+# --- Handlers ---------------------------------------------------------------
+
+async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle the /start command (sent automatically when a user opens the bot)."""
+    user_id = update.effective_user.id
+    if _is_authorized(user_id):
+        await update.message.reply_text(
+            "Hi — I'm Hermes, your personal AI agent.\n\n"
+            "Just send me a message. I remember our conversation across messages.\n\n"
+            "Commands:\n"
+            "/reset — start a fresh conversation (forget context)\n"
+            "/whoami — show your Telegram user ID"
+        )
+    else:
+        await update.message.reply_text(_unauthorized_message(user_id), parse_mode="HTML")
+
+
+async def on_whoami(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Reply with the sender's Telegram user ID — useful for onboarding."""
+    user_id = update.effective_user.id
+    authorized = "yes" if _is_authorized(user_id) else "no"
+    await update.message.reply_text(
+        f"Telegram user ID: <code>{user_id}</code>\nAuthorized: {authorized}",
+        parse_mode="HTML",
+    )
+
+
+async def on_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Start a fresh conversation for this user."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        await update.message.reply_text(_unauthorized_message(user_id), parse_mode="HTML")
+        return
+    # Create a new conversation; future messages will pick it up as the most recent.
+    new_id = conversations.create_conversation(
+        title=f"telegram:{user_id} (reset)", telegram_user_id=user_id
+    )
+    await update.message.reply_text(f"Conversation reset. New thread id: {new_id}")
+
+
+async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle any plain text message — the main chat path."""
+    if not update.message or not update.message.text:
+        return
+
+    user_id = update.effective_user.id
+
+    # Auth gate — done BEFORE any LLM call to ensure unauthorized senders cost $0.
+    if not _is_authorized(user_id):
+        log.info("rejected message from unauthorized telegram user_id=%s", user_id)
+        await update.message.reply_text(_unauthorized_message(user_id), parse_mode="HTML")
+        return
+
+    conv_id = conversations.get_or_create_for_telegram(user_id)
+    log.info("telegram user_id=%s conv_id=%s incoming msg", user_id, conv_id)
+
+    # Show "typing..." in Telegram while the LLM call is in flight
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, action=ChatAction.TYPING
+    )
+
+    # chat.handle() is sync (uses sqlite3 + Anthropic SDK sync client).
+    # Run it in a thread so we don't block the asyncio event loop.
+    # Telegram defaults to fast=True (Haiku) — ~5x cheaper than Sonnet, which
+    # is the right default for casual phone chat. Use the /chat HTTP endpoint
+    # without fast=true if you want Sonnet-grade reasoning.
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: chat.handle(update.message.text, conversation_id=conv_id, fast=True),
+    )
+
+    # Telegram caps a single message at ~4096 chars. Chunk if needed.
+    reply = result["reply"]
+    for chunk in _chunk_text(reply, limit=4000):
+        await update.message.reply_text(chunk)
+
+
+def _chunk_text(text: str, *, limit: int) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+    chunks, start = [], 0
+    while start < len(text):
+        chunks.append(text[start : start + limit])
+        start += limit
+    return chunks
+
+
+# --- Entry point ------------------------------------------------------------
+
+def main() -> None:
+    if not settings.telegram_bot_token:
+        log.error("TELEGRAM_BOT_TOKEN not set in .env — refusing to start.")
+        return
+
+    app = Application.builder().token(settings.telegram_bot_token).build()
+    app.add_handler(CommandHandler("start", on_start))
+    app.add_handler(CommandHandler("whoami", on_whoami))
+    app.add_handler(CommandHandler("reset", on_reset))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
+
+    allowed = _allowed_user_ids()
+    log.info(
+        "Hermes Telegram bot starting — polling mode. Authorized user IDs: %s",
+        allowed if allowed else "(none — first messages will receive onboarding reply)",
+    )
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
+if __name__ == "__main__":
+    main()

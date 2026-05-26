@@ -14,11 +14,12 @@ DB_PATH = Path(__file__).resolve().parents[2] / "data" / "hermes.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
-SCHEMA = """
+SCHEMA_BASE = """
 CREATE TABLE IF NOT EXISTS conversations (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-    title      TEXT
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+    title            TEXT,
+    telegram_user_id INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -34,10 +35,25 @@ CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, id);
 """
 
 
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
+    """Idempotently add a column to an existing table (SQLite has no IF NOT EXISTS for columns)."""
+    cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
 def _init() -> None:
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     try:
-        conn.executescript(SCHEMA)
+        # 1. Base schema — tables + non-telegram indexes (safe on fresh and existing DBs).
+        conn.executescript(SCHEMA_BASE)
+        # 2. Migrate existing DBs that pre-date the telegram_user_id column.
+        _ensure_column(conn, "conversations", "telegram_user_id", "INTEGER")
+        # 3. Index on the new column (now guaranteed to exist).
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_conv_tg_user ON conversations(telegram_user_id, id DESC)"
+        )
         conn.commit()
     finally:
         conn.close()

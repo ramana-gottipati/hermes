@@ -24,7 +24,7 @@ structlog==24.4.0
 
 # --- Workload-specific (uncomment when needed) ---
 # Personal assistant
-# python-telegram-bot==21.7
+python-telegram-bot==21.7
 
 # Trading / finance
 # ccxt==4.4.20            # crypto exchanges
