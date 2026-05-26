@@ -1,0 +1,33 @@
+# Pin exact versions — surprise upgrades break trading code.
+
+# LLM
+anthropic==0.39.0
+
+# Web
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+httpx==0.27.2
+
+# Config
+pydantic==2.9.2
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# Scheduling
+apscheduler==3.10.4
+
+# Datastore
+sqlalchemy==2.0.36
+
+# Logging
+structlog==24.4.0
+
+# --- Workload-specific (uncomment when needed) ---
+# Personal assistant
+# python-telegram-bot==21.7
+
+# Trading / finance
+# ccxt==4.4.20            # crypto exchanges
+# yfinance==0.2.50        # global market data
+# pandas==2.2.3
+# numpy==2.1.3

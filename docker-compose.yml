@@ -1,0 +1,43 @@
+services:
+  hermes-api:
+    build: .
+    container_name: hermes-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${HERMES_PORT:-8000}:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  hermes-scheduler:
+    build: .
+    container_name: hermes-scheduler
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["python", "-m", "src.automation.scheduler"]
+    depends_on:
+      - hermes-api
+
+# Add when needed:
+#
+#  postgres:
+#    image: postgres:16-alpine
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_USER: hermes
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#      POSTGRES_DB: hermes
+#    volumes:
+#      - postgres-data:/var/lib/postgresql/data
+#
+#  redis:
+#    image: redis:7-alpine
+#    restart: unless-stopped
+#
+# volumes:
+#   postgres-data:
