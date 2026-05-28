@@ -93,21 +93,47 @@ CREATE INDEX IF NOT EXISTS idx_candidates_screened ON screen_candidates(screened
 CREATE INDEX IF NOT EXISTS idx_candidates_digest   ON screen_candidates(digest_sent_at);
 CREATE INDEX IF NOT EXISTS idx_candidates_status   ON screen_candidates(your_status);
 
--- Daily bhav copy (NSE end-of-day price/volume CSV)
-CREATE TABLE IF NOT EXISTS daily_prices (
-    symbol      TEXT NOT NULL,
-    trade_date  TEXT NOT NULL,
-    open        REAL,
-    high        REAL,
-    low         REAL,
-    close       REAL,
-    prev_close  REAL,
-    volume      INTEGER,
-    value       REAL,
-    series      TEXT,
-    PRIMARY KEY (symbol, trade_date)
+-- Wide bhav copy storage — every column NSE publishes + raw_json for absolute
+-- completeness. Replaces the earlier slim daily_prices table. Both legacy
+-- (pre-July-2024) and UDIFF (current) NSE formats map into the same row shape.
+CREATE TABLE IF NOT EXISTS bhavcopy_rows (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol          TEXT NOT NULL,
+    trade_date      TEXT NOT NULL,
+    series          TEXT,
+    instrument_type TEXT,
+    segment         TEXT,
+    open            REAL,
+    high            REAL,
+    low             REAL,
+    close           REAL,
+    last_price      REAL,
+    prev_close      REAL,
+    settlement_price REAL,
+    volume          INTEGER,
+    value           REAL,
+    num_trades      INTEGER,
+    open_interest   INTEGER,
+    change_in_oi    INTEGER,
+    isin            TEXT,
+    expiry_date     TEXT,
+    strike_price    REAL,
+    option_type     TEXT,
+    format_version  TEXT,
+    raw_json        TEXT,
+    UNIQUE(symbol, trade_date, series, instrument_type)
 );
-CREATE INDEX IF NOT EXISTS idx_prices_date ON daily_prices(trade_date);
+CREATE INDEX IF NOT EXISTS idx_bhav_sym_date ON bhavcopy_rows(symbol, trade_date);
+CREATE INDEX IF NOT EXISTS idx_bhav_date     ON bhavcopy_rows(trade_date);
+CREATE INDEX IF NOT EXISTS idx_bhav_series   ON bhavcopy_rows(series);
+
+-- Backfill progress tracking — which dates we've successfully ingested
+CREATE TABLE IF NOT EXISTS bhavcopy_dates (
+    trade_date    TEXT PRIMARY KEY,
+    format_version TEXT,
+    row_count     INTEGER,
+    ingested_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 -- Screener.in scraped fundamentals (cached, refreshed periodically)
 CREATE TABLE IF NOT EXISTS fundamentals (
@@ -183,6 +209,18 @@ def _init() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_conv_tg_user ON conversations(telegram_user_id, id DESC)"
         )
+        # 4. Migration: previous schema had a slim daily_prices table. We replaced
+        #    it with the wider bhavcopy_rows. Drop the old table if it exists and
+        #    is empty (data wasn't shipped in production yet).
+        conn.execute("DROP TABLE IF EXISTS daily_prices")
+        # 5. Helper view for clean equity-cash-market queries.
+        conn.execute("""
+            CREATE VIEW IF NOT EXISTS prices_eq AS
+            SELECT symbol, trade_date, open, high, low, close, prev_close,
+                   volume, value, num_trades, isin
+            FROM bhavcopy_rows
+            WHERE series='EQ' AND (segment='CM' OR segment IS NULL)
+        """)
         conn.commit()
     finally:
         conn.close()
