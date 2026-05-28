@@ -433,65 +433,81 @@ def _mark_earnings_triggered(symbol: str, news_url: str, news_title: str) -> Non
         )
 
 
-def _trigger_patearn_for_watchlist_earnings(items: list[dict]) -> None:
-    """For each EARNINGS item touching a watchlist stock, fire patearn analysis.
+def _candidate_already_screened(news_url: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM screen_candidates WHERE news_url = ?", (news_url,)
+        ).fetchone()
+        return row is not None
 
-    Posts to all registered patearn destinations. Dedupes via earnings_triggers
-    so the same (symbol, news_url) combo never fires twice.
+
+def _store_candidate(
+    *,
+    symbol: str,
+    verdict: str,
+    rationale: str,
+    signals: list[str],
+    news_url: str,
+    news_title: str,
+    news_source: str,
+) -> None:
+    import json as _json
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO screen_candidates
+               (symbol, verdict, rationale, signals_json, news_url, news_title, news_source)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (symbol, verdict, rationale, _json.dumps(signals), news_url, news_title, news_source),
+        )
+
+
+def _stage1_screen_all_earnings(items: list[dict]) -> None:
+    """Stage 1 — run a cheap Haiku screen on every EARNINGS item, regardless of
+    watchlist. PASS/WATCH candidates get stored in screen_candidates for the
+    twice-daily digest. SKIP items are simply not stored.
+
+    No Sonnet calls. No deep analysis. Just numeric pre-screen.
     """
-    watch = _watchlist_symbols()
-    if not watch:
-        return
-
-    destinations = _patearn_destination_chat_ids()
-    if not destinations:
-        log.info("watchlist hit but no patearn_destinations registered — skipping auto-analysis")
-        return
-
-    # Import inside function to keep top-of-module light
     from src.assistant import patearn
 
-    for item in items:
-        if item.get("category") != "EARNINGS":
+    earnings_items = [it for it in items if it.get("category") == "EARNINGS"]
+    if not earnings_items:
+        return
+
+    log.info("stage1: screening %d earnings items", len(earnings_items))
+    for item in earnings_items:
+        if _candidate_already_screened(item["url"]):
             continue
-        hits = [t for t in (item.get("tickers") or []) if t.upper() in watch]
-        for ticker in hits:
-            ticker = ticker.upper()
-            if _earnings_already_triggered(ticker, item["url"]):
-                continue
-            log.info("auto-triggering patearn analysis for %s (news: %s)", ticker, item["title"])
-            try:
-                analysis = patearn.run_analysis(
-                    ticker,
-                    extra=(
-                        f"This analysis was auto-triggered by an earnings-related news item:\n"
-                        f"  Source: {item.get('source')}\n"
-                        f"  Title: {item.get('title')}\n"
-                        f"  Tag: {item.get('tag')}\n"
-                        f"  URL: {item.get('url')}\n\n"
-                        f"Reflect the latest results in your scoring where relevant."
-                    ),
-                )
-            except Exception as e:
-                log.error("patearn auto-trigger failed for %s: %s", ticker, e)
-                continue
+        try:
+            screen = patearn.stage1_screen(item)
+        except Exception as e:
+            log.error("stage1 screen failed for %s: %s", item.get("title"), e)
+            continue
 
-            preface = (
-                f"📊 <b>Auto patearn analysis — {ticker}</b>\n"
-                f"Triggered by: <i>{item.get('tag', '')}</i> · "
-                f"<a href=\"{item['url']}\">{item.get('source','')}</a>\n"
-                f"<i>{item.get('title','')}</i>\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━\n"
-            )
-            chunks = patearn.chunk_for_telegram(analysis)
-            for chat_id in destinations:
-                # First chunk carries the preface in HTML mode
-                _send_raw(chat_id, preface + chunks[0])
-                # Subsequent chunks plain
-                for c in chunks[1:]:
-                    _send_raw(chat_id, c)
+        verdict = (screen.get("verdict") or "SKIP").upper()
+        if verdict not in ("PASS", "WATCH"):
+            log.info("stage1 SKIP: %s — %s", item.get("title", "")[:80], screen.get("rationale", ""))
+            continue
 
-            _mark_earnings_triggered(ticker, item["url"], item.get("title", ""))
+        # Prefer the symbol from Stage 1 output; fall back to classifier's first ticker
+        symbol = (screen.get("symbol") or "").upper()
+        if not symbol:
+            tickers = item.get("tickers") or []
+            symbol = tickers[0].upper() if tickers else ""
+        if not symbol:
+            log.warning("stage1 %s but no symbol resolved — skipping store", verdict)
+            continue
+
+        _store_candidate(
+            symbol=symbol,
+            verdict=verdict,
+            rationale=screen.get("rationale", ""),
+            signals=screen.get("signals") or [],
+            news_url=item["url"],
+            news_title=item.get("title", ""),
+            news_source=item.get("source", ""),
+        )
+        log.info("stage1 %s: %s — %s", verdict, symbol, screen.get("rationale", ""))
 
 
 # --- Entry point ------------------------------------------------------------
@@ -529,13 +545,13 @@ def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bo
     if not annotated:
         return False, "Classifier failed — try again in a minute."
 
-    # Auto-trigger patearn analysis for watchlist earnings BEFORE filtering.
-    # We want to react to EARNINGS items even if they'd be filtered as INLINE,
-    # because for a watchlist stock you care about results regardless.
+    # Stage 1 patearn pre-screen on EVERY earnings item, regardless of watchlist.
+    # PASS/WATCH candidates get stored in screen_candidates for the twice-daily
+    # digest. No Sonnet calls — pure Haiku numeric screening.
     try:
-        _trigger_patearn_for_watchlist_earnings(annotated)
+        _stage1_screen_all_earnings(annotated)
     except Exception as e:
-        log.error("patearn auto-trigger pipeline raised: %s", e)
+        log.error("stage1 screen pipeline raised: %s", e)
 
     signal = [it for it in annotated if is_worth_sending(it)]
     log.info("%d items kept after filter (from %d)", len(signal), len(annotated))

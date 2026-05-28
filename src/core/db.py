@@ -73,6 +73,25 @@ CREATE TABLE IF NOT EXISTS earnings_triggers (
     triggered_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(symbol, news_url)
 );
+
+CREATE TABLE IF NOT EXISTS screen_candidates (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol          TEXT NOT NULL,
+    verdict         TEXT NOT NULL CHECK (verdict IN ('PASS', 'WATCH')),
+    rationale       TEXT,
+    signals_json    TEXT,
+    news_url        TEXT NOT NULL,
+    news_title      TEXT,
+    news_source     TEXT,
+    screened_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    digest_sent_at  TEXT,
+    your_note       TEXT,
+    your_status     TEXT NOT NULL DEFAULT 'new',
+    UNIQUE(symbol, news_url)
+);
+CREATE INDEX IF NOT EXISTS idx_candidates_screened ON screen_candidates(screened_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidates_digest   ON screen_candidates(digest_sent_at);
+CREATE INDEX IF NOT EXISTS idx_candidates_status   ON screen_candidates(your_status);
 """
 
 

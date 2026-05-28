@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Install / update the Hermes news feature.
+# Install / update the Hermes news + screening + candidates feature.
 #
-# Mode: LIVE event-driven push.
-#   - Poller runs every 10 min during weekday market hours (7 AM – 10 PM IST)
-#   - Each poll: fetch RSS (free), dedupe vs sent_news, classify only new items
-#   - Posts to registered destinations only when there is signal-worthy content
-#   - /news command also works for on-demand pulls
+# What this installs:
+#   1. hermes-telegram.service  (already from main bootstrap) — Telegram bot
+#   2. hermes-news.timer/service — hourly news poller + Stage 1 screen
+#   3. hermes-digest.timer/service — twice-daily Telegram digest of screen candidates
+#   4. hermes-api.service — FastAPI on :8000 serving /candidates web page
 #
 # Usage (on the VPS, as root):
 #   wget -qO /tmp/setup-news.sh https://raw.githubusercontent.com/ramana-gottipati/hermes/main/scripts/setup-news.sh
@@ -14,40 +14,32 @@
 set -euo pipefail
 
 TARGET="/opt/hermes"
-TIMER="hermes-news.timer"
-SERVICE="hermes-news.service"
+NEWS_TIMER="hermes-news.timer"
+NEWS_SERVICE="hermes-news.service"
+DIGEST_TIMER="hermes-digest.timer"
+DIGEST_SERVICE="hermes-digest.service"
+API_SERVICE="hermes-api.service"
 
 echo ""
 echo "============================================================"
-echo " Hermes News — Live Poller Install"
+echo " Hermes — News + Screen + Candidates Web Page Install"
 echo "============================================================"
 echo ""
 
-# --- 1. Stop any previous timer + service so we can rewrite cleanly --------
-if systemctl list-unit-files | grep -q "^${TIMER}"; then
-    systemctl disable --now "${TIMER}" 2>/dev/null || true
-    rm -f "/etc/systemd/system/${TIMER}"
-fi
-if systemctl list-unit-files | grep -q "^${SERVICE}"; then
-    systemctl stop "${SERVICE}" 2>/dev/null || true
-    rm -f "/etc/systemd/system/${SERVICE}"
-fi
-systemctl daemon-reload
-
-# --- 2. Pull latest code ----------------------------------------------------
+# --- 1. Pull latest code ----------------------------------------------------
 echo "==> Pulling latest code"
 cd "${TARGET}"
 git pull --quiet
 
-# --- 3. Install Python deps -------------------------------------------------
+# --- 2. Install Python deps -------------------------------------------------
 echo "==> Installing/refreshing Python dependencies"
 # shellcheck disable=SC1091
 source .venv/bin/activate
 pip install -r requirements.txt --quiet
 
-# --- 4. Write systemd service (oneshot — runs the news job once per trigger) ---
-echo "==> Writing ${SERVICE}"
-cat > "/etc/systemd/system/${SERVICE}" <<EOF
+# --- 3. News service + timer (hourly, weekdays) -----------------------------
+echo "==> Writing ${NEWS_SERVICE} + ${NEWS_TIMER}"
+cat > "/etc/systemd/system/${NEWS_SERVICE}" <<EOF
 [Unit]
 Description=Hermes News Feed (one poll cycle)
 
@@ -59,56 +51,110 @@ StandardOutput=append:/var/log/hermes-news.log
 StandardError=append:/var/log/hermes-news.log
 EOF
 
-# --- 5. Write systemd timer (live polling cadence) --------------------------
-echo "==> Writing ${TIMER} — once an hour on weekdays during market+evening hours"
-cat > "/etc/systemd/system/${TIMER}" <<EOF
+cat > "/etc/systemd/system/${NEWS_TIMER}" <<EOF
 [Unit]
 Description=Hermes News Feed hourly poller
-Requires=${SERVICE}
+Requires=${NEWS_SERVICE}
 
 [Timer]
-# UTC times. India is UTC+5:30.
-# Fires at the top of each hour from 01:00 to 16:00 UTC = 06:30 IST to 21:30 IST,
-# Mon-Fri. ~16 polls/day. Most polls produce no message unless new high-signal
-# news has appeared in the last hour.
+# UTC. India is UTC+5:30.
+# 01:00–16:00 UTC = 06:30–21:30 IST. Mon-Fri.
 OnCalendar=Mon..Fri *-*-* 01..16:00:00
 Persistent=false
-Unit=${SERVICE}
+Unit=${NEWS_SERVICE}
 
 [Install]
 WantedBy=timers.target
 EOF
 
-# --- 6. Activate ------------------------------------------------------------
-systemctl daemon-reload
-systemctl enable --quiet "${TIMER}"
-systemctl start "${TIMER}"
+# --- 4. Digest service + timer (8:30 AM and 4:30 PM IST) -------------------
+echo "==> Writing ${DIGEST_SERVICE} + ${DIGEST_TIMER}"
+cat > "/etc/systemd/system/${DIGEST_SERVICE}" <<EOF
+[Unit]
+Description=Hermes patearn Screen Digest (one run)
 
-# --- 7. Restart bot so /news + /news_here commands are loaded ---------------
+[Service]
+Type=oneshot
+WorkingDirectory=${TARGET}
+ExecStart=${TARGET}/.venv/bin/python -m src.automation.digest
+StandardOutput=append:/var/log/hermes-digest.log
+StandardError=append:/var/log/hermes-digest.log
+EOF
+
+cat > "/etc/systemd/system/${DIGEST_TIMER}" <<EOF
+[Unit]
+Description=Hermes Digest Timer
+Requires=${DIGEST_SERVICE}
+
+[Timer]
+# 8:30 AM IST and 4:30 PM IST = 03:00 UTC and 11:00 UTC
+OnCalendar=Mon..Fri *-*-* 03:00:00
+OnCalendar=Mon..Fri *-*-* 11:00:00
+Persistent=true
+Unit=${DIGEST_SERVICE}
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# --- 5. FastAPI service for /candidates web page ---------------------------
+echo "==> Writing ${API_SERVICE} (FastAPI on :8000)"
+cat > "/etc/systemd/system/${API_SERVICE}" <<EOF
+[Unit]
+Description=Hermes FastAPI (candidates web page)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=${TARGET}
+ExecStart=${TARGET}/.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/hermes-api.log
+StandardError=append:/var/log/hermes-api.log
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# --- 6. Activate everything --------------------------------------------------
+systemctl daemon-reload
+systemctl enable --quiet "${NEWS_TIMER}" "${DIGEST_TIMER}" "${API_SERVICE}"
+systemctl restart "${API_SERVICE}"
+systemctl start "${NEWS_TIMER}" "${DIGEST_TIMER}"
+
+# --- 7. Restart bot to pick up command changes ------------------------------
 if systemctl list-unit-files | grep -q "^hermes-telegram.service"; then
-    echo "==> Restarting hermes-telegram so new commands load"
+    echo "==> Restarting hermes-telegram"
     systemctl restart hermes-telegram.service
 fi
 
-# --- 8. Report --------------------------------------------------------------
+sleep 2
+
+# --- 8. Report ---------------------------------------------------------------
+PUBLIC_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 echo ""
 echo "============================================================"
 echo " Done."
 echo "------------------------------------------------------------"
-echo " Mode: LIVE. Poller runs once an hour on weekdays, 06:30–21:30 IST."
-echo " Posts ONLY when there is new high-signal content."
-echo " Most polls will be silent."
+echo " Services running:"
+echo "   - hermes-telegram.service (the bot itself)"
+echo "   - hermes-api.service (FastAPI on :8000)"
+echo "   - hermes-news.timer (hourly news + Stage 1 screen)"
+echo "   - hermes-digest.timer (digest at 08:30 + 16:30 IST)"
+echo ""
+echo " 🌐 Candidates page: http://${PUBLIC_IP}:8000/candidates"
+echo "    (Bookmark this on your phone + laptop)"
 echo ""
 echo " Telegram commands:"
-echo "   /news        — on-demand pull (forces a fresh brief regardless of dedup)"
-echo "   /news_here   — register this chat as a news destination"
-echo "   /news_where  — list registered destinations"
-echo "   /news_stop   — remove this chat as a destination"
+echo "   /patearn_here  — register this chat for the digest"
+echo "   /analyze TICKER — manual deep analysis (Haiku, cheap)"
+echo "   /news          — manual news pull"
+echo "   /watchlist     — list watched stocks (optional priority list)"
 echo ""
-echo " Next scheduled run:"
-systemctl list-timers "${TIMER}" --no-pager | head -3
-echo ""
-echo " Live logs:   tail -f /var/log/hermes-news.log"
-echo " Force one run now:  systemctl start ${SERVICE}"
+echo " Logs:"
+echo "   journalctl -u hermes-api -f"
+echo "   tail -f /var/log/hermes-news.log"
+echo "   tail -f /var/log/hermes-digest.log"
 echo "============================================================"
 echo ""
