@@ -285,19 +285,79 @@ def format_brief(items: list[dict]) -> str:
     return "\n".join(parts).rstrip()
 
 
-def _allowed_chat_ids() -> list[int]:
+def _news_destination_chat_ids() -> list[int]:
+    """Read registered destinations from DB (set via /news_here in Telegram)."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT chat_id FROM news_destinations").fetchall()
+        return [int(r["chat_id"]) for r in rows]
+
+
+def _owner_chat_id() -> int | None:
+    """Owner's DM chat_id — used only for onboarding nudges, not for news."""
     raw = settings.telegram_allowed_user_ids or ""
-    return [int(x.strip()) for x in raw.split(",") if x.strip().isdigit()]
+    for tok in raw.split(","):
+        tok = tok.strip()
+        if tok.isdigit():
+            return int(tok)
+    return None
+
+
+def _send_raw(chat_id: int, html_message: str) -> bool:
+    """Low-level send to a single chat; chunks long messages."""
+    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
+    ok = True
+    for chunk in _chunk(html_message, 3800):
+        try:
+            r = requests.post(
+                url,
+                json={
+                    "chat_id": chat_id,
+                    "text": chunk,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                },
+                timeout=15,
+            )
+            if not r.ok:
+                log.error("telegram send to %s failed: %s %s", chat_id, r.status_code, r.text[:300])
+                ok = False
+        except requests.RequestException as e:
+            log.error("telegram send to %s raised: %s", chat_id, e)
+            ok = False
+        time.sleep(0.3)
+    return ok
 
 
 def send_to_telegram(html_message: str) -> bool:
+    """Send the brief to all registered news destinations.
+
+    If no destinations are registered, send a one-time onboarding nudge to the
+    owner's DM (so they know to run /news_here in their chosen group).
+    """
     if not settings.telegram_bot_token:
         log.error("TELEGRAM_BOT_TOKEN not set — refusing to send")
         return False
-    chat_ids = _allowed_chat_ids()
-    if not chat_ids:
-        log.error("TELEGRAM_ALLOWED_USER_IDS empty — no one to send to")
-        return False
+
+    destinations = _news_destination_chat_ids()
+    if not destinations:
+        owner = _owner_chat_id()
+        if owner:
+            log.warning("no news destinations configured — sending onboarding nudge to owner DM")
+            _send_raw(
+                owner,
+                "⚠️ <b>No news destination set.</b>\n\n"
+                "I have market news ready but nowhere to post it. Open the Telegram group "
+                "you want the briefs in, add me as a member (admin recommended), and "
+                "send <code>/news_here</code> in that group.\n\n"
+                "I'll start posting briefs there on the next run.",
+            )
+        return False  # don't mark items as sent — we want to deliver them once destination is set
+
+    success = True
+    for chat_id in destinations:
+        if not _send_raw(chat_id, html_message):
+            success = False
+    return success
 
     url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
     success = True

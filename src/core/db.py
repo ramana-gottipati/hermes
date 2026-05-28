@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS sent_news (
     sent_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sent_news_url ON sent_news(url);
+
+CREATE TABLE IF NOT EXISTS news_destinations (
+    chat_id    INTEGER PRIMARY KEY,
+    chat_title TEXT,
+    chat_type  TEXT,
+    added_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    added_by   INTEGER
+);
 """
 
 

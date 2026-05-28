@@ -28,6 +28,7 @@ from telegram.ext import (
 )
 
 from src.assistant import chat, conversations
+from src.core.db import get_conn
 from src.core.settings import settings
 
 logging.basicConfig(
@@ -95,9 +96,84 @@ async def on_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f"Conversation reset. New thread id: {new_id}")
 
 
+async def on_news_here(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Register the current chat (DM or group) as a destination for news briefs."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return  # silently ignore unauthorized — no leak that the command exists
+
+    chat = update.effective_chat
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO news_destinations (chat_id, chat_title, chat_type, added_by)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                 chat_title = excluded.chat_title,
+                 chat_type  = excluded.chat_type,
+                 added_at   = datetime('now'),
+                 added_by   = excluded.added_by""",
+            (chat.id, chat.title or chat.full_name or "(unnamed)", chat.type, user_id),
+        )
+
+    log.info("news destination registered: chat_id=%s title=%s type=%s", chat.id, chat.title, chat.type)
+    await update.message.reply_text(
+        f"✓ This chat is now a news destination.\n"
+        f"Type: <b>{chat.type}</b>\n"
+        f"Title: <b>{chat.title or chat.full_name or '(unnamed)'}</b>\n"
+        f"chat_id: <code>{chat.id}</code>\n\n"
+        f"Market briefs will be posted here. Use /news_stop to remove.",
+        parse_mode="HTML",
+    )
+
+
+async def on_news_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Remove the current chat from news destinations."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+
+    chat = update.effective_chat
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM news_destinations WHERE chat_id = ?", (chat.id,))
+        removed = cur.rowcount > 0
+
+    if removed:
+        await update.message.reply_text("✓ News briefs will no longer be posted here.")
+    else:
+        await update.message.reply_text("This chat was not registered as a news destination.")
+
+
+async def on_news_where(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show all currently registered news destinations."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT chat_id, chat_title, chat_type, added_at FROM news_destinations ORDER BY added_at DESC"
+        ).fetchall()
+
+    if not rows:
+        await update.message.reply_text(
+            "No news destinations configured. Run /news_here in the chat where you want briefs to land."
+        )
+        return
+
+    lines = ["<b>News destinations:</b>", ""]
+    for r in rows:
+        lines.append(f"• {r['chat_title']} (<code>{r['chat_id']}</code>, {r['chat_type']})")
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle any plain text message — the main chat path."""
     if not update.message or not update.message.text:
+        return
+
+    # In groups/supergroups, ignore plain text. Only respond to commands there.
+    # This prevents the bot from replying to every message in your news group.
+    if update.effective_chat.type != "private":
         return
 
     user_id = update.effective_user.id
@@ -154,6 +230,9 @@ def main() -> None:
     app.add_handler(CommandHandler("start", on_start))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
+    app.add_handler(CommandHandler("news_here", on_news_here))
+    app.add_handler(CommandHandler("news_stop", on_news_stop))
+    app.add_handler(CommandHandler("news_where", on_news_where))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
 
     allowed = _allowed_user_ids()

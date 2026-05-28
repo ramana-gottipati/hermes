@@ -70,6 +70,12 @@ systemctl daemon-reload
 systemctl enable --quiet "${TIMER}"
 systemctl start "${TIMER}"
 
+# --- 5b. Restart the Telegram bot so it picks up new commands (/news_here etc) ---
+if systemctl list-unit-files | grep -q "^hermes-telegram.service"; then
+    echo "==> Restarting hermes-telegram so it picks up new /news_here commands"
+    systemctl restart hermes-telegram.service
+fi
+
 # --- 6. Test run now so you see news immediately ----------------------------
 echo ""
 echo "==> Running once now so you can verify it works (check Telegram)"
