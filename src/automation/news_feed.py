@@ -328,15 +328,19 @@ def _send_raw(chat_id: int, html_message: str) -> bool:
     return ok
 
 
-def send_to_telegram(html_message: str) -> bool:
-    """Send the brief to all registered news destinations.
+def send_to_telegram(html_message: str, override_chat_id: int | None = None) -> bool:
+    """Send the brief.
 
-    If no destinations are registered, send a one-time onboarding nudge to the
-    owner's DM (so they know to run /news_here in their chosen group).
+    If override_chat_id is given, post ONLY there (used for on-demand /news
+    commands — the brief goes to whichever chat invoked the command).
+    Otherwise post to all registered destinations from /news_here.
     """
     if not settings.telegram_bot_token:
         log.error("TELEGRAM_BOT_TOKEN not set — refusing to send")
         return False
+
+    if override_chat_id is not None:
+        return _send_raw(override_chat_id, html_message)
 
     destinations = _news_destination_chat_ids()
     if not destinations:
@@ -346,12 +350,9 @@ def send_to_telegram(html_message: str) -> bool:
             _send_raw(
                 owner,
                 "⚠️ <b>No news destination set.</b>\n\n"
-                "I have market news ready but nowhere to post it. Open the Telegram group "
-                "you want the briefs in, add me as a member (admin recommended), and "
-                "send <code>/news_here</code> in that group.\n\n"
-                "I'll start posting briefs there on the next run.",
+                "Run <code>/news_here</code> in the chat where you want news to land.",
             )
-        return False  # don't mark items as sent — we want to deliver them once destination is set
+        return False
 
     success = True
     for chat_id in destinations:
@@ -403,49 +404,61 @@ def _chunk(text: str, limit: int) -> list[str]:
 
 # --- Entry point ------------------------------------------------------------
 
-def main() -> None:
-    log.info("news_feed run starting")
+def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bool = False) -> tuple[bool, str]:
+    """Execute one news fetch + classify + send cycle.
 
-    # 1. Fetch
+    Args:
+        override_chat_id: If provided, post only to this chat (used for on-demand
+            /news command). If None, post to all registered destinations.
+        ignore_already_sent: If True, include items even if previously sent.
+            Useful for on-demand /news — user wants the latest brief regardless
+            of whether they've seen those items before.
+
+    Returns:
+        (success, human_readable_status)
+    """
+    log.info("news_feed run starting (override_chat_id=%s, ignore_sent=%s)",
+             override_chat_id, ignore_already_sent)
+
     raw_items: list[dict] = []
     for source, feed_url in FEEDS.items():
         for item in fetch_recent(source, feed_url):
-            if not is_already_sent(item["url"]):
-                raw_items.append(item)
+            if not ignore_already_sent and is_already_sent(item["url"]):
+                continue
+            raw_items.append(item)
     raw_items.sort(key=lambda x: x["published_ts"] or 0, reverse=True)
     raw_items = raw_items[:MAX_ITEMS_FETCHED]
 
-    log.info("fetched %d new items across %d feeds", len(raw_items), len(FEEDS))
+    log.info("fetched %d items across %d feeds", len(raw_items), len(FEEDS))
     if not raw_items:
-        log.info("nothing new — exiting cleanly")
-        return
+        return True, "No fresh headlines in the last 12 hours."
 
-    # 2. Classify in a single Claude call
     annotated = classify_batch(raw_items)
     if not annotated:
-        log.error("classification produced no output — aborting (won't mark anything sent)")
-        return
+        return False, "Classifier failed — try again in a minute."
 
-    # 3. Filter for signal
     signal = [it for it in annotated if is_worth_sending(it)]
     log.info("%d items kept after filter (from %d)", len(signal), len(annotated))
 
     if not signal:
-        log.info("no signal-worthy items this run — marking all as sent to avoid re-classifying next run")
+        # Still mark them so we don't re-classify these same items on the next run
         for item in raw_items:
             mark_sent(item)
-        return
+        return True, "No signal-worthy items right now. (Filtered out routine commentary.)"
 
-    # 4. Format and send
     message = format_brief(signal)
-
-    if send_to_telegram(message):
-        for item in raw_items:  # mark ALL fetched (incl filtered) so we don't re-classify them
+    if send_to_telegram(message, override_chat_id=override_chat_id):
+        for item in raw_items:
             mark_sent(item)
-        log.info("sent brief covering %d signal items; %d total marked as seen",
-                 len(signal), len(raw_items))
+        return True, f"Sent {len(signal)} signal items."
     else:
-        log.error("send failed — nothing marked sent; will retry next run")
+        return False, "Send to Telegram failed — check logs."
+
+
+def main() -> None:
+    """CLI entry: python -m src.automation.news_feed"""
+    ok, status = run_and_send()
+    log.info("done — ok=%s status=%s", ok, status)
 
 
 if __name__ == "__main__":

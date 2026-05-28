@@ -166,6 +166,34 @@ async def on_news_where(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
+async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """On-demand news fetch — posts a fresh brief to the chat where /news was sent."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+
+    chat_id = update.effective_chat.id
+    # Acknowledge so the user knows we received the command
+    await update.message.reply_text("📡 Fetching market news…")
+
+    # Import lazily so the bot can boot even if news_feed has issues
+    from src.automation import news_feed
+
+    # news_feed.run_and_send is synchronous; run in a thread to avoid blocking
+    # the asyncio event loop while we hit RSS endpoints + Claude.
+    loop = asyncio.get_event_loop()
+    ok, status = await loop.run_in_executor(
+        None,
+        lambda: news_feed.run_and_send(override_chat_id=chat_id, ignore_already_sent=True),
+    )
+
+    if not ok:
+        await update.message.reply_text(f"⚠️ {status}")
+    elif "No " in status or "Filtered" in status:
+        # No signal items — let the user know rather than leaving them wondering
+        await update.message.reply_text(f"ℹ️ {status}")
+
+
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle any plain text message — the main chat path."""
     if not update.message or not update.message.text:
@@ -230,6 +258,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", on_start))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
+    app.add_handler(CommandHandler("news", on_news))
     app.add_handler(CommandHandler("news_here", on_news_here))
     app.add_handler(CommandHandler("news_stop", on_news_stop))
     app.add_handler(CommandHandler("news_where", on_news_where))

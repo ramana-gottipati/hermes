@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Install the Hermes news-feed scheduler on the VPS.
+# Install / update the on-demand news feature on the VPS.
 #
-# Pulls latest code, installs new Python dep (feedparser), and registers a
-# systemd timer that runs the news_feed at 8:30 AM and 4:30 PM IST on weekdays.
+# This script:
+#   - Pulls the latest Hermes code
+#   - Installs new Python deps
+#   - REMOVES any previously-installed news timer (scheduled mode is deprecated;
+#     news is now on-demand via the /news Telegram command)
+#   - Restarts the Telegram bot so it picks up new commands
 #
 # Usage (on the VPS, as root):
 #   wget -qO /tmp/setup-news.sh https://raw.githubusercontent.com/ramana-gottipati/hermes/main/scripts/setup-news.sh
@@ -16,85 +20,52 @@ SERVICE="hermes-news.service"
 
 echo ""
 echo "============================================================"
-echo " Hermes News Feed — Install"
+echo " Hermes News — Update (on-demand mode)"
 echo "============================================================"
 echo ""
 
-# --- 1. Pull latest code -----------------------------------------------------
+# --- 1. Disable any previously-installed scheduled timer --------------------
+if systemctl list-unit-files | grep -q "^${TIMER}"; then
+    echo "==> Removing old scheduled timer (news is on-demand now)"
+    systemctl disable --now "${TIMER}" 2>/dev/null || true
+    rm -f "/etc/systemd/system/${TIMER}"
+fi
+if systemctl list-unit-files | grep -q "^${SERVICE}"; then
+    echo "==> Removing old news service unit (no longer triggered on a schedule)"
+    rm -f "/etc/systemd/system/${SERVICE}"
+fi
+systemctl daemon-reload
+
+# --- 2. Pull latest code ----------------------------------------------------
 echo "==> Pulling latest code"
 cd "${TARGET}"
 git pull --quiet
 
-# --- 2. Install Python deps --------------------------------------------------
-echo "==> Installing new Python dependencies"
+# --- 3. Install Python deps -------------------------------------------------
+echo "==> Installing/refreshing Python dependencies"
 # shellcheck disable=SC1091
 source .venv/bin/activate
 pip install -r requirements.txt --quiet
 
-# --- 3. Write systemd service (oneshot — runs once per trigger) -------------
-echo "==> Writing ${SERVICE}"
-cat > "/etc/systemd/system/${SERVICE}" <<EOF
-[Unit]
-Description=Hermes News Feed (one run)
-
-[Service]
-Type=oneshot
-WorkingDirectory=${TARGET}
-ExecStart=${TARGET}/.venv/bin/python -m src.automation.news_feed
-StandardOutput=append:/var/log/hermes-news.log
-StandardError=append:/var/log/hermes-news.log
-EOF
-
-# --- 4. Write systemd timer (when to fire) ----------------------------------
-echo "==> Writing ${TIMER} — schedule: 8:30 AM and 4:30 PM IST on weekdays"
-cat > "/etc/systemd/system/${TIMER}" <<EOF
-[Unit]
-Description=Hermes News Feed Timer
-Requires=${SERVICE}
-
-[Timer]
-# Times below are interpreted in the system timezone.
-# Hostinger VPS defaults to UTC. 8:30 AM IST = 3:00 UTC; 4:30 PM IST = 11:00 UTC.
-OnCalendar=Mon..Fri 03:00:00
-OnCalendar=Mon..Fri 11:00:00
-Persistent=true
-Unit=${SERVICE}
-
-[Install]
-WantedBy=timers.target
-EOF
-
-# --- 5. Activate -------------------------------------------------------------
-echo "==> Activating timer"
-systemctl daemon-reload
-systemctl enable --quiet "${TIMER}"
-systemctl start "${TIMER}"
-
-# --- 5b. Restart the Telegram bot so it picks up new commands (/news_here etc) ---
+# --- 4. Restart bot so new commands take effect -----------------------------
 if systemctl list-unit-files | grep -q "^hermes-telegram.service"; then
-    echo "==> Restarting hermes-telegram so it picks up new /news_here commands"
+    echo "==> Restarting hermes-telegram so new commands (/news, /news_here, etc.) load"
     systemctl restart hermes-telegram.service
 fi
 
-# --- 6. Test run now so you see news immediately ----------------------------
-echo ""
-echo "==> Running once now so you can verify it works (check Telegram)"
-systemctl start "${SERVICE}" || true
-sleep 3
-
-# --- 7. Report ---------------------------------------------------------------
+# --- 5. Report ---------------------------------------------------------------
 echo ""
 echo "============================================================"
 echo " Done."
 echo "------------------------------------------------------------"
-echo " Timer status:"
-systemctl list-timers "${TIMER}" --no-pager | head -4
+echo " News is now ON-DEMAND. No scheduled pushes."
 echo ""
-echo " Logs:        tail -f /var/log/hermes-news.log"
-echo " Run now:     systemctl start ${SERVICE}"
-echo " Disable:     systemctl disable --now ${TIMER}"
+echo " In Telegram (the chat where you want news to land):"
+echo "   /news        — fetch a fresh market brief right now"
+echo "   /news_here   — register this chat as a news destination (optional)"
+echo "   /news_where  — list registered destinations"
+echo "   /news_stop   — remove this chat as a destination"
 echo ""
-echo " You should receive a Telegram message in the next few seconds."
-echo " If nothing arrives, check /var/log/hermes-news.log for errors."
+echo " Bot logs:    journalctl -u hermes-telegram -f"
 echo "============================================================"
 echo ""
