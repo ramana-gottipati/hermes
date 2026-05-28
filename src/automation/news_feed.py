@@ -1,27 +1,33 @@
-"""Indian market news feed → Telegram push.
+"""Indian market news → classified, tagged, impact-aware Telegram brief.
 
-Run as a one-shot script on a schedule (e.g. systemd timer). Each invocation:
-  1. Pulls recent headlines from a set of Indian market RSS feeds
-  2. Filters out anything we've already sent (via sent_news table)
-  3. Posts a single batched Telegram message with the new items
-  4. Records what was sent so we don't repeat
+Each run:
+  1. Pulls recent headlines from 4 Indian market RSS feeds
+  2. Dedupes against sent_news (won't re-send anything previously sent)
+  3. Sends the batch to Claude Haiku as a single classification call:
+     - category (EARNINGS / MACRO / CORPORATE_ACTION / STOCK_SPECIFIC / OTHER)
+     - tag (BEAT/MISS/INLINE, RBI/GLOBAL/RATES, BONUS/SPLIT/DIVIDEND, etc.)
+     - extraordinary flag (true for surprises / structural moves)
+     - tickers + impact summary for macro / sector news
+  4. Filters out low-signal items (OTHER, INLINE earnings, non-extraordinary noise)
+  5. Posts a single structured Telegram message grouped by section, with tags
 
-Cost: ₹0 — no LLM calls. Pure HTTP fetches + SQLite + Telegram bot send.
+Cost per run: ~$0.005 on Haiku (well under a cent). Twice daily = ~$0.30/month.
 
-Usage (standalone):
-    python -m src.automation.news_feed
-
-Designed to be run on systemd timer at 8:30 AM and 4:30 PM IST on weekdays.
+Usage (standalone): python -m src.automation.news_feed
 """
 
+import json
 import logging
+import re
 import time
 from datetime import datetime, timezone
 
 import feedparser
 import requests
+from anthropic import APIError
 
 from src.core.db import get_conn
+from src.core.llm import client
 from src.core.settings import settings
 
 logging.basicConfig(
@@ -39,15 +45,9 @@ FEEDS: dict[str, str] = {
     "Business Standard": "https://www.business-standard.com/rss/markets-106.rss",
 }
 
-# Only ship items published within this window
-MAX_ITEM_AGE_HOURS = 12
-
-# Cap items per run so a single push doesn't spam your phone
-MAX_ITEMS_PER_RUN = 12
-
-# Per-source cap (so one chatty feed doesn't crowd out the others)
-MAX_ITEMS_PER_SOURCE = 4
-
+MAX_ITEM_AGE_HOURS = 12       # don't classify stale headlines
+MAX_ITEMS_FETCHED  = 30       # cap input to keep Claude call cheap
+MAX_ITEMS_PER_SOURCE = 10     # so one chatty source can't crowd out others
 
 # --- RSS handling -----------------------------------------------------------
 
@@ -59,8 +59,11 @@ def _entry_timestamp(entry) -> float | None:
     return None
 
 
+def _strip_html(text: str) -> str:
+    return re.sub(r"<[^>]+>", "", text or "").strip()
+
+
 def fetch_recent(source: str, feed_url: str) -> list[dict]:
-    """Return recent items from a single feed, newest first, age-filtered."""
     try:
         feed = feedparser.parse(feed_url)
     except Exception as e:
@@ -68,7 +71,7 @@ def fetch_recent(source: str, feed_url: str) -> list[dict]:
         return []
 
     if feed.bozo and not feed.entries:
-        log.warning("feed %s returned no entries (bozo=%s)", source, feed.bozo_exception)
+        log.warning("feed %s returned no entries", source)
         return []
 
     cutoff = time.time() - MAX_ITEM_AGE_HOURS * 3600
@@ -76,16 +79,17 @@ def fetch_recent(source: str, feed_url: str) -> list[dict]:
 
     for entry in feed.entries[:25]:
         ts = _entry_timestamp(entry)
-        # Keep items with no timestamp (some feeds omit it) — better to include than drop
         if ts is not None and ts < cutoff:
             continue
-        title = (entry.get("title") or "").strip()
+        title = _strip_html(entry.get("title") or "")
         url = (entry.get("link") or "").strip()
+        summary = _strip_html(entry.get("summary") or "")[:300]
         if not title or not url:
             continue
         items.append({
             "source": source,
             "title": title,
+            "summary": summary,
             "url": url,
             "published_ts": ts,
         })
@@ -110,7 +114,176 @@ def mark_sent(item: dict) -> None:
         )
 
 
-# --- Telegram delivery ------------------------------------------------------
+# --- Classifier (Claude Haiku) ---------------------------------------------
+
+CLASSIFIER_SYSTEM = """You classify Indian stock-market news with the eye of a buy-side analyst. Output STRICT JSON only — no prose before or after, no markdown fence."""
+
+CLASSIFIER_USER_TEMPLATE = """Classify each numbered item below. For each, output one JSON object with EXACTLY these keys:
+
+  "n":          (int) the item number as given
+  "category":   one of: EARNINGS, MACRO, CORPORATE_ACTION, STOCK_SPECIFIC, OTHER
+  "tag":        a SHORT label appropriate to the category, e.g.:
+                  EARNINGS         → BEAT | MISS | INLINE | RESULTS_OUT
+                  MACRO            → RBI | RATES | INFLATION | GLOBAL | CURRENCY | POLICY | OIL | GDP
+                  CORPORATE_ACTION → BONUS | SPLIT | DIVIDEND | BUYBACK | MERGER | DELISTING | RESIGN
+                  STOCK_SPECIFIC   → UPGRADE | DOWNGRADE | TARGET | NEWS | DEAL | LITIGATION
+                  OTHER            → ""
+  "tickers":    JSON array of up to 5 NSE tickers (uppercase, no .NS suffix) directly impacted.
+                For MACRO items, list the most relevant Indian beneficiaries/losers.
+                For OTHER items, return [].
+  "impact":     A <=25-word note for MACRO and significant SECTOR news, explaining what
+                this means for Indian stocks (and global linkages if relevant). Empty "" for
+                routine items.
+  "extraordinary": true/false. true ONLY for genuine surprises: large beats/misses, structural
+                regulatory shifts, unexpected M&A, sharp sector rotations, black-swan-style news.
+                Routine results and commentary = false.
+  "one_line":   <=15-word punchy summary an analyst would write.
+
+Filter philosophy: be RUTHLESS. Most market noise is OTHER. Reserve EARNINGS/MACRO/CORPORATE_ACTION
+for items with real signal. Mark extraordinary sparingly — once per batch on average.
+
+Output a single JSON array. No commentary, no markdown, just the array.
+
+Items:
+{items_block}
+"""
+
+
+def _items_block(items: list[dict]) -> str:
+    lines = []
+    for i, item in enumerate(items, start=1):
+        lines.append(f"{i}. [{item['source']}] {item['title']}")
+        if item.get("summary"):
+            lines.append(f"   {item['summary'][:200]}")
+    return "\n".join(lines)
+
+
+def _safe_parse_json(text: str) -> list[dict]:
+    """Find the first JSON array in the response and parse it."""
+    # Strip code fences if model emitted any despite instructions
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?", "", cleaned).strip()
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3].strip()
+    # Find first [ ... ]
+    start = cleaned.find("[")
+    end = cleaned.rfind("]")
+    if start == -1 or end == -1 or end < start:
+        return []
+    try:
+        return json.loads(cleaned[start : end + 1])
+    except json.JSONDecodeError as e:
+        log.warning("json parse failed: %s | preview=%s", e, cleaned[:200])
+        return []
+
+
+def classify_batch(items: list[dict]) -> list[dict]:
+    """Annotate each item with classification metadata from Claude."""
+    if not items:
+        return []
+
+    user_msg = CLASSIFIER_USER_TEMPLATE.format(items_block=_items_block(items))
+
+    try:
+        response = client().messages.create(
+            model=settings.fast_model,  # Haiku — cheap, fast, plenty smart for this
+            max_tokens=2000,
+            system=CLASSIFIER_SYSTEM,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+    except APIError as e:
+        log.error("classifier LLM call failed: %s", e)
+        return []
+
+    raw = response.content[0].text
+    classifications = _safe_parse_json(raw)
+    log.info(
+        "classifier returned %d objects for %d items (in=%d out=%d tokens)",
+        len(classifications), len(items),
+        response.usage.input_tokens, response.usage.output_tokens,
+    )
+
+    # Merge classification back into items by n
+    by_n = {c.get("n"): c for c in classifications if isinstance(c, dict)}
+    annotated = []
+    for i, item in enumerate(items, start=1):
+        c = by_n.get(i, {})
+        annotated.append({
+            **item,
+            "category":      (c.get("category") or "OTHER").upper(),
+            "tag":           (c.get("tag") or "").upper(),
+            "tickers":       [t for t in (c.get("tickers") or []) if isinstance(t, str)][:5],
+            "impact":        (c.get("impact") or "").strip(),
+            "extraordinary": bool(c.get("extraordinary")),
+            "one_line":      (c.get("one_line") or item["title"]).strip(),
+        })
+    return annotated
+
+
+# --- Filtering --------------------------------------------------------------
+
+def is_worth_sending(item: dict) -> bool:
+    """Decide if a classified item earns a spot in the brief."""
+    cat = item["category"]
+    if cat == "OTHER":
+        return False
+    if cat == "EARNINGS" and item["tag"] == "INLINE" and not item["extraordinary"]:
+        return False
+    if cat == "STOCK_SPECIFIC" and not item["extraordinary"] and not item["impact"]:
+        return False
+    return True
+
+
+# --- Telegram formatting + delivery ----------------------------------------
+
+SECTION_ORDER = [
+    ("EXTRAORDINARY",    "⚡ <b>Extraordinary</b>"),
+    ("EARNINGS",         "🔔 <b>Earnings</b>"),
+    ("MACRO",            "🌍 <b>Macro</b>"),
+    ("CORPORATE_ACTION", "🏢 <b>Corporate Actions</b>"),
+    ("STOCK_SPECIFIC",   "📌 <b>Stock-Specific</b>"),
+]
+
+
+def _esc(text: str) -> str:
+    return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _bucket_for(item: dict) -> str:
+    """Items flagged extraordinary surface in the dedicated section."""
+    if item["extraordinary"]:
+        return "EXTRAORDINARY"
+    return item["category"]
+
+
+def format_brief(items: list[dict]) -> str:
+    now = datetime.now(timezone.utc).astimezone()
+    header = f"📊 <b>Market Brief</b> · {now.strftime('%d %b, %I:%M %p')}"
+
+    buckets: dict[str, list[dict]] = {}
+    for item in items:
+        buckets.setdefault(_bucket_for(item), []).append(item)
+
+    parts = [header, ""]
+    for key, label in SECTION_ORDER:
+        batch = buckets.get(key, [])
+        if not batch:
+            continue
+        parts.append(label)
+        for item in batch:
+            tag = f"[{item['tag']}] " if item["tag"] else ""
+            line = f"{tag}{_esc(item['one_line'])}"
+            parts.append(f"• {line}")
+            if item["tickers"]:
+                parts.append(f"  <i>{', '.join(item['tickers'])}</i>")
+            if item["impact"]:
+                parts.append(f"  ↳ {_esc(item['impact'])}")
+            parts.append(f"  <a href=\"{item['url']}\">{_esc(item['source'])}</a>")
+            parts.append("")
+        parts.append("")
+    return "\n".join(parts).rstrip()
+
 
 def _allowed_chat_ids() -> list[int]:
     raw = settings.telegram_allowed_user_ids or ""
@@ -121,7 +294,6 @@ def send_to_telegram(html_message: str) -> bool:
     if not settings.telegram_bot_token:
         log.error("TELEGRAM_BOT_TOKEN not set — refusing to send")
         return False
-
     chat_ids = _allowed_chat_ids()
     if not chat_ids:
         log.error("TELEGRAM_ALLOWED_USER_IDS empty — no one to send to")
@@ -129,50 +301,44 @@ def send_to_telegram(html_message: str) -> bool:
 
     url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
     success = True
-    for chat_id in chat_ids:
-        try:
-            r = requests.post(
-                url,
-                json={
-                    "chat_id": chat_id,
-                    "text": html_message,
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                },
-                timeout=15,
-            )
-            if not r.ok:
-                log.error("telegram send to %s failed: %s %s", chat_id, r.status_code, r.text[:200])
+    # Telegram's hard cap is ~4096 chars per message — chunk just in case
+    for chunk in _chunk(html_message, 3800):
+        for chat_id in chat_ids:
+            try:
+                r = requests.post(
+                    url,
+                    json={
+                        "chat_id": chat_id,
+                        "text": chunk,
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": True,
+                    },
+                    timeout=15,
+                )
+                if not r.ok:
+                    log.error("telegram send failed: %s %s", r.status_code, r.text[:300])
+                    success = False
+            except requests.RequestException as e:
+                log.error("telegram send raised: %s", e)
                 success = False
-        except requests.RequestException as e:
-            log.error("telegram send to %s raised: %s", chat_id, e)
-            success = False
+            time.sleep(0.3)
     return success
 
 
-def format_digest(items: list[dict]) -> str:
-    """Build a single HTML message containing all new items, grouped by source."""
-    now_ist = datetime.now(timezone.utc).astimezone()
-    header = f"📰 <b>Market News — {now_ist.strftime('%d %b, %I:%M %p')}</b>"
-
-    by_source: dict[str, list[dict]] = {}
-    for item in items:
-        by_source.setdefault(item["source"], []).append(item)
-
-    lines = [header, ""]
-    for source, batch in by_source.items():
-        lines.append(f"<b>{source}</b>")
-        for item in batch:
-            # Title text is escaped; URL goes in href
-            safe_title = (
-                item["title"]
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-            )
-            lines.append(f"• <a href=\"{item['url']}\">{safe_title}</a>")
-        lines.append("")
-    return "\n".join(lines).rstrip()
+def _chunk(text: str, limit: int) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+    out, buf = [], []
+    cur_len = 0
+    for line in text.split("\n"):
+        if cur_len + len(line) + 1 > limit:
+            out.append("\n".join(buf))
+            buf, cur_len = [], 0
+        buf.append(line)
+        cur_len += len(line) + 1
+    if buf:
+        out.append("\n".join(buf))
+    return out
 
 
 # --- Entry point ------------------------------------------------------------
@@ -180,31 +346,46 @@ def format_digest(items: list[dict]) -> str:
 def main() -> None:
     log.info("news_feed run starting")
 
-    new_items: list[dict] = []
+    # 1. Fetch
+    raw_items: list[dict] = []
     for source, feed_url in FEEDS.items():
         for item in fetch_recent(source, feed_url):
-            if is_already_sent(item["url"]):
-                continue
-            new_items.append(item)
+            if not is_already_sent(item["url"]):
+                raw_items.append(item)
+    raw_items.sort(key=lambda x: x["published_ts"] or 0, reverse=True)
+    raw_items = raw_items[:MAX_ITEMS_FETCHED]
 
-    log.info("fetched %d new items across %d feeds", len(new_items), len(FEEDS))
-
-    if not new_items:
-        log.info("nothing new to send — exiting cleanly")
+    log.info("fetched %d new items across %d feeds", len(raw_items), len(FEEDS))
+    if not raw_items:
+        log.info("nothing new — exiting cleanly")
         return
 
-    # Sort newest first across all sources, cap to MAX_ITEMS_PER_RUN
-    new_items.sort(key=lambda x: x["published_ts"] or 0, reverse=True)
-    new_items = new_items[:MAX_ITEMS_PER_RUN]
+    # 2. Classify in a single Claude call
+    annotated = classify_batch(raw_items)
+    if not annotated:
+        log.error("classification produced no output — aborting (won't mark anything sent)")
+        return
 
-    message = format_digest(new_items)
+    # 3. Filter for signal
+    signal = [it for it in annotated if is_worth_sending(it)]
+    log.info("%d items kept after filter (from %d)", len(signal), len(annotated))
+
+    if not signal:
+        log.info("no signal-worthy items this run — marking all as sent to avoid re-classifying next run")
+        for item in raw_items:
+            mark_sent(item)
+        return
+
+    # 4. Format and send
+    message = format_brief(signal)
 
     if send_to_telegram(message):
-        for item in new_items:
+        for item in raw_items:  # mark ALL fetched (incl filtered) so we don't re-classify them
             mark_sent(item)
-        log.info("sent and recorded %d items", len(new_items))
+        log.info("sent brief covering %d signal items; %d total marked as seen",
+                 len(signal), len(raw_items))
     else:
-        log.error("send failed — items NOT marked sent so they retry next run")
+        log.error("send failed — nothing marked sent; will retry next run")
 
 
 if __name__ == "__main__":
