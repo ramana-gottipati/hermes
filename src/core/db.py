@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, id);
+
+CREATE TABLE IF NOT EXISTS sent_news (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    source  TEXT    NOT NULL,
+    url     TEXT    NOT NULL UNIQUE,
+    title   TEXT    NOT NULL,
+    sent_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sent_news_url ON sent_news(url);
 """
 
 
