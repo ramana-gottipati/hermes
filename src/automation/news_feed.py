@@ -462,52 +462,83 @@ def _store_candidate(
 
 
 def _stage1_screen_all_earnings(items: list[dict]) -> None:
-    """Stage 1 — run a cheap Haiku screen on every EARNINGS item, regardless of
-    watchlist. PASS/WATCH candidates get stored in screen_candidates for the
-    twice-daily digest. SKIP items are simply not stored.
+    """Stage 1 — RULE-BASED scoring (no LLM) on every EARNINGS news item.
 
-    No Sonnet calls. No deep analysis. Just numeric pre-screen.
+    For each earnings news headline, extract the ticker, fetch Screener.in
+    fundamentals (cached 7 days), apply patearn 14-pattern Python scoring,
+    and store the result in screen_candidates if tier is T1 (PASS) or T2 (WATCH).
+
+    No Haiku, no Sonnet. The classifier-derived `tickers` field from the news
+    item gives us which symbol to score. If the news has no extractable ticker,
+    item is skipped.
     """
-    from src.assistant import patearn
+    from src.automation import scoring
 
     earnings_items = [it for it in items if it.get("category") == "EARNINGS"]
     if not earnings_items:
         return
 
-    log.info("stage1: screening %d earnings items", len(earnings_items))
+    log.info("stage1 (rule-based): scoring %d earnings items", len(earnings_items))
     for item in earnings_items:
         if _candidate_already_screened(item["url"]):
             continue
-        try:
-            screen = patearn.stage1_screen(item)
-        except Exception as e:
-            log.error("stage1 screen failed for %s: %s", item.get("title"), e)
+
+        tickers = item.get("tickers") or []
+        if not tickers:
+            log.info("stage1: no ticker extracted for %s — skipping", item.get("title", "")[:80])
             continue
 
-        verdict = (screen.get("verdict") or "SKIP").upper()
-        if verdict not in ("PASS", "WATCH"):
-            log.info("stage1 SKIP: %s — %s", item.get("title", "")[:80], screen.get("rationale", ""))
-            continue
+        for ticker in tickers[:2]:  # cap at 2 symbols per news item
+            ticker = ticker.upper().strip()
+            if not ticker:
+                continue
+            try:
+                score = scoring.score_symbol(ticker)
+            except Exception as e:
+                log.error("stage1 scoring failed for %s: %s", ticker, e)
+                continue
 
-        # Prefer the symbol from Stage 1 output; fall back to classifier's first ticker
-        symbol = (screen.get("symbol") or "").upper()
-        if not symbol:
-            tickers = item.get("tickers") or []
-            symbol = tickers[0].upper() if tickers else ""
-        if not symbol:
-            log.warning("stage1 %s but no symbol resolved — skipping store", verdict)
-            continue
+            if "error" in score:
+                log.info("stage1: could not score %s — %s", ticker, score.get("error"))
+                continue
 
-        _store_candidate(
-            symbol=symbol,
-            verdict=verdict,
-            rationale=screen.get("rationale", ""),
-            signals=screen.get("signals") or [],
-            news_url=item["url"],
-            news_title=item.get("title", ""),
-            news_source=item.get("source", ""),
-        )
-        log.info("stage1 %s: %s — %s", verdict, symbol, screen.get("rationale", ""))
+            tier = score.get("tier", "T4")
+            ns_base = score.get("ns_base", 0)
+            verdict = None
+            if tier in ("T1",):
+                verdict = "PASS"
+            elif tier in ("T2",):
+                verdict = "WATCH"
+            elif score.get("hard_disqualified"):
+                log.info("stage1: %s DISQUALIFIED — %s", ticker,
+                         ", ".join(score.get("disqualifier_reasons", [])))
+                continue
+            else:
+                log.info("stage1: %s tier=%s NS=%.1f%% — below threshold", ticker, tier, ns_base)
+                continue
+
+            rationale = (
+                f"Tier {tier} · NS {ns_base:.1f}% · PAC {score.get('pac', 0)}/14 · "
+                f"QG {'PASS' if score.get('qg_pass') else 'FAIL'}"
+            )
+            signals = []
+            if score.get("qg_pass"):
+                signals.append("quality_gate_pass")
+            if score.get("ns_base", 0) > 70:
+                signals.append("high_ns")
+            if ns_base > 80:
+                signals.append("strong_setup")
+
+            _store_candidate(
+                symbol=ticker,
+                verdict=verdict,
+                rationale=rationale,
+                signals=signals,
+                news_url=item["url"],
+                news_title=item.get("title", ""),
+                news_source=item.get("source", ""),
+            )
+            log.info("stage1 %s: %s (%s)", verdict, ticker, rationale)
 
 
 # --- Entry point ------------------------------------------------------------

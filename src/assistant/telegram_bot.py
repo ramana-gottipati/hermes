@@ -194,6 +194,49 @@ async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"ℹ️ {status}")
 
 
+async def on_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Rule-based patearn score — FREE, no LLM. Fetches Screener data + applies
+    the 14-pattern rules in Python. Use this BEFORE /analyze (which costs API)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: <code>/score TICKER</code>\nExample: <code>/score RELIANCE</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    ticker = context.args[0].upper().strip()
+    force_refresh = "fresh" in [a.lower() for a in context.args[1:]]
+
+    await update.message.reply_text(
+        f"🔢 Scoring <b>{ticker}</b> from Screener data (no LLM, ₹0)…",
+        parse_mode="HTML",
+    )
+
+    from src.automation import scoring, screener as _screener
+
+    loop = asyncio.get_event_loop()
+    try:
+        score = await loop.run_in_executor(
+            None,
+            lambda: scoring.score_symbol(ticker, force_refresh=force_refresh),
+        )
+        # Also fetch fundamentals for the formatter
+        fundamentals = await loop.run_in_executor(
+            None,
+            lambda: _screener.fetch_company(ticker, use_cache=True),
+        )
+    except Exception as e:
+        log.exception("score failed for %s", ticker)
+        await update.message.reply_text(f"⚠️ Score failed: {e}")
+        return
+
+    msg = scoring.format_score_for_telegram(score, fundamentals=fundamentals)
+    await update.message.reply_text(msg, parse_mode="HTML", disable_web_page_preview=True)
+
+
 async def on_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Run a full patearn New Stock Analysis on the given ticker.
 
@@ -407,12 +450,13 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 # --- Entry point ------------------------------------------------------------
 
 BOT_COMMANDS = [
-    BotCommand("analyze",       "Run patearn analysis on a stock (e.g. /analyze RELIANCE)"),
-    BotCommand("watch",         "Add stock to watchlist (auto-analyse on earnings)"),
+    BotCommand("score",         "Rule-based patearn score on a stock (FREE — no LLM, /score RELIANCE)"),
+    BotCommand("analyze",       "LLM patearn analysis (Haiku, ~₹2/call) — use /score first"),
+    BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
     BotCommand("watchlist",     "Show watched stocks"),
-    BotCommand("patearn_here",  "Set this chat as auto patearn-analysis destination"),
-    BotCommand("patearn_stop",  "Stop auto patearn analyses to this chat"),
+    BotCommand("patearn_here",  "Set this chat as patearn destination"),
+    BotCommand("patearn_stop",  "Stop posting patearn to this chat"),
     BotCommand("news",          "Fetch a fresh market brief now"),
     BotCommand("news_here",     "Set this chat as the news destination"),
     BotCommand("news_where",    "List registered news destinations"),
@@ -444,6 +488,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", on_start))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
+    app.add_handler(CommandHandler("score", on_score))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))

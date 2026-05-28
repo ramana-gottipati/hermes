@@ -1,47 +1,43 @@
 #!/usr/bin/env bash
-# Install / update the Hermes news + screening + candidates feature.
+# Install / update the Hermes data-driven patearn pipeline.
 #
-# What this installs:
-#   1. hermes-telegram.service  (already from main bootstrap) — Telegram bot
-#   2. hermes-news.timer/service — hourly news poller + Stage 1 screen
-#   3. hermes-digest.timer/service — twice-daily Telegram digest of screen candidates
-#   4. hermes-api.service — FastAPI on :8000 serving /candidates web page
+# Services / timers installed:
+#   - hermes-telegram.service   (already from main bootstrap) — the bot itself
+#   - hermes-api.service        — FastAPI on :8000 serving /candidates page
+#   - hermes-news.timer/service — earnings news poller (twice daily, weekdays)
+#   - hermes-bhavcopy.timer/service — NSE bhav copy fetcher (daily, weekday evenings)
+#   - hermes-digest.timer/service   — twice-daily Telegram digest
 #
-# Usage (on the VPS, as root):
+# Usage on VPS (as root):
 #   wget -qO /tmp/setup-news.sh https://raw.githubusercontent.com/ramana-gottipati/hermes/main/scripts/setup-news.sh
 #   bash /tmp/setup-news.sh
 
 set -euo pipefail
 
 TARGET="/opt/hermes"
-NEWS_TIMER="hermes-news.timer"
-NEWS_SERVICE="hermes-news.service"
-DIGEST_TIMER="hermes-digest.timer"
-DIGEST_SERVICE="hermes-digest.service"
-API_SERVICE="hermes-api.service"
 
 echo ""
 echo "============================================================"
-echo " Hermes — News + Screen + Candidates Web Page Install"
+echo " Hermes — data-driven patearn pipeline install"
 echo "============================================================"
 echo ""
 
-# --- 1. Pull latest code ----------------------------------------------------
+# --- Pull latest code ------------------------------------------------------
 echo "==> Pulling latest code"
 cd "${TARGET}"
 git pull --quiet
 
-# --- 2. Install Python deps -------------------------------------------------
+# --- Install deps ----------------------------------------------------------
 echo "==> Installing/refreshing Python dependencies"
 # shellcheck disable=SC1091
 source .venv/bin/activate
 pip install -r requirements.txt --quiet
 
-# --- 3. News service + timer (hourly, weekdays) -----------------------------
-echo "==> Writing ${NEWS_SERVICE} + ${NEWS_TIMER}"
-cat > "/etc/systemd/system/${NEWS_SERVICE}" <<EOF
+# --- News poller (twice daily — earnings trigger) --------------------------
+echo "==> Writing hermes-news.service + .timer (twice daily, weekdays)"
+cat > /etc/systemd/system/hermes-news.service <<EOF
 [Unit]
-Description=Hermes News Feed (one poll cycle)
+Description=Hermes News Feed (catches earnings announcements)
 
 [Service]
 Type=oneshot
@@ -50,28 +46,55 @@ ExecStart=${TARGET}/.venv/bin/python -m src.automation.news_feed
 StandardOutput=append:/var/log/hermes-news.log
 StandardError=append:/var/log/hermes-news.log
 EOF
-
-cat > "/etc/systemd/system/${NEWS_TIMER}" <<EOF
+cat > /etc/systemd/system/hermes-news.timer <<EOF
 [Unit]
-Description=Hermes News Feed hourly poller
-Requires=${NEWS_SERVICE}
+Description=Hermes News Feed (twice daily)
+Requires=hermes-news.service
 
 [Timer]
-# UTC. India is UTC+5:30.
-# 01:00–16:00 UTC = 06:30–21:30 IST. Mon-Fri.
-OnCalendar=Mon..Fri *-*-* 01..16:00:00
-Persistent=false
-Unit=${NEWS_SERVICE}
+# 9:00 AM IST and 5:00 PM IST = 03:30 UTC and 11:30 UTC
+OnCalendar=Mon..Fri *-*-* 03:30:00
+OnCalendar=Mon..Fri *-*-* 11:30:00
+Persistent=true
+Unit=hermes-news.service
 
 [Install]
 WantedBy=timers.target
 EOF
 
-# --- 4. Digest service + timer (8:30 AM and 4:30 PM IST) -------------------
-echo "==> Writing ${DIGEST_SERVICE} + ${DIGEST_TIMER}"
-cat > "/etc/systemd/system/${DIGEST_SERVICE}" <<EOF
+# --- Bhav copy fetcher (daily, weekday evenings) ---------------------------
+echo "==> Writing hermes-bhavcopy.service + .timer"
+cat > /etc/systemd/system/hermes-bhavcopy.service <<EOF
 [Unit]
-Description=Hermes patearn Screen Digest (one run)
+Description=Hermes NSE Bhav Copy fetcher
+
+[Service]
+Type=oneshot
+WorkingDirectory=${TARGET}
+ExecStart=${TARGET}/.venv/bin/python -m src.automation.bhavcopy
+StandardOutput=append:/var/log/hermes-bhavcopy.log
+StandardError=append:/var/log/hermes-bhavcopy.log
+EOF
+cat > /etc/systemd/system/hermes-bhavcopy.timer <<EOF
+[Unit]
+Description=Hermes Bhav Copy Timer
+Requires=hermes-bhavcopy.service
+
+[Timer]
+# 6:00 PM IST = 12:30 UTC, Mon-Fri (after market close + NSE publishes)
+OnCalendar=Mon..Fri *-*-* 12:30:00
+Persistent=true
+Unit=hermes-bhavcopy.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# --- Digest (twice daily) ---------------------------------------------------
+echo "==> Writing hermes-digest.service + .timer"
+cat > /etc/systemd/system/hermes-digest.service <<EOF
+[Unit]
+Description=Hermes patearn Candidate Digest
 
 [Service]
 Type=oneshot
@@ -80,26 +103,25 @@ ExecStart=${TARGET}/.venv/bin/python -m src.automation.digest
 StandardOutput=append:/var/log/hermes-digest.log
 StandardError=append:/var/log/hermes-digest.log
 EOF
-
-cat > "/etc/systemd/system/${DIGEST_TIMER}" <<EOF
+cat > /etc/systemd/system/hermes-digest.timer <<EOF
 [Unit]
 Description=Hermes Digest Timer
-Requires=${DIGEST_SERVICE}
+Requires=hermes-digest.service
 
 [Timer]
-# 8:30 AM IST and 4:30 PM IST = 03:00 UTC and 11:00 UTC
-OnCalendar=Mon..Fri *-*-* 03:00:00
-OnCalendar=Mon..Fri *-*-* 11:00:00
+# 10:00 AM IST and 6:00 PM IST = 04:30 UTC and 12:30 UTC
+OnCalendar=Mon..Fri *-*-* 04:30:00
+OnCalendar=Mon..Fri *-*-* 12:30:00
 Persistent=true
-Unit=${DIGEST_SERVICE}
+Unit=hermes-digest.service
 
 [Install]
 WantedBy=timers.target
 EOF
 
-# --- 5. FastAPI service for /candidates web page ---------------------------
-echo "==> Writing ${API_SERVICE} (FastAPI on :8000)"
-cat > "/etc/systemd/system/${API_SERVICE}" <<EOF
+# --- FastAPI service (candidates web page) ----------------------------------
+echo "==> Writing hermes-api.service (FastAPI on :8000)"
+cat > /etc/systemd/system/hermes-api.service <<EOF
 [Unit]
 Description=Hermes FastAPI (candidates web page)
 After=network.target
@@ -117,44 +139,44 @@ StandardError=append:/var/log/hermes-api.log
 WantedBy=multi-user.target
 EOF
 
-# --- 6. Activate everything --------------------------------------------------
+# --- Activate ---------------------------------------------------------------
 systemctl daemon-reload
-systemctl enable --quiet "${NEWS_TIMER}" "${DIGEST_TIMER}" "${API_SERVICE}"
-systemctl restart "${API_SERVICE}"
-systemctl start "${NEWS_TIMER}" "${DIGEST_TIMER}"
+systemctl enable --quiet hermes-news.timer hermes-bhavcopy.timer hermes-digest.timer hermes-api.service
+systemctl restart hermes-api.service
+systemctl start hermes-news.timer hermes-bhavcopy.timer hermes-digest.timer
 
-# --- 7. Restart bot to pick up command changes ------------------------------
+# --- Restart bot ------------------------------------------------------------
 if systemctl list-unit-files | grep -q "^hermes-telegram.service"; then
     echo "==> Restarting hermes-telegram"
     systemctl restart hermes-telegram.service
 fi
 
-sleep 2
+# --- Backfill: try one bhav copy now so user sees data tonight -------------
+echo "==> Running one bhav copy fetch now (silently — check log if interested)"
+systemctl start hermes-bhavcopy.service || true
 
-# --- 8. Report ---------------------------------------------------------------
+# --- Report -----------------------------------------------------------------
 PUBLIC_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 echo ""
 echo "============================================================"
 echo " Done."
 echo "------------------------------------------------------------"
-echo " Services running:"
-echo "   - hermes-telegram.service (the bot itself)"
-echo "   - hermes-api.service (FastAPI on :8000)"
-echo "   - hermes-news.timer (hourly news + Stage 1 screen)"
-echo "   - hermes-digest.timer (digest at 08:30 + 16:30 IST)"
+echo " Mode: data-driven (no LLM in screening loop)."
+echo ""
+echo " Schedule:"
+echo "   News poller (catches earnings):   9:00 AM + 5:00 PM IST, Mon-Fri"
+echo "   Bhav copy fetcher:                6:00 PM IST, Mon-Fri"
+echo "   Telegram digest:                  10:00 AM + 6:00 PM IST, Mon-Fri"
 echo ""
 echo " 🌐 Candidates page: http://${PUBLIC_IP}:8000/candidates"
-echo "    (Bookmark this on your phone + laptop)"
 echo ""
-echo " Telegram commands:"
-echo "   /patearn_here  — register this chat for the digest"
-echo "   /analyze TICKER — manual deep analysis (Haiku, cheap)"
-echo "   /news          — manual news pull"
-echo "   /watchlist     — list watched stocks (optional priority list)"
+echo " Telegram commands (all FREE except /analyze):"
+echo "   /score TICKER   — rule-based score (₹0, no LLM)"
+echo "   /analyze TICKER — LLM analysis (Haiku, ~₹2)"
+echo "   /watch TICKER   — add to watchlist"
+echo "   /patearn_here   — register chat for digest"
+echo "   /news           — manual news pull"
 echo ""
-echo " Logs:"
-echo "   journalctl -u hermes-api -f"
-echo "   tail -f /var/log/hermes-news.log"
-echo "   tail -f /var/log/hermes-digest.log"
+echo " Backups: scp root@${PUBLIC_IP}:/opt/hermes/data/hermes.db ./hermes-backup.db"
 echo "============================================================"
 echo ""

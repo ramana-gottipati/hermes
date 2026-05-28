@@ -92,6 +92,75 @@ CREATE TABLE IF NOT EXISTS screen_candidates (
 CREATE INDEX IF NOT EXISTS idx_candidates_screened ON screen_candidates(screened_at DESC);
 CREATE INDEX IF NOT EXISTS idx_candidates_digest   ON screen_candidates(digest_sent_at);
 CREATE INDEX IF NOT EXISTS idx_candidates_status   ON screen_candidates(your_status);
+
+-- Daily bhav copy (NSE end-of-day price/volume CSV)
+CREATE TABLE IF NOT EXISTS daily_prices (
+    symbol      TEXT NOT NULL,
+    trade_date  TEXT NOT NULL,
+    open        REAL,
+    high        REAL,
+    low         REAL,
+    close       REAL,
+    prev_close  REAL,
+    volume      INTEGER,
+    value       REAL,
+    series      TEXT,
+    PRIMARY KEY (symbol, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_prices_date ON daily_prices(trade_date);
+
+-- Screener.in scraped fundamentals (cached, refreshed periodically)
+CREATE TABLE IF NOT EXISTS fundamentals (
+    symbol             TEXT PRIMARY KEY,
+    company_name       TEXT,
+    fetched_at         TEXT NOT NULL DEFAULT (datetime('now')),
+    market_cap_cr      REAL,
+    current_price      REAL,
+    pe                 REAL,
+    pb                 REAL,
+    book_value         REAL,
+    dividend_yield     REAL,
+    roce               REAL,
+    roe                REAL,
+    roce_3y_avg        REAL,
+    roe_3y_avg         REAL,
+    debt_to_equity     REAL,
+    promoter_holding   REAL,
+    promoter_pledge    REAL,
+    fii_holding        REAL,
+    dii_holding        REAL,
+    sales_growth_5y    REAL,
+    profit_growth_5y   REAL,
+    sales_growth_3y    REAL,
+    profit_growth_3y   REAL,
+    sales_growth_ttm   REAL,
+    profit_growth_ttm  REAL,
+    opm_latest         REAL,
+    eps_ttm            REAL,
+    debt_cr            REAL,
+    cash_cr            REAL,
+    interest_coverage  REAL,
+    raw_html_snippet   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_fundamentals_fetched ON fundamentals(fetched_at);
+
+-- Rule-based patearn pattern scores (one row per scoring run per stock)
+CREATE TABLE IF NOT EXISTS pattern_scores (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol          TEXT NOT NULL,
+    scored_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    pws             REAL,
+    ns_base         REAL,
+    ns_pessimistic  REAL,
+    ns_optimistic   REAL,
+    pac             INTEGER,
+    tier            TEXT,
+    qg_pass         INTEGER,
+    hard_disqualified INTEGER,
+    disqualifier_reasons TEXT,
+    detail_json     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pattern_scores_symbol ON pattern_scores(symbol, scored_at DESC);
 """
 
 
