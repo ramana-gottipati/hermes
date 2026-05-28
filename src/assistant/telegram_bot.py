@@ -195,21 +195,25 @@ async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle any plain text message — the main chat path."""
-    if not update.message or not update.message.text:
-        return
+    """Handle any plain text message — the main chat path.
 
-    # In groups/supergroups, ignore plain text. Only respond to commands there.
-    # This prevents the bot from replying to every message in your news group.
-    if update.effective_chat.type != "private":
+    Responds in any chat (DM or group). The auth gate below ensures only the
+    bot owner gets responses; anyone else in a group is silently ignored so
+    the bot doesn't burn LLM credits or leak that it's listening.
+    """
+    if not update.message or not update.message.text:
         return
 
     user_id = update.effective_user.id
 
-    # Auth gate — done BEFORE any LLM call to ensure unauthorized senders cost $0.
+    # Auth gate — done BEFORE any LLM call. Silent for unauthorized senders in
+    # groups (so other group members don't get an "unauthorized" reply spam).
     if not _is_authorized(user_id):
-        log.info("rejected message from unauthorized telegram user_id=%s", user_id)
-        await update.message.reply_text(_unauthorized_message(user_id), parse_mode="HTML")
+        if update.effective_chat.type == "private":
+            await update.message.reply_text(_unauthorized_message(user_id), parse_mode="HTML")
+        else:
+            log.info("ignoring unauthorized user_id=%s in group %s",
+                     user_id, update.effective_chat.id)
         return
 
     conv_id = conversations.get_or_create_for_telegram(user_id)
