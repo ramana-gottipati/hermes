@@ -17,7 +17,7 @@ Authorization model:
 import asyncio
 import logging
 
-from telegram import Update
+from telegram import BotCommand, Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
@@ -253,12 +253,35 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 
 # --- Entry point ------------------------------------------------------------
 
+BOT_COMMANDS = [
+    BotCommand("news",       "Fetch a fresh market brief now"),
+    BotCommand("news_here",  "Set this chat as the news destination"),
+    BotCommand("news_where", "List registered news destinations"),
+    BotCommand("news_stop",  "Stop posting news to this chat"),
+    BotCommand("reset",      "Start a fresh conversation (forget context)"),
+    BotCommand("whoami",     "Show my Telegram user ID"),
+    BotCommand("start",      "Show help"),
+]
+
+
+async def _register_commands(application: Application) -> None:
+    """Tell Telegram which commands this bot supports, so they appear in the
+    slash-menu dropdown on every client (mobile + desktop)."""
+    await application.bot.set_my_commands(BOT_COMMANDS)
+    log.info("registered %d slash-menu commands with Telegram", len(BOT_COMMANDS))
+
+
 def main() -> None:
     if not settings.telegram_bot_token:
         log.error("TELEGRAM_BOT_TOKEN not set in .env — refusing to start.")
         return
 
-    app = Application.builder().token(settings.telegram_bot_token).build()
+    app = (
+        Application.builder()
+        .token(settings.telegram_bot_token)
+        .post_init(_register_commands)
+        .build()
+    )
     app.add_handler(CommandHandler("start", on_start))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
