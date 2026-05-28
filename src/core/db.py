@@ -94,8 +94,9 @@ CREATE INDEX IF NOT EXISTS idx_candidates_digest   ON screen_candidates(digest_s
 CREATE INDEX IF NOT EXISTS idx_candidates_status   ON screen_candidates(your_status);
 
 -- Wide bhav copy storage — every column NSE publishes + raw_json for absolute
--- completeness. Replaces the earlier slim daily_prices table. Both legacy
--- (pre-July-2024) and UDIFF (current) NSE formats map into the same row shape.
+-- completeness. Primary source is sec_bhavdata_full (has DELIV_QTY / DELIV_PER).
+-- For dates where sec_bhavdata_full isn't available, we fall back to UDIFF or
+-- legacy bhavcopy (no delivery data — deliv_qty/deliv_per will be NULL).
 CREATE TABLE IF NOT EXISTS bhavcopy_rows (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol          TEXT NOT NULL,
@@ -109,10 +110,13 @@ CREATE TABLE IF NOT EXISTS bhavcopy_rows (
     close           REAL,
     last_price      REAL,
     prev_close      REAL,
+    avg_price       REAL,
     settlement_price REAL,
     volume          INTEGER,
     value           REAL,
     num_trades      INTEGER,
+    deliv_qty       INTEGER,
+    deliv_per       REAL,
     open_interest   INTEGER,
     change_in_oi    INTEGER,
     isin            TEXT,
@@ -132,8 +136,62 @@ CREATE TABLE IF NOT EXISTS bhavcopy_dates (
     trade_date    TEXT PRIMARY KEY,
     format_version TEXT,
     row_count     INTEGER,
+    has_delivery  INTEGER DEFAULT 0,
     ingested_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Corporate actions: splits, bonuses, dividends, rights, mergers. Sourced
+-- from NSE corporate-actions CSV feeds. Required for safe cross-period
+-- volume comparisons (value-based metrics are naturally action-neutral).
+CREATE TABLE IF NOT EXISTS corporate_actions (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol       TEXT NOT NULL,
+    action_type  TEXT NOT NULL,
+    ex_date      TEXT,
+    record_date  TEXT,
+    ratio_from   REAL,
+    ratio_to     REAL,
+    details      TEXT,
+    source       TEXT,
+    fetched_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(symbol, action_type, ex_date, details)
+);
+CREATE INDEX IF NOT EXISTS idx_corp_sym_ex ON corporate_actions(symbol, ex_date);
+
+-- Pre-computed nightly rolling signals per (symbol, date). Captures both the
+-- regular baseline (flat averages) and the power-delivery signal (top-N within
+-- a window). All values are RUPEES, naturally split/bonus invariant.
+CREATE TABLE IF NOT EXISTS stock_signals (
+    symbol          TEXT NOT NULL,
+    trade_date      TEXT NOT NULL,
+    -- Today's primary values
+    delivery_value_today      REAL,
+    total_value_today         REAL,
+    delivery_value_per_trade  REAL,
+    -- Flat baselines (regular averages, excluding today)
+    avg_dvpt_5d     REAL,
+    avg_dvpt_10d    REAL,
+    avg_dvpt_30d    REAL,
+    avg_dvpt_60d    REAL,
+    avg_dvpt_90d    REAL,
+    avg_dvpt_180d   REAL,
+    avg_dvpt_365d   REAL,
+    -- Power deliveries: average of top-N within a window, excluding today
+    power_dvpt_1m   REAL,
+    power_dvpt_2m   REAL,
+    power_dvpt_3m   REAL,
+    power_dvpt_6m   REAL,
+    -- Today's reading vs the baselines
+    ratio_today_vs_avg_30d    REAL,
+    ratio_today_vs_power_1m   REAL,
+    ratio_today_vs_power_3m   REAL,
+    -- Data sufficiency flag — not all windows may have enough history
+    data_points_used INTEGER,
+    computed_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_signals_date ON stock_signals(trade_date);
+CREATE INDEX IF NOT EXISTS idx_signals_power1m ON stock_signals(trade_date, ratio_today_vs_power_1m DESC);
 
 -- Screener.in scraped fundamentals (cached, refreshed periodically)
 CREATE TABLE IF NOT EXISTS fundamentals (
@@ -213,11 +271,14 @@ def _init() -> None:
         #    it with the wider bhavcopy_rows. Drop the old table if it exists and
         #    is empty (data wasn't shipped in production yet).
         conn.execute("DROP TABLE IF EXISTS daily_prices")
-        # 5. Helper view for clean equity-cash-market queries.
+        # 5. Helper view for clean equity-cash-market queries. Includes delivery.
+        # Drop and recreate to pick up any new columns.
+        conn.execute("DROP VIEW IF EXISTS prices_eq")
         conn.execute("""
-            CREATE VIEW IF NOT EXISTS prices_eq AS
+            CREATE VIEW prices_eq AS
             SELECT symbol, trade_date, open, high, low, close, prev_close,
-                   volume, value, num_trades, isin
+                   avg_price, volume, value, num_trades, deliv_qty, deliv_per,
+                   isin
             FROM bhavcopy_rows
             WHERE series='EQ' AND (segment='CM' OR segment IS NULL)
         """)

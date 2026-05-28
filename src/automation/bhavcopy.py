@@ -1,18 +1,20 @@
-"""NSE equity bhav copy ingestion.
+"""NSE equity bhav copy ingestion — primary source: sec_bhavdata_full.
 
-Handles both NSE formats:
-  - Legacy (pre-July-2024): cm08JAN2024bhav.csv.zip  — columns SYMBOL/SERIES/OPEN...
-  - UDIFF (current):        BhavCopy_NSE_CM_0_0_0_20260528_F_0000.csv.zip — columns TradDt/TckrSymb/...
+Per-day flow:
+  1. Try sec_bhavdata_full_DDMMYYYY.csv      ← has DELIV_QTY + DELIV_PER (primary)
+  2. Fall back to UDIFF BhavCopy_NSE_CM_*.csv.zip   ← no delivery (post-2024-07)
+  3. Fall back to legacy cm*bhav.csv.zip             ← no delivery (pre-2024-07)
 
 Storage:
-  1. Raw ZIP saved to /opt/hermes/data/bhavcopy/YYYY/MMM/<filename>
-  2. Parsed rows inserted into bhavcopy_rows table (all columns + raw_json fallback)
-  3. Successful day recorded in bhavcopy_dates table for idempotent backfill
+  - Raw file saved to /opt/hermes/data/bhavcopy/YYYY/MMM/<filename>
+  - Parsed rows into bhavcopy_rows table; deliv_qty/deliv_per NULL when source
+    is one of the fallbacks
+  - bhavcopy_dates table tracks completion (idempotent)
 
 Usage:
-    python -m src.automation.bhavcopy                 # fetch most recent trading day
-    python -m src.automation.bhavcopy --backfill 730  # fill last 730 calendar days
-    python -m src.automation.bhavcopy --date 2024-01-08  # specific date
+    python -m src.automation.bhavcopy                  # most recent trading day
+    python -m src.automation.bhavcopy --backfill 1830  # 5 years
+    python -m src.automation.bhavcopy --date 2024-01-08
 """
 
 import argparse
@@ -35,28 +37,33 @@ log = logging.getLogger("hermes.bhavcopy")
 
 USER_AGENT = "Mozilla/5.0 (Hermes Personal Agent)"
 ARCHIVE_DIR = DB_PATH.parent / "bhavcopy"
-REQUEST_PAUSE_SECONDS = 1.5  # polite throttling
-
-# UDIFF format switched around mid-2024. If both URL patterns work for a date,
-# we prefer UDIFF since it has more columns (open interest etc., though for CM
-# segment it's still equity).
-UDIFF_SWITCH_DATE = datetime(2024, 7, 8)  # approximate; we try both URLs anyway
+REQUEST_PAUSE_SECONDS = 1.5
 
 
-# --- URL helpers -----------------------------------------------------------
+# --- URL builders -----------------------------------------------------------
 
-def _legacy_url(d: datetime) -> str:
+def _sec_bhav_full_url(d: datetime) -> str:
+    """Primary file — includes delivery."""
     return (
-        f"https://nsearchives.nseindia.com/content/historical/EQUITIES/"
-        f"{d.strftime('%Y')}/{d.strftime('%b').upper()}/"
-        f"cm{d.strftime('%d')}{d.strftime('%b').upper()}{d.strftime('%Y')}bhav.csv.zip"
+        f"https://nsearchives.nseindia.com/products/content/"
+        f"sec_bhavdata_full_{d.strftime('%d%m%Y')}.csv"
     )
 
 
 def _udiff_url(d: datetime) -> str:
+    """UDIFF format (post-July-2024). No delivery."""
     return (
         f"https://nsearchives.nseindia.com/content/cm/"
         f"BhavCopy_NSE_CM_0_0_0_{d.strftime('%Y%m%d')}_F_0000.csv.zip"
+    )
+
+
+def _legacy_url(d: datetime) -> str:
+    """Legacy bhav copy (pre-July-2024). No delivery."""
+    return (
+        f"https://nsearchives.nseindia.com/content/historical/EQUITIES/"
+        f"{d.strftime('%Y')}/{d.strftime('%b').upper()}/"
+        f"cm{d.strftime('%d')}{d.strftime('%b').upper()}{d.strftime('%Y')}bhav.csv.zip"
     )
 
 
@@ -70,45 +77,64 @@ def _archive_path(d: datetime, filename: str) -> Path:
 
 def _try_fetch(url: str, *, timeout: int = 30) -> Optional[bytes]:
     try:
-        r = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+        r = requests.get(
+            url,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "text/csv,application/zip,*/*",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Connection": "keep-alive",
+            },
+            timeout=timeout,
+        )
     except requests.RequestException as e:
         log.debug("fetch error %s: %s", url, e)
         return None
-    if r.status_code == 200 and r.content[:4] in (b"PK\x03\x04", b"PK\x05\x06"):
-        return r.content
+    if r.status_code != 200 or len(r.content) < 100:
+        return None
+    return r.content
+
+
+def fetch_for_date(d: datetime) -> Optional[tuple[bytes, str, str, bool]]:
+    """Return (bytes, filename, format_version, has_delivery) or None.
+
+    Tries sec_bhavdata_full first (has delivery), then format-specific fallbacks.
+    """
+    # 1. sec_bhavdata_full — preferred, has delivery
+    sf_url = _sec_bhav_full_url(d)
+    raw = _try_fetch(sf_url)
+    if raw and raw[:6].decode("ascii", errors="ignore").startswith(("SYMBOL", " SYMBOL", "SYMBOL ")):
+        filename = sf_url.rsplit("/", 1)[-1]
+        return raw, filename, "sec_bhavdata_full", True
+
+    # 2. UDIFF bhav copy zip — no delivery
+    udiff_url = _udiff_url(d)
+    raw = _try_fetch(udiff_url)
+    if raw and raw[:4] in (b"PK\x03\x04", b"PK\x05\x06"):
+        filename = udiff_url.rsplit("/", 1)[-1]
+        return raw, filename, "udiff", False
+
+    # 3. Legacy bhav copy zip — no delivery
+    leg_url = _legacy_url(d)
+    raw = _try_fetch(leg_url)
+    if raw and raw[:4] in (b"PK\x03\x04", b"PK\x05\x06"):
+        filename = leg_url.rsplit("/", 1)[-1]
+        return raw, filename, "legacy", False
+
     return None
 
 
-def fetch_for_date(d: datetime) -> Optional[tuple[bytes, str, str]]:
-    """Return (zip_bytes, filename, format_version) or None if no data published."""
-    # Try UDIFF first if date is in/after the switch window
-    candidates: list[tuple[str, str]] = []
-    if d >= UDIFF_SWITCH_DATE:
-        candidates.append((_udiff_url(d), "udiff"))
-        candidates.append((_legacy_url(d), "legacy"))
-    else:
-        candidates.append((_legacy_url(d), "legacy"))
-        candidates.append((_udiff_url(d), "udiff"))
+# --- Archive raw file -------------------------------------------------------
 
-    for url, fmt in candidates:
-        z = _try_fetch(url)
-        if z:
-            filename = url.rsplit("/", 1)[-1]
-            return z, filename, fmt
-    return None
-
-
-# --- Archive raw zip --------------------------------------------------------
-
-def save_raw_zip(d: datetime, filename: str, zip_bytes: bytes) -> Path:
+def save_raw(d: datetime, filename: str, content: bytes) -> Path:
     target = _archive_path(d, filename)
     if not target.exists():
-        target.write_bytes(zip_bytes)
-        log.info("archived raw zip %s (%d bytes)", target, len(zip_bytes))
+        target.write_bytes(content)
+        log.info("archived %s (%d bytes)", target, len(content))
     return target
 
 
-# --- CSV parsing ------------------------------------------------------------
+# --- Parsers ---------------------------------------------------------------
 
 def _unzip_csv(zip_bytes: bytes) -> Optional[str]:
     try:
@@ -118,11 +144,56 @@ def _unzip_csv(zip_bytes: bytes) -> Optional[str]:
                 return None
             return zf.read(csv_name).decode("utf-8", errors="ignore")
     except zipfile.BadZipFile:
-        log.warning("bad zip file")
         return None
 
 
-def _parse_legacy(csv_text: str) -> list[dict]:
+def _parse_sec_bhavdata_full(csv_text: str) -> list[dict]:
+    """Parse the rich sec_bhavdata_full CSV. Columns include DELIV_QTY/DELIV_PER."""
+    reader = csv.DictReader(io.StringIO(csv_text))
+    rows = []
+    for r in reader:
+        r = {(k or "").strip(): (v.strip() if isinstance(v, str) else v) for k, v in r.items()}
+        symbol = r.get("SYMBOL")
+        series = r.get("SERIES")
+        if not symbol or not series:
+            continue
+        try:
+            trade_date = datetime.strptime(r.get("DATE1", ""), "%d-%b-%Y").strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+        rows.append({
+            "symbol": symbol,
+            "trade_date": trade_date,
+            "series": series,
+            "instrument_type": series,
+            "segment": "CM",
+            "open": _f(r.get("OPEN_PRICE")),
+            "high": _f(r.get("HIGH_PRICE")),
+            "low": _f(r.get("LOW_PRICE")),
+            "close": _f(r.get("CLOSE_PRICE")),
+            "last_price": _f(r.get("LAST_PRICE")),
+            "prev_close": _f(r.get("PREV_CLOSE")),
+            "avg_price": _f(r.get("AVG_PRICE")),
+            "settlement_price": None,
+            "volume": _i(r.get("TTL_TRD_QNTY")),
+            "value": _f_lakhs(r.get("TURNOVER_LACS")),  # convert lakhs → rupees
+            "num_trades": _i(r.get("NO_OF_TRADES")),
+            "deliv_qty": _i(r.get("DELIV_QTY")),
+            "deliv_per": _f(r.get("DELIV_PER")),
+            "open_interest": None,
+            "change_in_oi": None,
+            "isin": None,  # not in sec_bhavdata_full
+            "expiry_date": None,
+            "strike_price": None,
+            "option_type": None,
+            "format_version": "sec_bhavdata_full",
+            "raw_json": json.dumps(r, ensure_ascii=False),
+        })
+    return rows
+
+
+def _parse_legacy_bhav(csv_text: str) -> list[dict]:
+    """Parse legacy cm*bhav.csv (no delivery)."""
     reader = csv.DictReader(io.StringIO(csv_text))
     rows = []
     for r in reader:
@@ -135,12 +206,11 @@ def _parse_legacy(csv_text: str) -> list[dict]:
             trade_date = datetime.strptime(r.get("TIMESTAMP", ""), "%d-%b-%Y").strftime("%Y-%m-%d")
         except ValueError:
             continue
-
         rows.append({
             "symbol": symbol,
             "trade_date": trade_date,
             "series": series,
-            "instrument_type": "EQ" if series == "EQ" else series,
+            "instrument_type": series,
             "segment": "CM",
             "open": _f(r.get("OPEN")),
             "high": _f(r.get("HIGH")),
@@ -148,10 +218,13 @@ def _parse_legacy(csv_text: str) -> list[dict]:
             "close": _f(r.get("CLOSE")),
             "last_price": _f(r.get("LAST")),
             "prev_close": _f(r.get("PREVCLOSE")),
+            "avg_price": None,
             "settlement_price": None,
             "volume": _i(r.get("TOTTRDQTY")),
             "value": _f(r.get("TOTTRDVAL")),
             "num_trades": _i(r.get("TOTALTRADES")),
+            "deliv_qty": None,
+            "deliv_per": None,
             "open_interest": None,
             "change_in_oi": None,
             "isin": r.get("ISIN"),
@@ -165,27 +238,25 @@ def _parse_legacy(csv_text: str) -> list[dict]:
 
 
 def _parse_udiff(csv_text: str) -> list[dict]:
+    """Parse UDIFF BhavCopy_NSE_CM (post-July-2024, no delivery)."""
     reader = csv.DictReader(io.StringIO(csv_text))
     rows = []
     for r in reader:
         r = {(k or "").strip(): (v.strip() if isinstance(v, str) else v) for k, v in r.items()}
         sgmt = r.get("Sgmt")
         if sgmt and sgmt != "CM":
-            # UDIFF can include derivatives; equity-only per user spec
             continue
         symbol = r.get("TckrSymb")
         if not symbol:
             continue
-        # TradDt is YYYY-MM-DD already
         trade_date = (r.get("TradDt") or "").strip()
         if not trade_date:
             continue
-
         rows.append({
             "symbol": symbol,
             "trade_date": trade_date,
             "series": r.get("SctySrs"),
-            "instrument_type": r.get("FinInstrmTp"),
+            "instrument_type": r.get("FinInstrmTp") or r.get("SctySrs"),
             "segment": sgmt or "CM",
             "open": _f(r.get("OpnPric")),
             "high": _f(r.get("HghPric")),
@@ -193,10 +264,13 @@ def _parse_udiff(csv_text: str) -> list[dict]:
             "close": _f(r.get("ClsPric")),
             "last_price": _f(r.get("LastPric")),
             "prev_close": _f(r.get("PrvsClsgPric")),
+            "avg_price": None,
             "settlement_price": _f(r.get("SttlmPric")),
             "volume": _i(r.get("TtlTradgVol")),
             "value": _f(r.get("TtlTrfVal")),
             "num_trades": _i(r.get("TtlNbOfTxsExctd")),
+            "deliv_qty": None,
+            "deliv_per": None,
             "open_interest": _i(r.get("OpnIntrst")),
             "change_in_oi": _i(r.get("ChngInOpnIntrst")),
             "isin": r.get("ISIN"),
@@ -209,7 +283,7 @@ def _parse_udiff(csv_text: str) -> list[dict]:
     return rows
 
 
-def _f(v: Optional[str]) -> Optional[float]:
+def _f(v):
     if v is None or v == "":
         return None
     try:
@@ -218,7 +292,15 @@ def _f(v: Optional[str]) -> Optional[float]:
         return None
 
 
-def _i(v: Optional[str]) -> Optional[int]:
+def _f_lakhs(v):
+    """Convert a value in lakhs to rupees. TURNOVER_LACS comes as e.g. '1234.56'."""
+    f = _f(v)
+    if f is None:
+        return None
+    return f * 100000.0
+
+
+def _i(v):
     if v is None or v == "":
         return None
     try:
@@ -229,57 +311,61 @@ def _i(v: Optional[str]) -> Optional[int]:
 
 # --- Storage ---------------------------------------------------------------
 
+_COLS = [
+    "symbol", "trade_date", "series", "instrument_type", "segment",
+    "open", "high", "low", "close", "last_price", "prev_close", "avg_price",
+    "settlement_price", "volume", "value", "num_trades",
+    "deliv_qty", "deliv_per",
+    "open_interest", "change_in_oi", "isin", "expiry_date",
+    "strike_price", "option_type", "format_version", "raw_json",
+]
+
+
 def store_rows(rows: list[dict]) -> int:
     if not rows:
         return 0
-    cols = [
-        "symbol", "trade_date", "series", "instrument_type", "segment",
-        "open", "high", "low", "close", "last_price", "prev_close",
-        "settlement_price", "volume", "value", "num_trades",
-        "open_interest", "change_in_oi", "isin", "expiry_date",
-        "strike_price", "option_type", "format_version", "raw_json",
-    ]
-    placeholders = ",".join("?" * len(cols))
-    col_list = ",".join(cols)
+    placeholders = ",".join("?" * len(_COLS))
     sql = (
-        f"INSERT INTO bhavcopy_rows ({col_list}) VALUES ({placeholders}) "
+        f"INSERT INTO bhavcopy_rows ({','.join(_COLS)}) VALUES ({placeholders}) "
         f"ON CONFLICT(symbol, trade_date, series, instrument_type) DO NOTHING"
     )
-    inserted = 0
+    n = 0
     with get_conn() as conn:
         for r in rows:
             try:
-                conn.execute(sql, [r.get(c) for c in cols])
-                inserted += 1
+                conn.execute(sql, [r.get(c) for c in _COLS])
+                n += 1
             except Exception as e:
-                log.debug("skipped row %s: %s", r.get("symbol"), e)
-    return inserted
+                log.debug("skip row %s/%s: %s", r.get("symbol"), r.get("trade_date"), e)
+    return n
 
 
-def mark_date_done(trade_date: str, format_version: str, row_count: int) -> None:
+def mark_date_done(trade_date: str, format_version: str, row_count: int, has_delivery: bool) -> None:
     with get_conn() as conn:
         conn.execute(
             """INSERT OR REPLACE INTO bhavcopy_dates
-               (trade_date, format_version, row_count) VALUES (?, ?, ?)""",
-            (trade_date, format_version, row_count),
+               (trade_date, format_version, row_count, has_delivery)
+               VALUES (?, ?, ?, ?)""",
+            (trade_date, format_version, row_count, 1 if has_delivery else 0),
         )
 
 
-def date_already_done(trade_date: str) -> bool:
+def date_already_done(trade_date: str, *, require_delivery: bool = False) -> bool:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT 1 FROM bhavcopy_dates WHERE trade_date = ?", (trade_date,)
+            "SELECT has_delivery FROM bhavcopy_dates WHERE trade_date = ?",
+            (trade_date,),
         ).fetchone()
-        return row is not None
+    if not row:
+        return False
+    if require_delivery and not row["has_delivery"]:
+        return False
+    return True
 
 
-# --- Public flow per date ---------------------------------------------------
+# --- Per-date ingestion -----------------------------------------------------
 
 def ingest_date(d: datetime) -> tuple[bool, str]:
-    """Fetch + archive + parse + store for a single date. Idempotent.
-
-    Returns (ok, status_message).
-    """
     iso_date = d.strftime("%Y-%m-%d")
     if date_already_done(iso_date):
         return True, f"{iso_date} already ingested"
@@ -288,44 +374,47 @@ def ingest_date(d: datetime) -> tuple[bool, str]:
     if not fetched:
         return False, f"{iso_date} no data (holiday/weekend/not-published)"
 
-    zip_bytes, filename, fmt = fetched
-    save_raw_zip(d, filename, zip_bytes)
+    content, filename, fmt, has_delivery = fetched
+    save_raw(d, filename, content)
 
-    csv_text = _unzip_csv(zip_bytes)
-    if not csv_text:
-        return False, f"{iso_date} bad zip"
+    if fmt == "sec_bhavdata_full":
+        csv_text = content.decode("utf-8", errors="ignore")
+        rows = _parse_sec_bhavdata_full(csv_text)
+    elif fmt == "udiff":
+        csv_text = _unzip_csv(content)
+        rows = _parse_udiff(csv_text) if csv_text else []
+    elif fmt == "legacy":
+        csv_text = _unzip_csv(content)
+        rows = _parse_legacy_bhav(csv_text) if csv_text else []
+    else:
+        rows = []
 
-    rows = _parse_udiff(csv_text) if fmt == "udiff" else _parse_legacy(csv_text)
     if not rows:
-        return False, f"{iso_date} no rows parsed"
+        return False, f"{iso_date} no rows parsed ({fmt})"
 
     inserted = store_rows(rows)
-    mark_date_done(iso_date, fmt, len(rows))
-    return True, f"{iso_date} ok: {inserted}/{len(rows)} rows ({fmt})"
+    mark_date_done(iso_date, fmt, len(rows), has_delivery)
+    tag = "✓delivery" if has_delivery else "no-delivery"
+    return True, f"{iso_date} {inserted}/{len(rows)} rows ({fmt}, {tag})"
 
 
 # --- Modes -----------------------------------------------------------------
 
 def run_recent() -> tuple[bool, str]:
-    """Fetch the most recent published trading day (today, or walk back up to 5 days)."""
     today = datetime.now(timezone.utc).astimezone()
-    for offset in range(0, 5):
+    for offset in range(0, 7):
         d = today - timedelta(days=offset)
         if d.weekday() >= 5:
             continue
         ok, msg = ingest_date(d)
         log.info(msg)
-        if ok and "ok" in msg:
+        if ok and "rows" in msg:
             return True, msg
     return False, "no recent bhav copy found"
 
 
 def run_backfill(days: int) -> tuple[int, int]:
-    """Iterate from N days ago up to yesterday, ingesting each weekday.
-
-    Returns (success_count, attempt_count).
-    """
-    log.info("starting backfill: %d days", days)
+    log.info("backfill starting: %d calendar days", days)
     today = datetime.now(timezone.utc).astimezone()
     success = 0
     attempts = 0
@@ -335,21 +424,19 @@ def run_backfill(days: int) -> tuple[int, int]:
             continue
         attempts += 1
         ok, msg = ingest_date(d)
-        log.info(msg)
         if ok:
             success += 1
+        log.info(msg)
         time.sleep(REQUEST_PAUSE_SECONDS)
-    log.info("backfill complete: %d/%d weekdays ingested", success, attempts)
+    log.info("backfill done: %d/%d weekdays ingested", success, attempts)
     return success, attempts
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="NSE equity bhav copy ingestion")
-    parser.add_argument("--backfill", type=int, metavar="DAYS",
-                        help="Backfill last N calendar days")
-    parser.add_argument("--date", type=str, metavar="YYYY-MM-DD",
-                        help="Ingest a specific date")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser()
+    p.add_argument("--backfill", type=int, metavar="DAYS")
+    p.add_argument("--date", type=str, metavar="YYYY-MM-DD")
+    args = p.parse_args()
 
     logging.basicConfig(
         level=logging.INFO,
