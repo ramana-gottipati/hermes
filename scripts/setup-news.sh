@@ -60,18 +60,18 @@ StandardError=append:/var/log/hermes-news.log
 EOF
 
 # --- 5. Write systemd timer (live polling cadence) --------------------------
-echo "==> Writing ${TIMER} — every 10 min on weekdays during market+evening hours"
+echo "==> Writing ${TIMER} — once an hour on weekdays during market+evening hours"
 cat > "/etc/systemd/system/${TIMER}" <<EOF
 [Unit]
-Description=Hermes News Feed live poller
+Description=Hermes News Feed hourly poller
 Requires=${SERVICE}
 
 [Timer]
 # UTC times. India is UTC+5:30.
-# Polls every 10 min during 01:00–16:30 UTC = 06:30 IST to 22:00 IST, Mon-Fri.
-# Most polls return zero output (no new headlines). You'll only see Telegram
-# messages when there is actually new high-signal news.
-OnCalendar=Mon..Fri *-*-* 01..16:00/10
+# Fires at the top of each hour from 01:00 to 16:00 UTC = 06:30 IST to 21:30 IST,
+# Mon-Fri. ~16 polls/day. Most polls produce no message unless new high-signal
+# news has appeared in the last hour.
+OnCalendar=Mon..Fri *-*-* 01..16:00:00
 Persistent=false
 Unit=${SERVICE}
 
@@ -95,7 +95,7 @@ echo ""
 echo "============================================================"
 echo " Done."
 echo "------------------------------------------------------------"
-echo " Mode: LIVE. Poller runs every 10 min on weekdays, 06:30–22:00 IST."
+echo " Mode: LIVE. Poller runs once an hour on weekdays, 06:30–21:30 IST."
 echo " Posts ONLY when there is new high-signal content."
 echo " Most polls will be silent."
 echo ""
