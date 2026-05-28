@@ -194,6 +194,91 @@ async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"ℹ️ {status}")
 
 
+def _run_patearn_analysis(ticker: str, extra: str = "") -> str:
+    """Synchronous Claude call for full patearn analysis on a ticker."""
+    from src.assistant import patearn
+    from src.core.llm import client
+
+    response = client().messages.create(
+        model=settings.default_model,  # Sonnet — patearn analysis needs reasoning
+        max_tokens=4096,
+        system=patearn.analysis_system_prompt(),
+        messages=[
+            {"role": "user", "content": patearn.user_message_for_ticker(ticker, extra=extra)}
+        ],
+    )
+    log.info(
+        "patearn analysis for %s: in=%d out=%d cache_read=%d cache_create=%d",
+        ticker,
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+        getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+        getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
+    )
+    return response.content[0].text
+
+
+async def on_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Run a full patearn New Stock Analysis on the given ticker.
+
+    Usage: /analyze TICKER [optional notes]
+    Example: /analyze RELIANCE
+             /analyze HDFCBANK margin compression concern
+    """
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "Usage: <code>/analyze TICKER [optional notes]</code>\n"
+            "Example: <code>/analyze RELIANCE</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    ticker = args[0].upper().strip()
+    extra = " ".join(args[1:]).strip()
+
+    await update.message.reply_text(
+        f"🔍 Running patearn analysis on <b>{ticker}</b>… typically 30-60 seconds.",
+        parse_mode="HTML",
+    )
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: _run_patearn_analysis(ticker, extra=extra),
+        )
+    except Exception as e:
+        log.exception("patearn analysis failed for %s", ticker)
+        await update.message.reply_text(f"⚠️ Analysis failed: {e}")
+        return
+
+    # patearn output is long, often 2-4K chars; chunk to fit Telegram's 4096 cap.
+    for chunk in _chunk_plain(result, limit=3800):
+        await update.message.reply_text(chunk)
+
+
+def _chunk_plain(text: str, limit: int) -> list[str]:
+    """Split long text on paragraph boundaries to fit Telegram's per-message cap."""
+    if len(text) <= limit:
+        return [text]
+    out, buf, cur = [], [], 0
+    for para in text.split("\n\n"):
+        block = para + "\n\n"
+        if cur + len(block) > limit and buf:
+            out.append("".join(buf).rstrip())
+            buf, cur = [], 0
+        buf.append(block)
+        cur += len(block)
+    if buf:
+        out.append("".join(buf).rstrip())
+    return out
+
+
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle any plain text message — the main chat path.
 
@@ -254,6 +339,7 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 # --- Entry point ------------------------------------------------------------
 
 BOT_COMMANDS = [
+    BotCommand("analyze",    "Run patearn analysis on a stock (e.g. /analyze RELIANCE)"),
     BotCommand("news",       "Fetch a fresh market brief now"),
     BotCommand("news_here",  "Set this chat as the news destination"),
     BotCommand("news_where", "List registered news destinations"),
@@ -285,6 +371,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", on_start))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
+    app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("news", on_news))
     app.add_handler(CommandHandler("news_here", on_news_here))
     app.add_handler(CommandHandler("news_stop", on_news_stop))
