@@ -402,6 +402,98 @@ def _chunk(text: str, limit: int) -> list[str]:
     return out
 
 
+# --- Watchlist auto-trigger -------------------------------------------------
+
+def _watchlist_symbols() -> set[str]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT symbol FROM watchlist").fetchall()
+        return {(r["symbol"] or "").upper() for r in rows}
+
+
+def _patearn_destination_chat_ids() -> list[int]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT chat_id FROM patearn_destinations").fetchall()
+        return [int(r["chat_id"]) for r in rows]
+
+
+def _earnings_already_triggered(symbol: str, news_url: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM earnings_triggers WHERE symbol = ? AND news_url = ?",
+            (symbol, news_url),
+        ).fetchone()
+        return row is not None
+
+
+def _mark_earnings_triggered(symbol: str, news_url: str, news_title: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO earnings_triggers (symbol, news_url, news_title) VALUES (?, ?, ?)",
+            (symbol, news_url, news_title),
+        )
+
+
+def _trigger_patearn_for_watchlist_earnings(items: list[dict]) -> None:
+    """For each EARNINGS item touching a watchlist stock, fire patearn analysis.
+
+    Posts to all registered patearn destinations. Dedupes via earnings_triggers
+    so the same (symbol, news_url) combo never fires twice.
+    """
+    watch = _watchlist_symbols()
+    if not watch:
+        return
+
+    destinations = _patearn_destination_chat_ids()
+    if not destinations:
+        log.info("watchlist hit but no patearn_destinations registered — skipping auto-analysis")
+        return
+
+    # Import inside function to keep top-of-module light
+    from src.assistant import patearn
+
+    for item in items:
+        if item.get("category") != "EARNINGS":
+            continue
+        hits = [t for t in (item.get("tickers") or []) if t.upper() in watch]
+        for ticker in hits:
+            ticker = ticker.upper()
+            if _earnings_already_triggered(ticker, item["url"]):
+                continue
+            log.info("auto-triggering patearn analysis for %s (news: %s)", ticker, item["title"])
+            try:
+                analysis = patearn.run_analysis(
+                    ticker,
+                    extra=(
+                        f"This analysis was auto-triggered by an earnings-related news item:\n"
+                        f"  Source: {item.get('source')}\n"
+                        f"  Title: {item.get('title')}\n"
+                        f"  Tag: {item.get('tag')}\n"
+                        f"  URL: {item.get('url')}\n\n"
+                        f"Reflect the latest results in your scoring where relevant."
+                    ),
+                )
+            except Exception as e:
+                log.error("patearn auto-trigger failed for %s: %s", ticker, e)
+                continue
+
+            preface = (
+                f"📊 <b>Auto patearn analysis — {ticker}</b>\n"
+                f"Triggered by: <i>{item.get('tag', '')}</i> · "
+                f"<a href=\"{item['url']}\">{item.get('source','')}</a>\n"
+                f"<i>{item.get('title','')}</i>\n\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+            )
+            chunks = patearn.chunk_for_telegram(analysis)
+            for chat_id in destinations:
+                # First chunk carries the preface in HTML mode
+                _send_raw(chat_id, preface + chunks[0])
+                # Subsequent chunks plain
+                for c in chunks[1:]:
+                    _send_raw(chat_id, c)
+
+            _mark_earnings_triggered(ticker, item["url"], item.get("title", ""))
+
+
 # --- Entry point ------------------------------------------------------------
 
 def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bool = False) -> tuple[bool, str]:
@@ -436,6 +528,14 @@ def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bo
     annotated = classify_batch(raw_items)
     if not annotated:
         return False, "Classifier failed — try again in a minute."
+
+    # Auto-trigger patearn analysis for watchlist earnings BEFORE filtering.
+    # We want to react to EARNINGS items even if they'd be filtered as INLINE,
+    # because for a watchlist stock you care about results regardless.
+    try:
+        _trigger_patearn_for_watchlist_earnings(annotated)
+    except Exception as e:
+        log.error("patearn auto-trigger pipeline raised: %s", e)
 
     signal = [it for it in annotated if is_worth_sending(it)]
     log.info("%d items kept after filter (from %d)", len(signal), len(annotated))

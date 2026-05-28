@@ -49,6 +49,30 @@ CREATE TABLE IF NOT EXISTS news_destinations (
     added_at   TEXT NOT NULL DEFAULT (datetime('now')),
     added_by   INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS patearn_destinations (
+    chat_id    INTEGER PRIMARY KEY,
+    chat_title TEXT,
+    chat_type  TEXT,
+    added_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    added_by   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS watchlist (
+    symbol     TEXT PRIMARY KEY,
+    note       TEXT,
+    added_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    added_by   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS earnings_triggers (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol       TEXT NOT NULL,
+    news_url     TEXT NOT NULL,
+    news_title   TEXT,
+    triggered_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(symbol, news_url)
+);
 """
 
 

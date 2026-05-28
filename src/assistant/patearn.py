@@ -99,3 +99,47 @@ def user_message_for_ticker(ticker: str, extra: str = "") -> str:
     if extra:
         base += f"\n\nAdditional context from analyst:\n{extra}"
     return base
+
+
+def run_analysis(ticker: str, extra: str = "") -> str:
+    """Synchronous Claude call for full patearn analysis on a ticker.
+
+    Used by both /analyze (user-invoked) and the auto-trigger from news_feed
+    (when an EARNINGS item mentions a watchlist ticker).
+    """
+    # Imported here to keep top-of-module imports light and avoid cycles.
+    from src.core.llm import client
+    from src.core.settings import settings
+
+    response = client().messages.create(
+        model=settings.default_model,  # Sonnet — patearn analysis needs reasoning
+        max_tokens=4096,
+        system=analysis_system_prompt(),
+        messages=[{"role": "user", "content": user_message_for_ticker(ticker, extra=extra)}],
+    )
+    log.info(
+        "patearn analysis %s: in=%d out=%d cache_read=%d cache_create=%d",
+        ticker,
+        response.usage.input_tokens,
+        response.usage.output_tokens,
+        getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+        getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
+    )
+    return response.content[0].text
+
+
+def chunk_for_telegram(text: str, *, limit: int = 3800) -> list[str]:
+    """Split long patearn analysis on paragraph boundaries to fit Telegram's cap."""
+    if len(text) <= limit:
+        return [text]
+    out, buf, cur = [], [], 0
+    for para in text.split("\n\n"):
+        block = para + "\n\n"
+        if cur + len(block) > limit and buf:
+            out.append("".join(buf).rstrip())
+            buf, cur = [], 0
+        buf.append(block)
+        cur += len(block)
+    if buf:
+        out.append("".join(buf).rstrip())
+    return out

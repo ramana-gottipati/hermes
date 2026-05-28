@@ -194,30 +194,6 @@ async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"ℹ️ {status}")
 
 
-def _run_patearn_analysis(ticker: str, extra: str = "") -> str:
-    """Synchronous Claude call for full patearn analysis on a ticker."""
-    from src.assistant import patearn
-    from src.core.llm import client
-
-    response = client().messages.create(
-        model=settings.default_model,  # Sonnet — patearn analysis needs reasoning
-        max_tokens=4096,
-        system=patearn.analysis_system_prompt(),
-        messages=[
-            {"role": "user", "content": patearn.user_message_for_ticker(ticker, extra=extra)}
-        ],
-    )
-    log.info(
-        "patearn analysis for %s: in=%d out=%d cache_read=%d cache_create=%d",
-        ticker,
-        response.usage.input_tokens,
-        response.usage.output_tokens,
-        getattr(response.usage, "cache_read_input_tokens", 0) or 0,
-        getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
-    )
-    return response.content[0].text
-
-
 async def on_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Run a full patearn New Stock Analysis on the given ticker.
 
@@ -246,37 +222,129 @@ async def on_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         parse_mode="HTML",
     )
 
+    from src.assistant import patearn
+
     loop = asyncio.get_event_loop()
     try:
         result = await loop.run_in_executor(
             None,
-            lambda: _run_patearn_analysis(ticker, extra=extra),
+            lambda: patearn.run_analysis(ticker, extra=extra),
         )
     except Exception as e:
         log.exception("patearn analysis failed for %s", ticker)
         await update.message.reply_text(f"⚠️ Analysis failed: {e}")
         return
 
-    # patearn output is long, often 2-4K chars; chunk to fit Telegram's 4096 cap.
-    for chunk in _chunk_plain(result, limit=3800):
+    for chunk in patearn.chunk_for_telegram(result):
         await update.message.reply_text(chunk)
 
 
-def _chunk_plain(text: str, limit: int) -> list[str]:
-    """Split long text on paragraph boundaries to fit Telegram's per-message cap."""
-    if len(text) <= limit:
-        return [text]
-    out, buf, cur = [], [], 0
-    for para in text.split("\n\n"):
-        block = para + "\n\n"
-        if cur + len(block) > limit and buf:
-            out.append("".join(buf).rstrip())
-            buf, cur = [], 0
-        buf.append(block)
-        cur += len(block)
-    if buf:
-        out.append("".join(buf).rstrip())
-    return out
+# --- Watchlist + patearn-destination commands ------------------------------
+
+async def on_watch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Add a stock to the watchlist. Triggers auto-analysis when earnings news lands."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: <code>/watch SYMBOL [optional note]</code>\nExample: <code>/watch RELIANCE</code>",
+            parse_mode="HTML",
+        )
+        return
+    symbol = context.args[0].upper().strip()
+    note = " ".join(context.args[1:]).strip() or None
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO watchlist (symbol, note, added_by) VALUES (?, ?, ?)
+               ON CONFLICT(symbol) DO UPDATE SET note = excluded.note, added_by = excluded.added_by""",
+            (symbol, note, user_id),
+        )
+    await update.message.reply_text(
+        f"✓ Watching <b>{symbol}</b>. Earnings news for this stock will trigger an auto patearn analysis.",
+        parse_mode="HTML",
+    )
+
+
+async def on_unwatch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    if not context.args:
+        await update.message.reply_text("Usage: <code>/unwatch SYMBOL</code>", parse_mode="HTML")
+        return
+    symbol = context.args[0].upper().strip()
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM watchlist WHERE symbol = ?", (symbol,))
+        ok = cur.rowcount > 0
+    await update.message.reply_text(
+        f"✓ Removed <b>{symbol}</b> from watchlist." if ok else f"<b>{symbol}</b> was not on the watchlist.",
+        parse_mode="HTML",
+    )
+
+
+async def on_watchlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT symbol, note, added_at FROM watchlist ORDER BY symbol"
+        ).fetchall()
+    if not rows:
+        await update.message.reply_text(
+            "Watchlist is empty. Add stocks with <code>/watch SYMBOL</code>.",
+            parse_mode="HTML",
+        )
+        return
+    lines = [f"<b>Watchlist ({len(rows)} stocks):</b>", ""]
+    for r in rows:
+        line = f"• <code>{r['symbol']}</code>"
+        if r["note"]:
+            line += f" — {r['note']}"
+        lines.append(line)
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+
+async def on_patearn_here(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Register the current chat as a destination for auto-triggered patearn analyses."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    chat = update.effective_chat
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO patearn_destinations (chat_id, chat_title, chat_type, added_by)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(chat_id) DO UPDATE SET
+                 chat_title = excluded.chat_title,
+                 chat_type  = excluded.chat_type,
+                 added_at   = datetime('now'),
+                 added_by   = excluded.added_by""",
+            (chat.id, chat.title or chat.full_name or "(unnamed)", chat.type, user_id),
+        )
+    log.info("patearn destination registered: chat_id=%s title=%s", chat.id, chat.title)
+    await update.message.reply_text(
+        f"✓ This chat is now a patearn destination.\n"
+        f"Auto-analyses triggered by watchlist earnings will land here.\n\n"
+        f"Title: <b>{chat.title or chat.full_name or '(unnamed)'}</b>\n"
+        f"chat_id: <code>{chat.id}</code>",
+        parse_mode="HTML",
+    )
+
+
+async def on_patearn_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    chat = update.effective_chat
+    with get_conn() as conn:
+        cur = conn.execute("DELETE FROM patearn_destinations WHERE chat_id = ?", (chat.id,))
+        ok = cur.rowcount > 0
+    await update.message.reply_text(
+        "✓ Auto patearn analyses will no longer post here." if ok
+        else "This chat was not registered as a patearn destination."
+    )
 
 
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -339,14 +407,19 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 # --- Entry point ------------------------------------------------------------
 
 BOT_COMMANDS = [
-    BotCommand("analyze",    "Run patearn analysis on a stock (e.g. /analyze RELIANCE)"),
-    BotCommand("news",       "Fetch a fresh market brief now"),
-    BotCommand("news_here",  "Set this chat as the news destination"),
-    BotCommand("news_where", "List registered news destinations"),
-    BotCommand("news_stop",  "Stop posting news to this chat"),
-    BotCommand("reset",      "Start a fresh conversation (forget context)"),
-    BotCommand("whoami",     "Show my Telegram user ID"),
-    BotCommand("start",      "Show help"),
+    BotCommand("analyze",       "Run patearn analysis on a stock (e.g. /analyze RELIANCE)"),
+    BotCommand("watch",         "Add stock to watchlist (auto-analyse on earnings)"),
+    BotCommand("unwatch",       "Remove stock from watchlist"),
+    BotCommand("watchlist",     "Show watched stocks"),
+    BotCommand("patearn_here",  "Set this chat as auto patearn-analysis destination"),
+    BotCommand("patearn_stop",  "Stop auto patearn analyses to this chat"),
+    BotCommand("news",          "Fetch a fresh market brief now"),
+    BotCommand("news_here",     "Set this chat as the news destination"),
+    BotCommand("news_where",    "List registered news destinations"),
+    BotCommand("news_stop",     "Stop posting news to this chat"),
+    BotCommand("reset",         "Start a fresh conversation (forget context)"),
+    BotCommand("whoami",        "Show my Telegram user ID"),
+    BotCommand("start",         "Show help"),
 ]
 
 
@@ -372,6 +445,11 @@ def main() -> None:
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
     app.add_handler(CommandHandler("analyze", on_analyze))
+    app.add_handler(CommandHandler("watch", on_watch))
+    app.add_handler(CommandHandler("unwatch", on_unwatch))
+    app.add_handler(CommandHandler("watchlist", on_watchlist))
+    app.add_handler(CommandHandler("patearn_here", on_patearn_here))
+    app.add_handler(CommandHandler("patearn_stop", on_patearn_stop))
     app.add_handler(CommandHandler("news", on_news))
     app.add_handler(CommandHandler("news_here", on_news_here))
     app.add_handler(CommandHandler("news_stop", on_news_stop))
