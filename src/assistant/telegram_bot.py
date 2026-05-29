@@ -405,48 +405,39 @@ async def on_pt14(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def on_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Run a full patearn New Stock Analysis on the given ticker.
+    """Reminder: deep dives belong in claude.ai (subscription) — not via API.
 
-    Usage: /analyze TICKER [optional notes]
-    Example: /analyze RELIANCE
-             /analyze HDFCBANK margin compression concern
+    Replaces the original LLM-based /analyze. Prints the claude.ai workflow
+    guide instead of burning API credits to duplicate what the subscription
+    already covers.
     """
     user_id = update.effective_user.id
     if not _is_authorized(user_id):
         return
 
     args = context.args or []
-    if not args:
-        await update.message.reply_text(
-            "Usage: <code>/analyze TICKER [optional notes]</code>\n"
-            "Example: <code>/analyze RELIANCE</code>",
-            parse_mode="HTML",
-        )
-        return
+    ticker = args[0].upper().strip() if args else "TICKER"
 
-    ticker = args[0].upper().strip()
-    extra = " ".join(args[1:]).strip()
-
-    await update.message.reply_text(
-        f"🔍 Running patearn analysis on <b>{ticker}</b>… typically 30-60 seconds.",
-        parse_mode="HTML",
+    guide = (
+        "💡 <b>Deep analysis belongs in claude.ai</b> — it's free under your $20/mo subscription. "
+        "<i>This command no longer calls the API.</i>\n\n"
+        f"<b>For {ticker}, here's the right workflow:</b>\n\n"
+        f"<b>1.</b> Run <code>/pt14 {ticker}</code> here in Telegram. Copy the output.\n"
+        f"<b>2.</b> Run <code>/dvpt {ticker}</code> here in Telegram. Copy the output.\n"
+        "<b>3.</b> Open a fresh claude.ai chat. Make sure the <b>patearn skill</b> is loaded.\n"
+        "<b>4.</b> Paste both outputs with a prompt like:\n\n"
+        f"<i>\"Run patearn Mode 1 analysis on {ticker}. Hermes' rule-based numbers: [paste /pt14 output]. "
+        f"Recent delivery-flow signals: [paste /dvpt output]. Read recent concalls, segment data, "
+        "write bear case with 3 specific falsifiable conditions, identify tripwires, give verdict "
+        "with position-size guidance per the tier matrix.\"</i>\n\n"
+        "<b>Why this is better than calling Sonnet via the API:</b>\n"
+        "  • Free (already paid via subscription) — saves ~₹10/call\n"
+        "  • Better Sonnet quality, larger context window\n"
+        "  • You can follow up with questions in the same thread\n"
+        "  • Decision <b>D13</b> in your project state — this was the plan all along."
     )
 
-    from src.assistant import patearn
-
-    loop = asyncio.get_event_loop()
-    try:
-        result = await loop.run_in_executor(
-            None,
-            lambda: patearn.run_analysis(ticker, extra=extra),
-        )
-    except Exception as e:
-        log.exception("patearn analysis failed for %s", ticker)
-        await update.message.reply_text(f"⚠️ Analysis failed: {e}")
-        return
-
-    for chunk in patearn.chunk_for_telegram(result):
-        await update.message.reply_text(chunk)
+    await update.message.reply_text(guide, parse_mode="HTML")
 
 
 # --- Watchlist + patearn-destination commands ------------------------------
@@ -793,7 +784,7 @@ BOT_COMMANDS = [
     BotCommand("pt14",          "patearn 14-pattern rule-based score (FREE — no LLM, /pt14 RELIANCE)"),
     BotCommand("dvpt",          "Delivery-Value-Per-Trade institutional signal (FREE, /dvpt TICKER [days])"),
     BotCommand("scan",          "Top stocks across the market by DVPT signal — yesterday's smart money (FREE)"),
-    BotCommand("analyze",       "LLM patearn analysis (Haiku, ~₹2/call) — use /pt14 first"),
+    BotCommand("analyze",       "Guide for deep dive in claude.ai (FREE — replaces the old API-burning /analyze)"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
     BotCommand("watchlist",     "Show watched stocks"),

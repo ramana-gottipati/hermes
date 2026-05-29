@@ -198,6 +198,7 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 | `/dvpt TICKER [days]` | Delivery Value Per Trade institutional-flow signal: today vs power baselines + history | ₹0 |
 | `/scan [N]` | Top N stocks across the market by DVPT institutional-flow signal for latest trading day | ₹0 |
 | `/provider` | Show which LLM provider is active for classifier tasks | ₹0 |
+| `/analyze TICKER` | **Now just prints the claude.ai workflow guide** — no API call. Use claude.ai for deep dives under subscription. | ₹0 |
 | `/analyze TICKER` | Full Haiku patearn analysis (use sparingly) | ~₹2 |
 | `/watch TICKER [note]` | Add to watchlist | ₹0 |
 | `/unwatch TICKER` | Remove | ₹0 |
@@ -293,6 +294,9 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D22 — /analyze repurposed as a claude.ai workflow guide (no API call)
+Why: Ramana correctly identified `/analyze` as a cost leak (~₹2-10 per call on Haiku/Sonnet) duplicating what claude.ai already does for free under his existing $20/mo subscription. This is the spirit of Decision D13 ("deep dives in claude.ai, not API") which `/analyze` had quietly violated. `/analyze` now prints a structured guide telling Ramana to copy `/pt14` + `/dvpt` output into claude.ai with the patearn skill loaded. Zero LLM call, zero cost. Slash menu description updated to flag the change. The command is preserved (not removed) so muscle-memory typing doesn't produce "command not recognised."
 
 ### D21 — SCAN intent + /scan command for market-wide top-N queries
 Why: Session 14 caught a real gap — natural-language queries like "where did smart money go yesterday" were falling through to the chat handler, which made up generic Bloomberg-terminal answers ("I don't have real-time data") instead of using our 5-year delivery database. Two fixes:
