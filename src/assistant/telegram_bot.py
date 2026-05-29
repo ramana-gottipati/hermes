@@ -586,8 +586,10 @@ async def on_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 def _scan_top_dvpt(n: int) -> list[dict]:
     """Top N EQ stocks by ratio_today_vs_power_1m for the latest trading day.
 
-    Liquidity filter: at least ₹1 Cr total turnover (filters out shell-stock noise
-    that often shows extreme ratios on tiny volumes).
+    Filters applied (Decision D23):
+      - Liquidity: turnover > ₹1 Cr (excludes shell stocks)
+      - ETF exclusion: pattern-match common ETF/MF symbol substrings
+      - Series EQ + segment CM/NULL only
     """
     with get_conn() as conn:
         rows = conn.execute(
@@ -606,6 +608,15 @@ def _scan_top_dvpt(n: int) -> list[dict]:
                  AND (b.segment = 'CM' OR b.segment IS NULL)
                  AND s.ratio_today_vs_power_1m IS NOT NULL
                  AND b.value > 10000000
+                 AND s.symbol NOT LIKE '%ETF%'
+                 AND s.symbol NOT LIKE '%IETF%'
+                 AND s.symbol NOT LIKE '%BEES%'
+                 AND s.symbol NOT LIKE '%GOLD%'
+                 AND s.symbol NOT LIKE '%SILVER%'
+                 AND s.symbol NOT LIKE 'MON%'
+                 AND s.symbol NOT LIKE 'NIFTY%'
+                 AND s.symbol NOT LIKE 'BANK%ADD'
+                 AND b.close > 20
                ORDER BY s.ratio_today_vs_power_1m DESC
                LIMIT ?""",
             (n,),

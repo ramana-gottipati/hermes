@@ -29,6 +29,119 @@ If you (a future Claude session) find yourself thinking "I'll update this at the
 
 ---
 
+## 🧭 DOCTRINE — Read this before proposing architectural changes
+
+These are the binding principles of the project. Every decision below has a WHY. If you (next session) want to overturn one, do it with a full reasoning rebuttal — NEVER silently. Hard rules without reasons are useless; here are the reasons.
+
+### A. Cost-routing doctrine (Why what runs where)
+
+Hermes uses four distinct compute paths. Each has a cost profile and use case. Defend the choice; don't drift.
+
+| Path | Provider | Cost per call | Used for | Why this and not something else |
+|---|---|---|---|---|
+| **Anthropic Sonnet via API** | Anthropic | ~₹5-10 | **NOTHING**. Banned for routine use. | claude.ai under existing $20/mo subscription gives unlimited Sonnet 4.6 access. API duplicates this. Saves ~₹150-1000/month depending on volume. |
+| **Anthropic Haiku via API** | Anthropic | ~₹0.20 | Telegram conversational chat only | Quality of voice / instruction-following in conversation is noticeably better than Gemini Flash. Volume is low (most messages route to data commands, not chat). Cost is bounded. |
+| **Gemini Flash via API** | Google | ~₹0.008 | All classifier tasks (intent routing, news classification) | ~13× cheaper than Haiku at near-equal quality for JSON classification. Auto-fallback to Haiku if Gemini fails. Saves ~₹150/month at current volume, scales with usage. |
+| **No LLM (pure Python/SQL)** | — | ₹0 | All deterministic logic: patearn scoring, DVPT signals, SQL queries | Rule-based logic for reproducibility and zero marginal cost. The framework is mostly mechanical; LLM doesn't add value to math. |
+| **claude.ai (subscription)** | Anthropic | ₹0 marginal | Deep qualitative analysis (Phase 4 patearn, narrative work, bull/bear cases) | Already paid via $20/mo subscription. Sonnet 4.6 quality, larger context window, interactive follow-ups in same thread. The 30-second cost of "paste output into claude.ai" is trivial compared to API spend. |
+
+**If next session proposes Sonnet API integration**: ask "Can this be done via claude.ai workflow instead?" 99% of the time yes. Decision D13 + D22.
+
+**If next session proposes Anthropic Haiku for classifiers**: ask "Is there a quality regression from Gemini Flash that justifies 13× cost?" Need usage data, not speculation. Decision D20.
+
+**If next session proposes "let's switch chat to Gemini too"**: only if chat volume grows above ~100 messages/day AND user explicitly complains about cost. Current chat volume is low enough that cost saved isn't worth quality regression risk.
+
+### B. Build philosophy (honest review, session 14)
+
+Session 14 retrospective: **~30-40% of features built so far were over-engineered for actual usage**. Recurring failure modes I caught:
+
+- Default reflex to build API integrations rather than recommend subscription workflows (`/analyze` was the egregious case — burned API ₹10/call for months duplicating what claude.ai does free under subscription)
+- Adding features before existing ones are battle-tested
+- Multiple-iteration architectures (live news poller → twice-daily → on-demand → live again → hourly → twice-daily) — should have observed usage first, decided once
+- Building an architecture Word doc when PROJECT_STATE.md was sufficient
+
+**Going-forward rules** (next session: please respect):
+
+1. **Before building**, ask: "Is this a real bottleneck or a hypothetical one?" If hypothetical, defer.
+2. **Before choosing API**, ask: "Can this be done in claude.ai under subscription?" 
+3. **Before adding a command**, ask: "Will Ramana use this >once a week?" If no, don't add it.
+4. **After 2 weeks of usage data**, review what's actually being used. Sunset the rest.
+5. **A Claude Code session costs ~₹200-700.** The session itself is the biggest line item. Bundle changes. Avoid long iterative architecture chats. SSH-edit on VPS for text/threshold tweaks.
+
+### C. Data layer philosophy
+
+- All data on VPS in single portable SQLite file (`/opt/hermes/data/hermes.db`)
+- Raw NSE archive preserved un-touched (audit trail; can re-parse if logic changes)
+- Pre-compute nightly into `stock_signals`; query instantly at use-time (reproducibility + speed)
+- **Value-based metrics (rupees, not share quantities)** for corporate-action invariance — DELIV_QTY × CLOSE is the canonical metric, not DELIV_QTY alone
+- New analysis dimensions should be COLUMNS in `stock_signals` (computed nightly), not separate tables
+
+### D. Sector adaptation — patearn for financials (NEW from session 14)
+
+The patearn framework was designed primarily for non-financial companies. For HFCs/NBFCs/banks, several pattern thresholds need adaptation. **Without this adaptation, financials score misleadingly low.**
+
+| Pattern | Standard reading | Financial-sector adaptation |
+|---|---|---|
+| 1. ROCE Trajectory | ROCE > 18% | Use RoE/RoA. HFCs typically 12-15% RoE = good. ROCE is suppressed by leverage by design. |
+| 2. Operating Leverage | EPS CAGR > 2× Rev CAGR | NII (not Revenue) growth + PAT + cost-to-income trajectory |
+| 5. Balance Sheet | D/E < 1.5× | HFC D/E always 6-8× by business design. Use GNPA <1.5%, CAR > 18%, ALM gap discipline instead. |
+| 6. Promoter Conviction | High family-promoter holding | For PE-funded financials (Aavas, HomeFirst), evaluate strategic-stakeholder commitment (e.g., Cholamandalam's stake in Aavas) |
+| 12. Receivables | Debtor days trend | Loan-book asset-quality trend (proxy via Pattern 5) |
+| 13. Working Capital | Cycle improvement | ALM gap discipline (proxy via Pattern 5) |
+
+**Whenever Hermes scores a financial-sector stock, note in the output:** *"Score uses sector-adapted thresholds (see Doctrine D)"*. Decision D24.
+
+### E. Layered DVPT trigger system (NEW from session 14 — NOT YET IMPLEMENTED)
+
+Current `/scan` uses a single ratio (`ratio_today_vs_power_1m`) which is informative but under-cooked. Ramana specified a richer trigger model that we haven't yet shipped. Specification below — **next session must implement.**
+
+#### Trigger ranks (multi-window comparison)
+
+For any stock on any trading day, compare today's DVPT against four power baselines simultaneously:
+
+| Rank | Condition | Interpretation |
+|---|---|---|
+| **SS (Supreme)** | DVPT_today > power_1m AND power_2m AND power_3m AND power_6m | Above EVERY institutional benchmark — exceptional event |
+| **S** | > 1m + 2m + 3m, ≤ 6m | Above recent benchmarks; not above the 6-month peaks |
+| **A** | > 1m + 2m, ≤ 3m + 6m | Recent intensity, but lower than 3m+6m peaks |
+| **B** | > 1m only | Modest recent strength |
+| **—** | ≤ 1m | Normal day, no trigger |
+
+#### Special triggers (orthogonal to rank)
+
+| Trigger | Condition | Interpretation |
+|---|---|---|
+| **🆕 ATH-DVPT** | DVPT_today > MAX(DVPT) across stock's entire history in DB | Stock has NEVER seen this per-trade-delivery level before. Single rarest event. |
+| **🟢 Discount Entry** | Current close < avg close during recent 10 hot DVPT days × 0.97 | Stock fell after smart money was accumulating at higher prices — cheaper entry than the institutional bid |
+| **🟡 At-Cost Entry** | Current close within ±3% of hot-day avg | Trading where the big buyers bought |
+| **🔴 Above-Cost** | Current close > hot-day avg × 1.03 | Institutional buyers already up; late entry |
+
+#### Ranking SCAN output (replaces current order)
+
+Sort: ATH-DVPT flag DESC → trigger_rank (SS > S > A > B) → discount-entry flag DESC → ratio_today_vs_power_1m DESC
+
+The "everything aligned" signal = Rank SS + ATH-DVPT + Discount Entry. Genuinely rare event, possibly once per quarter per stock.
+
+**Schema changes required (4 new columns on `stock_signals`):**
+```sql
+ALTER TABLE stock_signals ADD COLUMN trigger_rank TEXT;
+ALTER TABLE stock_signals ADD COLUMN is_ath_dvpt INTEGER;
+ALTER TABLE stock_signals ADD COLUMN hot_days_avg_price REAL;
+ALTER TABLE stock_signals ADD COLUMN price_vs_hot_avg_pct REAL;
+```
+
+**Backfill plan (next session)**:
+1. Add columns to schema in db.py
+2. Add `_compute_trigger_fields()` helper in signals.py that populates these for one (symbol, date)
+3. Add `--backfill-triggers` mode that walks all `stock_signals` rows and populates the new fields
+4. Run backfill on VPS (~20 minutes for 2.35M rows)
+5. Update `/scan` to use new ranking + filter ETFs
+6. Add new `/triggers` command that shows only Rank S/SS hits across the entire market
+
+Decision D26.
+
+---
+
 ## TL;DR — Where things stand right now
 
 Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does three things today:
@@ -295,6 +408,18 @@ Observed in this project — questions where the user clicks away or interrupts 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
 
+### D26 — Layered DVPT trigger system replacing single-ratio scan ranking
+Why: Single-ratio (`ratio_today_vs_power_1m`) is an under-cooked signal. Ramana's specification (session 14): rank stocks by which power-baselines today's DVPT exceeds simultaneously. SS = above ALL 4 (1m, 2m, 3m, 6m). S = above 3 of 4. A = above 2 of 4. Plus orthogonal flags: ATH-DVPT (all-time high in stock's history), Discount Entry (current price below avg price during recent hot days). Full spec in Doctrine § E above. Schema needs 4 new columns on `stock_signals`. NOT YET IMPLEMENTED — first priority for next session. Decision documented now so the spec doesn't get lost.
+
+### D25 — Cost-routing doctrine consolidation
+Why: Sessions 13-14 surfaced a real conflict between my reflex (build API integrations) and Ramana's instinct (use subscription where possible). Three routing decisions (D13, D20, D22) collectively define a coherent doctrine, documented in detail in § A of the Doctrine section above. Future sessions: defend deviations from this doctrine with explicit reasoning, not silent drift. Especially: do NOT propose Sonnet via API. The claude.ai subscription handles this.
+
+### D24 — Sector-adapted patearn scoring for financials (HFC/NBFC/bank)
+Why: Session 14 AAVAS rationale work revealed that the standard patearn framework, designed for non-financial companies, misleadingly scores HFCs low. Multiple patterns (ROCE, Op Leverage, Balance Sheet) need adaptation for the leveraged-balance-sheet business model. Adaptation table is in Doctrine § D. Whenever Hermes scores a financial-sector stock, output must note that sector-adapted thresholds were applied. Worked example: AAVAS T3 under standard scoring (NS 46.3%, QG Fail), but the QG fail is structural to HFC business model — the "real" sector-adapted tier might be T2.
+
+### D23 — ETF filtering on /scan and /dvpt outputs
+Why: Session 14 /scan output was polluted with ETF/mutual-fund instruments (EBBETF0433, IVZINGOLD, METALIETF, etc.) that have DVPT signals but where the methodology doesn't apply (ETFs trade against NAV, not on institutional positioning). Need to filter symbol patterns: `LIKE '%ETF%' OR LIKE '%IETF%' OR LIKE '%GOLD%' OR LIKE '%SILVER%' OR LIKE 'MON%'` (Mirae Asset MF). Implemented in session 14.
+
 ### D22 — /analyze repurposed as a claude.ai workflow guide (no API call)
 Why: Ramana correctly identified `/analyze` as a cost leak (~₹2-10 per call on Haiku/Sonnet) duplicating what claude.ai already does for free under his existing $20/mo subscription. This is the spirit of Decision D13 ("deep dives in claude.ai, not API") which `/analyze` had quietly violated. `/analyze` now prints a structured guide telling Ramana to copy `/pt14` + `/dvpt` output into claude.ai with the patearn skill loaded. Zero LLM call, zero cost. Slash menu description updated to flag the change. The command is preserved (not removed) so muscle-memory typing doesn't produce "command not recognised."
 
@@ -387,20 +512,100 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 4. ✅ **sqlite3 CLI installed on VPS** (was missing from Ubuntu base image; now auto-installed by setup-news.sh and vps-bootstrap.sh — see commit 96f9649)
 5. ✅ **Bhav copy timer moved from 6:00 PM IST to 7:30 PM IST** (Decision D16, commit c292e47)
 
-### Other open items (queued, no immediate urgency)
+### Other open items (queued, in priority order)
 
-4. **NSE corporate-announcements poller** — currently news-based earnings trigger only. Better trigger would be the authoritative NSE filings feed. Designed but not built.
-5. **Pattern 11 (VCP) and 14 (Volume breakout) scoring** — defaulted to Partial-Estimated because they need price action + ATR. With bhav copy data now available (post-backfill), these can become real signals.
-6. **Pattern 12 (Receivables) and 13 (Working capital)** — need balance sheet time series. Screener has it; parsing not yet implemented.
-7. **Telegram digest enrichment** — currently digest just lists symbols. Could enrich with key metrics (ROCE, NS, ratio_today_vs_power_1m) per row.
-8. **Web page editing** — `/candidates` is read-only. Could add status update (Reviewed / Picked / Passed) inline so Ramana tracks his own action.
-9. **Kite Connect intraday** — ~₹500/mo if/when Ramana wants real-time alerts. Filed for "later".
-10. **Voice messages** — Ramana mentioned wanting to talk to Hermes via voice. Would need Whisper STT + TTS. Not built. ~3 hours work.
-11. **DVPT signals integration into scoring.py** — once stock_signals has historical data (post-backfill), the patearn rule-based scorer should read ratio_today_vs_power_1m as a real Pattern 14 (volume confirmation) signal instead of Partial-estimated. Quick win after backfill.
+**🔴 P1 — Next session must ship (specified in Doctrine § E above):**
+
+A. **Layered DVPT trigger system** (Decision D26). Schema:
+```sql
+ALTER TABLE stock_signals ADD COLUMN trigger_rank TEXT;       -- SS / S / A / B / -
+ALTER TABLE stock_signals ADD COLUMN is_ath_dvpt INTEGER;     -- 0 / 1
+ALTER TABLE stock_signals ADD COLUMN hot_days_avg_price REAL; -- avg close on last 10 r1m>1 days
+ALTER TABLE stock_signals ADD COLUMN price_vs_hot_avg_pct REAL; -- (close - hot_avg)/hot_avg * 100
+```
+Compute in `signals.py`. Backfill via `--backfill-triggers` mode over all 2.35M existing rows (~20 min). Update `/scan` to use new ranking. Add new `/triggers` command for SS/S only. Update natural-language intent classifier so phrases like "any ATH today" / "all-time high delivery" route to /triggers.
+
+B. **Portfolio / strategy tracker** (real gap surfaced in session 14):
+```sql
+CREATE TABLE stocks_in_play (
+    id INTEGER PK,
+    symbol TEXT NOT NULL,
+    strategy TEXT,           -- 'patearn' / 'dvpt_institutional' / 'manual' / 'discount_entry'
+    date_added TEXT,
+    entry_thesis TEXT,
+    entry_price REAL,
+    price_target REAL,
+    stop_loss REAL,
+    current_status TEXT,     -- 'active' / 'hold' / 'exit'
+    exit_date TEXT,
+    exit_reason TEXT,
+    notes TEXT
+);
+```
+Commands: `/track TICKER [strategy] [thesis]`, `/portfolio`, `/exit TICKER reason`, `/performance` (hit-rate by strategy). Daily monitor: 8 AM IST digest with each holding's day-change + delivery + r1m.
+
+**🟡 P2 — Worth doing but not urgent:**
+
+C. **ETF filter refinement** — current filter is pattern-based. Could maintain a small `is_etf` flag in `bhavcopy_rows` for cleanliness. Low priority — current pattern match catches 95%.
+
+D. **Pattern 11 (VCP) and 14 (Volume breakout) full scoring** — currently use DVPT proxy; could be richer with explicit ATR + 50-day moving average data from bhav copy. Quick win.
+
+E. **Pattern 12 (Receivables) + 13 (Working capital)** in `scoring.py` — need Screener balance sheet time series parsing.
+
+F. **Telegram digest enrichment** — surface ROCE / NS / ratio_today_vs_power_1m per row in digest instead of just symbol.
+
+G. **/candidates web page edit-in-place** — add inline status update (Reviewed / Picked / Passed). Currently read-only.
+
+**🟢 P3 — Long-term / parked:**
+
+H. **NSE corporate-announcements poller** — authoritative earnings trigger (currently news-based). Designed but not built.
+
+I. **Kite Connect intraday** — ~₹500/mo when Ramana wants real-time alerts.
+
+J. **Voice messages** — Whisper STT + ElevenLabs/OpenAI TTS. ~3 hours.
+
+K. **Sector adaptation in scoring.py** — implement Doctrine § D adaptations as code (currently noted only in documentation; scorer applies standard thresholds).
+
+L. **MCP server on VPS** — would let claude.ai query Hermes data directly via the Anthropic connector framework. ~2-3 hours setup. Eliminates copy-paste workflow between Telegram and claude.ai.
 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 14 (continued) — 2026-05-29 — Cost-routing doctrine + applied analytics + AAVAS case study + KT consolidation
+**Major direction shift**: Ramana pushed back hard on multiple architectural choices. Real friction surfaced, real corrections made. This second half of session 14 is itself a substantial KT artifact.
+
+**Themes:**
+- **Cost-routing doctrine consolidated** (§ A above) — Sonnet API banned for routine use; Gemini Flash for classifiers; Anthropic Haiku for chat only; claude.ai for deep dives
+- **Honest retrospective**: ~30-40% of features built so far were over-engineered (§ B above)
+- **HFC sector adaptation for patearn** (§ D above + D24)
+- **Layered DVPT trigger system specified** (§ E above + D26) — NOT yet implemented, must ship next session
+- **Applied analytics for the first time** — instead of building more features, SSH'd into VPS and produced a ranked watchlist from real data
+
+**Shipped:**
+- /analyze repurposed as claude.ai workflow guide (D22, commit 432974b) — no more API burn on a redundant feature
+- Gemini Flash classifier opt-in (D20, commit 6749141) + /provider command + auto-fallback to Haiku
+- SCAN intent + /scan command + chat system-prompt updated to describe available data (D21, commit c7d60b6)
+- Natural-language intent routing (D18, commit 101635e) — type plain English instead of slash commands; classifier vocabulary tuned for DVPT terminology
+- /score → /pt14, /flow → /dvpt rename (D19, commit e8f29fe)
+
+**Applied (no code, real value):**
+- Real watchlist from production data: AAVAS, ZYDUSLIFE, SYNGENE, DRREDDY, HEIDELBERG, HYUNDAI ranked Tier A/B with sector themes (pharma cluster, housing finance tailwind, CV cycle)
+- AAVAS full patearn scoring walked through pattern-by-pattern (NS 46.3% base, 38-68% sensitivity band, T3 strict / T2 sector-adapted, QG fails by 6.5 pts but structurally for HFC sector)
+- Documented case study lives in the Decision log + Doctrine section as the canonical reference for HFC sector-adapted scoring
+
+**Pending (P1 for next session):**
+- Layered DVPT trigger system (specified in detail in Doctrine § E)
+- Portfolio / strategy tracker (`stocks_in_play` table + /track + /portfolio + /exit + /performance)
+
+**Commits in this session segment:**
+- `101635e` natural-language intent routing
+- `1e99bb6` intent vocabulary tune for DVPT
+- `e8f29fe` /score → /pt14, /flow → /dvpt rename
+- `6749141` multi-provider LLM router (Gemini opt-in)
+- `c7d60b6` SCAN intent + /scan command
+- `432974b` /analyze workflow guide (no API call)
+- (this commit) doctrine consolidation + new decisions D23-D26
 
 ### Session 14 — 2026-05-29 — Full pipeline live + end-to-end verified
 - Deployed session 11-13 code to VPS via setup-news.sh
