@@ -71,7 +71,7 @@ async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "  • \"is tata steel a good buy?\" — score\n"
             "  • or just chat with me about anything\n\n"
             "<b>Slash commands</b> (if you prefer):\n"
-            "/score TICKER · /flow TICKER · /analyze TICKER · /watch TICKER\n"
+            "/pt14 TICKER · /dvpt TICKER · /analyze TICKER · /watch TICKER\n"
             "/news · /reset · /whoami",
             parse_mode="HTML",
         )
@@ -200,20 +200,20 @@ async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"ℹ️ {status}")
 
 
-async def on_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def on_dvpt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show Delivery Value Per Trade (DVPT) signal — institutional flow read.
 
-    Usage: /flow TICKER [days]
-    Example: /flow PIXTRANS
-             /flow PIXTRANS 30   (last 30 trading days)
+    Usage: /dvpt TICKER [days]
+    Example: /dvpt PIXTRANS
+             /dvpt PIXTRANS 30   (last 30 trading days)
     """
     user_id = update.effective_user.id
     if not _is_authorized(user_id):
         return
     if not context.args:
         await update.message.reply_text(
-            "Usage: <code>/flow TICKER [days]</code>\n"
-            "Example: <code>/flow PIXTRANS</code> or <code>/flow PIXTRANS 30</code>",
+            "Usage: <code>/dvpt TICKER [days]</code>\n"
+            "Example: <code>/dvpt PIXTRANS</code> or <code>/dvpt PIXTRANS 30</code>",
             parse_mode="HTML",
         )
         return
@@ -334,7 +334,7 @@ def _format_flow_message(ticker: str, rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-async def on_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def on_pt14(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Rule-based patearn score — FREE, no LLM. Fetches Screener data + applies
     the 14-pattern rules in Python. Use this BEFORE /analyze (which costs API)."""
     user_id = update.effective_user.id
@@ -342,7 +342,7 @@ async def on_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if not context.args:
         await update.message.reply_text(
-            "Usage: <code>/score TICKER</code>\nExample: <code>/score RELIANCE</code>",
+            "Usage: <code>/pt14 TICKER</code>\nExample: <code>/pt14 RELIANCE</code>",
             parse_mode="HTML",
         )
         return
@@ -589,7 +589,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
       1. Auth gate.
       2. Natural-language intent classification (Haiku, ~₹0.10 per message).
       3. If intent is SCORE/FLOW/BOTH and a ticker was extracted → run the
-         relevant data lookup (same code paths as /score and /flow).
+         relevant data lookup (same code paths as /pt14 and /dvpt).
       4. Otherwise → conversational reply with memory (existing chat handler).
     """
     if not update.message or not update.message.text:
@@ -610,7 +610,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     text = update.message.text.strip()
 
     # --- Natural-language intent routing ---
-    # Plain English maps to /score, /flow or both without the user typing slashes.
+    # Plain English maps to /pt14, /dvpt or both without the user typing slashes.
     from src.assistant import intent as _intent
     loop = asyncio.get_event_loop()
     cls = await loop.run_in_executor(None, lambda: _intent.classify(text))
@@ -658,9 +658,9 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 # --- Entry point ------------------------------------------------------------
 
 BOT_COMMANDS = [
-    BotCommand("score",         "Rule-based patearn score on a stock (FREE — no LLM, /score RELIANCE)"),
-    BotCommand("flow",          "Delivery-flow / DVPT institutional signal (FREE, /flow TICKER [days])"),
-    BotCommand("analyze",       "LLM patearn analysis (Haiku, ~₹2/call) — use /score first"),
+    BotCommand("pt14",          "patearn 14-pattern rule-based score (FREE — no LLM, /pt14 RELIANCE)"),
+    BotCommand("dvpt",          "Delivery-Value-Per-Trade institutional signal (FREE, /dvpt TICKER [days])"),
+    BotCommand("analyze",       "LLM patearn analysis (Haiku, ~₹2/call) — use /pt14 first"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
     BotCommand("watchlist",     "Show watched stocks"),
@@ -697,8 +697,8 @@ def main() -> None:
     app.add_handler(CommandHandler("start", on_start))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
-    app.add_handler(CommandHandler("score", on_score))
-    app.add_handler(CommandHandler("flow", on_flow))
+    app.add_handler(CommandHandler("pt14", on_pt14))
+    app.add_handler(CommandHandler("dvpt", on_dvpt))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))

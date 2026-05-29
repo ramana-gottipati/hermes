@@ -138,8 +138,9 @@ D:\Hermes\                                          ← local working copy of re
 | Watch backfill progress | `tail -f /var/log/hermes-backfill.log` |
 | Check bot status | `systemctl status hermes-telegram` |
 | Pull all data to laptop | Double-click `D:\Hermes\scripts\download-from-vps.bat` |
-| Score one stock manually | In Telegram: `/score RELIANCE` |
-| Manual deep analysis | In claude.ai with patearn skill loaded — paste the /score result |
+| Score one stock manually | In Telegram: `/pt14 RELIANCE` |
+| Delivery flow signal | In Telegram: `/dvpt PIXTRANS` |
+| Manual deep analysis | In claude.ai with patearn skill loaded — paste the /pt14 result |
 
 ---
 
@@ -193,8 +194,8 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 
 | Command | What it does | Cost per use |
 |---|---|---|
-| `/score TICKER` | Rule-based patearn score from Screener data (no LLM) | ₹0 |
-| `/flow TICKER [days]` | DVPT institutional-flow signal: today vs power baselines + history table | ₹0 |
+| `/pt14 TICKER` | patearn 14-pattern rule-based score from Screener data (no LLM) | ₹0 |
+| `/dvpt TICKER [days]` | Delivery Value Per Trade institutional-flow signal: today vs power baselines + history | ₹0 |
 | `/analyze TICKER` | Full Haiku patearn analysis (use sparingly) | ~₹2 |
 | `/watch TICKER [note]` | Add to watchlist | ₹0 |
 | `/unwatch TICKER` | Remove | ₹0 |
@@ -211,8 +212,8 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 
 Plain text in DM or group → **natural-language intent routing** (Haiku ~₹0.10/msg classifier):
   - "what's pixtrans?" / "look at reliance" → runs BOTH score + flow
-  - "score X" / "is X a good buy" → runs /score
-  - "delivery flow on X" / "institutional buying in X" → runs /flow
+  - "score X" / "is X a good buy" → runs /pt14
+  - "delivery flow on X" / "institutional buying in X" / "DVPT on X" → runs /dvpt
   - anything else → conversational chat with memory (existing path)
 Plain text in group from non-authorized users: silently ignored.
 
@@ -290,6 +291,9 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D19 — Renamed /score → /pt14 and /flow → /dvpt
+Why: Generic names ("score", "flow") hid the underlying methodologies. New names are methodology-tagged: `/pt14` for the patearn 14-pattern framework; `/dvpt` for Delivery Value Per Trade. Easier to remember, more accurate to what's being computed, and frees up the namespace for future "different scoring" or "different flow" commands. Slash menu updated; help text in /start updated; setup-news.sh deploy footer updated. Natural-language routing in `intent.py` unchanged (still SCORE/FLOW/BOTH intent types internally — those are just labels).
 
 ### D18 — Natural-language intent routing for plain text Telegram messages
 Why: Ramana asked (session 14) for slash commands to be optional. Now plain text like "what's pixtrans?" or "score reliance" is classified by a tiny Haiku call and routed to /score, /flow, or BOTH automatically. Cost per message: ~₹0.10 for classification + ₹0 for the underlying lookups (rule-based). Implementation in `src/assistant/intent.py`. CHAT intent falls through to the existing chat-with-memory path unchanged. Slash commands still work for power users who prefer them.
