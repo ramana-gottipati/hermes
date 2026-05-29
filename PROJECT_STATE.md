@@ -209,8 +209,12 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 | `/whoami` | Show Telegram user ID | ₹0 |
 | `/start` | Help | ₹0 |
 
-Plain text in DM → conversational chat with memory (Haiku).
-Plain text in group → conversational chat (auth gate — only Ramana gets responses, others ignored).
+Plain text in DM or group → **natural-language intent routing** (Haiku ~₹0.10/msg classifier):
+  - "what's pixtrans?" / "look at reliance" → runs BOTH score + flow
+  - "score X" / "is X a good buy" → runs /score
+  - "delivery flow on X" / "institutional buying in X" → runs /flow
+  - anything else → conversational chat with memory (existing path)
+Plain text in group from non-authorized users: silently ignored.
 
 ### Database schema (SQLite at `/opt/hermes/data/hermes.db`)
 
@@ -286,6 +290,9 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D18 — Natural-language intent routing for plain text Telegram messages
+Why: Ramana asked (session 14) for slash commands to be optional. Now plain text like "what's pixtrans?" or "score reliance" is classified by a tiny Haiku call and routed to /score, /flow, or BOTH automatically. Cost per message: ~₹0.10 for classification + ₹0 for the underlying lookups (rule-based). Implementation in `src/assistant/intent.py`. CHAT intent falls through to the existing chat-with-memory path unchanged. Slash commands still work for power users who prefer them.
 
 ### D17 — /flow command surfaces DVPT signal alongside /score (patearn)
 Why: Session 14 closeout revealed a gap — the DVPT/power-deliveries signal data was being computed and stored nightly, but had no user-facing Telegram interface. /score only surfaced patearn-rule-based scoring. Now /flow gives a structured read on institutional delivery intensity for any stock: today's DVPT, power baselines (1m / 3m), ratio interpretation (Exceptional / Institutional / Approaching / Normal / Quiet), and a 15-day history table. Both signals are independent and complementary — patearn screens quality, DVPT signals positioning. Cost: ₹0 (pure SQL query, no LLM).

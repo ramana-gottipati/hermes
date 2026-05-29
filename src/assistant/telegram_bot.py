@@ -63,11 +63,17 @@ async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     if _is_authorized(user_id):
         await update.message.reply_text(
-            "Hi — I'm Hermes, your personal AI agent.\n\n"
-            "Just send me a message. I remember our conversation across messages.\n\n"
-            "Commands:\n"
-            "/reset — start a fresh conversation (forget context)\n"
-            "/whoami — show your Telegram user ID"
+            "Hi — I'm Hermes.\n\n"
+            "<b>Just type in plain English</b>:\n"
+            "  • \"what's pixtrans?\" — full read (score + delivery flow)\n"
+            "  • \"score reliance\" — patearn quality reading\n"
+            "  • \"any institutional buying in hdfc?\" — DVPT signal\n"
+            "  • \"is tata steel a good buy?\" — score\n"
+            "  • or just chat with me about anything\n\n"
+            "<b>Slash commands</b> (if you prefer):\n"
+            "/score TICKER · /flow TICKER · /analyze TICKER · /watch TICKER\n"
+            "/news · /reset · /whoami",
+            parse_mode="HTML",
         )
     else:
         await update.message.reply_text(_unauthorized_message(user_id), parse_mode="HTML")
@@ -524,12 +530,67 @@ async def on_patearn_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
 
-async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle any plain text message — the main chat path.
+async def _handle_stock_intent(update: Update, cls: dict) -> None:
+    """Execute SCORE/FLOW/BOTH intent against the existing rule-based pipelines.
 
-    Responds in any chat (DM or group). The auth gate below ensures only the
-    bot owner gets responses; anyone else in a group is silently ignored so
-    the bot doesn't burn LLM credits or leak that it's listening.
+    Posts results to the same chat the message came from. No LLM in the
+    output path itself — patearn scoring is pure Python, DVPT lookup is pure SQL.
+    """
+    ticker = cls["ticker"].upper().strip()
+    intent_type = cls["intent"]
+    label = {
+        "SCORE": "patearn score",
+        "FLOW": "delivery flow",
+        "BOTH": "patearn score + delivery flow",
+    }[intent_type]
+    await update.message.reply_text(
+        f"🔍 Looking up <b>{ticker}</b> ({label})…",
+        parse_mode="HTML",
+    )
+
+    loop = asyncio.get_event_loop()
+
+    if intent_type in ("SCORE", "BOTH"):
+        from src.automation import scoring as _scoring, screener as _screener
+        try:
+            score = await loop.run_in_executor(
+                None, lambda: _scoring.score_symbol(ticker)
+            )
+            fundamentals = await loop.run_in_executor(
+                None, lambda: _screener.fetch_company(ticker, use_cache=True)
+            )
+            msg = _scoring.format_score_for_telegram(score, fundamentals=fundamentals)
+            await update.message.reply_text(
+                msg, parse_mode="HTML", disable_web_page_preview=True
+            )
+        except Exception as e:
+            log.exception("score failed for %s via natural-language path", ticker)
+            await update.message.reply_text(f"⚠️ Score failed: {e}")
+
+    if intent_type in ("FLOW", "BOTH"):
+        rows = await loop.run_in_executor(
+            None, lambda: _fetch_flow_rows(ticker, 15)
+        )
+        if not rows:
+            await update.message.reply_text(
+                f"No DVPT data for <b>{ticker}</b>. May not be in EQ series, "
+                f"or insufficient history.",
+                parse_mode="HTML",
+            )
+        else:
+            msg = _format_flow_message(ticker, rows)
+            await update.message.reply_text(msg, parse_mode="HTML")
+
+
+async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle any plain text message.
+
+    Flow:
+      1. Auth gate.
+      2. Natural-language intent classification (Haiku, ~₹0.10 per message).
+      3. If intent is SCORE/FLOW/BOTH and a ticker was extracted → run the
+         relevant data lookup (same code paths as /score and /flow).
+      4. Otherwise → conversational reply with memory (existing chat handler).
     """
     if not update.message or not update.message.text:
         return
@@ -545,6 +606,19 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             log.info("ignoring unauthorized user_id=%s in group %s",
                      user_id, update.effective_chat.id)
         return
+
+    text = update.message.text.strip()
+
+    # --- Natural-language intent routing ---
+    # Plain English maps to /score, /flow or both without the user typing slashes.
+    from src.assistant import intent as _intent
+    loop = asyncio.get_event_loop()
+    cls = await loop.run_in_executor(None, lambda: _intent.classify(text))
+
+    if cls.get("intent") in ("SCORE", "FLOW", "BOTH") and cls.get("ticker"):
+        await _handle_stock_intent(update, cls)
+        return
+    # Otherwise: fall through to conversational chat below.
 
     conv_id = conversations.get_or_create_for_telegram(user_id)
     log.info("telegram user_id=%s conv_id=%s incoming msg", user_id, conv_id)
