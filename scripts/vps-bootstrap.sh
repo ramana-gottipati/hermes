@@ -33,9 +33,9 @@ if [ -d "${TARGET}" ]; then
 fi
 
 # --- 3. Install OS prerequisites (idempotent) ------------------------------
-echo "==> Installing system packages (python3, pip, venv, git)"
+echo "==> Installing system packages (python3, pip, venv, git, sqlite3)"
 apt-get update -qq
-apt-get install -y -qq python3 python3-pip python3-venv git curl >/dev/null
+apt-get install -y -qq python3 python3-pip python3-venv git curl sqlite3 >/dev/null
 
 # --- 4. Clone fresh from GitHub --------------------------------------------
 echo "==> Cloning Hermes from ${REPO}"

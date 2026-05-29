@@ -28,7 +28,8 @@ cd "${TARGET}"
 git pull --quiet
 
 # --- Install deps ----------------------------------------------------------
-echo "==> Installing/refreshing Python dependencies"
+echo "==> Installing/refreshing Python dependencies + sqlite3 CLI"
+apt-get install -y -qq sqlite3 >/dev/null 2>&1 || true
 # shellcheck disable=SC1091
 source .venv/bin/activate
 pip install -r requirements.txt --quiet
