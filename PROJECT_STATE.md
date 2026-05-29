@@ -292,6 +292,17 @@ Observed in this project — questions where the user clicks away or interrupts 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
 
+### D20 — Multi-provider LLM routing for classifier tasks
+Why: Anthropic Haiku is excellent but expensive vs Gemini Flash for pure classification (intent routing + news category tagging). Gemini 2.0 Flash is ~13× cheaper ($0.075/$0.30 per M tokens vs $1/$5) at similar quality for JSON classification. Anticipating usage growth, the user requested cost-optimal routing. Implementation:
+  - `src/core/llm_router.py` exposes `call_classifier(system, user_msg, max_tokens)` that routes to Gemini Flash if `GEMINI_API_KEY` is set in .env, otherwise Anthropic Haiku.
+  - On Gemini failure, falls back to Anthropic automatically — user never sees a hard failure.
+  - Uses OpenAI Python SDK pointed at Gemini's OpenAI-compatible endpoint (no extra dependency since openai SDK is light).
+  - Chat (Telegram conversational) and /analyze (deep patearn) stay on Anthropic unchanged — quality matters there.
+  - Refactored `src/assistant/intent.py` and `src/automation/news_feed.py` to use the router.
+  - New `/provider` Telegram command shows which classifier provider is active.
+  - Opt-in via .env only — no code change needed to enable.
+Cost impact: if user enables Gemini, annual savings ~₹2,500/year at current usage; ~₹15-20K/year if usage grows 5×.
+
 ### D19 — Renamed /score → /pt14 and /flow → /dvpt
 Why: Generic names ("score", "flow") hid the underlying methodologies. New names are methodology-tagged: `/pt14` for the patearn 14-pattern framework; `/dvpt` for Delivery Value Per Trade. Easier to remember, more accurate to what's being computed, and frees up the namespace for future "different scoring" or "different flow" commands. Slash menu updated; help text in /start updated; setup-news.sh deploy footer updated. Natural-language routing in `intent.py` unchanged (still SCORE/FLOW/BOTH intent types internally — those are just labels).
 

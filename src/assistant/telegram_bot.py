@@ -79,6 +79,33 @@ async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(_unauthorized_message(user_id), parse_mode="HTML")
 
 
+async def on_provider(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show which LLM provider is being used for classifier tasks (intent + news)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    from src.core.llm_router import active_classifier_provider
+    provider = active_classifier_provider()
+    if provider == "gemini":
+        msg = (
+            f"<b>Classifier provider:</b> Gemini Flash\n"
+            f"  Model: <code>{settings.gemini_classifier_model}</code>\n"
+            f"  Cost: ~$0.075 in / $0.30 out per million tokens (~13× cheaper than Haiku)\n\n"
+            f"<b>Chat + /analyze:</b> Anthropic ({settings.fast_model} / {settings.default_model})"
+        )
+    else:
+        msg = (
+            f"<b>Classifier provider:</b> Anthropic Haiku ({settings.fast_model})\n"
+            f"  Cost: $1.00 in / $5.00 out per million tokens\n\n"
+            f"To switch to Gemini Flash (~13× cheaper for classifiers):\n"
+            f"1. Get free key at https://aistudio.google.com/apikey\n"
+            f"2. Add to <code>/opt/hermes/.env</code>: <code>GEMINI_API_KEY=...</code>\n"
+            f"3. Restart bot: <code>systemctl restart hermes-telegram</code>\n\n"
+            f"<b>Chat + /analyze:</b> Anthropic (unchanged)"
+        )
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+
 async def on_whoami(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Reply with the sender's Telegram user ID — useful for onboarding."""
     user_id = update.effective_user.id
@@ -671,6 +698,7 @@ BOT_COMMANDS = [
     BotCommand("news_where",    "List registered news destinations"),
     BotCommand("news_stop",     "Stop posting news to this chat"),
     BotCommand("reset",         "Start a fresh conversation (forget context)"),
+    BotCommand("provider",      "Show which LLM provider is active for classifier tasks"),
     BotCommand("whoami",        "Show my Telegram user ID"),
     BotCommand("start",         "Show help"),
 ]
@@ -695,6 +723,7 @@ def main() -> None:
         .build()
     )
     app.add_handler(CommandHandler("start", on_start))
+    app.add_handler(CommandHandler("provider", on_provider))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
     app.add_handler(CommandHandler("pt14", on_pt14))

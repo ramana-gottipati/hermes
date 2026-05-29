@@ -179,29 +179,32 @@ def _safe_parse_json(text: str) -> list[dict]:
 
 
 def classify_batch(items: list[dict]) -> list[dict]:
-    """Annotate each item with classification metadata from Claude."""
+    """Annotate each item with classification metadata via the cheapest available LLM.
+
+    Routes via llm_router: Gemini Flash if GEMINI_API_KEY is set, else Anthropic Haiku.
+    Falls back automatically if the primary provider fails.
+    """
     if not items:
         return []
 
     user_msg = CLASSIFIER_USER_TEMPLATE.format(items_block=_items_block(items))
 
+    from src.core.llm_router import call_classifier
+
     try:
-        response = client().messages.create(
-            model=settings.fast_model,  # Haiku — cheap, fast, plenty smart for this
-            max_tokens=2000,
+        raw, provider = call_classifier(
             system=CLASSIFIER_SYSTEM,
-            messages=[{"role": "user", "content": user_msg}],
+            user_msg=user_msg,
+            max_tokens=2000,
         )
-    except APIError as e:
-        log.error("classifier LLM call failed: %s", e)
+    except Exception as e:
+        log.error("news classifier call failed (both providers): %s", e)
         return []
 
-    raw = response.content[0].text
     classifications = _safe_parse_json(raw)
     log.info(
-        "classifier returned %d objects for %d items (in=%d out=%d tokens)",
-        len(classifications), len(items),
-        response.usage.input_tokens, response.usage.output_tokens,
+        "news classifier returned %d objects for %d items via %s",
+        len(classifications), len(items), provider,
     )
 
     # Merge classification back into items by n

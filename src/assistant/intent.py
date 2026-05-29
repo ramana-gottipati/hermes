@@ -18,8 +18,7 @@ import json
 import logging
 import re
 
-from src.core.llm import client
-from src.core.settings import settings
+from src.core.llm_router import call_classifier
 
 log = logging.getLogger("hermes.intent")
 
@@ -101,19 +100,17 @@ def classify(message: str) -> dict:
     a stuck command.
     """
     try:
-        response = client().messages.create(
-            model=settings.fast_model,
-            max_tokens=80,
+        raw_response, provider = call_classifier(
             system=INTENT_SYSTEM,
-            messages=[
-                {"role": "user", "content": INTENT_USER_TEMPLATE.format(message=message)}
-            ],
+            user_msg=INTENT_USER_TEMPLATE.format(message=message),
+            max_tokens=80,
         )
     except Exception as e:
-        log.warning("intent classification call failed: %s", e)
+        log.warning("intent classification call failed (both providers): %s", e)
         return {"intent": "CHAT", "ticker": None}
 
-    raw = response.content[0].text.strip()
+    log.debug("intent classifier provider=%s", provider)
+    raw = raw_response.strip()
     if raw.startswith("```"):
         raw = re.sub(r"^```(?:json)?", "", raw).strip()
         if raw.endswith("```"):
