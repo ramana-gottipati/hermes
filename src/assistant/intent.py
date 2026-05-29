@@ -33,30 +33,61 @@ INTENT_USER_TEMPLATE = """Classify the user's message into one of these intents 
 Output a JSON object with EXACTLY these keys:
 
   "intent": one of:
-      SCORE  - user wants the patearn rule-based score / fundamental quality reading
-      FLOW   - user wants the delivery-flow / DVPT / institutional positioning signal
-      BOTH   - user wants a full picture of a stock (any general "what about X?" / "look at X" / "any thoughts on X")
-      CHAT   - general conversation, follow-up question, multi-stock comparison, or anything not a single-stock data request
+      SCORE  - user wants the patearn rule-based score / fundamental quality / 14-pattern reading
+      FLOW   - user wants the delivery-flow / DVPT / delivery value per trade / power deliveries /
+               institutional positioning / smart money / accumulation signal
+      BOTH   - user wants a full picture of a stock (general "what about X?" / "look at X" / "X strategy" /
+               "thoughts on X" / "analyze X" / any single-stock query without clear preference for one signal type)
+      CHAT   - general conversation, follow-up question about already-shown data, multi-stock comparison,
+               or anything not a single-stock data request
 
-  "ticker": NSE listing symbol of the stock if one is clearly named (uppercase, no .NS suffix). null otherwise.
+  "ticker": NSE listing symbol if one is clearly named (uppercase, no .NS suffix). null otherwise.
+
+PRIORITY RULE: If a single recognisable NSE ticker is named anywhere in the message,
+strongly prefer SCORE / FLOW / BOTH over CHAT. The user is almost certainly asking about that stock.
+Only fall back to CHAT if NO ticker is named or two+ tickers are named.
+
+VOCABULARY SIGNALLING FLOW (these terms mean institutional/delivery signal):
+  delivery value per trade · DVPT · per-trade delivery · delivery flow · institutional buying ·
+  institutional intensity · institutional positioning · smart money · accumulation · distribution ·
+  power deliveries · power delivery · delivery ratio · delivery percentage · delivery quantity trend
+
+VOCABULARY SIGNALLING SCORE (these terms mean fundamental / patearn):
+  score · rate · rating · quality · fundamentals · 14 patterns · patearn · ROCE · ROE · multibagger ·
+  good buy · investment grade · tier · NS · normalised score
+
+VOCABULARY SIGNALLING BOTH (general questions):
+  what's X · look at X · X strategy · X thoughts · analyse X · check X · how is X · X please ·
+  about X · pull X · show me X · X data
 
 Examples:
-  "what's pixtrans?"                     -> {"intent":"BOTH","ticker":"PIXTRANS"}
-  "look at reliance"                     -> {"intent":"BOTH","ticker":"RELIANCE"}
-  "score tata motors"                    -> {"intent":"SCORE","ticker":"TATAMOTORS"}
-  "is tata steel a good buy"             -> {"intent":"SCORE","ticker":"TATASTEEL"}
-  "show me delivery flow on hdfc bank"   -> {"intent":"FLOW","ticker":"HDFCBANK"}
-  "any institutional buying in infy?"    -> {"intent":"FLOW","ticker":"INFY"}
-  "smart money in adani green"           -> {"intent":"FLOW","ticker":"ADANIGREEN"}
-  "hi how are you"                       -> {"intent":"CHAT","ticker":null}
-  "what should I make of this data"      -> {"intent":"CHAT","ticker":null}
-  "compare infy and tcs"                 -> {"intent":"CHAT","ticker":null}
+  "what's pixtrans?"                              -> {"intent":"BOTH","ticker":"PIXTRANS"}
+  "pixtrans delivery value per trade strategy"    -> {"intent":"FLOW","ticker":"PIXTRANS"}
+  "pixtrans DVPT"                                 -> {"intent":"FLOW","ticker":"PIXTRANS"}
+  "power deliveries on hdfc bank"                 -> {"intent":"FLOW","ticker":"HDFCBANK"}
+  "smart money pixtrans"                          -> {"intent":"FLOW","ticker":"PIXTRANS"}
+  "per-trade delivery value on infy"              -> {"intent":"FLOW","ticker":"INFY"}
+  "institutional intensity on tata steel"         -> {"intent":"FLOW","ticker":"TATASTEEL"}
+  "accumulation pattern in adani green"           -> {"intent":"FLOW","ticker":"ADANIGREEN"}
+  "look at reliance"                              -> {"intent":"BOTH","ticker":"RELIANCE"}
+  "any thoughts on tata motors"                   -> {"intent":"BOTH","ticker":"TATAMOTORS"}
+  "analyse infy"                                  -> {"intent":"BOTH","ticker":"INFY"}
+  "pull data on tcs"                              -> {"intent":"BOTH","ticker":"TCS"}
+  "score tata motors"                             -> {"intent":"SCORE","ticker":"TATAMOTORS"}
+  "is tata steel a good buy"                      -> {"intent":"SCORE","ticker":"TATASTEEL"}
+  "rate hdfc bank"                                -> {"intent":"SCORE","ticker":"HDFCBANK"}
+  "ROCE on infy"                                  -> {"intent":"SCORE","ticker":"INFY"}
+  "hi how are you"                                -> {"intent":"CHAT","ticker":null}
+  "what should I make of this data"               -> {"intent":"CHAT","ticker":null}
+  "what does the ratio mean"                      -> {"intent":"CHAT","ticker":null}
+  "compare infy and tcs"                          -> {"intent":"CHAT","ticker":null}
 
 Rules:
-- Use the most common NSE listing symbol (RELIANCE, HDFCBANK, TATAMOTORS, INFY, TCS, etc.). Don't make up tickers.
-- If two or more stocks are mentioned, classify as CHAT.
-- If the message is a follow-up question about previously shown data, classify as CHAT.
-- If you're not sure of the NSE ticker, classify as CHAT.
+- Use the most common NSE listing symbol (RELIANCE, HDFCBANK, TATAMOTORS, INFY, TCS, PIXTRANS, etc.).
+  Don't make up tickers. If you don't know the NSE symbol, classify as CHAT.
+- If two or more stocks are explicitly named, classify as CHAT (we don't compare in this command).
+- Follow-up questions about an earlier message (without naming a stock) -> CHAT.
+- Otherwise: a named ticker means SCORE, FLOW, or BOTH — never CHAT.
 
 User message:
 {message}
