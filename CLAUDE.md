@@ -4,17 +4,44 @@
 
 ---
 
-## ⚠️ READ THIS FIRST
+## ⚠️ READ THIS FIRST — and the MANDATORY UPDATE RULE
 
 The running source of truth for this project is **`D:\Hermes\PROJECT_STATE.md`**.
 
-Before doing any work in this repo:
+### Boot procedure (every session, no exceptions)
 
 1. **Read `PROJECT_STATE.md` fully.** It contains current state, all decisions made, the session log, and what's open.
 2. Skim recent commits: `git log --oneline -20`
 3. Only then start making changes.
 
 Don't re-derive the architecture from scratch. The decisions in `PROJECT_STATE.md` § "Decision log" are deliberate. Surface conflicts before overwriting them.
+
+### 🔴 MANDATORY: Update PROJECT_STATE.md as you work
+
+This is a **binding rule, not a suggestion**:
+
+- **Every time a new decision is made** (architectural choice, defaults change, policies change) → append it to § "Decision log" in `PROJECT_STATE.md` **in the same commit** as the code change.
+- **Every time code structure changes** (new file, new table, new command, new service) → update the relevant section of `PROJECT_STATE.md` (Quick reference / Architecture / Database schema / commands tables) **in the same commit**.
+- **Every time an open item is closed** or a new one identified → update § "What's NOT yet built / open items" **in the same commit**.
+- **Before ending any session that shipped anything** → append a new entry at the TOP of § "Session log" with date, what shipped, and the commit hash(es).
+
+A commit that changes code without updating `PROJECT_STATE.md` is **incomplete**. Treat the update as part of the work, not as paperwork afterwards.
+
+The goal: any future session reading `PROJECT_STATE.md` should have a complete and current picture of the system, without having to grep the codebase to figure out what's actually there.
+
+### When to update specifically
+
+| If you do this in a session... | Update this section of PROJECT_STATE.md... |
+|---|---|
+| Add a new Telegram command | § "Telegram bot commands" table |
+| Add or change a DB table / column | § "Database schema" |
+| Add a new file in `src/` or `scripts/` | § "Key file paths" |
+| Make an architectural choice (model selection, schedule change, etc.) | § "Decision log" (numbered entry with WHY) |
+| Build something that was open | Remove from § "What's NOT yet built" |
+| Discover something missing or broken | Add to § "What's NOT yet built" |
+| End the session with any shipped work | New § "Session log" entry at top |
+
+This rule applies even if the user does not explicitly ask for it. The user *has* asked for it, once, here. This file makes it permanent.
 
 ---
 

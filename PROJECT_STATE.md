@@ -2,7 +2,30 @@
 
 > **Last updated:** 2026-05-29
 > **Running document.** This is the source of truth for the next Claude Code session.
-> Read this BEFORE reading code. Append a new session entry at the bottom whenever significant work lands.
+
+---
+
+## 🔴 BINDING RULE — How this document is maintained
+
+This document is maintained **continuously** by every Claude Code session, not just at session wrap. Updating it is part of the work, not paperwork afterwards.
+
+A commit that changes code or behaviour **MUST** include the corresponding update to this file in the same commit. Specifically:
+
+- New decision made → append numbered entry to **§ Decision log** with WHY
+- New Telegram command → update **§ Telegram bot commands** table
+- New DB table / column / view → update **§ Database schema**
+- New file in `src/` or `scripts/` → update **§ Key file paths**
+- Item from **§ What's NOT yet built** built → remove it from there
+- New limitation or missing piece discovered → add it to **§ What's NOT yet built**
+- End-of-session with anything shipped → new **§ Session log** entry at the TOP
+
+This rule applies even if the user does not explicitly ask. The user ratified it once (session 13). It is now permanent.
+
+The goal: any future session can read this file and have a complete, current picture — no need to grep the codebase or re-derive architecture.
+
+If you (a future Claude session) find yourself thinking "I'll update this at the end" — **don't**. Update it as you make the decision or write the code. Otherwise it gets forgotten.
+
+---
 
 ---
 
@@ -260,6 +283,9 @@ Why: Cost. Phase 4 patearn (qualitative + bear case + adversarial check) on Sonn
 ### D14 — Open-ended question prompts (AskUserQuestion tool) sometimes return empty answers
 Observed in this project — questions where the user clicks away or interrupts return empty. Fallback: ask in prose, expect free-text answer. Documented for future sessions.
 
+### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
+Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
 ---
 
 ## Cost model
@@ -325,9 +351,16 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 13 — 2026-05-29 — Binding continuous-update rule for PROJECT_STATE.md
+- Added 🔴 BINDING RULE at the top of PROJECT_STATE.md mandating in-commit updates whenever code or decisions change
+- Mirrored the rule into CLAUDE.md so it's loaded on every Claude session boot — includes mapping table of "if you do X, update this section"
+- Added Decision D15 (this decision itself)
+- Goal: PROJECT_STATE.md never goes stale; future sessions never have to re-derive architecture by greping code
+
 ### Session 12 — 2026-05-29 — Architecture docs and running-doc bootstrap
 - Generated `D:\Hermes\docs\hermes-bhavcopy-architecture.docx` — 11 chapters, 24 tables, covering bhav copy data sources, storage layout, DVPT methodology, power deliveries, schema, nightly compute flow, corporate-action invariance, operational reference
-- Created this PROJECT_STATE.md as the running document
+- Created PROJECT_STATE.md as the running document
+- Slimmed CLAUDE.md to a pointer file; commit `c1ba5a1`
 - No code changes to functional systems
 
 ### Session 11 — 2026-05-28 — 5-year bhav copy + signals architecture
