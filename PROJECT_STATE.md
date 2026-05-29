@@ -341,16 +341,13 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ## What's NOT yet built / open items
 
-### IN-FLIGHT (action items carried from session 13 wrap)
+### ✅ COMPLETED in session 14 (formerly IN-FLIGHT)
 
-1. **🔴 setup-news.sh not yet re-run on VPS** — the session 11+12+13 commits are on GitHub but the running VPS still has the pre-session-11 version. The bot is still running session-10 code. Until setup-news.sh is run, none of the bhav copy / signals / new schema is live.
-   - Action: `wget -qO /tmp/setup.sh https://raw.githubusercontent.com/ramana-gottipati/hermes/main/scripts/setup-news.sh && bash /tmp/setup.sh`
-2. **🔴 5-year bhav copy backfill not yet executed.** Code is in place but the actual run hasn't happened. Must happen AFTER #1.
-   - Action: `nohup bash /opt/hermes/scripts/full-backfill.sh > /var/log/hermes-backfill.log 2>&1 &`
-3. **Verify after backfill:**
-   - `sqlite3 /opt/hermes/data/hermes.db 'SELECT COUNT(DISTINCT trade_date) AS days, COUNT(DISTINCT symbol) AS stocks FROM bhavcopy_rows;'` — expect ~1,250 days, ~2,000 stocks
-   - `sqlite3 /opt/hermes/data/hermes.db 'SELECT COUNT(*) FROM stock_signals;'` — expect ~2.5M rows
-   - In Telegram: `/score RELIANCE` should return a real tier + NS
+1. ✅ **setup-news.sh deployed on VPS** — session 11+12+13 code is live
+2. ✅ **5-year bhav copy backfill executed** — 1,297 trading days from 2021-05-24 to 2026-05-28, 1,296 with delivery (sec_bhavdata_full). 2,356,143 EQ rows across 3,051 stocks.
+3. ✅ **Signals fully computed** — 2,350,570 rows in stock_signals across 3,051 stocks × 1,237 days. (The 60-day gap from bhav copy days is expected — those are the early dates where the rolling 365-day window can't be computed.)
+4. ✅ **sqlite3 CLI installed on VPS** (was missing from Ubuntu base image; now auto-installed by setup-news.sh and vps-bootstrap.sh — see commit 96f9649)
+5. ✅ **Bhav copy timer moved from 6:00 PM IST to 7:30 PM IST** (Decision D16, commit c292e47)
 
 ### Other open items (queued, no immediate urgency)
 
@@ -366,6 +363,15 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 14 — 2026-05-29 — Full pipeline live (deploy + backfill verified)
+- Deployed session 11-13 code to VPS via setup-news.sh
+- Installed sqlite3 CLI (was missing; fix shipped in commit 96f9649)
+- 5-year bhav copy backfill confirmed complete: 1,297 days, 3,051 stocks, 2.36M rows, 1,296 days with delivery
+- Signal computation confirmed complete: 2.35M stock_signals rows across 3,051 stocks × 1,237 days
+- Timer shift 6:00 → 7:30 PM IST landed (Decision D16, commit c292e47)
+- The 5-year dataset is fully on-VPS, fully portable via `scp -r root@VPS:/opt/hermes/data/ ./backup/`
+- Next test: `/score RELIANCE` end-to-end through Telegram
 
 ### Session 13 — 2026-05-29 — Binding continuous-update rule + wrap
 - Added 🔴 BINDING RULE at the top of PROJECT_STATE.md mandating in-commit updates whenever code or decisions change
