@@ -196,6 +196,8 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 |---|---|---|
 | `/pt14 TICKER` | patearn 14-pattern rule-based score from Screener data (no LLM) | ₹0 |
 | `/dvpt TICKER [days]` | Delivery Value Per Trade institutional-flow signal: today vs power baselines + history | ₹0 |
+| `/scan [N]` | Top N stocks across the market by DVPT institutional-flow signal for latest trading day | ₹0 |
+| `/provider` | Show which LLM provider is active for classifier tasks | ₹0 |
 | `/analyze TICKER` | Full Haiku patearn analysis (use sparingly) | ~₹2 |
 | `/watch TICKER [note]` | Add to watchlist | ₹0 |
 | `/unwatch TICKER` | Remove | ₹0 |
@@ -291,6 +293,12 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D21 — SCAN intent + /scan command for market-wide top-N queries
+Why: Session 14 caught a real gap — natural-language queries like "where did smart money go yesterday" were falling through to the chat handler, which made up generic Bloomberg-terminal answers ("I don't have real-time data") instead of using our 5-year delivery database. Two fixes:
+  (a) New SCAN intent in `intent.py` for market-wide queries (no specific ticker named). Examples cover "where did smart money go", "top accumulation today", "biggest institutional buys", "exceptional delivery flows", "high conviction names", etc.
+  (b) New `/scan [N]` command that runs a top-N SQL query against `stock_signals JOIN bhavcopy_rows` for the latest trading day, ordered by `ratio_today_vs_power_1m DESC`, with a ₹1 Cr turnover liquidity filter. Default N=15, cap 30. Verdict header counts how many hit Exceptional (>1.50) and Institutional (1.00-1.50) levels.
+  (c) Chat handler's HERMES_SYSTEM_PROMPT updated to tell Hermes about the available data and to NEVER claim "no real-time data" — instead, route Ramana to /pt14, /dvpt, /scan, or natural-language equivalents. Prevents future "Bloomberg-terminal-style" hallucinations.
 
 ### D20 — Multi-provider LLM routing for classifier tasks
 Why: Anthropic Haiku is excellent but expensive vs Gemini Flash for pure classification (intent routing + news category tagging). Gemini 2.0 Flash is ~13× cheaper ($0.075/$0.30 per M tokens vs $1/$5) at similar quality for JSON classification. Anticipating usage growth, the user requested cost-optimal routing. Implementation:

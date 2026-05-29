@@ -557,6 +557,105 @@ async def on_patearn_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
 
+async def on_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show top stocks by institutional flow signal for the most recent trading day.
+
+    Usage:
+      /scan          -> top 15
+      /scan 25       -> top 25 (cap 30)
+    """
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+
+    try:
+        n = int(context.args[0]) if context.args else 15
+    except (ValueError, IndexError):
+        n = 15
+    n = max(5, min(n, 30))
+
+    await update.message.reply_text(
+        f"🔎 Scanning latest day's institutional flow (top {n})…"
+    )
+
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: _scan_top_dvpt(n))
+
+    if not rows:
+        await update.message.reply_text(
+            "No signal data found for the latest trading day. "
+            "Run <code>/dvpt &lt;TICKER&gt;</code> on individual stocks instead.",
+            parse_mode="HTML",
+        )
+        return
+
+    await update.message.reply_text(_format_scan_message(rows), parse_mode="HTML")
+
+
+def _scan_top_dvpt(n: int) -> list[dict]:
+    """Top N EQ stocks by ratio_today_vs_power_1m for the latest trading day.
+
+    Liquidity filter: at least ₹1 Cr total turnover (filters out shell-stock noise
+    that often shows extreme ratios on tiny volumes).
+    """
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT s.symbol,
+                      s.trade_date,
+                      s.delivery_value_per_trade AS dvpt,
+                      s.ratio_today_vs_power_1m  AS r1m,
+                      s.ratio_today_vs_power_3m  AS r3m,
+                      b.close,
+                      b.deliv_per,
+                      b.value AS total_value
+               FROM stock_signals s
+               JOIN bhavcopy_rows b USING (symbol, trade_date)
+               WHERE s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)
+                 AND b.series = 'EQ'
+                 AND (b.segment = 'CM' OR b.segment IS NULL)
+                 AND s.ratio_today_vs_power_1m IS NOT NULL
+                 AND b.value > 10000000
+               ORDER BY s.ratio_today_vs_power_1m DESC
+               LIMIT ?""",
+            (n,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def _format_scan_message(rows: list[dict]) -> str:
+    trade_date = rows[0]["trade_date"]
+    n_exceptional = sum(1 for r in rows if (r["r1m"] or 0) > 1.50)
+    n_institutional = sum(1 for r in rows if 1.00 < (r["r1m"] or 0) <= 1.50)
+
+    header_summary = []
+    if n_exceptional:
+        header_summary.append(f"⚡ {n_exceptional} exceptional (r1m &gt; 1.50)")
+    if n_institutional:
+        header_summary.append(f"🟢 {n_institutional} institutional (1.00 &lt; r1m ≤ 1.50)")
+    summary_line = " · ".join(header_summary) if header_summary else "No institutional-intensity hits in this scan."
+
+    lines = [
+        f"<b>🔎 Top institutional-flow signals — {trade_date}</b>",
+        f"<i>{summary_line}</i>",
+        "<i>Ranked by ratio_today_vs_power_1m. Liquidity filter: turnover &gt; ₹1 Cr.</i>",
+        "",
+        "<pre>",
+        f"{'Symbol':<12}{'Close':>9}{'Deliv%':>8}{'DVPT':>11}{'r1m':>7}{'r3m':>7}",
+    ]
+    for r in rows:
+        sym = (r["symbol"] or "")[:12]
+        close = f"{r['close']:,.1f}" if r["close"] else "—"
+        deliv = f"{r['deliv_per']:,.1f}" if r["deliv_per"] is not None else "—"
+        dvpt = f"{int(r['dvpt']):,}" if r["dvpt"] else "—"
+        r1m = f"{r['r1m']:.2f}" if r["r1m"] is not None else "—"
+        r3m = f"{r['r3m']:.2f}" if r["r3m"] is not None else "—"
+        lines.append(f"{sym:<12}{close:>9}{deliv:>8}{dvpt:>11}{r1m:>7}{r3m:>7}")
+    lines.append("</pre>")
+    lines.append("")
+    lines.append("<i>Drill into any name: type \"<b>dvpt &lt;symbol&gt;</b>\" or \"<b>what's &lt;symbol&gt;?</b>\".</i>")
+    return "\n".join(lines)
+
+
 async def _handle_stock_intent(update: Update, cls: dict) -> None:
     """Execute SCORE/FLOW/BOTH intent against the existing rule-based pipelines.
 
@@ -645,6 +744,12 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if cls.get("intent") in ("SCORE", "FLOW", "BOTH") and cls.get("ticker"):
         await _handle_stock_intent(update, cls)
         return
+    if cls.get("intent") == "SCAN":
+        # Reuse the /scan handler logic via a synthetic context
+        class _C:
+            args = []
+        await on_scan(update, _C())
+        return
     # Otherwise: fall through to conversational chat below.
 
     conv_id = conversations.get_or_create_for_telegram(user_id)
@@ -687,6 +792,7 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 BOT_COMMANDS = [
     BotCommand("pt14",          "patearn 14-pattern rule-based score (FREE — no LLM, /pt14 RELIANCE)"),
     BotCommand("dvpt",          "Delivery-Value-Per-Trade institutional signal (FREE, /dvpt TICKER [days])"),
+    BotCommand("scan",          "Top stocks across the market by DVPT signal — yesterday's smart money (FREE)"),
     BotCommand("analyze",       "LLM patearn analysis (Haiku, ~₹2/call) — use /pt14 first"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
@@ -728,6 +834,7 @@ def main() -> None:
     app.add_handler(CommandHandler("reset", on_reset))
     app.add_handler(CommandHandler("pt14", on_pt14))
     app.add_handler(CommandHandler("dvpt", on_dvpt))
+    app.add_handler(CommandHandler("scan", on_scan))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))

@@ -32,15 +32,17 @@ INTENT_USER_TEMPLATE = """Classify the user's message into one of these intents 
 Output a JSON object with EXACTLY these keys:
 
   "intent": one of:
-      SCORE  - user wants the patearn rule-based score / fundamental quality / 14-pattern reading
-      FLOW   - user wants the delivery-flow / DVPT / delivery value per trade / power deliveries /
-               institutional positioning / smart money / accumulation signal
-      BOTH   - user wants a full picture of a stock (general "what about X?" / "look at X" / "X strategy" /
-               "thoughts on X" / "analyze X" / any single-stock query without clear preference for one signal type)
-      CHAT   - general conversation, follow-up question about already-shown data, multi-stock comparison,
-               or anything not a single-stock data request
+      SCORE  - user wants the patearn rule-based score for a SINGLE NAMED stock
+      FLOW   - user wants the DVPT / delivery flow signal for a SINGLE NAMED stock
+      BOTH   - user wants a full picture of a SINGLE NAMED stock (general "what about X?", "look at X", etc.)
+      SCAN   - user wants TOP STOCKS ACROSS THE MARKET by institutional-flow signal — questions
+               like "where did smart money go?", "top accumulation today", "biggest institutional buys",
+               "exceptional delivery flows", "high conviction names today". No specific stock named.
+      CHAT   - general conversation, follow-up question about already-shown data, multi-stock comparison
+               (not a top-N scan), or anything not a single-stock or market-scan data request.
 
   "ticker": NSE listing symbol if one is clearly named (uppercase, no .NS suffix). null otherwise.
+            Always null for SCAN and CHAT.
 
 PRIORITY RULE: If a single recognisable NSE ticker is named anywhere in the message,
 strongly prefer SCORE / FLOW / BOTH over CHAT. The user is almost certainly asking about that stock.
@@ -76,6 +78,20 @@ Examples:
   "is tata steel a good buy"                      -> {"intent":"SCORE","ticker":"TATASTEEL"}
   "rate hdfc bank"                                -> {"intent":"SCORE","ticker":"HDFCBANK"}
   "ROCE on infy"                                  -> {"intent":"SCORE","ticker":"INFY"}
+
+  Market-wide SCAN examples (no specific stock named):
+  "where did the smart money go yesterday"        -> {"intent":"SCAN","ticker":null}
+  "where is smart money buying today"             -> {"intent":"SCAN","ticker":null}
+  "top accumulation today"                        -> {"intent":"SCAN","ticker":null}
+  "biggest institutional buys yesterday"          -> {"intent":"SCAN","ticker":null}
+  "show me the highest delivery flows"            -> {"intent":"SCAN","ticker":null}
+  "exceptional delivery today"                    -> {"intent":"SCAN","ticker":null}
+  "high conviction names today"                   -> {"intent":"SCAN","ticker":null}
+  "top movers in delivery"                        -> {"intent":"SCAN","ticker":null}
+  "stocks with institutional intensity"           -> {"intent":"SCAN","ticker":null}
+  "best delivery flows yesterday"                 -> {"intent":"SCAN","ticker":null}
+
+  General chat (no data lookup, no specific stock):
   "hi how are you"                                -> {"intent":"CHAT","ticker":null}
   "what should I make of this data"               -> {"intent":"CHAT","ticker":null}
   "what does the ratio mean"                      -> {"intent":"CHAT","ticker":null}
@@ -125,7 +141,7 @@ def classify(message: str) -> dict:
         return {"intent": "CHAT", "ticker": None}
 
     intent = (parsed.get("intent") or "CHAT").upper()
-    if intent not in ("SCORE", "FLOW", "BOTH", "CHAT"):
+    if intent not in ("SCORE", "FLOW", "BOTH", "SCAN", "CHAT"):
         intent = "CHAT"
     ticker = parsed.get("ticker")
     if ticker:
