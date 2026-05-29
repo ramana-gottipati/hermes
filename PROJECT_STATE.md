@@ -364,14 +364,17 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 14 — 2026-05-29 — Full pipeline live (deploy + backfill verified)
+### Session 14 — 2026-05-29 — Full pipeline live + end-to-end verified
 - Deployed session 11-13 code to VPS via setup-news.sh
 - Installed sqlite3 CLI (was missing; fix shipped in commit 96f9649)
 - 5-year bhav copy backfill confirmed complete: 1,297 days, 3,051 stocks, 2.36M rows, 1,296 days with delivery
 - Signal computation confirmed complete: 2.35M stock_signals rows across 3,051 stocks × 1,237 days
 - Timer shift 6:00 → 7:30 PM IST landed (Decision D16, commit c292e47)
 - The 5-year dataset is fully on-VPS, fully portable via `scp -r root@VPS:/opt/hermes/data/ ./backup/`
-- Next test: `/score RELIANCE` end-to-end through Telegram
+- Bug fix: screener.py `_write_cache` SQL binding count mismatch (commit 7004b7d)
+- **End-to-end verified:** `/score RELIANCE` returned T4 (correctly rejected — too large for patearn universe); `/score PIXTRANS` returned T3 NS 44.9% PAC 14/14 (interesting candidate, optimistic sensitivity 77% → potential T1)
+- The full pipeline is alive: Telegram → screener scrape → rule-based scoring → structured reply, all at ₹0 marginal cost
+- Live commits in this session: 96f9649 (sqlite3 install), c292e47 (timer 7:30 PM), 48afd66 (state doc), 7004b7d (screener bug)
 
 ### Session 13 — 2026-05-29 — Binding continuous-update rule + wrap
 - Added 🔴 BINDING RULE at the top of PROJECT_STATE.md mandating in-commit updates whenever code or decisions change
