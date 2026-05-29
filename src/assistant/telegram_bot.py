@@ -194,6 +194,140 @@ async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"ℹ️ {status}")
 
 
+async def on_flow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show Delivery Value Per Trade (DVPT) signal — institutional flow read.
+
+    Usage: /flow TICKER [days]
+    Example: /flow PIXTRANS
+             /flow PIXTRANS 30   (last 30 trading days)
+    """
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: <code>/flow TICKER [days]</code>\n"
+            "Example: <code>/flow PIXTRANS</code> or <code>/flow PIXTRANS 30</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    ticker = context.args[0].upper().strip()
+    try:
+        days = int(context.args[1]) if len(context.args) > 1 else 15
+    except (ValueError, IndexError):
+        days = 15
+    days = max(5, min(days, 60))
+
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: _fetch_flow_rows(ticker, days))
+
+    if not rows:
+        await update.message.reply_text(
+            f"No bhav copy / signal data for <b>{ticker}</b>. "
+            f"Check spelling, or this stock may not be in the EQ series.",
+            parse_mode="HTML",
+        )
+        return
+
+    msg = _format_flow_message(ticker, rows)
+    await update.message.reply_text(msg, parse_mode="HTML")
+
+
+def _fetch_flow_rows(ticker: str, days: int) -> list[dict]:
+    """Pull the latest N days of DVPT + price + delivery for one symbol."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT s.trade_date,
+                      b.close,
+                      b.deliv_per,
+                      b.deliv_qty,
+                      s.delivery_value_per_trade AS dvpt,
+                      s.power_dvpt_1m,
+                      s.power_dvpt_3m,
+                      s.ratio_today_vs_power_1m AS r1m,
+                      s.ratio_today_vs_power_3m AS r3m
+               FROM stock_signals s
+               JOIN bhavcopy_rows b USING (symbol, trade_date)
+               WHERE s.symbol = ? AND b.series = 'EQ'
+               ORDER BY s.trade_date DESC
+               LIMIT ?""",
+            (ticker, days),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def _fmt_int(v) -> str:
+    if v is None:
+        return "—"
+    return f"{int(v):,}"
+
+
+def _fmt_money(v, decimals: int = 1) -> str:
+    if v is None:
+        return "—"
+    return f"{v:,.{decimals}f}"
+
+
+def _fmt_ratio(v) -> str:
+    if v is None:
+        return "—"
+    return f"{v:.2f}"
+
+
+def _format_flow_message(ticker: str, rows: list[dict]) -> str:
+    latest = rows[0]
+    r1m = latest.get("r1m")
+
+    if r1m is None:
+        verdict = "<i>Insufficient history for 1-month power baseline.</i>"
+    elif r1m > 1.50:
+        verdict = f"⚡ <b>Exceptional</b> — today's DVPT is {r1m:.2f}× the recent peak institutional baseline."
+    elif r1m > 1.00:
+        verdict = f"🟢 <b>Institutional intensity present</b> — today at {r1m:.2f}× recent peak."
+    elif r1m > 0.70:
+        verdict = f"🟡 <b>Approaching institutional zone</b> — {r1m:.2f}× recent peak."
+    elif r1m > 0.30:
+        verdict = f"⚪ <b>Normal day</b> — {r1m:.2f}× recent peak."
+    else:
+        verdict = f"🔵 <b>Quiet</b> — {r1m:.2f}× recent peak."
+
+    lines = [
+        f"<b>📊 {ticker} — Delivery Flow Signal</b>",
+        verdict,
+        "",
+        f"<b>Latest ({latest['trade_date']}):</b>",
+        f"  Close ₹{_fmt_money(latest['close'])} · "
+        f"Deliv {_fmt_money(latest['deliv_per'])}% ({_fmt_int(latest['deliv_qty'])} sh)",
+        f"  <b>DVPT today: ₹{_fmt_int(latest['dvpt'])} per trade</b>",
+        f"  Power 1m baseline: ₹{_fmt_int(latest['power_dvpt_1m'])}",
+        f"  Power 3m baseline: ₹{_fmt_int(latest['power_dvpt_3m'])}",
+        f"  Ratio vs 1m: <b>{_fmt_ratio(latest['r1m'])}</b> · "
+        f"Ratio vs 3m: <b>{_fmt_ratio(latest['r3m'])}</b>",
+        "",
+        f"<b>Last {len(rows)} days:</b>",
+        "<pre>",
+        f"{'Date':<11} {'Close':>8} {'Deliv%':>7} {'DVPT':>10} {'r1m':>6} {'r3m':>6}",
+    ]
+    for r in rows:
+        lines.append(
+            f"{r['trade_date']:<11} "
+            f"{_fmt_money(r['close']):>8} "
+            f"{_fmt_money(r['deliv_per']):>7} "
+            f"{_fmt_int(r['dvpt']):>10} "
+            f"{_fmt_ratio(r['r1m']):>6} "
+            f"{_fmt_ratio(r['r3m']):>6}"
+        )
+    lines.append("</pre>")
+    lines.append("")
+    lines.append(
+        "<i>DVPT = (delivery quantity × close) ÷ number of trades. "
+        "Power baselines use top-N within trailing windows: top 5 of 22 days (1m), "
+        "top 15 of 66 days (3m). Value-based — naturally invariant to splits/bonuses.</i>"
+    )
+    return "\n".join(lines)
+
+
 async def on_score(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Rule-based patearn score — FREE, no LLM. Fetches Screener data + applies
     the 14-pattern rules in Python. Use this BEFORE /analyze (which costs API)."""
@@ -451,6 +585,7 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 
 BOT_COMMANDS = [
     BotCommand("score",         "Rule-based patearn score on a stock (FREE — no LLM, /score RELIANCE)"),
+    BotCommand("flow",          "Delivery-flow / DVPT institutional signal (FREE, /flow TICKER [days])"),
     BotCommand("analyze",       "LLM patearn analysis (Haiku, ~₹2/call) — use /score first"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
@@ -489,6 +624,7 @@ def main() -> None:
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
     app.add_handler(CommandHandler("score", on_score))
+    app.add_handler(CommandHandler("flow", on_flow))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))

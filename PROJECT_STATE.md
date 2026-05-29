@@ -194,6 +194,7 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 | Command | What it does | Cost per use |
 |---|---|---|
 | `/score TICKER` | Rule-based patearn score from Screener data (no LLM) | ₹0 |
+| `/flow TICKER [days]` | DVPT institutional-flow signal: today vs power baselines + history table | ₹0 |
 | `/analyze TICKER` | Full Haiku patearn analysis (use sparingly) | ~₹2 |
 | `/watch TICKER [note]` | Add to watchlist | ₹0 |
 | `/unwatch TICKER` | Remove | ₹0 |
@@ -285,6 +286,9 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D17 — /flow command surfaces DVPT signal alongside /score (patearn)
+Why: Session 14 closeout revealed a gap — the DVPT/power-deliveries signal data was being computed and stored nightly, but had no user-facing Telegram interface. /score only surfaced patearn-rule-based scoring. Now /flow gives a structured read on institutional delivery intensity for any stock: today's DVPT, power baselines (1m / 3m), ratio interpretation (Exceptional / Institutional / Approaching / Normal / Quiet), and a 15-day history table. Both signals are independent and complementary — patearn screens quality, DVPT signals positioning. Cost: ₹0 (pure SQL query, no LLM).
 
 ### D16 — Daily bhav copy fetch scheduled at 7:30 PM IST (was 6:00 PM)
 Why: Initial 6:00 PM scheduling was on the edge — NSE's `sec_bhavdata_full` with delivery data sometimes lags basic bhav copy by 1-2 hours depending on settlement processing. Estimated miss rate at 6:00 PM was ~30%, at 6:30 PM ~15%, at 7:00 PM ~5%, at 7:30 PM ~1%. Ramana chose 7:30 PM for maximum reliability — morning digest sees today's actual data, not yesterday's catch-up. Cost of waiting 90 extra minutes is zero (we don't watch in real time anyway). Change applied to `scripts/setup-news.sh` `hermes-bhavcopy.timer` (OnCalendar=Mon..Fri *-*-* 14:00:00 UTC).
