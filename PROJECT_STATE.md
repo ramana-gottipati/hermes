@@ -338,24 +338,39 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ## What's NOT yet built / open items
 
-1. **5-year backfill not yet executed.** Code is in place but the actual run hasn't happened. First task in next session if not done by then.
-2. **NSE corporate-announcements poller** — currently news-based earnings trigger only. Better trigger would be the authoritative NSE filings feed. Designed but not built.
-3. **Pattern 11 (VCP) and 14 (Volume breakout) scoring** — defaulted to Partial-Estimated because they need price action + ATR. With bhav copy data now available (post-backfill), these can become real signals.
-4. **Pattern 12 (Receivables) and 13 (Working capital)** — need balance sheet time series. Screener has it; parsing not yet implemented.
-5. **Telegram digest enrichment** — currently digest just lists symbols. Could enrich with key metrics (ROCE, NS, ratio_today_vs_power_1m) per row.
-6. **Web page editing** — `/candidates` is read-only. Could add status update (Reviewed / Picked / Passed) inline so Ramana tracks his own action.
-7. **Kite Connect intraday** — ~₹500/mo if/when Ramana wants real-time alerts. Filed for "later".
-8. **Voice messages** — Ramana mentioned wanting to talk to Hermes via voice. Would need Whisper STT + TTS. Not built. ~3 hours work.
+### IN-FLIGHT (action items carried from session 13 wrap)
+
+1. **🔴 setup-news.sh not yet re-run on VPS** — the session 11+12+13 commits are on GitHub but the running VPS still has the pre-session-11 version. The bot is still running session-10 code. Until setup-news.sh is run, none of the bhav copy / signals / new schema is live.
+   - Action: `wget -qO /tmp/setup.sh https://raw.githubusercontent.com/ramana-gottipati/hermes/main/scripts/setup-news.sh && bash /tmp/setup.sh`
+2. **🔴 5-year bhav copy backfill not yet executed.** Code is in place but the actual run hasn't happened. Must happen AFTER #1.
+   - Action: `nohup bash /opt/hermes/scripts/full-backfill.sh > /var/log/hermes-backfill.log 2>&1 &`
+3. **Verify after backfill:**
+   - `sqlite3 /opt/hermes/data/hermes.db 'SELECT COUNT(DISTINCT trade_date) AS days, COUNT(DISTINCT symbol) AS stocks FROM bhavcopy_rows;'` — expect ~1,250 days, ~2,000 stocks
+   - `sqlite3 /opt/hermes/data/hermes.db 'SELECT COUNT(*) FROM stock_signals;'` — expect ~2.5M rows
+   - In Telegram: `/score RELIANCE` should return a real tier + NS
+
+### Other open items (queued, no immediate urgency)
+
+4. **NSE corporate-announcements poller** — currently news-based earnings trigger only. Better trigger would be the authoritative NSE filings feed. Designed but not built.
+5. **Pattern 11 (VCP) and 14 (Volume breakout) scoring** — defaulted to Partial-Estimated because they need price action + ATR. With bhav copy data now available (post-backfill), these can become real signals.
+6. **Pattern 12 (Receivables) and 13 (Working capital)** — need balance sheet time series. Screener has it; parsing not yet implemented.
+7. **Telegram digest enrichment** — currently digest just lists symbols. Could enrich with key metrics (ROCE, NS, ratio_today_vs_power_1m) per row.
+8. **Web page editing** — `/candidates` is read-only. Could add status update (Reviewed / Picked / Passed) inline so Ramana tracks his own action.
+9. **Kite Connect intraday** — ~₹500/mo if/when Ramana wants real-time alerts. Filed for "later".
+10. **Voice messages** — Ramana mentioned wanting to talk to Hermes via voice. Would need Whisper STT + TTS. Not built. ~3 hours work.
+11. **DVPT signals integration into scoring.py** — once stock_signals has historical data (post-backfill), the patearn rule-based scorer should read ratio_today_vs_power_1m as a real Pattern 14 (volume confirmation) signal instead of Partial-estimated. Quick win after backfill.
 
 ---
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 13 — 2026-05-29 — Binding continuous-update rule for PROJECT_STATE.md
+### Session 13 — 2026-05-29 — Binding continuous-update rule + wrap
 - Added 🔴 BINDING RULE at the top of PROJECT_STATE.md mandating in-commit updates whenever code or decisions change
 - Mirrored the rule into CLAUDE.md so it's loaded on every Claude session boot — includes mapping table of "if you do X, update this section"
 - Added Decision D15 (this decision itself)
 - Goal: PROJECT_STATE.md never goes stale; future sessions never have to re-derive architecture by greping code
+- Wrap protocol applied — IN-FLIGHT items 1-3 flagged 🔴 for next session (setup-news.sh re-run, 5y backfill run, post-backfill verification)
+- Commits: `274984f` (binding rule), this commit (wrap)
 
 ### Session 12 — 2026-05-29 — Architecture docs and running-doc bootstrap
 - Generated `D:\Hermes\docs\hermes-bhavcopy-architecture.docx` — 11 chapters, 24 tables, covering bhav copy data sources, storage layout, DVPT methodology, power deliveries, schema, nightly compute flow, corporate-action invariance, operational reference
