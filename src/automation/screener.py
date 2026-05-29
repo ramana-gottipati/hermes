@@ -256,11 +256,14 @@ def _write_cache(data: dict) -> None:
     cols = [k for k in data.keys() if k != "symbol"]
     placeholders = ", ".join(["?"] * (1 + len(cols)))
     col_list = ", ".join(["symbol"] + cols + ["fetched_at"])
-    update_clauses = ", ".join(f"{c} = excluded.{c}" for c in cols + ["fetched_at"])
+    # ON CONFLICT updates fetched_at via datetime('now') in excluded, not a binding
+    update_clauses = ", ".join(f"{c} = excluded.{c}" for c in cols)
+    update_clauses += ", fetched_at = datetime('now')"
     values = [data["symbol"]] + [data.get(c) for c in cols]
     with get_conn() as conn:
+        # SQL uses datetime('now') directly for fetched_at — no extra binding needed.
         conn.execute(
             f"""INSERT INTO fundamentals ({col_list}) VALUES ({placeholders}, datetime('now'))
                 ON CONFLICT(symbol) DO UPDATE SET {update_clauses}""",
-            values + [datetime.utcnow().isoformat(sep=' ', timespec='seconds')],
+            values,
         )
