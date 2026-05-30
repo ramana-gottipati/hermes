@@ -315,6 +315,7 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 
 | Command | What it does | Cost per use |
 |---|---|---|
+| `/menu` | Open the inline-keyboard menu — pick a strategy without remembering commands (D29) | ₹0 |
 | `/pt14 TICKER` | patearn 14-pattern rule-based score from Screener data (no LLM) | ₹0 |
 | `/dvpt TICKER [days]` | Delivery Value Per Trade institutional-flow signal: today vs power baselines + history | ₹0 |
 | `/scan [N]` | Top N stocks across the market, ranked by D28 two-tier layered triggers (ATH → p_score → r_score → discount → r1m). Shows R/P scores, near-break pointer, entry marker | ₹0 |
@@ -416,6 +417,17 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D29 — Inline-keyboard menu system
+Why: Command surface had grown to 17+ slash commands. Ramana surfaced (session 15) that he couldn't remember which command did what — a real discoverability bottleneck, not hypothetical. The standard Telegram-native fix is inline keyboards (`InlineKeyboardMarkup` + `CallbackQueryHandler` in python-telegram-bot). Pure button routing — zero LLM cost. Doesn't replace slash commands; sits alongside them as a discovery layer.
+- New `/menu` command opens the root keyboard
+- Tree: Quality (pt14) → ticker prompt · Delivery flow (dvpt) → ticker prompt · Market scan → 15/25/50 · Layered triggers → A+/SS/Near-break · Watchlist → Show/Add/Remove · Status (provider)
+- "Back" buttons edit message in place to traverse up
+- State machine via `context.user_data["menu_pending"]` for actions that need a ticker — next plain-text message is consumed as the ticker, then state clears. /menu cancels pending state.
+- Reuses existing helpers (`_scan_top_dvpt`, `_scan_triggers`, `_format_scan_message`, `_format_triggers_message`, `_fetch_flow_rows`, `_format_flow_message`, scoring/screener) — no logic duplication.
+- `/start` help text updated to point at /menu first, plain English second, slash commands third.
+- All natural-language routing untouched. Slash commands untouched.
+This is a discovery layer on top of existing functionality. If usage data after a week shows a button is never tapped, sunset it. Conversely if Ramana finds himself reaching for an action that isn't in the menu, add it.
 
 ### D28 — Two-tier DVPT trigger system (supersedes D26)
 Why: D26's SS/S/A/B definition was asymmetric — only "1m+2m+3m, not 6m" counted as S; other 3-of-4 combinations silently graded as A or B. Ramana caught this in session 15. Also D26 used only 4 power baselines (P1M/2M/3M/6M); P12M was missing entirely, and the R-tier rolling averages were computed nightly but never surfaced to the user. The replacement:
@@ -542,7 +554,7 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 A. ✅ **Two-tier DVPT trigger system** (D28) — shipped in session 15. Schema migrated, compute in `signals.py`, `--backfill-triggers` mode, `/scan` rewritten, new `/triggers [ss|near]` command, intent vocab extended. **Pending on VPS:** code pull + service restart + one-shot `--backfill-triggers` run. Until backfill, historical rows have NULL on the new columns.
 
-B. **Telegram menu system (inline keyboards)** — Ramana flagged in session 15 that command surface is hard to remember; proposed `/menu` (or repurposed `/start`) that opens an inline-keyboard tree → tap "Layered triggers" → tap "SS only" → result. python-telegram-bot's `InlineKeyboardMarkup` + `CallbackQueryHandler`. Zero LLM cost (pure button routing). Sketched menu tree exists in session-15 conversation but not yet coded. Should keep all existing slash commands; menu is a discovery layer on top.
+B. ✅ **Telegram menu system (inline keyboards)** — shipped in session 15 as D29. `/menu` opens root keyboard; sub-menus for Scan / Triggers / Watchlist; ticker-prompt actions for Quality / Flow / Watchlist Add/Remove via `context.user_data` state machine. Zero LLM cost.
 
 C. **Portfolio / strategy tracker** (real gap surfaced in session 14):
 ```sql
@@ -624,8 +636,15 @@ After backfill: all 2.35M historical signal rows get D28 columns populated. Nigh
 
 **Flagged but not touched:** uncommitted local diff on `src/assistant/patearn.py` adds `stage1_screen()` + `use_sonnet` param. Contradicts current doctrine (D7 / D22). Left alone — likely dormant work; needs explicit user decision before commit.
 
+**Also shipped (commit 2, D29) — inline-keyboard menu system:**
+- `/menu` opens root keyboard. Tree: Quality (pt14) / Delivery flow (dvpt) / Market scan (15/25/50) / Layered triggers (A+/SS/Near-break) / Watchlist (Show/Add/Remove) / Status.
+- Ticker-prompt actions use `context.user_data["menu_pending"]` — next plain-text message gets consumed as the ticker, then state clears. /menu cancels pending.
+- Reuses all existing helpers (no logic duplication); slash commands and NL routing untouched.
+- Zero LLM cost — pure button routing via `CallbackQueryHandler`.
+- `/start` help text rewritten to point at /menu first.
+- Ramana asked for this mid-session because the command surface (17+ slash commands) had become unmemorizable. After ~1 week of usage, sunset buttons that don't get tapped (Doctrine § B.4).
+
 **Not yet shipped (P1):**
-- B. **Telegram menu system** (inline keyboards) — Ramana flagged command-surface discoverability as a real pain point in session 15. Sketched a menu tree (Quality / Flow / Scan / Triggers / Watchlist / News / Status → sub-menus → action). python-telegram-bot supports this cleanly via `CallbackQueryHandler`. Zero LLM cost. Deferred from this session intentionally — D28 data-layer rework needed to land first so menu options reflect the final command shape.
 - C. **Portfolio / strategy tracker** — unchanged from session 14, still open.
 
 ### Session 14 (continued) — 2026-05-29 — Cost-routing doctrine + applied analytics + AAVAS case study + KT consolidation

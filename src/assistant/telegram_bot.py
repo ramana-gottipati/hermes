@@ -17,10 +17,11 @@ Authorization model:
 import asyncio
 import logging
 
-from telegram import BotCommand, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -64,15 +65,11 @@ async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if _is_authorized(user_id):
         await update.message.reply_text(
             "Hi — I'm Hermes.\n\n"
-            "<b>Just type in plain English</b>:\n"
-            "  • \"what's pixtrans?\" — full read (score + delivery flow)\n"
-            "  • \"score reliance\" — patearn quality reading\n"
-            "  • \"any institutional buying in hdfc?\" — DVPT signal\n"
-            "  • \"is tata steel a good buy?\" — score\n"
-            "  • or just chat with me about anything\n\n"
-            "<b>Slash commands</b> (if you prefer):\n"
-            "/pt14 TICKER · /dvpt TICKER · /analyze TICKER · /watch TICKER\n"
-            "/news · /reset · /whoami",
+            "<b>Three ways to drive me:</b>\n"
+            "  1. <b>/menu</b> — tap through a button tree if you don't want to remember commands\n"
+            "  2. <b>Plain English</b> — \"what's pixtrans?\" / \"any ATH today?\" / \"discount entries?\"\n"
+            "  3. <b>Slash commands</b> — /pt14 TICKER · /dvpt TICKER · /scan · /triggers [ss|near]\n\n"
+            "<i>Or just chat — I'll remember the thread (/reset to start over).</i>",
             parse_mode="HTML",
         )
     else:
@@ -894,15 +891,340 @@ async def _handle_stock_intent(update: Update, cls: dict) -> None:
             await update.message.reply_text(msg, parse_mode="HTML")
 
 
+# --- Menu system (D29 — inline keyboard discovery layer) ------------------
+#
+# Goal: reduce the cognitive load of remembering slash commands. Tap /menu
+# (or "Menu" in the slash dropdown) → tree of buttons → action runs. All
+# existing slash commands and natural-language routing remain unchanged;
+# this is purely additive discovery. Zero LLM cost — pure button routing.
+#
+# Callback data scheme (Telegram caps payloads at 64 bytes):
+#   m:<node>            -> navigate to menu node (root / scan / trig / watch)
+#   a:<action>[:<arg>]  -> run a leaf action
+# For leaf actions that need a ticker, we set context.user_data["menu_pending"]
+# = <action_key> and prompt; the next plain text message gets consumed as the
+# ticker (see on_message at the top of its body).
+
+
+def _menu_root_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Quality score (pt14)", callback_data="a:pt14")],
+        [InlineKeyboardButton("💧 Delivery flow (dvpt)", callback_data="a:dvpt")],
+        [InlineKeyboardButton("🔎 Market scan",          callback_data="m:scan")],
+        [InlineKeyboardButton("⚡ Layered triggers",      callback_data="m:trig")],
+        [InlineKeyboardButton("⭐ Watchlist",             callback_data="m:watch")],
+        [InlineKeyboardButton("⚙️ Status",                callback_data="a:status")],
+    ])
+
+
+def _menu_scan_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Top 15 (default)", callback_data="a:scan:15")],
+        [InlineKeyboardButton("Top 25",           callback_data="a:scan:25")],
+        [InlineKeyboardButton("Top 50",           callback_data="a:scan:50")],
+        [InlineKeyboardButton("« Back",           callback_data="m:root")],
+    ])
+
+
+def _menu_triggers_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Rank A+ (default — p_score ≥ 3)", callback_data="a:trig:def")],
+        [InlineKeyboardButton("⚡ SS only (rarest — p_score = 5)", callback_data="a:trig:ss")],
+        [InlineKeyboardButton("🔥 Near-break (about to cross)",    callback_data="a:trig:near")],
+        [InlineKeyboardButton("« Back",                            callback_data="m:root")],
+    ])
+
+
+def _menu_watchlist_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 Show watchlist", callback_data="a:watch:show")],
+        [InlineKeyboardButton("➕ Add ticker",     callback_data="a:watch:add")],
+        [InlineKeyboardButton("➖ Remove ticker",  callback_data="a:watch:rm")],
+        [InlineKeyboardButton("« Back",            callback_data="m:root")],
+    ])
+
+
+_MENU_ROOT_TEXT = (
+    "<b>Hermes menu</b> — pick a strategy.\n"
+    "<i>All slash commands still work. Type /menu anytime to return here.</i>"
+)
+_MENU_SCAN_TEXT     = "<b>🔎 Market scan</b> — how many top stocks?"
+_MENU_TRIGGERS_TEXT = "<b>⚡ Layered triggers</b> — pick a strictness."
+_MENU_WATCHLIST_TEXT = "<b>⭐ Watchlist</b>"
+
+
+async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Open the inline-keyboard menu at root."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    # If we were waiting for a ticker, opening the menu cancels that pending state.
+    context.user_data.pop("menu_pending", None)
+    await update.message.reply_text(
+        _MENU_ROOT_TEXT, reply_markup=_menu_root_keyboard(), parse_mode="HTML"
+    )
+
+
+async def on_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Route every inline-keyboard tap from the menu tree."""
+    query = update.callback_query
+    if not query:
+        return
+    user_id = query.from_user.id
+    if not _is_authorized(user_id):
+        await query.answer("Unauthorized.", show_alert=True)
+        return
+    # Acknowledge so Telegram stops the loading spinner on the button.
+    await query.answer()
+
+    data = query.data or ""
+    chat_id = query.message.chat_id
+
+    # --- Navigation (edit message in place to swap keyboards) ---
+    if data == "m:root":
+        await query.edit_message_text(
+            _MENU_ROOT_TEXT, reply_markup=_menu_root_keyboard(), parse_mode="HTML"
+        )
+        return
+    if data == "m:scan":
+        await query.edit_message_text(
+            _MENU_SCAN_TEXT, reply_markup=_menu_scan_keyboard(), parse_mode="HTML"
+        )
+        return
+    if data == "m:trig":
+        await query.edit_message_text(
+            _MENU_TRIGGERS_TEXT, reply_markup=_menu_triggers_keyboard(), parse_mode="HTML"
+        )
+        return
+    if data == "m:watch":
+        await query.edit_message_text(
+            _MENU_WATCHLIST_TEXT, reply_markup=_menu_watchlist_keyboard(), parse_mode="HTML"
+        )
+        return
+
+    # --- Leaf actions ---
+    # Ticker prompts: set pending state, send a follow-up message.
+    if data == "a:pt14":
+        context.user_data["menu_pending"] = "pt14"
+        await context.bot.send_message(
+            chat_id,
+            "📊 Type the NSE ticker for the quality score.\n"
+            "<i>e.g. RELIANCE — or type /menu to cancel.</i>",
+            parse_mode="HTML",
+        )
+        return
+    if data == "a:dvpt":
+        context.user_data["menu_pending"] = "dvpt"
+        await context.bot.send_message(
+            chat_id,
+            "💧 Type the NSE ticker for delivery flow.\n"
+            "<i>e.g. PIXTRANS — or type /menu to cancel.</i>",
+            parse_mode="HTML",
+        )
+        return
+    if data == "a:watch:add":
+        context.user_data["menu_pending"] = "watch_add"
+        await context.bot.send_message(
+            chat_id,
+            "➕ Type the NSE ticker to add. <i>/menu to cancel.</i>",
+            parse_mode="HTML",
+        )
+        return
+    if data == "a:watch:rm":
+        context.user_data["menu_pending"] = "watch_rm"
+        await context.bot.send_message(
+            chat_id,
+            "➖ Type the NSE ticker to remove. <i>/menu to cancel.</i>",
+            parse_mode="HTML",
+        )
+        return
+    if data == "a:watch:show":
+        await _menu_run_watchlist_show(context, chat_id)
+        return
+
+    # Scan — instant action with the chosen N.
+    if data.startswith("a:scan:"):
+        try:
+            n = int(data.split(":")[2])
+        except (IndexError, ValueError):
+            n = 15
+        await _menu_run_scan(context, chat_id, n)
+        return
+
+    # Triggers — instant action with the chosen kind.
+    if data.startswith("a:trig:"):
+        kind_key = data.split(":")[2]
+        kind = {"def": "default", "ss": "ss", "near": "near"}.get(kind_key, "default")
+        await _menu_run_triggers(context, chat_id, kind)
+        return
+
+    # Status / provider — instant action.
+    if data == "a:status":
+        await _menu_run_status(context, chat_id)
+        return
+
+    # Unrecognised callback (shouldn't happen).
+    await context.bot.send_message(chat_id, "Unknown menu action.")
+
+
+# --- Menu action runners (share logic with slash-command handlers) --------
+
+async def _menu_run_scan(context: ContextTypes.DEFAULT_TYPE, chat_id: int, n: int) -> None:
+    n = max(5, min(n, 50))
+    await context.bot.send_message(chat_id, f"🔎 Scanning top {n}…")
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: _scan_top_dvpt(n))
+    if not rows:
+        await context.bot.send_message(
+            chat_id, "No signal data for the latest trading day."
+        )
+        return
+    await context.bot.send_message(
+        chat_id, _format_scan_message(rows), parse_mode="HTML"
+    )
+
+
+async def _menu_run_triggers(context: ContextTypes.DEFAULT_TYPE, chat_id: int, kind: str) -> None:
+    label = {"default": "rank A+ (p_score ≥ 3)", "ss": "SS only",
+             "near": "near-break candidates"}.get(kind, "rank A+")
+    await context.bot.send_message(chat_id, f"🔎 Searching: {label}…")
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: _scan_triggers(kind))
+    if not rows:
+        await context.bot.send_message(
+            chat_id, f"No hits in this slice. Try /scan for the full ranking."
+        )
+        return
+    await context.bot.send_message(
+        chat_id, _format_triggers_message(rows, kind, label), parse_mode="HTML"
+    )
+
+
+async def _menu_run_watchlist_show(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT symbol, note, added_at FROM watchlist ORDER BY symbol"
+        ).fetchall()
+    if not rows:
+        await context.bot.send_message(
+            chat_id, "Watchlist empty. Add via the menu or <code>/watch TICKER</code>.",
+            parse_mode="HTML",
+        )
+        return
+    lines = ["<b>⭐ Watchlist:</b>", ""]
+    for r in rows:
+        note = f" — <i>{r['note']}</i>" if r["note"] else ""
+        lines.append(f"• <b>{r['symbol']}</b>{note}")
+    await context.bot.send_message(chat_id, "\n".join(lines), parse_mode="HTML")
+
+
+async def _menu_run_status(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
+    from src.core.llm_router import active_classifier_provider
+    provider = active_classifier_provider()
+    if provider == "gemini":
+        msg = (
+            f"<b>Classifier provider:</b> Gemini Flash "
+            f"(<code>{settings.gemini_classifier_model}</code>)\n"
+            f"<b>Chat:</b> Anthropic ({settings.fast_model})"
+        )
+    else:
+        msg = (
+            f"<b>Classifier provider:</b> Anthropic Haiku ({settings.fast_model})\n"
+            f"<i>Add GEMINI_API_KEY in .env to switch to Gemini Flash (~13× cheaper).</i>"
+        )
+    await context.bot.send_message(chat_id, msg, parse_mode="HTML")
+
+
+async def _menu_handle_pending(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, pending: str, text: str,
+) -> None:
+    """Consume a plain-text message as the answer to a previous menu prompt.
+
+    pending is one of: pt14 / dvpt / watch_add / watch_rm. The text is the
+    user's reply (expected to be an NSE ticker, possibly with extra args).
+    """
+    # Clear pending state first — any failure shouldn't trap the user.
+    context.user_data.pop("menu_pending", None)
+
+    ticker = text.split()[0].upper().strip() if text else ""
+    if not ticker:
+        await update.message.reply_text("No ticker received. /menu to retry.")
+        return
+
+    chat_id = update.effective_chat.id
+    loop = asyncio.get_event_loop()
+
+    if pending == "pt14":
+        await update.message.reply_text(
+            f"🔢 Scoring <b>{ticker}</b>…", parse_mode="HTML"
+        )
+        from src.automation import scoring as _scoring, screener as _screener
+        try:
+            score = await loop.run_in_executor(
+                None, lambda: _scoring.score_symbol(ticker)
+            )
+            fundamentals = await loop.run_in_executor(
+                None, lambda: _screener.fetch_company(ticker, use_cache=True)
+            )
+            msg = _scoring.format_score_for_telegram(score, fundamentals=fundamentals)
+            await context.bot.send_message(
+                chat_id, msg, parse_mode="HTML", disable_web_page_preview=True
+            )
+        except Exception as e:
+            log.exception("menu pt14 failed for %s", ticker)
+            await update.message.reply_text(f"⚠️ Score failed: {e}")
+        return
+
+    if pending == "dvpt":
+        rows = await loop.run_in_executor(None, lambda: _fetch_flow_rows(ticker, 15))
+        if not rows:
+            await update.message.reply_text(
+                f"No DVPT data for <b>{ticker}</b>. Check the ticker symbol.",
+                parse_mode="HTML",
+            )
+            return
+        await context.bot.send_message(
+            chat_id, _format_flow_message(ticker, rows), parse_mode="HTML"
+        )
+        return
+
+    if pending == "watch_add":
+        with get_conn() as conn:
+            conn.execute(
+                """INSERT INTO watchlist (symbol, note, added_by) VALUES (?, NULL, ?)
+                   ON CONFLICT(symbol) DO UPDATE SET added_by = excluded.added_by""",
+                (ticker, update.effective_user.id),
+            )
+        await update.message.reply_text(
+            f"✓ <b>{ticker}</b> added to watchlist.", parse_mode="HTML"
+        )
+        return
+
+    if pending == "watch_rm":
+        with get_conn() as conn:
+            cur = conn.execute("DELETE FROM watchlist WHERE symbol = ?", (ticker,))
+            ok = cur.rowcount > 0
+        await update.message.reply_text(
+            f"✓ Removed <b>{ticker}</b> from watchlist." if ok
+            else f"<b>{ticker}</b> was not on the watchlist.",
+            parse_mode="HTML",
+        )
+        return
+
+
+# --- Plain-text message handler -------------------------------------------
+
 async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle any plain text message.
 
     Flow:
       1. Auth gate.
-      2. Natural-language intent classification (Haiku, ~₹0.10 per message).
-      3. If intent is SCORE/FLOW/BOTH and a ticker was extracted → run the
+      2. If a menu prompt is pending (user tapped a button expecting a
+         ticker), consume this message as the answer.
+      3. Natural-language intent classification (Haiku/Gemini classifier).
+      4. If intent is SCORE/FLOW/BOTH and a ticker was extracted → run the
          relevant data lookup (same code paths as /pt14 and /dvpt).
-      4. Otherwise → conversational reply with memory (existing chat handler).
+      5. Otherwise → conversational reply with memory (existing chat handler).
     """
     if not update.message or not update.message.text:
         return
@@ -920,6 +1242,12 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         return
 
     text = update.message.text.strip()
+
+    # --- Menu state: a previous button tap left us waiting for a ticker ---
+    pending = context.user_data.get("menu_pending")
+    if pending:
+        await _menu_handle_pending(update, context, pending, text)
+        return
 
     # --- Natural-language intent routing ---
     # Plain English maps to /pt14, /dvpt or both without the user typing slashes.
@@ -976,6 +1304,7 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 # --- Entry point ------------------------------------------------------------
 
 BOT_COMMANDS = [
+    BotCommand("menu",          "Open the menu — pick a strategy without remembering commands"),
     BotCommand("pt14",          "patearn 14-pattern rule-based score (FREE — no LLM, /pt14 RELIANCE)"),
     BotCommand("dvpt",          "Delivery-Value-Per-Trade institutional signal (FREE, /dvpt TICKER [days])"),
     BotCommand("scan",          "Top stocks — two-tier ranked (ATH → p_score → r_score → discount → r1m) (FREE)"),
@@ -1016,6 +1345,9 @@ def main() -> None:
         .build()
     )
     app.add_handler(CommandHandler("start", on_start))
+    app.add_handler(CommandHandler("menu", on_menu))
+    # Inline-keyboard taps from the menu tree — pure routing, no LLM.
+    app.add_handler(CallbackQueryHandler(on_menu_callback))
     app.add_handler(CommandHandler("provider", on_provider))
     app.add_handler(CommandHandler("whoami", on_whoami))
     app.add_handler(CommandHandler("reset", on_reset))
