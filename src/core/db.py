@@ -295,6 +295,22 @@ def _init() -> None:
         _ensure_column(conn, "stock_signals", "next_p_above",         "TEXT")
         _ensure_column(conn, "stock_signals", "gap_to_next_p_pct",    "REAL")
 
+        # 4d. Institutional price-zone columns (D31). For every R-tier and
+        # P-tier baseline, store the avg close on the days that contributed
+        # to that baseline. R-tier: avg close over the full window. P-tier:
+        # avg close on the same top-N-by-DVPT days that defined power_dvpt_*.
+        # Lets us read "where was the institutional bid" at every horizon.
+        _ensure_column(conn, "stock_signals", "avg_close_r1m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_r2m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_r3m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_r6m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_r12m",       "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_p1m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_p2m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_p3m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_p6m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_close_p12m",       "REAL")
+
         # 4c. Indexes on the new columns (post-ALTER, guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_p_score "

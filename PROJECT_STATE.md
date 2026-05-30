@@ -1,6 +1,6 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-05-29 (session 15)
+> **Last updated:** 2026-05-31 (session 15)
 > **Running document.** This is the source of truth for the next Claude Code session.
 
 ---
@@ -99,19 +99,21 @@ Session 14 spec (D26) had two structural flaws Ramana caught in session 15:
 
 The replacement design (D28) splits the signal into two tiers:
 
-**R-tier — rolling averages (soft bars).** "Above the normal day."
-- R1M = flat avg of last 22 trading days
-- R2M = last 44
-- R3M = last 66
-- R6M = last 132
-- R12M = last 264
+**R-tier — rolling averages (soft bars).** "Above the normal day." Calendar-day windows (D31 revision):
+- R1M = flat avg of last 30 calendar days
+- R2M = last 60
+- R3M = last 90
+- R6M = last 180
+- R12M = last 360
 
-**P-tier — power deliveries (hard bars).** "Above the institutional peak days."
-- P1M = top-5 of last 22
-- P2M = top-10 of last 44
-- P3M = top-15 of last 66
-- P6M = top-40 of last 132
-- P12M = top-80 of last 264  ← NEW
+**P-tier — power deliveries (hard bars).** "Above the institutional peak days." Calendar-day windows + selective top-N (D31 revision):
+- P1M = avg of top 4 DVPT days in last 30 calendar days
+- P2M = top 7 in last 60
+- P3M = top 12 in last 90
+- P6M = top 20 in last 180
+- P12M = top 30 in last 360
+
+**Companion price for every baseline (D31):** for each R/P baseline, also store `avg_close_*` — the average close price on the same days that fed the baseline. Lets us read "where institutions actually transacted" at every horizon, not just "how intense was activity." `/dvpt TICKER` renders this as the "Institutional price zones" section.
 
 **Two scores per (symbol, day):**
 - `r_score` (0–5) = count of R-baselines today's DVPT beats
@@ -365,7 +367,7 @@ Plain text in group from non-authorized users: silently ignored.
 - `bhavcopy_rows` — every column from sec_bhavdata_full + raw_json fallback. Wide schema, ~25 columns, indexed on (symbol, trade_date), trade_date, series. Includes deliv_qty, deliv_per. Unique on (symbol, trade_date, series, instrument_type).
 - `bhavcopy_dates` — tracks ingested dates for idempotent backfill.
 - `corporate_actions` — bonus/split/rights/dividend per (symbol, action_type, ex_date). Parsed ratios where possible.
-- `stock_signals` — pre-computed nightly. Per (symbol, trade_date): delivery_value_today, total_value_today, delivery_value_per_trade. **R-tier (D28):** `avg_dvpt_1m/2m/3m/6m/12m` (flat rolling avgs at 22/44/66/132/264 trading days). **P-tier:** `power_dvpt_1m/2m/3m/6m/12m` (top-N within window: 5/22, 10/44, 15/66, 40/132, 80/264). **Scores:** `r_score`, `p_score` (0–5 each, count of R/P baselines today's DVPT beats). **Rank:** `trigger_rank` (SS/S/A/B/C/'-' from p_score). **ATH + entry:** `is_ath_dvpt`, `hot_days_avg_price`, `price_vs_hot_avg_pct`. **Near-break:** `next_p_above` (closest P-wall above), `gap_to_next_p_pct`. Legacy cols (`avg_dvpt_5d/10d/30d/60d/90d/180d/365d`, three ratio cols) kept for /dvpt detail view. Backfill via `python -m src.automation.signals --backfill-triggers`.
+- `stock_signals` — pre-computed nightly. Per (symbol, trade_date): delivery_value_today, total_value_today, delivery_value_per_trade. **R-tier (D31):** `avg_dvpt_1m/2m/3m/6m/12m` (flat avg DVPT over 30/60/90/180/360 **calendar** days). **P-tier (D31):** `power_dvpt_1m/2m/3m/6m/12m` (avg of top-N DVPT within window: 4/30d, 7/60d, 12/90d, 20/180d, 30/360d). **Price zones (D31):** `avg_close_r1m..r12m` (avg close over R-tier window) + `avg_close_p1m..p12m` (avg close on the same top-N DVPT days). **Scores:** `r_score`, `p_score` (0–5 each, count of baselines today's DVPT beats). **Rank:** `trigger_rank` (SS/S/A/B/C/'-' from p_score). **ATH + entry:** `is_ath_dvpt`, `hot_days_avg_price`, `price_vs_hot_avg_pct`. **Near-break:** `next_p_above` (closest P-wall above), `gap_to_next_p_pct`. Legacy trading-day cols (`avg_dvpt_5d/10d/30d/60d/90d/180d/365d`, three ratio cols) kept for /dvpt history table only. Backfill via `python -m src.automation.signals --backfill-triggers` — MANDATORY after D31 since old D28 values are wrong under new windowing.
 
 **View:** `prices_eq` — filtered to EQ series + CM segment, exposes OHLC + delivery cleanly for downstream code.
 
@@ -417,6 +419,28 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D31 — Calendar-day windowing + institutional price zones (revises D28)
+Why: Two material gaps Ramana surfaced during session 15 deploy testing:
+1. **Windowing was wrong.** D28 used trading-day windows with top-N (5/10/15/40/80 of 22/44/66/132/264 trading days). Ramana specified calendar-day windows with much more selective top-N (4/7/12/20/30 of 30/60/90/180/360 calendar days). The new top-N is ~8–13% of days (vs old 23–30%), so the P-tier baselines now genuinely represent exceptional institutional days, not "above average."
+2. **Companion price was missing.** DVPT alone tells you institutional intensity. Without the avg CLOSE on the baseline days, you can't tell whether to follow the institutions in (discount) or stay out (above their bid). The entire strategy needs both. D28 had only ONE such metric (hot_days_avg_price, hybrid window). D31 adds the proper paired price for every R + P baseline.
+
+Implementation:
+- **Schema:** 10 new columns on `stock_signals` via `_ensure_column`:
+  - `avg_close_r1m/r2m/r3m/r6m/r12m` — flat avg close over 30/60/90/180/360 calendar days
+  - `avg_close_p1m/p2m/p3m/p6m/p12m` — avg close on the same top-N-by-DVPT days that defined `power_dvpt_*`
+- **Existing P-tier and R-tier DVPT baselines redefined.** Same column names (`power_dvpt_1m..12m`, `avg_dvpt_1m..12m`) but new semantics: calendar-day windows with new top-N. The trading-day `avg_dvpt_5d/10d/30d/60d/90d/180d/365d` columns stay as LEGACY for the `/dvpt` history table only.
+- **Signal compute (`signals.py`)** — single source of truth `_WINDOWS = (('1m',30,4), ('2m',60,7), ('3m',90,12), ('6m',180,20), ('12m',360,30))`. Calendar-day filter via `_cutoff_date(trade_date, days)` (uses `datetime + timedelta`). Per (symbol, day), fetch all bhav rows within 360 calendar days once, then slice per window for R-tier and P-tier with companion avg close.
+- **`/dvpt TICKER` output** — new "📍 Institutional price zones" section after the history table. Shows P-tier first (more actionable: where the institutions actually transacted), then R-tier. Each row: baseline label, avg close, %gap to today's close, marker (🟢 below −3%, 🟡 ±3%, 🔴 above +3%).
+- **`/scan` and `/triggers`** unchanged structure (still r/p score + entry marker for one-glance read). The 10-row grid is per-stock detail only.
+- **Backfill MANDATORY.** Existing D28 power/R values are wrong under the new windowing. `--backfill-triggers` recomputes ALL D28 + D31 fields per row using calendar-day slicing. Per-symbol bulk fetch + batch UPDATE. Expected ~25-30 min on VPS for 2.35M rows.
+
+Trade-offs accepted:
+- New top-N is selective enough that SS hits will be rarer. By design — meaningful when they occur.
+- Calendar-day windows mean baseline counts vary slightly (~22 trading days ≈ 30 cal days, less in holiday-heavy weeks). Real institutional behaviour aligns to calendar, not exchange schedule.
+- 10 rows in /dvpt could feel noisy; if usage shows R-tier is rarely read, collapse it behind a flag later.
+
+Doctrine § E updated. D28 and D29 still apply for everything else (menu, scoring framework). D30 still applies for the regex/chat-prompt hardening.
 
 ### D30 — Robustness pass: bare-ticker fast-path + chat-prompt hardening
 Why: Session 15 deploy testing surfaced two real bugs:

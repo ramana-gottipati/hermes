@@ -2,28 +2,59 @@
 
 For each (symbol, trade_date), compute:
   - Today's delivery_value_per_trade = (deliv_qty * close) / no_of_trades
-  - Flat rolling averages over 5/10/30/60/90/180/365 trading days (excluding today)
-  - 'Power deliveries' — average of top-N within a window:
-      1m → top 5 of last 22 trading days
-      2m → top 10 of last 44
-      3m → top 15 of last 66
-      6m → top 40 of last 132
-  - Ratios: today vs avg_30d, today vs power_1m, today vs power_3m
+
+  - LEGACY flat rolling averages over 5/10/30/60/90/180/365 trading days
+    (kept for /dvpt single-stock detail history table)
+
+  - D31 R-tier — flat rolling averages over CALENDAR-day windows:
+      R1M  = avg DVPT over last  30 calendar days (excl today)
+      R2M  =                     60
+      R3M  =                     90
+      R6M  =                    180
+      R12M =                    360
+
+  - D31 P-tier — avg of top-N DVPT within CALENDAR-day windows:
+      P1M  = top  4 DVPT in last  30 calendar days
+      P2M  = top  7         in last  60
+      P3M  = top 12         in last  90
+      P6M  = top 20         in last 180
+      P12M = top 30         in last 360
+
+  - D31 Institutional price zones — for every R/P baseline, the avg CLOSE
+    on the same days (R: avg close over window; P: avg close on the
+    top-N-by-DVPT days). Lets us read "where institutions transacted."
+
+  - Scores: r_score / p_score = count of R/P baselines today's DVPT beats
+  - trigger_rank = SS(5)/S(4)/A(3)/B(2)/C(1)/'-' from p_score
+  - ATH-DVPT, hot_days_avg_price, near-break pointer (next_p_above + gap)
 
 Stored nightly into stock_signals table; queries become instant lookups.
 
 Usage:
     python -m src.automation.signals                        # compute today's row for every stock that has bhav data today
     python -m src.automation.signals --backfill             # compute signals for ALL historical days where missing
+    python -m src.automation.signals --backfill-triggers    # recompute D28/D31 trigger fields on existing rows
     python -m src.automation.signals --symbol RELIANCE      # one stock only (for debugging)
 """
 
 import argparse
 import logging
 import time
+from datetime import datetime, timedelta
 from typing import Optional
 
 from src.core.db import get_conn
+
+# D31 windowing — calendar days (NOT trading days).
+# Format: (label, calendar_days, top_n_for_power)
+_WINDOWS = (
+    ("1m",   30,  4),
+    ("2m",   60,  7),
+    ("3m",   90, 12),
+    ("6m",  180, 20),
+    ("12m", 360, 30),
+)
+_P_LABELS = ("P1M", "P2M", "P3M", "P6M", "P12M")
 
 log = logging.getLogger("hermes.signals")
 
@@ -43,34 +74,38 @@ def _delivery_value(deliv_qty, close) -> Optional[float]:
     return deliv_qty * close
 
 
+def _cutoff_date(trade_date: str, days: int) -> str:
+    """Calendar-day cutoff string for SQL filter. Inclusive lower bound."""
+    dt = datetime.strptime(trade_date, "%Y-%m-%d")
+    return (dt - timedelta(days=days)).strftime("%Y-%m-%d")
+
+
 def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[dict]:
     """Compute the full signal row for one (symbol, trade_date).
 
-    Reads the last ~365 trading days from bhavcopy_rows ending at trade_date,
-    derives delivery_value_per_trade per day, then computes all rolling stats.
-
-    Returns None if there's insufficient data (e.g. stock just listed).
+    Fetches all bhav rows for the symbol within the last 360 calendar days,
+    then slices per window (30/60/90/180/360 calendar days) for R-tier and
+    P-tier baselines. D31 calendar-day windowing replaces D28's trading-day
+    windowing.
     """
+    cutoff_360 = _cutoff_date(trade_date, 360)
     with get_conn() as conn:
         rows = conn.execute(
             """
             SELECT trade_date, close, value, deliv_qty, num_trades
             FROM bhavcopy_rows
             WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
-              AND trade_date <= ?
+              AND trade_date <= ? AND trade_date >= ?
             ORDER BY trade_date DESC
-            LIMIT 366
             """,
-            (symbol, trade_date),
+            (symbol, trade_date, cutoff_360),
         ).fetchall()
 
     if not rows:
         return None
 
-    # rows[0] is the target trade_date
     today_row = rows[0]
     if today_row["trade_date"] != trade_date:
-        # The symbol didn't actually trade on trade_date
         return None
 
     today_dvpt = _delivery_value_per_trade(
@@ -79,32 +114,60 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     today_dv = _delivery_value(today_row["deliv_qty"], today_row["close"])
     today_total = today_row["value"]
 
-    # Baseline = the rows BEFORE today (we already have them in rows[1:])
-    baseline = []
+    # Build a per-day baseline list (excluding today) with both DVPT and close.
+    # Each entry: (trade_date_str, dvpt, close).
+    baseline_full = []
     for r in rows[1:]:
-        v = _delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
-        if v is not None:
-            baseline.append(v)
+        dvpt = _delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
+        if dvpt is None:
+            continue
+        baseline_full.append((r["trade_date"], dvpt, r["close"]))
 
-    n_baseline = len(baseline)
+    n_baseline = len(baseline_full)
 
-    def flat_avg(window: int) -> Optional[float]:
-        if window > n_baseline:
+    # Legacy trading-day windows — used only for /dvpt history backward compat.
+    legacy_dvpts = [x[1] for x in baseline_full]
+
+    def legacy_flat_avg(td_window: int) -> Optional[float]:
+        if td_window > len(legacy_dvpts):
             return None
-        sub = baseline[:window]
-        return sum(sub) / len(sub) if sub else None
-
-    def power_avg(window: int, top_n: int) -> Optional[float]:
-        if window > n_baseline:
-            return None
-        sub = baseline[:window]
-        top = sorted(sub, reverse=True)[:top_n]
-        return sum(top) / len(top) if top else None
+        sub = legacy_dvpts[:td_window]
+        return sum(sub) / len(sub)
 
     def safe_ratio(num, den) -> Optional[float]:
         if num is None or den is None or den <= 0:
             return None
         return num / den
+
+    # D31 calendar-day windowing helpers.
+    def window_subset(days: int):
+        """Return the baseline rows within the last `days` calendar days."""
+        cutoff = _cutoff_date(trade_date, days)
+        return [b for b in baseline_full if b[0] >= cutoff]
+
+    def r_stats(days: int) -> tuple:
+        """R-tier: flat avg DVPT + flat avg close over the calendar window."""
+        sub = window_subset(days)
+        if not sub:
+            return None, None
+        avg_dvpt = sum(b[1] for b in sub) / len(sub)
+        closes = [b[2] for b in sub if b[2] is not None]
+        avg_close = (sum(closes) / len(closes)) if closes else None
+        return avg_dvpt, avg_close
+
+    def p_stats(days: int, top_n: int) -> tuple:
+        """P-tier: avg of top-N DVPT + avg close on those same top-N days."""
+        sub = window_subset(days)
+        if not sub:
+            return None, None
+        # Sort by DVPT descending, take top_n.
+        top = sorted(sub, key=lambda b: b[1], reverse=True)[:top_n]
+        if not top:
+            return None, None
+        avg_dvpt = sum(b[1] for b in top) / len(top)
+        closes = [b[2] for b in top if b[2] is not None]
+        avg_close = (sum(closes) / len(closes)) if closes else None
+        return avg_dvpt, avg_close
 
     signal = {
         "symbol": symbol,
@@ -112,40 +175,34 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
         "delivery_value_today": today_dv,
         "total_value_today": today_total,
         "delivery_value_per_trade": today_dvpt,
-        # Legacy flat averages (kept for /dvpt single-stock detail history)
-        "avg_dvpt_5d":   flat_avg(5),
-        "avg_dvpt_10d":  flat_avg(10),
-        "avg_dvpt_30d":  flat_avg(30),
-        "avg_dvpt_60d":  flat_avg(60),
-        "avg_dvpt_90d":  flat_avg(90),
-        "avg_dvpt_180d": flat_avg(180),
-        "avg_dvpt_365d": flat_avg(365),
-        # R-tier — rolling averages aligned with P-tier windows (D28)
-        "avg_dvpt_1m":   flat_avg(22),
-        "avg_dvpt_2m":   flat_avg(44),
-        "avg_dvpt_3m":   flat_avg(66),
-        "avg_dvpt_6m":   flat_avg(132),
-        "avg_dvpt_12m":  flat_avg(264),
-        # P-tier — top-N within window (5/22, 10/44, 15/66, 40/132, 80/264)
-        "power_dvpt_1m":  power_avg(22, 5),
-        "power_dvpt_2m":  power_avg(44, 10),
-        "power_dvpt_3m":  power_avg(66, 15),
-        "power_dvpt_6m":  power_avg(132, 40),
-        "power_dvpt_12m": power_avg(264, 80),
-        # Ratios — preserved for /dvpt detail
-        "ratio_today_vs_avg_30d":  None,
-        "ratio_today_vs_power_1m": None,
-        "ratio_today_vs_power_3m": None,
+        # LEGACY flat averages (trading-day windows; /dvpt history table)
+        "avg_dvpt_5d":   legacy_flat_avg(5),
+        "avg_dvpt_10d":  legacy_flat_avg(10),
+        "avg_dvpt_30d":  legacy_flat_avg(30),
+        "avg_dvpt_60d":  legacy_flat_avg(60),
+        "avg_dvpt_90d":  legacy_flat_avg(90),
+        "avg_dvpt_180d": legacy_flat_avg(180),
+        "avg_dvpt_365d": legacy_flat_avg(365),
         "data_points_used": n_baseline,
     }
-    signal["ratio_today_vs_avg_30d"]  = safe_ratio(today_dvpt, signal["avg_dvpt_30d"])
+
+    # D31 R-tier + P-tier — calendar-day windows.
+    for label, days, top_n in _WINDOWS:
+        r_dvpt, r_close = r_stats(days)
+        p_dvpt, p_close = p_stats(days, top_n)
+        signal[f"avg_dvpt_{label}"]   = r_dvpt
+        signal[f"power_dvpt_{label}"] = p_dvpt
+        signal[f"avg_close_r{label}"] = r_close
+        signal[f"avg_close_p{label}"] = p_close
+
+    # Legacy ratios (kept for backward compat — point at the new calendar-day baselines).
+    signal["ratio_today_vs_avg_30d"]  = safe_ratio(today_dvpt, signal["avg_dvpt_1m"])
     signal["ratio_today_vs_power_1m"] = safe_ratio(today_dvpt, signal["power_dvpt_1m"])
     signal["ratio_today_vs_power_3m"] = safe_ratio(today_dvpt, signal["power_dvpt_3m"])
 
-    # --- Two-tier scoring + layered triggers (Decision D28) -------------
-    r_keys = ("avg_dvpt_1m", "avg_dvpt_2m", "avg_dvpt_3m", "avg_dvpt_6m", "avg_dvpt_12m")
-    p_keys = ("power_dvpt_1m", "power_dvpt_2m", "power_dvpt_3m", "power_dvpt_6m", "power_dvpt_12m")
-    p_labels = ("P1M", "P2M", "P3M", "P6M", "P12M")
+    # --- Two-tier scoring + layered triggers (D28 logic, D31 baselines) ----
+    r_keys = tuple(f"avg_dvpt_{lbl}"   for lbl, _, _ in _WINDOWS)
+    p_keys = tuple(f"power_dvpt_{lbl}" for lbl, _, _ in _WINDOWS)
 
     r_score = _count_beaten(today_dvpt, [signal[k] for k in r_keys])
     p_score = _count_beaten(today_dvpt, [signal[k] for k in p_keys])
@@ -153,7 +210,7 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     signal["p_score"] = p_score
     signal["trigger_rank"] = _rank_from_p_score(p_score)
 
-    next_above, gap = _next_p_above(today_dvpt, [signal[k] for k in p_keys], p_labels)
+    next_above, gap = _next_p_above(today_dvpt, [signal[k] for k in p_keys], _P_LABELS)
     signal["next_p_above"] = next_above
     signal["gap_to_next_p_pct"] = gap
 
@@ -260,17 +317,20 @@ def _hot_days_avg_close(prior_rows) -> Optional[float]:
 _SIGNAL_COLS = [
     "symbol", "trade_date",
     "delivery_value_today", "total_value_today", "delivery_value_per_trade",
-    # Legacy R-windows (kept for /dvpt history)
+    # Legacy trading-day windows (kept for /dvpt history table)
     "avg_dvpt_5d", "avg_dvpt_10d", "avg_dvpt_30d", "avg_dvpt_60d",
     "avg_dvpt_90d", "avg_dvpt_180d", "avg_dvpt_365d",
-    # R-tier (D28)
+    # D31 R-tier (calendar-day flat averages: 30/60/90/180/360)
     "avg_dvpt_1m", "avg_dvpt_2m", "avg_dvpt_3m", "avg_dvpt_6m", "avg_dvpt_12m",
-    # P-tier
+    # D31 P-tier (top-N within calendar-day window: 4/30, 7/60, 12/90, 20/180, 30/360)
     "power_dvpt_1m", "power_dvpt_2m", "power_dvpt_3m", "power_dvpt_6m", "power_dvpt_12m",
+    # D31 institutional price zones (avg close on baseline days, R + P)
+    "avg_close_r1m", "avg_close_r2m", "avg_close_r3m", "avg_close_r6m", "avg_close_r12m",
+    "avg_close_p1m", "avg_close_p2m", "avg_close_p3m", "avg_close_p6m", "avg_close_p12m",
     # Legacy ratios
     "ratio_today_vs_avg_30d", "ratio_today_vs_power_1m", "ratio_today_vs_power_3m",
     "data_points_used",
-    # Two-tier triggers (D28)
+    # Two-tier triggers (D28 logic, D31 baselines)
     "r_score", "p_score", "trigger_rank",
     "is_ath_dvpt", "hot_days_avg_price", "price_vs_hot_avg_pct",
     "next_p_above", "gap_to_next_p_pct",
@@ -354,17 +414,13 @@ def run_backfill() -> tuple[int, int]:
     return len(dates), total
 
 
-# --- Two-tier trigger backfill (D28) ---------------------------------------
-
-_P_WINDOWS = ((22, 5, "P1M"), (44, 10, "P2M"), (66, 15, "P3M"),
-              (132, 40, "P6M"), (264, 80, "P12M"))
-_R_WINDOWS = (22, 44, 66, 132, 264)
-
+# --- Two-tier + price-zone trigger backfill (D28 + D31) --------------------
 
 def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
     """For one symbol: walk every (symbol, trade_date) in stock_signals and
-    populate the D28 two-tier fields using one bulk fetch of the symbol's
-    bhav history. Batch UPDATE.
+    populate ALL D28 + D31 fields (R/P-tier baselines under calendar-day
+    windowing, scores, rank, ATH, hot-day, near-break, AND the 10 institutional
+    price-zone columns). Per-symbol bulk fetch + batch UPDATE.
     """
     bhav = conn.execute(
         """SELECT trade_date, close, deliv_qty, num_trades
@@ -377,13 +433,13 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
         return 0
 
     n = len(bhav)
-    dvpts = [None] * n
+    dvpts  = [None] * n
     closes = [None] * n
-    dates = [None] * n
+    dates  = [None] * n
     for i, r in enumerate(bhav):
-        dvpts[i] = _delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
+        dvpts[i]  = _delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
         closes[i] = r["close"]
-        dates[i] = r["trade_date"]
+        dates[i]  = r["trade_date"]
     date_to_idx = {d: i for i, d in enumerate(dates)}
 
     # Running ATH-DVPT max over strictly-prior history.
@@ -408,36 +464,58 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
         else:
             is_ath = None
 
-        # Compute R-tier (flat avg of prior `window` days) and P-tier
-        # (top-N of prior `window` days) baselines from in-memory dvpts.
-        def flat_avg(window):
-            if i - window < 0:
-                return None
-            sub = [v for v in dvpts[i - window : i] if v is not None]
-            if len(sub) < window:
-                return None
-            return sum(sub) / len(sub)
+        # Build the strictly-prior baseline list for THIS date `d`.
+        # We need (date, dvpt, close) for every prior trade with non-None dvpt.
+        prior = []
+        for j in range(i):
+            if dvpts[j] is None:
+                continue
+            prior.append((dates[j], dvpts[j], closes[j]))
 
-        def power_avg(window, top_n):
-            if i - window < 0:
-                return None
-            sub = [v for v in dvpts[i - window : i] if v is not None]
-            if len(sub) < window:
-                return None
-            top = sorted(sub, reverse=True)[:top_n]
-            return sum(top) / len(top) if top else None
+        # Slice helpers — calendar-day windows on the prior list.
+        def window_subset(days: int):
+            cutoff = _cutoff_date(d, days)
+            return [x for x in prior if x[0] >= cutoff]
 
-        r_bases = [flat_avg(w) for w in _R_WINDOWS]
-        p_bases = [power_avg(w, n_top) for (w, n_top, _) in _P_WINDOWS]
-        p_labels = tuple(label for (_, _, label) in _P_WINDOWS)
+        def r_stats(days: int):
+            sub = window_subset(days)
+            if not sub:
+                return None, None
+            avg_dvpt  = sum(x[1] for x in sub) / len(sub)
+            cls       = [x[2] for x in sub if x[2] is not None]
+            avg_close = (sum(cls) / len(cls)) if cls else None
+            return avg_dvpt, avg_close
 
-        r_score = _count_beaten(today_v, r_bases)
-        p_score = _count_beaten(today_v, p_bases)
+        def p_stats(days: int, top_n: int):
+            sub = window_subset(days)
+            if not sub:
+                return None, None
+            top = sorted(sub, key=lambda x: x[1], reverse=True)[:top_n]
+            if not top:
+                return None, None
+            avg_dvpt  = sum(x[1] for x in top) / len(top)
+            cls       = [x[2] for x in top if x[2] is not None]
+            avg_close = (sum(cls) / len(cls)) if cls else None
+            return avg_dvpt, avg_close
+
+        r_dvpts  = []
+        r_closes = []
+        p_dvpts  = []
+        p_closes = []
+        for _label, win_days, top_n in _WINDOWS:
+            rd, rc = r_stats(win_days)
+            pd, pc = p_stats(win_days, top_n)
+            r_dvpts.append(rd);  r_closes.append(rc)
+            p_dvpts.append(pd);  p_closes.append(pc)
+
+        r_score = _count_beaten(today_v, r_dvpts)
+        p_score = _count_beaten(today_v, p_dvpts)
         rank = _rank_from_p_score(p_score)
-        next_above, gap = _next_p_above(today_v, p_bases, p_labels)
+        next_above, gap = _next_p_above(today_v, p_dvpts, _P_LABELS)
 
-        # Hot-days avg close — walk backwards from i-1, the same logic as
-        # `_hot_days_avg_close` but using our pre-computed dvpts/closes.
+        # Hot-days avg close (same definition as D28 — last 10 prior days
+        # where that day's DVPT exceeded its own 1m power baseline of
+        # top-5 of the 22 trading days immediately preceding it).
         hot_closes = []
         j = i - 1
         while j >= 0 and len(hot_closes) < 10:
@@ -456,25 +534,34 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
         else:
             pvh = None
 
-        # All five R + five P baselines also go into the row, since the
-        # nightly compute path will populate them for new rows and the
-        # backfill should fill them on historical rows too (so /dvpt
-        # detail view shows the same shape everywhere).
         updates.append((
-            r_bases[0], r_bases[1], r_bases[2], r_bases[3], r_bases[4],
-            p_bases[4],  # power_dvpt_12m (the new column)
+            # avg_dvpt_1m..12m (R-tier DVPT baselines, calendar-day)
+            r_dvpts[0], r_dvpts[1], r_dvpts[2], r_dvpts[3], r_dvpts[4],
+            # power_dvpt_1m..12m (P-tier DVPT baselines, calendar-day, new top-N)
+            p_dvpts[0], p_dvpts[1], p_dvpts[2], p_dvpts[3], p_dvpts[4],
+            # avg_close_r1m..r12m (R-tier price zones)
+            r_closes[0], r_closes[1], r_closes[2], r_closes[3], r_closes[4],
+            # avg_close_p1m..p12m (P-tier price zones)
+            p_closes[0], p_closes[1], p_closes[2], p_closes[3], p_closes[4],
+            # Scores + rank + ATH + hot + near-break
             r_score, p_score, rank,
             is_ath, hot_avg, pvh,
             next_above, gap,
+            # WHERE clause
             symbol, d,
         ))
 
     if updates:
         conn.executemany(
             """UPDATE stock_signals
-                  SET avg_dvpt_1m  = ?, avg_dvpt_2m  = ?, avg_dvpt_3m  = ?,
-                      avg_dvpt_6m  = ?, avg_dvpt_12m = ?,
-                      power_dvpt_12m = ?,
+                  SET avg_dvpt_1m   = ?, avg_dvpt_2m   = ?, avg_dvpt_3m   = ?,
+                      avg_dvpt_6m   = ?, avg_dvpt_12m  = ?,
+                      power_dvpt_1m = ?, power_dvpt_2m = ?, power_dvpt_3m = ?,
+                      power_dvpt_6m = ?, power_dvpt_12m = ?,
+                      avg_close_r1m = ?, avg_close_r2m = ?, avg_close_r3m = ?,
+                      avg_close_r6m = ?, avg_close_r12m = ?,
+                      avg_close_p1m = ?, avg_close_p2m = ?, avg_close_p3m = ?,
+                      avg_close_p6m = ?, avg_close_p12m = ?,
                       r_score = ?, p_score = ?, trigger_rank = ?,
                       is_ath_dvpt = ?, hot_days_avg_price = ?, price_vs_hot_avg_pct = ?,
                       next_p_above = ?, gap_to_next_p_pct = ?

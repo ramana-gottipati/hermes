@@ -276,7 +276,13 @@ def _fetch_flow_rows(ticker: str, days: int) -> list[dict]:
                       s.power_dvpt_1m,
                       s.power_dvpt_3m,
                       s.ratio_today_vs_power_1m AS r1m,
-                      s.ratio_today_vs_power_3m AS r3m
+                      s.ratio_today_vs_power_3m AS r3m,
+                      s.trigger_rank, s.r_score, s.p_score, s.is_ath_dvpt,
+                      s.next_p_above, s.gap_to_next_p_pct,
+                      s.avg_close_r1m, s.avg_close_r2m, s.avg_close_r3m,
+                      s.avg_close_r6m, s.avg_close_r12m,
+                      s.avg_close_p1m, s.avg_close_p2m, s.avg_close_p3m,
+                      s.avg_close_p6m, s.avg_close_p12m
                FROM stock_signals s
                JOIN bhavcopy_rows b USING (symbol, trade_date)
                WHERE s.symbol = ? AND b.series = 'EQ'
@@ -349,13 +355,87 @@ def _format_flow_message(ticker: str, rows: list[dict]) -> str:
             f"{_fmt_ratio(r['r3m']):>6}"
         )
     lines.append("</pre>")
+
+    # --- D31 Institutional price zones -----------------------------------
+    today_close = latest.get("close")
+    zone_lines = _format_price_zones_section(today_close, latest)
+    if zone_lines:
+        lines.append("")
+        lines.extend(zone_lines)
+
     lines.append("")
     lines.append(
         "<i>DVPT = (delivery quantity × close) ÷ number of trades. "
-        "Power baselines use top-N within trailing windows: top 5 of 22 days (1m), "
-        "top 15 of 66 days (3m). Value-based — naturally invariant to splits/bonuses.</i>"
+        "P-tier = avg of top-N DVPT days within calendar window "
+        "(top 4/30d, 7/60d, 12/90d, 20/180d, 30/360d). "
+        "R-tier = simple avg DVPT over same calendar windows. "
+        "Value-based — naturally invariant to splits/bonuses.</i>"
     )
     return "\n".join(lines)
+
+
+# Mapping from logical label → column key in the stock_signals row dict.
+_ZONE_LABELS = (
+    ("R1M",  "avg_close_r1m"),
+    ("R2M",  "avg_close_r2m"),
+    ("R3M",  "avg_close_r3m"),
+    ("R6M",  "avg_close_r6m"),
+    ("R12M", "avg_close_r12m"),
+    ("P1M",  "avg_close_p1m"),
+    ("P2M",  "avg_close_p2m"),
+    ("P3M",  "avg_close_p3m"),
+    ("P6M",  "avg_close_p6m"),
+    ("P12M", "avg_close_p12m"),
+)
+
+
+def _format_price_zones_section(today_close, latest: dict) -> list[str]:
+    """Render the D31 institutional price-zone block: for each of the 10
+    baselines, show avg close on baseline days, today's close, gap %, marker.
+
+    Returns empty list if today_close is missing or every zone column is NULL
+    (e.g. backfill hasn't run yet on the VPS).
+    """
+    if today_close is None or today_close <= 0:
+        return []
+    if not any(latest.get(col) for _, col in _ZONE_LABELS):
+        return []  # backfill not yet run
+
+    def marker(gap_pct):
+        if gap_pct is None:
+            return "  "
+        if gap_pct < -3.0:
+            return "🟢"
+        if gap_pct > 3.0:
+            return "🔴"
+        return "🟡"
+
+    def row(label, zone_price):
+        if zone_price is None or zone_price <= 0:
+            return f"{label:<5} {'—':>10} {'—':>8}    "
+        gap_pct = (today_close - zone_price) / zone_price * 100.0
+        return (
+            f"{label:<5} ₹{zone_price:>8,.1f} "
+            f"{gap_pct:>+7.1f}%  {marker(gap_pct)}"
+        )
+
+    out = [
+        "<b>📍 Institutional price zones (today's close vs avg close on baseline days):</b>",
+        "<pre>",
+        f"{'':<5} {'Avg close':>10} {'Δ today':>8}",
+        "<b>P-tier — top-N DVPT days (where institutions actually transacted):</b>",
+    ]
+    for label, col in _ZONE_LABELS[5:]:  # P-tier first (more actionable)
+        out.append(row(label, latest.get(col)))
+    out.append("<b>R-tier — flat avg (baseline trading zone):</b>")
+    for label, col in _ZONE_LABELS[:5]:
+        out.append(row(label, latest.get(col)))
+    out.append("</pre>")
+    out.append(
+        f"<i>Today's close: ₹{today_close:,.2f}. "
+        "🟢 below −3% = discount entry · 🟡 ±3% = at-cost · 🔴 above +3% = late entry.</i>"
+    )
+    return out
 
 
 async def on_pt14(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
