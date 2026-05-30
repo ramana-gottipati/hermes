@@ -418,6 +418,18 @@ Observed in this project — questions where the user clicks away or interrupts 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
 
+### D30 — Robustness pass: bare-ticker fast-path + chat-prompt hardening
+Why: Session 15 deploy testing surfaced two real bugs:
+1. Menu flow (`/menu` → Delivery flow → typed `BANDHANBNK`) did NOT route to /dvpt as intended. Bot replied with a Bloomberg-terminal-style hallucination ("I've got your delivery & momentum data loaded. What would you like to see? — Pattern analysis / Technicals / ..."). The `menu_pending` state machine somewhere along the way (PTB user_data lost, or never set, or a silent exception) failed silently; message fell through to chat handler.
+2. Chat handler was happy to invent feature categories Hermes doesn't have (Pattern analysis, Technicals, Volume profile). D21 system prompt wasn't strict enough.
+
+Fix shipped (D30, single commit):
+- **Bare-ticker fast-path in `intent.py`.** Regex `^[A-Z][A-Z0-9]{2,14}$` — if the entire message is a single uppercase NSE-shaped token, skip the LLM classifier and return `{intent: "BOTH", ticker: <text>}` directly. Catches BANDHANBNK, RELIANCE, INFY, TCS, etc. Robust against intent-classifier misses AND `menu_pending` state loss. Saves a Gemini/Haiku call too.
+- **Hardened HERMES_SYSTEM_PROMPT in `chat.py`.** Explicit list of what Hermes does NOT have (technical chart analysis, support/resistance, volume profile, intraday tick data, sentiment scoring). Explicit forbiddance of Bloomberg-terminal-style fake-menu offers. Explicit instruction: when a stock is named, point at /pt14 / /dvpt — never invent capabilities.
+- **Diagnostic logging in `telegram_bot.py`.** `on_message` now logs `user_id`, text prefix, current `menu_pending`, and `user_data` keys. `on_menu_callback` logs when it sets `menu_pending`. Next reproduction will tell us definitively whether menu_pending is set/lost/raced.
+
+Trade-off accepted: regex requires leading letter, so `360ONE` doesn't fast-path. Edge case — type lowercase or with prose and the LLM classifier handles it.
+
 ### D29 — Inline-keyboard menu system
 Why: Command surface had grown to 17+ slash commands. Ramana surfaced (session 15) that he couldn't remember which command did what — a real discoverability bottleneck, not hypothetical. The standard Telegram-native fix is inline keyboards (`InlineKeyboardMarkup` + `CallbackQueryHandler` in python-telegram-bot). Pure button routing — zero LLM cost. Doesn't replace slash commands; sits alongside them as a discovery layer.
 - New `/menu` command opens the root keyboard

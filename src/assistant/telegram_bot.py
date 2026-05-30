@@ -1006,6 +1006,11 @@ async def on_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Ticker prompts: set pending state, send a follow-up message.
     if data == "a:pt14":
         context.user_data["menu_pending"] = "pt14"
+        log.info(
+            "menu callback a:pt14 set menu_pending=pt14 for user_id=%s "
+            "user_data_keys=%s",
+            user_id, list(context.user_data.keys()),
+        )
         await context.bot.send_message(
             chat_id,
             "📊 Type the NSE ticker for the quality score.\n"
@@ -1015,6 +1020,11 @@ async def on_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     if data == "a:dvpt":
         context.user_data["menu_pending"] = "dvpt"
+        log.info(
+            "menu callback a:dvpt set menu_pending=dvpt for user_id=%s "
+            "user_data_keys=%s",
+            user_id, list(context.user_data.keys()),
+        )
         await context.bot.send_message(
             chat_id,
             "💧 Type the NSE ticker for delivery flow.\n"
@@ -1245,6 +1255,10 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     # --- Menu state: a previous button tap left us waiting for a ticker ---
     pending = context.user_data.get("menu_pending")
+    log.info(
+        "on_message: user_id=%s text=%r menu_pending=%r user_data_keys=%s",
+        user_id, text[:40], pending, list(context.user_data.keys()),
+    )
     if pending:
         await _menu_handle_pending(update, context, pending, text)
         return

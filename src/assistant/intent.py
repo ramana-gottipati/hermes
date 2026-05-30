@@ -120,12 +120,34 @@ User message:
 """
 
 
+# Fast-path regex: a single uppercase NSE-shaped token = direct BOTH lookup.
+# Catches "BANDHANBNK", "RELIANCE", "PIXTRANS", "INFY", "TCS", etc.
+# Robust against intent-classifier misses AND menu_pending state loss (D30).
+# Examples that match: BANDHANBNK, RELIANCE, INFY, PIXTRANS, TATAMOTORS, HDFCBANK
+# Examples that don't:  reliance (lowercase), Hello, "BANDHAN BANK" (has space),
+#                       AB (too short), M&M (special char — known edge case)
+_BARE_TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{2,14}$")
+
+
 def classify(message: str) -> dict:
     """Return {"intent": str, "ticker": str | None}.
 
-    On any failure, fall through to CHAT so the user gets a reply rather than
-    a stuck command.
+    Fast-path: if the entire message is a single uppercase NSE-shaped token,
+    skip the LLM classifier and route to BOTH directly. This is robust against
+    classifier misses (e.g. "BANDHANBNK" alone wouldn't always be recognised)
+    and against menu_pending state loss in the Telegram menu flow.
+
+    On any LLM failure, fall through to CHAT so the user gets a reply rather
+    than a stuck command.
     """
+    text = (message or "").strip()
+    if _BARE_TICKER_RE.match(text):
+        log.info(
+            "intent: shortcut BOTH ticker=%s (single uppercase NSE-shaped token; no LLM call)",
+            text,
+        )
+        return {"intent": "BOTH", "ticker": text}
+
     try:
         raw_response, provider = call_classifier(
             system=INTENT_SYSTEM,
