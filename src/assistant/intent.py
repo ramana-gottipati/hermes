@@ -90,6 +90,17 @@ Examples:
   "top movers in delivery"                        -> {"intent":"SCAN","ticker":null}
   "stocks with institutional intensity"           -> {"intent":"SCAN","ticker":null}
   "best delivery flows yesterday"                 -> {"intent":"SCAN","ticker":null}
+  "any ATH today"                                 -> {"intent":"SCAN","ticker":null}
+  "all-time high delivery"                        -> {"intent":"SCAN","ticker":null}
+  "ATH DVPT today"                                -> {"intent":"SCAN","ticker":null}
+  "rank SS stocks"                                -> {"intent":"SCAN","ticker":null}
+  "show me SS triggers"                           -> {"intent":"SCAN","ticker":null}
+  "any supreme triggers"                          -> {"intent":"SCAN","ticker":null}
+  "discount entry candidates"                     -> {"intent":"SCAN","ticker":null}
+  "stocks above all power baselines"              -> {"intent":"SCAN","ticker":null}
+  "near-break stocks today"                       -> {"intent":"SCAN","ticker":null}
+  "stocks kissing P3M"                            -> {"intent":"SCAN","ticker":null}
+  "about to cross power baselines"                -> {"intent":"SCAN","ticker":null}
 
   General chat (no data lookup, no specific stock):
   "hi how are you"                                -> {"intent":"CHAT","ticker":null}

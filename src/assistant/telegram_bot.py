@@ -583,31 +583,14 @@ async def on_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(_format_scan_message(rows), parse_mode="HTML")
 
 
-def _scan_top_dvpt(n: int) -> list[dict]:
-    """Top N EQ stocks by ratio_today_vs_power_1m for the latest trading day.
+# --- Two-tier scan + layered triggers (D28) -------------------------------
 
-    Filters applied (Decision D23):
-      - Liquidity: turnover > ₹1 Cr (excludes shell stocks)
-      - ETF exclusion: pattern-match common ETF/MF symbol substrings
-      - Series EQ + segment CM/NULL only
-    """
-    with get_conn() as conn:
-        rows = conn.execute(
-            """SELECT s.symbol,
-                      s.trade_date,
-                      s.delivery_value_per_trade AS dvpt,
-                      s.ratio_today_vs_power_1m  AS r1m,
-                      s.ratio_today_vs_power_3m  AS r3m,
-                      b.close,
-                      b.deliv_per,
-                      b.value AS total_value
-               FROM stock_signals s
-               JOIN bhavcopy_rows b USING (symbol, trade_date)
-               WHERE s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)
+# Shared symbol/liquidity filters (D23).
+_SCAN_FILTERS_SQL = """
                  AND b.series = 'EQ'
                  AND (b.segment = 'CM' OR b.segment IS NULL)
-                 AND s.ratio_today_vs_power_1m IS NOT NULL
                  AND b.value > 10000000
+                 AND b.close > 20
                  AND s.symbol NOT LIKE '%ETF%'
                  AND s.symbol NOT LIKE '%IETF%'
                  AND s.symbol NOT LIKE '%BEES%'
@@ -616,45 +599,246 @@ def _scan_top_dvpt(n: int) -> list[dict]:
                  AND s.symbol NOT LIKE 'MON%'
                  AND s.symbol NOT LIKE 'NIFTY%'
                  AND s.symbol NOT LIKE 'BANK%ADD'
-                 AND b.close > 20
-               ORDER BY s.ratio_today_vs_power_1m DESC
-               LIMIT ?""",
+"""
+
+# Sort by: ATH DESC, p_score DESC, r_score DESC, discount-entry DESC, r1m DESC.
+_LAYERED_ORDER_SQL = """
+ORDER BY COALESCE(s.is_ath_dvpt, 0) DESC,
+         COALESCE(s.p_score, -1) DESC,
+         COALESCE(s.r_score, -1) DESC,
+         CASE WHEN s.price_vs_hot_avg_pct IS NOT NULL
+                AND s.price_vs_hot_avg_pct < -3.0 THEN 0 ELSE 1 END ASC,
+         COALESCE(s.ratio_today_vs_power_1m, 0) DESC
+"""
+
+
+def _scan_top_dvpt(n: int) -> list[dict]:
+    """Top N EQ stocks for the latest trading day, layered two-tier ranked."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""SELECT s.symbol,
+                       s.trade_date,
+                       s.delivery_value_per_trade   AS dvpt,
+                       s.ratio_today_vs_power_1m    AS r1m,
+                       s.ratio_today_vs_power_3m    AS r3m,
+                       s.trigger_rank,
+                       s.r_score,
+                       s.p_score,
+                       s.is_ath_dvpt,
+                       s.hot_days_avg_price,
+                       s.price_vs_hot_avg_pct,
+                       s.next_p_above,
+                       s.gap_to_next_p_pct,
+                       b.close,
+                       b.deliv_per,
+                       b.value AS total_value
+                FROM stock_signals s
+                JOIN bhavcopy_rows b USING (symbol, trade_date)
+                WHERE s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)
+                  AND s.delivery_value_per_trade IS NOT NULL
+                  {_SCAN_FILTERS_SQL}
+                {_LAYERED_ORDER_SQL}
+                LIMIT ?""",
             (n,),
         ).fetchall()
         return [dict(r) for r in rows]
 
 
+def _entry_marker(pvh) -> str:
+    """🟢 discount / 🟡 at-cost / 🔴 above-cost vs recent hot-day avg (D28)."""
+    if pvh is None:
+        return "  "
+    if pvh < -3.0:
+        return "🟢"
+    if pvh > 3.0:
+        return "🔴"
+    return "🟡"
+
+
+def _rank_label(rank, is_ath) -> str:
+    base = (rank or "-")
+    if is_ath:
+        return f"⚡{base}" if base != "-" else "⚡ATH"
+    return base
+
+
+def _format_row(r: dict) -> str:
+    sym = (r["symbol"] or "")[:10]
+    rank = _rank_label(r.get("trigger_rank"), r.get("is_ath_dvpt"))
+    rp = f"{r.get('r_score') or 0}/{r.get('p_score') or 0}"
+    close = f"{r['close']:,.0f}" if r["close"] else "—"
+    pvh = r.get("price_vs_hot_avg_pct")
+    pvh_s = f"{pvh:+.1f}" if pvh is not None else "—"
+    en = _entry_marker(pvh)
+    near = r.get("next_p_above") or ""
+    gap = r.get("gap_to_next_p_pct")
+    if near and gap is not None:
+        near_s = f"{near}{gap:+.1f}"
+    else:
+        near_s = ""
+    return f"{sym:<10}{rank:>6}{rp:>6}{close:>8}{pvh_s:>7}{en:>3} {near_s:<10}"
+
+
+_ROW_HEADER = f"{'Symbol':<10}{'Rank':>6}{'r/p':>6}{'Close':>8}{'Δhot%':>7}{'En':>3} Near-P"
+
+
 def _format_scan_message(rows: list[dict]) -> str:
     trade_date = rows[0]["trade_date"]
-    n_exceptional = sum(1 for r in rows if (r["r1m"] or 0) > 1.50)
-    n_institutional = sum(1 for r in rows if 1.00 < (r["r1m"] or 0) <= 1.50)
+    n_ath = sum(1 for r in rows if r.get("is_ath_dvpt"))
+    n_ss  = sum(1 for r in rows if r.get("trigger_rank") == "SS")
+    n_s   = sum(1 for r in rows if r.get("trigger_rank") == "S")
+    n_a   = sum(1 for r in rows if r.get("trigger_rank") == "A")
+    n_disc = sum(1 for r in rows
+                 if r.get("price_vs_hot_avg_pct") is not None
+                 and r["price_vs_hot_avg_pct"] < -3.0)
+    n_near = sum(1 for r in rows
+                 if r.get("next_p_above") and r.get("gap_to_next_p_pct") is not None
+                 and r["gap_to_next_p_pct"] > -10.0)
 
-    header_summary = []
-    if n_exceptional:
-        header_summary.append(f"⚡ {n_exceptional} exceptional (r1m &gt; 1.50)")
-    if n_institutional:
-        header_summary.append(f"🟢 {n_institutional} institutional (1.00 &lt; r1m ≤ 1.50)")
-    summary_line = " · ".join(header_summary) if header_summary else "No institutional-intensity hits in this scan."
+    bits = []
+    if n_ath:  bits.append(f"⚡ {n_ath} ATH-DVPT")
+    if n_ss:   bits.append(f"SS×{n_ss}")
+    if n_s:    bits.append(f"S×{n_s}")
+    if n_a:    bits.append(f"A×{n_a}")
+    if n_disc: bits.append(f"🟢 {n_disc} discount")
+    if n_near: bits.append(f"🔥 {n_near} near-break")
+    summary_line = " · ".join(bits) if bits else "No layered triggers."
 
     lines = [
-        f"<b>🔎 Top institutional-flow signals — {trade_date}</b>",
+        f"<b>🔎 DVPT scan — {trade_date}</b>",
         f"<i>{summary_line}</i>",
-        "<i>Ranked by ratio_today_vs_power_1m. Liquidity filter: turnover &gt; ₹1 Cr.</i>",
+        "<i>Sort: ATH → p_score → r_score → discount → r1m. "
+        "r/p = soft/hard baselines beaten (max 5/5). "
+        "Near-P = closest P-wall above today.</i>",
         "",
         "<pre>",
-        f"{'Symbol':<12}{'Close':>9}{'Deliv%':>8}{'DVPT':>11}{'r1m':>7}{'r3m':>7}",
+        _ROW_HEADER,
     ]
     for r in rows:
-        sym = (r["symbol"] or "")[:12]
-        close = f"{r['close']:,.1f}" if r["close"] else "—"
-        deliv = f"{r['deliv_per']:,.1f}" if r["deliv_per"] is not None else "—"
-        dvpt = f"{int(r['dvpt']):,}" if r["dvpt"] else "—"
-        r1m = f"{r['r1m']:.2f}" if r["r1m"] is not None else "—"
-        r3m = f"{r['r3m']:.2f}" if r["r3m"] is not None else "—"
-        lines.append(f"{sym:<12}{close:>9}{deliv:>8}{dvpt:>11}{r1m:>7}{r3m:>7}")
+        lines.append(_format_row(r))
     lines.append("</pre>")
     lines.append("")
-    lines.append("<i>Drill into any name: type \"<b>dvpt &lt;symbol&gt;</b>\" or \"<b>what's &lt;symbol&gt;?</b>\".</i>")
+    lines.append(
+        "<i>Drill: <b>dvpt &lt;symbol&gt;</b>. "
+        "Strict S/SS only: <b>/triggers</b>. "
+        "About-to-break: <b>/triggers near</b>.</i>"
+    )
+    return "\n".join(lines)
+
+
+async def on_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Strict layered triggers across the market (D28).
+
+    /triggers       -> rank A or better (p_score >= 3)
+    /triggers ss    -> SS only (p_score = 5)
+    /triggers near  -> near-break candidates: gap_to_next_p_pct > -10% AND r_score >= 4
+    """
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+
+    mode = (context.args[0].lower() if context.args else "").strip()
+    if mode in ("ss", "supreme"):
+        kind = "ss"; label = "SS only"
+    elif mode in ("near", "near-break", "kissing"):
+        kind = "near"; label = "near-break candidates"
+    else:
+        kind = "default"; label = "rank A+ (p_score ≥ 3)"
+
+    await update.message.reply_text(f"🔎 Searching: {label}…")
+
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: _scan_triggers(kind))
+
+    if not rows:
+        await update.message.reply_text(
+            "No hits in this slice. Try <code>/scan</code> for the full ranking.",
+            parse_mode="HTML",
+        )
+        return
+
+    await update.message.reply_text(
+        _format_triggers_message(rows, kind, label), parse_mode="HTML"
+    )
+
+
+def _scan_triggers(kind: str) -> list[dict]:
+    """Filter the latest trading day by strictness mode.
+
+    kind:
+      'ss'      -> p_score = 5 (SS only)
+      'near'    -> next_p_above IS NOT NULL AND gap_to_next_p_pct > -10 AND r_score >= 4
+      'default' -> p_score >= 3 (rank A or better)
+    """
+    if kind == "ss":
+        extra_where = "AND s.p_score = 5"
+    elif kind == "near":
+        extra_where = ("AND s.next_p_above IS NOT NULL "
+                       "AND s.gap_to_next_p_pct > -10 "
+                       "AND COALESCE(s.r_score, 0) >= 4")
+    else:
+        extra_where = "AND s.p_score >= 3"
+
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""SELECT s.symbol,
+                       s.trade_date,
+                       s.delivery_value_per_trade   AS dvpt,
+                       s.ratio_today_vs_power_1m    AS r1m,
+                       s.ratio_today_vs_power_3m    AS r3m,
+                       s.trigger_rank,
+                       s.r_score,
+                       s.p_score,
+                       s.is_ath_dvpt,
+                       s.hot_days_avg_price,
+                       s.price_vs_hot_avg_pct,
+                       s.next_p_above,
+                       s.gap_to_next_p_pct,
+                       b.close,
+                       b.deliv_per,
+                       b.value AS total_value
+                FROM stock_signals s
+                JOIN bhavcopy_rows b USING (symbol, trade_date)
+                WHERE s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)
+                  {extra_where}
+                  {_SCAN_FILTERS_SQL}
+                {_LAYERED_ORDER_SQL}
+                LIMIT 50""",
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def _format_triggers_message(rows: list[dict], kind: str, label: str) -> str:
+    trade_date = rows[0]["trade_date"]
+    n_ath = sum(1 for r in rows if r.get("is_ath_dvpt"))
+    n_ss = sum(1 for r in rows if r.get("trigger_rank") == "SS")
+    n_s = sum(1 for r in rows if r.get("trigger_rank") == "S")
+    n_a = sum(1 for r in rows if r.get("trigger_rank") == "A")
+
+    bits = [f"({label})"]
+    if n_ath: bits.append(f"⚡ {n_ath} ATH")
+    if n_ss: bits.append(f"SS×{n_ss}")
+    if n_s and kind != "ss": bits.append(f"S×{n_s}")
+    if n_a and kind not in ("ss",): bits.append(f"A×{n_a}")
+    summary = " · ".join(bits)
+
+    lines = [
+        f"<b>⚡ Layered triggers — {trade_date}</b>",
+        f"<i>{summary}</i>",
+        "<i>r/p = R-tier / P-tier baselines beaten (5/5 = above all rolling avgs / power baselines). "
+        "Near-P shows next P-wall above today's DVPT.</i>",
+        "",
+        "<pre>",
+        _ROW_HEADER,
+    ]
+    for r in rows:
+        lines.append(_format_row(r))
+    lines.append("</pre>")
+    lines.append("")
+    lines.append(
+        "<i>Drill: <b>dvpt &lt;symbol&gt;</b>. "
+        "Full market view: <b>/scan [N]</b>.</i>"
+    )
     return "\n".join(lines)
 
 
@@ -794,7 +978,8 @@ def _chunk_text(text: str, *, limit: int) -> list[str]:
 BOT_COMMANDS = [
     BotCommand("pt14",          "patearn 14-pattern rule-based score (FREE — no LLM, /pt14 RELIANCE)"),
     BotCommand("dvpt",          "Delivery-Value-Per-Trade institutional signal (FREE, /dvpt TICKER [days])"),
-    BotCommand("scan",          "Top stocks across the market by DVPT signal — yesterday's smart money (FREE)"),
+    BotCommand("scan",          "Top stocks — two-tier ranked (ATH → p_score → r_score → discount → r1m) (FREE)"),
+    BotCommand("triggers",      "Strict layered triggers: rank A+, SS-only, or near-break (FREE, /triggers [ss|near])"),
     BotCommand("analyze",       "Guide for deep dive in claude.ai (FREE — replaces the old API-burning /analyze)"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
@@ -837,6 +1022,7 @@ def main() -> None:
     app.add_handler(CommandHandler("pt14", on_pt14))
     app.add_handler(CommandHandler("dvpt", on_dvpt))
     app.add_handler(CommandHandler("scan", on_scan))
+    app.add_handler(CommandHandler("triggers", on_triggers))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))

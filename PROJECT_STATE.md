@@ -1,6 +1,6 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-05-29
+> **Last updated:** 2026-05-29 (session 15)
 > **Running document.** This is the source of truth for the next Claude Code session.
 
 ---
@@ -91,54 +91,62 @@ The patearn framework was designed primarily for non-financial companies. For HF
 
 **Whenever Hermes scores a financial-sector stock, note in the output:** *"Score uses sector-adapted thresholds (see Doctrine D)"*. Decision D24.
 
-### E. Layered DVPT trigger system (NEW from session 14 — NOT YET IMPLEMENTED)
+### E. Two-tier DVPT trigger system — IMPLEMENTED session 15 (supersedes D26 spec)
 
-Current `/scan` uses a single ratio (`ratio_today_vs_power_1m`) which is informative but under-cooked. Ramana specified a richer trigger model that we haven't yet shipped. Specification below — **next session must implement.**
+Session 14 spec (D26) had two structural flaws Ramana caught in session 15:
+1. The SS/S/A/B rank used an *ordered* check ("must be `1m+2m+3m`, not 6m" = S) that silently downgraded valid 3-of-4 hits in other window combinations. Asymmetric, hidden assumption.
+2. Only four power baselines (P1M/P2M/P3M/P6M). P12M was missing entirely. And R-tier (rolling averages) was computed nightly but never surfaced — only one ratio (`ratio_today_vs_power_1m`) reached the user, so building intensity below the institutional-peak bar was invisible.
 
-#### Trigger ranks (multi-window comparison)
+The replacement design (D28) splits the signal into two tiers:
 
-For any stock on any trading day, compare today's DVPT against four power baselines simultaneously:
+**R-tier — rolling averages (soft bars).** "Above the normal day."
+- R1M = flat avg of last 22 trading days
+- R2M = last 44
+- R3M = last 66
+- R6M = last 132
+- R12M = last 264
 
-| Rank | Condition | Interpretation |
-|---|---|---|
-| **SS (Supreme)** | DVPT_today > power_1m AND power_2m AND power_3m AND power_6m | Above EVERY institutional benchmark — exceptional event |
-| **S** | > 1m + 2m + 3m, ≤ 6m | Above recent benchmarks; not above the 6-month peaks |
-| **A** | > 1m + 2m, ≤ 3m + 6m | Recent intensity, but lower than 3m+6m peaks |
-| **B** | > 1m only | Modest recent strength |
-| **—** | ≤ 1m | Normal day, no trigger |
+**P-tier — power deliveries (hard bars).** "Above the institutional peak days."
+- P1M = top-5 of last 22
+- P2M = top-10 of last 44
+- P3M = top-15 of last 66
+- P6M = top-40 of last 132
+- P12M = top-80 of last 264  ← NEW
 
-#### Special triggers (orthogonal to rank)
+**Two scores per (symbol, day):**
+- `r_score` (0–5) = count of R-baselines today's DVPT beats
+- `p_score` (0–5) = count of P-baselines today's DVPT beats
 
-| Trigger | Condition | Interpretation |
-|---|---|---|
-| **🆕 ATH-DVPT** | DVPT_today > MAX(DVPT) across stock's entire history in DB | Stock has NEVER seen this per-trade-delivery level before. Single rarest event. |
-| **🟢 Discount Entry** | Current close < avg close during recent 10 hot DVPT days × 0.97 | Stock fell after smart money was accumulating at higher prices — cheaper entry than the institutional bid |
-| **🟡 At-Cost Entry** | Current close within ±3% of hot-day avg | Trading where the big buyers bought |
-| **🔴 Above-Cost** | Current close > hot-day avg × 1.03 | Institutional buyers already up; late entry |
+**Rank — pure count from p_score (no hidden window ordering):**
+| Rank | Condition |
+|---|---|
+| SS  | p_score = 5 (above ALL P-baselines) |
+| S   | p_score = 4 |
+| A   | p_score = 3 |
+| B   | p_score = 2 |
+| C   | p_score = 1 |
+| —   | p_score = 0 |
 
-#### Ranking SCAN output (replaces current order)
+**Near-break pointer.** For every row, identify the smallest P-baseline today does NOT beat (the closest "wall above"). Store as `next_p_above` (e.g. "P3M") + `gap_to_next_p_pct` (negative = below the wall). When a stock is within −10% of a P-line AND r_score ≥ 4, that's the breakout-imminent signal — the user's "action zone."
 
-Sort: ATH-DVPT flag DESC → trigger_rank (SS > S > A > B) → discount-entry flag DESC → ratio_today_vs_power_1m DESC
+**Orthogonal flags (unchanged from D26):**
+| Trigger | Condition |
+|---|---|
+| ⚡ ATH-DVPT | DVPT_today > MAX(DVPT) across the stock's full DB history |
+| 🟢 Discount entry | close < hot-day avg × 0.97 |
+| 🟡 At-cost | close within ±3% of hot-day avg |
+| 🔴 Above-cost | close > hot-day avg × 1.03 |
 
-The "everything aligned" signal = Rank SS + ATH-DVPT + Discount Entry. Genuinely rare event, possibly once per quarter per stock.
+**`/scan` sort:** `is_ath_dvpt DESC → p_score DESC → r_score DESC → discount-flag DESC → r1m DESC`.
 
-**Schema changes required (4 new columns on `stock_signals`):**
-```sql
-ALTER TABLE stock_signals ADD COLUMN trigger_rank TEXT;
-ALTER TABLE stock_signals ADD COLUMN is_ath_dvpt INTEGER;
-ALTER TABLE stock_signals ADD COLUMN hot_days_avg_price REAL;
-ALTER TABLE stock_signals ADD COLUMN price_vs_hot_avg_pct REAL;
-```
+**`/triggers` modes:**
+- `/triggers` (default) → rank A or better (`p_score ≥ 3`), capped at 50 rows
+- `/triggers ss` → SS only (`p_score = 5`)
+- `/triggers near` → near-break: `next_p_above IS NOT NULL` AND `gap_to_next_p_pct > -10` AND `r_score ≥ 4`
 
-**Backfill plan (next session)**:
-1. Add columns to schema in db.py
-2. Add `_compute_trigger_fields()` helper in signals.py that populates these for one (symbol, date)
-3. Add `--backfill-triggers` mode that walks all `stock_signals` rows and populates the new fields
-4. Run backfill on VPS (~20 minutes for 2.35M rows)
-5. Update `/scan` to use new ranking + filter ETFs
-6. Add new `/triggers` command that shows only Rank S/SS hits across the entire market
+This surfaces three real failure modes that the old single-ratio scheme hid: (a) any 3-of-5 P-hit regardless of which windows, (b) the R-tier "building intensity" rows that never crossed P yet, (c) the "kissing a P-line" rows about to break.
 
-Decision D26.
+Decision D28 (supersedes D26 + D27).
 
 ---
 
@@ -309,7 +317,8 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 |---|---|---|
 | `/pt14 TICKER` | patearn 14-pattern rule-based score from Screener data (no LLM) | ₹0 |
 | `/dvpt TICKER [days]` | Delivery Value Per Trade institutional-flow signal: today vs power baselines + history | ₹0 |
-| `/scan [N]` | Top N stocks across the market by DVPT institutional-flow signal for latest trading day | ₹0 |
+| `/scan [N]` | Top N stocks across the market, ranked by D28 two-tier layered triggers (ATH → p_score → r_score → discount → r1m). Shows R/P scores, near-break pointer, entry marker | ₹0 |
+| `/triggers [ss\|near]` | Strict view. Default: rank A+. `ss` → SS only. `near` → kissing a P-line with r_score ≥ 4 (about to break) | ₹0 |
 | `/provider` | Show which LLM provider is active for classifier tasks | ₹0 |
 | `/analyze TICKER` | **Now just prints the claude.ai workflow guide** — no API call. Use claude.ai for deep dives under subscription. | ₹0 |
 | `/analyze TICKER` | Full Haiku patearn analysis (use sparingly) | ~₹2 |
@@ -355,7 +364,7 @@ Plain text in group from non-authorized users: silently ignored.
 - `bhavcopy_rows` — every column from sec_bhavdata_full + raw_json fallback. Wide schema, ~25 columns, indexed on (symbol, trade_date), trade_date, series. Includes deliv_qty, deliv_per. Unique on (symbol, trade_date, series, instrument_type).
 - `bhavcopy_dates` — tracks ingested dates for idempotent backfill.
 - `corporate_actions` — bonus/split/rights/dividend per (symbol, action_type, ex_date). Parsed ratios where possible.
-- `stock_signals` — pre-computed nightly. Per (symbol, trade_date): delivery_value_today, total_value_today, delivery_value_per_trade, flat averages over 5/10/30/60/90/180/365 days (excl. today), power deliveries (top-N: 5 of 22 days, 10 of 44, 15 of 66, 40 of 132), ratios today vs avg_30d / power_1m / power_3m.
+- `stock_signals` — pre-computed nightly. Per (symbol, trade_date): delivery_value_today, total_value_today, delivery_value_per_trade. **R-tier (D28):** `avg_dvpt_1m/2m/3m/6m/12m` (flat rolling avgs at 22/44/66/132/264 trading days). **P-tier:** `power_dvpt_1m/2m/3m/6m/12m` (top-N within window: 5/22, 10/44, 15/66, 40/132, 80/264). **Scores:** `r_score`, `p_score` (0–5 each, count of R/P baselines today's DVPT beats). **Rank:** `trigger_rank` (SS/S/A/B/C/'-' from p_score). **ATH + entry:** `is_ath_dvpt`, `hot_days_avg_price`, `price_vs_hot_avg_pct`. **Near-break:** `next_p_above` (closest P-wall above), `gap_to_next_p_pct`. Legacy cols (`avg_dvpt_5d/10d/30d/60d/90d/180d/365d`, three ratio cols) kept for /dvpt detail view. Backfill via `python -m src.automation.signals --backfill-triggers`.
 
 **View:** `prices_eq` — filtered to EQ series + CM segment, exposes OHLC + delivery cleanly for downstream code.
 
@@ -408,7 +417,22 @@ Observed in this project — questions where the user clicks away or interrupts 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
 
-### D26 — Layered DVPT trigger system replacing single-ratio scan ranking
+### D28 — Two-tier DVPT trigger system (supersedes D26)
+Why: D26's SS/S/A/B definition was asymmetric — only "1m+2m+3m, not 6m" counted as S; other 3-of-4 combinations silently graded as A or B. Ramana caught this in session 15. Also D26 used only 4 power baselines (P1M/2M/3M/6M); P12M was missing entirely, and the R-tier rolling averages were computed nightly but never surfaced to the user. The replacement:
+- 5 R-baselines (R1M..R12M, flat rolling avgs at 22/44/66/132/264 trading days) + 5 P-baselines (P1M..P12M, top-N within those windows)
+- Two pure-count scores: `r_score` and `p_score` (each 0–5)
+- Rank derived purely from p_score: SS=5, S=4, A=3, B=2, C=1, '-'=0. No hidden window ordering.
+- Near-break pointer: `next_p_above` + `gap_to_next_p_pct` — surfaces stocks within −10% of a P-line they haven't yet broken (the breakout-imminent signal)
+- `/triggers` modes: default = rank A+, `ss` = SS only, `near` = breakout-imminent
+- `/scan` sort updated: ATH → p_score → r_score → discount → r1m
+- 14 new columns on `stock_signals` (5 R-tier, 1 new P12M, 2 scores, rank, 2 ATH/entry, 2 hot-day, 2 near-break) via `_ensure_column` migration
+- `--backfill-triggers` mode (per-symbol bulk fetch + batch UPDATE) populates all D28 columns on the 2.35M historical rows; expected ~20-30 min on VPS
+Full doctrine in § E above. Decision **D28 supersedes D26 and D27**; the session-14 spec is no longer canonical.
+
+### D27 — D26 first-pass implementation (superseded same session by D28)
+Why: Session 15 first shipped D26 as specified, then Ramana flagged the asymmetric-rank flaw and asked for richer baselines. The first-pass code was discarded before commit. D27 is preserved here as a flag that the in-conversation pivot happened; no code from this iteration exists on disk.
+
+### D26 — Layered DVPT trigger system replacing single-ratio scan ranking (superseded by D28)
 Why: Single-ratio (`ratio_today_vs_power_1m`) is an under-cooked signal. Ramana's specification (session 14): rank stocks by which power-baselines today's DVPT exceeds simultaneously. SS = above ALL 4 (1m, 2m, 3m, 6m). S = above 3 of 4. A = above 2 of 4. Plus orthogonal flags: ATH-DVPT (all-time high in stock's history), Discount Entry (current price below avg price during recent hot days). Full spec in Doctrine § E above. Schema needs 4 new columns on `stock_signals`. NOT YET IMPLEMENTED — first priority for next session. Decision documented now so the spec doesn't get lost.
 
 ### D25 — Cost-routing doctrine consolidation
@@ -514,18 +538,13 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ### Other open items (queued, in priority order)
 
-**🔴 P1 — Next session must ship (specified in Doctrine § E above):**
+**🔴 P1 — Next session must ship:**
 
-A. **Layered DVPT trigger system** (Decision D26). Schema:
-```sql
-ALTER TABLE stock_signals ADD COLUMN trigger_rank TEXT;       -- SS / S / A / B / -
-ALTER TABLE stock_signals ADD COLUMN is_ath_dvpt INTEGER;     -- 0 / 1
-ALTER TABLE stock_signals ADD COLUMN hot_days_avg_price REAL; -- avg close on last 10 r1m>1 days
-ALTER TABLE stock_signals ADD COLUMN price_vs_hot_avg_pct REAL; -- (close - hot_avg)/hot_avg * 100
-```
-Compute in `signals.py`. Backfill via `--backfill-triggers` mode over all 2.35M existing rows (~20 min). Update `/scan` to use new ranking. Add new `/triggers` command for SS/S only. Update natural-language intent classifier so phrases like "any ATH today" / "all-time high delivery" route to /triggers.
+A. ✅ **Two-tier DVPT trigger system** (D28) — shipped in session 15. Schema migrated, compute in `signals.py`, `--backfill-triggers` mode, `/scan` rewritten, new `/triggers [ss|near]` command, intent vocab extended. **Pending on VPS:** code pull + service restart + one-shot `--backfill-triggers` run. Until backfill, historical rows have NULL on the new columns.
 
-B. **Portfolio / strategy tracker** (real gap surfaced in session 14):
+B. **Telegram menu system (inline keyboards)** — Ramana flagged in session 15 that command surface is hard to remember; proposed `/menu` (or repurposed `/start`) that opens an inline-keyboard tree → tap "Layered triggers" → tap "SS only" → result. python-telegram-bot's `InlineKeyboardMarkup` + `CallbackQueryHandler`. Zero LLM cost (pure button routing). Sketched menu tree exists in session-15 conversation but not yet coded. Should keep all existing slash commands; menu is a discovery layer on top.
+
+C. **Portfolio / strategy tracker** (real gap surfaced in session 14):
 ```sql
 CREATE TABLE stocks_in_play (
     id INTEGER PK,
@@ -571,6 +590,43 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 15 — 2026-05-29 — Two-tier DVPT trigger system (P1.A → D28)
+**Goal:** ship the D26 spec. Mid-session pivot to D28 after Ramana caught structural flaws in the original spec.
+
+**The pivot:**
+- First pass shipped D26 literally (sequential SS/S/A/B checks, 4 P-baselines). Ramana flagged: the asymmetric rank silently downgrades 3-of-4 hits in non-canonical window combinations. Also pointed out P12M was missing and R-tier was invisible to user.
+- Reverted the D26 work, redesigned as two-tier model (R-tier + P-tier, 5 baselines each, pure-count scoring, near-break pointer). New decision D28 supersedes D26+D27.
+
+**Shipped (single commit, D28):**
+- `src/core/db.py`: 14 new columns on `stock_signals` via idempotent `_ensure_column`. New indexes on (trade_date, p_score), (trade_date, trigger_rank), (trade_date, is_ath_dvpt).
+- `src/automation/signals.py`:
+  - 5 R-baselines (`avg_dvpt_1m/2m/3m/6m/12m`), 1 new P-baseline (`power_dvpt_12m`) computed nightly via existing `flat_avg` / `power_avg` helpers
+  - `_count_beaten`, `_rank_from_p_score` (SS/S/A/B/C/-), `_next_p_above` (finds closest P-wall above today's DVPT + gap %), `_hot_days_avg_close` (walks prior days for last 10 r1m>1 closes)
+  - ATH-DVPT via full-history `stock_signals` lookup (true-ATH, not 1y-bounded)
+  - `run_backfill_triggers` + `--backfill-triggers` CLI mode (per-symbol bulk fetch + batch UPDATE, expected ~20-30 min for 2.35M rows on VPS)
+- `src/assistant/telegram_bot.py`:
+  - `/scan` rewritten: SQL sort `is_ath_dvpt DESC → p_score DESC → r_score DESC → discount-flag → r1m DESC`. Output shows rank label (⚡ on ATH), `r/p` score, Δhot%, entry marker emoji (🟢/🟡/🔴), Near-P pointer with gap.
+  - New `/triggers` command + 3 modes: default (rank A+ = p_score ≥ 3, cap 50), `ss` (SS only), `near` (next_p_above NOT NULL AND gap > -10% AND r_score ≥ 4 — breakout-imminent)
+  - Registered in `BOT_COMMANDS` and `CommandHandler` table
+- `src/assistant/intent.py`: extended SCAN vocabulary for ATH / "rank SS" / discount-entry / near-break / "kissing P3M" phrasing
+- `PROJECT_STATE.md`: D28 (+ D27 pivot note + D26 superseded) added to decision log. Doctrine § E completely rewritten with the two-tier model. Schema description + commands table + open-items list all updated.
+
+**Deploy steps for VPS (must run before /scan or /triggers will return meaningful rows):**
+```bash
+cd /opt/hermes && git pull
+systemctl restart hermes-telegram
+nohup .venv/bin/python -m src.automation.signals --backfill-triggers \
+    > /var/log/hermes-trigger-backfill.log 2>&1 &
+tail -f /var/log/hermes-trigger-backfill.log
+```
+After backfill: all 2.35M historical signal rows get D28 columns populated. Nightly compute populates them for new days automatically.
+
+**Flagged but not touched:** uncommitted local diff on `src/assistant/patearn.py` adds `stage1_screen()` + `use_sonnet` param. Contradicts current doctrine (D7 / D22). Left alone — likely dormant work; needs explicit user decision before commit.
+
+**Not yet shipped (P1):**
+- B. **Telegram menu system** (inline keyboards) — Ramana flagged command-surface discoverability as a real pain point in session 15. Sketched a menu tree (Quality / Flow / Scan / Triggers / Watchlist / News / Status → sub-menus → action). python-telegram-bot supports this cleanly via `CallbackQueryHandler`. Zero LLM cost. Deferred from this session intentionally — D28 data-layer rework needed to land first so menu options reflect the final command shape.
+- C. **Portfolio / strategy tracker** — unchanged from session 14, still open.
 
 ### Session 14 (continued) — 2026-05-29 — Cost-routing doctrine + applied analytics + AAVAS case study + KT consolidation
 **Major direction shift**: Ramana pushed back hard on multiple architectural choices. Real friction surfaced, real corrections made. This second half of session 14 is itself a substantial KT artifact.

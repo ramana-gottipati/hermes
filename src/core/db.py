@@ -271,6 +271,44 @@ def _init() -> None:
         #    it with the wider bhavcopy_rows. Drop the old table if it exists and
         #    is empty (data wasn't shipped in production yet).
         conn.execute("DROP TABLE IF EXISTS daily_prices")
+
+        # 4b. Two-tier signal columns on stock_signals (Decision D28).
+        # R-tier rolling averages aligned with P-tier windows (22/44/66/132/264 trading days).
+        _ensure_column(conn, "stock_signals", "avg_dvpt_1m",          "REAL")
+        _ensure_column(conn, "stock_signals", "avg_dvpt_2m",          "REAL")
+        _ensure_column(conn, "stock_signals", "avg_dvpt_3m",          "REAL")
+        _ensure_column(conn, "stock_signals", "avg_dvpt_6m",          "REAL")
+        _ensure_column(conn, "stock_signals", "avg_dvpt_12m",         "REAL")
+        # P-tier — 12-month power baseline (top-80 of last 264 trading days)
+        _ensure_column(conn, "stock_signals", "power_dvpt_12m",       "REAL")
+        # Score columns — count of R/P baselines today's DVPT beats (0-5 each)
+        _ensure_column(conn, "stock_signals", "r_score",              "INTEGER")
+        _ensure_column(conn, "stock_signals", "p_score",              "INTEGER")
+        # Rank derived from p_score (SS=5, S=4, A=3, B=2, C=1, '-'=0)
+        _ensure_column(conn, "stock_signals", "trigger_rank",         "TEXT")
+        # ATH flag — today's DVPT is highest in the stock's entire history
+        _ensure_column(conn, "stock_signals", "is_ath_dvpt",          "INTEGER")
+        # Hot-day average close + price gap vs that average
+        _ensure_column(conn, "stock_signals", "hot_days_avg_price",   "REAL")
+        _ensure_column(conn, "stock_signals", "price_vs_hot_avg_pct", "REAL")
+        # Near-break pointer — lowest P-baseline today did NOT beat + how far below
+        _ensure_column(conn, "stock_signals", "next_p_above",         "TEXT")
+        _ensure_column(conn, "stock_signals", "gap_to_next_p_pct",    "REAL")
+
+        # 4c. Indexes on the new columns (post-ALTER, guaranteed to exist).
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_signals_p_score "
+            "ON stock_signals(trade_date, p_score DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_signals_trigger_rank "
+            "ON stock_signals(trade_date, trigger_rank)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_signals_ath "
+            "ON stock_signals(trade_date, is_ath_dvpt)"
+        )
+
         # 5. Helper view for clean equity-cash-market queries. Includes delivery.
         # Drop and recreate to pick up any new columns.
         conn.execute("DROP VIEW IF EXISTS prices_eq")
