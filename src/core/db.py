@@ -158,6 +158,131 @@ CREATE TABLE IF NOT EXISTS corporate_actions (
 );
 CREATE INDEX IF NOT EXISTS idx_corp_sym_ex ON corporate_actions(symbol, ex_date);
 
+-- D32 Index data — daily OHLC + P/E + P/B + Div Yield per NSE index.
+-- ~50 indexes × 1 row/day. Sourced from ind_close_all_DDMMYYYY.csv.
+CREATE TABLE IF NOT EXISTS index_rows (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    index_name      TEXT    NOT NULL,
+    trade_date      TEXT    NOT NULL,
+    open_value      REAL,
+    high_value      REAL,
+    low_value       REAL,
+    close_value     REAL,
+    points_change   REAL,
+    change_pct      REAL,
+    volume          INTEGER,
+    turnover_cr     REAL,
+    pe              REAL,
+    pb              REAL,
+    dividend_yield  REAL,
+    ingested_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(index_name, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_index_rows_name_date ON index_rows(index_name, trade_date);
+CREATE INDEX IF NOT EXISTS idx_index_rows_date      ON index_rows(trade_date);
+
+CREATE TABLE IF NOT EXISTS index_dates (
+    trade_date    TEXT PRIMARY KEY,
+    row_count     INTEGER,
+    ingested_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- D32 Pre-computed nightly per-index signals — returns, MA, 52w positioning,
+-- and the denormalized RS vs broad benchmark (Nifty 500 default).
+CREATE TABLE IF NOT EXISTS index_signals (
+    index_name           TEXT NOT NULL,
+    trade_date           TEXT NOT NULL,
+    close_value          REAL,
+    -- Returns over windows
+    ret_1d_pct           REAL,
+    ret_1w_pct           REAL,
+    ret_1m_pct           REAL,
+    ret_3m_pct           REAL,
+    ret_6m_pct           REAL,
+    ret_12m_pct          REAL,
+    -- Moving averages on level
+    pct_above_50d_avg    REAL,
+    pct_above_200d_avg   REAL,
+    -- 52w positioning
+    pct_off_52w_high     REAL,
+    pct_above_52w_low    REAL,
+    -- Denormalized RS vs broad benchmark (default = NIFTY 500)
+    broad_benchmark      TEXT,
+    rs_vs_broad_today    REAL,
+    rs_vs_broad_slope_1m  REAL,
+    rs_vs_broad_slope_3m  REAL,
+    rs_vs_broad_slope_6m  REAL,
+    rs_vs_broad_slope_12m REAL,
+    rs_vs_broad_above_50ma   INTEGER,
+    rs_vs_broad_above_200ma  INTEGER,
+    rs_vs_broad_new_52w_high INTEGER,
+    rs_vs_broad_trend_state  TEXT,
+    computed_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (index_name, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_index_signals_date_trend
+    ON index_signals(trade_date, rs_vs_broad_trend_state);
+
+-- D32 Generic ratio time series. Symmetric: numerator/denominator can be
+-- any (index, index) or (stock, index) pair. Source of truth for ratio charts.
+CREATE TABLE IF NOT EXISTS ratio_rows (
+    numerator    TEXT NOT NULL,
+    denominator  TEXT NOT NULL,
+    trade_date   TEXT NOT NULL,
+    num_close    REAL,
+    den_close    REAL,
+    ratio        REAL,
+    computed_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (numerator, denominator, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_ratio_num_date ON ratio_rows(numerator, trade_date);
+CREATE INDEX IF NOT EXISTS idx_ratio_den_date ON ratio_rows(denominator, trade_date);
+
+-- D32 Pre-computed ratio signals — MA, slope, breakout flags, trend state.
+CREATE TABLE IF NOT EXISTS ratio_signals (
+    numerator       TEXT NOT NULL,
+    denominator     TEXT NOT NULL,
+    trade_date      TEXT NOT NULL,
+    ratio           REAL,
+    ratio_ma_20     REAL,
+    ratio_ma_50     REAL,
+    ratio_ma_200    REAL,
+    ratio_high_50d  REAL,
+    ratio_low_50d   REAL,
+    ratio_high_200d REAL,
+    ratio_high_52w  REAL,
+    ratio_low_52w   REAL,
+    slope_1m_pct    REAL,
+    slope_3m_pct    REAL,
+    slope_6m_pct    REAL,
+    slope_12m_pct   REAL,
+    above_50_ma      INTEGER,
+    above_200_ma     INTEGER,
+    cross_50_today   INTEGER,
+    cross_200_today  INTEGER,
+    new_50d_high     INTEGER,
+    new_200d_high    INTEGER,
+    new_52w_high     INTEGER,
+    pct_below_52w_high REAL,
+    trend_state     TEXT,
+    computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (numerator, denominator, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_ratio_signals_trend
+    ON ratio_signals(trade_date, trend_state);
+
+-- D32 Stock-index membership (constituent lists). One row per (symbol, index).
+-- Refreshed weekly. snapshot_date tracks when the constituent was current.
+CREATE TABLE IF NOT EXISTS stock_index_membership (
+    symbol         TEXT NOT NULL,
+    index_name     TEXT NOT NULL,
+    snapshot_date  TEXT NOT NULL,
+    weight_pct     REAL,
+    PRIMARY KEY (symbol, index_name, snapshot_date)
+);
+CREATE INDEX IF NOT EXISTS idx_membership_symbol ON stock_index_membership(symbol);
+CREATE INDEX IF NOT EXISTS idx_membership_index  ON stock_index_membership(index_name);
+
 -- Pre-computed nightly rolling signals per (symbol, date). Captures both the
 -- regular baseline (flat averages) and the power-delivery signal (top-N within
 -- a window). All values are RUPEES, naturally split/bonus invariant.

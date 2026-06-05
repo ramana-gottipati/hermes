@@ -420,6 +420,54 @@ Observed in this project — questions where the user clicks away or interrupts 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
 
+### D32 — Index data + ratio infrastructure (third strategy pillar, phase 1)
+Why: User specified the third strategy alongside quality (/pt14) and positioning (/dvpt+D31) — relative strength. Treat sector-vs-broad ratios as **continuous time series**, apply technical reads (MA / breakout / trend state), surface in Telegram. Sector ratio breakout = "sector starting to outperform" signal. Companion to ratio breakdown for weakness detection.
+
+Architecture (4 layers):
+- **`index_rows`** — daily OHLC + P/E + P/B + Div Yield per NSE index. Sourced from `ind_close_all_DDMMYYYY.csv`. ~50 indexes × 1 row/day.
+- **`ratio_rows`** — generic (numerator, denominator, trade_date) → ratio. Symmetric: numerator/denominator can be index or stock. Source of truth for "the ratio chart as raw values."
+- **`ratio_signals`** — pre-computed technical reads per ratio per day: 20/50/200d MA, 50d/200d/52w high/low, 1m/3m/6m/12m slope, above/below MA, cross flags, new-high flags, composite `trend_state` ∈ {BREAKOUT, UPTREND, CONSOLIDATING, DOWNTREND, BREAKDOWN}.
+- **`index_signals`** — per-index per-day: 1d/1w/1m/3m/6m/12w returns, MA distances, 52w positioning, AND **denormalized RS vs default broad benchmark (Nifty 500)** — today's ratio + slopes + flags + trend_state. Lets `/index NAME` return full picture in one row read.
+- **`stock_index_membership`** — constituent lists (D33 will populate). Not used in D32.
+
+Files added:
+- `src/automation/indexes.py` — fetcher mirroring `bhavcopy.py`. Archives raw CSV, parses, ingests, tracks dates.
+- `src/automation/index_signals.py` — orchestrates index_signals + ratio_rows + ratio_signals for sector-vs-broad pairs (every non-size-based index × {Nifty 50, Nifty 500}).
+
+Telegram surface — 6 new commands:
+- `/index NAME` — level + technicals + RS vs Nifty 500 + trend_state
+- `/sectors` / `/rotation` — sector dashboard ordered by trend_state then 3m RS slope. The "what's leading the market" view.
+- `/ratio NUM DEN` — full read for one pair: ratio + MAs + slopes + breakout flags + 30-day history of the ratio chart as values
+- `/breakouts` — every ratio at BREAKOUT or UPTREND, sorted by 3m slope DESC
+- `/breakdowns` — every ratio at BREAKDOWN or DOWNTREND
+
+Breakout definitions (objective, no manual chart-reading):
+- `new_52w_high` = today's ratio strictly > max of prior 252 days
+- `new_200d_high` = same against prior 200 days
+- `new_50d_high` = same against prior 50 days
+- `cross_50_today` = ratio crossed up through 50d MA today
+- `cross_200_today` = ratio crossed up through 200d MA today
+- Composite `trend_state` = BREAKOUT (new 52w or new 200d + above 200ma) / UPTREND (above 200ma + positive 3m slope) / CONSOLIDATING (within 5% of 50ma) / DOWNTREND (below 200ma + negative 3m slope) / BREAKDOWN (>40% below 52w high + below 200ma)
+
+Deploy after commit:
+```bash
+cd /opt/hermes && git pull
+sudo tee -a /etc/systemd/system/hermes-bhavcopy.service.d/10-signals.conf > /dev/null <<EOF
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.indexes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.index_signals
+EOF
+sudo systemctl daemon-reload
+systemctl restart hermes-telegram
+
+# 5y backfill
+nohup .venv/bin/python -m src.automation.indexes --backfill 1830 > /var/log/hermes-indexes-backfill.log 2>&1 &
+# Then once that's done:
+nohup .venv/bin/python -m src.automation.index_signals --backfill > /var/log/hermes-index-signals-backfill.log 2>&1 &
+```
+Index fetch ~5-10 min for 5y. Signal+ratio compute ~5-10 min after.
+
+What's next (D33 — stock-level RS): with `stock_index_membership` populated from sectoral constituent CSVs, layer stock-vs-sector and stock-vs-broad ratios on top of D32's machinery. Add denormalized RS columns to `stock_signals`. Add `/rs TICKER`, `/leaders`, `/laggards`. Defer until D32 has been used in real workflow.
+
 ### D31 — Calendar-day windowing + institutional price zones (revises D28)
 Why: Two material gaps Ramana surfaced during session 15 deploy testing:
 1. **Windowing was wrong.** D28 used trading-day windows with top-N (5/10/15/40/80 of 22/44/66/132/264 trading days). Ramana specified calendar-day windows with much more selective top-N (4/7/12/20/30 of 30/60/90/180/360 calendar days). The new top-N is ~8–13% of days (vs old 23–30%), so the P-tier baselines now genuinely represent exceptional institutional days, not "above average."

@@ -660,6 +660,396 @@ async def on_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(_format_scan_message(rows), parse_mode="HTML")
 
 
+# --- D32 Index + ratio (sector vs broad) surface --------------------------
+
+_TREND_EMOJI = {
+    "BREAKOUT": "⚡",
+    "UPTREND":  "🟢",
+    "CONSOLIDATING": "🟡",
+    "DOWNTREND": "🔴",
+    "BREAKDOWN": "⬇️",
+    "UNKNOWN":   "—",
+}
+
+
+def _fmt_pct(v) -> str:
+    if v is None:
+        return "—"
+    return f"{v:+.1f}%"
+
+
+def _fmt_signed_int(v) -> str:
+    if v is None:
+        return "—"
+    return f"{int(v):+,}"
+
+
+async def on_index(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show one index's level + technicals + RS vs broad (D32)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: <code>/index NAME</code> — e.g. <code>/index NIFTYBANK</code>",
+            parse_mode="HTML",
+        )
+        return
+    raw = " ".join(context.args).upper().strip()
+    loop = asyncio.get_event_loop()
+    name, sig = await loop.run_in_executor(None, lambda: _resolve_index_signal(raw))
+    if not sig:
+        await update.message.reply_text(
+            f"No index found matching <b>{raw}</b>. Try <code>/sectors</code> for the list.",
+            parse_mode="HTML",
+        )
+        return
+    await update.message.reply_text(_format_index_message(name, sig), parse_mode="HTML")
+
+
+def _resolve_index_signal(raw: str) -> tuple:
+    """Fuzzy match the user's input to an actual index_name, return latest signal."""
+    with get_conn() as conn:
+        # Try exact match first
+        row = conn.execute(
+            """SELECT * FROM index_signals
+               WHERE UPPER(REPLACE(index_name,' ','')) = REPLACE(?, ' ','')
+                 AND trade_date = (SELECT MAX(trade_date) FROM index_signals)""",
+            (raw,),
+        ).fetchone()
+        if not row:
+            # Try LIKE
+            row = conn.execute(
+                """SELECT * FROM index_signals
+                   WHERE UPPER(REPLACE(index_name,' ','')) LIKE '%' || REPLACE(?, ' ','') || '%'
+                     AND trade_date = (SELECT MAX(trade_date) FROM index_signals)
+                   ORDER BY length(index_name) ASC
+                   LIMIT 1""",
+                (raw,),
+            ).fetchone()
+        if not row:
+            return None, None
+        return row["index_name"], dict(row)
+
+
+def _format_index_message(name: str, sig: dict) -> str:
+    state = sig.get("rs_vs_broad_trend_state") or "—"
+    emoji = _TREND_EMOJI.get(state, "—")
+    lines = [
+        f"<b>📊 {name} — {sig['trade_date']}</b>",
+        f"Close: <b>{sig['close_value']:,.2f}</b>",
+        "",
+        "<b>Returns:</b>",
+        "<pre>",
+        f"  1d  {_fmt_pct(sig['ret_1d_pct'])}   "
+        f"1w  {_fmt_pct(sig['ret_1w_pct'])}   "
+        f"1m  {_fmt_pct(sig['ret_1m_pct'])}",
+        f"  3m  {_fmt_pct(sig['ret_3m_pct'])}   "
+        f"6m  {_fmt_pct(sig['ret_6m_pct'])}   "
+        f"12m {_fmt_pct(sig['ret_12m_pct'])}",
+        "</pre>",
+        "<b>Trend (level):</b>",
+        "<pre>",
+        f"  vs 50d MA   {_fmt_pct(sig['pct_above_50d_avg'])}",
+        f"  vs 200d MA  {_fmt_pct(sig['pct_above_200d_avg'])}",
+        f"  off 52w hi  {_fmt_pct(sig['pct_off_52w_high'])}",
+        f"  off 52w lo  {_fmt_pct(sig['pct_above_52w_low'])}",
+        "</pre>",
+    ]
+    if sig.get("broad_benchmark"):
+        lines += [
+            f"<b>Relative strength vs {sig['broad_benchmark']}:</b>",
+            f"  {emoji} <b>{state}</b>",
+            "<pre>",
+            f"  ratio today   {sig.get('rs_vs_broad_today') or 0:.4f}",
+            f"  slope 1m  {_fmt_pct(sig.get('rs_vs_broad_slope_1m'))}",
+            f"  slope 3m  {_fmt_pct(sig.get('rs_vs_broad_slope_3m'))}",
+            f"  slope 6m  {_fmt_pct(sig.get('rs_vs_broad_slope_6m'))}",
+            f"  slope 12m {_fmt_pct(sig.get('rs_vs_broad_slope_12m'))}",
+            f"  > 50ma  {'✓' if sig.get('rs_vs_broad_above_50ma') else '✗'}   "
+            f"> 200ma {'✓' if sig.get('rs_vs_broad_above_200ma') else '✗'}   "
+            f"new 52w high {'⚡' if sig.get('rs_vs_broad_new_52w_high') else '—'}",
+            "</pre>",
+        ]
+    pe = sig.get("pe")
+    pb = sig.get("pb")
+    dy = sig.get("dividend_yield")
+    if pe or pb or dy:
+        lines.append("<b>Valuation:</b>")
+        lines.append(f"  PE {pe or '—'} · PB {pb or '—'} · Div Yield {dy or '—'}%")
+    return "\n".join(lines)
+
+
+async def on_sectors(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Compact sector dashboard ordered by RS vs broad trend (D32)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, _fetch_sector_dashboard)
+    if not rows:
+        await update.message.reply_text("No index signals computed yet.")
+        return
+    await update.message.reply_text(_format_sectors_message(rows), parse_mode="HTML")
+
+
+_TREND_ORDER_CASE = (
+    "CASE rs_vs_broad_trend_state "
+    "WHEN 'BREAKOUT' THEN 0 WHEN 'UPTREND' THEN 1 "
+    "WHEN 'CONSOLIDATING' THEN 2 WHEN 'DOWNTREND' THEN 3 "
+    "WHEN 'BREAKDOWN' THEN 4 ELSE 5 END"
+)
+
+
+def _fetch_sector_dashboard() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""SELECT index_name, trade_date, ret_1m_pct, ret_3m_pct, ret_12m_pct,
+                       rs_vs_broad_slope_1m, rs_vs_broad_slope_3m,
+                       rs_vs_broad_trend_state, broad_benchmark
+                FROM index_signals
+                WHERE trade_date = (SELECT MAX(trade_date) FROM index_signals)
+                  AND broad_benchmark IS NOT NULL
+                ORDER BY {_TREND_ORDER_CASE} ASC,
+                         COALESCE(rs_vs_broad_slope_3m, -999) DESC""",
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _format_sectors_message(rows: list[dict]) -> str:
+    trade_date = rows[0]["trade_date"]
+    lines = [
+        f"<b>🔁 Sector rotation — {trade_date}</b>",
+        f"<i>vs {rows[0].get('broad_benchmark', 'broad')}. "
+        "Sorted: BREAKOUT → UPTREND → CONSOL → DOWNTREND → BREAKDOWN, "
+        "then by 3m RS slope.</i>",
+        "",
+        "<pre>",
+        f"{'Index':<22}{'State':>10}{'rs1m':>8}{'rs3m':>8}{'ret3m':>8}",
+    ]
+    for r in rows:
+        nm = (r["index_name"] or "")[:22]
+        state = r.get("rs_vs_broad_trend_state") or "—"
+        emoji_state = f"{_TREND_EMOJI.get(state, '—')}{state[:5]}"
+        lines.append(
+            f"{nm:<22}{emoji_state:>10}"
+            f"{_fmt_pct(r.get('rs_vs_broad_slope_1m')):>8}"
+            f"{_fmt_pct(r.get('rs_vs_broad_slope_3m')):>8}"
+            f"{_fmt_pct(r.get('ret_3m_pct')):>8}"
+        )
+    lines.append("</pre>")
+    lines.append("")
+    lines.append("<i>Drill in: <b>/index NAME</b> or <b>/ratio NAME NIFTY 500</b>.</i>")
+    return "\n".join(lines)
+
+
+async def on_ratio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show one ratio time series with trend reads (D32).
+
+    Usage: /ratio NUMERATOR DENOMINATOR
+           /ratio NIFTYBANK NIFTY 50
+    """
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Usage: <code>/ratio NUM DEN</code> — "
+            "e.g. <code>/ratio NIFTYBANK NIFTY 50</code>",
+            parse_mode="HTML",
+        )
+        return
+    # First token is numerator; the rest is the denominator (may have spaces)
+    args = [a for a in context.args if a]
+    num_raw = args[0].upper().strip()
+    den_raw = " ".join(args[1:]).upper().strip()
+
+    loop = asyncio.get_event_loop()
+    pair = await loop.run_in_executor(None, lambda: _resolve_ratio_pair(num_raw, den_raw))
+    if not pair:
+        await update.message.reply_text(
+            f"No ratio data for <b>{num_raw}</b> / <b>{den_raw}</b>. "
+            "Both names need to be in index_signals — try <code>/sectors</code>.",
+            parse_mode="HTML",
+        )
+        return
+    num_name, den_name, sig, hist = pair
+    await update.message.reply_text(
+        _format_ratio_message(num_name, den_name, sig, hist), parse_mode="HTML"
+    )
+
+
+def _match_index(raw: str):
+    """Fuzzy-match raw user input to an actual index_name."""
+    with get_conn() as conn:
+        row = conn.execute(
+            """SELECT index_name FROM index_signals
+               WHERE UPPER(REPLACE(index_name,' ','')) = REPLACE(?, ' ','')
+               ORDER BY trade_date DESC LIMIT 1""",
+            (raw,),
+        ).fetchone()
+        if row:
+            return row["index_name"]
+        row = conn.execute(
+            """SELECT index_name FROM index_signals
+               WHERE UPPER(REPLACE(index_name,' ','')) LIKE '%' || REPLACE(?, ' ','') || '%'
+               ORDER BY length(index_name) ASC, trade_date DESC LIMIT 1""",
+            (raw,),
+        ).fetchone()
+        return row["index_name"] if row else None
+
+
+def _resolve_ratio_pair(num_raw: str, den_raw: str):
+    num = _match_index(num_raw)
+    den = _match_index(den_raw)
+    if not num or not den:
+        return None
+    with get_conn() as conn:
+        sig = conn.execute(
+            """SELECT * FROM ratio_signals
+               WHERE numerator = ? AND denominator = ?
+               ORDER BY trade_date DESC LIMIT 1""",
+            (num, den),
+        ).fetchone()
+        if not sig:
+            return None
+        hist = conn.execute(
+            """SELECT trade_date, ratio FROM ratio_rows
+               WHERE numerator = ? AND denominator = ?
+               ORDER BY trade_date DESC LIMIT 30""",
+            (num, den),
+        ).fetchall()
+    return num, den, dict(sig), [dict(r) for r in hist]
+
+
+def _format_ratio_message(num: str, den: str, sig: dict, hist: list[dict]) -> str:
+    state = sig.get("trend_state") or "—"
+    emoji = _TREND_EMOJI.get(state, "—")
+    lines = [
+        f"<b>⚖️ {num} / {den} — {sig['trade_date']}</b>",
+        f"  {emoji} <b>{state}</b>",
+        "",
+        "<pre>",
+        f"  ratio today     {sig['ratio']:.4f}",
+        f"  20d MA          {sig.get('ratio_ma_20') or 0:.4f}",
+        f"  50d MA          {sig.get('ratio_ma_50') or 0:.4f}",
+        f"  200d MA         {sig.get('ratio_ma_200') or 0:.4f}",
+        f"  52w high        {sig.get('ratio_high_52w') or 0:.4f}",
+        f"  52w low         {sig.get('ratio_low_52w') or 0:.4f}",
+        f"  off 52w high    {_fmt_pct(sig.get('pct_below_52w_high'))}",
+        f"  slope 1m  {_fmt_pct(sig.get('slope_1m_pct'))}    "
+        f"3m  {_fmt_pct(sig.get('slope_3m_pct'))}",
+        f"  slope 6m  {_fmt_pct(sig.get('slope_6m_pct'))}    "
+        f"12m {_fmt_pct(sig.get('slope_12m_pct'))}",
+        f"  > 50ma  {'✓' if sig.get('above_50_ma') else '✗'}   "
+        f"> 200ma {'✓' if sig.get('above_200_ma') else '✗'}",
+        f"  cross 50 today  {'⚡' if sig.get('cross_50_today') else '—'}    "
+        f"cross 200 {'⚡' if sig.get('cross_200_today') else '—'}",
+        f"  new 50d high    {'⚡' if sig.get('new_50d_high') else '—'}    "
+        f"new 200d {'⚡' if sig.get('new_200d_high') else '—'}    "
+        f"new 52w {'⚡' if sig.get('new_52w_high') else '—'}",
+        "</pre>",
+        "",
+        f"<b>Last {len(hist)} days (newest first):</b>",
+        "<pre>",
+        f"{'Date':<12}{'Ratio':>12}",
+    ]
+    for r in hist:
+        lines.append(f"{r['trade_date']:<12}{r['ratio']:>12.4f}")
+    lines.append("</pre>")
+    return "\n".join(lines)
+
+
+async def on_breakouts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Sector ratios breaking out today (D32)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None,
+        lambda: _fetch_trend_filter(("BREAKOUT", "UPTREND"), limit=30, ascending=False)
+    )
+    if not rows:
+        await update.message.reply_text(
+            "No sector ratios in BREAKOUT or UPTREND right now. "
+            "Try <code>/rotation</code> for the full picture.",
+            parse_mode="HTML",
+        )
+        return
+    await update.message.reply_text(
+        _format_breakouts_message(rows, kind="breakouts"), parse_mode="HTML"
+    )
+
+
+async def on_breakdowns(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Sector ratios breaking down today (D32)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None,
+        lambda: _fetch_trend_filter(("BREAKDOWN", "DOWNTREND"), limit=30, ascending=True)
+    )
+    if not rows:
+        await update.message.reply_text(
+            "No sector ratios in BREAKDOWN or DOWNTREND right now.",
+        )
+        return
+    await update.message.reply_text(
+        _format_breakouts_message(rows, kind="breakdowns"), parse_mode="HTML"
+    )
+
+
+def _fetch_trend_filter(states: tuple, limit: int, ascending: bool) -> list[dict]:
+    direction = "ASC" if ascending else "DESC"
+    placeholders = ",".join("?" * len(states))
+    with get_conn() as conn:
+        rows = conn.execute(
+            f"""SELECT numerator, denominator, trade_date, ratio,
+                       trend_state, slope_1m_pct, slope_3m_pct,
+                       new_52w_high, new_200d_high, new_50d_high
+                FROM ratio_signals
+                WHERE trade_date = (SELECT MAX(trade_date) FROM ratio_signals)
+                  AND trend_state IN ({placeholders})
+                ORDER BY slope_3m_pct {direction}
+                LIMIT ?""",
+            (*states, limit),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _format_breakouts_message(rows: list[dict], kind: str) -> str:
+    trade_date = rows[0]["trade_date"]
+    title = "⚡ Ratio breakouts" if kind == "breakouts" else "⬇️ Ratio breakdowns"
+    lines = [
+        f"<b>{title} — {trade_date}</b>",
+        "<i>Sector vs broad-index ratio. ⚡ on row = new 52w/200d/50d high.</i>",
+        "",
+        "<pre>",
+        f"{'Num / Den':<26}{'State':>8}{'rs1m':>8}{'rs3m':>8}{'New':>5}",
+    ]
+    for r in rows:
+        pair = f"{r['numerator'][:14]}/{r['denominator'][:10]}"[:26]
+        state = r["trend_state"][:7]
+        flag = "52w" if r.get("new_52w_high") else (
+               "200d" if r.get("new_200d_high") else (
+               "50d" if r.get("new_50d_high") else "—"))
+        lines.append(
+            f"{pair:<26}{state:>8}"
+            f"{_fmt_pct(r.get('slope_1m_pct')):>8}"
+            f"{_fmt_pct(r.get('slope_3m_pct')):>8}{flag:>5}"
+        )
+    lines.append("</pre>")
+    lines.append("")
+    lines.append("<i>Drill in: <b>/ratio NUM DEN</b>.</i>")
+    return "\n".join(lines)
+
+
+async def on_rotation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Alias for /sectors — common phrasing 'sector rotation'."""
+    await on_sectors(update, context)
+
+
 # --- Two-tier scan + layered triggers (D28) -------------------------------
 
 # Shared symbol/liquidity filters (D23).
@@ -1403,6 +1793,12 @@ BOT_COMMANDS = [
     BotCommand("dvpt",          "Delivery-Value-Per-Trade institutional signal (FREE, /dvpt TICKER [days])"),
     BotCommand("scan",          "Top stocks — two-tier ranked (ATH → p_score → r_score → discount → r1m) (FREE)"),
     BotCommand("triggers",      "Strict layered triggers: rank A+, SS-only, or near-break (FREE, /triggers [ss|near])"),
+    BotCommand("index",         "Index level + technicals + RS vs broad (D32, /index NIFTYBANK)"),
+    BotCommand("sectors",       "Sector rotation dashboard — all sectoral RS vs Nifty 500 (D32)"),
+    BotCommand("rotation",      "Alias of /sectors — same view"),
+    BotCommand("ratio",         "Ratio chart between two indexes (D32, /ratio NIFTYBANK NIFTY 50)"),
+    BotCommand("breakouts",     "Sectoral ratios breaking out / in uptrend vs broad (D32)"),
+    BotCommand("breakdowns",    "Sectoral ratios breaking down / in downtrend vs broad (D32)"),
     BotCommand("analyze",       "Guide for deep dive in claude.ai (FREE — replaces the old API-burning /analyze)"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
@@ -1449,6 +1845,12 @@ def main() -> None:
     app.add_handler(CommandHandler("dvpt", on_dvpt))
     app.add_handler(CommandHandler("scan", on_scan))
     app.add_handler(CommandHandler("triggers", on_triggers))
+    app.add_handler(CommandHandler("index", on_index))
+    app.add_handler(CommandHandler("sectors", on_sectors))
+    app.add_handler(CommandHandler("rotation", on_rotation))
+    app.add_handler(CommandHandler("ratio", on_ratio))
+    app.add_handler(CommandHandler("breakouts", on_breakouts))
+    app.add_handler(CommandHandler("breakdowns", on_breakdowns))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))
