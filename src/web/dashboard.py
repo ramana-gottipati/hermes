@@ -1166,6 +1166,7 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 </div>
 <div class="chartwrap">
   <div class="chartlbl">Price + institutional zones (split/bonus-adjusted){'  ⚠ recent corporate action — zone overlay approximate' if zone_action_recent else ''}</div>
+  <div id="priceRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
   <div id="priceChart" style="height:300px;"></div>
 </div>
 <div class="chartwrap">
@@ -1251,6 +1252,24 @@ const DATA = {data_json};
     if(rzT) clearTimeout(rzT);
     rzT=setTimeout(()=>{{ charts.forEach(c=>c.applyOptions({{}})); }},100);
   }}).observe(pEl);
+
+  // Crosshair value readout — hover ANY of the 3 panes to see that day's
+  // OHLC + DVPT + delivery; shows the latest day when the cursor is off-chart.
+  const rdt=document.getElementById('priceRdt');
+  function tkey(t){{ return (typeof t==='object'&&t)?(t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2)):t; }}
+  const byT={{}}; S.forEach(d=>byT[d.time]=d);
+  function showR(d){{
+    if(!d){{ rdt.innerHTML=''; return; }}
+    rdt.innerHTML='<b>'+d.time+'</b>&nbsp; O '+d.open+'&nbsp; H '+d.high+'&nbsp; L '+d.low
+      +'&nbsp; <b>C '+d.close+'</b>'
+      +(d.dvpt!=null?'&nbsp; · DVPT ₹'+Math.round(d.dvpt).toLocaleString('en-IN'):'')
+      +(d.deliv!=null?'&nbsp; · Deliv '+d.deliv.toFixed(1)+'%':'');
+  }}
+  [pc,vc,dc].forEach(c=>c.subscribeCrosshairMove(p=>{{
+    if(!p||!p.time){{ showR(S[S.length-1]); return; }}
+    showR(byT[tkey(p.time)]||S[S.length-1]);
+  }}));
+  showR(S[S.length-1]);
 }})();
 </script>
 """
@@ -1313,6 +1332,26 @@ const DATA = __DATA__;
   // Debounced ResizeObserver (~100ms) — avoid a redraw per resize tick.
   let rzT=null;
   new ResizeObserver(()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
+
+  // Crosshair value readout — hover to see the ratio + its 50/200-MA at the
+  // cursor; shows the latest when the cursor is off-chart.
+  const rdt=document.getElementById('ratioRdt');
+  function tkey(t){ return (typeof t==='object'&&t)?(t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2)):t; }
+  function f4(v){ return v!=null?v.toFixed(4):'—'; }
+  function showR(p){
+    let t,r,m50,m200;
+    if(p&&p.time&&p.seriesData){
+      t=tkey(p.time);
+      const a=p.seriesData.get(ratioLine); r=a?a.value:null;
+      const b=p.seriesData.get(ma50Line);  m50=b?b.value:null;
+      const c=p.seriesData.get(ma200Line); m200=c?c.value:null;
+    } else {
+      const last=D[D.length-1]; t=last.t; r=last.ratio; m50=last.ma50; m200=last.ma200;
+    }
+    rdt.innerHTML='<b>'+t+'</b>&nbsp; ratio <b>'+f4(r)+'</b>&nbsp; · 50-MA '+f4(m50)+'&nbsp; · 200-MA '+f4(m200);
+  }
+  chart.subscribeCrosshairMove(showR);
+  showR(null);
 })();
 </script>
 """
@@ -1569,6 +1608,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
 </div>
 <div class="chartwrap">
   <div class="chartlbl">{_esc(idx)} / {_esc(den)} ratio · blue=ratio · amber=50-MA · grey=200-MA · ↑50/↓50 crosses · ● new 52w high</div>
+  <div id="ratioRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
   <div id="ratioChart" style="height:300px;"></div>
 </div>
 {pill_row}
