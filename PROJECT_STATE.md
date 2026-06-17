@@ -1,7 +1,8 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-05-31 (session 15)
+> **Last updated:** 2026-06-16 (session 15 — very long; ran May 29 → June 16)
 > **Running document.** This is the source of truth for the next Claude Code session.
+> **⚠ Session-15 carry-over (read § Session log top + § open-items P0 first):** GitHub push is BLOCKED (CirqleLife credential); the dashboard enrichments are live on the VPS via `scp` but UNCOMMITTED/UNPUSHED; VPS `/opt/hermes` is diverged from git; Telegram bot is network-blocked from the VPS; the Nous Hermes Agent (separate product) now also runs on the VPS at `:9443`. Decisions D34–D37 added. Next build: D33 stock-level RS (spec = D37).
 
 ---
 
@@ -179,9 +180,11 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 | VPS hostname | srv1704897.hstgr.cloud |
 | Telegram bot | https://t.me/ramana_hermes_bot |
 | Candidates web page | http://187.127.173.149:8000/candidates |
-| Web dashboard (PWA) | http://187.127.173.149:8000/dash (https://srv1704897.hstgr.cloud/dash once Caddy is up) |
+| **Market dashboard (PWA, HTTPS)** | **https://srv1704897.hstgr.cloud/dash** — installable; charts/inertia/insights/zones |
+| **Nous Hermes Agent (separate product)** | **https://srv1704897.hstgr.cloud:9443** — Nous Portal login; NOT our system (see D34) |
 | Ramana's Telegram user ID | 282907906 |
 | Telegram news group | "Hermes_Stock News" (supergroup, chat_id `-1003852136413`) |
+| Laptop → VPS shell | `ssh hermes` (passwordless; key + ~/.ssh/config). Deploy dashboard: `scp /d/Hermes/src/web/dashboard.py hermes:/opt/hermes/src/web/dashboard.py && ssh hermes 'systemctl restart hermes-api'` |
 
 ### Key file paths
 
@@ -455,6 +458,36 @@ Then on the laptop: open `https://srv1704897.hstgr.cloud/dash` in Chrome/Edge �
 
 Access without HTTPS: dashboard works over plain `http://187.127.173.149:8000/dash` immediately (just no install button until Caddy is up).
 
+### D37 (SPEC, NOT BUILT) — D33 stock-level Relative Strength + standardization
+The third strategy pillar's stock layer. Discussed at length; this is the agreed standardized design. **Build next as a fresh focused session — do NOT cram into a long mixed session.**
+
+**Two ratio series per stock per day (the canonical RS):**
+- `rs_vs_broad = adj_close(stock) / close(NIFTY 500)` — works for ALL ~3,000 stocks.
+- `rs_vs_sector = adj_close(stock) / close(primary_sector_index)` — only stocks with a known NSE sector (~500).
+
+**Five standardization rules (binding for the build):**
+1. **Adjusted prices ALWAYS** — RS = relative return; raw splits fake an RS collapse. Must use the split/bonus back-adjustment (currently only in the dashboard render — must be moved to a reusable pipeline layer; see D36/open item).
+2. **Same windows as everything else** — 1m/3m/6m/12m (the DVPT/D31 horizons). One time-language.
+3. **Same technical reads + trend_state vocabulary as D32** — 20/50/200 MA, 52w hi/lo, slope%, BREAKOUT/UPTREND/CONSOLIDATING/DOWNTREND/BREAKDOWN. Reuse the D32 ratio engine.
+4. **Percentile RS rank (1–99)** — THE cross-stock standardization. Rank each stock's blended RS momentum (weighted 3m+6m slope of rs_vs_broad) across all liquid stocks. "RS 90 = stronger than 90% of the market." Without this RS is just a chart, not a screen.
+5. **Nifty 500 = canonical broad benchmark** (Nifty 50 secondary). D32 decision kept.
+
+**Composite "strong-in-strong" leader flag (Ramana's original thesis, made objective):**
+Leader = stock `rs_vs_sector` ∈ {UPTREND,BREAKOUT} AND stock `rs_vs_broad` ∈ {UPTREND,BREAKOUT} AND its sector's `rs_vs_broad` (D32) ∈ {UPTREND,BREAKOUT}. All 3 layers aligned up = bullseye; all down = laggard.
+
+**The membership hurdle:** stock-vs-broad needs no membership (do first). stock-vs-sector needs `stock_index_membership` (empty table in schema) populated from NSE sectoral-index constituent CSVs, assigning each stock its NARROWEST sectoral index as "primary sector." NSE indexes cover only ~500 stocks; the rest get broad-only (or a Screener sector scrape later).
+
+**Phasing:** D33a = stock-vs-broad RS + slope + percentile rank (all stocks, no membership). D33b = membership fetch + stock-vs-sector RS. D33c = composite leader/laggard + `/rs`, `/leaders`, `/laggards` + dashboard RS section (replaces the placeholder).
+
+### D36 — Corporate-action back-adjustment for price charts (NOT for signals)
+Why: The `/dash/stock` price chart plotted raw bhav-copy close, so every split/bonus made a fake cliff (PARAS showed a phantom ₹1800 spike vs Zerodha's smooth ~₹250→₹1089). Fix is in the dashboard render: two-layer detection — (a) `prev_close[i]/close[i-1]` deviation >3% (NSE adjusts prev_close on ex-dates); (b) fallback for >30% single-day close jumps prev_close left unadjusted (data anomaly; a real 30%+ move is impossible under circuit limits). Back-adjust historical OHLC by the cumulative factor. **DVPT signals are unaffected** — they're value-based (₹=qty×price), already split-invariant (Doctrine § C). **Limitation:** the institutional ZONES (avg_close_*) are computed from raw closes in signals.py; if an action falls in the zone window they're off-scale on the adjusted chart (the ⚠ "zone overlay approximate" warning). **Open item:** move the adjustment into a reusable layer and recompute zones (and D33 RS) on adjusted prices.
+
+### D35 — Daily pipeline self-heal (signals run with bhav copy)
+Why: The bhavcopy systemd timer ingested daily but `signals.py` never ran automatically — signals lagged silently for a week (caught only when `/dvpt` showed stale data). Fix: systemd drop-in `/etc/systemd/system/hermes-bhavcopy.service.d/10-signals.conf` adds `ExecStart=/opt/hermes/.venv/bin/python -m src.automation.signals` after the bhav fetch. (Also the place to wire `indexes` + `index_signals` for D32.) Idempotent — signals skip already-computed (symbol,date).
+
+### D34 — Nous Hermes Agent self-hosted on the VPS (separate product)
+Why: Ramana wanted "the Hermes Agent" (a general AI assistant), which turned out to be **Nous Research's open-source Hermes Agent** — unrelated to our market system, just a name collision (and a 3rd collision with nexos.ai, a model-credits upsell Hostinger bundles, which he did NOT buy). Set up via Docker (`nousresearch/hermes-agent`), NOT the paid Hostinger/nexos bundle (that one needs no purchase — the agent is free, you bring your own model). Config: container `hermes-agent`, dashboard bound `127.0.0.1:9119` (loopback), Caddy front at `:9443` (HTTPS), Nous Portal OAuth login (free tier), model `nvidia/nemotron-3-ultra:free`, free tool pool. Registered with Nous Portal via `dashboard register --redirect-uri https://srv1704897.hstgr.cloud:9443/auth/callback` + `public_url` set in config. **Isolated from market Hermes** (own container, ports 8642/9119 vs our 8000/80/443; own data /root/.hermes). Cost: ₹0 on free model. **This is NOT part of the market Hermes codebase** — it's Ramana's separate general-AI tool that happens to share the VPS.
+
 ### D32 — Index data + ratio infrastructure (third strategy pillar, phase 1)
 Why: User specified the third strategy alongside quality (/pt14) and positioning (/dvpt+D31) — relative strength. Treat sector-vs-broad ratios as **continuous time series**, apply technical reads (MA / breakout / trend state), surface in Telegram. Sector ratio breakout = "sector starting to outperform" signal. Companion to ratio breakdown for weakness detection.
 
@@ -669,11 +702,27 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ### Other open items (queued, in priority order)
 
-**🔴 P1 — Next session must ship:**
+**🔴 P0 — Operational / must reconcile (carried out of the long session 15):**
 
-A. ✅ **Two-tier DVPT trigger system** (D28) — shipped in session 15. Schema migrated, compute in `signals.py`, `--backfill-triggers` mode, `/scan` rewritten, new `/triggers [ss|near]` command, intent vocab extended. **Pending on VPS:** code pull + service restart + one-shot `--backfill-triggers` run. Until backfill, historical rows have NULL on the new columns.
+- **Fix the GitHub credential** (Windows Credential Manager → remove `CirqleLife` `git:https://github.com` entry → re-auth as ramana-gottipati). Until then NOTHING reaches GitHub.
+- **Commit + push the dashboard work.** Local has `d8bfa6a` (D33-web) unpushed + uncommitted `src/web/dashboard.py` enrichments (charts, corp-action adj, inertia, insights, pt14, RS placeholder). Commit all, push.
+- **Reconcile the VPS divergence.** `/opt/hermes` is git@716f702 + scp'd files (`src/web/*`, `src/main.py`) not in git. After push: on VPS `git stash && git pull && git stash drop`.
+- **Wire D32 indexes into the daily timer** — add `indexes` + `index_signals` ExecStart lines to the `10-signals.conf` drop-in, run the 5y index backfill (`indexes --backfill 1830` then `index_signals --backfill`). D32 code is deployed but the index data was never backfilled / the sectors view will be empty until then.
+- **Telegram bot network block** — `api.telegram.org` unreachable from the Mumbai VPS (DPI throttling). Bot crash-loops. Decide: wait / proxy / Hostinger ticket. Web dashboard is the working alternative meanwhile.
+- **SSH rate-limit discipline** — never hammer `ssh hermes` on failure (triggers a port-22 IP ban). One attempt; on timeout, wait or restart router for new IP.
 
-B. ✅ **Telegram menu system (inline keyboards)** — shipped in session 15 as D29. `/menu` opens root keyboard; sub-menus for Scan / Triggers / Watchlist; ticker-prompt actions for Quality / Flow / Watchlist Add/Remove via `context.user_data` state machine. Zero LLM cost.
+**🔴 P1 — Next builds:**
+
+A. ✅ **Two-tier DVPT trigger system** (D28) — shipped.
+B. ✅ **Telegram menu system** (D29) — shipped.
+B2. ✅ **Web dashboard + PWA** (D33-web) — shipped (live on VPS via scp; not yet pushed to GitHub — see P0).
+B3. ✅ **Enriched stock view** — charts + corporate-action adjustment (D36) + DVPT inertia + insights + pt14 snapshot — shipped (live on VPS via scp).
+
+B4. **D33 stock-level Relative Strength** (spec = D37). The agreed third-pillar build. Phased D33a (stock-vs-broad RS + percentile rank, all stocks) → D33b (membership + stock-vs-sector) → D33c (composite leaders/laggards + /rs /leaders /laggards + dashboard RS section). **Fresh focused session.** Depends on moving corp-action adjustment to a reusable layer (below).
+
+B5. **Move corporate-action back-adjustment to a reusable pipeline layer + recompute zones on adjusted prices.** Currently the adjustment lives only in the dashboard render (D36); the institutional ZONES (avg_close_*) are still computed from raw closes, so they're off-scale when an action falls in the zone window (the ⚠ warning). RS (D33) also needs adjusted prices. One shared adjustment module → used by dashboard, zones recompute, and RS.
+
+B6. **pt14 fundamentals caching for the dashboard** — the dashboard pt14 section reads cached `fundamentals` / `pattern_scores`; populate on a schedule (or first-view) so it's not empty.
 
 C. **Portfolio / strategy tracker** (real gap surfaced in session 14):
 ```sql
@@ -721,6 +770,49 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 15 (continued, very long) — 2026-06 — Web dashboard, charts, corporate-action adjustment, Nous Agent on VPS, RS design
+
+This is the same session 15, which ran extremely long and shipped far beyond the D28–D32 trigger work. **Read this whole block — it captures the current operational state, several non-code infra changes, and unresolved items.**
+
+**🔴 CRITICAL OPERATIONAL STATE (read first):**
+
+1. **GitHub push is BLOCKED.** Windows Credential Manager on the laptop has a cached `CirqleLife` GitHub credential that overrides `ramana-gottipati`. `git push` fails with 403 "Permission to ramana-gottipati/hermes.git denied to CirqleLife." **Fix:** Win → Credential Manager → Windows Credentials → remove the `git:https://github.com` (CirqleLife) entry → re-auth as ramana-gottipati. Until fixed, nothing reaches GitHub.
+
+2. **GitHub origin/main is at `716f702` (D32).** Local main has `d8bfa6a` (D33-web, the PWA dashboard) committed but **not pushed**. On top of that, **all the dashboard enrichments below are uncommitted local edits to `src/web/dashboard.py`** (charts, corp-action adjustment, DVPT inertia, insights, pt14 snapshot, RS placeholder).
+
+3. **VPS `/opt/hermes` is a DIVERGED state:** git repo at `716f702`, PLUS files copied directly via `scp` that are NOT in git: `src/web/__init__.py`, `src/web/dashboard.py` (the full enriched version), and `src/main.py` (dashboard router wired in). **A `git pull` on the VPS will conflict.** Reconciliation plan: fix the credential (#1), commit the dashboard work locally, push, then on VPS `git stash && git pull && git stash drop` (the stashed scp'd files are identical to the committed ones).
+
+4. **Deployment method this session was `scp` + `systemctl restart hermes-api`** (not git), because of #1. Single-command: `scp /d/Hermes/src/web/dashboard.py hermes:/opt/hermes/src/web/dashboard.py && ssh hermes 'systemctl restart hermes-api'`.
+
+5. **VPS SSH (port 22) intermittently rate-limit-bans the laptop IP** after rapid retries (brute-force protection). Symptom: `ssh hermes` → "Connection timed out" while port 443 (dashboards) stays up. **Confirmed it's VPS-side IP ban, NOT the laptop network** (`ssh git@github.com` works fine). Fix: stop all SSH attempts (each can reset the ban timer), wait ~30-45 min, OR restart the home router for a fresh dynamic IP (worked this session). **Do NOT hammer SSH on failure.**
+
+6. **Telegram bot is NETWORK-BLOCKED from the VPS.** `api.telegram.org` is unreachable from the Mumbai datacenter (both IPv4 and IPv6 time out at a consistent ~4s — DPI throttling of Telegram, common in India), while general internet works. The bot crash-loops on `telegram.error.TimedOut` during `get_me()`. It was intermittent (worked some hours, failed others). **Not our bug.** Options: wait (auto-recovers when Telegram reachable), proxy the bot's Telegram traffic, or Hostinger ticket. **The web dashboard is the working alternative** and needs no Telegram.
+
+**What shipped this session block:**
+
+- **D33-web — installable PWA dashboard** (commit `d8bfa6a`, NOT pushed; live on VPS via scp). `src/web/dashboard.py` + `src/web/__init__.py`, wired into `src/main.py`. Views: `/dash` (overview), `/dash/sectors` (D32 rotation), `/dash/scan` (D28/D31 triggers), `/dash/stock?sym=X` (per-stock). PWA: `/manifest.webmanifest`, `/sw.js` (cache `hermes-v2`), `/icon.svg`, `/dash/offline`. Dark theme, mobile bottom-nav. Read-only, no LLM.
+
+- **HTTPS via Caddy** — installed Caddy v2.11.4 on VPS. `/etc/caddy/Caddyfile`: `srv1704897.hstgr.cloud { reverse_proxy localhost:8000 }` (market dashboard) + `srv1704897.hstgr.cloud:9443 { reverse_proxy 127.0.0.1:9119 }` (Nous agent). Auto Let's Encrypt cert for the Hostinger hostname `srv1704897.hstgr.cloud` (which publicly resolves to the VPS IP — confirmed via 8.8.8.8). Caddy + hermes-api enabled on boot. **Market dashboard: `https://srv1704897.hstgr.cloud/dash`** — installable as PWA.
+
+- **Enriched stock view (`/dash/stock`)** — major rebuild, all live on VPS via scp:
+  - **Interactive charts** (lightweight-charts v4.1.3 from CDN): candlestick price + DVPT histogram (institutional-intensity days in amber) + delivery% line, time-synced, range buttons 3M/6M/1Y/2Y/Max (default Max = full history). Query loads up to 1300 trading days (5y).
+  - **Corporate-action back-adjustment** (splits/bonuses) — TWO-layer detection: (a) primary = `prev_close[i]/close[i-1]` deviation >3% (NSE adjusts prev_close on ex-dates); (b) **fallback** = any single-day close jump >30% that prev_close did NOT flag (a real 30%+ daily move is impossible under circuit limits, so it's always an unadjusted action — e.g. PARAS 2025-07-04 dropped 45% with prev_close left unadjusted). Back-adjusts historical OHLC by the cumulative factor → continuous chart matching Zerodha. Verified: PARAS earliest adjusted close ₹252 (was the phantom-₹1800-spike problem; now matches Zerodha's ~₹250).
+  - **📌 READ insights banner** — auto-derived (no LLM): inertia level, ATH flag, rank, entry zone, near-break. Pure Python.
+  - **DVPT inertia table** — today's DVPT vs EVERY baseline: R-tier avg (avg_dvpt_1m..12m) AND P-tier power (power_dvpt_1m..12m), with the × multiple per baseline (🔥≥3× ⚡≥1.5× 🟢≥1×). This is Ramana's explicit "gauge inertia" ask (avg 500k vs today 1M = 2×; vs 3-4M = 6-8×).
+  - **Quality — patearn (pt14)** — cached fundamentals snapshot (PE/ROCE/RoE/growth/OPM/D-E/promoter/pledge) + tier from `pattern_scores` if cached; else prompts to run `/pt14`.
+  - **Relative strength** — honest placeholder (D33 not built).
+
+- **Nous Hermes Agent installed on the VPS** (Docker) — a SEPARATE product (Nous Research, open-source, MIT), NOT our market Hermes. See Decision D34. Running as container `hermes-agent`, dashboard at `https://srv1704897.hstgr.cloud:9443` behind Caddy with Nous-Portal OAuth login, free model `nvidia/nemotron-3-ultra:free`, free Nous tool pool. Free tier ($0). Config in `/root/.hermes/`.
+
+- **Daily pipeline self-heals now** — systemd drop-in `/etc/systemd/system/hermes-bhavcopy.service.d/10-signals.conf` adds extra `ExecStart` lines so the 7:30 PM IST bhavcopy timer ALSO runs `signals.py` (and is the place to add `indexes` + `index_signals` when D32 is wired). Previously signals never ran automatically — bhav copy ingested but signals lagged silently for a week (May 28–Jun 5 had to be caught up manually this session). **D35.**
+
+- **Laptop SSH set up** — passwordless `ssh hermes` (ed25519 key + `~/.ssh/config` Host alias → 187.127.173.149). VS Code Remote-SSH available too.
+
+**The big three-name "Hermes" confusion (resolved, recorded so it never recurs):**
+- **Market Hermes** = OUR custom stock system. `/opt/hermes/`, systemd services `hermes-telegram` + `hermes-api`, Telegram + the `/dash` web dashboard. Free. Built by us over 15 sessions.
+- **Nous Research Hermes Agent** = open-source general AI agent (Docker `nousresearch/hermes-agent`). What Ramana set up at `:9443`. Free to self-host.
+- **nexos.ai** = a separate model-credits provider Hostinger bundles (the ₹559 "Hermes Agent" upsell). NOT a Hermes product; just optional fuel. Ramana did NOT buy it (invoice H_43941916 was VPS-only, ₹31,123.68). Don't confuse it with our system or with Nous.
 
 ### Session 15 — 2026-05-29 — Two-tier DVPT trigger system (P1.A → D28)
 **Goal:** ship the D26 spec. Mid-session pivot to D28 after Ramana caught structural flaws in the original spec.
