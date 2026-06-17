@@ -353,6 +353,23 @@ Plain text in DM or group → **natural-language intent routing** (Haiku ~₹0.1
   - anything else → conversational chat with memory (existing path)
 Plain text in group from non-authorized users: silently ignored.
 
+### Web dashboard routes (FastAPI `src/web/dashboard.py`, served under `/dash*`)
+
+Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Caddy). 5-tab macro→micro nav: Home · Markets · Sectors · Stocks · Stock (Compare is a destination reached with intent, not a nav tab — see D40).
+
+| Route | What it does | Decision |
+|---|---|---|
+| `/dash` | Home — RISK-ON/NEUTRAL/RISK-OFF regime banner, KPIs, top sectors by 3m RS, top trigger stocks | D38 |
+| `/dash/markets` | Major indexes & sectors (curated accent cards) pinned above the full ~150-index bundle (All/Broad/Sectoral filter); card → constituents | D38 |
+| `/dash/sectors` | Sector RS-rotation leaderboard (D32 trend_state), strongest first; row → its stocks; 1m/3m/6m/12m heat strip | D32/D38/D39 |
+| `/dash/rs` | Cross-sector RS-momentum ranking (on-read window fn; `0.6·slope_3m + 0.4·slope_6m`) | D39 |
+| `/dash/stocks` | Stock hub — search + layered-DVPT screen + filter pills (SS/A+/⚡ATH/🟢Discount/🔥Near-break) + watchlist + `?sector=` constituent filter | D38 |
+| `/dash/stock?sym=X` | Per-stock — adjusted candle + DVPT/delivery charts, DVPT inertia vs every baseline, D31 institutional price zones, pt14 snapshot, auto-READ | D33-web/D36 |
+| `/dash/ratio?idx=&den=` | Per-index RS ratio chart (ratio + 50/200-MA + cross/new-RS-high markers + range + vs-50/500), RS-momentum percentile gauge, abs×rel quadrant, auto-READ, top constituents | D39 |
+| **`/dash/compare?idx=&idx=&den=&mode=&base=&r=`** | **Overlay ≤6 indices on one chart, each rebased to a fluid common anchor → read who outperformed.** Modes **Rebased %** / **Ratio**; sticky 6-color palette; chip-rail picker (chips = legend) + presets. Entry points: `/dash/ratio` fbar + `/dash/markets` & `/dash/sectors` footer links. Render-only, zero schema change. | **D40** |
+| `/dash/scan` | D28/D31 layered-triggers table (working orphan — kept, not in nav) | D33-web |
+| `/dash/offline` · `/manifest.webmanifest` · `/sw.js` · `/icon.svg` | PWA shell — offline fallback, install manifest, network-first service worker, icon | D33-web |
+
 ### Database schema (SQLite at `/opt/hermes/data/hermes.db`)
 
 **Conversation memory:**
@@ -388,6 +405,7 @@ Why: Ramana wanted to overlay indices on one chart **rebased to a common start**
 
 Shipped (`dashboard.py` only — render-only, no schema/backfill):
 - **`/dash/compare?idx=&idx=&den=&mode=&base=&r=`** — overlay ≤6 indices, each **rebased client-side** (base 100 or 0%); **fluid anchor** = first visible point (pan to re-anchor) or 📅 pin/⟳ reset; **Mode [Rebased %|Ratio]**; Range 3M/6M/1Y/Max; vs-50/500 (ratio mode); **chip-rail picker** (seeded from `MAJOR_BROAD`/`MAJOR_SECTORS` + substring search over all index names, sticky 6-color palette); one-click presets; live "REBASED FROM <date>" + crosshair value row. Reached via a "Compare ⇄" button on `/dash/ratio` + "⇄ Compare indices" links on `/dash/markets` + `/dash/sectors`. `active="markets"`. Validates `idx` against `SELECT DISTINCT index_name` (title-case). Full-history series inlined so client-side range/rebase need no refetch (~100KB/line; if 5-6 lines feel heavy, switch to a JSON endpoint + downsample — noted in the doc).
+- **Why a new route — not a mode on `/dash/ratio`, not a 6th nav tab (D40-A):** `/dash/ratio` is single-subject (its gauge/quadrant/READ/constituents are meaningless for N overlaid lines), and the macro→micro nav is full at 5 tabs — so Compare is a *destination reached with intent* (deep-linked from the ratio/markets/sectors surfaces), not a top-level tab. The sticky 6-color palette (`#1f6feb #d29922 #3fb950 #f85149 #a371f7 #58a6ff`, indexed by slot) means removing a line never recolors the others; rebase is client-side with one common **forward-snapped** fluid anchor (first trading day ≥ left edge), dropping any line with no/zero value at the anchor rather than fudging it.
 - **Chart perf fix (the slowness):** root cause = `/dash/stock`'s 3-chart `subscribeVisibleLogicalRangeChange` sync **ping-pong** (no reentrancy guard) + the `ResizeObserver` `applyOptions` re-layout. Fix: a `syncing` reentrancy flag, `setRange` applies to all charts **directly** (bypassing the sync loop), debounced ResizeObserver; same debounce on `/dash/ratio`. `/dash/compare`'s fluid rebase is rAF-coalesced + anchor-gated so panning stays smooth.
 All routes verified HTTP 200 on real data (incl. ratio mode + idx validation), no regressions, no errors.
 
@@ -825,7 +843,7 @@ Ramana asked for a normalized multi-index comparison (overlay indices rebased to
 Shipped (`dashboard.py` only — render-only):
 - **`/dash/compare`** — overlay ≤6 indices, client-side rebase (base 100/0%), fluid anchor (pan → re-anchor) + 📅 pin, Mode Rebased%↔Ratio, range buttons, vs-50/500, chip picker + search + presets, live "REBASED FROM <date>" label + crosshair value row. Entry: "Compare ⇄" on `/dash/ratio` + "⇄ Compare indices" on Markets/Sectors.
 - **Chart perf fix** — root cause found: `/dash/stock`'s 3-chart range-sync ping-pong (no reentrancy guard) + ResizeObserver re-layout. Fixed with a `syncing` guard + direct `setRange` to all charts + debounced ResizeObserver; `/dash/compare` fluid rebase is rAF-coalesced + anchor-gated.
-- All routes verified HTTP 200 on real data (ratio mode, idx validation, empty state), no regressions, no errors. Live via scp + restart; committed + pushed + VPS reconciled.
+- All routes verified HTTP 200 on real data (ratio mode, idx validation, empty state), no regressions, no errors. Live via scp + restart; committed + pushed + VPS reconciled. **Commits:** `806fea6` (D40 code + initial PROJECT_STATE.md D40 entries), `4f684f4` (design doc, Part 2); the routes-table + route-placement rationale + hash citation = this follow-up doc-sync.
 
 Next: **D33 stock-level RS** (the third-pillar build) remains the big open item.
 
