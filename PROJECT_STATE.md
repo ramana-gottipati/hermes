@@ -195,7 +195,8 @@ D:\Hermes\                                          ← local working copy of re
 ├── PROJECT_STATE.md                                ← THIS FILE (running doc)
 ├── docs\
 │   ├── hermes-bhavcopy-architecture.docx           ← architecture Word doc
-│   └── build-architecture-doc.js                   ← script that generates the docx
+│   ├── build-architecture-doc.js                   ← script that generates the docx
+│   └── rs-ratio-analysis-design.md                 ← D39 spec: RS ratio analysis (multi-TF, ratio charts) — to build
 ├── src\
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
@@ -381,6 +382,17 @@ Plain text in group from non-authorized users: silently ignored.
 ---
 
 ## Decision log (the big ones)
+
+### D39 (SPEC — design documented, to build) — RS ratio-analysis layer (multi-timeframe trend, ratio charts, normalization)
+Why: Ramana flagged that the dashboard mixes ABSOLUTE return with RELATIVE strength in one row, hides the timeframe behind a single blended "UPTREND" label, and never charts the index/Nifty ratio. Convened a 5-perspective panel (quant/financial + equity-practitioner + data + UI/UX + architect). **Full design: `docs/rs-ratio-analysis-design.md`** (decisions D-A..D-H + phased tasks).
+
+Key findings:
+- The IT-0.5-vs-Bank-2.0 **normalization worry is already solved** — `ratio_signals.slope_*_pct` / `index_signals.rs_vs_broad_slope_*` are % changes (cross-sector comparable). Just **label & surface** it; don't rebuild.
+- **Phase A ships from EXISTING data — no schema change, no backfill:** (A1) relabel into RETURN vs RELATIVE-STRENGTH column groups; (A2) a 4-cell **1m/3m/6m/12m heat strip** (▲▬▼ from the slope columns) on Markets/Sectors/Home; (A3) new **`/dash/ratio?idx=&den=`** ratio-chart page (ratio line + 50-MA smoother + 200-MA reference + up/down-cross + new-RS-high markers + range/benchmark toggles + auto-READ), deep-linked from RS cells; (A4) absolute×relative quadrant SVG + RS-momentum percentile + constituent stocks.
+- **Phase B (one backfill):** smoothed/normalized ROC + cross-sectional z-momentum (2nd pass in `compute_for_date`) + volatility-scaled dead-band/hysteresis + a `/dash/rs` ranking page.
+- Reuses the `/dash/stock` lightweight-charts block + existing `.p-*` palette. ⚠ Title-case index names (validate `idx` against `SELECT DISTINCT index_name`). No runtime LLM.
+
+**Next build = Phase A** (only `dashboard.py`).
 
 ### D38 — Analyst dashboard redesign (macro→micro) + index-constituent membership
 Why: the v1 dashboard (D33-web/D36) was 4 flat pages. Ramana (the equity analyst it serves) wanted a real macro→micro structure, the **major** indexes/sectors separated from the ~150-index factor/strategy/thematic bundle, and a discoverable **stocks** surface (he literally couldn't find stocks). Designed via a 3-perspective pass (data audit + equity-analyst IA & major-list + UI/UX spec), synthesized into one blueprint.
