@@ -1,8 +1,8 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-06-17 (session 16 — P0 operational reconciliation: git identity, push, VPS sync, D32 index backfill)
+> **Last updated:** 2026-06-17 (session 16 — VERY large: P0 reconciliation + D38 dashboard redesign + D39 RS ratio analysis + D40 comparison chart + D33a stock RS + UX. HEAD `0adcf5d`, all pushed & VPS-reconciled.)
 > **Running document.** This is the source of truth for the next Claude Code session.
-> **⚠ Session-16 update (P0 operational reconciliation DONE):** Git identity fixed → commits now authored `Ramana Gottipati <gottipati.ramana@gmail.com>` (repo-local config); the 4 dashboard/doc/gitignore commits are PUSHED (origin/main @ `ec5d34c`); VPS `/opt/hermes` reconciled to origin (fast-forward, clean); D32 index timer wiring deduped + the 5-year index backfill RUN (`index_rows` fully populated 2021-06→2026-06, `index_signals` computing → `/sectors` populates). **Still open:** Telegram bot network block (unchanged). **Next build:** D33 stock-level RS (spec = D37) — fresh focused session. See § Session log → Session 16.
+> **⚠ Session-16 WRAP (read § Session log → "Session 16 — WRAP" first):** A very large session. P0 operational mess fully cleared (git identity → `Ramana Gottipati <gottipati.ramana@gmail.com>` repo-local; everything pushed; VPS reconciled). Shipped: **D38** macro→micro dashboard + index membership · **D39** RS ratio-analysis (multi-TF heat strip, `/dash/ratio`, `/dash/rs`) · **D40** `/dash/compare` rebase chart + chart range-switch perf fix · **D33a** stock-vs-broad RS + 1–99 rank (backfilled 2.37M rows). Plus on-page RS reconciliation table, chart hover-readouts, and a data-grid toolbar (sort/filter/Excel-CSV export) on the query tables. **HEAD = origin/main = VPS = `0adcf5d`, clean** (only the long-dormant uncommitted `patearn.py` diff remains — leave it). Telegram bot still network-blocked (waiting). **Next: D33b** (stock-vs-sector RS) → **D33c** (leaders/laggards + `/rs` commands).
 
 ---
 
@@ -840,6 +840,23 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 16 — WRAP (2026-06-17, very large session) — P0 reconciliation + D38/D39/D40/D33a + UX
+The longest session yet. Cleared the entire session-15 P0 operational backlog AND shipped the third strategy pillar (relative strength) end-to-end — data layer + dashboard. Detailed per-phase entries are below; this is the index.
+
+**Arc — 16 commits, `716f702 → 0adcf5d`, ALL authored `Ramana Gottipati <gottipati.ramana@gmail.com>`:**
+- `6c05e31` D33-web PWA + `9c707f5` D36 enriched stock view — the session-15 work, re-authored to the correct identity and finally pushed.
+- `96ac05f` / `ec5d34c` / `31b64f3` — P0 git-identity reconciliation + `.gitignore` (Drive junk) + doc.
+- `03c2f0a` — **D32 fix**: `index_signals` NSE title-case match (the "0 ratio pairs" bug — sector RS / `/sectors` was empty until this; index backfill had been run but produced no ratios).
+- `7d4500f` — **D38** macro→micro dashboard (5-tab nav, header search everywhere, Home regime overview, `/dash/markets` major-vs-bundle split, `/dash/sectors` drill, `/dash/stocks` hub) + `stock_index_membership` backfill (new `membership.py`; 21 indices, 1,305 rows, 511 symbols).
+- `96964c3` / `2837a63` — **D39** RS ratio analysis (1m/3m/6m/12m heat strip, RETURN-vs-RS column groups, `/dash/ratio` per-index ratio chart, `/dash/rs` cross-sector ranking).
+- `4f684f4` / `f836aee` / `806fea6` — **D40** `/dash/compare` multi-index rebase chart (fluid anchor, ratio↔rebased toggle) + the chart **range-switch perf fix** (3-chart sync ping-pong reentrancy guard).
+- `eb7f38e` — **D33a** stock-vs-broad RS + 1–99 percentile rank: new `adjust.py` (reusable corp-action adjustment) + `stock_rs.py`; 10 new `stock_signals` columns; backfilled **2.37M RS rows / 1.37M ranked**. Verified: PARAS continuous across its split; RS = exact relative return (HFCL/MTARTECH rank 99, RELIANCE/TCS bottom).
+- `d9c642f` on-page RS reconciliation table · `7b6af7e` chart hover crosshair readouts · `0adcf5d` data-grid toolbar (sort / filter / **Export-to-Excel(CSV)** / row-count / sticky header) on the 4 query tables.
+
+**Final state:** HEAD = origin/main = VPS `/opt/hermes` = **`0adcf5d`**, all working trees clean (except the long-dormant uncommitted `patearn.py` diff — D7/D22 conflict, leave alone). Two 5-perspective agent design panels were run (D39, D40), documented in `docs/rs-ratio-analysis-design.md`.
+
+**Next:** **D33b** (stock-vs-sector RS via the populated `stock_index_membership`) → **D33c** (composite "strong-in-strong" leaders/laggards + `/rs` `/leaders` `/laggards` + a dashboard leaders board). Telegram bot still network-blocked from the Mumbai VPS (waiting).
 
 ### Session 16 (continued) — 2026-06-17 — D33a stock-level Relative Strength (stock-vs-broad RS + rank)
 Built the **D33a** slice of the third-pillar RS spec (D37): stock-vs-broad (Nifty 500) relative strength as a real data layer — new reusable adjustment module + schema columns + a compute pipeline + the dashboard RS card. **Deployed + verified before backfill:** `--symbol PARAS` confirmed the split-adjustment holds in the RS series — rs_vs_broad is **continuous across PARAS's 2025-07-04 split** (0.0365→0.0364→0.0346, no cliff); RELIANCE reads sane (DOWNTREND, lagging the market). Then the full `--backfill` was run over 3,053 symbols (~3.7M rows + the cross-stock percentile pass). py_compile clean; split-adjustment + rank SQL also unit-verified in-memory.
