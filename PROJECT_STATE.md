@@ -179,6 +179,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 | VPS hostname | srv1704897.hstgr.cloud |
 | Telegram bot | https://t.me/ramana_hermes_bot |
 | Candidates web page | http://187.127.173.149:8000/candidates |
+| Web dashboard (PWA) | http://187.127.173.149:8000/dash (https://srv1704897.hstgr.cloud/dash once Caddy is up) |
 | Ramana's Telegram user ID | 282907906 |
 | Telegram news group | "Hermes_Stock News" (supergroup, chat_id `-1003852136413`) |
 
@@ -419,6 +420,40 @@ Observed in this project — questions where the user clicks away or interrupts 
 
 ### D15 — PROJECT_STATE.md is maintained continuously by every Claude session
 Why: One-off "update at wrap" instructions get forgotten. Ramana ratified (session 13) that every future Claude Code session must update this file as work happens, in the same commit as the code. Codified at the top of this document and in CLAUDE.md. The rule is permanent and self-enforcing — Claude reads both files at boot.
+
+### D33-web — Installable web dashboard (PWA)
+Why: User wanted a "desktop app" for Hermes (initially confused with Nous Research's identically-named Hermes Agent — unrelated product). What he actually wanted: a richer-than-Telegram view of Hermes, installable as a desktop app. Path chosen = PWA (Progressive Web App): a browser dashboard that Chrome/Edge can "Install" → own icon + frameless window, feels native, zero extra maintenance, reuses the FastAPI server already running on :8000.
+
+Built:
+- `src/web/dashboard.py` — FastAPI APIRouter with 4 views + PWA assets. Dark theme matching the existing /candidates page, bottom-nav like a mobile app.
+  - `/dash` — overview (KPIs: SS+S triggers today, ATH-DVPT count, sector breakouts; nav cards; data-freshness)
+  - `/dash/sectors` — D32 sector-rotation table, color-coded by trend_state, sorted strongest first
+  - `/dash/scan` — D28/D31 layered triggers table (rank, r/p score, Δhot, near-P); tap symbol → stock detail
+  - `/dash/stock?sym=X` — per-stock DVPT + D31 institutional price zones (P-tier + R-tier) + 15-day history
+  - PWA: `/manifest.webmanifest`, `/sw.js` (network-first service worker, offline fallback), `/icon.svg`, `/dash/offline`
+- `src/web/__init__.py` — package marker
+- Wired into `src/main.py` via `app.include_router(dashboard_router)`
+- Read-only. No LLM. No mutation. Pure SQL over existing tables.
+
+HTTPS prerequisite (required for the "Install" button to appear): Caddy reverse-proxy with auto Let's Encrypt cert. The Hostinger VPS hostname `srv1704897.hstgr.cloud` publicly resolves to the VPS IP (confirmed via 8.8.8.8) — so Caddy gets a cert for it with zero extra domain setup. Caddyfile: `srv1704897.hstgr.cloud { reverse_proxy localhost:8000 }`. Needs ports 80/443 open in Hostinger firewall.
+
+Deploy:
+```bash
+cd /opt/hermes && git pull && systemctl restart hermes-api
+# Install Caddy (one-time):
+apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+apt update && apt install -y caddy
+# Configure:
+echo 'srv1704897.hstgr.cloud {
+    reverse_proxy localhost:8000
+}' > /etc/caddy/Caddyfile
+systemctl reload caddy
+```
+Then on the laptop: open `https://srv1704897.hstgr.cloud/dash` in Chrome/Edge → click the Install icon in the address bar → Hermes gets a desktop icon + own window.
+
+Access without HTTPS: dashboard works over plain `http://187.127.173.149:8000/dash` immediately (just no install button until Caddy is up).
 
 ### D32 — Index data + ratio infrastructure (third strategy pillar, phase 1)
 Why: User specified the third strategy alongside quality (/pt14) and positioning (/dvpt+D31) — relative strength. Treat sector-vs-broad ratios as **continuous time series**, apply technical reads (MA / breakout / trend state), surface in Telegram. Sector ratio breakout = "sector starting to outperform" signal. Companion to ratio breakdown for weakness detection.

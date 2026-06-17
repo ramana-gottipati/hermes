@@ -8,8 +8,12 @@ from pydantic import BaseModel, Field
 from src.assistant import chat, conversations
 from src.core.db import get_conn
 from src.core.settings import settings
+from src.web.dashboard import router as dashboard_router
 
 app = FastAPI(title="Hermes", version="0.1.0")
+
+# Web dashboard + installable PWA (served at /dash, manifest/sw/icon at root).
+app.include_router(dashboard_router)
 
 
 class ChatRequest(BaseModel):
