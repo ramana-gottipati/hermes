@@ -383,7 +383,7 @@ Plain text in group from non-authorized users: silently ignored.
 
 ## Decision log (the big ones)
 
-### D39 (SPEC — design documented, to build) — RS ratio-analysis layer (multi-timeframe trend, ratio charts, normalization)
+### D39 — RS ratio-analysis layer (multi-timeframe trend, ratio charts, normalization) — SHIPPED (Phase A + B-on-read)
 Why: Ramana flagged that the dashboard mixes ABSOLUTE return with RELATIVE strength in one row, hides the timeframe behind a single blended "UPTREND" label, and never charts the index/Nifty ratio. Convened a 5-perspective panel (quant/financial + equity-practitioner + data + UI/UX + architect). **Full design: `docs/rs-ratio-analysis-design.md`** (decisions D-A..D-H + phased tasks).
 
 Key findings:
@@ -392,7 +392,11 @@ Key findings:
 - **Phase B (one backfill):** smoothed/normalized ROC + cross-sectional z-momentum (2nd pass in `compute_for_date`) + volatility-scaled dead-band/hysteresis + a `/dash/rs` ranking page.
 - Reuses the `/dash/stock` lightweight-charts block + existing `.p-*` palette. ⚠ Title-case index names (validate `idx` against `SELECT DISTINCT index_name`). No runtime LLM.
 
-**Next build = Phase A** (only `dashboard.py`).
+**Built (session 16, on-read — no schema change, no backfill):**
+- **RETURN vs RELATIVE-STRENGTH column groups** + a **4-cell 1m/3m/6m/12m heat strip** (`_rs_strip`, ▲▬▼) on Home/Markets/Sectors.
+- **`/dash/ratio?idx=&den=`** — per-index RS ratio chart (lightweight-charts): ratio line + 50-MA smoother + 200-MA reference + up/down-cross + new-RS-high markers + 3M/6M/1Y/Max range + vs-Nifty-50/500 toggle + on-read RS-momentum percentile gauge + absolute×relative quadrant SVG + auto-READ + top constituents (by DVPT trigger). Deep-linked from RS cells. Guards size-index (no ratio_rows) + unknown-index.
+- **`/dash/rs`** — cross-sector RS-momentum ranking (on-read window fn; `0.6·slope_3m + 0.4·slope_6m`).
+- Cross-sector ranking is computed **on-read** (window function); the stored z-momentum column + 10-min backfill (Phase-B-stored) was **skipped as unnecessary** — only needed later if historical rank-over-time charting is wanted. All routes verified HTTP 200 on real data incl. edge cases; no regressions.
 
 ### D38 — Analyst dashboard redesign (macro→micro) + index-constituent membership
 Why: the v1 dashboard (D33-web/D36) was 4 flat pages. Ramana (the equity analyst it serves) wanted a real macro→micro structure, the **major** indexes/sectors separated from the ~150-index factor/strategy/thematic bundle, and a discoverable **stocks** surface (he literally couldn't find stocks). Designed via a 3-perspective pass (data audit + equity-analyst IA & major-list + UI/UX spec), synthesized into one blueprint.
@@ -806,6 +810,18 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 16 (continued) — 2026-06-17 — RS ratio analysis: multi-timeframe trend + ratio charts (D39)
+Ramana pushed for deeper RS insight — the dashboard mixed absolute return with relative strength, hid the timeframe behind one "UPTREND" label, and had no ratio charts. Convened a **5-perspective panel** (quant + equity-practitioner + data + UI/UX + architect), documented the design in `docs/rs-ratio-analysis-design.md` (**D39**), then built Phase A + Phase-B-on-read.
+
+Shipped (`dashboard.py` only — no schema change, no backfill):
+- **RETURN vs RELATIVE-STRENGTH column groups** + the **4-cell 1m/3m/6m/12m heat strip** (`_rs_strip`) on Home/Markets/Sectors — disambiguates absolute-vs-relative and shows the trend per timeframe at a glance.
+- **`/dash/ratio?idx=&den=`** ratio chart (ratio line + 50/200-MA + up/down-cross + new-RS-high markers + range + vs-50/500 toggle + RS-momentum percentile gauge + abs×rel quadrant + auto-READ + constituents).
+- **`/dash/rs`** cross-sector RS-momentum ranking (on-read).
+- Key finding: the IT-0.5-vs-Bank-2.0 normalization worry was **already solved** (slope_*_pct are % changes); just surfaced + labeled it. Cross-sector ranking done on-read — skipped the stored-column backfill as unnecessary.
+- Implemented by a focused build agent against the design doc; all routes verified HTTP 200 on real data (incl. size-index + unknown-index guards), no regressions, no errors. Live via scp + restart; committed + pushed + VPS reconciled.
+
+Next: **D33 stock-level RS** (the third-pillar build) remains the big open item.
 
 ### Session 16 (continued) — 2026-06-17 — Analyst dashboard redesign (macro→micro) + index membership
 After the P0 reconciliation, Ramana flagged the dashboard wasn't analyst-grade: ~150 indices dumped together (no major-vs-bundle split) and stocks undiscoverable. Ran a **3-agent design pass** (data analyst + equity analyst + UI/UX), synthesized a macro→micro blueprint, and built **Phase 1 + the index-membership backfill** (Decision **D38**).

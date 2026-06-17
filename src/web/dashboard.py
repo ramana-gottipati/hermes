@@ -7,7 +7,10 @@ over HTTPS, giving it its own icon and frameless window.
 
 Views:
   /dash            — overview (status + nav)
-  /dash/sectors    — D32 sector-rotation dashboard
+  /dash/markets    — D32 major indexes + full bundle (ABS vs RS column groups)
+  /dash/sectors    — D32 sector-rotation dashboard (RS heat strips)
+  /dash/rs         — D39 cross-sector RS-momentum ranking (on-read)
+  /dash/ratio      — D39 ratio chart (?idx=Nifty IT&den=Nifty 500)
   /dash/scan       — D28/D31 layered triggers
   /dash/stock      — per-stock DVPT + institutional price zones (?sym=BANDHANBNK)
 
@@ -116,6 +119,14 @@ a.row { color:inherit; text-decoration:none; display:block; }
         font-size:13px; color:inherit; text-decoration:none; }
 .ghdr { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#8b949e;
         margin:16px 0 8px; font-weight:700; }
+.hstrip{display:inline-flex;gap:2px;vertical-align:middle;}
+.hstrip .c{width:20px;height:24px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1;font-weight:700;}
+.hstrip .c small{font-size:7px;opacity:.7;margin-top:1px;font-weight:600;}
+.hs-su{background:#1f6f3a;color:#7ee787;} .hs-mu{background:#225c33;color:#7ee787;}
+.hs-fl{background:#5a4a1f;color:#ffd99a;} .hs-md{background:#6f2b2b;color:#ffa198;}
+.hs-sd{background:#8f1f1f;color:#ffa198;} .hs-nd{background:#21262d;color:#484f58;}
+.bar{height:7px;background:#21262d;border-radius:4px;overflow:hidden;} .bar>span{display:block;height:100%;background:#1f6feb;}
+.grp{color:#58a6ff;} th.rsgrp{border-left:1px solid #30363d;} td.rsgrp{border-left:1px solid #30363d;}
 """
 
 
@@ -188,6 +199,30 @@ def _num(v, decimals=2) -> str:
     if v is None:
         return '<span class="mut">—</span>'
     return f"{v:,.{decimals}f}"
+
+
+def _rs_strip(s1, s3, s6, s12) -> str:
+    """4-cell multi-timeframe RS heat strip from the slope_% of the ratio.
+
+    Per cell: None→grey ·; ≥+3 strong-up ▲; >+1 mild-up ▲; |x|≤1 flat ▬;
+    <-1 mild-down ▼; ≤-3 strong-down ▼. Render [1m][3m][6m][12m] left→right.
+    """
+    cells = []
+    for v, lbl in ((s1, "1m"), (s3, "3m"), (s6, "6m"), (s12, "12m")):
+        if v is None:
+            cls, glyph = "hs-nd", "·"
+        elif v >= 3:
+            cls, glyph = "hs-su", "▲"
+        elif v > 1:
+            cls, glyph = "hs-mu", "▲"
+        elif v < -3:
+            cls, glyph = "hs-sd", "▼"
+        elif v < -1:
+            cls, glyph = "hs-md", "▼"
+        else:  # -1 <= v <= 1 → flat dead-band
+            cls, glyph = "hs-fl", "▬"
+        cells.append(f'<span class="c {cls}">{glyph}<small>{lbl}</small></span>')
+    return f'<span class="hstrip">{"".join(cells)}</span>'
 
 
 # --- Data helpers ----------------------------------------------------------
@@ -267,13 +302,17 @@ def dash_home() -> HTMLResponse:
             ).fetchone()
             lead = lr["index_name"] if lr else None
             top_sectors = [dict(x) for x in conn.execute(
-                """SELECT index_name nm, rs_vs_broad_trend_state st, rs_vs_broad_slope_3m s3
+                """SELECT index_name nm, rs_vs_broad_trend_state st,
+                          rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
+                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12
                    FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
                    ORDER BY COALESCE(rs_vs_broad_slope_3m,-999) DESC LIMIT 5""",
                 (idx_date,),
             ).fetchall()]
             weak_sectors = [dict(x) for x in conn.execute(
-                """SELECT index_name nm, rs_vs_broad_trend_state st, rs_vs_broad_slope_3m s3
+                """SELECT index_name nm, rs_vs_broad_trend_state st,
+                          rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
+                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12
                    FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
                    ORDER BY COALESCE(rs_vs_broad_slope_3m,999) ASC LIMIT 3""",
                 (idx_date,),
@@ -322,7 +361,10 @@ def dash_home() -> HTMLResponse:
         out = []
         for r in rows:
             st = r["st"] or "—"
-            out.append(f'<tr><td class="sym">{_esc(r["nm"])}</td>'
+            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+            out.append(f'<tr><td><a class="row" href="/dash/ratio?idx={_q(r["nm"])}">'
+                       f'<span class="sym">{_esc(r["nm"])}</span></a></td>'
+                       f'<td>{strip}</td>'
                        f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
                        f'<td>{_pct(r["s3"])}</td></tr>')
         return "".join(out)
@@ -332,7 +374,7 @@ def dash_home() -> HTMLResponse:
         sectors_block = (
             '<h2>Top sectors <span class="sub" style="margin:0">by 3m RS</span></h2>'
             '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Sector</th><th>Trend</th><th>RS 3m</th></tr></thead>'
+            '<thead><tr><th>Sector</th><th>1m/3m/6m/12m</th><th>Trend</th><th>RS 3m</th></tr></thead>'
             f'<tbody>{sect_rows(top_sectors)}</tbody></table></div>'
             '<div class="ghdr">Weakest</div>'
             '<div class="card" style="padding:6px 10px;"><table>'
@@ -377,6 +419,8 @@ def dash_markets() -> HTMLResponse:
                 """SELECT g.index_name nm, g.ret_1d_pct r1d, g.ret_1m_pct r1m,
                           g.ret_3m_pct r3m, g.pct_above_200d_avg a200,
                           g.rs_vs_broad_trend_state st, g.broad_benchmark bb,
+                          g.rs_vs_broad_slope_1m s1, g.rs_vs_broad_slope_3m s3,
+                          g.rs_vs_broad_slope_6m s6, g.rs_vs_broad_slope_12m s12,
                           x.close_value close
                    FROM index_signals g
                    LEFT JOIN index_rows x USING (index_name, trade_date)
@@ -392,12 +436,16 @@ def dash_markets() -> HTMLResponse:
     def maj_card(v):
         st = v["st"]
         chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st else ''
-        return (f'<a class="maj" href="/dash/stocks?sector={_q(v["nm"])}">'
+        strip = _rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])
+        return (f'<a class="maj" href="/dash/ratio?idx={_q(v["nm"])}">'
                 f'<div class="nm">{_esc(v["nm"])}{chip}</div>'
-                f'<div class="rr"><span>{_num(v["close"],0)}</span>'
+                f'<div class="rr"><span class="mut">ABS</span>'
+                f'<span>{_num(v["close"],0)}</span>'
                 f'<span>1d {_pct(v["r1d"])}</span>'
                 f'<span>1m {_pct(v["r1m"])}</span>'
-                f'<span>3m {_pct(v["r3m"])}</span></div></a>')
+                f'<span>3m {_pct(v["r3m"])}</span></div>'
+                f'<div class="rr"><span class="grp">RS</span>{strip}'
+                f'<span class="mut" style="font-size:11px">vs Nifty 500</span></div></a>')
 
     broad_html = "".join(maj_card(allrows[n]) for n in MAJOR_BROAD if n in allrows)
     sect_html = "".join(maj_card(allrows[n]) for n in MAJOR_SECTORS if n in allrows)
@@ -412,7 +460,7 @@ def dash_markets() -> HTMLResponse:
         brows.append(
             f'<tr data-grp="{grp}"><td class="sym">{_esc(v["nm"])}</td>'
             f'<td>{_pct(v["r1d"])}</td><td>{_pct(v["r1m"])}</td>'
-            f'<td>{_pct(v["r3m"])}</td><td>{chip}</td></tr>')
+            f'<td>{_pct(v["r3m"])}</td><td class="rsgrp">{chip}</td></tr>')
 
     js = ("<script>function mflt(g,el){"
           "document.querySelectorAll('#mbundle tr[data-grp]').forEach(function(r){"
@@ -434,7 +482,9 @@ def dash_markets() -> HTMLResponse:
         "<button class=\"fbtn\" onclick=\"mflt('broad',this)\">Broad/Size</button>"
         "<button class=\"fbtn\" onclick=\"mflt('sector',this)\">Sectoral</button></div>"
         '<div class="card" style="padding:6px 10px;"><table id="mbundle">'
-        '<thead><tr><th>Index</th><th>1d</th><th>1m</th><th>3m</th><th>Trend</th></tr></thead>'
+        '<thead>'
+        '<tr><th></th><th colspan="3">RETURN</th><th class="rsgrp grp">RS</th></tr>'
+        '<tr><th>Index</th><th>1d</th><th>1m</th><th>3m</th><th class="rsgrp">Trend</th></tr></thead>'
         f'<tbody>{"".join(brows)}</tbody></table></div>' + js)
     return HTMLResponse(_shell("Markets — Hermes", body, "markets", idx_date or ""))
 
@@ -451,6 +501,7 @@ def dash_sectors() -> HTMLResponse:
             rows = [dict(r) for r in conn.execute(
                 f"""SELECT index_name, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
+                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
                           ret_1m_pct r1, ret_3m_pct r3
                    FROM index_signals
                    WHERE trade_date=? AND broad_benchmark IS NOT NULL
@@ -463,24 +514,89 @@ def dash_sectors() -> HTMLResponse:
         trs = []
         for r in rows:
             st = r["st"] or "—"
+            nm = r["index_name"]
+            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
             trs.append(
-                f'<tr><td><a class="row" href="/dash/stocks?sector={_q(r["index_name"])}">'
-                f'<span class="sym">{_esc(r["index_name"])}</span></a></td>'
+                f'<tr><td><a class="row" href="/dash/stocks?sector={_q(nm)}">'
+                f'<span class="sym">{_esc(nm)}</span></a></td>'
+                f'<td>{_pct(r["r1"])}</td><td>{_pct(r["r3"])}</td>'
+                f'<td class="rsgrp"><a class="row" style="display:inline" '
+                f'href="/dash/ratio?idx={_q(nm)}">{strip}</a></td>'
                 f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
-                f'<td>{_pct(r["s1"])}</td><td>{_pct(r["s3"])}</td>'
-                f'<td>{_pct(r["r3"])}</td></tr>'
+                f'<td>{_pct(r["s3"])}</td></tr>'
             )
         body = f"""
 <h2>Sector rotation</h2>
-<div class="sub">RS vs Nifty 500. Sorted strongest trend first. Tap a sector → its stocks.</div>
+<div class="sub">Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a></div>
 <div class="card" style="padding:6px 10px;">
 <table>
-<thead><tr><th>Index</th><th>Trend</th><th>RS 1m</th><th>RS 3m</th><th>Ret 3m</th></tr></thead>
+<thead>
+<tr><th colspan="3">RETURN</th><th colspan="3" class="rsgrp grp">RELATIVE STRENGTH vs Nifty 500</th></tr>
+<tr><th>Sector</th><th>1m</th><th>3m</th><th class="rsgrp">1m / 3m / 6m / 12m</th><th>Trend</th><th>RS 3m</th></tr>
+</thead>
 <tbody>{''.join(trs)}</tbody>
 </table>
 </div>
 """
     return HTMLResponse(_shell("Sectors — Hermes", body, "sectors", idx_date or ""))
+
+
+@router.get("/dash/rs", response_class=HTMLResponse)
+def dash_rs() -> HTMLResponse:
+    """Cross-sector RS-momentum ranking (on-read; 0.6·slope_3m + 0.4·slope_6m)."""
+    _, idx_date = _latest_dates()
+    rows = []
+    if idx_date:
+        with get_conn() as conn:
+            rows = [dict(r) for r in conn.execute(
+                """SELECT index_name nm, rs_vs_broad_trend_state st,
+                          rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
+                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
+                          (0.6*COALESCE(rs_vs_broad_slope_3m,0)
+                           +0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom
+                   FROM index_signals
+                   WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                   ORDER BY mom DESC""",
+                (idx_date,),
+            ).fetchall()]
+    if not rows:
+        body = '<div class="empty">No index signals yet. Run the index backfill on the VPS.</div>'
+        return HTMLResponse(_shell("RS ranking — Hermes", body, "sectors", idx_date or ""))
+
+    moms = sorted(r["mom"] for r in rows)
+    n_mom = len(moms)
+
+    def _pctl(m):
+        if not n_mom:
+            return 50
+        below = sum(1 for x in moms if x < m)
+        return max(1, min(99, round(below / n_mom * 99)))
+
+    trs = []
+    for i, r in enumerate(rows, 1):
+        st = r["st"] or "—"
+        nm = r["nm"]
+        strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+        p = _pctl(r["mom"])
+        trs.append(
+            f'<tr><td class="mut">{i}</td>'
+            f'<td><a class="row" href="/dash/ratio?idx={_q(nm)}">'
+            f'<span class="sym">{_esc(nm)}</span></a></td>'
+            f'<td>{strip}</td>'
+            f'<td>{_pct(r["mom"])}</td>'
+            f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+            f'<td style="min-width:70px"><div class="bar"><span style="width:{p}%"></span></div></td></tr>')
+    body = f"""
+<h2>RS-momentum ranking</h2>
+<div class="sub">All sectors by RS momentum (0.6·3m + 0.4·6m slope vs Nifty 500), strongest first. Tap a sector → its ratio chart. <a class="row" style="display:inline" href="/dash/sectors">← Sector rotation</a></div>
+<div class="card" style="padding:6px 10px;">
+<table>
+<thead><tr><th>#</th><th>Sector</th><th>1m/3m/6m/12m</th><th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>
+<tbody>{''.join(trs)}</tbody>
+</table>
+</div>
+"""
+    return HTMLResponse(_shell("RS ranking — Hermes", body, "sectors", idx_date or ""))
 
 
 @router.get("/dash/scan", response_class=HTMLResponse)
@@ -1046,6 +1162,327 @@ const DATA = {data_json};
 </script>
 """
     return HTMLResponse(_shell(f"{sym} — Hermes", body, "stock", L["trade_date"]))
+
+
+# Ratio chart JS (plain template — no f-string; __DATA__ is replaced with the
+# server JSON). Clones the stock page's lightweight-charts v4 approach: line
+# series + client-side range buttons + markers + ResizeObserver.
+_RATIO_CHART_JS = """
+<script src="__CDN__"></script>
+<script>
+const DATA = __DATA__;
+(function(){
+  const host = document.getElementById('ratioChart');
+  if (!window.LightweightCharts) { host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+  const D = DATA;
+  const common = {
+    layout: { background:{color:'#161b22'}, textColor:'#8b949e', fontSize:11 },
+    grid: { vertLines:{color:'#21262d'}, horzLines:{color:'#21262d'} },
+    timeScale: { borderColor:'#30363d', rightOffset:3 },
+    rightPriceScale: { borderColor:'#30363d' },
+    crosshair: { mode: 0 },
+    handleScroll:true, handleScale:true,
+  };
+  const chart = LightweightCharts.createChart(host, Object.assign({height:300}, common));
+  const ratioLine = chart.addLineSeries({color:'#1f6feb',lineWidth:2,priceLineVisible:false});
+  const ma50Line  = chart.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+  const ma200Line = chart.addLineSeries({color:'#6e7681',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+  ratioLine.setData(D.map(d=>({time:d.t,value:d.ratio})));
+  ma50Line.setData(D.filter(d=>d.ma50!=null).map(d=>({time:d.t,value:d.ma50})));
+  ma200Line.setData(D.filter(d=>d.ma200!=null).map(d=>({time:d.t,value:d.ma200})));
+
+  // Markers: server up-cross (cross_50_today) + new-52w-high; client down-cross.
+  const mk=[];
+  for (let i=0;i<D.length;i++){
+    const d=D[i];
+    if (d.cross50) mk.push({time:d.t,position:'belowBar',color:'#3fb950',shape:'arrowUp',text:'↑50'});
+    if (d.nh52)    mk.push({time:d.t,position:'aboveBar',color:'#3fb950',shape:'circle'});
+    if (i>0){
+      const p=D[i-1];
+      if (d.ma50!=null && p.ma50!=null && d.ratio<d.ma50 && p.ratio>=p.ma50)
+        mk.push({time:d.t,position:'aboveBar',color:'#f85149',shape:'arrowDown',text:'↓50'});
+    }
+  }
+  mk.sort((a,b)=> a.time<b.time?-1:(a.time>b.time?1:0));
+  ratioLine.setMarkers(mk);
+
+  function setRange(n){
+    if(!n||n>=D.length){ chart.timeScale().fitContent(); return; }
+    const from=D[D.length-n].t, to=D[D.length-1].t;
+    chart.timeScale().setVisibleRange({from,to});
+  }
+  document.querySelectorAll('.rangebar button').forEach(b=>{
+    b.onclick=()=>{ document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setRange(parseInt(b.dataset.r)); };
+  });
+  setRange(252);
+  document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on'));
+  const oneY=document.querySelector('.rangebar button[data-r="252"]'); if(oneY) oneY.classList.add('on');
+  new ResizeObserver(()=>{ chart.applyOptions({}); }).observe(host);
+})();
+</script>
+"""
+
+
+@router.get("/dash/ratio", response_class=HTMLResponse)
+def dash_ratio(idx: str = Query("", max_length=60),
+               den: str = Query("Nifty 500", max_length=60)) -> HTMLResponse:
+    idx = idx.strip()
+    den = den.strip()
+    if den not in ("Nifty 50", "Nifty 500"):
+        den = "Nifty 500"
+    _, idx_date = _latest_dates()
+
+    if not idx:
+        body = '<div class="empty">No index selected. Reach this page from a Markets or Sectors RS cell.</div>'
+        return HTMLResponse(_shell("Ratio — Hermes", body, "sectors", idx_date or ""))
+
+    with get_conn() as conn:
+        known = conn.execute(
+            "SELECT 1 FROM index_rows WHERE index_name=? LIMIT 1", (idx,)).fetchone()
+        if not known:
+            body = f'<div class="empty">Unknown index <b>{_esc(idx)}</b>.</div>'
+            return HTMLResponse(_shell("Ratio — Hermes", body, "sectors", idx_date or ""))
+
+        curve = conn.execute(
+            """SELECT r.trade_date, r.ratio, s.ratio_ma_50, s.ratio_ma_200,
+                      s.cross_50_today, s.new_52w_high
+               FROM ratio_rows r
+               LEFT JOIN ratio_signals s
+                 ON s.numerator=r.numerator AND s.denominator=r.denominator
+                    AND s.trade_date=r.trade_date
+               WHERE r.numerator=? AND r.denominator=?
+               ORDER BY r.trade_date ASC""",
+            (idx, den),
+        ).fetchall()
+        if not curve:
+            body = (f'<h2>{_esc(idx)} <span class="sub" style="margin:0">vs {_esc(den)}</span></h2>'
+                    '<div class="empty">No ratio series (this is a broad/size index, not a sector).</div>')
+            return HTMLResponse(_shell(f"{idx} ratio — Hermes", body, "sectors", idx_date or ""))
+
+        sig = conn.execute(
+            """SELECT rs_vs_broad_trend_state st, ret_3m_pct r3,
+                      rs_vs_broad_today rs, rs_vs_broad_slope_1m s1,
+                      rs_vs_broad_slope_3m s3, rs_vs_broad_slope_6m s6,
+                      rs_vs_broad_slope_12m s12, rs_vs_broad_above_50ma a50,
+                      rs_vs_broad_above_200ma a200, rs_vs_broad_new_52w_high nh
+               FROM index_signals
+               WHERE index_name=? ORDER BY trade_date DESC LIMIT 1""",
+            (idx,),
+        ).fetchone()
+        S = dict(sig) if sig else {}
+
+        # Cross-sector RS-momentum percentile (on-read).
+        momrows = conn.execute(
+            """WITH latest AS (SELECT MAX(trade_date) d FROM index_signals)
+               SELECT index_name,
+                      (0.6*COALESCE(rs_vs_broad_slope_3m,0)
+                       +0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom
+               FROM index_signals, latest
+               WHERE trade_date=latest.d AND broad_benchmark IS NOT NULL""",
+        ).fetchall()
+
+        # Top constituents by DVPT trigger.
+        syms = _sector_symbols(conn, idx)
+        consts = []
+        if syms:
+            sig_date2 = conn.execute(
+                "SELECT MAX(trade_date) d FROM stock_signals").fetchone()
+            sd = sig_date2["d"] if sig_date2 else None
+            if sd:
+                ph = ",".join("?" for _ in syms)
+                consts = [dict(x) for x in conn.execute(
+                    f"""SELECT symbol, trigger_rank rank, is_ath_dvpt ath,
+                              p_score, r_score, price_vs_hot_avg_pct pvh
+                       FROM stock_signals
+                       WHERE trade_date=? AND symbol IN ({ph})
+                       ORDER BY COALESCE(is_ath_dvpt,0) DESC,
+                                COALESCE(p_score,-1) DESC, COALESCE(r_score,-1) DESC
+                       LIMIT 8""",
+                    (sd, *syms),
+                ).fetchall()]
+
+    # --- Chart data (oldest→newest) ---
+    cd = []
+    for r in curve:
+        cd.append({
+            "t": r["trade_date"],
+            "ratio": round(r["ratio"], 4) if r["ratio"] is not None else None,
+            "ma50": round(r["ratio_ma_50"], 4) if r["ratio_ma_50"] is not None else None,
+            "ma200": round(r["ratio_ma_200"], 4) if r["ratio_ma_200"] is not None else None,
+            "cross50": 1 if r["cross_50_today"] else 0,
+            "nh52": 1 if r["new_52w_high"] else 0,
+        })
+    data_json = json.dumps(cd)
+    chart_js = (_RATIO_CHART_JS
+                .replace("__CDN__", _LWC_CDN)
+                .replace("__DATA__", data_json))
+
+    st = S.get("st") or "—"
+    strip = _rs_strip(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"))
+    s1, s3, s6, s12 = S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12")
+    r3 = S.get("r3")
+
+    # --- RS-momentum percentile gauge ---
+    my_mom = 0.6 * (s3 or 0) + 0.4 * (s6 or 0)
+    moms = sorted(m["mom"] for m in momrows)
+    n_mom = len(moms)
+    pctl = 50
+    if n_mom:
+        below = sum(1 for m in moms if m < my_mom)
+        pctl = max(1, min(99, round(below / n_mom * 99)))
+    gauge_html = (
+        '<h2>RS momentum</h2>'
+        f'<div class="sub">{pctl}/99 — stronger than {pctl}% of sectors '
+        f'(0.6·3m + 0.4·6m RS slope, ranked across {n_mom} sectors).</div>'
+        f'<div class="card"><div class="bar"><span style="width:{pctl}%"></span></div></div>')
+
+    # --- Absolute × Relative quadrant SVG ---
+    # X = ret_3m_pct (abs), Y = rs_vs_broad_slope_3m (rel). Center origin; clamp.
+    def _clamp(v, lo, hi):
+        return lo if v < lo else (hi if v > hi else v)
+    xv = r3 if r3 is not None else 0.0
+    yv = s3 if s3 is not None else 0.0
+    # Map ±15% to the half-width (75 px). Clamp dot inside the 10..170 box.
+    px = _clamp(90 + (xv / 15.0) * 75.0, 12, 168)
+    py = _clamp(90 - (yv / 15.0) * 75.0, 12, 168)
+    quad_html = (
+        '<h2>Absolute × Relative</h2>'
+        '<div class="sub">X = 3m return (abs) · Y = 3m RS slope (vs Nifty 500). '
+        'Top-right = leader; top-left = defensive; bottom-right = lazy laggard.</div>'
+        '<div class="card" style="text-align:center">'
+        f'<svg viewBox="0 0 180 180" width="180" height="180" '
+        'style="max-width:100%" xmlns="http://www.w3.org/2000/svg">'
+        '<rect x="10" y="10" width="160" height="160" rx="6" fill="#0d1117" stroke="#30363d"/>'
+        '<line x1="90" y1="10" x2="90" y2="170" stroke="#30363d" stroke-width="1"/>'
+        '<line x1="10" y1="90" x2="170" y2="90" stroke="#30363d" stroke-width="1"/>'
+        '<text x="160" y="24" fill="#484f58" font-size="7" text-anchor="end">LEADER</text>'
+        '<text x="20" y="24" fill="#484f58" font-size="7">DEFENSIVE</text>'
+        '<text x="160" y="164" fill="#484f58" font-size="7" text-anchor="end">LAZY LAGGARD</text>'
+        '<text x="20" y="164" fill="#484f58" font-size="7">LAGGARD</text>'
+        '<text x="172" y="93" fill="#6e7681" font-size="6" text-anchor="end">ret→</text>'
+        '<text x="93" y="16" fill="#6e7681" font-size="6">RS↑</text>'
+        f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5" fill="#1f6feb" stroke="#79c0ff" stroke-width="1.5"/>'
+        '</svg></div>')
+
+    # --- Auto READ block (deterministic strings, no LLM) ---
+    reads = []
+    if S.get("a200"):
+        reads.append("RS above its 200-day reference → structurally leading the broad market.")
+    else:
+        reads.append("RS below its 200-day reference → not yet structurally leading.")
+    if cd and cd[-1]["cross50"]:
+        reads.append("RS just crossed <b>above</b> its 50-day line → starting to outperform.")
+    elif S.get("a50"):
+        reads.append("RS holds above its 50-day line → near-term outperformance intact.")
+    else:
+        reads.append("RS below its 50-day line → near-term lagging the broad market.")
+    if S.get("nh"):
+        reads.append("New 52-week RS high → strongest relative position in a year.")
+
+    def _dir(v):
+        if v is None:
+            return None
+        return "rising" if v > 1 else ("falling" if v < -1 else "flat")
+    d1, d3, d6, d12 = _dir(s1), _dir(s3), _dir(s6), _dir(s12)
+    ups = sum(1 for d in (d1, d3, d6, d12) if d == "rising")
+    dns = sum(1 for d in (d1, d3, d6, d12) if d == "falling")
+    if d1 == "rising" and d12 in ("falling", "flat") and ups >= 2:
+        reads.append("Short horizons rising while 12m lags → an <b>improving</b> rotation (laggard turning up).")
+    elif d12 == "rising" and d1 in ("falling", "flat") and dns >= 2:
+        reads.append("Long horizon up but short horizons rolling over → a <b>deteriorating</b> leader (trim).")
+    elif ups == 4:
+        reads.append("1m/3m/6m/12m RS all rising → a <b>persistent leader</b> across every horizon.")
+    elif dns == 4:
+        reads.append("1m/3m/6m/12m RS all falling → a <b>persistent laggard</b> across every horizon.")
+    elif d1 == "rising" and d3 == "rising" and d6 == "rising" and d12 == "flat":
+        reads.append("1m/3m/6m RS rising, 12m flat → a <b>maturing</b> rotation.")
+    reads = reads[:4]
+    read_items = "".join(f"<li>{x}</li>" for x in reads)
+    read_html = (
+        '<div class="card" style="border-color:#1f6feb">'
+        '<div class="sub" style="margin:0 0 6px;color:#58a6ff">📌 READ — relative strength</div>'
+        f'<ul style="margin:0;padding-left:18px;line-height:1.55">{read_items}</ul></div>')
+
+    # --- Cross-flag pills ---
+    pills = []
+    pills.append('<span class="pill p-UPTREND">above 50-MA</span>' if S.get("a50")
+                 else '<span class="pill p-DOWNTREND">below 50-MA</span>')
+    pills.append('<span class="pill p-UPTREND">above 200-MA</span>' if S.get("a200")
+                 else '<span class="pill p-DOWNTREND">below 200-MA</span>')
+    if S.get("nh"):
+        pills.append('<span class="pill p-BREAKOUT">new 52w RS high</span>')
+    pill_row = '<div class="chips" style="margin-bottom:10px">' + "".join(pills) + '</div>'
+
+    # --- Top constituents table ---
+    if syms:
+        crows = []
+        for c in consts:
+            rk = c["rank"] or "-"
+            ath = "⚡" if c["ath"] else ""
+            pvh = c["pvh"]
+            entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
+            crows.append(
+                f'<tr><td><a class="row" href="/dash/stock?sym={_esc(c["symbol"])}">'
+                f'<span class="sym">{ath}{_esc(c["symbol"])}</span></a></td>'
+                f'<td><span class="pill p-{rk}">{rk}</span></td>'
+                f'<td class="mut">{c["r_score"] or 0}/{c["p_score"] or 0}</td>'
+                f'<td>{_pct(pvh)} {entry}</td></tr>')
+        if crows:
+            consts_html = (
+                '<h2>Top constituents <span class="sub" style="margin:0">by DVPT trigger</span></h2>'
+                '<div class="card" style="padding:6px 10px;"><table>'
+                '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Δhot</th></tr></thead>'
+                f'<tbody>{"".join(crows)}</tbody></table></div>')
+        else:
+            consts_html = ('<h2>Top constituents</h2>'
+                           '<div class="card"><div class="sub" style="margin:0">'
+                           'No stock signals for the constituents on the latest day.</div></div>')
+    else:
+        consts_html = ('<h2>Top constituents</h2>'
+                       '<div class="card"><div class="sub" style="margin:0">'
+                       'No membership on record for this index.</div></div>')
+
+    chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st and st != "—" else ''
+    other = "Nifty 50" if den == "Nifty 500" else "Nifty 500"
+    chart_css = """
+.rangebar { display:flex; gap:6px; margin:8px 0 4px; }
+.rangebar button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+                   border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer; }
+.rangebar button.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+.chartwrap { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:8px; margin-bottom:6px; }
+.chartlbl { color:#8b949e; font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
+"""
+    fbar = (
+        '<div class="fbar">'
+        f'<a class="fbtn {"on" if den=="Nifty 500" else ""}" '
+        f'href="/dash/ratio?idx={_q(idx)}&den={_q("Nifty 500")}">vs Nifty 500</a>'
+        f'<a class="fbtn {"on" if den=="Nifty 50" else ""}" '
+        f'href="/dash/ratio?idx={_q(idx)}&den={_q("Nifty 50")}">vs Nifty 50</a></div>')
+
+    body = f"""
+<style>{chart_css}</style>
+<h2>{_esc(idx)}{chip} <span class="sub" style="margin:0">RS vs {_esc(den)}</span></h2>
+<div class="sub" style="margin-bottom:10px">{strip} &nbsp; 3m RS {_pct(s3)} · ret 3m {_pct(r3)}</div>
+{fbar}
+{read_html}
+<div class="rangebar">
+  <button data-r="63">3M</button>
+  <button data-r="126">6M</button>
+  <button data-r="252" class="on">1Y</button>
+  <button data-r="0">Max</button>
+</div>
+<div class="chartwrap">
+  <div class="chartlbl">{_esc(idx)} / {_esc(den)} ratio · blue=ratio · amber=50-MA · grey=200-MA · ↑50/↓50 crosses · ● new 52w high</div>
+  <div id="ratioChart" style="height:300px;"></div>
+</div>
+{pill_row}
+{gauge_html}
+{quad_html}
+{consts_html}
+{chart_js}
+"""
+    return HTMLResponse(_shell(f"{idx} ratio — Hermes", body, "sectors",
+                               idx_date or ""))
 
 
 # --- PWA assets ------------------------------------------------------------
