@@ -34,8 +34,11 @@ log = logging.getLogger("hermes.index_signals")
 
 
 # Broad benchmarks against which we compute sector RS.
-BROAD_BENCHMARKS = ("NIFTY 50", "NIFTY 500")
-DEFAULT_BROAD = "NIFTY 500"
+# NOTE: NSE's ind_close_all CSV stores index names in TITLE case ("Nifty 500"),
+# not upper case — these must match the stored casing exactly for the
+# denominator history lookup to find rows. (Was "NIFTY 500" → 0 ratio pairs.)
+BROAD_BENCHMARKS = ("Nifty 50", "Nifty 500")
+DEFAULT_BROAD = "Nifty 500"
 
 # Size-based indexes — not sectors. Excluded as numerators when computing
 # "sector vs broad" ratios (they ARE the broad market).
@@ -423,7 +426,8 @@ def compute_for_date(trade_date: str) -> tuple[int, int]:
             continue
 
         # Sector-vs-broad ratios — only for non-size-based indexes.
-        is_size_based = name in SIZE_BASED_INDEX_NAMES
+        # Case-insensitive: stored names are title-case, the set is upper-case.
+        is_size_based = name.upper() in SIZE_BASED_INDEX_NAMES
 
         # Default RS-vs-broad fields (used for the denormalized index_signals row)
         rs_today = rs_s1 = rs_s3 = rs_s6 = rs_s12 = None
