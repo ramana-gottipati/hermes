@@ -1,8 +1,8 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-06-17 (session 17 — D33b stock-vs-sector RS + D33c "strong-in-strong" leaders/laggards shipped; the third strategy pillar (Relative Strength) is now COMPLETE. Built on the session-16 D33a/D38/D39/D40 base.)
+> **Last updated:** 2026-06-17 (session 17 — D33b/D33c (RS pillar COMPLETE) + **D41** strategy-surface redesign Phase 1: strategy labels on every board + a Strategies hub on Home + sector-rotation curated to real sectors + a Daily/Weekly/Monthly DVPT-trigger toggle. Built on the session-16 D33a/D38/D39/D40 base.)
 > **Running document.** This is the source of truth for the next Claude Code session.
-> **⚠ Session-16 WRAP (read § Session log → "Session 16 — WRAP" first):** A very large session. P0 operational mess fully cleared (git identity → `Ramana Gottipati <gottipati.ramana@gmail.com>` repo-local; everything pushed; VPS reconciled). Shipped: **D38** macro→micro dashboard + index membership · **D39** RS ratio-analysis (multi-TF heat strip, `/dash/ratio`, `/dash/rs`) · **D40** `/dash/compare` rebase chart + chart range-switch perf fix · **D33a** stock-vs-broad RS + 1–99 rank (backfilled 2.37M rows). Plus on-page RS reconciliation table, chart hover-readouts, and a data-grid toolbar (sort/filter/Excel-CSV export) on the query tables. **HEAD = origin/main = VPS = `0adcf5d`, clean** (only the long-dormant uncommitted `patearn.py` diff remains — leave it). Telegram bot still network-blocked (waiting). **D33b + D33c shipped (session 17)** — stock-vs-sector RS + composite leaders/laggards (`/dash/leaders` board + Home preview; `/rs` `/leaders` `/laggards` commands); the third RS pillar is COMPLETE and `stock_rs` is wired into the nightly chain. **Next: B5** (zones-on-adjusted-price), **B6** (pt14 caching), Telegram network unblock.
+> **⚠ Session-16 WRAP (read § Session log → "Session 16 — WRAP" first):** A very large session. P0 operational mess fully cleared (git identity → `Ramana Gottipati <gottipati.ramana@gmail.com>` repo-local; everything pushed; VPS reconciled). Shipped: **D38** macro→micro dashboard + index membership · **D39** RS ratio-analysis (multi-TF heat strip, `/dash/ratio`, `/dash/rs`) · **D40** `/dash/compare` rebase chart + chart range-switch perf fix · **D33a** stock-vs-broad RS + 1–99 rank (backfilled 2.37M rows). Plus on-page RS reconciliation table, chart hover-readouts, and a data-grid toolbar (sort/filter/Excel-CSV export) on the query tables. **HEAD = origin/main = VPS = `0adcf5d`, clean** (only the long-dormant uncommitted `patearn.py` diff remains — leave it). Telegram bot still network-blocked (waiting). **D33b + D33c shipped (session 17)** — stock-vs-sector RS + composite leaders/laggards (`/dash/leaders` board + Home preview; `/rs` `/leaders` `/laggards` commands); the third RS pillar is COMPLETE and `stock_rs` is wired into the nightly chain. **D41 Phase 1 shipped (session 17):** strategy badges on every board + a Strategies hub on Home + sector rotation curated to real sectors (factor/IPO indices no longer dead-end) + a Daily/Weekly/Monthly DVPT-trigger toggle (weekly/monthly roll up the last 5/22 trading days so a mid-week spike isn't missed). **Next:** D41 Phase 2 (materialised `weekly_signals` + add real missing sectors to membership), Phase 3 (saved-screener/query-builder + Conviction shortlist); then B5 (zones-on-adjusted-price), B6 (pt14 caching), Telegram unblock.
 
 ---
 
@@ -364,11 +364,11 @@ Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Ca
 
 | Route | What it does | Decision |
 |---|---|---|
-| `/dash` | Home — RISK-ON/NEUTRAL/RISK-OFF regime banner, KPIs, top sectors by 3m RS, top trigger stocks | D38 |
+| `/dash` | Home — regime banner, **Strategies hub (3 pillar cards w/ live counts, D41)**, KPIs, top sectors by 3m RS (real-sector curated), strong-in-strong leaders preview, top trigger stocks; every board carries a strategy thesis badge | D38/D41 |
 | `/dash/markets` | Major indexes & sectors (curated accent cards) pinned above the full ~150-index bundle (All/Broad/Sectoral filter); card → constituents | D38 |
-| `/dash/sectors` | Sector RS-rotation leaderboard (D32 trend_state), strongest first; row → its stocks; 1m/3m/6m/12m heat strip | D32/D38/D39 |
-| `/dash/rs` | Cross-sector RS-momentum ranking (on-read window fn; `0.6·slope_3m + 0.4·slope_6m`) | D39 |
-| `/dash/stocks` | Stock hub — search + layered-DVPT screen + filter pills (SS/A+/⚡ATH/🟢Discount/🔥Near-break) + watchlist + `?sector=` constituent filter | D38 |
+| `/dash/sectors` | Sector RS-rotation leaderboard (D32 trend_state), strongest first; **curated to real economic sectors (D41)** — factor/thematic indices excluded; row → its stocks; 1m/3m/6m/12m heat strip | D32/D38/D39/D41 |
+| `/dash/rs` | Cross-sector RS-momentum ranking (on-read window fn; `0.6·slope_3m + 0.4·slope_6m`); real-sector curated (D41) | D39/D41 |
+| `/dash/stocks?period=d\|w\|m` | Stock hub — search + layered-DVPT screen + filter pills (SS/A+/⚡ATH/🟢Discount/🔥Near-break) + watchlist + `?sector=` filter. **D41: Daily/Weekly/Monthly toggle** — w/m roll up the last 5/22 trading days (days-fired + peak rank, on-read) so a mid-window spike isn't missed; factor-index `?sector=` shows a graceful "see ratio chart" empty-state | D38/D41 |
 | `/dash/leaders` | Composite "strong-in-strong" leaders + "weak-in-weak" laggards — stock RS vs sector AND vs broad AND the sector's own RS vs broad all aligned; sortable boards; previewed on Home | D33c |
 | `/dash/stock?sym=X` | Per-stock — adjusted candle + DVPT/delivery charts, DVPT inertia vs every baseline, D31 institutional price zones, pt14 snapshot, auto-READ | D33-web/D36 |
 | `/dash/ratio?idx=&den=` | Per-index RS ratio chart (ratio + 50/200-MA + cross/new-RS-high markers + range + vs-50/500), RS-momentum percentile gauge, abs×rel quadrant, auto-READ, top constituents | D39 |
@@ -405,6 +405,19 @@ Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Ca
 ---
 
 ## Decision log (the big ones)
+
+### D41 — Strategy-surface redesign Phase 1 (labels + Strategies hub + sector curation + weekly DVPT) — SHIPPED (session 17)
+Why: Ramana's feedback — the 3 strategies (DVPT positioning / Relative Strength / patearn quality) felt BLENDED (no board said which strategy it was); he wanted to "click a strategy and it shows up"; clicking factor indices (e.g. Nifty High Beta) dead-ended with no constituents; and DVPT triggers were a TODAY-only snapshot, so a mid-week institutional spike was missed if not checked daily. Designed via a 4-perspective panel (financial analyst + data + UI/UX + architect); the full roadmap (Phases 1–3) is below.
+
+Shipped (Phase 1 — `dashboard.py` only, render-only, NO schema/backfill):
+- **Strategy badges** — a `_strategy_badge(family)` thesis header (POSITIONING / RELATIVE STRENGTH / QUALITY, colour-coded) stamped on Home sub-blocks, `/dash/sectors`, `/dash/rs`, `/dash/leaders`, `/dash/stocks` — so no board is silent about its strategy.
+- **Strategies hub on Home** — 3 pillar cards (thesis + a live count: "N SS/S today", "N leaders", "N scored") → each pillar's screen. Ramana's "click a strategy → it shows up." Placed 2nd on Home (after the regime banner). NOT a 6th nav tab (nav stays at 5, per D40-A).
+- **Sector curation** — a `REAL_SECTORS` whitelist (the 16 `MAJOR_SECTORS` + Nifty India Defence); `/dash/sectors`, `/dash/rs`, and Home top-sectors filter to it, so factor/strategy/thematic indices (High Beta, Alpha, Momentum, IPO…) no longer pollute rotation. Their RS read still lives on `/dash/markets`. The sector→stock drill empty-state now says "factor/thematic index, not a sector — see its ratio chart →" (no more dead clicks). Verified: High Beta gone from /dash/sectors, Nifty Bank present.
+- **Weekly/Monthly DVPT triggers (v1)** — a Daily/Weekly/Monthly toggle on `/dash/stocks`. Weekly/Monthly **roll up the daily verdicts over the last 5 / ~22 trading days** (on-read GROUP BY over existing `stock_signals`, no backfill): per symbol = peak rank + **"days fired" (count of A+ days, N/window)** + avg DVPT — so a Tuesday spike is visible on Friday. Daily stays the default + unchanged.
+
+Decisions: (a) **deferred the full strategy-REGISTRY refactor** (one Strategy object powering dashboard + bot + screeners) — the panel recommended it but it's an invasive behaviour-preserving refactor; a light `_PILLARS` descriptor delivers the labels/hub now, the registry lands with the screener phase. (b) **Weekly v1 is on-read, not materialised** — a `weekly_signals` rollup table (the doctrine-correct destination) is deferred to Phase 2; the last-5-day read-aggregate validates the UX with zero backfill. (c) sector curation is a render-side whitelist (Phase 1), not the deeper `index_signals.broad_benchmark` classifier (Phase 2).
+
+Roadmap — **Phase 2:** materialise `weekly_signals` (W+M grain) in the nightly chain (instant queries + week-over-week + monthly history); add real missing sectors (India Defence / Private Bank / Chemicals) to `membership.py`. **Phase 3:** a saved-screener / safe parameterised query-builder ("build your own queries") sharing a column whitelist with a proper strategy registry; a composite **Conviction shortlist** (RS leader → institutions buying it this week → pt14 quality). All no-LLM, read-only, doctrine-aligned.
 
 ### D33c — Composite "strong-in-strong" leaders / laggards — SHIPPED (session 17)
 Why: the payoff of the whole RS pillar (Ramana's original thesis, made objective). With D32 (sector vs broad), D33a (stock vs broad + 1–99 rank) and D33b (stock vs sector) in place, D33c combines all three into one screen — a **leader** is strong at every layer, a **laggard** weak at every layer.
@@ -869,6 +882,17 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 17 (continued) — 2026-06-17 — D41 strategy-surface redesign Phase 1
+After the RS pillar (D33b/c), Ramana asked to (1) separate & **label** the strategies, (2) be able to **build his own queries**, (3) reorganise Home + show only **real sectors** (Nifty High Beta dead-ended with no constituents), (4) get DVPT triggers on a **weekly** basis (not just today — else a mid-week spike is missed). Ran a **4-perspective design panel** (financial + data + UI/UX + architect), presented a pointer proposal (Phases 1–3), and shipped **Phase 1** (decision **D41**), deferring the registry refactor / materialised weekly table / screener to Phases 2–3.
+
+Shipped (`dashboard.py` only — render-only, no schema/backfill):
+- Strategy thesis **badges** on every board + a **Strategies hub** (3 pillar cards w/ live counts) on Home → "click a strategy, it shows up."
+- **Sector curation:** rotation views (`/dash/sectors`, `/dash/rs`, Home) filtered to a `REAL_SECTORS` whitelist (+ India Defence); factor/thematic indices no longer pollute or dead-end (graceful "see ratio chart" empty-state on the drill).
+- **Weekly/Monthly DVPT trigger toggle** on `/dash/stocks` — rolls up the last 5/22 trading days (days-fired + peak rank, on-read) so mid-window spikes aren't missed; Daily stays default.
+- Verified live: all 7 affected routes HTTP 200; High Beta absent from /dash/sectors (Nifty Bank present); weekly view + factor empty-state render. Deployed scp + restart.
+
+Next: D41 **Phase 2** (materialised `weekly_signals` + membership for India Defence etc.), **Phase 3** (saved-screener/query-builder + Conviction shortlist). Then B5/B6, Telegram unblock.
 
 ### Session 17 — 2026-06-17 — D33b stock-vs-sector RS + D33c leaders/laggards (third pillar COMPLETE)
 Built **D33b** (stock-vs-sector RS) then **D33c** (composite "strong-in-strong" leaders/laggards) — closing the third strategy pillar (Relative Strength). Full design in the **D33b** + **D33c** decision-log entries.

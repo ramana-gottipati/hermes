@@ -134,6 +134,19 @@ a.row { color:inherit; text-decoration:none; display:block; }
 table.dt thead th{cursor:pointer;user-select:none;position:sticky;top:0;background:#0e1116;z-index:1}
 table.dt thead th.sorta::after{content:" ▲"} table.dt thead th.sortd::after{content:" ▼"}
 tr.dt-hide{display:none!important}
+/* D33d — strategy thesis badge (stamped on every board) + strategy hub cards */
+.sbadge{display:flex;align-items:flex-start;gap:9px;border-radius:9px;padding:9px 12px;margin-bottom:12px;border:1px solid #30363d;font-size:12px;}
+.sbadge .tag{font-size:10px;font-weight:800;letter-spacing:.5px;white-space:nowrap;padding:2px 8px;border-radius:8px;}
+.sbadge .th{color:#c9d1d9;opacity:.92;line-height:1.35;}
+.sb-POS{background:#0d1f33;border-color:#1f4d7a;} .sb-POS .tag{background:#1f6feb;color:#fff;}
+.sb-RS{background:#0f2417;border-color:#1f6f3a;} .sb-RS .tag{background:#2ea043;color:#fff;}
+.sb-QUAL{background:#241f0d;border-color:#5a4a1f;} .sb-QUAL .tag{background:#bb8009;color:#fff;}
+.scards{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:6px;}
+@media(min-width:560px){.scards{grid-template-columns:1fr 1fr 1fr;}}
+.scard{display:block;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;color:inherit;text-decoration:none;border-top:3px solid #30363d;}
+.scard.sc-POS{border-top-color:#1f6feb;} .scard.sc-RS{border-top-color:#2ea043;} .scard.sc-QUAL{border-top-color:#bb8009;}
+.scard .nm{font-weight:800;font-size:14px;} .scard .th{color:#8b949e;font-size:11px;margin:4px 0 8px;line-height:1.3;}
+.scard .ct{font-size:13px;font-weight:700;color:#e6edf3;} .scard .ct small{color:#8b949e;font-weight:400;}
 """
 
 
@@ -377,6 +390,34 @@ MAJOR_ALL = MAJOR_BROAD + MAJOR_SECTORS
 # Size segments for the Home leadership read (raw 3m return comparison).
 LEADERSHIP_SET = ["Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250"]
 
+# D33d — REAL economic sectors for the rotation / leaderboard views. Factor /
+# strategy / thematic indices (High Beta, Alpha, Momentum, IPO, ...) are NOT
+# sectors: they have no clean constituent list (so they dead-end on drill-down)
+# and pollute rotation. The sector surfaces filter to this whitelist. Same set
+# as MAJOR_SECTORS plus the legitimate India Defence theme.
+REAL_SECTORS = MAJOR_SECTORS + ["Nifty India Defence"]
+
+def _real_sectors_in() -> str:
+    """A safe SQL IN-list of the curated sectors (constant names → inlineable)."""
+    return ",".join("'" + s.replace("'", "''") + "'" for s in REAL_SECTORS)
+
+# D33d — the 3 strategy pillars as labelled, first-class descriptors (a light
+# definition for the badge + Home hub; the full query-registry refactor is
+# deferred to the screener phase). family -> (tag, one-line thesis, css class).
+_PILLARS = {
+    "POS":  ("POSITIONING", "Where institutional money is accumulating now — DVPT vs its own peak-day baselines, and at what price vs cost.", "POS"),
+    "RS":   ("RELATIVE STRENGTH", "Who's beating the market and leading their own sector.", "RS"),
+    "QUAL": ("QUALITY", "Is the business worth owning — the patearn 14-pattern durability score.", "QUAL"),
+}
+
+
+def _strategy_badge(family: str) -> str:
+    """A labelled strategy-thesis header so no board is silent about which
+    strategy drives it (D33d)."""
+    tag, thesis, cls = _PILLARS[family]
+    return (f'<div class="sbadge sb-{cls}"><span class="tag">● {tag}</span>'
+            f'<span class="th">{_esc(thesis)}</span></div>')
+
 
 def _sector_symbols(conn, sector: str) -> list:
     """Member symbols of an index, from the latest membership snapshot."""
@@ -398,6 +439,7 @@ def dash_home() -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
     nifty, breadth, lead = {}, None, None
     top_sectors, weak_sectors, top_stocks = [], [], []
+    pos_count = qual_count = rs_count = 0   # D33d strategy-hub live counts
     with get_conn() as conn:
         if idx_date:
             r = conn.execute(
@@ -421,18 +463,20 @@ def dash_home() -> HTMLResponse:
             ).fetchone()
             lead = lr["index_name"] if lr else None
             top_sectors = [dict(x) for x in conn.execute(
-                """SELECT index_name nm, rs_vs_broad_trend_state st,
+                f"""SELECT index_name nm, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
                           rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12
                    FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                     AND index_name IN ({_real_sectors_in()})
                    ORDER BY COALESCE(rs_vs_broad_slope_3m,-999) DESC LIMIT 5""",
                 (idx_date,),
             ).fetchall()]
             weak_sectors = [dict(x) for x in conn.execute(
-                """SELECT index_name nm, rs_vs_broad_trend_state st,
+                f"""SELECT index_name nm, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
                           rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12
                    FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                     AND index_name IN ({_real_sectors_in()})
                    ORDER BY COALESCE(rs_vs_broad_slope_3m,999) ASC LIMIT 3""",
                 (idx_date,),
             ).fetchall()]
@@ -447,6 +491,18 @@ def dash_home() -> HTMLResponse:
                              COALESCE(s.r_score,-1) DESC LIMIT 5""",
                 (sig_date,),
             ).fetchall()]
+            pos_count = conn.execute(
+                f"""SELECT COUNT(*) c FROM stock_signals s
+                    JOIN bhavcopy_rows b USING (symbol, trade_date)
+                    WHERE s.trade_date=? AND s.trigger_rank IN ('SS','S')
+                    {_SCAN_FILTERS}""",
+                (sig_date,),
+            ).fetchone()["c"]
+            try:
+                qual_count = conn.execute(
+                    "SELECT COUNT(DISTINCT symbol) c FROM pattern_scores").fetchone()["c"]
+            except Exception:
+                qual_count = 0
 
     above200 = nifty.get("a200")
     nifty_up = above200 is not None and above200 > 0
@@ -491,6 +547,7 @@ def dash_home() -> HTMLResponse:
     sectors_block = ""
     if top_sectors:
         sectors_block = (
+            _strategy_badge("RS") +
             '<h2>Top sectors <span class="sub" style="margin:0">by 3m RS</span></h2>'
             '<div class="card" style="padding:6px 10px;"><table>'
             '<thead><tr><th>Sector</th><th>1m/3m/6m/12m</th><th>Trend</th><th>RS 3m</th></tr></thead>'
@@ -513,6 +570,7 @@ def dash_home() -> HTMLResponse:
     stocks_block = ""
     if srows:
         stocks_block = (
+            _strategy_badge("POS") +
             '<h2>Top trigger stocks</h2>'
             '<div class="card" style="padding:6px 10px;"><table>'
             '<thead><tr><th>Symbol</th><th>Rank</th><th>Δhot</th></tr></thead>'
@@ -524,16 +582,18 @@ def dash_home() -> HTMLResponse:
     leaders_block = ""
     if sig_date:
         from src.automation.stock_rs import leaders_laggards
-        lead_rows = leaders_laggards("leaders", limit=5)
+        lead_rows = leaders_laggards("leaders", limit=300)
+        rs_count = len(lead_rows)
         if lead_rows:
             lr = ""
-            for r in lead_rows:
+            for r in lead_rows[:5]:
                 rk = r["rs_rank"]
                 lr += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                        f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
                        f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
                        f'<td>{rk if rk is not None else "—"}</td></tr>')
             leaders_block = (
+                _strategy_badge("RS") +
                 '<h2>Strong-in-strong leaders <span class="sub" style="margin:0">'
                 'stock + sector both leading</span></h2>'
                 '<div class="card" style="padding:6px 10px;"><table>'
@@ -541,7 +601,22 @@ def dash_home() -> HTMLResponse:
                 f'<tbody>{lr}</tbody></table></div>'
                 '<a class="row sub" href="/dash/leaders">See leaders &amp; laggards →</a>')
 
-    body = (f'{search}{banner}{kpis}{sectors_block}{leaders_block}{stocks_block}'
+    def _scard(cls, nm, thesis, count, href):
+        return (f'<a class="scard sc-{cls}" href="{href}">'
+                f'<div class="nm">{nm}</div><div class="th">{_esc(thesis)}</div>'
+                f'<div class="ct">{count}</div></a>')
+    strat_hub = (
+        '<h2>Strategies <span class="sub" style="margin:0">pick your lens</span></h2>'
+        '<div class="scards">'
+        + _scard("POS", "Positioning", "Smart-money DVPT accumulation & entry zone.",
+                 f'{pos_count} <small>SS/S today</small>', "/dash/stocks")
+        + _scard("RS", "Relative Strength", "Beating the market & leading its sector.",
+                 f'{rs_count} <small>leaders</small>', "/dash/leaders")
+        + _scard("QUAL", "Quality (pt14)", "14-pattern fundamental durability.",
+                 f'{qual_count} <small>scored</small>', "/dash/stock")
+        + '</div>')
+
+    body = (f'{search}{banner}{strat_hub}{kpis}{sectors_block}{leaders_block}{stocks_block}'
             '<h2>Data freshness</h2>'
             f'<div class="card">Stock signals: <b>{sig_date or "—"}</b><br>'
             f'Index signals: <b>{idx_date or "—"}</b></div>'
@@ -648,6 +723,7 @@ def dash_sectors() -> HTMLResponse:
                           ret_1m_pct r1, ret_3m_pct r3
                    FROM index_signals
                    WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                     AND index_name IN ({_real_sectors_in()})
                    ORDER BY {order} ASC, COALESCE(rs_vs_broad_slope_3m,-999) DESC""",
                 (idx_date,),
             ).fetchall()]
@@ -669,8 +745,9 @@ def dash_sectors() -> HTMLResponse:
                 f'<td>{_pct(r["s3"])}</td></tr>'
             )
         body = f"""
+{_strategy_badge("RS")}
 <h2>Sector rotation</h2>
-<div class="sub">Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · <a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>
+<div class="sub">Real economic sectors only (factor/thematic indices live under Markets). Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · <a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>
 <div class="card" style="padding:6px 10px;">
 <table class="dt">
 <thead>
@@ -692,13 +769,14 @@ def dash_rs() -> HTMLResponse:
     if idx_date:
         with get_conn() as conn:
             rows = [dict(r) for r in conn.execute(
-                """SELECT index_name nm, rs_vs_broad_trend_state st,
+                f"""SELECT index_name nm, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
                           rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
                           (0.6*COALESCE(rs_vs_broad_slope_3m,0)
                            +0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom
                    FROM index_signals
                    WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                     AND index_name IN ({_real_sectors_in()})
                    ORDER BY mom DESC""",
                 (idx_date,),
             ).fetchall()]
@@ -730,6 +808,7 @@ def dash_rs() -> HTMLResponse:
             f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
             f'<td style="min-width:70px"><div class="bar"><span style="width:{p}%"></span></div></td></tr>')
     body = f"""
+{_strategy_badge("RS")}
 <h2>RS-momentum ranking</h2>
 <div class="sub">All sectors by RS momentum (0.6·3m + 0.4·6m slope vs Nifty 500), strongest first. Tap a sector → its ratio chart. <a class="row" style="display:inline" href="/dash/sectors">← Sector rotation</a></div>
 <div class="card" style="padding:6px 10px;">
@@ -779,6 +858,7 @@ def dash_leaders() -> HTMLResponse:
                 f'<tbody>{trs}</tbody></table></div>')
 
     body = f"""
+{_strategy_badge("RS")}
 <h2>Leaders <span class="sub" style="margin:0">strong-in-strong</span></h2>
 <div class="sub">Stock leads its sector <b>and</b> the market, and the sector leads the market too — all three RS reads in UPTREND/BREAKOUT. Strongest (RS rank) first. Tap a symbol → its page; tap a sector → its ratio chart.</div>
 {_tbl(leaders, True)}
@@ -849,36 +929,65 @@ def dash_scan(limit: int = Query(25, ge=5, le=60)) -> HTMLResponse:
 
 
 @router.get("/dash/stocks", response_class=HTMLResponse)
-def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120)) -> HTMLResponse:
+def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
+                period: str = Query("d")) -> HTMLResponse:
     sig_date, _ = _latest_dates()
     sector = sector.strip()
+    period = period if period in ("d", "w", "m") else "d"
+    n_days = 5 if period == "w" else 22   # trading-day window for weekly/monthly
     rows, watch, sector_syms = [], [], []
     with get_conn() as conn:
-        if sector:
-            sector_syms = _sector_symbols(conn, sector)
-        if sig_date and not (sector and not sector_syms):
-            params = [sig_date]
-            sector_clause = ""
-            if sector and sector_syms:
-                ph = ",".join("?" for _ in sector_syms)
-                sector_clause = f" AND s.symbol IN ({ph})"
-                params += sector_syms
-            params.append(limit)
-            rank_order = ("CASE s.trigger_rank WHEN 'SS' THEN 0 WHEN 'S' THEN 1 "
-                          "WHEN 'A' THEN 2 WHEN 'B' THEN 3 WHEN 'C' THEN 4 ELSE 5 END")
-            rows = [dict(r) for r in conn.execute(
-                f"""SELECT s.symbol, s.trigger_rank rank, s.r_score, s.p_score,
-                          s.is_ath_dvpt ath, s.price_vs_hot_avg_pct pvh,
-                          s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close
-                   FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
-                   WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
-                   {_SCAN_FILTERS}{sector_clause}
-                   ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
-                            COALESCE(s.r_score,-1) DESC, {rank_order} ASC,
-                            COALESCE(s.ratio_today_vs_power_1m,0) DESC
-                   LIMIT ?""",
-                params,
-            ).fetchall()]
+        if period == "d":
+            # ---- DAILY: today's layered DVPT triggers (existing behaviour) ----
+            if sector:
+                sector_syms = _sector_symbols(conn, sector)
+            if sig_date and not (sector and not sector_syms):
+                params = [sig_date]
+                sector_clause = ""
+                if sector and sector_syms:
+                    ph = ",".join("?" for _ in sector_syms)
+                    sector_clause = f" AND s.symbol IN ({ph})"
+                    params += sector_syms
+                params.append(limit)
+                rank_order = ("CASE s.trigger_rank WHEN 'SS' THEN 0 WHEN 'S' THEN 1 "
+                              "WHEN 'A' THEN 2 WHEN 'B' THEN 3 WHEN 'C' THEN 4 ELSE 5 END")
+                rows = [dict(r) for r in conn.execute(
+                    f"""SELECT s.symbol, s.trigger_rank rank, s.r_score, s.p_score,
+                              s.is_ath_dvpt ath, s.price_vs_hot_avg_pct pvh,
+                              s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close
+                       FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                       WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                       {_SCAN_FILTERS}{sector_clause}
+                       ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
+                                COALESCE(s.r_score,-1) DESC, {rank_order} ASC,
+                                COALESCE(s.ratio_today_vs_power_1m,0) DESC
+                       LIMIT ?""",
+                    params,
+                ).fetchall()]
+        else:
+            # ---- WEEKLY / MONTHLY (D33d v1): roll up the daily verdicts over the
+            # last N trading days so a mid-window spike isn't missed if you don't
+            # check daily. On-read aggregate over existing stock_signals — no
+            # backfill. "hits" = days that fired an A+ trigger (p_score>=3). ----
+            wdates = [r["d"] for r in conn.execute(
+                "SELECT DISTINCT trade_date d FROM stock_signals ORDER BY d DESC LIMIT ?",
+                (n_days,)).fetchall()]
+            if wdates:
+                window_start = wdates[-1]
+                rows = [dict(r) for r in conn.execute(
+                    f"""SELECT s.symbol,
+                              COUNT(CASE WHEN s.p_score>=3 THEN 1 END) hits,
+                              MAX(s.p_score) peak_p,
+                              MAX(s.is_ath_dvpt) ath,
+                              AVG(s.delivery_value_per_trade) wmean
+                       FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                       WHERE s.trade_date>=? AND s.delivery_value_per_trade IS NOT NULL
+                       {_SCAN_FILTERS}
+                       GROUP BY s.symbol
+                       HAVING hits>=1
+                       ORDER BY peak_p DESC, hits DESC, wmean DESC
+                       LIMIT ?""",
+                    (window_start, limit)).fetchall()]
         watch = [r["symbol"] for r in conn.execute(
             "SELECT symbol FROM watchlist ORDER BY symbol").fetchall()]
 
@@ -886,69 +995,108 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120)) 
               '<input name="sym" placeholder="Enter NSE ticker — e.g. RELIANCE" '
               'autocapitalize="characters"/><button type="submit">Go</button></form>')
 
-    if sector:
+    # Daily / Weekly / Monthly toggle (weekly & monthly are market-wide).
+    def _ptab(p, lbl):
+        on = " on" if period == p else ""
+        return f'<a class="fbtn{on}" href="/dash/stocks?period={p}">{lbl}</a>'
+    ptoggle = ('<div class="fbar" style="margin-bottom:8px">'
+               + _ptab("d", "Daily") + _ptab("w", "Weekly") + _ptab("m", "Monthly")
+               + '</div>')
+
+    badge = _strategy_badge("POS")
+    if period != "d":
+        win = "this week (last 5 trading days)" if period == "w" else "this month (last ~22 trading days)"
+        head = (f'<h2>{"Weekly" if period == "w" else "Monthly"} triggers</h2>'
+                f'<div class="sub">Stocks that fired an <b>A+ DVPT trigger</b> on <b>any</b> day '
+                f'{win} — so a mid-window institutional spike isn\'t missed if you don\'t check '
+                f'daily. Ranked by peak intensity, then how many days it fired. '
+                f'<a class="row" style="display:inline" href="/dash/stocks?period=d">← back to daily</a></div>')
+    elif sector:
         head = (f'<h2>Stocks in {_esc(sector)}</h2>'
                 f'<div class="sub">{len(sector_syms)} constituents · by trigger strength · '
                 f'<a class="row" style="display:inline" href="/dash/stocks">clear ↺</a></div>')
         if not sector_syms:
-            head += '<div class="card sub">No membership on record for this index.</div>'
+            head += (f'<div class="card sub">No constituents tracked for this index — it\'s a '
+                     f'factor/thematic index, not a sector. '
+                     f'<a class="row" style="display:inline" href="/dash/ratio?idx={_q(sector)}">'
+                     f'See its ratio chart →</a></div>')
     else:
         head = ('<h2>Stock screen</h2>'
-                '<div class="sub">Layered DVPT triggers. Filter, then tap a symbol.</div>')
+                '<div class="sub">Layered DVPT triggers (today). Filter, then tap a symbol.</div>')
 
-    trs = []
-    for r in rows:
-        rank = r["rank"] or "-"
-        ath = "⚡" if r["ath"] else ""
-        pvh = r["pvh"]
-        entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
-        near, near_flag = "", "0"
-        if r["nextp"] and r["gap"] is not None:
-            near = f'{r["nextp"]} {r["gap"]:+.0f}%'
-            if r["gap"] > -10 and (r["r_score"] or 0) >= 4:
-                near_flag = "1"
-        flags = (f'data-ss="{1 if rank == "SS" else 0}" '
-                 f'data-aplus="{1 if (r["p_score"] or 0) >= 3 else 0}" '
-                 f'data-ath="{1 if r["ath"] else 0}" '
-                 f'data-disc="{1 if (pvh is not None and pvh < -3) else 0}" '
-                 f'data-near="{near_flag}"')
-        trs.append(
-            f'<tr {flags}><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
-            f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
-            f'<td><span class="pill p-{rank}">{rank}</span></td>'
-            f'<td class="mut">{r["r_score"] or 0}/{r["p_score"] or 0}</td>'
-            f'<td>{_num(r["close"], 1)}</td>'
-            f'<td>{_pct(pvh)} {entry}</td>'
-            f'<td class="mut">{near}</td></tr>')
-
-    if trs:
-        pills = ('<div id="sbar" class="fbar">'
-                 "<button class=\"fbtn on\" onclick=\"sflt('all',this)\">All</button>"
-                 "<button class=\"fbtn\" onclick=\"sflt('ss',this)\">SS</button>"
-                 "<button class=\"fbtn\" onclick=\"sflt('aplus',this)\">A+</button>"
-                 "<button class=\"fbtn\" onclick=\"sflt('ath',this)\">⚡ ATH</button>"
-                 "<button class=\"fbtn\" onclick=\"sflt('disc',this)\">🟢 Discount</button>"
-                 "<button class=\"fbtn\" onclick=\"sflt('near',this)\">🔥 Near-break</button></div>")
-        table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl" class="dt">'
-                 '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th>'
-                 '<th>Δhot</th><th>Near-P</th></tr></thead>'
-                 f'<tbody>{"".join(trs)}</tbody></table></div>')
+    js = ""
+    if period == "d":
+        trs = []
+        for r in rows:
+            rank = r["rank"] or "-"
+            ath = "⚡" if r["ath"] else ""
+            pvh = r["pvh"]
+            entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
+            near, near_flag = "", "0"
+            if r["nextp"] and r["gap"] is not None:
+                near = f'{r["nextp"]} {r["gap"]:+.0f}%'
+                if r["gap"] > -10 and (r["r_score"] or 0) >= 4:
+                    near_flag = "1"
+            flags = (f'data-ss="{1 if rank == "SS" else 0}" '
+                     f'data-aplus="{1 if (r["p_score"] or 0) >= 3 else 0}" '
+                     f'data-ath="{1 if r["ath"] else 0}" '
+                     f'data-disc="{1 if (pvh is not None and pvh < -3) else 0}" '
+                     f'data-near="{near_flag}"')
+            trs.append(
+                f'<tr {flags}><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+                f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
+                f'<td><span class="pill p-{rank}">{rank}</span></td>'
+                f'<td class="mut">{r["r_score"] or 0}/{r["p_score"] or 0}</td>'
+                f'<td>{_num(r["close"], 1)}</td>'
+                f'<td>{_pct(pvh)} {entry}</td>'
+                f'<td class="mut">{near}</td></tr>')
+        if trs:
+            pills = ('<div id="sbar" class="fbar">'
+                     "<button class=\"fbtn on\" onclick=\"sflt('all',this)\">All</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('ss',this)\">SS</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('aplus',this)\">A+</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('ath',this)\">⚡ ATH</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('disc',this)\">🟢 Discount</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('near',this)\">🔥 Near-break</button></div>")
+            table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl" class="dt">'
+                     '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th>'
+                     '<th>Δhot</th><th>Near-P</th></tr></thead>'
+                     f'<tbody>{"".join(trs)}</tbody></table></div>')
+            js = ("<script>function sflt(f,el){"
+                  "document.querySelectorAll('#stbl tr[data-ss]').forEach(function(r){"
+                  "r.style.display=(f==='all'||r.dataset[f]==='1')?'':'none';});"
+                  "document.querySelectorAll('#sbar .fbtn').forEach(function(b){"
+                  "b.classList.remove('on');});el.classList.add('on');}</script>")
+        else:
+            table = '<div class="empty">No stocks match.</div>'
     else:
-        table = '<div class="empty">No stocks match.</div>'
+        _RK = {5: "SS", 4: "S", 3: "A", 2: "B", 1: "C"}
+        trs = []
+        for r in rows:
+            rk = _RK.get(r["peak_p"] or 0, "-")
+            ath = "⚡" if r["ath"] else ""
+            wm = r["wmean"]
+            trs.append(
+                f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+                f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
+                f'<td><span class="pill p-{rk}">{rk}</span></td>'
+                f'<td>{r["hits"]}/{n_days}</td>'
+                f'<td class="mut">{_num(wm, 0) if wm is not None else "—"}</td></tr>')
+        if trs:
+            table = ('<div class="card" style="padding:6px 10px;"><table class="dt">'
+                     '<thead><tr><th>Symbol</th><th>Peak rank</th>'
+                     '<th>Days fired</th><th>Avg DVPT ₹</th></tr></thead>'
+                     f'<tbody>{"".join(trs)}</tbody></table></div>')
+        else:
+            table = '<div class="empty">No A+ triggers in this window yet.</div>'
 
     watch_block = ""
-    if watch:
+    if watch and period == "d":
         chips = "".join(f'<a class="chip" href="/dash/stock?sym={_esc(s)}">{_esc(s)}</a>'
                         for s in watch)
         watch_block = f'<h2>Watchlist</h2><div class="chips">{chips}</div>'
 
-    js = ("<script>function sflt(f,el){"
-          "document.querySelectorAll('#stbl tr[data-ss]').forEach(function(r){"
-          "r.style.display=(f==='all'||r.dataset[f]==='1')?'':'none';});"
-          "document.querySelectorAll('#sbar .fbtn').forEach(function(b){"
-          "b.classList.remove('on');});el.classList.add('on');}</script>")
-
-    body = search + head + table + watch_block + (js if trs else "")
+    body = search + ptoggle + badge + head + table + watch_block + js
     return HTMLResponse(_shell("Stocks — Hermes", body, "stocks", sig_date or ""))
 
 
