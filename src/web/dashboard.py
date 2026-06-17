@@ -1056,10 +1056,41 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 <div class="card"><div class="sub" style="margin:0">No cached fundamentals yet. Run <code>/pt14 {_esc(sym)}</code> in Telegram (or it'll cache on first scoring) to populate PE / ROCE / growth / the 14-pattern tier here.</div></div>
 """
 
-    # --- Relative strength (D32/D33) — honest status ----------------------
-    rs_html = f"""
-<h2>Relative strength</h2>
-<div class="card"><div class="sub" style="margin:0">Stock-vs-sector and stock-vs-Nifty ratio dynamics (D33) are not wired yet — the index/sector ratio layer (D32) exists, but per-stock membership + RS is the next build. Use <b>/sectors</b> for the sector-rotation picture meanwhile.</div></div>
+    # --- Relative strength vs Nifty 500 (D33a) ----------------------------
+    # Reads the denormalized rs_vs_broad_* columns on the latest stock_signals
+    # row (UPDATEd by src.automation.stock_rs). NULL → not backfilled yet.
+    rs_today = L.get("rs_vs_broad_today")
+    rs_state = L.get("rs_vs_broad_trend_state")
+    rs_rank = L.get("rs_rank")
+    if rs_today is None and rs_state is None:
+        rs_html = """
+<h2>Relative strength <span class="mut" style="font-size:13px">vs Nifty 500</span></h2>
+<div class="card"><div class="sub" style="margin:0">RS not yet computed — run <code>python -m src.automation.stock_rs --backfill</code> (or <code>--symbol {0}</code>) to populate stock-vs-Nifty-500 relative strength. Use <b>/sectors</b> for the sector-rotation picture meanwhile.</div></div>
+""".format(_esc(sym))
+    else:
+        rs_pill = (f'<span class="pill p-{rs_state}">{rs_state}</span>'
+                   if rs_state else '<span class="pill p-C">—</span>')
+        rs_strip = _rs_strip(
+            L.get("rs_vs_broad_slope_1m"), L.get("rs_vs_broad_slope_3m"),
+            L.get("rs_vs_broad_slope_6m"), L.get("rs_vs_broad_slope_12m"),
+        )
+        if rs_rank is not None:
+            rank_html = (
+                f'<div class="sub" style="margin:8px 0 4px">RS {rs_rank} / 99 — '
+                f'stronger than {rs_rank}% of the market '
+                f'(0.6·3m + 0.4·6m RS slope vs Nifty 500).</div>'
+                f'<div class="card" style="margin-top:0"><div class="bar">'
+                f'<span style="width:{rs_rank}%"></span></div></div>')
+        else:
+            rank_html = ('<div class="sub" style="margin:8px 0 4px">RS rank not '
+                         'computed (outside the liquid universe, or insufficient '
+                         '3m history).</div>')
+        rs_html = f"""
+<h2>Relative strength <span class="mut" style="font-size:13px">vs Nifty 500</span></h2>
+<div class="chips" style="margin-bottom:6px">{rs_pill}</div>
+{rank_html}
+<div class="sub" style="margin:8px 0 4px">RS-vs-Nifty-500 momentum across horizons (▲ outperforming, ▼ lagging):</div>
+<div class="card" style="margin-top:0">{rs_strip}</div>
 """
 
     chart_css = """

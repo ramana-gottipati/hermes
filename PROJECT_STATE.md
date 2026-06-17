@@ -218,7 +218,9 @@ D:\Hermes\                                          ← local working copy of re
 │       ├── scoring.py                              ← rule-based 14-pattern patearn scorer
 │       ├── indexes.py                              ← NSE index OHLC ingestion (D32)
 │       ├── index_signals.py                        ← index + ratio signals, sector-vs-broad RS (D32)
-│       └── membership.py                            ← NSE constituent lists → stock_index_membership (D33b)
+│       ├── membership.py                            ← NSE constituent lists → stock_index_membership (D33b)
+│       ├── adjust.py                                ← reusable split/bonus back-adjustment (extracted from D36; used by stock_rs)
+│       └── stock_rs.py                              ← stock-vs-broad (Nifty 500) RS + percentile rank → stock_signals (D33a)
 ├── resources\patearn\                              ← copy of patearn skill files (used by patearn.py)
 │   ├── SKILL.md
 │   ├── patterns.md
@@ -539,6 +541,8 @@ Leader = stock `rs_vs_sector` ∈ {UPTREND,BREAKOUT} AND stock `rs_vs_broad` ∈
 
 **Phasing:** D33a = stock-vs-broad RS + slope + percentile rank (all stocks, no membership). D33b = membership fetch + stock-vs-sector RS. D33c = composite leader/laggard + `/rs`, `/leaders`, `/laggards` + dashboard RS section (replaces the placeholder).
 
+**D33a — BUILT (session 17, NOT yet backfilled/deployed).** `src/automation/adjust.py` (reusable corp-action back-adjustment, extracted from D36), 10 new `stock_signals` RS columns (`rs_vs_broad_*` + `rs_rank`) + `idx_signals_rs_rank`, `src/automation/stock_rs.py` (pipeline reusing `index_signals.compute_ratio_signal` + `adjust.adjusted_closes`; UPDATEs existing rows; SQL `PERCENT_RANK()` percentile pass over the liquid universe), and the real `/dash/stock` RS card (trend pill + rank gauge + `_rs_strip`). Backfill (`stock_rs --backfill`) intentionally deferred to a verify-PARAS-first step. The dashboard RS card landing in D33a (ahead of the D33c plan) is fine — it just shows the broad-only read until sector RS arrives.
+
 ### D36 — Corporate-action back-adjustment for price charts (NOT for signals)
 Why: The `/dash/stock` price chart plotted raw bhav-copy close, so every split/bonus made a fake cliff (PARAS showed a phantom ₹1800 spike vs Zerodha's smooth ~₹250→₹1089). Fix is in the dashboard render: two-layer detection — (a) `prev_close[i]/close[i-1]` deviation >3% (NSE adjusts prev_close on ex-dates); (b) fallback for >30% single-day close jumps prev_close left unadjusted (data anomaly; a real 30%+ move is impossible under circuit limits). Back-adjust historical OHLC by the cumulative factor. **DVPT signals are unaffected** — they're value-based (₹=qty×price), already split-invariant (Doctrine § C). **Limitation:** the institutional ZONES (avg_close_*) are computed from raw closes in signals.py; if an action falls in the zone window they're off-scale on the adjusted chart (the ⚠ "zone overlay approximate" warning). **Open item:** move the adjustment into a reusable layer and recompute zones (and D33 RS) on adjusted prices.
 
@@ -782,9 +786,9 @@ B. ✅ **Telegram menu system** (D29) — shipped.
 B2. ✅ **Web dashboard + PWA** (D33-web) — shipped (live on VPS via scp; not yet pushed to GitHub — see P0).
 B3. ✅ **Enriched stock view** — charts + corporate-action adjustment (D36) + DVPT inertia + insights + pt14 snapshot — shipped (live on VPS via scp).
 
-B4. **D33 stock-level Relative Strength** (spec = D37). The agreed third-pillar build. Phased D33a (stock-vs-broad RS + percentile rank, all stocks) → D33b (membership + stock-vs-sector) → D33c (composite leaders/laggards + /rs /leaders /laggards + dashboard RS section). **Fresh focused session.** Depends on moving corp-action adjustment to a reusable layer (below).
+B4. **D33 stock-level Relative Strength** (spec = D37). The agreed third-pillar build. Phased D33a (stock-vs-broad RS + percentile rank, all stocks) → D33b (membership + stock-vs-sector) → D33c (composite leaders/laggards + /rs /leaders /laggards + dashboard RS section). **D33a CODE SHIPPED (session 17) — not yet backfilled/deployed:** `adjust.py` + `stock_rs.py` + 10 `stock_signals` RS columns + `/dash/stock` RS card. Remaining for D33a: run `python -m src.automation.stock_rs --symbol PARAS` to verify, then `--backfill`, then deploy + wire into the `10-signals.conf` systemd chain (after `signals`). Then **D33b** (membership → stock-vs-sector RS) and **D33c** (composite leader/laggard + `/rs`/`/leaders`/`/laggards`).
 
-B5. **Move corporate-action back-adjustment to a reusable pipeline layer + recompute zones on adjusted prices.** Currently the adjustment lives only in the dashboard render (D36); the institutional ZONES (avg_close_*) are still computed from raw closes, so they're off-scale when an action falls in the zone window (the ⚠ warning). RS (D33) also needs adjusted prices. One shared adjustment module → used by dashboard, zones recompute, and RS.
+B5. **Move corporate-action back-adjustment to a reusable pipeline layer + recompute zones on adjusted prices.** ⏳ **Half done (session 17):** the reusable layer now exists — `src/automation/adjust.py` (`adjusted_closes`/`adjustment_factors`, the verbatim D36 logic), already consumed by D33a's `stock_rs.py`. **Still open:** (a) unify the dashboard's inline D36 copy to call `adjust.adjusted_closes` (currently duplicated); (b) recompute the institutional ZONES (avg_close_*) on adjusted prices in `signals.py` — they're still computed from raw closes, so they're off-scale when an action falls in the zone window (the ⚠ warning).
 
 B6. **pt14 fundamentals caching for the dashboard** — the dashboard pt14 section reads cached `fundamentals` / `pattern_scores`; populate on a schedule (or first-view) so it's not empty.
 
@@ -836,6 +840,19 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 16 (continued) — 2026-06-17 — D33a stock-level Relative Strength (stock-vs-broad RS + rank)
+Built the **D33a** slice of the third-pillar RS spec (D37): stock-vs-broad (Nifty 500) relative strength as a real data layer — new reusable adjustment module + schema columns + a compute pipeline + the dashboard RS card. **Deployed + verified before backfill:** `--symbol PARAS` confirmed the split-adjustment holds in the RS series — rs_vs_broad is **continuous across PARAS's 2025-07-04 split** (0.0365→0.0364→0.0346, no cliff); RELIANCE reads sane (DOWNTREND, lagging the market). Then the full `--backfill` was run over 3,053 symbols (~3.7M rows + the cross-stock percentile pass). py_compile clean; split-adjustment + rank SQL also unit-verified in-memory.
+
+Shipped:
+- **`src/automation/adjust.py`** (NEW, pure/no-DB) — the single source of truth for the split/bonus back-adjustment, extracted verbatim from the dashboard's D36 inline copy (`PC_THRESH=0.03` prev_close-deviation primary layer; `CC_THRESH=0.30` close-jump fallback; backward-cumulative factor). `adjusted_closes(rows)` + `adjustment_factors(rows)`. (Closes the *reusable-layer* half of open item B5; the dashboard's inline copy can be unified to call this next, and zones-on-adjusted-price is still pending.)
+- **`src/core/db.py`** — 10 new `stock_signals` columns via the idempotent `_ensure_column` pattern: `rs_vs_broad_today`, `rs_vs_broad_slope_{1m,3m,6m,12m}`, `rs_vs_broad_above_50ma`, `rs_vs_broad_above_200ma`, `rs_vs_broad_new_52w_high`, `rs_vs_broad_trend_state`, `rs_rank` (1–99). New index `idx_signals_rs_rank ON stock_signals(trade_date, rs_rank)`.
+- **`src/automation/stock_rs.py`** (NEW) — the pipeline. `BROAD="Nifty 500"` (title-case). Per symbol: full EQ bhav history → `adjusted_closes` → `rs_history=[{adj_close/n500_close}]` on dates in BOTH series → REUSES `index_signals.compute_ratio_signal` for the slopes/MA-flags/52w-high/trend_state → **UPDATEs** the existing stock_signals row (never INSERTs). Then a SQL `PERCENT_RANK()` percentile pass over the liquid universe (same filter as signals/dashboard) on a blended `0.6·slope_3m + 0.4·slope_6m` → `rs_rank` 1–99 (only rows with slope_3m NOT NULL). CLI: `--symbol X` (full series + prints latest 5 days for spot-check), `--date YYYY-MM-DD`, `--backfill`, `--rank-only`.
+- **`src/web/dashboard.py`** — replaced the `/dash/stock` "Relative strength" placeholder with a real section: a `trend_state` pill, an **RS rank gauge** ("RS 73 / 99 — stronger than 73% of the market", reuses `.bar`), and the **4-cell heat strip** (reuses `_rs_strip` on the 4 rs_vs_broad slopes). Muted "RS not yet computed — run stock_rs backfill" note while the columns are NULL. `s.*` in the stock query already exposes the new columns — no query change.
+
+Still pending: B5's zones-recompute-on-adjusted-price + unifying the dashboard's inline D36 adjustment to call `adjust.py`. **Next D33 phases:** **D33b** (stock-vs-sector RS via the now-populated `stock_index_membership`) and **D33c** (composite "strong-in-strong" leaders/laggards + `/rs` `/leaders` `/laggards` Telegram commands + a dashboard RS-rank leaders/ranking view).
+
+Next: D33b (membership + stock-vs-sector RS), then D33c (composite leader/laggard + `/rs` `/leaders` `/laggards`).
 
 ### Session 16 (continued) — 2026-06-17 — Multi-index comparison/rebase chart + chart perf fix (D40)
 Ramana asked for a normalized multi-index comparison (overlay indices rebased to a common start, fluid anchor on pan, ratio↔rebased toggle) and flagged chart range-switching as slow. 2nd 5-agent panel (financial + data + UI/UX + architect); design in `docs/rs-ratio-analysis-design.md` Part 2 (**D40**); built by a focused build agent.

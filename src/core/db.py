@@ -436,6 +436,22 @@ def _init() -> None:
         _ensure_column(conn, "stock_signals", "avg_close_p6m",        "REAL")
         _ensure_column(conn, "stock_signals", "avg_close_p12m",       "REAL")
 
+        # 4e. D33a — stock-level Relative Strength vs the broad market
+        # (rs_vs_broad = adjusted_close(stock) / close(Nifty 500)). Mirrors the
+        # D32 ratio-signal vocabulary (slopes/MA flags/52w-high/trend_state) but
+        # denormalized onto the per-stock signal row. rs_rank is the cross-stock
+        # percentile (1-99) of blended RS momentum across the liquid universe.
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_today",        "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_slope_1m",     "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_slope_3m",     "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_slope_6m",     "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_slope_12m",    "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_above_50ma",   "INTEGER")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_above_200ma",  "INTEGER")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_new_52w_high", "INTEGER")
+        _ensure_column(conn, "stock_signals", "rs_vs_broad_trend_state",  "TEXT")
+        _ensure_column(conn, "stock_signals", "rs_rank",                  "INTEGER")
+
         # 4c. Indexes on the new columns (post-ALTER, guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_p_score "
@@ -448,6 +464,11 @@ def _init() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_ath "
             "ON stock_signals(trade_date, is_ath_dvpt)"
+        )
+        # D33a — RS rank lookup per date (the cross-stock percentile screen).
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_signals_rs_rank "
+            "ON stock_signals(trade_date, rs_rank)"
         )
 
         # 5. Helper view for clean equity-cash-market queries. Includes delivery.
