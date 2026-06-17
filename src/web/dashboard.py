@@ -127,6 +127,124 @@ a.row { color:inherit; text-decoration:none; display:block; }
 .hs-sd{background:#8f1f1f;color:#ffa198;} .hs-nd{background:#21262d;color:#484f58;}
 .bar{height:7px;background:#21262d;border-radius:4px;overflow:hidden;} .bar>span{display:block;height:100%;background:#1f6feb;}
 .grp{color:#58a6ff;} th.rsgrp{border-left:1px solid #30363d;} td.rsgrp{border-left:1px solid #30363d;}
+.dttool{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.dtf{flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 10px;border-radius:7px;font-size:13px}
+.dtx{background:#238636;border:none;color:#fff;padding:6px 12px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer}
+.dtcount{color:#8b949e;font-size:12px}
+table.dt thead th{cursor:pointer;user-select:none;position:sticky;top:0;background:#0e1116;z-index:1}
+table.dt thead th.sorta::after{content:" ▲"} table.dt thead th.sortd::after{content:" ▼"}
+tr.dt-hide{display:none!important}
+"""
+
+
+# Reusable data-grid enhancer (plain template — NOT an f-string; single braces).
+# On DOMContentLoaded, enhances every <table class="dt"> with a toolbar
+# (text filter + CSV export + visible-row count), click-to-sort headers
+# (numeric-aware, asc/desc toggle), and a live row count that respects both
+# the text filter (dt-hide class) and any sibling pill bar (inline display).
+# Filtering uses the dt-hide class only (never inline display) so it COMPOSES
+# with the existing pill filters (.fbar buttons) via the !important class.
+_DT_JS = """
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  function num(s){
+    var n = parseFloat(String(s).replace(/[%,+₹\\s]/g,''));
+    return n;
+  }
+  function csvCell(v){
+    v = (v==null?'':String(v));
+    if (v.indexOf('"')>=0 || v.indexOf(',')>=0 || v.indexOf('\\n')>=0 || v.indexOf('\\r')>=0){
+      return '"' + v.replace(/"/g,'""') + '"';
+    }
+    return v;
+  }
+  document.querySelectorAll('table.dt').forEach(function(table){
+    var tbody = table.tBodies[0];
+    if (!tbody) return;
+    var ths = Array.prototype.slice.call(table.tHead ? table.tHead.querySelectorAll('tr:last-child th') : []);
+
+    // --- toolbar (inserted immediately before the table) ---
+    var tool = document.createElement('div');
+    tool.className = 'dttool';
+    var f = document.createElement('input');
+    f.className = 'dtf'; f.type = 'text'; f.placeholder = 'filter rows…';
+    var x = document.createElement('button');
+    x.className = 'dtx'; x.type = 'button'; x.textContent = '⬇ Export';
+    var cnt = document.createElement('span');
+    cnt.className = 'dtcount';
+    tool.appendChild(f); tool.appendChild(x); tool.appendChild(cnt);
+    table.parentNode.insertBefore(tool, table);
+
+    function rows(){ return Array.prototype.slice.call(tbody.rows); }
+    function visibleRows(){
+      return rows().filter(function(r){ return r.offsetParent !== null; });
+    }
+    function recount(){
+      cnt.textContent = visibleRows().length + ' rows';
+    }
+
+    // --- filter (toggles dt-hide only; never touches inline display) ---
+    f.addEventListener('input', function(){
+      var q = f.value.toLowerCase();
+      rows().forEach(function(r){
+        var hit = r.innerText.toLowerCase().indexOf(q) >= 0;
+        r.classList.toggle('dt-hide', !hit);
+      });
+      recount();
+    });
+
+    // --- sort (numeric-aware, asc/desc toggle on repeat click) ---
+    ths.forEach(function(th, ci){
+      th.addEventListener('click', function(){
+        var asc = !th.classList.contains('sorta');
+        ths.forEach(function(o){ o.classList.remove('sorta','sortd'); });
+        th.classList.add(asc ? 'sorta' : 'sortd');
+        var rs = rows();
+        rs.sort(function(a, b){
+          var av = a.cells[ci] ? a.cells[ci].innerText : '';
+          var bv = b.cells[ci] ? b.cells[ci].innerText : '';
+          var an = num(av), bn = num(bv), c;
+          if (isFinite(an) && isFinite(bn)) c = an - bn;
+          else c = String(av).localeCompare(String(bv));
+          return asc ? c : -c;
+        });
+        rs.forEach(function(r){ tbody.appendChild(r); });
+        recount();
+      });
+    });
+
+    // --- export (header + currently-visible rows only) ---
+    x.addEventListener('click', function(){
+      var lines = [];
+      lines.push(ths.map(function(th){ return csvCell(th.innerText.trim()); }).join(','));
+      visibleRows().forEach(function(r){
+        var cells = Array.prototype.slice.call(r.cells);
+        lines.push(cells.map(function(td){ return csvCell(td.innerText.trim()); }).join(','));
+      });
+      var csv = lines.join('\\r\\n');
+      var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = (document.title || 'export').replace(/[^a-zA-Z0-9]+/g,'-') +
+                   '-' + new Date().toISOString().slice(0,10) + '.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+
+    // --- recount when sibling pills change (they set inline display) ---
+    var fbar = table.parentNode ? table.parentNode.parentNode : null;
+    var pills = null;
+    if (table.parentNode) pills = table.parentNode.querySelectorAll('.fbar button');
+    if ((!pills || !pills.length) && fbar) pills = fbar.querySelectorAll('.fbar button');
+    if (pills && pills.length){
+      pills.forEach(function(b){ b.addEventListener('click', function(){ setTimeout(recount, 0); }); });
+    }
+
+    recount();
+  });
+});
+</script>
 """
 
 
@@ -176,6 +294,7 @@ if ('serviceWorker' in navigator) {{
   navigator.serviceWorker.register('/sw.js').catch(function(){{}});
 }}
 </script>
+{_DT_JS}
 </body>
 </html>"""
 
@@ -483,7 +602,7 @@ def dash_markets() -> HTMLResponse:
         "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
         "<button class=\"fbtn\" onclick=\"mflt('broad',this)\">Broad/Size</button>"
         "<button class=\"fbtn\" onclick=\"mflt('sector',this)\">Sectoral</button></div>"
-        '<div class="card" style="padding:6px 10px;"><table id="mbundle">'
+        '<div class="card" style="padding:6px 10px;"><table id="mbundle" class="dt">'
         '<thead>'
         '<tr><th></th><th colspan="3">RETURN</th><th class="rsgrp grp">RS</th></tr>'
         '<tr><th>Index</th><th>1d</th><th>1m</th><th>3m</th><th class="rsgrp">Trend</th></tr></thead>'
@@ -531,7 +650,7 @@ def dash_sectors() -> HTMLResponse:
 <h2>Sector rotation</h2>
 <div class="sub">Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · <a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>
 <div class="card" style="padding:6px 10px;">
-<table>
+<table class="dt">
 <thead>
 <tr><th colspan="3">RETURN</th><th colspan="3" class="rsgrp grp">RELATIVE STRENGTH vs Nifty 500</th></tr>
 <tr><th>Sector</th><th>1m</th><th>3m</th><th class="rsgrp">1m / 3m / 6m / 12m</th><th>Trend</th><th>RS 3m</th></tr>
@@ -592,7 +711,7 @@ def dash_rs() -> HTMLResponse:
 <h2>RS-momentum ranking</h2>
 <div class="sub">All sectors by RS momentum (0.6·3m + 0.4·6m slope vs Nifty 500), strongest first. Tap a sector → its ratio chart. <a class="row" style="display:inline" href="/dash/sectors">← Sector rotation</a></div>
 <div class="card" style="padding:6px 10px;">
-<table>
+<table class="dt">
 <thead><tr><th>#</th><th>Sector</th><th>1m/3m/6m/12m</th><th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>
 <tbody>{''.join(trs)}</tbody>
 </table>
@@ -741,7 +860,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120)) 
                  "<button class=\"fbtn\" onclick=\"sflt('ath',this)\">⚡ ATH</button>"
                  "<button class=\"fbtn\" onclick=\"sflt('disc',this)\">🟢 Discount</button>"
                  "<button class=\"fbtn\" onclick=\"sflt('near',this)\">🔥 Near-break</button></div>")
-        table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl">'
+        table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl" class="dt">'
                  '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th>'
                  '<th>Δhot</th><th>Near-P</th></tr></thead>'
                  f'<tbody>{"".join(trs)}</tbody></table></div>')
