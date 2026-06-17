@@ -470,7 +470,9 @@ def dash_markets() -> HTMLResponse:
 
     body = (
         '<h2>Major indexes &amp; sectors</h2>'
-        '<div class="sub">Broad market + core sectors. Tap any → its stocks.</div>'
+        '<div class="sub">Broad market + core sectors. Tap any → its stocks. '
+        '<a class="row" style="display:inline" '
+        'href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>'
         '<div class="ghdr">Broad / size</div>'
         f'<div class="majgrid">{broad_html}</div>'
         '<div class="ghdr">Core sectors</div>'
@@ -527,7 +529,7 @@ def dash_sectors() -> HTMLResponse:
             )
         body = f"""
 <h2>Sector rotation</h2>
-<div class="sub">Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a></div>
+<div class="sub">Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · <a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>
 <div class="card" style="padding:6px 10px;">
 <table>
 <thead>
@@ -1139,25 +1141,43 @@ const DATA = {data_json};
   const deliv=dc.addLineSeries({{color:'#58a6ff',lineWidth:2}});
   deliv.setData(S.filter(d=>d.deliv!=null).map(d=>({{time:d.time,value:d.deliv}})));
 
-  // Sync time scales across the three charts.
+  // Sync time scales across the three charts. A reentrancy guard stops a
+  // range click from ping-ponging range updates pc<->vc<->dc until float
+  // convergence (the source of the range-switch slowness, worst on Max).
   const charts=[pc,vc,dc];
+  let syncing=false;
   charts.forEach(src=>{{
     src.timeScale().subscribeVisibleLogicalRangeChange(r=>{{
-      if(!r) return;
+      if(!r||syncing) return;
+      syncing=true;
       charts.forEach(t=>{{ if(t!==src) t.timeScale().setVisibleLogicalRange(r); }});
+      syncing=false;
     }});
   }});
 
+  // Apply the range to ALL charts directly under the guard (N direct
+  // view-sets, zero feedback hops). fitContent() per-chart for Max.
   function setRange(n){{
-    if(!n||n>=S.length){{ pc.timeScale().fitContent(); return; }}
-    const from=S[S.length-n].time, to=S[S.length-1].time;
-    pc.timeScale().setVisibleRange({{from,to}});
+    syncing=true;
+    if(!n||n>=S.length){{
+      charts.forEach(c=>c.timeScale().fitContent());
+    }} else {{
+      const from=S[S.length-n].time, to=S[S.length-1].time;
+      charts.forEach(c=>c.timeScale().setVisibleRange({{from,to}}));
+    }}
+    syncing=false;
   }}
   document.querySelectorAll('.rangebar button').forEach(b=>{{
     b.onclick=()=>{{ document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setRange(parseInt(b.dataset.r)); }};
   }});
   setRange(0);
-  new ResizeObserver(()=>{{ charts.forEach(c=>c.applyOptions({{}})); }}).observe(pEl);
+  // Debounced ResizeObserver: coalesce bursts (~100ms) and skip while syncing.
+  let rzT=null;
+  new ResizeObserver(()=>{{
+    if(syncing) return;
+    if(rzT) clearTimeout(rzT);
+    rzT=setTimeout(()=>{{ charts.forEach(c=>c.applyOptions({{}})); }},100);
+  }}).observe(pEl);
 }})();
 </script>
 """
@@ -1217,7 +1237,9 @@ const DATA = __DATA__;
   setRange(252);
   document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on'));
   const oneY=document.querySelector('.rangebar button[data-r="252"]'); if(oneY) oneY.classList.add('on');
-  new ResizeObserver(()=>{ chart.applyOptions({}); }).observe(host);
+  // Debounced ResizeObserver (~100ms) — avoid a redraw per resize tick.
+  let rzT=null;
+  new ResizeObserver(()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
 })();
 </script>
 """
@@ -1457,7 +1479,8 @@ def dash_ratio(idx: str = Query("", max_length=60),
         f'<a class="fbtn {"on" if den=="Nifty 500" else ""}" '
         f'href="/dash/ratio?idx={_q(idx)}&den={_q("Nifty 500")}">vs Nifty 500</a>'
         f'<a class="fbtn {"on" if den=="Nifty 50" else ""}" '
-        f'href="/dash/ratio?idx={_q(idx)}&den={_q("Nifty 50")}">vs Nifty 50</a></div>')
+        f'href="/dash/ratio?idx={_q(idx)}&den={_q("Nifty 50")}">vs Nifty 50</a>'
+        f'<a class="fbtn" href="/dash/compare?idx={_q(idx)}">Compare ⇄</a></div>')
 
     body = f"""
 <style>{chart_css}</style>
@@ -1483,6 +1506,574 @@ def dash_ratio(idx: str = Query("", max_length=60),
 """
     return HTMLResponse(_shell(f"{idx} ratio — Hermes", body, "sectors",
                                idx_date or ""))
+
+
+# Multi-index compare chart JS (plain template — no f-string; placeholders are
+# replaced with server JSON/config). Clones the ratio bootstrap, then adds:
+# N line series, client-side rebase, a fluid forward-snapped anchor on
+# subscribeVisibleTimeRangeChange (rAF-coalesced + anchor-gated +
+# reentrancy-guarded), mode/base/range/pin controls, and a crosshair value row.
+_COMPARE_CHART_JS = """
+<script src="__CDN__"></script>
+<script>
+const SERIES = __SERIES__;
+const CMODE0 = "__MODE__";        // 'rebase' | 'ratio'
+const CBASE0 = "__BASE__";        // '100' | '0'
+const CRANGE0 = __RANGE__;        // initial range in trading days
+(function(){
+  const host = document.getElementById('compareChart');
+  if (!window.LightweightCharts) { host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+  if (!SERIES.length) { return; }
+  const common = {
+    layout: { background:{color:'#161b22'}, textColor:'#8b949e', fontSize:11 },
+    grid: { vertLines:{color:'#21262d'}, horzLines:{color:'#21262d'} },
+    timeScale: { borderColor:'#30363d', rightOffset:3 },
+    rightPriceScale: { borderColor:'#30363d' },
+    crosshair: { mode: 0 },
+    handleScroll:true, handleScale:true,
+  };
+  const chart = LightweightCharts.createChart(host, Object.assign({height:320}, common));
+
+  let mode = (CMODE0==='ratio') ? 'ratio' : 'rebase';
+  let base = (CBASE0==='0') ? '0' : '100';
+  let pinned = null;          // null => fluid; else a 'YYYY-MM-DD' anchor
+
+  // Build a line series per data series; pick its raw array (level or ratio).
+  function rawOf(s){ return (mode==='ratio') ? (s.ratio||[]) : (s.level||[]); }
+  const lines = SERIES.map(s=>{
+    const ls = chart.addLineSeries({color:s.color,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true});
+    return {def:s, ls:ls};
+  });
+
+  // 'YYYY-MM-DD' string comparison works lexicographically. The time-range
+  // callback may hand back either a string or a {year,month,day} business day.
+  function timeToStr(t){
+    if (t==null) return null;
+    if (typeof t === 'string') return t;
+    if (typeof t === 'object' && t.year){
+      const m=('0'+t.month).slice(-2), d=('0'+t.day).slice(-2);
+      return t.year+'-'+m+'-'+d;
+    }
+    return String(t);
+  }
+  // First index in raw[] with time >= target (forward snap). raw sorted by time.
+  function snapIdx(raw, target){
+    if (!raw.length) return -1;
+    if (target==null) return 0;
+    let lo=0, hi=raw.length-1, ans=-1;
+    while(lo<=hi){ const mid=(lo+hi)>>1;
+      if (raw[mid].t >= target){ ans=mid; hi=mid-1; } else { lo=mid+1; }
+    }
+    return ans;
+  }
+
+  // Compute the common forward-snapped anchor date for the given left edge,
+  // using the union of all series' first-eligible points (earliest snap wins
+  // so every line shares ONE anchor day).
+  function commonAnchor(from){
+    let best=null;
+    for (const l of lines){
+      const raw=rawOf(l.def); const i=snapIdx(raw, from);
+      if (i>=0){ const t=raw[i].t; if (best===null || t<best) best=t; }
+    }
+    return best;   // a 'YYYY-MM-DD' string or null
+  }
+
+  // Rebase every series to the anchor date and push to its line series.
+  // base '100' => v/anchor*100 ; base '0' => (v/anchor-1)*100.
+  // A series with no/zero value at the anchor drops out (setData([])) and its
+  // chip dims. Ratio mode rebases the ratio to 100 too.
+  let anchorDate = null;
+  function applyRebase(anchor){
+    anchorDate = anchor;
+    for (const l of lines){
+      const raw=rawOf(l.def);
+      const chip=document.querySelector('.cmp-chip[data-i="'+l.def.i+'"]');
+      let av=null;
+      if (anchor!=null){
+        const ai=snapIdx(raw, anchor);
+        if (ai>=0) av=raw[ai].v;
+      } else if (raw.length){ av=raw[0].v; }
+      if (av==null || av===0){
+        l.ls.setData([]);
+        if(chip) chip.classList.add('cmp-dim');
+        continue;
+      }
+      if(chip) chip.classList.remove('cmp-dim');
+      const out=new Array(raw.length);
+      const off=(base==='0')?1:0; const scl=(base==='0')?100:100;
+      for (let k=0;k<raw.length;k++){
+        const p=raw[k];
+        out[k]={time:p.t, value:(off? ((p.v/av)-1)*scl : (p.v/av)*scl)};
+      }
+      l.ls.setData(out);
+    }
+    relabel(anchor);
+  }
+
+  // --- fluid anchor: recompute on pan, rAF-coalesced + anchor-gated --------
+  let raf=null, internalSet=false, lastAnchor=null;
+  function scheduleRebase(from){
+    if (pinned!==null) return;          // pinned anchor ignores panning
+    if (internalSet) return;            // our own setData/ setVisibleRange
+    if (raf) return;
+    raf=requestAnimationFrame(()=>{
+      raf=null;
+      const a=commonAnchor(from);
+      if (a===lastAnchor) return;       // left-edge trading day unchanged → free
+      lastAnchor=a;
+      internalSet=true;
+      applyRebase(a);
+      internalSet=false;
+    });
+  }
+  chart.timeScale().subscribeVisibleTimeRangeChange(r=>{
+    if(!r) return;
+    scheduleRebase(timeToStr(r.from));
+  });
+
+  // --- range buttons (re-anchor fluid to the new left edge) ----------------
+  // Union of ALL timestamps across both representations (mode-independent, so
+  // range slicing is stable when the user toggles Rebased<->Ratio).
+  const allT = (function(){
+    const set={};
+    for (const s of SERIES){
+      for (const p of (s.level||[])) set[p.t]=1;
+      for (const p of (s.ratio||[])) set[p.t]=1;
+    }
+    return Object.keys(set).sort();
+  })();
+  function setRange(n){
+    internalSet=true;
+    if(!n||n>=allT.length){ chart.timeScale().fitContent(); }
+    else {
+      const from=allT[allT.length-n], to=allT[allT.length-1];
+      chart.timeScale().setVisibleRange({from,to});
+    }
+    internalSet=false;
+    if (pinned===null){
+      // re-anchor fluid to whatever the new left edge snapped to
+      const vr=chart.timeScale().getVisibleRange();
+      const from = vr ? timeToStr(vr.from) : (n&&n<allT.length?allT[allT.length-n]:null);
+      lastAnchor=null; scheduleRebase(from);
+    } else {
+      applyRebase(pinned);
+    }
+  }
+  document.querySelectorAll('.rangebar button').forEach(b=>{
+    b.onclick=()=>{ document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setRange(parseInt(b.dataset.r)); };
+  });
+
+  // --- live "REBASED FROM" label + pin state -------------------------------
+  function relabel(anchor){
+    const el=document.getElementById('cmpAnchorLbl');
+    if(!el) return;
+    const lock = (pinned!==null) ? ' 🔒' : '';
+    el.innerHTML = anchor ? ('REBASED FROM <b>'+anchor+'</b>'+lock) : 'REBASED FROM <b>start</b>'+lock;
+  }
+
+  // --- mode toggle (swap raw + re-rebase, NO chart re-create) --------------
+  document.querySelectorAll('[data-cmode]').forEach(b=>{
+    b.onclick=()=>{
+      mode = b.dataset.cmode;
+      document.querySelectorAll('[data-cmode]').forEach(x=>x.classList.toggle('on', x===b));
+      // Ratio mode → show denom switch + base is still meaningful for both.
+      const dn=document.getElementById('cmpDenomBar'); if(dn) dn.style.display=(mode==='ratio')?'flex':'none';
+      lastAnchor=null;
+      const a = (pinned!==null) ? pinned : commonAnchor(curFrom());
+      applyRebase(a);
+    };
+  });
+  // --- base toggle (rebased geometry; relabel/offset, instant) -------------
+  document.querySelectorAll('[data-cbase]').forEach(b=>{
+    b.onclick=()=>{
+      base = b.dataset.cbase;
+      document.querySelectorAll('[data-cbase]').forEach(x=>x.classList.toggle('on', x===b));
+      applyRebase(pinned!==null?pinned:anchorDate);
+    };
+  });
+
+  function curFrom(){
+    const vr=chart.timeScale().getVisibleRange();
+    return vr ? timeToStr(vr.from) : null;
+  }
+  // --- pin / reset anchor --------------------------------------------------
+  const pinInput=document.getElementById('cmpPin');
+  if(pinInput){ pinInput.onchange=()=>{
+    const v=pinInput.value;
+    if(v){ pinned=v; const a=commonAnchor(v); applyRebase(a||v); }
+  }; }
+  const resetBtn=document.getElementById('cmpReset');
+  if(resetBtn){ resetBtn.onclick=()=>{
+    pinned=null; if(pinInput) pinInput.value=''; lastAnchor=null;
+    scheduleRebase(curFrom());
+    // scheduleRebase is gated; force one immediately too
+    const a=commonAnchor(curFrom()); internalSet=true; applyRebase(a); internalSet=false;
+  }; }
+
+  // --- crosshair value row -------------------------------------------------
+  const valRow=document.getElementById('cmpVals');
+  function fmtVal(v){ if(v==null) return '—'; return (base==='0'? (v>=0?'+':'')+v.toFixed(2)+'%' : v.toFixed(1)); }
+  function renderVals(map){
+    if(!valRow) return;
+    const parts=[];
+    for(const l of lines){
+      let v=null;
+      if(map){ const d=map.get(l.ls); if(d&&d.value!=null) v=d.value; }
+      else { const dat=l.ls.data(); if(dat&&dat.length) v=dat[dat.length-1].value; }
+      parts.push('<span class="cmp-val" style="color:'+l.def.color+'">●'+_e(l.def.name)+' '+fmtVal(v)+'</span>');
+    }
+    valRow.innerHTML=parts.join('');
+  }
+  function _e(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  chart.subscribeCrosshairMove(p=>{
+    if(!p||!p.time||!p.seriesData){ renderVals(null); return; }
+    renderVals(p.seriesData);
+  });
+
+  // --- boot ----------------------------------------------------------------
+  // Initial draw (fitContent first so anchor at series start), then range.
+  applyRebase(null);
+  setRange(CRANGE0);
+  renderVals(null);
+
+  // Debounced ResizeObserver (~100ms); skip while we're mid internal set.
+  let rzT=null;
+  new ResizeObserver(()=>{ if(internalSet) return; if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
+})();
+</script>
+"""
+
+
+# Sticky deterministic palette — index i → color (removing a line never recolors
+# the others, because color is assigned by selection order at render time).
+_COMPARE_PALETTE = ["#1f6feb", "#d29922", "#3fb950", "#f85149", "#a371f7", "#58a6ff"]
+
+
+@router.get("/dash/compare", response_class=HTMLResponse)
+def dash_compare(idx: list[str] = Query(default=[]),
+                 den: str = Query("Nifty 500"),
+                 mode: str = Query("rebase"),
+                 base: str = Query("100"),
+                 r: int = Query(252)) -> HTMLResponse:
+    """Overlay ≤6 indices on one chart, each rebased to a common (fluid) anchor.
+
+    Render-only (D40): RAW values out of index_rows/ratio_rows, rebased client-
+    side. URL is the source of truth (?idx=A&idx=B&den=&mode=&base=&r=).
+    """
+    den = (den or "").strip()
+    if den not in ("Nifty 50", "Nifty 500"):
+        den = "Nifty 500"
+    mode = "ratio" if (mode or "").strip() == "ratio" else "rebase"
+    base = "0" if (base or "").strip() == "0" else "100"
+    try:
+        r = int(r)
+    except (TypeError, ValueError):
+        r = 252
+    if r not in (63, 126, 252, 504, 0):
+        r = 252
+    _, idx_date = _latest_dates()
+
+    with get_conn() as conn:
+        valid = [row["index_name"] for row in conn.execute(
+            "SELECT DISTINCT index_name FROM index_rows ORDER BY index_name").fetchall()]
+        valid_set = set(valid)
+        # Title-case gotcha: strip + drop unknowns, never case-munge. Cap 6, dedup.
+        sel, seen = [], set()
+        for n in idx:
+            n = (n or "").strip()
+            if n in valid_set and n not in seen:
+                sel.append(n)
+                seen.add(n)
+            if len(sel) >= 6:
+                break
+
+        series = []
+        if sel:
+            ph = ",".join("?" for _ in sel)
+            # Levels (any index) — ONE query, ordered (name, date).
+            levels = {}
+            for row in conn.execute(
+                f"""SELECT index_name, trade_date, close_value
+                    FROM index_rows
+                    WHERE index_name IN ({ph}) AND close_value IS NOT NULL
+                    ORDER BY index_name, trade_date""",
+                sel,
+            ).fetchall():
+                levels.setdefault(row["index_name"], []).append(
+                    {"t": row["trade_date"], "v": round(row["close_value"], 2)})
+            # Ratios vs the chosen denominator — ONE query (size indices get []).
+            ratios = {}
+            for row in conn.execute(
+                f"""SELECT numerator, trade_date, ratio
+                    FROM ratio_rows
+                    WHERE denominator=? AND numerator IN ({ph}) AND ratio IS NOT NULL
+                    ORDER BY numerator, trade_date""",
+                (den, *sel),
+            ).fetchall():
+                ratios.setdefault(row["numerator"], []).append(
+                    {"t": row["trade_date"], "v": round(row["ratio"], 4)})
+            for i, name in enumerate(sel):
+                series.append({
+                    "i": i,
+                    "name": name,
+                    "color": _COMPARE_PALETTE[i % len(_COMPARE_PALETTE)],
+                    "level": levels.get(name, []),
+                    "ratio": ratios.get(name, []),
+                })
+
+    series_json = json.dumps(series)
+
+    # --- Picker: active chips (legend) + [+ Add] reveal -> search + suggestions
+    def _chip(name, i):
+        color = _COMPARE_PALETTE[i % len(_COMPARE_PALETTE)]
+        rest = [x for x in sel if x != name]
+        href = "/dash/compare?" + "&".join(
+            [f"idx={_q(x)}" for x in rest]
+            + [f"den={_q(den)}", f"mode={_q(mode)}", f"base={_q(base)}", f"r={r}"])
+        return (f'<span class="cmp-chip" data-i="{i}">'
+                f'<span class="cmp-sw" style="background:{color}"></span>'
+                f'<span>{_esc(name)}</span>'
+                f'<a class="cmp-x" href="{_esc(href)}" title="remove">✕</a></span>')
+
+    active_chips = "".join(_chip(n, i) for i, n in enumerate(sel))
+
+    # Suggestion chips (grouped) — adding appends to ?idx=. Skip already-selected.
+    def _add_href(name):
+        nxt = sel + [name]
+        return "/dash/compare?" + "&".join(
+            [f"idx={_q(x)}" for x in nxt]
+            + [f"den={_q(den)}", f"mode={_q(mode)}", f"base={_q(base)}", f"r={r}"])
+
+    def _sugg_group(label, names):
+        avail = [n for n in names if n in valid_set and n not in seen]
+        if not avail:
+            return ""
+        chips = "".join(
+            f'<a class="chip cmp-sugg" data-name="{_esc(n)}" href="{_esc(_add_href(n))}">'
+            f'+ {_esc(n)}</a>' for n in avail)
+        return f'<div class="ghdr">{_esc(label)}</div><div class="chips">{chips}</div>'
+
+    at_cap = len(sel) >= 6
+    sugg_html = ""
+    if not at_cap:
+        sugg_html = (_sugg_group("Broad / size", MAJOR_BROAD)
+                     + _sugg_group("Sectors", MAJOR_SECTORS))
+    # All valid names as data for the substring filter (any index addable).
+    all_names_json = json.dumps(valid)
+
+    add_block = ""
+    if not at_cap:
+        add_block = (
+            '<div id="cmpAddWrap" style="display:none">'
+            '<div class="search" style="margin-top:6px">'
+            '<input id="cmpSearch" placeholder="Filter indices to add…" autocomplete="off"/>'
+            '</div>'
+            f'<div id="cmpSugg">{sugg_html}</div>'
+            '</div>')
+        add_btn = '<button class="chip" id="cmpAddBtn" type="button">+ Add</button>'
+    else:
+        add_btn = '<span class="chip cmp-dim">max 6</span>'
+
+    picker_html = (
+        '<div class="cmp-rail">' + active_chips + add_btn + '</div>' + add_block)
+
+    # --- Presets (one-click querystrings) ---
+    seed_sector = next((n for n in sel if n in MAJOR_SECTORS), None) \
+        or next((n for n in MAJOR_SECTORS if n in valid_set), None)
+
+    def _preset(names, m):
+        names = [n for n in names if n in valid_set][:6]
+        if not names:
+            return None
+        return "/dash/compare?" + "&".join(
+            [f"idx={_q(x)}" for x in names] + [f"mode={m}", f"den={_q(den)}"])
+
+    presets = []
+    p1 = _preset([n for n in (seed_sector, "Nifty 50", "Nifty 500") if n], "rebase")
+    if p1:
+        presets.append(("Sector vs market (50 & 500)", p1))
+    p2 = _preset(MAJOR_SECTORS[:5], "rebase")
+    if p2:
+        presets.append(("Sector race", p2))
+    hh = [n for n in MAJOR_SECTORS if n in valid_set][:2]
+    p3 = _preset(hh, "ratio")
+    if p3:
+        presets.append(("RS head-to-head", p3))
+    preset_html = ""
+    if presets:
+        preset_html = (
+            '<div class="cmp-presets">'
+            + "".join(f'<a class="chip" href="{_esc(h)}">{_esc(lbl)}</a>'
+                      for lbl, h in presets)
+            + '</div>')
+
+    chart_css = """
+.rangebar { display:flex; gap:6px; margin:8px 0 4px; flex-wrap:wrap; }
+.rangebar button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+                   border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer; }
+.rangebar button.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+.chartwrap { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:8px; margin-bottom:6px; }
+.chartlbl { color:#8b949e; font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
+.cmp-rail { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+.cmp-chip { display:inline-flex; align-items:center; gap:6px; background:#161b22;
+            border:1px solid #30363d; border-radius:14px; padding:5px 8px 5px 9px; font-size:13px; }
+.cmp-chip.cmp-dim { opacity:.4; }
+.cmp-sw { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.cmp-x { color:#8b949e; text-decoration:none; font-size:12px; margin-left:1px; }
+.cmp-x:hover { color:#f85149; }
+.cmp-sugg.cmp-hide { display:none; }
+.cmp-presets { display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 12px; }
+.cmp-pin { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0 2px; font-size:12px; color:#8b949e; }
+.cmp-pin input[type=date] { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+                            border-radius:6px; padding:3px 7px; font-size:12px; }
+.cmp-anchor { font-size:12px; color:#8b949e; margin:6px 4px 2px; }
+.cmp-vals { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums;
+            padding:8px 4px 2px; }
+.cmp-val { font-weight:600; }
+"""
+
+    # Empty state — still render the picker so the user can add indices.
+    if not sel:
+        body = (
+            f'<style>{chart_css}</style>'
+            '<h2>Compare indices ⇄</h2>'
+            '<div class="sub">Overlay up to 6 indices, each rebased to a common '
+            'start, to read who outperformed. Pick indices to begin.</div>'
+            + preset_html
+            + picker_html
+            + '<div class="empty">No indices selected. Use <b>+ Add</b> or a preset above.</div>'
+            + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json))
+        return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
+
+    # Note any selected series that has no data for the current mode.
+    note = ""
+    if mode == "ratio":
+        empties = [s["name"] for s in series if not s["ratio"]]
+        if empties:
+            note = ('<div class="sub" style="color:#ffd99a;margin-bottom:8px">'
+                    'No RS ratio for: ' + _esc(", ".join(empties))
+                    + ' (broad/size indices have no ratio) — dropped in Ratio mode.</div>')
+    else:
+        empties = [s["name"] for s in series if not s["level"]]
+        if empties:
+            note = ('<div class="sub" style="color:#ffd99a;margin-bottom:8px">'
+                    'No level data for: ' + _esc(", ".join(empties)) + '.</div>')
+
+    def _ron(n):
+        return "on" if r == n else ""
+    range_bar = (
+        '<div class="rangebar">'
+        f'<button data-r="63" class="{_ron(63)}">3M</button>'
+        f'<button data-r="126" class="{_ron(126)}">6M</button>'
+        f'<button data-r="252" class="{_ron(252)}">1Y</button>'
+        f'<button data-r="0" class="{_ron(0)}">Max</button></div>')
+
+    mode_bar = (
+        '<div class="fbar">'
+        f'<button class="fbtn {"on" if mode=="rebase" else ""}" data-cmode="rebase">Rebased %</button>'
+        f'<button class="fbtn {"on" if mode=="ratio" else ""}" data-cmode="ratio">Ratio</button>'
+        '</div>')
+    base_bar = (
+        '<div class="fbar">'
+        f'<button class="fbtn {"on" if base=="100" else ""}" data-cbase="100">Base 100</button>'
+        f'<button class="fbtn {"on" if base=="0" else ""}" data-cbase="0">Base 0%</button>'
+        '</div>')
+    # Denominator switch (ratio mode only) — reloads with ?den=.
+    den_href = "/dash/compare?" + "&".join(
+        [f"idx={_q(x)}" for x in sel]
+        + [f"den={_q('Nifty 50')}", f"mode=ratio", f"base={_q(base)}", f"r={r}"])
+    den_href2 = "/dash/compare?" + "&".join(
+        [f"idx={_q(x)}" for x in sel]
+        + [f"den={_q('Nifty 500')}", f"mode=ratio", f"base={_q(base)}", f"r={r}"])
+    denom_bar = (
+        f'<div class="fbar" id="cmpDenomBar" style="display:{"flex" if mode=="ratio" else "none"}">'
+        f'<a class="fbtn {"on" if den=="Nifty 50" else ""}" href="{_esc(den_href)}">vs Nifty 50</a>'
+        f'<a class="fbtn {"on" if den=="Nifty 500" else ""}" href="{_esc(den_href2)}">vs Nifty 500</a>'
+        '</div>')
+    pin_bar = (
+        '<div class="cmp-pin">'
+        '<span>📅 Pin anchor</span><input type="date" id="cmpPin"/>'
+        '<button class="fbtn" id="cmpReset" type="button">⟳ Fluid</button></div>')
+
+    chart_js = (_COMPARE_CHART_JS
+                .replace("__CDN__", _LWC_CDN)
+                .replace("__SERIES__", series_json)
+                .replace("__MODE__", mode)
+                .replace("__BASE__", base)
+                .replace("__RANGE__", str(r)))
+
+    body = (
+        f'<style>{chart_css}</style>'
+        '<h2>Compare indices ⇄</h2>'
+        '<div class="sub" style="margin-bottom:8px">Each line rebased to a common '
+        'start (the first visible day) — pan to re-anchor, or 📅 pin a date. '
+        'Rebased % overlays index levels; Ratio overlays each ÷ the benchmark.</div>'
+        + preset_html
+        + picker_html
+        + note
+        + mode_bar + base_bar + denom_bar
+        + range_bar
+        + pin_bar
+        + '<div class="cmp-anchor" id="cmpAnchorLbl">REBASED FROM <b>start</b></div>'
+        '<div class="chartwrap"><div id="compareChart" style="height:320px;"></div></div>'
+        '<div class="cmp-vals" id="cmpVals"></div>'
+        + chart_js
+        + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json))
+    return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
+
+
+# Picker JS (plain template) — reveals the add box, filters suggestion chips by
+# substring over ALL valid index names, and rewrites ?idx= via the chip hrefs.
+# Add/remove is a full reload with the new querystring (toggles/range/anchor are
+# client-instant; only the series set needs a reload).
+_COMPARE_PICKER_JS = """
+<script>
+(function(){
+  const NAMES = __NAMES__;
+  const btn=document.getElementById('cmpAddBtn');
+  const wrap=document.getElementById('cmpAddWrap');
+  const box=document.getElementById('cmpSearch');
+  const sugg=document.getElementById('cmpSugg');
+  if(btn&&wrap){ btn.onclick=()=>{ wrap.style.display=(wrap.style.display==='none')?'block':'none'; if(box) box.focus(); }; }
+  function curParams(){
+    const u=new URL(window.location.href);
+    return u.searchParams;
+  }
+  function buildHref(name){
+    const p=curParams(); const sel=p.getAll('idx');
+    if(sel.indexOf(name)>=0 || sel.length>=6) return null;
+    sel.push(name);
+    const den=p.get('den')||'Nifty 500', mode=p.get('mode')||'rebase',
+          base=p.get('base')||'100', r=p.get('r')||'252';
+    const parts=sel.map(s=>'idx='+encodeURIComponent(s));
+    parts.push('den='+encodeURIComponent(den),'mode='+encodeURIComponent(mode),
+               'base='+encodeURIComponent(base),'r='+encodeURIComponent(r));
+    return '/dash/compare?'+parts.join('&');
+  }
+  if(box&&sugg){
+    box.addEventListener('input',()=>{
+      const q=box.value.trim().toLowerCase();
+      // Filter the seeded suggestion chips by substring.
+      sugg.querySelectorAll('.cmp-sugg').forEach(a=>{
+        const nm=(a.dataset.name||'').toLowerCase();
+        a.classList.toggle('cmp-hide', q!=='' && nm.indexOf(q)<0);
+      });
+      // If the query matches names not in the seed list, append dynamic chips.
+      let dyn=document.getElementById('cmpDyn');
+      if(!dyn){ dyn=document.createElement('div'); dyn.id='cmpDyn'; dyn.className='chips'; sugg.appendChild(dyn); }
+      dyn.innerHTML='';
+      if(q!==''){
+        const seeded={}; sugg.querySelectorAll('.cmp-sugg').forEach(a=>seeded[a.dataset.name]=1);
+        const hits=NAMES.filter(n=>n.toLowerCase().indexOf(q)>=0 && !seeded[n]).slice(0,12);
+        hits.forEach(n=>{ const h=buildHref(n); if(!h) return;
+          const a=document.createElement('a'); a.className='chip'; a.href=h; a.textContent='+ '+n; dyn.appendChild(a); });
+      }
+    });
+  }
+})();
+</script>
+"""
 
 
 # --- PWA assets ------------------------------------------------------------

@@ -383,6 +383,14 @@ Plain text in group from non-authorized users: silently ignored.
 
 ## Decision log (the big ones)
 
+### D40 — Multi-index comparison/rebase chart + chart range-switch perf fix — SHIPPED
+Why: Ramana wanted to overlay indices on one chart **rebased to a common start** (both starting together) to compare relative strength — with a **fluid anchor** (pan left → that point becomes the new 0/100) and a **ratio↔rebased toggle**; and flagged the chart range-switch (1Y→Max/6M) as **slow**. 2nd 5-agent panel; full design in **`docs/rs-ratio-analysis-design.md` Part 2** (decisions D40-A..G).
+
+Shipped (`dashboard.py` only — render-only, no schema/backfill):
+- **`/dash/compare?idx=&idx=&den=&mode=&base=&r=`** — overlay ≤6 indices, each **rebased client-side** (base 100 or 0%); **fluid anchor** = first visible point (pan to re-anchor) or 📅 pin/⟳ reset; **Mode [Rebased %|Ratio]**; Range 3M/6M/1Y/Max; vs-50/500 (ratio mode); **chip-rail picker** (seeded from `MAJOR_BROAD`/`MAJOR_SECTORS` + substring search over all index names, sticky 6-color palette); one-click presets; live "REBASED FROM <date>" + crosshair value row. Reached via a "Compare ⇄" button on `/dash/ratio` + "⇄ Compare indices" links on `/dash/markets` + `/dash/sectors`. `active="markets"`. Validates `idx` against `SELECT DISTINCT index_name` (title-case). Full-history series inlined so client-side range/rebase need no refetch (~100KB/line; if 5-6 lines feel heavy, switch to a JSON endpoint + downsample — noted in the doc).
+- **Chart perf fix (the slowness):** root cause = `/dash/stock`'s 3-chart `subscribeVisibleLogicalRangeChange` sync **ping-pong** (no reentrancy guard) + the `ResizeObserver` `applyOptions` re-layout. Fix: a `syncing` reentrancy flag, `setRange` applies to all charts **directly** (bypassing the sync loop), debounced ResizeObserver; same debounce on `/dash/ratio`. `/dash/compare`'s fluid rebase is rAF-coalesced + anchor-gated so panning stays smooth.
+All routes verified HTTP 200 on real data (incl. ratio mode + idx validation), no regressions, no errors.
+
 ### D39 — RS ratio-analysis layer (multi-timeframe trend, ratio charts, normalization) — SHIPPED (Phase A + B-on-read)
 Why: Ramana flagged that the dashboard mixes ABSOLUTE return with RELATIVE strength in one row, hides the timeframe behind a single blended "UPTREND" label, and never charts the index/Nifty ratio. Convened a 5-perspective panel (quant/financial + equity-practitioner + data + UI/UX + architect). **Full design: `docs/rs-ratio-analysis-design.md`** (decisions D-A..D-H + phased tasks).
 
@@ -810,6 +818,16 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 16 (continued) — 2026-06-17 — Multi-index comparison/rebase chart + chart perf fix (D40)
+Ramana asked for a normalized multi-index comparison (overlay indices rebased to a common start, fluid anchor on pan, ratio↔rebased toggle) and flagged chart range-switching as slow. 2nd 5-agent panel (financial + data + UI/UX + architect); design in `docs/rs-ratio-analysis-design.md` Part 2 (**D40**); built by a focused build agent.
+
+Shipped (`dashboard.py` only — render-only):
+- **`/dash/compare`** — overlay ≤6 indices, client-side rebase (base 100/0%), fluid anchor (pan → re-anchor) + 📅 pin, Mode Rebased%↔Ratio, range buttons, vs-50/500, chip picker + search + presets, live "REBASED FROM <date>" label + crosshair value row. Entry: "Compare ⇄" on `/dash/ratio` + "⇄ Compare indices" on Markets/Sectors.
+- **Chart perf fix** — root cause found: `/dash/stock`'s 3-chart range-sync ping-pong (no reentrancy guard) + ResizeObserver re-layout. Fixed with a `syncing` guard + direct `setRange` to all charts + debounced ResizeObserver; `/dash/compare` fluid rebase is rAF-coalesced + anchor-gated.
+- All routes verified HTTP 200 on real data (ratio mode, idx validation, empty state), no regressions, no errors. Live via scp + restart; committed + pushed + VPS reconciled.
+
+Next: **D33 stock-level RS** (the third-pillar build) remains the big open item.
 
 ### Session 16 (continued) — 2026-06-17 — RS ratio analysis: multi-timeframe trend + ratio charts (D39)
 Ramana pushed for deeper RS insight — the dashboard mixed absolute return with relative strength, hid the timeframe behind one "UPTREND" label, and had no ratio charts. Convened a **5-perspective panel** (quant + equity-practitioner + data + UI/UX + architect), documented the design in `docs/rs-ratio-analysis-design.md` (**D39**), then built Phase A + Phase-B-on-read.
