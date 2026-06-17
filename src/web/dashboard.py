@@ -24,7 +24,7 @@ All read-only. No LLM. No mutation. Pure SQL over the existing tables.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Query
@@ -1085,12 +1085,54 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
             rank_html = ('<div class="sub" style="margin:8px 0 4px">RS rank not '
                          'computed (outside the liquid universe, or insufficient '
                          '3m history).</div>')
+        # Reconciliation breakdown — the stock's own return, Nifty 500's return,
+        # and the resulting RS per window, so "RS ≈ stock − Nifty 500" is
+        # verifiable on the page. Stock return uses the ADJUSTED `series`; Nifty
+        # 500 return = its index_signals ret_* (same 30/90/180/365-day windows).
+        recon_table = ""
+        if series:
+            with get_conn() as conn:
+                n5row = conn.execute(
+                    "SELECT ret_1m_pct r1, ret_3m_pct r3, ret_6m_pct r6, "
+                    "ret_12m_pct r12 FROM index_signals WHERE index_name='Nifty 500' "
+                    "ORDER BY trade_date DESC LIMIT 1"
+                ).fetchone()
+            n5 = dict(n5row) if n5row else {}
+
+            def _stk_ret(days):
+                cut = (datetime.strptime(series[-1]["time"], "%Y-%m-%d")
+                       - timedelta(days=days)).strftime("%Y-%m-%d")
+                base = None
+                for s in series:
+                    if s["time"] <= cut:
+                        base = s["close"]
+                    else:
+                        break
+                now = series[-1]["close"]
+                return (now / base - 1) * 100 if (base and base > 0 and now) else None
+
+            rrows = ""
+            for lbl, days, nk, rk in (("1m", 30, "r1", "rs_vs_broad_slope_1m"),
+                                      ("3m", 90, "r3", "rs_vs_broad_slope_3m"),
+                                      ("6m", 180, "r6", "rs_vs_broad_slope_6m"),
+                                      ("12m", 365, "r12", "rs_vs_broad_slope_12m")):
+                rrows += (f'<tr><td class="mut">{lbl}</td><td>{_pct(_stk_ret(days))}</td>'
+                          f'<td>{_pct(n5.get(nk))}</td>'
+                          f'<td><b>{_pct(L.get(rk))}</b></td></tr>')
+            recon_table = (
+                '<div class="sub" style="margin:10px 0 4px">Reconcile — RS ≈ this '
+                'stock\'s return minus Nifty 500\'s return, per window:</div>'
+                '<div class="card" style="padding:6px 10px;margin-top:0"><table>'
+                f'<thead><tr><th>Window</th><th>{_esc(sym)}</th><th>Nifty 500</th>'
+                '<th>RS (relative)</th></tr></thead>'
+                f'<tbody>{rrows}</tbody></table></div>')
         rs_html = f"""
 <h2>Relative strength <span class="mut" style="font-size:13px">vs Nifty 500</span></h2>
 <div class="chips" style="margin-bottom:6px">{rs_pill}</div>
 {rank_html}
 <div class="sub" style="margin:8px 0 4px">RS-vs-Nifty-500 momentum across horizons (▲ outperforming, ▼ lagging):</div>
 <div class="card" style="margin-top:0">{rs_strip}</div>
+{recon_table}
 """
 
     chart_css = """
