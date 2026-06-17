@@ -362,10 +362,7 @@ def _rs_strip(s1, s3, s6, s12) -> str:
 _SCAN_FILTERS = """
   AND b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL)
   AND b.value > 10000000 AND b.close > 20
-  AND s.symbol NOT LIKE '%ETF%' AND s.symbol NOT LIKE '%IETF%'
-  AND s.symbol NOT LIKE '%BEES%' AND s.symbol NOT LIKE '%GOLD%'
-  AND s.symbol NOT LIKE '%SILVER%' AND s.symbol NOT LIKE 'MON%'
-  AND s.symbol NOT LIKE 'NIFTY%' AND s.symbol NOT LIKE 'BANK%ADD'
+  AND s.symbol IN (SELECT symbol FROM nse_equity_list)
 """
 
 

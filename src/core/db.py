@@ -370,6 +370,20 @@ CREATE TABLE IF NOT EXISTS pattern_scores (
     detail_json     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_pattern_scores_symbol ON pattern_scores(symbol, scored_at DESC);
+
+-- D42 NSE equity universe (from EQUITY_L.csv) — the allowlist that keeps the
+-- scanners EQUITY-ONLY. ETFs / mutual-fund units are NOT in EQUITY_L, and our
+-- bhav source (sec_bhavdata_full) carries no ISIN, so a symbol allowlist is the
+-- robust equity-vs-ETF separator. Refreshed nightly by src.automation.equity_list;
+-- the table is replaced only on a SUCCESSFUL fetch (never wiped on failure), so
+-- the scanner filter `symbol IN (SELECT symbol FROM nse_equity_list)` can rely on it.
+CREATE TABLE IF NOT EXISTS nse_equity_list (
+    symbol        TEXT PRIMARY KEY,
+    company_name  TEXT,
+    isin          TEXT,
+    listing_date  TEXT,
+    snapshot_date TEXT
+);
 """
 
 

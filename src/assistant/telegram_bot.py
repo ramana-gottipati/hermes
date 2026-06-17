@@ -1203,14 +1203,7 @@ _SCAN_FILTERS_SQL = """
                  AND (b.segment = 'CM' OR b.segment IS NULL)
                  AND b.value > 10000000
                  AND b.close > 20
-                 AND s.symbol NOT LIKE '%ETF%'
-                 AND s.symbol NOT LIKE '%IETF%'
-                 AND s.symbol NOT LIKE '%BEES%'
-                 AND s.symbol NOT LIKE '%GOLD%'
-                 AND s.symbol NOT LIKE '%SILVER%'
-                 AND s.symbol NOT LIKE 'MON%'
-                 AND s.symbol NOT LIKE 'NIFTY%'
-                 AND s.symbol NOT LIKE 'BANK%ADD'
+                 AND s.symbol IN (SELECT symbol FROM nse_equity_list)
 """
 
 # Sort by: ATH DESC, p_score DESC, r_score DESC, discount-entry DESC, r1m DESC.
