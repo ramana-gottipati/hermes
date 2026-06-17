@@ -176,3 +176,26 @@ ORDER BY r.trade_date ASC;
 ## 8. Tunable knobs (defaults to revisit after use)
 Dead-band ±1% / strong-cut ±3% (D-D) · score weights 0.15/0.35/0.30/0.20 (D-H) · hysteresis 2 closes ·
 smoother = SMA-50 · k=0.5 for the volatility-scaled dead-band.
+
+---
+
+# PART 2 — Multi-index comparison + rebase chart (D40) + chart performance fix
+
+> Added 2026-06-17 from a 2nd panel (financial + data + UI/UX + architect). Render-only; **zero schema, zero backfill, no new deps.**
+
+## The feature
+Overlay N indices (≤6) on one chart, each **rebased to a common start** so they begin together → read who outperformed. **Fluid anchor:** the rebase point = the first visible day; pan left so Feb is the left edge → Feb becomes the new 0/100 and all lines recompute. Toggle **Rebased ↔ Ratio**. Works on absolute index levels (any index) and on RS ratios.
+
+## Decisions
+- **D40-A — New route `/dash/compare`** (NOT a mode on /dash/ratio — that page is single-subject: gauge/quadrant/READ/constituents are meaningless for N lines; NOT a 6th nav tab — nav is full at 5, and Compare is a *destination reached with intent*). Entry points: a "Compare ⇄" button in /dash/ratio's fbar, a "⇄ Compare indices" `.row .sub` link on /dash/markets + /dash/sectors. `active="markets"`. URL-addressable & shareable: `?idx=A&idx=B&den=&mode=&base=&anchor=&r=` (FastAPI maps repeated `?idx=` → list).
+- **D40-B — Data (render-only):** `index_rows.close_value` (absolute level of ANY index — this is why a new route: N peer series, not the single-numerator `ratio_rows`). `ratio_rows.ratio` for ratio mode. **Validate every `idx` against `SELECT DISTINCT index_name`** (title-case gotcha — strip + drop unknowns, never case-munge). Send RAW values, rebase client-side. `{t,v}` only, rounded (close 2dp / ratio 4dp). Default window 1Y; cap 6 lines. Existing composite indexes cover the queries.
+- **D40-C — Rebase math (client-side):** base-100 `v[t]/v[t₀]×100` (default) or base-0% `(v[t]/v[t₀]−1)×100` — same geometry, relabeled axis. Log-axis toggle, auto-suggest when window >~1y or max/min spread >~1.4×. **One common forward-snapped anchor for all lines** (snap to first trading day ≥ left edge); drop (don't fudge) a line with no data at the anchor; guard `v[t₀]>0`.
+- **D40-D — Modes:** **Rebased %** (N peers, no denominator) | **Ratio** (each line ÷ chosen denominator, then rebased). **NEVER co-plot price-rebased and ratio on one axis.** Ratio overlays must share ONE denominator (vs Nifty 50 or 500); self-reference (a line == denominator) drops out with a note.
+- **D40-E — Picker:** chip rail of active lines (color swatch ● + name + ✕) + `[+ Add]` → `.search` + suggestion chips seeded from `MAJOR_BROAD`/`MAJOR_SECTORS` (filter by substring over ALL index names so any index is addable). Sticky deterministic 6-color palette (`#1f6feb #d29922 #3fb950 #f85149 #a371f7 #58a6ff`) — removing a line never recolors the others. URL is the source of truth (`history.replaceState` on add/remove). The chips ARE the legend.
+- **D40-F — Controls (top→bottom, chart is the hero):** Mode [Rebased %|Ratio] · Base [100|0%] (rebased only) · Anchor (fluid default; 📅 pin to a date; ⟳ reset to fluid) · Range [3M/6M/1Y/Max] (a range click also re-anchors fluid to that left edge) · Denom [vs 50|vs 500] (ratio only). Always-visible "**REBASED FROM <date>**" indicator (live in fluid; 🔒 when pinned). Crosshair value row under the chart shows each line's value (color-coded).
+- **D40-G — Presets (one-click):** default **"Sector vs market (50 & 500)"** (price-rebased) · "Sector race" (N sectors) · "Sector vs benchmark — RS" (ratio) · "RS head-to-head (same denom)" · "My basket".
+
+## Chart PERFORMANCE fix (the range-switch slowness)
+- **Root cause (in code):** `/dash/stock` syncs 3 charts via `subscribeVisibleLogicalRangeChange` with **NO reentrancy guard** → a range-button click ping-pongs range updates pc↔vc↔dc until float-convergence (worst on →Max, where `fitContent()` vs `setVisibleLogicalRange` never exactly reconcile), each hop a full pane redraw. Amplified by the `ResizeObserver` calling `applyOptions({})` on all 3 charts. (NOT MA/data recompute — those are set once.)
+- **Fix:** (A) a `syncing` reentrancy flag guarding the sync subscription; (B) `setRange` applies the range to all charts **directly** under the flag (bypassing the sync round-trip), `fitContent()` per-chart for Max; (C) debounce the ResizeObserver (~100ms) + gate with `syncing`. /dash/ratio: debounce its ResizeObserver. ~10 lines, touches the /dash/stock IIFE + /dash/ratio ResizeObserver.
+- **/dash/compare fluid-rebase smoothness:** recompute on `subscribeVisibleTimeRangeChange`, **rAF-coalesced + anchor-gated** (skip if the left-edge trading day hasn't changed → panning within a day is free), reentrancy-guarded so `setData` doesn't recurse.
