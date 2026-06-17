@@ -519,7 +519,29 @@ def dash_home() -> HTMLResponse:
             f'<tbody>{"".join(srows)}</tbody></table></div>'
             '<a class="row sub" href="/dash/stocks">See all triggers →</a>')
 
-    body = (f'{search}{banner}{kpis}{sectors_block}{stocks_block}'
+    # D33c — "strong-in-strong" leaders preview (stock + its sector both leading
+    # the market). Bridges the macro sector read to the micro stock picks.
+    leaders_block = ""
+    if sig_date:
+        from src.automation.stock_rs import leaders_laggards
+        lead_rows = leaders_laggards("leaders", limit=5)
+        if lead_rows:
+            lr = ""
+            for r in lead_rows:
+                rk = r["rs_rank"]
+                lr += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+                       f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
+                       f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
+                       f'<td>{rk if rk is not None else "—"}</td></tr>')
+            leaders_block = (
+                '<h2>Strong-in-strong leaders <span class="sub" style="margin:0">'
+                'stock + sector both leading</span></h2>'
+                '<div class="card" style="padding:6px 10px;"><table>'
+                '<thead><tr><th>Symbol</th><th>Sector</th><th>RS rank</th></tr></thead>'
+                f'<tbody>{lr}</tbody></table></div>'
+                '<a class="row sub" href="/dash/leaders">See leaders &amp; laggards →</a>')
+
+    body = (f'{search}{banner}{kpis}{sectors_block}{leaders_block}{stocks_block}'
             '<h2>Data freshness</h2>'
             f'<div class="card">Stock signals: <b>{sig_date or "—"}</b><br>'
             f'Index signals: <b>{idx_date or "—"}</b></div>'
@@ -718,6 +740,53 @@ def dash_rs() -> HTMLResponse:
 </div>
 """
     return HTMLResponse(_shell("RS ranking — Hermes", body, "sectors", idx_date or ""))
+
+
+@router.get("/dash/leaders", response_class=HTMLResponse)
+def dash_leaders() -> HTMLResponse:
+    """D33c composite screen — 'strong-in-strong' leaders + 'weak-in-weak'
+    laggards: a stock whose RS vs its sector AND vs the broad market AND its
+    sector's own RS vs broad are ALL aligned (up = leader, down = laggard)."""
+    from src.automation.stock_rs import leaders_laggards
+    sig_date, _ = _latest_dates()
+    leaders = leaders_laggards("leaders", limit=60)
+    laggards = leaders_laggards("laggards", limit=40)
+
+    def _tbl(rows, up):
+        if not rows:
+            return ('<div class="card"><div class="sub" style="margin:0">None right now — '
+                    f'no stock has all three RS layers aligned {"up" if up else "down"}.'
+                    '</div></div>')
+        trs = ""
+        for r in rows:
+            rk = r["rs_rank"]
+            bs = r["broad_state"] or "—"
+            ss = r["sector_state"] or "—"
+            xs = r["sector_broad_state"] or "—"
+            trs += (
+                f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+                f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
+                f'<td>{rk if rk is not None else ""}</td>'
+                f'<td><a class="row" href="/dash/ratio?idx={_q(r["primary_sector"])}">'
+                f'{_esc(r["primary_sector"])}</a></td>'
+                f'<td><span class="pill p-{bs}">{_esc(bs[:5])}</span></td>'
+                f'<td><span class="pill p-{ss}">{_esc(ss[:5])}</span></td>'
+                f'<td><span class="pill p-{xs}">{_esc(xs[:5])}</span></td></tr>')
+        return ('<div class="card" style="padding:6px 10px;"><table class="dt">'
+                '<thead><tr><th>Symbol</th><th>RS rank</th><th>Sector</th>'
+                '<th>stock vs broad</th><th>stock vs sector</th>'
+                '<th>sector vs broad</th></tr></thead>'
+                f'<tbody>{trs}</tbody></table></div>')
+
+    body = f"""
+<h2>Leaders <span class="sub" style="margin:0">strong-in-strong</span></h2>
+<div class="sub">Stock leads its sector <b>and</b> the market, and the sector leads the market too — all three RS reads in UPTREND/BREAKOUT. Strongest (RS rank) first. Tap a symbol → its page; tap a sector → its ratio chart.</div>
+{_tbl(leaders, True)}
+<h2 style="margin-top:18px">Laggards <span class="sub" style="margin:0">weak-in-weak</span></h2>
+<div class="sub">All three RS reads in DOWNTREND/BREAKDOWN — weakest first.</div>
+{_tbl(laggards, False)}
+"""
+    return HTMLResponse(_shell("Leaders — Hermes", body, "stocks", sig_date or ""))
 
 
 @router.get("/dash/scan", response_class=HTMLResponse)

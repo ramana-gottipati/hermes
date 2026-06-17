@@ -1,8 +1,8 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-06-17 (session 17 — D33b stock-vs-sector RS shipped + backfilled (209 syms / 237,716 rows); `/dash/stock` now shows broad + sector RS side-by-side. Built on the session-16 D33a/D38/D39/D40 base.)
+> **Last updated:** 2026-06-17 (session 17 — D33b stock-vs-sector RS + D33c "strong-in-strong" leaders/laggards shipped; the third strategy pillar (Relative Strength) is now COMPLETE. Built on the session-16 D33a/D38/D39/D40 base.)
 > **Running document.** This is the source of truth for the next Claude Code session.
-> **⚠ Session-16 WRAP (read § Session log → "Session 16 — WRAP" first):** A very large session. P0 operational mess fully cleared (git identity → `Ramana Gottipati <gottipati.ramana@gmail.com>` repo-local; everything pushed; VPS reconciled). Shipped: **D38** macro→micro dashboard + index membership · **D39** RS ratio-analysis (multi-TF heat strip, `/dash/ratio`, `/dash/rs`) · **D40** `/dash/compare` rebase chart + chart range-switch perf fix · **D33a** stock-vs-broad RS + 1–99 rank (backfilled 2.37M rows). Plus on-page RS reconciliation table, chart hover-readouts, and a data-grid toolbar (sort/filter/Excel-CSV export) on the query tables. **HEAD = origin/main = VPS = `0adcf5d`, clean** (only the long-dormant uncommitted `patearn.py` diff remains — leave it). Telegram bot still network-blocked (waiting). **D33b shipped (session 17)** — stock-vs-sector RS, backfilled. **Next: D33c** (leaders/laggards board + `/rs` `/leaders` `/laggards`).
+> **⚠ Session-16 WRAP (read § Session log → "Session 16 — WRAP" first):** A very large session. P0 operational mess fully cleared (git identity → `Ramana Gottipati <gottipati.ramana@gmail.com>` repo-local; everything pushed; VPS reconciled). Shipped: **D38** macro→micro dashboard + index membership · **D39** RS ratio-analysis (multi-TF heat strip, `/dash/ratio`, `/dash/rs`) · **D40** `/dash/compare` rebase chart + chart range-switch perf fix · **D33a** stock-vs-broad RS + 1–99 rank (backfilled 2.37M rows). Plus on-page RS reconciliation table, chart hover-readouts, and a data-grid toolbar (sort/filter/Excel-CSV export) on the query tables. **HEAD = origin/main = VPS = `0adcf5d`, clean** (only the long-dormant uncommitted `patearn.py` diff remains — leave it). Telegram bot still network-blocked (waiting). **D33b + D33c shipped (session 17)** — stock-vs-sector RS + composite leaders/laggards (`/dash/leaders` board + Home preview; `/rs` `/leaders` `/laggards` commands); the third RS pillar is COMPLETE and `stock_rs` is wired into the nightly chain. **Next: B5** (zones-on-adjusted-price), **B6** (pt14 caching), Telegram network unblock.
 
 ---
 
@@ -332,6 +332,9 @@ NSE / BSE / Moneycontrol / Livemint / ET Markets / BS / Screener.in
 | `/dvpt TICKER [days]` | Delivery Value Per Trade institutional-flow signal: today vs power baselines + history | ₹0 |
 | `/scan [N]` | Top N stocks across the market, ranked by D28 two-tier layered triggers (ATH → p_score → r_score → discount → r1m). Shows R/P scores, near-break pointer, entry marker | ₹0 |
 | `/triggers [ss\|near]` | Strict view. Default: rank A+. `ss` → SS only. `near` → kissing a P-line with r_score ≥ 4 (about to break) | ₹0 |
+| `/rs TICKER` | Stock relative strength — vs broad (Nifty 500) + 1–99 rank + vs its sector + leader/laggard verdict (D33) | ₹0 |
+| `/leaders` | Top "strong-in-strong" stocks — stock + sector + market all trending up (D33c) | ₹0 |
+| `/laggards` | "Weak-in-weak" stocks — stock + sector + market all trending down (D33c) | ₹0 |
 | `/provider` | Show which LLM provider is active for classifier tasks | ₹0 |
 | `/analyze TICKER` | **Now just prints the claude.ai workflow guide** — no API call. Use claude.ai for deep dives under subscription. | ₹0 |
 | `/analyze TICKER` | Full Haiku patearn analysis (use sparingly) | ~₹2 |
@@ -366,6 +369,7 @@ Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Ca
 | `/dash/sectors` | Sector RS-rotation leaderboard (D32 trend_state), strongest first; row → its stocks; 1m/3m/6m/12m heat strip | D32/D38/D39 |
 | `/dash/rs` | Cross-sector RS-momentum ranking (on-read window fn; `0.6·slope_3m + 0.4·slope_6m`) | D39 |
 | `/dash/stocks` | Stock hub — search + layered-DVPT screen + filter pills (SS/A+/⚡ATH/🟢Discount/🔥Near-break) + watchlist + `?sector=` constituent filter | D38 |
+| `/dash/leaders` | Composite "strong-in-strong" leaders + "weak-in-weak" laggards — stock RS vs sector AND vs broad AND the sector's own RS vs broad all aligned; sortable boards; previewed on Home | D33c |
 | `/dash/stock?sym=X` | Per-stock — adjusted candle + DVPT/delivery charts, DVPT inertia vs every baseline, D31 institutional price zones, pt14 snapshot, auto-READ | D33-web/D36 |
 | `/dash/ratio?idx=&den=` | Per-index RS ratio chart (ratio + 50/200-MA + cross/new-RS-high markers + range + vs-50/500), RS-momentum percentile gauge, abs×rel quadrant, auto-READ, top constituents | D39 |
 | **`/dash/compare?idx=&idx=&den=&mode=&base=&r=`** | **Overlay ≤6 indices on one chart, each rebased to a fluid common anchor → read who outperformed.** Modes **Rebased %** / **Ratio**; sticky 6-color palette; chip-rail picker (chips = legend) + presets. Entry points: `/dash/ratio` fbar + `/dash/markets` & `/dash/sectors` footer links. Render-only, zero schema change. | **D40** |
@@ -401,6 +405,19 @@ Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Ca
 ---
 
 ## Decision log (the big ones)
+
+### D33c — Composite "strong-in-strong" leaders / laggards — SHIPPED (session 17)
+Why: the payoff of the whole RS pillar (Ramana's original thesis, made objective). With D32 (sector vs broad), D33a (stock vs broad + 1–99 rank) and D33b (stock vs sector) in place, D33c combines all three into one screen — a **leader** is strong at every layer, a **laggard** weak at every layer.
+
+Definition (D37): **LEADER** = stock `rs_vs_sector_trend_state` ∈ {UPTREND,BREAKOUT} AND stock `rs_vs_broad_trend_state` ∈ {UPTREND,BREAKOUT} AND its sector's own `rs_vs_broad_trend_state` (D32 `index_signals`) ∈ {UPTREND,BREAKOUT}. **LAGGARD** = the mirror in {DOWNTREND,BREAKDOWN}. Leaders ordered by broad `rs_rank` DESC (strongest first), laggards ASC.
+
+Shipped:
+- **`stock_rs.leaders_laggards(kind, limit, trade_date=None)`** — ONE shared read helper (DRY) over `stock_signals` JOIN `bhavcopy_rows` JOIN `index_signals` (the sector's row at the latest index date) + the liquid filter. Used by BOTH the dashboard and the bot.
+- **`/dash/leaders`** — Leaders + Laggards boards as sortable `dt` tables (symbol · RS rank · sector · the 3 trend pills: stock-vs-broad / stock-vs-sector / sector-vs-broad). Reached from a **"Strong-in-strong leaders" preview on Home** (top 5) and deep-links to each stock/sector. `active="stocks"` — NOT a 6th nav tab (the macro→micro nav stays at 5, like /dash/rs, /dash/ratio, /dash/compare).
+- **`/rs TICKER`, `/leaders`, `/laggards`** Telegram commands (pure SQL, ₹0). `/rs` shows the stock's broad RS + 1–99 rank + sector RS + the composite verdict. (Bot is network-blocked from the VPS; the code is live and the commands register when Telegram is reachable.)
+- Verified live: leaders WELCORP/POWERINDIA/THERMAX/BHEL (Energy/Metal, rank 92–97), laggards HCLTECH/TCS (IT), SBICARD/HDFCLIFE (Fin Svcs), PATANJALI/UBL (FMCG) — all three layers aligned. All routes HTTP 200.
+
+This closes the **third strategy pillar (Relative Strength)**. No new schema — reuses the D33a/b columns + D32 `index_signals`.
 
 ### D33b — Stock-vs-sector Relative Strength — SHIPPED (session 17)
 Why: second slice of the third-pillar RS spec (D37). D33a gave stock-vs-broad (Nifty 500) RS + a 1–99 rank; D33b adds stock-vs-its-own-SECTOR RS so the stock page answers BOTH "is it beating the market?" and "is it leading its own pack?" — the two inputs the D33c "strong-in-strong" leader flag needs.
@@ -559,7 +576,7 @@ Leader = stock `rs_vs_sector` ∈ {UPTREND,BREAKOUT} AND stock `rs_vs_broad` ∈
 Why: The `/dash/stock` price chart plotted raw bhav-copy close, so every split/bonus made a fake cliff (PARAS showed a phantom ₹1800 spike vs Zerodha's smooth ~₹250→₹1089). Fix is in the dashboard render: two-layer detection — (a) `prev_close[i]/close[i-1]` deviation >3% (NSE adjusts prev_close on ex-dates); (b) fallback for >30% single-day close jumps prev_close left unadjusted (data anomaly; a real 30%+ move is impossible under circuit limits). Back-adjust historical OHLC by the cumulative factor. **DVPT signals are unaffected** — they're value-based (₹=qty×price), already split-invariant (Doctrine § C). **Limitation:** the institutional ZONES (avg_close_*) are computed from raw closes in signals.py; if an action falls in the zone window they're off-scale on the adjusted chart (the ⚠ "zone overlay approximate" warning). **Open item:** move the adjustment into a reusable layer and recompute zones (and D33 RS) on adjusted prices.
 
 ### D35 — Daily pipeline self-heal (signals run with bhav copy)
-Why: The bhavcopy systemd timer ingested daily but `signals.py` never ran automatically — signals lagged silently for a week (caught only when `/dvpt` showed stale data). Fix: systemd drop-in `/etc/systemd/system/hermes-bhavcopy.service.d/10-signals.conf` adds `ExecStart=/opt/hermes/.venv/bin/python -m src.automation.signals` after the bhav fetch. (Also the place to wire `indexes` + `index_signals` for D32.) Idempotent — signals skip already-computed (symbol,date).
+Why: The bhavcopy systemd timer ingested daily but `signals.py` never ran automatically — signals lagged silently for a week (caught only when `/dvpt` showed stale data). Fix: systemd drop-in `/etc/systemd/system/hermes-bhavcopy.service.d/10-signals.conf` adds `ExecStart=/opt/hermes/.venv/bin/python -m src.automation.signals` after the bhav fetch. (Also the place to wire `indexes` + `index_signals` for D32.) Idempotent — signals skip already-computed (symbol,date). **Full nightly chain as of session 17:** `signals → indexes → index_signals → membership → stock_rs` (the last added in s17 — D33a/b/c RS would otherwise go stale after the manual backfill; `stock_rs` with no args = `run_today`, ~40s for the latest date: broad + sector + rank).
 
 ### D34 — Nous Hermes Agent self-hosted on the VPS (separate product)
 Why: Ramana wanted "the Hermes Agent" (a general AI assistant), which turned out to be **Nous Research's open-source Hermes Agent** — unrelated to our market system, just a name collision (and a 3rd collision with nexos.ai, a model-credits upsell Hostinger bundles, which he did NOT buy). Set up via Docker (`nousresearch/hermes-agent`), NOT the paid Hostinger/nexos bundle (that one needs no purchase — the agent is free, you bring your own model). Config: container `hermes-agent`, dashboard bound `127.0.0.1:9119` (loopback), Caddy front at `:9443` (HTTPS), Nous Portal OAuth login (free tier), model `nvidia/nemotron-3-ultra:free`, free tool pool. Registered with Nous Portal via `dashboard register --redirect-uri https://srv1704897.hstgr.cloud:9443/auth/callback` + `public_url` set in config. **Isolated from market Hermes** (own container, ports 8642/9119 vs our 8000/80/443; own data /root/.hermes). Cost: ₹0 on free model. **This is NOT part of the market Hermes codebase** — it's Ramana's separate general-AI tool that happens to share the VPS.
@@ -798,7 +815,7 @@ B. ✅ **Telegram menu system** (D29) — shipped.
 B2. ✅ **Web dashboard + PWA** (D33-web) — shipped (live on VPS via scp; not yet pushed to GitHub — see P0).
 B3. ✅ **Enriched stock view** — charts + corporate-action adjustment (D36) + DVPT inertia + insights + pt14 snapshot — shipped (live on VPS via scp).
 
-B4. **D33 stock-level Relative Strength** (spec = D37). The agreed third-pillar build. Phased D33a (stock-vs-broad RS + percentile rank, all stocks) → D33b (stock-vs-sector RS) → D33c (composite leaders/laggards + /rs /leaders /laggards + dashboard leaders board). ✅ **D33a DONE (s16)** + ✅ **D33b DONE (s17)** — both backfilled & deployed; `/dash/stock` shows broad + sector RS. **D33c remaining:** composite "strong-in-strong" leader/laggard flag (stock sector-RS ∈ {UPTREND,BREAKOUT} AND stock broad-RS ∈ {UPTREND,BREAKOUT} AND the sector's own broad-RS (D32) ∈ {UPTREND,BREAKOUT}) → a `/dash/leaders` board + `/rs` `/leaders` `/laggards` Telegram commands. ⚠ Open sub-item: wire `stock_rs` into the nightly `10-signals.conf` systemd chain (after `signals`) so broad+sector+rank stay current — verify whether session-16 added it.
+B4. ✅ **D33 stock-level Relative Strength — COMPLETE (the third strategy pillar).** D33a (s16, stock-vs-broad + 1–99 rank) + D33b (s17, stock-vs-sector) + D33c (s17, composite "strong-in-strong" leaders/laggards). All backfilled & deployed: `/dash/stock` shows broad + sector RS; `/dash/leaders` + a Home preview surface the leaders/laggards; `/rs` `/leaders` `/laggards` Telegram commands added (bot still network-blocked). ✅ `stock_rs` now wired into the nightly `10-signals.conf` chain (after `membership`) so broad+sector+rank stay current — the s17 sub-item is closed.
 
 B5. **Move corporate-action back-adjustment to a reusable pipeline layer + recompute zones on adjusted prices.** ⏳ **Half done (session 17):** the reusable layer now exists — `src/automation/adjust.py` (`adjusted_closes`/`adjustment_factors`, the verbatim D36 logic), already consumed by D33a's `stock_rs.py`. **Still open:** (a) unify the dashboard's inline D36 copy to call `adjust.adjusted_closes` (currently duplicated); (b) recompute the institutional ZONES (avg_close_*) on adjusted prices in `signals.py` — they're still computed from raw closes, so they're off-scale when an action falls in the zone window (the ⚠ warning).
 
@@ -853,8 +870,8 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 17 — 2026-06-17 — D33b stock-vs-sector Relative Strength
-Built the **D33b** slice of the third-pillar RS spec (D37): stock-vs-its-own-SECTOR relative strength, alongside the session-16 stock-vs-broad (D33a). Full design in the **D33b** decision-log entry.
+### Session 17 — 2026-06-17 — D33b stock-vs-sector RS + D33c leaders/laggards (third pillar COMPLETE)
+Built **D33b** (stock-vs-sector RS) then **D33c** (composite "strong-in-strong" leaders/laggards) — closing the third strategy pillar (Relative Strength). Full design in the **D33b** + **D33c** decision-log entries.
 
 Shipped (one commit — code + this doc):
 - **`src/core/db.py`** — 10 new `stock_signals` columns (`primary_sector` + `rs_vs_sector_today` + `rs_vs_sector_slope_{1m,3m,6m,12m}` + `rs_vs_sector_above_50ma/above_200ma/new_52w_high/trend_state`) via `_ensure_column`; index `idx_signals_primary_sector(trade_date, primary_sector)` for the D33c join.
@@ -862,7 +879,16 @@ Shipped (one commit — code + this doc):
 - **`src/web/dashboard.py`** — `/dash/stock` RS card now shows broad (vs Nifty 500, with the 1–99 rank gauge) AND sector (vs the stock's narrowest sector) — two trend pills + two heat strips + a reconciliation table extended with sector-return + RS·sector columns. Graceful broad-only fallback when the stock has no NSE sector.
 - **Verification:** logic unit-tested locally on a synthetic 2:1 split (sector RS continuous across the split — adjust.py flows through; narrowest-sector + tiebreak + size-exclusion correct). Live on VPS: HDFCBANK→Nifty Bank, RELIANCE→Nifty Oil & Gas; `--sector-backfill` did **209 symbols / 237,716 rows in ~70s** (the other membership symbols are broad/size-only → NULL primary_sector → broad-only, by design); `/dash/stock?sym=HDFCBANK` HTTP 200 rendering both blocks. Deployed via scp + `systemctl restart hermes-api`.
 
-Next: **D33c** — composite "strong-in-strong" leaders/laggards + `/dash/leaders` board + `/rs` `/leaders` `/laggards` Telegram commands.
+Then **D33c** (same session — composite "strong-in-strong" leaders/laggards):
+- **`src/automation/stock_rs.py`** — `leaders_laggards(kind, limit)` shared read helper: a LEADER has stock-vs-sector RS AND stock-vs-broad RS AND its sector's own RS-vs-broad (D32 `index_signals`) ALL in {UPTREND,BREAKOUT}; a LAGGARD all in {DOWNTREND,BREAKDOWN}. Liquid universe; leaders by rs_rank DESC, laggards ASC. Used by BOTH the dashboard and the bot (DRY).
+- **`src/web/dashboard.py`** — new **`/dash/leaders`** route (Leaders + Laggards as sortable `dt` boards: symbol · RS rank · sector · the 3 trend pills) + a **"Strong-in-strong leaders" preview** on Home (top 5 → the board).
+- **`src/assistant/telegram_bot.py`** — **`/rs TICKER`** (broad RS + 1–99 rank + sector RS + leader/laggard verdict), **`/leaders`**, **`/laggards`** (top 30), in BOT_COMMANDS + the handler table. Bot still network-blocked from the Mumbai VPS — code is live; commands register when Telegram is reachable.
+- **Nightly currency fix:** `stock_rs` was NOT in the `10-signals.conf` systemd chain (broad+sector+rank would have gone stale after today). Added it as the last `ExecStart` (after signals/indexes/index_signals/membership); validated `run_today` = 2427 broad + 204 sector RS + 1404 ranked for 2026-06-17 in ~40s. (D35 chain note updated.)
+- **Verified live:** leaders WELCORP/POWERINDIA/THERMAX/BHEL (Energy/Metal, rank 92–97); laggards HCLTECH/TCS (IT), SBICARD/HDFCLIFE (Fin Svcs), PATANJALI/UBL (FMCG). `/dash/leaders` + `/dash` + `/dash/stock` all HTTP 200; telegram_bot imports clean with the 3 new handlers.
+
+**Third strategy pillar (Relative Strength) COMPLETE:** D32 (sector vs broad) + D33a (stock vs broad + rank) + D33b (stock vs sector) + D33c (composite). Data layer + dashboard live; Telegram pending network.
+
+Commits: **`f0ba915`** (D33b) + the D33c commit (this). Next: B5 (unify dashboard's inline adjustment to call adjust.py + zones-on-adjusted-price), B6 (pt14 caching for the dashboard), Telegram network unblock.
 
 ### Session 16 — WRAP (2026-06-17, very large session) — P0 reconciliation + D38/D39/D40/D33a + UX
 The longest session yet. Cleared the entire session-15 P0 operational backlog AND shipped the third strategy pillar (relative strength) end-to-end — data layer + dashboard. Detailed per-phase entries are below; this is the index.

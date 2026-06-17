@@ -1050,6 +1050,151 @@ async def on_rotation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await on_sectors(update, context)
 
 
+# --- D33c: stock RS + composite leaders / laggards ------------------------
+
+_UP_STATES = {"UPTREND", "BREAKOUT"}
+_DOWN_STATES = {"DOWNTREND", "BREAKDOWN"}
+
+
+def _fetch_stock_rs(symbol: str):
+    """Latest stock_signals RS read for one symbol + its sector's own RS-vs-broad
+    (D32 index_signals), for the composite verdict. None if no signals row."""
+    with get_conn() as conn:
+        row = conn.execute(
+            """SELECT s.symbol, s.trade_date, s.rs_rank, s.primary_sector,
+                      s.rs_vs_broad_trend_state  bstate,
+                      s.rs_vs_broad_slope_1m b1, s.rs_vs_broad_slope_3m b3,
+                      s.rs_vs_broad_slope_6m b6, s.rs_vs_broad_slope_12m b12,
+                      s.rs_vs_sector_trend_state sstate,
+                      s.rs_vs_sector_slope_1m x1, s.rs_vs_sector_slope_3m x3,
+                      s.rs_vs_sector_slope_6m x6, s.rs_vs_sector_slope_12m x12
+               FROM stock_signals s
+               WHERE s.symbol = ?
+               ORDER BY s.trade_date DESC LIMIT 1""",
+            (symbol,),
+        ).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["sector_broad_state"] = None
+        if d.get("primary_sector"):
+            irow = conn.execute(
+                """SELECT rs_vs_broad_trend_state st FROM index_signals
+                   WHERE index_name=? ORDER BY trade_date DESC LIMIT 1""",
+                (d["primary_sector"],),
+            ).fetchone()
+            if irow:
+                d["sector_broad_state"] = irow["st"]
+    return d
+
+
+def _format_stock_rs_message(d: dict) -> str:
+    sym = d["symbol"]
+    rank = d.get("rs_rank")
+    bstate = d.get("bstate") or "—"
+    sstate = d.get("sstate") or "—"
+    sec = d.get("primary_sector")
+    secst = d.get("sector_broad_state") or "—"
+    if sec and bstate in _UP_STATES and sstate in _UP_STATES and secst in _UP_STATES:
+        verdict = "🟢 <b>LEADER</b> — strong-in-strong (stock + sector + market all up)"
+    elif sec and bstate in _DOWN_STATES and sstate in _DOWN_STATES and secst in _DOWN_STATES:
+        verdict = "🔴 <b>LAGGARD</b> — weak-in-weak (stock + sector + market all down)"
+    else:
+        verdict = "⚪ mixed — not a clean leader/laggard"
+    rank_txt = (f"{rank} / 99 (stronger than {rank}% of the market)"
+                if rank is not None else "— (outside liquid universe / short history)")
+    lines = [
+        f"<b>📊 {sym} — Relative Strength</b> <i>({d.get('trade_date','')})</i>",
+        "",
+        f"<b>vs broad (Nifty 500):</b> {_TREND_EMOJI.get(d.get('bstate'), '—')}{bstate}",
+        f"  RS rank: {rank_txt}",
+        f"  slope 1m/3m/6m/12m: {_fmt_pct(d.get('b1'))} / {_fmt_pct(d.get('b3'))} / "
+        f"{_fmt_pct(d.get('b6'))} / {_fmt_pct(d.get('b12'))}",
+        "",
+    ]
+    if sec:
+        lines += [
+            f"<b>vs sector ({sec}):</b> {_TREND_EMOJI.get(d.get('sstate'), '—')}{sstate}",
+            f"  slope 1m/3m/6m/12m: {_fmt_pct(d.get('x1'))} / {_fmt_pct(d.get('x3'))} / "
+            f"{_fmt_pct(d.get('x6'))} / {_fmt_pct(d.get('x12'))}",
+            f"  sector vs broad: {_TREND_EMOJI.get(d.get('sector_broad_state'), '—')}{secst}",
+            "",
+        ]
+    else:
+        lines += ["<i>No NSE sectoral index covers this stock — broad RS only.</i>", ""]
+    lines.append(verdict)
+    return "\n".join(lines)
+
+
+async def on_rs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Per-stock Relative Strength — vs broad + vs sector + leader/laggard verdict (D33)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: <code>/rs TICKER</code> — e.g. <code>/rs HDFCBANK</code>",
+            parse_mode="HTML")
+        return
+    sym = context.args[0].upper().strip()
+    loop = asyncio.get_event_loop()
+    d = await loop.run_in_executor(None, lambda: _fetch_stock_rs(sym))
+    if not d or (d.get("bstate") is None and d.get("rs_rank") is None):
+        await update.message.reply_text(
+            f"No RS computed for <b>{sym}</b>. Check the ticker, or it may be "
+            "outside the covered universe.", parse_mode="HTML")
+        return
+    await update.message.reply_text(_format_stock_rs_message(d), parse_mode="HTML")
+
+
+def _format_leaders_message(rows: list[dict], kind: str) -> str:
+    if kind == "leaders":
+        title, order = "🟢 Leaders — strong-in-strong", "Strongest first."
+        sub = "Stock + its sector + the market all trending up (RS)."
+    else:
+        title, order = "🔴 Laggards — weak-in-weak", "Weakest first."
+        sub = "Stock + its sector + the market all trending down (RS)."
+    lines = [f"<b>{title}</b>", f"<i>{sub} {order}</i>", "", "<pre>",
+             f"{'Sym':<13}{'RS':>4}  {'Sector':<22}"]
+    for r in rows:
+        rk = r["rs_rank"]
+        lines.append(f"{(r['symbol'] or '')[:13]:<13}"
+                     f"{(str(rk) if rk is not None else '—'):>4}  "
+                     f"{(r['primary_sector'] or '')[:22]:<22}")
+    lines += ["</pre>", "", "<i>Drill in: <b>/rs TICKER</b>.</i>"]
+    return "\n".join(lines)
+
+
+async def on_leaders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Composite 'strong-in-strong' leaders (D33c)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    from src.automation.stock_rs import leaders_laggards
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: leaders_laggards("leaders", limit=30))
+    if not rows:
+        await update.message.reply_text(
+            "No strong-in-strong leaders right now — no stock has all three RS "
+            "layers aligned up.")
+        return
+    await update.message.reply_text(_format_leaders_message(rows, "leaders"), parse_mode="HTML")
+
+
+async def on_laggards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Composite 'weak-in-weak' laggards (D33c)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    from src.automation.stock_rs import leaders_laggards
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: leaders_laggards("laggards", limit=30))
+    if not rows:
+        await update.message.reply_text("No weak-in-weak laggards right now.")
+        return
+    await update.message.reply_text(_format_leaders_message(rows, "laggards"), parse_mode="HTML")
+
+
 # --- Two-tier scan + layered triggers (D28) -------------------------------
 
 # Shared symbol/liquidity filters (D23).
@@ -1799,6 +1944,9 @@ BOT_COMMANDS = [
     BotCommand("ratio",         "Ratio chart between two indexes (D32, /ratio NIFTYBANK NIFTY 50)"),
     BotCommand("breakouts",     "Sectoral ratios breaking out / in uptrend vs broad (D32)"),
     BotCommand("breakdowns",    "Sectoral ratios breaking down / in downtrend vs broad (D32)"),
+    BotCommand("rs",            "Stock relative strength — vs broad + sector + leader/laggard verdict (/rs TICKER)"),
+    BotCommand("leaders",       "Strong-in-strong leaders — stock + sector + market all up (D33c)"),
+    BotCommand("laggards",      "Weak-in-weak laggards — stock + sector + market all down (D33c)"),
     BotCommand("analyze",       "Guide for deep dive in claude.ai (FREE — replaces the old API-burning /analyze)"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
@@ -1851,6 +1999,9 @@ def main() -> None:
     app.add_handler(CommandHandler("ratio", on_ratio))
     app.add_handler(CommandHandler("breakouts", on_breakouts))
     app.add_handler(CommandHandler("breakdowns", on_breakdowns))
+    app.add_handler(CommandHandler("rs", on_rs))
+    app.add_handler(CommandHandler("leaders", on_leaders))
+    app.add_handler(CommandHandler("laggards", on_laggards))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))

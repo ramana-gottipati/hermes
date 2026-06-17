@@ -421,6 +421,61 @@ def compute_sector_for_date(trade_date: str) -> int:
     return n
 
 
+# --- D33c: composite "strong-in-strong" leaders / laggards ------------------
+
+_LEADER_STATES = ("UPTREND", "BREAKOUT")
+_LAGGARD_STATES = ("DOWNTREND", "BREAKDOWN")
+
+
+def leaders_laggards(kind: str = "leaders", limit: int = 50,
+                     trade_date: Optional[str] = None) -> list[dict]:
+    """Composite RS screen (D37 'strong-in-strong'). A LEADER has ALL THREE of
+    {stock rs_vs_sector, stock rs_vs_broad, its sector's own rs_vs_broad (the
+    D32 index_signals read)} in {UPTREND, BREAKOUT}; a LAGGARD has all three in
+    {DOWNTREND, BREAKDOWN} — the stock is leading (lagging) its own pack, the
+    pack is leading (lagging) the market, and the stock is leading (lagging) the
+    market directly. Liquid universe only. Leaders ordered by broad rs_rank DESC
+    (strongest first); laggards by rs_rank ASC (weakest first).
+
+    Returns dicts: symbol, rs_rank, primary_sector, broad_state, sector_state,
+    sector_broad_state, close, value. Shared by the dashboard (/dash/leaders +
+    Home preview) and the Telegram /leaders /laggards commands.
+    """
+    states = _LEADER_STATES if kind == "leaders" else _LAGGARD_STATES
+    qm = ",".join("?" * len(states))
+    order = "DESC" if kind == "leaders" else "ASC"
+    with get_conn() as conn:
+        if trade_date is None:
+            row = conn.execute("SELECT MAX(trade_date) d FROM stock_signals").fetchone()
+            trade_date = row["d"] if row else None
+        irow = conn.execute("SELECT MAX(trade_date) d FROM index_signals").fetchone()
+        idx_date = irow["d"] if irow else None
+        if not trade_date or not idx_date:
+            return []
+        sql = f"""
+            SELECT s.symbol, s.rs_rank, s.primary_sector,
+                   s.rs_vs_broad_trend_state  AS broad_state,
+                   s.rs_vs_sector_trend_state AS sector_state,
+                   i.rs_vs_broad_trend_state  AS sector_broad_state,
+                   b.close, b.value
+            FROM stock_signals s
+            JOIN bhavcopy_rows b
+              ON b.symbol = s.symbol AND b.trade_date = s.trade_date
+            JOIN index_signals i
+              ON i.index_name = s.primary_sector AND i.trade_date = ?
+            WHERE s.trade_date = ?
+              AND s.primary_sector IS NOT NULL
+              AND s.rs_vs_sector_trend_state IN ({qm})
+              AND s.rs_vs_broad_trend_state  IN ({qm})
+              AND i.rs_vs_broad_trend_state  IN ({qm})
+              AND {_LIQUID_FILTER}
+            ORDER BY (s.rs_rank IS NULL), s.rs_rank {order}
+            LIMIT ?
+        """
+        params = (idx_date, trade_date, *states, *states, *states, limit)
+        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
 # --- Orchestration ----------------------------------------------------------
 
 def _all_symbols_with_bhav() -> list[str]:
