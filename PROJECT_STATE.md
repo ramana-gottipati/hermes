@@ -1,8 +1,8 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-06-16 (session 15 — very long; ran May 29 → June 16)
+> **Last updated:** 2026-06-17 (session 16 — P0 operational reconciliation: git identity, push, VPS sync, D32 index backfill)
 > **Running document.** This is the source of truth for the next Claude Code session.
-> **⚠ Session-15 carry-over (read § Session log top + § open-items P0 first):** GitHub push is BLOCKED (CirqleLife credential); the dashboard enrichments are live on the VPS via `scp` but UNCOMMITTED/UNPUSHED; VPS `/opt/hermes` is diverged from git; Telegram bot is network-blocked from the VPS; the Nous Hermes Agent (separate product) now also runs on the VPS at `:9443`. Decisions D34–D37 added. Next build: D33 stock-level RS (spec = D37).
+> **⚠ Session-16 update (P0 operational reconciliation DONE):** Git identity fixed → commits now authored `Ramana Gottipati <gottipati.ramana@gmail.com>` (repo-local config); the 4 dashboard/doc/gitignore commits are PUSHED (origin/main @ `ec5d34c`); VPS `/opt/hermes` reconciled to origin (fast-forward, clean); D32 index timer wiring deduped + the 5-year index backfill RUN (`index_rows` fully populated 2021-06→2026-06, `index_signals` computing → `/sectors` populates). **Still open:** Telegram bot network block (unchanged). **Next build:** D33 stock-level RS (spec = D37) — fresh focused session. See § Session log → Session 16.
 
 ---
 
@@ -702,15 +702,18 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ### Other open items (queued, in priority order)
 
-**🔴 P0 — Operational / must reconcile (carried out of the long session 15):**
+**🟢 P0 — Operational reconciliation (RESOLVED in session 16, 2026-06-17):**
 
-- **Git IDENTITY is wrong — commits are authored `ramana-debug <cirqlelife@gmail.com>`.** Remote destination is correct (`ramana-gottipati/hermes`, personal repo — nothing goes to CirqleLife), but the local `user.name`/`user.email` stamp the CirqleLife email on every commit (including D28–D32 already pushed, and the 2 unpushed `d8bfa6a`/`a3c5942`). **Pending Ramana's input:** the name + personal GitHub-verified email to use. Then: `git config user.name "..."; git config user.email "..."`, re-author the 2 unpushed commits (`git rebase -i` or `git commit --amend`/cherry-pick), and OPTIONALLY rewrite+force-push the already-pushed D28–D32 commits (destructive — only if Ramana wants the history clean). Ramana asked: "push only into my personal github, not CirqleLife at all" — destination is already personal; this identity stamp is the remaining CirqleLife footprint.
-- **Fix the GitHub credential** (Windows Credential Manager → remove `CirqleLife` `git:https://github.com` entry → re-auth as ramana-gottipati). Until then NOTHING reaches GitHub.
-- **Commit + push the dashboard work.** Local has `d8bfa6a` (D33-web) unpushed + uncommitted `src/web/dashboard.py` enrichments (charts, corp-action adj, inertia, insights, pt14, RS placeholder). Commit all, push.
-- **Reconcile the VPS divergence.** `/opt/hermes` is git@716f702 + scp'd files (`src/web/*`, `src/main.py`) not in git. After push: on VPS `git stash && git pull && git stash drop`.
-- **Wire D32 indexes into the daily timer** — add `indexes` + `index_signals` ExecStart lines to the `10-signals.conf` drop-in, run the 5y index backfill (`indexes --backfill 1830` then `index_signals --backfill`). D32 code is deployed but the index data was never backfilled / the sectors view will be empty until then.
-- **Telegram bot network block** — `api.telegram.org` unreachable from the Mumbai VPS (DPI throttling). Bot crash-loops. Decide: wait / proxy / Hostinger ticket. Web dashboard is the working alternative meanwhile.
-- **SSH rate-limit discipline** — never hammer `ssh hermes` on failure (triggers a port-22 IP ban). One attempt; on timeout, wait or restart router for new IP.
+- ✅ **Git identity fixed.** Was `ramana-debug <cirqlelife@gmail.com>` (inherited from the global `C:/Users/gotti/.gitconfig`, a different project's identity). Now set **repo-local** to `Ramana Gottipati <gottipati.ramana@gmail.com>` (global + other repos untouched). The 4 unpushed commits re-authored via `rebase --exec "git commit --amend --reset-author --no-edit"`. Already-public D28–D32 left as-is (destructive rewrite declined). **Canonical git identity for this repo going forward = `Ramana Gottipati <gottipati.ramana@gmail.com>`, repo-local.**
+- ✅ **GitHub credential fixed.** Removed the `git:https://github.com` (User: CirqleLife) entry from Windows Credential Manager (`cmdkey /delete:git:https://github.com`); GCM (helper = `manager`) re-authed as `ramana-gottipati`.
+- ✅ **Dashboard work pushed.** `716f702..ec5d34c` — D33-web PWA (`6c05e31`) + D36 enriched stock view (`9c707f5`) + P0 doc note (`96ac05f`) + new `.gitignore` for Drive `.tmp.drive*` sync junk (`ec5d34c`). On GitHub under the correct identity.
+- ✅ **VPS reconciled.** `/opt/hermes` was git@716f702 + scp'd untracked `src/web/*` + modified `src/main.py`. Verified all 3 byte-identical to the pushed blobs (hash check — nothing lost), then `stash -u` + fast-forward → VPS HEAD `ec5d34c`, clean. (NOTE: plain `git stash && git pull` would have FAILED — `src/web/*` were untracked on the VPS and block the pull; must use `stash -u`.) Safety snapshot in `stash@{0}` (vps-scp-snapshot-s16).
+- ✅ **D32 indexes.** Timer wiring was already present — in fact duplicated (a prior session double-appended the ExecStart lines); deduped to single clean copies (`10-signals.conf` = `signals → indexes → index_signals`). The actual gap was the **5-year index backfill, never run** — now run as a chained detached job (`indexes --backfill 1830 && index_signals --backfill`). `index_rows` = 143,319 rows / 1,244 days (2021-06-02→2026-06-16); `index_signals` (ratios + trend_state) computing → `/sectors` + dashboard sector view populate on completion.
+
+**🔴 P0 — still open:**
+
+- **Telegram bot network block** — `api.telegram.org` unreachable from the Mumbai VPS (DPI throttling). Bot crash-loops. Decided session 16: **wait** (web dashboard is the working alternative). Revisit proxy / Hostinger ticket only if it persists.
+- **SSH rate-limit discipline** (standing operational rule) — never hammer `ssh hermes` on failure (triggers a port-22 IP ban). One attempt; on timeout, wait or restart the router for a fresh IP.
 
 **🔴 P1 — Next builds:**
 
@@ -771,6 +774,27 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 16 — 2026-06-17 — P0 operational reconciliation (git identity, push, VPS sync, D32 index backfill)
+
+No new product features — this was the "clean up the session-15 operational mess" session. The entire 🔴 P0 backlog is cleared.
+
+**Git identity (the CirqleLife footprint):**
+- Root cause: the global `C:/Users/gotti/.gitconfig` was `ramana-debug <cirqlelife@gmail.com>` (a *different* project's identity), stamping every Hermes commit. The remote was already correct (`ramana-gottipati/hermes` — nothing ever went to CirqleLife).
+- Set **repo-local** `user.name="Ramana Gottipati"`, `user.email="gottipati.ramana@gmail.com"` (Ramana supplied the email; global + other repos untouched).
+- Re-authored the 4 unpushed commits with `git rebase origin/main --exec "git commit --amend --reset-author --no-edit"`. The dormant `src/assistant/patearn.py` diff (stage1_screen + use_sonnet — D7/D22 conflict) was stashed around the rebase and restored **untouched / still uncommitted** — left alone per prior sessions.
+- Removed the blocking `git:https://github.com` (User: CirqleLife) entry from Windows Credential Manager (`cmdkey /delete`); the push then re-authed through GCM (helper=`manager`) as `ramana-gottipati` (completed an interactive "Connect to GitHub" dialog).
+- Did **NOT** rewrite the already-public D28–D32 history (destructive force-push declined).
+
+**Pushed:** `716f702..ec5d34c main -> main`. New SHAs (all `Ramana Gottipati <gottipati.ramana@gmail.com>`): `6c05e31` (D33-web PWA), `9c707f5` (D36 enriched stock view), `96ac05f` (P0 doc note), `ec5d34c` (`.gitignore` Drive `.tmp.drive*` junk).
+
+**VPS reconciled:** verified the scp'd `src/web/*` + `src/main.py` byte-identical to the pushed blobs (hash check), then `stash -u` + fast-forward → `/opt/hermes` HEAD now `ec5d34c`, working tree clean. Safety snapshot kept in `stash@{0}` (vps-scp-snapshot-s16). Caught that the kickstart's `git stash && git pull` plan would have failed (untracked `src/web/*` block the pull) — used `stash -u`.
+
+**D32 index data (the real reason `/sectors` was empty):** the systemd timer wiring was already there (and duplicated — deduped `10-signals.conf` to a single clean `signals → indexes → index_signals`). The missing piece was the **5-year index backfill**, never run. Launched chained: `indexes --backfill 1830 && index_signals --backfill`. `index_rows` populated to **143,319 rows / 1,244 days / 2021-06-02→2026-06-16**; `index_signals` (ratios + trend_state) computing → `/sectors` populates on completion.
+
+**Telegram bot:** still network-blocked from the Mumbai VPS (unchanged; not our bug). Defaulted to **wait** — web dashboard remains the working surface.
+
+**Next:** D33 stock-level Relative Strength (spec D37) — a fresh focused session. Hard dependency unchanged: move the corp-action back-adjustment into a reusable layer + recompute zones on adjusted prices (open item B5).
 
 ### Session 15 (continued, very long) — 2026-06 — Web dashboard, charts, corporate-action adjustment, Nous Agent on VPS, RS design
 
