@@ -22,6 +22,7 @@ All read-only. No LLM. No mutation. Pure SQL over the existing tables.
 
 import json
 from datetime import datetime
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
@@ -90,14 +91,40 @@ input,button { font-family:inherit; }
 .zone .val { font-variant-numeric:tabular-nums; }
 .empty { color:#8b949e; text-align:center; padding:48px 16px; }
 a.row { color:inherit; text-decoration:none; display:block; }
+.hsearch { margin-left:8px; }
+.hsearch input { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+                 padding:6px 10px; border-radius:7px; font-size:13px; width:110px; }
+.banner { border-radius:10px; padding:12px 14px; margin-bottom:12px; font-weight:700;
+          display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.banner small { font-weight:400; opacity:.9; }
+.b-on{background:#16341f;color:#7ee787;border:1px solid #1f6f3a;}
+.b-off{background:#3a1a1a;color:#ffa198;border:1px solid #8f1f1f;}
+.b-neu{background:#3a3417;color:#ffd99a;border:1px solid #5a4a1f;}
+.majgrid { display:grid; grid-template-columns:1fr; gap:8px; }
+@media(min-width:560px){ .majgrid{ grid-template-columns:1fr 1fr; } }
+.maj { background:#161b22; border:1px solid #30363d; border-left:3px solid #1f6feb;
+       border-radius:8px; padding:10px 12px; display:block; color:inherit; text-decoration:none; }
+.maj .nm { font-weight:700; font-size:14px; }
+.maj .rr { display:flex; gap:14px; margin-top:5px; font-size:12px; color:#8b949e;
+           font-variant-numeric:tabular-nums; flex-wrap:wrap; }
+.fbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.fbtn { background:#161b22; border:1px solid #30363d; color:#8b949e; padding:5px 11px;
+        border-radius:14px; font-size:12px; cursor:pointer; }
+.fbtn.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chip { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:7px 10px;
+        font-size:13px; color:inherit; text-decoration:none; }
+.ghdr { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#8b949e;
+        margin:16px 0 8px; font-weight:700; }
 """
 
 
 def _nav(active: str) -> str:
     items = [
         ("dash", "/dash", "📊", "Home"),
+        ("markets", "/dash/markets", "🌐", "Markets"),
         ("sectors", "/dash/sectors", "🔁", "Sectors"),
-        ("scan", "/dash/scan", "🔎", "Scan"),
+        ("stocks", "/dash/stocks", "🔎", "Stocks"),
         ("stock", "/dash/stock", "💧", "Stock"),
     ]
     out = ['<nav>']
@@ -125,6 +152,9 @@ def _shell(title: str, body: str, active: str, latest_date: str = "") -> str:
 <header>
   <span class="dot"></span><span class="logo">HERMES</span>
   <span class="date">{latest_date}</span>
+  <form class="hsearch" action="/dash/stock" method="get" autocomplete="off">
+    <input name="sym" placeholder="ticker…" autocapitalize="characters"/>
+  </form>
 </header>
 <div class="wrap">
 {body}
@@ -141,6 +171,10 @@ if ('serviceWorker' in navigator) {{
 
 def _esc(s) -> str:
     return (str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _q(s) -> str:
+    return quote_plus(str(s) if s is not None else "")
 
 
 def _pct(v, decimals=1) -> str:
@@ -175,56 +209,234 @@ def _latest_dates() -> tuple:
     return (sig["d"] if sig else None), (idx["d"] if idx else None)
 
 
+# Curated "major" indexes for the Markets headline block. Names match
+# index_rows.index_name exactly. Size indices have no RS (broad_benchmark NULL).
+MAJOR_BROAD = ["Nifty 50", "Nifty Next 50", "Nifty Midcap 150",
+               "Nifty Smallcap 250", "Nifty 500"]
+MAJOR_SECTORS = ["Nifty Bank", "Nifty Financial Services", "Nifty IT", "Nifty Auto",
+                 "Nifty Pharma", "Nifty FMCG", "Nifty Metal", "Nifty Energy",
+                 "Nifty Realty", "Nifty Media", "Nifty Infrastructure",
+                 "Nifty Commodities", "Nifty Healthcare Index",
+                 "Nifty Consumer Durables", "Nifty Oil & Gas", "Nifty PSU Bank"]
+MAJOR_ALL = MAJOR_BROAD + MAJOR_SECTORS
+
+# Size segments for the Home leadership read (raw 3m return comparison).
+LEADERSHIP_SET = ["Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250"]
+
+
+def _sector_symbols(conn, sector: str) -> list:
+    """Member symbols of an index, from the latest membership snapshot."""
+    rows = conn.execute(
+        """SELECT symbol FROM stock_index_membership
+           WHERE index_name=? AND snapshot_date=(
+               SELECT MAX(snapshot_date) FROM stock_index_membership
+               WHERE index_name=?)
+           ORDER BY symbol""",
+        (sector, sector),
+    ).fetchall()
+    return [r["symbol"] for r in rows]
+
+
 # --- Routes ----------------------------------------------------------------
 
 @router.get("/dash", response_class=HTMLResponse)
 def dash_home() -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
+    nifty, breadth, lead = {}, None, None
+    top_sectors, weak_sectors, top_stocks = [], [], []
     with get_conn() as conn:
-        counts = {"SS": 0, "S": 0, "A": 0}
-        if sig_date:
-            for r in conn.execute(
-                """SELECT trigger_rank, COUNT(*) n FROM stock_signals s
-                   JOIN bhavcopy_rows b USING (symbol, trade_date)
-                   WHERE s.trade_date=? AND s.trigger_rank IN ('SS','S','A')
-                   """ + _SCAN_FILTERS + " GROUP BY trigger_rank",
-                (sig_date,),
-            ).fetchall():
-                counts[r["trigger_rank"]] = r["n"]
-            ath = conn.execute(
-                """SELECT COUNT(*) n FROM stock_signals s
-                   JOIN bhavcopy_rows b USING (symbol, trade_date)
-                   WHERE s.trade_date=? AND s.is_ath_dvpt=1 """ + _SCAN_FILTERS,
-                (sig_date,),
-            ).fetchone()["n"]
-        else:
-            ath = 0
-        breakouts = 0
         if idx_date:
-            breakouts = conn.execute(
-                """SELECT COUNT(*) n FROM index_signals
-                   WHERE trade_date=? AND rs_vs_broad_trend_state IN ('BREAKOUT','UPTREND')""",
+            r = conn.execute(
+                """SELECT ret_1d_pct r1d, ret_1m_pct r1m, pct_above_200d_avg a200
+                   FROM index_signals WHERE index_name='Nifty 50' AND trade_date=?""",
                 (idx_date,),
-            ).fetchone()["n"]
+            ).fetchone()
+            nifty = dict(r) if r else {}
+            b = conn.execute(
+                """SELECT AVG(CASE WHEN pct_above_200d_avg > 0 THEN 1.0 ELSE 0 END)*100 p
+                   FROM index_signals
+                   WHERE trade_date=? AND pct_above_200d_avg IS NOT NULL""",
+                (idx_date,),
+            ).fetchone()
+            breadth = b["p"] if b and b["p"] is not None else None
+            lr = conn.execute(
+                f"""SELECT index_name FROM index_signals
+                    WHERE trade_date=? AND index_name IN ({','.join('?' for _ in LEADERSHIP_SET)})
+                    ORDER BY COALESCE(ret_3m_pct,-999) DESC LIMIT 1""",
+                (idx_date, *LEADERSHIP_SET),
+            ).fetchone()
+            lead = lr["index_name"] if lr else None
+            top_sectors = [dict(x) for x in conn.execute(
+                """SELECT index_name nm, rs_vs_broad_trend_state st, rs_vs_broad_slope_3m s3
+                   FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                   ORDER BY COALESCE(rs_vs_broad_slope_3m,-999) DESC LIMIT 5""",
+                (idx_date,),
+            ).fetchall()]
+            weak_sectors = [dict(x) for x in conn.execute(
+                """SELECT index_name nm, rs_vs_broad_trend_state st, rs_vs_broad_slope_3m s3
+                   FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                   ORDER BY COALESCE(rs_vs_broad_slope_3m,999) ASC LIMIT 3""",
+                (idx_date,),
+            ).fetchall()]
+        if sig_date:
+            top_stocks = [dict(x) for x in conn.execute(
+                f"""SELECT s.symbol, s.trigger_rank rank, s.is_ath_dvpt ath,
+                           s.price_vs_hot_avg_pct pvh
+                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                    {_SCAN_FILTERS}
+                    ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
+                             COALESCE(s.r_score,-1) DESC LIMIT 5""",
+                (sig_date,),
+            ).fetchall()]
 
-    body = f"""
-<div class="kpi">
-  <div class="box"><div class="num">{counts['SS']+counts['S']}</div><div class="lbl">SS+S triggers today</div></div>
-  <div class="box"><div class="num">{ath}</div><div class="lbl">ATH-DVPT today</div></div>
-  <div class="box"><div class="num">{breakouts}</div><div class="lbl">sector breakouts/uptrend</div></div>
-</div>
-<h2>Quick views</h2>
-<a class="row card" href="/dash/scan">🔎 <b>Scan</b> — layered DVPT triggers (rank SS→C, ATH, discount entry)</a>
-<a class="row card" href="/dash/sectors">🔁 <b>Sectors</b> — relative-strength rotation vs Nifty 500</a>
-<a class="row card" href="/dash/stock">💧 <b>Stock</b> — DVPT flow + institutional price zones for any ticker</a>
-<h2>Data freshness</h2>
-<div class="card">
-  Stock signals: <b>{sig_date or '—'}</b><br>
-  Index signals: <b>{idx_date or '—'}</b>
-</div>
-<div class="sub">Read-only mirror of the same data the Telegram bot uses. Updated nightly 7:30 PM IST.</div>
-"""
+    above200 = nifty.get("a200")
+    nifty_up = above200 is not None and above200 > 0
+    if breadth is None:
+        bcls, blabel = "b-neu", "NO DATA"
+    elif breadth >= 60 and nifty_up:
+        bcls, blabel = "b-on", "RISK-ON"
+    elif breadth < 40 or not nifty_up:
+        bcls, blabel = "b-off", "RISK-OFF"
+    else:
+        bcls, blabel = "b-neu", "NEUTRAL"
+    lead_txt = {"Nifty 50": "Large-caps leading",
+                "Nifty Midcap 150": "Mid-caps leading",
+                "Nifty Smallcap 250": "Small-caps leading"}.get(lead, lead or "—")
+    breadth_txt = f"{breadth:.0f}%" if breadth is not None else "—"
+
+    search = ('<form class="search" action="/dash/stock" method="get" autocomplete="off">'
+              '<input name="sym" placeholder="Enter NSE ticker — e.g. RELIANCE" '
+              'autocapitalize="characters"/><button type="submit">Go</button></form>')
+    banner = (f'<div class="banner {bcls}">{blabel}'
+              f'<small>· {breadth_txt} of indices &gt; 200-DMA · {_esc(lead_txt)}</small></div>')
+    kpis = (f'<div class="kpi">'
+            f'<div class="box"><div class="num">{_pct(nifty.get("r1d"))}</div>'
+            f'<div class="lbl">Nifty 50 today</div></div>'
+            f'<div class="box"><div class="num">{breadth_txt}</div>'
+            f'<div class="lbl">indices &gt; 200-DMA</div></div>'
+            f'<div class="box"><div class="num" style="font-size:14px;padding-top:7px;">'
+            f'{_esc(lead_txt)}</div><div class="lbl">leadership 3m</div></div></div>')
+
+    def sect_rows(rows):
+        out = []
+        for r in rows:
+            st = r["st"] or "—"
+            out.append(f'<tr><td class="sym">{_esc(r["nm"])}</td>'
+                       f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+                       f'<td>{_pct(r["s3"])}</td></tr>')
+        return "".join(out)
+
+    sectors_block = ""
+    if top_sectors:
+        sectors_block = (
+            '<h2>Top sectors <span class="sub" style="margin:0">by 3m RS</span></h2>'
+            '<div class="card" style="padding:6px 10px;"><table>'
+            '<thead><tr><th>Sector</th><th>Trend</th><th>RS 3m</th></tr></thead>'
+            f'<tbody>{sect_rows(top_sectors)}</tbody></table></div>'
+            '<div class="ghdr">Weakest</div>'
+            '<div class="card" style="padding:6px 10px;"><table>'
+            f'<tbody>{sect_rows(weak_sectors)}</tbody></table></div>'
+            '<a class="row sub" href="/dash/sectors">See full rotation →</a>')
+
+    srows = []
+    for r in top_stocks:
+        rank = r["rank"] or "-"
+        ath = "⚡" if r["ath"] else ""
+        pvh = r["pvh"]
+        entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
+        srows.append(f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+                     f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
+                     f'<td><span class="pill p-{rank}">{rank}</span></td>'
+                     f'<td>{_pct(pvh)} {entry}</td></tr>')
+    stocks_block = ""
+    if srows:
+        stocks_block = (
+            '<h2>Top trigger stocks</h2>'
+            '<div class="card" style="padding:6px 10px;"><table>'
+            '<thead><tr><th>Symbol</th><th>Rank</th><th>Δhot</th></tr></thead>'
+            f'<tbody>{"".join(srows)}</tbody></table></div>'
+            '<a class="row sub" href="/dash/stocks">See all triggers →</a>')
+
+    body = (f'{search}{banner}{kpis}{sectors_block}{stocks_block}'
+            '<h2>Data freshness</h2>'
+            f'<div class="card">Stock signals: <b>{sig_date or "—"}</b><br>'
+            f'Index signals: <b>{idx_date or "—"}</b></div>'
+            '<div class="sub">Read-only mirror of the Telegram bot data. '
+            'Updated nightly 7:30 PM IST.</div>')
     return HTMLResponse(_shell("Hermes", body, "dash", sig_date or ""))
+
+
+@router.get("/dash/markets", response_class=HTMLResponse)
+def dash_markets() -> HTMLResponse:
+    _, idx_date = _latest_dates()
+    allrows = {}
+    if idx_date:
+        with get_conn() as conn:
+            for r in conn.execute(
+                """SELECT g.index_name nm, g.ret_1d_pct r1d, g.ret_1m_pct r1m,
+                          g.ret_3m_pct r3m, g.pct_above_200d_avg a200,
+                          g.rs_vs_broad_trend_state st, g.broad_benchmark bb,
+                          x.close_value close
+                   FROM index_signals g
+                   LEFT JOIN index_rows x USING (index_name, trade_date)
+                   WHERE g.trade_date=?""",
+                (idx_date,),
+            ).fetchall():
+                allrows[r["nm"]] = dict(r)
+    if not allrows:
+        return HTMLResponse(_shell("Markets — Hermes",
+                                   '<div class="empty">No index data yet.</div>',
+                                   "markets", idx_date or ""))
+
+    def maj_card(v):
+        st = v["st"]
+        chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st else ''
+        return (f'<a class="maj" href="/dash/stocks?sector={_q(v["nm"])}">'
+                f'<div class="nm">{_esc(v["nm"])}{chip}</div>'
+                f'<div class="rr"><span>{_num(v["close"],0)}</span>'
+                f'<span>1d {_pct(v["r1d"])}</span>'
+                f'<span>1m {_pct(v["r1m"])}</span>'
+                f'<span>3m {_pct(v["r3m"])}</span></div></a>')
+
+    broad_html = "".join(maj_card(allrows[n]) for n in MAJOR_BROAD if n in allrows)
+    sect_html = "".join(maj_card(allrows[n]) for n in MAJOR_SECTORS if n in allrows)
+
+    bundle = sorted(allrows.values(), key=lambda v: (v["r3m"] is None, -(v["r3m"] or 0)))
+    brows = []
+    for v in bundle:
+        grp = "broad" if v["bb"] is None else "sector"
+        st = v["st"] or ""
+        chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st
+                else '<span class="mut">—</span>')
+        brows.append(
+            f'<tr data-grp="{grp}"><td class="sym">{_esc(v["nm"])}</td>'
+            f'<td>{_pct(v["r1d"])}</td><td>{_pct(v["r1m"])}</td>'
+            f'<td>{_pct(v["r3m"])}</td><td>{chip}</td></tr>')
+
+    js = ("<script>function mflt(g,el){"
+          "document.querySelectorAll('#mbundle tr[data-grp]').forEach(function(r){"
+          "r.style.display=(g==='all'||r.dataset.grp===g)?'':'none';});"
+          "document.querySelectorAll('#mbar .fbtn').forEach(function(b){"
+          "b.classList.remove('on');});el.classList.add('on');}</script>")
+
+    body = (
+        '<h2>Major indexes &amp; sectors</h2>'
+        '<div class="sub">Broad market + core sectors. Tap any → its stocks.</div>'
+        '<div class="ghdr">Broad / size</div>'
+        f'<div class="majgrid">{broad_html}</div>'
+        '<div class="ghdr">Core sectors</div>'
+        f'<div class="majgrid">{sect_html}</div>'
+        '<h2>Full index bundle</h2>'
+        '<div class="sub">Everything else — strategy, thematic, factor.</div>'
+        '<div id="mbar" class="fbar">'
+        "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
+        "<button class=\"fbtn\" onclick=\"mflt('broad',this)\">Broad/Size</button>"
+        "<button class=\"fbtn\" onclick=\"mflt('sector',this)\">Sectoral</button></div>"
+        '<div class="card" style="padding:6px 10px;"><table id="mbundle">'
+        '<thead><tr><th>Index</th><th>1d</th><th>1m</th><th>3m</th><th>Trend</th></tr></thead>'
+        f'<tbody>{"".join(brows)}</tbody></table></div>' + js)
+    return HTMLResponse(_shell("Markets — Hermes", body, "markets", idx_date or ""))
 
 
 @router.get("/dash/sectors", response_class=HTMLResponse)
@@ -252,14 +464,15 @@ def dash_sectors() -> HTMLResponse:
         for r in rows:
             st = r["st"] or "—"
             trs.append(
-                f'<tr><td class="sym">{_esc(r["index_name"])}</td>'
+                f'<tr><td><a class="row" href="/dash/stocks?sector={_q(r["index_name"])}">'
+                f'<span class="sym">{_esc(r["index_name"])}</span></a></td>'
                 f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
                 f'<td>{_pct(r["s1"])}</td><td>{_pct(r["s3"])}</td>'
                 f'<td>{_pct(r["r3"])}</td></tr>'
             )
         body = f"""
 <h2>Sector rotation</h2>
-<div class="sub">RS vs Nifty 500. Sorted strongest trend first, then 3m RS slope.</div>
+<div class="sub">RS vs Nifty 500. Sorted strongest trend first. Tap a sector → its stocks.</div>
 <div class="card" style="padding:6px 10px;">
 <table>
 <thead><tr><th>Index</th><th>Trend</th><th>RS 1m</th><th>RS 3m</th><th>Ret 3m</th></tr></thead>
@@ -327,6 +540,110 @@ def dash_scan(limit: int = Query(25, ge=5, le=60)) -> HTMLResponse:
 </div>
 """
     return HTMLResponse(_shell("Scan — Hermes", body, "scan", sig_date or ""))
+
+
+@router.get("/dash/stocks", response_class=HTMLResponse)
+def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120)) -> HTMLResponse:
+    sig_date, _ = _latest_dates()
+    sector = sector.strip()
+    rows, watch, sector_syms = [], [], []
+    with get_conn() as conn:
+        if sector:
+            sector_syms = _sector_symbols(conn, sector)
+        if sig_date and not (sector and not sector_syms):
+            params = [sig_date]
+            sector_clause = ""
+            if sector and sector_syms:
+                ph = ",".join("?" for _ in sector_syms)
+                sector_clause = f" AND s.symbol IN ({ph})"
+                params += sector_syms
+            params.append(limit)
+            rank_order = ("CASE s.trigger_rank WHEN 'SS' THEN 0 WHEN 'S' THEN 1 "
+                          "WHEN 'A' THEN 2 WHEN 'B' THEN 3 WHEN 'C' THEN 4 ELSE 5 END")
+            rows = [dict(r) for r in conn.execute(
+                f"""SELECT s.symbol, s.trigger_rank rank, s.r_score, s.p_score,
+                          s.is_ath_dvpt ath, s.price_vs_hot_avg_pct pvh,
+                          s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close
+                   FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                   WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                   {_SCAN_FILTERS}{sector_clause}
+                   ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
+                            COALESCE(s.r_score,-1) DESC, {rank_order} ASC,
+                            COALESCE(s.ratio_today_vs_power_1m,0) DESC
+                   LIMIT ?""",
+                params,
+            ).fetchall()]
+        watch = [r["symbol"] for r in conn.execute(
+            "SELECT symbol FROM watchlist ORDER BY symbol").fetchall()]
+
+    search = ('<form class="search" action="/dash/stock" method="get" autocomplete="off">'
+              '<input name="sym" placeholder="Enter NSE ticker — e.g. RELIANCE" '
+              'autocapitalize="characters"/><button type="submit">Go</button></form>')
+
+    if sector:
+        head = (f'<h2>Stocks in {_esc(sector)}</h2>'
+                f'<div class="sub">{len(sector_syms)} constituents · by trigger strength · '
+                f'<a class="row" style="display:inline" href="/dash/stocks">clear ↺</a></div>')
+        if not sector_syms:
+            head += '<div class="card sub">No membership on record for this index.</div>'
+    else:
+        head = ('<h2>Stock screen</h2>'
+                '<div class="sub">Layered DVPT triggers. Filter, then tap a symbol.</div>')
+
+    trs = []
+    for r in rows:
+        rank = r["rank"] or "-"
+        ath = "⚡" if r["ath"] else ""
+        pvh = r["pvh"]
+        entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
+        near, near_flag = "", "0"
+        if r["nextp"] and r["gap"] is not None:
+            near = f'{r["nextp"]} {r["gap"]:+.0f}%'
+            if r["gap"] > -10 and (r["r_score"] or 0) >= 4:
+                near_flag = "1"
+        flags = (f'data-ss="{1 if rank == "SS" else 0}" '
+                 f'data-aplus="{1 if (r["p_score"] or 0) >= 3 else 0}" '
+                 f'data-ath="{1 if r["ath"] else 0}" '
+                 f'data-disc="{1 if (pvh is not None and pvh < -3) else 0}" '
+                 f'data-near="{near_flag}"')
+        trs.append(
+            f'<tr {flags}><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+            f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
+            f'<td><span class="pill p-{rank}">{rank}</span></td>'
+            f'<td class="mut">{r["r_score"] or 0}/{r["p_score"] or 0}</td>'
+            f'<td>{_num(r["close"], 1)}</td>'
+            f'<td>{_pct(pvh)} {entry}</td>'
+            f'<td class="mut">{near}</td></tr>')
+
+    if trs:
+        pills = ('<div id="sbar" class="fbar">'
+                 "<button class=\"fbtn on\" onclick=\"sflt('all',this)\">All</button>"
+                 "<button class=\"fbtn\" onclick=\"sflt('ss',this)\">SS</button>"
+                 "<button class=\"fbtn\" onclick=\"sflt('aplus',this)\">A+</button>"
+                 "<button class=\"fbtn\" onclick=\"sflt('ath',this)\">⚡ ATH</button>"
+                 "<button class=\"fbtn\" onclick=\"sflt('disc',this)\">🟢 Discount</button>"
+                 "<button class=\"fbtn\" onclick=\"sflt('near',this)\">🔥 Near-break</button></div>")
+        table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl">'
+                 '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th>'
+                 '<th>Δhot</th><th>Near-P</th></tr></thead>'
+                 f'<tbody>{"".join(trs)}</tbody></table></div>')
+    else:
+        table = '<div class="empty">No stocks match.</div>'
+
+    watch_block = ""
+    if watch:
+        chips = "".join(f'<a class="chip" href="/dash/stock?sym={_esc(s)}">{_esc(s)}</a>'
+                        for s in watch)
+        watch_block = f'<h2>Watchlist</h2><div class="chips">{chips}</div>'
+
+    js = ("<script>function sflt(f,el){"
+          "document.querySelectorAll('#stbl tr[data-ss]').forEach(function(r){"
+          "r.style.display=(f==='all'||r.dataset[f]==='1')?'':'none';});"
+          "document.querySelectorAll('#sbar .fbtn').forEach(function(b){"
+          "b.classList.remove('on');});el.classList.add('on');}</script>")
+
+    body = search + head + table + watch_block + (js if trs else "")
+    return HTMLResponse(_shell("Stocks — Hermes", body, "stocks", sig_date or ""))
 
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"

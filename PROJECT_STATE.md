@@ -214,7 +214,10 @@ D:\Hermes\                                          ← local working copy of re
 │       ├── corp_actions.py                         ← NSE corporate actions (bonus/split/etc.)
 │       ├── signals.py                              ← rolling DVPT signals (flat + power deliveries)
 │       ├── screener.py                             ← Screener.in HTML scraper
-│       └── scoring.py                              ← rule-based 14-pattern patearn scorer
+│       ├── scoring.py                              ← rule-based 14-pattern patearn scorer
+│       ├── indexes.py                              ← NSE index OHLC ingestion (D32)
+│       ├── index_signals.py                        ← index + ratio signals, sector-vs-broad RS (D32)
+│       └── membership.py                            ← NSE constituent lists → stock_index_membership (D33b)
 ├── resources\patearn\                              ← copy of patearn skill files (used by patearn.py)
 │   ├── SKILL.md
 │   ├── patterns.md
@@ -378,6 +381,21 @@ Plain text in group from non-authorized users: silently ignored.
 ---
 
 ## Decision log (the big ones)
+
+### D38 — Analyst dashboard redesign (macro→micro) + index-constituent membership
+Why: the v1 dashboard (D33-web/D36) was 4 flat pages. Ramana (the equity analyst it serves) wanted a real macro→micro structure, the **major** indexes/sectors separated from the ~150-index factor/strategy/thematic bundle, and a discoverable **stocks** surface (he literally couldn't find stocks). Designed via a 3-perspective pass (data audit + equity-analyst IA & major-list + UI/UX spec), synthesized into one blueprint.
+
+Shipped (Phase 1, pure SQL, no schema change beyond populating membership):
+- **5-tab macro→micro nav**: Home → Markets → Sectors → Stocks → Stock. A ticker-search box in **every** page header (the biggest discoverability fix).
+- **/dash** rebuilt: RISK-ON/NEUTRAL/RISK-OFF regime banner (breadth + Nifty-vs-200DMA) · KPIs (Nifty 1d, % indices >200-DMA, size leadership) · top-5 sectors by 3m RS + weakest-3 · top-5 trigger stocks.
+- **/dash/markets** (NEW): Block A curated **Major indexes & sectors** (accent cards from `MAJOR_BROAD`+`MAJOR_SECTORS`) pinned on top; Block B the full bundle below (All/Broad/Sectoral JS filter). Tap a card → its constituent stocks.
+- **/dash/sectors**: now the pure RS rotation leaderboard; each sector row drills to `/dash/stocks?sector=`.
+- **/dash/stocks** (NEW): the stock hub — search + layered-DVPT screen (moved from /dash/scan) + JS filter pills (All/SS/A+/⚡ATH/🟢Discount/🔥Near-break) + live watchlist chips + `?sector=` constituent filter.
+- **/dash/scan** kept as a working orphan (not in nav); **/dash/stock** unchanged.
+
+Membership (**D33b** — was the blocker for the sector→stock drill): new `src/automation/membership.py` fetches niftyindices.com constituent CSVs (`ind_<slug>list.csv`) for 21 curated indices → `stock_index_membership` (symbol, index_name, snapshot_date; weight NULL — not in the CSV). 1,305 rows / 511 symbols. Index names verified to match `index_rows.index_name` exactly (incl. the quirk **'Nifty Healthcare Index'**; Private Bank + Chemicals have no clean feed, skipped). Wired into the nightly timer (last ExecStart in 10-signals.conf).
+
+Phase 2 (deferred): stock-level RS (**D33/D37** — still the real third-pillar build) + the stock-page RS card, breadcrumb, section reorder, pt14 batch scoring (B6), inline sparklines, click-sort. Reused lesson from the index_signals bug: NSE names are title-case — both the membership map and the MAJOR lists hard-code exact title-case names.
 
 ### D1 — Telegram as primary interface
 Why: Ramana already has Telegram, free, mobile-first, real-time. Web UI later for review (candidates page) but interaction primary is Telegram.
@@ -728,6 +746,8 @@ B5. **Move corporate-action back-adjustment to a reusable pipeline layer + recom
 
 B6. **pt14 fundamentals caching for the dashboard** — the dashboard pt14 section reads cached `fundamentals` / `pattern_scores`; populate on a schedule (or first-view) so it's not empty.
 
+B7. ✅ **Dashboard macro→micro redesign Phase 1 + index membership** — SHIPPED (D38). Markets major/bundle split, Stocks hub, Home regime overview, header search everywhere, sector→stock drill (via populated `stock_index_membership`). **Phase 2 pending:** stock-RS card on the stock page (needs D33), breadcrumb + section reorder, inline sparklines, pt14 batch scoring (B6), click-sort on the bundle.
+
 C. **Portfolio / strategy tracker** (real gap surfaced in session 14):
 ```sql
 CREATE TABLE stocks_in_play (
@@ -774,6 +794,17 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 16 (continued) — 2026-06-17 — Analyst dashboard redesign (macro→micro) + index membership
+After the P0 reconciliation, Ramana flagged the dashboard wasn't analyst-grade: ~150 indices dumped together (no major-vs-bundle split) and stocks undiscoverable. Ran a **3-agent design pass** (data analyst + equity analyst + UI/UX), synthesized a macro→micro blueprint, and built **Phase 1 + the index-membership backfill** (Decision **D38**).
+
+Shipped:
+- `src/automation/membership.py` (NEW) — NSE constituent fetch → `stock_index_membership` populated (21 indices, 1,305 rows, 511 symbols). Verified slugs + exact index-name matches against `index_rows`.
+- `src/web/dashboard.py` — 5-tab nav (Home/Markets/Sectors/Stocks/Stock), header search on every page, Home regime overview, **/dash/markets** (Major-vs-bundle split — the headline ask), **/dash/sectors** drill links, **/dash/stocks** hub (screen + filter pills + watchlist + sector filter).
+- All routes verified HTTP 200, no errors; **sector→stock drill works** (Nifty Bank → HDFCBANK/ICICIBANK). Market currently reads RISK-OFF on the new banner.
+- Deployed via scp + `systemctl restart hermes-api`; git committed + pushed + VPS reconciled.
+
+Next: **D33 stock-level Relative Strength** (the real third-pillar build, spec D37) — fresh focused session.
 
 ### Session 16 — 2026-06-17 — P0 operational reconciliation (git identity, push, VPS sync, D32 index backfill)
 
