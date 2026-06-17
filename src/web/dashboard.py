@@ -1204,10 +1204,35 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
             rank_html = ('<div class="sub" style="margin:8px 0 4px">RS rank not '
                          'computed (outside the liquid universe, or insufficient '
                          '3m history).</div>')
-        # Reconciliation breakdown — the stock's own return, Nifty 500's return,
-        # and the resulting RS per window, so "RS ≈ stock − Nifty 500" is
-        # verifiable on the page. Stock return uses the ADJUSTED `series`; Nifty
-        # 500 return = its index_signals ret_* (same 30/90/180/365-day windows).
+        # D33b — stock-vs-PRIMARY-SECTOR RS (rs_vs_sector_* + the denormalized
+        # primary_sector, from stock_rs). Shown alongside the broad read; absent
+        # for a stock in no NSE sectoral index. "Is it leading its own pack?"
+        sec_name = L.get("primary_sector")
+        sec_state = L.get("rs_vs_sector_trend_state")
+        sec_today = L.get("rs_vs_sector_today")
+        has_sector = bool(sec_name) and (sec_today is not None or sec_state is not None)
+        if has_sector:
+            sec_pill = (f'<span class="pill p-{sec_state}">{sec_state}</span>'
+                        if sec_state else '<span class="pill p-C">—</span>')
+            sec_strip = _rs_strip(
+                L.get("rs_vs_sector_slope_1m"), L.get("rs_vs_sector_slope_3m"),
+                L.get("rs_vs_sector_slope_6m"), L.get("rs_vs_sector_slope_12m"),
+            )
+            sector_block = (
+                f'<div class="sub" style="margin:12px 0 4px">vs sector '
+                f'<b>{_esc(sec_name)}</b> — is it leading its own pack?</div>'
+                f'<div class="chips" style="margin-bottom:6px">{sec_pill}</div>'
+                f'<div class="card" style="margin-top:0">{sec_strip}</div>')
+        else:
+            sector_block = (
+                '<div class="sub" style="margin:12px 0 4px">vs sector: '
+                '<span class="mut">no NSE sectoral index covers this stock — '
+                'broad RS only.</span></div>')
+        # Reconciliation breakdown — the stock's own return vs the benchmark's
+        # return, and the resulting RS, per window, so "RS ≈ stock − benchmark"
+        # is verifiable on the page for BOTH the broad and sector reads. Stock
+        # return uses the ADJUSTED `series`; benchmark return = index_signals
+        # ret_* (same 30/90/180/365-day windows).
         recon_table = ""
         if series:
             with get_conn() as conn:
@@ -1216,7 +1241,13 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
                     "ret_12m_pct r12 FROM index_signals WHERE index_name='Nifty 500' "
                     "ORDER BY trade_date DESC LIMIT 1"
                 ).fetchone()
+                secrow = conn.execute(
+                    "SELECT ret_1m_pct r1, ret_3m_pct r3, ret_6m_pct r6, "
+                    "ret_12m_pct r12 FROM index_signals WHERE index_name=? "
+                    "ORDER BY trade_date DESC LIMIT 1", (sec_name,)
+                ).fetchone() if has_sector else None
             n5 = dict(n5row) if n5row else {}
+            sec = dict(secrow) if secrow else {}
 
             def _stk_ret(days):
                 cut = (datetime.strptime(series[-1]["time"], "%Y-%m-%d")
@@ -1231,26 +1262,34 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
                 return (now / base - 1) * 100 if (base and base > 0 and now) else None
 
             rrows = ""
-            for lbl, days, nk, rk in (("1m", 30, "r1", "rs_vs_broad_slope_1m"),
-                                      ("3m", 90, "r3", "rs_vs_broad_slope_3m"),
-                                      ("6m", 180, "r6", "rs_vs_broad_slope_6m"),
-                                      ("12m", 365, "r12", "rs_vs_broad_slope_12m")):
-                rrows += (f'<tr><td class="mut">{lbl}</td><td>{_pct(_stk_ret(days))}</td>'
-                          f'<td>{_pct(n5.get(nk))}</td>'
-                          f'<td><b>{_pct(L.get(rk))}</b></td></tr>')
+            for lbl, days, nk, brk, srk in (
+                    ("1m", 30, "r1", "rs_vs_broad_slope_1m", "rs_vs_sector_slope_1m"),
+                    ("3m", 90, "r3", "rs_vs_broad_slope_3m", "rs_vs_sector_slope_3m"),
+                    ("6m", 180, "r6", "rs_vs_broad_slope_6m", "rs_vs_sector_slope_6m"),
+                    ("12m", 365, "r12", "rs_vs_broad_slope_12m", "rs_vs_sector_slope_12m")):
+                cells = (f'<td class="mut">{lbl}</td><td>{_pct(_stk_ret(days))}</td>'
+                         f'<td>{_pct(n5.get(nk))}</td><td><b>{_pct(L.get(brk))}</b></td>')
+                if has_sector:
+                    cells += (f'<td>{_pct(sec.get(nk))}</td>'
+                              f'<td><b>{_pct(L.get(srk))}</b></td>')
+                rrows += f'<tr>{cells}</tr>'
+            sec_head = (f'<th>{_esc(sec_name)}</th><th>RS·sector</th>'
+                        if has_sector else '')
             recon_table = (
                 '<div class="sub" style="margin:10px 0 4px">Reconcile — RS ≈ this '
-                'stock\'s return minus Nifty 500\'s return, per window:</div>'
+                "stock's return minus the benchmark's return, per window:</div>"
                 '<div class="card" style="padding:6px 10px;margin-top:0"><table>'
                 f'<thead><tr><th>Window</th><th>{_esc(sym)}</th><th>Nifty 500</th>'
-                '<th>RS (relative)</th></tr></thead>'
+                f'<th>RS·broad</th>{sec_head}</tr></thead>'
                 f'<tbody>{rrows}</tbody></table></div>')
         rs_html = f"""
-<h2>Relative strength <span class="mut" style="font-size:13px">vs Nifty 500</span></h2>
+<h2>Relative strength <span class="mut" style="font-size:13px">vs Nifty 500 + sector</span></h2>
+<div class="sub" style="margin:0 0 4px">vs broad <b>Nifty 500</b> — is it beating the market?</div>
 <div class="chips" style="margin-bottom:6px">{rs_pill}</div>
 {rank_html}
 <div class="sub" style="margin:8px 0 4px">RS-vs-Nifty-500 momentum across horizons (▲ outperforming, ▼ lagging):</div>
 <div class="card" style="margin-top:0">{rs_strip}</div>
+{sector_block}
 {recon_table}
 """
 

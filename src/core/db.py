@@ -452,6 +452,24 @@ def _init() -> None:
         _ensure_column(conn, "stock_signals", "rs_vs_broad_trend_state",  "TEXT")
         _ensure_column(conn, "stock_signals", "rs_rank",                  "INTEGER")
 
+        # 4f. D33b — stock-level Relative Strength vs the stock's PRIMARY SECTOR
+        # (rs_vs_sector = adjusted_close(stock) / close(primary_sector_index)).
+        # primary_sector = the NARROWEST (smallest-membership) NSE sectoral index
+        # the stock belongs to, with size/broad indices excluded, assigned from
+        # stock_index_membership. Same D32 ratio-signal vocabulary as rs_vs_broad,
+        # denormalized per row so the dashboard + the D33c "strong-in-strong"
+        # leader join read it directly. NULL for stocks in no NSE sectoral index.
+        _ensure_column(conn, "stock_signals", "primary_sector",            "TEXT")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_today",        "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_slope_1m",     "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_slope_3m",     "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_slope_6m",     "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_slope_12m",    "REAL")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_above_50ma",   "INTEGER")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_above_200ma",  "INTEGER")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_new_52w_high", "INTEGER")
+        _ensure_column(conn, "stock_signals", "rs_vs_sector_trend_state",  "TEXT")
+
         # 4c. Indexes on the new columns (post-ALTER, guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_p_score "
@@ -469,6 +487,12 @@ def _init() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_rs_rank "
             "ON stock_signals(trade_date, rs_rank)"
+        )
+        # D33b — primary-sector lookup per date (the D33c leaders/laggards join
+        # of each stock onto its sector's index_signals trend_state).
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_signals_primary_sector "
+            "ON stock_signals(trade_date, primary_sector)"
         )
 
         # 5. Helper view for clean equity-cash-market queries. Includes delivery.

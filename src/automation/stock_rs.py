@@ -1,10 +1,11 @@
-"""D33a — Stock-level Relative Strength vs the broad market (Nifty 500).
+"""D33a/b — Stock-level Relative Strength vs the broad market AND its sector.
 
-For each (symbol, trade_date) we compute the canonical RS-vs-broad series and
-its D32-vocabulary technical reads, denormalized onto the existing
-`stock_signals` row:
+For each (symbol, trade_date) we compute two canonical RS series + their
+D32-vocabulary technical reads, denormalized onto the existing `stock_signals`
+row:
 
-    rs_vs_broad = adjusted_close(stock) / close(Nifty 500)
+    rs_vs_broad  = adjusted_close(stock) / close(Nifty 500)              # D33a
+    rs_vs_sector = adjusted_close(stock) / close(primary_sector_index)  # D33b
 
 RULES (D37):
   - ADJUSTED stock price ÷ RAW index close. The index is split-free; the stock
@@ -16,15 +17,23 @@ RULES (D37):
   - Percentile RS rank (1-99): the cross-stock standardization. Per trade_date,
     rank a blended RS momentum (0.6·3m + 0.4·6m rs_vs_broad slope) across the
     LIQUID universe (the same filter signals/dashboard use). "RS 90 = stronger
-    than 90% of the market." Computed in SQL with PERCENT_RANK().
+    than 90% of the market." Computed in SQL with PERCENT_RANK(). (Broad only —
+    sector RS is not cross-ranked; comparing a bank vs its bank peers and a
+    pharma vs its pharma peers on one 1-99 scale would be apples-to-oranges.)
+
+  D33b — primary sector: each stock's NARROWEST NSE sectoral index, from
+  `stock_index_membership` (size/broad indices excluded). "Narrowest" = the
+  index with the FEWEST members (most specific), ties broken alphabetically.
+  A stock in no NSE sectoral index has primary_sector = NULL (broad RS only).
 
 We UPDATE the existing stock_signals row for (symbol, trade_date) — those rows
 already exist from signals.py; we never INSERT here.
 
 Usage:
-    python -m src.automation.stock_rs --symbol PARAS      # one stock's full RS series + print latest 5 days
-    python -m src.automation.stock_rs --date 2026-06-05   # one date, all symbols, + percentile pass for that date
-    python -m src.automation.stock_rs --backfill          # all symbols + percentile pass
+    python -m src.automation.stock_rs --symbol PARAS      # one stock's full broad+sector RS + print latest 5 days
+    python -m src.automation.stock_rs --date 2026-06-05   # one date: broad + sector + percentile pass
+    python -m src.automation.stock_rs --backfill          # all symbols: broad + rank + sector
+    python -m src.automation.stock_rs --sector-backfill   # just the stock-vs-sector pass (~500 symbols, fast)
     python -m src.automation.stock_rs --rank-only         # just the percentile pass (all dates)
 """
 
@@ -34,8 +43,9 @@ from typing import Optional
 
 from src.core.db import get_conn
 from src.automation.adjust import adjusted_closes
-# REUSE the D32 ratio engine + helpers — do not reinvent the RS math.
-from src.automation.index_signals import compute_ratio_signal
+# REUSE the D32 ratio engine + the size/broad-index exclusion set — do not
+# reinvent the RS math nor re-list which indices count as "the market".
+from src.automation.index_signals import compute_ratio_signal, SIZE_BASED_INDEX_NAMES
 
 # Canonical broad benchmark. TITLE case — NSE's ind_close_all CSV stores index
 # names title-case ("Nifty 500"), and that's how index_rows holds them. Must
@@ -239,6 +249,178 @@ def run_rank_pass(trade_date: Optional[str] = None) -> int:
     return n
 
 
+# --- D33b: stock-vs-SECTOR RS ----------------------------------------------
+
+def primary_sector_map() -> dict[str, str]:
+    """Assign each stock its PRIMARY (narrowest) NSE sector index.
+
+    Among the SECTORAL indices a symbol belongs to in `stock_index_membership`
+    (size/broad indices excluded via the D32 `SIZE_BASED_INDEX_NAMES` set), pick
+    the one with the FEWEST members — the most specific. So a bank in both
+    "Nifty Financial Services" (~20) and "Nifty Bank" (~12) maps to Nifty Bank;
+    a stock in "Nifty Healthcare Index" (~20) and "Nifty Pharma" (~20-tie) is
+    resolved by the alphabetical tiebreak. Returns {symbol: index_name}; symbols
+    in no sectoral index are absent (→ NULL primary_sector → broad RS only).
+    Only the latest snapshot_date per index is used.
+    """
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT m.symbol, m.index_name
+               FROM stock_index_membership m
+               JOIN (SELECT index_name, MAX(snapshot_date) sd
+                       FROM stock_index_membership GROUP BY index_name) latest
+                 ON latest.index_name = m.index_name
+                AND latest.sd = m.snapshot_date""",
+        ).fetchall()
+    sizes: dict[str, int] = {}          # members per sectoral index
+    by_symbol: dict[str, list[str]] = {}
+    for r in rows:
+        idx = r["index_name"]
+        if idx.upper() in SIZE_BASED_INDEX_NAMES:
+            continue                    # a size/broad index is not a "sector"
+        sizes[idx] = sizes.get(idx, 0) + 1
+        by_symbol.setdefault(r["symbol"], []).append(idx)
+    # narrowest = fewest members; deterministic alphabetical tiebreak.
+    return {sym: min(idxs, key=lambda nm: (sizes[nm], nm))
+            for sym, idxs in by_symbol.items()}
+
+
+def _sector_close_maps(names: set[str]) -> dict[str, dict[str, float]]:
+    """{index_name: {trade_date: close}} for each given sector index. Loaded in
+    one query so the per-symbol loop never re-hits the DB for the denominator."""
+    out: dict[str, dict[str, float]] = {}
+    if not names:
+        return out
+    with get_conn() as conn:
+        qmarks = ",".join("?" * len(names))
+        rows = conn.execute(
+            f"""SELECT index_name, trade_date, close_value
+                FROM index_rows
+                WHERE index_name IN ({qmarks})
+                  AND close_value IS NOT NULL AND close_value > 0
+                ORDER BY trade_date ASC""",
+            tuple(names),
+        ).fetchall()
+    for r in rows:
+        out.setdefault(r["index_name"], {})[r["trade_date"]] = r["close_value"]
+    return out
+
+
+_RS_SECTOR_UPDATE_SQL = """
+    UPDATE stock_signals
+       SET primary_sector            = ?,
+           rs_vs_sector_today        = ?,
+           rs_vs_sector_slope_1m     = ?,
+           rs_vs_sector_slope_3m     = ?,
+           rs_vs_sector_slope_6m     = ?,
+           rs_vs_sector_slope_12m    = ?,
+           rs_vs_sector_above_50ma   = ?,
+           rs_vs_sector_above_200ma  = ?,
+           rs_vs_sector_new_52w_high = ?,
+           rs_vs_sector_trend_state  = ?
+     WHERE symbol = ? AND trade_date = ?
+"""
+
+
+def _sector_sig_to_update(sig: dict, symbol: str, sector_name: str) -> tuple:
+    """compute_ratio_signal() output → the rs_vs_sector UPDATE tuple (+ the
+    denormalized primary_sector), then symbol + trade_date for the WHERE."""
+    return (
+        sector_name,                  # primary_sector
+        sig["ratio"],                 # rs_vs_sector_today
+        sig["slope_1m_pct"],          # rs_vs_sector_slope_1m
+        sig["slope_3m_pct"],          # rs_vs_sector_slope_3m
+        sig["slope_6m_pct"],          # rs_vs_sector_slope_6m
+        sig["slope_12m_pct"],         # rs_vs_sector_slope_12m
+        sig["above_50_ma"],           # rs_vs_sector_above_50ma
+        sig["above_200_ma"],          # rs_vs_sector_above_200ma
+        sig["new_52w_high"],          # rs_vs_sector_new_52w_high
+        sig["trend_state"],           # rs_vs_sector_trend_state
+        symbol,                       # WHERE symbol
+        sig["trade_date"],            # WHERE trade_date
+    )
+
+
+def compute_symbol_sector_rs(symbol: str, sector_name: str,
+                             sector_close_map: dict[str, float],
+                             trade_date_filter: Optional[str] = None) -> tuple[list[dict], int]:
+    """Compute + store the rs_vs_sector series for one symbol against its
+    primary sector index. REUSES `build_rs_history` (adjusted stock close ÷ the
+    sector close map) + `compute_ratio_signal`, exactly like the broad path.
+    Returns (rs_history, n_rows_updated). Idempotent UPDATE."""
+    rs_hist = build_rs_history(symbol, sector_close_map)
+    if not rs_hist:
+        return [], 0
+    target_dates = (
+        [trade_date_filter] if trade_date_filter
+        else [r["trade_date"] for r in rs_hist]
+    )
+    updates = []
+    for d in target_dates:
+        sig = compute_ratio_signal(symbol, sector_name, rs_hist, d)
+        if sig:
+            updates.append(_sector_sig_to_update(sig, symbol, sector_name))
+    if updates:
+        with get_conn() as conn:
+            conn.executemany(_RS_SECTOR_UPDATE_SQL, updates)
+    return rs_hist, len(updates)
+
+
+def run_sector_backfill() -> tuple[int, int]:
+    """Sector RS for every symbol with a primary sector (~500), full series.
+    Returns (n_symbols, n_rows_updated)."""
+    assign = primary_sector_map()
+    if not assign:
+        log.warning("no sector assignments (stock_index_membership empty?) — "
+                    "skipping sector RS")
+        return 0, 0
+    close_maps = _sector_close_maps(set(assign.values()))
+    log.info("stock_rs SECTOR backfill: %d symbols with a primary sector across "
+             "%d sector indices", len(assign), len(close_maps))
+    total_rows = 0
+    n_syms = 0
+    for k, (sym, sector) in enumerate(sorted(assign.items()), 1):
+        cm = close_maps.get(sector)
+        if not cm:
+            log.warning("no index history for sector %s (symbol %s) — skipping",
+                        sector, sym)
+            continue
+        try:
+            _, updated = compute_symbol_sector_rs(sym, sector, cm)
+            total_rows += updated
+            n_syms += 1
+        except Exception as e:
+            log.warning("sector RS failed for %s (%s): %s", sym, sector, e)
+        if k % 50 == 0:
+            log.info("  progress: %d / %d symbols, %d sector RS rows",
+                     k, len(assign), total_rows)
+    log.info("sector backfill complete: %d symbols, %d sector RS rows",
+             n_syms, total_rows)
+    return n_syms, total_rows
+
+
+def compute_sector_for_date(trade_date: str) -> int:
+    """Sector RS for one trade_date across all symbols that have a primary
+    sector (the nightly path). Returns n rows updated."""
+    assign = primary_sector_map()
+    if not assign:
+        return 0
+    close_maps = _sector_close_maps(set(assign.values()))
+    n = 0
+    for sym, sector in assign.items():
+        cm = close_maps.get(sector)
+        if not cm:
+            continue
+        try:
+            _, updated = compute_symbol_sector_rs(
+                sym, sector, cm, trade_date_filter=trade_date)
+            n += updated
+        except Exception as e:
+            log.warning("sector RS failed for %s (%s) on %s: %s",
+                        sym, sector, trade_date, e)
+    return n
+
+
 # --- Orchestration ----------------------------------------------------------
 
 def _all_symbols_with_bhav() -> list[str]:
@@ -268,8 +450,10 @@ def compute_for_date(trade_date: str) -> tuple[int, int]:
         n += updated
         if i % 200 == 0:
             log.info("  progress: %d / %d", i, len(symbols))
+    n_sector = compute_sector_for_date(trade_date)   # D33b stock-vs-sector RS
     n_ranked = run_rank_pass(trade_date)
-    log.info("date %s done: %d RS rows, %d ranked", trade_date, n, n_ranked)
+    log.info("date %s done: %d broad RS rows, %d sector RS rows, %d ranked",
+             trade_date, n, n_sector, n_ranked)
     return n, n_ranked
 
 
@@ -327,18 +511,19 @@ def run_today() -> tuple[bool, str]:
 
 # --- CLI --------------------------------------------------------------------
 
-def _print_symbol_tail(symbol: str, rs_hist: list[dict]) -> None:
-    """Print the latest 5 days' adj_close / rs_vs_broad / slopes / trend_state
-    for one symbol — the user's spot-check (e.g. PARAS)."""
+def _print_symbol_tail(symbol: str, rs_hist: list[dict], den_label: str = BROAD) -> None:
+    """Print the latest 5 days' adj_close / RS ratio / slopes / trend_state for
+    one symbol against `den_label` — the user's spot-check (e.g. PARAS broad, or
+    a sector). den_label is only a display/label arg; the RS math is unchanged."""
     if not rs_hist:
-        log.info("%s: no RS history (no overlap with %s, or no bhav)", symbol, BROAD)
+        log.info("%s: no RS history (no overlap with %s, or no bhav)", symbol, den_label)
         return
     tail = rs_hist[-5:]
-    print(f"\n{symbol} — latest {len(tail)} RS days (rs_vs_broad = adj_close / {BROAD}):")
-    print(f"{'date':<12}{'adj_close':>12}{'rs_vs_broad':>14}"
+    print(f"\n{symbol} — latest {len(tail)} RS days (rs = adj_close / {den_label}):")
+    print(f"{'date':<12}{'adj_close':>12}{'rs_ratio':>14}"
           f"{'s1m':>8}{'s3m':>8}{'s6m':>8}{'s12m':>8}  trend")
     for r in tail:
-        sig = compute_ratio_signal(symbol, BROAD, rs_hist, r["trade_date"])
+        sig = compute_ratio_signal(symbol, den_label, rs_hist, r["trade_date"])
         if not sig:
             print(f"{r['trade_date']:<12}{r['num_close']:>12.2f}"
                   f"{r['ratio']:>14.6f}{'—':>8}{'—':>8}{'—':>8}{'—':>8}  (insufficient history)")
@@ -354,12 +539,14 @@ def _print_symbol_tail(symbol: str, rs_hist: list[dict]) -> None:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--backfill", action="store_true",
-                   help="All symbols' full RS series + final percentile pass.")
+                   help="All symbols: broad RS + percentile rank + sector RS.")
+    p.add_argument("--sector-backfill", action="store_true",
+                   help="Only the stock-vs-sector RS pass (~500 symbols, fast).")
     p.add_argument("--rank-only", action="store_true",
                    help="Only the cross-stock percentile rank pass (all dates).")
-    p.add_argument("--date", type=str, help="YYYY-MM-DD — one date, all symbols, + that date's rank pass")
+    p.add_argument("--date", type=str, help="YYYY-MM-DD — one date: broad + sector + that date's rank pass")
     p.add_argument("--symbol", type=str,
-                   help="One symbol's full RS series + print latest 5 days for verification")
+                   help="One symbol's full broad+sector RS + print latest 5 days for verification")
     args = p.parse_args()
 
     logging.basicConfig(
@@ -374,17 +561,37 @@ def main() -> None:
             log.warning("no %s index history — cannot compute RS", BROAD)
             return
         rs_hist, updated = compute_symbol_rs(sym, broad_map)
-        log.info("%s: %d RS rows updated", sym, updated)
+        log.info("%s: %d broad RS rows updated", sym, updated)
         _print_symbol_tail(sym, rs_hist)
+        # D33b — sector RS for the same symbol against its primary sector.
+        sector = primary_sector_map().get(sym)
+        if not sector:
+            log.info("%s: no primary sector (not in any NSE sectoral index) — "
+                     "broad RS only", sym)
+        else:
+            cm = _sector_close_maps({sector}).get(sector)
+            if not cm:
+                log.warning("%s: sector %s has no index history", sym, sector)
+            else:
+                s_hist, s_updated = compute_symbol_sector_rs(sym, sector, cm)
+                log.info("%s: %d sector RS rows updated (primary_sector=%s)",
+                         sym, s_updated, sector)
+                _print_symbol_tail(sym, s_hist, den_label=sector)
     elif args.rank_only:
         n = run_rank_pass()
         log.info("rank-only complete: %d rows ranked", n)
+    elif args.sector_backfill:
+        n_syms, n_rows = run_sector_backfill()
+        log.info("sector-backfill complete: %d symbols, %d sector RS rows", n_syms, n_rows)
     elif args.date:
         n, n_ranked = compute_for_date(args.date)
-        log.info("date %s done: %d RS rows, %d ranked", args.date, n, n_ranked)
+        log.info("date %s done: %d broad RS rows, %d ranked (+ sector RS)",
+                 args.date, n, n_ranked)
     elif args.backfill:
         n_syms, n_rows = run_backfill()
-        log.info("backfill complete: %d symbols, %d RS rows updated", n_syms, n_rows)
+        log.info("broad backfill complete: %d symbols, %d RS rows updated", n_syms, n_rows)
+        s_syms, s_rows = run_sector_backfill()
+        log.info("sector backfill complete: %d symbols, %d sector RS rows", s_syms, s_rows)
     else:
         ok, msg = run_today()
         log.info(msg)
