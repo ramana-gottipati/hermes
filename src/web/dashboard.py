@@ -1511,7 +1511,7 @@ const RS_SERIES = __SERIES__;
   // --- rebase (base 100) on a common forward-snapped anchor ---------------
   const lines = RS_SERIES.map(s=>({
     def:s,
-    ls:chart.addLineSeries({color:s.color,title:s.name,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true}),
+    ls:chart.addLineSeries({color:s.color,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true}),
     cur:[],
   }));
   function snapIdx(raw, target){
@@ -2864,7 +2864,7 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   // Build a line series per data series; pick its raw array (level or ratio).
   function rawOf(s){ return (mode==='ratio') ? (s.ratio||[]) : (s.level||[]); }
   const lines = SERIES.map(s=>{
-    const ls = chart.addLineSeries({color:s.color,title:s.name,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true});
+    const ls = chart.addLineSeries({color:s.color,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true});
     return {def:s, ls:ls};
   });
 
@@ -2968,17 +2968,20 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   })();
   function setRange(n){
     internalSet=true;
-    if(!n||n>=allT.length){ chart.timeScale().fitContent(); }
+    let edge;                              // the window's KNOWN left-edge date
+    if(!n||n>=allT.length){ chart.timeScale().fitContent(); edge=allT.length?allT[0]:null; }
     else {
-      const from=allT[allT.length-n], to=allT[allT.length-1];
-      chart.timeScale().setVisibleRange({from,to});
+      edge=allT[allT.length-n]; const to=allT[allT.length-1];
+      chart.timeScale().setVisibleRange({from:edge,to});
     }
     internalSet=false;
     if (pinned===null){
-      // re-anchor fluid to whatever the new left edge snapped to
-      const vr=chart.timeScale().getVisibleRange();
-      const from = vr ? timeToStr(vr.from) : (n&&n<allT.length?allT[allT.length-n]:null);
-      lastAnchor=null; scheduleRebase(from);
+      // Anchor to the window's KNOWN left edge (deterministic). getVisibleRange
+      // lags a frame on initial layout, which left the first paint rebased
+      // mid-window until the user panned. Panning still re-anchors fluidly via
+      // subscribeVisibleTimeRangeChange below.
+      lastAnchor=commonAnchor(edge);
+      internalSet=true; applyRebase(lastAnchor); internalSet=false;
     } else {
       applyRebase(pinned);
     }
@@ -3046,17 +3049,11 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   });
 
   // --- boot ----------------------------------------------------------------
-  applyRebase(null);          // seed data so the time scale has content
-  setRange(CRANGE0);          // apply the initial window (e.g. 1Y)
-  // Force the FIRST rebase to the visible left edge immediately — don't wait for
-  // a pan. Retry on rAF until the time scale has laid out a visible range.
-  (function bootAnchor(){
-    const vr=chart.timeScale().getVisibleRange();
-    const from = vr ? timeToStr(vr.from) : null;
-    if(from==null){ requestAnimationFrame(bootAnchor); return; }
-    lastAnchor=commonAnchor(from);
-    internalSet=true; applyRebase(lastAnchor); internalSet=false;
-  })();
+  // Seed data with internalSet ON so setData's auto-fit range change does NOT
+  // schedule a stray rebase that could fire after setRange and override the
+  // correct anchor (the race that pinned the first paint mid-window).
+  internalSet=true; applyRebase(null); internalSet=false;
+  setRange(CRANGE0);          // applies the window AND rebases to its known left edge
   renderVals(null);
 
   // Debounced ResizeObserver (~100ms); skip while we're mid internal set.
