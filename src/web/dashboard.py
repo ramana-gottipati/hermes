@@ -465,6 +465,30 @@ def _rupee(v) -> str:
     return f"₹{v:,.0f}"
 
 
+def _intensity(r):
+    """Today's DVPT vs the avg of its major power baselines = how hard it crossed
+    (the ranking-driving intensity). None if data missing."""
+    dvpt = r.get("dvpt")
+    powers = [r.get(k) for k in ("p1", "p3", "p6", "p12") if r.get(k)]
+    return (dvpt / (sum(powers) / len(powers))) if (powers and dvpt) else None
+
+
+def _pos_cells(r) -> str:
+    """The three shared Positioning cells — CMP·Δday, DVPT·×power, Deliv ₹ —
+    used by the Home trigger + stealth boards. Expects r with cmp/pc/dvpt/dval +
+    power baselines p1/p3/p6/p12. The ×power = today's DVPT vs the avg of its
+    major power baselines = how hard it crossed (the ranking-driving intensity)."""
+    cmp_, pc, dvpt = r.get("cmp"), r.get("pc"), r.get("dvpt")
+    cmp_str = f"₹{cmp_:,.0f}" if cmp_ is not None else "—"
+    day = _pct((cmp_ / pc - 1) * 100) if (cmp_ is not None and pc) else ""
+    powers = [r.get(k) for k in ("p1", "p3", "p6", "p12") if r.get(k)]
+    inten = (dvpt / (sum(powers) / len(powers))) if (powers and dvpt) else None
+    intx = f' · <b>{inten:.1f}×</b>' if inten else ""
+    return (f'<td>{cmp_str} {day}</td>'
+            f'<td>{_rupee(dvpt)}{intx}</td>'
+            f'<td>{_rupee(r.get("dval"))}</td>')
+
+
 @router.get("/dash", response_class=HTMLResponse)
 def dash_home() -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
@@ -531,7 +555,11 @@ def dash_home() -> HTMLResponse:
             # yet marked up) — i.e. quietly building before the crowd notices.
             stealth_stocks = [dict(x) for x in conn.execute(
                 f"""SELECT s.symbol, s.p_score psc, s.pct_from_52w_high pfh,
-                           s.accum_character ch
+                           s.accum_character ch,
+                           b.close cmp, b.prev_close pc,
+                           s.delivery_value_per_trade dvpt, s.delivery_value_today dval,
+                           s.power_dvpt_1m p1, s.power_dvpt_3m p3,
+                           s.power_dvpt_6m p6, s.power_dvpt_12m p12
                     FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                     WHERE s.trade_date=? AND s.accum_character='ACCUMULATION'
                       AND s.p_score>=3
@@ -613,17 +641,9 @@ def dash_home() -> HTMLResponse:
         ath = "⚡" if r["ath"] else ""
         pvh = r["pvh"]
         entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
-        cmp_, pc, dvpt = r.get("cmp"), r.get("pc"), r.get("dvpt")
-        cmp_str = f"₹{cmp_:,.0f}" if cmp_ is not None else "—"
-        day = _pct((cmp_ / pc - 1) * 100) if (cmp_ is not None and pc) else ""
-        powers = [r.get(k) for k in ("p1", "p3", "p6", "p12") if r.get(k)]
-        inten = (dvpt / (sum(powers) / len(powers))) if (powers and dvpt) else None
-        intx = f' · <b>{inten:.1f}×</b>' if inten else ""
         srows.append(f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                      f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
-                     f'<td>{cmp_str} {day}</td>'
-                     f'<td>{_rupee(dvpt)}{intx}</td>'
-                     f'<td>{_rupee(r.get("dval"))}</td>'
+                     f'{_pos_cells(r)}'
                      f'<td>{_pct(pvh)} {entry}</td>'
                      f'<td><span class="pill p-{rank}">{rank}</span></td>'
                      f'<td>{_char_pill(r.get("ch"))}</td></tr>')
@@ -644,10 +664,12 @@ def dash_home() -> HTMLResponse:
     if stealth_stocks:
         stl = ""
         for r in stealth_stocks:
+            psc = r["psc"] or 0
             stl += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                     f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
-                    f'<td><span class="pill p-{("SS" if (r["psc"] or 0)>=5 else "S" if (r["psc"] or 0)==4 else "A")}">'
-                    f'{r["psc"] or 0}/5</span></td>'
+                    f'{_pos_cells(r)}'
+                    f'<td><span class="pill p-{("SS" if psc>=5 else "S" if psc==4 else "A")}">'
+                    f'{psc}/5</span></td>'
                     f'<td>{_pct(r["pfh"])}</td>'
                     f'<td>{_char_pill(r.get("ch"))}</td></tr>')
         stealth_block = (
@@ -655,7 +677,8 @@ def dash_home() -> HTMLResponse:
             '<h2>Stealth accumulation <span class="sub" style="margin:0">'
             'concentrated buying, still off the highs</span></h2>'
             '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Symbol</th><th>p-score</th><th>vs 52w-hi</th><th>Character</th></tr></thead>'
+            '<thead><tr><th>Symbol</th><th>CMP · Δday</th><th>DVPT · ×power</th>'
+            '<th>Deliv ₹</th><th>p-score</th><th>vs 52w-hi</th><th>Character</th></tr></thead>'
             f'<tbody>{stl}</tbody></table></div>'
             '<a class="row sub" href="/dash/stocks">See the full screen →</a>')
 
@@ -1148,6 +1171,9 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                               s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close,
                               s.accum_character ch, s.delivery_value_today dvt,
                               s.trade_count_ratio_1m_6m tcr,
+                              s.delivery_value_per_trade dvpt,
+                              s.power_dvpt_1m p1, s.power_dvpt_3m p3,
+                              s.power_dvpt_6m p6, s.power_dvpt_12m p12,
                               s.gap_to_key_p1m gk1, s.gap_to_key_p3m gk3,
                               s.gap_to_key_p6m gk6, s.gap_to_key_p12m gk12
                        FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
@@ -1254,11 +1280,13 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                      f'data-accum="{1 if ch == "ACCUMULATION" else 0}" '
                      f'data-distrib="{1 if ch == "DISTRIBUTION" else 0}" '
                      f'data-nearkey="{1 if near_key else 0}"')
+            ix = _intensity(r)
             trs.append(
                 f'<tr {flags}><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                 f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
                 f'<td><span class="pill p-{rank}">{rank}</span></td>'
                 f'<td class="mut">{r["r_score"] or 0}/{r["p_score"] or 0}</td>'
+                f'<td><b>{(f"{ix:.1f}×" if ix else "—")}</b></td>'
                 f'<td>{_num(r["close"], 1)}</td>'
                 f'<td>{_pct(pvh)} {entry}</td>'
                 f'<td>{_char_pill(ch)}</td>'
@@ -1276,7 +1304,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                      "<button class=\"fbtn\" onclick=\"sflt('distrib',this)\">🔴 Distribution</button>"
                      "<button class=\"fbtn\" onclick=\"sflt('nearkey',this)\">🎯 Near key price</button></div>")
             table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl" class="dt">'
-                     '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th>'
+                     '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>×pow</th><th>Close</th>'
                      '<th>Δhot</th><th>Character</th><th>Deliv ₹Cr</th><th>Near-P</th></tr></thead>'
                      f'<tbody>{"".join(trs)}</tbody></table></div>')
             js = ("<script>function sflt(f,el){"
