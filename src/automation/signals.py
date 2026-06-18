@@ -309,6 +309,94 @@ def _cutoff_date(trade_date: str, days: int) -> str:
     return (dt - timedelta(days=days)).strftime("%Y-%m-%d")
 
 
+# --- D44 value-weighted institutional key price + entry/ticket/surge ---------
+# ADDITIVE — a separate compute path that reuses the already-fetched window rows
+# but never touches the D28/D31/D43 calculations. The key price refines the D31
+# flat `avg_close_p*` zones (which equal-weight close on the top-N power days):
+# here the BIG institutional day dominates the cost line (value-weighted) and we
+# use the day's avg_price (where shares actually changed hands).
+
+_KEY_BAND = (-1.0, 5.0)   # D44 asymmetric launch zone: close ∈ [key−1%, key+5%]
+
+
+def is_near_key(gap) -> bool:
+    """D44 — is a signed gap-to-key-price (%) within the asymmetric launch band?
+    Price at/just-above the institutional cost, not far below. Tunable via
+    _KEY_BAND so the band re-tunes on read with no backfill."""
+    return gap is not None and _KEY_BAND[0] <= gap <= _KEY_BAND[1]
+
+
+def _key_price_metrics(dates, dvpts, avg_prices, deliv_qtys, closes,
+                       values, volumes, num_trades, i) -> dict:
+    """Compute the 15 stored D44 numerics for row index `i` from full per-symbol
+    arrays ordered OLDEST→NEWEST.
+
+      key_price_p{label}  = value-weighted mean price over the SAME top-N power-
+                            DVPT days p_stats selects (weight = deliv_qty·price;
+                            price = avg_price, fallback close) — the big
+                            institutional day dominates the cost line.
+      gap_to_key_p{label} = (today_close − key) / key · 100  (signed; −=below cost)
+      avg_trade_qty             = volume / num_trades        (today, ticket size)
+      avg_deliv_qty_per_trade   = deliv_qty / num_trades     (today)
+      turnover_surge_{1m,3m,1y} = today value / avg(value over prior window)
+    """
+    d = dates[i]
+    today_close = closes[i]
+    out = {}
+    for label, days, top_n in _WINDOWS:
+        lo = bisect.bisect_left(dates, _cutoff_date(d, days))
+        # prior days in window (exclude today=i), ranked by DVPT desc — the
+        # SAME top-N power days p_stats picks for power_dvpt / avg_close_p.
+        cand = [j for j in range(lo, i) if dvpts[j] is not None]
+        cand.sort(key=lambda j: dvpts[j], reverse=True)
+        num = den = 0.0
+        for j in cand[:top_n]:
+            price = avg_prices[j] if avg_prices[j] is not None else closes[j]
+            dq = deliv_qtys[j]
+            if price is None or price <= 0 or dq is None:
+                continue
+            w = dq * price                 # delivered value on that day
+            if w <= 0:
+                continue
+            num += price * w
+            den += w
+        kp = (num / den) if den > 0 else None
+        out[f"key_price_p{label}"] = kp
+        out[f"gap_to_key_p{label}"] = (
+            (today_close - kp) / kp * 100.0
+            if (kp and kp > 0 and today_close is not None) else None
+        )
+
+    nt = num_trades[i]
+    out["avg_trade_qty"] = (volumes[i] / nt) if (volumes[i] is not None and nt) else None
+    out["avg_deliv_qty_per_trade"] = (deliv_qtys[i] / nt) if (deliv_qtys[i] is not None and nt) else None
+
+    today_val = values[i]
+    for label, days in (("1m", 30), ("3m", 90), ("1y", 360)):
+        lo = bisect.bisect_left(dates, _cutoff_date(d, days))
+        vals = [values[j] for j in range(lo, i) if values[j] is not None]
+        avgv = (sum(vals) / len(vals)) if vals else None
+        out[f"turnover_surge_{label}"] = (
+            (today_val / avgv) if (today_val and avgv and avgv > 0) else None
+        )
+    return out
+
+
+def _key_price_arrays(asc_rows) -> tuple:
+    """Per-symbol arrays for _key_price_metrics from bhav rows OLDEST→NEWEST.
+    Each row needs close/avg_price/value/volume/deliv_qty/num_trades."""
+    dates      = [r["trade_date"] for r in asc_rows]
+    dvpts      = [_delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
+                  for r in asc_rows]
+    avg_prices = [r["avg_price"] for r in asc_rows]
+    deliv_qtys = [r["deliv_qty"] for r in asc_rows]
+    closes     = [r["close"] for r in asc_rows]
+    values     = [r["value"] for r in asc_rows]
+    volumes    = [r["volume"] for r in asc_rows]
+    num_trades = [r["num_trades"] for r in asc_rows]
+    return dates, dvpts, avg_prices, deliv_qtys, closes, values, volumes, num_trades
+
+
 def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[dict]:
     """Compute the full signal row for one (symbol, trade_date).
 
@@ -324,7 +412,8 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     with get_conn() as conn:
         rows = conn.execute(
             """
-            SELECT trade_date, close, prev_close, value, deliv_qty, deliv_per, num_trades
+            SELECT trade_date, close, prev_close, avg_price, value, volume,
+                   deliv_qty, deliv_per, num_trades
             FROM bhavcopy_rows
             WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
               AND trade_date <= ? AND trade_date >= ?
@@ -483,6 +572,12 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
         cm["accum_price_drift_3m"], cm["pct_from_52w_high"],
     )
 
+    # --- D44 value-weighted key price + entry/ticket/surge (ADDITIVE) ------
+    # Reuses the same oldest→newest `asc` rows; computes only the 15 NEW
+    # columns and never touches anything set above.
+    kp_arrays = _key_price_arrays(asc)
+    signal.update(_key_price_metrics(*kp_arrays, len(asc) - 1))
+
     return signal
 
 
@@ -584,6 +679,11 @@ _SIGNAL_COLS = [
     "avg_deliv_pct_1m", "avg_deliv_pct_6m",
     "deliv_updown_ratio_3m", "accum_price_drift_3m", "pct_from_52w_high",
     "accum_character",
+    # D44 value-weighted key price + multi-horizon entry gap + ticket + surge
+    "key_price_p1m", "key_price_p2m", "key_price_p3m", "key_price_p6m", "key_price_p12m",
+    "gap_to_key_p1m", "gap_to_key_p2m", "gap_to_key_p3m", "gap_to_key_p6m", "gap_to_key_p12m",
+    "avg_trade_qty", "avg_deliv_qty_per_trade",
+    "turnover_surge_1m", "turnover_surge_3m", "turnover_surge_1y",
 ]
 
 
@@ -906,6 +1006,85 @@ def run_relabel_character() -> tuple[int, int]:
     return len(symbols), total
 
 
+# --- D44 key-price backfill — ADDITIVE, UPDATE-only (never INSERT OR REPLACE) -
+
+def _backfill_keyprice_for_symbol(conn, symbol: str) -> int:
+    """Populate ONLY the 15 D44 columns (key price / entry gap / ticket / surge)
+    for every existing stock_signals row of `symbol`. Pure additive UPDATE — it
+    touches no other column, so all D28/D31/D43 values stay byte-identical."""
+    bhav = conn.execute(
+        """SELECT trade_date, close, avg_price, value, volume, deliv_qty, num_trades
+           FROM bhavcopy_rows
+           WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
+           ORDER BY trade_date ASC""",
+        (symbol,),
+    ).fetchall()
+    if not bhav:
+        return 0
+
+    arrays = _key_price_arrays(bhav)
+    dates = arrays[0]
+    date_to_idx = {d: j for j, d in enumerate(dates)}
+
+    sig_dates = [r["trade_date"] for r in conn.execute(
+        "SELECT trade_date FROM stock_signals WHERE symbol = ? ORDER BY trade_date ASC",
+        (symbol,),
+    ).fetchall()]
+
+    updates = []
+    for d in sig_dates:
+        i = date_to_idx.get(d)
+        if i is None:
+            continue
+        m = _key_price_metrics(*arrays, i)
+        updates.append((
+            m["key_price_p1m"], m["key_price_p2m"], m["key_price_p3m"],
+            m["key_price_p6m"], m["key_price_p12m"],
+            m["gap_to_key_p1m"], m["gap_to_key_p2m"], m["gap_to_key_p3m"],
+            m["gap_to_key_p6m"], m["gap_to_key_p12m"],
+            m["avg_trade_qty"], m["avg_deliv_qty_per_trade"],
+            m["turnover_surge_1m"], m["turnover_surge_3m"], m["turnover_surge_1y"],
+            symbol, d,
+        ))
+
+    if updates:
+        conn.executemany(
+            """UPDATE stock_signals
+                  SET key_price_p1m = ?, key_price_p2m = ?, key_price_p3m = ?,
+                      key_price_p6m = ?, key_price_p12m = ?,
+                      gap_to_key_p1m = ?, gap_to_key_p2m = ?, gap_to_key_p3m = ?,
+                      gap_to_key_p6m = ?, gap_to_key_p12m = ?,
+                      avg_trade_qty = ?, avg_deliv_qty_per_trade = ?,
+                      turnover_surge_1m = ?, turnover_surge_3m = ?, turnover_surge_1y = ?
+                WHERE symbol = ? AND trade_date = ?""",
+            updates,
+        )
+    return len(updates)
+
+
+def run_backfill_keyprice() -> tuple[int, int]:
+    """D44 ADDITIVE backfill of the 15 key-price/ticket/surge columns for every
+    existing stock_signals row. UPDATE-only — deliberately does NOT re-run
+    --backfill-triggers (that would needlessly rewrite established values)."""
+    with get_conn() as conn:
+        symbols = [r["symbol"] for r in conn.execute(
+            "SELECT DISTINCT symbol FROM stock_signals ORDER BY symbol"
+        ).fetchall()]
+    log.info("backfill-keyprice: %d symbols to walk", len(symbols))
+
+    total = 0
+    for k, sym in enumerate(symbols, 1):
+        with get_conn() as conn:
+            try:
+                total += _backfill_keyprice_for_symbol(conn, sym)
+            except Exception as e:
+                log.warning("backfill-keyprice failed for %s: %s", sym, e)
+        if k % 200 == 0:
+            log.info("  keyprice progress: %d / %d symbols, %d rows", k, len(symbols), total)
+    log.info("backfill-keyprice complete: %d symbols, %d rows", len(symbols), total)
+    return len(symbols), total
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--backfill", action="store_true")
@@ -918,6 +1097,10 @@ def main() -> None:
     p.add_argument("--relabel-character", action="store_true",
                    help="Recompute ONLY accum_character from stored numerics "
                         "(fast — for re-tuning _CHAR_THRESH without a full backfill).")
+    p.add_argument("--backfill-keyprice", action="store_true",
+                   help="D44 ADDITIVE backfill — populate ONLY the 15 key-price / "
+                        "entry-gap / ticket-size / turnover-surge columns via "
+                        "UPDATE. Never rewrites D28/D31/D43 values.")
     p.add_argument("--date", type=str, help="YYYY-MM-DD")
     p.add_argument("--symbol", type=str, help="compute one symbol's latest signal")
     args = p.parse_args()
@@ -953,6 +1136,10 @@ def main() -> None:
     elif args.relabel_character:
         n_syms, n_rows = run_relabel_character()
         log.info("character relabel complete: %d symbols, %d rows updated",
+                 n_syms, n_rows)
+    elif args.backfill_keyprice:
+        n_syms, n_rows = run_backfill_keyprice()
+        log.info("key-price backfill complete: %d symbols, %d rows updated",
                  n_syms, n_rows)
     elif args.date:
         compute_for_date(args.date)

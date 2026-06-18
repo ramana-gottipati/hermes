@@ -503,6 +503,33 @@ def _init() -> None:
         _ensure_column(conn, "stock_signals", "pct_from_52w_high",       "REAL")
         _ensure_column(conn, "stock_signals", "accum_character",         "TEXT")
 
+        # 4h. D44 — value-weighted institutional KEY PRICE + multi-horizon entry
+        # gap + ticket-size + activity-surge. ALL ADDITIVE: these refine the D31
+        # flat `avg_close_p*` zones (which equal-weight close on the top-N power
+        # days) WITHOUT modifying them — the big institutional day dominates the
+        # value-weighted cost line, computed on the day's avg_price.
+        #   key_price_p*    = Σ(price·deliv_value) / Σ(deliv_value) over the SAME
+        #                     top-N power-DVPT days; gap_to_key_p* = signed % of
+        #                     today's close vs that key (− below cost, + above).
+        #   near_key is DERIVED on read (band _KEY_BAND) — no column.
+        #   avg_trade_qty / avg_deliv_qty_per_trade = today's ticket size.
+        #   turnover_surge_{1m,3m,1y} = today value ÷ its own rolling avg.
+        _ensure_column(conn, "stock_signals", "key_price_p1m",          "REAL")
+        _ensure_column(conn, "stock_signals", "key_price_p2m",          "REAL")
+        _ensure_column(conn, "stock_signals", "key_price_p3m",          "REAL")
+        _ensure_column(conn, "stock_signals", "key_price_p6m",          "REAL")
+        _ensure_column(conn, "stock_signals", "key_price_p12m",         "REAL")
+        _ensure_column(conn, "stock_signals", "gap_to_key_p1m",         "REAL")
+        _ensure_column(conn, "stock_signals", "gap_to_key_p2m",         "REAL")
+        _ensure_column(conn, "stock_signals", "gap_to_key_p3m",         "REAL")
+        _ensure_column(conn, "stock_signals", "gap_to_key_p6m",         "REAL")
+        _ensure_column(conn, "stock_signals", "gap_to_key_p12m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_trade_qty",          "REAL")
+        _ensure_column(conn, "stock_signals", "avg_deliv_qty_per_trade","REAL")
+        _ensure_column(conn, "stock_signals", "turnover_surge_1m",      "REAL")
+        _ensure_column(conn, "stock_signals", "turnover_surge_3m",      "REAL")
+        _ensure_column(conn, "stock_signals", "turnover_surge_1y",      "REAL")
+
         # 4c. Indexes on the new columns (post-ALTER, guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_p_score "

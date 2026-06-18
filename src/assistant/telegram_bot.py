@@ -29,7 +29,7 @@ from telegram.ext import (
 )
 
 from src.assistant import chat, conversations
-from src.automation.signals import accum_character_read
+from src.automation.signals import accum_character_read, is_near_key
 from src.core.db import get_conn
 from src.core.settings import settings
 
@@ -288,7 +288,13 @@ def _fetch_flow_rows(ticker: str, days: int) -> list[dict]:
                       s.deliv_value_ratio_1m_6m, s.trade_count_ratio_1m_6m,
                       s.avg_deliv_pct_1m, s.avg_deliv_pct_6m,
                       s.deliv_updown_ratio_3m, s.accum_price_drift_3m,
-                      s.pct_from_52w_high
+                      s.pct_from_52w_high,
+                      s.key_price_p1m, s.key_price_p2m, s.key_price_p3m,
+                      s.key_price_p6m, s.key_price_p12m,
+                      s.gap_to_key_p1m, s.gap_to_key_p2m, s.gap_to_key_p3m,
+                      s.gap_to_key_p6m, s.gap_to_key_p12m,
+                      s.avg_trade_qty, s.avg_deliv_qty_per_trade,
+                      s.turnover_surge_1m, s.turnover_surge_3m, s.turnover_surge_1y
                FROM stock_signals s
                JOIN bhavcopy_rows b USING (symbol, trade_date)
                WHERE s.symbol = ? AND b.series = 'EQ'
@@ -336,6 +342,43 @@ def _char_tag(label) -> str:
 def _char_marker(label) -> str:
     """One-glyph character marker for fixed-width scan rows."""
     return _CHAR_MARK.get(label or "", " ")
+
+
+def _format_keyprice_block(latest: dict) -> list[str]:
+    """D44 — the '📍 Key price (value-weighted)' block: per-horizon institutional
+    key price + signed gap + 🎯 near-key flag + ticket size + turnover surge.
+    Empty list until the key-price backfill has run (pre-D44 rows)."""
+    defs = (("1M", "key_price_p1m", "gap_to_key_p1m"),
+            ("2M", "key_price_p2m", "gap_to_key_p2m"),
+            ("3M", "key_price_p3m", "gap_to_key_p3m"),
+            ("6M", "key_price_p6m", "gap_to_key_p6m"),
+            ("12M", "key_price_p12m", "gap_to_key_p12m"))
+    if not any(latest.get(c) for _, c, _ in defs):
+        return []
+    out = ["<b>📍 Key price (value-weighted — big institutional day dominates)</b>"]
+    near = []
+    for lbl, kc, gc in defs:
+        kp = latest.get(kc)
+        if kp is None:
+            continue
+        g = latest.get(gc)
+        nk = is_near_key(g)
+        if nk:
+            near.append(lbl)
+        gtxt = f"{g:+.1f}%" if g is not None else "—"
+        out.append(f"  {lbl}: ₹{kp:,.1f} ({gtxt}){' 🎯' if nk else ''}")
+    if near:
+        out.append(f"<i>🎯 launch band on {', '.join(near)} — close within −1%…+5% "
+                   f"of the institutional cost.</i>")
+    tq = latest.get("avg_trade_qty")
+    td = latest.get("avg_deliv_qty_per_trade")
+    s1, s3, s1y = (latest.get("turnover_surge_1m"), latest.get("turnover_surge_3m"),
+                   latest.get("turnover_surge_1y"))
+    out.append(
+        f"  Ticket: {_fmt_int(tq) if tq is not None else '—'} sh/trade · "
+        f"deliv {_fmt_int(td) if td is not None else '—'} · surge 1m/3m/1y: "
+        f"{_fmt_ratio(s1)}× / {_fmt_ratio(s3)}× / {_fmt_ratio(s1y)}×")
+    return out
 
 
 def _format_character_block(latest: dict) -> list[str]:
@@ -428,6 +471,12 @@ def _format_flow_message(ticker: str, rows: list[dict]) -> str:
     if char_lines:
         lines.append("")
         lines.extend(char_lines)
+
+    # --- D44 value-weighted key price + entry/ticket/surge ----------------
+    kp_lines = _format_keyprice_block(latest)
+    if kp_lines:
+        lines.append("")
+        lines.extend(kp_lines)
 
     lines.append("")
     lines.append(

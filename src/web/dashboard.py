@@ -30,7 +30,7 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
-from src.automation.signals import accum_character_read
+from src.automation.signals import accum_character_read, is_near_key
 from src.core.db import get_conn
 
 router = APIRouter()
@@ -1015,7 +1015,9 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                               s.is_ath_dvpt ath, s.price_vs_hot_avg_pct pvh,
                               s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close,
                               s.accum_character ch, s.delivery_value_today dvt,
-                              s.trade_count_ratio_1m_6m tcr
+                              s.trade_count_ratio_1m_6m tcr,
+                              s.gap_to_key_p1m gk1, s.gap_to_key_p3m gk3,
+                              s.gap_to_key_p6m gk6, s.gap_to_key_p12m gk12
                        FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                        WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
                        {_SCAN_FILTERS}{sector_clause}
@@ -1110,13 +1112,16 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
             ch = r.get("ch")
             dvt = r.get("dvt")
             dvt_cr = f'{dvt/1e7:,.1f}' if dvt else "—"   # ₹ → Cr
+            # D44 near-key (any horizon gap within the asymmetric launch band)
+            near_key = any(is_near_key(r.get(g)) for g in ("gk1", "gk3", "gk6", "gk12"))
             flags = (f'data-ss="{1 if rank == "SS" else 0}" '
                      f'data-aplus="{1 if (r["p_score"] or 0) >= 3 else 0}" '
                      f'data-ath="{1 if r["ath"] else 0}" '
                      f'data-disc="{1 if (pvh is not None and pvh < -3) else 0}" '
                      f'data-near="{near_flag}" '
                      f'data-accum="{1 if ch == "ACCUMULATION" else 0}" '
-                     f'data-distrib="{1 if ch == "DISTRIBUTION" else 0}"')
+                     f'data-distrib="{1 if ch == "DISTRIBUTION" else 0}" '
+                     f'data-nearkey="{1 if near_key else 0}"')
             trs.append(
                 f'<tr {flags}><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                 f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
@@ -1136,7 +1141,8 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                      "<button class=\"fbtn\" onclick=\"sflt('disc',this)\">🟢 Discount</button>"
                      "<button class=\"fbtn\" onclick=\"sflt('near',this)\">🔥 Near-break</button>"
                      "<button class=\"fbtn\" onclick=\"sflt('accum',this)\">🟢 Accumulation</button>"
-                     "<button class=\"fbtn\" onclick=\"sflt('distrib',this)\">🔴 Distribution</button></div>")
+                     "<button class=\"fbtn\" onclick=\"sflt('distrib',this)\">🔴 Distribution</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('nearkey',this)\">🎯 Near key price</button></div>")
             table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl" class="dt">'
                      '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th>'
                      '<th>Δhot</th><th>Character</th><th>Deliv ₹Cr</th><th>Near-P</th></tr></thead>'
@@ -1176,8 +1182,95 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                         for s in watch)
         watch_block = f'<h2>Watchlist</h2><div class="chips">{chips}</div>'
 
-    body = search + ptoggle + badge + head + table + watch_block + js
+    wb_link = ('<a class="row sub" href="/dash/workbench" style="margin:0 0 8px">'
+               'Workbench ⇄ <span class="mut">every signal in one sortable, downloadable table</span></a>')
+    body = search + ptoggle + badge + wb_link + head + table + watch_block + js
     return HTMLResponse(_shell("Stocks — Hermes", body, "stocks", sig_date or ""))
+
+
+@router.get("/dash/workbench", response_class=HTMLResponse)
+def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
+    """D44 — every DVPT / key-price / character / activity signal for the latest
+    day in ONE wide, sortable, downloadable table. Render-only; reuses the
+    existing `_DT_JS` data-grid toolbar (click-sort, filter, Export-to-CSV)."""
+    sig_date, _ = _latest_dates()
+    rows = []
+    if sig_date:
+        with get_conn() as conn:
+            rows = [dict(r) for r in conn.execute(
+                f"""SELECT s.symbol, b.close, s.delivery_value_per_trade dvpt,
+                          s.trigger_rank rank, s.r_score, s.p_score, s.accum_character ch,
+                          s.key_price_p3m kp3, s.gap_to_key_p3m gk3,
+                          s.key_price_p6m kp6, s.gap_to_key_p6m gk6,
+                          s.key_price_p12m kp12, s.gap_to_key_p12m gk12,
+                          s.power_dvpt_3m pw3, s.avg_close_p3m ac3,
+                          s.avg_trade_qty atq, s.avg_deliv_qty_per_trade adq,
+                          s.turnover_surge_1m su1, s.turnover_surge_3m su3,
+                          s.turnover_surge_1y su1y,
+                          s.delivery_value_today dvt, s.pct_from_52w_high hh
+                   FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                   WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                   {_SCAN_FILTERS}
+                   ORDER BY COALESCE(s.p_score,-1) DESC,
+                            COALESCE(s.delivery_value_today,0) DESC
+                   LIMIT ?""",
+                (sig_date, limit)).fetchall()]
+
+    def kpf(v):
+        return f'₹{v:,.1f}' if v is not None else '—'
+
+    def gapcell(g):
+        if g is None:
+            return '<td class="mut">—</td>'
+        sty = ' style="background:#16341f;color:#7ee787;font-weight:700"' if is_near_key(g) else ''
+        return f'<td{sty}>{g:+.1f}%</td>'
+
+    def nf(v, d=0):
+        return _num(v, d) if v is not None else '—'
+
+    trs = []
+    for r in rows:
+        rank = r["rank"] or "-"
+        dvt = r["dvt"]
+        dvt_cr = f'{dvt/1e7:,.1f}' if dvt else '—'
+        trs.append(
+            f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+            f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
+            f'<td>{nf(r["close"],1)}</td>'
+            f'<td>{nf(r["dvpt"],0)}</td>'
+            f'<td><span class="pill p-{rank}">{rank}</span></td>'
+            f'<td class="mut">{r["r_score"] or 0}/{r["p_score"] or 0}</td>'
+            f'<td>{_char_pill(r["ch"])}</td>'
+            f'<td>{kpf(r["kp3"])}</td>{gapcell(r["gk3"])}'
+            f'<td>{kpf(r["kp6"])}</td>{gapcell(r["gk6"])}'
+            f'<td>{kpf(r["kp12"])}</td>{gapcell(r["gk12"])}'
+            f'<td>{nf(r["pw3"],0)}</td>'
+            f'<td>{kpf(r["ac3"])}</td>'
+            f'<td>{nf(r["atq"],0)}</td>'
+            f'<td>{nf(r["adq"],0)}</td>'
+            f'<td>{nf(r["su1"],2)}</td><td>{nf(r["su3"],2)}</td><td>{nf(r["su1y"],2)}</td>'
+            f'<td>{dvt_cr}</td>'
+            f'<td>{_pct(r["hh"])}</td></tr>')
+
+    head = ('<thead><tr><th>Symbol</th><th>Close</th><th>DVPT</th><th>Rank</th><th>r/p</th>'
+            '<th>Character</th><th>Key 3m</th><th>Gap 3m</th><th>Key 6m</th><th>Gap 6m</th>'
+            '<th>Key 12m</th><th>Gap 12m</th><th>Pow 3m</th><th>AvgClose 3m</th>'
+            '<th>Trade qty</th><th>Deliv/tr</th><th>Surge 1m</th><th>Surge 3m</th><th>Surge 1y</th>'
+            '<th>Deliv ₹Cr</th><th>52w-hi</th></tr></thead>')
+    if trs:
+        table = ('<div class="card" style="padding:6px 10px;overflow-x:auto">'
+                 '<table class="dt" style="min-width:1180px">'
+                 + head + f'<tbody>{"".join(trs)}</tbody></table></div>')
+    else:
+        table = '<div class="empty">No data yet.</div>'
+
+    body = (_strategy_badge("POS") +
+            '<h2>Workbench <span class="sub" style="margin:0">every signal, one table</span></h2>'
+            '<div class="sub">Latest day · liquid equity universe. Click a header to sort · type to filter · '
+            '<b>⬇ Export</b> to CSV/Excel. 🟢 gap cell = in the launch band (−1%…+5% of the value-weighted '
+            'key price). <a class="row" style="display:inline" href="/dash/stocks">← back to screen</a></div>'
+            + table)
+    return HTMLResponse(_shell("Workbench — Hermes", body, "stocks", sig_date or ""))
 
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
@@ -1348,6 +1441,58 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 <div class="sub" style="margin:10px 0 6px;">R-tier — flat baseline zone</div>
 {r_rows}
 </div>
+"""
+
+    # --- D44 value-weighted institutional KEY PRICE (additive, beside zones) --
+    kp_defs = [("1M", "key_price_p1m", "gap_to_key_p1m"),
+               ("2M", "key_price_p2m", "gap_to_key_p2m"),
+               ("3M", "key_price_p3m", "gap_to_key_p3m"),
+               ("6M", "key_price_p6m", "gap_to_key_p6m"),
+               ("12M", "key_price_p12m", "gap_to_key_p12m")]
+    has_kp = any(L.get(c) for _, c, _ in kp_defs)
+    keyprice_html = ""
+    if has_kp:
+        kp_rows = ""
+        near = []
+        for lbl, kc, gc in kp_defs:
+            kp = L.get(kc)
+            g = L.get(gc)
+            if kp is None:
+                kp_rows += (f'<div class="zone"><span class="lbl">{lbl}</span>'
+                            f'<span class="val mut">—</span><span class="val mut">—</span></div>')
+                continue
+            nk = is_near_key(g)
+            if nk:
+                near.append(lbl)
+            mk = "🎯" if nk else ("🟢" if (g is not None and g < -1)
+                                  else ("🔴" if (g is not None and g > 5) else "🟡"))
+            kp_rows += (f'<div class="zone"><span class="lbl">{lbl}</span>'
+                        f'<span class="val">₹{kp:,.1f}</span>'
+                        f'<span class="val">{_pct(g)} {mk}</span></div>')
+        g3 = L.get("gap_to_key_p3m")
+        if near:
+            read = (f'🎯 <b>In the launch band</b> on {", ".join(near)} — close ₹{_num(today_close,1)} '
+                    f'is within −1%…+5% of the value-weighted institutional cost.')
+        elif g3 is not None and g3 < -1:
+            read = (f'Close is <b>{g3:+.1f}%</b> below the 3m key price — under institutional cost '
+                    f'(discount, not yet in the launch band).')
+        elif g3 is not None and g3 > 5:
+            read = f'Close is <b>{g3:+.1f}%</b> above the 3m key price — extended beyond the launch band.'
+        else:
+            read = 'No horizon in the launch band right now.'
+        tq, td = L.get("avg_trade_qty"), L.get("avg_deliv_qty_per_trade")
+        s1, s3, s1y = L.get("turnover_surge_1m"), L.get("turnover_surge_3m"), L.get("turnover_surge_1y")
+        meta = (f'<div class="sub" style="margin:8px 0 0">Ticket: '
+                f'<b>{_num(tq,0) if tq is not None else "—"}</b> sh/trade · deliv '
+                f'<b>{_num(td,0) if td is not None else "—"}</b> sh/trade · turnover surge 1m/3m/1y: '
+                f'{_num(s1,2) if s1 is not None else "—"}× / {_num(s3,2) if s3 is not None else "—"}× / '
+                f'{_num(s1y,2) if s1y is not None else "—"}×</div>')
+        keyprice_html = f"""
+<h2>Institutional key price <span class="mut" style="font-size:13px">value-weighted</span></h2>
+<div class="sub">Weighted by delivered value on the top-N power days (the big institutional day dominates the cost line), priced at the day's avg price. Gap = today's close vs that key. 🎯 launch band (−1%…+5%).</div>
+<div class="card">{kp_rows}</div>
+<div class="sub" style="margin:6px 0 0">{read}</div>
+{meta}
 """
 
     # --- DVPT inertia: today vs every avg (R) + power (P) baseline --------
@@ -1699,6 +1844,8 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 </div>
 
 {zones_html}
+
+{keyprice_html}
 
 {pt14_html}
 
