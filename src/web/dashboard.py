@@ -2932,6 +2932,7 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
       l.ls.setData(out);
     }
     relabel(anchor);
+    requestAnimationFrame(positionNames);
   }
 
   // --- fluid anchor: recompute on pan, rAF-coalesced + anchor-gated --------
@@ -2953,6 +2954,7 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   chart.timeScale().subscribeVisibleTimeRangeChange(r=>{
     if(!r) return;
     scheduleRebase(timeToStr(r.from));
+    requestAnimationFrame(positionNames);
   });
 
   // --- range buttons (re-anchor fluid to the new left edge) ----------------
@@ -3056,9 +3058,25 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   setRange(CRANGE0);          // applies the window AND rebases to its known left edge
   renderVals(null);
 
+  // Name labels in the right gutter, each aligned to its line's last-value pixel
+  // (value badge stays on the axis; the name sits just outside it). Nearby labels
+  // are nudged apart so they don't overlap. "Nifty " prefix dropped for brevity.
+  function positionNames(){
+    const cont=document.getElementById('cmpNames'); if(!cont) return;
+    const items=[];
+    for(const l of lines){ const dat=l.ls.data(); if(!dat||!dat.length) continue;
+      const v=dat[dat.length-1].value; if(v==null) continue;
+      const y=l.ls.priceToCoordinate(v); if(y==null) continue;
+      items.push({name:l.def.name.replace(/^Nifty /,''),color:l.def.color,y:y}); }
+    items.sort((a,b)=>a.y-b.y);
+    for(let i=1;i<items.length;i++){ if(items[i].y-items[i-1].y<13) items[i].y=items[i-1].y+13; }
+    cont.innerHTML=items.map(it=>'<span style="position:absolute;right:3px;top:'+it.y.toFixed(1)
+      +'px;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:'
+      +it.color+';text-shadow:0 0 3px #0e1116,0 0 2px #0e1116">'+_e(it.name)+'</span>').join('');
+  }
   // Debounced ResizeObserver (~100ms); skip while we're mid internal set.
   let rzT=null;
-  new ResizeObserver(()=>{ if(internalSet) return; if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
+  new ResizeObserver(()=>{ if(internalSet) return; if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); positionNames(); },100); }).observe(host);
 })();
 </script>
 """
@@ -3343,7 +3361,11 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         + range_bar
         + pin_bar
         + '<div class="cmp-anchor" id="cmpAnchorLbl">REBASED FROM <b>start</b></div>'
-        '<div class="chartwrap"><div id="compareChart" style="height:320px;"></div></div>'
+        '<div class="chartwrap"><div style="position:relative">'
+        '<div id="compareChart" style="height:320px;margin-right:104px;"></div>'
+        '<div id="cmpNames" style="position:absolute;top:0;right:0;bottom:0;width:104px;'
+        'pointer-events:none;overflow:visible;"></div>'
+        '</div></div>'
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
         + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json).replace("__MAX__", str(_COMPARE_MAX)))
