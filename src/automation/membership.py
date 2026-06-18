@@ -57,6 +57,12 @@ INDEX_CONSTITUENTS: dict[str, str] = {
     "Nifty Consumer Durables":  "ind_niftyconsumerdurableslist",
     "Nifty Oil & Gas":          "ind_niftyoilgaslist",
     "Nifty PSU Bank":           "ind_niftypsubanklist",
+    # --- D41 Phase 2: the "real sectors" that were whitelisted in rotation but
+    # whose constituents were never loaded (so sector->stock drill came up empty).
+    # Slugs verified reachable; member counts noted at add-time.
+    "Nifty India Defence":      "ind_niftyindiadefence_list",   # ~19 members
+    "Nifty Private Bank":       "ind_nifty_privatebanklist",    # ~10 members
+    "Nifty Chemicals":          "ind_niftychemicals_list",      # ~20 members
 }
 
 
