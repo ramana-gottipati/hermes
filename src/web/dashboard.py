@@ -2858,7 +2858,7 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   const chart = LightweightCharts.createChart(host, Object.assign({height:320}, common));
 
   let mode = (CMODE0==='ratio') ? 'ratio' : 'rebase';
-  let base = (CBASE0==='0') ? '0' : '100';
+  const base = '100';         // always base-100 (matches the stock RS overlay chart)
   let pinned = null;          // null => fluid; else a 'YYYY-MM-DD' anchor
 
   // Build a line series per data series; pick its raw array (level or ratio).
@@ -3007,15 +3007,6 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
       applyRebase(a);
     };
   });
-  // --- base toggle (rebased geometry; relabel/offset, instant) -------------
-  document.querySelectorAll('[data-cbase]').forEach(b=>{
-    b.onclick=()=>{
-      base = b.dataset.cbase;
-      document.querySelectorAll('[data-cbase]').forEach(x=>x.classList.toggle('on', x===b));
-      applyRebase(pinned!==null?pinned:anchorDate);
-    };
-  });
-
   function curFrom(){
     const vr=chart.timeScale().getVisibleRange();
     return vr ? timeToStr(vr.from) : null;
@@ -3070,7 +3061,20 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
 
 # Sticky deterministic palette — index i → color (removing a line never recolors
 # the others, because color is assigned by selection order at render time).
-_COMPARE_PALETTE = ["#1f6feb", "#d29922", "#3fb950", "#f85149", "#a371f7", "#58a6ff"]
+_COMPARE_PALETTE = ["#1f6feb", "#d29922", "#3fb950", "#f85149", "#a371f7", "#39c5cf",
+                    "#ff7b72", "#e3b341", "#56d364", "#ffa657", "#79c0ff", "#ff9bce"]
+# Soft cap — not a technical limit (the chart renders any number of series); it
+# keeps the overlay readable + the URL sane. Colors are generated past the
+# curated palette (golden-angle hue spacing), so it can be raised freely.
+_COMPARE_MAX = 12
+
+
+def _cmp_color(i: int) -> str:
+    """Distinct line color for selection index i — curated palette first, then
+    golden-angle HSL for any overflow (always visually separable)."""
+    if i < len(_COMPARE_PALETTE):
+        return _COMPARE_PALETTE[i]
+    return f"hsl({int((i * 137.508) % 360)},70%,60%)"
 
 
 @router.get("/dash/compare", response_class=HTMLResponse)
@@ -3079,7 +3083,7 @@ def dash_compare(idx: list[str] = Query(default=[]),
                  mode: str = Query("rebase"),
                  base: str = Query("100"),
                  r: int = Query(252)) -> HTMLResponse:
-    """Overlay ≤6 indices on one chart, each rebased to a common (fluid) anchor.
+    """Overlay up to _COMPARE_MAX indices on one chart, each rebased to a common (fluid) anchor.
 
     Render-only (D40): RAW values out of index_rows/ratio_rows, rebased client-
     side. URL is the source of truth (?idx=A&idx=B&den=&mode=&base=&r=).
@@ -3108,7 +3112,7 @@ def dash_compare(idx: list[str] = Query(default=[]),
             if n in valid_set and n not in seen:
                 sel.append(n)
                 seen.add(n)
-            if len(sel) >= 6:
+            if len(sel) >= _COMPARE_MAX:
                 break
 
         series = []
@@ -3140,7 +3144,7 @@ def dash_compare(idx: list[str] = Query(default=[]),
                 series.append({
                     "i": i,
                     "name": name,
-                    "color": _COMPARE_PALETTE[i % len(_COMPARE_PALETTE)],
+                    "color": _cmp_color(i),
                     "level": levels.get(name, []),
                     "ratio": ratios.get(name, []),
                 })
@@ -3149,7 +3153,7 @@ def dash_compare(idx: list[str] = Query(default=[]),
 
     # --- Picker: active chips (legend) + [+ Add] reveal -> search + suggestions
     def _chip(name, i):
-        color = _COMPARE_PALETTE[i % len(_COMPARE_PALETTE)]
+        color = _cmp_color(i)
         rest = [x for x in sel if x != name]
         href = "/dash/compare?" + "&".join(
             [f"idx={_q(x)}" for x in rest]
@@ -3172,7 +3176,7 @@ def dash_compare(idx: list[str] = Query(default=[]),
             f'+ {_esc(n)}</button>' for n in avail)
         return f'<div class="ghdr">{_esc(label)}</div><div class="chips">{chips}</div>'
 
-    at_cap = len(sel) >= 6
+    at_cap = len(sel) >= _COMPARE_MAX
     sugg_html = ""
     if not at_cap:
         sugg_html = (_sugg_group("Broad / size", MAJOR_BROAD)
@@ -3188,13 +3192,13 @@ def dash_compare(idx: list[str] = Query(default=[]),
             '<input id="cmpSearch" placeholder="Filter indices to add…" autocomplete="off"/>'
             '<button class="dtx" id="cmpAddConfirm" type="button" disabled>Add</button>'
             '</div>'
-            '<div class="sub" style="margin:2px 0 6px">Tap any number of indices, then '
-            '<b>Add</b> (up to 6 total).</div>'
+            f'<div class="sub" style="margin:2px 0 6px">Tap any number of indices, then '
+            f'<b>Add</b> (up to {_COMPARE_MAX} total).</div>'
             f'<div id="cmpSugg">{sugg_html}</div>'
             '</div>')
         add_btn = '<button class="chip" id="cmpAddBtn" type="button">+ Add</button>'
     else:
-        add_btn = '<span class="chip cmp-dim">max 6</span>'
+        add_btn = f'<span class="chip cmp-dim">max {_COMPARE_MAX}</span>'
 
     picker_html = (
         '<div class="cmp-rail">' + active_chips + add_btn + '</div>' + add_block)
@@ -3266,7 +3270,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
             + preset_html
             + picker_html
             + '<div class="empty">No indices selected. Use <b>+ Add</b> or a preset above.</div>'
-            + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json))
+            + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json).replace("__MAX__", str(_COMPARE_MAX)))
         return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
 
     # Note any selected series that has no data for the current mode.
@@ -3294,13 +3298,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 
     mode_bar = (
         '<div class="fbar">'
-        f'<button class="fbtn {"on" if mode=="rebase" else ""}" data-cmode="rebase">Rebased %</button>'
+        f'<button class="fbtn {"on" if mode=="rebase" else ""}" data-cmode="rebase">Rebased</button>'
         f'<button class="fbtn {"on" if mode=="ratio" else ""}" data-cmode="ratio">Ratio</button>'
-        '</div>')
-    base_bar = (
-        '<div class="fbar">'
-        f'<button class="fbtn {"on" if base=="100" else ""}" data-cbase="100">Base 100</button>'
-        f'<button class="fbtn {"on" if base=="0" else ""}" data-cbase="0">Base 0%</button>'
         '</div>')
     # Denominator switch (ratio mode only) — reloads with ?den=.
     den_href = "/dash/compare?" + "&".join(
@@ -3329,20 +3328,20 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     body = (
         f'<style>{chart_css}</style>'
         '<h2>Compare indices ⇄</h2>'
-        '<div class="sub" style="margin-bottom:8px">Each line rebased to a common '
-        'start (the first visible day) — pan to re-anchor, or 📅 pin a date. '
-        'Rebased % overlays index levels; Ratio overlays each ÷ the benchmark.</div>'
+        '<div class="sub" style="margin-bottom:8px">Each line indexed to <b>100</b> at a '
+        'common start (the first visible day) — so 122 = +22%. Pan to re-anchor, or 📅 pin '
+        'a date. <b>Ratio</b> mode overlays each ÷ the benchmark instead.</div>'
         + preset_html
         + picker_html
         + note
-        + mode_bar + base_bar + denom_bar
+        + mode_bar + denom_bar
         + range_bar
         + pin_bar
         + '<div class="cmp-anchor" id="cmpAnchorLbl">REBASED FROM <b>start</b></div>'
         '<div class="chartwrap"><div id="compareChart" style="height:320px;"></div></div>'
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
-        + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json))
+        + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json).replace("__MAX__", str(_COMPARE_MAX)))
     return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
 
 
@@ -3362,7 +3361,8 @@ _COMPARE_PICKER_JS = """
   if(btn&&wrap){ btn.onclick=()=>{ wrap.style.display=(wrap.style.display==='none')?'block':'none'; if(box) box.focus(); }; }
   function curParams(){ return new URL(window.location.href).searchParams; }
   const already=curParams().getAll('idx');     // indices already on the chart
-  const slots=6-already.length;                 // how many more can be added
+  const MAX=__MAX__;
+  const slots=MAX-already.length;               // how many more can be added
   const picked=new Set();                       // multi-select staging
   function refresh(){
     if(!confirm) return;
@@ -3383,7 +3383,7 @@ _COMPARE_PICKER_JS = """
     confirm.onclick=()=>{
       if(!picked.size) return;
       const p=curParams();
-      const all=p.getAll('idx').concat([...picked]).slice(0,6);
+      const all=p.getAll('idx').concat([...picked]).slice(0,MAX);
       const den=p.get('den')||'Nifty 500', mode=p.get('mode')||'rebase',
             base=p.get('base')||'100', r=p.get('r')||'252';
       const parts=all.map(s=>'idx='+encodeURIComponent(s));
