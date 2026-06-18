@@ -395,8 +395,11 @@ LEADERSHIP_SET = ["Nifty 50", "Nifty Midcap 150", "Nifty Smallcap 250"]
 # strategy / thematic indices (High Beta, Alpha, Momentum, IPO, ...) are NOT
 # sectors: they have no clean constituent list (so they dead-end on drill-down)
 # and pollute rotation. The sector surfaces filter to this whitelist. Same set
-# as MAJOR_SECTORS plus the legitimate India Defence theme.
-REAL_SECTORS = MAJOR_SECTORS + ["Nifty India Defence"]
+# as MAJOR_SECTORS plus legitimate themes whose constituents are now loaded in
+# membership (India Defence / Private Bank / Chemicals — D41 Phase 2 closure).
+REAL_SECTORS = MAJOR_SECTORS + [
+    "Nifty India Defence", "Nifty Private Bank", "Nifty Chemicals",
+]
 
 def _real_sectors_in() -> str:
     """A safe SQL IN-list of the curated sectors (constant names → inlineable)."""
@@ -1246,10 +1249,19 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 f'<div class="sub">{len(sector_syms)} constituents · by trigger strength · '
                 f'<a class="row" style="display:inline" href="/dash/stocks">clear ↺</a></div>')
         if not sector_syms:
-            head += (f'<div class="card sub">No constituents tracked for this index — it\'s a '
-                     f'factor/thematic index, not a sector. '
-                     f'<a class="row" style="display:inline" href="/dash/ratio?idx={_q(sector)}">'
-                     f'See its ratio chart →</a></div>')
+            if sector in REAL_SECTORS:
+                # A genuine sector whose constituents just aren't loaded yet —
+                # NOT a factor index. (Don't mislabel; the membership fetch for
+                # it is pending or failed.)
+                head += (f'<div class="card sub">Constituents for this sector aren\'t loaded yet '
+                         f'(membership refresh pending). '
+                         f'<a class="row" style="display:inline" href="/dash/ratio?idx={_q(sector)}">'
+                         f'See its ratio chart →</a></div>')
+            else:
+                head += (f'<div class="card sub">No constituents tracked for this index — it\'s a '
+                         f'factor/thematic index, not a sector. '
+                         f'<a class="row" style="display:inline" href="/dash/ratio?idx={_q(sector)}">'
+                         f'See its ratio chart →</a></div>')
     else:
         head = ('<h2>Stock screen</h2>'
                 '<div class="sub">Layered DVPT triggers (today). Filter, then tap a symbol.</div>')
@@ -1436,6 +1448,185 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
 
 
+# Relative-strength OVERLAY JS (plain template — __SERIES__ replaced with the
+# server JSON: [{name,color,level:[{t:'YYYY-MM-DD',v}]}], stock first then
+# narrow sector then broad). Reuses the /dash/compare rebase idiom (common
+# forward-snapped anchor, base 100), and adds a D/W/M/Q resampler: weekly/
+# monthly/quarterly bar = the LAST trading day's close within each ISO-week /
+# calendar-month / calendar-quarter (close-of-period). Resampling is client-
+# side from the full daily series passed once, so the toggle needs no refetch.
+_RS_OVERLAY_JS = """
+<script src="__CDN__"></script>
+<script>
+const RS_SERIES = __SERIES__;
+(function(){
+  const host = document.getElementById('rsOverlayChart');
+  if (!host) return;
+  if (!window.LightweightCharts) { host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+  if (!RS_SERIES.length) return;
+  const common = {
+    layout: { background:{color:'#161b22'}, textColor:'#8b949e', fontSize:11 },
+    grid: { vertLines:{color:'#21262d'}, horzLines:{color:'#21262d'} },
+    timeScale: { borderColor:'#30363d', rightOffset:3 },
+    rightPriceScale: { borderColor:'#30363d' },
+    crosshair: { mode: 0 },
+    handleScroll:true, handleScale:true,
+  };
+  const chart = LightweightCharts.createChart(host, Object.assign({height:300}, common));
+  let tf = 'd';   // 'd' | 'w' | 'm' | 'q'
+
+  // --- period keys (close-of-period resampling) ---------------------------
+  // ISO week: Thursday-of-week determines the ISO year; key 'YYYY-Www'.
+  function isoWeekKey(s){
+    const d=new Date(s+'T00:00:00Z');
+    const day=(d.getUTCDay()+6)%7;              // Mon=0..Sun=6
+    d.setUTCDate(d.getUTCDate()-day+3);          // nearest Thursday
+    const isoYear=d.getUTCFullYear();
+    const jan4=new Date(Date.UTC(isoYear,0,4));
+    const jd=(jan4.getUTCDay()+6)%7;
+    jan4.setUTCDate(jan4.getUTCDate()-jd+3);
+    const wk=1+Math.round((d-jan4)/(7*86400000));
+    return isoYear+'-W'+('0'+wk).slice(-2);
+  }
+  function periodKey(s){
+    if(tf==='w') return isoWeekKey(s);
+    if(tf==='m') return s.slice(0,7);            // YYYY-MM
+    if(tf==='q'){ const y=s.slice(0,4), mo=parseInt(s.slice(5,7),10);
+      return y+'-Q'+(Math.floor((mo-1)/3)+1); }
+    return s;                                      // daily: the date itself
+  }
+  // Resample one [{t,v}] (ascending) → last point per period (close-of-period).
+  function resample(level){
+    if(tf==='d') return level.slice();
+    const out=[]; let curKey=null, last=null;
+    for(const p of level){
+      const k=periodKey(p.t);
+      if(k!==curKey){ if(last) out.push(last); curKey=k; }
+      last=p;                                       // keep overwriting → last wins
+    }
+    if(last) out.push(last);
+    return out;                                     // keeps each period's real last trade date
+  }
+
+  // --- rebase (base 100) on a common forward-snapped anchor ---------------
+  const lines = RS_SERIES.map(s=>({
+    def:s,
+    ls:chart.addLineSeries({color:s.color,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true}),
+    cur:[],
+  }));
+  function snapIdx(raw, target){
+    if(!raw.length) return -1;
+    if(target==null) return 0;
+    let lo=0,hi=raw.length-1,ans=-1;
+    while(lo<=hi){ const mid=(lo+hi)>>1;
+      if(raw[mid].t>=target){ ans=mid; hi=mid-1; } else { lo=mid+1; } }
+    return ans;
+  }
+  function commonAnchor(from){
+    let best=null;
+    for(const l of lines){ const i=snapIdx(l.cur, from);
+      if(i>=0){ const t=l.cur[i].t; if(best===null||t<best) best=t; } }
+    return best;
+  }
+  let anchorDate=null;
+  function applyRebase(anchor){
+    anchorDate=anchor;
+    for(const l of lines){
+      const raw=l.cur; let av=null;
+      if(anchor!=null){ const ai=snapIdx(raw,anchor); if(ai>=0) av=raw[ai].v; }
+      else if(raw.length){ av=raw[0].v; }
+      if(av==null||av===0){ l.ls.setData([]); continue; }
+      const out=new Array(raw.length);
+      for(let k=0;k<raw.length;k++){ const p=raw[k]; out[k]={time:p.t,value:(p.v/av)*100}; }
+      l.ls.setData(out);
+    }
+    relabel(anchor);
+  }
+  function rebuild(keepAnchor){
+    for(const l of lines) l.cur=resample(l.def.level);
+    const a = keepAnchor ? (anchorDate!=null?commonAnchor(anchorDate):null) : null;
+    internalSet=true; applyRebase(a); internalSet=false;
+  }
+  // Re-rebase every line to ONE common anchor = the current left edge (forward-
+  // snapped). Mirrors /dash/compare so all lines share the same start = 100.
+  function reanchorToView(){
+    const vr=chart.timeScale().getVisibleRange();
+    const from = vr ? timeToStr(vr.from) : null;
+    lastAnchor=commonAnchor(from);
+    internalSet=true; applyRebase(lastAnchor); internalSet=false;
+  }
+
+  // --- fluid anchor on pan (rAF-coalesced, anchor-gated) ------------------
+  function timeToStr(t){
+    if(t==null) return null;
+    if(typeof t==='string') return t;
+    if(typeof t==='object'&&t.year){ const m=('0'+t.month).slice(-2),d=('0'+t.day).slice(-2);
+      return t.year+'-'+m+'-'+d; }
+    return String(t);
+  }
+  let raf=null, internalSet=false, lastAnchor=null;
+  chart.timeScale().subscribeVisibleTimeRangeChange(r=>{
+    if(!r||internalSet) return;
+    const from=timeToStr(r.from);
+    if(raf) return;
+    raf=requestAnimationFrame(()=>{ raf=null;
+      const a=commonAnchor(from);
+      if(a===lastAnchor) return;
+      lastAnchor=a; internalSet=true; applyRebase(a); internalSet=false; });
+  });
+
+  function relabel(anchor){
+    const el=document.getElementById('rsAnchorLbl');
+    if(!el) return;
+    const tfn={d:'daily',w:'weekly',m:'monthly',q:'quarterly'}[tf];
+    el.innerHTML = (anchor?('REBASED FROM <b>'+anchor+'</b>'):'REBASED FROM <b>start</b>')+' · '+tfn;
+  }
+
+  // --- crosshair value row ------------------------------------------------
+  const valRow=document.getElementById('rsVals');
+  function _e(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmtVal(v){ return v==null?'—':v.toFixed(1); }
+  function renderVals(map){
+    if(!valRow) return;
+    const parts=[];
+    for(const l of lines){
+      let v=null;
+      if(map){ const d=map.get(l.ls); if(d&&d.value!=null) v=d.value; }
+      else { const dat=l.ls.data(); if(dat&&dat.length) v=dat[dat.length-1].value; }
+      parts.push('<span class="cmp-val" style="color:'+l.def.color+'">●'+_e(l.def.name)+' '+fmtVal(v)+'</span>');
+    }
+    valRow.innerHTML=parts.join('');
+  }
+  chart.subscribeCrosshairMove(p=>{
+    if(!p||!p.time||!p.seriesData){ renderVals(null); return; }
+    renderVals(p.seriesData);
+  });
+
+  // --- timeframe toggle ---------------------------------------------------
+  document.querySelectorAll('[data-rstf]').forEach(b=>{
+    b.onclick=()=>{
+      tf=b.dataset.rstf;
+      document.querySelectorAll('[data-rstf]').forEach(x=>x.classList.toggle('on', x===b));
+      lastAnchor=null;
+      rebuild(false);
+      internalSet=true; chart.timeScale().fitContent(); internalSet=false;
+      reanchorToView();
+      renderVals(null);
+    };
+  });
+
+  // --- boot ---------------------------------------------------------------
+  rebuild(false);
+  internalSet=true; chart.timeScale().fitContent(); internalSet=false;
+  reanchorToView();
+  renderVals(null);
+  let rzT=null;
+  new ResizeObserver(()=>{ if(internalSet) return; if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
+})();
+</script>
+"""
+
+
 @router.get("/dash/stock", response_class=HTMLResponse)
 def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
     sym = sym.upper().strip()
@@ -1460,7 +1651,7 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
         # Up to 5 years of daily candles + DVPT + delivery for the charts (oldest first)
         rows = conn.execute(
             """SELECT b.trade_date, b.open, b.high, b.low, b.close, b.prev_close,
-                      b.deliv_per, b.value,
+                      b.deliv_per, b.value, b.deliv_qty,
                       s.delivery_value_per_trade dvpt, s.ratio_today_vs_power_1m r1m
                FROM bhavcopy_rows b
                LEFT JOIN stock_signals s USING (symbol, trade_date)
@@ -1498,6 +1689,13 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
         o = r["open"] if r["open"] is not None else c
         hi = r["high"] if r["high"] is not None else c
         lo = r["low"] if r["low"] is not None else c
+        # Traded value (turnover ₹) and delivery value (deliv_qty × raw close ₹)
+        # are RUPEE figures — naturally split/bonus invariant, so they use the
+        # RAW close/qty here, NOT the back-adjusted prices computed below (which
+        # only rescale the candle/zone *price* levels). deliv ≤ turnover always.
+        tval = r["value"] if r["value"] is not None else None
+        dq = r["deliv_qty"]
+        dval = (dq * c) if (dq is not None and c is not None) else None
         series.append({
             "time": r["trade_date"],
             "open": o, "high": hi, "low": lo, "close": c,
@@ -1505,6 +1703,8 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
             "dvpt": int(r["dvpt"]) if r["dvpt"] is not None else 0,
             "deliv": round(r["deliv_per"], 1) if r["deliv_per"] is not None else None,
             "r1m": round(r["r1m"], 2) if r["r1m"] is not None else None,
+            "tval": round(tval, 2) if tval is not None else None,
+            "dval": round(dval, 2) if dval is not None else None,
         })
 
     # --- Corporate-action back-adjustment (splits / bonuses) ---------------
@@ -1959,6 +2159,77 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 {recon_table}
 """
 
+    # --- Relative-strength OVERLAY (stock vs narrow sector vs broad) ---------
+    # Three CLOSE-price series rebased to a common start (reuses the
+    # /dash/compare rebase idiom). Stock line = the ADJUSTED `series` close (same
+    # as the price chart). Narrow = primary_sector index; broad = 'Nifty 500'.
+    # All resampled client-side for the D/W/M/Q toggle, so it's read ONCE here.
+    rs_overlay_html = ""
+    if series:
+        rs_sym_name = sym
+        rs_narrow_name = L.get("primary_sector")          # may be None
+        rs_broad_name = "Nifty 500"
+        d_lo, d_hi = series[0]["time"], series[-1]["time"]
+        idx_wanted = [n for n in (rs_narrow_name, rs_broad_name) if n]
+        idx_levels: dict[str, list] = {}
+        if idx_wanted:
+            ph = ",".join("?" for _ in idx_wanted)
+            with get_conn() as conn:
+                for row in conn.execute(
+                    f"""SELECT index_name, trade_date, close_value
+                        FROM index_rows
+                        WHERE index_name IN ({ph})
+                          AND trade_date >= ? AND trade_date <= ?
+                          AND close_value IS NOT NULL
+                        ORDER BY index_name, trade_date""",
+                    (*idx_wanted, d_lo, d_hi),
+                ).fetchall():
+                    idx_levels.setdefault(row["index_name"], []).append(
+                        {"t": row["trade_date"], "v": round(row["close_value"], 2)})
+
+        # Sticky colours mirroring /dash/compare order: stock, narrow, broad.
+        rs_series = [{
+            "name": rs_sym_name,
+            "color": _COMPARE_PALETTE[0],
+            "level": [{"t": s["time"], "v": s["close"]}
+                      for s in series if s["close"] is not None],
+        }]
+        if rs_narrow_name and idx_levels.get(rs_narrow_name):
+            rs_series.append({
+                "name": rs_narrow_name,
+                "color": _COMPARE_PALETTE[1],
+                "level": idx_levels[rs_narrow_name],
+            })
+        if idx_levels.get(rs_broad_name):
+            rs_series.append({
+                "name": rs_broad_name,
+                "color": _COMPARE_PALETTE[2],
+                "level": idx_levels[rs_broad_name],
+            })
+
+        # Need the broad index AND at least the stock to make this meaningful.
+        if len(rs_series) >= 2:
+            rs_overlay_json = json.dumps(rs_series)
+            narrow_lbl = _esc(rs_narrow_name) if rs_narrow_name else "—"
+            sub = (f'<b>{_esc(rs_sym_name)}</b> vs <b>{narrow_lbl}</b> (narrow sector) '
+                   f'vs <b>Nifty 500</b> (broad)' if rs_narrow_name
+                   else f'<b>{_esc(rs_sym_name)}</b> vs <b>Nifty 500</b> (broad) — '
+                        f'no NSE sectoral index covers this stock')
+            rs_overlay_html = f"""
+<h2>Relative strength — overlay</h2>
+<div class="sub">{sub}. Each line rebased to a common start (base 100); when the stock pulls above both index lines it is leading its sector <i>and</i> the market — the gaps are RS-sector and RS-broad.</div>
+<div class="fbar" id="rsTfBar">
+  <button class="fbtn on" data-rstf="d">Daily</button>
+  <button class="fbtn" data-rstf="w">Weekly</button>
+  <button class="fbtn" data-rstf="m">Monthly</button>
+  <button class="fbtn" data-rstf="q">Quarterly</button>
+</div>
+<div class="cmp-anchor" id="rsAnchorLbl">REBASED FROM <b>start</b></div>
+<div class="chartwrap"><div id="rsOverlayChart" style="height:300px;"></div></div>
+<div class="cmp-vals" id="rsVals"></div>
+{_RS_OVERLAY_JS.replace("__CDN__", _LWC_CDN).replace("__SERIES__", rs_overlay_json)}
+"""
+
     chart_css = """
 .rangebar { display:flex; gap:6px; margin:8px 0 4px; }
 .rangebar button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
@@ -1966,6 +2237,9 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 .rangebar button.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
 .chartwrap { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:8px; margin-bottom:6px; }
 .chartlbl { color:#8b949e; font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
+.cmp-anchor { font-size:12px; color:#8b949e; margin:6px 4px 2px; }
+.cmp-vals { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums; padding:8px 4px 2px; }
+.cmp-val { font-weight:600; }
 """
 
     body = f"""{search}
@@ -2002,6 +2276,12 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
   <div class="chartlbl">Delivery %</div>
   <div id="delivChart" style="height:120px;"></div>
 </div>
+<div class="chartwrap">
+  <div class="chartlbl">Traded value (bar) + delivery value (bright = took delivery)</div>
+  <div id="tvChart" style="height:130px;"></div>
+</div>
+
+{rs_overlay_html}
 
 {zones_html}
 
@@ -2028,9 +2308,11 @@ const DATA = {data_json};
   const pEl=document.getElementById('priceChart');
   const vEl=document.getElementById('dvptChart');
   const dEl=document.getElementById('delivChart');
+  const tEl=document.getElementById('tvChart');
   const pc=LightweightCharts.createChart(pEl, Object.assign({{height:300}}, common));
   const vc=LightweightCharts.createChart(vEl, Object.assign({{height:150}}, common));
   const dc=LightweightCharts.createChart(dEl, Object.assign({{height:120}}, common));
+  const tc=LightweightCharts.createChart(tEl, Object.assign({{height:130}}, common));
 
   const candle=pc.addCandlestickSeries({{upColor:'#3fb950',downColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',borderVisible:false}});
   candle.setData(S.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
@@ -2042,10 +2324,19 @@ const DATA = {data_json};
   const deliv=dc.addLineSeries({{color:'#58a6ff',lineWidth:2}});
   deliv.setData(S.filter(d=>d.deliv!=null).map(d=>({{time:d.time,value:d.deliv}})));
 
-  // Sync time scales across the three charts. A reentrancy guard stops a
-  // range click from ping-ponging range updates pc<->vc<->dc until float
+  // 4th pane — total traded value (muted full bar) with delivery value drawn
+  // ON TOP in a brighter colour. Since delivery ₹ ≤ turnover ₹, the bright bar
+  // sits WITHIN the muted bar (both start at 0, overlaid not stacked-additive),
+  // so the bright fraction = the delivered share of the day's turnover.
+  const tval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#30363d'}});
+  tval.setData(S.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
+  const dval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#2ea043'}});
+  dval.setData(S.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
+
+  // Sync time scales across the four charts. A reentrancy guard stops a
+  // range click from ping-ponging range updates pc<->vc<->dc<->tc until float
   // convergence (the source of the range-switch slowness, worst on Max).
-  const charts=[pc,vc,dc];
+  const charts=[pc,vc,dc,tc];
   let syncing=false;
   charts.forEach(src=>{{
     src.timeScale().subscribeVisibleLogicalRangeChange(r=>{{
@@ -2080,19 +2371,26 @@ const DATA = {data_json};
     rzT=setTimeout(()=>{{ charts.forEach(c=>c.applyOptions({{}})); }},100);
   }}).observe(pEl);
 
-  // Crosshair value readout — hover ANY of the 3 panes to see that day's
-  // OHLC + DVPT + delivery; shows the latest day when the cursor is off-chart.
+  // Crosshair value readout — hover ANY of the 4 panes to see that day's
+  // OHLC + DVPT + delivery + traded/delivery value; latest day when off-chart.
   const rdt=document.getElementById('priceRdt');
   function tkey(t){{ return (typeof t==='object'&&t)?(t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2)):t; }}
   const byT={{}}; S.forEach(d=>byT[d.time]=d);
+  function cr(v){{ return '₹'+Math.round(v).toLocaleString('en-IN'); }}
   function showR(d){{
     if(!d){{ rdt.innerHTML=''; return; }}
-    rdt.innerHTML='<b>'+d.time+'</b>&nbsp; O '+d.open+'&nbsp; H '+d.high+'&nbsp; L '+d.low
+    let h='<b>'+d.time+'</b>&nbsp; O '+d.open+'&nbsp; H '+d.high+'&nbsp; L '+d.low
       +'&nbsp; <b>C '+d.close+'</b>'
       +(d.dvpt!=null?'&nbsp; · DVPT ₹'+Math.round(d.dvpt).toLocaleString('en-IN'):'')
       +(d.deliv!=null?'&nbsp; · Deliv '+d.deliv.toFixed(1)+'%':'');
+    if(d.tval!=null){{
+      h+='&nbsp; · Traded '+cr(d.tval);
+      if(d.dval!=null) h+=' / Deliv '+cr(d.dval)
+        +(d.tval>0?' ('+(d.dval/d.tval*100).toFixed(0)+'%)':'');
+    }}
+    rdt.innerHTML=h;
   }}
-  [pc,vc,dc].forEach(c=>c.subscribeCrosshairMove(p=>{{
+  [pc,vc,dc,tc].forEach(c=>c.subscribeCrosshairMove(p=>{{
     if(!p||!p.time){{ showR(S[S.length-1]); return; }}
     showR(byT[tkey(p.time)]||S[S.length-1]);
   }}));
