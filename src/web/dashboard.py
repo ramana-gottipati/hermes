@@ -30,6 +30,7 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
+from src.automation.signals import accum_character_read
 from src.core.db import get_conn
 
 router = APIRouter()
@@ -76,6 +77,9 @@ tr:last-child td { border-bottom:none; }
 .p-C{background:#30363d;color:#8b949e;} .p-BREAKOUT{background:#1f6f3a;color:#7ee787;}
 .p-UPTREND{background:#225c33;color:#7ee787;} .p-CONSOLIDATING{background:#5a4a1f;color:#ffd99a;}
 .p-DOWNTREND{background:#6f2b2b;color:#ffa198;} .p-BREAKDOWN{background:#8f1f1f;color:#ffa198;}
+/* D43 accumulation/distribution character pills */
+.ca-acc{background:#16341f;color:#7ee787;} .ca-dist{background:#3a1a1a;color:#ffa198;}
+.ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:#30363d;color:#8b949e;}
 nav { position:fixed; bottom:0; left:0; right:0; background:#0e1116;
       border-top:1px solid #21262d; display:flex; }
 nav a { flex:1; text-align:center; padding:10px 4px; color:#8b949e;
@@ -402,10 +406,29 @@ def _real_sectors_in() -> str:
 # definition for the badge + Home hub; the full query-registry refactor is
 # deferred to the screener phase). family -> (tag, one-line thesis, css class).
 _PILLARS = {
-    "POS":  ("POSITIONING", "Where institutional money is accumulating now — DVPT vs its own peak-day baselines, and at what price vs cost.", "POS"),
+    "POS":  ("POSITIONING", "Where institutional money is positioning now — DVPT vs its own peak-day baselines, the entry price vs their cost, and whether strong hands are accumulating, distributing, or just consolidating.", "POS"),
     "RS":   ("RELATIVE STRENGTH", "Who's beating the market and leading their own sector.", "RS"),
     "QUAL": ("QUALITY", "Is the business worth owning — the patearn 14-pattern durability score.", "QUAL"),
 }
+
+# D43 — accumulation/distribution character pill. Shares the label vocabulary
+# produced by signals.accum_character (delivery is side-blind, so the label
+# fuses WHO/WHICH-WAY/CONTEXT — never one number). DISTRIBUTION carries a ⚠️.
+_CHAR_PILL = {
+    "ACCUMULATION":  ("🟢 ACCUM",   "ca-acc"),
+    "DISTRIBUTION":  ("🔴 DISTR ⚠️", "ca-dist"),
+    "CONSOLIDATION": ("🟡 CONSOL",  "ca-cons"),
+    "NEUTRAL":       ("⚪ NEUTRAL", "ca-neu"),
+}
+
+
+def _char_pill(label: str, dash_if_none: bool = True) -> str:
+    """Render the accumulation/distribution character as a pill (D43)."""
+    spec = _CHAR_PILL.get(label or "")
+    if not spec:
+        return '<span class="pill ca-neu">—</span>' if dash_if_none else ""
+    txt, cls = spec
+    return f'<span class="pill {cls}">{txt}</span>'
 
 
 def _strategy_badge(family: str) -> str:
@@ -435,7 +458,7 @@ def _sector_symbols(conn, sector: str) -> list:
 def dash_home() -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
     nifty, breadth, lead = {}, None, None
-    top_sectors, weak_sectors, top_stocks = [], [], []
+    top_sectors, weak_sectors, top_stocks, stealth_stocks = [], [], [], []
     pos_count = qual_count = rs_count = 0   # D33d strategy-hub live counts
     with get_conn() as conn:
         if idx_date:
@@ -480,12 +503,27 @@ def dash_home() -> HTMLResponse:
         if sig_date:
             top_stocks = [dict(x) for x in conn.execute(
                 f"""SELECT s.symbol, s.trigger_rank rank, s.is_ath_dvpt ath,
-                           s.price_vs_hot_avg_pct pvh
+                           s.price_vs_hot_avg_pct pvh, s.accum_character ch
                     FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                     WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
                     {_SCAN_FILTERS}
                     ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
                              COALESCE(s.r_score,-1) DESC LIMIT 5""",
+                (sig_date,),
+            ).fetchall()]
+            # D43 — "stealth accumulation": strong-hand accumulation (ACCUMULATION
+            # + p_score>=3 + concentrated breadth) while still OFF the highs (not
+            # yet marked up) — i.e. quietly building before the crowd notices.
+            stealth_stocks = [dict(x) for x in conn.execute(
+                f"""SELECT s.symbol, s.p_score psc, s.pct_from_52w_high pfh,
+                           s.accum_character ch
+                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                    WHERE s.trade_date=? AND s.accum_character='ACCUMULATION'
+                      AND s.p_score>=3
+                      AND COALESCE(s.trade_count_ratio_1m_6m,99) <= 1.1
+                      AND s.pct_from_52w_high <= -10
+                    {_SCAN_FILTERS}
+                    ORDER BY s.p_score DESC, s.pct_from_52w_high ASC LIMIT 5""",
                 (sig_date,),
             ).fetchall()]
             pos_count = conn.execute(
@@ -563,16 +601,38 @@ def dash_home() -> HTMLResponse:
         srows.append(f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                      f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
                      f'<td><span class="pill p-{rank}">{rank}</span></td>'
-                     f'<td>{_pct(pvh)} {entry}</td></tr>')
+                     f'<td>{_pct(pvh)} {entry}</td>'
+                     f'<td>{_char_pill(r.get("ch"))}</td></tr>')
     stocks_block = ""
     if srows:
         stocks_block = (
             _strategy_badge("POS") +
             '<h2>Top trigger stocks</h2>'
             '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Symbol</th><th>Rank</th><th>Δhot</th></tr></thead>'
+            '<thead><tr><th>Symbol</th><th>Rank</th><th>Δhot</th><th>Character</th></tr></thead>'
             f'<tbody>{"".join(srows)}</tbody></table></div>'
             '<a class="row sub" href="/dash/stocks">See all triggers →</a>')
+
+    # D43 — Stealth accumulation board (concentrated ACCUMULATION still off the
+    # highs). The smart-money-buying-before-markup setup.
+    stealth_block = ""
+    if stealth_stocks:
+        stl = ""
+        for r in stealth_stocks:
+            stl += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+                    f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
+                    f'<td><span class="pill p-{("SS" if (r["psc"] or 0)>=5 else "S" if (r["psc"] or 0)==4 else "A")}">'
+                    f'{r["psc"] or 0}/5</span></td>'
+                    f'<td>{_pct(r["pfh"])}</td>'
+                    f'<td>{_char_pill(r.get("ch"))}</td></tr>')
+        stealth_block = (
+            _strategy_badge("POS") +
+            '<h2>Stealth accumulation <span class="sub" style="margin:0">'
+            'concentrated buying, still off the highs</span></h2>'
+            '<div class="card" style="padding:6px 10px;"><table>'
+            '<thead><tr><th>Symbol</th><th>p-score</th><th>vs 52w-hi</th><th>Character</th></tr></thead>'
+            f'<tbody>{stl}</tbody></table></div>'
+            '<a class="row sub" href="/dash/stocks">See the full screen →</a>')
 
     # D33c — "strong-in-strong" leaders preview (stock + its sector both leading
     # the market). Bridges the macro sector read to the micro stock picks.
@@ -613,7 +673,8 @@ def dash_home() -> HTMLResponse:
                  f'{qual_count} <small>scored</small>', "/dash/stock")
         + '</div>')
 
-    body = (f'{search}{banner}{strat_hub}{kpis}{sectors_block}{leaders_block}{stocks_block}'
+    body = (f'{search}{banner}{strat_hub}{kpis}{sectors_block}{leaders_block}'
+            f'{stocks_block}{stealth_block}'
             '<h2>Data freshness</h2>'
             f'<div class="card">Stock signals: <b>{sig_date or "—"}</b><br>'
             f'Index signals: <b>{idx_date or "—"}</b></div>'
@@ -933,6 +994,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
     period = period if period in ("d", "w", "m") else "d"
     n_days = 5 if period == "w" else 22   # trading-day window for weekly/monthly
     rows, watch, sector_syms = [], [], []
+    char_map = {}   # D43 — symbol -> latest-day accum_character (weekly/monthly)
     with get_conn() as conn:
         if period == "d":
             # ---- DAILY: today's layered DVPT triggers (existing behaviour) ----
@@ -951,7 +1013,9 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 rows = [dict(r) for r in conn.execute(
                     f"""SELECT s.symbol, s.trigger_rank rank, s.r_score, s.p_score,
                               s.is_ath_dvpt ath, s.price_vs_hot_avg_pct pvh,
-                              s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close
+                              s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close,
+                              s.accum_character ch, s.delivery_value_today dvt,
+                              s.trade_count_ratio_1m_6m tcr
                        FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                        WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
                        {_SCAN_FILTERS}{sector_clause}
@@ -985,6 +1049,15 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                        ORDER BY peak_p DESC, hits DESC, wmean DESC
                        LIMIT ?""",
                     (window_start, limit)).fetchall()]
+                # D43 — character on each symbol's latest stored day (= sig_date
+                # for this liquid universe). Attached to the rollup rows below.
+                if rows and sig_date:
+                    syms = [r["symbol"] for r in rows]
+                    ph = ",".join("?" for _ in syms)
+                    char_map = {x["symbol"]: x["accum_character"] for x in conn.execute(
+                        f"""SELECT symbol, accum_character FROM stock_signals
+                            WHERE trade_date=? AND symbol IN ({ph})""",
+                        (sig_date, *syms)).fetchall()}
         watch = [r["symbol"] for r in conn.execute(
             "SELECT symbol FROM watchlist ORDER BY symbol").fetchall()]
 
@@ -1034,11 +1107,16 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 near = f'{r["nextp"]} {r["gap"]:+.0f}%'
                 if r["gap"] > -10 and (r["r_score"] or 0) >= 4:
                     near_flag = "1"
+            ch = r.get("ch")
+            dvt = r.get("dvt")
+            dvt_cr = f'{dvt/1e7:,.1f}' if dvt else "—"   # ₹ → Cr
             flags = (f'data-ss="{1 if rank == "SS" else 0}" '
                      f'data-aplus="{1 if (r["p_score"] or 0) >= 3 else 0}" '
                      f'data-ath="{1 if r["ath"] else 0}" '
                      f'data-disc="{1 if (pvh is not None and pvh < -3) else 0}" '
-                     f'data-near="{near_flag}"')
+                     f'data-near="{near_flag}" '
+                     f'data-accum="{1 if ch == "ACCUMULATION" else 0}" '
+                     f'data-distrib="{1 if ch == "DISTRIBUTION" else 0}"')
             trs.append(
                 f'<tr {flags}><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                 f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
@@ -1046,6 +1124,8 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 f'<td class="mut">{r["r_score"] or 0}/{r["p_score"] or 0}</td>'
                 f'<td>{_num(r["close"], 1)}</td>'
                 f'<td>{_pct(pvh)} {entry}</td>'
+                f'<td>{_char_pill(ch)}</td>'
+                f'<td class="mut">{dvt_cr}</td>'
                 f'<td class="mut">{near}</td></tr>')
         if trs:
             pills = ('<div id="sbar" class="fbar">'
@@ -1054,10 +1134,12 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                      "<button class=\"fbtn\" onclick=\"sflt('aplus',this)\">A+</button>"
                      "<button class=\"fbtn\" onclick=\"sflt('ath',this)\">⚡ ATH</button>"
                      "<button class=\"fbtn\" onclick=\"sflt('disc',this)\">🟢 Discount</button>"
-                     "<button class=\"fbtn\" onclick=\"sflt('near',this)\">🔥 Near-break</button></div>")
+                     "<button class=\"fbtn\" onclick=\"sflt('near',this)\">🔥 Near-break</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('accum',this)\">🟢 Accumulation</button>"
+                     "<button class=\"fbtn\" onclick=\"sflt('distrib',this)\">🔴 Distribution</button></div>")
             table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl" class="dt">'
                      '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th>'
-                     '<th>Δhot</th><th>Near-P</th></tr></thead>'
+                     '<th>Δhot</th><th>Character</th><th>Deliv ₹Cr</th><th>Near-P</th></tr></thead>'
                      f'<tbody>{"".join(trs)}</tbody></table></div>')
             js = ("<script>function sflt(f,el){"
                   "document.querySelectorAll('#stbl tr[data-ss]').forEach(function(r){"
@@ -1078,11 +1160,12 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
                 f'<td><span class="pill p-{rk}">{rk}</span></td>'
                 f'<td>{r["hits"]}/{n_days}</td>'
-                f'<td class="mut">{_num(wm, 0) if wm is not None else "—"}</td></tr>')
+                f'<td class="mut">{_num(wm, 0) if wm is not None else "—"}</td>'
+                f'<td>{_char_pill(char_map.get(r["symbol"]))}</td></tr>')
         if trs:
             table = ('<div class="card" style="padding:6px 10px;"><table class="dt">'
                      '<thead><tr><th>Symbol</th><th>Peak rank</th>'
-                     '<th>Days fired</th><th>Avg DVPT ₹</th></tr></thead>'
+                     '<th>Days fired</th><th>Avg DVPT ₹</th><th>Character</th></tr></thead>'
                      f'<tbody>{"".join(trs)}</tbody></table></div>')
         else:
             table = '<div class="empty">No A+ triggers in this window yet.</div>'
@@ -1308,6 +1391,70 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 </div>
 """
 
+    # --- D43 Accumulation/distribution character --------------------------
+    # Delivery is side-blind, so this fuses three independent axes — WHO
+    # (breadth), WHICH-WAY (adjusted-price direction), CONTEXT (52w location) —
+    # into a label + plain-English read (both from the shared signals helper).
+    char_label = L.get("accum_character")
+    char_read = accum_character_read(
+        char_label, L.get("p_score"), L.get("trade_count_ratio_1m_6m"),
+        L.get("deliv_updown_ratio_3m"), L.get("accum_price_drift_3m"),
+        L.get("pct_from_52w_high"), L.get("deliv_value_ratio_1m_6m"),
+    )
+    character_html = ""
+    if char_label:
+        updown = L.get("deliv_updown_ratio_3m")
+        up_frac = (updown / (1.0 + updown)) if updown is not None else None
+        if up_frac is not None:
+            up_pct = max(2.0, min(98.0, up_frac * 100.0))
+            skew_txt = ("up-skewed" if updown >= 1.3 else
+                        "down-skewed" if updown <= 0.77 else "balanced")
+            bar = (f'<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;'
+                   f'margin:2px 0 4px;background:#21262d">'
+                   f'<span style="width:{up_pct:.0f}%;background:#2ea043"></span>'
+                   f'<span style="width:{100 - up_pct:.0f}%;background:#f85149"></span></div>'
+                   f'<div class="sub" style="margin:0">Delivery ₹ on up-days (green) vs down-days '
+                   f'(red), 3m — ratio <b>{updown:.2f}</b> ({skew_txt}).</div>')
+        else:
+            bar = '<div class="sub" style="margin:2px 0 0">Up/down delivery split: <span class="mut">—</span></div>'
+        tcr = L.get("trade_count_ratio_1m_6m")
+        breadth = ("broadening (retail crowd)" if (tcr is not None and tcr >= 1.3)
+                   else "concentrated (few hands)" if (tcr is not None and tcr <= 1.1)
+                   else "steady" if tcr is not None else "—")
+        dvr = L.get("deliv_value_ratio_1m_6m")
+        ticket = (dvr / tcr) if (dvr is not None and tcr and tcr > 0) else None
+        ticket_txt = ("rising" if (ticket is not None and ticket >= 1.1)
+                      else "falling" if (ticket is not None and ticket <= 0.9)
+                      else "flat" if ticket is not None else "—")
+        dvt_today = L.get("delivery_value_today")
+        dvt_cr = f'₹{dvt_today / 1e7:,.1f} Cr' if dvt_today else "—"
+        dp1, dp6 = L.get("avg_deliv_pct_1m"), L.get("avg_deliv_pct_6m")
+        who = (
+            '<table><tbody>'
+            f'<tr><td class="mut">Total delivery ₹ (today)</td><td>{dvt_cr}</td>'
+            f'<td class="mut">Trade-count trend</td><td>{breadth}</td></tr>'
+            f'<tr><td class="mut">Delivery % 1m / 6m</td>'
+            f'<td>{_num(dp1, 1) if dp1 is not None else "—"} / {_num(dp6, 1) if dp6 is not None else "—"}</td>'
+            f'<td class="mut">Avg ticket trend</td><td>{ticket_txt}</td></tr>'
+            f'<tr><td class="mut">vs 52-week high</td><td>{_pct(L.get("pct_from_52w_high"))}</td>'
+            f'<td class="mut">3m price drift</td><td>{_pct(L.get("accum_price_drift_3m"))}</td></tr>'
+            '</tbody></table>')
+        warn = ""
+        if char_label == "DISTRIBUTION" and rank in ("SS", "S", "A"):
+            warn = ('<div class="card" style="border-color:#8f1f1f;background:#2a1414;margin-top:8px">'
+                    '<div class="sub" style="margin:0;color:#ffa198">⚠️ Heavy delivery, but on '
+                    'down-days / price rolling over near highs while the crowd broadens — this reads '
+                    'as <b>distribution, not accumulation</b>, despite the high trigger rank.</div></div>')
+        character_html = f"""
+<h2>Accumulation character {_char_pill(char_label)}</h2>
+<div class="sub">Delivery is side-blind — this fuses <b>WHO</b> (breadth) · <b>WHICH-WAY</b> (price) · <b>CONTEXT</b> (trend location). {_esc(char_read)}</div>
+<div class="card" style="padding:10px 12px;">
+{bar}
+<div style="margin-top:8px">{who}</div>
+</div>
+{warn}
+"""
+
     # --- Auto-derived insights (no LLM) -----------------------------------
     insights = []
     r1m = L.get("ratio_today_vs_power_1m")
@@ -1528,6 +1675,7 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 
 {insight_html}
 {inertia_html}
+{character_html}
 
 <div class="rangebar">
   <button data-r="63">3M</button>

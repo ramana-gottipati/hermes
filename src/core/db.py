@@ -484,6 +484,25 @@ def _init() -> None:
         _ensure_column(conn, "stock_signals", "rs_vs_sector_new_52w_high", "INTEGER")
         _ensure_column(conn, "stock_signals", "rs_vs_sector_trend_state",  "TEXT")
 
+        # 4g. D43 — accumulation/distribution CHARACTER of the DVPT activity.
+        # Delivery data is side-blind, so we store three INDEPENDENT axes of raw
+        # measures and DERIVE the `accum_character` label (re-tunable via
+        # signals.run_relabel_character without a full backfill):
+        #   WHO       — deliv_value_ratio_1m_6m (delivery ₹ picking up?),
+        #               trade_count_ratio_1m_6m (broadening retail vs concentrated),
+        #               avg_deliv_pct_1m / _6m (conviction holding?)
+        #   WHICH WAY — deliv_updown_ratio_3m (value-weighted up/down skew, on
+        #               ADJUSTED closes), accum_price_drift_3m (the direction read)
+        #   CONTEXT   — pct_from_52w_high (near highs vs in a base)
+        _ensure_column(conn, "stock_signals", "deliv_value_ratio_1m_6m", "REAL")
+        _ensure_column(conn, "stock_signals", "trade_count_ratio_1m_6m", "REAL")
+        _ensure_column(conn, "stock_signals", "avg_deliv_pct_1m",        "REAL")
+        _ensure_column(conn, "stock_signals", "avg_deliv_pct_6m",        "REAL")
+        _ensure_column(conn, "stock_signals", "deliv_updown_ratio_3m",   "REAL")
+        _ensure_column(conn, "stock_signals", "accum_price_drift_3m",    "REAL")
+        _ensure_column(conn, "stock_signals", "pct_from_52w_high",       "REAL")
+        _ensure_column(conn, "stock_signals", "accum_character",         "TEXT")
+
         # 4c. Indexes on the new columns (post-ALTER, guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_p_score "
@@ -507,6 +526,12 @@ def _init() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_signals_primary_sector "
             "ON stock_signals(trade_date, primary_sector)"
+        )
+        # D43 — accumulation/distribution character screen per date (the Home
+        # "stealth accumulation" board + /dash/stocks character filter pills).
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_signals_accum_character "
+            "ON stock_signals(trade_date, accum_character)"
         )
 
         # 5. Helper view for clean equity-cash-market queries. Includes delivery.

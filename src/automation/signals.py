@@ -28,6 +28,19 @@ For each (symbol, trade_date), compute:
   - trigger_rank = SS(5)/S(4)/A(3)/B(2)/C(1)/'-' from p_score
   - ATH-DVPT, hot_days_avg_price, near-break pointer (next_p_above + gap)
 
+  - D43 Accumulation/distribution CHARACTER — delivery data is SIDE-BLIND (every
+    delivered share was simultaneously bought AND sold), so DVPT/delivery reveal
+    WHO transacted (size/ownership-intent) but NEVER which side initiated. Three
+    independent axes separate strong-hand accumulation from strong-hands-
+    distributing-to-retail:
+      WHO       — deliv_value_ratio_1m_6m, trade_count_ratio_1m_6m (broadening vs
+                  concentrated), avg_deliv_pct_1m/6m
+      WHICH WAY — deliv_updown_ratio_3m, accum_price_drift_3m (price is the ONLY
+                  direction-revealer; built on split-ADJUSTED closes)
+      CONTEXT   — pct_from_52w_high, p_score persistence
+    The numerics are STORED; the `accum_character` label is DERIVED (re-tunable
+    via --relabel-character without a full backfill). See accum_character().
+
 Stored nightly into stock_signals table; queries become instant lookups.
 
 Usage:
@@ -38,11 +51,13 @@ Usage:
 """
 
 import argparse
+import bisect
 import logging
 import time
 from datetime import datetime, timedelta
 from typing import Optional
 
+from src.automation.adjust import adjusted_closes
 from src.core.db import get_conn
 
 # D31 windowing — calendar days (NOT trading days).
@@ -56,7 +71,221 @@ _WINDOWS = (
 )
 _P_LABELS = ("P1M", "P2M", "P3M", "P6M", "P12M")
 
+# D43 — per-symbol fetch window. 372 calendar days (~53 weeks) so the 52-week
+# high has a full year of ADJUSTED closes to look back over (the DVPT R/P
+# windows still slice their own ≤360-day cutoffs out of this superset).
+_CHAR_FETCH_DAYS = 372
+
+# D43 — corp-action anomaly guard for the up/down direction read. A real >30%
+# single-day move is impossible under NSE circuit limits, so it's always an
+# unadjusted corporate action — exclude that day from the up/down skew (same
+# CC_THRESH as adjust.py / D36).
+_CHAR_CC_THRESH = 0.30
+
+# D43 — accumulation/distribution CHARACTER thresholds. TUNABLE DEFAULTS — the
+# numerics are stored raw, so re-tuning these + running --relabel-character
+# re-derives every label without recomputing the underlying measures.
+_CHAR_THRESH = {
+    "active_p_score": 2,    # p_score >= this ⇒ strong hands genuinely active
+    "deliv_rising":   1.2,  # deliv_value_ratio_1m_6m >= ⇒ delivery picking up
+    "broadening":     1.3,  # trade_count_ratio_1m_6m >= ⇒ retail crowd broadening
+    "concentrated":   1.1,  # trade_count_ratio_1m_6m <= ⇒ concentrated (few hands)
+    "up_skew":        1.30, # deliv_updown_ratio_3m >= ⇒ delivery skewed to up-days
+    "down_skew":      0.77, # deliv_updown_ratio_3m <= ⇒ delivery skewed to down-days
+    "price_up":       5.0,  # accum_price_drift_3m  >  ⇒ price advancing
+    "price_down":    -5.0,  # accum_price_drift_3m  <  ⇒ price declining
+    "near_high":    -10.0,  # pct_from_52w_high     >  ⇒ near the highs
+    "off_high":     -20.0,  # pct_from_52w_high     <= ⇒ off highs / in a base
+}
+
 log = logging.getLogger("hermes.signals")
+
+
+# --- D43 accumulation/distribution character (shared label brain) -----------
+# Pure, side-effect-free helpers so the dashboard AND the Telegram bot derive
+# IDENTICAL labels + plain-English reads from the stored numerics (DRY). The
+# label rule is intentionally three-axis: delivery is side-blind, so we never
+# collapse WHO / WHICH-WAY / CONTEXT into one number.
+
+def _char_flags(p_score, trade_count_ratio_1m_6m, deliv_updown_ratio_3m,
+                accum_price_drift_3m, pct_from_52w_high,
+                deliv_value_ratio_1m_6m=None) -> Optional[dict]:
+    """Boolean axis-flags from the raw numerics. None when the essential inputs
+    (activity + price direction) are missing — those two are what make the
+    label meaningful; the rest degrade gracefully to False."""
+    if p_score is None or accum_price_drift_3m is None:
+        return None
+    T = _CHAR_THRESH
+    return {
+        "active":       p_score >= T["active_p_score"],
+        "deliv_rising": deliv_value_ratio_1m_6m is not None and deliv_value_ratio_1m_6m >= T["deliv_rising"],
+        "broadening":   trade_count_ratio_1m_6m is not None and trade_count_ratio_1m_6m >= T["broadening"],
+        "concentrated": trade_count_ratio_1m_6m is not None and trade_count_ratio_1m_6m <= T["concentrated"],
+        "up_skew":      deliv_updown_ratio_3m is not None and deliv_updown_ratio_3m >= T["up_skew"],
+        "down_skew":    deliv_updown_ratio_3m is not None and deliv_updown_ratio_3m <= T["down_skew"],
+        "price_up":     accum_price_drift_3m > T["price_up"],
+        "price_down":   accum_price_drift_3m < T["price_down"],
+        "price_flat":   T["price_down"] <= accum_price_drift_3m <= T["price_up"],
+        "near_high":    pct_from_52w_high is not None and pct_from_52w_high > T["near_high"],
+        "off_high":     pct_from_52w_high is not None and pct_from_52w_high <= T["off_high"],
+    }
+
+
+def accum_character(p_score, trade_count_ratio_1m_6m, deliv_updown_ratio_3m,
+                    accum_price_drift_3m, pct_from_52w_high) -> Optional[str]:
+    """Derive the accumulation/distribution CHARACTER label (D43). First match
+    wins. Returns 'ACCUMULATION' / 'DISTRIBUTION' / 'CONSOLIDATION' / 'NEUTRAL',
+    or None when the essential inputs are missing (rendered as '-').
+
+    concentration (high DVPT, contained trade count, price firm) = strong hands
+    accumulating; broadening (rising trade count, high total delivery, price
+    stalling near highs) = strong hands distributing INTO a retail crowd."""
+    f = _char_flags(p_score, trade_count_ratio_1m_6m, deliv_updown_ratio_3m,
+                    accum_price_drift_3m, pct_from_52w_high)
+    if f is None:
+        return None
+    if f["active"] and (f["price_down"] or (f["near_high"] and not f["price_up"])) \
+            and (f["broadening"] or f["down_skew"]):
+        return "DISTRIBUTION"
+    if f["active"] and (f["price_up"] or f["price_flat"]) \
+            and (f["concentrated"] or f["up_skew"]):
+        return "ACCUMULATION"
+    if (not f["active"]) and f["price_flat"]:
+        return "CONSOLIDATION"
+    return "NEUTRAL"
+
+
+def accum_character_read(label, p_score, trade_count_ratio_1m_6m,
+                         deliv_updown_ratio_3m, accum_price_drift_3m,
+                         pct_from_52w_high, deliv_value_ratio_1m_6m=None) -> str:
+    """Plain-English nuance composed on-read from the raw numerics (D43). Same
+    helper for dashboard + bot so the wording never drifts."""
+    f = _char_flags(p_score, trade_count_ratio_1m_6m, deliv_updown_ratio_3m,
+                    accum_price_drift_3m, pct_from_52w_high, deliv_value_ratio_1m_6m)
+    if not label or f is None:
+        return ""
+    if label == "ACCUMULATION":
+        if f["price_up"] and f["up_skew"]:
+            return "markup / advance — price rising, delivery skewed to up-days"
+        if f["price_flat"] and f["concentrated"] and f["off_high"]:
+            return "absorption — supply soaked up quietly in a base, few large hands"
+        if f["price_flat"] and f["concentrated"]:
+            return "quiet accumulation — concentrated delivery, price holding firm"
+        return "accumulation — strong hands on the tape, price constructive"
+    if label == "DISTRIBUTION":
+        if f["broadening"] and f["near_high"]:
+            return "possible distribution — retail crowding in near highs while price stalls"
+        if f["price_down"]:
+            return "distribution — heavy delivery on down-days, price rolling over"
+        return "distribution risk — broadening crowd / down-day delivery skew"
+    if label == "CONSOLIDATION":
+        return "consolidation — no strong-hand activity, price range-bound"
+    return "neutral — no clear accumulation or distribution signature"
+
+
+def _ret_signs(adj: list) -> list:
+    """Per-day direction sign from the ADJUSTED close series (oldest→newest):
+    +1 up day, -1 down day, 0 flat / first day / corp-action anomaly excluded."""
+    n = len(adj)
+    signs = [0] * n
+    for j in range(1, n):
+        a0, a1 = adj[j - 1], adj[j]
+        if a0 and a1 and a0 > 0:
+            r = a1 / a0 - 1.0
+            if abs(r) > _CHAR_CC_THRESH:
+                signs[j] = 0          # unadjusted corp action — not a real day
+            elif r > 0:
+                signs[j] = 1
+            elif r < 0:
+                signs[j] = -1
+    return signs
+
+
+def _character_metrics(dates: list, adj: list, deliv_value: list,
+                       num_trades: list, deliv_per: list, ret_sign: list,
+                       i: int) -> dict:
+    """Compute the 7 stored D43 numerics for row index `i`, given full
+    per-symbol arrays ordered OLDEST→NEWEST. Calendar-day windows (30/90/180)
+    matching signals._WINDOWS; delivery ₹ is value-based (split-invariant);
+    direction + drift + 52w-high use ADJUSTED closes."""
+    d = dates[i]
+    lo30  = bisect.bisect_left(dates, _cutoff_date(d, 30))
+    lo90  = bisect.bisect_left(dates, _cutoff_date(d, 90))
+    lo180 = bisect.bisect_left(dates, _cutoff_date(d, 180))
+
+    def _avg(arr, lo):
+        vals = [arr[j] for j in range(lo, i + 1) if arr[j] is not None]
+        return (sum(vals) / len(vals)) if vals else None
+
+    # WHO — delivery ₹ trend, trade-count trend (breadth), delivery %.
+    dv30, dv180 = _avg(deliv_value, lo30), _avg(deliv_value, lo180)
+    deliv_value_ratio = (dv30 / dv180) if (dv30 is not None and dv180 and dv180 > 0) else None
+    tc30, tc180 = _avg(num_trades, lo30), _avg(num_trades, lo180)
+    trade_count_ratio = (tc30 / tc180) if (tc30 is not None and tc180 and tc180 > 0) else None
+    avg_deliv_pct_1m = _avg(deliv_per, lo30)
+    avg_deliv_pct_6m = _avg(deliv_per, lo180)
+
+    # WHICH WAY — value-weighted up/down delivery skew over 90 cal days.
+    up = down = 0.0
+    for j in range(lo90, i + 1):
+        s = ret_sign[j]
+        v = deliv_value[j]
+        if v is None or s == 0:
+            continue
+        if s > 0:
+            up += v
+        else:
+            down += v
+    if up == 0.0 and down == 0.0:
+        updown = None
+    elif down == 0.0:
+        updown = 99.0                # up$ only — cap (avoid div-by-zero blow-up)
+    else:
+        updown = up / down
+
+    # 3-month adjusted price drift (the direction-revealer). Base = the close
+    # at/just-before ~90 calendar days ago.
+    base_idx = bisect.bisect_right(dates, _cutoff_date(d, 90)) - 1
+    drift = None
+    if 0 <= base_idx < i and adj[base_idx] and adj[base_idx] > 0 and adj[i] is not None:
+        drift = (adj[i] / adj[base_idx] - 1.0) * 100.0
+
+    # CONTEXT — distance below the 52-week high (last ≤252 trading rows).
+    lo52 = max(0, i - 251)
+    highs = [adj[k] for k in range(lo52, i + 1) if adj[k] is not None]
+    pct_from_52w_high = None
+    if highs and adj[i] is not None:
+        mx = max(highs)
+        if mx > 0:
+            pct_from_52w_high = (adj[i] / mx - 1.0) * 100.0
+
+    return {
+        "deliv_value_ratio_1m_6m": deliv_value_ratio,
+        "trade_count_ratio_1m_6m": trade_count_ratio,
+        "avg_deliv_pct_1m": avg_deliv_pct_1m,
+        "avg_deliv_pct_6m": avg_deliv_pct_6m,
+        "deliv_updown_ratio_3m": updown,
+        "accum_price_drift_3m": drift,
+        "pct_from_52w_high": pct_from_52w_high,
+    }
+
+
+def _character_arrays(asc_rows: list) -> tuple:
+    """Build the per-symbol arrays _character_metrics needs from bhav rows
+    ordered OLDEST→NEWEST. Each row needs close/prev_close/deliv_qty/
+    num_trades/deliv_per."""
+    closes = [r["close"] for r in asc_rows]
+    adj = adjusted_closes([{"close": r["close"], "prev_close": r["prev_close"]}
+                           for r in asc_rows])
+    deliv_value = [
+        (r["deliv_qty"] * r["close"])
+        if (r["deliv_qty"] is not None and r["close"] is not None) else None
+        for r in asc_rows
+    ]
+    num_trades = [r["num_trades"] for r in asc_rows]
+    deliv_per = [r["deliv_per"] for r in asc_rows]
+    ret_sign = _ret_signs(adj)
+    return adj, deliv_value, num_trades, deliv_per, ret_sign
 
 
 def _delivery_value_per_trade(deliv_qty, close, num_trades) -> Optional[float]:
@@ -88,17 +317,20 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     P-tier baselines. D31 calendar-day windowing replaces D28's trading-day
     windowing.
     """
-    cutoff_360 = _cutoff_date(trade_date, 360)
+    # 372-day fetch (D43) — superset of the 360-day DVPT windows, giving the
+    # 52-week high a full year of adjusted closes. prev_close + deliv_per feed
+    # the D43 character axes (adjustment + delivery %).
+    cutoff = _cutoff_date(trade_date, _CHAR_FETCH_DAYS)
     with get_conn() as conn:
         rows = conn.execute(
             """
-            SELECT trade_date, close, value, deliv_qty, num_trades
+            SELECT trade_date, close, prev_close, value, deliv_qty, deliv_per, num_trades
             FROM bhavcopy_rows
             WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
               AND trade_date <= ? AND trade_date >= ?
             ORDER BY trade_date DESC
             """,
-            (symbol, trade_date, cutoff_360),
+            (symbol, trade_date, cutoff),
         ).fetchall()
 
     if not rows:
@@ -238,6 +470,19 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     else:
         signal["price_vs_hot_avg_pct"] = None
 
+    # --- D43 accumulation/distribution character --------------------------
+    # `rows` is newest-first; the metric helpers want oldest→newest. Today is
+    # the newest row, so its index in the ascending arrays is the last one.
+    asc = list(reversed(rows))
+    dates_a = [r["trade_date"] for r in asc]
+    adj_a, dv_a, nt_a, dp_a, rs_a = _character_arrays(asc)
+    cm = _character_metrics(dates_a, adj_a, dv_a, nt_a, dp_a, rs_a, len(asc) - 1)
+    signal.update(cm)
+    signal["accum_character"] = accum_character(
+        signal["p_score"], cm["trade_count_ratio_1m_6m"], cm["deliv_updown_ratio_3m"],
+        cm["accum_price_drift_3m"], cm["pct_from_52w_high"],
+    )
+
     return signal
 
 
@@ -334,6 +579,11 @@ _SIGNAL_COLS = [
     "r_score", "p_score", "trigger_rank",
     "is_ath_dvpt", "hot_days_avg_price", "price_vs_hot_avg_pct",
     "next_p_above", "gap_to_next_p_pct",
+    # D43 accumulation/distribution character (7 stored numerics + derived label)
+    "deliv_value_ratio_1m_6m", "trade_count_ratio_1m_6m",
+    "avg_deliv_pct_1m", "avg_deliv_pct_6m",
+    "deliv_updown_ratio_3m", "accum_price_drift_3m", "pct_from_52w_high",
+    "accum_character",
 ]
 
 
@@ -423,7 +673,7 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
     price-zone columns). Per-symbol bulk fetch + batch UPDATE.
     """
     bhav = conn.execute(
-        """SELECT trade_date, close, deliv_qty, num_trades
+        """SELECT trade_date, close, prev_close, deliv_qty, deliv_per, num_trades
            FROM bhavcopy_rows
            WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
            ORDER BY trade_date ASC""",
@@ -441,6 +691,9 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
         closes[i] = r["close"]
         dates[i]  = r["trade_date"]
     date_to_idx = {d: i for i, d in enumerate(dates)}
+
+    # D43 character arrays (oldest→newest, matching `bhav`/`dates` ordering).
+    char_adj, char_dv, char_nt, char_dp, char_rs = _character_arrays(bhav)
 
     # Running ATH-DVPT max over strictly-prior history.
     prior_max = None
@@ -534,6 +787,13 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
         else:
             pvh = None
 
+        # D43 accumulation/distribution character for this date.
+        cm = _character_metrics(dates, char_adj, char_dv, char_nt, char_dp, char_rs, i)
+        clabel = accum_character(
+            p_score, cm["trade_count_ratio_1m_6m"], cm["deliv_updown_ratio_3m"],
+            cm["accum_price_drift_3m"], cm["pct_from_52w_high"],
+        )
+
         updates.append((
             # avg_dvpt_1m..12m (R-tier DVPT baselines, calendar-day)
             r_dvpts[0], r_dvpts[1], r_dvpts[2], r_dvpts[3], r_dvpts[4],
@@ -547,6 +807,11 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
             r_score, p_score, rank,
             is_ath, hot_avg, pvh,
             next_above, gap,
+            # D43 character — 7 numerics + derived label
+            cm["deliv_value_ratio_1m_6m"], cm["trade_count_ratio_1m_6m"],
+            cm["avg_deliv_pct_1m"], cm["avg_deliv_pct_6m"],
+            cm["deliv_updown_ratio_3m"], cm["accum_price_drift_3m"],
+            cm["pct_from_52w_high"], clabel,
             # WHERE clause
             symbol, d,
         ))
@@ -564,7 +829,11 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
                       avg_close_p6m = ?, avg_close_p12m = ?,
                       r_score = ?, p_score = ?, trigger_rank = ?,
                       is_ath_dvpt = ?, hot_days_avg_price = ?, price_vs_hot_avg_pct = ?,
-                      next_p_above = ?, gap_to_next_p_pct = ?
+                      next_p_above = ?, gap_to_next_p_pct = ?,
+                      deliv_value_ratio_1m_6m = ?, trade_count_ratio_1m_6m = ?,
+                      avg_deliv_pct_1m = ?, avg_deliv_pct_6m = ?,
+                      deliv_updown_ratio_3m = ?, accum_price_drift_3m = ?,
+                      pct_from_52w_high = ?, accum_character = ?
                 WHERE symbol = ? AND trade_date = ?""",
             updates,
         )
@@ -597,13 +866,58 @@ def run_backfill_triggers() -> tuple[int, int]:
     return len(symbols), total_rows
 
 
+# --- Character relabel (D43) — fast threshold re-tuning, no full backfill ----
+
+def run_relabel_character() -> tuple[int, int]:
+    """Recompute ONLY `accum_character` from the already-stored numerics for
+    every stock_signals row. Use after editing _CHAR_THRESH — re-derives every
+    label in seconds without touching the (expensive) underlying measures.
+    Per-symbol batches keep memory bounded on the VPS."""
+    with get_conn() as conn:
+        symbols = [r["symbol"] for r in conn.execute(
+            "SELECT DISTINCT symbol FROM stock_signals ORDER BY symbol"
+        ).fetchall()]
+    log.info("relabel-character: %d symbols to relabel", len(symbols))
+
+    total = 0
+    for k, sym in enumerate(symbols, 1):
+        with get_conn() as conn:
+            rows = conn.execute(
+                """SELECT trade_date, p_score, trade_count_ratio_1m_6m,
+                          deliv_updown_ratio_3m, accum_price_drift_3m, pct_from_52w_high
+                   FROM stock_signals WHERE symbol = ?""",
+                (sym,),
+            ).fetchall()
+            ups = [
+                (accum_character(r["p_score"], r["trade_count_ratio_1m_6m"],
+                                 r["deliv_updown_ratio_3m"], r["accum_price_drift_3m"],
+                                 r["pct_from_52w_high"]),
+                 sym, r["trade_date"])
+                for r in rows
+            ]
+            if ups:
+                conn.executemany(
+                    "UPDATE stock_signals SET accum_character = ? "
+                    "WHERE symbol = ? AND trade_date = ?", ups)
+                total += len(ups)
+        if k % 200 == 0:
+            log.info("  relabel progress: %d / %d symbols", k, len(symbols))
+    log.info("relabel-character complete: %d symbols, %d rows", len(symbols), total)
+    return len(symbols), total
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--backfill", action="store_true")
     p.add_argument("--backfill-triggers", action="store_true",
                    help="Populate D28 two-tier columns (r_score, p_score, "
-                        "trigger_rank, ATH, hot-day avg, near-break) for every "
-                        "existing stock_signals row. Per-symbol bulk fetch + UPDATE.")
+                        "trigger_rank, ATH, hot-day avg, near-break) AND the D43 "
+                        "accumulation/distribution character (7 numerics + label) "
+                        "for every existing stock_signals row. Per-symbol bulk "
+                        "fetch + UPDATE.")
+    p.add_argument("--relabel-character", action="store_true",
+                   help="Recompute ONLY accum_character from stored numerics "
+                        "(fast — for re-tuning _CHAR_THRESH without a full backfill).")
     p.add_argument("--date", type=str, help="YYYY-MM-DD")
     p.add_argument("--symbol", type=str, help="compute one symbol's latest signal")
     args = p.parse_args()
@@ -635,6 +949,10 @@ def main() -> None:
     elif args.backfill_triggers:
         n_syms, n_rows = run_backfill_triggers()
         log.info("trigger backfill complete: %d symbols, %d rows updated",
+                 n_syms, n_rows)
+    elif args.relabel_character:
+        n_syms, n_rows = run_relabel_character()
+        log.info("character relabel complete: %d symbols, %d rows updated",
                  n_syms, n_rows)
     elif args.date:
         compute_for_date(args.date)

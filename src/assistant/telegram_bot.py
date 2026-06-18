@@ -29,6 +29,7 @@ from telegram.ext import (
 )
 
 from src.assistant import chat, conversations
+from src.automation.signals import accum_character_read
 from src.core.db import get_conn
 from src.core.settings import settings
 
@@ -68,7 +69,7 @@ async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "<b>Three ways to drive me:</b>\n"
             "  1. <b>/menu</b> — tap through a button tree if you don't want to remember commands\n"
             "  2. <b>Plain English</b> — \"what's pixtrans?\" / \"any ATH today?\" / \"discount entries?\"\n"
-            "  3. <b>Slash commands</b> — /pt14 TICKER · /dvpt TICKER · /scan · /triggers [ss|near]\n\n"
+            "  3. <b>Slash commands</b> — /pt14 TICKER · /dvpt TICKER · /scan · /triggers [ss|near|accum|distrib]\n\n"
             "<i>Or just chat — I'll remember the thread (/reset to start over).</i>",
             parse_mode="HTML",
         )
@@ -282,7 +283,12 @@ def _fetch_flow_rows(ticker: str, days: int) -> list[dict]:
                       s.avg_close_r1m, s.avg_close_r2m, s.avg_close_r3m,
                       s.avg_close_r6m, s.avg_close_r12m,
                       s.avg_close_p1m, s.avg_close_p2m, s.avg_close_p3m,
-                      s.avg_close_p6m, s.avg_close_p12m
+                      s.avg_close_p6m, s.avg_close_p12m,
+                      s.accum_character, s.delivery_value_today,
+                      s.deliv_value_ratio_1m_6m, s.trade_count_ratio_1m_6m,
+                      s.avg_deliv_pct_1m, s.avg_deliv_pct_6m,
+                      s.deliv_updown_ratio_3m, s.accum_price_drift_3m,
+                      s.pct_from_52w_high
                FROM stock_signals s
                JOIN bhavcopy_rows b USING (symbol, trade_date)
                WHERE s.symbol = ? AND b.series = 'EQ'
@@ -309,6 +315,60 @@ def _fmt_ratio(v) -> str:
     if v is None:
         return "—"
     return f"{v:.2f}"
+
+
+# D43 — accumulation/distribution character tags (Telegram). Shares the label
+# vocabulary produced by signals.accum_character.
+_CHAR_TG = {
+    "ACCUMULATION":  "🟢 ACCUMULATION",
+    "DISTRIBUTION":  "🔴 DISTRIBUTION ⚠️",
+    "CONSOLIDATION": "🟡 CONSOLIDATION",
+    "NEUTRAL":       "⚪ NEUTRAL",
+}
+_CHAR_MARK = {"ACCUMULATION": "🟢", "DISTRIBUTION": "🔴",
+              "CONSOLIDATION": "🟡", "NEUTRAL": "⚪"}
+
+
+def _char_tag(label) -> str:
+    return _CHAR_TG.get(label or "", "—")
+
+
+def _char_marker(label) -> str:
+    """One-glyph character marker for fixed-width scan rows."""
+    return _CHAR_MARK.get(label or "", " ")
+
+
+def _format_character_block(latest: dict) -> list[str]:
+    """D43 — the '🧭 Character' block: label + plain-English read + the WHO row
+    (total delivery ₹, delivery %, up/down split, breadth) + 52w-high distance.
+    Empty list if the character hasn't been computed yet (pre-backfill)."""
+    label = latest.get("accum_character")
+    if not label:
+        return []
+    read = accum_character_read(
+        label, latest.get("p_score"), latest.get("trade_count_ratio_1m_6m"),
+        latest.get("deliv_updown_ratio_3m"), latest.get("accum_price_drift_3m"),
+        latest.get("pct_from_52w_high"), latest.get("deliv_value_ratio_1m_6m"),
+    )
+    dvt = latest.get("delivery_value_today")
+    dvt_cr = f"₹{dvt / 1e7:,.1f} Cr" if dvt else "—"
+    dp1, dp6 = latest.get("avg_deliv_pct_1m"), latest.get("avg_deliv_pct_6m")
+    tcr = latest.get("trade_count_ratio_1m_6m")
+    breadth = ("broadening (retail crowd)" if (tcr is not None and tcr >= 1.3)
+               else "concentrated (few hands)" if (tcr is not None and tcr <= 1.1)
+               else "steady" if tcr is not None else "—")
+    pfh = latest.get("pct_from_52w_high")
+    drift = latest.get("accum_price_drift_3m")
+    lines = [
+        f"<b>🧭 Character: {_char_tag(label)}</b>",
+        (f"<i>{read}</i>" if read else ""),
+        f"  Total delivery: <b>{dvt_cr}</b> · Deliv% 1m/6m: "
+        f"{_fmt_money(dp1) if dp1 is not None else '—'}/{_fmt_money(dp6) if dp6 is not None else '—'}",
+        f"  Up/down deliv (3m): <b>{_fmt_ratio(latest.get('deliv_updown_ratio_3m'))}</b> · {breadth}",
+        f"  vs 52w-high: {('%+.1f%%' % pfh) if pfh is not None else '—'} · "
+        f"3m drift: {('%+.1f%%' % drift) if drift is not None else '—'}",
+    ]
+    return [x for x in lines if x != ""]
 
 
 def _format_flow_message(ticker: str, rows: list[dict]) -> str:
@@ -362,6 +422,12 @@ def _format_flow_message(ticker: str, rows: list[dict]) -> str:
     if zone_lines:
         lines.append("")
         lines.extend(zone_lines)
+
+    # --- D43 accumulation/distribution character -------------------------
+    char_lines = _format_character_block(latest)
+    if char_lines:
+        lines.append("")
+        lines.extend(char_lines)
 
     lines.append("")
     lines.append(
@@ -1234,6 +1300,7 @@ def _scan_top_dvpt(n: int) -> list[dict]:
                        s.price_vs_hot_avg_pct,
                        s.next_p_above,
                        s.gap_to_next_p_pct,
+                       s.accum_character,
                        b.close,
                        b.deliv_per,
                        b.value AS total_value
@@ -1281,10 +1348,11 @@ def _format_row(r: dict) -> str:
         near_s = f"{near}{gap:+.1f}"
     else:
         near_s = ""
-    return f"{sym:<10}{rank:>6}{rp:>6}{close:>8}{pvh_s:>7}{en:>3} {near_s:<10}"
+    ch = _char_marker(r.get("accum_character"))
+    return f"{sym:<10}{rank:>6}{rp:>6}{close:>8}{pvh_s:>7}{en:>3} {ch:<2}{near_s:<10}"
 
 
-_ROW_HEADER = f"{'Symbol':<10}{'Rank':>6}{'r/p':>6}{'Close':>8}{'Δhot%':>7}{'En':>3} Near-P"
+_ROW_HEADER = f"{'Symbol':<10}{'Rank':>6}{'r/p':>6}{'Close':>8}{'Δhot%':>7}{'En':>3} {'Ch':<2}Near-P"
 
 
 def _format_scan_message(rows: list[dict]) -> str:
@@ -1314,6 +1382,7 @@ def _format_scan_message(rows: list[dict]) -> str:
         f"<i>{summary_line}</i>",
         "<i>Sort: ATH → p_score → r_score → discount → r1m. "
         "r/p = soft/hard baselines beaten (max 5/5). "
+        "Ch = character 🟢accum 🔴distrib 🟡consol ⚪neutral. "
         "Near-P = closest P-wall above today.</i>",
         "",
         "<pre>",
@@ -1326,17 +1395,20 @@ def _format_scan_message(rows: list[dict]) -> str:
     lines.append(
         "<i>Drill: <b>dvpt &lt;symbol&gt;</b>. "
         "Strict S/SS only: <b>/triggers</b>. "
-        "About-to-break: <b>/triggers near</b>.</i>"
+        "About-to-break: <b>/triggers near</b>. "
+        "Character: <b>/triggers accum</b> · <b>/triggers distrib</b>.</i>"
     )
     return "\n".join(lines)
 
 
 async def on_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Strict layered triggers across the market (D28).
+    """Strict layered triggers across the market (D28 + D43).
 
-    /triggers       -> rank A or better (p_score >= 3)
-    /triggers ss    -> SS only (p_score = 5)
-    /triggers near  -> near-break candidates: gap_to_next_p_pct > -10% AND r_score >= 4
+    /triggers         -> rank A or better (p_score >= 3)
+    /triggers ss      -> SS only (p_score = 5)
+    /triggers near    -> near-break candidates: gap_to_next_p_pct > -10% AND r_score >= 4
+    /triggers accum   -> ACCUMULATION character + p_score >= 3 + concentrated (D43)
+    /triggers distrib -> DISTRIBUTION character (D43)
     """
     user_id = update.effective_user.id
     if not _is_authorized(user_id):
@@ -1347,6 +1419,10 @@ async def on_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         kind = "ss"; label = "SS only"
     elif mode in ("near", "near-break", "kissing"):
         kind = "near"; label = "near-break candidates"
+    elif mode in ("accum", "accumulation", "stealth"):
+        kind = "accum"; label = "accumulation character (concentrated)"
+    elif mode in ("distrib", "distribution", "distro"):
+        kind = "distrib"; label = "distribution character ⚠️"
     else:
         kind = "default"; label = "rank A+ (p_score ≥ 3)"
 
@@ -1373,6 +1449,8 @@ def _scan_triggers(kind: str) -> list[dict]:
     kind:
       'ss'      -> p_score = 5 (SS only)
       'near'    -> next_p_above IS NOT NULL AND gap_to_next_p_pct > -10 AND r_score >= 4
+      'accum'   -> accum_character = 'ACCUMULATION' AND p_score >= 3 AND concentrated
+      'distrib' -> accum_character = 'DISTRIBUTION'
       'default' -> p_score >= 3 (rank A or better)
     """
     if kind == "ss":
@@ -1381,6 +1459,12 @@ def _scan_triggers(kind: str) -> list[dict]:
         extra_where = ("AND s.next_p_above IS NOT NULL "
                        "AND s.gap_to_next_p_pct > -10 "
                        "AND COALESCE(s.r_score, 0) >= 4")
+    elif kind == "accum":
+        extra_where = ("AND s.accum_character = 'ACCUMULATION' "
+                       "AND s.p_score >= 3 "
+                       "AND COALESCE(s.trade_count_ratio_1m_6m, 99) <= 1.1")
+    elif kind == "distrib":
+        extra_where = "AND s.accum_character = 'DISTRIBUTION'"
     else:
         extra_where = "AND s.p_score >= 3"
 
@@ -1399,6 +1483,7 @@ def _scan_triggers(kind: str) -> list[dict]:
                        s.price_vs_hot_avg_pct,
                        s.next_p_above,
                        s.gap_to_next_p_pct,
+                       s.accum_character,
                        b.close,
                        b.deliv_per,
                        b.value AS total_value
@@ -1431,6 +1516,7 @@ def _format_triggers_message(rows: list[dict], kind: str, label: str) -> str:
         f"<b>⚡ Layered triggers — {trade_date}</b>",
         f"<i>{summary}</i>",
         "<i>r/p = R-tier / P-tier baselines beaten (5/5 = above all rolling avgs / power baselines). "
+        "Ch = character 🟢accum 🔴distrib 🟡consol ⚪neutral. "
         "Near-P shows next P-wall above today's DVPT.</i>",
         "",
         "<pre>",
@@ -1930,7 +2016,7 @@ BOT_COMMANDS = [
     BotCommand("pt14",          "patearn 14-pattern rule-based score (FREE — no LLM, /pt14 RELIANCE)"),
     BotCommand("dvpt",          "Delivery-Value-Per-Trade institutional signal (FREE, /dvpt TICKER [days])"),
     BotCommand("scan",          "Top stocks — two-tier ranked (ATH → p_score → r_score → discount → r1m) (FREE)"),
-    BotCommand("triggers",      "Strict layered triggers: rank A+, SS-only, or near-break (FREE, /triggers [ss|near])"),
+    BotCommand("triggers",      "Strict layered triggers: A+, SS, near-break, accum or distrib (FREE, /triggers [ss|near|accum|distrib])"),
     BotCommand("index",         "Index level + technicals + RS vs broad (D32, /index NIFTYBANK)"),
     BotCommand("sectors",       "Sector rotation dashboard — all sectoral RS vs Nifty 500 (D32)"),
     BotCommand("rotation",      "Alias of /sectors — same view"),
