@@ -2520,6 +2520,11 @@ def dash_ratio(idx: str = Query("", max_length=60),
 
         sig = conn.execute(
             """SELECT rs_vs_broad_trend_state st, ret_3m_pct r3,
+                      ret_1d_pct r1d, ret_1w_pct r1w, ret_1m_pct r1m,
+                      ret_6m_pct r6, ret_12m_pct r12,
+                      pct_above_50d_avg pa50, pct_above_200d_avg pa200,
+                      pct_off_52w_high off52h, pct_above_52w_low abv52l,
+                      close_value iclose,
                       rs_vs_broad_today rs, rs_vs_broad_slope_1m s1,
                       rs_vs_broad_slope_3m s3, rs_vs_broad_slope_6m s6,
                       rs_vs_broad_slope_12m s12, rs_vs_broad_above_50ma a50,
@@ -2529,6 +2534,17 @@ def dash_ratio(idx: str = Query("", max_length=60),
             (idx,),
         ).fetchone()
         S = dict(sig) if sig else {}
+
+        # D49 — the index's OWN today snapshot (OHLC / valuation / volume), so the
+        # index page shows "today's movement", not just the RS picture.
+        irow = conn.execute(
+            """SELECT open_value o, high_value h, low_value l, close_value close,
+                      points_change pts, change_pct chg, volume vol,
+                      turnover_cr tov, pe, pb, dividend_yield dy, trade_date td
+               FROM index_rows WHERE index_name=? ORDER BY trade_date DESC LIMIT 1""",
+            (idx,),
+        ).fetchone()
+        IR = dict(irow) if irow else {}
 
         # Cross-sector RS-momentum percentile (on-read).
         momrows = conn.execute(
@@ -2550,13 +2566,18 @@ def dash_ratio(idx: str = Query("", max_length=60),
             if sd:
                 ph = ",".join("?" for _ in syms)
                 consts = [dict(x) for x in conn.execute(
-                    f"""SELECT symbol, trigger_rank rank, is_ath_dvpt ath,
-                              p_score, r_score, price_vs_hot_avg_pct pvh
-                       FROM stock_signals
-                       WHERE trade_date=? AND symbol IN ({ph})
-                       ORDER BY COALESCE(is_ath_dvpt,0) DESC,
-                                COALESCE(p_score,-1) DESC, COALESCE(r_score,-1) DESC
-                       LIMIT 8""",
+                    f"""SELECT s.symbol, s.trigger_rank rank, s.is_ath_dvpt ath,
+                              s.p_score, s.r_score, s.price_vs_hot_avg_pct pvh,
+                              s.rs_rank, s.accum_price_drift_3m drift3m,
+                              b.close cmp, b.prev_close pc
+                       FROM stock_signals s
+                       JOIN bhavcopy_rows b
+                         ON b.symbol=s.symbol AND b.trade_date=s.trade_date
+                            AND b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL)
+                       WHERE s.trade_date=? AND s.symbol IN ({ph})
+                       ORDER BY COALESCE(s.is_ath_dvpt,0) DESC,
+                                COALESCE(s.p_score,-1) DESC, COALESCE(s.r_score,-1) DESC
+                       LIMIT 100""",
                     (sd, *syms),
                 ).fetchall()]
 
@@ -2672,34 +2693,96 @@ def dash_ratio(idx: str = Query("", max_length=60),
         pills.append('<span class="pill p-BREAKOUT">new 52w RS high</span>')
     pill_row = '<div class="chips" style="margin-bottom:10px">' + "".join(pills) + '</div>'
 
-    # --- Top constituents table ---
+    # --- Constituents table (D49: DVPT trigger + RS vs THIS index + today) ---
     if syms:
+        idx_r3 = S.get("r3")
         crows = []
         for c in consts:
             rk = c["rank"] or "-"
             ath = "⚡" if c["ath"] else ""
             pvh = c["pvh"]
             entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
+            cmp_v, pc = c.get("cmp"), c.get("pc")
+            dchg = ((cmp_v / pc - 1) * 100) if (cmp_v and pc) else None
+            rr = c.get("rs_rank")
+            drift = c.get("drift3m")
+            # outperformance vs THIS index = stock 3m return − index 3m return
+            excess = (drift - idx_r3) if (drift is not None and idx_r3 is not None) else None
             crows.append(
                 f'<tr><td><a class="row" href="/dash/stock?sym={_esc(c["symbol"])}">'
                 f'<span class="sym">{ath}{_esc(c["symbol"])}</span></a></td>'
                 f'<td><span class="pill p-{rk}">{rk}</span></td>'
                 f'<td class="mut">{c["r_score"] or 0}/{c["p_score"] or 0}</td>'
-                f'<td>{_pct(pvh)} {entry}</td></tr>')
+                f'<td>{_pct(pvh)} {entry}</td>'
+                f'<td>{_num(cmp_v, 1) if cmp_v is not None else "—"}</td>'
+                f'<td>{_pct(dchg)}</td>'
+                f'<td>{rr if rr is not None else "—"}</td>'
+                f'<td>{_pct(drift)}</td>'
+                f'<td>{_pct(excess)}</td></tr>')
         if crows:
             consts_html = (
-                '<h2>Top constituents <span class="sub" style="margin:0">by DVPT trigger</span></h2>'
-                '<div class="card" style="padding:6px 10px;"><table>'
-                '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Δhot</th></tr></thead>'
+                '<h2>Constituents <span class="sub" style="margin:0">'
+                'DVPT trigger + RS vs this index</span></h2>'
+                '<div class="sub">Sorted by DVPT trigger — click any header to re-sort, type to filter, ⬇ export. '
+                f'<b>vs idx</b> = the stock\'s 3m return minus {_esc(idx)}\'s 3m return '
+                '(positive = outperforming the index). <b>RS rank</b> = 1–99 market strength.</div>'
+                '<div class="card" style="padding:6px 10px;overflow-x:auto">'
+                '<table class="dt" style="min-width:640px">'
+                '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Δhot</th>'
+                '<th>CMP</th><th>Δday</th><th>RS rank</th><th>3m</th><th>vs idx</th></tr></thead>'
                 f'<tbody>{"".join(crows)}</tbody></table></div>')
         else:
-            consts_html = ('<h2>Top constituents</h2>'
+            consts_html = ('<h2>Constituents</h2>'
                            '<div class="card"><div class="sub" style="margin:0">'
                            'No stock signals for the constituents on the latest day.</div></div>')
     else:
-        consts_html = ('<h2>Top constituents</h2>'
+        consts_html = ('<h2>Constituents</h2>'
                        '<div class="card"><div class="sub" style="margin:0">'
                        'No membership on record for this index.</div></div>')
+
+    # --- D49 index one-stop snapshot (today close / OHLC / valuation / returns) ---
+    snapshot_html = ""
+    if S or IR:
+        iclose = IR.get("close")
+        if iclose is None:
+            iclose = S.get("iclose")
+
+        def _v(x, d=2, suf=""):
+            return f"{x:,.{d}f}{suf}" if x is not None else "—"
+
+        pts = IR.get("pts")
+        trend_pill = (f'<span class="pill p-{st}">{st[:5]}</span>'
+                      if (st and st != "—") else "—")
+        kpi = (
+            '<div class="kpi">'
+            f'<div class="box"><div class="num">{_v(iclose, 2)}</div>'
+            f'<div class="lbl">close{(" " + ("%+.0f" % pts)) if pts is not None else ""}</div></div>'
+            f'<div class="box"><div class="num">{_pct(IR.get("chg"))}</div><div class="lbl">today</div></div>'
+            f'<div class="box"><div class="num" style="font-size:16px;padding-top:8px">'
+            f'{_pct(S.get("r1m"))}</div><div class="lbl">1m return</div></div></div>')
+        stats = (
+            '<div class="card" style="padding:6px 10px"><table><tbody>'
+            f'<tr><td class="mut">Open</td><td>{_v(IR.get("o"), 2)}</td>'
+            f'<td class="mut">High</td><td>{_v(IR.get("h"), 2)}</td>'
+            f'<td class="mut">Low</td><td>{_v(IR.get("l"), 2)}</td></tr>'
+            f'<tr><td class="mut">Volume</td><td>{_v(IR.get("vol"), 0)}</td>'
+            f'<td class="mut">Turnover</td><td>{("₹" + _v(IR.get("tov"), 0) + " Cr") if IR.get("tov") is not None else "—"}</td>'
+            f'<td class="mut">Div yld</td><td>{_v(IR.get("dy"), 2, "%")}</td></tr>'
+            f'<tr><td class="mut">P/E</td><td>{_v(IR.get("pe"), 2)}</td>'
+            f'<td class="mut">P/B</td><td>{_v(IR.get("pb"), 2)}</td>'
+            f'<td class="mut">Trend</td><td>{trend_pill}</td></tr>'
+            '</tbody></table></div>')
+        rets = " · ".join(
+            f'{lbl} {_pct(S.get(k))}' for lbl, k in
+            (("1d", "r1d"), ("1w", "r1w"), ("1m", "r1m"),
+             ("3m", "r3"), ("6m", "r6"), ("12m", "r12")))
+        techs = (f'{_pct(S.get("pa50"))} vs 50-DMA · {_pct(S.get("pa200"))} vs 200-DMA · '
+                 f'{_pct(S.get("off52h"))} off 52w-high · {_pct(S.get("abv52l"))} above 52w-low')
+        snapshot_html = (
+            f'<h2>Today <span class="sub" style="margin:0">{_esc(IR.get("td") or "")}</span></h2>'
+            + kpi + stats
+            + f'<div class="sub" style="margin:6px 0 2px"><b>Returns</b> &nbsp;{rets}</div>'
+            + f'<div class="sub" style="margin:0 0 10px"><b>Technicals</b> &nbsp;{techs}</div>')
 
     chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st and st != "—" else ''
     other = "Nifty 50" if den == "Nifty 500" else "Nifty 500"
@@ -2723,6 +2806,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
 <style>{chart_css}</style>
 <h2>{_esc(idx)}{chip} <span class="sub" style="margin:0">RS vs {_esc(den)}</span></h2>
 <div class="sub" style="margin-bottom:10px">{strip} &nbsp; 3m RS {_pct(s3)} · ret 3m {_pct(r3)}</div>
+{snapshot_html}
 {fbar}
 {read_html}
 <div class="rangebar">

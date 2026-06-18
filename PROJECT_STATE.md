@@ -382,7 +382,7 @@ Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Ca
 | `/dash/leaders` | Composite "strong-in-strong" leaders + "weak-in-weak" laggards — stock RS vs sector AND vs broad AND the sector's own RS vs broad all aligned; sortable boards; previewed on Home | D33c |
 | **`/dash/conviction?limit=`** | **D45 — the cross-pillar Conviction shortlist:** names where ALL 3 pillars align — RS leader (D33c) + institutions accumulating now (D43 `accum_character='ACCUMULATION'`) + the D44 entry read (🎯 near-key / discount), with pt14 quality as a ★ confirmation. Sortable/filterable/exportable `.dt` table + 🎯/★ filter pills; previewed by a ⭐ board on Home (after the Strategies hub). Read-only synthesis (no schema). `active="stocks"` | D45 |
 | `/dash/stock?sym=X` | Per-stock — adjusted candle + DVPT/delivery charts, DVPT inertia vs every baseline, D31 institutional price zones, **D43 Accumulation-character panel** (label + plain-English read + up/down delivery bar + WHO row + 52w-high distance + ⚠️ distribution-while-high warning), **D44 Institutional key-price section** (value-weighted key per horizon + signed gap + 🎯 launch-band read + ticket/surge, beside the flat zones), pt14 snapshot, RS vs broad+sector, auto-READ | D33-web/D36/D43/D44 |
-| `/dash/ratio?idx=&den=` | Per-index RS ratio chart (ratio + 50/200-MA + cross/new-RS-high markers + range + vs-50/500), RS-momentum percentile gauge, abs×rel quadrant, auto-READ, top constituents | D39 |
+| `/dash/ratio?idx=&den=` | Per-index ONE-STOP view (D49): **today snapshot** (close/OHLC/Δday/volume/turnover/PE/PB/divyield + returns 1d–12m + 50/200-DMA + 52w pos) + RS ratio chart (ratio + 50/200-MA + cross/new-RS-high markers + range + vs-50/500) + RS-momentum gauge + abs×rel quadrant + auto-READ + **constituents table** (DVPT trigger **+ CMP/Δday + RS rank + 3m + vs-index excess**, all-constituents, sortable/filterable/CSV `.dt`) | D39/D49 |
 | **`/dash/compare?idx=&idx=&den=&mode=&base=&r=`** | **Overlay ≤6 indices on one chart, each rebased to a fluid common anchor → read who outperformed.** Modes **Rebased %** / **Ratio**; sticky 6-color palette; chip-rail picker (chips = legend) + presets. Entry points: `/dash/ratio` fbar + `/dash/markets` & `/dash/sectors` footer links. Render-only, zero schema change. | **D40** |
 | `/dash/scan` | D28/D31 layered-triggers table (working orphan — kept, not in nav) | D33-web |
 | `/dash/offline` · `/manifest.webmanifest` · `/sw.js` · `/icon.svg` | PWA shell — offline fallback, install manifest, network-first service worker, icon | D33-web |
@@ -418,6 +418,15 @@ Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Ca
 ---
 
 ## Decision log (the big ones)
+
+### D49 — Index page → one-stop view: today/OHLC snapshot + constituents get RS-vs-index (not just DVPT) — SHIPPED (session 18)
+Why: Ramana asked, on `/dash/ratio?idx=...`, (a) to see the index's OWN today's movement (close/OHLC/day-change/valuation) — the page showed the RS picture but never queried the index's price row — and (b) for the "top constituents" to carry **relative strength vs the index** (which constituents are out/under-performing it), keeping DVPT, not replacing it. (Distinct from D48, which was the stock page + screen rows — different route, no overlap. Numbered D49 since the concurrent session took D48.)
+
+**Shipped (render-only, no schema/backfill — all data already stored):**
+- **Index one-stop snapshot** at the top of the page — from `index_rows`: today close + points/% change + OHLC + volume + turnover ₹Cr + P/E + P/B + div-yield; from `index_signals`: returns 1d/1w/1m/3m/6m/12m + %-vs-50/200-DMA + %-off-52w-high + %-above-52w-low. The "everything an analyst/data-engineer wants for this index" header, beside the existing RS chart/gauge/quadrant/READ.
+- **Constituents — keep DVPT, ADD RS** — the table now carries, per constituent: CMP + Δday%, **RS rank (1–99)**, the stored **adjusted 3m return** (`accum_price_drift_3m`, D43 — split-correct), and **vs idx** = stock 3m return − the index's `ret_3m_pct` (positive = outperforming the index). Shows ALL constituents (was top-8), default-sorted by DVPT trigger, now a `.dt` table → click-sort by any column (DVPT / Δday / RS rank / vs-idx) + filter + CSV export.
+
+Used the stored `accum_price_drift_3m` + `index_signals.ret_3m_pct` for the "vs index" excess (cheap, adjusted, no per-symbol fetch); `rs_rank` for market strength. DVPT stays primary and untouched.
 
 ### D48 — Dashboard enrichment (Positioning rows + stock-page charts) + SQLite WAL perf — SHIPPED (session 18)
 Why: Ramana wanted the Home boards + screen to tell the full institutional story per row (not just rank/Δhot), the stock page to show traded-vs-delivery value + an RS-overlay chart at multiple timeframes, and flagged 3–7s click latency. **Screen-level only — no schema/pipeline change.**
@@ -1011,6 +1020,9 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 18 (continued) — 2026-06-18 — D49 index page → one-stop view + constituent RS
+Ramana, on `/dash/ratio`, asked to see the index's OWN today's movement (it only showed RS, never the index's price row) and for the constituents to carry relative-strength-vs-the-index, keeping DVPT. Shipped (render-only in `dash_ratio`, no schema): an **index snapshot header** (today close/Δ/OHLC + volume/turnover + PE/PB/div-yield from `index_rows`; returns 1d–12m + 50/200-DMA + 52w-position from `index_signals`); and **constituents now carry CMP/Δday + RS rank + adjusted 3m return (`accum_price_drift_3m`) + "vs idx" = stock 3m − index 3m return** (positive = outperforming the index), all constituents, default-sorted by DVPT, now a sortable/filterable/exportable `.dt` table. DVPT kept primary. Distinct route from the concurrent session's D48 (stock page + screen rows) — numbered D49 (D48 taken). Built after that session went on hold (no collision). Verification: `py_compile` clean, routes 200 (empty DB); real-data check on VPS — see deploy note.
 
 ### Session 18 — WRAP (2026-06-18) — Patearn rebrand direction · D47 deep-history foundation (building) · D48 dashboard enrichment · the DVPT picking-strategy program
 The session that set the **forward program**. Much of it is design + an autonomous data build still running at wrap — so this entry is the handoff.
