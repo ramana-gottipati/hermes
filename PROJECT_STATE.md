@@ -1,6 +1,6 @@
 # Hermes — Project State
 
-> **Last updated:** 2026-06-18 (session 18 — **D45** cross-pillar **CONVICTION shortlist**: the synthesis where all 3 pillars align (RS leader + D43 accumulating + D44 entry + pt14 quality), read-only via `stock_rs.conviction_shortlist` → **`/dash/conviction`** + a ⭐ Home preview + `/conviction`. Built this session on **D43** DVPT accumulation/distribution **CHARACTER** (3-axis → `accum_character`) and **D44** value-weighted institutional **KEY PRICE** + near-key entry + ticket/surge + **`/dash/workbench`** (both additive, zero regression). D44 refines D31's flat `avg_close_p*` zones — the big institutional day now dominates the value-weighted cost line. Prior: session 17 — D33b/D33c (RS pillar COMPLETE) + **D41** strategy-surface Phase 1; **D42** equity-only scanners. Built on the session-16 D33a/D38/D39/D40 base.)
+> **Last updated:** 2026-06-18 (session 18 — **D46** bounded/prioritized batch **pt14 scoring** (`score_batch.py`) lights up the Quality pillar for surfaced names — honors D8 (over-time, not bulk); daily `hermes-pt14batch` timer; closes B6. Built right after **D45** cross-pillar **CONVICTION shortlist**: the synthesis where all 3 pillars align (RS leader + D43 accumulating + D44 entry + pt14 quality), read-only via `stock_rs.conviction_shortlist` → **`/dash/conviction`** + a ⭐ Home preview + `/conviction`. Built this session on **D43** DVPT accumulation/distribution **CHARACTER** (3-axis → `accum_character`) and **D44** value-weighted institutional **KEY PRICE** + near-key entry + ticket/surge + **`/dash/workbench`** (both additive, zero regression). D44 refines D31's flat `avg_close_p*` zones — the big institutional day now dominates the value-weighted cost line. Prior: session 17 — D33b/D33c (RS pillar COMPLETE) + **D41** strategy-surface Phase 1; **D42** equity-only scanners. Built on the session-16 D33a/D38/D39/D40 base.)
 > **Running document.** This is the source of truth for the next Claude Code session.
 > **⚠ Session-16 WRAP (read § Session log → "Session 16 — WRAP" first):** A very large session. P0 operational mess fully cleared (git identity → `Ramana Gottipati <gottipati.ramana@gmail.com>` repo-local; everything pushed; VPS reconciled). Shipped: **D38** macro→micro dashboard + index membership · **D39** RS ratio-analysis (multi-TF heat strip, `/dash/ratio`, `/dash/rs`) · **D40** `/dash/compare` rebase chart + chart range-switch perf fix · **D33a** stock-vs-broad RS + 1–99 rank (backfilled 2.37M rows). Plus on-page RS reconciliation table, chart hover-readouts, and a data-grid toolbar (sort/filter/Excel-CSV export) on the query tables. **HEAD = origin/main = VPS = `0adcf5d`, clean** (only the long-dormant uncommitted `patearn.py` diff remains — leave it). Telegram bot still network-blocked (waiting). **D33b + D33c shipped (session 17)** — stock-vs-sector RS + composite leaders/laggards (`/dash/leaders` board + Home preview; `/rs` `/leaders` `/laggards` commands); the third RS pillar is COMPLETE and `stock_rs` is wired into the nightly chain. **D41 Phase 1 shipped (session 17):** strategy badges on every board + a Strategies hub on Home + sector rotation curated to real sectors (factor/IPO indices no longer dead-end) + a Daily/Weekly/Monthly DVPT-trigger toggle (weekly/monthly roll up the last 5/22 trading days so a mid-week spike isn't missed). **Next:** D41 Phase 2 (materialised `weekly_signals` + add real missing sectors to membership), Phase 3 (saved-screener/query-builder + Conviction shortlist); then B5 (zones-on-adjusted-price), B6 (pt14 caching), Telegram unblock.
 
@@ -223,7 +223,8 @@ D:\Hermes\                                          ← local working copy of re
 │       ├── membership.py                            ← NSE constituent lists → stock_index_membership (D33b)
 │       ├── adjust.py                                ← reusable split/bonus back-adjustment (extracted from D36; used by stock_rs)
 │       ├── stock_rs.py                              ← stock-vs-broad + stock-vs-sector RS + 1-99 rank + leaders/laggards → stock_signals (D33a/b/c)
-│       └── equity_list.py                           ← NSE EQUITY_L.csv → nse_equity_list allowlist (equity-only scanners, D42)
+│       ├── equity_list.py                           ← NSE EQUITY_L.csv → nse_equity_list allowlist (equity-only scanners, D42)
+│       └── score_batch.py                           ← bounded/prioritized batch pt14 scoring (B6/D46; honors D8 — surfaced names only)
 ├── resources\patearn\                              ← copy of patearn skill files (used by patearn.py)
 │   ├── SKILL.md
 │   ├── patterns.md
@@ -253,7 +254,8 @@ D:\Hermes\                                          ← local working copy of re
 ├── hermes-api.service                              ← FastAPI on :8000
 ├── hermes-news.service + .timer                    ← 9 AM + 5 PM IST weekdays
 ├── hermes-digest.service + .timer                  ← 10 AM + 6 PM IST weekdays
-└── hermes-bhavcopy.service + .timer                ← 6 PM IST weekdays (after backfill is run)
+├── hermes-bhavcopy.service + .timer                ← 6 PM IST weekdays (after backfill is run)
+└── hermes-pt14batch.service + .timer               ← daily — bounded batch pt14 scoring of surfaced names (B6/D46)
 
 /var/log/
 ├── hermes-telegram.log
@@ -413,6 +415,18 @@ Read-only, no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Ca
 ---
 
 ## Decision log (the big ones)
+
+### D46 — Bounded, prioritized batch pt14 scoring (B6) — lights up the Quality pillar, HONORS D8 — SHIPPED (session 18)
+Building D45 exposed that the Quality pillar is dark: the Conviction shortlist (and the stock-page pt14 card, and the hub's "scored" count) read cached `pattern_scores`/`fundamentals`, which only exist for stocks someone has manually `/pt14`'d — so both D45 conviction names showed `unscored`. B6 fixes that by keeping the SURFACED names scored.
+
+**The D8 tension, and how this honors it (NOT overturns it):** D8 is a deliberate "Ramana's call" — *"don't pre-scrape Screener for 5,000 stocks; wait for results events; cache 7 days; natural incremental growth."* A naive "score all ~2,400 equities nightly" would violate it. So `src/automation/score_batch.py` is explicitly the opposite of bulk:
+- **Prioritized** — only the surfaced universe (watchlist → recent news-driven `screen_candidates` → Conviction shortlist → RS leaders), capped at 300, NOT the full equity list.
+- **Incremental** — skips any symbol already scored within the 7-day TTL; each run only does outstanding work, so coverage grows over days then just refreshes ("natural incremental growth", D8's exact words).
+- **Bounded** — at most `--limit` (default 40) real Screener scrapes per run; the rest wait for the next run.
+- **Throttled** — a polite `--throttle` (default 2.5s) sleep after each real scrape (anti-rate-limit / anti-block). Fresh-cached names are re-scored locally with no network.
+- **No LLM** — reuses the existing rule-based `scoring.score_symbol` (Screener HTML parse + `score_fundamentals`); ₹0 marginal.
+
+D8 stays the doctrine; D46 is its careful application to the small set the system actually surfaces. Scheduled via a daily `hermes-pt14batch` systemd timer on the VPS (runs after the signals chain). Closes open item B6. The Conviction shortlist's ★ quality-confirmed dimension (and the stock-page pt14 card) now populate for surfaced names.
 
 ### D45 — Cross-pillar CONVICTION shortlist (RS leader + accumulating + entry + quality) — SHIPPED (session 18)
 The payoff that makes the three strategy pillars worth more together than apart. With RS (D33), Positioning character + key price (D43/D44) and Quality (pt14) all built, D45 is the SYNTHESIS — one decision-ready shortlist of names where every pillar aligns. (Realizes the "Conviction shortlist" half of D41's Phase-3 roadmap.)
@@ -909,7 +923,7 @@ B4. ✅ **D33 stock-level Relative Strength — COMPLETE (the third strategy pil
 
 B5. **Move corporate-action back-adjustment to a reusable pipeline layer + recompute zones on adjusted prices.** ⏳ **Half done (session 17):** the reusable layer now exists — `src/automation/adjust.py` (`adjusted_closes`/`adjustment_factors`, the verbatim D36 logic), already consumed by D33a's `stock_rs.py`. **Still open:** (a) unify the dashboard's inline D36 copy to call `adjust.adjusted_closes` (currently duplicated); (b) recompute the institutional ZONES (avg_close_*) on adjusted prices in `signals.py` — they're still computed from raw closes, so they're off-scale when an action falls in the zone window (the ⚠ warning).
 
-B6. **pt14 fundamentals caching for the dashboard** — the dashboard pt14 section reads cached `fundamentals` / `pattern_scores`; populate on a schedule (or first-view) so it's not empty.
+B6. ✅ **pt14 fundamentals caching for the dashboard** — SHIPPED as **D46** (session 18). `src/automation/score_batch.py` keeps the SURFACED names (watchlist / news candidates / conviction / RS leaders) scored — bounded, prioritized, throttled, TTL-respecting, so it honors D8 (not a bulk scrape). Daily `hermes-pt14batch` timer. The Conviction shortlist's ★ quality + the stock-page pt14 card now populate.
 
 B7. ✅ **Dashboard macro→micro redesign Phase 1 + index membership** — SHIPPED (D38). Markets major/bundle split, Stocks hub, Home regime overview, header search everywhere, sector→stock drill (via populated `stock_index_membership`). **Phase 2 pending:** stock-RS card on the stock page (needs D33), breadcrumb + section reorder, inline sparklines, pt14 batch scoring (B6), click-sort on the bundle.
 
@@ -966,6 +980,9 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 18 (continued) — 2026-06-18 — D46 batch pt14 scoring (lights up the Quality pillar; honors D8)
+Building D45 surfaced that the Quality pillar was dark — the Conviction shortlist read pt14 from `pattern_scores`, which only exists for manually-`/pt14`'d names (both conviction names showed `unscored`). Shipped `src/automation/score_batch.py`: keeps the SURFACED names (watchlist → recent news `screen_candidates` → conviction → RS leaders) scored, reusing the rule-based `scoring.score_symbol` (no LLM). Carefully built to HONOR D8 ("over time, not bulk"): prioritized (surfaced set only, cap 300 — not the ~2,400 equity list), incremental (skips names scored within the 7-day TTL), bounded (≤`--limit`/40 real Screener scrapes per run), throttled (`--throttle`/2.5s after each scrape). Fresh-cached names re-score locally with no network. Daily `hermes-pt14batch` systemd timer. Closes B6. Verification: `py_compile` clean (local import blocked only by the VPS-only `bs4` dep); `--dry-run` plan + a bounded real run + conviction-quality-lights-up check on the VPS — see deploy note.
 
 ### Session 18 (continued) — 2026-06-18 — D45 cross-pillar Conviction shortlist (the synthesis)
 With all three pillars now built — RS (D33), Positioning character + key price (D43/D44), Quality (pt14) — shipped the payoff: ONE decision-ready shortlist of names where every pillar aligns. `stock_rs.conviction_shortlist()` (one shared read helper, DRY): RS LEADER by the D33c 3-layer test AND `accum_character='ACCUMULATION'` (D43), enriched with the D44 entry read (near-key / discount) and pt14 quality as a ★ CONFIRMATION (LEFT JOIN, not a gate — pt14 coverage is sparse). Strongest leaders first; liquid universe. **Read-only** (a JOIN/filter over already-computed columns, like `leaders_laggards`) — no schema, no backfill, fast deploy.
