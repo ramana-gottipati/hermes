@@ -2800,7 +2800,8 @@ def dash_ratio(idx: str = Query("", max_length=60),
         f'href="/dash/ratio?idx={_q(idx)}&den={_q("Nifty 500")}">vs Nifty 500</a>'
         f'<a class="fbtn {"on" if den=="Nifty 50" else ""}" '
         f'href="/dash/ratio?idx={_q(idx)}&den={_q("Nifty 50")}">vs Nifty 50</a>'
-        f'<a class="fbtn" href="/dash/compare?idx={_q(idx)}">Compare ⇄</a></div>')
+        f'<a class="fbtn" href="/dash/compare?idx={_q(idx)}'
+        f'&idx={_q("Nifty 50")}&idx={_q("Nifty 500")}">Compare ⇄</a></div>')
 
     body = f"""
 <style>{chart_css}</style>
@@ -3160,20 +3161,15 @@ def dash_compare(idx: list[str] = Query(default=[]),
 
     active_chips = "".join(_chip(n, i) for i, n in enumerate(sel))
 
-    # Suggestion chips (grouped) — adding appends to ?idx=. Skip already-selected.
-    def _add_href(name):
-        nxt = sel + [name]
-        return "/dash/compare?" + "&".join(
-            [f"idx={_q(x)}" for x in nxt]
-            + [f"den={_q(den)}", f"mode={_q(mode)}", f"base={_q(base)}", f"r={r}"])
-
+    # Suggestion chips (grouped). Now multi-select toggle buttons — the picker
+    # JS stages a Set and the "Add" button navigates once with all of them.
     def _sugg_group(label, names):
         avail = [n for n in names if n in valid_set and n not in seen]
         if not avail:
             return ""
         chips = "".join(
-            f'<a class="chip cmp-sugg" data-name="{_esc(n)}" href="{_esc(_add_href(n))}">'
-            f'+ {_esc(n)}</a>' for n in avail)
+            f'<button type="button" class="chip cmp-sugg" data-name="{_esc(n)}">'
+            f'+ {_esc(n)}</button>' for n in avail)
         return f'<div class="ghdr">{_esc(label)}</div><div class="chips">{chips}</div>'
 
     at_cap = len(sel) >= 6
@@ -3190,7 +3186,10 @@ def dash_compare(idx: list[str] = Query(default=[]),
             '<div id="cmpAddWrap" style="display:none">'
             '<div class="search" style="margin-top:6px">'
             '<input id="cmpSearch" placeholder="Filter indices to add…" autocomplete="off"/>'
+            '<button class="dtx" id="cmpAddConfirm" type="button" disabled>Add</button>'
             '</div>'
+            '<div class="sub" style="margin:2px 0 6px">Tap any number of indices, then '
+            '<b>Add</b> (up to 6 total).</div>'
             f'<div id="cmpSugg">{sugg_html}</div>'
             '</div>')
         add_btn = '<button class="chip" id="cmpAddBtn" type="button">+ Add</button>'
@@ -3245,6 +3244,8 @@ def dash_compare(idx: list[str] = Query(default=[]),
 .cmp-x { color:#8b949e; text-decoration:none; font-size:12px; margin-left:1px; }
 .cmp-x:hover { color:#f85149; }
 .cmp-sugg.cmp-hide { display:none; }
+button.cmp-sugg { cursor:pointer; font-family:inherit; }
+.cmp-sugg.cmp-on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
 .cmp-presets { display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 12px; }
 .cmp-pin { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0 2px; font-size:12px; color:#8b949e; }
 .cmp-pin input[type=date] { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
@@ -3357,21 +3358,39 @@ _COMPARE_PICKER_JS = """
   const wrap=document.getElementById('cmpAddWrap');
   const box=document.getElementById('cmpSearch');
   const sugg=document.getElementById('cmpSugg');
+  const confirm=document.getElementById('cmpAddConfirm');
   if(btn&&wrap){ btn.onclick=()=>{ wrap.style.display=(wrap.style.display==='none')?'block':'none'; if(box) box.focus(); }; }
-  function curParams(){
-    const u=new URL(window.location.href);
-    return u.searchParams;
+  function curParams(){ return new URL(window.location.href).searchParams; }
+  const already=curParams().getAll('idx');     // indices already on the chart
+  const slots=6-already.length;                 // how many more can be added
+  const picked=new Set();                       // multi-select staging
+  function refresh(){
+    if(!confirm) return;
+    confirm.disabled = picked.size===0;
+    confirm.textContent = picked.size ? ('Add '+picked.size) : 'Add';
   }
-  function buildHref(name){
-    const p=curParams(); const sel=p.getAll('idx');
-    if(sel.indexOf(name)>=0 || sel.length>=6) return null;
-    sel.push(name);
-    const den=p.get('den')||'Nifty 500', mode=p.get('mode')||'rebase',
-          base=p.get('base')||'100', r=p.get('r')||'252';
-    const parts=sel.map(s=>'idx='+encodeURIComponent(s));
-    parts.push('den='+encodeURIComponent(den),'mode='+encodeURIComponent(mode),
-               'base='+encodeURIComponent(base),'r='+encodeURIComponent(r));
-    return '/dash/compare?'+parts.join('&');
+  function toggle(name, el){
+    if(picked.has(name)){ picked.delete(name); el.classList.remove('cmp-on'); }
+    else { if(picked.size>=slots) return;       // respect the 6-index cap
+           picked.add(name); el.classList.add('cmp-on'); }
+    refresh();
+  }
+  function wire(el){
+    el.addEventListener('click', e=>{ e.preventDefault(); toggle(el.dataset.name, el); });
+  }
+  if(sugg) sugg.querySelectorAll('.cmp-sugg').forEach(wire);
+  if(confirm){
+    confirm.onclick=()=>{
+      if(!picked.size) return;
+      const p=curParams();
+      const all=p.getAll('idx').concat([...picked]).slice(0,6);
+      const den=p.get('den')||'Nifty 500', mode=p.get('mode')||'rebase',
+            base=p.get('base')||'100', r=p.get('r')||'252';
+      const parts=all.map(s=>'idx='+encodeURIComponent(s));
+      parts.push('den='+encodeURIComponent(den),'mode='+encodeURIComponent(mode),
+                 'base='+encodeURIComponent(base),'r='+encodeURIComponent(r));
+      window.location='/dash/compare?'+parts.join('&');
+    };
   }
   if(box&&sugg){
     box.addEventListener('input',()=>{
@@ -3381,18 +3400,22 @@ _COMPARE_PICKER_JS = """
         const nm=(a.dataset.name||'').toLowerCase();
         a.classList.toggle('cmp-hide', q!=='' && nm.indexOf(q)<0);
       });
-      // If the query matches names not in the seed list, append dynamic chips.
+      // Append dynamic toggle chips for matches outside the seed list.
       let dyn=document.getElementById('cmpDyn');
       if(!dyn){ dyn=document.createElement('div'); dyn.id='cmpDyn'; dyn.className='chips'; sugg.appendChild(dyn); }
       dyn.innerHTML='';
       if(q!==''){
         const seeded={}; sugg.querySelectorAll('.cmp-sugg').forEach(a=>seeded[a.dataset.name]=1);
-        const hits=NAMES.filter(n=>n.toLowerCase().indexOf(q)>=0 && !seeded[n]).slice(0,12);
-        hits.forEach(n=>{ const h=buildHref(n); if(!h) return;
-          const a=document.createElement('a'); a.className='chip'; a.href=h; a.textContent='+ '+n; dyn.appendChild(a); });
+        const hits=NAMES.filter(n=>n.toLowerCase().indexOf(q)>=0 && !seeded[n] && already.indexOf(n)<0).slice(0,12);
+        hits.forEach(n=>{ const b=document.createElement('button'); b.type='button';
+          b.className='chip cmp-sugg'; b.dataset.name=n; b.textContent='+ '+n;
+          if(picked.has(n)) b.classList.add('cmp-on');
+          wire(b); dyn.appendChild(b); });
       }
+      refresh();
     });
   }
+  refresh();
 })();
 </script>
 """
