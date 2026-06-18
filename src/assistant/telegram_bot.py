@@ -69,7 +69,8 @@ async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "<b>Three ways to drive me:</b>\n"
             "  1. <b>/menu</b> — tap through a button tree if you don't want to remember commands\n"
             "  2. <b>Plain English</b> — \"what's pixtrans?\" / \"any ATH today?\" / \"discount entries?\"\n"
-            "  3. <b>Slash commands</b> — /pt14 TICKER · /dvpt TICKER · /scan · /triggers [ss|near|accum|distrib]\n\n"
+            "  3. <b>Slash commands</b> — /pt14 TICKER · /dvpt TICKER · /scan · /triggers [ss|near|accum|distrib]\n"
+            "     <b>⭐ /conviction</b> — the shortlist where all 3 pillars align\n\n"
             "<i>Or just chat — I'll remember the thread (/reset to start over).</i>",
             parse_mode="HTML",
         )
@@ -1310,6 +1311,54 @@ async def on_laggards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_text(_format_leaders_message(rows, "laggards"), parse_mode="HTML")
 
 
+async def on_conviction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """D45 — the cross-pillar Conviction shortlist (all 3 pillars aligned)."""
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return
+    from src.automation.stock_rs import conviction_shortlist
+    loop = asyncio.get_event_loop()
+    rows = await loop.run_in_executor(None, lambda: conviction_shortlist(limit=30))
+    if not rows:
+        await update.message.reply_text(
+            "No names clear all three pillars right now — that's normal; conviction is rare. "
+            "Try <code>/leaders</code> or <code>/scan</code>.", parse_mode="HTML")
+        return
+    await update.message.reply_text(_format_conviction_message(rows), parse_mode="HTML")
+
+
+def _format_conviction_message(rows: list[dict]) -> str:
+    """One line per name: RS leader + accumulating + entry, pt14 quality starred.
+    Same shared `conviction_shortlist` helper as the dashboard (DRY)."""
+    lines = [
+        "<b>⭐ Conviction shortlist</b>",
+        "<i>All 3 pillars aligned — RS leader + institutions accumulating now (D43) + "
+        "entry read (D44). 🎯 near key price · ★ pt14 quality-confirmed.</i>",
+        "",
+    ]
+    for r in rows:
+        sym = r["symbol"]
+        rk = r.get("rs_rank")
+        nk = (is_near_key(r.get("gap_to_key_p3m")) or is_near_key(r.get("gap_to_key_p6m"))
+              or is_near_key(r.get("gap_to_key_p12m")))
+        pvh = r.get("pvh")
+        if nk:
+            ent = "🎯 near key"
+        elif pvh is not None and pvh < -3:
+            ent = "🟢 discount"
+        elif pvh is not None and pvh > 3:
+            ent = "🔴 extended"
+        else:
+            ent = "🟡 at-cost"
+        star = "★ " if (r.get("pt14_tier") and not r.get("pt14_dq")) else ""
+        sec = r.get("primary_sector") or "—"
+        rks = f"rank {rk}" if rk is not None else "rank —"
+        lines.append(f"{star}<b>{sym}</b> — {rks} · {ent} · <i>{sec}</i>")
+    lines.append("")
+    lines.append("<i>Full sortable view + key prices: /dash/conviction on the dashboard.</i>")
+    return "\n".join(lines)
+
+
 # --- Two-tier scan + layered triggers (D28) -------------------------------
 
 # Shared symbol/liquidity filters (D23).
@@ -2075,6 +2124,7 @@ BOT_COMMANDS = [
     BotCommand("rs",            "Stock relative strength — vs broad + sector + leader/laggard verdict (/rs TICKER)"),
     BotCommand("leaders",       "Strong-in-strong leaders — stock + sector + market all up (D33c)"),
     BotCommand("laggards",      "Weak-in-weak laggards — stock + sector + market all down (D33c)"),
+    BotCommand("conviction",    "⭐ Conviction shortlist — all 3 pillars aligned: RS leader + accumulating + entry (D45)"),
     BotCommand("analyze",       "Guide for deep dive in claude.ai (FREE — replaces the old API-burning /analyze)"),
     BotCommand("watch",         "Add stock to watchlist"),
     BotCommand("unwatch",       "Remove stock from watchlist"),
@@ -2130,6 +2180,7 @@ def main() -> None:
     app.add_handler(CommandHandler("rs", on_rs))
     app.add_handler(CommandHandler("leaders", on_leaders))
     app.add_handler(CommandHandler("laggards", on_laggards))
+    app.add_handler(CommandHandler("conviction", on_conviction))
     app.add_handler(CommandHandler("analyze", on_analyze))
     app.add_handler(CommandHandler("watch", on_watch))
     app.add_handler(CommandHandler("unwatch", on_unwatch))

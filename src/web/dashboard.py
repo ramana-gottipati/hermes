@@ -658,6 +658,35 @@ def dash_home() -> HTMLResponse:
                 f'<tbody>{lr}</tbody></table></div>'
                 '<a class="row sub" href="/dash/leaders">See leaders &amp; laggards →</a>')
 
+    # D45 — Conviction shortlist preview (ALL three pillars aligned). The payoff
+    # board: an RS leader that institutions are accumulating now, with the entry.
+    conviction_block = ""
+    if sig_date:
+        from src.automation.stock_rs import conviction_shortlist
+        conv_rows = conviction_shortlist(limit=50)
+        if conv_rows:
+            cr = ""
+            for r in conv_rows[:5]:
+                nk = (is_near_key(r.get("gap_to_key_p3m")) or is_near_key(r.get("gap_to_key_p6m"))
+                      or is_near_key(r.get("gap_to_key_p12m")))
+                qual = "★" if (r.get("pt14_tier") and not r.get("pt14_dq")) else ""
+                cr += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+                       f'<span class="sym">{qual}{_esc(r["symbol"])}</span></a></td>'
+                       f'<td class="mut">{_esc(r.get("primary_sector") or "—")}</td>'
+                       f'<td>{r.get("rs_rank") if r.get("rs_rank") is not None else "—"}</td>'
+                       f'<td>{"🎯" if nk else ""}</td></tr>')
+            conviction_block = (
+                '<div class="sbadge" style="background:#1a1430;border-color:#5a3fb8">'
+                '<span class="tag" style="background:#8957e5;color:#fff">● CONVICTION</span>'
+                '<span class="th">All three pillars aligned — an RS leader that institutions are '
+                'accumulating now (D43), with the D44 entry read. The decision-ready shortlist.</span></div>'
+                '<h2>⭐ Conviction shortlist <span class="sub" style="margin:0">'
+                'leader + accumulating + entry</span></h2>'
+                '<div class="card" style="padding:6px 10px;"><table>'
+                '<thead><tr><th>Symbol</th><th>Sector</th><th>RS rank</th><th>Entry</th></tr></thead>'
+                f'<tbody>{cr}</tbody></table></div>'
+                '<a class="row sub" href="/dash/conviction">See the full shortlist →</a>')
+
     def _scard(cls, nm, thesis, count, href):
         return (f'<a class="scard sc-{cls}" href="{href}">'
                 f'<div class="nm">{nm}</div><div class="th">{_esc(thesis)}</div>'
@@ -673,7 +702,7 @@ def dash_home() -> HTMLResponse:
                  f'{qual_count} <small>scored</small>', "/dash/stock")
         + '</div>')
 
-    body = (f'{search}{banner}{strat_hub}{kpis}{sectors_block}{leaders_block}'
+    body = (f'{search}{banner}{strat_hub}{conviction_block}{kpis}{sectors_block}{leaders_block}'
             f'{stocks_block}{stealth_block}'
             '<h2>Data freshness</h2>'
             f'<div class="card">Stock signals: <b>{sig_date or "—"}</b><br>'
@@ -681,6 +710,84 @@ def dash_home() -> HTMLResponse:
             '<div class="sub">Read-only mirror of the Telegram bot data. '
             'Updated nightly 7:30 PM IST.</div>')
     return HTMLResponse(_shell("Hermes", body, "dash", sig_date or ""))
+
+
+@router.get("/dash/conviction", response_class=HTMLResponse)
+def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
+    """D45 — the cross-pillar Conviction shortlist: RS leader (D33c) + institutions
+    accumulating now (D43 ACCUMULATION) + the D44 entry read, with pt14 quality as
+    confirmation. Read-only synthesis over existing data; sortable/exportable `.dt`."""
+    from src.automation.stock_rs import conviction_shortlist
+    sig_date, _ = _latest_dates()
+    rows = conviction_shortlist(limit=limit)
+
+    trs = []
+    for r in rows:
+        rk = r.get("rs_rank")
+        g3 = r.get("gap_to_key_p3m")
+        nearkey = (is_near_key(g3) or is_near_key(r.get("gap_to_key_p6m"))
+                   or is_near_key(r.get("gap_to_key_p12m")))
+        pvh = r.get("pvh")
+        bits = []
+        if nearkey:
+            bits.append("🎯 near key")
+        if pvh is not None and pvh < -3:
+            bits.append("🟢 discount")
+        elif pvh is not None and pvh > 3:
+            bits.append("🔴 extended")
+        entry = " ".join(bits) if bits else "🟡 at-cost"
+        tier, dq = r.get("pt14_tier"), r.get("pt14_dq")
+        if tier and not dq:
+            qual = f'<span class="pill p-SS">★ {_esc(tier)}</span>'
+        elif tier and dq:
+            qual = f'<span class="pill p-DOWNTREND">{_esc(tier)} ✗</span>'
+        else:
+            qual = '<span class="mut">unscored</span>'
+        g3s = f'{g3:+.1f}%' if g3 is not None else '—'
+        kp3 = r.get("key_price_p3m")
+        trs.append(
+            f'<tr data-nearkey="{1 if nearkey else 0}" data-qual="{1 if (tier and not dq) else 0}">'
+            f'<td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+            f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
+            f'<td>{rk if rk is not None else "—"}</td>'
+            f'<td class="mut">{_esc(r.get("primary_sector") or "—")}</td>'
+            f'<td>{_char_pill(r.get("accum_character"))}</td>'
+            f'<td>{entry}</td>'
+            f'<td>{("₹"+_num(kp3,1)) if kp3 else "—"} <span class="mut">({g3s})</span></td>'
+            f'<td><span class="pill p-{r.get("trigger_rank") or "C"}">{r.get("trigger_rank") or "-"}</span> '
+            f'{r.get("p_score") or 0}/5</td>'
+            f'<td>{qual}</td></tr>')
+
+    badge = ('<div class="sbadge" style="background:#1a1430;border-color:#5a3fb8">'
+             '<span class="tag" style="background:#8957e5;color:#fff">● CONVICTION</span>'
+             '<span class="th">The synthesis of all three pillars — a name only lands here if it is '
+             'an <b>RS leader</b> (beating the market AND leading its sector AND its sector beating the '
+             'market), institutions are <b>accumulating</b> it now (D43), shown with the <b>entry</b> read '
+             '(D44 near-key / discount). pt14 <b>quality</b> confirms where scored. Strongest leaders first.</span></div>')
+    if trs:
+        pills = ('<div id="cvbar" class="fbar">'
+                 "<button class=\"fbtn on\" onclick=\"cflt('all',this)\">All</button>"
+                 "<button class=\"fbtn\" onclick=\"cflt('nearkey',this)\">🎯 Near key</button>"
+                 "<button class=\"fbtn\" onclick=\"cflt('qual',this)\">★ Quality-confirmed</button></div>")
+        table = (pills + '<div class="card" style="padding:6px 10px;"><table id="cvtbl" class="dt">'
+                 '<thead><tr><th>Symbol</th><th>RS rank</th><th>Sector</th><th>Character</th>'
+                 '<th>Entry</th><th>Key 3m</th><th>Rank·p</th><th>Quality</th></tr></thead>'
+                 f'<tbody>{"".join(trs)}</tbody></table></div>')
+        js = ("<script>function cflt(f,el){"
+              "document.querySelectorAll('#cvtbl tr[data-nearkey]').forEach(function(r){"
+              "r.style.display=(f==='all'||r.dataset[f]==='1')?'':'none';});"
+              "document.querySelectorAll('#cvbar .fbtn').forEach(function(b){"
+              "b.classList.remove('on');});el.classList.add('on');}</script>")
+    else:
+        table = ('<div class="empty">No names clear all three pillars today — that\'s normal; '
+                 'conviction is rare. Try <a class="row" style="display:inline" href="/dash/leaders">'
+                 'leaders</a> or the <a class="row" style="display:inline" href="/dash/stocks">screen</a>.</div>')
+        js = ""
+    body = (badge + '<h2>⭐ Conviction shortlist</h2>'
+            '<div class="sub">All three strategy pillars aligned. Click a header to sort · type to filter · ⬇ Export. '
+            '🎯 = buyable near the institutional key price · ★ = pt14 quality-confirmed.</div>'
+            + table + js)
+    return HTMLResponse(_shell("Conviction — Hermes", body, "stocks", sig_date or ""))
 
 
 @router.get("/dash/markets", response_class=HTMLResponse)

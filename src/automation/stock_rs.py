@@ -473,6 +473,62 @@ def leaders_laggards(kind: str = "leaders", limit: int = 50,
         return [dict(r) for r in conn.execute(sql, params).fetchall()]
 
 
+def conviction_shortlist(limit: int = 50, trade_date: Optional[str] = None) -> list[dict]:
+    """D45 — the cross-pillar 'Conviction shortlist': names where ALL THREE
+    strategy pillars align.
+      RELATIVE STRENGTH — an RS LEADER (the D33c 3-layer test: stock-vs-sector,
+        stock-vs-broad, and the sector's own RS vs broad all in {UPTREND,BREAKOUT}).
+      POSITIONING       — institutions are ACCUMULATING it now (D43
+        accum_character='ACCUMULATION', which already implies p_score≥2 active).
+      QUALITY           — pt14 (D-quality) is surfaced as CONFIRMATION (LEFT JOIN
+        pattern_scores; sparse, so it enriches/sorts but does not gate).
+    Enriched with the D44 entry read (near-key gap + key price) so the user can
+    see if it's a buyable entry now. Liquid universe; strongest leaders first.
+    ONE shared read helper for the dashboard (/dash/conviction + Home preview)
+    and the Telegram /conviction command (DRY)."""
+    st = _LEADER_STATES
+    qm = ",".join("?" * len(st))
+    with get_conn() as conn:
+        if trade_date is None:
+            row = conn.execute("SELECT MAX(trade_date) d FROM stock_signals").fetchone()
+            trade_date = row["d"] if row else None
+        irow = conn.execute("SELECT MAX(trade_date) d FROM index_signals").fetchone()
+        idx_date = irow["d"] if irow else None
+        if not trade_date or not idx_date:
+            return []
+        sql = f"""
+            SELECT s.symbol, s.rs_rank, s.primary_sector,
+                   s.rs_vs_broad_trend_state  AS broad_state,
+                   s.rs_vs_sector_trend_state AS sector_state,
+                   s.accum_character, s.p_score, s.trigger_rank,
+                   s.price_vs_hot_avg_pct AS pvh,
+                   s.key_price_p3m, s.gap_to_key_p3m, s.gap_to_key_p6m, s.gap_to_key_p12m,
+                   b.close, b.value,
+                   ps.tier AS pt14_tier, ps.ns_base AS pt14_ns,
+                   ps.hard_disqualified AS pt14_dq
+            FROM stock_signals s
+            JOIN bhavcopy_rows b
+              ON b.symbol = s.symbol AND b.trade_date = s.trade_date
+            JOIN index_signals i
+              ON i.index_name = s.primary_sector AND i.trade_date = ?
+            LEFT JOIN pattern_scores ps
+              ON ps.id = (SELECT p2.id FROM pattern_scores p2
+                          WHERE p2.symbol = s.symbol
+                          ORDER BY p2.scored_at DESC LIMIT 1)
+            WHERE s.trade_date = ?
+              AND s.primary_sector IS NOT NULL
+              AND s.rs_vs_sector_trend_state IN ({qm})
+              AND s.rs_vs_broad_trend_state  IN ({qm})
+              AND i.rs_vs_broad_trend_state  IN ({qm})
+              AND s.accum_character = 'ACCUMULATION'
+              AND {_LIQUID_FILTER}
+            ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC
+            LIMIT ?
+        """
+        params = (idx_date, trade_date, *st, *st, *st, limit)
+        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
 # --- Orchestration ----------------------------------------------------------
 
 def _all_symbols_with_bhav() -> list[str]:
