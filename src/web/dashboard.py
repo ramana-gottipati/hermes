@@ -1511,7 +1511,7 @@ const RS_SERIES = __SERIES__;
   // --- rebase (base 100) on a common forward-snapped anchor ---------------
   const lines = RS_SERIES.map(s=>({
     def:s,
-    ls:chart.addLineSeries({color:s.color,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true}),
+    ls:chart.addLineSeries({color:s.color,title:s.name,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true}),
     cur:[],
   }));
   function snapIdx(raw, target){
@@ -2864,7 +2864,7 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   // Build a line series per data series; pick its raw array (level or ratio).
   function rawOf(s){ return (mode==='ratio') ? (s.ratio||[]) : (s.level||[]); }
   const lines = SERIES.map(s=>{
-    const ls = chart.addLineSeries({color:s.color,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true});
+    const ls = chart.addLineSeries({color:s.color,title:s.name,lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true});
     return {def:s, ls:ls};
   });
 
@@ -3046,9 +3046,17 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   });
 
   // --- boot ----------------------------------------------------------------
-  // Initial draw (fitContent first so anchor at series start), then range.
-  applyRebase(null);
-  setRange(CRANGE0);
+  applyRebase(null);          // seed data so the time scale has content
+  setRange(CRANGE0);          // apply the initial window (e.g. 1Y)
+  // Force the FIRST rebase to the visible left edge immediately — don't wait for
+  // a pan. Retry on rAF until the time scale has laid out a visible range.
+  (function bootAnchor(){
+    const vr=chart.timeScale().getVisibleRange();
+    const from = vr ? timeToStr(vr.from) : null;
+    if(from==null){ requestAnimationFrame(bootAnchor); return; }
+    lastAnchor=commonAnchor(from);
+    internalSet=true; applyRebase(lastAnchor); internalSet=false;
+  })();
   renderVals(null);
 
   // Debounced ResizeObserver (~100ms); skip while we're mid internal set.
