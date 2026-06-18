@@ -67,6 +67,14 @@ def _legacy_url(d: datetime) -> str:
     )
 
 
+def _mto_url(d: datetime) -> str:
+    """MTO security-wise delivery position — the PRE-2020 delivery source.
+    Merged into legacy bhav rows (fills deliv_qty/deliv_per) so DVPT is
+    computable back to ~2005. Header: 'Security Wise Delivery Position...'."""
+    return (f"https://nsearchives.nseindia.com/archives/equities/mto/"
+            f"MTO_{d.strftime('%d%m%Y')}.DAT")
+
+
 def _archive_path(d: datetime, filename: str) -> Path:
     p = ARCHIVE_DIR / d.strftime("%Y") / d.strftime("%b").upper()
     p.mkdir(parents=True, exist_ok=True)
@@ -283,6 +291,41 @@ def _parse_udiff(csv_text: str) -> list[dict]:
     return rows
 
 
+def _parse_mto(text: str) -> dict:
+    """Parse an MTO_*.DAT delivery file → {(symbol, series): {deliv_qty,
+    deliv_per, qty_traded}}. Data rows are record-type 20:
+    `20,SrNo,Symbol,Series,QtyTraded,DeliverableQty,%Deliv`."""
+    out = {}
+    for line in text.splitlines():
+        parts = line.split(",")
+        if len(parts) < 7 or parts[0].strip() != "20":
+            continue
+        out[(parts[2].strip(), parts[3].strip())] = {
+            "qty_traded": _i(parts[4]),
+            "deliv_qty": _i(parts[5]),
+            "deliv_per": _f(parts[6]),
+        }
+    return out
+
+
+def _merge_mto(rows: list[dict], mto: dict) -> tuple[int, int]:
+    """Additively fill deliv_qty/deliv_per on parsed bhav rows from the MTO map,
+    keyed on (symbol, series). Returns (merged, qty_mismatches) — MTO's traded
+    quantity should equal the bhav volume, a built-in join validation."""
+    merged = mismatch = 0
+    for r in rows:
+        m = mto.get((r.get("symbol"), r.get("series")))
+        if not m:
+            continue
+        r["deliv_qty"] = m["deliv_qty"]
+        r["deliv_per"] = m["deliv_per"]
+        if (m["qty_traded"] is not None and r.get("volume") is not None
+                and m["qty_traded"] != r["volume"]):
+            mismatch += 1
+        merged += 1
+    return merged, mismatch
+
+
 def _f(v):
     if v is None or v == "":
         return None
@@ -388,6 +431,23 @@ def ingest_date(d: datetime) -> tuple[bool, str]:
         rows = _parse_legacy_bhav(csv_text) if csv_text else []
     else:
         rows = []
+
+    # Pre-2020 (or any no-delivery) date: enrich with the MTO delivery file so
+    # DVPT is computable historically (back to ~2005). Additive — fills only
+    # deliv_qty/deliv_per on the already-parsed rows. The 2020+ delivery path is
+    # untouched: it already has has_delivery=True and skips this block.
+    if rows and not has_delivery:
+        mto_raw = _try_fetch(_mto_url(d))
+        if mto_raw:
+            save_raw(d, f"MTO_{d.strftime('%d%m%Y')}.DAT", mto_raw)
+            merged, mismatch = _merge_mto(
+                rows, _parse_mto(mto_raw.decode("latin-1", errors="ignore")))
+            if merged:
+                has_delivery = True
+                fmt = f"{fmt}+mto"
+                if mismatch:
+                    log.warning("%s: MTO qty mismatch on %d/%d rows",
+                                iso_date, mismatch, merged)
 
     if not rows:
         return False, f"{iso_date} no rows parsed ({fmt})"
