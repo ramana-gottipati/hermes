@@ -454,6 +454,17 @@ def _sector_symbols(conn, sector: str) -> list:
 
 # --- Routes ----------------------------------------------------------------
 
+def _rupee(v) -> str:
+    """Compact ₹ formatter: Cr / L / plain."""
+    if v is None:
+        return "—"
+    if v >= 1e7:
+        return f"₹{v/1e7:.1f}Cr"
+    if v >= 1e5:
+        return f"₹{v/1e5:.2f}L"
+    return f"₹{v:,.0f}"
+
+
 @router.get("/dash", response_class=HTMLResponse)
 def dash_home() -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
@@ -503,7 +514,11 @@ def dash_home() -> HTMLResponse:
         if sig_date:
             top_stocks = [dict(x) for x in conn.execute(
                 f"""SELECT s.symbol, s.trigger_rank rank, s.is_ath_dvpt ath,
-                           s.price_vs_hot_avg_pct pvh, s.accum_character ch
+                           s.price_vs_hot_avg_pct pvh, s.accum_character ch,
+                           b.close cmp, b.prev_close pc,
+                           s.delivery_value_per_trade dvpt, s.delivery_value_today dval,
+                           s.power_dvpt_1m p1, s.power_dvpt_3m p3,
+                           s.power_dvpt_6m p6, s.power_dvpt_12m p12
                     FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                     WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
                     {_SCAN_FILTERS}
@@ -598,10 +613,19 @@ def dash_home() -> HTMLResponse:
         ath = "⚡" if r["ath"] else ""
         pvh = r["pvh"]
         entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
+        cmp_, pc, dvpt = r.get("cmp"), r.get("pc"), r.get("dvpt")
+        cmp_str = f"₹{cmp_:,.0f}" if cmp_ is not None else "—"
+        day = _pct((cmp_ / pc - 1) * 100) if (cmp_ is not None and pc) else ""
+        powers = [r.get(k) for k in ("p1", "p3", "p6", "p12") if r.get(k)]
+        inten = (dvpt / (sum(powers) / len(powers))) if (powers and dvpt) else None
+        intx = f' · <b>{inten:.1f}×</b>' if inten else ""
         srows.append(f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                      f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
-                     f'<td><span class="pill p-{rank}">{rank}</span></td>'
+                     f'<td>{cmp_str} {day}</td>'
+                     f'<td>{_rupee(dvpt)}{intx}</td>'
+                     f'<td>{_rupee(r.get("dval"))}</td>'
                      f'<td>{_pct(pvh)} {entry}</td>'
+                     f'<td><span class="pill p-{rank}">{rank}</span></td>'
                      f'<td>{_char_pill(r.get("ch"))}</td></tr>')
     stocks_block = ""
     if srows:
@@ -609,7 +633,8 @@ def dash_home() -> HTMLResponse:
             _strategy_badge("POS") +
             '<h2>Top trigger stocks</h2>'
             '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Symbol</th><th>Rank</th><th>Δhot</th><th>Character</th></tr></thead>'
+            '<thead><tr><th>Symbol</th><th>CMP · Δday</th><th>DVPT · ×power</th>'
+            '<th>Deliv ₹</th><th>Δhot</th><th>Rank</th><th>Character</th></tr></thead>'
             f'<tbody>{"".join(srows)}</tbody></table></div>'
             '<a class="row sub" href="/dash/stocks">See all triggers →</a>')
 

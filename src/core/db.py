@@ -394,9 +394,25 @@ def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str)
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
 
+def _tune(conn: sqlite3.Connection) -> None:
+    """Concurrency + cache pragmas. WAL lets reads (the dashboard) proceed
+    WITHOUT blocking on writes (the nightly chain / backfills) — the fix for the
+    slow clicks + 'database is locked'. busy_timeout waits out brief contention
+    instead of erroring; the rest warm the cache. journal_mode=WAL is persistent
+    (set once, stays); the others are per-connection so are set on each open."""
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA temp_store = MEMORY")
+    conn.execute("PRAGMA cache_size = -65536")     # ~64 MB page cache
+    conn.execute("PRAGMA mmap_size = 268435456")   # 256 MB memory-map
+    conn.execute("PRAGMA foreign_keys = ON")
+
+
 def _init() -> None:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    _tune(conn)
     try:
         # 1. Base schema — tables + non-telegram indexes (safe on fresh and existing DBs).
         conn.executescript(SCHEMA_BASE)
@@ -585,7 +601,7 @@ def get_conn() -> Iterator[sqlite3.Connection]:
     """Yield a row-factory-enabled connection with auto-commit on success."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
+    _tune(conn)
     try:
         yield conn
         conn.commit()

@@ -27,6 +27,8 @@ Primary key = **ignition intensity** (×-multiple over the average power baselin
 
 Output: a **1–N rank across the universe** + a **tier**. Surface the top **100–200** first (don't prematurely discard), narrowing toward a **30–40-stock portfolio**.
 
+**Locked actionable gate (session 18 — Ramana: "we need unusually huge value and clear accumulation"):** an ignition is *actionable* (portfolio-eligible) only when ALL hold — (1) **unusually huge intensity** — the cross is Strong/Explosive (≥ ~5×, ideally ≥ 10× over the avg power baseline), not a marginal clear; (2) **unusually huge ABSOLUTE delivery value** — today's total delivery ₹ is exceptional vs the stock's own norm AND clears an investability ₹-floor, so a thin stock's high *ratio* on tiny rupees can't qualify (per-trade intensity AND absolute footprint must BOTH be huge); (3) **clear accumulation** — D43 character = ACCUMULATION in its clean form (concentrated, price firm/rising, delivery rising); borderline/NEUTRAL/CONSOLIDATION don't qualify, DISTRIBUTION excluded. Strictness is deliberate — it's what cuts ~4,000 → ~30–40. Lower-intensity/smaller-value clears stay on a **watch** list, not **act**. Exact thresholds (×-bands, ₹-floor, clean-accumulation cutoffs) tuned by the backtest.
+
 **Ranking-history table (daily tracking).** Per (symbol, trade_date): rank, tier, intensity, timeframe, status ∈ {NEW, FRESH, CONTINUING, COOLING, DROPPED}. Stored every day so we can see what newly ignited, what's persisting, and what faded — and later backtest the ranking itself.
 
 ## 4. Plain-language labels (the accessibility requirement)
