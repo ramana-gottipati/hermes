@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -11,6 +12,14 @@ from src.core.settings import settings
 from src.web.dashboard import router as dashboard_router
 
 app = FastAPI(title="Hermes", version="0.1.0")
+
+# Gzip every response above 500 B. The dashboard ships large server-rendered HTML
+# plus inline chart JSON; compressing at the app layer cuts bytes-on-wire on every
+# navigation regardless of whether the (currently unversioned) edge proxy gzips.
+# Isolated + additive + zero behaviour change. Part of the perf work-stream —
+# see docs/perf-architecture.md. The render-layer caching/thinning items belong to
+# the UI session — see docs/ui-perf-handoff.md.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Web dashboard + installable PWA (served at /dash, manifest/sw/icon at root).
 app.include_router(dashboard_router)
