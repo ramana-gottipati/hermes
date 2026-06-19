@@ -23,6 +23,25 @@ The app **computes and ships a full, uncompressed, uncacheable document on every
 | 7 | **Memoize `_latest_dates()` per trading day.** | It runs two `MAX()` scans on a 2nd connection on **14 routes**; the value can't change within a trading day. | `dashboard.py:621` | Phase 1 (cheap) |
 | 8 | **Maintainability (the § 5 "extend, don't replace" goal):** dedupe the chart bootstrap (≈5 copies), the type-ahead picker (authored **twice**: `_COMPARE_PICKER_JS` / `_STOCK_CMP_PICKER_JS`), and the `chart_css` literal (×3); plan the split of the 4,719-line module into shell / components / charts / api / pages. | The slowness and the un-maintainability share one root: HTML + CSS + 8 inline JSON payloads + duplicated JS all tangled in one file. The same split that caches the shell also de-duplicates the JS. | `dashboard.py:217,1890,2424,3326,4449,4568,4663` | Phase 1→2 (refactor, zero behaviour change) |
 
+## Execution sequence (do them in THIS order)
+
+> **The one rule that matters:** items **5** and **6** read backend-precomputed columns (`adj_close`, `conv`) that don't exist yet — they **must NOT ship until the perf work-stream populates them** (the D47 recompute window; it will signal "columns live"). Everything else is unblocked and yours to schedule. Within a step, order is free.
+
+**Step 1 — zero-risk, no dependencies (do first; rides your Phase 1).**
+Items **1** (externalize + cache CSS/JS), **2** (self-host chart lib + asset `Cache-Control`), **7** (memoize `_latest_dates()`). Pure-additive, no regression surface, immediate bytes-on-wire + per-request win. Nothing depends on these and they depend on nothing.
+
+**Step 2 — build INTO the wide-screener work, not after it.**
+Item **4** (screener virtualization) must land *together with* the frozen-pane / column-group screener, so the user never meets the 54k-cell version. Shipping the slow grid first and virtualizing later = a visible regression window — that's the sequencing trap to avoid.
+
+**Step 3 — refactor before piling on more.**
+Item **8a** (dedupe the chart bootstrap ×5, the picker ×2, `chart_css` ×3) — mechanical, low-risk; do it early so new columns/strategies don't multiply the duplication. Item **8b** (the full module split) — its own deliberate, zero-behaviour-change pass, best *before* Phase 2 stacks saved-queries/tiles on the 4.7k-line file.
+
+**Step 4 — bigger but independent.** Item **3** (thin chart-data JSON endpoint + lazy fetch). Not blocked; larger surface, so after the Step-1 wins.
+
+**Step 5 — BLOCKED on the backend; do LAST.** Items **5** (read `adj_close`, delete the inline re-adjust loop — closes B5) and **6** (switch screener `ORDER BY conv` to the precomputed column + index). Until the columns are confirmed populated, guard with `COALESCE`/fallback and do **not** delete the current inline computation. The perf work-stream runs these in the D47 recompute (perf-architecture.md §8) and flags when ready.
+
+**The cross-session handshake:** Steps 1–4 are entirely yours to schedule. **Step 5 is the only place our two tracks touch** — wait for the "columns live" signal before doing 5/6, and neither side races ahead.
+
 ## How items 5 & 6 coordinate with the backend
 Items **5** and **6** depend on two new precomputed columns (`adj_close`, `conv`) that the data session is adding to `stock_signals` and populating during the **D47 post-backfill full recompute** (avoiding a wasteful second full-history pass). Until those columns are populated they will be `NULL` — so guard the read (`COALESCE`/fallback) and flip the switch when the recompute lands. The data session will ping when the columns are live.
 
