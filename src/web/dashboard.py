@@ -1665,7 +1665,8 @@ const RS_SERIES = __SERIES__;
 
 
 @router.get("/dash/stock", response_class=HTMLResponse)
-def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
+def dash_stock(sym: str = Query("", max_length=20),
+               cmp: list[str] = Query(default=[])) -> HTMLResponse:
     sym = sym.upper().strip()
     search = f"""
 <form class="search" action="/dash/stock" method="get">
@@ -2205,13 +2206,35 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
     if series:
         rs_sym_name = sym
         rs_narrow_name = L.get("primary_sector")          # may be None
-        rs_broad_name = "Nifty 500"
         d_lo, d_hi = series[0]["time"], series[-1]["time"]
-        idx_wanted = [n for n in (rs_narrow_name, rs_broad_name) if n]
-        idx_levels: dict[str, list] = {}
-        if idx_wanted:
-            ph = ",".join("?" for _ in idx_wanted)
-            with get_conn() as conn:
+        with get_conn() as conn:
+            valid_set = {row["index_name"] for row in conn.execute(
+                "SELECT DISTINCT index_name FROM index_rows").fetchall()}
+            equities = [(row["symbol"], row["company_name"] or "") for row in conn.execute(
+                "SELECT symbol, company_name FROM nse_equity_list ORDER BY symbol").fetchall()]
+            equity_set = {s for s, _ in equities}
+            # Overlay = explicit ?cmp= (index names or tickers), else the defaults:
+            # Nifty 500 + Nifty 50 + the stock's sector (if any).
+            if cmp:
+                ov, ovseen = [], set()
+                for c in cmp:
+                    c = (c or "").strip()
+                    cu = c.upper()
+                    if c in valid_set and c not in ovseen:
+                        ov.append(("idx", c)); ovseen.add(c)
+                    elif cu in equity_set and cu != sym and cu not in ovseen:
+                        ov.append(("stk", cu)); ovseen.add(cu)
+                    if len(ov) >= _COMPARE_MAX - 1:
+                        break
+            else:
+                ov = [("idx", n) for n in ("Nifty 500", "Nifty 50") if n in valid_set]
+                if rs_narrow_name and rs_narrow_name in valid_set:
+                    ov.insert(0, ("idx", rs_narrow_name))
+            ov_idx = [n for k, n in ov if k == "idx"]
+            ov_stk = [n for k, n in ov if k == "stk"]
+            idx_levels: dict[str, list] = {}
+            if ov_idx:
+                ph = ",".join("?" for _ in ov_idx)
                 for row in conn.execute(
                     f"""SELECT index_name, trade_date, close_value
                         FROM index_rows
@@ -2219,42 +2242,80 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
                           AND trade_date >= ? AND trade_date <= ?
                           AND close_value IS NOT NULL
                         ORDER BY index_name, trade_date""",
-                    (*idx_wanted, d_lo, d_hi),
+                    (*ov_idx, d_lo, d_hi),
                 ).fetchall():
                     idx_levels.setdefault(row["index_name"], []).append(
                         {"t": row["trade_date"], "v": round(row["close_value"], 2)})
+            stk_levels = _stock_levels(conn, ov_stk)
 
-        # Sticky colours mirroring /dash/compare order: stock, narrow, broad.
+        # Stock first (palette 0), then each overlay that has data in the window.
         rs_series = [{
             "name": rs_sym_name,
-            "color": _COMPARE_PALETTE[0],
+            "color": _cmp_color(0),
             "level": [{"t": s["time"], "v": s["close"]}
                       for s in series if s["close"] is not None],
         }]
-        if rs_narrow_name and idx_levels.get(rs_narrow_name):
+        ov_present = []
+        for k, name in ov:
+            if k == "idx":
+                lvl = idx_levels.get(name)
+            else:
+                lvl = [p for p in (stk_levels.get(name) or []) if d_lo <= p["t"] <= d_hi]
+            if not lvl:
+                continue
             rs_series.append({
-                "name": rs_narrow_name,
-                "color": _COMPARE_PALETTE[1],
-                "level": idx_levels[rs_narrow_name],
+                "name": name,
+                "color": _cmp_color(len(rs_series)),
+                "level": lvl,
             })
-        if idx_levels.get(rs_broad_name):
-            rs_series.append({
-                "name": rs_broad_name,
-                "color": _COMPARE_PALETTE[2],
-                "level": idx_levels[rs_broad_name],
-            })
+            ov_present.append((k, name))
 
-        # Need the broad index AND at least the stock to make this meaningful.
+        # Need the stock + at least one benchmark to be meaningful.
         if len(rs_series) >= 2:
             rs_overlay_json = json.dumps(rs_series)
-            narrow_lbl = _esc(rs_narrow_name) if rs_narrow_name else "—"
-            sub = (f'<b>{_esc(rs_sym_name)}</b> vs <b>{narrow_lbl}</b> (narrow sector) '
-                   f'vs <b>Nifty 500</b> (broad)' if rs_narrow_name
-                   else f'<b>{_esc(rs_sym_name)}</b> vs <b>Nifty 500</b> (broad) — '
-                        f'no NSE sectoral index covers this stock')
+
+            def _so_href(items):
+                return "/dash/stock?" + "&".join(
+                    [f"sym={_q(sym)}"] + [f"cmp={_q(n)}" for _, n in items])
+
+            stock_chip = (f'<span class="cmp-chip"><span class="cmp-sw" '
+                          f'style="background:{_cmp_color(0)}"></span>'
+                          f'<span><b>{_esc(sym)}</b></span></span>')
+            chip_html = []
+            for ci, (k, name) in enumerate(ov_present):
+                rest = [it for it in ov_present if it != (k, name)]
+                tag = "" if k == "idx" else ' <span class="cmp-tag">stk</span>'
+                chip_html.append(
+                    f'<span class="cmp-chip"><span class="cmp-sw" '
+                    f'style="background:{_cmp_color(1 + ci)}"></span>'
+                    f'<span>{_esc(name)}</span>{tag}'
+                    f'<a class="cmp-x" href="{_esc(_so_href(rest))}" title="remove">✕</a></span>')
+            at_cap = len(ov_present) >= _COMPARE_MAX - 1
+            add_btn = ('<button class="chip" id="soAddBtn" type="button">+ Add</button>'
+                       if not at_cap
+                       else f'<span class="chip cmp-dim">max {_COMPARE_MAX - 1}</span>')
+            so_rail = ('<div class="cmp-rail">' + stock_chip
+                       + "".join(chip_html) + add_btn + '</div>')
+            so_add = ""
+            if not at_cap:
+                so_add = (
+                    '<div id="soAddWrap" style="display:none">'
+                    '<div class="search" style="margin-top:6px">'
+                    '<input id="soSearch" placeholder="Add a ticker or index — LT, RELIANCE, Nifty Bank…" autocomplete="off"/>'
+                    '<button class="dtx" id="soAddConfirm" type="button" disabled>Add</button></div>'
+                    f'<div class="sub" style="margin:2px 0 6px">Tickers match from 2 letters, '
+                    f'names from 4. Tap to stage, then <b>Add</b> (up to {_COMPARE_MAX - 1}).</div>'
+                    '<div id="soResults" class="chips" style="margin-top:6px"></div>'
+                    '</div>')
+            cmp_items_json = json.dumps(
+                [{"v": n, "t": "idx"} for n in sorted(valid_set)]
+                + [{"v": s, "t": "stk", "n": nm} for s, nm in equities])
+            sec_note = (f" + {_esc(rs_narrow_name)} (sector)"
+                        if rs_narrow_name and not cmp else "")
             rs_overlay_html = f"""
 <h2>Relative strength — overlay <a class="row" style="font-size:13px;font-weight:400" href="/dash/compare?sym={_q(sym)}&idx={_q('Nifty 500')}&idx={_q('Nifty 50')}">↗ open in Compare ⇄</a></h2>
-<div class="sub">{sub}. Each line rebased to a common start (base 100); when the stock pulls above both index lines it is leading its sector <i>and</i> the market — the gaps are RS-sector and RS-broad.</div>
+<div class="sub"><b>{_esc(sym)}</b> rebased against your benchmarks (base 100, default Nifty 500 + Nifty 50{sec_note}) — above a line = outperforming it. Add any stock or index with <b>+ Add</b>.</div>
+{so_rail}{so_add}
 <div class="fbar" id="rsTfBar">
   <button class="fbtn on" data-rstf="d">Daily</button>
   <button class="fbtn" data-rstf="w">Weekly</button>
@@ -2265,6 +2326,7 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 <div class="chartwrap"><div style="position:relative"><div id="rsOverlayChart" style="height:300px;margin-right:104px;"></div><div id="rsNames" style="position:absolute;top:0;right:0;bottom:0;width:104px;pointer-events:none;overflow:visible;"></div></div></div>
 <div class="cmp-vals" id="rsVals"></div>
 {_RS_OVERLAY_JS.replace("__CDN__", _LWC_CDN).replace("__SERIES__", rs_overlay_json)}
+{_STOCK_CMP_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)).replace("__SYM__", json.dumps(sym)).replace("__CUR__", json.dumps([n for _, n in ov_present]))}
 """
 
     chart_css = """
@@ -2277,6 +2339,15 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
 .cmp-anchor { font-size:12px; color:#8b949e; margin:6px 4px 2px; }
 .cmp-vals { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums; padding:8px 4px 2px; }
 .cmp-val { font-weight:600; }
+.cmp-rail { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0 8px; }
+.cmp-chip { display:inline-flex; align-items:center; gap:6px; background:#161b22; border:1px solid #30363d; border-radius:14px; padding:5px 8px 5px 9px; font-size:13px; }
+.cmp-chip.cmp-dim { opacity:.4; }
+.cmp-sw { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.cmp-tag { font-size:9px; font-weight:700; color:#8b949e; background:#21262d; border-radius:4px; padding:1px 4px; letter-spacing:.4px; }
+.cmp-x { color:#8b949e; text-decoration:none; font-size:12px; margin-left:1px; }
+.cmp-x:hover { color:#f85149; }
+button.cmp-sugg { cursor:pointer; font-family:inherit; }
+.cmp-sugg.cmp-on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
 """
 
     body = f"""{search}
@@ -3583,6 +3654,63 @@ _COMPARE_PICKER_JS = """
       t=setTimeout(()=>render(search(q)), 110);
     });
   }
+  refresh();
+})();
+</script>
+"""
+
+
+# Stock-page RS-overlay picker — like the compare picker, but emits ?cmp= (the
+# server detects index-name vs ticker) and keeps the page's own ?sym= pinned.
+_STOCK_CMP_PICKER_JS = """
+<script>
+(function(){
+  const ITEMS=__ITEMS__; const MAX=__MAX__; const SYM=__SYM__; const CUR=__CUR__;
+  const btn=document.getElementById('soAddBtn');
+  const wrap=document.getElementById('soAddWrap');
+  const box=document.getElementById('soSearch');
+  const results=document.getElementById('soResults');
+  const confirm=document.getElementById('soAddConfirm');
+  if(!btn||!wrap) return;
+  btn.onclick=()=>{ wrap.style.display=(wrap.style.display==='none')?'block':'none'; if(box) box.focus(); };
+  const already=new Set(CUR); already.add(SYM);
+  const slots=(MAX-1)-CUR.length;
+  const picked=new Set();
+  function refresh(){ if(!confirm) return;
+    confirm.disabled=picked.size===0;
+    confirm.textContent=picked.size?('Add '+picked.size):'Add'; }
+  function toggle(name, el){
+    if(picked.has(name)){ picked.delete(name); if(el) el.classList.remove('cmp-on'); }
+    else { if(picked.size>=slots) return; picked.add(name); if(el) el.classList.add('cmp-on'); }
+    refresh(); }
+  function wire(el){ el.addEventListener('click',e=>{ e.preventDefault(); toggle(el.dataset.name, el); }); }
+  if(confirm){ confirm.onclick=()=>{
+    if(!picked.size) return;
+    const items=CUR.concat([...picked]).slice(0,MAX-1);
+    const parts=['sym='+encodeURIComponent(SYM)].concat(items.map(v=>'cmp='+encodeURIComponent(v)));
+    window.location='/dash/stock?'+parts.join('&'); }; }
+  function search(q){
+    q=q.trim().toLowerCase();
+    if(q.length<2) return [];
+    const exact=[],prefix=[],sub=[];
+    for(const it of ITEMS){
+      if(already.has(it.v)) continue;
+      const v=it.v.toLowerCase();
+      if(it.t==='idx'){ if(v.indexOf(q)>=0) sub.push(it); continue; }
+      if(v===q) exact.push(it);
+      else if(v.indexOf(q)===0) prefix.push(it);
+      else if(q.length>=4 && (v.indexOf(q)>=0 || (it.n && it.n.toLowerCase().indexOf(q)>=0))) sub.push(it);
+    }
+    return exact.concat(prefix,sub).slice(0,30); }
+  function render(list){
+    if(!results) return; results.innerHTML='';
+    list.forEach(it=>{ const b=document.createElement('button'); b.type='button';
+      b.className='chip cmp-sugg'; b.dataset.name=it.v;
+      b.textContent='+ '+it.v+((it.t==='stk'&&it.n)?(' · '+it.n):'');
+      if(picked.has(it.v)) b.classList.add('cmp-on'); wire(b); results.appendChild(b); }); }
+  if(box){ let t=null; box.addEventListener('input',()=>{
+    const q=box.value; if(t) clearTimeout(t);
+    t=setTimeout(()=>render(search(q)),110); }); }
   refresh();
 })();
 </script>
