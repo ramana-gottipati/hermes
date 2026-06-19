@@ -561,6 +561,39 @@ CREATE INDEX IF NOT EXISTS idx_cpr_tf_date         ON cpr_signals(timeframe, per
 CREATE INDEX IF NOT EXISTS idx_cpr_sym_tf          ON cpr_signals(symbol, timeframe, period_end_date DESC);
 -- "What fired on date X for TF T" (the per-TF EOD reports).
 CREATE INDEX IF NOT EXISTS idx_cpr_tf_date_pattern ON cpr_signals(timeframe, period_end_date, pattern);
+
+-- ===========================================================================
+-- D54 (UI Phase 1) — the strategy → watchlist → portfolio ACTION LOOP. One row
+-- per tracked idea. status 'watch' = the lightweight watchlist tier (no entry
+-- needed); 'open' = a committed position-under-a-strategy (captures entry +
+-- target/stop + a frozen as-of-day snapshot); 'closed' = exited. snapshot_json
+-- FREEZES the signal values at add time (conviction, p/r, rank, ×power, key-gap,
+-- RS, pt14, character) so the tracker can honestly show "what it looked like
+-- when added" vs live — the daily stock_signals row is overwritten/appended
+-- nightly and cannot be reconstructed later (the one place denormalization is
+-- correct: it's an audit record, not a cache). Mark-to-market + hit-rate are
+-- pure-SQL / indexed point-lookups on read. The legacy `watchlist` table
+-- (symbol PK) is kept untouched (the scope=watch screener source); this is the
+-- richer, lifecycle-aware tracker behind /dash/portfolios·watchlists·tracker.
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS stocks_in_play (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol        TEXT NOT NULL,
+    strategy      TEXT NOT NULL DEFAULT 'Manual',
+    status        TEXT NOT NULL DEFAULT 'open',   -- 'watch' | 'open' | 'closed'
+    date_added    TEXT NOT NULL DEFAULT (datetime('now')),
+    entry_price   REAL,
+    price_target  REAL,
+    stop_loss     REAL,
+    entry_thesis  TEXT,
+    snapshot_json TEXT,                            -- frozen as-of-add signal values
+    exit_date     TEXT,
+    exit_price    REAL,
+    exit_reason   TEXT,
+    notes         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sip_status ON stocks_in_play(status, strategy);
+CREATE INDEX IF NOT EXISTS idx_sip_symbol ON stocks_in_play(symbol);
 """
 
 

@@ -102,12 +102,12 @@ Each existing strategy surface keeps its verdict **and gains the numbers behind 
 
 ---
 
-## 6. Portfolios (growth — record, build later)
+## 6. Portfolios (✅ Phase 1 BUILT — session 22, D54)
 
 - A **portfolio under each strategy** (the names that strategy currently holds/picks), and **combination portfolios** (e.g., CPR-reversal ∩ DVPT-accumulation ∩ RS-leader).
 - Each portfolio = a tracked set of (symbol, entry date, entry context, thesis) with live mark-to-market. Reuses the long-open `stocks_in_play`/tracker idea (PROJECT_STATE open item C).
 
-## 7. Tracker & benchmark/gap analysis (growth — record, build later)
+## 7. Tracker & benchmark/gap analysis (✅ Phase 1 BUILT — session 22, D54)
 
 - **Performance tracker** by **day / week / month closure** — how is each portfolio (and the system overall) performing per period? "What exactly is missing?"
 - **Benchmark comparison** — vs Nifty / a broad index / a narrow index — "where are we really missing out?" Gap analysis = where the system under- or over-performs the benchmark, by period and by strategy.
@@ -132,6 +132,13 @@ Each existing strategy surface keeps its verdict **and gains the numbers behind 
 - If a result set is very large, **paginate / cap server-side** (and *log* the cap per Doctrine — no silent truncation).
 - Consider lightweight **row virtualization** only if a real bottleneck appears — not pre-emptively (avoid over-engineering).
 - Keep CSS in the single `_BASE_CSS` block; vanilla JS in `_DT_JS`. Ship nothing heavy.
+
+**Perf hand-off (data/perf session, 2026-06-19) — folds into this section.** A parallel pass diagnosed the hiccup as the *delivery model* (a full, uncompressed, uncacheable doc per click), not size. Source of truth (transient): `docs/ui-perf-handoff.md`; full reasoning + backend backlog: `docs/perf-architecture.md`. **Already shipped (backend):** app-layer gzip (`GZipMiddleware`, `src/main.py`) — so the render-layer items below buy *caching + smaller DOM*, not compression. **Execution sequence (dependency-gated — do in order):**
+1. *(zero-risk, no deps — rides Phase 1)* externalize `_BASE_CSS`+`_DT_JS` (+ chart/picker JS) to hashed static routes with `Cache-Control: immutable`; self-host lightweight-charts + add `Cache-Control` to `/icon.svg`·`/manifest`·`/sw.js`; **memoize `_latest_dates()`** per trading day.
+2. **Virtualize the screener grid AS PART OF the frozen-pane/column-group build** (Phase 2) — never after (shipping the ~54k-cell grid then virtualizing = a visible regression window). Keep the frozen panes (D-UI-12).
+3. Dedupe the chart bootstrap (×5), the type-ahead picker (authored ×2), `chart_css` (×3); then the module split — *before* Phase 2 stacks saved-queries/tiles on the 4.7k-line file.
+4. Thin chart-data JSON endpoint (`/dash/api/stock/<sym>/series`) + lazy fetch — replaces the ~100–150 KB inline JSON on `/dash/stock`.
+5. **BLOCKED — the only cross-session gate:** read precomputed `adj_close` (kills the ~3.5 s `/dash/stock`, closes B5) + switch the screener `ORDER BY conv` to a precomputed `conv` column. WAIT for the perf work-stream's "columns live" signal (D47 recompute); until then guard with `COALESCE` and do NOT delete the inline back-adjustment.
 
 ---
 
@@ -158,3 +165,33 @@ Each existing strategy surface keeps its verdict **and gains the numbers behind 
 - **D-UI-6 — Workspace tiles + nav reorg**, revisiting D40-A's 5-cap. *Why:* the system now has more destinations than a 5-item phone bar holds; tiles scale, and Ramana asked for tiles/buttons to navigate.
 - **D-UI-7 — Strategy = a lens over one shared grid** (saved query + verdict columns), with "Open in Screener" everywhere. *Why:* reconciles "separate data & strategy sections" with "data always handy"; the data is never buried or duplicated.
 - **D-UI-8 — Extend `table.dt`/`_DT_JS`, never replace.** *Why:* no-regression + lightness; the existing grid already does sort/filter/export/sticky-header.
+- **D-UI-14 — The action loop = ONE `stocks_in_play` table keyed by `status`** (watch → open → closed), NOT separate watchlist/portfolio tables; capture **freezes an as-of-day snapshot**. *Why:* watchlist and portfolio are the same object at two lifecycle stages under a strategy; the snapshot is the only honest way to show "what it looked like when added" (the daily signals overwrite nightly). Panel: data-eng + analyst + IA converged.
+- **D-UI-15 — News = per-stock factual FIRST + a STATIC typed strip, not an auto-scrolling marquee.** *Why:* three panelists flagged marquees as unreadable; the analyst wants filings/results/corp-actions over a headline crawler. ₹0 via the existing RSS feeds; 15-min cadence. (Build = Phase 3.)
+- **D-UI-16 — Visual language = "the instrument."** Rows are *readouts*: inline static SVG/CSS micro-viz (DVPT-vs-power ladder, key-price band, 3-axis character glyph, RS sparkline) turn the buried 88-col data into scannable shapes; the verdict sits ON its evidence; monospaced tabular numerals; ink discipline (2 encoding accents, colour = information only). Lighter than a chart library (static, server-rendered). *Why:* a re-skin buries the data; the instrument surfaces it — D-UI-1 made literal. Approved by Ramana.
+- **D-UI-17 — Nav: attach, don't grow the bar.** Keep ~5 top tabs; new destinations attach to an owner (Watchlists/Portfolios under Portfolios via an in-page sub-nav; Compare under Markets) or a global utility strip (news + `?` glossary + search, Phase 3). *Why:* the phone bar can't grow indefinitely; every datum gets one canonical home.
+
+---
+
+## 15. Session-1 outcomes — the design decisions (session 22, 2026-06-19)
+
+A 5-agent panel (UI/UX · IA · analyst-as-user · data-eng · design-researcher) ran in parallel; proposals converged on most points, and the genuine splits went to Ramana as multiple-choice-with-recommendations. **His calls:**
+1. **Build order → action-loop first.** The tracking loop (row → watchlist → portfolio + thesis → MTM + hit-rate) is the only item that changes what he *learns* over time; the rest is polish on a working workbench. Then: under-utilized data → hover-help → comparison → per-stock news → onboarding.
+2. **Action flow → two-tier + frozen snapshot.** One `stocks_in_play` row; ★ Watchlist (lightweight) → promote to Portfolio-under-a-strategy capturing strategy (auto), a required thesis, entry date+price (auto), optional target/stop, and a **frozen snapshot** of that day's key numbers. (→ D-UI-14.)
+3. **News → per-stock factual first + static typed strip** (no marquee). (→ D-UI-15.)
+4. **Nav → attach, don't grow the bar.** (→ D-UI-17.)
+
+**Adopted without a vote (panel consensus):** surface the computed-but-hidden data first (≈30 of 88 `stock_signals` cols never reach the UI — gap-to-key + 🎯, the 3 character sub-axes, surge 3m/1y, near-break, RS slopes; `hot_days_avg_price` + the RS `above_50/200ma`/`new_52w` flags are near-dead → surface or delete); hover-help = a CSS `?` popover, content baked from `metrics-glossary.md` at render (zero fetch), on group-headers + pills, with a "how it's scored" drill-down for composites; saved views → SQLite (cross-device); comparison → enrich `/dash/compare` (auto-rebase + transposed table), don't duplicate; onboarding = a dismissible one-line strip + the glossary page, no coachmark tour; polish = tabular numerals everywhere, tone heat-tints down, lighter pills. Researcher citations: Screener.in (`?` header tooltips), Koyfin (column chooser + summary-row footer + watchlist↔portfolio split), Trendlyne (thesis "My Notes"), Tijori (typed "Ideas" news streams over a firehose), TradingView (Compare auto price→%), Sensibull (density toggle).
+
+**Stencils approved ("perfect"):** nav frame + global utility strip + static news strip · action-capture form · portfolio + tracker · **the dense "instrument" screener** (inline micro-viz) · the **hover-help popover** with the Conviction breakdown · the **stock decision masthead** · comparison · per-stock news. Aesthetic locked = **"the instrument"** (→ D-UI-16).
+
+## 16. Phase-1 build log (session 22)
+
+Built additively, zero regression (all 22 routes 200; full loop verified via TestClient):
+- **`stocks_in_play`** table (`src/core/db.py`) — status watch|open|closed + `snapshot_json`.
+- **Capture** — `+ Track` on `/dash/stock` (`?track=1`) → `_capture_form` → **POST `/dash/track`** (+ `/track/close|promote|remove`). The snapshot + entry (= latest close) are frozen **server-side** in `_capture_snapshot` (never trusted from the client). `_xpower`/`_conv_of` mirror the screener's ×power / Conviction.
+- **`/dash/portfolios`** — open positions, entry→CMP→P/L (MTM via indexed close point-lookup), Conv **then→now** drift (frozen vs live), thesis hover, Close.
+- **`/dash/watchlists`** — watch tier, live signal chips, Promote / Remove.
+- **`/dash/tracker`** — open MTM · hit-rate by strategy (SQL) · avg excess vs Nifty 500 (`index_rows`) · avg hold; honest empty-states.
+- In-page Portfolios·Watchlists·Tracker sub-nav (`_track_subnav`); `_WS` maps `watchlists→portfolios`; `_TRACK_CSS` self-contained (no `_BASE_CSS` edit).
+
+**Next (Phase 2–3):** the instrument-screener micro-viz (surface the under-utilized data); `?` hover-help; comparison enrichment; per-stock news + static strip; onboarding; inline-row Track on the grids.

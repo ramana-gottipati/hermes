@@ -73,6 +73,16 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 
 **Where it shows:** a **CPR column-group** in the screener (D/W/M width% + glyph + rank + ★ tier + Comp%, group-toggle-able, plus a **"CPR-confirmed"** gate); a **CPR card** in `/dash/strategies`; the dedicated **`/dash/cpr`** (Reversals · Compression · per-TF EOD Reports); and a **CPR panel** on the stock page.
 
+## Tracking — the action loop (D54, UI Phase 1)
+
+- **Watchlist vs Portfolio.** Two stages of one tracked idea (`stocks_in_play.status`). **Watchlist** (`watch`) = a lightweight idea, no entry needed. **Portfolio** (`open`) = a committed position-under-a-strategy, with an entry price + a thesis. Promote watch → portfolio when you commit; **Close** moves it to `closed`.
+- **Frozen snapshot.** The signal values **captured at add time** (conviction · p/r · rank · ×power · key-gap · RS · pt14 · character), stored once. *Why:* the daily `stock_signals` row is overwritten nightly, so this is the only honest record of *what you saw when you added it*. *Source:* `stocks_in_play.snapshot_json`.
+- **Conv then→now.** The frozen Conviction at add vs its live value today — green if it strengthened, red if it faded. Shows a thesis ageing.
+- **Mark-to-market (MTM) / P/L%.** (live close − entry) ÷ entry. Entry = the latest close on the add date (auto-captured). Live close via an indexed point-lookup.
+- **Hit-rate by strategy.** Of the *closed* positions in a strategy, the % that exited above entry. Read alongside avg return. *(Populates as you close trades.)*
+- **Excess vs Nifty 500.** A closed position's return minus the Nifty 500's return over the same hold window — the benchmark gap (am I beating the index?).
+- **Avg hold.** Mean calendar days from add to close, over closed positions.
+
 ---
 
 ### Open (Session 1 will action)

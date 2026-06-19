@@ -28,8 +28,8 @@ import json
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
-from fastapi import APIRouter, Query
-from fastapi.responses import HTMLResponse, PlainTextResponse, Response
+from fastapi import APIRouter, Form, Query
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 
 from src.automation import adjust
 from src.automation.signals import accum_character_read, is_near_key
@@ -329,7 +329,8 @@ _WS = {
     "strategies": "strategies", "scan": "strategies", "stocks": "strategies",
     "leaders": "strategies", "laggards": "strategies", "conviction": "strategies",
     "workbench": "strategies", "stock": "strategies", "cpr": "strategies",
-    "portfolios": "portfolios", "tracker": "tracker",
+    "portfolios": "portfolios", "watchlists": "portfolios", "track": "portfolios",
+    "tracker": "tracker",
 }
 
 
@@ -2389,25 +2390,396 @@ def dash_cpr(tab: str = Query("reversals"), tf: str = Query(""),
                                latest.get("D") or latest.get("W") or ""))
 
 
+# === D54 (UI Phase 1) — strategy → watchlist → portfolio ACTION LOOP ========
+# A tracked idea = one stocks_in_play row. status 'watch' (lightweight idea) →
+# 'open' (a position-under-a-strategy: captures entry + target/stop + a FROZEN
+# as-of-day snapshot) → 'closed'. The snapshot is frozen at add time (the daily
+# signals overwrite nightly); mark-to-market + hit-rate are pure-SQL / indexed
+# point-lookups on read. Capture is the dashboard's ONLY mutation (POST); every
+# other route stays read-only. Glossary defs feed the snapshot chips.
+
+_TRACK_STRATEGIES = ["DVPT accumulation", "RS leader", "Conviction",
+                     "CPR reversal", "Quality", "Manual"]
+
+_TRACK_CSS = """<style>
+.snap{display:inline-block;background:#0d1117;border:1px solid #30363d;border-radius:7px;padding:2px 7px;margin:2px 4px 2px 0;font-size:11px;color:#c9d1d9;font-variant-numeric:tabular-nums}
+.snap i{color:#6e7681;font-style:normal;margin-right:3px}
+.tbtn{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:5px 11px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
+.tbtn-go{background:#238636;border-color:#238636;color:#fff;font-weight:700}
+.thq{color:#58a6ff;cursor:help;font-size:17px;line-height:1}
+.trk-bar{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12px}
+.trk-lbl{width:170px;flex:none;color:#c9d1d9}
+.trk-val{width:48px;flex:none;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.cap{background:#161b22;border:1px solid #1f4d7a;border-radius:10px;padding:14px;margin:12px 0}
+.cap label{display:block;color:#8b949e;font-size:11px;margin-bottom:4px}
+.cap .field{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:7px;padding:8px 10px;font-size:13px;width:100%;font-family:inherit}
+.cap .row2{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.cap textarea.field{min-height:48px;resize:vertical}
+</style>"""
+
+
+def _xpower(L):
+    """×power = today's DVPT / the mean of its own power baselines (glossary)."""
+    ps = [L.get("power_dvpt_1m"), L.get("power_dvpt_3m"),
+          L.get("power_dvpt_6m"), L.get("power_dvpt_12m")]
+    ps = [x for x in ps if x]
+    dvpt = L.get("delivery_value_per_trade")
+    return (dvpt / (sum(ps) / len(ps))) if (dvpt and ps) else None
+
+
+def _conv_of(p_score, rs_rank):
+    """The screener's tri-pillar Conviction (positioning + RS), 0-100."""
+    return 0.55 * (p_score or 0) / 5.0 * 100.0 + 0.45 * (rs_rank or 0)
+
+
+def _capture_snapshot(conn, sym):
+    """Latest signal row -> (entry_price = latest close, frozen snapshot dict,
+    trade_date). Used both to FREEZE values at add time and to read them LIVE."""
+    L = conn.execute("SELECT * FROM stock_signals WHERE symbol=? "
+                     "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+    if not L:
+        return None, {}, None
+    L = dict(L)
+    td = L["trade_date"]
+    bq = conn.execute("SELECT close FROM bhavcopy_rows WHERE symbol=? AND "
+                      "trade_date=? AND series='EQ' LIMIT 1", (sym, td)).fetchone()
+    close = bq["close"] if bq else None
+    try:
+        ps = conn.execute("SELECT ns_base, tier FROM pattern_scores WHERE symbol=? "
+                          "ORDER BY scored_at DESC LIMIT 1", (sym,)).fetchone()
+    except Exception:
+        ps = None
+    ix = _xpower(L)
+    kg = L.get("gap_to_key_p3m")
+    snap = {
+        "date": td, "close": close,
+        "conv": round(_conv_of(L.get("p_score"), L.get("rs_rank"))),
+        "p": L.get("p_score"), "r": L.get("r_score"),
+        "rank": L.get("trigger_rank"), "rs": L.get("rs_rank"),
+        "xpow": round(ix, 2) if ix else None,
+        "keygap": round(kg, 1) if kg is not None else None,
+        "pt14": round(ps["ns_base"]) if (ps and ps["ns_base"] is not None) else None,
+        "tier": ps["tier"] if ps else None,
+        "char": L.get("accum_character"),
+    }
+    return close, snap, td
+
+
+def _snap_chips(snap):
+    """Compact frozen-snapshot chip row from a snapshot dict."""
+    if not snap:
+        return '<span class="mut">—</span>'
+    bits = []
+
+    def add(lbl, val):
+        if val is not None and val != "":
+            bits.append(f'<span class="snap"><i>{lbl}</i>{val}</span>')
+    add("conv", snap.get("conv"))
+    if snap.get("p") is not None:
+        add("p/r", f'{snap.get("p")}/{snap.get("r")}')
+    add("rank", snap.get("rank"))
+    if snap.get("xpow") is not None:
+        add("×pow", snap.get("xpow"))
+    add("RS", snap.get("rs"))
+    if snap.get("keygap") is not None:
+        add("key-gap", f'{snap.get("keygap"):+g}%')
+    add("pt14", snap.get("pt14"))
+    add("char", snap.get("char"))
+    return "".join(bits) or '<span class="mut">—</span>'
+
+
+def _then_now(a, b):
+    """Render a frozen-then -> live-now value with directional colour."""
+    if a is None and b is None:
+        return '<span class="mut">—</span>'
+    if a is None:
+        return f'{b}'
+    if b is None:
+        return f'<span class="mut">{a}</span>'
+    cls = "pos" if b > a else ("neg" if b < a else "mut")
+    return f'<span class="mut">{a}</span> → <span class="{cls}">{b}</span>'
+
+
+def _id_form(action, rid, label, cls="tbtn", confirm=""):
+    """A tiny single-button POST form carrying a stocks_in_play id."""
+    oc = f' onsubmit="return confirm(&#39;{confirm}&#39;)"' if confirm else ""
+    return (f'<form method="post" action="{action}" style="display:inline"{oc}>'
+            f'<input type="hidden" name="id" value="{rid}"/>'
+            f'<button class="{cls}" type="submit">{label}</button></form> ')
+
+
+def _benchmark_return(conn, index_name, d0, d1):
+    """% return of a broad index between two dates (as-of close on/before each)."""
+    if not (d0 and d1):
+        return None
+    a = conn.execute("SELECT close_value FROM index_rows WHERE index_name=? AND "
+                     "trade_date<=? ORDER BY trade_date DESC LIMIT 1", (index_name, d0[:10])).fetchone()
+    b = conn.execute("SELECT close_value FROM index_rows WHERE index_name=? AND "
+                     "trade_date<=? ORDER BY trade_date DESC LIMIT 1", (index_name, d1[:10])).fetchone()
+    if a and b and a["close_value"]:
+        return (b["close_value"] - a["close_value"]) / a["close_value"] * 100.0
+    return None
+
+
+def _days_between(d0, d1):
+    try:
+        return (datetime.fromisoformat(d1[:10]) - datetime.fromisoformat(d0[:10])).days
+    except Exception:
+        return None
+
+
+def _track_subnav(active):
+    items = [("portfolios", "/dash/portfolios", "Portfolios"),
+             ("watchlists", "/dash/watchlists", "Watchlists"),
+             ("tracker", "/dash/tracker", "Tracker")]
+    out = ['<div class="fbar" style="margin-bottom:12px">']
+    for k, h, lbl in items:
+        out.append(f'<a class="fbtn{" on" if k == active else ""}" href="{h}">{lbl}</a>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def _capture_form(sym, snap):
+    """The inline Track capture form (server-rendered; POSTs to /dash/track).
+    Entry price + date + the frozen snapshot are captured SERVER-SIDE on submit
+    (never trusted from the client) — this only previews what will be saved."""
+    opts = "".join(f'<option value="{_esc(s)}">{_esc(s)}</option>' for s in _TRACK_STRATEGIES)
+    asof = snap.get("date") or ""
+    px = _num(snap.get("close"), 2) if snap.get("close") is not None else "—"
+    return (
+        '<form class="cap" id="track" method="post" action="/dash/track">'
+        f'<input type="hidden" name="symbol" value="{_esc(sym)}"/>'
+        f'<div style="font-weight:600;margin-bottom:10px">Track {_esc(sym)} '
+        f'<span class="mut" style="font-weight:400;font-size:12px">· entry ₹{px} (auto, as of {_esc(asof)})</span></div>'
+        '<div class="row2">'
+        '<div style="flex:1;min-width:150px"><label>List</label>'
+        '<select name="status" class="field"><option value="open">Portfolio · a position</option>'
+        '<option value="watch">Watchlist · an idea</option></select></div>'
+        f'<div style="flex:1;min-width:150px"><label>Strategy</label>'
+        f'<select name="strategy" class="field">{opts}</select></div></div>'
+        '<div style="margin-bottom:10px"><label>Thesis — why now?</label>'
+        '<textarea name="thesis" class="field" placeholder="e.g. p_score 5, fresh ACCUM off a base, '
+        'close inside the key-price launch band"></textarea></div>'
+        '<div class="row2">'
+        '<div style="flex:1"><label>Target (optional)</label><input name="target" class="field" placeholder="₹"/></div>'
+        '<div style="flex:1"><label>Stop (optional)</label><input name="stop" class="field" placeholder="₹"/></div></div>'
+        '<div style="background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:10px;margin-bottom:12px">'
+        '<div class="mut" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">'
+        f'Frozen snapshot · saved as of {_esc(asof)}</div>{_snap_chips(snap)}</div>'
+        '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save</button>'
+        f'<a class="tbtn" href="/dash/stock?sym={_q(sym)}" style="text-decoration:none;margin-left:8px">Cancel</a>'
+        '</form>')
+
+
+@router.post("/dash/track")
+def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
+               status: str = Form("open"), thesis: str = Form(""),
+               target: str = Form(""), stop: str = Form("")) -> RedirectResponse:
+    sym = (symbol or "").upper().strip()
+    status = status if status in ("watch", "open") else "open"
+
+    def _f(x):
+        try:
+            return float(str(x).replace(",", "").replace("₹", "").strip())
+        except (TypeError, ValueError):
+            return None
+    if sym:
+        with get_conn() as conn:
+            entry_price, snap, _ = _capture_snapshot(conn, sym)
+            conn.execute(
+                "INSERT INTO stocks_in_play(symbol,strategy,status,entry_price,"
+                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",
+                (sym, (strategy or "Manual").strip() or "Manual", status,
+                 entry_price if status == "open" else None,
+                 _f(target), _f(stop), (thesis or "").strip() or None,
+                 json.dumps(snap) if snap else None))
+    dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
+    return RedirectResponse(f"{dest}?added={_q(sym)}", status_code=303)
+
+
+@router.post("/dash/track/close")
+def dash_track_close(id: int = Form(...), reason: str = Form("")) -> RedirectResponse:
+    with get_conn() as conn:
+        row = conn.execute("SELECT symbol FROM stocks_in_play WHERE id=?", (id,)).fetchone()
+        ep = _capture_snapshot(conn, row["symbol"])[0] if row else None
+        conn.execute("UPDATE stocks_in_play SET status='closed', exit_date=datetime('now'), "
+                     "exit_price=?, exit_reason=? WHERE id=?",
+                     (ep, (reason or "").strip() or None, id))
+    return RedirectResponse("/dash/tracker?closed=1", status_code=303)
+
+
+@router.post("/dash/track/promote")
+def dash_track_promote(id: int = Form(...)) -> RedirectResponse:
+    with get_conn() as conn:
+        row = conn.execute("SELECT symbol, entry_price FROM stocks_in_play WHERE id=?", (id,)).fetchone()
+        sym = row["symbol"] if row else ""
+        if row:
+            ep = row["entry_price"] or _capture_snapshot(conn, sym)[0]
+            conn.execute("UPDATE stocks_in_play SET status='open', entry_price=? WHERE id=?", (ep, id))
+    return RedirectResponse(f"/dash/portfolios?added={_q(sym)}", status_code=303)
+
+
+@router.post("/dash/track/remove")
+def dash_track_remove(id: int = Form(...)) -> RedirectResponse:
+    with get_conn() as conn:
+        conn.execute("DELETE FROM stocks_in_play WHERE id=?", (id,))
+    return RedirectResponse("/dash/portfolios", status_code=303)
+
+
 @router.get("/dash/portfolios", response_class=HTMLResponse)
-def dash_portfolios() -> HTMLResponse:
-    body = ('<h2>Portfolios</h2>'
-            '<div class="card"><div style="color:#c9d1d9;line-height:1.55;font-size:13px">'
-            'Coming soon — a tracked <b>portfolio under each strategy</b> (the names it holds), plus '
-            '<b>combination portfolios</b> (e.g. CPR-reversal ∩ DVPT-accumulation ∩ RS-leader), '
-            'each with live mark-to-market.</div>'
-            '<div class="sub" style="margin-top:8px">Design: <code>docs/ui-design.md §6</code>.</div></div>')
+def dash_portfolios(added: str = Query("")) -> HTMLResponse:
+    with get_conn() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM stocks_in_play WHERE status='open' "
+            "ORDER BY strategy, date_added DESC").fetchall()]
+        live = {}
+        for sym in {r["symbol"] for r in rows}:
+            ep, snap, _ = _capture_snapshot(conn, sym)
+            live[sym] = (ep, snap)
+    intro = ('<h2>Portfolios</h2><div class="sub">Positions you committed under a strategy — '
+             'entry, live mark-to-market, and the frozen as-of-add snapshot vs now. '
+             'Add from any stock page → <b>Track</b>.</div>')
+    flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your portfolio.</div>'
+             if added else "")
+    if not rows:
+        empty = ('<div class="empty">No open positions yet. Open any stock and hit '
+                 '<b>+ Track</b> → <b>Portfolio</b> to start the loop.</div>')
+        body = _TRACK_CSS + _track_subnav("portfolios") + intro + flash + empty
+        return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
+    trs = []
+    for r in rows:
+        sym = r["symbol"]
+        cmp_, nowsnap = live.get(sym, (None, {}))
+        ep = r["entry_price"]
+        pl = ((cmp_ - ep) / ep * 100.0) if (cmp_ and ep) else None
+        try:
+            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
+        except Exception:
+            thn = {}
+        drift = _then_now(thn.get("conv"), nowsnap.get("conv"))
+        thesis = r["entry_thesis"] or ""
+        th_cell = (f'<span class="thq" title="{_esc(thesis)}">&#8220;</span>'
+                   if thesis else '<span class="mut">—</span>')
+        tgt = _num(r["price_target"], 1) if r["price_target"] is not None else '<span class="mut">—</span>'
+        trs.append(
+            '<tr>'
+            f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
+            f'<td class="l mut">{_esc(r["strategy"])}</td>'
+            f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
+            f'<td class="num">{_num(ep, 1)}</td>'
+            f'<td class="num">{_num(cmp_, 1)}</td>'
+            f'<td class="num">{_pct(pl)}</td>'
+            f'<td class="num">{tgt}</td>'
+            f'<td class="l">{drift}</td>'
+            f'<td class="l">{th_cell}</td>'
+            f'<td class="l">{_id_form("/dash/track/close", r["id"], "Close", confirm="Close this position?")}</td>'
+            '</tr>')
+    head = ('<table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>Strategy</th><th>Added</th><th>Entry</th><th>CMP</th>'
+            '<th>P/L</th><th>Target</th><th>Conv then→now</th><th>Thesis</th><th></th>'
+            '</tr></thead><tbody>')
+    body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash
+            + head + "".join(trs) + "</tbody></table>")
     return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
+
+
+@router.get("/dash/watchlists", response_class=HTMLResponse)
+def dash_watchlists(added: str = Query("")) -> HTMLResponse:
+    with get_conn() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM stocks_in_play WHERE status='watch' ORDER BY date_added DESC").fetchall()]
+        live = {}
+        for sym in {r["symbol"] for r in rows}:
+            live[sym] = _capture_snapshot(conn, sym)[1]
+    intro = ('<h2>Watchlists</h2><div class="sub">Lightweight ideas you are tracking — '
+             'no entry needed. Promote to a portfolio when you commit.</div>')
+    flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your watchlist.</div>'
+             if added else "")
+    if not rows:
+        empty = ('<div class="empty">No watchlist items yet. On any stock page hit '
+                 '<b>+ Track</b> → <b>Watchlist</b>.</div>')
+        body = _TRACK_CSS + _track_subnav("watchlists") + intro + flash + empty
+        return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
+    trs = []
+    for r in rows:
+        sym = r["symbol"]
+        trs.append(
+            '<tr>'
+            f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
+            f'<td class="l mut">{_esc(r["strategy"])}</td>'
+            f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
+            f'<td class="l">{_snap_chips(live.get(sym, {}))}</td>'
+            f'<td class="l mut">{_esc(r["entry_thesis"] or "—")}</td>'
+            f'<td class="l">{_id_form("/dash/track/promote", r["id"], "Promote", cls="tbtn tbtn-go")}'
+            f'{_id_form("/dash/track/remove", r["id"], "Remove", confirm="Remove from watchlist?")}</td>'
+            '</tr>')
+    head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Strategy</th><th>Added</th>'
+            '<th>Live signals</th><th>Note</th><th></th></tr></thead><tbody>')
+    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash
+            + head + "".join(trs) + "</tbody></table>")
+    return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
 
 
 @router.get("/dash/tracker", response_class=HTMLResponse)
 def dash_tracker() -> HTMLResponse:
-    body = ('<h2>Tracker</h2>'
-            '<div class="card"><div style="color:#c9d1d9;line-height:1.55;font-size:13px">'
-            'Coming soon — <b>day / week / month performance</b> for each portfolio and the system overall, '
-            'benchmarked vs <b>Nifty / a broad / a narrow index</b>, with <b>gap analysis</b> '
-            '(where we\'re out- or under-performing).</div>'
-            '<div class="sub" style="margin-top:8px">Design: <code>docs/ui-design.md §7</code>.</div></div>')
+    with get_conn() as conn:
+        openrows = [dict(r) for r in conn.execute(
+            "SELECT * FROM stocks_in_play WHERE status='open'").fetchall()]
+        closed = [dict(r) for r in conn.execute(
+            "SELECT * FROM stocks_in_play WHERE status='closed' "
+            "AND entry_price>0 AND exit_price IS NOT NULL").fetchall()]
+        opl = []
+        for r in openrows:
+            cmp_ = _capture_snapshot(conn, r["symbol"])[0]
+            if r["entry_price"] and cmp_:
+                opl.append((cmp_ - r["entry_price"]) / r["entry_price"] * 100.0)
+        bystrat = [dict(r) for r in conn.execute(
+            "SELECT strategy, COUNT(*) n, "
+            "AVG(CASE WHEN exit_price>entry_price THEN 1.0 ELSE 0 END)*100 hit, "
+            "AVG((exit_price-entry_price)/entry_price*100) avg_ret "
+            "FROM stocks_in_play WHERE status='closed' AND entry_price>0 "
+            "AND exit_price IS NOT NULL GROUP BY strategy ORDER BY n DESC").fetchall()]
+        excess = []
+        for r in closed:
+            br = _benchmark_return(conn, "Nifty 500", r["date_added"], r["exit_date"])
+            if br is not None:
+                pr = (r["exit_price"] - r["entry_price"]) / r["entry_price"] * 100.0
+                excess.append(pr - br)
+        holds = [d for d in (_days_between(r["date_added"], r["exit_date"]) for r in closed)
+                 if d is not None]
+    open_mtm = (sum(opl) / len(opl)) if opl else None
+    overall_hit = (sum(1 for r in closed if r["exit_price"] > r["entry_price"]) / len(closed) * 100.0) if closed else None
+    avg_excess = (sum(excess) / len(excess)) if excess else None
+    avg_hold = (sum(holds) / len(holds)) if holds else None
+
+    def card(lbl, val):
+        return f'<div class="box"><div class="num">{val}</div><div class="lbl">{lbl}</div></div>'
+    cards = ('<div class="kpi">'
+             + card("open positions", len(openrows))
+             + card("open MTM", _pct(open_mtm))
+             + card("closed", len(closed))
+             + card("hit-rate", (f"{overall_hit:.0f}%" if overall_hit is not None else '<span class="mut">—</span>'))
+             + card("avg excess vs Nifty 500", _pct(avg_excess))
+             + card("avg hold", (f"{avg_hold:.0f}d" if avg_hold is not None else '<span class="mut">—</span>'))
+             + '</div>')
+    if bystrat:
+        bars = ['<div class="ghdr">Hit-rate by strategy</div>']
+        for s in bystrat:
+            hit = s["hit"] or 0
+            bars.append(
+                '<div class="trk-bar">'
+                f'<span class="trk-lbl">{_esc(s["strategy"])} <i class="mut">n={s["n"]}</i></span>'
+                f'<span class="bar" style="flex:1;height:16px"><span style="width:{hit:.0f}%;background:#2ea043"></span></span>'
+                f'<span class="trk-val">{hit:.0f}%</span>'
+                f'<span class="mut" style="width:74px;text-align:right;font-size:11px">{_pct(s["avg_ret"])}</span>'
+                '</div>')
+        bars_html = "".join(bars)
+    else:
+        bars_html = ('<div class="sub" style="margin-top:14px">No closed positions yet — hit-rate '
+                     'by strategy and the benchmark gap appear once you close trades.</div>')
+    intro = ('<h2>Tracker</h2><div class="sub">How your tracked ideas actually performed — '
+             'open mark-to-market, hit-rate by strategy, and excess vs the Nifty 500.</div>')
+    body = _TRACK_CSS + _track_subnav("tracker") + intro + cards + bars_html
     return HTMLResponse(_shell("Tracker · patearn", body, "tracker"))
 
 
@@ -2652,6 +3024,7 @@ def _cmp_picker(conn, date_key):
 
 @router.get("/dash/stock", response_class=HTMLResponse)
 def dash_stock(sym: str = Query("", max_length=20),
+               track: int = Query(0),
                cmp: list[str] = Query(default=[])) -> HTMLResponse:
     sym = sym.upper().strip()
     search = f"""
@@ -3346,10 +3719,32 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 
     cpr_html = _cpr_stock_panel(cpr_by_tf)   # CPR Structure panel (D53)
 
+    # D54 — Track capture: build a frozen-snapshot preview for the action loop.
+    _ix = _xpower(L)
+    _kg = L.get("gap_to_key_p3m")
+    _snap = {
+        "date": L["trade_date"], "close": today_close,
+        "conv": round(_conv_of(L.get("p_score"), L.get("rs_rank"))),
+        "p": L.get("p_score"), "r": L.get("r_score"),
+        "rank": L.get("trigger_rank"), "rs": L.get("rs_rank"),
+        "xpow": round(_ix, 2) if _ix else None,
+        "keygap": round(_kg, 1) if _kg is not None else None,
+        "pt14": round(pscore["ns_base"]) if (pscore and pscore["ns_base"] is not None) else None,
+        "tier": pscore["tier"] if pscore else None,
+        "char": L.get("accum_character"),
+    }
+    if track:
+        track_html = _TRACK_CSS + _capture_form(sym, _snap)
+    else:
+        track_html = (_TRACK_CSS + f'<a class="tbtn tbtn-go" href="/dash/stock?sym={_q(sym)}'
+                      '&amp;track=1#track" style="text-decoration:none;display:inline-block;'
+                      'margin:2px 0 12px">+ Track this stock</a>')
+
     body = f"""{search}
 <style>{chart_css}</style>
 <h2>{_esc(sym)} <span class="pill p-{rank}">{rank}</span> {ath}</h2>
 <div class="sub">{L['trade_date']} · close ₹{_num(today_close,2)} · deliv {_num(L.get('deliv_per'),1)}%</div>
+{track_html}
 <div class="kpi">
   <div class="box"><div class="num">{L.get('r_score') or 0}/{L.get('p_score') or 0}</div><div class="lbl">r / p score</div></div>
   <div class="box"><div class="num">{int(L['delivery_value_per_trade'] or 0):,}</div><div class="lbl">DVPT today</div></div>
