@@ -3625,7 +3625,7 @@ def dash_stock(sym: str = Query("", max_length=20),
             sector_peers = []
             if rs_narrow_name:
                 sector_peers = [s for s in _sector_symbols(conn, rs_narrow_name)
-                                if s != sym and s in equity_set][:18]
+                                if s != sym and s in equity_set][:12]
             # Overlay = explicit ?cmp= (index names or tickers), else the defaults:
             # the stock's sector + Nifty 500 + Nifty 50.
             if cmp:
