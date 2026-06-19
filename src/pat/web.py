@@ -18,8 +18,9 @@ from urllib.parse import quote_plus
 
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
 from src.pat.flows import (
-    ACC_STRENGTH, ACC_ENTRY,
+    ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN,
     build_accumulation_query, build_accumulation_sectors_query,
+    build_rs_query, build_rs_sectors_query,
 )
 
 
@@ -133,12 +134,6 @@ _DEFAULT_AV = "seth"
 # The three data-backed flows — announced now, built with the engine. Each names
 # the metric behind it so the user can still learn it today via the glossary.
 _DATA_FLOWS: dict[str, dict] = {
-    "rs": {
-        "label": "RS leaders by sector",
-        "blurb": "I'll rank the strong-in-strong names — high relative strength "
-                 "inside a sector that's itself trending up.",
-        "behind": "rs_rank",
-    },
     "fundamentals": {
         "label": "Screen by fundamentals",
         "blurb": "I'll filter on valuation, returns, growth and balance-sheet "
@@ -439,6 +434,94 @@ def _accumulation_flow(conn, sector: str, strength: str, entry: str) -> str:
     return "".join(out)
 
 
+# ── data flow: RS leaders (live, read-only over stock_signals) ───────────────
+
+def _yn(v) -> str:
+    return '<span class="pos">✓</span>' if v else '<span class="mut">·</span>'
+
+
+def _txt(v) -> str:
+    return f'<span class="mut">{_esc(v)}</span>' if v else '<span class="mut">—</span>'
+
+
+def _rs_url(sector: str, strength: str, align: str) -> str:
+    qs = ["flow=rs"]
+    if sector:
+        qs.append("sector=" + _u(sector))
+    if strength:
+        qs.append("strength=" + _u(strength))
+    if align:
+        qs.append("align=" + _u(align))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _rs_table(rows) -> str:
+    head = ('<div class="patTable"><table><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>RS</th><th>RS 3m</th><th>vs broad</th>'
+            '<th>vs sector</th><th>SiS</th><th>Sector</th><th>Pos</th><th>Character</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        sis = r["rs_vs_broad_above_200ma"] and r["rs_vs_sector_above_200ma"]
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_int(r["rs_rank"])}</td>'
+            f'<td>{_sgn(r["rs_vs_broad_slope_3m"])}</td>'
+            f'<td>{_txt(r["rs_vs_broad_trend_state"])}</td>'
+            f'<td>{_txt(r["rs_vs_sector_trend_state"])}</td>'
+            f'<td>{_yn(sis)}</td>'
+            f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
+            f'<td>{_rank_pill(r["trigger_rank"])}</td>'
+            f'<td>{_char_pill(r["accum_character"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _rs_flow(conn, sector: str, strength: str, align: str) -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("RS leaders — the names the market is voting for. Filter by strength, "
+                  "sector, or 'strong in strong' (beating BOTH the market and its sector):"),
+        '<div class="ghdr">Strength</div><div class="patChips">',
+    ]
+    for key, (lbl, _r) in RS_STRENGTH.items():
+        out.append(_chip_sel(_rs_url(sector, key, align), lbl, key == strength))
+    out.append('</div><div class="ghdr">Alignment</div><div class="patChips">')
+    for key, lbl in RS_ALIGN.items():
+        out.append(_chip_sel(_rs_url(sector, strength, key), lbl, key == align))
+    out.append('</div>')
+
+    sectors = []
+    if conn is not None:
+        try:
+            sectors = list(conn.execute(build_rs_sectors_query()))
+        except Exception:
+            sectors = []
+    out.append('<div class="ghdr">Sector</div><div class="patChips">')
+    out.append(_chip_sel(_rs_url("", strength, align), "All sectors", sector == ""))
+    for r in sectors:
+        out.append(_chip_sel(_rs_url(r["sector"], strength, align),
+                             f'{r["sector"]} ({r["c"]})', sector == r["sector"]))
+    out.append('</div>')
+
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_rs_query(sector, strength, align)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    tag = f' · {_esc(sector)}' if sector else ''
+    out.append(f'<div class="ghdr">Leaders{tag} ({len(rows)})</div>')
+    out.append(_rs_table(rows) if rows
+               else '<div class="empty">No RS leaders match — loosen the filters.</div>')
+    return "".join(out)
+
+
 def _home() -> str:
     chips = [
         _chip("/dash/pat?flow=explain", "Explain a metric", arrow=True),
@@ -453,21 +536,23 @@ def _home() -> str:
 
 
 def render_pat(flow: str = "", explain: str = "", q: str = "",
-               sector: str = "", strength: str = "", entry: str = "",
+               sector: str = "", strength: str = "", entry: str = "", align: str = "",
                conn=None) -> str:
     """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn)."""
     flow = (flow or "").strip().lower()
     explain = (explain or "").strip()
     q = (q or "").strip()
+    sector = (sector or "").strip()
+    strength = (strength or "").strip().lower()
 
     if explain and get(explain):
         body = _explain_flow(explain, q)
     elif flow == "explain":
         body = _explain_flow(explain, q)
     elif flow == "accumulation":
-        body = _accumulation_flow(conn, (sector or "").strip(),
-                                  (strength or "").strip().lower(),
-                                  (entry or "").strip().lower())
+        body = _accumulation_flow(conn, sector, strength, (entry or "").strip().lower())
+    elif flow == "rs":
+        body = _rs_flow(conn, sector, strength, (align or "").strip().lower())
     elif flow in _DATA_FLOWS:
         body = _data_flow(flow)
     else:

@@ -1225,11 +1225,12 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
 
 @router.get("/dash/pat", response_class=HTMLResponse)
 def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query(""),
-             sector: str = Query(""), strength: str = Query(""), entry: str = Query("")):
+             sector: str = Query(""), strength: str = Query(""), entry: str = Query(""),
+             align: str = Query("")):
     """Pat — natural-language guided search + the data glossary (src/pat)."""
     with get_conn() as conn:
-        body = render_pat(flow=flow, explain=explain, q=q,
-                          sector=sector, strength=strength, entry=entry, conn=conn)
+        body = render_pat(flow=flow, explain=explain, q=q, sector=sector,
+                          strength=strength, entry=entry, align=align, conn=conn)
     return HTMLResponse(_shell("Pat — patearn", body, "pat"))
 
 
