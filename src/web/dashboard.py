@@ -13,6 +13,7 @@ Views:
   /dash/ratio      — D39 ratio chart (?idx=Nifty IT&den=Nifty 500)
   /dash/scan       — D28/D31 layered triggers
   /dash/stock      — per-stock DVPT + institutional price zones (?sym=BANDHANBNK)
+  /dash/screener   — D54 data-first wide frozen-pane grid (all strategies, one table)
 
 PWA assets:
   /manifest.webmanifest
@@ -46,13 +47,20 @@ _BASE_CSS = """
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin:0; padding:0; }
 body { font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;
-       background:#0e1116; color:#e6edf3; padding:0 0 72px; min-height:100vh; }
-header { position:sticky; top:0; z-index:10; background:#0e1116cc;
-         backdrop-filter:blur(8px); border-bottom:1px solid #21262d;
-         padding:14px 16px; display:flex; align-items:center; gap:10px; }
+       background:#0e1116; color:#e6edf3; padding:0 0 28px; min-height:100vh; }
+header { position:sticky; top:0; z-index:10; background:#0e1116ee;
+         backdrop-filter:blur(8px); border-bottom:1px solid #21262d; }
+.hrow1{display:flex;align-items:center;gap:10px;padding:9px 14px 6px;}
+.hrow2{padding:0 8px;}
 header .logo { font-size:18px; font-weight:800; letter-spacing:.5px; }
 header .dot { width:8px; height:8px; border-radius:50%; background:#2ea043; }
-header .date { margin-left:auto; color:#8b949e; font-size:12px; }
+header .date { color:#8b949e; font-size:12px; }
+header .brand{display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;flex:none;}
+.wsnav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.wsnav::-webkit-scrollbar{display:none;}
+.wsnav a{padding:8px 13px;color:#8b949e;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
+.wsnav a.on{color:#e6edf3;border-bottom-color:#3fb950;}
+.wsnav a:hover{color:#e6edf3;}
 .wrap { padding:16px; max-width:760px; margin:0 auto; }
 h2 { font-size:16px; margin:18px 0 10px; color:#e6edf3; }
 .sub { color:#8b949e; font-size:12px; margin:-6px 0 12px; }
@@ -99,7 +107,7 @@ input,button { font-family:inherit; }
 .zone .val { font-variant-numeric:tabular-nums; }
 .empty { color:#8b949e; text-align:center; padding:48px 16px; }
 a.row { color:inherit; text-decoration:none; display:block; }
-.hsearch { margin-left:8px; }
+.hsearch { margin-left:auto; flex:none; }
 .hsearch input { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
                  padding:6px 10px; border-radius:7px; font-size:13px; width:110px; }
 .banner { border-radius:10px; padding:12px 14px; margin-bottom:12px; font-weight:700;
@@ -150,8 +158,52 @@ tr.dt-hide{display:none!important}
 @media(min-width:560px){.scards{grid-template-columns:1fr 1fr 1fr;}}
 .scard{display:block;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;color:inherit;text-decoration:none;border-top:3px solid #30363d;}
 .scard.sc-POS{border-top-color:#1f6feb;} .scard.sc-RS{border-top-color:#2ea043;} .scard.sc-QUAL{border-top-color:#bb8009;}
+.scard.sc-CPR{border-top-color:#8957e5;}
 .scard .nm{font-weight:800;font-size:14px;} .scard .th{color:#8b949e;font-size:11px;margin:4px 0 8px;line-height:1.3;}
 .scard .ct{font-size:13px;font-weight:700;color:#e6edf3;} .scard .ct small{color:#8b949e;font-weight:400;}
+/* CPR (Structure pillar, D53) — pattern glyphs, ★ conviction tier, D·W·M strip */
+.cpg{font-weight:800;font-size:12px;} .cp-bull{color:#3fb950;} .cp-bear{color:#f85149;} .cp-none{color:#6e7681;}
+.cp-tier{color:#e3b341;font-weight:800;letter-spacing:1px;white-space:nowrap;}
+.cprstrip{display:inline-flex;gap:3px;vertical-align:middle;}
+.cprstrip .c{min-width:30px;padding:2px 4px;border-radius:4px;background:#161b22;border:1px solid #21262d;display:flex;flex-direction:column;align-items:center;line-height:1.15;}
+.cprstrip .c .w{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;}
+.cprstrip .c small{font-size:7px;opacity:.6;font-weight:600;}
+.cprstrip .c.nw{background:#10241a;border-color:#1f6f3a;} .cprstrip .c.nw .w{color:#7ee787;}
+.cprstrip .c.up{box-shadow:inset 0 -2px 0 #2ea043;} .cprstrip .c.dn{box-shadow:inset 0 -2px 0 #f85149;}
+.cprpanel{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:6px;}
+.cprpanel table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
+.cprpanel th,.cprpanel td{text-align:right;padding:5px 8px;border-bottom:1px solid #21262d;white-space:nowrap;}
+.cprpanel th:first-child,.cprpanel td:first-child{text-align:left;}
+.cprverdict{margin-top:9px;font-size:13px;color:#c9d1d9;line-height:1.4;}
+.tabbar{display:flex;gap:6px;margin:4px 0 12px;border-bottom:1px solid #30363d;}
+.tabbar a{padding:7px 14px;font-size:13px;font-weight:700;color:#8b949e;text-decoration:none;border-bottom:2px solid transparent;}
+.tabbar a.on{color:#e6edf3;border-bottom-color:#8957e5;}
+/* D54 — full-bleed data workspace with a COMFORTABLE gutter (D-UI-10) */
+.wrap.wide{max-width:1900px;margin:0 auto;padding:14px clamp(12px,4vw,56px);}
+/* D54 — frozen-pane data grid: ONE scroll viewport owns BOTH axes so the header
+   band AND the Symbol column stay fixed while scrolling down AND across. */
+.scrwrap{overflow:auto;max-height:calc(100vh - 230px);border:1px solid #30363d;border-radius:10px;background:#0d1117;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+table.scr{width:100%;min-width:max-content;border-collapse:separate;border-spacing:0;font-size:12px;}
+table.scr th,table.scr td{white-space:nowrap;border-bottom:1px solid #1c2128;padding:6px 10px;text-align:right;}
+table.scr th.l,table.scr td.l{text-align:left;}
+table.scr td.num,table.scr th.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+table.scr td.bold{font-weight:700;}
+table.scr td.gsep,table.scr th.gsep{border-left:1px solid #262c36;}
+table.scr thead tr.sgrp th{position:sticky;top:0;z-index:3;height:26px;background:#0d1117;color:#6e7681;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;text-align:left;border-bottom:1px solid #30363d;border-left:1px solid #262c36;padding:0 10px;}
+table.scr thead tr.scol th{position:sticky;top:26px;z-index:3;background:#0e1116;color:#8b949e;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #30363d;cursor:pointer;padding:6px 10px;}
+table.scr .fz{position:sticky;left:0;z-index:2;background:#0d1117;border-right:1px solid #30363d;text-align:left;}
+table.scr thead tr.sgrp th.fz,table.scr thead tr.scol th.fz{z-index:6;}
+table.scr tbody .fz{font-weight:700;}
+table.scr tbody tr:nth-child(even) td{background:rgba(255,255,255,.014);}
+table.scr tbody tr:nth-child(even) td.fz{background:#0f151b;}
+table.scr tbody tr:hover td{background:#1c2230!important;}
+.scrwrap.scrolled table.scr .fz{box-shadow:8px 0 12px -6px rgba(0,0,0,.55);}
+.h-pos3{background:rgba(63,185,80,.22)!important;} .h-pos2{background:rgba(63,185,80,.13)!important;} .h-pos1{background:rgba(63,185,80,.06)!important;}
+.h-neg1{background:rgba(248,81,73,.07)!important;} .h-neg2{background:rgba(248,81,73,.14)!important;} .h-neg3{background:rgba(248,81,73,.22)!important;}
+/* column-group hide = ONE class on the table (single reflow, no per-cell JS) */
+table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
+/* CPR-confirmed gate: show only rows carrying a CPR reversal tier (one class) */
+table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
 """
 
 
@@ -191,7 +243,10 @@ document.addEventListener('DOMContentLoaded', function(){
     var cnt = document.createElement('span');
     cnt.className = 'dtcount';
     tool.appendChild(f); tool.appendChild(x); tool.appendChild(cnt);
-    table.parentNode.insertBefore(tool, table);
+    // Keep the toolbar OUTSIDE a frozen-pane scroll viewport so it stays visible
+    // while the grid scrolls under the fixed header (D54). Plain tables: unchanged.
+    var _host = table.closest('.scrwrap') || table;
+    _host.parentNode.insertBefore(tool, _host);
 
     function rows(){ return Array.prototype.slice.call(tbody.rows); }
     function visibleRows(){
@@ -266,23 +321,33 @@ document.addEventListener('DOMContentLoaded', function(){
 """
 
 
+# Top workspace tabs = the primary navigation (D54 reframe). Every sub-page maps
+# onto one of the five workspaces so the right tab highlights.
+_WS = {
+    "markets": "markets", "sectors": "markets", "ratio": "markets", "compare": "markets",
+    "screener": "screener",
+    "strategies": "strategies", "scan": "strategies", "stocks": "strategies",
+    "leaders": "strategies", "laggards": "strategies", "conviction": "strategies",
+    "workbench": "strategies", "stock": "strategies", "cpr": "strategies",
+    "portfolios": "portfolios", "tracker": "tracker",
+}
+
+
 def _nav(active: str) -> str:
-    items = [
-        ("dash", "/dash", "📊", "Home"),
-        ("markets", "/dash/markets", "🌐", "Markets"),
-        ("sectors", "/dash/sectors", "🔁", "Sectors"),
-        ("stocks", "/dash/stocks", "🔎", "Stocks"),
-        ("stock", "/dash/stock", "💧", "Stock"),
-    ]
-    out = ['<nav>']
-    for key, href, ic, label in items:
-        cls = "active" if key == active else ""
-        out.append(f'<a class="{cls}" href="{href}"><span class="ic">{ic}</span>{label}</a>')
-    out.append('</nav>')
+    cur = _WS.get(active, active)
+    items = [("markets", "/dash/markets", "Markets"),
+             ("screener", "/dash/screener", "Screener"),
+             ("strategies", "/dash/strategies", "Strategies"),
+             ("portfolios", "/dash/portfolios", "Portfolios"),
+             ("tracker", "/dash/tracker", "Tracker")]
+    out = ['<div class="wsnav">']
+    for key, href, label in items:
+        out.append(f'<a class="{"on" if key == cur else ""}" href="{href}">{label}</a>')
+    out.append('</div>')
     return "".join(out)
 
 
-def _shell(title: str, body: str, active: str, latest_date: str = "") -> str:
+def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool = False) -> str:
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -297,16 +362,17 @@ def _shell(title: str, body: str, active: str, latest_date: str = "") -> str:
 </head>
 <body>
 <header>
-  <span class="dot"></span><span class="logo">HERMES</span>
-  <span class="date">{latest_date}</span>
-  <form class="hsearch" action="/dash/stock" method="get" autocomplete="off">
-    <input name="sym" placeholder="ticker…" autocapitalize="characters"/>
-  </form>
+  <div class="hrow1">
+    <a href="/dash" class="brand"><span class="dot"></span><span class="logo">pat<span style="color:#3fb950">e</span>arn</span></a>
+    <form class="hsearch" action="/dash/stock" method="get" autocomplete="off">
+      <input name="sym" placeholder="search ticker…" autocapitalize="characters"/>
+    </form>
+  </div>
+  <div class="hrow2">{_nav(active)}</div>
 </header>
-<div class="wrap">
+<div class="wrap{' wide' if wide else ''}">
 {body}
 </div>
-{_nav(active)}
 <script>
 if ('serviceWorker' in navigator) {{
   navigator.serviceWorker.register('/sw.js').catch(function(){{}});
@@ -360,6 +426,187 @@ def _rs_strip(s1, s3, s6, s12) -> str:
             cls, glyph = "hs-fl", "▬"
         cells.append(f'<span class="c {cls}">{glyph}<small>{lbl}</small></span>')
     return f'<span class="hstrip">{"".join(cells)}</span>'
+
+
+# --- CPR (Structure pillar, D53) on-read helpers ---------------------------
+# Geometry + widths are materialized in cpr_signals; the narrowness RANK, the
+# cross-TF AMPLIFICATION and the ★ CONVICTION TIER are derived HERE on read so
+# the knob/weights stay tunable without re-materializing (decision CPR-A4).
+# Defaults are the design's locked values (OPEN-5/6) — change here to re-tune.
+_CPR_MAXW = {"D": 1.0, "W": 2.5, "M": 5.0}     # per-TF narrowness knob (OPEN-5)
+_CPR_WEIGHT = {"D": 1, "W": 2, "M": 3}          # TF weights (OPEN-6) — larger TF dominates
+_CPR_TF_ORDER = ("D", "W", "M")
+_CPR_RANK_PTS = {"R1": 4, "R2": 3, "R3": 2, "R4": 1}
+# Max attainable conviction per anchor (base 4 + Σ weight·3 over other TFs + conf 1).
+_CPR_MAXSCORE = {"D": 20.0, "W": 17.0, "M": 14.0}
+
+
+def _cpr_is_narrow(width, tf) -> bool:
+    return width is not None and width <= _CPR_MAXW[tf]
+
+
+def _cpr_rank(c0_w, c1_w, tf) -> str:
+    """R1–R4 narrowness rank — C0 (today's coil) is the priority bar (OPEN-2):
+    R1 both narrow · R2 C0 narrow · R3 C1 narrow · R4 neither."""
+    n0, n1 = _cpr_is_narrow(c0_w, tf), _cpr_is_narrow(c1_w, tf)
+    if n0 and n1:
+        return "R1"
+    if n0:
+        return "R2"
+    if n1:
+        return "R3"
+    return "R4"
+
+
+def _cpr_glyph(pattern) -> tuple:
+    """(glyph, css-class) for a pattern: U / ∩ / —."""
+    if pattern == "BULL_U":
+        return ("U", "cp-bull")
+    if pattern == "BEAR_INVU":
+        return ("∩", "cp-bear")
+    return ("—", "cp-none")
+
+
+def _cpr_s_tf(row, direction) -> int:
+    """Per-TF structure score s_TF (0–3) = narrow? + reversal-aligned? +
+    regime-aligned?  `direction` = +1 bullish anchor / −1 bearish."""
+    if not row:
+        return 0
+    s = 0
+    if _cpr_is_narrow(row.get("width_pct"), row["timeframe"]):
+        s += 1
+    pat = row.get("pattern")
+    if (direction > 0 and pat == "BULL_U") or (direction < 0 and pat == "BEAR_INVU"):
+        s += 1
+    reg = row.get("regime")
+    if reg is not None and ((direction > 0 and reg > 0) or (direction < 0 and reg < 0)):
+        s += 1
+    return s
+
+
+def _cpr_conviction(by_tf, force_anchor=None):
+    """Cross-TF amplified conviction for a symbol given its latest {D,W,M} cpr
+    rows (§4). A signal on a faster TF is amplified when slower TFs are also
+    coiled/aligned, the LARGER TF carrying more weight. Returns a dict
+    {anchor, direction, score, tier, rank, confluence, breakdown} or None when no
+    reversal is present on any TF. The score is the sort key; the ★ tier + the
+    per-TF breakdown are the transparent label (never an opaque mega-score).
+    `force_anchor` pins the anchor to a given TF (its own-TF reversal screen)."""
+    anchors = [tf for tf in _CPR_TF_ORDER
+               if by_tf.get(tf) and by_tf[tf].get("pattern") in ("BULL_U", "BEAR_INVU")]
+    if force_anchor:
+        if force_anchor not in anchors:
+            return None
+        anchor = force_anchor
+    elif not anchors:
+        return None
+    else:
+        anchor = anchors[-1]                   # largest-TF reversal is the strongest base
+    arow = by_tf[anchor]
+    direction = 1 if arow["pattern"] == "BULL_U" else -1
+    rank = _cpr_rank(arow.get("width_pct"), arow.get("c1_width_pct"), anchor)
+    score = float(_CPR_RANK_PTS[rank])
+    breakdown = {}
+    for tf in _CPR_TF_ORDER:
+        if tf == anchor:
+            continue
+        s = _cpr_s_tf(by_tf.get(tf), direction)
+        breakdown[tf] = s
+        score += _CPR_WEIGHT[tf] * s
+    # confluence — ≥2 of the present pivots within 0.5% of each other (§3D).
+    pivs = [by_tf[tf]["p"] for tf in _CPR_TF_ORDER if by_tf.get(tf) and by_tf[tf].get("p")]
+    conf = 0
+    for i in range(len(pivs)):
+        for j in range(i + 1, len(pivs)):
+            if pivs[i] and pivs[j] and abs(pivs[i] / pivs[j] - 1) <= 0.005:
+                conf = 1
+    score += conf
+    # Transparent tier (§4) — the design's locked boolean rules, not a raw cutoff.
+    higher = [tf for tf in _CPR_TF_ORDER if _CPR_WEIGHT[tf] > _CPR_WEIGHT[anchor]]
+    strong_base = rank in ("R1", "R2")
+    higher_support = any(_cpr_s_tf(by_tf.get(tf), direction) >= 1 for tf in higher)
+    higher_strong = any(_cpr_s_tf(by_tf.get(tf), direction) >= 2 for tf in higher)
+    regime_aligned = any(
+        by_tf.get(tf) and by_tf[tf].get("regime") is not None
+        and ((direction > 0 and by_tf[tf]["regime"] > 0) or (direction < 0 and by_tf[tf]["regime"] < 0))
+        for tf in (higher + [anchor]))
+    if not higher:                              # monthly anchor — its own strongest base
+        tier = "★★★" if (rank == "R1" and regime_aligned) else ("★★" if strong_base else "★")
+    elif strong_base and higher_strong and regime_aligned:
+        tier = "★★★"
+    elif strong_base and higher_support:
+        tier = "★★"
+    else:
+        tier = "★"
+    return {"anchor": anchor, "direction": direction, "score": round(score, 1),
+            "tier": tier, "rank": rank, "confluence": conf, "breakdown": breakdown}
+
+
+def _cpr_latest_by_tf(conn, symbols):
+    """{sym: {'D':row,'W':row,'M':row}} — each TF's latest cpr_signals row for the
+    given symbols. Per-TF latest period_end_date is ONE indexed MAX lookup, then a
+    keyed IN fetch — no per-symbol correlated scan. Empty {} if the table is empty."""
+    out = {}
+    syms = list(symbols)
+    if not syms:
+        return out
+    ph = ",".join("?" for _ in syms)
+    for tf in _CPR_TF_ORDER:
+        mx = conn.execute(
+            "SELECT MAX(period_end_date) d FROM cpr_signals WHERE timeframe=?", (tf,)).fetchone()
+        if not mx or not mx["d"]:
+            continue
+        for r in conn.execute(
+                f"SELECT * FROM cpr_signals WHERE timeframe=? AND period_end_date=? "
+                f"AND symbol IN ({ph})", [tf, mx["d"]] + syms).fetchall():
+            d = dict(r)
+            out.setdefault(d["symbol"], {})[tf] = d
+    return out
+
+
+def _cpr_screener_cells(by_tf) -> tuple:
+    """The 7 screener CPR-group <td>s for one symbol + whether it carries a
+    reversal (the 'has-cpr' tag for the CPR-confirmed gate). Data-first: the raw
+    D/W/M width% sit beside the glyph strip + rank + ★ tier (D-UI-1)."""
+    conv = _cpr_conviction(by_tf)
+
+    def wcell(tf):
+        row = by_tf.get(tf)
+        w = row.get("width_pct") if row else None
+        if w is None:
+            return '<td class="num g-cpr mut">—</td>'
+        tint = " h-pos2" if _cpr_is_narrow(w, tf) else ""
+        return f'<td class="num g-cpr{tint}">{w:.2f}</td>'
+
+    # D·W·M glyph strip
+    cells = []
+    for tf in _CPR_TF_ORDER:
+        row = by_tf.get(tf)
+        g, cls = _cpr_glyph(row.get("pattern") if row else None)
+        cells.append(f'<span class="cpg {cls}">{g}</span>')
+    strip = '<td class="g-cpr l"><span class="cprstrip" style="gap:5px;padding:0 2px">' + \
+            "".join(cells) + '</span></td>'
+
+    if conv:
+        rnk = f'<td class="g-cpr"><b>{conv["rank"]}</b><small class="mut"> {conv["anchor"]}</small></td>'
+        tier = f'<td class="g-cpr l"><span class="cp-tier">{conv["tier"]}</span> ' \
+               f'<small class="mut">{conv["score"]:.0f}</small></td>'
+    else:
+        rnk = '<td class="g-cpr mut">—</td>'
+        tier = '<td class="g-cpr mut">—</td>'
+
+    # max own-history compression percentile across D/W/M (how unusually coiled)
+    pcts = [by_tf[tf].get("compression_pctile") for tf in _CPR_TF_ORDER
+            if by_tf.get(tf) and by_tf[tf].get("compression_pctile") is not None]
+    if pcts:
+        mp = max(pcts)
+        tint = " h-pos2" if mp >= 0.8 else (" h-pos1" if mp >= 0.6 else "")
+        comp = f'<td class="num g-cpr{tint}">{mp*100:.0f}</td>'
+    else:
+        comp = '<td class="num g-cpr mut">—</td>'
+
+    tds = wcell("D") + wcell("W") + wcell("M") + strip + rnk + tier + comp
+    return tds, (conv is not None)
 
 
 # --- Data helpers ----------------------------------------------------------
@@ -761,7 +1008,7 @@ def dash_home() -> HTMLResponse:
             f'Index signals: <b>{idx_date or "—"}</b></div>'
             '<div class="sub">Read-only mirror of the Telegram bot data. '
             'Updated nightly 7:30 PM IST.</div>')
-    return HTMLResponse(_shell("Hermes", body, "dash", sig_date or ""))
+    return HTMLResponse(_shell("patearn — Indian-equity strategy dashboard", body, "dash", sig_date or ""))
 
 
 @router.get("/dash/conviction", response_class=HTMLResponse)
@@ -839,7 +1086,7 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
             '<div class="sub">All three strategy pillars aligned. Click a header to sort · type to filter · ⬇ Export. '
             '🎯 = buyable near the institutional key price · ★ = pt14 quality-confirmed.</div>'
             + table + js)
-    return HTMLResponse(_shell("Conviction — Hermes", body, "stocks", sig_date or ""))
+    return HTMLResponse(_shell("Conviction · patearn", body, "stocks", sig_date or ""))
 
 
 @router.get("/dash/markets", response_class=HTMLResponse)
@@ -862,7 +1109,7 @@ def dash_markets() -> HTMLResponse:
             ).fetchall():
                 allrows[r["nm"]] = dict(r)
     if not allrows:
-        return HTMLResponse(_shell("Markets — Hermes",
+        return HTMLResponse(_shell("Markets · patearn",
                                    '<div class="empty">No index data yet.</div>',
                                    "markets", idx_date or ""))
 
@@ -921,7 +1168,7 @@ def dash_markets() -> HTMLResponse:
         '<tr><th></th><th colspan="3">RETURN</th><th class="rsgrp grp">RS</th></tr>'
         '<tr><th>Index</th><th>1d</th><th>1m</th><th>3m</th><th class="rsgrp">Trend</th></tr></thead>'
         f'<tbody>{"".join(brows)}</tbody></table></div>' + js)
-    return HTMLResponse(_shell("Markets — Hermes", body, "markets", idx_date or ""))
+    return HTMLResponse(_shell("Markets · patearn", body, "markets", idx_date or ""))
 
 
 @router.get("/dash/sectors", response_class=HTMLResponse)
@@ -975,7 +1222,7 @@ def dash_sectors() -> HTMLResponse:
 </table>
 </div>
 """
-    return HTMLResponse(_shell("Sectors — Hermes", body, "sectors", idx_date or ""))
+    return HTMLResponse(_shell("Sectors · patearn", body, "sectors", idx_date or ""))
 
 
 @router.get("/dash/rs", response_class=HTMLResponse)
@@ -999,7 +1246,7 @@ def dash_rs() -> HTMLResponse:
             ).fetchall()]
     if not rows:
         body = '<div class="empty">No index signals yet. Run the index backfill on the VPS.</div>'
-        return HTMLResponse(_shell("RS ranking — Hermes", body, "sectors", idx_date or ""))
+        return HTMLResponse(_shell("RS ranking · patearn", body, "sectors", idx_date or ""))
 
     moms = sorted(r["mom"] for r in rows)
     n_mom = len(moms)
@@ -1035,7 +1282,7 @@ def dash_rs() -> HTMLResponse:
 </table>
 </div>
 """
-    return HTMLResponse(_shell("RS ranking — Hermes", body, "sectors", idx_date or ""))
+    return HTMLResponse(_shell("RS ranking · patearn", body, "sectors", idx_date or ""))
 
 
 @router.get("/dash/leaders", response_class=HTMLResponse)
@@ -1083,7 +1330,7 @@ def dash_leaders() -> HTMLResponse:
 <div class="sub">All three RS reads in DOWNTREND/BREAKDOWN — weakest first.</div>
 {_tbl(laggards, False)}
 """
-    return HTMLResponse(_shell("Leaders — Hermes", body, "stocks", sig_date or ""))
+    return HTMLResponse(_shell("Leaders · patearn", body, "stocks", sig_date or ""))
 
 
 @router.get("/dash/scan", response_class=HTMLResponse)
@@ -1142,7 +1389,7 @@ def dash_scan(limit: int = Query(25, ge=5, le=60)) -> HTMLResponse:
 </table>
 </div>
 """
-    return HTMLResponse(_shell("Scan — Hermes", body, "scan", sig_date or ""))
+    return HTMLResponse(_shell("Scan · patearn", body, "scan", sig_date or ""))
 
 
 @router.get("/dash/stocks", response_class=HTMLResponse)
@@ -1355,10 +1602,12 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                         for s in watch)
         watch_block = f'<h2>Watchlist</h2><div class="chips">{chips}</div>'
 
-    wb_link = ('<a class="row sub" href="/dash/workbench" style="margin:0 0 8px">'
-               'Workbench ⇄ <span class="mut">every signal in one sortable, downloadable table</span></a>')
+    wb_link = ('<a class="row sub" href="/dash/screener" style="margin:0 0 4px">'
+               '🧮 Screener ⇄ <span class="mut">all strategies, one wide data-first grid (scroll →)</span></a>'
+               '<a class="row sub" href="/dash/workbench" style="margin:0 0 8px">'
+               'Workbench ⇄ <span class="mut">every DVPT signal in one sortable table</span></a>')
     body = search + ptoggle + badge + wb_link + head + table + watch_block + js
-    return HTMLResponse(_shell("Stocks — Hermes", body, "stocks", sig_date or ""))
+    return HTMLResponse(_shell("Stocks · patearn", body, "stocks", sig_date or ""))
 
 
 @router.get("/dash/workbench", response_class=HTMLResponse)
@@ -1443,7 +1692,723 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
             '<b>⬇ Export</b> to CSV/Excel. 🟢 gap cell = in the launch band (−1%…+5% of the value-weighted '
             'key price). <a class="row" style="display:inline" href="/dash/stocks">← back to screen</a></div>'
             + table)
-    return HTMLResponse(_shell("Workbench — Hermes", body, "stocks", sig_date or ""))
+    return HTMLResponse(_shell("Workbench · patearn", body, "stocks", sig_date or ""))
+
+
+@router.get("/dash/screener", response_class=HTMLResponse)
+def dash_screener(scope: str = Query("Nifty 500"),
+                  limit: int = Query(600, ge=50, le=2000)) -> HTMLResponse:
+    """D54 — the data-first wide screener (frozen-pane grid). A PRINCIPLED,
+    scope-selectable universe (default = Nifty 500 constituents; switch to any
+    broad index / sector / watchlist / all) — never an arbitrary top-N. Every
+    built strategy's raw values sit BESIDE its verdict (D-UI-1), grouped
+    Identity · Conviction · Positioning(DVPT) · Relative-Strength · Quality ·
+    Context, ranked by a tri-pillar Conviction score (positioning + RS) with a
+    ★ triple-confirm flag (strong positioning + RS, quality not failing). Frozen
+    header band + frozen Symbol column (scroll both ways) in a full-bleed grid.
+    Reuses table.dt (_DT_JS sort/filter/CSV). CPR group joins at D53."""
+    sig_date, _ = _latest_dates()
+    scope = (scope or "Nifty 500").strip()
+    is_all = scope.lower() == "all"
+    is_watch = scope.lower() in ("watch", "watchlist")
+    rows, pt, n_members, cpr_by_tf = [], {}, None, {}
+    if sig_date:
+        with get_conn() as conn:
+            if is_all:
+                scope_syms = None
+            elif is_watch:
+                scope_syms = [r["symbol"] for r in conn.execute(
+                    "SELECT symbol FROM watchlist ORDER BY symbol").fetchall()]
+            else:
+                scope_syms = _sector_symbols(conn, scope)
+            n_members = len(scope_syms) if scope_syms is not None else None
+
+            scope_clause, params = "", [sig_date]
+            if scope_syms is not None:
+                use = scope_syms or ["\x00"]   # empty scope -> empty result, not a SQL error
+                scope_clause = " AND s.symbol IN (" + ",".join("?" for _ in use) + ")"
+                params += use
+            params.append(limit)
+
+            conv = "(0.55*COALESCE(s.p_score,0)/5.0*100.0 + 0.45*COALESCE(s.rs_rank,0))"
+            rows = [dict(r) for r in conn.execute(
+                f"""SELECT s.symbol, s.primary_sector sector, b.close,
+                          s.pct_from_52w_high hh, s.trigger_rank rank,
+                          s.r_score, s.p_score, s.is_ath_dvpt ath,
+                          s.delivery_value_per_trade dvpt, s.power_dvpt_1m p1,
+                          s.power_dvpt_3m p3, s.power_dvpt_6m p6, s.power_dvpt_12m p12,
+                          s.delivery_value_today dvt, b.deliv_per,
+                          s.accum_character ch, s.price_vs_hot_avg_pct pvh,
+                          s.turnover_surge_1m su1, s.rs_rank,
+                          s.rs_vs_broad_trend_state rsbt, s.rs_vs_broad_slope_1m b1,
+                          s.rs_vs_broad_slope_3m b3, s.rs_vs_broad_slope_6m b6,
+                          s.rs_vs_broad_slope_12m b12, s.rs_vs_sector_trend_state rsst,
+                          {conv} conv
+                   FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                   WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                   {_SCAN_FILTERS}{scope_clause}
+                   ORDER BY conv DESC, COALESCE(s.p_score,-1) DESC,
+                            COALESCE(s.delivery_value_today,0) DESC
+                   LIMIT ?""", params).fetchall()]
+            if rows:
+                syms = [r["symbol"] for r in rows]
+                ph = ",".join("?" for _ in syms)
+                pt = {x["symbol"]: x for x in conn.execute(
+                    f"""SELECT symbol, ns_base, tier, qg_pass, MAX(scored_at)
+                        FROM pattern_scores WHERE symbol IN ({ph}) GROUP BY symbol""",
+                    syms).fetchall()}
+                cpr_by_tf = _cpr_latest_by_tf(conn, syms)   # CPR Structure group (D53)
+
+    def trend_pill(st):
+        return f'<span class="pill p-{_esc(st)}">{_esc(st)}</span>' if st else '<span class="mut">—</span>'
+
+    def h_conv(v):
+        if v is None:
+            return ""
+        return " h-pos3" if v >= 78 else " h-pos2" if v >= 62 else " h-pos1" if v >= 48 else ""
+
+    def h_52(v):
+        if v is None:
+            return ""
+        if v >= -2:  return " h-pos3"
+        if v >= -5:  return " h-pos2"
+        if v >= -10: return " h-pos1"
+        if v <= -50: return " h-neg2"
+        if v <= -25: return " h-neg1"
+        return ""
+
+    trs = []
+    for r in rows:
+        rank = r["rank"] or "-"
+        ath = "⚡" if r["ath"] else ""
+        ix = _intensity(r)
+        dvt = r["dvt"]
+        dvt_cr = f'{dvt/1e7:,.1f}' if dvt else "—"
+        dlv = f'{r["deliv_per"]:.1f}%' if r["deliv_per"] is not None else "—"
+        pp = pt.get(r["symbol"])
+        qsc = f'{pp["ns_base"]:.0f}' if (pp and pp["ns_base"] is not None) else "—"
+        tier = _esc(pp["tier"]) if (pp and pp["tier"]) else "—"
+        qg_ok = (pp is None) or (pp["qg_pass"] == 1)
+        cv = r["conv"]
+        star = "★ " if ((r["p_score"] or 0) >= 4 and (r["rs_rank"] or 0) >= 80 and qg_ok) else ""
+        cpr_tds, has_cpr = _cpr_screener_cells(cpr_by_tf.get(r["symbol"], {}))
+        trs.append(
+            f'<tr class="{"has-cpr" if has_cpr else ""}">'
+            f'<td class="fz l"><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
+            f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
+            f'<td class="l mut">{_esc(r["sector"]) or "—"}</td>'
+            f'<td class="num">{_num(r["close"], 1)}</td>'
+            f'<td class="num bold gsep g-conv{h_conv(cv)}">{star}{f"{cv:.0f}" if cv is not None else "—"}</td>'
+            f'<td class="g-conv"><span class="pill p-{rank}">{rank}</span></td>'
+            f'<td class="l g-conv">{_char_pill(r["ch"])}</td>'
+            f'<td class="num gsep mut g-pos">{r["p_score"] if r["p_score"] is not None else "—"}</td>'
+            f'<td class="num mut g-pos">{r["r_score"] if r["r_score"] is not None else "—"}</td>'
+            f'<td class="num g-pos"><b>{(f"{ix:.1f}×" if ix else "—")}</b></td>'
+            f'<td class="num g-pos">{_num(r["su1"], 2) if r["su1"] is not None else "—"}</td>'
+            f'<td class="num g-pos">{dlv}</td>'
+            f'<td class="num g-pos">{dvt_cr}</td>'
+            f'<td class="num gsep g-rs">{r["rs_rank"] if r["rs_rank"] is not None else "—"}</td>'
+            f'<td class="l g-rs">{trend_pill(r["rsbt"])}</td>'
+            f'<td class="l g-rs">{_rs_strip(r["b1"], r["b3"], r["b6"], r["b12"])}</td>'
+            f'<td class="l g-rs">{trend_pill(r["rsst"])}</td>'
+            + cpr_tds +
+            f'<td class="num gsep g-qual">{qsc}</td>'
+            f'<td class="l mut g-qual">{tier}</td>'
+            f'<td class="num gsep g-ctx{h_52(r["hh"])}">{_pct(r["hh"])}</td>'
+            f'<td class="num g-ctx">{_pct(r["pvh"])}</td>'
+            '</tr>')
+
+    # --- scope selector (server-state via ?scope=) ---
+    BROAD = ["Nifty 50", "Nifty Next 50", "Nifty Midcap 150", "Nifty Smallcap 250", "Nifty 500"]
+    def _schip(name, label=None):
+        on = " on" if scope.lower() == name.lower() else ""
+        return f'<a class="fbtn{on}" href="/dash/screener?scope={_q(name)}">{_esc(label or name)}</a>'
+    chips = "".join(_schip(n) for n in BROAD) + _schip("all", "All") + _schip("watch", "★ Watch")
+    sec_opts = "".join(
+        f'<option value="{_esc(s)}"{" selected" if scope.lower()==s.lower() else ""}>{_esc(s)}</option>'
+        for s in REAL_SECTORS)
+    sec_sel = ('<select class="dtf" style="flex:none;max-width:210px" '
+               "onchange=\"if(this.value)location='/dash/screener?scope='+encodeURIComponent(this.value)\">"
+               f'<option value="">Sector ▾</option>{sec_opts}</select>')
+    scope_bar = f'<div class="fbar" style="align-items:center;margin-bottom:8px">{chips}{sec_sel}</div>'
+
+    shown = len(rows)
+    if is_all:
+        lbl = f'All liquid equity · top <b>{shown}</b> by conviction (cap {limit})'
+    elif is_watch:
+        lbl = f'Watchlist · <b>{shown}</b> stocks'
+    else:
+        mem = f'{n_members} members · ' if n_members else ''
+        lbl = f'<b>{_esc(scope)}</b> · {mem}<b>{shown}</b> shown (liquid)'
+
+    if trs:
+        thead = (
+            '<thead>'
+            '<tr class="sgrp">'
+            '<th class="fz l">stock</th>'
+            '<th class="l" colspan="2">identity</th>'
+            '<th class="l gsep g-conv" colspan="3">conviction</th>'
+            '<th class="l gsep g-pos" colspan="6">positioning · dvpt</th>'
+            '<th class="l gsep g-rs" colspan="4">relative strength</th>'
+            '<th class="l gsep g-cpr" colspan="7">structure · cpr</th>'
+            '<th class="l gsep g-qual" colspan="2">quality</th>'
+            '<th class="l gsep g-ctx" colspan="2">context</th></tr>'
+            '<tr class="scol">'
+            '<th class="fz l">Symbol</th><th class="l">Sector</th><th class="num">CMP</th>'
+            '<th class="num gsep g-conv">Conv</th><th class="g-conv">Rank</th><th class="l g-conv">Char</th>'
+            '<th class="num gsep g-pos">p</th><th class="num g-pos">r</th><th class="num g-pos">×Pow</th>'
+            '<th class="num g-pos">Surge</th><th class="num g-pos">Deliv%</th><th class="num g-pos">Val₹Cr</th>'
+            '<th class="num gsep g-rs">RS#</th><th class="l g-rs">Broad</th><th class="l g-rs">RS heat</th><th class="l g-rs">Sector</th>'
+            '<th class="num gsep g-cpr">D%</th><th class="num g-cpr">W%</th><th class="num g-cpr">M%</th>'
+            '<th class="l g-cpr">D·W·M</th><th class="g-cpr">Rnk</th><th class="l g-cpr">Str</th><th class="num g-cpr">Comp%</th>'
+            '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
+            '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th></tr></thead>')
+        grid = (f'<div class="scrwrap"><table class="dt scr">{thead}'
+                f'<tbody>{"".join(trs)}</tbody></table></div>'
+                '<script>(function(){var w=document.querySelector(".scrwrap");'
+                'if(w)w.addEventListener("scroll",function(){'
+                'w.classList.toggle("scrolled",w.scrollLeft>0);},{passive:true});})();</script>')
+    else:
+        grid = ('<div class="empty">No constituents loaded for this index yet — try '
+                '<a class="row" style="display:inline" href="/dash/screener?scope=all">All</a>.</div>'
+                if (not is_all and not is_watch and not n_members)
+                else '<div class="empty">No stocks match this scope for the latest day.</div>')
+
+    intro = (
+        f'<h2>Screener <span class="sub" style="margin:0">{lbl}</span></h2>'
+        '<div class="sub">Pick a universe, then sort / filter / export. Ranked by a tri-pillar '
+        '<b>Conviction</b> (positioning + relative strength); <b>★</b> = strong on both with quality not failing. '
+        'Header band &amp; Symbol column stay frozen — scroll down and across.</div>')
+    view_bar = '<div class="fbar" id="vbar" style="align-items:center;margin-bottom:8px"></div>'
+    body = intro + scope_bar + view_bar + grid + _SCREENER_JS
+    return HTMLResponse(_shell("Screener · patearn", body, "screener", sig_date or "", wide=True))
+
+
+# Screener view-controls: column-group toggle chips + saved views (localStorage).
+# Toggles whole groups by walking the sgrp colspans -> column indexes (so the
+# colspan'd group header hides cleanly with its columns). Plain template.
+_SCREENER_JS = """
+<script>
+(function(){
+  var tbl=document.querySelector('table.scr'); if(!tbl) return;
+  var vbar=document.getElementById('vbar'); if(!vbar) return;
+  var TOG=[['conv','Conviction'],['pos','Positioning'],['rs','RS'],['cpr','CPR'],['qual','Quality'],['ctx','Context']];
+  var KEY='patearn_scr_hidden', SKEY='patearn_scr_saved';
+  function getH(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
+  function getSaved(){try{return JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){return [];}}
+  var h=getH();
+  // CPR-confirmed gate (the conviction-integration "filter" — the cross-pillar
+  // Conviction NUMBER is left untouched; this just shows only structure-confirmed
+  // names). ONE class on the table, composes with the group toggles + text filter.
+  var gate=document.createElement('button'); gate.type='button'; gate.className='fbtn'; gate.textContent='🔷 CPR-confirmed';
+  gate.title='Show only names carrying a CPR reversal (a ★ Structure tier on some timeframe)';
+  gate.onclick=function(){ var on=tbl.classList.toggle('cpr-only'); gate.className='fbtn'+(on?' on':''); };
+  vbar.appendChild(gate);
+  var lbl=document.createElement('span'); lbl.className='mut'; lbl.style.fontSize='11px'; lbl.style.marginLeft='8px'; lbl.textContent='columns:'; vbar.appendChild(lbl);
+  TOG.forEach(function(t){
+    var g=t[0];
+    tbl.classList.toggle('hide-'+g, !!h[g]);            // restore saved state = ONE class
+    var b=document.createElement('button'); b.type='button';
+    b.className='fbtn'+(h[g]?'':' on'); b.textContent=t[1];
+    b.onclick=function(){
+      var s=getH(); s[g]=!s[g]; localStorage.setItem(KEY,JSON.stringify(s));
+      tbl.classList.toggle('hide-'+g, !!s[g]);          // toggle = ONE class, single reflow
+      b.className='fbtn'+(s[g]?'':' on');
+    };
+    vbar.appendChild(b);
+  });
+  var save=document.createElement('button'); save.type='button'; save.className='fbtn'; save.style.marginLeft='auto'; save.textContent='+ Save view';
+  var sel=document.createElement('select'); sel.className='dtf'; sel.style.cssText='flex:none;max-width:150px';
+  function fillSel(){ sel.innerHTML='<option value="">Saved views</option>'+getSaved().map(function(v,i){return '<option value="'+i+'">'+String(v.name).replace(/[<>&]/g,'')+'</option>';}).join(''); }
+  fillSel();
+  save.onclick=function(){ var nm=prompt('Name this view:'); if(!nm) return; var sc=new URLSearchParams(location.search).get('scope')||'Nifty 500'; var a=getSaved(); a.push({name:String(nm).slice(0,40),scope:sc,hidden:getH()}); localStorage.setItem(SKEY,JSON.stringify(a)); fillSel(); };
+  sel.onchange=function(){ var v=getSaved()[this.value]; if(!v) return; localStorage.setItem(KEY,JSON.stringify(v.hidden||{})); location='/dash/screener?scope='+encodeURIComponent(v.scope||'Nifty 500'); };
+  vbar.appendChild(save); vbar.appendChild(sel);
+})();
+</script>
+"""
+
+
+# --- CPR surface helpers (shared by the Strategies card + /dash/cpr, D53) --
+_CPR_LIQ = " AND symbol IN (SELECT symbol FROM nse_equity_list) AND close > 20 "
+_CPR_TIER_RANK = {"★★★": 3, "★★": 2, "★": 1}
+_CPR_TF_LABEL = {"D": "Daily", "W": "Weekly", "M": "Monthly"}
+
+
+def _cpr_latest_period(conn, tf):
+    r = conn.execute(
+        "SELECT MAX(period_end_date) d FROM cpr_signals WHERE timeframe=?", (tf,)).fetchone()
+    return r["d"] if r and r["d"] else None
+
+
+def _cpr_reversal_syms(conn, tf=None, fresh_only=False, direction=None) -> set:
+    """Symbols carrying a reversal on the latest period (optionally one TF / one
+    direction / fresh-this-period only)."""
+    tfs = [tf] if tf in _CPR_TF_ORDER else list(_CPR_TF_ORDER)
+    pats = (("BULL_U",) if direction == "U" else
+            ("BEAR_INVU",) if direction == "INVU" else ("BULL_U", "BEAR_INVU"))
+    syms = set()
+    for t in tfs:
+        d = _cpr_latest_period(conn, t)
+        if not d:
+            continue
+        pph = ",".join("?" for _ in pats)
+        q = (f"SELECT symbol FROM cpr_signals WHERE timeframe=? AND period_end_date=? "
+             f"AND pattern IN ({pph})" + _CPR_LIQ)
+        if fresh_only:
+            q += " AND days_since_pattern=0"
+        for r in conn.execute(q, [t, d, *pats]).fetchall():
+            syms.add(r["symbol"])
+    return syms
+
+
+def _cpr_setups(conn, tf=None, fresh_only=False, direction=None, min_tier=None, limit=200):
+    """Reversal setups for the latest period — cross-TF conviction per symbol,
+    sorted fresh → tier → score. `tf` pins the anchor to that TF (its own-TF
+    reversal screen); blank = anchor on each symbol's largest-TF reversal."""
+    syms = _cpr_reversal_syms(conn, tf=tf, fresh_only=fresh_only, direction=direction)
+    by = _cpr_latest_by_tf(conn, syms)
+    out = []
+    for s, tfm in by.items():
+        conv = _cpr_conviction(tfm, force_anchor=tf if tf in _CPR_TF_ORDER else None)
+        if not conv:
+            continue
+        if min_tier and _CPR_TIER_RANK.get(conv["tier"], 0) < _CPR_TIER_RANK.get(min_tier, 0):
+            continue
+        arow = tfm[conv["anchor"]]
+        if fresh_only and arow.get("days_since_pattern") != 0:
+            continue
+        out.append({"symbol": s, "conv": conv, "anchor": arow, "by_tf": tfm,
+                    "fresh": arow.get("days_since_pattern") == 0})
+    out.sort(key=lambda x: (1 if x["fresh"] else 0,
+                            _CPR_TIER_RANK.get(x["conv"]["tier"], 0),
+                            x["conv"]["score"]), reverse=True)
+    return out[:limit]
+
+
+def _cpr_compressions(conn, tf=None, limit=200):
+    """Unusually-narrow single CPRs (3B) on the latest period — ranked by the
+    own-history compression percentile (the truer 'unusual'), then absolute width."""
+    tfs = [tf] if tf in _CPR_TF_ORDER else list(_CPR_TF_ORDER)
+    out = []
+    for t in tfs:
+        d = _cpr_latest_period(conn, t)
+        if not d:
+            continue
+        for r in conn.execute(
+                f"SELECT * FROM cpr_signals WHERE timeframe=? AND period_end_date=? "
+                f"AND width_pct IS NOT NULL {_CPR_LIQ} "
+                f"ORDER BY COALESCE(compression_pctile,-1) DESC, width_pct ASC LIMIT ?",
+                (t, d, limit)).fetchall():
+            row = dict(r)
+            row["narrow_abs"] = _cpr_is_narrow(row.get("width_pct"), t)
+            out.append(row)
+    out.sort(key=lambda x: (x.get("compression_pctile")
+                            if x.get("compression_pctile") is not None else -1.0), reverse=True)
+    return out[:limit]
+
+
+def _cpr_dwm_strip(by_tf) -> str:
+    """The D·W·M structure strip (mirrors the RS heat strip): per-TF width% +
+    pattern glyph, tinted green when narrow, underlined by regime."""
+    cells = []
+    for tf in _CPR_TF_ORDER:
+        row = by_tf.get(tf)
+        w = row.get("width_pct") if row else None
+        g, gcls = _cpr_glyph(row.get("pattern") if row else None)
+        cls = "c"
+        if _cpr_is_narrow(w, tf):
+            cls += " nw"
+        reg = row.get("regime") if row else None
+        if reg == 1:
+            cls += " up"
+        elif reg == -1:
+            cls += " dn"
+        wtxt = f"{w:.2f}" if w is not None else "—"
+        cells.append(f'<span class="{cls}"><span class="w {gcls}">{g} {wtxt}</span>'
+                     f'<small>{tf}</small></span>')
+    return f'<span class="cprstrip">{"".join(cells)}</span>'
+
+
+def _cpr_card(setups) -> str:
+    """The live Strategies CPR card — top fresh structure setups today (replaces
+    the D53 'coming soon' stub). Links to the full /dash/cpr screens."""
+    if setups:
+        chips = '<div class="chips" style="margin-top:8px">' + "".join(
+            f'<a class="chip" href="/dash/stock?sym={_esc(x["symbol"])}">{_esc(x["symbol"])} '
+            f'<span class="{_cpr_glyph(x["anchor"]["pattern"])[1]}">{_cpr_glyph(x["anchor"]["pattern"])[0]}</span>'
+            f' <span class="cp-tier">{x["conv"]["tier"]}</span>'
+            f'<span class="mut"> {x["conv"]["anchor"]}</span></a>'
+            for x in setups) + '</div>'
+    else:
+        chips = ('<div class="mut" style="font-size:12px;padding:6px 0">No CPR reversal '
+                 'setups today (or run the CPR backfill on the VPS).</div>')
+    return ('<div class="scard sc-CPR">'
+            '<div class="nm">CPR · Structure</div>'
+            '<div class="th">Multi-timeframe CPR — has the structure just turned (U / ∩), '
+            'and is it coiled? Amplified when higher timeframes agree.</div>'
+            '<div class="mut" style="font-size:11px;margin-top:6px">number shown = ★ structure-conviction tier '
+            '(★★★ Prime ▸ ★ Setup) + anchor TF</div>'
+            f'{chips}'
+            '<a class="row" style="display:inline-block;margin-top:10px;color:#58a6ff;font-weight:700;font-size:12px" '
+            'href="/dash/cpr">See reversals · compression · reports →</a></div>')
+
+
+_CPR_TIER_WORD = {"★★★": "Prime", "★★": "Strong", "★": "Setup"}
+
+
+def _cpr_stock_panel(by_tf) -> str:
+    """Per-stock CPR panel: the D·W·M strip + the three CPRs (P/BC/TC, close-vs-band,
+    width%, pattern, rank, regime, freshness) + a plain-English verdict. '' when the
+    stock has no CPR rows yet (panel simply omitted — graceful, like the others)."""
+    if not by_tf:
+        return ""
+    rows = []
+    for tf in _CPR_TF_ORDER:
+        r = by_tf.get(tf)
+        if not r:
+            rows.append(f'<tr><td>{_CPR_TF_LABEL[tf]}</td>'
+                        + '<td class="mut" colspan="8">no data</td></tr>')
+            continue
+        p, bc, tc, w = r.get("p"), r.get("bc"), r.get("tc"), r.get("width_pct")
+        cl = r.get("close")
+        if cl is None or bc is None or tc is None:
+            pos = '<span class="mut">—</span>'
+        elif cl > tc:
+            pos = '<span class="pos">above</span>'
+        elif cl < bc:
+            pos = '<span class="neg">below</span>'
+        else:
+            pos = "inside"
+        g, gcls = _cpr_glyph(r.get("pattern"))
+        rnk = _cpr_rank(w, r.get("c1_width_pct"), tf) if r.get("pattern") in ("BULL_U", "BEAR_INVU") else "—"
+        reg = r.get("regime")
+        regs = ('<span class="pos">↑ above</span>' if reg == 1 else
+                '<span class="neg">↓ below</span>' if reg == -1 else '<span class="mut">—</span>')
+        days = r.get("days_since_pattern")
+        fresh = "fresh" if days == 0 else (f"{days}p" if days is not None else "—")
+        nw = ' style="color:#7ee787;font-weight:700"' if _cpr_is_narrow(w, tf) else ""
+        rows.append(
+            f'<tr><td><b>{_CPR_TF_LABEL[tf]}</b>{" ⏳" if r.get("is_partial") else ""}</td>'
+            f'<td>{_num(p, 1)}</td><td>{_num(bc, 1)}</td><td>{_num(tc, 1)}</td>'
+            f'<td{nw}>{(f"{w:.2f}%") if w is not None else "—"}</td>'
+            f'<td class="l">{pos}</td>'
+            f'<td class="l"><span class="cpg {gcls}">{g}</span></td>'
+            f'<td>{rnk}</td><td class="l">{regs}</td><td class="l">{fresh}</td></tr>')
+
+    conv = _cpr_conviction(by_tf)
+    if conv:
+        a = by_tf[conv["anchor"]]
+        pat = "bullish U (bottom)" if a["pattern"] == "BULL_U" else "bearish ∩ (top)"
+        sup = [f"{_CPR_TF_LABEL[t].lower()} coiled/aligned" for t in _CPR_TF_ORDER
+               if t != conv["anchor"] and conv["breakdown"].get(t, 0) >= 2]
+        sup_txt = (" — amplified by " + ", ".join(sup)) if sup else " — no higher-timeframe support yet"
+        conf_txt = " Price has confirmed (engaged the band)." if a.get("confirmed") else " Not yet confirmed (a setup)."
+        confl = " D/W/M pivots in confluence." if conv["confluence"] else ""
+        verdict = (f'<div class="cprverdict"><span class="cp-tier">{conv["tier"]}</span> '
+                   f'<b>{_CPR_TIER_WORD.get(conv["tier"], "")}</b> — {_CPR_TF_LABEL[conv["anchor"]]} '
+                   f'{pat}, rank {conv["rank"]} (score {conv["score"]:.0f}){sup_txt}.{confl}{conf_txt}</div>')
+    else:
+        ds = by_tf.get("D") or by_tf.get("W") or by_tf.get("M")
+        coil = [f"{_CPR_TF_LABEL[t].lower()} {by_tf[t]['width_pct']:.2f}%" for t in _CPR_TF_ORDER
+                if by_tf.get(t) and by_tf[t].get("width_pct") is not None and _cpr_is_narrow(by_tf[t]["width_pct"], t)]
+        coil_txt = ("Coiled: " + ", ".join(coil) + " — a move may be pending.") if coil else \
+            "No active reversal and no unusual compression right now."
+        verdict = f'<div class="cprverdict"><b>No reversal.</b> {coil_txt}</div>'
+
+    return ('<div class="cprpanel"><h3 style="margin:0 0 8px">CPR · Structure '
+            '<span class="mut" style="font-size:12px;font-weight:400">multi-timeframe pivot range</span></h3>'
+            f'<div style="margin-bottom:8px">{_cpr_dwm_strip(by_tf)}</div>'
+            '<table><thead><tr><th>TF</th><th>Pivot</th><th>BC</th><th>TC</th><th>Width%</th>'
+            '<th class="l">Close</th><th class="l">U/∩</th><th>Rnk</th><th class="l">vs Pivot</th>'
+            '<th class="l">Fresh</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table>{verdict}'
+            '<div class="mut" style="font-size:11px;margin-top:6px">CPR from the prior period\'s '
+            'split-adjusted H/L/C · width ÷ pivot · narrow = coiled · ⏳ = current (open) period.</div></div>')
+
+
+@router.get("/dash/strategies", response_class=HTMLResponse)
+def dash_strategies() -> HTMLResponse:
+    """Workspace: pick a strategy, see TODAY's best stocks from each pillar.
+    Each card previews the top names + links to that strategy's full screen."""
+    sig_date, _ = _latest_dates()
+    conv, pos, rs, qual, cpr_top = [], [], [], [], []
+    if sig_date:
+        with get_conn() as conn:
+            cpr_top = _cpr_setups(conn, limit=8)   # CPR Structure card (D53)
+            cx = "(0.55*COALESCE(s.p_score,0)/5.0*100.0 + 0.45*COALESCE(s.rs_rank,0))"
+            conv = [dict(r) for r in conn.execute(
+                f"""SELECT s.symbol, {cx} v FROM stock_signals s
+                    JOIN bhavcopy_rows b USING (symbol, trade_date)
+                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL {_SCAN_FILTERS}
+                    ORDER BY v DESC LIMIT 8""", (sig_date,)).fetchall()]
+            pos = [dict(r) for r in conn.execute(
+                f"""SELECT s.symbol, s.trigger_rank v FROM stock_signals s
+                    JOIN bhavcopy_rows b USING (symbol, trade_date)
+                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL {_SCAN_FILTERS}
+                    ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
+                             COALESCE(s.delivery_value_today,0) DESC LIMIT 8""", (sig_date,)).fetchall()]
+            rs = [dict(r) for r in conn.execute(
+                f"""SELECT s.symbol, s.rs_rank v FROM stock_signals s
+                    JOIN bhavcopy_rows b USING (symbol, trade_date)
+                    WHERE s.trade_date=? AND s.rs_rank IS NOT NULL {_SCAN_FILTERS}
+                    ORDER BY s.rs_rank DESC LIMIT 8""", (sig_date,)).fetchall()]
+            qual = [dict(r) for r in conn.execute(
+                """SELECT p.symbol, p.ns_base v FROM pattern_scores p
+                   JOIN (SELECT symbol, MAX(scored_at) m FROM pattern_scores GROUP BY symbol) x
+                     ON x.symbol=p.symbol AND x.m=p.scored_at
+                   WHERE p.ns_base IS NOT NULL ORDER BY p.ns_base DESC LIMIT 8""").fetchall()]
+
+    def picks(rows, fmt):
+        if not rows:
+            return '<div class="mut" style="font-size:12px;padding:6px 0">No names today.</div>'
+        return '<div class="chips" style="margin-top:8px">' + "".join(
+            f'<a class="chip" href="/dash/stock?sym={_esc(r["symbol"])}">{_esc(r["symbol"])} '
+            f'<span class="mut">{fmt(r["v"])}</span></a>' for r in rows) + '</div>'
+
+    def card(cls, title, thesis, metric, body_picks, href, cta, top=""):
+        ts = f' style="border-top-color:{top}"' if top else ''
+        return (f'<div class="scard sc-{cls}"{ts}>'
+                f'<div class="nm">{title}</div><div class="th">{thesis}</div>'
+                f'<div class="mut" style="font-size:11px;margin-top:6px">number shown = {metric}</div>{body_picks}'
+                f'<a class="row" style="display:inline-block;margin-top:10px;color:#58a6ff;font-weight:700;font-size:12px" '
+                f'href="{href}">{cta} →</a></div>')
+
+    cards = [
+        card("POS", "Conviction", "All pillars aligned — institutions positioning + leading the market.",
+             "conviction score (0–100)", picks(conv, lambda v: f"{v:.0f}"), "/dash/conviction", "See conviction shortlist", "#8957e5"),
+        card("POS", "Positioning · DVPT", "Where institutional delivery money is moving today.",
+             "DVPT trigger rank (SS▶C)", picks(pos, lambda v: _esc(v or "-")), "/dash/scan", "See all triggers"),
+        card("RS", "Relative Strength", "Stocks beating the market and leading their sector.",
+             "relative-strength rank (1–99)", picks(rs, lambda v: f"#{v}"), "/dash/leaders", "See leaders"),
+        card("QUAL", "Quality · pt14", "The 14-pattern durability score — businesses worth owning.",
+             "pt14 quality score (0–100)", picks(qual, lambda v: f"{v:.0f}"), "/dash/screener", "Open screener"),
+        _cpr_card(cpr_top),
+    ]
+    head = ('<h2>Strategies <span class="sub" style="margin:0">today\'s best, by strategy</span></h2>'
+            '<div class="sub">Pick a strategy to see the names it surfaces right now — or open the '
+            '<a class="row" style="display:inline" href="/dash/screener">screener</a> to slice all of them together.</div>')
+    body = head + '<div class="scards">' + "".join(cards) + '</div>'
+    return HTMLResponse(_shell("Strategies · patearn", body, "strategies", sig_date or ""))
+
+
+def _cpr_sep_cell(v):
+    if v is None:
+        return '<span class="mut">—</span>'
+    return f'<span class="pos">+{v:.2f}</span>' if v >= 0 else f'<span class="mut">{v:.2f}</span>'
+
+
+def _cpr_reversal_table(setups) -> str:
+    """Data-first reversal table — raw widths beside the rank/tier verdict."""
+    if not setups:
+        return '<div class="empty">No reversals match this filter for the latest period.</div>'
+    trs = []
+    for x in setups:
+        a, conv = x["anchor"], x["conv"]
+        sym = _esc(x["symbol"])
+        g, gcls = _cpr_glyph(a["pattern"])
+        pat_lbl = "Bull U" if a["pattern"] == "BULL_U" else "Bear ∩"
+        anchor_lbl = _CPR_TF_LABEL.get(conv["anchor"], conv["anchor"])
+        c0w = f'{a["width_pct"]:.2f}' if a.get("width_pct") is not None else "—"
+        c1v = a.get("c1_width_pct")
+        c1w = f"{c1v:.2f}" if c1v is not None else "—"
+        dv = a.get("depth_pct")
+        depth = f"{dv:.1f}" if dv is not None else "—"
+        strip = _cpr_dwm_strip(x["by_tf"])
+        sep = _cpr_sep_cell(a.get("separation_pct"))
+        days = a.get("days_since_pattern")
+        if days == 0:
+            fresh = '<span class="pos">● fresh</span>'
+        elif days is not None:
+            fresh = f'<span class="mut">{days}p ago</span>'
+        else:
+            fresh = '<span class="mut">—</span>'
+        conf = "✓" if a.get("confirmed") else '<span class="mut">·</span>'
+        cmp_ = _num(a.get("close"), 1)
+        trs.append(
+            "<tr>"
+            f'<td class="l"><a class="row" href="/dash/stock?sym={sym}"><b>{sym}</b></a></td>'
+            f"<td>{anchor_lbl}</td>"
+            f'<td class="l"><span class="cpg {gcls}">{g}</span> {pat_lbl}</td>'
+            f'<td><b>{conv["rank"]}</b></td>'
+            f'<td class="l"><span class="cp-tier">{conv["tier"]}</span></td>'
+            f'<td class="num">{conv["score"]:.0f}</td>'
+            f'<td class="num">{c0w}</td>'
+            f'<td class="num">{c1w}</td>'
+            f'<td class="l">{strip}</td>'
+            f'<td class="num">{sep}</td>'
+            f'<td class="num">{depth}</td>'
+            f'<td class="l">{fresh}</td>'
+            f"<td>{conf}</td>"
+            f'<td class="num">{cmp_}</td>'
+            "</tr>")
+    thead = ('<thead><tr>'
+             '<th class="l">Symbol</th><th>Anchor</th><th class="l">Pattern</th><th>Rnk</th>'
+             '<th class="l">★ Tier</th><th class="num">Score</th><th class="num">C0 w%</th>'
+             '<th class="num">C1 w%</th><th class="l">D·W·M</th><th class="num">Sep%</th>'
+             '<th class="num">Depth%</th><th class="l">Fresh</th><th>Conf</th><th class="num">CMP</th>'
+             '</tr></thead>')
+    return f'<table class="dt">{thead}<tbody>{"".join(trs)}</tbody></table>'
+
+
+def _cpr_compression_table(rows) -> str:
+    if not rows:
+        return '<div class="empty">No compression data for the latest period.</div>'
+    trs = []
+    for r in rows:
+        tf = r["timeframe"]
+        pc = r.get("compression_pctile")
+        pcs = f'{pc*100:.0f}' if pc is not None else "—"
+        g, gcls = _cpr_glyph(r.get("pattern"))
+        reg = r.get("regime")
+        regs = ('<span class="pos">above</span>' if reg == 1 else
+                '<span class="neg">below</span>' if reg == -1 else '<span class="mut">—</span>')
+        absn = '<span class="pos">● narrow</span>' if r.get("narrow_abs") else '<span class="mut">·</span>'
+        trs.append(
+            '<tr>'
+            f'<td class="l"><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}"><b>{_esc(r["symbol"])}</b></a></td>'
+            f'<td>{_CPR_TF_LABEL.get(tf, tf)}</td>'
+            f'<td class="num"><b>{r["width_pct"]:.2f}</b></td>'
+            f'<td class="num">{pcs}</td>'
+            f'<td class="l">{absn}</td>'
+            f'<td class="l"><span class="cpg {gcls}">{g}</span></td>'
+            f'<td class="l">{regs}</td>'
+            f'<td class="num">{_num(r.get("close"), 1)}</td>'
+            '</tr>')
+    thead = ('<thead><tr><th class="l">Symbol</th><th>TF</th><th class="num">Width%</th>'
+             '<th class="num">Coil pctile</th><th class="l">Abs-narrow</th><th class="l">Pattern</th>'
+             '<th class="l">vs Pivot</th><th class="num">CMP</th></tr></thead>')
+    return f'<table class="dt">{thead}<tbody>{"".join(trs)}</tbody></table>'
+
+
+@router.get("/dash/cpr", response_class=HTMLResponse)
+def dash_cpr(tab: str = Query("reversals"), tf: str = Query(""),
+             direction: str = Query(""), tier: str = Query("")) -> HTMLResponse:
+    """CPR (Structure pillar, D53) — the multi-timeframe U/∩ reversal screen, the
+    unusually-narrow compression scanner, and the per-TF (Daily/Weekly/Monthly)
+    EOD 'what fired' reports. Each timeframe has its OWN CPRs → its own triggers
+    and its own report. Reversal conviction is the cross-TF amplified ★ tier (a
+    transparent, tunable sort key, NOT folded into the cross-pillar Conviction —
+    see metrics-glossary.md). Sort / filter / export via the shared toolbar."""
+    tab = tab if tab in ("reversals", "compression", "reports") else "reversals"
+    tf = tf if tf in _CPR_TF_ORDER else ""
+    direction = direction if direction in ("U", "INVU") else ""
+    tier = tier if tier in ("★", "★★", "★★★") else ""
+
+    have_cpr = False
+    with get_conn() as conn:
+        have_cpr = bool(conn.execute("SELECT 1 FROM cpr_signals LIMIT 1").fetchone())
+        latest = {t: _cpr_latest_period(conn, t) for t in _CPR_TF_ORDER}
+        if tab == "reversals":
+            content = _cpr_reversal_table(_cpr_setups(
+                conn, tf=tf or None, direction=direction or None, min_tier=tier or None, limit=400))
+        elif tab == "compression":
+            content = _cpr_compression_table(_cpr_compressions(conn, tf=tf or None, limit=400))
+        else:  # reports — per-TF "what fired" for the latest period of each TF
+            secs = []
+            for t in _CPR_TF_ORDER:
+                d = latest.get(t)
+                fresh = _cpr_setups(conn, tf=t, fresh_only=True, limit=50) if d else []
+                comps = [r for r in _cpr_compressions(conn, tf=t, limit=12)
+                         if (r.get("compression_pctile") or 0) >= 0.8 or r.get("narrow_abs")][:12]
+                badge = "" if t == "D" else (
+                    f' <span class="mut" style="font-weight:400">· live for the current '
+                    f'{"week" if t=="W" else "month"} (fixed for the period)</span>')
+                rev_html = _cpr_reversal_table(fresh) if fresh else \
+                    '<div class="mut" style="font-size:12px;padding:4px 0">No fresh reversals this period.</div>'
+                comp_rows = "".join(
+                    f'<a class="chip" href="/dash/stock?sym={_esc(r["symbol"])}">{_esc(r["symbol"])} '
+                    f'<span class="mut">{r["width_pct"]:.2f}%'
+                    f'{(" · " + format(r["compression_pctile"]*100, ".0f") + "ᵖ") if r.get("compression_pctile") is not None else ""}</span></a>'
+                    for r in comps)
+                comp_html = (f'<div class="chips" style="margin-top:6px">{comp_rows}</div>' if comps
+                             else '<div class="mut" style="font-size:12px;padding:4px 0">No unusually-narrow CPRs.</div>')
+                secs.append(
+                    f'<div class="card" style="margin-bottom:14px">'
+                    f'<h3 style="margin:0 0 2px">{_CPR_TF_LABEL[t]} CPR'
+                    f'{(" — " + d) if d else ""}{badge}</h3>'
+                    f'<div class="sub" style="margin:2px 0 8px">{len(fresh)} fresh reversal'
+                    f'{"" if len(fresh)==1 else "s"} · {len(comps)} unusually-narrow</div>'
+                    f'<div class="chartlbl">What turned (fresh U / ∩)</div>{rev_html}'
+                    f'<div class="chartlbl" style="margin-top:10px">Coiled (unusually-narrow CPRs)</div>{comp_html}'
+                    f'</div>')
+            content = "".join(secs)
+
+    if not have_cpr:
+        body = ('<h2>CPR · Structure</h2>'
+                '<div class="empty">No CPR signals yet — run the CPR backfill on the VPS:<br>'
+                '<code>python -m src.automation.cpr_signals --backfill --timeframe all</code></div>')
+        return HTMLResponse(_shell("CPR · patearn", body, "cpr"))
+
+    # tab bar
+    def _tab(key, label):
+        qs = f"?tab={key}" + (f"&tf={tf}" if tf else "")
+        return f'<a class="{"on" if tab==key else ""}" href="/dash/cpr{qs}">{label}</a>'
+    tabbar = (f'<div class="tabbar">{_tab("reversals","Reversals")}'
+              f'{_tab("compression","Compression")}{_tab("reports","EOD Reports")}</div>')
+
+    # TF + (reversals only) direction/tier filter bar
+    def _fchip(param, val, label, cur):
+        keep = []
+        if param != "tf" and tf:
+            keep.append(f"tf={tf}")
+        if param != "direction" and direction:
+            keep.append(f"direction={direction}")
+        if param != "tier" and tier:
+            keep.append(f"tier={_q(tier)}")
+        if val:
+            keep.append(f"{param}={_q(val)}")
+        qs = f"?tab={tab}" + ("&" + "&".join(keep) if keep else "")
+        return f'<a class="fbtn{" on" if cur==val else ""}" href="/dash/cpr{qs}">{label}</a>'
+
+    fbars = ""
+    if tab in ("reversals", "compression"):
+        tfchips = (_fchip("tf", "", "All TF", tf) + _fchip("tf", "D", "Daily", tf)
+                   + _fchip("tf", "W", "Weekly", tf) + _fchip("tf", "M", "Monthly", tf))
+        fbars = f'<div class="fbar">{tfchips}</div>'
+    if tab == "reversals":
+        dchips = (_fchip("direction", "", "Both", direction) + _fchip("direction", "U", "Bull U", direction)
+                  + _fchip("direction", "INVU", "Bear ∩", direction))
+        tchips = (_fchip("tier", "", "Any ★", tier) + _fchip("tier", "★", "★+", tier)
+                  + _fchip("tier", "★★", "★★+", tier) + _fchip("tier", "★★★", "★★★", tier))
+        fbars += f'<div class="fbar">{dchips}</div><div class="fbar">{tchips}</div>'
+
+    intro = {
+        "reversals": "Three consecutive CPRs forming a U (bullish bottom) or ∩ (bearish top). "
+                     "Each leg is a clean directional step; strength = how narrow the recent bands are "
+                     "(R1 sharpest). The <b>★ tier</b> amplifies a turn when higher timeframes are also coiled/aligned.",
+        "compression": "Unusually-narrow single CPRs — coiled springs, an outsized move pending. Ranked by the "
+                       "<b>own-history percentile</b> (how coiled vs this stock's own typical width), larger TF more significant.",
+        "reports": "What fired this Daily / Weekly / Monthly period. Weekly &amp; Monthly CPRs are fixed for the "
+                   "period, so those lists hold all period — not just today.",
+    }[tab]
+    head = (f'<h2>CPR · Structure <span class="sub" style="margin:0">where price is, has it turned, is it coiled</span></h2>'
+            f'<div class="sub">{intro}</div>')
+    body = head + tabbar + fbars + content
+    return HTMLResponse(_shell("CPR · patearn", body, "cpr",
+                               latest.get("D") or latest.get("W") or ""))
+
+
+@router.get("/dash/portfolios", response_class=HTMLResponse)
+def dash_portfolios() -> HTMLResponse:
+    body = ('<h2>Portfolios</h2>'
+            '<div class="card"><div style="color:#c9d1d9;line-height:1.55;font-size:13px">'
+            'Coming soon — a tracked <b>portfolio under each strategy</b> (the names it holds), plus '
+            '<b>combination portfolios</b> (e.g. CPR-reversal ∩ DVPT-accumulation ∩ RS-leader), '
+            'each with live mark-to-market.</div>'
+            '<div class="sub" style="margin-top:8px">Design: <code>docs/ui-design.md §6</code>.</div></div>')
+    return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
+
+
+@router.get("/dash/tracker", response_class=HTMLResponse)
+def dash_tracker() -> HTMLResponse:
+    body = ('<h2>Tracker</h2>'
+            '<div class="card"><div style="color:#c9d1d9;line-height:1.55;font-size:13px">'
+            'Coming soon — <b>day / week / month performance</b> for each portfolio and the system overall, '
+            'benchmarked vs <b>Nifty / a broad / a narrow index</b>, with <b>gap analysis</b> '
+            '(where we\'re out- or under-performing).</div>'
+            '<div class="sub" style="margin-top:8px">Design: <code>docs/ui-design.md §7</code>.</div></div>')
+    return HTMLResponse(_shell("Tracker · patearn", body, "tracker"))
 
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
@@ -1664,6 +2629,27 @@ const RS_SERIES = __SERIES__;
 """
 
 
+# Compare-picker universe (all indices + all equities) for the stock page's
+# "+ Add" type-ahead. Identical on every stock page; changes only on the nightly
+# equity/index refresh — so build the list + its JSON ONCE per data date and
+# reuse, instead of a ~4000-row query + json.dumps on EVERY stock-page load.
+_CMP_PICKER = {"date": None, "valid_set": None, "equity_set": None, "items_json": None}
+
+
+def _cmp_picker(conn, date_key):
+    if _CMP_PICKER["date"] != date_key or _CMP_PICKER["items_json"] is None:
+        valid_set = {row["index_name"] for row in conn.execute(
+            "SELECT DISTINCT index_name FROM index_rows").fetchall()}
+        equities = [(row["symbol"], row["company_name"] or "") for row in conn.execute(
+            "SELECT symbol, company_name FROM nse_equity_list ORDER BY symbol").fetchall()]
+        items_json = json.dumps(
+            [{"v": n, "t": "idx"} for n in sorted(valid_set)]
+            + [{"v": s, "t": "stk", "n": nm} for s, nm in equities])
+        _CMP_PICKER.update(date=date_key, valid_set=valid_set,
+                           equity_set={s for s, _ in equities}, items_json=items_json)
+    return _CMP_PICKER
+
+
 @router.get("/dash/stock", response_class=HTMLResponse)
 def dash_stock(sym: str = Query("", max_length=20),
                cmp: list[str] = Query(default=[])) -> HTMLResponse:
@@ -1676,16 +2662,24 @@ def dash_stock(sym: str = Query("", max_length=20),
 """
     if not sym:
         body = search + '<div class="empty">Enter a ticker for the full chart — price, DVPT spikes, delivery, and institutional zones.</div>'
-        return HTMLResponse(_shell("Stock — Hermes", body, "stock"))
+        return HTMLResponse(_shell("Stock · patearn", body, "stock"))
 
     with get_conn() as conn:
+        # Latest signal row + that day's EQ close/deliv as TWO indexed point
+        # lookups. The single joined `ORDER BY s.trade_date DESC LIMIT 1` with
+        # `b.series='EQ'` mis-planned to a scan of EVERY EQ bhav row (via
+        # idx_bhav_series) → ~3.1s per stock page; this is ~0.2ms.
         latest = conn.execute(
-            """SELECT s.*, b.close, b.deliv_per
-               FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
-               WHERE s.symbol=? AND b.series='EQ'
-               ORDER BY s.trade_date DESC LIMIT 1""",
-            (sym,),
-        ).fetchone()
+            "SELECT * FROM stock_signals WHERE symbol=? ORDER BY trade_date DESC LIMIT 1",
+            (sym,)).fetchone()
+        if latest:
+            latest = dict(latest)
+            _bq = conn.execute(
+                "SELECT close, deliv_per FROM bhavcopy_rows "
+                "WHERE symbol=? AND trade_date=? AND series='EQ' LIMIT 1",
+                (sym, latest["trade_date"])).fetchone()
+            latest["close"] = _bq["close"] if _bq else None
+            latest["deliv_per"] = _bq["deliv_per"] if _bq else None
         # Up to 5 years of daily candles + DVPT + delivery for the charts (oldest first)
         rows = conn.execute(
             """SELECT b.trade_date, b.open, b.high, b.low, b.close, b.prev_close,
@@ -1708,10 +2702,14 @@ def dash_stock(sym: str = Query("", max_length=20),
                 (sym,)).fetchone()
         except Exception:
             pscore = None
+        try:
+            cpr_by_tf = _cpr_latest_by_tf(conn, [sym]).get(sym, {})   # CPR Structure panel (D53)
+        except Exception:
+            cpr_by_tf = {}
 
     if not latest or not rows:
         body = search + f'<div class="empty">No data for <b>{_esc(sym)}</b>. Check the ticker.</div>'
-        return HTMLResponse(_shell("Stock — Hermes", body, "stock"))
+        return HTMLResponse(_shell("Stock · patearn", body, "stock"))
 
     L = dict(latest)
     rank = L.get("trigger_rank") or "-"
@@ -2208,11 +3206,9 @@ def dash_stock(sym: str = Query("", max_length=20),
         rs_narrow_name = L.get("primary_sector")          # may be None
         d_lo, d_hi = series[0]["time"], series[-1]["time"]
         with get_conn() as conn:
-            valid_set = {row["index_name"] for row in conn.execute(
-                "SELECT DISTINCT index_name FROM index_rows").fetchall()}
-            equities = [(row["symbol"], row["company_name"] or "") for row in conn.execute(
-                "SELECT symbol, company_name FROM nse_equity_list ORDER BY symbol").fetchall()]
-            equity_set = {s for s, _ in equities}
+            _pc = _cmp_picker(conn, L.get("trade_date"))
+            valid_set = _pc["valid_set"]
+            equity_set = _pc["equity_set"]
             # Overlay = explicit ?cmp= (index names or tickers), else the defaults:
             # Nifty 500 + Nifty 50 + the stock's sector (if any).
             if cmp:
@@ -2307,9 +3303,7 @@ def dash_stock(sym: str = Query("", max_length=20),
                     f'names from 4. Tap to stage, then <b>Add</b> (up to {_COMPARE_MAX - 1}).</div>'
                     '<div id="soResults" class="chips" style="margin-top:6px"></div>'
                     '</div>')
-            cmp_items_json = json.dumps(
-                [{"v": n, "t": "idx"} for n in sorted(valid_set)]
-                + [{"v": s, "t": "stk", "n": nm} for s, nm in equities])
+            cmp_items_json = _pc["items_json"]
             sec_note = (f" + {_esc(rs_narrow_name)} (sector)"
                         if rs_narrow_name and not cmp else "")
             rs_overlay_html = f"""
@@ -2349,6 +3343,8 @@ def dash_stock(sym: str = Query("", max_length=20),
 button.cmp-sugg { cursor:pointer; font-family:inherit; }
 .cmp-sugg.cmp-on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
 """
+
+    cpr_html = _cpr_stock_panel(cpr_by_tf)   # CPR Structure panel (D53)
 
     body = f"""{search}
 <style>{chart_css}</style>
@@ -2398,6 +3394,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 {pt14_html}
 
 {rs_html}
+
+{cpr_html}
 
 <script src="{_LWC_CDN}"></script>
 <script>
@@ -2506,7 +3504,7 @@ const DATA = {data_json};
 }})();
 </script>
 """
-    return HTMLResponse(_shell(f"{sym} — Hermes", body, "stock", L["trade_date"]))
+    return HTMLResponse(_shell(f"{sym} · patearn", body, "stock", L["trade_date"]))
 
 
 # Ratio chart JS (plain template — no f-string; __DATA__ is replaced with the
@@ -2601,14 +3599,14 @@ def dash_ratio(idx: str = Query("", max_length=60),
 
     if not idx:
         body = '<div class="empty">No index selected. Reach this page from a Markets or Sectors RS cell.</div>'
-        return HTMLResponse(_shell("Ratio — Hermes", body, "sectors", idx_date or ""))
+        return HTMLResponse(_shell("Ratio · patearn", body, "sectors", idx_date or ""))
 
     with get_conn() as conn:
         known = conn.execute(
             "SELECT 1 FROM index_rows WHERE index_name=? LIMIT 1", (idx,)).fetchone()
         if not known:
             body = f'<div class="empty">Unknown index <b>{_esc(idx)}</b>.</div>'
-            return HTMLResponse(_shell("Ratio — Hermes", body, "sectors", idx_date or ""))
+            return HTMLResponse(_shell("Ratio · patearn", body, "sectors", idx_date or ""))
 
         curve = conn.execute(
             """SELECT r.trade_date, r.ratio, s.ratio_ma_50, s.ratio_ma_200,
@@ -2624,7 +3622,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
         if not curve:
             body = (f'<h2>{_esc(idx)} <span class="sub" style="margin:0">vs {_esc(den)}</span></h2>'
                     '<div class="empty">No ratio series (this is a broad/size index, not a sector).</div>')
-            return HTMLResponse(_shell(f"{idx} ratio — Hermes", body, "sectors", idx_date or ""))
+            return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "sectors", idx_date or ""))
 
         sig = conn.execute(
             """SELECT rs_vs_broad_trend_state st, ret_3m_pct r3,
@@ -2935,7 +3933,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
 {consts_html}
 {chart_js}
 """
-    return HTMLResponse(_shell(f"{idx} ratio — Hermes", body, "sectors",
+    return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "sectors",
                                idx_date or ""))
 
 
@@ -3488,7 +4486,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
             + picker_html
             + '<div class="empty">No indices selected. Use <b>+ Add</b> or a preset above.</div>'
             + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-        return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
+        return HTMLResponse(_shell("Compare · patearn", body, "markets", idx_date or ""))
 
     # Note any selected series that has no data for the current mode.
     note = ""
@@ -3560,7 +4558,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
         + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-    return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
+    return HTMLResponse(_shell("Compare · patearn", body, "markets", idx_date or ""))
 
 
 # Picker JS (plain template) — reveals the add box, filters suggestion chips by
@@ -3720,8 +4718,8 @@ _STOCK_CMP_PICKER_JS = """
 # --- PWA assets ------------------------------------------------------------
 
 _MANIFEST = """{
-  "name": "Hermes — Indian Equity Signals",
-  "short_name": "Hermes",
+  "name": "patearn — Indian Equity Signals",
+  "short_name": "patearn",
   "description": "DVPT flow, layered triggers, sector relative strength.",
   "start_url": "/dash",
   "scope": "/dash",
@@ -3772,11 +4770,11 @@ self.addEventListener('fetch', (e) => {
 
 _OFFLINE_HTML = """<!doctype html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Offline — Hermes</title>
+<title>Offline · patearn</title>
 <style>body{font-family:system-ui,Segoe UI,sans-serif;background:#0e1116;color:#e6edf3;
 display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;}
 .mut{color:#8b949e;}</style></head>
-<body><h1>📵 Offline</h1><p class="mut">Hermes needs a connection for live data.</p>
+<body><h1>📵 Offline</h1><p class="mut">patearn needs a connection for live data.</p>
 <p class="mut">Reconnect and reopen.</p></body></html>"""
 
 

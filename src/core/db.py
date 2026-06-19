@@ -384,6 +384,183 @@ CREATE TABLE IF NOT EXISTS nse_equity_list (
     listing_date  TEXT,
     snapshot_date TEXT
 );
+
+-- ===========================================================================
+-- Multi-timeframe (MTF) foundation — D52 (was labelled D43 in
+-- docs/multi-timeframe-positioning-design.md, predating the now-shipped D43).
+-- True weekly/monthly resampled bars + signals, materialized nightly. The daily
+-- stock_signals table is UNTOUCHED; these are separate, smaller tables (weekly
+-- ~1/5, monthly ~1/22 of daily rows) so the 2.35M-row daily hot table is not
+-- bloated/locked (decision D43-J in the design doc). All re-derivable from the
+-- raw bhavcopy_rows archive (Doctrine C). Period DVPT = Sum(delivery value) /
+-- Sum(num_trades) over the bar — NEVER the average of daily DVPTs (D43-B).
+-- ===========================================================================
+
+-- Weekly resampled OHLC + delivery bars (one row per symbol per ISO week).
+CREATE TABLE IF NOT EXISTS bars_weekly (
+    symbol          TEXT NOT NULL,
+    week_end_date   TEXT NOT NULL,     -- last trading day of the ISO week (key)
+    iso_year        INTEGER,
+    iso_week        INTEGER,
+    open            REAL,              -- first day's open
+    high            REAL,              -- max over the week
+    low             REAL,              -- min over the week
+    close           REAL,              -- last day's close (raw)
+    prev_close      REAL,              -- prior week's close (raw)
+    adj_close       REAL,              -- last day's split/bonus-adjusted close
+    volume          INTEGER,           -- sum
+    deliv_qty       INTEGER,           -- sum
+    delivery_value  REAL,              -- sum of (deliv_qty * close) per day
+    num_trades      INTEGER,           -- sum
+    turnover        REAL,              -- sum of daily traded value
+    n_days          INTEGER,           -- trading days in the bar
+    is_partial      INTEGER DEFAULT 0, -- 1 = current, not-yet-closed week
+    computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, week_end_date)
+);
+CREATE INDEX IF NOT EXISTS idx_bars_weekly_date ON bars_weekly(week_end_date);
+
+-- Monthly resampled OHLC + delivery bars (one row per symbol per calendar month).
+CREATE TABLE IF NOT EXISTS bars_monthly (
+    symbol          TEXT NOT NULL,
+    month_end_date  TEXT NOT NULL,     -- last trading day of the month (key)
+    ym              TEXT,              -- 'YYYY-MM'
+    open            REAL,
+    high            REAL,
+    low             REAL,
+    close           REAL,
+    prev_close      REAL,
+    adj_close       REAL,
+    volume          INTEGER,
+    deliv_qty       INTEGER,
+    delivery_value  REAL,
+    num_trades      INTEGER,
+    turnover        REAL,
+    n_days          INTEGER,
+    is_partial      INTEGER DEFAULT 0,
+    computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, month_end_date)
+);
+CREATE INDEX IF NOT EXISTS idx_bars_monthly_date ON bars_monthly(month_end_date);
+
+-- Weekly signals — the D28/D31 two-tier scheme computed on weekly bars. Windows
+-- scaled per the design doc table: 4/8/13/26/52 weeks, P-tier top-N 1/1/2/4/6.
+CREATE TABLE IF NOT EXISTS weekly_signals (
+    symbol          TEXT NOT NULL,
+    week_end_date   TEXT NOT NULL,
+    dvpt            REAL,              -- period DVPT = sum(deliv value)/sum(trades)
+    delivery_value_period REAL,        -- absolute delivery footprint (rupees)
+    total_value_period    REAL,        -- absolute traded turnover (rupees)
+    num_trades_period     INTEGER,
+    -- R-tier flat means over the last N weekly bars
+    avg_dvpt_w4 REAL, avg_dvpt_w8 REAL, avg_dvpt_w13 REAL, avg_dvpt_w26 REAL, avg_dvpt_w52 REAL,
+    -- P-tier mean of top-N within the window
+    power_dvpt_w4 REAL, power_dvpt_w8 REAL, power_dvpt_w13 REAL, power_dvpt_w26 REAL, power_dvpt_w52 REAL,
+    -- Institutional price zones (avg close on the R / P baseline bars)
+    avg_close_rw4 REAL, avg_close_rw8 REAL, avg_close_rw13 REAL, avg_close_rw26 REAL, avg_close_rw52 REAL,
+    avg_close_pw4 REAL, avg_close_pw8 REAL, avg_close_pw13 REAL, avg_close_pw26 REAL, avg_close_pw52 REAL,
+    r_score         INTEGER,
+    p_score         INTEGER,
+    trigger_rank    TEXT,
+    next_p_above    TEXT,
+    gap_to_next_p_pct REAL,
+    is_ath_dvpt     INTEGER,
+    hot_bars_avg_price REAL,
+    price_vs_hot_avg_pct REAL,
+    n_bars_used     INTEGER,
+    is_partial      INTEGER DEFAULT 0,
+    computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, week_end_date)
+);
+CREATE INDEX IF NOT EXISTS idx_weekly_signals_date ON weekly_signals(week_end_date);
+
+-- Monthly signals — same scheme on monthly bars. Windows 3/6/12/18/24 months,
+-- P-tier top-N 1/1/2/3/4.
+CREATE TABLE IF NOT EXISTS monthly_signals (
+    symbol          TEXT NOT NULL,
+    month_end_date  TEXT NOT NULL,
+    dvpt            REAL,
+    delivery_value_period REAL,
+    total_value_period    REAL,
+    num_trades_period     INTEGER,
+    avg_dvpt_m3 REAL, avg_dvpt_m6 REAL, avg_dvpt_m12 REAL, avg_dvpt_m18 REAL, avg_dvpt_m24 REAL,
+    power_dvpt_m3 REAL, power_dvpt_m6 REAL, power_dvpt_m12 REAL, power_dvpt_m18 REAL, power_dvpt_m24 REAL,
+    avg_close_rm3 REAL, avg_close_rm6 REAL, avg_close_rm12 REAL, avg_close_rm18 REAL, avg_close_rm24 REAL,
+    avg_close_pm3 REAL, avg_close_pm6 REAL, avg_close_pm12 REAL, avg_close_pm18 REAL, avg_close_pm24 REAL,
+    r_score         INTEGER,
+    p_score         INTEGER,
+    trigger_rank    TEXT,
+    next_p_above    TEXT,
+    gap_to_next_p_pct REAL,
+    is_ath_dvpt     INTEGER,
+    hot_bars_avg_price REAL,
+    price_vs_hot_avg_pct REAL,
+    n_bars_used     INTEGER,
+    is_partial      INTEGER DEFAULT 0,
+    computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, month_end_date)
+);
+CREATE INDEX IF NOT EXISTS idx_monthly_signals_date ON monthly_signals(month_end_date);
+
+-- ===========================================================================
+-- CPR (Central Pivot Range) "STRUCTURE" pillar — D53. The 4th Patearn strategy,
+-- beside Positioning (DVPT), Relative Strength, Quality (pt14). A small family
+-- of models over ONE primitive: the 3-line CPR (Pivot / BC / TC) projected from
+-- a period's prior H/L/C, read identically at three degrees — Daily / Weekly /
+-- Monthly. Materialized nightly per (symbol, period_end_date, timeframe).
+--
+--   GEOMETRY + widths are STORED (objective). The narrowness RANK (R1–R4 vs the
+--   query-time max_width_pct knob), the cross-TF AMPLIFICATION and the ★ CONVICTION
+--   TIER are DERIVED ON READ — so the knob/weights stay tunable without
+--   re-materializing (mirrors D43-G; decision CPR-A4).
+--
+--   Self-resampled from the raw bhavcopy_rows archive on SPLIT-ADJUSTED OHLC —
+--   NOT blocked on the held MTF bars_weekly/bars_monthly (decision CPR-A5; design
+--   §9). stock_signals is UNTOUCHED — purely additive, zero regression.
+--   Design + decision log: docs/cpr-strategy-design.md.
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS cpr_signals (
+    symbol             TEXT NOT NULL,
+    period_end_date    TEXT NOT NULL,    -- last trading day of the period (= trade_date for D)
+    timeframe          TEXT NOT NULL,    -- 'D' / 'W' / 'M'
+    -- C0 CPR — built from the PRIOR completed period's adjusted H/L/C (§2)
+    p                  REAL,             -- pivot = (H + L + C) / 3
+    bc                 REAL,             -- (H + L) / 2
+    tc                 REAL,             -- 2P − BC
+    width_pct          REAL,             -- (TC − BC) / P × 100  (÷ pivot — OPEN-4)
+    -- Prior two bands' widths — feed the R1–R4 narrowness rank derived on read
+    c1_width_pct       REAL,             -- C1 = the valley/peak bar
+    c2_width_pct       REAL,             -- C2 = the lead-in bar
+    -- 3B compression — own-history percentile of the current width (§5.2).
+    -- High = unusually coiled FOR THIS STOCK (fraction of trailing N widths wider
+    -- than now; N ≈ 252 D / 52 W / 24 M). The truer "unusual" than a flat %.
+    compression_pctile REAL,
+    -- 3A reversal pattern (clean directional both-lines step — OPEN-1)
+    pattern            TEXT,             -- 'BULL_U' / 'BEAR_INVU' / 'NONE'
+    leg_in_clean       INTEGER,          -- 1 = C2→C1 was a clean directional step
+    leg_turn_clean     INTEGER,          -- 1 = C1→C0 was a clean directional step
+    -- 3A.3 secondary quality — displayed; optional rank inputs, not gates
+    separation_pct     REAL,             -- (C0.BC − C1.TC) / C1.TC × 100  (>0 = full non-overlap on turn leg)
+    depth_pct          REAL,             -- |C1.P − C2.P| / C2.P × 100  (size of the move being reversed)
+    -- 3C regime — sign(adj_close − P); the higher-TF trend context for amplification
+    regime             INTEGER,          -- +1 above pivot / −1 below / 0 at
+    -- §6 freshness + engagement
+    days_since_pattern INTEGER,          -- 0 = formed on this bar (fresh); NULL = no pattern
+    confirmed          INTEGER,          -- 1 = bull-U & close > C0.TC, or bear-∩ & close < C0.BC
+    -- audit / display / sufficiency
+    close              REAL,             -- raw close on period_end_date (for display)
+    adj_used           INTEGER DEFAULT 1,-- 1 = band built from split/bonus-adjusted OHLC (always 1)
+    is_partial         INTEGER DEFAULT 0,-- 1 = current, not-yet-closed W/M period (week/month-to-date)
+    n_bars_used        INTEGER,          -- prior period bars available (history depth)
+    computed_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, period_end_date, timeframe)
+);
+-- Latest-day universe screen per TF (the screener + compression scan).
+CREATE INDEX IF NOT EXISTS idx_cpr_tf_date         ON cpr_signals(timeframe, period_end_date);
+-- Per-symbol latest D/W/M (the stock page + cross-TF amplification join).
+CREATE INDEX IF NOT EXISTS idx_cpr_sym_tf          ON cpr_signals(symbol, timeframe, period_end_date DESC);
+-- "What fired on date X for TF T" (the per-TF EOD reports).
+CREATE INDEX IF NOT EXISTS idx_cpr_tf_date_pattern ON cpr_signals(timeframe, period_end_date, pattern);
 """
 
 
