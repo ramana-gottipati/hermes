@@ -3890,14 +3890,9 @@ const DATA = {data_json};
   // sits WITHIN the muted bar (both start at 0, overlaid not stacked-additive),
   // so the bright fraction = the delivered share of the day's turnover.
   const tval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#30363d'}});
-  tval.setData(S.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:Math.max(d.tval,1)}})));
+  tval.setData(S.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
   const dval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#2ea043'}});
-  dval.setData(S.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:Math.max(d.dval,1)}})));
-  // #2 — Log y-axis: traded value spans ~100-1000x (a real institutional spike
-  // vs a normal day), so a linear scale crushes normal days to an invisible
-  // sliver. Log shows the baseline AND the spikes; values floored >0 above
-  // (log can't plot 0). Data itself is sound (value = volume x close).
-  tc.priceScale('right').applyOptions({{mode:1}});   // 1 = Logarithmic
+  dval.setData(S.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
 
   // Sync time scales across the four charts. A reentrancy guard stops a
   // range click from ping-ponging range updates pc<->vc<->dc<->tc until float
