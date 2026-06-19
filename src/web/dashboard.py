@@ -2989,16 +2989,35 @@ const RS_SERIES = __SERIES__;
       document.querySelectorAll('[data-rstf]').forEach(x=>x.classList.toggle('on', x===b));
       lastAnchor=null;
       rebuild(false);
-      internalSet=true; chart.timeScale().fitContent(); internalSet=false;
-      reanchorToView();
+      applyCurRange();
       renderVals(null);
     };
   });
 
+  // --- length / range buttons (1Y/2Y/3Y/5Y/Max) — left-edge rebase, like the
+  // price chart. Years (not bar-counts) so it works across D/W/M/Q. Max = full
+  // series (default; preserves the prior behaviour). A window re-anchors the
+  // rebase to its left edge so every line starts at 100 there.
+  let lastDate=null, curRange=0;
+  for(const s of RS_SERIES) for(const p of s.level) if(lastDate===null||p.t>lastDate) lastDate=p.t;
+  function yearsAgo(d,n){ return (parseInt(d.slice(0,4),10)-n)+d.slice(4); }
+  function setRsRange(yrs){
+    curRange=yrs;
+    if(!yrs){ internalSet=true; chart.timeScale().fitContent(); internalSet=false; reanchorToView(); }
+    else { const to=lastDate, from=yearsAgo(lastDate,yrs);
+      internalSet=true; chart.timeScale().setVisibleRange({from:from,to:to});
+      const a=commonAnchor(from); lastAnchor=a; applyRebase(a); internalSet=false; }
+    renderVals(null);
+  }
+  function applyCurRange(){ setRsRange(curRange); }
+  document.querySelectorAll('[data-rsr]').forEach(b=>{
+    b.onclick=()=>{ document.querySelectorAll('[data-rsr]').forEach(x=>x.classList.toggle('on', x===b));
+      setRsRange(parseInt(b.dataset.rsr,10)); requestAnimationFrame(positionNames); };
+  });
+
   // --- boot ---------------------------------------------------------------
   rebuild(false);
-  internalSet=true; chart.timeScale().fitContent(); internalSet=false;
-  reanchorToView();
+  applyCurRange();
   renderVals(null);
   // Gutter labels need the price scale laid out (priceToCoordinate null pre-paint),
   // which lags the first frame — retry until every visible line's label is placed.
@@ -3722,6 +3741,13 @@ def dash_stock(sym: str = Query("", max_length=20),
   <button class="fbtn" data-rstf="w">Weekly</button>
   <button class="fbtn" data-rstf="m">Monthly</button>
   <button class="fbtn" data-rstf="q">Quarterly</button>
+</div>
+<div class="fbar" id="rsRangeBar">
+  <button class="fbtn" data-rsr="1">1Y</button>
+  <button class="fbtn" data-rsr="2">2Y</button>
+  <button class="fbtn" data-rsr="3">3Y</button>
+  <button class="fbtn" data-rsr="5">5Y</button>
+  <button class="fbtn on" data-rsr="0">Max</button>
 </div>
 <div class="cmp-anchor" id="rsAnchorLbl">REBASED FROM <b>start</b></div>
 <div class="chartwrap"><div style="position:relative"><div id="rsOverlayChart" style="height:300px;margin-right:104px;"></div><div id="rsNames" style="position:absolute;top:0;right:0;bottom:0;width:104px;pointer-events:none;overflow:visible;"></div></div></div>
