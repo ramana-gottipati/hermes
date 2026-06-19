@@ -704,6 +704,21 @@ def _sector_symbols(conn, sector: str) -> list:
     return [r["symbol"] for r in rows]
 
 
+def _narrow_sector(conn, sym: str):
+    """The stock's NARROWEST real sectoral index (smallest membership), from
+    stock_index_membership ∩ REAL_SECTORS. A render-time fallback for the stock
+    RS overlay when stock_signals.primary_sector isn't populated yet (e.g. mid
+    RS-recompute) — mirrors the D33b primary_sector assignment."""
+    cands = [r["index_name"] for r in conn.execute(
+        """SELECT DISTINCT index_name FROM stock_index_membership
+           WHERE symbol=? AND snapshot_date=(
+               SELECT MAX(snapshot_date) FROM stock_index_membership WHERE symbol=?)""",
+        (sym, sym)).fetchall() if r["index_name"] in REAL_SECTORS]
+    if not cands:
+        return None
+    return min(cands, key=lambda ix: len(_sector_symbols(conn, ix)) or 99999)
+
+
 # --- Routes ----------------------------------------------------------------
 
 def _rupee(v) -> str:
@@ -3582,8 +3597,18 @@ def dash_stock(sym: str = Query("", max_length=20),
             _pc = _cmp_picker(conn, L.get("trade_date"))
             valid_set = _pc["valid_set"]
             equity_set = _pc["equity_set"]
+            # Robust sector (#1): if primary_sector isn't populated yet (e.g. mid
+            # RS-recompute), derive the narrowest sectoral index from membership
+            # so the sector line + same-sector peers still show.
+            if not rs_narrow_name:
+                rs_narrow_name = _narrow_sector(conn, sym)
+            # Same-sector peer tickers for the quick-pick rail (#2).
+            sector_peers = []
+            if rs_narrow_name:
+                sector_peers = [s for s in _sector_symbols(conn, rs_narrow_name)
+                                if s != sym and s in equity_set][:18]
             # Overlay = explicit ?cmp= (index names or tickers), else the defaults:
-            # Nifty 500 + Nifty 50 + the stock's sector (if any).
+            # the stock's sector + Nifty 500 + Nifty 50.
             if cmp:
                 ov, ovseen = [], set()
                 for c in cmp:
@@ -3667,6 +3692,14 @@ def dash_stock(sym: str = Query("", max_length=20),
                        + "".join(chip_html) + add_btn + '</div>')
             so_add = ""
             if not at_cap:
+                peer_html = ""
+                if sector_peers:
+                    pchips = "".join(
+                        f'<button type="button" class="chip cmp-sugg" data-name="{_esc(p)}">+ {_esc(p)}</button>'
+                        for p in sector_peers)
+                    peer_html = (
+                        f'<div class="sub" style="margin:6px 0 4px"><b>{_esc(rs_narrow_name)}</b> peers — tap to stage:</div>'
+                        f'<div id="soPeers" class="chips" style="margin-bottom:6px">{pchips}</div>')
                 so_add = (
                     '<div id="soAddWrap" style="display:none">'
                     '<div class="search" style="margin-top:6px">'
@@ -3674,6 +3707,7 @@ def dash_stock(sym: str = Query("", max_length=20),
                     '<button class="dtx" id="soAddConfirm" type="button" disabled>Add</button></div>'
                     f'<div class="sub" style="margin:2px 0 6px">Tickers match from 2 letters, '
                     f'names from 4. Tap to stage, then <b>Add</b> (up to {_COMPARE_MAX - 1}).</div>'
+                    + peer_html +
                     '<div id="soResults" class="chips" style="margin-top:6px"></div>'
                     '</div>')
             cmp_items_json = _pc["items_json"]
@@ -5104,6 +5138,9 @@ _STOCK_CMP_PICKER_JS = """
   if(box){ let t=null; box.addEventListener('input',()=>{
     const q=box.value; if(t) clearTimeout(t);
     t=setTimeout(()=>render(search(q)),110); }); }
+  document.querySelectorAll('#soPeers .cmp-sugg').forEach(function(el){
+    if(already.has(el.dataset.name)){ el.disabled=true; el.classList.add('cmp-dim'); }
+    else wire(el); });
   refresh();
 })();
 </script>
