@@ -137,3 +137,120 @@ def build_rs_sectors_query() -> str:
         "AND s.rs_rank >= 80 AND s.primary_sector IS NOT NULL "
         "GROUP BY s.primary_sector ORDER BY c DESC, s.primary_sector LIMIT 14"
     )
+
+
+# ── fundamentals flow ────────────────────────────────────────────────────────
+# Chip tuple = (label, column, op, threshold); "" = default tier, "any" = no
+# clause. Thresholds reuse scoring.py's numbers so the screener and the 14-pattern
+# scorer never disagree. Core gates (VAL/QUAL/GROW) are STRICT (`col op ?` — a
+# missing value can't vouch for a name); BS/OWN are NULL-TOLERANT
+# (`col op ? OR col IS NULL`) so a name isn't dropped for an unscraped ratio.
+FUND_VAL = {
+    "":         ("P/E < 25",       "pe", "<", 25),
+    "deep":     ("P/E < 15",       "pe", "<", 15),
+    "growthok": ("P/E < 40",       "pe", "<", 40),
+    "any":      ("Any valuation",  None, None, None),
+}
+FUND_QUAL = {
+    "":       ("ROCE > 18%",  "roce", ">", 18),
+    "elite":  ("ROCE > 22%",  "roce", ">", 22),
+    "decent": ("ROCE > 14%",  "roce", ">", 14),
+    "any":    ("Any ROCE",    None, None, None),
+}
+FUND_GROW = {
+    "":       ("Profit 5Y > 15%",  "profit_growth_5y",  ">", 15),
+    "hyper":  ("Profit 5Y > 25%",  "profit_growth_5y",  ">", 25),
+    "recent": ("Profit TTM > 20%", "profit_growth_ttm", ">", 20),
+    "any":    ("Any growth",       None, None, None),
+}
+FUND_BS = {  # soft / NULL-tolerant
+    "":         ("D/E < 1.0",      "debt_to_equity", "<", 1.0),
+    "fortress": ("D/E < 0.5",      "debt_to_equity", "<", 0.5),
+    "levok":    ("D/E < 2.0",      "debt_to_equity", "<", 2.0),
+    "any":      ("Any leverage",   None, None, None),
+}
+FUND_OWN = {  # soft / NULL-tolerant
+    "":      ("Promoter ≥ 35%", "promoter_holding", ">=", 35),
+    "skin":  ("Promoter ≥ 50%", "promoter_holding", ">=", 50),
+    "clean": ("Pledge < 5%",    "promoter_pledge",  "<", 5),
+    "any":   ("Any ownership",  None, None, None),
+}
+FUND_SECTOR = {
+    "":    "Exclude financials",
+    "fin": "Financials only",
+    "all": "All sectors",
+}
+
+# Financials detected via membership in any financial-sector NSE index — reuses
+# the existing stock_index_membership table (no new table to seed). A heuristic,
+# but dependency-free and good enough to honor the "don't judge banks on D/E" rule.
+_FIN_SUBQUERY = (
+    "SELECT DISTINCT symbol FROM stock_index_membership WHERE "
+    "index_name LIKE '%Bank%' OR index_name LIKE '%Financ%' "
+    "OR index_name LIKE '%NBFC%' OR index_name LIKE '%Insur%'"
+)
+
+FUND_LIMIT = 60
+_FUND_OP_OK = {">", "<", ">=", "<="}
+
+# One-tap presets — fixed chip combinations (analyst spec). label + param dict.
+NAMED_SCREENS = {
+    "compounders": ("Quality compounders",
+                    {"qual": "elite", "grow": "hyper", "own": "skin", "val": "growthok"}),
+    "deepvalue":   ("Deep value",
+                    {"val": "deep", "qual": "decent", "bs": "fortress", "own": "clean", "grow": "any"}),
+    "cleangrowth": ("Clean-sheet growth",
+                    {"bs": "fortress", "own": "clean"}),
+    "qualfin":     ("Quality financials",
+                    {"sector": "fin"}),
+}
+
+
+def build_fundamentals_query(val="", qual="", grow="", bs="", sector="", own="") -> tuple[str, list]:
+    """Compile the fundamentals screen to a read-only SELECT over `fundamentals`.
+
+    Core gates (valuation/quality/growth) are strict; balance-sheet & ownership
+    are NULL-tolerant. Financials get special handling: the leverage gate is
+    dropped and the returns floor relaxed (their D/E is 6-8x by design and ROCE
+    is leverage-suppressed), and the result is ranked by ROE not ROCE.
+    """
+    where = ["f.symbol IN (SELECT symbol FROM nse_equity_list)"]
+    params: list = []
+    # Sector handling first — it can rewrite bs/qual/own for financials.
+    if sector == "fin":
+        where.append(f"f.symbol IN ({_FIN_SUBQUERY})")
+        bs = "any"                          # leverage gate off (6-8x is by design)
+        own = "any"                         # banks are often widely held — promoter gate N/A
+        if qual in ("", "elite"):
+            qual = "decent"                 # relax returns floor (judged on ROE below)
+    elif sector == "all":
+        bs = "any"                          # don't let a D/E gate delete the banks
+    else:
+        where.append(f"f.symbol NOT IN ({_FIN_SUBQUERY})")
+    # Strict core gates: valuation + growth.
+    for grp, key in [(FUND_VAL, val), (FUND_GROW, grow)]:
+        _lbl, col, op, thr = grp.get(key, grp[""])
+        if col and op in _FUND_OP_OK:
+            where.append(f"f.{col} {op} ?")
+            params.append(thr)
+    # Quality gate — ROCE normally, ROE for financials (their ROCE is leverage-suppressed).
+    _qlbl, _qcol, qop, qthr = FUND_QUAL.get(qual, FUND_QUAL[""])
+    if _qcol and qop in _FUND_OP_OK:
+        where.append(f"f.{'roe' if sector == 'fin' else 'roce'} {qop} ?")
+        params.append(qthr)
+    # Soft, NULL-tolerant gates: balance sheet + ownership.
+    for grp, key in [(FUND_BS, bs), (FUND_OWN, own)]:
+        _lbl, col, op, thr = grp.get(key, grp[""])
+        if col and op in _FUND_OP_OK:
+            where.append(f"(f.{col} {op} ? OR f.{col} IS NULL)")
+            params.append(thr)
+    order = ("f.roe DESC, (f.pe IS NULL), f.pe ASC, f.symbol" if sector == "fin"
+             else "f.roce DESC, (f.pe IS NULL), f.pe ASC, f.symbol")
+    sql = (
+        "SELECT f.symbol, f.current_price AS cmp, f.market_cap_cr, f.pe, f.roce, f.roe, "
+        "f.profit_growth_5y, f.debt_to_equity, f.promoter_holding, f.promoter_pledge "
+        "FROM fundamentals f "
+        "WHERE " + " AND ".join(where) + " "
+        "ORDER BY " + order + " LIMIT " + str(FUND_LIMIT)
+    )
+    return sql, params

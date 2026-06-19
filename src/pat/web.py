@@ -19,8 +19,9 @@ from urllib.parse import quote_plus
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
 from src.pat.flows import (
     ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN,
+    FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR, NAMED_SCREENS,
     build_accumulation_query, build_accumulation_sectors_query,
-    build_rs_query, build_rs_sectors_query,
+    build_rs_query, build_rs_sectors_query, build_fundamentals_query,
 )
 
 
@@ -131,16 +132,7 @@ AVATARS: dict[str, dict] = {
 _DEFAULT_AV = "seth"
 
 
-# The three data-backed flows — announced now, built with the engine. Each names
-# the metric behind it so the user can still learn it today via the glossary.
-_DATA_FLOWS: dict[str, dict] = {
-    "fundamentals": {
-        "label": "Screen by fundamentals",
-        "blurb": "I'll filter on valuation, returns, growth and balance-sheet "
-                 "health from the cached Screener snapshot.",
-        "behind": "fundamentals",
-    },
-}
+# (All four flows — explain · accumulation · RS · fundamentals — are live below.)
 
 
 _PAT_CSS = """
@@ -293,25 +285,6 @@ def _explain_flow(explain: str, q: str) -> str:
     return (
         _q_bubble("Which term should I explain? Tap one, or search.")
         + search + _metric_directory()
-    )
-
-
-def _data_flow(flow: str) -> str:
-    f = _DATA_FLOWS[flow]
-    behind = get(f["behind"])
-    bridge = (
-        _chip(f"/dash/pat?flow=explain&explain={f['behind']}",
-              f"Explain {behind['term']}", arrow=True)
-        if behind else ""
-    )
-    return (
-        '<a class="patBack" href="/dash/pat">← back</a>'
-        + _q_bubble(f["blurb"])
-        + _q_bubble("This data-backed flow lands next — for now I can explain any "
-                    "metric behind it.")
-        + f'<div class="patChips">{bridge}'
-        + _chip("/dash/pat?flow=explain", "Explain a metric")
-        + '</div>'
     )
 
 
@@ -523,6 +496,88 @@ def _rs_flow(conn, sector: str, strength: str, align: str) -> str:
     return "".join(out)
 
 
+# ── data flow: fundamentals screen (live, read-only over `fundamentals`) ─────
+
+def _pc(v, d=1) -> str:
+    return f"{v:,.{d}f}%" if v is not None else '<span class="mut">—</span>'
+
+
+def _fund_url(val="", qual="", grow="", bs="", sector="", own="") -> str:
+    qs = ["flow=fundamentals"]
+    for k, v in (("val", val), ("qual", qual), ("grow", grow), ("bs", bs),
+                 ("sector", sector), ("own", own)):
+        if v:
+            qs.append(f"{k}={_u(v)}")
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _fund_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>MCap ₹Cr</th><th>P/E</th><th>ROCE</th>'
+            '<th>ROE</th><th>Profit 5Y</th><th>D/E</th><th>Promoter</th><th>Pledge</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_n(r["market_cap_cr"], 0)}</td>'
+            f'<td>{_n(r["pe"], 1)}</td>'
+            f'<td>{_pc(r["roce"])}</td>'
+            f'<td>{_pc(r["roe"])}</td>'
+            f'<td>{_pc(r["profit_growth_5y"])}</td>'
+            f'<td>{_n(r["debt_to_equity"], 2)}</td>'
+            f'<td>{_pc(r["promoter_holding"])}</td>'
+            f'<td>{_pc(r["promoter_pledge"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _fundamentals_flow(conn, val, qual, grow, bs, sector, own) -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("Screen by fundamentals — from the cached Screener snapshot (the "
+                  "surfaced set, not the whole market). Best of it, ranked by ROCE:"),
+        '<div class="ghdr">Presets</div><div class="patChips">',
+    ]
+    for _key, (label, params) in NAMED_SCREENS.items():
+        out.append(_chip(_fund_url(**params), label, arrow=True))
+    out.append('</div>')
+
+    cur = {"val": val, "qual": qual, "grow": grow, "bs": bs, "sector": sector, "own": own}
+    groups = [("Valuation", FUND_VAL, "val", val), ("Quality", FUND_QUAL, "qual", qual),
+              ("Growth", FUND_GROW, "grow", grow), ("Balance sheet", FUND_BS, "bs", bs),
+              ("Ownership", FUND_OWN, "own", own)]
+    for glabel, grp, pkey, pval in groups:
+        out.append(f'<div class="ghdr">{glabel}</div><div class="patChips">')
+        for key, tup in grp.items():
+            params = dict(cur)
+            params[pkey] = key
+            out.append(_chip_sel(_fund_url(**params), tup[0], key == pval))
+        out.append('</div>')
+    out.append('<div class="ghdr">Sector</div><div class="patChips">')
+    for key, lbl in FUND_SECTOR.items():
+        params = dict(cur)
+        params["sector"] = key
+        out.append(_chip_sel(_fund_url(**params), lbl, key == sector))
+    out.append('</div>')
+
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, qp = build_fundamentals_query(val, qual, grow, bs, sector, own)
+        rows = list(conn.execute(sql, qp))
+    except Exception:
+        rows = []
+    out.append(f'<div class="ghdr">Matches ({len(rows)})</div>')
+    out.append(_fund_table(rows) if rows
+               else '<div class="empty">No names match — loosen the filters (the cached set is small).</div>')
+    return "".join(out)
+
+
 def _home() -> str:
     chips = [
         _chip("/dash/pat?flow=explain", "Explain a metric", arrow=True),
@@ -538,6 +593,7 @@ def _home() -> str:
 
 def render_pat(flow: str = "", explain: str = "", q: str = "",
                sector: str = "", strength: str = "", entry: str = "", align: str = "",
+               val: str = "", qual: str = "", grow: str = "", bs: str = "", own: str = "",
                conn=None) -> str:
     """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn)."""
     flow = (flow or "").strip().lower()
@@ -554,8 +610,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _accumulation_flow(conn, sector, strength, (entry or "").strip().lower())
     elif flow == "rs":
         body = _rs_flow(conn, sector, strength, (align or "").strip().lower())
-    elif flow in _DATA_FLOWS:
-        body = _data_flow(flow)
+    elif flow == "fundamentals":
+        body = _fundamentals_flow(conn, (val or "").strip().lower(), (qual or "").strip().lower(),
+                                  (grow or "").strip().lower(), (bs or "").strip().lower(),
+                                  sector, (own or "").strip().lower())
     else:
         body = _home()
 
