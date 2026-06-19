@@ -3815,6 +3815,12 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 {inertia_html}
 {character_html}
 
+<div class="fbar" id="ivBar">
+  <button class="fbtn on" data-ptf="d">Daily</button>
+  <button class="fbtn" data-ptf="w">Weekly</button>
+  <button class="fbtn" data-ptf="m">Monthly</button>
+  <button class="fbtn" data-ptf="q">Quarterly</button>
+</div>
 <div class="rangebar">
   <button data-r="63">3M</button>
   <button data-r="126">6M</button>
@@ -3894,7 +3900,7 @@ const DATA = {data_json};
   // percentile of traded value; spike days clip at the top + get an amber ▲
   // marker (exact value still on hover). Uniform stocks: cap ~= max, no clip.
   const _tv=S.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
-  const tvCap=_tv.length?_tv[Math.min(_tv.length-1,Math.floor(_tv.length*0.98))]:0;
+  let tvCap=_tv.length?_tv[Math.min(_tv.length-1,Math.floor(_tv.length*0.98))]:0;
   const _cap=()=>({{priceRange:{{minValue:0,maxValue:tvCap||1}}}});
   const tval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#30363d',autoscaleInfoProvider:_cap}});
   tval.setData(S.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
@@ -3935,6 +3941,56 @@ const DATA = {data_json};
     b.onclick=()=>{{ document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setRange(parseInt(b.dataset.r)); }};
   }});
   setRange(0);
+
+  // --- D/W/M/Q interval toggle (resample ALL 4 panes together so they stay
+  // synced; client-side, no MTF dependency). Candle = OHLC; DVPT pane = the
+  // period's PEAK day (NOT an average — true period DVPT is the MTF engine's
+  // job, doctrine D43-B); delivery % = period mean; traded/delivery value =
+  // period sum (the y-cap recomputes per interval). Zone lines are horizontal,
+  // so they're untouched by the interval.
+  function isoWeekKey(s){{ const d=new Date(s+'T00:00:00Z'); const jd=(d.getUTCDay()+6)%7;
+    d.setUTCDate(d.getUTCDate()-jd+3); const iy=d.getUTCFullYear();
+    const j4=new Date(Date.UTC(iy,0,4)); const j4d=(j4.getUTCDay()+6)%7;
+    j4.setUTCDate(j4.getUTCDate()-j4d+3); const wk=1+Math.round((d-j4)/(7*86400000));
+    return iy+'-W'+('0'+wk).slice(-2); }}
+  function pkey(s,tf){{ if(tf==='w') return isoWeekKey(s); if(tf==='m') return s.slice(0,7);
+    if(tf==='q'){{ const y=s.slice(0,4),mo=parseInt(s.slice(5,7),10); return y+'-Q'+(Math.floor((mo-1)/3)+1); }}
+    return s; }}
+  function resampleBars(tf){{
+    const mk=d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close,dvpt:(d.dvpt||0),
+      hot:(d.r1m!=null&&d.r1m>1),delivSum:(d.deliv!=null?d.deliv:0),delivN:(d.deliv!=null?1:0),
+      tval:(d.tval||0),dval:(d.dval||0)}});
+    if(tf==='d') return S.map(mk);
+    const out=[]; let k=null,c=null;
+    for(const d of S){{ const kk=pkey(d.time,tf);
+      if(kk!==k){{ if(c) out.push(c); k=kk; c=mk(d); }}
+      else {{ c.high=Math.max(c.high,d.high); c.low=Math.min(c.low,d.low); c.close=d.close; c.time=d.time;
+        if((d.dvpt||0)>c.dvpt) c.dvpt=d.dvpt||0; if(d.r1m!=null&&d.r1m>1) c.hot=true;
+        if(d.deliv!=null){{ c.delivSum+=d.deliv; c.delivN++; }}
+        c.tval+=(d.tval||0); c.dval+=(d.dval||0); }}
+    }}
+    if(c) out.push(c);
+    return out;
+  }}
+  function setIv(tf){{
+    const R=resampleBars(tf);
+    syncing=true;
+    candle.setData(R.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
+    dvpt.setData(R.map(d=>({{time:d.time,value:d.dvpt,color:d.hot?'#d29922':'#30506b'}})));
+    deliv.setData(R.filter(d=>d.delivN>0).map(d=>({{time:d.time,value:d.delivSum/d.delivN}})));
+    const tv=R.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
+    tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
+    tval.setData(R.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
+    dval.setData(R.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
+    tval.setMarkers(tvCap>0?R.filter(d=>d.tval!=null&&d.tval>tvCap).map(d=>({{time:d.time,position:'aboveBar',color:'#d29922',shape:'arrowUp'}})):[]);
+    syncing=false;
+  }}
+  document.querySelectorAll('[data-ptf]').forEach(b=>{{
+    b.onclick=()=>{{ document.querySelectorAll('[data-ptf]').forEach(x=>x.classList.toggle('on', x===b));
+      setIv(b.dataset.ptf);
+      const rb=document.querySelector('.rangebar button.on'); setRange(rb?parseInt(rb.dataset.r):0); }};
+  }});
+
   // Debounced ResizeObserver: coalesce bursts (~100ms) and skip while syncing.
   let rzT=null;
   new ResizeObserver(()=>{{
