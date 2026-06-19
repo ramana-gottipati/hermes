@@ -173,7 +173,8 @@ _PAT_CSS = """
 .patBack:hover{color:#cdd9e5;}
 .patChip.on{border-color:#3fb950;color:#fff;background:#16341f;}
 .patTable{overflow-x:auto;margin-top:2px;}
-.patTable table{min-width:660px;}
+.patTable table{min-width:660px;font-variant-numeric:tabular-nums;}
+.patTable table.dt .dttool{margin:0 0 8px;}
 </style>
 """
 
@@ -368,7 +369,7 @@ def _acc_url(sector: str, strength: str, entry: str) -> str:
 
 
 def _acc_table(rows) -> str:
-    head = ('<div class="patTable"><table><thead><tr>'
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
             '<th>Symbol</th><th>CMP</th><th>Rank</th><th>p/r</th><th>Character</th>'
             '<th>Δ hot%</th><th>key gap%</th><th>52w%</th><th>RS</th>'
             '<th>Sector</th><th>Deliv ₹Cr</th></tr></thead><tbody>')
@@ -456,7 +457,7 @@ def _rs_url(sector: str, strength: str, align: str) -> str:
 
 
 def _rs_table(rows) -> str:
-    head = ('<div class="patTable"><table><thead><tr>'
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
             '<th>Symbol</th><th>CMP</th><th>RS</th><th>RS 3m</th><th>vs broad</th>'
             '<th>vs sector</th><th>SiS</th><th>Sector</th><th>Pos</th><th>Character</th>'
             '</tr></thead><tbody>')
