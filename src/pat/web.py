@@ -579,6 +579,11 @@ def _fundamentals_flow(conn, val, qual, grow, bs, sector, own) -> str:
 
 
 def _home() -> str:
+    search = (
+        '<form class="search" action="/dash/pat" method="get" autocomplete="off">'
+        '<input name="q" placeholder="ask in plain English — e.g. cheap IT stocks being accumulated"/>'
+        '<button>Ask</button></form>'
+    )
     chips = [
         _chip("/dash/pat?flow=explain", "Explain a metric", arrow=True),
         _chip("/dash/pat?flow=accumulation", "Accumulation setups", arrow=True),
@@ -586,9 +591,46 @@ def _home() -> str:
         _chip("/dash/pat?flow=fundamentals", "Screen by fundamentals", arrow=True),
     ]
     return (
-        _q_bubble("What are you looking for today?")
+        search
+        + _q_bubble("Ask me in plain English above — or tap a flow:")
         + f'<div class="patChips">{"".join(chips)}</div>'
     )
+
+
+_FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
+               "fundamentals": "Screen by fundamentals"}
+
+
+def _free_text(conn, q: str) -> str:
+    """A typed question with no explicit flow → Gemini routes it to a flow + chip
+    params (via src.pat.engine); falls back to the deterministic glossary search
+    if the engine declines or is unavailable."""
+    sel = None
+    try:
+        from src.pat.engine import route as _route
+        sel = _route(q, conn)
+    except Exception:
+        sel = None
+    if sel and sel.get("flow"):
+        f = sel["flow"]
+        if f == "explain" and sel.get("explain") and get(sel["explain"]):
+            e = get(sel["explain"])
+            return (_q_bubble(f'I read "{_esc(q)}" as → explain {e["term"]}.')
+                    + _answer(sel["explain"], e))
+        p = sel.get("params", {})
+        body = None
+        if f == "accumulation":
+            body = _accumulation_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("entry", ""))
+        elif f == "rs":
+            body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""))
+        elif f == "fundamentals":
+            body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
+                                      p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
+        if body is not None:
+            note = _q_bubble(f'I read "{_esc(q)}" as → {_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
+            return note + body
+    # fallback — deterministic glossary keyword search (today's behavior).
+    return _explain_flow("", q)
 
 
 def render_pat(flow: str = "", explain: str = "", q: str = "",
@@ -614,6 +656,8 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _fundamentals_flow(conn, (val or "").strip().lower(), (qual or "").strip().lower(),
                                   (grow or "").strip().lower(), (bs or "").strip().lower(),
                                   sector, (own or "").strip().lower())
+    elif q:
+        body = _free_text(conn, q)
     else:
         body = _home()
 
