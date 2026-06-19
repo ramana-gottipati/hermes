@@ -2936,10 +2936,18 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   }
 
   // --- fluid anchor: recompute on pan, rAF-coalesced + anchor-gated --------
-  let raf=null, internalSet=false, lastAnchor=null;
+  let raf=null, internalSet=false, lastAnchor=null, userInteracted=false;
+  // Fluid re-anchor must respond ONLY to genuine user panning — never to the
+  // layout-settling range-change events that fire during the first paint. Those
+  // boot events would otherwise override the deterministic left-edge anchor with
+  // a transient mid-window date (the "rebased mid-window on load" bug). Mark when
+  // the user actually drives the chart so settle-time events stay inert.
+  ['wheel','pointerdown','mousedown','touchstart'].forEach(ev=>
+    host.addEventListener(ev,()=>{ userInteracted=true; },{passive:true,capture:true}));
   function scheduleRebase(from){
     if (pinned!==null) return;          // pinned anchor ignores panning
     if (internalSet) return;            // our own setData/ setVisibleRange
+    if (!userInteracted) return;        // boot/layout settle (no pan) → keep edge anchor
     if (raf) return;
     raf=requestAnimationFrame(()=>{
       raf=null;
@@ -3057,6 +3065,16 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
   internalSet=true; applyRebase(null); internalSet=false;
   setRange(CRANGE0);          // applies the window AND rebases to its known left edge
   renderVals(null);
+  // Gutter name labels need the price scale laid out — priceToCoordinate returns
+  // null until the first paint settles, so a single boot call renders nothing.
+  // Retry across a few frames until every visible line's label is placed.
+  (function ensureNames(tries){
+    positionNames();
+    const cont=document.getElementById('cmpNames');
+    const want=lines.filter(l=>{ const d=l.ls.data(); return d&&d.length; }).length;
+    if (cont && cont.children.length<want && tries>0)
+      requestAnimationFrame(()=>ensureNames(tries-1));
+  })(20);
 
   // Name labels in the right gutter, each aligned to its line's last-value pixel
   // (value badge stays on the axis; the name sits just outside it). Nearby labels
