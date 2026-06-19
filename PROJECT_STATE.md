@@ -234,7 +234,8 @@ D:\Hermes\                                          ← local working copy of re
 │   └── pat\                                          ← "Pat" NL guided-search tab (D55) — Gemini-only, web not Telegram
 │       ├── __init__.py
 │       ├── glossary.py                               ← Pat's data dictionary (grounding asset; 39 terms / 7 families)
-│       └── web.py                                    ← /dash/pat render: persona + 6 avatars + live Explain-a-metric flow
+│       ├── flows.py                                  ← read-only SQL templates compiled from chips (accumulation flow live)
+│       └── web.py                                    ← /dash/pat render: persona + 6 avatars + Explain-a-metric + accumulation flow
 ├── resources\patearn\                              ← copy of patearn skill files (used by patearn.py)
 │   ├── SKILL.md
 │   ├── patterns.md
@@ -397,7 +398,7 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 | **`/dash/watchlists`** | **D54 — the lightweight idea tier** (`status='watch'`): symbol + strategy + note + LIVE signal chips + **Promote**-to-portfolio / Remove | **D54** |
 | **`/dash/tracker`** | **D54 — how tracked ideas performed:** open MTM, **hit-rate by strategy** (closed) bars, **avg excess vs Nifty 500**, avg hold — pure SQL/point-lookups; honest empty-states until trades close | **D54** |
 | **POST `/dash/track` · `/track/close` · `/track/promote` · `/track/remove`** | **D54 — capture + lifecycle (the dashboard's only writes).** `/track` freezes the as-of-day snapshot SERVER-side (entry = latest close); the rest manage `status` | **D54** |
-| **`/dash/pat?flow=&explain=&q=`** | **D55 — "Pat", the natural-language guided-search tab.** Persona + 6 selectable Indianised avatars (localStorage); the **Explain-a-metric** flow is live + DB-free (search/tap the glossary, family-grouped, related-link chaining). Free-text uses the deterministic `find()` fallback until the Gemini engine lands; data flows (accumulation/RS/fundamentals) announced, not yet built. **Gemini-Flash-only, never Claude.** Render in `src/pat/web.py` | **D55** |
+| **`/dash/pat?flow=&explain=&q=&sector=&strength=&entry=`** | **D55 — "Pat", the natural-language guided-search tab.** Persona + 6 selectable Indianised avatars (localStorage). **Explain-a-metric** (search/tap the glossary, family-grouped, related-link chaining) + the **Accumulation-setups data flow** — chips (strength/entry/sector) compile to a read-only parameterized SELECT over `stock_signals` (ACCUMULATION character + active strong hand), rendered data-first (raw values beside pills). RS + fundamentals flows announced, not yet built. Free-text uses the deterministic `find()` fallback until the Gemini engine lands. **Gemini-Flash-only, never Claude.** `src/pat/web.py` + `flows.py` | **D55** |
 | `/dash/scan` | D28/D31 layered-triggers table (working orphan — kept, not in nav) | D33-web |
 | `/dash/offline` · `/manifest.webmanifest` · `/sw.js` · `/icon.svg` | PWA shell — offline fallback, install manifest, network-first service worker, icon | D33-web |
 
@@ -449,7 +450,9 @@ Ramana asked for "an AI chatbot on my data, in plain English, in this tool" — 
 
 **Phase 1 shipped (DB-free, verified):** `/dash/pat` tab + avatar picker + the **Explain-a-metric** flow (search + tap, family-grouped, related-link chaining). `src/pat/{__init__,glossary,web}.py` + 4 wirings in `dashboard.py` (import · `Pat` nav tab · `_WS` · route). Verified: `py_compile` clean; the real FastAPI route returns **200** through `_shell`; `explain=p_score` renders the detail. Glossary = **39 terms / 7 families**.
 
-**Open (see § What's NOT yet built):** the 3 data flows need SQL templates + a query compiler; the **Gemini free-text engine** (today = deterministic `find()` fallback); `pt14` glossary entry summarized pending `scoring.py`; **deploy must carry `src/pat/`** or `hermes-api` crashes (dashboard.py now imports `src.pat.web`). Memory: [[patearn-brand-and-dvpt-direction]].
+**Phase 1b shipped:** the **accumulation data flow** is now live — `flows.build_accumulation_query()` compiles the strength/entry/sector chips into a read-only parameterized SELECT over `stock_signals` (ACCUMULATION + active strong hand, equity-only, latest date), rendered data-first (raw values beside rank/character pills, CMP via `prices_eq`). Synthetic-DB verified (filters compose, no leak; real route 200 with rows).
+
+**Open (see § What's NOT yet built):** the RS + fundamentals flows; the **Gemini free-text engine** (today = deterministic `find()` fallback); `pt14` glossary entry summarized pending `scoring.py`; **deploy must carry `src/pat/`** or `hermes-api` crashes (dashboard.py now imports `src.pat.web`). Memory: [[patearn-brand-and-dvpt-direction]].
 
 ### D54 — UI revamp (session 22, design-first): Phase 1 = the strategy → watchlist → portfolio ACTION LOOP — SHIPPED (2026-06-19)
 
@@ -1007,7 +1010,7 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ### 🤖 PAT — the natural-language guided-search assistant (D55, Phase 1 shipped session 23)
 Tab is LIVE (`/dash/pat`) with the persona + 6 avatars + the DB-free **Explain-a-metric** flow. Remaining:
-1. **The 3 data flows** — accumulation / RS-leaders / fundamentals: each needs its chip→parameter tree + a deterministic **template-SQL compiler** (read-only over `stock_signals`/`fundamentals`). The tap path stays ₹0 (no LLM).
+1. **Data flows** — ✅ **accumulation SHIPPED** (`flows.build_accumulation_query`; chips strength/entry/sector → read-only SELECT over `stock_signals`). **RS-leaders + fundamentals** remain: each needs its chip→parameter tree + template-SQL compiler (RS over `stock_signals` rs_*; fundamentals over `fundamentals`). Tap path stays ₹0 (no LLM).
 2. **The Gemini free-text engine** — map a typed question → flow + parameters via Gemini Flash (`src/core/llm_router`); today free-text falls back to the deterministic `find()` keyword match (works, but shallow). Gemini also phrases glossary entries conversationally.
 3. **Tighten the `pt14` glossary entry** from `scoring.py` (currently summarized — `pws`/`ns_*`/`pac`/`tier` components not individually defined).
 4. **Deploy wiring** — the one-line `scp dashboard.py` deploy must now ALSO carry `src/pat/` (dashboard.py imports `src.pat.web`); fold `src/pat/` into `setup-news.sh`/the deploy step or `hermes-api` fails to boot.
@@ -1147,10 +1150,11 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 **Shipped (additive, zero regression, DB-free):**
 - **`src/pat/glossary.py`** — Pat's data dictionary / grounding asset: **39 terms across 7 families** (basics · positioning/DVPT · character · RS · structure/CPR · quality · concepts), each with plain + detail + real `table.column` source + aliases + related cross-links; tiny dependency-free `get`/`find`/`family` helpers. The honest reframe: "train on our data" = **ground** on a glossary, not fine-tune.
 - **`src/pat/web.py`** — the `/dash/pat` body: persona hero + **6 selectable Indianised avatars** (Seth/Rao/Singh/Chai/Lakshmi/Nandi, self-contained SVG, persisted in localStorage) + the live **Explain-a-metric** flow (search + family-grouped chips + related-link chaining), themed to the dark shell. The 3 data flows are announced (need SQL templates).
-- **`src/web/dashboard.py`** — 4 wirings: `from src.pat.web import render_pat`, the **Pat** nav tab, `_WS["pat"]`, and `@router.get("/dash/pat")`.
-**Verified:** `py_compile` clean (4 files); every glossary cross-link + family resolves; `find()` ranks sensibly ("cheap stock near big money cost" → key-price); the **real** FastAPI route `/dash/pat` returns **200** through `_shell` (TestClient), nav shows Pat, `explain=p_score` renders the detail.
+- **`src/web/dashboard.py`** — 4 wirings: `from src.pat.web import render_pat`, the **Pat** nav tab, `_WS["pat"]`, and `@router.get("/dash/pat")` (now opens `with get_conn() as conn` + passes the chip params).
+- **`src/pat/flows.py`** (added later same session) — the first **data flow**: `build_accumulation_query()` compiles the strength/entry/sector chips to a read-only, parameterized SELECT over `stock_signals` (ACCUMULATION + active strong hand, equity-only, latest date); rendered data-first (raw values beside rank/character pills, CMP via `prices_eq`).
+**Verified:** `py_compile` clean; every glossary cross-link + family resolves; `find()` ranks sensibly; the accumulation query is SELECT-only + fully parameterized; on a synthetic DB the filters narrow correctly (default 3 → IT 2 → SS 1 → discount 1), character/universe filters don't leak, and the **real** FastAPI route returns **200 with rows** through `_shell` (TestClient, `get_conn` patched) — nav shows Pat, `explain=p_score` renders the detail.
 **⚠ Deploy:** must carry `src/pat/` (dashboard.py now imports it) — NOT yet deployed to VPS. **NOT yet pushed.**
-**NEXT:** the 3 data-flow SQL templates → the Gemini free-text engine; tighten `pt14` from `scoring.py`; fold `src/pat/` into the deploy.
+**NEXT:** the **RS + fundamentals** data flows (same template pattern) → the Gemini free-text engine; tighten `pt14` from `scoring.py`; fold `src/pat/` into the deploy.
 
 ### Session 22 — 2026-06-19/20 — D54 UI revamp: Phase 1 ACTION LOOP + stock-page live-trial fixes — SHIPPED, deployed, no-regression
 The dedicated UI/UX redesign session (planned "Session 1", `docs/ui-design.md §14`). Boot → **5-agent design panel** (UI/UX · IA · analyst · data · design-researcher, parallel) → pivotal calls as **multiple-choice-with-recommendations**; Ramana picked **action-loop first · two-tier+frozen-snapshot · per-stock-news+static-strip · attach-don't-grow-nav** → **visualize stencils** establishing the **"instrument"** aesthetic (inline static SVG/CSS micro-viz, evidence-beside-verdict — nav frame · action capture · portfolio/tracker · the dense instrument screener · hover-help popover · stock decision masthead · comparison · per-stock news; approved "perfect") → built Phase 1.

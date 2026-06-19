@@ -210,13 +210,15 @@ table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
 .mv{vertical-align:middle;display:inline-block;}
 table.scr td.inst{padding:3px 8px 3px 10px;}
 .kt-in{color:#3fb950;} .kt-ext{color:#d29922;} .kt-disc{color:#58a6ff;}
-/* NOTE on virtualization (perf hand-off Step 2): the default universe is a
-   capped 498–600 rows, NOT the 54k-cell worst case, so the SVG-per-row grid
-   ships light on the cap + gzip alone. `content-visibility:auto` was trialled
-   here but pulled — under this grid's `min-width:max-content` (auto) layout,
-   size-containment on skipped rows can jitter column widths on scroll. If the
-   eyeball shows scroll lag, do it properly (table-layout:fixed + explicit
-   widths, or JS windowing). Per ui-design §10 + Doctrine B: not pre-emptively. */
+/* Row windowing (perf hand-off Step 2) — Ramana confirmed the 498-row × 4-SVG
+   grid scrolls heavy, so the browser now skips layout+paint of OFF-SCREEN rows.
+   `contain-intrinsic-size:auto` makes it REMEMBER each row's real size once seen,
+   so the scrollbar stays stable. The column-width jitter that first made me defer
+   this is killed by pinning the frozen Symbol column + flooring numeric cells, so
+   widths can't shift as rows page in. All additive CSS, reversible. */
+table.scr tbody tr{content-visibility:auto;contain-intrinsic-size:auto 34px;}
+table.scr .fz{width:116px;min-width:116px;max-width:116px;overflow:hidden;text-overflow:ellipsis;}
+table.scr td.num,table.scr th.num{min-width:46px;}
 """
 
 
@@ -1222,9 +1224,12 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
 
 
 @router.get("/dash/pat", response_class=HTMLResponse)
-def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query("")):
+def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query(""),
+             sector: str = Query(""), strength: str = Query(""), entry: str = Query("")):
     """Pat — natural-language guided search + the data glossary (src/pat)."""
-    body = render_pat(flow=flow, explain=explain, q=q)
+    with get_conn() as conn:
+        body = render_pat(flow=flow, explain=explain, q=q,
+                          sector=sector, strength=strength, entry=entry, conn=conn)
     return HTMLResponse(_shell("Pat — patearn", body, "pat"))
 
 

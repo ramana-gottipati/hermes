@@ -14,7 +14,13 @@ they need the SQL templates, which land with the engine.
 
 from __future__ import annotations
 
+from urllib.parse import quote_plus
+
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
+from src.pat.flows import (
+    ACC_STRENGTH, ACC_ENTRY,
+    build_accumulation_query, build_accumulation_sectors_query,
+)
 
 
 def _esc(s) -> str:
@@ -127,12 +133,6 @@ _DEFAULT_AV = "seth"
 # The three data-backed flows — announced now, built with the engine. Each names
 # the metric behind it so the user can still learn it today via the glossary.
 _DATA_FLOWS: dict[str, dict] = {
-    "accumulation": {
-        "label": "Accumulation setups",
-        "blurb": "I'll find names where a strong hand is active (high p_score) AND "
-                 "the character reads accumulation, near a discount entry.",
-        "behind": "accum_character",
-    },
     "rs": {
         "label": "RS leaders by sector",
         "blurb": "I'll rank the strong-in-strong names — high relative strength "
@@ -176,6 +176,9 @@ _PAT_CSS = """
          border-top:1px solid #21262d;padding-top:8px;margin-top:2px;}
 .patBack{display:inline-block;margin:0 0 12px;color:#8b949e;font-size:12px;text-decoration:none;}
 .patBack:hover{color:#cdd9e5;}
+.patChip.on{border-color:#3fb950;color:#fff;background:#16341f;}
+.patTable{overflow-x:auto;margin-top:2px;}
+.patTable table{min-width:660px;}
 </style>
 """
 
@@ -316,6 +319,126 @@ def _data_flow(flow: str) -> str:
     )
 
 
+# ── data flow: accumulation setups (live, read-only over stock_signals) ──────
+
+def _u(s) -> str:
+    return quote_plus(str(s) if s is not None else "")
+
+
+def _int(v) -> str:
+    return str(int(v)) if v is not None else '<span class="mut">—</span>'
+
+
+def _n(v, d=2) -> str:
+    return f"{v:,.{d}f}" if v is not None else '<span class="mut">—</span>'
+
+
+def _sgn(v, d=1) -> str:
+    if v is None:
+        return '<span class="mut">—</span>'
+    cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
+    return f'<span class="{cls}">{v:+.{d}f}%</span>'
+
+
+def _cr(v) -> str:
+    return f"{v / 1e7:,.1f}" if v is not None else '<span class="mut">—</span>'
+
+
+def _rank_pill(rank) -> str:
+    if not rank:
+        return '<span class="mut">—</span>'
+    return f'<span class="pill p-{_esc(rank)}">{_esc(rank)}</span>'
+
+
+def _char_pill(c) -> str:
+    short = {"ACCUMULATION": ("ACC", "ca-acc"), "DISTRIBUTION": ("DIST", "ca-dist"),
+             "CONSOLIDATION": ("CONS", "ca-cons"), "NEUTRAL": ("NEU", "ca-neu")}
+    lbl, cls = short.get(c or "", (c or "—", "ca-neu"))
+    return f'<span class="pill {cls}">{_esc(lbl)}</span>'
+
+
+def _chip_sel(href: str, label: str, active: bool) -> str:
+    return f'<a class="{"patChip on" if active else "patChip"}" href="{href}">{_esc(label)}</a>'
+
+
+def _acc_url(sector: str, strength: str, entry: str) -> str:
+    qs = ["flow=accumulation"]
+    if sector:
+        qs.append("sector=" + _u(sector))
+    if strength:
+        qs.append("strength=" + _u(strength))
+    if entry:
+        qs.append("entry=" + _u(entry))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _acc_table(rows) -> str:
+    head = ('<div class="patTable"><table><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>Rank</th><th>p/r</th><th>Character</th>'
+            '<th>Δ hot%</th><th>key gap%</th><th>52w%</th><th>RS</th>'
+            '<th>Sector</th><th>Deliv ₹Cr</th></tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_rank_pill(r["trigger_rank"])}</td>'
+            f'<td>{_int(r["p_score"])}/{_int(r["r_score"])}</td>'
+            f'<td>{_char_pill(r["accum_character"])}</td>'
+            f'<td>{_sgn(r["price_vs_hot_avg_pct"])}</td>'
+            f'<td>{_sgn(r["gap_to_key_p3m"])}</td>'
+            f'<td>{_sgn(r["pct_from_52w_high"])}</td>'
+            f'<td>{_int(r["rs_rank"])}</td>'
+            f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
+            f'<td>{_cr(r["delivery_value_today"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _accumulation_flow(conn, sector: str, strength: str, entry: str) -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("Accumulation setups — a strong hand active AND the character "
+                  "reading accumulation. Take it as-is, or narrow it:"),
+        '<div class="ghdr">Strength</div><div class="patChips">',
+    ]
+    for key, (lbl, _p) in ACC_STRENGTH.items():
+        out.append(_chip_sel(_acc_url(sector, key, entry), lbl, key == strength))
+    out.append('</div><div class="ghdr">Entry</div><div class="patChips">')
+    for key, lbl in ACC_ENTRY.items():
+        out.append(_chip_sel(_acc_url(sector, strength, key), lbl, key == entry))
+    out.append('</div>')
+
+    sectors = []
+    if conn is not None:
+        try:
+            sectors = list(conn.execute(build_accumulation_sectors_query()))
+        except Exception:
+            sectors = []
+    out.append('<div class="ghdr">Sector</div><div class="patChips">')
+    out.append(_chip_sel(_acc_url("", strength, entry), "All sectors", sector == ""))
+    for r in sectors:
+        out.append(_chip_sel(_acc_url(r["sector"], strength, entry),
+                             f'{r["sector"]} ({r["c"]})', sector == r["sector"]))
+    out.append('</div>')
+
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_accumulation_query(sector, strength, entry)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    tag = f' · {_esc(sector)}' if sector else ''
+    out.append(f'<div class="ghdr">Matches{tag} ({len(rows)})</div>')
+    out.append(_acc_table(rows) if rows
+               else '<div class="empty">No accumulation setups match — loosen the filters.</div>')
+    return "".join(out)
+
+
 def _home() -> str:
     chips = [
         _chip("/dash/pat?flow=explain", "Explain a metric", arrow=True),
@@ -329,8 +452,10 @@ def _home() -> str:
     )
 
 
-def render_pat(flow: str = "", explain: str = "", q: str = "") -> str:
-    """Build the inner HTML for /dash/pat from the (flow, explain, q) params."""
+def render_pat(flow: str = "", explain: str = "", q: str = "",
+               sector: str = "", strength: str = "", entry: str = "",
+               conn=None) -> str:
+    """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn)."""
     flow = (flow or "").strip().lower()
     explain = (explain or "").strip()
     q = (q or "").strip()
@@ -339,6 +464,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "") -> str:
         body = _explain_flow(explain, q)
     elif flow == "explain":
         body = _explain_flow(explain, q)
+    elif flow == "accumulation":
+        body = _accumulation_flow(conn, (sector or "").strip(),
+                                  (strength or "").strip().lower(),
+                                  (entry or "").strip().lower())
     elif flow in _DATA_FLOWS:
         body = _data_flow(flow)
     else:
