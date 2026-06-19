@@ -3889,10 +3889,21 @@ const DATA = {data_json};
   // ON TOP in a brighter colour. Since delivery ₹ ≤ turnover ₹, the bright bar
   // sits WITHIN the muted bar (both start at 0, overlaid not stacked-additive),
   // so the bright fraction = the delivered share of the day's turnover.
-  const tval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#30363d'}});
+  // Option A — robust y-cap so a rare institutional spike (100-800x a normal
+  // day) can't crush every normal day to a sliver. Cap the axis at ~the 98th
+  // percentile of traded value; spike days clip at the top + get an amber ▲
+  // marker (exact value still on hover). Uniform stocks: cap ~= max, no clip.
+  const _tv=S.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
+  const tvCap=_tv.length?_tv[Math.min(_tv.length-1,Math.floor(_tv.length*0.98))]:0;
+  const _cap=()=>({{priceRange:{{minValue:0,maxValue:tvCap||1}}}});
+  const tval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#30363d',autoscaleInfoProvider:_cap}});
   tval.setData(S.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
-  const dval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#2ea043'}});
+  const dval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#2ea043',autoscaleInfoProvider:_cap}});
   dval.setData(S.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
+  if(tvCap>0){{
+    const _mk=S.filter(d=>d.tval!=null&&d.tval>tvCap).map(d=>({{time:d.time,position:'aboveBar',color:'#d29922',shape:'arrowUp'}}));
+    if(_mk.length) tval.setMarkers(_mk);
+  }}
 
   // Sync time scales across the four charts. A reentrancy guard stops a
   // range click from ping-ponging range updates pc<->vc<->dc<->tc until float
