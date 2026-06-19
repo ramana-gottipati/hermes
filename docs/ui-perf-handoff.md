@@ -1,5 +1,7 @@
 # Performance hand-off → the UI/UX (D54) session
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the UI session has shipped or folded **every** item in the Execution sequence (Steps 1–5). It's a pure to-do list — nothing durable to migrate first; git history keeps the file. **Not a running doc** (those are PROJECT_STATE.md, ui-design.md, the *-design.md set).
+
 > **From:** the data/performance session (2026-06-19). **To:** the agents building the D54 UI revamp (`docs/ui-design.md`).
 > **Why this doc exists:** a parallel performance pass diagnosed why the dashboard hiccups. The fixes split cleanly in two. The **render-layer** items below all live in `src/web/dashboard.py` — *your* file — so they are handed to you as todo-pointers rather than edited from under you (two sessions sharing one working tree is a known hazard, PROJECT_STATE session-19 note). The **backend/data** items are being worked separately — see `docs/perf-architecture.md`.
 > **This fills in `ui-design.md` § 10 (lightness / performance budget) with concrete, code-grounded actions.** Every item is **additive and no-regression** — it matches D-UI-3 (server-render + vanilla JS, no SPA) and D-UI-4 (no regression).

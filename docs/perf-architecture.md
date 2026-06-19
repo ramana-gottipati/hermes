@@ -1,5 +1,7 @@
 # Patearn — performance & data-delivery architecture (work-stream of record)
 
+> **Lifecycle: TRANSIENT (currently load-bearing).** This is the interim source of truth + the § 8 go-live runbook, so it stays until the work lands. Retire (`git rm`) once § 8 go-live is executed **and** the § 3 decisions are folded into PROJECT_STATE.md's Decision log. **Fold first, then delete** — git history keeps it.
+
 > **Status:** active (opened 2026-06-19, data/performance session). **Companions:** `docs/ui-design.md` (D54 UI revamp — owns the render layer) · `docs/ui-perf-handoff.md` (the render-layer items handed to that session).
 > **Owner split (the call, taken deliberately):** the UI/UX (D54) session owns `src/web/dashboard.py` (the entire render layer). This work-stream owns everything else — `src/main.py`, `src/core/db.py`, `src/automation/*`, infra/scripts, the serving edge. The seam is the natural data-engineer ↔ UI/UX division, and it also avoids two sessions editing the same file (PROJECT_STATE session-19 cross-absorption hazard).
 
