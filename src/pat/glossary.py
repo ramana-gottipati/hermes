@@ -576,19 +576,26 @@ GLOSSARY: dict[str, dict] = {
     "pt14": {
         "term": "pt14 — the 14-pattern quality score",
         "family": "quality",
-        "unit": "score + tier",
-        "source": "pattern_scores (pws, ns_base/pessimistic/optimistic, tier, qg_pass, hard_disqualified)",
+        "unit": "0–100 + tier",
+        "source": "pattern_scores (pws · ns_base/_pessimistic/_optimistic · pac · qg_pass · hard_disqualified · tier)",
         "plain": "A rule-based read of business quality across the 14 Patearn patterns.",
         "detail": (
             "Pure-Python, no-LLM scoring of a company against the 14 Patearn "
             "patterns (ROCE trajectory, operating leverage, balance sheet, promoter "
-            "conviction, and so on) using Screener.in fundamentals. It carries a "
-            "tier, base / pessimistic / optimistic score variants, a quality-gate "
-            "pass and a hard-disqualify flag. Scored on demand for surfaced names, "
-            "not in bulk. (Pat summarises the internals here; exact component "
-            "definitions live in scoring.py.)"
+            "conviction, and so on) from Screener.in fundamentals. The headline is "
+            "ns_base — a 0–100 Normalized Score (the raw pattern-weighted score "
+            "pws as a percent of the max). ns_pessimistic / ns_optimistic bracket "
+            "it as a confidence band (recomputed if every soft 'Yes' is marked "
+            "down to 'Partial', or every 'Partial' up to 'Yes'). pac counts how "
+            "many of the 14 patterns are actively contributing. A Quality Gate "
+            "(qg_pass) checks a core subset of must-have patterns clears a bar, "
+            "and a hard-disqualify flag knocks out fatal cases outright. These "
+            "roll up to a tier: DISQUALIFIED overrides all; else T1 (ns ≥ 72 AND "
+            "QG pass), T2 (ns ≥ 55), T3 (ns ≥ 40), T4 below. Scored on demand for "
+            "surfaced names, not in bulk (honors the build-over-time doctrine)."
         ),
-        "aliases": ["pt14", "pattern score", "quality score", "14 patterns", "patearn score"],
+        "aliases": ["pt14", "pattern score", "quality score", "14 patterns", "patearn score",
+                    "ns_base", "tier", "quality gate", "t1"],
         "related": ["fundamentals", "financials_adaptation", "pillars"],
     },
     "fundamentals": {

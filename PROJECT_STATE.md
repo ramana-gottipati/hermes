@@ -452,7 +452,7 @@ Ramana asked for "an AI chatbot on my data, in plain English, in this tool" — 
 
 **Phase 1b/1c shipped:** two live **data flows** over `stock_signals` — **accumulation** (`build_accumulation_query()`: ACCUMULATION + active strong hand, strength/entry/sector chips) and **RS-leaders** (`build_rs_query()`: high `rs_rank`, strength/sector chips + a strong-in-strong gate = above 200-DMA on BOTH the vs-broad and vs-sector RS lines). Both compile to read-only parameterized SELECTs, rendered data-first (raw values beside rank/character pills, CMP via `prices_eq`). Synthetic-DB verified (filters compose, no universe/character leak; real route 200 with rows).
 
-**Open (see § What's NOT yet built):** the fundamentals flow; the **Gemini free-text engine** (today = deterministic `find()` fallback); `pt14` glossary entry summarized pending `scoring.py`; **deploy must carry `src/pat/`** or `hermes-api` crashes (dashboard.py now imports `src.pat.web`). Memory: [[patearn-brand-and-dvpt-direction]].
+**Open (see § What's NOT yet built):** the fundamentals flow; the **Gemini free-text engine** (today = deterministic `find()` fallback); **deploy must carry `src/pat/`** or `hermes-api` crashes (dashboard.py now imports `src.pat.web`). Memory: [[patearn-brand-and-dvpt-direction]].
 
 ### D54 — UI revamp (session 22, design-first): Phase 1 = the strategy → watchlist → portfolio ACTION LOOP — SHIPPED (2026-06-19)
 
@@ -1012,7 +1012,7 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 Tab is LIVE (`/dash/pat`) with the persona + 6 avatars + the DB-free **Explain-a-metric** flow. Remaining:
 1. **Data flows** — ✅ **accumulation + RS-leaders SHIPPED** (`flows.build_accumulation_query` / `build_rs_query`; chips → read-only SELECT over `stock_signals`). **Fundamentals** remains: chip→parameter tree + template-SQL compiler over the `fundamentals` table. Tap path stays ₹0 (no LLM).
 2. **The Gemini free-text engine** — map a typed question → flow + parameters via Gemini Flash (`src/core/llm_router`); today free-text falls back to the deterministic `find()` keyword match (works, but shallow). Gemini also phrases glossary entries conversationally.
-3. **Tighten the `pt14` glossary entry** from `scoring.py` (currently summarized — `pws`/`ns_*`/`pac`/`tier` components not individually defined).
+3. ✅ **`pt14` glossary entry tightened** from `scoring.py` — `ns_base` (0–100), `pws`, `ns_pessimistic/optimistic` band, `pac`, `qg_pass`, and the T1–T4/DISQUALIFIED tiering now precisely defined.
 4. **Deploy wiring** — the one-line `scp dashboard.py` deploy must now ALSO carry `src/pat/` (dashboard.py imports `src.pat.web`); fold `src/pat/` into `setup-news.sh`/the deploy step or `hermes-api` fails to boot.
 
 ### 🔜 NEXT BUILDS — the Patearn DVPT picking-strategy program (the throughline, session 18 →)
