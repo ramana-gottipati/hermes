@@ -1541,18 +1541,21 @@ const RS_SERIES = __SERIES__;
       l.ls.setData(out);
     }
     relabel(anchor);
+    requestAnimationFrame(positionNames);
   }
   function rebuild(keepAnchor){
     for(const l of lines) l.cur=resample(l.def.level);
     const a = keepAnchor ? (anchorDate!=null?commonAnchor(anchorDate):null) : null;
     internalSet=true; applyRebase(a); internalSet=false;
   }
-  // Re-rebase every line to ONE common anchor = the current left edge (forward-
-  // snapped). Mirrors /dash/compare so all lines share the same start = 100.
+  // Re-rebase every line to ONE common anchor = the full-series start (base 100).
+  // The RS overlay always fitContent()s all data, so the common start IS the
+  // earliest data point — anchor to it deterministically via commonAnchor(null).
+  // getVisibleRange() lags a frame on first/off-screen layout and returned a
+  // recent partial range, which mis-anchored the rebase mid-window so the lines
+  // didn't start at 100 on the left — the same lag /dash/compare's boot avoids.
   function reanchorToView(){
-    const vr=chart.timeScale().getVisibleRange();
-    const from = vr ? timeToStr(vr.from) : null;
-    lastAnchor=commonAnchor(from);
+    lastAnchor=commonAnchor(null);
     internalSet=true; applyRebase(lastAnchor); internalSet=false;
   }
 
@@ -1564,10 +1567,18 @@ const RS_SERIES = __SERIES__;
       return t.year+'-'+m+'-'+d; }
     return String(t);
   }
-  let raf=null, internalSet=false, lastAnchor=null;
+  let raf=null, internalSet=false, lastAnchor=null, userInteracted=false;
+  // Fluid pan-reanchor must respond ONLY to real user panning, never to the
+  // settle/relayout range-change events that fire after boot — those would
+  // re-anchor the deterministic full-series start to a recent mid-window date
+  // (the same drift /dash/compare hit). Mark genuine user input on the host.
+  ['wheel','pointerdown','mousedown','touchstart'].forEach(ev=>
+    host.addEventListener(ev,()=>{ userInteracted=true; },{passive:true,capture:true}));
   chart.timeScale().subscribeVisibleTimeRangeChange(r=>{
     if(!r||internalSet) return;
     const from=timeToStr(r.from);
+    requestAnimationFrame(positionNames);   // labels follow price autoscale on pan
+    if(!userInteracted) return;             // boot/settle re-anchors stay inert
     if(raf) return;
     raf=requestAnimationFrame(()=>{ raf=null;
       const a=commonAnchor(from);
@@ -1580,6 +1591,22 @@ const RS_SERIES = __SERIES__;
     if(!el) return;
     const tfn={d:'daily',w:'weekly',m:'monthly',q:'quarterly'}[tf];
     el.innerHTML = (anchor?('REBASED FROM <b>'+anchor+'</b>'):'REBASED FROM <b>start</b>')+' · '+tfn;
+  }
+
+  // Right-gutter name labels, each aligned to its line's last-value pixel
+  // (mirrors /dash/compare). Nearby labels nudged apart; "Nifty " stripped.
+  function positionNames(){
+    const cont=document.getElementById('rsNames'); if(!cont) return;
+    const items=[];
+    for(const l of lines){ const dat=l.ls.data(); if(!dat||!dat.length) continue;
+      const v=dat[dat.length-1].value; if(v==null) continue;
+      const y=l.ls.priceToCoordinate(v); if(y==null) continue;
+      items.push({name:l.def.name.replace(/^Nifty /,''),color:l.def.color,y:y}); }
+    items.sort((a,b)=>a.y-b.y);
+    for(let i=1;i<items.length;i++){ if(items[i].y-items[i-1].y<13) items[i].y=items[i-1].y+13; }
+    cont.innerHTML=items.map(it=>'<span style="position:absolute;right:3px;top:'+it.y.toFixed(1)
+      +'px;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:'
+      +it.color+';text-shadow:0 0 3px #0e1116,0 0 2px #0e1116">'+_e(it.name)+'</span>').join('');
   }
 
   // --- crosshair value row ------------------------------------------------
@@ -1620,8 +1647,17 @@ const RS_SERIES = __SERIES__;
   internalSet=true; chart.timeScale().fitContent(); internalSet=false;
   reanchorToView();
   renderVals(null);
+  // Gutter labels need the price scale laid out (priceToCoordinate null pre-paint),
+  // which lags the first frame — retry until every visible line's label is placed.
+  (function ensureNames(tries){
+    positionNames();
+    const cont=document.getElementById('rsNames');
+    const want=lines.filter(l=>{ const d=l.ls.data(); return d&&d.length; }).length;
+    if (cont && cont.children.length<want && tries>0)
+      requestAnimationFrame(()=>ensureNames(tries-1));
+  })(20);
   let rzT=null;
-  new ResizeObserver(()=>{ if(internalSet) return; if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
+  new ResizeObserver(()=>{ if(internalSet) return; if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); positionNames(); },100); }).observe(host);
 })();
 </script>
 """
@@ -2225,7 +2261,7 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
   <button class="fbtn" data-rstf="q">Quarterly</button>
 </div>
 <div class="cmp-anchor" id="rsAnchorLbl">REBASED FROM <b>start</b></div>
-<div class="chartwrap"><div id="rsOverlayChart" style="height:300px;"></div></div>
+<div class="chartwrap"><div style="position:relative"><div id="rsOverlayChart" style="height:300px;margin-right:104px;"></div><div id="rsNames" style="position:absolute;top:0;right:0;bottom:0;width:104px;pointer-events:none;overflow:visible;"></div></div></div>
 <div class="cmp-vals" id="rsVals"></div>
 {_RS_OVERLAY_JS.replace("__CDN__", _LWC_CDN).replace("__SERIES__", rs_overlay_json)}
 """
