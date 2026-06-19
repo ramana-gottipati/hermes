@@ -214,7 +214,7 @@ D:\Hermes\                                          ← local working copy of re
 │   │   ├── conversations.py                        ← SQLite CRUD for conversation history
 │   │   ├── telegram_bot.py                         ← bot listener, all slash commands
 │   │   └── patearn.py                              ← patearn system prompt + Haiku/Sonnet wrapper
-│   └── automation\
+│   ├── automation\
 │       ├── news_feed.py                            ← RSS pull + classifier + Stage 1 screen trigger
 │       ├── digest.py                               ← twice-daily Telegram candidate digest
 │       ├── bhavcopy.py                             ← NSE sec_bhavdata_full ingestion (incl. backfill)
@@ -231,6 +231,10 @@ D:\Hermes\                                          ← local working copy of re
 │       ├── score_batch.py                           ← bounded/prioritized batch pt14 scoring (B6/D46; honors D8 — surfaced names only)
 │       ├── mtf_signals.py                            ← HELD MTF engine (D52; weekly/monthly bars+signals) — authored, not run (memory: mtf-foundation-held-uncommitted)
 │       └── cpr_signals.py                            ← CPR "Structure" pillar engine (D53): self-resampled D/W/M CPR geometry + U/∩ reversal + compression → cpr_signals
+│   └── pat\                                          ← "Pat" NL guided-search tab (D55) — Gemini-only, web not Telegram
+│       ├── __init__.py
+│       ├── glossary.py                               ← Pat's data dictionary (grounding asset; 39 terms / 7 families)
+│       └── web.py                                    ← /dash/pat render: persona + 6 avatars + live Explain-a-metric flow
 ├── resources\patearn\                              ← copy of patearn skill files (used by patearn.py)
 │   ├── SKILL.md
 │   ├── patterns.md
@@ -373,7 +377,7 @@ Plain text in group from non-authorized users: silently ignored.
 
 ### Web dashboard routes (FastAPI `src/web/dashboard.py`, served under `/dash*`)
 
-Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard's only mutation); no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Caddy). Top workspace nav (D54): Markets · Screener · Strategies · Portfolios · Tracker (sub-pages map via `_WS`; Compare under Markets; Watchlists under Portfolios).
+Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard's only mutation); no LLM, pure SQL over existing tables. PWA-installable over HTTPS (Caddy). Top workspace nav (D54): Markets · Screener · Strategies · Portfolios · Tracker · **Pat (D55)** (sub-pages map via `_WS`; Compare under Markets; Watchlists under Portfolios).
 
 | Route | What it does | Decision |
 |---|---|---|
@@ -393,6 +397,7 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 | **`/dash/watchlists`** | **D54 — the lightweight idea tier** (`status='watch'`): symbol + strategy + note + LIVE signal chips + **Promote**-to-portfolio / Remove | **D54** |
 | **`/dash/tracker`** | **D54 — how tracked ideas performed:** open MTM, **hit-rate by strategy** (closed) bars, **avg excess vs Nifty 500**, avg hold — pure SQL/point-lookups; honest empty-states until trades close | **D54** |
 | **POST `/dash/track` · `/track/close` · `/track/promote` · `/track/remove`** | **D54 — capture + lifecycle (the dashboard's only writes).** `/track` freezes the as-of-day snapshot SERVER-side (entry = latest close); the rest manage `status` | **D54** |
+| **`/dash/pat?flow=&explain=&q=`** | **D55 — "Pat", the natural-language guided-search tab.** Persona + 6 selectable Indianised avatars (localStorage); the **Explain-a-metric** flow is live + DB-free (search/tap the glossary, family-grouped, related-link chaining). Free-text uses the deterministic `find()` fallback until the Gemini engine lands; data flows (accumulation/RS/fundamentals) announced, not yet built. **Gemini-Flash-only, never Claude.** Render in `src/pat/web.py` | **D55** |
 | `/dash/scan` | D28/D31 layered-triggers table (working orphan — kept, not in nav) | D33-web |
 | `/dash/offline` · `/manifest.webmanifest` · `/sw.js` · `/icon.svg` | PWA shell — offline fallback, install manifest, network-first service worker, icon | D33-web |
 
@@ -431,6 +436,20 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D55 — "Pat": a natural-language guided-search tab in the web tool (Gemini-only, glossary-grounded) — Phase 1 SHIPPED (2026-06-20)
+Ramana asked for "an AI chatbot on my data, in plain English, in this tool" — named **Pat** (it's about *patterns*). Built as a tab in the web dashboard (**`/dash/pat`**), **NOT Telegram** (network-blocked), and **Gemini-Flash-only, never Claude** (his call; the cost-doctrine classifier path, ~13× cheaper than Haiku).
+
+**WHY this shape:**
+- **It generalizes the interface.** Instead of hand-building a command/panel per question, Pat answers ad-hoc questions over the existing data — the one feature that scales instead of adding to the pile.
+- **"Train on our data" = GROUND, not fine-tune.** The asset is a hand-written **glossary** (`src/pat/glossary.py`) describing every metric/column/value in plain words; Pat reads it at question-time, live numbers always come fresh from the DB. Cheaper, always-current, and it powers both "explain a metric" and free-text understanding.
+- **₹0 on the common path.** The guided **chips ARE the query parameters** → the tap-through path compiles to template SQL in pure Python (no LLM, can't hallucinate a column). Gemini Flash is used ONLY at the edges: free-text→params, and phrasing a glossary entry conversationally.
+
+**Architecture:** chips→params→template SQL (deterministic) · glossary grounding · 6 selectable **Indianised avatars** (Seth/Rao/Singh/Chai/Lakshmi/Nandi — persona + engagement, persisted in localStorage).
+
+**Phase 1 shipped (DB-free, verified):** `/dash/pat` tab + avatar picker + the **Explain-a-metric** flow (search + tap, family-grouped, related-link chaining). `src/pat/{__init__,glossary,web}.py` + 4 wirings in `dashboard.py` (import · `Pat` nav tab · `_WS` · route). Verified: `py_compile` clean; the real FastAPI route returns **200** through `_shell`; `explain=p_score` renders the detail. Glossary = **39 terms / 7 families**.
+
+**Open (see § What's NOT yet built):** the 3 data flows need SQL templates + a query compiler; the **Gemini free-text engine** (today = deterministic `find()` fallback); `pt14` glossary entry summarized pending `scoring.py`; **deploy must carry `src/pat/`** or `hermes-api` crashes (dashboard.py now imports `src.pat.web`). Memory: [[patearn-brand-and-dvpt-direction]].
 
 ### D54 — UI revamp (session 22, design-first): Phase 1 = the strategy → watchlist → portfolio ACTION LOOP — SHIPPED (2026-06-19)
 
@@ -986,6 +1005,13 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ## What's NOT yet built / open items
 
+### 🤖 PAT — the natural-language guided-search assistant (D55, Phase 1 shipped session 23)
+Tab is LIVE (`/dash/pat`) with the persona + 6 avatars + the DB-free **Explain-a-metric** flow. Remaining:
+1. **The 3 data flows** — accumulation / RS-leaders / fundamentals: each needs its chip→parameter tree + a deterministic **template-SQL compiler** (read-only over `stock_signals`/`fundamentals`). The tap path stays ₹0 (no LLM).
+2. **The Gemini free-text engine** — map a typed question → flow + parameters via Gemini Flash (`src/core/llm_router`); today free-text falls back to the deterministic `find()` keyword match (works, but shallow). Gemini also phrases glossary entries conversationally.
+3. **Tighten the `pt14` glossary entry** from `scoring.py` (currently summarized — `pws`/`ns_*`/`pac`/`tier` components not individually defined).
+4. **Deploy wiring** — the one-line `scp dashboard.py` deploy must now ALSO carry `src/pat/` (dashboard.py imports `src.pat.web`); fold `src/pat/` into `setup-news.sh`/the deploy step or `hermes-api` fails to boot.
+
 ### 🔜 NEXT BUILDS — the Patearn DVPT picking-strategy program (the throughline, session 18 →)
 Full plan + locked decisions: **`docs/dvpt-picking-strategy-design.md`** + **`docs/multi-timeframe-positioning-design.md`** (keep rich — binding doc-persistence rule). Sequence:
 0. **⏳ IN PROGRESS at wrap — deep-history data foundation (D47)** building autonomously on the VPS (Stage-1 backfill pid 133884 → orchestrator `scripts/deep-foundation.sh` pid 134151 → Stage-2 recompute; a local watcher re-invokes the session on completion). **FIRST next-session task: verify it finished — `tail /var/log/hermes-foundation.log` for "ALL DONE" + the per-year coverage report (if "ABORTING", diagnose `/var/log/hermes-deepbackfill.log`) — then record the result here + the VPS deploy.** Note: VPS dashboard code is at `2bf4036`; origin is `a612c70` (parallel D41-P2 membership commit on top — deploy that too if not already).
@@ -1116,6 +1142,16 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 23 — 2026-06-20 — "Pat" Phase 1: the natural-language guided-search tab — SHIPPED (local), verified
+**Context:** Ramana asked for an AI chatbot over his data, in plain English, *in this tool* — and to run it on **Gemini Flash only, no Claude**. Named **Pat** (patterns). Built as a web-dashboard tab, not Telegram.
+**Shipped (additive, zero regression, DB-free):**
+- **`src/pat/glossary.py`** — Pat's data dictionary / grounding asset: **39 terms across 7 families** (basics · positioning/DVPT · character · RS · structure/CPR · quality · concepts), each with plain + detail + real `table.column` source + aliases + related cross-links; tiny dependency-free `get`/`find`/`family` helpers. The honest reframe: "train on our data" = **ground** on a glossary, not fine-tune.
+- **`src/pat/web.py`** — the `/dash/pat` body: persona hero + **6 selectable Indianised avatars** (Seth/Rao/Singh/Chai/Lakshmi/Nandi, self-contained SVG, persisted in localStorage) + the live **Explain-a-metric** flow (search + family-grouped chips + related-link chaining), themed to the dark shell. The 3 data flows are announced (need SQL templates).
+- **`src/web/dashboard.py`** — 4 wirings: `from src.pat.web import render_pat`, the **Pat** nav tab, `_WS["pat"]`, and `@router.get("/dash/pat")`.
+**Verified:** `py_compile` clean (4 files); every glossary cross-link + family resolves; `find()` ranks sensibly ("cheap stock near big money cost" → key-price); the **real** FastAPI route `/dash/pat` returns **200** through `_shell` (TestClient), nav shows Pat, `explain=p_score` renders the detail.
+**⚠ Deploy:** must carry `src/pat/` (dashboard.py now imports it) — NOT yet deployed to VPS. **NOT yet pushed.**
+**NEXT:** the 3 data-flow SQL templates → the Gemini free-text engine; tighten `pt14` from `scoring.py`; fold `src/pat/` into the deploy.
+
 ### Session 22 — 2026-06-19/20 — D54 UI revamp: Phase 1 ACTION LOOP + stock-page live-trial fixes — SHIPPED, deployed, no-regression
 The dedicated UI/UX redesign session (planned "Session 1", `docs/ui-design.md §14`). Boot → **5-agent design panel** (UI/UX · IA · analyst · data · design-researcher, parallel) → pivotal calls as **multiple-choice-with-recommendations**; Ramana picked **action-loop first · two-tier+frozen-snapshot · per-stock-news+static-strip · attach-don't-grow-nav** → **visualize stencils** establishing the **"instrument"** aesthetic (inline static SVG/CSS micro-viz, evidence-beside-verdict — nav frame · action capture · portfolio/tracker · the dense instrument screener · hover-help popover · stock decision masthead · comparison · per-stock news; approved "perfect") → built Phase 1.
 **⚠ Concurrency:** ran in parallel with the D53 CPR session on the SAME working tree. Per the standing rule, did NOT touch shared files until the CPR work was committed — armed a background git-watcher, waited for commit `2edb6b5`, re-verified the tree quiesced, then built. No cross-absorption.
@@ -1140,7 +1176,7 @@ The dedicated CPR build session (planned as "Session 2" in `docs/cpr-strategy-de
 - **Dashboard (`src/web/dashboard.py`, all additive):** screener **CPR column-group** (D/W/M width% + glyph + R-rank + ★ tier + Comp%, toggle chip) + **"🔷 CPR-confirmed" gate**; live **Strategies CPR card** (replaced "coming soon"); **`/dash/cpr`** (Reversals · Compression · per-TF EOD Reports tabs, with W/M "live for the current period" staleness badges); per-stock **CPR panel** (D·W·M strip + P/BC/TC table + verdict).
 - **Conviction integration:** CPR kept **OUT of the composite number** (stays 0.55·pos+0.45·RS) — surfaced as a parallel ★ Structure tier + the gate, per panel consensus + Ramana's call. Glossary caveat updated.
 **Verified:** CPR-math self-test (BULL_U/BEAR_INVU/clean-step/engulfing-exclusion/width÷pivot) + synthetic end-to-end backfill (800 D / 160 W / 40 M rows) + **full 19-route TestClient sweep all 200 (no regression)**. Docs current: `cpr-strategy-design.md` (§13 resolved, §16 build log), `metrics-glossary.md` (CPR section), this file.
-**Deploy:** scp `db.py` + `cpr_signals.py` + `dashboard.py` → VPS, restart `hermes-api` (creates the table), run `--backfill --timeframe all` detached, wire `--recent` nightly after `stock_rs`, measure. *(Commits: not committed this session — deployed via scp like s20; the working tree also carries uncommitted s20 dashboard work + the held D52 MTF foundation. Commit when Ramana asks.)*
+**Deploy — ✅ COMPLETE + VERIFIED LIVE (2026-06-19 19:52 UTC).** scp'd `db.py`+`cpr_signals.py`+`dashboard.py`; wired `--recent` nightly after `stock_rs`; ran `--backfill --timeframe all` via a detached orchestrator (`scripts/cpr-deploy.sh`) that **waited out the in-progress deep-foundation chain** (index_signals→stock_rs→CNX-redeepen, ~3.5h) to avoid single-writer SQLite contention, then backfilled + self-checked + restarted the API. **Backfill ran in ~6 min** at ~12 symbols/sec (refuted the "tens of hours" record-count fear — CPR is a per-symbol single pass, not the index job's pairwise model). **Coverage:** Daily 5,414,738 rows · Weekly 1,156,243 · Monthly 272,548 — **all 2,358 equities × full history 2004-07-23→2026-06-19**. Latest-period fresh reversals: D 720 · W 656 · M 374. All routes 200 & fast (`/dash/cpr` ~0.07s, screener ~0.10s incl. the CPR join, stock page ~0.05s). *(Note: a stock page loaded mid-backfill briefly showed W/M "no data" — daily computes first; resolves on reload once W/M land. Not a bug.)* **Committed + pushed: `2edb6b5` → origin/main** (D52 MTF engine + `patearn.py` deliberately left out).
 
 ### Session 19 — 2026-06-19 — D49g: fixed the two session-18 P0 /dash/compare chart bugs (hands-on browser debug)
 

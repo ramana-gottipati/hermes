@@ -34,6 +34,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse,
 from src.automation import adjust
 from src.automation.signals import accum_character_read, is_near_key
 from src.core.db import get_conn
+from src.pat.web import render_pat
 
 router = APIRouter()
 
@@ -201,9 +202,21 @@ table.scr tbody tr:hover td{background:#1c2230!important;}
 .h-pos3{background:rgba(63,185,80,.22)!important;} .h-pos2{background:rgba(63,185,80,.13)!important;} .h-pos1{background:rgba(63,185,80,.06)!important;}
 .h-neg1{background:rgba(248,81,73,.07)!important;} .h-neg2{background:rgba(248,81,73,.14)!important;} .h-neg3{background:rgba(248,81,73,.22)!important;}
 /* column-group hide = ONE class on the table (single reflow, no per-cell JS) */
-table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
+table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
 /* CPR-confirmed gate: show only rows carrying a CPR reversal tier (one class) */
 table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
+/* D54 Phase 2 — "the instrument": inline static micro-viz readouts (D-UI-16).
+   The viz sits BESIDE the kept sortable numeric columns (D-UI-1). */
+.mv{vertical-align:middle;display:inline-block;}
+table.scr td.inst{padding:3px 8px 3px 10px;}
+.kt-in{color:#3fb950;} .kt-ext{color:#d29922;} .kt-disc{color:#58a6ff;}
+/* NOTE on virtualization (perf hand-off Step 2): the default universe is a
+   capped 498–600 rows, NOT the 54k-cell worst case, so the SVG-per-row grid
+   ships light on the cap + gzip alone. `content-visibility:auto` was trialled
+   here but pulled — under this grid's `min-width:max-content` (auto) layout,
+   size-containment on skipped rows can jitter column widths on scroll. If the
+   eyeball shows scroll lag, do it properly (table-layout:fixed + explicit
+   widths, or JS windowing). Per ui-design §10 + Doctrine B: not pre-emptively. */
 """
 
 
@@ -331,6 +344,7 @@ _WS = {
     "workbench": "strategies", "stock": "strategies", "cpr": "strategies",
     "portfolios": "portfolios", "watchlists": "portfolios", "track": "portfolios",
     "tracker": "tracker",
+    "pat": "pat",
 }
 
 
@@ -340,7 +354,8 @@ def _nav(active: str) -> str:
              ("screener", "/dash/screener", "Screener"),
              ("strategies", "/dash/strategies", "Strategies"),
              ("portfolios", "/dash/portfolios", "Portfolios"),
-             ("tracker", "/dash/tracker", "Tracker")]
+             ("tracker", "/dash/tracker", "Tracker"),
+             ("pat", "/dash/pat", "Pat")]
     out = ['<div class="wsnav">']
     for key, href, label in items:
         out.append(f'<a class="{"on" if key == cur else ""}" href="{href}">{label}</a>')
@@ -740,6 +755,107 @@ def _intensity(r):
     return (dvpt / (sum(powers) / len(powers))) if (powers and dvpt) else None
 
 
+# --- "The instrument" — inline static micro-viz (D54 Phase 2, D-UI-16) -------
+# Each returns a self-contained inline SVG string computed ONCE in Python (no
+# per-cell JS, no chart lib — lighter, server-rendered). They turn the buried
+# 88-col stock_signals data into scannable shapes that sit BESIDE the raw values
+# (the sortable numeric columns are kept — D-UI-1). All degrade to "—" on NULL.
+_KEY_BAND = (-1.0, 5.0)   # the −1…+5% launch band (mirrors signals.py D44)
+
+
+def _mv_ladder(dvpt, p1, p2, p3, p6, p12) -> str:
+    """DVPT-vs-power ladder: a track with 5 notches (P1M…P12M, green = beaten by
+    today's DVPT), a green fill to today + a ▲ marker. Surfaces power_dvpt_* +
+    p_score as one shape (the rank pill + ×power ride the adjacent columns)."""
+    if not dvpt:
+        return '<span class="mut">—</span>'
+    ps = [p1, p2, p3, p6, p12]
+    vals = [v for v in ps if v]
+    maxv = max([dvpt] + vals)
+    if not maxv:
+        return '<span class="mut">—</span>'
+    W, x0, x1, ty, th = 116, 3, 104, 15, 6
+    def sx(v):
+        return x0 + (v / maxv) * (x1 - x0)
+    ticks = "".join(
+        f'<line x1="{sx(v):.1f}" y1="{ty-4}" x2="{sx(v):.1f}" y2="{ty+th+4}" '
+        f'stroke="{"#3fb950" if dvpt >= v else "#6e7681"}" stroke-width="1"/>'
+        for v in ps if v)
+    fw, tx = sx(dvpt) - x0, sx(dvpt)
+    return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
+            f'<rect x="{x0}" y="{ty}" width="{x1-x0}" height="{th}" rx="3" fill="#21262d"/>'
+            f'<rect x="{x0}" y="{ty}" width="{fw:.1f}" height="{th}" rx="3" fill="#2ea043"/>'
+            f'{ticks}<path d="M{tx-4:.1f},{ty-8} L{tx+4:.1f},{ty-8} L{tx:.1f},{ty-2} Z" '
+            f'fill="#7ee787"/></svg>')
+
+
+def _mv_keyband(gap) -> str:
+    """Key-price launch-band gauge: a ±15% axis with the −1…+5% launch band shaded;
+    a coloured marker at gap_to_key_p3m (green in-band 🎯 / amber extended / blue
+    discount). Surfaces the value-weighted institutional key-price entry read."""
+    if gap is None:
+        return '<span class="mut">—</span>'
+    W, x0, x1, ay, lo, hi = 90, 3, 87, 14, -15.0, 15.0
+    def sx(v):
+        return x0 + ((max(lo, min(hi, v)) - lo) / (hi - lo)) * (x1 - x0)
+    inb = _KEY_BAND[0] <= gap <= _KEY_BAND[1]
+    col = "#3fb950" if inb else ("#d29922" if gap > _KEY_BAND[1] else "#58a6ff")
+    b0, b1, m, z = sx(_KEY_BAND[0]), sx(_KEY_BAND[1]), sx(gap), sx(0)
+    return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
+            f'<rect x="{x0}" y="{ay-4}" width="{x1-x0}" height="8" rx="2" fill="#161b22" stroke="#21262d"/>'
+            f'<rect x="{b0:.1f}" y="{ay-4}" width="{b1-b0:.1f}" height="8" fill="#16341f"/>'
+            f'<line x1="{z:.1f}" y1="{ay-6}" x2="{z:.1f}" y2="{ay+6}" stroke="#6e7681" stroke-dasharray="1 1"/>'
+            f'<line x1="{m:.1f}" y1="{ay-7}" x2="{m:.1f}" y2="{ay+7}" stroke="{col}" stroke-width="2"/>'
+            f'<circle cx="{m:.1f}" cy="{ay}" r="2.4" fill="{col}"/></svg>')
+
+
+def _mv_triglyph(tcr, duo, hh) -> str:
+    """Character triglyph (D43): 3 diverging micro-bars composing the ACCUM/DIST
+    read — WHO (trade-count concentration), WHICH-WAY (delivery up/down skew),
+    CONTEXT (distance from 52w high). Right/green = the accumulation lean."""
+    def cl(v):
+        return max(-1.0, min(1.0, v))
+    axes = [cl((1 - tcr) * 1.4) if tcr is not None else None,   # WHO: <1 concentrating
+            cl((duo - 1) * 1.0) if duo is not None else None,   # WAY: >1 up-skew
+            cl((hh + 10) / 10) if hh is not None else None]     # CTX: near 52w-high
+    W, cx, half, bh, ys = 42, 21, 17, 5, (5, 12, 19)
+    bars = []
+    for s, y in zip(axes, ys):
+        if s is None:
+            bars.append(f'<rect x="{cx-1}" y="{y-1}" width="2" height="2" fill="#30363d"/>')
+            continue
+        w = abs(s) * half
+        x = cx if s >= 0 else cx - w
+        col = "#484f58" if abs(s) < 0.12 else ("#2ea043" if s > 0 else "#b53b38")
+        bars.append(f'<rect x="{x:.1f}" y="{y-2.5:.0f}" width="{max(w,1):.1f}" '
+                    f'height="{bh}" rx="1" fill="{col}"/>')
+    return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
+            f'<line x1="{cx}" y1="2" x2="{cx}" y2="24" stroke="#30363d"/>{"".join(bars)}</svg>')
+
+
+def _mv_rsspark(b1, b3, b6, b12) -> str:
+    """RS sparkline: the rs-vs-broad slope trajectory 12m→1m (oldest→newest) as a
+    tiny polyline — green rising / red falling. Pairs with the heat strip; degrades
+    to a dot when slopes are NULL (e.g. mid RS-recompute)."""
+    have = [(i, v) for i, v in ((0, b12), (1, b6), (2, b3), (3, b1)) if v is not None]
+    if len(have) < 2:
+        return '<span class="mut" style="font-size:11px">·</span>'
+    vs = [v for _, v in have] + [0.0]
+    mn, mx = min(vs), max(vs)
+    W, x0, x1, y0, y1 = 50, 2, 48, 3, 19
+    def sx(i):
+        return x0 + (i / 3) * (x1 - x0)
+    def sy(v):
+        return (y0 + y1) / 2 if mx == mn else y1 - ((v - mn) / (mx - mn)) * (y1 - y0)
+    d = " ".join(f'{"L" if k else "M"}{sx(i):.1f},{sy(v):.1f}'
+                 for k, (i, v) in enumerate(have))
+    last = b1 if b1 is not None else have[-1][1]
+    col = "#3fb950" if last > 0 else "#f85149"
+    return (f'<svg class="mv" width="{W}" height="22" viewBox="0 0 {W} 22" aria-hidden="true">'
+            f'<line x1="{x0}" y1="{sy(0):.1f}" x2="{x1}" y2="{sy(0):.1f}" stroke="#30363d" '
+            f'stroke-dasharray="2 2"/><path d="{d}" fill="none" stroke="{col}" stroke-width="1.5"/></svg>')
+
+
 def _pos_cells(r) -> str:
     """The three shared Positioning cells — CMP·Δday, DVPT·×power, Deliv ₹ —
     used by the Home trigger + stealth boards. Expects r with cmp/pc/dvpt/dval +
@@ -1103,6 +1219,13 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
             '🎯 = buyable near the institutional key price · ★ = pt14 quality-confirmed.</div>'
             + table + js)
     return HTMLResponse(_shell("Conviction · patearn", body, "stocks", sig_date or ""))
+
+
+@router.get("/dash/pat", response_class=HTMLResponse)
+def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query("")):
+    """Pat — natural-language guided search + the data glossary (src/pat)."""
+    body = render_pat(flow=flow, explain=explain, q=q)
+    return HTMLResponse(_shell("Pat — patearn", body, "pat"))
 
 
 @router.get("/dash/markets", response_class=HTMLResponse)
@@ -1752,6 +1875,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
                           s.pct_from_52w_high hh, s.trigger_rank rank,
                           s.r_score, s.p_score, s.is_ath_dvpt ath,
                           s.delivery_value_per_trade dvpt, s.power_dvpt_1m p1,
+                          s.power_dvpt_2m p2,
                           s.power_dvpt_3m p3, s.power_dvpt_6m p6, s.power_dvpt_12m p12,
                           s.delivery_value_today dvt, b.deliv_per,
                           s.accum_character ch, s.price_vs_hot_avg_pct pvh,
@@ -1759,6 +1883,10 @@ def dash_screener(scope: str = Query("Nifty 500"),
                           s.rs_vs_broad_trend_state rsbt, s.rs_vs_broad_slope_1m b1,
                           s.rs_vs_broad_slope_3m b3, s.rs_vs_broad_slope_6m b6,
                           s.rs_vs_broad_slope_12m b12, s.rs_vs_sector_trend_state rsst,
+                          s.gap_to_key_p3m g3, s.gap_to_key_p6m g6, s.gap_to_key_p12m g12,
+                          s.trade_count_ratio_1m_6m tcr, s.deliv_updown_ratio_3m duo,
+                          s.accum_price_drift_3m apd, s.turnover_surge_3m su3,
+                          s.turnover_surge_1y suy, s.next_p_above npa, s.gap_to_next_p_pct gnp,
                           {conv} conv
                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
@@ -1808,6 +1936,11 @@ def dash_screener(scope: str = Query("Nifty 500"),
         cv = r["conv"]
         star = "★ " if ((r["p_score"] or 0) >= 4 and (r["rs_rank"] or 0) >= 80 and qg_ok) else ""
         cpr_tds, has_cpr = _cpr_screener_cells(cpr_by_tf.get(r["symbol"], {}))
+        g3 = r["g3"]
+        g3_tint = " h-pos2" if (g3 is not None and _KEY_BAND[0] <= g3 <= _KEY_BAND[1]) else ""
+        nearp = (f'{_esc(r["npa"])} {_pct(r["gnp"])}' if r["npa"] else '<span class="mut">—</span>')
+        char_cell = (f'<span style="display:inline-flex;align-items:center;gap:6px">'
+                     f'{_mv_triglyph(r["tcr"], r["duo"], r["hh"])}{_char_pill(r["ch"])}</span>')
         trs.append(
             f'<tr class="{"has-cpr" if has_cpr else ""}">'
             f'<td class="fz l"><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
@@ -1816,14 +1949,25 @@ def dash_screener(scope: str = Query("Nifty 500"),
             f'<td class="num">{_num(r["close"], 1)}</td>'
             f'<td class="num bold gsep g-conv{h_conv(cv)}">{star}{f"{cv:.0f}" if cv is not None else "—"}</td>'
             f'<td class="g-conv"><span class="pill p-{rank}">{rank}</span></td>'
-            f'<td class="l g-conv">{_char_pill(r["ch"])}</td>'
-            f'<td class="num gsep mut g-pos">{r["p_score"] if r["p_score"] is not None else "—"}</td>'
+            f'<td class="inst l gsep g-pos">{_mv_ladder(r["dvpt"], r["p1"], r["p2"], r["p3"], r["p6"], r["p12"])}</td>'
+            f'<td class="num mut g-pos">{r["p_score"] if r["p_score"] is not None else "—"}</td>'
             f'<td class="num mut g-pos">{r["r_score"] if r["r_score"] is not None else "—"}</td>'
             f'<td class="num g-pos"><b>{(f"{ix:.1f}×" if ix else "—")}</b></td>'
-            f'<td class="num g-pos">{_num(r["su1"], 2) if r["su1"] is not None else "—"}</td>'
+            f'<td class="num g-pos">{_num(r["su1"], 2)}</td>'
+            f'<td class="num g-pos">{_num(r["su3"], 2)}</td>'
+            f'<td class="num g-pos">{_num(r["suy"], 2)}</td>'
             f'<td class="num g-pos">{dlv}</td>'
             f'<td class="num g-pos">{dvt_cr}</td>'
-            f'<td class="num gsep g-rs">{r["rs_rank"] if r["rs_rank"] is not None else "—"}</td>'
+            f'<td class="inst l gsep g-key">{_mv_keyband(g3)}</td>'
+            f'<td class="num g-key{g3_tint}">{_pct(g3)}</td>'
+            f'<td class="num g-key">{_pct(r["g6"])}</td>'
+            f'<td class="num g-key">{_pct(r["g12"])}</td>'
+            f'<td class="inst l gsep g-char">{char_cell}</td>'
+            f'<td class="num g-char">{_num(r["tcr"], 2)}</td>'
+            f'<td class="num g-char">{_num(r["duo"], 2)}</td>'
+            f'<td class="num g-char">{_pct(r["apd"])}</td>'
+            f'<td class="inst l gsep g-rs">{_mv_rsspark(r["b1"], r["b3"], r["b6"], r["b12"])}</td>'
+            f'<td class="num g-rs">{r["rs_rank"] if r["rs_rank"] is not None else "—"}</td>'
             f'<td class="l g-rs">{trend_pill(r["rsbt"])}</td>'
             f'<td class="l g-rs">{_rs_strip(r["b1"], r["b3"], r["b6"], r["b12"])}</td>'
             f'<td class="l g-rs">{trend_pill(r["rsst"])}</td>'
@@ -1832,6 +1976,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             f'<td class="l mut g-qual">{tier}</td>'
             f'<td class="num gsep g-ctx{h_52(r["hh"])}">{_pct(r["hh"])}</td>'
             f'<td class="num g-ctx">{_pct(r["pvh"])}</td>'
+            f'<td class="num g-ctx">{nearp}</td>'
             '</tr>')
 
     # --- scope selector (server-state via ?scope=) ---
@@ -1863,22 +2008,27 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<tr class="sgrp">'
             '<th class="fz l">stock</th>'
             '<th class="l" colspan="2">identity</th>'
-            '<th class="l gsep g-conv" colspan="3">conviction</th>'
-            '<th class="l gsep g-pos" colspan="6">positioning · dvpt</th>'
-            '<th class="l gsep g-rs" colspan="4">relative strength</th>'
+            '<th class="l gsep g-conv" colspan="2">conviction</th>'
+            '<th class="l gsep g-pos" colspan="9">positioning · dvpt</th>'
+            '<th class="l gsep g-key" colspan="4">key price</th>'
+            '<th class="l gsep g-char" colspan="4">character</th>'
+            '<th class="l gsep g-rs" colspan="5">relative strength</th>'
             '<th class="l gsep g-cpr" colspan="7">structure · cpr</th>'
             '<th class="l gsep g-qual" colspan="2">quality</th>'
-            '<th class="l gsep g-ctx" colspan="2">context</th></tr>'
+            '<th class="l gsep g-ctx" colspan="3">context</th></tr>'
             '<tr class="scol">'
             '<th class="fz l">Symbol</th><th class="l">Sector</th><th class="num">CMP</th>'
-            '<th class="num gsep g-conv">Conv</th><th class="g-conv">Rank</th><th class="l g-conv">Char</th>'
-            '<th class="num gsep g-pos">p</th><th class="num g-pos">r</th><th class="num g-pos">×Pow</th>'
-            '<th class="num g-pos">Surge</th><th class="num g-pos">Deliv%</th><th class="num g-pos">Val₹Cr</th>'
-            '<th class="num gsep g-rs">RS#</th><th class="l g-rs">Broad</th><th class="l g-rs">RS heat</th><th class="l g-rs">Sector</th>'
+            '<th class="num gsep g-conv">Conv</th><th class="g-conv">Rank</th>'
+            '<th class="l gsep g-pos">DVPT vs power</th><th class="num g-pos">p</th><th class="num g-pos">r</th>'
+            '<th class="num g-pos">×Pow</th><th class="num g-pos">Surge1m</th><th class="num g-pos">Surge3m</th>'
+            '<th class="num g-pos">Surge1y</th><th class="num g-pos">Deliv%</th><th class="num g-pos">Val₹Cr</th>'
+            '<th class="l gsep g-key">Launch band</th><th class="num g-key">Gap3m</th><th class="num g-key">Gap6m</th><th class="num g-key">Gap12m</th>'
+            '<th class="l gsep g-char">Character</th><th class="num g-char">WHO</th><th class="num g-char">WAY</th><th class="num g-char">Drift</th>'
+            '<th class="l gsep g-rs">RS trend</th><th class="num g-rs">RS#</th><th class="l g-rs">Broad</th><th class="l g-rs">Heat</th><th class="l g-rs">Sector</th>'
             '<th class="num gsep g-cpr">D%</th><th class="num g-cpr">W%</th><th class="num g-cpr">M%</th>'
             '<th class="l g-cpr">D·W·M</th><th class="g-cpr">Rnk</th><th class="l g-cpr">Str</th><th class="num g-cpr">Comp%</th>'
             '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
-            '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th></tr></thead>')
+            '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th><th class="num g-ctx">Near-P</th></tr></thead>')
         grid = (f'<div class="scrwrap"><table class="dt scr">{thead}'
                 f'<tbody>{"".join(trs)}</tbody></table></div>'
                 '<script>(function(){var w=document.querySelector(".scrwrap");'
@@ -1894,7 +2044,11 @@ def dash_screener(scope: str = Query("Nifty 500"),
         f'<h2>Screener <span class="sub" style="margin:0">{lbl}</span></h2>'
         '<div class="sub">Pick a universe, then sort / filter / export. Ranked by a tri-pillar '
         '<b>Conviction</b> (positioning + relative strength); <b>★</b> = strong on both with quality not failing. '
-        'Header band &amp; Symbol column stay frozen — scroll down and across.</div>')
+        'Header band &amp; Symbol column stay frozen — scroll down and across.</div>'
+        '<div class="sub" style="margin-top:-4px">Each group leads with an <b>instrument</b> that '
+        'turns the buried numbers into a shape — the <b>DVPT-vs-power ladder</b>, the <b>launch-band gauge</b> '
+        '(green = the −1…+5% entry band), the <b>character triglyph</b> (WHO·WAY·CTX → ACCUM/DIST) and the '
+        '<b>RS spark</b> — with every raw value kept beside it. Hide a group to scan just its instruments.</div>')
     view_bar = '<div class="fbar" id="vbar" style="align-items:center;margin-bottom:8px"></div>'
     body = intro + scope_bar + view_bar + grid + _SCREENER_JS
     return HTMLResponse(_shell("Screener · patearn", body, "screener", sig_date or "", wide=True))
@@ -1908,7 +2062,7 @@ _SCREENER_JS = """
 (function(){
   var tbl=document.querySelector('table.scr'); if(!tbl) return;
   var vbar=document.getElementById('vbar'); if(!vbar) return;
-  var TOG=[['conv','Conviction'],['pos','Positioning'],['rs','RS'],['cpr','CPR'],['qual','Quality'],['ctx','Context']];
+  var TOG=[['conv','Conviction'],['pos','Positioning'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['qual','Quality'],['ctx','Context']];
   var KEY='patearn_scr_hidden', SKEY='patearn_scr_saved';
   function getH(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
   function getSaved(){try{return JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){return [];}}
