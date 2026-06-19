@@ -30,6 +30,7 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
+from src.automation import adjust
 from src.automation.signals import accum_character_read, is_near_key
 from src.core.db import get_conn
 
@@ -2252,7 +2253,7 @@ def dash_stock(sym: str = Query("", max_length=20)) -> HTMLResponse:
                    else f'<b>{_esc(rs_sym_name)}</b> vs <b>Nifty 500</b> (broad) — '
                         f'no NSE sectoral index covers this stock')
             rs_overlay_html = f"""
-<h2>Relative strength — overlay</h2>
+<h2>Relative strength — overlay <a class="row" style="font-size:13px;font-weight:400" href="/dash/compare?sym={_q(sym)}&idx={_q('Nifty 500')}&idx={_q('Nifty 50')}">↗ open in Compare ⇄</a></h2>
 <div class="sub">{sub}. Each line rebased to a common start (base 100); when the stock pulls above both index lines it is leading its sector <i>and</i> the market — the gaps are RS-sector and RS-broad.</div>
 <div class="fbar" id="rsTfBar">
   <button class="fbtn on" data-rstf="d">Daily</button>
@@ -3154,16 +3155,46 @@ def _cmp_color(i: int) -> str:
     return f"hsl({int((i * 137.508) % 360)},70%,60%)"
 
 
+def _stock_levels(conn, syms: list[str]) -> dict:
+    """Split/bonus-adjusted close series per stock, for the compare overlay.
+
+    Returns {symbol: [{"t": date, "v": adj_close}, ...]} oldest-first. Reuses
+    adjust.adjusted_closes (the same back-adjustment the stock chart + RS use) so
+    a split never fakes a relative-strength cliff. One batched query for all syms.
+    """
+    out: dict = {}
+    if not syms:
+        return out
+    ph = ",".join("?" for _ in syms)
+    grouped: dict = {}
+    for row in conn.execute(
+        f"""SELECT symbol, trade_date, close, prev_close
+            FROM bhavcopy_rows
+            WHERE symbol IN ({ph}) AND series='EQ'
+              AND (segment='CM' OR segment IS NULL) AND close IS NOT NULL
+            ORDER BY symbol, trade_date""", syms).fetchall():
+        grouped.setdefault(row["symbol"], []).append(dict(row))
+    for s, rows in grouped.items():
+        adj = adjust.adjusted_closes(rows)
+        out[s] = [{"t": rw["trade_date"], "v": round(a, 2)}
+                  for rw, a in zip(rows, adj) if a is not None]
+    return out
+
+
 @router.get("/dash/compare", response_class=HTMLResponse)
 def dash_compare(idx: list[str] = Query(default=[]),
+                 sym: list[str] = Query(default=[]),
                  den: str = Query("Nifty 500"),
                  mode: str = Query("rebase"),
                  base: str = Query("100"),
                  r: int = Query(252)) -> HTMLResponse:
-    """Overlay up to _COMPARE_MAX indices on one chart, each rebased to a common (fluid) anchor.
+    """Overlay up to _COMPARE_MAX stocks AND/OR indices on one chart, each rebased
+    to a common (fluid) anchor.
 
-    Render-only (D40): RAW values out of index_rows/ratio_rows, rebased client-
-    side. URL is the source of truth (?idx=A&idx=B&den=&mode=&base=&r=).
+    Render-only: index levels out of index_rows/ratio_rows; stock lines = split/
+    bonus-adjusted closes out of bhavcopy_rows (via adjust.py). URL is the source
+    of truth (?idx=A&idx=B&sym=RELIANCE&den=&mode=&base=&r=). Bare URL (no idx/sym)
+    defaults to Nifty 500 + Nifty 50.
     """
     den = (den or "").strip()
     if den not in ("Nifty 50", "Nifty 500"):
@@ -3182,7 +3213,11 @@ def dash_compare(idx: list[str] = Query(default=[]),
         valid = [row["index_name"] for row in conn.execute(
             "SELECT DISTINCT index_name FROM index_rows ORDER BY index_name").fetchall()]
         valid_set = set(valid)
-        # Title-case gotcha: strip + drop unknowns, never case-munge. Cap 6, dedup.
+        # Picker universe also needs the full NSE equity list (symbol + name).
+        equities = [(row["symbol"], row["company_name"] or "") for row in conn.execute(
+            "SELECT symbol, company_name FROM nse_equity_list ORDER BY symbol").fetchall()]
+        equity_set = {s for s, _ in equities}
+        # Title-case gotcha: strip + drop unknowns, never case-munge. Cap, dedup.
         sel, seen = [], set()
         for n in idx:
             n = (n or "").strip()
@@ -3191,12 +3226,26 @@ def dash_compare(idx: list[str] = Query(default=[]),
                 seen.add(n)
             if len(sel) >= _COMPARE_MAX:
                 break
+        # Stocks — validated against the NSE equity allowlist (uppercased tickers).
+        ssel, sseen = [], set()
+        for s in sym:
+            s = (s or "").strip().upper()
+            if s and s in equity_set and s not in sseen:
+                ssel.append(s)
+                sseen.add(s)
+            if len(sel) + len(ssel) >= _COMPARE_MAX:
+                break
+        # Default: bare /dash/compare → the two market benchmarks.
+        if not sel and not ssel:
+            sel = [n for n in ("Nifty 500", "Nifty 50") if n in valid_set]
+            seen = set(sel)
+        # Combined selection, ordered indices-first; colour = position.
+        sel_items = [("idx", n) for n in sel] + [("stk", s) for s in ssel]
 
-        series = []
+        levels, ratios = {}, {}
         if sel:
             ph = ",".join("?" for _ in sel)
             # Levels (any index) — ONE query, ordered (name, date).
-            levels = {}
             for row in conn.execute(
                 f"""SELECT index_name, trade_date, close_value
                     FROM index_rows
@@ -3207,7 +3256,6 @@ def dash_compare(idx: list[str] = Query(default=[]),
                 levels.setdefault(row["index_name"], []).append(
                     {"t": row["trade_date"], "v": round(row["close_value"], 2)})
             # Ratios vs the chosen denominator — ONE query (size indices get []).
-            ratios = {}
             for row in conn.execute(
                 f"""SELECT numerator, trade_date, ratio
                     FROM ratio_rows
@@ -3217,30 +3265,44 @@ def dash_compare(idx: list[str] = Query(default=[]),
             ).fetchall():
                 ratios.setdefault(row["numerator"], []).append(
                     {"t": row["trade_date"], "v": round(row["ratio"], 4)})
-            for i, name in enumerate(sel):
-                series.append({
-                    "i": i,
-                    "name": name,
-                    "color": _cmp_color(i),
-                    "level": levels.get(name, []),
-                    "ratio": ratios.get(name, []),
-                })
+        # Stock lines — split/bonus-adjusted closes (rebase-mode; no RS ratio).
+        stock_levels = _stock_levels(conn, ssel)
+
+        series = []
+        for i, (kind, name) in enumerate(sel_items):
+            if kind == "idx":
+                lvl, rat = levels.get(name, []), ratios.get(name, [])
+            else:
+                lvl, rat = stock_levels.get(name, []), []
+            series.append({
+                "i": i,
+                "name": name,
+                "color": _cmp_color(i),
+                "kind": kind,
+                "level": lvl,
+                "ratio": rat,
+            })
 
     series_json = json.dumps(series)
 
     # --- Picker: active chips (legend) + [+ Add] reveal -> search + suggestions
-    def _chip(name, i):
+    def _cmp_href(items, d=None, m=None):
+        parts = [(f"idx={_q(n)}" if k == "idx" else f"sym={_q(n)}") for k, n in items]
+        parts += [f"den={_q(d or den)}", f"mode={_q(m or mode)}",
+                  f"base={_q(base)}", f"r={r}"]
+        return "/dash/compare?" + "&".join(parts)
+
+    def _chip(kind, name, i):
         color = _cmp_color(i)
-        rest = [x for x in sel if x != name]
-        href = "/dash/compare?" + "&".join(
-            [f"idx={_q(x)}" for x in rest]
-            + [f"den={_q(den)}", f"mode={_q(mode)}", f"base={_q(base)}", f"r={r}"])
+        rest = [it for it in sel_items if it != (kind, name)]
+        href = _cmp_href(rest)
+        tag = "" if kind == "idx" else ' <span class="cmp-tag">stk</span>'
         return (f'<span class="cmp-chip" data-i="{i}">'
                 f'<span class="cmp-sw" style="background:{color}"></span>'
-                f'<span>{_esc(name)}</span>'
+                f'<span>{_esc(name)}</span>{tag}'
                 f'<a class="cmp-x" href="{_esc(href)}" title="remove">✕</a></span>')
 
-    active_chips = "".join(_chip(n, i) for i, n in enumerate(sel))
+    active_chips = "".join(_chip(k, n, i) for i, (k, n) in enumerate(sel_items))
 
     # Suggestion chips (grouped). Now multi-select toggle buttons — the picker
     # JS stages a Set and the "Add" button navigates once with all of them.
@@ -3258,20 +3320,25 @@ def dash_compare(idx: list[str] = Query(default=[]),
     if not at_cap:
         sugg_html = (_sugg_group("Broad / size", MAJOR_BROAD)
                      + _sugg_group("Sectors", MAJOR_SECTORS))
-    # All valid names as data for the substring filter (any index addable).
-    all_names_json = json.dumps(valid)
+    # Picker data: indices + the full equity universe (symbol + company name),
+    # tagged so the picker emits ?idx= or ?sym=. Filtered client-side.
+    cmp_items = [{"v": n, "t": "idx"} for n in valid]
+    cmp_items += [{"v": s, "t": "stk", "n": nm} for s, nm in equities]
+    cmp_items_json = json.dumps(cmp_items)
 
     add_block = ""
     if not at_cap:
         add_block = (
             '<div id="cmpAddWrap" style="display:none">'
             '<div class="search" style="margin-top:6px">'
-            '<input id="cmpSearch" placeholder="Filter indices to add…" autocomplete="off"/>'
+            '<input id="cmpSearch" placeholder="Type a ticker or index — LT, RELIANCE, Nifty Bank…" autocomplete="off"/>'
             '<button class="dtx" id="cmpAddConfirm" type="button" disabled>Add</button>'
             '</div>'
-            f'<div class="sub" style="margin:2px 0 6px">Tap any number of indices, then '
-            f'<b>Add</b> (up to {_COMPARE_MAX} total).</div>'
+            f'<div class="sub" style="margin:2px 0 6px">Tickers match from 2 letters '
+            f'(LT → LT, LTF, LTIM…), names from 4. Tap to stage, then <b>Add</b> '
+            f'(up to {_COMPARE_MAX} total).</div>'
             f'<div id="cmpSugg">{sugg_html}</div>'
+            '<div id="cmpResults" class="chips" style="margin-top:6px"></div>'
             '</div>')
         add_btn = '<button class="chip" id="cmpAddBtn" type="button">+ Add</button>'
     else:
@@ -3322,6 +3389,8 @@ def dash_compare(idx: list[str] = Query(default=[]),
             border:1px solid #30363d; border-radius:14px; padding:5px 8px 5px 9px; font-size:13px; }
 .cmp-chip.cmp-dim { opacity:.4; }
 .cmp-sw { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.cmp-tag { font-size:9px; font-weight:700; color:#8b949e; background:#21262d;
+           border-radius:4px; padding:1px 4px; letter-spacing:.4px; }
 .cmp-x { color:#8b949e; text-decoration:none; font-size:12px; margin-left:1px; }
 .cmp-x:hover { color:#f85149; }
 .cmp-sugg.cmp-hide { display:none; }
@@ -3341,13 +3410,13 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     if not sel:
         body = (
             f'<style>{chart_css}</style>'
-            '<h2>Compare indices ⇄</h2>'
-            '<div class="sub">Overlay up to 6 indices, each rebased to a common '
-            'start, to read who outperformed. Pick indices to begin.</div>'
+            '<h2>Compare ⇄</h2>'
+            '<div class="sub">Overlay any stocks and indices, each rebased to a common '
+            'start, to read who outperformed. Use <b>+ Add</b> to begin.</div>'
             + preset_html
             + picker_html
             + '<div class="empty">No indices selected. Use <b>+ Add</b> or a preset above.</div>'
-            + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json).replace("__MAX__", str(_COMPARE_MAX)))
+            + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
         return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
 
     # Note any selected series that has no data for the current mode.
@@ -3379,12 +3448,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         f'<button class="fbtn {"on" if mode=="ratio" else ""}" data-cmode="ratio">Ratio</button>'
         '</div>')
     # Denominator switch (ratio mode only) — reloads with ?den=.
-    den_href = "/dash/compare?" + "&".join(
-        [f"idx={_q(x)}" for x in sel]
-        + [f"den={_q('Nifty 50')}", f"mode=ratio", f"base={_q(base)}", f"r={r}"])
-    den_href2 = "/dash/compare?" + "&".join(
-        [f"idx={_q(x)}" for x in sel]
-        + [f"den={_q('Nifty 500')}", f"mode=ratio", f"base={_q(base)}", f"r={r}"])
+    den_href = _cmp_href(sel_items, d="Nifty 50", m="ratio")
+    den_href2 = _cmp_href(sel_items, d="Nifty 500", m="ratio")
     denom_bar = (
         f'<div class="fbar" id="cmpDenomBar" style="display:{"flex" if mode=="ratio" else "none"}">'
         f'<a class="fbtn {"on" if den=="Nifty 50" else ""}" href="{_esc(den_href)}">vs Nifty 50</a>'
@@ -3404,10 +3469,11 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 
     body = (
         f'<style>{chart_css}</style>'
-        '<h2>Compare indices ⇄</h2>'
-        '<div class="sub" style="margin-bottom:8px">Each line indexed to <b>100</b> at a '
-        'common start (the first visible day) — so 122 = +22%. Pan to re-anchor, or 📅 pin '
-        'a date. <b>Ratio</b> mode overlays each ÷ the benchmark instead.</div>'
+        '<h2>Compare ⇄</h2>'
+        '<div class="sub" style="margin-bottom:8px">Overlay any stocks and indices — '
+        'each indexed to <b>100</b> at a common start (the first visible day), so 122 = '
+        '+22%. Pan to re-anchor, or 📅 pin a date. <b>Ratio</b> mode (indices) overlays '
+        'each ÷ the benchmark instead.</div>'
         + preset_html
         + picker_html
         + note
@@ -3422,7 +3488,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         '</div></div>'
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
-        + _COMPARE_PICKER_JS.replace("__NAMES__", all_names_json).replace("__MAX__", str(_COMPARE_MAX)))
+        + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
     return HTMLResponse(_shell("Compare — Hermes", body, "markets", idx_date or ""))
 
 
@@ -3433,67 +3499,88 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 _COMPARE_PICKER_JS = """
 <script>
 (function(){
-  const NAMES = __NAMES__;
+  const ITEMS = __ITEMS__;                      // [{v:name, t:'idx'|'stk', n?:company}]
+  const MAX=__MAX__;
   const btn=document.getElementById('cmpAddBtn');
   const wrap=document.getElementById('cmpAddWrap');
   const box=document.getElementById('cmpSearch');
   const sugg=document.getElementById('cmpSugg');
+  const results=document.getElementById('cmpResults');
   const confirm=document.getElementById('cmpAddConfirm');
   if(btn&&wrap){ btn.onclick=()=>{ wrap.style.display=(wrap.style.display==='none')?'block':'none'; if(box) box.focus(); }; }
-  function curParams(){ return new URL(window.location.href).searchParams; }
-  const already=curParams().getAll('idx');     // indices already on the chart
-  const MAX=__MAX__;
-  const slots=MAX-already.length;               // how many more can be added
-  const picked=new Set();                       // multi-select staging
+  const p0=new URL(window.location.href).searchParams;
+  const already=new Set(p0.getAll('idx').concat(p0.getAll('sym')));  // already on chart
+  const slots=MAX-already.size;                 // how many more can be added
+  const picked=new Map();                       // name -> 'idx'|'stk' (staging)
+  const seeded=new Set();                        // seeded index chips (avoid dupes)
   function refresh(){
     if(!confirm) return;
     confirm.disabled = picked.size===0;
     confirm.textContent = picked.size ? ('Add '+picked.size) : 'Add';
   }
-  function toggle(name, el){
-    if(picked.has(name)){ picked.delete(name); el.classList.remove('cmp-on'); }
-    else { if(picked.size>=slots) return;       // respect the 6-index cap
-           picked.add(name); el.classList.add('cmp-on'); }
+  function toggle(name, type, el){
+    if(picked.has(name)){ picked.delete(name); if(el) el.classList.remove('cmp-on'); }
+    else { if(picked.size>=slots) return;        // respect the cap
+           picked.set(name, type); if(el) el.classList.add('cmp-on'); }
     refresh();
   }
-  function wire(el){
-    el.addEventListener('click', e=>{ e.preventDefault(); toggle(el.dataset.name, el); });
-  }
-  if(sugg) sugg.querySelectorAll('.cmp-sugg').forEach(wire);
+  function wire(el){ el.addEventListener('click', e=>{ e.preventDefault();
+    toggle(el.dataset.name, el.dataset.type||'idx', el); }); }
+  if(sugg) sugg.querySelectorAll('.cmp-sugg').forEach(el=>{ seeded.add(el.dataset.name); wire(el); });
   if(confirm){
     confirm.onclick=()=>{
       if(!picked.size) return;
-      const p=curParams();
-      const all=p.getAll('idx').concat([...picked]).slice(0,MAX);
+      const p=new URL(window.location.href).searchParams;
+      const items=[];                            // existing selection (keep order)
+      p.getAll('idx').forEach(v=>items.push(['idx',v]));
+      p.getAll('sym').forEach(v=>items.push(['sym',v]));
+      for(const [name,type] of picked) items.push([type==='stk'?'sym':'idx', name]);
+      const capped=items.slice(0,MAX);
       const den=p.get('den')||'Nifty 500', mode=p.get('mode')||'rebase',
             base=p.get('base')||'100', r=p.get('r')||'252';
-      const parts=all.map(s=>'idx='+encodeURIComponent(s));
+      const parts=capped.map(it=>it[0]+'='+encodeURIComponent(it[1]));
       parts.push('den='+encodeURIComponent(den),'mode='+encodeURIComponent(mode),
                  'base='+encodeURIComponent(base),'r='+encodeURIComponent(r));
       window.location='/dash/compare?'+parts.join('&');
     };
   }
-  if(box&&sugg){
+  // Indices: substring (few). Stocks: ticker prefix from 2 chars; symbol/company
+  // substring from 4. Exact ticker first. Capped + debounced so it never blanks.
+  function search(q){
+    q=q.trim().toLowerCase();
+    if(q.length<2) return [];
+    const exact=[], prefix=[], sub=[];
+    for(const it of ITEMS){
+      if(already.has(it.v) || seeded.has(it.v)) continue;
+      const v=it.v.toLowerCase();
+      if(it.t==='idx'){ if(v.indexOf(q)>=0) sub.push(it); continue; }
+      if(v===q) exact.push(it);
+      else if(v.indexOf(q)===0) prefix.push(it);
+      else if(q.length>=4 && (v.indexOf(q)>=0 || (it.n && it.n.toLowerCase().indexOf(q)>=0))) sub.push(it);
+    }
+    return exact.concat(prefix, sub).slice(0,30);
+  }
+  function render(list){
+    if(!results) return;
+    results.innerHTML='';
+    list.forEach(it=>{
+      const b=document.createElement('button'); b.type='button';
+      b.className='chip cmp-sugg'; b.dataset.name=it.v; b.dataset.type=it.t;
+      b.textContent='+ '+it.v+((it.t==='stk'&&it.n)?(' · '+it.n):'');
+      if(picked.has(it.v)) b.classList.add('cmp-on');
+      wire(b); results.appendChild(b);
+    });
+  }
+  if(box){
+    let t=null;
     box.addEventListener('input',()=>{
       const q=box.value.trim().toLowerCase();
-      // Filter the seeded suggestion chips by substring.
-      sugg.querySelectorAll('.cmp-sugg').forEach(a=>{
+      if(sugg) sugg.querySelectorAll('.cmp-sugg').forEach(a=>{
+        if(a.parentNode===results) return;
         const nm=(a.dataset.name||'').toLowerCase();
-        a.classList.toggle('cmp-hide', q!=='' && nm.indexOf(q)<0);
-      });
-      // Append dynamic toggle chips for matches outside the seed list.
-      let dyn=document.getElementById('cmpDyn');
-      if(!dyn){ dyn=document.createElement('div'); dyn.id='cmpDyn'; dyn.className='chips'; sugg.appendChild(dyn); }
-      dyn.innerHTML='';
-      if(q!==''){
-        const seeded={}; sugg.querySelectorAll('.cmp-sugg').forEach(a=>seeded[a.dataset.name]=1);
-        const hits=NAMES.filter(n=>n.toLowerCase().indexOf(q)>=0 && !seeded[n] && already.indexOf(n)<0).slice(0,12);
-        hits.forEach(n=>{ const b=document.createElement('button'); b.type='button';
-          b.className='chip cmp-sugg'; b.dataset.name=n; b.textContent='+ '+n;
-          if(picked.has(n)) b.classList.add('cmp-on');
-          wire(b); dyn.appendChild(b); });
-      }
-      refresh();
+        a.classList.toggle('cmp-hide', q!=='' && nm.indexOf(q)<0); });
+      if(t) clearTimeout(t);
+      t=setTimeout(()=>render(search(q)), 110);
     });
   }
   refresh();
