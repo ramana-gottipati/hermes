@@ -344,8 +344,8 @@ _WS = {
     "strategies": "strategies", "scan": "strategies", "stocks": "strategies",
     "leaders": "strategies", "laggards": "strategies", "conviction": "strategies",
     "workbench": "strategies", "stock": "strategies", "cpr": "strategies",
-    "portfolios": "portfolios", "watchlists": "portfolios", "track": "portfolios",
-    "tracker": "tracker",
+    "dashboard": "tracker", "portfolios": "tracker", "watchlists": "tracker",
+    "performance": "tracker", "tracker": "tracker", "track": "tracker",
     "pat": "pat",
 }
 
@@ -355,8 +355,7 @@ def _nav(active: str) -> str:
     items = [("markets", "/dash/markets", "Markets"),
              ("screener", "/dash/screener", "Screener"),
              ("strategies", "/dash/strategies", "Strategies"),
-             ("portfolios", "/dash/portfolios", "Portfolios"),
-             ("tracker", "/dash/tracker", "Tracker"),
+             ("tracker", "/dash/dashboard", "Tracker"),
              ("pat", "/dash/pat", "Pat")]
     out = ['<div class="wsnav">']
     for key, href, label in items:
@@ -2798,14 +2797,24 @@ def _days_between(d0, d1):
 
 
 def _track_subnav(active):
-    # Portfolios <-> Watchlists are the two list tiers (watch -> open) and share
-    # this switcher. Tracker is its OWN top-level menu tab (see _nav), NOT a
-    # child of Portfolios, so it is deliberately absent here.
-    items = [("portfolios", "/dash/portfolios", "Portfolios"),
-             ("watchlists", "/dash/watchlists", "Watchlists")]
+    # The Tracker workspace's four segments: Dashboard (live cockpit), Portfolios
+    # & Watchlists (the two list tiers), Performance (the over-time scoreboard).
+    items = [("dashboard", "/dash/dashboard", "Dashboard"),
+             ("portfolios", "/dash/portfolios", "Portfolios"),
+             ("watchlists", "/dash/watchlists", "Watchlists"),
+             ("performance", "/dash/performance", "Performance")]
     out = ['<div class="fbar" style="margin-bottom:12px">']
     for k, h, lbl in items:
         out.append(f'<a class="fbtn{" on" if k == active else ""}" href="{h}">{lbl}</a>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def _book_chips(base, books, sel):
+    """Book filter chips on the Portfolios/Watchlists pages (named books)."""
+    out = [f'<div class="fbar" style="margin:0 0 12px"><a class="fbtn{"" if sel else " on"}" href="{base}">All books</a>']
+    for b in books:
+        out.append(f'<a class="fbtn{" on" if b == sel else ""}" href="{base}?book={_q(b)}">{_esc(b)}</a>')
     out.append("</div>")
     return "".join(out)
 
@@ -2889,12 +2898,14 @@ def _equities_ac_json():
     return _EQ_AC["json"]
 
 
-def _add_box(default_status, ac_json="[]"):
+def _add_box(default_status, ac_json="[]", books=()):
     """Inline '+ Add a stock' quick-capture rendered directly on the Portfolios /
     Watchlists pages — so you can add without first opening a stock page. POSTs to
     the same /dash/track endpoint (entry price + frozen snapshot captured
-    SERVER-SIDE); the symbol is typed and validated server-side via _is_listed."""
+    SERVER-SIDE); the symbol is typed and validated server-side via _is_listed.
+    `books` = existing book names → a datalist for the named-book field."""
     opts = "".join(f'<option value="{_esc(s)}">{_esc(s)}</option>' for s in _TRACK_STRATEGIES)
+    bkopts = "".join(f'<option value="{_esc(b)}"></option>' for b in books)
     sel_open = " selected" if default_status == "open" else ""
     sel_watch = " selected" if default_status == "watch" else ""
     return (
@@ -2904,9 +2915,12 @@ def _add_box(default_status, ac_json="[]"):
         '<div style="flex:2;min-width:160px"><label>NSE ticker</label>'
         '<input name="symbol" class="field" placeholder="e.g. BANDHANBNK or Bandhan" '
         'data-ac autocapitalize="characters" autocomplete="off" required/></div>'
-        f'<div style="flex:1;min-width:120px"><label>List</label>'
+        f'<div style="flex:1;min-width:110px"><label>List</label>'
         f'<select name="status" class="field"><option value="open"{sel_open}>Portfolio</option>'
         f'<option value="watch"{sel_watch}>Watchlist</option></select></div>'
+        f'<div style="flex:1;min-width:110px"><label>Book</label>'
+        f'<input name="book" class="field" list="bklist" value="Main" maxlength="40" placeholder="Main"/>'
+        f'<datalist id="bklist">{bkopts}</datalist></div>'
         f'<div style="flex:1;min-width:130px"><label>Strategy</label>'
         f'<select name="strategy" class="field" data-cs onchange="_csToggle(this)">{opts}</select></div></div>'
         '<div class="cs-wrap" style="display:none;margin-bottom:10px">'
@@ -2931,7 +2945,7 @@ def _add_box(default_status, ac_json="[]"):
 def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                status: str = Form("open"), thesis: str = Form(""),
                target: str = Form(""), stop: str = Form(""),
-               strategy_custom: str = Form(""),
+               strategy_custom: str = Form(""), book: str = Form("Main"),
                entry_date: str = Form(""), entry_price: str = Form("")) -> RedirectResponse:
     sym = (symbol or "").upper().strip()
     status = status if status in ("watch", "open") else "open"
@@ -2940,6 +2954,7 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
     strat = (strategy or "Manual").strip() or "Manual"
     if strat == "Manual" and (strategy_custom or "").strip():
         strat = strategy_custom.strip()[:60]
+    bk = (book or "Main").strip()[:40] or "Main"
 
     def _f(x):
         try:
@@ -2976,9 +2991,9 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                 ep = ep_in
             snap = _capture_snapshot(conn, sym, as_of=td)[1]
             conn.execute(
-                "INSERT INTO stocks_in_play(symbol,strategy,status,date_added,entry_price,"
-                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?)",
-                (sym, strat, status, td, ep,
+                "INSERT INTO stocks_in_play(symbol,strategy,book,status,date_added,entry_price,"
+                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (sym, strat, bk, status, td, ep,
                  _f(target), _f(stop), (thesis or "").strip() or None,
                  json.dumps(snap) if snap else None))
         else:
@@ -2986,9 +3001,9 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
             # the as-of price for reference; date_added defaults to now.
             snap = _capture_snapshot(conn, sym)[1]
             conn.execute(
-                "INSERT INTO stocks_in_play(symbol,strategy,status,entry_price,"
-                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",
-                (sym, strat, status, None,
+                "INSERT INTO stocks_in_play(symbol,strategy,book,status,entry_price,"
+                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?)",
+                (sym, strat, bk, status, None,
                  _f(target), _f(stop), (thesis or "").strip() or None,
                  json.dumps(snap) if snap else None))
     return RedirectResponse(f"{dest}?added={_q(sym)}", status_code=303)
@@ -3039,30 +3054,39 @@ def dash_track_remove(id: int = Form(...)) -> RedirectResponse:
 
 
 @router.get("/dash/portfolios", response_class=HTMLResponse)
-def dash_portfolios(added: str = Query(""), err: str = Query("")) -> HTMLResponse:
+def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
     with get_conn() as conn:
         rows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='open' "
-            "ORDER BY strategy, date_added DESC").fetchall()]
+            "ORDER BY book, strategy, date_added DESC").fetchall()]
+        books = [r[0] for r in conn.execute(
+            "SELECT DISTINCT book FROM stocks_in_play WHERE status='open' ORDER BY book").fetchall()]
+        ac = _equities_ac_json()
         live = {}
         for sym in {r["symbol"] for r in rows}:
             ep, snap, _ = _capture_snapshot(conn, sym)
             live[sym] = (ep, snap)
+    sel_book = book.strip()
+    if sel_book:
+        rows = [r for r in rows if (r.get("book") or "Main") == sel_book]
     intro = ('<h2>Portfolios</h2><div class="sub"><b>Positions you\'ve committed to</b> — money in: '
-             'a frozen entry, live P/L, and target/stop. Add one below, or from any stock page. '
-             '<span class="mut">Just watching, not committed yet? Use the '
-             '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlist</a>. '
-             'Want the performance scorecard? See the '
-             '<a href="/dash/tracker" style="color:#58a6ff;text-decoration:none">Tracker</a>.</span></div>')
+             'a frozen entry, live P/L, and target/stop. Keep several named books (Aggressive, '
+             'Long-term, a family member\'s…). Add one below, or from any stock page. '
+             '<span class="mut">Just watching? Use the '
+             '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlist</a>; '
+             'the scorecard is under '
+             '<a href="/dash/performance" style="color:#58a6ff;text-decoration:none">Performance</a>.</span></div>')
     flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your portfolio.</div>'
              if added else "")
     if err:
         flash += f'<div class="banner b-off">{_esc(err)}</div>'
-    addbox = _add_box("open", _equities_ac_json())
+    chips = _book_chips("/dash/portfolios", books, sel_book) if books else ""
+    addbox = _add_box("open", ac, books)
     if not rows:
-        empty = ('<div class="empty">No open positions yet. Add one above, or open any stock '
-                 'and hit <b>+ Track</b> → <b>Portfolio</b>.</div>')
-        body = _TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + empty
+        empty = ('<div class="empty">No open positions'
+                 + (f' in <b>{_esc(sel_book)}</b>' if sel_book else '')
+                 + ' yet. Add one above, or open any stock and hit <b>+ Track</b> → <b>Portfolio</b>.</div>')
+        body = _TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips + empty
         return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
     trs = []
     for r in rows:
@@ -3082,6 +3106,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query("")) -> HTMLRespons
         trs.append(
             '<tr>'
             f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
+            f'<td class="l mut">{_esc(r.get("book") or "Main")}</td>'
             f'<td class="l mut">{_esc(r["strategy"])}</td>'
             f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
             f'<td class="num">{_num(ep, 1)}</td>'
@@ -3093,35 +3118,44 @@ def dash_portfolios(added: str = Query(""), err: str = Query("")) -> HTMLRespons
             f'<td class="l">{_id_form("/dash/track/close", r["id"], "Close", confirm="Close this position?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr>'
-            '<th>Symbol</th><th>Strategy</th><th>Entry date</th><th>Entry ₹</th><th>CMP</th>'
+            '<th>Symbol</th><th>Book</th><th>Strategy</th><th>Entry date</th><th>Entry ₹</th><th>CMP</th>'
             '<th>P/L</th><th>Target</th><th>Conv then→now</th><th>Thesis</th><th></th>'
             '</tr></thead><tbody>')
-    body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox
+    body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips
             + head + "".join(trs) + "</tbody></table>")
     return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
 
 
 @router.get("/dash/watchlists", response_class=HTMLResponse)
-def dash_watchlists(added: str = Query(""), err: str = Query("")) -> HTMLResponse:
+def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
     with get_conn() as conn:
         rows = [dict(r) for r in conn.execute(
-            "SELECT * FROM stocks_in_play WHERE status='watch' ORDER BY date_added DESC").fetchall()]
+            "SELECT * FROM stocks_in_play WHERE status='watch' ORDER BY book, date_added DESC").fetchall()]
+        books = [r[0] for r in conn.execute(
+            "SELECT DISTINCT book FROM stocks_in_play WHERE status='watch' ORDER BY book").fetchall()]
+        ac = _equities_ac_json()
         live = {}
         for sym in {r["symbol"] for r in rows}:
             live[sym] = _capture_snapshot(conn, sym)[1]
+    sel_book = book.strip()
+    if sel_book:
+        rows = [r for r in rows if (r.get("book") or "Main") == sel_book]
     intro = ('<h2>Watchlists</h2><div class="sub"><b>Ideas you\'re watching</b> — no entry, no '
-             'commitment yet. When you act on one, <b>Promote</b> it to your Portfolio. Add one '
-             'below, or from any stock page. <span class="mut">Already committed? That belongs in the '
+             'commitment yet. Keep several named lists. When you act on one, <b>Promote</b> it to a '
+             'Portfolio. Add one below, or from any stock page. <span class="mut">Already committed? '
+             'That belongs in the '
              '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a>.</span></div>')
     flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your watchlist.</div>'
              if added else "")
     if err:
         flash += f'<div class="banner b-off">{_esc(err)}</div>'
-    addbox = _add_box("watch", _equities_ac_json())
+    chips = _book_chips("/dash/watchlists", books, sel_book) if books else ""
+    addbox = _add_box("watch", ac, books)
     if not rows:
-        empty = ('<div class="empty">No watchlist items yet. Add one above, or on any stock '
-                 'page hit <b>+ Track</b> → <b>Watchlist</b>.</div>')
-        body = _TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + empty
+        empty = ('<div class="empty">No watchlist items'
+                 + (f' in <b>{_esc(sel_book)}</b>' if sel_book else '')
+                 + ' yet. Add one above, or on any stock page hit <b>+ Track</b> → <b>Watchlist</b>.</div>')
+        body = _TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + chips + empty
         return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
     trs = []
     for r in rows:
@@ -3129,6 +3163,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query("")) -> HTMLRespons
         trs.append(
             '<tr>'
             f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
+            f'<td class="l mut">{_esc(r.get("book") or "Main")}</td>'
             f'<td class="l mut">{_esc(r["strategy"])}</td>'
             f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
             f'<td class="l">{_snap_chips(live.get(sym, {}))}</td>'
@@ -3136,15 +3171,15 @@ def dash_watchlists(added: str = Query(""), err: str = Query("")) -> HTMLRespons
             f'<td class="l">{_id_form("/dash/track/promote", r["id"], "Promote", cls="tbtn tbtn-go")}'
             f'{_id_form("/dash/track/remove", r["id"], "Remove", confirm="Remove from watchlist?")}</td>'
             '</tr>')
-    head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Strategy</th><th>Added</th>'
+    head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Book</th><th>Strategy</th><th>Added</th>'
             '<th>Live signals</th><th>Note</th><th></th></tr></thead><tbody>')
-    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox
+    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + chips
             + head + "".join(trs) + "</tbody></table>")
     return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
 
 
-@router.get("/dash/tracker", response_class=HTMLResponse)
-def dash_tracker() -> HTMLResponse:
+@router.get("/dash/performance", response_class=HTMLResponse)
+def dash_performance() -> HTMLResponse:
     with get_conn() as conn:
         openrows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='open'").fetchall()]
@@ -3200,16 +3235,82 @@ def dash_tracker() -> HTMLResponse:
     else:
         bars_html = ('<div class="sub" style="margin-top:14px">No closed positions yet — hit-rate '
                      'by strategy and the benchmark gap appear once you close trades.</div>')
-    intro = ('<h2>Tracker</h2><div class="sub"><b>Your scoreboard</b> — how your committed ideas '
+    intro = ('<h2>Performance</h2><div class="sub"><b>Your scoreboard</b> — how your committed ideas '
              'actually performed: open mark-to-market, hit-rate by strategy, and excess vs the '
              'Nifty 500. <span class="mut">Auto-computed from your '
              '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a> + '
              'closed trades — there\'s nothing to add here; it fills itself as you take and close '
              'positions.</span></div>')
-    # Tracker is a standalone top-level tab (reached from _nav), so it does NOT
-    # render the Portfolios/Watchlists sub-nav — it is not a child of Portfolios.
-    body = _TRACK_CSS + intro + cards + bars_html
-    return HTMLResponse(_shell("Tracker · patearn", body, "tracker"))
+    body = _TRACK_CSS + _track_subnav("performance") + intro + cards + bars_html
+    return HTMLResponse(_shell("Performance · patearn", body, "performance"))
+
+
+@router.get("/dash/tracker")
+def dash_tracker_redirect() -> RedirectResponse:
+    # Back-compat: the old scoreboard route is now "Performance".
+    return RedirectResponse("/dash/performance", status_code=307)
+
+
+@router.get("/dash/dashboard", response_class=HTMLResponse)
+def dash_dashboard() -> HTMLResponse:
+    """The Tracker cockpit: every book at a glance + totals. (News & alerts next.)"""
+    with get_conn() as conn:
+        openrows = [dict(r) for r in conn.execute(
+            "SELECT * FROM stocks_in_play WHERE status='open'").fetchall()]
+        watchrows = [dict(r) for r in conn.execute(
+            "SELECT * FROM stocks_in_play WHERE status='watch'").fetchall()]
+        cmps = {}
+        for sym in {r["symbol"] for r in openrows}:
+            cmps[sym] = _capture_snapshot(conn, sym)[0]
+
+    def _pl(r):
+        c, ep = cmps.get(r["symbol"]), r["entry_price"]
+        return ((c - ep) / ep * 100.0) if (c and ep) else None
+    opl = [x for x in (_pl(r) for r in openrows) if x is not None]
+    open_mtm = (sum(opl) / len(opl)) if opl else None
+    bk = {}
+    for r in openrows:
+        d = bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": []})
+        d["open"] += 1
+        p = _pl(r)
+        if p is not None:
+            d["pl"].append(p)
+    for r in watchrows:
+        bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": []})["watch"] += 1
+
+    def card(lbl, val):
+        return f'<div class="box"><div class="num">{val}</div><div class="lbl">{lbl}</div></div>'
+    cards = ('<div class="kpi">'
+             + card("books", len(bk))
+             + card("open positions", len(openrows))
+             + card("open MTM", _pct(open_mtm))
+             + card("watchlist ideas", len(watchrows))
+             + '</div>')
+    intro = ('<h2>Dashboard</h2><div class="sub"><b>Your cockpit</b> — every book at a glance. '
+             'Open a book to manage holdings, or see the '
+             '<a href="/dash/performance" style="color:#58a6ff;text-decoration:none">Performance</a> '
+             'scorecard. <span class="mut">News &amp; alerts land here next.</span></div>')
+    if bk:
+        trs = []
+        for b, d in sorted(bk.items()):
+            avg = (sum(d["pl"]) / len(d["pl"])) if d["pl"] else None
+            trs.append(
+                '<tr>'
+                f'<td class="l"><a class="row" href="/dash/portfolios?book={_q(b)}"><span class="sym">{_esc(b)}</span></a></td>'
+                f'<td class="num">{d["open"]}</td>'
+                f'<td class="num">{_pct(avg)}</td>'
+                f'<td class="num">{d["watch"]}</td>'
+                f'<td class="l"><a class="tbtn" href="/dash/portfolios?book={_q(b)}" style="text-decoration:none">Open</a></td>'
+                '</tr>')
+        table = ('<table class="dt"><thead><tr><th>Book</th><th>Open</th><th>Avg P/L</th>'
+                 '<th>Watch</th><th></th></tr></thead><tbody>' + "".join(trs) + "</tbody></table>")
+    else:
+        table = ('<div class="empty">No books yet. Add a position in '
+                 '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolios</a> '
+                 'or an idea in '
+                 '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlists</a>.</div>')
+    body = _TRACK_CSS + _track_subnav("dashboard") + intro + cards + table
+    return HTMLResponse(_shell("Dashboard · patearn", body, "dashboard"))
 
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"

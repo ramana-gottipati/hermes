@@ -580,6 +580,7 @@ CREATE TABLE IF NOT EXISTS stocks_in_play (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol        TEXT NOT NULL,
     strategy      TEXT NOT NULL DEFAULT 'Manual',
+    book          TEXT NOT NULL DEFAULT 'Main',   -- named portfolio/watchlist book
     status        TEXT NOT NULL DEFAULT 'open',   -- 'watch' | 'open' | 'closed'
     date_added    TEXT NOT NULL DEFAULT (datetime('now')),
     entry_price   REAL,
@@ -628,6 +629,8 @@ def _init() -> None:
         conn.executescript(SCHEMA_BASE)
         # 2. Migrate existing DBs that pre-date the telegram_user_id column.
         _ensure_column(conn, "conversations", "telegram_user_id", "INTEGER")
+        # 2b. Named portfolio/watchlist books (Tracker umbrella — D54 follow-up).
+        _ensure_column(conn, "stocks_in_play", "book", "TEXT NOT NULL DEFAULT 'Main'")
         # 3. Index on the new column (now guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_conv_tg_user ON conversations(telegram_user_id, id DESC)"
