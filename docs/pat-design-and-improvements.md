@@ -148,6 +148,8 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
   use a `src/pat/routes.py` router included in `main.py`), and the 👍/👎 UI on
   answers.
 - ⬜ `[engine]` P0 — clarify-before-guess (§4.5): a `clarify` intent + render.
+- ⬜ `[engine]` P1 — semantic synonym/disambiguation dictionary in front of the engine (Nous Hermes idea #3, §9): delivery→DVPT, momentum→RS, quality→14-pattern, "strength"→disambiguation chip. Deterministic, ₹0, lifts first-answer routing.
+- ⬜ `[engine]` P1 — confidence-threshold clarify (Nous Hermes idea #2, §9): when the engine's match confidence is low, offer 2–3 template suggestions as chips instead of guessing.
 - ⬜ `[engine]` P1 — few-shot from recent corrections (§4.4.2): inject the last N
   corrections into the prompt so routing learns the user's phrasings.
 - ⬜ `[thread]` P1 — conversational refinement (§6) + implicit re-ask detection.
@@ -179,13 +181,87 @@ swap; per the project doctrine, any LLM/heavy work is an **offline research aid*
 never the live decision loop. So propose offline/rule improvements, not live-LLM
 dependencies in the picking path.
 
-**Handoff:** the Nous agent (D34, `nousresearch/hermes-agent` at `:9443`) is an
-isolated container running a remote free model — there is no API wired for it to
-write here automatically yet. Today the loop is: feed this file + this brief to
-the Nous agent via the Portal; it returns improvement notes; paste them into §9.
-(If we later wire an endpoint, the main session can automate this.)
+**Handoff — the bridge WORKS (2026-06-20).** Claude can relay to the Nous agent:
+`ssh hermes 'docker exec -u 10000 -w /opt/data/patearn hermes-agent /opt/hermes/.venv/bin/hermes --yolo -z "<message>"'` (her brain is now Gemini 2.5 Flash; see memory `nous-hermes-bridge`). Loop: relay a Pat brief → capture her reply → record it in §9 (her first round is there). She also keeps her own journal at host `/root/.hermes/patearn/channel/learnings.md`.
 
 ---
 
 ## 9. Nous Hermes notes
-<!-- Nous Hermes: append your improvement proposals here. -->
+
+**Round 1 — improvement ideas from Nous Hermes** (relayed via the bridge, 2026-06-20; her brain = Gemini 2.5 Flash). All deterministic/rule-based (doctrine-consistent); several reinforce §4 + §7:
+
+1. **Timeframe extraction + clarify-chips when missing.** Rule-parse explicit timeframes (today/yesterday/last week/1m/QTD/YTD/52w); if a time-sensitive metric (RS/DVPT) has NO timeframe, don't guess — present timeframe tap-chips (Today | Last Week | Last Month | 3-Month). *(Extends the shipped RS-window rule to all time-sensitive flows; ties into clarify §4.5.)*
+2. **Parameterized template matching with a confidence threshold.** Match the query to structured templates; if confidence < ~70%, present alternative template suggestions as chips ("Did you mean: DVPT ignition in IT, or RS leaders last month?"). *(A concrete clarify mechanism, §4.5.)*
+3. **Semantic synonym / disambiguation dictionary.** Map synonyms → canonical concepts (delivery→DVPT, momentum→RS, quality→14-pattern, strong hands→accumulation); for ambiguous terms ("strength" = RS or fundamental?) offer a disambiguation chip. *(NEW deterministic synonym layer in front of the engine — improves first-answer routing, ₹0. Added to §7.)*
+4. **User query history + contextual auto-suggestions.** Track each analyst's successful queries; prioritize personal-history autocomplete; proactively suggest from current market activity. *(Personalization; ties into the thread §6.)*
+5. **Human-in-the-loop rule refinement.** Log every 👎 (query + routed response + "what you expected"); a weekly review turns recurring misinterpretations into new rules/synonyms/templates — improvement WITHOUT retraining. *(Exactly §4.4 arm-1 operationalized — adopt.)*
+
+---
+
+## 10. Session wrap — 2026-06-20 (Pat built + deployed end-to-end)
+
+> **⚠ NAMING COLLISION — for Ramana to resolve.** A parallel session locked (2026-06-20): **"Hermes"** = the Nous agent · **"Pattern"** = the operational Patearn/Telegram agent · **"PAT"** = a strategy-expert MIND inside Pattern (trained via Nous Hermes — her channel `pat-training-program.md`). THIS session's **"Pat"** = the **`/dash/pat` web NL-search TAB** (a UI). Two different things sharing the name. Likely reconciliation: the web `/dash/pat` tab is the *front-end surface*, and "PAT the strategy-expert" is the *brain* that should eventually power it — and the web tab's feedback store (§4) is the natural training-data feed for that brain. **Confirm the relationship + any rename before deep integration.**
+
+**Shipped + LIVE on the VPS** (`https://srv1704897.hstgr.cloud/dash/pat`), 12 Pat commits `5184121 → 3ea35e2`:
+- Glossary explainer (39 terms) · accumulation · RS-leaders · fundamentals · **today's movers** flows — all deterministic, read-only, ₹0.
+- The **Gemini free-text engine** (English → flow+params; never-Claude; cached). Model = **`gemini-2.5-flash-lite`** (2.0-flash free tier is quota-0; this also un-broke the news classifier).
+- **Timeframe-aware RS** — "over the last month" ranks by 1m RS + relabels the column "RS 1M" (reporting follows the question).
+- **Avatars = decoration** — one face shown, picker on its own `?flow=face` page (stopped faking a function).
+- **Strategy-grouped Home clues** — example questions that teach what to ask.
+- Pre-deploy **adversarial review** (0 P0s) + 3 P1 fixes. **Perf gate passed** (flows hit indexes; 4–6 ms). Reconciliation: the VPS-only `dashboard.py` work (screener lag-fix + `_mv_*` micro-viz) was verified already-in-git and preserved on deploy.
+
+**Verified:** every increment synthetic-DB tested (route 200 + logic) + live smoke on the VPS.
+
+**Cross-session note (important):** this session ran ALONGSIDE a parallel session doing explosive-move / Portfolio-Tracker work. That session holds uncommitted changes to **`dashboard.py`** and **`PROJECT_STATE.md`**, and owns `research/`, `docs/explosive-move-research.md`. **Pat work deliberately never touched those files** — new chip params reuse the route's already-captured `strength`/`entry` params, and all Pat tracking lives in THIS doc + the auto-memory, not PROJECT_STATE. PROJECT_STATE's Pat session-log is accurate but PARTIAL (stops ~at the engine); **this doc is the current, complete Pat record.** Held-and-untouched: `patearn.py`, `mtf_signals.py`.
+
+**Open (the backlog, §7):** feedback/correction store · clarify-before-guess · few-shot learning · conversational thread · "reporting follows the question" for all flows · the "right not more" answer pass.
+
+---
+
+## 11. Kickstart prompt — next Pat session
+
+> Paste this to start the next session. It is self-contained; it points at this doc.
+
+```
+Continue building PAT — the natural-language guided-search assistant in the
+Patearn web tool (/dash/pat), already built and LIVE on the VPS. FIRST read
+docs/pat-design-and-improvements.md fully — it is Pat's living design, the
+improvements backlog (§7), the feedback/learning spec (§4), and the answer
+philosophy (§3). Then continue toward ONE bar: the analyst is WOWed and the
+FIRST answer is right.
+
+Mission this session — make Pat LEARN and make first answers RIGHT:
+
+1. Feedback/correction store (§4, P0). 👍/👎 on every answer + a "what did you
+   expect?" capture on 👎 (the gold signal). Persist to a `pat_feedback` table
+   via a SELF-CONTAINED src/pat/feedback.py (CREATE TABLE IF NOT EXISTS on first
+   use — do NOT edit db.py). Feedback endpoint in a NEW src/pat/routes.py router
+   included from main.py — do NOT touch dashboard.py.
+
+2. Clarify-before-guess (§4.5, P0). When intent/timeframe is ambiguous
+   ("recently", "strong stocks"), the engine returns a `clarify` intent with 2–3
+   suggested answers; Pat asks ONE short question instead of defaulting. Count
+   refinement-churn per answer as the implicit-miss signal.
+
+3. Few-shot learning (§4.4.2). Feed the last N corrections from the store into the
+   engine prompt so routing learns the user's phrasings immediately. The same
+   store is the offline-training dataset for an OWNED open model later (NOT the
+   borrowed Nous agent — it runs a remote free model we can't fine-tune).
+
+4. "Reporting follows the question" everywhere (§3.2): RS already honors the
+   timeframe; extend to accumulation (D/W/M) and movers (today/this-week), and
+   lead every result with the directly-asked metric ("right not more", §3.1).
+
+BINDING CONSTRAINTS: Gemini-Flash-only on the live router, never Claude; the tap
+path is deterministic SQL (₹0); columns/operators ONLY from constant dicts, every
+value bound via ?; a parallel session may STILL hold dashboard.py / PROJECT_STATE.md
+— check `git status` first and do NOT edit them while held (reuse existing route
+params; track in this doc). Verify each increment on a synthetic in-memory DB
+(route 200 + the logic), commit per-increment (ONLY Pat files: src/pat/* + this
+doc), deploy via `scp src/pat/*.py hermes:/opt/hermes/src/pat/ && ssh hermes
+'systemctl restart hermes-api'`, and smoke-test live. Update §7 as you ship; invite
+Nous Hermes (§8) to append ideas to §9.
+
+First action: read the doc, then build the feedback store.
+```
+
