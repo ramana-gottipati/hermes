@@ -220,9 +220,69 @@ dependencies in the picking path.
 4. **User query history + contextual auto-suggestions.** Track each analyst's successful queries; prioritize personal-history autocomplete; proactively suggest from current market activity. *(Personalization; ties into the thread §6.)*
 5. **Human-in-the-loop rule refinement.** Log every 👎 (query + routed response + "what you expected"); a weekly review turns recurring misinterpretations into new rules/synonyms/templates — improvement WITHOUT retraining. *(Exactly §4.4 arm-1 operationalized — adopt.)*
 
+**Round-2 status (2026-06-20, Claude build session).** Her round-1 ideas **#1, #2, #3,
+#5 are now SHIPPED + LIVE**: #3 → `disambiguate.py` synonym layer; #1 → timeframe
+clarify-chips on time-sensitive flows; #2 → confidence-threshold clarify; #5 → the
+`pat_feedback` 👎-with-expected store (the weekly-review dataset). #4 (personal query
+history / autocomplete) remains open — ties into the conversational thread (§6).
+**Round-2 relay: PENDING.** The brief (recap of the 6 shipments + a request for her
+next deterministic/offline ideas: rules for first-answer-rightness, better clarifying
+questions, the extension-vs-correction taxonomy, richer clues) was sent twice via the
+bridge on 2026-06-20 but her brain (Gemini 2.5 Flash, **free tier**) returned HTTP 429
+(20 req/min quota, contended). Re-send when quota refreshes — the brief text is in the
+session history. *(Note: the new deterministic clarify layer REDUCES this shared
+free-tier pressure — ambiguous asks now resolve with 0 Gemini calls.)*
+
 ---
 
-## 10. Session wrap — 2026-06-20 (Pat built + deployed end-to-end)
+## 10. Session wrap — 2026-06-20 (round 2 — Pat LEARNS + first answers RIGHT)
+
+**Mission:** make Pat learn, and make the FIRST answer right. All five mission items
+shipped, each verified on a synthetic DB and committed Pat-files-only, then deployed
+end-to-end and smoke-tested live.
+
+**Shipped + LIVE** (`https://srv1704897.hstgr.cloud/dash/pat`), 4 commits:
+- **Feedback/correction store** (`7eb1491`) — self-contained `src/pat/feedback.py`
+  owns `pat_feedback` (CREATE TABLE IF NOT EXISTS; **db.py untouched**). 👍/👎 on every
+  answer; 👎 records immediately then reveals a "what did you expect?" box that
+  enriches the same row. New `src/pat/routes.py` router (`POST /pat/feedback` +
+  `/pat/feedback/correct`) mounted from `main.py` — **dashboard.py untouched**.
+- **Clarify-before-guess + synonym layer** (`50ad20f`) — new `src/pat/disambiguate.py`
+  in front of the engine: synonym hints (delivery→accumulation, momentum→RS,
+  quality→fundamentals, gainers→movers) into the prompt; and a `clarify` intent on
+  ambiguous intent ("strong stocks") or vague timeframe ("RS leaders recently") —
+  **0 model calls**. Chips are disambiguated re-runs of the original query (context
+  preserved, no clarify loop). Low model-confidence (<50) also → clarify.
+- **Few-shot from corrections** (`1456a61`) — `engine._fewshot_block()` injects recent
+  👍 routings (in exact output format) + 👎 corrections into the routing prompt. ₹0,
+  fails open on a cold store. Same store = the offline-training dataset for an OWNED model.
+- **Reporting-follows-the-question** (`8efdc20`) — accumulation window ''/1m/3m (re-rank
+  by + lead with the DVPT power ratio) and movers today vs this-week (% vs the close
+  ~7 days back). Both ride the captured `align` route param; each leads with the asked
+  metric. A synthetic-SQL test caught + fixed a placeholder-ordering bug in the weekly join.
+
+**BINDING honored throughout:** Gemini-only live router (never-Claude verified —
+anthropic fallback discarded); tap path = deterministic ₹0 SQL; columns/operators only
+from constant dicts, every value bound; **dashboard.py / db.py / PROJECT_STATE.md never
+touched** (parallel session held them — `git status` checked; new params reuse the
+captured `align`). Per-increment synthetic verification + live smoke (feedback POST,
+clarify with 0 Gemini, weekly movers, 1M accumulation, table auto-created).
+
+**Open / next (see §7 + the §12 kickstart):** conversational thread (§6) + implicit
+re-ask detection; personal query-history autocomplete (Nous #4); fundamentals
+emphasis-follows-question; semi-automated rule-proposal when corrections cluster (§7 P2);
+the offline owned-model fine-tune (§7 P2). **Nous Hermes round-2 relay pending** — her
+free-tier Gemini quota was exhausted (§9).
+
+**Operational note:** the shared Gemini **free tier** was quota-exhausted at deploy time
+(news classifier + parallel session + Pat router share one key). Pat degrades correctly
+(free-text routing falls back to glossary search; deterministic clarify/flows are
+unaffected and ₹0). The new clarify layer eases this by resolving ambiguous asks without
+a model call. Consider a paid Gemini key or per-workload keys if routing misses persist.
+
+---
+
+## 11. Session wrap — 2026-06-20 (Pat built + deployed end-to-end)
 
 > **⚠ NAMING COLLISION — for Ramana to resolve.** A parallel session locked (2026-06-20): **"Hermes"** = the Nous agent · **"Pattern"** = the operational Patearn/Telegram agent · **"PAT"** = a strategy-expert MIND inside Pattern (trained via Nous Hermes — her channel `pat-training-program.md`). THIS session's **"Pat"** = the **`/dash/pat` web NL-search TAB** (a UI). Two different things sharing the name. Likely reconciliation: the web `/dash/pat` tab is the *front-end surface*, and "PAT the strategy-expert" is the *brain* that should eventually power it — and the web tab's feedback store (§4) is the natural training-data feed for that brain. **Confirm the relationship + any rename before deep integration.**
 
@@ -242,7 +302,7 @@ dependencies in the picking path.
 
 ---
 
-## 11. Kickstart prompt — next Pat session
+## 12. Kickstart prompt — next Pat session
 
 > Paste this to start the next session. It is self-contained; it points at this doc.
 
@@ -254,27 +314,36 @@ improvements backlog (§7), the feedback/learning spec (§4), and the answer
 philosophy (§3). Then continue toward ONE bar: the analyst is WOWed and the
 FIRST answer is right.
 
-Mission this session — make Pat LEARN and make first answers RIGHT:
+ALREADY SHIPPED (round 2, §10) — do NOT rebuild: feedback/correction store
+(pat_feedback + /pat/feedback routes); clarify-before-guess + the deterministic
+synonym/disambiguation layer (src/pat/disambiguate.py); confidence-threshold
+clarify; few-shot routing from the correction store; reporting-follows-the-question
+for accumulation (1m/3m) and movers (today/this-week).
 
-1. Feedback/correction store (§4, P0). 👍/👎 on every answer + a "what did you
-   expect?" capture on 👎 (the gold signal). Persist to a `pat_feedback` table
-   via a SELF-CONTAINED src/pat/feedback.py (CREATE TABLE IF NOT EXISTS on first
-   use — do NOT edit db.py). Feedback endpoint in a NEW src/pat/routes.py router
-   included from main.py — do NOT touch dashboard.py.
+Mission this session — close the learning LOOP and personalize:
 
-2. Clarify-before-guess (§4.5, P0). When intent/timeframe is ambiguous
-   ("recently", "strong stocks"), the engine returns a `clarify` intent with 2–3
-   suggested answers; Pat asks ONE short question instead of defaulting. Count
-   refinement-churn per answer as the implicit-miss signal.
+1. Conversational thread (§6, P1). Make Pat stateful: the result stays and each
+   message refines the running context ("now only IT", "sort by volume", "what
+   about yesterday"). Reuse the Telegram bot's conversation spine
+   (src/assistant/conversations.py, chat.py). This UNLOCKS §4.2 implicit re-ask
+   detection (a rephrase within the thread = a silent 👎 — log it as such) and the
+   churn metric (refinements-per-answer = first-answer-missed signal).
 
-3. Few-shot learning (§4.4.2). Feed the last N corrections from the store into the
-   engine prompt so routing learns the user's phrasings immediately. The same
-   store is the offline-training dataset for an OWNED open model later (NOT the
-   borrowed Nous agent — it runs a remote free model we can't fine-tune).
+2. Personal query-history autocomplete (Nous Hermes #4, §9). Track this analyst's
+   successful queries; prioritize personal-history autocomplete on the ask box;
+   proactively suggest from current market activity. Deterministic, ₹0.
 
-4. "Reporting follows the question" everywhere (§3.2): RS already honors the
-   timeframe; extend to accumulation (D/W/M) and movers (today/this-week), and
-   lead every result with the directly-asked metric ("right not more", §3.1).
+3. Fundamentals emphasis-follows-question (§7). When a fundamentals query names a
+   ratio ("ranked by ROE", "cheapest"), LEAD with that column — extend the
+   reporting-follows-question rule to the fundamentals flow.
+
+4. Semi-automated rule-proposal (§7 P2). When ≥N corrections of one shape cluster
+   in pat_feedback, surface a PROPOSED rule/synonym for review (turn the §4.4
+   weekly-review loop into a prompt). Then scope the offline OWNED-model fine-tune
+   on the correction store (the real "training"; offline, then swap into router).
+
+5. Re-send the Nous Hermes round-2 relay (§8/§9) once her Gemini free-tier quota
+   refreshes; fold her next ideas into §7/§9.
 
 BINDING CONSTRAINTS: Gemini-Flash-only on the live router, never Claude; the tap
 path is deterministic SQL (₹0); columns/operators ONLY from constant dicts, every
