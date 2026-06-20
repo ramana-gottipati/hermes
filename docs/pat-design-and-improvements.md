@@ -41,7 +41,8 @@ example questions on Home.
 | **Engine** | `src/pat/engine.py` | Free-text → `{flow, params}` via Gemini. Validates against the chip vocab (off-menu dropped). **Never-Claude** (discards Anthropic fallback). Cached. Prompt built from the chip dicts + glossary (single source of truth). |
 | **Web/UI** | `src/pat/web.py` | `render_pat()` dispatches flow/explain/free-text/face. Renders data-first tables on the house `table.dt` grid. The persona header + face picker. The Home clues. |
 | **Route** | `src/web/dashboard.py` | `/dash/pat` GET (one route; params: flow, explain, q, sector, strength, entry, align, val, qual, grow, bs, own). New chip params **reuse existing captured params** to avoid editing this file. |
-| **Feedback** *(planned)* | `src/pat/feedback.py` | §4 — the correction store + learning loop. Not yet built. |
+| **Feedback store** | `src/pat/feedback.py` | §4 — the `pat_feedback` correction store. Self-contained (owns its table via CREATE TABLE IF NOT EXISTS; never edits db.py). `record`/`update`/`recent_positive_examples`/`recent_corrections`/`stats`. Never raises to the caller. |
+| **Pat router** | `src/pat/routes.py` | `POST /pat/feedback` (👍/👎) + `POST /pat/feedback/correct` (the "what did you expect?" enrichment). Mounted from `main.py` (`include_router`) — deliberately OUT of the contended `dashboard.py`. |
 
 **The contract that makes free-text safe:** the engine emits only enumerated chip
 keys, validated, which feed the SAME templates the tap path uses. The LLM never
@@ -143,10 +144,11 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
 - ✅ `[rs]` timeframe-aware window — "last month" → RS 1M (reporting follows ask).
 - ✅ `[home]` strategy-grouped example clues — weak suggestions fixed.
 - ✅ `[avatar]` decoration-only, picker on its own page — stop faking function.
-- ⬜ `[feedback]` P0 — build the correction store (§4): 👍/👎 + "what you expected",
-  schema `pat_feedback`, a feedback endpoint (avoid the contended `dashboard.py` —
-  use a `src/pat/routes.py` router included in `main.py`), and the 👍/👎 UI on
-  answers.
+- ✅ `[feedback]` P0 — correction store SHIPPED (§4): `pat_feedback` via self-contained
+  `src/pat/feedback.py` (CREATE TABLE IF NOT EXISTS; db.py untouched); `POST /pat/feedback`
+  + `/pat/feedback/correct` in a NEW `src/pat/routes.py` router mounted from `main.py`
+  (dashboard.py untouched); 👍/👎 bar on every answer with a "what did you expect?"
+  capture on 👎 (records the 👎 immediately, then enriches the same row — gold signal).
 - ⬜ `[engine]` P0 — clarify-before-guess (§4.5): a `clarify` intent + render.
 - ⬜ `[engine]` P1 — semantic synonym/disambiguation dictionary in front of the engine (Nous Hermes idea #3, §9): delivery→DVPT, momentum→RS, quality→14-pattern, "strength"→disambiguation chip. Deterministic, ₹0, lifts first-answer routing.
 - ⬜ `[engine]` P1 — confidence-threshold clarify (Nous Hermes idea #2, §9): when the engine's match confidence is low, offer 2–3 template suggestions as chips instead of guessing.

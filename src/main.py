@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from src.assistant import chat, conversations
 from src.core.db import get_conn
 from src.core.settings import settings
+from src.pat.routes import router as pat_router
 from src.web.dashboard import router as dashboard_router
 
 app = FastAPI(title="Hermes", version="0.1.0")
@@ -23,6 +24,9 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Web dashboard + installable PWA (served at /dash, manifest/sw/icon at root).
 app.include_router(dashboard_router)
+# Pat's JSON side-channels (feedback/learning) — mounted here so the contended
+# dashboard.py page route never has to change to add a Pat backend endpoint.
+app.include_router(pat_router)
 
 
 class ChatRequest(BaseModel):

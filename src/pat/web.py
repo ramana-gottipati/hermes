@@ -174,6 +174,18 @@ _PAT_CSS = """
 .patTable{overflow-x:auto;margin-top:2px;}
 .patTable table{min-width:660px;font-variant-numeric:tabular-nums;}
 .patTable table.dt .dttool{margin:0 0 8px;}
+.patFb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px;
+       padding-top:10px;border-top:1px solid #21262d;font-size:12px;color:#8b949e;}
+.patFbBtn{background:#161b22;border:1px solid #30363d;border-radius:8px;cursor:pointer;
+          padding:4px 10px;font-size:14px;line-height:1;}
+.patFbBtn:hover{border-color:#1f6feb;}
+.patFbThx{color:#3fb950;}
+.patFbWrong{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1;min-width:220px;}
+.patFbInput{flex:1;min-width:160px;background:#0d1117;border:1px solid #30363d;
+            color:#e6edf3;border-radius:8px;padding:5px 9px;font-size:13px;}
+.patFbInput:focus{outline:none;border-color:#1f6feb;}
+.patFbSend{background:#1f6feb;border:none;color:#fff;border-radius:8px;cursor:pointer;
+           padding:5px 12px;font-size:13px;}
 </style>
 """
 
@@ -238,6 +250,57 @@ def _chip(href: str, label: str, arrow: bool = False) -> str:
 
 def _q_bubble(text: str) -> str:
     return f'<div class="patQ">{_esc(text)}</div>'
+
+
+# ── feedback bar (👍/👎 + "what did you expect?") — the learning loop's UI ─────
+# The bar carries the answer's CONTEXT (the typed query, the routed flow + chip
+# params) as data-attributes; the JS POSTs that context to /pat/feedback so a
+# 👍 becomes a confirmed routing example and a 👎 + expected-text becomes a
+# correction (see src/pat/feedback.py + routes.py). Decoupled from dashboard.py.
+
+def _feedback_bar(query: str = "", flow: str = "", params: dict | None = None,
+                  source: str = "") -> str:
+    pj = _esc(json.dumps(params or {}, separators=(",", ":")))
+    return (
+        '<div class="patFb" data-q="' + _esc(query) + '" data-flow="' + _esc(flow) + '"'
+        ' data-params="' + pj + '" data-src="' + _esc(source) + '">'
+        '<span class="patFbAsk">Did this answer what you asked?</span>'
+        '<button type="button" class="patFbBtn" data-v="up" title="Yes, this is right">👍</button>'
+        '<button type="button" class="patFbBtn" data-v="down" title="No, not what I wanted">👎</button>'
+        '<span class="patFbThx" hidden>Thanks — Pat will learn from this. ✓</span>'
+        '<span class="patFbWrong" hidden>'
+        '<input class="patFbInput" type="text" maxlength="200"'
+        ' placeholder="What did you expect instead? (the most useful thing you can tell Pat)"/>'
+        '<button type="button" class="patFbSend">Send</button></span>'
+        '</div>'
+    )
+
+
+# Idempotent: binds each .patFb once (data-bound guard), so it is safe to include
+# more than once per page. A 👎 records immediately (the negative is never lost),
+# then reveals the "what did you expect?" box which enriches the SAME row.
+_FB_JS = (
+    "<script>(function(){"
+    "function post(u,d){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},"
+    "body:JSON.stringify(d)}).then(function(r){return r&&r.ok?r.json():null;}).catch(function(){return null;});}"
+    "document.querySelectorAll('.patFb').forEach(function(bar){"
+    "if(bar.dataset.bound)return;bar.dataset.bound='1';"
+    "var q=bar.dataset.q||'',flow=bar.dataset.flow||'',src=bar.dataset.src||'';"
+    "var params={};try{params=JSON.parse(bar.dataset.params||'{}');}catch(e){}"
+    "var ask=bar.querySelector('.patFbAsk'),thx=bar.querySelector('.patFbThx'),"
+    "wrong=bar.querySelector('.patFbWrong');var lastId=null;"
+    "bar.querySelectorAll('.patFbBtn').forEach(function(btn){btn.addEventListener('click',function(){"
+    "var v=btn.dataset.v;bar.querySelectorAll('.patFbBtn').forEach(function(b){b.disabled=true;b.style.opacity=.4;});"
+    "post('/pat/feedback',{verdict:v,query:q,flow:flow,params:params,source:src})"
+    ".then(function(j){if(j&&j.id)lastId=j.id;});"
+    "if(v==='down'){if(wrong)wrong.hidden=false;var i=bar.querySelector('.patFbInput');if(i)i.focus();}"
+    "else{if(ask)ask.hidden=true;if(thx)thx.hidden=false;}});});"
+    "var send=bar.querySelector('.patFbSend');if(send)send.addEventListener('click',function(){"
+    "var inp=bar.querySelector('.patFbInput');var txt=inp?inp.value.trim():'';"
+    "post('/pat/feedback/correct',{id:lastId,expected:txt,query:q,flow:flow,params:params,src:src});"
+    "if(wrong)wrong.hidden=true;if(ask)ask.hidden=true;if(thx)thx.hidden=false;});"
+    "});})();</script>"
+)
 
 
 def _metric_directory() -> str:
@@ -717,10 +780,15 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers"}
 
 
-def _free_text(conn, q: str) -> str:
-    """A typed question with no explicit flow → Gemini routes it to a flow + chip
-    params (via src.pat.engine); falls back to the deterministic glossary search
-    if the engine declines or is unavailable."""
+def _free_text(conn, q: str):
+    """A typed question with no explicit flow → routed to a flow + chip params (via
+    src.pat.engine); falls back to the deterministic glossary search if the engine
+    declines or is unavailable.
+
+    Returns ``(html, fb_ctx)`` where ``fb_ctx`` is the feedback context for a
+    concrete answer (``{query, flow, params, source}``) or ``None`` when the view
+    is a chooser/question (clarify, glossary search) that has nothing to rate yet.
+    """
     sel = None
     try:
         from src.pat.engine import route as _route
@@ -731,8 +799,10 @@ def _free_text(conn, q: str) -> str:
         f = sel["flow"]
         if f == "explain" and sel.get("explain") and get(sel["explain"]):
             e = get(sel["explain"])
-            return (_q_bubble(f'I read "{q}" as →explain {e["term"]}.')
+            html = (_q_bubble(f'I read "{q}" as →explain {e["term"]}.')
                     + _answer(sel["explain"], e))
+            return html, {"query": q, "flow": "explain",
+                          "params": {"explain": sel["explain"]}, "source": "free_text"}
         p = sel.get("params", {})
         body = None
         if f == "accumulation":
@@ -747,9 +817,10 @@ def _free_text(conn, q: str) -> str:
             body = _movers_flow(conn, p.get("direction", ""), p.get("liq", ""))
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
-            return note + body
-    # fallback — deterministic glossary keyword search (today's behavior).
-    return _explain_flow("", q)
+            return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
+    # fallback — deterministic glossary keyword search (today's behavior). A chooser,
+    # so no feedback bar (nothing concrete to rate); but offer a clarify nudge.
+    return _explain_flow("", q), None
 
 
 def render_pat(flow: str = "", explain: str = "", q: str = "",
@@ -766,24 +837,44 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     if flow == "face":                       # the dedicated face-picker page
         return _PAT_CSS + _face_picker()
 
+    # fb_ctx = the answer's context for the 👍/👎 bar, or None for non-answers
+    # (home / face / metric chooser). Set per branch so the bar can log exactly
+    # what was shown (the typed query, the routed flow, the chip params).
+    fb_ctx = None
     if explain and get(explain):
         body = _explain_flow(explain, q)
+        fb_ctx = {"query": q, "flow": "explain", "params": {"explain": explain}, "source": "explain"}
     elif flow == "explain":
         body = _explain_flow(explain, q)
     elif flow == "accumulation":
-        body = _accumulation_flow(conn, sector, strength, (entry or "").strip().lower())
+        entry = (entry or "").strip().lower()
+        body = _accumulation_flow(conn, sector, strength, entry)
+        fb_ctx = {"query": "", "flow": "accumulation",
+                  "params": {"sector": sector, "strength": strength, "entry": entry}, "source": "flow"}
     elif flow == "rs":
-        body = _rs_flow(conn, sector, strength, (align or "").strip().lower(),
-                        (entry or "").strip().lower())
+        align = (align or "").strip().lower()
+        window = (entry or "").strip().lower()
+        body = _rs_flow(conn, sector, strength, align, window)
+        fb_ctx = {"query": "", "flow": "rs",
+                  "params": {"sector": sector, "strength": strength, "align": align, "window": window},
+                  "source": "flow"}
     elif flow == "fundamentals":
-        body = _fundamentals_flow(conn, (val or "").strip().lower(), (qual or "").strip().lower(),
-                                  (grow or "").strip().lower(), (bs or "").strip().lower(),
-                                  sector, (own or "").strip().lower())
+        fp = {"val": (val or "").strip().lower(), "qual": (qual or "").strip().lower(),
+              "grow": (grow or "").strip().lower(), "bs": (bs or "").strip().lower(),
+              "sector": sector, "own": (own or "").strip().lower()}
+        body = _fundamentals_flow(conn, fp["val"], fp["qual"], fp["grow"], fp["bs"], fp["sector"], fp["own"])
+        fb_ctx = {"query": "", "flow": "fundamentals", "params": fp, "source": "flow"}
     elif flow == "movers":
-        body = _movers_flow(conn, strength, (entry or "").strip().lower())
+        entry = (entry or "").strip().lower()
+        body = _movers_flow(conn, strength, entry)
+        fb_ctx = {"query": "", "flow": "movers",
+                  "params": {"direction": strength, "liq": entry}, "source": "flow"}
     elif q:
-        body = _free_text(conn, q)
+        body, fb_ctx = _free_text(conn, q)
     else:
         body = _home()
 
-    return _PAT_CSS + _avatar_picker() + body
+    out = _PAT_CSS + _avatar_picker() + body
+    if fb_ctx is not None:
+        out += _feedback_bar(**fb_ctx) + _FB_JS
+    return out
