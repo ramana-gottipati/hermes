@@ -141,15 +141,17 @@ _DEFAULT_AV = "seth"
 
 _PAT_CSS = """
 <style>
-.patHero{display:flex;align-items:center;gap:12px;margin:4px 0 12px;}
-.patHeroAv{width:64px;height:64px;flex:none;border-radius:50%;overflow:hidden;background:#161b22;}
-.patHeroAv svg{width:64px;height:64px;display:block;}
-.patHeroName{font-weight:800;font-size:17px;}
+.patHero{display:flex;align-items:center;gap:10px;margin:4px 0 14px;}
+.patHeroAv{width:44px;height:44px;flex:none;border-radius:50%;overflow:hidden;background:#161b22;}
+.patHeroAv svg{width:44px;height:44px;display:block;}
+.patHeroName{font-weight:700;font-size:15px;}
 .patHeroTag{color:#8b949e;font-size:12px;margin-top:1px;}
-.patPicks{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;}
+.patFaceToggle{color:#58a6ff;text-decoration:none;cursor:pointer;}
+.patFaceToggle:hover{text-decoration:underline;}
+.patPicks{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 16px;}
 .patPick{background:#161b22;border:1px solid #30363d;border-radius:50%;padding:0;
-         width:42px;height:42px;cursor:pointer;overflow:hidden;line-height:0;}
-.patPick svg{width:40px;height:40px;display:block;}
+         width:64px;height:64px;cursor:pointer;overflow:hidden;line-height:0;}
+.patPick svg{width:62px;height:62px;display:block;}
 .patPick.on{border-color:#3fb950;box-shadow:0 0 0 2px rgba(63,185,80,.33);}
 .patQ{background:#161b22;border:1px solid #30363d;border-radius:12px;
       border-top-left-radius:3px;padding:11px 14px;font-size:14px;line-height:1.5;
@@ -175,42 +177,56 @@ _PAT_CSS = """
 """
 
 
+_PAT_TAGLINE = "your pattern guide"
+
+
 def _avatar_picker() -> str:
-    """The persona hero + the 6-avatar picker. JS persists the pick in
-    localStorage and re-skins the hero on load — server renders the default."""
+    """The slim Pat header: the CHOSEN face + the name 'Pat' + a link to the
+    face-picker page. The face is pure decoration — picked once on
+    /dash/pat?flow=face, persisted in localStorage. The other faces are NOT shown
+    here (only your current one), so nothing implies the choice is functional."""
     d = AVATARS[_DEFAULT_AV]
-    picks = []
-    for slug, a in AVATARS.items():
-        on = " on" if slug == _DEFAULT_AV else ""
-        picks.append(
-            f'<button class="patPick{on}" data-av="{slug}" title="{_esc(a["name"])}" '
-            f'onclick="patPick(\'{slug}\')" aria-label="{_esc(a["name"])}">{a["svg"]}</button>'
-        )
-    # json.dumps does correct JS-string escaping (quotes/backslashes); the
-    # </ -> <\/ guard prevents any name from closing the <script> block.
-    jsmap = json.dumps(
-        {s: {"n": a["name"], "t": a["tag"]} for s, a in AVATARS.items()}
-    ).replace("</", "<\\/")
+    # Hidden store of every face SVG so the load-time JS can swap in the chosen one.
+    faces = "".join(f'<i data-av="{slug}">{a["svg"]}</i>' for slug, a in AVATARS.items())
     script = (
-        "<script>(function(){var M=" + jsmap + ";"
-        "function pick(s){try{localStorage.setItem('patAvatar',s);}catch(e){}"
-        "var src=document.querySelector('.patPick[data-av=\"'+s+'\"]');"
-        "var h=document.getElementById('patHeroAv');if(src&&h){h.innerHTML=src.innerHTML;}"
-        "var m=M[s];if(m){var n=document.getElementById('patHeroName'),t=document.getElementById('patHeroTag');"
-        "if(n)n.textContent=m.n;if(t)t.textContent=m.t;}"
-        "var ps=document.querySelectorAll('.patPick');for(var i=0;i<ps.length;i++){"
-        "ps[i].classList.toggle('on',ps[i].getAttribute('data-av')===s);}}"
-        "window.patPick=pick;var sv=null;try{sv=localStorage.getItem('patAvatar');}catch(e){}"
-        "if(sv&&M[sv])pick(sv);})();</script>"
+        "<script>(function(){var src={};"
+        "document.querySelectorAll('#patFaces > i').forEach(function(e){src[e.getAttribute('data-av')]=e.innerHTML;});"
+        "var sv=null;try{sv=localStorage.getItem('patAvatar');}catch(e){}"
+        "var h=document.getElementById('patHeroAv');if(h&&sv&&src[sv]){h.innerHTML=src[sv];}"
+        "})();</script>"
     )
     return (
+        f'<div id="patFaces" style="display:none">{faces}</div>'
         '<div class="patHero">'
         f'<div class="patHeroAv" id="patHeroAv">{d["svg"]}</div>'
-        f'<div><div class="patHeroName" id="patHeroName">{_esc(d["name"])}</div>'
-        f'<div class="patHeroTag" id="patHeroTag">{_esc(d["tag"])}</div></div>'
+        '<div><div class="patHeroName">Pat</div>'
+        f'<div class="patHeroTag">{_PAT_TAGLINE} · '
+        '<a class="patFaceToggle" href="/dash/pat?flow=face">change face</a></div></div>'
         '</div>'
-        f'<div class="patPicks">{"".join(picks)}</div>'
-        f'{script}'
+        + script
+    )
+
+
+def _face_picker() -> str:
+    """The dedicated 'profile picture' page — visited only to change Pat's face.
+    Pure decoration: tap one, it persists (localStorage), and you return to Pat."""
+    picks = "".join(
+        f'<button class="patPick" data-av="{slug}" onclick="patPickFace(\'{slug}\')" '
+        f'aria-label="Pat face style">{a["svg"]}</button>'
+        for slug, a in AVATARS.items()
+    )
+    script = (
+        "<script>window.patPickFace=function(s){try{localStorage.setItem('patAvatar',s);}"
+        "catch(e){}location.href='/dash/pat';};"
+        "(function(){var sv='seth';try{sv=localStorage.getItem('patAvatar')||'seth';}catch(e){}"
+        "var ps=document.querySelectorAll('.patPick');for(var i=0;i<ps.length;i++){"
+        "ps[i].classList.toggle('on',ps[i].getAttribute('data-av')===sv);}})();</script>"
+    )
+    return (
+        '<a class="patBack" href="/dash/pat">← back to Pat</a>'
+        + _q_bubble("Pick Pat's look — it's just a face, only you see it. Tap one and it stays.")
+        + f'<div class="patPicks">{picks}</div>'
+        + script
     )
 
 
@@ -649,6 +665,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     q = (q or "").strip()
     sector = (sector or "").strip()
     strength = (strength or "").strip().lower()
+
+    if flow == "face":                       # the dedicated face-picker page
+        return _PAT_CSS + _face_picker()
 
     if explain and get(explain):
         body = _explain_flow(explain, q)
