@@ -2706,9 +2706,11 @@ def _days_between(d0, d1):
 
 
 def _track_subnav(active):
+    # Portfolios <-> Watchlists are the two list tiers (watch -> open) and share
+    # this switcher. Tracker is its OWN top-level menu tab (see _nav), NOT a
+    # child of Portfolios, so it is deliberately absent here.
     items = [("portfolios", "/dash/portfolios", "Portfolios"),
-             ("watchlists", "/dash/watchlists", "Watchlists"),
-             ("tracker", "/dash/tracker", "Tracker")]
+             ("watchlists", "/dash/watchlists", "Watchlists")]
     out = ['<div class="fbar" style="margin-bottom:12px">']
     for k, h, lbl in items:
         out.append(f'<a class="fbtn{" on" if k == active else ""}" href="{h}">{lbl}</a>')
@@ -3011,7 +3013,9 @@ def dash_tracker() -> HTMLResponse:
                      'by strategy and the benchmark gap appear once you close trades.</div>')
     intro = ('<h2>Tracker</h2><div class="sub">How your tracked ideas actually performed — '
              'open mark-to-market, hit-rate by strategy, and excess vs the Nifty 500.</div>')
-    body = _TRACK_CSS + _track_subnav("tracker") + intro + cards + bars_html
+    # Tracker is a standalone top-level tab (reached from _nav), so it does NOT
+    # render the Portfolios/Watchlists sub-nav — it is not a child of Portfolios.
+    body = _TRACK_CSS + intro + cards + bars_html
     return HTMLResponse(_shell("Tracker · patearn", body, "tracker"))
 
 

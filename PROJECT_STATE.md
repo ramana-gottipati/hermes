@@ -248,6 +248,10 @@ D:\Hermes\                                          ← local working copy of re
 │   ├── full-backfill.sh                            ← 5-year bhav copy + signals backfill
 │   ├── probe_data_reachability.py                  ← one-off: how far back NSE delivery/index/deals reach (session 18)
 │   └── download-from-vps.bat                       ← Windows batch to scp data home
+├── research\explosive_moves\                       ← Explosive-move research program (D56, session 25)
+│   ├── common.py events.py features.py             ← read-only DB+adjust; 3 detectors; precursor matrix
+│   ├── mine.py validate.py sensitivity.py run_all.py ← univariate+CART mining; OOS; robustness; orchestrator
+│   └── out\*.csv                                    ← results (univariate/rules/oos/sensitivity/importance)
 └── .env                                            ← secrets (gitignored; ANTHROPIC + TELEGRAM keys)
 ```
 
@@ -395,9 +399,9 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 | `/dash/ratio?idx=&den=` | Per-index ONE-STOP view (D49): **today snapshot** (close/OHLC/Δday/volume/turnover/PE/PB/divyield + returns 1d–12m + 50/200-DMA + 52w pos) + RS ratio chart (ratio + 50/200-MA + cross/new-RS-high markers + range + vs-50/500) + RS-momentum gauge + abs×rel quadrant + auto-READ + **constituents table** (DVPT trigger **+ CMP/Δday + RS rank + 3m + vs-index excess**, all-constituents, sortable/filterable/CSV `.dt`) | D39/D49 |
 | **`/dash/compare?idx=…&den=&mode=&r=`** | **Overlay up to `_COMPARE_MAX` (now 12) indices on one chart, each indexed to 100 at a fluid common anchor → read who outperformed.** Modes **Rebased** / **Ratio** (the Base 100/0% toggle is REMOVED — D49c: always base-100, matching the stock RS overlay; 12-color palette + golden-angle HSL overflow, so the cap is a soft readability limit, not technical). Chip-rail picker (chips = legend, multi-select Add, D49b) + presets. Entry points: `/dash/ratio` fbar (**seeds sector + Nifty 50 + Nifty 500 by default**, removable, D49b) + `/dash/markets` & `/dash/sectors` footers. Render-only, zero schema. | **D40/D49b/D49c** |
 | **`/dash/cpr?tab=&tf=&direction=&tier=`** | **D53 — the CPR (Structure) pillar surface.** Three tabs: **Reversals** (cross-TF amplified ★ U/∩ screen, filter TF/direction/min-tier, `.dt` sort/filter/CSV), **Compression** (unusually-narrow CPRs ranked by own-history percentile, per-TF), **EOD Reports** (Daily/Weekly/Monthly "what fired" — fresh reversals + coiled names; W/M carry a "live for the current period" badge). Linked from the Strategies CPR card. `active="strategies"` | **D53** |
-| **`/dash/portfolios`** | **D54 (UI Phase 1) — committed positions under a strategy.** Holdings table: entry → live CMP → **P/L%**, target, **Conv then→now** drift (frozen snapshot vs live), thesis hover, **Close** action. In-page sub-nav Portfolios·Watchlists·Tracker. MTM via indexed close point-lookup; `.dt` sort/filter/CSV. **Inline `+ Add a stock` quick-capture on the page (S24).** | **D54** |
+| **`/dash/portfolios`** | **D54 (UI Phase 1) — committed positions under a strategy.** Holdings table: entry → live CMP → **P/L%**, target, **Conv then→now** drift (frozen snapshot vs live), thesis hover, **Close** action. In-page sub-nav Portfolios·Watchlists (Tracker is its own top tab, S24). MTM via indexed close point-lookup; `.dt` sort/filter/CSV. **Inline `+ Add a stock` quick-capture on the page (S24).** | **D54** |
 | **`/dash/watchlists`** | **D54 — the lightweight idea tier** (`status='watch'`): symbol + strategy + note + LIVE signal chips + **Promote**-to-portfolio / Remove. **Inline `+ Add a stock` quick-capture (S24).** | **D54** |
-| **`/dash/tracker`** | **D54 — how tracked ideas performed:** open MTM, **hit-rate by strategy** (closed) bars, **avg excess vs Nifty 500**, avg hold — pure SQL/point-lookups; honest empty-states until trades close | **D54** |
+| **`/dash/tracker`** | **D54 — how tracked ideas performed:** open MTM, **hit-rate by strategy** (closed) bars, **avg excess vs Nifty 500**, avg hold — pure SQL/point-lookups; honest empty-states until trades close. **Standalone top-level menu tab — not a Portfolios sub-page; carries no sub-nav (S24).** | **D54** |
 | **POST `/dash/track` · `/track/close` · `/track/promote` · `/track/remove`** | **D54 — capture + lifecycle (the dashboard's only writes).** `/track` freezes the as-of-day snapshot SERVER-side (entry = latest close); the rest manage `status` | **D54** |
 | **`/dash/pat?flow=&explain=&q=&sector=&strength=&entry=&align=&val=&qual=&grow=&bs=&own=`** | **D55 — "Pat", the natural-language guided-search tab.** Persona + 6 selectable Indianised avatars (localStorage). **Explain-a-metric** + **three live data flows** — Accumulation-setups, RS-leaders, and **Fundamentals** (6 chip groups + 4 one-tap presets; financials judged on ROE via index-membership) — each compiling to a read-only parameterized SELECT, rendered data-first on the house **`table.dt`** grid (click-sort / filter / CSV-export). Free-text via the **Gemini engine** (`engine.py`): typed English → {flow, params}, validated against the chip vocab, cached; degrades to `find()`. **Gemini-Flash-only, never Claude.** `src/pat/web.py` + `flows.py` + `engine.py` | **D55** |
 | `/dash/scan` | D28/D31 layered-triggers table (working orphan — kept, not in nav) | D33-web |
@@ -438,6 +442,17 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D56 — Explosive-move reverse-engineering: bottom-up strategy discovery + the validated "Launchpad" (2026-06-20)
+Ramana asked for a from-scratch, data-driven discovery program (no given strategy): find genuine explosive movers, fingerprint the *pre-move* data state, mine recurring patterns, measure hit/success ratios. Built as an offline research layer (`research/explosive_moves/`, isolated `.venv-research`; production DB read-only). Full log + pattern library: **`docs/explosive-move-research.md`** (keep rich — binding doc-persistence rule).
+
+**Method (rigor — see doc):** 3 independent event studies (+10% day / +10% week / Ramana's monthly = ≥20% close-thrust that retains ≥50%) over 2012→2026; survivorship-safe (raw archive incl. delisted — 20–24% of event symbols are delisted/renamed); point-in-time ₹1cr liquidity; strictly as-of-t-1 features; honest base rates via a 1-in-10 reweighted quiet-day baseline; **out-of-sample walk-forward both directions** + by-year + by-liquidity robustness. ~96k events fingerprinted against ~80 house features + CPR geometry + a fresh raw-descriptor battery.
+
+**Findings (WHY they're trustworthy = they hold OOS + every year):**
+- **Duality:** *volatility/range regime* (high vol/ATR/range, trending, off-lows) is the dominant precursor of a move (δ≈+0.6–0.76); but *control* (low ATR, tight base, near 52w-high, non-penny) is what makes a ≥20% thrust **sustain** (Ramana's "genuine buying = the close holds" — confirmed).
+- **★ The "Launchpad" (monthly, the prize):** a volatile/wide-range stock that *either* takes a 1-day shakeout (close ≤−5%) *or* just thrust ≥10.8%/5d → **~49% start a sustained ≥20% move (lift ~19×); 87% in >₹25cr names**; +40% avg/66td, ~90% win, ~66% become ≥50% winners/6mo. Holds 2012–2026 and OOS.
+- **Honest surprise:** the house DVPT `p_score`/`character` battery is a weak *price-move predictor* (it's a *confirmation/character* lens, not the prediction engine); price-structure + RS dominate. **This refines the DVPT picking-strategy throughline (D47), it doesn't replace it.**
+- **NOT yet:** costs/slippage/sizing/entry-exit (precursor study, not a P&L backtest) → next builds.
 
 ### D55 — "Pat": a natural-language guided-search tab in the web tool (Gemini-only, glossary-grounded) — Phase 1 SHIPPED (2026-06-20)
 Ramana asked for "an AI chatbot on my data, in plain English, in this tool" — named **Pat** (it's about *patterns*). Built as a tab in the web dashboard (**`/dash/pat`**), **NOT Telegram** (network-blocked), and **Gemini-Flash-only, never Claude** (his call; the cost-doctrine classifier path, ~13× cheaper than Haiku).
@@ -1011,6 +1026,14 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ## What's NOT yet built / open items
 
+### 🚀 EXPLOSIVE-MOVE "Launchpad" — discovered + validated, NOT yet productized (D56, session 25)
+The research is done (`research/explosive_moves/`, `docs/explosive-move-research.md`); the edge holds OOS + every year. Open follow-ons, in priority order:
+1. **Live "Launchpad" daily screener** (highest value) — the M1∪M2 setup (volatile/wide-range + shakeout-or-thrust) with the S1 sustain filter (low-ATR / near-52w-high / non-penny), as a daily scan + a Strategies card on the dashboard. All inputs already exist nightly in `stock_signals`/bhavcopy. Fold the rule into Decision log + retire the research doc to a pointer.
+2. **Tradeable backtest with costs** — add slippage/transaction-cost/position-sizing + entry-stop-target derived from the per-event MFE/MAE distributions already computed. (Current study is precursor-discovery, NOT a P&L backtest.)
+3. **RS-era deep-dive (2021+)** where `rs_rank` is dense — likely sharpens M1/W1; consider adding RS rank to the live Launchpad gate.
+4. **Sensitivity re-runs** via env params (`EM_LIQ_FLOOR`/`EM_THRUST`/`EM_HOLD`) — confirm thresholds; `weekly_signals`/`monthly_signals` (D52 MTF) would add multi-TF precursors if populated.
+This is the **bottom-up sibling of the DVPT picking-strategy throughline (D47 below)** — it refines, not replaces it (it found that delivery/DVPT is a *confirmation* lens, not the *prediction* engine).
+
 ### 🤖 PAT — the natural-language guided-search assistant (D55, Phase 1 shipped session 23)
 Tab is LIVE (`/dash/pat`) with the persona + 6 avatars + the DB-free **Explain-a-metric** flow. Remaining:
 1. ✅ **All three data flows SHIPPED** — accumulation + RS-leaders (`build_accumulation_query`/`build_rs_query` over `stock_signals`) + **fundamentals** (`build_fundamentals_query` over `fundamentals`: 6 chip groups, NULL-honest gates, financials judged on ROE via index-membership, 4 one-tap presets). Tap path stays ₹0 (no LLM).
@@ -1148,12 +1171,21 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 24 — 2026-06-20 — Portfolios/Watchlists inline "+ Add a stock" (the "can't add anything" fix) — SHIPPED + deployed
+### Session 25 — 2026-06-20 — Explosive-move reverse-engineering research program — v1 COMPLETE (offline, not deployed)
+**Context:** Ramana: "I am not going to give you strategy… I want you to find strategy… ground-breaking. Identify stocks that moved 10% in a month and sustained, 10% in a week, 10% in a day; track back; identify the data patterns; compile them; understand the hit ratio and success ratio." A from-scratch, bottom-up discovery program. (Decision **D56**.)
+**Built — new offline research layer `research/explosive_moves/` (isolated `/opt/hermes/.venv-research`; production `hermes.db` READ-ONLY; outputs → `/opt/hermes/data/research.db` + `out/*.csv`):**
+- `common.py` (read-only DB, reused `adjust.py` standalone, per-symbol numpy series + point-in-time trailing-median turnover, Cliff's δ), `events.py` (3 detectors + forward outcomes), `features.py` (precursor matrix: raw descriptors + house `stock_signals` + CPR, as-of-t-1, 1-in-10 reweighted baseline), `mine.py` (univariate lift/precision/coverage + depth-3 CART rules + RF importance), `validate.py` (walk-forward OOS both directions + success ratio), `sensitivity.py` (liquidity + by-year robustness), `run_all.py` (orchestrator).
+- **Corpus:** 2012→2026, **96,378 events** (13,720 daily / 52,791 weekly / 29,867 monthly thrusts, 20,739 sustained=69%) fingerprinted vs 78,523 baseline (=785k quiet days). Survivorship-safe (20–24% of event symbols delisted/renamed).
+**Result (validated OOS both directions + every year 2012–26):** the **"Launchpad"** monthly setup — volatile/wide-range stock + (1-day shakeout ≤−5% OR ≥10.8%/5d thrust) → **~49% start a sustained ≥20% move (lift ~19×; 87% in >₹25cr names)**, +40% avg/66td, ~90% win, ~66% become ≥50% winners/6mo. Duality found: *chaos generates moves, control sustains them*. Honest finding: house DVPT `p_score`/character is a weak price-move *predictor* (it's a confirmation lens) — price-structure + RS dominate.
+**Deliverable:** `docs/explosive-move-research.md` (methodology + ranked precursor catalog + the Pattern Library cards M1/M2/W1/D1/S1 + caveats + reproduce steps). **NOT committed/deployed** (offline research; awaiting Ramana's call to turn the Launchpad into a live screener). No production code touched. **Commit:** _(pending — ask before committing)_.
+
+### Session 24 — 2026-06-20 — Portfolios/Watchlists inline "+ Add a stock" + Tracker promoted to a standalone top tab — SHIPPED + deployed
 **Context:** Ramana: "Section of tracker, watchlists, portfolios are not built yet properly, not able to add anything in there at all?"
 **Diagnosis (VPS, read-only):** the D54 action-loop was fully working — `/dash/track*` routes deployed (dashboard.py @ 2026-06-19 20:20), `python-multipart 0.0.32` installed, `stocks_in_play` table present, a live POST returned 303 and inserted + rendered + cleaned up. The real issue was **discoverability**: D54 put capture ONLY on the stock page, leaving Portfolios/Watchlists/Tracker view-only — so they felt unusable.
 **Shipped (additive, zero regression):**
 - `src/web/dashboard.py` — new **`_add_box(default_status)`** inline quick-capture form on `/dash/portfolios` (default Portfolio) and `/dash/watchlists` (default Watchlist), in both empty and populated states; POSTs the existing `/dash/track` (server-side entry/snapshot freeze unchanged).
 - new **`_is_listed(conn, sym)`** server validation (NSE equity list ∪ has-signals; permissive on lookup error) — invalid tickers redirect with `?err=` → red `b-off` banner, no junk row. `dash_track` restructured to validate first; `dash_portfolios`/`dash_watchlists` gained an `err` query param + the box; intro/empty copy updated.
+- **Tracker promoted to a clean standalone tab** (Ramana: "we need the tracker tab beside the portfolio tab in the menu"). It was ALREADY a top-level tab in `_nav`, but the in-page `_track_subnav` (Portfolios·Watchlists·**Tracker**) made it read as nested under Portfolios. Removed Tracker from `_track_subnav` (now just Portfolios·Watchlists — the two list tiers) and dropped the sub-nav entirely from `dash_tracker`, so Tracker is reached only from its top menu tab. Verified live: Portfolios/Watchlists sub-nav = 2 items; Tracker page renders 0 `.fbtn` (no sub-nav) with the top **Tracker** tab `on`; top nav unchanged (Markets·Screener·Strategies·Portfolios·Tracker·Pat); routes 200.
 **Verified end-to-end on VPS** (compile-gated, restart): empty pages show the box; `POST symbol=reliance status=open` → `303 → /dash/portfolios?added=RELIANCE`, entry frozen ₹1309.5; `POST symbol=ZZNOTREAL` → `303 → ?err=… not a recognized NSE equity`, 0 rows; populated page shows RELIANCE + box; error banner renders; routes `/dash`,`/dash/portfolios`,`/dash/watchlists`,`/dash/tracker`,`/dash/stock`,`/dash/screener`,`/dash/cpr`,`/dash/pat` all 200. QA rows deleted (table back to 0). Deploy: `scp dashboard.py` + `systemctl restart hermes-api`. **Commit:** _(see git log)_.
 
 ### Session 23 — 2026-06-20 — "Pat" Phase 1: the natural-language guided-search tab — SHIPPED (local), verified
