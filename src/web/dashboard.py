@@ -24,11 +24,14 @@ PWA assets:
 All read-only. No LLM. No mutation. Pure SQL over the existing tables.
 """
 
+import csv
+import io
 import json
+import re
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
-from fastapi import APIRouter, Form, Query
+from fastapi import APIRouter, File, Form, Query, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 
 from src.automation import adjust
@@ -2955,6 +2958,7 @@ def _add_box(default_status, ac_json="[]", books=()):
         '<div style="margin-bottom:10px"><label>Thesis — why now? (optional)</label>'
         '<input name="thesis" class="field" placeholder="e.g. fresh ACCUM off a base, p_score 5"/></div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Add</button>'
+        '<a class="tbtn" href="/dash/import" style="text-decoration:none;margin-left:8px">⤓ Import file</a>'
         '</form>' + _CS_JS + _ENTRY_JS
         + f'<script>window._ACITEMS={ac_json};</script>' + _AC_JS)
 
@@ -3475,6 +3479,258 @@ def dash_dashboard() -> HTMLResponse:
                  '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlists</a>.</div>')
     body = _TRACK_CSS + _track_subnav("dashboard") + intro + cards + table
     return HTMLResponse(_shell("Dashboard · patearn", body, "dashboard"))
+
+
+# === Smart CSV / Excel importer ============================================
+# Upload ANY layout -> auto-detect columns (value-based symbol match against the
+# NSE universe + header synonyms + value fallbacks) -> confirm on a review
+# screen -> import into a named book. Import TRUSTS the file's cost basis (an
+# averaged buy price legitimately won't sit inside one day's OHLC), so unlike
+# manual entry it does NOT reject out-of-range prices.
+
+_IMP_SYN = {
+    "symbol": ("symbol", "ticker", "scrip", "scripname", "stock", "instrument",
+               "nsecode", "tradingsymbol", "security", "company", "name"),
+    "qty": ("qty", "quantity", "shares", "units", "holdingqty", "nos", "noofshares"),
+    "entry_price": ("avgprice", "avgcost", "averagecost", "buyprice", "buyrate",
+                    "purchaseprice", "price", "rate", "cost", "nav", "avg"),
+    "entry_date": ("buydate", "purchasedate", "entrydate", "tradedate",
+                   "transactiondate", "dateofpurchase", "date"),
+    "strategy": ("strategy", "remarks", "remark", "notes", "note", "basis",
+                 "tag", "category", "thesis"),
+}
+_IMP_FIELDS = [("symbol", "Symbol *"), ("entry_date", "Entry date"),
+               ("entry_price", "Entry price"), ("qty", "Qty"), ("strategy", "Strategy / note")]
+
+
+def _imp_norm(h):
+    return re.sub(r"[^a-z0-9]", "", str(h or "").lower())
+
+
+def _imp_date(s):
+    s = (s or "").strip().split(" ")[0].split("T")[0]
+    if not s:
+        return None
+    for f in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%m/%d/%Y", "%d-%b-%Y", "%d %b %Y",
+              "%d-%b-%y", "%Y/%m/%d", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(s, f).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
+def _imp_num(s):
+    try:
+        return float(str(s).replace(",", "").replace("₹", "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_upload(filename, data):
+    """(headers, rows) from CSV or XLSX bytes; rows = list[list[str]], header = row 0."""
+    name = (filename or "").lower()
+    if name.endswith((".xlsx", ".xlsm")):
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        allr = [list(r) for r in wb.active.iter_rows(values_only=True)]
+    else:
+        text = data.decode("utf-8-sig", errors="replace")
+        try:
+            dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t|")
+        except Exception:
+            dialect = csv.excel
+        allr = list(csv.reader(io.StringIO(text), dialect))
+    norm = []
+    for r in allr:
+        cells = ["" if c is None else str(c).strip() for c in r]
+        if any(cells):
+            norm.append(cells)
+    if not norm:
+        return [], []
+    return norm[0], norm[1:]
+
+
+def _detect_mapping(headers, rows, eqset, eqnames):
+    """Best-guess {field: col_index}. Symbol is found by VALUE (which column's
+    values match the NSE universe) so it's robust to any header name."""
+    nh = [_imp_norm(h) for h in headers]
+    mp = {}
+    sample = rows[:60]
+    best, best_hits = None, 0
+    for ci in range(len(headers)):
+        hits = sum(1 for r in sample
+                   if ci < len(r) and r[ci] and (r[ci].upper() in eqset or r[ci].upper() in eqnames))
+        if hits > best_hits:
+            best_hits, best = hits, ci
+    if best is not None and best_hits >= max(1, len(sample) // 5):
+        mp["symbol"] = best
+    for field, syns in _IMP_SYN.items():
+        if field in mp:
+            continue
+        for ci, h in enumerate(nh):
+            if h and any(s in h for s in syns) and ci not in mp.values():
+                mp[field] = ci
+                break
+    if "entry_date" not in mp:                       # value fallback: a date-like column
+        for ci in range(len(headers)):
+            if ci in mp.values():
+                continue
+            if sum(1 for r in sample if ci < len(r) and _imp_date(r[ci])) >= max(1, len(sample) // 2):
+                mp["entry_date"] = ci
+                break
+    return mp
+
+
+def _imp_review(headers, rows, mp, status, book):
+    def colopts(sel):
+        return "".join(
+            f'<option value="{i}"{" selected" if sel == i else ""}>{_esc(h or ("Col " + str(i + 1)))}</option>'
+            for i, h in enumerate(headers))
+    selects = "".join(
+        f'<div style="flex:1;min-width:150px"><label>{lbl}</label>'
+        f'<select name="map_{fld}" class="field"><option value="-1"{" selected" if mp.get(fld, -1) == -1 else ""}>'
+        f'— none —</option>{colopts(mp.get(fld, -1))}</select></div>'
+        for fld, lbl in _IMP_FIELDS)
+    thead = "".join(f'<th>{_esc(h or ("Col " + str(i + 1)))}</th>' for i, h in enumerate(headers))
+    prev = "".join(
+        "<tr>" + "".join(f'<td class="l mut">{_esc(r[i]) if i < len(r) else ""}</td>'
+                         for i in range(len(headers))) + "</tr>"
+        for r in rows[:8])
+    return (
+        '<form class="cap" method="post" action="/dash/import/commit">'
+        f'<textarea name="rows_json" style="display:none">{_esc(json.dumps(rows))}</textarea>'
+        f'<input type="hidden" name="status" value="{_esc(status)}"/>'
+        f'<input type="hidden" name="book" value="{_esc(book)}"/>'
+        '<div style="font-weight:600;margin-bottom:6px">Confirm the column mapping</div>'
+        f'<div class="sub" style="margin-bottom:10px">Importing <b>{len(rows)}</b> rows into '
+        f'<b>{_esc(book)}</b> ({"Portfolio" if status == "open" else "Watchlist"}). We guessed the '
+        'columns below from your file — fix any that are wrong. Unrecognised tickers are skipped.</div>'
+        f'<div class="row2">{selects}</div>'
+        '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Import</button>'
+        '<a class="tbtn" href="/dash/import" style="text-decoration:none;margin-left:8px">Cancel</a>'
+        '</form>'
+        '<div class="ghdr" style="margin-top:14px">Preview (first 8 rows)</div>'
+        f'<table class="dt"><thead><tr>{thead}</tr></thead><tbody>{prev}</tbody></table>')
+
+
+@router.get("/dash/import", response_class=HTMLResponse)
+def dash_import() -> HTMLResponse:
+    form = (
+        '<form class="cap" method="post" action="/dash/import/preview" enctype="multipart/form-data">'
+        '<div style="font-weight:600;margin-bottom:8px">Import holdings from a file</div>'
+        '<div class="sub" style="margin-bottom:10px">CSV or Excel (.xlsx), <b>any layout</b> — we '
+        'auto-detect the columns (the ticker column is found by matching your values to the NSE list) '
+        'and let you confirm before saving.</div>'
+        '<div class="row2">'
+        '<div style="flex:1;min-width:120px"><label>List</label>'
+        '<select name="status" class="field"><option value="open">Portfolio</option>'
+        '<option value="watch">Watchlist</option></select></div>'
+        '<div style="flex:1;min-width:120px"><label>Book</label>'
+        '<input name="book" class="field" value="Main" maxlength="40"/></div></div>'
+        '<div style="margin-bottom:10px"><label>File</label>'
+        '<input type="file" name="file" class="field" accept=".csv,.xlsx,.xlsm,text/csv" required/></div>'
+        '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Upload &amp; preview</button>'
+        '<a class="tbtn" href="/dash/portfolios" style="text-decoration:none;margin-left:8px">Cancel</a>'
+        '</form>')
+    body = _TRACK_CSS + _track_subnav("portfolios") + '<h2>Import</h2>' + form
+    return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
+
+
+def _imp_err(msg):
+    body = (_TRACK_CSS + _track_subnav("portfolios") + '<h2>Import</h2>'
+            + f'<div class="banner b-off">{_esc(msg)}</div>'
+            + '<div class="empty"><a href="/dash/import" style="color:#58a6ff;text-decoration:none">← Try again</a></div>')
+    return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
+
+
+@router.post("/dash/import/preview", response_class=HTMLResponse)
+async def dash_import_preview(file: UploadFile = File(...), status: str = Form("open"),
+                             book: str = Form("Main")) -> HTMLResponse:
+    status = status if status in ("watch", "open") else "open"
+    bk = (book or "Main").strip()[:40] or "Main"
+    data = await file.read()
+    try:
+        headers, rows = _parse_upload(file.filename, data)
+    except Exception as e:
+        return _imp_err(f"Could not read that file: {str(e)[:160]}")
+    rows = rows[:500]
+    if not headers or not rows:
+        return _imp_err("No data rows found in the file.")
+    with get_conn() as conn:
+        eqset = {r[0] for r in conn.execute("SELECT symbol FROM nse_equity_list").fetchall()}
+        eqnames = {(r[0] or "").upper() for r in conn.execute(
+            "SELECT company_name FROM nse_equity_list").fetchall()}
+    mp = _detect_mapping(headers, rows, eqset, eqnames)
+    body = _TRACK_CSS + _track_subnav("portfolios") + '<h2>Import — review</h2>' + _imp_review(headers, rows, mp, status, bk)
+    return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
+
+
+@router.post("/dash/import/commit")
+def dash_import_commit(rows_json: str = Form("[]"), status: str = Form("open"),
+                       book: str = Form("Main"), map_symbol: str = Form("-1"),
+                       map_entry_date: str = Form("-1"), map_entry_price: str = Form("-1"),
+                       map_qty: str = Form("-1"), map_strategy: str = Form("-1")) -> RedirectResponse:
+    status = status if status in ("watch", "open") else "open"
+    dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
+    bk = (book or "Main").strip()[:40] or "Main"
+    try:
+        rows = json.loads(rows_json or "[]")
+    except Exception:
+        rows = []
+
+    def _i(x):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return -1
+    cs, cd, cp, cq, cstr = (_i(map_symbol), _i(map_entry_date), _i(map_entry_price),
+                            _i(map_qty), _i(map_strategy))
+    if cs < 0:
+        return RedirectResponse(f"{dest}?err={_q('Pick the Symbol column before importing.')}", status_code=303)
+
+    def cell(r, ci):
+        return str(r[ci]).strip() if (0 <= ci < len(r) and r[ci] is not None) else ""
+    inserted, skipped = 0, []
+    with get_conn() as conn:
+        for r in rows:
+            if not isinstance(r, list):
+                continue
+            sym = cell(r, cs).upper()
+            if not sym:
+                continue
+            if not _is_listed(conn, sym):
+                skipped.append(sym)
+                continue
+            strat = ((cell(r, cstr) if cstr >= 0 else "") or "Imported")[:60]
+            q = _imp_num(cell(r, cq)) if cq >= 0 else None
+            if status == "open":
+                d_in = _imp_date(cell(r, cd)) if cd >= 0 else None
+                o = _ohlc_on(conn, sym, d_in or None)
+                # Import TRUSTS the file's cost basis (averaged price may sit outside
+                # one day's OHLC); fall back to that day's close only if price absent.
+                ep_in = _imp_num(cell(r, cp)) if cp >= 0 else None
+                ep = ep_in if ep_in is not None else (o["close"] if o else None)
+                td = o["trade_date"] if o else datetime.utcnow().strftime("%Y-%m-%d")
+                snap = _capture_snapshot(conn, sym, as_of=td)[1]
+                conn.execute(
+                    "INSERT INTO stocks_in_play(symbol,strategy,book,status,date_added,entry_price,qty,"
+                    "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (sym, strat, bk, "open", td, ep, q, None, None, None,
+                     json.dumps(snap) if snap else None))
+            else:
+                snap = _capture_snapshot(conn, sym)[1]
+                conn.execute(
+                    "INSERT INTO stocks_in_play(symbol,strategy,book,status,entry_price,qty,"
+                    "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (sym, strat, bk, "watch", None, q, None, None, None,
+                     json.dumps(snap) if snap else None))
+            inserted += 1
+    url = f"{dest}?book={_q(bk)}&added={_q(str(inserted) + ' holdings')}"
+    if skipped:
+        uniq = list(dict.fromkeys(skipped))
+        url += f"&err={_q(str(len(skipped)) + ' row(s) skipped — ticker not recognised: ' + ', '.join(uniq[:8]))}"
+    return RedirectResponse(url, status_code=303)
 
 
 _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"
