@@ -2603,6 +2603,34 @@ _CS_JS = ("<script>function _csToggle(s){var f=s.form;if(!f)return;"
           "document.addEventListener('DOMContentLoaded',function(){"
           "document.querySelectorAll('select[data-cs]').forEach(_csToggle);});</script>")
 
+# Portfolio entry helper: when List='open', reveals the optional entry date+price
+# override, auto-fills the price from /dash/track/quote, and shows the valid OHLC
+# range for the chosen date so an impossible price can't be entered.
+_ENTRY_JS = (
+    "<script>(function(){"
+    "function E(f){return{sym:f.querySelector('[name=symbol]'),st:f.querySelector('[name=status]'),"
+    "d:f.querySelector('[name=entry_date]'),p:f.querySelector('[name=entry_price]'),"
+    "w:f.querySelector('.ent-wrap'),h:f.querySelector('.ent-hint')};}"
+    "function tog(f){var e=E(f);if(!e.w)return;e.w.style.display=(e.st&&e.st.value==='open')?'':'none';}"
+    "function quote(f){var e=E(f);if(!e.w||!e.sym)return;if(!(e.st&&e.st.value==='open'))return;"
+    "var s=(e.sym.value||'').trim().toUpperCase();if(!s){if(e.h)e.h.textContent='';return;}"
+    "var d=(e.d&&e.d.value)||'';"
+    "fetch('/dash/track/quote?sym='+encodeURIComponent(s)+'&date='+encodeURIComponent(d))"
+    ".then(function(r){return r.json();}).then(function(j){"
+    "if(!j.ok){if(e.h)e.h.textContent='No price data for '+s+(d?(' on/before '+d):'')+'.';return;}"
+    "if(e.h)e.h.innerHTML='Auto ₹'+j.close+' (close '+j.date+') · valid ₹'+j.low+'–₹'+j.high;"
+    "if(e.p&&(!e.p.value||e.p.dataset.auto==='1')){e.p.value=j.close;e.p.dataset.auto='1';}"
+    "}).catch(function(){});}"
+    "function init(f){if(!f.querySelector('.ent-wrap'))return;tog(f);var e=E(f);"
+    "if(e.st)e.st.addEventListener('change',function(){tog(f);quote(f);});"
+    "if(e.sym){e.sym.addEventListener('blur',function(){quote(f);});"
+    "e.sym.addEventListener('change',function(){quote(f);});}"
+    "if(e.p)e.p.addEventListener('input',function(){e.p.dataset.auto='0';});"
+    "if(e.d)e.d.addEventListener('change',function(){quote(f);});"
+    "quote(f);}"
+    "document.addEventListener('DOMContentLoaded',function(){"
+    "document.querySelectorAll('form.cap').forEach(init);});})();</script>")
+
 
 def _xpower(L):
     """×power = today's DVPT / the mean of its own power baselines (glossary)."""
@@ -2618,11 +2646,16 @@ def _conv_of(p_score, rs_rank):
     return 0.55 * (p_score or 0) / 5.0 * 100.0 + 0.45 * (rs_rank or 0)
 
 
-def _capture_snapshot(conn, sym):
-    """Latest signal row -> (entry_price = latest close, frozen snapshot dict,
-    trade_date). Used both to FREEZE values at add time and to read them LIVE."""
-    L = conn.execute("SELECT * FROM stock_signals WHERE symbol=? "
-                     "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+def _capture_snapshot(conn, sym, as_of=None):
+    """Signal row + close -> (entry_price = close, frozen snapshot dict, trade_date).
+    `as_of` (YYYY-MM-DD) freezes it as it stood on/before that date (for a backdated
+    entry); default = latest. Used both to FREEZE at add time and to read LIVE."""
+    if as_of:
+        L = conn.execute("SELECT * FROM stock_signals WHERE symbol=? AND trade_date<=? "
+                         "ORDER BY trade_date DESC LIMIT 1", (sym, as_of)).fetchone()
+    else:
+        L = conn.execute("SELECT * FROM stock_signals WHERE symbol=? "
+                         "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
     if not L:
         return None, {}, None
     L = dict(L)
@@ -2649,6 +2682,20 @@ def _capture_snapshot(conn, sym):
         "char": L.get("accum_character"),
     }
     return close, snap, td
+
+
+def _ohlc_on(conn, sym, date=None):
+    """The EQ OHLC row for `sym` on `date` (the latest trading day on/before it), or
+    the latest overall when date is None. Returns dict(trade_date,open,high,low,close)
+    or None. Backs the entry auto-fill + the impossible-price validation."""
+    base = ("SELECT trade_date, open, high, low, close FROM bhavcopy_rows "
+            "WHERE symbol=? AND series='EQ' AND (segment='CM' OR segment IS NULL) ")
+    if date:
+        r = conn.execute(base + "AND trade_date<=? ORDER BY trade_date DESC LIMIT 1",
+                         (sym, date)).fetchone()
+    else:
+        r = conn.execute(base + "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+    return dict(r) if r else None
 
 
 def _snap_chips(snap):
@@ -2749,6 +2796,13 @@ def _capture_form(sym, snap):
         '<label>Your strategy / basis</label>'
         '<input name="strategy_custom" class="field" maxlength="60" '
         'placeholder="name your own — e.g. 52w-high breakout, earnings surprise"/></div>'
+        '<div class="ent-wrap" style="margin-bottom:10px">'
+        '<div class="row2" style="margin-bottom:6px">'
+        '<div style="flex:1"><label>Entry date (optional)</label>'
+        '<input type="date" name="entry_date" class="field"/></div>'
+        '<div style="flex:1"><label>Entry price ₹ (optional)</label>'
+        '<input name="entry_price" class="field" inputmode="decimal" placeholder="auto = close"/></div></div>'
+        '<div class="ent-hint mut" style="font-size:11px"></div></div>'
         '<div style="margin-bottom:10px"><label>Thesis — why now?</label>'
         '<textarea name="thesis" class="field" placeholder="e.g. p_score 5, fresh ACCUM off a base, '
         'close inside the key-price launch band"></textarea></div>'
@@ -2760,7 +2814,7 @@ def _capture_form(sym, snap):
         f'Frozen snapshot · saved as of {_esc(asof)}</div>{_snap_chips(snap)}</div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save</button>'
         f'<a class="tbtn" href="/dash/stock?sym={_q(sym)}" style="text-decoration:none;margin-left:8px">Cancel</a>'
-        '</form>' + _CS_JS)
+        '</form>' + _CS_JS + _ENTRY_JS)
 
 
 def _is_listed(conn, sym):
@@ -2804,17 +2858,25 @@ def _add_box(default_status):
         '<label>Your strategy / basis</label>'
         '<input name="strategy_custom" class="field" maxlength="60" '
         'placeholder="name your own — e.g. 52w-high breakout, earnings surprise"/></div>'
+        f'<div class="ent-wrap" style="margin-bottom:10px;display:{"" if default_status == "open" else "none"}">'
+        '<div class="row2" style="margin-bottom:6px">'
+        '<div style="flex:1;min-width:130px"><label>Entry date (optional)</label>'
+        '<input type="date" name="entry_date" class="field"/></div>'
+        '<div style="flex:1;min-width:130px"><label>Entry price ₹ (optional)</label>'
+        '<input name="entry_price" class="field" inputmode="decimal" placeholder="auto = close"/></div></div>'
+        '<div class="ent-hint mut" style="font-size:11px"></div></div>'
         '<div style="margin-bottom:10px"><label>Thesis — why now? (optional)</label>'
         '<input name="thesis" class="field" placeholder="e.g. fresh ACCUM off a base, p_score 5"/></div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Add</button>'
-        '</form>' + _CS_JS)
+        '</form>' + _CS_JS + _ENTRY_JS)
 
 
 @router.post("/dash/track")
 def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                status: str = Form("open"), thesis: str = Form(""),
                target: str = Form(""), stop: str = Form(""),
-               strategy_custom: str = Form("")) -> RedirectResponse:
+               strategy_custom: str = Form(""),
+               entry_date: str = Form(""), entry_price: str = Form("")) -> RedirectResponse:
     sym = (symbol or "").upper().strip()
     status = status if status in ("watch", "open") else "open"
     dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
@@ -2835,15 +2897,60 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
             return RedirectResponse(
                 f"{dest}?err={_q(sym + ' is not a recognized NSE equity — check the ticker.')}",
                 status_code=303)
-        entry_price, snap, _ = _capture_snapshot(conn, sym)
-        conn.execute(
-            "INSERT INTO stocks_in_play(symbol,strategy,status,entry_price,"
-            "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",
-            (sym, strat, status,
-             entry_price if status == "open" else None,
-             _f(target), _f(stop), (thesis or "").strip() or None,
-             json.dumps(snap) if snap else None))
+        if status == "open":
+            # A Portfolio position needs an entry. Resolve the entry day's OHLC (a
+            # custom date snaps to the last trading day on/before it). The price is
+            # the user's — validated to that day's [low, high] so a price that never
+            # traded can't be saved — else the auto close. date_added = entry date.
+            d_in = (entry_date or "").strip()
+            o = _ohlc_on(conn, sym, d_in or None)
+            if not o:
+                return RedirectResponse(
+                    f"{dest}?err={_q(sym + ' has no price data on/before ' + (d_in or 'the latest day') + '.')}",
+                    status_code=303)
+            td, lo, hi, close = o["trade_date"], o["low"], o["high"], o["close"]
+            ep_in = _f(entry_price)
+            if ep_in is None:
+                ep = close
+            elif lo is not None and hi is not None and not (lo - 0.05 <= ep_in <= hi + 0.05):
+                return RedirectResponse(
+                    f"{dest}?err={_q(f'{sym} traded ₹{lo:g}–₹{hi:g} on {td}. ₹{ep_in:g} never traded that day — enter a price in that range.')}",
+                    status_code=303)
+            else:
+                ep = ep_in
+            snap = _capture_snapshot(conn, sym, as_of=td)[1]
+            conn.execute(
+                "INSERT INTO stocks_in_play(symbol,strategy,status,date_added,entry_price,"
+                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?)",
+                (sym, strat, status, td, ep,
+                 _f(target), _f(stop), (thesis or "").strip() or None,
+                 json.dumps(snap) if snap else None))
+        else:
+            # A Watchlist idea: no entry, no commitment. The snapshot still records
+            # the as-of price for reference; date_added defaults to now.
+            snap = _capture_snapshot(conn, sym)[1]
+            conn.execute(
+                "INSERT INTO stocks_in_play(symbol,strategy,status,entry_price,"
+                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",
+                (sym, strat, status, None,
+                 _f(target), _f(stop), (thesis or "").strip() or None,
+                 json.dumps(snap) if snap else None))
     return RedirectResponse(f"{dest}?added={_q(sym)}", status_code=303)
+
+
+@router.get("/dash/track/quote")
+def dash_track_quote(sym: str = Query(""), date: str = Query("")):
+    """Read-only helper for the entry form: the EQ OHLC for `sym` on/before `date`
+    (latest if blank). Powers the auto-fill price + the visible valid range."""
+    s = (sym or "").upper().strip()
+    if not s:
+        return {"ok": False}
+    with get_conn() as conn:
+        o = _ohlc_on(conn, s, (date or "").strip() or None)
+    if not o:
+        return {"ok": False, "sym": s}
+    return {"ok": True, "sym": s, "date": o["trade_date"],
+            "close": o["close"], "low": o["low"], "high": o["high"]}
 
 
 @router.post("/dash/track/close")
@@ -2930,7 +3037,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query("")) -> HTMLRespons
             f'<td class="l">{_id_form("/dash/track/close", r["id"], "Close", confirm="Close this position?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr>'
-            '<th>Symbol</th><th>Strategy</th><th>Added</th><th>Entry</th><th>CMP</th>'
+            '<th>Symbol</th><th>Strategy</th><th>Entry date</th><th>Entry ₹</th><th>CMP</th>'
             '<th>P/L</th><th>Target</th><th>Conv then→now</th><th>Thesis</th><th></th>'
             '</tr></thead><tbody>')
     body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox
