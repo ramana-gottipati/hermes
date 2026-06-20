@@ -264,7 +264,12 @@ free-tier pressure — ambiguous asks now resolve with 0 Gemini calls.)*
 > — and the index *fix itself* (a `route_index` of `if "worst" in q` rules) was **more
 > keyword-matching, not reasoning**. So we replaced the brain, not patched it again.
 
-**Shipped (commit pending):**
+**Shipped (`7fa19fc`), verified LIVE with the real model:**
+- *Generalization proof:* "show me the weakest sectors over twelve months that are
+  bouncing" — a phrasing in **no** keyword list — routes to Index · Laggards · turning up
+  (parser decomposed sector→index / return / 1y / worst / improving-filter). And "worst
+  performing **stocks** this year" now returns the honest redirect ("no worst-stocks
+  screen yet — did you mean worst indices, or RS leaders?"), not a wrong dump.
 - **Structured query understanding** (`src/pat/understand.py`) — the model now does a
   SEMANTIC PARSE into a logical intent: `universe` (stock/index/sector, decided FIRST) →
   `rank{metric,window,order}` → `filters[]` (a LIST → two-window asks like "worst over 1Y
