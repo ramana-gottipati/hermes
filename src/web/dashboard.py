@@ -2592,6 +2592,11 @@ _TRACK_CSS = """<style>
 .cap .field{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:7px;padding:8px 10px;font-size:13px;width:100%;font-family:inherit}
 .cap .row2{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .cap textarea.field{min-height:48px;resize:vertical}
+.ac-box{position:absolute;left:0;right:0;top:100%;z-index:30;background:#0d1117;border:1px solid #30363d;border-top:none;border-radius:0 0 7px 7px;max-height:260px;overflow:auto}
+.ac-it{padding:6px 10px;cursor:pointer;font-size:13px;color:#c9d1d9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-it:hover,.ac-it.on{background:#1f6feb;color:#fff}
+.ac-n{color:#8b949e;font-size:11px;margin-left:6px}
+.ac-it:hover .ac-n,.ac-it.on .ac-n{color:#cde3ff}
 </style>"""
 
 # Shows/hides the free-text "your own strategy" input when a strategy <select>
@@ -2630,6 +2635,37 @@ _ENTRY_JS = (
     "quote(f);}"
     "document.addEventListener('DOMContentLoaded',function(){"
     "document.querySelectorAll('form.cap').forEach(init);});})();</script>")
+
+# Ticker autocomplete for the add box: a self-contained dropdown over the equity
+# universe (symbol prefix from 2 chars + company-name substring from 3). Reads
+# window._ACITEMS (a [{s:SYMBOL,n:Company}] list embedded once per page).
+_AC_JS = (
+    "<script>(function(){var IT=window._ACITEMS||[];"
+    "function mk(inp){if(inp._ac)return;inp._ac=1;"
+    "var p=inp.parentNode;p.style.position='relative';"
+    "var b=document.createElement('div');b.className='ac-box';b.style.display='none';p.appendChild(b);"
+    "var idx=-1,cur=[];"
+    "function close(){b.style.display='none';idx=-1;}"
+    "function pick(s){inp.value=s;close();inp.dispatchEvent(new Event('change',{bubbles:true}));}"
+    "function render(L){cur=L;if(!L.length){close();return;}"
+    "b.innerHTML=L.map(function(o,i){return '<div class=ac-it data-i='+i+'><b>'+o.s+'</b><span class=ac-n>'+o.n+'</span></div>';}).join('');"
+    "b.style.display='';idx=-1;"
+    "Array.prototype.forEach.call(b.children,function(el){el.addEventListener('mousedown',function(e){e.preventDefault();pick(cur[+el.getAttribute('data-i')].s);});});}"
+    "function filt(){var q=(inp.value||'').trim().toUpperCase();if(q.length<2){close();return;}"
+    "var pre=[],sub=[],nm=[];for(var i=0;i<IT.length;i++){var o=IT[i];"
+    "if(o.s.indexOf(q)===0){pre.push(o);}else if(q.length>=3&&o.s.indexOf(q)>0){sub.push(o);}"
+    "else if(q.length>=3&&o.n.toUpperCase().indexOf(q)>=0){nm.push(o);}"
+    "if(pre.length>=25)break;}render(pre.concat(sub,nm).slice(0,25));}"
+    "var t;inp.addEventListener('input',function(){clearTimeout(t);t=setTimeout(filt,110);});"
+    "inp.addEventListener('keydown',function(e){if(b.style.display==='none')return;var its=b.children;"
+    "if(e.key==='ArrowDown'){idx=Math.min(idx+1,its.length-1);e.preventDefault();}"
+    "else if(e.key==='ArrowUp'){idx=Math.max(idx-1,0);e.preventDefault();}"
+    "else if(e.key==='Enter'){if(idx>=0&&cur[idx]){pick(cur[idx].s);e.preventDefault();}return;}"
+    "else if(e.key==='Escape'){close();return;}else return;"
+    "Array.prototype.forEach.call(its,function(el,i){el.className='ac-it'+(i===idx?' on':'');});});"
+    "inp.addEventListener('blur',function(){setTimeout(close,150);});}"
+    "document.addEventListener('DOMContentLoaded',function(){"
+    "document.querySelectorAll('input[data-ac]').forEach(mk);});})();</script>")
 
 
 def _xpower(L):
@@ -2834,7 +2870,26 @@ def _is_listed(conn, sym):
         return True
 
 
-def _add_box(default_status):
+_EQ_AC = {"key": None, "json": "[]"}
+
+
+def _equities_ac_json():
+    """Cached [{s,n}] equity universe (symbol + company name) for the add-box
+    ticker autocomplete; rebuilt only when the listed-count changes."""
+    try:
+        with get_conn() as conn:
+            key = conn.execute("SELECT COUNT(*) FROM nse_equity_list").fetchone()[0]
+            if _EQ_AC["key"] != key:
+                rows = conn.execute("SELECT symbol, company_name FROM nse_equity_list "
+                                    "ORDER BY symbol").fetchall()
+                _EQ_AC.update(key=key, json=json.dumps(
+                    [{"s": r["symbol"], "n": (r["company_name"] or "")} for r in rows]))
+    except Exception:
+        return "[]"
+    return _EQ_AC["json"]
+
+
+def _add_box(default_status, ac_json="[]"):
     """Inline '+ Add a stock' quick-capture rendered directly on the Portfolios /
     Watchlists pages — so you can add without first opening a stock page. POSTs to
     the same /dash/track endpoint (entry price + frozen snapshot captured
@@ -2847,8 +2902,8 @@ def _add_box(default_status):
         '<div style="font-weight:600;margin-bottom:10px">+ Add a stock</div>'
         '<div class="row2">'
         '<div style="flex:2;min-width:160px"><label>NSE ticker</label>'
-        '<input name="symbol" class="field" placeholder="e.g. BANDHANBNK" '
-        'autocapitalize="characters" autocomplete="off" required/></div>'
+        '<input name="symbol" class="field" placeholder="e.g. BANDHANBNK or Bandhan" '
+        'data-ac autocapitalize="characters" autocomplete="off" required/></div>'
         f'<div style="flex:1;min-width:120px"><label>List</label>'
         f'<select name="status" class="field"><option value="open"{sel_open}>Portfolio</option>'
         f'<option value="watch"{sel_watch}>Watchlist</option></select></div>'
@@ -2868,7 +2923,8 @@ def _add_box(default_status):
         '<div style="margin-bottom:10px"><label>Thesis — why now? (optional)</label>'
         '<input name="thesis" class="field" placeholder="e.g. fresh ACCUM off a base, p_score 5"/></div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Add</button>'
-        '</form>' + _CS_JS + _ENTRY_JS)
+        '</form>' + _CS_JS + _ENTRY_JS
+        + f'<script>window._ACITEMS={ac_json};</script>' + _AC_JS)
 
 
 @router.post("/dash/track")
@@ -3002,7 +3058,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query("")) -> HTMLRespons
              if added else "")
     if err:
         flash += f'<div class="banner b-off">{_esc(err)}</div>'
-    addbox = _add_box("open")
+    addbox = _add_box("open", _equities_ac_json())
     if not rows:
         empty = ('<div class="empty">No open positions yet. Add one above, or open any stock '
                  'and hit <b>+ Track</b> → <b>Portfolio</b>.</div>')
@@ -3061,7 +3117,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query("")) -> HTMLRespons
              if added else "")
     if err:
         flash += f'<div class="banner b-off">{_esc(err)}</div>'
-    addbox = _add_box("watch")
+    addbox = _add_box("watch", _equities_ac_json())
     if not rows:
         empty = ('<div class="empty">No watchlist items yet. Add one above, or on any stock '
                  'page hit <b>+ Track</b> → <b>Watchlist</b>.</div>')
