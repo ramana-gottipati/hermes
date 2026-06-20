@@ -780,6 +780,27 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers"}
 
 
+def _clarify_view(q: str, sel: dict) -> str:
+    """Render a clarify-before-guess turn: the question + suggested-answer chips
+    (each a concrete deterministic re-run) + a rephrase box. No feedback bar — this
+    is a question, not an answer yet. Honors §4.5: ask ONE thing, don't guess."""
+    chips = []
+    for c in (sel.get("chips") or []):
+        href, label = c.get("href"), c.get("label")
+        if href and label:
+            chips.append(f'<a class="patChip" href="{_esc(href)}">{_esc(label)}'
+                         ' <span class="ar">→</span></a>')
+    search = (
+        '<form class="search" action="/dash/pat" method="get" autocomplete="off">'
+        f'<input name="q" value="{_esc(q)}" placeholder="…or just rephrase your question"/>'
+        '<button>Ask</button></form>'
+    )
+    question = sel.get("question") or "Could you clarify what you mean?"
+    return (_q_bubble(question)
+            + (f'<div class="patChips">{"".join(chips)}</div>' if chips else "")
+            + search)
+
+
 def _free_text(conn, q: str):
     """A typed question with no explicit flow → routed to a flow + chip params (via
     src.pat.engine); falls back to the deterministic glossary search if the engine
@@ -797,6 +818,9 @@ def _free_text(conn, q: str):
         sel = None
     if sel and sel.get("flow"):
         f = sel["flow"]
+        if f == "clarify":
+            # Ambiguous ask → ONE short question + suggested-answer chips, no guess.
+            return _clarify_view(q, sel), None
         if f == "explain" and sel.get("explain") and get(sel["explain"]):
             e = get(sel["explain"])
             html = (_q_bubble(f'I read "{q}" as →explain {e["term"]}.')

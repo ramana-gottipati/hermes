@@ -74,11 +74,17 @@ def _menu() -> str:
 _SYSTEM = (
     "You route an Indian-stock-market analyst's English question to ONE flow and "
     "its enumerated options. Reply with COMPACT JSON ONLY, no prose:\n"
-    '{"flow":"accumulation|rs|fundamentals|movers|explain","params":{...}}\n'
+    '{"flow":"accumulation|rs|fundamentals|movers|explain","params":{...},"confidence":0-100}\n'
     'For explain use {"flow":"explain","explain":"<term-slug>"}.\n'
+    '"confidence" is your 0-100 certainty in the chosen flow — be honest; a low '
+    "number lets Pat ask the analyst instead of guessing.\n"
     "Use ONLY the listed keys/values. Omit any param you are unsure about (its "
     'default applies). If nothing fits, reply {"flow":null}.\n\n' + _menu()
 )
+
+# Below this certainty, route() turns the model's pick into a clarify among the
+# plausible flows rather than committing to a guess (Nous Hermes idea #2, §9).
+_CONF_THRESHOLD = 50
 
 _CACHE: dict[str, dict | None] = {}
 _WS = re.compile(r"\s+")
@@ -116,33 +122,106 @@ def _validate(obj) -> dict | None:
     return {"flow": flow, "params": params}
 
 
+def _build_system(query: str) -> str:
+    """The base prompt, enriched per-query with deterministic synonym hints and
+    (when available) few-shot examples mined from the correction store.
+
+    Both enrichments are best-effort and fail open — a missing module or empty
+    store leaves routing exactly as before.
+    """
+    parts = [_SYSTEM]
+    try:
+        from src.pat.disambiguate import hints as _hints
+        h = _hints(query)
+        if h:
+            parts.append(h)
+    except Exception:
+        pass
+    try:
+        block = _fewshot_block()
+        if block:
+            parts.append(block)
+    except Exception:
+        pass
+    return "\n\n".join(parts)
+
+
+def _fewshot_block() -> str:
+    """Hook for §4.4.2 few-shot — filled in by the correction-learning increment."""
+    return ""
+
+
+def _low_conf_clarify(query: str, sel: dict):
+    """Turn a low-certainty model pick into a clarify among the plausible flows
+    (the model's choice + any other flows the analyst's vocabulary points at)."""
+    try:
+        from src.pat.disambiguate import concepts as _concepts, clarify_from_flows
+        cs = _concepts(query)
+    except Exception:
+        return None
+    flows = [sel["flow"]] + [c for c in ("rs", "fundamentals", "accumulation", "movers")
+                             if c in cs and c != sel["flow"]]
+    return clarify_from_flows(query, flows)
+
+
 def route(query: str, conn=None) -> dict | None:
-    """English -> {flow, params} | None. None => caller uses the find() fallback.
+    """English -> {flow, params} | {flow:"clarify", ...} | None.
+
+    None => caller uses the find() fallback. A ``clarify`` result asks the analyst
+    ONE question (suggested-answer chips) instead of guessing — produced ₹0 by the
+    deterministic disambiguation layer, or from a low model-confidence pick.
 
     `conn` is accepted for signature stability (future sector validation); unused
-    in v1. Never raises — any failure degrades to None.
+    here. Never raises — any failure degrades to None.
     """
     q = _normalize(query)
     if len(q) < 2:
         return None
     if q in _CACHE:
         return _CACHE[q]
+
+    # (a) Deterministic clarify FIRST — an ambiguous ask never reaches the model (₹0).
+    try:
+        from src.pat.disambiguate import check as _check
+        clar = _check(query)
+    except Exception:
+        clar = None
+    if clar:
+        _CACHE[q] = clar
+        return clar
+
+    # (b) Route via Gemini (never-Claude), prompt enriched with hints + few-shot.
     try:
         # 512 not 160: 2.5-tier models spend "thinking" tokens before the JSON,
         # and 160 starved the harder queries (empty content -> None).
-        text, provider = call_classifier(system=_SYSTEM, user_msg=query, max_tokens=512)
+        text, provider = call_classifier(system=_build_system(query), user_msg=query, max_tokens=512)
     except Exception:
         _CACHE[q] = None
         return None
     if provider != "gemini":          # never-Claude: discard an Anthropic fallback
         _CACHE[q] = None
         return None
-    sel = None
+    parsed = None
     try:
         m = re.search(r"\{.*\}", text, re.DOTALL)
         if m:
-            sel = _validate(json.loads(m.group(0)))
+            parsed = json.loads(m.group(0))
     except Exception:
-        sel = None
+        parsed = None
+    sel = _validate(parsed)
+
+    # (c) Low-confidence fallback → clarify among plausible flows (Nous Hermes #2).
+    if sel and sel.get("flow") and sel["flow"] != "explain":
+        conf = None
+        if isinstance(parsed, dict):
+            try:
+                conf = int(parsed.get("confidence"))
+            except (TypeError, ValueError):
+                conf = None
+        if conf is not None and conf < _CONF_THRESHOLD:
+            alt = _low_conf_clarify(query, sel)
+            if alt:
+                sel = alt
+
     _CACHE[q] = sel
     return sel

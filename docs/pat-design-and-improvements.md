@@ -38,7 +38,8 @@ example questions on Home.
 |---|---|---|
 | **Glossary** | `src/pat/glossary.py` | 39-term data dictionary (grounding). `get`/`find`/`family`. Powers "explain a metric" + grounds the engine prompt. |
 | **Flows** | `src/pat/flows.py` | Pure `build_*_query(params) -> (sql, params)`. Read-only SELECTs; **columns/operators come only from constant dicts**, every value bound via `?`. The deterministic, ₹0 core. |
-| **Engine** | `src/pat/engine.py` | Free-text → `{flow, params}` via Gemini. Validates against the chip vocab (off-menu dropped). **Never-Claude** (discards Anthropic fallback). Cached. Prompt built from the chip dicts + glossary (single source of truth). |
+| **Disambiguator** | `src/pat/disambiguate.py` | Deterministic synonym + ambiguity layer in FRONT of the engine (₹0, no LLM). `hints` (vocab→flow, into the prompt) · `concepts` · `check` (→ `clarify` on intent/timeframe ambiguity) · `clarify_from_flows` (low-confidence fallback). Clarify chips are disambiguated **re-runs of the original query**, so context is preserved and they can't loop. |
+| **Engine** | `src/pat/engine.py` | Free-text → `{flow, params}` \| `{flow:"clarify",…}` \| None. Runs `disambiguate.check` first (₹0 clarify); else Gemini with hints+few-shot prompt; reads a `confidence` and converts a low-certainty pick to a clarify (threshold 50). Validates against the chip vocab (off-menu dropped). **Never-Claude** (discards Anthropic fallback). Cached. |
 | **Web/UI** | `src/pat/web.py` | `render_pat()` dispatches flow/explain/free-text/face. Renders data-first tables on the house `table.dt` grid. The persona header + face picker. The Home clues. |
 | **Route** | `src/web/dashboard.py` | `/dash/pat` GET (one route; params: flow, explain, q, sector, strength, entry, align, val, qual, grow, bs, own). New chip params **reuse existing captured params** to avoid editing this file. |
 | **Feedback store** | `src/pat/feedback.py` | §4 — the `pat_feedback` correction store. Self-contained (owns its table via CREATE TABLE IF NOT EXISTS; never edits db.py). `record`/`update`/`recent_positive_examples`/`recent_corrections`/`stats`. Never raises to the caller. |
@@ -149,9 +150,18 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
   + `/pat/feedback/correct` in a NEW `src/pat/routes.py` router mounted from `main.py`
   (dashboard.py untouched); 👍/👎 bar on every answer with a "what did you expect?"
   capture on 👎 (records the 👎 immediately, then enriches the same row — gold signal).
-- ⬜ `[engine]` P0 — clarify-before-guess (§4.5): a `clarify` intent + render.
-- ⬜ `[engine]` P1 — semantic synonym/disambiguation dictionary in front of the engine (Nous Hermes idea #3, §9): delivery→DVPT, momentum→RS, quality→14-pattern, "strength"→disambiguation chip. Deterministic, ₹0, lifts first-answer routing.
-- ⬜ `[engine]` P1 — confidence-threshold clarify (Nous Hermes idea #2, §9): when the engine's match confidence is low, offer 2–3 template suggestions as chips instead of guessing.
+- ✅ `[engine]` P0 — clarify-before-guess SHIPPED (§4.5): engine returns a `clarify`
+  intent (question + 2–3 suggested-answer chips) on intent ambiguity ("strong stocks")
+  or vague timeframe ("RS leaders recently"); `_clarify_view` renders it. Chips are
+  disambiguated re-runs of the original query (context preserved, no clarify loop).
+- ✅ `[engine]` P1 — synonym/disambiguation dictionary SHIPPED (`disambiguate.py`,
+  Nous Hermes #3): delivery→accumulation, momentum→RS, quality→fundamentals,
+  gainers→movers. Feeds prompt hints + drives the clarify. Deterministic, ₹0. The
+  ambiguous strength words are deliberately EXCLUDED from the synonym lists so they
+  reach the intent clarify instead of auto-anchoring.
+- ✅ `[engine]` P1 — confidence-threshold clarify SHIPPED (Nous Hermes #2): the model
+  emits a `confidence`; below 50 the pick becomes a clarify among the plausible flows
+  (its choice + the flows the analyst's vocabulary points at).
 - ⬜ `[engine]` P1 — few-shot from recent corrections (§4.4.2): inject the last N
   corrections into the prompt so routing learns the user's phrasings.
 - ⬜ `[thread]` P1 — conversational refinement (§6) + implicit re-ask detection.
