@@ -120,7 +120,9 @@ def route(query: str, conn=None) -> dict | None:
     if q in _CACHE:
         return _CACHE[q]
     try:
-        text, provider = call_classifier(system=_SYSTEM, user_msg=query, max_tokens=160)
+        # 512 not 160: 2.5-tier models spend "thinking" tokens before the JSON,
+        # and 160 starved the harder queries (empty content -> None).
+        text, provider = call_classifier(system=_SYSTEM, user_msg=query, max_tokens=512)
     except Exception:
         _CACHE[q] = None
         return None

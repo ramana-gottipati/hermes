@@ -18,12 +18,14 @@ class Settings(BaseSettings):
     default_model: str = "claude-sonnet-4-6"
     fast_model: str = "claude-haiku-4-5"
 
-    # Optional: Gemini for cheap classifier tasks (~10× cheaper than Haiku).
-    # If GEMINI_API_KEY is set, intent + news classifiers route to Gemini Flash.
-    # If unset, falls back to Anthropic Haiku. Get a free key at
+    # Optional: Gemini for cheap classifier tasks (much cheaper than Haiku).
+    # If GEMINI_API_KEY is set, intent + news classifiers + Pat's free-text
+    # router go to Gemini; else falls back to Anthropic Haiku. Get a key at
     # https://aistudio.google.com/apikey
+    # Default = 2.5-flash-lite: gemini-2.0-flash's free tier is quota-0 (limit:0)
+    # as of 2026-06, and 2.5-flash-lite also captures chip params better.
     gemini_api_key: str = ""
-    gemini_classifier_model: str = "gemini-2.0-flash"
+    gemini_classifier_model: str = "gemini-2.5-flash-lite"
 
     host: str = "0.0.0.0"
     port: int = 8000
