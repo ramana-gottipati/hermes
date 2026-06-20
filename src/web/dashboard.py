@@ -2819,6 +2819,15 @@ def _book_chips(base, books, sel):
     return "".join(out)
 
 
+def _rpl(v):
+    """Coloured absolute ₹ P&L cell (qty × price move), signed + compact."""
+    if v is None:
+        return '<span class="mut">—</span>'
+    cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
+    sign = "+" if v > 0 else ("−" if v < 0 else "")
+    return f'<span class="{cls}">{sign}{_rupee(abs(v))}</span>'
+
+
 def _capture_form(sym, snap):
     """The inline Track capture form (server-rendered; POSTs to /dash/track).
     Entry price + date + the frozen snapshot are captured SERVER-SIDE on submit
@@ -2846,7 +2855,9 @@ def _capture_form(sym, snap):
         '<div style="flex:1"><label>Entry date (optional)</label>'
         '<input type="date" name="entry_date" class="field"/></div>'
         '<div style="flex:1"><label>Entry price ₹ (optional)</label>'
-        '<input name="entry_price" class="field" inputmode="decimal" placeholder="auto = close"/></div></div>'
+        '<input name="entry_price" class="field" inputmode="decimal" placeholder="auto = close"/></div>'
+        '<div style="flex:1"><label>Qty (optional)</label>'
+        '<input name="qty" class="field" inputmode="decimal" placeholder="shares"/></div></div>'
         '<div class="ent-hint mut" style="font-size:11px"></div></div>'
         '<div style="margin-bottom:10px"><label>Thesis — why now?</label>'
         '<textarea name="thesis" class="field" placeholder="e.g. p_score 5, fresh ACCUM off a base, '
@@ -2932,7 +2943,9 @@ def _add_box(default_status, ac_json="[]", books=()):
         '<div style="flex:1;min-width:130px"><label>Entry date (optional)</label>'
         '<input type="date" name="entry_date" class="field"/></div>'
         '<div style="flex:1;min-width:130px"><label>Entry price ₹ (optional)</label>'
-        '<input name="entry_price" class="field" inputmode="decimal" placeholder="auto = close"/></div></div>'
+        '<input name="entry_price" class="field" inputmode="decimal" placeholder="auto = close"/></div>'
+        '<div style="flex:1;min-width:130px"><label>Qty (optional)</label>'
+        '<input name="qty" class="field" inputmode="decimal" placeholder="shares"/></div></div>'
         '<div class="ent-hint mut" style="font-size:11px"></div></div>'
         '<div style="margin-bottom:10px"><label>Thesis — why now? (optional)</label>'
         '<input name="thesis" class="field" placeholder="e.g. fresh ACCUM off a base, p_score 5"/></div>'
@@ -2945,7 +2958,7 @@ def _add_box(default_status, ac_json="[]", books=()):
 def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                status: str = Form("open"), thesis: str = Form(""),
                target: str = Form(""), stop: str = Form(""),
-               strategy_custom: str = Form(""), book: str = Form("Main"),
+               strategy_custom: str = Form(""), book: str = Form("Main"), qty: str = Form(""),
                entry_date: str = Form(""), entry_price: str = Form("")) -> RedirectResponse:
     sym = (symbol or "").upper().strip()
     status = status if status in ("watch", "open") else "open"
@@ -2991,9 +3004,9 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                 ep = ep_in
             snap = _capture_snapshot(conn, sym, as_of=td)[1]
             conn.execute(
-                "INSERT INTO stocks_in_play(symbol,strategy,book,status,date_added,entry_price,"
-                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?)",
-                (sym, strat, bk, status, td, ep,
+                "INSERT INTO stocks_in_play(symbol,strategy,book,status,date_added,entry_price,qty,"
+                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (sym, strat, bk, status, td, ep, _f(qty),
                  _f(target), _f(stop), (thesis or "").strip() or None,
                  json.dumps(snap) if snap else None))
         else:
@@ -3001,9 +3014,9 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
             # the as-of price for reference; date_added defaults to now.
             snap = _capture_snapshot(conn, sym)[1]
             conn.execute(
-                "INSERT INTO stocks_in_play(symbol,strategy,book,status,entry_price,"
-                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?)",
-                (sym, strat, bk, status, None,
+                "INSERT INTO stocks_in_play(symbol,strategy,book,status,entry_price,qty,"
+                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (sym, strat, bk, status, None, _f(qty),
                  _f(target), _f(stop), (thesis or "").strip() or None,
                  json.dumps(snap) if snap else None))
     return RedirectResponse(f"{dest}?added={_q(sym)}", status_code=303)
@@ -3103,6 +3116,9 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
         th_cell = (f'<span class="thq" title="{_esc(thesis)}">&#8220;</span>'
                    if thesis else '<span class="mut">—</span>')
         tgt = _num(r["price_target"], 1) if r["price_target"] is not None else '<span class="mut">—</span>'
+        q = r.get("qty")
+        qty_cell = _num(q, 0) if q else '<span class="mut">—</span>'
+        rpl = (q * (cmp_ - ep)) if (q and cmp_ is not None and ep) else None
         trs.append(
             '<tr>'
             f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
@@ -3110,16 +3126,18 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
             f'<td class="l mut">{_esc(r["strategy"])}</td>'
             f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
             f'<td class="num">{_num(ep, 1)}</td>'
+            f'<td class="num">{qty_cell}</td>'
             f'<td class="num">{_num(cmp_, 1)}</td>'
             f'<td class="num">{_pct(pl)}</td>'
+            f'<td class="num">{_rpl(rpl)}</td>'
             f'<td class="num">{tgt}</td>'
             f'<td class="l">{drift}</td>'
             f'<td class="l">{th_cell}</td>'
             f'<td class="l">{_id_form("/dash/track/close", r["id"], "Close", confirm="Close this position?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr>'
-            '<th>Symbol</th><th>Book</th><th>Strategy</th><th>Entry date</th><th>Entry ₹</th><th>CMP</th>'
-            '<th>P/L</th><th>Target</th><th>Conv then→now</th><th>Thesis</th><th></th>'
+            '<th>Symbol</th><th>Book</th><th>Strategy</th><th>Entry date</th><th>Entry ₹</th><th>Qty</th><th>CMP</th>'
+            '<th>P/L</th><th>₹ P&amp;L</th><th>Target</th><th>Conv then→now</th><th>Thesis</th><th></th>'
             '</tr></thead><tbody>')
     body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips
             + head + "".join(trs) + "</tbody></table>")
@@ -3282,40 +3300,56 @@ def dash_dashboard() -> HTMLResponse:
     open_mtm = (sum(opl) / len(opl)) if opl else None
     bk = {}
     for r in openrows:
-        d = bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": []})
+        d = bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": [], "inv": 0.0, "cur": 0.0})
         d["open"] += 1
         p = _pl(r)
         if p is not None:
             d["pl"].append(p)
+        q, ep, c = r.get("qty"), r["entry_price"], cmps.get(r["symbol"])
+        if q and ep:
+            d["inv"] += q * ep
+            if c:
+                d["cur"] += q * c
     for r in watchrows:
-        bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": []})["watch"] += 1
+        bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": [], "inv": 0.0, "cur": 0.0})["watch"] += 1
+    tot_inv = sum(d["inv"] for d in bk.values())
+    tot_cur = sum(d["cur"] for d in bk.values())
+    tot_rpl = (tot_cur - tot_inv) if tot_inv else None
 
     def card(lbl, val):
         return f'<div class="box"><div class="num">{val}</div><div class="lbl">{lbl}</div></div>'
+    inv_total = _rupee(tot_inv) if tot_inv else '<span class="mut">—</span>'
     cards = ('<div class="kpi">'
              + card("books", len(bk))
              + card("open positions", len(openrows))
              + card("open MTM", _pct(open_mtm))
+             + card("invested", inv_total)
+             + card("₹ P&amp;L", _rpl(tot_rpl))
              + card("watchlist ideas", len(watchrows))
              + '</div>')
     intro = ('<h2>Dashboard</h2><div class="sub"><b>Your cockpit</b> — every book at a glance. '
              'Open a book to manage holdings, or see the '
              '<a href="/dash/performance" style="color:#58a6ff;text-decoration:none">Performance</a> '
-             'scorecard. <span class="mut">News &amp; alerts land here next.</span></div>')
+             'scorecard. <span class="mut">Add quantity on a position to see ₹ P&amp;L; news &amp; alerts land here next.</span></div>')
     if bk:
         trs = []
         for b, d in sorted(bk.items()):
             avg = (sum(d["pl"]) / len(d["pl"])) if d["pl"] else None
+            rpl = (d["cur"] - d["inv"]) if d["inv"] else None
+            inv_cell = _rupee(d["inv"]) if d["inv"] else '<span class="mut">—</span>'
             trs.append(
                 '<tr>'
                 f'<td class="l"><a class="row" href="/dash/portfolios?book={_q(b)}"><span class="sym">{_esc(b)}</span></a></td>'
                 f'<td class="num">{d["open"]}</td>'
                 f'<td class="num">{_pct(avg)}</td>'
+                f'<td class="num">{inv_cell}</td>'
+                f'<td class="num">{_rpl(rpl)}</td>'
                 f'<td class="num">{d["watch"]}</td>'
                 f'<td class="l"><a class="tbtn" href="/dash/portfolios?book={_q(b)}" style="text-decoration:none">Open</a></td>'
                 '</tr>')
         table = ('<table class="dt"><thead><tr><th>Book</th><th>Open</th><th>Avg P/L</th>'
-                 '<th>Watch</th><th></th></tr></thead><tbody>' + "".join(trs) + "</tbody></table>")
+                 '<th>Invested</th><th>₹ P&amp;L</th><th>Watch</th><th></th></tr></thead><tbody>'
+                 + "".join(trs) + "</tbody></table>")
     else:
         table = ('<div class="empty">No books yet. Add a position in '
                  '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolios</a> '

@@ -584,6 +584,7 @@ CREATE TABLE IF NOT EXISTS stocks_in_play (
     status        TEXT NOT NULL DEFAULT 'open',   -- 'watch' | 'open' | 'closed'
     date_added    TEXT NOT NULL DEFAULT (datetime('now')),
     entry_price   REAL,
+    qty           REAL,                              -- shares held (for ₹ P&L); NULL = untracked
     price_target  REAL,
     stop_loss     REAL,
     entry_thesis  TEXT,
@@ -631,6 +632,8 @@ def _init() -> None:
         _ensure_column(conn, "conversations", "telegram_user_id", "INTEGER")
         # 2b. Named portfolio/watchlist books (Tracker umbrella — D54 follow-up).
         _ensure_column(conn, "stocks_in_play", "book", "TEXT NOT NULL DEFAULT 'Main'")
+        # 2c. Share quantity (absolute ₹ P&L / invested / current value).
+        _ensure_column(conn, "stocks_in_play", "qty", "REAL")
         # 3. Index on the new column (now guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_conv_tg_user ON conversations(telegram_user_id, id DESC)"
