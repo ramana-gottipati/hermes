@@ -39,8 +39,10 @@ purpose. Every design choice below serves that bar.
 |---|---|---|
 | **Glossary** | `src/pat/glossary.py` | 39-term data dictionary (grounding). `get`/`find`/`family`. Powers "explain a metric" + grounds the engine prompt. |
 | **Flows** | `src/pat/flows.py` | Pure `build_*_query(params) -> (sql, params)`. Read-only SELECTs; **columns/operators come only from constant dicts**, every value bound via `?`. The deterministic, ₹0 core. Flows: accumulation · rs · fundamentals · movers · **index** (best/worst/turning over `index_signals`) · explain. |
-| **Disambiguator** | `src/pat/disambiguate.py` | Deterministic synonym + ambiguity layer in FRONT of the engine (₹0, no LLM). `hints` (vocab→flow, into the prompt) · `concepts` · `check` (→ `clarify` on intent/timeframe ambiguity) · `clarify_from_flows` (low-confidence fallback) · **`route_index`** (a clear index-performance ask → the index flow directly, ₹0, immune to mis-routing AND the Gemini quota). Clarify chips are disambiguated **re-runs of the original query**, so context is preserved and they can't loop. |
-| **Engine** | `src/pat/engine.py` | Free-text → `{flow, params}` \| `{flow:"clarify",…}` \| None. Runs `disambiguate.check` first (₹0 clarify); else Gemini with hints+few-shot prompt; reads a `confidence` and converts a low-certainty pick to a clarify (threshold 50). Validates against the chip vocab (off-menu dropped). **Never-Claude** (discards Anthropic fallback). Cached. |
+| **Disambiguator** | `src/pat/disambiguate.py` | Deterministic helpers used by the engine + the fallback parser (₹0, no LLM). `hints` (vocab→flow, into the parse prompt) · `concepts` · `check` (the quota-proof ₹0 clarify for the classic ambiguities "strong stocks"/"recently") · `clarify_from_flows` · `route_index` (now SUPERSEDED as primary by `understand` — its logic lives on inside `parse_fallback`). Clarify chips are disambiguated **re-runs of the original query**. |
+| **Understanding** | `src/pat/understand.py` | The reasoning layer (no LLM here). The model SEMANTICALLY PARSES a query into a structured intent — `universe` (stock/index/sector) → `rank{metric,window,order}` → `filters[]` (a LIST, so two-window asks are native) — then **`compile_intent`** deterministically (₹0) maps that intent onto a flow, a clarify, or an honest `reason:"unsupported"` (never a confident wrong dump). `validate_intent` closes the vocab; `parse_fallback` is a degraded rules-only parser for when the model is unavailable (quota/outage); `SYSTEM_PARSE` is the reasoning prompt. **This replaced the old flat flow-classifier.** |
+| **Engine** | `src/pat/engine.py` | Orchestrates: ₹0 `disambiguate.check` clarify first; else Gemini does the structured PARSE (never-Claude) → `understand.validate_intent` → `compile_intent`; on model-unavailable, `understand.parse_fallback`. Compiler output params are re-sanitized through the chip vocab (`_VALID`/`_validate`, defense in depth). Low-confidence → clarify (threshold 50). Cached. |
+| **Eval set** | `src/pat/eval_set.py` | The measurement + regression net Pat lacked. `run_compiler_eval` (deterministic, ₹0 — verifies the reasoning core) + `run_route_eval` (query→route end-to-end, fallback or live parser). Gold cases double as the labeled dataset seed for the owned model. Run: `python -m src.pat.eval_set`. |
 | **Web/UI** | `src/pat/web.py` | `render_pat()` dispatches flow/explain/free-text/face. Renders data-first tables on the house `table.dt` grid. The persona header + face picker. The Home clues. |
 | **Route** | `src/web/dashboard.py` | `/dash/pat` GET (one route; params: flow, explain, q, sector, strength, entry, align, val, qual, grow, bs, own). New chip params **reuse existing captured params** to avoid editing this file. |
 | **Feedback store** | `src/pat/feedback.py` | §4 — the `pat_feedback` correction store. Self-contained (owns its table via CREATE TABLE IF NOT EXISTS; never edits db.py). `record`/`update`/`recent_positive_examples`/`recent_corrections`/`stats`. Never raises to the caller. |
@@ -187,6 +189,16 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
   first-answer miss** (the live screenshot: that exact query returned 0 RS-leaders;
   it now answers e.g. Nifty Realty −18% 1Y / +6% 1M). This is §4.4 arm-1 in action —
   a correction became a rule + a capability.
+- ✅ `[engine]` REWORK (the real fix, not a patch) — replaced the flat flow-classifier
+  with **structured query understanding**: the model semantically parses a query into a
+  logical intent (`universe → rank{metric,window,order} → filters[]`) and a deterministic
+  ₹0 **compiler** (`understand.compile_intent`) maps it onto a flow / clarify / honest
+  "unsupported". This gives Pat actual *logical decomposition* (universe is a first-class
+  decision; compound two-window asks are native) instead of keyword-matching, so first
+  answers are right *by construction* and generalize beyond hand-written phrase lists.
+- ✅ `[eval]` gold eval set (`eval_set.py`) — `run_compiler_eval` (₹0 reasoning check,
+  13/13) + `run_route_eval` (end-to-end). The measurement + regression net Pat lacked,
+  and the labeled-dataset seed for the owned model.
 - ⬜ `[fundamentals]` P2 — emphasis-follows-question (lead with the asked ratio when a
   fundamentals query names one, e.g. "ranked by ROE" → ROE leads). Carved out of the
   reporting-follows-question item above.
@@ -243,7 +255,42 @@ free-tier pressure — ambiguous asks now resolve with 0 Gemini calls.)*
 
 ---
 
-## 10. Session wrap — 2026-06-20 (round 2 — Pat LEARNS + first answers RIGHT)
+## 10. Session wrap — 2026-06-20/21 (Pat learns, first answers right, and now REASONS)
+
+### Round 3 (2026-06-21) — engine rework: from keyword-matching to logical thought
+
+> **Why.** The analyst's verdict after the index miss: *"we have not prepared Pat
+> properly … it picked up wrong queries, did not apply logical thought at all."* Correct
+> — and the index *fix itself* (a `route_index` of `if "worst" in q` rules) was **more
+> keyword-matching, not reasoning**. So we replaced the brain, not patched it again.
+
+**Shipped (commit pending):**
+- **Structured query understanding** (`src/pat/understand.py`) — the model now does a
+  SEMANTIC PARSE into a logical intent: `universe` (stock/index/sector, decided FIRST) →
+  `rank{metric,window,order}` → `filters[]` (a LIST → two-window asks like "worst over 1Y
+  AND improving over 1M" are native). A deterministic ₹0 **compiler** maps the intent onto
+  a flow, a clarify, or an honest `unsupported` — the three failures behind the miss
+  (wrong universe, inverted polarity, single-window collapse) are now structural
+  impossibilities, and it generalizes past hand-written phrase lists.
+- **The old flat flow-classifier prompt is gone** (`_menu`/`_SYSTEM` removed). The 5
+  flows stay as the safe ₹0 execution layer; only the understanding changed. Compiler
+  output is still re-sanitized through the chip vocab (off-menu params can't reach SQL).
+- **Gold eval set** (`src/pat/eval_set.py`) — `run_compiler_eval` **13/13** (deterministic
+  reasoning check) + `run_route_eval` (end-to-end, fallback **8/8**). The measurement +
+  regression net Pat never had; the gold cases seed the owned-model dataset.
+- **Honest degradation:** the live parse needs Gemini; when it's down (quota), a rules-only
+  `parse_fallback` still reasons about universe/metric/window so the index miss stays fixed
+  even with the model OFF. `disambiguate.check` keeps the classic ambiguities ("strong
+  stocks") quota-proof. The real removal of the model dependency is the owned model (§7 P2).
+
+**The honest limit (told to the analyst):** the *live* router is a borrowed model we can
+only ground (reasoning prompt + gold few-shot), not train. Real "training" = the owned
+offline model on the accumulating `pat_feedback` + eval dataset. The rework makes that
+dataset well-shaped (query → structured intent → route).
+
+---
+
+### Round 2 (2026-06-20)
 
 **Mission:** make Pat learn, and make the FIRST answer right. All five mission items
 shipped, each verified on a synthetic DB and committed Pat-files-only, then deployed
@@ -336,7 +383,8 @@ ALREADY SHIPPED (round 2, §10) — do NOT rebuild: feedback/correction store
 synonym/disambiguation layer (src/pat/disambiguate.py); confidence-threshold
 clarify; few-shot routing from the correction store; reporting-follows-the-question
 for accumulation (1m/3m) and movers (today/this-week); the INDEX flow (best/worst/
-turning over index_signals) + deterministic route_index.
+turning over index_signals); and the ENGINE REWORK to structured query understanding
+(universe→rank→filters → compiler) + the gold eval set (src/pat/eval_set.py).
 
 Mission this session — close the learning LOOP and personalize:
 

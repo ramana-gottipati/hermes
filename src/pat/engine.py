@@ -45,55 +45,11 @@ _VALID: dict[str, dict] = {
 }
 
 
-def _menu() -> str:
-    lines = [
-        "FLOWS and their options (use ONLY these keys/values):",
-        "1. accumulation — names a strong hand is buying (delivery + character).",
-        "   strength: '' (A+, default) | 'ss' (very strong) | 'any'",
-        "   entry: '' (any) | 'discount' (near a discount to the hot-day cost)",
-        "   sector: a sector name (e.g. IT, Pharma, Banking) or '' for all",
-        "   window: '' (latest read) | '1m' (vs last month's power delivery) | '3m' — SET FROM THE QUESTION'S TIMEFRAME",
-        "2. rs — relative-strength leaders (the market is voting for them).",
-        "   strength: '' (RS>=80) | 'elite' (RS>=90) | 'above' (RS>=50)",
-        "   align: '' (any) | 'sis' (strong-in-strong: beating market AND sector)",
-        "   sector: a sector name or '' for all",
-        "   window: '' (3m) | '1m' (last month) | '6m' | '12m' (last year) — SET FROM THE QUESTION'S TIMEFRAME",
-        "3. fundamentals — screen on valuation/quality/growth/balance-sheet.",
-        "   val: '' (PE<25) | 'deep' (PE<15) | 'growthok' (PE<40) | 'any'",
-        "   qual: '' (ROCE>18) | 'elite' (ROCE>22) | 'decent' (ROCE>14) | 'any'",
-        "   grow: '' (profit5y>15) | 'hyper' (>25) | 'recent' (TTM>20) | 'any'",
-        "   bs: '' (D/E<1) | 'fortress' (<0.5) | 'levok' (<2) | 'any'",
-        "   own: '' (promoter>=35) | 'skin' (>=50) | 'clean' (pledge<5) | 'any'",
-        "   sector: '' (exclude financials) | 'fin' (financials only) | 'all'",
-        "4. movers — biggest PRICE MOVES TODAY (the latest session), NOT multi-month.",
-        "   Use for 'top gainers', 'biggest movers today', 'what moved today', 'top losers'.",
-        "   direction: '' (top gainers) | 'losers' | 'active' (most traded)",
-        "   liq: '' (liquid, >= Rs 5Cr turnover) | 'all'",
-        "   window: '' (today's move) | '1w' (this week's move) — SET FROM THE QUESTION'S TIMEFRAME",
-        "5. index — PERFORMANCE / rotation of NSE INDICES (sectoral + thematic, e.g. Nifty IT,",
-        "   Nifty Realty, Nifty Media), NOT individual stocks. Use whenever the question is about",
-        "   an INDEX or a SECTOR's performance (best/worst/turning), e.g. 'worst performing index'.",
-        "   window: '' (3m) | '1m' | '6m' | '1y' (last year) — SET FROM THE QUESTION'S TIMEFRAME",
-        "   direction: '' (leaders/best) | 'laggards' (the WORST performers)",
-        "   turning: '' (any) | 'turn' (only those UP in the last month — 'started performing better recently')",
-        "6. explain — define a metric. set 'explain' to one of these term slugs:",
-    ]
-    for slug, e in GLOSSARY.items():
-        al = ", ".join(e.get("aliases", [])[:3])
-        lines.append(f"   {slug}: {e['term']} ({al})")
-    return "\n".join(lines)
-
-
-_SYSTEM = (
-    "You route an Indian-stock-market analyst's English question to ONE flow and "
-    "its enumerated options. Reply with COMPACT JSON ONLY, no prose:\n"
-    '{"flow":"accumulation|rs|fundamentals|movers|index|explain","params":{...},"confidence":0-100}\n'
-    'For explain use {"flow":"explain","explain":"<term-slug>"}.\n'
-    '"confidence" is your 0-100 certainty in the chosen flow — be honest; a low '
-    "number lets Pat ask the analyst instead of guessing.\n"
-    "Use ONLY the listed keys/values. Omit any param you are unsure about (its "
-    'default applies). If nothing fits, reply {"flow":null}.\n\n' + _menu()
-)
+# Routing no longer uses a flat flow-classifier prompt. The model now does a
+# SEMANTIC PARSE into a structured intent (universe → rank → filters) — see
+# src/pat/understand.py:SYSTEM_PARSE — and the deterministic compiler maps that
+# intent onto a flow. _VALID above is retained to SANITIZE the compiler's output
+# params against the chip vocab (defense in depth — off-menu params can't reach SQL).
 
 # Below this certainty, route() turns the model's pick into a clarify among the
 # plausible flows rather than committing to a guess (Nous Hermes idea #2, §9).
@@ -136,13 +92,12 @@ def _validate(obj) -> dict | None:
 
 
 def _build_system(query: str) -> str:
-    """The base prompt, enriched per-query with deterministic synonym hints and
-    (when available) few-shot examples mined from the correction store.
-
-    Both enrichments are best-effort and fail open — a missing module or empty
-    store leaves routing exactly as before.
+    """The semantic-parse prompt (understand.SYSTEM_PARSE), enriched per-query with
+    deterministic synonym hints and few-shot examples mined from the correction
+    store. Both enrichments are best-effort and fail open.
     """
-    parts = [_SYSTEM]
+    from src.pat.understand import SYSTEM_PARSE
+    parts = [SYSTEM_PARSE]
     try:
         from src.pat.disambiguate import hints as _hints
         h = _hints(query)
@@ -207,12 +162,36 @@ def _low_conf_clarify(query: str, sel: dict):
     return clarify_from_flows(query, flows)
 
 
+def _intent_to_sel(intent: dict, query: str) -> dict | None:
+    """Compile a structured intent to a flow selection, sanitize its params against
+    the chip vocab, and apply the low-confidence → clarify safety."""
+    from src.pat.understand import compile_intent
+    sel = compile_intent(intent)
+    if not sel:
+        return None
+    # Sanitize compiler output params against the chip dicts (defense in depth) —
+    # clarify payloads pass through untouched.
+    if sel.get("flow") in _VALID:
+        sel = _validate(sel) or sel
+    # Low model-confidence on a committed data flow → clarify instead of guessing.
+    conf = intent.get("confidence")
+    if (sel and sel.get("flow") in ("rs", "accumulation", "fundamentals", "movers")
+            and isinstance(conf, int) and conf < _CONF_THRESHOLD):
+        alt = _low_conf_clarify(query, sel)
+        if alt:
+            sel = alt
+    return sel
+
+
 def route(query: str, conn=None) -> dict | None:
     """English -> {flow, params} | {flow:"clarify", ...} | None.
 
-    None => caller uses the find() fallback. A ``clarify`` result asks the analyst
-    ONE question (suggested-answer chips) instead of guessing — produced ₹0 by the
-    deterministic disambiguation layer, or from a low model-confidence pick.
+    The query is SEMANTICALLY PARSED into a structured intent (universe → rank →
+    filters) and a deterministic compiler maps that intent onto a flow — or a
+    clarify when the ask is ambiguous / not yet supported (never a confident wrong
+    dump). The parse is done by Gemini (never-Claude); if the model is unavailable
+    (e.g. quota), a degraded deterministic fallback parser takes over. None => the
+    caller uses the glossary find() fallback.
 
     `conn` is accepted for signature stability (future sector validation); unused
     here. Never raises — any failure degrades to None.
@@ -223,19 +202,10 @@ def route(query: str, conn=None) -> dict | None:
     if q in _CACHE:
         return _CACHE[q]
 
-    # (a0) Deterministic INDEX route — a clear index-performance ask ("worst
-    #      performing index ... turning up") goes straight to the index flow: ₹0,
-    #      immune to mis-routing AND to the shared Gemini quota.
-    try:
-        from src.pat.disambiguate import route_index as _route_index
-        idx = _route_index(query)
-    except Exception:
-        idx = None
-    if idx:
-        _CACHE[q] = idx
-        return idx
+    from src.pat.understand import validate_intent, parse_fallback
 
-    # (a) Deterministic clarify — an ambiguous ask never reaches the model (₹0).
+    # (a) Quota-proof deterministic clarify for the classic ambiguities
+    #     ("strong stocks" / "RS leaders recently") — ₹0, never reaches the model.
     try:
         from src.pat.disambiguate import check as _check
         clar = _check(query)
@@ -245,38 +215,23 @@ def route(query: str, conn=None) -> dict | None:
         _CACHE[q] = clar
         return clar
 
-    # (b) Route via Gemini (never-Claude), prompt enriched with hints + few-shot.
+    # (b) Primary path: Gemini semantically PARSES the query into a structured
+    #     intent (never-Claude). The compiler then reasons it onto a flow.
+    intent = None
     try:
-        # 512 not 160: 2.5-tier models spend "thinking" tokens before the JSON,
-        # and 160 starved the harder queries (empty content -> None).
         text, provider = call_classifier(system=_build_system(query), user_msg=query, max_tokens=512)
+        if provider == "gemini":          # never-Claude: discard an Anthropic fallback
+            m = re.search(r"\{.*\}", text, re.DOTALL)
+            if m:
+                intent = validate_intent(json.loads(m.group(0)))
     except Exception:
-        _CACHE[q] = None
-        return None
-    if provider != "gemini":          # never-Claude: discard an Anthropic fallback
-        _CACHE[q] = None
-        return None
-    parsed = None
-    try:
-        m = re.search(r"\{.*\}", text, re.DOTALL)
-        if m:
-            parsed = json.loads(m.group(0))
-    except Exception:
-        parsed = None
-    sel = _validate(parsed)
+        intent = None
 
-    # (c) Low-confidence fallback → clarify among plausible flows (Nous Hermes #2).
-    if sel and sel.get("flow") and sel["flow"] != "explain":
-        conf = None
-        if isinstance(parsed, dict):
-            try:
-                conf = int(parsed.get("confidence"))
-            except (TypeError, ValueError):
-                conf = None
-        if conf is not None and conf < _CONF_THRESHOLD:
-            alt = _low_conf_clarify(query, sel)
-            if alt:
-                sel = alt
+    # (c) Degraded fallback: the model was unavailable (quota/outage) → parse with
+    #     deterministic rules so Pat still reasons about universe/metric/window.
+    if intent is None:
+        intent = parse_fallback(query)
 
+    sel = _intent_to_sel(intent, query) if intent else None
     _CACHE[q] = sel
     return sel
