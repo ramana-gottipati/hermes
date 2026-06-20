@@ -2594,6 +2594,15 @@ _TRACK_CSS = """<style>
 .cap textarea.field{min-height:48px;resize:vertical}
 </style>"""
 
+# Shows/hides the free-text "your own strategy" input when a strategy <select>
+# (marked data-cs) is set to "Manual". One definition, included with each form.
+_CS_JS = ("<script>function _csToggle(s){var f=s.form;if(!f)return;"
+          "var w=f.querySelector('.cs-wrap');if(!w)return;"
+          "var on=s.value==='Manual';w.style.display=on?'':'none';"
+          "if(!on){var i=w.querySelector('input');if(i)i.value='';}}"
+          "document.addEventListener('DOMContentLoaded',function(){"
+          "document.querySelectorAll('select[data-cs]').forEach(_csToggle);});</script>")
+
 
 def _xpower(L):
     """×power = today's DVPT / the mean of its own power baselines (glossary)."""
@@ -2735,7 +2744,11 @@ def _capture_form(sym, snap):
         '<select name="status" class="field"><option value="open">Portfolio · a position</option>'
         '<option value="watch">Watchlist · an idea</option></select></div>'
         f'<div style="flex:1;min-width:150px"><label>Strategy</label>'
-        f'<select name="strategy" class="field">{opts}</select></div></div>'
+        f'<select name="strategy" class="field" data-cs onchange="_csToggle(this)">{opts}</select></div></div>'
+        '<div class="cs-wrap" style="display:none;margin-bottom:10px">'
+        '<label>Your strategy / basis</label>'
+        '<input name="strategy_custom" class="field" maxlength="60" '
+        'placeholder="name your own — e.g. 52w-high breakout, earnings surprise"/></div>'
         '<div style="margin-bottom:10px"><label>Thesis — why now?</label>'
         '<textarea name="thesis" class="field" placeholder="e.g. p_score 5, fresh ACCUM off a base, '
         'close inside the key-price launch band"></textarea></div>'
@@ -2747,7 +2760,7 @@ def _capture_form(sym, snap):
         f'Frozen snapshot · saved as of {_esc(asof)}</div>{_snap_chips(snap)}</div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save</button>'
         f'<a class="tbtn" href="/dash/stock?sym={_q(sym)}" style="text-decoration:none;margin-left:8px">Cancel</a>'
-        '</form>')
+        '</form>' + _CS_JS)
 
 
 def _is_listed(conn, sym):
@@ -2786,20 +2799,29 @@ def _add_box(default_status):
         f'<select name="status" class="field"><option value="open"{sel_open}>Portfolio</option>'
         f'<option value="watch"{sel_watch}>Watchlist</option></select></div>'
         f'<div style="flex:1;min-width:130px"><label>Strategy</label>'
-        f'<select name="strategy" class="field">{opts}</select></div></div>'
+        f'<select name="strategy" class="field" data-cs onchange="_csToggle(this)">{opts}</select></div></div>'
+        '<div class="cs-wrap" style="display:none;margin-bottom:10px">'
+        '<label>Your strategy / basis</label>'
+        '<input name="strategy_custom" class="field" maxlength="60" '
+        'placeholder="name your own — e.g. 52w-high breakout, earnings surprise"/></div>'
         '<div style="margin-bottom:10px"><label>Thesis — why now? (optional)</label>'
         '<input name="thesis" class="field" placeholder="e.g. fresh ACCUM off a base, p_score 5"/></div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Add</button>'
-        '</form>')
+        '</form>' + _CS_JS)
 
 
 @router.post("/dash/track")
 def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                status: str = Form("open"), thesis: str = Form(""),
-               target: str = Form(""), stop: str = Form("")) -> RedirectResponse:
+               target: str = Form(""), stop: str = Form(""),
+               strategy_custom: str = Form("")) -> RedirectResponse:
     sym = (symbol or "").upper().strip()
     status = status if status in ("watch", "open") else "open"
     dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
+    # Strategy = a preset, OR the user's own free-text basis when "Manual" is chosen.
+    strat = (strategy or "Manual").strip() or "Manual"
+    if strat == "Manual" and (strategy_custom or "").strip():
+        strat = strategy_custom.strip()[:60]
 
     def _f(x):
         try:
@@ -2817,7 +2839,7 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
         conn.execute(
             "INSERT INTO stocks_in_play(symbol,strategy,status,entry_price,"
             "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",
-            (sym, (strategy or "Manual").strip() or "Manual", status,
+            (sym, strat, status,
              entry_price if status == "open" else None,
              _f(target), _f(stop), (thesis or "").strip() or None,
              json.dumps(snap) if snap else None))
@@ -2863,9 +2885,12 @@ def dash_portfolios(added: str = Query(""), err: str = Query("")) -> HTMLRespons
         for sym in {r["symbol"] for r in rows}:
             ep, snap, _ = _capture_snapshot(conn, sym)
             live[sym] = (ep, snap)
-    intro = ('<h2>Portfolios</h2><div class="sub">Positions you committed under a strategy — '
-             'entry, live mark-to-market, and the frozen as-of-add snapshot vs now. '
-             'Add one below, or from any stock page → <b>Track</b>.</div>')
+    intro = ('<h2>Portfolios</h2><div class="sub"><b>Positions you\'ve committed to</b> — money in: '
+             'a frozen entry, live P/L, and target/stop. Add one below, or from any stock page. '
+             '<span class="mut">Just watching, not committed yet? Use the '
+             '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlist</a>. '
+             'Want the performance scorecard? See the '
+             '<a href="/dash/tracker" style="color:#58a6ff;text-decoration:none">Tracker</a>.</span></div>')
     flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your portfolio.</div>'
              if added else "")
     if err:
@@ -2921,9 +2946,10 @@ def dash_watchlists(added: str = Query(""), err: str = Query("")) -> HTMLRespons
         live = {}
         for sym in {r["symbol"] for r in rows}:
             live[sym] = _capture_snapshot(conn, sym)[1]
-    intro = ('<h2>Watchlists</h2><div class="sub">Lightweight ideas you are tracking — '
-             'no entry needed. Add one below, or from any stock page; promote to a '
-             'portfolio when you commit.</div>')
+    intro = ('<h2>Watchlists</h2><div class="sub"><b>Ideas you\'re watching</b> — no entry, no '
+             'commitment yet. When you act on one, <b>Promote</b> it to your Portfolio. Add one '
+             'below, or from any stock page. <span class="mut">Already committed? That belongs in the '
+             '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a>.</span></div>')
     flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your watchlist.</div>'
              if added else "")
     if err:
@@ -3011,8 +3037,12 @@ def dash_tracker() -> HTMLResponse:
     else:
         bars_html = ('<div class="sub" style="margin-top:14px">No closed positions yet — hit-rate '
                      'by strategy and the benchmark gap appear once you close trades.</div>')
-    intro = ('<h2>Tracker</h2><div class="sub">How your tracked ideas actually performed — '
-             'open mark-to-market, hit-rate by strategy, and excess vs the Nifty 500.</div>')
+    intro = ('<h2>Tracker</h2><div class="sub"><b>Your scoreboard</b> — how your committed ideas '
+             'actually performed: open mark-to-market, hit-rate by strategy, and excess vs the '
+             'Nifty 500. <span class="mut">Auto-computed from your '
+             '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a> + '
+             'closed trades — there\'s nothing to add here; it fills itself as you take and close '
+             'positions.</span></div>')
     # Tracker is a standalone top-level tab (reached from _nav), so it does NOT
     # render the Portfolios/Watchlists sub-nav — it is not a child of Portfolios.
     body = _TRACK_CSS + intro + cards + bars_html
