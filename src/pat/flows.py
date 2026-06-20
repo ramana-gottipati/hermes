@@ -254,3 +254,48 @@ def build_fundamentals_query(val="", qual="", grow="", bs="", sector="", own="")
         "ORDER BY " + order + " LIMIT " + str(FUND_LIMIT)
     )
     return sql, params
+
+
+# ── movers flow — biggest PRICE MOVES TODAY (the gap that mis-routed to RS) ───
+# direction chip -> (label, ORDER BY); liq chip -> (label, min turnover ₹).
+MOVERS_DIR = {
+    "":       ("Top gainers", "pct DESC"),
+    "losers": ("Top losers",  "pct ASC"),
+    "active": ("Most active", "turnover DESC"),
+}
+MOVERS_LIQ = {
+    "":    ("Liquid (≥ ₹5Cr)", 5e7),
+    "all": ("All",             None),
+}
+MOVERS_LIMIT = 60
+
+
+def build_movers_query(direction: str = "", liq: str = "") -> tuple[str, list]:
+    """Top % movers in the latest session over the equity-cash universe.
+
+    % change = (close − prev_close) / prev_close × 100, read straight off the
+    bhav copy (prices_eq view). A turnover floor (default ₹5Cr) keeps it to
+    real liquidity, not penny-stock noise. Read-only; ORDER BY comes only from
+    the MOVERS_DIR constant.
+    """
+    where = [
+        "pe.trade_date = (SELECT MAX(trade_date) FROM bhavcopy_rows)",
+        "pe.symbol IN (SELECT symbol FROM nse_equity_list)",
+        "pe.prev_close > 0",
+    ]
+    params: list = []
+    floor = MOVERS_LIQ.get(liq, MOVERS_LIQ[""])[1]
+    if floor is not None:
+        where.append("pe.value >= ?")
+        params.append(floor)
+    order = MOVERS_DIR.get(direction, MOVERS_DIR[""])[1]
+    sql = (
+        "SELECT pe.symbol, pe.close AS cmp, pe.prev_close, "
+        "(pe.close - pe.prev_close) * 100.0 / pe.prev_close AS pct, "
+        "pe.value AS turnover, pe.deliv_per, pe.volume "
+        "FROM prices_eq pe "
+        "WHERE " + " AND ".join(where) + " "
+        "ORDER BY " + order + ", pe.symbol "
+        "LIMIT " + str(MOVERS_LIMIT)
+    )
+    return sql, params

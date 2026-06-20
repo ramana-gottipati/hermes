@@ -21,8 +21,9 @@ from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
 from src.pat.flows import (
     ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR, NAMED_SCREENS,
+    MOVERS_DIR, MOVERS_LIQ,
     build_accumulation_query, build_accumulation_sectors_query,
-    build_rs_query, build_rs_sectors_query, build_fundamentals_query,
+    build_rs_query, build_rs_sectors_query, build_fundamentals_query, build_movers_query,
 )
 
 
@@ -600,6 +601,68 @@ def _fundamentals_flow(conn, val, qual, grow, bs, sector, own) -> str:
     return "".join(out)
 
 
+# ── movers flow (live, read-only over prices_eq / the bhav copy) ─────────────
+
+def _movers_url(direction="", liq=""):
+    # Reuse the already-captured `strength`/`entry` route params so the dashboard
+    # route needs no change: for movers, strength = direction, entry = liquidity.
+    qs = ["flow=movers"]
+    if direction:
+        qs.append("strength=" + _u(direction))
+    if liq:
+        qs.append("entry=" + _u(liq))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _movers_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>% chg</th><th>Prev</th>'
+            '<th>Turnover ₹Cr</th><th>Deliv%</th><th>Volume</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_sgn(r["pct"])}</td>'
+            f'<td>{_n(r["prev_close"])}</td>'
+            f'<td>{_cr(r["turnover"])}</td>'
+            f'<td>{_pc(r["deliv_per"])}</td>'
+            f'<td>{_n(r["volume"], 0)}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _movers_flow(conn, direction, liq) -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("Biggest movers in the latest session — % change vs the previous "
+                  "close. Pick a direction:"),
+        '<div class="ghdr">Direction</div><div class="patChips">',
+    ]
+    for key, (lbl, _o) in MOVERS_DIR.items():
+        out.append(_chip_sel(_movers_url(key, liq), lbl, key == direction))
+    out.append('</div><div class="ghdr">Liquidity</div><div class="patChips">')
+    for key, (lbl, _f) in MOVERS_LIQ.items():
+        out.append(_chip_sel(_movers_url(direction, key), lbl, key == liq))
+    out.append('</div>')
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_movers_query(direction, liq)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    dlabel = MOVERS_DIR.get(direction, MOVERS_DIR[""])[0]
+    out.append(f'<div class="ghdr">{_esc(dlabel)} ({len(rows)})</div>')
+    out.append(_movers_table(rows) if rows
+               else '<div class="empty">No movers — try All liquidity, or the session data may not be in yet.</div>')
+    return "".join(out)
+
+
 def _home() -> str:
     search = (
         '<form class="search" action="/dash/pat" method="get" autocomplete="off">'
@@ -607,10 +670,11 @@ def _home() -> str:
         '<button>Ask</button></form>'
     )
     chips = [
-        _chip("/dash/pat?flow=explain", "Explain a metric", arrow=True),
+        _chip("/dash/pat?flow=movers", "Today's movers", arrow=True),
         _chip("/dash/pat?flow=accumulation", "Accumulation setups", arrow=True),
         _chip("/dash/pat?flow=rs", "RS leaders by sector", arrow=True),
         _chip("/dash/pat?flow=fundamentals", "Screen by fundamentals", arrow=True),
+        _chip("/dash/pat?flow=explain", "Explain a metric", arrow=True),
     ]
     return (
         search
@@ -620,7 +684,7 @@ def _home() -> str:
 
 
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
-               "fundamentals": "Screen by fundamentals"}
+               "fundamentals": "Screen by fundamentals", "movers": "Today's movers"}
 
 
 def _free_text(conn, q: str) -> str:
@@ -648,6 +712,8 @@ def _free_text(conn, q: str) -> str:
         elif f == "fundamentals":
             body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
+        elif f == "movers":
+            body = _movers_flow(conn, p.get("direction", ""), p.get("liq", ""))
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body
@@ -681,6 +747,8 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _fundamentals_flow(conn, (val or "").strip().lower(), (qual or "").strip().lower(),
                                   (grow or "").strip().lower(), (bs or "").strip().lower(),
                                   sector, (own or "").strip().lower())
+    elif flow == "movers":
+        body = _movers_flow(conn, strength, (entry or "").strip().lower())
     elif q:
         body = _free_text(conn, q)
     else:

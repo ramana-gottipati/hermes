@@ -24,6 +24,7 @@ from src.pat.glossary import GLOSSARY
 from src.pat.flows import (
     ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR,
+    MOVERS_DIR, MOVERS_LIQ,
 )
 
 # Valid param vocabulary per flow — the single source of truth IS the chip dicts.
@@ -33,6 +34,7 @@ _VALID: dict[str, dict] = {
     "rs":           {"strength": set(RS_STRENGTH), "align": set(RS_ALIGN), "sector": "free"},
     "fundamentals": {"val": set(FUND_VAL), "qual": set(FUND_QUAL), "grow": set(FUND_GROW),
                      "bs": set(FUND_BS), "own": set(FUND_OWN), "sector": set(FUND_SECTOR)},
+    "movers":       {"direction": set(MOVERS_DIR), "liq": set(MOVERS_LIQ)},
     "explain":      {"explain": "slug"},
 }
 
@@ -55,7 +57,11 @@ def _menu() -> str:
         "   bs: '' (D/E<1) | 'fortress' (<0.5) | 'levok' (<2) | 'any'",
         "   own: '' (promoter>=35) | 'skin' (>=50) | 'clean' (pledge<5) | 'any'",
         "   sector: '' (exclude financials) | 'fin' (financials only) | 'all'",
-        "4. explain — define a metric. set 'explain' to one of these term slugs:",
+        "4. movers — biggest PRICE MOVES TODAY (the latest session), NOT multi-month.",
+        "   Use for 'top gainers', 'biggest movers today', 'what moved today', 'top losers'.",
+        "   direction: '' (top gainers) | 'losers' | 'active' (most traded)",
+        "   liq: '' (liquid, >= Rs 5Cr turnover) | 'all'",
+        "5. explain — define a metric. set 'explain' to one of these term slugs:",
     ]
     for slug, e in GLOSSARY.items():
         al = ", ".join(e.get("aliases", [])[:3])
@@ -66,7 +72,7 @@ def _menu() -> str:
 _SYSTEM = (
     "You route an Indian-stock-market analyst's English question to ONE flow and "
     "its enumerated options. Reply with COMPACT JSON ONLY, no prose:\n"
-    '{"flow":"accumulation|rs|fundamentals|explain","params":{...}}\n'
+    '{"flow":"accumulation|rs|fundamentals|movers|explain","params":{...}}\n'
     'For explain use {"flow":"explain","explain":"<term-slug>"}.\n'
     "Use ONLY the listed keys/values. Omit any param you are unsure about (its "
     'default applies). If nothing fits, reply {"flow":null}.\n\n' + _menu()
