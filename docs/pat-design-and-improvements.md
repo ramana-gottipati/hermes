@@ -60,8 +60,10 @@ loop; the screening underneath is deterministic.)
    vague one.
 2. **The reporting follows the question.** The columns shown, the metric ranked by,
    the timeframe — all driven by the ask, never a fixed template. *(Shipped for RS:
-   "over the last month" → ranks by 1m RS, column relabels to "RS 1M". The same
-   principle must extend to every flow.)*
+   "over the last month" → ranks by 1m RS, column relabels to "RS 1M". Extended to
+   **accumulation** — window ''/1m/3m re-ranks by + leads with the matching DVPT
+   power ratio — and to **movers** — today vs this-week (% vs the close ~7 days
+   back). Each result LEADS with the asked-for metric ("right not more", §3.1).)*
 3. **Supporting data to reconcile.** Alongside the headline answer, show the raw
    evidence so the user can verify we're right — but as *secondary* context, not
    clutter. Data-first: value beside verdict.
@@ -169,11 +171,17 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
   fails open to '' before any learning. The same store is the labeled dataset for
   the future OWNED offline model.
 - ⬜ `[thread]` P1 — conversational refinement (§6) + implicit re-ask detection.
-- ⬜ `[all flows]` P1 — extend "reporting follows the question" (§3.2) beyond RS:
-  accumulation timeframe (D/W/M), fundamentals emphasis, movers window (today vs
-  this week).
-- ⬜ `[answer]` P1 — "right not more" pass: lead each result with the directly-asked
-  metric prominent, demote supporting columns to secondary.
+- ✅ `[all flows]` P1 — "reporting follows the question" extended (§3.2): accumulation
+  window ('' / 1m / 3m → re-rank by + lead with ratio_today_vs_power_1m/3m) and movers
+  window (today vs this-week, % vs the close ~7 days back via a bound date join). Both
+  ride the captured `align` route param (no dashboard.py edit). Engine menu + chip
+  vocab updated so a timeframe phrase fills the window. *(Note: no weekly DVPT column
+  exists, so accumulation is Today/1M/3M not D/W/M; fundamentals "emphasis" still open.)*
+- ✅ `[answer]` P1 — "right not more" lead-metric: each windowed result LEADS with the
+  asked-for column (RS slope / DVPT ratio / weekly %), header names the window.
+- ⬜ `[fundamentals]` P2 — emphasis-follows-question (lead with the asked ratio when a
+  fundamentals query names one, e.g. "ranked by ROE" → ROE leads). Carved out of the
+  reporting-follows-question item above.
 - ⬜ `[learning]` P2 — when ≥N corrections of one shape accumulate, surface a
   proposed RULE for review (semi-automated rule-writing).
 - ⬜ `[model]` P2 — offline fine-tune an owned open model on the correction store

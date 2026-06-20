@@ -19,9 +19,9 @@ from urllib.parse import quote_plus
 
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
 from src.pat.flows import (
-    ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
+    ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR, NAMED_SCREENS,
-    MOVERS_DIR, MOVERS_LIQ,
+    MOVERS_DIR, MOVERS_LIQ, MOVERS_WINDOW,
     build_accumulation_query, build_accumulation_sectors_query,
     build_rs_query, build_rs_sectors_query, build_fundamentals_query, build_movers_query,
 )
@@ -416,7 +416,7 @@ def _chip_sel(href: str, label: str, active: bool) -> str:
     return f'<a class="{"patChip on" if active else "patChip"}" href="{href}">{_esc(label)}</a>'
 
 
-def _acc_url(sector: str, strength: str, entry: str) -> str:
+def _acc_url(sector: str, strength: str, entry: str, window: str = "") -> str:
     qs = ["flow=accumulation"]
     if sector:
         qs.append("sector=" + _u(sector))
@@ -424,20 +424,29 @@ def _acc_url(sector: str, strength: str, entry: str) -> str:
         qs.append("strength=" + _u(strength))
     if entry:
         qs.append("entry=" + _u(entry))
+    if window:
+        qs.append("align=" + _u(window))   # reuse the captured `align` route param for the accumulation window
     return "/dash/pat?" + "&".join(qs)
 
 
-def _acc_table(rows) -> str:
+def _acc_table(rows, win_label: str = "") -> str:
+    # When a window is asked, LEAD with that DVPT ratio column (reporting follows
+    # the question / "right not more"); otherwise keep the standard layout.
+    lead = f'<th>{_esc(win_label)}</th>' if win_label else ''
     head = ('<div class="patTable"><table class="dt"><thead><tr>'
-            '<th>Symbol</th><th>CMP</th><th>Rank</th><th>p/r</th><th>Character</th>'
+            '<th>Symbol</th><th>CMP</th>' + lead + '<th>Rank</th><th>p/r</th><th>Character</th>'
             '<th>Δ hot%</th><th>key gap%</th><th>52w%</th><th>RS</th>'
             '<th>Sector</th><th>Deliv ₹Cr</th></tr></thead><tbody>')
     rws = []
     for r in rows:
+        lead_td = f'<td>{_n(r["win_ratio"])}×</td>' if win_label else ''
+        if win_label and r["win_ratio"] is None:
+            lead_td = f'<td>{_n(None)}</td>'
         rws.append(
             '<tr>'
             f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
             f'<td>{_n(r["cmp"])}</td>'
+            + lead_td +
             f'<td>{_rank_pill(r["trigger_rank"])}</td>'
             f'<td>{_int(r["p_score"])}/{_int(r["r_score"])}</td>'
             f'<td>{_char_pill(r["accum_character"])}</td>'
@@ -452,18 +461,22 @@ def _acc_table(rows) -> str:
     return head + "".join(rws) + '</tbody></table></div>'
 
 
-def _accumulation_flow(conn, sector: str, strength: str, entry: str) -> str:
+def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str = "") -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
         _q_bubble("Accumulation setups — a strong hand active AND the character "
-                  "reading accumulation. Take it as-is, or narrow it:"),
-        '<div class="ghdr">Strength</div><div class="patChips">',
+                  "reading accumulation. The window ranks + leads by that delivery "
+                  "read; also narrow by strength, entry, or sector:"),
+        '<div class="ghdr">Window</div><div class="patChips">',
     ]
+    for key, (lbl, _c) in ACC_WINDOW.items():
+        out.append(_chip_sel(_acc_url(sector, strength, entry, key), lbl, key == window))
+    out.append('</div><div class="ghdr">Strength</div><div class="patChips">')
     for key, (lbl, _p) in ACC_STRENGTH.items():
-        out.append(_chip_sel(_acc_url(sector, key, entry), lbl, key == strength))
+        out.append(_chip_sel(_acc_url(sector, key, entry, window), lbl, key == strength))
     out.append('</div><div class="ghdr">Entry</div><div class="patChips">')
     for key, lbl in ACC_ENTRY.items():
-        out.append(_chip_sel(_acc_url(sector, strength, key), lbl, key == entry))
+        out.append(_chip_sel(_acc_url(sector, strength, key, window), lbl, key == entry))
     out.append('</div>')
 
     sectors = []
@@ -473,9 +486,9 @@ def _accumulation_flow(conn, sector: str, strength: str, entry: str) -> str:
         except Exception:
             sectors = []
     out.append('<div class="ghdr">Sector</div><div class="patChips">')
-    out.append(_chip_sel(_acc_url("", strength, entry), "All sectors", sector == ""))
+    out.append(_chip_sel(_acc_url("", strength, entry, window), "All sectors", sector == ""))
     for r in sectors:
-        out.append(_chip_sel(_acc_url(r["sector"], strength, entry),
+        out.append(_chip_sel(_acc_url(r["sector"], strength, entry, window),
                              f'{r["sector"]} ({r["c"]})', sector == r["sector"]))
     out.append('</div>')
 
@@ -483,13 +496,15 @@ def _accumulation_flow(conn, sector: str, strength: str, entry: str) -> str:
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_accumulation_query(sector, strength, entry)
+        sql, params = build_accumulation_query(sector, strength, entry, window)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
+    win_label = ACC_WINDOW.get(window, ACC_WINDOW[""])[0] if window else ""
+    wtag = f' · {_esc(win_label)}' if win_label else ''
     tag = f' · {_esc(sector)}' if sector else ''
-    out.append(f'<div class="ghdr">Matches{tag} ({len(rows)})</div>')
-    out.append(_acc_table(rows) if rows
+    out.append(f'<div class="ghdr">Matches{wtag}{tag} ({len(rows)})</div>')
+    out.append(_acc_table(rows, win_label) if rows
                else '<div class="empty">No accumulation setups match — loosen the filters.</div>')
     return "".join(out)
 
@@ -672,20 +687,23 @@ def _fundamentals_flow(conn, val, qual, grow, bs, sector, own) -> str:
 
 # ── movers flow (live, read-only over prices_eq / the bhav copy) ─────────────
 
-def _movers_url(direction="", liq=""):
-    # Reuse the already-captured `strength`/`entry` route params so the dashboard
-    # route needs no change: for movers, strength = direction, entry = liquidity.
+def _movers_url(direction="", liq="", window=""):
+    # Reuse the already-captured route params so the dashboard route needs no
+    # change: for movers, strength = direction, entry = liquidity, align = window.
     qs = ["flow=movers"]
     if direction:
         qs.append("strength=" + _u(direction))
     if liq:
         qs.append("entry=" + _u(liq))
+    if window:
+        qs.append("align=" + _u(window))
     return "/dash/pat?" + "&".join(qs)
 
 
-def _movers_table(rows) -> str:
+def _movers_table(rows, pct_label: str = "% chg", ref_label: str = "Prev") -> str:
+    # Lead the move column with the asked window's label (today vs this-week).
     head = ('<div class="patTable"><table class="dt"><thead><tr>'
-            '<th>Symbol</th><th>CMP</th><th>% chg</th><th>Prev</th>'
+            f'<th>Symbol</th><th>CMP</th><th>{_esc(pct_label)}</th><th>{_esc(ref_label)}</th>'
             '<th>Turnover ₹Cr</th><th>Deliv%</th><th>Volume</th>'
             '</tr></thead><tbody>')
     rws = []
@@ -695,7 +713,7 @@ def _movers_table(rows) -> str:
             f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
             f'<td>{_n(r["cmp"])}</td>'
             f'<td>{_sgn(r["pct"])}</td>'
-            f'<td>{_n(r["prev_close"])}</td>'
+            f'<td>{_n(r["ref_close"])}</td>'
             f'<td>{_cr(r["turnover"])}</td>'
             f'<td>{_pc(r["deliv_per"])}</td>'
             f'<td>{_n(r["volume"], 0)}</td>'
@@ -704,30 +722,35 @@ def _movers_table(rows) -> str:
     return head + "".join(rws) + '</tbody></table></div>'
 
 
-def _movers_flow(conn, direction, liq) -> str:
+def _movers_flow(conn, direction, liq, window: str = "") -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
-        _q_bubble("Biggest movers in the latest session — % change vs the previous "
-                  "close. Pick a direction:"),
-        '<div class="ghdr">Direction</div><div class="patChips">',
+        _q_bubble("Biggest movers — % change for the asked window (today vs this "
+                  "week). Pick a window and a direction:"),
+        '<div class="ghdr">Window</div><div class="patChips">',
     ]
+    for key, (lbl, _h, _m) in MOVERS_WINDOW.items():
+        out.append(_chip_sel(_movers_url(direction, liq, key), lbl, key == window))
+    out.append('</div><div class="ghdr">Direction</div><div class="patChips">')
     for key, (lbl, _o) in MOVERS_DIR.items():
-        out.append(_chip_sel(_movers_url(key, liq), lbl, key == direction))
+        out.append(_chip_sel(_movers_url(key, liq, window), lbl, key == direction))
     out.append('</div><div class="ghdr">Liquidity</div><div class="patChips">')
     for key, (lbl, _f) in MOVERS_LIQ.items():
-        out.append(_chip_sel(_movers_url(direction, key), lbl, key == liq))
+        out.append(_chip_sel(_movers_url(direction, key, window), lbl, key == liq))
     out.append('</div>')
     if conn is None:
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_movers_query(direction, liq)
+        sql, params = build_movers_query(direction, liq, window)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
     dlabel = MOVERS_DIR.get(direction, MOVERS_DIR[""])[0]
-    out.append(f'<div class="ghdr">{_esc(dlabel)} ({len(rows)})</div>')
-    out.append(_movers_table(rows) if rows
+    wlabel, pct_label, _mod = MOVERS_WINDOW.get(window, MOVERS_WINDOW[""])
+    ref_label = "Wk-ago" if window == "1w" else "Prev"
+    out.append(f'<div class="ghdr">{_esc(dlabel)} · {_esc(wlabel)} ({len(rows)})</div>')
+    out.append(_movers_table(rows, pct_label, ref_label) if rows
                else '<div class="empty">No movers — try All liquidity, or the session data may not be in yet.</div>')
     return "".join(out)
 
@@ -830,7 +853,8 @@ def _free_text(conn, q: str):
         p = sel.get("params", {})
         body = None
         if f == "accumulation":
-            body = _accumulation_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("entry", ""))
+            body = _accumulation_flow(conn, p.get("sector", ""), p.get("strength", ""),
+                                      p.get("entry", ""), p.get("window", ""))
         elif f == "rs":
             body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""),
                             p.get("window", ""))
@@ -838,7 +862,7 @@ def _free_text(conn, q: str):
             body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
         elif f == "movers":
-            body = _movers_flow(conn, p.get("direction", ""), p.get("liq", ""))
+            body = _movers_flow(conn, p.get("direction", ""), p.get("liq", ""), p.get("window", ""))
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
@@ -872,9 +896,11 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _explain_flow(explain, q)
     elif flow == "accumulation":
         entry = (entry or "").strip().lower()
-        body = _accumulation_flow(conn, sector, strength, entry)
+        window = (align or "").strip().lower()   # accumulation window rides the `align` param
+        body = _accumulation_flow(conn, sector, strength, entry, window)
         fb_ctx = {"query": "", "flow": "accumulation",
-                  "params": {"sector": sector, "strength": strength, "entry": entry}, "source": "flow"}
+                  "params": {"sector": sector, "strength": strength, "entry": entry, "window": window},
+                  "source": "flow"}
     elif flow == "rs":
         align = (align or "").strip().lower()
         window = (entry or "").strip().lower()
@@ -890,9 +916,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         fb_ctx = {"query": "", "flow": "fundamentals", "params": fp, "source": "flow"}
     elif flow == "movers":
         entry = (entry or "").strip().lower()
-        body = _movers_flow(conn, strength, entry)
+        window = (align or "").strip().lower()   # movers window rides the `align` param
+        body = _movers_flow(conn, strength, entry, window)
         fb_ctx = {"query": "", "flow": "movers",
-                  "params": {"direction": strength, "liq": entry}, "source": "flow"}
+                  "params": {"direction": strength, "liq": entry, "window": window}, "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

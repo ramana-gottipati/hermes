@@ -25,18 +25,33 @@ ACC_ENTRY: dict[str, str] = {
     "discount": "Near a discount",
 }
 
+# window chip -> (label, DVPT ratio column to RANK BY + LEAD with). "" keeps the
+# default p_score order (today's strong-hand read). The 1M/3M lenses re-rank by
+# how today's delivery compares to the best delivery days of that window — the
+# accumulation analogue of the RS-window rule (reporting follows the question).
+# Column names come ONLY from this constant, never from user input.
+ACC_WINDOW: dict[str, tuple[str, str | None]] = {
+    "":   ("Latest read", None),
+    "1m": ("vs 1M power", "ratio_today_vs_power_1m"),
+    "3m": ("vs 3M power", "ratio_today_vs_power_3m"),
+}
+
 ACC_LIMIT = 60  # safety cap on rows returned (not user-controllable)
 
 
-def build_accumulation_query(sector: str = "", strength: str = "", entry: str = "") -> tuple[str, list]:
+def build_accumulation_query(sector: str = "", strength: str = "", entry: str = "",
+                             window: str = "") -> tuple[str, list]:
     """Compile the accumulation screen to a read-only SELECT over stock_signals.
 
     Always enforces ACCUMULATION character + an active strong hand (p_score >=
     the chosen strength) over the equity-only universe, for the latest date.
-    `sector` and `entry` are optional narrowings. Every value is bound via a
-    placeholder — never string-formatted into the SQL.
+    `sector` and `entry` are optional narrowings. `window` (''/1m/3m) chooses the
+    DVPT power-ratio to RANK BY and LEAD with, so "being accumulated over the last
+    month" ranks by the 1M reading — the column comes only from the ACC_WINDOW
+    constant. Every value is bound via a placeholder — never string-formatted in.
     """
     min_p = ACC_STRENGTH.get(strength, ACC_STRENGTH[""])[1]
+    ratio_col = ACC_WINDOW.get(window, ACC_WINDOW[""])[1]
     where = [
         "s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)",
         "s.accum_character = 'ACCUMULATION'",
@@ -49,14 +64,21 @@ def build_accumulation_query(sector: str = "", strength: str = "", entry: str = 
         params.append(sector)
     if entry == "discount":
         where.append("s.price_vs_hot_avg_pct <= -3")
+    win_select = f"s.{ratio_col} AS win_ratio" if ratio_col else "NULL AS win_ratio"
+    # When a window is asked, lead the ranking by that DVPT ratio (NULLs last),
+    # then p_score; otherwise the default today's-strength order.
+    order = (f"(s.{ratio_col} IS NULL), s.{ratio_col} DESC, s.p_score DESC, s.symbol"
+             if ratio_col else
+             "s.p_score DESC, (s.rs_rank IS NULL), s.rs_rank DESC, s.symbol")
     sql = (
-        "SELECT s.symbol, pe.close AS cmp, s.trigger_rank, s.p_score, s.r_score, "
-        "s.accum_character, s.price_vs_hot_avg_pct, s.gap_to_key_p3m, "
-        "s.pct_from_52w_high, s.rs_rank, s.primary_sector, s.delivery_value_today "
+        "SELECT s.symbol, pe.close AS cmp, " + win_select + ", s.trigger_rank, "
+        "s.p_score, s.r_score, s.accum_character, s.price_vs_hot_avg_pct, "
+        "s.gap_to_key_p3m, s.pct_from_52w_high, s.rs_rank, s.primary_sector, "
+        "s.delivery_value_today "
         "FROM stock_signals s "
         "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
         "WHERE " + " AND ".join(where) + " "
-        "ORDER BY s.p_score DESC, (s.rs_rank IS NULL), s.rs_rank DESC, s.symbol "
+        "ORDER BY " + order + " "
         "LIMIT " + str(ACC_LIMIT)
     )
     return sql, params
@@ -281,35 +303,75 @@ MOVERS_LIQ = {
     "":    ("Liquid (≥ ₹5Cr)", 5e7),
     "all": ("All",             None),
 }
+# window chip -> (label, % column header, reference-date SQLite modifier). "" =
+# today (vs the previous close); "1w" = the week's move (vs the close ~7 calendar
+# days back, the latest session on-or-before). Reporting follows the question.
+MOVERS_WINDOW: dict[str, tuple[str, str, str | None]] = {
+    "":   ("Today", "% chg", None),
+    "1w": ("This week", "% 1W", "-7 day"),
+}
 MOVERS_LIMIT = 60
 
 
-def build_movers_query(direction: str = "", liq: str = "") -> tuple[str, list]:
-    """Top % movers in the latest session over the equity-cash universe.
+def build_movers_query(direction: str = "", liq: str = "", window: str = "") -> tuple[str, list]:
+    """Top % movers over the equity-cash universe, for the asked window.
 
-    % change = (close − prev_close) / prev_close × 100, read straight off the
-    bhav copy (prices_eq view). A turnover floor (default ₹5Cr) keeps it to
-    real liquidity, not penny-stock noise. Read-only; ORDER BY comes only from
-    the MOVERS_DIR constant.
+    Default ('') = the latest session's move vs the previous close. window='1w'
+    measures the move vs the close ~7 calendar days back (the latest session
+    on-or-before that date), so "biggest movers this week" leads with the weekly
+    %. A turnover floor (default ₹5Cr) keeps it to real liquidity. Read-only;
+    ORDER BY and the date modifier come only from the MOVERS_DIR/MOVERS_WINDOW
+    constants; every value is bound.
     """
-    where = [
-        "pe.trade_date = (SELECT MAX(trade_date) FROM bhavcopy_rows)",
-        "pe.symbol IN (SELECT symbol FROM nse_equity_list)",
-        "pe.prev_close > 0",
-    ]
-    params: list = []
     floor = MOVERS_LIQ.get(liq, MOVERS_LIQ[""])[1]
-    if floor is not None:
-        where.append("pe.value >= ?")
-        params.append(floor)
     order = MOVERS_DIR.get(direction, MOVERS_DIR[""])[1]
+    modifier = MOVERS_WINDOW.get(window, MOVERS_WINDOW[""])[2]
+    params: list = []
+
+    if modifier is None:
+        # Today: straight off the bhav copy (close vs prev_close).
+        where = [
+            "pe.trade_date = (SELECT MAX(trade_date) FROM bhavcopy_rows)",
+            "pe.symbol IN (SELECT symbol FROM nse_equity_list)",
+            "pe.prev_close > 0",
+        ]
+        if floor is not None:
+            where.append("pe.value >= ?")
+            params.append(floor)
+        sql = (
+            "SELECT pe.symbol, pe.close AS cmp, pe.prev_close AS ref_close, "
+            "(pe.close - pe.prev_close) * 100.0 / pe.prev_close AS pct, "
+            "pe.value AS turnover, pe.deliv_per, pe.volume "
+            "FROM prices_eq pe "
+            "WHERE " + " AND ".join(where) + " "
+            "ORDER BY " + order + ", pe.symbol "
+            "LIMIT " + str(MOVERS_LIMIT)
+        )
+        return sql, params
+
+    # This week: join today's row to the week-ago session's close. The reference
+    # date = the latest session on-or-before (latest − 7 days). Placeholder ORDER
+    # matters: the date() modifier sits in the JOIN (earlier in the SQL text) so it
+    # MUST be bound before the turnover floor in the WHERE.
+    params.append(modifier)
+    where = [
+        "cur.trade_date = (SELECT MAX(trade_date) FROM bhavcopy_rows)",
+        "cur.symbol IN (SELECT symbol FROM nse_equity_list)",
+        "wk.close > 0",
+    ]
+    if floor is not None:
+        where.append("cur.value >= ?")
+        params.append(floor)
     sql = (
-        "SELECT pe.symbol, pe.close AS cmp, pe.prev_close, "
-        "(pe.close - pe.prev_close) * 100.0 / pe.prev_close AS pct, "
-        "pe.value AS turnover, pe.deliv_per, pe.volume "
-        "FROM prices_eq pe "
+        "SELECT cur.symbol, cur.close AS cmp, wk.close AS ref_close, "
+        "(cur.close - wk.close) * 100.0 / wk.close AS pct, "
+        "cur.value AS turnover, cur.deliv_per, cur.volume "
+        "FROM prices_eq cur "
+        "JOIN prices_eq wk ON wk.symbol = cur.symbol AND wk.trade_date = ("
+        "  SELECT MAX(trade_date) FROM bhavcopy_rows WHERE trade_date <= "
+        "  date((SELECT MAX(trade_date) FROM bhavcopy_rows), ?)) "
         "WHERE " + " AND ".join(where) + " "
-        "ORDER BY " + order + ", pe.symbol "
+        "ORDER BY " + order + ", cur.symbol "
         "LIMIT " + str(MOVERS_LIMIT)
     )
     return sql, params

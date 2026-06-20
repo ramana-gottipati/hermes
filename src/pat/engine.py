@@ -22,20 +22,22 @@ import re
 from src.core.llm_router import call_classifier
 from src.pat.glossary import GLOSSARY
 from src.pat.flows import (
-    ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
+    ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR,
-    MOVERS_DIR, MOVERS_LIQ,
+    MOVERS_DIR, MOVERS_LIQ, MOVERS_WINDOW,
 )
 
 # Valid param vocabulary per flow — the single source of truth IS the chip dicts.
 # "free" = any non-empty string allowed (validated/parameterized downstream).
 _VALID: dict[str, dict] = {
-    "accumulation": {"strength": set(ACC_STRENGTH), "entry": set(ACC_ENTRY), "sector": "free"},
+    "accumulation": {"strength": set(ACC_STRENGTH), "entry": set(ACC_ENTRY), "sector": "free",
+                     "window": set(ACC_WINDOW)},
     "rs":           {"strength": set(RS_STRENGTH), "align": set(RS_ALIGN), "sector": "free",
                      "window": set(RS_WINDOW)},
     "fundamentals": {"val": set(FUND_VAL), "qual": set(FUND_QUAL), "grow": set(FUND_GROW),
                      "bs": set(FUND_BS), "own": set(FUND_OWN), "sector": set(FUND_SECTOR)},
-    "movers":       {"direction": set(MOVERS_DIR), "liq": set(MOVERS_LIQ)},
+    "movers":       {"direction": set(MOVERS_DIR), "liq": set(MOVERS_LIQ),
+                     "window": set(MOVERS_WINDOW)},
     "explain":      {"explain": "slug"},
 }
 
@@ -47,6 +49,7 @@ def _menu() -> str:
         "   strength: '' (A+, default) | 'ss' (very strong) | 'any'",
         "   entry: '' (any) | 'discount' (near a discount to the hot-day cost)",
         "   sector: a sector name (e.g. IT, Pharma, Banking) or '' for all",
+        "   window: '' (latest read) | '1m' (vs last month's power delivery) | '3m' — SET FROM THE QUESTION'S TIMEFRAME",
         "2. rs — relative-strength leaders (the market is voting for them).",
         "   strength: '' (RS>=80) | 'elite' (RS>=90) | 'above' (RS>=50)",
         "   align: '' (any) | 'sis' (strong-in-strong: beating market AND sector)",
@@ -63,6 +66,7 @@ def _menu() -> str:
         "   Use for 'top gainers', 'biggest movers today', 'what moved today', 'top losers'.",
         "   direction: '' (top gainers) | 'losers' | 'active' (most traded)",
         "   liq: '' (liquid, >= Rs 5Cr turnover) | 'all'",
+        "   window: '' (today's move) | '1w' (this week's move) — SET FROM THE QUESTION'S TIMEFRAME",
         "5. explain — define a metric. set 'explain' to one of these term slugs:",
     ]
     for slug, e in GLOSSARY.items():
