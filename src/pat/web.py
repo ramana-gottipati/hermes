@@ -22,8 +22,10 @@ from src.pat.flows import (
     ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR, NAMED_SCREENS,
     MOVERS_DIR, MOVERS_LIQ, MOVERS_WINDOW,
+    INDEX_WINDOW, INDEX_DIRECTION, INDEX_TURNING,
     build_accumulation_query, build_accumulation_sectors_query,
     build_rs_query, build_rs_sectors_query, build_fundamentals_query, build_movers_query,
+    build_index_query,
 )
 
 
@@ -755,6 +757,81 @@ def _movers_flow(conn, direction, liq, window: str = "") -> str:
     return "".join(out)
 
 
+# ── index flow (live, read-only over index_signals) ──────────────────────────
+# The index universe Pat was missing — sectoral + thematic NSE indices, best or
+# WORST over a window, with a "turning up" reversal lens. Built after a real miss
+# ("worst performing index that started turning up" → 0 stock RS-leaders).
+
+def _index_url(window="", direction="", turning=""):
+    # Reuse captured route params: entry = window, strength = direction, align = turning.
+    qs = ["flow=index"]
+    if window:
+        qs.append("entry=" + _u(window))
+    if direction:
+        qs.append("strength=" + _u(direction))
+    if turning:
+        qs.append("align=" + _u(turning))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _index_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Index</th><th>Close</th>'
+            '<th>1M</th><th>3M</th><th>6M</th><th>1Y</th>'
+            '<th>RS 1M slope</th><th>Trend</th><th>% off 52wH</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym">{_esc(r["index_name"])}</td>'
+            f'<td>{_n(r["close_value"])}</td>'
+            f'<td>{_sgn(r["ret_1m_pct"])}</td>'
+            f'<td>{_sgn(r["ret_3m_pct"])}</td>'
+            f'<td>{_sgn(r["ret_6m_pct"])}</td>'
+            f'<td>{_sgn(r["ret_12m_pct"])}</td>'
+            f'<td>{_n(r["rs_vs_broad_slope_1m"], 2)}</td>'
+            f'<td>{_txt(r["rs_vs_broad_trend_state"])}</td>'
+            f'<td>{_sgn(r["pct_off_52w_high"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _index_flow(conn, window="", direction="", turning="") -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("Index performance — NSE sectoral & thematic indices, ranked by the "
+                  "asked window. Flip to Laggards for the worst, and 'Turning up' for "
+                  "the ones that started rising in the last month:"),
+        '<div class="ghdr">Window</div><div class="patChips">',
+    ]
+    for key, (lbl, _c) in INDEX_WINDOW.items():
+        out.append(_chip_sel(_index_url(key, direction, turning), lbl, key == window))
+    out.append('</div><div class="ghdr">Direction</div><div class="patChips">')
+    for key, (lbl, _s) in INDEX_DIRECTION.items():
+        out.append(_chip_sel(_index_url(window, key, turning), lbl, key == direction))
+    out.append('</div><div class="ghdr">Turning</div><div class="patChips">')
+    for key, lbl in INDEX_TURNING.items():
+        out.append(_chip_sel(_index_url(window, direction, key), lbl, key == turning))
+    out.append('</div>')
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_index_query(window, direction, turning)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    wlabel = INDEX_WINDOW.get(window, INDEX_WINDOW[""])[0]
+    dlabel = INDEX_DIRECTION.get(direction, INDEX_DIRECTION[""])[0]
+    ttag = " · turning up (1M)" if turning == "turn" else ""
+    out.append(f'<div class="ghdr">{_esc(dlabel)} · over {_esc(wlabel)}{_esc(ttag)} ({len(rows)})</div>')
+    out.append(_index_table(rows) if rows
+               else '<div class="empty">No indices match — try a different window, or turn off the turning filter.</div>')
+    return "".join(out)
+
+
 # Strategy-organized example questions — the "clues" that teach what Pat can be
 # asked. Each is real free-text routed through the engine, so tapping one both
 # answers AND shows the user the shape of question that works.
@@ -764,6 +841,10 @@ _EXAMPLES = [
     ("Momentum — relative strength", [
         "strongest stocks in the market over the last month",
         "RS leaders in IT", "strong-in-strong names this year"]),
+    ("Indices & sectors", [
+        "worst performing index over the last year that started turning up",
+        "best performing sectoral index this month",
+        "which sectors are leading over 3 months"]),
     ("Strong-hand delivery (DVPT)", [
         "stocks being accumulated now", "SS-rank names near a discount entry",
         "is the strong hand distributing near the highs"]),
@@ -792,6 +873,7 @@ def _home() -> str:
     for href, lbl in [("/dash/pat?flow=movers", "Today's movers"),
                       ("/dash/pat?flow=accumulation", "Accumulation"),
                       ("/dash/pat?flow=rs", "RS leaders"),
+                      ("/dash/pat?flow=index", "Index performance"),
                       ("/dash/pat?flow=fundamentals", "Fundamentals"),
                       ("/dash/pat?flow=explain", "Explain a metric")]:
         out.append(_chip(href, lbl, arrow=True))
@@ -800,7 +882,8 @@ def _home() -> str:
 
 
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
-               "fundamentals": "Screen by fundamentals", "movers": "Today's movers"}
+               "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
+               "index": "Index performance"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -863,6 +946,8 @@ def _free_text(conn, q: str):
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
         elif f == "movers":
             body = _movers_flow(conn, p.get("direction", ""), p.get("liq", ""), p.get("window", ""))
+        elif f == "index":
+            body = _index_flow(conn, p.get("window", ""), p.get("direction", ""), p.get("turning", ""))
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
@@ -920,6 +1005,14 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _movers_flow(conn, strength, entry, window)
         fb_ctx = {"query": "", "flow": "movers",
                   "params": {"direction": strength, "liq": entry, "window": window}, "source": "flow"}
+    elif flow == "index":
+        window = (entry or "").strip().lower()       # index params reuse: entry=window,
+        direction = strength                          # strength=direction,
+        turning = (align or "").strip().lower()       # align=turning
+        body = _index_flow(conn, window, direction, turning)
+        fb_ctx = {"query": "", "flow": "index",
+                  "params": {"window": window, "direction": direction, "turning": turning},
+                  "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

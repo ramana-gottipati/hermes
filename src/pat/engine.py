@@ -25,6 +25,7 @@ from src.pat.flows import (
     ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR,
     MOVERS_DIR, MOVERS_LIQ, MOVERS_WINDOW,
+    INDEX_WINDOW, INDEX_DIRECTION, INDEX_TURNING,
 )
 
 # Valid param vocabulary per flow — the single source of truth IS the chip dicts.
@@ -38,6 +39,8 @@ _VALID: dict[str, dict] = {
                      "bs": set(FUND_BS), "own": set(FUND_OWN), "sector": set(FUND_SECTOR)},
     "movers":       {"direction": set(MOVERS_DIR), "liq": set(MOVERS_LIQ),
                      "window": set(MOVERS_WINDOW)},
+    "index":        {"window": set(INDEX_WINDOW), "direction": set(INDEX_DIRECTION),
+                     "turning": set(INDEX_TURNING)},
     "explain":      {"explain": "slug"},
 }
 
@@ -67,7 +70,13 @@ def _menu() -> str:
         "   direction: '' (top gainers) | 'losers' | 'active' (most traded)",
         "   liq: '' (liquid, >= Rs 5Cr turnover) | 'all'",
         "   window: '' (today's move) | '1w' (this week's move) — SET FROM THE QUESTION'S TIMEFRAME",
-        "5. explain — define a metric. set 'explain' to one of these term slugs:",
+        "5. index — PERFORMANCE / rotation of NSE INDICES (sectoral + thematic, e.g. Nifty IT,",
+        "   Nifty Realty, Nifty Media), NOT individual stocks. Use whenever the question is about",
+        "   an INDEX or a SECTOR's performance (best/worst/turning), e.g. 'worst performing index'.",
+        "   window: '' (3m) | '1m' | '6m' | '1y' (last year) — SET FROM THE QUESTION'S TIMEFRAME",
+        "   direction: '' (leaders/best) | 'laggards' (the WORST performers)",
+        "   turning: '' (any) | 'turn' (only those UP in the last month — 'started performing better recently')",
+        "6. explain — define a metric. set 'explain' to one of these term slugs:",
     ]
     for slug, e in GLOSSARY.items():
         al = ", ".join(e.get("aliases", [])[:3])
@@ -78,7 +87,7 @@ def _menu() -> str:
 _SYSTEM = (
     "You route an Indian-stock-market analyst's English question to ONE flow and "
     "its enumerated options. Reply with COMPACT JSON ONLY, no prose:\n"
-    '{"flow":"accumulation|rs|fundamentals|movers|explain","params":{...},"confidence":0-100}\n'
+    '{"flow":"accumulation|rs|fundamentals|movers|index|explain","params":{...},"confidence":0-100}\n'
     'For explain use {"flow":"explain","explain":"<term-slug>"}.\n'
     '"confidence" is your 0-100 certainty in the chosen flow — be honest; a low '
     "number lets Pat ask the analyst instead of guessing.\n"
@@ -214,7 +223,19 @@ def route(query: str, conn=None) -> dict | None:
     if q in _CACHE:
         return _CACHE[q]
 
-    # (a) Deterministic clarify FIRST — an ambiguous ask never reaches the model (₹0).
+    # (a0) Deterministic INDEX route — a clear index-performance ask ("worst
+    #      performing index ... turning up") goes straight to the index flow: ₹0,
+    #      immune to mis-routing AND to the shared Gemini quota.
+    try:
+        from src.pat.disambiguate import route_index as _route_index
+        idx = _route_index(query)
+    except Exception:
+        idx = None
+    if idx:
+        _CACHE[q] = idx
+        return idx
+
+    # (a) Deterministic clarify — an ambiguous ask never reaches the model (₹0).
     try:
         from src.pat.disambiguate import check as _check
         clar = _check(query)

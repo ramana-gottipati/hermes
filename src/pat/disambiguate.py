@@ -50,6 +50,8 @@ SYNONYMS: dict[str, list[str]] = {
                      "down today", "gained today", "fell today"],
     "explain":      ["what is ", "what's ", "explain", "define ", "definition",
                      "meaning of", "what does "],
+    "index":        ["index", "indices", "sectoral", "sector rotation",
+                     "which sector", "sector performance"],
 }
 
 # Vague time words = "a timeframe is intended but unspecified" → ask which.
@@ -104,6 +106,7 @@ def hints(query: str) -> str:
              "rs": "rs (relative-strength momentum)",
              "fundamentals": "fundamentals (valuation/quality/growth)",
              "movers": "movers (today's price moves)",
+             "index": "index (NSE index/sector performance, best/worst/turning)",
              "explain": "explain (define a metric)"}
     named = ", ".join(label[c] for c in sorted(cs) if c in label)
     return ("VOCAB MATCH — the analyst's words map to these Pat flows: " + named +
@@ -204,3 +207,62 @@ def clarify_from_flows(orig: str, flows, question: str | None = None) -> dict | 
                                  "which of these did you mean?"),
         "chips": chips[:3],
     }
+
+
+# ── deterministic INDEX route ────────────────────────────────────────────────
+# A clear index-PERFORMANCE ask ("worst performing index over the last year that
+# started turning up") is routed straight to the index flow — ₹0, immune to
+# mis-routing AND to the shared Gemini quota. This is the rule that fixes the miss
+# where an index question landed on stock RS-leaders and returned nothing.
+_INDEX_UNIVERSE = ["index", "indices", "sectoral", "sector rotation", "which sector",
+                   "sector performance", "best performing sector", "worst performing sector",
+                   "sectors doing"]
+_INDEX_PERF = ["perform", "return", "best", "worst", "laggard", "leader", "strong",
+               "weak", "gain", "loss", "rising", "falling", "turning", "rotation",
+               "outperform", "underperform", "top ", "bottom", "beaten", "recover",
+               "reversal", "up over", "down over"]
+# Markers that the analyst wants the CONSTITUENTS (stocks), not index performance —
+# in which case this layer steps aside and lets the stock flows handle it.
+_CONSTITUENT = ["stocks in", "constituent", "names in", "members of", "shares in",
+                "which stocks", "companies in", "stocks of", "stocks from"]
+
+
+def route_index(query: str) -> dict | None:
+    """Return ``{flow:"index", params:{...}}`` for a clear index-performance ask, else None.
+
+    Deterministic and ₹0: infers direction (worst→laggards), window (timeframe),
+    and the turning lens ("started performing better"/recovering). Returns None for
+    constituent questions (those want stocks) or when no performance intent is named.
+    """
+    try:
+        qn = _norm(query)
+        if not _has_any(qn, _INDEX_UNIVERSE):
+            return None
+        if _has_any(qn, _CONSTITUENT):
+            return None
+        if not _has_any(qn, _INDEX_PERF):
+            return None
+        params: dict[str, str] = {}
+        if _has_any(qn, ["worst", "laggard", "weakest", "underperform", "biggest loser",
+                         "beaten", "fallen", "bottom"]):
+            params["direction"] = "laggards"
+        # Window — longest first so an explicit 1Y wins over the trailing "month".
+        if _has_any(qn, ["1 year", "one year", "12 month", "12-month", "12m", "1y",
+                         "last year", "past year", "this year", "yearly", "annual",
+                         "52 week", "52-week"]):
+            params["window"] = "1y"
+        elif _has_any(qn, ["6 month", "6-month", "6m", "half year", "half-year"]):
+            params["window"] = "6m"
+        elif _has_any(qn, ["1 month", "one month", "past month", "last month",
+                           "this month", "1-month", "1m", "monthly"]):
+            params["window"] = "1m"
+        # Turning — "started performing better / recovering / reversing recently".
+        if _has_any(qn, ["turning", "turn around", "turnaround", "started performing better",
+                         "performing better", "recover", "reversal", "reversing",
+                         "bottoming", "bottomed", "picking up", "started rising",
+                         "starting to rise", "improving", "uptick", "coming back",
+                         "started to perform", "perform better"]):
+            params["turning"] = "turn"
+        return {"flow": "index", "params": params}
+    except Exception:
+        return None

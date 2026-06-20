@@ -26,9 +26,10 @@ answer is generic, mis-timed, or buried in noise — the feature has failed its
 purpose. Every design choice below serves that bar.
 
 **Live today** (deployed on the VPS): glossary explainer · accumulation · RS-leaders
-(timeframe-aware) · fundamentals · **today's movers** · the Gemini free-text engine
-· 6 selectable avatars (decoration, picker on its own page) · strategy-grouped
-example questions on Home.
+(timeframe-aware) · fundamentals · **today's movers** · **index performance
+(best/worst/turning)** · the Gemini free-text engine · feedback/correction store
+(👍/👎 + "what you expected") · clarify-before-guess · 6 selectable avatars
+(decoration, picker on its own page) · strategy-grouped example questions on Home.
 
 ---
 
@@ -37,8 +38,8 @@ example questions on Home.
 | Component | File | What it does |
 |---|---|---|
 | **Glossary** | `src/pat/glossary.py` | 39-term data dictionary (grounding). `get`/`find`/`family`. Powers "explain a metric" + grounds the engine prompt. |
-| **Flows** | `src/pat/flows.py` | Pure `build_*_query(params) -> (sql, params)`. Read-only SELECTs; **columns/operators come only from constant dicts**, every value bound via `?`. The deterministic, ₹0 core. |
-| **Disambiguator** | `src/pat/disambiguate.py` | Deterministic synonym + ambiguity layer in FRONT of the engine (₹0, no LLM). `hints` (vocab→flow, into the prompt) · `concepts` · `check` (→ `clarify` on intent/timeframe ambiguity) · `clarify_from_flows` (low-confidence fallback). Clarify chips are disambiguated **re-runs of the original query**, so context is preserved and they can't loop. |
+| **Flows** | `src/pat/flows.py` | Pure `build_*_query(params) -> (sql, params)`. Read-only SELECTs; **columns/operators come only from constant dicts**, every value bound via `?`. The deterministic, ₹0 core. Flows: accumulation · rs · fundamentals · movers · **index** (best/worst/turning over `index_signals`) · explain. |
+| **Disambiguator** | `src/pat/disambiguate.py` | Deterministic synonym + ambiguity layer in FRONT of the engine (₹0, no LLM). `hints` (vocab→flow, into the prompt) · `concepts` · `check` (→ `clarify` on intent/timeframe ambiguity) · `clarify_from_flows` (low-confidence fallback) · **`route_index`** (a clear index-performance ask → the index flow directly, ₹0, immune to mis-routing AND the Gemini quota). Clarify chips are disambiguated **re-runs of the original query**, so context is preserved and they can't loop. |
 | **Engine** | `src/pat/engine.py` | Free-text → `{flow, params}` \| `{flow:"clarify",…}` \| None. Runs `disambiguate.check` first (₹0 clarify); else Gemini with hints+few-shot prompt; reads a `confidence` and converts a low-certainty pick to a clarify (threshold 50). Validates against the chip vocab (off-menu dropped). **Never-Claude** (discards Anthropic fallback). Cached. |
 | **Web/UI** | `src/pat/web.py` | `render_pat()` dispatches flow/explain/free-text/face. Renders data-first tables on the house `table.dt` grid. The persona header + face picker. The Home clues. |
 | **Route** | `src/web/dashboard.py` | `/dash/pat` GET (one route; params: flow, explain, q, sector, strength, entry, align, val, qual, grow, bs, own). New chip params **reuse existing captured params** to avoid editing this file. |
@@ -179,6 +180,13 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
   exists, so accumulation is Today/1M/3M not D/W/M; fundamentals "emphasis" still open.)*
 - ✅ `[answer]` P1 — "right not more" lead-metric: each windowed result LEADS with the
   asked-for column (RS slope / DVPT ratio / weekly %), header names the window.
+- ✅ `[index]` NEW flow (correction-driven) — **index performance** over `index_signals`:
+  best/worst over 1m/3m/6m/1y + a "turning up" reversal lens (laggards now rising 1M).
+  Deterministic `disambiguate.route_index` so "worst performing index … that started
+  turning up" routes here (₹0, 0 model calls), not to stock RS-leaders. **Closed a real
+  first-answer miss** (the live screenshot: that exact query returned 0 RS-leaders;
+  it now answers e.g. Nifty Realty −18% 1Y / +6% 1M). This is §4.4 arm-1 in action —
+  a correction became a rule + a capability.
 - ⬜ `[fundamentals]` P2 — emphasis-follows-question (lead with the asked ratio when a
   fundamentals query names one, e.g. "ranked by ROE" → ROE leads). Carved out of the
   reporting-follows-question item above.
@@ -239,9 +247,10 @@ free-tier pressure — ambiguous asks now resolve with 0 Gemini calls.)*
 
 **Mission:** make Pat learn, and make the FIRST answer right. All five mission items
 shipped, each verified on a synthetic DB and committed Pat-files-only, then deployed
-end-to-end and smoke-tested live.
+end-to-end and smoke-tested live — plus a 6th, correction-driven **index flow** built
+in response to a live first-answer miss the analyst surfaced mid-session.
 
-**Shipped + LIVE** (`https://srv1704897.hstgr.cloud/dash/pat`), 4 commits:
+**Shipped + LIVE** (`https://srv1704897.hstgr.cloud/dash/pat`), 5 commits:
 - **Feedback/correction store** (`7eb1491`) — self-contained `src/pat/feedback.py`
   owns `pat_feedback` (CREATE TABLE IF NOT EXISTS; **db.py untouched**). 👍/👎 on every
   answer; 👎 records immediately then reveals a "what did you expect?" box that
@@ -260,6 +269,14 @@ end-to-end and smoke-tested live.
   by + lead with the DVPT power ratio) and movers today vs this-week (% vs the close
   ~7 days back). Both ride the captured `align` route param; each leads with the asked
   metric. A synthetic-SQL test caught + fixed a placeholder-ordering bug in the weekly join.
+- **Index flow** (correction-driven) — the analyst asked live: *"worst performing index
+  in the last one year that started performing better from past one month?"* and Pat
+  returned **0 RS-leaders** (3 stacked failures: wrong universe=stocks-not-indices,
+  inverted polarity=leaders-not-laggards, single-window-not-a-two-window-reversal). Built
+  a new **index flow** over the pre-computed `index_signals` (best/worst over 1m/3m/6m/1y
+  + a "turning up" 1M reversal lens) + a deterministic `route_index` so that exact query
+  lands here with **0 model calls**. It now answers correctly — e.g. **Nifty Realty**
+  (−18% 1Y, +6% 1M, RS slope +3.3, consolidating). §4.4 arm-1 in action.
 
 **BINDING honored throughout:** Gemini-only live router (never-Claude verified —
 anthropic fallback discarded); tap path = deterministic ₹0 SQL; columns/operators only
@@ -318,7 +335,8 @@ ALREADY SHIPPED (round 2, §10) — do NOT rebuild: feedback/correction store
 (pat_feedback + /pat/feedback routes); clarify-before-guess + the deterministic
 synonym/disambiguation layer (src/pat/disambiguate.py); confidence-threshold
 clarify; few-shot routing from the correction store; reporting-follows-the-question
-for accumulation (1m/3m) and movers (today/this-week).
+for accumulation (1m/3m) and movers (today/this-week); the INDEX flow (best/worst/
+turning over index_signals) + deterministic route_index.
 
 Mission this session — close the learning LOOP and personalize:
 

@@ -375,3 +375,57 @@ def build_movers_query(direction: str = "", liq: str = "", window: str = "") -> 
         "LIMIT " + str(MOVERS_LIMIT)
     )
     return sql, params
+
+
+# ── index flow — performance / rotation of NSE INDICES (D32 index_signals) ────
+# The universe Pat was missing: sectoral + thematic indices, not single stocks.
+# index_signals is pre-computed nightly with returns over every window + RS slopes.
+# window chip -> (label, return column to RANK BY + lead with). "" = 3M default.
+INDEX_WINDOW: dict[str, tuple[str, str]] = {
+    "":   ("3M", "ret_3m_pct"),
+    "1m": ("1M", "ret_1m_pct"),
+    "6m": ("6M", "ret_6m_pct"),
+    "1y": ("1Y", "ret_12m_pct"),
+}
+# direction chip -> (label, sort). leaders = best (DESC); laggards = WORST (ASC) —
+# the polarity the stock flows never had ("worst performing ...").
+INDEX_DIRECTION: dict[str, tuple[str, str]] = {
+    "":         ("Leaders (best)",   "DESC"),
+    "laggards": ("Laggards (worst)", "ASC"),
+}
+# turning chip -> label. When on, keep only indices UP over the last month
+# (ret_1m_pct > 0) — "started performing better recently". Paired with laggards
+# this is the 1-year-laggard-now-reversing screen (rotation into the beaten-down).
+INDEX_TURNING: dict[str, str] = {
+    "":     "Any",
+    "turn": "Turning up (1M)",
+}
+INDEX_LIMIT = 40
+
+
+def build_index_query(window: str = "", direction: str = "", turning: str = "") -> tuple[str, list]:
+    """Compile the index-performance screen to a read-only SELECT over index_signals.
+
+    `window` picks the return column to RANK BY + lead with; `direction` flips best
+    (DESC) vs worst (ASC); `turning='turn'` keeps only indices up over the last
+    month (ret_1m_pct > 0). The ranked column + sort come ONLY from the INDEX_*
+    constants; the latest date is the only date. No user value is formatted into SQL.
+    """
+    ret_col = INDEX_WINDOW.get(window, INDEX_WINDOW[""])[1]
+    sort = INDEX_DIRECTION.get(direction, INDEX_DIRECTION[""])[1]
+    where = [
+        "trade_date = (SELECT MAX(trade_date) FROM index_signals)",
+        f"{ret_col} IS NOT NULL",
+    ]
+    if turning == "turn":
+        where.append("ret_1m_pct > 0")
+    sql = (
+        f"SELECT index_name, close_value, {ret_col} AS lead_ret, "
+        "ret_1m_pct, ret_3m_pct, ret_6m_pct, ret_12m_pct, "
+        "rs_vs_broad_slope_1m, rs_vs_broad_trend_state, pct_off_52w_high "
+        "FROM index_signals "
+        "WHERE " + " AND ".join(where) + " "
+        f"ORDER BY {ret_col} {sort}, index_name "
+        "LIMIT " + str(INDEX_LIMIT)
+    )
+    return sql, []
