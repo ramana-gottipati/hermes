@@ -2828,6 +2828,11 @@ def _rpl(v):
     return f'<span class="{cls}">{sign}{_rupee(abs(v))}</span>'
 
 
+def _rawnum(v):
+    """Bare number for pre-filling an <input value> (no commas/spans); '' if None."""
+    return "" if v is None else f"{v:g}"
+
+
 def _capture_form(sym, snap):
     """The inline Track capture form (server-rendered; POSTs to /dash/track).
     Entry price + date + the frozen snapshot are captured SERVER-SIDE on submit
@@ -2954,6 +2959,49 @@ def _add_box(default_status, ac_json="[]", books=()):
         + f'<script>window._ACITEMS={ac_json};</script>' + _AC_JS)
 
 
+def _edit_form(r, books):
+    """Pre-filled form to EDIT a saved holding (POSTs /dash/track/update)."""
+    sym = r["symbol"]
+    cur = r["strategy"] or "Manual"
+    preset = cur in _TRACK_STRATEGIES
+    opts = "".join(
+        f'<option value="{_esc(s)}"{" selected" if ((preset and s == cur) or (not preset and s == "Manual")) else ""}>{_esc(s)}</option>'
+        for s in _TRACK_STRATEGIES)
+    bkopts = "".join(f'<option value="{_esc(b)}"></option>' for b in books)
+    st = r["status"]
+    o_sel = " selected" if st == "open" else ""
+    w_sel = " selected" if st == "watch" else ""
+    cs_disp = "none" if preset else ""
+    cs_val = "" if preset else _esc(cur)
+    back = "/dash/watchlists" if st == "watch" else "/dash/portfolios"
+    return (
+        '<form class="cap" method="post" action="/dash/track/update">'
+        f'<input type="hidden" name="id" value="{r["id"]}"/>'
+        f'<div style="font-weight:600;margin-bottom:10px">Edit {_esc(sym)}</div>'
+        '<div class="row2">'
+        f'<div style="flex:1;min-width:110px"><label>List</label>'
+        f'<select name="status" class="field"><option value="open"{o_sel}>Portfolio</option>'
+        f'<option value="watch"{w_sel}>Watchlist</option></select></div>'
+        f'<div style="flex:1;min-width:110px"><label>Book</label>'
+        f'<input name="book" class="field" list="bklist" value="{_esc(r.get("book") or "Main")}" maxlength="40"/>'
+        f'<datalist id="bklist">{bkopts}</datalist></div>'
+        f'<div style="flex:1;min-width:130px"><label>Strategy</label>'
+        f'<select name="strategy" class="field" data-cs onchange="_csToggle(this)">{opts}</select></div></div>'
+        f'<div class="cs-wrap" style="display:{cs_disp};margin-bottom:10px"><label>Your strategy / basis</label>'
+        f'<input name="strategy_custom" class="field" maxlength="60" value="{cs_val}"/></div>'
+        '<div class="row2">'
+        f'<div style="flex:1"><label>Entry date</label><input type="date" name="entry_date" class="field" value="{_esc((r["date_added"] or "")[:10])}"/></div>'
+        f'<div style="flex:1"><label>Entry price ₹</label><input name="entry_price" class="field" inputmode="decimal" value="{_rawnum(r["entry_price"])}"/></div>'
+        f'<div style="flex:1"><label>Qty</label><input name="qty" class="field" inputmode="decimal" value="{_rawnum(r.get("qty"))}"/></div></div>'
+        '<div class="row2">'
+        f'<div style="flex:1"><label>Target ₹</label><input name="target" class="field" inputmode="decimal" value="{_rawnum(r["price_target"])}"/></div>'
+        f'<div style="flex:1"><label>Stop ₹</label><input name="stop" class="field" inputmode="decimal" value="{_rawnum(r["stop_loss"])}"/></div></div>'
+        f'<div style="margin-bottom:10px"><label>Thesis</label><textarea name="thesis" class="field">{_esc(r["entry_thesis"] or "")}</textarea></div>'
+        '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save changes</button>'
+        f'<a class="tbtn" href="{back}" style="text-decoration:none;margin-left:8px">Cancel</a>'
+        '</form>' + _CS_JS)
+
+
 @router.post("/dash/track")
 def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                status: str = Form("open"), thesis: str = Form(""),
@@ -3045,7 +3093,76 @@ def dash_track_close(id: int = Form(...), reason: str = Form("")) -> RedirectRes
         conn.execute("UPDATE stocks_in_play SET status='closed', exit_date=datetime('now'), "
                      "exit_price=?, exit_reason=? WHERE id=?",
                      (ep, (reason or "").strip() or None, id))
-    return RedirectResponse("/dash/tracker?closed=1", status_code=303)
+    return RedirectResponse("/dash/performance?closed=1", status_code=303)
+
+
+@router.get("/dash/track/edit", response_class=HTMLResponse)
+def dash_track_edit(id: int = Query(...)) -> HTMLResponse:
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM stocks_in_play WHERE id=?", (id,)).fetchone()
+        books = [r[0] for r in conn.execute(
+            "SELECT DISTINCT book FROM stocks_in_play ORDER BY book").fetchall()]
+    if not row:
+        body = _TRACK_CSS + _track_subnav("portfolios") + '<div class="empty">That holding no longer exists.</div>'
+        return HTMLResponse(_shell("Edit · patearn", body, "portfolios"))
+    row = dict(row)
+    active = "watchlists" if row["status"] == "watch" else "portfolios"
+    body = _TRACK_CSS + _track_subnav(active) + '<h2>Edit holding</h2>' + _edit_form(row, books)
+    return HTMLResponse(_shell("Edit · patearn", body, active))
+
+
+@router.post("/dash/track/update")
+def dash_track_update(id: int = Form(...), status: str = Form("open"),
+                      book: str = Form("Main"), strategy: str = Form("Manual"),
+                      strategy_custom: str = Form(""), qty: str = Form(""),
+                      entry_date: str = Form(""), entry_price: str = Form(""),
+                      target: str = Form(""), stop: str = Form(""),
+                      thesis: str = Form("")) -> RedirectResponse:
+    status = status if status in ("watch", "open") else "open"
+    dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
+    strat = (strategy or "Manual").strip() or "Manual"
+    if strat == "Manual" and (strategy_custom or "").strip():
+        strat = strategy_custom.strip()[:60]
+    bk = (book or "Main").strip()[:40] or "Main"
+
+    def _f(x):
+        try:
+            return float(str(x).replace(",", "").replace("₹", "").strip())
+        except (TypeError, ValueError):
+            return None
+    with get_conn() as conn:
+        row = conn.execute("SELECT symbol FROM stocks_in_play WHERE id=?", (id,)).fetchone()
+        if not row:
+            return RedirectResponse(dest, status_code=303)
+        sym = row["symbol"]
+        ep = None
+        td = None
+        if status == "open":
+            # Re-validate the (possibly edited) entry price against that day's OHLC.
+            o = _ohlc_on(conn, sym, (entry_date or "").strip() or None)
+            if o:
+                td, lo, hi, close = o["trade_date"], o["low"], o["high"], o["close"]
+                ep_in = _f(entry_price)
+                if ep_in is None:
+                    ep = close
+                elif lo is not None and hi is not None and not (lo - 0.05 <= ep_in <= hi + 0.05):
+                    return RedirectResponse(
+                        f"{dest}?err={_q(f'{sym} traded ₹{lo:g}–₹{hi:g} on {td}. ₹{ep_in:g} never traded that day — enter a price in that range.')}",
+                        status_code=303)
+                else:
+                    ep = ep_in
+            else:
+                ep = _f(entry_price)
+        sets = "strategy=?, book=?, status=?, qty=?, price_target=?, stop_loss=?, entry_thesis=?"
+        vals = [strat, bk, status, _f(qty), _f(target), _f(stop), (thesis or "").strip() or None]
+        if status == "open":
+            sets += ", entry_price=?, date_added=COALESCE(?, date_added)"
+            vals += [ep, td]
+        else:
+            sets += ", entry_price=NULL"
+        vals.append(id)
+        conn.execute(f"UPDATE stocks_in_play SET {sets} WHERE id=?", vals)
+    return RedirectResponse(dest, status_code=303)
 
 
 @router.post("/dash/track/promote")
@@ -3133,7 +3250,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
             f'<td class="num">{tgt}</td>'
             f'<td class="l">{drift}</td>'
             f'<td class="l">{th_cell}</td>'
-            f'<td class="l">{_id_form("/dash/track/close", r["id"], "Close", confirm="Close this position?")}</td>'
+            f'<td class="l"><a class="tbtn" href="/dash/track/edit?id={r["id"]}" style="text-decoration:none">Edit</a> {_id_form("/dash/track/close", r["id"], "Close", confirm="Close this position?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr>'
             '<th>Symbol</th><th>Book</th><th>Strategy</th><th>Entry date</th><th>Entry ₹</th><th>Qty</th><th>CMP</th>'
@@ -3197,7 +3314,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
             f'<td class="num">{_pct(chg)}</td>'
             f'<td class="l">{_snap_chips(snap)}</td>'
             f'<td class="l mut">{_esc(r["entry_thesis"] or "—")}</td>'
-            f'<td class="l">{_id_form("/dash/track/promote", r["id"], "Promote", cls="tbtn tbtn-go")}'
+            f'<td class="l"><a class="tbtn" href="/dash/track/edit?id={r["id"]}" style="text-decoration:none">Edit</a> '
+            f'{_id_form("/dash/track/promote", r["id"], "Promote", cls="tbtn tbtn-go")}'
             f'{_id_form("/dash/track/remove", r["id"], "Remove", confirm="Remove from watchlist?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Book</th><th>Strategy</th><th>Added</th>'
