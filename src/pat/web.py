@@ -669,24 +669,48 @@ def _movers_flow(conn, direction, liq) -> str:
     return "".join(out)
 
 
+# Strategy-organized example questions — the "clues" that teach what Pat can be
+# asked. Each is real free-text routed through the engine, so tapping one both
+# answers AND shows the user the shape of question that works.
+_EXAMPLES = [
+    ("Today's market", [
+        "biggest movers today", "top losers today", "most active stocks today"]),
+    ("Momentum — relative strength", [
+        "strongest stocks in the market over the last month",
+        "RS leaders in IT", "strong-in-strong names this year"]),
+    ("Strong-hand delivery (DVPT)", [
+        "stocks being accumulated now", "SS-rank names near a discount entry",
+        "is the strong hand distributing near the highs"]),
+    ("Quality & value", [
+        "quality compounders", "cheap stocks with ROCE above 20",
+        "debt-free names growing over 20%", "quality banks ranked by ROE"]),
+    ("Learn the metrics", [
+        "what is p_score", "explain DVPT", "what does RS rank mean"]),
+]
+
+
 def _home() -> str:
-    search = (
+    out = [
         '<form class="search" action="/dash/pat" method="get" autocomplete="off">'
-        '<input name="q" placeholder="ask in plain English — e.g. cheap IT stocks being accumulated"/>'
-        '<button>Ask</button></form>'
-    )
-    chips = [
-        _chip("/dash/pat?flow=movers", "Today's movers", arrow=True),
-        _chip("/dash/pat?flow=accumulation", "Accumulation setups", arrow=True),
-        _chip("/dash/pat?flow=rs", "RS leaders by sector", arrow=True),
-        _chip("/dash/pat?flow=fundamentals", "Screen by fundamentals", arrow=True),
-        _chip("/dash/pat?flow=explain", "Explain a metric", arrow=True),
+        '<input name="q" placeholder="ask anything — e.g. strongest IT stocks over the last month"/>'
+        '<button>Ask</button></form>',
+        _q_bubble("Ask me anything in plain English. Not sure what to ask? Tap an "
+                  "example — these are the kinds of questions I can answer:"),
     ]
-    return (
-        search
-        + _q_bubble("Ask me in plain English above — or tap a flow:")
-        + f'<div class="patChips">{"".join(chips)}</div>'
-    )
+    for grp, qs in _EXAMPLES:
+        out.append(f'<div class="ghdr">{grp}</div><div class="patChips">')
+        for q in qs:
+            out.append(_chip("/dash/pat?q=" + _u(q), q))
+        out.append('</div>')
+    out.append('<div class="ghdr">Or open a screen directly</div><div class="patChips">')
+    for href, lbl in [("/dash/pat?flow=movers", "Today's movers"),
+                      ("/dash/pat?flow=accumulation", "Accumulation"),
+                      ("/dash/pat?flow=rs", "RS leaders"),
+                      ("/dash/pat?flow=fundamentals", "Fundamentals"),
+                      ("/dash/pat?flow=explain", "Explain a metric")]:
+        out.append(_chip(href, lbl, arrow=True))
+    out.append('</div>')
+    return "".join(out)
 
 
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
