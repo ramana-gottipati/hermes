@@ -14,6 +14,7 @@ they need the SQL templates, which land with the engine.
 
 from __future__ import annotations
 
+import json
 from urllib.parse import quote_plus
 
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
@@ -26,7 +27,10 @@ from src.pat.flows import (
 
 
 def _esc(s) -> str:
-    return (str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # Escapes & < > and " so the same helper is safe in both HTML text and
+    # double-quoted attributes (P1 hardening from the pre-deploy review).
+    return (str(s) if s is not None else "").replace("&", "&amp;").replace(
+        "<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 # --- avatars ---------------------------------------------------------------
@@ -182,9 +186,11 @@ def _avatar_picker() -> str:
             f'<button class="patPick{on}" data-av="{slug}" title="{_esc(a["name"])}" '
             f'onclick="patPick(\'{slug}\')" aria-label="{_esc(a["name"])}">{a["svg"]}</button>'
         )
-    jsmap = "{" + ",".join(
-        f'"{s}":{{"n":"{_esc(a["name"])}","t":"{_esc(a["tag"])}"}}' for s, a in AVATARS.items()
-    ) + "}"
+    # json.dumps does correct JS-string escaping (quotes/backslashes); the
+    # </ -> <\/ guard prevents any name from closing the <script> block.
+    jsmap = json.dumps(
+        {s: {"n": a["name"], "t": a["tag"]} for s, a in AVATARS.items()}
+    ).replace("</", "<\\/")
     script = (
         "<script>(function(){var M=" + jsmap + ";"
         "function pick(s){try{localStorage.setItem('patAvatar',s);}catch(e){}"
@@ -615,7 +621,7 @@ def _free_text(conn, q: str) -> str:
         f = sel["flow"]
         if f == "explain" and sel.get("explain") and get(sel["explain"]):
             e = get(sel["explain"])
-            return (_q_bubble(f'I read "{_esc(q)}" as → explain {e["term"]}.')
+            return (_q_bubble(f'I read "{q}" as →explain {e["term"]}.')
                     + _answer(sel["explain"], e))
         p = sel.get("params", {})
         body = None
@@ -627,7 +633,7 @@ def _free_text(conn, q: str) -> str:
             body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
         if body is not None:
-            note = _q_bubble(f'I read "{_esc(q)}" as → {_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
+            note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body
     # fallback — deterministic glossary keyword search (today's behavior).
     return _explain_flow("", q)

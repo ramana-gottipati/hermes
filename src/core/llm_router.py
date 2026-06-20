@@ -59,6 +59,8 @@ def _call_gemini(system: str, user_msg: str, max_tokens: int) -> str:
     client = OpenAI(
         api_key=settings.gemini_api_key,
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        timeout=6.0,        # bound the worst case so a hung call can't park a
+        max_retries=0,      # request thread; caller degrades to its fallback.
     )
     response = client.chat.completions.create(
         model=settings.gemini_classifier_model,
