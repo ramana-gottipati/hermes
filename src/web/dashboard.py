@@ -2748,29 +2748,77 @@ def _capture_form(sym, snap):
         '</form>')
 
 
+def _is_listed(conn, sym):
+    """True unless we can POSITIVELY confirm `sym` is neither an NSE-listed equity
+    nor has any signal history (i.e. a typo). Permissive on any lookup error so a
+    missing table never blocks a legitimate add."""
+    try:
+        if conn.execute("SELECT 1 FROM nse_equity_list WHERE symbol=? LIMIT 1",
+                        (sym,)).fetchone():
+            return True
+    except Exception:
+        pass
+    try:
+        return bool(conn.execute("SELECT 1 FROM stock_signals WHERE symbol=? LIMIT 1",
+                                 (sym,)).fetchone())
+    except Exception:
+        return True
+
+
+def _add_box(default_status):
+    """Inline '+ Add a stock' quick-capture rendered directly on the Portfolios /
+    Watchlists pages — so you can add without first opening a stock page. POSTs to
+    the same /dash/track endpoint (entry price + frozen snapshot captured
+    SERVER-SIDE); the symbol is typed and validated server-side via _is_listed."""
+    opts = "".join(f'<option value="{_esc(s)}">{_esc(s)}</option>' for s in _TRACK_STRATEGIES)
+    sel_open = " selected" if default_status == "open" else ""
+    sel_watch = " selected" if default_status == "watch" else ""
+    return (
+        '<form class="cap" method="post" action="/dash/track" style="margin:0 0 14px">'
+        '<div style="font-weight:600;margin-bottom:10px">+ Add a stock</div>'
+        '<div class="row2">'
+        '<div style="flex:2;min-width:160px"><label>NSE ticker</label>'
+        '<input name="symbol" class="field" placeholder="e.g. BANDHANBNK" '
+        'autocapitalize="characters" autocomplete="off" required/></div>'
+        f'<div style="flex:1;min-width:120px"><label>List</label>'
+        f'<select name="status" class="field"><option value="open"{sel_open}>Portfolio</option>'
+        f'<option value="watch"{sel_watch}>Watchlist</option></select></div>'
+        f'<div style="flex:1;min-width:130px"><label>Strategy</label>'
+        f'<select name="strategy" class="field">{opts}</select></div></div>'
+        '<div style="margin-bottom:10px"><label>Thesis — why now? (optional)</label>'
+        '<input name="thesis" class="field" placeholder="e.g. fresh ACCUM off a base, p_score 5"/></div>'
+        '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Add</button>'
+        '</form>')
+
+
 @router.post("/dash/track")
 def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
                status: str = Form("open"), thesis: str = Form(""),
                target: str = Form(""), stop: str = Form("")) -> RedirectResponse:
     sym = (symbol or "").upper().strip()
     status = status if status in ("watch", "open") else "open"
+    dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
 
     def _f(x):
         try:
             return float(str(x).replace(",", "").replace("₹", "").strip())
         except (TypeError, ValueError):
             return None
-    if sym:
-        with get_conn() as conn:
-            entry_price, snap, _ = _capture_snapshot(conn, sym)
-            conn.execute(
-                "INSERT INTO stocks_in_play(symbol,strategy,status,entry_price,"
-                "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",
-                (sym, (strategy or "Manual").strip() or "Manual", status,
-                 entry_price if status == "open" else None,
-                 _f(target), _f(stop), (thesis or "").strip() or None,
-                 json.dumps(snap) if snap else None))
-    dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
+    if not sym:
+        return RedirectResponse(f"{dest}?err={_q('Enter a ticker to add.')}", status_code=303)
+    with get_conn() as conn:
+        if not _is_listed(conn, sym):
+            return RedirectResponse(
+                f"{dest}?err={_q(sym + ' is not a recognized NSE equity — check the ticker.')}",
+                status_code=303)
+        entry_price, snap, _ = _capture_snapshot(conn, sym)
+        conn.execute(
+            "INSERT INTO stocks_in_play(symbol,strategy,status,entry_price,"
+            "price_target,stop_loss,entry_thesis,snapshot_json) VALUES(?,?,?,?,?,?,?,?)",
+            (sym, (strategy or "Manual").strip() or "Manual", status,
+             entry_price if status == "open" else None,
+             _f(target), _f(stop), (thesis or "").strip() or None,
+             json.dumps(snap) if snap else None))
     return RedirectResponse(f"{dest}?added={_q(sym)}", status_code=303)
 
 
@@ -2804,7 +2852,7 @@ def dash_track_remove(id: int = Form(...)) -> RedirectResponse:
 
 
 @router.get("/dash/portfolios", response_class=HTMLResponse)
-def dash_portfolios(added: str = Query("")) -> HTMLResponse:
+def dash_portfolios(added: str = Query(""), err: str = Query("")) -> HTMLResponse:
     with get_conn() as conn:
         rows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='open' "
@@ -2815,13 +2863,16 @@ def dash_portfolios(added: str = Query("")) -> HTMLResponse:
             live[sym] = (ep, snap)
     intro = ('<h2>Portfolios</h2><div class="sub">Positions you committed under a strategy — '
              'entry, live mark-to-market, and the frozen as-of-add snapshot vs now. '
-             'Add from any stock page → <b>Track</b>.</div>')
+             'Add one below, or from any stock page → <b>Track</b>.</div>')
     flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your portfolio.</div>'
              if added else "")
+    if err:
+        flash += f'<div class="banner b-off">{_esc(err)}</div>'
+    addbox = _add_box("open")
     if not rows:
-        empty = ('<div class="empty">No open positions yet. Open any stock and hit '
-                 '<b>+ Track</b> → <b>Portfolio</b> to start the loop.</div>')
-        body = _TRACK_CSS + _track_subnav("portfolios") + intro + flash + empty
+        empty = ('<div class="empty">No open positions yet. Add one above, or open any stock '
+                 'and hit <b>+ Track</b> → <b>Portfolio</b>.</div>')
+        body = _TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + empty
         return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
     trs = []
     for r in rows:
@@ -2855,13 +2906,13 @@ def dash_portfolios(added: str = Query("")) -> HTMLResponse:
             '<th>Symbol</th><th>Strategy</th><th>Added</th><th>Entry</th><th>CMP</th>'
             '<th>P/L</th><th>Target</th><th>Conv then→now</th><th>Thesis</th><th></th>'
             '</tr></thead><tbody>')
-    body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash
+    body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox
             + head + "".join(trs) + "</tbody></table>")
     return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
 
 
 @router.get("/dash/watchlists", response_class=HTMLResponse)
-def dash_watchlists(added: str = Query("")) -> HTMLResponse:
+def dash_watchlists(added: str = Query(""), err: str = Query("")) -> HTMLResponse:
     with get_conn() as conn:
         rows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='watch' ORDER BY date_added DESC").fetchall()]
@@ -2869,13 +2920,17 @@ def dash_watchlists(added: str = Query("")) -> HTMLResponse:
         for sym in {r["symbol"] for r in rows}:
             live[sym] = _capture_snapshot(conn, sym)[1]
     intro = ('<h2>Watchlists</h2><div class="sub">Lightweight ideas you are tracking — '
-             'no entry needed. Promote to a portfolio when you commit.</div>')
+             'no entry needed. Add one below, or from any stock page; promote to a '
+             'portfolio when you commit.</div>')
     flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your watchlist.</div>'
              if added else "")
+    if err:
+        flash += f'<div class="banner b-off">{_esc(err)}</div>'
+    addbox = _add_box("watch")
     if not rows:
-        empty = ('<div class="empty">No watchlist items yet. On any stock page hit '
-                 '<b>+ Track</b> → <b>Watchlist</b>.</div>')
-        body = _TRACK_CSS + _track_subnav("watchlists") + intro + flash + empty
+        empty = ('<div class="empty">No watchlist items yet. Add one above, or on any stock '
+                 'page hit <b>+ Track</b> → <b>Watchlist</b>.</div>')
+        body = _TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + empty
         return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
     trs = []
     for r in rows:
@@ -2892,7 +2947,7 @@ def dash_watchlists(added: str = Query("")) -> HTMLResponse:
             '</tr>')
     head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Strategy</th><th>Added</th>'
             '<th>Live signals</th><th>Note</th><th></th></tr></thead><tbody>')
-    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash
+    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox
             + head + "".join(trs) + "</tbody></table>")
     return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
 
