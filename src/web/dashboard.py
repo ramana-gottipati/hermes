@@ -3136,7 +3136,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
         ac = _equities_ac_json()
         live = {}
         for sym in {r["symbol"] for r in rows}:
-            live[sym] = _capture_snapshot(conn, sym)[1]
+            c, snap, _ = _capture_snapshot(conn, sym)
+            live[sym] = (c, snap)
     sel_book = book.strip()
     if sel_book:
         rows = [r for r in rows if (r.get("book") or "Main") == sel_book]
@@ -3160,18 +3161,29 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
     trs = []
     for r in rows:
         sym = r["symbol"]
+        cmp_, snap = live.get(sym, (None, {}))
+        try:
+            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
+        except Exception:
+            thn = {}
+        then = thn.get("close")     # frozen close on the day it was added
+        chg = ((cmp_ - then) / then * 100.0) if (cmp_ and then) else None
         trs.append(
             '<tr>'
             f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
             f'<td class="l mut">{_esc(r.get("book") or "Main")}</td>'
             f'<td class="l mut">{_esc(r["strategy"])}</td>'
             f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
-            f'<td class="l">{_snap_chips(live.get(sym, {}))}</td>'
+            f'<td class="num">{_num(then, 1)}</td>'
+            f'<td class="num">{_num(cmp_, 1)}</td>'
+            f'<td class="num">{_pct(chg)}</td>'
+            f'<td class="l">{_snap_chips(snap)}</td>'
             f'<td class="l mut">{_esc(r["entry_thesis"] or "—")}</td>'
             f'<td class="l">{_id_form("/dash/track/promote", r["id"], "Promote", cls="tbtn tbtn-go")}'
             f'{_id_form("/dash/track/remove", r["id"], "Remove", confirm="Remove from watchlist?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Book</th><th>Strategy</th><th>Added</th>'
+            '<th>Price then</th><th>CMP</th><th>Chg %</th>'
             '<th>Live signals</th><th>Note</th><th></th></tr></thead><tbody>')
     body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + chips
             + head + "".join(trs) + "</tbody></table>")
