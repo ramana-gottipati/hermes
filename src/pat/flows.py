@@ -91,15 +91,29 @@ RS_ALIGN: dict[str, str] = {
 RS_LIMIT = 60
 
 
-def build_rs_query(sector: str = "", strength: str = "", align: str = "") -> tuple[str, list]:
+# window chip -> (column label, RS-slope suffix). Maps a question's timeframe onto
+# which RS slope to RANK BY + SHOW ("over the last month" -> 1m), so the reporting
+# follows the ask instead of a fixed 3m.
+RS_WINDOW = {
+    "":    ("RS 3M", "3m"),
+    "1m":  ("RS 1M", "1m"),
+    "6m":  ("RS 6M", "6m"),
+    "12m": ("RS 1Y", "12m"),
+}
+
+
+def build_rs_query(sector: str = "", strength: str = "", align: str = "",
+                   window: str = "") -> tuple[str, list]:
     """Compile the RS-leaders screen to a read-only SELECT over stock_signals.
 
-    High rs_rank (cross-stock momentum percentile), equity-only, latest date.
-    `sector` narrows to one primary sector; `align='sis'` requires the stock to
-    be above its 200-DMA on BOTH the vs-broad and vs-sector RS lines (the
-    stock-level "strong in strong" read). All values bound via placeholders.
+    `strength` gates on rs_rank; `sector` narrows to one primary sector;
+    `align='sis'` requires above-200-DMA on BOTH RS lines. `window` (1m/3m/6m/12m)
+    chooses which RS slope to RANK BY and DISPLAY — so "strongest over the last
+    month" ranks by the 1m RS, not a fixed 3m. The slope-column suffix comes only
+    from the RS_WINDOW constant (never raw input); all values are bound.
     """
     min_rank = RS_STRENGTH.get(strength, RS_STRENGTH[""])[1]
+    col = "rs_vs_broad_slope_" + RS_WINDOW.get(window, RS_WINDOW[""])[1]
     where = [
         "s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)",
         "s.symbol IN (SELECT symbol FROM nse_equity_list)",
@@ -114,14 +128,14 @@ def build_rs_query(sector: str = "", strength: str = "", align: str = "") -> tup
         where.append("s.rs_vs_broad_above_200ma = 1")
         where.append("s.rs_vs_sector_above_200ma = 1")
     sql = (
-        "SELECT s.symbol, pe.close AS cmp, s.rs_rank, s.rs_vs_broad_slope_3m, "
+        f"SELECT s.symbol, pe.close AS cmp, s.rs_rank, s.{col} AS rs_slope, "
         "s.rs_vs_broad_trend_state, s.rs_vs_sector_trend_state, "
         "s.rs_vs_broad_above_200ma, s.rs_vs_sector_above_200ma, "
         "s.primary_sector, s.trigger_rank, s.accum_character, s.delivery_value_today "
         "FROM stock_signals s "
         "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
         "WHERE " + " AND ".join(where) + " "
-        "ORDER BY s.rs_rank DESC, s.symbol "
+        f"ORDER BY (s.{col} IS NULL), s.{col} DESC, s.symbol "
         "LIMIT " + str(RS_LIMIT)
     )
     return sql, params

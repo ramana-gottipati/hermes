@@ -22,7 +22,7 @@ import re
 from src.core.llm_router import call_classifier
 from src.pat.glossary import GLOSSARY
 from src.pat.flows import (
-    ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN,
+    ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR,
     MOVERS_DIR, MOVERS_LIQ,
 )
@@ -31,7 +31,8 @@ from src.pat.flows import (
 # "free" = any non-empty string allowed (validated/parameterized downstream).
 _VALID: dict[str, dict] = {
     "accumulation": {"strength": set(ACC_STRENGTH), "entry": set(ACC_ENTRY), "sector": "free"},
-    "rs":           {"strength": set(RS_STRENGTH), "align": set(RS_ALIGN), "sector": "free"},
+    "rs":           {"strength": set(RS_STRENGTH), "align": set(RS_ALIGN), "sector": "free",
+                     "window": set(RS_WINDOW)},
     "fundamentals": {"val": set(FUND_VAL), "qual": set(FUND_QUAL), "grow": set(FUND_GROW),
                      "bs": set(FUND_BS), "own": set(FUND_OWN), "sector": set(FUND_SECTOR)},
     "movers":       {"direction": set(MOVERS_DIR), "liq": set(MOVERS_LIQ)},
@@ -50,6 +51,7 @@ def _menu() -> str:
         "   strength: '' (RS>=80) | 'elite' (RS>=90) | 'above' (RS>=50)",
         "   align: '' (any) | 'sis' (strong-in-strong: beating market AND sector)",
         "   sector: a sector name or '' for all",
+        "   window: '' (3m) | '1m' (last month) | '6m' | '12m' (last year) — SET FROM THE QUESTION'S TIMEFRAME",
         "3. fundamentals — screen on valuation/quality/growth/balance-sheet.",
         "   val: '' (PE<25) | 'deep' (PE<15) | 'growthok' (PE<40) | 'any'",
         "   qual: '' (ROCE>18) | 'elite' (ROCE>22) | 'decent' (ROCE>14) | 'any'",

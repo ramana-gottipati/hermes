@@ -19,7 +19,7 @@ from urllib.parse import quote_plus
 
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
 from src.pat.flows import (
-    ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN,
+    ACC_STRENGTH, ACC_ENTRY, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR, NAMED_SCREENS,
     MOVERS_DIR, MOVERS_LIQ,
     build_accumulation_query, build_accumulation_sectors_query,
@@ -441,7 +441,7 @@ def _txt(v) -> str:
     return f'<span class="mut">{_esc(v)}</span>' if v else '<span class="mut">—</span>'
 
 
-def _rs_url(sector: str, strength: str, align: str) -> str:
+def _rs_url(sector: str, strength: str, align: str, window: str = "") -> str:
     qs = ["flow=rs"]
     if sector:
         qs.append("sector=" + _u(sector))
@@ -449,12 +449,14 @@ def _rs_url(sector: str, strength: str, align: str) -> str:
         qs.append("strength=" + _u(strength))
     if align:
         qs.append("align=" + _u(align))
+    if window:
+        qs.append("entry=" + _u(window))   # reuse the captured `entry` route param for the RS window
     return "/dash/pat?" + "&".join(qs)
 
 
-def _rs_table(rows) -> str:
+def _rs_table(rows, win_label: str = "RS 3M") -> str:
     head = ('<div class="patTable"><table class="dt"><thead><tr>'
-            '<th>Symbol</th><th>CMP</th><th>RS</th><th>RS 3m</th><th>vs broad</th>'
+            '<th>Symbol</th><th>CMP</th><th>RS</th><th>' + _esc(win_label) + '</th><th>vs broad</th>'
             '<th>vs sector</th><th>SiS</th><th>Sector</th><th>Pos</th><th>Character</th>'
             '</tr></thead><tbody>')
     rws = []
@@ -465,7 +467,7 @@ def _rs_table(rows) -> str:
             f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
             f'<td>{_n(r["cmp"])}</td>'
             f'<td>{_int(r["rs_rank"])}</td>'
-            f'<td>{_sgn(r["rs_vs_broad_slope_3m"])}</td>'
+            f'<td>{_sgn(r["rs_slope"])}</td>'
             f'<td>{_txt(r["rs_vs_broad_trend_state"])}</td>'
             f'<td>{_txt(r["rs_vs_sector_trend_state"])}</td>'
             f'<td>{_yn(sis)}</td>'
@@ -477,18 +479,21 @@ def _rs_table(rows) -> str:
     return head + "".join(rws) + '</tbody></table></div>'
 
 
-def _rs_flow(conn, sector: str, strength: str, align: str) -> str:
+def _rs_flow(conn, sector: str, strength: str, align: str, window: str = "") -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
-        _q_bubble("RS leaders — the names the market is voting for. Filter by strength, "
-                  "sector, or 'strong in strong' (beating BOTH the market and its sector):"),
-        '<div class="ghdr">Strength</div><div class="patChips">',
+        _q_bubble("RS leaders — the names the market is voting for. The window ranks + "
+                  "shows that timeframe; also filter by strength, sector, or strong-in-strong:"),
+        '<div class="ghdr">Window</div><div class="patChips">',
     ]
+    for key, (lbl, _s) in RS_WINDOW.items():
+        out.append(_chip_sel(_rs_url(sector, strength, align, key), lbl, key == window))
+    out.append('</div><div class="ghdr">Strength</div><div class="patChips">')
     for key, (lbl, _r) in RS_STRENGTH.items():
-        out.append(_chip_sel(_rs_url(sector, key, align), lbl, key == strength))
+        out.append(_chip_sel(_rs_url(sector, key, align, window), lbl, key == strength))
     out.append('</div><div class="ghdr">Alignment</div><div class="patChips">')
     for key, lbl in RS_ALIGN.items():
-        out.append(_chip_sel(_rs_url(sector, strength, key), lbl, key == align))
+        out.append(_chip_sel(_rs_url(sector, strength, key, window), lbl, key == align))
     out.append('</div>')
 
     sectors = []
@@ -498,9 +503,9 @@ def _rs_flow(conn, sector: str, strength: str, align: str) -> str:
         except Exception:
             sectors = []
     out.append('<div class="ghdr">Sector</div><div class="patChips">')
-    out.append(_chip_sel(_rs_url("", strength, align), "All sectors", sector == ""))
+    out.append(_chip_sel(_rs_url("", strength, align, window), "All sectors", sector == ""))
     for r in sectors:
-        out.append(_chip_sel(_rs_url(r["sector"], strength, align),
+        out.append(_chip_sel(_rs_url(r["sector"], strength, align, window),
                              f'{r["sector"]} ({r["c"]})', sector == r["sector"]))
     out.append('</div>')
 
@@ -508,13 +513,14 @@ def _rs_flow(conn, sector: str, strength: str, align: str) -> str:
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_rs_query(sector, strength, align)
+        sql, params = build_rs_query(sector, strength, align, window)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
+    win_label = RS_WINDOW.get(window, RS_WINDOW[""])[0]
     tag = f' · {_esc(sector)}' if sector else ''
-    out.append(f'<div class="ghdr">Leaders{tag} ({len(rows)})</div>')
-    out.append(_rs_table(rows) if rows
+    out.append(f'<div class="ghdr">Leaders · {_esc(win_label)}{tag} ({len(rows)})</div>')
+    out.append(_rs_table(rows, win_label) if rows
                else '<div class="empty">No RS leaders match — loosen the filters.</div>')
     return "".join(out)
 
@@ -708,7 +714,8 @@ def _free_text(conn, q: str) -> str:
         if f == "accumulation":
             body = _accumulation_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("entry", ""))
         elif f == "rs":
-            body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""))
+            body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""),
+                            p.get("window", ""))
         elif f == "fundamentals":
             body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
@@ -742,7 +749,8 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "accumulation":
         body = _accumulation_flow(conn, sector, strength, (entry or "").strip().lower())
     elif flow == "rs":
-        body = _rs_flow(conn, sector, strength, (align or "").strip().lower())
+        body = _rs_flow(conn, sector, strength, (align or "").strip().lower(),
+                        (entry or "").strip().lower())
     elif flow == "fundamentals":
         body = _fundamentals_flow(conn, (val or "").strip().lower(), (qual or "").strip().lower(),
                                   (grow or "").strip().lower(), (bs or "").strip().lower(),
