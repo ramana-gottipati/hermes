@@ -147,8 +147,38 @@ def _build_system(query: str) -> str:
 
 
 def _fewshot_block() -> str:
-    """Hook for §4.4.2 few-shot — filled in by the correction-learning increment."""
-    return ""
+    """Few-shot examples mined from the correction store (§4.4.2): confirmed 👍
+    routings teach the user's phrasings; 👎 corrections teach what they actually
+    wanted when Pat missed. ₹0, fails open to '' when the store is empty.
+
+    The positives are rendered in the EXACT output format the model must emit, so
+    they double as format anchors. The same store is the labeled dataset to later
+    fine-tune an OWNED offline model (NOT the borrowed Nous agent)."""
+    try:
+        from src.pat import feedback
+        positives = feedback.recent_positive_examples(limit=6)
+        corrections = feedback.recent_corrections(limit=4)
+    except Exception:
+        return ""
+    if not positives and not corrections:
+        return ""
+    lines = ["LEARNED FROM THIS ANALYST — prefer these mappings; they were confirmed "
+             "(👍) or corrected (👎) by the user on earlier answers:"]
+    for ex in positives:
+        params = ex.get("params") or {}
+        if ex.get("flow") == "explain":
+            tgt = '{"flow":"explain","explain":"%s"}' % params.get("explain", "")
+        else:
+            tgt = json.dumps({"flow": ex.get("flow"), "params": params},
+                             separators=(",", ":"), ensure_ascii=False)
+        lines.append(f'  "{ex.get("query", "")}" -> {tgt}')
+    for cx in corrections:
+        exp = (cx.get("expected_text") or "").strip()
+        if not exp:
+            continue
+        lines.append(f'  "{cx.get("query", "")}" -> the analyst did NOT want '
+                     f'{cx.get("flow") or "that"}; they wanted: {exp}')
+    return "\n".join(lines)
 
 
 def _low_conf_clarify(query: str, sel: dict):

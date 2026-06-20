@@ -162,8 +162,12 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
 - ✅ `[engine]` P1 — confidence-threshold clarify SHIPPED (Nous Hermes #2): the model
   emits a `confidence`; below 50 the pick becomes a clarify among the plausible flows
   (its choice + the flows the analyst's vocabulary points at).
-- ⬜ `[engine]` P1 — few-shot from recent corrections (§4.4.2): inject the last N
-  corrections into the prompt so routing learns the user's phrasings.
+- ✅ `[engine]` P1 — few-shot from the correction store SHIPPED (§4.4.2):
+  `engine._fewshot_block()` injects the last ~6 confirmed 👍 routings (rendered in
+  the exact output JSON, so they double as format anchors) + ~4 👎 corrections
+  ("they did NOT want X; they wanted: <expected>") into the routing prompt. ₹0,
+  fails open to '' before any learning. The same store is the labeled dataset for
+  the future OWNED offline model.
 - ⬜ `[thread]` P1 — conversational refinement (§6) + implicit re-ask detection.
 - ⬜ `[all flows]` P1 — extend "reporting follows the question" (§3.2) beyond RS:
   accumulation timeframe (D/W/M), fundamentals emphasis, movers window (today vs
