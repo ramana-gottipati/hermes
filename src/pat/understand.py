@@ -35,16 +35,26 @@ from urllib.parse import quote_plus
 
 # ── the intent vocabulary (closed sets — the single source of truth) ──────────
 UNIVERSES = {"stock", "index", "sector"}
-METRICS = {"return", "rs", "delivery", "valuation", "quality", "growth", "price_move"}
+# pt14 = the 14-pattern quality TIER screen (distinct from fundamentals "quality");
+# avoid = the hard-disqualifier kill-list (the framework's own "reject" verdict).
+METRICS = {"return", "rs", "delivery", "valuation", "quality", "growth", "price_move",
+           "pt14", "avoid"}
 WINDOWS = {"1d", "1w", "1m", "3m", "6m", "1y"}
 ORDERS = {"best", "worst"}
 OPS = {">", "<", ">=", "<=", "improving", "declining"}
+# the strong-hand delivery CHARACTER (accumulation flow); distribution = exiting.
+CHARACTERS = {"accumulation", "distribution", "consolidation"}
+TASKS = {"rank", "explain", "stock"}
 
 _WS = re.compile(r"\s+")
 
 
 def _norm(q: str) -> str:
     return _WS.sub(" ", (q or "").strip().lower())
+
+
+def _has_any(q: str, phrases) -> bool:
+    return any(p in q for p in phrases)
 
 
 # ── window mappers: an intent window → each flow's own window-chip key ─────────
@@ -77,6 +87,12 @@ def validate_intent(obj) -> dict | None:
     if task == "explain":
         slug = obj.get("explain") or obj.get("term")
         return {"task": "explain", "explain": slug} if slug else None
+    if task == "stock":              # single-symbol card ("tell me about INFY")
+        sym = obj.get("symbol") or obj.get("ticker")
+        return {"task": "stock", "symbol": str(sym).strip()} if sym and str(sym).strip() else None
+    if task == "ood":                # out-of-domain → a boundary clarify, never an answer
+        kind = obj.get("kind")
+        return {"task": "ood", "kind": kind if kind in ("advisory", "prediction", "feature", "asset") else "advisory"}
 
     universe = obj.get("universe")
     if universe not in UNIVERSES:
@@ -118,18 +134,21 @@ def validate_intent(obj) -> dict | None:
     if isinstance(raw_scope.get("index"), str) and raw_scope["index"].strip():
         scope["index"] = raw_scope["index"].strip()
 
+    character = obj.get("character")
+    if character not in CHARACTERS:
+        character = None
+
     conf = obj.get("confidence")
     try:
         conf = int(conf)
     except (TypeError, ValueError):
         conf = None
 
-    if not rank and not filters and not scope:
+    if not rank and not filters and not scope and not character:
         # nothing actionable parsed
         return None
-    return {"task": task if task in ("rank", "explain") else "rank",
-            "universe": universe, "rank": rank, "filters": filters,
-            "scope": scope, "confidence": conf}
+    return {"task": "rank", "universe": universe, "rank": rank, "filters": filters,
+            "scope": scope, "character": character, "confidence": conf}
 
 
 # ── clarify / unsupported helpers (clarify-shaped so web renders them as-is) ──
@@ -179,10 +198,18 @@ def compile_intent(intent: dict) -> dict | None:
             pass
         return None
 
+    if intent.get("task") == "stock":     # single-symbol snapshot / red-flag card
+        sym = (intent.get("symbol") or "").strip()
+        return {"flow": "card", "params": {"sym": sym}} if sym else None
+
+    if intent.get("task") == "ood":       # advisory / prediction / feature / wrong-asset
+        return ood_clarify(intent.get("kind"))
+
     universe = intent.get("universe", "stock")
     rank = intent.get("rank") or {}
     filters = intent.get("filters") or []
     scope = intent.get("scope") or {}
+    character = intent.get("character")
     metric = rank.get("metric")
     window = rank.get("window")
     order = rank.get("order")
@@ -193,8 +220,9 @@ def compile_intent(intent: dict) -> dict | None:
     if universe in ("index", "sector"):
         # If they want stock-level facts ABOUT a sector (delivery/valuation/quality),
         # that's a stock screen scoped to the sector, not an index-performance pull.
-        if metric in ("delivery", "valuation", "quality", "growth") and universe == "sector":
-            return _compile_stock(metric, window, order, filters, scope, turning)
+        if (metric in ("delivery", "valuation", "quality", "growth", "pt14", "avoid")
+                or character) and universe == "sector":
+            return _compile_stock(metric, window, order, filters, scope, turning, character)
         params: dict = {}
         iw = _index_window(window)
         if iw:
@@ -206,7 +234,7 @@ def compile_intent(intent: dict) -> dict | None:
         return {"flow": "index", "params": params}
 
     # ── STOCK universe ────────────────────────────────────────────────────────
-    return _compile_stock(metric, window, order, filters, scope, turning)
+    return _compile_stock(metric, window, order, filters, scope, turning, character)
 
 
 # Map a parsed fundamentals condition (metric, op, value) → a FUND_* chip key. The
@@ -266,8 +294,25 @@ def _compile_fundamentals(metric, order, filters) -> dict:
     return {"flow": "fundamentals", "params": params}
 
 
-def _compile_stock(metric, window, order, filters, scope, turning) -> dict | None:
+def _compile_stock(metric, window, order, filters, scope, turning, character=None) -> dict | None:
     sector = scope.get("sector", "") if isinstance(scope, dict) else ""
+
+    # Special framework screens (no metric ranking): the kill-list + the pt14 tiers.
+    if metric == "avoid":
+        return {"flow": "disqualified", "params": {}}
+    if metric == "pt14":
+        return {"flow": "pt14", "params": {}}
+
+    # Strong-hand delivery CHARACTER — distribution (exiting) / consolidation (coiling)
+    # ride the accumulation flow's `character` chip (the catalog §3.1 cheap win).
+    if character in ("distribution", "consolidation"):
+        params = {"character": character}
+        aw = _acc_window(window)
+        if aw:
+            params["window"] = aw
+        if sector:
+            params["sector"] = sector
+        return {"flow": "accumulation", "params": params}
 
     if metric == "price_move":
         params = {}
@@ -279,23 +324,17 @@ def _compile_stock(metric, window, order, filters, scope, turning) -> dict | Non
         return {"flow": "movers", "params": params}
 
     if metric in ("rs", "return"):
-        # "return" at the STOCK level has no absolute-return screen; relative
-        # strength (RS) is the performance proxy. Worst-side has no stock screen —
-        # be honest and redirect rather than dump leaders (the original bug).
-        if order == "worst":
-            return _clarify(
-                "unsupported",
-                "I don't have a worst-performing-STOCKS screen yet. Did you mean the "
-                "worst-performing INDICES, or RS leaders (the strong stocks)?",
-                [{"label": "Worst-performing indices", "href": "/dash/pat?flow=index&strength=laggards&entry=1y"},
-                 {"label": "RS leaders (strong stocks)", "href": "/dash/pat?flow=rs"}],
-            )
+        # "return" at the STOCK level uses relative strength as the performance proxy.
+        # WORST = the RS-laggard side (now a real screen via the `direction` chip —
+        # §3.2, the flip of the old honest-but-dead-end unsupported redirect).
         params = {}
         rw = _rs_window(window)
         if rw:
             params["window"] = rw
         if sector:
             params["sector"] = sector
+        if order == "worst":
+            params["direction"] = "laggards"
         return {"flow": "rs", "params": params}
 
     if metric == "delivery":
@@ -330,26 +369,110 @@ SYSTEM_PARSE = (
     "(a sectoral/thematic NSE index, e.g. Nifty IT, Nifty Realty), or a 'sector'? "
     "If it says 'index'/'indices'/'sector', the universe is NOT stock.\n"
     "  STEP 2 — RANK: the single metric the result is ORDERED by, its window, and "
-    "order. metric ∈ [return, rs, delivery, valuation, quality, growth, price_move]; "
-    "window ∈ [1d,1w,1m,3m,6m,1y]; order ∈ [best, worst]. 'worst/laggard/weakest' = "
-    "worst; 'best/top/strongest/leaders' = best.\n"
+    "order. metric ∈ [return, rs, delivery, valuation, quality, growth, price_move, "
+    "pt14, avoid]; window ∈ [1d,1w,1m,3m,6m,1y]; order ∈ [best, worst]. "
+    "'worst/laggard/weakest/underperform' = worst; 'best/top/strongest/leaders' = best. "
+    "Use 'pt14' for the 14-pattern quality TIER ('pt14', 'Tier-1', 'T1 names', 'passes "
+    "the quality gate') — distinct from 'quality' (ROCE/valuation). Use 'avoid' for the "
+    "hard-disqualifier KILL-LIST ('stocks to avoid', 'red-flag stocks', 'what did "
+    "Patearn reject', 'disqualified names').\n"
     "  STEP 3 — FILTERS: every ADDITIONAL condition, each as its own {metric,window,"
     "op,value}. op ∈ [>,<,>=,<=,improving,declining]. A phrase like 'started "
     "performing better in the last month' / 'turning up' / 'recovering' is a filter "
     "{metric:return, window:1m, op:improving}. This list is how a TWO-WINDOW ask "
-    "('worst over 1Y AND improving over 1M') is captured — never collapse it to one.\n"
+    "('worst over 1Y AND improving over 1M') is captured — never collapse it to one. "
+    "Keep the op: 'overvalued'/'PE over 80'/'expensive' is op '>' (NOT cheap); "
+    "'under PE 15'/'cheap' is op '<'.\n"
+    "  CHARACTER: for strong-hand DELIVERY, set character ∈ [accumulation (default, "
+    "smart money BUYING), distribution (smart money EXITING/'being dumped'/'topping "
+    "out'), consolidation (coiling)] alongside metric 'delivery'.\n"
+    "  SINGLE STOCK: 'tell me about INFY' / \"what's wrong with RELIANCE\" / 'is X a "
+    "value trap' → {\"task\":\"stock\",\"symbol\":\"<TICKER>\"}.\n"
+    "  BOUNDARY: for buy/sell/hold ADVICE, PRICE PREDICTIONS/targets/timing, alerts/"
+    "trades/portfolio actions, or NON-equity assets (gold, crypto, F&O/options, US "
+    "indices, bonds), reply {\"task\":\"ood\",\"kind\":\"advisory|prediction|feature|asset\"} "
+    "— never screen or answer literally.\n"
     "Also set scope.sector or scope.index when named, and a 0-100 confidence.\n"
     "For a 'what is X' / 'define' question, reply {\"task\":\"explain\",\"explain\":\"<term>\"}.\n"
     "Reply with COMPACT JSON ONLY, no prose:\n"
     '{"task":"rank","universe":"stock|index|sector",'
     '"rank":{"metric":..,"window":..,"order":..},'
     '"filters":[{"metric":..,"window":..,"op":..,"value":..}],'
-    '"scope":{"sector":..,"index":..},"confidence":0-100}\n'
-    "WORKED EXAMPLE — 'worst performing index in the last one year that started "
-    "performing better in the past month':\n"
+    '"character":..,"scope":{"sector":..,"index":..},"confidence":0-100}\n'
+    "WORKED EXAMPLES:\n"
+    "'worst performing index over the last year that started performing better in the "
+    "past month' → "
     '{"task":"rank","universe":"index","rank":{"metric":"return","window":"1y","order":"worst"},'
-    '"filters":[{"metric":"return","window":"1m","op":"improving"}],"scope":{},"confidence":95}'
+    '"filters":[{"metric":"return","window":"1m","op":"improving"}],"confidence":95}\n'
+    "'stocks under distribution in IT' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"delivery"},"character":"distribution",'
+    '"scope":{"sector":"IT"},"confidence":90}\n'
+    "'weakest stocks this month' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"rs","window":"1m","order":"worst"},"confidence":90}\n'
+    "'overvalued stocks' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"valuation","order":"worst"},"confidence":85}\n'
+    "'stocks to avoid' → {\"task\":\"rank\",\"universe\":\"stock\",\"rank\":{\"metric\":\"avoid\"},\"confidence\":90}"
 )
+
+
+# ── OOD guardrails (catalog Part 5) — the #1 priority (SEBI-advice liability) ──
+# Advisory / prediction / feature-assumption / wrong-asset are detected here
+# deterministically (and the LLM is told to flag them); compile_intent turns the
+# flag into a calm BOUNDARY clarify — never a literal answer or a silent empty pull.
+_OOD_ADVISORY = ["should i buy", "should i sell", "should i hold", "should i exit",
+                 "what to buy", "what should i buy", "is it safe", "safe to invest",
+                 "will i make money", "double my money", "make me rich",
+                 "right time to invest", "do you agree", "guaranteed", "best stock to buy"]
+_OOD_PREDICT = ["predict", "price target", "target price", "will it bounce", "will it go up",
+                "next week", "tomorrow's", "forecast", "in 6 months", "by friday",
+                "goes up tomorrow", "future price", "where will"]
+_OOD_FEATURE = ["set an alert", "set alert", "notify me", "buy 10", "sell my", "stop loss",
+                "add to my watchlist", "my portfolio", "intraday tip", "place an order"]
+_OOD_ASSET = ["gold price", "crude", "usd/inr", "bitcoin", "crypto", "nasdaq", "s&p 500",
+              "hang seng", "option chain", "max pain", "open interest", "f&o ban",
+              "nifty futures", "nifty options", "g-sec", "sovereign gold"]
+
+
+def _detect_ood(qn: str):
+    if _has_any(qn, _OOD_ADVISORY):
+        return "advisory"
+    if _has_any(qn, _OOD_PREDICT):
+        return "prediction"
+    if _has_any(qn, _OOD_FEATURE):
+        return "feature"
+    if _has_any(qn, _OOD_ASSET):
+        return "asset"
+    return None
+
+
+_OOD_MSG = {
+    "advisory": ("I'm a screening tool, not a SEBI-registered adviser — I can't tell you what "
+                 "to buy, sell or hold. But I can show you the facts to decide for yourself:",
+                 [("RS / momentum leaders", "RS leaders"),
+                  ("Quality & value screen", "quality compounders"),
+                  ("Strong-hand delivery", "stocks being accumulated now")]),
+    "prediction": ("I report what the data shows right now — I don't forecast prices or timing. "
+                   "Here's the current picture:",
+                   [("Today's movers", "biggest movers today"),
+                    ("Sectors turning up", "beaten-down indices reversing"),
+                    ("RS leaders", "RS leaders")]),
+    "feature": ("I can't set alerts, place trades or track a portfolio — I'm search-only. "
+                "What I CAN do:",
+                [("Today's movers", "biggest movers today"),
+                 ("Screen by fundamentals", "quality compounders"),
+                 ("Explain a metric", "what is RS rank")]),
+    "asset": ("I only cover NSE cash equities and sectoral indices — no commodities, FX, crypto, "
+              "F&O or foreign markets. Within that I can show:",
+              [("Index performance", "best performing sectoral index this month"),
+               ("Today's movers", "biggest movers today"),
+               ("RS leaders", "RS leaders")]),
+}
+
+
+def ood_clarify(kind: str) -> dict:
+    msg, opts = _OOD_MSG.get(kind, _OOD_MSG["advisory"])
+    return {"flow": "clarify", "reason": "boundary", "question": msg,
+            "chips": [{"label": l, "href": _href(q)} for l, q in opts]}
 
 
 # ── degraded deterministic fallback (ONLY when the model is unavailable) ───────
@@ -361,15 +484,48 @@ def parse_fallback(query: str) -> dict | None:
         qn = _norm(query)
         from src.pat import disambiguate as D
 
+        # OOD guardrails FIRST (advisory / prediction / feature / non-equity asset)
+        ood = _detect_ood(qn)
+        if ood:
+            return {"task": "ood", "kind": ood}
+
+        # single-stock card — BEFORE the explain "what's" catch, since "what's wrong
+        # with X" must resolve to the stock, not a glossary definition.
+        for lead in ("tell me about ", "what's wrong with ", "whats wrong with ",
+                     "pull up ", "red flags in "):
+            if qn.startswith(lead):
+                tok = query.strip()[len(lead):].strip(" ?.")
+                tok = tok.split(" a value trap")[0].split(" looking")[0].split(" being")[0].strip()
+                if 0 < len(tok) <= 20 and " " not in tok:
+                    return {"task": "stock", "symbol": tok.upper()}
+
         # explain
         if D._has_any(qn, D.SYNONYMS["explain"]):
             return None      # let the glossary keyword search handle definitions
+
+        # kill-list / pt14 — special framework screens (checked before metric)
+        if D._has_any(qn, ["avoid", "red-flag", "red flag", "kill-list", "kill list",
+                           "disqualif", "stocks to stay away", "reject"]):
+            return {"task": "rank", "universe": "stock", "rank": {"metric": "avoid"},
+                    "filters": [], "scope": {}, "character": None, "confidence": 55}
+        if D._has_any(qn, ["pt14", "pt 14", "tier-1", "tier 1", "t1 ", "quality gate",
+                           "14 pattern", "14-pattern"]):
+            return {"task": "rank", "universe": "stock", "rank": {"metric": "pt14"},
+                    "filters": [], "scope": {}, "character": None, "confidence": 55}
 
         universe = "stock"
         if D._has_any(qn, ["index", "indices", "sectoral", "sector rotation",
                            "which sector", "sector performance"]) \
                 and not D._has_any(qn, D._CONSTITUENT):
             universe = "index"
+
+        # strong-hand delivery character — distribution (exiting) / consolidation
+        character = None
+        if D._has_any(qn, ["distribut", "being dumped", "smart money exiting",
+                           "strong hands selling", "topping out", "rolling over"]):
+            character = "distribution"
+        elif D._has_any(qn, ["consolidat", "coiling"]):
+            character = "consolidation"
 
         # worst checked first so "top losers" (top + loser) reads as worst, not best
         order = "worst" if D._has_any(qn, ["worst", "laggard", "weakest", "underperform",
@@ -393,17 +549,24 @@ def parse_fallback(query: str) -> dict | None:
 
         # metric
         cs = D._concepts(qn)
-        if universe == "index":
+        if D._has_any(qn, ["overvalued", "over-valued", "expensive", "frothy", "bubble"]):
+            metric = "valuation"     # expensive end → compiler maps worst-valuation to "rich"
+            order = "worst"
+        elif universe == "index":
             metric = "return"
+        elif character:
+            metric = "delivery"      # distribution/consolidation ride the delivery flow
         elif "movers" in cs or D._has_any(qn, ["today", "intraday", "gainer", "loser", "moved"]):
             metric = "price_move"
         elif "fundamentals" in cs:
-            metric = "valuation" if D._has_any(qn, ["valuation", "cheap", "p/e", "pe ratio", "undervalued"]) \
+            metric = "valuation" if D._has_any(qn, ["valuation", "cheap", "p/e", "pe ratio", "undervalued", "expensive", "overvalued"]) \
                 else ("growth" if "growth" in qn else "quality")
         elif "accumulation" in cs:
             metric = "delivery"
         elif "rs" in cs:
             metric = "rs"
+        elif order is not None:
+            metric = "rs"            # "strongest/weakest stocks" → RS is the proxy
         else:
             metric = None
 
@@ -421,9 +584,9 @@ def parse_fallback(query: str) -> dict | None:
             rank["window"] = window
         if order:
             rank["order"] = order
-        if not rank and not filters:
+        if not rank and not filters and not character:
             return None
         return {"task": "rank", "universe": universe, "rank": rank,
-                "filters": filters, "scope": {}, "confidence": 55}
+                "filters": filters, "scope": {}, "character": character, "confidence": 55}
     except Exception:
         return None
