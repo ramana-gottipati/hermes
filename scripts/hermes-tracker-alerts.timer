@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes Tracker Alerts Timer
+Requires=hermes-tracker-alerts.service
+
+[Timer]
+# 22:30 IST = 17:00 UTC — after the daily bhav ingest (14:00 UTC) + signal compute,
+# so alerts are evaluated against the day's fresh EOD data and land in the evening.
+OnCalendar=*-*-* 17:00:00
+Persistent=true
+Unit=hermes-tracker-alerts.service
+
+[Install]
+WantedBy=timers.target
