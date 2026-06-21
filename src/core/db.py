@@ -634,6 +634,10 @@ def _init() -> None:
         _ensure_column(conn, "stocks_in_play", "book", "TEXT NOT NULL DEFAULT 'Main'")
         # 2c. Share quantity (absolute ₹ P&L / invested / current value).
         _ensure_column(conn, "stocks_in_play", "qty", "REAL")
+        # 2d. Per-item alert rules (Tracker Step 5) — a JSON list of rule dicts
+        # ({"t": type, "v": threshold}); evaluated EOD on page-load + (future) a
+        # nightly timer. Surfaces "firing now" on Watchlists + Dashboard.
+        _ensure_column(conn, "stocks_in_play", "alerts_json", "TEXT")
         # 3. Index on the new column (now guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_conv_tg_user ON conversations(telegram_user_id, id DESC)"

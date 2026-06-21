@@ -31,7 +31,7 @@ import re
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
-from fastapi import APIRouter, File, Form, Query, UploadFile
+from fastapi import APIRouter, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 
 from src.automation import adjust
@@ -3353,6 +3353,152 @@ def _attrib_bars(title, pairs, top_n=8):
     return "".join(out)
 
 
+# --- Watchlist alerts engine (Step 5) — EOD-evaluated, in-app surfaced -------
+# Rules live in stocks_in_play.alerts_json (a JSON list of {"t": type, "v": num}).
+# Evaluated on page-load — the daily bhav ingest is the natural cadence. Telegram
+# push stays deferred (the bot is network-blocked); firing rules surface in-app on
+# Watchlists + Dashboard. "Ready to act" is automatic (zero-config) off live signals.
+_ALERT_DEFS = [
+    ("cross_up",     "Price ≥",                   True,  "₹"),
+    ("cross_down",   "Price ≤",                   True,  "₹"),
+    ("pct_since",    "Move since add ≥",          True,  "%"),
+    ("near_52h",     "Near 52w high (within)",    True,  "%"),
+    ("near_52l",     "Near 52w low (within)",     True,  "%"),
+    ("rs_above",     "RS rank ≥",                 True,  ""),
+    ("char_accum",   "Character flips to ACCUM",  False, ""),
+    ("dvpt_trigger", "DVPT trigger fires (SS/S/A)", False, ""),
+    ("near_target",  "Near target (within)",      True,  "%"),
+    ("near_stop",    "Near / below stop (within)", True, "%"),
+]
+
+
+def _fiftytwo(conn, sym, cache):
+    """(52w high, 52w low) of close over the last ~252 trading days; cached."""
+    if sym in cache:
+        return cache[sym]
+    r = conn.execute(
+        "SELECT MAX(close) hi, MIN(close) lo FROM (SELECT close FROM bhavcopy_rows "
+        "WHERE symbol=? AND series='EQ' AND (segment='CM' OR segment IS NULL) "
+        "ORDER BY trade_date DESC LIMIT 252)", (sym,)).fetchone()
+    out = (r["hi"], r["lo"]) if r else (None, None)
+    cache[sym] = out
+    return out
+
+
+def _eval_alerts(row, sig, cmp_, thn, f52):
+    """The list of fired-rule messages for `row` right now. EOD — 'crosses' is read
+    as 'has reached/passed' at the close. f52 = callable(sym)->(52w_hi, 52w_lo)."""
+    try:
+        rules = json.loads(row.get("alerts_json")) if row.get("alerts_json") else []
+    except Exception:
+        rules = []
+    if not rules:
+        return []
+    sig = sig or {}
+    then = (thn or {}).get("close")
+    out = []
+    for rule in rules:
+        t, v = rule.get("t"), rule.get("v")
+        try:
+            if t == "cross_up" and cmp_ and v is not None and cmp_ >= v:
+                out.append(f"price ₹{cmp_:.1f} ≥ ₹{v:g}")
+            elif t == "cross_down" and cmp_ and v is not None and cmp_ <= v:
+                out.append(f"price ₹{cmp_:.1f} ≤ ₹{v:g}")
+            elif t == "pct_since" and cmp_ and then and v is not None:
+                ch = (cmp_ - then) / then * 100.0
+                if abs(ch) >= v:
+                    out.append(f"{ch:+.1f}% since add")
+            elif t == "near_52h" and cmp_ and v is not None:
+                hi = f52(row["symbol"])[0]
+                if hi and (hi - cmp_) / hi * 100.0 <= v:
+                    out.append(f"within {v:g}% of 52w high ₹{hi:.0f}")
+            elif t == "near_52l" and cmp_ and v is not None:
+                lo = f52(row["symbol"])[1]
+                if lo and (cmp_ - lo) / lo * 100.0 <= v:
+                    out.append(f"within {v:g}% of 52w low ₹{lo:.0f}")
+            elif t == "rs_above" and v is not None and (sig.get("rs_rank") or 0) >= v:
+                out.append(f"RS rank {sig.get('rs_rank')} ≥ {v:g}")
+            elif t == "char_accum" and sig.get("accum_character") == "ACCUMULATION":
+                out.append("character ACCUM")
+            elif t == "dvpt_trigger" and sig.get("trigger_rank") in ("SS", "S", "A"):
+                out.append(f"DVPT trigger {sig.get('trigger_rank')}")
+            elif t == "near_target" and cmp_ and v is not None and row.get("price_target"):
+                tg = row["price_target"]
+                if cmp_ >= tg or (tg - cmp_) / cmp_ * 100.0 <= v:
+                    out.append(f"within {v:g}% of target ₹{tg:g}")
+            elif t == "near_stop" and cmp_ and v is not None and row.get("stop_loss"):
+                st = row["stop_loss"]
+                if cmp_ <= st or (cmp_ - st) / cmp_ * 100.0 <= v:
+                    out.append(f"near/below stop ₹{st:g}")
+        except Exception:
+            continue
+    return out
+
+
+def _ready_to_act(sig):
+    """Automatic 'a strong setup is live NOW' read for a watch item (zero-config):
+    a fresh DVPT trigger, ACCUMULATION near the institutional key price or with
+    strong RS, or an RS leader. Returns a short reason or None."""
+    if not sig:
+        return None
+    char = sig.get("accum_character")
+    rs = sig.get("rs_rank") or 0
+    tr = sig.get("trigger_rank")
+    reasons = []
+    if tr in ("SS", "S"):
+        reasons.append(f"DVPT trigger {tr}")
+    if char == "ACCUMULATION" and is_near_key(sig.get("gap_to_key_p3m")):
+        reasons.append("ACCUM near key price")
+    if char == "ACCUMULATION" and rs >= 70:
+        reasons.append(f"ACCUM + RS {rs}")
+    if rs >= 85 and char != "DISTRIBUTION":
+        reasons.append(f"RS leader {rs}")
+    seen = list(dict.fromkeys(reasons))
+    return " · ".join(seen) if seen else None
+
+
+def _alert_badges(firing, ready):
+    """Compact cell: a green 'ready to act' badge + amber firing-alert chips."""
+    bits = []
+    if ready:
+        bits.append(f'<span class="snap" style="background:#16341f;border-color:#1f6f3a;color:#7ee787">⚡ {_esc(ready)}</span>')
+    for m in firing:
+        bits.append(f'<span class="snap" style="background:#3a3417;border-color:#5a4a1f;color:#ffd99a">🔔 {_esc(m)}</span>')
+    return "".join(bits) or '<span class="mut">—</span>'
+
+
+def _alerts_form(row):
+    """Per-item alert editor (POSTs /dash/track/alerts/save). Tick a rule + set a
+    threshold; pre-filled from the saved alerts_json."""
+    try:
+        existing = {r["t"]: r.get("v")
+                    for r in (json.loads(row["alerts_json"]) if row["alerts_json"] else [])}
+    except Exception:
+        existing = {}
+    lines = []
+    for t, lbl, needs, unit in _ALERT_DEFS:
+        chk = " checked" if t in existing else ""
+        vinput = ""
+        if needs:
+            vv = _rawnum(existing.get(t)) if existing.get(t) is not None else ""
+            vinput = (f'<input name="v_{t}" class="field" inputmode="decimal" style="width:110px" '
+                      f'value="{vv}" placeholder="{unit or "value"}"/>')
+        lines.append(
+            '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #21262d">'
+            f'<label style="flex:1;display:flex;align-items:center;gap:8px;margin:0;cursor:pointer">'
+            f'<input type="checkbox" name="on_{t}"{chk}/> {lbl}</label>{vinput}</div>')
+    return (
+        '<form class="cap" method="post" action="/dash/track/alerts/save">'
+        f'<input type="hidden" name="id" value="{row["id"]}"/>'
+        f'<div style="font-weight:600;margin-bottom:6px">Alerts for {_esc(row["symbol"])}</div>'
+        '<div class="sub" style="margin:0 0 10px">EOD-evaluated on page-load; firing rules show on '
+        'Watchlists + the Dashboard. <span class="mut">Telegram push deferred (bot network-blocked).</span></div>'
+        + "".join(lines)
+        + '<div style="margin-top:12px"><button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save alerts</button>'
+        f'<a class="tbtn" href="/dash/watchlists" style="text-decoration:none;margin-left:8px">Cancel</a></div>'
+        '</form>')
+
+
 def _capture_form(sym, snap):
     """The inline Track capture form (server-rendered; POSTs to /dash/track).
     Entry price + date + the frozen snapshot are captured SERVER-SIDE on submit
@@ -3704,6 +3850,50 @@ def dash_track_remove(id: int = Form(...)) -> RedirectResponse:
     return RedirectResponse("/dash/portfolios", status_code=303)
 
 
+@router.get("/dash/track/alerts", response_class=HTMLResponse)
+def dash_track_alerts(id: int = Query(...)) -> HTMLResponse:
+    """Per-item alert editor (Step 5)."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM stocks_in_play WHERE id=?", (id,)).fetchone()
+    if not row:
+        body = _TRACK_CSS + _track_subnav("watchlists") + '<div class="empty">That item no longer exists.</div>'
+        return HTMLResponse(_shell("Alerts · patearn", body, "watchlists"))
+    row = dict(row)
+    active = "watchlists" if row["status"] == "watch" else "portfolios"
+    body = _TRACK_CSS + _track_subnav(active) + "<h2>Alerts</h2>" + _alerts_form(row)
+    return HTMLResponse(_shell("Alerts · patearn", body, active))
+
+
+@router.post("/dash/track/alerts/save")
+async def dash_track_alerts_save(request: Request) -> RedirectResponse:
+    """Build alerts_json from the editor's dynamic on_<t>/v_<t> fields and save it.
+    A value rule ticked without a valid threshold is dropped (it needs a number)."""
+    form = await request.form()
+    try:
+        rid = int(str(form.get("id")))
+    except (TypeError, ValueError):
+        return RedirectResponse("/dash/watchlists", status_code=303)
+    rules = []
+    for t, _lbl, needs, _unit in _ALERT_DEFS:
+        if not form.get(f"on_{t}"):
+            continue
+        rule = {"t": t}
+        if needs:
+            try:
+                rule["v"] = float(str(form.get(f"v_{t}", "")).replace(",", "").replace("₹", "").strip())
+            except (TypeError, ValueError):
+                continue
+        rules.append(rule)
+    dest = "/dash/watchlists"
+    with get_conn() as conn:
+        r = conn.execute("SELECT status FROM stocks_in_play WHERE id=?", (rid,)).fetchone()
+        if r:
+            dest = "/dash/watchlists" if r["status"] == "watch" else "/dash/portfolios"
+            conn.execute("UPDATE stocks_in_play SET alerts_json=? WHERE id=?",
+                         (json.dumps(rules) if rules else None, rid))
+    return RedirectResponse(dest, status_code=303)
+
+
 @router.get("/dash/portfolios", response_class=HTMLResponse)
 def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
     sel_book = book.strip()
@@ -3871,23 +4061,38 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
 
 @router.get("/dash/watchlists", response_class=HTMLResponse)
 def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
+    sel_book = book.strip()
+    today = datetime.now().strftime("%Y-%m-%d")
     with get_conn() as conn:
-        rows = [dict(r) for r in conn.execute(
+        allrows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='watch' ORDER BY book, date_added DESC").fetchall()]
         books = [r[0] for r in conn.execute(
             "SELECT DISTINCT book FROM stocks_in_play WHERE status='watch' ORDER BY book").fetchall()]
         ac = _equities_ac_json()
+        rows = [r for r in allrows if (r.get("book") or "Main") == sel_book] if sel_book else allrows
+        syms = {r["symbol"] for r in rows}
         live = {}
-        for sym in {r["symbol"] for r in rows}:
+        for sym in syms:
             c, snap, _ = _capture_snapshot(conn, sym)
             live[sym] = (c, snap)
-    sel_book = book.strip()
-    if sel_book:
-        rows = [r for r in rows if (r.get("book") or "Main") == sel_book]
+        enr = _enrich(conn, syms)
+        f52c = {}
+        # evaluate alerts + ready-to-act per row (needs conn for the 52w lookup)
+        alerts = {}
+        for r in rows:
+            sym = r["symbol"]
+            sig = (enr.get(sym) or {}).get("sig") or {}
+            try:
+                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
+            except Exception:
+                thn = {}
+            firing = _eval_alerts(r, sig, live.get(sym, (None, {}))[0], thn,
+                                  lambda s: _fiftytwo(conn, s, f52c))
+            alerts[r["id"]] = (firing, _ready_to_act(sig))
     intro = ('<h2>Watchlists</h2><div class="sub"><b>Ideas you\'re watching</b> — no entry, no '
-             'commitment yet. Keep several named lists. When you act on one, <b>Promote</b> it to a '
-             'Portfolio. Add one below, or from any stock page. <span class="mut">Already committed? '
-             'That belongs in the '
+             'commitment yet. Each shows live signals, a ⚡ <b>ready-to-act</b> read when a strong '
+             'setup is live, and any 🔔 <b>alerts</b> you set firing. <b>Promote</b> when you act. '
+             '<span class="mut">Already committed? That belongs in the '
              '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a>.</span></div>')
     flash = (f'<div class="banner b-on">Added <b>{_esc(added)}</b> to your watchlist.</div>'
              if added else "")
@@ -3900,38 +4105,55 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
                  + (f' in <b>{_esc(sel_book)}</b>' if sel_book else '')
                  + ' yet. Add one above, or on any stock page hit <b>+ Track</b> → <b>Watchlist</b>.</div>')
         body = _TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + chips + empty
-        return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
+        return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists", wide=True))
+    # "ready to act" banner — the watch items now firing a strong setup
+    ready_syms = [r["symbol"] for r in rows if alerts.get(r["id"], ([], None))[1]]
+    ready_banner = ''
+    if ready_syms:
+        ready_banner = ('<div class="banner b-on">⚡ <b>Ready to act</b> — '
+                        + ", ".join(f'<a href="/dash/stock?sym={_q(s)}" style="color:inherit">{_esc(s)}</a>'
+                                    for s in ready_syms[:12])
+                        + ' show a strong setup live now.</div>')
     trs = []
     for r in rows:
         sym = r["symbol"]
         cmp_, snap = live.get(sym, (None, {}))
+        e = enr.get(sym, {})
         try:
             thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
         except Exception:
             thn = {}
         then = thn.get("close")     # frozen close on the day it was added
         chg = ((cmp_ - then) / then * 100.0) if (cmp_ and then) else None
+        dwatch = _days_between(r["date_added"], today)
+        sec = _sector_short(e.get("sector"))
+        sec_cell = _esc(sec) if sec else '<span class="mut">—</span>'
+        dw_cell = f'{dwatch}d' if dwatch is not None else '<span class="mut">—</span>'
+        firing, ready = alerts.get(r["id"], ([], None))
         trs.append(
             '<tr>'
             f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
+            f'<td class="l">{sec_cell}</td>'
             f'<td class="l mut">{_esc(r.get("book") or "Main")}</td>'
             f'<td class="l mut">{_esc(r["strategy"])}</td>'
             f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
+            f'<td class="num">{dw_cell}</td>'
             f'<td class="num">{_num(then, 1)}</td>'
             f'<td class="num">{_num(cmp_, 1)}</td>'
             f'<td class="num">{_pct(chg)}</td>'
             f'<td class="l">{_snap_chips(snap)}</td>'
-            f'<td class="l mut">{_esc(r["entry_thesis"] or "—")}</td>'
-            f'<td class="l"><a class="tbtn" href="/dash/track/edit?id={r["id"]}" style="text-decoration:none">Edit</a> '
+            f'<td class="l">{_alert_badges(firing, ready)}</td>'
+            f'<td class="l"><a class="tbtn" href="/dash/track/alerts?id={r["id"]}" style="text-decoration:none">Alerts</a> '
+            f'<a class="tbtn" href="/dash/track/edit?id={r["id"]}" style="text-decoration:none">Edit</a> '
             f'{_id_form("/dash/track/promote", r["id"], "Promote", cls="tbtn tbtn-go")}'
             f'{_id_form("/dash/track/remove", r["id"], "Remove", confirm="Remove from watchlist?")}</td>'
             '</tr>')
-    head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Book</th><th>Strategy</th><th>Added</th>'
-            '<th>Price then</th><th>CMP</th><th>Chg %</th>'
-            '<th>Live signals</th><th>Note</th><th></th></tr></thead><tbody>')
-    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + chips
+    head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th><th>Added</th>'
+            '<th>Days</th><th>Price then</th><th>CMP</th><th>Chg %</th>'
+            '<th>Live signals</th><th>Signal / alerts</th><th></th></tr></thead><tbody>')
+    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + ready_banner + addbox + chips
             + head + "".join(trs) + "</tbody></table>")
-    return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists"))
+    return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists", wide=True))
 
 
 @router.get("/dash/performance", response_class=HTMLResponse)
@@ -4139,6 +4361,24 @@ def dash_dashboard() -> HTMLResponse:
         xirr = _portfolio_xirr(conn, openrows, cmps)
         news = _holdings_news(conn, allsyms)
         upact = _upcoming_actions(conn, allsyms)
+        # --- alerts firing + ready-to-act (Step 5) ---
+        wcmps = {s: _capture_snapshot(conn, s)[0] for s in (allsyms - osyms)}
+        f52c, fired, ready_now = {}, [], []
+        for r in (openrows + watchrows):
+            sym = r["symbol"]
+            sig = (enr.get(sym) or {}).get("sig") or {}
+            try:
+                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
+            except Exception:
+                thn = {}
+            cmp_a = cmps.get(sym) if r["status"] == "open" else wcmps.get(sym)
+            fr = _eval_alerts(r, sig, cmp_a, thn, lambda s: _fiftytwo(conn, s, f52c))
+            if fr:
+                fired.append((sym, r["status"], fr))
+            if r["status"] == "watch":
+                rdy = _ready_to_act(sig)
+                if rdy:
+                    ready_now.append((sym, rdy))
 
     def _pl(r):
         c, ep = cmps.get(r["symbol"]), r["entry_price"]
@@ -4244,6 +4484,29 @@ def dash_dashboard() -> HTMLResponse:
     else:
         attention = ''
 
+    # ---- alerts firing + ready to act (Step 5) ----
+    alerts_html = ''
+    if ready_now:
+        chips_r = "".join(
+            f'<a class="chip" href="/dash/stock?sym={_q(s)}" style="text-decoration:none">'
+            f'<b>{_esc(s)}</b> <span class="mut">{_esc(rdy)}</span></a>' for s, rdy in ready_now[:12])
+        alerts_html += ('<div class="ghdr" style="margin-top:18px">⚡ Ready to act '
+                        f'<span class="mut" style="text-transform:none;font-weight:400">({len(ready_now)})</span></div>'
+                        '<div class="chips">' + chips_r + '</div>')
+    if fired:
+        items = []
+        for sym, st, msgs in fired:
+            tier = "watch" if st == "watch" else "position"
+            items.append(
+                '<div style="padding:6px 0;border-bottom:1px solid #21262d">'
+                f'<a class="sym" href="/dash/stock?sym={_q(sym)}" style="color:#58a6ff;text-decoration:none">{_esc(sym)}</a> '
+                f'<span class="mut" style="font-size:11px">({tier})</span> '
+                + " ".join(f'<span class="snap" style="background:#3a3417;border-color:#5a4a1f;color:#ffd99a">🔔 {_esc(m)}</span>' for m in msgs)
+                + '</div>')
+        alerts_html += ('<div class="ghdr" style="margin-top:16px">🔔 Alerts firing '
+                        f'<span class="mut" style="text-transform:none;font-weight:400">({len(fired)})</span></div>'
+                        + "".join(items))
+
     # ---- today's movers (EOD) ----
     movers = ''
     mv = sorted([(s, dd[s][1]) for s in osyms if dd.get(s) and dd[s][1] is not None],
@@ -4347,8 +4610,8 @@ def dash_dashboard() -> HTMLResponse:
                  '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolios</a> '
                  'or an idea in '
                  '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlists</a>.</div>')
-    body = (_TRACK_CSS + _track_subnav("dashboard") + intro + cards + attention + movers
-            + alloc + news_html + corp_html + table)
+    body = (_TRACK_CSS + _track_subnav("dashboard") + intro + cards + attention + alerts_html
+            + movers + alloc + news_html + corp_html + table)
     return HTMLResponse(_shell("Dashboard · patearn", body, "dashboard", wide=True))
 
 
