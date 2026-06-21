@@ -59,6 +59,26 @@ def _has_any(q: str, phrases) -> bool:
     return any(p in q for p in phrases)
 
 
+# Strip "what does X mean" / "what is X" / "explain X" filler so the glossary
+# resolves the TERM, not the whole question. (Bug: find("what does RS rank mean")
+# ranked Delivery % over RS rank because the filler words dominated the match.)
+_EXPLAIN_LEAD = re.compile(
+    r"^\s*(?:can you\s+)?(?:please\s+)?"
+    r"(?:what\s+does|what\s+do|what\s+is|what\s+are|what'?s|whats|explain|define|"
+    r"definition\s+of|meaning\s+of|tell\s+me\s+about|describe|the\s+meaning\s+of)\s+",
+    re.I)
+_EXPLAIN_TAIL = re.compile(
+    r"\s+(?:mean|means|meaning|definition|defined|stand\s+for|stands\s+for|"
+    r"metric|indicator|signify|signifies)\s*$", re.I)
+
+
+def strip_explain_filler(q: str) -> str:
+    t = (q or "").strip().rstrip(" ?.").strip()
+    t = _EXPLAIN_LEAD.sub("", t)
+    t = _EXPLAIN_TAIL.sub("", t)
+    return t.strip(" ?.").strip()
+
+
 # ── window mappers: an intent window → each flow's own window-chip key ─────────
 def _index_window(w):           # index flow keys: "" (3m) | 1m | 6m | 1y
     return {"1m": "1m", "6m": "6m", "1y": "1y"}.get(w, "")
@@ -190,14 +210,25 @@ def compile_intent(intent: dict) -> dict | None:
         return None
 
     if intent.get("task") == "explain":
-        slug = (intent.get("explain") or "").strip()
-        if not slug:
+        raw = (intent.get("explain") or "").strip()
+        if not raw:
             return None
+        # the parser sometimes hands back the whole question; strip the filler so the
+        # glossary matches the TERM ("what does RS rank mean" → "RS rank" → rs_rank).
+        term = strip_explain_filler(raw) or raw
         try:
             from src.pat.glossary import GLOSSARY, find
-            if slug in GLOSSARY:
-                return {"flow": "explain", "explain": slug}
-            hits = find(slug, limit=1)          # resolve "DVPT"/"delivery" → real slug
+            for cand in (term, raw):
+                if cand in GLOSSARY:
+                    return {"flow": "explain", "explain": cand}
+            # an EXACT term/alias match beats fuzzy find() — stops "all-time-high
+            # DVPT" collapsing to the generic "dvpt" on a substring match.
+            tl = term.strip().lower()
+            for slug, e in GLOSSARY.items():
+                names = [e["term"].lower()] + [a.lower() for a in e.get("aliases", [])]
+                if tl in names:
+                    return {"flow": "explain", "explain": slug}
+            hits = find(term, limit=1)          # resolve "DVPT"/"delivery" → real slug
             if hits:
                 return {"flow": "explain", "explain": hits[0][0]}
         except Exception:
@@ -514,9 +545,14 @@ def parse_fallback(query: str) -> dict | None:
                 if 0 < len(tok) <= 20 and " " not in tok:
                     return {"task": "stock", "symbol": tok.upper()}
 
-        # explain
-        if D._has_any(qn, D.SYNONYMS["explain"]):
-            return None      # let the glossary keyword search handle definitions
+        # explain → extract the TERM and route to explain (passing the raw question
+        # to the glossary search mis-ranks on filler words: "what does RS rank mean").
+        # Triggers on a leading "what is/explain/define …" OR a trailing "… meaning".
+        if D._has_any(qn, D.SYNONYMS["explain"]) or _EXPLAIN_TAIL.search(qn):
+            term = strip_explain_filler(query)
+            if term and len(term) <= 45:
+                return {"task": "explain", "explain": term}
+            return None
 
         # kill-list / pt14 — special framework screens (checked before metric)
         if D._has_any(qn, ["avoid", "red-flag", "red flag", "kill-list", "kill list",

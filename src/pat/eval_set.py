@@ -206,6 +206,29 @@ def run_route_eval(parser: str = "fallback") -> dict:
     return {"parser": parser, "passed": passed, "total": total, "bands": bands, "fails": fails}
 
 
+def run_explain_eval() -> dict:
+    """EVERY glossary term must resolve correctly from its real name + aliases via
+    real 'explain' phrasings. This is the net for the class of bug that shipped
+    "what does RS rank mean" → Delivery % (the question filler poisoned the match)."""
+    import re as _re
+    from src.pat.glossary import GLOSSARY
+    fails = []
+    total = 0
+    for slug, e in GLOSSARY.items():
+        short = _re.sub(r"\s*\(.*?\)\s*", "", e["term"]).strip()     # drop parentheticals
+        probes = {short.lower()} | {a.lower() for a in (e.get("aliases") or [])[:3]}
+        for probe in sorted(p for p in probes if p):
+            for tmpl in ("what is {}", "what does {} mean", "explain {}"):
+                total += 1
+                q = tmpl.format(probe)
+                intent = parse_fallback(q)
+                sel = compile_intent(intent) if intent else None
+                got = sel.get("explain") if sel and sel.get("flow") == "explain" else None
+                if got != slug:
+                    fails.append({"q": q, "want": slug, "got": got})
+    return {"total": total, "passed": total - len(fails), "fails": fails}
+
+
 if __name__ == "__main__":
     import sys
     c = run_compiler_eval()
@@ -223,3 +246,7 @@ if __name__ == "__main__":
         print("  failures:")
         for f in r["fails"]:
             print(f"    [{f['band']}] {f['query']!r}\n        expect={f['expect']} got={f['got']}")
+    x = run_explain_eval()
+    print(f"\nEXPLAIN eval (every glossary term, real phrasings): {x['passed']}/{x['total']}")
+    for f in x["fails"][:20]:
+        print(f"    {f['q']!r} want={f['want']} got={f['got']}")
