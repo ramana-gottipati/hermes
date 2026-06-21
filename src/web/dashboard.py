@@ -2053,7 +2053,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l g-cpr">D·W·M</th><th class="g-cpr">Rnk</th><th class="l g-cpr">Str</th><th class="num g-cpr">Comp%</th>'
             '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
             '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th><th class="num g-ctx">Near-P</th></tr></thead>')
-        grid = (f'<div class="scrwrap"><table class="dt scr">{thead}'
+        grid = (f'<div class="scrwrap"><table class="scr">{thead}'
                 f'<tbody>{"".join(trs)}</tbody></table></div>'
                 '<script>(function(){var w=document.querySelector(".scrwrap");'
                 'if(w)w.addEventListener("scroll",function(){'
@@ -2074,7 +2074,8 @@ def dash_screener(scope: str = Query("Nifty 500"),
         '(green = the −1…+5% entry band), the <b>character triglyph</b> (WHO·WAY·CTX → ACCUM/DIST) and the '
         '<b>RS spark</b> — with every raw value kept beside it. Hide a group to scan just its instruments.</div>')
     view_bar = '<div class="fbar" id="vbar" style="align-items:center;margin-bottom:8px"></div>'
-    body = intro + scope_bar + view_bar + grid + _SCREENER_JS
+    from src.web.cockpit import SCREENER_VIRT_JS
+    body = intro + scope_bar + view_bar + grid + _SCREENER_JS + SCREENER_VIRT_JS
     return HTMLResponse(_shell("Screener · patearn", body, "screener", sig_date or "", wide=True))
 
 
@@ -2337,12 +2338,105 @@ def _cpr_stock_panel(by_tf) -> str:
             'split-adjusted H/L/C · width ÷ pivot · narrow = coiled · ⏳ = current (open) period.</div></div>')
 
 
+def _cci_fwd(v) -> str:
+    v = (v or "FLAT").upper()
+    if v == "UP":
+        return '<span class="pos">UP ↑</span>'
+    if v in ("DOWN", "AVOID"):
+        return f'<span class="neg">{v} ↓</span>'
+    return '<span class="mut">FLAT</span>'
+
+
+def _cci_num(v, suffix="") -> str:
+    return f"{v:.0f}{suffix}" if isinstance(v, (int, float)) else '<span class="mut">—</span>'
+
+
+@router.get("/dash/concalls", response_class=HTMLResponse)
+def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
+    """CCI — Management Credibility (the concall-intelligence pillar). Two views:
+    'avoid' = the deterioration tape (worst-first: walk-backs, concealment, vetoes);
+    'leaders' = credibility leaders (veto-excluded, proven track record on top).
+    Data-first: the raw behaviour axes sit beside every verdict (D-UI-1); reuses
+    table.dt (_DT_JS sort/filter/CSV). PILOT screen — carried until the falsification
+    gates clear (docs/concall-intelligence-debate.md)."""
+    view = "leaders" if view == "leaders" else "avoid"
+    with get_conn() as conn:
+        sc = [dict(r) for r in conn.execute(
+            """SELECT s.* FROM concall_scores s
+               JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x
+                 ON x.symbol=s.symbol AND x.m=s.last_updated""").fetchall()]
+        beh = {r["symbol"]: dict(r) for r in conn.execute(
+            """SELECT b.symbol, b.credibility, b.transparency, b.courage, b.evasion,
+                      b.promo_vs_conservative pvc, b.tone_deviation td
+               FROM concall_behavior b
+               JOIN (SELECT symbol, MAX(id) m FROM concall_behavior GROUP BY symbol) x
+                 ON x.symbol=b.symbol AND x.m=b.id""").fetchall()}
+    for r in sc:
+        r.update(beh.get(r["symbol"], {}))
+    if view == "leaders":
+        sc = [r for r in sc if not r.get("veto_active")]
+        sc.sort(key=lambda r: (r.get("composite_score") or 0), reverse=True)
+    else:
+        sc.sort(key=lambda r: ((r.get("deterioration_score") or 0) + (60 if r.get("veto_active") else 0)), reverse=True)
+
+    def tier_pill(t):
+        t = t or "-"
+        cls = "pos" if t in ("A+", "A") else ("neg" if t in ("D",) else "mut")
+        return f'<span class="{cls}">{_esc(t)}</span>'
+
+    trs = []
+    for r in sc:
+        veto = (f'<span class="neg" title="{_esc(r.get("veto_reason") or "")}">⛔ {_esc((r.get("veto_reason") or "")[:20])}</span>'
+                if r.get("veto_active") else '<span class="mut">—</span>')
+        ga = r.get("guidance_accuracy_score")
+        ga_cell = (f'{ga:.0f}% <span class="mut">({r.get("n_promises_resolved") or 0})</span>'
+                   if ga is not None else '<span class="mut">unproven</span>')
+        det = r.get("deterioration_score") or 0
+        det_cell = f'<span class="neg">{det:.0f}</span>' if det else '<span class="mut">0</span>'
+        trs.append(
+            f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{tier_pill(r.get("tier"))}</td>'
+            f'<td>{_cci_num(r.get("composite_score"))}</td>'
+            f'<td>{_cci_fwd(r.get("forward_direction"))}</td>'
+            f'<td>{veto}</td>'
+            f'<td>{ga_cell}</td>'
+            f'<td>{_cci_num(r.get("quantification_rate"), "%")}</td>'
+            f'<td>{det_cell}</td>'
+            f'<td class="mut">{r.get("as_of_period") or ""}</td>'
+            f'<td class="mut">{r.get("n_concalls") or 0}</td>'
+            f'<td class="mut">{_cci_num(r.get("credibility"))}</td>'
+            f'<td class="mut">{_cci_num(r.get("courage"))}</td>'
+            f'<td class="mut">{_cci_num(r.get("evasion"))}</td></tr>')
+
+    head = ("<th>Symbol</th><th>Tier</th><th>Score</th><th>Forward</th><th>Veto</th>"
+            "<th>Guidance acc.</th><th>Quantif&nbsp;%</th><th>Deterior.</th><th>As of</th><th>#Calls</th>"
+            '<th class="mut">Cred·AI</th><th class="mut">Courage·AI</th><th class="mut">Evasion·AI</th>')
+    table = (f'<table class="dt"><thead><tr>{head}</tr></thead><tbody>'
+             + ("".join(trs) or '<tr><td colspan="13" class="empty">No scored concalls yet — run the pilot.</td></tr>')
+             + "</tbody></table>")
+
+    def tab(key, label):
+        on = " on" if key == view else ""
+        return f'<a class="fbtn{on}" href="/dash/concalls?view={key}">{label}</a>'
+
+    note = ("Avoid tape" if view == "avoid" else "Credibility leaders")
+    body = (f'<h2>Management Credibility <span class="sub" style="margin:0">CCI · concall intelligence</span></h2>'
+            f'<div class="filt">{tab("avoid", "⚠ Avoid tape")}{tab("leaders", "★ Credibility leaders")}</div>'
+            f'<div class="sub"><b>{note}.</b> Ranking uses <b>measurable items only</b> (D61): guidance accuracy '
+            f'(kept-promise hit-rate), quantification % (how falsifiable the guidance is), the ⛔ veto '
+            f'(pledge / auditor-exit / pt14), and deterministic deterioration. The last three <b>·AI</b> columns '
+            f'are a model read shown <b>for context — NOT ranked</b>. A name is <b>unproven</b> until its promises '
+            f'resolve. <b>Pilot</b> — pending the falsification gates.</div>'
+            + table)
+    return HTMLResponse(_shell("Management Credibility · patearn", body, "strategies"))
+
+
 @router.get("/dash/strategies", response_class=HTMLResponse)
 def dash_strategies() -> HTMLResponse:
     """Workspace: pick a strategy, see TODAY's best stocks from each pillar.
     Each card previews the top names + links to that strategy's full screen."""
     sig_date, _ = _latest_dates()
-    conv, pos, rs, qual, cpr_top = [], [], [], [], []
+    conv, pos, rs, qual, cpr_top, cci = [], [], [], [], [], []
     if sig_date:
         with get_conn() as conn:
             cpr_top = _cpr_setups(conn, limit=8)   # CPR Structure card (D53)
@@ -2368,6 +2462,12 @@ def dash_strategies() -> HTMLResponse:
                    JOIN (SELECT symbol, MAX(scored_at) m FROM pattern_scores GROUP BY symbol) x
                      ON x.symbol=p.symbol AND x.m=p.scored_at
                    WHERE p.ns_base IS NOT NULL ORDER BY p.ns_base DESC LIMIT 8""").fetchall()]
+            cci = [dict(r) for r in conn.execute(
+                """SELECT s.symbol, s.composite_score v FROM concall_scores s
+                   JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x
+                     ON x.symbol=s.symbol AND x.m=s.last_updated
+                   WHERE COALESCE(s.veto_active,0)=0 AND s.composite_score IS NOT NULL
+                   ORDER BY s.composite_score DESC LIMIT 8""").fetchall()]
 
     def picks(rows, fmt):
         if not rows:
@@ -2394,6 +2494,8 @@ def dash_strategies() -> HTMLResponse:
         card("QUAL", "Quality · pt14", "The 14-pattern durability score — businesses worth owning.",
              "pt14 quality score (0–100)", picks(qual, lambda v: f"{v:.0f}"), "/dash/screener", "Open screener"),
         _cpr_card(cpr_top),
+        card("QUAL", "Mgmt Credibility · CCI", "Do managements keep their concall promises? Trust the proven; avoid the deteriorating.",
+             "credibility score (0–100)", picks(cci, lambda v: f"{v:.0f}"), "/dash/concalls", "Open credibility screen", "#d29922"),
     ]
     head = ('<h2>Strategies <span class="sub" style="margin:0">today\'s best, by strategy</span></h2>'
             '<div class="sub">Pick a strategy to see the names it surfaces right now — or open the '

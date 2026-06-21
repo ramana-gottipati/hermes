@@ -85,6 +85,85 @@ table.ck-t td.l{text-align:left;} table.ck-t td.r{text-align:right;font-variant-
 """
 
 
+# --- Screener row VIRTUALIZER (the real lag fix for Nifty 500) ----------------
+# Only the visible window of rows lives in the DOM (recycled on scroll), the way
+# TradeTiger/TradingView keep 500-row grids smooth. Sole row-controller: it owns
+# filter / sort / export / CPR-gate / windowing over a JS array of the
+# already-server-rendered <tr> nodes (no re-render of the micro-viz). The screener
+# table drops its `dt` class so _DT_JS leaves it alone. Hard safety net: ANY error
+# restores the full grid, so the worst case is "unvirtualized", never "broken".
+SCREENER_VIRT_JS = """
+<script>
+(function(){
+  var tb=null, ALL=null;
+  try{
+    var wrap=document.querySelector('.scrwrap'); var tbl=document.querySelector('table.scr');
+    if(!wrap||!tbl||!tbl.tBodies[0]) return;
+    tb=tbl.tBodies[0];
+    ALL=Array.prototype.slice.call(tb.rows).filter(function(r){return !r.classList.contains('vspacer');});
+    if(!ALL.length) return;
+    ALL.forEach(function(r){ r._hascpr=r.classList.contains('has-cpr'); r._txt=r.textContent.toLowerCase(); });
+    var padT=document.createElement('tr'); padT.className='vspacer'; padT.appendChild(document.createElement('td'));
+    var padB=document.createElement('tr'); padB.className='vspacer'; padB.appendChild(document.createElement('td'));
+    padT.firstChild.style.cssText=padB.firstChild.style.cssText='padding:0;border:0;height:0';
+    var rowH=33, filt='', sCol=-1, sDir=1, cprOnly=false, view=ALL, cnt=null;
+    function cellv(r,i){ var c=r.cells[i]; if(!c) return ''; var t=c.textContent.trim();
+      var n=parseFloat(t.replace(/[,%×₹\\s]/g,'')); return isNaN(n)? t.toLowerCase() : n; }
+    function compute(){ view=ALL;
+      if(filt) view=view.filter(function(r){return r._txt.indexOf(filt)>=0;});
+      if(cprOnly) view=view.filter(function(r){return r._hascpr;});
+      if(sCol>=0){ view=view.slice().sort(function(a,b){ var x=cellv(a,sCol),y=cellv(b,sCol);
+        return x===y?0:((x<y?-1:1)*sDir); }); }
+      if(cnt) cnt.textContent=view.length+' rows'; }
+    function render(){
+      var st=wrap.scrollTop, h=wrap.clientHeight||600, vis=Math.ceil(h/rowH), BUF=10;
+      var first=Math.max(0, Math.floor(st/rowH)-BUF);
+      var last=Math.min(view.length, first+vis+2*BUF);
+      padT.firstChild.style.height=(first*rowH)+'px';
+      padB.firstChild.style.height=(Math.max(0,view.length-last)*rowH)+'px';
+      var frag=document.createDocumentFragment(); frag.appendChild(padT);
+      for(var i=first;i<last;i++) frag.appendChild(view[i]);
+      frag.appendChild(padB);
+      tb.innerHTML=''; tb.appendChild(frag);
+    }
+    // toolbar (filter + CSV + count) — same slot the _DT_JS toolbar used
+    var tool=document.createElement('div'); tool.className='dttool';
+    var fi=document.createElement('input'); fi.className='dtf'; fi.type='text'; fi.placeholder='filter rows…';
+    var ex=document.createElement('button'); ex.type='button'; ex.className='dtx'; ex.textContent='⬇ CSV';
+    cnt=document.createElement('span'); cnt.className='dtcount';
+    tool.appendChild(fi); tool.appendChild(ex); tool.appendChild(cnt);
+    wrap.parentNode.insertBefore(tool, wrap);
+    compute(); render();
+    if(view.length && view[0].offsetHeight){ rowH=view[0].offsetHeight; render(); }
+    var tick=false;
+    wrap.addEventListener('scroll', function(){ if(!tick){ tick=true;
+      requestAnimationFrame(function(){ render(); tick=false; }); } }, {passive:true});
+    fi.addEventListener('input', function(){ filt=fi.value.trim().toLowerCase(); compute(); wrap.scrollTop=0; render(); });
+    var heads=tbl.querySelectorAll('thead tr.scol th');
+    Array.prototype.forEach.call(heads, function(th,i){ th.style.cursor='pointer';
+      th.addEventListener('click', function(){ if(sCol===i) sDir=-sDir; else { sCol=i; sDir=1; }
+        Array.prototype.forEach.call(heads,function(h){h.classList.remove('sorta','sortd');});
+        th.classList.add(sDir>0?'sorta':'sortd'); compute(); wrap.scrollTop=0; render(); }); });
+    ex.addEventListener('click', function(){ var out=[]; var hs=[];
+      Array.prototype.forEach.call(heads,function(h){hs.push('"'+h.textContent.trim().replace(/"/g,'""')+'"');});
+      out.push(hs.join(','));
+      view.forEach(function(r){ var cs=[]; Array.prototype.forEach.call(r.cells,function(c){
+        cs.push('"'+c.textContent.trim().replace(/"/g,'""')+'"'); }); out.push(cs.join(',')); });
+      var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([out.join('\\n')],{type:'text/csv'}));
+      a.download='screener.csv'; document.body.appendChild(a); a.click(); a.remove(); });
+    // the CPR-confirmed gate (a button in _SCREENER_JS) toggles the table's
+    // `cpr-only` class — fold it into the virtual filter instead of CSS row-hiding.
+    new MutationObserver(function(){ var c=tbl.classList.contains('cpr-only');
+      if(c!==cprOnly){ cprOnly=c; compute(); wrap.scrollTop=0; render(); } })
+      .observe(tbl, {attributes:true, attributeFilter:['class']});
+  }catch(e){
+    try{ if(tb&&ALL){ tb.innerHTML=''; ALL.forEach(function(r){ tb.appendChild(r); }); } }catch(_){}
+  }
+})();
+</script>
+"""
+
+
 def _board(title_html, sub, inner_html, href, cta, accent):
     return (f'<div class="card ck-board" style="border-top:2px solid {accent}">'
             f'<div class="ck-h">{title_html}'
