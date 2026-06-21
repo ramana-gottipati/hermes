@@ -1251,6 +1251,10 @@ def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query("")
 @router.get("/dash/markets", response_class=HTMLResponse)
 def dash_markets() -> HTMLResponse:
     _, idx_date = _latest_dates()
+    from src.web.cockpit import render_markets
+    return HTMLResponse(_shell("Markets · patearn", render_markets(idx_date),
+                               "markets", idx_date or "", wide=True))
+    # --- legacy inline markets below superseded by cockpit.render_markets (dead) ---
     allrows = {}
     if idx_date:
         with get_conn() as conn:

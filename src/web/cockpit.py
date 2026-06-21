@@ -274,3 +274,98 @@ def render_home(sig_date, idx_date) -> str:
              f'Every count above is a live lens — open it to screen.</div>')
 
     return _CKPT_CSS + search + banner + count_strip + cockpit + fresh
+
+
+def render_markets(idx_date) -> str:
+    """Full-bleed markets cockpit: a regime/breadth header strip, broad & sector
+    index cards (RS heat), and the full sortable index bundle — same visual
+    language as the screener/home (no more lean narrow page)."""
+    from src.web import dashboard as D
+    esc, pct, q, num = D._esc, D._pct, D._q, D._num
+
+    allrows = {}
+    breadth = nifty1d = None
+    if idx_date:
+        with D.get_conn() as conn:
+            for r in conn.execute(
+                "SELECT g.index_name nm, g.ret_1d_pct r1d, g.ret_1m_pct r1m, g.ret_3m_pct r3m, "
+                "g.pct_above_200d_avg a200, g.rs_vs_broad_trend_state st, g.broad_benchmark bb, "
+                "g.rs_vs_broad_slope_1m s1, g.rs_vs_broad_slope_3m s3, g.rs_vs_broad_slope_6m s6, "
+                "g.rs_vs_broad_slope_12m s12, x.close_value close "
+                "FROM index_signals g LEFT JOIN index_rows x USING(index_name,trade_date) "
+                "WHERE g.trade_date=?", (idx_date,)).fetchall():
+                allrows[r["nm"]] = dict(r)
+            b = conn.execute(
+                "SELECT AVG(CASE WHEN pct_above_200d_avg>0 THEN 1.0 ELSE 0 END)*100 p "
+                "FROM index_signals WHERE trade_date=? AND pct_above_200d_avg IS NOT NULL",
+                (idx_date,)).fetchone()
+            breadth = b["p"] if b and b["p"] is not None else None
+            n = allrows.get("Nifty 50")
+            nifty1d = n.get("r1d") if n else None
+    if not allrows:
+        return '<div class="empty">No index data yet.</div>'
+
+    sect_up = sum(1 for s in D.MAJOR_SECTORS if allrows.get(s) and (allrows[s].get("s3") or 0) > 0)
+    sect_dn = sum(1 for s in D.MAJOR_SECTORS if allrows.get(s) and (allrows[s].get("s3") or 0) < 0)
+    breadth_txt = f"{breadth:.0f}%" if breadth is not None else "—"
+
+    hdr = ('<div class="ck-tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'
+           f'<div class="ck-tile" style="border-top:3px solid #58a6ff"><div class="ck-n">{pct(nifty1d)}</div>'
+           f'<div class="ck-l">Nifty 50 today</div></div>'
+           f'<div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n">{breadth_txt}</div>'
+           f'<div class="ck-l">indices &gt; 200-DMA</div></div>'
+           f'<div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n" style="color:#3fb950">{sect_up}</div>'
+           f'<div class="ck-l">sectors rising · 3m RS</div></div>'
+           f'<div class="ck-tile" style="border-top:3px solid #f85149"><div class="ck-n" style="color:#f85149">{sect_dn}</div>'
+           f'<div class="ck-l">sectors falling</div></div></div>')
+
+    def maj_card(v):
+        st = v["st"]
+        chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st else ''
+        strip = D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])
+        return (f'<a class="maj" href="/dash/ratio?idx={q(v["nm"])}">'
+                f'<div class="nm">{esc(v["nm"])}{chip}</div>'
+                f'<div class="rr"><span class="mut">ABS</span><span>{num(v["close"],0)}</span>'
+                f'<span>1d {pct(v["r1d"])}</span><span>1m {pct(v["r1m"])}</span>'
+                f'<span>3m {pct(v["r3m"])}</span></div>'
+                f'<div class="rr"><span class="grp">RS</span>{strip}'
+                f'<span class="mut" style="font-size:11px">vs Nifty 500</span></div></a>')
+
+    broad_html = "".join(maj_card(allrows[n]) for n in D.MAJOR_BROAD if n in allrows)
+    sect_html = "".join(maj_card(allrows[n]) for n in D.MAJOR_SECTORS if n in allrows)
+
+    bundle = sorted(allrows.values(), key=lambda v: (v["r3m"] is None, -(v["r3m"] or 0)))
+    brows = []
+    for v in bundle:
+        grp = "broad" if v["bb"] is None else "sector"
+        st = v["st"] or ""
+        chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st else '<span class="mut">—</span>')
+        brows.append(
+            f'<tr data-grp="{grp}"><td class="sym">{esc(v["nm"])}</td>'
+            f'<td class="num">{pct(v["r1d"])}</td><td class="num">{pct(v["r1m"])}</td>'
+            f'<td class="num">{pct(v["r3m"])}</td>'
+            f'<td>{D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])}</td>'
+            f'<td>{chip}</td></tr>')
+    js = ("<script>function mflt(g,el){document.querySelectorAll('#mbundle tr[data-grp]').forEach("
+          "function(r){r.style.display=(g==='all'||r.dataset.grp===g)?'':'none';});"
+          "document.querySelectorAll('#mbar .fbtn').forEach(function(b){b.classList.remove('on');});"
+          "el.classList.add('on');}</script>")
+
+    return (_CKPT_CSS
+            + '<h2 style="margin-top:2px">Markets <span class="sub" style="margin:0">regime · indexes · sectors</span></h2>'
+            + hdr
+            + '<div class="sub" style="margin-top:2px">Tap any card → its ratio chart &amp; constituents. '
+              '<a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>'
+            + '<div class="ghdr">Broad / size</div>'
+            + f'<div class="mkt-grid">{broad_html}</div>'
+            + '<div class="ghdr">Core sectors</div>'
+            + f'<div class="mkt-grid">{sect_html}</div>'
+            + '<h2>Full index bundle <span class="sub" style="margin:0">RS heat per index · sortable</span></h2>'
+            + '<div id="mbar" class="fbar">'
+              "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
+              "<button class=\"fbtn\" onclick=\"mflt('broad',this)\">Broad/Size</button>"
+              "<button class=\"fbtn\" onclick=\"mflt('sector',this)\">Sectoral</button></div>"
+            + '<div class="card" style="padding:6px 10px"><table id="mbundle" class="dt" style="font-size:12.5px">'
+              '<thead><tr><th class="l">Index</th><th class="num">1d</th><th class="num">1m</th>'
+              '<th class="num">3m</th><th class="l">RS 1m/3m/6m/12m</th><th>Trend</th></tr></thead>'
+            + f'<tbody>{"".join(brows)}</tbody></table></div>' + js)
