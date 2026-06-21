@@ -3252,6 +3252,36 @@ def _concentration(values):
     return out
 
 
+def _attrib_bars(title, pairs, top_n=8):
+    """Signed ₹ return-attribution bars (green + / red −), sorted high→low, capped
+    to the extreme movers (top contributors + detractors). % is share of total
+    absolute P&L. Skips entries with no ₹ value (positions without qty)."""
+    agg = {}
+    for k, v in pairs:
+        if v is not None:
+            agg[k] = agg.get(k, 0.0) + v
+    agg = {k: v for k, v in agg.items() if v}
+    if not agg:
+        return ''
+    tot = sum(abs(v) for v in agg.values()) or 1.0
+    mx = max(abs(v) for v in agg.values()) or 1.0
+    rows = sorted(agg.items(), key=lambda kv: kv[1], reverse=True)
+    if len(rows) > top_n:
+        half = top_n // 2
+        rows = rows[:half] + rows[-half:]
+    out = [f'<div class="ghdr">{title}</div>']
+    for k, v in rows:
+        col = "#2ea043" if v > 0 else "#f85149"
+        out.append(
+            '<div class="trk-bar">'
+            f'<span class="trk-lbl" style="width:150px">{_esc(k)}</span>'
+            f'<span class="bar" style="flex:1;height:14px"><span style="width:{abs(v)/mx*100:.0f}%;background:{col}"></span></span>'
+            f'<span class="trk-val" style="width:96px">{_rpl(v)}</span>'
+            f'<span class="mut" style="width:46px;text-align:right;font-size:11px">{v/tot*100:+.0f}%</span>'
+            '</div>')
+    return "".join(out)
+
+
 def _capture_form(sym, snap):
     """The inline Track capture form (server-rendered; POSTs to /dash/track).
     Entry price + date + the frozen snapshot are captured SERVER-SIDE on submit
@@ -3835,69 +3865,183 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
 
 @router.get("/dash/performance", response_class=HTMLResponse)
 def dash_performance() -> HTMLResponse:
+    today = datetime.now().strftime("%Y-%m-%d")
     with get_conn() as conn:
         openrows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='open'").fetchall()]
         closed = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='closed' "
-            "AND entry_price>0 AND exit_price IS NOT NULL").fetchall()]
-        opl = []
-        for r in openrows:
-            cmp_ = _capture_snapshot(conn, r["symbol"])[0]
-            if r["entry_price"] and cmp_:
-                opl.append((cmp_ - r["entry_price"]) / r["entry_price"] * 100.0)
+            "AND entry_price>0 AND exit_price IS NOT NULL ORDER BY exit_date DESC").fetchall()]
+        syms = {r["symbol"] for r in openrows} | {r["symbol"] for r in closed}
+        cmps = {r["symbol"]: _capture_snapshot(conn, r["symbol"])[0] for r in openrows}
+        enr = _enrich(conn, syms)
         bystrat = [dict(r) for r in conn.execute(
-            "SELECT strategy, COUNT(*) n, "
+            "SELECT strategy k, COUNT(*) n, "
             "AVG(CASE WHEN exit_price>entry_price THEN 1.0 ELSE 0 END)*100 hit, "
             "AVG((exit_price-entry_price)/entry_price*100) avg_ret "
             "FROM stocks_in_play WHERE status='closed' AND entry_price>0 "
             "AND exit_price IS NOT NULL GROUP BY strategy ORDER BY n DESC").fetchall()]
+        bybook = [dict(r) for r in conn.execute(
+            "SELECT book k, COUNT(*) n, "
+            "AVG(CASE WHEN exit_price>entry_price THEN 1.0 ELSE 0 END)*100 hit, "
+            "AVG((exit_price-entry_price)/entry_price*100) avg_ret "
+            "FROM stocks_in_play WHERE status='closed' AND entry_price>0 "
+            "AND exit_price IS NOT NULL GROUP BY book ORDER BY n DESC").fetchall()]
         excess = []
         for r in closed:
             br = _benchmark_return(conn, "Nifty 500", r["date_added"], r["exit_date"])
             if br is not None:
                 pr = (r["exit_price"] - r["entry_price"]) / r["entry_price"] * 100.0
                 excess.append(pr - br)
-        holds = [d for d in (_days_between(r["date_added"], r["exit_date"]) for r in closed)
-                 if d is not None]
+        xirr = _portfolio_xirr(conn, openrows + closed, cmps)
+        curve = _equity_curve(conn, openrows)
+
+    # ---- per-position records (₹ needs qty; % always when priced) ----
+    def rec(r, is_open):
+        ep, q = r["entry_price"], r.get("qty")
+        px = cmps.get(r["symbol"]) if is_open else r.get("exit_price")
+        e = enr.get(r["symbol"], {})
+        d_end = None if is_open else r.get("exit_date")
+        return {"sym": r["symbol"], "book": r.get("book") or "Main", "strat": r["strategy"],
+                "sector": _sector_short(e.get("sector")) or "—",
+                "pl_pct": ((px - ep) / ep * 100.0) if (px and ep) else None,
+                "pl_rs": (q * (px - ep)) if (q and px and ep) else None,
+                "open": is_open, "days": _days_between(r["date_added"], d_end or today), "row": r}
+    recs = [rec(r, True) for r in openrows] + [rec(r, False) for r in closed]
+    ur = [x["pl_rs"] for x in recs if x["open"] and x["pl_rs"] is not None]
+    rl = [x["pl_rs"] for x in recs if not x["open"] and x["pl_rs"] is not None]
+    unreal = sum(ur) if ur else None
+    real = sum(rl) if rl else None
+    total_pl = ((unreal or 0.0) + (real or 0.0)) if (ur or rl) else None
+    invested = sum((r.get("qty") or 0) * (r["entry_price"] or 0)
+                   for r in openrows + closed if r.get("qty") and r["entry_price"]) or None
+    abs_ret = (total_pl / invested * 100.0) if (total_pl is not None and invested) else None
+    cagr = None
+    edates = [(r["date_added"] or "")[:10] for r in openrows + closed if r.get("date_added")]
+    if abs_ret is not None and invested and edates:
+        yrs = _days_between(min(edates), today)
+        yrs = (yrs / 365.0) if yrs else None
+        if yrs and yrs > 0.08:
+            cagr = (((invested + total_pl) / invested) ** (1 / yrs) - 1) * 100.0
+    opl = [x["pl_pct"] for x in recs if x["open"] and x["pl_pct"] is not None]
     open_mtm = (sum(opl) / len(opl)) if opl else None
     overall_hit = (sum(1 for r in closed if r["exit_price"] > r["entry_price"]) / len(closed) * 100.0) if closed else None
     avg_excess = (sum(excess) / len(excess)) if excess else None
-    avg_hold = (sum(holds) / len(holds)) if holds else None
+    cl_days = [x["days"] for x in recs if not x["open"] and x["days"] is not None]
+    avg_hold = (sum(cl_days) / len(cl_days)) if cl_days else None
+    dd, dd_p, dd_t = _max_drawdown(curve)
 
     def card(lbl, val):
         return f'<div class="box"><div class="num">{val}</div><div class="lbl">{lbl}</div></div>'
+
+    def pctval(v, suffix="%"):
+        return (f'{v:+.1f}{suffix}' if v is not None else '<span class="mut">—</span>')
+    plcard = _rpl(total_pl) + (f' <span style="font-size:13px">{_pct(abs_ret)}</span>' if abs_ret is not None else '')
     cards = ('<div class="kpi">'
-             + card("open positions", len(openrows))
-             + card("open MTM", _pct(open_mtm))
+             + card("open", len(openrows))
              + card("closed", len(closed))
+             + card("total ₹ P&amp;L", plcard)
+             + card("realized", _rpl(real))
+             + card("unrealized", _rpl(unreal))
+             + card("XIRR", pctval(xirr * 100 if xirr is not None else None))
+             + card("CAGR", pctval(cagr))
+             + card("open MTM", _pct(open_mtm))
              + card("hit-rate", (f"{overall_hit:.0f}%" if overall_hit is not None else '<span class="mut">—</span>'))
-             + card("avg excess vs Nifty 500", _pct(avg_excess))
+             + card("avg excess vs N500", _pct(avg_excess))
              + card("avg hold", (f"{avg_hold:.0f}d" if avg_hold is not None else '<span class="mut">—</span>'))
+             + card("max drawdown", (f'<span class="neg">{dd:.1f}%</span>' if dd is not None else '<span class="mut">—</span>'))
              + '</div>')
-    if bystrat:
-        bars = ['<div class="ghdr">Hit-rate by strategy</div>']
-        for s in bystrat:
+
+    # ---- equity curve vs Nifty 500 ----
+    curve_html = ('<div class="ghdr" style="margin-top:18px">Equity curve vs Nifty 500 '
+                  '<span class="mut" style="text-transform:none;font-weight:400">(both rebased to 100 at the first held day)</span></div>'
+                  + _curve_svg(curve))
+    if dd is not None and dd_p:
+        curve_html += (f'<div class="sub" style="margin-top:6px">Max drawdown '
+                       f'<span class="neg">{dd:.1f}%</span> · peak {dd_p} → trough {dd_t}</div>')
+
+    # ---- hit-rate bars (by strategy + by book) ----
+    def hr_bars(rows, title):
+        if not rows:
+            return ''
+        out = [f'<div class="ghdr">{title}</div>']
+        for s in rows:
             hit = s["hit"] or 0
-            bars.append(
+            out.append(
                 '<div class="trk-bar">'
-                f'<span class="trk-lbl">{_esc(s["strategy"])} <i class="mut">n={s["n"]}</i></span>'
+                f'<span class="trk-lbl">{_esc(s["k"])} <i class="mut">n={s["n"]}</i></span>'
                 f'<span class="bar" style="flex:1;height:16px"><span style="width:{hit:.0f}%;background:#2ea043"></span></span>'
                 f'<span class="trk-val">{hit:.0f}%</span>'
                 f'<span class="mut" style="width:74px;text-align:right;font-size:11px">{_pct(s["avg_ret"])}</span>'
                 '</div>')
-        bars_html = "".join(bars)
+        return "".join(out)
+    if bystrat or bybook:
+        hits_html = ('<div style="margin-top:16px">' + hr_bars(bystrat, "Hit-rate by strategy")
+                     + hr_bars(bybook, "Hit-rate by book") + '</div>')
     else:
-        bars_html = ('<div class="sub" style="margin-top:14px">No closed positions yet — hit-rate '
-                     'by strategy and the benchmark gap appear once you close trades.</div>')
+        hits_html = ('<div class="sub" style="margin-top:14px">No closed positions yet — hit-rate, '
+                     'attribution and the closed-trades log fill in once you close trades.</div>')
+
+    # ---- return attribution (needs qty on positions) ----
+    attrib = ''
+    if any(x["pl_rs"] is not None for x in recs):
+        attrib = ('<details open style="margin-top:18px"><summary class="ghdr" style="cursor:pointer">'
+                  '▸ Return attribution (₹ P&amp;L contribution)</summary><div style="margin-top:8px">'
+                  + _attrib_bars("By holding", [(x["sym"], x["pl_rs"]) for x in recs])
+                  + _attrib_bars("By sector", [(x["sector"], x["pl_rs"]) for x in recs])
+                  + _attrib_bars("By book", [(x["book"], x["pl_rs"]) for x in recs])
+                  + _attrib_bars("By strategy", [(x["strat"], x["pl_rs"]) for x in recs])
+                  + '</div></details>')
+    elif openrows or closed:
+        attrib = ('<div class="sub" style="margin-top:14px">Add <b>quantity</b> to your positions to '
+                  'unlock ₹ return attribution and the equity curve.</div>')
+
+    # ---- closed-trades log ----
+    clog = ''
+    if closed:
+        trs = []
+        for r in closed:
+            ep, xp, q = r["entry_price"], r["exit_price"], r.get("qty")
+            pl_pct = ((xp - ep) / ep * 100.0) if (ep and xp) else None
+            pl_rs = (q * (xp - ep)) if (q and ep and xp) else None
+            days = _days_between(r["date_added"], r["exit_date"])
+            e = enr.get(r["symbol"], {})
+            sec = _sector_short(e.get("sector"))
+            sec_cell = _esc(sec) if sec else '<span class="mut">—</span>'
+            q_cell = _num(q, 0) if q else '<span class="mut">—</span>'
+            days_cell = f'{days}d' if days is not None else '—'
+            trs.append(
+                '<tr>'
+                f'<td class="l"><a class="row" href="/dash/stock?sym={_q(r["symbol"])}"><span class="sym">{_esc(r["symbol"])}</span></a></td>'
+                f'<td class="l">{sec_cell}</td>'
+                f'<td class="l mut">{_esc(r.get("book") or "Main")}</td>'
+                f'<td class="l mut">{_esc(r["strategy"])}</td>'
+                f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
+                f'<td class="mut">{_esc((r["exit_date"] or "")[:10])}</td>'
+                f'<td class="num">{days_cell}</td>'
+                f'<td class="num">{_num(ep, 1)}</td>'
+                f'<td class="num">{_num(xp, 1)}</td>'
+                f'<td class="num">{q_cell}</td>'
+                f'<td class="num">{_rpl(pl_rs)}</td>'
+                f'<td class="num">{_pct(pl_pct)}</td>'
+                f'<td class="l mut">{_esc(r.get("exit_reason") or "—")}</td>'
+                '</tr>')
+        clog = ('<div class="ghdr" style="margin-top:18px">Closed-trades log</div>'
+                '<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th>'
+                '<th>Entry date</th><th>Exit date</th><th>Days</th><th>Entry ₹</th><th>Exit ₹</th><th>Qty</th>'
+                '<th>₹ P&amp;L</th><th>Return</th><th>Reason</th></tr></thead><tbody>'
+                + "".join(trs) + '</tbody></table>')
+
     intro = ('<h2>Performance</h2><div class="sub"><b>Your scoreboard</b> — how your committed ideas '
-             'actually performed: open mark-to-market, hit-rate by strategy, and excess vs the '
-             'Nifty 500. <span class="mut">Auto-computed from your '
+             'actually performed: money-weighted <b>XIRR</b>, realized vs unrealized, the equity curve '
+             'vs Nifty 500, return attribution, and the closed-trades log. <span class="mut">'
+             'Auto-computed from your '
              '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a> + '
-             'closed trades — there\'s nothing to add here; it fills itself as you take and close '
-             'positions.</span></div>')
-    body = _TRACK_CSS + _track_subnav("performance") + intro + cards + bars_html
-    return HTMLResponse(_shell("Performance · patearn", body, "performance"))
+             'closed trades — it fills itself as you take and close positions. EOD data; '
+             '₹ metrics need quantity on the position.</span></div>')
+    body = (_TRACK_CSS + _track_subnav("performance") + intro + cards + curve_html
+            + hits_html + attrib + clog)
+    return HTMLResponse(_shell("Performance · patearn", body, "performance", wide=True))
 
 
 @router.get("/dash/tracker")
