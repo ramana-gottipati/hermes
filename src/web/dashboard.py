@@ -4038,6 +4038,9 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
             '<th>₹ P&amp;L</th><th>Target</th><th>Stop</th><th>Days</th><th>Thesis health</th>'
             '<th>Div</th><th></th></tr></thead><tbody>')
     table = head + "".join(trs) + "</tbody></table>"
+    bq = f"&book={_q(sel_book)}" if sel_book else ""
+    exp = ('<div style="display:flex;justify-content:flex-end;margin:0 0 8px">'
+           f'<a class="tbtn" href="/dash/track/export?status=open{bq}" style="text-decoration:none">⬇ Export CSV</a></div>')
     # ---- allocation / concentration over displayed rows that carry value ----
     alloc = ''
     if hold_vals:
@@ -4055,7 +4058,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
                      '▸ Allocation &amp; concentration</summary>'
                      '<div style="margin-top:8px">' + sec_b + cap_b + conc_html + '</div></details>')
     body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips
-            + hdr + table + alloc)
+            + hdr + exp + table + alloc)
     return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios", wide=True))
 
 
@@ -4151,8 +4154,11 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
     head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th><th>Added</th>'
             '<th>Days</th><th>Price then</th><th>CMP</th><th>Chg %</th>'
             '<th>Live signals</th><th>Signal / alerts</th><th></th></tr></thead><tbody>')
+    bq = f"&book={_q(sel_book)}" if sel_book else ""
+    exp = ('<div style="display:flex;justify-content:flex-end;margin:0 0 8px">'
+           f'<a class="tbtn" href="/dash/track/export?status=watch{bq}" style="text-decoration:none">⬇ Export CSV</a></div>')
     body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + ready_banner + addbox + chips
-            + head + "".join(trs) + "</tbody></table>")
+            + exp + head + "".join(trs) + "</tbody></table>")
     return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists", wide=True))
 
 
@@ -4319,7 +4325,9 @@ def dash_performance() -> HTMLResponse:
                 f'<td class="num">{_pct(pl_pct)}</td>'
                 f'<td class="l mut">{_esc(r.get("exit_reason") or "—")}</td>'
                 '</tr>')
-        clog = ('<div class="ghdr" style="margin-top:18px">Closed-trades log</div>'
+        clog = ('<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">'
+                '<div class="ghdr" style="margin:0">Closed-trades log</div>'
+                '<a class="tbtn" href="/dash/track/export?status=closed" style="text-decoration:none">⬇ Export CSV</a></div>'
                 '<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th>'
                 '<th>Entry date</th><th>Exit date</th><th>Days</th><th>Entry ₹</th><th>Exit ₹</th><th>Qty</th>'
                 '<th>₹ P&amp;L</th><th>Return</th><th>Reason</th></tr></thead><tbody>'
@@ -4622,16 +4630,20 @@ def dash_dashboard() -> HTMLResponse:
 # averaged buy price legitimately won't sit inside one day's OHLC), so unlike
 # manual entry it does NOT reject out-of-range prices.
 
+# Field order matters: _detect_mapping iterates these and the first field to find a
+# column claims it. `strategy` is checked BEFORE `entry_price` on purpose — the
+# substring "rate" lives inside "st-RATE-gy", so otherwise entry_price would steal
+# a "Strategy" column that precedes the real price column.
 _IMP_SYN = {
     "symbol": ("symbol", "ticker", "scrip", "scripname", "stock", "instrument",
                "nsecode", "tradingsymbol", "security", "company", "name"),
+    "strategy": ("strategy", "remarks", "remark", "notes", "note", "basis",
+                 "tag", "category", "thesis"),
     "qty": ("qty", "quantity", "shares", "units", "holdingqty", "nos", "noofshares"),
     "entry_price": ("avgprice", "avgcost", "averagecost", "buyprice", "buyrate",
                     "purchaseprice", "price", "rate", "cost", "nav", "avg"),
     "entry_date": ("buydate", "purchasedate", "entrydate", "tradedate",
                    "transactiondate", "dateofpurchase", "date"),
-    "strategy": ("strategy", "remarks", "remark", "notes", "note", "basis",
-                 "tag", "category", "thesis"),
 }
 _IMP_FIELDS = [("symbol", "Symbol *"), ("entry_date", "Entry date"),
                ("entry_price", "Entry price"), ("qty", "Qty"), ("strategy", "Strategy / note")]
@@ -4755,7 +4767,10 @@ def dash_import() -> HTMLResponse:
         '<div style="font-weight:600;margin-bottom:8px">Import holdings from a file</div>'
         '<div class="sub" style="margin-bottom:10px">CSV or Excel (.xlsx), <b>any layout</b> — we '
         'auto-detect the columns (the ticker column is found by matching your values to the NSE list) '
-        'and let you confirm before saving.</div>'
+        'and let you confirm before saving. We read <b>Symbol · Entry date · Entry price · Qty · '
+        'Strategy/note</b>. New to it? '
+        '<a href="/dash/import/template.csv" style="color:#58a6ff;text-decoration:none">⬇ Download a template</a>, '
+        'fill it in, and upload it back.</div>'
         '<div class="row2">'
         '<div style="flex:1;min-width:120px"><label>List</label>'
         '<select name="status" class="field"><option value="open">Portfolio</option>'
@@ -4769,6 +4784,81 @@ def dash_import() -> HTMLResponse:
         '</form>')
     body = _TRACK_CSS + _track_subnav("portfolios") + '<h2>Import</h2>' + form
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
+
+
+def _csvnum(v, d=2):
+    """Plain CSV number (rounded, trailing zeros dropped); '' for None."""
+    return "" if v is None else f"{round(v, d):g}"
+
+
+@router.get("/dash/import/template.csv")
+def dash_import_template() -> Response:
+    """A ready-to-fill CSV in exactly the layout the importer reads, with two
+    example rows. Download → fill → upload back via /dash/import."""
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["Symbol", "Entry Date", "Entry Price", "Qty", "Strategy"])
+    w.writerow(["RELIANCE", "2026-01-15", "1320.50", "25", "Quality"])
+    w.writerow(["BANDHANBNK", "2026-02-03", "190", "100", "RS leader"])
+    return Response(content=out.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="patearn-import-template.csv"'})
+
+
+@router.get("/dash/track/export")
+def dash_track_export(status: str = Query("open"), book: str = Query("")) -> Response:
+    """Download the current Portfolio / Watchlist as a clean CSV (respects the
+    ?book= filter). Importer-friendly leading columns so it round-trips back in."""
+    status = status if status in ("open", "watch", "closed") else "open"
+    sel = book.strip()
+    today = datetime.now().strftime("%Y-%m-%d")
+    with get_conn() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT * FROM stocks_in_play WHERE status=? ORDER BY book, date_added DESC",
+            (status,)).fetchall()]
+        if sel:
+            rows = [r for r in rows if (r.get("book") or "Main") == sel]
+        cmps = {s: _capture_snapshot(conn, s)[0] for s in {r["symbol"] for r in rows}}
+    out = io.StringIO()
+    w = csv.writer(out)
+    if status == "watch":
+        # Importer-friendly leading columns (Symbol · date · Strategy) so a re-upload
+        # auto-detects; analytics columns trail.
+        w.writerow(["Symbol", "Added Date", "Strategy", "Book", "Price When Added",
+                    "CMP", "Change % Since Added", "Target", "Stop", "Thesis"])
+        for r in rows:
+            try:
+                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
+            except Exception:
+                thn = {}
+            then, cmp_ = thn.get("close"), cmps.get(r["symbol"])
+            chg = ((cmp_ - then) / then * 100.0) if (cmp_ and then) else None
+            w.writerow([r["symbol"], (r["date_added"] or "")[:10], r["strategy"], r.get("book") or "Main",
+                        _csvnum(then), _csvnum(cmp_), _csvnum(chg, 1),
+                        _csvnum(r["price_target"]), _csvnum(r["stop_loss"]), r["entry_thesis"] or ""])
+    else:
+        # Leading columns mirror the import template (Symbol · Entry Date · Entry
+        # Price · Qty · Strategy) so an exported file re-imports cleanly.
+        w.writerow(["Symbol", "Entry Date", "Entry Price", "Qty", "Strategy", "Book", "CMP",
+                    "P/L %", "Invested", "Target", "Stop", "Days Held", "Thesis"]
+                   + (["Exit Date", "Exit Price", "Exit Reason"] if status == "closed" else []))
+        for r in rows:
+            ep, q = r["entry_price"], r.get("qty")
+            cmp_ = (r.get("exit_price") if status == "closed" else cmps.get(r["symbol"]))
+            pl = ((cmp_ - ep) / ep * 100.0) if (cmp_ and ep) else None
+            inv = (q * ep) if (q and ep) else None
+            end = (r.get("exit_date") or today) if status == "closed" else today
+            days = _days_between(r["date_added"], end)
+            base = [r["symbol"], (r["date_added"] or "")[:10], _csvnum(ep), _csvnum(q, 0), r["strategy"],
+                    r.get("book") or "Main", _csvnum(cmp_), _csvnum(pl, 1), _csvnum(inv, 0),
+                    _csvnum(r["price_target"]), _csvnum(r["stop_loss"]),
+                    (str(days) if days is not None else ""), r["entry_thesis"] or ""]
+            if status == "closed":
+                base += [(r.get("exit_date") or "")[:10], _csvnum(r.get("exit_price")), r.get("exit_reason") or ""]
+            w.writerow(base)
+    tag = re.sub(r"[^A-Za-z0-9]+", "-", sel).strip("-") if sel else "all"
+    fname = f"patearn-{status}-{tag}-{today}.csv"
+    return Response(content=out.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 
 def _imp_err(msg):
