@@ -209,6 +209,63 @@ def compile_intent(intent: dict) -> dict | None:
     return _compile_stock(metric, window, order, filters, scope, turning)
 
 
+# Map a parsed fundamentals condition (metric, op, value) → a FUND_* chip key. The
+# chips are coarse tiers; we pick the closest one the condition implies. This is the
+# fix for the catalog's §3.4 live bug: the compiler used to DROP the op/value and
+# always return the default (cheap) screen — so "overvalued" returned *cheap* stocks.
+def _fund_chip(metric, op, value):
+    expensive = op in (">", ">=")
+    v = value if isinstance(value, (int, float)) else None
+    if metric == "valuation":            # P/E
+        if expensive:
+            return ("val", "rich")       # PE > 40 — the overvalued end
+        if v is not None:
+            if v <= 15:
+                return ("val", "deep")
+            if v <= 25:
+                return ("val", "")
+            if v <= 40:
+                return ("val", "growthok")
+            return ("val", "rich")
+        return ("val", "")               # "cheap"/"low PE", no number → default PE<25
+    if metric == "quality":              # ROCE / ROE
+        if op in ("<", "<="):
+            return None                  # no low-quality tier yet (catalog §3.4 gap)
+        if v is not None and v >= 22:
+            return ("qual", "elite")
+        if v is not None and v >= 14 and v < 18:
+            return ("qual", "decent")
+        return ("qual", "")              # default ROCE>18 (covers "above 18/20")
+    if metric == "growth":
+        if op in ("<", "<="):
+            return None
+        if v is not None and v >= 25:
+            return ("grow", "hyper")
+        return ("grow", "")              # default profit 5Y>15
+    return None
+
+
+def _compile_fundamentals(metric, order, filters) -> dict:
+    """Build the fundamentals params from the ranking metric + every parsed condition,
+    honoring the op/value (so "overvalued"/"PE over 80"/"ROCE above 22" screen the
+    RIGHT end), instead of dropping them. Coarse tiers, but the polarity is correct."""
+    params: dict = {}
+    conds = []
+    # the ranking metric itself carries a polarity: worst valuation = most expensive.
+    if metric == "valuation":
+        conds.append(("valuation", ">" if order == "worst" else None, None))
+    elif metric in ("quality", "growth"):
+        conds.append((metric, None, None))
+    for f in (filters or []):
+        if f.get("metric") in ("valuation", "quality", "growth"):
+            conds.append((f["metric"], f.get("op"), f.get("value")))
+    for cm, cop, cv in conds:
+        chip = _fund_chip(cm, cop, cv)
+        if chip:
+            params[chip[0]] = chip[1]
+    return {"flow": "fundamentals", "params": params}
+
+
 def _compile_stock(metric, window, order, filters, scope, turning) -> dict | None:
     sector = scope.get("sector", "") if isinstance(scope, dict) else ""
 
@@ -251,7 +308,7 @@ def _compile_stock(metric, window, order, filters, scope, turning) -> dict | Non
         return {"flow": "accumulation", "params": params}
 
     if metric in ("valuation", "quality", "growth"):
-        return {"flow": "fundamentals", "params": {}}
+        return _compile_fundamentals(metric, order, filters)
 
     # No metric resolved → genuinely ambiguous intent → ask (don't guess).
     return _clarify(
