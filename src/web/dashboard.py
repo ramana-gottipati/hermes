@@ -1229,12 +1229,13 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
 def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query(""),
              sector: str = Query(""), strength: str = Query(""), entry: str = Query(""),
              align: str = Query(""), val: str = Query(""), qual: str = Query(""),
-             grow: str = Query(""), bs: str = Query(""), own: str = Query("")):
+             grow: str = Query(""), bs: str = Query(""), own: str = Query(""),
+             sym: str = Query("")):
     """Pat — natural-language guided search + the data glossary (src/pat)."""
     with get_conn() as conn:
         body = render_pat(flow=flow, explain=explain, q=q, sector=sector,
                           strength=strength, entry=entry, align=align,
-                          val=val, qual=qual, grow=grow, bs=bs, own=own, conn=conn)
+                          val=val, qual=qual, grow=grow, bs=bs, own=own, sym=sym, conn=conn)
     return HTMLResponse(_shell("Pat — patearn", body, "pat"))
 
 
@@ -2836,6 +2837,421 @@ def _rawnum(v):
     return "" if v is None else f"{v:g}"
 
 
+# === Tracker enrichment (Steps 2-4) ========================================
+# Sector · market-cap tier · live thesis-health · dividends · XIRR · equity
+# curve / drawdown · allocation. Shared by Portfolios / Performance / Dashboard.
+# All read-only point lookups; a tracked book is small (tens of rows) so
+# per-symbol queries — cached per request via plain dicts — are cheap.
+
+# Size tiers from index membership — denser + cleaner than the sparse
+# fundamentals.market_cap_cr. First match wins, large→small.
+_MCAP_TIER_IDX = (
+    ("Large", ("Nifty 50", "Nifty Next 50", "Nifty 100", "Nifty 200")),
+    ("Mid",   ("Nifty Midcap 150", "Nifty Midcap 100", "Nifty Midcap 50")),
+    ("Small", ("Nifty Smallcap 250", "Nifty Smallcap 100", "Nifty Smallcap 50")),
+)
+_TIER_CSS = {"Large": "p-A", "Mid": "p-B", "Small": "p-C"}
+
+
+def _membership(conn, sym):
+    """The set of index names `sym` currently belongs to (latest snapshot)."""
+    try:
+        return {r["index_name"] for r in conn.execute(
+            "SELECT DISTINCT index_name FROM stock_index_membership WHERE symbol=? "
+            "AND snapshot_date=(SELECT MAX(snapshot_date) FROM stock_index_membership "
+            "WHERE symbol=?)", (sym, sym)).fetchall()}
+    except Exception:
+        return set()
+
+
+def _enrich(conn, symbols):
+    """Batch {sym: {sector, tier, mcap_cr, sig}} for a set of symbols. sig = the
+    latest stock_signals row (accum_character, rs_rank, RS trend, key-gaps).
+    sector = primary_sector (the narrowest sectoral index) with a membership
+    fallback; tier = Large/Mid/Small from membership, fundamentals as backup."""
+    out = {}
+    for sym in set(symbols):
+        sig = conn.execute("SELECT * FROM stock_signals WHERE symbol=? "
+                           "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+        sig = dict(sig) if sig else {}
+        mem = _membership(conn, sym)
+        sec = sig.get("primary_sector")
+        if not sec:
+            cands = [ix for ix in mem if ix in REAL_SECTORS]
+            sec = (min(cands, key=lambda ix: len(_sector_symbols(conn, ix)) or 99999)
+                   if cands else None)
+        tier = next((lbl for lbl, idxs in _MCAP_TIER_IDX if mem & set(idxs)), None)
+        try:
+            mcr = conn.execute("SELECT market_cap_cr FROM fundamentals WHERE symbol=?",
+                               (sym,)).fetchone()
+            mcr = mcr["market_cap_cr"] if mcr else None
+        except Exception:
+            mcr = None
+        if not tier and mcr:
+            tier = "Large" if mcr >= 50000 else ("Mid" if mcr >= 15000 else "Small")
+        out[sym] = {"sector": sec, "tier": tier, "mcap_cr": mcr, "sig": sig}
+    return out
+
+
+def _sector_short(name):
+    """'Nifty Private Bank' -> 'Private Bank' for compact cells."""
+    if not name:
+        return None
+    return name[6:].strip() if name.startswith("Nifty ") else name
+
+
+def _day_delta(conn, sym):
+    """(close, day_change_pct, prev_close) from the latest EQ bhav row. EOD —
+    last close vs the prior close, not a live tick."""
+    r = conn.execute("SELECT close, prev_close FROM bhavcopy_rows WHERE symbol=? "
+                     "AND series='EQ' AND (segment='CM' OR segment IS NULL) "
+                     "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+    if not r or not r["close"]:
+        return None, None, None
+    pc = r["prev_close"]
+    dc = ((r["close"] - pc) / pc * 100.0) if pc else None
+    return r["close"], dc, pc
+
+
+def _dist_pct(cmp_, level, up_is_far):
+    """Signed distance from CMP to a target/stop, as % of CMP. For a target
+    (up_is_far=True) positive = upside remaining; for a stop (up_is_far=False)
+    positive = cushion still above the stop (negative = breached)."""
+    if not (cmp_ and level):
+        return None
+    return ((level - cmp_) if up_is_far else (cmp_ - level)) / cmp_ * 100.0
+
+
+_DIV_RE = re.compile(
+    r'(?:dividend|div\b)[^0-9]*?(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]+)?)', re.I)
+
+
+def _dividend_per_share(row):
+    """Best-effort ₹/share for a corporate_actions dividend row: ratio_to when
+    present (NSE often parks the amount there), else a parse of `details`."""
+    rt = row.get("ratio_to")
+    if rt:
+        try:
+            return float(rt)
+        except (TypeError, ValueError):
+            pass
+    m = _DIV_RE.search(row.get("details") or "")
+    return float(m.group(1)) if m else None
+
+
+def _dividends_since(conn, sym, since_date, qty):
+    """Total ₹ dividends for `qty` shares with ex-date in [since_date, today],
+    and the event count. corporate_actions is currently unpopulated, so this
+    returns (0.0, 0) gracefully until that feed is ingested."""
+    if not (since_date and qty):
+        return 0.0, 0
+    try:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT action_type, ratio_to, details, ex_date FROM corporate_actions "
+            "WHERE symbol=? AND ex_date>=? AND ex_date<=date('now') "
+            "AND (lower(action_type) LIKE '%div%' OR lower(details) LIKE '%dividend%')",
+            (sym, since_date[:10])).fetchall()]
+    except Exception:
+        return 0.0, 0
+    tot, n = 0.0, 0
+    for r in rows:
+        dps = _dividend_per_share(r)
+        if dps:
+            tot += dps * qty
+            n += 1
+    return tot, n
+
+
+# --- Live thesis-health (the Patearn differentiator) -----------------------
+# "Is my thesis still valid?" — read the frozen-at-entry snapshot against the
+# live signal row. Flags drive both the Portfolios health cell and the
+# Dashboard "needs attention" board. Thresholds are deliberate defaults (a
+# decision, recorded in PROJECT_STATE): RS decay = drop ≥10 rank pts OR now <40;
+# conviction drop ≥10; DISTRIBUTION character is always a flag.
+_HEALTH_FLAG_LABEL = {
+    "dist":      ("🔴 distributing", "neg"),
+    "rs_decay":  ("RS decaying", "neg"),
+    "rs_weak":   ("RS weak (<40)", "neg"),
+    "conv_drop": ("conviction ↓", "neg"),
+    "near_stop": ("near stop", "neg"),
+    "below_stop": ("below stop", "neg"),
+}
+
+
+def _thesis_flags(thn, sig, cmp_=None, stop=None):
+    """Set of issue codes for a holding. thn = frozen snapshot dict (then),
+    sig = live stock_signals row (now). Optional cmp_/stop add stop proximity."""
+    flags = set()
+    if not sig:
+        sig = {}
+    char = sig.get("accum_character")
+    rs_now = sig.get("rs_rank")
+    rs_then = thn.get("rs") if thn else None
+    conv_now = (round(_conv_of(sig.get("p_score"), sig.get("rs_rank")))
+                if sig.get("p_score") is not None or sig.get("rs_rank") is not None else None)
+    conv_then = thn.get("conv") if thn else None
+    if char == "DISTRIBUTION":
+        flags.add("dist")
+    if rs_now is not None:
+        if rs_now < 40:
+            flags.add("rs_weak")
+        if rs_then is not None and rs_now <= rs_then - 10:
+            flags.add("rs_decay")
+    if conv_then is not None and conv_now is not None and conv_now <= conv_then - 10:
+        flags.add("conv_drop")
+    if cmp_ and stop:
+        if cmp_ <= stop:
+            flags.add("below_stop")
+        elif (cmp_ - stop) / cmp_ * 100.0 <= 3.0:
+            flags.add("near_stop")
+    return flags
+
+
+def _health_cell(thn, sig, cmp_=None, stop=None):
+    """Compact thesis-health cell: character pill + RS rank + conviction drift,
+    with a warning tint when any flag fires. Data-first — shows the live values,
+    not just a verdict."""
+    if not sig:
+        return '<span class="mut">—</span>'
+    flags = _thesis_flags(thn, sig, cmp_, stop)
+    char = sig.get("accum_character")
+    rs_now = sig.get("rs_rank")
+    rs_then = thn.get("rs") if thn else None
+    conv_now = round(_conv_of(sig.get("p_score"), sig.get("rs_rank")))
+    conv_then = thn.get("conv") if thn else None
+    bits = [_char_pill(char, dash_if_none=False) or '']
+    if rs_now is not None:
+        rs_cls = "neg" if ("rs_decay" in flags or "rs_weak" in flags) else "mut"
+        rs_txt = (f'{rs_then}→{rs_now}' if rs_then is not None else f'{rs_now}')
+        bits.append(f'<span class="snap"><i>RS</i><span class="{rs_cls}">{rs_txt}</span></span>')
+    if conv_now is not None:
+        bits.append(f'<span class="snap"><i>conv</i>{_then_now(conv_then, conv_now)}</span>')
+    warn = [l for k, (l, _) in _HEALTH_FLAG_LABEL.items() if k in flags]
+    if warn:
+        bits.append(f'<span class="snap" style="background:#3a1a1a;border-color:#8f1f1f;color:#ffa198">⚠ {", ".join(warn)}</span>')
+    return "".join(b for b in bits if b)
+
+
+# --- XIRR (money-weighted return) — Newton + bisection, no scipy -----------
+def _xirr(flows, guess=0.15):
+    """Annualized money-weighted return for [(date, amount)] cash flows —
+    outflows negative (buys), inflows positive (sells / current value). Returns
+    a fraction (0.2 = 20%) or None if unsolvable (e.g. all-same-sign)."""
+    flows = [(d, a) for d, a in flows if d and a]
+    if len(flows) < 2 or not (any(a < 0 for _, a in flows) and any(a > 0 for _, a in flows)):
+        return None
+    try:
+        t0 = min(datetime.fromisoformat(d[:10]) for d, _ in flows)
+        yrs = [(datetime.fromisoformat(d[:10]) - t0).days / 365.0 for d, _ in flows]
+    except Exception:
+        return None
+    amts = [a for _, a in flows]
+
+    def npv(r):
+        return sum(a / (1.0 + r) ** t for a, t in zip(amts, yrs))
+
+    def dnpv(r):
+        return sum(-t * a / (1.0 + r) ** (t + 1) for a, t in zip(amts, yrs))
+
+    r = guess
+    for _ in range(100):
+        d = dnpv(r)
+        if abs(d) < 1e-12:
+            break
+        nr = r - npv(r) / d
+        if nr <= -0.9999:
+            nr = (r - 0.9999) / 2
+        if abs(nr - r) < 1e-7:
+            return nr if -0.9999 < nr < 100 else None
+        r = nr
+    lo, hi = -0.9999, 100.0
+    flo = npv(lo)
+    if flo * npv(hi) > 0:
+        return None
+    for _ in range(200):
+        mid = (lo + hi) / 2
+        fm = npv(mid)
+        if abs(fm) < 1e-7:
+            return mid
+        if flo * fm < 0:
+            hi = mid
+        else:
+            lo, flo = mid, fm
+    return (lo + hi) / 2
+
+
+def _portfolio_xirr(conn, rows, cmps):
+    """XIRR over holdings: buy = −qty·entry on date_added; closed sell =
+    +qty·exit on exit_date; still-open = +qty·CMP today (synthetic liquidation).
+    Skips rows without qty (can't weight a cash flow without a share count)."""
+    flows = []
+    today = datetime.now().strftime("%Y-%m-%d")
+    for r in rows:
+        q = r.get("qty")
+        if not q:
+            continue
+        ep, da = r.get("entry_price"), (r.get("date_added") or "")[:10]
+        if ep and da:
+            flows.append((da, -q * ep))
+        if r.get("status") == "closed" and r.get("exit_price") and r.get("exit_date"):
+            flows.append(((r["exit_date"] or "")[:10], q * r["exit_price"]))
+        elif r.get("status") != "closed":
+            c = cmps.get(r["symbol"])
+            if c:
+                flows.append((today, q * c))
+    return _xirr(flows)
+
+
+# --- Equity curve + max drawdown -------------------------------------------
+def _equity_curve(conn, rows, max_days=400):
+    """Daily [(date, port_value, bench_value)] from the earliest entry to the
+    latest trading day, over OPEN holdings that carry qty. port_value =
+    Σ qty·close (forward-filled across non-trading gaps); bench = Nifty 500
+    close. Capped to the last `max_days` trading days for cost."""
+    holds = [(r["symbol"], r["qty"], (r["date_added"] or "")[:10])
+             for r in rows if r.get("qty") and r.get("entry_price") and r.get("date_added")]
+    if not holds:
+        return []
+    start = min(d for _, _, d in holds)
+    cal = [r["trade_date"] for r in conn.execute(
+        "SELECT trade_date FROM index_rows WHERE index_name='Nifty 500' "
+        "AND trade_date>=? ORDER BY trade_date", (start,)).fetchall()]
+    if not cal:
+        return []
+    if len(cal) > max_days:
+        cal = cal[-max_days:]
+    closes = {}
+    for sym, _, _ in holds:
+        closes[sym] = {r["trade_date"]: r["close"] for r in conn.execute(
+            "SELECT trade_date, close FROM bhavcopy_rows WHERE symbol=? AND series='EQ' "
+            "AND (segment='CM' OR segment IS NULL) AND trade_date>=? ORDER BY trade_date",
+            (sym, cal[0])).fetchall()}
+    bench = {r["trade_date"]: r["close_value"] for r in conn.execute(
+        "SELECT trade_date, close_value FROM index_rows WHERE index_name='Nifty 500' "
+        "AND trade_date>=? ORDER BY trade_date", (cal[0],)).fetchall()}
+    series, last, lastb = [], {s: None for s, _, _ in holds}, None
+    for d in cal:
+        val, ok = 0.0, False
+        for sym, q, da in holds:
+            if d < da:
+                continue
+            c = closes[sym].get(d, last[sym])
+            last[sym] = c
+            if c:
+                val += q * c
+                ok = True
+        lastb = bench.get(d, lastb)
+        if ok:
+            series.append((d, val, lastb))
+    return series
+
+
+def _max_drawdown(series):
+    """Max peak-to-trough drawdown % (≤0) over [(date, value, ...)], plus the
+    peak and trough dates. (None, None, None) for an empty series."""
+    peak = peak_d = None
+    worst, wp, wt = 0.0, None, None
+    for row in series:
+        d, v = row[0], row[1]
+        if v is None:
+            continue
+        if peak is None or v > peak:
+            peak, peak_d = v, d
+        if peak:
+            dd = (v - peak) / peak * 100.0
+            if dd < worst:
+                worst, wp, wt = dd, peak_d, d
+    return (worst if series else None), wp, wt
+
+
+def _curve_svg(series, w=920, h=140):
+    """Inline SVG: portfolio value vs Nifty 500, both rebased to 100 at day 1."""
+    pts = [(s[0], s[1], s[2]) for s in series if s[1] is not None]
+    if len(pts) < 2:
+        return '<div class="sub">Add quantity to your open positions to plot an equity curve.</div>'
+    base_p = pts[0][1] or 1.0
+    bvals = [p[2] for p in pts if p[2]]
+    base_b = bvals[0] if bvals else None
+    pser = [p[1] / base_p * 100.0 for p in pts]
+    bser = [(p[2] / base_b * 100.0 if (p[2] and base_b) else None) for p in pts]
+    allv = pser + [b for b in bser if b is not None]
+    lo, hi = min(allv), max(allv)
+    rng = (hi - lo) or 1.0
+    n = len(pts)
+
+    def x(i):
+        return 8 + (i / (n - 1)) * (w - 16)
+
+    def y(v):
+        return h - 18 - (v - lo) / rng * (h - 30)
+
+    def path(ser):
+        d, pen = [], False
+        for i, v in enumerate(ser):
+            if v is None:
+                pen = False
+                continue
+            d.append(("M" if not pen else "L") + f"{x(i):.1f},{y(v):.1f}")
+            pen = True
+        return " ".join(d)
+    base_y = y(100.0)
+    end_p = pser[-1]
+    end_b = next((b for b in reversed(bser) if b is not None), None)
+    leg = (f'<text x="{w-6}" y="14" text-anchor="end" font-size="11" fill="#3fb950">'
+           f'portfolio {end_p:.0f}</text>')
+    if end_b is not None:
+        leg += (f'<text x="{w-6}" y="28" text-anchor="end" font-size="11" fill="#8b949e">'
+                f'Nifty 500 {end_b:.0f}</text>')
+    return (
+        f'<svg viewBox="0 0 {w} {h}" width="100%" preserveAspectRatio="none" '
+        f'style="background:#0d1117;border:1px solid #21262d;border-radius:10px">'
+        f'<line x1="8" y1="{base_y:.1f}" x2="{w-8}" y2="{base_y:.1f}" stroke="#30363d" stroke-dasharray="3 3"/>'
+        f'<path d="{path(bser)}" fill="none" stroke="#6e7681" stroke-width="1.4"/>'
+        f'<path d="{path(pser)}" fill="none" stroke="#3fb950" stroke-width="1.8"/>'
+        f'{leg}</svg>')
+
+
+# --- Allocation / concentration --------------------------------------------
+def _alloc_bars(title, pairs, total, href_fn=None):
+    """Horizontal allocation bars from [(label, value)] pairs (auto-sorted desc,
+    % of total shown). Compact, data-first."""
+    agg = {}
+    for k, v in pairs:
+        if v:
+            agg[k] = agg.get(k, 0.0) + v
+    if not agg or not total:
+        return ''
+    rows = sorted(agg.items(), key=lambda kv: kv[1], reverse=True)
+    out = [f'<div class="ghdr">{title}</div>']
+    for k, v in rows:
+        pc = v / total * 100.0
+        lbl = _esc(k)
+        if href_fn:
+            lbl = f'<a href="{href_fn(k)}" style="color:inherit;text-decoration:none">{lbl}</a>'
+        out.append(
+            '<div class="trk-bar">'
+            f'<span class="trk-lbl" style="width:150px">{lbl}</span>'
+            f'<span class="bar" style="flex:1;height:14px"><span style="width:{pc:.0f}%"></span></span>'
+            f'<span class="trk-val" style="width:96px">{_rupee(v)}</span>'
+            f'<span class="mut" style="width:46px;text-align:right;font-size:11px">{pc:.0f}%</span>'
+            '</div>')
+    return "".join(out)
+
+
+def _concentration(values):
+    """Top-3/5/10 share of total from a list of holding values. Returns
+    [(label, pct)] for the buckets that apply, plus the count."""
+    vals = sorted([v for v in values if v], reverse=True)
+    total = sum(vals)
+    if not total:
+        return []
+    out = []
+    for n in (3, 5, 10):
+        if len(vals) >= n:
+            out.append((f"Top {n}", sum(vals[:n]) / total * 100.0))
+    return out
+
+
 def _capture_form(sym, snap):
     """The inline Track capture form (server-rendered; POSTs to /dash/track).
     Entry price + date + the frozen snapshot are captured SERVER-SIDE on submit
@@ -3189,24 +3605,30 @@ def dash_track_remove(id: int = Form(...)) -> RedirectResponse:
 
 @router.get("/dash/portfolios", response_class=HTMLResponse)
 def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
+    sel_book = book.strip()
     with get_conn() as conn:
-        rows = [dict(r) for r in conn.execute(
+        allrows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='open' "
             "ORDER BY book, strategy, date_added DESC").fetchall()]
         books = [r[0] for r in conn.execute(
             "SELECT DISTINCT book FROM stocks_in_play WHERE status='open' ORDER BY book").fetchall()]
         ac = _equities_ac_json()
-        live = {}
-        for sym in {r["symbol"] for r in rows}:
+        rows = [r for r in allrows if (r.get("book") or "Main") == sel_book] if sel_book else allrows
+        syms = {r["symbol"] for r in rows}
+        live, dd = {}, {}
+        for sym in syms:
             ep, snap, _ = _capture_snapshot(conn, sym)
             live[sym] = (ep, snap)
-    sel_book = book.strip()
-    if sel_book:
-        rows = [r for r in rows if (r.get("book") or "Main") == sel_book]
+            dd[sym] = _day_delta(conn, sym)
+        enr = _enrich(conn, syms)
+        divs = {r["id"]: _dividends_since(conn, r["symbol"], r.get("date_added") or "", r.get("qty"))
+                for r in rows}
+        cmps = {s: live[s][0] for s in syms}
+        xirr = _portfolio_xirr(conn, rows, cmps)
     intro = ('<h2>Portfolios</h2><div class="sub"><b>Positions you\'ve committed to</b> — money in: '
-             'a frozen entry, live P/L, and target/stop. Keep several named books (Aggressive, '
-             'Long-term, a family member\'s…). Add one below, or from any stock page. '
-             '<span class="mut">Just watching? Use the '
+             'a frozen entry, live P/L, target/stop distance, and a live <b>thesis-health</b> read '
+             '(is the strong hand still accumulating; is RS holding; has conviction drifted since you '
+             'bought). Keep several named books. <span class="mut">Just watching? Use the '
              '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlist</a>; '
              'the scorecard is under '
              '<a href="/dash/performance" style="color:#58a6ff;text-decoration:none">Performance</a>.</span></div>')
@@ -3221,48 +3643,129 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
                  + (f' in <b>{_esc(sel_book)}</b>' if sel_book else '')
                  + ' yet. Add one above, or open any stock and hit <b>+ Track</b> → <b>Portfolio</b>.</div>')
         body = _TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips + empty
-        return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
+        return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios", wide=True))
+    # ---- header KPIs over the displayed rows ----
+    inv = cur = 0.0
+    pls, day_num, day_den, tot_div = [], 0.0, 0.0, 0.0
+    hold_vals = []   # (sector, tier, value) for allocation / concentration
+    for r in rows:
+        sym = r["symbol"]
+        cmp_, _ = live.get(sym, (None, {}))
+        ep, q = r["entry_price"], r.get("qty")
+        if cmp_ and ep:
+            pls.append((cmp_ - ep) / ep * 100.0)
+        if q and ep:
+            inv += q * ep
+            if cmp_:
+                cur += q * cmp_
+                _, _dcp, pc = dd.get(sym, (None, None, None))
+                if pc:
+                    day_num += q * (cmp_ - pc)
+                    day_den += q * pc
+                e = enr.get(sym, {})
+                hold_vals.append((_sector_short(e.get("sector")) or "—",
+                                  e.get("tier") or "—", q * cmp_))
+        tot_div += divs.get(r["id"], (0.0, 0))[0]
+    rpl_tot = (cur - inv) if inv else None
+    pl_pct = (rpl_tot / inv * 100.0) if inv else (sum(pls) / len(pls) if pls else None)
+    day_pct = (day_num / day_den * 100.0) if day_den else None
+    pl_extra = f' <span style="font-size:13px">{_pct(pl_pct)}</span>' if pl_pct is not None else ''
+    xirr_cell = f'{xirr*100:+.1f}%' if xirr is not None else '<span class="mut">—</span>'
+
+    def kc(lbl, val):
+        return f'<div class="box"><div class="num">{val}</div><div class="lbl">{lbl}</div></div>'
+    hdr = ('<div class="kpi" style="margin-bottom:12px">'
+           + kc("positions", len(rows))
+           + kc("invested", _rupee(inv) if inv else '<span class="mut">—</span>')
+           + kc("value", _rupee(cur) if cur else '<span class="mut">—</span>')
+           + kc("₹ P&amp;L", _rpl(rpl_tot) + pl_extra)
+           + kc("day Δ", _pct(day_pct))
+           + kc("XIRR", xirr_cell)
+           + '</div>')
+    # ---- per-holding rows ----
+    today = datetime.now().strftime("%Y-%m-%d")
     trs = []
     for r in rows:
         sym = r["symbol"]
-        cmp_, nowsnap = live.get(sym, (None, {}))
-        ep = r["entry_price"]
+        cmp_, _nowsnap = live.get(sym, (None, {}))
+        e = enr.get(sym, {})
+        sig = e.get("sig") or {}
+        ep, q = r["entry_price"], r.get("qty")
         pl = ((cmp_ - ep) / ep * 100.0) if (cmp_ and ep) else None
+        _, dcp, _pc = dd.get(sym, (None, None, None))
         try:
             thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
         except Exception:
             thn = {}
-        drift = _then_now(thn.get("conv"), nowsnap.get("conv"))
-        thesis = r["entry_thesis"] or ""
-        th_cell = (f'<span class="thq" title="{_esc(thesis)}">&#8220;</span>'
-                   if thesis else '<span class="mut">—</span>')
-        tgt = _num(r["price_target"], 1) if r["price_target"] is not None else '<span class="mut">—</span>'
-        q = r.get("qty")
-        qty_cell = _num(q, 0) if q else '<span class="mut">—</span>'
+        invv = (q * ep) if (q and ep) else None
         rpl = (q * (cmp_ - ep)) if (q and cmp_ is not None and ep) else None
+        tdist = _dist_pct(cmp_, r["price_target"], True)
+        sdist = _dist_pct(cmp_, r["stop_loss"], False)
+        dheld = _days_between(r["date_added"], today)
+        dv_tot, dv_n = divs.get(r["id"], (0.0, 0))
+        thesis = r["entry_thesis"] or ""
+        sec = _sector_short(e.get("sector"))
+        tier = e.get("tier")
+        sec_cell = _esc(sec) if sec else '<span class="mut">—</span>'
+        tier_cell = (f'<span class="pill {_TIER_CSS.get(tier, "p-C")}">{tier}</span>'
+                     if tier else '<span class="mut">—</span>')
+        q_cell = _num(q, 0) if q else '<span class="mut">—</span>'
+        inv_cell = _rupee(invv) if invv else '<span class="mut">—</span>'
+        tgt_cell = (f'{_num(r["price_target"], 1)} <span class="mut" style="font-size:11px">{_pct(tdist)}</span>'
+                    if r["price_target"] is not None else '<span class="mut">—</span>')
+        stop_cell = (f'{_num(r["stop_loss"], 1)} <span class="mut" style="font-size:11px">{_pct(sdist)}</span>'
+                     if r["stop_loss"] is not None else '<span class="mut">—</span>')
+        days_cell = f'{dheld}d' if dheld is not None else '<span class="mut">—</span>'
+        div_cell = (f'{_rupee(dv_tot)} <span class="mut" style="font-size:11px">×{dv_n}</span>'
+                    if dv_tot else '<span class="mut">—</span>')
+        health = _health_cell(thn, sig, cmp_, r["stop_loss"])
         trs.append(
             '<tr>'
             f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
+            f'<td class="l">{sec_cell}</td>'
+            f'<td class="l">{tier_cell}</td>'
             f'<td class="l mut">{_esc(r.get("book") or "Main")}</td>'
             f'<td class="l mut">{_esc(r["strategy"])}</td>'
             f'<td class="mut">{_esc((r["date_added"] or "")[:10])}</td>'
             f'<td class="num">{_num(ep, 1)}</td>'
-            f'<td class="num">{qty_cell}</td>'
+            f'<td class="num">{q_cell}</td>'
+            f'<td class="num">{inv_cell}</td>'
             f'<td class="num">{_num(cmp_, 1)}</td>'
+            f'<td class="num">{_pct(dcp)}</td>'
             f'<td class="num">{_pct(pl)}</td>'
             f'<td class="num">{_rpl(rpl)}</td>'
-            f'<td class="num">{tgt}</td>'
-            f'<td class="l">{drift}</td>'
-            f'<td class="l">{th_cell}</td>'
+            f'<td class="num">{tgt_cell}</td>'
+            f'<td class="num">{stop_cell}</td>'
+            f'<td class="num">{days_cell}</td>'
+            f'<td class="l">{health}</td>'
+            f'<td class="num">{div_cell}</td>'
             f'<td class="l"><a class="tbtn" href="/dash/track/edit?id={r["id"]}" style="text-decoration:none">Edit</a> {_id_form("/dash/track/close", r["id"], "Close", confirm="Close this position?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr>'
-            '<th>Symbol</th><th>Book</th><th>Strategy</th><th>Entry date</th><th>Entry ₹</th><th>Qty</th><th>CMP</th>'
-            '<th>P/L</th><th>₹ P&amp;L</th><th>Target</th><th>Conv then→now</th><th>Thesis</th><th></th>'
-            '</tr></thead><tbody>')
+            '<th>Symbol</th><th>Sector</th><th>Cap</th><th>Book</th><th>Strategy</th><th>Entry date</th>'
+            '<th>Entry ₹</th><th>Qty</th><th>Invested</th><th>CMP</th><th>Day Δ</th><th>P/L</th>'
+            '<th>₹ P&amp;L</th><th>Target</th><th>Stop</th><th>Days</th><th>Thesis health</th>'
+            '<th>Div</th><th></th></tr></thead><tbody>')
+    table = head + "".join(trs) + "</tbody></table>"
+    # ---- allocation / concentration over displayed rows that carry value ----
+    alloc = ''
+    if hold_vals:
+        tot = sum(v for *_, v in hold_vals)
+        sec_b = _alloc_bars("By sector", [(s, v) for s, _t, v in hold_vals], tot)
+        cap_b = _alloc_bars("By market-cap", [(t, v) for _s, t, v in hold_vals], tot)
+        conc = _concentration([v for *_, v in hold_vals])
+        conc_html = ''
+        if conc:
+            conc_html = ('<div class="ghdr">Concentration</div><div class="chips">'
+                         + "".join(f'<span class="chip">{lbl} · <b>{pc:.0f}%</b></span>'
+                                   for lbl, pc in conc) + '</div>')
+        if sec_b or cap_b or conc_html:
+            alloc = ('<details style="margin-top:16px"><summary class="ghdr" style="cursor:pointer">'
+                     '▸ Allocation &amp; concentration</summary>'
+                     '<div style="margin-top:8px">' + sec_b + cap_b + conc_html + '</div></details>')
     body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips
-            + head + "".join(trs) + "</tbody></table>")
-    return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios"))
+            + hdr + table + alloc)
+    return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios", wide=True))
 
 
 @router.get("/dash/watchlists", response_class=HTMLResponse)
