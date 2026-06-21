@@ -611,9 +611,16 @@ def _tune(conn: sqlite3.Connection) -> None:
     WITHOUT blocking on writes (the nightly chain / backfills) — the fix for the
     slow clicks + 'database is locked'. busy_timeout waits out brief contention
     instead of erroring; the rest warm the cache. journal_mode=WAL is persistent
-    (set once, stays); the others are per-connection so are set on each open."""
+    (set once, stays); the others are per-connection so are set on each open.
+
+    ORDER MATTERS — busy_timeout MUST precede journal_mode. A fresh connection
+    defaults to busy_timeout=0, and flipping to WAL needs a brief exclusive
+    lock; if journal_mode runs first while any other connection holds the lock,
+    it fails INSTANTLY with 'database is locked' (this crashed the nightly
+    stock_rs step on 2026-06-19, leaving hermes-bhavcopy.service failed).
+    Setting the timeout first lets that call wait the contention out."""
+    conn.execute("PRAGMA busy_timeout = 30000")    # 30s — set FIRST (see above)
     conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute("PRAGMA busy_timeout = 5000")
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA temp_store = MEMORY")
     conn.execute("PRAGMA cache_size = -65536")     # ~64 MB page cache
