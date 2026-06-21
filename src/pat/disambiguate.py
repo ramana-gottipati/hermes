@@ -266,3 +266,106 @@ def route_index(query: str) -> dict | None:
         return {"flow": "index", "params": params}
     except Exception:
         return None
+
+
+# ── deterministic routers for the cheap-win flows (₹0, quota-proof) ───────────
+# Each requires a DISTINCTIVE signal and returns None otherwise, so a clear ask
+# never spends a Gemini token (mirrors route_index). Precedence is fixed in
+# route_extra(): single-stock → distribution/consolidation → kill-list → pt14 →
+# overvalued → rs-laggards. Sector-from-text is NOT extracted here (the chips
+# narrow); that's a deliberate v1 cut to keep these deterministic.
+_DISTRIBUTION = ["distribut", "being sold", "smart money exiting", "smart money is exiting",
+                 "being dumped", "offloaded", "offloading", "strong hand selling",
+                 "strong hands selling", "supply coming"]
+_CONSOLIDATION = ["consolidat", "coiling"]
+_REDFLAG_LIST = ["stocks to avoid", "stock to avoid", "red flag stock", "red-flag stock",
+                 "hard disqualified", "hard-disqualified", "disqualified", "kill list",
+                 "kill-list", "stay away from", "names to avoid", "avoid these"]
+_PT14 = ["pt14", "pt-14", "14 pattern", "14-pattern", "pattern score", "quality score",
+         "quality tier", "tier 1", "tier-1", "tier 2", "tier 3", "t1 quality"]
+_OVERVALUED = ["overvalued", "over valued", "over-valued", "expensive stock", "expensive name",
+               "expensive share", "high pe", "high p/e", "frothy", "bubble stock",
+               "richly valued", "priciest", "most expensive"]
+_RSLAG = ["weakest stock", "weak stock", "laggard stock", "rs laggard", "weakest name",
+          "weak name", "losing momentum", "weak relative strength", "stocks lagging",
+          "lagging stock", "underperforming stock", "weakest in", "biggest laggard",
+          "weakest shares"]
+
+# Explicit single-stock asks → capture the trailing name/symbol token. Deliberately
+# excludes vague leads ("show me", "how is") that collide with screen asks.
+_STOCK_TRIGGER = re.compile(
+    r"^(?:tell me about|what'?s wrong with|whats wrong with|red flags? in|"
+    r"details on|info on|snapshot of|look up|pull up)\s+(.+)$", re.I)
+_STOCK_STOP = {"the", "a", "an", "this", "that", "it", "my", "any", "some", "these",
+               "those", "market", "stock", "stocks", "share", "shares", "nifty", "sensex"}
+
+
+def _extract_symbol(query: str) -> str | None:
+    """A symbol/name token from an explicit single-stock ask, or None."""
+    m = _STOCK_TRIGGER.match(_norm(query))
+    if not m:
+        return None
+    tail = m.group(1).strip()
+    tail = re.sub(r"\s+(doing|now|today|please|stock|share|shares)\b.*$", "", tail).strip()
+    if not tail or tail in _STOCK_STOP:
+        return None
+    # a multi-word strength/concept phrase ("strong stocks") is not a stock name
+    if " " in tail and _has_any(tail, ["strong", "weak", "best", "top ", "cheap", "quality",
+                                       "momentum", "accumulat", "distribut", "leader", "laggard"]):
+        return None
+    return tail
+
+
+def route_extra(query: str) -> dict | None:
+    """Route the cheap-win flows deterministically (₹0). None → let the engine parse.
+
+    Order matters: a named single-stock ask wins over the list flows (so "red flags
+    in INFY" → the stock card, while "red flag stocks" → the kill-list). Never raises.
+    """
+    try:
+        qn = _norm(query)
+        if len(qn) < 2:
+            return None
+
+        sym = _extract_symbol(query)
+        if sym:
+            return {"flow": "card", "params": {"sym": sym}}
+
+        # distribution / consolidation = the accumulation flow's character MIRROR
+        # (canonical contract: a `character` param on accumulation, not a new flow).
+        if _has_any(qn, _DISTRIBUTION):
+            return {"flow": "accumulation", "params": {"character": "distribution"}}
+        if _has_any(qn, _CONSOLIDATION):
+            return {"flow": "accumulation", "params": {"character": "consolidation"}}
+
+        # the hard-disqualifier kill-list (a plural "avoid" ask, no named stock)
+        if _has_any(qn, _REDFLAG_LIST):
+            return {"flow": "disqualified", "params": {}}
+
+        # pt14 quality tiers (distinct from the generic "quality" → fundamentals)
+        if _has_any(qn, _PT14):
+            params: dict[str, str] = {}
+            if _has_any(qn, ["tier 1", "tier-1", "t1"]):
+                params["tier"] = "t1"
+            elif _has_any(qn, ["tier 2", "tier-2"]):
+                params["tier"] = "t2"
+            elif _has_any(qn, ["tier 3", "tier-3"]):
+                params["tier"] = "t3"
+            return {"flow": "pt14", "params": params}
+
+        # overvalued / expensive → the inverted valuation screen
+        if _has_any(qn, _OVERVALUED):
+            return {"flow": "fundamentals",
+                    "params": {"val": "rich", "qual": "any", "grow": "any",
+                               "bs": "any", "own": "any"}}
+
+        # weak / RS-laggard stocks = the rs flow's `direction` MIRROR (canonical
+        # contract: direction=laggards on rs). NOT index laggards, NOT today's price
+        # losers (those are the index and movers flows respectively).
+        if _has_any(qn, _RSLAG) and not _has_any(qn, _INDEX_UNIVERSE) \
+                and not _has_any(qn, ["today", "this week", "intraday", "gainer", "loser",
+                                      "gained", "fell"]):
+            return {"flow": "rs", "params": {"direction": "laggards"}}
+    except Exception:
+        return None
+    return None

@@ -25,6 +25,17 @@ ACC_ENTRY: dict[str, str] = {
     "discount": "Near a discount",
 }
 
+# character chip key -> (label, accum_character value bound into the query). The
+# D43 `accum_character` column already classifies every stock as one of these four
+# labels nightly; the accumulation flow only ever read ACCUMULATION. Binding the
+# chosen side here unlocks the mirror screens (DISTRIBUTION = strong-hand EXITING,
+# CONSOLIDATION = coiling) with no new data. The value comes ONLY from this dict.
+ACC_CHARACTER: dict[str, tuple[str, str]] = {
+    "":              ("Accumulation",  "ACCUMULATION"),
+    "distribution":  ("Distribution",  "DISTRIBUTION"),
+    "consolidation": ("Consolidation", "CONSOLIDATION"),
+}
+
 # window chip -> (label, DVPT ratio column to RANK BY + LEAD with). "" keeps the
 # default p_score order (today's strong-hand read). The 1M/3M lenses re-rank by
 # how today's delivery compares to the best delivery days of that window — the
@@ -40,25 +51,28 @@ ACC_LIMIT = 60  # safety cap on rows returned (not user-controllable)
 
 
 def build_accumulation_query(sector: str = "", strength: str = "", entry: str = "",
-                             window: str = "") -> tuple[str, list]:
+                             window: str = "", character: str = "") -> tuple[str, list]:
     """Compile the accumulation screen to a read-only SELECT over stock_signals.
 
-    Always enforces ACCUMULATION character + an active strong hand (p_score >=
-    the chosen strength) over the equity-only universe, for the latest date.
-    `sector` and `entry` are optional narrowings. `window` (''/1m/3m) chooses the
-    DVPT power-ratio to RANK BY and LEAD with, so "being accumulated over the last
-    month" ranks by the 1M reading — the column comes only from the ACC_WINDOW
-    constant. Every value is bound via a placeholder — never string-formatted in.
+    Enforces the chosen `character` (ACCUMULATION default; DISTRIBUTION / CONSOLIDATION
+    are the mirror screens) + an active strong hand (p_score >= the chosen strength)
+    over the equity-only universe, for the latest date. `sector` and `entry` are
+    optional narrowings. `window` (''/1m/3m) chooses the DVPT power-ratio to RANK BY
+    and LEAD with, so "being accumulated over the last month" ranks by the 1M reading
+    — the column comes only from the ACC_WINDOW constant. The character VALUE comes
+    only from ACC_CHARACTER. Every value is bound via a placeholder — never string-
+    formatted in.
     """
     min_p = ACC_STRENGTH.get(strength, ACC_STRENGTH[""])[1]
     ratio_col = ACC_WINDOW.get(window, ACC_WINDOW[""])[1]
+    char_val = ACC_CHARACTER.get(character, ACC_CHARACTER[""])[1]
     where = [
         "s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)",
-        "s.accum_character = 'ACCUMULATION'",
+        "s.accum_character = ?",
         "s.symbol IN (SELECT symbol FROM nse_equity_list)",
         "s.p_score >= ?",
     ]
-    params: list = [min_p]
+    params: list = [char_val, min_p]
     if sector:
         where.append("s.primary_sector = ?")
         params.append(sector)
@@ -84,17 +98,18 @@ def build_accumulation_query(sector: str = "", strength: str = "", entry: str = 
     return sql, params
 
 
-def build_accumulation_sectors_query() -> str:
-    """Sectors that actually have accumulation today — drives the sector chips."""
+def build_accumulation_sectors_query(character: str = "") -> tuple[str, list]:
+    """Sectors that actually have the chosen character today — drives the sector chips."""
+    char_val = ACC_CHARACTER.get(character, ACC_CHARACTER[""])[1]
     return (
         "SELECT s.primary_sector AS sector, COUNT(*) AS c "
         "FROM stock_signals s "
         "WHERE s.trade_date = (SELECT MAX(trade_date) FROM stock_signals) "
-        "AND s.accum_character = 'ACCUMULATION' "
+        "AND s.accum_character = ? "
         "AND s.primary_sector IS NOT NULL "
         "AND s.symbol IN (SELECT symbol FROM nse_equity_list) "
         "GROUP BY s.primary_sector ORDER BY c DESC, s.primary_sector LIMIT 14"
-    )
+    ), [char_val]
 
 
 # strength chip key -> (label, minimum rs_rank)
@@ -108,6 +123,22 @@ RS_STRENGTH: dict[str, tuple[str, int]] = {
 RS_ALIGN: dict[str, str] = {
     "":    "Any",
     "sis": "Strong in strong",
+}
+
+# direction chip key -> (label, comparator, sort). Laggards are the mirror Pat never
+# served (the worst-stock side it used to honestly redirect away from): the weak end
+# of rs_rank, ranked weakest-first. The leaders strength tiers are FLOORS (rs_rank >=
+# N); for laggards the same chip keys become CEILINGS via RS_LAG_STRENGTH. The
+# comparator + sort come ONLY from this constant — never from user input.
+RS_DIRECTION: dict[str, tuple[str, str, str]] = {
+    "":         ("Leaders (strong)", ">=", "DESC"),
+    "laggards": ("Laggards (weak)",  "<=", "ASC"),
+}
+# strength key -> (label, rs_rank CEILING) for the laggard side (mirror of RS_STRENGTH).
+RS_LAG_STRENGTH: dict[str, tuple[str, int]] = {
+    "":      ("Laggards (RS ≤ 20)",      20),
+    "elite": ("Deep laggards (RS ≤ 10)", 10),
+    "above": ("Below market (RS ≤ 50)",  50),
 }
 
 RS_LIMIT = 60
@@ -125,28 +156,33 @@ RS_WINDOW = {
 
 
 def build_rs_query(sector: str = "", strength: str = "", align: str = "",
-                   window: str = "") -> tuple[str, list]:
-    """Compile the RS-leaders screen to a read-only SELECT over stock_signals.
+                   window: str = "", direction: str = "") -> tuple[str, list]:
+    """Compile the RS leaders/laggards screen to a read-only SELECT over stock_signals.
 
-    `strength` gates on rs_rank; `sector` narrows to one primary sector;
-    `align='sis'` requires above-200-DMA on BOTH RS lines. `window` (1m/3m/6m/12m)
-    chooses which RS slope to RANK BY and DISPLAY — so "strongest over the last
-    month" ranks by the 1m RS, not a fixed 3m. The slope-column suffix comes only
-    from the RS_WINDOW constant (never raw input); all values are bound.
+    `direction` flips leaders (rs_rank floor, DESC) vs laggards (rs_rank ceiling, ASC
+    — the weak end Pat used to redirect away from). `strength` gates on rs_rank (a
+    FLOOR for leaders via RS_STRENGTH, a CEILING for laggards via RS_LAG_STRENGTH);
+    `sector` narrows to one primary sector; `align='sis'` (leaders only) requires
+    above-200-DMA on BOTH RS lines. `window` (1m/3m/6m/12m) chooses which RS slope to
+    RANK BY and DISPLAY. The comparator/sort come only from RS_DIRECTION and the
+    slope-column suffix only from RS_WINDOW (never raw input); all values are bound.
     """
-    min_rank = RS_STRENGTH.get(strength, RS_STRENGTH[""])[1]
+    lag = (direction == "laggards")
+    _dlbl, cmp_op, sort = RS_DIRECTION.get(direction, RS_DIRECTION[""])
+    rank_val = (RS_LAG_STRENGTH.get(strength, RS_LAG_STRENGTH[""])[1] if lag
+                else RS_STRENGTH.get(strength, RS_STRENGTH[""])[1])
     col = "rs_vs_broad_slope_" + RS_WINDOW.get(window, RS_WINDOW[""])[1]
     where = [
         "s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)",
         "s.symbol IN (SELECT symbol FROM nse_equity_list)",
         "s.rs_rank IS NOT NULL",
-        "s.rs_rank >= ?",
+        f"s.rs_rank {cmp_op} ?",
     ]
-    params: list = [min_rank]
+    params: list = [rank_val]
     if sector:
         where.append("s.primary_sector = ?")
         params.append(sector)
-    if align == "sis":
+    if align == "sis" and not lag:          # strong-in-strong is a leaders-only lens
         where.append("s.rs_vs_broad_above_200ma = 1")
         where.append("s.rs_vs_sector_above_200ma = 1")
     sql = (
@@ -157,7 +193,7 @@ def build_rs_query(sector: str = "", strength: str = "", align: str = "",
         "FROM stock_signals s "
         "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
         "WHERE " + " AND ".join(where) + " "
-        f"ORDER BY (s.{col} IS NULL), s.{col} DESC, s.symbol "
+        f"ORDER BY (s.{col} IS NULL), s.{col} {sort}, s.symbol "
         "LIMIT " + str(RS_LIMIT)
     )
     return sql, params
@@ -185,6 +221,7 @@ FUND_VAL = {
     "":         ("P/E < 25",       "pe", "<", 25),
     "deep":     ("P/E < 15",       "pe", "<", 15),
     "growthok": ("P/E < 40",       "pe", "<", 40),
+    "rich":     ("P/E > 40",       "pe", ">", 40),   # the expensive end — overvalued screen
     "any":      ("Any valuation",  None, None, None),
 }
 FUND_QUAL = {
@@ -239,6 +276,8 @@ NAMED_SCREENS = {
                     {"bs": "fortress", "own": "clean"}),
     "qualfin":     ("Quality financials",
                     {"sector": "fin"}),
+    "overvalued":  ("Overvalued (expensive)",
+                    {"val": "rich", "qual": "any", "grow": "any", "bs": "any", "own": "any"}),
 }
 
 
@@ -429,3 +468,104 @@ def build_index_query(window: str = "", direction: str = "", turning: str = "") 
         "LIMIT " + str(INDEX_LIMIT)
     )
     return sql, []
+
+
+# ── pt14 quality-tier + hard-disqualifier flows (over pattern_scores) ─────────
+# pattern_scores holds one row per scoring RUN per stock; the latest run per symbol
+# is MAX(id) (autoincrement PK — a unique, tie-free "newest"). These surface two
+# things the framework already computes but no flow ever read: the quality TIERS
+# (the pt14 headline) and the hard-disqualifier KILL-LIST (its own "avoid" verdict).
+PT14_TIER: dict[str, tuple[str, str | None]] = {
+    "":   ("All (gate pass)", None),
+    "t1": ("Tier 1 only",     "T1"),
+    "t2": ("Tier 2",          "T2"),
+    "t3": ("Tier 3",          "T3"),
+}
+PT14_LIMIT = 80
+
+_LATEST_PATTERN_JOIN = (
+    "JOIN (SELECT symbol, MAX(id) AS mid FROM pattern_scores GROUP BY symbol) lx "
+    "  ON lx.symbol = ps.symbol AND lx.mid = ps.id "
+)
+
+
+def build_pt14_query(tier: str = "") -> tuple[str, list]:
+    """Latest pt14 score per stock, ranked by ns_base (the 0-100 headline), excluding
+    hard-disqualified names. `tier` optionally narrows to one tier — the value comes
+    only from PT14_TIER; ns_base ranking is fixed; bound throughout."""
+    tval = PT14_TIER.get(tier, PT14_TIER[""])[1]
+    where = ["(ps.hard_disqualified IS NULL OR ps.hard_disqualified = 0)"]
+    params: list = []
+    if tval:
+        where.append("ps.tier = ?")
+        params.append(tval)
+    sql = (
+        "SELECT ps.symbol, ps.tier, ps.ns_base, ps.ns_pessimistic, ps.ns_optimistic, "
+        "ps.pac, ps.qg_pass "
+        "FROM pattern_scores ps " + _LATEST_PATTERN_JOIN +
+        "WHERE " + " AND ".join(where) + " "
+        "ORDER BY (ps.ns_base IS NULL), ps.ns_base DESC, ps.symbol "
+        "LIMIT " + str(PT14_LIMIT)
+    )
+    return sql, params
+
+
+def build_disqualified_query() -> tuple[str, list]:
+    """The hard-disqualifier KILL-LIST: latest scoring run per stock where the
+    framework flagged a fatal case, with the reason. Read-only, no user input."""
+    sql = (
+        "SELECT ps.symbol, ps.tier, ps.ns_base, ps.disqualifier_reasons "
+        "FROM pattern_scores ps " + _LATEST_PATTERN_JOIN +
+        "WHERE ps.hard_disqualified = 1 "
+        "ORDER BY ps.symbol "
+        "LIMIT " + str(PT14_LIMIT)
+    )
+    return sql, []
+
+
+# ── single-stock snapshot / red-flag card (one symbol → its row) ──────────────
+# A different SHAPE from the ranked-universe flows: resolve a typed token to an NSE
+# symbol, then read that symbol's latest signals + fundamentals + pt14. Answers
+# "tell me about X / what's wrong with X" — which the screener engine never served.
+def build_symbol_resolve_query(token: str) -> tuple[str, list]:
+    """Resolve a free-text token to candidate NSE symbols (exact > prefix > name).
+    All values bound; LIKE wildcards are added here, the token is never formatted in."""
+    t = (token or "").strip().upper()
+    pref = t.replace("%", "").replace("_", "") + "%"
+    namelike = "%" + (token or "").strip() + "%"
+    sql = (
+        "SELECT symbol, company_name, "
+        "CASE WHEN symbol = ? THEN 0 WHEN symbol LIKE ? THEN 1 ELSE 2 END AS r "
+        "FROM nse_equity_list "
+        "WHERE symbol = ? OR symbol LIKE ? OR company_name LIKE ? "
+        "ORDER BY r, length(symbol), symbol "
+        "LIMIT 8"
+    )
+    return sql, [t, pref, t, pref, namelike]
+
+
+def build_stock_card_query(symbol: str) -> tuple[str, list]:
+    """One row: the symbol's latest signals + its cached fundamentals (LEFT JOIN, so a
+    name with no fundamentals snapshot still renders its signals). Bound on symbol."""
+    sql = (
+        "SELECT s.symbol, pe.close AS cmp, s.rs_rank, s.accum_character, s.trigger_rank, "
+        "s.p_score, s.r_score, s.pct_from_52w_high, s.rs_vs_broad_trend_state, "
+        "s.rs_vs_sector_trend_state, s.primary_sector, s.price_vs_hot_avg_pct, "
+        "s.delivery_value_today, "
+        "f.pe, f.roce, f.roe, f.debt_to_equity, f.promoter_holding, f.promoter_pledge, "
+        "f.market_cap_cr, f.dividend_yield, f.profit_growth_5y "
+        "FROM stock_signals s "
+        "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
+        "LEFT JOIN fundamentals f ON f.symbol = s.symbol "
+        "WHERE s.symbol = ? AND s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)"
+    )
+    return sql, [symbol]
+
+
+def build_stock_pattern_query(symbol: str) -> tuple[str, list]:
+    """The symbol's latest pt14 row (tier + disqualifier reason), or no row."""
+    sql = (
+        "SELECT tier, ns_base, qg_pass, hard_disqualified, disqualifier_reasons "
+        "FROM pattern_scores WHERE symbol = ? ORDER BY id DESC LIMIT 1"
+    )
+    return sql, [symbol]

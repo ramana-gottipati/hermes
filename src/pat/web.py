@@ -19,13 +19,15 @@ from urllib.parse import quote_plus
 
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
 from src.pat.flows import (
-    ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
+    ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, ACC_CHARACTER,
+    RS_STRENGTH, RS_ALIGN, RS_WINDOW, RS_DIRECTION, RS_LAG_STRENGTH,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR, NAMED_SCREENS,
     MOVERS_DIR, MOVERS_LIQ, MOVERS_WINDOW,
-    INDEX_WINDOW, INDEX_DIRECTION, INDEX_TURNING,
+    INDEX_WINDOW, INDEX_DIRECTION, INDEX_TURNING, PT14_TIER,
     build_accumulation_query, build_accumulation_sectors_query,
     build_rs_query, build_rs_sectors_query, build_fundamentals_query, build_movers_query,
-    build_index_query,
+    build_index_query, build_pt14_query, build_disqualified_query,
+    build_symbol_resolve_query, build_stock_card_query, build_stock_pattern_query,
 )
 
 
@@ -188,6 +190,20 @@ _PAT_CSS = """
 .patFbInput:focus{outline:none;border-color:#1f6feb;}
 .patFbSend{background:#1f6feb;border:none;color:#fff;border-radius:8px;cursor:pointer;
            padding:5px 12px;font-size:13px;}
+.patCardHd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.pcSym{font-weight:800;font-size:18px;}
+.pcSec{color:#8b949e;font-size:12px;}
+.pcCmp{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;}
+.patFacts{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:6px 14px;}
+.patFact{display:flex;justify-content:space-between;gap:8px;font-size:13px;
+         border-bottom:1px solid #21262d;padding:3px 0;}
+.patFact .fl{color:#8b949e;}
+.patFact .fv{font-variant-numeric:tabular-nums;}
+.patFlag{margin-top:12px;border-radius:10px;padding:8px 12px;font-size:13px;}
+.patFlag ul{margin:4px 0 0;padding-left:18px;}
+.patFlag b{font-size:11px;text-transform:uppercase;letter-spacing:.4px;}
+.patFlagBad{background:#2a1416;border:1px solid #5c2a2f;color:#f0c0c4;}
+.patFlagOk{background:#0f2417;border:1px solid #2a5c3a;color:#bfe6c9;}
 </style>
 """
 
@@ -418,8 +434,13 @@ def _chip_sel(href: str, label: str, active: bool) -> str:
     return f'<a class="{"patChip on" if active else "patChip"}" href="{href}">{_esc(label)}</a>'
 
 
-def _acc_url(sector: str, strength: str, entry: str, window: str = "") -> str:
-    qs = ["flow=accumulation"]
+# character key -> the flow NAME that carries it (so distribution/consolidation reuse
+# the whole accumulation view + params without needing a new route param).
+_ACC_FLOW = {"": "accumulation", "distribution": "distribution", "consolidation": "consolidation"}
+
+
+def _acc_url(sector: str, strength: str, entry: str, window: str = "", character: str = "") -> str:
+    qs = ["flow=" + _ACC_FLOW.get(character, "accumulation")]
     if sector:
         qs.append("sector=" + _u(sector))
     if strength:
@@ -463,34 +484,51 @@ def _acc_table(rows, win_label: str = "") -> str:
     return head + "".join(rws) + '</tbody></table></div>'
 
 
-def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str = "") -> str:
+# character -> the intro line. Distribution is the strong-hand-EXITING mirror; the
+# copy makes the "warning, not a buy" reading explicit (answer philosophy §3.3).
+_ACC_BUBBLE = {
+    "": ("Accumulation setups — a strong hand active AND the character reading "
+         "accumulation. The window ranks + leads by that delivery read; also narrow "
+         "by strength, entry, or sector:"),
+    "distribution": ("Distribution — the mirror of accumulation: a strong hand active "
+                     "but the character reading DISTRIBUTION (smart money EXITING, often "
+                     "into strength near the highs). A warning, not a buy:"),
+    "consolidation": ("Consolidation — an active hand with the character coiling "
+                      "(neither clearly accumulating nor distributing yet):"),
+}
+
+
+def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str = "",
+                       character: str = "") -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
-        _q_bubble("Accumulation setups — a strong hand active AND the character "
-                  "reading accumulation. The window ranks + leads by that delivery "
-                  "read; also narrow by strength, entry, or sector:"),
-        '<div class="ghdr">Window</div><div class="patChips">',
+        _q_bubble(_ACC_BUBBLE.get(character, _ACC_BUBBLE[""])),
+        '<div class="ghdr">Character</div><div class="patChips">',
     ]
+    for ckey, (clbl, _cv) in ACC_CHARACTER.items():
+        out.append(_chip_sel(_acc_url(sector, strength, entry, window, ckey), clbl, ckey == character))
+    out.append('</div><div class="ghdr">Window</div><div class="patChips">')
     for key, (lbl, _c) in ACC_WINDOW.items():
-        out.append(_chip_sel(_acc_url(sector, strength, entry, key), lbl, key == window))
+        out.append(_chip_sel(_acc_url(sector, strength, entry, key, character), lbl, key == window))
     out.append('</div><div class="ghdr">Strength</div><div class="patChips">')
     for key, (lbl, _p) in ACC_STRENGTH.items():
-        out.append(_chip_sel(_acc_url(sector, key, entry, window), lbl, key == strength))
+        out.append(_chip_sel(_acc_url(sector, key, entry, window, character), lbl, key == strength))
     out.append('</div><div class="ghdr">Entry</div><div class="patChips">')
     for key, lbl in ACC_ENTRY.items():
-        out.append(_chip_sel(_acc_url(sector, strength, key, window), lbl, key == entry))
+        out.append(_chip_sel(_acc_url(sector, strength, key, window, character), lbl, key == entry))
     out.append('</div>')
 
     sectors = []
     if conn is not None:
         try:
-            sectors = list(conn.execute(build_accumulation_sectors_query()))
+            ssql, sparams = build_accumulation_sectors_query(character)
+            sectors = list(conn.execute(ssql, sparams))
         except Exception:
             sectors = []
     out.append('<div class="ghdr">Sector</div><div class="patChips">')
-    out.append(_chip_sel(_acc_url("", strength, entry, window), "All sectors", sector == ""))
+    out.append(_chip_sel(_acc_url("", strength, entry, window, character), "All sectors", sector == ""))
     for r in sectors:
-        out.append(_chip_sel(_acc_url(r["sector"], strength, entry, window),
+        out.append(_chip_sel(_acc_url(r["sector"], strength, entry, window, character),
                              f'{r["sector"]} ({r["c"]})', sector == r["sector"]))
     out.append('</div>')
 
@@ -498,16 +536,17 @@ def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_accumulation_query(sector, strength, entry, window)
+        sql, params = build_accumulation_query(sector, strength, entry, window, character)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
     win_label = ACC_WINDOW.get(window, ACC_WINDOW[""])[0] if window else ""
     wtag = f' · {_esc(win_label)}' if win_label else ''
     tag = f' · {_esc(sector)}' if sector else ''
-    out.append(f'<div class="ghdr">Matches{wtag}{tag} ({len(rows)})</div>')
+    clabel = ACC_CHARACTER.get(character, ACC_CHARACTER[""])[0]
+    out.append(f'<div class="ghdr">{_esc(clabel)}{wtag}{tag} ({len(rows)})</div>')
     out.append(_acc_table(rows, win_label) if rows
-               else '<div class="empty">No accumulation setups match — loosen the filters.</div>')
+               else '<div class="empty">Nothing matches — loosen the filters.</div>')
     return "".join(out)
 
 
@@ -832,6 +871,256 @@ def _index_flow(conn, window="", direction="", turning="") -> str:
     return "".join(out)
 
 
+# ── RS laggards / weak stocks (the worst-side mirror, reuses _rs_table) ───────
+
+def _rslag_url(sector: str = "", strength: str = "", window: str = "") -> str:
+    qs = ["flow=rslag"]
+    if sector:
+        qs.append("sector=" + _u(sector))
+    if strength:
+        qs.append("strength=" + _u(strength))
+    if window:
+        qs.append("entry=" + _u(window))     # reuse entry=window, like the RS flow
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _rslag_flow(conn, sector: str = "", strength: str = "", window: str = "") -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("Weak / laggard stocks — the bottom of relative strength (the worst "
+                  "side Pat used to redirect away from). Ranked weakest-first by the "
+                  "window's RS slope; pick how weak, and the window:"),
+        '<div class="ghdr">Window</div><div class="patChips">',
+    ]
+    for key, (lbl, _s) in RS_WINDOW.items():
+        out.append(_chip_sel(_rslag_url(sector, strength, key), lbl, key == window))
+    out.append('</div><div class="ghdr">Weakness</div><div class="patChips">')
+    for key, (lbl, _c) in RS_LAG_STRENGTH.items():
+        out.append(_chip_sel(_rslag_url(sector, key, window), lbl, key == strength))
+    out.append('</div><div class="patChips">'
+               + _chip("/dash/pat?flow=rs", "↔ switch to RS leaders") + '</div>')
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_rs_query(sector, strength, "", window, direction="laggards")
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    win_label = RS_WINDOW.get(window, RS_WINDOW[""])[0]
+    tag = f' · {_esc(sector)}' if sector else ''
+    out.append(f'<div class="ghdr">Laggards · {_esc(win_label)}{tag} ({len(rows)})</div>')
+    out.append(_rs_table(rows, win_label) if rows
+               else '<div class="empty">No laggards match — loosen the filters.</div>')
+    return "".join(out)
+
+
+# ── pt14 quality-tier screen + the hard-disqualifier kill-list ────────────────
+
+def _pt14_url(tier: str = "") -> str:
+    qs = ["flow=pt14"]
+    if tier:
+        qs.append("strength=" + _u(tier))    # reuse strength param for the tier chip
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _pt14_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>Tier</th><th>Score</th><th>Band</th>'
+            '<th>Active patterns</th><th>Quality gate</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_esc(r["tier"] or "—")}</td>'
+            f'<td>{_n(r["ns_base"], 0)}</td>'
+            f'<td class="mut">{_n(r["ns_pessimistic"], 0)}–{_n(r["ns_optimistic"], 0)}</td>'
+            f'<td>{_int(r["pac"])}</td>'
+            f'<td>{_yn(r["qg_pass"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _pt14_flow(conn, tier: str = "") -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("pt14 quality — the 14-pattern business-quality score (0-100), highest "
+                  "first, with hard-disqualified names excluded. Filter by tier:"),
+        '<div class="ghdr">Tier</div><div class="patChips">',
+    ]
+    for key, (lbl, _t) in PT14_TIER.items():
+        out.append(_chip_sel(_pt14_url(key), lbl, key == tier))
+    out.append('</div><div class="patChips">'
+               + _chip("/dash/pat?flow=redflags", "⚑ see the kill-list (disqualified)") + '</div>')
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_pt14_query(tier)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    out.append(f'<div class="ghdr">pt14 quality ({len(rows)})</div>')
+    out.append(_pt14_table(rows) if rows
+               else '<div class="empty">No scored names yet — pt14 is scored on demand for surfaced stocks.</div>')
+    return "".join(out)
+
+
+def _disqualified_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>Tier</th><th>Score</th><th>Why disqualified</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_esc(r["tier"] or "—")}</td>'
+            f'<td>{_n(r["ns_base"], 0)}</td>'
+            f'<td class="mut">{_esc(r["disqualifier_reasons"] or "—")}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _disqualified_flow(conn) -> str:
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("The kill-list — names the 14-pattern framework HARD-disqualified (a "
+                  "fatal red flag), with the reason. This is Patearn's own 'avoid' "
+                  "verdict, not a market screen:"),
+    ]
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_disqualified_query()
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    out.append(f'<div class="ghdr">Hard-disqualified ({len(rows)})</div>')
+    out.append(_disqualified_table(rows) if rows
+               else '<div class="empty">No disqualified names recorded yet (pt14 scores on demand).</div>')
+    return "".join(out)
+
+
+# ── single-stock snapshot / red-flag card (a different shape: one symbol) ─────
+
+def _fact(label: str, value: str) -> str:
+    return f'<div class="patFact"><span class="fl">{_esc(label)}</span><span class="fv">{value}</span></div>'
+
+
+def _stock_card(row, prow) -> str:
+    sym = row["symbol"]
+    # Red-flag synthesis — the "what's wrong with X" read, value beside verdict.
+    flags = []
+    if (row["accum_character"] or "") == "DISTRIBUTION":
+        flags.append("Under distribution — the strong hand looks to be EXITING.")
+    rsr = row["rs_rank"]
+    if rsr is not None and rsr <= 20:
+        flags.append(f"Weak relative strength (RS {int(rsr)}/99) — lagging the market.")
+    de = row["debt_to_equity"]
+    if de is not None and de > 1.5:
+        flags.append(f"High leverage (D/E {de:.2f}).")
+    pl = row["promoter_pledge"]
+    if pl is not None and pl > 5:
+        flags.append(f"Promoter pledge {pl:.0f}%.")
+    if prow and prow["hard_disqualified"]:
+        flags.append("pt14 HARD-DISQUALIFIED: " + _esc(prow["disqualifier_reasons"] or "a fatal pattern") + ".")
+    # Positives — the "reads well" side.
+    good = []
+    if (row["accum_character"] or "") == "ACCUMULATION":
+        good.append("Reading accumulation (strong-hand buying).")
+    if rsr is not None and rsr >= 80:
+        good.append(f"RS leader (RS {int(rsr)}/99).")
+    rc = row["roce"]
+    if rc is not None and rc >= 18:
+        good.append(f"High ROCE ({rc:.0f}%).")
+
+    head = (f'<div class="patCardHd"><span class="pcSym">{_esc(sym)}</span>'
+            f'<span class="pcSec">{_esc(row["primary_sector"] or "—")}</span>'
+            f'<span class="pcCmp">₹{_n(row["cmp"])}</span></div>')
+    tier = prow["tier"] if prow else None
+    facts = "".join([
+        _fact("RS rank", _int(rsr)),
+        _fact("Character", _char_pill(row["accum_character"])),
+        _fact("Trigger", _rank_pill(row["trigger_rank"])),
+        _fact("p/r", f'{_int(row["p_score"])}/{_int(row["r_score"])}'),
+        _fact("pt14 tier", _esc(tier or "—")),
+        _fact("% off 52wH", _sgn(row["pct_from_52w_high"])),
+        _fact("Δ hot cost", _sgn(row["price_vs_hot_avg_pct"])),
+        _fact("P/E", _n(row["pe"], 1)),
+        _fact("ROCE", _pc(row["roce"])),
+        _fact("ROE", _pc(row["roe"])),
+        _fact("D/E", _n(row["debt_to_equity"], 2)),
+        _fact("Promoter", _pc(row["promoter_holding"])),
+        _fact("Pledge", _pc(row["promoter_pledge"])),
+        _fact("Profit 5Y", _pc(row["profit_growth_5y"])),
+        _fact("Div yield", _pc(row["dividend_yield"])),
+        _fact("MCap ₹Cr", _n(row["market_cap_cr"], 0)),
+    ])
+    flag_html = ''
+    if flags:
+        flag_html = ('<div class="patFlag patFlagBad"><b>Red flags</b><ul>'
+                     + "".join(f'<li>{f}</li>' for f in flags) + '</ul></div>')
+    good_html = ''
+    if good:
+        good_html = ('<div class="patFlag patFlagOk"><b>Reads well</b><ul>'
+                     + "".join(f'<li>{_esc(g)}</li>' for g in good) + '</ul></div>')
+    more = (f'<div class="patChips"><a class="patChip" href="/dash/stock?sym={_u(sym)}">'
+            'Full stock page <span class="ar">→</span></a></div>')
+    return ('<div class="card">' + head + '<div class="patFacts">' + facts + '</div>'
+            + flag_html + good_html + more + '</div>')
+
+
+def _stock_flow(conn, sym: str) -> str:
+    token = (sym or "").strip()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not token:
+        out.append(_q_bubble("Which stock? Type a name or symbol — e.g. RELIANCE, INFY."))
+        return "".join(out)
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see the stock.</div>')
+        return "".join(out)
+    try:
+        rsql, rparams = build_symbol_resolve_query(token)
+        cands = list(conn.execute(rsql, rparams))
+    except Exception:
+        cands = []
+    if not cands:
+        out.append(_q_bubble(f'No NSE stock matches "{token}". Try the exact symbol (e.g. RELIANCE, INFY).'))
+        return "".join(out)
+    exact = [c for c in cands if (c["symbol"] or "").upper() == token.upper()]
+    if len(cands) > 1 and not exact:
+        out.append(_q_bubble("Did you mean one of these?"))
+        out.append('<div class="patChips">')
+        for c in cands:
+            lbl = f'{c["symbol"]} — {c["company_name"] or ""}'.strip(" —")
+            out.append(_chip(f"/dash/pat?flow=stock&sym={_u(c['symbol'])}", lbl))
+        out.append('</div>')
+        return "".join(out)
+    symbol = (exact[0] if exact else cands[0])["symbol"]
+    try:
+        csql, cparams = build_stock_card_query(symbol)
+        crow = conn.execute(csql, cparams).fetchone()
+    except Exception:
+        crow = None
+    if crow is None:
+        out.append(_q_bubble(f'{_esc(symbol)} is listed but has no recent signals row yet.'))
+        return "".join(out)
+    try:
+        psql, pparams = build_stock_pattern_query(symbol)
+        prow = conn.execute(psql, pparams).fetchone()
+    except Exception:
+        prow = None
+    out.append(_q_bubble(f'{_esc(symbol)} — snapshot & red-flag read (value beside verdict):'))
+    out.append(_stock_card(crow, prow))
+    return "".join(out)
+
+
 # Strategy-organized example questions — the "clues" that teach what Pat can be
 # asked. Each is real free-text routed through the engine, so tapping one both
 # answers AND shows the user the shape of question that works.
@@ -872,9 +1161,13 @@ def _home() -> str:
     out.append('<div class="ghdr">Or open a screen directly</div><div class="patChips">')
     for href, lbl in [("/dash/pat?flow=movers", "Today's movers"),
                       ("/dash/pat?flow=accumulation", "Accumulation"),
+                      ("/dash/pat?flow=distribution", "Distribution"),
                       ("/dash/pat?flow=rs", "RS leaders"),
+                      ("/dash/pat?flow=rslag", "Weak / laggards"),
                       ("/dash/pat?flow=index", "Index performance"),
                       ("/dash/pat?flow=fundamentals", "Fundamentals"),
+                      ("/dash/pat?flow=pt14", "pt14 quality"),
+                      ("/dash/pat?flow=redflags", "Kill-list"),
                       ("/dash/pat?flow=explain", "Explain a metric")]:
         out.append(_chip(href, lbl, arrow=True))
     out.append('</div>')
@@ -883,7 +1176,12 @@ def _home() -> str:
 
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
-               "index": "Index performance"}
+               "index": "Index performance", "distribution": "Distribution (strong hand exiting)",
+               "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
+               "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
+               "stock": "Stock snapshot",
+               # canonical contract aliases (route_extra/eval_set names → same views)
+               "disqualified": "The kill-list (disqualified)", "card": "Stock snapshot"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -935,12 +1233,19 @@ def _free_text(conn, q: str):
                           "params": {"explain": sel["explain"]}, "source": "free_text"}
         p = sel.get("params", {})
         body = None
+        # Canonical contract (shared with eval_set.py): distribution/consolidation are
+        # a `character` param on accumulation; laggards a `direction` param on rs;
+        # the kill-list is `disqualified`; the single-stock view is `card`.
         if f == "accumulation":
             body = _accumulation_flow(conn, p.get("sector", ""), p.get("strength", ""),
-                                      p.get("entry", ""), p.get("window", ""))
+                                      p.get("entry", ""), p.get("window", ""),
+                                      character=p.get("character", ""))
         elif f == "rs":
-            body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""),
-                            p.get("window", ""))
+            if p.get("direction") == "laggards":
+                body = _rslag_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("window", ""))
+            else:
+                body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""),
+                                p.get("window", ""))
         elif f == "fundamentals":
             body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
@@ -948,6 +1253,12 @@ def _free_text(conn, q: str):
             body = _movers_flow(conn, p.get("direction", ""), p.get("liq", ""), p.get("window", ""))
         elif f == "index":
             body = _index_flow(conn, p.get("window", ""), p.get("direction", ""), p.get("turning", ""))
+        elif f == "pt14":
+            body = _pt14_flow(conn, p.get("tier", ""))
+        elif f == "disqualified":
+            body = _disqualified_flow(conn)
+        elif f == "card":
+            body = _stock_flow(conn, p.get("sym", ""))
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
@@ -959,13 +1270,14 @@ def _free_text(conn, q: str):
 def render_pat(flow: str = "", explain: str = "", q: str = "",
                sector: str = "", strength: str = "", entry: str = "", align: str = "",
                val: str = "", qual: str = "", grow: str = "", bs: str = "", own: str = "",
-               conn=None) -> str:
+               sym: str = "", conn=None) -> str:
     """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn)."""
     flow = (flow or "").strip().lower()
     explain = (explain or "").strip()
     q = (q or "").strip()
     sector = (sector or "").strip()
     strength = (strength or "").strip().lower()
+    sym = (sym or "").strip()
 
     if flow == "face":                       # the dedicated face-picker page
         return _PAT_CSS + _face_picker()
@@ -1013,6 +1325,28 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         fb_ctx = {"query": "", "flow": "index",
                   "params": {"window": window, "direction": direction, "turning": turning},
                   "source": "flow"}
+    elif flow in ("distribution", "consolidation"):
+        entry = (entry or "").strip().lower()
+        window = (align or "").strip().lower()       # character window also rides `align`
+        body = _accumulation_flow(conn, sector, strength, entry, window, character=flow)
+        fb_ctx = {"query": "", "flow": flow,
+                  "params": {"sector": sector, "strength": strength, "entry": entry,
+                             "window": window, "character": flow}, "source": "flow"}
+    elif flow == "rslag":
+        window = (entry or "").strip().lower()       # laggard window rides `entry` (like RS)
+        body = _rslag_flow(conn, sector, strength, window)
+        fb_ctx = {"query": "", "flow": "rslag",
+                  "params": {"sector": sector, "strength": strength, "window": window},
+                  "source": "flow"}
+    elif flow == "pt14":
+        body = _pt14_flow(conn, strength)            # the tier chip rides `strength`
+        fb_ctx = {"query": "", "flow": "pt14", "params": {"tier": strength}, "source": "flow"}
+    elif flow == "redflags":
+        body = _disqualified_flow(conn)
+        fb_ctx = {"query": "", "flow": "redflags", "params": {}, "source": "flow"}
+    elif flow == "stock":
+        body = _stock_flow(conn, sym)
+        fb_ctx = {"query": "", "flow": "stock", "params": {"sym": sym}, "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

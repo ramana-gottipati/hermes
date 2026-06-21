@@ -146,6 +146,38 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
 
 > Format: `[area] priority — idea (why)`. Tick when shipped.
 
+> **📚 The master question catalog lives in [pat-question-catalog.md](pat-question-catalog.md)** —
+> the exhaustive, de-duplicated set of what users will ask (built from a wide research sweep:
+> real Screener/Trendlyne phrasings, FinTwit/Hinglish lingo, full TA/FA space, voice/STT, 12
+> personas, follow-ups, educational long-tail, events, and adversarial/OOD), tagged into 5 bands
+> (✅ live · ❓ clarify · 🟡 data-in-DB-no-flow · 🔴 no-data · ⛔ out-of-domain). **Headline finding:**
+> most "Pat can't do that" is 🟡 (a small flow away), not 🔴. The catalog's Part 12 is the ranked
+> roadmap and Appendix A seeds the `eval_set.py` expansion. The Tier-0 cheap-wins below come from it.
+
+- ⬜ `[accumulation]` P0 🟡 — **distribution flow**: add a `character` chip to `build_accumulation_query`
+  (ACCUMULATION default → DISTRIBUTION/CONSOLIDATION). `accum_character` already stores all four labels
+  and is indexed nightly; the flow hardcodes `='ACCUMULATION'`. Few-line change, highest ROI — unlocks
+  "stocks under distribution / smart money exiting / distribution near the highs".
+- ⬜ `[rs]` P0 🟡 — **weak / RS-laggard flow**: `direction` chip on `build_rs_query` + flip the
+  unsupported-clarify for the worst side. `rs_rank` (both ends) + RS slopes already stored; only the top
+  is served. Removes Pat's single biggest "can't do that" surface ("weakest stocks", "biggest laggards").
+- ⬜ `[fundamentals]` P0 🟡 — **honor the parsed valuation/quality `op`** (today `compile_intent` drops it
+  and returns the *default* cheap screen, so "overvalued stocks" returns *cheap* stocks — a live bug) +
+  add `overvalued`/`risky` presets. Also surfaces high-debt / high-pledge / low-ROCE inverse screens.
+- ⬜ `[quality]` P1 🟡 — **hard-disqualifier kill-list flow** over `hard_disqualified=1` + `disqualifier_reasons`
+  (populated in the DB, zero read path) and a **pt14 quality-tier screen** (`quality` currently routes to the
+  PE/ROCE ratio screen, not the pt14 tiers).
+- ⬜ `[single-stock]` P1 🟡 — **red-flag / snapshot card**: one symbol → character + RS + 52w-dist + PE + D/E
+  + pledge + disqualifier reasons. New *shape* (single row, not ranked universe); answers "what's wrong with X /
+  tell me about <stock>" and feeds the advice-redirects. (NL engine is a screener today — no single-stock path.)
+- ⬜ `[guardrails]` P1 ⛔ — **advice/predict/feature-assumption redirect branch**: detect buy/sell/alert/predict
+  verbs → hand over the data screen instead of falling silently to glossary search (SEBI-advice boundary; see
+  catalog Part 5). One-time identity+disclaimer block for meta/greeting/"are you SEBI registered".
+- ⬜ `[input]` P2 — **robustness layer** (catalog Part 7 + Appendix B): ticker alias map + fuzzy resolve,
+  number-word + lakh/crore parser, homophone map, Hinglish data-noun + advisory-verb detection, HTML-escape echoes.
+- ⬜ `[methodology]` P2 — **"explain the strategy" capability** (canned, doctrine-grounded, ₹0 like the glossary):
+  4 pillars / why-DVPT-matters / RS-vs-RSI / what-makes-a-conviction-pick. Catalog Part 10 lists the 8 acceptance questions.
+
 - ✅ `[movers]` today's-movers flow — was mis-routing to RS (gap closed).
 - ✅ `[rs]` timeframe-aware window — "last month" → RS 1M (reporting follows ask).
 - ✅ `[home]` strategy-grouped example clues — weak suggestions fixed.

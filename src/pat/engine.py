@@ -22,7 +22,8 @@ import re
 from src.core.llm_router import call_classifier
 from src.pat.glossary import GLOSSARY
 from src.pat.flows import (
-    ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, RS_STRENGTH, RS_ALIGN, RS_WINDOW,
+    ACC_STRENGTH, ACC_ENTRY, ACC_WINDOW, ACC_CHARACTER,
+    RS_STRENGTH, RS_ALIGN, RS_WINDOW, RS_DIRECTION,
     FUND_VAL, FUND_QUAL, FUND_GROW, FUND_BS, FUND_OWN, FUND_SECTOR,
     MOVERS_DIR, MOVERS_LIQ, MOVERS_WINDOW,
     INDEX_WINDOW, INDEX_DIRECTION, INDEX_TURNING,
@@ -32,9 +33,9 @@ from src.pat.flows import (
 # "free" = any non-empty string allowed (validated/parameterized downstream).
 _VALID: dict[str, dict] = {
     "accumulation": {"strength": set(ACC_STRENGTH), "entry": set(ACC_ENTRY), "sector": "free",
-                     "window": set(ACC_WINDOW)},
+                     "window": set(ACC_WINDOW), "character": set(ACC_CHARACTER)},
     "rs":           {"strength": set(RS_STRENGTH), "align": set(RS_ALIGN), "sector": "free",
-                     "window": set(RS_WINDOW)},
+                     "window": set(RS_WINDOW), "direction": set(RS_DIRECTION)},
     "fundamentals": {"val": set(FUND_VAL), "qual": set(FUND_QUAL), "grow": set(FUND_GROW),
                      "bs": set(FUND_BS), "own": set(FUND_OWN), "sector": set(FUND_SECTOR)},
     "movers":       {"direction": set(MOVERS_DIR), "liq": set(MOVERS_LIQ),
@@ -214,6 +215,18 @@ def route(query: str, conn=None) -> dict | None:
     if clar:
         _CACHE[q] = clar
         return clar
+
+    # (a2) Deterministic routers for the cheap-win flows (distribution, rs-laggards,
+    #      kill-list, pt14, overvalued, single-stock) — ₹0, quota-proof, and immune to
+    #      mis-routing for these distinctive asks. None → fall through to the parse.
+    try:
+        from src.pat.disambiguate import route_extra as _route_extra
+        extra = _route_extra(query)
+    except Exception:
+        extra = None
+    if extra:
+        _CACHE[q] = extra
+        return extra
 
     # (b) Primary path: Gemini semantically PARSES the query into a structured
     #     intent (never-Claude). The compiler then reasons it onto a flow.
