@@ -290,6 +290,12 @@ _RSLAG = ["weakest stock", "weak stock", "laggard stock", "rs laggard", "weakest
           "weak name", "losing momentum", "weak relative strength", "stocks lagging",
           "lagging stock", "underperforming stock", "weakest in", "biggest laggard",
           "weakest shares"]
+# momentum oscillators (RSI/MACD) → the `oscillators` flow. Unambiguous TA terms,
+# so route them deterministically before the model (which mis-reads "oversold").
+_OSC_OVERSOLD = ["oversold", "rsi below 30", "rsi under 30", "rsi < 30", "rsi<30",
+                 "rsi less than 30"]
+_OSC_OVERBOUGHT = ["overbought", "rsi above 70", "rsi over 70", "rsi > 70", "rsi>70",
+                   "rsi more than 70"]
 
 # Explicit single-stock asks → capture the trailing name/symbol token. Deliberately
 # excludes vague leads ("show me", "how is") that collide with screen asks.
@@ -366,6 +372,19 @@ def route_extra(query: str) -> dict | None:
                 and not _has_any(qn, ["today", "this week", "intraday", "gainer", "loser",
                                       "gained", "fell"]):
             return {"flow": "rs", "params": {"direction": "laggards"}}
+
+        # momentum oscillators (RSI / MACD) — the model unreliably reads "oversold"
+        # as RS, so these unambiguous TA terms route deterministically here.
+        if _has_any(qn, _OSC_OVERSOLD):
+            return {"flow": "oscillators", "params": {"screen": "rsi_oversold"}}
+        if _has_any(qn, _OSC_OVERBOUGHT):
+            return {"flow": "oscillators", "params": {"screen": "rsi_overbought"}}
+        if "macd" in qn:
+            if _has_any(qn, ["bearish", "bear cross", "cross down", "sell signal"]):
+                return {"flow": "oscillators", "params": {"screen": "macd_bear"}}
+            if _has_any(qn, ["positive", "above signal", "above the signal", "above its signal"]):
+                return {"flow": "oscillators", "params": {"screen": "macd_positive"}}
+            return {"flow": "oscillators", "params": {"screen": "macd_bull"}}
     except Exception:
         return None
     return None

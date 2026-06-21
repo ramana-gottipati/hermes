@@ -1007,6 +1007,66 @@ def _disqualified_flow(conn) -> str:
     return "".join(out)
 
 
+# ── momentum oscillators (RSI / MACD over stock_oscillators, computed nightly) ─
+
+def _osc_url(screen: str = "") -> str:
+    # reuse the captured `strength` route param to carry the screen key.
+    qs = ["flow=oscillators"]
+    if screen:
+        qs.append("strength=" + _u(screen))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _osc_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>RSI 14</th><th>MACD</th><th>Signal</th>'
+            '<th>Hist</th><th>RS</th><th>Sector</th></tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_n(r["rsi_14"], 1)}</td>'
+            f'<td>{_n(r["macd"], 2)}</td>'
+            f'<td>{_n(r["macd_signal"], 2)}</td>'
+            f'<td>{_sgn(r["macd_hist"], 2)}</td>'
+            f'<td>{_int(r["rs_rank"])}</td>'
+            f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _oscillators_flow(conn, screen: str = "") -> str:
+    from src.automation.oscillators import OSC_SCREEN, build_oscillators_query
+    screen = (screen or "").strip().lower()
+    if screen not in OSC_SCREEN:
+        screen = "rsi_oversold"
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("Momentum oscillators — RSI(14) + MACD(12,26,9), computed nightly off the "
+                  "price archive. Pick a screen:"),
+        '<div class="ghdr">Screen</div><div class="patChips">',
+    ]
+    for key, (lbl, _w, _o) in OSC_SCREEN.items():
+        out.append(_chip_sel(_osc_url(key), lbl, key == screen))
+    out.append('</div>')
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_oscillators_query(screen)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    lbl = OSC_SCREEN.get(screen, OSC_SCREEN["rsi_oversold"])[0]
+    out.append(f'<div class="ghdr">{_esc(lbl)} ({len(rows)})</div>')
+    out.append(_osc_table(rows) if rows
+               else '<div class="empty">No names match this screen right now.</div>')
+    return "".join(out)
+
+
 # ── single-stock snapshot / red-flag card (a different shape: one symbol) ─────
 
 def _fact(label: str, value: str) -> str:
@@ -1181,7 +1241,8 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
                "stock": "Stock snapshot",
                # canonical contract aliases (route_extra/eval_set names → same views)
-               "disqualified": "The kill-list (disqualified)", "card": "Stock snapshot"}
+               "disqualified": "The kill-list (disqualified)", "card": "Stock snapshot",
+               "oscillators": "Momentum (RSI / MACD)"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -1259,6 +1320,8 @@ def _free_text(conn, q: str):
             body = _disqualified_flow(conn)
         elif f == "card":
             body = _stock_flow(conn, p.get("sym", ""))
+        elif f == "oscillators":
+            body = _oscillators_flow(conn, p.get("screen", ""))
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
@@ -1347,6 +1410,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "stock":
         body = _stock_flow(conn, sym)
         fb_ctx = {"query": "", "flow": "stock", "params": {"sym": sym}, "source": "flow"}
+    elif flow == "oscillators":
+        body = _oscillators_flow(conn, strength)     # the screen chip rides `strength`
+        fb_ctx = {"query": "", "flow": "oscillators", "params": {"screen": strength}, "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

@@ -45,6 +45,8 @@ OPS = {">", "<", ">=", "<=", "improving", "declining"}
 # the strong-hand delivery CHARACTER (accumulation flow); distribution = exiting.
 CHARACTERS = {"accumulation", "distribution", "consolidation"}
 TASKS = {"rank", "explain", "stock"}
+# momentum-oscillator screens (the `oscillators` flow). Keys mirror OSC_SCREEN.
+INDICATORS = {"rsi_oversold", "rsi_overbought", "macd_bull", "macd_bear", "macd_positive"}
 
 _WS = re.compile(r"\s+")
 
@@ -138,17 +140,21 @@ def validate_intent(obj) -> dict | None:
     if character not in CHARACTERS:
         character = None
 
+    indicator = obj.get("indicator")
+    if indicator not in INDICATORS:
+        indicator = None
+
     conf = obj.get("confidence")
     try:
         conf = int(conf)
     except (TypeError, ValueError):
         conf = None
 
-    if not rank and not filters and not scope and not character:
+    if not rank and not filters and not scope and not character and not indicator:
         # nothing actionable parsed
         return None
     return {"task": "rank", "universe": universe, "rank": rank, "filters": filters,
-            "scope": scope, "character": character, "confidence": conf}
+            "scope": scope, "character": character, "indicator": indicator, "confidence": conf}
 
 
 # ── clarify / unsupported helpers (clarify-shaped so web renders them as-is) ──
@@ -214,6 +220,11 @@ def compile_intent(intent: dict) -> dict | None:
     window = rank.get("window")
     order = rank.get("order")
     turning = _filters_improving_1m(filters)
+
+    # ── momentum oscillators (RSI/MACD) — a definitive screen selector ────────
+    indicator = intent.get("indicator")
+    if indicator in INDICATORS:
+        return {"flow": "oscillators", "params": {"screen": indicator}}
 
     # ── INDEX / SECTOR universe → the index-performance flow ──────────────────
     # (sector-performance questions are index questions: the sector's index.)
@@ -388,6 +399,10 @@ SYSTEM_PARSE = (
     "out'), consolidation (coiling)] alongside metric 'delivery'.\n"
     "  SINGLE STOCK: 'tell me about INFY' / \"what's wrong with RELIANCE\" / 'is X a "
     "value trap' → {\"task\":\"stock\",\"symbol\":\"<TICKER>\"}.\n"
+    "  OSCILLATORS: for a momentum-indicator screen set indicator ∈ [rsi_oversold "
+    "(RSI<30 / oversold), rsi_overbought (RSI>70 / overbought), macd_bull (MACD "
+    "bullish crossover / turning up), macd_bear (MACD bearish crossover), "
+    "macd_positive (MACD above its signal line)].\n"
     "  BOUNDARY: for buy/sell/hold ADVICE, PRICE PREDICTIONS/targets/timing, alerts/"
     "trades/portfolio actions, or NON-equity assets (gold, crypto, F&O/options, US "
     "indices, bonds), reply {\"task\":\"ood\",\"kind\":\"advisory|prediction|feature|asset\"} "
@@ -398,7 +413,7 @@ SYSTEM_PARSE = (
     '{"task":"rank","universe":"stock|index|sector",'
     '"rank":{"metric":..,"window":..,"order":..},'
     '"filters":[{"metric":..,"window":..,"op":..,"value":..}],'
-    '"character":..,"scope":{"sector":..,"index":..},"confidence":0-100}\n'
+    '"character":..,"indicator":..,"scope":{"sector":..,"index":..},"confidence":0-100}\n'
     "WORKED EXAMPLES:\n"
     "'worst performing index over the last year that started performing better in the "
     "past month' → "
@@ -512,6 +527,23 @@ def parse_fallback(query: str) -> dict | None:
                            "14 pattern", "14-pattern"]):
             return {"task": "rank", "universe": "stock", "rank": {"metric": "pt14"},
                     "filters": [], "scope": {}, "character": None, "confidence": 55}
+
+        # momentum oscillators (RSI / MACD) → the `oscillators` flow
+        osc = None
+        if _has_any(qn, ["oversold"]) or ("rsi" in qn and _has_any(qn, ["below 30", "under 30", "<30", "< 30", "less than 30"])):
+            osc = "rsi_oversold"
+        elif _has_any(qn, ["overbought"]) or ("rsi" in qn and _has_any(qn, ["above 70", "over 70", ">70", "> 70", "more than 70"])):
+            osc = "rsi_overbought"
+        elif "macd" in qn:
+            if _has_any(qn, ["bearish", "bear cross", "cross down", "sell signal"]):
+                osc = "macd_bear"
+            elif _has_any(qn, ["positive", "above signal", "above the signal", "above its signal"]):
+                osc = "macd_positive"
+            else:
+                osc = "macd_bull"     # default: the bullish crossover (most-asked)
+        if osc:
+            return {"task": "rank", "universe": "stock", "rank": {}, "filters": [],
+                    "scope": {}, "character": None, "indicator": osc, "confidence": 55}
 
         universe = "stock"
         if D._has_any(qn, ["index", "indices", "sectoral", "sector rotation",

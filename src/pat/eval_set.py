@@ -93,6 +93,12 @@ INTENT_CASES = [
      {"universe": "stock", "rank": {"metric": "valuation", "order": "best"},
       "filters": [{"metric": "quality", "op": ">", "value": 20}]},
      {"flow": "fundamentals", "params": {"val": "", "qual": ""}}),
+    ("oscillator: RSI oversold → oscillators (§4.1)",
+     {"universe": "stock", "rank": {}, "indicator": "rsi_oversold"},
+     {"flow": "oscillators", "params": {"screen": "rsi_oversold"}}),
+    ("oscillator: MACD bullish crossover → oscillators",
+     {"universe": "stock", "rank": {}, "indicator": "macd_bull"},
+     {"flow": "oscillators", "params": {"screen": "macd_bull"}}),
 ]
 
 
@@ -116,6 +122,10 @@ ROUTE_CASES = [
     ("overvalued stocks", {"flow": "fundamentals", "params": {"val": "rich"}}, "LIVE"),
     ("most expensive stocks by PE", {"flow": "fundamentals", "params": {"val": "rich"}}, "LIVE"),
     ("cheap stocks under PE 15", {"flow": "fundamentals", "params": {"val": "deep"}}, "LIVE"),
+    ("oversold stocks", {"flow": "oscillators", "params": {"screen": "rsi_oversold"}}, "LIVE"),
+    ("RSI below 30", {"flow": "oscillators", "params": {"screen": "rsi_oversold"}}, "LIVE"),
+    ("overbought stocks", {"flow": "oscillators", "params": {"screen": "rsi_overbought"}}, "LIVE"),
+    ("MACD bullish crossover", {"flow": "oscillators", "params": {"screen": "macd_bull"}}, "LIVE"),
     # ---- CLARIFY: must ask, not guess ----
     ("strong stocks", {"flow": "clarify"}, "CLARIFY"),
     ("best stocks", {"flow": "clarify"}, "CLARIFY"),
