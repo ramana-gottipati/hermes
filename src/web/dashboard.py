@@ -5246,7 +5246,12 @@ def dash_stock(sym: str = Query("", max_length=20),
                 (sym, latest["trade_date"])).fetchone()
             latest["close"] = _bq["close"] if _bq else None
             latest["deliv_per"] = _bq["deliv_per"] if _bq else None
-        # Up to 5 years of daily candles + DVPT + delivery for the charts (oldest first)
+        # FULL daily history (candles + DVPT + delivery), oldest-first after the
+        # reverse below. No row cap — "Max" must mean max: the bhav archive runs
+        # back to 2004 and even the deepest name (RELIANCE, ~5.4k rows) is served
+        # instantly by idx_bhav_sym_date. The old LIMIT 1300 silently truncated
+        # every chart to ~5 years, anchoring "Max" at ~2021. The client-side
+        # range buttons (3M/6M/1Y/2Y/Max) still slice this for the default view.
         rows = conn.execute(
             """SELECT b.trade_date, b.open, b.high, b.low, b.close, b.prev_close,
                       b.deliv_per, b.value, b.deliv_qty,
@@ -5254,7 +5259,7 @@ def dash_stock(sym: str = Query("", max_length=20),
                FROM bhavcopy_rows b
                LEFT JOIN stock_signals s USING (symbol, trade_date)
                WHERE b.symbol=? AND b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL)
-               ORDER BY b.trade_date DESC LIMIT 1300""",
+               ORDER BY b.trade_date DESC""",
             (sym,),
         ).fetchall()
         # Cached fundamentals + latest pt14 pattern score (best-effort).
@@ -5272,6 +5277,14 @@ def dash_stock(sym: str = Query("", max_length=20),
             cpr_by_tf = _cpr_latest_by_tf(conn, [sym]).get(sym, {})   # CPR Structure panel (D53)
         except Exception:
             cpr_by_tf = {}
+        # Full company name for the chart titles (so each chart self-identifies
+        # the scrip without scrolling back to the page header).
+        try:
+            _cn = conn.execute(
+                "SELECT company_name FROM nse_equity_list WHERE symbol=?", (sym,)).fetchone()
+            company_name = (_cn["company_name"] if _cn else "") or ""
+        except Exception:
+            company_name = ""
 
     if not latest or not rows:
         body = search + f'<div class="empty">No data for <b>{_esc(sym)}</b>. Check the ticker.</div>'
@@ -5988,20 +6001,20 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <button data-r="0" class="on">Max</button>
 </div>
 <div class="chartwrap">
-  <div class="chartlbl">Price + institutional zones (split/bonus-adjusted){'  ⚠ recent corporate action — zone overlay approximate' if zone_action_recent else ''}</div>
+  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b>{(' · '+_esc(company_name)) if company_name else ''} — price + institutional zones (split/bonus-adjusted){'  ⚠ recent corporate action — zone overlay approximate' if zone_action_recent else ''}</div>
   <div id="priceRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
   <div id="priceChart" style="height:300px;"></div>
 </div>
 <div class="chartwrap">
-  <div class="chartlbl">DVPT per trade — institutional spikes (amber = institutional-intensity day, r1m &gt; 1)</div>
+  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · DVPT per trade — institutional spikes (amber = institutional-intensity day, r1m &gt; 1)</div>
   <div id="dvptChart" style="height:150px;"></div>
 </div>
 <div class="chartwrap">
-  <div class="chartlbl">Delivery %</div>
+  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · Delivery %</div>
   <div id="delivChart" style="height:120px;"></div>
 </div>
 <div class="chartwrap">
-  <div class="chartlbl">Traded value (bar) + delivery value (bright = took delivery)</div>
+  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · Traded value (bar) + delivery value (bright = took delivery)</div>
   <div id="tvChart" style="height:130px;"></div>
 </div>
 
