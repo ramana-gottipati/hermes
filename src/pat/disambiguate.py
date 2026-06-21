@@ -369,3 +369,91 @@ def route_extra(query: str) -> dict | None:
     except Exception:
         return None
     return None
+
+
+# ── out-of-scope / advisory guardrails (catalog Part 5) ──────────────────────
+# Pat is SEARCH/SCREENING — not advice, not prediction, not execution — over NSE
+# cash equities + sectoral indices only. These deterministic detectors return a
+# clarify-shaped REDIRECT (₹0) instead of letting an advisory / out-of-domain ask
+# fall through to a wrong answer or a blank result. The SEBI line is hard: Pat
+# never issues a buy/sell/"safe" verdict. Triggers are kept PRECISE (e.g. "gold
+# price", not bare "gold", so "gold loan stocks" still screens normally).
+_G_ADVICE = ["should i buy", "should i sell", "should i hold", "should i exit",
+             "should i invest", "should i book", "should i average", "is it a good time to buy",
+             "good time to buy", "good time to enter", "worth buying", "is it a buy",
+             "is it a sell", "will i make money", "make me rich", "double my money",
+             "multiply my money", "guaranteed return", "safe to invest", "is it safe to invest",
+             "what should i buy", "what to buy", "where should i invest", "tell me what to buy",
+             "which stock should i", "is x a buy"]
+_G_PREDICT = ["predict", "forecast", "price target", "target price", "tomorrow",
+              "next week", "next month", "will it go up", "will it rise", "will it fall",
+              "will it recover", "when will", "going to crash", "will the market",
+              "where will", "by friday", "by monday", "intraday tip", "intraday tips",
+              "tips for today", "multibagger for", "sure shot"]
+_G_FEATURE = ["set an alert", "set alert", "alert me", "alert when", "notify me",
+              "remind me", "buy 10", "buy 100", "buy shares", "place an order",
+              "square off", "my portfolio", "my holdings", "my p&l", "my pnl",
+              "add to watchlist", "add to my watchlist", "track my"]
+_G_WRONG_ASSET = ["option chain", "call option", "put option", "f&o", "f and o",
+                  "open interest", "max pain", "put call ratio", "futures and options",
+                  "nifty futures", "stock futures", "gold price", "price of gold",
+                  "buy gold", "gold etf", "silver price", "crude oil price", "crude price",
+                  "commodity price",
+                  "usd inr", "usd/inr", "rupee vs", "dollar rupee", "forex", "crypto",
+                  "bitcoin", "ethereum", "tesla stock", "nvidia stock", "us stocks",
+                  "nasdaq", "s&p 500", "dow jones", "hang seng", "upcoming ipo", "ipo gmp",
+                  "grey market premium", "should i apply for the", "mutual fund",
+                  "sovereign gold bond", "bond yield", "g-sec", "debenture"]
+
+
+def _redirect(reason: str, question: str, chips: list) -> dict:
+    return {"flow": "clarify", "reason": reason, "question": question,
+            "chips": [{"label": l, "href": h} for l, h in chips]}
+
+
+def route_guardrail(query: str) -> dict | None:
+    """Return a clarify-shaped REDIRECT for an advisory / out-of-domain ask, else None.
+
+    Deterministic, ₹0, never raises. Runs FIRST in engine.route so an advice/OOD ask
+    pre-empts any flow routing (e.g. "should I buy the strongest stock" → the advice
+    boundary, not RS leaders). Precise triggers keep legitimate screens unaffected."""
+    try:
+        qn = _norm(query)
+        if len(qn) < 2:
+            return None
+        if _has_any(qn, _G_WRONG_ASSET):
+            return _redirect(
+                "out_of_scope",
+                "I cover NSE cash equities and sectoral indices — not derivatives, "
+                "commodities, forex, crypto, IPOs, mutual funds or global stocks. Here's "
+                "what I can show:",
+                [("Today's movers", "/dash/pat?flow=movers"),
+                 ("RS leaders", "/dash/pat?flow=rs"),
+                 ("Index performance", "/dash/pat?flow=index")])
+        if _has_any(qn, _G_FEATURE):
+            return _redirect(
+                "out_of_scope",
+                "I'm a screener — I can't set alerts, place trades or hold a portfolio. "
+                "But I can show you the data behind the decision:",
+                [("Today's movers", "/dash/pat?flow=movers"),
+                 ("Accumulation", "/dash/pat?flow=accumulation"),
+                 ("Fundamentals", "/dash/pat?flow=fundamentals")])
+        if _has_any(qn, _G_PREDICT) or ("recover" in qn and "will" in qn):
+            return _redirect(
+                "prediction",
+                "I report what the data shows right now — I don't forecast prices, "
+                "targets or levels. Here's the current read:",
+                [("Index performance", "/dash/pat?flow=index"),
+                 ("Today's movers", "/dash/pat?flow=movers"),
+                 ("RS leaders", "/dash/pat?flow=rs")])
+        if _has_any(qn, _G_ADVICE):
+            return _redirect(
+                "advice",
+                "I don't give buy/sell advice — I'm a screening tool, not a SEBI-"
+                "registered adviser. I can show you the data to decide for yourself:",
+                [("Quality & value", "/dash/pat?flow=fundamentals"),
+                 ("RS leaders", "/dash/pat?flow=rs"),
+                 ("Accumulation", "/dash/pat?flow=accumulation")])
+    except Exception:
+        return None
+    return None

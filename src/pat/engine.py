@@ -205,6 +205,18 @@ def route(query: str, conn=None) -> dict | None:
 
     from src.pat.understand import validate_intent, parse_fallback
 
+    # (a0) Advisory / out-of-domain guardrail FIRST — an advice/predict/alert/wrong-
+    #      asset ask gets a clarify-shaped REDIRECT, never a wrong flow or a blank
+    #      result (catalog Part 5; SEBI line: never a buy/sell verdict). ₹0.
+    try:
+        from src.pat.disambiguate import route_guardrail as _guard
+        guard = _guard(query)
+    except Exception:
+        guard = None
+    if guard:
+        _CACHE[q] = guard
+        return guard
+
     # (a) Quota-proof deterministic clarify for the classic ambiguities
     #     ("strong stocks" / "RS leaders recently") — ₹0, never reaches the model.
     try:
