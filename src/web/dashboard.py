@@ -187,7 +187,7 @@ tr.dt-hide{display:none!important}
 /* D54 — frozen-pane data grid: ONE scroll viewport owns BOTH axes so the header
    band AND the Symbol column stay fixed while scrolling down AND across. */
 .scrwrap{overflow:auto;max-height:calc(100vh - 230px);border:1px solid #30363d;border-radius:10px;background:#0d1117;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
-table.scr{width:100%;min-width:max-content;border-collapse:separate;border-spacing:0;font-size:12px;}
+table.scr{width:100%;min-width:max-content;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;}
 table.scr th,table.scr td{white-space:nowrap;border-bottom:1px solid #1c2128;padding:6px 10px;text-align:right;}
 table.scr th.l,table.scr td.l{text-align:left;}
 table.scr td.num,table.scr th.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
@@ -206,6 +206,11 @@ table.scr tbody tr:hover td{background:#1c2230!important;}
 .h-neg1{background:rgba(248,81,73,.07)!important;} .h-neg2{background:rgba(248,81,73,.14)!important;} .h-neg3{background:rgba(248,81,73,.22)!important;}
 /* column-group hide = ONE class on the table (single reflow, no per-cell JS) */
 table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
+/* LAG FIX (the Nifty-500 toggle hang): with table-layout:fixed the columns no longer
+   re-solve their widths from 498 rows of content on every toggle. A JS-built <colgroup>
+   gives each column an explicit width + tags it with its group; collapsing the col to 0
+   here removes the gap a hidden group would otherwise leave under fixed layout. */
+table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
 /* CPR-confirmed gate: show only rows carrying a CPR reversal tier (one class) */
 table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
 /* D54 Phase 2 — "the instrument": inline static micro-viz readouts (D-UI-16).
@@ -2072,6 +2077,22 @@ _SCREENER_JS = """
 <script>
 (function(){
   var tbl=document.querySelector('table.scr'); if(!tbl) return;
+  // LAG FIX: build a fixed-width <colgroup> from the first body row's cell types, so
+  // table-layout:fixed has explicit per-column widths. Toggling a strategy group then
+  // costs ONE cheap reflow instead of re-measuring all 498 rows (that was the hang).
+  (function(){
+    if(tbl.querySelector('colgroup.cg')) return;
+    var row=tbl.querySelector('tbody tr'); if(!row) return;
+    var cg=document.createElement('colgroup'); cg.className='cg';
+    Array.prototype.forEach.call(row.children,function(td){
+      var c=document.createElement('col');
+      c.style.width=(td.classList.contains('fz')?116:td.classList.contains('inst')?136:td.classList.contains('num')?76:112)+'px';
+      var g=null; td.classList.forEach(function(k){ if(k.lastIndexOf('g-',0)===0) g=k.slice(2); });
+      if(g) c.className='cg-'+g;
+      cg.appendChild(c);
+    });
+    tbl.insertBefore(cg, tbl.firstChild);
+  })();
   var vbar=document.getElementById('vbar'); if(!vbar) return;
   var TOG=[['conv','Conviction'],['pos','Positioning'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['qual','Quality'],['ctx','Context']];
   var KEY='patearn_scr_hidden', SKEY='patearn_scr_saved';
