@@ -653,6 +653,19 @@ def parse_fallback(query: str) -> dict | None:
         if order:
             rank["order"] = order
         if not rank and not filters and not character:
+            # LAST RESORT (nothing screened): a bare glossary term/alias typed alone
+            # ("VWAP", "primary sector", "CPR compression") → explain it. Runs only
+            # here so screen queries ("RS leaders") win over a glossary-alias match.
+            try:
+                from src.pat.glossary import GLOSSARY
+                for slug, e in GLOSSARY.items():
+                    cands = [e["term"]] + list(e.get("aliases") or [])
+                    pool = {c.lower() for c in cands}
+                    pool |= {re.sub(r"\s*\(.*?\)", "", c).strip().lower() for c in cands}
+                    if qn in pool:
+                        return {"task": "explain", "explain": slug}
+            except Exception:
+                pass
             return None
         return {"task": "rank", "universe": universe, "rank": rank,
                 "filters": filters, "scope": {}, "character": character, "confidence": 55}

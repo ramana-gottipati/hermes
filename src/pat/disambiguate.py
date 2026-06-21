@@ -69,11 +69,25 @@ _EXPLICIT_TIME = ["today", "yesterday", "this week", "last week", "this month",
 # Strength words ambiguous between momentum (RS) and fundamentals (quality).
 _AMBIG_INTENT = ["strongest", "strong", "strength", "best stocks", "best names",
                  "good stocks", "great stocks", "top stocks"]
+# …but if ANY of these context words is present, the ask is NOT actually ambiguous
+# (e.g. "relative-strength leaders", "strong TTM growth", "strong in strong sectors").
+# Without this guard check() over-clarifies clearly-routable queries.
+_INTENT_DISAMBIG = ["relative", "rs ", "momentum", "outperform", "beating", "leader",
+                    "delivery", "accumulat", "distribut", "quality", "valuation", "cheap",
+                    "expensive", "roce", "roe", "growth", "ttm", "pledge", "debt", "margin",
+                    "sector", "index", "indices", "fundamental", "p/e", "pe ratio",
+                    "in strong", "200", "52", "compounder", "dividend", "promoter",
+                    "delivery", "hand", "discount"]
 
 _INTENT_SET = ("rs", "fundamentals", "accumulation", "movers", "explain")
 _TIME_SENSITIVE = ("rs", "accumulation", "movers")
 
 _WS = re.compile(r"\s+")
+# A leading "what is/are/does X" / "explain X" / "define X" — a definition ask, not
+# a screen. Used by route_extra to step aside for the explain path.
+_EXPLAIN_LEAD_RE = re.compile(
+    r"^\s*(?:what\s+(?:is|are|does|do)|what'?s|whats|explain|define|definition of|"
+    r"meaning of|tell me what)\b")
 
 
 def _norm(q: str) -> str:
@@ -167,7 +181,7 @@ def check(query: str) -> dict | None:
         #    (an explicit timeframe implies a momentum/performance read → not ambiguous).
         if _has_any(qn, _AMBIG_INTENT):
             anchored = cs & set(_INTENT_SET)
-            if not anchored and not has_explicit_time:
+            if not anchored and not has_explicit_time and not _has_any(qn, _INTENT_DISAMBIG):
                 return _clarify_intent(query)
 
         # 2) Timeframe ambiguity — a time-sensitive metric with a VAGUE time word
@@ -337,6 +351,19 @@ def route_extra(query: str) -> dict | None:
         if sym:
             return {"flow": "card", "params": {"sym": sym}}
 
+        # An "explain/define X" or "X meaning" ask is NOT a screen — defer to the
+        # explain path (so "explain accumulation vs distribution" doesn't fire the
+        # distribution screen).
+        if _EXPLAIN_LEAD_RE.search(qn) or qn.endswith(" meaning") or qn.endswith(" mean"):
+            return None
+
+        # overvalued / expensive → the inverted valuation screen. CHECKED BEFORE the
+        # kill-list so "expensive stocks to avoid" reads as overvalued, not disqualified.
+        if _has_any(qn, _OVERVALUED):
+            return {"flow": "fundamentals",
+                    "params": {"val": "rich", "qual": "any", "grow": "any",
+                               "bs": "any", "own": "any"}}
+
         # distribution / consolidation = the accumulation flow's character MIRROR
         # (canonical contract: a `character` param on accumulation, not a new flow).
         if _has_any(qn, _DISTRIBUTION):
@@ -359,18 +386,14 @@ def route_extra(query: str) -> dict | None:
                 params["tier"] = "t3"
             return {"flow": "pt14", "params": params}
 
-        # overvalued / expensive → the inverted valuation screen
-        if _has_any(qn, _OVERVALUED):
-            return {"flow": "fundamentals",
-                    "params": {"val": "rich", "qual": "any", "grow": "any",
-                               "bs": "any", "own": "any"}}
-
         # weak / RS-laggard stocks = the rs flow's `direction` MIRROR (canonical
         # contract: direction=laggards on rs). NOT index laggards, NOT today's price
-        # losers (those are the index and movers flows respectively).
+        # losers, and NOT a FUNDAMENTALS-weak ask ("fundamentally weak" → fundamentals).
         if _has_any(qn, _RSLAG) and not _has_any(qn, _INDEX_UNIVERSE) \
                 and not _has_any(qn, ["today", "this week", "intraday", "gainer", "loser",
-                                      "gained", "fell"]):
+                                      "gained", "fell"]) \
+                and not _has_any(qn, ["fundamental", "valuation", "roce", "roe", "pe ",
+                                      "p/e", "debt", "balance sheet", "earnings"]):
             return {"flow": "rs", "params": {"direction": "laggards"}}
 
         # momentum oscillators (RSI / MACD) — the model unreliably reads "oversold"

@@ -206,6 +206,71 @@ def run_route_eval(parser: str = "fallback") -> dict:
     return {"parser": parser, "passed": passed, "total": total, "bands": bands, "fails": fails}
 
 
+def run_catalog_eval() -> dict:
+    """Route EVERY real phrasing in docs/pat-question-catalog.md (Parts 1 & 3) and
+    check it lands on the expected flow. This is the comprehensive self-check — the
+    answer to 'don't you review the answers if they're logical'. Deterministic floor
+    (check → route_extra → parse_fallback); None-routes defer to the live model.
+    Skips silently if the catalog file isn't present (e.g. on the VPS)."""
+    import os
+    import re as _re
+    path = None
+    for p in ("docs/pat-question-catalog.md",
+              os.path.join(os.path.dirname(__file__), "..", "..", "docs", "pat-question-catalog.md")):
+        if os.path.exists(p):
+            path = p
+            break
+    if not path:
+        return {"total": 0, "passed": 0, "by_flow": {}, "fails": [], "skipped": True}
+
+    from src.pat.disambiguate import check, route_extra
+    PART3 = {"3.1": "accumulation", "3.2": "rs", "3.3": "disqualified",
+             "3.4": "fundamentals", "3.5": "card", "3.6": "pt14"}
+
+    def route(q):
+        c = check(q)
+        if c:
+            return c
+        e = route_extra(q)
+        if e:
+            return e
+        i = parse_fallback(q)
+        return compile_intent(i) if i else None
+
+    expected, part, cases = None, None, []
+    for ln in open(path, encoding="utf-8").read().split("\n"):
+        pm = _re.match(r"^## PART (\d+)", ln)
+        if pm:
+            part, expected = int(pm.group(1)), None
+            continue
+        h = _re.match(r"^### .*[—-]\s*`(\w+)`", ln)
+        if h:
+            expected = h.group(1)
+            continue
+        h3 = _re.match(r"^### (\d+\.\d+)", ln)
+        if h3:
+            expected = PART3.get(h3.group(1))
+            continue
+        if " · " in ln and part in (1, 3) and expected:
+            body = _re.sub(r"^(Presets:|Free-form:)", "", _re.sub(r"\*+", "", ln)).strip()
+            for ph in body.split(" · "):
+                ph = _re.sub(r"_.*?_", "", _re.sub(r"\(.*?\)", "", ph)).strip(" *_·.—")
+                if ph and 2 < len(ph) < 70 and not ph.startswith("the original"):
+                    cases.append((ph, expected))
+
+    by_flow: dict = {}
+    fails = []
+    for ph, exp in cases:
+        got = (route(ph) or {}).get("flow")
+        by_flow.setdefault(exp, [0, 0])[1] += 1
+        if got == exp:
+            by_flow[exp][0] += 1
+        else:
+            fails.append({"q": ph, "want": exp, "got": got})
+    return {"total": len(cases), "passed": len(cases) - len(fails),
+            "by_flow": by_flow, "fails": fails, "skipped": False}
+
+
 def run_explain_eval() -> dict:
     """EVERY glossary term must resolve correctly from its real name + aliases via
     real 'explain' phrasings. This is the net for the class of bug that shipped
@@ -250,3 +315,8 @@ if __name__ == "__main__":
     print(f"\nEXPLAIN eval (every glossary term, real phrasings): {x['passed']}/{x['total']}")
     for f in x["fails"][:20]:
         print(f"    {f['q']!r} want={f['want']} got={f['got']}")
+    cat = run_catalog_eval()
+    if not cat.get("skipped"):
+        print(f"\nCATALOG eval (every real phrasing, deterministic floor): {cat['passed']}/{cat['total']}")
+        for fl, (p, n) in sorted(cat["by_flow"].items()):
+            print(f"  {fl:14} {p}/{n}")
