@@ -884,6 +884,10 @@ def _pos_cells(r) -> str:
 @router.get("/dash", response_class=HTMLResponse)
 def dash_home() -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
+    from src.web.cockpit import render_home
+    return HTMLResponse(_shell("patearn — Indian-equity strategy cockpit",
+                               render_home(sig_date, idx_date), "dash", sig_date or "", wide=True))
+    # --- legacy inline home below is superseded by cockpit.render_home (kept dead) ---
     nifty, breadth, lead = {}, None, None
     top_sectors, weak_sectors, top_stocks, stealth_stocks = [], [], [], []
     pos_count = qual_count = rs_count = 0   # D33d strategy-hub live counts
