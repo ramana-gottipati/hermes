@@ -3239,17 +3239,88 @@ def _alloc_bars(title, pairs, total, href_fn=None):
 
 
 def _concentration(values):
-    """Top-3/5/10 share of total from a list of holding values. Returns
-    [(label, pct)] for the buckets that apply, plus the count."""
+    """Concentration of a book: largest single position + top-3/5/10 share of
+    total. Returns [(label, pct)] for the buckets that apply (≥2 holdings)."""
     vals = sorted([v for v in values if v], reverse=True)
     total = sum(vals)
-    if not total:
+    if not total or len(vals) < 2:
         return []
-    out = []
+    out = [("Largest", vals[0] / total * 100.0)]
     for n in (3, 5, 10):
         if len(vals) >= n:
             out.append((f"Top {n}", sum(vals[:n]) / total * 100.0))
     return out
+
+
+def _company_core(name):
+    """Distinctive core of a company name for news matching: drop the Ltd/Limited
+    suffix + punctuation. None if too short to match safely."""
+    if not name:
+        return None
+    s = re.sub(r'\b(Ltd|Limited|Ltd\.)\b\.?', '', name, flags=re.I)
+    s = re.sub(r'\s+', ' ', s).strip(' .,-&')
+    return s if len(s) >= 4 else None
+
+
+def _holdings_news(conn, symbols, limit=12, days=45):
+    """Best-effort recent news for held/watched names. sent_news isn't ticker-
+    tagged, so match the company-name core (and a ≥5-char first word / ticker)
+    against the headline text. Returns [(symbol, news_row)] newest-first, deduped."""
+    if not symbols:
+        return []
+    info = {}
+    for sym in symbols:
+        row = conn.execute("SELECT company_name FROM nse_equity_list WHERE symbol=?",
+                           (sym,)).fetchone()
+        nm = row["company_name"] if row else None
+        toks = set()
+        core = _company_core(nm)
+        if core:
+            toks.add(core.lower())
+        if nm:
+            fw = re.sub(r'[^A-Za-z0-9]', '', nm.split()[0]) if nm.split() else ''
+            if len(fw) >= 5:
+                toks.add(fw.lower())
+        if len(sym) >= 5:
+            toks.add(sym.lower())
+        if toks:
+            info[sym] = toks
+    if not info:
+        return []
+    try:
+        news = [dict(r) for r in conn.execute(
+            "SELECT title, url, source, sent_at FROM sent_news WHERE sent_at>=date('now',?) "
+            "ORDER BY sent_at DESC LIMIT 500", (f'-{days} days',)).fetchall()]
+    except Exception:
+        return []
+    out, seen = [], set()
+    for n in news:
+        tl = (n["title"] or "").lower()
+        for sym, toks in info.items():
+            if n["url"] in seen:
+                continue
+            if any(t in tl for t in toks):
+                seen.add(n["url"])
+                out.append((sym, n))
+                break
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _upcoming_actions(conn, symbols, days=45):
+    """Corporate actions (ex-date today..+days) for the given symbols. Empty until
+    the corporate_actions feed is ingested."""
+    if not symbols:
+        return []
+    try:
+        ph = ",".join("?" * len(symbols))
+        return [dict(r) for r in conn.execute(
+            f"SELECT symbol, action_type, ex_date, details FROM corporate_actions "
+            f"WHERE ex_date>=date('now') AND ex_date<=date('now',?) AND symbol IN ({ph}) "
+            f"ORDER BY ex_date", [f'+{days} days'] + list(symbols)).fetchall()]
+    except Exception:
+        return []
 
 
 def _attrib_bars(title, pairs, top_n=8):
@@ -4052,24 +4123,32 @@ def dash_tracker_redirect() -> RedirectResponse:
 
 @router.get("/dash/dashboard", response_class=HTMLResponse)
 def dash_dashboard() -> HTMLResponse:
-    """The Tracker cockpit: every book at a glance + totals. (News & alerts next.)"""
+    """The Tracker cockpit: totals · needs-attention red flags · movers · allocation
+    · contributors · news · upcoming corporate actions · every book at a glance."""
     with get_conn() as conn:
         openrows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='open'").fetchall()]
         watchrows = [dict(r) for r in conn.execute(
             "SELECT * FROM stocks_in_play WHERE status='watch'").fetchall()]
-        cmps = {}
-        for sym in {r["symbol"] for r in openrows}:
-            cmps[sym] = _capture_snapshot(conn, sym)[0]
+        osyms = {r["symbol"] for r in openrows}
+        allsyms = osyms | {r["symbol"] for r in watchrows}
+        live = {s: _capture_snapshot(conn, s) for s in osyms}
+        cmps = {s: live[s][0] for s in osyms}
+        dd = {s: _day_delta(conn, s) for s in osyms}
+        enr = _enrich(conn, allsyms)
+        xirr = _portfolio_xirr(conn, openrows, cmps)
+        news = _holdings_news(conn, allsyms)
+        upact = _upcoming_actions(conn, allsyms)
 
     def _pl(r):
         c, ep = cmps.get(r["symbol"]), r["entry_price"]
         return ((c - ep) / ep * 100.0) if (c and ep) else None
     opl = [x for x in (_pl(r) for r in openrows) if x is not None]
     open_mtm = (sum(opl) / len(opl)) if opl else None
-    bk = {}
+    bk, hold_value, day_num, day_den = {}, {}, 0.0, 0.0
     for r in openrows:
-        d = bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": [], "inv": 0.0, "cur": 0.0})
+        b = r.get("book") or "Main"
+        d = bk.setdefault(b, {"open": 0, "watch": 0, "pl": [], "inv": 0.0, "cur": 0.0})
         d["open"] += 1
         p = _pl(r)
         if p is not None:
@@ -4079,27 +4158,170 @@ def dash_dashboard() -> HTMLResponse:
             d["inv"] += q * ep
             if c:
                 d["cur"] += q * c
+                hold_value[r["id"]] = q * c
+                _, _dcp, pc = dd.get(r["symbol"], (None, None, None))
+                if pc:
+                    day_num += q * (c - pc)
+                    day_den += q * pc
     for r in watchrows:
-        bk.setdefault(r.get("book") or "Main", {"open": 0, "watch": 0, "pl": [], "inv": 0.0, "cur": 0.0})["watch"] += 1
+        bk.setdefault(r.get("book") or "Main",
+                      {"open": 0, "watch": 0, "pl": [], "inv": 0.0, "cur": 0.0})["watch"] += 1
+    book_val = {}
+    for r in openrows:
+        v = hold_value.get(r["id"])
+        if v:
+            book_val[r.get("book") or "Main"] = book_val.get(r.get("book") or "Main", 0.0) + v
     tot_inv = sum(d["inv"] for d in bk.values())
     tot_cur = sum(d["cur"] for d in bk.values())
     tot_rpl = (tot_cur - tot_inv) if tot_inv else None
+    tot_plpct = (tot_rpl / tot_inv * 100.0) if tot_inv else None
+    day_pct = (day_num / day_den * 100.0) if day_den else None
 
     def card(lbl, val):
         return f'<div class="box"><div class="num">{val}</div><div class="lbl">{lbl}</div></div>'
-    inv_total = _rupee(tot_inv) if tot_inv else '<span class="mut">—</span>'
+    pl_extra = f' <span style="font-size:13px">{_pct(tot_plpct)}</span>' if tot_plpct is not None else ''
     cards = ('<div class="kpi">'
              + card("books", len(bk))
              + card("open positions", len(openrows))
+             + card("invested", _rupee(tot_inv) if tot_inv else '<span class="mut">—</span>')
+             + card("value", _rupee(tot_cur) if tot_cur else '<span class="mut">—</span>')
+             + card("₹ P&amp;L", _rpl(tot_rpl) + pl_extra)
+             + card("day Δ", _pct(day_pct))
              + card("open MTM", _pct(open_mtm))
-             + card("invested", inv_total)
-             + card("₹ P&amp;L", _rpl(tot_rpl))
+             + card("XIRR", (f'{xirr*100:+.1f}%' if xirr is not None else '<span class="mut">—</span>'))
              + card("watchlist ideas", len(watchrows))
              + '</div>')
-    intro = ('<h2>Dashboard</h2><div class="sub"><b>Your cockpit</b> — every book at a glance. '
-             'Open a book to manage holdings, or see the '
-             '<a href="/dash/performance" style="color:#58a6ff;text-decoration:none">Performance</a> '
-             'scorecard. <span class="mut">Add quantity on a position to see ₹ P&amp;L; news &amp; alerts land here next.</span></div>')
+    intro = ('<h2>Dashboard</h2><div class="sub"><b>Your cockpit</b> — totals, what needs attention '
+             'right now, today\'s movers, where you\'re concentrated, news, and upcoming corporate '
+             'actions. <span class="mut">EOD data; full scorecard under '
+             '<a href="/dash/performance" style="color:#58a6ff;text-decoration:none">Performance</a>. '
+             'Add quantity on a position to unlock ₹ figures.</span></div>')
+
+    # ---- needs attention (Patearn red flags) ----
+    sev = {"below_stop": 0, "dist": 1, "near_stop": 2, "rs_decay": 3, "rs_weak": 4, "conv_drop": 5, "conc": 6}
+    att = []
+    for r in openrows:
+        sym = r["symbol"]
+        cmp_ = cmps.get(sym)
+        sig = (enr.get(sym) or {}).get("sig") or {}
+        try:
+            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
+        except Exception:
+            thn = {}
+        fl = set(_thesis_flags(thn, sig, cmp_, r["stop_loss"]))
+        v, btot = hold_value.get(r["id"]), book_val.get(r.get("book") or "Main")
+        conc_pct = (v / btot * 100.0) if (v and btot) else None
+        if conc_pct is not None and conc_pct > 30 and len(book_val) and len([1 for rr in openrows if (rr.get("book") or "Main") == (r.get("book") or "Main")]) > 1:
+            fl.add("conc")
+        if fl:
+            labels = [_HEALTH_FLAG_LABEL[k][0] for k in fl if k in _HEALTH_FLAG_LABEL]
+            if "conc" in fl:
+                labels.append(f"{conc_pct:.0f}% of {r.get('book') or 'Main'}")
+            att.append((min(sev.get(k, 9) for k in fl), r, cmp_, labels))
+    att.sort(key=lambda x: x[0])
+    if att:
+        trs = []
+        for _s, r, cmp_, labels in att:
+            sym = r["symbol"]
+            stop_cell = _num(r["stop_loss"], 1) if r["stop_loss"] is not None else '<span class="mut">—</span>'
+            trs.append(
+                '<tr>'
+                f'<td class="l"><a class="row" href="/dash/stock?sym={_q(sym)}"><span class="sym">{_esc(sym)}</span></a></td>'
+                f'<td class="l mut">{_esc(r.get("book") or "Main")}</td>'
+                f'<td class="num">{_num(cmp_, 1)}</td>'
+                f'<td class="num">{stop_cell}</td>'
+                f'<td class="l"><span class="neg">{_esc(", ".join(labels))}</span></td>'
+                f'<td class="l"><a class="tbtn" href="/dash/track/edit?id={r["id"]}" style="text-decoration:none">Review</a></td>'
+                '</tr>')
+        attention = ('<div class="ghdr" style="margin-top:16px">⚠ Needs attention '
+                     f'<span class="mut" style="text-transform:none;font-weight:400">({len(att)})</span></div>'
+                     '<table class="dt"><thead><tr><th>Symbol</th><th>Book</th><th>CMP</th><th>Stop</th>'
+                     '<th>Flags</th><th></th></tr></thead><tbody>' + "".join(trs) + '</tbody></table>')
+    elif openrows:
+        attention = ('<div class="ghdr" style="margin-top:16px">Needs attention</div>'
+                     '<div class="banner b-on">✓ Nothing flagged — no DISTRIBUTION, RS decay, '
+                     'stop breaches, or over-concentration across your open positions.</div>')
+    else:
+        attention = ''
+
+    # ---- today's movers (EOD) ----
+    movers = ''
+    mv = sorted([(s, dd[s][1]) for s in osyms if dd.get(s) and dd[s][1] is not None],
+                key=lambda x: x[1], reverse=True)
+    if mv:
+        ups = [m for m in mv if m[1] > 0][:5]
+        downs = [m for m in mv if m[1] < 0][-5:][::-1]
+
+        def mv_chips(items):
+            return "".join(
+                f'<a class="chip" href="/dash/stock?sym={_q(s)}" style="text-decoration:none">'
+                f'<b>{_esc(s)}</b> {_pct(v)}</a>' for s, v in items) or '<span class="mut">—</span>'
+        movers = ('<div class="ghdr" style="margin-top:18px">Today\'s movers '
+                  '<span class="mut" style="text-transform:none;font-weight:400">(EOD)</span></div>'
+                  '<div style="display:flex;gap:24px;flex-wrap:wrap">'
+                  '<div style="flex:1;min-width:240px"><div class="sub" style="margin:0 0 6px">Gainers</div>'
+                  '<div class="chips">' + mv_chips(ups) + '</div></div>'
+                  '<div style="flex:1;min-width:240px"><div class="sub" style="margin:0 0 6px">Losers</div>'
+                  '<div class="chips">' + mv_chips(downs) + '</div></div></div>')
+
+    # ---- allocation + concentration + contributors (need ₹ values) ----
+    alloc = ''
+    vlist = [(r, hold_value.get(r["id"])) for r in openrows if hold_value.get(r["id"])]
+    if vlist:
+        tot = sum(v for _r, v in vlist)
+        sec_pairs, cap_pairs, book_pairs, contrib = [], [], [], []
+        for r, v in vlist:
+            e = enr.get(r["symbol"], {})
+            sec_pairs.append((_sector_short(e.get("sector")) or "—", v))
+            cap_pairs.append((e.get("tier") or "—", v))
+            book_pairs.append((r.get("book") or "Main", v))
+            ep = r["entry_price"]
+            c = cmps.get(r["symbol"])
+            if r.get("qty") and ep and c:
+                contrib.append((r["symbol"], r["qty"] * (c - ep)))
+        conc = _concentration([v for _r, v in vlist])
+        conc_html = ('<div class="ghdr">Concentration</div><div class="chips">'
+                     + "".join(f'<span class="chip">{lbl} · <b>{pc:.0f}%</b></span>'
+                               for lbl, pc in conc) + '</div>') if conc else ''
+        contrib_html = (_attrib_bars("Top contributors / detractors (₹)", contrib, top_n=6)
+                        + '<div class="sub" style="margin-top:4px">Full attribution under '
+                        '<a href="/dash/performance" style="color:#58a6ff;text-decoration:none">Performance</a>.</div>'
+                        if contrib else '')
+        alloc = ('<details open style="margin-top:18px"><summary class="ghdr" style="cursor:pointer">'
+                 '▸ Allocation, concentration &amp; contributors</summary><div style="margin-top:8px">'
+                 + _alloc_bars("By sector", sec_pairs, tot)
+                 + _alloc_bars("By book", book_pairs, tot)
+                 + _alloc_bars("By market-cap", cap_pairs, tot)
+                 + conc_html + contrib_html + '</div></details>')
+
+    # ---- news for held + watched ----
+    news_html = ''
+    if news:
+        items = []
+        for sym, n in news:
+            items.append(
+                '<div style="padding:7px 0;border-bottom:1px solid #21262d">'
+                f'<a class="sym" href="/dash/stock?sym={_q(sym)}" style="color:#58a6ff;text-decoration:none">{_esc(sym)}</a> '
+                f'<a href="{_esc(n["url"])}" target="_blank" rel="noopener" style="color:#e6edf3;text-decoration:none">{_esc(n["title"])}</a> '
+                f'<span class="mut" style="font-size:11px">· {_esc(n["source"])} · {_esc((n["sent_at"] or "")[:10])}</span></div>')
+        news_html = ('<details style="margin-top:18px"><summary class="ghdr" style="cursor:pointer">'
+                     f'▸ News for your names <span class="mut" style="text-transform:none;font-weight:400">({len(news)})</span></summary>'
+                     '<div style="margin-top:6px">' + "".join(items) + '</div></details>')
+
+    # ---- upcoming corporate actions ----
+    corp_html = ''
+    if upact:
+        items = []
+        for a in upact:
+            items.append(
+                '<div style="padding:6px 0;border-bottom:1px solid #21262d">'
+                f'<span class="sym">{_esc(a["symbol"])}</span> '
+                f'<span class="mut">{_esc(a["action_type"])}</span> · ex {_esc(a["ex_date"])} '
+                f'<span class="mut" style="font-size:11px">{_esc(a.get("details") or "")}</span></div>')
+        corp_html = ('<div class="ghdr" style="margin-top:18px">Upcoming corporate actions</div>'
+                     + "".join(items))
+
+    # ---- books table ----
     if bk:
         trs = []
         for b, d in sorted(bk.items()):
@@ -4116,7 +4338,8 @@ def dash_dashboard() -> HTMLResponse:
                 f'<td class="num">{d["watch"]}</td>'
                 f'<td class="l"><a class="tbtn" href="/dash/portfolios?book={_q(b)}" style="text-decoration:none">Open</a></td>'
                 '</tr>')
-        table = ('<table class="dt"><thead><tr><th>Book</th><th>Open</th><th>Avg P/L</th>'
+        table = ('<div class="ghdr" style="margin-top:18px">Books</div>'
+                 '<table class="dt"><thead><tr><th>Book</th><th>Open</th><th>Avg P/L</th>'
                  '<th>Invested</th><th>₹ P&amp;L</th><th>Watch</th><th></th></tr></thead><tbody>'
                  + "".join(trs) + "</tbody></table>")
     else:
@@ -4124,8 +4347,9 @@ def dash_dashboard() -> HTMLResponse:
                  '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolios</a> '
                  'or an idea in '
                  '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlists</a>.</div>')
-    body = _TRACK_CSS + _track_subnav("dashboard") + intro + cards + table
-    return HTMLResponse(_shell("Dashboard · patearn", body, "dashboard"))
+    body = (_TRACK_CSS + _track_subnav("dashboard") + intro + cards + attention + movers
+            + alloc + news_html + corp_html + table)
+    return HTMLResponse(_shell("Dashboard · patearn", body, "dashboard", wide=True))
 
 
 # === Smart CSV / Excel importer ============================================
