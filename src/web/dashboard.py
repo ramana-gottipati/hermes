@@ -2740,6 +2740,39 @@ def _fno_spark(series) -> str:
             f'<polyline points="{coords}" fill="none" stroke="{col}" stroke-width="1.2"/></svg>')
 
 
+def _fno_levels_bar(spot, sup, res, mp) -> str:
+    """Static option-chain map: put-wall (support), call-wall (resistance), max-pain
+    and spot on one horizontal axis. SVG ticks (no text → no distortion) + an HTML
+    value row. Renders while hidden."""
+    vals = [v for v in (spot, sup, res, mp) if v]
+    if not spot or len(set(vals)) < 2:
+        return ""
+    lo, hi = min(vals), max(vals)
+    pad = (hi - lo) * 0.10 or (hi * 0.01)
+    lo -= pad
+    hi += pad
+    rng = (hi - lo) or 1
+
+    def _x(v):
+        return max(1.0, min(99.0, (v - lo) / rng * 100))
+
+    def tick(v, col):
+        return (f'<line x1="{_x(v):.1f}" y1="3" x2="{_x(v):.1f}" y2="17" stroke="{col}" stroke-width="1.4"/>'
+                if v else "")
+    svg = (f'<svg width="100%" height="20" viewBox="0 0 100 20" preserveAspectRatio="none" style="display:block">'
+           f'<line x1="0" y1="10" x2="100" y2="10" stroke="#30363d" stroke-width="0.6"/>'
+           f'{tick(sup, "#2ea043")}{tick(res, "#f85149")}{tick(mp, "#d29922")}'
+           f'<line x1="{_x(spot):.1f}" y1="1" x2="{_x(spot):.1f}" y2="19" stroke="#e6edf3" stroke-width="1.4"/>'
+           f'</svg>')
+    def lab(c, name, v):
+        return (f'<span style="color:{c}">{name} <b>{v:,.0f}</b></span>' if v else "")
+    row = ('<div class="sub" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:3px;font-size:11px">'
+           + " ".join(x for x in (lab("#2ea043", "▎support", sup), lab("#e6edf3", "▎spot", spot),
+                                  lab("#d29922", "▎max-pain", mp), lab("#f85149", "▎resistance", res)) if x)
+           + '</div>')
+    return svg + row
+
+
 def _fno_stock_panel(sym: str) -> str:
     """Deep F&O Open-Interest dossier — the IDENTITY channel that DIRECTLY OBSERVES
     positioning (MEP/DVPT only infer it from the price tape). Current four-quadrant
@@ -2750,8 +2783,9 @@ def _fno_stock_panel(sym: str) -> str:
         with get_conn() as conn:
             rows = conn.execute(
                 "SELECT trade_date, fut_oi, fut_oi_chg, fut_oi_chg_pct, und_price, "
-                "price_chg_pct, quadrant, call_oi, put_oi, pcr, n_fut_contracts "
-                "FROM fno_oi_signals WHERE symbol=? ORDER BY trade_date DESC LIMIT 40", (sym,)).fetchall()
+                "price_chg_pct, quadrant, call_oi, put_oi, pcr, n_fut_contracts, "
+                "fut_price, basis_pct, max_pain, sup_strike, res_strike "
+                "FROM fno_oi_signals WHERE symbol=? ORDER BY trade_date DESC LIMIT 90", (sym,)).fetchall()
     except Exception:
         return ""
     if not rows:
@@ -2772,7 +2806,21 @@ def _fno_stock_panel(sym: str) -> str:
         if len(R) > n and R[n]["fut_oi"] and R[n]["fut_oi"] > 0 and cur["fut_oi"]:
             return (cur["fut_oi"] / R[n]["fut_oi"] - 1) * 100
         return None
-    oi_5d = _oi_back(5)
+    oi_5d, oi_20d = _oi_back(5), _oi_back(20)
+    oi_60d = _oi_back(min(60, len(R) - 1)) if len(R) > 1 else None
+    # cumulative positioning: net bullish-OI vs bearish-OI days over the last 20
+    _BULL = {"LONG_BUILDUP", "SHORT_COVER"}
+    _BEAR = {"SHORT_BUILDUP", "LONG_UNWIND"}
+    win = R[:20]
+    bull_d = sum(1 for r in win if r["quadrant"] in _BULL)
+    bear_d = sum(1 for r in win if r["quadrant"] in _BEAR)
+    net_bias = bull_d - bear_d
+    # OI percentile within the available window (crowdedness of positioning)
+    ois = [r["fut_oi"] for r in R if r["fut_oi"] is not None]
+    oi_pct = (round(sum(1 for x in ois if x <= cur["fut_oi"]) / len(ois) * 100)
+              if ois and cur["fut_oi"] else None)
+    basis = cur["basis_pct"]
+    spot = cur["und_price"]
 
     def _f(v, d=1, sign=False):
         if v is None:
@@ -2801,10 +2849,42 @@ def _fno_stock_panel(sym: str) -> str:
         f'<div class="box"><div class="num">{_oi(cur["fut_oi"])}</div><div class="lbl">futures OI</div></div>'
         f'<div class="box"><div class="num" style="color:{"#2ea043" if (cur["fut_oi_chg_pct"] or 0) >= 0 else "#f85149"}">'
         f'{_f(cur["fut_oi_chg_pct"], 1, True)}%</div><div class="lbl">ΔOI today</div></div>'
-        f'<div class="box"><div class="num">{_f(oi_5d, 1, True)}%</div><div class="lbl">OI 5-day</div></div>'
+        f'<div class="box"><div class="num" style="color:{"#2ea043" if (basis or 0) >= 0 else "#f85149"}">'
+        f'{_f(basis, 2, True)}%</div><div class="lbl">basis fut−spot</div></div>'
         f'<div class="box"><div class="num">{_f(cur["pcr"], 2)}</div><div class="lbl">PCR put/call</div></div>'
         f'<div class="box"><div class="num">{streak}d</div><div class="lbl">in {_esc(qlbl.lower())}</div></div>'
         '</div>')
+
+    # --- cumulative positioning (the multi-week net read, not just today) ---
+    nb_col = "#2ea043" if net_bias > 0 else ("#f85149" if net_bias < 0 else "#8b949e")
+    cum_chips = (
+        '<div class="kpi" style="margin-top:6px">'
+        f'<div class="box"><div class="num">{_f(oi_5d, 1, True)}%</div><div class="lbl">OI 5-day</div></div>'
+        f'<div class="box"><div class="num">{_f(oi_20d, 1, True)}%</div><div class="lbl">OI 20-day</div></div>'
+        f'<div class="box"><div class="num">{_f(oi_60d, 1, True)}%</div><div class="lbl">OI ~60-day</div></div>'
+        f'<div class="box"><div class="num" style="color:{nb_col}">{net_bias:+d}</div>'
+        f'<div class="lbl">net bias 20d ({bull_d}↑/{bear_d}↓)</div></div>'
+        f'<div class="box"><div class="num">{(str(oi_pct) + "%") if oi_pct is not None else "—"}</div>'
+        f'<div class="lbl">OI percentile</div></div>'
+        '</div>')
+
+    # cumulative verdict
+    cum_dir = ("net long accumulation" if (net_bias > 1 and (oi_20d or 0) > 0)
+               else "net short / distribution" if (net_bias < -1 and (oi_20d or 0) > 0)
+               else "positions unwinding" if (oi_20d or 0) < -3
+               else "range-bound / two-way")
+    cum_read = (f'<b>Cumulative ({len(win)}d):</b> {cum_dir} — open interest '
+                f'{_f(oi_20d, 0, True)}% over 20 days, {bull_d} bullish-OI vs {bear_d} bearish-OI days. '
+                f'OI sits in the {oi_pct}th percentile of its recent range.'
+                if oi_pct is not None else f'<b>Cumulative:</b> {cum_dir}.')
+
+    # option-chain levels (the writers' map) — current expiry
+    levels = _fno_levels_bar(spot, cur["sup_strike"], cur["res_strike"], cur["max_pain"])
+    levels_block = ((f'<div class="sub" style="margin:10px 0 2px">Option-chain levels '
+                     f'<span class="mut">(near expiry — put wall = support, call wall = resistance, '
+                     f'max-pain = expiry magnet)</span></div>'
+                     f'<div class="card" style="margin-top:0;padding:8px 10px">{levels}</div>')
+                    if levels else "")
 
     read = _fno_read(q, cur["fut_oi_chg_pct"], oi_5d, streak)
     spark = _fno_spark([r["fut_oi"] for r in reversed(R)])
@@ -2837,7 +2917,10 @@ def _fno_stock_panel(sym: str) -> str:
             'positioning</span></h3>'
             + chips
             + f'<div class="sub" style="margin:6px 0 2px">{read}</div>'
-            + f'<div class="card" style="margin-top:6px;padding:8px 10px">{spark}</div>'
+            + cum_chips
+            + f'<div class="sub" style="margin:6px 0 2px">{cum_read}</div>'
+            + levels_block
+            + f'<div class="card" style="margin-top:8px;padding:8px 10px">{spark}</div>'
             + hist + legend + foot)
 
 
