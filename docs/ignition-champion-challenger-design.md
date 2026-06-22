@@ -31,10 +31,13 @@ The full-journey backtest + feature study (committed `8531744`, `b1532e1`) found
 - **WALK-FORWARD VERDICT (38,802 OOS events, 2020–25): v2 does NOT beat the base.** v2 top-decile win **43.6%** vs base **45.9%** (−2.3pt) vs intensity top-decile **46.2%** (−2.6pt). The in-sample univariate lifts do NOT compose into an OOS-robust top-decile edge — they overfit the training regime.
 - **Conclusion:** the ignition SETUP is a good *screen* (45.9% reach +25%, big payoff skew), but neither intensity NOR this composite ranks it into top-decile alpha. **v2 NOT promoted to production.** The walk-forward caught what in-sample analysis would have missed.
 
-## B — Multivariate challenger *(research venv only; offline)*
-- **Package:** `research/ignition/` (run via `/opt/hermes/.venv-research`); reads `hermes.db` read-only (`ignition_outcomes` + `stock_signals`) **+ `fundamentals_asof.as_of_fundamentals(symbol, as_of)`** for point-in-time fundamentals; writes to `research.db`.
-- **Method:** logistic regression (interpretable) + gradient boosting (interactions); **walk-forward by year**; report OOS AUC + decile lift + feature importances; head-to-head vs champion (intensity) and the A-rule on identical folds.
-- **Output:** does a multivariate model — including fundamentals — beat the simple rule OOS, and which features carry it. Honest verdict (the simple rule is often close). ₹0 at runtime.
+## B — Multivariate challenger *(DONE — committed/pushed)*
+- **Package:** `research/ignition/challenger.py` (`.venv-research`); walk-forward HistGradientBoosting on signal-time features + **point-in-time fundamentals** (`fundamentals_asof`, 75% coverage). Reads hermes.db read-only; ₹0 prod.
+- **VERDICT (38,802 OOS events, 2020–25): ML does NOT beat base.** ML top-decile **48.1%** vs base **45.9%** (+2.2) but **AUC 0.491** (<0.5 = no skill) — the +2.2 is noise, not discrimination. Fundamentals (sales_growth_5y, interest_coverage, ROCE) take top permutation importance but don't generalize OOS.
+- **So no ranked edge exists** among ignitions from ANY EOD feature set (intensity / linear composite / nonlinear ML + fundamentals all fail OOS).
 
 ## Sequence & checkpoints
 C (finishes §5: target/stop/averaging) → A (champion v2 + OOS proof) → B (challenger vs champion). Verify + commit + report after each; nothing pushed without Ramana's word.
+
+## 🏁 LANE VERDICT (all 3 done, 2026-06-23)
+The ignition **SETUP is a useful SCREEN** — ~46% of ignitions reach +25% with a big payoff skew (winner median MFE +109%), survivorship-correct, with a derived **~−13% stop** and **deep-only averaging (~−30%)**. But it is **NOT rankable into top-decile alpha**: intensity (wrong-signed, −4.5pt), the linear evidence-weighted composite (A: −2.3pt OOS), and a nonlinear GBM with point-in-time fundamentals (B: AUC 0.491) **all fail out-of-sample**. So the ranked/predictive edge is NOT in EOD price/delivery/RS/fundamentals — it must come from **qualitative/identity signals** (CCI management-credibility, named institutional flows/deals, F&O OI) — the parallel lane. Echoes + extends D56. **Actionable:** keep the ignition list as a *screen/watchlist* (not a ranked book); spend ranking effort on the identity/qualitative lane.
