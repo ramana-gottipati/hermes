@@ -93,6 +93,24 @@ tr:last-child td { border-bottom:none; }
 /* D43 accumulation/distribution character pills */
 .ca-acc{background:#16341f;color:#7ee787;} .ca-dist{background:#3a1a1a;color:#ffa198;}
 .ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:#30363d;color:#8b949e;}
+/* Session 33 — THEME tag chips + the themes browse + accumulating-only filter */
+.tchip{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:9px;
+  background:#15324a;color:#9ecbff;border:1px solid #1f4d72;margin:1px 3px 1px 0;
+  text-decoration:none;line-height:1.6;white-space:nowrap;}
+.tchip:hover{background:#1f4d72;color:#cfe8ff;}
+.tchip.prop{background:#2b2410;color:#ffd99a;border-color:#5a4a1f;}
+.tchip.more{background:#21262d;color:#8b949e;border-color:#30363d;}
+.tchip .tq{opacity:.7;margin-left:1px;}
+.theme-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;}
+.trow{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;
+  text-decoration:none;color:inherit;border-bottom:1px solid #21262d;}
+.trow:last-child{border-bottom:none;} .trow:hover{background:#161b22;}
+.trow .tn{font-weight:700;color:#e6edf3;min-width:118px;}
+.trow .tb{flex:1;font-size:11px;color:#8b949e;}
+.trow .tc{font-weight:700;color:#58a6ff;min-width:54px;text-align:right;}
+.accfilter{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c9d1d9;
+  margin:10px 0 6px;cursor:pointer;user-select:none;}
+.ptbl.acc-only tbody tr:not(.is-acc){display:none;}
 nav { position:fixed; bottom:0; left:0; right:0; background:#0e1116;
       border-top:1px solid #21262d; display:flex; }
 nav a { flex:1; text-align:center; padding:10px 4px; color:#8b949e;
@@ -205,12 +223,12 @@ table.scr tbody tr:hover td{background:#1c2230!important;}
 .h-pos3{background:rgba(63,185,80,.22)!important;} .h-pos2{background:rgba(63,185,80,.13)!important;} .h-pos1{background:rgba(63,185,80,.06)!important;}
 .h-neg1{background:rgba(248,81,73,.07)!important;} .h-neg2{background:rgba(248,81,73,.14)!important;} .h-neg3{background:rgba(248,81,73,.22)!important;}
 /* column-group hide = ONE class on the table (single reflow, no per-cell JS) */
-table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-mep .g-mep,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-cci .g-cci,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
+table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-mep .g-mep,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-cci .g-cci,table.scr.hide-themes .g-themes,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
 /* LAG FIX (the Nifty-500 toggle hang): with table-layout:fixed the columns no longer
    re-solve their widths from 498 rows of content on every toggle. A JS-built <colgroup>
    gives each column an explicit width + tags it with its group; collapsing the col to 0
    here removes the gap a hidden group would otherwise leave under fixed layout. */
-table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-mep col.cg-mep,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-cci col.cg-cci,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
+table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-mep col.cg-mep,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-cci col.cg-cci,table.scr.hide-themes col.cg-themes,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
 /* CPR-confirmed gate: show only rows carrying a CPR reversal tier (one class) */
 table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
 /* D54 Phase 2 — "the instrument": inline static micro-viz readouts (D-UI-16).
@@ -351,6 +369,7 @@ document.addEventListener('DOMContentLoaded', function(){
 # onto one of the five workspaces so the right tab highlights.
 _WS = {
     "markets": "markets", "sectors": "markets", "ratio": "markets", "compare": "markets",
+    "themes": "themes", "theme": "themes", "tags-review": "themes",
     "screener": "screener",
     "strategies": "strategies", "scan": "strategies", "stocks": "strategies",
     "leaders": "strategies", "laggards": "strategies", "conviction": "strategies",
@@ -364,6 +383,7 @@ _WS = {
 def _nav(active: str) -> str:
     cur = _WS.get(active, active)
     items = [("markets", "/dash/markets", "Markets"),
+             ("themes", "/dash/themes", "Themes"),
              ("screener", "/dash/screener", "Screener"),
              ("strategies", "/dash/strategies", "Strategies"),
              ("tracker", "/dash/dashboard", "Tracker"),
@@ -417,6 +437,35 @@ def _esc(s) -> str:
 
 def _q(s) -> str:
     return quote_plus(str(s) if s is not None else "")
+
+
+def _tag_chips(labels, link: bool = True, proposed=(), wrap: bool = False, cap=None) -> str:
+    """Render theme labels as small chips (session 33). `proposed` = labels that
+    are AI-proposed (not yet approved) — styled distinctly + marked with '?'.
+    `cap` shows the first N then a '+M' chip. `wrap` boxes them in a .chips row.
+    Canonical chip renderer — reused by the stock page, screener, participant
+    tables and the themes pages (cockpit calls D._tag_chips)."""
+    labels = list(labels or [])
+    if not labels:
+        return ""
+    proposed = set(proposed or ())
+    extra = 0
+    if cap and len(labels) > cap:
+        extra = len(labels) - cap
+        labels = labels[:cap]
+    parts = []
+    for lab in labels:
+        is_prop = lab in proposed
+        cls = "tchip prop" if is_prop else "tchip"
+        txt = _esc(lab) + ('<span class="tq">?</span>' if is_prop else "")
+        if link:
+            parts.append(f'<a class="{cls}" href="/dash/theme?tag={_q(lab)}">{txt}</a>')
+        else:
+            parts.append(f'<span class="{cls}">{txt}</span>')
+    if extra:
+        parts.append(f'<span class="tchip more">+{extra}</span>')
+    inner = "".join(parts)
+    return f'<div class="chips">{inner}</div>' if wrap else inner
 
 
 def _pct(v, decimals=1) -> str:
@@ -2005,6 +2054,8 @@ def dash_screener(scope: str = Query("Nifty 500"),
                     syms).fetchall()}
                 cpr_by_tf = _cpr_latest_by_tf(conn, syms)   # CPR Structure group (D53)
                 cci_by_sym = _cci_latest_by_sym(conn, syms)  # Management Credibility group (CCI, P5)
+                from src.automation import theme_tags as TT
+                tags_by_sym = TT.approved_tags_for(conn, syms)  # session 33 — multi-label Themes group
 
     from src.web.cockpit import _mv_adbar, _mep_pill
 
@@ -2042,6 +2093,12 @@ def dash_screener(scope: str = Query("Nifty 500"),
         star = "★ " if ((r["p_score"] or 0) >= 4 and (r["rs_rank"] or 0) >= 80 and qg_ok) else ""
         cpr_tds, has_cpr = _cpr_screener_cells(cpr_by_tf.get(r["symbol"], {}))
         cci_tds, has_cci = _cci_screener_cells(cci_by_sym.get(r["symbol"]))
+        _labs = tags_by_sym.get(r["symbol"], [])
+        # show 2 chips + "+N"; the overflow labels go in a hidden span so the
+        # screener text-filter (matches row textContent) still finds them.
+        themes_cell = ((_tag_chips(_labs, cap=2)
+                        + (f'<span style="display:none">{_esc(" ".join(_labs[2:]))}</span>' if len(_labs) > 2 else ''))
+                       if _labs else '<span class="mut">—</span>')
         msc, mst = r.get("mep_sc"), r.get("mep_st")
         mep_score_td = (f'<td class="num g-mep" style="color:{"#2ea043" if msc>=0 else "#f85149"}">{msc:+.2f}</td>'
                         if msc is not None else '<td class="num g-mep mut">—</td>')
@@ -2084,6 +2141,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             f'<td class="l g-rs">{_rs_strip(r["b1"], r["b3"], r["b6"], r["b12"])}</td>'
             f'<td class="l g-rs">{trend_pill(r["rsst"])}</td>'
             + cpr_tds + cci_tds +
+            f'<td class="inst l gsep g-themes" style="white-space:nowrap;overflow:hidden">{themes_cell}</td>'
             f'<td class="num gsep g-qual">{qsc}</td>'
             f'<td class="l mut g-qual">{tier}</td>'
             f'<td class="num gsep g-ctx{h_52(r["hh"])}">{_pct(r["hh"])}</td>'
@@ -2128,6 +2186,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-rs" colspan="5">relative strength</th>'
             '<th class="l gsep g-cpr" colspan="7">structure · cpr</th>'
             '<th class="l gsep g-cci" colspan="5">credibility · cci</th>'
+            '<th class="l gsep g-themes" colspan="1">themes</th>'
             '<th class="l gsep g-qual" colspan="2">quality</th>'
             '<th class="l gsep g-ctx" colspan="3">context</th></tr>'
             '<tr class="scol">'
@@ -2143,6 +2202,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="num gsep g-cpr">D%</th><th class="num g-cpr">W%</th><th class="num g-cpr">M%</th>'
             '<th class="l g-cpr">D·W·M</th><th class="g-cpr">Rnk</th><th class="l g-cpr">Str</th><th class="num g-cpr">Comp%</th>'
             '<th class="l gsep g-cci">Cred</th><th class="l g-cci">Fwd</th><th class="num g-cci">Deter</th><th class="l g-cci">Veto</th><th class="num g-cci">#C</th>'
+            '<th class="l gsep g-themes">Themes</th>'
             '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
             '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th><th class="num g-ctx">Near-P</th></tr></thead>')
         grid = (f'<div class="scrwrap"><table class="scr">{thead}'
@@ -2195,7 +2255,7 @@ _SCREENER_JS = """
     tbl.insertBefore(cg, tbl.firstChild);
   })();
   var vbar=document.getElementById('vbar'); if(!vbar) return;
-  var TOG=[['conv','Conviction'],['pos','Positioning'],['mep','Accumulation'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['cci','Credibility'],['qual','Quality'],['ctx','Context']];
+  var TOG=[['conv','Conviction'],['pos','Positioning'],['mep','Accumulation'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['cci','Credibility'],['themes','Themes'],['qual','Quality'],['ctx','Context']];
   var KEY='patearn_scr_hidden', SKEY='patearn_scr_saved';
   function getH(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
   function getSaved(){try{return JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){return [];}}
@@ -6501,6 +6561,21 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         _ck_tile(_pct(_p52), "vs 52w-high", "#8b949e", "today's close"),
     ])
 
+    # --- THEME tags (session 33) — multi-label, always visible in the header ---
+    from src.automation import theme_tags as TT
+    with get_conn() as _tc:
+        _stock_tags = TT.tags_with_provenance(_tc, sym)
+    if _stock_tags:
+        _prop = [t["tag"] for t in _stock_tags if not t["approved"]]
+        _all = [t["tag"] for t in _stock_tags if t["approved"]] + _prop
+        themes_line = ('<div class="sub" style="margin:8px 0 2px">Themes '
+                       f'<a class="row" style="display:inline;font-size:11px" href="/dash/tags-review?sym={_q(sym)}">+ tag</a></div>'
+                       '<div class="chips" style="margin-bottom:10px">'
+                       + _tag_chips(_all, proposed=set(_prop)) + '</div>')
+    else:
+        themes_line = ('<div class="sub" style="margin:8px 0 10px">Themes: <span class="mut">none yet</span> '
+                       f'<a class="row" style="display:inline;font-size:11px" href="/dash/tags-review?sym={_q(sym)}">+ add</a></div>')
+
     def _stab(k, lbl, on):
         oncls = ' class="on"' if on else ''
         return f'<a href="#{k}" data-stab="{k}"{oncls}>{lbl}</a>'
@@ -6541,6 +6616,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 <h2>{_esc(sym)} <span class="pill p-{rank}">{rank}</span> {ath}{(' · ' + _esc(company_name)) if company_name else ''}</h2>
 <div class="sub">{L['trade_date']} · close ₹{_num(today_close,2)} · deliv {_num(L.get('deliv_per'),1)}%</div>
 {verdict_strip}
+{themes_line}
 {track_html}
 {tabbar}
 <div class="tabpane" data-tab="price">
@@ -6898,6 +6974,69 @@ def dash_index(idx: str = Query("", max_length=60)) -> HTMLResponse:
     return HTMLResponse(_shell(f"{idx or 'Index'} · patearn",
                                render_index_detail(idx, idx_date, sig_date),
                                "markets", idx_date or "", wide=True))
+
+
+@router.get("/dash/themes", response_class=HTMLResponse)
+def dash_themes() -> HTMLResponse:
+    """Themes browse — the multi-label thematic tag layer (session 33). ADDITIVE:
+    a lens beside Markets/Sectors. Data = company_tags + src.automation.theme_tags."""
+    _, idx_date = _latest_dates()
+    from src.web.cockpit import render_themes
+    return HTMLResponse(_shell("Themes · patearn", render_themes(idx_date),
+                               "themes", idx_date or "", wide=True))
+
+
+@router.get("/dash/theme", response_class=HTMLResponse)
+def dash_theme(tag: str = Query("", max_length=60)) -> HTMLResponse:
+    """One theme's participants drill (/dash/theme?tag=Infrastructure)."""
+    sig_date, idx_date = _latest_dates()
+    from src.web.cockpit import render_theme_detail
+    return HTMLResponse(_shell(f"{tag or 'Theme'} · patearn",
+                               render_theme_detail(tag, idx_date, sig_date),
+                               "themes", idx_date or "", wide=True))
+
+
+@router.get("/dash/tags-review", response_class=HTMLResponse)
+def dash_tags_review(added: str = Query("", max_length=60),
+                     err: str = Query("", max_length=60),
+                     sym: str = Query("", max_length=20)) -> HTMLResponse:
+    """Approve AI-proposed theme tags + hand-add/remove tags (session 33)."""
+    _, idx_date = _latest_dates()
+    from src.web.cockpit import render_tags_review
+    return HTMLResponse(_shell("Review tags · patearn",
+                               render_tags_review(added, err, sym),
+                               "tags-review", idx_date or "", wide=True))
+
+
+@router.post("/dash/tags")
+def dash_tags_act(action: str = Form(...), symbol: str = Form(""),
+                  tag: str = Form(""), nxt: str = Form("/dash/tags-review")) -> RedirectResponse:
+    """Approve / reject an AI proposal, or add / remove a manual theme tag.
+    Index-seeded facts are immutable here (remove targets source='ramana' only)."""
+    from src.automation import theme_tags as TT
+    symbol = (symbol or "").upper().strip()
+    tag = (tag or "").strip()
+    ok = True
+    try:
+        with get_conn() as conn:
+            if action == "approve" and symbol and tag:
+                TT.approve(conn, symbol, tag)
+            elif action == "reject" and symbol and tag:
+                TT.reject(conn, symbol, tag)
+            elif action == "add" and symbol and tag and TT.vocab_entry(tag) is not None:
+                TT.add_manual(conn, symbol, tag)
+            elif action == "remove" and symbol and tag:
+                conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND source='ramana'",
+                             (symbol, tag))
+                conn.commit()
+            else:
+                ok = False
+    except Exception:
+        ok = False
+    if not nxt.startswith("/dash/"):
+        nxt = "/dash/tags-review"
+    sep = "&" if "?" in nxt else "?"
+    return RedirectResponse(f"{nxt}{sep}{'added' if ok else 'err'}={_q(tag or symbol)}", status_code=303)
 
 
 @router.get("/dash/ratio", response_class=HTMLResponse)

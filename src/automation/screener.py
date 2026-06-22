@@ -124,6 +124,47 @@ def _extract_shareholding(soup: BeautifulSoup) -> dict:
     return out
 
 
+def _extract_about(soup: BeautifulSoup) -> tuple:
+    """Best-effort Screener 'About' business description + industry label.
+
+    Builds the `company_about` corpus the quarterly theme-tagging pass reads
+    (src/automation/theme_tags.py — session 33). Never raises; on any miss it
+    returns (None, None) and company_about simply isn't populated for that name.
+    Returns (about_text_or_None, screener_industry_or_None)."""
+    about = None
+    prof = soup.select_one("div.company-profile")
+    if prof:
+        ab = prof.select_one("div.about, .about")
+        about = ab.get_text(" ", strip=True) if ab else None
+        if not about:
+            p = prof.find("p")
+            about = p.get_text(" ", strip=True) if p else None
+    if not about:
+        ab = soup.select_one(".about")
+        about = ab.get_text(" ", strip=True) if ab else None
+    industry = None
+    for sel in ("div.company-links a[href*='/market/']",
+                "#peers a[href*='/market/']", "small a[href*='/market/']"):
+        el = soup.select_one(sel)
+        if el:
+            industry = el.get_text(strip=True) or None
+            break
+    if about:
+        about = re.sub(r"\s+", " ", about).replace("Read More", "").replace("Read Less", "").strip()[:3000]
+    return (about or None), industry
+
+
+def _write_about(symbol: str, about: Optional[str], industry: Optional[str]) -> None:
+    """Upsert one company's business description (company_about; session 33)."""
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO company_about(symbol, about, screener_industry, fetched_at) "
+            "VALUES (?,?,?,datetime('now')) "
+            "ON CONFLICT(symbol) DO UPDATE SET about=excluded.about, "
+            "screener_industry=excluded.screener_industry, fetched_at=datetime('now')",
+            (symbol, about, industry))
+
+
 # --- Public API -------------------------------------------------------------
 
 def fetch_company(symbol: str, *, use_cache: bool = True) -> Optional[dict]:
@@ -174,6 +215,14 @@ def fetch_company(symbol: str, *, use_cache: bool = True) -> Optional[dict]:
         data["pb"] = data["current_price"] / data["book_value"]
 
     _write_cache(data)
+    # Best-effort: harvest the business description into company_about for the
+    # quarterly theme-tagging pass. Must never break the fundamentals fetch.
+    try:
+        about, industry = _extract_about(soup)
+        if about:
+            _write_about(symbol, about, industry)
+    except Exception:
+        log.debug("about-capture failed for %s", symbol, exc_info=True)
     return data
 
 

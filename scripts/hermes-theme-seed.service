@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes patearn — deterministic theme-tag seed from index memberships
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.theme_tags --seed
+StandardOutput=append:/var/log/hermes-theme-seed.log
+StandardError=append:/var/log/hermes-theme-seed.log

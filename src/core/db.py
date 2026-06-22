@@ -318,6 +318,40 @@ CREATE TABLE IF NOT EXISTS stock_signals (
 CREATE INDEX IF NOT EXISTS idx_signals_date ON stock_signals(trade_date);
 CREATE INDEX IF NOT EXISTS idx_signals_power1m ON stock_signals(trade_date, ratio_today_vs_power_1m DESC);
 
+-- MEP — signed accumulation/distribution character (descriptor-only; see
+-- docs/mep-strategy-design.md + D62). A SIBLING of stock_signals built from the
+-- OHLC + VWAP + volume tape (NOT delivery-per-trade). SIGNED (+ accumulation /
+-- − distribution) where DVPT is side-blind. Its OWN table so the 2.35M-row
+-- stock_signals hot table stays untouched (same separation as the MTF tables).
+-- score = within-stock z-average of four signed terms; raw terms stored beside
+-- the verdict (data-first). LEFT JOIN to stock_signals on (symbol, trade_date).
+CREATE TABLE IF NOT EXISTS mep_signals (
+    symbol          TEXT NOT NULL,
+    trade_date      TEXT NOT NULL,
+    -- raw signed directional terms (shown beside the verdict)
+    pressure        REAL,   -- (close − VWAP) / VWAP
+    clv             REAL,   -- close-location value ((C−L)−(H−C))/(H−L)
+    drift_22d       REAL,   -- adjusted-close return over ~22 trading rows
+    updown_vol_22d  REAL,   -- (up-day vol − down-day vol) / total vol, 22 rows
+    -- context terms (stored, not summed into the score)
+    compression     REAL,   -- short ATR% / long ATR%  (lower = coiled)
+    amihud_22d      REAL,   -- illiquidity: mean(|ret|/turnover), 22 rows
+    -- within-stock z-scores of the four signed terms
+    z_pressure      REAL,
+    z_clv           REAL,
+    z_drift         REAL,
+    z_updown        REAL,
+    -- signed composite + banded state
+    mep_score       REAL,   -- mean of available z's (+ accum / − distrib)
+    mep_state       TEXT,   -- STRONG_ACCUM/ACCUM/NEUTRAL/DISTRIB/STRONG_DISTRIB
+    data_points_used INTEGER,
+    computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_mep_date  ON mep_signals(trade_date);
+CREATE INDEX IF NOT EXISTS idx_mep_state ON mep_signals(trade_date, mep_state);
+CREATE INDEX IF NOT EXISTS idx_mep_score ON mep_signals(trade_date, mep_score DESC);
+
 -- Screener.in scraped fundamentals (cached, refreshed periodically)
 CREATE TABLE IF NOT EXISTS fundamentals (
     symbol             TEXT PRIMARY KEY,
@@ -596,6 +630,268 @@ CREATE TABLE IF NOT EXISTS stocks_in_play (
 );
 CREATE INDEX IF NOT EXISTS idx_sip_status ON stocks_in_play(status, strategy);
 CREATE INDEX IF NOT EXISTS idx_sip_symbol ON stocks_in_play(symbol);
+
+-- ===========================================================================
+-- CONCALL INTELLIGENCE (CCI) — session 27. The qualitative forward-trigger
+-- layer: capture every management promise/guidance from earnings conference
+-- calls, grade it against what actually landed in the subsequent result and
+-- the next call, and compound that into a per-company CREDIBILITY score + rank.
+-- Each company gets its OWN score and rank. The raw transcript TEXT lives on
+-- the VPS filesystem (/opt/hermes/data/concalls/<SYM>/<period>.txt, gitignored)
+-- — the DB stores the path + the RATED extraction, never the whole PDF.
+-- Source: Screener.in Concalls section → BSE transcript PDFs (free, no LLM at
+-- ingest; Gemini one-time per concall for the structured extraction).
+-- Full design + decision log: docs/concall-intelligence-design.md.
+-- ===========================================================================
+
+-- 1. CORPUS — one row per (symbol, concall). period_label is the raw Screener
+--    date label (e.g. "Apr 2026") and is the GROUND TRUTH; fy/quarter are a
+--    best-effort derivation (Indian FY Apr–Mar). transcript_url='' (not NULL)
+--    when no transcript exists, so the UNIQUE key dedups idempotently.
+CREATE TABLE IF NOT EXISTS concalls (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol           TEXT NOT NULL,
+    period_label     TEXT NOT NULL,        -- raw Screener label, e.g. "Apr 2026"
+    period_type      TEXT,                 -- Q | H1 | H2 | FY | MONTHLY_UPDATE
+    fy               INTEGER,              -- derived Indian FY (year of the Mar end)
+    quarter          INTEGER,              -- derived 1..4 (NULL for FY/monthly)
+    concall_month    INTEGER,              -- 1..12 from the label
+    concall_year     INTEGER,
+    transcript_url   TEXT NOT NULL DEFAULT '',  -- BSE AnnPdfOpen.aspx PDF ('' if none)
+    ppt_url          TEXT,                 -- BSE PDF (optional)
+    rec_url          TEXT,                 -- YouTube (optional)
+    ai_summary_id    TEXT,                 -- Screener /concalls/summary/<id>/
+    ai_summary       TEXT,                 -- Screener's free digest (optional)
+    transcript_path  TEXT,                 -- VPS file path (gitignored); NULL until downloaded
+    transcript_chars INTEGER,
+    transcript_sha   TEXT,
+    source           TEXT NOT NULL DEFAULT 'screener',
+    fetched_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    parse_status     TEXT,                 -- OK | NO_TRANSCRIPT | FETCH_FAIL | NOT_PDF | EMPTY_TEXT
+    extract_status   TEXT,                 -- NULL=pending | DONE | FAIL (set by concall_extract)
+    UNIQUE (symbol, period_label, transcript_url)
+);
+CREATE INDEX IF NOT EXISTS idx_concalls_symbol  ON concalls(symbol, concall_year DESC, concall_month DESC);
+CREATE INDEX IF NOT EXISTS idx_concalls_extract ON concalls(extract_status);
+
+-- 2. REPORTED NUMBERS (free, from Screener quarterly tables) — value-based (₹cr).
+--    exp_adj_delta_pct = actual vs management's PRIOR stated expectation (the
+--    "headwind-adjusted" read, joined from concall_guidance), NOT just QoQ/YoY.
+CREATE TABLE IF NOT EXISTS concall_results (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol            TEXT NOT NULL,
+    period_label      TEXT NOT NULL,
+    fy                INTEGER,
+    quarter           INTEGER,
+    revenue           REAL,               -- ₹cr
+    ebitda            REAL,               -- ₹cr
+    ebitda_margin     REAL,               -- %
+    pat               REAL,               -- ₹cr (net profit)
+    eps               REAL,
+    segment_json      TEXT,
+    rev_qoq_pct       REAL,
+    rev_yoy_pct       REAL,
+    ebitda_qoq_pct    REAL,
+    ebitda_yoy_pct    REAL,
+    pat_qoq_pct       REAL,
+    pat_yoy_pct       REAL,
+    exp_adj_delta_pct REAL,
+    source            TEXT NOT NULL DEFAULT 'screener',
+    fetched_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (symbol, period_label)
+);
+CREATE INDEX IF NOT EXISTS idx_concall_results_symbol ON concall_results(symbol, fy DESC, quarter DESC);
+
+-- 2b. NEGATIVE / POOR-EBITDA ledger (explicit per Ramana). flagged_proactively
+--     = did management own it BEFORE being asked? recovery_promise_id → guidance.
+CREATE TABLE IF NOT EXISTS concall_ebitda_watch (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol              TEXT NOT NULL,
+    period_label        TEXT NOT NULL,
+    ebitda              REAL,             -- ₹cr (≤0 or weak)
+    ebitda_margin       REAL,
+    magnitude           REAL,             -- size of loss / shortfall
+    flagged_proactively INTEGER,          -- 1 yes / 0 no / NULL unknown
+    mgmt_explanation    TEXT,
+    recovery_promise_id INTEGER,          -- → concall_guidance.id
+    periods_in_red      INTEGER,          -- consecutive weak/negative streak
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (symbol, period_label)
+);
+CREATE INDEX IF NOT EXISTS idx_ebitda_watch_symbol ON concall_ebitda_watch(symbol, period_label);
+
+-- 3. THE PROMISE LEDGER / FOLLOW-THROUGH TRACKER. One row per discrete forward
+--    statement. A multi-year capex stays OPEN and is re-checked every later call
+--    until settled (status flips MET/MISSED/PARTIAL + resolved_period+variance).
+CREATE TABLE IF NOT EXISTS concall_guidance (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol              TEXT NOT NULL,
+    source_period       TEXT NOT NULL,    -- the concall period it was said in
+    statement_type      TEXT,             -- revenue|margin|volume|capex|expansion|debt_reduction|demand_outlook|new_product|cost_savings|dividend_buyback|other
+    horizon             TEXT,             -- this_q|next_q|fy|multiyear_3_5y
+    claim_text          TEXT NOT NULL,
+    quantified_target   REAL,
+    unit                TEXT,             -- '₹cr' | '%' | 'MT' | 'units' | ...
+    confidence_language TEXT,             -- verbatim hedge/conviction phrase
+    status              TEXT NOT NULL DEFAULT 'OPEN', -- OPEN|MET|MISSED|PARTIAL|ABANDONED|RESTATED|ONGOING
+    resolved_period     TEXT,
+    variance_pct        REAL,             -- actual vs target at resolution
+    evidence            TEXT,
+    model_version       TEXT,             -- extractor model+prompt version (drift audit)
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_guidance_symbol ON concall_guidance(symbol, source_period);
+CREATE INDEX IF NOT EXISTS idx_guidance_status ON concall_guidance(symbol, status);
+
+-- 4. EXPECTATION vs ACTUAL per metric. classification captures Ramana's
+--    in-line/understated/overstated/CONCEALED. headwind_adjusted = warned of a
+--    headwind yet delivered (positive even when QoQ/YoY screen "down").
+--    market_recognized=0 → the market missed it → mispricing input.
+CREATE TABLE IF NOT EXISTS concall_expectations_vs_actual (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol            TEXT NOT NULL,
+    period_label      TEXT NOT NULL,      -- the result period being judged
+    metric            TEXT NOT NULL,      -- revenue|ebitda|margin|pat|volume|...
+    mgmt_expectation  TEXT,
+    expected_value    REAL,
+    actual_value      REAL,
+    classification    TEXT,               -- IN_LINE|BEAT|MISS|UNDERSTATED|OVERSTATED|CONCEALED
+    headwind_adjusted INTEGER,            -- 1 = headwind-beat
+    market_recognized INTEGER,            -- 1 priced / 0 gap / NULL unknown
+    evidence          TEXT,
+    model_version     TEXT,
+    created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (symbol, period_label, metric)
+);
+CREATE INDEX IF NOT EXISTS idx_eva_symbol ON concall_expectations_vs_actual(symbol, period_label);
+
+-- 5. BEHAVIOURAL AXES — no existing system has these; extracted from transcripts.
+--    Each 0..100 (evasion/promo: higher = worse). evidence holds the quote(s).
+CREATE TABLE IF NOT EXISTS concall_behavior (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol                TEXT NOT NULL,
+    period_label          TEXT NOT NULL,
+    credibility           INTEGER,
+    transparency          INTEGER,
+    courage               INTEGER,
+    issue_handling        INTEGER,
+    consistency           INTEGER,
+    specificity           INTEGER,
+    evasion               INTEGER,        -- higher = more evasive (bad)
+    promo_vs_conservative INTEGER,        -- higher = more promotional (caution)
+    tone                  INTEGER,        -- overall sentiment 0..100
+    confidence            INTEGER,
+    evidence              TEXT,
+    model_version         TEXT,
+    created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (symbol, period_label)
+);
+CREATE INDEX IF NOT EXISTS idx_behavior_symbol ON concall_behavior(symbol, period_label);
+
+-- 6. RED FLAGS — discrete hidden / skip-the-human-eye items (many per period).
+--    Idempotency: concall_extract deletes a (symbol, period) set before reinsert.
+CREATE TABLE IF NOT EXISTS concall_redflags (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol            TEXT NOT NULL,
+    period_label      TEXT NOT NULL,
+    flag_type         TEXT,               -- guidance_walkback|metric_definition_change|stopped_disclosing|one_off_masking|working_capital_stress|related_party|capex_slippage|promise_quietly_dropped|accounting_change|optimism_without_numbers|blames_externals_repeatedly|other
+    severity          INTEGER,            -- 1..5
+    evidence          TEXT,
+    period_first_seen TEXT,
+    model_version     TEXT,
+    created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_redflags_symbol ON concall_redflags(symbol, period_label);
+CREATE INDEX IF NOT EXISTS idx_redflags_type   ON concall_redflags(flag_type);
+
+-- 7. OUTPUT — the score + cross-universe RANK, stored per as-of period so the
+--    track record AND the ranking itself are backtestable. Weights are tunable
+--    / derived-on-read (the D43/CPR pattern) — re-rank without re-extracting.
+CREATE TABLE IF NOT EXISTS concall_scores (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol                  TEXT NOT NULL,
+    as_of_period            TEXT NOT NULL, -- the latest concall period rolled up to
+    as_of_date              TEXT,
+    credibility_score       REAL,          -- 0..100
+    guidance_accuracy_score REAL,          -- hit-rate of RESOLVED promises, 0..100
+    transparency_score      REAL,
+    forward_direction       TEXT,          -- UP|DOWN|FLAT
+    forward_conviction      REAL,          -- 0..100
+    mispricing_flag         TEXT,          -- UNDERPRICED|OVERPRICED|FAIR
+    credibility_trend       TEXT,          -- IMPROVING|STABLE|DETERIORATING
+    composite_score         REAL,          -- the headline 0..100
+    rank                    INTEGER,       -- 1..N across the scored universe (latest as-of)
+    tier                    TEXT,          -- A+|A|B|C|D
+    n_concalls              INTEGER,
+    n_promises_resolved     INTEGER,
+    last_updated            TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (symbol, as_of_period)
+);
+CREATE INDEX IF NOT EXISTS idx_concall_scores_rank   ON concall_scores(as_of_period, rank);
+CREATE INDEX IF NOT EXISTS idx_concall_scores_symbol ON concall_scores(symbol, as_of_period);
+
+-- 8. COVERAGE / SURVIVORSHIP SPINE (debate rank #6). Point-in-time expected-call
+--    map keyed to the SEBI phased transcript mandate (top-100 FY19 → top-250 FY22
+--    → top-1000 ~FY25). Makes "no transcript" a first-class, NON-benign signal: a
+--    MANDATORY_BUT_ABSENT call (a fraud going dark before collapse) must never be
+--    silently treated as missing-at-random. Built from the bhav-copy archive, not
+--    Screener's current DOM, so the backtest universe stays survivorship-safe.
+CREATE TABLE IF NOT EXISTS concall_coverage (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol           TEXT NOT NULL,
+    fy               INTEGER NOT NULL,
+    quarter          INTEGER NOT NULL,
+    expected_call    INTEGER,            -- 1 = a call was expected in the as-of mandatory cohort
+    mandatory_cohort TEXT,               -- TOP100|TOP250|TOP1000|NONE (the as-of SEBI tier)
+    has_transcript   INTEGER,            -- 1 = we have a transcript for (symbol, fy, quarter)
+    miss_reason      TEXT,               -- NOT_MANDATORY|MANDATORY_BUT_ABSENT|NO_CALL_HELD|SCANNED_OCR_NEEDED
+    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (symbol, fy, quarter)
+);
+CREATE INDEX IF NOT EXISTS idx_concall_coverage_symbol ON concall_coverage(symbol, fy DESC, quarter DESC);
+CREATE INDEX IF NOT EXISTS idx_concall_coverage_miss   ON concall_coverage(miss_reason);
+
+-- 9. THEME TAGS (session 33) — a MULTI-LABEL thematic classification layer that
+--    sits BESIDE sector + index membership: one company can carry several themes
+--    at once (e.g. an EPC name = Infrastructure + Industrialization-proxy +
+--    Transport/Logistics). ADDITIVE — it does NOT touch stock_index_membership or
+--    stock_signals.primary_sector. Three provenance tiers via `source`:
+--      'index'  = deterministically seeded from a thematic index (a fact; approved=1)
+--      'ai'     = Haiku-proposed from the business description + latest results
+--                 (approved=0 — shown as "proposed" until Ramana signs off)
+--      'ramana' = human approved / hand-added (approved=1)
+--    The UI shows approved=1 by default. The PK is (symbol, tag, source) so the
+--    same tag can carry both a deterministic and a human provenance; reads dedupe
+--    by tag. Re-decided each quarter (business mix shifts); the index seeder is
+--    idempotent for source='index' and never disturbs ai/ramana rows. See
+--    src/automation/theme_tags.py (THEME_VOCAB = the controlled vocabulary).
+CREATE TABLE IF NOT EXISTS company_tags (
+    symbol      TEXT NOT NULL,
+    tag         TEXT NOT NULL,                    -- human-readable label, e.g. 'Infrastructure'
+    source      TEXT NOT NULL DEFAULT 'index',    -- index | ai | ramana
+    confidence  REAL,                             -- 0..1 for AI proposals; 1.0 for facts
+    as_of       TEXT NOT NULL DEFAULT (date('now')),
+    approved    INTEGER NOT NULL DEFAULT 1,       -- 0 = proposed (AI), 1 = live
+    note        TEXT,                             -- optional rationale (AI / human)
+    PRIMARY KEY (symbol, tag, source)
+);
+CREATE INDEX IF NOT EXISTS idx_company_tags_tag    ON company_tags(tag, approved);
+CREATE INDEX IF NOT EXISTS idx_company_tags_symbol ON company_tags(symbol, approved);
+CREATE INDEX IF NOT EXISTS idx_company_tags_review ON company_tags(approved, source);
+
+-- 10. COMPANY ABOUT (session 33) — the Screener.in business-description corpus the
+--     quarterly Haiku tagging pass reads to propose cross-cutting theme tags.
+--     `fundamentals` has no description field; this fills the gap on the EXISTING
+--     Screener cadence (populated best-effort inside screener.fetch_company). One
+--     row per symbol, replaced on each fetch. Kept separate from `fundamentals` so
+--     that (sparse, batch-scored) table is untouched.
+CREATE TABLE IF NOT EXISTS company_about (
+    symbol            TEXT PRIMARY KEY,
+    about             TEXT,           -- the "About" / business-description blurb
+    screener_industry TEXT,           -- Screener's own industry label (free signal)
+    fetched_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
@@ -645,6 +941,40 @@ def _init() -> None:
         # ({"t": type, "v": threshold}); evaluated EOD on page-load + (future) a
         # nightly timer. Surfaces "firing now" on Watchlists + Dashboard.
         _ensure_column(conn, "stocks_in_play", "alerts_json", "TEXT")
+
+        # 2e. CONCALL INTELLIGENCE (CCI, session 27) — debate-driven v0.2 schema
+        # finalization. The concall_* tables themselves are created by SCHEMA_BASE
+        # above; these ALTER-add the new columns on existing DBs. See
+        # docs/concall-intelligence-debate.md + the build plan.
+        # Event clocks (three-clock model: result print ≠ concall ≠ transcript publish).
+        _ensure_column(conn, "concalls", "result_filing_dt",      "TEXT")
+        _ensure_column(conn, "concalls", "concall_dt",            "TEXT")
+        _ensure_column(conn, "concalls", "transcript_publish_dt", "TEXT")
+        # Promise ledger: commitment strength + speaker attribution (drop analyst-
+        # attributed rows; score evasion/courage from Q&A only). Makes the no-Reg-FD
+        # universe gradeable on directional sign-match.
+        _ensure_column(conn, "concall_guidance", "commitment_strength", "TEXT")     # HARD|SOFT|DIRECTIONAL|ASPIRATIONAL
+        _ensure_column(conn, "concall_guidance", "speaker_role",        "TEXT")     # mgmt|analyst|other
+        _ensure_column(conn, "concall_guidance", "is_qa",               "INTEGER")  # 1 = from Q&A, 0 = prepared remarks
+        # Expectation vs actual: anchor to an EXTERNAL number (street/trailing), not
+        # only mgmt's own framing; only credit a headwind stated BEFORE the result.
+        _ensure_column(conn, "concall_expectations_vs_actual", "external_classification", "TEXT")
+        _ensure_column(conn, "concall_expectations_vs_actual", "street_value",            "REAL")
+        _ensure_column(conn, "concall_expectations_vs_actual", "headwind_stated_prior",   "INTEGER")
+        # Behaviour: per-speaker tone DEVIATION (vs the speaker's own baseline) — the
+        # only tone read that survives the reliability critique.
+        _ensure_column(conn, "concall_behavior", "tone_deviation", "REAL")
+        # Red flags: provenance for transcript-diff deterioration flags.
+        _ensure_column(conn, "concall_redflags", "prior_period", "TEXT")
+        # Scores: forensic veto + the avoid-tape headline. (The global 1..N rank is
+        # now DERIVED ON READ within freshness-matched cohorts, not stored.)
+        _ensure_column(conn, "concall_scores", "veto_active",         "INTEGER")
+        _ensure_column(conn, "concall_scores", "veto_reason",         "TEXT")
+        _ensure_column(conn, "concall_scores", "deterioration_score", "REAL")
+        # Measurable transparency (D61): % of forward statements that are falsifiable
+        # numbers (deterministic from claim_text) — the ranking input that replaces
+        # the 0-100 LLM "transparency" opinion (which is now display-only).
+        _ensure_column(conn, "concall_scores", "quantification_rate", "REAL")
         # 3. Index on the new column (now guaranteed to exist).
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_conv_tg_user ON conversations(telegram_user_id, id DESC)"

@@ -979,8 +979,10 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                 f"s.is_ath_dvpt ath, s.pct_from_52w_high pfh, s.p_score, s.trigger_rank rank, "
                 f"s.delivery_value_today dvt, s.delivery_value_per_trade dvpt, s.power_dvpt_1m p1, "
                 f"s.power_dvpt_2m p2, s.power_dvpt_3m p3, s.power_dvpt_6m p6, s.power_dvpt_12m p12, "
-                f"s.price_vs_hot_avg_pct pvh, s.primary_sector sec, b.close cmp, b.prev_close pc "
+                f"s.price_vs_hot_avg_pct pvh, s.primary_sector sec, b.close cmp, b.prev_close pc, "
+                f"m.mep_score mep, m.mep_state mst "
                 f"FROM stock_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+                f"LEFT JOIN mep_signals m ON (m.symbol=s.symbol AND m.trade_date=s.trade_date) "
                 f"WHERE s.trade_date=? AND s.symbol IN ({ph}) {D._SCAN_FILTERS}",
                 (sig_date, *syms)).fetchall()]
         # RS-ratio curve (index ÷ Nifty 500) — the chart Ramana reviews; the
@@ -1229,7 +1231,8 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             '<h2>Relative strength <span class="sub" style="margin:0">vs Nifty 500 · the RS-ratio chart</span></h2>'
             f'<div class="sub" style="margin-bottom:6px">{rs_strip} &nbsp; '
             f'3m RS slope {pct(s3)} · trend <span class="pill p-{rcss or "C"}">{esc(rl or "—")}</span>. '
-            f'<a class="row" style="display:inline" href="/dash/ratio?idx={q(idx)}">Standalone ratio page (also vs Nifty 50) &#8594;</a></div>'
+            f'<a class="row" style="display:inline" href="/dash/ratio?idx={q(idx)}">Standalone ratio page (also vs Nifty 50) &#8594;</a>'
+            f' &nbsp;·&nbsp; <a class="row" style="display:inline" href="/dash/compare?idx={q(idx)}&idx=Nifty+500">⇄ Compare (rebased) vs Nifty 500</a></div>'
             + ratio_chart
             + '<div class="mkt-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">'
             + quad + gauge + rsdepth + '</div>')
@@ -1292,34 +1295,35 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         drill = (f'<a class="row" style="display:inline" href="/dash/stocks?sector={q(idx)}">'
                  f'See all {N} constituent stocks &#8594;</a>')
         # FULL sortable PARTICIPANTS table — every liquid member (the constituents
-        # Ramana asked to see, incl. for size indices like Midcap/Smallcap), not a top-8.
-        prows = ""
-        for m in sorted(members, key=lambda mm: (mm.get("rs_rank") is None, -(mm.get("rs_rank") or 0))):
-            rk = m.get("rank") or "-"
-            athg = "⚡" if m.get("ath") else ""
-            prows += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(m["symbol"])}">'
-                      f'<span class="sym">{athg}{esc(m["symbol"])}</span></a></td>'
-                      f'<td class="l mut">{esc(m.get("sec") or "—")}</td>'
-                      f'<td class="r">{m["rs_rank"] if m.get("rs_rank") is not None else "—"}</td>'
-                      f'<td><span class="pill p-{rk}">{rk}</span></td>'
-                      f'<td class="r mut">{m.get("p_score") or 0}</td>'
-                      f'<td class="l">{D._char_pill(m.get("ch"))}</td>'
-                      f'<td class="r">{pct(m.get("pfh"))}</td>'
-                      f'<td class="r">{("₹" + num((m.get("dvt") or 0) / 1e7, 1) + "cr") if m.get("dvt") else "—"}</td>'
-                      f'<td class="r">{pct(m.get("pvh"))}</td></tr>')
+        # Ramana asked to see, incl. for size indices like Midcap/Smallcap), not a
+        # top-8. Now carries Themes chips + signed-MEP PER MEMBER + an "accumulating
+        # only" filter, via the shared _participants_table (also used by /dash/theme).
+        sorted_members = sorted(members, key=lambda mm: (mm.get("rs_rank") is None, -(mm.get("rs_rank") or 0)))
+        from src.automation import theme_tags as TT
+        with D.get_conn() as _tc:
+            mtags = TT.approved_tags_for(_tc, [m["symbol"] for m in sorted_members])
+        # theme breakdown — which themes are most represented inside this index
+        tb_counts = {}
+        for _labs in mtags.values():
+            for _lab in _labs:
+                tb_counts[_lab] = tb_counts.get(_lab, 0) + 1
+        theme_break = ""
+        if tb_counts:
+            _top = sorted(tb_counts.items(), key=lambda kv: -kv[1])[:10]
+            _chips = "".join(f'<a class="tchip" href="/dash/theme?tag={q(lab)}">{esc(lab)} <b>{c}</b></a>'
+                             for lab, c in _top)
+            theme_break = ('<div class="card"><div class="ck-h">Themes inside'
+                           '<span class="sub" style="margin:0;font-weight:400">multi-label · members per theme</span>'
+                           f'</div><div class="chips">{_chips}</div></div>')
         participants = (
             '<h3 style="margin:14px 0 6px">All participants '
-            f'<span class="sub" style="margin:0">{N} liquid members · sort · filter · ⬇ export</span></h3>'
-            '<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
-            '<thead><tr><th class="l">Symbol</th><th class="l">Sector</th><th>RS rank</th>'
-            '<th>Trigger</th><th>p</th><th class="l">Character</th><th>%52wH</th>'
-            '<th>DVPT</th><th>Δhot</th></tr></thead>'
-            f'<tbody>{prows}</tbody></table></div>')
+            f'<span class="sub" style="margin:0">{N} liquid members · sort · filter</span></h3>'
+            + _participants_table(sorted_members, mtags, accum_id="idx"))
         rollup = ('<h2>Inside the index <span class="sub" style="margin:0">bottom-up · equal-weight · '
                   f'{N} liquid members</span></h2>'
                   '<div class="sub" style="margin-top:2px">Membership carries no free-float weight, so every '
                   f'roll-up here is <b>equal-weight</b>. Breadth = share of members whose RS vs Nifty 500 is in an '
-                  f'uptrend. {drill}</div>' + tiles + split + participants)
+                  f'uptrend. {drill}</div>' + tiles + split + theme_break + participants)
 
         # leaders & laggards within the index (by rs_rank)
         ranked = [m for m in members if m.get("rs_rank") is not None]
@@ -2225,3 +2229,265 @@ def render_rs() -> str:
              '<th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>'
              f'<tbody>{"".join(trs)}</tbody></table></div>')
     return _CKPT_CSS + head + strip + table
+
+
+# ===========================================================================
+# THEME TAGS (session 33) — the multi-label thematic layer surfaces. Data layer
+# = company_tags + src/automation/theme_tags.py (deterministic index seed +
+# Haiku-proposed/Ramana-approved). ADDITIVE: a lens beside sector + index.
+# ===========================================================================
+
+def _member_snapshot(conn, symbols, sig_date) -> list:
+    """Per-member EOD snapshot for the participants table (shared by the index
+    detail + theme detail pages). Same shape as render_index_detail's inline
+    members query, plus the signed-MEP score/state (LEFT JOIN)."""
+    from src.web import dashboard as D
+    if not symbols or not sig_date:
+        return []
+    out = []
+    for i in range(0, len(symbols), 800):           # SQLite param cap safety
+        chunk = symbols[i:i + 800]
+        ph = ",".join("?" for _ in chunk)
+        out += [dict(r) for r in conn.execute(
+            f"SELECT s.symbol, s.rs_rank, s.rs_vs_broad_trend_state st, s.accum_character ch, "
+            f"s.is_ath_dvpt ath, s.pct_from_52w_high pfh, s.p_score, s.trigger_rank rank, "
+            f"s.delivery_value_today dvt, s.price_vs_hot_avg_pct pvh, s.primary_sector sec, "
+            f"b.close cmp, m.mep_score mep, m.mep_state mst "
+            f"FROM stock_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+            f"LEFT JOIN mep_signals m ON (m.symbol=s.symbol AND m.trade_date=s.trade_date) "
+            f"WHERE s.trade_date=? AND s.symbol IN ({ph}) {D._SCAN_FILTERS}",
+            (sig_date, *chunk)).fetchall()]
+    return out
+
+
+def _participants_table(members, tags_map, accum_id="pt") -> str:
+    """The canonical participants table (index detail + theme detail). Columns:
+    Symbol · Sector · Themes · RS rank · Trigger · p · Character · MEP · %52wH ·
+    DVPT · Δhot. `tags_map` = {symbol: [labels]}. An "accumulating only" CSS
+    toggle (signed-MEP ACCUM/STRONG_ACCUM, or character=ACCUMULATION fallback)."""
+    from src.web import dashboard as D
+    esc, pct, num = D._esc, D._pct, D._num
+    rows = ""
+    for m in members:
+        sym = m["symbol"]
+        rk = m.get("rank") or "-"
+        athg = "⚡" if m.get("ath") else ""
+        chips = D._tag_chips(tags_map.get(sym, []), cap=3) or '<span class="mut">—</span>'
+        mst = m.get("mst")
+        if m.get("mep") is None and not mst:
+            mep_cell = '<span class="mut">—</span>'
+        else:
+            mep_cell = f'{_mv_adbar(m.get("mep"))}&nbsp;{_mep_pill(mst)}'
+        is_acc = mst in ("ACCUM", "STRONG_ACCUM") or m.get("ch") == "ACCUMULATION"
+        cls = ' class="is-acc"' if is_acc else ''
+        rows += (f'<tr{cls}><td class="l"><a class="row" href="/dash/stock?sym={esc(sym)}">'
+                 f'<span class="sym">{athg}{esc(sym)}</span></a></td>'
+                 f'<td class="l mut">{esc(m.get("sec") or "—")}</td>'
+                 f'<td class="l">{chips}</td>'
+                 f'<td class="r">{m["rs_rank"] if m.get("rs_rank") is not None else "—"}</td>'
+                 f'<td><span class="pill p-{rk}">{rk}</span></td>'
+                 f'<td class="r mut">{m.get("p_score") or 0}</td>'
+                 f'<td class="l">{D._char_pill(m.get("ch"))}</td>'
+                 f'<td class="l">{mep_cell}</td>'
+                 f'<td class="r">{pct(m.get("pfh"))}</td>'
+                 f'<td class="r">{("₹" + num((m.get("dvt") or 0) / 1e7, 1) + "cr") if m.get("dvt") else "—"}</td>'
+                 f'<td class="r">{pct(m.get("pvh"))}</td></tr>')
+    return (f'<label class="accfilter"><input type="checkbox" onchange="'
+            f"this.closest('.ptbl').classList.toggle('acc-only',this.checked)"
+            f'"> Accumulating only <span class="mut">(signed-MEP)</span></label>'
+            '<div class="card ptbl" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+            '<thead><tr><th class="l">Symbol</th><th class="l">Sector</th><th class="l">Themes</th>'
+            '<th>RS rank</th><th>Trigger</th><th>p</th><th class="l">Character</th>'
+            '<th class="l">MEP</th><th>%52wH</th><th>DVPT</th><th>Δhot</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div>')
+
+
+def render_themes(idx_date) -> str:
+    """Themes browse — the multi-label thematic layer, grouped like the sectors
+    page. Count-strip + one board per vocab group; each theme links to its
+    participants drill (/dash/theme?tag=)."""
+    from src.web import dashboard as D
+    from src.automation import theme_tags as TT
+    esc, q = D._esc, D._q
+    with D.get_conn() as conn:
+        counts = TT.theme_counts(conn)
+        tagged = conn.execute("SELECT COUNT(DISTINCT symbol) FROM company_tags WHERE approved=1").fetchone()[0]
+        n_prop = conn.execute("SELECT COUNT(*) FROM company_tags WHERE approved=0 AND source='ai'").fetchone()[0]
+    n_themes = len(TT.THEME_VOCAB)
+    n_await = sum(1 for t in TT.THEME_VOCAB if counts.get(t["label"], 0) == 0)
+    strip = _ck_strip([
+        _ck_tile(n_themes, "Themes", "#58a6ff", "controlled vocabulary"),
+        _ck_tile(tagged, "Companies tagged", "#3fb950", "≥1 approved theme"),
+        _ck_tile(n_await, "Awaiting tags", "#d29922", "cross-cutting · AI/manual"),
+    ])
+    boards = []
+    for g in TT.THEME_GROUPS:
+        items = [t for t in TT.THEME_VOCAB if t["group"] == g]
+        trows = ""
+        for t in items:
+            c = counts.get(t["label"], 0)
+            cc = str(c) if c else '<span class="mut">awaiting</span>'
+            trows += (f'<a class="trow" href="/dash/theme?tag={q(t["label"])}">'
+                      f'<span class="tn">{esc(t["label"])}</span>'
+                      f'<span class="tb">{esc(t["blurb"])}</span>'
+                      f'<span class="tc">{cc}</span></a>')
+        boards.append(f'<div class="card ck-board"><div class="ck-h">{esc(g)}'
+                      f'<span class="sub" style="margin:0;font-weight:400">{len(items)} themes</span>'
+                      f'</div>{trows}</div>')
+    review = (f' · <a class="row" style="display:inline" href="/dash/tags-review">'
+              f'Review &amp; add tags{(" (" + str(n_prop) + " proposed)") if n_prop else ""} →</a>')
+    head = ('<h2 style="margin-top:2px">Themes <span class="sub" style="margin:0">'
+            'multi-label · beside sector &amp; index</span></h2>'
+            '<div class="sub" style="margin-top:2px">A company can carry several themes at once — an '
+            'EPC name is Infrastructure + Industrialization-proxy + Transport. Sector &amp; capex themes '
+            'are <b>seeded deterministically from the NSE thematic indices</b> (a fact); cross-cutting '
+            'themes are filled by review. Tap a theme → its participants.' + review + '</div>')
+    return (_CKPT_CSS + head + strip
+            + '<div class="theme-groups">' + "".join(boards) + '</div>')
+
+
+def render_theme_detail(name, idx_date, sig_date) -> str:
+    """One theme's participants drill — roll-up tiles + the full participants
+    table (same as the index page), with the provenance of the tag shown."""
+    from src.web import dashboard as D
+    from src.automation import theme_tags as TT
+    esc, q = D._esc, D._q
+    name = (name or "").strip()
+    if not name:
+        return _CKPT_CSS + '<div class="empty">No theme specified. <a class="row" href="/dash/themes">All themes →</a></div>'
+    entry = TT.vocab_entry(name)
+    with D.get_conn() as conn:
+        syms = TT.theme_members(conn, name)
+        members = _member_snapshot(conn, syms, sig_date) if syms else []
+        tags_map = TT.approved_tags_for(conn, [m["symbol"] for m in members]) if members else {}
+        prov = {r[0]: r[1] for r in conn.execute(
+            "SELECT source, COUNT(DISTINCT symbol) c FROM company_tags WHERE tag=? AND approved=1 GROUP BY source",
+            (name,)).fetchall()}
+    members.sort(key=lambda m: (m.get("rs_rank") is None, -(m.get("rs_rank") or 0)))
+    N = len(members)
+    n_up = sum(1 for m in members if m.get("st") in ("UPTREND", "BREAKOUT"))
+    n_lead = sum(1 for m in members if (m.get("rs_rank") or 0) >= 80)
+    n_acc = sum(1 for m in members if m.get("mst") in ("ACCUM", "STRONG_ACCUM") or m.get("ch") == "ACCUMULATION")
+    n_ath = sum(1 for m in members if m.get("ath"))
+    blurb = entry["blurb"] if entry else ""
+    grp = entry["group"] if entry else "—"
+    prov_bits = []
+    if prov.get("index"):
+        prov_bits.append(f'{prov["index"]} index-seeded')
+    if prov.get("ramana"):
+        prov_bits.append(f'{prov["ramana"]} approved')
+    if prov.get("ai"):
+        prov_bits.append(f'{prov["ai"]} AI')
+    prov_txt = " · ".join(prov_bits) if prov_bits else "no members yet"
+    crumb = ('<div class="sub" style="margin-top:2px"><a class="row" style="display:inline" '
+             'href="/dash/themes">← All themes</a> · group: <b>' + esc(grp) + '</b> · ' + esc(prov_txt) + '</div>')
+    head = (f'<h2 style="margin-top:2px">{esc(name)} '
+            f'<span class="sub" style="margin:0">{esc(blurb)}</span></h2>' + crumb)
+    if not members:
+        empty = ('<div class="card" style="margin-top:10px">No tagged participants with EOD signals yet. '
+                 'Cross-cutting themes fill up via <a class="row" style="display:inline" '
+                 'href="/dash/tags-review">review &amp; add tags</a>.</div>')
+        return _CKPT_CSS + head + empty
+    strip = _ck_strip([
+        _ck_tile(N, "Participants", "#58a6ff", "tagged + liquid"),
+        _ck_tile(n_up, "In RS uptrend", "#3fb950", "vs Nifty 500"),
+        _ck_tile(n_lead, "RS leaders", "#3fb950", "rs_rank ≥ 80"),
+        _ck_tile(n_acc, "Accumulating", "#2ea043", "signed-MEP / character"),
+        _ck_tile(n_ath, "ATH-DVPT", "#f0883e", "all-time delivery peak"),
+    ])
+    cmp_link = ('<div class="sub" style="margin:10px 0 0"><a class="row" style="display:inline" '
+                f'href="/dash/screener?scope=all">Open the screener (type &quot;{esc(name)}&quot; to filter) →</a></div>')
+    table = _participants_table(members, tags_map, accum_id="th")
+    return (_CKPT_CSS + head + strip
+            + '<h3 style="margin:14px 0 6px">Participants '
+            f'<span class="sub" style="margin:0">{N} tagged · sort · filter</span></h3>'
+            + table + cmp_link)
+
+
+def _tag_act_btn(action, symbol, tag, label, nxt="/dash/tags-review") -> str:
+    """A one-click POST button (approve/reject/remove) for the review surface."""
+    from src.web import dashboard as D
+    esc = D._esc
+    return (f'<form method="post" action="/dash/tags" style="display:inline">'
+            f'<input type="hidden" name="action" value="{action}">'
+            f'<input type="hidden" name="symbol" value="{esc(symbol)}">'
+            f'<input type="hidden" name="tag" value="{esc(tag)}">'
+            f'<input type="hidden" name="nxt" value="{esc(nxt)}">'
+            f'<button type="submit" class="tbtn">{label}</button></form>')
+
+
+def render_tags_review(added="", err="", sym="") -> str:
+    """Approve AI-proposed theme tags + manually add/remove tags (session 33).
+
+    The human-in-the-loop surface Ramana locked: the deterministic index seed is
+    a fact; the quarterly Haiku pass PROPOSES cross-cutting tags (approved=0) here
+    for sign-off; and Ramana can hand-add any vocabulary tag (source='ramana')."""
+    from src.web import dashboard as D
+    from src.automation import theme_tags as TT
+    esc, q = D._esc, D._q
+    sym = (sym or "").upper().strip()
+    with D.get_conn() as conn:
+        pending = TT.proposals_pending(conn)
+        manual = [dict(r) for r in conn.execute(
+            "SELECT symbol, tag, as_of FROM company_tags WHERE source='ramana' AND approved=1 "
+            "ORDER BY as_of DESC, symbol LIMIT 200").fetchall()]
+    note = ""
+    if added:
+        note = f'<div class="card" style="border-left:3px solid #2ea043;margin-bottom:8px">Saved: <b>{esc(added)}</b></div>'
+    elif err:
+        note = (f'<div class="card" style="border-left:3px solid #f85149;margin-bottom:8px">Could not save '
+                f'<b>{esc(err)}</b> — the tag must be in the controlled vocabulary.</div>')
+    opts = "".join(f'<option value="{esc(t["label"])}">{esc(t["label"])} · {esc(t["group"])}</option>'
+                   for t in TT.THEME_VOCAB)
+    addform = ('<form method="post" action="/dash/tags" class="card" '
+               'style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
+               '<input type="hidden" name="action" value="add">'
+               '<input type="hidden" name="nxt" value="/dash/tags-review">'
+               f'<input name="symbol" value="{esc(sym)}" placeholder="TICKER" autocapitalize="characters" '
+               'style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:6px 8px;width:130px"/>'
+               '<select name="tag" style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;'
+               f'border-radius:6px;padding:6px 8px">{opts}</select>'
+               '<button type="submit" class="tbtn">+ Add tag</button>'
+               '<span class="sub" style="margin:0">manual tags are approved instantly (source=ramana)</span></form>')
+    if pending:
+        prows = "".join(
+            f'<tr><td class="l"><a class="row" style="display:inline" href="/dash/stock?sym={q(p["symbol"])}">'
+            f'{esc(p["symbol"])}</a></td><td class="l">{D._tag_chips([p["tag"]], link=False)}</td>'
+            f'<td class="r mut">{(("%.2f" % p["confidence"]) if p.get("confidence") is not None else "—")}</td>'
+            f'<td class="l mut">{esc(p.get("note") or "")}</td>'
+            f'<td class="l">{_tag_act_btn("approve", p["symbol"], p["tag"], "✓ approve")} '
+            f'{_tag_act_btn("reject", p["symbol"], p["tag"], "✕")}</td></tr>'
+            for p in pending)
+        pend_html = (f'<h3 style="margin:16px 0 6px">AI proposals '
+                     f'<span class="sub" style="margin:0">{len(pending)} awaiting your sign-off</span></h3>'
+                     '<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+                     '<thead><tr><th class="l">Symbol</th><th class="l">Proposed tag</th><th>Conf</th>'
+                     '<th class="l">Why</th><th class="l">Action</th></tr></thead>'
+                     f'<tbody>{prows}</tbody></table></div>')
+    else:
+        pend_html = ('<h3 style="margin:16px 0 6px">AI proposals</h3>'
+                     '<div class="card sub" style="margin:0">No AI proposals pending. The quarterly Haiku pass '
+                     'proposes cross-cutting tags (Industrialization-proxy, Make-in-India, …) from business '
+                     'descriptions once the <code>company_about</code> corpus is populated — it fills on the '
+                     'existing Screener cadence, then runs <code>python3 -m src.automation.theme_tags --propose</code>.</div>')
+    if manual:
+        mrows = "".join(
+            f'<tr><td class="l"><a class="row" style="display:inline" href="/dash/stock?sym={q(m["symbol"])}">'
+            f'{esc(m["symbol"])}</a></td><td class="l">{D._tag_chips([m["tag"]], link=False)}</td>'
+            f'<td class="l mut">{esc(m.get("as_of") or "")}</td>'
+            f'<td class="l">{_tag_act_btn("remove", m["symbol"], m["tag"], "✕ remove")}</td></tr>'
+            for m in manual)
+        man_html = (f'<h3 style="margin:16px 0 6px">Your manual tags '
+                    f'<span class="sub" style="margin:0">{len(manual)} added</span></h3>'
+                    '<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+                    '<thead><tr><th class="l">Symbol</th><th class="l">Tag</th><th class="l">Added</th>'
+                    '<th class="l">Action</th></tr></thead>'
+                    f'<tbody>{mrows}</tbody></table></div>')
+    else:
+        man_html = ""
+    head = ('<h2 style="margin-top:2px">Review &amp; add tags '
+            '<span class="sub" style="margin:0">human-in-the-loop · AI proposes, you approve</span></h2>'
+            '<div class="sub" style="margin-top:2px">Index-seeded tags are facts and refresh automatically. '
+            'Use this page to approve AI proposals and to hand-add the cross-cutting themes no index captures. '
+            '<a class="row" style="display:inline" href="/dash/themes">← All themes</a></div>')
+    return _CKPT_CSS + head + note + addform + pend_html + man_html
