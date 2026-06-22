@@ -707,7 +707,9 @@ def render_home(sig_date, idx_date) -> str:
             return o
         inner = ('<table class="ck-t"><tbody>' + sect_rows(top_sectors)
                  + '<tr><td colspan="4" class="mut" style="padding-top:8px;font-size:11px">WEAKEST</td></tr>'
-                 + sect_rows(weak_sectors) + '</tbody></table>')
+                 + sect_rows(weak_sectors) + '</tbody></table>'
+                 + '<div class="mut" style="font-size:11px;margin-top:6px">'
+                   '<a class="row" style="display:inline" href="/dash/rrg">⟳ Rotation map (RRG) — quadrants &amp; tails</a></div>')
         boards.append(_board('<span class="em">📈</span> Sector rotation', 'RS vs Nifty 500 · 1m/3m/6m/12m',
                              inner, "/dash/sectors", "See full rotation", "#3fb950"))
 
@@ -896,7 +898,8 @@ def render_markets(idx_date) -> str:
             + banner + hdr
             + '<div class="sub" style="margin-top:2px">Tap any index → its full detail page: '
               'price trend, relative strength, valuation &amp; constituent roll-up. '
-              '<a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>'
+              '<a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a> · '
+              '<a class="row" style="display:inline" href="/dash/rrg">⟳ Rotation map (RRG)</a></div>'
             + '<div class="ghdr">Sector rotation · strongest momentum first (0.6·3m + 0.4·6m RS)</div>'
             + f'<div class="mkt-grid">{rot_html}</div>'
             + '<div class="ghdr">Broad / size</div>'
@@ -2161,7 +2164,8 @@ def render_sectors() -> str:
             '<span class="sub" style="margin:0">RS vs Nifty 500 · strongest first</span></h2>'
             '<div class="sub" style="margin-top:2px">Real economic sectors (factor/thematic indices live under '
             'Markets). Tap a sector → its detail page: price trend, RS &amp; constituent roll-up. '
-            '<a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a></div>')
+            '<a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · '
+            '<a class="row" style="display:inline" href="/dash/rrg">⟳ Rotation map (RRG) →</a></div>')
     table = ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
              '<thead><tr><th colspan="3">RETURN</th>'
              '<th colspan="4" class="rsgrp grp">RELATIVE STRENGTH vs Nifty 500</th></tr>'
