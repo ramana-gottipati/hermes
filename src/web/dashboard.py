@@ -1368,8 +1368,7 @@ def dash_markets() -> HTMLResponse:
         '<h2>Major indexes &amp; sectors</h2>'
         '<div class="sub">Broad market + core sectors. Tap any → its stocks. '
         '<a class="row" style="display:inline" '
-        'href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a>'
-        ' · <a class="row" style="display:inline" href="/dash/rrg">⟳ Rotation map (RRG)</a></div>'
+        'href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>'
         '<div class="ghdr">Broad / size</div>'
         f'<div class="majgrid">{broad_html}</div>'
         '<div class="ghdr">Core sectors</div>'
@@ -1432,7 +1431,7 @@ def dash_sectors() -> HTMLResponse:
         body = f"""
 {_strategy_badge("RS")}
 <h2>Sector rotation</h2>
-<div class="sub">Real economic sectors only (factor/thematic indices live under Markets). Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · <a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a> · <a class="row" style="display:inline" href="/dash/rrg">⟳ Rotation map (RRG) →</a></div>
+<div class="sub">Real economic sectors only (factor/thematic indices live under Markets). Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · <a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>
 <div class="card" style="padding:6px 10px;">
 <table class="dt">
 <thead>
