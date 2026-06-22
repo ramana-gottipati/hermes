@@ -63,6 +63,18 @@ INDEX_CONSTITUENTS: dict[str, str] = {
     "Nifty India Defence":      "ind_niftyindiadefence_list",   # ~19 members
     "Nifty Private Bank":       "ind_nifty_privatebanklist",    # ~10 members
     "Nifty Chemicals":          "ind_niftychemicals_list",      # ~20 members
+    # --- Session 25: size indices whose detail pages had EMPTY participants
+    # (never ingested → sector->stock drill came up blank for Microcap 250,
+    # Smallcap 50, etc.). Slugs probe-verified reachable on the VPS; member
+    # counts noted at add-time. Purely additive — no existing entry touched.
+    "Nifty Smallcap 50":        "ind_niftysmallcap50list",      # 50
+    "Nifty Smallcap 100":       "ind_niftysmallcap100list",     # 100
+    "Nifty Microcap 250":       "ind_niftymicrocap250_list",    # 251
+    "Nifty Midcap 50":          "ind_niftymidcap50list",        # 50
+    "Nifty Midcap 100":         "ind_niftymidcap100list",       # 100
+    "Nifty Midcap Select":      "ind_niftymidcapselect_list",   # 25
+    "NIFTY LargeMidcap 250":    "ind_niftylargemidcap250list",  # 252
+    "Nifty MidSmallcap 400":    "ind_niftymidsmallcap400list",  # 400
 }
 
 
