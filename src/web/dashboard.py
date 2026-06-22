@@ -2593,6 +2593,16 @@ def _mep_stock_panel(sym: str) -> str:
                     break
     except Exception:
         held = None
+    # F&O identity chip — a VISIBLE component in the KPI row (not just the line below)
+    _fq = {"LONG_BUILDUP": ("#2ea043", "Long Buildup"), "SHORT_COVER": ("#3fb950", "Short Cover"),
+           "SHORT_BUILDUP": ("#f85149", "Short Buildup"), "LONG_UNWIND": ("#f0883e", "Long Unwind"),
+           "FLAT": ("#8b949e", "Flat")}.get((fo["quadrant"] if fo else None) or "", None)
+    fno_box = ""
+    if _fq:
+        fno_box = (f'<div class="box"><div class="num"><span style="display:inline-block;padding:1px 6px;'
+                   f'border-radius:6px;font-size:10.5px;font-weight:700;color:{_fq[0]};'
+                   f'border:1px solid {_fq[0]}55;background:{_fq[0]}14">{_fq[1]}</span></div>'
+                   f'<div class="lbl">F&amp;O positioning</div></div>')
     chips = (
         '<div class="kpi">'
         f'<div class="box"><div class="num">{_mep_pill(phstv)}</div><div class="lbl">phase (headline)</div></div>'
@@ -2600,6 +2610,7 @@ def _mep_stock_panel(sym: str) -> str:
         f'<div class="box"><div class="num">{_mv_adbar(phv)}</div><div class="lbl">accum &harr; distrib</div></div>'
         f'<div class="box"><div class="num">{(str(held)+"d") if held else "—"}</div><div class="lbl">held in phase</div></div>'
         f'<div class="box"><div class="num">{m["data_points_used"]}</div><div class="lbl">history days</div></div>'
+        + fno_box +
         '</div>'
         f'<div class="sub" style="margin-top:6px">Today (daily, granular): '
         f'<b style="color:{scol}">{sc:+.2f}</b> &nbsp;{_mep_pill(st)} '
