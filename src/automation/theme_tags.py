@@ -21,20 +21,24 @@ the quarterly LLM proposer (Phase 2 — gated on a description corpus existing i
 `company_about`), and the approve/reject/add helpers behind the review surface.
 
 Run on the VPS:
-    python3 -m src.automation.theme_tags --seed        # deterministic (re)seed from indices
-    python3 -m src.automation.theme_tags --counts       # per-theme member counts
-    python3 -m src.automation.theme_tags --show RELIANCE # tags for one symbol
-    python3 -m src.automation.theme_tags --propose       # LLM proposals (Phase 2, needs corpus)
+    python3 -m src.automation.theme_tags --seed             # deterministic (re)seed from indices
+    python3 -m src.automation.theme_tags --keyword-propose   # FREE keyword proposals (the default; ₹0)
+    python3 -m src.automation.theme_tags --report            # corpus + proposals + what's still empty
+    python3 -m src.automation.theme_tags --counts            # per-theme member counts
+    python3 -m src.automation.theme_tags --show RELIANCE     # tags for one symbol
+    python3 -m src.automation.theme_tags --llm-propose       # opt-in GEMINI-ONLY top-up (never Claude)
 
-Cost note: the proposer routes through llm_router.call_classifier — Gemini Flash
-first, Anthropic Haiku as fallback (doctrine D20). It is NEVER Sonnet, and runs
-at most quarterly. Today there is no description corpus, so --propose is a no-op.
+Cost note: the PRIMARY proposer is deterministic keyword rules over company_about
+— ₹0, no LLM, no rate limits (doctrine: rule-based > LLM). --llm-propose is an
+opt-in top-up that is GEMINI-ONLY (call_extractor, allow_anthropic_fallback=False)
+— it SKIPS a name rather than ever falling back to Claude. Never Sonnet, never Haiku.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import date
 from typing import Iterable, Optional
 
@@ -194,7 +198,7 @@ def tags_with_provenance(conn, symbol: str) -> list[dict]:
     rows = [dict(r) for r in conn.execute(
         "SELECT tag, source, confidence, as_of, approved, note FROM company_tags "
         "WHERE symbol=? ", (symbol,)).fetchall()]
-    src_rank = {"ramana": 0, "index": 1, "ai": 2}
+    src_rank = {"ramana": 0, "index": 1, "keyword": 2, "ai": 3}
     best: dict[str, dict] = {}
     for r in rows:
         cur = best.get(r["tag"])
@@ -230,29 +234,29 @@ def theme_members(conn, label: str, approved_only: bool = True) -> list[str]:
 
 
 def proposals_pending(conn, limit: int = 500) -> list[dict]:
-    """AI proposals awaiting Ramana's review (approved=0, source='ai')."""
+    """All proposals awaiting Ramana's review (approved=0 — keyword OR llm)."""
     return [dict(r) for r in conn.execute(
-        "SELECT symbol, tag, confidence, as_of, note FROM company_tags "
-        "WHERE approved=0 AND source='ai' ORDER BY confidence DESC, symbol LIMIT ?",
+        "SELECT symbol, tag, source, confidence, as_of, note FROM company_tags "
+        "WHERE approved=0 ORDER BY confidence DESC, symbol LIMIT ?",
         (limit,)).fetchall()]
 
 
 # --- Approval surface mutations ---------------------------------------------
 
 def approve(conn, symbol: str, tag: str) -> None:
-    """Promote an AI proposal to live (kept as its own source='ramana' row so the
-    fact survives the next deterministic reseed, and the original ai row is
-    cleared)."""
+    """Promote a proposal to live (kept as its own source='ramana' row so the
+    fact survives the next reseed/re-propose; the original proposal row — keyword
+    or llm — is cleared)."""
     symbol = symbol.upper().strip()
     conn.execute(
         "INSERT OR REPLACE INTO company_tags(symbol, tag, source, confidence, as_of, approved) "
         "VALUES (?,?,'ramana',1.0,?,1)", (symbol, tag, _today()))
-    conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND source='ai'", (symbol, tag))
+    conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND approved=0", (symbol, tag))
     conn.commit()
 
 
 def reject(conn, symbol: str, tag: str) -> None:
-    conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND source='ai'",
+    conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND approved=0",
                  (symbol.upper().strip(), tag))
     conn.commit()
 
@@ -264,7 +268,86 @@ def add_manual(conn, symbol: str, tag: str) -> None:
     conn.commit()
 
 
-# --- Phase 2: the quarterly LLM proposer (gated on a description corpus) -----
+# --- The FREE proposer: deterministic keyword rules (NO LLM, ₹0) -----------
+# The primary proposer (doctrine: rule-based > LLM). Matches each company's
+# business description + Screener industry (from company_about) against a
+# keyword map → proposes the CROSS-CUTTING themes no index seeds. Proposals land
+# as source='keyword', approved=0 for Ramana's review (same gate as the LLM
+# path), so keyword imprecision is filtered by the human. Idempotent: clears its
+# own prior proposals each run. Costs nothing, no rate limits, fully reproducible.
+KEYWORD_RULES: dict[str, list[str]] = {
+    "Power / Renewables": [r"\bsolar\b", r"\bwind\b", r"renewable", r"photovoltaic",
+        r"green hydrogen", r"power generation", r"power transmission",
+        r"transmission (and|&|&amp;) distribution", r"\bhydro(power|electric|-electric)?\b",
+        r"energy storage", r"battery storage", r"clean energy", r"green energy", r"power utility"],
+    "Transport / Logistics": [r"logistic", r"supply[- ]chain", r"\bports?\b", r"\brailways?\b",
+        r"\bfreight\b", r"warehous", r"\bshipping\b", r"\b3pl\b", r"\bcontainer", r"trucking",
+        r"last[- ]mile", r"cold chain", r"\bairports?\b"],
+    "Make-in-India": [r"make in india", r"import substitut", r"indigeni[sz]", r"\bpli\b",
+        r"production[- ]linked", r"locali[sz]ation", r"atmanirbhar", r"domestic manufactur"],
+    "PSU": [r"public sector", r"government of india", r"govt\.? of india", r"maharatna",
+        r"navratna", r"miniratna", r"state[- ]owned", r"central public sector", r"\bcpse\b",
+        r"a government (company|enterprise|undertaking)", r"government[- ]owned"],
+    "Capital Goods": [r"capital goods", r"machiner", r"industrial equipment", r"capital equipment",
+        r"engineering products", r"\bturbines?\b", r"\bboilers?\b", r"compressors?",
+        r"heavy engineering", r"\bcastings?\b", r"\bforgings?\b"],
+    # sector catches for names an index membership missed:
+    "Chemicals": [r"chemical", r"petrochemical", r"agrochemical", r"specialty chem"],
+    "Pharma": [r"pharmaceutical", r"\bformulations?\b", r"\bgenerics?\b drug"],
+    "Realty": [r"real estate", r"\brealty\b", r"property develop", r"residential project",
+        r"commercial real estate"],
+}
+# A company that makes capital goods / is in infra / defence IS an industrialization
+# proxy — derive it deterministically from those tags (index OR keyword-proposed).
+_DERIVE_INDUSTRIALIZATION = {"Capital Goods", "Infrastructure", "Defence"}
+_KW_COMPILED = {t: [re.compile(p, re.I) for p in pats] for t, pats in KEYWORD_RULES.items()}
+
+
+def propose_from_keywords(conn=None) -> int:
+    """Deterministic, free proposer over company_about. Clears prior keyword
+    proposals, re-derives from current descriptions. Skips tags already known via
+    index/ramana. Returns rows written. Approved keyword proposals become
+    source='ramana' on approval, so they survive this clear."""
+    if conn is None:
+        with get_conn() as c:
+            return propose_from_keywords(conn=c)
+    conn.execute("DELETE FROM company_tags WHERE source='keyword'")
+    rows = conn.execute(
+        "SELECT symbol, about, screener_industry FROM company_about "
+        "WHERE about IS NOT NULL AND length(about) > 20").fetchall()
+    n = 0
+    for r in rows:
+        sym = r[0]
+        text = ((r[1] or "") + " " + (r[2] or "")).lower()
+        known = {x[0] for x in conn.execute(
+            "SELECT tag FROM company_tags WHERE symbol=? AND source IN ('index','ramana')",
+            (sym,)).fetchall()}
+        proposed: dict[str, list] = {}
+        for theme, pats in _KW_COMPILED.items():
+            if theme in known:
+                continue
+            hits = []
+            for p in pats:
+                m = p.search(text)
+                if m:
+                    hits.append(m.group(0).strip())
+            if hits:
+                proposed[theme] = sorted(set(hits))
+        if "Industrialization-proxy" not in known and (known | set(proposed)) & _DERIVE_INDUSTRIALIZATION:
+            proposed.setdefault("Industrialization-proxy", ["derived: capital-goods / infra / defence"])
+        for theme, hits in proposed.items():
+            note = ("matched: " + ", ".join(hits))[:190]
+            conn.execute(
+                "INSERT OR REPLACE INTO company_tags"
+                "(symbol, tag, source, confidence, as_of, approved, note) "
+                "VALUES (?,?,'keyword',0.6,?,0,?)", (sym, theme, _today(), note))
+            n += 1
+    conn.commit()
+    log.info("keyword propose: wrote %d proposals across %d described companies", n, len(rows))
+    return n
+
+
+# --- The LLM proposer: GEMINI-ONLY, never Claude (opt-in top-up) -------------
 
 _PROPOSE_SYSTEM = (
     "You are a buy-side analyst tagging an Indian-listed company with thematic "
@@ -278,21 +361,19 @@ _PROPOSE_SYSTEM = (
 )
 
 
-def propose_with_haiku(conn=None, symbols: Optional[list[str]] = None,
-                       limit: int = 200) -> int:
-    """Read company_about + propose cross-cutting tags via a cheap LLM.
-
-    PHASE 2 — gated on `company_about` having description text (populated
-    best-effort by screener.fetch_company on the existing cadence). Today the
-    corpus is empty, so this is a no-op. Proposals land as source='ai',
-    approved=0 for review at /dash/tags-review. Routes through
-    llm_router.call_classifier (Gemini Flash → Haiku; never Sonnet).
+def propose_with_llm(conn=None, symbols: Optional[list[str]] = None,
+                     limit: int = 200) -> int:
+    """OPT-IN LLM top-up beyond the free keyword proposer — GEMINI-ONLY, NEVER
+    Claude. Routes through call_extractor with allow_anthropic_fallback=False, so
+    when Gemini's free quota is spent it SKIPS the name (returns no Haiku call) —
+    zero Claude spend, ever. Proposals land as source='ai', approved=0 for review
+    at /dash/tags-review. Use only when you want nuance the keyword rules miss.
     """
-    from src.core.llm_router import call_classifier
+    from src.core.llm_router import call_extractor
 
     if conn is None:
         with get_conn() as c:
-            return propose_with_haiku(conn=c, symbols=symbols, limit=limit)
+            return propose_with_llm(conn=c, symbols=symbols, limit=limit)
     rows = conn.execute(
         "SELECT symbol, about FROM company_about "
         "WHERE about IS NOT NULL AND length(about) > 40 "
@@ -300,7 +381,7 @@ def propose_with_haiku(conn=None, symbols: Optional[list[str]] = None,
         + " ORDER BY fetched_at DESC LIMIT ?",
         ((symbols or []) + [limit])).fetchall()
     if not rows:
-        log.info("propose: no business descriptions in company_about yet — no-op")
+        log.info("llm propose: no business descriptions in company_about yet — no-op")
         return 0
     vocab = ", ".join(t["label"] for t in THEME_VOCAB)
     system = _PROPOSE_SYSTEM.format(vocab=vocab)
@@ -309,12 +390,16 @@ def propose_with_haiku(conn=None, symbols: Optional[list[str]] = None,
     for r in rows:
         sym, about = r[0], (r[1] or "")[:4000]
         try:
-            text, _ = call_classifier(system=system,
-                                      user_msg=f"Company {sym}. Business:\n{about}",
-                                      max_tokens=400)
+            text, prov = call_extractor(system=system,
+                                        user_msg=f"Company {sym}. Business:\n{about}",
+                                        max_tokens=400, timeout=20.0, json_mode=True,
+                                        allow_anthropic_fallback=False)  # GEMINI-ONLY, never Claude
+            if not text:
+                log.info("llm propose %s: gemini unavailable (free quota?) — skipped, NO Haiku", sym)
+                continue
             data = json.loads(_strip_fences(text))
         except Exception as e:  # noqa: BLE001
-            log.warning("propose %s: %s", sym, e)
+            log.warning("llm propose %s: %s", sym, e)
             continue
         for item in data.get("tags", []):
             tag = (item.get("tag") or "").strip()
@@ -334,7 +419,7 @@ def propose_with_haiku(conn=None, symbols: Optional[list[str]] = None,
                 "VALUES (?,?,'ai',?,?,0,?)", (sym, tag, conf, _today(), why))
             n += 1
         conn.commit()
-    log.info("propose: wrote %d AI tag proposals across %d companies", n, len(rows))
+    log.info("llm propose: wrote %d LLM tag proposals across %d companies", n, len(rows))
     return n
 
 
@@ -355,13 +440,23 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--seed", action="store_true", help="deterministic (re)seed from index memberships")
     p.add_argument("--counts", action="store_true", help="print per-theme member counts")
     p.add_argument("--show", metavar="SYMBOL", help="print tags for one symbol")
-    p.add_argument("--propose", action="store_true", help="LLM proposals (Phase 2; needs company_about)")
+    p.add_argument("--keyword-propose", action="store_true",
+                   help="FREE deterministic keyword proposals from company_about (₹0, the default proposer)")
+    p.add_argument("--llm-propose", action="store_true",
+                   help="opt-in GEMINI-ONLY LLM proposals (never Claude; skips when free quota spent)")
+    p.add_argument("--report", action="store_true", help="print the keyword corpus + proposal report")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     if args.seed:
         n = seed_from_indices()
         print(f"seeded {n} index-derived tags")
+    if args.keyword_propose:
+        n = propose_from_keywords()
+        print(f"keyword-proposed {n} tags (source=keyword, approved=0 — review at /dash/tags-review)")
+    if args.llm_propose:
+        n = propose_with_llm()
+        print(f"llm-proposed {n} tags (Gemini-only, never Claude)")
     if args.counts:
         with get_conn() as conn:
             counts = theme_counts(conn)
@@ -372,12 +467,39 @@ def main(argv: Optional[list[str]] = None) -> int:
             for r in tags_with_provenance(conn, args.show.upper().strip()):
                 flag = "" if r["approved"] else " (proposed)"
                 print(f"  {r['tag']:26} {r['source']:7} conf={r['confidence']}{flag}")
-    if args.propose:
-        n = propose_with_haiku()
-        print(f"proposed {n} AI tags")
-    if not any([args.seed, args.counts, args.show, args.propose]):
+    if args.report:
+        _print_report()
+    if not any([args.seed, args.keyword_propose, args.llm_propose, args.counts, args.show, args.report]):
         p.print_help()
     return 0
+
+
+def _print_report() -> None:
+    """Human-readable: the keyword rule map (what CAN be tagged), the description
+    corpus (what's taggable now), the live proposals, and what's still empty."""
+    with get_conn() as conn:
+        n_about = conn.execute("SELECT COUNT(*) FROM company_about WHERE about IS NOT NULL").fetchone()[0]
+        pend = proposals_pending(conn)
+        counts = theme_counts(conn)
+        crosscut = [t["label"] for t in THEME_VOCAB if not t.get("seed_indices")]
+    print("\n=== KEYWORD RULES (what tags the free engine CAN propose) ===")
+    for theme, pats in KEYWORD_RULES.items():
+        print(f"  {theme:24} ← {', '.join(p.strip(chr(92)+'b') for p in pats[:6])}{' …' if len(pats) > 6 else ''}")
+    print("  Industrialization-proxy  ← derived when a name is Capital Goods / Infrastructure / Defence")
+    print(f"\n=== CORPUS: {n_about} companies have a business description (taggable now) ===")
+    print(f"=== {len(pend)} proposals pending review (source + matched keywords) ===")
+    by_sym: dict = {}
+    for p in pend:
+        by_sym.setdefault(p["symbol"], []).append(p)
+    for sym, items in sorted(by_sym.items()):
+        for it in items:
+            print(f"  {sym:14} → {it['tag']:24} [{it['source']}]  {it.get('note') or ''}")
+    print("\n=== STILL EMPTY — cross-cutting themes with no approved members (need more corpus / manual) ===")
+    for t in crosscut:
+        live = counts.get(t, 0)
+        pend_n = sum(1 for p in pend if p["tag"] == t)
+        flag = "ok" if live else (f"{pend_n} proposed, 0 approved" if pend_n else "EMPTY — no signal yet")
+        print(f"  {t:26} live={live:<3} {flag}")
 
 
 if __name__ == "__main__":

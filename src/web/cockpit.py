@@ -2469,8 +2469,9 @@ def render_tags_review(added="", err="", sym="") -> str:
     """Approve AI-proposed theme tags + manually add/remove tags (session 33).
 
     The human-in-the-loop surface Ramana locked: the deterministic index seed is
-    a fact; the quarterly Haiku pass PROPOSES cross-cutting tags (approved=0) here
-    for sign-off; and Ramana can hand-add any vocabulary tag (source='ramana')."""
+    a fact; the FREE keyword proposer (or the opt-in Gemini-only top-up) PROPOSES
+    cross-cutting tags (approved=0) here for sign-off; and Ramana can hand-add any
+    vocabulary tag (source='ramana')."""
     from src.web import dashboard as D
     from src.automation import theme_tags as TT
     esc, q = D._esc, D._q
@@ -2499,26 +2500,29 @@ def render_tags_review(added="", err="", sym="") -> str:
                '<button type="submit" class="tbtn">+ Add tag</button>'
                '<span class="sub" style="margin:0">manual tags are approved instantly (source=ramana)</span></form>')
     if pending:
+        _srcpill = {"keyword": "rule", "ai": "AI·gemini", "index": "index"}
         prows = "".join(
             f'<tr><td class="l"><a class="row" style="display:inline" href="/dash/stock?sym={q(p["symbol"])}">'
             f'{esc(p["symbol"])}</a></td><td class="l">{D._tag_chips([p["tag"]], link=False)}</td>'
+            f'<td class="mut">{esc(_srcpill.get(p.get("source"), p.get("source") or "—"))}</td>'
             f'<td class="r mut">{(("%.2f" % p["confidence"]) if p.get("confidence") is not None else "—")}</td>'
             f'<td class="l mut">{esc(p.get("note") or "")}</td>'
             f'<td class="l">{_tag_act_btn("approve", p["symbol"], p["tag"], "✓ approve")} '
             f'{_tag_act_btn("reject", p["symbol"], p["tag"], "✕")}</td></tr>'
             for p in pending)
-        pend_html = (f'<h3 style="margin:16px 0 6px">AI proposals '
-                     f'<span class="sub" style="margin:0">{len(pending)} awaiting your sign-off</span></h3>'
+        pend_html = (f'<h3 style="margin:16px 0 6px">Proposals '
+                     f'<span class="sub" style="margin:0">{len(pending)} awaiting your sign-off · rules + optional Gemini</span></h3>'
                      '<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
-                     '<thead><tr><th class="l">Symbol</th><th class="l">Proposed tag</th><th>Conf</th>'
-                     '<th class="l">Why</th><th class="l">Action</th></tr></thead>'
+                     '<thead><tr><th class="l">Symbol</th><th class="l">Proposed tag</th><th class="l">Source</th>'
+                     '<th>Conf</th><th class="l">Why / match</th><th class="l">Action</th></tr></thead>'
                      f'<tbody>{prows}</tbody></table></div>')
     else:
-        pend_html = ('<h3 style="margin:16px 0 6px">AI proposals</h3>'
-                     '<div class="card sub" style="margin:0">No AI proposals pending. The quarterly Haiku pass '
-                     'proposes cross-cutting tags (Industrialization-proxy, Make-in-India, …) from business '
-                     'descriptions once the <code>company_about</code> corpus is populated — it fills on the '
-                     'existing Screener cadence, then runs <code>python3 -m src.automation.theme_tags --propose</code>.</div>')
+        pend_html = ('<h3 style="margin:16px 0 6px">Proposals</h3>'
+                     '<div class="card sub" style="margin:0">No proposals pending. The FREE keyword proposer '
+                     '(<code>theme_tags --keyword-propose</code> — ₹0, no LLM) reads business descriptions from '
+                     '<code>company_about</code> and proposes cross-cutting tags (Industrialization-proxy, '
+                     'Make-in-India, …) for review here, filling as the Screener cadence captures descriptions. An '
+                     'optional Gemini-only top-up (<code>--llm-propose</code>, never Claude) adds nuance.</div>')
     if manual:
         mrows = "".join(
             f'<tr><td class="l"><a class="row" style="display:inline" href="/dash/stock?sym={q(m["symbol"])}">'
@@ -2535,8 +2539,8 @@ def render_tags_review(added="", err="", sym="") -> str:
     else:
         man_html = ""
     head = ('<h2 style="margin-top:2px">Review &amp; add tags '
-            '<span class="sub" style="margin:0">human-in-the-loop · AI proposes, you approve</span></h2>'
+            '<span class="sub" style="margin:0">human-in-the-loop · rules propose, you approve</span></h2>'
             '<div class="sub" style="margin-top:2px">Index-seeded tags are facts and refresh automatically. '
-            'Use this page to approve AI proposals and to hand-add the cross-cutting themes no index captures. '
-            '<a class="row" style="display:inline" href="/dash/themes">← All themes</a></div>')
+            'Use this page to approve keyword/LLM proposals and to hand-add the cross-cutting themes no index '
+            'captures. <a class="row" style="display:inline" href="/dash/themes">← All themes</a></div>')
     return _CKPT_CSS + head + note + addform + pend_html + man_html
