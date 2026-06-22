@@ -12,6 +12,7 @@ from src.core.settings import settings
 from src.pat.routes import router as pat_router
 from src.web.dashboard import router as dashboard_router
 from src.web.rrg_view import router as rrg_router
+from src.web.rotation_view import router as rotation_router
 
 app = FastAPI(title="Hermes", version="0.1.0")
 
@@ -31,6 +32,9 @@ app.include_router(pat_router)
 # RS-deepening (session 20): multi-sector Relative Rotation Graph + RS-depth table
 # at /dash/rrg. Isolated module so the parallel-session-held dashboard.py is untouched.
 app.include_router(rrg_router)
+# RS rotation (session 25): the four-phase weather rotation (Recovery/Tailwind/
+# Rolling-over/Headwind) for stocks at /dash/rotation. Isolated module (same reason).
+app.include_router(rotation_router)
 
 
 class ChatRequest(BaseModel):

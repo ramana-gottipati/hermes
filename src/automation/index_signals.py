@@ -29,6 +29,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from src.core.db import get_conn
+from src.automation import rs_phase   # rotation phase label + additive-column guard
 
 log = logging.getLogger("hermes.index_signals")
 
@@ -71,8 +72,11 @@ def _safe_div(num, den) -> Optional[float]:
 # --- Per-index level signals -----------------------------------------------
 
 def _fetch_index_history(index_name: str, trade_date: str) -> list[dict]:
-    """All rows for one index within the last 380 calendar days, oldest first."""
-    cutoff = _cutoff(trade_date, 380)
+    """All rows for one index within the last 800 calendar days, oldest first.
+    800 (not 380) so the latest-date compute can anchor the 18m (545) and 24m
+    (730) RS slopes — the deeper base/run windows added for the rotation work;
+    the +70d margin past 730 guarantees a data point at/just before the cutoff."""
+    cutoff = _cutoff(trade_date, 800)
     with get_conn() as conn:
         rows = conn.execute(
             """SELECT trade_date, close_value
@@ -277,6 +281,8 @@ def compute_ratio_signal(numerator: str, denominator: str,
     slope_3m = slope(90)
     slope_6m = slope(180)
     slope_12m = slope(365)
+    slope_18m = slope(545)    # ≈ 18 calendar months — grades base depth / run height
+    slope_24m = slope(730)    # ≈ 24 calendar months
 
     # Breakout flags
     above_50 = 1 if (ma_50 is not None and today_ratio > ma_50) else 0
@@ -332,6 +338,8 @@ def compute_ratio_signal(numerator: str, denominator: str,
         "slope_3m_pct": slope_3m,
         "slope_6m_pct": slope_6m,
         "slope_12m_pct": slope_12m,
+        "slope_18m_pct": slope_18m,
+        "slope_24m_pct": slope_24m,
         "above_50_ma": above_50,
         "above_200_ma": above_200,
         "cross_50_today": cross_50_today,
@@ -350,6 +358,7 @@ _RATIO_SIG_COLS = [
     "ratio_high_50d", "ratio_low_50d", "ratio_high_200d",
     "ratio_high_52w", "ratio_low_52w",
     "slope_1m_pct", "slope_3m_pct", "slope_6m_pct", "slope_12m_pct",
+    "slope_18m_pct", "slope_24m_pct",
     "above_50_ma", "above_200_ma", "cross_50_today", "cross_200_today",
     "new_50d_high", "new_200d_high", "new_52w_high",
     "pct_below_52w_high", "trend_state",
@@ -375,8 +384,10 @@ _INDEX_SIG_COLS = [
     "rs_vs_broad_today",
     "rs_vs_broad_slope_1m", "rs_vs_broad_slope_3m",
     "rs_vs_broad_slope_6m", "rs_vs_broad_slope_12m",
+    "rs_vs_broad_slope_18m", "rs_vs_broad_slope_24m",
     "rs_vs_broad_above_50ma", "rs_vs_broad_above_200ma",
     "rs_vs_broad_new_52w_high", "rs_vs_broad_trend_state",
+    "rs_phase",
 ]
 
 
@@ -395,6 +406,7 @@ def compute_for_date(trade_date: str) -> tuple[int, int]:
     signals for every (sectoral, broad) pair. Returns (n_indexes, n_ratios).
     """
     with get_conn() as conn:
+        rs_phase.ensure_columns(conn)   # additive rotation columns (idempotent, once/process)
         all_indexes = [r["index_name"] for r in conn.execute(
             "SELECT DISTINCT index_name FROM index_rows WHERE trade_date = ? "
             "ORDER BY index_name",
@@ -431,6 +443,7 @@ def compute_for_date(trade_date: str) -> tuple[int, int]:
 
         # Default RS-vs-broad fields (used for the denormalized index_signals row)
         rs_today = rs_s1 = rs_s3 = rs_s6 = rs_s12 = None
+        rs_s18 = rs_s24 = None
         rs_above50 = rs_above200 = rs_new52 = None
         rs_state = None
 
@@ -462,6 +475,8 @@ def compute_for_date(trade_date: str) -> tuple[int, int]:
                         rs_s3         = sig["slope_3m_pct"]
                         rs_s6         = sig["slope_6m_pct"]
                         rs_s12        = sig["slope_12m_pct"]
+                        rs_s18        = sig["slope_18m_pct"]
+                        rs_s24        = sig["slope_24m_pct"]
                         rs_above50    = sig["above_50_ma"]
                         rs_above200   = sig["above_200_ma"]
                         rs_new52      = sig["new_52w_high"]
@@ -474,10 +489,16 @@ def compute_for_date(trade_date: str) -> tuple[int, int]:
             "rs_vs_broad_slope_3m": rs_s3,
             "rs_vs_broad_slope_6m": rs_s6,
             "rs_vs_broad_slope_12m": rs_s12,
+            "rs_vs_broad_slope_18m": rs_s18,
+            "rs_vs_broad_slope_24m": rs_s24,
             "rs_vs_broad_above_50ma":   rs_above50,
             "rs_vs_broad_above_200ma":  rs_above200,
             "rs_vs_broad_new_52w_high": rs_new52,
             "rs_vs_broad_trend_state":  rs_state,
+            # rotation phase from the same RS slopes + trend_state (sector leg of
+            # the stock×sector diagonal); None for size/broad indexes (no RS).
+            "rs_phase": (rs_phase.phase_key(rs_s1, rs_s3, rs_s6, rs_s12, rs_state)
+                         if rs_state is not None else None),
         })
         _store_index_signal(idx_sig)
         n_idx += 1

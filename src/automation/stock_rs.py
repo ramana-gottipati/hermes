@@ -39,6 +39,7 @@ Usage:
 
 import argparse
 import logging
+import math
 from typing import Optional
 
 from src.core.db import get_conn
@@ -46,6 +47,14 @@ from src.automation.adjust import adjusted_closes
 # REUSE the D32 ratio engine + the size/broad-index exclusion set — do not
 # reinvent the RS math nor re-list which indices count as "the market".
 from src.automation.index_signals import compute_ratio_signal, SIZE_BASED_INDEX_NAMES
+# Rotation layer (session 25): the shared phase classifier + additive-column
+# guard, and rrg's one-pass Wilder RSI (run on the RS series → RSI-of-RS).
+from src.automation import rrg, rs_phase
+
+
+def _fin(v):
+    """Coerce non-finite (inf/nan) to None so it never poisons the DB or a sort."""
+    return v if (v is not None and isinstance(v, (int, float)) and math.isfinite(v)) else None
 
 # Canonical broad benchmark. TITLE case — NSE's ind_close_all CSV stores index
 # names title-case ("Nifty 500"), and that's how index_rows holds them. Must
@@ -120,19 +129,24 @@ def build_rs_history(symbol: str, broad_map: dict[str, float]) -> list[dict]:
     return out
 
 
-def _rs_sig_to_update(sig: dict) -> tuple:
-    """Map a compute_ratio_signal() output dict → the stock_signals RS columns
-    UPDATE tuple (values, then symbol + trade_date for the WHERE)."""
+def _rs_sig_to_update(sig: dict, rs_phase_key, rsi_val) -> tuple:
+    """Map a compute_ratio_signal() output dict (+ rotation phase + RSI-of-RS) →
+    the stock_signals RS columns UPDATE tuple (values, then symbol + trade_date
+    for the WHERE)."""
     return (
         sig["ratio"],                 # rs_vs_broad_today
         sig["slope_1m_pct"],          # rs_vs_broad_slope_1m
         sig["slope_3m_pct"],          # rs_vs_broad_slope_3m
         sig["slope_6m_pct"],          # rs_vs_broad_slope_6m
         sig["slope_12m_pct"],         # rs_vs_broad_slope_12m
+        sig["slope_18m_pct"],         # rs_vs_broad_slope_18m
+        sig["slope_24m_pct"],         # rs_vs_broad_slope_24m
         sig["above_50_ma"],           # rs_vs_broad_above_50ma
         sig["above_200_ma"],          # rs_vs_broad_above_200ma
         sig["new_52w_high"],          # rs_vs_broad_new_52w_high
         sig["trend_state"],           # rs_vs_broad_trend_state
+        rs_phase_key,                 # rs_phase   (rotation label, broad RS)
+        rsi_val,                      # rsi_of_rs  (Wilder RSI on the RS series)
         sig["numerator"],             # WHERE symbol
         sig["trade_date"],            # WHERE trade_date
     )
@@ -145,10 +159,14 @@ _RS_UPDATE_SQL = """
            rs_vs_broad_slope_3m     = ?,
            rs_vs_broad_slope_6m     = ?,
            rs_vs_broad_slope_12m    = ?,
+           rs_vs_broad_slope_18m    = ?,
+           rs_vs_broad_slope_24m    = ?,
            rs_vs_broad_above_50ma   = ?,
            rs_vs_broad_above_200ma  = ?,
            rs_vs_broad_new_52w_high = ?,
-           rs_vs_broad_trend_state  = ?
+           rs_vs_broad_trend_state  = ?,
+           rs_phase                 = ?,
+           rsi_of_rs                = ?
      WHERE symbol = ? AND trade_date = ?
 """
 
@@ -165,6 +183,14 @@ def compute_symbol_rs(symbol: str, broad_map: dict[str, float],
     if not rs_hist:
         return [], 0
 
+    # RSI-of-RS over the whole RS ratio series (Wilder; reuse rrg's one-pass
+    # implementation). §4b-2: un-strand the RSI-of-RS read AND extend it from
+    # sectors to stocks — the series is already in hand here, so it's one extra
+    # O(n) pass, no new fetch. Parallel to rs_hist → map by date.
+    rsi_series = rrg._rsi_series([r["ratio"] for r in rs_hist])
+    rsi_by_date = {rs_hist[i]["trade_date"]: _fin(rsi_series[i])
+                   for i in range(len(rs_hist))}
+
     target_dates = (
         [trade_date_filter] if trade_date_filter
         else [r["trade_date"] for r in rs_hist]
@@ -174,10 +200,14 @@ def compute_symbol_rs(symbol: str, broad_map: dict[str, float],
     for d in target_dates:
         sig = compute_ratio_signal(symbol, BROAD, rs_hist, d)
         if sig:
-            updates.append(_rs_sig_to_update(sig))
+            ph = rs_phase.phase_key(sig["slope_1m_pct"], sig["slope_3m_pct"],
+                                    sig["slope_6m_pct"], sig["slope_12m_pct"],
+                                    sig["trend_state"])
+            updates.append(_rs_sig_to_update(sig, ph, rsi_by_date.get(d)))
 
     if updates:
         with get_conn() as conn:
+            rs_phase.ensure_columns(conn)   # additive rotation columns (idempotent)
             conn.executemany(_RS_UPDATE_SQL, updates)
     return rs_hist, len(updates)
 
@@ -311,6 +341,8 @@ _RS_SECTOR_UPDATE_SQL = """
            rs_vs_sector_slope_3m     = ?,
            rs_vs_sector_slope_6m     = ?,
            rs_vs_sector_slope_12m    = ?,
+           rs_vs_sector_slope_18m    = ?,
+           rs_vs_sector_slope_24m    = ?,
            rs_vs_sector_above_50ma   = ?,
            rs_vs_sector_above_200ma  = ?,
            rs_vs_sector_new_52w_high = ?,
@@ -329,6 +361,8 @@ def _sector_sig_to_update(sig: dict, symbol: str, sector_name: str) -> tuple:
         sig["slope_3m_pct"],          # rs_vs_sector_slope_3m
         sig["slope_6m_pct"],          # rs_vs_sector_slope_6m
         sig["slope_12m_pct"],         # rs_vs_sector_slope_12m
+        sig["slope_18m_pct"],         # rs_vs_sector_slope_18m
+        sig["slope_24m_pct"],         # rs_vs_sector_slope_24m
         sig["above_50_ma"],           # rs_vs_sector_above_50ma
         sig["above_200_ma"],          # rs_vs_sector_above_200ma
         sig["new_52w_high"],          # rs_vs_sector_new_52w_high
@@ -359,6 +393,7 @@ def compute_symbol_sector_rs(symbol: str, sector_name: str,
             updates.append(_sector_sig_to_update(sig, symbol, sector_name))
     if updates:
         with get_conn() as conn:
+            rs_phase.ensure_columns(conn)   # additive rotation columns (idempotent)
             conn.executemany(_RS_SECTOR_UPDATE_SQL, updates)
     return rs_hist, len(updates)
 
@@ -527,6 +562,130 @@ def conviction_shortlist(limit: int = 50, trade_date: Optional[str] = None) -> l
         """
         params = (idx_date, trade_date, *st, *st, *st, limit)
         return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
+# --- D63: RS Rotation — the four-phase weather-rotation reads ----------------
+# Design: docs/rs-rotation-design.md. Builds on the rs_phase label + the 18/24m
+# slopes + rsi_of_rs this module now stores. Read-only, rule-based, ZERO LLM.
+# STRICTLY ADDITIVE — leaders_laggards()/conviction_shortlist() are untouched
+# (leaders_laggards stays the canonical strong-in-strong / weak-in-weak read; the
+# rotation Tailwind/Headwind shortlists are a parallel, phase-keyed view of it).
+
+# Per-quadrant "confirm" gate for the STRICT shortlist (design §3): on top of the
+# stock AND its sector sharing the phase, require the MA-position confirmation.
+_PHASE_CONFIRM = {
+    "RECOVERY":     ("AND s.rs_vs_broad_above_50ma=1 AND s.rs_vs_broad_above_200ma=0 "
+                     "AND s.rs_vs_broad_slope_12m<0"),
+    "TAILWIND":     "AND s.rs_vs_broad_above_200ma=1",
+    "ROLLING-OVER": "AND s.rs_vs_broad_above_200ma=1 AND s.rs_vs_broad_above_50ma=0",
+    "HEADWIND":     "AND s.rs_vs_broad_above_200ma=0",
+}
+
+_ROTATION_SELECT = """
+    SELECT s.symbol, s.rs_rank, s.primary_sector, s.rs_phase,
+           s.rs_vs_broad_slope_1m  AS b1,  s.rs_vs_broad_slope_3m  AS b3,
+           s.rs_vs_broad_slope_6m  AS b6,  s.rs_vs_broad_slope_12m AS b12,
+           s.rs_vs_broad_slope_18m AS b18, s.rs_vs_broad_slope_24m AS b24,
+           s.rs_vs_sector_slope_1m AS sc1, s.rs_vs_sector_slope_3m AS sc3,
+           s.rs_vs_broad_above_50ma  AS a50, s.rs_vs_broad_above_200ma AS a200,
+           s.rs_vs_broad_new_52w_high AS rs_nh, s.pct_from_52w_high AS pfh,
+           s.rsi_of_rs AS rsi, s.accum_character AS ch, s.p_score AS psc,
+           s.trigger_rank AS trk, s.accum_price_drift_3m AS apd,
+           i.rs_phase AS sector_phase, b.close AS close, b.value AS value
+    FROM stock_signals s
+    JOIN bhavcopy_rows b ON b.symbol=s.symbol AND b.trade_date=s.trade_date
+    LEFT JOIN index_signals i ON i.index_name=s.primary_sector AND i.trade_date=?
+"""
+
+
+def _max_sig_dates(conn) -> tuple:
+    sd = conn.execute("SELECT MAX(trade_date) d FROM stock_signals").fetchone()["d"]
+    ir = conn.execute("SELECT MAX(trade_date) d FROM index_signals").fetchone()
+    return sd, (ir["d"] if ir else None)
+
+
+def _enrich_rotation(r: dict) -> dict:
+    """Attach the §4b RS-leverage reads — derived purely from stored columns."""
+    b1, b3, b6, b12 = r.get("b1"), r.get("b3"), r.get("b6"), r.get("b12")
+    stacked_up = (None not in (b1, b3, b6, b12) and b1 > b3 > b6 > b12 and b1 > 0)
+    stacked_dn = (None not in (b1, b3, b6, b12) and b1 < b3 < b6 < b12 and b1 < 0)
+    rsi, apd = r.get("rsi"), r.get("apd")
+    r["rs_leads_price"]     = bool(r.get("rs_nh") and r.get("pfh") is not None and r["pfh"] <= -5)
+    r["rs_accel_up"]        = bool(stacked_up)     # §4b-3 acceleration (stacked term structure)
+    r["rs_accel_down"]      = bool(stacked_dn)
+    r["delivery_confirmed"] = bool((r.get("psc") or 0) >= 2          # §4b-5 DVPT confirmation
+                                   or r.get("trk") in ("SS", "S")
+                                   or r.get("ch") == "ACCUMULATION")
+    r["abs_trend_up"]       = bool(apd is not None and apd > 0)      # §4b-6 dual-momentum (abs price drift up)
+    r["rsi_overbought"]     = bool(rsi is not None and rsi > 70)     # §4b-2 RSI-of-RS extension tier
+    r["rsi_oversold"]       = bool(rsi is not None and rsi < 30)
+    return r
+
+
+def phase_members(phase: str, limit: int = 300, trade_date: Optional[str] = None) -> list[dict]:
+    """Every liquid stock currently in `phase` (a grid cell / the full table),
+    enriched with the §4b leverage reads + its sector's phase. rs_rank DESC."""
+    with get_conn() as conn:
+        rs_phase.ensure_columns(conn)
+        sd, idd = _max_sig_dates(conn)
+        trade_date = trade_date or sd
+        if not trade_date:
+            return []
+        sql = (_ROTATION_SELECT
+               + f" WHERE s.trade_date=? AND s.rs_phase=? AND {_LIQUID_FILTER} "
+                 "ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC LIMIT ?")
+        rows = [dict(r) for r in conn.execute(sql, (idd, trade_date, phase, limit)).fetchall()]
+    return [_enrich_rotation(r) for r in rows]
+
+
+def phase_shortlist(phase: str, limit: int = 100, trade_date: Optional[str] = None) -> list[dict]:
+    """The strict diagonal 'X-in-X' shortlist: the stock AND its primary sector
+    share the phase, plus the per-phase MA-confirm gate (design §3) — the
+    actionable list (Tailwind ≈ strong-in-strong; Recovery = confirmed base-turn;
+    Rolling-over = a leader cracking)."""
+    confirm = _PHASE_CONFIRM.get(phase, "")
+    with get_conn() as conn:
+        rs_phase.ensure_columns(conn)
+        sd, idd = _max_sig_dates(conn)
+        trade_date = trade_date or sd
+        if not trade_date or not idd:
+            return []
+        sql = (_ROTATION_SELECT
+               + f" WHERE s.trade_date=? AND s.rs_phase=? AND i.rs_phase=? {confirm} "
+                 f"AND {_LIQUID_FILTER} "
+                 "ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC LIMIT ?")
+        rows = [dict(r) for r in conn.execute(sql, (idd, trade_date, phase, phase, limit)).fetchall()]
+    return [_enrich_rotation(r) for r in rows]
+
+
+def phase_movers(limit: int = 60, trade_date: Optional[str] = None) -> list[dict]:
+    """Names whose rs_phase CHANGED on the latest date vs their prior row — the
+    '✨ just turned' strip (Headwind→Recovery base-turns, Tailwind→Rolling-over
+    cracks). Empty until ≥2 days of rs_phase history exist (graceful)."""
+    with get_conn() as conn:
+        rs_phase.ensure_columns(conn)
+        sd, _ = _max_sig_dates(conn)
+        trade_date = trade_date or sd
+        if not trade_date:
+            return []
+        sql = f"""
+            WITH ranked AS (
+                SELECT symbol, trade_date, rs_phase,
+                       LAG(rs_phase) OVER (PARTITION BY symbol ORDER BY trade_date) AS prev_phase
+                FROM stock_signals
+                WHERE rs_phase IS NOT NULL AND trade_date <= ?
+            )
+            SELECT s.symbol, s.rs_rank, s.primary_sector, s.rs_phase,
+                   r.prev_phase, b.close AS close, b.value AS value
+            FROM ranked r
+            JOIN stock_signals s ON s.symbol=r.symbol AND s.trade_date=r.trade_date
+            JOIN bhavcopy_rows b ON b.symbol=s.symbol AND b.trade_date=s.trade_date
+            WHERE r.trade_date=? AND r.prev_phase IS NOT NULL AND r.prev_phase<>r.rs_phase
+              AND {_LIQUID_FILTER}
+            ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC
+            LIMIT ?
+        """
+        return [dict(r) for r in conn.execute(sql, (trade_date, trade_date, limit)).fetchall()]
 
 
 # --- Orchestration ----------------------------------------------------------
