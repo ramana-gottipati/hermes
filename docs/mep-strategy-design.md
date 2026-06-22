@@ -1,6 +1,7 @@
 # MEP — Accumulation/Distribution strategy: data + UI rollout plan (design v0.1)
 
-> **Status:** ✅ **ROLLOUT COMPLETE + DEPLOYED + VERIFIED (2026-06-22)** — all 5 build steps live on the VPS; descriptor-only (the predictive step was ruled out by the DSR gate). **UNCOMMITTED — awaiting Ramana's acceptance** (deployed + reversible, per the accept-at-end workflow). Per-step detail + verification in § 7.
+> **Status:** ✅ **ROLLOUT COMPLETE + DEPLOYED + VERIFIED (2026-06-22)** — all 5 build steps live on the VPS; descriptor-only (the predictive step was ruled out by the DSR gate). Per-step detail + verification in § 7.
+> **★ Update (2026-06-22, session 34):** the daily-whipsaw fix shipped — a smoothed, hysteresis-banded **PHASE** (`mep_score_smooth` / `mep_state_smooth`) is now the headline on every MEP surface, with the daily score kept underneath. Engine + UI **committed + deployed + verified** (transition count 48.8→5.8 per 70 rows, all single-digit). Design + calibration in **§ 9**; the multi-lens accumulation/distribution decode is preserved in **§ 10**.
 > **Doc type:** TRANSIENT design/handoff (per [[transient-doc-lifecycle]]). Canonical decisions fold into `PROJECT_STATE.md` via the normal rule only **when shipped** — this doc is parallel-safe scratch until then (PROJECT_STATE is parallel-owned; see [[autonomous-blanket-access-multisession]]).
 > **Naming (provisional, confirm at acceptance):** **DDPK = the DVPT strategy** (the built delivery/"Positioning" picking engine). **MEP = this new signed accumulation/distribution strategy.** If MEP expands to something narrower, the integration shape below is unchanged — only the column/score internals shift.
 
@@ -148,3 +149,104 @@ Every DVPT surface and the exact preservation mechanism:
   The three price features *lowered* risk-adjusted performance. **The poison is `close_vs_vwap_s`** — ranks #1 in in-sample importance yet *destroys* out-of-sample (a textbook overfit-attractor; it's informative about *today's* tape but doesn't generalize forward; worsened by 37% missing pre-2020). Amihud + return-autocorr alone are faintly additive in a clean ablation (0.88→1.00 Sharpe) but still far below the DSR≥0.95 bar — not tradeable. **The neat encapsulation: the feature that best *describes* today's accumulation is exactly the one that fails to *predict* tomorrow — which is why MEP is a descriptor, not a predictor.** Harness fact: `ml_alpha` reads the `ml_panel` table (built by `panel_build` from `stock_signals` + `embase.compute_entry_features`), not `features.py`. Test left no trace (VPS files restored, scratch dropped, nothing committed).
 
 **Implication for "MEP as the main strategy":** MEP can be the main **character/confirmation lens** you read every stock through (signed, side-aware — a genuine upgrade over DVPT in that role). It is **not** a stock-*picker* — no price-tape signal here is. The *picking* edge still has to come from the new-data strategies (CCI/concall, fundamentals, identity flows). Worth deciding consciously at acceptance.
+
+---
+
+## 9. The smoothed PHASE — killing the daily whipsaw (shipped 2026-06-22, session 34)
+
+### 9.1 The problem this fixes
+The daily `mep_score` is essentially **today's tape**: three of its four terms (`pressure` = close-vs-VWAP, `clv` = close-location, and partly `updown_vol`) are intraday or near-intraday. So the *daily* `mep_state` **flipped ~3 days in 4** — a pressure **oscillator**, not a regime. Measured on the VPS over the last 70 trading rows: **RELIANCE 50 state changes, TCS 54, HDFCBANK 50, SUZLON 41** (avg **48.8 / 70**). The screen said "STRONG_ACCUM" but it meant *today's candle*, not a sustained accumulation regime. That is the gap §9 closes.
+
+### 9.2 The fix — rolling mean + hysteresis ladder
+Two new columns are stored beside the daily read (the daily score is preserved underneath everywhere):
+
+```
+mep_score_smooth  = rolling mean of the daily mep_score over the trailing 15 AVAILABLE rows
+mep_state_smooth  = that smoothed score banded through a HYSTERESIS ladder (below)
+```
+
+**Hysteresis ladder (the anti-chatter mechanism).** The 5 phases sit between 4 boundaries. Each boundary `b` has a pair `LO[b] < HI[b]`: from the current phase you move **UP** a band only when the smoothed score `≥ HI[b]`, and **DOWN** only when it `< LO[b]`. The `LO→HI` gap is a **deadband** — inside it the phase *holds*. This is what stops a score hovering near a threshold from flip-flopping.
+
+| Boundary | phases | enter-higher `HI` | drop-lower `LO` | deadband |
+|---|---|---|---|---|
+| b3 | ACCUM ↔ STRONG_ACCUM | `≥ +0.62` | `< +0.40` | 0.22 |
+| b2 | NEUTRAL ↔ ACCUM | `≥ +0.28` | `< +0.10` | 0.18 |
+| b1 | DISTRIB ↔ NEUTRAL | `≥ −0.10` | `< −0.28` | 0.18 |
+| b0 | STRONG_DISTRIB ↔ DISTRIB | `≥ −0.35` | `< −0.62` | 0.27 |
+
+Boundaries are strictly increasing and disjoint, so the ratchet always converges (no oscillation by construction). `_smooth_state(score, prev)` implements it: index `prev`, walk up while `score ≥ HI`, then down while `score < LO`.
+
+### 9.3 Why window = 15 (not the "~10" first sketched)
+The binding acceptance metric was *single-digit* state changes per 70 rows. A read-only grid-search on the VPS (`_smooth_chain` over the stored daily series, 12 liquid reference stocks) showed:
+
+| window | bands | avg trans/70 | **max/70** | mix |
+|---|---|---|---|---|
+| 10 | base | 10.3 | 13 | too many STRONG (≈34%) |
+| 12 | wide | 7.6 | 11 | good, but SBIN/WIPRO still 10–11 |
+| 14 | wide | 6.2 | 10 | SBIN/WIPRO at 9–10 |
+| **15** | **wide (above)** | **5.7** | **8** | **NEUTRAL plurality, STRONG ≈10% each** |
+
+Window 15 (≈3 trading weeks) is the **smallest** window that puts **every** reference stock single-digit. Choppy range-bound large-caps (SBIN, WIPRO) genuinely oscillate around the neutral boundary; only the longer mean tames them. 15 rows is well within "a multi-week regime", so we took it. The bands were calibrated against the real smoothed-score spread (VPS latest day: p05 −0.59, p50 +0.07, p95 +0.86, σ≈0.43) so that STRONG is the selective ~10% tail and NEUTRAL/consolidation is the plurality.
+
+### 9.4 Final verification (stored data, end-to-end)
+Re-running the transition probe against the **stored** `mep_state_smooth` (deployed engine, resmoothed table):
+
+| stock | daily/70 | **phase/70** | latest phase |
+|---|---|---|---|
+| RELIANCE | 50 | **6** | STRONG_DISTRIB |
+| TCS | 54 | **5** | DISTRIB |
+| SUZLON | 41 | **4** | ACCUM |
+| HDFCBANK | 50 | **4** | NEUTRAL |
+| ADANIENT | 47 | **8** | STRONG_ACCUM |
+| (12-stock avg) | **48.8** | **5.8** | — |
+
+**Result: max 8, all single-digit, an 8.5× reduction. Target met.** Latest-day phase mix across the universe: NEUTRAL 889 · DISTRIB 505 · ACCUM 447 · STRONG_ACCUM 282 · STRONG_DISTRIB 191 (consolidation is the plurality, as it should be).
+
+### 9.5 Compute paths (all in `src/automation/mep_signals.py`)
+- **`_smooth_chain(scores)`** — O(n) sliding window over the full daily series; drives `--backfill` (computes the phase inline) and `--resmooth`.
+- **`_smooth_date(conn, date)`** — the nightly incremental: reads the trailing 15 stored daily scores + the most-recent prior phase (hysteresis seed) and updates today's two columns. Called automatically at the end of `compute_for_date`, so **no systemd chain change was needed**.
+- **Consistency proof:** because the stored daily series has no NULL `mep_score` rows, the incremental trailing-window read is identical to the chain's window. Verified on real data — backfill vs incremental agree to **float epsilon** (1e-16). The two paths can never drift.
+- **`--resmooth`** — recomputes ONLY the two phase columns from stored daily scores (no bhav refetch, no term recompute). The light post-deploy backfill, and the place to re-run after re-tuning bands. Ran once on deploy: 4,138 symbols, 7,560,482 rows, 99.8% phased (the 0.2% NULL = per-symbol warmup < `_SMOOTH_MIN`=5).
+- **Schema:** `ensure_table()` forward-migrates the existing VPS table via idempotent `ADD COLUMN` + `idx_mep_phase`; canonical def in `db.py` SCHEMA_BASE.
+
+### 9.6 Re-tuning (one knob each)
+Window → `_SMOOTH_WIN`; deadbands → `_SMOOTH_HI` / `_SMOOTH_LO`; min base → `_SMOOTH_MIN`. After any change: `python -m src.automation.mep_signals --resmooth` (raw terms untouched, ~minutes). Lower the window for a more responsive (but choppier) phase; widen the deadbands for fewer transitions.
+
+---
+
+## 10. The multi-lens accumulation/distribution decode (preserved — the full framework)
+
+> Worked through in chat across sessions; written here so it isn't lost. MEP implements the **price-tape half** of this; the predictive edge has to come from the identity channel (§10.3) — never from the tape (§8 / D62).
+
+### 10.1 Three channels, rising information content
+The question "is this stock being accumulated or distributed?" can be attacked at three depths:
+
+1. **Bar / tape** — *infer* from one day's OHLC / VWAP / volume. Cheap, universal, but your own data keeps refuting its **predictive** power (§8). This is where the daily MEP terms live.
+2. **Dynamics** — *infer* the footprint **over time** (persistence, volatility compression, permanence of moves). This is where the validated **Launchpad** edge lives (`research/explosive_moves/` — [[explosive-move-research]]).
+3. **Identity** — *directly observe* **WHO** (named flows, holdings deltas, F&O OI). The **only** channel that names the strong hand. Not yet wired — the highest-value gap (§10.3, open item #3).
+
+### 10.2 The lenses + equations (signed where possible)
+| Lens (channel) | Equation | Accumulation ↔ Distribution |
+|---|---|---|
+| Close-vs-VWAP pressure (bar) | `(close − VWAP)/VWAP` | close > VWAP on volume ↔ close < VWAP |
+| Effort/Result · Amihud (bar) | `|r| / turnover` | heavy vol, price won't fall ↔ won't rise |
+| Bar anatomy · Chaikin (bar) | `CLV = ((C−L)−(H−C))/(H−L)`, `Σ CLV·V` | closes near high ↔ near low (⚠ **refuted** as a predictor) |
+| Permanence · Kyle-λ (dynamics) | fraction of a move retained k days later | moves stick (informed) ↔ revert (churn) |
+| Persistence (dynamics) | `VR(k) = Var(r^k)/(k·Var(r^1))` | VR > 1 drift ↔ VR < 1 churn (✅ validated) |
+| Compression (dynamics) | `σ_short / σ_long` | coiled, non-falling near highs ↔ vol-expanding off highs (✅ validated) |
+| Holdings delta (identity) | `Δ(FII% + DII% + promoter%) / float` | inst % rises QoQ ↔ falls (**not wired**) |
+| Named-flow (identity) | net ₹ of non-churn named buyers + FII/DII | real buyers ↔ sellers (`deals.py`, sparse) |
+| F&O OI quadrant (identity) | `ΔPrice × ΔOI` | ↑P↑OI long-build ↔ ↓P↑OI short-build (**not wired**) |
+
+**Which terms MEP actually sums:** `pressure` (x1), `clv` (x2), `drift_22d` (x3-ish trend), `updown_vol_22d` — all bar/near-bar. Compression + Amihud are stored as **context** (shown, not summed). The dynamics lenses (VR, compression, permanence) are the *validated* ones but live mostly in the Launchpad research, not in the MEP score.
+
+### 10.3 NAP synthesis (signed, within-stock z-average)
+```
+NAP_t = Σ_i w_i · z_i ,   z_i = (x_i − μ_stock) / σ_stock
+```
+MEP **is** the price-tape half of NAP (x1/x2/x3/x5), standardised within each stock's own history. The full NAP would add the identity channel (x6 holdings Δ, x7 F&O OI) — the part that actually names the strong hand.
+
+### 10.4 The descriptor-only verdict (why MEP never picks)
+The price-tape half is **descriptor-only** (DSR **FAIL** — §8): `close_vs_vwap` is the in-sample #1 importance feature and the out-of-sample **poison**. Real predictive alpha must come from the **identity channel** + fundamentals/concall (CCI), each through its own purged-walk-forward + Deflated-Sharpe gate.
+
+> **The killer line:** *the feature that best **describes** today's accumulation is exactly the one that fails to **predict** tomorrow.* That is the whole reason MEP is a character/confirmation lens, not a picker — and why the PHASE (§9), however clean, is still a descriptor.
