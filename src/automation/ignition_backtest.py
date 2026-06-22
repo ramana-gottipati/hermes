@@ -55,6 +55,7 @@ PRICE_SERIES = "EQ"         # journeys measured on the canonical equity series
 WIN_TARGETS = (15.0, 25.0, 40.0, 60.0)
 WIN_STOPS = (-10.0, -15.0, -20.0)
 DEFAULT_WIN = (25.0, -15.0)
+AVG_THRESH = (5, 10, 15, 20, 30)   # drawdown-from-entry levels for the path-conditional averaging study
 
 POWER_BASELINES = ("power_dvpt_1m", "power_dvpt_2m", "power_dvpt_3m",
                    "power_dvpt_6m", "power_dvpt_12m")
@@ -127,6 +128,24 @@ def journey(adj_open, adj_high, adj_low, adj_close, signal_idx, entry_idx, end_i
             sig_trough = l
     mae_signal = (sig_trough / sig_close - 1.0) * 100.0 if (sig_close and sig_trough < 1e17) else None
 
+    # path-conditional averaging study: AFTER price first FALLS −X% from entry (real
+    # time, NOT conditioned on the future peak like mae_before_peak), does a later high
+    # still reach +25%? rec_after_X = 1 recovered / 0 not / None never fell that far.
+    target_px = entry * 1.25
+    rec_after = {}
+    for x in AVG_THRESH:
+        lvl = entry * (1.0 - x / 100.0)
+        ft = None
+        for i in range(entry_idx, end_idx + 1):
+            if adj_low[i] is not None and adj_low[i] <= lvl:
+                ft = i
+                break
+        if ft is None:
+            rec_after[x] = None
+        else:
+            pk = max((adj_high[i] for i in range(ft, end_idx + 1) if adj_high[i] is not None), default=None)
+            rec_after[x] = 1 if (pk is not None and pk >= target_px) else 0
+
     out = {
         "entry_price": entry, "signal_close": sig_close,
         "mfe_pct": mfe, "time_to_peak_days": peak_idx - entry_idx,
@@ -137,6 +156,7 @@ def journey(adj_open, adj_high, adj_low, adj_close, signal_idx, entry_idx, end_i
         j = entry_idx + k
         out[col] = ((adj_close[j] / entry - 1.0) * 100.0) if (j <= end_idx and adj_close[j]) else None
     out["ret_final_pct"] = (adj_close[end_idx] / entry - 1.0) * 100.0 if adj_close[end_idx] else None
+    out.update({f"rec_after_{x}": rec_after[x] for x in AVG_THRESH})
     return out
 
 
@@ -160,6 +180,7 @@ CREATE TABLE IF NOT EXISTS ignition_outcomes (
     mae_from_signal_pct REAL,
     ret_1m REAL, ret_3m REAL, ret_6m REAL, ret_12m REAL, ret_24m REAL,
     ret_final_pct       REAL,
+    rec_after_5 INTEGER, rec_after_10 INTEGER, rec_after_15 INTEGER, rec_after_20 INTEGER, rec_after_30 INTEGER,
     break_in_window     INTEGER DEFAULT 0,
     censored            INTEGER DEFAULT 0,
     computed_at         TEXT NOT NULL DEFAULT (datetime('now')),
@@ -172,7 +193,18 @@ _COLS = ["symbol", "signal_date", "entry_date", "entry_price", "signal_close",
          "intensity", "character", "rs_rank", "is_first_ignition", "n_days_held",
          "mfe_pct", "time_to_peak_days", "mae_before_peak_pct", "mae_from_entry_pct",
          "mae_from_signal_pct", "ret_1m", "ret_3m", "ret_6m", "ret_12m", "ret_24m",
-         "ret_final_pct", "break_in_window", "censored"]
+         "ret_final_pct", "rec_after_5", "rec_after_10", "rec_after_15", "rec_after_20",
+         "rec_after_30", "break_in_window", "censored"]
+
+
+def _ensure_cols(conn):
+    """Additively migrate ignition_outcomes for the rec_after_* columns (the table is
+    fully recomputed each run, so an ALTER is enough; never drops anything)."""
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(ignition_outcomes)")}
+    for x in AVG_THRESH:
+        c = f"rec_after_{x}"
+        if c not in have:
+            conn.execute(f"ALTER TABLE ignition_outcomes ADD COLUMN {c} INTEGER")
 
 
 def _price_series(conn, symbol):
@@ -201,6 +233,7 @@ def compute_and_store(conn=None, limit: Optional[int] = None) -> dict:
         conn = cm.__enter__()
     try:
         conn.executescript(_SCHEMA)
+        _ensure_cols(conn)
 
         # events + signal-time descriptors, survivorship+ETF gated. Delisted stocks
         # kept (recently_traded=0); live ETFs (currently_listed=0 AND recently_traded=1) dropped.
@@ -402,6 +435,8 @@ def _selftest() -> None:
     assert abs(row["mfe_pct"] - 50.0) < 1.0, row["mfe_pct"]            # peak 150 vs entry 100
     assert -9 < row["mae_before_peak_pct"] < -7, row["mae_before_peak_pct"]  # the -8% dip
     assert abs(row["intensity"] - 10.0) < 1e-6, row["intensity"]      # 50 / 5
+    assert row["rec_after_5"] == 1, row["rec_after_5"]                # dipped -8% then ran to +50%
+    assert row["rec_after_10"] is None, row["rec_after_10"]           # never fell -10%
     s = summarize(conn=conn, full_only=False)
     assert s["events"] == 1 and s["winners"] == 1, s                  # +50% before -15% = win
     assert s["win_grid_pct"]["tgt+25/stop-15"] == 100.0, s["win_grid_pct"]
