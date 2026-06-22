@@ -29,6 +29,14 @@ from src.automation import capture, rrg
 from src.core.db import get_conn
 from src.web.dashboard import _shell   # chrome + CSS (import-safe; see investigation)
 
+# Curated economic-sector whitelist (same set /dash/sectors & /dash/rs use), so the
+# map shows ~19 readable dots instead of all ~170 NSE indices. Defensive import:
+# an older dashboard.py without it just means "show everything" (never a crash).
+try:
+    from src.web.dashboard import REAL_SECTORS as _REAL_SECTORS
+except Exception:
+    _REAL_SECTORS = None
+
 router = APIRouter()
 
 
@@ -218,6 +226,11 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40)) -> HTMLResponse:
     den = den if den in BENCHMARKS else "Nifty 500"
     with get_conn() as conn:
         rows = rrg.latest_all(den, conn=conn) or rrg.current_all(den, conn=conn)
+        if _REAL_SECTORS:                 # curate to readable economic sectors
+            keep = set(_REAL_SECTORS)
+            _filt = [r for r in rows if r["numerator"] in keep]
+            if _filt:
+                rows = _filt
         caps_list = capture.latest_all(den, conn=conn) or capture.current_all(den, conn=conn)
         caps = {c["numerator"]: c for c in caps_list}
         tails = {}
