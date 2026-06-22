@@ -12,9 +12,11 @@ Honors two deliberate design rules:
     WATCH; distribution-character ones are flagged AVOID — nothing is dropped from
     the ignited set (only a modest liquidity floor keeps un-actionable junk out,
     and the count dropped is logged).
-  - **Survivorship-correct.** The universe is gated through the security_master
-    spine (recently-traded equities), so the ranking can never include a name that
-    isn't actually tradeable.
+  - **Equity-only, survivorship-correct.** The live universe is gated through the
+    security_master spine to current mainboard equities (the EQUITY_L allowlist via
+    `currently_listed`, which excludes ETFs / index funds — their lumpy
+    creation-redemption baskets fake huge DVPT intensity). The backtest uses the
+    full spine incl. delisted names via universe_on().
 
 DAILY only for now. The multi-horizon (D+W+M) version has a hard dependency on the
 weekly/monthly signals foundation (the MTF engine) and is deferred until that runs;
@@ -148,14 +150,15 @@ def _latest_date(conn) -> Optional[str]:
 
 def compute_for_date(conn, trade_date: str) -> tuple[list, int]:
     """Rank the all-stars crossers for one date. Returns (ranked_rows, n_dropped_illiquid).
-    Survivorship-gated via security_master.recently_traded."""
+    Universe = current mainboard equities (security_master.currently_listed=1 — the
+    EQUITY_L allowlist, which excludes ETFs / index funds)."""
     pbcols = ", ".join(f"s.{c}" for c in POWER_BASELINES)
     cand = conn.execute(
         f"SELECT s.symbol, s.delivery_value_per_trade dvpt, s.delivery_value_today dvt, "
         f"       s.trigger_rank tr, s.accum_character ch, s.is_ath_dvpt ath, s.rs_rank rsr, "
         f"       {pbcols} "
         f"FROM stock_signals s "
-        f"JOIN security_master m ON m.symbol = s.symbol AND m.recently_traded = 1 "
+        f"JOIN security_master m ON m.symbol = s.symbol AND m.currently_listed = 1 "
         f"WHERE s.trade_date = ? AND s.trigger_rank IN ('SS','S') "
         f"      AND s.delivery_value_per_trade IS NOT NULL",
         (trade_date,)).fetchall()
@@ -326,7 +329,7 @@ def _selftest() -> None:
             symbol TEXT, trade_date TEXT, delivery_value_per_trade REAL,
             delivery_value_today REAL, trigger_rank TEXT, accum_character TEXT,
             is_ath_dvpt INTEGER, rs_rank INTEGER, {pbdefs});
-        CREATE TABLE security_master (symbol TEXT PRIMARY KEY, recently_traded INTEGER);
+        CREATE TABLE security_master (symbol TEXT PRIMARY KEY, recently_traded INTEGER, currently_listed INTEGER);
     """)
     d = "2026-06-22"
     # (symbol, dvpt, dvt, trigger, character, baselines-all-equal)  baseline mean = b
@@ -337,7 +340,7 @@ def _selftest() -> None:
         ("PENNYXX", 99.0,  1e5, "SS", "ACCUMULATION", 1.0),    # huge intensity but illiquid → dropped
     ]
     for sym, dvpt, dvt, tr, ch, b in fixtures:
-        conn.execute("INSERT INTO security_master VALUES (?,1)", (sym,))
+        conn.execute("INSERT INTO security_master VALUES (?,1,1)", (sym,))
         cols = "symbol,trade_date,delivery_value_per_trade,delivery_value_today,trigger_rank,accum_character,is_ath_dvpt,rs_rank," + ",".join(POWER_BASELINES)
         ph = ",".join("?" * (8 + len(POWER_BASELINES)))
         conn.execute(f"INSERT INTO stock_signals ({cols}) VALUES ({ph})",
