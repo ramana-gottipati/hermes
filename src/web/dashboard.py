@@ -662,7 +662,8 @@ def _cci_screener_cells(sc) -> tuple:
     stock dossier + /dash/concalls. '—' cells when the name has no concall data."""
     if not sc:
         return ('<td class="l gsep g-cci mut">—</td><td class="g-cci mut">—</td>'
-                '<td class="num g-cci mut">—</td><td class="g-cci mut">—</td>'), False
+                '<td class="num g-cci mut">—</td><td class="g-cci mut">—</td>'
+                '<td class="num g-cci mut">—</td>'), False
     tier = sc.get("tier") or "—"
     tcls = "pos" if tier in ("A+", "A") else ("neg" if tier == "D" else "mut")
     det = sc.get("deterioration_score") or 0
@@ -673,9 +674,11 @@ def _cci_screener_cells(sc) -> tuple:
                    f'title="{_esc(sc.get("veto_reason") or "")}">⛔</span></td>')
     else:
         veto_td = '<td class="g-cci l mut">—</td>'
+    nc = sc.get("n_concalls") or 0
+    nc_td = (f'<td class="num g-cci">{nc}</td>' if nc else '<td class="num g-cci mut">0</td>')
     tds = (f'<td class="l gsep g-cci"><span class="{tcls}">{_esc(tier)}</span></td>'
            f'<td class="g-cci l">{_cci_fwd(sc.get("forward_direction"))}</td>'
-           + det_td + veto_td)
+           + det_td + veto_td + nc_td)
     return tds, True
 
 
@@ -1728,13 +1731,13 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 # it is pending or failed.)
                 head += (f'<div class="card sub">Constituents for this sector aren\'t loaded yet '
                          f'(membership refresh pending). '
-                         f'<a class="row" style="display:inline" href="/dash/ratio?idx={_q(sector)}">'
-                         f'See its ratio chart →</a></div>')
+                         f'<a class="row" style="display:inline" href="/dash/index?idx={_q(sector)}">'
+                         f'See its index page →</a></div>')
             else:
                 head += (f'<div class="card sub">No constituents tracked for this index — it\'s a '
                          f'factor/thematic index, not a sector. '
-                         f'<a class="row" style="display:inline" href="/dash/ratio?idx={_q(sector)}">'
-                         f'See its ratio chart →</a></div>')
+                         f'<a class="row" style="display:inline" href="/dash/index?idx={_q(sector)}">'
+                         f'See its index page →</a></div>')
     else:
         head = ('<h2>Stock screen</h2>'
                 '<div class="sub">Layered DVPT triggers (today). Filter, then tap a symbol.</div>')
@@ -2102,7 +2105,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-char" colspan="4">character</th>'
             '<th class="l gsep g-rs" colspan="5">relative strength</th>'
             '<th class="l gsep g-cpr" colspan="7">structure · cpr</th>'
-            '<th class="l gsep g-cci" colspan="4">credibility · cci</th>'
+            '<th class="l gsep g-cci" colspan="5">credibility · cci</th>'
             '<th class="l gsep g-qual" colspan="2">quality</th>'
             '<th class="l gsep g-ctx" colspan="3">context</th></tr>'
             '<tr class="scol">'
@@ -2116,7 +2119,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-rs">RS trend</th><th class="num g-rs">RS#</th><th class="l g-rs">Broad</th><th class="l g-rs">Heat</th><th class="l g-rs">Sector</th>'
             '<th class="num gsep g-cpr">D%</th><th class="num g-cpr">W%</th><th class="num g-cpr">M%</th>'
             '<th class="l g-cpr">D·W·M</th><th class="g-cpr">Rnk</th><th class="l g-cpr">Str</th><th class="num g-cpr">Comp%</th>'
-            '<th class="l gsep g-cci">Cred</th><th class="l g-cci">Fwd</th><th class="num g-cci">Deter</th><th class="l g-cci">Veto</th>'
+            '<th class="l gsep g-cci">Cred</th><th class="l g-cci">Fwd</th><th class="num g-cci">Deter</th><th class="l g-cci">Veto</th><th class="num g-cci">#C</th>'
             '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
             '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th><th class="num g-ctx">Near-P</th></tr></thead>')
         grid = (f'<div class="scrwrap"><table class="scr">{thead}'
@@ -2508,6 +2511,7 @@ def _cci_stock_panel(sym: str) -> str:
         f'<div class="box"><div class="num">{_cci_num(S.get("quantification_rate"), "%")}</div><div class="lbl">quantif (transp.)</div></div>'
         f'<div class="box"><div class="num">{det_cell}</div><div class="lbl">deterioration</div></div>'
         f'<div class="box"><div class="num">{ncalls}</div><div class="lbl">#calls extracted</div></div>'
+        f'<div class="box"><div class="num">{S.get("n_promises_resolved") or 0}</div><div class="lbl">promises settled</div></div>'
         '</div>')
 
     # --- promise ledger (the follow-through tracker) ---
@@ -2602,8 +2606,13 @@ def _cci_stock_panel(sym: str) -> str:
             'gates clear. <a class="row" style="display:inline" href="/dash/concalls">Full CCI board →</a></div>')
 
     asof = f' · as of {_esc(S.get("as_of_period"))}' if S.get("as_of_period") else ""
+    from src.web.cockpit import cci_state
+    _st, _tone = cci_state(S)
+    _stcol = {"pos": "#3fb950", "mut": "#8b949e", "stale": "#d29922"}.get(_tone, "#8b949e")
+    state_badge = (f' <span style="font-size:11px;font-weight:700;color:{_stcol};border:1px solid {_stcol};'
+                   f'border-radius:8px;padding:1px 7px">{_st}</span>' if _st else "")
     return ('<div class="ccipanel" style="border:1px solid #30363d;border-radius:8px;padding:14px;margin:14px 0;background:#0d1117">'
-            f'<h3 style="margin:0 0 6px">Management Credibility '
+            f'<h3 style="margin:0 0 6px">Management Credibility{state_badge} '
             f'<span class="mut" style="font-size:12px;font-weight:400">CCI · concall intelligence{asof}</span></h3>'
             + veto + chips + led + flagh + evah + ewh + behh + foot + '</div>')
 
@@ -5370,7 +5379,10 @@ _RS_OVERLAY_JS = """
 <script src="__CDN__"></script>
 <script>
 const RS_SERIES = __SERIES__;
-(function(){
+// W2: lazy boot — the RS overlay lives in a hidden tab, so initialising it at
+// load would size to a 0-width container. The Relative-Strength tab calls this
+// on FIRST open (container visible → correct sizing); guarded against re-boot.
+window.__bootRS = function(){
   const host = document.getElementById('rsOverlayChart');
   if (!host) return;
   if (!window.LightweightCharts) { host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
@@ -5588,7 +5600,7 @@ const RS_SERIES = __SERIES__;
   })(20);
   let rzT=null;
   new ResizeObserver(()=>{ if(internalSet) return; if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); positionNames(); },100); }).observe(host);
-})();
+};
 </script>
 """
 
@@ -5676,6 +5688,10 @@ def dash_stock(sym: str = Query("", max_length=20),
             cpr_by_tf = _cpr_latest_by_tf(conn, [sym]).get(sym, {})   # CPR Structure panel (D53)
         except Exception:
             cpr_by_tf = {}
+        try:
+            cci_row = _cci_latest_by_sym(conn, [sym]).get(sym, {})    # CCI verdict tile + dossier (W3)
+        except Exception:
+            cci_row = {}
         # Full company name for the chart titles (so each chart self-identifies
         # the scrip without scrolling back to the page header).
         try:
@@ -6372,21 +6388,85 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
                       '&amp;track=1#track" style="text-decoration:none;display:inline-block;'
                       'margin:2px 0 12px">+ Track this stock</a>')
 
+    # --- W2: cockpit verdict count-strip (7 tiles) + tabbed sub-nav -----------
+    from src.web.cockpit import _CKPT_CSS as _CK, _ck_tile, _ck_strip, cci_state
+    day_chg = None
+    if len(series) >= 2 and series[-2]["close"]:
+        day_chg = (series[-1]["close"] / series[-2]["close"] - 1) * 100
+    _conv = round(_conv_of(L.get("p_score"), L.get("rs_rank")))
+    _xp = L.get("ratio_today_vs_power_1m")
+    _ns, _tier = PS.get("ns_base"), PS.get("tier")
+    _ct = cci_row.get("tier")
+    _ncalls = cci_row.get("n_concalls") or 0
+    _nset = cci_row.get("n_promises_resolved") or 0
+    _ccist, _ = cci_state(cci_row)
+    _p52 = L.get("pct_from_52w_high")
+    _rsr = L.get("rs_rank")
+    verdict_strip = _ck_strip([
+        _ck_tile(f"₹{_num(today_close, 1)}", "CMP", "#58a6ff", f"{_pct(day_chg)} today"),
+        _ck_tile(f"{_conv}/100" if _conv is not None else "—", "Conviction", "#d2a8ff",
+                 f"p{L.get('p_score') or 0}/5 · RS {_rsr if _rsr is not None else '—'}/99"),
+        _ck_tile(f"{_rsr}/99" if _rsr is not None else "—", "RS rank", "#3fb950", "broad universe"),
+        _ck_tile(f"{rank}{' ⚡' if L.get('is_ath_dvpt') else ''}", "DVPT trigger", "#f0883e",
+                 (f"{_xp:.1f}× power-1m" if _xp is not None else "no spike")),
+        _ck_tile(_esc(_tier) if _tier else "—", "Quality · pt14", "#d29922",
+                 (f"NS {_num(_ns, 1)}" if _ns is not None else "unscored")),
+        _ck_tile(_esc(_ct) if _ct else "—", "Mgmt cred · CCI", "#39c5cf",
+                 (f"{_ccist or 'pilot'} · {_nset}/{_ncalls} settled" if cci_row else "no concall data")),
+        _ck_tile(_pct(_p52), "vs 52w-high", "#8b949e", "today's close"),
+    ])
+
+    def _stab(k, lbl, on):
+        oncls = ' class="on"' if on else ''
+        return f'<a href="#{k}" data-stab="{k}"{oncls}>{lbl}</a>'
+    _tabs = [("price", "Price"), ("pos", "Positioning · DVPT"), ("rs", "Relative Strength"),
+             ("qual", "Quality"), ("cpr", "Structure · CPR"), ("cci", "Credibility · CCI")]
+    tabbar = ('<div class="tabbar" id="stabbar" style="position:sticky;top:0;background:#0e1116;z-index:5">'
+              + "".join(_stab(k, l, i == 0) for i, (k, l) in enumerate(_tabs)) + '</div>')
+    tab_js = """
+<script>
+(function(){
+  var bar=document.getElementById('stabbar'); if(!bar) return;
+  var hdr=document.querySelector('header'); if(hdr) bar.style.top=hdr.offsetHeight+'px';
+  var panes={}; document.querySelectorAll('.tabpane').forEach(function(p){panes[p.dataset.tab]=p;});
+  var booted={};
+  function reveal(k){
+    if(k==='rs' && !booted.rs && window.__bootRS){ booted.rs=1; try{ window.__bootRS(); }catch(e){ console.error('RS overlay boot failed', e); } }
+  }
+  function show(k){
+    if(!panes[k]) k='price';
+    Object.keys(panes).forEach(function(t){ panes[t].style.display=(t===k)?'':'none'; });
+    bar.querySelectorAll('a[data-stab]').forEach(function(a){ a.classList.toggle('on', a.dataset.stab===k); });
+    reveal(k);
+  }
+  bar.querySelectorAll('a[data-stab]').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); var k=a.dataset.stab;
+      show(k); if(history.replaceState) history.replaceState(null,'','#'+k); });
+  });
+  var h=(location.hash||'').replace('#',''); show(panes[h]?h:'price');
+})();
+</script>
+"""
+
     body = f"""{search}
 <style>{chart_css}</style>
-<h2>{_esc(sym)} <span class="pill p-{rank}">{rank}</span> {ath}</h2>
+{_CK}
+<div class="sub" style="margin:0 0 6px">&#8592; <a class="row" style="display:inline" href="/dash/screener">Screener</a> · <a class="row" style="display:inline" href="/dash/conviction">Conviction</a></div>
+<h2>{_esc(sym)} <span class="pill p-{rank}">{rank}</span> {ath}{(' · ' + _esc(company_name)) if company_name else ''}</h2>
 <div class="sub">{L['trade_date']} · close ₹{_num(today_close,2)} · deliv {_num(L.get('deliv_per'),1)}%</div>
+{verdict_strip}
 {track_html}
+{tabbar}
+<div class="tabpane" data-tab="price">
 <div class="kpi">
   <div class="box"><div class="num">{L.get('r_score') or 0}/{L.get('p_score') or 0}</div><div class="lbl">r / p score</div></div>
   <div class="box"><div class="num">{int(L['delivery_value_per_trade'] or 0):,}</div><div class="lbl">DVPT today</div></div>
   <div class="box"><div class="num">{_num(L.get('ratio_today_vs_power_1m'))}</div><div class="lbl">vs power 1m</div></div>
 </div>
-
-{insight_html}
-{inertia_html}
-{character_html}
-
+<div class="fbar" id="ctBar">
+  <button class="fbtn on" data-ctype="candle">Candles</button>
+  <button class="fbtn" data-ctype="line">Line</button>
+</div>
 <div class="fbar" id="ivBar">
   <button class="fbtn on" data-ptf="d">Daily</button>
   <button class="fbtn" data-ptf="w">Weekly</button>
@@ -6398,6 +6478,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <button data-r="126">6M</button>
   <button data-r="252">1Y</button>
   <button data-r="504">2Y</button>
+  <button data-r="1260">5Y</button>
   <button data-r="0" class="on">Max</button>
 </div>
 <div class="chartwrap">
@@ -6417,20 +6498,27 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · Traded value (bar) + delivery value (bright = took delivery)</div>
   <div id="tvChart" style="height:130px;"></div>
 </div>
-
-{rs_overlay_html}
-
+</div><!-- /tab price -->
+<div class="tabpane" data-tab="pos" style="display:none">
+{insight_html}
+{inertia_html}
+{character_html}
 {zones_html}
-
 {keyprice_html}
-
-{pt14_html}
-
+</div>
+<div class="tabpane" data-tab="rs" style="display:none">
 {rs_html}
-
+{rs_overlay_html}
+</div>
+<div class="tabpane" data-tab="qual" style="display:none">
+{pt14_html}
+</div>
+<div class="tabpane" data-tab="cpr" style="display:none">
 {cpr_html}
-
+</div>
+<div class="tabpane" data-tab="cci" style="display:none">
 {cci_html}
+</div>
 
 <script src="{_LWC_CDN}"></script>
 <script>
@@ -6458,6 +6546,12 @@ const DATA = {data_json};
   const candle=pc.addCandlestickSeries({{upColor:'#3fb950',downColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',borderVisible:false}});
   candle.setData(S.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
   DATA.zones.forEach(z=>{{ candle.createPriceLine({{price:z.price,color:z.color,lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label}}); }});
+  // Close-line alternative to the candles (chart-type toggle). Fed alongside the
+  // candles in setIv so switching type is just a visibility flip — the 4-pane
+  // sync graph is untouched.
+  const pline=pc.addLineSeries({{color:'#1f6feb',lineWidth:2,priceLineVisible:false}});
+  pline.setData(S.map(d=>({{time:d.time,value:d.close}})));
+  pline.applyOptions({{visible:false}});
 
   const dvpt=vc.addHistogramSeries({{priceFormat:{{type:'volume'}}}});
   dvpt.setData(S.map(d=>({{time:d.time,value:d.dvpt,color:(d.r1m!=null&&d.r1m>1)?'#d29922':'#30506b'}})));
@@ -6550,6 +6644,7 @@ const DATA = {data_json};
     const R=resampleBars(tf);
     syncing=true;
     candle.setData(R.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
+    pline.setData(R.map(d=>({{time:d.time,value:d.close}})));
     dvpt.setData(R.map(d=>({{time:d.time,value:d.dvpt,color:d.hot?'#d29922':'#30506b'}})));
     deliv.setData(R.filter(d=>d.delivN>0).map(d=>({{time:d.time,value:d.delivSum/d.delivN}})));
     const tv=R.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
@@ -6563,6 +6658,13 @@ const DATA = {data_json};
     b.onclick=()=>{{ document.querySelectorAll('[data-ptf]').forEach(x=>x.classList.toggle('on', x===b));
       setIv(b.dataset.ptf);
       const rb=document.querySelector('.rangebar button.on'); setRange(rb?parseInt(rb.dataset.r):0); }};
+  }});
+  // Chart-type toggle (candles <-> close line). Visibility flip only — both series
+  // already carry the current interval's data, so the sync graph stays intact.
+  document.querySelectorAll('[data-ctype]').forEach(b=>{{
+    b.onclick=()=>{{ document.querySelectorAll('[data-ctype]').forEach(x=>x.classList.toggle('on', x===b));
+      const ln=b.dataset.ctype==='line';
+      candle.applyOptions({{visible:!ln}}); pline.applyOptions({{visible:ln}}); }};
   }});
 
   // Debounced ResizeObserver: coalesce bursts (~100ms) and skip while syncing.
@@ -6599,8 +6701,9 @@ const DATA = {data_json};
   showR(S[S.length-1]);
 }})();
 </script>
+{tab_js}
 """
-    return HTMLResponse(_shell(f"{sym} · patearn", body, "stock", L["trade_date"]))
+    return HTMLResponse(_shell(f"{sym} · patearn", body, "stock", L["trade_date"], wide=True))
 
 
 # Ratio chart JS (plain template — no f-string; __DATA__ is replaced with the
@@ -6682,6 +6785,19 @@ const DATA = __DATA__;
 })();
 </script>
 """
+
+
+@router.get("/dash/index", response_class=HTMLResponse)
+def dash_index(idx: str = Query("", max_length=60)) -> HTMLResponse:
+    """Full-bleed single-index detail page (cockpit.render_index_detail). The new
+    primary destination for every index/sector handle across the dashboard — a
+    rigorous two-axis trend verdict + own-price chart + valuation + the bottom-up
+    constituent roll-up. /dash/ratio stays as the linked full RS-ratio sub-page."""
+    sig_date, idx_date = _latest_dates()
+    from src.web.cockpit import render_index_detail
+    return HTMLResponse(_shell(f"{idx or 'Index'} · patearn",
+                               render_index_detail(idx, idx_date, sig_date),
+                               "markets", idx_date or "", wide=True))
 
 
 @router.get("/dash/ratio", response_class=HTMLResponse)

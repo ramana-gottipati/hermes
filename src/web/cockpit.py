@@ -14,6 +14,8 @@ entry and it appears in the home count-strip + hub automatically — the user's
 """
 from __future__ import annotations
 
+import json
+
 # stock_rs does NOT import dashboard, so these top-level imports are cycle-safe.
 try:
     from src.automation.stock_rs import leaders_laggards, conviction_shortlist
@@ -24,6 +26,321 @@ except Exception:  # keep the page resilient if the module shifts
 def _near(g) -> bool:
     """Close vs the value-weighted key price (the 🎯 launch band), −1%…+5%."""
     return g is not None and -1.0 <= g <= 5.0
+
+
+# --- Two-axis trend verdict (THE "trends not properly identified" fix) --------
+# The old page showed only `rs_vs_broad_trend_state` — the RS RATIO (index ÷ Nifty
+# 500) trend, which reads "DOWNTREND" for an index that is rising in price but
+# merely lagging the broad market. These derive the ABSOLUTE price trend on-read
+# from the index's OWN levels and present it BESIDE the RS trend. Deterministic,
+# zero-LLM. The css_state values map to the existing `.p-*` pill classes.
+def _abs_trend(pa200, pa50, r3, off52h=None, abv52l=None):
+    """Absolute price-trend verdict from the index's own levels. Returns
+    (label, css_state, score 0-3). score = #{above 200d, above 50d, 3m ret > 0}."""
+    score = ((1 if (pa200 or 0) > 0 else 0)
+             + (1 if (pa50 or 0) > 0 else 0)
+             + (1 if (r3 or 0) > 0 else 0))
+    if off52h is not None and off52h >= -2:
+        return ("NEAR HIGH", "BREAKOUT", score)
+    if abv52l is not None and abv52l <= 2:
+        return ("NEAR LOW", "BREAKDOWN", score)
+    if score == 3:
+        return ("UPTREND", "UPTREND", score)
+    if score == 2:
+        return ("UP-BIASED", "UPTREND", score)
+    if score == 1:
+        return ("MIXED", "CONSOLIDATING", score)
+    return ("DOWNTREND", "DOWNTREND", score)
+
+
+def _rel_trend(st, s1, s3, s6, s12):
+    """Relative-strength verdict (vs Nifty 500): the RS trend state confirmed by
+    how many horizon slopes are rising. Returns (label, css_state)."""
+    rs_up_n = sum(1 for v in (s1, s3, s6, s12) if v is not None and v > 1)
+    up = st in ("UPTREND", "BREAKOUT")
+    down = st in ("DOWNTREND", "BREAKDOWN")
+    if up and rs_up_n >= 3:
+        return ("LEADING", "UPTREND")
+    if down and rs_up_n <= 1:
+        return ("LAGGING", "DOWNTREND")
+    return ("IN-LINE", "CONSOLIDATING")
+
+
+def _index_verdict(is_broad, abs_label, abs_score, rel_label):
+    """The composite headline: broad indices report just their ABS trend; sectors
+    cross the ABS×REL matrix into an actionable verdict. When RS is IN-LINE the
+    headline DEFERS to the (decisive) price trend so it can never contradict the
+    PRICE pill beside it — the whole point is that the price trend IS identified."""
+    if is_broad:
+        return abs_label
+    abs_up = (abs_score >= 2 or abs_label == "NEAR HIGH") and abs_label != "NEAR LOW"
+    abs_down = abs_score == 0 or abs_label == "NEAR LOW"
+    leading = rel_label == "LEADING"
+    lagging = rel_label == "LAGGING"
+    if abs_up and leading:
+        return "MARKET LEADER"
+    if abs_up and lagging:
+        return "RISING BUT LAGGING"
+    if abs_down and leading:
+        return "DEFENSIVE / RELATIVE WINNER"
+    if abs_down and lagging:
+        return "AVOID"
+    if abs_up:
+        return "RISING · IN-LINE"
+    if abs_down:
+        return "FALLING · IN-LINE"
+    return "NEUTRAL"
+
+
+# --- Deterministic CCI coverage state (PROVEN / UNPROVEN / + STALE) ------------
+# From the settled-promise count + the recency of the scored concall period
+# (as_of_period is a 'Mon YYYY' label). A name is UNPROVEN until any guidance
+# promise resolves; PROVEN once ≥1 has; STALE if the newest scored period is
+# older than ~2 quarters. Degrades to '' (no badge) when there's no concall data.
+_CCI_MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+               "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+
+
+def _cci_period_ym(period):
+    if not period:
+        return None
+    parts = str(period).strip().split()
+    if len(parts) != 2:
+        return None
+    mo = _CCI_MONTHS.get(parts[0][:3].lower())
+    try:
+        yr = int(parts[1])
+    except ValueError:
+        return None
+    return (yr, mo) if mo else None
+
+
+def cci_state(row):
+    """Returns (label, tone) — label ∈ {'', 'UNPROVEN', 'PROVEN', '… · STALE'};
+    tone ∈ {'', 'mut', 'pos', 'stale'} for colouring."""
+    if not row:
+        return ("", "")
+    settled = row.get("n_promises_resolved") or 0
+    calls = row.get("n_concalls") or 0
+    if settled >= 1:
+        base, tone = "PROVEN", "pos"
+    elif calls >= 1:
+        base, tone = "UNPROVEN", "mut"
+    else:
+        return ("", "")
+    ym = _cci_period_ym(row.get("as_of_period"))
+    if ym:
+        import datetime as _dt
+        now = _dt.date.today()
+        months_old = (now.year - ym[0]) * 12 + (now.month - ym[1])
+        if months_old > 6:
+            return (base + " · STALE", "stale")
+    return (base, tone)
+
+
+# --- Deterministic sector weather (tailwind / headwind / recovery / …) ---------
+# First-match-wins. Slope-only inputs are sufficient (breadth + accum-skew refine
+# but are optional, so the badge ships everywhere — markets bundle, /dash/sectors,
+# /dash/index). Returns (key, reasons[]). Zero LLM.
+_WEATHER = {
+    "TAILWIND":     ("🌤 Tailwind",     "#7ee787", "#16341f", "#1f6f3a"),
+    "RECOVERY":     ("🌅 Recovery",     "#79c0ff", "#0d2233", "#1f4d7a"),
+    "HEADWIND":     ("🌧 Headwind",     "#ffa198", "#3a1a1a", "#8f1f1f"),
+    "ROLLING-OVER": ("⛅ Rolling over",  "#ffd99a", "#3a3417", "#5a4a1f"),
+    "NEUTRAL":      ("☁ Neutral",       "#8b949e", "#21262d", "#30363d"),
+}
+
+
+def sector_weather(s1, s3, s6, s12, st, breadth=None, accum_skew=None):
+    """Classify a sector's weather from its RS slopes + trend state (+ optional
+    constituent breadth / accumulation skew). First-match-wins."""
+    a1, a3, a6, a12 = (s1 or 0.0), (s3 or 0.0), (s6 or 0.0), (s12 or 0.0)
+    up = st in ("UPTREND", "BREAKOUT")
+    down = st in ("DOWNTREND", "BREAKDOWN")
+    R = []
+    if (up and a3 > 1 and a1 > 0
+            and (breadth is None or breadth >= 55)
+            and (accum_skew is None or accum_skew >= 0)):
+        R = [f"RS {(st or '').lower()}", f"3m slope {a3:+.1f}", f"1m {a1:+.1f}"]
+        if breadth is not None:
+            R.append(f"{breadth:.0f}% members RS-up")
+        return "TAILWIND", R
+    if ((a6 < 0 or a12 < 0) and a1 > 1 and a3 > a6
+            and (breadth is None or breadth > 40)):
+        R = ["longer-horizon RS still negative", f"1m slope {a1:+.1f} turning up",
+             f"3m {a3:+.1f} > 6m {a6:+.1f}"]
+        return "RECOVERY", R
+    if (down and a3 < -1
+            and (breadth is None or breadth < 45)
+            and (accum_skew is None or accum_skew <= 0)):
+        R = [f"RS {(st or '').lower()}", f"3m slope {a3:+.1f}"]
+        if breadth is not None:
+            R.append(f"only {breadth:.0f}% members RS-up")
+        return "HEADWIND", R
+    if up and a1 < 0 and a12 > 0:
+        R = [f"12m slope {a12:+.1f} positive", f"1m {a1:+.1f} rolling over"]
+        return "ROLLING-OVER", R
+    return "NEUTRAL", [f"3m slope {a3:+.1f}"]
+
+
+def _weather_badge(key, reasons=None):
+    label, col, bg, bd = _WEATHER.get(key, _WEATHER["NEUTRAL"])
+    ti = ""
+    if reasons:
+        ti = ' title="' + " · ".join(reasons).replace('"', "'") + '"'
+    return (f'<span style="display:inline-block;font-size:10px;font-weight:700;'
+            f'padding:2px 8px;border-radius:9px;letter-spacing:.3px;white-space:nowrap;'
+            f'background:{bg};color:{col};border:1px solid {bd}"{ti}>{label}</span>')
+
+
+def _news_card(conn, esc, limit=8):
+    """Read-only "latest market brief" — newest sent_news rows (title→url, source,
+    date). Market-wide (sent_news has no sector tag); explicitly context, NOT a
+    signal; NO LLM at render. Silent (empty string) if the table is absent/empty."""
+    try:
+        rows = conn.execute(
+            "SELECT title, source, url, sent_at FROM sent_news "
+            "ORDER BY sent_at DESC, id DESC LIMIT ?", (limit,)).fetchall()
+    except Exception:
+        return ""
+    if not rows:
+        return ""
+    items = []
+    for r in rows:
+        title = esc(r["title"] or "")
+        src = esc(r["source"] or "")
+        when = esc((r["sent_at"] or "")[:10])
+        url = r["url"] or ""
+        href = url if (url.startswith("http://") or url.startswith("https://")) else ""
+        head = (f'<a class="row" style="display:inline;color:#c9d1d9" target="_blank" '
+                f'rel="noopener" href="{esc(href)}">{title}</a>' if href else title)
+        items.append(
+            f'<tr><td class="l">{head}</td>'
+            f'<td class="r mut" style="font-size:11px">{src}</td>'
+            f'<td class="r mut" style="font-size:11px">{when}</td></tr>')
+    return ('<div class="card ck-board" style="border-top:2px solid #6e7681">'
+            '<div class="ck-h">📰 Latest headlines'
+            '<span class="sub" style="margin:0;font-weight:400">context, not a signal · market-wide</span></div>'
+            f'<table class="ck-t"><tbody>{"".join(items)}</tbody></table></div>')
+
+
+# Index charts (own-price candles/line AND the RS-ratio chart) on ONE page — the
+# cockpit-framed superset of the old /dash/ratio, with the SAME rich charting as
+# the stock page: chart-type toggle (candles/line), Daily/Weekly/Monthly/Quarterly
+# interval resampling, range buttons, and 50/200-period MAs recomputed per interval.
+# Plain template (braces are JS): __CDN__/__DATA__ get .replace()d. __DATA__ =
+# {price:[{t,o,h,l,c}], ratio:[{t,r}]} (daily; MAs + ratio crosses computed client-
+# side per interval). Each chart owns its OWN scoped control bars so they don't clash.
+_INDEX_CHART_JS = """
+<script src="__CDN__"></script>
+<script>
+const IXD = __DATA__;
+(function(){
+  if(!window.LightweightCharts){ ['idxChart','idxRatioChart'].forEach(function(id){var h=document.getElementById(id); if(h) h.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>';}); return; }
+  const common={
+    layout:{ background:{color:'#161b22'}, textColor:'#8b949e', fontSize:11 },
+    grid:{ vertLines:{color:'#21262d'}, horzLines:{color:'#21262d'} },
+    timeScale:{ borderColor:'#30363d', rightOffset:3 },
+    rightPriceScale:{ borderColor:'#30363d' },
+    crosshair:{ mode:0 }, handleScroll:true, handleScale:true,
+  };
+  function tkey(t){ return (typeof t==='object'&&t)?(t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2)):t; }
+  function f2(v){ return v!=null?Number(v).toLocaleString('en-IN',{maximumFractionDigits:2}):'—'; }
+  function f4(v){ return v!=null?Number(v).toFixed(4):'—'; }
+  // ISO-week / month / quarter keys (close-of-period), mirroring the stock page.
+  function isoWeekKey(s){ var d=new Date(s+'T00:00:00Z'); var jd=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-jd+3);
+    var iy=d.getUTCFullYear(); var j4=new Date(Date.UTC(iy,0,4)); var j4d=(j4.getUTCDay()+6)%7; j4.setUTCDate(j4.getUTCDate()-j4d+3);
+    var wk=1+Math.round((d-j4)/(7*86400000)); return iy+'-W'+('0'+wk).slice(-2); }
+  function pkey(s,tf){ if(tf==='w') return isoWeekKey(s); if(tf==='m') return s.slice(0,7);
+    if(tf==='q'){ var y=s.slice(0,4),mo=parseInt(s.slice(5,7),10); return y+'-Q'+(Math.floor((mo-1)/3)+1); } return s; }
+  function resampleOHLC(arr,tf){ if(tf==='d') return arr.slice(); var out=[],k=null,c=null;
+    for(var i=0;i<arr.length;i++){ var d=arr[i],kk=pkey(d.t,tf);
+      if(kk!==k){ if(c) out.push(c); k=kk; c={t:d.t,o:d.o,h:d.h,l:d.l,c:d.c}; }
+      else { c.h=Math.max(c.h,d.h); c.l=Math.min(c.l,d.l); c.c=d.c; c.t=d.t; } }
+    if(c) out.push(c); return out; }
+  function resampleLine(arr,tf){ if(tf==='d') return arr.slice(); var out=[],k=null,last=null;
+    for(var i=0;i<arr.length;i++){ var d=arr[i],kk=pkey(d.t,tf); if(kk!==k){ if(last) out.push(last); k=kk; } last=d; }
+    if(last) out.push(last); return out; }
+  function sma(vals,w){ var out=[],run=0; for(var i=0;i<vals.length;i++){ run+=vals[i].value; if(i>=w) run-=vals[i-w].value;
+    if(i>=w-1) out.push({time:vals[i].time,value:run/w}); } return out; }
+  function curR(sel){ var b=document.querySelector(sel+' button.on'); return b?parseInt(b.dataset.r):252; }
+  function wireRange(sel, chart, getBars){
+    var btns=document.querySelectorAll(sel+' button'); if(!btns.length) return function(){};
+    function setRange(n){ var data=getBars(); if(!data.length) return; if(!n||n>=data.length){ chart.timeScale().fitContent(); return; }
+      var from=data[data.length-n].t, to=data[data.length-1].t; chart.timeScale().setVisibleRange({from:from,to:to}); }
+    btns.forEach(function(b){ b.onclick=function(){ btns.forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); setRange(parseInt(b.dataset.r)); }; });
+    return setRange;
+  }
+  function wireToggle(sel, cb){ document.querySelectorAll(sel+' button').forEach(function(b){
+    b.onclick=function(){ document.querySelectorAll(sel+' button').forEach(function(x){x.classList.toggle('on',x===b);}); cb(b.dataset); }; }); }
+
+  // ===== own-price chart: candles/line × D·W·M·Q × range, 50/200-MA per interval =====
+  var pHost=document.getElementById('idxChart');
+  if(pHost && IXD.price && IXD.price.length){
+    var pc=LightweightCharts.createChart(pHost, Object.assign({height:320}, common));
+    var candle=pc.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',borderVisible:false});
+    var pline=pc.addLineSeries({color:'#1f6feb',lineWidth:2,priceLineVisible:false});
+    var pm50=pc.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    var pm200=pc.addLineSeries({color:'#6e7681',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    var ptf='d', ptype='candle', pbars=IXD.price.slice();
+    var pSet=wireRange('#idxPriceRange', pc, function(){return IXD.price;});
+    function pApply(){
+      pbars=resampleOHLC(IXD.price, ptf);
+      if(ptype==='candle'){ candle.setData(pbars.map(function(b){return {time:b.t,open:b.o,high:b.h,low:b.l,close:b.c};})); pline.setData([]); }
+      else { pline.setData(pbars.map(function(b){return {time:b.t,value:b.c};})); candle.setData([]); }
+      var closes=pbars.map(function(b){return {time:b.t,value:b.c};});
+      pm50.setData(sma(closes,50)); pm200.setData(sma(closes,200));
+      pSet(curR('#idxPriceRange'));
+    }
+    wireToggle('#idxPriceType', function(ds){ ptype=ds.itype; pApply(); });
+    wireToggle('#idxPriceTf', function(ds){ ptf=ds.itf; pApply(); });
+    pApply();
+    var prdt=document.getElementById('idxRdt');
+    pc.subscribeCrosshairMove(function(p){ var t,o,h,l,c;
+      if(p&&p.time&&p.seriesData){ t=tkey(p.time); var cd=p.seriesData.get(candle); var ld=p.seriesData.get(pline);
+        if(cd){ o=cd.open;h=cd.high;l=cd.low;c=cd.close; } else if(ld){ c=ld.value; } }
+      else { var last=pbars[pbars.length-1]; if(last){ t=last.t;o=last.o;h=last.h;l=last.l;c=last.c; } }
+      if(prdt) prdt.innerHTML='<b>'+(t||'')+'</b>'+(o!=null?'&nbsp; O '+f2(o)+' H '+f2(h)+' L '+f2(l):'')+'&nbsp; <b>C '+f2(c)+'</b>'; });
+    var prz=null; new ResizeObserver(function(){ if(prz) clearTimeout(prz); prz=setTimeout(function(){ pc.applyOptions({}); },100); }).observe(pHost);
+  }
+
+  // ===== RS-ratio chart: line × D·W·M·Q × range (a ratio has no OHLC → line only) =====
+  var rHost=document.getElementById('idxRatioChart');
+  if(rHost && IXD.ratio && IXD.ratio.length){
+    var rc=LightweightCharts.createChart(rHost, Object.assign({height:280}, common));
+    var rl=rc.addLineSeries({color:'#1f6feb',lineWidth:2,priceLineVisible:false});
+    var rm50=rc.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    var rm200=rc.addLineSeries({color:'#6e7681',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    var rtf='d', rbars=IXD.ratio.slice();
+    var rSet=wireRange('#idxRatioRange', rc, function(){return IXD.ratio;});
+    function rApply(){
+      rbars=resampleLine(IXD.ratio, rtf);
+      var vals=rbars.map(function(d){return {time:d.t,value:d.r};});
+      rl.setData(vals);
+      var m50=sma(vals,50), m200=sma(vals,200); rm50.setData(m50); rm200.setData(m200);
+      var m50map={}; m50.forEach(function(p){m50map[p.time]=p.value;});
+      var win=(rtf==='d'?252:rtf==='w'?52:rtf==='m'?12:4), mk=[];
+      for(var i=0;i<vals.length;i++){ var t=vals[i].time, v=vals[i].value, mv=m50map[t];
+        if(i>0){ var pv=vals[i-1].value, pmv=m50map[vals[i-1].time];
+          if(mv!=null&&pmv!=null){ if(pv<pmv&&v>=mv) mk.push({time:t,position:'belowBar',color:'#3fb950',shape:'arrowUp',text:'↑50'});
+            else if(pv>=pmv&&v<mv) mk.push({time:t,position:'aboveBar',color:'#f85149',shape:'arrowDown',text:'↓50'}); } }
+        if(i>=win-1){ var hi=true; for(var j=i-win+1;j<i;j++){ if(vals[j].value>=v){ hi=false; break; } } if(hi) mk.push({time:t,position:'aboveBar',color:'#3fb950',shape:'circle'}); } }
+      mk.sort(function(a,b){return a.time<b.time?-1:(a.time>b.time?1:0);});
+      rl.setMarkers(mk);
+      rSet(curR('#idxRatioRange'));
+    }
+    wireToggle('#idxRatioTf', function(ds){ rtf=ds.itf; rApply(); });
+    rApply();
+    var rrdt=document.getElementById('idxRatioRdt');
+    rc.subscribeCrosshairMove(function(p){ var t,r,a,b;
+      if(p&&p.time&&p.seriesData){ t=tkey(p.time); var x=p.seriesData.get(rl); r=x?x.value:null; var y=p.seriesData.get(rm50); a=y?y.value:null; var z=p.seriesData.get(rm200); b=z?z.value:null; }
+      else { var last=rbars[rbars.length-1]; if(last){ t=last.t; r=last.r; } }
+      if(rrdt) rrdt.innerHTML='<b>'+(t||'')+'</b>&nbsp; ratio <b>'+f4(r)+'</b>&nbsp; · 50-MA '+f4(a)+'&nbsp; · 200-MA '+f4(b); });
+    var rrz=null; new ResizeObserver(function(){ if(rrz) clearTimeout(rrz); rrz=setTimeout(function(){ rc.applyOptions({}); },100); }).observe(rHost);
+  }
+})();
+</script>
+"""
 
 
 # --- THE STRATEGY REGISTRY ----------------------------------------------------
@@ -53,6 +370,10 @@ STRATEGY_REGISTRY = [
      "cta": "names scored",
      "thesis": "Is the business worth owning — the patearn 14-pattern durability score.",
      "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM pattern_scores").fetchone()["c"]},
+    {"key": "CCI", "label": "Mgmt Credibility", "accent": "#39c5cf", "href": "/dash/concalls",
+     "cta": "concall credibility",
+     "thesis": "Do managements keep their promises? Measurable guidance-accuracy + a deterioration / ⛔veto avoid-tape, from earnings concalls. (Pilot — backfill accruing.)",
+     "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM concall_scores").fetchone()["c"]},
     {"key": "LAUNCH", "label": "Launchpad", "accent": "#f0883e", "href": "/dash/screener",
      "cta": "research → live screener pending",
      "thesis": "Validated explosive-move precursors (momentum-continuation ∪ pullback-in-vol). D56 research, productizing next.",
@@ -162,6 +483,21 @@ SCREENER_VIRT_JS = """
 })();
 </script>
 """
+
+
+def _ck_tile(n, label, accent, cta="", href="") -> str:
+    """One cockpit count-strip tile (shared by the strategy detail renders)."""
+    a = f' href="{href}"' if href else ""
+    tag = "a" if href else "div"
+    c = f'<div class="ck-c">{cta}</div>' if cta else ""
+    return (f'<{tag} class="ck-tile"{a} style="border-top:3px solid {accent}">'
+            f'<div class="ck-n" style="color:{accent}">{n}</div>'
+            f'<div class="ck-l">{label}</div>{c}</{tag}>')
+
+
+def _ck_strip(tiles) -> str:
+    """Wrap a list of _ck_tile() html into the .ck-tiles count strip."""
+    return '<div class="ck-tiles">' + "".join(tiles) + '</div>'
 
 
 def _board(title_html, sub, inner_html, href, cta, accent):
@@ -311,10 +647,11 @@ def render_home(sig_date, idx_date) -> str:
             o = ""
             for r in rows:
                 st = r["st"] or "—"
-                o += (f'<tr><td class="l"><a class="row" href="/dash/ratio?idx={q(r["nm"])}">'
+                wk, wr = sector_weather(r["s1"], r["s3"], r["s6"], r["s12"], r["st"])
+                o += (f'<tr><td class="l"><a class="row" href="/dash/index?idx={q(r["nm"])}">'
                       f'<span class="sym">{esc(r["nm"])}</span></a></td>'
                       f'<td class="l">{D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])}</td>'
-                      f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+                      f'<td>{_weather_badge(wk, wr)}</td>'
                       f'<td class="r">{pct(r["s3"])}</td></tr>')
             return o
         inner = ('<table class="ck-t"><tbody>' + sect_rows(top_sectors)
@@ -355,25 +692,50 @@ def render_home(sig_date, idx_date) -> str:
     return _CKPT_CSS + search + banner + count_strip + cockpit + fresh
 
 
+def _row_trends(v):
+    """Attach the on-read ABS + REL verdicts + weather to an index_signals row
+    dict (mutates + returns it). `is_broad` = no RS benchmark."""
+    is_broad = v.get("bb") is None
+    al, acss, asc = _abs_trend(v.get("a200"), v.get("pa50"), v.get("r3m"),
+                               v.get("off52h"), v.get("abv52l"))
+    v["abs_label"], v["abs_css"], v["abs_score"] = al, acss, asc
+    if is_broad:
+        v["rel_label"], v["rel_css"], v["weather"], v["wreasons"] = None, None, None, None
+    else:
+        rl, rcss = _rel_trend(v.get("st"), v.get("s1"), v.get("s3"), v.get("s6"), v.get("s12"))
+        v["rel_label"], v["rel_css"] = rl, rcss
+        v["weather"], v["wreasons"] = sector_weather(
+            v.get("s1"), v.get("s3"), v.get("s6"), v.get("s12"), v.get("st"))
+    v["mom"] = 0.6 * (v.get("s3") or 0.0) + 0.4 * (v.get("s6") or 0.0)
+    return v
+
+
+_MKT_COLS = (
+    "g.index_name nm, g.ret_1d_pct r1d, g.ret_1m_pct r1m, g.ret_3m_pct r3m, "
+    "g.pct_above_50d_avg pa50, g.pct_above_200d_avg a200, g.pct_off_52w_high off52h, "
+    "g.pct_above_52w_low abv52l, g.rs_vs_broad_trend_state st, g.broad_benchmark bb, "
+    "g.rs_vs_broad_slope_1m s1, g.rs_vs_broad_slope_3m s3, g.rs_vs_broad_slope_6m s6, "
+    "g.rs_vs_broad_slope_12m s12, x.close_value close")
+
+
 def render_markets(idx_date) -> str:
-    """Full-bleed markets cockpit: a regime/breadth header strip, broad & sector
-    index cards (RS heat), and the full sortable index bundle — same visual
-    language as the screener/home (no more lean narrow page)."""
+    """Full-bleed markets cockpit: a regime banner + breadth tiles, a momentum-
+    ranked sector rotation strip (weather badges + both-trend pills), broad &
+    sector cards, the full sortable+clickable index bundle, and a read-only
+    latest-headlines card. Every index card/row → its /dash/index detail page."""
     from src.web import dashboard as D
     esc, pct, q, num = D._esc, D._pct, D._q, D._num
 
     allrows = {}
     breadth = nifty1d = None
+    news = ""
     if idx_date:
         with D.get_conn() as conn:
             for r in conn.execute(
-                "SELECT g.index_name nm, g.ret_1d_pct r1d, g.ret_1m_pct r1m, g.ret_3m_pct r3m, "
-                "g.pct_above_200d_avg a200, g.rs_vs_broad_trend_state st, g.broad_benchmark bb, "
-                "g.rs_vs_broad_slope_1m s1, g.rs_vs_broad_slope_3m s3, g.rs_vs_broad_slope_6m s6, "
-                "g.rs_vs_broad_slope_12m s12, x.close_value close "
-                "FROM index_signals g LEFT JOIN index_rows x USING(index_name,trade_date) "
+                f"SELECT {_MKT_COLS} FROM index_signals g "
+                "LEFT JOIN index_rows x USING(index_name,trade_date) "
                 "WHERE g.trade_date=?", (idx_date,)).fetchall():
-                allrows[r["nm"]] = dict(r)
+                allrows[r["nm"]] = _row_trends(dict(r))
             b = conn.execute(
                 "SELECT AVG(CASE WHEN pct_above_200d_avg>0 THEN 1.0 ELSE 0 END)*100 p "
                 "FROM index_signals WHERE trade_date=? AND pct_above_200d_avg IS NOT NULL",
@@ -381,50 +743,77 @@ def render_markets(idx_date) -> str:
             breadth = b["p"] if b and b["p"] is not None else None
             n = allrows.get("Nifty 50")
             nifty1d = n.get("r1d") if n else None
+            news = _news_card(conn, esc)
     if not allrows:
-        return '<div class="empty">No index data yet.</div>'
+        return _CKPT_CSS + '<div class="empty">No index data yet.</div>'
 
-    sect_up = sum(1 for s in D.MAJOR_SECTORS if allrows.get(s) and (allrows[s].get("s3") or 0) > 0)
-    sect_dn = sum(1 for s in D.MAJOR_SECTORS if allrows.get(s) and (allrows[s].get("s3") or 0) < 0)
+    # --- regime read (Nifty 50 absolute trend + breadth + sector RS + size) ---
+    nifty = allrows.get("Nifty 50", {})
+    n_abs = nifty.get("abs_label", "—")
+    n_sc = nifty.get("abs_score", 0)
+    real_present = [allrows[s] for s in D.REAL_SECTORS if s in allrows]
+    rs_up_secs = sum(1 for v in real_present if v.get("st") in ("UPTREND", "BREAKOUT"))
+    sect_rs_pct = (rs_up_secs / len(real_present) * 100) if real_present else None
+    lead_idx = None
+    best = -1e9
+    for s in D.LEADERSHIP_SET:
+        v = allrows.get(s)
+        if v and v.get("r3m") is not None and v["r3m"] > best:
+            best, lead_idx = v["r3m"], s
+    lead_txt = {"Nifty 50": "Large-caps leading", "Nifty Midcap 150": "Mid-caps leading",
+                "Nifty Smallcap 250": "Small-caps leading"}.get(lead_idx, lead_idx or "—")
+    bcls = "b-on" if n_sc >= 2 else ("b-off" if n_sc == 0 else "b-neu")
     breadth_txt = f"{breadth:.0f}%" if breadth is not None else "—"
+    sect_txt = f"{sect_rs_pct:.0f}%" if sect_rs_pct is not None else "—"
+    banner = (f'<div class="banner {bcls}" style="font-size:15px">Nifty 50 · {esc(n_abs)}'
+              f'<small>· 1d {pct(nifty1d)} · {breadth_txt} of indices &gt; 200-DMA '
+              f'· {sect_txt} of sectors in RS uptrend · {esc(lead_txt)}</small></div>')
 
     hdr = ('<div class="ck-tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'
            f'<div class="ck-tile" style="border-top:3px solid #58a6ff"><div class="ck-n">{pct(nifty1d)}</div>'
-           f'<div class="ck-l">Nifty 50 today</div></div>'
+           f'<div class="ck-l">Nifty 50 · today</div>'
+           f'<div class="ck-c"><span class="pill p-{nifty.get("abs_css","C")}">{esc(n_abs)}</span></div></div>'
            f'<div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n">{breadth_txt}</div>'
-           f'<div class="ck-l">indices &gt; 200-DMA</div></div>'
-           f'<div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n" style="color:#3fb950">{sect_up}</div>'
-           f'<div class="ck-l">sectors rising · 3m RS</div></div>'
-           f'<div class="ck-tile" style="border-top:3px solid #f85149"><div class="ck-n" style="color:#f85149">{sect_dn}</div>'
-           f'<div class="ck-l">sectors falling</div></div></div>')
+           f'<div class="ck-l">indices &gt; 200-DMA</div><div class="ck-c">absolute price breadth</div></div>'
+           f'<div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n" style="color:#3fb950">{sect_txt}</div>'
+           f'<div class="ck-l">sectors in RS uptrend</div><div class="ck-c">vs Nifty 500</div></div>'
+           f'<div class="ck-tile" style="border-top:3px solid #d2a8ff"><div class="ck-n" style="font-size:15px;padding-top:7px">{esc(lead_txt)}</div>'
+           f'<div class="ck-l">size leadership</div><div class="ck-c">by 3m return</div></div></div>')
 
     def maj_card(v):
-        st = v["st"]
-        chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st else ''
+        bits = [f'<span class="pill p-{v["abs_css"]}">{esc(v["abs_label"])}</span>']
+        if v.get("weather"):  # sectors only (broad indices have no RS/weather)
+            bits.append(_weather_badge(v["weather"], v.get("wreasons")))
         strip = D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])
-        return (f'<a class="maj" href="/dash/ratio?idx={q(v["nm"])}">'
-                f'<div class="nm">{esc(v["nm"])}{chip}</div>'
-                f'<div class="rr"><span class="mut">ABS</span><span>{num(v["close"],0)}</span>'
+        rel = (f'<span class="pill p-{v["rel_css"]}" style="margin-left:6px">{esc(v["rel_label"])}</span>'
+               if v.get("rel_label") else '')
+        return (f'<a class="maj" href="/dash/index?idx={q(v["nm"])}">'
+                f'<div class="nm">{esc(v["nm"])} {" ".join(bits)}</div>'
+                f'<div class="rr"><span class="mut">PRICE</span><span>{num(v["close"],0)}</span>'
                 f'<span>1d {pct(v["r1d"])}</span><span>1m {pct(v["r1m"])}</span>'
                 f'<span>3m {pct(v["r3m"])}</span></div>'
-                f'<div class="rr"><span class="grp">RS</span>{strip}'
-                f'<span class="mut" style="font-size:11px">vs Nifty 500</span></div></a>')
+                f'<div class="rr"><span class="grp">RS</span>{strip}{rel}</div></a>')
 
+    # Momentum-ranked sector rotation strip (real sectors, strongest first).
+    rot = sorted(real_present, key=lambda v: -(v.get("mom") or -1e9))
+    rot_html = "".join(maj_card(v) for v in rot[:8])
     broad_html = "".join(maj_card(allrows[n]) for n in D.MAJOR_BROAD if n in allrows)
-    sect_html = "".join(maj_card(allrows[n]) for n in D.MAJOR_SECTORS if n in allrows)
 
     bundle = sorted(allrows.values(), key=lambda v: (v["r3m"] is None, -(v["r3m"] or 0)))
     brows = []
     for v in bundle:
         grp = "broad" if v["bb"] is None else "sector"
         st = v["st"] or ""
-        chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st else '<span class="mut">—</span>')
+        rs_chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st else '<span class="mut">—</span>')
+        abs_chip = f'<span class="pill p-{v["abs_css"]}">{esc(v["abs_label"])}</span>'
+        wx = _weather_badge(v["weather"], v.get("wreasons")) if v.get("weather") else '<span class="mut">—</span>'
         brows.append(
-            f'<tr data-grp="{grp}"><td class="sym">{esc(v["nm"])}</td>'
+            f'<tr data-grp="{grp}"><td class="sym"><a class="row" style="display:inline" '
+            f'href="/dash/index?idx={q(v["nm"])}">{esc(v["nm"])}</a></td>'
             f'<td class="num">{pct(v["r1d"])}</td><td class="num">{pct(v["r1m"])}</td>'
             f'<td class="num">{pct(v["r3m"])}</td>'
             f'<td>{D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])}</td>'
-            f'<td>{chip}</td></tr>')
+            f'<td>{abs_chip}</td><td>{rs_chip}</td><td>{wx}</td></tr>')
     js = ("<script>function mflt(g,el){document.querySelectorAll('#mbundle tr[data-grp]').forEach("
           "function(r){r.style.display=(g==='all'||r.dataset.grp===g)?'':'none';});"
           "document.querySelectorAll('#mbar .fbtn').forEach(function(b){b.classList.remove('on');});"
@@ -432,19 +821,841 @@ def render_markets(idx_date) -> str:
 
     return (_CKPT_CSS
             + '<h2 style="margin-top:2px">Markets <span class="sub" style="margin:0">regime · indexes · sectors</span></h2>'
-            + hdr
-            + '<div class="sub" style="margin-top:2px">Tap any card → its ratio chart &amp; constituents. '
+            + banner + hdr
+            + '<div class="sub" style="margin-top:2px">Tap any index → its full detail page: '
+              'price trend, relative strength, valuation &amp; constituent roll-up. '
               '<a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>'
+            + '<div class="ghdr">Sector rotation · strongest momentum first (0.6·3m + 0.4·6m RS)</div>'
+            + f'<div class="mkt-grid">{rot_html}</div>'
             + '<div class="ghdr">Broad / size</div>'
             + f'<div class="mkt-grid">{broad_html}</div>'
-            + '<div class="ghdr">Core sectors</div>'
-            + f'<div class="mkt-grid">{sect_html}</div>'
-            + '<h2>Full index bundle <span class="sub" style="margin:0">RS heat per index · sortable</span></h2>'
+            + '<h2>Full index bundle <span class="sub" style="margin:0">price trend + RS heat per index · sortable</span></h2>'
             + '<div id="mbar" class="fbar">'
               "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
               "<button class=\"fbtn\" onclick=\"mflt('broad',this)\">Broad/Size</button>"
               "<button class=\"fbtn\" onclick=\"mflt('sector',this)\">Sectoral</button></div>"
             + '<div class="card" style="padding:6px 10px"><table id="mbundle" class="dt" style="font-size:12.5px">'
               '<thead><tr><th class="l">Index</th><th class="num">1d</th><th class="num">1m</th>'
-              '<th class="num">3m</th><th class="l">RS 1m/3m/6m/12m</th><th>Trend</th></tr></thead>'
-            + f'<tbody>{"".join(brows)}</tbody></table></div>' + js)
+              '<th class="num">3m</th><th class="l">RS 1m/3m/6m/12m</th><th>Price trend</th>'
+              '<th>RS trend</th><th>Weather</th></tr></thead>'
+            + f'<tbody>{"".join(brows)}</tbody></table></div>' + js
+            + ('<h2>Latest headlines <span class="sub" style="margin:0">market-wide</span></h2>'
+               + '<div class="mkt-grid" style="grid-template-columns:1fr">' + news + '</div>' if news else ''))
+
+
+def _idx_median(xs):
+    if not xs:
+        return None
+    xs = sorted(xs)
+    m = len(xs) // 2
+    return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2.0
+
+
+def render_index_detail(idx, idx_date, sig_date) -> str:
+    """Full-bleed single-index analytics page (/dash/index). Branches broad vs
+    sector on broad_benchmark. The headline is a TWO-AXIS verdict — the ABSOLUTE
+    price trend (derived on-read from the index's own 50/200-DMA + 3m return + 52w
+    position) shown BESIDE the existing RS trend — which fixes "trends not properly
+    identified". Adds the own-price chart, returns/MA/52w/valuation, and the
+    EQUAL-WEIGHT bottom-up constituent roll-up. Deterministic, zero-LLM."""
+    from src.web import dashboard as D
+    esc, pct, q, num = D._esc, D._pct, D._q, D._num
+    idx = (idx or "").strip()
+    if not idx:
+        return _CKPT_CSS + '<div class="empty">No index selected. Reach this from Markets or Sectors.</div>'
+
+    S, IR, hist, pe_hist, momrows, members, rd = {}, {}, [], [], [], [], []
+    with D.get_conn() as conn:
+        known = conn.execute("SELECT 1 FROM index_rows WHERE index_name=? LIMIT 1", (idx,)).fetchone()
+        if not known:
+            return _CKPT_CSS + f'<div class="empty">Unknown index <b>{esc(idx)}</b>.</div>'
+        sig = conn.execute(
+            "SELECT close_value iclose, broad_benchmark bb, rs_vs_broad_trend_state st, "
+            "ret_1d_pct r1d, ret_1w_pct r1w, ret_1m_pct r1m, ret_3m_pct r3m, ret_6m_pct r6m, "
+            "ret_12m_pct r12m, pct_above_50d_avg pa50, pct_above_200d_avg a200, "
+            "pct_off_52w_high off52h, pct_above_52w_low abv52l, rs_vs_broad_today rs, "
+            "rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3, rs_vs_broad_slope_6m s6, "
+            "rs_vs_broad_slope_12m s12, rs_vs_broad_above_50ma a50, rs_vs_broad_above_200ma a200ma, "
+            "rs_vs_broad_new_52w_high nh FROM index_signals WHERE index_name=? "
+            "ORDER BY trade_date DESC LIMIT 1", (idx,)).fetchone()
+        S = dict(sig) if sig else {}
+        irow = conn.execute(
+            "SELECT open_value o, high_value h, low_value l, close_value close, points_change pts, "
+            "change_pct chg, volume vol, turnover_cr tov, pe, pb, dividend_yield dy, trade_date td "
+            "FROM index_rows WHERE index_name=? ORDER BY trade_date DESC LIMIT 1", (idx,)).fetchone()
+        IR = dict(irow) if irow else {}
+        hist = [dict(r) for r in conn.execute(
+            "SELECT trade_date t, open_value o, high_value h, low_value l, close_value c "
+            "FROM index_rows WHERE index_name=? AND close_value IS NOT NULL "
+            "ORDER BY trade_date ASC", (idx,)).fetchall()]
+        pe_hist = [r["pe"] for r in conn.execute(
+            "SELECT pe FROM index_rows WHERE index_name=? AND pe IS NOT NULL "
+            "ORDER BY trade_date DESC LIMIT 252", (idx,)).fetchall()]
+        momrows = [r["mom"] for r in conn.execute(
+            "WITH latest AS (SELECT MAX(trade_date) d FROM index_signals) "
+            "SELECT (0.6*COALESCE(rs_vs_broad_slope_3m,0)+0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom "
+            "FROM index_signals, latest WHERE trade_date=latest.d AND broad_benchmark IS NOT NULL").fetchall()]
+        syms = D._sector_symbols(conn, idx)
+        if syms and sig_date:
+            ph = ",".join("?" for _ in syms)
+            members = [dict(r) for r in conn.execute(
+                f"SELECT s.symbol, s.rs_rank, s.rs_vs_broad_trend_state st, s.accum_character ch, "
+                f"s.is_ath_dvpt ath, s.pct_from_52w_high pfh, s.p_score, s.trigger_rank rank, "
+                f"s.delivery_value_today dvt, s.delivery_value_per_trade dvpt, s.power_dvpt_1m p1, "
+                f"s.power_dvpt_2m p2, s.power_dvpt_3m p3, s.power_dvpt_6m p6, s.power_dvpt_12m p12, "
+                f"s.price_vs_hot_avg_pct pvh, s.primary_sector sec, b.close cmp, b.prev_close pc "
+                f"FROM stock_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+                f"WHERE s.trade_date=? AND s.symbol IN ({ph}) {D._SCAN_FILTERS}",
+                (sig_date, *syms)).fetchall()]
+        # RS-ratio curve (index ÷ Nifty 500) — the chart Ramana reviews; the
+        # cockpit page is the superset of the old /dash/ratio. Empty for broad/size
+        # indices (no ratio vs themselves), which simply hides the ratio chart.
+        for r in conn.execute(
+                "SELECT trade_date t, ratio FROM ratio_rows "
+                "WHERE numerator=? AND denominator='Nifty 500' AND ratio IS NOT NULL "
+                "ORDER BY trade_date ASC", (idx,)).fetchall():
+            rd.append({"t": r["t"], "r": round(r["ratio"], 4)})
+
+    is_broad = S.get("bb") is None
+
+    # --- roll-up stats (EQUAL-WEIGHT — membership carries no weight_pct) -------
+    N = len(members)
+    rs_ranks = [m["rs_rank"] for m in members if m.get("rs_rank") is not None]
+    n_up = sum(1 for m in members if m.get("st") in ("UPTREND", "BREAKOUT"))
+    breadth_pct = (n_up / N * 100) if N else None
+    n_leaders = sum(1 for m in members if (m.get("rs_rank") or 0) >= 80)
+    avg_rs = (sum(rs_ranks) / len(rs_ranks)) if rs_ranks else None
+    med_rs = _idx_median(rs_ranks)
+    n_acc = sum(1 for m in members if m.get("ch") == "ACCUMULATION")
+    n_dist = sum(1 for m in members if m.get("ch") == "DISTRIBUTION")
+    n_cons = sum(1 for m in members if m.get("ch") == "CONSOLIDATION")
+    n_neu = sum(1 for m in members if m.get("ch") == "NEUTRAL")
+    n_near = sum(1 for m in members if m.get("pfh") is not None and m["pfh"] >= -5)
+    n_ath = sum(1 for m in members if m.get("ath"))
+    accum_skew = n_acc - n_dist
+
+    # --- the two-axis verdict -------------------------------------------------
+    al, acss, asc = _abs_trend(S.get("a200"), S.get("pa50"),
+                               S.get("r3m"), S.get("off52h"), S.get("abv52l"))
+    rl, rcss = (None, None) if is_broad else _rel_trend(
+        S.get("st"), S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"))
+    verdict = _index_verdict(is_broad, al, asc, rl)
+    if is_broad:
+        weather, wreasons = None, None
+    else:
+        weather, wreasons = sector_weather(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"),
+                                           S.get("st"), breadth=breadth_pct, accum_skew=accum_skew)
+    if al == "NEAR HIGH":
+        bcls = "b-on"
+    elif al == "NEAR LOW":
+        bcls = "b-off"
+    else:
+        bcls = "b-on" if asc >= 2 else ("b-off" if asc == 0 else "b-neu")
+
+    abs_pill = f'<span class="pill p-{acss}">PRICE: {esc(al)}</span>'
+    rel_pill = f'<span class="pill p-{rcss}">RS: {esc(rl)}</span>' if rl else ''
+    wbadge = _weather_badge(weather, wreasons) if (not is_broad and weather) else ''
+    raw = (f'{pct(S.get("pa50"))} vs 50-DMA · {pct(S.get("a200"))} vs 200-DMA · '
+           f'3m ret {pct(S.get("r3m"))} · {pct(S.get("off52h"))} off 52w-high · '
+           f'{pct(S.get("abv52l"))} above 52w-low')
+    kind = "broad / size index" if is_broad else "sector"
+    head = (f'<h2 style="margin-top:2px">{esc(idx)} '
+            f'<span class="sub" style="margin:0">{kind} · {esc(IR.get("td") or idx_date or "")}</span></h2>')
+    banner = (f'<div class="banner {bcls}" style="font-size:16px">{esc(verdict)}'
+              f'<small>{abs_pill} {rel_pill} {wbadge}</small></div>'
+              f'<div class="sub" style="margin-top:-6px">{raw}'
+              + ('' if is_broad else ' &nbsp;<span class="mut">PRICE = its own trend · '
+                 'RS = vs Nifty 500 — the two can disagree.</span>') + '</div>')
+
+    # --- own-price OHLC (candles/line; MAs computed client-side per interval) ---
+    cd = []
+    for r in hist:
+        c = r["c"]
+        if c is None:
+            continue
+        o = r["o"] if r["o"] is not None else c
+        hi = r["h"] if r["h"] is not None else c
+        lo = r["l"] if r["l"] is not None else c
+        cd.append({"t": r["t"], "o": round(o, 2), "h": round(hi, 2),
+                   "l": round(lo, 2), "c": round(c, 2)})
+    chart_css = ("<style>.rangebar{display:flex;gap:6px;margin:8px 0 4px;}"
+                 ".rangebar button{background:#21262d;color:#c9d1d9;border:1px solid #30363d;"
+                 "border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;}"
+                 ".rangebar button.on{background:#1f6feb;border-color:#1f6feb;color:#fff;}"
+                 ".chartwrap{background:#161b22;border:1px solid #30363d;border-radius:10px;"
+                 "padding:8px;margin-bottom:6px;}.chartlbl{color:#8b949e;font-size:11px;"
+                 "text-transform:uppercase;letter-spacing:.4px;margin:2px 4px 4px;}</style>")
+    chart_html = ""
+    if cd:
+        chart_html = (
+            '<h2>Price <span class="sub" style="margin:0">candles / line · D·W·M·Q · 50/200-MA</span></h2>'
+            '<div class="fbar" id="idxPriceType"><button class="fbtn on" data-itype="candle">Candles</button>'
+            '<button class="fbtn" data-itype="line">Line</button></div>'
+            '<div class="fbar" id="idxPriceTf"><button class="fbtn on" data-itf="d">Daily</button>'
+            '<button class="fbtn" data-itf="w">Weekly</button><button class="fbtn" data-itf="m">Monthly</button>'
+            '<button class="fbtn" data-itf="q">Quarterly</button></div>'
+            '<div class="rangebar" id="idxPriceRange"><button data-r="63">3M</button>'
+            '<button data-r="126">6M</button><button data-r="252" class="on">1Y</button>'
+            '<button data-r="504">2Y</button><button data-r="1260">5Y</button><button data-r="0">Max</button></div>'
+            f'<div class="chartwrap"><div class="chartlbl">{esc(idx)} · price (candles / line) + 50/200-MA</div>'
+            '<div id="idxRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;'
+            'min-height:16px;margin:2px 0 3px"></div><div id="idxChart" style="height:320px"></div></div>')
+
+    # --- today snapshot: KPI + OHLC/valuation + returns + technicals ----------
+    def _v(x, d=2, suf=""):
+        return f"{x:,.{d}f}{suf}" if x is not None else "—"
+    iclose = IR.get("close") if IR.get("close") is not None else S.get("iclose")
+    pts = IR.get("pts")
+    kpi = ('<div class="kpi">'
+           f'<div class="box"><div class="num">{_v(iclose, 2)}</div>'
+           f'<div class="lbl">close{(" " + ("%+.0f" % pts)) if pts is not None else ""}</div></div>'
+           f'<div class="box"><div class="num">{pct(IR.get("chg"))}</div><div class="lbl">today</div></div>'
+           f'<div class="box"><div class="num" style="font-size:18px;padding-top:6px">{pct(S.get("r1m"))}</div>'
+           f'<div class="lbl">1m return</div></div></div>')
+    pe_today = IR.get("pe")
+    val_pctl = None
+    if pe_today is not None and pe_hist:
+        below = sum(1 for x in pe_hist if x < pe_today)
+        val_pctl = round(below / len(pe_hist) * 100)
+    val_txt = (f' · <span class="mut">{val_pctl}th pctile of {len(pe_hist)}d (higher = richer)</span>'
+               if val_pctl is not None else '')
+    # Actual MA + 52-week LEVELS (data-first — the % beside the level, not %-only).
+    _cl = [d["c"] for d in cd]
+    dma50 = (sum(_cl[-50:]) / 50) if len(_cl) >= 50 else None
+    dma200 = (sum(_cl[-200:]) / 200) if len(_cl) >= 200 else None
+    _o52, _a52 = S.get("off52h"), S.get("abv52l")
+    hi52 = (iclose / (1 + _o52 / 100.0)) if (iclose and _o52 is not None) else None
+    lo52 = (iclose / (1 + _a52 / 100.0)) if (iclose and _a52 is not None) else None
+    stats = ('<div class="card" style="padding:6px 10px"><table><tbody>'
+             f'<tr><td class="mut">Open</td><td>{_v(IR.get("o"))}</td>'
+             f'<td class="mut">High</td><td>{_v(IR.get("h"))}</td>'
+             f'<td class="mut">Low</td><td>{_v(IR.get("l"))}</td></tr>'
+             f'<tr><td class="mut">Volume</td><td>{_v(IR.get("vol"), 0)}</td>'
+             f'<td class="mut">Turnover</td><td>{("₹" + _v(IR.get("tov"), 0) + " Cr") if IR.get("tov") is not None else "—"}</td>'
+             f'<td class="mut">Div yld</td><td>{_v(IR.get("dy"), 2, "%")}</td></tr>'
+             f'<tr><td class="mut">P/E</td><td>{_v(pe_today)}{val_txt}</td>'
+             f'<td class="mut">P/B</td><td>{_v(IR.get("pb"))}</td>'
+             f'<td class="mut">50-DMA</td><td>{_v(dma50)} <span class="mut">({pct(S.get("pa50"))})</span></td></tr>'
+             f'<tr><td class="mut">200-DMA</td><td>{_v(dma200)} <span class="mut">({pct(S.get("a200"))})</span></td>'
+             f'<td class="mut">52w high</td><td>{_v(hi52)} <span class="mut">({pct(_o52)})</span></td>'
+             f'<td class="mut">52w low</td><td>{_v(lo52)} <span class="mut">({pct(_a52)})</span></td></tr>'
+             '</tbody></table></div>')
+    rets = " · ".join(f'{lbl} {pct(S.get(k))}' for lbl, k in
+                      (("1d", "r1d"), ("1w", "r1w"), ("1m", "r1m"),
+                       ("3m", "r3m"), ("6m", "r6m"), ("12m", "r12m")))
+    snapshot = (kpi + stats
+                + f'<div class="sub" style="margin:6px 0 10px"><b>Returns</b> &nbsp;{rets}</div>')
+
+    # --- sector-only RS block: strip + quadrant + RS-momentum percentile ------
+    rs_block = ""
+    if not is_broad:
+        s3 = S.get("s3")
+        r3 = S.get("r3m")
+
+        def _cl(v, lo, hi):
+            return lo if v < lo else (hi if v > hi else v)
+        xv = r3 if r3 is not None else 0.0
+        yv = s3 if s3 is not None else 0.0
+        px = _cl(90 + (xv / 15.0) * 75.0, 12, 168)
+        py = _cl(90 - (yv / 15.0) * 75.0, 12, 168)
+        quad = (
+            '<div class="card" style="text-align:center">'
+            '<svg viewBox="0 0 180 180" width="170" height="170" style="max-width:100%" '
+            'xmlns="http://www.w3.org/2000/svg">'
+            '<rect x="10" y="10" width="160" height="160" rx="6" fill="#0d1117" stroke="#30363d"/>'
+            '<line x1="90" y1="10" x2="90" y2="170" stroke="#30363d"/>'
+            '<line x1="10" y1="90" x2="170" y2="90" stroke="#30363d"/>'
+            '<text x="160" y="24" fill="#484f58" font-size="7" text-anchor="end">LEADER</text>'
+            '<text x="20" y="24" fill="#484f58" font-size="7">DEFENSIVE</text>'
+            '<text x="160" y="164" fill="#484f58" font-size="7" text-anchor="end">LAZY LAGGARD</text>'
+            '<text x="20" y="164" fill="#484f58" font-size="7">LAGGARD</text>'
+            '<text x="172" y="93" fill="#6e7681" font-size="6" text-anchor="end">ret&#8594;</text>'
+            '<text x="93" y="16" fill="#6e7681" font-size="6">RS&#8593;</text>'
+            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5" fill="#1f6feb" stroke="#79c0ff" stroke-width="1.5"/>'
+            '</svg><div class="sub" style="margin:6px 0 0">X = 3m return · Y = 3m RS slope</div></div>')
+        my_mom = 0.6 * (s3 or 0) + 0.4 * (S.get("s6") or 0)
+        moms = sorted(momrows)
+        pctl = 50
+        if moms:
+            below = sum(1 for m in moms if m < my_mom)
+            pctl = max(1, min(99, round(below / len(moms) * 99)))
+        gauge = (f'<div class="card"><div class="sub" style="margin:0 0 6px">RS momentum '
+                 f'<b>{pctl}/99</b> — stronger than {pctl}% of {len(moms)} sectors '
+                 f'(0.6·3m + 0.4·6m RS slope).</div>'
+                 f'<div class="bar"><span style="width:{pctl}%"></span></div></div>')
+        rs_strip = D._rs_strip(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"))
+        if rd:
+            ratio_chart = (
+                '<div class="fbar" id="idxRatioTf"><button class="fbtn on" data-itf="d">Daily</button>'
+                '<button class="fbtn" data-itf="w">Weekly</button><button class="fbtn" data-itf="m">Monthly</button>'
+                '<button class="fbtn" data-itf="q">Quarterly</button></div>'
+                '<div class="rangebar" id="idxRatioRange"><button data-r="63">3M</button>'
+                '<button data-r="126">6M</button><button data-r="252" class="on">1Y</button>'
+                '<button data-r="504">2Y</button><button data-r="1260">5Y</button>'
+                '<button data-r="0">Max</button></div>'
+                f'<div class="chartwrap"><div class="chartlbl">{esc(idx)} ÷ Nifty 500 — relative-strength ratio (line) '
+                '· amber=50-MA · grey=200-MA · ↑/↓50 crosses · ● new high (per interval)</div>'
+                '<div id="idxRatioRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;'
+                'min-height:16px;margin:2px 0 3px"></div><div id="idxRatioChart" style="height:280px"></div></div>')
+        else:
+            ratio_chart = ('<div class="card"><div class="sub" style="margin:0">No RS-ratio series on record '
+                           'for this index yet.</div></div>')
+        rs_block = (
+            '<h2>Relative strength <span class="sub" style="margin:0">vs Nifty 500 · the RS-ratio chart</span></h2>'
+            f'<div class="sub" style="margin-bottom:6px">{rs_strip} &nbsp; '
+            f'3m RS slope {pct(s3)} · trend <span class="pill p-{rcss or "C"}">{esc(rl or "—")}</span>. '
+            f'<a class="row" style="display:inline" href="/dash/ratio?idx={q(idx)}">Standalone ratio page (also vs Nifty 50) &#8594;</a></div>'
+            + ratio_chart
+            + '<div class="mkt-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">'
+            + quad + gauge + '</div>')
+
+    # --- bottom-up constituent roll-up (EQUAL-WEIGHT) -------------------------
+    rollup = ""
+    if N:
+        breadth_txt = f"{breadth_pct:.0f}%" if breadth_pct is not None else "—"
+        avg_txt = f"{avg_rs:.0f}" if avg_rs is not None else "—"
+        med_txt = f"{med_rs:.0f}" if med_rs is not None else "—"
+        tiles = _ck_strip([
+            _ck_tile(N, "Constituents", "#58a6ff", "equal-weight roll-up"),
+            _ck_tile(breadth_txt, "In RS uptrend", "#3fb950", "members RS-up vs Nifty 500"),
+            _ck_tile(n_leaders, "RS leaders", "#3fb950", "rs_rank ≥ 80"),
+            _ck_tile(avg_txt, "Avg RS rank", "#d2a8ff", f"median {med_txt}"),
+            _ck_tile(n_near, "Near 52w-high", "#d29922", "within 5%"),
+            _ck_tile(n_ath, "ATH-DVPT", "#f0883e", "all-time delivery peak"),
+        ])
+        tot_ch = n_acc + n_dist + n_cons + n_neu
+        if tot_ch:
+            def _seg(n, col):
+                w = n / tot_ch * 100
+                return f'<span style="width:{w:.1f}%;background:{col}"></span>' if n else ''
+            bar = ('<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;'
+                   'margin:2px 0 6px;background:#21262d">'
+                   + _seg(n_acc, "#2ea043") + _seg(n_cons, "#bb8009")
+                   + _seg(n_neu, "#484f58") + _seg(n_dist, "#f85149") + '</div>')
+            split = (f'<div class="card"><div class="ck-h">Accumulation split'
+                     '<span class="sub" style="margin:0;font-weight:400">delivery character across members</span></div>'
+                     + bar +
+                     f'<div class="sub" style="margin:0">🟢 {n_acc} accumulation · 🟡 {n_cons} consolidation · '
+                     f'⚪ {n_neu} neutral · 🔴 {n_dist} distribution · net skew '
+                     f'<b>{accum_skew:+d}</b></div></div>')
+        else:
+            split = ""
+        drill = (f'<a class="row" style="display:inline" href="/dash/stocks?sector={q(idx)}">'
+                 f'See all {N} constituent stocks &#8594;</a>')
+        rollup = ('<h2>Inside the index <span class="sub" style="margin:0">bottom-up · equal-weight · '
+                  f'{N} liquid members</span></h2>'
+                  '<div class="sub" style="margin-top:2px">Membership carries no free-float weight, so every '
+                  f'roll-up here is <b>equal-weight</b>. Breadth = share of members whose RS vs Nifty 500 is in an '
+                  f'uptrend. {drill}</div>' + tiles + split)
+
+        # leaders & laggards within the index (by rs_rank)
+        ranked = [m for m in members if m.get("rs_rank") is not None]
+        ranked.sort(key=lambda m: m["rs_rank"], reverse=True)
+
+        def _ll(rows):
+            o = ""
+            for m in rows:
+                o += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(m["symbol"])}">'
+                      f'<span class="sym">{esc(m["symbol"])}</span></a></td>'
+                      f'<td class="r">{m["rs_rank"]}</td>'
+                      f'<td class="l">{D._char_pill(m.get("ch"))}</td>'
+                      f'<td class="r">{pct(m.get("pfh"))}</td></tr>')
+            return f'<table class="ck-t"><tbody>{o}</tbody></table>'
+        if ranked:
+            lead_board = _board('🏆 RS leaders', 'strongest in the index', _ll(ranked[:8]),
+                                f"/dash/stocks?sector={q(idx)}", "All constituents", "#3fb950")
+            lag_board = _board('🐌 RS laggards', 'weakest in the index', _ll(ranked[-8:][::-1]),
+                               f"/dash/stocks?sector={q(idx)}", "All constituents", "#f85149")
+        else:
+            lead_board = lag_board = ""
+
+        # intra-index DVPT (where institutional delivery money is positioning)
+        dv = sorted(members, key=lambda m: (1 if m.get("ath") else 0,
+                                            m.get("p_score") or -1, m.get("dvt") or 0), reverse=True)
+        dvrows = ""
+        for m in dv[:8]:
+            if not m.get("dvpt"):
+                continue
+            rank = m.get("rank") or "-"
+            athg = "⚡" if m.get("ath") else ""
+            ladder = D._mv_ladder(m.get("dvpt"), m.get("p1"), m.get("p2"), m.get("p3"),
+                                  m.get("p6"), m.get("p12"))
+            pvh = m.get("pvh")
+            entry = ("🟢 disc" if (pvh is not None and pvh < -3)
+                     else "🔴 ext" if (pvh is not None and pvh > 3) else "🟡 at-cost")
+            dvrows += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(m["symbol"])}">'
+                       f'<span class="sym">{athg}{esc(m["symbol"])}</span></a></td>'
+                       f'<td class="l">{ladder}</td>'
+                       f'<td><span class="pill p-{rank}">{rank}</span></td>'
+                       f'<td class="l">{entry}</td></tr>')
+        dvpt_board = (_board('⚡ Intra-index DVPT', 'institutional delivery positioning',
+                             f'<table class="ck-t"><tbody>{dvrows}</tbody></table>',
+                             "/dash/stocks", "Positioning screen", "#58a6ff")
+                      if dvrows else "")
+        boards = "".join(b for b in (lead_board, lag_board, dvpt_board) if b)
+        if boards:
+            rollup += '<div class="ckpt">' + boards + '</div>'
+    elif not is_broad:
+        rollup = ('<h2>Inside the index</h2><div class="empty">No liquid constituent signals on record '
+                  'for this index yet.</div>')
+
+    chart_js = (_INDEX_CHART_JS.replace("__CDN__", D._LWC_CDN)
+                .replace("__DATA__", json.dumps({"price": cd, "ratio": rd})))
+    crumb = ('<div class="sub" style="margin:0 0 6px">&#8592; '
+             '<a class="row" style="display:inline" href="/dash/markets">Markets</a> · '
+             '<a class="row" style="display:inline" href="/dash/sectors">Sectors</a></div>')
+    # Price first (own candles) → today's snapshot → relative strength (RS heat +
+    # ratio chart) → constituent roll-up. Price leads; relative read follows.
+    return (_CKPT_CSS + chart_css + crumb + head + banner + chart_html + snapshot
+            + rs_block + rollup + chart_js)
+
+
+def render_strategies(sig_date, idx_date) -> str:
+    """Full-bleed, registry-driven STRATEGY HUB — same cockpit language as home/markets.
+    The count-strip is driven by STRATEGY_REGISTRY (a new pillar auto-appears), then a
+    board per pillar previews TODAY's top names. Replaces the old narrow .scard hub."""
+    from src.web import dashboard as D
+    esc = D._esc
+
+    counts, conv, pos, rs, qual, cpr_top, cci = {}, [], [], [], [], [], []
+    with D.get_conn() as conn:
+        for e in STRATEGY_REGISTRY:
+            try:
+                counts[e["key"]] = e["count"](conn, sig_date, D)
+            except Exception:
+                counts[e["key"]] = None
+        if sig_date:
+            cpr_top = D._cpr_setups(conn, limit=6)
+            cx = "(0.55*COALESCE(s.p_score,0)/5.0*100.0 + 0.45*COALESCE(s.rs_rank,0))"
+            conv = [dict(r) for r in conn.execute(
+                f"SELECT s.symbol, {cx} v, s.primary_sector sec FROM stock_signals s "
+                f"JOIN bhavcopy_rows b USING (symbol, trade_date) WHERE s.trade_date=? "
+                f"AND s.delivery_value_per_trade IS NOT NULL {D._SCAN_FILTERS} ORDER BY v DESC LIMIT 6",
+                (sig_date,)).fetchall()]
+            pos = [dict(r) for r in conn.execute(
+                f"SELECT s.symbol, s.trigger_rank v, s.primary_sector sec FROM stock_signals s "
+                f"JOIN bhavcopy_rows b USING (symbol, trade_date) WHERE s.trade_date=? "
+                f"AND s.delivery_value_per_trade IS NOT NULL {D._SCAN_FILTERS} "
+                f"ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC, "
+                f"COALESCE(s.delivery_value_today,0) DESC LIMIT 6", (sig_date,)).fetchall()]
+            rs = [dict(r) for r in conn.execute(
+                f"SELECT s.symbol, s.rs_rank v, s.primary_sector sec FROM stock_signals s "
+                f"JOIN bhavcopy_rows b USING (symbol, trade_date) WHERE s.trade_date=? "
+                f"AND s.rs_rank IS NOT NULL {D._SCAN_FILTERS} ORDER BY s.rs_rank DESC LIMIT 6",
+                (sig_date,)).fetchall()]
+        qual = [dict(r) for r in conn.execute(
+            "SELECT p.symbol, p.ns_base v, p.tier FROM pattern_scores p "
+            "JOIN (SELECT symbol, MAX(scored_at) m FROM pattern_scores GROUP BY symbol) x "
+            "ON x.symbol=p.symbol AND x.m=p.scored_at WHERE p.ns_base IS NOT NULL "
+            "ORDER BY p.ns_base DESC LIMIT 6").fetchall()]
+        cci = [dict(r) for r in conn.execute(
+            "SELECT s.symbol, s.composite_score v, s.tier, s.forward_direction fd FROM concall_scores s "
+            "JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x "
+            "ON x.symbol=s.symbol AND x.m=s.last_updated WHERE COALESCE(s.veto_active,0)=0 "
+            "AND s.composite_score IS NOT NULL ORDER BY s.composite_score DESC LIMIT 6").fetchall()]
+
+    reg = {e["key"]: e for e in STRATEGY_REGISTRY}
+
+    # --- registry count strip ---
+    tiles = []
+    for e in STRATEGY_REGISTRY:
+        c = counts.get(e["key"])
+        cval = "—" if c is None else str(c)
+        tiles.append(
+            f'<a class="ck-tile" href="{e["href"]}" style="border-top:3px solid {e["accent"]}" '
+            f'title="{esc(e["thesis"])}"><div class="ck-n" style="color:{e["accent"]}">{cval}</div>'
+            f'<div class="ck-l">{esc(e["label"])}</div><div class="ck-c">{esc(e["cta"])}</div></a>')
+    strip = '<div class="ck-tiles">' + "".join(tiles) + '</div>'
+
+    def name_rows(rows, fmt):
+        if not rows:
+            return '<table class="ck-t"><tbody><tr><td class="mut">No names today.</td></tr></tbody></table>'
+        o = ""
+        for r in rows:
+            o += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
+                  f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
+                  f'<td class="l mut">{esc(r.get("sec") or r.get("tier") or "")}</td>'
+                  f'<td class="r">{fmt(r)}</td></tr>')
+        return f'<table class="ck-t"><tbody>{o}</tbody></table>'
+
+    def b(key, rows, fmt):
+        e = reg[key]
+        return _board(esc(e["label"]), e["cta"], name_rows(rows, fmt), e["href"],
+                      "Open the full screen", e["accent"])
+
+    boards = [
+        b("CONV", conv, lambda r: f'{r["v"]:.0f}' if r.get("v") is not None else "—"),
+        b("POS", pos, lambda r: f'<span class="pill p-{r.get("v") or "-"}">{esc(r.get("v") or "-")}</span>'),
+        b("RS", rs, lambda r: f'#{r["v"]}' if r.get("v") is not None else "—"),
+        b("CPR", [{"symbol": s.get("symbol"), "sec": (s.get("conv") or {}).get("anchor"),
+                   "v": (s.get("conv") or {}).get("tier")} for s in cpr_top],
+          lambda r: esc(r.get("v") or "")),
+        b("QUAL", qual, lambda r: f'{r["v"]:.0f}' if r.get("v") is not None else "—"),
+        b("CCI", cci, lambda r: (f'{D._cci_num(r.get("v"))} {D._cci_fwd(r.get("fd"))}')),
+    ]
+    hub = '<div class="ckpt">' + "".join(boards) + '</div>'
+
+    head = ('<h2 style="margin-top:2px">Strategies '
+            '<span class="sub" style="margin:0">one lens per pillar · today\'s best names</span></h2>'
+            '<div class="sub" style="margin-top:2px">Each tile is a live count — open it to screen. '
+            'A new strategy added to the registry appears here automatically.</div>')
+    return _CKPT_CSS + head + strip + hub
+
+
+# --- CCI: Management Credibility full-bleed board (the "credible screen") ------
+def _cci_tierpill(t) -> str:
+    t = t or "—"
+    col = "#3fb950" if t in ("A+", "A") else ("#f85149" if t == "D" else "#8b949e")
+    return f'<span style="color:{col};font-weight:700">{t}</span>'
+
+
+def render_concalls(view: str) -> str:
+    """Full-bleed Management-Credibility board (CCI). Cockpit language: a count-strip
+    (leaders / avoid / unproven / vetoed) + the view toggle + the data-first table
+    (raw measurables beside every verdict, D-UI-1; behaviour shown as 'AI — not
+    ranked', D61). Replaces the old narrow _shell page."""
+    from src.web import dashboard as D
+    esc = D._esc
+    view = "leaders" if view == "leaders" else "avoid"
+
+    with D.get_conn() as conn:
+        sc = [dict(r) for r in conn.execute(
+            "SELECT s.* FROM concall_scores s JOIN (SELECT symbol, MAX(last_updated) m "
+            "FROM concall_scores GROUP BY symbol) x ON x.symbol=s.symbol AND x.m=s.last_updated").fetchall()]
+        beh = {r["symbol"]: dict(r) for r in conn.execute(
+            "SELECT b.symbol, b.credibility, b.courage, b.evasion FROM concall_behavior b "
+            "JOIN (SELECT symbol, MAX(id) m FROM concall_behavior GROUP BY symbol) x "
+            "ON x.symbol=b.symbol AND x.m=b.id").fetchall()}
+    for r in sc:
+        r.update(beh.get(r["symbol"], {}))
+
+    n_total = len(sc)
+    n_leaders = sum(1 for r in sc if not r.get("veto_active"))
+    n_avoid = sum(1 for r in sc if r.get("veto_active") or (r.get("deterioration_score") or 0) > 0)
+    n_unproven = sum(1 for r in sc if r.get("guidance_accuracy_score") is None)
+    n_veto = sum(1 for r in sc if r.get("veto_active"))
+    n_proven = sum(1 for r in sc if (r.get("n_promises_resolved") or 0) >= 1)
+
+    if view == "leaders":
+        rows = [r for r in sc if not r.get("veto_active")]
+        rows.sort(key=lambda r: (r.get("composite_score") or 0), reverse=True)
+    else:
+        rows = sorted(sc, key=lambda r: ((r.get("deterioration_score") or 0)
+                                         + (60 if r.get("veto_active") else 0)), reverse=True)
+
+    trs = []
+    for r in rows:
+        veto = (f'<span style="color:#f85149" title="{esc(r.get("veto_reason") or "")}">⛔ '
+                f'{esc((r.get("veto_reason") or "")[:18])}</span>' if r.get("veto_active")
+                else '<span class="mut">—</span>')
+        ga = r.get("guidance_accuracy_score")
+        ga_cell = (f'{ga:.0f}% <span class="mut">({r.get("n_promises_resolved") or 0})</span>'
+                   if ga is not None else '<span class="mut">unproven</span>')
+        det = r.get("deterioration_score") or 0
+        det_cell = f'<span style="color:#f85149">{int(det)}</span>' if det else '<span class="mut">0</span>'
+        trs.append(
+            f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
+            f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
+            f'<td>{_cci_tierpill(r.get("tier"))}</td>'
+            f'<td class="num">{D._cci_num(r.get("composite_score"))}</td>'
+            f'<td>{D._cci_fwd(r.get("forward_direction"))}</td>'
+            f'<td class="l">{veto}</td>'
+            f'<td class="l">{ga_cell}</td>'
+            f'<td class="num">{D._cci_num(r.get("quantification_rate"), "%")}</td>'
+            f'<td class="num">{det_cell}</td>'
+            f'<td class="mut">{esc(r.get("as_of_period") or "")}</td>'
+            f'<td class="num mut">{r.get("n_concalls") or 0}</td>'
+            f'<td class="num">{r.get("n_promises_resolved") or 0}</td>'
+            f'<td class="num mut">{D._cci_num(r.get("credibility"))}</td>'
+            f'<td class="num mut">{D._cci_num(r.get("courage"))}</td>'
+            f'<td class="num mut">{D._cci_num(r.get("evasion"))}</td></tr>')
+
+    head = ('<th class="l">Symbol</th><th>Tier</th><th class="num">Score</th><th>Forward</th>'
+            '<th class="l">Veto</th><th class="l">Guidance acc.</th><th class="num">Quantif%</th>'
+            '<th class="num">Deterior.</th><th>As of</th><th class="num">#Calls</th><th class="num">#Settled</th>'
+            '<th class="num mut">Cred·AI</th><th class="num mut">Courage·AI</th><th class="num mut">Evasion·AI</th>')
+    body_rows = "".join(trs) or '<tr><td colspan="14" class="mut" style="padding:14px">No scored concalls yet — the backfill is accruing (≈18/day via the cron).</td></tr>'
+    table = (f'<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt" style="font-size:12.5px">'
+             f'<thead><tr>{head}</tr></thead><tbody>{body_rows}</tbody></table></div>')
+
+    def tile(n, label, accent, cta, href=""):
+        a = f' href="{href}"' if href else ""
+        tag = "a" if href else "div"
+        return (f'<{tag} class="ck-tile"{a} style="border-top:3px solid {accent}">'
+                f'<div class="ck-n" style="color:{accent}">{n}</div>'
+                f'<div class="ck-l">{label}</div><div class="ck-c">{cta}</div></{tag}>')
+    strip = ('<div class="ck-tiles">'
+             + tile(n_proven, "Proven names", "#3fb950", "≥1 promise settled vs actuals")
+             + tile(n_leaders, "Credibility leaders", "#3fb950", "veto-excluded, ranked")
+             + tile(n_avoid, "Avoid tape", "#f85149", "veto / deterioration")
+             + tile(n_veto, "⛔ Vetoed", "#f85149", "pledge / auditor / pt14")
+             + tile(n_unproven, "Unproven", "#8b949e", "no settled promises yet")
+             + tile(n_total, "Scored", "#39c5cf", "names with concall data")
+             + '</div>')
+
+    def tab(key, label):
+        on = " on" if key == view else ""
+        return f'<a class="fbtn{on}" href="/dash/concalls?view={key}">{label}</a>'
+
+    note = ("Avoid tape — worst-first (veto + deterioration)." if view == "avoid"
+            else "Credibility leaders — veto-excluded, best measurable composite on top.")
+    head_html = (
+        '<h2 style="margin-top:2px">Management Credibility '
+        '<span class="sub" style="margin:0">CCI · concall intelligence</span></h2>'
+        f'<div class="fbar" style="margin:6px 0">{tab("avoid", "⚠ Avoid tape")}{tab("leaders", "★ Credibility leaders")}</div>'
+        f'<div class="sub" style="margin-top:0"><b>{note}</b> Ranking uses <b>measurable items only</b> '
+        '(D61): guidance accuracy, quantification %, the ⛔ veto, and deterministic deterioration. '
+        'The last three <b>·AI</b> columns are a model read shown <b>for context — NOT ranked</b>. '
+        'A name is <b>unproven</b> until its promises resolve. <b>Pilot</b> — the historical backfill '
+        'accrues ≈18 concalls/day via the nightly cron; open any name for its full dossier.</div>')
+    return _CKPT_CSS + head_html + strip + table
+
+
+# --- Strategy DETAIL screens — cockpit migration (§3.A.2) ---------------------
+# Each returns INNER html (cockpit language: count-strip + data-first table[s]),
+# reusing the SAME data fetch + instruments the old narrow handlers used. The
+# dashboard.py handlers are thin wrappers that wrap these in _shell(..., wide=True).
+
+def render_conviction(limit) -> str:
+    """Full-bleed Conviction shortlist (cross-pillar synthesis, D45). Count-strip
+    (total / 🎯near-key / ★quality) + the All/Near-key/Quality filter + the 8-col
+    data-first table — unchanged data, cockpit framing."""
+    from src.web import dashboard as D
+    esc, num = D._esc, D._num
+    rows = conviction_shortlist(limit=limit) if conviction_shortlist else []
+
+    n_near = n_qual = 0
+    trs = []
+    for r in rows:
+        g3 = r.get("gap_to_key_p3m")
+        nearkey = (D.is_near_key(g3) or D.is_near_key(r.get("gap_to_key_p6m"))
+                   or D.is_near_key(r.get("gap_to_key_p12m")))
+        pvh = r.get("pvh")
+        bits = []
+        if nearkey:
+            bits.append("🎯 near key")
+        if pvh is not None and pvh < -3:
+            bits.append("🟢 discount")
+        elif pvh is not None and pvh > 3:
+            bits.append("🔴 extended")
+        entry = " ".join(bits) if bits else "🟡 at-cost"
+        tier, dq = r.get("pt14_tier"), r.get("pt14_dq")
+        if tier and not dq:
+            qual = f'<span class="pill p-SS">★ {esc(tier)}</span>'
+        elif tier and dq:
+            qual = f'<span class="pill p-DOWNTREND">{esc(tier)} ✗</span>'
+        else:
+            qual = '<span class="mut">unscored</span>'
+        if nearkey:
+            n_near += 1
+        if tier and not dq:
+            n_qual += 1
+        g3s = f'{g3:+.1f}%' if g3 is not None else '—'
+        kp3 = r.get("key_price_p3m")
+        trs.append(
+            f'<tr data-nearkey="{1 if nearkey else 0}" data-qual="{1 if (tier and not dq) else 0}">'
+            f'<td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
+            f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
+            f'<td>{r.get("rs_rank") if r.get("rs_rank") is not None else "—"}</td>'
+            f'<td class="l mut">{esc(r.get("primary_sector") or "—")}</td>'
+            f'<td>{D._char_pill(r.get("accum_character"))}</td>'
+            f'<td class="l">{entry}</td>'
+            f'<td class="l">{("₹"+num(kp3,1)) if kp3 else "—"} <span class="mut">({g3s})</span></td>'
+            f'<td><span class="pill p-{r.get("trigger_rank") or "C"}">{r.get("trigger_rank") or "-"}</span> '
+            f'{r.get("p_score") or 0}/5</td>'
+            f'<td>{qual}</td></tr>')
+
+    strip = _ck_strip([
+        _ck_tile(len(rows), "Conviction names", "#d2a8ff", "all pillars aligned"),
+        _ck_tile(n_near, "🎯 Near key", "#3fb950", "buyable entry band"),
+        _ck_tile(n_qual, "★ Quality-confirmed", "#d29922", "pt14 not failing"),
+    ])
+    if trs:
+        pills = ('<div id="cvbar" class="fbar">'
+                 "<button class=\"fbtn on\" onclick=\"cflt('all',this)\">All</button>"
+                 "<button class=\"fbtn\" onclick=\"cflt('nearkey',this)\">🎯 Near key</button>"
+                 "<button class=\"fbtn\" onclick=\"cflt('qual',this)\">★ Quality-confirmed</button></div>")
+        table = (pills + '<div class="card" style="padding:6px 10px;overflow-x:auto"><table id="cvtbl" class="dt">'
+                 '<thead><tr><th class="l">Symbol</th><th>RS rank</th><th class="l">Sector</th><th>Character</th>'
+                 '<th class="l">Entry</th><th class="l">Key 3m</th><th>Rank·p</th><th>Quality</th></tr></thead>'
+                 f'<tbody>{"".join(trs)}</tbody></table></div>')
+        js = ("<script>function cflt(f,el){"
+              "document.querySelectorAll('#cvtbl tr[data-nearkey]').forEach(function(r){"
+              "r.style.display=(f==='all'||r.dataset[f]==='1')?'':'none';});"
+              "document.querySelectorAll('#cvbar .fbtn').forEach(function(b){"
+              "b.classList.remove('on');});el.classList.add('on');}</script>")
+    else:
+        table = ('<div class="empty">No names clear all three pillars today — that\'s normal; '
+                 'conviction is rare. Try <a class="row" style="display:inline" href="/dash/leaders">'
+                 'leaders</a> or the <a class="row" style="display:inline" href="/dash/stocks">screen</a>.</div>')
+        js = ""
+    head = ('<h2 style="margin-top:2px">⭐ Conviction shortlist '
+            '<span class="sub" style="margin:0">all three pillars aligned</span></h2>'
+            '<div class="sub" style="margin-top:2px">An RS leader institutions are accumulating now, with the '
+            'entry read; pt14 quality confirms where scored. Sort · filter · ⬇ export. '
+            '🎯 = buyable near the institutional key price · ★ = pt14 quality-confirmed.</div>')
+    return _CKPT_CSS + head + strip + table + js
+
+
+def render_leaders() -> str:
+    """Full-bleed strong-in-strong leaders + weak-in-weak laggards (D33c). Count-strip
+    (leaders / laggards) + the two RS-aligned tables."""
+    from src.web import dashboard as D
+    esc, q = D._esc, D._q
+    leaders = leaders_laggards("leaders", limit=60) if leaders_laggards else []
+    laggards = leaders_laggards("laggards", limit=40) if leaders_laggards else []
+
+    def tbl(rows, up):
+        if not rows:
+            return ('<div class="card"><div class="sub" style="margin:0">None right now — '
+                    f'no stock has all three RS layers aligned {"up" if up else "down"}.</div></div>')
+        trs = ""
+        for r in rows:
+            rk = r["rs_rank"]
+            bs = r["broad_state"] or "—"
+            ss = r["sector_state"] or "—"
+            xs = r["sector_broad_state"] or "—"
+            trs += (
+                f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
+                f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
+                f'<td>{rk if rk is not None else ""}</td>'
+                f'<td class="l"><a class="row" href="/dash/index?idx={q(r["primary_sector"])}">'
+                f'{esc(r["primary_sector"])}</a></td>'
+                f'<td><span class="pill p-{bs}">{esc(bs[:5])}</span></td>'
+                f'<td><span class="pill p-{ss}">{esc(ss[:5])}</span></td>'
+                f'<td><span class="pill p-{xs}">{esc(xs[:5])}</span></td></tr>')
+        return ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+                '<thead><tr><th class="l">Symbol</th><th>RS rank</th><th class="l">Sector</th>'
+                '<th>stock vs broad</th><th>stock vs sector</th><th>sector vs broad</th></tr></thead>'
+                f'<tbody>{trs}</tbody></table></div>')
+
+    strip = _ck_strip([
+        _ck_tile(len(leaders), "Leaders", "#3fb950", "strong-in-strong"),
+        _ck_tile(len(laggards), "Laggards", "#f85149", "weak-in-weak"),
+    ])
+    head = ('<h2 style="margin-top:2px">Leaders &amp; laggards '
+            '<span class="sub" style="margin:0">all three RS layers aligned</span></h2>'
+            '<div class="sub" style="margin-top:2px">A stock leading its sector <b>and</b> the market, with the '
+            'sector leading the market too (leaders) — or all three down (laggards). Strongest / weakest first.</div>')
+    return (_CKPT_CSS + head + strip
+            + '<div class="ghdr">★ Leaders — strong-in-strong</div>' + tbl(leaders, True)
+            + '<div class="ghdr" style="margin-top:14px">Laggards — weak-in-weak</div>' + tbl(laggards, False))
+
+
+def _sector_rows(idx_date, order_sql):
+    """Shared index_signals fetch for the sector RS screens."""
+    from src.web import dashboard as D
+    if not idx_date:
+        return []
+    with D.get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            f"""SELECT index_name nm, rs_vs_broad_trend_state st,
+                       rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
+                       rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
+                       ret_1m_pct r1, ret_3m_pct r3,
+                       (0.6*COALESCE(rs_vs_broad_slope_3m,0)+0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom
+                FROM index_signals
+                WHERE trade_date=? AND broad_benchmark IS NOT NULL
+                  AND index_name IN ({D._real_sectors_in()})
+                ORDER BY {order_sql}""", (idx_date,)).fetchall()]
+
+
+def render_sectors() -> str:
+    """Full-bleed sector rotation — RS heat per real sector. Count-strip
+    (rising / falling / breakout) + the sortable RS table."""
+    from src.web import dashboard as D
+    esc, pct, q = D._esc, D._pct, D._q
+    _, idx_date = D._latest_dates()
+    order = ("CASE rs_vs_broad_trend_state WHEN 'BREAKOUT' THEN 0 WHEN 'UPTREND' THEN 1 "
+             "WHEN 'CONSOLIDATING' THEN 2 WHEN 'DOWNTREND' THEN 3 WHEN 'BREAKDOWN' THEN 4 ELSE 5 END "
+             "ASC, COALESCE(rs_vs_broad_slope_3m,-999) DESC")
+    rows = _sector_rows(idx_date, order)
+    if not rows:
+        return _CKPT_CSS + '<div class="empty">No index signals yet. Run the index backfill on the VPS.</div>'
+
+    rising = sum(1 for r in rows if (r["s3"] or 0) > 0)
+    falling = sum(1 for r in rows if (r["s3"] or 0) < 0)
+    brk = sum(1 for r in rows if r["st"] == "BREAKOUT")
+    strip = _ck_strip([
+        _ck_tile(rising, "Rising · 3m RS", "#3fb950", "outperforming Nifty 500"),
+        _ck_tile(falling, "Falling · 3m RS", "#f85149", "underperforming"),
+        _ck_tile(brk, "Breakout", "#d2a8ff", "fresh RS breakout"),
+    ])
+    trs = []
+    for r in rows:
+        st = r["st"] or "—"
+        nm = r["nm"]
+        strip_rs = D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+        wk, wr = sector_weather(r["s1"], r["s3"], r["s6"], r["s12"], r["st"])
+        trs.append(
+            f'<tr><td class="l"><a class="row" href="/dash/index?idx={q(nm)}">'
+            f'<span class="sym">{esc(nm)}</span></a></td>'
+            f'<td>{pct(r["r1"])}</td><td>{pct(r["r3"])}</td>'
+            f'<td class="l rsgrp"><a class="row" style="display:inline" href="/dash/index?idx={q(nm)}">{strip_rs}</a></td>'
+            f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+            f'<td>{_weather_badge(wk, wr)}</td>'
+            f'<td>{pct(r["s3"])}</td></tr>')
+    head = ('<h2 style="margin-top:2px">Sector rotation '
+            '<span class="sub" style="margin:0">RS vs Nifty 500 · strongest first</span></h2>'
+            '<div class="sub" style="margin-top:2px">Real economic sectors (factor/thematic indices live under '
+            'Markets). Tap a sector → its detail page: price trend, RS &amp; constituent roll-up. '
+            '<a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a></div>')
+    table = ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+             '<thead><tr><th colspan="3">RETURN</th>'
+             '<th colspan="4" class="rsgrp grp">RELATIVE STRENGTH vs Nifty 500</th></tr>'
+             '<tr><th class="l">Sector</th><th>1m</th><th>3m</th>'
+             '<th class="l rsgrp">1m / 3m / 6m / 12m</th><th>Trend</th><th>Weather</th><th>RS 3m</th></tr></thead>'
+             f'<tbody>{"".join(trs)}</tbody></table></div>')
+    return _CKPT_CSS + head + strip + table
+
+
+def render_rs() -> str:
+    """Full-bleed cross-sector RS-momentum ranking (0.6·3m + 0.4·6m slope). Count-strip
+    (top sector / # rising) + the ranked table with the percentile bar."""
+    from src.web import dashboard as D
+    esc, pct, q = D._esc, D._pct, D._q
+    _, idx_date = D._latest_dates()
+    rows = _sector_rows(idx_date, "mom DESC")
+    if not rows:
+        return _CKPT_CSS + '<div class="empty">No index signals yet. Run the index backfill on the VPS.</div>'
+
+    moms = sorted(r["mom"] for r in rows)
+    n_mom = len(moms)
+
+    def pctl(m):
+        if not n_mom:
+            return 50
+        below = sum(1 for x in moms if x < m)
+        return max(1, min(99, round(below / n_mom * 99)))
+
+    rising = sum(1 for r in rows if (r["mom"] or 0) > 0)
+    top_nm = rows[0]["nm"] if rows else "—"
+    strip = _ck_strip([
+        _ck_tile(esc(top_nm), "Top momentum", "#3fb950", "strongest RS"),
+        _ck_tile(rising, "Rising", "#3fb950", "positive RS momentum"),
+        _ck_tile(len(rows), "Sectors ranked", "#58a6ff", "by 0.6·3m + 0.4·6m"),
+    ])
+    trs = []
+    for i, r in enumerate(rows, 1):
+        st = r["st"] or "—"
+        nm = r["nm"]
+        strip_rs = D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+        p = pctl(r["mom"])
+        trs.append(
+            f'<tr><td class="mut">{i}</td>'
+            f'<td class="l"><a class="row" href="/dash/index?idx={q(nm)}">'
+            f'<span class="sym">{esc(nm)}</span></a></td>'
+            f'<td class="l">{strip_rs}</td>'
+            f'<td>{pct(r["mom"])}</td>'
+            f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+            f'<td style="min-width:70px"><div class="bar"><span style="width:{p}%"></span></div></td></tr>')
+    head = ('<h2 style="margin-top:2px">RS-momentum ranking '
+            '<span class="sub" style="margin:0">sectors, strongest first</span></h2>'
+            '<div class="sub" style="margin-top:2px">All sectors by RS momentum (0.6·3m + 0.4·6m slope vs '
+            'Nifty 500). Tap a sector → its detail page. '
+            '<a class="row" style="display:inline" href="/dash/sectors">← Sector rotation</a></div>')
+    table = ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+             '<thead><tr><th>#</th><th class="l">Sector</th><th class="l">1m/3m/6m/12m</th>'
+             '<th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>'
+             f'<tbody>{"".join(trs)}</tbody></table></div>')
+    return _CKPT_CSS + head + strip + table
