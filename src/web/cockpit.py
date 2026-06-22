@@ -1318,7 +1318,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         participants = (
             '<h3 style="margin:14px 0 6px">All participants '
             f'<span class="sub" style="margin:0">{N} liquid members · sort · filter</span></h3>'
-            + _participants_table(sorted_members, mtags, accum_id="idx"))
+            + _participants_table(sorted_members, mtags))
         rollup = ('<h2>Inside the index <span class="sub" style="margin:0">bottom-up · equal-weight · '
                   f'{N} liquid members</span></h2>'
                   '<div class="sub" style="margin-top:2px">Membership carries no free-float weight, so every '
@@ -2260,7 +2260,7 @@ def _member_snapshot(conn, symbols, sig_date) -> list:
     return out
 
 
-def _participants_table(members, tags_map, accum_id="pt") -> str:
+def _participants_table(members, tags_map) -> str:
     """The canonical participants table (index detail + theme detail). Columns:
     Symbol · Sector · Themes · RS rank · Trigger · p · Character · MEP · %52wH ·
     DVPT · Δhot. `tags_map` = {symbol: [labels]}. An "accumulating only" CSS
@@ -2292,14 +2292,17 @@ def _participants_table(members, tags_map, accum_id="pt") -> str:
                  f'<td class="r">{pct(m.get("pfh"))}</td>'
                  f'<td class="r">{("₹" + num((m.get("dvt") or 0) / 1e7, 1) + "cr") if m.get("dvt") else "—"}</td>'
                  f'<td class="r">{pct(m.get("pvh"))}</td></tr>')
-    return (f'<label class="accfilter"><input type="checkbox" onchange="'
-            f"this.closest('.ptbl').classList.toggle('acc-only',this.checked)"
-            f'"> Accumulating only <span class="mut">(signed-MEP)</span></label>'
-            '<div class="card ptbl" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+    # The toggle wraps BOTH the checkbox and the table in one .ptbl container so
+    # the checkbox's closest('.ptbl') resolves to an ANCESTOR (a sibling .ptbl
+    # would return null and the toggle would silently throw).
+    return ('<div class="ptbl"><label class="accfilter"><input type="checkbox" onchange="'
+            "this.closest('.ptbl').classList.toggle('acc-only',this.checked)"
+            '"> Accumulating only <span class="mut">(signed-MEP)</span></label>'
+            '<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
             '<thead><tr><th class="l">Symbol</th><th class="l">Sector</th><th class="l">Themes</th>'
             '<th>RS rank</th><th>Trigger</th><th>p</th><th class="l">Character</th>'
             '<th class="l">MEP</th><th>%52wH</th><th>DVPT</th><th>Δhot</th></tr></thead>'
-            f'<tbody>{rows}</tbody></table></div>')
+            f'<tbody>{rows}</tbody></table></div></div>')
 
 
 def render_themes(idx_date) -> str:
@@ -2397,7 +2400,7 @@ def render_theme_detail(name, idx_date, sig_date) -> str:
     ])
     cmp_link = ('<div class="sub" style="margin:10px 0 0"><a class="row" style="display:inline" '
                 f'href="/dash/screener?scope=all">Open the screener (type &quot;{esc(name)}&quot; to filter) →</a></div>')
-    table = _participants_table(members, tags_map, accum_id="th")
+    table = _participants_table(members, tags_map)
     return (_CKPT_CSS + head + strip
             + '<h3 style="margin:14px 0 6px">Participants '
             f'<span class="sub" style="margin:0">{N} tagged · sort · filter</span></h3>'
