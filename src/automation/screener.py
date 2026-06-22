@@ -165,6 +165,49 @@ def _write_about(symbol: str, about: Optional[str], industry: Optional[str]) -> 
             (symbol, about, industry))
 
 
+def backfill_about(symbols=None, *, sleep_s: float = 0.8, skip_existing: bool = True,
+                   limit: Optional[int] = None) -> dict:
+    """Description-ONLY corpus backfill for the theme-tag layer.
+
+    ISOLATION (D63.8): writes ONLY `company_about` — it deliberately does NOT call
+    `_write_cache`, so it never touches `fundamentals` or any index/sector table.
+    `symbols=None` → the full indexed universe (distinct `stock_index_membership`).
+    Skips names that already have a description unless skip_existing=False.
+    Rate-limited (sleep_s between pages). Returns {written, missed, total}.
+    """
+    import time
+    with get_conn() as conn:
+        if symbols is None:
+            symbols = [r[0] for r in conn.execute(
+                "SELECT DISTINCT symbol FROM stock_index_membership ORDER BY symbol").fetchall()]
+        if skip_existing:
+            have = {r[0] for r in conn.execute(
+                "SELECT symbol FROM company_about WHERE about IS NOT NULL").fetchall()}
+            symbols = [s for s in symbols if s not in have]
+    if limit:
+        symbols = symbols[:limit]
+    ok = miss = 0
+    for s in symbols:
+        html = _fetch_company_html(s)
+        if html:
+            try:
+                about, industry = _extract_about(BeautifulSoup(html, "lxml"))
+                if about:
+                    _write_about(s, about, industry)
+                    ok += 1
+                else:
+                    miss += 1
+            except Exception:  # noqa: BLE001
+                miss += 1
+        else:
+            miss += 1
+        if sleep_s:
+            time.sleep(sleep_s)
+    log.info("backfill_about: %d written, %d missed, of %d symbols (company_about ONLY)",
+             ok, miss, len(symbols))
+    return {"written": ok, "missed": miss, "total": len(symbols)}
+
+
 # --- Public API -------------------------------------------------------------
 
 def fetch_company(symbol: str, *, use_cache: bool = True) -> Optional[dict]:

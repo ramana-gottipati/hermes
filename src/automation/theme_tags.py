@@ -487,9 +487,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--llm-propose", action="store_true",
                    help="opt-in GEMINI-ONLY LLM proposals (never Claude; skips when free quota spent)")
     p.add_argument("--report", action="store_true", help="print the keyword corpus + proposal report")
+    p.add_argument("--backfill-about", action="store_true",
+                   help="description-ONLY corpus backfill (company_about; full indexed universe; never touches fundamentals)")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
+    if args.backfill_about:
+        from src.automation.screener import backfill_about
+        print(f"backfill_about: {backfill_about()}")
     if args.seed:
         n = seed_from_indices()
         print(f"seeded {n} index-derived tags")
@@ -511,7 +516,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                 print(f"  {r['tag']:26} {r['source']:7} conf={r['confidence']}{flag}")
     if args.report:
         _print_report()
-    if not any([args.seed, args.keyword_propose, args.llm_propose, args.counts, args.show, args.report]):
+    if not any([args.seed, args.keyword_propose, args.llm_propose, args.counts, args.show,
+                args.report, args.backfill_about]):
         p.print_help()
     return 0
 
