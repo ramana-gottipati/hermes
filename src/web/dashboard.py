@@ -513,6 +513,21 @@ def _rs_strip(s1, s3, s6, s12, s18=None, s24=None) -> str:
     return f'<span class="hstrip">{"".join(cells)}</span>'
 
 
+def _idx_ret(conn, index_name, anchor_date, days) -> "float | None":
+    """An index's %-return over `days` calendar days ending at anchor_date, read
+    on the fly from index_rows close_value. Used for the 18m/24m reconcile windows
+    that index_signals doesn't pre-compute (it stops at ret_12m)."""
+    from datetime import datetime as _dt, timedelta as _td
+    cut = (_dt.strptime(anchor_date, "%Y-%m-%d") - _td(days=days)).strftime("%Y-%m-%d")
+    now = conn.execute("SELECT close_value FROM index_rows WHERE index_name=? AND trade_date<=? "
+                       "ORDER BY trade_date DESC LIMIT 1", (index_name, anchor_date)).fetchone()
+    base = conn.execute("SELECT close_value FROM index_rows WHERE index_name=? AND trade_date<=? "
+                        "ORDER BY trade_date DESC LIMIT 1", (index_name, cut)).fetchone()
+    if now and base and base["close_value"]:
+        return (now["close_value"] / base["close_value"] - 1) * 100
+    return None
+
+
 # --- CPR (Structure pillar, D53) on-read helpers ---------------------------
 # Geometry + widths are materialized in cpr_signals; the narrowness RANK, the
 # cross-TF AMPLIFICATION and the ★ CONVICTION TIER are derived HERE on read so
@@ -6354,6 +6369,7 @@ def dash_stock(sym: str = Query("", max_length=20),
         # ret_* (same 30/90/180/365-day windows).
         recon_table = ""
         if series:
+            _anchor = series[-1]["time"]
             with get_conn() as conn:
                 n5row = conn.execute(
                     "SELECT ret_1m_pct r1, ret_3m_pct r3, ret_6m_pct r6, "
@@ -6365,8 +6381,15 @@ def dash_stock(sym: str = Query("", max_length=20),
                     "ret_12m_pct r12 FROM index_signals WHERE index_name=? "
                     "ORDER BY trade_date DESC LIMIT 1", (sec_name,)
                 ).fetchone() if has_sector else None
-            n5 = dict(n5row) if n5row else {}
-            sec = dict(secrow) if secrow else {}
+                n5 = dict(n5row) if n5row else {}
+                sec = dict(secrow) if secrow else {}
+                # 18m/24m benchmark returns aren't pre-computed (index_signals stops
+                # at ret_12m) — derive them on-read so the reconcile stays honest.
+                n5["r18"] = _idx_ret(conn, "Nifty 500", _anchor, 545)
+                n5["r24"] = _idx_ret(conn, "Nifty 500", _anchor, 730)
+                if has_sector and sec_name:
+                    sec["r18"] = _idx_ret(conn, sec_name, _anchor, 545)
+                    sec["r24"] = _idx_ret(conn, sec_name, _anchor, 730)
 
             def _stk_ret(days):
                 cut = (datetime.strptime(series[-1]["time"], "%Y-%m-%d")
@@ -6385,7 +6408,9 @@ def dash_stock(sym: str = Query("", max_length=20),
                     ("1m", 30, "r1", "rs_vs_broad_slope_1m", "rs_vs_sector_slope_1m"),
                     ("3m", 90, "r3", "rs_vs_broad_slope_3m", "rs_vs_sector_slope_3m"),
                     ("6m", 180, "r6", "rs_vs_broad_slope_6m", "rs_vs_sector_slope_6m"),
-                    ("12m", 365, "r12", "rs_vs_broad_slope_12m", "rs_vs_sector_slope_12m")):
+                    ("12m", 365, "r12", "rs_vs_broad_slope_12m", "rs_vs_sector_slope_12m"),
+                    ("18m", 545, "r18", "rs_vs_broad_slope_18m", "rs_vs_sector_slope_18m"),
+                    ("24m", 730, "r24", "rs_vs_broad_slope_24m", "rs_vs_sector_slope_24m")):
                 cells = (f'<td class="mut">{lbl}</td><td>{_pct(_stk_ret(days))}</td>'
                          f'<td>{_pct(n5.get(nk))}</td><td><b>{_pct(L.get(brk))}</b></td>')
                 if has_sector:
