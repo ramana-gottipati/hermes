@@ -261,10 +261,14 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
     if phase not in PHASE:
         phase = "RECOVERY"
     with get_conn() as conn:
-        # is rs_phase populated at all? (empty-state guard before the backfill)
+        # is rs_phase populated for the latest date? (empty-state guard before the
+        # backfill). Scope to the latest trade_date (indexed) — a bare
+        # "rs_phase IS NOT NULL" mis-picks an index → ~3s over 5.9M rows.
         try:
-            has = conn.execute(
-                "SELECT 1 FROM stock_signals WHERE rs_phase IS NOT NULL LIMIT 1").fetchone()
+            sd = conn.execute("SELECT MAX(trade_date) d FROM stock_signals").fetchone()
+            has = (conn.execute(
+                "SELECT 1 FROM stock_signals WHERE trade_date=? AND rs_phase IS NOT NULL LIMIT 1",
+                (sd["d"],)).fetchone() if (sd and sd["d"]) else None)
         except Exception:
             has = None
         if not has:

@@ -659,33 +659,41 @@ def phase_shortlist(phase: str, limit: int = 100, trade_date: Optional[str] = No
 
 
 def phase_movers(limit: int = 60, trade_date: Optional[str] = None) -> list[dict]:
-    """Names whose rs_phase CHANGED on the latest date vs their prior row — the
-    '✨ just turned' strip (Headwind→Recovery base-turns, Tailwind→Rolling-over
-    cracks). Empty until ≥2 days of rs_phase history exist (graceful)."""
+    """Names whose rs_phase CHANGED on the latest date vs the most recent PRIOR
+    day that has a phase — the '✨ just turned' strip (Headwind→Recovery base-turns,
+    Tailwind→Rolling-over cracks). Compares ONLY today vs the single prior date
+    (two indexed date lookups + idx_signals_phase) — NOT a full-history window —
+    so it stays fast as rotation history accrues. Empty until ≥2 days exist."""
     with get_conn() as conn:
         rs_phase.ensure_columns(conn)
         sd, _ = _max_sig_dates(conn)
         trade_date = trade_date or sd
         if not trade_date:
             return []
+        # Prior trading date via the covering trade_date index (9ms) — NOT a
+        # "rs_phase IS NOT NULL" scan (that mis-picks an index → ~5s over 5.9M
+        # rows). The phase-not-null requirement is enforced in the JOIN below,
+        # against just that one prior date's rows. If the prior date has no phase
+        # computed yet, the join yields 0 → graceful empty.
+        prev = conn.execute(
+            "SELECT MAX(trade_date) d FROM stock_signals WHERE trade_date < ?",
+            (trade_date,)).fetchone()
+        prev_date = prev["d"] if prev else None
+        if not prev_date:
+            return []   # only one day of history → no transitions yet
         sql = f"""
-            WITH ranked AS (
-                SELECT symbol, trade_date, rs_phase,
-                       LAG(rs_phase) OVER (PARTITION BY symbol ORDER BY trade_date) AS prev_phase
-                FROM stock_signals
-                WHERE rs_phase IS NOT NULL AND trade_date <= ?
-            )
             SELECT s.symbol, s.rs_rank, s.primary_sector, s.rs_phase,
-                   r.prev_phase, b.close AS close, b.value AS value
-            FROM ranked r
-            JOIN stock_signals s ON s.symbol=r.symbol AND s.trade_date=r.trade_date
+                   p.rs_phase AS prev_phase, b.close AS close, b.value AS value
+            FROM stock_signals s
+            JOIN stock_signals p ON p.symbol=s.symbol AND p.trade_date=?
             JOIN bhavcopy_rows b ON b.symbol=s.symbol AND b.trade_date=s.trade_date
-            WHERE r.trade_date=? AND r.prev_phase IS NOT NULL AND r.prev_phase<>r.rs_phase
+            WHERE s.trade_date=? AND s.rs_phase IS NOT NULL
+              AND p.rs_phase IS NOT NULL AND p.rs_phase<>s.rs_phase
               AND {_LIQUID_FILTER}
             ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC
             LIMIT ?
         """
-        return [dict(r) for r in conn.execute(sql, (trade_date, trade_date, limit)).fetchall()]
+        return [dict(r) for r in conn.execute(sql, (prev_date, trade_date, limit)).fetchall()]
 
 
 # --- Orchestration ----------------------------------------------------------

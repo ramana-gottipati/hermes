@@ -127,6 +127,13 @@ def ensure_columns(conn) -> None:
             continue
         for col, decl in cols:
             _ensure_column(conn, table, col, decl)
+    # Rotation read index (idempotent). The phase filter (phase_members/shortlist)
+    # and the movers prior-day lookup both hit rs_phase; without this they
+    # full-scan the multi-million-row stock_signals history — the /dash/rotation
+    # slowness (movers was ~8s). One composite index fixes both.
+    if "stock_signals" in existing:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_signals_phase "
+                     "ON stock_signals(rs_phase, trade_date)")
     _ensured = True
 
 
