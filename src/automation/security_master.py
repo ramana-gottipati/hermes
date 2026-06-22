@@ -1,0 +1,442 @@
+"""Security master — point-in-time survivorship + rename stitching + continuity breaks.
+
+The DVPT picking-strategy backtest must not cheat with hindsight: it can only
+consider a stock that was *actually listed and tradeable* on the signal date, it
+must follow a company across a symbol RENAME (ZOMATO→ETERNAL) as one continuous
+security, and it must know when a DEMERGER / MERGER broke price-and-identity
+continuity (so a scheme-of-arrangement gap is never mistaken for a return). This
+module builds that spine. (docs/dvpt-picking-strategy-design.md §13 — the
+"Vedanta problem".)
+
+What it derives, all from data already on the box:
+  - security_master  : one row per equity symbol ever seen in the bhav archive —
+        first/last trade date, days traded, currently-listed + recently-traded
+        flags, status, and (where known) ISIN / company / listing date. Built from
+        the RAW ``bhavcopy_rows`` (NOT ``nse_equity_list``, which is a *current*
+        snapshot and would re-introduce survivorship bias by dropping delisted
+        names — the whole point is to keep them).
+  - security_events  : continuity-BREAKING corporate events (demerger / merger /
+        amalgamation / scheme) per symbol, classified from ``corporate_actions``.
+        Splits & bonuses are deliberately excluded — they preserve continuity and
+        are already handled by ``adjust.py`` on the price side.
+  - security_renames : old_symbol → new_symbol. Auto-confirmed only where two
+        symbols share an ISIN with non-overlapping date ranges (a clean handover);
+        overlaps are kept as unconfirmed candidates. The authoritative NSE
+        symbol-change feed can be loaded with ``--load-renames``.
+
+Honest about its inputs: NSE's ``sec_bhavdata_full`` carries no ISIN (the bhav
+``isin`` column is usually NULL), so auto-rename coverage leans on
+``nse_equity_list`` (current names only) until a symbol-change feed is ingested —
+the run logs exactly how much it could resolve.
+
+Self-contained (the ``capture.py`` / ``rrg.py`` pattern): OWNS its three tables,
+never edits ``db.py``. Full idempotent recompute — re-derivable from the raw
+archive (Doctrine C). Pure SQL + arithmetic, no LLM.
+
+Run:        python -m src.automation.security_master
+Self-check: python -m src.automation.security_master --selftest
+Inspect:    python -m src.automation.security_master --symbol RELIANCE
+Load NSE symbol-change CSV: python -m src.automation.security_master --load-renames change.csv
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+from datetime import date, timedelta
+from typing import Optional
+
+from src.core.db import get_conn
+
+log = logging.getLogger("hermes.security_master")
+
+# Equity series in the bhav archive (mainboard). EQ = normal, BE = trade-to-trade,
+# BZ = surveillance — a name often slides EQ→BE→BZ→delist, so all three keep the
+# delisted tail. SME series (SM/ST) are a different universe and excluded.
+EQUITY_SERIES = ("EQ", "BE", "BZ")
+
+# A symbol counts as "recently traded" (still alive) if its last bhav row is within
+# this many calendar days of the latest archived trading day.
+ACTIVE_GAP_DAYS = 20
+
+
+# ── pure helpers ──────────────────────────────────────────────────────────────
+def classify_event(action_type: Optional[str], details: Optional[str]) -> Optional[str]:
+    """Map a corporate action to a continuity-BREAKING event type, or None.
+
+    Order matters: 'demerger' contains 'merg', so demerger/spin-off is tested
+    before merger. Splits/bonuses/dividends/rights return None (handled elsewhere)."""
+    t = f"{action_type or ''} {details or ''}".lower()
+    if "demerg" in t or "spin-off" in t or "spin off" in t:
+        return "DEMERGER"
+    if "amalgam" in t:
+        return "AMALGAMATION"
+    if "merg" in t:
+        return "MERGER"
+    if "scheme of arrang" in t:
+        return "SCHEME"
+    return None
+
+
+def _minus_days(iso: Optional[str], n: int) -> Optional[str]:
+    if not iso:
+        return None
+    try:
+        return (date.fromisoformat(iso[:10]) - timedelta(days=n)).isoformat()
+    except Exception:
+        return None
+
+
+def _latest_trade_date(conn) -> Optional[str]:
+    r = conn.execute("SELECT MAX(trade_date) m FROM bhavcopy_dates").fetchone()
+    if r and r["m"]:
+        return r["m"]
+    r = conn.execute("SELECT MAX(trade_date) m FROM bhavcopy_rows").fetchone()
+    return r["m"] if (r and r["m"]) else None
+
+
+# ── storage (owns its own tables) ─────────────────────────────────────────────
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS security_master (
+    symbol           TEXT PRIMARY KEY,
+    first_date       TEXT,
+    last_date        TEXT,
+    n_days           INTEGER,
+    isin             TEXT,
+    company_name     TEXT,
+    listing_date     TEXT,
+    currently_listed INTEGER DEFAULT 0,
+    recently_traded  INTEGER DEFAULT 0,
+    status           TEXT,
+    computed_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_secm_isin  ON security_master(isin);
+CREATE INDEX IF NOT EXISTS idx_secm_dates ON security_master(first_date, last_date);
+
+CREATE TABLE IF NOT EXISTS security_events (
+    symbol     TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    ex_date    TEXT NOT NULL,
+    details    TEXT,
+    source     TEXT,
+    PRIMARY KEY (symbol, event_type, ex_date)
+);
+CREATE INDEX IF NOT EXISTS idx_secev_sym ON security_events(symbol, ex_date);
+
+CREATE TABLE IF NOT EXISTS security_renames (
+    old_symbol     TEXT NOT NULL,
+    new_symbol     TEXT NOT NULL,
+    effective_date TEXT,
+    isin           TEXT,
+    source         TEXT,
+    confirmed      INTEGER DEFAULT 0,
+    PRIMARY KEY (old_symbol, new_symbol)
+);
+CREATE INDEX IF NOT EXISTS idx_secrn_new ON security_renames(new_symbol);
+"""
+
+
+def compute_and_store(conn=None) -> dict:
+    """Rebuild the survivorship spine + events + ISIN-confirmed renames from the
+    raw archive. Idempotent (full DELETE+INSERT). Returns a stats dict. Manages
+    its own connection if none is given."""
+    own = conn is None
+    if own:
+        cm = get_conn()
+        conn = cm.__enter__()
+    try:
+        conn.executescript(_SCHEMA)
+        latest = _latest_trade_date(conn)
+        active_floor = _minus_days(latest, ACTIVE_GAP_DAYS)
+
+        # current listing snapshot (current names only): symbol -> (isin, company, listing)
+        listed: dict = {}
+        for r in conn.execute(
+                "SELECT symbol, isin, company_name, listing_date FROM nse_equity_list"):
+            listed[r["symbol"]] = (r["isin"], r["company_name"], r["listing_date"])
+
+        # survivorship spine from the RAW archive (KEEPS delisted names)
+        series_ph = ",".join("?" * len(EQUITY_SERIES))
+        spine = conn.execute(
+            f"SELECT symbol, MIN(trade_date) f, MAX(trade_date) l, "
+            f"       COUNT(DISTINCT trade_date) n, MAX(isin) bisin "
+            f"FROM bhavcopy_rows WHERE series IN ({series_ph}) "
+            f"GROUP BY symbol", EQUITY_SERIES).fetchall()
+
+        rows = []
+        isin_map: dict = {}     # isin -> [(symbol, first, last), ...]
+        bhav_isin_cov = 0
+        for r in spine:
+            sym, first, last, n = r["symbol"], r["f"], r["l"], r["n"]
+            l_isin, company, listing = listed.get(sym, (None, None, None))
+            if r["bisin"]:
+                bhav_isin_cov += 1
+            isin = l_isin or r["bisin"]
+            currently_listed = 1 if sym in listed else 0
+            recently = 1 if (active_floor and last and last >= active_floor) else 0
+            status = "ACTIVE" if recently else "INACTIVE"
+            rows.append((sym, first, last, n, isin, company, listing,
+                         currently_listed, recently, status))
+            if isin:
+                isin_map.setdefault(isin, []).append((sym, first, last))
+
+        conn.execute("DELETE FROM security_master")
+        conn.executemany(
+            "INSERT OR REPLACE INTO security_master "
+            "(symbol, first_date, last_date, n_days, isin, company_name, listing_date, "
+            " currently_listed, recently_traded, status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            rows)
+
+        # continuity-breaking corporate events
+        conn.execute("DELETE FROM security_events")
+        ev = []
+        for r in conn.execute(
+                "SELECT symbol, action_type, ex_date, details, source FROM corporate_actions"):
+            et = classify_event(r["action_type"], r["details"])
+            if et and r["ex_date"]:
+                ev.append((r["symbol"], et, r["ex_date"], r["details"], r["source"]))
+        conn.executemany(
+            "INSERT OR REPLACE INTO security_events "
+            "(symbol, event_type, ex_date, details, source) VALUES (?,?,?,?,?)", ev)
+
+        # auto-confirm renames via shared ISIN + clean (non-overlapping) handover.
+        # Preserve any manually/feed-loaded renames (only re-derive the isin-sourced ones).
+        conn.execute("DELETE FROM security_renames WHERE source LIKE 'isin%'")
+        ren = []
+        for isin, lst in isin_map.items():
+            if len(lst) < 2:
+                continue
+            lst.sort(key=lambda x: x[1] or "")          # by first_date
+            for (osym, _of, ol), (nsym, nf, _nl) in zip(lst, lst[1:]):
+                if osym == nsym:
+                    continue
+                if ol and nf and ol <= nf:               # non-overlapping → clean rename
+                    ren.append((osym, nsym, nf, isin, "isin", 1))
+                else:                                    # overlap → candidate only
+                    ren.append((osym, nsym, nf, isin, "isin-overlap", 0))
+        conn.executemany(
+            "INSERT OR REPLACE INTO security_renames "
+            "(old_symbol, new_symbol, effective_date, isin, source, confirmed) "
+            "VALUES (?,?,?,?,?,?)", ren)
+
+        if own:
+            conn.commit()
+
+        stats = {
+            "securities": len(rows),
+            "active": sum(x[8] for x in rows),
+            "delisted_or_inactive": sum(1 for x in rows if not x[8]),
+            "events": len(ev),
+            "renames_confirmed": sum(1 for x in ren if x[5] == 1),
+            "rename_candidates": sum(1 for x in ren if x[5] == 0),
+            "bhav_isin_coverage": bhav_isin_cov,
+            "latest": latest,
+        }
+        log.info("security_master: %s", stats)
+        return stats
+    finally:
+        if own:
+            cm.__exit__(None, None, None)
+
+
+# ── read API (what the backtest consumes) ─────────────────────────────────────
+def _with_conn(fn, conn):
+    own = conn is None
+    if own:
+        cm = get_conn()
+        conn = cm.__enter__()
+    try:
+        conn.executescript(_SCHEMA)
+        return fn(conn)
+    finally:
+        if own:
+            cm.__exit__(None, None, None)
+
+
+def get(symbol: str, conn=None) -> Optional[dict]:
+    """The security-master row for one symbol (or None)."""
+    def q(c):
+        r = c.execute("SELECT * FROM security_master WHERE symbol=?", (symbol,)).fetchone()
+        return dict(r) if r else None
+    return _with_conn(q, conn)
+
+
+def universe_on(d: str, conn=None) -> list:
+    """Survivorship-correct universe: every symbol that was listed & tradeable as
+    of date `d` (first_date <= d <= last_date). This is the set the backtest is
+    allowed to pick from on date `d` — no hindsight, delisted names included."""
+    def q(c):
+        return [r["symbol"] for r in c.execute(
+            "SELECT symbol FROM security_master WHERE first_date <= ? AND last_date >= ?",
+            (d, d)).fetchall()]
+    return _with_conn(q, conn)
+
+
+def events_for(symbol: str, conn=None) -> list:
+    """All continuity-breaking events for a symbol, oldest first."""
+    def q(c):
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM security_events WHERE symbol=? ORDER BY ex_date", (symbol,)).fetchall()]
+    return _with_conn(q, conn)
+
+
+def has_break_between(symbol: str, start: str, end: str, conn=None) -> bool:
+    """True if a demerger/merger/scheme broke continuity in (start, end] — so the
+    backtest can flag or skip that holding window."""
+    def q(c):
+        r = c.execute(
+            "SELECT COUNT(*) n FROM security_events WHERE symbol=? AND ex_date > ? AND ex_date <= ?",
+            (symbol, start, end)).fetchone()
+        return (r["n"] or 0) > 0
+    return _with_conn(q, conn)
+
+
+def canonical(symbol: str, conn=None) -> str:
+    """Follow confirmed renames forward to the current symbol (cycle-guarded)."""
+    def q(c):
+        cur, seen = symbol, set()
+        while cur not in seen:
+            seen.add(cur)
+            nxt = c.execute(
+                "SELECT new_symbol FROM security_renames "
+                "WHERE old_symbol=? AND confirmed=1 ORDER BY effective_date DESC LIMIT 1",
+                (cur,)).fetchone()
+            if not nxt:
+                break
+            cur = nxt["new_symbol"]
+        return cur
+    return _with_conn(q, conn)
+
+
+def load_renames(csv_path: str, conn=None) -> int:
+    """Ingest the authoritative NSE symbol-change CSV (tolerant header detection;
+    looks for columns containing 'old'/'new' symbol + an 'applicable'/'date' col).
+    Stored confirmed, source='nse-feed'."""
+    import csv
+
+    def q(c):
+        with open(csv_path, newline="", encoding="utf-8-sig") as fh:
+            rdr = csv.reader(fh)
+            header = next(rdr, [])
+            hl = [h.strip().lower() for h in header]
+
+            def find(*keys):
+                for i, h in enumerate(hl):
+                    if any(k in h for k in keys):
+                        return i
+                return None
+
+            oi, ni = find("old"), find("new")
+            di = find("applicable", "effective", "date", "from")
+            if oi is None or ni is None:
+                raise ValueError(f"could not find old/new symbol columns in header {header}")
+            ren = []
+            for row in rdr:
+                if len(row) <= max(oi, ni):
+                    continue
+                old, new = row[oi].strip(), row[ni].strip()
+                if not old or not new or old == new:
+                    continue
+                eff = row[di].strip() if (di is not None and len(row) > di) else None
+                ren.append((old, new, eff, None, "nse-feed", 1))
+            c.executemany(
+                "INSERT OR REPLACE INTO security_renames "
+                "(old_symbol, new_symbol, effective_date, isin, source, confirmed) "
+                "VALUES (?,?,?,?,?,?)", ren)
+            c.connection.commit()
+            log.info("loaded %d renames from %s", len(ren), csv_path)
+            return len(ren)
+    return _with_conn(q, conn)
+
+
+# ── self-check (synthetic in-memory DB — no real data needed) ─────────────────
+def _selftest() -> None:
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript("""
+        CREATE TABLE bhavcopy_rows (symbol TEXT, trade_date TEXT, series TEXT, isin TEXT);
+        CREATE TABLE bhavcopy_dates (trade_date TEXT PRIMARY KEY);
+        CREATE TABLE corporate_actions (symbol TEXT, action_type TEXT, ex_date TEXT,
+                                        details TEXT, source TEXT);
+        CREATE TABLE nse_equity_list (symbol TEXT PRIMARY KEY, isin TEXT,
+                                      company_name TEXT, listing_date TEXT);
+    """)
+    # bhav: RELIANCE (active), DELISTO (delisted 2016), ZOMATO→ETERNAL (shared ISIN handover)
+    bhav = [
+        ("RELIANCE", "2015-01-05", "EQ", None), ("RELIANCE", "2020-06-01", "EQ", None),
+        ("RELIANCE", "2026-06-20", "EQ", None),
+        ("DELISTO",  "2012-03-01", "EQ", None), ("DELISTO",  "2016-09-30", "EQ", None),
+        ("ZOMATO",   "2021-07-23", "EQ", "INEZOM01015"), ("ZOMATO", "2023-03-01", "EQ", "INEZOM01015"),
+        ("ETERNAL",  "2023-09-01", "EQ", "INEZOM01015"), ("ETERNAL", "2026-06-19", "EQ", "INEZOM01015"),
+    ]
+    conn.executemany("INSERT INTO bhavcopy_rows VALUES (?,?,?,?)", bhav)
+    conn.execute("INSERT INTO bhavcopy_dates VALUES ('2026-06-22')")
+    conn.executemany("INSERT INTO corporate_actions VALUES (?,?,?,?,?)", [
+        ("RELIANCE", "DEMERGER", "2023-07-20", "Demerger of Jio Financial Services", "nse"),
+        ("RELIANCE", "DIVIDEND", "2024-08-19", "Final Dividend Rs 10", "nse"),     # must be ignored
+    ])
+    conn.executemany("INSERT INTO nse_equity_list VALUES (?,?,?,?)", [
+        ("RELIANCE", "INE002A01018", "Reliance Industries", "1995-01-01"),
+        ("ETERNAL",  "INEZOM01015",  "Eternal Ltd",         "2021-07-23"),
+    ])
+
+    stats = compute_and_store(conn=conn)
+
+    rel = get("RELIANCE", conn=conn)
+    assert rel and rel["status"] == "ACTIVE" and rel["first_date"] == "2015-01-05", rel
+    assert rel["isin"] == "INE002A01018", "should enrich ISIN from nse_equity_list"
+    deli = get("DELISTO", conn=conn)
+    assert deli and deli["status"] == "INACTIVE" and deli["currently_listed"] == 0, deli
+
+    # survivorship: the universe must change with the date
+    u2016 = set(universe_on("2016-01-01", conn=conn))
+    assert {"RELIANCE", "DELISTO"} <= u2016 and "ETERNAL" not in u2016, u2016
+    u2025 = set(universe_on("2025-01-01", conn=conn))
+    assert "RELIANCE" in u2025 and "ETERNAL" in u2025, u2025
+    assert "DELISTO" not in u2025 and "ZOMATO" not in u2025, "delisted/renamed must drop out"
+
+    # continuity breaks
+    assert has_break_between("RELIANCE", "2023-01-01", "2023-12-31", conn=conn), "demerger missed"
+    assert not has_break_between("RELIANCE", "2020-01-01", "2020-12-31", conn=conn), "false break"
+    assert events_for("RELIANCE", conn=conn)[0]["event_type"] == "DEMERGER"
+
+    # rename stitching via shared ISIN (non-overlapping handover)
+    assert canonical("ZOMATO", conn=conn) == "ETERNAL", "ZOMATO should resolve to ETERNAL"
+    assert canonical("RELIANCE", conn=conn) == "RELIANCE"
+    assert stats["renames_confirmed"] >= 1 and stats["events"] == 1, stats
+
+    print(f"security_master selftest: OK  {stats}")
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(description="Build the security master (survivorship + renames + breaks).")
+    p.add_argument("--selftest", action="store_true", help="synthetic in-memory validation")
+    p.add_argument("--symbol", help="print the master row + events + canonical for one symbol")
+    p.add_argument("--load-renames", metavar="CSV", help="ingest an NSE symbol-change CSV")
+    args = p.parse_args()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s %(message)s")
+
+    if args.selftest:
+        _selftest()
+        return
+    if args.symbol:
+        sym = args.symbol.strip().upper()
+        print(f"{sym}: {get(sym)}")
+        print(f"  canonical → {canonical(sym)}")
+        for e in events_for(sym):
+            print(f"  event: {e['event_type']} {e['ex_date']} — {e['details']}")
+        return
+    if args.load_renames:
+        n = load_renames(args.load_renames)
+        print(f"loaded {n} renames")
+        return
+
+    stats = compute_and_store()
+    print(f"security_master: {stats}")
+
+
+if __name__ == "__main__":
+    main()
