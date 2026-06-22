@@ -919,6 +919,10 @@ def render_markets(idx_date) -> str:
         '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">📈 Sector Rotation</div>'
         '<div class="ck-l">RS heat per sector · sortable</div>'
         '<div class="ck-c">vs Nifty 500 · 1m/3m/6m/12m/18m/24m</div></a>'
+        '<a class="ck-tile" style="border-top:3px solid #d29922" href="/dash/rsband">'
+        '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">📊 RS Band</div>'
+        '<div class="ck-l">support ↔ resistance per sector</div>'
+        '<div class="ck-c">cheap vs rich vs its own history · the level lens</div></a>'
         '</div>')
 
     return (_CKPT_CSS
@@ -2530,11 +2534,20 @@ def _render_entity_tags(sym, added="", err="") -> str:
     if ab and ab[0]:
         about_html = (f'<div class="card sub" style="margin-bottom:8px"><b>What the engine reads</b> '
                       f'(Screener · {esc(ab[1] or "—")}): {esc((ab[0] or "")[:280])}…</div>')
+    n_prop = sum(1 for t in tags if not t["approved"])
+    approve_all_sym = ""
+    if n_prop:
+        approve_all_sym = (
+            '<form method="post" action="/dash/tags" style="display:inline;margin-left:8px">'
+            '<input type="hidden" name="action" value="approve_symbol">'
+            f'<input type="hidden" name="symbol" value="{esc(sym)}">'
+            f'<input type="hidden" name="nxt" value="{esc(nxt)}">'
+            f'<button type="submit" class="tbtn tbtn-go">✓ Approve all {n_prop} proposed</button></form>')
     head = (f'<h2 style="margin-top:2px">Themes · {esc(sym)} '
             '<span class="sub" style="margin:0">all tags for this company · edit</span></h2>'
             f'<div class="sub" style="margin-top:2px"><a class="row" style="display:inline" href="/dash/stock?sym={q(sym)}">'
             f'← {esc(sym)} stock page</a> · <a class="row" style="display:inline" href="/dash/tags-review">all proposals</a> · '
-            '<a class="row" style="display:inline" href="/dash/themes">all themes</a></div>')
+            f'<a class="row" style="display:inline" href="/dash/themes">all themes</a>{approve_all_sym}</div>')
     table = ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
              '<thead><tr><th class="l">Theme</th><th class="l">Source</th><th class="l">Why / match</th>'
              '<th class="l">Action</th></tr></thead>'
@@ -2580,21 +2593,37 @@ def render_tags_review(added="", err="", sym="") -> str:
                '<span class="sub" style="margin:0">manual tags are approved instantly (source=ramana)</span></form>')
     if pending:
         _srcpill = {"keyword": "rule", "ai": "AI·gemini", "index": "index"}
-        prows = "".join(
-            f'<tr><td class="l"><a class="row" style="display:inline" href="/dash/stock?sym={q(p["symbol"])}">'
-            f'{esc(p["symbol"])}</a></td><td class="l">{D._tag_chips([p["tag"]], link=False)}</td>'
-            f'<td class="mut">{esc(_srcpill.get(p.get("source"), p.get("source") or "—"))}</td>'
-            f'<td class="r mut">{(("%.2f" % p["confidence"]) if p.get("confidence") is not None else "—")}</td>'
-            f'<td class="l mut">{esc(p.get("note") or "")}</td>'
-            f'<td class="l">{_tag_act_btn("approve", p["symbol"], p["tag"], "✓ approve")} '
-            f'{_tag_act_btn("reject", p["symbol"], p["tag"], "✕")}</td></tr>'
-            for p in pending)
+        # GROUP BY theme so you can "approve all" a theme in one click (scan it,
+        # dismiss the odd FP first, then bulk-approve the rest), instead of N clicks.
+        by_tag = {}
+        for p in pending:
+            by_tag.setdefault(p["tag"], []).append(p)
+        groups = ""
+        for tag in sorted(by_tag, key=lambda t: (-len(by_tag[t]), t)):
+            items = by_tag[tag]
+            rows = "".join(
+                f'<tr><td class="l"><a class="row" style="display:inline" href="/dash/tags-review?sym={q(p["symbol"])}">'
+                f'{esc(p["symbol"])}</a></td>'
+                f'<td class="mut">{esc(_srcpill.get(p.get("source"), p.get("source") or "—"))}</td>'
+                f'<td class="l mut">{esc(p.get("note") or "")}</td>'
+                f'<td class="l">{_tag_act_btn("approve", p["symbol"], tag, "✓")} '
+                f'{_tag_act_btn("reject", p["symbol"], tag, "✕")}</td></tr>'
+                for p in items)
+            approve_all = (f'<form method="post" action="/dash/tags" style="display:inline;margin-left:auto">'
+                           f'<input type="hidden" name="action" value="approve_theme">'
+                           f'<input type="hidden" name="tag" value="{esc(tag)}">'
+                           f'<input type="hidden" name="nxt" value="/dash/tags-review">'
+                           f'<button type="submit" class="tbtn tbtn-go">✓ Approve all {len(items)}</button></form>')
+            groups += (f'<div class="card" style="margin-bottom:10px;padding:6px 10px">'
+                       f'<div class="ck-h" style="display:flex;align-items:center;gap:8px">'
+                       f'{D._tag_chips([tag], link=False)}<span class="sub" style="margin:0">{len(items)} proposed</span>'
+                       f'{approve_all}</div>'
+                       '<div style="overflow-x:auto"><table class="dt"><thead><tr><th class="l">Symbol</th>'
+                       '<th class="l">Source</th><th class="l">Why / match</th><th class="l">Action</th></tr></thead>'
+                       f'<tbody>{rows}</tbody></table></div></div>')
         pend_html = (f'<h3 style="margin:16px 0 6px">Proposals '
-                     f'<span class="sub" style="margin:0">{len(pending)} awaiting your sign-off · rules + optional Gemini</span></h3>'
-                     '<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
-                     '<thead><tr><th class="l">Symbol</th><th class="l">Proposed tag</th><th class="l">Source</th>'
-                     '<th>Conf</th><th class="l">Why / match</th><th class="l">Action</th></tr></thead>'
-                     f'<tbody>{prows}</tbody></table></div>')
+                     f'<span class="sub" style="margin:0">{len(pending)} across {len(by_tag)} themes · '
+                     'approve-all per theme, dismiss the odd FP</span></h3>' + groups)
     else:
         pend_html = ('<h3 style="margin:16px 0 6px">Proposals</h3>'
                      '<div class="card sub" style="margin:0">No proposals pending. The FREE keyword proposer '

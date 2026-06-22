@@ -293,6 +293,27 @@ def add_manual(conn, symbol: str, tag: str) -> None:
     conn.commit()
 
 
+def approve_all_for_theme(conn, tag: str) -> int:
+    """Bulk-approve every pending proposal for one theme (review ergonomics)."""
+    syms = [r[0] for r in conn.execute(
+        "SELECT DISTINCT symbol FROM company_tags WHERE tag=? AND approved=0 AND source!='rejected'",
+        (tag,)).fetchall()]
+    for s in syms:
+        approve(conn, s, tag)
+    return len(syms)
+
+
+def approve_all_for_symbol(conn, symbol: str) -> int:
+    """Bulk-approve every pending proposal for one company (entity editor)."""
+    symbol = symbol.upper().strip()
+    tags = [r[0] for r in conn.execute(
+        "SELECT DISTINCT tag FROM company_tags WHERE symbol=? AND approved=0 AND source!='rejected'",
+        (symbol,)).fetchall()]
+    for t in tags:
+        approve(conn, symbol, t)
+    return len(tags)
+
+
 # --- The FREE proposer: deterministic keyword rules (NO LLM, ₹0) -----------
 # The primary proposer (doctrine: rule-based > LLM). Matches each company's
 # business description + Screener industry (from company_about) against a

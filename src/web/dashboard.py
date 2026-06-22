@@ -7396,6 +7396,10 @@ def dash_tags_act(action: str = Form(...), symbol: str = Form(""),
                 conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND source='ramana'",
                              (symbol, tag))
                 conn.commit()
+            elif action == "approve_theme" and tag:           # bulk: all pending for a theme
+                TT.approve_all_for_theme(conn, tag)
+            elif action == "approve_symbol" and symbol:       # bulk: all pending for a company
+                TT.approve_all_for_symbol(conn, symbol)
             else:
                 ok = False
     except Exception:
