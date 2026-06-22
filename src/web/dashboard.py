@@ -6616,6 +6616,21 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     _ccist, _ = cci_state(cci_row)
     _p52 = L.get("pct_from_52w_high")
     _rsr = L.get("rs_rank")
+    # MEP phase + F&O positioning for the header (accumulation at-a-glance, both together)
+    _mph = _fq_hdr = None
+    try:
+        with get_conn() as _mc:
+            _mr = _mc.execute("SELECT mep_state_smooth FROM mep_signals WHERE symbol=? "
+                              "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+            _fr = _mc.execute("SELECT quadrant FROM fno_oi_signals WHERE symbol=? "
+                              "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+        _mph = _mr["mep_state_smooth"] if _mr else None
+        _fq_hdr = _fr["quadrant"] if _fr else None
+    except Exception:
+        _mph = _fq_hdr = None
+    _mph_lbl = {"STRONG_ACCUM": "STR ACC", "ACCUM": "ACCUM", "NEUTRAL": "NEUTRAL",
+                "DISTRIB": "DISTRIB", "STRONG_DISTRIB": "STR DIST"}.get(_mph or "", "—")
+    _fq_sub = ("F&O " + _fq_hdr.replace("_", " ").title()) if _fq_hdr else "no F&O future"
     verdict_strip = _ck_strip([
         _ck_tile(f"₹{_num(today_close, 1)}", "CMP", "#58a6ff", f"{_pct(day_chg)} today"),
         _ck_tile(f"{_conv}/100" if _conv is not None else "—", "Conviction", "#d2a8ff",
@@ -6623,6 +6638,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         _ck_tile(f"{_rsr}/99" if _rsr is not None else "—", "RS rank", "#3fb950", "broad universe"),
         _ck_tile(f"{rank}{' ⚡' if L.get('is_ath_dvpt') else ''}", "DVPT trigger", "#f0883e",
                  (f"{_xp:.1f}× power-1m" if _xp is not None else "no spike")),
+        _ck_tile(_mph_lbl, "Accum/Distrib · MEP", "#db61a2", _fq_sub),
         _ck_tile(_esc(_tier) if _tier else "—", "Quality · pt14", "#d29922",
                  (f"NS {_num(_ns, 1)}" if _ns is not None else "unscored")),
         _ck_tile(_esc(_ct) if _ct else "—", "Mgmt cred · CCI", "#39c5cf",
