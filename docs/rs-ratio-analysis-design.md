@@ -199,3 +199,25 @@ Overlay N indices (≤6) on one chart, each **rebased to a common start** so the
 - **Root cause (in code):** `/dash/stock` syncs 3 charts via `subscribeVisibleLogicalRangeChange` with **NO reentrancy guard** → a range-button click ping-pongs range updates pc↔vc↔dc until float-convergence (worst on →Max, where `fitContent()` vs `setVisibleLogicalRange` never exactly reconcile), each hop a full pane redraw. Amplified by the `ResizeObserver` calling `applyOptions({})` on all 3 charts. (NOT MA/data recompute — those are set once.)
 - **Fix:** (A) a `syncing` reentrancy flag guarding the sync subscription; (B) `setRange` applies the range to all charts **directly** under the flag (bypassing the sync round-trip), `fitContent()` per-chart for Max; (C) debounce the ResizeObserver (~100ms) + gate with `syncing`. /dash/ratio: debounce its ResizeObserver. ~10 lines, touches the /dash/stock IIFE + /dash/ratio ResizeObserver.
 - **/dash/compare fluid-rebase smoothness:** recompute on `subscribeVisibleTimeRangeChange`, **rAF-coalesced + anchor-gated** (skip if the left-edge trading day hasn't changed → panning within a day is free), reentrancy-guarded so `setData` doesn't recurse.
+
+---
+
+# PART 3 — RRG rotation map + RS-depth + constituent drill-down (D64, 2026-06-22)
+
+> SHIPPED & DEPLOYED. Wrap + placement + autonomous self-prompt: `docs/rrg-rotation-NEXT-SESSION.md`. Modules: `src/automation/rrg.py`, `capture.py`; route: `src/web/rrg_view.py` (`/dash/rrg`).
+
+## The second-order reads (the "deepen RS" asks)
+- **JdK RS-Ratio (x)** = EMA-smooth the RS ratio (`SMOOTH_SPAN=10`), then normalise to ~100 via a trailing z-score over `NORM_WIN=60`: `100 + 10·(v−mean)/std`. **JdK RS-Momentum (y)** = the same normalisation applied to the EMA of the rate-of-change of the smoothed line. Both ~100-centred → every sector/stock comparable on one quadrant chart. Quadrants vs 100: Leading (≥,≥) · Weakening (≥,<) · Lagging (<,<) · **Improving (<,≥)** = the base-and-turn.
+- **RSI-of-RS** = Wilder RSI(14) run on the RS *ratio line itself* (not the index price) — "is the *relative* performance overbought/oversold, and turning?". Use for washouts/divergence at extremes, NOT as a standalone trend (it saturates in strong trends). `rrg._rsi_series` (one pass; reused by `stock_rs` too).
+- **Mansfield RS** = `(RS / SMA(RS, 200) − 1)·100`, zero-centred — the robust turn signal that does NOT saturate like RSI. Zero-cross = relative turn.
+- **Turn flags:** momentum crossing the 100 centerline (`improving_entry` when ratio still <100; `weakening_warning` when >100), Mansfield zero-cross, RSI oversold-turn, bull/bear RS divergence.
+- All arithmetic, no LLM. Tunables at the top of `rrg.py`.
+
+## Down/up-capture ("accumulate what falls less than the Nifty") — `capture.py`
+- **down_capture** = compounded sector return ÷ compounded benchmark return over the days the benchmark FELL; `<1` = falls less (accumulate), `<0` = rose while the market fell (strongest), `>1` = falls harder (avoid). **up_capture** likewise on up-days. **down_excess** = mean(sector − benchmark | benchmark down) — the denominator-free, sign-clean "falls less" primary. Regime-gate the "accumulate" framing on the Home banner; the *change* in down-capture is the alpha.
+
+## Constituent drill-down (sector → its participant stocks)
+- `/dash/rrg?idx=<index>` → each member stock (`stock_index_membership`, latest snapshot) on its own JdK RS-Ratio/Momentum/RSI-of-RS, computed on-read from a 420-session window of `adjust.adjusted_closes` ÷ the chosen denominator (cap 50 members). **Default vs the sector** (spreads participants by intra-sector strength); `?vs=broad` = vs Nifty 500. Stock dots → `/dash/stock`. Pre-compute is the perf follow-up.
+
+## Placement (financial / UI-UX / architect 3-lens decision)
+RRG is a **view inside Markets**, not a 6th nav tab. **Sectors page = the home** (map overview on top + RS-depth table below; relative beside absolute), plus a full-screen `/dash/rrg`. Funnel: **Markets → Sectors[map+table] → drill to constituents → click a stock**. Single render source (`rrg_view.render_sectors_map`) feeds both the embed and the standalone page. Reconcile the 3 quadrant lenses (abs×rel on `/dash/ratio` · RRG · capture) into ONE "Relative strength" panel over time. Distinct from the weather rotation (`/dash/rotation`, phase buckets) — complementary.
