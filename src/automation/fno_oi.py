@@ -108,9 +108,11 @@ def _num(v) -> Optional[float]:
 
 
 def aggregate_oi(rows: list) -> dict:
-    """Per-underlying aggregation of stock FUTURES OI (summed across expiries) and
-    stock OPTIONS OI (for PCR). Returns {symbol: {fut_oi, fut_oi_chg, n_fut,
-    und_price, call_oi, put_oi}}."""
+    """Per-underlying aggregation of stock FUTURES OI (summed across expiries) +
+    the near-month futures price (for basis) + stock OPTIONS OI (PCR) + the
+    near-month option chain by strike (for max-pain / support / resistance).
+    Returns {symbol: {fut_oi, fut_oi_chg, n_fut, und_price, fut_price, near_exp,
+    call_oi, put_oi, opt: {expiry: {strike: [call_oi, put_oi]}}}}."""
     agg: dict = {}
     for r in rows:
         tp = r.get("FinInstrmTp")
@@ -119,8 +121,10 @@ def aggregate_oi(rows: list) -> dict:
             continue
         a = agg.setdefault(sym, {"fut_oi": 0.0, "fut_oi_chg": 0.0, "n_fut": 0,
                                  "und_price": None, "call_oi": 0.0, "put_oi": 0.0,
-                                 "has_fut": False, "has_opt": False})
+                                 "has_fut": False, "has_opt": False,
+                                 "near_exp": None, "fut_price": None, "opt": {}})
         oi = _num(r.get("OpnIntrst")) or 0.0
+        xp = r.get("XpryDt")
         if tp == "STF":                                  # stock future
             a["fut_oi"] += oi
             a["fut_oi_chg"] += (_num(r.get("ChngInOpnIntrst")) or 0.0)
@@ -129,13 +133,49 @@ def aggregate_oi(rows: list) -> dict:
             up = _num(r.get("UndrlygPric"))
             if up:
                 a["und_price"] = up
+            # near-month future = earliest expiry; capture its close for the basis
+            if xp and (a["near_exp"] is None or xp < a["near_exp"]):
+                a["near_exp"] = xp
+                a["fut_price"] = _num(r.get("ClsPric"))
         elif tp == "STO":                                # stock option
             a["has_opt"] = True
-            if r.get("OptnTp") == "CE":
+            ot = r.get("OptnTp")
+            if ot == "CE":
                 a["call_oi"] += oi
-            elif r.get("OptnTp") == "PE":
+            elif ot == "PE":
                 a["put_oi"] += oi
+            k = _num(r.get("StrkPric"))
+            if xp and k is not None:
+                cell = a["opt"].setdefault(xp, {}).setdefault(k, [0.0, 0.0])
+                if ot == "CE":
+                    cell[0] += oi
+                elif ot == "PE":
+                    cell[1] += oi
     return agg
+
+
+def _option_levels(strikes: dict) -> tuple:
+    """From {strike: [call_oi, put_oi]} → (max_pain, support_strike, resistance_strike).
+    Support = strike with the most PUT OI (the put wall buyers defend); resistance =
+    strike with the most CALL OI (the call wall sellers cap); max-pain = the expiry
+    price that minimises total in-the-money option payout (writers' least pain)."""
+    if not strikes:
+        return None, None, None
+    ks = sorted(strikes)
+    res = max(ks, key=lambda k: strikes[k][0]) if any(strikes[k][0] for k in ks) else None
+    sup = max(ks, key=lambda k: strikes[k][1]) if any(strikes[k][1] for k in ks) else None
+    best_k, best_pain = None, None
+    for K in ks:
+        pain = 0.0
+        for kc in ks:
+            co, po = strikes[kc]
+            if kc < K:
+                pain += co * (K - kc)        # ITM calls the writer pays out
+            elif kc > K:
+                pain += po * (kc - K)        # ITM puts the writer pays out
+        if best_pain is None or pain < best_pain:
+            best_pain, best_k = pain, K
+    return best_k, sup, res
 
 
 # --- quadrant ---------------------------------------------------------------
@@ -173,6 +213,7 @@ _OI_COLS = [
     "fut_oi", "fut_oi_chg", "fut_oi_chg_pct",
     "und_price", "price_chg_pct", "quadrant",
     "call_oi", "put_oi", "pcr", "n_fut_contracts",
+    "fut_price", "basis_pct", "max_pain", "sup_strike", "res_strike",
 ]
 
 _ENSURE_SQL = """
@@ -181,6 +222,7 @@ CREATE TABLE IF NOT EXISTS fno_oi_signals (
     fut_oi REAL, fut_oi_chg REAL, fut_oi_chg_pct REAL,
     und_price REAL, price_chg_pct REAL, quadrant TEXT,
     call_oi REAL, put_oi REAL, pcr REAL, n_fut_contracts INTEGER,
+    fut_price REAL, basis_pct REAL, max_pain REAL, sup_strike REAL, res_strike REAL,
     computed_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, trade_date)
 );
@@ -188,10 +230,19 @@ CREATE INDEX IF NOT EXISTS idx_fnooi_date ON fno_oi_signals(trade_date);
 CREATE INDEX IF NOT EXISTS idx_fnooi_quad ON fno_oi_signals(trade_date, quadrant);
 """
 
+_NEW_COLS = {"fut_price": "REAL", "basis_pct": "REAL", "max_pain": "REAL",
+             "sup_strike": "REAL", "res_strike": "REAL"}
+
 
 def ensure_table() -> None:
+    """Create + idempotently forward-migrate (basis / option-level columns were
+    added after the first ship, so ADD COLUMN guards the existing VPS table)."""
     with get_conn() as conn:
         conn.executescript(_ENSURE_SQL)
+        have = {r["name"] for r in conn.execute("PRAGMA table_info(fno_oi_signals)").fetchall()}
+        for col, typ in _NEW_COLS.items():
+            if col not in have:
+                conn.execute(f"ALTER TABLE fno_oi_signals ADD COLUMN {col} {typ}")
 
 
 def _price_chg_for_date(conn, trade_date: str) -> dict:
@@ -229,11 +280,20 @@ def compute_for_date(trade_date: str) -> int:
             pc = price_chg.get(sym)
             call_oi, put_oi = a["call_oi"], a["put_oi"]
             pcr = (put_oi / call_oi) if call_oi > 0 else None
+            # basis = near-month future vs spot (premium = bullish carry)
+            fp, up = a["fut_price"], a["und_price"]
+            basis = ((fp - up) / up * 100.0) if (fp and up and up > 0) else None
+            # option-chain levels from the near-month expiry
+            near_opt = a["opt"].get(a["near_exp"])
+            if near_opt is None and a["opt"]:
+                near_opt = a["opt"][min(a["opt"])]
+            mp, sup, res = _option_levels(near_opt) if near_opt else (None, None, None)
             out.append([
                 sym, trade_date,
                 a["fut_oi"], a["fut_oi_chg"], oi_chg_pct,
                 a["und_price"], pc, quadrant(pc, oi_chg_pct),
                 (call_oi or None), (put_oi or None), pcr, a["n_fut"],
+                fp, basis, mp, sup, res,
             ])
         if out:
             ph = ",".join("?" * len(_OI_COLS))
@@ -281,15 +341,41 @@ def run_backfill() -> tuple[int, int]:
     return days, total
 
 
+def run_recent(n: int) -> tuple[int, int]:
+    """Recompute the last n trading days (re-fetch + INSERT OR REPLACE), so newly
+    added columns (basis / option levels) get populated without a full re-backfill."""
+    ensure_table()
+    with get_conn() as conn:
+        dates = [r["trade_date"] for r in conn.execute(
+            "SELECT DISTINCT trade_date FROM bhavcopy_rows WHERE trade_date>=? "
+            "ORDER BY trade_date DESC LIMIT ?", (_UDIFF_FIRST, n)).fetchall()]
+    log.info("F&O OI recompute: last %d trading days", len(dates))
+    days = total = 0
+    for d in reversed(dates):
+        try:
+            k = compute_for_date(d)
+            if k:
+                days += 1
+                total += k
+        except Exception as e:
+            log.warning("F&O OI recompute failed for %s: %s", d, e)
+        time.sleep(1.0)
+    log.info("F&O OI recompute complete: %d days, %d rows", days, total)
+    return days, total
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--backfill", action="store_true", help="every UDiFF-era trading day")
+    p.add_argument("--recent", type=int, help="recompute the last N trading days (repopulate new cols)")
     p.add_argument("--date", type=str, help="YYYY-MM-DD")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
     if args.backfill:
         run_backfill()
+    elif args.recent:
+        run_recent(args.recent)
     elif args.date:
         compute_for_date(args.date)
     else:

@@ -377,6 +377,11 @@ CREATE TABLE IF NOT EXISTS fno_oi_signals (
     put_oi          REAL,   -- summed stock-option put OI
     pcr             REAL,   -- put_oi / call_oi (sentiment)
     n_fut_contracts INTEGER,
+    fut_price       REAL,   -- near-month futures close (for basis)
+    basis_pct       REAL,   -- (fut_price - und_price)/und_price*100 — premium(+)/discount(-)
+    max_pain        REAL,   -- option max-pain strike (writers' least-payout expiry price)
+    sup_strike      REAL,   -- put wall = strike with most put OI (support)
+    res_strike      REAL,   -- call wall = strike with most call OI (resistance)
     computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, trade_date)
 );
