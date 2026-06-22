@@ -12,23 +12,17 @@ MEP = a **signed** accumulation(+)/distribution(−) descriptor, computed from t
 
 **Live surfaces:** `/dash/mep` (the dedicated BOTH-sides screen — 150 accumulators + 150 distributors, 5-state count strip, raw terms, accum/distrib filter) · home pillar "Accum/Distrib" + Net-accumulation/Distribution-watch boards · screener `accumulation·mep` column-group · stock-page "Accumulation·MEP" tab+dossier · `/dash/index` intra-index MEP board (both sides) · Conviction display-only column · Pat `mep`/`mep_state` glossary. Every MEP link → `/dash/mep`.
 
-**★ THE CATCH (the reason to come back):** MEP currently **flips state ~3 days out of 4** (RELIANCE: 51 state changes in 70 trading days; TCS 55; SUZLON 42). It's a **daily pressure oscillator, NOT a phase** — because 3 of its 4 terms (close-vs-VWAP, close-location, partly up/down-vol) are essentially *today's bar*. It does NOT hold an accumulation regime for weeks then ease into consolidation/distribution. **Open item #1 fixes this.**
+**★ THE CATCH — ✅ FIXED (2026-06-22, session 35).** MEP used to **flip state ~3 days out of 4** (RELIANCE 50 changes / 70 rows; TCS 54; SUZLON 41) — a daily oscillator, not a phase. Now there's a smoothed, hysteresis-banded **PHASE** (`mep_score_smooth` / `mep_state_smooth`, 15-row mean) headlined on every surface, daily kept underneath: **48.8 → 5.8 changes/70, max 8, all single-digit (8.5×).** Engine + UI committed + deployed + verified. Design+calibration in `docs/mep-strategy-design.md` §9. **Open items #1 & #2 are now closed** (below); the live items are #3 (F&O OI) and #4 (Pat routing) — both **Ramana's call**.
 
 ---
 
 ## OPEN ITEMS (priority order)
 
-### 1. ★ MEP smoothing → make it a real PHASE (the real gap; do first)
-**Problem:** the daily `mep_score`/`mep_state` whipsaw (see counts above). The screen says "STRONG_ACCUM" but it means *today's candle*, not a sustained regime.
-**Fix (concrete):**
-- Add **`mep_score_smooth`** = an EMA / rolling ~10-trading-day mean of the daily `mep_score`, per stock, strictly as-of (no look-ahead).
-- Add **`mep_state_smooth`** banded from the smoothed score WITH **hysteresis** so it doesn't chatter — simplest: asymmetric bands (ENTER STRONG_ACCUM at +1.0 but EXIT only below ~+0.6; same mirror for distrib), OR require the smoothed score to hold a band for ~3 days. EMA + asymmetric exit is cleanest.
-- **Headline the SMOOTHED phase** everywhere (the `/dash/mep` state column, the home boards, the pill); keep the **daily** `mep_score`/`mep_state` underneath as the granular detail (a secondary column + the stock dossier).
-- **Implementation:** in `src/automation/mep_signals.py` — `_backfill_mep_for_symbol` already computes the full daily-score series per symbol, so EMA-smooth that series in one pass and store both. For the nightly incremental (`compute_for_date`), fetch the trailing ~15 days of `mep_score` from `mep_signals` (+ today's) and smooth. Add the 2 columns to the `mep_signals` table (db.py SCHEMA_BASE + the module's `_ENSURE_SQL`) and `_MEP_COLS`.
-- **Verify it worked:** re-run the same transition-count probe — a good smoothed signal should show **single-digit** state changes per 70 days, not 50+.
+### 1. ★ MEP smoothing → make it a real PHASE — ✅ DONE (2026-06-22, session 35)
+**Shipped exactly as specified.** `mep_score_smooth` = rolling mean of the daily `mep_score` over **15** trading rows (the "~10" was widened to 15 — the smallest window that makes EVERY reference stock single-digit; calibrated on the VPS). `mep_state_smooth` = the smoothed score through a **hysteresis ladder** (asymmetric enter/exit deadbands, e.g. STRONG_ACCUM enters at +0.62 / exits at +0.40). The **smoothed PHASE is now the headline** on `/dash/mep` (+ a "Today" daily column), the home boards, the pillar count, the screener, the intra-index board, conviction, and the stock dossier (+ a "held in phase" days stat); the daily score is kept underneath. Implemented in `src/automation/mep_signals.py` (`_smooth_chain` for backfill/`--resmooth`; `_smooth_date` auto-called by `compute_for_date` for the nightly — no systemd change; backfill≡incremental to float epsilon). Columns added to `db.py` SCHEMA_BASE + migrated live via `ensure_table()`. **Verified: 48.8 → 5.8 changes/70, max 8, all single-digit (8.5×).** Full write-up: `docs/mep-strategy-design.md` §9.
 
-### 2. Document the multi-lens accumulation/distribution decode (preserve it — discussed, never written)
-The full framework we worked through lives only in chat. Capture it into `docs/mep-strategy-design.md` (or a `docs/accumulation-decode.md`). The essence to preserve:
+### 2. Document the multi-lens accumulation/distribution decode — ✅ DONE (2026-06-22, session 35)
+Written into `docs/mep-strategy-design.md` **§10** (3 channels, the lens/equation table, NAP synthesis, the descriptor-only verdict + the killer line). The essence preserved (kept here too for quick reference):
 
 **Three channels, rising information content:** (1) **bar/tape** — infer from one day's OHLC/VWAP/vol (cheap, but your data keeps refuting its *predictive* power); (2) **dynamics** — infer the footprint over time (persistence, vol-compression — where the validated Launchpad edge lives); (3) **identity** — directly observe WHO (named flows, holdings deltas, F&O OI — the only channel that names the strong hand).
 
