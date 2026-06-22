@@ -205,12 +205,12 @@ table.scr tbody tr:hover td{background:#1c2230!important;}
 .h-pos3{background:rgba(63,185,80,.22)!important;} .h-pos2{background:rgba(63,185,80,.13)!important;} .h-pos1{background:rgba(63,185,80,.06)!important;}
 .h-neg1{background:rgba(248,81,73,.07)!important;} .h-neg2{background:rgba(248,81,73,.14)!important;} .h-neg3{background:rgba(248,81,73,.22)!important;}
 /* column-group hide = ONE class on the table (single reflow, no per-cell JS) */
-table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-cci .g-cci,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
+table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-mep .g-mep,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-cci .g-cci,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
 /* LAG FIX (the Nifty-500 toggle hang): with table-layout:fixed the columns no longer
    re-solve their widths from 498 rows of content on every toggle. A JS-built <colgroup>
    gives each column an explicit width + tags it with its group; collapsing the col to 0
    here removes the gap a hidden group would otherwise leave under fixed layout. */
-table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-cci col.cg-cci,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
+table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-mep col.cg-mep,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-cci col.cg-cci,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
 /* CPR-confirmed gate: show only rows carrying a CPR reversal tier (one class) */
 table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
 /* D54 Phase 2 — "the instrument": inline static micro-viz readouts (D-UI-16).
@@ -1976,8 +1976,10 @@ def dash_screener(scope: str = Query("Nifty 500"),
                           s.trade_count_ratio_1m_6m tcr, s.deliv_updown_ratio_3m duo,
                           s.accum_price_drift_3m apd, s.turnover_surge_3m su3,
                           s.turnover_surge_1y suy, s.next_p_above npa, s.gap_to_next_p_pct gnp,
-                          {conv} conv
+                          {conv} conv,
+                          m.mep_score mep_sc, m.mep_state mep_st
                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                   LEFT JOIN mep_signals m ON m.symbol=s.symbol AND m.trade_date=s.trade_date
                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
                    {_SCAN_FILTERS}{scope_clause}
                    ORDER BY conv DESC, COALESCE(s.p_score,-1) DESC,
@@ -1992,6 +1994,8 @@ def dash_screener(scope: str = Query("Nifty 500"),
                     syms).fetchall()}
                 cpr_by_tf = _cpr_latest_by_tf(conn, syms)   # CPR Structure group (D53)
                 cci_by_sym = _cci_latest_by_sym(conn, syms)  # Management Credibility group (CCI, P5)
+
+    from src.web.cockpit import _mv_adbar, _mep_pill
 
     def trend_pill(st):
         return f'<span class="pill p-{_esc(st)}">{_esc(st)}</span>' if st else '<span class="mut">—</span>'
@@ -2027,6 +2031,11 @@ def dash_screener(scope: str = Query("Nifty 500"),
         star = "★ " if ((r["p_score"] or 0) >= 4 and (r["rs_rank"] or 0) >= 80 and qg_ok) else ""
         cpr_tds, has_cpr = _cpr_screener_cells(cpr_by_tf.get(r["symbol"], {}))
         cci_tds, has_cci = _cci_screener_cells(cci_by_sym.get(r["symbol"]))
+        msc, mst = r.get("mep_sc"), r.get("mep_st")
+        mep_score_td = (f'<td class="num g-mep" style="color:{"#2ea043" if msc>=0 else "#f85149"}">{msc:+.2f}</td>'
+                        if msc is not None else '<td class="num g-mep mut">—</td>')
+        mep_cells = (f'<td class="inst l gsep g-mep">{_mv_adbar(msc)}</td>'
+                     + mep_score_td + f'<td class="l g-mep">{_mep_pill(mst)}</td>')
         g3 = r["g3"]
         g3_tint = " h-pos2" if (g3 is not None and _KEY_BAND[0] <= g3 <= _KEY_BAND[1]) else ""
         nearp = (f'{_esc(r["npa"])} {_pct(r["gnp"])}' if r["npa"] else '<span class="mut">—</span>')
@@ -2049,6 +2058,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             f'<td class="num g-pos">{_num(r["suy"], 2)}</td>'
             f'<td class="num g-pos">{dlv}</td>'
             f'<td class="num g-pos">{dvt_cr}</td>'
+            + mep_cells +
             f'<td class="inst l gsep g-key">{_mv_keyband(g3)}</td>'
             f'<td class="num g-key{g3_tint}">{_pct(g3)}</td>'
             f'<td class="num g-key">{_pct(r["g6"])}</td>'
@@ -2101,6 +2111,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l" colspan="2">identity</th>'
             '<th class="l gsep g-conv" colspan="2">conviction</th>'
             '<th class="l gsep g-pos" colspan="9">positioning · dvpt</th>'
+            '<th class="l gsep g-mep" colspan="3">accumulation · mep</th>'
             '<th class="l gsep g-key" colspan="4">key price</th>'
             '<th class="l gsep g-char" colspan="4">character</th>'
             '<th class="l gsep g-rs" colspan="5">relative strength</th>'
@@ -2114,6 +2125,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-pos">DVPT vs power</th><th class="num g-pos">p</th><th class="num g-pos">r</th>'
             '<th class="num g-pos">×Pow</th><th class="num g-pos">Surge1m</th><th class="num g-pos">Surge3m</th>'
             '<th class="num g-pos">Surge1y</th><th class="num g-pos">Deliv%</th><th class="num g-pos">Val₹Cr</th>'
+            '<th class="l gsep g-mep">Accum</th><th class="num g-mep">Score</th><th class="l g-mep">State</th>'
             '<th class="l gsep g-key">Launch band</th><th class="num g-key">Gap3m</th><th class="num g-key">Gap6m</th><th class="num g-key">Gap12m</th>'
             '<th class="l gsep g-char">Character</th><th class="num g-char">WHO</th><th class="num g-char">WAY</th><th class="num g-char">Drift</th>'
             '<th class="l gsep g-rs">RS trend</th><th class="num g-rs">RS#</th><th class="l g-rs">Broad</th><th class="l g-rs">Heat</th><th class="l g-rs">Sector</th>'
@@ -2172,7 +2184,7 @@ _SCREENER_JS = """
     tbl.insertBefore(cg, tbl.firstChild);
   })();
   var vbar=document.getElementById('vbar'); if(!vbar) return;
-  var TOG=[['conv','Conviction'],['pos','Positioning'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['cci','Credibility'],['qual','Quality'],['ctx','Context']];
+  var TOG=[['conv','Conviction'],['pos','Positioning'],['mep','Accumulation'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['cci','Credibility'],['qual','Quality'],['ctx','Context']];
   var KEY='patearn_scr_hidden', SKEY='patearn_scr_saved';
   function getH(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
   function getSaved(){try{return JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){return [];}}
@@ -2447,6 +2459,67 @@ def _cci_bar(label: str, v, invert: bool = False) -> str:
             f'<span style="flex:1;max-width:150px;background:#21262d;border-radius:3px;height:7px">'
             f'<span style="display:block;height:7px;border-radius:3px;width:{int(v)}%;background:{col}"></span></span>'
             f'<span style="width:26px;text-align:right;color:#c9d1d9">{int(v)}</span></div>')
+
+
+def _mep_stock_panel(sym: str) -> str:
+    """Per-stock MEP (signed accumulation/distribution) dossier — descriptor-only
+    (D62). The signed verdict, then the four SIGNED terms each with its within-stock
+    z-score and raw value (data-first), two context terms, and DVPT's side-blind
+    character shown as a CONFIRMATION sub-row (DVPT's surviving role). '' when the
+    stock has no MEP data (graceful, like the CPR/CCI panels). Pure static HTML/SVG
+    — no chart, no width-measuring JS, so it renders correctly while hidden."""
+    try:
+        with get_conn() as conn:
+            m = conn.execute(
+                "SELECT * FROM mep_signals WHERE symbol=? ORDER BY trade_date DESC LIMIT 1",
+                (sym,)).fetchone()
+            ch = conn.execute(
+                "SELECT accum_character FROM stock_signals WHERE symbol=? "
+                "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+    except Exception:
+        return ""
+    if not m or m["mep_score"] is None:
+        return ""
+    from src.web.cockpit import _mv_adbar, _mep_pill
+    sc, st = m["mep_score"], m["mep_state"]
+    scol = "#2ea043" if sc >= 0 else "#f85149"
+    chips = (
+        '<div class="kpi">'
+        f'<div class="box"><div class="num" style="color:{scol}">{sc:+.2f}</div><div class="lbl">MEP score</div></div>'
+        f'<div class="box"><div class="num">{_mep_pill(st)}</div><div class="lbl">state</div></div>'
+        f'<div class="box"><div class="num">{_mv_adbar(sc)}</div><div class="lbl">accum &harr; distrib</div></div>'
+        f'<div class="box"><div class="num">{m["data_points_used"]}</div><div class="lbl">history days</div></div>'
+        '</div>')
+
+    def _trow(name, z, raw):
+        zt = f'{z:+.2f}' if z is not None else '—'
+        rt = f'{raw:+.3f}' if raw is not None else '—'
+        zc = ("#2ea043" if z >= 0 else "#f85149") if z is not None else "#8b949e"
+        return (f'<tr><td class="l">{name}</td>'
+                f'<td class="r" style="color:{zc}">{zt}</td><td class="r mut">{rt}</td></tr>')
+    terms = (
+        '<table class="ck-t" style="margin-top:8px"><tbody>'
+        '<tr><td class="l mut">signed term</td><td class="r mut">z vs own history</td><td class="r mut">raw</td></tr>'
+        + _trow("Pressure — close vs VWAP", m["z_pressure"], m["pressure"])
+        + _trow("Close-location (CLV)", m["z_clv"], m["clv"])
+        + _trow("Drift — 22d adj return", m["z_drift"], m["drift_22d"])
+        + _trow("Up/down volume skew — 22d", m["z_updown"], m["updown_vol_22d"])
+        + '</tbody></table>')
+    comp, ami = m["compression"], m["amihud_22d"]
+    ctx = (f'<div class="sub" style="margin-top:8px">Context (not summed into the score): '
+           f'compression <b>{f"{comp:.2f}" if comp is not None else "—"}</b> (short/long ATR — lower = coiled) · '
+           f'Amihud illiquidity <b>{f"{ami:.2e}" if ami is not None else "—"}</b>.</div>')
+    dvpt_conf = ''
+    if ch and ch["accum_character"]:
+        dvpt_conf = (f'<div class="sub" style="margin-top:4px">DVPT character '
+                     f'(side-blind — <b>confirmation</b>): <b>{_esc(ch["accum_character"])}</b>. '
+                     f'MEP leads with the signed read; DVPT confirms the delivery footprint.</div>')
+    foot = ('<div class="sub mut" style="margin-top:8px;font-size:11px">Descriptor only (D62) — a signed '
+            'character / confirmation lens, SIGNED where DVPT is side-blind, standardised vs the stock&#39;s '
+            'own trailing history. Not a stock picker (its predictive role failed the DSR gate).</div>')
+    return ('<h3 style="margin:4px 0 8px">Accumulation · MEP '
+            '<span class="sub" style="margin:0;font-weight:400">signed accumulation / distribution</span></h3>'
+            + chips + terms + ctx + dvpt_conf + foot)
 
 
 def _cci_stock_panel(sym: str) -> str:
@@ -6366,6 +6439,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 
     cpr_html = _cpr_stock_panel(cpr_by_tf)   # CPR Structure panel (D53)
     cci_html = _cci_stock_panel(sym)         # Management Credibility dossier (CCI, P5)
+    mep_html = _mep_stock_panel(sym)         # MEP signed accumulation/distribution dossier (D62)
 
     # D54 — Track capture: build a frozen-snapshot preview for the action loop.
     _ix = _xpower(L)
@@ -6419,7 +6493,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     def _stab(k, lbl, on):
         oncls = ' class="on"' if on else ''
         return f'<a href="#{k}" data-stab="{k}"{oncls}>{lbl}</a>'
-    _tabs = [("price", "Price"), ("pos", "Positioning · DVPT"), ("rs", "Relative Strength"),
+    _tabs = [("price", "Price"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
+             ("rs", "Relative Strength"),
              ("qual", "Quality"), ("cpr", "Structure · CPR"), ("cci", "Credibility · CCI")]
     tabbar = ('<div class="tabbar" id="stabbar" style="position:sticky;top:0;background:#0e1116;z-index:5">'
               + "".join(_stab(k, l, i == 0) for i, (k, l) in enumerate(_tabs)) + '</div>')
@@ -6505,6 +6580,9 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 {character_html}
 {zones_html}
 {keyprice_html}
+</div>
+<div class="tabpane" data-tab="mep" style="display:none">
+{mep_html}
 </div>
 <div class="tabpane" data-tab="rs" style="display:none">
 {rs_html}
@@ -6785,6 +6863,17 @@ const DATA = __DATA__;
 })();
 </script>
 """
+
+
+@router.get("/dash/launchpad", response_class=HTMLResponse)
+def dash_launchpad() -> HTMLResponse:
+    """Live Launchpad setup screen (cockpit.render_launchpad) — the D56 validated
+    explosive-move precursors over today's liquid universe, computed render-time."""
+    sig_date, idx_date = _latest_dates()
+    from src.web.cockpit import render_launchpad
+    return HTMLResponse(_shell("Launchpad · patearn",
+                               render_launchpad(sig_date, idx_date),
+                               "strategies", sig_date or "", wide=True))
 
 
 @router.get("/dash/index", response_class=HTMLResponse)

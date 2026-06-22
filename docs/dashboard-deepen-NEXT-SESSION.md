@@ -69,6 +69,22 @@
   /dash/ratio→/dash/index; RS-overlay boot logs errors instead of silently swallowing. Verified VPS: index order
   Price<Snapshot<RS<Rollup, levels + NEAR labels + toggle present; stock Candles/Line + 5Y + crumb; full regression 200.
 
+- **LAUNCHPAD SHIPPED (the §3.C strategic build) — live setup screen.** New `/dash/launchpad` (cockpit.render_launchpad
+  + thin route; LAUNCH registry pillar repointed there). Ports research/explosive_moves/launchpad_scan.launchpad_flags
+  RENDER-TIME over today's liquid (≥₹5cr trailing-median-turnover) universe, using `src.automation.adjust` (same
+  back-adjustment as the research) — MOM_CONT / COILED / PULLBACK, plain-Python (no numpy/cron/table/backfill).
+  Consulted the explosive-move research agent: the raw flags are a COMMON precursor universe (342 today), NOT a
+  shortlist, so the screen (a) leads with the **fresh rising edge** (setup just turned on ≤2 sessions — the backtest
+  enters the edge, not the 8th day; ~84 trades/yr selected from days like these), (b) ⭐-stars any name with a **genuine
+  institutional bulk/block net-buyer** that day (`_lp_net_buyers` ⋈ client_classify — the research's high-conviction
+  intersection; deals feed is young so usually 0-few), (c) labels the 342 honestly as the universe. HONEST evidence
+  card = the real S1 backtest (net of costs, regime-gated: CAGR +4.0% · hit 39% · PF 1.31 · both walk-forward windows
+  net-positive) — NOT the inflated 63%/5.7× headline. Verified VPS: GOKEX (⭐ + MOM·CONT/COILED, fresh) tops the list;
+  342 universe / 144 fresh / ⭐2 buyers; regression + MEP screener intact.
+  NOTE — a parallel **MEP** work-stream is concurrently building an "accumulation·mep" screener column into cockpit.py +
+  dashboard.py (its `_mv_adbar`/`_mep_pill` + `mep_signals` table, deployed, uncommitted). My launchpad is additive +
+  coexists; deploys were CRLF-diff-checked to never revert MEP.
+
 **DEPLOY STATE:** all three workstreams live on the VPS (`hermes-api` active), CRLF/parallel-diff-checked, py_compile-
 guarded. NOT committed — Ramana commits. Full 20-route regression sweep 200, no API errors. Files touched:
 `src/web/cockpit.py`, `src/web/dashboard.py`, `src/automation/cci_pipeline.py`, `/etc/systemd/system/hermes-concalls.service`.

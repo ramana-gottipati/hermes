@@ -15,6 +15,8 @@ entry and it appears in the home count-strip + hub automatically — the user's
 from __future__ import annotations
 
 import json
+import math
+import statistics
 
 # stock_rs does NOT import dashboard, so these top-level imports are cycle-safe.
 try:
@@ -358,6 +360,12 @@ STRATEGY_REGISTRY = [
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM stock_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
          "WHERE s.trade_date=? AND s.trigger_rank IN ('SS','S') " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
+    {"key": "MEP", "label": "Accumulation", "accent": "#db61a2", "href": "/dash/stocks",
+     "cta": "strong accumulators today",
+     "thesis": "Signed accumulation vs distribution (descriptor) — who is being absorbed. SIGNED where DVPT is side-blind; a character/confirmation lens, not a picker (D62 — predictive role failed its DSR gate).",
+     "count": lambda conn, d, D: conn.execute(
+         "SELECT COUNT(*) c FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+         "WHERE s.trade_date=? AND s.mep_state='STRONG_ACCUM' " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
     {"key": "RS", "label": "Relative Strength", "accent": "#3fb950", "href": "/dash/leaders",
      "cta": "strong-in-strong leaders",
      "thesis": "Beating the broad market and leading its own sector.",
@@ -374,9 +382,9 @@ STRATEGY_REGISTRY = [
      "cta": "concall credibility",
      "thesis": "Do managements keep their promises? Measurable guidance-accuracy + a deterioration / ⛔veto avoid-tape, from earnings concalls. (Pilot — backfill accruing.)",
      "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM concall_scores").fetchone()["c"]},
-    {"key": "LAUNCH", "label": "Launchpad", "accent": "#f0883e", "href": "/dash/screener",
-     "cta": "research → live screener pending",
-     "thesis": "Validated explosive-move precursors (momentum-continuation ∪ pullback-in-vol). D56 research, productizing next.",
+    {"key": "LAUNCH", "label": "Launchpad", "accent": "#f0883e", "href": "/dash/launchpad",
+     "cta": "validated setup screen",
+     "thesis": "Validated explosive-move precursors (momentum-continuation ∪ coiled ∪ pullback), computed live over today's liquid universe. D56 research — net-of-costs, walk-forward-positive momentum core; a setup screen, not advice.",
      "count": lambda conn, d, D: None},
 ]
 
@@ -507,6 +515,39 @@ def _board(title_html, sub, inner_html, href, cta, accent):
             f'{inner_html}<a class="more" href="{href}">{cta} →</a></div>')
 
 
+# --- MEP instrument language (signed accumulation/distribution; D62, descriptor) ---
+# Self-contained in cockpit.py (parallel-safe — no edit to dashboard.py's _mv_*).
+def _mv_adbar(score):
+    """Signed accumulation/distribution mini-bar. Centre = 0; green-right =
+    accumulation, red-left = distribution. Clamped to ±2 for display."""
+    if score is None:
+        return '<span class="mut">—</span>'
+    v = max(-2.0, min(2.0, score))
+    frac = v / 2.0 * 50.0          # -50 .. +50 x-units from centre
+    if v >= 0:
+        x, w, col = 50.0, frac, "#2ea043"
+    else:
+        x, w, col = 50.0 + frac, -frac, "#f85149"
+    return (f'<svg width="92" height="16" viewBox="0 0 100 16" preserveAspectRatio="none" '
+            f'style="vertical-align:middle">'
+            f'<rect x="0" y="6.5" width="100" height="3" rx="1.5" fill="#21262d"/>'
+            f'<rect x="{x:.1f}" y="4.5" width="{w:.1f}" height="7" rx="1.5" fill="{col}"/>'
+            f'<line x1="50" y1="2" x2="50" y2="14" stroke="#6e7681" stroke-width="1"/></svg>')
+
+
+def _mep_pill(state):
+    """Coloured MEP state badge."""
+    if not state:
+        return '<span class="mut">—</span>'
+    c = {"STRONG_ACCUM": "#2ea043", "ACCUM": "#3fb950", "NEUTRAL": "#8b949e",
+         "DISTRIB": "#f0883e", "STRONG_DISTRIB": "#f85149"}.get(state, "#8b949e")
+    txt = {"STRONG_ACCUM": "STRONG ACC", "ACCUM": "ACCUM", "NEUTRAL": "NEUTRAL",
+           "DISTRIB": "DISTRIB", "STRONG_DISTRIB": "STRONG DIST"}.get(state, state)
+    return (f'<span style="display:inline-block;padding:1px 6px;border-radius:6px;'
+            f'font-size:10.5px;font-weight:700;color:{c};border:1px solid {c}55;'
+            f'background:{c}14">{txt}</span>')
+
+
 def render_home(sig_date, idx_date) -> str:
     """Full-bleed, registry-driven market cockpit. Reuses dashboard's instrument
     helpers so home speaks the same visual language as the screener."""
@@ -515,6 +556,7 @@ def render_home(sig_date, idx_date) -> str:
 
     nifty, breadth, lead = {}, None, None
     top_sectors, weak_sectors, top_stocks, stealth = [], [], [], []
+    mep_accum, mep_distrib = [], []
     counts = {}
     with D.get_conn() as conn:
         if idx_date:
@@ -560,6 +602,15 @@ def render_home(sig_date, idx_date) -> str:
                 f"AND COALESCE(s.trade_count_ratio_1m_6m,99)<=1.1 AND s.pct_from_52w_high<=-10 "
                 f"{D._SCAN_FILTERS} ORDER BY s.p_score DESC, s.pct_from_52w_high ASC LIMIT 6",
                 (sig_date,)).fetchall()]
+            mep_cols = "s.symbol, s.mep_score sc, s.mep_state st"
+            mep_accum = [dict(x) for x in conn.execute(
+                f"SELECT {mep_cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
+                f"ORDER BY s.mep_score DESC LIMIT 7", (sig_date,)).fetchall()]
+            mep_distrib = [dict(x) for x in conn.execute(
+                f"SELECT {mep_cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
+                f"ORDER BY s.mep_score ASC LIMIT 6", (sig_date,)).fetchall()]
         for e in STRATEGY_REGISTRY:
             try:
                 counts[e["key"]] = e["count"](conn, sig_date, D)
@@ -682,6 +733,27 @@ def render_home(sig_date, idx_date) -> str:
         boards.append(_board('<span class="em">🕵</span> Stealth accumulation', 'concentrated, still off the highs',
                              trig_rows(stealth, score_cell=stealth_score),
                              "/dash/stocks", "See the full screen", "#58a6ff"))
+
+    # MEP — signed accumulation/distribution (descriptor; D62). Additive, Phase-A
+    # placement (appended after the DVPT boards). SIGNED, so it can carry a
+    # distribution-watch board DVPT structurally cannot.
+    def mep_rows(rows):
+        out = ""
+        for r in rows:
+            sc = r["sc"]
+            scol = "#2ea043" if sc >= 0 else "#f85149"
+            out += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
+                    f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
+                    f'<td class="l">{_mv_adbar(sc)}</td>'
+                    f'<td class="l">{_mep_pill(r["st"])}</td>'
+                    f'<td class="r" style="color:{scol}">{sc:+.2f}</td></tr>')
+        return f'<table class="ck-t"><tbody>{out}</tbody></table>'
+    if mep_accum:
+        boards.append(_board('<span class="em">📈</span> Net accumulation', 'signed pressure · MEP (descriptor)',
+                             mep_rows(mep_accum), "/dash/stocks", "See the accumulation screen", "#db61a2"))
+    if mep_distrib:
+        boards.append(_board('<span class="em">📉</span> Distribution watch', 'net selling pressure · MEP',
+                             mep_rows(mep_distrib), "/dash/stocks", "See the distribution screen", "#db61a2"))
 
     cockpit = '<div class="ckpt">' + "".join(boards) + '</div>'
 
@@ -1192,7 +1264,29 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                              f'<table class="ck-t"><tbody>{dvrows}</tbody></table>',
                              "/dash/stocks", "Positioning screen", "#58a6ff")
                       if dvrows else "")
-        boards = "".join(b for b in (lead_board, lag_board, dvpt_board) if b)
+        # intra-index MEP — signed accumulation (descriptor, D62). Separate query over
+        # this index's constituents; the member fetch is left untouched.
+        mep_board = ""
+        msyms = [m["symbol"] for m in members if m.get("symbol")]
+        if msyms and sig_date:
+            ph = ",".join("?" for _ in msyms)
+            with D.get_conn() as conn:
+                mrows = [dict(x) for x in conn.execute(
+                    f"SELECT symbol, mep_score sc, mep_state st FROM mep_signals "
+                    f"WHERE trade_date=? AND mep_score IS NOT NULL AND symbol IN ({ph}) "
+                    f"ORDER BY mep_score DESC LIMIT 8", (sig_date, *msyms)).fetchall()]
+            if mrows:
+                mr = ""
+                for x in mrows:
+                    sc = x["sc"]; scol = "#2ea043" if sc >= 0 else "#f85149"
+                    mr += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(x["symbol"])}">'
+                           f'<span class="sym">{esc(x["symbol"])}</span></a></td>'
+                           f'<td class="l">{_mv_adbar(sc)}</td><td class="l">{_mep_pill(x["st"])}</td>'
+                           f'<td class="r" style="color:{scol}">{sc:+.2f}</td></tr>')
+                mep_board = _board('📈 Intra-index accumulation', 'signed pressure · MEP (descriptor)',
+                                   f'<table class="ck-t"><tbody>{mr}</tbody></table>',
+                                   "/dash/stocks", "Accumulation screen", "#db61a2")
+        boards = "".join(b for b in (lead_board, lag_board, dvpt_board, mep_board) if b)
         if boards:
             rollup += '<div class="ckpt">' + boards + '</div>'
     elif not is_broad:
@@ -1208,6 +1302,265 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
     # ratio chart) → constituent roll-up. Price leads; relative read follows.
     return (_CKPT_CSS + chart_css + crumb + head + banner + chart_html + snapshot
             + rs_block + rollup + chart_js)
+
+
+# --- Launchpad: the data-validated explosive-move SETUP screen (D56) ----------
+# Ports research/explosive_moves/launchpad_scan.launchpad_flags to a live, render-
+# time screen over today's liquid universe — the same corporate-action-adjusted
+# close the research used (via src.automation.adjust), RAW volume for the volume
+# ratio, RAW turnover for the liquidity median. The validated MOMENTUM core
+# (MOM_CONT/COILED, ≥₹5cr) is backtest "S1": net of costs over 2012-2026 it ran
+# CAGR +4.0% / MaxDD -27.6% / hit 39% / PF 1.31 / beta 0.42, and BOTH walk-forward
+# windows (2012-19 +2.2%, 2020-26 +5.1%) were net-positive. PULLBACK is the weaker
+# mean-reversion diversifier (only the recent regime net-positive). A SETUP screen —
+# entry candidates, regime-gated (Nifty 50 > 200-DMA); moves are infrequent.
+_LP_LIQ = 5e7   # ₹5 cr trailing-median turnover — the S1-core liquidity floor
+
+
+def _lp_at(adj, vols, vals, s):
+    """The validated flags + metrics at index s over adjusted-close/volume/turnover
+    arrays (oldest→newest). Returns (flags, metrics) or None when too little history."""
+    if s < 23:
+        return None
+    if not (adj[s] and adj[s] > 0):
+        return None
+
+    def r(k):
+        j = s - k
+        return (adj[s] / adj[j] - 1.0) if (j >= 0 and adj[j] and adj[j] > 0) else None
+    ret_1, ret_22 = r(1), r(22)
+    if ret_22 is None:
+        return None
+    seg66 = [x for x in adj[max(0, s - 66):s + 1] if x and x > 0]
+    lr = [math.log(seg66[i] / seg66[i - 1]) for i in range(1, len(seg66))]
+    vol66 = statistics.pstdev(lr) if len(lr) >= 30 else None
+    vol22 = statistics.pstdev(lr[-22:]) if len(lr) >= 22 else None
+    vratio = (vol22 / vol66) if (vol66 and vol22 is not None) else None
+    seg22 = [x for x in adj[max(0, s - 21):s + 1] if x and x > 0]
+    rng = ((max(seg22) - min(seg22)) / (sum(seg22) / len(seg22))) if seg22 else None
+    v22 = [v for v in vols[max(0, s - 21):s + 1] if v is not None]
+    v66 = [v for v in vols[max(0, s - 65):s + 1] if v is not None]
+    vr_vol = ((sum(v22) / len(v22)) / (sum(v66) / len(v66))) if (v22 and v66 and sum(v66)) else None
+    prior_val = [v for v in vals[max(0, s - 22):s] if v is not None]   # trailing 22, excludes today
+    med_turn = statistics.median(prior_val) if prior_val else None
+    flags = []
+    if ret_22 > 0.07 and vr_vol is not None and vr_vol <= 1.48 and rng is not None and rng > 0.096:
+        flags.append("MOM_CONT")
+    if ret_22 <= 0.07 and vol66 is not None and vol66 > 0.024 and ret_1 is not None and ret_1 <= -0.022:
+        flags.append("PULLBACK")
+    if vratio is not None and vratio < 1 and ret_22 >= 0.10:
+        flags.append("COILED")
+    return flags, {"ret22": ret_22, "ret1": ret_1, "vratio": vratio, "rng": rng,
+                   "vol66": vol66, "med_turn": med_turn}
+
+
+def _lp_features(closes, prev_closes, vols, vals):
+    """Today's flags + metrics for ONE symbol, PLUS the rising-edge age: how many
+    consecutive sessions (ending today) the setup has been on. age 0 = it just
+    triggered today (off yesterday) — a genuine FRESH entry (the backtest enters on
+    the rising edge, not the 8th day of a run). Returns (flags, metrics) or None."""
+    from src.automation import adjust
+    n = len(closes)
+    if n < 30:
+        return None
+    adj = adjust.adjusted_closes([{"close": c, "prev_close": p}
+                                  for c, p in zip(closes, prev_closes)])
+    if not adj or adj[-1] is None:
+        return None
+    s = n - 1
+    today = _lp_at(adj, vols, vals, s)
+    if not today:
+        return None
+    flags, m = today
+    days_on = 0
+    for k in range(0, 7):                 # today + up to 6 prior sessions (cap)
+        r = _lp_at(adj, vols, vals, s - k)
+        if r and r[0]:
+            days_on += 1
+        else:
+            break
+    m["age"] = (days_on - 1) if days_on > 0 else None   # 0 = fresh today; 6 = "5+" sustained
+    return flags, m
+
+
+_LP_FLAG = {
+    "MOM_CONT": ("MOM·CONT", "p-S", "momentum continuing, volume not yet expanded"),
+    "COILED": ("COILED", "p-SS", "up ≥10% but realized-vol contracting — coiled"),
+    "PULLBACK": ("PULLBACK", "p-A", "shaken in volatility — mean-reversion leg (weaker)"),
+}
+
+
+def _lp_net_buyers(conn):
+    """Symbols with a GENUINE one-sided institutional NET BUYER on the latest deals
+    day (bulk_block_deals ⋈ client_classify): non-churn category, |net|/(buy+sell)≥0.6,
+    net>0 (mirrors launchpad_scan.genuine_net_buyers). Returns (symbol_set, deals_date).
+    Degrades to (set(), None) if the deals feed / classifier isn't available."""
+    try:
+        from src.automation import client_classify as cc
+        td = conn.execute("SELECT MAX(trade_date) d FROM bulk_block_deals").fetchone()
+        td = td["d"] if td else None
+        if not td:
+            return set(), None
+        rows = conn.execute(
+            "SELECT symbol, client_name, side, SUM(qty) q FROM bulk_block_deals "
+            "WHERE trade_date=? GROUP BY symbol, client_name, side", (td,)).fetchall()
+    except Exception:
+        return set(), None
+    agg = {}
+    for r in rows:
+        a = agg.setdefault((r["symbol"], r["client_name"]), {"BUY": 0, "SELL": 0})
+        a[r["side"]] = a.get(r["side"], 0) + (r["q"] or 0)
+    out = set()
+    for (sym, client), a in agg.items():
+        b, s = a.get("BUY", 0), a.get("SELL", 0)
+        tot = b + s
+        if tot <= 0:
+            continue
+        try:
+            cat = cc.classify_client(client)
+        except Exception:
+            continue
+        if cat not in cc.CHURN and (b - s) > 0 and abs(b - s) / tot >= 0.6:
+            out.add(sym)
+    return out, td
+
+
+def render_launchpad(sig_date, idx_date) -> str:
+    """Full-bleed live Launchpad — the validated explosive-move precursor universe
+    over today's liquid (≥₹5cr) names, computed render-time. Honest framing: the raw
+    pattern is COMMON in a trend (a precursor universe, not a buy list); the actionable
+    cut is the FRESH rising edge (the setup just turned on) + a ⭐ when a genuine
+    institutional bulk/block net-buyer is present on the same name (the research's
+    high-conviction intersection)."""
+    from src.web import dashboard as D
+    esc, pct, num = D._esc, D._pct, D._num
+
+    rows_by_sym, T, regime_a200, net_set, deals_td = {}, None, None, set(), None
+    with D.get_conn() as conn:
+        tr = conn.execute("SELECT MAX(trade_date) d FROM bhavcopy_rows WHERE series='EQ'").fetchone()
+        T = tr["d"] if tr else None
+        if not T:
+            return _CKPT_CSS + '<div class="empty">No bhavcopy data yet.</div>'
+        cand = [x["symbol"] for x in conn.execute(
+            "SELECT symbol FROM bhavcopy_rows WHERE trade_date=? AND series='EQ' "
+            "AND (segment='CM' OR segment IS NULL) AND value>=? AND close>20 "
+            "AND symbol IN (SELECT symbol FROM nse_equity_list)", (T, _LP_LIQ)).fetchall()]
+        if cand:
+            import datetime as _dt
+            lo = (_dt.date.fromisoformat(T) - _dt.timedelta(days=130)).isoformat()
+            ph = ",".join("?" for _ in cand)
+            for x in conn.execute(
+                    f"SELECT symbol, close, prev_close, volume, value FROM bhavcopy_rows "
+                    f"WHERE symbol IN ({ph}) AND trade_date>=? AND trade_date<=? AND series='EQ' "
+                    f"AND (segment='CM' OR segment IS NULL) ORDER BY symbol, trade_date ASC",
+                    (*cand, lo, T)).fetchall():
+                rows_by_sym.setdefault(x["symbol"], []).append(x)
+        rg = conn.execute("SELECT pct_above_200d_avg a200 FROM index_signals "
+                          "WHERE index_name='Nifty 50' ORDER BY trade_date DESC LIMIT 1").fetchone()
+        regime_a200 = rg["a200"] if rg else None
+        net_set, deals_td = _lp_net_buyers(conn)
+
+    hits = []
+    for sym, rs in rows_by_sym.items():
+        try:
+            res = _lp_features([x["close"] for x in rs], [x["prev_close"] for x in rs],
+                               [x["volume"] for x in rs], [x["value"] for x in rs])
+        except Exception:
+            res = None
+        if not res:
+            continue
+        flags, m = res
+        if flags and m["med_turn"] is not None and m["med_turn"] >= _LP_LIQ:
+            m["buyer"] = sym in net_set
+            hits.append((sym, flags, m))
+
+    n_universe = len(hits)
+    fresh = [h for h in hits if (h[2]["age"] is not None and h[2]["age"] <= 2)]
+    n_buyer = sum(1 for _, _, m in hits if m.get("buyer"))
+    n_co = sum(1 for _, f, _ in hits if "COILED" in f)
+    # actionable order: a named institutional buyer first, then freshest, then most liquid
+    fresh.sort(key=lambda h: (0 if h[2].get("buyer") else 1, h[2]["age"], -(h[2]["med_turn"] or 0)))
+    CAP = 80
+    shown, n_more = fresh[:CAP], max(0, len(fresh) - CAP)
+
+    regime_on = regime_a200 is not None and regime_a200 > 0
+    rcls = "b-on" if regime_on else "b-off"
+    regime = (f'<div class="banner {rcls}">Regime · {"RISK-ON" if regime_on else "RISK-OFF"}'
+              f'<small>Nifty 50 {pct(regime_a200)} vs its 200-DMA — the validated book '
+              f'{"is active (trades these)" if regime_on else "stands aside"} when Nifty 50 is '
+              f'{"above" if regime_on else "below"} its 200-DMA. (Setups still shown; regime is the timing gate.)</small></div>')
+
+    deals_note = (f"bulk/block · {esc(deals_td)}" if deals_td else "deals feed pending")
+    strip = _ck_strip([
+        _ck_tile(len(fresh), "Fresh triggers", "#3fb950", "setup just turned on (≤2 sessions)"),
+        _ck_tile(f"⭐ {n_buyer}", "With genuine buyer", "#d2a8ff", deals_note),
+        _ck_tile(n_universe, "Precursor universe", "#f0883e", f"raw pattern · ₹{_LP_LIQ/1e7:.0f}cr+ · not a buy list"),
+        _ck_tile(n_co, "Coiled", "#58a6ff", "vol contracting, up ≥10%"),
+    ])
+
+    def flagpills(flags):
+        return " ".join(f'<span class="pill {c}" title="{esc(t)}">{l}</span>'
+                        for l, c, t in (_LP_FLAG.get(f, (f, "p-C", "")) for f in flags))
+
+    def age_cell(a):
+        if a is None:
+            return '<span class="mut">—</span>'
+        if a == 0:
+            return '<span class="pos" title="setup turned on TODAY (off yesterday)"><b>fresh</b></span>'
+        return f'<span class="mut">{a}d ago</span>' if a < 6 else '<span class="mut">5d+</span>'
+
+    if shown:
+        trs = ""
+        for sym, flags, m in shown:
+            star = ('<span title="genuine institutional net-buyer in bulk/block deals">⭐</span>'
+                    if m.get("buyer") else '')
+            vr = m["vratio"]
+            trs += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(sym)}">'
+                    f'<span class="sym">{star}{esc(sym)}</span></a></td>'
+                    f'<td class="l">{flagpills(flags)}</td>'
+                    f'<td>{age_cell(m["age"])}</td>'
+                    f'<td class="r">{pct((m["ret22"] or 0)*100)}</td>'
+                    f'<td class="r">{num(vr,2) if vr is not None else "—"}</td>'
+                    f'<td class="r">{pct((m["rng"] or 0)*100) if m["rng"] is not None else "—"}</td>'
+                    f'<td class="r">₹{num((m["med_turn"] or 0)/1e7,1)} cr</td></tr>')
+        more = (f'<div class="sub" style="margin:6px 0 0">+{n_more} more fresh triggers (showing the '
+                f'{CAP} most liquid). ' if n_more else '')
+        sustained = n_universe - len(fresh)
+        more += (f'{sustained} names match the pattern but have been running &gt;2 sessions (sustained, '
+                 f'not fresh) — they\'re in the precursor universe, not this fresh-trigger shortlist.</div>'
+                 if sustained else '</div>')
+        table = ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+                 '<thead><tr><th class="l">Symbol</th><th class="l">Setup</th><th>Trigger age</th>'
+                 '<th>22d ret</th><th>vol 22/66</th><th>22d range</th><th>med turnover</th></tr></thead>'
+                 f'<tbody>{trs}</tbody></table></div>' + more)
+    else:
+        table = (f'<div class="empty">No <b>fresh</b> triggers today'
+                 + (f' (though {n_universe} names are mid-pattern, already running). ' if n_universe
+                    else ' — that\'s normal; the validated setup is infrequent. ')
+                 + 'The edge is in selectivity, not frequency.</div>')
+
+    evidence = (
+        '<div class="card" style="border-color:#f0883e">'
+        '<div class="ck-h"><span class="em">🚀</span> What this is — and the honest evidence'
+        '<span class="sub" style="margin:0;font-weight:400">D56 explosive-move research</span></div>'
+        '<div class="sub" style="margin:0;line-height:1.5">A <b>precursor screen</b>, not a buy list. The raw '
+        'momentum/coiled/pullback pattern is <b>common</b> in a trend (the "precursor universe"); the backtest '
+        'didn\'t buy all of them — over 2012–2026 it <b>selected ~84 trades a year</b> from days like these. '
+        'So this screen leads with the <b>fresh rising edge</b> (the setup just turned on, not its 8th day) and '
+        'stars (⭐) any name a <b>genuine institutional bulk/block net-buyer</b> hit on the same day (non-churn '
+        'category, one-sided ≥60% net) — the research\'s high-conviction intersection (rare; the deals feed is young, '
+        'so most days show none). The momentum core (MOM·CONT / COILED, ≥₹5 cr) is backtest <b>S1</b>: net of costs, '
+        'regime-gated, CAGR <b>+4.0%</b> · MaxDD −27.6% · hit <b>39%</b> · PF <b>1.31</b> · beta 0.42, and <b>both</b> '
+        'walk-forward windows (2012–19 +2.2% · 2020–26 +5.1%) net-positive. PULLBACK is the weaker mean-reversion leg. '
+        'DVPT on the stock page is the per-name <b>confirmation</b> read, not the predictor (the D56 reconciliation). '
+        'Not advice; size + manage risk yourself.</div></div>')
+
+    head = ('<h2 style="margin-top:2px">🚀 Launchpad '
+            f'<span class="sub" style="margin:0">validated explosive-move setups · {esc(T or "")}</span></h2>'
+            '<div class="sub" style="margin-top:2px">Fresh triggers from the data-validated precursor universe '
+            '(momentum-continuation ∪ coiled ∪ pullback) over today\'s liquid names. ⭐ = a genuine institutional '
+            'net-buyer hit it too. Tap a name → its full stock page (price · DVPT confirmation · RS · quality).</div>')
+    return _CKPT_CSS + head + regime + strip + table + evidence
 
 
 def render_strategies(sig_date, idx_date) -> str:
@@ -1424,6 +1777,24 @@ def render_conviction(limit) -> str:
     esc, num = D._esc, D._num
     rows = conviction_shortlist(limit=limit) if conviction_shortlist else []
 
+    # MEP confirmation lens (signed accumulation/distribution; descriptor — D62:
+    # DISPLAY ONLY, never a ranking input). Per-render lookup keeps the
+    # conviction_shortlist ranking untouched.
+    mep_by = {}
+    if rows:
+        _syms = [r["symbol"] for r in rows]
+        _ph = ",".join("?" for _ in _syms)
+        try:
+            with D.get_conn() as conn:
+                _md = conn.execute("SELECT MAX(trade_date) m FROM mep_signals").fetchone()
+                _mdate = _md["m"] if _md else None
+                if _mdate:
+                    mep_by = {x["symbol"]: x["mep_state"] for x in conn.execute(
+                        f"SELECT symbol, mep_state FROM mep_signals WHERE trade_date=? AND symbol IN ({_ph})",
+                        (_mdate, *_syms)).fetchall()}
+        except Exception:
+            mep_by = {}
+
     n_near = n_qual = 0
     trs = []
     for r in rows:
@@ -1459,6 +1830,7 @@ def render_conviction(limit) -> str:
             f'<td>{r.get("rs_rank") if r.get("rs_rank") is not None else "—"}</td>'
             f'<td class="l mut">{esc(r.get("primary_sector") or "—")}</td>'
             f'<td>{D._char_pill(r.get("accum_character"))}</td>'
+            f'<td>{_mep_pill(mep_by.get(r["symbol"]))}</td>'
             f'<td class="l">{entry}</td>'
             f'<td class="l">{("₹"+num(kp3,1)) if kp3 else "—"} <span class="mut">({g3s})</span></td>'
             f'<td><span class="pill p-{r.get("trigger_rank") or "C"}">{r.get("trigger_rank") or "-"}</span> '
@@ -1477,7 +1849,7 @@ def render_conviction(limit) -> str:
                  "<button class=\"fbtn\" onclick=\"cflt('qual',this)\">★ Quality-confirmed</button></div>")
         table = (pills + '<div class="card" style="padding:6px 10px;overflow-x:auto"><table id="cvtbl" class="dt">'
                  '<thead><tr><th class="l">Symbol</th><th>RS rank</th><th class="l">Sector</th><th>Character</th>'
-                 '<th class="l">Entry</th><th class="l">Key 3m</th><th>Rank·p</th><th>Quality</th></tr></thead>'
+                 '<th>MEP</th><th class="l">Entry</th><th class="l">Key 3m</th><th>Rank·p</th><th>Quality</th></tr></thead>'
                  f'<tbody>{"".join(trs)}</tbody></table></div>')
         js = ("<script>function cflt(f,el){"
               "document.querySelectorAll('#cvtbl tr[data-nearkey]').forEach(function(r){"
