@@ -388,6 +388,22 @@ CREATE TABLE IF NOT EXISTS fno_oi_signals (
 CREATE INDEX IF NOT EXISTS idx_fnooi_date ON fno_oi_signals(trade_date);
 CREATE INDEX IF NOT EXISTS idx_fnooi_quad ON fno_oi_signals(trade_date, quadrant);
 
+-- Participant-wise Open Interest — the MARKET-LEVEL "who is positioned" feed
+-- (FII / DII / Pro / Client long-short in index & stock futures + options). NSE
+-- publishes it daily as one small file; one row per (date, client_type). Drives a
+-- market-sentiment overlay (NOT per-stock). Descriptor-only (D62). See
+-- participant_oi.py. The famous read = FII index-futures long:short.
+CREATE TABLE IF NOT EXISTS participant_oi (
+    trade_date TEXT NOT NULL, client_type TEXT NOT NULL,   -- CLIENT/DII/FII/PRO
+    fut_idx_long REAL, fut_idx_short REAL, fut_stk_long REAL, fut_stk_short REAL,
+    opt_idx_call_long REAL, opt_idx_put_long REAL, opt_idx_call_short REAL, opt_idx_put_short REAL,
+    opt_stk_call_long REAL, opt_stk_put_long REAL, opt_stk_call_short REAL, opt_stk_put_short REAL,
+    total_long REAL, total_short REAL,
+    computed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (trade_date, client_type)
+);
+CREATE INDEX IF NOT EXISTS idx_participant_date ON participant_oi(trade_date);
+
 -- Screener.in scraped fundamentals (cached, refreshed periodically)
 CREATE TABLE IF NOT EXISTS fundamentals (
     symbol             TEXT PRIMARY KEY,
