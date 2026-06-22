@@ -399,6 +399,11 @@ def _nav(active: str) -> str:
 
 
 def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool = False) -> str:
+    # In-app Back on every page EXCEPT home (active="dash") — home is the root, so
+    # there's nothing to go back to. history.back() with a /dash fallback (never strands).
+    back_btn = ("" if active == "dash" else
+                '<a class="hback" href="/dash" title="Back" aria-label="Back" '
+                'onclick="if(window.history.length>1){window.history.back();return false;}">&#8592;</a>')
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -414,7 +419,7 @@ def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool
 <body>
 <header>
   <div class="hrow1">
-    <a class="hback" href="/dash" title="Back" aria-label="Back" onclick="if(window.history.length>1){{window.history.back();return false;}}">&#8592;</a>
+    {back_btn}
     <a href="/dash" class="brand"><span class="dot"></span><span class="logo">pat<span style="color:#3fb950">e</span>arn</span></a>
     <form class="hsearch" action="/dash/stock" method="get" autocomplete="off">
       <input name="sym" placeholder="search ticker…" autocapitalize="characters"/>
