@@ -25,7 +25,7 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
-from src.automation import capture, rrg
+from src.automation import adjust, capture, rrg
 from src.core.db import get_conn
 from src.web.dashboard import _shell   # chrome + CSS (import-safe; see investigation)
 
@@ -99,7 +99,7 @@ def _controls(den: str) -> str:
         f'<div style="margin:10px 0">{"".join(pill(b) for b in BENCHMARKS)}</div>')
 
 
-def _svg(rows: list[dict], caps: dict, tails: dict) -> str:
+def _svg(rows: list[dict], caps: dict, tails: dict, link_fn=None) -> str:
     plot_l, plot_r, plot_t, plot_b = 46, 748, 16, 438
     devs = []
     for r in rows:
@@ -163,8 +163,9 @@ def _svg(rows: list[dict], caps: dict, tails: dict) -> str:
         tip = (f"<b>{_esc(num)}</b><br>{_esc(q)} · RS-ratio {_n(rr)} · RS-mom {_n(rm)}<br>"
                f"RSI-of-RS {_n(r.get('rsi_of_rs'))} · Mansfield {_n(r.get('mansfield'),2)}<br>"
                f"down-capture {_n(dc,2)} · up-capture {_n(uc,2)}")
-        s.append(f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="{rad+9:.1f}" '
-                 f'fill="transparent" style="cursor:pointer" data-html="{tip}"/>')
+        hit = (f'<circle class="hit" cx="{x:.1f}" cy="{y:.1f}" r="{rad+9:.1f}" '
+               f'fill="transparent" style="cursor:pointer" data-html="{tip}"/>')
+        s.append(f'<a href="{link_fn(num)}">{hit}</a>' if link_fn else hit)
     s.append('</svg>')
     return (
         '<div id="rrgwrap" style="position:relative">'
@@ -221,6 +222,99 @@ def _table(rows: list[dict], caps: dict, den: str) -> str:
     return (f'<table class="dt">{head}<tbody>{"".join(body)}</tbody></table>')
 
 
+# ── constituent drill-down: the stocks INSIDE one index, vs the benchmark ─────
+_CONSTITUENT_CAP = 50    # cap members plotted (bounds the on-read compute)
+_WINDOW = 420            # trailing sessions per stock (enough for JdK norm + tail)
+
+
+def _members(index_name: str, conn) -> list[str]:
+    """The latest-snapshot member symbols of one index (case-insensitive match
+    on the index name, so a 'Nifty IT' dot resolves to its membership rows)."""
+    rows = conn.execute(
+        "SELECT m.symbol FROM stock_index_membership m WHERE UPPER(m.index_name)=UPPER(?) "
+        "AND m.snapshot_date=(SELECT MAX(snapshot_date) FROM stock_index_membership "
+        "WHERE UPPER(index_name)=UPPER(?))", (index_name, index_name)).fetchall()
+    return [r["symbol"] for r in rows]
+
+
+def _constituent_data(index_name: str, den: str, conn):
+    """On-read: each member stock's JdK RS-Ratio / RS-Momentum / RSI-of-RS vs
+    `den`, from a trailing window of ADJUSTED closes (split-safe). Same row shape
+    as the sector rows, so _svg/_table render it unchanged. Returns (rows, tails)."""
+    brows = conn.execute(
+        "SELECT trade_date, close_value FROM index_rows WHERE index_name=? "
+        "AND close_value>0 ORDER BY trade_date ASC", (den,)).fetchall()
+    broad = {r["trade_date"]: r["close_value"] for r in brows}
+    if not broad:
+        return [], {}
+    rows, tails = [], {}
+    for sym in _members(index_name, conn)[:_CONSTITUENT_CAP]:
+        braw = conn.execute(
+            "SELECT trade_date, close, prev_close FROM bhavcopy_rows WHERE symbol=? "
+            "AND series='EQ' AND (segment='CM' OR segment IS NULL) "
+            "ORDER BY trade_date DESC LIMIT ?", (sym, _WINDOW)).fetchall()
+        if len(braw) < 80:
+            continue
+        braw = [dict(r) for r in reversed(braw)]          # oldest → newest
+        adj = adjust.adjusted_closes(braw)
+        ratio = [a / broad[r["trade_date"]] for r, a in zip(braw, adj)
+                 if a and a > 0 and broad.get(r["trade_date"], 0) > 0]
+        if len(ratio) < 80:
+            continue
+        rr, rm = rrg._rs_ratio_momentum(ratio)
+        if rr[-1] is None or rm[-1] is None:
+            continue
+        rsi = rrg._rsi_series(ratio)
+        rows.append({"numerator": sym, "rs_ratio": rr[-1], "rs_momentum": rm[-1],
+                     "quadrant": rrg.quadrant(rr[-1], rm[-1]),
+                     "rsi_of_rs": rsi[-1] if rsi else None})
+        tails[sym] = [{"rs_ratio": rr[i], "rs_momentum": rm[i]}
+                      for i in range(len(ratio))
+                      if rr[i] is not None and rm[i] is not None][-8:]
+    rows.sort(key=lambda d: d["rs_momentum"] if d["rs_momentum"] is not None else -1e9,
+              reverse=True)
+    return rows, tails
+
+
+def _back_link() -> str:
+    return ('<a class="row" style="display:inline;color:#58a6ff;text-decoration:none" '
+            'href="/dash/rrg">← Back to sectors</a>')
+
+
+def _constituent_head(index_name: str, den: str) -> str:
+    return (_back_link()
+            + f'<h2 style="margin-top:6px">{_esc(index_name)} — constituents '
+            f'<span class="sub" style="margin:0">vs {_esc(den)} · click a stock for its page</span></h2>'
+            '<div class="sub">Each dot is a member stock on its own RS-Ratio × RS-Momentum. '
+            'Top-right = leading the market · top-left = basing &amp; turning up · '
+            'bottom = lagging. This is which participants drive (or drag) the sector.</div>')
+
+
+def _constituent_table(rows: list[dict], den: str) -> str:
+    head = ("<thead><tr><th>Stock</th><th>Quadrant</th><th>RS-ratio</th>"
+            "<th>RS-mom</th><th>RSI-of-RS</th></tr></thead>")
+    body = []
+    for r in rows:
+        sym = r["numerator"]
+        q = r["quadrant"] or "—"
+        col = QCOLOR.get(q, "#8b949e")
+        body.append(
+            f'<tr><td><a href="/dash/stock?sym={quote_plus(sym)}" '
+            f'style="color:#58a6ff;text-decoration:none">{_esc(sym)}</a></td>'
+            f'<td style="color:{col}">{_esc(q)}</td>'
+            f'<td>{_n(r["rs_ratio"])}</td><td>{_n(r["rs_momentum"])}</td>'
+            f'<td>{_n(r.get("rsi_of_rs"))}</td></tr>')
+    return f'<table class="dt">{head}<tbody>{"".join(body)}</tbody></table>'
+
+
+def _empty_constituents(index_name: str) -> str:
+    return (_back_link()
+            + f'<h2 style="margin-top:6px">{_esc(index_name)} — constituents</h2>'
+            '<div class="card"><div class="sub">No constituent RS yet for this index — '
+            'membership or price history is missing. The sector-level map is on '
+            '<a class="row" style="display:inline" href="/dash/rrg">/dash/rrg</a>.</div></div>')
+
+
 def _fetch(den: str, conn):
     """Fetch (rows, caps, tails) for one benchmark — stored path with on-read
     fallback, curated to REAL_SECTORS. Shared by the full page and the embed."""
@@ -261,7 +355,7 @@ def render_sectors_map(den: str = "Nifty 500", conn=None) -> str:
         '<h2 style="margin-top:2px">Rotation map '
         f'<span class="sub" style="margin:0">JdK RS-Ratio × RS-Momentum · vs {_esc(den)} · hover a dot</span></h2>'
         '<div class="card" style="padding:8px 10px">'
-        + _svg(rows, caps, tails)
+        + _svg(rows, caps, tails, link_fn=lambda s: "/dash/rrg?idx=" + quote_plus(s))
         + '<div class="sub" style="margin:2px 0 0">Improving (top-left) = base turning up · '
           'Leading (top-right) = strong &amp; gaining · Weakening (bottom-right) = lazy laggard · '
           'Lagging (bottom-left) = weak &amp; falling. '
@@ -270,12 +364,25 @@ def render_sectors_map(den: str = "Nifty 500", conn=None) -> str:
 
 
 @router.get("/dash/rrg", response_class=HTMLResponse)
-def rrg_page(den: str = Query("Nifty 500", max_length=40)) -> HTMLResponse:
+def rrg_page(den: str = Query("Nifty 500", max_length=40),
+             idx: str = Query("", max_length=60)) -> HTMLResponse:
     den = den if den in BENCHMARKS else "Nifty 500"
-    with get_conn() as conn:
+    if idx:                               # DRILL-DOWN: the stocks inside one index
+        with get_conn() as conn:
+            rows, tails = _constituent_data(idx, den, conn)
+        if not rows:
+            body = _empty_constituents(idx)
+        else:
+            body = (_constituent_head(idx, den)
+                    + _svg(rows, {}, tails, link_fn=lambda s: "/dash/stock?sym=" + quote_plus(s))
+                    + _constituent_table(rows, den))
+        return HTMLResponse(_shell(f"{idx} — rotation", body, active="markets", wide=True))
+    with get_conn() as conn:              # sector level
         rows, caps, tails = _fetch(den, conn)
     if not rows:
         body = _empty()
     else:
-        body = _controls(den) + _svg(rows, caps, tails) + _table(rows, caps, den)
+        body = (_controls(den)
+                + _svg(rows, caps, tails, link_fn=lambda s: "/dash/rrg?idx=" + quote_plus(s))
+                + _table(rows, caps, den))
     return HTMLResponse(_shell("Relative rotation — sectors", body, active="markets", wide=True))
