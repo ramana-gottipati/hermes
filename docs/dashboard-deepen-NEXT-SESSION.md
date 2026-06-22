@@ -85,6 +85,19 @@
   dashboard.py (its `_mv_adbar`/`_mep_pill` + `mep_signals` table, deployed, uncommitted). My launchpad is additive +
   coexists; deploys were CRLF-diff-checked to never revert MEP.
 
+- **INDEX-RESTORE (Ramana feedback — "you removed my participants + RS").** Root cause: making `/dash/index` the
+  click-target dropped his rich content. Fixed ADDITIVELY (no nav rewire, his `/dash/ratio` + `/dash/rrg` untouched):
+  (1) the **full sortable participants table for EVERY index** incl. size (Midcap 150=183, Smallcap 250=283 liquid
+  members) with a Character (accum/dist) column; (2) a **relative-strength section for SIZE indices** = return vs
+  Nifty 500 per window + Compare link + RRG link (size indices have no ratio series; their RRG depth is keyed under
+  variant names in rs_extras); (3) sectors keep the RS-ratio chart + a new RS-depth panel (rs_extras/capture) + RRG
+  link. Verified live. **accumulation/distribution confirmed intact in 5 places** (index split + Character col, stock
+  page, screener Character + MEP column, home Stealth). **HARD LESSON recorded: build additively, never replace his
+  ecosystem** (see the operating mode in `docs/tags-and-index-NEXT-SESSION.md`).
+- **➡ WHAT'S NEXT lives in `docs/tags-and-index-NEXT-SESSION.md`** — the THEME-TAGS feature (AI-assisted, you approve;
+  stock page + Themes page + screener + participant lists) + the index polish open items. That doc is the new
+  self-prompting run-book + kickstart.
+
 **DEPLOY STATE:** all three workstreams live on the VPS (`hermes-api` active), CRLF/parallel-diff-checked, py_compile-
 guarded. NOT committed — Ramana commits. Full 20-route regression sweep 200, no API errors. Files touched:
 `src/web/cockpit.py`, `src/web/dashboard.py`, `src/automation/cci_pipeline.py`, `/etc/systemd/system/hermes-concalls.service`.

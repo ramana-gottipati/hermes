@@ -360,8 +360,8 @@ STRATEGY_REGISTRY = [
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM stock_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
          "WHERE s.trade_date=? AND s.trigger_rank IN ('SS','S') " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
-    {"key": "MEP", "label": "Accumulation", "accent": "#db61a2", "href": "/dash/stocks",
-     "cta": "strong accumulators today",
+    {"key": "MEP", "label": "Accum/Distrib", "accent": "#db61a2", "href": "/dash/mep",
+     "cta": "signed — accum & distrib",
      "thesis": "Signed accumulation vs distribution (descriptor) — who is being absorbed. SIGNED where DVPT is side-blind; a character/confirmation lens, not a picker (D62 — predictive role failed its DSR gate).",
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
@@ -750,10 +750,10 @@ def render_home(sig_date, idx_date) -> str:
         return f'<table class="ck-t"><tbody>{out}</tbody></table>'
     if mep_accum:
         boards.append(_board('<span class="em">📈</span> Net accumulation', 'signed pressure · MEP (descriptor)',
-                             mep_rows(mep_accum), "/dash/stocks", "See the accumulation screen", "#db61a2"))
+                             mep_rows(mep_accum), "/dash/mep", "Open the MEP screen", "#db61a2"))
     if mep_distrib:
         boards.append(_board('<span class="em">📉</span> Distribution watch', 'net selling pressure · MEP',
-                             mep_rows(mep_distrib), "/dash/stocks", "See the distribution screen", "#db61a2"))
+                             mep_rows(mep_distrib), "/dash/mep", "Open the MEP screen", "#db61a2"))
 
     cockpit = '<div class="ckpt">' + "".join(boards) + '</div>'
 
@@ -937,6 +937,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         return _CKPT_CSS + '<div class="empty">No index selected. Reach this from Markets or Sectors.</div>'
 
     S, IR, hist, pe_hist, momrows, members, rd = {}, {}, [], [], [], [], []
+    rsx, cap, n5 = {}, {}, {}
     with D.get_conn() as conn:
         known = conn.execute("SELECT 1 FROM index_rows WHERE index_name=? LIMIT 1", (idx,)).fetchone()
         if not known:
@@ -987,6 +988,30 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                 "WHERE numerator=? AND denominator='Nifty 500' AND ratio IS NOT NULL "
                 "ORDER BY trade_date ASC", (idx,)).fetchall():
             rd.append({"t": r["t"], "r": round(r["ratio"], 4)})
+        # RS-DEPTH (the RRG / Mansfield / capture work — covers SIZE indices too, which
+        # have no ratio series). Latest row, preferring vs Nifty 500 then Nifty 50.
+        try:
+            for den in ("Nifty 500", "Nifty 50"):
+                x = conn.execute(
+                    "SELECT rs_momentum, quadrant, mansfield, rsi_of_rs, improving_entry, "
+                    "weakening_warning FROM rs_extras WHERE numerator=? AND denominator=? "
+                    "ORDER BY trade_date DESC LIMIT 1", (idx, den)).fetchone()
+                if x:
+                    rsx = dict(x)
+                    rsx["den"] = den
+                    c = conn.execute(
+                        "SELECT down_capture_252 dc, up_capture_252 uc FROM capture_signals "
+                        "WHERE numerator=? AND denominator=? ORDER BY trade_date DESC LIMIT 1",
+                        (idx, den)).fetchone()
+                    cap = dict(c) if c else {}
+                    break
+        except Exception:
+            rsx, cap = {}, {}
+        # Nifty 500 returns — the broad benchmark, for the size-index RS read.
+        n5r = conn.execute("SELECT ret_1m_pct r1m, ret_3m_pct r3m, ret_6m_pct r6m, ret_12m_pct r12m "
+                           "FROM index_signals WHERE index_name='Nifty 500' "
+                           "ORDER BY trade_date DESC LIMIT 1").fetchone()
+        n5 = dict(n5r) if n5r else {}
 
     is_broad = S.get("bb") is None
 
@@ -1118,8 +1143,33 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
     snapshot = (kpi + stats
                 + f'<div class="sub" style="margin:6px 0 10px"><b>Returns</b> &nbsp;{rets}</div>')
 
-    # --- sector-only RS block: strip + quadrant + RS-momentum percentile ------
+    # --- relative strength: ratio chart (sectors) + RS-DEPTH for EVERY index
+    # (incl. SIZE indices, which have no ratio series but DO carry the RRG /
+    # Mansfield / capture work) + a link to the full RRG. ----------------------
     rs_block = ""
+    rsdepth = ""
+    if rsx:
+        def _sg(v, suf="", d=2):
+            return (f"{v:+.{d}f}{suf}" if isinstance(v, (int, float)) else '<span class="mut">—</span>')
+        flagbits = []
+        if rsx.get("improving_entry"):
+            flagbits.append('<span class="pos">improving ▲</span>')
+        if rsx.get("weakening_warning"):
+            flagbits.append('<span class="neg">weakening ▼</span>')
+        rsdepth = (
+            '<div class="card"><div class="ck-h">RS depth '
+            f'<span class="sub" style="margin:0;font-weight:400">vs {esc(rsx.get("den") or "Nifty 500")} · RRG / Mansfield / capture</span></div>'
+            '<table><tbody>'
+            f'<tr><td class="mut">Quadrant</td><td><b>{esc(rsx.get("quadrant") or "—")}</b></td>'
+            f'<td class="mut">RS momentum</td><td>{_sg(rsx.get("rs_momentum"))}</td></tr>'
+            f'<tr><td class="mut">Mansfield RS</td><td>{_sg(rsx.get("mansfield"))}</td>'
+            f'<td class="mut">RSI-of-RS</td><td>{_sg(rsx.get("rsi_of_rs"), "", 0)}</td></tr>'
+            f'<tr><td class="mut">Up-capture 1y</td><td>{_sg(cap.get("uc"), "%", 0)}</td>'
+            f'<td class="mut">Down-capture 1y</td><td>{_sg(cap.get("dc"), "%", 0)}</td></tr>'
+            '</tbody></table>'
+            + (f'<div class="sub" style="margin:6px 0 0">{" · ".join(flagbits)}</div>' if flagbits else '')
+            + '<a class="more" href="/dash/rrg">Full Relative Rotation Graph &amp; RS-depth table &#8594;</a></div>')
+
     if not is_broad:
         s3 = S.get("s3")
         r3 = S.get("r3m")
@@ -1179,7 +1229,31 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             f'<a class="row" style="display:inline" href="/dash/ratio?idx={q(idx)}">Standalone ratio page (also vs Nifty 50) &#8594;</a></div>'
             + ratio_chart
             + '<div class="mkt-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">'
-            + quad + gauge + '</div>')
+            + quad + gauge + rsdepth + '</div>')
+    elif idx != "Nifty 500":
+        # SIZE / broad index (e.g. Midcap 150, Smallcap 250, Next 50, Nifty 50) — no
+        # single ratio-line series, so its relative strength = its return vs the broad
+        # market (Nifty 500), per window, computed directly. Plus the Compare chart +
+        # the full RRG, and the RS-depth panel when this exact index is in the RRG data.
+        def _rsrow(lbl, k):
+            iv, bv = S.get(k), n5.get(k)
+            diff = (iv - bv) if (iv is not None and bv is not None) else None
+            return (f'<tr><td class="mut">{lbl}</td><td class="r">{pct(iv)}</td>'
+                    f'<td class="r">{pct(bv)}</td><td class="r"><b>{pct(diff)}</b></td></tr>')
+        rstab = ('<div class="card" style="padding:6px 10px"><table><thead><tr><th></th>'
+                 f'<th class="r">{esc(idx)}</th><th class="r">Nifty 500</th><th class="r">RS = outperf.</th>'
+                 '</tr></thead><tbody>'
+                 + _rsrow("1m", "r1m") + _rsrow("3m", "r3m") + _rsrow("6m", "r6m") + _rsrow("12m", "r12m")
+                 + '</tbody></table></div>')
+        links = (f'<a class="row" style="display:inline" href="/dash/compare?idx={q(idx)}&idx=Nifty+500">'
+                 '⇄ Compare (rebased) vs Nifty 500</a> &nbsp;·&nbsp; '
+                 '<a class="row" style="display:inline" href="/dash/rrg">Full RRG &amp; rotation &#8594;</a>')
+        rs_block = (
+            '<h2>Relative strength <span class="sub" style="margin:0">vs Nifty 500</span></h2>'
+            '<div class="sub" style="margin-bottom:6px">How this index has done <b>relative to the broad '
+            f'market</b> (its return minus Nifty 500\'s, per window). {links}</div>' + rstab
+            + (('<div class="mkt-grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">'
+                + rsdepth + '</div>') if rsdepth else ''))
 
     # --- bottom-up constituent roll-up (EQUAL-WEIGHT) -------------------------
     rollup = ""
@@ -1214,11 +1288,35 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             split = ""
         drill = (f'<a class="row" style="display:inline" href="/dash/stocks?sector={q(idx)}">'
                  f'See all {N} constituent stocks &#8594;</a>')
+        # FULL sortable PARTICIPANTS table — every liquid member (the constituents
+        # Ramana asked to see, incl. for size indices like Midcap/Smallcap), not a top-8.
+        prows = ""
+        for m in sorted(members, key=lambda mm: (mm.get("rs_rank") is None, -(mm.get("rs_rank") or 0))):
+            rk = m.get("rank") or "-"
+            athg = "⚡" if m.get("ath") else ""
+            prows += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(m["symbol"])}">'
+                      f'<span class="sym">{athg}{esc(m["symbol"])}</span></a></td>'
+                      f'<td class="l mut">{esc(m.get("sec") or "—")}</td>'
+                      f'<td class="r">{m["rs_rank"] if m.get("rs_rank") is not None else "—"}</td>'
+                      f'<td><span class="pill p-{rk}">{rk}</span></td>'
+                      f'<td class="r mut">{m.get("p_score") or 0}</td>'
+                      f'<td class="l">{D._char_pill(m.get("ch"))}</td>'
+                      f'<td class="r">{pct(m.get("pfh"))}</td>'
+                      f'<td class="r">{("₹" + num((m.get("dvt") or 0) / 1e7, 1) + "cr") if m.get("dvt") else "—"}</td>'
+                      f'<td class="r">{pct(m.get("pvh"))}</td></tr>')
+        participants = (
+            '<h3 style="margin:14px 0 6px">All participants '
+            f'<span class="sub" style="margin:0">{N} liquid members · sort · filter · ⬇ export</span></h3>'
+            '<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+            '<thead><tr><th class="l">Symbol</th><th class="l">Sector</th><th>RS rank</th>'
+            '<th>Trigger</th><th>p</th><th class="l">Character</th><th>%52wH</th>'
+            '<th>DVPT</th><th>Δhot</th></tr></thead>'
+            f'<tbody>{prows}</tbody></table></div>')
         rollup = ('<h2>Inside the index <span class="sub" style="margin:0">bottom-up · equal-weight · '
                   f'{N} liquid members</span></h2>'
                   '<div class="sub" style="margin-top:2px">Membership carries no free-float weight, so every '
                   f'roll-up here is <b>equal-weight</b>. Breadth = share of members whose RS vs Nifty 500 is in an '
-                  f'uptrend. {drill}</div>' + tiles + split)
+                  f'uptrend. {drill}</div>' + tiles + split + participants)
 
         # leaders & laggards within the index (by rs_rank)
         ranked = [m for m in members if m.get("rs_rank") is not None]
@@ -1264,28 +1362,33 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                              f'<table class="ck-t"><tbody>{dvrows}</tbody></table>',
                              "/dash/stocks", "Positioning screen", "#58a6ff")
                       if dvrows else "")
-        # intra-index MEP — signed accumulation (descriptor, D62). Separate query over
-        # this index's constituents; the member fetch is left untouched.
+        # intra-index MEP — signed accumulation AND distribution (descriptor, D62).
+        # Both ends; separate query over this index's constituents (member fetch untouched).
         mep_board = ""
         msyms = [m["symbol"] for m in members if m.get("symbol")]
         if msyms and sig_date:
             ph = ",".join("?" for _ in msyms)
             with D.get_conn() as conn:
-                mrows = [dict(x) for x in conn.execute(
-                    f"SELECT symbol, mep_score sc, mep_state st FROM mep_signals "
-                    f"WHERE trade_date=? AND mep_score IS NOT NULL AND symbol IN ({ph}) "
-                    f"ORDER BY mep_score DESC LIMIT 8", (sig_date, *msyms)).fetchall()]
-            if mrows:
-                mr = ""
-                for x in mrows:
-                    sc = x["sc"]; scol = "#2ea043" if sc >= 0 else "#f85149"
-                    mr += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(x["symbol"])}">'
-                           f'<span class="sym">{esc(x["symbol"])}</span></a></td>'
-                           f'<td class="l">{_mv_adbar(sc)}</td><td class="l">{_mep_pill(x["st"])}</td>'
-                           f'<td class="r" style="color:{scol}">{sc:+.2f}</td></tr>')
-                mep_board = _board('📈 Intra-index accumulation', 'signed pressure · MEP (descriptor)',
+                _mq = ("SELECT symbol, mep_score sc, mep_state st FROM mep_signals "
+                       f"WHERE trade_date=? AND mep_score IS NOT NULL AND symbol IN ({ph}) "
+                       "ORDER BY mep_score {} LIMIT 5")
+                maccum = [dict(x) for x in conn.execute(_mq.format("DESC"), (sig_date, *msyms)).fetchall()]
+                mdistrib = [dict(x) for x in conn.execute(_mq.format("ASC"), (sig_date, *msyms)).fetchall()]
+
+            def _mrow(x):
+                sc = x["sc"]; scol = "#2ea043" if sc >= 0 else "#f85149"
+                return (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(x["symbol"])}#mep">'
+                        f'<span class="sym">{esc(x["symbol"])}</span></a></td>'
+                        f'<td class="l">{_mv_adbar(sc)}</td><td class="l">{_mep_pill(x["st"])}</td>'
+                        f'<td class="r" style="color:{scol}">{sc:+.2f}</td></tr>')
+            if maccum or mdistrib:
+                mr = "".join(_mrow(x) for x in maccum)
+                if mdistrib:
+                    mr += ('<tr><td colspan="4" class="mut" style="padding-top:8px;font-size:11px">'
+                           'DISTRIBUTING</td></tr>' + "".join(_mrow(x) for x in mdistrib))
+                mep_board = _board('📊 Intra-index MEP', 'accumulation &amp; distribution · signed',
                                    f'<table class="ck-t"><tbody>{mr}</tbody></table>',
-                                   "/dash/stocks", "Accumulation screen", "#db61a2")
+                                   "/dash/mep", "Open the MEP screen", "#db61a2")
         boards = "".join(b for b in (lead_board, lag_board, dvpt_board, mep_board) if b)
         if boards:
             rollup += '<div class="ckpt">' + boards + '</div>'
@@ -1768,6 +1871,93 @@ def render_concalls(view: str) -> str:
 # Each returns INNER html (cockpit language: count-strip + data-first table[s]),
 # reusing the SAME data fetch + instruments the old narrow handlers used. The
 # dashboard.py handlers are thin wrappers that wrap these in _shell(..., wide=True).
+
+def render_mep(sig_date=None) -> str:
+    """Full-bleed MEP screen — SIGNED accumulation AND distribution (descriptor,
+    D62). BOTH ends, data-first: every raw signed term shown beside the verdict.
+    The real destination behind every accumulation/distribution link; DVPT keeps
+    its own screen at /dash/stocks."""
+    from src.web import dashboard as D
+    esc, num, pct = D._esc, D._num, D._pct
+    if sig_date is None:
+        with D.get_conn() as conn:
+            r = conn.execute("SELECT MAX(trade_date) d FROM mep_signals").fetchone()
+            sig_date = r["d"] if r else None
+    counts, accum, distrib = {}, [], []
+    cols = ("s.symbol, b.close cmp, s.mep_score sc, s.mep_state st, s.pressure pr, "
+            "s.clv cv, s.drift_22d dr, s.updown_vol_22d uv, s.compression cp")
+    if sig_date:
+        with D.get_conn() as conn:
+            for x in conn.execute(
+                    "SELECT s.mep_state st, COUNT(*) c FROM mep_signals s "
+                    "JOIN bhavcopy_rows b USING(symbol,trade_date) "
+                    f"WHERE s.trade_date=? AND s.mep_state IS NOT NULL {D._SCAN_FILTERS} "
+                    "GROUP BY s.mep_state", (sig_date,)).fetchall():
+                counts[x["st"]] = x["c"]
+            accum = [dict(x) for x in conn.execute(
+                f"SELECT {cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
+                "ORDER BY s.mep_score DESC LIMIT 150", (sig_date,)).fetchall()]
+            distrib = [dict(x) for x in conn.execute(
+                f"SELECT {cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
+                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
+                "ORDER BY s.mep_score ASC LIMIT 150", (sig_date,)).fetchall()]
+    strip = _ck_strip([
+        _ck_tile(counts.get("STRONG_ACCUM", 0), "Strong accum", "#2ea043", "score ≥ +1.0"),
+        _ck_tile(counts.get("ACCUM", 0), "Accumulating", "#3fb950", "score ≥ +0.35"),
+        _ck_tile(counts.get("NEUTRAL", 0), "Neutral", "#8b949e", "−0.35 … +0.35"),
+        _ck_tile(counts.get("DISTRIB", 0), "Distributing", "#f0883e", "score ≤ −0.35"),
+        _ck_tile(counts.get("STRONG_DISTRIB", 0), "Strong distrib", "#f85149", "score ≤ −1.0"),
+    ])
+
+    def n3(v):
+        return f'{v:+.3f}' if v is not None else '—'
+
+    def row_html(r, direction):
+        sc = r["sc"]
+        scol = "#2ea043" if sc >= 0 else "#f85149"
+        return (f'<tr data-mepdir="{direction}">'
+                f'<td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}#mep">'
+                f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
+                f'<td class="num">{num(r["cmp"], 1)}</td>'
+                f'<td class="l">{_mv_adbar(sc)}</td>'
+                f'<td class="num" style="color:{scol}">{sc:+.2f}</td>'
+                f'<td class="l">{_mep_pill(r["st"])}</td>'
+                f'<td class="num mut">{n3(r["pr"])}</td>'
+                f'<td class="num mut">{n3(r["cv"])}</td>'
+                f'<td class="num mut">{pct(r["dr"] * 100) if r["dr"] is not None else "—"}</td>'
+                f'<td class="num mut">{n3(r["uv"])}</td>'
+                f'<td class="num mut">{num(r["cp"], 2)}</td></tr>')
+
+    if accum or distrib:
+        rows_html = ("".join(row_html(r, "accum") for r in accum)
+                     + "".join(row_html(r, "distrib") for r in distrib))
+        pills = ('<div id="mepbar" class="fbar">'
+                 "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
+                 "<button class=\"fbtn\" onclick=\"mflt('accum',this)\">📈 Accumulating</button>"
+                 "<button class=\"fbtn\" onclick=\"mflt('distrib',this)\">📉 Distributing</button></div>")
+        table = (pills + '<div class="card" style="padding:6px 10px;overflow-x:auto">'
+                 '<table id="meptbl" class="dt"><thead><tr><th class="l">Symbol</th><th>CMP</th>'
+                 '<th class="l">Accum ↔ Distrib</th><th>Score</th><th>State</th><th>Pressure</th>'
+                 '<th>CLV</th><th>Drift</th><th>Up/Dn vol</th><th>Compress</th></tr></thead>'
+                 f'<tbody>{rows_html}</tbody></table></div>')
+        js = ("<script>function mflt(f,el){"
+              "document.querySelectorAll('#meptbl tr[data-mepdir]').forEach(function(r){"
+              "r.style.display=(f==='all'||r.dataset.mepdir===f)?'':'none';});"
+              "document.querySelectorAll('#mepbar .fbtn').forEach(function(b){b.classList.remove('on');});"
+              "el.classList.add('on');}</script>")
+    else:
+        table = '<div class="empty">No MEP signals for the latest day yet.</div>'
+        js = ""
+    head = ('<h2 style="margin-top:2px">📊 Accumulation &amp; Distribution '
+            '<span class="sub" style="margin:0">MEP — signed, descriptor (D62)</span></h2>'
+            '<div class="sub" style="margin-top:2px">A SIGNED read — '
+            '<b style="color:#2ea043">+ accumulation</b> vs <b style="color:#f85149">− distribution</b>, '
+            'judged vs each stock\'s OWN history (the side DVPT is blind to). Top 150 each end; '
+            'every raw signed term shown beside the verdict. Descriptor / confirmation, not a picker. '
+            'Sort · filter · ⬇ export.</div>')
+    return _CKPT_CSS + head + strip + table + js
+
 
 def render_conviction(limit) -> str:
     """Full-bleed Conviction shortlist (cross-pillar synthesis, D45). Count-strip
