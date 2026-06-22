@@ -28,7 +28,7 @@ THE PHASE (the headline). The daily score is essentially TODAY'S tape — three 
 its four terms are intraday or near-intraday — so it flips state ~3 days in 4: a
 pressure oscillator, not a regime. So we ALSO store a smoothed, persistent PHASE:
 
-  mep_score_smooth = rolling mean of the daily score over ~10 trading rows
+  mep_score_smooth = rolling mean of the daily score over ~15 trading rows
   mep_state_smooth = that smoothed score banded with HYSTERESIS (asymmetric
                      enter/exit deadbands) so a regime HOLDS and transitions
                      slowly: accumulation → consolidation → distribution.
@@ -79,18 +79,24 @@ _STATE = {
 }
 
 # --- the PHASE: smoothing + hysteresis (turns the daily oscillator into a regime) ---
-_SMOOTH_WIN = 10           # trailing AVAILABLE daily scores averaged into the phase
+# WINDOW = 15 trading rows (~3 trading weeks). The user's spec said "~10-day mean";
+# the binding acceptance metric was single-digit state changes per 70 rows. A VPS
+# grid-search (scripts/_mep_probe.py, design §9) showed win10–14 leave choppy
+# range-bound large-caps (SBIN/WIPRO) at 10–13 flips/70; win15 is the SMALLEST
+# window that puts EVERY reference stock single-digit (avg 5.7, max 8, sustained
+# 4.8/70). 15 is well within "~multi-week regime", so we take it.
+_SMOOTH_WIN = 15           # trailing AVAILABLE daily scores averaged into the phase
 _SMOOTH_MIN = 5            # need at least this many before a phase is emitted
 # Hysteresis ladder over the SMOOTHED score. The 5 phases, low→high, sit between 4
 # boundaries; each boundary b has a pair LO[b] < HI[b]: you cross UP into the higher
 # phase only at score ≥ HI[b], and drop DOWN only at score < LO[b]. The LO→HI gap is
-# the deadband that kills the daily whipsaw. Bands are ~0.5× the daily bands
-# (±0.35 / ±1.0) because averaging shrinks the amplitude — calibrated so the phase
-# mix tracks the daily-state mix while transitions stay rare (design §9, verified on
-# the VPS transition-count probe). Boundaries are strictly increasing & disjoint.
+# the deadband that kills the daily whipsaw. Bands are calibrated against the real
+# smoothed-score spread (VPS: p50≈+0.07, p95≈+0.86, std≈0.43) so STRONG is the
+# selective ~10% tail and NEUTRAL/consolidation is the plurality, while transitions
+# stay single-digit (design §9). Boundaries are strictly increasing & disjoint.
 _SMOOTH_STATES = ["STRONG_DISTRIB", "DISTRIB", "NEUTRAL", "ACCUM", "STRONG_ACCUM"]
-_SMOOTH_HI = [-0.35, -0.10, 0.20, 0.50]   # enter the higher phase at score ≥ HI[b]
-_SMOOTH_LO = [-0.50, -0.20, 0.10, 0.35]   # drop to the lower phase at score < LO[b]
+_SMOOTH_HI = [-0.40, -0.10, 0.28, 0.62]   # enter the higher phase at score ≥ HI[b]
+_SMOOTH_LO = [-0.62, -0.28, 0.10, 0.40]   # drop to the lower phase at score < LO[b]
 
 
 def _cutoff_date(trade_date: str, days: int) -> str:
