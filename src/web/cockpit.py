@@ -365,7 +365,7 @@ STRATEGY_REGISTRY = [
      "thesis": "Signed accumulation vs distribution (descriptor) — who is being absorbed. SIGNED where DVPT is side-blind; a character/confirmation lens, not a picker (D62 — predictive role failed its DSR gate).",
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
-         "WHERE s.trade_date=? AND s.mep_state='STRONG_ACCUM' " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
+         "WHERE s.trade_date=? AND s.mep_state_smooth='STRONG_ACCUM' " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
     {"key": "RS", "label": "Relative Strength", "accent": "#3fb950", "href": "/dash/leaders",
      "cta": "strong-in-strong leaders",
      "thesis": "Beating the broad market and leading its own sector.",
@@ -602,15 +602,17 @@ def render_home(sig_date, idx_date) -> str:
                 f"AND COALESCE(s.trade_count_ratio_1m_6m,99)<=1.1 AND s.pct_from_52w_high<=-10 "
                 f"{D._SCAN_FILTERS} ORDER BY s.p_score DESC, s.pct_from_52w_high ASC LIMIT 6",
                 (sig_date,)).fetchall()]
-            mep_cols = "s.symbol, s.mep_score sc, s.mep_state st"
+            # boards lead with the smoothed PHASE (held regimes), daily score kept
+            mep_cols = ("s.symbol, s.mep_score sc, s.mep_state st, "
+                        "s.mep_score_smooth ph, s.mep_state_smooth phst")
             mep_accum = [dict(x) for x in conn.execute(
                 f"SELECT {mep_cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
-                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
-                f"ORDER BY s.mep_score DESC LIMIT 7", (sig_date,)).fetchall()]
+                f"WHERE s.trade_date=? AND s.mep_score_smooth IS NOT NULL {D._SCAN_FILTERS} "
+                f"ORDER BY s.mep_score_smooth DESC LIMIT 7", (sig_date,)).fetchall()]
             mep_distrib = [dict(x) for x in conn.execute(
                 f"SELECT {mep_cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
-                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
-                f"ORDER BY s.mep_score ASC LIMIT 6", (sig_date,)).fetchall()]
+                f"WHERE s.trade_date=? AND s.mep_score_smooth IS NOT NULL {D._SCAN_FILTERS} "
+                f"ORDER BY s.mep_score_smooth ASC LIMIT 6", (sig_date,)).fetchall()]
         for e in STRATEGY_REGISTRY:
             try:
                 counts[e["key"]] = e["count"](conn, sig_date, D)
@@ -742,13 +744,17 @@ def render_home(sig_date, idx_date) -> str:
     def mep_rows(rows):
         out = ""
         for r in rows:
-            sc = r["sc"]
-            scol = "#2ea043" if sc >= 0 else "#f85149"
+            sc = r.get("sc")
+            ph = r.get("ph")
+            phv = ph if ph is not None else sc
+            scol = "#2ea043" if (phv is not None and phv >= 0) else "#f85149"
+            dtxt = ("%+.2f" % sc) if sc is not None else "—"
             out += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
                     f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
-                    f'<td class="l">{_mv_adbar(sc)}</td>'
-                    f'<td class="l">{_mep_pill(r["st"])}</td>'
-                    f'<td class="r" style="color:{scol}">{sc:+.2f}</td></tr>')
+                    f'<td class="l">{_mv_adbar(phv)}</td>'
+                    f'<td class="l">{_mep_pill(r.get("phst"))}</td>'
+                    f'<td class="r" style="color:{scol}" title="phase score (today {dtxt})">'
+                    f'{phv:+.2f}</td></tr>')
         return f'<table class="ck-t"><tbody>{out}</tbody></table>'
     if mep_accum:
         boards.append(_board('<span class="em">📈</span> Net accumulation', 'signed pressure · MEP (descriptor)',
@@ -1396,18 +1402,22 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         if msyms and sig_date:
             ph = ",".join("?" for _ in msyms)
             with D.get_conn() as conn:
-                _mq = ("SELECT symbol, mep_score sc, mep_state st FROM mep_signals "
-                       f"WHERE trade_date=? AND mep_score IS NOT NULL AND symbol IN ({ph}) "
-                       "ORDER BY mep_score {} LIMIT 5")
+                _mq = ("SELECT symbol, mep_score sc, mep_state st, mep_score_smooth ph, "
+                       "mep_state_smooth phst FROM mep_signals "
+                       f"WHERE trade_date=? AND mep_score_smooth IS NOT NULL AND symbol IN ({ph}) "
+                       "ORDER BY mep_score_smooth {} LIMIT 5")
                 maccum = [dict(x) for x in conn.execute(_mq.format("DESC"), (sig_date, *msyms)).fetchall()]
                 mdistrib = [dict(x) for x in conn.execute(_mq.format("ASC"), (sig_date, *msyms)).fetchall()]
 
             def _mrow(x):
-                sc = x["sc"]; scol = "#2ea043" if sc >= 0 else "#f85149"
+                sc = x.get("sc"); ph = x.get("ph")
+                phv = ph if ph is not None else sc
+                scol = "#2ea043" if (phv is not None and phv >= 0) else "#f85149"
+                dtxt = ("%+.2f" % sc) if sc is not None else "—"
                 return (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(x["symbol"])}#mep">'
                         f'<span class="sym">{esc(x["symbol"])}</span></a></td>'
-                        f'<td class="l">{_mv_adbar(sc)}</td><td class="l">{_mep_pill(x["st"])}</td>'
-                        f'<td class="r" style="color:{scol}">{sc:+.2f}</td></tr>')
+                        f'<td class="l">{_mv_adbar(phv)}</td><td class="l">{_mep_pill(x.get("phst"))}</td>'
+                        f'<td class="r" style="color:{scol}" title="phase score (today {dtxt})">{phv:+.2f}</td></tr>')
             if maccum or mdistrib:
                 mr = "".join(_mrow(x) for x in maccum)
                 if mdistrib:
@@ -1911,45 +1921,53 @@ def render_mep(sig_date=None) -> str:
             r = conn.execute("SELECT MAX(trade_date) d FROM mep_signals").fetchone()
             sig_date = r["d"] if r else None
     counts, accum, distrib = {}, [], []
-    cols = ("s.symbol, b.close cmp, s.mep_score sc, s.mep_state st, s.pressure pr, "
+    # headline = the smoothed PHASE (ph/phst); the daily score (sc/st) sits
+    # underneath as the granular "today" read. Order + count by the phase.
+    cols = ("s.symbol, b.close cmp, s.mep_score sc, s.mep_state st, "
+            "s.mep_score_smooth ph, s.mep_state_smooth phst, s.pressure pr, "
             "s.clv cv, s.drift_22d dr, s.updown_vol_22d uv, s.compression cp")
     if sig_date:
         with D.get_conn() as conn:
             for x in conn.execute(
-                    "SELECT s.mep_state st, COUNT(*) c FROM mep_signals s "
+                    "SELECT s.mep_state_smooth st, COUNT(*) c FROM mep_signals s "
                     "JOIN bhavcopy_rows b USING(symbol,trade_date) "
-                    f"WHERE s.trade_date=? AND s.mep_state IS NOT NULL {D._SCAN_FILTERS} "
-                    "GROUP BY s.mep_state", (sig_date,)).fetchall():
+                    f"WHERE s.trade_date=? AND s.mep_state_smooth IS NOT NULL {D._SCAN_FILTERS} "
+                    "GROUP BY s.mep_state_smooth", (sig_date,)).fetchall():
                 counts[x["st"]] = x["c"]
             accum = [dict(x) for x in conn.execute(
                 f"SELECT {cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
-                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
-                "ORDER BY s.mep_score DESC LIMIT 150", (sig_date,)).fetchall()]
+                f"WHERE s.trade_date=? AND s.mep_score_smooth IS NOT NULL {D._SCAN_FILTERS} "
+                "ORDER BY s.mep_score_smooth DESC LIMIT 150", (sig_date,)).fetchall()]
             distrib = [dict(x) for x in conn.execute(
                 f"SELECT {cols} FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
-                f"WHERE s.trade_date=? AND s.mep_score IS NOT NULL {D._SCAN_FILTERS} "
-                "ORDER BY s.mep_score ASC LIMIT 150", (sig_date,)).fetchall()]
+                f"WHERE s.trade_date=? AND s.mep_score_smooth IS NOT NULL {D._SCAN_FILTERS} "
+                "ORDER BY s.mep_score_smooth ASC LIMIT 150", (sig_date,)).fetchall()]
     strip = _ck_strip([
-        _ck_tile(counts.get("STRONG_ACCUM", 0), "Strong accum", "#2ea043", "score ≥ +1.0"),
-        _ck_tile(counts.get("ACCUM", 0), "Accumulating", "#3fb950", "score ≥ +0.35"),
-        _ck_tile(counts.get("NEUTRAL", 0), "Neutral", "#8b949e", "−0.35 … +0.35"),
-        _ck_tile(counts.get("DISTRIB", 0), "Distributing", "#f0883e", "score ≤ −0.35"),
-        _ck_tile(counts.get("STRONG_DISTRIB", 0), "Strong distrib", "#f85149", "score ≤ −1.0"),
+        _ck_tile(counts.get("STRONG_ACCUM", 0), "Strong accum", "#2ea043", "sustained · weeks"),
+        _ck_tile(counts.get("ACCUM", 0), "Accumulating", "#3fb950", "phase"),
+        _ck_tile(counts.get("NEUTRAL", 0), "Consolidating", "#8b949e", "no clear side"),
+        _ck_tile(counts.get("DISTRIB", 0), "Distributing", "#f0883e", "phase"),
+        _ck_tile(counts.get("STRONG_DISTRIB", 0), "Strong distrib", "#f85149", "sustained · weeks"),
     ])
 
     def n3(v):
         return f'{v:+.3f}' if v is not None else '—'
 
     def row_html(r, direction):
-        sc = r["sc"]
-        scol = "#2ea043" if sc >= 0 else "#f85149"
+        sc = r["sc"]                       # daily score (granular, shown underneath)
+        ph = r["ph"]                       # smoothed phase score (the headline)
+        phv = ph if ph is not None else sc
+        scol = "#2ea043" if (phv is not None and phv >= 0) else "#f85149"
+        dcol = "#2ea043" if (sc is not None and sc >= 0) else "#f85149"
         return (f'<tr data-mepdir="{direction}">'
                 f'<td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}#mep">'
                 f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
                 f'<td class="num">{num(r["cmp"], 1)}</td>'
-                f'<td class="l">{_mv_adbar(sc)}</td>'
-                f'<td class="num" style="color:{scol}">{sc:+.2f}</td>'
-                f'<td class="l">{_mep_pill(r["st"])}</td>'
+                f'<td class="l">{_mv_adbar(phv)}</td>'
+                f'<td class="l">{_mep_pill(r["phst"])}</td>'
+                f'<td class="num" style="color:{scol}">{phv:+.2f}</td>'
+                f'<td class="num mut" title="today\'s raw daily score">'
+                f'{("%+.2f" % sc) if sc is not None else "—"}</td>'
                 f'<td class="num mut">{n3(r["pr"])}</td>'
                 f'<td class="num mut">{n3(r["cv"])}</td>'
                 f'<td class="num mut">{pct(r["dr"] * 100) if r["dr"] is not None else "—"}</td>'
@@ -1965,7 +1983,8 @@ def render_mep(sig_date=None) -> str:
                  "<button class=\"fbtn\" onclick=\"mflt('distrib',this)\">📉 Distributing</button></div>")
         table = (pills + '<div class="card" style="padding:6px 10px;overflow-x:auto">'
                  '<table id="meptbl" class="dt"><thead><tr><th class="l">Symbol</th><th>CMP</th>'
-                 '<th class="l">Accum ↔ Distrib</th><th>Score</th><th>State</th><th>Pressure</th>'
+                 '<th class="l">Accum ↔ Distrib</th><th class="l">Phase</th><th>Phase score</th>'
+                 '<th>Today</th><th>Pressure</th>'
                  '<th>CLV</th><th>Drift</th><th>Up/Dn vol</th><th>Compress</th></tr></thead>'
                  f'<tbody>{rows_html}</tbody></table></div>')
         js = ("<script>function mflt(f,el){"
@@ -1980,9 +1999,11 @@ def render_mep(sig_date=None) -> str:
             '<span class="sub" style="margin:0">MEP — signed, descriptor (D62)</span></h2>'
             '<div class="sub" style="margin-top:2px">A SIGNED read — '
             '<b style="color:#2ea043">+ accumulation</b> vs <b style="color:#f85149">− distribution</b>, '
-            'judged vs each stock\'s OWN history (the side DVPT is blind to). Top 150 each end; '
-            'every raw signed term shown beside the verdict. Descriptor / confirmation, not a picker. '
-            'Sort · filter · ⬇ export.</div>')
+            'judged vs each stock\'s OWN history (the side DVPT is blind to). The headline '
+            '<b>Phase</b> is a smoothed, hysteresis-banded regime that HOLDS for weeks '
+            '(accumulation → consolidation → distribution); <b>Today</b> is the raw daily '
+            'score underneath. Top 150 each end by phase; every raw signed term beside the '
+            'verdict. Descriptor / confirmation, not a picker. Sort · filter · ⬇ export.</div>')
     return _CKPT_CSS + head + strip + table + js
 
 
@@ -2006,8 +2027,8 @@ def render_conviction(limit) -> str:
                 _md = conn.execute("SELECT MAX(trade_date) m FROM mep_signals").fetchone()
                 _mdate = _md["m"] if _md else None
                 if _mdate:
-                    mep_by = {x["symbol"]: x["mep_state"] for x in conn.execute(
-                        f"SELECT symbol, mep_state FROM mep_signals WHERE trade_date=? AND symbol IN ({_ph})",
+                    mep_by = {x["symbol"]: (x["mep_state_smooth"] or x["mep_state"]) for x in conn.execute(
+                        f"SELECT symbol, mep_state, mep_state_smooth FROM mep_signals WHERE trade_date=? AND symbol IN ({_ph})",
                         (_mdate, *_syms)).fetchall()}
         except Exception:
             mep_by = {}
@@ -2272,7 +2293,8 @@ def _member_snapshot(conn, symbols, sig_date) -> list:
             f"SELECT s.symbol, s.rs_rank, s.rs_vs_broad_trend_state st, s.accum_character ch, "
             f"s.is_ath_dvpt ath, s.pct_from_52w_high pfh, s.p_score, s.trigger_rank rank, "
             f"s.delivery_value_today dvt, s.price_vs_hot_avg_pct pvh, s.primary_sector sec, "
-            f"b.close cmp, m.mep_score mep, m.mep_state mst "
+            f"b.close cmp, m.mep_score mep, m.mep_state mst, "
+            f"m.mep_score_smooth mep_ph, m.mep_state_smooth mst_ph "
             f"FROM stock_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
             f"LEFT JOIN mep_signals m ON (m.symbol=s.symbol AND m.trade_date=s.trade_date) "
             f"WHERE s.trade_date=? AND s.symbol IN ({ph}) {D._SCAN_FILTERS}",
@@ -2293,11 +2315,15 @@ def _participants_table(members, tags_map) -> str:
         rk = m.get("rank") or "-"
         athg = "⚡" if m.get("ath") else ""
         chips = D._tag_chips(tags_map.get(sym, []), cap=3) or '<span class="mut">—</span>'
-        mst = m.get("mst")
-        if m.get("mep") is None and not mst:
+        # headline the smoothed PHASE; daily score kept as the cell tooltip
+        mst = m.get("mst_ph") or m.get("mst")
+        mep_v = m.get("mep_ph") if m.get("mep_ph") is not None else m.get("mep")
+        if mep_v is None and not mst:
             mep_cell = '<span class="mut">—</span>'
         else:
-            mep_cell = f'{_mv_adbar(m.get("mep"))}&nbsp;{_mep_pill(mst)}'
+            _dt = ("%+.2f" % m["mep"]) if m.get("mep") is not None else "—"
+            mep_cell = (f'<span title="phase (today {_dt})">{_mv_adbar(mep_v)}'
+                        f'&nbsp;{_mep_pill(mst)}</span>')
         is_acc = mst in ("ACCUM", "STRONG_ACCUM") or m.get("ch") == "ACCUMULATION"
         cls = ' class="is-acc"' if is_acc else ''
         rows += (f'<tr{cls}><td class="l"><a class="row" href="/dash/stock?sym={esc(sym)}">'
@@ -2390,7 +2416,7 @@ def render_theme_detail(name, idx_date, sig_date) -> str:
     N = len(members)
     n_up = sum(1 for m in members if m.get("st") in ("UPTREND", "BREAKOUT"))
     n_lead = sum(1 for m in members if (m.get("rs_rank") or 0) >= 80)
-    n_acc = sum(1 for m in members if m.get("mst") in ("ACCUM", "STRONG_ACCUM") or m.get("ch") == "ACCUMULATION")
+    n_acc = sum(1 for m in members if (m.get("mst_ph") or m.get("mst")) in ("ACCUM", "STRONG_ACCUM") or m.get("ch") == "ACCUMULATION")
     n_ath = sum(1 for m in members if m.get("ath"))
     blurb = entry["blurb"] if entry else ""
     grp = entry["group"] if entry else "—"
