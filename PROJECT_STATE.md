@@ -454,6 +454,9 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D65 — MEP is headlined as a smoothed, hysteresis-banded PHASE, not the daily score (2026-06-22, session 35)
+The daily `mep_score` flips state ~3 days in 4 (RELIANCE 50 changes / 70 rows) because 3 of its 4 terms are essentially today's bar — a pressure **oscillator**, not the accumulation→consolidation→distribution **regime** it was framed as. **Decision:** store + headline a **PHASE** — `mep_score_smooth` (rolling mean of the daily score over **15** trading rows) banded through a **hysteresis ladder** (asymmetric enter/exit deadbands) into `mep_state_smooth`. The daily score is kept underneath everywhere (data-first). **Why window 15, not the "~10" first sketched:** a VPS grid-search showed 15 is the *smallest* window that puts every reference stock **single-digit** transitions/70 (avg 5.7, max 8 — an 8.5× cut from 48.8); win10–14 leave choppy range-bound large-caps (SBIN/WIPRO) at 10–13. Bands calibrated to the real smoothed-score spread (σ≈0.43) so STRONG is the selective ~10% tail and NEUTRAL/consolidation is the plurality. **Still descriptor-only (D62)** — the phase, however clean, does not rank/pick. Full design + calibration: `docs/mep-strategy-design.md` §9; the multi-lens decode preserved in §10.
+
 ### D64 — RRG rotation map + RS-depth (RSI-of-RS / Mansfield) + down-capture + constituent drill-down (2026-06-22)
 Ramana asked to deepen relative strength and make rotation *visual + drillable*. Decisions:
 - **JdK normalisation (~100)** for RS-Ratio (x) and RS-Momentum (y) so every sector/stock is comparable on one quadrant chart (kills the IT-1.19 vs Bank-2.0 magnitude problem).
@@ -1222,6 +1225,15 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 35 — 2026-06-22 — MEP smoothed PHASE — daily whipsaw fixed, SHIPPED + DEPLOYED + VERIFIED (autonomous)
+**Context:** MEP's known issue (open #1) — the daily `mep_state` flipped ~3 days in 4, so the "phase" was really a daily oscillator. Fixed it into a real, persistent regime. See **D65** + `docs/mep-strategy-design.md` §9 (design+calibration) / §10 (multi-lens decode preserved).
+- **Engine (`src/automation/mep_signals.py`):** added `mep_score_smooth` (15-row rolling mean of the daily score) + `mep_state_smooth` (hysteresis ladder — asymmetric enter/exit deadbands, calibrated bands). `_smooth_chain` (O(n) sliding window, drives `--backfill`/`--resmooth`) + `_smooth_date` (nightly incremental, auto-called by `compute_for_date` → **no systemd chain change**). Backfill vs incremental proven identical to float epsilon. New `--resmooth` mode (recomputes ONLY the 2 phase cols from stored daily scores). `ensure_table()` forward-migrates the live table via idempotent ADD COLUMN + `idx_mep_phase`. Canonical cols added to `db.py` SCHEMA_BASE.
+- **Data:** ran `--resmooth` on the VPS → 4,138 symbols / 7,560,482 rows / 99.8% phased.
+- **UI (additive, daily kept underneath):** `/dash/mep` leads with Phase + Phase-score + a "Today" daily column, count strip tallies the phase mix (Consolidating band); home Net-accum/Distribution-watch boards, pillar count, intra-index board, participants table + "accumulating only" filter, Conviction column, screener `g-mep` group (now Phase / Phase-sc / Accum-bar, daily in tooltip — 3 cols unchanged, no realignment), and the stock dossier (phase headline + **"held in phase"** days + daily underneath) all read the smoothed phase.
+- **Verification:** stored-state transition probe — daily avg 48.8/70 → **phase 5.8/70, max 8 (all single-digit), 8.5×**. 12-route 200 regression (incl. `/dash/markets` RS-Rotation intact, `/dash/mep` 300 rows, screener phase cells in every row). CRLF-clean deploys (dashboard.py normalised LF on VPS).
+- **Commits (my files only, explicit paths):** `1264fff` (engine+db.py), `6a1d476` (cockpit phase headlining), `19e8da0` (dashboard screener+dossier), `58b331c` (design doc §9/§10).
+- **OPEN / for Ramana's decision (NOT guessed):** (#3) **F&O OI feed** — the missing IDENTITY channel (the only one that could carry real predictive alpha; wire into the parallel-owned `deals.py`, compute price×ΔOI quadrant); (#4) **Pat "accumulation" routing** — DVPT-delivery vs MEP-signed (glossary in, routing parked). Both detailed in `docs/mep-NEXT-SESSION.md`.
 
 ### Session 34 — 2026-06-22 — RRG ROTATION MAP + RS-DEPTH + CONSTITUENT DRILL-DOWN — SHIPPED & DEPLOYED (autonomous)
 **Context:** Ramana asked to deepen relative strength (momentum-of-RS, RSI-of-RS, Mansfield, base/reversal — the Nifty IT 2.6→1.19 base-and-turn), a clear interactive **RRG** (4 quadrants, hover, tails), "accumulate what falls LESS than the Nifty" (down-capture), and a **constituent drill-down** (click a sector → its participant stocks in their own quadrants). Built ISOLATED to sidestep the contended `dashboard.py`/`cockpit.py`. See **D64** + `docs/rrg-rotation-NEXT-SESSION.md` (full asks, placement spec, deploy run-book, paste-ready autonomous self-prompt) + memory `rs-deepen-rrg-capture-held.md`.
