@@ -281,13 +281,20 @@ def _back_link() -> str:
             'href="/dash/rrg">← Back to sectors</a>')
 
 
-def _constituent_head(index_name: str, den: str) -> str:
+def _constituent_head(index_name: str, ben: str, vs: str = "sector") -> str:
+    def pill(v, label):
+        on = "background:#1f6feb;border-color:#1f6feb;color:#fff;" if v == vs else ""
+        return (f'<a href="/dash/rrg?idx={quote_plus(index_name)}&vs={v}" class="pill" '
+                f'style="text-decoration:none;margin-right:6px;{on}">{label}</a>')
+    toggle = pill("sector", "vs " + _esc(index_name)) + pill("broad", "vs Nifty 500")
     return (_back_link()
             + f'<h2 style="margin-top:6px">{_esc(index_name)} — constituents '
-            f'<span class="sub" style="margin:0">vs {_esc(den)} · click a stock for its page</span></h2>'
+            f'<span class="sub" style="margin:0">vs {_esc(ben)} · click a stock for its page</span></h2>'
+            f'<div style="margin:6px 0">{toggle}</div>'
             '<div class="sub">Each dot is a member stock on its own RS-Ratio × RS-Momentum. '
-            'Top-right = leading the market · top-left = basing &amp; turning up · '
-            'bottom = lagging. This is which participants drive (or drag) the sector.</div>')
+            'Top-right = leading · top-left = basing &amp; turning up · bottom = lagging. '
+            '<b>vs the sector</b> = which participants lead/lag the sector (spreads them); '
+            '<b>vs Nifty 500</b> = each stock vs the broad market.</div>')
 
 
 def _constituent_table(rows: list[dict], den: str) -> str:
@@ -365,17 +372,21 @@ def render_sectors_map(den: str = "Nifty 500", conn=None) -> str:
 
 @router.get("/dash/rrg", response_class=HTMLResponse)
 def rrg_page(den: str = Query("Nifty 500", max_length=40),
-             idx: str = Query("", max_length=60)) -> HTMLResponse:
+             idx: str = Query("", max_length=60),
+             vs: str = Query("sector", max_length=10)) -> HTMLResponse:
     den = den if den in BENCHMARKS else "Nifty 500"
     if idx:                               # DRILL-DOWN: the stocks inside one index
+        # Default benchmark = the SECTOR itself (which participants lead/lag the
+        # sector → spreads them across quadrants); vs=broad = vs Nifty 500.
+        ben = "Nifty 500" if vs == "broad" else idx
         with get_conn() as conn:
-            rows, tails = _constituent_data(idx, den, conn)
+            rows, tails = _constituent_data(idx, ben, conn)
         if not rows:
             body = _empty_constituents(idx)
         else:
-            body = (_constituent_head(idx, den)
+            body = (_constituent_head(idx, ben, vs)
                     + _svg(rows, {}, tails, link_fn=lambda s: "/dash/stock?sym=" + quote_plus(s))
-                    + _constituent_table(rows, den))
+                    + _constituent_table(rows, ben))
         return HTMLResponse(_shell(f"{idx} — rotation", body, active="markets", wide=True))
     with get_conn() as conn:              # sector level
         rows, caps, tails = _fetch(den, conn)
