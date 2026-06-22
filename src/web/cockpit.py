@@ -893,9 +893,29 @@ def render_markets(idx_date) -> str:
           "document.querySelectorAll('#mbar .fbtn').forEach(function(b){b.classList.remove('on');});"
           "el.classList.add('on');}</script>")
 
+    # Dedicated "Rotation" card cluster — the rotation family as first-class tiles
+    # (RS Rotation was an orphan route; RRG/Sectors were only inline links). Pure
+    # links, reuses .ck-tile styling. Additive; nothing existing removed.
+    rotation_cards = (
+        '<div class="ghdr" style="margin-top:12px">Rotation</div>'
+        '<div class="ck-tiles" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">'
+        '<a class="ck-tile" style="border-top:3px solid #79c0ff" href="/dash/rotation">'
+        '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">🌅 RS Rotation</div>'
+        '<div class="ck-l">stocks × sectors · 4-phase weather</div>'
+        '<div class="ck-c">Recovery · Tailwind · Rolling-over · Headwind</div></a>'
+        '<a class="ck-tile" style="border-top:3px solid #58a6ff" href="/dash/rrg">'
+        '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">⟳ RRG map</div>'
+        '<div class="ck-l">sector relative-rotation graph</div>'
+        '<div class="ck-c">RS-Ratio × RS-Momentum + tails</div></a>'
+        '<a class="ck-tile" style="border-top:3px solid #3fb950" href="/dash/sectors">'
+        '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">📈 Sector Rotation</div>'
+        '<div class="ck-l">RS heat per sector · sortable</div>'
+        '<div class="ck-c">vs Nifty 500 · 1m/3m/6m/12m</div></a>'
+        '</div>')
+
     return (_CKPT_CSS
             + '<h2 style="margin-top:2px">Markets <span class="sub" style="margin:0">regime · indexes · sectors</span></h2>'
-            + banner + hdr
+            + banner + hdr + rotation_cards
             + '<div class="sub" style="margin-top:2px">Tap any index → its full detail page: '
               'price trend, relative strength, valuation &amp; constituent roll-up. '
               '<a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a> · '
