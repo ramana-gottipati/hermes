@@ -42,6 +42,13 @@
 
 **Also:** blanket permissions written to `.claude/settings.local.json`.
 
+**UPDATE (session 29 — the CCI work-stream, on Ramana's "strategies/credible screen still old UI" feedback):**
+- **§3.A.1 DONE** — `/dash/strategies` is now **registry-driven cockpit** (`cockpit.render_strategies`: count-strip + a `ck-board` per pillar; old `.scard` body left as dead code after an early `return`). `dash_strategies` = thin wrapper, `wide=True`.
+- **`STRATEGY_REGISTRY` extended** with a **`CCI` pillar** (accent `#39c5cf`, href `/dash/concalls`, count = scored concall symbols) → auto-appears on the home count-strip AND the new strategies hub. (This is the §3.B "registry drives new strategies" spirit for the strip; the screener column-group for CCI was added manually in `_SCREENER_JS`'s `TOG` — a full registry-driven screener refactor per §3.B is still open.)
+- **`cockpit.render_concalls`** — the CCI board `/dash/concalls` is now **full-bleed** (`wide=True`) with a `.ck-tiles` strip + the data-first measurable table. `dash_concalls` = thin wrapper.
+- Deployed cockpit.py + dashboard.py together (CRLF/parallel-diff-checked, py_compile-guarded).
+- **§3.A.2 DONE (same session):** `/dash/conviction`, `/dash/leaders`, `/dash/sectors`, `/dash/rs` all migrated to full-bleed cockpit — new `cockpit.render_conviction/render_leaders/render_sectors/render_rs` (each = `_CKPT_CSS` + a `.ck-tiles` count-strip + the SAME data-first table[s]/instruments the old handler used: `_rs_strip`, `_char_pill`, the percentile `.bar`, the conviction filter bar). `dash_*` are thin `wide=True` wrappers (old bodies dead). Shared `_ck_tile`/`_ck_strip` helpers added to cockpit.py. Verified: all 4 → 200, `ck-tiles` + `wrap wide` present, real rows (leaders 140 RS pills, sectors/rs 19 strips/bars); home/markets/strategies/concalls/screener/stock all still 200. **Now the ENTIRE Strategies section is full-bleed cockpit.** Still open per this run-book: §3.B (full registry-driven screener), §3.C (Launchpad productization).
+
 **`src/web/cockpit.py` is the new home.** `STRATEGY_REGISTRY` (list of `{key,label,accent,href,cta,thesis,count(conn,sig_date,D)->int|None}`) is the **single source of truth** for the pillars — POS · RS · QUAL · CPR · CONV · **LAUNCH** (already present, "research→live pending", so D56's Launchpad auto-appears once productized). Add an entry → it shows on the home strip automatically (the user's "new strategy auto-updates the dashboard" ask, D-UI-7).
 
 ---

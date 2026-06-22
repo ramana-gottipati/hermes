@@ -123,6 +123,70 @@ Unit=hermes-digest.service
 WantedBy=timers.target
 EOF
 
+# --- CCI: Concall Intelligence (D60/D61) ------------------------------------
+# Two STAGGERED timers (exactly ONE run/day → never exceeds the Gemini free tier
+# of 20 requests/DAY; each self-limits to --max-calls 18 and stops early on quota):
+#   - hermes-concalls (Mon-Sat): DRAIN the pending extraction queue OLDEST-first
+#     (--all --oldest), then settle→diff→score. No network but Gemini (--no-results)
+#     — lean. This is the historical-backfill drain (~18/day until the queue empties,
+#     then it just keeps scores fresh). Oldest-first builds settled track records +
+#     the blowups' pre-collapse calls soonest.
+#   - hermes-concalls-refresh (Sun): the STEADY-STATE incremental — fetch any newly
+#     released pilot concalls (--ingest) + refresh Screener results, then drain+score.
+# Gemini-only extraction (no Sonnet); the score/settle/diff steps use NO LLM.
+echo "==> Writing hermes-concalls(.service/.timer) + hermes-concalls-refresh"
+cat > /etc/systemd/system/hermes-concalls.service <<EOF
+[Unit]
+Description=Hermes CCI — concall extraction backfill drain + score (oldest-first)
+
+[Service]
+Type=oneshot
+WorkingDirectory=${TARGET}
+ExecStart=${TARGET}/.venv/bin/python -m src.automation.cci_pipeline --all --extract --oldest --no-results --max-calls 18
+StandardOutput=append:/var/log/hermes-concalls.log
+StandardError=append:/var/log/hermes-concalls.log
+EOF
+cat > /etc/systemd/system/hermes-concalls.timer <<EOF
+[Unit]
+Description=Hermes CCI backfill-drain Timer (Mon-Sat)
+Requires=hermes-concalls.service
+
+[Timer]
+# 12:30 PM IST = 07:00 UTC, Mon-Sat. (Sunday is the refresh timer below, so the
+# two never run the same day — keeps total Gemini calls <= 18/day, within free tier.)
+OnCalendar=Mon..Sat *-*-* 07:00:00
+Persistent=true
+Unit=hermes-concalls.service
+
+[Install]
+WantedBy=timers.target
+EOF
+cat > /etc/systemd/system/hermes-concalls-refresh.service <<EOF
+[Unit]
+Description=Hermes CCI — weekly incremental (ingest new concalls + results + score)
+
+[Service]
+Type=oneshot
+WorkingDirectory=${TARGET}
+ExecStart=${TARGET}/.venv/bin/python -m src.automation.cci_pipeline --pilot --ingest --extract --oldest --max-calls 18
+StandardOutput=append:/var/log/hermes-concalls.log
+StandardError=append:/var/log/hermes-concalls.log
+EOF
+cat > /etc/systemd/system/hermes-concalls-refresh.timer <<EOF
+[Unit]
+Description=Hermes CCI weekly-incremental Timer (Sun)
+Requires=hermes-concalls-refresh.service
+
+[Timer]
+# 12:30 PM IST = 07:00 UTC, Sundays only.
+OnCalendar=Sun *-*-* 07:00:00
+Persistent=true
+Unit=hermes-concalls-refresh.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
 # --- FastAPI service (candidates web page) ----------------------------------
 echo "==> Writing hermes-api.service (FastAPI on :8000)"
 cat > /etc/systemd/system/hermes-api.service <<EOF
@@ -146,8 +210,10 @@ EOF
 # --- Activate ---------------------------------------------------------------
 systemctl daemon-reload
 systemctl enable --quiet hermes-news.timer hermes-bhavcopy.timer hermes-digest.timer hermes-api.service
+systemctl enable --quiet hermes-concalls.timer hermes-concalls-refresh.timer
 systemctl restart hermes-api.service
 systemctl start hermes-news.timer hermes-bhavcopy.timer hermes-digest.timer
+systemctl start hermes-concalls.timer hermes-concalls-refresh.timer
 
 # --- Restart bot ------------------------------------------------------------
 if systemctl list-unit-files | grep -q "^hermes-telegram.service"; then
