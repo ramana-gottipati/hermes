@@ -221,24 +221,59 @@ def _table(rows: list[dict], caps: dict, den: str) -> str:
     return (f'<table class="dt">{head}<tbody>{"".join(body)}</tbody></table>')
 
 
+def _fetch(den: str, conn):
+    """Fetch (rows, caps, tails) for one benchmark — stored path with on-read
+    fallback, curated to REAL_SECTORS. Shared by the full page and the embed."""
+    rows = rrg.latest_all(den, conn=conn) or rrg.current_all(den, conn=conn, only=_REAL_SECTORS)
+    if _REAL_SECTORS:                     # curate the stored path (all ~170 indices) too
+        keep = set(_REAL_SECTORS)
+        _filt = [r for r in rows if r["numerator"] in keep]
+        if _filt:
+            rows = _filt
+    caps_list = capture.latest_all(den, conn=conn) or capture.current_all(den, conn=conn, only=_REAL_SECTORS)
+    caps = {c["numerator"]: c for c in caps_list}
+    tails = {}
+    for r in rows:                        # one bad ratio_rows row can't 500 the page
+        try:
+            tails[r["numerator"]] = rrg.tail(r["numerator"], den, 8, conn=conn)
+        except Exception:
+            tails[r["numerator"]] = []
+    return rows, caps, tails
+
+
+def render_sectors_map(den: str = "Nifty 500", conn=None) -> str:
+    """The RRG map block (heading + quadrant scatter + hover) for EMBEDDING at the
+    top of /dash/sectors. Returns '' when there's no data. Self-contained (its own
+    tooltip JS); reuses the host page's dark CSS classes. Manages its own conn."""
+    own = conn is None
+    if own:
+        cm = get_conn()
+        conn = cm.__enter__()
+    try:
+        den = den if den in BENCHMARKS else "Nifty 500"
+        rows, caps, tails = _fetch(den, conn)
+    finally:
+        if own:
+            cm.__exit__(None, None, None)
+    if not rows:
+        return ""
+    return (
+        '<h2 style="margin-top:2px">Rotation map '
+        f'<span class="sub" style="margin:0">JdK RS-Ratio × RS-Momentum · vs {_esc(den)} · hover a dot</span></h2>'
+        '<div class="card" style="padding:8px 10px">'
+        + _svg(rows, caps, tails)
+        + '<div class="sub" style="margin:2px 0 0">Improving (top-left) = base turning up · '
+          'Leading (top-right) = strong &amp; gaining · Weakening (bottom-right) = lazy laggard · '
+          'Lagging (bottom-left) = weak &amp; falling. '
+          '<a class="row" style="display:inline" href="/dash/rrg">Full map + table + benchmark toggle →</a>'
+          '</div></div>')
+
+
 @router.get("/dash/rrg", response_class=HTMLResponse)
 def rrg_page(den: str = Query("Nifty 500", max_length=40)) -> HTMLResponse:
     den = den if den in BENCHMARKS else "Nifty 500"
     with get_conn() as conn:
-        rows = rrg.latest_all(den, conn=conn) or rrg.current_all(den, conn=conn, only=_REAL_SECTORS)
-        if _REAL_SECTORS:                 # also curate the stored path (all ~170 indices)
-            keep = set(_REAL_SECTORS)
-            _filt = [r for r in rows if r["numerator"] in keep]
-            if _filt:
-                rows = _filt
-        caps_list = capture.latest_all(den, conn=conn) or capture.current_all(den, conn=conn, only=_REAL_SECTORS)
-        caps = {c["numerator"]: c for c in caps_list}
-        tails = {}
-        for r in rows:                    # one bad ratio_rows row can't 500 the page
-            try:
-                tails[r["numerator"]] = rrg.tail(r["numerator"], den, 8, conn=conn)
-            except Exception:
-                tails[r["numerator"]] = []
+        rows, caps, tails = _fetch(den, conn)
     if not rows:
         body = _empty()
     else:
