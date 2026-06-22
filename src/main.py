@@ -11,6 +11,7 @@ from src.core.db import get_conn
 from src.core.settings import settings
 from src.pat.routes import router as pat_router
 from src.web.dashboard import router as dashboard_router
+from src.web.rrg_view import router as rrg_router
 
 app = FastAPI(title="Hermes", version="0.1.0")
 
@@ -27,6 +28,9 @@ app.include_router(dashboard_router)
 # Pat's JSON side-channels (feedback/learning) — mounted here so the contended
 # dashboard.py page route never has to change to add a Pat backend endpoint.
 app.include_router(pat_router)
+# RS-deepening (session 20): multi-sector Relative Rotation Graph + RS-depth table
+# at /dash/rrg. Isolated module so the parallel-session-held dashboard.py is untouched.
+app.include_router(rrg_router)
 
 
 class ChatRequest(BaseModel):
