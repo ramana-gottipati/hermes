@@ -1036,7 +1036,8 @@ def dash_home() -> HTMLResponse:
             top_sectors = [dict(x) for x in conn.execute(
                 f"""SELECT index_name nm, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
-                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12
+                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
+                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24
                    FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
                      AND index_name IN ({_real_sectors_in()})
                    ORDER BY COALESCE(rs_vs_broad_slope_3m,-999) DESC LIMIT 5""",
@@ -1045,7 +1046,8 @@ def dash_home() -> HTMLResponse:
             weak_sectors = [dict(x) for x in conn.execute(
                 f"""SELECT index_name nm, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
-                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12
+                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
+                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24
                    FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
                      AND index_name IN ({_real_sectors_in()})
                    ORDER BY COALESCE(rs_vs_broad_slope_3m,999) ASC LIMIT 3""",
@@ -1130,7 +1132,7 @@ def dash_home() -> HTMLResponse:
         out = []
         for r in rows:
             st = r["st"] or "—"
-            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
             out.append(f'<tr><td><a class="row" href="/dash/ratio?idx={_q(r["nm"])}">'
                        f'<span class="sym">{_esc(r["nm"])}</span></a></td>'
                        f'<td>{strip}</td>'
@@ -1144,7 +1146,7 @@ def dash_home() -> HTMLResponse:
             _strategy_badge("RS") +
             '<h2>Top sectors <span class="sub" style="margin:0">by 3m RS</span></h2>'
             '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Sector</th><th>1m/3m/6m/12m</th><th>Trend</th><th>RS 3m</th></tr></thead>'
+            '<thead><tr><th>Sector</th><th>1m/3m/6m/12m/18m/24m</th><th>Trend</th><th>RS 3m</th></tr></thead>'
             f'<tbody>{sect_rows(top_sectors)}</tbody></table></div>'
             '<div class="ghdr">Weakest</div>'
             '<div class="card" style="padding:6px 10px;"><table>'
@@ -1400,6 +1402,7 @@ def dash_markets() -> HTMLResponse:
                           g.rs_vs_broad_trend_state st, g.broad_benchmark bb,
                           g.rs_vs_broad_slope_1m s1, g.rs_vs_broad_slope_3m s3,
                           g.rs_vs_broad_slope_6m s6, g.rs_vs_broad_slope_12m s12,
+                          g.rs_vs_broad_slope_18m s18, g.rs_vs_broad_slope_24m s24,
                           x.close_value close
                    FROM index_signals g
                    LEFT JOIN index_rows x USING (index_name, trade_date)
@@ -1415,7 +1418,7 @@ def dash_markets() -> HTMLResponse:
     def maj_card(v):
         st = v["st"]
         chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st else ''
-        strip = _rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])
+        strip = _rs_strip(v["s1"], v["s3"], v["s6"], v["s12"], v.get("s18"), v.get("s24"))
         return (f'<a class="maj" href="/dash/ratio?idx={_q(v["nm"])}">'
                 f'<div class="nm">{_esc(v["nm"])}{chip}</div>'
                 f'<div class="rr"><span class="mut">ABS</span>'
@@ -1487,6 +1490,7 @@ def dash_sectors() -> HTMLResponse:
                 f"""SELECT index_name, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
                           rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
+                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24,
                           ret_1m_pct r1, ret_3m_pct r3
                    FROM index_signals
                    WHERE trade_date=? AND broad_benchmark IS NOT NULL
@@ -1501,7 +1505,7 @@ def dash_sectors() -> HTMLResponse:
         for r in rows:
             st = r["st"] or "—"
             nm = r["index_name"]
-            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
             trs.append(
                 f'<tr><td><a class="row" href="/dash/stocks?sector={_q(nm)}">'
                 f'<span class="sym">{_esc(nm)}</span></a></td>'
@@ -1519,7 +1523,7 @@ def dash_sectors() -> HTMLResponse:
 <table class="dt">
 <thead>
 <tr><th colspan="3">RETURN</th><th colspan="3" class="rsgrp grp">RELATIVE STRENGTH vs Nifty 500</th></tr>
-<tr><th>Sector</th><th>1m</th><th>3m</th><th class="rsgrp">1m / 3m / 6m / 12m</th><th>Trend</th><th>RS 3m</th></tr>
+<tr><th>Sector</th><th>1m</th><th>3m</th><th class="rsgrp">1m / 3m / 6m / 12m / 18m / 24m</th><th>Trend</th><th>RS 3m</th></tr>
 </thead>
 <tbody>{''.join(trs)}</tbody>
 </table>
@@ -1543,6 +1547,7 @@ def dash_rs() -> HTMLResponse:
                 f"""SELECT index_name nm, rs_vs_broad_trend_state st,
                           rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
                           rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
+                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24,
                           (0.6*COALESCE(rs_vs_broad_slope_3m,0)
                            +0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom
                    FROM index_signals
@@ -1568,7 +1573,7 @@ def dash_rs() -> HTMLResponse:
     for i, r in enumerate(rows, 1):
         st = r["st"] or "—"
         nm = r["nm"]
-        strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+        strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
         p = _pctl(r["mom"])
         trs.append(
             f'<tr><td class="mut">{i}</td>'
@@ -1584,7 +1589,7 @@ def dash_rs() -> HTMLResponse:
 <div class="sub">All sectors by RS momentum (0.6·3m + 0.4·6m slope vs Nifty 500), strongest first. Tap a sector → its ratio chart. <a class="row" style="display:inline" href="/dash/sectors">← Sector rotation</a></div>
 <div class="card" style="padding:6px 10px;">
 <table class="dt">
-<thead><tr><th>#</th><th>Sector</th><th>1m/3m/6m/12m</th><th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>
+<thead><tr><th>#</th><th>Sector</th><th>1m/3m/6m/12m/18m/24m</th><th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>
 <tbody>{''.join(trs)}</tbody>
 </table>
 </div>
@@ -2054,7 +2059,9 @@ def dash_screener(scope: str = Query("Nifty 500"),
                           s.turnover_surge_1m su1, s.rs_rank,
                           s.rs_vs_broad_trend_state rsbt, s.rs_vs_broad_slope_1m b1,
                           s.rs_vs_broad_slope_3m b3, s.rs_vs_broad_slope_6m b6,
-                          s.rs_vs_broad_slope_12m b12, s.rs_vs_sector_trend_state rsst,
+                          s.rs_vs_broad_slope_12m b12,
+                          s.rs_vs_broad_slope_18m b18, s.rs_vs_broad_slope_24m b24,
+                          s.rs_vs_sector_trend_state rsst,
                           s.gap_to_key_p3m g3, s.gap_to_key_p6m g6, s.gap_to_key_p12m g12,
                           s.trade_count_ratio_1m_6m tcr, s.deliv_updown_ratio_3m duo,
                           s.accum_price_drift_3m apd, s.turnover_surge_3m su3,
@@ -2170,7 +2177,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             f'<td class="inst l gsep g-rs">{_mv_rsspark(r["b1"], r["b3"], r["b6"], r["b12"])}</td>'
             f'<td class="num g-rs">{r["rs_rank"] if r["rs_rank"] is not None else "—"}</td>'
             f'<td class="l g-rs">{trend_pill(r["rsbt"])}</td>'
-            f'<td class="l g-rs">{_rs_strip(r["b1"], r["b3"], r["b6"], r["b12"])}</td>'
+            f'<td class="l g-rs">{_rs_strip(r["b1"], r["b3"], r["b6"], r["b12"], r.get("b18"), r.get("b24"))}</td>'
             f'<td class="l g-rs">{trend_pill(r["rsst"])}</td>'
             + cpr_tds + cci_tds +
             f'<td class="inst l gsep g-themes" style="white-space:nowrap;overflow:hidden">{themes_cell}</td>'
@@ -7206,7 +7213,9 @@ def dash_ratio(idx: str = Query("", max_length=60),
                       close_value iclose,
                       rs_vs_broad_today rs, rs_vs_broad_slope_1m s1,
                       rs_vs_broad_slope_3m s3, rs_vs_broad_slope_6m s6,
-                      rs_vs_broad_slope_12m s12, rs_vs_broad_above_50ma a50,
+                      rs_vs_broad_slope_12m s12,
+                      rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24,
+                      rs_vs_broad_above_50ma a50,
                       rs_vs_broad_above_200ma a200, rs_vs_broad_new_52w_high nh
                FROM index_signals
                WHERE index_name=? ORDER BY trade_date DESC LIMIT 1""",
@@ -7277,7 +7286,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
                 .replace("__DATA__", data_json))
 
     st = S.get("st") or "—"
-    strip = _rs_strip(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"))
+    strip = _rs_strip(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"), S.get("s18"), S.get("s24"))
     s1, s3, s6, s12 = S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12")
     r3 = S.get("r3")
 
