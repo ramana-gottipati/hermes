@@ -205,7 +205,7 @@ def tags_with_provenance(conn, symbol: str) -> list[dict]:
     approved beats proposed; ramana > index > ai on ties)."""
     rows = [dict(r) for r in conn.execute(
         "SELECT tag, source, confidence, as_of, approved, note FROM company_tags "
-        "WHERE symbol=? ", (symbol,)).fetchall()]
+        "WHERE symbol=? AND source != 'rejected'", (symbol,)).fetchall()]
     src_rank = {"ramana": 0, "index": 1, "keyword": 2, "ai": 3}
     best: dict[str, dict] = {}
     for r in rows:
@@ -242,10 +242,11 @@ def theme_members(conn, label: str, approved_only: bool = True) -> list[str]:
 
 
 def proposals_pending(conn, limit: int = 500) -> list[dict]:
-    """All proposals awaiting Ramana's review (approved=0 — keyword OR llm)."""
+    """All proposals awaiting Ramana's review (approved=0 — keyword OR llm; a
+    'rejected' tombstone is approved=0 but is NOT a proposal, so exclude it)."""
     return [dict(r) for r in conn.execute(
         "SELECT symbol, tag, source, confidence, as_of, note FROM company_tags "
-        "WHERE approved=0 ORDER BY confidence DESC, symbol LIMIT ?",
+        "WHERE approved=0 AND source != 'rejected' ORDER BY confidence DESC, symbol LIMIT ?",
         (limit,)).fetchall()]
 
 
@@ -264,7 +265,20 @@ def approve(conn, symbol: str, tag: str) -> None:
 
 
 def reject(conn, symbol: str, tag: str) -> None:
-    conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND approved=0",
+    """Dismiss a proposal DURABLY — drop the proposal row and leave a tombstone
+    (source='rejected') so the weekly keyword/LLM pass won't re-propose it.
+    Reversible via unreject()."""
+    symbol = symbol.upper().strip()
+    conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND approved=0", (symbol, tag))
+    conn.execute(
+        "INSERT OR REPLACE INTO company_tags(symbol, tag, source, confidence, as_of, approved, note) "
+        "VALUES (?,?,'rejected',NULL,?,0,'dismissed')", (symbol, tag, _today()))
+    conn.commit()
+
+
+def unreject(conn, symbol: str, tag: str) -> None:
+    """Lift a dismissal so the tag can be proposed again."""
+    conn.execute("DELETE FROM company_tags WHERE symbol=? AND tag=? AND source='rejected'",
                  (symbol.upper().strip(), tag))
     conn.commit()
 
@@ -346,8 +360,9 @@ def propose_from_keywords(conn=None) -> int:
     for r in rows:
         sym = r[0]
         text = ((r[1] or "") + " " + (r[2] or "")).lower()
+        # skip what's already a fact (index/ramana) OR durably dismissed (rejected)
         known = {x[0] for x in conn.execute(
-            "SELECT tag FROM company_tags WHERE symbol=? AND source IN ('index','ramana')",
+            "SELECT tag FROM company_tags WHERE symbol=? AND source IN ('index','ramana','rejected')",
             (sym,)).fetchall()}
         proposed: dict[str, list] = {}
         for theme, pats in _KW_COMPILED.items():
@@ -434,9 +449,9 @@ def propose_with_llm(conn=None, symbols: Optional[list[str]] = None,
                 continue
             conf = float(item.get("confidence") or 0.0)
             why = (item.get("why") or "")[:200]
-            # don't propose what we already KNOW deterministically / by hand
+            # don't propose what we already KNOW (index/ramana) or that was dismissed
             exists = conn.execute(
-                "SELECT 1 FROM company_tags WHERE symbol=? AND tag=? AND source IN ('index','ramana')",
+                "SELECT 1 FROM company_tags WHERE symbol=? AND tag=? AND source IN ('index','ramana','rejected')",
                 (sym, tag)).fetchone()
             if exists:
                 continue

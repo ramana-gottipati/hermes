@@ -7081,6 +7081,8 @@ def dash_tags_act(action: str = Form(...), symbol: str = Form(""),
                 TT.approve(conn, symbol, tag)
             elif action == "reject" and symbol and tag:
                 TT.reject(conn, symbol, tag)
+            elif action == "unreject" and symbol and tag:
+                TT.unreject(conn, symbol, tag)
             elif action == "add" and symbol and tag and TT.vocab_entry(tag) is not None:
                 TT.add_manual(conn, symbol, tag)
             elif action == "remove" and symbol and tag:

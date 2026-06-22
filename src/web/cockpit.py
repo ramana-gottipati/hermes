@@ -2465,6 +2465,79 @@ def _tag_act_btn(action, symbol, tag, label, nxt="/dash/tags-review") -> str:
             f'<button type="submit" class="tbtn">{label}</button></form>')
 
 
+def _render_entity_tags(sym, added="", err="") -> str:
+    """Per-company tag editor (/dash/tags-review?sym=X) — ALL of one company's
+    themes in one place: index facts (locked), your approved tags (removable), and
+    pending proposals (approve/reject), + an inline add form + a dismissed list
+    (restore). Linked from the stock page header. Honest: shows source + why."""
+    from src.web import dashboard as D
+    from src.automation import theme_tags as TT
+    esc, q = D._esc, D._q
+    with D.get_conn() as conn:
+        tags = TT.tags_with_provenance(conn, sym)
+        ab = conn.execute("SELECT about, screener_industry FROM company_about WHERE symbol=?", (sym,)).fetchone()
+        dismissed = [r[0] for r in conn.execute(
+            "SELECT tag FROM company_tags WHERE symbol=? AND source='rejected' ORDER BY tag", (sym,)).fetchall()]
+    nxt = f"/dash/tags-review?sym={q(sym)}"
+    note = ""
+    if added:
+        note = f'<div class="card" style="border-left:3px solid #2ea043;margin-bottom:8px">Saved: <b>{esc(added)}</b></div>'
+    elif err:
+        note = (f'<div class="card" style="border-left:3px solid #f85149;margin-bottom:8px">Could not save '
+                f'<b>{esc(err)}</b> — must be a vocabulary theme.</div>')
+    _src = {"index": "index · membership fact", "ramana": "you added",
+            "keyword": "keyword-proposed", "ai": "AI-proposed (Gemini)"}
+    trows, have = "", set()
+    for t in tags:
+        have.add(t["tag"])
+        if t["approved"]:
+            chip = D._tag_chips([t["tag"]], link=False)
+            action = ('<span class="mut">🔒 locked (membership fact)</span>' if t["source"] == "index"
+                      else _tag_act_btn("remove", sym, t["tag"], "✕ remove", nxt))
+        else:
+            chip = D._tag_chips([t["tag"]], link=False, proposed={t["tag"]})
+            action = (_tag_act_btn("approve", sym, t["tag"], "✓ approve", nxt) + " "
+                      + _tag_act_btn("reject", sym, t["tag"], "✕ dismiss", nxt))
+        trows += (f'<tr><td class="l">{chip}</td><td class="mut">{esc(_src.get(t["source"], t["source"]))}</td>'
+                  f'<td class="l mut">{esc(t.get("note") or "")}</td><td class="l">{action}</td></tr>')
+    if not trows:
+        trows = '<tr><td class="mut" colspan="4">No themes yet — add one below.</td></tr>'
+    opts = "".join(f'<option value="{esc(t["label"])}">{esc(t["label"])} · {esc(t["group"])}</option>'
+                   for t in TT.THEME_VOCAB if t["label"] not in have)
+    addform = (('<form method="post" action="/dash/tags" class="card" '
+                'style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0">'
+                '<input type="hidden" name="action" value="add">'
+                f'<input type="hidden" name="symbol" value="{esc(sym)}">'
+                f'<input type="hidden" name="nxt" value="{esc(nxt)}">'
+                f'<span class="sub" style="margin:0">Add a theme to <b>{esc(sym)}</b>:</span>'
+                '<select name="tag" style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;'
+                f'border-radius:6px;padding:6px 8px">{opts}</select>'
+                '<button type="submit" class="tbtn">+ Add</button></form>')
+               if opts else f'<div class="sub" style="margin:10px 0">{esc(sym)} already carries every vocabulary theme.</div>')
+    dis_html = ""
+    if dismissed:
+        chips = "".join(
+            f'<span class="tchip" style="opacity:.6">{esc(d)}</span> {_tag_act_btn("unreject", sym, d, "↺ restore", nxt)} '
+            for d in dismissed)
+        dis_html = (f'<h3 style="margin:14px 0 6px">Dismissed <span class="sub" style="margin:0">'
+                    f"won't be re-proposed · restore to allow again</span></h3>"
+                    f'<div class="card">{chips}</div>')
+    about_html = ""
+    if ab and ab[0]:
+        about_html = (f'<div class="card sub" style="margin-bottom:8px"><b>What the engine reads</b> '
+                      f'(Screener · {esc(ab[1] or "—")}): {esc((ab[0] or "")[:280])}…</div>')
+    head = (f'<h2 style="margin-top:2px">Themes · {esc(sym)} '
+            '<span class="sub" style="margin:0">all tags for this company · edit</span></h2>'
+            f'<div class="sub" style="margin-top:2px"><a class="row" style="display:inline" href="/dash/stock?sym={q(sym)}">'
+            f'← {esc(sym)} stock page</a> · <a class="row" style="display:inline" href="/dash/tags-review">all proposals</a> · '
+            '<a class="row" style="display:inline" href="/dash/themes">all themes</a></div>')
+    table = ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
+             '<thead><tr><th class="l">Theme</th><th class="l">Source</th><th class="l">Why / match</th>'
+             '<th class="l">Action</th></tr></thead>'
+             f'<tbody>{trows}</tbody></table></div>')
+    return _CKPT_CSS + head + note + about_html + table + addform + dis_html
+
+
 def render_tags_review(added="", err="", sym="") -> str:
     """Approve AI-proposed theme tags + manually add/remove tags (session 33).
 
@@ -2476,6 +2549,8 @@ def render_tags_review(added="", err="", sym="") -> str:
     from src.automation import theme_tags as TT
     esc, q = D._esc, D._q
     sym = (sym or "").upper().strip()
+    if sym:                                   # per-company editor (linked from the stock page)
+        return _render_entity_tags(sym, added, err)
     with D.get_conn() as conn:
         pending = TT.proposals_pending(conn)
         manual = [dict(r) for r in conn.execute(
