@@ -205,12 +205,12 @@ table.scr tbody tr:hover td{background:#1c2230!important;}
 .h-pos3{background:rgba(63,185,80,.22)!important;} .h-pos2{background:rgba(63,185,80,.13)!important;} .h-pos1{background:rgba(63,185,80,.06)!important;}
 .h-neg1{background:rgba(248,81,73,.07)!important;} .h-neg2{background:rgba(248,81,73,.14)!important;} .h-neg3{background:rgba(248,81,73,.22)!important;}
 /* column-group hide = ONE class on the table (single reflow, no per-cell JS) */
-table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
+table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-cci .g-cci,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
 /* LAG FIX (the Nifty-500 toggle hang): with table-layout:fixed the columns no longer
    re-solve their widths from 498 rows of content on every toggle. A JS-built <colgroup>
    gives each column an explicit width + tags it with its group; collapsing the col to 0
    here removes the gap a hidden group would otherwise leave under fixed layout. */
-table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
+table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-cci col.cg-cci,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
 /* CPR-confirmed gate: show only rows carrying a CPR reversal tier (one class) */
 table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
 /* D54 Phase 2 — "the instrument": inline static micro-viz readouts (D-UI-16).
@@ -224,7 +224,10 @@ table.scr td.inst{padding:3px 8px 3px 10px;}
    so the scrollbar stays stable. The column-width jitter that first made me defer
    this is killed by pinning the frozen Symbol column + flooring numeric cells, so
    widths can't shift as rows page in. All additive CSS, reversible. */
-table.scr tbody tr{content-visibility:auto;contain-intrinsic-size:auto 34px;}
+/* NB: exclude the virtualizer's .vspacer rows — content-visibility on a tall
+   off-screen spacer can collapse its height and drift the scroll. Data rows keep
+   it (harmless once virtualized; a cushion if the virtualizer ever safety-nets). */
+table.scr tbody tr:not(.vspacer){content-visibility:auto;contain-intrinsic-size:auto 34px;}
 table.scr .fz{width:116px;min-width:116px;max-width:116px;overflow:hidden;text-overflow:ellipsis;}
 table.scr td.num,table.scr th.num{min-width:46px;}
 """
@@ -632,6 +635,48 @@ def _cpr_screener_cells(by_tf) -> tuple:
 
     tds = wcell("D") + wcell("W") + wcell("M") + strip + rnk + tier + comp
     return tds, (conv is not None)
+
+
+def _cci_latest_by_sym(conn, symbols) -> dict:
+    """{sym: latest concall_scores row} for the given symbols (Management Credibility
+    group, P5). One grouped MAX-join, keyed IN fetch. Empty {} if no CCI data yet."""
+    syms = list(symbols)
+    if not syms:
+        return {}
+    ph = ",".join("?" for _ in syms)
+    try:
+        rows = conn.execute(
+            f"""SELECT s.* FROM concall_scores s
+                JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x
+                  ON x.symbol=s.symbol AND x.m=s.last_updated
+                WHERE s.symbol IN ({ph})""", syms).fetchall()
+    except Exception:
+        return {}
+    return {r["symbol"]: dict(r) for r in rows}
+
+
+def _cci_screener_cells(sc) -> tuple:
+    """The 4 screener CCI-group <td>s (Management Credibility) for one symbol + a
+    has-cci flag. Measurable-led (D61): tier · forward · deterioration · ⛔veto —
+    the avoid-tape essentials beside the other pillars; the deep ledger lives on the
+    stock dossier + /dash/concalls. '—' cells when the name has no concall data."""
+    if not sc:
+        return ('<td class="l gsep g-cci mut">—</td><td class="g-cci mut">—</td>'
+                '<td class="num g-cci mut">—</td><td class="g-cci mut">—</td>'), False
+    tier = sc.get("tier") or "—"
+    tcls = "pos" if tier in ("A+", "A") else ("neg" if tier == "D" else "mut")
+    det = sc.get("deterioration_score") or 0
+    det_td = (f'<td class="num g-cci"><span class="neg">{int(det)}</span></td>'
+              if det else '<td class="num g-cci mut">0</td>')
+    if sc.get("veto_active"):
+        veto_td = (f'<td class="g-cci l"><span class="neg" '
+                   f'title="{_esc(sc.get("veto_reason") or "")}">⛔</span></td>')
+    else:
+        veto_td = '<td class="g-cci l mut">—</td>'
+    tds = (f'<td class="l gsep g-cci"><span class="{tcls}">{_esc(tier)}</span></td>'
+           f'<td class="g-cci l">{_cci_fwd(sc.get("forward_direction"))}</td>'
+           + det_td + veto_td)
+    return tds, True
 
 
 # --- Data helpers ----------------------------------------------------------
@@ -1160,9 +1205,14 @@ def dash_home() -> HTMLResponse:
 def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
     """D45 — the cross-pillar Conviction shortlist: RS leader (D33c) + institutions
     accumulating now (D43 ACCUMULATION) + the D44 entry read, with pt14 quality as
-    confirmation. Read-only synthesis over existing data; sortable/exportable `.dt`."""
-    from src.automation.stock_rs import conviction_shortlist
+    confirmation. Read-only synthesis over existing data; sortable/exportable `.dt`.
+    Full-bleed cockpit render (cockpit.render_conviction); legacy body kept dead."""
+    from src.web.cockpit import render_conviction
     sig_date, _ = _latest_dates()
+    return HTMLResponse(_shell("Conviction · patearn", render_conviction(limit),
+                               "stocks", sig_date or "", wide=True))
+    # --- legacy inline body below superseded by cockpit.render_conviction (dead) ---
+    from src.automation.stock_rs import conviction_shortlist
     rows = conviction_shortlist(limit=limit)
 
     trs = []
@@ -1336,7 +1386,11 @@ def dash_markets() -> HTMLResponse:
 
 @router.get("/dash/sectors", response_class=HTMLResponse)
 def dash_sectors() -> HTMLResponse:
+    """Full-bleed cockpit render (cockpit.render_sectors); legacy body kept dead."""
+    from src.web.cockpit import render_sectors
     _, idx_date = _latest_dates()
+    return HTMLResponse(_shell("Sectors · patearn", render_sectors(), "sectors", idx_date or "", wide=True))
+    # --- legacy inline body below superseded by cockpit.render_sectors (dead) ---
     rows = []
     if idx_date:
         with get_conn() as conn:
@@ -1390,8 +1444,12 @@ def dash_sectors() -> HTMLResponse:
 
 @router.get("/dash/rs", response_class=HTMLResponse)
 def dash_rs() -> HTMLResponse:
-    """Cross-sector RS-momentum ranking (on-read; 0.6·slope_3m + 0.4·slope_6m)."""
+    """Cross-sector RS-momentum ranking (on-read; 0.6·slope_3m + 0.4·slope_6m).
+    Full-bleed cockpit render (cockpit.render_rs); legacy body kept dead."""
+    from src.web.cockpit import render_rs
     _, idx_date = _latest_dates()
+    return HTMLResponse(_shell("RS ranking · patearn", render_rs(), "sectors", idx_date or "", wide=True))
+    # --- legacy inline body below superseded by cockpit.render_rs (dead) ---
     rows = []
     if idx_date:
         with get_conn() as conn:
@@ -1452,9 +1510,13 @@ def dash_rs() -> HTMLResponse:
 def dash_leaders() -> HTMLResponse:
     """D33c composite screen — 'strong-in-strong' leaders + 'weak-in-weak'
     laggards: a stock whose RS vs its sector AND vs the broad market AND its
-    sector's own RS vs broad are ALL aligned (up = leader, down = laggard)."""
-    from src.automation.stock_rs import leaders_laggards
+    sector's own RS vs broad are ALL aligned (up = leader, down = laggard).
+    Full-bleed cockpit render (cockpit.render_leaders); legacy body kept dead."""
+    from src.web.cockpit import render_leaders
     sig_date, _ = _latest_dates()
+    return HTMLResponse(_shell("Leaders · patearn", render_leaders(), "stocks", sig_date or "", wide=True))
+    # --- legacy inline body below superseded by cockpit.render_leaders (dead) ---
+    from src.automation.stock_rs import leaders_laggards
     leaders = leaders_laggards("leaders", limit=60)
     laggards = leaders_laggards("laggards", limit=40)
 
@@ -1874,7 +1936,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
     scope = (scope or "Nifty 500").strip()
     is_all = scope.lower() == "all"
     is_watch = scope.lower() in ("watch", "watchlist")
-    rows, pt, n_members, cpr_by_tf = [], {}, None, {}
+    rows, pt, n_members, cpr_by_tf, cci_by_sym = [], {}, None, {}, {}
     if sig_date:
         with get_conn() as conn:
             if is_all:
@@ -1926,6 +1988,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
                         FROM pattern_scores WHERE symbol IN ({ph}) GROUP BY symbol""",
                     syms).fetchall()}
                 cpr_by_tf = _cpr_latest_by_tf(conn, syms)   # CPR Structure group (D53)
+                cci_by_sym = _cci_latest_by_sym(conn, syms)  # Management Credibility group (CCI, P5)
 
     def trend_pill(st):
         return f'<span class="pill p-{_esc(st)}">{_esc(st)}</span>' if st else '<span class="mut">—</span>'
@@ -1960,6 +2023,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
         cv = r["conv"]
         star = "★ " if ((r["p_score"] or 0) >= 4 and (r["rs_rank"] or 0) >= 80 and qg_ok) else ""
         cpr_tds, has_cpr = _cpr_screener_cells(cpr_by_tf.get(r["symbol"], {}))
+        cci_tds, has_cci = _cci_screener_cells(cci_by_sym.get(r["symbol"]))
         g3 = r["g3"]
         g3_tint = " h-pos2" if (g3 is not None and _KEY_BAND[0] <= g3 <= _KEY_BAND[1]) else ""
         nearp = (f'{_esc(r["npa"])} {_pct(r["gnp"])}' if r["npa"] else '<span class="mut">—</span>')
@@ -1995,7 +2059,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             f'<td class="l g-rs">{trend_pill(r["rsbt"])}</td>'
             f'<td class="l g-rs">{_rs_strip(r["b1"], r["b3"], r["b6"], r["b12"])}</td>'
             f'<td class="l g-rs">{trend_pill(r["rsst"])}</td>'
-            + cpr_tds +
+            + cpr_tds + cci_tds +
             f'<td class="num gsep g-qual">{qsc}</td>'
             f'<td class="l mut g-qual">{tier}</td>'
             f'<td class="num gsep g-ctx{h_52(r["hh"])}">{_pct(r["hh"])}</td>'
@@ -2038,6 +2102,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-char" colspan="4">character</th>'
             '<th class="l gsep g-rs" colspan="5">relative strength</th>'
             '<th class="l gsep g-cpr" colspan="7">structure · cpr</th>'
+            '<th class="l gsep g-cci" colspan="4">credibility · cci</th>'
             '<th class="l gsep g-qual" colspan="2">quality</th>'
             '<th class="l gsep g-ctx" colspan="3">context</th></tr>'
             '<tr class="scol">'
@@ -2051,6 +2116,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-rs">RS trend</th><th class="num g-rs">RS#</th><th class="l g-rs">Broad</th><th class="l g-rs">Heat</th><th class="l g-rs">Sector</th>'
             '<th class="num gsep g-cpr">D%</th><th class="num g-cpr">W%</th><th class="num g-cpr">M%</th>'
             '<th class="l g-cpr">D·W·M</th><th class="g-cpr">Rnk</th><th class="l g-cpr">Str</th><th class="num g-cpr">Comp%</th>'
+            '<th class="l gsep g-cci">Cred</th><th class="l g-cci">Fwd</th><th class="num g-cci">Deter</th><th class="l g-cci">Veto</th>'
             '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
             '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th><th class="num g-ctx">Near-P</th></tr></thead>')
         grid = (f'<div class="scrwrap"><table class="scr">{thead}'
@@ -2103,7 +2169,7 @@ _SCREENER_JS = """
     tbl.insertBefore(cg, tbl.firstChild);
   })();
   var vbar=document.getElementById('vbar'); if(!vbar) return;
-  var TOG=[['conv','Conviction'],['pos','Positioning'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['qual','Quality'],['ctx','Context']];
+  var TOG=[['conv','Conviction'],['pos','Positioning'],['key','Key price'],['char','Character'],['rs','RS'],['cpr','CPR'],['cci','Credibility'],['qual','Quality'],['ctx','Context']];
   var KEY='patearn_scr_hidden', SKEY='patearn_scr_saved';
   function getH(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
   function getSaved(){try{return JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){return [];}}
@@ -2351,6 +2417,197 @@ def _cci_num(v, suffix="") -> str:
     return f"{v:.0f}{suffix}" if isinstance(v, (int, float)) else '<span class="mut">—</span>'
 
 
+_CCI_DETERMINISTIC_FLAGS = ("guidance_walkback", "stopped_disclosing", "promise_quietly_dropped",
+                            "metric_definition_change", "capex_slippage")
+
+
+def _cci_status_pill(st: str) -> str:
+    st = st or "OPEN"
+    if st in ("MET",):
+        return f'<span class="pos">{_esc(st)}</span>'
+    if st in ("MISSED", "ABANDONED", "RESTATED"):
+        return f'<span class="neg">{_esc(st)}</span>'
+    if st == "PARTIAL":
+        return f'<span style="color:#d29922">{_esc(st)}</span>'
+    return f'<span class="mut">{_esc(st)}</span>'
+
+
+def _cci_bar(label: str, v, invert: bool = False) -> str:
+    """A compact 0-100 axis bar (AI read — informational, never ranked). invert =
+    higher-is-worse (evasion / promo)."""
+    if v is None:
+        return ""
+    good = (100 - v) if invert else v
+    col = "#3fb950" if good >= 66 else ("#d29922" if good >= 40 else "#f85149")
+    return (f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px">'
+            f'<span style="width:130px;color:#8b949e">{label}</span>'
+            f'<span style="flex:1;max-width:150px;background:#21262d;border-radius:3px;height:7px">'
+            f'<span style="display:block;height:7px;border-radius:3px;width:{int(v)}%;background:{col}"></span></span>'
+            f'<span style="width:26px;text-align:right;color:#c9d1d9">{int(v)}</span></div>')
+
+
+def _cci_stock_panel(sym: str) -> str:
+    """Per-stock Management-Credibility (CCI) dossier. Measurable verdict on top
+    (tier / forward / guidance-accuracy / quantification / deterioration / ⛔veto),
+    then the PROMISE LEDGER (MET/MISSED/OPEN + variance — the follow-through Ramana
+    asked for), the deterministic deterioration timeline, the expectation-vs-actual
+    log, the negative-EBITDA ledger, and LAST the behaviour axes shown as an
+    'AI read — NOT ranked' (D61). Returns '' when the stock has no concall data yet
+    (panel omitted, graceful — like the CPR panel)."""
+    try:
+        with get_conn() as conn:
+            sc = conn.execute(
+                "SELECT * FROM concall_scores WHERE symbol=? ORDER BY last_updated DESC LIMIT 1",
+                (sym,)).fetchone()
+            gd = [dict(r) for r in conn.execute(
+                "SELECT source_period, statement_type, horizon, claim_text, quantified_target, unit, "
+                "status, resolved_period, variance_pct, confidence_language "
+                "FROM concall_guidance WHERE symbol=? "
+                "ORDER BY (status IN ('MET','MISSED','PARTIAL')) DESC, id DESC", (sym,)).fetchall()]
+            beh = conn.execute(
+                "SELECT * FROM concall_behavior WHERE symbol=? ORDER BY id DESC LIMIT 1", (sym,)).fetchone()
+            rf = [dict(r) for r in conn.execute(
+                "SELECT period_label, prior_period, flag_type, severity, evidence, model_version "
+                "FROM concall_redflags WHERE symbol=? ORDER BY id DESC LIMIT 14", (sym,)).fetchall()]
+            eva = [dict(r) for r in conn.execute(
+                "SELECT period_label, metric, classification, mgmt_expectation, headwind_adjusted, evidence "
+                "FROM concall_expectations_vs_actual WHERE symbol=? ORDER BY id DESC LIMIT 10", (sym,)).fetchall()]
+            ew = [dict(r) for r in conn.execute(
+                "SELECT period_label, ebitda, ebitda_margin, periods_in_red "
+                "FROM concall_ebitda_watch WHERE symbol=? ORDER BY id DESC LIMIT 8", (sym,)).fetchall()]
+            ncalls = conn.execute("SELECT COUNT(*) n FROM concalls WHERE symbol=? AND parse_status='OK'",
+                                  (sym,)).fetchone()["n"]
+    except Exception:
+        return ""
+    if not sc and not gd and not beh:
+        return ""
+    S = dict(sc) if sc else {}
+
+    # --- veto banner (the exogenous integrity gate, in front of everything) ---
+    veto = ""
+    if S.get("veto_active"):
+        veto = (f'<div style="border:1px solid #f85149;background:#2d1112;border-radius:6px;'
+                f'padding:8px 10px;margin:6px 0;color:#ff7b72;font-size:13px">⛔ <b>VETO</b> — '
+                f'{_esc(S.get("veto_reason") or "forensic disqualifier")}. Credibility capped regardless '
+                f'of how the call sounded (forensic gate, debate #1).</div>')
+
+    # --- measurable verdict chips ---
+    ga = S.get("guidance_accuracy_score")
+    ga_txt = (f'{ga:.0f}% <span class="mut">({S.get("n_promises_resolved") or 0})</span>'
+              if ga is not None else '<span class="mut">unproven</span>')
+    det = S.get("deterioration_score") or 0
+    det_cell = (f'<span class="neg">{int(det)}</span>' if det else '<span class="mut">0</span>')
+    tier = S.get("tier") or "—"
+    tcls = "pos" if tier in ("A+", "A") else ("neg" if tier == "D" else "mut")
+    chips = (
+        '<div class="kpi">'
+        f'<div class="box"><div class="num"><span class="{tcls}">{_esc(tier)}</span></div><div class="lbl">tier</div></div>'
+        f'<div class="box"><div class="num">{_cci_num(S.get("composite_score"))}</div><div class="lbl">score</div></div>'
+        f'<div class="box"><div class="num">{_cci_fwd(S.get("forward_direction"))}</div><div class="lbl">forward</div></div>'
+        f'<div class="box"><div class="num">{ga_txt}</div><div class="lbl">guidance acc.</div></div>'
+        f'<div class="box"><div class="num">{_cci_num(S.get("quantification_rate"), "%")}</div><div class="lbl">quantif (transp.)</div></div>'
+        f'<div class="box"><div class="num">{det_cell}</div><div class="lbl">deterioration</div></div>'
+        f'<div class="box"><div class="num">{ncalls}</div><div class="lbl">#calls extracted</div></div>'
+        '</div>')
+
+    # --- promise ledger (the follow-through tracker) ---
+    led = ""
+    if gd:
+        trs = []
+        for g in gd[:24]:
+            st = (g["status"] or "OPEN")
+            tgt = g["quantified_target"]
+            tgt_txt = (f'{tgt:g} {_esc(g["unit"] or "")}'.strip() if tgt is not None else "—")
+            var = g["variance_pct"]
+            res = (f'{_esc(g["resolved_period"] or "")} '
+                   f'{("%+.1f" % var) if var is not None else ""}' if st in ("MET", "MISSED", "PARTIAL") else "—")
+            trs.append(
+                f'<tr><td class="mut">{_esc(g["source_period"] or "")}</td>'
+                f'<td>{_esc(g["statement_type"] or "")}</td>'
+                f'<td class="mut">{_esc(g["horizon"] or "")}</td>'
+                f'<td class="l" title="{_esc(g["confidence_language"] or "")}">{_esc((g["claim_text"] or "")[:110])}</td>'
+                f'<td class="num">{tgt_txt}</td>'
+                f'<td>{_cci_status_pill(st)}</td>'
+                f'<td class="mut">{res}</td></tr>')
+        n_more = f' <span class="mut">(+{len(gd)-24} more)</span>' if len(gd) > 24 else ""
+        led = ('<div style="font-weight:600;margin:10px 0 4px">Promise ledger '
+               f'<span class="mut" style="font-weight:400">— follow-through, MET/MISSED settled vs actuals{n_more}</span></div>'
+               '<table class="dt"><thead><tr><th>Said</th><th>Type</th><th>Horizon</th><th class="l">Promise</th>'
+               '<th>Target</th><th>Status</th><th>Resolved Δ</th></tr></thead><tbody>'
+               + "".join(trs) + "</tbody></table>")
+
+    # --- deterioration / red-flag timeline (deterministic flags marked ★) ---
+    flagh = ""
+    if rf:
+        items = []
+        for f in rf:
+            is_det = (f.get("model_version") == "cci-diff-v1") or (f["flag_type"] in _CCI_DETERMINISTIC_FLAGS)
+            mark = '<span class="neg" title="deterministic — drives the rank">★</span> ' if is_det else ''
+            sev = f.get("severity")
+            prior = f' <span class="mut">(vs {_esc(f["prior_period"])})</span>' if f.get("prior_period") else ""
+            items.append(
+                f'<li style="margin:3px 0"><span class="mut">{_esc(f["period_label"] or "")}</span> '
+                f'{mark}<b>{_esc(f["flag_type"] or "")}</b>{(" · sev %d" % sev) if sev else ""}{prior}'
+                f'<br><span class="mut" style="font-size:12px">{_esc((f["evidence"] or "")[:160])}</span></li>')
+        flagh = ('<div style="font-weight:600;margin:10px 0 4px">Deterioration &amp; red-flag timeline '
+                 '<span class="mut" style="font-weight:400">— ★ = deterministic (ranked); others = AI read (context)</span></div>'
+                 '<ul style="margin:0;padding-left:16px;list-style:square">' + "".join(items) + "</ul>")
+
+    # --- expectation vs actual (in-line / understated / overstated / CONCEALED) ---
+    evah = ""
+    if eva:
+        trs = []
+        for e in eva:
+            cls = (e["classification"] or "").upper()
+            ccls = ("neg" if cls in ("MISS", "OVERSTATED", "CONCEALED") else
+                    "pos" if cls in ("BEAT", "UNDERSTATED") else "mut")
+            hw = ' <span class="pos" title="warned of a headwind yet delivered">⚑hw</span>' if e.get("headwind_adjusted") else ""
+            trs.append(
+                f'<tr><td class="mut">{_esc(e["period_label"] or "")}</td><td>{_esc(e["metric"] or "")}</td>'
+                f'<td><span class="{ccls}">{_esc(cls or "—")}</span>{hw}</td>'
+                f'<td class="l">{_esc((e["mgmt_expectation"] or "")[:90])}</td></tr>')
+        evah = ('<div style="font-weight:600;margin:10px 0 4px">Expectation vs actual '
+                '<span class="mut" style="font-weight:400">— AI read (context, not ranked)</span></div>'
+                '<table class="dt"><thead><tr><th>Period</th><th>Metric</th><th>Read</th><th class="l">Mgmt had said</th>'
+                '</tr></thead><tbody>' + "".join(trs) + "</tbody></table>")
+
+    # --- negative-EBITDA ledger (suppressed for lenders upstream) ---
+    ewh = ""
+    if ew:
+        trs = "".join(
+            f'<tr><td class="mut">{_esc(w["period_label"] or "")}</td><td class="num neg">{_num(w["ebitda"],0)}</td>'
+            f'<td class="num">{_num(w["ebitda_margin"],1)}%</td><td class="num">{w["periods_in_red"] or "—"}</td></tr>'
+            for w in ew)
+        ewh = ('<div style="font-weight:600;margin:10px 0 4px">Negative / weak-EBITDA ledger</div>'
+               '<table class="dt"><thead><tr><th>Period</th><th>EBITDA ₹cr</th><th>Margin</th><th>Qtrs in red</th>'
+               '</tr></thead><tbody>' + trs + "</tbody></table>")
+
+    # --- behaviour axes (AI read — NOT ranked, per D61) ---
+    behh = ""
+    if beh:
+        B = dict(beh)
+        bars = (_cci_bar("credibility", B.get("credibility")) + _cci_bar("transparency", B.get("transparency"))
+                + _cci_bar("courage", B.get("courage")) + _cci_bar("issue handling", B.get("issue_handling"))
+                + _cci_bar("consistency", B.get("consistency")) + _cci_bar("specificity", B.get("specificity"))
+                + _cci_bar("evasion", B.get("evasion"), invert=True)
+                + _cci_bar("promotional", B.get("promo_vs_conservative"), invert=True))
+        ev = _esc((B.get("evidence") or "")[:240])
+        behh = ('<div style="font-weight:600;margin:10px 0 4px">Behaviour axes '
+                '<span class="mut" style="font-weight:400">— an <b>AI read for context, NOT a ranking input</b> (D61)</span></div>'
+                + bars + (f'<div class="mut" style="font-size:11px;margin-top:4px">“{ev}”</div>' if ev else ""))
+
+    foot = ('<div class="mut" style="font-size:11px;margin-top:10px">Ranking uses <b>measurable items only</b> '
+            '(D61): guidance accuracy, quantification %, the ⛔ veto, and deterministic deterioration (★). '
+            'Behaviour / expectation reads inform but do not rank. <b>Pilot</b> — carried until the falsification '
+            'gates clear. <a class="row" style="display:inline" href="/dash/concalls">Full CCI board →</a></div>')
+
+    asof = f' · as of {_esc(S.get("as_of_period"))}' if S.get("as_of_period") else ""
+    return ('<div class="ccipanel" style="border:1px solid #30363d;border-radius:8px;padding:14px;margin:14px 0;background:#0d1117">'
+            f'<h3 style="margin:0 0 6px">Management Credibility '
+            f'<span class="mut" style="font-size:12px;font-weight:400">CCI · concall intelligence{asof}</span></h3>'
+            + veto + chips + led + flagh + evah + ewh + behh + foot + '</div>')
+
+
 @router.get("/dash/concalls", response_class=HTMLResponse)
 def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
     """CCI — Management Credibility (the concall-intelligence pillar). Two views:
@@ -2358,7 +2615,13 @@ def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
     'leaders' = credibility leaders (veto-excluded, proven track record on top).
     Data-first: the raw behaviour axes sit beside every verdict (D-UI-1); reuses
     table.dt (_DT_JS sort/filter/CSV). PILOT screen — carried until the falsification
-    gates clear (docs/concall-intelligence-debate.md)."""
+    gates clear (docs/concall-intelligence-debate.md). Full-bleed cockpit render
+    (cockpit.render_concalls); the legacy inline body below is kept as dead code."""
+    from src.web.cockpit import render_concalls
+    sig_date, _ = _latest_dates()
+    return HTMLResponse(_shell("Management Credibility · patearn", render_concalls(view),
+                               "strategies", sig_date or "", wide=True))
+    # --- legacy inline body below superseded by cockpit.render_concalls (dead) ---
     view = "leaders" if view == "leaders" else "avoid"
     with get_conn() as conn:
         sc = [dict(r) for r in conn.execute(
@@ -2434,8 +2697,13 @@ def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
 @router.get("/dash/strategies", response_class=HTMLResponse)
 def dash_strategies() -> HTMLResponse:
     """Workspace: pick a strategy, see TODAY's best stocks from each pillar.
-    Each card previews the top names + links to that strategy's full screen."""
-    sig_date, _ = _latest_dates()
+    Full-bleed, registry-driven cockpit render (cockpit.render_strategies); the
+    legacy inline .scard body below is kept as dead code."""
+    sig_date, idx_date = _latest_dates()
+    from src.web.cockpit import render_strategies
+    return HTMLResponse(_shell("Strategies · patearn", render_strategies(sig_date, idx_date),
+                               "strategies", sig_date or "", wide=True))
+    # --- legacy inline .scard body below superseded by cockpit.render_strategies (dead) ---
     conv, pos, rs, qual, cpr_top, cci = [], [], [], [], [], []
     if sig_date:
         with get_conn() as conn:
@@ -6081,6 +6349,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 """
 
     cpr_html = _cpr_stock_panel(cpr_by_tf)   # CPR Structure panel (D53)
+    cci_html = _cci_stock_panel(sym)         # Management Credibility dossier (CCI, P5)
 
     # D54 — Track capture: build a frozen-snapshot preview for the action loop.
     _ix = _xpower(L)
@@ -6160,6 +6429,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 {rs_html}
 
 {cpr_html}
+
+{cci_html}
 
 <script src="{_LWC_CDN}"></script>
 <script>
