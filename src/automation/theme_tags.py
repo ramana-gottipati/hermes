@@ -98,7 +98,15 @@ THEME_VOCAB: list[dict] = [
     {"label": "Private Banks", "group": "Ownership", "blurb": "Private-sector banks",
      "seed_indices": ["Nifty Private Bank"]},
 
-    # ---- Cross-cutting (no index captures these — LLM-proposed / manual) ---
+    # ---- Services & consumer (no index captures these — keyword / manual) --
+    {"label": "Aviation", "group": "Services & consumer", "blurb": "Airlines & airports",
+     "seed_indices": []},
+    {"label": "Travel & Tourism", "group": "Services & consumer", "blurb": "Travel, tourism, ticketing & holidays",
+     "seed_indices": []},
+    {"label": "Hospitality", "group": "Services & consumer", "blurb": "Hotels, resorts, restaurants & QSR",
+     "seed_indices": []},
+
+    # ---- Cross-cutting (no index captures these — keyword / manual) --------
     {"label": "Capital Goods", "group": "Cross-cutting", "blurb": "Industrial machinery & equipment makers",
      "seed_indices": []},
     {"label": "Industrialization-proxy", "group": "Cross-cutting", "blurb": "Beneficiaries of India's capex & manufacturing build-out",
@@ -114,7 +122,7 @@ THEME_VOCAB: list[dict] = [
 ]
 
 # Display order of the groups on /dash/themes.
-THEME_GROUPS: list[str] = ["Sectors", "Capex & industrials", "Ownership", "Cross-cutting"]
+THEME_GROUPS: list[str] = ["Sectors", "Capex & industrials", "Ownership", "Services & consumer", "Cross-cutting"]
 
 # label -> vocab entry, and label -> rank (for stable on-read ordering).
 _VOCAB_BY_LABEL: dict[str, dict] = {t["label"]: t for t in THEME_VOCAB}
@@ -288,18 +296,33 @@ KEYWORD_RULES: dict[str, list[str]] = {
     "PSU": [r"public sector", r"government of india", r"govt\.? of india", r"maharatna",
         r"navratna", r"miniratna", r"state[- ]owned", r"central public sector", r"\bcpse\b",
         r"a government (company|enterprise|undertaking)", r"government[- ]owned"],
-    "Capital Goods": [r"capital goods", r"machiner", r"industrial equipment", r"capital equipment",
-        r"engineering products", r"\bturbines?\b", r"\bboilers?\b", r"compressors?",
-        r"heavy engineering", r"\bcastings?\b", r"\bforgings?\b"],
+    # 'machinery' alone over-matches (every manufacturer USES machinery) — require
+    # maker-language so a tyre/FMCG co isn't tagged a capital-goods company:
+    "Capital Goods": [r"capital goods", r"machine tools", r"industrial machinery",
+        r"industrial equipment", r"capital equipment", r"engineering products",
+        r"\bturbines?\b", r"\bboilers?\b", r"compressors?", r"heavy engineering",
+        r"\bcastings?\b", r"\bforgings?\b"],
     # sector catches for names an index membership missed:
     "Chemicals": [r"chemical", r"petrochemical", r"agrochemical", r"specialty chem"],
     "Pharma": [r"pharmaceutical", r"\bformulations?\b", r"\bgenerics?\b drug"],
     "Realty": [r"real estate", r"\brealty\b", r"property develop", r"residential project",
         r"commercial real estate"],
+    # services & consumer — so a name like IndiGo is tagged HONESTLY (aviation +
+    # travel + transport), not forced into one bucket:
+    "Aviation": [r"\bairlines?\b", r"\baviation\b", r"air travel", r"low[- ]cost carrier",
+        r"passenger airline", r"air(craft| carrier)", r"\bairports?\b"],
+    "Travel & Tourism": [r"\btravel\b", r"\btouris[mt]", r"\bholidays?\b", r"tour operator",
+        r"\bticketing\b", r"travel (services|agency)", r"hospitality and travel"],
+    # NOT bare 'catering' — "catering TO <x>" is an idiom for "serving", which
+    # false-tagged a defence firm. Require catering-as-a-business.
+    "Hospitality": [r"\bhotels?\b", r"\bhospitality\b", r"\bresorts?\b", r"\brestaurants?\b",
+        r"quick[- ]service restaurant", r"\bqsr\b", r"catering services?", r"food catering"],
 }
-# A company that makes capital goods / is in infra / defence IS an industrialization
-# proxy — derive it deterministically from those tags (index OR keyword-proposed).
-_DERIVE_INDUSTRIALIZATION = {"Capital Goods", "Infrastructure", "Defence"}
+# Industrialization-proxy = a supplier to India's MANUFACTURING/CAPEX build-out.
+# Derive ONLY from Capital Goods + Defence (genuine industrialization) — NOT from
+# broad Nifty-Infrastructure membership, which also carries airlines/telecom/
+# utilities and would mis-tag e.g. IndiGo or a hospital. Honesty over recall.
+_DERIVE_INDUSTRIALIZATION = {"Capital Goods", "Defence"}
 _KW_COMPILED = {t: [re.compile(p, re.I) for p in pats] for t, pats in KEYWORD_RULES.items()}
 
 
@@ -334,7 +357,7 @@ def propose_from_keywords(conn=None) -> int:
             if hits:
                 proposed[theme] = sorted(set(hits))
         if "Industrialization-proxy" not in known and (known | set(proposed)) & _DERIVE_INDUSTRIALIZATION:
-            proposed.setdefault("Industrialization-proxy", ["derived: capital-goods / infra / defence"])
+            proposed.setdefault("Industrialization-proxy", ["derived: capital-goods / defence"])
         for theme, hits in proposed.items():
             note = ("matched: " + ", ".join(hits))[:190]
             conn.execute(
