@@ -311,8 +311,12 @@ KEYWORD_RULES: dict[str, list[str]] = {
     # travel + transport), not forced into one bucket:
     "Aviation": [r"\bairlines?\b", r"\baviation\b", r"air travel", r"low[- ]cost carrier",
         r"passenger airline", r"air(craft| carrier)", r"\bairports?\b"],
+    # airlines ARE travel/tourism (so IndiGo gets Aviation + Travel) — but match
+    # 'airline'/'passenger airline', NOT bare 'aircraft', so an aircraft-COMPONENTS
+    # maker (says "aircraft", not "airline") isn't mis-tagged a travel company:
     "Travel & Tourism": [r"\btravel\b", r"\btouris[mt]", r"\bholidays?\b", r"tour operator",
-        r"\bticketing\b", r"travel (services|agency)", r"hospitality and travel"],
+        r"\bticketing\b", r"travel (services|agency)", r"hospitality and travel",
+        r"\bairlines?\b", r"passenger airline", r"low[- ]cost carrier"],
     # NOT bare 'catering' — "catering TO <x>" is an idiom for "serving", which
     # false-tagged a defence firm. Require catering-as-a-business.
     "Hospitality": [r"\bhotels?\b", r"\bhospitality\b", r"\bresorts?\b", r"\brestaurants?\b",
