@@ -52,16 +52,24 @@ def call_classifier(
     return text, "anthropic"
 
 
-def _call_gemini(system: str, user_msg: str, max_tokens: int) -> str:
-    """Use Gemini Flash via its OpenAI-compatible endpoint."""
+def _call_gemini(system: str, user_msg: str, max_tokens: int, timeout: float = 6.0,
+                 json_mode: bool = False) -> str:
+    """Use Gemini Flash via its OpenAI-compatible endpoint.
+
+    timeout defaults to 6s for the tiny classifier path; the extractor passes a
+    much larger value since a full-transcript call legitimately takes longer.
+    json_mode forces a valid-JSON response (response_format) so a big structured
+    extraction can't come back wrapped in prose / markdown fences.
+    """
     from openai import OpenAI
 
     client = OpenAI(
         api_key=settings.gemini_api_key,
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        timeout=6.0,        # bound the worst case so a hung call can't park a
+        timeout=timeout,    # bound the worst case so a hung call can't park a
         max_retries=0,      # request thread; caller degrades to its fallback.
     )
+    extra = {"response_format": {"type": "json_object"}} if json_mode else {}
     response = client.chat.completions.create(
         model=settings.gemini_classifier_model,
         max_tokens=max_tokens,
@@ -69,6 +77,7 @@ def _call_gemini(system: str, user_msg: str, max_tokens: int) -> str:
             {"role": "system", "content": system},
             {"role": "user", "content": user_msg},
         ],
+        **extra,
     )
     text = response.choices[0].message.content or ""
     log.debug(
@@ -95,6 +104,44 @@ def _call_anthropic_haiku(system: str, user_msg: str, max_tokens: int) -> str:
         response.usage.output_tokens,
     )
     return response.content[0].text
+
+
+def call_extractor(
+    *,
+    system: str,
+    user_msg: str,
+    max_tokens: int = 8000,
+    timeout: float = 90.0,
+    allow_anthropic_fallback: bool = False,
+    json_mode: bool = True,
+) -> tuple[Optional[str], str]:
+    """Large structured-extraction call (e.g. a whole concall transcript -> JSON).
+
+    Differs from call_classifier deliberately:
+      - much larger max_tokens (a JSON of many guidance items + behavior + flags)
+      - a much longer timeout (the input is a full transcript, not a sentence)
+      - Gemini-ONLY by default: on failure it returns (None, "failed") rather
+        than silently falling back to the ~13x-pricier Haiku and surprising the
+        ~Rs300/mo budget on a big call. Set allow_anthropic_fallback=True to opt in.
+
+    Returns (text_or_None, provider) where provider is "gemini" | "anthropic" |
+    "failed". The caller marks the row FAIL and retries later on None.
+    """
+    if settings.gemini_api_key:
+        try:
+            return _call_gemini(system, user_msg, max_tokens, timeout=timeout, json_mode=json_mode), "gemini"
+        except Exception as e:  # noqa: BLE001
+            log.warning("gemini extractor call failed: %s", e)
+            if not allow_anthropic_fallback:
+                return None, "failed"
+
+    if settings.gemini_api_key and not allow_anthropic_fallback:
+        return None, "failed"
+    try:
+        return _call_anthropic_haiku(system, user_msg, max_tokens), "anthropic"
+    except Exception as e:  # noqa: BLE001
+        log.warning("anthropic extractor fallback failed: %s", e)
+        return None, "failed"
 
 
 def active_classifier_provider() -> str:

@@ -304,6 +304,23 @@ _RSLAG = ["weakest stock", "weak stock", "laggard stock", "rs laggard", "weakest
           "weak name", "losing momentum", "weak relative strength", "stocks lagging",
           "lagging stock", "underperforming stock", "weakest in", "biggest laggard",
           "weakest shares"]
+# CCI — Management Credibility (concall intelligence, P5). Distinctive concall/
+# credibility vocabulary → the credibility-leaders or the deterioration/avoid tape.
+# Checked before the generic fundamentals/quality route so "management credibility"
+# doesn't fall into valuation-quality.
+_CCI_AVOID = ["deterioration", "deteriorating", "avoid tape", "credibility decay",
+              "losing credibility", "guidance walkback", "guidance walk-back", "walked back guidance",
+              "walked back", "walk back guidance", "walkback", "lowered guidance", "cut guidance",
+              "stopped disclosing", "stopped reporting", "quietly dropped", "promise dropped",
+              "dropped promise", "concall red flag", "concall red-flag", "credibility deterioration"]
+_CCI_LEAD = ["credibility leader", "credible management", "management credibility",
+             "mgmt credibility", "most credible", "credibility rank", "credibility score",
+             "guidance accuracy", "kept their promise", "kept its promise", "kept promises",
+             "delivered on guidance", "promise ledger", "concall credibility",
+             "trustworthy management", "honest management", "credible managements"]
+# bare concall/earnings-call vocabulary (no leader/avoid word) → default to leaders.
+_CCI_GENERIC = ["concall", "conference call", "earnings call", "management guidance",
+                "guidance track record", "follow-through on guidance"]
 # momentum oscillators (RSI/MACD) → the `oscillators` flow. Unambiguous TA terms,
 # so route them deterministically before the model (which mis-reads "oversold").
 _OSC_OVERSOLD = ["oversold", "rsi below 30", "rsi under 30", "rsi < 30", "rsi<30",
@@ -356,6 +373,17 @@ def route_extra(query: str) -> dict | None:
         # distribution screen).
         if _EXPLAIN_LEAD_RE.search(qn) or qn.endswith(" meaning") or qn.endswith(" mean"):
             return None
+
+        # CCI — Management Credibility (concall intelligence). Avoid-tape first (a
+        # deterioration ask is more specific than a bare "credibility" ask), then the
+        # leaders, then bare concall vocabulary defaults to leaders. High precedence so
+        # "management credibility" never falls into the generic quality route.
+        if _has_any(qn, _CCI_AVOID):
+            return {"flow": "deterioration", "params": {}}
+        if _has_any(qn, _CCI_LEAD):
+            return {"flow": "credibility", "params": {}}
+        if _has_any(qn, _CCI_GENERIC):
+            return {"flow": "credibility", "params": {}}
 
         # overvalued / expensive → the inverted valuation screen. CHECKED BEFORE the
         # kill-list so "expensive stocks to avoid" reads as overvalued, not disqualified.

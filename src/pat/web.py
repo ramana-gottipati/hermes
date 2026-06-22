@@ -28,6 +28,7 @@ from src.pat.flows import (
     build_rs_query, build_rs_sectors_query, build_fundamentals_query, build_movers_query,
     build_index_query, build_pt14_query, build_disqualified_query,
     build_symbol_resolve_query, build_stock_card_query, build_stock_pattern_query,
+    build_credibility_query, build_deterioration_query,
 )
 
 
@@ -1007,6 +1008,97 @@ def _disqualified_flow(conn) -> str:
     return "".join(out)
 
 
+# ── CCI: Management Credibility (concall intelligence, P5) ────────────────────
+
+def _cci_fwd_html(v) -> str:
+    v = (v or "FLAT").upper()
+    if v == "UP":
+        return '<span style="color:#3fb950">UP ↑</span>'
+    if v in ("DOWN", "AVOID"):
+        return f'<span style="color:#f85149">{_esc(v)} ↓</span>'
+    return '<span style="color:#8b949e">FLAT</span>'
+
+
+def _cci_tier_html(t) -> str:
+    t = t or "—"
+    col = "#3fb950" if t in ("A+", "A") else ("#f85149" if t == "D" else "#8b949e")
+    return f'<span style="color:{col};font-weight:600">{_esc(t)}</span>'
+
+
+def _cci_table(rows, avoid: bool = False) -> str:
+    cols = ["Symbol", "Tier", "Score", "Forward", "Guid acc", "Quantif%", "Deter"]
+    if avoid:
+        cols.append("Veto")
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            + "".join(f"<th>{c}</th>" for c in cols) + "</tr></thead><tbody>")
+    rws = []
+    for r in rows:
+        ga = r["guidance_accuracy_score"]
+        ga_txt = (f'{ga:.0f}% ({r["n_promises_resolved"] or 0})' if ga is not None
+                  else '<span style="color:#8b949e">unproven</span>')
+        det = r["deterioration_score"] or 0
+        det_txt = f'<span style="color:#f85149">{int(det)}</span>' if det else "0"
+        cells = [
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>',
+            f'<td>{_cci_tier_html(r["tier"])}</td>',
+            f'<td>{_n(r["composite_score"], 0)}</td>',
+            f'<td>{_cci_fwd_html(r["forward_direction"])}</td>',
+            f'<td>{ga_txt}</td>',
+            f'<td>{_n(r["quantification_rate"], 0)}</td>',
+            f'<td>{det_txt}</td>',
+        ]
+        if avoid:
+            veto = (f'<span style="color:#f85149" title="{_esc(r["veto_reason"] or "")}">⛔</span>'
+                    if r["veto_active"] else "—")
+            cells.append(f"<td>{veto}</td>")
+        rws.append("<tr>" + "".join(cells) + "</tr>")
+    return head + "".join(rws) + "</tbody></table></div>"
+
+
+def _credibility_flow(conn) -> str:
+    out = ['<a class="patBack" href="/dash/pat">← back</a>',
+           _q_bubble("Credibility leaders — managements ranked by the MEASURABLE concall signal "
+                     "(D61): kept-promise accuracy + how falsifiable their guidance is, "
+                     "veto-excluded. The behaviour reads inform but never rank. Pilot:")]
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_credibility_query()
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    out.append(f'<div class="ghdr">Credibility leaders ({len(rows)})</div>')
+    out.append(_cci_table(rows) if rows
+               else '<div class="empty">No scored concalls yet — the pilot is still extracting.</div>')
+    out.append('<div class="patChips">'
+               + _chip("/dash/pat?flow=deterioration", "⚠ deterioration / avoid tape")
+               + _chip("/dash/concalls", "full CCI board →") + "</div>")
+    return "".join(out)
+
+
+def _deterioration_flow(conn) -> str:
+    out = ['<a class="patBack" href="/dash/pat">← back</a>',
+           _q_bubble("The avoid tape — names carrying a ⛔ veto (pledge / auditor-exit / pt14) or a "
+                     "deterministic deterioration flag (a walked-back or quietly-dropped promise). "
+                     "The credibility-decay tape the sell-side won't publish:")]
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_deterioration_query()
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    out.append(f'<div class="ghdr">Deterioration / avoid ({len(rows)})</div>')
+    out.append(_cci_table(rows, avoid=True) if rows
+               else '<div class="empty">No deterioration flags or vetoes yet (pilot still extracting).</div>')
+    out.append('<div class="patChips">'
+               + _chip("/dash/pat?flow=credibility", "★ credibility leaders")
+               + _chip("/dash/concalls", "full CCI board →") + "</div>")
+    return "".join(out)
+
+
 # ── momentum oscillators (RSI / MACD over stock_oscillators, computed nightly) ─
 
 def _osc_url(screen: str = "") -> str:
@@ -1242,7 +1334,9 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "stock": "Stock snapshot",
                # canonical contract aliases (route_extra/eval_set names → same views)
                "disqualified": "The kill-list (disqualified)", "card": "Stock snapshot",
-               "oscillators": "Momentum (RSI / MACD)"}
+               "oscillators": "Momentum (RSI / MACD)",
+               "credibility": "Credibility leaders (CCI)",
+               "deterioration": "Deterioration / avoid tape (CCI)"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -1322,6 +1416,10 @@ def _free_text(conn, q: str):
             body = _stock_flow(conn, p.get("sym", ""))
         elif f == "oscillators":
             body = _oscillators_flow(conn, p.get("screen", ""))
+        elif f == "credibility":
+            body = _credibility_flow(conn)
+        elif f == "deterioration":
+            body = _deterioration_flow(conn)
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
@@ -1413,6 +1511,12 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "oscillators":
         body = _oscillators_flow(conn, strength)     # the screen chip rides `strength`
         fb_ctx = {"query": "", "flow": "oscillators", "params": {"screen": strength}, "source": "flow"}
+    elif flow == "credibility":
+        body = _credibility_flow(conn)
+        fb_ctx = {"query": "", "flow": "credibility", "params": {}, "source": "flow"}
+    elif flow == "deterioration":
+        body = _deterioration_flow(conn)
+        fb_ctx = {"query": "", "flow": "deterioration", "params": {}, "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

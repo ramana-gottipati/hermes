@@ -41,6 +41,7 @@ FAMILIES: dict[str, str] = {
     "rs": "Relative strength",
     "structure": "Structure — CPR",
     "quality": "Quality — pt14 & fundamentals",
+    "credibility": "Management credibility — CCI (concalls)",
     "concepts": "How to read Patearn",
 }
 
@@ -170,6 +171,40 @@ GLOSSARY: dict[str, dict] = {
         ),
         "aliases": ["delivery value per trade", "dvpt", "strong hand", "ticket size signal"],
         "related": ["p_score", "r_score", "p_tier", "accum_character"],
+    },
+    "mep": {
+        "term": "MEP — signed accumulation / distribution",
+        "family": "positioning",
+        "unit": "z-score",
+        "source": "mep_signals.mep_score / mep_state",
+        "plain": "A SIGNED read of accumulation (+) vs distribution (−) — the side DVPT can't tell.",
+        "detail": (
+            "MEP is the within-stock z-average of four SIGNED price-tape terms — "
+            "close-vs-VWAP pressure, close-location, 22-day drift, and up/down volume "
+            "skew — so + means net accumulation and − means net distribution, each "
+            "judged against the stock's OWN trailing history. It is the signed "
+            "complement to DVPT (which is side-blind). DESCRIPTOR ONLY: it "
+            "characterises / confirms, it does NOT rank or pick stocks — its "
+            "predictive role failed a Deflated-Sharpe gate (D62). Read it beside DVPT, "
+            "not instead of it."
+        ),
+        "aliases": ["mep", "signed accumulation", "accumulation score", "mep score",
+                    "net accumulation pressure", "accumulation distribution score"],
+        "related": ["mep_state", "dvpt", "accum_character"],
+    },
+    "mep_state": {
+        "term": "MEP state",
+        "family": "positioning",
+        "unit": "label",
+        "source": "mep_signals.mep_state",
+        "plain": "The banded MEP verdict: STRONG_ACCUM / ACCUM / NEUTRAL / DISTRIB / STRONG_DISTRIB.",
+        "detail": (
+            "The signed MEP score bucketed into five bands — strong accumulation, "
+            "accumulation, neutral, distribution, strong distribution. A quick "
+            "character / confirmation read; it does not rank stocks (descriptor only, D62)."
+        ),
+        "aliases": ["mep state", "accumulation state"],
+        "related": ["mep", "accum_character"],
     },
     "r_tier": {
         "term": "R-tier baselines (the normal-day bars)",
@@ -681,6 +716,100 @@ GLOSSARY: dict[str, dict] = {
         ),
         "aliases": ["financials", "banks", "nbfc", "hfc", "sector adapted", "doctrine d"],
         "related": ["pt14", "fundamentals"],
+    },
+
+    # ──────────────────── management credibility (CCI) ────────────────────
+    "cci_credibility": {
+        "term": "Management credibility (CCI)",
+        "family": "credibility",
+        "unit": "tier A+…D + 0–100 composite",
+        "source": "concall_scores (from earnings-concall transcripts)",
+        "plain": "How much a management's words have proven true over time — a "
+                 "credibility tier built from its earnings-call promises vs what landed.",
+        "detail": (
+            "CCI (Concall Intelligence) reads a company's earnings-call transcripts, "
+            "captures every forward promise, and grades it against what actually "
+            "happened. The score ranks on MEASURABLE items only (D61): kept-promise "
+            "accuracy + how falsifiable the guidance is + a forensic veto + deterministic "
+            "deterioration. The behaviour reads (tone, courage…) are shown for context but "
+            "NEVER ranked — credibility can't be scored from the suspect's own testimony. "
+            "A name with no settled promises is 'unproven' (capped below A). Pilot."
+        ),
+        "aliases": ["credibility", "management credibility", "credible management",
+                    "concall", "concall intelligence", "trustworthy management"],
+        "related": ["guidance_accuracy", "cci_deterioration", "cci_veto"],
+    },
+    "guidance_accuracy": {
+        "term": "Guidance accuracy",
+        "family": "credibility",
+        "unit": "%",
+        "source": "concall_scores.guidance_accuracy_score (settled promises)",
+        "plain": "The hit-rate of a management's RESOLVED promises — what share of the "
+                 "guidance it gave actually came true.",
+        "detail": (
+            "Every quantified or directional promise on a concall is settled once its "
+            "horizon's result is reported (no look-ahead): MET / MISSED / PARTIAL vs the "
+            "actual. Guidance accuracy is the kept-promise hit-rate across all settled "
+            "promises — the slow, earned, hard-to-fake core of credibility. 'Unproven' "
+            "until enough promises resolve."
+        ),
+        "aliases": ["guidance accuracy", "kept promises", "promise hit rate",
+                    "promise ledger", "follow-through"],
+        "related": ["cci_credibility", "quantification_rate"],
+    },
+    "quantification_rate": {
+        "term": "Quantification rate",
+        "family": "credibility",
+        "unit": "%",
+        "source": "concall_scores.quantification_rate",
+        "plain": "What share of a management's forward statements are falsifiable NUMBERS "
+                 "rather than vague talk — the honest, deterministic 'transparency'.",
+        "detail": (
+            "Computed deterministically from each promise's text: a HARD/SOFT number "
+            "(₹5,000cr, 15% margin) counts; a directional/aspirational vagueness does "
+            "not. It replaces an LLM 'transparency' score with a reproducible measure — and "
+            "it is non-monotonic in spirit: serial round-number promoter targets are a "
+            "value-trap tell, not a virtue, so it is read alongside the track record."
+        ),
+        "aliases": ["quantification", "quantification rate", "transparency", "falsifiable guidance"],
+        "related": ["guidance_accuracy", "cci_credibility"],
+    },
+    "cci_deterioration": {
+        "term": "Credibility deterioration (avoid tape)",
+        "family": "credibility",
+        "unit": "count of flags",
+        "source": "concall_redflags (deterministic diff) → concall_scores.deterioration_score",
+        "plain": "Objective signs a management's story is decaying — a promise walked back, "
+                 "quietly dropped, or a metric it stopped disclosing.",
+        "detail": (
+            "A deterministic diff of consecutive transcripts emits FACT-based flags: a "
+            "quantified target LOWERED (guidance walk-back), a prior capex/revenue/margin "
+            "promise not reaffirmed (quietly dropped), or a metric that vanished "
+            "(stopped disclosing). These drive the avoid tape and CAN move the rank "
+            "(unlike the soft LLM red-flags, which only inform). The sell-side won't "
+            "publish credibility decay on its banking/IPO clients — that conflict is the edge."
+        ),
+        "aliases": ["deterioration", "avoid tape", "guidance walkback", "walked back",
+                    "quietly dropped", "stopped disclosing", "credibility decay"],
+        "related": ["cci_credibility", "cci_veto"],
+    },
+    "cci_veto": {
+        "term": "Forensic veto (CCI)",
+        "family": "credibility",
+        "unit": "boolean ⛔",
+        "source": "concall_scores.veto_active (pledge / auditor-exit / pt14 disqualifiers)",
+        "plain": "An exogenous integrity gate IN FRONT of credibility: a promoter-pledge "
+                 "spike or an auditor exit forces the worst tier no matter how good the call sounded.",
+        "detail": (
+            "Glib frauds run smooth, confident, numeric calls right up to collapse "
+            "(Manpasand, Vakrangee, DHFL, Yes Bank, Coffee Day…), so credibility can't be "
+            "scored from the call alone. The veto wires the un-spinnable signals — promoter "
+            "pledge ≥20%, auditor resignation/qualification, and pt14's hard "
+            "disqualifiers — to force tier D. Cash-flow/leverage vetoes are suppressed for "
+            "lenders and heavy-capex cyclicals (structural, not fraud)."
+        ),
+        "aliases": ["veto", "forensic veto", "pledge veto", "auditor exit", "integrity gate"],
+        "related": ["cci_credibility", "cci_deterioration", "disqualified"],
     },
 }
 

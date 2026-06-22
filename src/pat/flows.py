@@ -523,6 +523,43 @@ def build_disqualified_query() -> tuple[str, list]:
     return sql, []
 
 
+# ── CCI: Management Credibility (concall intelligence, P5) ────────────────────
+# Ranked over concall_scores (the measurable-only composite, D61). Two views:
+# credibility LEADERS (veto-excluded, best composite) and the DETERIORATION /
+# avoid tape (veto OR a deterministic deterioration flag, worst-first). Latest
+# score per symbol; all columns fixed, no user input → no injection surface.
+CCI_LIMIT = 80
+_CCI_LATEST = (
+    "FROM concall_scores s "
+    "JOIN (SELECT symbol, MAX(last_updated) AS m FROM concall_scores GROUP BY symbol) x "
+    "  ON x.symbol = s.symbol AND x.m = s.last_updated "
+)
+_CCI_COLS = ("s.symbol, s.tier, s.composite_score, s.guidance_accuracy_score, "
+             "s.quantification_rate, s.forward_direction, s.deterioration_score, "
+             "s.veto_active, s.veto_reason, s.n_promises_resolved, s.as_of_period ")
+
+
+def build_credibility_query() -> tuple[str, list]:
+    """Credibility LEADERS — veto-excluded, ranked by the measurable composite (D61).
+    Latest score per symbol. Read-only, no user input."""
+    sql = ("SELECT " + _CCI_COLS + _CCI_LATEST +
+           "WHERE COALESCE(s.veto_active, 0) = 0 "
+           "ORDER BY (s.composite_score IS NULL), s.composite_score DESC, s.symbol "
+           "LIMIT " + str(CCI_LIMIT))
+    return sql, []
+
+
+def build_deterioration_query() -> tuple[str, list]:
+    """The AVOID TAPE — names carrying a ⛔ veto OR a deterministic deterioration
+    flag (walk-back / dropped promise / stopped-disclosing), worst-first. The
+    credibility-decay tape the sell-side won't publish. Read-only, no user input."""
+    sql = ("SELECT " + _CCI_COLS + _CCI_LATEST +
+           "WHERE COALESCE(s.veto_active, 0) = 1 OR COALESCE(s.deterioration_score, 0) > 0 "
+           "ORDER BY COALESCE(s.veto_active, 0) DESC, COALESCE(s.deterioration_score, 0) DESC, s.symbol "
+           "LIMIT " + str(CCI_LIMIT))
+    return sql, []
+
+
 # ── single-stock snapshot / red-flag card (one symbol → its row) ──────────────
 # A different SHAPE from the ranked-universe flows: resolve a typed token to an NSE
 # symbol, then read that symbol's latest signals + fundamentals + pt14. Answers

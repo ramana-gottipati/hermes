@@ -101,31 +101,119 @@ def user_message_for_ticker(ticker: str, extra: str = "") -> str:
     return base
 
 
-def run_analysis(ticker: str, extra: str = "") -> str:
+def run_analysis(ticker: str, extra: str = "", *, use_sonnet: bool = False) -> str:
     """Synchronous Claude call for full patearn analysis on a ticker.
 
-    Used by both /analyze (user-invoked) and the auto-trigger from news_feed
-    (when an EARNINGS item mentions a watchlist ticker).
+    Default model is HAIKU (cost-conscious choice — Stage 2 of the two-stage
+    flow). Pass use_sonnet=True to force the higher-quality Sonnet path for
+    manual /analyze calls where the user wants premium analysis.
     """
-    # Imported here to keep top-of-module imports light and avoid cycles.
     from src.core.llm import client
     from src.core.settings import settings
 
+    model = settings.default_model if use_sonnet else settings.fast_model
+
     response = client().messages.create(
-        model=settings.default_model,  # Sonnet — patearn analysis needs reasoning
+        model=model,
         max_tokens=4096,
         system=analysis_system_prompt(),
         messages=[{"role": "user", "content": user_message_for_ticker(ticker, extra=extra)}],
     )
     log.info(
-        "patearn analysis %s: in=%d out=%d cache_read=%d cache_create=%d",
-        ticker,
+        "patearn analysis %s (model=%s): in=%d out=%d cache_read=%d cache_create=%d",
+        ticker, model,
         response.usage.input_tokens,
         response.usage.output_tokens,
         getattr(response.usage, "cache_read_input_tokens", 0) or 0,
         getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
     )
     return response.content[0].text
+
+
+# --- Stage 1 — cheap pre-screen on earnings news ---------------------------
+
+STAGE1_SYSTEM = """You are a fast first-pass screener for Indian stock earnings announcements, looking for patearn-style multi-bagger signals BEFORE institutional re-rating. Output STRICT JSON only — no prose, no markdown fence."""
+
+STAGE1_USER_TEMPLATE = """Given this earnings-related news item, produce a JSON object with EXACTLY these keys:
+
+  "symbol":   the most likely NSE ticker for the company in this headline (uppercase, no .NS suffix)
+  "verdict":  one of PASS | WATCH | SKIP
+  "rationale": <=25 words on WHY this verdict
+  "signals":  a JSON array of short tags from: revenue_acceleration, profit_acceleration, opm_expansion,
+              roce_improvement, margin_mix_shift, mgmt_guidance_raise, segment_inflection,
+              one_off_clean_beat, beat_estimates, miss_estimates, inline, governance_red_flag
+
+VERDICT CRITERIA (be ruthless on SKIP):
+  PASS — Strong signal. At least 2 of: revenue growth > 15%, profit growth > revenue growth,
+         OPM/EBITDA margin expansion, ROCE/ROE improvement explicit, segment-mix or export
+         inflection cited, management guidance raised.
+  WATCH — Mild signal: 1 of the above, OR clean beat but small magnitude, OR stock has known
+         strong setup and results don't break thesis.
+  SKIP — Routine in-line results, miss, conglomerate noise, headline-only with no detail,
+         already-rerated large cap (Nifty50 names default to SKIP unless extraordinary),
+         or anything that doesn't move the patearn needle.
+
+The point is to surface RE-RATING CANDIDATES before the market reprices them. Most earnings
+should SKIP. Reserve PASS for items that genuinely look like patearn material.
+
+Input:
+  Source: {source}
+  Tag:    {tag}
+  Title:  {title}
+"""
+
+
+def stage1_screen(item: dict) -> dict:
+    """Quick Haiku check on an earnings news item.
+
+    Returns:
+        {"symbol": str, "verdict": "PASS"|"WATCH"|"SKIP", "rationale": str, "signals": list[str]}
+        On failure, returns {"verdict": "SKIP", "rationale": "screen failed", ...}
+    """
+    import json
+    import re
+
+    from src.core.llm import client
+    from src.core.settings import settings
+
+    user_msg = STAGE1_USER_TEMPLATE.format(
+        source=item.get("source", ""),
+        tag=item.get("tag", ""),
+        title=item.get("title", ""),
+    )
+    try:
+        response = client().messages.create(
+            model=settings.fast_model,
+            max_tokens=300,
+            system=STAGE1_SYSTEM,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+    except Exception as e:
+        log.error("stage1 screen call failed: %s", e)
+        return {"verdict": "SKIP", "rationale": "screen call failed", "symbol": "", "signals": []}
+
+    raw = response.content[0].text.strip()
+    # Strip code fences if present
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?", "", raw).strip()
+        if raw.endswith("```"):
+            raw = raw[:-3].strip()
+    # Find first { ... }
+    start, end = raw.find("{"), raw.rfind("}")
+    if start == -1 or end == -1:
+        log.warning("stage1: no JSON object in response: %s", raw[:200])
+        return {"verdict": "SKIP", "rationale": "unparseable screen output", "symbol": "", "signals": []}
+    try:
+        parsed = json.loads(raw[start:end + 1])
+    except json.JSONDecodeError as e:
+        log.warning("stage1 json parse failed: %s | preview=%s", e, raw[:200])
+        return {"verdict": "SKIP", "rationale": "json parse failed", "symbol": "", "signals": []}
+
+    parsed["verdict"] = (parsed.get("verdict") or "SKIP").upper()
+    parsed["symbol"] = (parsed.get("symbol") or "").upper()
+    parsed["rationale"] = parsed.get("rationale") or ""
+    parsed["signals"] = parsed.get("signals") or []
+    return parsed
 
 
 def chunk_for_telegram(text: str, *, limit: int = 3800) -> list[str]:
