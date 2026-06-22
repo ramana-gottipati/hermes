@@ -8259,7 +8259,7 @@ _ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 </svg>"""
 
 # Network-first service worker: always try fresh data, fall back to cache offline.
-_SW_JS = """const CACHE = 'hermes-v2';
+_SW_JS = """const CACHE = 'hermes-v3';
 const SHELL = ['/dash', '/icon.svg', '/manifest.webmanifest', '/dash/offline'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -8271,6 +8271,12 @@ self.addEventListener('activate', (e) => {
 });
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // Page navigations (Back/Forward, links, typed URLs): do NOT intercept — let
+  // the browser handle them natively so its back/forward cache (bfcache) works,
+  // giving instant Back/Forward instead of a full server re-fetch + re-render. A
+  // network-first SW that intercepts navigations disables bfcache (the cause of
+  // the sluggish Back/Forward on heavy pages). The SW now only caches assets.
+  if (e.request.mode === 'navigate') return;
   e.respondWith(
     fetch(e.request).then((res) => {
       const copy = res.clone();
