@@ -91,6 +91,9 @@ THEME_VOCAB: list[dict] = [
      "seed_indices": ["Nifty India Defence"]},
     {"label": "Commodities", "group": "Capex & industrials", "blurb": "Broad commodity producers (metals, energy, cement, chem)",
      "seed_indices": ["Nifty Commodities"]},
+    {"label": "Construction / EPC", "group": "Capex & industrials",
+     "blurb": "Contract construction & EPC — builds infra/buildings FOR clients (≠ realty developers)",
+     "seed_indices": []},
 
     # ---- Ownership lens ----------------------------------------------------
     {"label": "PSU Banks", "group": "Ownership", "blurb": "Public-sector banks",
@@ -317,6 +320,13 @@ KEYWORD_RULES: dict[str, list[str]] = {
         r"\bturbines?\b", r"\bboilers?\b", r"compressors?", r"heavy engineering",
         r"\bcastings?\b", r"\bforgings?\b"],
     # sector catches for names an index membership missed:
+    # contract CONSTRUCTION / EPC (builds for clients) — kept precise so pipe/cement/
+    # equipment/developer names aren't swept in (bare "construction" over-matches):
+    "Construction / EPC": [r"contract construction", r"civil construction", r"\bepc\b",
+        r"engineering (and|&) construction", r"construction (contractor|company|services|business|division)",
+        r"construct(s|ed|ing|ion of) (roads|highways|expressway|buildings|metro|bridges|dams|tunnels)",
+        r"road(s)? (and|&) highway", r"highway construction", r"\bexpressway", r"turnkey project",
+        r"infrastructure (and|&) buildings"],
     "Chemicals": [r"chemical", r"petrochemical", r"agrochemical", r"specialty chem"],
     "Pharma": [r"pharmaceutical", r"\bformulations?\b", r"\bgenerics?\b drug"],
     "Realty": [r"real estate", r"\brealty\b", r"property develop", r"residential project",
