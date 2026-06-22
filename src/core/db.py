@@ -357,6 +357,32 @@ CREATE INDEX IF NOT EXISTS idx_mep_state ON mep_signals(trade_date, mep_state);
 CREATE INDEX IF NOT EXISTS idx_mep_score ON mep_signals(trade_date, mep_score DESC);
 CREATE INDEX IF NOT EXISTS idx_mep_phase ON mep_signals(trade_date, mep_score_smooth DESC);
 
+-- F&O Open-Interest — the IDENTITY channel (directly observes positioning, where
+-- MEP/DVPT only infer it from the price tape). Per-underlying aggregate of stock
+-- FUTURES OI (summed across expiries) read against the cash price change → the
+-- four-quadrant positioning map. PCR from stock options. Descriptor-only (D62 —
+-- the channel most likely to carry real predictive alpha, but it must earn it
+-- through the DSR gate). Own table; never touches the cash/stock_signals hot
+-- tables nor the parallel-owned deals.py named-flow feed. See fno_oi.py.
+CREATE TABLE IF NOT EXISTS fno_oi_signals (
+    symbol          TEXT NOT NULL,
+    trade_date      TEXT NOT NULL,
+    fut_oi          REAL,   -- summed stock-futures open interest (all expiries)
+    fut_oi_chg      REAL,   -- summed day-over-day OI change
+    fut_oi_chg_pct  REAL,   -- OI change as % of prior OI
+    und_price       REAL,   -- underlying price (from the F&O file)
+    price_chg_pct   REAL,   -- cash close vs prev_close (same series as MEP/DVPT)
+    quadrant        TEXT,   -- LONG_BUILDUP/SHORT_BUILDUP/LONG_UNWIND/SHORT_COVER/FLAT
+    call_oi         REAL,   -- summed stock-option call OI
+    put_oi          REAL,   -- summed stock-option put OI
+    pcr             REAL,   -- put_oi / call_oi (sentiment)
+    n_fut_contracts INTEGER,
+    computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, trade_date)
+);
+CREATE INDEX IF NOT EXISTS idx_fnooi_date ON fno_oi_signals(trade_date);
+CREATE INDEX IF NOT EXISTS idx_fnooi_quad ON fno_oi_signals(trade_date, quadrant);
+
 -- Screener.in scraped fundamentals (cached, refreshed periodically)
 CREATE TABLE IF NOT EXISTS fundamentals (
     symbol             TEXT PRIMARY KEY,
