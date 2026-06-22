@@ -26,10 +26,10 @@ The full-journey backtest + feature study (committed `8531744`, `b1532e1`) found
 - **AVERAGING DOCTRINE (Ramana, locked):** recover-rate is a *thesis-intact gauge, NOT a buy trigger*. **Never average small dips** (a −5% fall self-corrects; averaging there buys ~2.6pt of breakeven while burning scarce capital). **Average only at DEEP falls (~30%)**, where an equal-share add HALVES a large breakeven (42.9%→21.4%) and ~38% still recover. Applies to the tracker + A's position-sizing too.
 - **Result (VPS):** recover −5% 69 / −10% 62 / −15% 54 / −20% 48 / −30% 38 (base 76%); breakeven-pt saved by averaging 2.6 → 21.4 across those depths (the value concentrates deep).
 
-## A — Revised champion ranking + rank-aware proof *(prod venv, pure Python)*
-- **Module:** `src/automation/ignition_rankv2.py` (shipped `ignition.py` untouched; v2 can replace its rank later if validated).
-- **Score:** evidence-weighted composite — standardize each feature, weight by its observed lift from `feature_lift`; **cap/invert intensity**; up-weight `rs_vs_broad_slope_12m` + `gap_to_key_p12m` + `pct_from_52w_high` + accumulation character. Sector excluded (decision 1).
-- **Proof (the point):** order historical `ignition_outcomes` by the v2 score; measure **top-decile win-rate vs the 42% base, head-to-head vs ordering by intensity**, done **walk-forward**. If v2 doesn't beat base OOS, say so plainly.
+## A — Revised champion ranking + walk-forward proof *(DONE — committed/pushed)*
+- **Module:** `src/automation/ignition_rankv2.py` (shipped `ignition.py` untouched). Evidence-weighted composite (z-score × training-window lift; intensity earns ~0/negative, `rs_vs_broad_slope_12m` / `pct_from_52w_high` / `gap_to_key_*` earn the top weights; sector excluded). Owns `ignition_rank_v2`.
+- **WALK-FORWARD VERDICT (38,802 OOS events, 2020–25): v2 does NOT beat the base.** v2 top-decile win **43.6%** vs base **45.9%** (−2.3pt) vs intensity top-decile **46.2%** (−2.6pt). The in-sample univariate lifts do NOT compose into an OOS-robust top-decile edge — they overfit the training regime.
+- **Conclusion:** the ignition SETUP is a good *screen* (45.9% reach +25%, big payoff skew), but neither intensity NOR this composite ranks it into top-decile alpha. **v2 NOT promoted to production.** The walk-forward caught what in-sample analysis would have missed.
 
 ## B — Multivariate challenger *(research venv only; offline)*
 - **Package:** `research/ignition/` (run via `/opt/hermes/.venv-research`); reads `hermes.db` read-only (`ignition_outcomes` + `stock_signals`) **+ `fundamentals_asof.as_of_fundamentals(symbol, as_of)`** for point-in-time fundamentals; writes to `research.db`.
