@@ -1,0 +1,84 @@
+================================================================================================
+EXPLOSIVE-MOVE STRATEGY BACKTEST — net of realistic costs (slippage on stops),
+survivorship-safe raw archive, no look-ahead (features as-of s, enter s+1 open).
+Regime gate = Nifty50 > 200DMA. Exit (plateau center): stop -18%, sell 50% @+25%,
+trail 50% @6xATR after +25%, 132d max. Risk 0.5%/trade. Built 2026-06-21.
+================================================================================================
+
+BASELINES (buy & hold, same 2012-2026 window):
+    Nifty 50         CAGR=+10.7% MaxDD=-38.4% Calmar=0.28 Sharpe=0.73
+    Nifty 500        CAGR=+12.2% MaxDD=-38.3% Calmar=0.32 Sharpe=0.82
+    Nifty Midcap 50  CAGR=+17.3% MaxDD=-49.1% Calmar=0.35 Sharpe=0.89
+
+================================================================================================
+1. S4 SKEPTIC ACCEPTANCE GATES (decisive go/no-go for the momentum school)
+================================================================================================
+
+  [GATE cost-delta] S4: edge vs cost multiplier (must survive 1.5x)
+     mult  taken   expR%    PF   CAGR%  MaxDD%  Calmar
+      0.0    962    1.69  1.26     2.8   -21.9    0.13
+      1.0    962    0.54  1.07     0.4   -30.0    0.01
+      1.5    962   -0.04  0.99    -0.8   -34.5   -0.02
+      2.0    962   -0.62  0.92    -2.0   -40.5   -0.05
+
+  [GATE alpha-vs-beta] S4: regime ON (gated) vs OFF (always-in)
+    regime-ON   taken=  962 expR=+0.54% CAGR=+0.4% MaxDD=-30.0% Calmar=0.01 | beta=0.43 alpha_ann=-3.8%
+    regime-OFF  taken= 1193 expR=+1.39% CAGR=+2.3% MaxDD=-24.7% Calmar=0.09 | beta=0.40 alpha_ann=-2.7%
+
+  [GATE threshold-jitter] S4: +/-10% on entry cuts (expectancy must stay +)
+        vratio  -10% = +0.9000  n= 7421 expR=+1.83% PF=1.28
+        vratio  base = +1.0000  n=10004 expR=+1.86% PF=1.28
+        vratio  +10% = +1.1000  n=11990 expR=+1.77% PF=1.27
+         ret22  -10% = +0.0900  n=10916 expR=+1.72% PF=1.26
+         ret22  base = +0.1000  n=10004 expR=+1.86% PF=1.28
+         ret22  +10% = +0.1100  n= 9188 expR=+1.99% PF=1.31
+
+  [GATE capacity] S4: max equity before a position exceeds 10% of ADV turnover
+    median cap = Rs 220 cr | p25 = Rs 118 cr | p10 = Rs 94 cr  (n=962)
+
+================================================================================================
+2. FULL-SAMPLE PORTFOLIO METRICS (2012-2026, net of costs)
+================================================================================================
+
+  S1: Coiled-Launchpad Core (momentum, vol-targeted, 5cr+)
+    full           taken= 1181 CAGR=  +4.0% MaxDD= -27.6% Calmar= 0.14 Sharpe= 0.42 expR=+2.07% PF=1.31 hit=39% beta=0.42
+      by-year expR: 2012:-7%(24) 2013:-1%(90) 2014:+11%(93) 2015:-3%(60) 2016:-2%(68) 2017:+8%(95) 2018:-3%(95) 2019:-1%(89) 2020:+10%(68) 2021:+6%(101) 2022:+0%(89) 2023:+12%(83) 2024:-5%(122) 2025:-1%(81) 2026:-0%(23)
+
+  S2: Heat-Capped Large-Cap Launchpad (25cr+, fixed-fractional)
+    full           taken=  940 CAGR=  +3.1% MaxDD= -18.0% Calmar= 0.17 Sharpe= 0.39 expR=+2.01% PF=1.32 hit=39% beta=0.36
+      by-year expR: 2012:-11%(21) 2013:-3%(72) 2014:+8%(79) 2015:-1%(52) 2016:+1%(52) 2017:+2%(80) 2018:-1%(74) 2019:-1%(67) 2020:+10%(45) 2021:+6%(95) 2022:+1%(65) 2023:+11%(68) 2024:-3%(87) 2025:+2%(65) 2026:-3%(18)
+
+  S3: Shakeout-in-Volatility Reversion (mean-reversion diversifier)
+    full           taken=  633 CAGR=  -0.5% MaxDD= -26.5% Calmar=-0.02 Sharpe=-0.04 expR=+0.15% PF=1.02 hit=36% beta=0.26
+      by-year expR: 2012:-4%(92) 2013:+6%(23) 2014:-1%(7) 2015:-5%(84) 2016:+2%(76) 2017:+2%(5) 2018:-2%(50) 2019:+1%(35) 2020:+3%(48) 2022:+0%(68) 2023:+8%(21) 2024:-1%(23) 2025:+3%(47) 2026:+3%(54)
+
+  S4: Skeptic's Cost-Stressed Coiled-Momentum (25cr+, audit)
+    full           taken=  962 CAGR=  +0.4% MaxDD= -30.0% Calmar= 0.01 Sharpe= 0.09 expR=+0.54% PF=1.07 hit=34% beta=0.43
+      by-year expR: 2012:-11%(19) 2013:-2%(73) 2014:+8%(74) 2015:-5%(69) 2016:-2%(50) 2017:+8%(74) 2018:-5%(78) 2019:-6%(79) 2020:+6%(51) 2021:-0%(90) 2022:-5%(64) 2023:+12%(71) 2024:-1%(91) 2025:+3%(65) 2026:+8%(14)
+
+================================================================================================
+3. BIDIRECTIONAL WALK-FORWARD (frozen config; both windows must be net-positive)
+================================================================================================
+
+  S1:
+    2012-2019      taken=  614 CAGR=  +2.2% MaxDD= -18.7% Calmar= 0.12 Sharpe= 0.28 expR=+1.27% PF=1.19 hit=37% beta=0.34
+    2020-2026      taken=  588 CAGR=  +5.1% MaxDD= -27.6% Calmar= 0.18 Sharpe= 0.50 expR=+2.69% PF=1.39 hit=40% beta=0.49
+
+  S2:
+    2012-2019      taken=  497 CAGR=  -0.1% MaxDD= -18.0% Calmar=-0.01 Sharpe= 0.03 expR=+0.33% PF=1.05 hit=35% beta=0.30
+    2020-2026      taken=  460 CAGR=  +6.3% MaxDD= -14.8% Calmar= 0.43 Sharpe= 0.70 expR=+3.49% PF=1.59 hit=43% beta=0.41
+
+  S3:
+    2012-2019      taken=  372 CAGR=  -2.0% MaxDD= -26.5% Calmar=-0.08 Sharpe=-0.29 expR=-1.34% PF=0.83 hit=33% beta=0.31
+    2020-2026      taken=  261 CAGR=  +1.6% MaxDD= -15.4% Calmar= 0.10 Sharpe= 0.34 expR=+2.27% PF=1.30 hit=41% beta=0.20
+
+  S4:
+    2012-2019      taken=  516 CAGR=  -2.1% MaxDD= -23.8% Calmar=-0.09 Sharpe=-0.22 expR=-0.89% PF=0.89 hit=31% beta=0.41
+    2020-2026      taken=  471 CAGR=  +1.9% MaxDD= -22.0% Calmar= 0.09 Sharpe= 0.26 expR=+1.50% PF=1.22 hit=36% beta=0.42
+
+================================================================================================
+4. CROSS-STRATEGY DECORRELATION (S3 must stay < +0.4 to the momentum book)
+================================================================================================
+    corr(S3, S1) = +0.52
+    corr(S3, S2) = +0.47
+    corr(S3, S4) = +0.52
