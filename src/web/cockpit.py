@@ -576,7 +576,8 @@ def render_home(sig_date, idx_date) -> str:
                 (idx_date, *D.LEADERSHIP_SET)).fetchone()
             lead = lr["index_name"] if lr else None
             sec_cols = ("index_name nm, rs_vs_broad_trend_state st, rs_vs_broad_slope_1m s1, "
-                        "rs_vs_broad_slope_3m s3, rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12")
+                        "rs_vs_broad_slope_3m s3, rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12, "
+                        "rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24")
             top_sectors = [dict(x) for x in conn.execute(
                 f"SELECT {sec_cols} FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL "
                 f"AND index_name IN ({D._real_sectors_in()}) ORDER BY COALESCE(rs_vs_broad_slope_3m,-999) DESC LIMIT 6",
@@ -703,7 +704,7 @@ def render_home(sig_date, idx_date) -> str:
                 wk, wr = sector_weather(r["s1"], r["s3"], r["s6"], r["s12"], r["st"])
                 o += (f'<tr><td class="l"><a class="row" href="/dash/index?idx={q(r["nm"])}">'
                       f'<span class="sym">{esc(r["nm"])}</span></a></td>'
-                      f'<td class="l">{D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])}</td>'
+                      f'<td class="l">{D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))}</td>'
                       f'<td>{_weather_badge(wk, wr)}</td>'
                       f'<td class="r">{pct(r["s3"])}</td></tr>')
             return o
@@ -712,7 +713,7 @@ def render_home(sig_date, idx_date) -> str:
                  + sect_rows(weak_sectors) + '</tbody></table>'
                  + '<div class="mut" style="font-size:11px;margin-top:6px">'
                    '<a class="row" style="display:inline" href="/dash/rrg">⟳ Rotation map (RRG) — quadrants &amp; tails</a></div>')
-        boards.append(_board('<span class="em">📈</span> Sector rotation', 'RS vs Nifty 500 · 1m/3m/6m/12m',
+        boards.append(_board('<span class="em">📈</span> Sector rotation', 'RS vs Nifty 500 · 1m/3m/6m/12m/18m/24m',
                              inner, "/dash/sectors", "See full rotation", "#3fb950"))
 
     # Strong-in-strong leaders
@@ -795,7 +796,8 @@ _MKT_COLS = (
     "g.pct_above_50d_avg pa50, g.pct_above_200d_avg a200, g.pct_off_52w_high off52h, "
     "g.pct_above_52w_low abv52l, g.rs_vs_broad_trend_state st, g.broad_benchmark bb, "
     "g.rs_vs_broad_slope_1m s1, g.rs_vs_broad_slope_3m s3, g.rs_vs_broad_slope_6m s6, "
-    "g.rs_vs_broad_slope_12m s12, x.close_value close")
+    "g.rs_vs_broad_slope_12m s12, g.rs_vs_broad_slope_18m s18, g.rs_vs_broad_slope_24m s24, "
+    "x.close_value close")
 
 
 def render_markets(idx_date) -> str:
@@ -864,7 +866,7 @@ def render_markets(idx_date) -> str:
         bits = [f'<span class="pill p-{v["abs_css"]}">{esc(v["abs_label"])}</span>']
         if v.get("weather"):  # sectors only (broad indices have no RS/weather)
             bits.append(_weather_badge(v["weather"], v.get("wreasons")))
-        strip = D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])
+        strip = D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"], v.get("s18"), v.get("s24"))
         rel = (f'<span class="pill p-{v["rel_css"]}" style="margin-left:6px">{esc(v["rel_label"])}</span>'
                if v.get("rel_label") else '')
         return (f'<a class="maj" href="/dash/index?idx={q(v["nm"])}">'
@@ -892,7 +894,7 @@ def render_markets(idx_date) -> str:
             f'href="/dash/index?idx={q(v["nm"])}">{esc(v["nm"])}</a></td>'
             f'<td class="num">{pct(v["r1d"])}</td><td class="num">{pct(v["r1m"])}</td>'
             f'<td class="num">{pct(v["r3m"])}</td>'
-            f'<td>{D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"])}</td>'
+            f'<td>{D._rs_strip(v["s1"], v["s3"], v["s6"], v["s12"], v.get("s18"), v.get("s24"))}</td>'
             f'<td>{abs_chip}</td><td>{rs_chip}</td><td>{wx}</td></tr>')
     js = ("<script>function mflt(g,el){document.querySelectorAll('#mbundle tr[data-grp]').forEach("
           "function(r){r.style.display=(g==='all'||r.dataset.grp===g)?'':'none';});"
@@ -916,7 +918,7 @@ def render_markets(idx_date) -> str:
         '<a class="ck-tile" style="border-top:3px solid #3fb950" href="/dash/sectors">'
         '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">📈 Sector Rotation</div>'
         '<div class="ck-l">RS heat per sector · sortable</div>'
-        '<div class="ck-c">vs Nifty 500 · 1m/3m/6m/12m</div></a>'
+        '<div class="ck-c">vs Nifty 500 · 1m/3m/6m/12m/18m/24m</div></a>'
         '</div>')
 
     return (_CKPT_CSS
@@ -937,7 +939,7 @@ def render_markets(idx_date) -> str:
               "<button class=\"fbtn\" onclick=\"mflt('sector',this)\">Sectoral</button></div>"
             + '<div class="card" style="padding:6px 10px"><table id="mbundle" class="dt" style="font-size:12.5px">'
               '<thead><tr><th class="l">Index</th><th class="num">1d</th><th class="num">1m</th>'
-              '<th class="num">3m</th><th class="l">RS 1m/3m/6m/12m</th><th>Price trend</th>'
+              '<th class="num">3m</th><th class="l">RS 1m/3m/6m/12m/18m/24m</th><th>Price trend</th>'
               '<th>RS trend</th><th>Weather</th></tr></thead>'
             + f'<tbody>{"".join(brows)}</tbody></table></div>' + js
             + ('<h2>Latest headlines <span class="sub" style="margin:0">market-wide</span></h2>'
@@ -977,7 +979,8 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             "ret_12m_pct r12m, pct_above_50d_avg pa50, pct_above_200d_avg a200, "
             "pct_off_52w_high off52h, pct_above_52w_low abv52l, rs_vs_broad_today rs, "
             "rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3, rs_vs_broad_slope_6m s6, "
-            "rs_vs_broad_slope_12m s12, rs_vs_broad_above_50ma a50, rs_vs_broad_above_200ma a200ma, "
+            "rs_vs_broad_slope_12m s12, rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24, "
+            "rs_vs_broad_above_50ma a50, rs_vs_broad_above_200ma a200ma, "
             "rs_vs_broad_new_52w_high nh FROM index_signals WHERE index_name=? "
             "ORDER BY trade_date DESC LIMIT 1", (idx,)).fetchone()
         S = dict(sig) if sig else {}
@@ -1236,7 +1239,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                  f'<b>{pctl}/99</b> — stronger than {pctl}% of {len(moms)} sectors '
                  f'(0.6·3m + 0.4·6m RS slope).</div>'
                  f'<div class="bar"><span style="width:{pctl}%"></span></div></div>')
-        rs_strip = D._rs_strip(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"))
+        rs_strip = D._rs_strip(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"), S.get("s18"), S.get("s24"))
         if rd:
             ratio_chart = (
                 '<div class="fbar" id="idxRatioTf"><button class="fbtn on" data-itf="d">Daily</button>'
@@ -2162,6 +2165,7 @@ def _sector_rows(idx_date, order_sql):
             f"""SELECT index_name nm, rs_vs_broad_trend_state st,
                        rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
                        rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
+                       rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24,
                        ret_1m_pct r1, ret_3m_pct r3,
                        (0.6*COALESCE(rs_vs_broad_slope_3m,0)+0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom
                 FROM index_signals
@@ -2195,7 +2199,7 @@ def render_sectors() -> str:
     for r in rows:
         st = r["st"] or "—"
         nm = r["nm"]
-        strip_rs = D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+        strip_rs = D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
         wk, wr = sector_weather(r["s1"], r["s3"], r["s6"], r["s12"], r["st"])
         trs.append(
             f'<tr><td class="l"><a class="row" href="/dash/index?idx={q(nm)}">'
@@ -2215,7 +2219,7 @@ def render_sectors() -> str:
              '<thead><tr><th colspan="3">RETURN</th>'
              '<th colspan="4" class="rsgrp grp">RELATIVE STRENGTH vs Nifty 500</th></tr>'
              '<tr><th class="l">Sector</th><th>1m</th><th>3m</th>'
-             '<th class="l rsgrp">1m / 3m / 6m / 12m</th><th>Trend</th><th>Weather</th><th>RS 3m</th></tr></thead>'
+             '<th class="l rsgrp">1m / 3m / 6m / 12m / 18m / 24m</th><th>Trend</th><th>Weather</th><th>RS 3m</th></tr></thead>'
              f'<tbody>{"".join(trs)}</tbody></table></div>')
     return _CKPT_CSS + head + strip + table
 
@@ -2250,7 +2254,7 @@ def render_rs() -> str:
     for i, r in enumerate(rows, 1):
         st = r["st"] or "—"
         nm = r["nm"]
-        strip_rs = D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"])
+        strip_rs = D._rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
         p = pctl(r["mom"])
         trs.append(
             f'<tr><td class="mut">{i}</td>'
@@ -2266,7 +2270,7 @@ def render_rs() -> str:
             'Nifty 500). Tap a sector → its detail page. '
             '<a class="row" style="display:inline" href="/dash/sectors">← Sector rotation</a></div>')
     table = ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
-             '<thead><tr><th>#</th><th class="l">Sector</th><th class="l">1m/3m/6m/12m</th>'
+             '<thead><tr><th>#</th><th class="l">Sector</th><th class="l">1m/3m/6m/12m/18m/24m</th>'
              '<th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>'
              f'<tbody>{"".join(trs)}</tbody></table></div>')
     return _CKPT_CSS + head + strip + table
