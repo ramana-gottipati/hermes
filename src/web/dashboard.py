@@ -2560,6 +2560,15 @@ def _mep_stock_panel(sym: str) -> str:
         return ""
     if not m or m["mep_score"] is None:
         return ""
+    # F&O OI — the IDENTITY channel (separate guarded query so a missing table
+    # never blanks the MEP panel)
+    fo = None
+    try:
+        with get_conn() as conn:
+            fo = conn.execute("SELECT * FROM fno_oi_signals WHERE symbol=? "
+                              "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+    except Exception:
+        fo = None
     from src.web.cockpit import _mv_adbar, _mep_pill
     sc, st = m["mep_score"], m["mep_state"]                  # daily (granular pressure)
     ph = m["mep_score_smooth"] if "mep_score_smooth" in m.keys() else None
@@ -2620,12 +2629,26 @@ def _mep_stock_panel(sym: str) -> str:
         dvpt_conf = (f'<div class="sub" style="margin-top:4px">DVPT character '
                      f'(side-blind — <b>confirmation</b>): <b>{_esc(ch["accum_character"])}</b>. '
                      f'MEP leads with the signed read; DVPT confirms the delivery footprint.</div>')
+    # F&O OI — the IDENTITY channel: directly OBSERVED positioning vs MEP/DVPT's
+    # inference from the tape. The four-quadrant map + PCR (descriptor — D62).
+    fno_line = ''
+    if fo and fo["quadrant"]:
+        _qc = {"LONG_BUILDUP": "#2ea043", "SHORT_COVER": "#3fb950",
+               "SHORT_BUILDUP": "#f85149", "LONG_UNWIND": "#f0883e",
+               "FLAT": "#8b949e"}.get(fo["quadrant"], "#8b949e")
+        _qlabel = fo["quadrant"].replace("_", " ").title()
+        _oichg = f'{fo["fut_oi_chg_pct"]:+.1f}%' if fo["fut_oi_chg_pct"] is not None else "—"
+        _pcr = f'{fo["pcr"]:.2f}' if fo["pcr"] is not None else "—"
+        fno_line = (f'<div class="sub" style="margin-top:4px">F&amp;O positioning '
+                    f'(<b>identity</b> — directly observed, not inferred): '
+                    f'<b style="color:{_qc}">{_esc(_qlabel)}</b> · futures OI {_oichg} · PCR {_pcr}. '
+                    f'The one channel that names the strong hand — descriptor until DSR-gated.</div>')
     foot = ('<div class="sub mut" style="margin-top:8px;font-size:11px">Descriptor only (D62) — a signed '
             'character / confirmation lens, SIGNED where DVPT is side-blind, standardised vs the stock&#39;s '
             'own trailing history. Not a stock picker (its predictive role failed the DSR gate).</div>')
     return ('<h3 style="margin:4px 0 8px">Accumulation · MEP '
             '<span class="sub" style="margin:0;font-weight:400">signed accumulation / distribution</span></h3>'
-            + chips + terms + ctx + dvpt_conf + foot)
+            + chips + terms + ctx + dvpt_conf + fno_line + foot)
 
 
 def _cci_stock_panel(sym: str) -> str:
