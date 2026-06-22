@@ -2037,7 +2037,8 @@ def dash_screener(scope: str = Query("Nifty 500"),
                           s.accum_price_drift_3m apd, s.turnover_surge_3m su3,
                           s.turnover_surge_1y suy, s.next_p_above npa, s.gap_to_next_p_pct gnp,
                           {conv} conv,
-                          m.mep_score mep_sc, m.mep_state mep_st
+                          m.mep_score mep_sc, m.mep_state mep_st,
+                          m.mep_score_smooth mep_ph, m.mep_state_smooth mep_phst
                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                    LEFT JOIN mep_signals m ON m.symbol=s.symbol AND m.trade_date=s.trade_date
                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
@@ -2099,11 +2100,19 @@ def dash_screener(scope: str = Query("Nifty 500"),
         themes_cell = ((_tag_chips(_labs, cap=2)
                         + (f'<span style="display:none">{_esc(" ".join(_labs[2:]))}</span>' if len(_labs) > 2 else ''))
                        if _labs else '<span class="mut">—</span>')
+        # screener leads with the smoothed PHASE (the held regime); daily score kept
+        # as the Score cell's tooltip (data-first, no column added → no realignment)
         msc, mst = r.get("mep_sc"), r.get("mep_st")
-        mep_score_td = (f'<td class="num g-mep" style="color:{"#2ea043" if msc>=0 else "#f85149"}">{msc:+.2f}</td>'
-                        if msc is not None else '<td class="num g-mep mut">—</td>')
-        mep_cells = (f'<td class="inst l gsep g-mep">{_mv_adbar(msc)}</td>'
-                     + mep_score_td + f'<td class="l g-mep">{_mep_pill(mst)}</td>')
+        mph, mphst = r.get("mep_ph"), r.get("mep_phst")
+        mphv = mph if mph is not None else msc
+        if mphv is not None:
+            _dtt = ("%+.2f" % msc) if msc is not None else "—"
+            mep_score_td = (f'<td class="num g-mep" title="phase score (today {_dtt})" '
+                            f'style="color:{"#2ea043" if mphv>=0 else "#f85149"}">{mphv:+.2f}</td>')
+        else:
+            mep_score_td = '<td class="num g-mep mut">—</td>'
+        mep_cells = (f'<td class="inst l gsep g-mep">{_mv_adbar(mphv)}</td>'
+                     + mep_score_td + f'<td class="l g-mep">{_mep_pill(mphst or mst)}</td>')
         g3 = r["g3"]
         g3_tint = " h-pos2" if (g3 is not None and _KEY_BAND[0] <= g3 <= _KEY_BAND[1]) else ""
         nearp = (f'{_esc(r["npa"])} {_pct(r["gnp"])}' if r["npa"] else '<span class="mut">—</span>')
@@ -2195,7 +2204,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-pos">DVPT vs power</th><th class="num g-pos">p</th><th class="num g-pos">r</th>'
             '<th class="num g-pos">×Pow</th><th class="num g-pos">Surge1m</th><th class="num g-pos">Surge3m</th>'
             '<th class="num g-pos">Surge1y</th><th class="num g-pos">Deliv%</th><th class="num g-pos">Val₹Cr</th>'
-            '<th class="l gsep g-mep">Accum</th><th class="num g-mep">Score</th><th class="l g-mep">State</th>'
+            '<th class="l gsep g-mep">Accum</th><th class="num g-mep">Phase sc</th><th class="l g-mep">Phase</th>'
             '<th class="l gsep g-key">Launch band</th><th class="num g-key">Gap3m</th><th class="num g-key">Gap6m</th><th class="num g-key">Gap12m</th>'
             '<th class="l gsep g-char">Character</th><th class="num g-char">WHO</th><th class="num g-char">WAY</th><th class="num g-char">Drift</th>'
             '<th class="l gsep g-rs">RS trend</th><th class="num g-rs">RS#</th><th class="l g-rs">Broad</th><th class="l g-rs">Heat</th><th class="l g-rs">Sector</th>'
@@ -2552,15 +2561,41 @@ def _mep_stock_panel(sym: str) -> str:
     if not m or m["mep_score"] is None:
         return ""
     from src.web.cockpit import _mv_adbar, _mep_pill
-    sc, st = m["mep_score"], m["mep_state"]
+    sc, st = m["mep_score"], m["mep_state"]                  # daily (granular pressure)
+    ph = m["mep_score_smooth"] if "mep_score_smooth" in m.keys() else None
+    phst = m["mep_state_smooth"] if "mep_state_smooth" in m.keys() else None
+    phv = ph if ph is not None else sc
+    phstv = phst or st
+    pcol = "#2ea043" if phv >= 0 else "#f85149"
     scol = "#2ea043" if sc >= 0 else "#f85149"
+    # days held in the current phase = consecutive most-recent rows of the same phase
+    held = None
+    try:
+        with get_conn() as conn:
+            recent = [r["mep_state_smooth"] for r in conn.execute(
+                "SELECT mep_state_smooth FROM mep_signals WHERE symbol=? "
+                "ORDER BY trade_date DESC LIMIT 400", (sym,)).fetchall()]
+        if recent and recent[0] is not None:
+            held = 0
+            for s in recent:
+                if s == recent[0]:
+                    held += 1
+                else:
+                    break
+    except Exception:
+        held = None
     chips = (
         '<div class="kpi">'
-        f'<div class="box"><div class="num" style="color:{scol}">{sc:+.2f}</div><div class="lbl">MEP score</div></div>'
-        f'<div class="box"><div class="num">{_mep_pill(st)}</div><div class="lbl">state</div></div>'
-        f'<div class="box"><div class="num">{_mv_adbar(sc)}</div><div class="lbl">accum &harr; distrib</div></div>'
+        f'<div class="box"><div class="num">{_mep_pill(phstv)}</div><div class="lbl">phase (headline)</div></div>'
+        f'<div class="box"><div class="num" style="color:{pcol}">{phv:+.2f}</div><div class="lbl">phase score</div></div>'
+        f'<div class="box"><div class="num">{_mv_adbar(phv)}</div><div class="lbl">accum &harr; distrib</div></div>'
+        f'<div class="box"><div class="num">{(str(held)+"d") if held else "—"}</div><div class="lbl">held in phase</div></div>'
         f'<div class="box"><div class="num">{m["data_points_used"]}</div><div class="lbl">history days</div></div>'
-        '</div>')
+        '</div>'
+        f'<div class="sub" style="margin-top:6px">Today (daily, granular): '
+        f'<b style="color:{scol}">{sc:+.2f}</b> &nbsp;{_mep_pill(st)} '
+        f'<span class="mut">— the raw single-day score; the phase above is its ~15-day '
+        f'smoothed, hysteresis-banded regime (holds for weeks, not the daily flip).</span></div>')
 
     def _trow(name, z, raw):
         zt = f'{z:+.2f}' if z is not None else '—'
