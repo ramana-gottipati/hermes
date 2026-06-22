@@ -1,0 +1,24 @@
+# CCI acceptance ground truth (debate rank #6 / B1). The labelled set every
+# falsification gate + the eventual backtest scores against: does the credibility /
+# deterioration signal flag the BLOWUPs 2-4 quarters BEFORE discovery_date, while
+# NOT flagging the COMPOUNDERs? flag_by_quarter = the concall period by which the
+# signs were catchable. Delisted/suspended names are deliberately kept (the bhav-copy
+# archive has them) so the test is survivorship-safe; some have no live Screener
+# concall page (coverage table records that, never treated as "clean").
+symbol,label,sector,discovery_date,flag_by_quarter,notes
+MANPASAND,BLOWUP,FMCG,2018-05-29,FY18Q3,Deloitte (then Mehra Goel) auditor resignation; fabricated sales/receivables; promoter arrested 2019
+VAKRANGEE,BLOWUP,IT/Services,2018-02-09,FY18Q3,PwC auditor resignation Feb-2018; stock fell ~90%; opaque bullion/jewellery & buyback
+DHFL,BLOWUP,Housing Finance,2019-01-29,FY19Q2,Cobrapost alleged siphoning; liquidity lies on calls; defaulted Jun-2019; under IBC/delisted
+YESBANK,BLOWUP,Bank,2020-03-05,FY19Q3,Repeated NPA divergence vs RBI; rosy management guidance; RBI moratorium + AT1 write-off Mar-2020
+CCD,BLOWUP,Consumer/Retail,2019-07-29,FY19Q4,Coffee Day; promoter VG Siddhartha death + hidden debt/related-party; understated leverage
+PCJEWELLER,BLOWUP,Gems & Jewellery,2018-04-30,FY18Q3,Related-party/receivables doubts; cancelled buyback; promoter pledge; auditor concerns
+ZEEL,BLOWUP,Media,2019-01-25,FY19Q2,Essel promoter pledging + inter-corporate deposits to group; governance; later NCLT
+CGPOWER,BLOWUP,Capital Goods,2019-08-20,FY19Q1,Board found unauthorised related-party advances/understated liabilities; accounting fraud
+RCOM,BLOWUP,Telecom,2019-02-01,FY18Q4,Reliance Communications; debt understatement & asset-sale promises never landed; IBC 2019
+BRIGHTCOM,BLOWUP,IT/Advertising,2023-04-22,FY22Q4,SEBI interim order: inflated profits, preferential-allotment diversion, auditor red flags
+ASIANPAINT,COMPOUNDER,Paints,,,Terse under-promiser; consistent margin/volume delivery; the credibility gold standard
+PIDILITIND,COMPOUNDER,Chemicals,,,Conservative guidance, high follow-through; durable franchise
+PAGEIND,COMPOUNDER,Textiles/Apparel,,,Disciplined capacity + distribution commentary that proved out
+NESTLEIND,COMPOUNDER,FMCG,,,Low-drama, consistent volume/pricing delivery; high disclosure quality
+TITAN,COMPOUNDER,Consumer Durables,,,Segment guidance (jewellery/watches) tracked well call-over-call
+BAJFINANCE,COMPOUNDER,NBFC,,,Granular AUM/credit-cost guidance consistently met; NBFC veto must be sector-gated (CFO structurally -ve)
