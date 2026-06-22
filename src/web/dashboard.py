@@ -6630,7 +6630,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         _mph = _fq_hdr = None
     _mph_lbl = {"STRONG_ACCUM": "STR ACC", "ACCUM": "ACCUM", "NEUTRAL": "NEUTRAL",
                 "DISTRIB": "DISTRIB", "STRONG_DISTRIB": "STR DIST"}.get(_mph or "", "—")
-    _fq_sub = ("F&O " + _fq_hdr.replace("_", " ").title()) if _fq_hdr else "no F&O future"
+    _fq_sub = ("F&amp;O " + _fq_hdr.replace("_", " ").title()) if _fq_hdr else "no F&amp;O future"
     verdict_strip = _ck_strip([
         _ck_tile(f"₹{_num(today_close, 1)}", "CMP", "#58a6ff", f"{_pct(day_chg)} today"),
         _ck_tile(f"{_conv}/100" if _conv is not None else "—", "Conviction", "#d2a8ff",
