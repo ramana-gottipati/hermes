@@ -55,6 +55,9 @@ body { font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;
 header { position:sticky; top:0; z-index:10; background:#0e1116ee;
          backdrop-filter:blur(8px); border-bottom:1px solid #21262d; }
 .hrow1{display:flex;align-items:center;gap:10px;padding:9px 14px 6px;}
+.hback{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;
+border:1px solid #30363d;border-radius:8px;color:#c9d1d9;text-decoration:none;font-size:18px;line-height:1;}
+.hback:hover{border-color:#484f58;background:#161b22;}
 .hrow2{padding:0 8px;}
 header .logo { font-size:18px; font-weight:800; letter-spacing:.5px; }
 header .dot { width:8px; height:8px; border-radius:50%; background:#2ea043; }
@@ -411,6 +414,7 @@ def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool
 <body>
 <header>
   <div class="hrow1">
+    <a class="hback" href="/dash" title="Back" aria-label="Back" onclick="if(window.history.length>1){{window.history.back();return false;}}">&#8592;</a>
     <a href="/dash" class="brand"><span class="dot"></span><span class="logo">pat<span style="color:#3fb950">e</span>arn</span></a>
     <form class="hsearch" action="/dash/stock" method="get" autocomplete="off">
       <input name="sym" placeholder="search ticker…" autocapitalize="characters"/>
@@ -481,14 +485,18 @@ def _num(v, decimals=2) -> str:
     return f"{v:,.{decimals}f}"
 
 
-def _rs_strip(s1, s3, s6, s12) -> str:
-    """4-cell multi-timeframe RS heat strip from the slope_% of the ratio.
+def _rs_strip(s1, s3, s6, s12, s18=None, s24=None) -> str:
+    """Multi-timeframe RS heat strip from the slope_% of the ratio.
 
     Per cell: None→grey ·; ≥+3 strong-up ▲; >+1 mild-up ▲; |x|≤1 flat ▬;
-    <-1 mild-down ▼; ≤-3 strong-down ▼. Render [1m][3m][6m][12m] left→right.
+    <-1 mild-down ▼; ≤-3 strong-down ▼. Renders [1m][3m][6m][12m] left→right, and
+    — when the long windows are supplied — [18m][24m] too (base depth / run height).
     """
     cells = []
-    for v, lbl in ((s1, "1m"), (s3, "3m"), (s6, "6m"), (s12, "12m")):
+    pairs = [(s1, "1m"), (s3, "3m"), (s6, "6m"), (s12, "12m")]
+    if s18 is not None or s24 is not None:
+        pairs += [(s18, "18m"), (s24, "24m")]
+    for v, lbl in pairs:
         if v is None:
             cls, glyph = "hs-nd", "·"
         elif v >= 3:
@@ -6301,6 +6309,7 @@ def dash_stock(sym: str = Query("", max_length=20),
         rs_strip = _rs_strip(
             L.get("rs_vs_broad_slope_1m"), L.get("rs_vs_broad_slope_3m"),
             L.get("rs_vs_broad_slope_6m"), L.get("rs_vs_broad_slope_12m"),
+            L.get("rs_vs_broad_slope_18m"), L.get("rs_vs_broad_slope_24m"),
         )
         if rs_rank is not None:
             rank_html = (
@@ -6326,6 +6335,7 @@ def dash_stock(sym: str = Query("", max_length=20),
             sec_strip = _rs_strip(
                 L.get("rs_vs_sector_slope_1m"), L.get("rs_vs_sector_slope_3m"),
                 L.get("rs_vs_sector_slope_6m"), L.get("rs_vs_sector_slope_12m"),
+                L.get("rs_vs_sector_slope_18m"), L.get("rs_vs_sector_slope_24m"),
             )
             sector_block = (
                 f'<div class="sub" style="margin:12px 0 4px">vs sector '
