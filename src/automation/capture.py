@@ -210,9 +210,10 @@ def latest_all(denominator: str, conn=None) -> list[dict]:
             cm.__exit__(None, None, None)
 
 
-def current_all(denominator: str, conn=None) -> list[dict]:
-    """On-read fallback: compute capture for every sector vs one benchmark
-    straight from index_rows. Same row shape as latest_all(), falls-less first."""
+def current_all(denominator: str, conn=None, only=None) -> list[dict]:
+    """On-read fallback: compute capture for each sector vs one benchmark straight
+    from index_rows. `only` (an iterable of sector names) curates the universe so
+    the page stays fast. Same row shape as latest_all(), falls-less first."""
     own = conn is None
     if own:
         cm = get_conn()
@@ -221,6 +222,9 @@ def current_all(denominator: str, conn=None) -> list[dict]:
         sectors = [r["numerator"] for r in conn.execute(
             "SELECT DISTINCT numerator FROM ratio_rows WHERE denominator=?",
             (denominator,)).fetchall()]
+        if only:
+            keep = set(only)
+            sectors = [s for s in sectors if s in keep]
         _, b_map = _closes(conn, denominator)
         if not b_map:
             return []

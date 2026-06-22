@@ -353,10 +353,10 @@ def latest_all(denominator: str, conn=None) -> list[dict]:
             cm.__exit__(None, None, None)
 
 
-def current_all(denominator: str, conn=None) -> list[dict]:
-    """On-read fallback: compute every sector's CURRENT RS-extras vs one
-    benchmark straight from ratio_rows (for when the nightly job hasn't yet
-    populated rs_extras). Same row shape as latest_all(), momentum-sorted."""
+def current_all(denominator: str, conn=None, only=None) -> list[dict]:
+    """On-read fallback: compute each sector's CURRENT RS-extras vs one benchmark
+    straight from ratio_rows (when rs_extras isn't populated). `only` (an iterable
+    of sector names) curates the universe so the page stays fast. Momentum-sorted."""
     own = conn is None
     if own:
         cm = get_conn()
@@ -365,6 +365,9 @@ def current_all(denominator: str, conn=None) -> list[dict]:
         nums = [r["numerator"] for r in conn.execute(
             "SELECT DISTINCT numerator FROM ratio_rows WHERE denominator=?",
             (denominator,)).fetchall()]
+        if only:
+            keep = set(only)
+            nums = [n for n in nums if n in keep]
         out = []
         for num in nums:
             if num == denominator:        # never a self-pair (parity with compute_and_store)

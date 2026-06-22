@@ -225,13 +225,13 @@ def _table(rows: list[dict], caps: dict, den: str) -> str:
 def rrg_page(den: str = Query("Nifty 500", max_length=40)) -> HTMLResponse:
     den = den if den in BENCHMARKS else "Nifty 500"
     with get_conn() as conn:
-        rows = rrg.latest_all(den, conn=conn) or rrg.current_all(den, conn=conn)
-        if _REAL_SECTORS:                 # curate to readable economic sectors
+        rows = rrg.latest_all(den, conn=conn) or rrg.current_all(den, conn=conn, only=_REAL_SECTORS)
+        if _REAL_SECTORS:                 # also curate the stored path (all ~170 indices)
             keep = set(_REAL_SECTORS)
             _filt = [r for r in rows if r["numerator"] in keep]
             if _filt:
                 rows = _filt
-        caps_list = capture.latest_all(den, conn=conn) or capture.current_all(den, conn=conn)
+        caps_list = capture.latest_all(den, conn=conn) or capture.current_all(den, conn=conn, only=_REAL_SECTORS)
         caps = {c["numerator"]: c for c in caps_list}
         tails = {}
         for r in rows:                    # one bad ratio_rows row can't 500 the page
