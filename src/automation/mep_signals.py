@@ -24,12 +24,25 @@ direction): compression (σ short/long — the coiled spring) and amihud_22d
 (illiquidity / effort-vs-result). Raw terms are stored beside the verdict so the
 UI can show the values, not just the label (data-first).
 
+THE PHASE (the headline). The daily score is essentially TODAY'S tape — three of
+its four terms are intraday or near-intraday — so it flips state ~3 days in 4: a
+pressure oscillator, not a regime. So we ALSO store a smoothed, persistent PHASE:
+
+  mep_score_smooth = rolling mean of the daily score over ~10 trading rows
+  mep_state_smooth = that smoothed score banded with HYSTERESIS (asymmetric
+                     enter/exit deadbands) so a regime HOLDS and transitions
+                     slowly: accumulation → consolidation → distribution.
+
+The smoothed PHASE is the headline on every surface; the daily score sits
+underneath as the granular pressure read. Both are descriptor-only (D62).
+
 Stored nightly into mep_signals (its OWN table — the 2.35M-row stock_signals hot
 table is left untouched, mirroring the MTF tables' separation).
 
 Usage:
     python -m src.automation.mep_signals                 # today's row for every stock traded today
     python -m src.automation.mep_signals --backfill      # full-history per-symbol walk (heavy)
+    python -m src.automation.mep_signals --resmooth      # recompute ONLY the smoothed phase from stored daily scores (light)
     python -m src.automation.mep_signals --date 2026-06-20
     python -m src.automation.mep_signals --symbol RELIANCE
 """
@@ -57,13 +70,27 @@ _ATR_SHORT, _ATR_LONG = 14, 60   # compression = short ATR% / long ATR%
 _AMIHUD_LB = 22            # trailing rows for Amihud illiquidity
 _CC_THRESH = 0.30          # >30% single-day move = unadjusted corp action → not a real up/down day
 
-# Signed-score → state bands (tunable; re-derive via --relabel).
+# Signed-score → DAILY state bands (the granular pressure read; tunable).
 _STATE = {
     "strong_accum":  1.00,
     "accum":         0.35,
     "distrib":      -0.35,
     "strong_distrib": -1.00,
 }
+
+# --- the PHASE: smoothing + hysteresis (turns the daily oscillator into a regime) ---
+_SMOOTH_WIN = 10           # trailing AVAILABLE daily scores averaged into the phase
+_SMOOTH_MIN = 5            # need at least this many before a phase is emitted
+# Hysteresis ladder over the SMOOTHED score. The 5 phases, low→high, sit between 4
+# boundaries; each boundary b has a pair LO[b] < HI[b]: you cross UP into the higher
+# phase only at score ≥ HI[b], and drop DOWN only at score < LO[b]. The LO→HI gap is
+# the deadband that kills the daily whipsaw. Bands are ~0.5× the daily bands
+# (±0.35 / ±1.0) because averaging shrinks the amplitude — calibrated so the phase
+# mix tracks the daily-state mix while transitions stay rare (design §9, verified on
+# the VPS transition-count probe). Boundaries are strictly increasing & disjoint.
+_SMOOTH_STATES = ["STRONG_DISTRIB", "DISTRIB", "NEUTRAL", "ACCUM", "STRONG_ACCUM"]
+_SMOOTH_HI = [-0.35, -0.10, 0.20, 0.50]   # enter the higher phase at score ≥ HI[b]
+_SMOOTH_LO = [-0.50, -0.20, 0.10, 0.35]   # drop to the lower phase at score < LO[b]
 
 
 def _cutoff_date(trade_date: str, days: int) -> str:
@@ -122,7 +149,7 @@ def _state_from_score(score: Optional[float]) -> Optional[str]:
 
 
 def mep_state_read(state: Optional[str], score: Optional[float]) -> str:
-    """Plain-English nuance for the dashboard/bot (DRY — one wording everywhere)."""
+    """Plain-English nuance for the DAILY pressure read (DRY — one wording everywhere)."""
     if not state or score is None:
         return ""
     return {
@@ -132,6 +159,72 @@ def mep_state_read(state: Optional[str], score: Optional[float]) -> str:
         "DISTRIB":        "distribution — net selling pressure vs the stock's own norm",
         "STRONG_DISTRIB": "strong distribution — price pressed down its range, supply winning",
     }.get(state, "")
+
+
+def mep_phase_read(state: Optional[str], score: Optional[float]) -> str:
+    """Plain-English nuance for the SMOOTHED PHASE (the headline regime)."""
+    if not state or score is None:
+        return ""
+    return {
+        "STRONG_ACCUM":   "sustained accumulation — net buying has held for weeks",
+        "ACCUM":          "accumulation phase — buyers in control over the recent run",
+        "NEUTRAL":        "consolidation — no sustained accumulation or distribution",
+        "DISTRIB":        "distribution phase — sellers in control over the recent run",
+        "STRONG_DISTRIB": "sustained distribution — net selling has held for weeks",
+    }.get(state, "")
+
+
+def _smooth_state(score: Optional[float], prev: Optional[str]) -> Optional[str]:
+    """Hysteretic 5-phase band from the SMOOTHED score. Sticky ratchet: from the
+    previous phase, move UP a band only when score ≥ HI of that boundary, move DOWN
+    only when score < LO of that boundary — so a regime holds through the deadband
+    (no daily whipsaw). `prev` seeds the ratchet (NEUTRAL when unknown). Monotone
+    thresholds ⇒ converges, can't oscillate."""
+    if score is None:
+        return None
+    try:
+        i = _SMOOTH_STATES.index(prev)
+    except ValueError:
+        i = 2  # NEUTRAL
+    while i < 4 and score >= _SMOOTH_HI[i]:
+        i += 1
+    while i > 0 and score < _SMOOTH_LO[i - 1]:
+        i -= 1
+    return _SMOOTH_STATES[i]
+
+
+def _smooth_chain(scores: list) -> tuple:
+    """Full daily-score series oldest→newest (None gaps allowed) →
+    (smooth_scores, smooth_states), aligned to the same indices. The smoothed score
+    is a rolling mean over the trailing _SMOOTH_WIN AVAILABLE (non-None) daily
+    scores; the phase is the hysteresis ratchet walked in order (path-dependent, so
+    it MUST start from the beginning). O(n) via a sliding window — identical to the
+    incremental trailing-window read, so backfill and nightly agree exactly."""
+    from collections import deque
+    n = len(scores)
+    smooth_scores = [None] * n
+    smooth_states = [None] * n
+    win: deque = deque()
+    wsum = 0.0
+    avail = 0
+    prev_state = None
+    for i in range(n):
+        s = scores[i]
+        if s is None:
+            continue
+        win.append(s)
+        wsum += s
+        avail += 1
+        if len(win) > _SMOOTH_WIN:
+            wsum -= win.popleft()
+        if avail >= _SMOOTH_MIN:
+            ss = wsum / len(win)
+            st = _smooth_state(ss, prev_state)
+            smooth_scores[i] = ss
+            smooth_states[i] = st
+            if st is not None:
+                prev_state = st
+    return smooth_scores, smooth_states
 
 
 def _term_arrays(asc_rows: list) -> dict:
@@ -233,9 +326,14 @@ def _row_from_arrays(symbol: str, arr: dict, i: int) -> dict:
         "amihud_22d": arr["amihud"][i],
         # within-stock z-scores
         "z_pressure": zp, "z_clv": zc, "z_drift": zd, "z_updown": zu,
-        # signed composite + banded state
+        # signed composite + banded DAILY state (the granular pressure read)
         "mep_score": score,
         "mep_state": _state_from_score(score),
+        # smoothed PHASE (the headline) — filled by the _smooth_* pass, not here,
+        # because it needs the stock's score SERIES, not one day. Default None so
+        # the row dict always carries every _MEP_COLS key.
+        "mep_score_smooth": None,
+        "mep_state_smooth": None,
         "data_points_used": len([1 for j in range(i) if arr["pressure"][j] is not None]),
     }
 
@@ -267,7 +365,9 @@ _MEP_COLS = [
     "pressure", "clv", "drift_22d", "updown_vol_22d",
     "compression", "amihud_22d",
     "z_pressure", "z_clv", "z_drift", "z_updown",
-    "mep_score", "mep_state", "data_points_used",
+    "mep_score", "mep_state",
+    "mep_score_smooth", "mep_state_smooth",
+    "data_points_used",
 ]
 
 
@@ -277,22 +377,35 @@ CREATE TABLE IF NOT EXISTS mep_signals (
     pressure REAL, clv REAL, drift_22d REAL, updown_vol_22d REAL,
     compression REAL, amihud_22d REAL,
     z_pressure REAL, z_clv REAL, z_drift REAL, z_updown REAL,
-    mep_score REAL, mep_state TEXT, data_points_used INTEGER,
+    mep_score REAL, mep_state TEXT,
+    mep_score_smooth REAL, mep_state_smooth TEXT,
+    data_points_used INTEGER,
     computed_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, trade_date)
 );
 CREATE INDEX IF NOT EXISTS idx_mep_date  ON mep_signals(trade_date);
 CREATE INDEX IF NOT EXISTS idx_mep_state ON mep_signals(trade_date, mep_state);
 CREATE INDEX IF NOT EXISTS idx_mep_score ON mep_signals(trade_date, mep_score DESC);
+-- idx_mep_phase (on the smoothed column) is created in ensure_table() AFTER the
+-- ADD COLUMN migration, so it can't live here (this runs before the column exists
+-- on a pre-existing table).
 """
 
 
 def ensure_table() -> None:
-    """Defensive create — the canonical def lives in db.py SCHEMA_BASE, but this
-    lets the module stand up its own table on a host whose deployed db.py predates
-    it, so we can ship ONLY this new file (parallel-tree safety)."""
+    """Defensive create + additive migration — the canonical def lives in db.py
+    SCHEMA_BASE, but this lets the module stand up (and forward-migrate) its own
+    table on a host whose deployed db.py predates it, so we can ship ONLY this new
+    file (parallel-tree safety). ADD COLUMN is idempotent via the pragma guard."""
     with get_conn() as conn:
         conn.executescript(_ENSURE_SQL)
+        have = {r["name"] for r in conn.execute("PRAGMA table_info(mep_signals)").fetchall()}
+        if "mep_score_smooth" not in have:
+            conn.execute("ALTER TABLE mep_signals ADD COLUMN mep_score_smooth REAL")
+        if "mep_state_smooth" not in have:
+            conn.execute("ALTER TABLE mep_signals ADD COLUMN mep_state_smooth TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_mep_phase "
+                     "ON mep_signals(trade_date, mep_score_smooth DESC)")
 
 
 def store_mep(signal: dict) -> None:
@@ -309,6 +422,41 @@ def mep_exists(symbol: str, trade_date: str) -> bool:
             "SELECT 1 FROM mep_signals WHERE symbol = ? AND trade_date = ?",
             (symbol, trade_date),
         ).fetchone() is not None
+
+
+def _smooth_date(conn, trade_date: str, symbol: Optional[str] = None) -> int:
+    """Fill mep_score_smooth / mep_state_smooth for trade_date from the ALREADY
+    STORED daily-score series (no bhav fetch). For each symbol with a daily score on
+    trade_date: smoothed score = mean of its trailing _SMOOTH_WIN available daily
+    scores; phase = the hysteresis ratchet seeded from the most recent prior phase.
+    This matches _smooth_chain exactly (the stored series has no NULL mep_score
+    rows), so the nightly incremental and a full --resmooth agree to the digit."""
+    if symbol:
+        syms = [symbol]
+    else:
+        syms = [r["symbol"] for r in conn.execute(
+            "SELECT symbol FROM mep_signals WHERE trade_date=? AND mep_score IS NOT NULL",
+            (trade_date,)).fetchall()]
+    updates = []
+    for sym in syms:
+        recent = conn.execute(
+            "SELECT mep_score FROM mep_signals "
+            "WHERE symbol=? AND trade_date<=? AND mep_score IS NOT NULL "
+            "ORDER BY trade_date DESC LIMIT ?",
+            (sym, trade_date, _SMOOTH_WIN)).fetchall()
+        scores = [r["mep_score"] for r in recent]   # newest→…; order-independent for a mean
+        ss = (sum(scores) / len(scores)) if len(scores) >= _SMOOTH_MIN else None
+        prev = conn.execute(
+            "SELECT mep_state_smooth p FROM mep_signals "
+            "WHERE symbol=? AND trade_date<? AND mep_state_smooth IS NOT NULL "
+            "ORDER BY trade_date DESC LIMIT 1", (sym, trade_date)).fetchone()
+        st = _smooth_state(ss, prev["p"] if prev else None)
+        updates.append((ss, st, sym, trade_date))
+    if updates:
+        conn.executemany(
+            "UPDATE mep_signals SET mep_score_smooth=?, mep_state_smooth=? "
+            "WHERE symbol=? AND trade_date=?", updates)
+    return len(updates)
 
 
 # --- Modes -----------------------------------------------------------------
@@ -337,7 +485,10 @@ def compute_for_date(trade_date: str) -> int:
             n += 1
         if i % 200 == 0:
             log.info("  progress: %d / %d", i, len(symbols))
-    log.info("date %s done: %d MEP rows stored", trade_date, n)
+    # second pass: fill the smoothed PHASE for today from the stored daily series
+    with get_conn() as conn:
+        n_ph = _smooth_date(conn, trade_date)
+    log.info("date %s done: %d MEP rows stored, %d phases smoothed", trade_date, n, n_ph)
     return n
 
 
@@ -364,11 +515,16 @@ def _backfill_mep_for_symbol(conn, symbol: str) -> int:
     if not rows:
         return 0
     arr = _term_arrays(rows)
+    daily = [_row_from_arrays(symbol, arr, i) for i in range(len(rows))]
+    # smoothed PHASE over the full daily-score series (None warmup gaps preserved
+    # so indices stay aligned with `daily`)
+    smooth_scores, smooth_states = _smooth_chain([d["mep_score"] for d in daily])
     out = []
-    for i in range(len(rows)):
-        sig = _row_from_arrays(symbol, arr, i)
+    for i, sig in enumerate(daily):
         if sig.get("mep_score") is None:
             continue
+        sig["mep_score_smooth"] = smooth_scores[i]
+        sig["mep_state_smooth"] = smooth_states[i]
         out.append([sig.get(c) for c in _MEP_COLS])
     if out:
         placeholders = ",".join("?" * len(_MEP_COLS))
@@ -402,10 +558,42 @@ def run_backfill() -> tuple[int, int]:
     return len(symbols), total
 
 
+def run_resmooth() -> tuple[int, int]:
+    """Recompute ONLY the smoothed PHASE columns from the already-stored daily
+    mep_score series — no bhav fetch, no term recompute. The light post-deploy
+    backfill for the two new columns (and the place to re-run after re-tuning the
+    bands). Idempotent."""
+    ensure_table()
+    with get_conn() as conn:
+        symbols = [r["symbol"] for r in conn.execute(
+            "SELECT DISTINCT symbol FROM mep_signals ORDER BY symbol").fetchall()]
+    log.info("MEP resmooth: %d symbols to re-phase", len(symbols))
+    total = 0
+    for k, sym in enumerate(symbols, 1):
+        with get_conn() as conn:
+            rows = conn.execute(
+                "SELECT trade_date, mep_score FROM mep_signals "
+                "WHERE symbol=? ORDER BY trade_date ASC", (sym,)).fetchall()
+            if not rows:
+                continue
+            ss, sst = _smooth_chain([r["mep_score"] for r in rows])
+            upd = [(ss[i], sst[i], sym, rows[i]["trade_date"]) for i in range(len(rows))]
+            conn.executemany(
+                "UPDATE mep_signals SET mep_score_smooth=?, mep_state_smooth=? "
+                "WHERE symbol=? AND trade_date=?", upd)
+            total += len(upd)
+        if k % 200 == 0:
+            log.info("  resmooth progress: %d / %d symbols, %d rows", k, len(symbols), total)
+    log.info("MEP resmooth complete: %d symbols, %d rows", len(symbols), total)
+    return len(symbols), total
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--backfill", action="store_true",
                    help="Full-history per-symbol walk (heavy initial/recompute pass).")
+    p.add_argument("--resmooth", action="store_true",
+                   help="Recompute ONLY the smoothed phase from stored daily scores (light).")
     p.add_argument("--date", type=str, help="YYYY-MM-DD — compute one date for all symbols")
     p.add_argument("--symbol", type=str, help="compute one symbol's latest MEP row")
     args = p.parse_args()
@@ -426,11 +614,20 @@ def main() -> None:
         sig = compute_mep_for_symbol_date(args.symbol.upper(), row["d"])
         if sig:
             store_mep(sig)
-            log.info("MEP %s @ %s: score=%s state=%s",
-                     args.symbol.upper(), row["d"], sig.get("mep_score"), sig.get("mep_state"))
+            with get_conn() as conn:
+                _smooth_date(conn, row["d"], symbol=args.symbol.upper())
+                m = conn.execute(
+                    "SELECT mep_score_smooth ss, mep_state_smooth st FROM mep_signals "
+                    "WHERE symbol=? AND trade_date=?", (args.symbol.upper(), row["d"])).fetchone()
+            log.info("MEP %s @ %s: daily score=%s state=%s | phase score=%s state=%s",
+                     args.symbol.upper(), row["d"], sig.get("mep_score"), sig.get("mep_state"),
+                     m["ss"] if m else None, m["st"] if m else None)
     elif args.backfill:
         n_syms, n_rows = run_backfill()
         log.info("MEP backfill complete: %d symbols, %d rows", n_syms, n_rows)
+    elif args.resmooth:
+        n_syms, n_rows = run_resmooth()
+        log.info("MEP resmooth complete: %d symbols, %d rows", n_syms, n_rows)
     elif args.date:
         compute_for_date(args.date)
     else:

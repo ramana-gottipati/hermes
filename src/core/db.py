@@ -341,9 +341,13 @@ CREATE TABLE IF NOT EXISTS mep_signals (
     z_clv           REAL,
     z_drift         REAL,
     z_updown        REAL,
-    -- signed composite + banded state
+    -- signed composite + banded DAILY state (the granular pressure read)
     mep_score       REAL,   -- mean of available z's (+ accum / − distrib)
     mep_state       TEXT,   -- STRONG_ACCUM/ACCUM/NEUTRAL/DISTRIB/STRONG_DISTRIB
+    -- smoothed PHASE (the headline) — rolling mean of mep_score + hysteresis so a
+    -- regime HOLDS instead of flipping ~3 days in 4. See mep_signals.py _smooth_*.
+    mep_score_smooth REAL,  -- ~10-row rolling mean of mep_score
+    mep_state_smooth TEXT,  -- hysteresis-banded phase (same 5 labels)
     data_points_used INTEGER,
     computed_at     TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, trade_date)
@@ -351,6 +355,7 @@ CREATE TABLE IF NOT EXISTS mep_signals (
 CREATE INDEX IF NOT EXISTS idx_mep_date  ON mep_signals(trade_date);
 CREATE INDEX IF NOT EXISTS idx_mep_state ON mep_signals(trade_date, mep_state);
 CREATE INDEX IF NOT EXISTS idx_mep_score ON mep_signals(trade_date, mep_score DESC);
+CREATE INDEX IF NOT EXISTS idx_mep_phase ON mep_signals(trade_date, mep_score_smooth DESC);
 
 -- Screener.in scraped fundamentals (cached, refreshed periodically)
 CREATE TABLE IF NOT EXISTS fundamentals (
