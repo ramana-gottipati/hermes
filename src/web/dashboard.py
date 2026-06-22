@@ -2697,6 +2697,150 @@ def _mep_stock_panel(sym: str) -> str:
             + chips + terms + ctx + dvpt_conf + fno_line + foot)
 
 
+_FNO_QC = {"LONG_BUILDUP": ("#2ea043", "Long Buildup"), "SHORT_COVER": ("#3fb950", "Short Cover"),
+           "SHORT_BUILDUP": ("#f85149", "Short Buildup"), "LONG_UNWIND": ("#f0883e", "Long Unwind"),
+           "FLAT": ("#8b949e", "Flat")}
+
+
+def _fno_read(q, doi, oi_5d, streak) -> str:
+    """Plain-English synthesis of the current F&O positioning."""
+    if not q:
+        return ""
+    base = {
+        "LONG_BUILDUP": "Fresh longs — price up on rising OI. Buyers adding risk (accumulation).",
+        "SHORT_BUILDUP": "Fresh shorts — price down on rising OI. Sellers pressing (distribution).",
+        "LONG_UNWIND": "Longs exiting — price down on falling OI. Bulls booking out, not fresh shorts.",
+        "SHORT_COVER": "Short covering — price up on falling OI. A relief bounce, not fresh buying.",
+        "FLAT": "No decisive OI/price move today.",
+    }.get(q, "")
+    extra = ""
+    if streak >= 3 and q in ("LONG_BUILDUP", "SHORT_BUILDUP"):
+        extra = (f" Sustained {streak} days — a persistent "
+                 f"{'accumulation' if q == 'LONG_BUILDUP' else 'distribution'} footprint.")
+    if oi_5d is not None and abs(oi_5d) >= 10:
+        extra += f" Futures OI {oi_5d:+.0f}% over 5 days."
+    return f"<b>{base}</b>{extra}"
+
+
+def _fno_spark(series) -> str:
+    """Static OI sparkline (oldest→newest). Fixed viewBox so it renders while the
+    tab is still hidden (the charts-incident lesson — no width-measuring JS)."""
+    pts = [v for v in series if v is not None]
+    if len(pts) < 2:
+        return '<span class="mut">Futures-OI trend — insufficient history.</span>'
+    lo, hi = min(pts), max(pts)
+    rng = (hi - lo) or 1
+    n = len(pts)
+    coords = " ".join(f"{i/(n-1)*100:.1f},{26 - (v-lo)/rng*24:.1f}" for i, v in enumerate(pts))
+    col = "#2ea043" if pts[-1] >= pts[0] else "#f85149"
+    return (f'<div style="font-size:11px;color:#8b949e;margin-bottom:2px">Futures-OI trend '
+            f'(last {n} days, oldest→newest)</div>'
+            f'<svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none" '
+            f'style="display:block">'
+            f'<polyline points="{coords}" fill="none" stroke="{col}" stroke-width="1.2"/></svg>')
+
+
+def _fno_stock_panel(sym: str) -> str:
+    """Deep F&O Open-Interest dossier — the IDENTITY channel that DIRECTLY OBSERVES
+    positioning (MEP/DVPT only infer it from the price tape). Current four-quadrant
+    read + the OI/price trajectory over the recent window + the quadrant streak +
+    PCR + a plain-English synthesis + the day-by-day history. '' for non-F&O names
+    (no single-stock future). Descriptor-only (D62). Pure static HTML/SVG."""
+    try:
+        with get_conn() as conn:
+            rows = conn.execute(
+                "SELECT trade_date, fut_oi, fut_oi_chg, fut_oi_chg_pct, und_price, "
+                "price_chg_pct, quadrant, call_oi, put_oi, pcr, n_fut_contracts "
+                "FROM fno_oi_signals WHERE symbol=? ORDER BY trade_date DESC LIMIT 40", (sym,)).fetchall()
+    except Exception:
+        return ""
+    if not rows:
+        return ""
+    R = [dict(r) for r in rows]          # newest first
+    cur = R[0]
+    q = cur["quadrant"]
+    qcol, qlbl = _FNO_QC.get(q or "", ("#8b949e", q or "—"))
+
+    streak = 0
+    for r in R:
+        if q and r["quadrant"] == q:
+            streak += 1
+        else:
+            break
+
+    def _oi_back(n):
+        if len(R) > n and R[n]["fut_oi"] and R[n]["fut_oi"] > 0 and cur["fut_oi"]:
+            return (cur["fut_oi"] / R[n]["fut_oi"] - 1) * 100
+        return None
+    oi_5d = _oi_back(5)
+
+    def _f(v, d=1, sign=False):
+        if v is None:
+            return "—"
+        return f"{v:+.{d}f}" if sign else f"{v:.{d}f}"
+
+    def _oi(v):
+        if v is None:
+            return "—"
+        if v >= 1e7:
+            return f"{v/1e7:.2f}Cr"
+        if v >= 1e5:
+            return f"{v/1e5:.2f}L"
+        return f"{v:,.0f}"
+
+    def _pcell(v):
+        if v is None:
+            return '<span class="mut">—</span>'
+        return f'<span style="color:{"#2ea043" if v >= 0 else "#f85149"}">{v:+.1f}%</span>'
+
+    chips = (
+        '<div class="kpi">'
+        f'<div class="box"><div class="num"><span style="display:inline-block;padding:1px 7px;'
+        f'border-radius:6px;font-size:12px;font-weight:700;color:{qcol};border:1px solid {qcol}55;'
+        f'background:{qcol}14">{_esc(qlbl)}</span></div><div class="lbl">positioning</div></div>'
+        f'<div class="box"><div class="num">{_oi(cur["fut_oi"])}</div><div class="lbl">futures OI</div></div>'
+        f'<div class="box"><div class="num" style="color:{"#2ea043" if (cur["fut_oi_chg_pct"] or 0) >= 0 else "#f85149"}">'
+        f'{_f(cur["fut_oi_chg_pct"], 1, True)}%</div><div class="lbl">ΔOI today</div></div>'
+        f'<div class="box"><div class="num">{_f(oi_5d, 1, True)}%</div><div class="lbl">OI 5-day</div></div>'
+        f'<div class="box"><div class="num">{_f(cur["pcr"], 2)}</div><div class="lbl">PCR put/call</div></div>'
+        f'<div class="box"><div class="num">{streak}d</div><div class="lbl">in {_esc(qlbl.lower())}</div></div>'
+        '</div>')
+
+    read = _fno_read(q, cur["fut_oi_chg_pct"], oi_5d, streak)
+    spark = _fno_spark([r["fut_oi"] for r in reversed(R)])
+
+    hrows = ""
+    for r in R[:15]:
+        qc2, ql2 = _FNO_QC.get(r["quadrant"] or "", ("#8b949e", r["quadrant"] or "—"))
+        hrows += (f'<tr><td class="l mut">{_esc(r["trade_date"])}</td>'
+                  f'<td class="r">{_pcell(r["price_chg_pct"])}</td>'
+                  f'<td class="r mut">{_oi(r["fut_oi"])}</td>'
+                  f'<td class="r">{_pcell(r["fut_oi_chg_pct"])}</td>'
+                  f'<td class="l"><span style="color:{qc2}">{_esc(ql2)}</span></td>'
+                  f'<td class="r mut">{_f(r["pcr"], 2)}</td></tr>')
+    hist = ('<table class="ck-t" style="margin-top:8px"><thead>'
+            '<tr><th class="l">Date</th><th class="r">Price</th><th class="r">Fut OI</th>'
+            '<th class="r">ΔOI</th><th class="l">Quadrant</th><th class="r">PCR</th></tr></thead>'
+            f'<tbody>{hrows}</tbody></table>')
+
+    legend = ('<div class="sub mut" style="margin-top:8px;font-size:11px">'
+              '↑price ↑OI = <b style="color:#2ea043">long buildup</b> · '
+              '↓price ↑OI = <b style="color:#f85149">short buildup</b> · '
+              '↓price ↓OI = <b style="color:#f0883e">long unwind</b> · '
+              '↑price ↓OI = <b style="color:#3fb950">short cover</b>.</div>')
+    foot = ('<div class="sub mut" style="margin-top:6px;font-size:11px">Stock-futures OI summed across '
+            'expiries vs the cash price move; PCR from stock options. The one channel that names the '
+            'strong hand — but DESCRIPTOR-ONLY (D62): it must clear the DSR gate before it ranks or picks.</div>')
+
+    return ('<h3 style="margin:4px 0 8px">F&amp;O Open Interest '
+            '<span class="sub" style="margin:0;font-weight:400">identity channel — directly observed '
+            'positioning</span></h3>'
+            + chips
+            + f'<div class="sub" style="margin:6px 0 2px">{read}</div>'
+            + f'<div class="card" style="margin-top:6px;padding:8px 10px">{spark}</div>'
+            + hist + legend + foot)
+
+
 def _cci_stock_panel(sym: str) -> str:
     """Per-stock Management-Credibility (CCI) dossier. Measurable verdict on top
     (tier / forward / guidance-accuracy / quantification / deterioration / ⛔veto),
@@ -6627,6 +6771,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     cpr_html = _cpr_stock_panel(cpr_by_tf)   # CPR Structure panel (D53)
     cci_html = _cci_stock_panel(sym)         # Management Credibility dossier (CCI, P5)
     mep_html = _mep_stock_panel(sym)         # MEP signed accumulation/distribution dossier (D62)
+    fno_html = _fno_stock_panel(sym)         # F&O Open-Interest identity channel ('' if no future)
 
     # D54 — Track capture: build a frozen-snapshot preview for the action loop.
     _ix = _xpower(L)
@@ -6714,6 +6859,10 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     _tabs = [("price", "Price"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
              ("rs", "Relative Strength"),
              ("qual", "Quality"), ("cpr", "Structure · CPR"), ("cci", "Credibility · CCI")]
+    if fno_html:                              # F&O tab only for single-stock-futures names
+        _tabs.append(("fno", "F&O · OI"))
+    fno_pane = (f'<div class="tabpane" data-tab="fno" style="display:none">{fno_html}</div>'
+                if fno_html else "")
     tabbar = ('<div class="tabbar" id="stabbar" style="position:sticky;top:0;background:#0e1116;z-index:5">'
               + "".join(_stab(k, l, i == 0) for i, (k, l) in enumerate(_tabs)) + '</div>')
     tab_js = """
@@ -6816,6 +6965,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 <div class="tabpane" data-tab="cci" style="display:none">
 {cci_html}
 </div>
+{fno_pane}
 
 <script src="{_LWC_CDN}"></script>
 <script>
