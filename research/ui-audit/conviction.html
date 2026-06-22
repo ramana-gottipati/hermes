@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#0e1116"/>
+<link rel="manifest" href="/manifest.webmanifest"/>
+<link rel="icon" href="/icon.svg" type="image/svg+xml"/>
+<link rel="apple-touch-icon" href="/icon.svg"/>
+<title>Conviction · patearn</title>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin:0; padding:0; }
+body { font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;
+       background:#0e1116; color:#e6edf3; padding:0 0 28px; min-height:100vh; }
+header { position:sticky; top:0; z-index:10; background:#0e1116ee;
+         backdrop-filter:blur(8px); border-bottom:1px solid #21262d; }
+.hrow1{display:flex;align-items:center;gap:10px;padding:9px 14px 6px;}
+.hrow2{padding:0 8px;}
+header .logo { font-size:18px; font-weight:800; letter-spacing:.5px; }
+header .dot { width:8px; height:8px; border-radius:50%; background:#2ea043; }
+header .date { color:#8b949e; font-size:12px; }
+header .brand{display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;flex:none;}
+.wsnav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.wsnav::-webkit-scrollbar{display:none;}
+.wsnav a{padding:8px 13px;color:#8b949e;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
+.wsnav a.on{color:#e6edf3;border-bottom-color:#3fb950;}
+.wsnav a:hover{color:#e6edf3;}
+.wrap { padding:16px; max-width:760px; margin:0 auto; }
+h2 { font-size:16px; margin:18px 0 10px; color:#e6edf3; }
+.sub { color:#8b949e; font-size:12px; margin:-6px 0 12px; }
+.card { background:#161b22; border:1px solid #30363d; border-radius:10px;
+        padding:14px; margin-bottom:10px; }
+.kpi { display:flex; gap:10px; flex-wrap:wrap; }
+.kpi .box { flex:1; min-width:120px; background:#161b22; border:1px solid #30363d;
+            border-radius:10px; padding:14px; }
+.kpi .num { font-size:24px; font-weight:800; }
+.kpi .lbl { color:#8b949e; font-size:12px; margin-top:2px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; color:#8b949e; font-weight:600; padding:8px 6px;
+     border-bottom:1px solid #30363d; font-size:11px; text-transform:uppercase;
+     letter-spacing:.4px; }
+td { padding:9px 6px; border-bottom:1px solid #21262d; }
+tr:last-child td { border-bottom:none; }
+.sym { font-weight:700; }
+.pos { color:#3fb950; } .neg { color:#f85149; } .mut { color:#8b949e; }
+.pill { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px;
+        border-radius:9px; letter-spacing:.4px; }
+.p-SS{background:#1f6f3a;color:#7ee787;} .p-S{background:#225c33;color:#7ee787;}
+.p-A{background:#2b4f6f;color:#79c0ff;} .p-B{background:#3a3f4b;color:#c9d1d9;}
+.p-C{background:#30363d;color:#8b949e;} .p-BREAKOUT{background:#1f6f3a;color:#7ee787;}
+.p-UPTREND{background:#225c33;color:#7ee787;} .p-CONSOLIDATING{background:#5a4a1f;color:#ffd99a;}
+.p-DOWNTREND{background:#6f2b2b;color:#ffa198;} .p-BREAKDOWN{background:#8f1f1f;color:#ffa198;}
+/* D43 accumulation/distribution character pills */
+.ca-acc{background:#16341f;color:#7ee787;} .ca-dist{background:#3a1a1a;color:#ffa198;}
+.ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:#30363d;color:#8b949e;}
+nav { position:fixed; bottom:0; left:0; right:0; background:#0e1116;
+      border-top:1px solid #21262d; display:flex; }
+nav a { flex:1; text-align:center; padding:10px 4px; color:#8b949e;
+        text-decoration:none; font-size:11px; }
+nav a.active { color:#58a6ff; }
+nav a .ic { font-size:20px; display:block; }
+input,button { font-family:inherit; }
+.search { display:flex; gap:8px; margin-bottom:14px; }
+.search input { flex:1; background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+                padding:11px 12px; border-radius:8px; font-size:15px; }
+.search button { background:#1f6feb; border:none; color:#fff; padding:0 18px;
+                 border-radius:8px; font-weight:700; font-size:14px; }
+.zone { display:flex; justify-content:space-between; padding:7px 0;
+        border-bottom:1px solid #21262d; font-size:14px; }
+.zone .lbl { color:#8b949e; width:54px; }
+.zone .val { font-variant-numeric:tabular-nums; }
+.empty { color:#8b949e; text-align:center; padding:48px 16px; }
+a.row { color:inherit; text-decoration:none; display:block; }
+.hsearch { margin-left:auto; flex:none; }
+.hsearch input { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+                 padding:6px 10px; border-radius:7px; font-size:13px; width:110px; }
+.banner { border-radius:10px; padding:12px 14px; margin-bottom:12px; font-weight:700;
+          display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.banner small { font-weight:400; opacity:.9; }
+.b-on{background:#16341f;color:#7ee787;border:1px solid #1f6f3a;}
+.b-off{background:#3a1a1a;color:#ffa198;border:1px solid #8f1f1f;}
+.b-neu{background:#3a3417;color:#ffd99a;border:1px solid #5a4a1f;}
+.majgrid { display:grid; grid-template-columns:1fr; gap:8px; }
+@media(min-width:560px){ .majgrid{ grid-template-columns:1fr 1fr; } }
+.maj { background:#161b22; border:1px solid #30363d; border-left:3px solid #1f6feb;
+       border-radius:8px; padding:10px 12px; display:block; color:inherit; text-decoration:none; }
+.maj .nm { font-weight:700; font-size:14px; }
+.maj .rr { display:flex; gap:14px; margin-top:5px; font-size:12px; color:#8b949e;
+           font-variant-numeric:tabular-nums; flex-wrap:wrap; }
+.fbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.fbtn { background:#161b22; border:1px solid #30363d; color:#8b949e; padding:5px 11px;
+        border-radius:14px; font-size:12px; cursor:pointer; }
+.fbtn.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chip { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:7px 10px;
+        font-size:13px; color:inherit; text-decoration:none; }
+.ghdr { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#8b949e;
+        margin:16px 0 8px; font-weight:700; }
+.hstrip{display:inline-flex;gap:2px;vertical-align:middle;}
+.hstrip .c{width:20px;height:24px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1;font-weight:700;}
+.hstrip .c small{font-size:7px;opacity:.7;margin-top:1px;font-weight:600;}
+.hs-su{background:#1f6f3a;color:#7ee787;} .hs-mu{background:#225c33;color:#7ee787;}
+.hs-fl{background:#5a4a1f;color:#ffd99a;} .hs-md{background:#6f2b2b;color:#ffa198;}
+.hs-sd{background:#8f1f1f;color:#ffa198;} .hs-nd{background:#21262d;color:#484f58;}
+.bar{height:7px;background:#21262d;border-radius:4px;overflow:hidden;} .bar>span{display:block;height:100%;background:#1f6feb;}
+.grp{color:#58a6ff;} th.rsgrp{border-left:1px solid #30363d;} td.rsgrp{border-left:1px solid #30363d;}
+.dttool{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.dtf{flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 10px;border-radius:7px;font-size:13px}
+.dtx{background:#238636;border:none;color:#fff;padding:6px 12px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer}
+.dtcount{color:#8b949e;font-size:12px}
+table.dt thead th{cursor:pointer;user-select:none;position:sticky;top:0;background:#0e1116;z-index:1}
+table.dt thead th.sorta::after{content:" ▲"} table.dt thead th.sortd::after{content:" ▼"}
+tr.dt-hide{display:none!important}
+/* D33d — strategy thesis badge (stamped on every board) + strategy hub cards */
+.sbadge{display:flex;align-items:flex-start;gap:9px;border-radius:9px;padding:9px 12px;margin-bottom:12px;border:1px solid #30363d;font-size:12px;}
+.sbadge .tag{font-size:10px;font-weight:800;letter-spacing:.5px;white-space:nowrap;padding:2px 8px;border-radius:8px;}
+.sbadge .th{color:#c9d1d9;opacity:.92;line-height:1.35;}
+.sb-POS{background:#0d1f33;border-color:#1f4d7a;} .sb-POS .tag{background:#1f6feb;color:#fff;}
+.sb-RS{background:#0f2417;border-color:#1f6f3a;} .sb-RS .tag{background:#2ea043;color:#fff;}
+.sb-QUAL{background:#241f0d;border-color:#5a4a1f;} .sb-QUAL .tag{background:#bb8009;color:#fff;}
+.scards{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:6px;}
+@media(min-width:560px){.scards{grid-template-columns:1fr 1fr 1fr;}}
+.scard{display:block;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;color:inherit;text-decoration:none;border-top:3px solid #30363d;}
+.scard.sc-POS{border-top-color:#1f6feb;} .scard.sc-RS{border-top-color:#2ea043;} .scard.sc-QUAL{border-top-color:#bb8009;}
+.scard.sc-CPR{border-top-color:#8957e5;}
+.scard .nm{font-weight:800;font-size:14px;} .scard .th{color:#8b949e;font-size:11px;margin:4px 0 8px;line-height:1.3;}
+.scard .ct{font-size:13px;font-weight:700;color:#e6edf3;} .scard .ct small{color:#8b949e;font-weight:400;}
+/* CPR (Structure pillar, D53) — pattern glyphs, ★ conviction tier, D·W·M strip */
+.cpg{font-weight:800;font-size:12px;} .cp-bull{color:#3fb950;} .cp-bear{color:#f85149;} .cp-none{color:#6e7681;}
+.cp-tier{color:#e3b341;font-weight:800;letter-spacing:1px;white-space:nowrap;}
+.cprstrip{display:inline-flex;gap:3px;vertical-align:middle;}
+.cprstrip .c{min-width:30px;padding:2px 4px;border-radius:4px;background:#161b22;border:1px solid #21262d;display:flex;flex-direction:column;align-items:center;line-height:1.15;}
+.cprstrip .c .w{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;}
+.cprstrip .c small{font-size:7px;opacity:.6;font-weight:600;}
+.cprstrip .c.nw{background:#10241a;border-color:#1f6f3a;} .cprstrip .c.nw .w{color:#7ee787;}
+.cprstrip .c.up{box-shadow:inset 0 -2px 0 #2ea043;} .cprstrip .c.dn{box-shadow:inset 0 -2px 0 #f85149;}
+.cprpanel{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:6px;}
+.cprpanel table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
+.cprpanel th,.cprpanel td{text-align:right;padding:5px 8px;border-bottom:1px solid #21262d;white-space:nowrap;}
+.cprpanel th:first-child,.cprpanel td:first-child{text-align:left;}
+.cprverdict{margin-top:9px;font-size:13px;color:#c9d1d9;line-height:1.4;}
+.tabbar{display:flex;gap:6px;margin:4px 0 12px;border-bottom:1px solid #30363d;}
+.tabbar a{padding:7px 14px;font-size:13px;font-weight:700;color:#8b949e;text-decoration:none;border-bottom:2px solid transparent;}
+.tabbar a.on{color:#e6edf3;border-bottom-color:#8957e5;}
+/* D54 — full-bleed data workspace with a COMFORTABLE gutter (D-UI-10) */
+.wrap.wide{max-width:1900px;margin:0 auto;padding:14px clamp(12px,4vw,56px);}
+/* D54 — frozen-pane data grid: ONE scroll viewport owns BOTH axes so the header
+   band AND the Symbol column stay fixed while scrolling down AND across. */
+.scrwrap{overflow:auto;max-height:calc(100vh - 230px);border:1px solid #30363d;border-radius:10px;background:#0d1117;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+table.scr{width:100%;min-width:max-content;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;}
+table.scr th,table.scr td{white-space:nowrap;border-bottom:1px solid #1c2128;padding:6px 10px;text-align:right;}
+table.scr th.l,table.scr td.l{text-align:left;}
+table.scr td.num,table.scr th.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+table.scr td.bold{font-weight:700;}
+table.scr td.gsep,table.scr th.gsep{border-left:1px solid #262c36;}
+table.scr thead tr.sgrp th{position:sticky;top:0;z-index:3;height:26px;background:#0d1117;color:#6e7681;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;text-align:left;border-bottom:1px solid #30363d;border-left:1px solid #262c36;padding:0 10px;}
+table.scr thead tr.scol th{position:sticky;top:26px;z-index:3;background:#0e1116;color:#8b949e;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #30363d;cursor:pointer;padding:6px 10px;}
+table.scr .fz{position:sticky;left:0;z-index:2;background:#0d1117;border-right:1px solid #30363d;text-align:left;}
+table.scr thead tr.sgrp th.fz,table.scr thead tr.scol th.fz{z-index:6;}
+table.scr tbody .fz{font-weight:700;}
+table.scr tbody tr:nth-child(even) td{background:rgba(255,255,255,.014);}
+table.scr tbody tr:nth-child(even) td.fz{background:#0f151b;}
+table.scr tbody tr:hover td{background:#1c2230!important;}
+.scrwrap.scrolled table.scr .fz{box-shadow:8px 0 12px -6px rgba(0,0,0,.55);}
+.h-pos3{background:rgba(63,185,80,.22)!important;} .h-pos2{background:rgba(63,185,80,.13)!important;} .h-pos1{background:rgba(63,185,80,.06)!important;}
+.h-neg1{background:rgba(248,81,73,.07)!important;} .h-neg2{background:rgba(248,81,73,.14)!important;} .h-neg3{background:rgba(248,81,73,.22)!important;}
+/* column-group hide = ONE class on the table (single reflow, no per-cell JS) */
+table.scr.hide-conv .g-conv,table.scr.hide-pos .g-pos,table.scr.hide-key .g-key,table.scr.hide-char .g-char,table.scr.hide-rs .g-rs,table.scr.hide-cpr .g-cpr,table.scr.hide-cci .g-cci,table.scr.hide-qual .g-qual,table.scr.hide-ctx .g-ctx{display:none;}
+/* LAG FIX (the Nifty-500 toggle hang): with table-layout:fixed the columns no longer
+   re-solve their widths from 498 rows of content on every toggle. A JS-built <colgroup>
+   gives each column an explicit width + tags it with its group; collapsing the col to 0
+   here removes the gap a hidden group would otherwise leave under fixed layout. */
+table.scr.hide-conv col.cg-conv,table.scr.hide-pos col.cg-pos,table.scr.hide-key col.cg-key,table.scr.hide-char col.cg-char,table.scr.hide-rs col.cg-rs,table.scr.hide-cpr col.cg-cpr,table.scr.hide-cci col.cg-cci,table.scr.hide-qual col.cg-qual,table.scr.hide-ctx col.cg-ctx{width:0!important;}
+/* CPR-confirmed gate: show only rows carrying a CPR reversal tier (one class) */
+table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
+/* D54 Phase 2 — "the instrument": inline static micro-viz readouts (D-UI-16).
+   The viz sits BESIDE the kept sortable numeric columns (D-UI-1). */
+.mv{vertical-align:middle;display:inline-block;}
+table.scr td.inst{padding:3px 8px 3px 10px;}
+.kt-in{color:#3fb950;} .kt-ext{color:#d29922;} .kt-disc{color:#58a6ff;}
+/* Row windowing (perf hand-off Step 2) — Ramana confirmed the 498-row × 4-SVG
+   grid scrolls heavy, so the browser now skips layout+paint of OFF-SCREEN rows.
+   `contain-intrinsic-size:auto` makes it REMEMBER each row's real size once seen,
+   so the scrollbar stays stable. The column-width jitter that first made me defer
+   this is killed by pinning the frozen Symbol column + flooring numeric cells, so
+   widths can't shift as rows page in. All additive CSS, reversible. */
+/* NB: exclude the virtualizer's .vspacer rows — content-visibility on a tall
+   off-screen spacer can collapse its height and drift the scroll. Data rows keep
+   it (harmless once virtualized; a cushion if the virtualizer ever safety-nets). */
+table.scr tbody tr:not(.vspacer){content-visibility:auto;contain-intrinsic-size:auto 34px;}
+table.scr .fz{width:116px;min-width:116px;max-width:116px;overflow:hidden;text-overflow:ellipsis;}
+table.scr td.num,table.scr th.num{min-width:46px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow1">
+    <a href="/dash" class="brand"><span class="dot"></span><span class="logo">pat<span style="color:#3fb950">e</span>arn</span></a>
+    <form class="hsearch" action="/dash/stock" method="get" autocomplete="off">
+      <input name="sym" placeholder="search ticker…" autocapitalize="characters"/>
+    </form>
+  </div>
+  <div class="hrow2"><div class="wsnav"><a class="" href="/dash/markets">Markets</a><a class="" href="/dash/screener">Screener</a><a class="on" href="/dash/strategies">Strategies</a><a class="" href="/dash/dashboard">Tracker</a><a class="" href="/dash/pat">Pat</a></div></div>
+</header>
+<div class="wrap wide">
+
+<style>
+.ck-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:4px 0 14px;}
+.ck-tile{display:block;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:11px 13px;color:inherit;text-decoration:none;}
+.ck-tile:hover{border-color:#484f58;}
+.ck-tile .ck-n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
+.ck-tile .ck-l{font-size:12px;font-weight:700;margin-top:5px;color:#e6edf3;}
+.ck-tile .ck-c{font-size:10.5px;color:#8b949e;margin-top:2px;}
+.ckpt{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:12px;align-items:start;margin-bottom:14px;}
+.ck-board{margin:0;padding:12px 14px;}
+.ck-h{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:700;margin-bottom:8px;}
+.ck-h .em{font-size:15px;}
+table.ck-t{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.ck-t td{padding:5px 6px;border-bottom:1px solid #1c2128;white-space:nowrap;vertical-align:middle;}
+table.ck-t tr:last-child td{border-bottom:none;}
+table.ck-t td.l{text-align:left;} table.ck-t td.r{text-align:right;font-variant-numeric:tabular-nums;}
+.ck-board a.more{display:inline-block;margin-top:8px;color:#58a6ff;font-size:12px;text-decoration:none;}
+.ck-board a.more:hover{text-decoration:underline;}
+.mkt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:9px;margin-bottom:6px;}
+</style>
+<h2 style="margin-top:2px">⭐ Conviction shortlist <span class="sub" style="margin:0">all three pillars aligned</span></h2><div class="sub" style="margin-top:2px">An RS leader institutions are accumulating now, with the entry read; pt14 quality confirms where scored. Sort · filter · ⬇ export. 🎯 = buyable near the institutional key price · ★ = pt14 quality-confirmed.</div><div class="ck-tiles"><div class="ck-tile" style="border-top:3px solid #d2a8ff"><div class="ck-n" style="color:#d2a8ff">7</div><div class="ck-l">Conviction names</div><div class="ck-c">all pillars aligned</div></div><div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n" style="color:#3fb950">2</div><div class="ck-l">🎯 Near key</div><div class="ck-c">buyable entry band</div></div><div class="ck-tile" style="border-top:3px solid #d29922"><div class="ck-n" style="color:#d29922">7</div><div class="ck-l">★ Quality-confirmed</div><div class="ck-c">pt14 not failing</div></div></div><div id="cvbar" class="fbar"><button class="fbtn on" onclick="cflt('all',this)">All</button><button class="fbtn" onclick="cflt('nearkey',this)">🎯 Near key</button><button class="fbtn" onclick="cflt('qual',this)">★ Quality-confirmed</button></div><div class="card" style="padding:6px 10px;overflow-x:auto"><table id="cvtbl" class="dt"><thead><tr><th class="l">Symbol</th><th>RS rank</th><th class="l">Sector</th><th>Character</th><th class="l">Entry</th><th class="l">Key 3m</th><th>Rank·p</th><th>Quality</th></tr></thead><tbody><tr data-nearkey="0" data-qual="1"><td class="l"><a class="row" href="/dash/stock?sym=ASTRAMICRO"><span class="sym">ASTRAMICRO</span></a></td><td>97</td><td class="l mut">Nifty India Defence</td><td><span class="pill ca-acc">🟢 ACCUM</span></td><td class="l">🔴 extended</td><td class="l">₹1,400.1 <span class="mut">(+20.3%)</span></td><td><span class="pill p-SS">SS</span> 5/5</td><td><span class="pill p-SS">★ T4</span></td></tr><tr data-nearkey="0" data-qual="1"><td class="l"><a class="row" href="/dash/stock?sym=WELCORP"><span class="sym">WELCORP</span></a></td><td>96</td><td class="l mut">Nifty Metal</td><td><span class="pill ca-acc">🟢 ACCUM</span></td><td class="l">🔴 extended</td><td class="l">₹1,291.0 <span class="mut">(+10.3%)</span></td><td><span class="pill p-B">B</span> 2/5</td><td><span class="pill p-SS">★ T4</span></td></tr><tr data-nearkey="0" data-qual="1"><td class="l"><a class="row" href="/dash/stock?sym=ADANIENT"><span class="sym">ADANIENT</span></a></td><td>90</td><td class="l mut">Nifty Metal</td><td><span class="pill ca-acc">🟢 ACCUM</span></td><td class="l">🔴 extended</td><td class="l">₹2,373.3 <span class="mut">(+28.0%)</span></td><td><span class="pill p-SS">SS</span> 5/5</td><td><span class="pill p-SS">★ T4</span></td></tr><tr data-nearkey="0" data-qual="1"><td class="l"><a class="row" href="/dash/stock?sym=ZENTEC"><span class="sym">ZENTEC</span></a></td><td>89</td><td class="l mut">Nifty India Defence</td><td><span class="pill ca-acc">🟢 ACCUM</span></td><td class="l">🔴 extended</td><td class="l">₹1,732.3 <span class="mut">(+15.3%)</span></td><td><span class="pill p-S">S</span> 4/5</td><td><span class="pill p-SS">★ T4</span></td></tr><tr data-nearkey="1" data-qual="1"><td class="l"><a class="row" href="/dash/stock?sym=NLCINDIA"><span class="sym">NLCINDIA</span></a></td><td>78</td><td class="l mut">Nifty Energy</td><td><span class="pill ca-acc">🟢 ACCUM</span></td><td class="l">🎯 near key</td><td class="l">₹320.0 <span class="mut">(+0.5%)</span></td><td><span class="pill p-B">B</span> 2/5</td><td><span class="pill p-SS">★ T3</span></td></tr><tr data-nearkey="0" data-qual="1"><td class="l"><a class="row" href="/dash/stock?sym=FEDERALBNK"><span class="sym">FEDERALBNK</span></a></td><td>67</td><td class="l mut">Nifty Private Bank</td><td><span class="pill ca-acc">🟢 ACCUM</span></td><td class="l">🔴 extended</td><td class="l">₹290.6 <span class="mut">(+11.5%)</span></td><td><span class="pill p-B">B</span> 2/5</td><td><span class="pill p-SS">★ T4</span></td></tr><tr data-nearkey="1" data-qual="1"><td class="l"><a class="row" href="/dash/stock?sym=INDUSINDBK"><span class="sym">INDUSINDBK</span></a></td><td>56</td><td class="l mut">Nifty Private Bank</td><td><span class="pill ca-acc">🟢 ACCUM</span></td><td class="l">🎯 near key 🔴 extended</td><td class="l">₹865.4 <span class="mut">(+9.5%)</span></td><td><span class="pill p-SS">SS</span> 5/5</td><td><span class="pill p-SS">★ T4</span></td></tr></tbody></table></div><script>function cflt(f,el){document.querySelectorAll('#cvtbl tr[data-nearkey]').forEach(function(r){r.style.display=(f==='all'||r.dataset[f]==='1')?'':'none';});document.querySelectorAll('#cvbar .fbtn').forEach(function(b){b.classList.remove('on');});el.classList.add('on');}</script>
+</div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  function num(s){
+    var n = parseFloat(String(s).replace(/[%,+₹\s]/g,''));
+    return n;
+  }
+  function csvCell(v){
+    v = (v==null?'':String(v));
+    if (v.indexOf('"')>=0 || v.indexOf(',')>=0 || v.indexOf('\n')>=0 || v.indexOf('\r')>=0){
+      return '"' + v.replace(/"/g,'""') + '"';
+    }
+    return v;
+  }
+  document.querySelectorAll('table.dt').forEach(function(table){
+    var tbody = table.tBodies[0];
+    if (!tbody) return;
+    var ths = Array.prototype.slice.call(table.tHead ? table.tHead.querySelectorAll('tr:last-child th') : []);
+
+    // --- toolbar (inserted immediately before the table) ---
+    var tool = document.createElement('div');
+    tool.className = 'dttool';
+    var f = document.createElement('input');
+    f.className = 'dtf'; f.type = 'text'; f.placeholder = 'filter rows…';
+    var x = document.createElement('button');
+    x.className = 'dtx'; x.type = 'button'; x.textContent = '⬇ Export';
+    var cnt = document.createElement('span');
+    cnt.className = 'dtcount';
+    tool.appendChild(f); tool.appendChild(x); tool.appendChild(cnt);
+    // Keep the toolbar OUTSIDE a frozen-pane scroll viewport so it stays visible
+    // while the grid scrolls under the fixed header (D54). Plain tables: unchanged.
+    var _host = table.closest('.scrwrap') || table;
+    _host.parentNode.insertBefore(tool, _host);
+
+    function rows(){ return Array.prototype.slice.call(tbody.rows); }
+    function visibleRows(){
+      return rows().filter(function(r){ return r.offsetParent !== null; });
+    }
+    function recount(){
+      cnt.textContent = visibleRows().length + ' rows';
+    }
+
+    // --- filter (toggles dt-hide only; never touches inline display) ---
+    f.addEventListener('input', function(){
+      var q = f.value.toLowerCase();
+      rows().forEach(function(r){
+        var hit = r.innerText.toLowerCase().indexOf(q) >= 0;
+        r.classList.toggle('dt-hide', !hit);
+      });
+      recount();
+    });
+
+    // --- sort (numeric-aware, asc/desc toggle on repeat click) ---
+    ths.forEach(function(th, ci){
+      th.addEventListener('click', function(){
+        var asc = !th.classList.contains('sorta');
+        ths.forEach(function(o){ o.classList.remove('sorta','sortd'); });
+        th.classList.add(asc ? 'sorta' : 'sortd');
+        var rs = rows();
+        rs.sort(function(a, b){
+          var av = a.cells[ci] ? a.cells[ci].innerText : '';
+          var bv = b.cells[ci] ? b.cells[ci].innerText : '';
+          var an = num(av), bn = num(bv), c;
+          if (isFinite(an) && isFinite(bn)) c = an - bn;
+          else c = String(av).localeCompare(String(bv));
+          return asc ? c : -c;
+        });
+        rs.forEach(function(r){ tbody.appendChild(r); });
+        recount();
+      });
+    });
+
+    // --- export (header + currently-visible rows only) ---
+    x.addEventListener('click', function(){
+      var lines = [];
+      lines.push(ths.map(function(th){ return csvCell(th.innerText.trim()); }).join(','));
+      visibleRows().forEach(function(r){
+        var cells = Array.prototype.slice.call(r.cells);
+        lines.push(cells.map(function(td){ return csvCell(td.innerText.trim()); }).join(','));
+      });
+      var csv = lines.join('\r\n');
+      var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = (document.title || 'export').replace(/[^a-zA-Z0-9]+/g,'-') +
+                   '-' + new Date().toISOString().slice(0,10) + '.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+
+    // --- recount when sibling pills change (they set inline display) ---
+    var fbar = table.parentNode ? table.parentNode.parentNode : null;
+    var pills = null;
+    if (table.parentNode) pills = table.parentNode.querySelectorAll('.fbar button');
+    if ((!pills || !pills.length) && fbar) pills = fbar.querySelectorAll('.fbar button');
+    if (pills && pills.length){
+      pills.forEach(function(b){ b.addEventListener('click', function(){ setTimeout(recount, 0); }); });
+    }
+
+    recount();
+  });
+});
+</script>
+
+</body>
+</html>
