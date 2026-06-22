@@ -20,10 +20,11 @@ The full-journey backtest + feature study (committed `8531744`, `b1532e1`) found
 2. **Challenger ML → research-only** (`.venv-research`); wire scores into production *only if* it clearly beats the champion out-of-sample. Production `.venv` stays numpy/sklearn-free (doctrine).
 3. **Walk-forward validation mandatory** wherever weights/models are fit (derive on 2019→Y, test on Y+1) — never grade in-sample.
 
-## C — Averaging-zone derivation *(quick; prod venv, pure Python)*
-- **Module:** `src/automation/ignition_zones.py`; owns `averaging_zones`; reads `ignition_outcomes`.
-- **Method:** bucket events by `mae_before_peak` (the dip taken on the way up); per band report recovery-rate = P(reached +25% MFE), median final return, n.
-- **Output:** "dipped to −X% before running → Y% still reached target" → the averaging-down guidance. Selftest + real run.
+## C — Averaging-zone derivation *(DONE — committed/pushed)*
+- **Module:** `src/automation/ignition_zones.py`; owns `averaging_zones`; reads the path-conditional `rec_after_X` flags added to `ignition_backtest`.
+- **Metric (corrected):** *after price FALLS −X% from entry in REAL time*, % that still reach +25%. (An earlier `mae_before_peak` cut was CONFOUNDED — it measured the dip vs the FUTURE peak, producing the backwards "deeper dips recover more"; caught and replaced.)
+- **AVERAGING DOCTRINE (Ramana, locked):** recover-rate is a *thesis-intact gauge, NOT a buy trigger*. **Never average small dips** (a −5% fall self-corrects; averaging there buys ~2.6pt of breakeven while burning scarce capital). **Average only at DEEP falls (~30%)**, where an equal-share add HALVES a large breakeven (42.9%→21.4%) and ~38% still recover. Applies to the tracker + A's position-sizing too.
+- **Result (VPS):** recover −5% 69 / −10% 62 / −15% 54 / −20% 48 / −30% 38 (base 76%); breakeven-pt saved by averaging 2.6 → 21.4 across those depths (the value concentrates deep).
 
 ## A — Revised champion ranking + rank-aware proof *(prod venv, pure Python)*
 - **Module:** `src/automation/ignition_rankv2.py` (shipped `ignition.py` untouched; v2 can replace its rank later if validated).

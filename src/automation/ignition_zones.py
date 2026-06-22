@@ -7,9 +7,16 @@ run. Useless (worse: misleading) as averaging guidance.
 
 This reads the PATH-CONDITIONAL flags `rec_after_X` (computed in ignition_backtest
 during the price walk): after price first FALLS −X% from entry in REAL time, did a
-later high still reach +25%? That is the actual averaging question — at the moment
-you'd add, you're down −X% and don't know the future. recover_rate(−X%) tells you
-how often that dip still paid.
+later high still reach +25%? recover_rate(−X%) is a "thesis still intact" gauge.
+
+AVERAGING DOCTRINE (Ramana, 2026-06-23): recover-rate is NOT an averaging trigger.
+**Never average small dips; reserve capital for DEEP falls (~30%).** A 5% fall
+self-corrects (one up-day erases it); after an equal-share average at −5% you need
+just +2.6% to break even, so averaging there buys nothing while burning capital you'd
+want at a real dislocation. Averaging's leverage scales with depth — an equal-share
+add HALVES the breakeven move: trivial at −5% (5.3%→2.6%), large at −30% (42.9%→21.4%).
+So the table shows recover-rate AND the breakeven cut; the case for averaging is the
+combination, and it only stacks up deep.
 
 Self-contained (capture.py pattern): OWNS `averaging_zones`, never edits db.py.
 Reads `ignition_outcomes` (the rec_after_* columns). Pure arithmetic.
@@ -134,13 +141,16 @@ def main() -> None:
         _selftest()
         return
     stats = compute_and_store()
-    print(f"\naveraging zones — after price falls −X% from entry, % that still reach +25%")
-    print(f"(events: {stats['events']}, base reach-rate: {stats['base_rate']}%)\n")
-    print(f"{'fell to':<10}{'n events':>10}{'recover%':>10}")
-    print("-" * 30)
+    print(f"\naveraging zones — after price falls −X% from entry (events {stats['events']}, base reach-+25% {stats['base_rate']}%)")
+    print("DOCTRINE: never average small dips (they self-correct); reserve capital for DEEP falls (~30%).")
+    print("  recover% = thesis-intact gauge (NOT a buy trigger).  BE = up-move to break even; avg halves it.\n")
+    print(f"{'fell to':<9}{'n':>8}{'recover%':>10}{'BE no-avg':>12}{'BE w/ avg':>11}{'pt saved':>10}")
+    print("-" * 60)
     for r in zones():
-        rr = r["recover_rate"] if r["recover_rate"] is not None else "—"
-        print(f"{r['label']:<10}{r['n_touched']:>10}{rr:>10}")
+        x = r["x"]
+        be_no = x / (100.0 - x) * 100.0          # equal-share averaging halves this
+        rr = str(r["recover_rate"]) if r["recover_rate"] is not None else "—"
+        print(f"{r['label']:<9}{r['n_touched']:>8}{rr:>10}{be_no:>11.1f}%{be_no/2:>10.1f}%{be_no/2:>10.1f}")
 
 
 if __name__ == "__main__":
