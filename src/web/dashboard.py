@@ -1204,6 +1204,17 @@ def dash_home() -> HTMLResponse:
     return HTMLResponse(_shell("patearn — Indian-equity strategy dashboard", body, "dash", sig_date or ""))
 
 
+@router.get("/dash/mep", response_class=HTMLResponse)
+def dash_mep() -> HTMLResponse:
+    """MEP — SIGNED accumulation AND distribution (descriptor, D62). The real
+    destination behind every accumulation/distribution link; DVPT keeps /dash/stocks.
+    Full-bleed cockpit render (cockpit.render_mep)."""
+    from src.web.cockpit import render_mep
+    sig_date, _ = _latest_dates()
+    return HTMLResponse(_shell("Accumulation & Distribution · MEP · patearn",
+                               render_mep(), "stocks", sig_date or "", wide=True))
+
+
 @router.get("/dash/conviction", response_class=HTMLResponse)
 def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
     """D45 — the cross-pillar Conviction shortlist: RS leader (D33c) + institutions
