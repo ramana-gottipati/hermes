@@ -1226,6 +1226,13 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 36c — 2026-06-23 — Participant-wise OI: market-level FII/DII/Pro/Client positioning (autonomous)
+The "who is positioned" gold data, built as its own market-level overlay (NSE publishes it aggregate-only, not per-stock — so it's the companion to the per-stock F&O tab, not part of it).
+- **Feed (`src/automation/participant_oi.py`, new):** fetches NSE's daily `fao_participant_oi_<DDMMYYYY>.csv` (FII/DII/Pro/Client × index/stock futures & options, long+short), stores one row per (date, client_type) in its OWN `participant_oi` table (canonical db.py). Backfill from 2024-01-01; nightly via isolated `40-participant.conf` drop-in.
+- **Surface (`src/web/participants_view.py`, new — isolated APIRouter, 1-line main.py mount):** **`/dash/participants`** — the FII index-futures **stance gauge** (net + long:short + 40-day trend sparkline), the **FII-vs-retail divergence** read, a **net-positioning matrix** (Client/DII/FII/Pro × index-fut / stock-fut / index-option-bias, coloured bipolar bars), and FII history. Verified on 2026-06-19: FII **STRONGLY BEARISH** index futures (L/S 0.15, net −2.26L) while Client net long (L/S 3.13) — textbook divergence. Descriptor-only (D62).
+- **Commits:** `6a120f3` (feed + view + db.py canonical). `main.py` mount deployed but NOT committed (carries the parallel session's uncommitted rsband mount — same isolation reason).
+- **OPEN (clean follow-up):** add a **"Participants" chip to the markets sub-nav** (Overview/Map/Weather/Band → +Participants) — it's a 1-line add in dashboard.py, deferred only because that file is parallel-dirty. Route works directly meanwhile.
+
 ### Session 36b — 2026-06-23 — F&O tab DEEPENED: cumulative positioning + basis + option-chain levels (autonomous)
 Ramana wanted the F&O tab to go beyond day-wise buildup to a **cumulative** position read, grounded in researched methodology ("check what's on the internet … bring the magic"). Web-researched standard F&O analytics (participant-OI, basis/cost-of-carry, max-pain/PCR, option walls), then built what the data supports:
 - **Feed (`fno_oi.py`, `fef828c`):** now also captures the near-month **futures close → basis%** (premium/discount vs spot) and parses the near-month **option chain by strike → max-pain, put-wall (support), call-wall (resistance)**. 5 new `fno_oi_signals` cols (canonical db.py; ensure_table ADD COLUMN). New `--recent N` mode; ran `--recent 90` (90 days, 18.8k rows, basis+levels populated; nightly maintains going forward — no systemd change).
