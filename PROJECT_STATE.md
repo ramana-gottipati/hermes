@@ -221,7 +221,9 @@ D:\Hermes\                                          ← local working copy of re
 │       ├── corp_actions.py                         ← NSE corporate actions (bonus/split/etc.)
 │       ├── signals.py                              ← rolling DVPT signals (flat + power deliveries)
 │       ├── screener.py                             ← Screener.in HTML scraper
-│       ├── scoring.py                              ← rule-based 14-pattern patearn scorer
+│       ├── scoring.py                              ← rule-based 14-pattern patearn scorer (D66: real trend signals when point-in-time)
+│       ├── fundamentals_asof.py                    ← D66 point-in-time fundamentals reader (research.db → scorer dict; no look-ahead)
+│       ├── shareholding_history.py                 ← D66 quarterly promoter/FII/DII collector → research.db.shareholding_history
 │       ├── indexes.py                              ← NSE index OHLC ingestion (D32)
 │       ├── index_signals.py                        ← index + ratio signals, sector-vs-broad RS (D32)
 │       ├── membership.py                            ← NSE constituent lists → stock_index_membership (D33b)
@@ -453,6 +455,9 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D66 — Point-in-time fundamentals → backtestable patearn score; the score is a RISK FILTER, returns come from accumulation (2026-06-23, session 37)
+The 24-year fundamentals archive already existed (`research.db.fundamentals_history`, 1,983 syms × 2002–2026, point-in-time via `report_date`) — so the work was INTEGRATION, not collection. Built **`src/automation/fundamentals_asof.py`** — a point-in-time reader returning the exact dict `scoring.score_fundamentals` consumes (drop-in, no scorer rewrite) plus real trend keys; no-look-ahead proven at the +90d/+50d report lag. **`scoring.py` upgraded** — 7 data-starved patterns (P1 ROCE trend, P2/P10 OPM trend, P5 interest coverage, P9 profit acceleration, P12 debtor days, P13 cash-conversion cycle, P6 promoter-rising) now use REAL verified signals when the trend keys are present, else fall back to the old proxy — so the LIVE Telegram path (snapshot dict, no trend keys) is byte-for-byte unchanged (regression-safe). **`research/explosive_moves/fund_panel.py`** — survivorship-aware PIT panel (patearn score as-of every monthly rebalance ⨝ forward 1/3/6/12m returns; a delisted name realizes its return-to-last-price instead of dropping out); ₹5cr liquid universe; `research.db.fund_panel` (51,652 rows). **`research/explosive_moves/combo_test.py`** — joins `fund_panel ⨝ ml_panel` via a `combined_panel` VIEW (tables kept SEPARATE; view = saved join, no copied data). **`src/automation/shareholding_history.py`** — quarterly promoter/FII/DII/public from Screener's shareholding section → `research.db.shareholding_history` (separate table; ~12q/~3y depth; NO pledge — needs BSE); wired into `fundamentals_asof` (P6/P8 real for 2023+). **FINDINGS (survivorship-aware backtest; descriptive — overlapping monthly obs, not significance-tested):** (1) the patearn fundamental score is a **RISK FILTER, not a return ranker** — blow-up rate (>50% loss/12m) falls monotonically by tier (T2 0% → T3 2% → T4 4% → DISQ 5%) while median return is ~flat (NS long-short ≈ 0). (2) **Returns come from accumulation/RS** — top-tercile 3m delivery-drift ≈ 11% median 12m vs ~5% weak. (3) **Sweet spot = strong accumulation + good fundamentals** (≈11% median / 60% hit / **2%** blow-up). (4) **T1 never forms** (NS caps ~63) because P3/P7/P11/P14 + pledge stay estimated — and P11 (VCP) + P14 (volume) are exactly what `ml_panel`/bhav already hold, so a unified T1-capable score = fold the technical-confirmation patterns into the scorer. **Doctrine impact:** quantitatively confirms D62 (DVPT/accumulation = the signal; fundamentals = the quality/risk gate). **Deploy:** files scp'd to VPS; research runs under `.venv-research` (numpy); note `db.py` is stdlib-only so `scoring` imports with no heavy deps. Full arc in § Session log → Session 37.
 
 ### D65 — MEP is headlined as a smoothed, hysteresis-banded PHASE, not the daily score (2026-06-22, session 35)
 The daily `mep_score` flips state ~3 days in 4 (RELIANCE 50 changes / 70 rows) because 3 of its 4 terms are essentially today's bar — a pressure **oscillator**, not the accumulation→consolidation→distribution **regime** it was framed as. **Decision:** store + headline a **PHASE** — `mep_score_smooth` (rolling mean of the daily score over **15** trading rows) banded through a **hysteresis ladder** (asymmetric enter/exit deadbands) into `mep_state_smooth`. The daily score is kept underneath everywhere (data-first). **Why window 15, not the "~10" first sketched:** a VPS grid-search showed 15 is the *smallest* window that puts every reference stock **single-digit** transitions/70 (avg 5.7, max 8 — an 8.5× cut from 48.8); win10–14 leave choppy range-bound large-caps (SBIN/WIPRO) at 10–13. Bands calibrated to the real smoothed-score spread (σ≈0.43) so STRONG is the selective ~10% tail and NEUTRAL/consolidation is the plurality. **Still descriptor-only (D62)** — the phase, however clean, does not rank/pick. Full design + calibration: `docs/mep-strategy-design.md` §9; the multi-lens decode preserved in §10.
@@ -1225,6 +1230,16 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 37 — Point-in-time fundamentals integration + backtest + shareholding feed (2026-06-23, D66)
+Turned the existing 24y fundamentals archive into a backtestable, no-look-ahead patearn score and validated the thesis.
+- **`src/automation/fundamentals_asof.py`** (NEW) — PIT reader → scorer-shaped dict + real trend keys; `score_asof()` drops into the existing scorer; no-look-ahead proven at the report-lag boundary (RELIANCE as-of 2019-06-30 → FY19, known 2019-06-29).
+- **`src/automation/scoring.py`** (UPGRADED) — 7 patterns use real verified trend signals when present, else the old proxy; live snapshot path regression-checked (RELIANCE live unchanged).
+- **`src/automation/shareholding_history.py`** (NEW) — quarterly promoter/FII/DII/public → `research.db.shareholding_history` (1,474 syms, 83,933 rows; ~3y depth; no pledge). Wired into the reader (P6/P8 real for 2023+).
+- **`research/explosive_moves/fund_panel.py`** (NEW) — survivorship-aware PIT panel → `research.db.fund_panel` (51,652 rows). **`combo_test.py`** (NEW) → `combined_panel` VIEW (`fund_panel ⨝ ml_panel`).
+- **Verdict:** fundamental score = RISK FILTER (blow-up T2 0% → DISQ 5%); returns come from accumulation (~11% vs ~5% median 12m); sweet spot = accumulation-strong + fundamentally-good (~11% / 60% hit / 2% blow). T1 doesn't form yet (needs P11/P14 folded in from `ml_panel`).
+- **Commit:** scoped 5-file commit on `main` this session (only my files — parallel sessions' dashboard/rsband/docs left untouched; not pushed). Deployed to VPS via scp; research under `.venv-research`.
+- **NEXT:** operationalize as a live screen (accumulation + fundamental-quality filter); optional — fold P11/P14 into the scorer for a unified T1-capable score; pledge via BSE.
 
 ### Session 36c — 2026-06-23 — Participant-wise OI: market-level FII/DII/Pro/Client positioning (autonomous)
 The "who is positioned" gold data, built as its own market-level overlay (NSE publishes it aggregate-only, not per-stock — so it's the companion to the per-stock F&O tab, not part of it).

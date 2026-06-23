@@ -142,11 +142,15 @@ def score_fundamentals(f: dict) -> dict:
 
     # --- Pattern 1: ROCE Trajectory (W9) ---
     roce = f.get("roce")
+    roce_rising = f.get("roce_rising_3y")      # real 3Y trend (present only when scored point-in-time)
+    roce_3yavg = f.get("roce_3y_avg")
+    r2 = (2 if roce_rising else 0, True) if roce_rising is not None else (_score(roce, 18, 14), False)
+    r3 = (_score(roce_3yavg, 18, 14), True) if roce_3yavg is not None else (_score(roce, 22, 16), False)
     patterns[1] = _pattern_block(1, [
         (_score(roce, 18, 14), True),       # r1: current ROCE > 18%
-        (_score(roce, 18, 14), False),      # r2: rising 3 years — proxy with current (Estimated)
-        (_score(roce, 22, 16), False),      # r3: vs sector — proxy with absolute level (Estimated)
-    ], note="r2/r3 estimated from current ROCE level; no 3Y series available from this scraper")
+        r2,                                 # r2: ROCE rising over 3Y (real) / current-level proxy
+        r3,                                 # r3: sustained 3Y-avg ROCE (real) / absolute-level proxy
+    ], note="r2/r3 use real 3Y ROCE trend + 3Y-avg when point-in-time; else estimated from current level")
 
     # --- Pattern 2: Operating Leverage (W9) ---
     profit_g = f.get("profit_growth_5y")
@@ -156,15 +160,15 @@ def score_fundamentals(f: dict) -> dict:
     else:
         ratio = None
     o1 = _score(ratio, 2.0, 1.5) if ratio is not None else -1
-    # o2/o3 need OPM trend which we approximate from latest OPM
     opm = f.get("opm_latest")
     o2 = _score(opm, 25, 15) if opm is not None else -1
-    o3 = o2  # PAT margin proxy
+    opm_trend = f.get("opm_trend_3y")           # real 3Y OPM trend when point-in-time
+    o3 = (_score(opm_trend, 2.0, 0.0), True) if opm_trend is not None else (o2, False)
     patterns[2] = _pattern_block(2, [
         (o1, profit_g is not None and sales_g is not None),
         (o2, opm is not None),
-        (o3, False),
-    ], note="o3 estimated from OPM proxy")
+        o3,                                 # o3: real 3Y OPM expansion / OPM-level proxy
+    ], note="o3 uses real 3Y OPM trend when point-in-time; else OPM-level proxy")
 
     # --- Pattern 3: Structural Sectoral Tailwind (W8) ---
     # Cannot determine sector tailwind from numerics alone. Default Partial estimated.
@@ -189,26 +193,27 @@ def score_fundamentals(f: dict) -> dict:
     de = f.get("debt_to_equity")
     # Lower D/E is better
     b1 = _score(de, 0.5, 1.5, reverse=True) if de is not None else -1
-    # Interest coverage — proxy with D/E
-    b2 = b1
-    # CFO positive — not directly available; conservative Partial
+    icov = f.get("interest_coverage")           # real EBIT/interest when point-in-time
+    b2 = (_score(icov, 4.0, 2.0), True) if icov is not None else (b1, False)
+    # CFO positive — not in the Screener archive; conservative Partial
     patterns[5] = _pattern_block(5, [
         (b1, de is not None),
-        (b2, False),
+        b2,                                 # b2: real interest coverage / D/E proxy
         (1, False),
-    ], note="b3 (CFO trend) requires P&L time-series; defaulted to Partial-estimated")
+    ], note="b2 uses real interest coverage when point-in-time; b3 (CFO trend) not in archive → Partial")
 
     # --- Pattern 6: Promoter Conviction (W7) ---
     ph = f.get("promoter_holding")
     pledge = f.get("promoter_pledge")
     p1 = _score(ph, 50, 35) if ph is not None else -1
     p2 = _score(pledge, 0, 5, reverse=True) if pledge is not None else -1
-    # P3: promoter buying recently — not available
+    prom_rising = f.get("promoter_rising_4q")   # real promoter-holding-rising ~1y when point-in-time
+    p3 = (2 if prom_rising else 0, True) if prom_rising is not None else (1, False)
     patterns[6] = _pattern_block(6, [
         (p1, ph is not None),
         (p2, pledge is not None),
-        (1, False),
-    ], note="p3 (recent promoter buying) requires insider trading filings; Partial-estimated")
+        p3,                                 # p3: real promoter accumulation / estimated proxy
+    ], note="p1/p3 real when shareholding feed present; pledge (p2) still needs BSE → estimated")
 
     # --- Pattern 7: Export / Mix Inflection (W7) ---
     # Not available from Screener top ratios — needs management commentary
@@ -231,20 +236,21 @@ def score_fundamentals(f: dict) -> dict:
     pg_3y = f.get("profit_growth_3y")
     e1 = _score(pg_ttm, 25, 15) if pg_ttm is not None else -1
     e2 = _score(pg_3y, 20, 12) if pg_3y is not None else -1
-    e3 = e1  # quarterly acceleration proxy
+    accel = f.get("profit_accel_ttm")           # real quarterly YoY acceleration when point-in-time
+    e3 = (_score(accel, 10.0, 0.0), True) if accel is not None else (e1, False)
     patterns[9] = _pattern_block(9, [
         (e1, pg_ttm is not None),
         (e2, pg_3y is not None),
-        (e3, False),
-    ], note="e3 proxied by TTM growth; quarterly acceleration not separately measured")
+        e3,                                 # e3: real quarterly acceleration / TTM-growth proxy
+    ], note="e3 uses real quarterly profit acceleration when point-in-time; else TTM-growth proxy")
 
     # --- Pattern 10: Margin Expansion (W6) ---
-    # Approximate with current OPM level; trend not available
+    m2 = (_score(opm_trend, 2.0, 0.0), True) if opm_trend is not None else (1, False)
     patterns[10] = _pattern_block(10, [
-        (o2, opm is not None),  # reuse OPM score from pattern 2
+        (o2, opm is not None),  # OPM level (reused from pattern 2)
+        m2,                                 # m2: real 3Y OPM expansion when point-in-time
         (1, False),
-        (1, False),
-    ], note="margin trend not available; OPM level used as proxy")
+    ], note="m2 uses real 3Y OPM trend when point-in-time; else OPM-level proxy")
 
     # --- Pattern 11: VCP / Technical (W5) ---
     # Requires price action analysis; default Partial-estimated
@@ -253,15 +259,20 @@ def score_fundamentals(f: dict) -> dict:
     ], note="technical pattern recognition not yet implemented; needs bhav copy + ATR")
 
     # --- Pattern 12: Receivables Discipline (W7) ---
-    # Not in Screener top ratios; default Partial-estimated
+    dd = f.get("debtor_days")                    # real debtor days when point-in-time
+    c1 = (_score(dd, 45.0, 90.0, reverse=True), True) if dd is not None else (1, False)
     patterns[12] = _pattern_block(12, [
-        (1, False), (1, False), (1, False)
-    ], note="debtor days require parsing P&L section; not yet implemented")
+        c1, (1, False), (1, False)
+    ], note="c1 uses real debtor days when point-in-time; receivables trend still estimated")
 
     # --- Pattern 13: Working Capital (W6) ---
+    ccc = f.get("cash_conversion_cycle")
+    wcd = f.get("working_capital_days")
+    w1 = (_score(ccc, 30.0, 90.0, reverse=True), True) if ccc is not None else (1, False)
+    w2 = (_score(wcd, 60.0, 120.0, reverse=True), True) if wcd is not None else (1, False)
     patterns[13] = _pattern_block(13, [
-        (1, False), (1, False), (1, False)
-    ], note="working capital cycle requires balance sheet time-series")
+        w1, w2, (1, False)
+    ], note="w1/w2 use real cash-conversion-cycle + working-capital-days when point-in-time; else estimated")
 
     # --- Pattern 14: Volume Confirmation (W5) ---
     patterns[14] = _pattern_block(14, [
