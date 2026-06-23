@@ -16,6 +16,7 @@ Run: cd /opt/hermes && .venv/bin/python -m src.automation.accum_screen [top_n]
 """
 from __future__ import annotations
 
+import csv
 import os
 import sqlite3
 import statistics
@@ -24,6 +25,7 @@ import sys
 from src.automation.fundamentals_asof import score_asof, RESEARCH_DB
 
 MAIN_DB = os.environ.get("HERMES_MAIN_DB", "/opt/hermes/data/hermes.db")
+CSV_PATH = os.environ.get("HERMES_SCREEN_CSV", "/opt/hermes/data/accum_screen.csv")
 
 # Mirrors stock_rs._LIQUID_FILTER (D42/D33) — real EQ, traded value > Rs1cr, price > Rs20,
 # in the NSE equity allowlist. INLINED (not imported) so this module stays numpy-free
@@ -111,6 +113,17 @@ def build(top_n: int = 300) -> None:
     rc.executemany("INSERT OR REPLACE INTO accum_screen VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", out)
     rc.commit()
     rc.close()
+
+    # CSV for Excel / download-from-vps (data-first): full screen, sweet-spot first.
+    cols = ["trade_date", "symbol", "close", "accum_drift_3m", "accum_character", "rs_rank",
+            "deliv_value_ratio_1m_6m", "p_score", "pct_from_52w_high", "tier", "ns_base",
+            "qg_pass", "hard_disq", "accum_strong", "fund_good", "sweet_spot"]
+    csv_rows = sorted(out, key=lambda o: (-(o[15] or 0), -(o[13] or 0), -(o[3] or 0)))
+    with open(CSV_PATH, "w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(cols)
+        w.writerows(csv_rows)
+    print(f"CSV -> {CSV_PATH} ({len(csv_rows)} rows)")
 
     sweet = sorted((o for o in out if o[15] == 1), key=lambda o: -(o[3] or 0))
     print(f"\nDONE accum_screen: {len(out)} rows written, {len(sweet)} sweet-spot (accum-strong + fund-good)")
