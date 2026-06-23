@@ -224,6 +224,7 @@ D:\Hermes\                                          ← local working copy of re
 │       ├── scoring.py                              ← rule-based 14-pattern patearn scorer (D66: real trend signals when point-in-time)
 │       ├── fundamentals_asof.py                    ← D66 point-in-time fundamentals reader (research.db → scorer dict; no look-ahead)
 │       ├── shareholding_history.py                 ← D66 quarterly promoter/FII/DII collector → research.db.shareholding_history
+│       ├── accum_screen.py                         ← D66 live screen: accumulation × as-of fundamental quality → research.db.accum_screen
 │       ├── indexes.py                              ← NSE index OHLC ingestion (D32)
 │       ├── index_signals.py                        ← index + ratio signals, sector-vs-broad RS (D32)
 │       ├── membership.py                            ← NSE constituent lists → stock_index_membership (D33b)
@@ -1238,8 +1239,9 @@ Turned the existing 24y fundamentals archive into a backtestable, no-look-ahead 
 - **`src/automation/shareholding_history.py`** (NEW) — quarterly promoter/FII/DII/public → `research.db.shareholding_history` (1,474 syms, 83,933 rows; ~3y depth; no pledge). Wired into the reader (P6/P8 real for 2023+).
 - **`research/explosive_moves/fund_panel.py`** (NEW) — survivorship-aware PIT panel → `research.db.fund_panel` (51,652 rows). **`combo_test.py`** (NEW) → `combined_panel` VIEW (`fund_panel ⨝ ml_panel`).
 - **Verdict:** fundamental score = RISK FILTER (blow-up T2 0% → DISQ 5%); returns come from accumulation (~11% vs ~5% median 12m); sweet spot = accumulation-strong + fundamentally-good (~11% / 60% hit / 2% blow). T1 doesn't form yet (needs P11/P14 folded in from `ml_panel`).
+- **`src/automation/accum_screen.py`** (NEW, follow-up commit) — LIVE screen operationalizing the finding: latest-date liquid universe ranked by 3m accumulation drift + `rs_rank`, overlaid with the shareholding-enriched as-of patearn tier → `research.db.accum_screen` (2026-06-22: 1,391 liquid, 124 sweet-spot; led by CEMPRO/CPPLUS/AEROFLEX/GRWRHITECH at RS 93–99, T3). Lane-safe — reads `hermes.db` RO, inlines `_LIQUID_FILTER` to stay numpy-free (runs under prod venv), writes `research.db` only, NO web-tree edits. (Agent-mapped the conviction surface first → built a SEPARATE module since conviction is sector-gated ~245 names + uses the snapshot `pattern_scores`.)
 - **Commit:** scoped 5-file commit on `main` this session (only my files — parallel sessions' dashboard/rsband/docs left untouched; not pushed). Deployed to VPS via scp; research under `.venv-research`.
-- **NEXT:** operationalize as a live screen (accumulation + fundamental-quality filter); optional — fold P11/P14 into the scorer for a unified T1-capable score; pledge via BSE.
+- **NEXT:** surface `accum_screen` on `/dash` via an isolated view (when the web tree frees) or Telegram, + wire it as a nightly job after the signals chain; optional — fold P11/P14 into the scorer for a unified T1-capable score; pledge via BSE.
 
 ### Session 36c — 2026-06-23 — Participant-wise OI: market-level FII/DII/Pro/Client positioning (autonomous)
 The "who is positioned" gold data, built as its own market-level overlay (NSE publishes it aggregate-only, not per-stock — so it's the companion to the per-stock F&O tab, not part of it).
