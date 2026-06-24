@@ -83,7 +83,7 @@ SNIPPET = """<script>
     c.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:#bc8cff"></span>MEP';
     c.title='Accumulation (green) vs distribution (red) phase \\u2014 smoothed'; c.onclick=toggle; return c; }
   function place(tries){ if(document.getElementById('mepChip')) return;
-    var bar=document.getElementById('cprBar')||document.getElementById('maBar');
+    var bar=document.getElementById('stratBar')||document.getElementById('maBar');
     if(bar){ bar.appendChild(makeChip()); return; }
     if(tries>0){ setTimeout(function(){place(tries-1);},80); return; }
     var host=document.getElementById('priceChart'); if(!host) return;
