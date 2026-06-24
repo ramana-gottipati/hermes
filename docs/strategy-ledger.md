@@ -254,6 +254,25 @@ impress a bulge-bracket desk). Result: **not provable today.**
   backlog ≈ ₹1,400 one-time). The binding constraints are **breadth (89 symbols) + forward-only scoring +
   503 throughput**, not money.
 
+**Falsification gate (proof-of-mechanism, 2026-06-24, `credibility_falsify.py` → `out/credibility_falsify.csv`):**
+tested the 21 symbols with a real track record (resolved ≥5 promises) — does credibility predict forward
+EXCESS return vs Nifty 500 (regime-stripped), no look-ahead? Result: **Spearman ≈ 0** (6m +0.02, 12m −0.09) —
+**no standalone-alpha signal.** The ONLY directional hint: promise-BREAKERS (GA<55) underperformed the index
+by ~10% at 6m while keepers were ~flat — i.e. credibility's plausible role is a **downside VETO / avoid
+overlay** (which is exactly how `concall_scores.py` already treats it), NOT a return-ranker. Heavily
+underpowered + regime-confounded (N=21, 2021–22) → inconclusive, but it **does not support the "proprietary
+alpha factor" thesis** — at best a risk-reducer to test on a momentum book once breadth exists.
+
+**Root-cause of the data starvation (verified 2026-06-24):** the credibility series is *frozen*, and it's
+not the drain. `hermes-concalls.timer` runs settlement daily, but `concall_settle.py` only grades a promise
+**if its resolving quarter exists in `concall_results`** (599 rows / 47 symbols / Dec-2023+) — it does NOT
+settle against the deep 24-yr `fundamentals_history`. So recent runs resolve **0** ("settled 0… ongoing 22").
+Bottleneck chain for A, ranked: (1) **breadth** — only ~44 symbols have extracted guidance (needs wider
+Gemini fetch + a universe decision); (2) **deep settlement** — wire `concall_settle.py` → `fundamentals_history`
+so annual guidance grades against the 24-yr archive (the Phase-1b TODO; that file is **parallel-session-owned**
+— coordinate, don't collide); (3) extraction throughput (503s, eased by not contending with enrichment).
+None is a money/billing problem.
+
 **Conclusion:** there is **no number we can produce today** that impresses JPMorgan/GS/MS-tier professionals.
 The momentum zoo is table-stakes (known factor, beta 1.18, toy costs); the proprietary alpha is **data-gated,
 not model-gated.** The real path is a *data-acquisition* play: keep the credibility drain running (raise 503
