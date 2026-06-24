@@ -320,6 +320,27 @@ throughput), WIDEN symbol coverage, and accumulate a point-in-time management-cr
 
 ---
 
+## Best-available strategies — the decision menu (2026-06-24; human decides)
+
+No strategy beats buy-and-hold net of cost (above), so these are surfaced as the **best AVAILABLE**, each for a
+distinct purpose, for a human to choose. `research/explosive_moves/strategy_menu.py` prints the current top-25
+holdings on a CLEAN universe (current Nifty 500 constituents still trading). **Data-hygiene note (deployment
+requirement):** the first cut was contaminated by **delisted ghosts** (RANBAXY/IPCL/ABIRLANUVO, frozen at their
+last bar) + **liquid/cash ETFs** (LIQUIDBEES/CASHIETF, which trivially win a low-vol screen); fixed by restricting
+to live Nifty 500 membership. Any live version MUST keep this filter.
+
+| Strategy | Sharpe | CAGR | MaxDD | cost | capacity | use-case |
+|---|---|---|---|---|---|---|
+| **A. Low-Vol + Momentum** (best survivor) | 0.79 | 13.3% | −25% | 8.3% | ₹190 cr | active equity, smaller drawdown than the index |
+| **B. Pure Low-Vol** (smoothest) | 0.78 | 9.6% | −23% | 5.4% | ₹168 cr | capital preservation / lowest volatility |
+| **C. Risk-Adj Momentum** (aggressive) | 0.51 | 10.2% | −43% | 15.1% | ₹97 cr | hot names; needs careful execution; big drawdowns |
+| Nifty 500 buy & hold (**the bar**) | **0.89** | 15.3% | −29% | 0% | ∞ | the honest default — none above beats it on Sharpe |
+
+**None beats the index on Sharpe** — so the choice is a *risk-profile preference* (smoother ride / more aggressive),
+not an alpha claim. Holdings are regenerable any time via `strategy_menu.py`.
+
+---
+
 ## Decisions on record
 
 1. **RISKADJ (and QUAL_MOM) are KEPT as the internal benchmark.** Not productized for clients, not
