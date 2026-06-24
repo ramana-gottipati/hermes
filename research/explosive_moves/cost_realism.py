@@ -35,11 +35,22 @@ def side_cost(med_turn, atr_pct):
     return half_spread + c["fees_ps"] + slip
 
 
-def build():
-    cache = load_symbol_cache()
-    dts, _ = index_series("Nifty 50")
-    cal = [d for d in dts if d >= "2012-06-01"]
-    ridx = list(range(0, len(cal), REBAL))
+_CACHE = None
+_CAL = None
+
+
+def _load():
+    global _CACHE, _CAL
+    if _CACHE is None:
+        _CACHE = load_symbol_cache()
+        dts, _ = index_series("Nifty 50")
+        _CAL = [d for d in dts if d >= "2012-06-01"]
+    return _CACHE, _CAL
+
+
+def build(rebal=REBAL, gate_pctl=GATE_PCTL):
+    cache, cal = _load()
+    ridx = list(range(0, len(cal), rebal))
     P = {s: ({d: i for i, d in enumerate(A["date"])}, A["adj_close"], A["med_turn"], A["feats"])
          for s, A in cache.items()}
     tables = []
@@ -50,7 +61,7 @@ def build():
             i0 = d2i.get(d0)
             if i0 is None or i0 < 130:
                 continue
-            i1 = d2i.get(d1, min(i0 + REBAL, len(ac) - 1))
+            i1 = d2i.get(d1, min(i0 + rebal, len(ac) - 1))
             if not (ac[i0] > 0 and ac[i1] > 0):
                 continue
             mom6 = ac[i0] / ac[i0 - 126] - 1.0
@@ -63,16 +74,40 @@ def build():
         if len(rec) < TOPN + 5:
             continue
         tp = pctrank(np.array([x["mt"] for x in rec]))
-        g = [x for i, x in enumerate(rec) if tp[i] >= GATE_PCTL]
+        g = [x for i, x in enumerate(rec) if tp[i] >= gate_pctl]
         m6 = pctrank(np.array([x["mom6"] for x in g])); lv = pctrank(np.array([x["lowvol"] for x in g]))
         for k, x in enumerate(g):
             x["riskadj_sc"] = x["riskadj"]
             x["lowvolmom_sc"] = 0.5 * lv[k] + 0.5 * m6[k]
+            x["lowvol_sc"] = lv[k]
         tables.append({"d0": d0, "g": g})
     return tables
 
 
-def run(tables, scorekey, cost="real", band=False):
+def bench_buyhold(tables, ppy):
+    """Nifty 500 buy-and-hold over the same rebalance dates, for reference."""
+    bdts, bcl = index_series("Nifty 500")
+    bc = {d: bcl[i] for i, d in enumerate(bdts)}
+    ds = sorted(bc)
+    import bisect
+    def on(d):
+        i = bisect.bisect_right(ds, d) - 1
+        return bc[ds[i]] if i >= 0 else None
+    rets = []
+    for j in range(len(tables) - 1):
+        a, b = on(tables[j]["d0"]), on(tables[j + 1]["d0"])
+        if a and b:
+            rets.append(b / a - 1.0)
+    rets = np.array(rets)
+    eq = np.cumprod(1 + rets); dd = eq / np.maximum.accumulate(eq) - 1
+    cagr = eq[-1] ** (ppy / len(rets)) - 1
+    return {"sharpe": rets.mean() / rets.std() * np.sqrt(ppy) if rets.std() > 0 else 0,
+            "cagr": cagr, "maxdd": float(dd.min()),
+            "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0, "ann_cost_pct": 0.0,
+            "turn": 0.0, "h1": 0, "h2": 0, "cap_p25_cr": float("inf"), "cap_med_cr": float("inf")}
+
+
+def run(tables, scorekey, cost="real", band=False, ppy=12):
     rets, turns, held, costs, caps = [], [], {}, [], []
     for t in tables:
         g = t["g"]
@@ -100,34 +135,43 @@ def run(tables, scorekey, cost="real", band=False):
         held = byname
     rets = np.array(rets)
     eq = np.cumprod(1 + rets); dd = eq / np.maximum.accumulate(eq) - 1
-    cagr = eq[-1] ** (12.0 / len(rets)) - 1
-    sh = lambda r: (r.mean() / r.std() * SQ) if r.std() > 0 else 0.0
+    cagr = eq[-1] ** (ppy / len(rets)) - 1
+    sh = lambda r: (r.mean() / r.std() * np.sqrt(ppy)) if r.std() > 0 else 0.0
     dates = [t["d0"] for t in tables]
     h1 = np.array([d <= "2018-12-31" for d in dates]); h2 = np.array([d >= "2019-01-01" for d in dates])
     cap_arr = np.array(sorted(caps))
     return {"sharpe": sh(rets), "cagr": cagr, "maxdd": float(dd.min()),
             "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0,
-            "ann_cost_pct": float(np.mean(costs)) * 12 * 100, "turn": float(np.mean(turns)),
+            "ann_cost_pct": float(np.mean(costs)) * ppy * 100, "turn": float(np.mean(turns)),
             "h1": sh(rets[h1]), "h2": sh(rets[h2]),
             "cap_p25_cr": float(np.percentile(cap_arr, 25)) / 1e7,
             "cap_med_cr": float(np.percentile(cap_arr, 50)) / 1e7}
 
 
 def main():
-    print("building (price-only, fast) ...", flush=True)
-    tables = build()
-    print(f"{len(tables)} rebalances\n", flush=True)
+    print("building monthly (top-40% gate) + quarterly large-cap (top-20% gate) ...", flush=True)
+    tbl_m = build(rebal=REBAL, gate_pctl=0.60)            # monthly, broad
+    tbl_q = build(rebal=3 * REBAL, gate_pctl=0.80)        # quarterly, most-liquid (large-cap)
+    print(f"monthly {len(tbl_m)} rebalances, quarterly {len(tbl_q)} rebalances\n", flush=True)
     cfgs = [
-        ("RISKADJ  flat-cost (benchmark)", "riskadj_sc", "flat", False),
-        ("RISKADJ  realistic cost", "riskadj_sc", "real", False),
-        ("RISKADJ  realistic + hold-band(35)", "riskadj_sc", "real", True),
-        ("LOWVOL_MOM realistic cost", "lowvolmom_sc", "real", False),
-        ("LOWVOL_MOM realistic + hold-band(35)", "lowvolmom_sc", "real", True),
+        # name, tables, scorekey, cost, band, ppy
+        ("RISKADJ monthly flat-cost (the headline)", tbl_m, "riskadj_sc", "flat", False, 12),
+        ("RISKADJ monthly realistic", tbl_m, "riskadj_sc", "real", False, 12),
+        ("LOWVOL_MOM monthly realistic + band", tbl_m, "lowvolmom_sc", "real", True, 12),
+        ("RISKADJ quarterly largecap realistic", tbl_q, "riskadj_sc", "real", False, 4),
+        ("LOWVOL_MOM quarterly largecap realistic+band", tbl_q, "lowvolmom_sc", "real", True, 4),
+        ("LOWVOL quarterly largecap realistic+band", tbl_q, "lowvol_sc", "real", True, 4),
+        ("Nifty500 buy & hold (quarterly marks)", tbl_q, None, None, False, 4),
     ]
-    rows = [(name, run(tables, k, c, b)) for name, k, c, b in cfgs]
-    hdr = f"{'config':38}{'Sharpe':>7}{'CAGR':>7}{'MaxDD':>8}{'Calmar':>7}{'annCost':>8}{'turn':>6}{'H1':>6}{'H2':>6}{'capMedCr':>9}"
+    rows = []
+    for name, tbl, k, c, b, ppy in cfgs:
+        if k is None:
+            rows.append((name, bench_buyhold(tbl, ppy)))
+        else:
+            rows.append((name, run(tbl, k, c, b, ppy)))
+    hdr = f"{'config':46}{'Sharpe':>7}{'CAGR':>7}{'MaxDD':>8}{'Calmar':>7}{'annCost':>8}{'turn':>6}{'H1':>6}{'H2':>6}{'capMedCr':>9}"
     print("=" * len(hdr))
-    print("COST REALISM (top-25 monthly, value-gate, walk-forward). capMedCr = max AUM (Rs cr) before median position > 10% of its ADV")
+    print("COST REALISM — does ANY config survive real cost? capMedCr = max AUM (Rs cr) before median position > 10% of its ADV")
     print("=" * len(hdr)); print(hdr)
     for name, s in rows:
         print(f"{name:38}{s['sharpe']:>7.2f}{s['cagr']*100:>6.1f}%{s['maxdd']*100:>7.1f}%{s['calmar']:>7.2f}"

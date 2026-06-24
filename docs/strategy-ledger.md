@@ -256,6 +256,22 @@ execution / much lower turnover / large-cap-only could recover SOME — but the 
 headline number is not real. **This removes even the "credible benchmark" prop: the honest near-term asset is
 the point-in-time rigor + the data, NOT a backtested strategy.**
 
+**Final test — does ANY config beat buy-and-hold net of cost? NO.** Ran the only low-cost corner: quarterly
+rebalance, large-cap (top-20% liquidity), low-vol.
+
+| config | Sharpe | CAGR | MaxDD | ann.cost | capacity |
+|---|---|---|---|---|---|
+| LOWVOL_MOM quarterly large-cap +band | 0.79 | 13.3% | −25.4% | 8.3% | ₹190 cr |
+| LOWVOL quarterly large-cap +band | 0.78 | 9.6% | −23.1% | 5.4% | ₹168 cr |
+| RISKADJ quarterly large-cap | 0.51 | 10.2% | −43.3% | 15.1% | ₹97 cr |
+| **Nifty 500 buy & hold** | **0.89** | **15.3%** | −29.2% | 0% | ∞ |
+
+Even the best survivable strategy (LOWVOL_MOM, Sharpe 0.79) **underperforms simply holding the Nifty 500 (0.89)**
+on both Sharpe and CAGR, with finite capacity and execution complexity. The low-vol tilt buys a slightly shallower
+drawdown (−23 to −25% vs −29%) — defensive equity, not alpha. **DEFINITIVE: no fundable equity-factor edge in this
+research beats buy-and-hold the index net of realistic cost.** The strategy-as-alpha path is closed (recorded in
+full); the genuine assets are the point-in-time rigor and the under-covered Indian-mid-cap data.
+
 ---
 
 ## Proprietary-alpha feasibility check (2026-06-24) — the hard truth
