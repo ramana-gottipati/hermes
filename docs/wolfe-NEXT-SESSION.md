@@ -182,6 +182,17 @@ no daily Wolfe; his 968/1066/1133/1075 pivots are 75-min-only (06-10's high isn'
 is higher). Proven 3 ways. PARAS's pattern genuinely lives at 75-min; daily can't show it without intraday
 data (which he declined). The mechanism is right; PARAS is simply post-breakout on the daily scale.
 
+**⚠️ REVERTED the fractal switch (Ramana, same day): "You already identified 1-2-3-4-5 before — reach that
+place AGAIN first, then fibs."** The fractal switch made PARAS show *nothing* — a regression vs the zigzag,
+which DID plot the five points. So `detect_waves` is back on the **ATR-zigzag** (the version that surfaces a
+clean 1-2-3-4-5 on daily); `fractal_pivots()` stays defined but unused. PARAS now plots
+**1(881.95 05-26·H) · 2(805.7 06-02·L) · 3(1066.75 06-10·H) · 4(968.1 06-11·L) · 5(1443 06-19·H)** — a valid
+ascending bear, zones (up-projected) 1005.55/1128.21. **LESSON: stop changing the pivot mechanism; the
+zigzag is the "version that worked." Get his sign-off on the 5 points BEFORE touching the Fib ratios.**
+NOTE: this daily wave is *bigger* than his 75-min one (shares 1066.75/968.1 but not 1133/1075.5); whether it
+IS the pattern he remembers, or he wants the tighter consolidation swings (→ a finer zigzag k), is the next
+question for him — do NOT guess it.
+
 ---
 
 ## 7b. CORRECTION — the convention rewrite was WRONG; REVERTED (2026-06-24, later)
