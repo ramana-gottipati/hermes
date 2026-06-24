@@ -1,0 +1,428 @@
+"""stock_chart.py — the live /dash/stock chart engine (the "one chart" rebuild).
+
+Self-contained SNIPPET (same proven pattern as cpr_overlay / indicators_overlay /
+mep_overlay / wolfe_overlay) that REPLACES the old 4-pane stretched stack with ONE
+responsive price chart + a single four-family control rail. It reads the page data
+already exposed as ``window.__wfdata`` ({series, zones}), builds the chart, and
+RE-EXPOSES the exact ``window.__wfpc`` / ``window.__wfcandle`` / ``[data-ptf]``
+contract the committed strategy overlays bind to — so CPR / MA / MEP / Wolfe keep
+working untouched. **The CPR in particular stays owned by ``cpr_overlay.py``; this
+module never draws it.**
+
+What it does, vs the old inline block it supersedes:
+
+  * ONE chart — DVPT / Delivery% / Traded-&-Delivery-value fold into docked sub-panes
+    (overlay price scales) instead of three separate short-wide charts → kills the
+    "stretch". Every per-day figure stays on the hover readout, so no data regresses.
+  * The four-family rail (Ramana's taxonomy): **Chart-type** dropdown (Candles / Hollow
+    / Heikin-Ashi / Line / Area; Renko + P&F flagged "soon") · **Strategies** (CPR /
+    DVPT / MEP / Wolfe / RS — opt-in) · **Indicators** (MA / VWAP / Anchored-VWAP + the
+    delivery / traded lanes) · **Drawings** (trendline / ray / rect / Fib / text / measure
+    + 🧲 magnet + hide-all, persisted per-symbol). One shared rail; everything opt-in.
+  * The strategy / indicator chips injected by the committed overlay snippets land in the
+    right family because this rail pre-creates their anchors (``#stratBar`` for
+    CPR/MEP, ``#cprBar`` for MA) and hides MA's duplicate label.
+  * Same interval (D/W/M/Q) resample, range buttons, and crosshair readout as before —
+    ``[data-ptf]`` / ``.rangebar`` are re-homed into the rail and re-bound here (the CPR
+    ladder still hooks ``[data-ptf]`` additively, so it keeps following the interval).
+
+dashboard.py wires it with two anchored hooks (uncommitted, like the other overlays):
+an import, and replacing the old inline ``<script>`` block with the data island + the
+``{token}``. No DB here; ``rs_overlay.py`` owns the one new endpoint. No circular import.
+"""
+from __future__ import annotations
+
+# Plain string (NOT an f-string) so the JS braces survive; dashboard.py inserts it
+# via its f-string template like `{_STOCK_CHART_SNIPPET}`, after a data island that
+# sets `window.__wfdata` and the lightweight-charts <script>.
+SNIPPET = """<script>
+(function(){
+  "use strict";
+  // --- the fixed colour grammar (mirrors hermes-charts.js PALETTE) ----------
+  var C={up:'#3fb950',down:'#f85149',line:'#1f6feb',dvpt:'#d29922',dvptIdle:'#30506b',
+    deliv:'#58a6ff',tval:'#30363d',dval:'#2ea043',vwap:'#f0883e',avwap:'#db61a2',
+    rs:'#39c5cf',wolfe:'#58a6ff',txt:'#8b949e',txtHi:'#e6edf3',dim:'#6e7681',
+    border:'#30363d',grid:'#21262d',bg:'#161b22'};
+  function E(t,css,html){ var n=document.createElement(t); if(css)n.style.cssText=css; if(html!=null)n.innerHTML=html; return n; }
+  function hexA(hex,a){ var h=hex.replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return 'rgba('+parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16)+','+a+')'; }
+  function n2(v){ return v==null?'-':(Math.round(v*100)/100); }
+  function cr(v){ return '\\u20b9'+Math.round(v).toLocaleString('en-IN'); }
+  function chipCss(on,col){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;'+
+    'padding:3px 9px;border-radius:20px;user-select:none;white-space:nowrap;'+
+    (on?('background:'+hexA(col,0.16)+';color:'+col):('border:1px solid #30363d;color:#8b949e')); }
+  function dot(col){ return '<span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'; }
+
+  function boot(){
+    var host=document.getElementById('priceChart'); if(!host) return;
+    if(!window.LightweightCharts){ host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+    var DATA=window.__wfdata; if(!DATA||!DATA.series||!DATA.series.length) return;
+    var S0=DATA.series, ZONES=DATA.zones||[];        // S0 = raw daily, never mutated
+    var iv='d', ctype='candle', RT=S0.slice();       // RT = current resampled rows
+
+    // ---- the ONE chart ------------------------------------------------------
+    host.style.cssText='height:480px;position:relative';
+    var common={ layout:{background:{color:C.bg},textColor:C.txt,fontSize:11},
+      grid:{vertLines:{color:C.grid},horzLines:{color:C.grid}},
+      timeScale:{borderColor:'#30363d',rightOffset:3},
+      rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.06,bottom:0.28}},
+      crosshair:{mode:0}, handleScroll:true, handleScale:true };
+    var pc=LightweightCharts.createChart(host, Object.assign({height:480}, common));
+    window.__wfpc=pc;
+    var candle=pc.addCandlestickSeries({upColor:C.up,downColor:C.down,wickUpColor:C.up,wickDownColor:C.down,borderVisible:false});
+    window.__wfcandle=candle;
+    var pline=pc.addLineSeries({color:C.line,lineWidth:2,priceLineVisible:false,lastValueVisible:false}); pline.applyOptions({visible:false});
+    var parea=pc.addAreaSeries({lineColor:C.line,topColor:'rgba(31,111,235,0.25)',bottomColor:'rgba(31,111,235,0.02)',lineWidth:2,priceLineVisible:false,lastValueVisible:false}); parea.applyOptions({visible:false});
+    ZONES.forEach(function(z){ candle.createPriceLine({price:z.price,color:z.color||'#6e7681',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label||''}); });
+
+    // docked flow sub-panes (overlay price scales, shared bottom band) — collapse
+    // the old DVPT / Delivery% / Traded-value panes into the ONE chart.
+    var FLOW={top:0.80, bottom:0.02};
+    var dvptH=pc.addHistogramSeries({priceScaleId:'dvpt',priceFormat:{type:'volume'},lastValueVisible:false});
+    pc.priceScale('dvpt').applyOptions({scaleMargins:FLOW});
+    var delivL=pc.addLineSeries({priceScaleId:'deliv',color:C.deliv,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    pc.priceScale('deliv').applyOptions({scaleMargins:FLOW}); delivL.applyOptions({visible:false});
+    var tvCap=0; function capInfo(){ return {priceRange:{minValue:0,maxValue:tvCap||1}}; }
+    var tvalH=pc.addHistogramSeries({priceScaleId:'tv',priceFormat:{type:'volume'},color:C.tval,autoscaleInfoProvider:capInfo,lastValueVisible:false});
+    var dvalH=pc.addHistogramSeries({priceScaleId:'tv',priceFormat:{type:'volume'},color:C.dval,autoscaleInfoProvider:capInfo,lastValueVisible:false});
+    pc.priceScale('tv').applyOptions({scaleMargins:FLOW}); tvalH.applyOptions({visible:false}); dvalH.applyOptions({visible:false});
+
+    // VWAP / Anchored-VWAP (Indicators) — line series on the price scale, opt-in.
+    var vwapL=pc.addLineSeries({color:C.vwap,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); vwapL.applyOptions({visible:false});
+    var avwapL=pc.addLineSeries({color:C.avwap,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); avwapL.applyOptions({visible:false});
+    var avwapAnchor=null;   // {time} chosen via the AVWAP tool
+
+    // ---- resample (D/W/M/Q) — ported verbatim from the proven inline block ---
+    function isoWeekKey(s){ var d=new Date(s+'T00:00:00Z'); var jd=(d.getUTCDay()+6)%7;
+      d.setUTCDate(d.getUTCDate()-jd+3); var iy=d.getUTCFullYear();
+      var j4=new Date(Date.UTC(iy,0,4)); var j4d=(j4.getUTCDay()+6)%7;
+      j4.setUTCDate(j4.getUTCDate()-j4d+3); var wk=1+Math.round((d-j4)/(7*86400000));
+      return iy+'-W'+('0'+wk).slice(-2); }
+    function pkey(s,tf){ if(tf==='w')return isoWeekKey(s); if(tf==='m')return s.slice(0,7);
+      if(tf==='q'){ var y=s.slice(0,4),mo=parseInt(s.slice(5,7),10); return y+'-Q'+(Math.floor((mo-1)/3)+1); }
+      return s; }
+    function resample(tf){
+      var mk=function(d){ return {time:d.time,open:d.open,high:d.high,low:d.low,close:d.close,
+        dvpt:(d.dvpt||0),hot:(d.r1m!=null&&d.r1m>1),delivSum:(d.deliv!=null?d.deliv:0),delivN:(d.deliv!=null?1:0),
+        tval:(d.tval||0),dval:(d.dval||0)}; };
+      if(tf==='d') return S0.map(mk);
+      var out=[],k=null,c=null;
+      for(var i=0;i<S0.length;i++){ var d=S0[i],kk=pkey(d.time,tf);
+        if(kk!==k){ if(c)out.push(c); k=kk; c=mk(d); }
+        else { c.high=Math.max(c.high,d.high); c.low=Math.min(c.low,d.low); c.close=d.close; c.time=d.time;
+          if((d.dvpt||0)>c.dvpt)c.dvpt=d.dvpt||0; if(d.r1m!=null&&d.r1m>1)c.hot=true;
+          if(d.deliv!=null){ c.delivSum+=d.deliv; c.delivN++; }
+          c.tval+=(d.tval||0); c.dval+=(d.dval||0); } }
+      if(c)out.push(c);
+      return out;
+    }
+    function rawOHLC(d){ return {time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}; }
+    function heikin(R){ var out=[],po=null,pcl=null;
+      for(var i=0;i<R.length;i++){ var d=R[i]; var hc=(d.open+d.high+d.low+d.close)/4;
+        var ho=(po==null)?(d.open+d.close)/2:(po+pcl)/2; var hh=Math.max(d.high,ho,hc); var hl=Math.min(d.low,ho,hc);
+        out.push({time:d.time,open:ho,high:hh,low:hl,close:hc}); po=ho; pcl=hc; }
+      return out; }
+
+    // ---- apply current rows to every series ---------------------------------
+    function paintPrice(){
+      var data=(ctype==='heikin')?heikin(RT):RT.map(rawOHLC);
+      candle.setData(data);
+      pline.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
+      parea.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
+    }
+    function applyRows(){
+      paintPrice();
+      dvptH.setData(RT.map(function(d){return {time:d.time,value:d.dvpt,color:d.hot?C.dvpt:C.dvptIdle};}));
+      delivL.setData(RT.filter(function(d){return d.delivN>0;}).map(function(d){return {time:d.time,value:d.delivSum/d.delivN};}));
+      var tv=RT.map(function(d){return d.tval;}).filter(function(v){return v!=null&&v>0;}).sort(function(a,b){return a-b;});
+      tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
+      tvalH.setData(RT.filter(function(d){return d.tval!=null;}).map(function(d){return {time:d.time,value:d.tval};}));
+      dvalH.setData(RT.filter(function(d){return d.dval!=null;}).map(function(d){return {time:d.time,value:d.dval};}));
+      tvalH.setMarkers(tvCap>0?RT.filter(function(d){return d.tval!=null&&d.tval>tvCap;}).map(function(d){return {time:d.time,position:'aboveBar',color:C.dvpt,shape:'arrowUp'};}):[]);
+      if(reg.vwap.on) vwapL.setData(vwapFrom(RT,0));
+      if(reg.avwap.on) avwapL.setData(vwapFrom(RT, anchorIdx()));
+      if(draw) draw.redraw();
+    }
+    function setIv(tf){ iv=tf; RT=resample(tf); applyRows(); }
+
+    // ---- range --------------------------------------------------------------
+    function setRange(nn){
+      if(!nn||nn>=RT.length) pc.timeScale().fitContent();
+      else pc.timeScale().setVisibleRange({from:RT[Math.max(0,RT.length-nn)].time, to:RT[RT.length-1].time});
+    }
+    function curRange(){ var b=document.querySelector('.rangebar button.on'); return b?parseInt(b.dataset.r):0; }
+
+    // ---- chart type ---------------------------------------------------------
+    function setType(t){ ctype=t;
+      var isLine=(t==='line'), isArea=(t==='area'), isC=(!isLine&&!isArea);
+      candle.applyOptions({visible:isC}); pline.applyOptions({visible:isLine}); parea.applyOptions({visible:isArea});
+      if(t==='hollow') candle.applyOptions({upColor:'rgba(0,0,0,0)',borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:C.up,wickDownColor:C.down});
+      else if(isC) candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:false,wickUpColor:C.up,wickDownColor:C.down});
+      paintPrice();
+    }
+
+    // ---- VWAP ---------------------------------------------------------------
+    function vwapFrom(R,start){ var pv=0,vv=0,out=[];
+      for(var i=0;i<R.length;i++){ if(i<start)continue; var d=R[i];
+        var vol=(d.tval&&d.close)?d.tval/d.close:0; var tp=(d.high+d.low+d.close)/3;
+        pv+=tp*vol; vv+=vol; out.push({time:d.time,value:vv>0?pv/vv:d.close}); }
+      return out; }
+    function anchorIdx(){ if(!avwapAnchor)return Math.max(0,RT.length-63);
+      for(var i=0;i<RT.length;i++){ if(RT[i].time>=avwapAnchor) return i; } return 0; }
+
+    // ---- crosshair readout (#priceRdt) — keyed on raw daily, like before ----
+    var rdt=document.getElementById('priceRdt');
+    var byT={}; S0.forEach(function(d){byT[d.time]=d;});
+    function tkey(t){ return (typeof t==='object'&&t)?(t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2)):t; }
+    function showR(d){ if(!rdt)return; if(!d){ rdt.innerHTML=''; return; }
+      var h='<b>'+d.time+'</b>&nbsp; O '+n2(d.open)+'&nbsp; H '+n2(d.high)+'&nbsp; L '+n2(d.low)+'&nbsp; <b>C '+n2(d.close)+'</b>'
+        +(d.dvpt!=null?'&nbsp; &middot; <span style="color:'+C.dvpt+'">DVPT '+cr(d.dvpt)+(d.r1m>1?' inst':'')+'</span>':'')
+        +(d.deliv!=null?'&nbsp; &middot; Deliv '+d.deliv.toFixed(1)+'%':'');
+      if(d.tval!=null){ h+='&nbsp; &middot; Traded '+cr(d.tval); if(d.dval!=null)h+=' / Deliv '+cr(d.dval)+(d.tval>0?' ('+(d.dval/d.tval*100).toFixed(0)+'%)':''); }
+      rdt.innerHTML=h; }
+    pc.subscribeCrosshairMove(function(p){ if(!p||!p.time){ showR(S0[S0.length-1]); return; } showR(byT[tkey(p.time)]||S0[S0.length-1]); });
+
+    // ---- overlay registry (this engine's own toggles) -----------------------
+    var reg={
+      dvpt:{label:'DVPT',col:C.dvpt,on:true, fn:function(v){ dvptH.applyOptions({visible:v}); }},
+      rs:{label:'RS',col:C.rs,on:false, fn:function(v){ rsToggle(v); }},
+      vwap:{label:'VWAP',col:C.vwap,on:false, fn:function(v){ if(v)vwapL.setData(vwapFrom(RT,0)); vwapL.applyOptions({visible:v}); }},
+      avwap:{label:'Anchored VWAP',col:C.avwap,on:false, fn:function(v){ if(v){ avwapL.setData(vwapFrom(RT,anchorIdx())); pickAVWAP(); } avwapL.applyOptions({visible:v}); }},
+      deliv:{label:'Delivery %',col:C.deliv,on:false, fn:function(v){ delivL.applyOptions({visible:v}); }},
+      flow:{label:'Traded \\u20b9',col:C.dval,on:false, fn:function(v){ tvalH.applyOptions({visible:v}); dvalH.applyOptions({visible:v}); }}
+    };
+    function regChip(key){ var o=reg[key]; var c=E('span',chipCss(o.on,o.col),dot(o.col)+o.label);
+      c.onclick=function(){ o.on=!o.on; o.fn(o.on); c.style.cssText=chipCss(o.on,o.col); c.innerHTML=dot(o.col)+o.label; };
+      o.chip=c; return c; }
+
+    // =========================================================================
+    //  THE FOUR-FAMILY RAIL — one shared, opt-in control bar (Ramana's taxonomy)
+    // =========================================================================
+    function famLabel(t){ return E('span','font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:'+C.dim+';margin-right:4px',t); }
+    function family(lbl, host){ var col=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:3px 0');
+      col.appendChild(famLabel(lbl)); if(host)col.appendChild(host); return col; }
+    function sep(){ return E('span','width:1px;align-self:stretch;background:'+C.border+';margin:0 4px'); }
+
+    var rail=E('div','background:#0e1320;border:1px solid '+C.border+';border-radius:10px;padding:6px 10px;margin:0 0 8px;display:flex;flex-direction:column;gap:2px;font-family:-apple-system,Segoe UI,Roboto,sans-serif');
+
+    // -- family 1: chart type (dropdown — types are NOT indicators) ----------
+    var typeSel=E('select','background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:12px;padding:4px 8px');
+    [['candle','Candles'],['hollow','Hollow candles'],['heikin','Heikin Ashi'],['line','Line'],['area','Area'],
+     ['renko','Renko (soon)',true],['pnf','Point & Figure (soon)',true]].forEach(function(o){
+      var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; if(o[2])op.disabled=true; typeSel.appendChild(op); });
+    typeSel.onchange=function(){ if(typeSel.value==='renko'||typeSel.value==='pnf'){ typeSel.value=ctype; return; } setType(typeSel.value); };
+
+    // -- family 2: strategies — pre-create #stratBar so CPR/MEP chips land here -
+    var stratBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px'); stratBar.id='stratBar';
+    var wfChip=E('span',chipCss(false,C.wolfe),dot(C.wolfe)+'Wolfe');
+    wfChip.onclick=function(){ var cb=document.getElementById('wfChk'); if(!cb)return; cb.checked=!cb.checked;
+      cb.dispatchEvent(new Event('change')); wfChip._on=cb.checked; wfChip.style.cssText=chipCss(cb.checked,C.wolfe); wfChip.innerHTML=dot(C.wolfe)+'Wolfe'; };
+    stratBar.appendChild(regChip('dvpt'));      // DVPT first; CPR/MEP append after
+    stratBar.appendChild(wfChip);
+    stratBar.appendChild(regChip('rs'));
+
+    // -- family 3: indicators — #cprBar anchors MA's #maBar into this family ---
+    var indBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px');
+    var maAnchor=E('span','display:inline-block;width:0'); maAnchor.id='cprBar'; indBar.appendChild(maAnchor);
+    indBar.appendChild(regChip('vwap')); indBar.appendChild(regChip('avwap'));
+    indBar.appendChild(regChip('deliv')); indBar.appendChild(regChip('flow'));
+
+    // -- family 4: drawings (built below; engine attaches to drawBar) ---------
+    var drawBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:4px');
+
+    var row1=E('div','display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px');
+    row1.appendChild(family('Chart type',typeSel)); row1.appendChild(sep());
+    row1.appendChild(family('Strategies',stratBar)); row1.appendChild(sep());
+    row1.appendChild(family('Indicators',indBar)); row1.appendChild(sep());
+    row1.appendChild(family('Drawings',drawBar));
+    rail.appendChild(row1);
+
+    // -- compact second line: interval · range · Wolfe status (re-homed) ------
+    var row2=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid #161b22;margin-top:2px;padding-top:4px');
+    var ivBar=document.getElementById('ivBar');
+    var rangeBar=document.querySelector('.rangebar');
+    var ctBar=document.getElementById('ctBar');
+    var wfLbl=document.getElementById('wfLbl');
+    var wfRow=document.getElementById('wfChk'); wfRow=wfRow?wfRow.closest('.fbar'):null;
+    if(ivBar){ row2.appendChild(family('Interval',ivBar)); }
+    if(rangeBar){ row2.appendChild(family('Range',rangeBar)); }
+    if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.appendChild(wfLbl); row2.appendChild(st); }
+    rail.appendChild(row2);
+
+    // mount rail just above the chart box; hide the now-folded old rows + panes
+    var wrap=host.closest('.chartwrap');
+    if(wrap&&wrap.parentNode) wrap.parentNode.insertBefore(rail, wrap); else host.parentNode.insertBefore(rail, host);
+    if(ctBar) ctBar.style.display='none';
+    if(wfRow) wfRow.style.display='none';
+    ['dvptChart','delivChart','tvChart'].forEach(function(id){ var el=document.getElementById(id); if(el){ var w=el.closest('.chartwrap'); if(w)w.style.display='none'; } });
+
+    // re-bind interval + range (their old handlers lived in the killed block);
+    // CPR's own [data-ptf] listener still fires additively → ladder follows.
+    document.querySelectorAll('[data-ptf]').forEach(function(b){
+      b.onclick=function(){ document.querySelectorAll('[data-ptf]').forEach(function(x){x.classList.toggle('on',x===b);}); setIv(b.dataset.ptf); setRange(curRange()); }; });
+    document.querySelectorAll('.rangebar button').forEach(function(b){
+      b.onclick=function(){ document.querySelectorAll('.rangebar button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); setRange(parseInt(b.dataset.r)); }; });
+
+    // hide MA's duplicate "Indicators" label once it injects (my family owns it)
+    (function tidy(n){ var mb=document.getElementById('maBar'); if(mb){ if(mb.firstChild&&mb.firstChild.tagName==='SPAN')mb.firstChild.style.display='none';
+        mb.style.margin='0'; return; } if(n>0)setTimeout(function(){tidy(n-1);},80); })(30);
+
+    // =========================================================================
+    //  DRAWING ENGINE — curated T1 (trendline/ray/rect/Fib/text/measure) +
+    //  magnet (snap nearest OHLC, still overridable) + hide-all + persistence.
+    // =========================================================================
+    var draw=makeDraw(pc,candle,host,drawBar,function(){return RT;});
+
+    // boot
+    setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]);
+    var ro=new ResizeObserver(function(){ var w=host.clientWidth; if(w)pc.applyOptions({width:w}); });
+    ro.observe(host);
+
+    // -------- RS docked lane (Strategies) — fetch /dash/rs/overlay on toggle --
+    var rsL=null, rsLoaded=false;
+    function rsToggle(v){
+      if(!v){ if(rsL)rsL.applyOptions({visible:false}); return; }
+      if(rsLoaded){ if(rsL)rsL.applyOptions({visible:true}); return; }
+      rsLoaded=true; var sym=new URLSearchParams(location.search).get('sym')||'';
+      fetch('/dash/rs/overlay?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
+        if(!d||!d.series||!d.series.length){ reg.rs.on=false; if(reg.rs.chip){reg.rs.chip.style.cssText=chipCss(false,C.rs);reg.rs.chip.innerHTML=dot(C.rs)+'RS';} return; }
+        rsL=pc.addLineSeries({priceScaleId:'rs',color:C.rs,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:'RS vs '+(d.benchmark||'Nifty 500')});
+        pc.priceScale('rs').applyOptions({scaleMargins:{top:0.74,bottom:0.04}});  // docked in the bottom band, not over the candles
+        rsL.setData(d.series.map(function(p){return {time:p.t,value:p.v};}));
+      }).catch(function(){ rsLoaded=false; });
+    }
+
+    // anchored-VWAP: arm a one-shot click to choose the anchor bar
+    function pickAVWAP(){ var once=function(p){ if(p&&p.time){ avwapAnchor=tkey(p.time); avwapL.setData(vwapFrom(RT,anchorIdx())); } pc.unsubscribeClick(once); };
+      pc.subscribeClick(once); }
+  }
+
+  // ===========================================================================
+  //  makeDraw — the drawing primitive + tool palette (its own closure)
+  // ===========================================================================
+  function makeDraw(pc, series, host, bar, getRows){
+    var sym=new URLSearchParams(location.search).get('sym')||'_';
+    var KEY='hdraw:'+sym;
+    var items=[]; try{ items=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ items=[]; }
+    var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null;
+    var FIB=[0,0.236,0.382,0.5,0.618,0.786,1];
+
+    function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+    function bars(){ return getRows(); }
+    function nearestBarX(x){ var R=bars(),ts=pc.timeScale(),best=null,bd=1e9;
+      for(var i=0;i<R.length;i++){ var cx=ts.timeToCoordinate(R[i].time); if(cx==null)continue; var dd=Math.abs(cx-x); if(dd<bd){bd=dd;best=R[i];} } return best; }
+    function snap(x,y){ var b=nearestBarX(x); if(!b) return {time:pc.timeScale().coordinateToTime(x),price:series.coordinateToPrice(y)};
+      var price=series.coordinateToPrice(y);
+      if(magnet){ var cands=[b.open,b.high,b.low,b.close],bp=price,bd=1e9;
+        for(var i=0;i<cands.length;i++){ var cy=series.priceToCoordinate(cands[i]); if(cy==null)continue; var dd=Math.abs(cy-y); if(dd<bd){bd=dd;bp=cands[i];} } price=bp; }
+      return {time:b.time, price:price}; }
+    function px(a){ var x=pc.timeScale().timeToCoordinate(a.time); if(x==null){ var R=bars(); var t=a.time;
+        // snap off-axis anchor onto the nearest visible bar (resample-safe)
+        var lo=0,hi=R.length-1,k=null; while(lo<=hi){var m=(lo+hi)>>1; if(R[m].time<=t){k=R[m].time;lo=m+1;}else hi=m-1;}
+        if(k!=null)x=pc.timeScale().timeToCoordinate(k); }
+      var y=series.priceToCoordinate(a.price); return (x==null||y==null)?null:{x:x,y:y}; }
+
+    // the canvas primitive (top z) — paints every drawing + the live draft
+    var reqUpd=null;
+    var view={ zOrder:function(){return 'top';}, renderer:function(){ return { draw:function(tg){
+      if(hidden) return;
+      tg.useBitmapCoordinateSpace(function(sc){
+        var x=sc.context,h=sc.horizontalPixelRatio,v=sc.verticalPixelRatio,W=sc.mediaSize.width;
+        function L(a,b,col,w,dash){ var pa=px(a),pb=px(b); if(!pa||!pb)return; x.strokeStyle=col;x.lineWidth=(w||1)*v;
+          x.setLineDash(dash?[4*h,3*h]:[]); x.beginPath(); x.moveTo(pa.x*h,pa.y*v); x.lineTo(pb.x*h,pb.y*v); x.stroke(); x.setLineDash([]); }
+        function hline(a,col){ var pa=px(a); if(!pa)return; x.strokeStyle=col;x.lineWidth=1*v;x.setLineDash([]); x.beginPath(); x.moveTo(0,pa.y*v); x.lineTo(W*h,pa.y*v); x.stroke(); }
+        function txt(s,X,Y,col){ x.fillStyle=col; x.font=(11*v)+'px -apple-system,Segoe UI,sans-serif'; x.fillText(s,X,Y); }
+        function one(d,isSel){ var col=isSel?'#e6edf3':(d.col||'#58a6ff');
+          if(d.t==='hline'){ hline(d.a,col); var pa=px(d.a); if(pa)txt(n2(d.a.price),6*h,(pa.y-4)*v,col); return; }
+          if(d.t==='text'){ var pa=px(d.a); if(pa){ txt(d.text||'text',(pa.x+4)*h,pa.y*v,col); } return; }
+          if(d.t==='trend'){ L(d.a,d.b,col,isSel?2:1.4); return; }
+          if(d.t==='measure'){ L(d.a,d.b,col,1.4,true); var pb=px(d.b); if(pb){ var dp=d.b.price-d.a.price,pctv=d.a.price?dp/d.a.price*100:0;
+              txt((dp>=0?'+':'')+n2(dp)+' ('+(pctv>=0?'+':'')+pctv.toFixed(1)+'%)',(pb.x+6)*h,pb.y*v,col); } return; }
+          if(d.t==='rect'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var X=Math.min(pa.x,pb.x)*h,Y=Math.min(pa.y,pb.y)*v,Wd=Math.abs(pb.x-pa.x)*h,Hd=Math.abs(pb.y-pa.y)*v;
+            x.fillStyle=hexA(col==='#e6edf3'?'#58a6ff':col,0.10); x.fillRect(X,Y,Wd,Hd); x.strokeStyle=col;x.lineWidth=1*v;x.setLineDash([]);x.strokeRect(X,Y,Wd,Hd); return; }
+          if(d.t==='fib'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var x0=Math.min(pa.x,pb.x),x1=Math.max(pa.x,pb.x);
+            for(var i=0;i<FIB.length;i++){ var pr=d.a.price+(d.b.price-d.a.price)*FIB[i]; var py=series.priceToCoordinate(pr); if(py==null)continue;
+              x.strokeStyle=isSel?'#e6edf3':hexA('#d29922',0.8);x.lineWidth=1*v;x.setLineDash([]); x.beginPath();x.moveTo(x0*h,py*v);x.lineTo(x1*h,py*v);x.stroke();
+              txt(FIB[i].toFixed(3)+'  '+n2(pr),(x1+4)*h,py*v,hexA('#d29922',0.95)); } return; }
+        }
+        for(var i=0;i<items.length;i++) one(items[i], items[i]===sel);
+        if(draft) one(draft,false);
+        // anchor handles on the selected drawing
+        if(sel){ [sel.a,sel.b].forEach(function(a){ if(!a)return; var p=px(a); if(!p)return;
+          x.fillStyle='#e6edf3'; x.beginPath(); x.arc(p.x*h,p.y*v,4*v,0,6.283); x.fill(); }); }
+      });
+    }};}};
+    var prim={ attached:function(p){ reqUpd=p.requestUpdate; }, detached:function(){reqUpd=null;}, updateAllViews:function(){}, paneViews:function(){return [view];} };
+    series.attachPrimitive(prim);
+    function redraw(){ if(reqUpd)reqUpd(); }
+
+    // --- a transparent capture layer over the chart (only "on" while drawing/editing)
+    var cap=E('div','position:absolute;inset:0;cursor:crosshair;pointer-events:none;z-index:4'); host.appendChild(cap);
+    function rel(e){ var r=host.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+    function arity(t){ return (t==='hline'||t==='text')?1:2; }
+    function hitAnchor(x,y){ for(var i=0;i<items.length;i++){ var d=items[i]; var keys=['a','b'];
+        for(var k=0;k<keys.length;k++){ var a=d[keys[k]]; if(!a)continue; var p=px(a); if(!p)continue;
+          if(Math.abs(p.x-x)<8&&Math.abs(p.y-y)<8) return {d:d,key:keys[k]}; } } return null; }
+    function hitBody(x,y){ for(var i=items.length-1;i>=0;i--){ var d=items[i]; var pa=px(d.a); if(!pa)continue;
+        if(d.t==='hline'){ if(Math.abs(pa.y-y)<6) return d; continue; }
+        if(d.t==='text'){ if(Math.abs(pa.x-x)<40&&Math.abs(pa.y-y)<12) return d; continue; }
+        var pb=d.b?px(d.b):null; if(!pb)continue;
+        if(d.t==='rect'||d.t==='fib'){ if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+4&&y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d; continue; }
+        // segment distance for trend/measure
+        var dx=pb.x-pa.x,dy=pb.y-pa.y,L2=dx*dx+dy*dy; var tt=L2?((x-pa.x)*dx+(y-pa.y)*dy)/L2:0; tt=Math.max(0,Math.min(1,tt));
+        var qx=pa.x+tt*dx,qy=pa.y+tt*dy; if(Math.hypot(x-qx,y-qy)<6) return d; }
+      return null; }
+
+    function onDown(e){ var p=rel(e);
+      if(!tool){  // select / edit mode
+        var ha=hitAnchor(p.x,p.y); if(ha){ sel=ha.d; dragging=ha; redraw(); e.preventDefault(); return; }
+        var hb=hitBody(p.x,p.y); sel=hb||null; redraw(); return; }
+      var s=snap(p.x,p.y);
+      if(arity(tool)===1){ if(tool==='text'){ var t=prompt('Text:',''); if(t==null)return; items.push({t:'text',a:s,text:t,col:'#e6edf3'}); }
+          else items.push({t:'hline',a:s,col:'#bc8cff'}); save(); sel=items[items.length-1]; finishTool(); redraw(); return; }
+      draft={t:tool,a:s,b:s,col:toolCol(tool)}; e.preventDefault(); }
+    function onMove(e){ var p=rel(e);
+      if(draft){ draft.b=snap(p.x,p.y); redraw(); return; }
+      if(dragging){ var s=snap(p.x,p.y); dragging.d[dragging.key]=s; redraw(); return; } }
+    function onUp(e){
+      if(draft){ var pa=px(draft.a),pb=px(draft.b);
+        if(pa&&pb&&(Math.abs(pb.x-pa.x)>3||Math.abs(pb.y-pa.y)>3)){ items.push(draft); sel=draft; save(); }
+        draft=null; finishTool(); redraw(); return; }
+      if(dragging){ dragging=null; save(); } }
+    cap.addEventListener('pointerdown',onDown); cap.addEventListener('pointermove',onMove); window.addEventListener('pointerup',onUp);
+
+    function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',measure:'#39c5cf'}[t]||'#58a6ff'; }
+    function setTool(t){ tool=(tool===t)?null:t; cap.style.pointerEvents=(tool||editing)?'auto':'none';
+      pc.applyOptions({handleScroll:!tool,handleScale:!tool}); paintTools(); }
+    var editing=false;
+    function setEdit(){ editing=!editing; tool=null; cap.style.pointerEvents=editing?'auto':'none';
+      pc.applyOptions({handleScroll:!editing,handleScale:!editing}); paintTools(); }
+    function finishTool(){ tool=null; if(!editing){ cap.style.pointerEvents='none'; pc.applyOptions({handleScroll:true,handleScale:true}); } paintTools(); }
+
+    // --- the Drawings family UI -------------------------------------------
+    var TOOLS=[['trend','\\u2571','Trend line'],['hline','\\u2014','Horizontal line'],['rect','\\u25ad','Rectangle'],
+      ['fib','F','Fib retracement'],['measure','\\u22b9','Measure'],['text','T','Text']];
+    var btns={};
+    function tbtn(css,title,html){ var b=E('span',css,html); b.title=title; return b; }
+    function baseBtn(on){ return 'cursor:pointer;font-size:13px;line-height:1;color:'+(on?'#e6edf3':'#8b949e')+';border:1px solid '+(on?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px;min-width:22px;text-align:center'; }
+    function paintTools(){ TOOLS.forEach(function(t){ if(btns[t[0]])btns[t[0]].style.cssText=baseBtn(tool===t[0]); });
+      if(btns._edit)btns._edit.style.cssText=baseBtn(editing);
+      if(btns._mag)btns._mag.style.cssText='cursor:pointer;font-size:11px;color:'+(magnet?'#e6edf3':'#8b949e')+';border:1px solid '+(magnet?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px';
+      if(btns._hide)btns._hide.style.cssText='cursor:pointer;font-size:11px;color:'+(hidden?'#e6edf3':'#8b949e')+';border:1px solid '+(hidden?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px'; }
+    var edit=tbtn(baseBtn(false),'Select / edit (drag anchors, Del to remove)','\\u2b0e'); edit.onclick=setEdit; btns._edit=edit; bar.appendChild(edit);
+    TOOLS.forEach(function(t){ var b=tbtn(baseBtn(false),t[2],t[1]); b.onclick=function(){ setTool(t[0]); }; btns[t[0]]=b; bar.appendChild(b); });
+    var mag=tbtn('','Magnet — snap to nearest OHLC (still draggable)','\\ud83e\\uddf2 magnet'); mag.onclick=function(){ magnet=!magnet; paintTools(); }; btns._mag=mag; bar.appendChild(mag);
+    var hide=tbtn('','Hide all drawings (tap again to restore)','hide all'); hide.onclick=function(){ hidden=!hidden; paintTools(); redraw(); }; btns._hide=hide; bar.appendChild(hide);
+    var clear=tbtn('cursor:pointer;font-size:11px;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:3px 7px','Delete all drawings','clear');
+    clear.onclick=function(){ if(items.length&&confirm('Delete all '+items.length+' drawing(s)?')){ items=[]; sel=null; save(); redraw(); } }; bar.appendChild(clear);
+    paintTools();
+
+    // Del key removes the selected drawing while editing
+    window.addEventListener('keydown',function(e){ if((e.key==='Delete'||e.key==='Backspace')&&sel){ var i=items.indexOf(sel); if(i>=0){ items.splice(i,1); sel=null; save(); redraw(); e.preventDefault(); } } });
+
+    return { redraw:redraw };
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+})();
+</script>"""

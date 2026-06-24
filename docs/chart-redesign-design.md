@@ -411,10 +411,50 @@ Verified: half-yearly backfill OK, ladder live (daily→Weekly 39/39, weekly→M
 middle-candle marker preserved, health 200. The full `render_stock_chart()` engine swap (one
 chart replacing the 4-pane stack) remains the eventual Phase-0 rebuild when dashboard.py is free.
 
-**Remaining for Phase 0/1:** wire `render_stock_chart()` into `/dash/stock` + mount `/static` (one call
-each) when `dashboard.py`/`main.py` are free; add the server query pulling `cpr_signals` rows per symbol;
-add the interval (D/W/M/Q) resampler + log-scale toggle. Then Phase 2 (full control bar populated) and
-Phase 3 (drawing engine: magnet + hide-all + persistence).
+**ONE-CHART ENGINE + four-family rail SHIPPED (Session 42, 2026-06-24) — the charts-only UI overhaul
+(Phase 0 + 1 + most of 2, delivered via the proven snippet pattern, NOT the deferred render_stock_chart
+swap).** New isolated module `src/web/stock_chart.py` (committed) — a self-contained SNIPPET that
+SUPERSEDES the old 4-pane stretched stack with ONE responsive chart, re-exposing the exact
+`window.__wfpc`/`__wfcandle`/`__wfdata`/`[data-ptf]` contract so the committed CPR/MA/MEP/Wolfe overlays
+keep working untouched. **The CPR is NOT re-implemented — it stays owned by `cpr_overlay.py` (Ramana is
+happy with it); this engine only re-homes its chip into the Strategies family.** Delivered:
+- **ONE chart** — DVPT / Delivery% / Traded-&-Delivery-value fold into docked sub-panes (overlay price
+  scales); the 3 old short-wide `.chartwrap` panes are hidden. Every per-day figure stays on the hover
+  readout → no data regresses. Chart 300px → 480px, `ResizeObserver` width-follow (kills the stretch).
+- **The four-family rail** (Ramana's taxonomy, ONE shared bar above the chart): **Chart-type** dropdown
+  (Candles / Hollow / Heikin-Ashi / Line / Area; Renko + P&F flagged "soon" — disabled) · **Strategies**
+  (DVPT / Wolfe / RS + CPR / MEP — the committed overlay chips land here because the rail pre-creates
+  `#stratBar`) · **Indicators** (MA[committed] / VWAP / Anchored-VWAP / Delivery% / Traded₹ — MA's
+  `#maBar` anchors via the `#cprBar` span, its duplicate label hidden) · **Drawings** (trendline / ray /
+  rectangle / Fib retracement / text / measure + 🧲 **magnet** [snap to nearest OHLC, still draggable] +
+  **hide-all** + clear; click-drag create, drag-anchor edit, Del to remove; persisted per-symbol in
+  localStorage). Interval (D/W/M/Q) + Range re-homed into the rail; `[data-ptf]` re-bound here while CPR's
+  own listener still fires additively → the **ladder still follows the interval**.
+- **VWAP / Anchored-VWAP** (client-side; volume ≈ turnover/close, typical price (H+L+C)/3). **RS docked
+  lane** fed by the NEW isolated endpoint `src/web/rs_overlay.py` (`/dash/rs/overlay` — stock-vs-Nifty 500
+  rebased ratio, base 100; committed; router added to main.py).
+- **Defaults:** DVPT lane + MA 50/200 **ON** (no-regression — both were always-on before); CPR / MEP /
+  Wolfe / RS / VWAP opt-in **OFF**. (DVPT-on is the one deliberate exception to "strategies default-off":
+  the institutional-flow lane was always visible, so hiding it would lose information — a one-line flip if
+  Ramana wants it off.)
+
+**Verified locally, headless, on `data/hermes.db` (sym=ALPHA):** one un-stretched chart; four-family rail
+renders; CPR/MEP/MA chips home into the correct families; **CPR Spine draws on Daily + Weekly with the
+ladder following + U/∩ markers**; Heikin-Ashi transforms; VWAP line draws; the drawing trend tool
+create→persist→magnet→hide-all all work end-to-end; RS no-ops gracefully (no local index data);
+tab-switching (RS/Structure) unaffected — **ZERO console errors throughout every interaction.** Hooks =
+an import + the inline-block replacement in `dashboard.py`, plus an import + `include_router` in `main.py`,
+applied IN-PLACE by anchor via `scripts/wire_stock_chart.py` (idempotent, `ast.parse`-guarded), left
+UNCOMMITTED (parallel-held). **Committed isolated:** `stock_chart.py`, `rs_overlay.py`,
+`scripts/wire_stock_chart.py` (+ this doc).
+
+**Remaining (next charting sessions):** Renko / Point & Figure real render (price-bucketed, off-axis →
+custom-series/v5); drawing tiers T2/T3 (parallel channel · trend-Fib extension · pitchfork · Gann ·
+harmonic/Elliott manual tools) + drawing persistence → SQLite (per user×symbol) instead of localStorage;
+a true split RS pane + RS-of-RS (v5 native panes); log-scale toggle; then the site-wide rollout — fold
+`hermes-charts.js` into the canonical engine and migrate RRG / ratio / sparklines onto it (kill the
+remaining `preserveAspectRatio="none"`). The eventual full `render_stock_chart()` engine swap stays the
+clean end-state for when `dashboard.py` is finally free to own the chart block outright.
 
 ## 11. Key file paths
 
