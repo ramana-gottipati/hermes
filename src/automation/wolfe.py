@@ -120,6 +120,36 @@ def zigzag(high, low, atr_arr, k):
     return piv
 
 
+def fractal_pivots(high, low, periods=(2, 10)):
+    """Williams fractals — Ramana's Fyers **Fractals 2 & 10** mechanism, replicated on
+    the daily timeframe (his pivot method; replaces the ATR-zigzag). A fractal HIGH at
+    bar i = a strict, unique local max of high[] over `period` bars each side; a fractal
+    LOW = a strict, unique local min of low[]. Pivots from all periods are merged and
+    reduced to a strictly ALTERNATING H/L sequence (keep the more-extreme of consecutive
+    same-kind) so the Wolfe 1-4 scan can slide over them. A fractal only confirms
+    `period` bars later — point-in-time safe (the most-recent bars carry no fractal)."""
+    n = len(high)
+    cand = {}
+    for p in periods:
+        if p < 1:
+            continue
+        for i in range(p, n - p):
+            wh = high[i - p:i + p + 1]
+            wl = low[i - p:i + p + 1]
+            if high[i] == max(wh) and wh.count(high[i]) == 1:
+                cand[('H', i)] = Pivot(i, high[i], 'H')
+            if low[i] == min(wl) and wl.count(low[i]) == 1:
+                cand[('L', i)] = Pivot(i, low[i], 'L')
+    out = []
+    for pv in sorted(cand.values(), key=lambda x: x.idx):
+        if out and out[-1].kind == pv.kind:               # same kind in a row → keep extreme
+            if (pv.kind == 'H' and pv.price > out[-1].price) or (pv.kind == 'L' and pv.price < out[-1].price):
+                out[-1] = pv
+        else:
+            out.append(pv)
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Wolfe structure validation + build                                           #
 # --------------------------------------------------------------------------- #
@@ -187,50 +217,51 @@ def _build(a, b, c, d, p5, state, direction, k):
                 sym_p, sym_t, _line(a, c), _line(a, d), q, _tier(q), k)
 
 
-def detect_waves(high, low, close, ks=(1.0, 1.5), atr_period=14, sym_lo=0.6, sym_hi=1.6):
-    """Find Wolfe 1-4 structures (with point 5 if it has overshot). (waves, atr_arr)."""
+def detect_waves(high, low, close, periods=(2, 10), atr_period=14, sym_lo=0.6, sym_hi=1.6):
+    """Find Wolfe 1-4 structures over Williams-fractal pivots — Ramana's Fyers
+    Fractals 2 & 10 mechanism replicated on the daily timeframe (not an ATR-zigzag).
+    (waves, atr_arr)."""
     atr_arr = atr(high, low, close, atr_period)
+    piv = fractal_pivots(high, low, periods)
     waves = []
-    for k in ks:
-        piv = zigzag(high, low, atr_arr, k)
-        for i in range(len(piv) - 3):
-            a, b, c, d = piv[i], piv[i + 1], piv[i + 2], piv[i + 3]
-            direction = _classify(a, b, c, d, sym_lo, sym_hi)
-            if not direction:
-                continue
-            s13 = _line(a, c)
+    for i in range(len(piv) - 3):
+        a, b, c, d = piv[i], piv[i + 1], piv[i + 2], piv[i + 3]
+        direction = _classify(a, b, c, d, sym_lo, sym_hi)
+        if not direction:
+            continue
+        s13 = _line(a, c)
 
-            def line13(t, _a=a, _s=s13):
-                return _a.price + _s * (t - _a.idx)
+        def line13(t, _a=a, _s=s13):
+            return _a.price + _s * (t - _a.idx)
 
-            # point 5 = the next pivot (low for BULL / high for BEAR) that breaks
-            # below/above point 3 AND overshoots the 1-3 line.
-            p5, state = None, 'FORMING'
-            if i + 4 < len(piv):
-                e = piv[i + 4]
-                if direction == 'BULL' and e.kind == 'L':
-                    if e.price < c.price and e.price < line13(e.idx):
-                        p5, state = e, 'CONFIRMED'
-                elif direction == 'BEAR' and e.kind == 'H':
-                    if e.price > c.price and e.price > line13(e.idx):
-                        p5, state = e, 'CONFIRMED'
-            # Wolfe rule: point 4 (d) must NOT be breached before point 5 forms —
-            # bull: no high above point 4; bear: no low below point 4. A breach
-            # means price broke out instead of forming the wave → reject.
-            end_b = p5.idx if p5 else len(high) - 1
-            breached = False
-            for t in range(d.idx + 1, end_b + 1):
-                if direction == 'BULL' and high[t] > d.price:
-                    breached = True
-                    break
-                if direction == 'BEAR' and low[t] < d.price:
-                    breached = True
-                    break
-            if breached:
-                continue
-            w = _build(a, b, c, d, p5, state, direction, k)
-            if w:
-                waves.append(w)
+        # point 5 = the next pivot (low for BULL / high for BEAR) that breaks
+        # below/above point 3 AND overshoots the 1-3 line.
+        p5, state = None, 'FORMING'
+        if i + 4 < len(piv):
+            e = piv[i + 4]
+            if direction == 'BULL' and e.kind == 'L':
+                if e.price < c.price and e.price < line13(e.idx):
+                    p5, state = e, 'CONFIRMED'
+            elif direction == 'BEAR' and e.kind == 'H':
+                if e.price > c.price and e.price > line13(e.idx):
+                    p5, state = e, 'CONFIRMED'
+        # Wolfe rule: point 4 (d) must NOT be breached before point 5 forms —
+        # bull: no high above point 4; bear: no low below point 4. A breach
+        # means price broke out instead of forming the wave → reject.
+        end_b = p5.idx if p5 else len(high) - 1
+        breached = False
+        for t in range(d.idx + 1, end_b + 1):
+            if direction == 'BULL' and high[t] > d.price:
+                breached = True
+                break
+            if direction == 'BEAR' and low[t] < d.price:
+                breached = True
+                break
+        if breached:
+            continue
+        w = _build(a, b, c, d, p5, state, direction, float(periods[0]))
+        if w:
+            waves.append(w)
     # dedupe: same direction & point-4 within 3 bars -> keep best quality
     waves.sort(key=lambda w: -w.quality)
     kept = []
@@ -328,7 +359,7 @@ def index_series(conn, idx):
     return dates, list(closes), list(closes), list(closes), closes  # o=h=l=c (index = close only)
 
 
-def analyze(conn, sym=None, idx=None, ks=(1.0, 1.5), pad=25):
+def analyze(conn, sym=None, idx=None, periods=(2, 10), pad=25):
     """View-ready dict: the visible window + detected waves (lines, zone, target)."""
     if sym:
         s, label, kind = stock_series(conn, sym), sym, "stock"
@@ -341,7 +372,7 @@ def analyze(conn, sym=None, idx=None, ks=(1.0, 1.5), pad=25):
     dates, opens, highs, lows, closes = s
     n = len(closes)
     cur = closes[-1]
-    waves, atr_arr = detect_waves(highs, lows, closes, ks=ks)
+    waves, atr_arr = detect_waves(highs, lows, closes, periods=periods)
     x0 = max(0, min((w.p[0].idx for w in waves[-3:]), default=n - 300) - pad)
     x1 = n - 1
     out = []
@@ -441,6 +472,9 @@ def overlay_for(conn, sym=None, idx=None):
     ri = max(range(len(ws)),
              key=lambda i: (ws[i]["p5"]["idx"] if ws[i]["p5"] else ws[i]["pivots"][3]["idx"]))
     w = ws[ri]
+    last_idx = w["p5"]["idx"] if w["p5"] else w["pivots"][3]["idx"]
+    if n - 1 - last_idx > 90:          # latest setup is stale → show nothing, not a year-old wave
+        return None
     p, p5, p1 = w["pivots"], w["p5"], w["pivots"][0]
     bull = w["direction"] == "BULL"
     color = "#3fb950" if bull else "#f85149"

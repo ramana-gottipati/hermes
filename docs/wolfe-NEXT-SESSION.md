@@ -164,6 +164,26 @@ ssh hermes 'curl -s "http://localhost:8000/dash/wolfe/overlay?sym=PARAS" | pytho
 
 ---
 
+## 7c. Pivot mechanism switched to WILLIAMS FRACTALS on daily (2026-06-24, latest)
+
+Ramana: *"Why feed 75-minute data? … Do it for the daily chart … replicate the same mechanism on the
+daily timeframe. The concept is something you need to look at."* The **concept = his Fyers Fractals 2 & 10**
+(top-left of both his charts) — that's how he marks pivots, NOT an ATR-zigzag.
+
+**Done:** new `fractal_pivots(high, low, periods=(2,10))` (strict, unique Williams fractals → alternating
+H/L) now feeds `detect_waves` instead of the zigzag (`zigzag()` kept but unused). `analyze`/selftest use
+`periods=`. Added a **freshness gate** in `overlay_for`: if the latest setup's last pivot is >90 bars old,
+return None (don't show a year-old wave). Selftest green; deployed; `/health` 200.
+
+**Result:** the mechanism is now his, on daily. Works cleanly where a daily Wolfe exists — RELIANCE BEAR
+(zones 1325.9…), KEI BEAR forming (5159/5656). **PARAS shows nothing — and that is CORRECT:** on daily its
+June move is one near-vertical leg with NO intermediate daily fractals (06-02 low → 06-19 high), so there's
+no daily Wolfe; his 968/1066/1133/1075 pivots are 75-min-only (06-10's high isn't a daily local max — 06-12
+is higher). Proven 3 ways. PARAS's pattern genuinely lives at 75-min; daily can't show it without intraday
+data (which he declined). The mechanism is right; PARAS is simply post-breakout on the daily scale.
+
+---
+
 ## 7b. CORRECTION — the convention rewrite was WRONG; REVERTED (2026-06-24, later)
 
 ⚠️ **The whole §7 convention rewrite below was a mistake and has been REVERTED.** Ramana clarified

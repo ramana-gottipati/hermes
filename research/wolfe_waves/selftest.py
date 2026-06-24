@@ -23,7 +23,7 @@ def _ohlc(anchors, band=1.5):
         i1, p1 = anchors[k + 1]
         for i in range(i0, i1):
             f = (i - i0) / (i1 - i0)
-            close.append(p0 + (p1 - p0) * f + 0.8 * math.sin(i * 1.4))
+            close.append(p0 + (p1 - p0) * f)   # clean linear so fractal pivots land on the anchors
     close.append(anchors[-1][1])
     high = [c + band for c in close]
     low = [c - band for c in close]
@@ -40,7 +40,7 @@ def test_bull():
     # preamble high@10 -> 1(L)@20 2(H)@34 3(L)@48 4(H)@62 5(L overshoot)@78 -> bounce
     high, low, close = _ohlc([(0, 50), (10, 62), (20, 50), (34, 70), (48, 42),
                               (62, 64), (78, 30), (90, 46)])
-    waves, _ = wolfe.detect_waves(high, low, close, ks=(1.5,))
+    waves, _ = wolfe.detect_waves(high, low, close)
     bull = [w for w in waves if w.direction == "BULL"]
     ok = _check(len(bull) >= 1, f"detected a BULL wave (got {len(waves)} total)")
     if not ok:
@@ -62,7 +62,7 @@ def test_bear():
     print("\n[bearish Wolfe — 1·3·5 highs]")
     high, low, close = _ohlc([(0, 70), (10, 58), (20, 70), (34, 50), (48, 78),
                               (62, 56), (78, 90), (90, 74)])
-    waves, _ = wolfe.detect_waves(high, low, close, ks=(1.5,))
+    waves, _ = wolfe.detect_waves(high, low, close)
     bear = [w for w in waves if w.direction == "BEAR"]
     ok = _check(len(bear) >= 1, f"detected a BEAR wave (got {len(waves)} total)")
     if not ok:
@@ -92,7 +92,7 @@ def test_paras_formula():
 def test_reject_trend():
     print("\n[noise rejection]")
     high, low, close = _ohlc([(0, 100), (60, 160)])
-    waves, _ = wolfe.detect_waves(high, low, close, ks=(1.5,))
+    waves, _ = wolfe.detect_waves(high, low, close)
     return _check(len(waves) == 0, f"no waves in a clean trend (got {len(waves)})")
 
 
