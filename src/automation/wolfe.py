@@ -436,8 +436,11 @@ def analyze(conn, sym=None, idx=None, pad=25):
             "has_ohlc": kind == "stock", "waves": out}
 
 
-# Standard Fib-extension ratio set (matches the Fyers tool).
-_FIB_R = (0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.414, 1.618, 2.0, 2.618, 3.618, 4.236)
+# Fib EXTENSION ratios only ( >1.0 ) — these project BEYOND each thrust leg toward the
+# overshoot, so an extension∩extension coincidence is a genuine forward target. The
+# 0.236–1.0 levels are RETRACEMENTS (inside the leg) and must NOT enter the overlap test
+# — they were producing false "zones" sitting within the structure (e.g. 0.786∩0.618).
+_FIB_R = (1.272, 1.414, 1.618, 2.618, 3.618, 4.236, 4.618)
 
 
 def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.004):
