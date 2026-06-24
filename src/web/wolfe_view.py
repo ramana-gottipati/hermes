@@ -185,18 +185,30 @@ def _chart_svg(d, wi=0, show=True):
             ly = c[3] + (14 if c[3] < _PADT + 18 else -6)
             S.append(f'<text x="{c[2]-3:.1f}" y="{ly:.1f}" text-anchor="end" fill="{col}" '
                      f'font-size="11" font-weight="600">EPA target</text>')
-        # point-5 zone + climb arrow toward the target
-        if w["zone"]:
-            t5 = int(p5["idx"] if p5 else w["zone"]["t5"])
-            zx = X(min(max(t5, x0), x1))
-            zhi, zlo = Y(w["zone"]["high"]), Y(w["zone"]["low"])
-            S.append(f'<rect x="{zx-22:.1f}" y="{zhi:.1f}" width="44" height="{abs(zlo-zhi):.1f}" '
-                     f'fill="{_BAND}" fill-opacity="0.22" stroke="{_BANDS}" stroke-width="1" stroke-dasharray="3 3"/>')
-            if w["target"] is not None:
-                ey = Y(p5["price"] if p5 else w["zone"]["center"])
-                ax2 = X(min(x1, t5 + int(0.45 * span)))
-                S.append(f'<line x1="{zx:.1f}" y1="{ey:.1f}" x2="{ax2:.1f}" y2="{Y(w["target"]):.1f}" '
-                         f'stroke="{col}" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#wfar)"/>')
+        # Ramana's Fib method: a standard extension fan on each thrust leg (1-2 & 3-4),
+        # projected toward the overshoot, + the STRONG OVERLAP zones (the targets).
+        P = [pt["price"] for pt in p]
+        e12, e34, fzones = wolfe.fib_zones(P[0], P[1], P[2], P[3], direction=w["direction"])
+
+        def _fan(grid, fcol):
+            for r, v in grid.items():
+                yy = Y(v)
+                if _PADT <= yy <= _H - _PADB:
+                    S.append(f'<line x1="{_PADL}" y1="{yy:.1f}" x2="{_W-_PADR}" y2="{yy:.1f}" '
+                             f'stroke="{fcol}" stroke-width="0.6" opacity="0.45"/>')
+                    S.append(f'<text x="{_W-_PADR+3:.1f}" y="{yy+3:.1f}" fill="{fcol}" font-size="8" '
+                             f'opacity="0.85">{r}</text>')
+        _fan(e12, _PRICE)        # leg 1-2 fan (blue)
+        _fan(e34, _BAND)         # leg 3-4 fan (amber)
+        # overlap zones — the targets — bold, labelled price (r12 ∩ r34)
+        for zi, z in enumerate(fzones):
+            yy = Y(z["price"])
+            if not (_PADT <= yy <= _H - _PADB):
+                continue
+            S.append(f'<line x1="{_PADL}" y1="{yy:.1f}" x2="{_W-_PADR}" y2="{yy:.1f}" '
+                     f'stroke="{col}" stroke-width="{2.0 if zi == 0 else 1.3}"/>')
+            S.append(f'<text x="{_PADL+5:.1f}" y="{yy-3:.1f}" fill="{col}" font-size="10" '
+                     f'font-weight="600">{_fmt(z["price"])} ({z["r12"]}∩{z["r34"]})</text>')
         # the 1-2-3-4-5 structure (bold)
         zpts = list(p) + ([p5] if p5 else [])
         zz = " ".join(f"{X(pt['idx']):.1f},{Y(pt['price']):.1f}" for pt in zpts)
