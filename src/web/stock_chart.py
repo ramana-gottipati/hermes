@@ -183,13 +183,20 @@ SNIPPET = """<script>
     pc.subscribeCrosshairMove(function(p){ if(!p||!p.time){ showR(S0[S0.length-1]); return; } showR(byT[tkey(p.time)]||S0[S0.length-1]); });
 
     // ---- overlay registry (this engine's own toggles) -----------------------
+    // The docked bottom band is reserved ONLY while a flow lane is on. When DVPT
+    // (and the other flow lanes) are off, collapse it so the price reclaims the
+    // space — the lane is tied to its chip, not left as an empty strip.
+    function reflow(){
+      var any = reg.dvpt.on || reg.deliv.on || reg.flow.on || reg.rs.on;
+      candle.priceScale().applyOptions({scaleMargins:{top:0.06, bottom: any?0.28:0.06}});
+    }
     var reg={
-      dvpt:{label:'DVPT',col:C.dvpt,on:true, fn:function(v){ dvptH.applyOptions({visible:v}); }},
+      dvpt:{label:'DVPT',col:C.dvpt,on:true, fn:function(v){ dvptH.applyOptions({visible:v}); reflow(); }},
       rs:{label:'RS',col:C.rs,on:false, fn:function(v){ rsToggle(v); }},
       vwap:{label:'VWAP',col:C.vwap,on:false, fn:function(v){ if(v)vwapL.setData(vwapFrom(RT,0)); vwapL.applyOptions({visible:v}); }},
       avwap:{label:'Anchored VWAP',col:C.avwap,on:false, fn:function(v){ if(v){ avwapL.setData(vwapFrom(RT,anchorIdx())); pickAVWAP(); } avwapL.applyOptions({visible:v}); }},
-      deliv:{label:'Delivery %',col:C.deliv,on:false, fn:function(v){ delivL.applyOptions({visible:v}); }},
-      flow:{label:'Traded \\u20b9',col:C.dval,on:false, fn:function(v){ tvalH.applyOptions({visible:v}); dvalH.applyOptions({visible:v}); }}
+      deliv:{label:'Delivery %',col:C.deliv,on:false, fn:function(v){ delivL.applyOptions({visible:v}); reflow(); }},
+      flow:{label:'Traded \\u20b9',col:C.dval,on:false, fn:function(v){ tvalH.applyOptions({visible:v}); dvalH.applyOptions({visible:v}); reflow(); }}
     };
     function regChip(key){ var o=reg[key]; var c=E('span',chipCss(o.on,o.col),dot(o.col)+o.label);
       c.onclick=function(){ o.on=!o.on; o.fn(o.on); c.style.cssText=chipCss(o.on,o.col); c.innerHTML=dot(o.col)+o.label; };
@@ -274,18 +281,18 @@ SNIPPET = """<script>
     var draw=makeDraw(pc,candle,host,drawBar,function(){return RT;});
 
     // boot
-    setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]);
+    setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]); reflow();
     var ro=new ResizeObserver(function(){ var w=host.clientWidth; if(w)pc.applyOptions({width:w}); });
     ro.observe(host);
 
     // -------- RS docked lane (Strategies) — fetch /dash/rs/overlay on toggle --
     var rsL=null, rsLoaded=false;
     function rsToggle(v){
-      if(!v){ if(rsL)rsL.applyOptions({visible:false}); return; }
-      if(rsLoaded){ if(rsL)rsL.applyOptions({visible:true}); return; }
-      rsLoaded=true; var sym=new URLSearchParams(location.search).get('sym')||'';
+      if(!v){ if(rsL)rsL.applyOptions({visible:false}); reflow(); return; }
+      if(rsLoaded){ if(rsL)rsL.applyOptions({visible:true}); reflow(); return; }
+      rsLoaded=true; reflow(); var sym=new URLSearchParams(location.search).get('sym')||'';
       fetch('/dash/rs/overlay?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
-        if(!d||!d.series||!d.series.length){ reg.rs.on=false; if(reg.rs.chip){reg.rs.chip.style.cssText=chipCss(false,C.rs);reg.rs.chip.innerHTML=dot(C.rs)+'RS';} return; }
+        if(!d||!d.series||!d.series.length){ reg.rs.on=false; if(reg.rs.chip){reg.rs.chip.style.cssText=chipCss(false,C.rs);reg.rs.chip.innerHTML=dot(C.rs)+'RS';} reflow(); return; }
         rsL=pc.addLineSeries({priceScaleId:'rs',color:C.rs,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:'RS vs '+(d.benchmark||'Nifty 500')});
         pc.priceScale('rs').applyOptions({scaleMargins:{top:0.74,bottom:0.04}});  // docked in the bottom band, not over the candles
         rsL.setData(d.series.map(function(p){return {time:p.t,value:p.v};}));
