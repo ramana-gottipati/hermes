@@ -544,6 +544,26 @@ def _stage1_screen_all_earnings(items: list[dict]) -> None:
             log.info("stage1 %s: %s (%s)", verdict, ticker, rationale)
 
 
+def _persist_classifier_tags(annotated: list[dict]) -> None:
+    """Persist the classifier's per-item `tickers` as per-symbol news tags
+    (UI Architecture v2 §7). The classifier already computes `tickers` for free;
+    saving them gives the stock dossier Timeline / Markets Wire a symbol→news link
+    that recovers brand≠legal-name cases the rule-based gazetteer backfill misses
+    (Nykaa, RIL, Jio…). Best-effort: a failure here must never break the brief."""
+    try:
+        from src.automation.news_tagging import tag_url
+        rows = [(it["url"], it["tickers"]) for it in annotated
+                if it.get("url") and it.get("tickers")]
+        if not rows:
+            return
+        with get_conn() as conn:
+            written = sum(tag_url(conn, url, tickers, method="classifier",
+                                  confidence=0.95) for url, tickers in rows)
+        log.info("symbol-tagged %d classifier ticker(s) across %d headlines", written, len(rows))
+    except Exception as e:
+        log.warning("symbol-tag persist skipped: %s", e)
+
+
 # --- Entry point ------------------------------------------------------------
 
 def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bool = False) -> tuple[bool, str]:
@@ -586,6 +606,10 @@ def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bo
         _stage1_screen_all_earnings(annotated)
     except Exception as e:
         log.error("stage1 screen pipeline raised: %s", e)
+
+    # Persist per-symbol news tags from the classifier's tickers (forward path of
+    # the rule-based news_tagging backfill — UI Architecture v2 §7). Best-effort.
+    _persist_classifier_tags(annotated)
 
     signal = [it for it in annotated if is_worth_sending(it)]
     log.info("%d items kept after filter (from %d)", len(signal), len(annotated))
