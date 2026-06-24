@@ -360,7 +360,7 @@ swap the whole chart (dashboard.py contended), the CPR Spine attaches to the EXI
 via `src/web/cpr_overlay.py` (mirrors `wolfe_overlay.py`): a `/dash/cpr/overlay` JSON endpoint
 (`cpr_signals`→segments, reusing `chart_view`) + a self-contained SNIPPET that draws the Spine primitive
 on `window.__wfpc` and injects a chip + D/W/M toggle (default ON). Hooks = 2 additive lines in `main.py` +
-2 in `dashboard.py`, **left uncommitted** (Wolfe protocol — those files carry a parallel UI session's
+3 in `dashboard.py` (import · snippet · `window.__wfcandle`; **hardened** — the Spine binds to the real candle series for exact price mapping with no time-axis pollution, and skips off-axis segments so it stays clean across the chart's interval/range controls — verified cycling D/W/M with zero console errors), **left uncommitted** (Wolfe protocol — those files carry a parallel UI session's
 edits). **Verified by running the app locally on `data/hermes.db` (sym=ALPHA): endpoint HTTP 200,
 199 D / 39 W / 9 M segments, 37 coiled, BULL_U/BEAR_INVU detected, controls injected, zero console
 errors.** Not yet deployed to the VPS (separate step). The full `render_stock_chart()` engine swap (one
