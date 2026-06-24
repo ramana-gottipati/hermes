@@ -518,5 +518,10 @@ def overlay_for(conn, sym=None, idx=None):
         dist = abs(cur - z) if cur is not None else 0
         if best is None or dist < best:
             best, nearest = dist, i
+    # compact recent bars (date, high, low) so the manual "draw your own" mode can snap
+    # clicks to real swing extremes — the analyst sets the pivots, we compute the zones.
+    b0 = max(0, n - 800)
+    bars = [{"t": d["dates"][i], "h": round(d["highs"][i], 2), "l": round(d["lows"][i], 2)}
+            for i in range(b0, n)]
     return {"waves": waves, "default": 0, "nearest": nearest,
-            "label": d["label"], "kind": d["kind"]}
+            "label": d["label"], "kind": d["kind"], "bars": bars}

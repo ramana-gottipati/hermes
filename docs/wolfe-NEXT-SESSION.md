@@ -209,7 +209,35 @@ unification + RR/stop already direction-keyed), `overlay_for` (all-waves payload
 **selftest** (rewritten: bull=descending-lows L,H,L,H reverse-up; bear=ascending L,H,L,H reverse-down +
 a PARAS numeric pin). PIT-safety preserved (point-5 reads only printed pivots/bars ≤ as-of).
 
+### ADDENDUM (2026-06-24, same session) — Ramana rejected the auto wave-count → built MANUAL draw mode
+Ramana looked at the live PARAS overlay and said the auto wave count was wrong ("pathetic / horrible"): the
+detector put **point 4 on the peak with no point 5** and anchored **point 1 too early**, so the whole count
+slid by one. **Root cause (confirmed):** his hand-drawn pivots are *discretionary* — they aren't strict
+alternating zigzag pivots (his PARAS point 3 = 1075.5 sits **above** point 2 = 1066.75; the rally 920→1500 is
+one clean zigzag leg so the auto-detector can't insert the intermediate point-4 he sees). No ATR-zigzag /
+fractal auto-tune will reliably match his eye. **Decision (overrides the VIZ seat's earlier "skip manual"):**
+give him **direct pivot control** — the durable fix, since the machine's value is computing the *exact* Fib
+zones on *his* count, not guessing the count.
+
+Built the **"✎ draw your own" mode** in `wolfe_overlay.py` (self-contained; dashboard.py still untouched):
+he clicks points 1→5 on the candle chart, each **snapped to the nearer real bar high/low**, the snippet draws
+the structure + computes the **standard Fib extensions + strong overlap zones on his pivots** (a JS
+`fibZones` that mirrors `wolfe.fib_zones` byte-for-byte — verified `968.1/1066.75/1075.5/1133 → 1226.2`).
+Zone prices also print in the label (so they're readable even when a steep wedge's zone sits off the visible
+scale). `overlay_for` now also returns compact `bars` (date/high/low) for snapping. **Verified LIVE in Chrome
+(computer-use):** auto overlay reads ascending-wedge BEAR with upward zones + ‹ ›/near selector; draw mode
+enters, places snapped pivots (confirmed against the bar OHLC readout), structure renders, **candles stay
+intact, zero console errors**.
+
+Two bugs were caught + fixed only because of the live browser test: (1) seeding the coordinate-probe series
+with the full 800-bar history **expanded the time scale and pushed the candles off-screen** → fixed by
+seeding the probe with just 2 points at the candle's current visible times; (2) added sort/dedupe of pivot
+times so an out-of-order or same-bar click can't throw. Redeployed each fix (LF + restart, `/health` 200).
+
 ### Still open after this session
 - **#B1** — reconcile the BUY/descending Wolfe with the Fib-method anchor against a real Ramana buy
   drawing (currently deferred, left untouched).
-- **#4** — the edge backtest still un-run (descriptive-only until then).
+- **#4** — the edge backtest still un-run as a full survivorship-aware study (the PIT-honest probe showed no
+  mechanical edge at confirmation → descriptive-only).
+- **auto wave-count** still won't match his discretionary eye on every name (inherent — his pivots aren't
+  zigzag pivots). Manual draw mode is the answer; a fractal-pivot auto-detector could *narrow* the gap later.
