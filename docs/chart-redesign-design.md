@@ -397,7 +397,18 @@ not signal-bar 2024-01-16; **100% of weekly segments align to the weekly candle 
 OFF** — it's a proprietary strategy you call up (opt-in, fetch-on-first-toggle). (4) CPR + MEP grouped in a
 labelled **"Strategies"** chip group (MA stays "Indicators"; **MA still default-on** — a standard indicator,
 flagged for confirmation). The **full** four-family grouping + Wolfe/DVPT integration is Ramana's planned
-**UI-architecture-overhaul session** (deliberately deferred — not now). The full `render_stock_chart()` engine swap (one
+**UI-architecture-overhaul session** (deliberately deferred — not now).
+
+**CPR ladder + half-yearly degree DEPLOYED (2026-06-24, commit `e5b369c`).** Ramana's mapping: CPR is
+ONE degree HIGHER than the chart — **daily→Weekly, weekly→Monthly, monthly→Half-yearly, quarterly→
+Half-yearly** (higher-TF S/R for the TF you trade; this matches Zerodha/TradingView, which also show a
+*higher* pivot TF than the chart, e.g. Zerodha EOD→monthly). NEW **half-yearly (H)** degree in the engine
+(`cpr_signals._TF`/`_period_key`, H1=Jan–Jun/H2=Jul–Dec; `chart_view.COIL_PCT[H]=8.0`) — **backfilled the
+universe (2,358 symbols, 48,229 H rows)**; H is in `--timeframe all`, so the nightly keeps it current
+(no extra wiring). The overlay **snaps each CPR band + marker onto the current chart's bars** so a monthly
+band lands on the weekly axis even though month-ends aren't week-ends (weekly→monthly went 5/9 → 9/9).
+Verified: half-yearly backfill OK, ladder live (daily→Weekly 39/39, weekly→Monthly 9/9, monthly→Half-yearly),
+middle-candle marker preserved, health 200. The full `render_stock_chart()` engine swap (one
 chart replacing the 4-pane stack) remains the eventual Phase-0 rebuild when dashboard.py is free.
 
 **Remaining for Phase 0/1:** wire `render_stock_chart()` into `/dash/stock` + mount `/static` (one call
