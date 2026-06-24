@@ -164,7 +164,29 @@ ssh hermes 'curl -s "http://localhost:8000/dash/wolfe/overlay?sym=PARAS" | pytho
 
 ---
 
-## 7c. Pivot mechanism switched to WILLIAMS FRACTALS on daily (2026-06-24, latest)
+## 7d. TWO nested waves + point-5 = 1-3-line-cross rule (2026-06-24, latest — WORKING)
+
+Ramana confirmed the points are correct and gave the spec: (1) show the **two** most-recent/clearest waves;
+(2) his bigger wave = Mar-9 H / Mar-23 L / May-8 H / May-18 L / Jun-19 H (shares point 5 with the first —
+nested); (3) **point 5 is not point 5 until price crosses the EXTENDED 1-3 line** (above for bear / below for
+bull) — "this point may keep extending."
+
+Done + verified on PARAS: `detect_waves` grid now **`ks=(1.0,1.5,2.5)`** — the coarse 2.5 surfaces the
+monthly Mar-Jun wave (validated: it reproduces his exact pivots), fine 1.0/1.5 the May-Jun wave. **Point-5
+rule rewritten** to his definition: scan bars after point 4 (within ~1.5× the 1-4 span, so a tiny old wave
+can't claim a far-future high) for the extreme that has **crossed the 1-3 rail** → that's point 5, CONFIRMED,
+may extend. `overlay_for` now returns the **two** clearest recent waves (most-recent by last pivot, ties by
+WolfeRank, structurally distinct), and the snippet draws both (W1 solid/circle markers, W2 dashed/square) each
+with its **1-3 confirmation rail** + strong zones. Live result: W1 = his Mar-Jun wave, W2 = the May-Jun wave,
+both 5 = Jun-19 1443. Selftest green. (Fib zones per wave come from its own legs — W2's are ~1005/1128, W1's
+~887/958; the 75-min-only 1226 is a different, finer wave not present on daily.)
+
+NOTE: zigzag is back as the pivot source (fractals on daily are too sparse — see §7c); `fractal_pivots` kept
+but unused.
+
+---
+
+## 7c. Pivot mechanism switched to WILLIAMS FRACTALS on daily (2026-06-24) — REVERTED (see §7d, zigzag won)
 
 Ramana: *"Why feed 75-minute data? … Do it for the daily chart … replicate the same mechanism on the
 daily timeframe. The concept is something you need to look at."* The **concept = his Fyers Fractals 2 & 10**

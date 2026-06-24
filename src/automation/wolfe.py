@@ -217,12 +217,14 @@ def _build(a, b, c, d, p5, state, direction, k):
                 sym_p, sym_t, _line(a, c), _line(a, d), q, _tier(q), k)
 
 
-def detect_waves(high, low, close, ks=(1.0, 1.5), atr_period=14, sym_lo=0.6, sym_hi=1.6):
+def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.6, sym_hi=1.6):
     """Find Wolfe 1-4 structures (with point 5 if it has overshot). (waves, atr_arr).
 
-    Pivots via the ATR-zigzag (`fractal_pivots` is available but the zigzag is what
-    surfaces a clean 1-2-3-4-5 on the daily chart — daily fractals are too sparse in a
-    trend to identify the five points)."""
+    Pivots via the ATR-zigzag across a small multi-scale grid: fine (1.0/1.5) surfaces
+    the recent tight wave, coarse (2.5) surfaces the bigger monthly wave — so a name can
+    show two nested Wolfes of different degree (validated on PARAS: k≈1.0 → the May-Jun
+    wave, k≈2.5 → the Mar-Jun wave, both ending at the Jun-19 high). `fractal_pivots`
+    exists but the zigzag is what cleanly identifies the five points on daily bars."""
     atr_arr = atr(high, low, close, atr_period)
     waves = []
     for k in ks:
@@ -237,17 +239,27 @@ def detect_waves(high, low, close, ks=(1.0, 1.5), atr_period=14, sym_lo=0.6, sym
             def line13(t, _a=a, _s=s13):
                 return _a.price + _s * (t - _a.idx)
 
-            # point 5 = the next pivot (low for BULL / high for BEAR) that breaks
-            # below/above point 3 AND overshoots the 1-3 line.
+            # point 5 (Ramana's rule): a candidate is NOT point 5 until price crosses
+            # the EXTENDED 1-3 line — ABOVE for a bear, BELOW for a bull. Take the
+            # post-point-4 extreme that has crossed the rail as point 5 (CONFIRMED — and
+            # it may keep extending). It need NOT be a confirmed zigzag pivot (that's why
+            # the coarse Mar-Jun wave's Jun-19 high counts as point 5 even mid-pullback).
+            # If price hasn't crossed the rail yet → FORMING (zone projected from Fibs).
             p5, state = None, 'FORMING'
-            if i + 4 < len(piv):
-                e = piv[i + 4]
-                if direction == 'BULL' and e.kind == 'L':
-                    if e.price < c.price and e.price < line13(e.idx):
-                        p5, state = e, 'CONFIRMED'
-                elif direction == 'BEAR' and e.kind == 'H':
-                    if e.price > c.price and e.price > line13(e.idx):
-                        p5, state = e, 'CONFIRMED'
+            ex_idx = ex_val = None
+            # point 5 must arrive within the wave's own horizon (~1.5× the 1-4 span),
+            # not months later through an unrelated move — else a tiny old wave would
+            # wrongly claim a far-future high as its point 5.
+            win_end = min(len(high) - 1, d.idx + max(10, int(1.5 * (d.idx - a.idx))))
+            for t in range(d.idx + 1, win_end + 1):
+                rail = line13(t)
+                if direction == 'BEAR' and high[t] > rail and (ex_val is None or high[t] > ex_val):
+                    ex_val, ex_idx = high[t], t
+                elif direction == 'BULL' and low[t] < rail and (ex_val is None or low[t] < ex_val):
+                    ex_val, ex_idx = low[t], t
+            if ex_idx is not None:
+                p5 = Pivot(ex_idx, ex_val, 'H' if direction == 'BEAR' else 'L')
+                state = 'CONFIRMED'
             # Wolfe rule: point 4 (d) must NOT be breached before point 5 forms —
             # bull: no high above point 4; bear: no low below point 4. A breach
             # means price broke out instead of forming the wave → reject.
@@ -464,25 +476,13 @@ def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.004):
     return e12, e34, zones[:4]
 
 
-def overlay_for(conn, sym=None, idx=None):
-    """The MOST-RECENT wave, shaped for the stock page's lightweight-charts chart:
-    line-series points (struct / 1-3 line / EPA, keyed by date) + pivot markers.
-    Returns None if no setup."""
-    d = analyze(conn, sym=sym, idx=idx)
-    if not d or not d["waves"]:
-        return None
-    ws, dates, n = d["waves"], d["dates"], d["n"]
-    ri = max(range(len(ws)),
-             key=lambda i: (ws[i]["p5"]["idx"] if ws[i]["p5"] else ws[i]["pivots"][3]["idx"]))
-    w = ws[ri]
-    last_idx = w["p5"]["idx"] if w["p5"] else w["pivots"][3]["idx"]
-    if n - 1 - last_idx > 90:          # latest setup is stale → show nothing, not a year-old wave
-        return None
+def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
+    """Shape ONE analyzed wave for the candle overlay: 1-2-3-4-(5) structure + numbered
+    markers, the 1-3 line (the point-5 confirmation rail), the EPA, the two Fib grids and
+    the strong overlap zones (projected toward the overshoot)."""
     p, p5, p1 = w["pivots"], w["p5"], w["pivots"][0]
     bull = w["direction"] == "BULL"
     color = "#3fb950" if bull else "#f85149"
-    # Fib-extension components — project each leg toward the overshoot; where a 1-2
-    # level overlaps a 3-4 level = the zone / point 5 (Ramana's method).
     P1, P2, P3, P4 = p[0]["price"], p[1]["price"], p[2]["price"], p[3]["price"]
     e12, e34, zones = fib_zones(P1, P2, P3, P4, direction=w["direction"])
     fib12 = [{"r": r, "value": round(v, 2)} for r, v in e12.items()]
@@ -491,32 +491,59 @@ def overlay_for(conn, sym=None, idx=None):
     if p5:
         struct.append({"time": p5["date"], "value": round(p5["price"], 2)})
     last5 = p5["idx"] if p5 else p[3]["idx"]
-    f13 = min(n - 1, last5 + 5)
+    # 1-3 line extended well past the latest bar — point 5 confirms only once it
+    # crosses this rail (above for BEAR / below for BULL).
+    f13 = n - 1
     line13 = [{"time": dates[p1["idx"]], "value": round(p1["price"], 2)},
               {"time": dates[f13], "value": round(p1["price"] + w["line13_slope"] * (f13 - p1["idx"]), 2)}]
     epa = [{"time": dates[p1["idx"]], "value": round(p1["price"], 2)},
            {"time": dates[n - 1], "value": round(p1["price"] + w["epa_slope"] * (n - 1 - p1["idx"]), 2)}]
     markers = [{"time": pt["date"], "position": "aboveBar" if pt["kind"] == "H" else "belowBar",
-                "color": color, "shape": "circle", "text": str(j)} for j, pt in enumerate(p, 1)]
+                "color": color, "shape": marker_shape, "text": str(j)} for j, pt in enumerate(p, 1)]
     if p5:
         markers.append({"time": p5["date"], "position": "aboveBar" if not bull else "belowBar",
-                        "color": color, "shape": "circle", "text": "5"})
-    # Predict point 5 when it hasn't printed yet (FORMING): the strongest Fib-extension
-    # overlap on the overshoot side (Ramana's method).
+                        "color": color, "shape": marker_shape, "text": "5"})
     p5pred = None
     if not p5 and zones:
         z = zones[0]
         p5pred = {"value": z["price"], "low": z["low"], "high": z["high"],
                   "label": f'5 ≈ {z["price"]} (1-2 ×{z["r12"]} ∩ 3-4 ×{z["r34"]})'}
-    summary = (f'WolfeRank {w["wolfe_rank"]} · {w["rank_tier"]} · {w["direction"]} · {w["state"]}'
-               + (f' · R:R {w["rr"]}' if w["rr"] else '')
-               + (f' · up {w["upside_pct"]}%' if w["upside_pct"] is not None else '')
-               + (f' · 5 pred {p5pred["value"]}' if p5pred else '')
-               + (f' · {len(ws)} setups' if len(ws) > 1 else ''))
-    return {"color": color, "dir": w["direction"], "struct": struct,
-            "line13": line13, "epa": epa, "markers": markers, "summary": summary,
+    summary = (f'{w["direction"]} · {w["state"]} · rank {w["wolfe_rank"]}{w["rank_tier"]}'
+               + (f' · zone {zones[0]["price"]}' if zones else '')
+               + (f' · 5≈{p5pred["value"]}' if p5pred else ''))
+    return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
+            "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
             "p5pred": p5pred, "p4_time": p[3]["date"], "p4_value": round(p[3]["price"], 2),
-            "last_time": dates[n - 1],
-            "fib12": fib12, "fib34": fib34, "zones": zones}
+            "last_time": dates[n - 1], "fib12": fib12, "fib34": fib34, "zones": zones}
+
+
+def overlay_for(conn, sym=None, idx=None, want=2):
+    """Up to `want` (default 2) of the most-recent, clearest Wolfe waves, shaped for the
+    stock-page candle overlay. Selection = most-recent by last pivot, ties broken by
+    WolfeRank; structurally distinct (point 4 ≥3 bars apart). Returns {waves, label,
+    kind} or None. (A name can carry two nested Wolfes of different degree — e.g. PARAS:
+    the May-Jun wave and the Mar-Jun wave, both ending at the Jun-19 high.)"""
+    d = analyze(conn, sym=sym, idx=idx)
+    if not d or not d["waves"]:
+        return None
+    ws, dates, n = d["waves"], d["dates"], d["n"]
+
+    def last_idx(w):
+        return w["p5"]["idx"] if w["p5"] else w["pivots"][3]["idx"]
+
+    fresh = [w for w in ws if n - 1 - last_idx(w) <= 90]
+    if not fresh:
+        return None
+    fresh.sort(key=lambda w: (-last_idx(w), -(w["wolfe_rank"] or 0)))   # most-recent, then clearest
+    picked = []
+    for w in fresh:
+        if any(abs(w["pivots"][3]["idx"] - q["pivots"][3]["idx"]) <= 2 for q in picked):
+            continue
+        picked.append(w)
+        if len(picked) >= want:
+            break
+    waves = [_wave_payload(w, dates, n, marker_shape=("circle" if i == 0 else "square"), dashed=(i > 0))
+             for i, w in enumerate(picked)]
+    return {"waves": waves, "label": d["label"], "kind": d["kind"]}
 # * zone_s uses symmetry as a confluence-tightness proxy until Ramana's exact
 #   legs-1-2/3-4 Fib overlay is wired (open item).
