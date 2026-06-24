@@ -73,7 +73,15 @@ SNIPPET = """<script>
     window.__wfcandle=candle;
     var pline=pc.addLineSeries({color:C.line,lineWidth:2,priceLineVisible:false,lastValueVisible:false}); pline.applyOptions({visible:false});
     var parea=pc.addAreaSeries({lineColor:C.line,topColor:'rgba(31,111,235,0.25)',bottomColor:'rgba(31,111,235,0.02)',lineWidth:2,priceLineVisible:false,lastValueVisible:false}); parea.applyOptions({visible:false});
-    ZONES.forEach(function(z){ candle.createPriceLine({price:z.price,color:z.color||'#6e7681',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label||''}); });
+    // Institutional price zones (P1M/P3M/P6M/P12M/R12M) — part of the DVPT
+    // footprint, so they show/hide WITH the DVPT chip (retained for toggling;
+    // v4 price-lines have no `visible`, so we remove + re-create).
+    var zoneLines=[];
+    function setZones(v){
+      if(v){ if(!zoneLines.length) zoneLines=ZONES.map(function(z){ return candle.createPriceLine({price:z.price,color:z.color||'#6e7681',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label||''}); }); }
+      else { zoneLines.forEach(function(pl){ try{ candle.removePriceLine(pl); }catch(e){} }); zoneLines=[]; }
+    }
+    setZones(true);
 
     // docked flow sub-panes (overlay price scales, shared bottom band) — collapse
     // the old DVPT / Delivery% / Traded-value panes into the ONE chart.
@@ -191,7 +199,7 @@ SNIPPET = """<script>
       candle.priceScale().applyOptions({scaleMargins:{top:0.06, bottom: any?0.28:0.06}});
     }
     var reg={
-      dvpt:{label:'DVPT',col:C.dvpt,on:true, fn:function(v){ dvptH.applyOptions({visible:v}); reflow(); }},
+      dvpt:{label:'DVPT',col:C.dvpt,on:true, fn:function(v){ dvptH.applyOptions({visible:v}); setZones(v); reflow(); }},
       rs:{label:'RS',col:C.rs,on:false, fn:function(v){ rsToggle(v); }},
       vwap:{label:'VWAP',col:C.vwap,on:false, fn:function(v){ if(v)vwapL.setData(vwapFrom(RT,0)); vwapL.applyOptions({visible:v}); }},
       avwap:{label:'Anchored VWAP',col:C.avwap,on:false, fn:function(v){ if(v){ avwapL.setData(vwapFrom(RT,anchorIdx())); pickAVWAP(); } avwapL.applyOptions({visible:v}); }},
