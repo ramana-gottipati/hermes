@@ -373,7 +373,19 @@ Toggle chips (50/200 default ON), coexists with the CPR Spine. 3 additive `dashb
 `{_MA_SNIPPET}` · `window.__wfdata=DATA`) added in-place on the VPS (backup `*.bak-ma`), `hermes-api`
 health 200, **verified wired on the ACC page**. Fills the table-stakes gap (the live chart had no MAs).
 Next Phase-2 candidates: MEP/RS on-chart overlays, VWAP/anchored-VWAP, the chart-type dropdown; then the
-full one-chart engine swap (the "un-stretch") when dashboard.py is free. The full `render_stock_chart()` engine swap (one
+full one-chart engine swap (the "un-stretch") when dashboard.py is free.
+
+**MEP accumulation/distribution tint BUILT + DEPLOYED (2026-06-24, commit `6a78341`).**
+`src/web/mep_overlay.py`: `/dash/mep/overlay` serves contiguous **smoothed-phase** bands
+(`mep_signals.mep_state_smooth`); the SNIPPET tints the price-chart background green (accumulation) /
+red (distribution) as a primitive on `window.__wfcandle`. Default OFF (opt-in lens), fetch-on-first-toggle,
+chip joins the existing chip row. 4 in-place hooks (2 `main.py` router, 2 `dashboard.py`), backups
+`*.bak-mep`. Verified: health 200, endpoint 200, snippet wired on ACC.
+**Deploy hardening (lesson):** the first MEP restart tripped a *false* "unhealthy" (the 3s health wait was
+shorter than the ~5–7s restart) → the guard auto-rolled-back harmlessly. Re-deployed with a **pre-restart
+`import src.main` check + a health-retry loop (≤20s)** — now the standard overlay-deploy guard.
+**Known polish:** the MEP chip joined the MA/indicators row (load-order); unifying all overlays into one
+shared chip rail is the next cleanup as overlays multiply. The full `render_stock_chart()` engine swap (one
 chart replacing the 4-pane stack) remains the eventual Phase-0 rebuild when dashboard.py is free.
 
 **Remaining for Phase 0/1:** wire `render_stock_chart()` into `/dash/stock` + mount `/static` (one call
