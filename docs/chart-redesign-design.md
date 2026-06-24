@@ -385,7 +385,19 @@ chip joins the existing chip row. 4 in-place hooks (2 `main.py` router, 2 `dashb
 shorter than the ~5–7s restart) → the guard auto-rolled-back harmlessly. Re-deployed with a **pre-restart
 `import src.main` check + a health-retry loop (≤20s)** — now the standard overlay-deploy guard.
 **Known polish:** the MEP chip joined the MA/indicators row (load-order); unifying all overlays into one
-shared chip rail is the next cleanup as overlays multiply. The full `render_stock_chart()` engine swap (one
+shared chip rail is the next cleanup as overlays multiply.
+
+**Ramana's CPR corrections BUILT + DEPLOYED (2026-06-24, commit `bfe6093`).** He confirmed the CPR is
+correct + he's happy with it; corrections to behaviour: (1) **CPR degree follows the chart's interval** —
+daily chart → daily CPR, weekly → weekly, monthly → monthly (the snippet hooks the existing `[data-ptf]`
+buttons; quarterly hides); **no** independent CPR timeframe toggle. (2) **U/∩ marker on the MIDDLE candle**
+(C1, the valley/peak): the pattern is flagged in `cpr_signals` on **C0** (the signal bar), and the flagged
+segment's `t0` IS C1's date, so the marker uses `s.t0` (verified vs data — BEAR_INVU marker at 2024-01-15,
+not signal-bar 2024-01-16; **100% of weekly segments align to the weekly candle axis**). (3) **CPR default
+OFF** — it's a proprietary strategy you call up (opt-in, fetch-on-first-toggle). (4) CPR + MEP grouped in a
+labelled **"Strategies"** chip group (MA stays "Indicators"; **MA still default-on** — a standard indicator,
+flagged for confirmation). The **full** four-family grouping + Wolfe/DVPT integration is Ramana's planned
+**UI-architecture-overhaul session** (deliberately deferred — not now). The full `render_stock_chart()` engine swap (one
 chart replacing the 4-pane stack) remains the eventual Phase-0 rebuild when dashboard.py is free.
 
 **Remaining for Phase 0/1:** wire `render_stock_chart()` into `/dash/stock` + mount `/static` (one call
