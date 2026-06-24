@@ -83,6 +83,7 @@ def _chart_svg(d, wi=0, show=True):
     """Draw ONLY the selected wave (wi), framed to it. Falls back to a plain price
     chart when there are no waves."""
     highs, lows, closes, dates, n = d["highs"], d["lows"], d["closes"], d["dates"], d["n"]
+    opens = d.get("opens", closes)
     waves = d["waves"]
 
     def frame(x0, x1, hi=(), lo=()):
@@ -139,9 +140,26 @@ def _chart_svg(d, wi=0, show=True):
     for g in range(6):
         i = x0 + round((x1 - x0) * g / 5)
         S.append(f'<text x="{X(i):.1f}" y="{_H-8}" text-anchor="middle" fill="{_AXT}" font-size="10">{_esc(dates[i])}</text>')
-    pts = " ".join(f"{X(i):.1f},{Y(closes[i]):.1f}" for i in range(x0, x1 + 1))
-    op = "0.55" if w else "1"
-    S.append(f'<polyline points="{pts}" fill="none" stroke="{_PRICE}" stroke-width="1.4" opacity="{op}"/>')
+    # price: CANDLESTICKS for stocks (so the pivots sit on the real high/low spikes —
+    # a close-only line hides the wicks and makes the wave look wrong), a line for
+    # indices (no OHLC). Muted when a wave is overlaid so the structure stands out.
+    if d.get("has_ohlc"):
+        op = 0.55 if w else 0.95
+        bw = max(1.2, (_W - _PADL - _PADR) / max(1, (x1 - x0 + 1)) * 0.62)
+        for i in range(x0, x1 + 1):
+            cx = X(i)
+            up = closes[i] >= opens[i]
+            col = _BULL if up else _BEAR
+            S.append(f'<line x1="{cx:.1f}" y1="{Y(highs[i]):.1f}" x2="{cx:.1f}" y2="{Y(lows[i]):.1f}" '
+                     f'stroke="{col}" stroke-width="0.9" opacity="{op}"/>')
+            yo, yc = Y(opens[i]), Y(closes[i])
+            top, h = min(yo, yc), max(1.0, abs(yc - yo))
+            S.append(f'<rect x="{cx-bw/2:.1f}" y="{top:.1f}" width="{bw:.1f}" height="{h:.1f}" '
+                     f'fill="{col}" opacity="{op}"/>')
+    else:
+        pts = " ".join(f"{X(i):.1f},{Y(closes[i]):.1f}" for i in range(x0, x1 + 1))
+        S.append(f'<polyline points="{pts}" fill="none" stroke="{_PRICE}" stroke-width="1.4" '
+                 f'opacity="{"0.55" if w else "1"}"/>')
 
     if w:
         col = _BULL if w["direction"] == "BULL" else _BEAR
