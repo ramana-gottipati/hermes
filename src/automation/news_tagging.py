@@ -62,7 +62,7 @@ def ensure_schema(conn) -> None:
 
 
 # --- normalization ----------------------------------------------------------
-_LEGAL_SUFFIX = {"limited", "ltd", "ltd.", "limited.", "lim", "ltm"}
+_LEGAL_SUFFIX = {"limited", "ltd"}   # tokens are punctuation-free, so "ltd."/"lim" need not appear
 _LEAD_DROP = {"the"}
 
 
@@ -360,21 +360,11 @@ if __name__ == "__main__":
 
 
 # -----------------------------------------------------------------------------
-# GOING-FORWARD (zero-cost) HOOK — deferred, additive, documented here so it is
-# not lost:  news_feed.py already computes per-item `tickers` via its Haiku/Gemini
-# classifier (classify_batch → item["tickers"]) and then DISCARDS them for general
-# news. To capture them, in news_feed.run_and_send(), where it currently does
-# `mark_sent(item)` on success, also persist the classifier symbols:
-#
-#     from src.automation.news_tagging import tag_url
-#     ...
-#     for item in annotated:                       # NOTE: annotated, not raw_items
-#         if item.get("tickers"):
-#             with get_conn() as conn:
-#                 tag_url(conn, item["url"], item["tickers"],
-#                         method="classifier", confidence=0.95)
-#
-# That is a small additive edit to a non-contended file; it complements (does not
-# replace) this rule-based backfill, and recovers brand≠legal-name cases the
-# gazetteer misses (Nykaa, RIL, Jio…). Left unwired pending review.
+# GOING-FORWARD PATH — WIRED (news_feed._persist_news_tags, called after mark_sent
+# on every news run). For each freshly-sent headline it runs BOTH this module's
+# rule-based match_title (so a clearly-named company is tagged even when the
+# classifier filed the item as OTHER) AND tag_url() on the classifier's `tickers`
+# (recovers brand≠legal-name cases the gazetteer misses — Nykaa, RIL, Jio…). So
+# `backfill` is the one-time history catch-up; the hook keeps new news tagged with
+# no separate timer. `tag_url` remains the public helper for any external caller.
 # -----------------------------------------------------------------------------

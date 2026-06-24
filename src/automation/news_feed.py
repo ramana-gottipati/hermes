@@ -544,24 +544,46 @@ def _stage1_screen_all_earnings(items: list[dict]) -> None:
             log.info("stage1 %s: %s (%s)", verdict, ticker, rationale)
 
 
-def _persist_classifier_tags(annotated: list[dict]) -> None:
-    """Persist the classifier's per-item `tickers` as per-symbol news tags
-    (UI Architecture v2 §7). The classifier already computes `tickers` for free;
-    saving them gives the stock dossier Timeline / Markets Wire a symbol→news link
-    that recovers brand≠legal-name cases the rule-based gazetteer backfill misses
-    (Nykaa, RIL, Jio…). Best-effort: a failure here must never break the brief."""
+def _persist_news_tags(annotated: list[dict]) -> None:
+    """Tag freshly-sent headlines with the stock(s) they concern (UI Architecture
+    v2 §7) so the dossier Timeline / Markets Wire have a symbol→news link. Two
+    complementary sources, written here AFTER the headlines land in sent_news:
+      • the rule-based gazetteer (news_tagging.match_title) — catches a clearly
+        named listed company even when the classifier filed the item as OTHER
+        (the classifier returns no tickers for OTHER, so without this the dossier
+        Timeline would permanently miss those headlines);
+      • the classifier's own `tickers` (computed for free) — recovers brand!=legal
+        name cases the gazetteer misses (Nykaa, RIL, Jio…).
+    Must run only for headlines that were actually mark_sent (else the tags are
+    orphans with no sent_news row). Best-effort: never breaks the brief."""
     try:
-        from src.automation.news_tagging import tag_url
-        rows = [(it["url"], it["tickers"]) for it in annotated
-                if it.get("url") and it.get("tickers")]
-        if not rows:
+        from src.automation.news_tagging import ensure_schema, build_index_from_conn, match_title
+        items = [it for it in annotated if it.get("url")]
+        if not items:
             return
+        named = classifier = 0
         with get_conn() as conn:
-            written = sum(tag_url(conn, url, tickers, method="classifier",
-                                  confidence=0.95) for url, tickers in rows)
-        log.info("symbol-tagged %d classifier ticker(s) across %d headlines", written, len(rows))
+            ensure_schema(conn)
+            index = build_index_from_conn(conn)
+            for it in items:
+                url = it["url"]
+                for sym, (method, conf, _span) in match_title(it.get("title") or "", index).items():
+                    cur = conn.execute(
+                        "INSERT OR IGNORE INTO news_symbol_tags (news_url, symbol, method, confidence) "
+                        "VALUES (?, ?, ?, ?)", (url, sym, method, conf))
+                    named += cur.rowcount or 0
+                for t in (it.get("tickers") or []):
+                    t = (t or "").strip().upper()
+                    if not t:
+                        continue
+                    cur = conn.execute(
+                        "INSERT OR IGNORE INTO news_symbol_tags (news_url, symbol, method, confidence) "
+                        "VALUES (?, ?, 'classifier', 0.95)", (url, t))
+                    classifier += cur.rowcount or 0
+        log.info("news symbol-tags written: %d rule-based + %d classifier across %d headlines",
+                 named, classifier, len(items))
     except Exception as e:
-        log.warning("symbol-tag persist skipped: %s", e)
+        log.warning("news symbol-tagging skipped: %s", e)
 
 
 # --- Entry point ------------------------------------------------------------
@@ -607,10 +629,6 @@ def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bo
     except Exception as e:
         log.error("stage1 screen pipeline raised: %s", e)
 
-    # Persist per-symbol news tags from the classifier's tickers (forward path of
-    # the rule-based news_tagging backfill — UI Architecture v2 §7). Best-effort.
-    _persist_classifier_tags(annotated)
-
     signal = [it for it in annotated if is_worth_sending(it)]
     log.info("%d items kept after filter (from %d)", len(signal), len(annotated))
 
@@ -618,12 +636,14 @@ def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bo
         # Still mark them so we don't re-classify these same items on the next run
         for item in raw_items:
             mark_sent(item)
+        _persist_news_tags(annotated)   # symbol-tag AFTER mark_sent (no orphan tags)
         return True, "No signal-worthy items right now. (Filtered out routine commentary.)"
 
     message = format_brief(signal)
     if send_to_telegram(message, override_chat_id=override_chat_id):
         for item in raw_items:
             mark_sent(item)
+        _persist_news_tags(annotated)   # symbol-tag AFTER mark_sent (no orphan tags)
         return True, f"Sent {len(signal)} signal items."
     else:
         return False, "Send to Telegram failed — check logs."
