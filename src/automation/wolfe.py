@@ -1,21 +1,21 @@
 """Wolfe-wave detector (production — rebuilt 2026-06-23 on the CORRECT convention).
 
-Convention (panel-decided 2026-06-24; see docs/wolfe-NEXT-SESSION.md §7). Both setups
-label point 1 on a LOW, so pivots run L,H,L,H; the two thrust legs 1→2 and 3→4 point
-TOWARD point 5 (their standard-Fib-extension confluence is the point-5 zone):
-  BEAR (sell at 5) — ASCENDING wedge: lows 1,3 rise AND highs 2,4 rise. Point 5 is the
-    upper overshoot of the 2-4 rail = the Fib-confluence zone (validated on PARAS:
-    legs 968.1→1066.75 & 1075.5→1133 → strong zone ≈ 1226). Then reverses DOWN.
-  BULL (buy at 5) — DESCENDING wedge (Ramana's confirmed buy convention, UNCHANGED):
-    descending lows, point 4 inside the 1-2 channel; point 5 = the lower overshoot of
-    the 1-3 rail, reverses UP. (Fib-method reconciliation deferred — open #B1.)
-  H,L,H,L decompositions are rejected (legs point away from 5 → wrong-side zone).
-  Valid wave: leg 1-2 ≈ leg 3-4 (symmetry, tol 0.5–2.0), both rails monotone.
+Canonical Wolfe structure (confirmed with Ramana):
+  BULLISH (buy at 5): pivots 1·3·5 are DESCENDING LOWS, 2·4 are highs.
+    3 < 1, 5 < 3 and 5 overshoots the 1-3 support line. Reverses UP.
+    Target / EPA = the 1-4 line (1 low → 4 high ⇒ up-sloping).
+  BEARISH (sell at 5): the mirror — 1·3·5 are ASCENDING HIGHS, 2·4 lows.
+    3 > 1, 5 > 3 and 5 overshoots the 1-3 resistance line. Reverses DOWN.
+    Target / EPA = the 1-4 line (down-sloping).
+  Valid wave: leg 1-2 ≈ leg 3-4 (symmetry), 1-3 trends, 5 overshoots 1-3.
 
 Detection is on-the-fly per symbol/index. Pure-stdlib + the production CA adjuster.
-The point-5 zone is the strongest Fib overlap on the overshoot side; `fib_zones()`
-returns the standard extensions level(r)=a+r·(b−a) on swings 1→2 & 3→4 and their
-strong overlap zones (validated to the decimal vs Ramana's Fyers).
+
+Point-5 / target Fibs (Ramana's method): `fib_zones()` draws a standard Fib EXTENSION
+on each thrust leg (1-2 and 3-4), anchored at the leg's LOW and projected toward the
+overshoot — UP for a sell (zone ABOVE the structure, e.g. PARAS 1226) — and reports
+where the two grids OVERLAP (the strong zones). 2026-06-24 fix: the extensions now
+project toward the overshoot side, so a sell reads its zone above (1226), not below.
 """
 from __future__ import annotations
 
@@ -49,8 +49,7 @@ class Wave:
     leg34_bars: int
     sym_price: float
     sym_time: float
-    line13_slope: float     # slope of the 1-3 line (lower rail through lows 1,3)
-    line24_slope: float     # slope of the 2-4 line (upper rail; BEAR point-5 overshoots this)
+    line13_slope: float     # slope of the 1-3 line (overshoot reference)
     epa_slope: float        # slope of the 1-4 line (target)
     quality: float
     tier: str
@@ -142,29 +141,20 @@ def _line(p_a, p_b):
 
 
 def _classify(a, b, c, d, sym_lo, sym_hi):
-    """a=1, b=2, c=3, d=4 — return 'BULL'/'BEAR' for a valid Wolfe 1-4, else None.
-
-    Both setups label point 1 on a LOW (the foot Ramana draws), so pivots run L,H,L,H.
-    Direction is set by the channel's slope, anchored on his method: the two thrust
-    legs 1→2 and 3→4 point TOWARD point 5 (their standard-Fib-extension confluence is
-    the point-5 zone), so —
-      • ASCENDING wedge (lows AND highs rise) → BEAR / sell: point 5 is the upper
-        overshoot of the 2-4 rail (the Fib-confluence zone, e.g. PARAS ≈ 1226), then
-        price reverses DOWN.  ← validated 2026-06-24 against his Fyers PARAS drawing.
-      • DESCENDING wedge (Ramana's confirmed buy convention, kept unchanged) → BULL.
-    H,L,H,L decompositions place the confluence on the WRONG side of point 5 (legs
-    point away from 5) — they produced the bogus downward zone and are rejected.
-    See docs/wolfe-NEXT-SESSION.md §7 for the panel decision + rationale.
-    """
-    if not (a.kind == 'L' and b.kind == 'H' and c.kind == 'L' and d.kind == 'H'):
-        return None
-    # BULL — UNCHANGED: descending lows, point 4 inside the 1-2 channel (≤ 2). Deferred
-    # for Fib-method reconciliation (open #B1); do not retune without a real buy drawing.
-    if c.price < a.price and _line(a, c) < 0 and d.price <= b.price:
+    """a=1, b=2, c=3, d=4 — return 'BULL'/'BEAR' if a valid Wolfe 1-4, else None."""
+    # BULLISH: 1·3 are LOWS (descending), 2·4 highs.
+    if a.kind == 'L' and b.kind == 'H' and c.kind == 'L' and d.kind == 'H':
+        if not (c.price < a.price):          # 3 is a lower low than 1
+            return None
+        if _line(a, c) >= 0:                 # 1-3 lows must descend
+            return None
         direction = 'BULL'
-    # BEAR — ascending wedge: lower rail (1-3) and upper rail (2-4) both rise; 3>1, 4>2.
-    elif (c.price > a.price and d.price > b.price
-          and _line(a, c) > 0 and _line(b, d) > 0):
+    # BEARISH: 1·3 are HIGHS (ascending), 2·4 lows.
+    elif a.kind == 'H' and b.kind == 'L' and c.kind == 'H' and d.kind == 'L':
+        if not (c.price > a.price):          # 3 is a higher high than 1
+            return None
+        if _line(a, c) <= 0:                 # 1-3 highs must ascend
+            return None
         direction = 'BEAR'
     else:
         return None
@@ -172,7 +162,13 @@ def _classify(a, b, c, d, sym_lo, sym_hi):
     leg34 = abs(d.price - c.price)
     if leg12 <= 0 or leg34 <= 0:
         return None
-    if not (sym_lo <= leg34 / leg12 <= sym_hi):   # Wolfe symmetry (legs 1-2 ≈ 3-4)
+    if not (sym_lo <= leg34 / leg12 <= sym_hi):   # Wolfe symmetry
+        return None
+    # point 4 must stay inside the 1-2 channel — it cannot breach point 2
+    # (bull: 4 not above 2; bear: 4 not below 2).
+    if direction == 'BULL' and d.price > b.price:
+        return None
+    if direction == 'BEAR' and d.price < b.price:
         return None
     return direction
 
@@ -188,10 +184,10 @@ def _build(a, b, c, d, p5, state, direction, k):
     sym_t = leg34_b / leg12_b
     q = 0.55 * _sc(sym_p, 2.0) + 0.25 * _sc(sym_t, 3.0) + 0.20 * (1.0 if state == 'CONFIRMED' else 0.6)
     return Wave(direction, [a, b, c, d], p5, state, leg12, leg12_b, leg34, leg34_b,
-                sym_p, sym_t, _line(a, c), _line(b, d), _line(a, d), q, _tier(q), k)
+                sym_p, sym_t, _line(a, c), _line(a, d), q, _tier(q), k)
 
 
-def detect_waves(high, low, close, ks=(1.0, 1.5), atr_period=14, sym_lo=0.5, sym_hi=2.0):
+def detect_waves(high, low, close, ks=(1.0, 1.5), atr_period=14, sym_lo=0.6, sym_hi=1.6):
     """Find Wolfe 1-4 structures (with point 5 if it has overshot). (waves, atr_arr)."""
     atr_arr = atr(high, low, close, atr_period)
     waves = []
@@ -203,39 +199,31 @@ def detect_waves(high, low, close, ks=(1.0, 1.5), atr_period=14, sym_lo=0.5, sym
             if not direction:
                 continue
             s13 = _line(a, c)
-            s24 = _line(b, d)
 
             def line13(t, _a=a, _s=s13):
                 return _a.price + _s * (t - _a.idx)
 
-            def line24(t, _b=b, _s=s24):
-                return _b.price + _s * (t - _b.idx)
-
-            # point 5 = the terminal overshoot pivot.
-            #  BULL (descending): the next LOW (piv[i+4]) below point 3, overshooting
-            #        the 1-3 lower rail downward — reverses up.
-            #  BEAR (ascending): the next HIGH (piv[i+5], after the pullback low piv[i+4])
-            #        above point 4, overshooting the 2-4 upper rail upward — reverses down.
+            # point 5 = the next pivot (low for BULL / high for BEAR) that breaks
+            # below/above point 3 AND overshoots the 1-3 line.
             p5, state = None, 'FORMING'
-            if direction == 'BULL' and i + 4 < len(piv):
+            if i + 4 < len(piv):
                 e = piv[i + 4]
-                if e.kind == 'L' and e.price < c.price and e.price < line13(e.idx):
-                    p5, state = e, 'CONFIRMED'
-            elif direction == 'BEAR' and i + 5 < len(piv):
-                e = piv[i + 5]
-                if e.kind == 'H' and e.price > d.price and e.price > line24(e.idx):
-                    p5, state = e, 'CONFIRMED'
-            # Wolfe rule: the structure must NOT break out the wrong way before point 5.
-            #  BULL: no HIGH above point 4 (price must turn down to 5, not break up).
-            #  BEAR: no LOW below point 3 (the wedge's lower rail must hold into the
-            #        terminal up-overshoot; a break below = it broke down, not a Wolfe).
+                if direction == 'BULL' and e.kind == 'L':
+                    if e.price < c.price and e.price < line13(e.idx):
+                        p5, state = e, 'CONFIRMED'
+                elif direction == 'BEAR' and e.kind == 'H':
+                    if e.price > c.price and e.price > line13(e.idx):
+                        p5, state = e, 'CONFIRMED'
+            # Wolfe rule: point 4 (d) must NOT be breached before point 5 forms —
+            # bull: no high above point 4; bear: no low below point 4. A breach
+            # means price broke out instead of forming the wave → reject.
             end_b = p5.idx if p5 else len(high) - 1
             breached = False
             for t in range(d.idx + 1, end_b + 1):
                 if direction == 'BULL' and high[t] > d.price:
                     breached = True
                     break
-                if direction == 'BEAR' and low[t] < c.price:
+                if direction == 'BEAR' and low[t] < d.price:
                     breached = True
                     break
             if breached:
@@ -266,29 +254,20 @@ def line13_at(wave, t):
     return wave.p[0].price + wave.line13_slope * (t - wave.p[0].idx)
 
 
-def line24_at(wave, t):
-    return wave.p[1].price + wave.line24_slope * (t - wave.p[1].idx)
-
-
 def point5_zone(wave, atr_val):
-    """Fallback symmetry projection of the point-5 zone (leg 4-5 ≈ leg 2-3), clamped
-    past the overshoot rail. analyze() prefers the Fib-confluence zone; this is used
-    only when no strong Fib overlap exists on the overshoot side. Returns
-    {center, low, high, t5} or None.
-
-    BULL (descending): 5 below, clamped past the 1-3 lower rail.
-    BEAR (ascending):  5 above, clamped past the 2-4 upper rail."""
+    """Anticipated point-5 price zone (Wolfe symmetry: leg 4-5 ≈ leg 2-3), clamped
+    to the overshoot side of the 1-3 line. Returns {center, low, high} or None."""
     if not atr_val or atr_val <= 0:
         return None
     p1, p2, p3, p4 = wave.p
     drop23 = abs(p2.price - p3.price)            # the 2->3 swing
     t5 = wave.p5.idx if wave.p5 else p4.idx + (p4.idx - p2.idx)
     if wave.direction == 'BULL':
-        center = p4.price - drop23               # symmetric projection of 5 (below)
-        center = min(center, line13_at(wave, t5))   # at least past the 1-3 rail
+        center = p4.price - drop23               # symmetric projection of 5
+        center = min(center, line13_at(wave, t5))   # at least past the 1-3 line
     else:
-        center = p4.price + drop23               # symmetric projection of 5 (above)
-        center = max(center, line24_at(wave, t5))   # at least past the 2-4 rail
+        center = p4.price + drop23
+        center = max(center, line13_at(wave, t5))
     return {"center": center, "low": center - 0.6 * atr_val, "high": center + 0.6 * atr_val, "t5": t5}
 
 
@@ -370,38 +349,21 @@ def analyze(conn, sym=None, idx=None, ks=(1.0, 1.5), pad=25):
         if w.p[3].idx < x0:
             continue
         a = near_atr(atr_arr, w.p[3].idx) or 1.0
-        # point-5 zone = the strongest Fib-extension overlap on the OVERSHOOT side
-        # (BEAR: above point 4 / BULL: below point 4) — Ramana's actual method, so this
-        # surface agrees with the candle overlay. Fall back to the symmetry projection
-        # when no strong overlap sits on that side.
-        P1, P2, P3, P4 = (pt.price for pt in w.p)
-        _, _, fzones = fib_zones(P1, P2, P3, P4)
-        side = [z for z in fzones
-                if (z["price"] > P4 if w.direction == "BEAR" else z["price"] < P4)]
-        sym_zone = point5_zone(w, a)
-        if side:
-            f5 = side[0]
-            t5 = int(w.p5.idx if w.p5 else (sym_zone["t5"] if sym_zone else w.p[3].idx))
-            zone = {"center": f5["price"], "low": f5["low"], "high": f5["high"], "t5": t5,
-                    "fib": True, "r12": f5["r12"], "r34": f5["r34"]}
-        else:
-            zone = sym_zone
+        zone = point5_zone(w, a)
         t5 = int(w.p5.idx if w.p5 else (zone["t5"] if zone else w.p[3].idx))
         target = epa_at(w, t5)
         entry = w.p5.price if w.p5 else (zone["center"] if zone else None)
         upside = rr = rank = rank_tier = None
         if entry is not None and zone:
-            buf = 0.5 * a                                  # stop just beyond the overshoot
+            buf = 0.5 * a                                  # stop just beyond the actual overshoot
             if w.direction == "BULL":
                 stop = (w.p5.price if w.p5 else zone["low"]) - buf
                 reward, risk = target - entry, entry - stop
             else:
                 stop = (w.p5.price if w.p5 else zone["high"]) + buf
                 reward, risk = entry - target, stop - entry
-            # EPA (1-4 line) can project the wrong side for a young ascending wedge;
-            # only surface upside/R:R when the target is genuinely beyond entry.
-            upside = round(100.0 * reward / entry, 1) if (entry and reward > 0) else None
-            rr = round(reward / risk, 2) if (risk and risk > 0 and reward > 0) else None
+            upside = round(100.0 * reward / entry, 1) if entry else None
+            rr = round(reward / risk, 2) if risk and risk > 0 else None
             # --- WolfeRank (0-100): the 6 dimensions ----------------------- #
             track = w.quality                                          # structure
             target_s = min(1.0, max(0.0, (upside or 0) / 50.0))        # 5->EPA amplitude
@@ -432,13 +394,25 @@ def analyze(conn, sym=None, idx=None, ks=(1.0, 1.5), pad=25):
 _FIB_R = (0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.414, 1.618, 2.0, 2.618, 3.618, 4.236)
 
 
-def fib_zones(p1, p2, p3, p4, ratios=_FIB_R, tol_frac=0.004):
-    """Standard Fib EXTENSIONS on swing 1-2 and swing 3-4: level(r) = a + r·(b−a),
-    anchored 0 at the swing start and 1.0 at its end (Ramana's / the Fyers tool).
-    Returns (grid12, grid34, zones) where zones are the STRONG OVERLAPS — a 1-2 level
-    coinciding with a 3-4 level — deduped and sorted strongest (tightest) first."""
-    e12 = {r: p1 + r * (p2 - p1) for r in ratios}
-    e34 = {r: p3 + r * (p4 - p3) for r in ratios}
+def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.004):
+    """Standard Fib EXTENSIONS on swing 1-2 and swing 3-4, drawn the way Ramana draws
+    them in Fyers: each leg anchored at its LOW and projected TOWARD THE OVERSHOOT —
+    UP for a BEAR/sell (zone above the structure, e.g. PARAS 1226), DOWN for a BULL/buy.
+    Returns (grid12, grid34, zones) where zones = the STRONG OVERLAPS — a 1-2 level
+    coinciding with a 3-4 level — deduped and sorted strongest (tightest) first.
+
+    2026-06-24 fix: previously projected literally from p1 by r·(p2−p1), so a sell
+    (point 1 = high) projected DOWN and read the wrong-side zone (~807). Now it
+    normalises each leg to (low, high) and projects toward the overshoot, reproducing
+    his exact zones (legs 968.1/1066.75 & 1075.5/1133 → 2.618 ∩ 2.618 = 1226.4/1226.0)."""
+    lo12, hi12 = min(p1, p2), max(p1, p2)
+    lo34, hi34 = min(p3, p4), max(p3, p4)
+    if direction == "BULL":               # overshoot is DOWN, below the structure
+        e12 = {r: hi12 - r * (hi12 - lo12) for r in ratios}
+        e34 = {r: hi34 - r * (hi34 - lo34) for r in ratios}
+    else:                                  # BEAR — overshoot is UP, above the structure
+        e12 = {r: lo12 + r * (hi12 - lo12) for r in ratios}
+        e34 = {r: lo34 + r * (hi34 - lo34) for r in ratios}
     raw = []
     for r1, v1 in e12.items():
         for r2, v2 in e34.items():
@@ -456,16 +430,24 @@ def fib_zones(p1, p2, p3, p4, ratios=_FIB_R, tol_frac=0.004):
     return e12, e34, zones[:4]
 
 
-def _wave_payload(w, dates, n):
-    """Shape ONE analyzed wave (an entry of analyze()['waves']) for the candle overlay:
-    line-series points keyed by date + pivot markers + Fib grids + overlap zones. The
-    strongest overlap on the OVERSHOOT side leads `zones` (BEAR above point 4 / BULL
-    below), and is the predicted point 5 when 5 hasn't printed yet (Ramana's method)."""
+def overlay_for(conn, sym=None, idx=None):
+    """The MOST-RECENT wave, shaped for the stock page's lightweight-charts chart:
+    line-series points (struct / 1-3 line / EPA, keyed by date) + pivot markers.
+    Returns None if no setup."""
+    d = analyze(conn, sym=sym, idx=idx)
+    if not d or not d["waves"]:
+        return None
+    ws, dates, n = d["waves"], d["dates"], d["n"]
+    ri = max(range(len(ws)),
+             key=lambda i: (ws[i]["p5"]["idx"] if ws[i]["p5"] else ws[i]["pivots"][3]["idx"]))
+    w = ws[ri]
     p, p5, p1 = w["pivots"], w["p5"], w["pivots"][0]
     bull = w["direction"] == "BULL"
     color = "#3fb950" if bull else "#f85149"
+    # Fib-extension components — project each leg toward the overshoot; where a 1-2
+    # level overlaps a 3-4 level = the zone / point 5 (Ramana's method).
     P1, P2, P3, P4 = p[0]["price"], p[1]["price"], p[2]["price"], p[3]["price"]
-    e12, e34, zones = fib_zones(P1, P2, P3, P4)
+    e12, e34, zones = fib_zones(P1, P2, P3, P4, direction=w["direction"])
     fib12 = [{"r": r, "value": round(v, 2)} for r, v in e12.items()]
     fib34 = [{"r": r, "value": round(v, 2)} for r, v in e34.items()]
     struct = [{"time": pt["date"], "value": round(pt["price"], 2)} for pt in p]
@@ -482,46 +464,22 @@ def _wave_payload(w, dates, n):
     if p5:
         markers.append({"time": p5["date"], "position": "aboveBar" if not bull else "belowBar",
                         "color": color, "shape": "circle", "text": "5"})
-    overshoot = [z for z in zones if (z["price"] > P4 if not bull else z["price"] < P4)]
-    zones = overshoot + [z for z in zones if z not in overshoot]
+    # Predict point 5 when it hasn't printed yet (FORMING): the strongest Fib-extension
+    # overlap on the overshoot side (Ramana's method).
     p5pred = None
-    if not p5 and overshoot:
-        z = overshoot[0]
+    if not p5 and zones:
+        z = zones[0]
         p5pred = {"value": z["price"], "low": z["low"], "high": z["high"],
                   "label": f'5 ≈ {z["price"]} (1-2 ×{z["r12"]} ∩ 3-4 ×{z["r34"]})'}
     summary = (f'WolfeRank {w["wolfe_rank"]} · {w["rank_tier"]} · {w["direction"]} · {w["state"]}'
                + (f' · R:R {w["rr"]}' if w["rr"] else '')
                + (f' · up {w["upside_pct"]}%' if w["upside_pct"] is not None else '')
-               + (f' · 5≈{p5pred["value"]}' if p5pred else ''))
-    return {"color": color, "dir": w["direction"], "state": w["state"], "wolfe_rank": w["wolfe_rank"],
-            "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
+               + (f' · 5 pred {p5pred["value"]}' if p5pred else '')
+               + (f' · {len(ws)} setups' if len(ws) > 1 else ''))
+    return {"color": color, "dir": w["direction"], "struct": struct,
+            "line13": line13, "epa": epa, "markers": markers, "summary": summary,
             "p5pred": p5pred, "p4_time": p[3]["date"], "p4_value": round(p[3]["price"], 2),
-            "last_time": dates[n - 1], "fib12": fib12, "fib34": fib34, "zones": zones}
-
-
-def overlay_for(conn, sym=None, idx=None):
-    """ALL detected waves shaped for the stock-page candle overlay, best-first by
-    WolfeRank (the snippet cycles them with ‹ ›). Returns
-    {waves, default, nearest, label, kind} or None. `default` = top-ranked;
-    `nearest` = the wave whose point-5 zone is closest to the last close."""
-    d = analyze(conn, sym=sym, idx=idx)
-    if not d or not d["waves"]:
-        return None
-    dates, n, ws = d["dates"], d["n"], d["waves"]
-    waves = [_wave_payload(w, dates, n) for w in ws]   # analyze already sorts best-first
-    cur = d["closes"][-1] if d.get("closes") else None
-    nearest, best = 0, None
-    for i, wp in enumerate(waves):
-        z = wp["p5pred"]["value"] if wp["p5pred"] else (wp["zones"][0]["price"] if wp["zones"] else None)
-        if z is None:
-            continue
-        dist = abs(cur - z) if cur is not None else 0
-        if best is None or dist < best:
-            best, nearest = dist, i
-    # compact recent bars (date, high, low) so the manual "draw your own" mode can snap
-    # clicks to real swing extremes — the analyst sets the pivots, we compute the zones.
-    b0 = max(0, n - 800)
-    bars = [{"t": d["dates"][i], "h": round(d["highs"][i], 2), "l": round(d["lows"][i], 2)}
-            for i in range(b0, n)]
-    return {"waves": waves, "default": 0, "nearest": nearest,
-            "label": d["label"], "kind": d["kind"], "bars": bars}
+            "last_time": dates[n - 1],
+            "fib12": fib12, "fib34": fib34, "zones": zones}
+# * zone_s uses symmetry as a confluence-tightness proxy until Ramana's exact
+#   legs-1-2/3-4 Fib overlay is wired (open item).

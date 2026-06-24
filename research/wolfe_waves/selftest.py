@@ -1,12 +1,11 @@
-"""Deterministic correctness test for the Wolfe detector (convention 2026-06-24).
+"""Deterministic correctness test for the Wolfe detector.
 
-Validates src/automation/wolfe.py against synthetic textbook waves. Both setups label
-point 1 on a LOW (pivots L,H,L,H); the thrust legs 1→2 & 3→4 point toward point 5:
-  BULL (buy)  = DESCENDING wedge: descending lows, 5 = lower overshoot, reverse UP.
-  BEAR (sell) = ASCENDING wedge: lows & highs rise, 5 = a HIGH overshooting the 2-4
-                rail (the upper Fib-confluence zone), reverse DOWN.  ← PARAS-type.
-Also pins the Fib-extension formula on Ramana's exact Fyers PARAS swings (→ 1226.2).
-No DB, no numpy. Exit 0 = PASS. See docs/wolfe-NEXT-SESSION.md §7.
+Validates src/automation/wolfe.py against synthetic textbook waves:
+  bullish = 1·3·5 descending lows, 2·4 highs, 5 overshoots the 1-3 line (reverse up)
+  bearish = the mirror (1·3·5 ascending highs, H,L,H,L).
+Also pins the Fib-extension formula on Ramana's exact Fyers PARAS swings — projected
+toward the overshoot (up) → the strong zone 1226.2.
+No DB, no numpy. Exit 0 = PASS.
 """
 import math
 import os
@@ -60,10 +59,9 @@ def test_bull():
 
 
 def test_bear():
-    print("\n[bearish Wolfe — ascending wedge, 1·3 lows rise, sell at upper 5]")
-    # 1(L)@20=100 2(H)@34=130 3(L)@48=112 4(H)@62=145 pullback@76 5(H overshoot)@88=165 -> drop
-    high, low, close = _ohlc([(0, 108), (10, 118), (20, 100), (34, 130), (48, 112),
-                              (62, 145), (76, 128), (88, 165), (100, 140)])
+    print("\n[bearish Wolfe — 1·3·5 highs]")
+    high, low, close = _ohlc([(0, 70), (10, 58), (20, 70), (34, 50), (48, 78),
+                              (62, 56), (78, 90), (90, 74)])
     waves, _ = wolfe.detect_waves(high, low, close, ks=(1.5,))
     bear = [w for w in waves if w.direction == "BEAR"]
     ok = _check(len(bear) >= 1, f"detected a BEAR wave (got {len(waves)} total)")
@@ -71,15 +69,12 @@ def test_bear():
         return False
     w = bear[0]
     k = [p.kind for p in w.p]
-    ok &= _check(k == ["L", "H", "L", "H"], f"pivot kinds 1·2·3·4 = L,H,L,H (got {k})")
-    ok &= _check(w.p[2].price > w.p[0].price, f"3>1 higher low ({w.p[2].price:.0f}>{w.p[0].price:.0f})")
-    ok &= _check(w.p[3].price > w.p[1].price, f"4>2 higher high ({w.p[3].price:.0f}>{w.p[1].price:.0f})")
-    ok &= _check(w.epa_slope > 0, f"1-4 EPA slopes UP ({w.epa_slope:+.2f}/bar)")
-    ok &= _check(w.line13_slope > 0 and w.line24_slope > 0,
-                 f"both rails ascend (1-3 {w.line13_slope:+.2f}, 2-4 {w.line24_slope:+.2f})")
-    ok &= _check(w.p5 is not None and w.state == "CONFIRMED" and w.p5.kind == "H"
-                 and w.p5.price > w.p[3].price,
-                 f"point 5 = HIGH overshoot above 4 (@ {w.p5.price:.0f})" if w.p5 else "no point 5")
+    ok &= _check(k == ["H", "L", "H", "L"], f"pivot kinds 1·2·3·4 = H,L,H,L (got {k})")
+    ok &= _check(w.p[2].price > w.p[0].price, f"3>1 higher high ({w.p[2].price:.0f}>{w.p[0].price:.0f})")
+    ok &= _check(w.epa_slope < 0, f"1-4 EPA slopes DOWN ({w.epa_slope:+.2f}/bar)")
+    ok &= _check(w.line13_slope > 0, f"1-3 highs ascend ({w.line13_slope:+.2f}/bar)")
+    ok &= _check(w.p5 is not None and w.state == "CONFIRMED",
+                 f"point 5 confirmed (overshoot @ {w.p5.price:.0f})" if w.p5 else "no point 5")
     print(f"    -> tier={w.tier} q={w.quality:.2f}")
     return ok
 

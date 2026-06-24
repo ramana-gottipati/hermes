@@ -164,7 +164,36 @@ ssh hermes 'curl -s "http://localhost:8000/dash/wolfe/overlay?sym=PARAS" | pytho
 
 ---
 
-## 7. PANEL DECISION — wave/pivot selection fix (2026-06-24)
+## 7b. CORRECTION — the convention rewrite was WRONG; REVERTED (2026-06-24, later)
+
+⚠️ **The whole §7 convention rewrite below was a mistake and has been REVERTED.** Ramana clarified
+(with his 75-min + daily Fyers screenshots): an earlier version **already plotted points 1-2-3-4-5
+correctly** — his structure is **H,L,H,L** (point 1 = a HIGH; 1·3 ascending highs, the ORIGINAL bear
+convention). He only ever asked to fix the **Fibonacci ratios**. Rewriting `_classify` to L,H,L,H + dropping
+H,L,H,L **spoiled the points that were already right** (the skeptic seat had warned exactly this; it was
+overridden — the skeptic was correct).
+
+**What was actually wrong = the Fib DIRECTION only.** `overlay_for` called `fib_zones(P1,P2,P3,P4)` with the
+bear's points in detector order (P1 = high), so `p1 + r·(p2−p1)` projected **down** → the bogus ~807 zone.
+
+**Fix applied (surgical):** restored the original detector verbatim (H,L,H,L bear, L,H,L,H bull, original
+point-5 / breach / `point5_zone` / single-most-recent `overlay_for` + the original simple snippet). Changed
+ONLY `fib_zones`: it now normalises each leg to (low, high) and projects toward the **overshoot** — UP for a
+BEAR/sell (zone above), DOWN for a BULL/buy — reproducing his exact zones (his legs → 2.618∩2.618 = 1226.2,
+verified on his detector-order points 1066.75/968.1/1133/1075.5). `overlay_for` passes `direction=`.
+
+**Remaining (honest, data-proven):** the auto-detector finds his *type* of wave and now projects fibs the
+right way, but it can't reproduce his *exact* 1226 wave — his 4 pivots are **non-consecutive, hand-picked
+fractal pivots** (he uses Fyers **Fractals 2 & 10**) on a **75-minute** chart; the daily zigzag can't surface
+them at any scale (tested 0.4–1.5). True match needs intraday 75-min data + a fractal pivot reader, OR a
+manual swing-input. That's a data/feature decision for Ramana, not a convention bug.
+
+**BRANDING (binding):** the product is **patearn**, NOT Hermes. "Hermes" = the Nous agent ONLY. Stop calling
+the product Hermes.
+
+---
+
+## 7. PANEL DECISION — wave/pivot selection fix (2026-06-24) — ⚠️ SUPERSEDED, SEE §7b ABOVE
 
 Convened the 4-seat panel (Wolfe-quant · charting/viz · skeptic-QA · Ramana-proxy) per the autonomy
 rule. The split: QUANT said the direction convention is inverted and wanted a full relabel; SKEPTIC
