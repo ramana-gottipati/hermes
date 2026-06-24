@@ -355,6 +355,17 @@ a focused build, not a redesign.** (This is really a NEW STRATEGY LANE — sibli
 pin) rather than upgrading to v5 first — lower risk for a verified result; v5's native panes are a later
 optimization, not a blocker. The CPR band primitive is contained, so a v5 swap stays localised.
 
+**Live wire-in SHIPPED via snippet-injection (commit `bb8ae77`) — verified on real data.** Rather than
+swap the whole chart (dashboard.py contended), the CPR Spine attaches to the EXISTING `/dash/stock` chart
+via `src/web/cpr_overlay.py` (mirrors `wolfe_overlay.py`): a `/dash/cpr/overlay` JSON endpoint
+(`cpr_signals`→segments, reusing `chart_view`) + a self-contained SNIPPET that draws the Spine primitive
+on `window.__wfpc` and injects a chip + D/W/M toggle (default ON). Hooks = 2 additive lines in `main.py` +
+2 in `dashboard.py`, **left uncommitted** (Wolfe protocol — those files carry a parallel UI session's
+edits). **Verified by running the app locally on `data/hermes.db` (sym=ALPHA): endpoint HTTP 200,
+199 D / 39 W / 9 M segments, 37 coiled, BULL_U/BEAR_INVU detected, controls injected, zero console
+errors.** Not yet deployed to the VPS (separate step). The full `render_stock_chart()` engine swap (one
+chart replacing the 4-pane stack) remains the eventual Phase-0 rebuild when dashboard.py is free.
+
 **Remaining for Phase 0/1:** wire `render_stock_chart()` into `/dash/stock` + mount `/static` (one call
 each) when `dashboard.py`/`main.py` are free; add the server query pulling `cpr_signals` rows per symbol;
 add the interval (D/W/M/Q) resampler + log-scale toggle. Then Phase 2 (full control bar populated) and
