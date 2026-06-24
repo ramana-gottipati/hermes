@@ -534,7 +534,9 @@ def overlay_for(conn, sym=None, idx=None, want=2):
     fresh = [w for w in ws if n - 1 - last_idx(w) <= 90]
     if not fresh:
         return None
-    fresh.sort(key=lambda w: (-last_idx(w), -(w["wolfe_rank"] or 0)))   # most-recent, then clearest
+    # most-recent (by last pivot) first, ties broken by clarity (WolfeRank) — so the
+    # two waves sitting at the current overshoot win over older (even higher-rank) ones.
+    fresh.sort(key=lambda w: (-last_idx(w), -(w["wolfe_rank"] or 0)))
     picked = []
     for w in fresh:
         if any(abs(w["pivots"][3]["idx"] - q["pivots"][3]["idx"]) <= 2 for q in picked):
