@@ -22,7 +22,22 @@
 >
 > Keep this doc rich ([[preserve-strategy-intent]]); do **not** one-line it.
 
-**The one-sentence claim:** every lens Hermes has today — DVPT, RS/RRG, MEP, rs-band — scores a *state*
+## ✅ VALIDATED METHODOLOGY (2026-06-24 — supersedes §2/§3/§4 below where they differ; live impl detail in `docs/wolfe-NEXT-SESSION.md` §0)
+
+Pinned down with Ramana this session against his Fyers PARAS charts (75-min + daily). Treat this as the working spec; he notes residual misunderstandings remain, so re-confirm before extending.
+
+- **Pivots:** he marks them with **Fyers Fractals (2) & (10)**. patearn proxies with an **ATR-zigzag** on **daily** bars, scales **k ∈ {1.0, 1.5, 2.5}** (fine = recent tight wave, coarse = bigger monthly wave). Daily fractals are too sparse in a trend to give 5 clean points; his exact pivots may be 75-min/discretionary (a data-resolution limit, not a bug — he declined intraday data).
+- **Convention (LOCKED — do not rewrite):** **BEAR/sell = ascending, pivots H,L,H,L** (point 1 = a HIGH; 1·3 ascending highs; 5 = a high overshooting the 1-3 line; reverse down). **BULL/buy = descending, pivots L,H,L,H** (point 1 = a LOW; descending lows; 5 = a low overshooting the 1-3 line; reverse up).
+- **Point 5:** NOT confirmed until price **crosses the extended 1-3 line** — above for a bear, below for a bull — and it **may keep extending**.
+- **Two waves:** surface the two most-recent, clearest waves (can be nested, sharing point 5).
+- **Fib targets:** a standard **EXTENSION fan** on each thrust leg (1→2 and 3→4), anchored at the leg low, projected toward the overshoot. **EXTENSIONS ONLY (>1.0): 1.272, 1.414, 1.618, 2.618, 3.618, 4.236, 4.618** — the 0.236–1.0 retracements are *inside* the leg and are NOT used for overlaps. Where a leg-1-2 extension coincides with a leg-3-4 extension (~0.4 %) = the **strong target zone**. Validated: PARAS 968.1→1066.75 & 1075.5→1133 → **2.618∩2.618 = 1226.2**.
+- **Render on CANDLES only** (a line chart hides the intraday spikes the pivots sit on).
+- **Descriptive-only:** the PIT edge backtest is un-run; no buy/sell verdict yet.
+- **Open calibration (his call):** include 2.0? · overlap tolerance 0.4 % vs ~0.5–0.6 %? · draw retracement levels for context (display only)? · EPA/target direction for bears? · match his exact fractal pivots (fractal reader / manual swing input)?
+
+---
+
+**The one-sentence claim:** every lens patearn has today — DVPT, RS/RRG, MEP, rs-band — scores a *state*
 (momentum, level, accumulation). This scores a *structural setup*: a specific 5-point geometry that, when
 symmetric, yields a high-probability reversal **zone**, a defined **target**, and an estimated **time**.
 It is the first *pattern / geometry* lens in the stack, and it is orthogonal to everything else — a setup

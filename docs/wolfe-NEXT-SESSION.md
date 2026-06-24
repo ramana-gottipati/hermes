@@ -9,6 +9,78 @@
 
 ---
 
+## ⭐ 0. DEFINITIVE STATE + RESUME (2026-06-24 wrap — READ THIS FIRST; supersedes the §7* correction history below, which is kept only as archaeology)
+
+> Ramana ended the session saying **"there seem to be a lot of misunderstandings — let's address this properly"** and asked to persist the knowledge. So: the implementation below is LIVE and reflects everything he corrected this session, **but treat the METHODOLOGY as not-yet-fully-pinned** — next session, RE-GROUND it with him cleanly before changing code. Do **not** assume the current build is the final truth.
+
+### Brand (binding)
+The product is **patearn** (lowercase). **"Hermes" = the Nous agent ONLY** — never call the product/VPS services Hermes. See memory [[patearn-brand-and-dvpt-direction]].
+
+### The methodology as understood so far (hard-won across this session; corrections in priority order)
+1. **CONVENTION — do NOT rewrite (he corrected this 2–3×; I broke it once by "improving" it and had to revert):**
+   - **BEAR / sell = ASCENDING structure**, pivots in time **H,L,H,L** (point 1 = a HIGH); 1·3 ascending highs (3>1), 2·4 ascending lows. Point 5 = a HIGH that overshoots the 1-3 line; price then reverses DOWN. *(PARAS daily: 1=1066.75 H 06-10, 2=968.1 L 06-11, 3=1133 H 06-15, 4=1075.5 L 06-16, 5=1443 06-19.)*
+   - **BULL / buy = DESCENDING structure**, pivots **L,H,L,H** (point 1 = a LOW); descending lows (3<1). Point 5 = a LOW overshooting the 1-3 line; reverses UP.
+2. **POINT 5 (his explicit rule):** a candidate is **NOT point 5 until price crosses the EXTENDED 1-3 line** — *above* for a bear, *below* for a bull — and **it may keep extending**. Impl: scan bars after point 4 (within ~1.5× the 1-4 span) for the extreme that crossed the 1-3 rail.
+3. **PIVOTS:** he marks pivots with Fyers **Fractals (2) and (10)**. patearn uses an **ATR-zigzag** on **DAILY** bars, grid **ks=(1.0, 1.5, 2.5)** — coarse 2.5 surfaces the bigger/monthly wave, fine 1.0/1.5 the recent tight one. (Daily *fractals* are too sparse in a trend to give 5 clean points, so zigzag is the proxy; `fractal_pivots()` exists but is unused.) His exact pivots are sometimes **75-minute** or discretionary and can't be reproduced on daily — that's a data-resolution wall, NOT a bug (he declined intraday data).
+4. **TWO WAVES:** the overlay shows the **two most-recent** clearest waves (recency leads, WolfeRank breaks ties); they can be **nested** (different degree, sharing point 5).
+5. **FIB ratios:** two standard **EXTENSION fans**, one per thrust leg (1→2 and 3→4), each anchored at the leg's **low** and projected **toward the overshoot** (up for a sell). **EXTENSION ratios ONLY (>1.0): 1.272, 1.414, 1.618, 2.618, 3.618, 4.236, 4.618.** *(0.236–1.0 are RETRACEMENTS — inside the leg — and must NOT enter the overlap test; he caught this.)* Where a leg-1-2 extension coincides with a leg-3-4 extension (within ~0.4 %) = a **strong target zone**. Validated to the decimal: PARAS legs 968.1→1066.75 & 1075.5→1133 → **2.618∩2.618 = 1226.2**.
+6. **CANDLES ONLY:** these overlays must render on **candlesticks**, never a close-line (a line hides the intraday spikes the pivots sit on). `/dash/wolfe` draws candles; `/dash/stock` overlay must be viewed in Candles mode.
+
+### Surfaces (LIVE on the VPS, patearn)
+- **`/dash/stock?sym=…` → tick "Wolfe wave"** (Candles): candle overlay drawing the 2 most-recent waves — structure 1-2-3-4-(5) + numbered markers, the **1-3 confirmation rail**, the strong overlap zones labelled `price (r12∩r34)`, and a **"fib fans"** toggle for the full extension grids. (Wave 1 solid/circle, wave 2 dashed/square.)
+- **`/dash/wolfe?sym=…`**: ranked SVG page — lists every setup best-first (click to draw), candlesticks, the two extension fans (faint, ratio-labelled at the right gutter) + bold overlap zones.
+
+### OPEN / unresolved (he flagged "a lot of misunderstandings" — resolve these by re-grounding with him, don't guess)
+- **The 3 calibration points he was about to answer:** (a) include the **2.0** extension? (his Fyers fans seem to jump 1.618→2.618); (b) **overlap tolerance** — 0.4 % now, but his A-4.236(≈1319) vs B-3.618(≈1325) sit ~0.45 % apart, just outside; loosen to ~0.5–0.6 %?; (c) keep **retracement levels** drawn faintly on the fans for context, or extensions-only? (They stay out of the overlap test either way.)
+- **EPA / downstream target for a BEAR**: the 1-4 line projects up and reads oddly as a sell target — unresolved; he trades the Fib *zone*, not the EPA. Revisit whether to draw EPA at all for sells.
+- **Auto-pivots vs his eye:** the zigzag can't always reproduce his exact discretionary/75-min pivots. A fractal-pivot reader or a manual "draw your own swings" mode are options he hasn't chosen.
+- **Edge backtest NEVER run** (Phase 0). A naive probe looked great but was repaint look-ahead; a PIT-honest entry-at-confirmation probe showed **no edge**. So the lens stays **DESCRIPTIVE-ONLY — no buy/sell verdict** until a proper survivorship-aware backtest earns one.
+- **Whole-method re-confirmation:** he senses residual misunderstandings — next session, walk the method end-to-end with him on 1–2 examples BEFORE touching code.
+
+### Files (isolated — commit ONLY these; parallel session owns dashboard.py/main.py/PROJECT_STATE.md)
+`src/automation/wolfe.py` (detector + `fib_zones`+`overlay_for`+`analyze`+`fractal_pivots`(unused)) · `src/web/wolfe_view.py` (`/dash/wolfe` SVG, candlesticks) · `src/web/wolfe_overlay.py` (the `/dash/stock` snippet, 2-wave + fib fans toggle) · `research/wolfe_waves/selftest.py` (GREEN: bull L,H,L,H / bear H,L,H,L / PARAS 1226.2 pin / noise-reject) · `docs/wolfe-*.md`.
+
+### Commit trail this session (all on `main`, deployed to VPS by scp+restart, LF)
+`f1a8741` revert the bad convention-rewrite + fix Fib **direction** (up not down) · `70d5703` back to zigzag pivots (the version that drew 1-2-3-4-5) · `f028fdd` two nested waves + point-5=cross-1-3-line rule + ks 2.5 · `b747cf7` recency-first selection · `35bf825` `/dash/wolfe` candlesticks · `f9fc5e8` draw the Fib fans + labelled overlap zones · **`707fcb1` (HEAD) Fib EXTENSIONS only (drop retracements from overlap)**. (Earlier `4804200`/`b7ad360`/`45d4d92` were the convention-rewrite / draw-mode / fractal experiments — all reverted.)
+
+### Deploy recipe (unchanged): `sed 's/\r$//' <f> | ssh hermes 'cat > /opt/hermes/<f>'` for each wolfe file, then `ssh hermes 'systemctl restart hermes-api'` + wait ~7s + verify `/health`=200. Backups on VPS: `*.bak-0624fix`. NEVER scp dashboard.py/main.py (parallel session).
+
+### ▶ RESUME PROMPT (paste into the next session)
+```
+You are continuing patearn's "Wolfe Wave" lens (patearn — NOT Hermes; Hermes = the Nous
+agent only). Boot: read CLAUDE.md, PROJECT_STATE.md, docs/wolfe-wave-design.md,
+docs/wolfe-NEXT-SESSION.md §0 (the DEFINITIVE STATE — read it fully), and memory
+[[wolfe-wave-strategy]] before touching code.
+
+The lens is LIVE on the VPS (candle overlay on /dash/stock + ranked /dash/wolfe page) and
+implements: H,L,H,L bear / L,H,L,H bull convention; point 5 = the post-point-4 extreme
+that crosses the extended 1-3 line (above bear / below bull, may extend); ATR-zigzag
+pivots ks=(1.0,1.5,2.5) on DAILY; two nested waves shown; Fib EXTENSION fans per leg
+(1.272,1.414,1.618,2.618,3.618,4.236,4.618 — extensions only, no retracements) with the
+extension∩extension overlap (~0.4%) as the target zone (PARAS 2.618∩2.618=1226.2); all on
+candlesticks. Selftest green.
+
+⚠️ Ramana says there are STILL misunderstandings in the method. Do NOT assume the build is
+correct. START by walking the methodology end-to-end with him on 1–2 concrete examples and
+let HIM correct it — especially: (a) the exact extension ratio set (include 2.0?), (b) the
+overlap tolerance (0.4% misses his ~0.45% 1319/1325 pair — loosen?), (c) whether
+retracement levels should be drawn (display only, never in the overlap test), (d) the
+EPA/target for a bear, (e) whether to match his exact Fyers Fractals(2/10) pivots (fractal
+reader / manual swing input) since the daily zigzag can't always reproduce his pivots.
+The Fib FORMULA is validated (1226.2); the CONVENTION (H,L,H,L bear) is his and must NOT be
+rewritten (I broke it once by "improving" it — reverted).
+
+Work additively in the isolated wolfe files only (wolfe.py, wolfe_view.py,
+wolfe_overlay.py, research/wolfe_waves/, docs/wolfe-*.md); never touch dashboard.py /
+main.py / PROJECT_STATE.md (parallel session owns them). Deploy via the in-place scp+restart
+recipe in §0. Verify changes LIVE in the browser on CANDLES (the line chart hides the
+spikes). Commit only the isolated wolfe files. Keep it DESCRIPTIVE-ONLY until the edge
+backtest (still un-run) earns a verdict. Minimise churn — confirm the method with Ramana
+before each change; I burned tokens this session by guessing instead of asking.
+```
+
+---
+
 ## 0. One-paragraph state
 
 The Wolfe Wave lens is **built and LIVE on the VPS**, end to end: a pure-stdlib detector
