@@ -68,6 +68,9 @@ _TF = {
     "D": {"label": "daily",   "key": "day",   "max_width_pct": 1.0, "pctile_n": 252, "min_days": 1},
     "W": {"label": "weekly",  "key": "week",  "max_width_pct": 2.5, "pctile_n": 52,  "min_days": 2},
     "M": {"label": "monthly", "key": "month", "max_width_pct": 5.0, "pctile_n": 24,  "min_days": 3},
+    # Half-yearly (H1 = Jan–Jun, H2 = Jul–Dec) — the higher-degree CPR shown on the
+    # MONTHLY chart (Ramana's ladder: daily→weekly, weekly→monthly, monthly→half-yearly).
+    "H": {"label": "half-yearly", "key": "half", "max_width_pct": 8.0, "pctile_n": 12, "min_days": 20},
 }
 
 _ANOMALY_RET = 0.30   # |adjusted daily return| > 30% = a data anomaly to drop from H/L/C (D36)
@@ -93,6 +96,9 @@ def _period_key(tf: str, trade_date: str):
     if tf == "W":
         y, w, _ = datetime.strptime(trade_date, "%Y-%m-%d").isocalendar()
         return (y, w)
+    if tf == "H":
+        m = int(trade_date[5:7])
+        return trade_date[:4] + ("-H1" if m <= 6 else "-H2")
     return trade_date[:7]   # monthly
 
 
@@ -437,9 +443,9 @@ def run_symbol(tf: str, symbol: str) -> int:
 
 
 def _timeframes(arg: str) -> list[str]:
-    if arg in ("D", "W", "M"):
+    if arg in ("D", "W", "M", "H"):
         return [arg]
-    return ["D", "W", "M"]   # 'all' / default
+    return ["D", "W", "M", "H"]   # 'all' / default
 
 
 def main() -> None:
@@ -448,7 +454,7 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     p = argparse.ArgumentParser(description="CPR (Central Pivot Range) multi-timeframe structure engine")
-    p.add_argument("--timeframe", choices=["D", "W", "M", "all"], default="all")
+    p.add_argument("--timeframe", choices=["D", "W", "M", "H", "all"], default="all")
     p.add_argument("--backfill", action="store_true",
                    help="full (re)materialization of all symbols")
     p.add_argument("--recent", action="store_true",

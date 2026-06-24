@@ -44,7 +44,7 @@ _LWC_CDN = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.s
 
 # Per-timeframe "coil" (compression) width-% cutoffs — mirrors the CPR design
 # (Daily 1.0 / Weekly 2.5 / Monthly 5.0). A band at/under its cutoff is coiled.
-COIL_PCT = {"D": 1.0, "W": 2.5, "M": 5.0}
+COIL_PCT = {"D": 1.0, "W": 2.5, "M": 5.0, "H": 8.0}
 
 
 def cpr_segments(rows, tf: str) -> list[dict]:
