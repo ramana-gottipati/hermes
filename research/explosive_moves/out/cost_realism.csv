@@ -1,0 +1,6 @@
+config,sharpe,cagr_pct,maxdd_pct,calmar,ann_cost_pct,avg_turnover,h1_sharpe,h2_sharpe,cap_p25_cr,cap_med_cr
+RISKADJ  flat-cost (benchmark),1.29,35.6,-41.9,0.85,3.8,1.05,1.36,1.25,9.0,30.0
+RISKADJ  realistic cost,0.09,-1.4,-68.9,-0.02,36.0,1.05,0.05,0.12,9.0,30.0
+RISKADJ  realistic + hold-band(35),0.24,2.7,-66.8,0.04,30.6,0.89,0.27,0.22,9.0,31.0
+LOWVOL_MOM realistic cost,-0.1,-3.0,-57.3,-0.05,23.9,1.04,-0.16,-0.06,12.0,60.0
+LOWVOL_MOM realistic + hold-band(35),0.15,1.0,-50.3,0.02,19.8,0.87,0.08,0.2,12.0,65.0

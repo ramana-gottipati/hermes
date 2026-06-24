@@ -235,6 +235,29 @@ Sharpe or cutting drawdown *on top of* RISKADJ (already shown: quality blend cut
 
 ---
 
+## Cost realism (B) — the momentum benchmark does NOT survive real frictions (2026-06-24)
+
+`research/explosive_moves/cost_realism.py` → `out/cost_realism.csv`. Replaced the flat 0.3%/turnover with a
+per-NAME realistic cost (tier half-spread + fees + **0.5×ATR slippage**), charged on each name actually traded.
+
+| config | Sharpe | CAGR | MaxDD | ann. cost | capacity (median) |
+|---|---|---|---|---|---|
+| RISKADJ flat-cost (the headline) | **1.29** | +35.6% | −41.9% | 3.8% | — |
+| RISKADJ realistic cost | **0.09** | −1.4% | −68.9% | **36.0%** | ₹30 cr |
+| RISKADJ realistic + hold-band(35) | 0.24 | +2.7% | −66.8% | 30.6% | ₹31 cr |
+| LOWVOL_MOM realistic | −0.10 | −3.0% | −57.3% | 23.9% | ₹60 cr |
+| LOWVOL_MOM realistic + hold-band(35) | 0.15 | +1.0% | −50.3% | 19.8% | ₹65 cr |
+
+**The 1.29 Sharpe was a flat-cost illusion.** Realistic cost — dominated by ~0.5×ATR slippage on
+high-volatility momentum names turned over ~100%/month — runs **~36%/yr**, eating the entire ~35% gross →
+Sharpe **collapses to ~0, CAGR negative**. The turnover lever (hold-band) only claws back to ~0.24. Capacity
+is also tiny (~₹30 cr median position cap). Caveat: 0.5×ATR assumes naive market-order execution — patient
+execution / much lower turnover / large-cap-only could recover SOME — but the direction is unambiguous and the
+headline number is not real. **This removes even the "credible benchmark" prop: the honest near-term asset is
+the point-in-time rigor + the data, NOT a backtested strategy.**
+
+---
+
 ## Proprietary-alpha feasibility check (2026-06-24) — the hard truth
 
 Tested whether our *proprietary* lenses can beat the public factor yardsticks (the only thing that would
