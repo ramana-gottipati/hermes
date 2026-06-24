@@ -363,7 +363,17 @@ on `window.__wfpc` and injects a chip + D/W/M toggle (default ON). Hooks = 2 add
 3 in `dashboard.py` (import · snippet · `window.__wfcandle`; **hardened** — the Spine binds to the real candle series for exact price mapping with no time-axis pollution, and skips off-axis segments so it stays clean across the chart's interval/range controls — verified cycling D/W/M with zero console errors), **left uncommitted** (Wolfe protocol — those files carry a parallel UI session's
 edits). **Verified by running the app locally on `data/hermes.db` (sym=ALPHA): endpoint HTTP 200,
 199 D / 39 W / 9 M segments, 37 coiled, BULL_U/BEAR_INVU detected, controls injected, zero console
-errors.** ✅ **DEPLOYED to the VPS (2026-06-24)** — isolated files scp'd LF-clean (`git show … | ssh`), the 5 hooks added IN-PLACE by anchor (never overwriting the contended files), backups `*.bak-cpr`, `hermes-api` restarted behind an auto-rollback guard → **health 200, verified on real symbol ACC** (overlay returns real segments to 2004; stock page 200 + snippet wired). Re-apply the 5 hooks if a parallel session overwrites the VPS dashboard.py/main.py. The full `render_stock_chart()` engine swap (one
+errors.** ✅ **DEPLOYED to the VPS (2026-06-24)** — isolated files scp'd LF-clean (`git show … | ssh`), the 5 hooks added IN-PLACE by anchor (never overwriting the contended files), backups `*.bak-cpr`, `hermes-api` restarted behind an auto-rollback guard → **health 200, verified on real symbol ACC** (overlay returns real segments to 2004; stock page 200 + snippet wired). Re-apply the 5 hooks if a parallel session overwrites the VPS dashboard.py/main.py.
+
+**Phase 2 started — MA 20/50/200 overlay BUILT + DEPLOYED (2026-06-24, commit `2423ce8`).**
+`src/web/indicators_overlay.py` (NEW, isolated, SNIPPET-only — no router/endpoint): EMA 20/50/200 drawn
+as a canvas **primitive** on the existing candle series (reading `window.__wfdata`, the page data), so it
+never pollutes the shared time axis and degrades cleanly on resample/zoom — same trick as the CPR Spine.
+Toggle chips (50/200 default ON), coexists with the CPR Spine. 3 additive `dashboard.py` hooks (import ·
+`{_MA_SNIPPET}` · `window.__wfdata=DATA`) added in-place on the VPS (backup `*.bak-ma`), `hermes-api`
+health 200, **verified wired on the ACC page**. Fills the table-stakes gap (the live chart had no MAs).
+Next Phase-2 candidates: MEP/RS on-chart overlays, VWAP/anchored-VWAP, the chart-type dropdown; then the
+full one-chart engine swap (the "un-stretch") when dashboard.py is free. The full `render_stock_chart()` engine swap (one
 chart replacing the 4-pane stack) remains the eventual Phase-0 rebuild when dashboard.py is free.
 
 **Remaining for Phase 0/1:** wire `render_stock_chart()` into `/dash/stock` + mount `/static` (one call
