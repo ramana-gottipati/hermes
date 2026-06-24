@@ -2,8 +2,9 @@
 
 > **Status:** DRAFTING — 2026-06-24. Diagnosis, signature motif, and the four-family control
 > taxonomy are locked; **all screenshots received** (chart types · indicators · drawings/Fib/Gann ·
-> patterns/Elliott). **Library RESOLVED → build our own (§12); build pending Ramana's "start"** (default
-> Phase 0→1, §9–10). Canonical home for the charting work; **Ramana's verbatim intents are in §0.1**;
+> patterns/Elliott). **Library RESOLVED → build our own (§12).** ✅ **Phase 0 + CPR Spine BUILT + verified
+> (commit `7dee885`)** — `src/web/static/hermes-charts.js` + `src/web/chart_view.py`; wire-in into
+> `/dash/stock` pending (dashboard.py parallel-held). See **§14 build log**. Canonical home; **intents §0.1**;
 > cross-session pointer = PROJECT_STATE S41/D71/D72 + memory `[[charting-overhaul-cpr-spine]]`. TRANSIENT companion run-books may spin off but
 > this doc is the durable design.
 > **Session origin:** "Improve Charting" — a charts-only session. Four research panels
@@ -332,6 +333,32 @@ a focused build, not a redesign.** (This is really a NEW STRATEGY LANE — sibli
   ratios/TFs actually have forward edge on OUR universe, and (2) **fuse** the harmonic D-zone with our
   proprietary **DVPT accumulation + RS strength + CPR confluence** — a harmonic completing where
   institutions are accumulating is the "stronger, more reliable" signal nobody else can compute.
+
+## 14. Build log
+
+**Phase 0 + Phase 1 (CPR Spine) — BUILT & verified, 2026-06-24 (commit `7dee885`).** Isolated new files
+(no `dashboard.py` edit — parallel-held):
+- `src/web/static/hermes-charts.js` — the reusable engine on lightweight-charts v4.1: ONE responsive
+  chart (`ResizeObserver` width-follow — kills the stretch), the four-family control bar (chart-type
+  dropdown · proprietary strategy chips · indicator chips · drawing tools + magnet/hide-all stubs), an
+  overlay registry (per-item show/hide, self-colouring chips), a docked DVPT sub-pane (overlay price
+  scale — collapses the old 4-chart stack), MAs, zones, crosshair readout, and the **CPR Spine** drawn
+  as an `ISeriesPrimitive` canvas layer: stepped translucent amber band (BC↔TC) + dashed pivot, regime
+  tint, brighter solid "coil" when compressed, full-width confluence slab, and U/∩ reversal markers.
+- `src/web/chart_view.py` — DB-free: `cpr_segments()` (`cpr_signals` rows → segments), `confluence()`,
+  `render_stock_chart()` (JSON contract + engine boot HTML). Unit-smoke-tested (no DB).
+- `src/web/static/_chart_demo.html` — standalone harness with synthetic uptrend→pullback→coil→breakout
+  data; **rendering verified via headless preview** (one un-stretched chart, the CPR Spine reads as the
+  signature, no console errors).
+
+**Decision (build-time):** built on **lightweight-charts v4.1** (primitives available; the app's known-good
+pin) rather than upgrading to v5 first — lower risk for a verified result; v5's native panes are a later
+optimization, not a blocker. The CPR band primitive is contained, so a v5 swap stays localised.
+
+**Remaining for Phase 0/1:** wire `render_stock_chart()` into `/dash/stock` + mount `/static` (one call
+each) when `dashboard.py`/`main.py` are free; add the server query pulling `cpr_signals` rows per symbol;
+add the interval (D/W/M/Q) resampler + log-scale toggle. Then Phase 2 (full control bar populated) and
+Phase 3 (drawing engine: magnet + hide-all + persistence).
 
 ## 11. Key file paths
 
