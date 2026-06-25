@@ -25,8 +25,16 @@ the new run beside the old.
 the shared `_shell`; reads `research.db` and renders the ranked registry + candidate holdings + the honest
 verdict. Mounted via 2 lines in `main.py` (deployed on the VPS; `main.py` is parallel-session-owned so NOT
 committed here — fold the import + `include_router(testing_router)` into committed `main.py` when the web
-session is free). A top-nav "Testing" tab still needs one line in `dashboard.py`'s `_nav` (also parallel-owned);
-until then the page is reachable directly at `/dash/testing`.
+session is free).
+
+**NAV — coordinated with the "patearn UI Architecture v2" session (approved 2026-06-25).** Placement =
+**Strategies ▸ "Lab"** (a sub-nav entry beside Workbench, NOT a top tab — research/validation is Strategies
+content in their 5-altitude IA; label "Lab"/"Research", not "Testing"). They wire it at their **v2 nav cut-over**
+with `_WS: "testing":"strategies"` + `_SUBNAV["strategies"]` row `({"testing"},"/dash/testing","Lab")` (recorded
+in `docs/ui-architecture-v2.md` §14.3). I did NOT touch `dashboard.py`: the DEPLOYED VPS copy is older than their
+working copy (no `_subnav`/`_SUBNAV`), so a live patch would be throwaway + mismatch their model. Page stays
+**URL-only at `/dash/testing`** until their cut-over. `testing_view.py` already calls `_shell(active="testing")`
+so their two lines drop straight in — no change needed on my side.
 
 ---
 
