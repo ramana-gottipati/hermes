@@ -76,7 +76,19 @@ def main():
         board.append({"name": name, "metrics": metrics, "holdings": names})
     print("=" * 92)
     print("BASELINE the above must beat: Nifty 500 buy & hold = Sharpe 0.89 / CAGR 15.3% / MaxDD -29%")
-    write_html(board, snap, max(x["date"] for x in g), len(g))
+    asof = max(x["date"] for x in g)
+    write_html(board, snap, asof, len(g))
+    # persist holdings into the registry so they stop hiding in a static file
+    try:
+        import sqlite3
+        from explosive_moves import strategy_store as ss
+        con = sqlite3.connect(ss.RDB); ss.ensure_schema(con)
+        for b in board:
+            ss.set_holdings(con, b["name"].split(" —")[0].strip(), asof, b["holdings"])
+        con.commit(); con.close()
+        print("holdings persisted -> research.db strategy_holdings")
+    except Exception as e:
+        print("holdings persist skipped:", e)
 
 
 def write_html(board, snap, asof, n):

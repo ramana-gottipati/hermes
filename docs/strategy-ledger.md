@@ -10,6 +10,17 @@ with a reason.
 once and evaporated. This file (plus the auto-saved `research/explosive_moves/out/strategy_leaderboard.csv`,
 which `factory.py` now writes on every run) is the fix.
 
+**PERSISTENT STORE (2026-06-24).** This markdown is the human-readable narrative; the machine-readable,
+queryable, refinable home is now **`research.db`** via `research/explosive_moves/strategy_store.py`:
+- `strategy_registry` — one row per strategy (definition + status).
+- `strategy_runs` — one row per BACKTEST RUN, **timestamped** (refine = `record_run()` appends, never
+  overwrites, so a strategy's metric history across versions is preserved).
+- `strategy_holdings` — current top-N names per strategy (written by `strategy_menu.py`).
+Seeded from `out/*.csv` (22 strategies, 22 runs). Re-running any backtest + `--seed` (or calling
+`record_run`) adds the new result. The HTML board (`docs/strategy-board.html`) and any future `/dash` tab
+read from here. **To refine:** edit the signal/params, re-run the backtest, `record_run()` the result —
+the registry shows the new run beside the old.
+
 ---
 
 ## Benchmarks (buy & hold, monthly marks, 2012–2026)
