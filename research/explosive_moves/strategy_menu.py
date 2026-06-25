@@ -65,6 +65,7 @@ def main():
         ("C. HIGHEST-MOMENTUM — Risk-Adjusted (aggressive, higher cost)", "riskadj_sc",
          "Sharpe 0.51 / CAGR 10.2% / MaxDD -43% / cost 15.1% / cap Rs97cr"),
     ]
+    board = []
     for name, key, metrics in menu:
         print("=" * 92)
         print(name + "\n  " + metrics)
@@ -72,8 +73,45 @@ def main():
         for i in range(0, TOPN, 5):
             print("   " + "  ".join(f"{n:<13}" for n in names[i:i + 5]))
         print()
+        board.append({"name": name, "metrics": metrics, "holdings": names})
     print("=" * 92)
     print("BASELINE the above must beat: Nifty 500 buy & hold = Sharpe 0.89 / CAGR 15.3% / MaxDD -29%")
+    write_html(board, snap, max(x["date"] for x in g), len(g))
+
+
+def write_html(board, snap, asof, n):
+    import os
+    cards = ""
+    palette = ["#34d399", "#5ec8ff", "#e6b450"]
+    for i, s in enumerate(board):
+        chips = "".join(f"<span class='chip'>{h}</span>" for h in s["holdings"])
+        cards += (f"<div class='card' style='border-top:3px solid {palette[i]}'>"
+                  f"<div class='cn'>{s['name']}</div><div class='cm'>{s['metrics']}</div>"
+                  f"<div class='chips'>{chips}</div></div>")
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Strategy Board</title>
+<style>
+body{{background:#0e1116;color:#e8ecf1;font-family:'Inter',-apple-system,Segoe UI,Arial,sans-serif;margin:0;padding:26px}}
+h1{{font-size:13px;letter-spacing:.3em;color:#5ec8ff;margin:0 0 4px}}
+.sub{{color:#8b97a7;font-size:12px;font-family:monospace;margin-bottom:6px}}
+.bar{{background:#161b22;border:1px solid #262e39;border-radius:10px;padding:12px 16px;margin:14px 0;font-size:13px}}
+.bar b{{color:#e8ecf1}} .bar .idx{{color:#34d399;font-family:monospace}}
+.card{{background:#161b22;border:1px solid #262e39;border-radius:14px;padding:16px 18px;margin:14px 0}}
+.cn{{font-size:16px;font-weight:700;margin-bottom:4px}} .cm{{color:#8b97a7;font-family:monospace;font-size:12px;margin-bottom:12px}}
+.chips{{display:flex;flex-wrap:wrap;gap:7px}}
+.chip{{background:#1c232d;border:1px solid #262e39;border-radius:7px;padding:5px 9px;font-size:11.5px;font-family:monospace;color:#cdd6e0}}
+.note{{color:#8b97a7;font-size:11px;margin-top:18px;border-top:1px solid #262e39;padding-top:12px;line-height:1.6}}
+</style></head><body>
+<h1>HERMES · STRATEGY BOARD</h1>
+<div class="sub">Best-available strategies — current top-25 holdings · universe Nifty 500 (snapshot {snap}, {n} live names) · as of {asof}</div>
+<div class="bar">⚖️ <b>The bar these must beat:</b> <span class="idx">Nifty 500 buy &amp; hold — Sharpe 0.89 / CAGR 15.3% / MaxDD −29%</span>. None below beats it on Sharpe — so this is a <b>risk-profile choice, not alpha</b>. Human decides.</div>
+{cards}
+<div class="note"><b>Honest notes.</b> Metrics are net of realistic per-name cost (tier spread + 0.5×ATR slippage), walk-forward 2012–26. Holdings regenerate from <code>strategy_menu.py</code>. Universe filtered to live Nifty 500 constituents (no delisted tickers, no liquid/cash ETFs). This is a research artifact, not investment advice.</div>
+</body></html>"""
+    out = os.path.join(os.path.dirname(__file__), "out", "strategy_board.html")
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    print(f"\nHTML board -> out/strategy_board.html ({len(html)} bytes)")
 
 
 if __name__ == "__main__":
