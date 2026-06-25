@@ -39,7 +39,7 @@ def test_bull():
     print("\n[bullish Wolfe — 1·3·5 lows]")
     # preamble high@10 -> 1(L)@20 2(H)@34 3(L)@48 4(H)@62 5(L overshoot)@78 -> bounce
     high, low, close = _ohlc([(0, 50), (10, 62), (20, 50), (34, 70), (48, 42),
-                              (62, 64), (78, 30), (90, 46)])
+                              (62, 60), (78, 30), (90, 46)])   # leg34<leg12, 4 between 3&2
     waves, _ = wolfe.detect_waves(high, low, close)
     bull = [w for w in waves if w.direction == "BULL"]
     ok = _check(len(bull) >= 1, f"detected a BULL wave (got {len(waves)} total)")
@@ -51,7 +51,12 @@ def test_bull():
     ok &= _check(w.p[2].price < w.p[0].price, f"3<1 lower low ({w.p[2].price:.0f}<{w.p[0].price:.0f})")
     ok &= _check(w.epa_slope > 0, f"1-4 EPA slopes UP ({w.epa_slope:+.2f}/bar)")
     ok &= _check(w.line13_slope < 0, f"1-3 lows descend ({w.line13_slope:+.2f}/bar)")
-    ok &= _check(0.6 <= w.sym_price <= 1.6, f"symmetry in tol ({w.sym_price:.2f})")
+    ok &= _check(w.p[1].price > w.p[0].price, f"2>1 ({w.p[1].price:.0f}>{w.p[0].price:.0f})")
+    ok &= _check(w.p[2].price < w.p[3].price < w.p[1].price,
+                 f"4 between 3 and 2 — lower high ({w.p[2].price:.0f}<{w.p[3].price:.0f}<{w.p[1].price:.0f})")
+    ok &= _check(w.leg12_price >= w.leg34_price,
+                 f"leg 1-2 >= leg 3-4 ({w.leg12_price:.0f}>={w.leg34_price:.0f})")
+    ok &= _check(0.5 <= w.sym_price <= 1.0, f"leg34/leg12 ratio in tol ({w.sym_price:.2f})")
     ok &= _check(w.p5 is not None and w.state == "CONFIRMED",
                  f"point 5 confirmed (overshoot @ {w.p5.price:.0f})" if w.p5 else "no point 5")
     print(f"    -> tier={w.tier} q={w.quality:.2f}")
@@ -61,7 +66,7 @@ def test_bull():
 def test_bear():
     print("\n[bearish Wolfe — 1·3·5 highs]")
     high, low, close = _ohlc([(0, 70), (10, 58), (20, 70), (34, 50), (48, 78),
-                              (62, 56), (78, 90), (90, 74)])
+                              (62, 60), (78, 90), (90, 74)])   # leg34<leg12, 4 between 2&3
     waves, _ = wolfe.detect_waves(high, low, close)
     bear = [w for w in waves if w.direction == "BEAR"]
     ok = _check(len(bear) >= 1, f"detected a BEAR wave (got {len(waves)} total)")
@@ -73,6 +78,11 @@ def test_bear():
     ok &= _check(w.p[2].price > w.p[0].price, f"3>1 higher high ({w.p[2].price:.0f}>{w.p[0].price:.0f})")
     ok &= _check(w.epa_slope < 0, f"1-4 EPA slopes DOWN ({w.epa_slope:+.2f}/bar)")
     ok &= _check(w.line13_slope > 0, f"1-3 highs ascend ({w.line13_slope:+.2f}/bar)")
+    ok &= _check(w.p[1].price < w.p[0].price, f"2<1 ({w.p[1].price:.0f}<{w.p[0].price:.0f})")
+    ok &= _check(w.p[1].price < w.p[3].price < w.p[2].price,
+                 f"4 between 2 and 3 — higher low ({w.p[1].price:.0f}<{w.p[3].price:.0f}<{w.p[2].price:.0f})")
+    ok &= _check(w.leg12_price >= w.leg34_price,
+                 f"leg 1-2 >= leg 3-4 ({w.leg12_price:.0f}>={w.leg34_price:.0f})")
     ok &= _check(w.p5 is not None and w.state == "CONFIRMED",
                  f"point 5 confirmed (overshoot @ {w.p5.price:.0f})" if w.p5 else "no point 5")
     print(f"    -> tier={w.tier} q={w.quality:.2f}")

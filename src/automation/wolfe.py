@@ -7,7 +7,7 @@ Canonical Wolfe structure (confirmed with Ramana):
   BEARISH (sell at 5): the mirror — 1·3·5 are ASCENDING HIGHS, 2·4 lows.
     3 > 1, 5 > 3 and 5 overshoots the 1-3 resistance line. Reverses DOWN.
     Target / EPA = the 1-4 line (down-sloping).
-  Valid wave: leg 1-2 ≈ leg 3-4 (symmetry), 1-3 trends, 5 overshoots 1-3.
+  Valid wave: leg 1-2 >= leg 3-4 (price), point 4 between 2 & 3, 1-3 trends, 5 overshoots 1-3.
 
 Detection is on-the-fly per symbol/index. Pure-stdlib + the production CA adjuster.
 
@@ -192,13 +192,19 @@ def _classify(a, b, c, d, sym_lo, sym_hi):
     leg34 = abs(d.price - c.price)
     if leg12 <= 0 or leg34 <= 0:
         return None
-    if not (sym_lo <= leg34 / leg12 <= sym_hi):   # Wolfe symmetry
+    # distance rule (Ramana, ENFORCED): leg 1-2 >= leg 3-4 in PRICE → ratio leg34/leg12
+    # capped at 1.0 (a contracting wedge). Confirmed by example: the April RELIANCE bear
+    # (leg34 62 > leg12 42) is a "mistake" precisely because the 2nd leg is bigger; his
+    # May-Jun bull (91.7 > 58.5) is filtered the same way. PARAS (98.65 >= 57.5) survives.
+    # sym_lo keeps a small floor so a noise-sized 2nd leg can't qualify.
+    if not (sym_lo <= leg34 / leg12 <= sym_hi):
         return None
-    # point 4 must stay inside the 1-2 channel — it cannot breach point 2
-    # (bull: 4 not above 2; bear: 4 not below 2).
-    if direction == 'BULL' and d.price > b.price:
+    # Ramana's point-placement rules:
+    #   point 2 vs 1 — BULL: 2 above 1;  BEAR: 2 below 1.
+    #   point 4 between 2 and 3 — BULL: 3 < 4 < 2 (lower high);  BEAR: 2 < 4 < 3 (higher low).
+    if direction == 'BULL' and not (b.price > a.price and c.price < d.price < b.price):
         return None
-    if direction == 'BEAR' and d.price < b.price:
+    if direction == 'BEAR' and not (b.price < a.price and b.price < d.price < c.price):
         return None
     return direction
 
@@ -217,7 +223,7 @@ def _build(a, b, c, d, p5, state, direction, k):
                 sym_p, sym_t, _line(a, c), _line(a, d), q, _tier(q), k)
 
 
-def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.6, sym_hi=1.6):
+def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.5, sym_hi=1.0):
     """Find Wolfe 1-4 structures (with point 5 if it has overshot). (waves, atr_arr).
 
     Pivots via the ATR-zigzag across a small multi-scale grid: fine (1.0/1.5) surfaces
@@ -235,27 +241,31 @@ def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.6
             if not direction:
                 continue
             s13 = _line(a, c)
+            s14 = _line(a, d)          # 1-4 (EPA) slope — point-5 scan runs until it's touched
 
             def line13(t, _a=a, _s=s13):
                 return _a.price + _s * (t - _a.idx)
 
-            # point 5 (Ramana's rule): a candidate is NOT point 5 until price crosses
-            # the EXTENDED 1-3 line — ABOVE for a bear, BELOW for a bull. Take the
-            # post-point-4 extreme that has crossed the rail as point 5 (CONFIRMED — and
-            # it may keep extending). It need NOT be a confirmed zigzag pivot (that's why
-            # the coarse Mar-Jun wave's Jun-19 high counts as point 5 even mid-pullback).
-            # If price hasn't crossed the rail yet → FORMING (zone projected from Fibs).
+            # point 5 (Ramana's rule): a candidate is NOT point 5 until price crosses the
+            # EXTENDED 1-3 line — ABOVE for a bear, BELOW for a bull — AND breaks beyond
+            # point 3. Point 5 then SHIFTS to any deeper extreme made BEFORE the EPA (1-4)
+            # target is touched: if price dips below the prior 5 before recovering to the
+            # EPA, 5 moves to the new low (bull) / high (bear). So the scan runs until the
+            # EPA line is touched — BULL: a HIGH recovers up to the rising 1-4 line; BEAR:
+            # a LOW declines to the falling 1-4 line — taking the most-extreme overshoot
+            # reached along the way. A generous cap (4× the 1-4 span) guards the case where
+            # the EPA is never touched, so a stale wave can't grab a far-future extreme.
             p5, state = None, 'FORMING'
             ex_idx = ex_val = None
-            # point 5 must arrive within the wave's own horizon (~1.5× the 1-4 span),
-            # not months later through an unrelated move — else a tiny old wave would
-            # wrongly claim a far-future high as its point 5.
-            win_end = min(len(high) - 1, d.idx + max(10, int(1.5 * (d.idx - a.idx))))
-            for t in range(d.idx + 1, win_end + 1):
+            cap = min(len(high) - 1, d.idx + max(10, int(4.0 * (d.idx - a.idx))))
+            for t in range(d.idx + 1, cap + 1):
+                epa_t = a.price + s14 * (t - a.idx)
+                if (direction == 'BULL' and high[t] >= epa_t) or (direction == 'BEAR' and low[t] <= epa_t):
+                    break                                  # EPA target touched → point 5 locks at the extreme so far
                 rail = line13(t)
-                if direction == 'BEAR' and high[t] > rail and (ex_val is None or high[t] > ex_val):
+                if direction == 'BEAR' and high[t] > rail and high[t] > c.price and (ex_val is None or high[t] > ex_val):
                     ex_val, ex_idx = high[t], t
-                elif direction == 'BULL' and low[t] < rail and (ex_val is None or low[t] < ex_val):
+                elif direction == 'BULL' and low[t] < rail and low[t] < c.price and (ex_val is None or low[t] < ex_val):
                     ex_val, ex_idx = low[t], t
             if ex_idx is not None:
                 p5 = Pivot(ex_idx, ex_val, 'H' if direction == 'BEAR' else 'L')
@@ -374,8 +384,10 @@ def index_series(conn, idx):
     return dates, list(closes), list(closes), list(closes), closes  # o=h=l=c (index = close only)
 
 
-def analyze(conn, sym=None, idx=None, pad=25):
-    """View-ready dict: the visible window + detected waves (lines, zone, target)."""
+def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
+    """View-ready dict: the visible window + detected waves (lines, zone, target).
+    all_waves=True keeps EVERY detected wave (no recent-window prune) — used by the
+    overlay's ◄/► timeline walk through historical completed Wolfe waves."""
     if sym:
         s, label, kind = stock_series(conn, sym), sym, "stock"
     elif idx:
@@ -388,7 +400,7 @@ def analyze(conn, sym=None, idx=None, pad=25):
     n = len(closes)
     cur = closes[-1]
     waves, atr_arr = detect_waves(highs, lows, closes)
-    x0 = max(0, min((w.p[0].idx for w in waves[-3:]), default=n - 300) - pad)
+    x0 = 0 if all_waves else max(0, min((w.p[0].idx for w in waves[-3:]), default=n - 300) - pad)
     x1 = n - 1
     out = []
     for w in waves:
@@ -443,7 +455,7 @@ def analyze(conn, sym=None, idx=None, pad=25):
 _FIB_R = (1.272, 1.414, 1.618, 2.618, 3.618, 4.236, 4.618)
 
 
-def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.004):
+def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.006):
     """Standard Fib EXTENSIONS on swing 1-2 and swing 3-4, drawn the way Ramana draws
     them in Fyers: each leg anchored at its LOW and projected TOWARD THE OVERSHOOT —
     UP for a BEAR/sell (zone above the structure, e.g. PARAS 1226), DOWN for a BULL/buy.
@@ -476,7 +488,7 @@ def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.004):
         if any(abs(z["price"] - k["price"]) <= tol_frac * abs(z["price"]) for k in zones):
             continue
         zones.append({k: z[k] for k in ("price", "r12", "r34", "low", "high")})
-    return e12, e34, zones[:4]
+    return e12, e34, zones[:6]
 
 
 def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
@@ -494,39 +506,55 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
     if p5:
         struct.append({"time": p5["date"], "value": round(p5["price"], 2)})
     last5 = p5["idx"] if p5 else p[3]["idx"]
-    # 1-3 line extended well past the latest bar — point 5 confirms only once it
-    # crosses this rail (above for BEAR / below for BULL).
-    f13 = n - 1
+    # A FORMING wave runs to the right edge (so the 1-3 rail shows where price must cross
+    # to confirm 5). A COMPLETED wave is framed to itself, but its rail/EPA project well
+    # PAST point 5 (line_r) into the empty right so the EPA target stays visible on the
+    # right of the screen (Ramana); the pan (pan_r) leaves that projection space in view.
+    span = max(5, last5 - p1["idx"])
+    pf = max(0, p1["idx"] - int(0.15 * span))
+    pan_r = (n - 1) if not p5 else min(n - 1, last5 + int(0.70 * span))
+    line_r = (n - 1) if not p5 else min(n - 1, last5 + int(1.10 * span))
     line13 = [{"time": dates[p1["idx"]], "value": round(p1["price"], 2)},
-              {"time": dates[f13], "value": round(p1["price"] + w["line13_slope"] * (f13 - p1["idx"]), 2)}]
-    epa = [{"time": dates[p1["idx"]], "value": round(p1["price"], 2)},
-           {"time": dates[n - 1], "value": round(p1["price"] + w["epa_slope"] * (n - 1 - p1["idx"]), 2)}]
+              {"time": dates[line_r], "value": round(p1["price"] + w["line13_slope"] * (line_r - p1["idx"]), 2)}]
+    # EPA (1-4 target line) — ONLY once point 5 is confirmed (no projection before then).
+    # It runs all the way to the chart's RIGHT EDGE (the latest bar) so the target stays
+    # visible however far right Ramana scrolls — not localised to the wave like the rail.
+    epa = ([{"time": dates[p1["idx"]], "value": round(p1["price"], 2)},
+            {"time": dates[n - 1], "value": round(p1["price"] + w["epa_slope"] * (n - 1 - p1["idx"]), 2)}]
+           if p5 else None)
     markers = [{"time": pt["date"], "position": "aboveBar" if pt["kind"] == "H" else "belowBar",
                 "color": color, "shape": marker_shape, "text": str(j)} for j, pt in enumerate(p, 1)]
     if p5:
         markers.append({"time": p5["date"], "position": "aboveBar" if not bull else "belowBar",
                         "color": color, "shape": marker_shape, "text": "5"})
+    # predicted 5 (forming only): the tightest Fib overlap that sits on the CORRECT side of
+    # point 3 — below 3 for a bull, above 3 for a bear (it cannot be a point 5 otherwise).
     p5pred = None
     if not p5 and zones:
-        z = zones[0]
-        p5pred = {"value": z["price"], "low": z["low"], "high": z["high"],
-                  "label": f'5 ≈ {z["price"]} (1-2 ×{z["r12"]} ∩ 3-4 ×{z["r34"]})'}
+        side = [z for z in zones if (z["price"] < P3 if bull else z["price"] > P3)]
+        if side:
+            z = side[0]
+            p5pred = {"value": z["price"], "low": z["low"], "high": z["high"],
+                      "label": f'5 ≈ {z["price"]} (1-2 ×{z["r12"]} ∩ 3-4 ×{z["r34"]})'}
     summary = (f'{w["direction"]} · {w["state"]} · rank {w["wolfe_rank"]}{w["rank_tier"]}'
                + (f' · zone {zones[0]["price"]}' if zones else '')
                + (f' · 5≈{p5pred["value"]}' if p5pred else ''))
     return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
             "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
             "p5pred": p5pred, "p4_time": p[3]["date"], "p4_value": round(p[3]["price"], 2),
-            "last_time": dates[n - 1], "fib12": fib12, "fib34": fib34, "zones": zones}
+            "last_time": dates[line_r], "fib12": fib12, "fib34": fib34, "zones": zones,
+            "pan_from": dates[pf], "pan_to": dates[pan_r]}
 
 
-def overlay_for(conn, sym=None, idx=None, want=2):
-    """Up to `want` (default 2) of the most-recent, clearest Wolfe waves, shaped for the
-    stock-page candle overlay. Selection = most-recent by last pivot, ties broken by
-    WolfeRank; structurally distinct (point 4 ≥3 bars apart). Returns {waves, label,
-    kind} or None. (A name can carry two nested Wolfes of different degree — e.g. PARAS:
-    the May-Jun wave and the Mar-Jun wave, both ending at the Jun-19 high.)"""
-    d = analyze(conn, sym=sym, idx=idx)
+def overlay_for(conn, sym=None, idx=None):
+    """Shape the detected waves for the stock-page candle overlay, split into the two
+    sections Ramana navigates (ONE wave drawn at a time):
+      • prediction — the single most-recent FORMING wave at the current right edge
+        (point 5 not yet confirmed; predicted-5 zone, NO EPA).
+      • completed  — every CONFIRMED wave (point 5 printed), NEWEST-FIRST, for the ◄/►
+        timeline walk; each carries its own structure, Fib zones and EPA.
+    Returns {prediction, completed, label, kind} or None."""
+    d = analyze(conn, sym=sym, idx=idx, all_waves=True)
     if not d or not d["waves"]:
         return None
     ws, dates, n = d["waves"], d["dates"], d["n"]
@@ -534,21 +562,28 @@ def overlay_for(conn, sym=None, idx=None, want=2):
     def last_idx(w):
         return w["p5"]["idx"] if w["p5"] else w["pivots"][3]["idx"]
 
-    fresh = [w for w in ws if n - 1 - last_idx(w) <= 90]
-    if not fresh:
-        return None
-    # most-recent (by last pivot) first, ties broken by clarity (WolfeRank) — so the
-    # two waves sitting at the current overshoot win over older (even higher-rank) ones.
-    fresh.sort(key=lambda w: (-last_idx(w), -(w["wolfe_rank"] or 0)))
-    picked = []
-    for w in fresh:
-        if any(abs(w["pivots"][3]["idx"] - q["pivots"][3]["idx"]) <= 2 for q in picked):
-            continue
-        picked.append(w)
-        if len(picked) >= want:
+    def dedupe(lst):
+        out = []
+        for w in lst:
+            if any(abs(w["pivots"][3]["idx"] - q["pivots"][3]["idx"]) <= 2 for q in out):
+                continue
+            out.append(w)
+        return out
+
+    # completed = confirmed waves, NEWEST-FIRST (index 0 = latest; ◄ steps to older)
+    confirmed = dedupe(sorted([w for w in ws if w["state"] == "CONFIRMED" and w["p5"]],
+                              key=lambda w: -last_idx(w)))
+    completed = [_wave_payload(w, dates, n) for w in confirmed]
+    # prediction = the single most-recent FORMING wave, only if fresh (a prediction is
+    # about current price, not a closed-out historical structure).
+    prediction = None
+    for w in sorted([w for w in ws if not w["p5"]], key=lambda w: -last_idx(w)):
+        if n - 1 - last_idx(w) <= 90:
+            prediction = _wave_payload(w, dates, n)
             break
-    waves = [_wave_payload(w, dates, n, marker_shape=("circle" if i == 0 else "square"), dashed=(i > 0))
-             for i, w in enumerate(picked)]
-    return {"waves": waves, "label": d["label"], "kind": d["kind"]}
+    if prediction is None and not completed:
+        return None
+    return {"prediction": prediction, "completed": completed,
+            "label": d["label"], "kind": d["kind"]}
 # * zone_s uses symmetry as a confluence-tightness proxy until Ramana's exact
 #   legs-1-2/3-4 Fib overlay is wired (open item).

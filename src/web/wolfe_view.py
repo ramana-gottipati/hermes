@@ -177,8 +177,9 @@ def _chart_svg(d, wi=0, show=True):
             S.append(f'<line x1="{c[0]:.1f}" y1="{c[1]:.1f}" x2="{c[2]:.1f}" y2="{c[3]:.1f}" '
                      f'stroke="{_BANDS}" stroke-width="1.2" stroke-dasharray="5 3"/>')
             S.append(f'<text x="{c[2]+4:.1f}" y="{c[3]+3:.1f}" fill="{_BANDS}" font-size="10">1-3 line</text>')
-        # EPA 1-4 target (to the right edge)
-        c = _clip(X(p1["idx"]), Y(p1["price"]), X(x1), Y(at(w["epa_slope"], p1["idx"], p1["price"], x1)))
+        # EPA 1-4 target (to the right edge) — ONLY after point 5 is confirmed
+        # (Ramana: no projection until the wave properly completes at 5).
+        c = _clip(X(p1["idx"]), Y(p1["price"]), X(x1), Y(at(w["epa_slope"], p1["idx"], p1["price"], x1))) if p5 else None
         if c:
             S.append(f'<line x1="{c[0]:.1f}" y1="{c[1]:.1f}" x2="{c[2]:.1f}" y2="{c[3]:.1f}" '
                      f'stroke="{col}" stroke-width="1.8"/>')
