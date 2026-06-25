@@ -111,7 +111,7 @@
 ---
 
 ## Build status
-- **§ A** — deployed on the VPS; isolated files committed-pending. Revert = `*.bak-base`.
-- **§ B** — **fully specified (all items locked 2026-06-25)**; surgical build **not started**, awaiting the step-1 spec sign-off.
+- **§ A** — deployed on the VPS; isolated files committed. Revert = git `74faeee` or VPS `*.bak-base` / `*.bak-port`.
+- **§ B** — **BUILT + DEPLOYED + BROWSER-VERIFIED 2026-06-25 (the port).** `detect_waves` now UNIONS the base ATR-zigzag pivots with multi-degree Williams fractals (degrees 2/5/10/20/30) — additive, never loses a base wave (Ramana's call) — validated by the UNCHANGED §A `_classify`; every wave carries the §B `score()` points-sum. Distance floor `sym_lo` 0.5→**0.2**; `fib_zones` confluence tolerance 0.6%→**2%** (so narrowness F can bucket); dedupe keeps the higher-§B copy; the ◄/► candle-overlay walk capped to the **top-40 by quality** (full list stays on `/dash/wolfe`). Both surfaces lead with the wave (dir · status · pt4 date · ₹ zone), show **Q** + the `p1·B·C·F·G·H·I·D` breakdown (chips on hover for the list). Verified live on candles: RELIANCE incl. the base-MISSED **Nov-2022** `frac@5` wave (rank ~6/37 in the walk, exact pivots) + PARAS's validated monthly bear preserved; zero console errors. **Still DESCRIPTIVE-ONLY** — the §C edge backtest is un-run (the gate).
 
 *(Companion to `docs/wolfe-wave-design.md` (intent/history) and `docs/wolfe-NEXT-SESSION.md` (session run-book). This file is the precise rule reference.)*

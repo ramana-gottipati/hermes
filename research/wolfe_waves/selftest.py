@@ -59,7 +59,9 @@ def test_bull():
     ok &= _check(0.5 <= w.sym_price <= 1.0, f"leg34/leg12 ratio in tol ({w.sym_price:.2f})")
     ok &= _check(w.p5 is not None and w.state == "CONFIRMED",
                  f"point 5 confirmed (overshoot @ {w.p5.price:.0f})" if w.p5 else "no point 5")
-    print(f"    -> tier={w.tier} q={w.quality:.2f}")
+    ok &= _check(isinstance(w.score, dict) and "total" in w.score,
+                 f"§B quality score attached ({w.score})")
+    print(f"    -> tier={w.tier} q={w.quality:.2f}  src={w.source}  §B={w.score}")
     return ok
 
 

@@ -54,6 +54,8 @@ class Wave:
     quality: float
     tier: str
     swing_k: float
+    score: object = None    # §B quality dict {p1,B,C,F,G,H,I,D,total} (ported 2026-06-25)
+    source: str = ""        # pivot source that found it: "zz@1.5" | "frac@10"
 
 
 # --------------------------------------------------------------------------- #
@@ -88,6 +90,27 @@ def near_atr(atr_arr, i):
     while j >= 0 and (atr_arr[j] is None or atr_arr[j] <= 0):
         j -= 1
     return atr_arr[j] if j >= 0 else None
+
+
+def rsi(closes, period=14):
+    """Wilder RSI (pure-stdlib) aligned to closes; None until seeded. Feeds §B comp I."""
+    n = len(closes)
+    out = [None] * n
+    if n <= period:
+        return out
+    g = l = 0.0
+    for i in range(1, period + 1):
+        ch = closes[i] - closes[i - 1]
+        g += ch if ch > 0 else 0.0
+        l += -ch if ch < 0 else 0.0
+    ag, al = g / period, l / period
+    out[period] = 100.0 if al == 0 else 100.0 - 100.0 / (1 + ag / al)
+    for i in range(period + 1, n):
+        ch = closes[i] - closes[i - 1]
+        ag = (ag * (period - 1) + (ch if ch > 0 else 0.0)) / period
+        al = (al * (period - 1) + (-ch if ch < 0 else 0.0)) / period
+        out[i] = 100.0 if al == 0 else 100.0 - 100.0 / (1 + ag / al)
+    return out
 
 
 def zigzag(high, low, atr_arr, k):
@@ -223,75 +246,185 @@ def _build(a, b, c, d, p5, state, direction, k):
                 sym_p, sym_t, _line(a, c), _line(a, d), q, _tier(q), k)
 
 
-def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.5, sym_hi=1.0):
+# --------------------------------------------------------------------------- #
+# §B — fractal pivot quality + the points-sum quality score                    #
+#   Ported verbatim from research/wolfe_waves/fractal_proto.py (validated      #
+#   2026-06-25). The §A geometry is UNCHANGED; this is the additive ranking.    #
+#   See docs/wolfe-rules.md §B for each component.                              #
+# --------------------------------------------------------------------------- #
+DETECT_DEGREES = (2, 5, 10, 20, 30)    # fractal scales for DETECTION (coarse → long waves)
+
+
+def frac_degree(highs, lows, i, kind, degrees=(10, 5, 2)):
+    """Largest N (CAPPED AT 10 for quality) for which bar i is a strict unique fractal."""
+    n = len(highs)
+    for N in degrees:
+        if i - N < 0 or i + N >= n:
+            continue
+        if kind == 'H':
+            w = highs[i - N:i + N + 1]
+            if highs[i] == max(w) and w.count(highs[i]) == 1:
+                return N
+        else:
+            w = lows[i - N:i + N + 1]
+            if lows[i] == min(w) and w.count(lows[i]) == 1:
+                return N
+    return 0
+
+
+def _lvl(deg):
+    """Fractal degree → quality level: candle 0 · 2-fr 1 · 5-fr 2 · 10-fr 3 (caps at 10)."""
+    return {0: 0, 2: 1, 5: 2, 10: 3}.get(deg, 3)
+
+
+def find_p5(highs, lows, a, c, d, direction, n):
+    """§A4 point 5: the deepest overshoot past point 3 that crosses the extended 1-3 line,
+    taken until the EPA (1-4) line is touched (then it locks). Returns a Pivot or None
+    (forming). The base inline scan, factored out so detection + the score agree."""
+    s13, s14 = _line(a, c), _line(a, d)
+    cap = min(n - 1, d.idx + max(10, int(4.0 * (d.idx - a.idx))))
+    ex_idx = ex_val = None
+    for t in range(d.idx + 1, cap + 1):
+        epa_t = a.price + s14 * (t - a.idx)
+        if (direction == 'BULL' and highs[t] >= epa_t) or (direction == 'BEAR' and lows[t] <= epa_t):
+            break
+        rail = a.price + s13 * (t - a.idx)
+        if direction == 'BEAR' and highs[t] > rail and highs[t] > c.price and (ex_val is None or highs[t] > ex_val):
+            ex_val, ex_idx = highs[t], t
+        elif direction == 'BULL' and lows[t] < rail and lows[t] < c.price and (ex_val is None or lows[t] < ex_val):
+            ex_val, ex_idx = lows[t], t
+    return Pivot(ex_idx, ex_val, 'H' if direction == 'BEAR' else 'L') if ex_idx is not None else None
+
+
+def breached(highs, lows, d, p5, direction, n):
+    """Point 4 must NOT be breached before 5 forms (bull: no high>4; bear: no low<4)."""
+    end_b = p5.idx if p5 else n - 1
+    for t in range(d.idx + 1, end_b + 1):
+        if direction == 'BULL' and highs[t] > d.price:
+            return True
+        if direction == 'BEAR' and lows[t] < d.price:
+            return True
+    return False
+
+
+def score(p_list, p5, direction, highs, lows, closes, rsi_arr):
+    """§B quality = plain points-sum (A×2)+B+C+F+G+H+I+D (≈3–24); point 1 separate, ×2.
+    Ported from the validated sandbox; two expert panels resolved C/D/I/G/dedupe."""
+    a, b, c, d = p_list
+    bull = direction == 'BULL'
+    n = len(highs)
+    A = _lvl(frac_degree(highs, lows, a.idx, a.kind))                                   # 0-3
+    B = max(1.0, (_lvl(frac_degree(highs, lows, b.idx, b.kind))                         # 1-3 (floored)
+                  + _lvl(frac_degree(highs, lows, c.idx, c.kind))
+                  + _lvl(frac_degree(highs, lows, d.idx, d.kind))) / 3.0)
+    _e12, _e34, zones = fib_zones(a.price, b.price, c.price, d.price,
+                                  direction=direction, tol_frac=0.02)
+    C = F = D = 0
+    G = 1
+    entry = p5.price if p5 else d.price                    # default; refined to the zone below
+    if zones:
+        z = min(zones, key=lambda zz: abs(entry - zz["price"]))
+        lo, hi = min(z["low"], z["high"]), max(z["low"], z["high"])
+        gap = (hi - lo) / z["price"] * 100.0 if z["price"] else 99
+        F = 3 if gap <= 0.6 else 2 if gap <= 1.2 else 1 if gap <= 2.0 else 0           # 1-3
+        G = 2 if (z["r12"] == 4.618 or z["r34"] == 4.618) else 1                       # 1-2 (Ramana-locked)
+        if p5:
+            if lo <= p5.price <= hi:                       # clean land INSIDE the zone band
+                dist = abs(p5.price - z["price"]) / p5.price * 100.0
+                C = 3 if dist <= 0.1 else 2 if dist <= 0.5 else 1 if dist <= 1.5 else 0
+                entry = z["price"]
+            else:                                          # pierced beyond the band
+                depth = (lo - p5.price) if bull else (p5.price - hi)
+                depth_pct = depth / z["price"] * 100.0 if z["price"] else 99
+                # returned into the band after the overshoot? PIT: bars <= end only;
+                # zone fixed by the structure (no future zone-shopping).
+                ret = any((closes[t] >= lo) if bull else (closes[t] <= hi)
+                          for t in range(p5.idx + 1, n))
+                if 0 < depth_pct <= 1.5 and ret:           # pierce-and-RETURN: a notch below clean
+                    C = 2
+                    entry = lo if bull else hi
+                else:                                      # deep break, or not (yet) returned
+                    C = 0
+    if p5:                                                 # D = tradeable upside from ENTRY (not the spike)
+        s14 = _line(a, d)
+        tgt = a.price + s14 * (p5.idx - a.idx)
+        up = abs(tgt - entry) / entry * 100.0 if entry else 0.0
+        D = 0 if up < 10 else 1 if up < 20 else 2 if up < 35 else 3                    # 0-3
+    s14 = _line(a, d)                                       # H = wedge-rail (1-4 line) adherence, legs 1-2 & 2-3
+    touches = 0
+    for t in range(a.idx + 1, c.idx):
+        ln = a.price + s14 * (t - a.idx)
+        if ln > 0 and (abs(highs[t] - ln) / ln <= 0.001 or abs(lows[t] - ln) / ln <= 0.001):
+            touches += 1
+    H = 0 if touches == 0 else 1 if touches < 3 else 2                                 # 0-2
+    I = 0                                                   # RSI divergence: SHIFTED point 5 vs the INITIAL
+    if p5 and rsi_arr[p5.idx] is not None:                  # point-5 TROUGH it undercut (panel-resolved)
+        s13 = _line(a, c)
+        init = init_ext = None                              # DEEPEST prior overshoot >=5 bars before p5
+        for t in range(d.idx + 1, max(d.idx + 2, p5.idx - 4)):
+            rail = a.price + s13 * (t - a.idx)
+            if bull and lows[t] < c.price and lows[t] < rail and (init_ext is None or lows[t] < init_ext):
+                init_ext, init = lows[t], t
+            elif (not bull) and highs[t] > c.price and highs[t] > rail and (init_ext is None or highs[t] > init_ext):
+                init_ext, init = highs[t], t
+        if init is not None and rsi_arr[init] is not None:
+            depth = (lows[init] - p5.price) / lows[init] if bull else (p5.price - highs[init]) / highs[init]
+            if depth >= 0.01:                               # min depth ~1% (kill marginal/adjacent false +2)
+                if bull and rsi_arr[p5.idx] > rsi_arr[init]:
+                    I = 2
+                elif (not bull) and rsi_arr[p5.idx] < rsi_arr[init]:
+                    I = 2
+        # (point-3 fallback dropped — fired on the RSI base-rate; skeptic + Ramana-proxy)
+    total = A * 2 + B + C + F + G + H + I + D
+    return {"p1": A, "B": round(B, 2), "C": C, "F": F, "G": G, "H": H, "I": I, "D": D,
+            "total": round(total, 2)}
+
+
+def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.2, sym_hi=1.0,
+                 degrees=DETECT_DEGREES):
     """Find Wolfe 1-4 structures (with point 5 if it has overshot). (waves, atr_arr).
 
-    Pivots via the ATR-zigzag across a small multi-scale grid: fine (1.0/1.5) surfaces
-    the recent tight wave, coarse (2.5) surfaces the bigger monthly wave — so a name can
-    show two nested Wolfes of different degree (validated on PARAS: k≈1.0 → the May-Jun
-    wave, k≈2.5 → the Mar-Jun wave, both ending at the Jun-19 high). `fractal_pivots`
-    exists but the zigzag is what cleanly identifies the five points on daily bars."""
+    UNION pivot sourcing (2026-06-25, Ramana: additive — never lose a wave the base
+    already drew): the ATR-zigzag grid (the base mechanism: fine 1.0/1.5 = the recent
+    tight wave, coarse 2.5 = the monthly wave) ∪ multi-degree Williams fractals (degrees
+    2/5/10/20/30 — coarse scales surface the long-range waves the zigzag misses, e.g.
+    RELIANCE Nov-2022). Every candidate is validated by the LOCKED §A `_classify` and
+    ranked by the §B `score` (which rewards fractal-clean pivots), so a zigzag wave whose
+    pivots aren't fractals simply ranks BELOW the fractal ones; the dedup keeps the
+    higher-quality copy.
+
+    sym_lo defaults to 0.2 (the §A3 'small floor'; his rule has no hard floor — a 0.45
+    contracting 2nd leg like RELIANCE Nov-2022 is valid). Geometry is unchanged from base."""
     atr_arr = atr(high, low, close, atr_period)
-    waves = []
-    for k in ks:
-        piv = zigzag(high, low, atr_arr, k)
+    rsi_arr = rsi(close)
+    n = len(close)
+    seqs = [("zz@%g" % k, zigzag(high, low, atr_arr, k)) for k in ks]
+    seqs += [("frac@%d" % N, fractal_pivots(high, low, periods=(N,))) for N in degrees]
+    raw = []
+    for src, piv in seqs:
         for i in range(len(piv) - 3):
             a, b, c, d = piv[i], piv[i + 1], piv[i + 2], piv[i + 3]
             direction = _classify(a, b, c, d, sym_lo, sym_hi)
             if not direction:
                 continue
-            s13 = _line(a, c)
-            s14 = _line(a, d)          # 1-4 (EPA) slope — point-5 scan runs until it's touched
-
-            def line13(t, _a=a, _s=s13):
-                return _a.price + _s * (t - _a.idx)
-
-            # point 5 (Ramana's rule): a candidate is NOT point 5 until price crosses the
-            # EXTENDED 1-3 line — ABOVE for a bear, BELOW for a bull — AND breaks beyond
-            # point 3. Point 5 then SHIFTS to any deeper extreme made BEFORE the EPA (1-4)
-            # target is touched: if price dips below the prior 5 before recovering to the
-            # EPA, 5 moves to the new low (bull) / high (bear). So the scan runs until the
-            # EPA line is touched — BULL: a HIGH recovers up to the rising 1-4 line; BEAR:
-            # a LOW declines to the falling 1-4 line — taking the most-extreme overshoot
-            # reached along the way. A generous cap (4× the 1-4 span) guards the case where
-            # the EPA is never touched, so a stale wave can't grab a far-future extreme.
-            p5, state = None, 'FORMING'
-            ex_idx = ex_val = None
-            cap = min(len(high) - 1, d.idx + max(10, int(4.0 * (d.idx - a.idx))))
-            for t in range(d.idx + 1, cap + 1):
-                epa_t = a.price + s14 * (t - a.idx)
-                if (direction == 'BULL' and high[t] >= epa_t) or (direction == 'BEAR' and low[t] <= epa_t):
-                    break                                  # EPA target touched → point 5 locks at the extreme so far
-                rail = line13(t)
-                if direction == 'BEAR' and high[t] > rail and high[t] > c.price and (ex_val is None or high[t] > ex_val):
-                    ex_val, ex_idx = high[t], t
-                elif direction == 'BULL' and low[t] < rail and low[t] < c.price and (ex_val is None or low[t] < ex_val):
-                    ex_val, ex_idx = low[t], t
-            if ex_idx is not None:
-                p5 = Pivot(ex_idx, ex_val, 'H' if direction == 'BEAR' else 'L')
-                state = 'CONFIRMED'
-            # Wolfe rule: point 4 (d) must NOT be breached before point 5 forms —
-            # bull: no high above point 4; bear: no low below point 4. A breach
-            # means price broke out instead of forming the wave → reject.
-            end_b = p5.idx if p5 else len(high) - 1
-            breached = False
-            for t in range(d.idx + 1, end_b + 1):
-                if direction == 'BULL' and high[t] > d.price:
-                    breached = True
-                    break
-                if direction == 'BEAR' and low[t] < d.price:
-                    breached = True
-                    break
-            if breached:
+            p5 = find_p5(high, low, a, c, d, direction, n)
+            if breached(high, low, d, p5, direction, n):
                 continue
-            w = _build(a, b, c, d, p5, state, direction, k)
-            if w:
-                waves.append(w)
-    # dedupe: same direction & point-4 within 3 bars -> keep best quality
-    waves.sort(key=lambda w: -w.quality)
+            state = 'CONFIRMED' if p5 else 'FORMING'
+            w = _build(a, b, c, d, p5, state, direction, 0.0)
+            if not w:
+                continue
+            w.source = src
+            w.score = score(w.p, p5, direction, high, low, close, rsi_arr)
+            raw.append(w)
+    # union dedupe: same direction & BOTH endpoints within 3 bars → keep the higher §B
+    # quality (so the zigzag and fractal copies of one wave collapse to the best-scored).
+    raw.sort(key=lambda w: -(w.score["total"] if w.score else 0.0))
     kept = []
-    for w in waves:
-        if any(o.direction == w.direction and abs(o.p[3].idx - w.p[3].idx) <= 3 for o in kept):
+    for w in raw:
+        if any(o.direction == w.direction
+               and abs(o.p[0].idx - w.p[0].idx) <= 3
+               and abs(o.p[3].idx - w.p[3].idx) <= 3 for o in kept):
             continue
         kept.append(w)
     kept.sort(key=lambda w: w.p[3].idx)
@@ -435,6 +568,8 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
             rank_tier = "A" if rank >= 70 else "B" if rank >= 50 else "C"
         out.append({
             "direction": w.direction, "tier": w.tier, "quality": round(w.quality, 2),
+            "quality_total": (w.score["total"] if w.score else 0), "score": w.score,
+            "source": w.source,
             "state": w.state, "sym_price": round(w.sym_price, 2),
             "pivots": [{"idx": p.idx, "price": p.price, "kind": p.kind, "date": dates[p.idx]} for p in w.p],
             "p5": ({"idx": w.p5.idx, "price": w.p5.price, "date": dates[w.p5.idx]} if w.p5 else None),
@@ -442,7 +577,9 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
             "zone": zone, "target": target, "upside_pct": upside, "rr": rr,
             "wolfe_rank": rank, "rank_tier": rank_tier, "target_fibs": target_fibs(w),
         })
-    out.sort(key=lambda x: -(x["wolfe_rank"] or 0))   # best setup first
+    # rank by the §B quality points-sum (the locked quality metric); WolfeRank/upside/RR
+    # stay in the payload as secondary CONTEXT (data-first), no longer the sort key.
+    out.sort(key=lambda x: (-(x["quality_total"] or 0), -(x["wolfe_rank"] or 0)))
     return {"label": label, "kind": kind, "n": n, "x0": x0, "x1": x1,
             "dates": dates, "opens": opens, "closes": closes, "highs": highs, "lows": lows,
             "has_ohlc": kind == "stock", "waves": out}
@@ -455,7 +592,7 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
 _FIB_R = (1.272, 1.414, 1.618, 2.618, 3.618, 4.236, 4.618)
 
 
-def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.006):
+def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.02):
     """Standard Fib EXTENSIONS on swing 1-2 and swing 3-4, drawn the way Ramana draws
     them in Fyers: each leg anchored at its LOW and projected TOWARD THE OVERSHOOT —
     UP for a BEAR/sell (zone above the structure, e.g. PARAS 1226), DOWN for a BULL/buy.
@@ -536,14 +673,25 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
             z = side[0]
             p5pred = {"value": z["price"], "low": z["low"], "high": z["high"],
                       "label": f'5 ≈ {z["price"]} (1-2 ×{z["r12"]} ∩ 3-4 ×{z["r34"]})'}
-    summary = (f'{w["direction"]} · {w["state"]} · rank {w["wolfe_rank"]}{w["rank_tier"]}'
+    sc = w.get("score") or {}
+    qbits = (f' · [p1×2={sc.get("p1",0)*2} B={sc.get("B",0)} C={sc.get("C",0)} F={sc.get("F",0)} '
+             f'G={sc.get("G",0)} H={sc.get("H",0)} I={sc.get("I",0)} D={sc.get("D",0)}]') if sc else ''
+    # lead with the WAVE Ramana reads (dir · status · point-4 date · ₹ zone), THEN the Q
+    # quality badge + the §B chips (panel/Ramana-proxy: "I read the wave, not letter-soup").
+    summary = (f'{w["direction"]} Wolfe · {w["state"]} · pt4 {w["pivots"][3]["date"]}'
                + (f' · zone {zones[0]["price"]}' if zones else '')
-               + (f' · 5≈{p5pred["value"]}' if p5pred else ''))
+               + (f' · 5≈{p5pred["value"]}' if p5pred else '')
+               + f' · Q{w.get("quality_total",0)}'
+               + (f' (rank {w["wolfe_rank"]}{w["rank_tier"]})' if w.get("wolfe_rank") is not None else '')
+               + qbits)
     return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
             "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
             "p5pred": p5pred, "p4_time": p[3]["date"], "p4_value": round(p[3]["price"], 2),
             "last_time": dates[line_r], "fib12": fib12, "fib34": fib34, "zones": zones,
             "pan_from": dates[pf], "pan_to": dates[pan_r]}
+
+
+_OVERLAY_MAX = 40   # cap the ◄/► candle-overlay walk to the top-N waves by §B quality
 
 
 def overlay_for(conn, sym=None, idx=None):
@@ -565,14 +713,19 @@ def overlay_for(conn, sym=None, idx=None):
     def dedupe(lst):
         out = []
         for w in lst:
-            if any(abs(w["pivots"][3]["idx"] - q["pivots"][3]["idx"]) <= 2 for q in out):
+            if any(w["direction"] == q["direction"]
+                   and abs(w["pivots"][3]["idx"] - q["pivots"][3]["idx"]) <= 2 for q in out):
                 continue
             out.append(w)
         return out
 
-    # completed = confirmed waves, NEWEST-FIRST (index 0 = latest; ◄ steps to older)
-    confirmed = dedupe(sorted([w for w in ws if w["state"] == "CONFIRMED" and w["p5"]],
-                              key=lambda w: -last_idx(w)))
+    # completed = confirmed waves. The ◄/► walk is ONE-at-a-time, so cap it to the top
+    # _OVERLAY_MAX by §B quality (the union can surface 200+; the FULL list lives on
+    # /dash/wolfe, click-to-draw). 40 keeps mid-quality historical waves (RELIANCE
+    # Nov-2022 ranks ~30) that a tighter cap would hide. Then show NEWEST-FIRST.
+    conf = [w for w in ws if w["state"] == "CONFIRMED" and w["p5"]]
+    conf.sort(key=lambda w: -(w.get("quality_total") or 0))
+    confirmed = dedupe(sorted(conf[:_OVERLAY_MAX], key=lambda w: -last_idx(w)))
     completed = [_wave_payload(w, dates, n) for w in confirmed]
     # prediction = the single most-recent FORMING wave, only if fresh (a prediction is
     # about current price, not a closed-out historical structure).

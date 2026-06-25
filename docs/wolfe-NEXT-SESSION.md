@@ -11,6 +11,8 @@
 
 ## ⭐⭐ 0a. CURRENT STATE + RESUME — 2026-06-25 (READ FIRST; supersedes the 06-24 §0 below)
 
+> **✅ THE PORT SHIPPED & BROWSER-VERIFIED (2026-06-25, later same day).** The validated fractal detection + the §B quality score are merged into PROD `src/automation/wolfe.py` + `wolfe_view.py`, deployed to the VPS, and verified LIVE on candles via Chrome MCP. Detection now **UNIONS** the base ATR-zigzag pivots ∪ multi-degree Williams fractals (degrees 2/5/10/20/30) — Ramana chose **additive over replace**, so no base wave is lost; the §B `score()` (which rewards fractal-clean pivots) self-sorts the union. Applied: floor `sym_lo` 0.5→0.2; `fib_zones` tol 0.6%→2%; dedupe keeps best §B; the ◄/► overlay walk capped to **top-40 by quality** (full list stays on `/dash/wolfe`); both surfaces lead with the wave (dir·status·pt4·₹zone) + show **Q** and the `p1·B·C·F·G·H·I·D` chips (hover on the list). VERIFIED: RELIANCE's base-MISSED **Nov-2022 `frac@5`** wave draws on candles at walk step 6/37 with the exact pivots (Q16, C=0 I=0 as predicted); PARAS's validated monthly bear preserved (Q18); zero console errors; selftest green (+ a §B-score contract assertion). **Committed: isolated wolfe files only** (`wolfe.py`, `wolfe_view.py`, `research/wolfe_waves/selftest.py`, `docs/wolfe-*.md`); `wolfe_overlay.py` is UNCHANGED (the score rides the existing `summary` line). Revert = git `74faeee` / VPS `*.bak-base` / `*.bak-port`. **NEXT = item 2 (RSI shift-anchor refinement), then item 3 (the §C edge backtest, still the descriptive-only gate).**
+
 **Brand:** patearn (lowercase). "Hermes" = the Nous agent ONLY.
 
 **THE SPEC IS LOCKED & RECORDED → `docs/wolfe-rules.md`** (read it: §A geometry · §B fractal pivot-sourcing + quality rank + trade-mgmt · §C as-of/PIT backtest). Don't re-derive.
@@ -31,9 +33,11 @@
 - **I=0** — its RSI divergence is a marginal **1.4-pt** shift (Feb-3 RSI 28.3 → Mar-20 29.7); the exact "initial-point-5 reversal-trough" reference needs **shift-sequence tracking in find_p5** (FLAGGED refinement; domain-proxy called it fragile, defensible to leave).
 
 **OUTSTANDING (priority):**
-1. **THE PORT (next, the big one):** merge the validated fractal detection + scoring from `fractal_proto.py` into PROD `src/automation/wolfe.py` + the 2 surfaces (`wolfe_view.py` SVG, `wolfe_overlay.py` snippet — show the quality score); apply the floor fix + detection degrees; **deploy + BROWSER-VERIFY on candles** (binding: Chrome MCP, headless can't see candle bugs); **revertable to 74faeee**. Sensitive base change — surgical, not blunt.
-2. RSI shift-anchor refinement (shift-sequence tracking in `find_p5`).
-3. **Edge backtest (§C) — NEVER run** — the gate: lens stays **DESCRIPTIVE-ONLY** until it earns a verdict (PIT/as-of: every scan takes an as-of date, bars ≤ as-of; fractal design is naturally PIT-honest).
+1. ✅ **THE PORT — DONE 2026-06-25** (see the ✅ block at the top of §0a). Union detection + §B score live + browser-verified; committed (isolated wolfe files only).
+2. **RSI shift-anchor refinement (NEXT)** — shift-sequence tracking in `find_p5` so component **I** anchors on the true initial-point-5 reversal trough (today it's a deepest-prior-overshoot proxy; Nov-2022 scores I=0 because the divergence is a marginal ~1.4-pt RSI shift). Scoring/judgment → expert PANEL, not Ramana.
+3. **Edge backtest (§C) — NEVER run** — the gate: lens stays **DESCRIPTIVE-ONLY** until it earns a verdict (PIT/as-of: every scan takes an as-of date, bars ≤ as-of; fractal design is naturally PIT-honest). ⚠️ Port-panel skeptic flag: component **C**'s pierce-and-RETURN check reads bars AFTER point 5 — fine for the descriptive lens (point 5 locks first), but the backtest must treat that return as forward info that the as-of-date truncation removes.
+
+**Panel-flagged display refinements (optional, non-blocking):** (a) carry `source` (zz@/frac@) into the overlay payload so the candle chart can "tag mine" (validated) vs fractal-surfaced waves — Ramana-proxy ask; `_wave_payload` currently drops `source`. (b) `/dash/wolfe` prunes to the recent window — an "all setups" toggle would expose the full historical list there (the overlay walk already covers history). (c) the overlay-walk cap is a single tunable constant `_OVERLAY_MAX = 40` in `wolfe.py`.
 
 **PROCESS (Ramana set, BINDING):** surgical not blunt; revert to base if it wobbles; **SCORING/JUDGMENT questions → expert agent PANEL** (Wolfe-quant · charting/viz · skeptic-QA · Ramana-proxy), do NOT ask Ramana; PROCESS/sequencing → ask Ramana. Locked §A geometry is non-negotiable; §B is additive.
 

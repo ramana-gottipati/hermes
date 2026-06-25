@@ -247,7 +247,9 @@ def _summary(d, wi, sym, idx):
                 '1·3·5 structure at these swing scales.</div>')
     base = f'sym={_q(sym)}' if sym else f'idx={_q(idx)}'
     out = ['<div style="font-size:13px;margin:4px 0 12px">',
-           '<div style="color:#8b949e;margin-bottom:5px">Setups, best first — click one to draw it:</div>']
+           '<div style="color:#8b949e;margin-bottom:5px">Setups — ranked by quality '
+           '(Q = §B points-sum); hover a row for the p1·B·C·F·G·H·I·D breakdown; '
+           'click one to draw it:</div>']
     for i, w in enumerate(d["waves"]):
         col = _BULL if w["direction"] == "BULL" else _BEAR
         sel = (i == wi)
@@ -256,13 +258,22 @@ def _summary(d, wi, sym, idx):
         ups = f' · up {w["upside_pct"]}%' if w["upside_pct"] is not None else ''
         rrs = f' · R:R {w["rr"]}' if w["rr"] else ''
         mark = ' ◀ drawn' if sel else ''
+        sc = w.get("score") or {}
+        chip_title = (f'§B  p1×2={sc.get("p1",0)*2}  B={sc.get("B",0)}  C={sc.get("C",0)}  '
+                      f'F={sc.get("F",0)}  G={sc.get("G",0)}  H={sc.get("H",0)}  I={sc.get("I",0)}  '
+                      f'D={sc.get("D",0)}    ·    WolfeRank {w["wolfe_rank"]}{w["rank_tier"]} q{w["quality"]}'
+                      f'    ·    source {w.get("source","")}') if sc else ''
+        p4d = w["pivots"][3]["date"]
         style = (f'background:#1c2430;border-left:3px solid {col};' if sel else 'border-left:3px solid transparent;')
         out.append(
-            f'<a href="/dash/wolfe?{base}&w={i}" style="display:block;{style}padding:4px 8px;margin:1px 0;'
+            f'<a href="/dash/wolfe?{base}&w={i}" title="{_esc(chip_title)}" '
+            f'style="display:block;{style}padding:4px 8px;margin:1px 0;'
             f'border-radius:4px;text-decoration:none;color:#e6edf3">'
-            f'<b style="color:{col}">{w["wolfe_rank"]} · {w["rank_tier"]}</b> · '
-            f'<b style="color:{col}">{w["direction"]}</b> · {w["state"]} · q{w["quality"]} · '
-            f'sym {w["sym_price"]} · {zs}{ups}{rrs}<span style="color:{col}">{mark}</span></a>')
+            f'<b style="color:{col}">{w["direction"]} Wolfe</b> · {w["state"]} · '
+            f'<span style="color:#8b949e">pt4 {_esc(p4d)}</span> · {zs}{ups}{rrs} · '
+            f'<b style="color:{col}">Q{w.get("quality_total",0)}</b>'
+            f'<span style="color:#6e7681;font-size:11px"> {_esc(w.get("source",""))}</span>'
+            f'<span style="color:{col}">{mark}</span></a>')
     out.append('</div>')
     return "".join(out)
 
