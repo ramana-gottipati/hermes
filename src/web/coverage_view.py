@@ -1,0 +1,459 @@
+"""Coverage & Settlement ledger — the trust-first artifact (Phase 0).
+
+The single page a quant-diligence + compliance team is sent *before* they ask the
+hard questions. Its job is not to impress — it is to STATE THE BOUNDARY of every
+dataset, so that when a PM trusts a Patearn read they are trusting a number whose
+limits were declared in writing. Volunteering the limit is the product.
+
+Governing rule (every line obeys it): *no characterisation, only counts and dates.*
+Where a word could read as a judgment — of a company, a management, or our own edge
+— it is replaced by the number behind it.
+
+Built on the adversarial red-team's binding corrections:
+  * leads with the CCI **robust-core funnel** (touched -> scored -> >=1 -> >=3 -> >=10
+    resolved), never the flattering "symbols touched" breadth number;
+  * a **tier x n_resolved** cross-tab that self-incriminates thin-sample A+ ;
+  * fundamentals are labelled **modeled-availability**, never "point-in-time";
+  * survivorship is stated WITH its archive floor + asymmetry + SME exclusion;
+  * freshness shows **cadence + staleness + a visible pause/incident banner** and a
+    one-line single-node / no-HA-DR honesty statement;
+  * no performance claim anywhere — "percentile rank-gap", never alpha/Sharpe/sigma.
+
+Isolation (the rs_section.py / news_view.py house pattern): a brand-new module that
+imports ONLY the v2 design system (`ui_kit`) + the data layer (`provenance`). It adds
+one route, touches no existing route, deletes nothing. Inert until a 1-line
+`include_router` in main.py (gated on the parallel web-layer sessions freeing).
+
+Route: GET /dash/coverage
+"""
+from __future__ import annotations
+
+from datetime import date
+
+from fastapi import APIRouter
+from fastapi.responses import HTMLResponse
+
+from src.web import ui_kit as K
+from src.automation import provenance as P
+
+router = APIRouter()
+
+
+# ── disclosure copy (rendered close to verbatim; institutional, factual tone) ──
+COPY_PAGE = ("This page documents the coverage and known limits of every dataset behind Patearn. "
+             "Each figure below is a count or a date reproducible from our own tables as of the "
+             "stamped date. We publish the boundary of each dataset deliberately: a Patearn read "
+             "should be trusted only to the extent its inputs are, and those inputs are stated here.")
+
+COPY_MODELED = ("Fundamental history is assigned an availability date using a uniform modelled lag — "
+                "90 days after period-end for annual results, 50 days for quarterly — applied "
+                "identically to every company. This is a modelled approximation of when results "
+                "became public, not an observed filing date. A company that filed late will appear "
+                "knowable earlier than it was; one that filed early will appear unknown when it was "
+                "already public. Accordingly these surfaces are labelled “modeled-availability” "
+                "and must not be read as point-in-time. A true first-seen date is captured only going "
+                "forward (it does not exist for historical periods).")
+
+COPY_CCI = ("Concall Credibility (CCI) measures a management's stated guidance against the results "
+            "that subsequently landed — a measurement of delivery-versus-guidance, not a judgment of "
+            "management integrity. A company's credibility level becomes meaningful only once its "
+            "guidance has resolved. Until then the level is held at a fixed ceiling and reflects only "
+            "the quantification rate — how specific and falsifiable the guidance was — which is a "
+            "disclosure metric, not evidence of delivery. Roughly one-third of scored names currently "
+            "have no resolved promises, and many high bands rest on fewer than three. We therefore "
+            "define a robust core of names with at least ten graded promises, and report credibility "
+            "tiers for that core only. Momentum is undefined for the first period and stabilises after "
+            "about four. Every figure carries its as-of call date and its resolved-promise count; "
+            "verify each against the original transcript.")
+
+COPY_SURVIVORSHIP = ("Our security universe is built from the raw daily bhav-copy archive, not a "
+                     "current-constituents list. Delisted, suspended and surveillance-series names are "
+                     "kept, so historical analysis can see companies that later disappeared rather than "
+                     "only today's survivors. A company is followed across a symbol rename as one "
+                     "continuous security where an ISIN handover confirms it; demergers, mergers and "
+                     "schemes of arrangement are recorded as continuity-break events so a structural gap "
+                     "is never mistaken for a price move. One asymmetry we state plainly: the "
+                     "price/survivorship spine retains delisted names, while the fundamental history "
+                     "covers the names listed today — the two universes are not identical.")
+
+COPY_NOALPHA = ("Patearn's rankings express a percentile rank-gap — where a name sits on a given factor "
+                "relative to its peers — not a forecast of returns. No claim of investment performance "
+                "is made or implied anywhere in this product. The lead-time study that would test "
+                "whether any of these signals precede price is not yet built; until it is, every score "
+                "is a descriptor of present, point-in-time evidence, and should be treated as "
+                "decision-support, not a prediction.")
+
+COPY_SOURCE = ("Fundamental and concall data are presently obtained from public web sources (including "
+               "Screener.in and BSE filings); price and delivery data derive from NSE's published "
+               "bhav-copy archive. These sources are public and each figure links to its origin, but the "
+               "present collection method is scraped, not a licensed feed. Migration to owned or licensed "
+               "data sources is planned as part of a backend rebuild ahead of production distribution.")
+
+COPY_SEBI = ("Patearn is an analytical decision-support tool that supports SEBI Research Analyst "
+             "Regulations workflows (evidence, as-of dating, source linkage). It is informational only, "
+             "is not investment advice or a recommendation, and is not a substitute for the registrations "
+             "or reviews that distribution of research to others may require.")
+
+COPY_INFRA = ("Single-node deployment; no high-availability / disaster-recovery today. Data-delivery SLA, "
+              "freshness monitoring with alerting, and a SOC 2 / security path are on the procurement "
+              "roadmap, not yet in place.")
+
+COPY_MNAR = ("Concall coverage is missing-not-at-random: India's transcript mandate is phased by company "
+             "size and era, so small-cap and earlier-period absence is systematic. A study restricted to "
+             "names with concalls is implicitly tilted toward larger, more recent companies — read "
+             "coverage with that selection in mind.")
+
+# the diligence checklist the screen pre-empts
+PRINCIPLES = [
+    ("Survivorship addressed first", "Universe built from the raw archive with delisted names retained; a survivorship-correct universe-as-of-date exists."),
+    ("Point-in-time honesty is graduated", "Fundamentals are labelled modeled-availability with the exact lag disclosed; CCI is genuinely PIT by construction. We never call modelled data point-in-time."),
+    ("Sample size travels with every score", "No tier or credibility read appears without its resolved-promise count and as-of date; a robust core is defined and tiers reported only within it."),
+    ("No performance claim without a backtest", "The product speaks in percentile rank-gaps; the lead-time study is openly marked not-built."),
+    ("Grain is never overstated", "Market-level data (participant OI, FII/DII flow) is labelled market-level; we do not claim per-name participant flow."),
+    ("Absence is a first-class value", "Coverage gaps return coverage + n, never a fabricated number; “not covered”, “zero” and “not in source” are distinct states."),
+    ("Every figure is sourced and reproducible", "Each count maps to a named table/column; each company-level claim links to its origin."),
+    ("Characterisation is banned", "Copy states stated-vs-actual facts, never judgments of people."),
+    ("Data provenance is declared", "Scraped-today vs licensed-later is stated as a known item, not buried."),
+    ("The as-of clock is global and visible", "The whole page renders from one stamped moment; freshness is shown per class."),
+]
+
+
+# ── small render helpers ──────────────────────────────────────────────────────
+def _n(v, dash="—"):
+    """Thousands-separated int, or an em-dash for None/missing."""
+    if v is None:
+        return dash
+    try:
+        return f"{int(v):,}"
+    except (TypeError, ValueError):
+        return K.esc(v)
+
+
+def _days(a, b):
+    """Calendar days between two ISO date strings (b - a), or None."""
+    try:
+        return (date.fromisoformat(str(b)[:10]) - date.fromisoformat(str(a)[:10])).days
+    except (TypeError, ValueError):
+        return None
+
+
+def _staleness_pill(latest, as_of, cadence):
+    """A freshness verdict pill from the gap between a class's latest date and the page as-of."""
+    if not latest:
+        return K.pill("no data", "neutral")
+    d = _days(latest, as_of)
+    if d is None:
+        return K.pill(K.esc(str(latest)[:10]), "neutral")
+    daily = "daily" in (cadence or "")
+    if daily:
+        kind = "up" if d <= 5 else "warn" if d <= 20 else "down"
+    else:
+        kind = "up" if d <= 120 else "warn" if d <= 400 else "down"
+    lab = "current" if d <= (5 if daily else 120) else (f"{d}d old")
+    return K.pill(lab, kind)
+
+
+def _bar(label, value, total, kind="acc"):
+    """A labelled proportional bar for the n_resolved distribution."""
+    pct = round(100.0 * value / total, 1) if (value and total) else 0
+    colour = {"acc": "var(--accent)", "up": "var(--up)", "warn": "var(--warn)",
+              "down": "var(--down)", "cred": "var(--cred)"}.get(kind, "var(--accent)")
+    return (f'<div class="cov-bar"><div class="cov-bar-l">{K.esc(label)}</div>'
+            f'<div class="cov-bar-t"><div class="cov-bar-f" style="width:{pct}%;background:{colour}"></div></div>'
+            f'<div class="cov-bar-v num">{_n(value)} <span class="mut">({pct}%)</span></div></div>')
+
+
+_COV_CSS = """<style>
+.cov-funnel{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
+.cov-step{flex:1;min-width:120px;background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;position:relative}
+.cov-step.core{border-color:var(--accent);background:var(--accent-dim)}
+.cov-step .cs-n{font-size:22px;font-weight:600;font-family:var(--mono);font-variant-numeric:tabular-nums;line-height:1}
+.cov-step .cs-l{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-3);margin-top:6px}
+.cov-step .cs-arrow{position:absolute;right:-12px;top:50%;transform:translateY(-50%);color:var(--ink-3);z-index:1;font-size:13px}
+.cov-bar{display:grid;grid-template-columns:130px 1fr 120px;gap:10px;align-items:center;margin:7px 0;font-size:12.5px}
+.cov-bar-t{height:9px;background:var(--bg-1);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.cov-bar-f{height:100%;border-radius:6px}
+.cov-bar-v{text-align:right;color:var(--ink-2)}
+.cov-note{font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.cov-banner{border:1px solid var(--warn);background:rgba(246,183,60,.10);border-radius:var(--r-sm);padding:11px 14px;color:var(--ink);font-size:12.5px;display:flex;gap:9px;align-items:flex-start}
+.cov-banner .d{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 7px var(--warn);margin-top:5px;flex:none}
+.cov-x{display:grid;gap:2px}
+.cov-x table{border-collapse:collapse;font-size:12px}
+.cov-x th,.cov-x td{padding:6px 11px;text-align:right;border-bottom:1px solid var(--line)}
+.cov-x th:first-child,.cov-x td:first-child{text-align:left}
+</style>"""
+
+
+# ── sections ──────────────────────────────────────────────────────────────────
+def _funnel_step(value, label, core=False, arrow=True):
+    cls = "cov-step core" if core else "cov-step"
+    ar = '<div class="cs-arrow">→</div>' if arrow else ""
+    return f'<div class="{cls}"><div class="cs-n">{_n(value)}</div><div class="cs-l">{K.esc(label)}</div>{ar}</div>'
+
+
+def _section_glance(snap):
+    cci = snap.get("cci", {})
+    fn = cci.get("funnel", {})
+    uni = snap.get("universe", {}) or {}
+    core = fn.get("robust_core_ge10")
+    band = K.K_row if False else ""  # noqa — placeholder kept for clarity
+    # robust-core HEADLINE (red-team: the number a buyer should anchor on comes first)
+    head = (
+        '<div class="uk-row" style="margin-bottom:14px">'
+        f'<div class="uk-card accent lift" style="flex:1.4;min-width:260px">'
+        f'<div class="uk-eyebrow">CCI robust core {K.badge("the only delivery-graded set")}</div>'
+        f'<div class="uk-stat"><div class="val cred">{_n(core)}</div>'
+        f'<div class="dl mut">names with ≥10 graded promises — credibility here means tested '
+        f'delivery, not disclosure</div></div></div>'
+        f'<div class="uk-card" style="flex:1;min-width:200px">'
+        f'<div class="uk-eyebrow">Universe (survivorship-correct)</div>'
+        f'<div class="uk-stat"><div class="val">{_n(uni.get("total_securities"))}</div>'
+        f'<div class="dl mut">securities ever observed · {_n(uni.get("active"))} active · '
+        f'{_n(uni.get("delisted_or_inactive"))} delisted/inactive (retained)</div></div></div>'
+        f'<div class="uk-card" style="flex:1;min-width:200px">'
+        f'<div class="uk-eyebrow">Fundamentals availability</div>'
+        f'<div class="uk-stat"><div class="val warn">modeled</div>'
+        f'<div class="dl mut">annual +90d / quarterly +50d synthetic lag — not point-in-time (§6)</div>'
+        f'</div></div></div>'
+    )
+    # the shrinking funnel (breadth is here, clearly downstream of the headline)
+    steps = (
+        _funnel_step(fn.get("touched"), "concall symbols touched") +
+        _funnel_step(fn.get("scored"), "scored") +
+        _funnel_step(fn.get("resolved_ge1"), "≥1 promise resolved") +
+        _funnel_step(fn.get("resolved_ge3"), "≥3 resolved") +
+        _funnel_step(fn.get("robust_core_ge10"), "robust core ≥10", core=True, arrow=False)
+    )
+    funnel = K.card(f'<div class="cov-funnel">{steps}</div>'
+                    '<div class="cov-note mut" style="margin-top:11px">The headline is the robust core, '
+                    'not the breadth: “symbols touched” counts every name with a concall on file, '
+                    'most of which have few or no resolved promises yet. Coverage shrinks left-to-right; '
+                    'each step is a stricter, more honest count.</div>',
+                    eyebrow="CCI settlement funnel — honest, monotone, denominator-first")
+    return f'<div style="margin-bottom:6px">{head}</div>{funnel}'
+
+
+def _section_universe(snap):
+    u = snap.get("universe", {}) or {}
+    if u.get("status") == "security_master_empty":
+        body = ('<div class="cov-note">' + K.esc(u.get("policy", "")) +
+                ' <span class="mut">(survivorship spine not built in this database — counts unavailable here)</span></div>')
+        return K.card(body, eyebrow="Universe construction & survivorship policy")
+    breaks = u.get("continuity_breaks", {}) or {}
+    ren = u.get("renames", {}) or {}
+    rows = "".join(
+        f'<tr><td class="sym">{K.esc(k)}</td><td class="num">{_n(v)}</td></tr>'
+        for k, v in [
+            ("Total securities ever observed", u.get("total_securities")),
+            ("Currently listed &amp; active", u.get("active")),
+            ("Delisted / inactive (retained)", u.get("delisted_or_inactive")),
+            ("Left-censored at archive floor", u.get("left_censored_at_floor")),
+            ("Continuity-break events", sum(breaks.values()) if breaks else None),
+            ("Renames confirmed (ISIN handover)", ren.get("confirmed")),
+            ("Rename candidates (unconfirmed)", ren.get("candidates")),
+        ])
+    tbl = f'<div class="uk-tw" style="max-height:none"><table class="uk-t"><thead><tr><th>Metric</th><th>Count</th></tr></thead><tbody>{rows}</tbody></table></div>'
+    floor = u.get("archive_floor")
+    ceil_ = u.get("archive_ceiling")
+    discl = "".join(f'<li>{K.esc(d)}</li>' for d in u.get("disclosures", []))
+    meta = (f'<div class="cov-note" style="margin:10px 0 6px"><b>Archive span:</b> '
+            f'<span class="num">{K.esc(floor)}</span> → <span class="num">{K.esc(ceil_)}</span>. '
+            f'<b>As-of mechanism:</b> <span class="mut">{K.esc(u.get("as_of_mechanism",""))}</span></div>'
+            f'<ul class="cov-note" style="margin:8px 0 0;padding-left:18px">{discl}</ul>')
+    note = f'<div class="cov-note" style="margin-top:12px">{COPY_SURVIVORSHIP}</div>'
+    return K.card(f'<div class="uk-row"><div style="flex:1;min-width:280px">{tbl}</div>'
+                  f'<div style="flex:1.1;min-width:280px">{meta}</div></div>{note}',
+                  eyebrow="Universe construction & survivorship policy", cls="lift")
+
+
+def _section_matrix(snap):
+    classes = snap.get("classes", []) or []
+    head = ("<tr><th>Dataset</th><th>Source</th><th>Coverage</th><th>Grain</th>"
+            "<th>Basis</th><th>Latest</th><th>Freshness</th></tr>")
+    basis_kind = {"AS_TRADED": "up", "INGESTED": "acc", "EVENT": "acc",
+                  "DERIVED": "neutral", "MODELED": "warn"}
+    rows = ""
+    as_of = snap.get("as_of")
+    for cl in classes:
+        nunit = cl.get("n_unit", "symbols")
+        cov = f'{_n(cl.get("n"))} <span class="mut">{K.esc(nunit)}</span>'
+        if cl.get("pct_active") is not None:
+            cov += f' <span class="mut">· {cl["pct_active"]}% of active</span>'
+        bp = K.pill(cl.get("basis", "?").replace("_", " ").lower(), basis_kind.get(cl.get("basis"), "neutral"))
+        note = f'<div class="mut" style="font-size:10.5px">{K.esc(cl["note"])}</div>' if cl.get("note") else ""
+        mv = ' <span class="uk-badge" title="rows carry method/model version">vers</span>' if cl.get("method_versioned") else ""
+        rows += (f'<tr><td class="sym">{K.esc(cl.get("label"))}{mv}{note}</td>'
+                 f'<td style="text-align:left">{K.esc(cl.get("source",""))}</td>'
+                 f'<td class="num">{cov}</td>'
+                 f'<td style="text-align:left">{K.esc(cl.get("grain",""))}</td>'
+                 f'<td style="text-align:right">{bp}</td>'
+                 f'<td class="num">{K.esc(str(cl.get("latest") or "—")[:10])}</td>'
+                 f'<td style="text-align:right">{_staleness_pill(cl.get("latest"), as_of, cl.get("cadence"))}</td></tr>')
+    tbl = f'<div class="uk-tw"><table class="uk-t"><thead>{head}</thead><tbody>{rows}</tbody></table></div>'
+    legend = ('<div class="cov-note mut" style="margin-top:10px">Basis — '
+              '<b>as traded</b>: a real NSE exchange date · <b>ingested</b>: a real first-seen/fetch time · '
+              '<b>event</b>: a real event date · <b>derived</b>: computed from a real-dated source · '
+              '<b>modeled</b>: a synthetic uniform lag (see §6). “days” coverage = distinct '
+              'trading days for market-level/index classes (which have no per-stock split).</div>')
+    return K.card(tbl + legend, eyebrow="Per-data-class coverage matrix")
+
+
+def _section_cci(snap):
+    cci = snap.get("cci", {}) or {}
+    buckets = cci.get("n_resolved_buckets", {}) or {}
+    total_named = sum(buckets.values()) if buckets else 0
+    dist = (_bar("0 resolved", buckets.get("0"), total_named, "down") +
+            _bar("1–2 resolved", buckets.get("1-2"), total_named, "warn") +
+            _bar("3–9 resolved", buckets.get("3-9"), total_named, "acc") +
+            _bar("≥10 (robust core)", buckets.get(">=10"), total_named, "up"))
+    unproven = cci.get("unproven_ceiling")
+    momr = cci.get("momentum_ready")
+    mom4 = cci.get("momentum4_ready")
+    tape = cci.get("tape", {}) or {}
+    # tier x n_resolved cross-tab (self-incriminates thin-sample A+)
+    cross = cci.get("tier_x_nresolved", {}) or {}
+    order = ["A+", "A", "B", "C", "D"]
+    cols = ["0", "1-2", "3-9", ">=10"]
+    xrows = ""
+    for tier in [t for t in order if t in cross] + [t for t in cross if t not in order]:
+        cells = "".join(f'<td class="num">{_n(cross[tier].get(c, 0))}</td>' for c in cols)
+        xrows += f'<tr><td class="sym">{K.esc(tier)}</td>{cells}</tr>'
+    xtab = ("" if not cross else
+            '<div class="cov-x" style="margin-top:6px"><table><thead><tr><th>Tier</th>'
+            '<th>0</th><th>1–2</th><th>3–9</th><th>≥10</th></tr></thead>'
+            f'<tbody>{xrows}</tbody></table></div>'
+            '<div class="cov-note mut" style="margin-top:6px">Tier × resolved-promise count. '
+            'A high tier in a low-resolved column is a thin-sample read, shown here on purpose — a tier is '
+            'only as strong as the count beside it.</div>')
+    left = K.card(
+        '<div class="uk-eyebrow">Resolved-promise distribution (the honesty bar)</div>' + dist +
+        f'<div class="cov-note" style="margin-top:12px">{COPY_CCI}</div>',
+        cls="lift")
+    right = K.card(
+        '<div class="uk-eyebrow">Robustness</div>'
+        f'<div class="cov-note">Unproven-ceiling names (no resolved guidance — level capped, not earned): '
+        f'<b class="num">{_n(unproven)}</b></div>'
+        f'<div class="cov-note">Momentum-ready (≥2 periods): <b class="num">{_n(momr)}</b> · '
+        f'stable slope (≥4): <b class="num">{_n(mom4)}</b></div>'
+        f'<div class="cov-note">Tape: <span class="up">{_n(tape.get("EARNING_TRUST"))} earning-trust</span> · '
+        f'<span class="down">{_n(tape.get("DETERIORATION"))} deterioration</span></div>'
+        '<div class="uk-eyebrow" style="margin-top:14px">Tier × resolved count</div>' + (xtab or '<div class="mut cov-note">no scored names in this database</div>'))
+    banner = (f'<div class="cov-banner"><span class="d"></span><div>{K.esc(cci.get("paused_note",""))}</div></div>')
+    return (f'<div style="margin-bottom:12px">{banner}</div>'
+            f'<div class="uk-row"><div style="flex:1.3;min-width:320px">{left}</div>'
+            f'<div style="flex:1;min-width:280px">{right}</div></div>')
+
+
+def _section_modeled(snap):
+    la = snap.get("lag_audit", {}) or {}
+    fh = la.get("fundamentals_history", {}) if isinstance(la, dict) else {}
+    status = fh.get("status") if isinstance(fh, dict) else None
+    if status == "ok":
+        audit = (f'<div class="cov-note">Measured modelled-lag error (real first-seen − modelled date): '
+                 f'median <b class="num">{fh.get("median")}d</b>, p10 {fh.get("p10")}d / p90 {fh.get("p90")}d, '
+                 f'over <b class="num">{_n(fh.get("n"))}</b> matched periods. '
+                 f'Look-ahead-injecting cases (modelled date earlier than real): '
+                 f'<b class="num">{_n(fh.get("n_leaks"))}</b>.</div>')
+    else:
+        audit = ('<div class="cov-note mut">Lag-accuracy audit: not yet measurable — real first-seen dates '
+                 'accrue only going forward (no historical periods to compare against). This will report a '
+                 'measured error distribution once forward captures and a filing-date backfill exist.</div>')
+    formula = ('<div class="cov-note"><b>The rule:</b> '
+               '<code>report_date = period_end + 90d (annual) / 50d (quarterly)</code> — a uniform synthetic '
+               'lag applied to every company identically. <b>Two failure modes:</b> late filers leak '
+               '(treated as knowable earlier than they were); early filers are wrongly greyed (treated as '
+               'unknown when already public).</div>')
+    return K.card(formula + f'<div class="cov-note" style="margin-top:10px">{COPY_MODELED}</div>'
+                  f'<div style="margin-top:10px">{audit}</div>',
+                  eyebrow="Modeled-vs-filed disclosure")
+
+
+def _section_methodology():
+    blocks = [
+        ("No proven performance", COPY_NOALPHA),
+        ("Coverage is missing-not-at-random", COPY_MNAR),
+        ("Data source & licensing", COPY_SOURCE),
+        ("Infrastructure & SLA", COPY_INFRA),
+        ("Regulatory posture", COPY_SEBI),
+    ]
+    body = "".join(f'<div style="margin-bottom:13px"><div class="uk-eyebrow">{K.esc(t)}</div>'
+                   f'<div class="cov-note">{c}</div></div>' for t, c in blocks)
+    return K.card(body, eyebrow="Methodology & limitations")
+
+
+def _section_degradation():
+    contract = ('<div class="cov-note">When you query a name we do not cover for a given dataset, Patearn '
+                'shows the coverage status and the sample size — never a fabricated value. Absence is '
+                'reported as absence. Three states are kept distinct: <b>not covered</b> (outside the '
+                'dataset), <b>zero</b> (a real measured zero), and <b>not in source</b> (the field does not '
+                'exist in the upstream feed).</div>')
+    examples = (
+        '<div class="cov-note" style="margin-top:10px">'
+        '<b>RELIANCE</b> — Prices ✓ (daily) · Fundamentals ✓ <span class="warn">modeled-availability</span> · '
+        'CCI ✓ robust core (n_resolved ≥10) · Participant flow: <span class="mut">market-level only, no per-stock split</span>.'
+        '<br><b>A thin micro-cap</b> — Prices ✓ · Fundamentals: <span class="mut">not covered (outside the listed-today set)</span> · '
+        'CCI: <span class="mut">quantification-rate only, n_resolved = 0 (unproven)</span> · F&amp;O: <span class="mut">not an F&amp;O underlying</span>.</div>')
+    return K.card(contract + examples, eyebrow="Graceful degradation — what an uncovered ticker shows")
+
+
+def _section_principles():
+    items = "".join(
+        f'<div style="margin-bottom:11px"><div style="display:flex;gap:8px;align-items:center">'
+        f'{K.pill(str(i+1), "acc")}<b>{K.esc(t)}</b></div>'
+        f'<div class="cov-note mut" style="margin-top:3px">{K.esc(d)}</div></div>'
+        for i, (t, d) in enumerate(PRINCIPLES))
+    return K.card(items, eyebrow="Trust-design principles — the diligence checklist this page pre-empts")
+
+
+# ── assembly ──────────────────────────────────────────────────────────────────
+def render_coverage(conn=None) -> str:
+    """Build the full ledger body. Defensive per-section: one failing section degrades
+    to a small note, never blanks the page."""
+    try:
+        snap = P.coverage_snapshot(conn)
+    except Exception as e:  # noqa: BLE001 — a trust page must never 500
+        return (_COV_CSS + K.card(
+            f'<div class="cov-note">The coverage snapshot could not be built in this environment '
+            f'(<span class="mut">{K.esc(e)}</span>). On the analytics host this renders live counts.</div>',
+            eyebrow="Coverage & Settlement ledger"))
+
+    as_of = snap.get("as_of")
+    build = snap.get("build_at")
+    header = (
+        '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
+        f'<h1 class="uk-h1">Coverage &amp; Settlement ledger</h1>'
+        f'{K.badge("the limits, stated in writing")}</div>'
+        f'<div class="sec" style="margin-bottom:6px">Page as of <span class="num">{K.esc(str(as_of) or "—")}</span> '
+        f'· built <span class="num">{K.esc(str(build) or "")}</span> · scope: NSE-listed Indian equities '
+        f'(EQ/BE/BZ; SME excluded)</div>'
+        f'<div class="cov-note" style="max-width:880px;margin-bottom:16px">{COPY_PAGE}</div>'
+    )
+
+    def _safe(fn, *a):
+        try:
+            return fn(*a)
+        except Exception as e:  # noqa: BLE001
+            return K.card(f'<div class="cov-note mut">section unavailable: {K.esc(e)}</div>')
+
+    def _h(t):
+        return f'<div class="uk-eyebrow" style="margin:22px 0 10px;font-size:12px;color:var(--ink-2)">{K.esc(t)}</div>'
+
+    body = (
+        _COV_CSS + header +
+        _safe(_section_glance, snap) +
+        _h("Universe construction & survivorship") + _safe(_section_universe, snap) +
+        _h("Per-data-class coverage") + _safe(_section_matrix, snap) +
+        _h("Concall credibility — settlement & robustness") + _safe(_section_cci, snap) +
+        _h("Modeled-vs-filed availability") + _safe(_section_modeled, snap) +
+        _h("Methodology & limitations") + _safe(_section_methodology) +
+        _h("Graceful degradation") + _safe(_section_degradation) +
+        _h("Trust-design principles") + _safe(_section_principles)
+    )
+    return body
+
+
+@router.get("/dash/coverage", response_class=HTMLResponse)
+def coverage_page() -> HTMLResponse:
+    sub = K.subnav([("Trust", "", False), ("Coverage & Settlement", "/dash/coverage", True)])
+    return HTMLResponse(K.shell("Coverage & Settlement · patearn", render_coverage(),
+                                active="markets", sub=sub))
