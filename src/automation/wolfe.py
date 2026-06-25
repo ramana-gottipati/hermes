@@ -357,24 +357,19 @@ def score(p_list, p5, direction, highs, lows, closes, rsi_arr):
         if ln > 0 and (abs(highs[t] - ln) / ln <= 0.001 or abs(lows[t] - ln) / ln <= 0.001):
             touches += 1
     H = 0 if touches == 0 else 1 if touches < 3 else 2                                 # 0-2
-    I = 0                                                   # RSI divergence: SHIFTED point 5 vs the INITIAL
-    if p5 and rsi_arr[p5.idx] is not None:                  # point-5 TROUGH it undercut (panel-resolved)
-        s13 = _line(a, c)
-        init = init_ext = None                              # DEEPEST prior overshoot >=5 bars before p5
-        for t in range(d.idx + 1, max(d.idx + 2, p5.idx - 4)):
-            rail = a.price + s13 * (t - a.idx)
-            if bull and lows[t] < c.price and lows[t] < rail and (init_ext is None or lows[t] < init_ext):
-                init_ext, init = lows[t], t
-            elif (not bull) and highs[t] > c.price and highs[t] > rail and (init_ext is None or highs[t] > init_ext):
-                init_ext, init = highs[t], t
-        if init is not None and rsi_arr[init] is not None:
-            depth = (lows[init] - p5.price) / lows[init] if bull else (p5.price - highs[init]) / highs[init]
-            if depth >= 0.01:                               # min depth ~1% (kill marginal/adjacent false +2)
-                if bull and rsi_arr[p5.idx] > rsi_arr[init]:
-                    I = 2
-                elif (not bull) and rsi_arr[p5.idx] < rsi_arr[init]:
-                    I = 2
-        # (point-3 fallback dropped — fired on the RSI base-rate; skeptic + Ramana-proxy)
+    I = 0                                                   # §B-I RSI divergence (panel-resolved 2026-06-25):
+    if p5 and rsi_arr[p5.idx] is not None:                  # point 5 is the deepest PRICE extreme by build, so
+        ref_v = None                                        # divergence = RSI(14) at p5 is NOT the lowest (bull)
+        for t in range(d.idx + 1, p5.idx - 4):             # / highest (bear) RSI over the decline INTO it
+            rv = rsi_arr[t]                                 # [pt4+1 .. p5-5] — i.e. RSI failed to confirm the
+            if rv is None:                                  # new price extreme (the textbook regular divergence).
+                continue                                    # Anchored to the prior RSI trough of the whole move,
+            if ref_v is None or (rv < ref_v if bull else rv > ref_v):  # not one bar: catches GRIND divergences
+                ref_v = rv                                  # like RELIANCE Nov-2022 (RSI bottomed early, then a
+        if ref_v is not None and ((bull and rsi_arr[p5.idx] > ref_v)   # lower price low on a higher RSI low).
+                                  or ((not bull) and rsi_arr[p5.idx] < ref_v)):
+            I = 2                                           # binary +2 (§B-I; no magnitude gate — skeptic's
+        # swing-low+bounce variant MISSED grinds and under-fired; quant + Ramana-proxy carried it.
     total = A * 2 + B + C + F + G + H + I + D
     return {"p1": A, "B": round(B, 2), "C": C, "F": F, "G": G, "H": H, "I": I, "D": D,
             "total": round(total, 2)}
