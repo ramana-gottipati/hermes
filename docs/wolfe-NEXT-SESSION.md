@@ -9,7 +9,61 @@
 
 ---
 
-## ⭐ 0. DEFINITIVE STATE + RESUME (2026-06-24 wrap — READ THIS FIRST; supersedes the §7* correction history below, which is kept only as archaeology)
+## ⭐⭐ 0a. CURRENT STATE + RESUME — 2026-06-25 (READ FIRST; supersedes the 06-24 §0 below)
+
+**Brand:** patearn (lowercase). "Hermes" = the Nous agent ONLY.
+
+**THE SPEC IS LOCKED & RECORDED → `docs/wolfe-rules.md`** (read it: §A geometry · §B fractal pivot-sourcing + quality rank + trade-mgmt · §C as-of/PIT backtest). Don't re-derive.
+
+**BASE = revert anchor:** git commit **`74faeee`** (isolated wolfe files) + VPS `*.bak-base`. Revert = `git checkout 74faeee -- <wolfe files>` or restore the backups. Current PROD = locked §A geometry + point-5 shift + display, on **zigzag** pivots.
+
+**STEP-1 DONE — validated in the SANDBOX, prod/base UNTOUCHED:** `research/wolfe_waves/fractal_proto.py` (local + on VPS `/opt/hermes/research/wolfe_waves/`). Sources pivots from **Williams fractals** (degrees 2/5/10/20/30) instead of the zigzag, applies the LOCKED §A rules as validators, finds point 5 (§A4 shift), computes the §B quality score.
+- Run: `ssh hermes 'cd /opt/hermes && python3 research/wolfe_waves/fractal_proto.py'`.
+- RESULT: surfaces the waves base MISSED — RELIANCE **Nov-2022 bull EXACT** (1=28-Nov 2=1-Dec 3=23-Dec 4=10-Jan + Mar-20 shifted pt5) and the **long-range** 2024-26 waves; **PARAS still works**.
+
+**Decisions locked this session (APPLY ON PORT):**
+- Distance floor: base `sym_lo` 0.5 → **0.2** (his rule has NO lower floor; Nov-2022 leg34/leg12=0.45 is valid). **Base fix on port.**
+- DETECTION degrees include **20/30** (long waves need coarse pivots); QUALITY point-level still **caps at 10** ("no 20/30" was about the score, not detection — a d20/d30 pivot scores the max level 3).
+- Scoring (2 expert panels resolved): **C** re-entry-aware (pierce-and-return scores, PIT-safe, depth-bounded) · **D** from ENTRY (zone) not the overshoot spike · **B** floored at 1 · **dedupe** keeps best-score wave · **I** (RSI div) reference = a prior overshoot **trough** + min-depth/min-separation guard, loose pt3 fallback **DROPPED** · **G** kept **1/2** (Ramana-locked; panel's demote-to-0/1 NOT adopted).
+
+**Honest caveats (not bugs):**
+- Nov-2022 ranks ~21-23/136 (Q16). **C=0** — on DAILY legs pt5 is **4.3%** from the nearest daily confluence; his clean **1226** zone is **75-MINUTE** (daily confluences = 1012/1128/1177). Per his locked ≤1.5% C-rubric, C=0 is correct. The 75min-vs-daily placement gap is real.
+- **I=0** — its RSI divergence is a marginal **1.4-pt** shift (Feb-3 RSI 28.3 → Mar-20 29.7); the exact "initial-point-5 reversal-trough" reference needs **shift-sequence tracking in find_p5** (FLAGGED refinement; domain-proxy called it fragile, defensible to leave).
+
+**OUTSTANDING (priority):**
+1. **THE PORT (next, the big one):** merge the validated fractal detection + scoring from `fractal_proto.py` into PROD `src/automation/wolfe.py` + the 2 surfaces (`wolfe_view.py` SVG, `wolfe_overlay.py` snippet — show the quality score); apply the floor fix + detection degrees; **deploy + BROWSER-VERIFY on candles** (binding: Chrome MCP, headless can't see candle bugs); **revertable to 74faeee**. Sensitive base change — surgical, not blunt.
+2. RSI shift-anchor refinement (shift-sequence tracking in `find_p5`).
+3. **Edge backtest (§C) — NEVER run** — the gate: lens stays **DESCRIPTIVE-ONLY** until it earns a verdict (PIT/as-of: every scan takes an as-of date, bars ≤ as-of; fractal design is naturally PIT-honest).
+
+**PROCESS (Ramana set, BINDING):** surgical not blunt; revert to base if it wobbles; **SCORING/JUDGMENT questions → expert agent PANEL** (Wolfe-quant · charting/viz · skeptic-QA · Ramana-proxy), do NOT ask Ramana; PROCESS/sequencing → ask Ramana. Locked §A geometry is non-negotiable; §B is additive.
+
+**Deploy recipe:** `sed 's/\r$//' <f> | ssh hermes 'cat > /opt/hermes/<f>'` per file → `ssh hermes 'systemctl restart hermes-api'` → verify `/health`=200. NEVER scp dashboard.py/main.py/PROJECT_STATE.md (parallel session). Commit ONLY isolated wolfe files.
+
+### ▶ KICKSTART (paste into the next session)
+```
+Continue patearn's Wolfe-Wave lens (patearn, NOT Hermes). Boot: read docs/wolfe-rules.md
+(LOCKED spec) + docs/wolfe-NEXT-SESSION.md §0a (2026-06-25 state — read fully) + memory
+[[wolfe-wave-strategy]]. Method is locked — don't re-derive.
+
+State: spec complete+recorded. BASE (revert anchor) = git 74faeee + VPS *.bak-base. STEP-1
+DONE & validated in the sandbox (research/wolfe_waves/fractal_proto.py): fractal-sourced
+detection (degrees 2/5/10/20/30) + the §B quality score; surfaces base's missed waves
+(RELIANCE Nov-2022 exact + long-range), PARAS works; prod/base UNTOUCHED.
+
+NEXT = THE PORT: merge the validated fractal detection + scoring from fractal_proto.py into
+PROD src/automation/wolfe.py + the 2 surfaces (wolfe_view.py, wolfe_overlay.py); apply the
+base distance-floor fix (sym_lo 0.5→0.2) + detection degrees (add 20/30, quality caps at
+10); deploy + BROWSER-VERIFY on candles (Chrome MCP); revertable to 74faeee. Surgical not
+blunt, commit ONLY isolated wolfe files. Then: RSI shift-anchor refinement (shift-sequence
+in find_p5), and the edge backtest (§C — never run, the descriptive-only gate).
+
+PROCESS (binding): scoring/judgment questions → expert agent PANEL, not Ramana;
+process/sequencing → ask Ramana. Confirm the port plan with Ramana, then execute carefully.
+```
+
+---
+
+## ⭐ 0. DEFINITIVE STATE + RESUME (2026-06-24 wrap — superseded by §0a above; kept as archaeology)
 
 > Ramana ended the session saying **"there seem to be a lot of misunderstandings — let's address this properly"** and asked to persist the knowledge. So: the implementation below is LIVE and reflects everything he corrected this session, **but treat the METHODOLOGY as not-yet-fully-pinned** — next session, RE-GROUND it with him cleanly before changing code. Do **not** assume the current build is the final truth.
 
