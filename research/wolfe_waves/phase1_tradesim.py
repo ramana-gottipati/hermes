@@ -94,7 +94,7 @@ def simulate(w, highs, lows, closes, n, cfg, log=None):
            "stopped": False, "missed": False, "ret": 0.0, "legs": 0, "epa_pot": None,
            "favor_gap": None, "hold": None, "timeout": False,
            "comp": dict(w.score) if w.score else {}, "span": (w.p5.idx - p[0].idx) if w.p5 else 0,
-           "z_r12": None, "z_r34": None}
+           "z_r12": None, "z_r34": None, "entry_t": None}
     if not zones:
         return out
 
@@ -141,7 +141,7 @@ def simulate(w, highs, lows, closes, n, cfg, log=None):
                         out["legs"] += 1
                         if first_entry is None:
                             first_entry, out["entered"], out["epa_pot"] = t, True, sret(epx, epa(t), bull)
-                            out["z_r12"], out["z_r34"] = z["r12"], z["r34"]
+                            out["z_r12"], out["z_r34"], out["entry_t"] = z["r12"], z["r34"], t
                         if log is not None:
                             log.append("  ENTER leg%d @%.2f zone%.2f[%s∩%s] bar=%d sl=%.2f t1=%s epa=%.2f"
                                        % (out["legs"], epx, z["price"], z["r12"], z["r34"], t, cur_sl,
@@ -219,6 +219,8 @@ def run(universe_name="nifty500", debug=None):
                 log = [] if debug else None
                 r = simulate(w, highs, lows, closes, n, CFG, log=log)
                 r["sym"] = sym
+                if r["entered"] and r["entry_t"] is not None:
+                    r["year"] = int(_d[r["entry_t"]][:4])
                 rows.append(r)
                 if debug and (r["entered"] or r["missed"]):
                     print("%s  %s  Q%.1f  p4=%s p5=%s" % (sym, w.direction, r["Q"], _d[w.p[3].idx], _d[w.p5.idx]))
@@ -231,6 +233,8 @@ def run(universe_name="nifty500", debug=None):
             return
         report(rows)
         decode(rows)
+        winner_report(rows)
+        oos_report(rows)
 
 
 def _net(r):                              # net of round-trip cost per leg (+ the T1 partial exit)
@@ -328,6 +332,70 @@ def report(rows):
     top = sorted(bysym.items(), key=lambda kv: -sum(1 for r in kv[1] if r["epa"]))[:8]
     print("   top names by EPA-wins:  " + ", ".join(
         "%s %d/%d" % (s, sum(1 for r in rs if r["epa"]), len(rs)) for s, rs in top))
+
+
+def winner_report(rows):
+    """Test the winner-profile filter built from the DECODE (selectable-at-entry traits:
+    strong point-1, not-narrowest zone, closer reachable EPA). Does selecting on it LIFT
+    hit%/net where the §B Q-score INVERTED — and, the real prize, does it make the BEARS
+    (the beta-neutral side) actually work?"""
+    ent = [r for r in rows if r["entered"]]
+
+    def stat(pop):
+        n = len(pop)
+        if not n:
+            return "n=     0  (none)"
+        hit = 100 * sum(1 for r in pop if r["ret"] > 0) / n
+        epa = 100 * sum(1 for r in pop if r["epa"]) / n
+        net = 100 * sum(_net(r) for r in pop) / n
+        mn = 100 * sorted(_net(r) for r in pop)[n // 2]
+        return "n=%6d  hit %3.0f%%  EPA %3.0f%%  net %+6.2f%%  medNet %+6.2f%%" % (n, hit, epa, net, mn)
+
+    flt = [
+        ("ALL entered (baseline)", lambda r: True),
+        ("D<=1  EPA reachable (<20%)", lambda r: r["comp"].get("D", 9) <= 1),
+        ("D==0  EPA very close (<10%)", lambda r: r["comp"].get("D", 9) == 0),
+        ("D>=2  EPA far (the tail)", lambda r: r["comp"].get("D", 9) >= 2),
+        ("p1>=2  strong point-1 only", lambda r: r["comp"].get("p1", 0) >= 2),
+        ("D<=1 & p1>=2 & F<=2 (full)", lambda r: r["comp"].get("D", 9) <= 1 and r["comp"].get("p1", 0) >= 2 and r["comp"].get("F", 9) <= 2),
+    ]
+    print("\n" + "=" * 86)
+    print("WINNER-PROFILE FILTER (decode-built; progressively add winner traits):")
+    for name, f in flt:
+        sub = [r for r in ent if f(r)]
+        print("  %-30s ALL  %s" % (name, stat(sub)))
+        print("  %-30s BULL %s" % ("", stat([r for r in sub if r["dir"] == "BULL"])))
+        print("  %-30s BEAR %s" % ("", stat([r for r in sub if r["dir"] == "BEAR"])))
+        print()
+
+
+def oos_report(rows):
+    """Walk-forward: does the FIXED winner-profile (D<=1 & p1>=2 & F<=2) hold in EVERY era
+    independently, or does one era carry it? The rule came from the decode medians (not a
+    parameter sweep), so per-era consistency = real edge; one-era-only = in-sample mirage."""
+    ent = [r for r in rows if r["entered"] and r.get("year")]
+    eras = [(2004, 2011), (2012, 2018), (2019, 2026)]
+    wp = lambda r: r["comp"].get("D", 9) <= 1 and r["comp"].get("p1", 0) >= 2 and r["comp"].get("F", 9) <= 2
+
+    def stat(pop):
+        n = len(pop)
+        if not n:
+            return "n=    0  (none)"
+        hit = 100 * sum(1 for r in pop if r["ret"] > 0) / n
+        net = 100 * sum(_net(r) for r in pop) / n
+        mn = 100 * sorted(_net(r) for r in pop)[n // 2]
+        return "n=%5d  hit %3.0f%%  net %+6.2f%%  medNet %+6.2f%%" % (n, hit, net, mn)
+
+    print("\n" + "=" * 86)
+    print("OUT-OF-SAMPLE / WALK-FORWARD — fixed winner-profile (D<=1 & p1>=2 & F<=2) per era:")
+    for a, b in eras:
+        era = [r for r in ent if a <= r["year"] <= b]
+        win = [r for r in era if wp(r)]
+        print("  %d-%d  baseline ALL   %s" % (a, b, stat(era)))
+        print("           winner   ALL   %s" % stat(win))
+        print("           winner   BULL  %s" % stat([r for r in win if r["dir"] == "BULL"]))
+        print("           winner   BEAR  %s" % stat([r for r in win if r["dir"] == "BEAR"]))
+        print()
 
 
 if __name__ == "__main__":
