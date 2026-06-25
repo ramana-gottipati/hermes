@@ -17,9 +17,16 @@ queryable, refinable home is now **`research.db`** via `research/explosive_moves
   overwrites, so a strategy's metric history across versions is preserved).
 - `strategy_holdings` — current top-N names per strategy (written by `strategy_menu.py`).
 Seeded from `out/*.csv` (22 strategies, 22 runs). Re-running any backtest + `--seed` (or calling
-`record_run`) adds the new result. The HTML board (`docs/strategy-board.html`) and any future `/dash` tab
-read from here. **To refine:** edit the signal/params, re-run the backtest, `record_run()` the result —
-the registry shows the new run beside the old.
+`record_run`) adds the new result. The HTML board (`docs/strategy-board.html`) and the in-app **Testing page** read from here.
+**To refine:** edit the signal/params, re-run the backtest, `record_run()` the result — the registry shows
+the new run beside the old.
+
+**IN-APP (LIVE 2026-06-25):** `/dash/testing` — `src/web/testing_view.py`, an isolated `APIRouter` reusing
+the shared `_shell`; reads `research.db` and renders the ranked registry + candidate holdings + the honest
+verdict. Mounted via 2 lines in `main.py` (deployed on the VPS; `main.py` is parallel-session-owned so NOT
+committed here — fold the import + `include_router(testing_router)` into committed `main.py` when the web
+session is free). A top-nav "Testing" tab still needs one line in `dashboard.py`'s `_nav` (also parallel-owned);
+until then the page is reachable directly at `/dash/testing`.
 
 ---
 
