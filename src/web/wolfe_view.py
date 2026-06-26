@@ -247,9 +247,9 @@ def _summary(d, wi, sym, idx):
                 '1·3·5 structure at these swing scales.</div>')
     base = f'sym={_q(sym)}' if sym else f'idx={_q(idx)}'
     out = ['<div style="font-size:13px;margin:4px 0 12px">',
-           '<div style="color:#8b949e;margin-bottom:5px">Setups — ranked by quality '
-           '(Q = §B points-sum); hover a row for the p1·B·C·F·G·H·I·D breakdown; '
-           'click one to draw it:</div>']
+           '<div style="color:#8b949e;margin-bottom:5px">Setups (★ <b style="color:#58a6ff">EDGE</b> = the validated '
+           'winner-profile · <a href="/dash/wolfe/scan" style="color:#58a6ff">open the scanner ›</a>); '
+           'hover a row for the p1·B·C·F·G·H·I·D breakdown; click to draw:</div>']
     for i, w in enumerate(d["waves"]):
         col = _BULL if w["direction"] == "BULL" else _BEAR
         sel = (i == wi)
@@ -258,18 +258,22 @@ def _summary(d, wi, sym, idx):
         ups = f' · up {w["upside_pct"]}%' if w["upside_pct"] is not None else ''
         rrs = f' · R:R {w["rr"]}' if w["rr"] else ''
         mark = ' ◀ drawn' if sel else ''
+        wp = wolfe.is_winner_profile(w.get("score"))
+        wpb = ('<span style="background:#1f6feb;color:#fff;font-size:10px;padding:0 5px;border-radius:4px;'
+               'margin-right:5px" title="reachable-EPA winner-profile — the validated edge">★ EDGE</span>') if wp else ''
         sc = w.get("score") or {}
         chip_title = (f'§B  p1×2={sc.get("p1",0)*2}  B={sc.get("B",0)}  C={sc.get("C",0)}  '
                       f'F={sc.get("F",0)}  G={sc.get("G",0)}  H={sc.get("H",0)}  I={sc.get("I",0)}  '
                       f'D={sc.get("D",0)}    ·    WolfeRank {w["wolfe_rank"]}{w["rank_tier"]} q{w["quality"]}'
                       f'    ·    source {w.get("source","")}') if sc else ''
         p4d = w["pivots"][3]["date"]
-        style = (f'background:#1c2430;border-left:3px solid {col};' if sel else 'border-left:3px solid transparent;')
+        bdr = "#1f6feb" if wp else col
+        style = (f'background:#1c2430;border-left:3px solid {bdr};' if (sel or wp) else 'border-left:3px solid transparent;')
         out.append(
             f'<a href="/dash/wolfe?{base}&w={i}" title="{_esc(chip_title)}" '
             f'style="display:block;{style}padding:4px 8px;margin:1px 0;'
             f'border-radius:4px;text-decoration:none;color:#e6edf3">'
-            f'<b style="color:{col}">{w["direction"]} Wolfe</b> · {w["state"]} · '
+            f'{wpb}<b style="color:{col}">{w["direction"]} Wolfe</b> · {w["state"]} · '
             f'<span style="color:#8b949e">pt4 {_esc(p4d)}</span> · {zs}{ups}{rrs} · '
             f'<b style="color:{col}">Q{w.get("quality_total",0)}</b>'
             f'<span style="color:#6e7681;font-size:11px"> {_esc(w.get("source",""))}</span>'
@@ -278,16 +282,66 @@ def _summary(d, wi, sym, idx):
     return "".join(out)
 
 
+@router.get("/dash/wolfe/scan", response_class=HTMLResponse)
+def wolfe_scan(universe: str = Query("nifty500", max_length=24),
+               fresh: int = Query(15, ge=1, le=180),
+               asof: str = Query("", max_length=12)):
+    """The winner-profile SCANNER — the OOS-validated reachable-EPA edge across the universe.
+    Each row is clickable → /dash/wolfe?sym=…&pick=winner (draws that stock's winner wave)."""
+    with get_conn() as conn:
+        cands = wolfe.winner_scan(conn, universe=(universe or "nifty500"), fresh=fresh, asof=(asof or None))
+    nin = sum(1 for c in cands if c["in_zone"])
+    trs = []
+    for c in cands:
+        col = _BULL if c["dir"] == "BULL" else _BEAR
+        t1s = _fmt(c["t1"]) if c["t1"] else "—"
+        status = ('<span style="color:#3fb950;font-weight:700">● IN</span>' if c["in_zone"]
+                  else '<span style="color:#6e7681">watch</span>')
+        trs.append(
+            f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(c["sym"])}&pick=winner\'" '
+            f'style="cursor:pointer;border-top:1px solid #21262d" '
+            f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
+            f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(c["sym"])}</b></td>'
+            f'<td style="color:{col};font-weight:600">{c["dir"]}</td>'
+            f'<td>{status}</td><td style="color:#8b949e">{c["age"]}d</td>'
+            f'<td>{_fmt(c["cmp"])}</td><td>{_fmt(c["zlo"])}–{_fmt(c["zhi"])}</td>'
+            f'<td style="color:#f85149">{_fmt(c["sl"])}</td>'
+            f'<td>{t1s}</td><td style="color:#3fb950">{_fmt(c["epa"])}</td>'
+            f'<td>{c["up"]:.0f}%</td></tr>')
+    if not cands:
+        trs = ['<tr><td colspan="10" style="padding:14px;color:#8b949e">No fresh winner-profile setups right now — '
+               'try <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a> or '
+               '<a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
+    head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up')
+    body = (
+        '<h2>Wolfe scanner <span style="color:#8b949e;font-size:15px;font-weight:400">— winner-profile edge</span></h2>'
+        '<div class="sub" style="margin-bottom:6px">The OOS-validated selection — <b>reachable EPA + strong point-1 + '
+        'not-narrowest zone</b> (the profile that actually rides to the EPA: median +2.4% net, bears +1.1%, consistent '
+        'across 3 eras). <b>Click a row</b> to see its wave on the chart. '
+        '<span style="color:#3fb950">● IN</span> = price in the entry zone now.</div>'
+        f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(universe)} · as-of {_esc(asof or "today")} · '
+        f'fresh ≤ {fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
+        ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
+        ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a></div>'
+        '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+        '<thead><tr style="color:#8b949e;text-align:left">'
+        + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
+        + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table>')
+    return HTMLResponse(_shell("Wolfe scanner", body, "wolfe", wide=True))
+
+
 @router.get("/dash/wolfe", response_class=HTMLResponse)
 def wolfe_page(sym: str = Query("", max_length=24),
                idx: str = Query("", max_length=48),
-               w: int = Query(0, ge=0)):
+               w: int = Query(0, ge=0),
+               pick: str = Query("", max_length=12)):
     sym = sym.strip().upper()
     idx = idx.strip()
     if not sym and not idx:
         body = ('<h2>Wolfe wave</h2>'
-                '<div class="sub">Pick a stock or index. The detector ranks every 1·3·5 setup; '
-                'the chart draws the selected one (top-ranked by default).</div>' + _form())
+                '<div class="sub">Pick a stock or index, or open the '
+                '<a href="/dash/wolfe/scan" style="color:#58a6ff">winner-profile scanner ›</a>. '
+                'The detector ranks every 1·3·5 setup; the chart draws the selected one.</div>' + _form())
         return HTMLResponse(_shell("Wolfe wave", body, "wolfe"))
 
     with get_conn() as conn:
@@ -296,6 +350,11 @@ def wolfe_page(sym: str = Query("", max_length=24),
         body = (f'<h2>Wolfe wave</h2><div class="empty">No price history for '
                 f'<b>{_esc(sym or idx)}</b>.</div>' + _form(sym, idx))
         return HTMLResponse(_shell("Wolfe wave", body, "wolfe"))
+
+    if pick == "winner" and d.get("waves"):       # from the scanner → draw the freshest winner-profile setup
+        wps = [(i, ww) for i, ww in enumerate(d["waves"]) if wolfe.is_winner_profile(ww.get("score"))]
+        if wps:
+            w = max(wps, key=lambda iw: iw[1]["pivots"][3]["idx"])[0]
 
     body = (
         f'<h2>{_esc(d["label"])} — Wolfe wave</h2>'

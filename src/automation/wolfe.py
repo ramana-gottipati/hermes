@@ -735,3 +735,88 @@ def overlay_for(conn, sym=None, idx=None):
             "label": d["label"], "kind": d["kind"]}
 # * zone_s uses symmetry as a confluence-tightness proxy until Ramana's exact
 #   legs-1-2/3-4 Fib overlay is wired (open item).
+
+
+# --------------------------------------------------------------------------- #
+# Wolfe SCANNER — the OOS-validated reachable-EPA winner-profile (2026-06-25)   #
+#   Phase-1 backtest + walk-forward: the RAW lens has no edge, but selecting    #
+#   on reachable EPA (D<=1) + strong point-1 (p1>=2) + not-narrowest zone       #
+#   (F<=2) is a robust two-sided BETA-NEUTRAL edge (median +2.4% net; bears     #
+#   +1.1% median, positive across all 3 eras). This is the OPPOSITE of ranking  #
+#   by the §B total — descriptive scanner feed, surfaced at /dash/wolfe/scan.   #
+# --------------------------------------------------------------------------- #
+def is_winner_profile(score):
+    """The validated edge filter: reachable EPA + strong point-1 + not-narrowest zone."""
+    return bool(score) and score.get("D", 9) <= 1 and score.get("p1", 0) >= 2 and score.get("F", 9) <= 2
+
+
+def t1_confluence(p, direction, tol=0.02):
+    """T1 partial target = leg-1-2's 0.618 ∩ leg-3-4's 0.618 (None if they don't converge)."""
+    bull = direction == "BULL"
+    a, b, c, d = p[0].price, p[1].price, p[2].price, p[3].price
+    if bull:
+        l12, l34 = max(a, b) - 0.618 * abs(b - a), max(c, d) - 0.618 * abs(d - c)
+    else:
+        l12, l34 = min(a, b) + 0.618 * abs(b - a), min(c, d) + 0.618 * abs(d - c)
+    mid = (l12 + l34) / 2.0
+    return mid if mid and abs(l12 - l34) / abs(mid) <= tol else None
+
+
+def scan_universe(conn, universe="nifty500"):
+    """Resolve a scan universe to its symbol list. 'nifty500' = the latest membership
+    snapshot · 'inclusive' = top-liquid incl. delisted · else a comma list of symbols."""
+    if universe == "nifty500":
+        return [r[0] for r in conn.execute(
+            """SELECT symbol FROM stock_index_membership WHERE index_name='Nifty 500'
+               AND snapshot_date=(SELECT MAX(snapshot_date) FROM stock_index_membership WHERE index_name='Nifty 500')
+               ORDER BY symbol""").fetchall()]
+    if universe == "inclusive":
+        return [r[0] for r in conn.execute(
+            """SELECT symbol FROM bhavcopy_rows WHERE series='EQ' AND (segment='CM' OR segment IS NULL) AND value>0
+               GROUP BY symbol HAVING COUNT(*)>=500 ORDER BY AVG(value) DESC LIMIT 300""").fetchall()]
+    return [s.strip().upper() for s in str(universe).split(",") if s.strip()]
+
+
+def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
+    """FRESH winner-profile Wolfe setups across a universe — the scanner feed. Each item:
+    sym/dir/cmp/zone/sl/t1/epa/up%/age/in_zone/dates, actionable-first then freshest. PIT
+    via `asof` (bars <= as-of; the fractal/point-5 design is naturally point-in-time)."""
+    import bisect
+    out = []
+    for sym in scan_universe(conn, universe):
+        s = stock_series(conn, sym)
+        if not s:
+            continue
+        dates, _o, highs, lows, closes = s
+        if asof:
+            k = bisect.bisect_right(dates, asof)
+            if k < 60:
+                continue
+            dates, highs, lows, closes = dates[:k], highs[:k], lows[:k], closes[:k]
+        n = len(closes)
+        cmp_ = closes[-1]
+        waves, _ = detect_waves(highs, lows, closes)
+        for w in waves:
+            if w.state != "CONFIRMED" or not w.p5 or not is_winner_profile(w.score):
+                continue
+            age = n - 1 - w.p5.idx
+            if age > fresh:
+                continue
+            _e12, _e34, zones = fib_zones(w.p[0].price, w.p[1].price, w.p[2].price, w.p[3].price, direction=w.direction)
+            if not zones:
+                continue
+            bull = w.direction == "BULL"
+            z = sorted(zones, key=lambda zz: (-zz["price"] if bull else zz["price"]))[0]
+            sl = z["low"] * 0.997 if bull else z["high"] * 1.003
+            t1 = t1_confluence(w.p, w.direction)
+            epa = w.p[0].price + w.epa_slope * (n - 1 - w.p[0].idx)
+            up = abs(epa - z["price"]) / z["price"] * 100.0 if z["price"] else 0.0
+            out.append({
+                "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
+                "zlo": round(z["low"], 1), "zhi": round(z["high"], 1), "zprice": round(z["price"], 1),
+                "sl": round(sl, 1), "t1": (round(t1, 1) if t1 else None), "epa": round(epa, 1),
+                "up": round(up, 1), "age": age, "Q": w.score["total"],
+                "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
+                "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
+    out.sort(key=lambda r: (not r["in_zone"], r["age"]))
+    return out
