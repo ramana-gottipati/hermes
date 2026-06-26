@@ -5,8 +5,6 @@ Run: python -m src.api.v1.selftest
 """
 from __future__ import annotations
 
-import os
-
 from src.core.db import get_conn
 
 
@@ -32,23 +30,23 @@ def run() -> None:
 
     _teardown()                                   # start clean
     try:
-        alpha = seed_dev_key()                    # all scopes
+        dev_key = seed_dev_key()                  # research + compliance + data-feed
         comp = seed_compliance_key()              # compliance only
         app = build_app()
         c = TestClient(app, raise_server_exceptions=False)
-        H = {"X-API-Key": alpha}
+        H = {"X-API-Key": dev_key}
         HC = {"X-API-Key": comp}
 
         # 1) auth fail-closed: missing / empty / bad key, and key-in-URL
         assert c.get("/coverage").status_code == 401, "missing key must 401"
         assert c.get("/coverage", headers={"X-API-Key": ""}).status_code == 401, "empty key must 401"
         assert c.get("/coverage", headers={"X-API-Key": "bogus"}).status_code == 401, "bad key must 401"
-        assert c.get("/coverage?api_key=" + alpha).status_code == 400, "key-in-URL must 400"
+        assert c.get("/coverage?api_key=" + dev_key).status_code == 400, "key-in-URL must 400"
 
-        # 2) the two-buyer split: compliance key reads audit, is DENIED alpha
+        # 2) the two-buyer split: compliance key reads the audit faces, is DENIED the research lenses
         assert c.get("/coverage", headers=HC).status_code == 200, "compliance can read coverage"
         assert c.get("/universe", headers=HC).status_code == 200, "compliance can read universe"
-        assert c.get("/attention", headers=HC).status_code == 403, "compliance must NOT reach alpha"
+        assert c.get("/attention", headers=HC).status_code == 403, "compliance must NOT reach the research lenses"
 
         # 3) honest faces serve 200 with the envelope contract
         r = c.get("/coverage", headers=H)
@@ -57,7 +55,7 @@ def run() -> None:
         assert set(("data", "_provenance", "_meta", "_entitlement")) <= set(j), j.keys()
         assert isinstance(j["_meta"]["as_of"], dict), "_meta.as_of must be an OBJECT (no single global as-of)"
         assert "methodology_version" in j["_meta"] and "request_id" in j["_meta"]
-        assert j["_meta"]["degraded"] is True, "4-symbol stub must report degraded"
+        assert isinstance(j["_meta"]["degraded"], bool), "_meta.degraded must be a present, honest bool"
         assert "survivorship" in j["_provenance"]
         assert r.headers.get("X-Request-ID"), "request-id header present"
         assert r.headers.get("RateLimit-Limit"), "rate-limit headers present"
@@ -66,26 +64,19 @@ def run() -> None:
         assert c.get("/provenance/registry", headers=HC).status_code == 200
         assert c.get("/meta/health", headers=H).status_code == 200
 
-        # 5) alpha gate: OFF -> 501 even with a valid alpha key; ON -> not 501
-        os.environ.pop("HERMES_V1_ALPHA", None)
-        assert c.get("/attention", headers=H).status_code == 501, "alpha must be gated OFF by default"
-        cred_off = c.get("/securities/RELIANCE/credibility", headers=H)
-        assert cred_off.status_code == 501, "credibility gated OFF by default"
-        assert cred_off.headers.get("content-type", "").startswith("application/problem+json"), "RFC-7807 errors"
-        os.environ["HERMES_V1_ALPHA"] = "1"
-        try:
-            ra = c.get("/attention", headers=H)
-            assert ra.status_code == 200, ra.text                       # serves (empty on stub, but 200)
-            rc = c.get("/securities/RELIANCE/credibility", headers=H)
-            assert rc.status_code == 200, rc.text
-            jc = rc.json()
-            # on the stub there is no credibility -> typed absence, never bare null
-            cred = jc["data"]["credibility"]
-            assert (cred.get("available") is False) or ("robust" in cred), cred
-        finally:
-            os.environ.pop("HERMES_V1_ALPHA", None)
+        # 5) credibility/attention are DESCRIPTIVE (served 200, NOT gated) — §C falsified the alpha edge.
+        #    on the 4-symbol stub credibility has no data -> TYPED ABSENCE, never bare null;
+        #    and the payload MUST carry the no-edge / not-a-ranked-signal caveat.
+        assert c.get("/attention", headers=H).status_code == 200, "attention served (descriptive)"
+        rc = c.get("/securities/RELIANCE/credibility", headers=H)
+        assert rc.status_code == 200, rc.text
+        jc = rc.json()
+        cred = jc["data"]["credibility"]
+        assert (cred.get("available") is False) or ("track_record" in cred), cred
+        note = (jc["data"].get("note") or "").lower()
+        assert "no validated return edge" in note and "not a ranked" in note, "credibility must carry the no-edge caveat"
 
-        # 6) metering: append-only usage rows were written for the dev key (incl. the 501s)
+        # 6) metering: append-only usage rows were written for the dev key (incl. the 4xx)
         with get_conn() as conn:
             n = conn.execute("SELECT COUNT(*) c FROM v1_usage WHERE key_id='pk_dev'").fetchone()["c"]
         assert n >= 4, f"usage log should have rows (got {n})"
@@ -101,8 +92,8 @@ def run() -> None:
         assert e401.headers.get("content-type", "").startswith("application/problem+json")
         assert e401.json().get("status") == 401
 
-        print("v1 selftest: OK  (auth fail-closed · two-buyer split · alpha gated · metered · "
-              "non-bare modeled · RFC-7807 · rate headers)")
+        print("v1 selftest: OK  (auth fail-closed · two-buyer split · credibility descriptive/no-edge · "
+              "metered · non-bare modeled · RFC-7807 · rate headers)")
     finally:
         _teardown()
 

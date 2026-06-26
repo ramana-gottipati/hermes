@@ -10,9 +10,7 @@ gets 403 before the gate is ever reached).
 """
 from __future__ import annotations
 
-import os
-
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from src.core.db import get_conn
 from src.api.v1 import resources as R
@@ -21,9 +19,17 @@ from src.api.v1.auth import require_scope, Principal
 
 router = APIRouter()
 
+# §C FALSIFIED the credibility return edge (docs/product-strategy-2026.md §9): CCI survives ONLY
+# as a DESCRIPTIVE per-name diligence lens, never a ranked buy/sell signal. Client-facing labels
+# drop A+/A/B/C/D -> strong/mixed/weak/unproven (n_resolved<3 => unproven).
+_CRED_NOTE = ("DESCRIPTIVE guidance track-record for diligence in confluence — §C-backtested: NO "
+              "validated return edge. NOT a recommendation, NOT a ranked buy/sell signal.")
 
-def _alpha_enabled() -> bool:
-    return os.environ.get("HERMES_V1_ALPHA") == "1"
+
+def _track_record(tier, n_resolved, ga) -> str:
+    if ga is None or (n_resolved or 0) < 3:
+        return "unproven"
+    return {"A+": "strong", "A": "strong", "B": "mixed", "C": "weak", "D": "weak"}.get(tier, "mixed")
 
 
 def _rid(request: Request):
@@ -69,40 +75,36 @@ def provenance_registry(request: Request, p: Principal = Depends(require_scope("
                 scope_used=_scope(request))
 
 
-@router.get("/securities/{symbol}/credibility", tags=["alpha"])
+@router.get("/securities/{symbol}/credibility", tags=["research"])
 def credibility(symbol: str, request: Request, p: Principal = Depends(require_scope("credibility"))):
-    if not _alpha_enabled():
-        raise HTTPException(501, "credibility (alpha tier) is gated on the §C lead-time backtest "
-                                 "+ data-licensing; not yet served")
+    """DESCRIPTIVE per-name guidance track-record (the §C-surviving use). Never ranked; no edge claim."""
     with get_conn() as conn:
         sym, latest = R.credibility(conn, symbol)
         if not latest:
             data = {"symbol": sym,
-                    "credibility": E.absence(f"no settled credibility for {sym} (unproven / not covered)")}
+                    "credibility": E.absence(f"no settled credibility for {sym} (unproven / not covered)"),
+                    "note": _CRED_NOTE}
             return E.ok(conn, data=data, classes=["cci_series"], principal=p, request_id=_rid(request),
                         prov_kw={"cci_series": {"symbol": sym}},
-                        coverage="credibility from the settled subset only", degraded=True, scope_used=_scope(request))
-        cred = {k: latest.get(k) for k in ("level", "tier", "momentum", "n_resolved", "trend", "period_label")}
-        nres = latest.get("n_resolved") or 0
-        if nres < 10:        # robustness floor — never present a bare level as if proven
-            cred = {**cred, "robust": False,
-                    "caveat": f"n_resolved={nres} — NOT robust (needs >=10); descriptor only, not a track record"}
-        else:
-            cred["robust"] = True
-        data = {"symbol": sym, "credibility": cred,
-                "note": "percentile rank-gap / descriptor — UNBACKTESTED, not a performance claim"}
+                        coverage="descriptive credibility track-record (no validated return edge — §C); settled subset only",
+                        degraded=True, scope_used=_scope(request))
+        n = latest.get("n_resolved") or 0
+        cred = {"track_record": _track_record(latest.get("tier"), n, latest.get("ga")),  # strong/mixed/weak/unproven
+                "n_resolved": n, "as_of": latest.get("period_label"),
+                "guidance_accuracy": latest.get("ga"), "momentum": latest.get("momentum"), "trend": latest.get("trend"),
+                "robust": n >= 10,
+                "_raw_tier": latest.get("tier"), "_raw_level": latest.get("level")}  # data-first transparency
+        data = {"symbol": sym, "credibility": cred, "note": _CRED_NOTE}
         return E.ok(conn, data=data, classes=["cci_series"], principal=p, request_id=_rid(request),
                     prov_kw={"cci_series": {"symbol": sym, "as_of": latest.get("period_label")}},
-                    coverage="PIT credibility (descriptive, unbacktested)", scope_used=_scope(request))
+                    coverage="descriptive credibility track-record (no validated return edge — §C)",
+                    scope_used=_scope(request))
 
 
-@router.get("/attention", tags=["alpha"])
+@router.get("/attention", tags=["research"])
 def attention(request: Request, limit: int = 6, p: Principal = Depends(require_scope("attention"))):
-    if not _alpha_enabled():
-        raise HTTPException(501, "attention queue (alpha tier) is gated on the §C lead-time backtest "
-                                 "+ data-licensing; not yet served")
+    """Recent typed state-change events — DESCRIPTIVE context, not signals to trade."""
     with get_conn() as conn:
         q = R.attention(conn, limit=limit)
         return E.ok(conn, data={"attention": q}, classes=["signal_events"], principal=p, request_id=_rid(request),
-                    coverage="typed state-change events (descriptors, not signals to trade)",
-                    scope_used=_scope(request))
+                    coverage="descriptive state-changes (not signals to trade)", scope_used=_scope(request))

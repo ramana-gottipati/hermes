@@ -21,17 +21,20 @@ from src.api.v1.schema import ensure_schema
 from src.api.v1.keys import hash_key
 from src.api.v1.metering import rate_check
 
-# the scope vocabulary (code, PR-reviewable — like provenance.PROVENANCE)
-SCOPES = frozenset({"alpha", "compliance", "data-feed"})
+# the scope vocabulary (code, PR-reviewable — like provenance.PROVENANCE).
+# NOTE: there is NO "alpha" tier — the §C backtest FALSIFIED the credibility return edge
+# (docs/product-strategy-2026.md §9). The tiers are: compliance (audit/provenance — leads),
+# research (DESCRIPTIVE lenses used in confluence; no standalone edge claim), data-feed (raw facts).
+SCOPES = frozenset({"research", "compliance", "data-feed"})
 
 # endpoint logical name -> acceptable scopes (ANY-of). Absent => denied (fail-closed).
 ENDPOINT_SCOPE: dict[str, tuple] = {
-    "health":              ("alpha", "compliance", "data-feed"),
+    "health":              ("research", "compliance", "data-feed"),
     "coverage":            ("compliance", "data-feed"),
     "universe":            ("compliance", "data-feed"),
-    "provenance_registry": ("alpha", "compliance", "data-feed"),
-    "credibility":         ("alpha", "data-feed"),
-    "attention":           ("alpha",),
+    "provenance_registry": ("research", "compliance", "data-feed"),
+    "credibility":         ("research", "data-feed"),
+    "attention":           ("research",),
 }
 
 

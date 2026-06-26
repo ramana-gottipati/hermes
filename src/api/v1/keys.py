@@ -53,7 +53,7 @@ def _seed(tenant_id: str, name: str, scopes, *, rate=120, key_env: str = "dev",
 def seed_dev_key() -> str:
     """A local dev key with ALL scopes + a high rate limit. Stable secret from env."""
     secret = os.environ.get("HERMES_V1_DEV_KEY", "pk_dev_local-0000000000000000")
-    return _seed("dev", "Local Dev", ("alpha", "compliance", "data-feed"),
+    return _seed("dev", "Local Dev", ("research", "compliance", "data-feed"),
                  rate=100000, fixed_secret=secret, key_id="pk_dev")
 
 
