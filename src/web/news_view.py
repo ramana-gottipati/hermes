@@ -155,7 +155,9 @@ def _wire_html(c, symbols, limit: int) -> str:
 @router.get("/dash/news", response_class=HTMLResponse)
 def news_page(sym: str = Query("")) -> HTMLResponse:
     title = f"News · {_esc(sym.strip().upper())}" if sym.strip() else "News · patearn"
-    return HTMLResponse(_shell(title, render_stock_timeline(sym), active="strategies", wide=True))
+    # News is Markets-altitude content (ui-architecture-v2 §0.1/§7) — highlight Markets,
+    # consistent with /dash/wire (was "strategies", which mis-highlighted the tab).
+    return HTMLResponse(_shell(title, render_stock_timeline(sym), active="markets", wide=True))
 
 
 @router.get("/dash/wire", response_class=HTMLResponse)

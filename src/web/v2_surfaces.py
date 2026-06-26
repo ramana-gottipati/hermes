@@ -47,8 +47,17 @@ from __future__ import annotations
 
 import importlib
 import logging
+import re
 
 log = logging.getLogger("hermes.v2")
+
+# Canonical top-level altitudes (ui-architecture-v2 §3) — the hard fallback for
+# site_nav() if the live dashboard nav can't be read. Never a 4-link dead-end.
+_CANON_ALT = [
+    ("/dash/markets", "Markets"), ("/dash/themes", "Themes"),
+    ("/dash/screener", "Screener"), ("/dash/strategies", "Strategies"),
+    ("/dash/dashboard", "Tracker"), ("/dash/pat", "Pat"),
+]
 
 # Sentinel attribute set on the dashboard module once its _nav has been wrapped,
 # so a second wire() call (or a residual hook) cannot double-wrap.
@@ -154,6 +163,41 @@ def _install_nav() -> None:
             log.warning("v2 sub-nav enrich skipped: %s", e)
 
     setattr(D, _NAV_SENTINEL, True)
+
+
+def site_nav(active: str = ""):
+    """The COMPLETE, single-source nav destination list for the v2 (ui_kit) chrome.
+
+    Mirrors the live dashboard top-nav (so it auto-includes any build-specific tabs
+    like the VPS-only "Growth") and guarantees the v2 surfaces are present. Returns
+    [(href, label, is_on), ...]. Degrades to the canonical altitude list if the
+    dashboard nav can't be read — never an empty or 4-link dead-end (the very flaw
+    this removes). ONE builder; rendered by ui_kit.nav_links for v2 pages and by the
+    dashboard._nav wrapper for legacy pages -> one nav contract, two renderers.
+    """
+    items: list[tuple[str, str, bool]] = []
+    seen: set[str] = set()
+    try:
+        import src.web.dashboard as D
+        for m in re.finditer(r'<a class="([^"]*)" href="([^"]+)">([^<]+)</a>', D._nav(active)):
+            cls, href, label = m.group(1), m.group(2), m.group(3)
+            if href in seen:
+                continue
+            seen.add(href)
+            items.append((href, label, "on" in cls.split()))
+    except Exception as e:  # noqa: BLE001 — must degrade, never crash a page render
+        log.warning("v2 site_nav dashboard read failed: %s", e)
+    if not items:                                   # hard fallback: canonical altitudes
+        for href, label in _CANON_ALT:
+            items.append((href, label, False))
+            seen.add(href)
+    for href, label, act in (("/dash/rs-hub", "Relative strength", active == "rs-hub"),
+                             ("/dash/wire", "News", active in ("wire", "news")),
+                             ("/dash/coverage", "Coverage", active == "coverage")):
+        if href not in seen:                        # ensure the v2 surfaces are reachable
+            items.append((href, label, act))
+            seen.add(href)
+    return items
 
 
 def wire(app):

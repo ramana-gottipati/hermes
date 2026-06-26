@@ -196,7 +196,6 @@ def _section_glance(snap):
     fn = cci.get("funnel", {})
     uni = snap.get("universe", {}) or {}
     core = fn.get("robust_core_ge10")
-    band = K.K_row if False else ""  # noqa — placeholder kept for clarity
     # robust-core HEADLINE (red-team: the number a buyer should anchor on comes first)
     head = (
         '<div class="uk-row" style="margin-bottom:14px">'
@@ -454,6 +453,11 @@ def render_coverage(conn=None) -> str:
 
 @router.get("/dash/coverage", response_class=HTMLResponse)
 def coverage_page() -> HTMLResponse:
-    sub = K.subnav([("Trust", "", False), ("Coverage & Settlement", "/dash/coverage", True)])
+    # The v2 chrome carries the COMPLETE site nav (one nav contract, no dead-end) —
+    # sourced from v2_surfaces.site_nav so it mirrors the live dashboard nav + the
+    # v2 surfaces. Imported lazily to avoid any import-order coupling.
+    from src.web import v2_surfaces as V
+    nav = K.nav_links(V.site_nav("coverage"))
+    sub = K.subnav([("Coverage & Settlement", "/dash/coverage", True)])
     return HTMLResponse(K.shell("Coverage & Settlement · patearn", render_coverage(),
-                                active="markets", sub=sub))
+                                active="markets", sub=sub, nav_html=nav))

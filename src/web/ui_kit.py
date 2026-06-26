@@ -191,12 +191,25 @@ _NAV = [("markets", "Markets"), ("screener", "Screener"),
         ("strategies", "Strategies"), ("tracker", "Tracker")]
 
 
-def topbar(active: str = "") -> str:
-    links = "".join(
-        f'<a class="{"on" if k == active else ""}" href="/dash/{k}">{esc(lbl)}</a>'
-        for k, lbl in _NAV)
+def nav_links(items) -> str:
+    """Render the COMPLETE site nav as uk-nav anchors. ``items`` = [(href, label,
+    is_on), ...]. Used so a v2 (ui_kit) page carries the identical destination set
+    as the rest of the site — no dead-ends, one nav contract (the source of that
+    list is v2_surfaces.site_nav, kept dependency-free here)."""
+    return "".join(
+        f'<a class="{"on" if on else ""}" href="{esc(href)}">{esc(lbl)}</a>'
+        for href, lbl, on in items)
+
+
+def topbar(active: str = "", nav_html: str = "") -> str:
+    # nav_html (when given) is the full site nav rendered by v2_surfaces/nav_links;
+    # the built-in _NAV is only the offline fallback for the standalone style guide.
+    if not nav_html:
+        nav_html = "".join(
+            f'<a class="{"on" if k == active else ""}" href="/dash/{k}">{esc(lbl)}</a>'
+            for k, lbl in _NAV)
     return (f'<div class="uk-top"><div class="uk-logo"><span class="dot"></span>patearn</div>'
-            f'<nav class="uk-nav">{links}</nav>{cmdk_hint()}</div>')
+            f'<nav class="uk-nav">{nav_html}</nav>{cmdk_hint()}</div>')
 
 
 def subnav(items: list[tuple[str, str, bool]]) -> str:
@@ -210,11 +223,11 @@ def subnav(items: list[tuple[str, str, bool]]) -> str:
     return f'<div class="uk-sub">{"".join(out)}</div>'
 
 
-def shell(title: str, body: str, *, active: str = "", sub: str = "") -> str:
+def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: str = "") -> str:
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{esc(title)}</title>{_CSS}</head>'
-            f'<body style="margin:0"><div class="uk">{topbar(active)}{sub}'
+            f'<body style="margin:0"><div class="uk">{topbar(active, nav_html)}{sub}'
             f'<div class="uk-page">{body}</div></div></body></html>')
 
 
