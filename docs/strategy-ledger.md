@@ -27,14 +27,21 @@ verdict. Mounted via 2 lines in `main.py` (deployed on the VPS; `main.py` is par
 committed here — fold the import + `include_router(testing_router)` into committed `main.py` when the web
 session is free).
 
-**NAV — coordinated with the "patearn UI Architecture v2" session (approved 2026-06-25).** Placement =
-**Strategies ▸ "Lab"** (a sub-nav entry beside Workbench, NOT a top tab — research/validation is Strategies
-content in their 5-altitude IA; label "Lab"/"Research", not "Testing"). They wire it at their **v2 nav cut-over**
-with `_WS: "testing":"strategies"` + `_SUBNAV["strategies"]` row `({"testing"},"/dash/testing","Lab")` (recorded
-in `docs/ui-architecture-v2.md` §14.3). I did NOT touch `dashboard.py`: the DEPLOYED VPS copy is older than their
-working copy (no `_subnav`/`_SUBNAV`), so a live patch would be throwaway + mismatch their model. Page stays
-**URL-only at `/dash/testing`** until their cut-over. `testing_view.py` already calls `_shell(active="testing")`
-so their two lines drop straight in — no change needed on my side.
+**NAV — coordinated with + approved by the "patearn UI Architecture v2" session (2026-06-25).** Placement =
+**Strategies ▸ "Lab"** (beside Workbench, NOT a top tab; label "Lab", not "Testing"; recorded in their
+`docs/ui-architecture-v2.md` §14.3).
+
+**LIVE + DISCOVERABLE NOW (per Ramana's directive — must reflect on the main app, not URL-only).** Patched the
+DEPLOYED VPS `dashboard.py` surgically (backup `dashboard.py.bak-lab`, py_compile-checked, hermes-api restarted,
+verified): (1) `_WS: "testing":"strategies"`; (2) the `/dash/stocks` Strategies hub renders a `wb_link += '<a
+class="row sub" href="/dash/testing">Lab ⇄ …</a>'` beside Workbench/Screener. The deployed code has no
+`_subnav`/`_SUBNAV` (that's v2-redesign-only), so the live link uses the deployed `wb_link` form, not their
+`_SUBNAV` row.
+
+⚠️ **Durability:** this is a **VPS-only patch — NOT committed** (committing `dashboard.py` would clobber the
+parallel chart/v2 uncommitted work). It will be overwritten at the next `dashboard.py` deploy. The v2 session
+will fold the equivalent into the **committed** `dashboard.py` (their `_SUBNAV` "Lab" row + the `_WS` line) so it
+persists; their row then supersedes the `wb_link` line. `testing_view.py` already calls `_shell(active="testing")`.
 
 ---
 
@@ -120,9 +127,55 @@ is whether layering them on Tier 1 **adds alpha or cuts drawdown** (QUAL_MOM hin
 | patearn | 14-pattern point-in-time fundamental quality score | deployed; PIT-backtestable but not run as alpha |
 | MEP / DVPT | signed accumulation / distribution | deployed (confirmation, not prediction) |
 | RS suite (RRG, RSI-of-RS, Mansfield, capture, RS-band) | relative strength vs index | deployed (descriptive) |
-| Concall Intelligence | management guidance-accuracy / credibility | Phase-0 validated, pilot gated |
+| Concall Intelligence | management guidance-accuracy / credibility | **RETURN-TESTED 2026-06-25 → NO validated factor** (see section below); descriptive dossier only |
 | F&O OI / participant positioning | FII/DII/Pro/Client long-short | deployed (descriptive) |
 | Wolfe / Ignition / theme tags | geometry / ML challenger / classification | built |
+
+---
+
+## Concall Intelligence — RETURN-TESTED + FALSIFIED as a factor (2026-06-25)
+
+CCI credibility (PIT guidance-accuracy level + momentum) was finally return-tested via
+`src/automation/cci_backtest.py` (free, no LLM): PIT `credibility_series` × corporate-action-adjusted forward
+returns (NSE prev_close chain over `bhavcopy_rows`), de-marketed cross-sectionally by concall-month cohort,
+3,523 proven points (n_resolved≥3) across **377 symbols**, 3/6/12m. **Two independent reviews (code +
+methodology) reproduced the result on the VPS** before it was recorded.
+
+| Test | 3m | 6m | 12m | Read |
+|---|---|---|---|---|
+| **Level: HIGH−LOW excess** | −3.1% | −5.8% | **−10.0%** | high-cred UNDERPERFORMS (low-cohort t up to +3.6) |
+| **Momentum: rising−falling** | +0.3% | +0.8% | +1.1% | weak; both rising & falling beat flat → "moved" not "rose" |
+| **Deterioration veto: P(<−20%) event vs non-event** | 6.8 / 6.9% | 12.6 / 12.5% | 14.9 / 15.8% | NO downside difference (event marginally *better*) |
+
+**Verdict: NO empirically-validated long / short / risk edge.** The inverse level print is fragile — n=377
+SURVIVOR names, concentrated post-2023 (−17% vs −7% pre-2022) and in high-level megacap mean-reversion (a
+regime print, not a structural factor); it survives size + valuation neutralization but is heavily
+survivorship-confounded. The deterioration veto shows no downside-cutting value AND is structurally blind to
+its true target (delisted blow-ups removed by survivorship). **Binding defect = BREADTH (the current-holder
+universe ceiling, 377 names), NOT corpus depth** → more extraction cannot fix it.
+
+**Decision:** do NOT spend ~₹2,500 to complete the transcript corpus for any factor/screen use. CCI's
+defensible role is **DESCRIPTIVE only — the per-name evidence dossier** (the qualitative track record shown
+when researching a name), NOT a ranked screen or factor. Transcript CAPTURE stays running (free) as a research
+asset. This negative result is a recorded benchmark, exactly per this ledger's purpose. Reproduce: `python -m
+src.automation.cci_backtest --mode both`. (Doesn't fit the Tier-1 portfolio-Sharpe machine schema — it's a
+cross-sectional factor test, recorded here in narrative.)
+
+**FOLLOW-UP (2026-06-25, autonomous — "don't stop; test it in confluence + check capex"):**
+- **Confluence (credibility × momentum)** — within HIGH trailing-momentum names: hi-cred excess +2.5% vs
+  lo-cred +3.3% (spread **−0.8%**, still inverse); deterioration events did NOT precede deeper drawdowns
+  (MDD −31.9% vs −33.5%). **Credibility adds nothing even in confluence.** Confirmed dead, both ways.
+- **🟢 THE REAL SIGNAL — concall CONTENT, not credibility.** Scanning each forward-looking `statement_type`
+  as an event (a concall that made it vs didn't; 3m de-marketed excess, 702 symbols) shows a SENSIBLE,
+  positive structure: **debt_reduction +2.8% · volume +2.3% · new_product +1.8% · capex +1.5% · expansion
+  +0.9%** (growth / deleveraging intent → outperformance) vs **cost_savings −1.0% · revenue −0.7% · other
+  −0.7%** (defensive language → underperformance). Economically coherent: deleveraging + growth-investment
+  are re-rating catalysts; cost-cutting flags a name under pressure. **This is where the concall extraction's
+  value actually lives — a "management growth-intent" signal, NOT credibility.** Front-loaded (3m; capex
+  faded by 12m). Still cross-sectional + survivorship-bounded. **NEXT (warranted): a proper top-N
+  walk-forward PORTFOLIO backtest of a growth-intent composite (debt_reduction+volume+new_product+capex), net
+  of costs vs Nifty 500 — the Tier-1 `factory.py` machinery — plus fix the ₹-magnitude normalizer to test
+  capex/debt INTENSITY (likely stronger than the bare event).** Reproduce: `cci_backtest --mode all`.
 
 ---
 
