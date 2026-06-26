@@ -737,8 +737,10 @@ def coverage_snapshot(conn=None) -> dict:
             "n_resolved_buckets": {"0": b0, "1-2": b12, "3-9": b39, ">=10": b10},
             "unproven_ceiling": unproven, "momentum_ready": mom_ready, "momentum4_ready": mom4_ready,
             "tiers_robust_core": tiers_core, "tier_x_nresolved": cross, "tape": tape_counts,
-            "latest_as_of": _scalar(c, "SELECT MAX(period_year || '-' || substr('0'||period_month,-2)) "
-                                       "FROM credibility_series"),
+            # numeric, sanity-bounded (a corrupt period_year would defeat a string MAX, e.g. '225-08')
+            "latest_as_of": _scalar(c, "SELECT printf('%04d-%02d', period_year, period_month) "
+                                       "FROM credibility_series WHERE period_year BETWEEN 2000 AND 2100 "
+                                       "ORDER BY period_year DESC, period_month DESC LIMIT 1"),
             "paused_note": ("CCI runs on the analytics host and is currently PAUSED at a Gemini extraction "
                             "spend cap; the universe sweep (~9.6k transcripts pending) is incomplete. "
                             "Figures reflect the settled subset only."),
