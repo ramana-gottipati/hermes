@@ -61,13 +61,16 @@ SNIPPET = """<script>
     var iv='d', ctype='candle', RT=S0.slice();       // RT = current resampled rows
 
     // ---- the ONE chart ------------------------------------------------------
-    host.style.cssText='height:480px;position:relative';
+    // bounded host: height follows the viewport (clamp) instead of a fixed 480 — the
+    // old fixed height + width-only observer made the chart grow wide but never tall
+    // ("narrow top, broad sides"). max-width keeps it readable on ultra-wide monitors.
+    host.style.cssText='height:clamp(420px,62vh,760px);max-width:1280px;margin:0 auto;position:relative';
     var common={ layout:{background:{color:C.bg},textColor:C.txt,fontSize:11},
       grid:{vertLines:{color:C.grid},horzLines:{color:C.grid}},
       timeScale:{borderColor:'#30363d',rightOffset:3},
       rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.06,bottom:0.28}},
       crosshair:{mode:0}, handleScroll:true, handleScale:true };
-    var pc=LightweightCharts.createChart(host, Object.assign({height:480}, common));
+    var pc=LightweightCharts.createChart(host, Object.assign({height:host.clientHeight||480}, common));
     window.__wfpc=pc;
     var candle=pc.addCandlestickSeries({upColor:C.up,downColor:C.down,wickUpColor:C.up,wickDownColor:C.down,borderVisible:false});
     window.__wfcandle=candle;
@@ -290,8 +293,26 @@ SNIPPET = """<script>
 
     // boot
     setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]); reflow();
-    var ro=new ResizeObserver(function(){ var w=host.clientWidth; if(w)pc.applyOptions({width:w}); });
+    // observe BOTH width and height (the old observer watched width only -> chart grew
+    // wide but never tall); height now tracks the clamp + the fullscreen container.
+    var ro=new ResizeObserver(function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); });
     ro.observe(host);
+    // fullscreen (the requested "enlarge") — pure CSS overlay, no route change; the
+    // ResizeObserver above refits the chart to the full viewport and back.
+    (function(){
+      if(!document.getElementById('cfs-style')){ var st=E('style'); st.id='cfs-style';
+        st.textContent='.cfs{position:fixed!important;inset:0!important;z-index:9999!important;height:100vh!important;max-width:none!important;margin:0!important;border-radius:0!important;background:'+C.bg+'}';
+        document.head.appendChild(st); }
+      var fb=E('div','position:absolute;top:8px;right:8px;z-index:12;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid '+C.border+';border-radius:6px;background:rgba(13,17,23,.72);color:'+C.txt+';font-size:13px','\\u2922');
+      fb.title='Fullscreen (Shift+F)';
+      function tog(){ host.classList.toggle('cfs'); fb.innerHTML=host.classList.contains('cfs')?'\\u2715':'\\u2922';
+        // force an explicit refit next frame — the ResizeObserver can miss the
+        // position:fixed transition, leaving the chart short of the fullscreen host.
+        requestAnimationFrame(function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); }); }
+      fb.onclick=tog;
+      document.addEventListener('keydown',function(e){ if((e.key==='F'||e.key==='f')&&e.shiftKey){ e.preventDefault(); tog(); } else if(e.key==='Escape'&&host.classList.contains('cfs')) tog(); });
+      host.appendChild(fb);
+    })();
 
     // -------- RS docked lane (Strategies) — fetch /dash/rs/overlay on toggle --
     var rsL=null, rsLoaded=false;
