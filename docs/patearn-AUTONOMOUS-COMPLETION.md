@@ -39,6 +39,30 @@ compliance export-to-IC-memo; data-licensing (business call). The chart-overhaul
 still owns dashboard.py/cockpit.py/main.py (uncommitted hooks) — coordinate the full
 ui_kit/sub-nav cut-over with it.
 
+## ▶ NAV IA — DECIDED + #1 PRIORITY (2026-06-26 — Ramana flagged the 11-tab sprawl; he declined to pick, so DECIDED per the v2 design)
+The live nav is **11 flat top tabs — WRONG.** I bolted RS/News/Coverage onto the old flat bar instead of
+implementing the IA. The other sessions had already over-elevated Growth + Wolfe to top tabs too.
+**DECISION: collapse to the 5 ALTITUDES and NEST everything else** (the `altitudes-vs-lenses` rule,
+`ui-architecture-v2.md` §3 — already designed + red-teamed, just never built).
+
+TOP NAV = the ONLY top tabs: **Markets · Screener · Strategies · Tracker · Pat** (Pat → a global Cmd-K
+layer is the end-state per product-strategy §4; may stay a tab in the interim). Everything else DEMOTES:
+- **Relative strength** → a SECTION under **Markets** (Leaders / Sectors / Rotation). Not a tab.
+- **Wolfe wave** → a **chart OVERLAY** (toggle on the stock/index chart). NOT a strategy, NOT a tab.
+- **Growth** → a **lens**: Screener column-group + a Strategies section + a dossier tab. Not a tab.
+- **News** → **scoped**: a per-stock Timeline tab + a Markets "Wire" rail. Not a tab.
+- **Themes** → a **Screener scope/filter** + a few curated baskets. Not a tab.
+- **Coverage** → a **Trust/methodology utility** (ⓘ / footer / under Markets). Not an altitude.
+
+IMPLEMENT IT RIGHT (not more bolting): build the per-altitude **sub-nav** so every demoted item stays
+REACHABLE under its altitude — collapse a tab, NEVER orphan it. The VPS `dashboard.py` has no `_SUBNAV`
+and is parallel-owned/divergent → either (a) coordinate the proper `_WS`/`_SUBNAV` cut-over with the
+chart-overhaul session, or (b) drive it from the OWNED `v2_surfaces.py` runtime nav-wrap (render the
+5-altitude top row + a per-altitude sub-row there — contained, reversible, no dashboard.py edit).
+Verify live; keep a one-command revert. **This is the redesign Ramana actually asked for — do it FIRST,
+before any new surface. Honest status: today's layout is still the old terminal; the v2 website is
+designed but unbuilt.**
+
 ---
 
 ## ROLE & BAR
