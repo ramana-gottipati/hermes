@@ -50,23 +50,35 @@
 ### ▶ KICKSTART (paste into the next session)
 ```
 Continue patearn's Wolfe-Wave lens (patearn, NOT Hermes). Boot: read docs/wolfe-rules.md
-(LOCKED spec) + docs/wolfe-NEXT-SESSION.md §0a (2026-06-25 state — read fully) + memory
-[[wolfe-wave-strategy]]. Method is locked — don't re-derive.
+(LOCKED §A geometry + §B score) + docs/wolfe-NEXT-SESSION.md §0a (read the 🏛️ ADVANCED block
+fully) + memory [[wolfe-wave-strategy]] + [[wolfe-backtest-methodology]]. Method/spec LOCKED
+— don't re-derive.
 
-State: spec complete+recorded. BASE (revert anchor) = git 74faeee + VPS *.bak-base. STEP-1
-DONE & validated in the sandbox (research/wolfe_waves/fractal_proto.py): fractal-sourced
-detection (degrees 2/5/10/20/30) + the §B quality score; surfaces base's missed waves
-(RELIANCE Nov-2022 exact + long-range), PARAS works; prod/base UNTOUCHED.
+State: BUILT + LIVE. The lens (fractal-union detection + §B score + rsi-min divergence) is on
+the VPS; the §C backtest is DONE + DECODED. Revert anchors: ADVANCED = git tag wolfe-advanced
+(6179cd3, == live) ; BASE = 74faeee (geometry only). Latest commit = 23e5e87. KEY RESULT: the
+RAW Wolfe trade has NO market-neutral edge (bull = beta, bears flat), BUT the WINNER-PROFILE
+selection — reachable EPA (D<=1) + strong point-1 (p1>=2) + not-narrowest zone (F<=2) — is an
+OOS-validated, BETA-NEUTRAL edge (median +2.4% net; bears +1.1% median, positive across all 3
+eras 04-11/12-18/19-26). The §B Q-score INVERTS as a trade-filter (it rewards far-EPA D +
+narrow-zone F = the LOSER traits) — so the scanner uses the winner-profile, NOT Q. Kept ONLY
+as a SCANNER, LIVE at https://srv1704897.hstgr.cloud/dash/wolfe/scan (nav tab "Wolfe wave";
+click a row -> that stock's chart, winner wave auto-drawn via ?pick=winner).
 
-NEXT = THE PORT: merge the validated fractal detection + scoring from fractal_proto.py into
-PROD src/automation/wolfe.py + the 2 surfaces (wolfe_view.py, wolfe_overlay.py); apply the
-base distance-floor fix (sym_lo 0.5→0.2) + detection degrees (add 20/30, quality caps at
-10); deploy + BROWSER-VERIFY on candles (Chrome MCP); revertable to 74faeee. Surgical not
-blunt, commit ONLY isolated wolfe files. Then: RSI shift-anchor refinement (shift-sequence
-in find_p5), and the edge backtest (§C — never run, the descriptive-only gate).
+NEXT (all gated — pick with Ramana): (1) true-OOS derivation — fit thresholds on 2004-14,
+test UNTOUCHED on 2015-26 (final rigor on the edge). (2) shallower entry — capture the ~50%
+of EPA-reaching moves the deep zone misses (his flagged concern). (3) nightly-persist the
+scan into a wolfe_signals table -> instant scanner + makes a cockpit KPI tile feasible (needs
+the precomputed count). (4) the nav tab is a VPS-only in-place patch to the parallel-held
+dashboard.py (NOT in git) — the UI session ("patearn UI Architecture v2 redesign") was asked
+to fold in ("wolfe","/dash/wolfe/scan","Wolfe wave"),; re-add if it vanishes after their
+redeploy.
 
-PROCESS (binding): scoring/judgment questions → expert agent PANEL, not Ramana;
-process/sequencing → ask Ramana. Confirm the port plan with Ramana, then execute carefully.
+PROCESS (binding): scoring/judgment -> expert agent PANEL (Wolfe-quant·charting·skeptic·
+Ramana-proxy), NOT Ramana; process/sequencing -> ask Ramana. Surgical + revertable to ADVANCED
+if anything wobbles; commit ONLY isolated wolfe files (wolfe.py/wolfe_view.py/research/
+wolfe_waves/*/docs/wolfe-*) — NEVER dashboard.py/main.py/PROJECT_STATE (parallel-held). Quote
+the public URL srv1704897.hstgr.cloud/dash, not the back-door IP:8000.
 ```
 
 ---
