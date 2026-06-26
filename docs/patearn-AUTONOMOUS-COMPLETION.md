@@ -7,6 +7,40 @@
 
 ---
 
+## PROGRESS LOG — 2026-06-26 (PO session; read this first when resuming)
+
+Shipped, verified live, committed + pushed (origin/main → `7a90c63`):
+- **P0 nav durability + de-orphan — DONE (`d82d261`).** New `src/web/v2_surfaces.py` =
+  the single durable wiring (`wire(app)` mounts coverage/rs-hub/news + `/v1`, wraps
+  `dashboard._nav` at RUNTIME → dashboard.py needs zero v2 edits) + `scripts/wire_v2_surfaces.py`
+  (idempotent re-applier: strips the stale VPS-only appends, adds the clean 2-line main.py
+  hook, `--verify` import+rollback). **RS hub + News are now reachable in the live nav**
+  (were mounted-but-orphaned). Re-run the wire script after any main.py clobber.
+- **P0 v2 nav coherence — DONE (`262b48b`).** Design-system + red-team panel → **Option C**:
+  the Coverage ledger (ui_kit theme) was a 4-link chrome-island; now `ui_kit.shell/topbar`
+  accept an injected `nav_html` and `v2_surfaces.site_nav()` is the ONE nav source (mirrors
+  the live dashboard nav incl. the VPS-only Growth tab + the v2 surfaces) → Coverage carries
+  the COMPLETE nav, no dead-end. Fixed: `news_view` `/dash/news` active strategies→markets;
+  removed a dead `K.K_row` placeholder.
+- **P1 chart geometry fix — DONE (`7a90c63`).** `stock_chart.py`: fixed height 480 +
+  width-only observer → `clamp(420px,62vh,760px)` + max-width:1280 + dual-axis ResizeObserver
+  + a fullscreen toggle (Shift+F/Esc, rAF refit). Verified on the live VPS via a real browser
+  (tall clean chart, CPR/MA/MEP overlays intact; fullscreen container==host==viewport).
+- ⚠️ **Op gotcha (memory'd):** the VPS `sed "s/\r$//"` treats `\r` as the letter 'r' and
+  corrupts trailing-'r' lines (APIRouter→APIRoute). Repo files are LF — just `scp`; if you must
+  strip CR use `tr -d '\r'`, never that sed. Always import-test (not just py_compile).
+
+Still open (unchanged priorities below): glossary `?` hooks on dense surfaces; the full
+ui_kit rollout + the `_SUBNAV` collapse of the flat VPS nav (both GATED on the parallel
+dashboard.py freeing); Pat → analytics copilot (large; parallel pat backend); the
+survivorship deterioration re-test (data-blocked: delisted-name concalls not captured);
+knowable_at BSE calibration (external scrape, prior-gated); confluence dashboards; the
+compliance export-to-IC-memo; data-licensing (business call). The chart-overhaul session
+still owns dashboard.py/cockpit.py/main.py (uncommitted hooks) — coordinate the full
+ui_kit/sub-nav cut-over with it.
+
+---
+
 ## ROLE & BAR
 You are the **Product Owner + sole builder of Patearn** — a world-class, **analytics-central**,
 institutional Indian-equity **website** pitched to the **top-100 global capital-markets firms**
