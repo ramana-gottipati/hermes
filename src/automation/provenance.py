@@ -519,6 +519,7 @@ def provenance_for(data_class: str, *, symbol: Optional[str] = None, as_of: Opti
         "grain": d.grain, "has_symbol": d.has_symbol,
         "basis": basis,                       # CANONICAL honesty field (enum)
         "modeled": basis == MODELED,          # convenience derived from basis
+        "redistribution": redistribution_status(data_class),   # data-licensing posture (/v1 scope gate)
         "as_of": chosen, "as_of_kind": as_of_kind,
         "effective_as_of": effective_as_of,    # the no-leak PIT date (real, or period_end+calibrated lag)
         "lag_days": lag,                       # the conservative calibrated lag when modeled
@@ -539,12 +540,55 @@ def stamp_many(rows: list, data_class: str, **kw) -> dict:
     return {"rows": rows, "_provenance": provenance_for(data_class, **kw)}
 
 
+# ── data-licensing / redistribution posture per class (docs/data-licensing-decision.md) ──
+# PUBLIC_RECORD = exchange disclosure / official file (resale still needs the exchange's
+#   redistribution licence, but it is OUR compiled use of a public record); VENDOR_TOS = scraped
+#   from a vendor whose ToS restricts redistribution (the migration target — fundamentals/concall
+#   index/shareholding); OWNED = computed by us / our LLM-rule extraction (our IP); NEWS_LICENSE =
+#   per-source news terms. The /v1 external scope can refuse to serve a non-redistributable class.
+PUBLIC_RECORD, VENDOR_TOS, OWNED, NEWS_LICENSE = "public-record", "vendor-tos", "owned", "news-license"
+
+
+def redistribution_status(data_class: str) -> str:
+    """The data-licensing posture for a class (for /v1 external-scope gating + the coverage panel).
+    Derived from the descriptor's source/basis; conservative default VENDOR_TOS so nothing is ever
+    accidentally treated as redistributable. See docs/data-licensing-decision.md §3."""
+    d = PROVENANCE.get(data_class)
+    if d is None:
+        return VENDOR_TOS
+    src = (d.source or "").lower()
+    if d.basis == DERIVED or "computed" in src or "deterministic" in src or "raw bhav" in src:
+        return OWNED
+    if "gemini" in src or "classifier" in src or "gazetteer" in src or "human" in src:
+        return OWNED                 # our LLM / rule extraction is our IP (inputs may be public/licensed)
+    if "screener" in src:
+        return VENDOR_TOS            # the migration target
+    if "rss" in src or "news" in src:
+        return NEWS_LICENSE
+    if any(k in src for k in ("nse", "bse", "bhav", "nifty", "exchange", "udiff",
+                              "equity_l", "fiidii", "corp-action", "participant")):
+        return PUBLIC_RECORD
+    return VENDOR_TOS
+
+
+def licensing_digest() -> dict:
+    """Per-class redistribution posture + the counts (the migration ledger for the pre-pitch swap)."""
+    rows = [{"key": k, "source": PROVENANCE[k].source, "redistribution": redistribution_status(k)}
+            for k in PROVENANCE]
+    counts: dict = {}
+    for r in rows:
+        counts[r["redistribution"]] = counts.get(r["redistribution"], 0) + 1
+    return {"counts": counts, "classes": rows,
+            "migration_target": [r["key"] for r in rows if r["redistribution"] == VENDOR_TOS]}
+
+
 def provenance_registry_digest() -> list[dict]:
     """The whole static registry as plain dicts — served once by the four faces so a
     client resolves a data_class key → its full descriptor without it riding every cell."""
     return [{"key": d.key, "label": d.label, "source": d.source, "db": d.db,
              "grain": d.grain, "basis": d.basis, "has_symbol": d.has_symbol,
              "cadence": d.cadence, "method_versioned": d.method_versioned,
+             "redistribution": redistribution_status(d.key),
              "modeled": d.basis == MODELED} for d in PROVENANCE.values()]
 
 
@@ -1018,6 +1062,15 @@ def _selftest() -> None:
     dig = provenance_registry_digest()
     assert len(dig) >= 25 and all("basis" in e for e in dig)
 
+    # data-licensing posture: Screener=vendor-tos (migration target), exchange=public-record, computed=owned
+    assert redistribution_status("fundamentals_history") == VENDOR_TOS
+    assert redistribution_status("shareholding_history") == VENDOR_TOS
+    assert redistribution_status("bhav_eq") == PUBLIC_RECORD
+    assert redistribution_status("cci_series") == OWNED
+    lic = licensing_digest()
+    assert "fundamentals_history" in lic["migration_target"] and lic["counts"].get(VENDOR_TOS, 0) >= 2
+    assert all("redistribution" in e for e in dig)
+
     print(f"provenance selftest: OK  ({len(PROVENANCE)} classes, "
           f"funnel touched={f['touched']}->core={f['robust_core_ge10']}, floor={up['archive_floor']})")
 
@@ -1034,6 +1087,7 @@ def main() -> None:
     ap.add_argument("--coverage", action="store_true", help="print the coverage snapshot")
     ap.add_argument("--universe", action="store_true", help="print the survivorship/universe policy")
     ap.add_argument("--lag-audit", action="store_true", help="print the look-ahead leak (baseline vs calibrated vs effective)")
+    ap.add_argument("--licensing", action="store_true", help="print the per-class redistribution posture (migration ledger)")
     ap.add_argument("--calibrate", action="store_true", help="learn the conservative synthetic lag from real BSE dates")
     ap.add_argument("--percentile", type=int, default=95, help="calibration percentile (default 95)")
     ap.add_argument("--registry", action="store_true", help="print the provenance registry digest")
@@ -1053,6 +1107,8 @@ def main() -> None:
                            period_type=args.period_type)); return
     if args.universe:
         _pp(universe_policy(as_of=args.as_of)); return
+    if args.licensing:
+        _pp(licensing_digest()); return
     if args.calibrate:
         _pp(calibrate_synthetic_lag(percentile=args.percentile)); return
     if args.lag_audit:
