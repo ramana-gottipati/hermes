@@ -94,3 +94,16 @@ def board_delete(b: BoardIn) -> dict:
 def board_list(kind: str = "") -> dict:
     """List saved boards (optionally filtered by kind)."""
     return {"boards": boards.list_boards(kind=kind or None)}
+
+
+@router.post("/alerts/seen")
+def alerts_seen() -> dict:
+    """'Mark seen' — re-baseline the confluence-alerts snapshot to the current set."""
+    from src.core.db import get_conn
+    from src.pat import alerts
+    try:
+        with get_conn() as conn:
+            ok = alerts.rebaseline(conn)
+        return {"ok": ok}
+    except Exception:
+        return {"ok": False}

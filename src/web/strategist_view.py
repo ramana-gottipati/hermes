@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
@@ -349,11 +350,123 @@ _PAGE_CSS = """<style>
 .st-open{font-size:12px;color:var(--accent);font-weight:500;margin-top:auto}
 .st-strip{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .st-strip .uk-card{flex:1;min-width:150px}
+/* workbench: toolbar + section toggles + alerts + boards */
+.wb-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+.wb-tog{font:inherit;font-size:12px;cursor:pointer;border:1px solid var(--line-2);background:var(--bg-1);
+  color:var(--ink-3);border-radius:8px;padding:5px 11px}
+.wb-tog.on{background:var(--accent-dim);color:var(--accent);border-color:transparent}
+.wb-tog:hover{color:var(--ink)}
+.wb-sec-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-3);margin:18px 0 9px;font-weight:600}
+.wb-alerts{background:var(--bg-2);border:1px solid var(--line);border-left:2px solid var(--accent-cy);
+  border-radius:var(--r);padding:13px 16px;margin-bottom:8px}
+.wb-alerts .ah{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px}
+.wb-alerts .ah b{font-size:15px}
+.wb-new{display:inline-flex;align-items:center;gap:5px;background:var(--up-dim);color:var(--up);
+  border-radius:20px;padding:2px 9px;font-size:11.5px;font-weight:600}
+.wb-seen{font:inherit;font-size:11.5px;cursor:pointer;border:1px solid var(--line-2);background:var(--bg-1);
+  color:var(--ink-3);border-radius:7px;padding:3px 9px;margin-left:auto}
+.wb-seen:hover{border-color:var(--accent);color:var(--ink)}
+.bd-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;
+  display:flex;flex-direction:column;gap:7px}
+.bd-card .bn{font-weight:600;font-size:13.5px;color:var(--ink)}
+.bd-card .bq{font-size:11.5px;color:var(--ink-3);flex:1}
+.bd-card .br{display:flex;gap:10px;align-items:center}
+.bd-card .br a{font-size:12px;color:var(--accent)}
+.bd-del{margin-left:auto;font:inherit;font-size:11px;color:var(--ink-3);background:none;border:none;cursor:pointer}
+.bd-del:hover{color:var(--down)}
+.hide-alerts .wb-alerts-sec,.hide-strategies .wb-strategies-sec,.hide-boards .wb-boards-sec{display:none}
 </style>"""
 
 
+def _alerts_strip(conn) -> str:
+    """The proactive confluence-alerts strip: names that NEWLY entered the confluence
+    (credible ∩ accumulated) since the last snapshot. Descriptive; opt-in 'mark seen'."""
+    try:
+        from src.pat import alerts as A
+        a = A.compute(conn)
+    except Exception:  # noqa: BLE001
+        return ""
+    cnt = a.get("count", 0)
+    new = a.get("new", [])
+    asof = a.get("as_of")
+    if a.get("first_run"):
+        body = (f'<b>{cnt}</b> names currently in confluence (credible ∩ accumulated). '
+                'Baseline set — I\'ll flag new entrants from here.')
+        badge = '<span class="wb-new">baseline</span>'
+    elif new:
+        chips = " ".join(
+            f'<a class="st-name" href="/dash/stock?sym={K.esc(s)}" '
+            f'style="display:inline-flex;padding:3px 9px;background:var(--bg-3);border-radius:7px;margin:2px">'
+            f'<span class="sym">{K.esc(s)}</span></a>' for s in new[:14])
+        body = (f'<b>{len(new)}</b> newly aligned since {K.esc(str(a.get("baseline_at"))[:10])} '
+                f'· {cnt} in confluence now:</div><div style="margin:4px 0">{chips}')
+        badge = f'<span class="wb-new">▲ {len(new)} new</span>'
+    else:
+        body = (f'<b>{cnt}</b> names in confluence (credible ∩ accumulated) · '
+                'no new entrants since the last check.')
+        badge = '<span class="wb-new" style="background:var(--bg-3);color:var(--ink-2)">no change</span>'
+    return (
+        '<div class="wb-alerts wb-alerts-sec">'
+        f'<div class="ah">{badge}<b>Confluence alerts</b>'
+        f'<span class="mut" style="font-size:11px">as of {K.esc(str(asof)[:10] if asof else "—")} · descriptive, not a buy call</span>'
+        '<button class="wb-seen" onclick="wbMarkSeen(this)">↻ mark seen</button></div>'
+        f'<div class="sec">{body}</div>'
+        '</div>')
+
+
+def _boards_section(conn) -> str:
+    """Saved NL-query boards as workbench cards (the 'configurable' part — the user
+    pins the views they care about; each reloads its Pat answer)."""
+    try:
+        from src.pat import boards as B
+        items = B.list_boards(kind="pat", limit=40)
+    except Exception:  # noqa: BLE001
+        items = []
+    if not items:
+        inner = ('<div class="st-empty" style="padding:12px">No saved boards yet. Ask Pat a '
+                 'question and tap “★ Save as board” to pin it here.</div>')
+    else:
+        cards = []
+        for b in items:
+            href = ("/dash/pat?q=" + quote_plus(b["query"])) if b.get("query") else \
+                   ("/dash/pat?flow=" + quote_plus(b.get("flow") or ""))
+            cards.append(
+                '<div class="bd-card">'
+                f'<div class="bn">★ {K.esc(b["name"])}</div>'
+                f'<div class="bq">{K.esc(b.get("query") or b.get("flow") or "")}</div>'
+                f'<div class="br"><a href="{K.esc(href)}">open →</a>'
+                f'<button class="bd-del" data-name="{K.esc(b["name"])}" onclick="wbDelBoard(this)">delete</button>'
+                '</div></div>')
+        inner = f'<div class="st-grid">{"".join(cards)}</div>'
+    return ('<div class="wb-boards-sec"><div class="wb-sec-lbl">Your boards</div>'
+            + '<a class="st-open" href="/dash/pat" style="margin:0 0 9px;display:inline-block">'
+            '+ ask Pat &amp; save a new board →</a>' + inner + '</div>')
+
+
+_WB_JS = """<script>(function(){
+var KEY='wb_hidden_v1';
+function gh(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
+function sh(h){localStorage.setItem(KEY,JSON.stringify(h))}
+function apply(){var h=gh(),wrap=document.getElementById('wbWrap');if(!wrap)return;
+  ['alerts','strategies','boards'].forEach(function(s){
+    wrap.classList.toggle('hide-'+s,!!h[s]);
+    var b=document.querySelector('.wb-tog[data-s="'+s+'"]');if(b)b.classList.toggle('on',!h[s]);});}
+document.querySelectorAll('.wb-tog[data-s]').forEach(function(b){
+  b.addEventListener('click',function(){var s=b.getAttribute('data-s'),h=gh();h[s]=!h[s];sh(h);apply();});});
+apply();
+window.wbMarkSeen=function(btn){btn.disabled=true;btn.textContent='…';
+  fetch('/pat/alerts/seen',{method:'POST'}).then(function(r){return r.json();})
+  .then(function(j){btn.textContent=j.ok?'✓ seen':'failed';setTimeout(function(){location.reload();},500);})
+  .catch(function(){btn.textContent='failed';btn.disabled=false;});};
+window.wbDelBoard=function(btn){var n=btn.getAttribute('data-name');if(!n||!confirm('Delete board "'+n+'"?'))return;
+  fetch('/pat/board/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({name:n,kind:'pat'})}).then(function(){location.reload();});};
+})();</script>"""
+
+
 @router.get("/dash/strategist", response_class=HTMLResponse)
-def dash_strategist() -> HTMLResponse:
+def dash_strategist(fmt: str = "") -> HTMLResponse:
+    from fastapi.responses import PlainTextResponse
     rows: list[dict] = []
     sig_date = mep_date = None
     universe = None
@@ -369,6 +482,19 @@ def dash_strategist() -> HTMLResponse:
                 universe = None
     except Exception as e:  # noqa: BLE001
         log.warning("strategist page query failed: %s", e)
+
+    # CSV export of the strategy board (the workbench's "export" affordance).
+    if (fmt or "").lower() == "csv":
+        lines = ["strategy,route,count,as_of,health,top_names"]
+        for r in rows:
+            tops = " ".join((t.get("symbol") or "") for t in (r.get("top") or [])[:5]).strip()
+            cnt = r.get("count")
+            lines.append(",".join('"%s"' % str(x).replace('"', '""') for x in [
+                r.get("label") or r.get("key") or "", r.get("route") or "",
+                cnt if isinstance(cnt, int) else "", r.get("as_of") or "",
+                r.get("health") or "", tops]))
+        return PlainTextResponse("\n".join(lines), media_type="text/csv",
+                                 headers={"Content-Disposition": "attachment; filename=strategist.csv"})
 
     # at-a-glance strip
     fresh_n = sum(1 for r in rows if (r.get("health") == "ok"))
@@ -388,14 +514,38 @@ def dash_strategist() -> HTMLResponse:
         '<div class="uk-card">No strategies available yet. '
         'Check the precomputed tables on this host.</div>')
 
+    # alerts + boards (workbench sections) — best-effort, never break the page
+    alerts_html = boards_html = ""
+    try:
+        with get_conn() as conn:
+            alerts_html = _alerts_strip(conn)
+            boards_html = _boards_section(conn)
+    except Exception as e:  # noqa: BLE001
+        log.warning("workbench sections skipped: %s", e)
+
     head = (
         '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
-        '<h1 class="uk-h1">Strategist</h1>'
-        + K.badge("every strategy · at a glance · precomputed") + '</div>'
-        '<div class="sec" style="margin-bottom:16px">Each strategy\'s current read — '
-        'count, freshness, top names — one card per lens. Click any card to open its deep page.</div>')
+        '<h1 class="uk-h1">Strategist · Workbench</h1>'
+        + K.badge("every strategy + your boards + alerts · precomputed") + '</div>'
+        '<div class="sec" style="margin-bottom:14px">Your configurable board — every '
+        'strategy\'s current read, the names that newly aligned, and the queries you\'ve '
+        'pinned. Click any card to open its deep page. Descriptive, never a buy call.</div>')
 
-    body = _PAGE_CSS + head + strip + f'<div class="st-grid">{cards}</div>'
+    toolbar = (
+        '<div class="wb-bar">'
+        '<button class="wb-tog on" data-s="alerts">Alerts</button>'
+        '<button class="wb-tog on" data-s="strategies">Strategies</button>'
+        '<button class="wb-tog on" data-s="boards">Boards</button>'
+        '<a class="wb-tog" href="/dash/strategist?fmt=csv" style="margin-left:auto">⬇ CSV</a>'
+        '</div>')
+
+    strategies_section = ('<div class="wb-strategies-sec">'
+                          '<div class="wb-sec-lbl">Strategies</div>'
+                          f'<div class="st-grid">{cards}</div></div>')
+
+    body = (_PAGE_CSS + head + strip + toolbar
+            + f'<div id="wbWrap">{alerts_html}{strategies_section}{boards_html}</div>'
+            + _WB_JS)
     return HTMLResponse(K.shell("Strategist · patearn", body,
                                 active="strategies", sub=_sub("strategist"),
                                 nav_html=_nav_html("strategist")))
@@ -420,9 +570,23 @@ def _selftest() -> int:
     c = TestClient(app)
     r = c.get("/dash/strategist")
     assert r.status_code == 200, r.status_code
-    assert "Strategist" in r.text
-    assert "st-grid" in r.text
-    print("strategist_view selftest OK — /dash/strategist 200, grid renders")
+    assert "Strategist" in r.text and "st-grid" in r.text
+    assert "wb-bar" in r.text and "Confluence alerts" in r.text, "workbench sections missing"
+    # exercise the NON-empty boards path (the quote_plus-class bug hid there): seed a
+    # board, render, assert it appears + the page still 200s, then clean up.
+    try:
+        from src.pat import boards as _B
+        _B.save("__selftest_board__", query="RS leaders that are credible", flow="rs")
+        r2 = c.get("/dash/strategist")
+        assert r2.status_code == 200 and "__selftest_board__" in r2.text, "boards section render failed"
+        assert c.get("/dash/strategist?fmt=csv").status_code == 200, "CSV export failed"
+    finally:
+        try:
+            from src.pat import boards as _B
+            _B.delete("__selftest_board__")
+        except Exception:
+            pass
+    print("strategist_view selftest OK — workbench 200, alerts + boards (non-empty) + CSV render")
     return 0
 
 
