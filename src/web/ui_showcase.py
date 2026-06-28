@@ -18,7 +18,6 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
 from src.web import ui_kit as K
-from src.web import ui_tokens as T
 from src.web import ui_components as C
 
 router = APIRouter()
@@ -158,8 +157,9 @@ def _body() -> str:
         '</div><div class="sec" style="margin-bottom:var(--sp-5);color:var(--ink-2)">'
         'The single visual language behind Patearn — tokens, components, states, density, responsive.</div>')
 
-    # tokens_css + components_css are included in-body (self-contained; native shell untouched).
-    return (T.tokens_css() + C.components_css() + head + color + type_sec + space_sec +
+    # ui_kit.shell now includes the foundation (tokens + components) in <head>, so the body
+    # composes components directly. (T is still imported for token references in the swatches.)
+    return (head + color + type_sec + space_sec +
             buttons + fields + tabs_sec + kit_sec + notes + states + misc + density)
 
 

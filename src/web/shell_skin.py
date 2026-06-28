@@ -138,8 +138,16 @@ body.uk-skin table.scr tbody tr:hover td{background:#18222f !important}
 
 
 def skin_css() -> str:
-    """The reskin stylesheet (`<style>` block). Injected once per legacy page."""
-    return _SKIN_CSS
+    """The reskin stylesheet (`<style>` block). Injected once per legacy page. Prepends the
+    shared `ui_tokens` foundation (tokens + base + a11y + density scale) so every legacy page
+    carries the SAME design language as the native v2 pages — focus rings, reduced-motion and
+    the density switch now work site-wide. Defensive: a missing foundation degrades to the
+    skin alone (never breaks the page)."""
+    try:
+        from src.web import ui_tokens as _T
+        return _T.tokens_css() + _SKIN_CSS
+    except Exception:  # noqa: BLE001
+        return _SKIN_CSS
 
 
 # the search form on every legacy page (action=/dash/stock). We swap the WHOLE form

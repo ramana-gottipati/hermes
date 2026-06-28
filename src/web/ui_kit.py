@@ -30,6 +30,18 @@ from fastapi.responses import HTMLResponse
 router = APIRouter()
 
 
+def _foundation() -> str:
+    """The shared design-system foundation (tokens + base + a11y + density) and the native
+    component library, included once in every native v2 page so the showcase components and
+    the density switch are available everywhere. Defensive: degrades to "" if absent."""
+    try:
+        from src.web import ui_tokens as _T
+        from src.web import ui_components as _C
+        return _T.tokens_css() + _C.components_css()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def esc(s) -> str:
     return _html.escape(str(s if s is not None else ""))
 
@@ -275,7 +287,7 @@ def subnav(items: list[tuple[str, str, bool]]) -> str:
 def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: str = "") -> str:
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>{esc(title)}</title>{_CSS}</head>'
+            f'<title>{esc(title)}</title>{_CSS}{_foundation()}</head>'
             f'<body style="margin:0"><div class="uk">{topbar(active, nav_html)}{sub}'
             f'<div class="uk-page">{body}</div></div>{cmdk_overlay()}</body></html>')
 
