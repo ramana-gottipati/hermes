@@ -350,6 +350,10 @@ def _compile_stock(metric, window, order, filters, scope, turning, character=Non
     # ranked buy signal — the §C backtest found no return edge). Parameterless flows:
     # the leaders board, or the deterioration / avoid tape for the worst side.
     if metric == "credibility":
+        # credibility × accumulation CONFLUENCE — when the ask pairs credibility with
+        # the accumulation character, both lenses must agree (the §9.8 "one fusion").
+        if character == "accumulation":
+            return {"flow": "confluence", "params": {}}
         return {"flow": "deterioration" if order == "worst" else "credibility", "params": {}}
 
     # Strong-hand delivery CHARACTER — distribution (exiting) / consolidation (coiling)
@@ -430,7 +434,10 @@ SYSTEM_PARSE = (
     "management', 'best concall track record', 'managements that deliver on guidance'; "
     "order 'worst' (or 'deteriorating credibility', 'broken promises', 'walked-back "
     "guidance', 'managements to avoid', 'credibility decay') selects the deterioration/"
-    "avoid tape. It is a DESCRIPTIVE track-record lens, not a buy ranking.\n"
+    "avoid tape. It is a DESCRIPTIVE track-record lens, not a buy ranking. Pair credibility "
+    "with character 'accumulation' for the credibility×accumulation CONFLUENCE — names that "
+    "are BOTH credible AND being accumulated ('credible companies being accumulated', "
+    "'strong-hand buying in credible names').\n"
     "  STEP 3 — FILTERS: every ADDITIONAL condition, each as its own {metric,window,"
     "op,value}. op ∈ [>,<,>=,<=,improving,declining]. A phrase like 'started "
     "performing better in the last month' / 'turning up' / 'recovering' is a filter "
@@ -474,7 +481,9 @@ SYSTEM_PARSE = (
     "'most credible managements' → "
     '{"task":"rank","universe":"stock","rank":{"metric":"credibility","order":"best"},"confidence":90}\n'
     "'managements with deteriorating credibility' → "
-    '{"task":"rank","universe":"stock","rank":{"metric":"credibility","order":"worst"},"confidence":88}'
+    '{"task":"rank","universe":"stock","rank":{"metric":"credibility","order":"worst"},"confidence":88}\n'
+    "'credible companies being accumulated' / 'strong-hand buying in credible names' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"credibility"},"character":"accumulation","confidence":88}'
 )
 
 
@@ -583,7 +592,9 @@ def parse_fallback(query: str) -> dict | None:
 
         # management CREDIBILITY (CCI concall track-record) — a descriptive lens; the
         # worst / "managements to avoid" side routes to the deterioration tape.
-        if D._has_any(qn, ["credibilit", "credible management", "promise-keep", "promise keep",
+        if D._has_any(qn, ["credibilit", "credible management", "credible compan",
+                           "credible name", "credible stock", "credible busines",
+                           "credible promoter", "promise-keep", "promise keep",
                            "kept promise", "kept its promise", "guidance accuracy",
                            "trustworthy management", "management trust", "concall track record",
                            "delivers on guidance", "deliver on guidance", "walked back",
@@ -591,8 +602,12 @@ def parse_fallback(query: str) -> dict | None:
             cred_order = "worst" if D._has_any(qn, ["deteriorat", "broken promise", "walked back",
                                                     "walked-back", "least credible", "avoid",
                                                     "decay", "untrustworthy"]) else "best"
+            # credibility × accumulation confluence when both lenses are named
+            cred_char = "accumulation" if D._has_any(qn, ["accumulat", "being bought",
+                        "being accumulated", "strong hand", "strong-hand", "smart money",
+                        "smart-money"]) else None
             return {"task": "rank", "universe": "stock", "rank": {"metric": "credibility", "order": cred_order},
-                    "filters": [], "scope": {}, "character": None, "confidence": 55}
+                    "filters": [], "scope": {}, "character": cred_char, "confidence": 55}
 
         # momentum oscillators (RSI / MACD) → the `oscillators` flow
         osc = None

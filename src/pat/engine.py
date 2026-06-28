@@ -44,6 +44,7 @@ _VALID: dict[str, dict] = {
                      "turning": set(INDEX_TURNING)},
     "credibility":  {},   # CCI credibility leaders — parameterless descriptive flow
     "deterioration": {},  # CCI deterioration / avoid tape — parameterless
+    "confluence":   {},   # CCI x MEP confluence (credible AND accumulated) — parameterless
     "explain":      {"explain": "slug"},
 }
 

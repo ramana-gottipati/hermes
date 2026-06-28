@@ -28,7 +28,7 @@ from src.pat.flows import (
     build_rs_query, build_rs_sectors_query, build_fundamentals_query, build_movers_query,
     build_index_query, build_pt14_query, build_disqualified_query,
     build_symbol_resolve_query, build_stock_card_query, build_stock_pattern_query,
-    build_credibility_query, build_deterioration_query,
+    build_credibility_query, build_deterioration_query, build_confluence_query,
 )
 
 
@@ -1099,6 +1099,70 @@ def _deterioration_flow(conn) -> str:
     return "".join(out)
 
 
+# ── CCI x MEP confluence (the §9.8 "one fusion") — credible AND being accumulated ─
+
+def _confluence_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>Character</th><th>p/r</th><th>RS</th>'
+            '<th>Tier</th><th>Cred score</th><th>Guid acc</th><th>n</th>'
+            '<th>Sector</th><th>Deliv ₹Cr</th></tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_char_pill(r["accum_character"])}</td>'
+            f'<td>{_int(r["p_score"])}/{_int(r["r_score"])}</td>'
+            f'<td>{_int(r["rs_rank"])}</td>'
+            f'<td>{_esc(r["tier"] or "—")}</td>'
+            f'<td>{_n(r["composite_score"], 0)}</td>'
+            f'<td>{_pc(r["guidance_accuracy_score"])}</td>'
+            f'<td>{_int(r["n_promises_resolved"])}</td>'
+            f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
+            f'<td>{_cr(r["delivery_value_today"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _confluence_flow(conn) -> str:
+    out = ['<a class="patBack" href="/dash/pat">← back</a>',
+           _q_bubble("Credibility × accumulation — the CONFLUENCE: names a strong hand is "
+                     "accumulating now (the MEP delivery lens) AND whose management is credible "
+                     "on its concall track record (veto-excluded, ≥3 resolved promises). Two "
+                     "INDEPENDENT lenses agreeing is the highest-evidence read — but it is "
+                     "evidence, never a buy call, and the reads are at different grains "
+                     "(daily delivery × quarterly credibility):")]
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_confluence_query()
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    # the as-of join contract (§9.8): disclose BOTH lenses' freshness, since they differ.
+    asof_cred = rows[0]["as_of_period"] if rows else None
+    try:
+        asof_acc = conn.execute("SELECT MAX(trade_date) FROM stock_signals").fetchone()[0]
+    except Exception:
+        asof_acc = None
+    out.append(f'<div class="ghdr">Credibility × accumulation ({len(rows)})</div>')
+    out.append(_confluence_table(rows) if rows else
+               '<div class="empty">No names are in BOTH lenses right now — that scarcity is '
+               'itself the read (genuine confluence is rare). Try each lens alone below.</div>')
+    out.append('<div class="patMeta">'
+               f'<span>credibility as-of: {_esc(asof_cred or "—")}</span>'
+               f'<span>accumulation as-of: {_esc(asof_acc or "—")}</span>'
+               '<span>both lenses must agree · descriptive, not a signal</span></div>')
+    out.append('<div class="patChips">'
+               + _chip("/dash/pat?flow=credibility", "★ credibility leaders")
+               + _chip("/dash/pat?flow=accumulation", "↗ accumulation setups")
+               + _chip("/dash/concalls", "full CCI board →") + "</div>")
+    return "".join(out)
+
+
 # ── momentum oscillators (RSI / MACD over stock_oscillators, computed nightly) ─
 
 def _osc_url(screen: str = "") -> str:
@@ -1336,7 +1400,8 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "disqualified": "The kill-list (disqualified)", "card": "Stock snapshot",
                "oscillators": "Momentum (RSI / MACD)",
                "credibility": "Credibility leaders (CCI)",
-               "deterioration": "Deterioration / avoid tape (CCI)"}
+               "deterioration": "Deterioration / avoid tape (CCI)",
+               "confluence": "Credibility × accumulation"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -1420,6 +1485,8 @@ def _free_text(conn, q: str):
             body = _credibility_flow(conn)
         elif f == "deterioration":
             body = _deterioration_flow(conn)
+        elif f == "confluence":
+            body = _confluence_flow(conn)
         if body is not None:
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
@@ -1517,6 +1584,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "deterioration":
         body = _deterioration_flow(conn)
         fb_ctx = {"query": "", "flow": "deterioration", "params": {}, "source": "flow"}
+    elif flow == "confluence":
+        body = _confluence_flow(conn)
+        fb_ctx = {"query": "", "flow": "confluence", "params": {}, "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

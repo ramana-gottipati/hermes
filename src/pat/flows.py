@@ -564,6 +564,38 @@ def build_deterioration_query() -> tuple[str, list]:
 # A different SHAPE from the ranked-universe flows: resolve a typed token to an NSE
 # symbol, then read that symbol's latest signals + fundamentals + pt14. Answers
 # "tell me about X / what's wrong with X" — which the screener engine never served.
+def build_confluence_query() -> tuple[str, list]:
+    """CCI x MEP CONFLUENCE — names that are BOTH being accumulated (the MEP/strong-hand
+    delivery lens: accum_character ACCUMULATION + an active p_score) AND credible on the
+    concall track record (veto-excluded, >=3 resolved promises, a real composite). The two
+    INDEPENDENT lenses agreeing = the highest-evidence read. DESCRIPTIVE evidence only —
+    never a ranked buy signal (the §C backtest found no return edge); the two reads are at
+    different grains (daily delivery x quarterly credibility), disclosed by the as-of badges.
+    Read-only, no user input → no injection surface."""
+    sql = (
+        "SELECT s.symbol, pe.close AS cmp, s.accum_character, s.p_score, s.r_score, "
+        "s.trigger_rank, s.rs_rank, s.primary_sector, s.delivery_value_today, "
+        "c.tier, c.composite_score, c.guidance_accuracy_score, c.n_promises_resolved, "
+        "c.forward_direction, c.as_of_period "
+        "FROM stock_signals s "
+        "JOIN ( SELECT cs.symbol, cs.tier, cs.composite_score, cs.guidance_accuracy_score, "
+        "              cs.n_promises_resolved, cs.forward_direction, cs.veto_active, cs.as_of_period "
+        "       FROM concall_scores cs "
+        "       JOIN (SELECT symbol, MAX(last_updated) AS m FROM concall_scores GROUP BY symbol) x "
+        "         ON x.symbol = cs.symbol AND x.m = cs.last_updated ) c ON c.symbol = s.symbol "
+        "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
+        "WHERE s.trade_date = (SELECT MAX(trade_date) FROM stock_signals) "
+        "  AND s.symbol IN (SELECT symbol FROM nse_equity_list) "
+        "  AND s.accum_character = 'ACCUMULATION' AND s.p_score > 0 "
+        "  AND COALESCE(c.veto_active, 0) = 0 "
+        "  AND COALESCE(c.n_promises_resolved, 0) >= 3 "
+        "  AND c.composite_score IS NOT NULL "
+        "ORDER BY c.composite_score DESC, s.p_score DESC, s.symbol "
+        "LIMIT 60"
+    )
+    return sql, []
+
+
 def build_symbol_resolve_query(token: str) -> tuple[str, list]:
     """Resolve a free-text token to candidate NSE symbols (exact > prefix > name).
     All values bound; LIKE wildcards are added here, the token is never formatted in."""
