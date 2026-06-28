@@ -61,7 +61,7 @@ BSE_HEADERS = {
     "Referer": "https://www.bseindia.com/corporates/ann.html",
     "Accept": "application/json, text/plain, */*",
 }
-ANN_URL = "https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w"
+ANN_URL = "https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryGetData/w"
 BSE_ARCHIVE_FLOOR = "2006-01-01"     # BSE corporate-announcement archive depth (official)
 REQUEST_PAUSE = 1.5                   # politeness between BSE hits
 DATA_CLASS = "fundamentals_history"
@@ -260,6 +260,79 @@ def resolve_scripcode(symbol: str, conn) -> Optional[str]:
         return None
 
 
+# BSE's full equity scrip master — the reproducible alternative to a hand-curated CSV.
+BSE_SCRIP_MASTER_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
+
+
+def fetch_bse_scrip_master(statuses=("Active",), session: Optional[requests.Session] = None) -> list:
+    """BSE equity scrip master rows (SCRIP_CD, ISIN_NUMBER, scrip_id, Status, …), one call
+    per status. Defensive: [] on any failure (offline / 403 / bad JSON)."""
+    sess = session or requests.Session()
+    out: list = []
+    for st in statuses:
+        params = {"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": st}
+        try:
+            r = sess.get(BSE_SCRIP_MASTER_URL, headers=BSE_HEADERS, params=params, timeout=40)
+            if r.status_code != 200:
+                log.warning("BSE scrip master %s: HTTP %s", st, r.status_code)
+                continue
+            rows = r.json() or []
+            out.extend(rows)
+        except (requests.RequestException, ValueError) as e:
+            log.warning("BSE scrip master %s: %s", st, e)
+        time.sleep(REQUEST_PAUSE)
+    return out
+
+
+def seed_scrip_map_from_bse(conn, *, statuses=("Active",), only_archived: bool = True,
+                            master_rows: Optional[list] = None) -> dict:
+    """Seed bse_scrip_map by joining BSE's scrip master to ``security_master`` on **ISIN**
+    (robust to symbol != BSE ticker, and to renames). Both ``bse_scrip_map`` and
+    ``security_master`` live in the main DB (``conn`` = get_conn()); the BSE master is the
+    only network read. ``only_archived`` restricts the map to symbols that actually have a
+    ``fundamentals_history`` archive (the de-model targets) so the universe sweep stays scoped.
+    ``master_rows`` lets a caller/test inject the master instead of fetching. Returns stats."""
+    ensure_schema(conn)
+    master = master_rows if master_rows is not None else fetch_bse_scrip_master(statuses=statuses)
+    by_isin: dict = {}                         # ISIN → (scripcode, bse_ticker); first wins
+    for row in master:
+        isin = str(row.get("ISIN_NUMBER") or "").strip().upper()
+        code = str(row.get("SCRIP_CD") or row.get("Scripcode") or "").strip()
+        if isin and code and isin not in by_isin:
+            by_isin[isin] = (code, (row.get("scrip_id") or "").strip() or None)
+
+    archived = None
+    if only_archived:
+        rdb = provenance._research_ro()
+        if rdb is not None:
+            try:
+                archived = {r[0] for r in rdb.execute("SELECT DISTINCT symbol FROM fundamentals_history")}
+            except sqlite3.Error:
+                archived = None
+            rdb.close()
+
+    pairs = conn.execute(
+        "SELECT symbol, isin FROM security_master WHERE isin IS NOT NULL AND isin!=''").fetchall()
+    seeded = unmatched = skipped_unarchived = 0
+    for sym, isin in pairs:
+        if archived is not None and str(sym).upper() not in archived:
+            skipped_unarchived += 1
+            continue
+        hit = by_isin.get(str(isin or "").strip().upper())
+        if not hit:
+            unmatched += 1
+            continue
+        conn.execute(
+            "INSERT OR REPLACE INTO bse_scrip_map (symbol, scripcode, security_id, isin, source) "
+            "VALUES (?,?,?,?, 'bse-master')",
+            (str(sym).upper(), hit[0], hit[1], str(isin).strip().upper()))
+        seeded += 1
+    conn.commit()
+    return {"master_rows": len(master), "master_isins": len(by_isin),
+            "sm_isin_rows": len(pairs), "seeded": seeded,
+            "unmatched_isin": unmatched, "skipped_unarchived": skipped_unarchived}
+
+
 # ── BSE fetch (network; not exercised by --selftest) ──────────────────────────
 def fetch_result_announcements(scripcode: str, from_date: str, to_date: str,
                                session: Optional[requests.Session] = None) -> list:
@@ -269,14 +342,17 @@ def fetch_result_announcements(scripcode: str, from_date: str, to_date: str,
     out: list = []
     f = from_date.replace("-", ""); t = to_date.replace("-", "")
     for page in range(1, 51):                       # hard page cap (safety)
+        # BSE's current contract: AnnSubCategoryGetData/w, lowercase `strscrip`, `subcategory=-1`.
         params = {"strCat": "Result", "strPrevDate": f, "strToDate": t,
-                  "strScrip": scripcode, "strSearch": "P", "strType": "C", "pageno": page}
+                  "strscrip": scripcode, "strSearch": "P", "strType": "C",
+                  "subcategory": "-1", "pageno": page}
         try:
             r = requests.get(ANN_URL, headers=BSE_HEADERS, params=params, timeout=30) \
                 if session is None else sess.get(ANN_URL, headers=BSE_HEADERS, params=params, timeout=30)
             if r.status_code != 200:
                 break
-            rows = (r.json() or {}).get("Table") or []
+            j = r.json()                       # BSE returns the string "No Record Found!" when empty
+            rows = j.get("Table") or [] if isinstance(j, dict) else []
         except (requests.RequestException, ValueError) as e:
             log.warning("BSE ann fetch %s p%d: %s", scripcode, page, e)
             break
@@ -288,7 +364,9 @@ def fetch_result_announcements(scripcode: str, from_date: str, to_date: str,
 
 
 def _ann_subject(row: dict) -> str:
-    return str(row.get("HEADLINE") or row.get("NEWSSUB") or row.get("News_submission_dt") or "")
+    # Scan BOTH the structured NEWSSUB and the free-text HEADLINE — the period date appears in
+    # one or the other (NEWSSUB is usually the cleaner '...Quarter Ended June 30, 2024').
+    return f"{row.get('NEWSSUB') or ''} {row.get('HEADLINE') or ''}".strip()
 
 
 def _ann_dt(row: dict) -> Optional[str]:
@@ -353,17 +431,25 @@ def backfill_symbol(symbol: str, conn, research_conn, *, session=None) -> dict:
     return stats
 
 
-def backfill_universe(limit: Optional[int] = None) -> dict:
+def backfill_universe(limit: Optional[int] = None, *, resume: bool = True) -> dict:
     """Backfill every mapped symbol (VPS path). research.db RO + the main DB for the map +
-    provenance writes. Degrades to a no-op if research.db is absent."""
+    provenance writes. Degrades to a no-op if research.db is absent. ``resume`` skips symbols
+    that already have ≥1 capture (each symbol commits atomically, so a capture means it was
+    fully processed) — makes the multi-hour sweep restartable after an interruption."""
     rconn = provenance._research_ro()
     if rconn is None:
         log.warning("research.db absent (%s) — nothing to backfill here.", provenance.RESEARCH_DB)
         return {"status": "research_db_absent"}
-    totals = {"symbols": 0, "matched": 0, "captured": 0, "no_scripcode": 0}
+    totals = {"symbols": 0, "matched": 0, "captured": 0, "no_scripcode": 0, "skipped_done": 0}
     with provenance.get_conn() as conn:
         ensure_schema(conn)
         mapped = [r[0] for r in conn.execute("SELECT symbol FROM bse_scrip_map ORDER BY symbol")]
+        done = set()
+        if resume:
+            done = {r[0] for r in conn.execute(
+                "SELECT DISTINCT symbol FROM provenance_knowable WHERE data_class=?", (DATA_CLASS,))}
+            totals["skipped_done"] = sum(1 for s in mapped if s in done)
+            mapped = [s for s in mapped if s not in done]
         if limit:
             mapped = mapped[:limit]
         sess = requests.Session()
@@ -374,6 +460,8 @@ def backfill_universe(limit: Optional[int] = None) -> dict:
             totals["captured"] += st.get("captured", 0)
             if st.get("skip") == "no_scripcode":
                 totals["no_scripcode"] += 1
+            conn.commit()                     # per-symbol: durable + visible progress, and never a
+            #                                   multi-hour write txn locking the production hermes.db
             if i % 50 == 0:
                 log.info("backfill %d/%d: %s", i, len(mapped), totals)
             time.sleep(REQUEST_PAUSE)
@@ -448,7 +536,21 @@ def _selftest() -> None:
     assert candidate_periods("X", None) == set()
     assert backfill_symbol("RELIANCE", conn, None)["skip"] == "no_archive_periods"
 
-    print("filing-dates selftest: OK  (parse + match + observe round-trip; ptype-keyed, idempotent)")
+    # 8. BSE-master seed joins on ISIN (symbol may differ from the BSE ticker), offline-injected
+    sconn = sqlite3.connect(":memory:")
+    sconn.execute("CREATE TABLE security_master (symbol TEXT, isin TEXT)")
+    sconn.executemany("INSERT INTO security_master VALUES (?,?)",
+                      [("RELIANCE", "INE002A01018"), ("TCS", "INE467B01029"), ("NOISIN", "")])
+    ensure_schema(sconn)
+    fake_master = [{"SCRIP_CD": "500325", "ISIN_NUMBER": "INE002A01018", "scrip_id": "RELIANCE"},
+                   {"SCRIP_CD": "532540", "ISIN_NUMBER": "INE467B01029", "scrip_id": "TCS"},
+                   {"SCRIP_CD": "999999", "ISIN_NUMBER": "INE999Z01011", "scrip_id": "ORPHAN"}]
+    res = seed_scrip_map_from_bse(sconn, only_archived=False, master_rows=fake_master)
+    assert res["seeded"] == 2 and res["unmatched_isin"] == 0, res
+    assert resolve_scripcode("RELIANCE", sconn) == "500325"
+    assert resolve_scripcode("TCS", sconn) == "532540"
+
+    print("filing-dates selftest: OK  (parse + match + observe round-trip; ptype-keyed, idempotent; BSE-master seed)")
 
 
 def seed_via_rows(rows, conn) -> int:
@@ -471,6 +573,10 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Backfill REAL fundamentals filing dates from BSE (de-models the archive).")
     ap.add_argument("--selftest", action="store_true", help="offline synthetic validation (no network / research.db)")
     ap.add_argument("--seed-scrips", metavar="CSV", help="seed bse_scrip_map from a symbol,scripcode[,isin] CSV")
+    ap.add_argument("--seed-bse", action="store_true",
+                    help="seed bse_scrip_map from BSE's scrip master joined to security_master on ISIN (VPS)")
+    ap.add_argument("--seed-all-statuses", action="store_true",
+                    help="with --seed-bse: include Suspended/Delisted BSE scrips (wider, for delisted names)")
     ap.add_argument("--backfill", metavar="SYMBOL", help="backfill one symbol (needs research.db + network)")
     ap.add_argument("--backfill-universe", action="store_true", help="backfill all mapped symbols (VPS)")
     ap.add_argument("--limit", type=int, help="cap symbols for --backfill-universe")
@@ -483,6 +589,12 @@ def main() -> None:
     if args.seed_scrips:
         with provenance.get_conn() as conn:
             print(f"seeded {seed_scrip_map_from_csv(args.seed_scrips, conn)} scrip codes")
+        return
+    if args.seed_bse:
+        statuses = ("Active", "Suspended", "Delisted") if args.seed_all_statuses else ("Active",)
+        with provenance.get_conn() as conn:
+            import json
+            print(json.dumps(seed_scrip_map_from_bse(conn, statuses=statuses), indent=2))
         return
     if args.backfill:
         rconn = provenance._research_ro()

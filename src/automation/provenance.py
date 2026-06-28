@@ -568,14 +568,22 @@ def lag_audit(conn=None, *, classes=("fundamentals_history", "shareholding_histo
             if not errors:
                 out[cls] = {"status": "no_matched_pairs", "n_captured": len(captured)}
                 continue
-            errs = sorted(e[4] for e in errors)
+            errs = sorted(e[4] for e in errors)   # err = real_filing − modeled_date, in days
             n = len(errs)
+            # A LEAK is err > 0: the real filing was LATER than the modeled date, so a backtest
+            # treating the modeled date as "knowable" would use the datum BEFORE it was public
+            # (modeled too early → look-ahead injected). err < 0 = modeled later than real =
+            # over-conservative (safe; backtest just waited longer than it had to).
+            leaks = [e for e in errs if e > 0]
             out[cls] = {
                 "status": "ok", "n": n,
                 "mean": round(sum(errs) / n, 1), "median": errs[n // 2],
                 "p10": errs[max(0, n // 10)], "p90": errs[min(n - 1, (9 * n) // 10)],
-                "n_leaks": sum(1 for e in errs if e < 0),   # modelled date was EARLIER than real → look-ahead injected
-                "n_late": sum(1 for e in errs if e > 0),
+                "n_leaks": len(leaks),                              # modeled EARLIER than real → look-ahead
+                "leak_median": (sorted(leaks)[len(leaks) // 2] if leaks else 0),
+                "leak_max": (max(leaks) if leaks else 0),
+                "n_conservative": sum(1 for e in errs if e < 0),   # modeled LATER than real → safe
+                "n_exact": sum(1 for e in errs if e == 0),
             }
             if persist:
                 c.executemany(
