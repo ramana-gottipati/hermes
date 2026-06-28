@@ -105,6 +105,8 @@ body.uk-skin .sym{color:#eaf1f9}
 /* ── semantic ink ── */
 body.uk-skin .pos{color:#3fd486} body.uk-skin .neg{color:#ff6a7a} body.uk-skin .mut{color:#5c6f84}
 body.uk-skin .grp{color:#4d9dff}
+/* ── empty state → the polished system look (ui_components.empty) ── */
+body.uk-skin .empty{color:var(--ink-3);padding:46px 20px;font-size:var(--fs-md);line-height:1.6}
 /* ── inputs / search / filter chips ── */
 body.uk-skin .search input,body.uk-skin .hsearch input,body.uk-skin .dtf{
   background:#0b0f17;border:1px solid #27384a;color:#eaf1f9;border-radius:8px}

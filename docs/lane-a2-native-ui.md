@@ -34,6 +34,10 @@ making the legacy shell structurally + visually identical to the native one at r
     native pages share ONE shell. HIGHEST risk → last, only after native parity verified. ⬜
 
 ## Progress log (newest first)
+- **Items 7 (states) + 9 (print) DONE + LIVE** (2026-06-29): global `@media print` in the foundation —
+  ANY page now prints as a clean light document (chrome/nav/cmdk/toggle hidden, shadows off, full-width,
+  thead repeats, page-break-avoid on cards). The empty/loading/error STATE system lives in `ui_components`
+  (empty/error_state/skeleton/spinner) + the showcase; legacy `.empty` mapped to the polished look. Sweep = PASS.
 - **Item 6 (accessibility) DONE + LIVE** (2026-06-29): keyboard skip-link ("Skip to content" → `#uk-main`)
   as the first focusable element on every page (native `<main id="uk-main">`, legacy `.wrap` gets the id);
   primary nav `aria-label="Primary"` + `aria-current="page"` on the active altitude (both shells); sub-nav
