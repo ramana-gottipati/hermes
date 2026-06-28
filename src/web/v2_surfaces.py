@@ -65,11 +65,16 @@ _IA_SUB = {
     ],
     "screener": [
         ("screener", "/dash/screener", "Screen"),
+        # Lane B's streamlined screener (plan §2a) — pre-wired so its page is reachable
+        # the moment it deploys; promote to default once parity-verified.
+        ("screen2", "/dash/screen2", "Screen+"),
         ("themes", "/dash/themes", "Themes / Baskets"),
         ("tags-review", "/dash/tags-review", "Review"),
         ("workbench", "/dash/workbench", "Workbench"),
     ],
     "strategies": [
+        # Lane B's strategist dashboard (plan §2a) — the "at a glance" landing, first.
+        ("strategist", "/dash/strategist", "Strategist"),
         ("strategies", "/dash/strategies", "Hub"),
         ("conviction", "/dash/conviction", "Conviction"),
         ("stocks", "/dash/stocks", "Positioning"),
@@ -117,18 +122,19 @@ _NAV_LINK_RE = re.compile(r'<a [^>]*href="([^"]+)">([^<]+)</a>')
 _V2NAV_CSS = """<style>
 .v2bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px}
 .v2bar .wsnav{flex:0 1 auto}
+.v2bar .wsnav a.on{color:#eaf1f9;border-bottom-color:#4d9dff}
 .v2util{margin-left:auto;display:flex;align-items:center;gap:8px}
 .v2util a,.v2util .v2askpat{font:inherit;font-size:12.5px;cursor:pointer;text-decoration:none;
-  border:1px solid #2b3a52;background:#0d1117;color:#9fb0c3;border-radius:8px;padding:6px 11px}
-.v2util a.on,.v2util a:hover,.v2util .v2askpat:hover{border-color:#1f6feb;color:#e6edf3}
-.v2askpat kbd{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;background:#1b2230;
-  border:1px solid #2b3a52;border-radius:4px;padding:1px 5px;margin-left:6px;color:#9fb0c3}
+  border:1px solid #27384a;background:#0b0f17;color:#9bb0c6;border-radius:8px;padding:6px 11px}
+.v2util a.on,.v2util a:hover,.v2util .v2askpat:hover{border-color:#4d9dff;color:#eaf1f9}
+.v2askpat kbd{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;background:#18222f;
+  border:1px solid #27384a;border-radius:4px;padding:1px 5px;margin-left:6px;color:#9bb0c6}
 .v2subnav{display:flex;gap:4px;flex-wrap:wrap;padding:7px 0 0;margin:0 0 4px;
-  border-bottom:1px solid #21262d;overflow-x:auto}
-.v2subnav a{font-size:12.5px;color:#8b949e;text-decoration:none;padding:5px 10px;
+  border-bottom:1px solid #1c2937;overflow-x:auto}
+.v2subnav a{font-size:12.5px;color:#9bb0c6;text-decoration:none;padding:5px 10px;
   border-radius:7px 7px 0 0;white-space:nowrap}
-.v2subnav a:hover{color:#e6edf3;background:#161b22}
-.v2subnav a.on{color:#e6edf3;background:#161b22;font-weight:600;border-bottom:2px solid #1f6feb}
+.v2subnav a:hover{color:#eaf1f9;background:#111824}
+.v2subnav a.on{color:#eaf1f9;background:#111824;font-weight:600;border-bottom:2px solid #4d9dff}
 </style>"""
 
 
@@ -263,14 +269,28 @@ def site_nav(active: str = ""):
     return items
 
 
+def _install_skin() -> None:
+    """Reskin the legacy dashboard._shell pages into the ui_kit language (Track A) —
+    every page (Markets/Screener/Strategies/Tracker/stock/strategy lenses) picks up the
+    cyan-dot logo, the Ask-Pat hint and the v2 card+table palette. Defensive + idempotent
+    (shell_skin.install owns the sentinel); a failure leaves the legacy chrome intact."""
+    try:
+        from src.web import shell_skin
+        shell_skin.install()
+    except Exception as e:  # noqa: BLE001 — the skin is additive; never break the nav
+        log.warning("v2 shell skin skipped: %s", e)
+
+
 def wire(app):
-    """Mount the v2 routes + install the canonical nav. Idempotent + defensive."""
+    """Mount the v2 routes + install the canonical nav + reskin the legacy pages.
+    Idempotent + defensive."""
     _mount_routers(app)
     _mount_v1(app)
     try:
         _install_nav()
     except Exception as e:  # noqa: BLE001 — nav install must never break import
         log.warning("v2 nav install skipped: %s", e)
+    _install_skin()
     return app
 
 
