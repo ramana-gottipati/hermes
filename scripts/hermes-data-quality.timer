@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes data-quality monitor (daily)
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+# Persistent=true: if the box was down at 06:30, catch up on next boot — a missed integrity scan is
+# worth running late. Cheap + idempotent (append-only snapshot).
+Persistent=true
+Unit=hermes-data-quality.service
+
+[Install]
+WantedBy=timers.target
