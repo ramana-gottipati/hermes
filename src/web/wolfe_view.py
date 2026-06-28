@@ -348,7 +348,8 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
            f'as-of {_esc(asof or "today")} <span style="color:#6e7681">(live)</span>')
         + f' · fresh ≤ {eff_fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
         ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
-        ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a></div>'
+        ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a>'
+        ' &nbsp;|&nbsp; <a href="/dash/harmonic" style="color:#f778ba">Harmonic scanner ›</a></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:#8b949e;text-align:left">'
         + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
@@ -398,3 +399,14 @@ def wolfe_page(sym: str = Query("", max_length=24),
           'g=document.getElementById("wfGroup");if(cb&&g){cb.addEventListener("change",'
           'function(){g.style.display=this.checked?"":"none";});}})();</script>')
     return HTMLResponse(_shell(f'{d["label"]} — Wolfe', body, "wolfe", wide=True))
+
+
+# Mount the sibling HARMONIC lane (D72) onto THIS already-included router, so /dash/harmonic
+# + /dash/harmonic/overlay go live without a main.py edit and survive a redeploy (committed).
+# Harmonic and Wolfe are siblings (both XABCD-family geometric patterns) — see
+# docs/harmonic-pattern-design.md.
+try:
+    from src.web.harmonic_view import router as _harmonic_router
+    router.include_router(_harmonic_router)
+except Exception:  # pragma: no cover - never let the harmonic lane break the Wolfe routes
+    pass

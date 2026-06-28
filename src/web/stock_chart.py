@@ -41,7 +41,7 @@ SNIPPET = """<script>
   // --- the fixed colour grammar (mirrors hermes-charts.js PALETTE) ----------
   var C={up:'#3fb950',down:'#f85149',line:'#1f6feb',dvpt:'#d29922',dvptIdle:'#30506b',
     deliv:'#58a6ff',tval:'#30363d',dval:'#2ea043',vwap:'#f0883e',avwap:'#db61a2',
-    rs:'#39c5cf',wolfe:'#58a6ff',txt:'#8b949e',txtHi:'#e6edf3',dim:'#6e7681',
+    rs:'#39c5cf',wolfe:'#58a6ff',harm:'#f778ba',txt:'#8b949e',txtHi:'#e6edf3',dim:'#6e7681',
     border:'#30363d',grid:'#21262d',bg:'#161b22'};
   function E(t,css,html){ var n=document.createElement(t); if(css)n.style.cssText=css; if(html!=null)n.innerHTML=html; return n; }
   function hexA(hex,a){ var h=hex.replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
@@ -153,6 +153,7 @@ SNIPPET = """<script>
       if(reg.vwap.on) vwapL.setData(vwapFrom(RT,0));
       if(reg.avwap.on) avwapL.setData(vwapFrom(RT, anchorIdx()));
       if(draw) draw.redraw();
+      if(reg && reg.harm && reg.harm.on && harmData) harmDraw(harmData);   // re-snap harmonic across resample
     }
     function setIv(tf){ iv=tf; RT=resample(tf); applyRows(); }
 
@@ -204,6 +205,7 @@ SNIPPET = """<script>
     var reg={
       dvpt:{label:'DVPT',col:C.dvpt,on:true, fn:function(v){ dvptH.applyOptions({visible:v}); setZones(v); reflow(); }},
       rs:{label:'RS',col:C.rs,on:false, fn:function(v){ rsToggle(v); }},
+      harm:{label:'Harmonic',col:C.harm,on:false, fn:function(v){ harmToggle(v); }},
       vwap:{label:'VWAP',col:C.vwap,on:false, fn:function(v){ if(v)vwapL.setData(vwapFrom(RT,0)); vwapL.applyOptions({visible:v}); }},
       avwap:{label:'Anchored VWAP',col:C.avwap,on:false, fn:function(v){ if(v){ avwapL.setData(vwapFrom(RT,anchorIdx())); pickAVWAP(); } avwapL.applyOptions({visible:v}); }},
       deliv:{label:'Delivery %',col:C.deliv,on:false, fn:function(v){ delivL.applyOptions({visible:v}); reflow(); }},
@@ -238,6 +240,7 @@ SNIPPET = """<script>
     stratBar.appendChild(regChip('dvpt'));      // DVPT first; CPR/MEP append after
     stratBar.appendChild(wfChip);
     stratBar.appendChild(regChip('rs'));
+    stratBar.appendChild(regChip('harm'));
 
     // -- family 3: indicators — #cprBar anchors MA's #maBar into this family ---
     var indBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px');
@@ -326,6 +329,44 @@ SNIPPET = """<script>
         pc.priceScale('rs').applyOptions({scaleMargins:{top:0.74,bottom:0.04}});  // docked in the bottom band, not over the candles
         rsL.setData(d.series.map(function(p){return {time:p.t,value:p.v};}));
       }).catch(function(){ rsLoaded=false; });
+    }
+
+    // -------- Harmonic XABCD overlay (Strategies) — fetch /dash/harmonic/overlay -----
+    // Draws each detected pattern's X-A-B-C-D polyline + point markers (+ a projected PRZ
+    // band for FORMING) on the price pane (window.__wfpc). DESCRIPTIVE — read by side per
+    // the backtest (docs/harmonic-pattern-design.md: bull = edge, bear = tail). Point
+    // dates are re-snapped onto the current bars so it survives the D/W/M/Q resample.
+    var harmData=null, harmSeries=[];
+    function snapT(t){ if(iv==='d')return t; var best=t,bd=1e18;
+      for(var i=0;i<RT.length;i++){ var dd=Math.abs(new Date(RT[i].time)-new Date(t)); if(dd<bd){bd=dd;best=RT[i].time;} } return best; }
+    function harmClear(){ harmSeries.forEach(function(s){try{pc.removeSeries(s);}catch(e){}}); harmSeries=[]; }
+    function harmDraw(pats){
+      harmClear(); if(!pats) return;
+      pats.forEach(function(p){
+        var bull=p.dir==='BULL', col=bull?C.up:C.down, dashed=p.state==='FORMING';
+        var seen={},clean=[];
+        p.points.forEach(function(q){ var t=snapT(q.t); if(!seen[t]){ seen[t]=1; clean.push({time:t,value:q.price}); } });
+        if(clean.length<2) return;
+        var ls=pc.addLineSeries({color:col,lineWidth:2,lineStyle:dashed?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:function(){return null;}});
+        ls.setData(clean);
+        ls.setMarkers(p.points.map(function(q,i){ var hi=bull?(i%2===1):(i%2===0);
+          return {time:snapT(q.t),position:hi?'aboveBar':'belowBar',color:col,shape:'circle',text:q.label}; }));
+        harmSeries.push(ls);
+        if(p.state==='FORMING'&&p.prz){ var ct=snapT(p.points[p.points.length-1].t),rt=RT[RT.length-1].time;
+          [p.prz.lo,p.prz.hi].forEach(function(lv){ if(lv==null)return;
+            var z=pc.addLineSeries({color:C.harm,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:function(){return null;}});
+            z.setData([{time:ct,value:lv},{time:rt,value:lv}]); harmSeries.push(z); }); }
+      });
+    }
+    function harmToggle(v){
+      if(!v){ harmClear(); return; }
+      if(harmData){ harmDraw(harmData); return; }
+      var sym=new URLSearchParams(location.search).get('sym')||'';
+      fetch('/dash/harmonic/overlay?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
+        if(!d||!d.patterns||!d.patterns.length){ reg.harm.on=false;
+          if(reg.harm.chip){ reg.harm.chip.style.cssText=chipCss(false,C.harm); reg.harm.chip.innerHTML=dot(C.harm)+'Harmonic'; } return; }
+        harmData=d.patterns; harmDraw(harmData);
+      }).catch(function(){});
     }
 
     // anchored-VWAP: arm a one-shot click to choose the anchor bar
