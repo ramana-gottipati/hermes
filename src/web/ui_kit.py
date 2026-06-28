@@ -183,6 +183,21 @@ table.uk-t{width:100%;border-collapse:collapse;font-size:13px}
 
 /* divergence shade helper for signature glyphs */
 .uk-spark{display:block}
+
+/* ── responsive: native chrome + layout on a phone ── */
+@media (max-width:640px){
+  .uk-top{gap:10px;padding:10px 13px}
+  .uk-nav{overflow-x:auto;flex:1 1 auto;scrollbar-width:none}
+  .uk-nav::-webkit-scrollbar{display:none}
+  .uk-nav a{padding:9px 11px}
+  .uk-cmdk{padding:9px 10px}
+  .uk-cmdk kbd{display:none}
+  .uk-sub{padding:8px 13px}
+  .uk-page{padding:16px var(--gutter)}
+  .uk-h1{font-size:var(--fs-2xl)}
+  .uk-row{gap:10px}
+  .uk-tw,.uk-chart{border-radius:var(--r-sm)}
+}
 </style>"""
 
 

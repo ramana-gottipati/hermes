@@ -34,6 +34,12 @@ making the legacy shell structurally + visually identical to the native one at r
     native pages share ONE shell. HIGHEST risk → last, only after native parity verified. ⬜
 
 ## Progress log (newest first)
+- **Item 5 (responsive / mobile) DONE + LIVE** (2026-06-29): phone-usable at 375px. Both navs scroll
+  horizontally (legacy `.v2bar .wsnav`, native `.uk-nav`), ⌘K hidden on mobile, touch targets ≥39px,
+  `--gutter` tightens to 13px. Killed horizontal PAGE overflow: grid/flex children get `min-width:0` so a
+  wide nowrap table scrolls INSIDE its card (`.ck-board` overflow-x:auto; generic `table:not(.scr):not(.uk-t)`
+  → display:block scroll) — the frozen-pane grids keep their own wrappers untouched. Verified via 375px
+  iframes: markets/screener/coverage all docScrollW==375 (no overflow). Sweep = PASS.
 - **Item 4 (density toggle) DONE + LIVE** (2026-06-29, `f3d1c81` foundation + this): `ui_kit.density_js()`
   restores saved density onto `<html>` early (no flash), self-injects a 3-bar toggle into the chrome
   (`.v2util` legacy / `.uk-top` native), persists to localStorage, sets `aria-pressed`. Density rescales

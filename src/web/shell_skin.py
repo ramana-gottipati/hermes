@@ -137,6 +137,20 @@ body.uk-skin table.scr tbody tr:hover td{background:#18222f !important}
 /* density — the frozen data grid's vertical row padding follows --grid-pad (6px comfortable
    == current, 3px compact). Only the big data grid is density-driven; small tables stay put. */
 body.uk-skin table.scr td,body.uk-skin table.scr th{padding-top:var(--grid-pad);padding-bottom:var(--grid-pad)}
+/* ── responsive: legacy page body on a phone ── */
+@media (max-width:640px){
+  body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
+  body.uk-skin .fbtn,body.uk-skin .fbar a,body.uk-skin .chip{padding:8px 12px}
+  body.uk-skin .scrwrap{max-height:calc(100vh - 196px)}
+  body.uk-skin .kpi .box{min-width:calc(50% - 5px)}
+  /* NO horizontal page overflow: grid/flex children must shrink below their content so a
+     wide nowrap table scrolls INSIDE its card instead of ballooning the whole page. The
+     frozen-pane grids (.scr/.uk-t) keep their own wrappers — never display:block them. */
+  body.uk-skin .mkt-grid>*,body.uk-skin .majgrid>*,body.uk-skin .theme-groups>*,
+  body.uk-skin .scards>*,body.uk-skin .uk-cols>*{min-width:0}
+  body.uk-skin .ck-board{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  body.uk-skin table:not(.scr):not(.uk-t){display:block;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+}
 </style>"""
 
 

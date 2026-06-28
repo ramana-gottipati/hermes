@@ -144,6 +144,18 @@ _V2NAV_CSS = """<style>
   border-radius:7px 7px 0 0;white-space:nowrap}
 .v2subnav a:hover{color:#eaf1f9;background:#111824}
 .v2subnav a.on{color:#eaf1f9;background:#111824;font-weight:600;border-bottom:2px solid #4d9dff}
+/* ── responsive: phone-usable chrome (the altitude bar scrolls, the utilities compact) ── */
+@media (max-width:640px){
+  .v2bar{gap:6px;flex-wrap:nowrap}
+  .v2bar .wsnav{overflow-x:auto;flex:1 1 auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .v2bar .wsnav::-webkit-scrollbar{display:none}
+  .v2bar .wsnav a{padding:10px 11px}            /* ≥40px touch target */
+  .v2util{gap:5px;flex:none}
+  .v2util a,.v2util .v2askpat{padding:9px 10px;font-size:12px}
+  .v2askpat kbd{display:none}                    /* no ⌘ key on a phone */
+  .v2subnav{padding-top:5px}
+  .v2subnav a{padding:8px 11px}
+}
 </style>"""
 
 
