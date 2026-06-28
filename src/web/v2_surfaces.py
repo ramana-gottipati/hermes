@@ -53,6 +53,10 @@ _ROUTER_SPECS = [
     # clone + deploy renders them instead of 404-ing under their sub-nav entries.
     ("growth", "src.web.growth_view", "/dash/growth"),
     ("testing", "src.web.testing_view", "/dash/testing"),
+    # RS band lens — its siblings rsband.py/rrg_view.py are committed but the view was
+    # left untracked; now committed + durably mounted here (was only the uncommitted
+    # main.py import) so /dash/rsband survives a main.py clobber and a clean checkout.
+    ("rsband", "src.web.rsband_view", "/dash/rsband"),
 ]
 
 # ── the canonical site IA — the single source of the top menu ────────────────
