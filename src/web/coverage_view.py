@@ -425,7 +425,11 @@ def render_coverage(conn=None) -> str:
         f'<div class="sec" style="margin-bottom:6px">Page as of <span class="num">{K.esc(str(as_of) or "—")}</span> '
         f'· built <span class="num">{K.esc(str(build) or "")}</span> · scope: NSE-listed Indian equities '
         f'(EQ/BE/BZ; SME excluded)</div>'
-        f'<div class="cov-note" style="max-width:880px;margin-bottom:16px">{COPY_PAGE}</div>'
+        f'<div class="cov-note" style="max-width:880px;margin-bottom:10px">{COPY_PAGE}</div>'
+        '<div style="margin:0 0 18px"><a href="/dash/coverage/memo" '
+        'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
+        'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
+        'text-decoration:none;font-size:13px">Export coverage &amp; provenance memo &rarr;</a></div>'
     )
 
     def _safe(fn, *a):
@@ -449,6 +453,127 @@ def render_coverage(conn=None) -> str:
         _h("Trust-design principles") + _safe(_section_principles)
     )
     return body
+
+
+# ── the export artifact: a print-ready, dated, sourced Coverage & Provenance memo ──
+# The compliance/provenance tier made tangible (the LEAD wedge post-§C-falsification):
+# a buyer's diligence/compliance desk prints this to PDF as a dated, sourced audit
+# record. Reuses the live ledger sections + adds the per-data-class provenance registry
+# (the audit fingerprint) and a sourced footer. @media print flips ui_kit to a light
+# document theme via its CSS variables.
+
+def _section_registry():
+    """The provenance registry — every data class, its source, cadence + timestamp
+    basis. The audit fingerprint: exactly what is behind every number, and which
+    dates are MODELED vs real."""
+    try:
+        rows = P.provenance_registry_digest()
+    except Exception as e:  # noqa: BLE001
+        return K.card(f'<div class="cov-note mut">registry unavailable: {K.esc(e)}</div>')
+    rows = sorted(rows, key=lambda r: (str(r.get("source") or ""), str(r.get("key") or "")))
+    out = ""
+    for r in rows:
+        basis = str(r.get("basis") or "")
+        bcls = "warn" if basis == "MODELED" else ("acc" if basis in ("AS_TRADED", "INGESTED") else "neutral")
+        out += (f'<tr><td class="sym">{K.esc(r.get("key"))}</td>'
+                f'<td style="text-align:left">{K.esc(r.get("label") or "")}</td>'
+                f'<td style="text-align:left">{K.esc(r.get("source") or "")}</td>'
+                f'<td style="text-align:left">{K.esc(r.get("cadence") or "")}</td>'
+                f'<td style="text-align:right">{K.pill(basis or "—", bcls)}</td></tr>')
+    head = ('<tr><th style="text-align:left">Key</th><th style="text-align:left">Dataset</th>'
+            '<th style="text-align:left">Source</th><th style="text-align:left">Cadence</th>'
+            '<th>Timestamp basis</th></tr>')
+    note = (f'<div class="cov-note" style="margin-bottom:8px">Every dataset behind Patearn, its origin, '
+            f'refresh cadence and timestamp basis. <b>MODELED</b> = an availability date we estimate '
+            f'(period-end + a uniform lag) until a real exchange filing date is captured; everything else '
+            f'carries an as-traded or ingested timestamp. {len(rows)} data classes.</div>')
+    return f'{note}<div class="uk-tw"><table class="uk-t"><thead>{head}</thead><tbody>{out}</tbody></table></div>'
+
+
+_MEMO_PRINT_CSS = """<style>
+.memo-actions{display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap}
+.memo-actions a,.memo-actions button{font:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line-2);
+  background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;text-decoration:none}
+.memo-actions a:hover,.memo-actions button:hover{border-color:var(--accent);color:var(--ink)}
+.memo-foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);font-size:11.5px;
+  color:var(--ink-3);line-height:1.55;max-width:880px}
+@media print{
+  .uk{--bg-0:#fff;--bg-1:#fff;--bg-2:#fff;--bg-3:#f4f6f9;--line:#d0d7de;--line-2:#b8c2cc;
+      --ink:#0b0f17;--ink-2:#39424e;--ink-3:#5d6b7a;--shadow:none;--glass:none;background:#fff!important}
+  .memo-actions{display:none!important}
+  .uk-card,.uk-tw{box-shadow:none!important;break-inside:avoid}
+  .uk-page{max-width:none!important;padding:0!important}
+  a{color:#0b0f17!important}
+  thead{display:table-header-group}
+}
+</style>"""
+
+
+def render_coverage_memo(conn=None) -> str:
+    """The print-ready memo body (document, not a dashboard page)."""
+    try:
+        snap = P.coverage_snapshot(conn)
+    except Exception:  # noqa: BLE001
+        snap = {}
+    as_of = snap.get("as_of")
+    build = snap.get("build_at")
+
+    def _safe(fn, *a):
+        try:
+            return fn(*a)
+        except Exception as e:  # noqa: BLE001
+            return K.card(f'<div class="cov-note mut">section unavailable: {K.esc(e)}</div>')
+
+    def _h(t):
+        return f'<div class="uk-eyebrow" style="margin:22px 0 10px;font-size:12px;color:var(--ink-2)">{K.esc(t)}</div>'
+
+    header = (
+        '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:2px">'
+        '<h1 class="uk-h1">Patearn &mdash; Coverage &amp; Provenance Memo</h1></div>'
+        f'<div class="sec" style="margin-bottom:14px">Data as of <span class="num">{K.esc(str(as_of) or "—")}</span> '
+        f'· generated <span class="num">{K.esc(str(build) or "—")}</span> · scope: NSE-listed Indian equities '
+        f'(EQ/BE/BZ; SME excluded)</div>'
+        '<div class="memo-actions">'
+        '<button onclick="window.print()">Print / save as PDF</button>'
+        '<a href="/dash/coverage">Back to the live ledger</a></div>'
+        f'<div class="cov-note" style="max-width:880px;margin-bottom:8px">{COPY_PAGE}</div>'
+    )
+    foot = (
+        '<div class="memo-foot">'
+        "Every figure above is a count or date reproducible from Patearn's own tables as of the stated date. "
+        'Sources: NSE bhav-copy (as-traded prices &amp; volumes); Screener.in and BSE corporate filings '
+        '(fundamentals, concall transcripts); NSE/BSE corporate announcements (events). Concall credibility is a '
+        '<b>descriptive</b> diligence lens &mdash; an independent point-in-time backtest found no validated long/short/'
+        'risk edge, so it is never presented as a ranked buy/sell signal. &ldquo;MODELED&rdquo; availability dates are '
+        'a uniform-lag estimate (period-end + a fixed lag) pending capture of the real exchange filing date. '
+        'This document is intended to support SEBI (Research Analysts) record-keeping practice; it does not by itself '
+        'satisfy any regulatory obligation. Not investment advice. &copy; Patearn.'
+        '</div>'
+    )
+    return (
+        _COV_CSS + _MEMO_PRINT_CSS + header +
+        _safe(_section_glance, snap) +
+        _h("Universe construction & survivorship") + _safe(_section_universe, snap) +
+        _h("Per-data-class coverage") + _safe(_section_matrix, snap) +
+        _h("Concall credibility — settlement & robustness") + _safe(_section_cci, snap) +
+        _h("Modeled-vs-filed availability") + _safe(_section_modeled, snap) +
+        _h("Data provenance registry") + _safe(_section_registry) +
+        _h("Methodology & limitations") + _safe(_section_methodology) +
+        foot
+    )
+
+
+def _memo_shell(body: str) -> str:
+    return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>Coverage &amp; Provenance Memo · patearn</title>'
+            f'{K.css()}</head><body style="margin:0"><div class="uk">'
+            f'<div class="uk-page" style="max-width:940px">{body}</div></div></body></html>')
+
+
+@router.get("/dash/coverage/memo", response_class=HTMLResponse)
+def coverage_memo() -> HTMLResponse:
+    return HTMLResponse(_memo_shell(render_coverage_memo()))
 
 
 @router.get("/dash/coverage", response_class=HTMLResponse)
