@@ -16,6 +16,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from src.pat import feedback
+from src.pat import boards
 
 router = APIRouter(prefix="/pat", tags=["pat"])
 
@@ -65,3 +66,31 @@ def submit_correction(c: CorrectionIn) -> dict:
         source=c.source or "correction",
     )
     return {"ok": fid is not None, "id": fid}
+
+
+# ── saved BOARDS (name any NL query / screen, reload it; power the workbench) ──
+class BoardIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=60)
+    query: str = Field("", max_length=500)
+    flow: str = Field("", max_length=40)
+    params: dict = Field(default_factory=dict)
+    kind: str = Field("pat", max_length=10)
+
+
+@router.post("/board/save")
+def board_save(b: BoardIn) -> dict:
+    """Pin a named board (NL query or screen). Upserts by (name, kind)."""
+    bid = boards.save(name=b.name, query=b.query, flow=b.flow, params=b.params, kind=b.kind)
+    return {"ok": bid is not None, "id": bid}
+
+
+@router.post("/board/delete")
+def board_delete(b: BoardIn) -> dict:
+    """Delete a board by name + kind."""
+    return {"ok": boards.delete(b.name, kind=b.kind)}
+
+
+@router.get("/boards")
+def board_list(kind: str = "") -> dict:
+    """List saved boards (optionally filtered by kind)."""
+    return {"boards": boards.list_boards(kind=kind or None)}

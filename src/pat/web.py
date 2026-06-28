@@ -231,6 +231,22 @@ _PAT_CSS = """
 .patWhy{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.7;}
 .patWhy li{margin:2px 0;}
 .patWhy b{color:#e6edf3;}
+.patFupWrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 4px;
+            padding-top:10px;border-top:1px solid #21262d;}
+.patFupLbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;}
+.patFup{background:#10243a;border-color:#1f4e79;color:#9ad1ff;}
+.patFup:hover{border-color:#58a6ff;}
+.patRefine{display:flex;gap:7px;margin:8px 0 2px;}
+.patRefine input[name=add]{flex:1;min-width:180px;background:#0d1117;border:1px solid #30363d;
+            color:#e6edf3;border-radius:8px;padding:7px 11px;font-size:13px;}
+.patRefine input[name=add]:focus{outline:none;border-color:#1f6feb;}
+.patRefine button{background:#1f6feb;border:none;color:#fff;border-radius:8px;cursor:pointer;
+            padding:7px 14px;font-size:13px;}
+.patSaveRow{margin:8px 0 2px;}
+.patBoardBtn{background:#161b22;border:1px solid #30363d;color:#e3b341;border-radius:8px;
+            cursor:pointer;padding:5px 11px;font-size:12.5px;}
+.patBoardBtn:hover{border-color:#e3b341;}
+.patBoardBtn:disabled{opacity:.7;cursor:default;color:#3fb950;border-color:#2a5c3a;}
 </style>
 """
 
@@ -1245,10 +1261,14 @@ def _confluence_plan_flow(conn, pillars: str = "", sector: str = "", capband: st
                      "sit at different grains (daily delivery/RS × quarterly credibility × "
                      "period CPR), shown by the as-of footer.")]
     out.append('<div class="patChips">'
-               + "".join(_plan_pill(PLAN_PILLARS[p].split(" — ")[0]) for p in plist) + '</div>')
-    if not plist or len(plist) < 2:
-        out.append('<div class="empty">A confluence needs at least two conditions. '
-                   'Try “credible companies being accumulated that are RS-leading”.</div>')
+               + "".join(_plan_pill(PLAN_PILLARS[p].split(" — ")[0]) for p in plist)
+               + (_plan_pill(cap_lbl) if cap_lbl else "")
+               + (_plan_pill(sector) if sector else "") + '</div>')
+    # ≥1 pillar is enough when scoped to a cap-band/sector (e.g. "RS leaders, small-caps");
+    # otherwise a confluence needs ≥2 conditions to be meaningful.
+    if not plist or (len(plist) < 2 and not capband and not sector):
+        out.append('<div class="empty">A confluence needs at least two conditions (or one '
+                   'plus a cap-band/sector). Try “credible companies being accumulated, RS-leading”.</div>')
         return "".join(out)
     if conn is None:
         out.append('<div class="empty">Connect to data to see matches.</div>')
@@ -1742,6 +1762,25 @@ _EXAMPLES = [
 ]
 
 
+def _boards_home() -> str:
+    """Saved boards as quick-load chips (server-rendered) — the multi-turn/workbench
+    bridge: a pinned NL query reloads its answer. Empty → nothing rendered."""
+    try:
+        from src.pat import boards as B
+        items = B.list_boards(kind="pat", limit=24)
+    except Exception:
+        items = []
+    if not items:
+        return ""
+    chips = []
+    for b in items:
+        href = ("/dash/pat?q=" + _u(b["query"])) if b.get("query") else \
+               ("/dash/pat?flow=" + _u(b.get("flow") or ""))
+        chips.append(_chip(href, "★ " + b["name"]))
+    return ('<div class="ghdr">Your saved boards</div><div class="patChips">'
+            + "".join(chips) + '<a class="patChip" href="/dash/strategist">open workbench →</a></div>')
+
+
 def _home() -> str:
     out = [
         '<form class="search" action="/dash/pat" method="get" autocomplete="off">'
@@ -1749,6 +1788,7 @@ def _home() -> str:
         '<button>Ask</button></form>',
         _q_bubble("Ask me anything in plain English. Not sure what to ask? Tap an "
                   "example — these are the kinds of questions I can answer:"),
+        _boards_home(),
     ]
     for grp, qs in _EXAMPLES:
         out.append(f'<div class="ghdr">{grp}</div><div class="patChips">')
@@ -1769,6 +1809,105 @@ def _home() -> str:
         out.append(_chip(href, lbl, arrow=True))
     out.append('</div>')
     return "".join(out)
+
+
+# ── multi-turn conversation: context-aware follow-up chips + a refine box ──────
+# A refinement is expressed as a self-contained COMBINED query the planner already
+# intersects (no server thread state, no dashboard.py token plumbing): each chip /
+# the refine box navigates to /dash/pat?q=<context + added-condition>. The chain of
+# combined queries IS the conversation.
+# flow -> a base NL phrase that re-states the current read (for the flow= path,
+# where there's no original q to carry forward).
+_FLOW_BASE_Q = {
+    "rs": "RS leaders", "rslag": "weak laggard stocks",
+    "accumulation": "stocks being accumulated", "fundamentals": "quality value stocks",
+    "credibility": "credible companies", "deterioration": "managements with deteriorating credibility",
+    "confluence": "credible companies being accumulated", "movers": "biggest movers today",
+    "index": "best performing sectoral indices", "oscillators": "oversold stocks",
+    "pt14": "pt14 quality tier stocks", "confluence_plan": "",
+}
+# flow -> the refinement chips to offer (label, the phrase to APPEND to the context).
+_FOLLOWUPS = {
+    "rs": [("↳ being accumulated", "that are being accumulated"),
+           ("↳ credible ones", "with credible management"),
+           ("↳ small-caps", "small caps")],
+    "accumulation": [("↳ RS-leading", "that are RS-leading"),
+                     ("↳ credible ones", "with credible management"),
+                     ("↳ small-caps", "small caps")],
+    "credibility": [("↳ being accumulated", "being accumulated"),
+                    ("↳ RS-leading", "that are RS-leading"),
+                    ("↳ small-caps", "small caps")],
+    "fundamentals": [("↳ being accumulated", "being accumulated"),
+                     ("↳ RS-leading", "that are RS-leading")],
+    "confluence": [("↳ small-caps", "small caps"),
+                   ("↳ mid-caps", "mid caps")],
+    "confluence_plan": [("↳ small-caps", "small caps"),
+                        ("↳ large-caps", "large caps")],
+    "movers": [("↳ this week", "this week")],
+}
+
+
+def _followups(flow: str, q: str = "") -> str:
+    """Context-aware refinement chips (the multi-turn UX): each is a one-click combined
+    query that ADDS a condition to the current read — the planner intersects it."""
+    specs = _FOLLOWUPS.get(flow)
+    if not specs:
+        return ""
+    base = (q or "").strip() or _FLOW_BASE_Q.get(flow, "")
+    if not base:
+        return ""
+    chips = []
+    for label, add in specs:
+        combined = f"{base} {add}".strip()
+        chips.append(f'<a class="patChip patFup" href="/dash/pat?q={_u(combined)}">{_esc(label)}</a>')
+    return ('<div class="patFupWrap"><span class="patFupLbl">Refine ↳</span>'
+            '<div class="patChips">' + "".join(chips) + '</div></div>')
+
+
+def _refine_box(ctx: str) -> str:
+    """A free-text follow-up box: combines the typed refinement with the current
+    context client-side, then asks Pat. ctx travels in the DOM (no server state)."""
+    cattr = _esc(ctx or "")
+    return (
+        '<form class="patRefine" onsubmit="return patRefineGo(this)">'
+        f'<input type="hidden" name="ctx" value="{cattr}"/>'
+        '<input name="add" autocomplete="off" placeholder="…refine — e.g. only small-caps, in IT, that are credible"/>'
+        '<button>Ask ↳</button></form>'
+        '<script>if(!window.patRefineGo){window.patRefineGo=function(f){'
+        'var ctx=(f.ctx.value||"").trim(),add=(f.add.value||"").trim();if(!add)return false;'
+        'var q=ctx?(ctx+" "+add):add;location.href="/dash/pat?q="+encodeURIComponent(q);return false;};}</script>')
+
+
+def _save_board_btn(q: str, flow: str, params: dict | None = None) -> str:
+    """A '★ Save as board' button — prompts a name, POSTs to /pat/board/save (fetch).
+    Stores the NL query + flow + params so the board reloads the same answer."""
+    import json as _json
+    pj = ""
+    try:
+        pj = _esc(_json.dumps(params or {}, separators=(",", ":"), ensure_ascii=False))
+    except Exception:
+        pj = "{}"
+    return (
+        f'<button type="button" class="patBoardBtn" data-q="{_esc(q)}" data-flow="{_esc(flow)}" '
+        f'data-params="{pj}" onclick="patSaveBoard(this)">★ Save as board</button>'
+        '<script>if(!window.patSaveBoard){window.patSaveBoard=function(b){'
+        'var n=prompt("Name this board:");if(!n)return;'
+        'var p={};try{p=JSON.parse(b.getAttribute("data-params")||"{}");}catch(e){}'
+        'fetch("/pat/board/save",{method:"POST",headers:{"Content-Type":"application/json"},'
+        'body:JSON.stringify({name:n,query:b.getAttribute("data-q")||"",'
+        'flow:b.getAttribute("data-flow")||"",params:p,kind:"pat"})})'
+        '.then(function(r){return r.json();}).then(function(j){'
+        'b.textContent=j.ok?("★ Saved: "+n):"save failed";b.disabled=!!j.ok;})'
+        '.catch(function(){b.textContent="save failed";});};}</script>')
+
+
+def _convo_tail(flow: str, q: str = "", ctx: str = "", params: dict | None = None) -> str:
+    """The conversation tail on a data answer: refine chips + refine box + save-board."""
+    fu = _followups(flow, q)
+    rb = _refine_box(ctx or q or _FLOW_BASE_Q.get(flow, ""))
+    sb = ('<div class="patSaveRow">'
+          + _save_board_btn(q or _FLOW_BASE_Q.get(flow, ""), flow, params) + '</div>')
+    return fu + rb + sb
 
 
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
@@ -1928,6 +2067,7 @@ def _free_text(conn, q: str):
             body = _why_flow(conn, p.get("sym", ""), p.get("metric", "credibility"))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
+            body = body + _convo_tail(f, q=q, ctx=q, params=p)  # multi-turn refine + save-board
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
     # fallback — deterministic glossary keyword search (today's behavior). A chooser,
@@ -2053,7 +2193,11 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     # §9.8 freshness + coverage footer on a direct flow= answer (the free-text path
     # adds its own inside _free_text; confluence/explain/clarify/home add nothing).
     if fb_ctx and fb_ctx.get("source") == "flow":
-        body = body + _freshness_bar(conn, fb_ctx.get("flow", ""))
+        _ff = fb_ctx.get("flow", "")
+        body = body + _freshness_bar(conn, _ff)
+        if _ff in _FOLLOWUPS:                       # multi-turn refine on flow= answers too
+            body = body + _convo_tail(_ff, ctx=_FLOW_BASE_Q.get(_ff, ""),
+                                      params=fb_ctx.get("params"))
 
     out = _PAT_CSS + _avatar_picker() + body
     if fb_ctx is not None:

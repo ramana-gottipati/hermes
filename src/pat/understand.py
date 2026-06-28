@@ -357,7 +357,10 @@ def compile_intent(intent: dict) -> dict | None:
     pillars, families = _plan_pillars(rank, filters, character)
     sector = scope.get("sector", "") if isinstance(scope, dict) else ""
     capband = scope.get("capband", "") if isinstance(scope, dict) else ""
-    if len(families) >= 2:
+    # Planner when ≥2 families span flows no single flow serves, OR a single pillar is
+    # scoped to a cap-band (the single flows have a `sector` param but no cap-band, so
+    # "RS leaders small-caps" must intersect rs_rank ∩ small-cap membership via the planner).
+    if len(families) >= 2 or (families and capband):
         if set(pillars) == {"credibility", "accumulation"} and not sector and not capband:
             return {"flow": "confluence", "params": {}}
         return {"flow": "confluence_plan",
@@ -847,7 +850,7 @@ def parse_fallback(query: str) -> dict | None:
         _char = ("distribution" if D._has_any(qn, ["distribut", "being dumped", "topping out"])
                  else ("accumulation" if D._has_any(qn, _PIL_ACCUM) else None))
         _pillars, _fam = _detect_pillars(qn, _char)
-        if len(_fam) >= 2:
+        if len(_fam) >= 2 or (_fam and _cb):
             # primary metric = the strongest single signal; the rest become filters.
             order = "credibility" if "credibility" in _pillars else \
                     ("rs" if "rs" in _pillars else
