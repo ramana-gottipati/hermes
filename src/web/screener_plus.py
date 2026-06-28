@@ -358,6 +358,9 @@ def dash_screen2(scope: str = Query("Nifty 500"),
         'confluence = pillars aligned now (DVPT · MEP · RS · CPR · CCI). '
         'Toggle groups, sort any column, save a screen.</div>')
 
+    # Pat bridge — turn the current scope into a conversational confluence query,
+    # and pin it as a board that lands on the workbench (the screener → Pat → board loop).
+    pat_q = _pat_bridge_q(scope, is_all)
     controls = (
         '<div class="s2-bar">' + chips + sec_sel + '</div>'
         '<div class="s2-bar"><span class="s2-lbl">Groups</span>' + grp_chips + '</div>'
@@ -368,7 +371,11 @@ def dash_screen2(scope: str = Query("Nifty 500"),
         '<button type="button" id="s2save" class="gchip">＋ Save current</button>'
         '<button type="button" id="s2del" class="gchip">Delete</button>'
         '<button type="button" id="s2csv" class="gchip">⬇ CSV</button>'
-        '<span id="s2count" class="s2-lbl"></span></div>')
+        '<span id="s2count" class="s2-lbl"></span></div>'
+        '<div class="s2-bar"><span class="s2-lbl">Pat</span>'
+        f'<a class="gchip" href="/dash/pat?q={_q(pat_q)}">Ask Pat: confluence here ↗</a>'
+        f'<button type="button" class="gchip" data-q="{K.esc(pat_q)}" onclick="s2SaveBoard(this)">★ Save as Pat board</button>'
+        '<span class="s2-lbl">the screener\'s confluence as a conversational query</span></div>')
 
     table = (f'<div class="uk-tw" id="s2wrap" style="max-height:80vh">'
              f'<table class="uk-t s2" id="s2tbl">{thead}<tbody>{tbody}</tbody></table></div>')
@@ -394,6 +401,24 @@ def _cpr_pat(p):
 def _q(s):
     from urllib.parse import quote
     return quote(str(s))
+
+
+def _pat_bridge_q(scope: str, is_all: bool) -> str:
+    """Turn the current screener scope into a conversational confluence query for Pat
+    (the screener leads with a 0–5 confluence column; this asks Pat the same in English).
+    A sector scope qualifies the query; a cap-index scope maps to a cap-band."""
+    base = "credible companies being accumulated that are RS-leading"
+    s = (scope or "").strip()
+    sl = s.lower()
+    if is_all or sl in ("nifty 500", "nifty 50", "nifty next 50", "all", "watch", "watchlist"):
+        return base
+    if "smallcap" in sl:
+        return base + " small caps"
+    if "midcap" in sl:
+        return base + " mid caps"
+    if s in _SECTORS:                       # a sector index → "in <sector>"
+        return base + " in " + s.replace("Nifty ", "").replace(" Index", "")
+    return base
 
 
 _CSS = """<style>
@@ -495,6 +520,14 @@ if(csv)csv.addEventListener('click',function(){
     lines.push(c.join(','));});
   var blob=new Blob([lines.join('\\n')],{type:'text/csv'});var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download='screen2_'+scope.replace(/[^a-z0-9]+/gi,'_')+'.csv';a.click();});
+
+// Pat bridge — save the scope's confluence query as a Pat board (lands on the workbench)
+window.s2SaveBoard=function(b){var q=b.getAttribute('data-q')||'';var n=prompt('Name this board:',q);
+  if(!n)return;
+  fetch('/pat/board/save',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({name:n,query:q,flow:'',params:{},kind:'pat'})})
+  .then(function(r){return r.json();}).then(function(j){b.textContent=j.ok?('★ Saved'):'failed';b.disabled=!!j.ok;})
+  .catch(function(){b.textContent='failed';});};
 })();</script>"""
 
 
