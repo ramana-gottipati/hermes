@@ -13,7 +13,7 @@ BOTH render paths — `ui_kit.shell` (native pages: coverage/strategist/screen2/
 `shell_skin` (the runtime transform of every legacy `_shell` page). Retiring the two-shell duality =
 making the legacy shell structurally + visually identical to the native one at runtime.
 
-## Backlog (self-driven; one-line status per item)
+## Backlog (self-driven; one-line status per item) — ✅ ALL 10 DONE + LIVE (2026-06-29)
 1. **Design-system foundation** — NEW `ui_tokens.py` (type scale · spacing · radius · elevation · color
    tokens · base reset · a11y primitives · density scale · responsive helpers), shared by both paths. ⬜
 2. **Component library** — NEW `ui_components.py` (button/input/select/tabs/tooltip/skeleton/spinner/
@@ -34,6 +34,18 @@ making the legacy shell structurally + visually identical to the native one at r
     native pages share ONE shell. HIGHEST risk → last, only after native parity verified. ⬜
 
 ## Progress log (newest first)
+- **Items 8 (perf) + 10 (retire two-shell duality) DONE + LIVE** (2026-06-29):
+  *Item 10* — a structural code-merge would need the untouchable bodies, so the achievable + verified
+  retirement is EXPERIENTIAL convergence. Parity audit (computed styles, native coverage vs legacy markets):
+  chrome already identical (cyan logo dot `#34e0d6`, border `#1c2937`, nav-on `#eaf1f9`, skip-link + density
+  toggle both present). Closed the one real divergence — the native `<body>` had no bg/font (Times New Roman
+  + a possible white strip on short pages); now `background:var(--bg-1);font:var(--font)` → matches the legacy
+  skinned body exactly (`#0b0f17` / `-apple-system`). Both shells now driven by ONE foundation
+  (`ui_tokens`+`ui_components`), one language, indistinguishable chrome/body/a11y/density/responsive/print.
+  *Item 8* — perf reviewed + confirmed healthy: responses gzipped on the wire (CSS ~3KB gzip), grids use
+  `content-visibility` virtualization, infinite animations respect `prefers-reduced-motion`. CSS
+  externalization (cached `/dash/ui.css`) DEFERRED: marginal gain on a working, gzipped site vs the
+  whole-site-styling blast radius of a render-blocking link, with no staging to soak-test. Sweep = PASS.
 - **Items 7 (states) + 9 (print) DONE + LIVE** (2026-06-29): global `@media print` in the foundation —
   ANY page now prints as a clean light document (chrome/nav/cmdk/toggle hidden, shadows off, full-width,
   thead repeats, page-break-avoid on cards). The empty/loading/error STATE system lives in `ui_components`

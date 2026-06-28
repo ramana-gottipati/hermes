@@ -332,7 +332,8 @@ def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: s
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{esc(title)}</title>{_CSS}{_foundation()}{density_js()}</head>'
-            f'<body style="margin:0"><a class="uk-skip" href="#uk-main">Skip to content</a>'
+            f'<body style="margin:0;background:var(--bg-1);color:var(--ink);font-family:var(--font)">'
+            f'<a class="uk-skip" href="#uk-main">Skip to content</a>'
             f'<div class="uk">{topbar(active, nav_html)}{sub}'
             f'<main id="uk-main" class="uk-page">{body}</main></div>{cmdk_overlay()}</body></html>')
 
