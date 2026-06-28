@@ -207,12 +207,32 @@ def _cci(conn):
 
 
 def _wolfe(conn):
-    # No persisted table — the scan is computed on-demand (wolfe.winner_scan), too heavy
-    # for an at-a-glance read. Descriptive row pointing at the live scanner.
-    return {"key": "wolfe", "label": "Wolfe (winner-profile)",
-            "route": "/dash/wolfe/scan", "count": None, "as_of": None,
-            "top": [{"symbol": "—", "note": "live scan — descriptive, read by side (BULL ✓ / BEAR ⚠)"}],
-            "health": "ok"}
+    key, label, route = "wolfe", "Wolfe (winner-profile)", "/dash/wolfe/scan"
+    # Prefer the nightly-persisted snapshot (wolfe_signals, owned by wolfe.py). If it
+    # hasn't been materialised yet, fall back to a descriptive row (the live scan is too
+    # heavy for an at-a-glance read).
+    if not _table_exists(conn, "wolfe_signals"):
+        return {"key": key, "label": label, "route": route, "count": None, "as_of": None,
+                "top": [{"symbol": "—", "note": "live scan — descriptive, read by side (BULL ✓ / BEAR ⚠)"}],
+                "health": "ok"}
+    rows = _rows(conn,
+        "SELECT sym, dir, in_zone FROM wolfe_signals WHERE universe='nifty500' "
+        "ORDER BY in_zone DESC, age ASC")
+    r = conn.execute(
+        "SELECT MAX(scan_date) FROM wolfe_signals WHERE universe='nifty500'").fetchone()
+    as_of = (r[0] if r else None) or None
+    count = len(rows)
+    top = [{"symbol": x["sym"],
+            "note": (f'{x["dir"]} ' + ("✓ edge" if x["dir"] == "BULL" else "⚠ tail")
+                     + (" · IN" if x["in_zone"] else ""))}
+           for x in rows[:5]]
+    if not count:
+        # snapshot ran but found nothing fresh — still a healthy, current read.
+        return {"key": key, "label": label, "route": route, "count": 0, "as_of": as_of,
+                "top": [{"symbol": "—", "note": "no fresh winner-profile setups"}],
+                "health": "ok" if as_of else "empty"}
+    return {"key": key, "label": label, "route": route, "count": count, "as_of": as_of,
+            "top": top, "health": _health(count, as_of, _STALE_DAYS["mep"])}
 
 
 # registry order = the order the Strategist dashboard shows the cards.

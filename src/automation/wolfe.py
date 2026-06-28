@@ -827,3 +827,134 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
     out.sort(key=lambda r: (not r["in_zone"], r["age"]))
     return out
+
+
+# --------------------------------------------------------------------------- #
+# PERSISTED scan — nightly-materialise winner_scan() so /dash/wolfe/scan is     #
+# instant (the live scan is ~30s over the universe) and strategy_registry can   #
+# give Wolfe a real count/as_of/top. wolfe.py OWNS this table (CREATE IF NOT    #
+# EXISTS here — db.py is NOT touched, per the lens's isolation design).         #
+# Descriptive feed — persisting the scan changes nothing about the no-buy/sell  #
+# stance; it just caches what the live scanner already shows.                   #
+# --------------------------------------------------------------------------- #
+_SCAN_COLS = ("sym", "dir", "cmp", "zlo", "zhi", "zprice", "sl", "t1", "epa",
+              "up", "age", "Q", "in_zone", "p5date", "p4date")
+
+
+def _ensure_scan_table(conn):
+    # Autoincrement id (NOT a natural composite key) so the persisted snapshot is a
+    # faithful 1:1 of winner_scan's output — clean-snapshot semantics come from the
+    # DELETE-by-universe in persist_scan, so a composite PK would only silently collapse
+    # distinct same-day setups and make the cached count drift below the live count.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS wolfe_signals (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            universe     TEXT NOT NULL,
+            sym          TEXT NOT NULL,
+            dir          TEXT NOT NULL,
+            cmp          REAL,
+            zlo          REAL,
+            zhi          REAL,
+            zprice       REAL,
+            sl           REAL,
+            t1           REAL,
+            epa          REAL,
+            up           REAL,
+            age          INTEGER,
+            q            INTEGER,
+            in_zone      INTEGER,
+            p5date       TEXT,
+            p4date       TEXT,
+            fresh        INTEGER,
+            scan_date    TEXT,
+            computed_at  TEXT
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_wolfe_universe "
+                 "ON wolfe_signals(universe, in_zone DESC, age ASC)")
+
+
+def _scan_as_of(conn):
+    """The data date the scan reflects (latest signals snapshot; bhav fallback)."""
+    for sql in ("SELECT MAX(trade_date) FROM stock_signals",
+                "SELECT MAX(date) FROM bhavcopy_rows"):
+        try:
+            r = conn.execute(sql).fetchone()
+            if r and r[0]:
+                return str(r[0])[:10]
+        except Exception:
+            continue
+    return None
+
+
+def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
+    """Materialise winner_scan(universe) into wolfe_signals as a clean snapshot
+    (replace the prior rows for this universe). Returns (n_rows, scan_date).
+    `computed_at` is passed in (callers stamp the wall-clock; this module avoids
+    Date.now-style nondeterminism)."""
+    _ensure_scan_table(conn)
+    rows = winner_scan(conn, universe=universe, fresh=fresh)
+    scan_date = _scan_as_of(conn)
+    conn.execute("DELETE FROM wolfe_signals WHERE universe=?", (universe,))
+    conn.executemany(
+        "INSERT INTO wolfe_signals "
+        "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
+        " p5date,p4date,fresh,scan_date,computed_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
+          r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
+          1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
+          scan_date, computed_at) for r in rows])
+    try:
+        conn.commit()
+    except Exception:
+        pass
+    return len(rows), scan_date
+
+
+def latest_scan(conn, universe="nifty500"):
+    """Read the persisted scan snapshot for a universe (instant). Returns
+    {rows:[…same shape as winner_scan…], scan_date, computed_at, fresh} or None
+    when the table is absent/empty (caller falls back to a live winner_scan)."""
+    try:
+        cur = conn.execute(
+            "SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
+            "p5date,p4date,fresh,scan_date,computed_at "
+            "FROM wolfe_signals WHERE universe=? "
+            "ORDER BY in_zone DESC, age ASC", (universe,))
+        recs = cur.fetchall()
+    except Exception:
+        return None
+    if not recs:
+        return None
+    rows = [{"sym": r[0], "dir": r[1], "cmp": r[2], "zlo": r[3], "zhi": r[4],
+             "zprice": r[5], "sl": r[6], "t1": r[7], "epa": r[8], "up": r[9],
+             "age": r[10], "Q": r[11], "in_zone": bool(r[12]),
+             "p5date": r[13], "p4date": r[14]} for r in recs]
+    return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
+            "fresh": recs[0][15]}
+
+
+def _cli():
+    """Nightly entry: `python -m src.automation.wolfe --persist-scan`."""
+    import argparse
+    import datetime as _dt
+    try:
+        from src.core.db import get_conn
+    except Exception:
+        from core.db import get_conn  # type: ignore
+    ap = argparse.ArgumentParser(description="Wolfe scanner — persist the winner-profile scan")
+    ap.add_argument("--persist-scan", action="store_true", help="materialise winner_scan into wolfe_signals")
+    ap.add_argument("--universe", default="nifty500", help="nifty500 | inclusive | sym,sym,…")
+    ap.add_argument("--fresh", type=int, default=15, help="max age (bars) of a setup")
+    args = ap.parse_args()
+    if args.persist_scan:
+        stamp = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with get_conn() as conn:
+            n, scan_date = persist_scan(conn, universe=args.universe, fresh=args.fresh, computed_at=stamp)
+        print(f"persisted {n} winner-profile setups for {args.universe} (as-of {scan_date}, computed {stamp})")
+    else:
+        ap.print_help()
+
+
+if __name__ == "__main__":
+    _cli()

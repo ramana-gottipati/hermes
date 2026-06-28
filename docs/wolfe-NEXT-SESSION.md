@@ -33,7 +33,19 @@ mode on the `/dash/stock` Wolfe overlay** (`wolfe_overlay.py`): Prediction · Co
 - **Stays DESCRIPTIVE-only** (geometry + zones, no buy/sell). Revert = VPS `*.bak-wolfe` backups.
 - **ALSO this session:** `src/automation/strategy_registry.py` built — `summary()` (one read-only
   row per strategy for Lane B's `/dash/strategist`; real-VPS: MEP 745 · DVPT 375 · RS 134 · CPR 636
-  · CCI 37 · Wolfe descriptive, all health=ok).
+  · CCI 37 · Wolfe, all health=ok).
+- **NIGHTLY-PERSIST the Wolfe scan — DONE + LIVE (2026-06-28).** The live `/dash/wolfe/scan` computed
+  `winner_scan` over the universe on every request (~30s). Now `wolfe.py` OWNS a `wolfe_signals` table
+  (CREATE IF NOT EXISTS in `wolfe.py` — **db.py untouched**, per the lens's isolation design):
+  `persist_scan()` materialises a clean per-universe snapshot (DELETE-by-universe + autoincrement id, so
+  the cached count is a faithful 1:1 of `winner_scan`), `latest_scan()` reads it, and a `--persist-scan`
+  CLI is driven by a new **`hermes-wolfe-scan.{service,timer}`** (Mon-Fri 16:00 UTC = 9:30 PM IST, after
+  the bhav→signals→pt14 chain; pure compute, NO LLM). `/dash/wolfe/scan` now reads the snapshot first
+  (**0.004s** vs 30s) with a freshness header (`as-of <date> · nightly snapshot · ↻ refresh`) and a live
+  fallback (`?refresh=1` / `?asof=` PIT replays always compute live). `strategy_registry._wolfe()` now
+  returns a REAL row from the table (count 54 · as-of 2026-06-25 · top names · health ok) instead of the
+  descriptive placeholder. Verified: systemd oneshot Result=success (persisted 54); page 0.004s cached /
+  30s on refresh; health 200. Still DESCRIPTIVE-only (caching changes nothing about the no-buy/sell stance).
 
 ---
 
