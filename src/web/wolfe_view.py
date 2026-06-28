@@ -294,6 +294,9 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
     trs = []
     for c in cands:
         col = _BULL if c["dir"] == "BULL" else _BEAR
+        tag = ('<span style="color:#3fb950;font-size:11px" title="OOS-validated regime-robust long selection edge">✓ edge</span>'
+               if c["dir"] == "BULL" else
+               '<span style="color:#d29922;font-size:11px" title="regime-dependent / tail-only — reliable mainly when the broad tape is already weak; not a standalone edge">⚠ tail</span>')
         t1s = _fmt(c["t1"]) if c["t1"] else "—"
         status = ('<span style="color:#3fb950;font-weight:700">● IN</span>' if c["in_zone"]
                   else '<span style="color:#6e7681">watch</span>')
@@ -302,7 +305,7 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             f'style="cursor:pointer;border-top:1px solid #21262d" '
             f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
             f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(c["sym"])}</b></td>'
-            f'<td style="color:{col};font-weight:600">{c["dir"]}</td>'
+            f'<td style="color:{col};font-weight:600">{c["dir"]}<br>{tag}</td>'
             f'<td>{status}</td><td style="color:#8b949e">{c["age"]}d</td>'
             f'<td>{_fmt(c["cmp"])}</td><td>{_fmt(c["zlo"])}–{_fmt(c["zhi"])}</td>'
             f'<td style="color:#f85149">{_fmt(c["sl"])}</td>'
@@ -314,11 +317,16 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                '<a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
     head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up')
     body = (
-        '<h2>Wolfe scanner <span style="color:#8b949e;font-size:15px;font-weight:400">— winner-profile edge</span></h2>'
-        '<div class="sub" style="margin-bottom:6px">The OOS-validated selection — <b>reachable EPA + strong point-1 + '
-        'not-narrowest zone</b> (the profile that actually rides to the EPA: median +2.4% net, bears +1.1%, consistent '
-        'across 3 eras). <b>Click a row</b> to see its wave on the chart. '
-        '<span style="color:#3fb950">● IN</span> = price in the entry zone now.</div>'
+        '<h2>Wolfe scanner <span style="color:#8b949e;font-size:15px;font-weight:400">— winner-profile, read by side</span></h2>'
+        '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
+        'zone</b> — that survived <b>true out-of-sample</b> (fit 2004-14 / tested untouched 2015-26, survivorship-aware) '
+        'plus a beta/regime control. <b>Read by side:</b> '
+        '<span style="color:#3fb950;font-weight:600">BULL ✓ edge</span> = a regime-robust long selection edge (holds '
+        'even when the market falls); '
+        '<span style="color:#d29922;font-weight:600">BEAR ⚠ tail</span> = regime-dependent / tail-only — reliable '
+        'mainly when the broad tape is already weak, not on its own. The edge is in the <b>selection</b>, not the '
+        'stop/target. <b>Click a row</b> to see its wave on the chart. '
+        '<span style="color:#3fb950">● IN</span> = price in the entry zone now. <i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(universe)} · as-of {_esc(asof or "today")} · '
         f'fresh ≤ {fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
         ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
