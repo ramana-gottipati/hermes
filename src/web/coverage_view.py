@@ -404,6 +404,24 @@ def _section_principles():
     return K.card(items, eyebrow="Trust-design principles — the diligence checklist this page pre-empts")
 
 
+# ── progressive-disclosure tabs (the best-in-class data-coverage shape: a lead
+# trust band + tabbed drill-down, never one long wall — Daloopa/CRSP pattern) ──
+_COV_TAB_CSS = """<style>
+.cov-tabs{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:20px 0 16px}
+.cov-tab{font:inherit;font-size:13px;cursor:pointer;background:none;border:0;color:var(--ink-3);
+  padding:9px 15px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.cov-tab:hover{color:var(--ink-2)}
+.cov-tab.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.cov-pane{display:none}.cov-pane.on{display:block}
+</style>"""
+_COV_TAB_JS = ("<script>(function(){var t=document.querySelectorAll('.cov-tab'),"
+               "p=document.querySelectorAll('.cov-pane');"
+               "t.forEach(function(b){b.addEventListener('click',function(){var id=b.dataset.pane;"
+               "t.forEach(function(x){x.classList.toggle('on',x.dataset.pane===id);});"
+               "p.forEach(function(x){x.classList.toggle('on',x.id==='covpane-'+id);});});});"
+               "})();</script>")
+
+
 # ── assembly ──────────────────────────────────────────────────────────────────
 def render_coverage(conn=None) -> str:
     """Build the full ledger body. Defensive per-section: one failing section degrades
@@ -438,20 +456,26 @@ def render_coverage(conn=None) -> str:
         except Exception as e:  # noqa: BLE001
             return K.card(f'<div class="cov-note mut">section unavailable: {K.esc(e)}</div>')
 
-    def _h(t):
-        return f'<div class="uk-eyebrow" style="margin:22px 0 10px;font-size:12px;color:var(--ink-2)">{K.esc(t)}</div>'
-
-    body = (
-        _COV_CSS + header +
-        _safe(_section_glance, snap) +
-        _h("Universe construction & survivorship") + _safe(_section_universe, snap) +
-        _h("Per-data-class coverage") + _safe(_section_matrix, snap) +
-        _h("Concall credibility — settlement & robustness") + _safe(_section_cci, snap) +
-        _h("Modeled-vs-filed availability") + _safe(_section_modeled, snap) +
-        _h("Methodology & limitations") + _safe(_section_methodology) +
-        _h("Graceful degradation") + _safe(_section_degradation) +
-        _h("Trust-design principles") + _safe(_section_principles)
-    )
+    # Lead trust band (always visible) = the anchor facts; the 9 former sections fold
+    # into 5 progressive-disclosure tabs so the page reads summary-first, not a wall.
+    _tabs = [
+        ("universe", "Universe & survivorship",
+         [(_section_universe, snap), (_section_matrix, snap), (_section_cci, snap)]),
+        ("freshness", "Freshness", [(_section_modeled, snap)]),
+        ("provenance", "Provenance & lineage", [(_section_registry,)]),
+        ("methodology", "Methodology", [(_section_methodology,), (_section_degradation,)]),
+        ("limits", "Limits", [(_section_principles,)]),
+    ]
+    tabbar = '<div class="cov-tabs">' + "".join(
+        f'<button class="cov-tab{" on" if i == 0 else ""}" data-pane="{tid}" type="button">{K.esc(lbl)}</button>'
+        for i, (tid, lbl, _f) in enumerate(_tabs)) + '</div>'
+    panes = "".join(
+        f'<div class="cov-pane{" on" if i == 0 else ""}" id="covpane-{tid}">'
+        + "".join(_safe(*spec) for spec in fns) + '</div>'
+        for i, (tid, _lbl, fns) in enumerate(_tabs))
+    body = (_COV_CSS + _COV_TAB_CSS + header
+            + _safe(_section_glance, snap)      # the lead trust band
+            + tabbar + panes + _COV_TAB_JS)
     return body
 
 
