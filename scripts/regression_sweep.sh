@@ -8,8 +8,11 @@
 set -u
 
 BASE="http://localhost:8000"
-run() { if [ "${HOST:-vps}" = "local" ]; then curl -s -o /dev/null -w '%{http_code}' "$BASE$1"; \
-        else ssh -o BatchMode=yes hermes "curl -s -o /dev/null -w '%{http_code}' '$BASE$1'"; fi; }
+_hit() { if [ "${HOST:-vps}" = "local" ]; then curl -s -o /dev/null -m 12 -w '%{http_code}' "$BASE$1"; \
+        else ssh -o BatchMode=yes hermes "curl -s -o /dev/null -m 12 -w '%{http_code}' '$BASE$1'"; fi; }
+# Retry once on a non-200 to ride out a deploy-restart window (000/502) — a transient
+# restart race is NOT a regression. Only a persistent non-200 counts as a real break.
+run() { c=$(_hit "$1"); if [ "$c" != "200" ]; then sleep 3; c=$(_hit "$1"); fi; echo "$c"; }
 
 # Every nav route (4 altitudes + every lens + every strategy + Trust/Pat). Add new routes here.
 ROUTES="/dash/markets /dash/screener /dash/screen2 /dash/strategies /dash/strategist /dash/dashboard \
