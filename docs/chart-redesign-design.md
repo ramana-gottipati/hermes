@@ -456,6 +456,23 @@ a true split RS pane + RS-of-RS (v5 native panes); log-scale toggle; then the si
 remaining `preserveAspectRatio="none"`). The eventual full `render_stock_chart()` engine swap stays the
 clean end-state for when `dashboard.py` is finally free to own the chart block outright.
 
+**HARMONIC LANE (D72) SCAFFOLDED + BENCHMARKED + LIVE (Lane G, 2026-06-28) — the §13 audit, built.**
+The "auto-detect patterns when I select" / harmonics-first ask (chart §0.1.12), now a real strategy lane
+(durable design + the recorded benchmark = NEW `docs/harmonic-pattern-design.md`). All NEW `harmonic_*`
+modules (Lane-G-owned), reusing the Wolfe engine read-only:
+- `src/automation/harmonic_patterns.py` — XABCD detector: the five well-agreed templates (Gartley/Bat/
+  Butterfly/Crab/Deep-Crab; Cypher/Shark/Three-Drives deferred — specs vary by source), per-type ratio
+  validator, forming-**PRZ** projection (catch-it-forming), fit score; selftest green (Gartley/Crab/noise/PRZ).
+- `src/automation/harmonic_backtest.py` — the reliability GATE (run BEFORE trusting). VPS, 300
+  survivorship-inclusive symbols / 1,052 patterns: **BULL harmonics beat long-drift at every horizon**
+  (60-bar +4.5% vs +2.7%; Gartley-bull strongest +6.3%/63%), the **fit score stratifies** (hi ≥0.6 > lo
+  <0.6), **BEAR ≈ short-drift** (no edge — like Wolfe). → DESCRIPTIVE, read by side.
+- `src/automation/harmonic_signals.py` — scanner + module-owned `harmonic_signals` table (db.py untouched)
+  + nightly `hermes-harmonic-scan.{service,timer}` (Mon-Fri 16:10 UTC). VPS: 143 setups persisted (12 in-zone).
+- **NOT YET surfaced in the UI** (a `/dash/harmonic` page + `harmonic_overlay.py` on `window.__wfpc` need the
+  frozen dashboard.py/main.py hooks → hand-off, like the CPR/MEP/Wolfe overlays). Full record + open items
+  in `docs/harmonic-pattern-design.md`.
+
 ## 11. Key file paths
 
 - Focal chart: `src/web/dashboard.py` ~7060–7325 (sync 7204–7230 · resample 7246–7280 · readout

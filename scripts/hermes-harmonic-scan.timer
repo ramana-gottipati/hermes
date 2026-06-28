@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes harmonic XABCD scan Timer (nightly, weekdays)
+Requires=hermes-harmonic-scan.service
+
+[Timer]
+# Daily 9:40 PM IST = 16:10 UTC, Mon-Fri — after the bhav→signals chain and just after
+# the Wolfe scan (16:00 UTC), so it reflects the day's adjusted closes. Mon-Fri only (no
+# new bars on weekends); Persistent catches a missed run after downtime.
+OnCalendar=Mon..Fri *-*-* 16:10:00
+Persistent=true
+Unit=hermes-harmonic-scan.service
+
+[Install]
+WantedBy=timers.target
