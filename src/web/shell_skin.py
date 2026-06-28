@@ -134,6 +134,9 @@ body.uk-skin table.scr .fz{background:#0b0f17;border-right:1px solid #1c2937}
 body.uk-skin table.scr thead tr.scol th.fz,body.uk-skin table.scr thead tr.sgrp th.fz{background:#18222f}
 body.uk-skin table.scr tbody tr:nth-child(even) td.fz{background:#0e1620}
 body.uk-skin table.scr tbody tr:hover td{background:#18222f !important}
+/* density — the frozen data grid's vertical row padding follows --grid-pad (6px comfortable
+   == current, 3px compact). Only the big data grid is density-driven; small tables stay put. */
+body.uk-skin table.scr td,body.uk-skin table.scr th{padding-top:var(--grid-pad);padding-bottom:var(--grid-pad)}
 </style>"""
 
 
@@ -165,6 +168,16 @@ def _cmdk_hint() -> str:
                 '<kbd>&#8984;K</kbd></div>')
 
 
+def _density_js() -> str:
+    """The global density switch (defined in ui_kit so it's identical on both shells).
+    Defensive: a missing ui_kit degrades to no switch, never breaks the page."""
+    try:
+        from src.web import ui_kit as K
+        return K.density_js()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def reskin(html: str) -> str:
     """Post-process one ``_shell`` html string into the ui_kit language. Defensive +
     idempotent: an already-skinned string (or any non-_shell html) is returned as-is."""
@@ -186,11 +199,12 @@ def reskin(html: str) -> str:
             out = re.sub(r"<body(?![^>]*uk-skin)", '<body class="uk-skin"', out, count=1)
         # swap the legacy search box for the Ask-Pat hint (preserve via Cmd-K overlay).
         out = _HSEARCH_RE.sub(lambda _m: _cmdk_hint(), out, count=1)
-        # inject the reskin css LAST in <head> so it follows _BASE_CSS.
+        # inject the reskin css + the global density switch LAST in <head> (after _BASE_CSS).
+        head_add = skin_css() + _density_js()
         if "</head>" in out:
-            out = out.replace("</head>", skin_css() + "</head>", 1)
+            out = out.replace("</head>", head_add + "</head>", 1)
         else:
-            out = skin_css() + out
+            out = head_add + out
         return out
     except Exception as e:  # noqa: BLE001 — a skin failure must never break the page
         log.warning("shell_skin reskin skipped: %s", e)

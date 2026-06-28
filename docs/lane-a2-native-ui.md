@@ -34,6 +34,13 @@ making the legacy shell structurally + visually identical to the native one at r
     native pages share ONE shell. HIGHEST risk → last, only after native parity verified. ⬜
 
 ## Progress log (newest first)
+- **Item 4 (density toggle) DONE + LIVE** (2026-06-29, `f3d1c81` foundation + this): `ui_kit.density_js()`
+  restores saved density onto `<html>` early (no flash), self-injects a 3-bar toggle into the chrome
+  (`.v2util` legacy / `.uk-top` native), persists to localStorage, sets `aria-pressed`. Density rescales
+  the frozen data grid (`--grid-pad` 6→3px) + native `.uk-t` (`--row-pad` 10→6) + components (`--sp`/`--fs`).
+  Verified live (computed styles): grid cell 6→3px, toggle click flips + persists. Sweep = PASS.
+- **Item 4a — foundation adopted into both shells** (`f3d1c81`): a11y (focus-visible/reduced-motion) +
+  density vars now site-wide; `ui_kit.shell` carries tokens+components, `shell_skin` prepends tokens.
 - **Items 1–3 + density mechanism DONE + LIVE** (2026-06-29): NEW `ui_tokens.py` (tokens + base + a11y +
   density scale, palette preserved exactly), NEW `ui_components.py` (btn/field/tabs/tooltip/skeleton/
   spinner/empty/error/note/kbd/progress/tag/switch + render helpers), NEW `ui_showcase.py` → `/dash/_ui`

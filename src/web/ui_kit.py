@@ -46,6 +46,34 @@ def esc(s) -> str:
     return _html.escape(str(s if s is not None else ""))
 
 
+def density_js() -> str:
+    """The global density switch. Restores the saved density onto <html> IMMEDIATELY (so no
+    flash), then self-injects a small toggle button into the chrome — `.v2util` on legacy
+    pages, `.uk-top` on native pages — and persists the choice to localStorage. Idempotent
+    (window guard); self-contained; safe to include once per page in <head>."""
+    return ('<script>(function(){'
+            'try{if(localStorage.getItem("uk-density")==="compact")'
+            'document.documentElement.setAttribute("data-density","compact");}catch(e){}'
+            'if(window.__ukDens)return;window.__ukDens=1;'
+            'function cur(){return document.documentElement.getAttribute("data-density")==="compact";}'
+            'function upd(){document.querySelectorAll("[data-density-toggle]").forEach(function(b){'
+            'b.classList.toggle("on",cur());b.setAttribute("aria-pressed",cur());});}'
+            'function set(c){var h=document.documentElement;'
+            'if(c){h.setAttribute("data-density","compact");}else{h.removeAttribute("data-density");}'
+            'try{localStorage.setItem("uk-density",c?"compact":"comfortable");}catch(e){}upd();}'
+            'function mk(){var b=document.createElement("button");b.type="button";'
+            'b.setAttribute("data-density-toggle","");b.className="uk-denstoggle";'
+            'b.title="Density \\u2014 comfortable / compact";b.setAttribute("aria-label","Toggle density");'
+            'b.innerHTML="<i></i><i></i><i></i>";'
+            'b.addEventListener("click",function(){set(!cur());});return b;}'
+            'function inj(){var u=document.querySelector(".v2util");'
+            'if(u&&!u.querySelector("[data-density-toggle]")){u.insertBefore(mk(),u.firstChild);}'
+            'var t=document.querySelector(".uk-top");'
+            'if(t&&!t.querySelector("[data-density-toggle]")){t.appendChild(mk());}upd();}'
+            'if(document.readyState!=="loading"){inj();}else{document.addEventListener("DOMContentLoaded",inj);}'
+            '})();</script>')
+
+
 # --- design tokens + base + components (the whole system in one stylesheet) ---
 _CSS = """<style>
 .uk, .uk *{box-sizing:border-box}
@@ -134,10 +162,10 @@ _CSS = """<style>
 .uk-tw{overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--bg-2);max-height:70vh}
 table.uk-t{width:100%;border-collapse:collapse;font-size:13px}
 .uk-t th{position:sticky;top:0;background:var(--bg-3);color:var(--ink-3);font-size:10.5px;text-transform:uppercase;
-  letter-spacing:.5px;font-weight:600;text-align:right;padding:10px 13px;white-space:nowrap;border-bottom:1px solid var(--line-2);z-index:2}
+  letter-spacing:.5px;font-weight:600;text-align:right;padding:var(--row-pad) 13px;white-space:nowrap;border-bottom:1px solid var(--line-2);z-index:2}
 .uk-t th:first-child,.uk-t td:first-child{text-align:left;position:sticky;left:0;background:var(--bg-2)}
 .uk-t th:first-child{z-index:3;background:var(--bg-3)}
-.uk-t td{padding:10px 13px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
+.uk-t td{padding:var(--row-pad) 13px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
 .uk-t td.sym{color:var(--ink);font-weight:600;font-family:var(--font)}
 .uk-t tbody tr{transition:background var(--t)}
 .uk-t tbody tr:hover td{background:var(--bg-3)}
@@ -287,7 +315,7 @@ def subnav(items: list[tuple[str, str, bool]]) -> str:
 def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: str = "") -> str:
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>{esc(title)}</title>{_CSS}{_foundation()}</head>'
+            f'<title>{esc(title)}</title>{_CSS}{_foundation()}{density_js()}</head>'
             f'<body style="margin:0"><div class="uk">{topbar(active, nav_html)}{sub}'
             f'<div class="uk-page">{body}</div></div>{cmdk_overlay()}</body></html>')
 

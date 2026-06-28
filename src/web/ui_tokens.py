@@ -49,7 +49,8 @@ _TOKENS_CSS = """<style>""" + TOKENS_MARKER + """
   /* ── spacing scale ── */
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:22px; --sp-6:30px; --sp-7:44px; --sp-8:64px;
   --gutter:20px;            /* page side padding — shrinks on mobile (see base) */
-  --row-pad:10px;          /* table/list row padding — driven by density */
+  --row-pad:10px;          /* native table/card row padding — driven by density */
+  --grid-pad:6px;          /* dense frozen-grid (table.scr / .uk-t) vertical padding — density */
   /* ── radius ── */
   --r-xs:5px; --r-sm:8px; --r:12px; --r-lg:18px; --r-pill:999px;
   /* ── elevation ── */
@@ -66,7 +67,7 @@ _TOKENS_CSS = """<style>""" + TOKENS_MARKER + """
 /* ── density: compact shrinks spacing + row padding + base size (comfortable = default) ── */
 [data-density="compact"]{
   --sp-3:9px; --sp-4:12px; --sp-5:16px; --sp-6:22px;
-  --row-pad:6px; --fs-md:13px; --fs-sm:12px; --gutter:14px;
+  --row-pad:6px; --grid-pad:3px; --fs-md:13px; --fs-sm:12px; --gutter:14px;
 }
 
 /* ── base / reset (scoped so it never restyles a legacy page that isn't opted in) ── */
@@ -94,6 +95,17 @@ body.uk-skin :where(a,button,input,select,textarea,summary,[tabindex]):focus-vis
 
 /* ── responsive gutter (mobile tightens the page edges) ── */
 @media (max-width:640px){ :root{ --gutter:13px } }
+
+/* ── density toggle (universal chrome — lives in the foundation so it styles on BOTH
+   the native .uk-top and the legacy .v2util; the bars visually tighten when compact) ── */
+.uk-denstoggle{display:inline-flex;flex-direction:column;justify-content:center;gap:3px;
+  width:30px;height:30px;padding:0 7px;border:1px solid var(--line-2);background:var(--bg-1);
+  border-radius:var(--r-sm);cursor:pointer;transition:var(--t);flex:none}
+.uk-denstoggle:hover{border-color:var(--accent)}
+.uk-denstoggle i{display:block;height:2px;background:var(--ink-3);border-radius:1px;transition:var(--t)}
+.uk-denstoggle.on{gap:1.5px}
+.uk-denstoggle.on i{background:var(--accent)}
+.uk-top .uk-denstoggle{margin-left:2px}
 </style>"""
 
 
