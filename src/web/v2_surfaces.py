@@ -146,7 +146,15 @@ def _install_nav() -> None:
             for href, label, act in links
             if f'href="{href}"' not in html  # idempotent: never double-add a link
         )
-        return html.replace("</div>", frag + "</div>", 1) if frag else html
+        out = html.replace("</div>", frag + "</div>", 1) if frag else html
+        # the global Cmd-K "Ask Pat" overlay — summon the copilot from any legacy _shell
+        # page (ui_kit pages include it via ui_kit.shell). Idempotent (window.__cmdk guard).
+        try:
+            from src.web import ui_kit as _K
+            out += _K.cmdk_overlay()
+        except Exception:  # noqa: BLE001 — the overlay is additive; never break the nav
+            pass
+        return out
 
     D._nav = _wrapped_nav
 

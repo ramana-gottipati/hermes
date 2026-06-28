@@ -187,6 +187,44 @@ def cmdk_hint() -> str:
     return '<div class="uk-cmdk">Search or ask Pat <kbd>⌘K</kbd></div>'
 
 
+def cmdk_overlay() -> str:
+    """The global 'Ask Pat' command bar — Cmd/Ctrl+K (or a click on any ⌘K hint) opens
+    it; Enter routes the question to the analytics copilot (/dash/pat). Self-contained
+    (explicit hex, no CSS-var deps) so it works under BOTH the v2 (ui_kit) chrome and the
+    legacy dashboard _shell. Idempotent (window.__cmdk guard) — safe to include >1x per
+    page. Pat parses intent -> deterministic compute, so it cannot invent numbers; this
+    bar is just the summon surface ("a layer you summon, not a place you go")."""
+    return (
+        '<div id="cmdk-ov" style="display:none;position:fixed;inset:0;z-index:9998;'
+        'background:rgba(3,6,12,.62);backdrop-filter:blur(3px)">'
+        '<div style="max-width:620px;margin:11vh auto 0;background:#0f1620;border:1px solid #27384a;'
+        'border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.65);overflow:hidden">'
+        '<input id="cmdk-in" autocomplete="off" spellcheck="false" '
+        'placeholder="Ask Pat — most credible managements · credible companies being accumulated · RS leaders…" '
+        'style="width:100%;box-sizing:border-box;border:0;background:transparent;color:#eaf1f9;'
+        'font-size:16px;padding:17px 19px;outline:none"/>'
+        '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 19px 12px;'
+        'color:#5c6f84;font-size:11.5px;border-top:1px solid #1c2937">'
+        '<span>Enter to ask · Esc to close</span>'
+        '<span>analytics copilot · closed-vocab, never invents numbers</span></div>'
+        '</div></div>'
+        '<script>(function(){if(window.__cmdk)return;window.__cmdk=1;'
+        'function ov(){return document.getElementById("cmdk-ov");}'
+        'function op(){var o=ov();if(!o)return;o.style.display="block";'
+        'var i=document.getElementById("cmdk-in");if(i){i.value="";i.focus();}}'
+        'function cl(){var o=ov();if(o)o.style.display="none";}'
+        'document.addEventListener("keydown",function(e){'
+        'if((e.key==="k"||e.key==="K")&&(e.metaKey||e.ctrlKey)){e.preventDefault();op();}'
+        'else if(e.key==="Escape"){cl();}'
+        'else if(e.key==="Enter"){var a=document.activeElement;'
+        'if(a&&a.id==="cmdk-in"){var q=a.value.trim();if(q)location.href="/dash/pat?q="+encodeURIComponent(q);}}});'
+        'document.addEventListener("click",function(e){var t=e.target;'
+        'if(t&&t.id==="cmdk-ov"){cl();return;}'
+        'if(t&&t.closest&&t.closest(".uk-cmdk")){e.preventDefault();op();}});'
+        '})();</script>'
+    )
+
+
 _NAV = [("markets", "Markets"), ("screener", "Screener"),
         ("strategies", "Strategies"), ("tracker", "Tracker")]
 
@@ -228,7 +266,7 @@ def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: s
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{esc(title)}</title>{_CSS}</head>'
             f'<body style="margin:0"><div class="uk">{topbar(active, nav_html)}{sub}'
-            f'<div class="uk-page">{body}</div></div></body></html>')
+            f'<div class="uk-page">{body}</div></div>{cmdk_overlay()}</body></html>')
 
 
 # --- the living style guide (visual proof of the language) -------------------
