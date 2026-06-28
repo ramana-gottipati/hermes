@@ -731,8 +731,15 @@ def overlay_for(conn, sym=None, idx=None):
             break
     if prediction is None and not completed:
         return None
+    # compact recent bars (date, high, low) so the manual "✎ draw your own" mode can snap
+    # each click to the nearer real swing extreme — the analyst sets the pivots, we compute
+    # the zones. Cap to the last 800 bars (plenty of history, keeps the payload light).
+    highs, lows = d["highs"], d["lows"]
+    b0 = max(0, n - 800)
+    bars = [{"t": dates[i], "h": round(highs[i], 2), "l": round(lows[i], 2)}
+            for i in range(b0, n)]
     return {"prediction": prediction, "completed": completed,
-            "label": d["label"], "kind": d["kind"]}
+            "label": d["label"], "kind": d["kind"], "bars": bars}
 # * zone_s uses symmetry as a confluence-tightness proxy until Ramana's exact
 #   legs-1-2/3-4 Fib overlay is wired (open item).
 

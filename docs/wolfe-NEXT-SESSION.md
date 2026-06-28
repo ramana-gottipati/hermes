@@ -9,6 +9,34 @@
 
 ---
 
+## ⭐⭐⭐ 0c. MANUAL "✎ DRAW YOUR OWN" RESTORED — 2026-06-28 (Lane C — Engines & Wolfe)
+
+The hand-draw pivot mode (originally `b7ad360`, reverted weeks ago) is **RESTORED + LIVE**,
+re-implemented INTO the current overlay rather than blind-reverting the old file (which would
+have lost the Prediction/Completed/baseline-band work that landed since). It is now a **third
+mode on the `/dash/stock` Wolfe overlay** (`wolfe_overlay.py`): Prediction · Completed ◄► · **✎ Draw**.
+- **How it works:** click points 1→5 on the candle chart; each snaps to the nearer real bar
+  high/low; the machine draws the 1-2-3-4-(5) structure and computes the standard Fib EXTENSION
+  overlap zones — on HIS pivots (so auto-pivot mis-counts can never recur). undo / reset / "use auto".
+- **Fib math:** the JS `fibZones` mirrors the **CURRENT** `wolfe.fib_zones` byte-for-byte —
+  EXTENSIONS only (1.272…4.618), leg→(lo,hi)→overshoot, overlap tol **2%**, dedupe 2%, top 6.
+  (NOT the old b7ad360 JS, which used retracements+0.4% — superseded by `707fcb1`.) PARAS pin
+  968.1/1066.75/1075.5/1133 → 2.618∩2.618 = **1226.2** holds in both Python and the JS mirror.
+- **Plumbing:** `wolfe.overlay_for` now returns a compact `bars:[{t,h,l}]` (last 800) so the
+  snippet can snap clicks; draw mode degrades gracefully (clicks still place, just unsnapped) when
+  there's no auto wave + no bars.
+- **Canonical Wolfe homes (reconciled):** drawing/chart lens = `/dash/stock` overlay (the only
+  clickable chart) · `/dash/wolfe` = standalone ranked auto-detect SVG (browse-all, read-only) ·
+  `/dash/wolfe/scan` = winner-profile scanner. Draw-your-own lives on the stock overlay by design.
+- **Verified:** VPS import OK · `overlay_for` 800 bars / 37 completed on RELIANCE · snippet
+  embedded in served `/dash/stock` · `node --check` clean · health 200 · selftest green (PARAS pin).
+- **Stays DESCRIPTIVE-only** (geometry + zones, no buy/sell). Revert = VPS `*.bak-wolfe` backups.
+- **ALSO this session:** `src/automation/strategy_registry.py` built — `summary()` (one read-only
+  row per strategy for Lane B's `/dash/strategist`; real-VPS: MEP 745 · DVPT 375 · RS 134 · CPR 636
+  · CCI 37 · Wolfe descriptive, all health=ok).
+
+---
+
 ## ⭐⭐ 0a. CURRENT STATE + RESUME — 2026-06-25 (READ FIRST; supersedes the 06-24 §0 below)
 
 > **✅ TRUE-OOS DERIVATION — DONE 2026-06-26 · VERDICT: OOS SURVIVED (with honest caveats).** NEXT-item #1 (the rigor gate Ramana picked). `research/wolfe_waves/phase2_oos.py` (isolated, read-only, reuses `phase1.simulate`): FIT the winner-profile thresholds on **2004-14 ONLY** → FREEZE → TEST on **UNTOUCHED 2015-26** (the clean fit/test the prior "3-era" check lacked — its thresholds came from the whole sample). Panel-locked method (Wolfe-quant·skeptic·Ramana-proxy): decode-median **monotone** cuts (3 DoF, no grid); PRIMARY = delisted-**INCLUSIVE** universe (survivorship-aware); nifty500-current = labelled sensitivity; **bootstrap 95% CI**; **sub-era** split; **leak-gate**. **The fit window ALONE reproduced the EXACT deployed rule `D≤1 & p1≥2 & F≤2`** (winner medians D=1/p1=2/F=2 vs losers D=2/p1=1) — not a whole-sample artifact. **OOS 2015-26 (inclusive):** baseline ALL medNet −1.85% → winner **+2.14%** (hit 60%, EPA 57%, n=1787, CI [+1.57,+2.72]); BULL +4.18%; **BEAR +1.03%** (n=1169, CI [+0.26,+1.79]) — the beta-neutral prize HELD OOS; reconciliation == phase1 winner_report (+2.41%/+2.35%). **Leak ruled out:** D's only look-ahead (pierce-and-return reads post-p5 bars) is immaterial — `D_pit` (return-check OFF) = **+2.18%**, **99% Jaccard**. nifty500 sensitivity agrees (+2.37%/bear +1.20%). ⚠️ **First pass used a WRONG D** (`epa_pot`=upside-from-actual-fill — a post-fill concept, NOT a scan-time selector) and "failed" (−2.15%); grounding vs phase1's reproducible +2.35% caught it → corrected to the deployed `comp["D"]`. **PANEL VERDICT = SURVIVED-WITH-CAVEAT:** skeptic (code-verified leak-robust + survivorship-honest + filter-predicate-pure) + Ramana-proxy (log **TRUSTED-DESCRIPTIVE**) concur. **TWO honest caveats:** (a) the BEAR edge is **DECAYING** — 2015-20 **+2.04%** → 2021-26 **+0.21%** (positive, well-powered n=637, but below the +0.5% bar in the recent half); (b) ONE box unticked — a formal **index-return beta-regression + shuffled-entry placebo** (skeptic holds "survived *pending* beta-control"; bear-positivity in a 20-yr bull tape is strong corroborating, not the letter). **CONCLUSION: the OOS upgrades the LABEL ("survived true OOS", was "no edge found"), NOT the ROLE — it stays a DESCRIPTIVE scanner** (+1% median is too thin to carry costs+slippage+discretionary error mechanically; it sharpens the eye at the point-5 zone, it doesn't pull the trigger). Additive — live lens + `/dash/wolfe/scan` UNTOUCHED; ADVANCED `6179cd3` intact. **Committed (isolated): `research/wolfe_waves/phase2_oos.py` + this run-book.**
