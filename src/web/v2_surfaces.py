@@ -235,8 +235,10 @@ def _install_nav() -> None:
 
     def _wrapped_nav(active):
         alt = _altitude_of(active)
-        tabs = "".join(f'<a class="{"on" if alt == k else ""}" href="{h}">{lbl}</a>'
-                       for k, h, lbl in _IA_ALT)
+        _aria_cur = ' aria-current="page"'   # standalone (no backslash in any f-string expr)
+        tabs = "".join(
+            f'<a class="{"on" if alt == k else ""}" href="{h}"{_aria_cur if alt == k else ""}>{lbl}</a>'
+            for k, h, lbl in _IA_ALT)
         # NO-LOSS: any destination the original nav exposed that the IA doesn't home
         # is preserved in a trailing "More" group, so a future route is never dropped.
         extra, seen = "", set()
@@ -255,14 +257,15 @@ def _install_nav() -> None:
                 'title="Data coverage &amp; provenance">Trust</a>'
                 '<button class="v2askpat" type="button" data-cmdk>Ask Pat <kbd>⌘K</kbd></button>'
                 '</div>')
-        top = f'<div class="v2bar"><nav class="wsnav v2nav">{tabs}{extra}</nav>{util}</div>'
+        top = (f'<div class="v2bar"><nav class="wsnav v2nav" aria-label="Primary">'
+               f'{tabs}{extra}</nav>{util}</div>')
         sub = ""
         items = _IA_SUB.get(alt)
         if items:
             links = "".join(
                 f'<a class="{"on" if (active == k or active in _SUB_ALIAS.get(k, {k})) else ""}" '
                 f'href="{h}">{lbl}</a>' for k, h, lbl in items)
-            sub = f'<div class="v2subnav">{links}</div>'
+            sub = f'<div class="v2subnav" role="navigation" aria-label="Section">{links}</div>'
         out = _V2NAV_CSS + top + sub
         try:
             from src.web import ui_kit as _K

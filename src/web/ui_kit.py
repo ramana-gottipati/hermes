@@ -300,8 +300,9 @@ def nav_links(items) -> str:
     is_on), ...]. Used so a v2 (ui_kit) page carries the identical destination set
     as the rest of the site — no dead-ends, one nav contract (the source of that
     list is v2_surfaces.site_nav, kept dependency-free here)."""
+    _cur = ' aria-current="page"'   # standalone (no backslash in any f-string expr)
     return "".join(
-        f'<a class="{"on" if on else ""}" href="{esc(href)}">{esc(lbl)}</a>'
+        f'<a class="{"on" if on else ""}" href="{esc(href)}"{_cur if on else ""}>{esc(lbl)}</a>'
         for href, lbl, on in items)
 
 
@@ -313,7 +314,7 @@ def topbar(active: str = "", nav_html: str = "") -> str:
             f'<a class="{"on" if k == active else ""}" href="/dash/{k}">{esc(lbl)}</a>'
             for k, lbl in _NAV)
     return (f'<div class="uk-top"><div class="uk-logo"><span class="dot"></span>patearn</div>'
-            f'<nav class="uk-nav">{nav_html}</nav>{cmdk_hint()}</div>')
+            f'<nav class="uk-nav" aria-label="Primary">{nav_html}</nav>{cmdk_hint()}</div>')
 
 
 def subnav(items: list[tuple[str, str, bool]]) -> str:
@@ -331,8 +332,9 @@ def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: s
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{esc(title)}</title>{_CSS}{_foundation()}{density_js()}</head>'
-            f'<body style="margin:0"><div class="uk">{topbar(active, nav_html)}{sub}'
-            f'<div class="uk-page">{body}</div></div>{cmdk_overlay()}</body></html>')
+            f'<body style="margin:0"><a class="uk-skip" href="#uk-main">Skip to content</a>'
+            f'<div class="uk">{topbar(active, nav_html)}{sub}'
+            f'<main id="uk-main" class="uk-page">{body}</main></div>{cmdk_overlay()}</body></html>')
 
 
 # --- the living style guide (visual proof of the language) -------------------

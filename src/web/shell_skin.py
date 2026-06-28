@@ -211,6 +211,10 @@ def reskin(html: str) -> str:
         out = html.replace("<body>", '<body class="uk-skin">', 1)
         if 'class="uk-skin"' not in out:  # body had attrs already
             out = re.sub(r"<body(?![^>]*uk-skin)", '<body class="uk-skin"', out, count=1)
+        # a11y: a keyboard skip-link as the first focusable element, targeting the page body.
+        out = re.sub(r"(<body[^>]*>)",
+                     r'\1<a class="uk-skip" href="#uk-main">Skip to content</a>', out, count=1)
+        out = out.replace('<div class="wrap', '<div id="uk-main" class="wrap', 1)
         # swap the legacy search box for the Ask-Pat hint (preserve via Cmd-K overlay).
         out = _HSEARCH_RE.sub(lambda _m: _cmdk_hint(), out, count=1)
         # inject the reskin css + the global density switch LAST in <head> (after _BASE_CSS).

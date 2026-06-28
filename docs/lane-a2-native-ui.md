@@ -34,6 +34,11 @@ making the legacy shell structurally + visually identical to the native one at r
     native pages share ONE shell. HIGHEST risk → last, only after native parity verified. ⬜
 
 ## Progress log (newest first)
+- **Item 6 (accessibility) DONE + LIVE** (2026-06-29): keyboard skip-link ("Skip to content" → `#uk-main`)
+  as the first focusable element on every page (native `<main id="uk-main">`, legacy `.wrap` gets the id);
+  primary nav `aria-label="Primary"` + `aria-current="page"` on the active altitude (both shells); sub-nav
+  landmark. Plus the foundation's focus-visible rings, prefers-reduced-motion, sr-only/skip CSS (4a).
+  Verified live (native + legacy). Sweep = PASS.
 - **Item 5 (responsive / mobile) DONE + LIVE** (2026-06-29): phone-usable at 375px. Both navs scroll
   horizontally (legacy `.v2bar .wsnav`, native `.uk-nav`), ⌘K hidden on mobile, touch targets ≥39px,
   `--gutter` tightens to 13px. Killed horizontal PAGE overflow: grid/flex children get `min-width:0` so a
