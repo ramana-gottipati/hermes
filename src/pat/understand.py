@@ -38,7 +38,7 @@ UNIVERSES = {"stock", "index", "sector"}
 # pt14 = the 14-pattern quality TIER screen (distinct from fundamentals "quality");
 # avoid = the hard-disqualifier kill-list (the framework's own "reject" verdict).
 METRICS = {"return", "rs", "delivery", "valuation", "quality", "growth", "price_move",
-           "pt14", "avoid"}
+           "pt14", "avoid", "credibility"}
 WINDOWS = {"1d", "1w", "1m", "3m", "6m", "1y"}
 ORDERS = {"best", "worst"}
 OPS = {">", "<", ">=", "<=", "improving", "declining"}
@@ -345,6 +345,13 @@ def _compile_stock(metric, window, order, filters, scope, turning, character=Non
     if metric == "pt14":
         return {"flow": "pt14", "params": {}}
 
+    # Management CREDIBILITY (CCI) — the DESCRIPTIVE concall track-record lens (a
+    # measurable kept-promise / guidance-falsifiability read, veto-excluded; NOT a
+    # ranked buy signal — the §C backtest found no return edge). Parameterless flows:
+    # the leaders board, or the deterioration / avoid tape for the worst side.
+    if metric == "credibility":
+        return {"flow": "deterioration" if order == "worst" else "credibility", "params": {}}
+
     # Strong-hand delivery CHARACTER — distribution (exiting) / consolidation (coiling)
     # ride the accumulation flow's `character` chip (the catalog §3.1 cheap win).
     if character in ("distribution", "consolidation"):
@@ -412,12 +419,18 @@ SYSTEM_PARSE = (
     "If it says 'index'/'indices'/'sector', the universe is NOT stock.\n"
     "  STEP 2 — RANK: the single metric the result is ORDERED by, its window, and "
     "order. metric ∈ [return, rs, delivery, valuation, quality, growth, price_move, "
-    "pt14, avoid]; window ∈ [1d,1w,1m,3m,6m,1y]; order ∈ [best, worst]. "
+    "pt14, avoid, credibility]; window ∈ [1d,1w,1m,3m,6m,1y]; order ∈ [best, worst]. "
     "'worst/laggard/weakest/underperform' = worst; 'best/top/strongest/leaders' = best. "
     "Use 'pt14' for the 14-pattern quality TIER ('pt14', 'Tier-1', 'T1 names', 'passes "
     "the quality gate') — distinct from 'quality' (ROCE/valuation). Use 'avoid' for the "
     "hard-disqualifier KILL-LIST ('stocks to avoid', 'red-flag stocks', 'what did "
     "Patearn reject', 'disqualified names').\n"
+    "  Use 'credibility' for MANAGEMENT CREDIBILITY from earnings concalls — 'most "
+    "credible managements', 'promise-keepers', 'guidance accuracy', 'trustworthy "
+    "management', 'best concall track record', 'managements that deliver on guidance'; "
+    "order 'worst' (or 'deteriorating credibility', 'broken promises', 'walked-back "
+    "guidance', 'managements to avoid', 'credibility decay') selects the deterioration/"
+    "avoid tape. It is a DESCRIPTIVE track-record lens, not a buy ranking.\n"
     "  STEP 3 — FILTERS: every ADDITIONAL condition, each as its own {metric,window,"
     "op,value}. op ∈ [>,<,>=,<=,improving,declining]. A phrase like 'started "
     "performing better in the last month' / 'turning up' / 'recovering' is a filter "
@@ -457,7 +470,11 @@ SYSTEM_PARSE = (
     '{"task":"rank","universe":"stock","rank":{"metric":"rs","window":"1m","order":"worst"},"confidence":90}\n'
     "'overvalued stocks' → "
     '{"task":"rank","universe":"stock","rank":{"metric":"valuation","order":"worst"},"confidence":85}\n'
-    "'stocks to avoid' → {\"task\":\"rank\",\"universe\":\"stock\",\"rank\":{\"metric\":\"avoid\"},\"confidence\":90}"
+    "'stocks to avoid' → {\"task\":\"rank\",\"universe\":\"stock\",\"rank\":{\"metric\":\"avoid\"},\"confidence\":90}\n"
+    "'most credible managements' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"credibility","order":"best"},"confidence":90}\n'
+    "'managements with deteriorating credibility' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"credibility","order":"worst"},"confidence":88}'
 )
 
 
@@ -562,6 +579,19 @@ def parse_fallback(query: str) -> dict | None:
         if D._has_any(qn, ["pt14", "pt 14", "tier-1", "tier 1", "t1 ", "quality gate",
                            "14 pattern", "14-pattern"]):
             return {"task": "rank", "universe": "stock", "rank": {"metric": "pt14"},
+                    "filters": [], "scope": {}, "character": None, "confidence": 55}
+
+        # management CREDIBILITY (CCI concall track-record) — a descriptive lens; the
+        # worst / "managements to avoid" side routes to the deterioration tape.
+        if D._has_any(qn, ["credibilit", "credible management", "promise-keep", "promise keep",
+                           "kept promise", "kept its promise", "guidance accuracy",
+                           "trustworthy management", "management trust", "concall track record",
+                           "delivers on guidance", "deliver on guidance", "walked back",
+                           "walked-back", "broken promise"]):
+            cred_order = "worst" if D._has_any(qn, ["deteriorat", "broken promise", "walked back",
+                                                    "walked-back", "least credible", "avoid",
+                                                    "decay", "untrustworthy"]) else "best"
+            return {"task": "rank", "universe": "stock", "rank": {"metric": "credibility", "order": cred_order},
                     "filters": [], "scope": {}, "character": None, "confidence": 55}
 
         # momentum oscillators (RSI / MACD) → the `oscillators` flow

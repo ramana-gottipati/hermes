@@ -42,6 +42,8 @@ _VALID: dict[str, dict] = {
                      "window": set(MOVERS_WINDOW)},
     "index":        {"window": set(INDEX_WINDOW), "direction": set(INDEX_DIRECTION),
                      "turning": set(INDEX_TURNING)},
+    "credibility":  {},   # CCI credibility leaders — parameterless descriptive flow
+    "deterioration": {},  # CCI deterioration / avoid tape — parameterless
     "explain":      {"explain": "slug"},
 }
 
