@@ -691,6 +691,25 @@ def build_confluence_plan_query(pillars, sector: str = "", capband: str = "") ->
     return sql, params
 
 
+def build_credibility_detail_query(symbol: str) -> tuple[str, list]:
+    """The full credibility EVIDENCE row for one symbol (the 'why is X credible' drill):
+    every measurable that feeds the composite + the veto/deterioration flags + the as-of
+    period (provenance). Latest score for the symbol. Bound on symbol."""
+    sql = (
+        "SELECT s.symbol, s.composite_score, s.credibility_score, s.guidance_accuracy_score, "
+        "s.transparency_score, s.quantification_rate, s.forward_direction, s.forward_conviction, "
+        "s.credibility_trend, s.tier, s.rank, s.n_concalls, s.n_promises_resolved, "
+        "s.veto_active, s.veto_reason, s.deterioration_score, s.mispricing_flag, "
+        "s.as_of_period, s.as_of_date "
+        "FROM concall_scores s "
+        "JOIN (SELECT symbol, MAX(last_updated) AS m FROM concall_scores GROUP BY symbol) x "
+        "  ON x.symbol = s.symbol AND x.m = s.last_updated "
+        "WHERE s.symbol = ? "
+        "LIMIT 1"
+    )
+    return sql, [symbol]
+
+
 def build_symbol_resolve_query(token: str) -> tuple[str, list]:
     """Resolve a free-text token to candidate NSE symbols (exact > prefix > name).
     All values bound; LIKE wildcards are added here, the token is never formatted in."""

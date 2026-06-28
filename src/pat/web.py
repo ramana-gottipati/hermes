@@ -30,6 +30,7 @@ from src.pat.flows import (
     build_symbol_resolve_query, build_stock_card_query, build_stock_pattern_query,
     build_credibility_query, build_deterioration_query, build_confluence_query,
     build_confluence_plan_query, PLAN_PILLARS, PLAN_CAPBAND,
+    build_credibility_detail_query,
 )
 
 
@@ -226,6 +227,10 @@ _PAT_CSS = """
 .psMeta a{color:#58a6ff;text-decoration:none;}
 .patCmp{display:flex;gap:12px;flex-wrap:wrap;}
 .patCmpCol{flex:1;min-width:260px;background:#161b22;border:1px solid #30363d;border-radius:11px;padding:12px 13px;}
+.patWhyHd{font-weight:700;font-size:15px;margin:4px 0 8px;}
+.patWhy{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.7;}
+.patWhy li{margin:2px 0;}
+.patWhy b{color:#e6edf3;}
 </style>
 """
 
@@ -1377,6 +1382,168 @@ def _compare_flow(conn, syms: str = "") -> str:
     return "".join(out)
 
 
+# ── "why is X <metric>?" — drill into the evidence + provenance behind a read ──
+def _why_url(sym: str, metric: str = "credibility") -> str:
+    return f"/dash/pat?flow=why&sym={_u(sym)}" + (f"&strength={_u(metric)}" if metric else "")
+
+
+def _prov(*bits) -> str:
+    """A provenance footer: as-of + source, never fabricated."""
+    return ('<div class="patMeta">' + "".join(f'<span>{_esc(b)}</span>' for b in bits if b)
+            + '<span>descriptive evidence · not a recommendation</span></div>')
+
+
+def _why_credibility(conn, sym: str) -> str:
+    try:
+        sql, params = build_credibility_detail_query(sym)
+        r = conn.execute(sql, params).fetchone()
+    except Exception:
+        r = None
+    if not r:
+        return ('<div class="empty">No concall-credibility record for ' + _esc(sym) +
+                ' — it may be outside the concall pilot (hundreds of names, not the full '
+                'universe). Credibility is a DESCRIPTIVE track-record, not a buy signal.</div>'
+                + _prov("coverage: concall pilot"))
+    reasons = []
+    cs = r["composite_score"]
+    if cs is not None:
+        reasons.append(f'composite credibility <b>{_n(cs,0)}/100</b>' +
+                       (f' (tier {_esc(r["tier"])})' if r["tier"] else ''))
+    if r["n_promises_resolved"] is not None:
+        reasons.append(f'<b>{_int(r["n_promises_resolved"])}</b> guidance promises resolved'
+                       + (f', {_pc(r["guidance_accuracy_score"])} kept' if r["guidance_accuracy_score"] is not None else ''))
+    if r["quantification_rate"] is not None:
+        reasons.append(f'guidance is {_pc(r["quantification_rate"])} quantified (falsifiable)')
+    if r["credibility_trend"]:
+        reasons.append(f'trend <b>{_esc((r["credibility_trend"] or "").title())}</b>')
+    veto = bool(r["veto_active"])
+    if veto:
+        reasons.append(f'⛔ VETO active — {_esc(r["veto_reason"] or "a disqualifying flag")}')
+    elif (r["deterioration_score"] or 0) > 0:
+        reasons.append(f'⚠ deterioration flag ({_n(r["deterioration_score"],1)})')
+    else:
+        reasons.append('no veto / deterioration flag')
+    facts = "".join([
+        _fact("Composite", _n(cs, 0)),
+        _fact("Credibility", _n(r["credibility_score"], 0)),
+        _fact("Guidance acc", _pc(r["guidance_accuracy_score"])),
+        _fact("Transparency", _n(r["transparency_score"], 0)),
+        _fact("Quantified", _pc(r["quantification_rate"])),
+        _fact("Promises n", _int(r["n_promises_resolved"])),
+        _fact("Tier", _esc(r["tier"] or "—")),
+        _fact("Trend", _esc((r["credibility_trend"] or "—").title())),
+        _fact("Veto", "⛔ " + _esc(r["veto_reason"] or "active") if veto else "none"),
+    ])
+    verdict = ("reads CREDIBLE" if (not veto and (cs or 0) >= 55) else
+               "reads WEAK / vetoed" if veto else "reads MIXED")
+    body = (f'<div class="patWhyHd">{_esc(sym)} {verdict} — because:</div>'
+            f'<ul class="patWhy">' + "".join(f"<li>{x}</li>" for x in reasons) + '</ul>'
+            f'<div class="patFacts">{facts}</div>')
+    return body + _prov(f"credibility as-of: {r['as_of_period'] or '—'}",
+                        "source: concall track-record (CCI pilot)")
+
+
+def _why_from_card(conn, sym: str, metric: str) -> str:
+    try:
+        csql, cparams = build_stock_card_query(sym)
+        r = conn.execute(csql, cparams).fetchone()
+    except Exception:
+        r = None
+    if not r:
+        return '<div class="empty">No signal row for ' + _esc(sym) + ' on the latest date.</div>'
+    reasons, facts = [], ""
+    if metric == "accumulation":
+        ch = r["accum_character"] or "—"
+        reasons.append(f'delivery character <b>{_esc(ch)}</b>')
+        reasons.append(f'positioning p/r <b>{_int(r["p_score"])}/{_int(r["r_score"])}</b>'
+                       + (' (active strong hand)' if (r["p_score"] or 0) > 0 else ''))
+        if r["price_vs_hot_avg_pct"] is not None:
+            reasons.append(f'price vs strong-hand cost: {_sgn(r["price_vs_hot_avg_pct"])}')
+        facts = "".join([_fact("Character", _char_pill(r["accum_character"])),
+                         _fact("p/r", f'{_int(r["p_score"])}/{_int(r["r_score"])}'),
+                         _fact("Trigger", _rank_pill(r["trigger_rank"])),
+                         _fact("Δ hot cost", _sgn(r["price_vs_hot_avg_pct"])),
+                         _fact("Deliv ₹Cr", _cr(r["delivery_value_today"]))])
+        verdict = ("is being ACCUMULATED" if (r["accum_character"] == "ACCUMULATION")
+                   else "is under DISTRIBUTION" if (r["accum_character"] == "DISTRIBUTION")
+                   else "is in CONSOLIDATION")
+    elif metric == "rs":
+        reasons.append(f'RS rank <b>{_int(r["rs_rank"])}/99</b> vs the broad market')
+        if r["rs_vs_broad_trend_state"]:
+            reasons.append(f'broad-RS trend <b>{_esc(r["rs_vs_broad_trend_state"])}</b>')
+        if r["rs_vs_sector_trend_state"]:
+            reasons.append(f'sector-RS trend <b>{_esc(r["rs_vs_sector_trend_state"])}</b>')
+        if r["pct_from_52w_high"] is not None:
+            reasons.append(f'{_sgn(r["pct_from_52w_high"])} from its 52-week high')
+        facts = "".join([_fact("RS rank", _int(r["rs_rank"])),
+                         _fact("Broad trend", _esc(r["rs_vs_broad_trend_state"] or "—")),
+                         _fact("Sector trend", _esc(r["rs_vs_sector_trend_state"] or "—")),
+                         _fact("% off 52wH", _sgn(r["pct_from_52w_high"]))])
+        verdict = ("is an RS LEADER" if (r["rs_rank"] or 0) >= 80
+                   else "is an RS LAGGARD" if (r["rs_rank"] or 99) <= 20 else "is MID-PACK on RS")
+    else:  # valuation / quality
+        reasons.append(f'P/E <b>{_n(r["pe"],1)}</b>, ROCE <b>{_pc(r["roce"])}</b>, ROE <b>{_pc(r["roe"])}</b>')
+        if r["debt_to_equity"] is not None:
+            reasons.append(f'D/E {_n(r["debt_to_equity"],2)}')
+        if r["promoter_pledge"] is not None and r["promoter_pledge"] > 0:
+            reasons.append(f'promoter pledge {_pc(r["promoter_pledge"])}')
+        facts = "".join([_fact("P/E", _n(r["pe"], 1)), _fact("ROCE", _pc(r["roce"])),
+                         _fact("ROE", _pc(r["roe"])), _fact("D/E", _n(r["debt_to_equity"], 2)),
+                         _fact("Promoter", _pc(r["promoter_holding"])),
+                         _fact("Mcap ₹Cr", _n(r["market_cap_cr"], 0))])
+        if metric == "valuation":
+            verdict = ("looks EXPENSIVE" if (r["pe"] or 0) > 40 else
+                       "looks CHEAP" if (r["pe"] or 1e9) < 18 else "is FAIRLY VALUED")
+        else:
+            verdict = ("is HIGH quality" if (r["roce"] or 0) >= 18 else "is MODEST quality")
+    body = (f'<div class="patWhyHd">{_esc(sym)} {verdict} — because:</div>'
+            f'<ul class="patWhy">' + "".join(f"<li>{x}</li>" for x in reasons) + '</ul>'
+            f'<div class="patFacts">{facts}</div>')
+    src = ("source: cached Screener fundamentals" if metric in ("valuation", "quality")
+           else "source: NSE daily delivery / RS signals")
+    asof = "" if metric in ("valuation", "quality") else f"signals as-of: {_max_date(conn,'stock_signals','trade_date') or '—'}"
+    return body + _prov(asof, src)
+
+
+_WHY_LABEL = {"credibility": "credible", "accumulation": "being accumulated",
+              "rs": "a market leader", "valuation": "cheap or expensive", "quality": "high-quality"}
+
+
+def _why_flow(conn, sym: str, metric: str = "credibility") -> str:
+    from src.pat.understand import WHY_METRICS
+    metric = (metric or "credibility").strip().lower()
+    if metric not in WHY_METRICS:
+        metric = "credibility"
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym:
+        out.append(_q_bubble("Name a stock — e.g. “why is INFY credible?”"))
+        return "".join(out)
+    if conn is None:
+        out.append(_q_bubble("Connect to data to explain."))
+        return "".join(out)
+    try:
+        rsql, rparams = build_symbol_resolve_query(sym)
+        hit = conn.execute(rsql, rparams).fetchone()
+    except Exception:
+        hit = None
+    if not hit:
+        out.append(_q_bubble(f'I couldn\'t resolve “{_esc(sym)}”. Check the symbol.'))
+        return "".join(out)
+    sym = hit["symbol"]
+    out.append(_q_bubble(f'Why {_esc(sym)} reads {_WHY_LABEL.get(metric, metric)} — the EVIDENCE '
+                         'behind the read, drilled to the underlying rows + provenance. '
+                         'Switch lens:'))
+    out.append('<div class="patChips">' + "".join(
+        _chip_sel(_why_url(sym, m), m.title(), m == metric) for m in
+        ("credibility", "accumulation", "rs", "valuation", "quality")) + '</div>')
+    out.append(_why_credibility(conn, sym) if metric == "credibility"
+               else _why_from_card(conn, sym, metric))
+    out.append('<div class="patChips">'
+               + _chip(f"/dash/stock?sym={_u(sym)}", f"full {sym} dossier →")
+               + _chip(_why_url(sym, "credibility"), "why credible?") + "</div>")
+    return "".join(out)
+
+
 # ── momentum oscillators (RSI / MACD over stock_oscillators, computed nightly) ─
 
 def _osc_url(screen: str = "") -> str:
@@ -1617,7 +1784,8 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "deterioration": "Deterioration / avoid tape (CCI)",
                "confluence": "Credibility × accumulation",
                "confluence_plan": "Multi-condition confluence",
-               "strategy": "Strategy board", "compare": "Compare stocks"}
+               "strategy": "Strategy board", "compare": "Compare stocks",
+               "why": "Why — the evidence"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -1676,7 +1844,7 @@ def _max_date(conn, table, col):
 def _freshness_bar(conn, flow: str) -> str:
     """The as-of + coverage badge for a flow. Confluence/planner/strategy carry their
     own as-of meta; explain/clarify/home have nothing to date → empty (never fabricated)."""
-    if conn is None or flow in ("confluence", "confluence_plan", "strategy"):
+    if conn is None or flow in ("confluence", "confluence_plan", "strategy", "why"):
         return ""
     spec = _FRESH.get(flow)
     if not spec:
@@ -1756,6 +1924,8 @@ def _free_text(conn, q: str):
             body = _strategy_flow(conn, p.get("key", "all"))
         elif f == "compare":
             body = _compare_flow(conn, p.get("syms", ""))
+        elif f == "why":
+            body = _why_flow(conn, p.get("sym", ""), p.get("metric", "credibility"))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
@@ -1871,6 +2041,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "compare":
         body = _compare_flow(conn, sym)                   # "A,B" rides `sym`
         fb_ctx = {"query": "", "flow": "compare", "params": {"syms": sym}, "source": "flow"}
+    elif flow == "why":
+        body = _why_flow(conn, sym, strength or "credibility")   # metric rides `strength`
+        fb_ctx = {"query": "", "flow": "why", "params": {"sym": sym, "metric": strength or "credibility"},
+                  "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

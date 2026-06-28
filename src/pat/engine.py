@@ -48,6 +48,7 @@ _VALID: dict[str, dict] = {
     "confluence_plan": {"pillars": "free", "sector": "free", "capband": "free"},  # N-pillar planner
     "strategy":     {"key": "free"},    # strategy_registry board read (any strategy)
     "compare":      {"syms": "free"},   # A-vs-B side-by-side
+    "why":          {"sym": "free", "metric": "free"},  # explain the evidence behind a read
     "explain":      {"explain": "slug"},
 }
 

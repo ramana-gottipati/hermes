@@ -369,7 +369,10 @@ def route_extra(query: str) -> dict | None:
         # (The multi-condition planner is NOT short-circuited here — it benefits from
         # the model's sector/nuance parse, so it rides the Gemini → fallback path.)
         try:
-            from src.pat.understand import detect_compare, detect_strategy_key
+            from src.pat.understand import detect_compare, detect_strategy_key, detect_why
+            _wy = detect_why(query)
+            if _wy:
+                return {"flow": "why", "params": {"sym": _wy[0], "metric": _wy[1]}}
             _cmp = detect_compare(query)
             if _cmp:
                 return {"flow": "compare", "params": {"syms": ",".join(_cmp)}}

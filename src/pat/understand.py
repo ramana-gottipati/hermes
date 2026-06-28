@@ -52,7 +52,9 @@ CAPBANDS = {"small", "mid", "large"}
 # strategy showing", "strategist overview"). 'all' = the whole board.
 STRATEGY_KEYS = {"all", "mep", "dvpt", "rs", "cpr", "cci", "wolfe", "conviction",
                  "growth", "launchpad"}
-TASKS = {"rank", "explain", "stock", "strategy", "compare"}
+# the metrics a "why is X …?" explanation can drill into (each maps to evidence rows).
+WHY_METRICS = {"credibility", "accumulation", "rs", "valuation", "quality"}
+TASKS = {"rank", "explain", "stock", "strategy", "compare", "why"}
 # momentum-oscillator screens (the `oscillators` flow). Keys mirror OSC_SCREEN.
 INDICATORS = {"rsi_oversold", "rsi_overbought", "macd_bull", "macd_bear", "macd_positive"}
 
@@ -129,6 +131,13 @@ def validate_intent(obj) -> dict | None:
             syms = [obj.get("a"), obj.get("b")]
         syms = [str(s).strip().upper() for s in syms if s and str(s).strip()]
         return {"task": "compare", "symbols": syms[:3]} if len(syms) >= 2 else None
+    if task == "why":                # explanation ("why is INFY credible?")
+        sym = obj.get("symbol") or obj.get("ticker")
+        metric = obj.get("metric")
+        if sym and str(sym).strip():
+            return {"task": "why", "symbol": str(sym).strip().upper(),
+                    "metric": metric if metric in WHY_METRICS else "credibility"}
+        return None
     if task == "ood":                # out-of-domain → a boundary clarify, never an answer
         kind = obj.get("kind")
         return {"task": "ood", "kind": kind if kind in ("advisory", "prediction", "feature", "asset") else "advisory"}
@@ -298,6 +307,11 @@ def compile_intent(intent: dict) -> dict | None:
     if intent.get("task") == "compare":   # A-vs-B side-by-side
         syms = [s for s in (intent.get("symbols") or []) if s]
         return {"flow": "compare", "params": {"syms": ",".join(syms[:3])}} if len(syms) >= 2 else None
+
+    if intent.get("task") == "why":       # explain the evidence behind a read
+        sym = (intent.get("symbol") or "").strip()
+        metric = intent.get("metric") if intent.get("metric") in WHY_METRICS else "credibility"
+        return {"flow": "why", "params": {"sym": sym, "metric": metric}} if sym else None
 
     if intent.get("task") == "ood":       # advisory / prediction / feature / wrong-asset
         return ood_clarify(intent.get("kind"))
@@ -535,6 +549,11 @@ SYSTEM_PARSE = (
     "\"strategy\":\"<mep|dvpt|rs|cpr|cci|wolfe|conviction|all>\"} (use 'all' for the whole board).\n"
     "  COMPARE: 'compare INFY and TCS', 'INFY vs TCS', 'X versus Y' → "
     "{\"task\":\"compare\",\"symbols\":[\"INFY\",\"TCS\"]}.\n"
+    "  WHY / EXPLAIN-A-READ: 'why is INFY credible', 'what makes TCS a leader', 'why is X "
+    "being accumulated', 'why is X cheap/expensive' → {\"task\":\"why\",\"symbol\":\"<TICKER>\","
+    "\"metric\":\"<credibility|accumulation|rs|valuation|quality>\"} (drills into the evidence "
+    "+ provenance behind that read; default metric credibility). Distinct from 'tell me about X' "
+    "(the whole card) and 'what is RS' (a definition).\n"
     "  SINGLE STOCK: 'tell me about INFY' / \"what's wrong with RELIANCE\" / 'is X a "
     "value trap' → {\"task\":\"stock\",\"symbol\":\"<TICKER>\"}.\n"
     "  OSCILLATORS: for a momentum-indicator screen set indicator ∈ [rsi_oversold "
@@ -578,7 +597,9 @@ SYSTEM_PARSE = (
     '{"task":"rank","universe":"stock","rank":{"metric":"quality"},"character":"accumulation","confidence":88}\n'
     "'what is the CPR strategy showing' → {\"task\":\"strategy\",\"strategy\":\"cpr\"}\n"
     "'strategist overview' / 'what are all the strategies showing' → {\"task\":\"strategy\",\"strategy\":\"all\"}\n"
-    "'compare INFY and TCS' → {\"task\":\"compare\",\"symbols\":[\"INFY\",\"TCS\"]}"
+    "'compare INFY and TCS' → {\"task\":\"compare\",\"symbols\":[\"INFY\",\"TCS\"]}\n"
+    "'why is HDFCBANK credible' → {\"task\":\"why\",\"symbol\":\"HDFCBANK\",\"metric\":\"credibility\"}\n"
+    "'what makes TITAN a market leader' → {\"task\":\"why\",\"symbol\":\"TITAN\",\"metric\":\"rs\"}"
 )
 
 
@@ -709,6 +730,37 @@ def detect_strategy_key(qn: str):
     return None
 
 
+_WHY_RE = re.compile(
+    r"(?:why\s+(?:is|are|does|do|did)|what\s+makes|how\s+come)\s+([a-z0-9&.\-]{1,18})\b", re.I)
+_WHY_METRIC_KW = [
+    ("credibility", ["credib", "trustworth", "promise", "guidance", "concall", "management"]),
+    ("accumulation", ["accumulat", "being bought", "being accumulated", "strong hand",
+                      "strong-hand", "smart money", "distribut", "delivery"]),
+    ("rs", ["leader", "leading", "relative strength", "rs ", "outperform", "momentum",
+            "strong", "weak", "laggard"]),
+    ("valuation", ["cheap", "undervalued", "expensive", "overvalued", "value", "pe ", "p/e", "valuation"]),
+    ("quality", ["quality", "roce", "roe", "compounder", "good business"]),
+]
+
+
+def detect_why(query: str):
+    """A 'why is X <metric>?' explanation ask → (symbol, metric), else None. ₹0.
+    The default metric is credibility (the trust-wedge read most asked 'why' about)."""
+    m = _WHY_RE.search(query or "")
+    if not m:
+        return None
+    sym = m.group(1).strip().upper()
+    if not sym or sym.lower() in ("the", "this", "that", "it", "a", "an", "my"):
+        return None
+    qn = _norm(query)
+    metric = "credibility"
+    for mk, kws in _WHY_METRIC_KW:
+        if _has_any(qn, kws):
+            metric = mk
+            break
+    return sym, metric
+
+
 def _detect_pillars(qn: str, character):
     """The strategy FAMILIES a raw question names (for the degraded planner path)."""
     pillars: list[str] = []
@@ -741,6 +793,12 @@ def parse_fallback(query: str) -> dict | None:
         ood = _detect_ood(qn)
         if ood:
             return {"task": "ood", "kind": ood}
+
+        # WHY (explanation) — "why is X credible?" — checked before single-stock/compare
+        # so the explanation drill wins over a bare card.
+        wy = detect_why(query)
+        if wy:
+            return {"task": "why", "symbol": wy[0], "metric": wy[1]}
 
         # COMPARE (A vs B) — distinctive shape; checked before the single-stock catch.
         cmp_syms = detect_compare(query)
