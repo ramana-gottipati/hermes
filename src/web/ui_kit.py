@@ -220,7 +220,7 @@ def cmdk_overlay() -> str:
         'if(a&&a.id==="cmdk-in"){var q=a.value.trim();if(q)location.href="/dash/pat?q="+encodeURIComponent(q);}}});'
         'document.addEventListener("click",function(e){var t=e.target;'
         'if(t&&t.id==="cmdk-ov"){cl();return;}'
-        'if(t&&t.closest&&t.closest(".uk-cmdk")){e.preventDefault();op();}});'
+        'if(t&&t.closest&&(t.closest(".uk-cmdk")||t.closest("[data-cmdk]"))){e.preventDefault();op();}});'
         '})();</script>'
     )
 

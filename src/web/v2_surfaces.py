@@ -1,46 +1,26 @@
 """
-v2_surfaces.py — durable, idempotent wiring of the Patearn v2 website surfaces.
+v2_surfaces.py — durable wiring of the v2 surfaces + the canonical navigation IA.
 
-This is the SINGLE SOURCE OF TRUTH for mounting the trust-first v2 surfaces and
-integrating them into the live site navigation. It supersedes the earlier
-hand-appended blocks in ``main.py`` / ``dashboard.py`` (which were VPS-only and
-fragile — a parallel chart-session redeploy of those files would silently wipe
-the Coverage tab and unmount the routes, leaving them orphaned).
+Single source of truth for (a) mounting the v2 surfaces (Coverage, RS hub, News, /v1)
+and (b) the SITE NAVIGATION. It replaces the old flat "dump every lens on the top bar"
+nav with the altitudes-vs-lenses model (docs/ui-architecture-v2.md §3), grounded in how
+the best institutional products are built (Koyfin ~5 sections, Morningstar 3 modules,
+FactSet pinned apps): a few PRIMARY destinations on top, every analytical LENS one level
+down in a contextual sub-nav, Pat as a global ⌘K summon, Coverage as a "Trust" utility.
 
-Why a module instead of inline appends
---------------------------------------
-* The router mounts AND the nav integration live in ONE committed file -> durable.
-* ``main.py`` needs only a 2-line hook::
+Why a module (not edits to dashboard.py)
+----------------------------------------
+* main.py needs only a 2-line hook (`from src.web import v2_surfaces; v2_surfaces.wire(app)`),
+  re-applied idempotently by scripts/wire_v2_surfaces.py after any clobber.
+* dashboard.py needs ZERO edits: the nav is REPLACED at runtime by rebinding the imported
+  dashboard module's `_nav` (and neutralising its legacy `_subnav`); page handlers resolve
+  `_nav` as a module global at call time, so they pick up the new chrome on every start. A
+  chart-session redeploy of dashboard.py therefore cannot break it.
 
-      from src.web import v2_surfaces
-      v2_surfaces.wire(app)
-
-  re-applied idempotently by ``scripts/wire_v2_surfaces.py`` after any clobber.
-* ``dashboard.py`` needs ZERO v2 edits. The nav is wrapped at runtime by mutating
-  the imported dashboard module's ``_nav`` / ``_WS`` globals; the page handlers
-  resolve ``_nav`` as a module global at call time, so they pick up the wrap
-  automatically on every app start. A chart-session redeploy of ``dashboard.py``
-  therefore cannot remove the wrap (it isn't *in* dashboard.py).
-
-Properties
-----------
-* DEFENSIVE — every step is isolated in try/except; a bad module is skipped
-  (logged) and never fatal to the live app (the preserve-everything doctrine).
-* IDEMPOTENT — safe to call ``wire(app)`` more than once (sentinel + per-route /
-  per-link presence checks); safe even alongside a residual hand-appended block.
-* ADAPTIVE — if dashboard exposes ``_SUBNAV`` (the newer repo structure) the RS
-  hub + News land in the Markets sub-nav (IA-correct, ui-architecture-v2 §0.1);
-  on the older flat-nav VPS build they land as reachable top-nav tabs so the v2
-  surfaces are NEVER orphaned (the integrate-not-orphan lesson).
-* ADDITIVE — never edits or removes an existing route or nav entry; the sacred
-  routes (/dash/ratio, /dash/rrg, /dash/compare) are untouched.
-
-Surfaces wired (all already built + committed as isolated modules):
-  /dash/coverage   coverage_view.py  — the Coverage & Settlement ledger (lead wedge)
-  /dash/rs-hub     rs_section.py      — the Markets-altitude Relative-Strength hub
-  /dash/news       news_view.py      — per-stock News/Timeline
-  /dash/wire       news_view.py      — the watchlist Market Wire
-  /v1              src.api.v1        — the entitled/metered "one bus, four faces" API
+Properties: DEFENSIVE (each step try/except, never fatal) · IDEMPOTENT (sentinel) ·
+NO-LOSS (any destination the old nav exposed that the IA doesn't home falls into a "More"
+group — nothing is dropped; the sacred routes /dash/ratio, /dash/rrg, /dash/compare keep
+their URLs) · ADDITIVE + REVERSIBLE (restore the previous file + restart).
 """
 
 from __future__ import annotations
@@ -51,16 +31,7 @@ import re
 
 log = logging.getLogger("hermes.v2")
 
-# Canonical top-level altitudes (ui-architecture-v2 §3) — the hard fallback for
-# site_nav() if the live dashboard nav can't be read. Never a 4-link dead-end.
-_CANON_ALT = [
-    ("/dash/markets", "Markets"), ("/dash/themes", "Themes"),
-    ("/dash/screener", "Screener"), ("/dash/strategies", "Strategies"),
-    ("/dash/dashboard", "Tracker"), ("/dash/pat", "Pat"),
-]
-
-# Sentinel attribute set on the dashboard module once its _nav has been wrapped,
-# so a second wire() call (or a residual hook) cannot double-wrap.
+# Sentinel set on the dashboard module once its _nav has been replaced (no double-wrap).
 _NAV_SENTINEL = "_v2_nav_wrapped"
 
 # (label-key, module path, a sample route path to test for prior mount)
@@ -69,6 +40,95 @@ _ROUTER_SPECS = [
     ("rs-hub", "src.web.rs_section", "/dash/rs-hub"),
     ("news", "src.web.news_view", "/dash/wire"),
 ]
+
+# ── the canonical site IA — the single source of the top menu ────────────────
+# Altitudes = the top bar (a place you go). Each altitude's sub-nav = its lenses /
+# sections (how you evaluate — NEVER an altitude tab). Pat = a global summon (Ask
+# Pat ⌘K); Coverage = a "Trust" utility — both right-side, not altitude tabs.
+_IA_ALT = [
+    ("markets", "/dash/markets", "Markets"),
+    ("screener", "/dash/screener", "Screener"),
+    ("strategies", "/dash/strategies", "Strategies"),
+    ("tracker", "/dash/dashboard", "Tracker"),
+]
+_IA_SUB = {
+    "markets": [
+        ("markets", "/dash/markets", "Overview"),
+        ("sectors", "/dash/sectors", "Sectors"),
+        ("rs-hub", "/dash/rs-hub", "Relative strength"),
+        ("rrg", "/dash/rrg", "Rotation · Map"),
+        ("rotation", "/dash/rotation", "Rotation · Weather"),
+        ("rsband", "/dash/rsband", "Rotation · Band"),
+        ("participants", "/dash/participants", "Participants"),
+        ("wire", "/dash/wire", "News / Wire"),
+        ("compare", "/dash/compare", "Compare"),
+    ],
+    "screener": [
+        ("screener", "/dash/screener", "Screen"),
+        ("themes", "/dash/themes", "Themes / Baskets"),
+        ("tags-review", "/dash/tags-review", "Review"),
+        ("workbench", "/dash/workbench", "Workbench"),
+    ],
+    "strategies": [
+        ("strategies", "/dash/strategies", "Hub"),
+        ("conviction", "/dash/conviction", "Conviction"),
+        ("stocks", "/dash/stocks", "Positioning"),
+        ("mep", "/dash/mep", "Accumulation"),
+        ("cpr", "/dash/cpr", "Structure"),
+        ("leaders", "/dash/leaders", "Strength"),
+        ("concalls", "/dash/concalls", "Credibility"),
+        ("growth", "/dash/growth", "Growth-intent"),
+        ("wolfe", "/dash/wolfe/scan", "Wolfe"),
+        ("launchpad", "/dash/launchpad", "Launchpad"),
+        ("testing", "/dash/testing", "Lab"),
+    ],
+    "tracker": [
+        ("dashboard", "/dash/dashboard", "Dashboard"),
+        ("portfolios", "/dash/portfolios", "Portfolios"),
+        ("watchlists", "/dash/watchlists", "Watchlists"),
+        ("performance", "/dash/performance", "Performance"),
+        ("import", "/dash/import", "Import"),
+    ],
+}
+# sub-nav key -> the set of route `active` values that should highlight it
+_SUB_ALIAS = {
+    "sectors": {"sectors", "rs"}, "stocks": {"stocks", "scan", "stock"},
+    "leaders": {"leaders", "laggards"}, "wire": {"wire", "news"},
+    "themes": {"themes", "theme"}, "wolfe": {"wolfe"},
+    "dashboard": {"dashboard", "tracker", "track"},
+}
+# route `active` value -> its altitude (top-bar highlight + which sub-nav renders).
+_ALT_OF: dict[str, str] = {}
+for _a, _its in _IA_SUB.items():
+    for _k, _h, _l in _its:
+        _ALT_OF[_k] = _a
+        for _alias in _SUB_ALIAS.get(_k, ()):
+            _ALT_OF[_alias] = _a
+_ALT_OF.update({"ratio": "markets", "coverage": "trust"})
+
+# every href the IA already homes (the no-loss known set).
+_KNOWN_HREFS = ({h for _k, h, _l in _IA_ALT}
+                | {h for _its in _IA_SUB.values() for _k, h, _l in _its}
+                | {"/dash/coverage", "/dash/pat", "/dash/ratio", "/dash/news"})
+
+_NAV_LINK_RE = re.compile(r'<a [^>]*href="([^"]+)">([^<]+)</a>')
+
+_V2NAV_CSS = """<style>
+.v2bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.v2bar .wsnav{flex:0 1 auto}
+.v2util{margin-left:auto;display:flex;align-items:center;gap:8px}
+.v2util a,.v2util .v2askpat{font:inherit;font-size:12.5px;cursor:pointer;text-decoration:none;
+  border:1px solid #2b3a52;background:#0d1117;color:#9fb0c3;border-radius:8px;padding:6px 11px}
+.v2util a.on,.v2util a:hover,.v2util .v2askpat:hover{border-color:#1f6feb;color:#e6edf3}
+.v2askpat kbd{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;background:#1b2230;
+  border:1px solid #2b3a52;border-radius:4px;padding:1px 5px;margin-left:6px;color:#9fb0c3}
+.v2subnav{display:flex;gap:4px;flex-wrap:wrap;padding:7px 0 0;margin:0 0 4px;
+  border-bottom:1px solid #21262d;overflow-x:auto}
+.v2subnav a{font-size:12.5px;color:#8b949e;text-decoration:none;padding:5px 10px;
+  border-radius:7px 7px 0 0;white-space:nowrap}
+.v2subnav a:hover{color:#e6edf3;background:#161b22}
+.v2subnav a.on{color:#e6edf3;background:#161b22;font-weight:600;border-bottom:2px solid #1f6feb}
+</style>"""
 
 
 def _route_paths(app) -> set[str]:
@@ -106,8 +166,28 @@ def _mount_v1(app) -> None:
         log.warning("v2 /v1 mount skipped: %s", e)
 
 
+def _altitude_of(active) -> str | None:
+    """Which altitude (markets/screener/strategies/tracker), the 'trust' utility, or
+    None, the given route `active` value belongs to."""
+    a = (active or "").strip().lower()
+    if a in _ALT_OF:
+        return _ALT_OF[a]
+    try:
+        import src.web.dashboard as D
+        ws = D._WS.get(a, a)
+        if ws == "themes":
+            return "screener"
+        if ws in ("markets", "screener", "strategies", "tracker"):
+            return ws
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def _install_nav() -> None:
-    """Wrap dashboard._nav (and enrich _SUBNAV when present) at runtime."""
+    """Replace dashboard._nav (at runtime) with the canonical 4-altitude IA chrome:
+    a clean top bar + Ask-Pat/Trust utilities + a contextual sub-nav, so lenses live
+    UNDER altitudes instead of cluttering the top bar. Gate-safe, reversible, no-loss."""
     import src.web.dashboard as D
 
     if getattr(D, _NAV_SENTINEL, False):
@@ -115,40 +195,47 @@ def _install_nav() -> None:
     if not hasattr(D, "_nav"):
         log.warning("v2 nav skipped: dashboard._nav not found")
         return
-
     orig_nav = D._nav
-    has_subnav = isinstance(getattr(D, "_SUBNAV", None), dict)
 
-    # Workspace map so the correct base tab / sub-nav highlights. On the sub-nav
-    # build, RS/News belong to the Markets altitude; on the flat build they get
-    # their own top-tab highlight.
+    # highlight hints for any other dashboard code path that reads _WS
     try:
-        if has_subnav:
-            D._WS.update({"coverage": "coverage", "rs-hub": "markets",
-                          "wire": "markets", "news": "markets"})
-        else:
-            D._WS.update({"coverage": "coverage", "rs-hub": "rs-hub",
-                          "wire": "news", "news": "news"})
+        D._WS.update({"coverage": "coverage", "rs-hub": "markets", "wire": "markets",
+                      "news": "markets", "participants": "markets", "growth": "strategies",
+                      "wolfe": "strategies", "testing": "strategies"})
     except Exception as e:  # noqa: BLE001
         log.warning("v2 _WS update skipped: %s", e)
 
     def _wrapped_nav(active):
-        html = orig_nav(active)
-        links = []
-        if not has_subnav:
-            # flat VPS build: surface RS + News as reachable top tabs (never orphan)
-            links.append(("/dash/rs-hub", "Relative strength", active == "rs-hub"))
-            links.append(("/dash/wire", "News", active in ("wire", "news")))
-        # Coverage is the lead trust/compliance wedge -> a top tab on both builds.
-        links.append(("/dash/coverage", "Coverage", active == "coverage"))
-        frag = "".join(
-            f'<a class="{"on" if act else ""}" href="{href}">{label}</a>'
-            for href, label, act in links
-            if f'href="{href}"' not in html  # idempotent: never double-add a link
-        )
-        out = html.replace("</div>", frag + "</div>", 1) if frag else html
-        # the global Cmd-K "Ask Pat" overlay — summon the copilot from any legacy _shell
-        # page (ui_kit pages include it via ui_kit.shell). Idempotent (window.__cmdk guard).
+        alt = _altitude_of(active)
+        tabs = "".join(f'<a class="{"on" if alt == k else ""}" href="{h}">{lbl}</a>'
+                       for k, h, lbl in _IA_ALT)
+        # NO-LOSS: any destination the original nav exposed that the IA doesn't home
+        # is preserved in a trailing "More" group, so a future route is never dropped.
+        extra, seen = "", set()
+        try:
+            unknown = []
+            for href, label in _NAV_LINK_RE.findall(orig_nav(active)):
+                if href not in _KNOWN_HREFS and href not in seen:
+                    seen.add(href)
+                    unknown.append((href, label))
+            if unknown:
+                extra = "".join(f'<a href="{h}">{l}</a>' for h, l in unknown)
+        except Exception:  # noqa: BLE001
+            extra = ""
+        util = ('<div class="v2util">'
+                f'<a class="{"on" if alt == "trust" else ""}" href="/dash/coverage" '
+                'title="Data coverage &amp; provenance">Trust</a>'
+                '<button class="v2askpat" type="button" data-cmdk>Ask Pat <kbd>⌘K</kbd></button>'
+                '</div>')
+        top = f'<div class="v2bar"><nav class="wsnav v2nav">{tabs}{extra}</nav>{util}</div>'
+        sub = ""
+        items = _IA_SUB.get(alt)
+        if items:
+            links = "".join(
+                f'<a class="{"on" if (active == k or active in _SUB_ALIAS.get(k, {k})) else ""}" '
+                f'href="{h}">{lbl}</a>' for k, h, lbl in items)
+            sub = f'<div class="v2subnav">{links}</div>'
+        out = _V2NAV_CSS + top + sub
         try:
             from src.web import ui_kit as _K
             out += _K.cmdk_overlay()
@@ -157,70 +244,37 @@ def _install_nav() -> None:
         return out
 
     D._nav = _wrapped_nav
-
-    # IA-correct placement on the newer (sub-nav) structure.
-    if has_subnav:
+    # our nav renders its own sub-nav; neutralise the legacy _subnav to avoid a double.
+    if hasattr(D, "_subnav"):
         try:
-            mk = D._SUBNAV.setdefault("markets", [])
-            existing = {it[1] for it in mk if len(it) >= 2 and it[1]}
-            for item in (({"rs-hub"}, "/dash/rs-hub", "Relative strength"),
-                         ({"wire", "news"}, "/dash/wire", "News")):
-                if item[1] not in existing:
-                    mk.append(item)
-        except Exception as e:  # noqa: BLE001
-            log.warning("v2 sub-nav enrich skipped: %s", e)
-
+            D._subnav = lambda active="": ""
+        except Exception:  # noqa: BLE001
+            pass
     setattr(D, _NAV_SENTINEL, True)
 
 
 def site_nav(active: str = ""):
-    """The COMPLETE, single-source nav destination list for the v2 (ui_kit) chrome.
-
-    Mirrors the live dashboard top-nav (so it auto-includes any build-specific tabs
-    like the VPS-only "Growth") and guarantees the v2 surfaces are present. Returns
-    [(href, label, is_on), ...]. Degrades to the canonical altitude list if the
-    dashboard nav can't be read — never an empty or 4-link dead-end (the very flaw
-    this removes). ONE builder; rendered by ui_kit.nav_links for v2 pages and by the
-    dashboard._nav wrapper for legacy pages -> one nav contract, two renderers.
-    """
-    items: list[tuple[str, str, bool]] = []
-    seen: set[str] = set()
-    try:
-        import src.web.dashboard as D
-        for m in re.finditer(r'<a class="([^"]*)" href="([^"]+)">([^<]+)</a>', D._nav(active)):
-            cls, href, label = m.group(1), m.group(2), m.group(3)
-            if href in seen:
-                continue
-            seen.add(href)
-            items.append((href, label, "on" in cls.split()))
-    except Exception as e:  # noqa: BLE001 — must degrade, never crash a page render
-        log.warning("v2 site_nav dashboard read failed: %s", e)
-    if not items:                                   # hard fallback: canonical altitudes
-        for href, label in _CANON_ALT:
-            items.append((href, label, False))
-            seen.add(href)
-    for href, label, act in (("/dash/rs-hub", "Relative strength", active == "rs-hub"),
-                             ("/dash/wire", "News", active in ("wire", "news")),
-                             ("/dash/coverage", "Coverage", active == "coverage")):
-        if href not in seen:                        # ensure the v2 surfaces are reachable
-            items.append((href, label, act))
-            seen.add(href)
+    """The nav destination list for the v2 (ui_kit) chrome (e.g. Coverage): the four
+    altitudes + the Trust utility, highlight-aware. ONE IA, two renderers."""
+    alt = _altitude_of(active)
+    items = [(h, lbl, alt == k) for k, h, lbl in _IA_ALT]
+    items.append(("/dash/coverage", "Trust", alt == "trust"))
     return items
 
 
 def wire(app):
-    """Mount the v2 routes + integrate them into the nav. Idempotent + defensive."""
+    """Mount the v2 routes + install the canonical nav. Idempotent + defensive."""
     _mount_routers(app)
     _mount_v1(app)
     try:
         _install_nav()
-    except Exception as e:  # noqa: BLE001 — nav integration must never break import
+    except Exception as e:  # noqa: BLE001 — nav install must never break import
         log.warning("v2 nav install skipped: %s", e)
     return app
 
 
 def _selftest() -> int:
-    """Mount on a throwaway app + assert the v2 surfaces are reachable and in-nav."""
+    """Mount on a throwaway app + assert the clean IA renders, is no-loss, idempotent."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
@@ -229,24 +283,31 @@ def _selftest() -> int:
     app = FastAPI()
     app.include_router(D.router)
     wire(app)
-    wire(app)  # second call must be a no-op (idempotency)
+    wire(app)  # idempotent
 
     c = TestClient(app)
     for path in ("/dash/coverage", "/dash/rs-hub", "/dash/wire", "/dash/news"):
-        code = c.get(path).status_code
-        assert code == 200, f"{path} -> {code}"
+        assert c.get(path).status_code == 200, path
 
-    # Coverage is a top tab on every build -> present on the home shell.
-    home = c.get("/dash").text
-    assert "/dash/coverage" in home, "Coverage link missing from nav"
-    # On the sub-nav build the RS hub appears in the Markets sub-nav.
-    if isinstance(getattr(D, "_SUBNAV", None), dict):
-        markets = c.get("/dash/markets").text
-        assert "/dash/rs-hub" in markets, "RS hub missing from Markets sub-nav"
-        # idempotency: the coverage link must not be duplicated
-        assert home.count('href="/dash/coverage"') == 1, "Coverage link duplicated"
-    print("v2_surfaces selftest OK "
-          f"(_SUBNAV={'yes' if isinstance(getattr(D, '_SUBNAV', None), dict) else 'no'})")
+    # Test the nav RENDERER directly (no page render -> no data/route-mount dependency;
+    # route liveness of every sub-nav target is verified separately on the VPS).
+    home = D._nav("dash")
+    for _k, h, lbl in _IA_ALT:                       # the 4 altitudes present
+        assert f'href="{h}"' in home, f"altitude missing: {lbl}"
+    assert "v2askpat" in home and 'href="/dash/coverage"' in home, "utilities missing"
+    assert home.count('class="v2bar"') == 1, "nav rendered more than once (not idempotent)"
+    # the OLD clutter must be GONE from the top bar (growth/wolfe/themes are now sub-nav)
+    top_bar = home.split('class="v2subnav"')[0]
+    for gone in ('>Growth<', '>Wolfe wave<', '>Themes<', '>News<', '>Relative strength<'):
+        assert gone not in top_bar, f"lens still on top bar: {gone}"
+
+    # every altitude renders its lenses as a contextual sub-nav (no-loss presence)
+    for alt, items in _IA_SUB.items():
+        nav = D._nav(alt if alt != "tracker" else "dashboard")
+        for _k, h, _l in items:
+            assert f'href="{h}"' in nav, f"{alt} sub-nav missing {h}"
+    print("v2_surfaces selftest OK — 4 altitudes + contextual sub-nav + utilities; "
+          "lenses off the top bar; no-loss; idempotent")
     return 0
 
 
