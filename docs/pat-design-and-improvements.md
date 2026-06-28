@@ -403,6 +403,67 @@ a model call. Consider a paid Gemini key or per-workload keys if routing misses 
 
 ---
 
+## 13. Session wrap — 2026-06-28 (Round 7: the analytics-copilot PLANNER)
+
+Pat moved from single-flow answers to a **general analytics planner** — same
+closed-vocab → deterministic-compute contract (the LLM only emits validated JSON;
+it never writes SQL or invents a number; every read is a precomputed table). Lane F,
+commit `3970345`, `src/pat/*` only, LIVE + verified on the real VPS Gemini stack.
+
+**What shipped**
+1. **Multi-condition CONFLUENCE planner.** When an ask names **≥2 strategy FAMILIES**
+   — "credible + accumulating + RS-leading small-caps" — Pat intersects the
+   precomputed tables instead of picking one flow. `understand._plan_pillars`
+   collects the pillars (valuation/quality/growth collapse into ONE `fund` family,
+   so a plain "cheap quality compounder" still routes to the single fundamentals
+   flow — no regression); ≥2 distinct families → `flow=confluence_plan` →
+   `flows.build_confluence_plan_query(pillars, sector, capband)`. Pillar keys are a
+   **closed set** (`PLAN_PILLARS`: credibility · accumulation · distribution · rs ·
+   value · quality · structure); cap-band comes from **index membership**
+   (small = Nifty Smallcap 250, mid = Nifty Midcap 150, large = Nifty 50 ∪ Next 50;
+   `fundamentals.market_cap_cr` is only ~66 rows, unusable). The dedicated
+   credibility×accumulation `confluence` view is preserved for exactly that pair
+   with no scope.
+2. **Any `strategy_registry` strategy askable in English.** New `strategy` task →
+   `web._strategy_flow` renders `strategy_registry.summary()` (Lane C). Closes the
+   **CPR + Wolfe** NL gap (neither had a Pat flow) and adds a "strategist overview"
+   board read. Keys: mep / dvpt / rs / cpr / cci / wolfe / all.
+3. **Compare A-vs-B.** New `compare` task → two `_stock_card`s side by side.
+
+**How (no parallel-owned edits):** all logic in `understand.py` (METRICS += `structure`,
+`scope.capband`, planner + strategy + compare across `compile_intent` / `validate_intent`
+/ `parse_fallback` / `SYSTEM_PARSE`), `flows.py` (the planner query), `web.py` (3
+renderers + dispatch + `_FLOW_LABEL` + `_FRESH`), `engine._VALID` (+3 flows, defense
+in depth), `disambiguate.route_extra` (₹0 compare + strategy pre-router; the planner
+stays on the Gemini→fallback path so the model's sector parse isn't lost). The
+`flow=` path smuggles params through dashboard.py's **already-forwarded** generics
+(pillars→`strength`, capband→`entry`, compare syms→`sym`, strategy key→`strength`) so
+**dashboard.py needs zero edits**.
+
+**Safety / trust:** descriptive-only throughout (the §C falsification stands —
+"evidence, not a buy call"); OOD/SEBI guardrails intact; every answer is
+provenance-stamped (the planner/strategy carry their own as-of meta). Red-team
+passed: closed-set pillars + bound params (no SQL injection), `validate_intent`
+drops off-vocab (no hallucinated columns), prompt-injection never escapes to a
+non-closed flow, `_q_bubble` escapes (no reflected XSS).
+
+**Verification:** `eval_set` extended → compiler **29/29**, route fallback **40/41**
+(new **PLANNER band 9/9**; the only fail is the pre-existing "cheap stocks under
+PE 15"). Live VPS Gemini battery **16/16** (3 planner variants → Multi-condition;
+CPR/Wolfe/overview → Strategy board; compare and/vs → Compare; RS / confluence /
+overvalued / credibility / movers unchanged; advice / predict / gold → redirected)
+plus real data (planner names with as-of footer, 6-strategy board, INFY|TCS
+compare). This deploy also **reconciled the long-standing repo→VPS `engine.py`
+divergence** (the VPS was a strict older subset — missing the route_guardrail block
++ credibility `_VALID`; the consistent-package deploy brought it forward, no loss).
+VPS backup: `src/pat/.bak-patf-20260628-175218/`.
+
+**Open (optional next):** a fundamentals-coverage caveat in the planner footer (the
+value/quality pillars hit the sparse cached-Screener set); sector parse on the ₹0
+planner path; the oscillators nightly job (still pending, ops).
+
+---
+
 ## 12. Kickstart prompt — next Pat session
 
 > Paste this to start the next session. It is self-contained; it points at this doc.
