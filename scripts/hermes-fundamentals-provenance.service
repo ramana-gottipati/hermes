@@ -1,0 +1,22 @@
+[Unit]
+Description=Hermes - forward knowable_at capture (re-collect stale fundamentals, stamp real first-seen)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# A forward-refresh pass re-scrapes every STALE symbol (latest period_end older than ~1 quarter);
+# during earnings season that is hundreds of names at a polite 2.5s pacing → many minutes. Without
+# this, systemd kills the oneshot at the default ~90s start-timeout and marks it failed.
+TimeoutStartSec=infinity
+# (1) FORWARD capture: re-collect symbols whose latest stored quarter is stale (a newer one has
+#     since ended → may now be filed). The collector is INSERT-OR-REPLACE; the provenance hook
+#     diffs before/after and stamps the REAL first-seen knowable_at for the just-filed period only
+#     (the recency gate rejects deep history). First-seen S >= true filing F = a real, no-look-ahead
+#     upper bound — strictly safer than the synthetic period_end+lag. Free (Screener scrape, no LLM).
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.fundamentals_provenance --refresh
+# (2) RE-CALIBRATE the conservative synthetic lag from the freshly-grown set of real dates, so the
+#     not-yet-de-modeled rows keep using a near-non-leaking fallback. Fast + free (no network/LLM).
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.provenance --calibrate
+StandardOutput=append:/var/log/hermes-fundamentals-provenance.log
+StandardError=append:/var/log/hermes-fundamentals-provenance.log

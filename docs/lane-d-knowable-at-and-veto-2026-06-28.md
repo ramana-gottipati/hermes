@@ -142,17 +142,79 @@ claim. The **distribution and direction** (mostly conservative; ~9% concentrated
 ### Forward hook (`fundamentals_provenance.py`)
 Selftest green on the VPS; it captures real first-seen `knowable_at` for **newly-ingested** periods
 (recency gate rejects deep history). Because the archive is already fully ingested, a `--run` today
-captures ~0 (correct) — its value accrues going forward. **Gated deploy** = swap the scheduler's
-`collect_universe` → `collect_universe_with_provenance` (one line, in a parallel-owned scheduler;
-not done here per ownership boundaries).
+captures ~0 (correct) — its value accrues going forward. (Lane H below wires it onto a schedule.)
 
 ---
 
-## Files touched (owned only) — commit at wrap
-- `src/automation/fundamentals_filing_dates.py` — `seed_scrip_map_from_bse()` + `--seed-bse`;
-  `AnnSubCategoryGetData` endpoint + param/response fixes; per-symbol commit + `resume`.
-- `src/automation/provenance.py` — `lag_audit()` leak-direction semantics fixed.
-- `src/automation/fundamentals_provenance.py` — unchanged (deployed + selftest-validated only).
+# LANE H — hardening continuation (2026-06-28)
 
-NOT touched: any web-layer file; `concalls.py`/`concall_*` (parallel-owned); PROJECT_STATE.md /
-shared docs are dirty from parallel lanes → updates ride the reconciliation (noted, not staged).
+> Same workstream, next step: **cut the residual leak**, **enable forward capture**, and **decide
+> data-licensing**. Owns only `provenance.py`, `fundamentals_provenance.py`, the scheduler unit, and
+> the new licensing doc. The BSE backfill from Lane D continued running throughout.
+
+## H1 — Cut the knowable_at leak (calibrated conservative synthetic)
+The ~8.7% leak (now ~11.8% measured across the fuller universe — small/mid-caps file slower than the
+first alphabetical cohort) is the **producer's +50/+90 model** under-shooting real late filings. Two
+moves, both in `provenance.py` (owned):
+
+1. **Prefer the real BSE date** — already live (`provenance_for()` flips MODELED→INGESTED; 73%+
+   de-modeled). Where a real date exists the leak is **0**.
+2. **Calibrate a conservative synthetic for the rest** — new `calibrate_synthetic_lag()` learns the
+   filing-lag distribution from the captured real dates (clipped for restatement/mismatch noise) and
+   sets `chosen_lag = p95` per period_type (**Annual 113 d, Quarterly 59 d**, n≈15k), persisted to a
+   new `provenance_lag_calibration` table. `provenance_for()`'s modeled fallback now returns a no-leak
+   **`effective_as_of` = period_end + calibrated lag** (and the conservative lag as `lag_days`), and
+   `lag_audit()` reports the leak under **three models**.
+
+**Verified on real VPS data (`--lag-audit`):**
+
+| model | leak % | note |
+|---|---:|---|
+| baseline producer (+90/+50) | **11.8%** | what a backtest on the stored `report_date` injects |
+| calibrated (period_end + p95) | **4.5%** | the conservative synthetic, for not-yet-de-modeled rows |
+| **effective (real-preferred)** | **2.64% now → ~1.2% at full de-model** | real date where it exists (leak 0) + calibrated on the rest; blended ≈ (1−demodel)×4.5% |
+
+→ a **~10× leak reduction** end-to-end, and falling as the backfill + forward hook capture more real
+dates. `--percentile 99` is available for a stricter (~1%) synthetic at a small timeliness cost; p95
+is the documented default (the residual leaks are mostly single/low-double-digit-day late filers).
+**Remaining (parallel-owned, documented):** the backtest reader `fundamentals_asof.py` still gates on
+the stored `report_date` — the loop-closer is to read `provenance_for(...).effective_as_of` (or
+`COALESCE(real knowable_at, period_end+calibrated_lag)`); a one-spot change in a non-owned file.
+
+## H2 — Enable forward capture (the scheduler)
+There was **no fundamentals scheduler at all** (no timer/cron; the archive was built by manual runs),
+and both `collect_universe` and the forward wrapper **skip already-`done` symbols** → a naive recurring
+run would never re-scrape existing names for their *new* quarters. Fixes (owned):
+- `fundamentals_provenance.py`: new **`--refresh`** mode re-collects symbols whose latest stored
+  `period_end` is older than `--stale-days` (default **95** ≈ one quarter) + brand-new symbols; the
+  recency gate then stamps only the just-filed period's real first-seen date. Plus **`--demo-capture`**
+  (proves a new-filing capture end-to-end on the real DBs, then cleans up).
+- NEW owned systemd unit **`scripts/hermes-fundamentals-provenance.{service,timer}`** (Tue+Sat 21:00
+  UTC, `TimeoutStartSec=infinity`, decoupled timer): ExecStart chains **`--refresh` → `provenance
+  --calibrate`** so capture and recalibration stay current. Free (Screener scrape, no LLM).
+
+**Verified:** `--demo-capture` → `ok: true` (captured `real_knowable_at` for a simulated new quarter,
+cleaned up); `--refresh --limit 12` correctly selected 3 stale names and captured 0 (nothing new
+today); timer `active (waiting)`, next run Tue 2026-06-30 21:00 UTC; service inactive.
+
+## H3 — Data-licensing decision
+Wrote **`docs/data-licensing-decision.md`** (DECIDED — proceed, don't block): build now on the scraped
+foundation for internal research (provenance-stamped, §2 caveat carried), migrate the VENDOR-TOS
+classes (`fundamentals_history`, concall index, shareholding) to owned/licensed feeds at the pre-pitch
+trigger — a per-`data_class` source swap behind the stable `/v1` contract, with the provenance
+registry's `source` field as the migration ledger. The crown-jewel PIT data (filing dates) is already
+**exchange public record** (BSE announcements), and the analytics are owned IP → the exposure is a
+known, bounded, per-class list with concrete targets. Full plan + triggers in the doc.
+
+---
+
+## Files touched (owned only)
+**Lane D (committed `54f4b0d`):** `fundamentals_filing_dates.py` (`--seed-bse`, `AnnSubCategoryGetData`
+fix, per-symbol commit + `resume`); `provenance.py` (`lag_audit` leak-direction fix); this doc.
+**Lane H (this commit):** `provenance.py` (calibration + 3-model `lag_audit` + `effective_as_of`);
+`fundamentals_provenance.py` (`--refresh`/`--stale-days`/`--demo-capture`); NEW
+`scripts/hermes-fundamentals-provenance.{service,timer}`; NEW `docs/data-licensing-decision.md`.
+
+NOT touched: any web-layer file; `concalls.py`/`concall_*`/`fundamentals_history.py` (parallel-owned);
+PROJECT_STATE.md / shared docs are dirty from parallel lanes → updates ride the reconciliation.
+Survivorship deterioration-veto re-test stays **DATA-BLOCKED** (Mission 1 above) — noted, not chased.
