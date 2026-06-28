@@ -46,6 +46,8 @@ _ROUTER_SPECS = [
     # (uncommitted) main.py mount block (Round-2 / Lane E consolidation).
     ("strategist", "src.web.strategist_view", "/dash/strategist"),
     ("screen2", "src.web.screener_plus", "/dash/screen2"),
+    # Lane A2 — the living design-system showcase.
+    ("ui-showcase", "src.web.ui_showcase", "/dash/_ui"),
 ]
 
 # ── the canonical site IA — the single source of the top menu ────────────────

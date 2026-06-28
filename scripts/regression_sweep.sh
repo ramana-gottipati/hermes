@@ -16,7 +16,7 @@ ROUTES="/dash/markets /dash/screener /dash/screen2 /dash/strategies /dash/strate
 /dash/stock /dash/coverage /dash/pat /dash/mep /dash/conviction /dash/cpr /dash/concalls /dash/leaders \
 /dash/growth /dash/wolfe /dash/wolfe/scan /dash/rs-hub /dash/rrg /dash/rotation /dash/rsband \
 /dash/participants /dash/wire /dash/compare /dash/sectors /dash/themes /dash/workbench /dash/launchpad \
-/dash/testing /dash/ratio"
+/dash/testing /dash/ratio /dash/_ui"
 
 # The chart overlays — the work Ramana most cares about not breaking.
 OVERLAYS="/dash/cpr/overlay?sym=ACC /dash/mep/overlay?sym=ACC /dash/rs/overlay?sym=ACC \
