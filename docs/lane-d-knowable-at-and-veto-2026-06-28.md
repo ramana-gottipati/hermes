@@ -218,3 +218,68 @@ fix, per-symbol commit + `resume`); `provenance.py` (`lag_audit` leak-direction 
 NOT touched: any web-layer file; `concalls.py`/`concall_*`/`fundamentals_history.py` (parallel-owned);
 PROJECT_STATE.md / shared docs are dirty from parallel lanes → updates ride the reconciliation.
 Survivorship deterioration-veto re-test stays **DATA-BLOCKED** (Mission 1 above) — noted, not chased.
+
+---
+
+# LANE H2 — audit-grade research wedge + data integrity (2026-06-28)
+
+Five workstreams; all committed (`628d6e7`, P2, `a6f2796`, `daf3637`, `55aa349`), each VPS-verified.
+
+## P1 — Close the knowable_at loop (`628d6e7`) ✅
+`fundamentals_asof.py` (the PIT backtest reader) gated `report_date <= as_of` on the **modeled**
++90/+50 date, so the captured real BSE dates changed nothing downstream. Now
+`load_symbol_history`/`load_shareholding_history` replace each row's date with the **effective
+knowable date** — real BSE date where captured, else `period_end + calibrated lag` — via a shared RO
+hermes.db read; degrades to the stored date if provenance absent. **Verified:** RELIANCE Q3-FY25 now
+known 2025-01-16 (real) vs 2025-02-19 (modeled, −34d); the backtest sees a period exactly when it
+became public, no leak. **The calibration now actually bites.**
+
+## P2 — Continuous data-quality monitor (`data_quality.py` + daily timer) ✅
+A cheap deterministic battery (10 checks, no LLM/network): out-of-range credibility periods/levels,
+malformed concall labels, score bounds, future/malformed provenance keys, calibration staleness,
+knowable-leak + de-model drift, fundamentals date sanity, security_master sanity, cross-DB orphans.
+Owns `data_quality_runs`; daily `hermes-data-quality.timer`. **On first run it caught the real
+`period_year=225` corruption** (DEEPINDS, source label "Aug 0225"). Root-cause fix in
+`cci_series._bounded()` + a periods filter (a corrupt source label can never mint a credibility
+point); rebuilt DEEPINDS (0 out-of-range remain). The upstream `concalls` row is surfaced as an
+info check, not mutated.
+
+## P3 — CCI Phase 3: credibility RRG + divergence (`cci_rrg.py`) ✅ DESCRIPTIVE
+Two reads over `credibility_series` (+ bhavcopy) into an owned `credibility_rrg` table: the RRG
+**quadrant** (level × momentum_3p → PROVEN_IMPROVING / PROVEN_SLIPPING / UNPROVEN_* /
+LOW_DETERIORATING, n≥3 gate) and **credibility÷price divergence** (CONFIRMING / POSITIVE / NEGATIVE,
+adjusted prev_close return). **Built 806 symbols** (155 proven-improving, 49 low-deteriorating, 429
+unproven via the gate; 331 positive / 48 negative divergence). **DESCRIPTIVE only** — the §C
+falsification stands; positive divergence is an observation, never a buy.
+
+## P4 — Data-licensing migration (`a6f2796` + `daf3637`) ✅
+- **Registry posture:** `provenance.redistribution_status()` + `licensing_digest()` classify each
+  class public-record / vendor-tos / owned / news-license; surfaced in `provenance_for()` so the
+  `/v1` external scope can refuse a non-redistributable class. **6 vendor-tos migration targets** =
+  the pre-pitch swap list. `--licensing` prints the ledger.
+- **De-Screener concall discovery (`concall_bse.py`):** discovers earnings-call transcripts directly
+  from BSE announcements (`SUBCATNAME='Earnings Call Transcript'` → `AttachHis/<pdf>`), an exchange
+  public-record, removing the Screener dependency for `concall_corpus`. Writes the standard on-disk
+  `.txt` + an INSERT-OR-IGNORE `concalls` row (`source='bse-ann'`) so the existing pipeline consumes
+  it; never edits `concalls.py`. **Proven live on RELIANCE (14 transcripts + a real PDF).**
+
+## P5 — Acquire delisted-name concalls → **STRUCTURALLY data-blocked (precisely characterised)**
+The adapter **can** reach delisted names (seeded 3,105 delisted scrip codes via BSE all-status ⋈
+security_master ISIN; a free capture of the recent distress set is running). **But the survivorship
+re-test stays blocked for a structural reason, now pinpointed:** BSE's earnings-call-**transcript
+disclosure mandate is only ~2021+**, so distress blow-ups — which stopped holding calls years before
+their formal delisting — have **~0 BSE transcripts** (MANPASAND, ROLTA, GOENKA = 0). Of 28 recent
+real-company delistings, only 7 carry ≥4 transcripts, and those are **M&A/acquisition** exits
+(Akzo, Sanghi→Adani, Sequent→Carlyle), **not failures** — the wrong population for a deterioration
+veto. So the re-test cannot be unblocked by capture: the data the veto needs (a concall track record
+that then BLEW UP) barely exists in the transcript era because the mandate post-dates the distress
+cohort. The veto stays **descriptive**. (This is a sharper verdict than Lane D's generic block: not
+"we didn't capture them" but "the source does not exist for this cohort.")
+
+## Files touched (owned only) — Lane H2
+`fundamentals_asof.py` (loop-closer); NEW `data_quality.py` + `scripts/hermes-data-quality.{service,
+timer}`; `cci_series.py` (period guard); NEW `cci_rrg.py`; `provenance.py` (licensing posture); NEW
+`concall_bse.py`. NOT touched: web layer, `concalls.py`/`concall_extract`/`fundamentals_history.py`
+(parallel-owned — only their DATA tables read, or appended via INSERT-OR-IGNORE).
+**Follow-up (parallel-owned wiring):** add `cci_rrg --build` after `cci_series --all` in the nightly;
+the loop-closer reaches the live scorer once any scheduled `score_asof`/backtest re-runs.
