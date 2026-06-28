@@ -1425,6 +1425,51 @@ def _clarify_view(q: str, sel: dict) -> str:
             + search)
 
 
+# ── §9.8 freshness + coverage header (on every data answer) ──────────────────
+# Each data flow discloses its as-of date + the universe/coverage scope, so an
+# answer never implies more freshness or breadth than it has (the trust contract:
+# "render with caveat"). Table names are hardcoded (no user input → no injection).
+# (flow -> (table | None, date_col | None, coverage note))
+_FRESH = {
+    "rs":            ("stock_signals", "trade_date", "NSE equities · daily relative-strength signals"),
+    "rslag":         ("stock_signals", "trade_date", "NSE equities · daily relative-strength signals"),
+    "accumulation":  ("stock_signals", "trade_date", "NSE equities · daily delivery / DVPT"),
+    "distribution":  ("stock_signals", "trade_date", "NSE equities · daily delivery / DVPT"),
+    "consolidation": ("stock_signals", "trade_date", "NSE equities · daily delivery / DVPT"),
+    "card":          ("stock_signals", "trade_date", "single name · latest daily signals"),
+    "movers":        ("bhavcopy_rows", "trade_date", "NSE cash · latest session"),
+    "index":         ("index_signals", "trade_date", "NSE sectoral & thematic indices · daily"),
+    "credibility":   ("concall_scores", "last_updated", "concall pilot · hundreds of names, NOT the full universe"),
+    "deterioration": ("concall_scores", "last_updated", "concall pilot · veto + deterioration flags"),
+    "fundamentals":  (None, None, "cached Screener snapshot · the surfaced set, not the whole market"),
+    "pt14":          (None, None, "pt14 scored on demand for surfaced names"),
+    "disqualified":  (None, None, "the hard-disqualifier kill-list"),
+    "redflags":      (None, None, "the hard-disqualifier kill-list"),
+    "oscillators":   (None, None, "RSI / MACD · computed nightly"),
+}
+
+
+def _max_date(conn, table, col):
+    try:
+        return conn.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]  # noqa: S608 (hardcoded names)
+    except Exception:
+        return None
+
+
+def _freshness_bar(conn, flow: str) -> str:
+    """The as-of + coverage badge for a flow. Confluence carries its own dual-lens
+    badge; explain/clarify/home have nothing to date → empty (never fabricated)."""
+    if conn is None or flow == "confluence":
+        return ""
+    spec = _FRESH.get(flow)
+    if not spec:
+        return ""
+    table, col, note = spec
+    d = _max_date(conn, table, col) if table else None
+    asof = f'<span>data as-of: {_esc(d)}</span>' if d else ''
+    return f'<div class="patMeta">{asof}<span>coverage: {_esc(note)}</span></div>'
+
+
 def _free_text(conn, q: str):
     """A typed question with no explicit flow → routed to a flow + chip params (via
     src.pat.engine); falls back to the deterministic glossary search if the engine
@@ -1488,6 +1533,7 @@ def _free_text(conn, q: str):
         elif f == "confluence":
             body = _confluence_flow(conn)
         if body is not None:
+            body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
     # fallback — deterministic glossary keyword search (today's behavior). A chooser,
@@ -1591,6 +1637,11 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body, fb_ctx = _free_text(conn, q)
     else:
         body = _home()
+
+    # §9.8 freshness + coverage footer on a direct flow= answer (the free-text path
+    # adds its own inside _free_text; confluence/explain/clarify/home add nothing).
+    if fb_ctx and fb_ctx.get("source") == "flow":
+        body = body + _freshness_bar(conn, fb_ctx.get("flow", ""))
 
     out = _PAT_CSS + _avatar_picker() + body
     if fb_ctx is not None:
