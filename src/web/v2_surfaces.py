@@ -35,10 +35,17 @@ log = logging.getLogger("hermes.v2")
 _NAV_SENTINEL = "_v2_nav_wrapped"
 
 # (label-key, module path, a sample route path to test for prior mount)
+# Each is include_router'd by _mount_routers, skipped if its sample route is already
+# present — so this is the DURABLE mount point: a route registered here survives a
+# main.py clobber/redeploy (wire() re-mounts it) without needing a main.py edit.
 _ROUTER_SPECS = [
     ("coverage", "src.web.coverage_view", "/dash/coverage"),
     ("rs-hub", "src.web.rs_section", "/dash/rs-hub"),
     ("news", "src.web.news_view", "/dash/wire"),
+    # Lane B surfaces — durably mounted here so they no longer depend on the
+    # (uncommitted) main.py mount block (Round-2 / Lane E consolidation).
+    ("strategist", "src.web.strategist_view", "/dash/strategist"),
+    ("screen2", "src.web.screener_plus", "/dash/screen2"),
 ]
 
 # ── the canonical site IA — the single source of the top menu ────────────────

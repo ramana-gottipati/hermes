@@ -57,6 +57,16 @@ _STALE = {
     "dash": "# --- v2 nav integration (2026-06-26)",
 }
 
+# Superseded SELF-CONTAINED blocks (start_marker, end_marker) -> strip the whole block.
+# The Lane B "Strategist & Screeners" mount block is now redundant: strategist_view +
+# screener_plus are durably mounted by v2_surfaces._ROUTER_SPECS (Round-2 / Lane E), so
+# wire() mounts them and this hand-appended stopgap only causes a benign double-mount.
+# Its own comment marks it "reversible (delete this block)". Stripping between the markers
+# (not to EOF) is surgical — it survives the durable hook sitting either side of it.
+_SUPERSEDED_BLOCKS = {
+    "main_laneB": ("# === Lane B: Strategist & Screeners", "# === end Lane B mount ==="),
+}
+
 
 def _strip_from_marker(text: str, marker: str) -> tuple[str, bool]:
     i = text.find(marker)
@@ -65,6 +75,22 @@ def _strip_from_marker(text: str, marker: str) -> tuple[str, bool]:
     nl = text.rfind("\n", 0, i)          # start of the marker's line
     cut = 0 if nl == -1 else nl
     return text[:cut].rstrip() + "\n", True
+
+
+def _strip_between_markers(text: str, start: str, end: str) -> tuple[str, bool]:
+    """Remove a self-contained block [start-line .. end-line] inclusive. No-op if either
+    marker is absent (never strips a half-matched block)."""
+    i = text.find(start)
+    if i == -1:
+        return text, False
+    j = text.find(end, i)
+    if j == -1:
+        return text, False
+    head_nl = text.rfind("\n", 0, i)          # start of the start-marker line
+    cut0 = 0 if head_nl == -1 else head_nl
+    tail_nl = text.find("\n", j)              # end of the end-marker line
+    cut1 = len(text) if tail_nl == -1 else tail_nl
+    return (text[:cut0].rstrip() + "\n" + text[cut1:].lstrip("\n")).rstrip() + "\n", True
 
 
 def _backup(path: str) -> str:
@@ -89,10 +115,13 @@ def process(root: str, verify: bool) -> int:
             f.write(dnew)
         changed.append((dash_py, bak, "stripped stale v2 nav block"))
 
-    # 2. main.py — strip the stale block, then ensure the clean hook at EOF.
+    # 2. main.py — strip the stale block + the superseded Lane B mount (now durable via
+    #    _ROUTER_SPECS), then ensure the clean hook at EOF.
     with open(main_py, encoding="utf-8") as f:
         mtext = f.read()
     mnew, mhit = _strip_from_marker(mtext, _STALE["main"])
+    laneB_start, laneB_end = _SUPERSEDED_BLOCKS["main_laneB"]
+    mnew, lbhit = _strip_between_markers(mnew, laneB_start, laneB_end)
     had_hook = HOOK_MARKER in mnew
     if not had_hook:
         mnew = mnew.rstrip() + "\n" + HOOK_BLOCK
@@ -104,6 +133,8 @@ def process(root: str, verify: bool) -> int:
         note = []
         if mhit:
             note.append("stripped stale block")
+        if lbhit:
+            note.append("stripped superseded Lane B mount (now in _ROUTER_SPECS)")
         if not had_hook:
             note.append("added hook")
         changed.append((main_py, bak, "; ".join(note)))

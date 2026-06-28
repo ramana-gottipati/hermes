@@ -43,16 +43,36 @@ changes, sacred routes keep URLs, nothing rendered dead, verify each page 200 af
 | # | Page / route | Altitude | Status | Action |
 |---|---|---|---|---|
 | A1 | `/dash/coverage` (Trust) | Trust | ✅ on `ui_kit` | done — the reference look |
-| A2 | `/dash/markets` | Markets | ⬜ old `_shell` | re-home body into `ui_kit.shell`; keep all cards/data |
-| A3 | `/dash/screener` | Screener | ⬜ old `_shell` | ditto (wide frozen-pane table preserved) |
-| A4 | `/dash/strategies` (Hub) | Strategies | ⬜ old `_shell` | ditto + see Track C (strategist dashboard) |
-| A5 | `/dash/dashboard` (Tracker) | Tracker | ⬜ old `_shell` | ditto |
-| A6 | `/dash/stock` (dossier) | — | ⬜ old `_shell` | ditto; chart engine already separate |
-| A7 | `/dash/mep`, `/dash/conviction`, `/dash/stocks`, `/dash/cpr`, `/dash/leaders`, `/dash/concalls`, `/dash/growth`, `/dash/wolfe`, `/dash/launchpad`, `/dash/testing` | Strategies | ⬜ old `_shell` | per-strategy pages → `ui_kit.shell` |
-| A8 | `/dash/rs-hub`, `/dash/rrg`, `/dash/rotation`, `/dash/rsband`, `/dash/participants`, `/dash/wire`, `/dash/compare`, `/dash/sectors` | Markets | ⬜ mixed | re-home to `ui_kit.shell` |
-**Sequencing:** A2 (Markets) first = highest-visibility win; then A4+Track C; then A7 strategy pages;
-then A8. **Each page is an isolated change** (swap the shell wrapper, keep the body builder).
-**Gate:** `dashboard.py` is parallel-owned/dirty — do per-page via a thin wrapper or coordinate; verify 200 + screenshot after each.
+| A2 | `/dash/markets` | Markets | ✅ **DONE + LIVE** | reskinned via `shell_skin` runtime-wrap |
+| A3 | `/dash/screener` | Screener | ✅ **DONE + LIVE** | reskinned (wide frozen-pane grid colours retinted, geometry untouched) |
+| A4 | `/dash/strategies` (Hub) | Strategies | ✅ **DONE + LIVE** | reskinned; strategist-dashboard upgrade = Track C (Lane B) |
+| A5 | `/dash/dashboard` (Tracker) | Tracker | ✅ **DONE + LIVE** | reskinned |
+| A6 | `/dash/stock` (dossier) | — | ✅ **DONE + LIVE** | reskinned; chart engine separate, untouched |
+| A7 | `/dash/mep`, `/dash/conviction`, `/dash/stocks`, `/dash/cpr`, `/dash/leaders`, `/dash/concalls`, `/dash/growth`, `/dash/wolfe`, `/dash/wolfe/scan`, `/dash/launchpad`, `/dash/testing` | Strategies | ✅ **DONE + LIVE** | all reskinned |
+| A8 | `/dash/rs-hub`, `/dash/rrg`, `/dash/rotation`, `/dash/rsband`, `/dash/participants`, `/dash/wire`, `/dash/compare`, `/dash/sectors` | Markets | ✅ **DONE + LIVE** | all reskinned (incl. the modules that `import _shell` by reference — see below) |
+
+> ✅ **TRACK A COMPLETE — the WHOLE site now wears the `ui_kit` look (2026-06-28).**
+> **Mechanism (decoupled, zero edits to dashboard.py/cockpit.py):** new module
+> **`src/web/shell_skin.py`** RUNTIME-WRAPS `dashboard._shell` — every legacy page (and all
+> of cockpit) routes through it, so one wrap reskins the whole site: the cyan-dot `patearn`
+> logo (CSS, the green-"e" gone), the "Search or ask Pat ⌘K" hint (the old search box swapped;
+> ticker-jump preserved via the global Cmd-K overlay the v2 nav already injects), and a CSS
+> OVERLAY scoped under `body.uk-skin` that retints the legacy `.card`/table/`.maj`/`.scard`/
+> frozen-pane-grid/semantic-ink classes to the ui_kit tokens (colour only — sticky/z-index
+> geometry untouched). **Key fix:** the lens modules (`rrg_view`/`rsband_view`/`rotation_view`/
+> `participants_view`/`wolfe_view`) do `from dashboard import _shell` (binding the original by
+> reference), so `install()` also sweeps `sys.modules` and rebinds every captured `_shell` to
+> the wrapped one — generic, no hardcoded names, no source edits. **Properties:** defensive
+> (a skin failure returns the original html, never 500s), idempotent (a `/* uk-skin v1 */`
+> marker + an `hrow1` legacy-chrome guard so it no-ops on the v2-native pages), no-loss (CSS
+> retint only; every body/datum/sacred URL intact). **Durable:** wired from
+> `v2_surfaces.wire()` → re-applied by `scripts/wire_v2_surfaces.py` after any redeploy.
+> **Live-verified** on every nav route (skin marker present, legacy `.hsearch` gone, 200) +
+> computed-style proof on the live Strategies hub (`.card` bg `#111824`/12px, logo dot
+> `#34e0d6`, body bg `#0b0f17`, sub-nav accent `#4d9dff`). **Revert =** restore
+> `v2_surfaces.py.bak-chrome` (+ remove `shell_skin.py`) + restart `hermes-api`.
+> **Also pre-wired (plan §2a):** Strategies→**"Strategist"**→`/dash/strategist` (first) +
+> Screener→**"Screen+"**→`/dash/screen2` so Lane B's pages are reachable the moment they ship.
 
 ---
 
@@ -99,9 +119,18 @@ resume + open questions), memory `wolfe-wave-strategy` + `wolfe-backtest-methodo
 
 | # | Item | Status | Action |
 |---|---|---|---|
-| C1 | A **strategist dashboard** — every strategy's current read at a glance (counts, top names, freshness), each card → its deep section | ⬜ | upgrade `/dash/strategies` (Hub) into this; on `ui_kit` (Track A4) |
+| C1 | A **strategist dashboard** — every strategy's current read at a glance (counts, top names, freshness), each card → its deep section | ✅ **BUILT + LIVE (2026-06-28, Lane B)** | NEW `/dash/strategist` (NEW `src/web/strategist_view.py`) on `ui_kit`; consumes `strategy_registry.summary()` (Lane C) with an in-module same-shape fallback; AUGMENTS to the full catalog so no strategy is missing |
 | C2 | Per-strategy deep sections | ✅ exist (table above) | keep; re-home to `ui_kit` (Track A7) |
 | C3 | Naming clarity: label MEP as **"Accumulation (MEP)"**; surface the shorthand so it's findable | ⬜ | 1-line label fix in `v2_surfaces.py` |
+| C4 | **Streamlined screener** — one wide configurable frozen-pane screener with saved screens + strategy column-groups + the confluence columns | ✅ **BUILT + LIVE (2026-06-28, Lane B)** | NEW `/dash/screen2` (NEW `src/web/screener_plus.py`) on `ui_kit`: a CONFLUENCE lead column (0–5: DVPT·MEP·RS·CPR·CCI aligned, ★ at ≥4) + one-click column-GROUP toggles + SAVED screens + sort/filter/CSV; precomputed reads only |
+
+> ✅ **Lane B SHIPPED + LIVE-VERIFIED 2026-06-28** — `/dash/strategist` (10 cards: 6 measured-fresh
+> from the registry — MEP/DVPT/RS/CPR/CCI/Wolfe — + 4 link cards Conviction/Positioning/Growth/Launchpad)
+> and `/dash/screen2` (499 rows on Nifty 500, 7 group toggles, save/filter/CSV). Both on the `ui_kit`
+> chrome carrying the full v2 site nav (merges with Lane A). NEW modules only; mounted via a reversible
+> append-only block at the EOF of `main.py` (VPS backup = `main.py.bak-strat`). Lane A's nav slots
+> (Strategies→"Strategist", Screener→"Screen+") wire these into the menu once Lane A lands them.
+> **Revert = delete the Lane B mount block in `main.py` + restart.**
 
 ---
 
