@@ -596,6 +596,101 @@ def build_confluence_query() -> tuple[str, list]:
     return sql, []
 
 
+# ── the GENERAL multi-condition confluence PLANNER (N pillars + scope) ─────────
+# The generalization of build_confluence_query: instead of the fixed credibility ×
+# accumulation pair, intersect ANY combination of the strategy pillars over the
+# precomputed tables — "credible + accumulating + RS-leading small-caps". Every
+# pillar maps to a precomputed condition; the pillar KEYS come ONLY from PLAN_PILLARS
+# (a closed set, never user input), and sector/cap-band are bound — so the dynamic
+# WHERE can never reference an invented column or value. DESCRIPTIVE evidence only
+# (independent lenses agreeing = highest-evidence read, NOT a buy call); the reads
+# sit at different grains (daily delivery/RS × quarterly credibility × period CPR),
+# disclosed by the as-of badges in the renderer.
+PLAN_PILLARS: dict[str, str] = {
+    "credibility":  "credible management — concall track-record (veto-free · ≥3 resolved promises · real composite)",
+    "accumulation": "strong-hand accumulation — delivery character ACCUMULATION + active p_score",
+    "distribution": "strong-hand distribution — delivery character DISTRIBUTION (exiting)",
+    "rs":           "RS leadership — rs_rank ≥ 80 vs the broad market",
+    "value":        "reasonable valuation — P/E < 25",
+    "quality":      "high quality — ROCE > 18%",
+    "structure":    "bullish CPR structure — a daily bull-U reversal",
+}
+# cap-band -> (label, the membership index that defines it). 'large' is special
+# (Nifty 50 ∪ Next 50 — there is no single 'Nifty 100' membership snapshot). Names
+# verified against stock_index_membership; market_cap_cr is too sparse to use.
+PLAN_CAPBAND: dict[str, tuple] = {
+    "small": ("Small-cap", "Nifty Smallcap 250"),
+    "mid":   ("Mid-cap",   "Nifty Midcap 150"),
+    "large": ("Large-cap", None),
+}
+PLAN_LIMIT = 80
+
+# the per-pillar WHERE fragment (NO user input — keys validated against PLAN_PILLARS).
+_PLAN_WHERE = {
+    "credibility":  "COALESCE(c.veto_active,0)=0 AND c.composite_score IS NOT NULL "
+                    "AND COALESCE(c.n_promises_resolved,0)>=3",
+    "accumulation": "s.accum_character='ACCUMULATION' AND s.p_score>0",
+    "distribution": "s.accum_character='DISTRIBUTION'",
+    "rs":           "s.rs_rank>=80",
+    "value":        "f.pe IS NOT NULL AND f.pe<25",
+    "quality":      "f.roce IS NOT NULL AND f.roce>18",
+    "structure":    "st.pattern='BULL_U'",
+}
+
+
+def build_confluence_plan_query(pillars, sector: str = "", capband: str = "") -> tuple[str, list]:
+    """Intersect the requested strategy pillars over the precomputed tables.
+
+    ``pillars`` is filtered against PLAN_PILLARS (closed set) — anything off-menu is
+    dropped, so a hallucinated pillar can never reach SQL. Every name's full evidence
+    (credibility / accumulation / RS / CPR / value / quality) is SELECTed via LEFT
+    JOINs and shown; the requested pillars add the WHERE filters. ``sector`` and
+    ``capband`` narrow the universe (bound / membership-subquery). Read-only.
+    """
+    pset = [p for p in (pillars or []) if p in _PLAN_WHERE]
+    where = [
+        "s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)",
+        "s.symbol IN (SELECT symbol FROM nse_equity_list)",
+    ]
+    params: list = []
+    for p in pset:
+        where.append("(" + _PLAN_WHERE[p] + ")")
+    if sector:
+        where.append("s.primary_sector = ?")
+        params.append(sector)
+    if capband == "large":
+        where.append("s.symbol IN (SELECT symbol FROM stock_index_membership "
+                     "WHERE index_name IN ('Nifty 50','Nifty Next 50'))")
+    elif capband in ("small", "mid"):
+        where.append("s.symbol IN (SELECT symbol FROM stock_index_membership WHERE index_name=?)")
+        params.append(PLAN_CAPBAND[capband][1])
+    sql = (
+        "SELECT s.symbol, pe.close AS cmp, s.accum_character, s.p_score, s.r_score, "
+        "s.trigger_rank, s.rs_rank, s.primary_sector, s.delivery_value_today, "
+        "c.tier, c.composite_score, c.n_promises_resolved, c.forward_direction, c.as_of_period, "
+        "st.pattern AS cpr_pat, st.compression_pctile, f.pe, f.roce, f.market_cap_cr "
+        "FROM stock_signals s "
+        "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
+        "LEFT JOIN ( SELECT cs.symbol, cs.tier, cs.composite_score, cs.n_promises_resolved, "
+        "                   cs.forward_direction, cs.veto_active, cs.as_of_period "
+        "            FROM concall_scores cs "
+        "            JOIN (SELECT symbol, MAX(last_updated) AS m FROM concall_scores GROUP BY symbol) x "
+        "              ON x.symbol = cs.symbol AND x.m = cs.last_updated ) c ON c.symbol = s.symbol "
+        "LEFT JOIN ( SELECT cp.symbol, cp.pattern, cp.compression_pctile "
+        "            FROM cpr_signals cp "
+        "            JOIN (SELECT symbol, MAX(period_end_date) AS d FROM cpr_signals "
+        "                  WHERE timeframe='D' GROUP BY symbol) y "
+        "              ON y.symbol = cp.symbol AND y.d = cp.period_end_date AND cp.timeframe='D' ) st "
+        "         ON st.symbol = s.symbol "
+        "LEFT JOIN fundamentals f ON f.symbol = s.symbol "
+        "WHERE " + " AND ".join(where) + " "
+        "ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC, s.p_score DESC, "
+        "         (c.composite_score IS NULL), c.composite_score DESC, s.symbol "
+        "LIMIT " + str(PLAN_LIMIT)
+    )
+    return sql, params
+
+
 def build_symbol_resolve_query(token: str) -> tuple[str, list]:
     """Resolve a free-text token to candidate NSE symbols (exact > prefix > name).
     All values bound; LIKE wildcards are added here, the token is never formatted in."""

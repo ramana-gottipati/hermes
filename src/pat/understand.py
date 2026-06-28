@@ -36,15 +36,23 @@ from urllib.parse import quote_plus
 # ── the intent vocabulary (closed sets — the single source of truth) ──────────
 UNIVERSES = {"stock", "index", "sector"}
 # pt14 = the 14-pattern quality TIER screen (distinct from fundamentals "quality");
-# avoid = the hard-disqualifier kill-list (the framework's own "reject" verdict).
+# avoid = the hard-disqualifier kill-list (the framework's own "reject" verdict);
+# structure = a bullish CPR structure read (a pillar for the multi-condition planner).
 METRICS = {"return", "rs", "delivery", "valuation", "quality", "growth", "price_move",
-           "pt14", "avoid", "credibility"}
+           "pt14", "avoid", "credibility", "structure"}
 WINDOWS = {"1d", "1w", "1m", "3m", "6m", "1y"}
 ORDERS = {"best", "worst"}
 OPS = {">", "<", ">=", "<=", "improving", "declining"}
 # the strong-hand delivery CHARACTER (accumulation flow); distribution = exiting.
 CHARACTERS = {"accumulation", "distribution", "consolidation"}
-TASKS = {"rank", "explain", "stock"}
+# market-cap bands (the multi-condition planner's universe scope) — from index
+# membership (Smallcap 250 / Midcap 150 / Nifty 50 ∪ Next 50), not the sparse cap col.
+CAPBANDS = {"small", "mid", "large"}
+# strategy_registry keys askable as a strategy-board read ("what's the MEP/CPR/Wolfe
+# strategy showing", "strategist overview"). 'all' = the whole board.
+STRATEGY_KEYS = {"all", "mep", "dvpt", "rs", "cpr", "cci", "wolfe", "conviction",
+                 "growth", "launchpad"}
+TASKS = {"rank", "explain", "stock", "strategy", "compare"}
 # momentum-oscillator screens (the `oscillators` flow). Keys mirror OSC_SCREEN.
 INDICATORS = {"rsi_oversold", "rsi_overbought", "macd_bull", "macd_bear", "macd_positive"}
 
@@ -112,6 +120,15 @@ def validate_intent(obj) -> dict | None:
     if task == "stock":              # single-symbol card ("tell me about INFY")
         sym = obj.get("symbol") or obj.get("ticker")
         return {"task": "stock", "symbol": str(sym).strip()} if sym and str(sym).strip() else None
+    if task == "strategy":           # a strategy-registry board read ("what's MEP showing")
+        key = str(obj.get("strategy") or obj.get("key") or "all").strip().lower()
+        return {"task": "strategy", "strategy": key if key in STRATEGY_KEYS else "all"}
+    if task == "compare":            # A-vs-B ("compare INFY and TCS")
+        syms = obj.get("symbols")
+        if not isinstance(syms, list):
+            syms = [obj.get("a"), obj.get("b")]
+        syms = [str(s).strip().upper() for s in syms if s and str(s).strip()]
+        return {"task": "compare", "symbols": syms[:3]} if len(syms) >= 2 else None
     if task == "ood":                # out-of-domain → a boundary clarify, never an answer
         kind = obj.get("kind")
         return {"task": "ood", "kind": kind if kind in ("advisory", "prediction", "feature", "asset") else "advisory"}
@@ -155,6 +172,9 @@ def validate_intent(obj) -> dict | None:
         scope["sector"] = raw_scope["sector"].strip()
     if isinstance(raw_scope.get("index"), str) and raw_scope["index"].strip():
         scope["index"] = raw_scope["index"].strip()
+    cb = raw_scope.get("capband")
+    if isinstance(cb, str) and cb.strip().lower() in CAPBANDS:
+        scope["capband"] = cb.strip().lower()
 
     character = obj.get("character")
     if character not in CHARACTERS:
@@ -198,6 +218,38 @@ def _filters_improving_1m(filters) -> bool:
     return False
 
 
+# ── multi-condition PLANNER pillar extraction ─────────────────────────────────
+# Collect the strategy PILLARS a stock-universe intent names, collapsing the
+# fundamentals sub-metrics (valuation/quality/growth) into ONE family so a plain
+# "cheap quality compounder" still routes to the single fundamentals flow (no
+# regression) — the planner only fires when the ask spans ≥2 DIFFERENT families
+# (e.g. credible × accumulating × RS-leading), which no single flow can serve.
+def _plan_pillars(rank, filters, character):
+    metrics = set()
+    if rank.get("metric"):
+        metrics.add(rank["metric"])
+    for f in (filters or []):
+        if f.get("metric"):
+            metrics.add(f["metric"])
+    pillars: list[str] = []
+    families: set[str] = set()
+    if "credibility" in metrics:
+        pillars.append("credibility"); families.add("cci")
+    if character == "distribution":
+        pillars.append("distribution"); families.add("mep")
+    elif character == "accumulation" or "delivery" in metrics:
+        pillars.append("accumulation"); families.add("mep")
+    if "rs" in metrics or "return" in metrics:
+        pillars.append("rs"); families.add("rs")
+    if "valuation" in metrics:
+        pillars.append("value"); families.add("fund")
+    if "quality" in metrics:
+        pillars.append("quality"); families.add("fund")
+    if "structure" in metrics:
+        pillars.append("structure"); families.add("cpr")
+    return pillars, families
+
+
 # ── the compiler — the LOGICAL THOUGHT (pure, deterministic, ₹0) ──────────────
 def compile_intent(intent: dict) -> dict | None:
     """Map a structured intent onto the capability that can serve it.
@@ -239,6 +291,14 @@ def compile_intent(intent: dict) -> dict | None:
         sym = (intent.get("symbol") or "").strip()
         return {"flow": "card", "params": {"sym": sym}} if sym else None
 
+    if intent.get("task") == "strategy":  # a strategy_registry board read (any strategy)
+        key = (intent.get("strategy") or "all").strip().lower()
+        return {"flow": "strategy", "params": {"key": key if key in STRATEGY_KEYS else "all"}}
+
+    if intent.get("task") == "compare":   # A-vs-B side-by-side
+        syms = [s for s in (intent.get("symbols") or []) if s]
+        return {"flow": "compare", "params": {"syms": ",".join(syms[:3])}} if len(syms) >= 2 else None
+
     if intent.get("task") == "ood":       # advisory / prediction / feature / wrong-asset
         return ood_clarify(intent.get("kind"))
 
@@ -275,7 +335,21 @@ def compile_intent(intent: dict) -> dict | None:
             params["turning"] = "turn"
         return {"flow": "index", "params": params}
 
-    # ── STOCK universe ────────────────────────────────────────────────────────
+    # ── MULTI-CONDITION PLANNER (stock universe) — ≥2 strategy FAMILIES ────────
+    # "credible + accumulating + RS-leading small-caps" spans families no single
+    # flow serves → intersect them. The dedicated credibility×accumulation view
+    # (with its dual-lens as-of badge) still wins for EXACTLY that pair with no
+    # extra scope; everything else routes to the general planner.
+    pillars, families = _plan_pillars(rank, filters, character)
+    sector = scope.get("sector", "") if isinstance(scope, dict) else ""
+    capband = scope.get("capband", "") if isinstance(scope, dict) else ""
+    if len(families) >= 2:
+        if set(pillars) == {"credibility", "accumulation"} and not sector and not capband:
+            return {"flow": "confluence", "params": {}}
+        return {"flow": "confluence_plan",
+                "params": {"pillars": ",".join(pillars), "sector": sector, "capband": capband}}
+
+    # ── STOCK universe (single flow) ──────────────────────────────────────────
     return _compile_stock(metric, window, order, filters, scope, turning, character)
 
 
@@ -423,7 +497,9 @@ SYSTEM_PARSE = (
     "If it says 'index'/'indices'/'sector', the universe is NOT stock.\n"
     "  STEP 2 — RANK: the single metric the result is ORDERED by, its window, and "
     "order. metric ∈ [return, rs, delivery, valuation, quality, growth, price_move, "
-    "pt14, avoid, credibility]; window ∈ [1d,1w,1m,3m,6m,1y]; order ∈ [best, worst]. "
+    "pt14, avoid, credibility, structure]; window ∈ [1d,1w,1m,3m,6m,1y]; order ∈ [best, worst]. "
+    "Use 'structure' for a bullish CPR / reversal STRUCTURE read ('bullish structure', "
+    "'CPR bull-U', 'reversal setup', 'coiled and breaking out'). "
     "'worst/laggard/weakest/underperform' = worst; 'best/top/strongest/leaders' = best. "
     "Use 'pt14' for the 14-pattern quality TIER ('pt14', 'Tier-1', 'T1 names', 'passes "
     "the quality gate') — distinct from 'quality' (ROCE/valuation). Use 'avoid' for the "
@@ -448,6 +524,17 @@ SYSTEM_PARSE = (
     "  CHARACTER: for strong-hand DELIVERY, set character ∈ [accumulation (default, "
     "smart money BUYING), distribution (smart money EXITING/'being dumped'/'topping "
     "out'), consolidation (coiling)] alongside metric 'delivery'.\n"
+    "  MULTI-CONDITION: when the analyst names SEVERAL conditions at once ('credible "
+    "AND being accumulated AND RS-leading small-caps'), put the PRIMARY one in rank "
+    "and EACH additional one as its own filter (and set character for accumulation/"
+    "distribution). Don't collapse — every condition must appear so the planner can "
+    "intersect them. Set scope.capband ∈ [small, mid, large] for 'small-cap'/'midcap'/"
+    "'largecap'/'bluechip'.\n"
+    "  STRATEGY BOARD: 'what is the MEP/CPR/Wolfe strategy showing', 'strategist "
+    "overview', 'what are all the strategies showing' → {\"task\":\"strategy\","
+    "\"strategy\":\"<mep|dvpt|rs|cpr|cci|wolfe|conviction|all>\"} (use 'all' for the whole board).\n"
+    "  COMPARE: 'compare INFY and TCS', 'INFY vs TCS', 'X versus Y' → "
+    "{\"task\":\"compare\",\"symbols\":[\"INFY\",\"TCS\"]}.\n"
     "  SINGLE STOCK: 'tell me about INFY' / \"what's wrong with RELIANCE\" / 'is X a "
     "value trap' → {\"task\":\"stock\",\"symbol\":\"<TICKER>\"}.\n"
     "  OSCILLATORS: for a momentum-indicator screen set indicator ∈ [rsi_oversold "
@@ -483,7 +570,15 @@ SYSTEM_PARSE = (
     "'managements with deteriorating credibility' → "
     '{"task":"rank","universe":"stock","rank":{"metric":"credibility","order":"worst"},"confidence":88}\n'
     "'credible companies being accumulated' / 'strong-hand buying in credible names' → "
-    '{"task":"rank","universe":"stock","rank":{"metric":"credibility"},"character":"accumulation","confidence":88}'
+    '{"task":"rank","universe":"stock","rank":{"metric":"credibility"},"character":"accumulation","confidence":88}\n'
+    "'credible, being accumulated, RS-leading small-caps' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"credibility"},"character":"accumulation",'
+    '"filters":[{"metric":"rs","op":">="}],"scope":{"capband":"small"},"confidence":90}\n'
+    "'quality compounders being accumulated' → "
+    '{"task":"rank","universe":"stock","rank":{"metric":"quality"},"character":"accumulation","confidence":88}\n'
+    "'what is the CPR strategy showing' → {\"task\":\"strategy\",\"strategy\":\"cpr\"}\n"
+    "'strategist overview' / 'what are all the strategies showing' → {\"task\":\"strategy\",\"strategy\":\"all\"}\n"
+    "'compare INFY and TCS' → {\"task\":\"compare\",\"symbols\":[\"INFY\",\"TCS\"]}"
 )
 
 
@@ -547,6 +642,92 @@ def ood_clarify(kind: str) -> dict:
             "chips": [{"label": l, "href": _href(q)} for l, q in opts]}
 
 
+# ── deterministic keyword sets for the planner / strategy / compare fallbacks ──
+_CB_SMALL = ["small cap", "small-cap", "smallcap", "small caps", "small-caps"]
+_CB_MID = ["mid cap", "mid-cap", "midcap", "mid caps", "midcaps"]
+_CB_LARGE = ["large cap", "large-cap", "largecap", "large caps", "blue chip", "bluechip", "blue-chip"]
+_PIL_CRED = ["credib", "promise-keep", "promise keep", "kept promise", "trustworthy management",
+             "guidance accuracy", "concall track"]
+_PIL_ACCUM = ["accumulat", "being accumulated", "being bought", "strong hand", "strong-hand",
+              "smart money", "smart-money", "strong-hand buying"]
+_PIL_RS = ["rs-leading", "rs leading", "relative strength", "rs leader", "leading the market",
+           "outperform", "market leader", "momentum leader", "high rs", "rs rank"]
+_PIL_VALUE = ["cheap", "undervalued", "low pe", "low p/e", "reasonably valued", "reasonable valuation",
+              "good value", "value stock"]
+_PIL_QUALITY = ["high quality", "quality compan", "quality compound", "compounder", "high roce",
+                "high roe", "great business"]
+_PIL_STRUCT = ["bullish structure", "bull-u", "bull u", "cpr ", "reversal setup", "coiled",
+               "breaking out of"]
+# strategy-board phrasings → a strategy_registry key (the gap: CPR + Wolfe + overview)
+_STRAT_BOARD = ["strategist", "all strategies", "every strategy", "strategy board",
+                "strategy dashboard", "what are the strategies", "overview of strategies"]
+_STRAT_KEY_KW = [
+    ("cpr", ["cpr strategy", "structure strategy", "cpr setups", "cpr screen"]),
+    ("wolfe", ["wolfe strategy", "wolfe scan", "wolfe setups", "wolfe wave", "wolfe"]),
+    ("mep", ["mep strategy", "accumulation strategy", "mep board"]),
+    ("rs", ["rs strategy", "strength strategy"]),
+    ("cci", ["cci strategy", "credibility strategy"]),
+    ("dvpt", ["dvpt strategy", "delivery strategy", "positioning strategy"]),
+    ("conviction", ["conviction strategy", "conviction board"]),
+]
+_CMP_RE = re.compile(
+    r"^\s*(?:compare|contrast)\s+([a-z0-9&.\-]{1,18})\s+(?:and|vs\.?|versus|with|to|against)\s+([a-z0-9&.\-]{1,18})",
+    re.I)
+_VS_RE = re.compile(
+    r"^\s*([a-z0-9&.\-]{1,18})\s+(?:vs\.?|versus)\s+([a-z0-9&.\-]{1,18})\s*$", re.I)
+
+
+def _detect_capband(qn: str):
+    if _has_any(qn, _CB_SMALL):
+        return "small"
+    if _has_any(qn, _CB_MID):
+        return "mid"
+    if _has_any(qn, _CB_LARGE):
+        return "large"
+    return None
+
+
+def detect_compare(query: str):
+    """Two tickers from 'compare A and B' / 'A vs B' → ['A','B'], else None. ₹0."""
+    for rx in (_CMP_RE, _VS_RE):
+        m = rx.search(query or "")
+        if m:
+            a, b = m.group(1).strip().upper(), m.group(2).strip().upper()
+            stop = {"AND", "VS", "THE", "A", "AN", "TO", "OF", "IT"}
+            if a and b and a != b and a not in stop and b not in stop:
+                return [a, b]
+    return None
+
+
+def detect_strategy_key(qn: str):
+    """A strategy-board ask → a strategy_registry key (or 'all'), else None. ₹0."""
+    if _has_any(qn, _STRAT_BOARD):
+        return "all"
+    for key, kws in _STRAT_KEY_KW:
+        if _has_any(qn, kws):
+            return key
+    return None
+
+
+def _detect_pillars(qn: str, character):
+    """The strategy FAMILIES a raw question names (for the degraded planner path)."""
+    pillars: list[str] = []
+    fam: set[str] = set()
+    if _has_any(qn, _PIL_CRED):
+        pillars.append("credibility"); fam.add("cci")
+    if character == "accumulation" or _has_any(qn, _PIL_ACCUM):
+        pillars.append("accumulation"); fam.add("mep")
+    if _has_any(qn, _PIL_RS):
+        pillars.append("rs"); fam.add("rs")
+    if _has_any(qn, _PIL_VALUE):
+        pillars.append("value"); fam.add("fund")
+    if _has_any(qn, _PIL_QUALITY):
+        pillars.append("quality"); fam.add("fund")
+    if _has_any(qn, _PIL_STRUCT):
+        pillars.append("structure"); fam.add("cpr")
+    return pillars, fam
+
+
 # ── degraded deterministic fallback (ONLY when the model is unavailable) ───────
 # Reuses the heuristics from disambiguate; this is a safety net for a Gemini
 # outage/quota, explicitly NOT the primary reasoning path.
@@ -560,6 +741,16 @@ def parse_fallback(query: str) -> dict | None:
         ood = _detect_ood(qn)
         if ood:
             return {"task": "ood", "kind": ood}
+
+        # COMPARE (A vs B) — distinctive shape; checked before the single-stock catch.
+        cmp_syms = detect_compare(query)
+        if cmp_syms:
+            return {"task": "compare", "symbols": cmp_syms}
+
+        # STRATEGY BOARD ('CPR/Wolfe strategy', 'strategist overview') — a registry read.
+        skey = detect_strategy_key(qn)
+        if skey:
+            return {"task": "strategy", "strategy": skey}
 
         # single-stock card — BEFORE the explain "what's" catch, since "what's wrong
         # with X" must resolve to the stock, not a glossary definition.
@@ -589,6 +780,36 @@ def parse_fallback(query: str) -> dict | None:
                            "14 pattern", "14-pattern"]):
             return {"task": "rank", "universe": "stock", "rank": {"metric": "pt14"},
                     "filters": [], "scope": {}, "character": None, "confidence": 55}
+
+        # MULTI-CONDITION PLANNER (degraded path) — when ≥2 strategy FAMILIES are
+        # named, emit a fully-populated intent (primary metric + extra filters +
+        # character + cap-band) so compile_intent intersects them. Runs BEFORE the
+        # single-pillar credibility/metric blocks (which return early on one family).
+        _cb = _detect_capband(qn)
+        _char = ("distribution" if D._has_any(qn, ["distribut", "being dumped", "topping out"])
+                 else ("accumulation" if D._has_any(qn, _PIL_ACCUM) else None))
+        _pillars, _fam = _detect_pillars(qn, _char)
+        if len(_fam) >= 2:
+            # primary metric = the strongest single signal; the rest become filters.
+            order = "credibility" if "credibility" in _pillars else \
+                    ("rs" if "rs" in _pillars else
+                     ("valuation" if "value" in _pillars else
+                      ("quality" if "quality" in _pillars else
+                       ("structure" if "structure" in _pillars else None))))
+            rank = {"metric": order} if order else {}
+            fmap = {"rs": ("rs", ">="), "value": ("valuation", "<"),
+                    "quality": ("quality", ">"), "structure": ("structure", ">"),
+                    "credibility": ("credibility", ">=")}
+            filters = []
+            for p in _pillars:
+                if p in ("accumulation", "distribution"):
+                    continue
+                fm = fmap.get(p)
+                if fm and fm[0] != order:
+                    filters.append({"metric": fm[0], "op": fm[1]})
+            scope = {"capband": _cb} if _cb else {}
+            return {"task": "rank", "universe": "stock", "rank": rank, "filters": filters,
+                    "scope": scope, "character": _char, "confidence": 55}
 
         # management CREDIBILITY (CCI concall track-record) — a descriptive lens; the
         # worst / "managements to avoid" side routes to the deterioration tape.

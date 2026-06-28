@@ -45,6 +45,9 @@ _VALID: dict[str, dict] = {
     "credibility":  {},   # CCI credibility leaders — parameterless descriptive flow
     "deterioration": {},  # CCI deterioration / avoid tape — parameterless
     "confluence":   {},   # CCI x MEP confluence (credible AND accumulated) — parameterless
+    "confluence_plan": {"pillars": "free", "sector": "free", "capband": "free"},  # N-pillar planner
+    "strategy":     {"key": "free"},    # strategy_registry board read (any strategy)
+    "compare":      {"syms": "free"},   # A-vs-B side-by-side
     "explain":      {"explain": "slug"},
 }
 

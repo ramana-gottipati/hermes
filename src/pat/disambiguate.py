@@ -364,6 +364,21 @@ def route_extra(query: str) -> dict | None:
         if len(qn) < 2:
             return None
 
+        # Lane F: COMPARE (A vs B) + STRATEGY BOARD — distinctive shapes routed
+        # deterministically (₹0, quota-proof), BEFORE the single-stock/flow logic.
+        # (The multi-condition planner is NOT short-circuited here — it benefits from
+        # the model's sector/nuance parse, so it rides the Gemini → fallback path.)
+        try:
+            from src.pat.understand import detect_compare, detect_strategy_key
+            _cmp = detect_compare(query)
+            if _cmp:
+                return {"flow": "compare", "params": {"syms": ",".join(_cmp)}}
+            _sk = detect_strategy_key(qn)
+            if _sk:
+                return {"flow": "strategy", "params": {"key": _sk}}
+        except Exception:
+            pass
+
         sym = _extract_symbol(query)
         if sym:
             return {"flow": "card", "params": {"sym": sym}}

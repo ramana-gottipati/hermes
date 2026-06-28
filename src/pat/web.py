@@ -29,6 +29,7 @@ from src.pat.flows import (
     build_index_query, build_pt14_query, build_disqualified_query,
     build_symbol_resolve_query, build_stock_card_query, build_stock_pattern_query,
     build_credibility_query, build_deterioration_query, build_confluence_query,
+    build_confluence_plan_query, PLAN_PILLARS, PLAN_CAPBAND,
 )
 
 
@@ -205,6 +206,26 @@ _PAT_CSS = """
 .patFlag b{font-size:11px;text-transform:uppercase;letter-spacing:.4px;}
 .patFlagBad{background:#2a1416;border:1px solid #5c2a2f;color:#f0c0c4;}
 .patFlagOk{background:#0f2417;border:1px solid #2a5c3a;color:#bfe6c9;}
+/* multi-condition planner pills + strategy board + compare (Lane F) */
+.patPill{display:inline-block;background:#172554;border:1px solid #2b3a6a;color:#9db7ff;
+         border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:600;}
+.patPillOk{display:inline-block;background:#0f2417;border:1px solid #2a5c3a;color:#3fb950;
+           border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;}
+.patPillWarn{display:inline-block;background:#2a2410;border:1px solid #5c4a1f;color:#e3b341;
+             border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;}
+.patStratWrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin:2px 0 6px;}
+.patStrat{background:#161b22;border:1px solid #30363d;border-radius:11px;padding:12px 13px;}
+.psHd{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.psTitle{font-weight:700;font-size:14px;color:#e6edf3;text-decoration:none;}
+.psTitle:hover{color:#58a6ff;}
+.psCount{font-weight:700;font-variant-numeric:tabular-nums;font-size:18px;margin-left:auto;}
+.psNames{font-size:12.5px;line-height:1.7;}
+.psNames a{color:#cdd9e5;text-decoration:none;}
+.psNames a:hover{color:#58a6ff;}
+.psMeta{font-size:11px;margin-top:7px;}
+.psMeta a{color:#58a6ff;text-decoration:none;}
+.patCmp{display:flex;gap:12px;flex-wrap:wrap;}
+.patCmpCol{flex:1;min-width:260px;background:#161b22;border:1px solid #30363d;border-radius:11px;padding:12px 13px;}
 </style>
 """
 
@@ -1163,6 +1184,199 @@ def _confluence_flow(conn) -> str:
     return "".join(out)
 
 
+# ── the GENERAL multi-condition CONFLUENCE PLANNER (N pillars + scope) ─────────
+# Carries its params on the flow= path through dashboard.py's ALREADY-forwarded
+# generic params (no dashboard.py edit needed): pillars→strength, capband→entry.
+def _plan_url(pillars: str, sector: str = "", capband: str = "") -> str:
+    qs = ["flow=confluence_plan", "strength=" + _u(pillars)]
+    if sector:
+        qs.append("sector=" + _u(sector))
+    if capband:
+        qs.append("entry=" + _u(capband))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _plan_pill(label: str) -> str:
+    return f'<span class="patPill">{_esc(label)}</span>'
+
+
+def _confluence_plan_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>Character</th><th>p/r</th><th>RS</th>'
+            '<th>Tier</th><th>Cred</th><th>CPR</th><th>P/E</th><th>ROCE</th>'
+            '<th>Sector</th></tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_char_pill(r["accum_character"])}</td>'
+            f'<td>{_int(r["p_score"])}/{_int(r["r_score"])}</td>'
+            f'<td>{_int(r["rs_rank"])}</td>'
+            f'<td>{_esc(r["tier"] or "—")}</td>'
+            f'<td>{_n(r["composite_score"], 0)}</td>'
+            f'<td>{_esc((r["cpr_pat"] or "—").replace("BULL_U", "bull-U").replace("BEAR_INVU", "bear-∩"))}</td>'
+            f'<td>{_n(r["pe"], 1)}</td>'
+            f'<td>{_pc(r["roce"])}</td>'
+            f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _confluence_plan_flow(conn, pillars: str = "", sector: str = "", capband: str = "") -> str:
+    """The general planner: intersect ≥2 strategy pillars over the precomputed tables.
+    Pillars come comma-separated (closed set); sector / cap-band narrow the universe."""
+    plist = [p.strip() for p in (pillars or "").split(",") if p.strip() in PLAN_PILLARS]
+    cap_lbl = PLAN_CAPBAND.get(capband, (capband.title() if capband else "", None))[0]
+    scope_bits = " · ".join([b for b in (cap_lbl, (sector or "")) if b]) or "all NSE equities"
+    named = ", ".join(PLAN_PILLARS[p].split(" — ")[0] for p in plist) or "—"
+    out = ['<a class="patBack" href="/dash/pat">← back</a>',
+           _q_bubble("Multi-condition CONFLUENCE — names where ALL of these hold at once, "
+                     f"intersected over the precomputed tables: <b>{_esc(named)}</b> "
+                     f"({_esc(scope_bits)}). Independent lenses agreeing is the highest-"
+                     "evidence read — but it is EVIDENCE, never a buy call, and the lenses "
+                     "sit at different grains (daily delivery/RS × quarterly credibility × "
+                     "period CPR), shown by the as-of footer.")]
+    out.append('<div class="patChips">'
+               + "".join(_plan_pill(PLAN_PILLARS[p].split(" — ")[0]) for p in plist) + '</div>')
+    if not plist or len(plist) < 2:
+        out.append('<div class="empty">A confluence needs at least two conditions. '
+                   'Try “credible companies being accumulated that are RS-leading”.</div>')
+        return "".join(out)
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_confluence_plan_query(plist, sector=sector, capband=capband)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    asof_cred = next((r["as_of_period"] for r in rows if r["as_of_period"]), None)
+    try:
+        asof_acc = conn.execute("SELECT MAX(trade_date) FROM stock_signals").fetchone()[0]
+    except Exception:
+        asof_acc = None
+    out.append(f'<div class="ghdr">{_esc(named)} · {_esc(scope_bits)} ({len(rows)})</div>')
+    out.append(_confluence_plan_table(rows) if rows else
+               '<div class="empty">No names satisfy ALL of these conditions right now — '
+               'that scarcity is itself the read (true multi-lens confluence is rare). '
+               'Drop a condition or widen the cap-band.</div>')
+    out.append('<div class="patMeta">'
+               f'<span>delivery / RS as-of: {_esc(asof_acc or "—")}</span>'
+               + (f'<span>credibility as-of: {_esc(asof_cred)}</span>' if "credibility" in plist and asof_cred else "")
+               + '<span>all lenses must agree · descriptive evidence, not a signal</span></div>')
+    out.append('<div class="patChips">'
+               + _chip("/dash/screen2", "open the wide screener →")
+               + _chip("/dash/strategist", "strategist board →") + "</div>")
+    return "".join(out)
+
+
+# ── strategy_registry board read ("what's the MEP/CPR/Wolfe strategy showing") ─
+def _strategy_url(key: str) -> str:
+    return "/dash/pat?flow=strategy" + (("&strength=" + _u(key)) if key and key != "all" else "")
+
+
+def _strategy_card(row: dict) -> str:
+    count = row.get("count")
+    cnt = f'{count:,}' if isinstance(count, int) else "—"
+    health = (row.get("health") or "").lower()
+    hpill = {"ok": ("fresh", "patPillOk"), "stale": ("stale", "patPillWarn"),
+             "empty": ("no data", "patPill"), "link": ("live page", "patPill")}.get(
+                 health, ("—", "patPill"))
+    tops = [t for t in (row.get("top") or [])
+            if (t.get("symbol") or "").strip() not in ("", "—", "-")]
+    names = " · ".join(
+        f'<a class="row" href="/dash/stock?sym={_u(t["symbol"])}">{_esc(t["symbol"])}</a>'
+        f'<span class="mut"> {_esc(t.get("note", ""))}</span>' for t in tops[:5]) or \
+        '<span class="mut">open the lens for live names</span>'
+    asof = row.get("as_of")
+    return (
+        '<div class="patStrat">'
+        f'<div class="psHd"><a class="psTitle" href="{_esc(row.get("route") or "#")}">'
+        f'{_esc(row.get("label") or row.get("key"))}</a>'
+        f'<span class="psCount">{cnt}</span>'
+        f'<span class="{hpill[1]}">{hpill[0]}</span></div>'
+        f'<div class="psNames">{names}</div>'
+        f'<div class="psMeta mut">as of {_esc(str(asof)[:10] if asof else "—")} · '
+        f'<a class="row" href="{_esc(row.get("route") or "#")}">open →</a></div>'
+        '</div>')
+
+
+def _strategy_flow(conn, key: str = "all") -> str:
+    key = (key or "all").strip().lower()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    try:
+        from src.automation import strategy_registry as REG
+        rows = REG.summary(conn) if conn is not None else []
+    except Exception:
+        rows = []
+    if not rows:
+        out.append(_q_bubble("The strategy board reads each strategy's current state from the "
+                             "precomputed tables."))
+        out.append('<div class="empty">No strategy data available on this host yet.</div>')
+        return "".join(out)
+    if key != "all":
+        sel = [r for r in rows if (r.get("key") or "").lower() == key
+               or (r.get("route") or "").rstrip("/").endswith("/" + key)]
+        if sel:
+            lbl = sel[0].get("label") or key
+            out.append(_q_bubble(f"<b>{_esc(lbl)}</b> — its current read from the strategy "
+                                 "registry (count, freshness, top names). Descriptive; open "
+                                 "the deep page for the full board."))
+            out.append('<div class="patStratWrap">' + "".join(_strategy_card(r) for r in sel) + '</div>')
+            return "".join(out)
+        out.append(_q_bubble(f'I don\'t have a “{_esc(key)}” strategy — here is the whole board:'))
+    else:
+        out.append(_q_bubble("The STRATEGIST board — every strategy's current read at a glance "
+                             "(count · freshness · top names). Descriptive; click any to open "
+                             "its deep page."))
+    out.append('<div class="patStratWrap">' + "".join(_strategy_card(r) for r in rows) + '</div>')
+    out.append('<div class="patChips">' + _chip("/dash/strategist", "full strategist board →") + "</div>")
+    return "".join(out)
+
+
+# ── compare two stocks side by side (A vs B) ──────────────────────────────────
+def _compare_flow(conn, syms: str = "") -> str:
+    toks = [t.strip() for t in (syms or "").replace(" ", ",").split(",") if t.strip()][:3]
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if len(toks) < 2:
+        out.append(_q_bubble("Name two stocks to compare, e.g. “compare INFY and TCS”."))
+        return "".join(out)
+    if conn is None:
+        out.append(_q_bubble("Connect to data to compare."))
+        return "".join(out)
+    resolved = []
+    for tok in toks:
+        try:
+            rsql, rparams = build_symbol_resolve_query(tok)
+            hit = conn.execute(rsql, rparams).fetchone()
+        except Exception:
+            hit = None
+        if hit:
+            resolved.append(hit["symbol"])
+    resolved = list(dict.fromkeys(resolved))   # dedupe, keep order
+    if len(resolved) < 2:
+        out.append(_q_bubble(f'I could resolve {len(resolved)} of those tickers. '
+                             'Check the symbols and try again.'))
+        return "".join(out)
+    out.append(_q_bubble("Side by side — latest signals, relative strength, character and "
+                         "fundamentals for each. Descriptive facts, not a recommendation:"))
+    cards = []
+    for sym in resolved:
+        try:
+            csql, cparams = build_stock_card_query(sym)
+            row = conn.execute(csql, cparams).fetchone()
+            psql, pparams = build_stock_pattern_query(sym)
+            prow = conn.execute(psql, pparams).fetchone()
+        except Exception:
+            row, prow = None, None
+        cards.append(f'<div class="patCmpCol">{_stock_card(row, prow) if row else f"<div class=empty>No data for {_esc(sym)}.</div>"}</div>')
+    out.append('<div class="patCmp">' + "".join(cards) + '</div>')
+    return "".join(out)
+
+
 # ── momentum oscillators (RSI / MACD over stock_oscillators, computed nightly) ─
 
 def _osc_url(screen: str = "") -> str:
@@ -1401,7 +1615,9 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "oscillators": "Momentum (RSI / MACD)",
                "credibility": "Credibility leaders (CCI)",
                "deterioration": "Deterioration / avoid tape (CCI)",
-               "confluence": "Credibility × accumulation"}
+               "confluence": "Credibility × accumulation",
+               "confluence_plan": "Multi-condition confluence",
+               "strategy": "Strategy board", "compare": "Compare stocks"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -1446,6 +1662,7 @@ _FRESH = {
     "disqualified":  (None, None, "the hard-disqualifier kill-list"),
     "redflags":      (None, None, "the hard-disqualifier kill-list"),
     "oscillators":   (None, None, "RSI / MACD · computed nightly"),
+    "compare":       ("stock_signals", "trade_date", "two names · latest daily signals + cached fundamentals"),
 }
 
 
@@ -1457,9 +1674,9 @@ def _max_date(conn, table, col):
 
 
 def _freshness_bar(conn, flow: str) -> str:
-    """The as-of + coverage badge for a flow. Confluence carries its own dual-lens
-    badge; explain/clarify/home have nothing to date → empty (never fabricated)."""
-    if conn is None or flow == "confluence":
+    """The as-of + coverage badge for a flow. Confluence/planner/strategy carry their
+    own as-of meta; explain/clarify/home have nothing to date → empty (never fabricated)."""
+    if conn is None or flow in ("confluence", "confluence_plan", "strategy"):
         return ""
     spec = _FRESH.get(flow)
     if not spec:
@@ -1532,6 +1749,13 @@ def _free_text(conn, q: str):
             body = _deterioration_flow(conn)
         elif f == "confluence":
             body = _confluence_flow(conn)
+        elif f == "confluence_plan":
+            body = _confluence_plan_flow(conn, p.get("pillars", ""), p.get("sector", ""),
+                                         p.get("capband", ""))
+        elif f == "strategy":
+            body = _strategy_flow(conn, p.get("key", "all"))
+        elif f == "compare":
+            body = _compare_flow(conn, p.get("syms", ""))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
@@ -1633,6 +1857,20 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "confluence":
         body = _confluence_flow(conn)
         fb_ctx = {"query": "", "flow": "confluence", "params": {}, "source": "flow"}
+    elif flow == "confluence_plan":
+        # planner params smuggled through forwarded generics: pillars=strength, capband=entry
+        pillars = strength
+        capband = (entry or "").strip().lower()
+        body = _confluence_plan_flow(conn, pillars, sector, capband)
+        fb_ctx = {"query": "", "flow": "confluence_plan",
+                  "params": {"pillars": pillars, "sector": sector, "capband": capband},
+                  "source": "flow"}
+    elif flow == "strategy":
+        body = _strategy_flow(conn, strength or "all")    # key rides `strength`
+        fb_ctx = {"query": "", "flow": "strategy", "params": {"key": strength or "all"}, "source": "flow"}
+    elif flow == "compare":
+        body = _compare_flow(conn, sym)                   # "A,B" rides `sym`
+        fb_ctx = {"query": "", "flow": "compare", "params": {"syms": sym}, "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

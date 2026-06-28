@@ -99,6 +99,32 @@ INTENT_CASES = [
     ("oscillator: MACD bullish crossover → oscillators",
      {"universe": "stock", "rank": {}, "indicator": "macd_bull"},
      {"flow": "oscillators", "params": {"screen": "macd_bull"}}),
+    # ── multi-condition PLANNER (≥2 strategy families) ──
+    ("planner: credible + accumulating + RS small-caps → confluence_plan",
+     {"universe": "stock", "rank": {"metric": "credibility"}, "character": "accumulation",
+      "filters": [{"metric": "rs", "op": ">="}], "scope": {"capband": "small"}},
+     {"flow": "confluence_plan", "params": {"pillars": "credibility,accumulation,rs", "capband": "small"}}),
+    ("planner: quality compounders being accumulated → confluence_plan",
+     {"universe": "stock", "rank": {"metric": "quality"}, "character": "accumulation"},
+     {"flow": "confluence_plan", "params": {"pillars": "accumulation,quality"}}),
+    ("planner: cred+accum, NO scope → stays the dedicated confluence (no regression)",
+     {"universe": "stock", "rank": {"metric": "credibility"}, "character": "accumulation"},
+     {"flow": "confluence"}),
+    ("planner: cred+accum WITH cap-band → confluence_plan (scope applies)",
+     {"universe": "stock", "rank": {"metric": "credibility"}, "character": "accumulation",
+      "scope": {"capband": "mid"}},
+     {"flow": "confluence_plan", "params": {"pillars": "credibility,accumulation", "capband": "mid"}}),
+    # ── strategy_registry board read (any strategy askable) ──
+    ("strategy: CPR board → strategy flow",
+     {"task": "strategy", "strategy": "cpr"},
+     {"flow": "strategy", "params": {"key": "cpr"}}),
+    ("strategy: whole board → strategy flow (all)",
+     {"task": "strategy", "strategy": "all"},
+     {"flow": "strategy", "params": {"key": "all"}}),
+    # ── compare A vs B ──
+    ("compare: A vs B → compare flow",
+     {"task": "compare", "symbols": ["INFY", "TCS"]},
+     {"flow": "compare", "params": {"syms": "INFY,TCS"}}),
 ]
 
 
@@ -144,6 +170,18 @@ ROUTE_CASES = [
     ("stocks to avoid", {"flow": "disqualified"}, "PARTIAL"),
     ("top pt14 quality stocks", {"flow": "pt14"}, "PARTIAL"),
     ("what's wrong with INFY", {"flow": "card"}, "PARTIAL"),
+    # ---- PLANNER: the analytics-copilot upgrade (multi-condition + strategy + compare) ----
+    ("credible companies being accumulated that are RS-leading small caps",
+     {"flow": "confluence_plan"}, "PLANNER"),
+    ("quality compounders being accumulated", {"flow": "confluence_plan"}, "PLANNER"),
+    ("credible accumulating mid caps", {"flow": "confluence_plan"}, "PLANNER"),
+    ("what is the CPR strategy showing", {"flow": "strategy", "params": {"key": "cpr"}}, "PLANNER"),
+    ("wolfe setups", {"flow": "strategy", "params": {"key": "wolfe"}}, "PLANNER"),
+    ("strategist overview", {"flow": "strategy", "params": {"key": "all"}}, "PLANNER"),
+    ("compare INFY and TCS", {"flow": "compare"}, "PLANNER"),
+    ("INFY vs TCS", {"flow": "compare"}, "PLANNER"),
+    # cred+accum WITHOUT scope must stay the dedicated confluence view (no regression)
+    ("credible companies being accumulated", {"flow": "confluence"}, "PLANNER"),
 ]
 
 
@@ -303,7 +341,7 @@ if __name__ == "__main__":
     parser = sys.argv[1] if len(sys.argv) > 1 else "fallback"
     r = run_route_eval(parser)
     print(f"\nROUTE eval ({r['parser']}): {r['passed']}/{r['total']} passed")
-    for band in ("LIVE", "CLARIFY", "OOD", "PARTIAL"):
+    for band in ("LIVE", "CLARIFY", "OOD", "PARTIAL", "PLANNER"):
         if band in r["bands"]:
             b = r["bands"][band]
             print(f"  {band:8} {b['passed']}/{b['total']}")
