@@ -48,6 +48,11 @@ _ROUTER_SPECS = [
     ("screen2", "src.web.screener_plus", "/dash/screen2"),
     # Lane A2 — the living design-system showcase.
     ("ui-showcase", "src.web.ui_showcase", "/dash/_ui"),
+    # Strategies lenses that the IA already homes (/dash/growth, /dash/testing) but
+    # that were never mounted in committed main.py — durably mounted here so a clean
+    # clone + deploy renders them instead of 404-ing under their sub-nav entries.
+    ("growth", "src.web.growth_view", "/dash/growth"),
+    ("testing", "src.web.testing_view", "/dash/testing"),
 ]
 
 # ── the canonical site IA — the single source of the top menu ────────────────
@@ -333,6 +338,13 @@ def _selftest() -> int:
     c = TestClient(app)
     for path in ("/dash/coverage", "/dash/rs-hub", "/dash/wire", "/dash/news"):
         assert c.get(path).status_code == 200, path
+
+    # Every router in _ROUTER_SPECS must actually be MOUNTED by wire() (route present).
+    # Page-render liveness of the data-dependent ones (growth/testing read the research
+    # DB) is verified separately on the VPS — here we assert the route exists, not 200.
+    mounted = _route_paths(app)
+    for _desc, _mod, sample in _ROUTER_SPECS:
+        assert sample in mounted, f"router spec not mounted: {sample}"
 
     # Test the nav RENDERER directly (no page render -> no data/route-mount dependency;
     # route liveness of every sub-nav target is verified separately on the VPS).

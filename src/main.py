@@ -13,6 +13,12 @@ from src.pat.routes import router as pat_router
 from src.web.dashboard import router as dashboard_router
 from src.web.rrg_view import router as rrg_router
 from src.web.rotation_view import router as rotation_router
+from src.web.rsband_view import router as rsband_router
+from src.web.participants_view import router as participants_router
+from src.web.wolfe_view import router as wolfe_router
+from src.web.cpr_overlay import router as cpr_router
+from src.web.mep_overlay import router as mep_router
+from src.web.rs_overlay import router as rs_router
 
 app = FastAPI(title="Hermes", version="0.1.0")
 
@@ -35,6 +41,26 @@ app.include_router(rrg_router)
 # RS rotation (session 25): the four-phase weather rotation (Recovery/Tailwind/
 # Rolling-over/Headwind) for stocks at /dash/rotation. Isolated module (same reason).
 app.include_router(rotation_router)
+# RS support/resistance band (2026-06-23): the mean-reversion / LEVEL lens — per-sector
+# band position vs Nifty 500 at /dash/rsband. Isolated module (same reason).
+app.include_router(rsband_router)
+# Participant-wise OI (2026-06-23): market-level FII/DII/Pro/Client positioning at
+# /dash/participants. Isolated module (same reason).
+app.include_router(participants_router)
+# Wolfe Wave (2026-06-23): geometry/reversal lens — 1·3·5 structure + point-5 zone +
+# 1-4 EPA target + WolfeRank, at /dash/wolfe. Isolated module (same reason).
+app.include_router(wolfe_router)
+# CPR Spine overlay (2026-06-24): the stock-page price chart's signature ribbon —
+# /dash/cpr/overlay serves cpr_signals→segments; the SNIPPET draws it on the existing
+# chart (window.__wfpc). Isolated module (same reason — dashboard.py untouched core).
+app.include_router(cpr_router)
+# MEP accumulation/distribution phase tint (2026-06-24): /dash/mep/overlay serves smoothed-phase
+# bands; the SNIPPET tints the price-chart background (green=accum / red=distrib) on the existing
+# chart. Isolated module (dashboard.py core untouched).
+app.include_router(mep_router)
+# RS-vs-benchmark ratio line (2026-06-24): /dash/rs/overlay feeds the stock chart's
+# docked RS lane (the one-chart engine, stock_chart.py). Isolated module.
+app.include_router(rs_router)
 
 
 class ChatRequest(BaseModel):
@@ -225,3 +251,17 @@ def candidates_page(
         cls_d30=cls(days == 30),
     )
     return HTMLResponse(content=html)
+
+
+# === v2 surfaces hook (durable) ===
+# Mount the v2 website surfaces (Coverage ledger, RS hub, News/Wire, /v1) and
+# integrate them into the live nav. Single source of truth = src/web/v2_surfaces.py.
+# Re-applied idempotently by scripts/wire_v2_surfaces.py after any redeploy/clobber.
+# Defensive: a failure inside wire() is logged, never fatal. Reversible: delete this block.
+try:
+    from src.web import v2_surfaces as _v2_surfaces
+    _v2_surfaces.wire(app)
+except Exception as _v2_hook_err:  # noqa: BLE001
+    import logging as _v2_logging
+    _v2_logging.getLogger("hermes.v2").warning("v2 surfaces hook skipped: %s", _v2_hook_err)
+# === end v2 surfaces hook ===
