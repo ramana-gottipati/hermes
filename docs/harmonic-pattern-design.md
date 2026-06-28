@@ -75,15 +75,38 @@ into the module-owned `harmonic_signals` table; nightly via the timer. Real-VPS 
 now**, e.g. CANHLIFE Gartley-bull). `latest(conn, universe)` reads the snapshot. Rows carry
 `tag` (edge/tail by side), `score`, `d_price`/`prz_lo`/`prz_hi`, `in_zone`, `rsi_d`, `age`.
 
+## 5b. UI — SURFACED + LIVE (Lane G2, 2026-06-29)
+- **`src/web/harmonic_view.py`** (NEW, owned) — `/dash/harmonic` scanner page (reads the
+  nightly `harmonic_signals` snapshot, live fallback; read-by-side BULL ✓ edge / BEAR ⚠
+  tail; rows click → the stock chart) + `/dash/harmonic/overlay` JSON feed (per-symbol
+  confirmed + forming patterns). **Mounted with NO main.py edit** — its router is nested
+  into the already-included `wolfe_view` router (`router.include_router(...)`), so it's
+  committed + survives a redeploy (cleaner than the in-place hooks the older overlays use).
+- **`stock_chart.py`** (owned) — a **Harmonic chip** in the Strategies family + `harmToggle`:
+  fetches the overlay and draws each pattern's X-A-B-C-D polyline + point markers (+ the
+  forming **PRZ** band) on `window.__wfpc`, autoscale-opt-out (candles never squish), point
+  dates re-snapped onto the current bars so it survives the D/W/M/Q resample. `__wfpc`
+  contract untouched → CPR/MEP/MA/RS/Wolfe keep working.
+- **Browser-verified LIVE (Chrome):** MARICO confirmed Gartley-bear draws X-A-B-C-D on the
+  candles; CANHLIFE forming Gartley + PRZ; chip toggles on (pink #f778ba); CPR/MEP/Wolfe/RS
+  all coexist; ZERO console errors. Scanner 200 (143 setups / 12 in-zone). Cross-linked from
+  the Wolfe scanner (no orphan). Commit `1eeae16`.
+
 ## 5. Open / next (gated; NOT built)
-- **UI surface** — a `/dash/harmonic` scanner page + an on-chart `harmonic_overlay.py`
-  (draw X-A-B-C-D + PRZ on `window.__wfpc`, same contract as `wolfe_overlay.py`). Needs the
-  frozen `dashboard.py`/`main.py` wiring → a **hand-off** (Lane-G owns the modules; the
-  in-place hooks ride the chart session, like the CPR/MEP/Wolfe overlays).
+- **Nav entry** — add "Harmonic" to the Strategies sub-nav (next to "Wolfe · Scan"). Lives in
+  `v2_surfaces.py` (Lane A) → **hand-off**; reachable now via URL + the Wolfe-scanner cross-link.
+- **Multi-TF harmonic DETECTION** (W/M) — the chart already resamples D/W/M/Q and the overlay
+  snaps to it, but detection itself is daily-only; true W/M needs `bars_weekly`/`bars_monthly`
+  fed to `detect_from_series` + the scanner. (The validated backtest is daily — extend + re-gate.)
+- **Drawing persistence → SQLite** — the drawing engine's magnet + hide-all + persistence are
+  live, but persistence is `localStorage` (per-browser). A per-user×symbol SQLite table +
+  save/load endpoints would make drawings cross-device.
 - **The moat (chart doc §13):** fuse the harmonic D-zone with proprietary **DVPT-accumulation
   + RS + CPR-confluence** — a pattern completing where institutions are accumulating is the
-  "stronger, more reliable" signal nobody else can compute. (A confluence column, once the
-  scanner is surfaced.)
+  "stronger, more reliable" signal nobody else can compute (a confluence column on the scanner).
 - **Bull-focus** (the edge is bull-side): a bull-only screen + tighter score gate.
-- **Multi-TF** (W/M zigzag) · Cypher/Shark once specs are pinned · Three-Drives.
-- **strategy_registry** could read `harmonic_signals` for a `/dash/strategist` card (Lane-C-owned file → hand-off).
+- **Renko / Point & Figure** chart types (off-axis → custom-series/v5) + **site-wide bounded
+  engine rollout** (RRG / ratio / sparklines onto `hermes-charts.js`, kill `preserveAspectRatio="none"`)
+  — both touch non-owned files (`cockpit.py`/`rrg_view.py`) → hand-off.
+- **Cypher / Shark** once specs are pinned · **Three-Drives** · **strategy_registry** reading
+  `harmonic_signals` for a `/dash/strategist` card (Lane-C file → hand-off).

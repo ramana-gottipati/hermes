@@ -469,9 +469,18 @@ modules (Lane-G-owned), reusing the Wolfe engine read-only:
   <0.6), **BEAR ≈ short-drift** (no edge — like Wolfe). → DESCRIPTIVE, read by side.
 - `src/automation/harmonic_signals.py` — scanner + module-owned `harmonic_signals` table (db.py untouched)
   + nightly `hermes-harmonic-scan.{service,timer}` (Mon-Fri 16:10 UTC). VPS: 143 setups persisted (12 in-zone).
-- **NOT YET surfaced in the UI** (a `/dash/harmonic` page + `harmonic_overlay.py` on `window.__wfpc` need the
-  frozen dashboard.py/main.py hooks → hand-off, like the CPR/MEP/Wolfe overlays). Full record + open items
-  in `docs/harmonic-pattern-design.md`.
+- Full record + open items in `docs/harmonic-pattern-design.md`.
+
+**HARMONIC SURFACED IN THE UI (Lane G2, 2026-06-29) — commit `1eeae16`, browser-verified LIVE.** The hand-off
+from G, done with **zero frozen-file edits**: NEW `src/web/harmonic_view.py` = `/dash/harmonic` scanner page
+(reads the `harmonic_signals` snapshot, read-by-side) + `/dash/harmonic/overlay` JSON feed, its router **nested
+into the already-mounted `wolfe_view` router** (no main.py edit, committed/durable); `stock_chart.py` gains a
+**Harmonic chip** in the Strategies family that draws each pattern's X-A-B-C-D polyline + markers + the forming
+PRZ on `window.__wfpc` (autoscale-opt-out, re-snapped across the D/W/M/Q resample — `__wfpc` contract untouched
+so CPR/MEP/MA/RS/Wolfe keep working). Chrome-verified: MARICO confirmed Gartley-bear draws on the candles,
+CANHLIFE forming Gartley + PRZ, all overlays coexist, ZERO console errors. **Remaining (hand-offs):** nav entry
+(`v2_surfaces.py`, Lane A) · multi-TF harmonic DETECTION (W/M) · drawing persistence localStorage→SQLite ·
+Renko/P&F + site-wide bounded rollout (touch `cockpit.py`/`rrg_view.py`, non-owned). See harmonic doc §5/§5b.
 
 ## 11. Key file paths
 
