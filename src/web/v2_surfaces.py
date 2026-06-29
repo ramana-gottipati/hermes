@@ -59,81 +59,44 @@ _ROUTER_SPECS = [
     ("rsband", "src.web.rsband_view", "/dash/rsband"),
 ]
 
-# ── the canonical site IA — the single source of the top menu ────────────────
+# ── the canonical site IA — GENERATED from the single lens registry ──────────
 # Altitudes = the top bar (a place you go). Each altitude's sub-nav = its lenses /
 # sections (how you evaluate — NEVER an altitude tab). Pat = a global summon (Ask
-# Pat ⌘K); Coverage = a "Trust" utility — both right-side, not altitude tabs.
-_IA_ALT = [
-    ("markets", "/dash/markets", "Markets"),
-    ("screener", "/dash/screener", "Screener"),
-    ("strategies", "/dash/strategies", "Strategies"),
-    ("tracker", "/dash/dashboard", "Tracker"),
-]
-_IA_SUB = {
-    "markets": [
-        ("markets", "/dash/markets", "Overview"),
-        ("sectors", "/dash/sectors", "Sectors"),
-        ("rs-hub", "/dash/rs-hub", "Relative strength"),
-        ("rrg", "/dash/rrg", "Rotation · Map"),
-        ("rotation", "/dash/rotation", "Rotation · Weather"),
-        ("rsband", "/dash/rsband", "Rotation · Band"),
-        ("participants", "/dash/participants", "Participants"),
-        ("wire", "/dash/wire", "News / Wire"),
-        ("compare", "/dash/compare", "Compare"),
-    ],
-    "screener": [
-        ("screener", "/dash/screener", "Screen"),
-        # Lane B's streamlined screener (plan §2a) — pre-wired so its page is reachable
-        # the moment it deploys; promote to default once parity-verified.
-        ("screen2", "/dash/screen2", "Screen+"),
-        ("themes", "/dash/themes", "Themes / Baskets"),
-        ("tags-review", "/dash/tags-review", "Review"),
-        ("workbench", "/dash/workbench", "Workbench"),
-    ],
-    "strategies": [
-        # Lane B's strategist dashboard (plan §2a) — the "at a glance" landing, first.
-        ("strategist", "/dash/strategist", "Strategist"),
-        ("strategies", "/dash/strategies", "Hub"),
-        ("conviction", "/dash/conviction", "Conviction"),
-        ("stocks", "/dash/stocks", "Positioning"),
-        ("mep", "/dash/mep", "Accumulation (MEP)"),
-        ("cpr", "/dash/cpr", "Structure"),
-        ("leaders", "/dash/leaders", "Strength"),
-        ("concalls", "/dash/concalls", "Credibility"),
-        ("growth", "/dash/growth", "Growth-intent"),
-        ("wolfe", "/dash/wolfe/scan", "Wolfe · Scan"),
-        ("wolfe_chart", "/dash/wolfe", "Wolfe · Chart"),
-        ("launchpad", "/dash/launchpad", "Launchpad"),
-        ("testing", "/dash/testing", "Lab"),
-    ],
-    "tracker": [
-        ("dashboard", "/dash/dashboard", "Dashboard"),
-        ("portfolios", "/dash/portfolios", "Portfolios"),
-        ("watchlists", "/dash/watchlists", "Watchlists"),
-        ("performance", "/dash/performance", "Performance"),
-        ("import", "/dash/import", "Import"),
-    ],
-}
-# sub-nav key -> the set of route `active` values that should highlight it
-_SUB_ALIAS = {
-    "sectors": {"sectors", "rs"}, "stocks": {"stocks", "scan", "stock"},
-    "leaders": {"leaders", "laggards"}, "wire": {"wire", "news"},
-    "themes": {"themes", "theme"}, "wolfe": {"wolfe"},
-    "dashboard": {"dashboard", "tracker", "track"},
-}
-# route `active` value -> its altitude (top-bar highlight + which sub-nav renders).
-_ALT_OF: dict[str, str] = {}
-for _a, _its in _IA_SUB.items():
-    for _k, _h, _l in _its:
-        _ALT_OF[_k] = _a
-        for _alias in _SUB_ALIAS.get(_k, ()):
-            _ALT_OF[_alias] = _a
-_ALT_OF.update({"ratio": "markets", "coverage": "trust"})
+# Pat ⌘K); Trust (Coverage · Strategy validation) = a right-side utility altitude.
+#
+# This block USED to hand-maintain four parallel maps (_IA_ALT/_IA_SUB/_SUB_ALIAS/
+# _ALT_OF). They now GENERATE from src.web.lens_registry — the single source that the
+# dossier tabs, screener columns and cross-links (Lane N3) also read — so the nav can
+# no longer drift out of agreement (review §6–§7; ui-architecture-v2.md §0.4/§9). The
+# DECIDED Scope × Lens IA (nav-ia-DECISIONS-and-prompts.md §1) lives in that registry.
+#
+# Each sub-nav item is (key, href, label, group) where `group` is an optional heading
+# (e.g. "Rotation", "Accumulation") rendered as a non-link separator before its items.
+from src.web import lens_registry as _LR
 
-# every href the IA already homes (the no-loss known set).
+_ALT_LABELS = {"markets": "Markets", "screener": "Screener",
+               "strategies": "Strategies", "tracker": "Tracker", "trust": "Trust"}
+# top-bar tab href = the first sub-nav route of each altitude (its landing).
+_IA_ALT = [(_alt, _LR.subnav(_alt)[0].route, _ALT_LABELS[_alt])
+           for _alt in _LR.altitude_order()]
+# {altitude: [(key, href, label, group), ...]} — overlay-only lenses excluded by subnav().
+_IA_SUB = {_alt: [(ln.key, ln.route, ln.label, ln.group) for ln in _LR.subnav(_alt)]
+           for _alt in (*_LR.altitude_order(), "trust")}
+# sub-nav key -> the set of route `active` values that should highlight it.
+_SUB_ALIAS = {ln.key: _LR.alias_set(ln.key) for ln in _LR.LENSES if ln.aliases}
+# route `active` value -> its altitude (top-bar highlight + which sub-nav renders).
+# DELIBERATELY no "stock" entry: the per-stock dossier is a destination, not a lens, so
+# it must NOT claim Strategies›Positioning (the stock→stocks alias quirk — review §6 #5).
+_ALT_OF: dict[str, str] = dict(_LR.ALT_OF)
+
+# every href the IA homes (the no-loss known set) + the always-present utilities.
 _KNOWN_HREFS = ({h for _k, h, _l in _IA_ALT}
-                | {h for _its in _IA_SUB.values() for _k, h, _l in _its}
-                | {"/dash/coverage", "/dash/pat", "/dash/ratio", "/dash/news"})
+                | {h for _its in _IA_SUB.values() for _k, h, _l, _g in _its}
+                | {"/dash/coverage", "/dash/testing", "/dash/pat", "/dash/ratio",
+                   "/dash/news", "/dash/leaders", "/dash/wolfe", "/dash/wolfe/scan",
+                   # Hub merged into Strategist: its route stays live but must not be
+                   # re-surfaced as "More" clutter on the top bar.
+                   "/dash/strategies"})
 
 _NAV_LINK_RE = re.compile(r'<a [^>]*href="([^"]+)">([^<]+)</a>')
 
@@ -153,6 +116,9 @@ _V2NAV_CSS = """<style>
   border-radius:7px 7px 0 0;white-space:nowrap}
 .v2subnav a:hover{color:#eaf1f9;background:#111824}
 .v2subnav a.on{color:#eaf1f9;background:#111824;font-weight:600;border-bottom:2px solid #4d9dff}
+.v2subnav .sgrp{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:#5f7488;padding:5px 4px 5px 10px;align-self:center;white-space:nowrap;border-left:1px solid #1c2937}
+.v2subnav .sgrp:first-child{border-left:0;padding-left:2px}
 /* ── responsive: phone-usable chrome (the altitude bar scrolls, the utilities compact) ── */
 @media (max-width:640px){
   .v2bar{gap:6px;flex-wrap:nowrap}
@@ -209,12 +175,17 @@ def _altitude_of(active) -> str | None:
     a = (active or "").strip().lower()
     if a in _ALT_OF:
         return _ALT_OF[a]
+    # The per-stock dossier is a DESTINATION, not a lens — it must claim no altitude
+    # (legacy dashboard._WS maps "stock"->"strategies", which wrongly lit Strategies›
+    # Positioning). Override that here so a per-stock everything-page highlights nothing.
+    if a == "stock":
+        return None
     try:
         import src.web.dashboard as D
         ws = D._WS.get(a, a)
         if ws == "themes":
             return "screener"
-        if ws in ("markets", "screener", "strategies", "tracker"):
+        if ws in ("markets", "screener", "strategies", "tracker", "trust"):
             return ws
     except Exception:  # noqa: BLE001
         pass
@@ -234,11 +205,12 @@ def _install_nav() -> None:
         return
     orig_nav = D._nav
 
-    # highlight hints for any other dashboard code path that reads _WS
+    # highlight hints for any other dashboard code path that reads _WS — kept in sync
+    # with the registry IA: leaders→Markets (RS is Markets content), testing→Trust.
     try:
-        D._WS.update({"coverage": "coverage", "rs-hub": "markets", "wire": "markets",
-                      "news": "markets", "participants": "markets", "growth": "strategies",
-                      "wolfe": "strategies", "testing": "strategies"})
+        D._WS.update({"coverage": "trust", "rs-hub": "markets", "wire": "markets",
+                      "news": "markets", "participants": "markets", "leaders": "markets",
+                      "growth": "strategies", "wolfe": "strategies", "testing": "trust"})
     except Exception as e:  # noqa: BLE001
         log.warning("v2 _WS update skipped: %s", e)
 
@@ -271,10 +243,15 @@ def _install_nav() -> None:
         sub = ""
         items = _IA_SUB.get(alt)
         if items:
-            links = "".join(
-                f'<a class="{"on" if (active == k or active in _SUB_ALIAS.get(k, {k})) else ""}" '
-                f'href="{h}">{lbl}</a>' for k, h, lbl in items)
-            sub = f'<div class="v2subnav" role="navigation" aria-label="Section">{links}</div>'
+            parts, last_group = [], None
+            for k, h, lbl, group in items:
+                if group and group != last_group:        # render the heading once per run
+                    parts.append(f'<span class="sgrp">{group}</span>')
+                last_group = group
+                on = "on" if (active == k or active in _SUB_ALIAS.get(k, {k})) else ""
+                parts.append(f'<a class="{on}" href="{h}">{lbl}</a>')
+            sub = ('<div class="v2subnav" role="navigation" aria-label="Section">'
+                   f'{"".join(parts)}</div>')
         out = _V2NAV_CSS + top + sub
         try:
             from src.web import ui_kit as _K
@@ -362,13 +339,36 @@ def _selftest() -> int:
     for gone in ('>Growth<', '>Wolfe wave<', '>Themes<', '>News<', '>Relative strength<'):
         assert gone not in top_bar, f"lens still on top bar: {gone}"
 
-    # every altitude renders its lenses as a contextual sub-nav (no-loss presence)
+    # every altitude (incl. Trust) renders its lenses as a contextual sub-nav (no-loss).
+    _probe = {"tracker": "dashboard", "trust": "coverage"}
     for alt, items in _IA_SUB.items():
-        nav = D._nav(alt if alt != "tracker" else "dashboard")
-        for _k, h, _l in items:
+        nav = D._nav(_probe.get(alt, alt))
+        for _k, h, _l, _g in items:
             assert f'href="{h}"' in nav, f"{alt} sub-nav missing {h}"
-    print("v2_surfaces selftest OK — 4 altitudes + contextual sub-nav + utilities; "
-          "lenses off the top bar; no-loss; idempotent")
+
+    # ── the DECIDED Scope × Lens IA (nav-ia-DECISIONS §1) is wired correctly ──
+    mkt = D._nav("markets")
+    assert 'href="/dash/leaders"' in mkt, "Leaders must be a Markets sub-nav entry"
+    strat = D._nav("strategist")
+    # Scope the IA assertions to the SUB-NAV strip (the cmdk ⌘K palette legitimately
+    # still lists Wolfe/Hub as searchable destinations — they stay reachable, just not
+    # as Strategies sub-nav tabs). The strip is the v2subnav block.
+    _strat_strip = strat.split('class="v2subnav"', 1)[-1].split("</div>", 1)[0]
+    assert 'href="/dash/leaders"' not in _strat_strip, "Leaders must NOT be under Strategies"
+    assert 'href="/dash/strategies"' not in _strat_strip, "Hub must be merged into Strategist"
+    assert '>Accumulation<' in _strat_strip, "Positioning+MEP must group under 'Accumulation'"
+    for gone in ('>Wolfe', '/dash/wolfe'):           # Wolfe demoted to chart overlay
+        assert gone not in _strat_strip, f"Wolfe must be off the Strategies sub-nav: {gone}"
+    trust = D._nav("coverage")
+    assert 'href="/dash/coverage"' in trust and 'href="/dash/testing"' in trust, \
+        "Trust sub-nav must wire Coverage + Strategy validation(/dash/testing)"
+    assert '>Strategy validation<' in trust, "Trust slot must label /dash/testing"
+    # the per-stock dossier must NOT light Strategies›Positioning (the alias-quirk fix).
+    assert _altitude_of("stock") is None, "stock dossier must not claim an altitude"
+
+    print("v2_surfaces selftest OK — Scope x Lens IA: Leaders->Markets, Hub merged into "
+          "Strategist, Accumulation group, Wolfe overlay-only, Trust sub-nav, dossier "
+          "claims no altitude; no-loss; idempotent")
     return 0
 
 
