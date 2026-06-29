@@ -92,3 +92,31 @@ concurrently and the plain `git commit` consumed it. Caught immediately, `git re
 `shell_skin.py`; L4's `screener_plus.py` was preserved in the index and L4 committed it cleanly in
 `361c95e`. **Lesson reinforced:** `git diff --cached` showing a foreign path is a HARD STOP — unstage it
 or commit with an explicit pathspec; never `git commit` a mixed index.
+
+---
+
+## WAVE 3 — Pitch-demo polish + Trust front-door + WCAG-AA (2026-06-29, re-baselined `b926f7a`)
+
+### Commits (owned-files-only)
+| Commit | What |
+|---|---|
+| `e7ee6d5` | **WCAG-AA contrast.** Lifted `--ink-3` #5c6f84 → #7e90a8 (the sole systemic AA failure — 3.44:1, carries muted text site-wide) across ui_tokens/ui_kit/shell_skin + cmdk footer; + skin block mapping frozen-body hardcoded greys (#6e7681/#5f7488) to the AA-safe ink. Coverage AA fails 10→1. |
+| `4f4e7b6` | **a11y ⌘K.** The Cmd-K summon was a `<div>` (not focusable/announced) → now a `<button>` with aria-label + aria-keyshortcuts + focus-visible ring. Verified keyboardFocusable + opensOnActivate. |
+| `5c7be8f` | **Consistency.** Markets `.ck-tile` (index-bundle tiles) carried the OLD palette → mapped to ui_kit tokens. Zero remaining old-palette bg on Markets. |
+| `232cb05` | **Print.** Deepened to a leave-behind: @page A4+margins, full light-flip (color-adjust:exact), hide interactive-only controls, cards/tables intact across breaks, value contract preserved, footer disclaimer. |
+
+### Backlog coverage (Wave 3)
+1. **Pitch-demo visual QA** — `docs/L2-pitch-qa.md`; 6 beats walked in a dedicated tab. Coverage = clean reference (descriptive, no leaderboard); dossier descriptive (UNPROVEN not a grade); the `.ck-tile` palette break fixed. ✓
+2. **Trust front-door depth** — Coverage confirmed institutional (uniform cards, evidence eyebrows, Strategy-validation + provenance trails, no ranking). The missing "Replay the Tape" trail needs a route + a coverage_view edit (not L2-owned) → flagged task_568e63a8. ✓ (within scope)
+3. **WCAG-AA** — systemic `--ink-3` fix + ⌘K keyboard/aria fix + frozen-grey class overrides. Coverage 10→1, Stock 3→2 (2 remaining are inline styles in L3's stock_chart.py → task_c0cc1023). ✓
+4. **Design-system completeness + print** — `/dash/_ui` current (all families incl. states); print deepened to a leave-behind. ✓
+5. **Consistency sweep** — old-palette `.ck-tile` fixed; native-component bleed-through re-confirmed clean (uk-card h2 21px, uk-t cols right-aligned). ✓
+6. **Final pass** — Coverage + Stock screenshots show one consistent institutional look; gates green. ✓ (643px window cap — see W2 viewport constraint)
+
+### Out-of-scope flagged (not L2-owned files)
+- **D-PITCH-2 Rotation blue/amber colour clash** — lives in `rotation_view.py` (not an L2-owned file, not a `*_native.py`); not edited, belongs to that view's owner.
+- **Replay-the-Tape route + Coverage trail** (`coverage_view.py` + routing) → spawn_task task_568e63a8.
+- **Chart-control inline-style contrast** (`stock_chart.py`, L3) → spawn_task task_c0cc1023.
+
+### Discipline held
+Every commit explicit-pathspec staged; `git diff --cached --name-only` checked == exactly my files before each commit (the W2 cross-absorption lesson). All deploys atomic (concurrent L3/L4), VPS==HEAD safety-diff each time, py3.10 import-test, health 200, browser-verified. No PROJECT_STATE.md edit.
