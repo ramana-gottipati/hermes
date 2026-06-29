@@ -18,9 +18,9 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
 |---|---|---|---|---|
 | F3-1 | **Time-series asks** — "credibility trend for X", level+momentum+trend over periods; a `trend` task over the `credibility_series` table (18,944 PIT rows) | F2-7 deferred this; mission item 4 names it explicitly. Data EXISTS (credibility_series) | `understand.py` `flows.py` `web.py` `engine.py` `disambiguate.py` | ✅ |
 | F3-2 | **Saved-boards LIST + REOPEN** in Pat itself — a `?flow=boards` view: list saved boards, one-click reopen, delete; not just the Save button | boards.py write path exists but Pat has no list/reopen surface; mission item 2 names "list + reopen" | `web.py` `routes.py` | ✅ |
-| F3-3 | **True server-side session THREAD** — a thread store so a refine can SUBTRACT ("drop the F&O ones") / pivot ("vs last quarter"), not only string-append; carries the last structured intent | current multi-turn is string-concat only — can't subtract/pivot. Mission item 1 = "server-side session context" | NEW `src/pat/thread.py` + `web.py` `routes.py` | ⬜ |
+| F3-3 | **True server-side session THREAD** — a thread store so a refine can SUBTRACT ("drop the F&O ones") / pivot ("vs last quarter"), not only string-append; carries the last structured intent | current multi-turn is string-concat only — can't subtract/pivot. Mission item 1 = "server-side session context" | NEW `src/pat/thread.py` + `web.py` `routes.py` | ⛔ BLOCKED (architecture + data — see note) |
 | F3-4 | **Deepen EXPLANATIONS** — `why` drills into the underlying rows + provenance (as-of period, n promises resolved, veto reason, the concall/delivery/RS evidence) with the coverage caveat | mission item 3 = "drilling into provenance + underlying rows, with the as-of/coverage caveat" | `flows.py` `web.py` | ✅ |
-| F3-5 | **Ranked top-N** — honor "top 5", "best 10" → a bound `limit` on the surfaced flows | F2-7 deferred; mission item 4 = "ranked rankings" | `understand.py` `flows.py` `web.py` | ⬜ |
+| F3-5 | **Ranked top-N** — honor "top 5", "best 10" → a bound `limit` on the surfaced flows | F2-7 deferred; mission item 4 = "ranked rankings" | `understand.py` `flows.py` `web.py` | ⏸ DEFERRED (cost discipline — see note) |
 | F3-6 | **Extend the eval-set + OOD/hallucination** — new bands for trend/boards/top-N; more adversarial + SEBI redirect cases | mission item 5 = "extend the eval-set + hallucination/OOD; tighten SEBI guardrails" | `eval_set.py` `disambiguate.py` | ✅ |
 | F3-7 | **Tighten SEBI guardrails** — broaden the advice/predict/target-price/PMS-recommendation redirect vocabulary; never a buy/sell/predict | mission item 5; the guardrail vocab is narrow today | `disambiguate.py` | ✅ |
 | F3-8 | **Polish proactive ALERTS** — surface the watchlist-alignment + dropped-from-confluence read with as-of + descriptive caveat on the workbench; opt-in framing | mission item 6 = "polish the proactive alerts" | `alerts.py` `strategist_view.py` | ✅ |
@@ -64,3 +64,33 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
   context (above/below the peer median) + a richer provenance footer (rank N of the pilot ·
   M concalls scored · as-of period). Descriptive evidence, never a recommendation. Live ✓
   (NAVINFLUOR shows receipts + peer median + rank); eval unchanged; BOTH gates PASS.
+
+## Deferred / blocked — honest rationale (loop §6: report blockers, don't fake)
+
+- **F3-3 (true server-side thread) — ⛔ BLOCKED by architecture + data.** The `/dash/pat`
+  page route lives in `dashboard.py` (NOT in my ownership) and its handler takes neither a
+  FastAPI `Request` nor cookies, and hardcodes its query kwargs — so a server-side thread
+  token the PAGE GET reads cannot be plumbed without editing `dashboard.py` (forbidden).
+  web.py already documents this prior deliberate choice ("no server thread state, no
+  dashboard.py token plumbing"). Separately, the canonical subtraction example "drop the
+  F&O ones" is ALSO data-blocked: there is no F&O / derivatives universe in the DB
+  (`stock_index_membership` has no F&O index), so that exclusion is unanswerable regardless.
+  A POST-only thread in my OWNED routes.py could persist last-intent + merge, but the page
+  can't read it back without the forbidden edit. Honest call: leave the stateless
+  combined-query multi-turn (which already covers additive refines + the new trend flow) and
+  report the blocker rather than fake a thread that can't round-trip. *Unblock path (future):
+  a parallel-owned dashboard.py change to pass `Request`/a `tid` param into render_pat.*
+- **F3-5 (ranked top-N) — ⏸ DEFERRED per cost discipline.** Threading a user `limit` through
+  every `build_*` flow signature + each of ~5 large renderers (chip rails + sector chips +
+  table) + the parse→compile→dispatch chain is "a focused build of its own" (F2's exact
+  rationale when it deferred F2-7). The lists are already ranked/sorted and capped (60–80),
+  and the house `table.dt` grid is client-sortable, so the marginal value is low against the
+  CLAUDE.md cost-discipline guardrail ("bundle changes; avoid long iterative tinkering").
+  Not in the headline ask. Carries forward.
+
+## Mission summary — 6/8 shipped, 2 honestly deferred/blocked
+Shipped: F3-1 (credibility time-series) · F3-2 (saved-boards manager) · F3-4 (deepened
+why-credible into the underlying receipts + peer-median + rank provenance) · F3-6 (eval
+TREND band + tighter OOD) · F3-7 (SEBI guardrail hardening) · F3-8 (alerts polish:
+dropped-out + watchlist alignment). Every change: descriptive-only, provenance-stamped,
+closed-vocab→deterministic-compute, dashboard.py untouched, both gates PASS each commit.
