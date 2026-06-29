@@ -40,6 +40,10 @@ _NAV_SENTINEL = "_v2_nav_wrapped"
 # main.py clobber/redeploy (wire() re-mounts it) without needing a main.py edit.
 _ROUTER_SPECS = [
     ("coverage", "src.web.coverage_view", "/dash/coverage"),
+    # Replay the Tape — the standalone PIT-audit one-pager linked off the Coverage/Trust
+    # front-door (D-PITCH-1/4). A tiny view that serves docs/replay-the-tape.html verbatim;
+    # durably mounted here so the trail off Coverage never dead-ends after a main.py clobber.
+    ("replay", "src.web.replay_view", "/dash/replay"),
     ("rs-hub", "src.web.rs_section", "/dash/rs-hub"),
     ("news", "src.web.news_view", "/dash/wire"),
     # Lane B surfaces — durably mounted here so they no longer depend on the
