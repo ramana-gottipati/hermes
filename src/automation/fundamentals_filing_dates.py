@@ -150,6 +150,44 @@ def _fy_quarter_end(q: int, fy_end_year: int) -> Optional[str]:
             3: lambda: _qend(fy_end_year - 1, 12), 4: lambda: _qend(fy_end_year, 3)}.get(q, lambda: None)()
 
 
+def _decorrupt_period_end(period_end: str, filing_date: Optional[str]) -> Optional[str]:
+    """STRUCTURAL invariant: a results filing CANNOT predate the period it reports
+    (you can't file Q3-Dec numbers before December exists). Some BSE subjects carry a
+    clerical YEAR TYPO — e.g. a result filed 2024-01-18 whose headline reads
+    '...Quarter Ended 31St December, 2024' (the company wrote next year for a Dec-2023
+    quarter). Parsed literally that yields a period_end ~11 months AFTER the filing
+    date — the exact off-by-one-year that produced the 15 impossible provenance rows.
+
+    Fix: if the parsed ``period_end`` is later than ``filing_date``, walk the YEAR back
+    (preserving month/day, so the quarter identity is unchanged) to the nearest occurrence
+    that is on-or-before the filing date. Returns the corrected ISO date, or None if it
+    cannot be made non-impossible (no filing date, or month/day invalid after roll-back).
+    A same-or-earlier period_end is returned unchanged. NEVER returns a future date."""
+    if not period_end:
+        return period_end
+    if not filing_date:
+        # without a filing clock we cannot prove a typo; leave as-is (callers add their
+        # own window/candidate gate). The hard write-guard below is the final backstop.
+        return period_end
+    try:
+        pe = date.fromisoformat(period_end[:10])
+        f = date.fromisoformat(filing_date[:10])
+    except ValueError:
+        return period_end
+    if pe <= f:
+        return period_end
+    # period_end is in the future relative to the filing → year typo. Roll the year back
+    # (cap the search so a wild value can never loop) until on-or-before the filing date.
+    for back in range(1, 4):
+        try:
+            cand = pe.replace(year=pe.year - back)
+        except ValueError:                       # e.g. Feb-29 → non-leap; nudge to the 28th
+            cand = pe.replace(year=pe.year - back, day=28)
+        if cand <= f:
+            return cand.isoformat()
+    return None                                  # irreparable (>3y future) — reject the match
+
+
 def is_results_filing(subject: str) -> bool:
     """True only for an ACTUAL results filing — not a board-meeting intimation
     ('...to consider...', '...will be held...') which precedes the numbers."""
@@ -198,8 +236,19 @@ def choose_periods(subject: str, filing_date: Optional[str], candidates: set) ->
     """Decide which of a symbol's known (period_type, period_end) ``candidates`` this
     announcement settles. Headline-first (precise); a STRICT date-heuristic fallback only
     when exactly one candidate sits in the regulatory window (else leave it MODELED — an
-    ambiguous guess would be worse than honest silence). Returns matched candidates."""
-    targets = [(pt, pe) for (pt, pe) in period_from_subject(subject) if (pt, pe) in candidates]
+    ambiguous guess would be worse than honest silence). Returns matched candidates.
+
+    Every headline-parsed period_end is first passed through ``_decorrupt_period_end`` so a
+    clerical year-typo in the BSE subject (period_end AFTER the filing date — impossible)
+    is corrected to the real quarter before it is matched against ``candidates``; an
+    irreparable one is dropped."""
+    raw = period_from_subject(subject)
+    fixed: list = []
+    for (pt, pe) in raw:
+        cpe = _decorrupt_period_end(pe, filing_date)
+        if cpe is not None:
+            fixed.append((pt, cpe))
+    targets = [(pt, pe) for (pt, pe) in fixed if (pt, pe) in candidates]
     if targets:
         return targets
     if not filing_date:
@@ -400,6 +449,11 @@ def match_announcements(symbol: str, anns: list, candidates: set) -> dict:
         if not fdate:
             continue
         for (pt, pe) in choose_periods(subj, fdate, candidates):
+            # HARD invariant backstop: a real filing date can never precede its own
+            # period-end. Defends every write into provenance_knowable against the
+            # impossible (knowable_at < period_end) row regardless of how it was derived.
+            if pe and fdate and str(fdate)[:10] < str(pe)[:10]:
+                continue
             cur = matches.get((pt, pe))
             if cur is None or fdate < cur:          # keep the earliest filing for the period
                 matches[(pt, pe)] = fdate
@@ -500,6 +554,26 @@ def _selftest() -> None:
     # ambiguous (two distinct ends in window) → leave MODELED
     assert choose_periods("Outcome of Board Meeting", "2024-08-14",
                           {("Q", "2024-06-30"), ("Q", "2024-05-31")}) == []
+
+    # 4b. STRUCTURAL guard — the impossible-date bug (15 corrupt rows). A BSE subject with a
+    # clerical YEAR TYPO ('Quarter Ended 31St December, 2024' filed 2024-01-18) must bind to
+    # the REAL quarter 2023-12-31, never to the future 2024-12-31, and never store real<period.
+    assert _decorrupt_period_end("2024-12-31", "2024-01-18") == "2023-12-31"
+    assert _decorrupt_period_end("2025-12-31", "2025-02-08") == "2024-12-31"   # CONFIPET shape
+    assert _decorrupt_period_end("2023-12-31", "2023-02-14") == "2022-12-31"   # IDEA/QUESS shape
+    assert _decorrupt_period_end("2024-03-31", "2024-05-10") == "2024-03-31"   # already valid, untouched
+    assert _decorrupt_period_end("2024-12-31", None) == "2024-12-31"           # no clock → leave (write-guard backstops)
+    # the real FINPIPE subject that produced FINPIPE|Q|2024-12-31 → 2024-01-18
+    finpipe = ("Unaudited Financial Results (Both Standalone & Consolidated) For The Quarter And "
+               "Nine Months Ended 31St December, 2024 Along-With Related Segment-Wise Financial")
+    assert choose_periods(finpipe, "2024-01-18",
+                          {("Q", "2023-12-31"), ("Q", "2024-12-31")}) == [("Q", "2023-12-31")]
+    # match_announcements write-guard: even a forged future pairing is dropped, never stored
+    forged = [{"HEADLINE": "Financial Results for the Quarter ended December 31, 2024",
+               "NEWS_DT": "2024-01-18T18:00:00"}]
+    mm = match_announcements("FINPIPE", forged, {("Q", "2023-12-31"), ("Q", "2024-12-31")})
+    assert mm == {("Q", "2023-12-31"): "2024-01-18"}, mm
+    assert all(fd[:10] >= pe[:10] for (_, pe), fd in mm.items()), mm   # invariant: no real<period
 
     # 5. match_announcements keeps the EARLIEST filing per period and skips intimations
     anns = [

@@ -1021,7 +1021,14 @@ def lag_samples(conn=None, *, data_class="fundamentals_history", n: int = 8) -> 
                                        f"WHERE symbol=? AND period_end=? LIMIT 1", (sym, period))
             if not modeled:
                 continue
+            # STRUCTURAL guard: a real filing date can NEVER precede its own period-end
+            # (you cannot file a period's results before the period exists). Such a row is
+            # impossible data (clerical year-typo upstream); it must never be selectable as
+            # a headline receipt on a trust surface. Skip it defensively even if one survives
+            # in provenance_knowable, so provenance_narrative()/lag_samples() stay airtight.
             try:
+                if period and date.fromisoformat(knew[:10]) < date.fromisoformat(period[:10]):
+                    continue
                 err = (date.fromisoformat(knew[:10]) - date.fromisoformat(modeled[:10])).days
             except ValueError:
                 continue
