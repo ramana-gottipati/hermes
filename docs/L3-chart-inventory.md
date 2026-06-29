@@ -9,6 +9,56 @@
 
 ---
 
+## WAVE 4 (2026-06-29) — lower indicator pane + compare (§18–§22)
+
+All on the `/dash/stock` workstation; `stock_chart.py` + a new endpoint in `rs_overlay.py`. DESCRIPTIVE-only.
+
+### §18. Lower indicator pane — Volume / RSI(14) / MACD(12,26,9) (Wave-4 item 1, the big one)
+A **SECOND lightweight-charts instance** under the price chart (v4 has no native panes),
+time-synced to it. New **LOWER PANE** family in the rail: Volume · RSI 14 · MACD.
+- **Bounded:** the pane host collapses to `height:0` when nothing is on (no empty strip),
+  150px (vol/rsi) or 180px (macd) when open. Mounted OUTSIDE `.chartwrap` (which clipped it).
+- **Synced:** ONE-WAY master→follower — on the price chart's range change, match `barSpacing`
+  + set the lower pane's logical range (RAF-coalesced). Two-way ping-ponged → froze the
+  renderer; one-way is stable and is what an analyst expects.
+- Recomputes on resample (D/W/M); **`window.__wfpc` (the price chart) is UNTOUCHED** so every
+  existing overlay keeps binding to it. Legend caveats; **no buy/sell language**.
+- **In-browser verified (ACC):** Volume+RSI+MACD draw, x-axis **aligned bar-for-bar** with the
+  price chart (2019→2026), RSI 30/70 guides, MACD line/signal/histogram. `__wfpc`+`__wflp` live.
+
+### §19. Compare overlay — rebased multi-symbol (Wave-4 item 2)
+Focus stock vs index/peer, **rebased to 100 at the window start**, on a dedicated `cmp` price
+scale so the candles stay untouched. **COMPARE** family: a symbol-add input + per-symbol chips
+(up to 4). New **`/dash/compare/series`** endpoint (in `rs_overlay.py`): a name's raw close
+series — equity from `bhavcopy_rows` or index from `index_rows`, null on miss, reads-only.
+- Capped to a **~2y window** (504 trading days) — both analytically meaningful (compare is a
+  recent relative-performance lens) and light (full 5400-pt lines per name were heavy).
+- In-browser verified (ACC + INFY + Nifty 50): rebased lines draw on the `cmp` scale, focus +
+  peers comparable; legend "rebased to 100 at window start — … (descriptive)".
+
+### §20. Coexistence (Wave-4 item 3)
+**In-browser (ACC), maximal state:** CPR + DVPT + MA + Volume + RSI + MACD + Wolfe + Harmonic +
+Compare(Nifty 50) **all ON together** → `__wfpc` + `__wflp` live, lower pane 180px, **no page
+overflow, ZERO console errors**. The lower pane + compare coexist with the 8 existing overlays.
+
+### §21. Demo-readiness (Wave-4 item 4)
+**Default state (clean, fast first paint):** Candles + DVPT + MA 50/200 on; lower pane collapsed;
+compare empty. Verified: no overflow, `__wfpc` live, lower pane height 0. **DECISION: keep the
+default lean** — defaulting the (heavy) lower pane ON would slow first paint, contradicting
+"clean first paint"; it is one click away.
+**Recommended DEMO state (one toggle sequence, screenshot captured):** default **+ CPR + Volume
+(lower pane)** — shows the CPR Spine (U/∩ markers) + institutional zones + the volume pane, the
+institutional-grade read, in one frame. For the deeper beat, add RSI/MACD + a Compare peer.
+
+### §22. Perf note (Wave-4)
+Heavy multi-overlay loads (lower pane + compare + 8 overlays on 5400 bars) make the *screenshot*
+CDP call time out intermittently (the renderer is busy) — but it completes and there are no
+errors; functional probes confirm state. A native `alert()` in the compare error path *looked*
+like a freeze in the automated browser (it blocks on the modal) → replaced with a non-blocking
+inline status. The chart itself stays responsive; this is render cost, not a hang.
+
+---
+
 ## WAVE 3 (2026-06-29) — professional analyst tools (§12–§16)
 
 All in `stock_chart.py` (the `/dash/stock` workstation), all **DESCRIPTIVE-only**.

@@ -1,8 +1,30 @@
 # Lane L3 — Charting site-wide — STATUS (2026-06-29)
 
 > Wrap note for Lane L3. Base HEAD was `05cdeae`. L3 commits: W1 `ccbd25e`+`1a9fe2c`,
-> W2 `6e3b22d`+`dc1da97`, **W3 `7b49e4e`+`8b39551`**. Both gates PASS. Full inventory =
-> `docs/L3-chart-inventory.md` (W2 = §8–§11, **W3 = §12–§17**).
+> W2 `6e3b22d`+`dc1da97`, W3 `7b49e4e`+`8b39551`, **W4 `76d465f`**. Both gates PASS. Full
+> inventory = `docs/L3-chart-inventory.md` (W2 §8–§11, W3 §12–§17, **W4 §18–§22**).
+
+## WAVE 4 (2026-06-29) — lower indicator pane + compare
+All on `/dash/stock`; `stock_chart.py` + a new endpoint in `rs_overlay.py`. DESCRIPTIVE-only. `76d465f`.
+- **LOWER PANE (item 1, the big one):** a SECOND lightweight-charts instance under the price chart
+  (v4 has no native panes), time-synced (one-way master→follower: match barSpacing + logical range,
+  RAF-coalesced — two-way froze the renderer). Volume + RSI(14, 30/70 guides) + MACD(12/26/9). Bounded
+  (collapses to 0 when off; mounted OUTSIDE `.chartwrap` which clipped it; driven via min-height!important
+  to beat the skin's !important height rule). Recomputes on resample. `window.__wfpc` UNTOUCHED. **In-browser:
+  draws + x-axis aligned bar-for-bar with the price chart.**
+- **COMPARE (item 2):** rebased multi-symbol overlay (focus vs index/peer, base 100 at window start) on a
+  dedicated `cmp` scale (candles untouched); symbol-add input + chips (≤4). New `/dash/compare/series`
+  endpoint (equity/index close series, reads-only). Capped ~2y (meaningful + light). Non-blocking inline
+  status. Fixed a time-key bug ({t,c} vs time) that threw in setData. **In-browser: INFY+Nifty 50 draw.**
+- **Coexistence (item 3) + final pass (item 5):** CPR+DVPT+MA+Volume+RSI+MACD+Wolfe+Harmonic+Compare ALL ON
+  together → `__wfpc`+`__wflp` live, no overflow, **ZERO console errors**.
+- **Demo-readiness (item 4):** default kept LEAN (candles+DVPT+MA, lower pane collapsed) for clean fast
+  first paint; recommended DEMO toggle = + CPR + Volume (screenshot captured). Lower-pane-on-by-default
+  rejected (would slow first paint).
+- **Perf note:** heavy multi-overlay loads time out the *screenshot* CDP call (renderer busy) but complete
+  with no errors; a native alert() in the compare path looked like a freeze (modal blocks) → replaced.
+
+---
 
 ## WAVE 3 (2026-06-29) — professional analyst tools
 All in `stock_chart.py`, all DESCRIPTIVE-only, all in-browser verified (dedicated tab):
