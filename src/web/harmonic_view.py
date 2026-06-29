@@ -51,14 +51,18 @@ _BULL, _BEAR = "#3fb950", "#f85149"
 @router.get("/dash/harmonic/overlay")
 def harmonic_overlay(sym: str = Query("", max_length=24),
                      confirmed: int = Query(6, ge=0, le=20),
-                     max_age: int = Query(180, ge=10, le=2000)):
+                     max_age: int = Query(180, ge=10, le=2000),
+                     tf: str = Query("d", pattern="^[dwm]$")):
     """JSON: the symbol's harmonic patterns for the /dash/stock overlay. Returns the most
-    recent CONFIRMED patterns (capped) + all FORMING ones (with the projected PRZ)."""
+    recent CONFIRMED patterns (capped) + all FORMING ones (with the projected PRZ).
+    tf='d'/'w'/'m' detects on daily / weekly / monthly bars (multi-TF hand-off)."""
     sym = sym.strip().upper()
     if not sym:
         return JSONResponse({"patterns": []})
+    # weekly/monthly bars are coarser → relax the recency window so W/M setups surface
+    age = max_age if tf == "d" else max(max_age, 1000)
     with get_conn() as conn:
-        pats = HP.detect(conn, sym, forming=True, max_age=max_age)
+        pats = HP.detect(conn, sym, tf=tf, forming=True, max_age=age)
     conf = [p for p in pats if p.state == "CONFIRMED"]
     form = [p for p in pats if p.state == "FORMING"]
     conf = sorted(conf, key=lambda p: -p.points[-1][1])[:confirmed]   # newest D first
@@ -70,7 +74,7 @@ def harmonic_overlay(sym: str = Query("", max_length=24),
             "points": [{"label": lbl, "t": dt, "price": pr}
                        for (lbl, _i, pr, dt) in p.points],
             "prz": p.prz or None, "rsi_d": p.rsi_d})
-    return JSONResponse({"patterns": out, "sym": sym})
+    return JSONResponse({"patterns": out, "sym": sym, "tf": tf})
 
 
 # --------------------------------------------------------------------------- #

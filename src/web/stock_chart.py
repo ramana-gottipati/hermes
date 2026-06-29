@@ -76,6 +76,8 @@ SNIPPET = """<script>
     window.__wfcandle=candle;
     var pline=pc.addLineSeries({color:C.line,lineWidth:2,priceLineVisible:false,lastValueVisible:false}); pline.applyOptions({visible:false});
     var parea=pc.addAreaSeries({lineColor:C.line,topColor:'rgba(31,111,235,0.25)',bottomColor:'rgba(31,111,235,0.02)',lineWidth:2,priceLineVisible:false,lastValueVisible:false}); parea.applyOptions({visible:false});
+    // Kagi: a single reversing line (thick/thin reduced to one stepped line for EOD)
+    var kagiL=pc.addLineSeries({color:C.rs,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); kagiL.applyOptions({visible:false});
     // Institutional price zones (P1M/P3M/P6M/P12M/R12M) — part of the DVPT
     // footprint, so they show/hide WITH the DVPT chip (retained for toggling;
     // v4 price-lines have no `visible`, so we remove + re-create).
@@ -133,13 +135,50 @@ SNIPPET = """<script>
         var ho=(po==null)?(d.open+d.close)/2:(po+pcl)/2; var hh=Math.max(d.high,ho,hc); var hl=Math.min(d.low,ho,hc);
         out.push({time:d.time,open:ho,high:hh,low:hl,close:hc}); po=ho; pcl=hc; }
       return out; }
+    // ---- Renko / Kagi — price-driven transforms keyed on the bar dates --------
+    // EOD-only: lightweight-charts needs a unique ascending time per row, so when
+    // several bricks/reversals complete on one date we keep the LAST one for that date
+    // (faithful enough for daily investing — every intra-day brick has no EOD data).
+    // brick = ATR-of-RT (a self-scaling box, no static rupee threshold — Ramana's rule).
+    function brickSize(R){ var tr=[]; for(var i=1;i<R.length;i++){ var d=R[i],p=R[i-1];
+        tr.push(Math.max(d.high-d.low, Math.abs(d.high-p.close), Math.abs(d.low-p.close))); }
+      if(!tr.length) return null; tr.sort(function(a,b){return a-b;});
+      var med=tr[Math.floor(tr.length/2)]; return med>0?med:null; }
+    function renko(R){ var bs=brickSize(R); if(!bs||R.length<2) return R.map(rawOHLC);
+      var out=[],lastByT={},base=R[0].close,dir=0;
+      function push(t,o,c,up){ var row={time:t,open:o,high:Math.max(o,c),low:Math.min(o,c),close:c,_up:up};
+        if(lastByT[t]!=null) out[lastByT[t]]=row; else { lastByT[t]=out.length; out.push(row); } }
+      for(var i=0;i<R.length;i++){ var px=R[i].close,t=R[i].time;
+        while(px-base>=bs){ var o=base,c=base+bs; base=c; dir=1; push(t,o,c,true); }
+        while(base-px>=bs){ var o2=base,c2=base-bs; base=c2; dir=-1; push(t,o2,c2,false); } }
+      if(!out.length) out=[{time:R[R.length-1].time,open:base,high:base,low:base,close:base,_up:dir>=0}];
+      return out; }
+    function kagi(R){ var bs=brickSize(R); if(!bs||R.length<2) return R.map(function(d){return {time:d.time,value:d.close};});
+      // thick/thin Kagi reduced to a single reversing line (value series): the line only
+      // turns when price reverses by >= one brick from the running extreme.
+      var out=[],lastByT={},ext=R[0].close,dir=0,val=R[0].close;
+      function put(t,v){ if(lastByT[t]!=null) out[lastByT[t]]={time:t,value:v}; else { lastByT[t]=out.length; out.push({time:t,value:v}); } }
+      put(R[0].time,val);
+      for(var i=1;i<R.length;i++){ var px=R[i].close,t=R[i].time;
+        if(dir>=0){ if(px>ext){ ext=px; val=px; } else if(ext-px>=bs){ dir=-1; ext=px; val=px; } else val=ext; }
+        else { if(px<ext){ ext=px; val=px; } else if(px-ext>=bs){ dir=1; ext=px; val=px; } else val=ext; }
+        put(t,val); }
+      return out; }
 
     // ---- apply current rows to every series ---------------------------------
     function paintPrice(){
-      var data=(ctype==='heikin')?heikin(RT):RT.map(rawOHLC);
+      var data;
+      if(ctype==='heikin') data=heikin(RT);
+      else if(ctype==='renko'){ var rk=renko(RT);
+        candle.setData(rk.map(function(d){return {time:d.time,open:d.open,high:d.high,low:d.low,close:d.close};}));
+        // colour each brick by direction (up/down) regardless of open<close ordering
+        candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:'rgba(0,0,0,0)',wickDownColor:'rgba(0,0,0,0)'});
+        pline.setData([]); parea.setData([]); if(kagiL)kagiL.setData([]); return; }
+      else data=RT.map(rawOHLC);
       candle.setData(data);
       pline.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
       parea.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
+      if(kagiL) kagiL.setData(ctype==='kagi'?kagi(RT):[]);
     }
     function applyRows(){
       paintPrice();
@@ -153,7 +192,13 @@ SNIPPET = """<script>
       if(reg.vwap.on) vwapL.setData(vwapFrom(RT,0));
       if(reg.avwap.on) avwapL.setData(vwapFrom(RT, anchorIdx()));
       if(draw) draw.redraw();
-      if(reg && reg.harm && reg.harm.on && harmData) harmDraw(harmData);   // re-snap harmonic across resample
+      // harmonic: D/W/M is detected on the resampled bars server-side, so when the
+      // interval crosses into (or out of) W/M, re-fetch; otherwise just re-snap.
+      if(reg && reg.harm && reg.harm.on){
+        var want=(iv==='w'||iv==='m')?iv:'d';
+        if(want!==harmTf){ harmData=null; harmToggle(true); }
+        else if(harmData) harmDraw(harmData);
+      }
     }
     function setIv(tf){ iv=tf; RT=resample(tf); applyRows(); }
 
@@ -165,11 +210,15 @@ SNIPPET = """<script>
     function curRange(){ var b=document.querySelector('.rangebar button.on'); return b?parseInt(b.dataset.r):0; }
 
     // ---- chart type ---------------------------------------------------------
+    // Families on ONE chart: candle-series renders Candles/Hollow/Heikin/Renko;
+    // pline=Line, parea=Area, kagiL=Kagi. Visibility is mutually exclusive.
     function setType(t){ ctype=t;
-      var isLine=(t==='line'), isArea=(t==='area'), isC=(!isLine&&!isArea);
-      candle.applyOptions({visible:isC}); pline.applyOptions({visible:isLine}); parea.applyOptions({visible:isArea});
+      var isLine=(t==='line'), isArea=(t==='area'), isKagi=(t==='kagi');
+      var isC=(!isLine&&!isArea&&!isKagi);   // candle series carries candle/hollow/heikin/renko
+      candle.applyOptions({visible:isC}); pline.applyOptions({visible:isLine}); parea.applyOptions({visible:isArea}); kagiL.applyOptions({visible:isKagi});
       if(t==='hollow') candle.applyOptions({upColor:'rgba(0,0,0,0)',borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:C.up,wickDownColor:C.down});
-      else if(isC) candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:false,wickUpColor:C.up,wickDownColor:C.down});
+      else if(t==='candle'||t==='heikin') candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:false,wickUpColor:C.up,wickDownColor:C.down});
+      // renko sets its own brick options inside paintPrice
       paintPrice();
     }
 
@@ -212,7 +261,7 @@ SNIPPET = """<script>
       flow:{label:'Traded \\u20b9',col:C.dval,on:false, fn:function(v){ tvalH.applyOptions({visible:v}); dvalH.applyOptions({visible:v}); reflow(); }}
     };
     function regChip(key){ var o=reg[key]; var c=E('span',chipCss(o.on,o.col),dot(o.col)+o.label);
-      c.onclick=function(){ o.on=!o.on; o.fn(o.on); c.style.cssText=chipCss(o.on,o.col); c.innerHTML=dot(o.col)+o.label; };
+      c.onclick=function(){ o.on=!o.on; o.fn(o.on); c.style.cssText=chipCss(o.on,o.col); c.innerHTML=dot(o.col)+o.label; if(typeof refreshLegend==='function')refreshLegend(); };
       o.chip=c; return c; }
 
     // =========================================================================
@@ -228,9 +277,9 @@ SNIPPET = """<script>
     // -- family 1: chart type (dropdown — types are NOT indicators) ----------
     var typeSel=E('select','background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:12px;padding:4px 8px');
     [['candle','Candles'],['hollow','Hollow candles'],['heikin','Heikin Ashi'],['line','Line'],['area','Area'],
-     ['renko','Renko (soon)',true],['pnf','Point & Figure (soon)',true]].forEach(function(o){
+     ['renko','Renko'],['kagi','Kagi'],['pnf','Point & Figure (soon)',true]].forEach(function(o){
       var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; if(o[2])op.disabled=true; typeSel.appendChild(op); });
-    typeSel.onchange=function(){ if(typeSel.value==='renko'||typeSel.value==='pnf'){ typeSel.value=ctype; return; } setType(typeSel.value); };
+    typeSel.onchange=function(){ if(typeSel.value==='pnf'){ typeSel.value=ctype; return; } setType(typeSel.value); };
 
     // -- family 2: strategies — pre-create #stratBar so CPR/MEP chips land here -
     var stratBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px'); stratBar.id='stratBar';
@@ -240,7 +289,9 @@ SNIPPET = """<script>
     stratBar.appendChild(regChip('dvpt'));      // DVPT first; CPR/MEP append after
     stratBar.appendChild(wfChip);
     stratBar.appendChild(regChip('rs'));
-    stratBar.appendChild(regChip('harm'));
+    var harmChip=regChip('harm');
+    harmChip.title='Harmonic XABCD — read by side (OOS backtest): BULL = a modest, fit-graded selection edge over drift; BEAR \\u2248 short-drift, tail/regime only. Descriptive, not a buy/sell signal.';
+    stratBar.appendChild(harmChip);
 
     // -- family 3: indicators — #cprBar anchors MA's #maBar into this family ---
     var indBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px');
@@ -270,6 +321,29 @@ SNIPPET = """<script>
     if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.appendChild(wfLbl); row2.appendChild(st); }
     rail.appendChild(row2);
 
+    // -- legend / "Read" strip — names what each ACTIVE overlay means so the chart
+    //    reads as a workstation, not a wall of lines. Descriptive grammar; updates
+    //    on every toggle. Harmonic carries its read-by-side backtest caveat here.
+    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid #161b22;margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt);
+    rail.appendChild(legend);
+    var LEGEND={
+      dvpt:[C.dvpt,'DVPT','rupee value traded; amber = institutional (1m+) day'],
+      rs:[C.rs,'RS','relative strength vs the broad market (docked lane)'],
+      harm:[C.harm,'Harmonic','XABCD reversal geometry — read by side: BULL = modest fit-graded edge, BEAR = tail/regime-only'],
+      vwap:[C.vwap,'VWAP','session volume-weighted average price'],
+      avwap:[C.avwap,'Anchored VWAP','VWAP from a chosen anchor bar'],
+      deliv:[C.deliv,'Delivery %','share of traded volume taken to delivery'],
+      flow:[C.dval,'Traded / Delivery \\u20b9','rupee traded vs delivered value']
+    };
+    function legRow(col,name,desc){ return '<span style="display:inline-flex;align-items:center;gap:5px">'
+        +'<span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'
+        +'<b style="color:'+C.txtHi+'">'+name+'</b><span style="color:'+C.dim+'">'+desc+'</span></span>'; }
+    function refreshLegend(){ var rows=[];
+      for(var k in LEGEND){ if(reg[k]&&reg[k].on){ var L=LEGEND[k]; rows.push(legRow(L[0],L[1],L[2])); } }
+      // CPR / MA / Wolfe are owned by sibling overlays; reflect their on-state cheaply
+      if(document.querySelector('#stratBar .ptf, #cprBar')){} // no-op anchor guard
+      legend.innerHTML=rows.join(''); legend.style.display=rows.length?'flex':'none'; }
+
     // mount rail just above the chart box; hide the now-folded old rows + panes
     var wrap=host.closest('.chartwrap');
     if(wrap&&wrap.parentNode) wrap.parentNode.insertBefore(rail, wrap); else host.parentNode.insertBefore(rail, host);
@@ -295,7 +369,7 @@ SNIPPET = """<script>
     var draw=makeDraw(pc,candle,host,drawBar,function(){return RT;});
 
     // boot
-    setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]); reflow();
+    setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]); reflow(); refreshLegend();
     // observe BOTH width and height (the old observer watched width only -> chart grew
     // wide but never tall); height now tracks the clamp + the fullscreen container.
     var ro=new ResizeObserver(function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); });
@@ -324,7 +398,7 @@ SNIPPET = """<script>
       if(rsLoaded){ if(rsL)rsL.applyOptions({visible:true}); reflow(); return; }
       rsLoaded=true; reflow(); var sym=new URLSearchParams(location.search).get('sym')||'';
       fetch('/dash/rs/overlay?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
-        if(!d||!d.series||!d.series.length){ reg.rs.on=false; if(reg.rs.chip){reg.rs.chip.style.cssText=chipCss(false,C.rs);reg.rs.chip.innerHTML=dot(C.rs)+'RS';} reflow(); return; }
+        if(!d||!d.series||!d.series.length){ reg.rs.on=false; if(reg.rs.chip){reg.rs.chip.style.cssText=chipCss(false,C.rs);reg.rs.chip.innerHTML=dot(C.rs)+'RS';} reflow(); refreshLegend(); return; }
         rsL=pc.addLineSeries({priceScaleId:'rs',color:C.rs,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:'RS vs '+(d.benchmark||'Nifty 500')});
         pc.priceScale('rs').applyOptions({scaleMargins:{top:0.74,bottom:0.04}});  // docked in the bottom band, not over the candles
         rsL.setData(d.series.map(function(p){return {time:p.t,value:p.v};}));
@@ -358,13 +432,21 @@ SNIPPET = """<script>
             z.setData([{time:ct,value:lv},{time:rt,value:lv}]); harmSeries.push(z); }); }
       });
     }
+    // harmonic timeframe (d/w/m) — detected on resampled bars server-side. Defaults to
+    // 'd'; switching the price interval to W/M re-fetches W/M harmonics (the multi-TF
+    // detection hand-off). The overlay returns the patterns for whatever tf is asked.
+    var harmTf='d';
+    function harmFetch(){ var sym=new URLSearchParams(location.search).get('sym')||'';
+      var tf=(iv==='w'||iv==='m')?iv:'d';
+      return fetch('/dash/harmonic/overlay?sym='+encodeURIComponent(sym)+'&tf='+tf).then(function(r){return r.json();}); }
     function harmToggle(v){
       if(!v){ harmClear(); return; }
-      if(harmData){ harmDraw(harmData); return; }
-      var sym=new URLSearchParams(location.search).get('sym')||'';
-      fetch('/dash/harmonic/overlay?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
-        if(!d||!d.patterns||!d.patterns.length){ reg.harm.on=false;
-          if(reg.harm.chip){ reg.harm.chip.style.cssText=chipCss(false,C.harm); reg.harm.chip.innerHTML=dot(C.harm)+'Harmonic'; } return; }
+      if(harmData && harmTf===((iv==='w'||iv==='m')?iv:'d')){ harmDraw(harmData); return; }
+      harmFetch().then(function(d){
+        harmTf=(iv==='w'||iv==='m')?iv:'d';
+        if(!d||!d.patterns||!d.patterns.length){ reg.harm.on=false; harmData=null; harmClear();
+          if(reg.harm.chip){ reg.harm.chip.style.cssText=chipCss(false,C.harm); reg.harm.chip.innerHTML=dot(C.harm)+'Harmonic'; }
+          refreshLegend(); return; }
         harmData=d.patterns; harmDraw(harmData);
       }).catch(function(){});
     }

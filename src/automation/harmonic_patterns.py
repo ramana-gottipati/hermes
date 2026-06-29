@@ -171,6 +171,40 @@ def _pivots(highs, lows, closes, method="zigzag", k=1.5):
     return zigzag(highs, lows, atr(highs, lows, closes), k)
 
 
+def _period_key(date_str, tf):
+    """Bucket a YYYY-MM-DD date into an ISO-week ('w') or calendar-month ('m') key."""
+    s = str(date_str)
+    if tf == "m":
+        return s[:7]
+    # ISO week (no external deps): Thursday-of-week year + week number
+    import datetime as _dt
+    try:
+        d = _dt.date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+    except Exception:
+        return s
+    iso = d.isocalendar()
+    return f"{iso[0]}-W{iso[1]:02d}"
+
+
+def resample_series(dates, opens, highs, lows, closes, tf):
+    """Daily OHLC arrays -> weekly ('w') or monthly ('m') OHLC arrays (date = last bar
+    in the bucket, so detection on the resampled series stays point-in-time). 'd' is a
+    no-op. Pure; mirrors the client D/W/M/Q resample so W/M harmonics line up on the chart."""
+    if tf not in ("w", "m") or not dates:
+        return dates, opens, highs, lows, closes
+    rd, ro, rh, rl, rc = [], [], [], [], []
+    key = None
+    for i in range(len(dates)):
+        k = _period_key(dates[i], tf)
+        if k != key:
+            key = k
+            rd.append(dates[i]); ro.append(opens[i]); rh.append(highs[i]); rl.append(lows[i]); rc.append(closes[i])
+        else:
+            rh[-1] = max(rh[-1], highs[i]); rl[-1] = min(rl[-1], lows[i])
+            rc[-1] = closes[i]; rd[-1] = dates[i]
+    return rd, ro, rh, rl, rc
+
+
 def detect_from_series(dates, opens, highs, lows, closes,
                        method="zigzag", k=1.5, forming=True, max_age=None):
     """All harmonic patterns in a price series. CONFIRMED = five locked pivots; FORMING =
@@ -206,10 +240,15 @@ def detect_from_series(dates, opens, highs, lows, closes,
     return out
 
 
-def detect(conn, sym, **kw):
+def detect(conn, sym, tf="d", **kw):
+    """Detect harmonics for a symbol on the chosen timeframe. tf='w'/'m' resamples the
+    daily series to weekly/monthly bars first (the multi-TF detection hand-off), so the
+    chart's W/M interval shows W/M harmonics rather than re-snapped daily ones."""
     s = stock_series(conn, sym)
     if not s:
         return []
+    if tf in ("w", "m"):
+        s = resample_series(*s, tf)
     return detect_from_series(*s, **kw)
 
 
