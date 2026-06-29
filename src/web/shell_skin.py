@@ -250,6 +250,9 @@ body.uk-skin .gw-tab{border:1px solid var(--line);color:var(--ink-2)}
 body.uk-skin .gw-tab:hover{border-color:var(--accent)}
 body.uk-skin .gw-tab.on{background:var(--accent);border-color:var(--accent);color:#06121f}
 body.uk-skin .gw-sort:hover{color:var(--ink)}
+/* News/Wire empty-state box (news_view.py .nv-empty): grey #6e7681 (AA 4.0) + dashed
+   #30363d border → map to --ink-3 (AA) + --line; the last class-based holdout (on /dash/wire). */
+body.uk-skin .nv-empty{color:var(--ink-3);border-color:var(--line);border-radius:var(--r)}
 /* ── responsive: legacy page body on a phone ── */
 @media (max-width:640px){
   body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
