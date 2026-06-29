@@ -67,3 +67,26 @@ This is the realistic, owned-file path to a consistent native look without editi
 - Same enumeration on `/dash/coverage`: all absent (clean native reference).
 - Computed-style probe (injected `uk-card`+`uk-t`): on markets `h2`→16px, on coverage `h2`→21px — the
   measurable bleed-through this lane closes.
+
+## 5. SHIPPED (commits + browser evidence)
+- **`5f4cef5`** — bleed-through neutralisation + reskin-deepen. After: injected native `uk-card` `<h2>`
+  on `/dash/markets` computes **21px** (was 16px) = matches native reference; `uk-t`/`uk-stat`/`uk-pill`/
+  `uk-badge` all native; legacy `.maj`/`.kpi .box`/`.chip` take native radius/spacing/mono-numerics.
+- **`eaa165c`** — RS-hub `rsh-*` retint to native tokens. After: `rsh-card` → radius **12px**, bg
+  **#111824**, top-border **#4d9dff** (was 10px / #161b22 / #1f6feb).
+- **No-loss confirmed in-browser:** Screener frozen first-col `position:sticky;left:0` + sticky header
+  `top:26px` intact, **57 rows × 48 cols**; Stock dossier **8 tabs** + chart controls intact.
+- **Item 8 holds on reskinned bodies:** density toggle drives `--grid-pad` 6px→3px on the screener grid
+  (cell padding follows); a11y skip-link + `#uk-main` + `aria-current="Screener"` + density toggle all
+  present; my additions add no width constraints (no responsive-overflow risk).
+- **Item 9 end-to-end:** all 6 demo pages carry `uk-top` + Trust + the `ui_tokens` foundation; one
+  consistent native look (screenshots: Stock, RS-hub, Screener, Markets). Full `regression_sweep.sh`
+  PASS (chrome gate 11 legacy + 4 native; live VPS 31 routes + 4 overlays all 200).
+
+### Deferred (deliberate, documented)
+- A full body REWRITE of Markets/Screener/Stock into new `*_native.py` modules: the bodies are large and
+  data-coupled inside frozen `dashboard.py`/`cockpit.py`; a rewrite would duplicate substantial
+  data-fetch paths (high blast radius) for a marginal gain over the deepened reskin, which already
+  delivers the native look end-to-end with zero risk to the frozen bodies. Recommend revisiting only if
+  a body needs a genuine structural (not cosmetic) change — at which point build the new native module
+  for THAT body and runtime-swap it.
