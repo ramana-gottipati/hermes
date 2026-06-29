@@ -2230,7 +2230,17 @@ def dash_screener(scope: str = Query("Nifty 500"),
                      + mep_score_td + f'<td class="l g-mep">{_mep_pill(mphst or mst)}</td>')
         g3 = r["g3"]
         g3_tint = " h-pos2" if (g3 is not None and _KEY_BAND[0] <= g3 <= _KEY_BAND[1]) else ""
-        nearp = (f'{_esc(r["npa"])} {_pct(r["gnp"])}' if r["npa"] else '<span class="mut">—</span>')
+        # Near-P = the next pivot ABOVE (npa is a LABEL: P1M/P3M/P12M — which power level is
+        # overhead — NOT a price, so _esc not _num). Breakout / near-52w-high names have none →
+        # that's not missing data, it's "no overhead resistance" (constructive), so render it as
+        # a signal, not a dead dash. Genuine mid-range no-pivot stays "—".
+        if r["npa"]:
+            nearp = f'{_esc(r["npa"])} {_pct(r["gnp"])}'
+        elif r["hh"] is not None and r["hh"] >= -2.0:
+            nearp = ('<span class="pos" title="no pivot above — at/near 52w high, '
+                     'no overhead resistance">clear</span>')
+        else:
+            nearp = '<span class="mut">—</span>'
         char_cell = (f'<span style="display:inline-flex;align-items:center;gap:6px">'
                      f'{_mv_triglyph(r["tcr"], r["duo"], r["hh"])}{_char_pill(r["ch"])}</span>')
         trs.append(
