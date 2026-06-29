@@ -388,29 +388,55 @@ def _alerts_strip(conn) -> str:
         return ""
     cnt = a.get("count", 0)
     new = a.get("new", [])
+    dropped = a.get("dropped", [])
     asof = a.get("as_of")
+
+    def _chips(syms, bg="var(--bg-3)"):
+        return " ".join(
+            f'<a class="st-name" href="/dash/stock?sym={K.esc(s)}" '
+            f'style="display:inline-flex;padding:3px 9px;background:{bg};border-radius:7px;margin:2px">'
+            f'<span class="sym">{K.esc(s)}</span></a>' for s in syms)
+
     if a.get("first_run"):
         body = (f'<b>{cnt}</b> names currently in confluence (credible ∩ accumulated). '
                 'Baseline set — I\'ll flag new entrants from here.')
         badge = '<span class="wb-new">baseline</span>'
     elif new:
-        chips = " ".join(
-            f'<a class="st-name" href="/dash/stock?sym={K.esc(s)}" '
-            f'style="display:inline-flex;padding:3px 9px;background:var(--bg-3);border-radius:7px;margin:2px">'
-            f'<span class="sym">{K.esc(s)}</span></a>' for s in new[:14])
         body = (f'<b>{len(new)}</b> newly aligned since {K.esc(str(a.get("baseline_at"))[:10])} '
-                f'· {cnt} in confluence now:</div><div style="margin:4px 0">{chips}')
+                f'· {cnt} in confluence now:</div><div style="margin:4px 0">{_chips(new[:14])}')
         badge = f'<span class="wb-new">▲ {len(new)} new</span>'
     else:
         body = (f'<b>{cnt}</b> names in confluence (credible ∩ accumulated) · '
                 'no new entrants since the last check.')
         badge = '<span class="wb-new" style="background:var(--bg-3);color:var(--ink-2)">no change</span>'
+
+    # F3-8 polish: surface names that DROPPED OUT (left confluence — a descriptive
+    # signal, not a sell call) + the WATCHLIST-alignment read (opt-in: only if a
+    # watchlist exists and overlaps confluence).
+    extra = ""
+    if dropped and not a.get("first_run"):
+        extra += (f'<div class="sec" style="margin-top:6px;color:var(--ink-2);font-size:12px">'
+                  f'▽ <b>{len(dropped)}</b> dropped out since the last check '
+                  f'(no longer credible ∩ accumulated — descriptive, not a sell call): '
+                  f'{_chips(dropped[:12], bg="var(--bg-2)")}</div>')
+    try:
+        from src.pat import alerts as _A
+        wl = _A.watchlist_alignment(conn)
+    except Exception:  # noqa: BLE001
+        wl = []
+    if wl:
+        wsyms = [w["symbol"] for w in wl][:14]
+        extra += (f'<div class="sec" style="margin-top:6px;font-size:12px">'
+                  f'★ <b>{len(wsyms)}</b> of your watchlist '
+                  f'{"name is" if len(wsyms) == 1 else "names are"} in confluence right now: '
+                  f'{_chips(wsyms)}</div>')
     return (
         '<div class="wb-alerts wb-alerts-sec">'
         f'<div class="ah">{badge}<b>Confluence alerts</b>'
         f'<span class="mut" style="font-size:11px">as of {K.esc(str(asof)[:10] if asof else "—")} · descriptive, not a buy call</span>'
         '<button class="wb-seen" onclick="wbMarkSeen(this)">↻ mark seen</button></div>'
         f'<div class="sec">{body}</div>'
+        f'{extra}'
         '</div>')
 
 

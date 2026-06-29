@@ -23,7 +23,7 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
 | F3-5 | **Ranked top-N** — honor "top 5", "best 10" → a bound `limit` on the surfaced flows | F2-7 deferred; mission item 4 = "ranked rankings" | `understand.py` `flows.py` `web.py` | ⬜ |
 | F3-6 | **Extend the eval-set + OOD/hallucination** — new bands for trend/boards/top-N; more adversarial + SEBI redirect cases | mission item 5 = "extend the eval-set + hallucination/OOD; tighten SEBI guardrails" | `eval_set.py` `disambiguate.py` | ✅ |
 | F3-7 | **Tighten SEBI guardrails** — broaden the advice/predict/target-price/PMS-recommendation redirect vocabulary; never a buy/sell/predict | mission item 5; the guardrail vocab is narrow today | `disambiguate.py` | ✅ |
-| F3-8 | **Polish proactive ALERTS** — surface the watchlist-alignment + dropped-from-confluence read with as-of + descriptive caveat on the workbench; opt-in framing | mission item 6 = "polish the proactive alerts" | `alerts.py` `strategist_view.py` | ⬜ |
+| F3-8 | **Polish proactive ALERTS** — surface the watchlist-alignment + dropped-from-confluence read with as-of + descriptive caveat on the workbench; opt-in framing | mission item 6 = "polish the proactive alerts" | `alerts.py` `strategist_view.py` | ✅ |
 
 ## Progress log
 - (boot) baseline: live sweep PASS (31 routes + 4 overlays); eval compiler 31/31, route 43/44
@@ -50,3 +50,9 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
   (guardrail → check → route_extra → fallback). 0 false positives on legit screens (quality
   compounders / multibagger candidates / credible managements all pass). Eval now route 54/55
   (OOD 10/10, TREND 6/6, hallu 8/8); live redirects confirmed; BOTH gates PASS.
+- F3-8 — proactive ALERTS polish (`_alerts_strip`): now surfaces TWO reads the snapshot
+  already computed but the strip dropped — (a) names that DROPPED OUT of confluence since
+  the last check (a descriptive signal, explicitly "not a sell call") and (b) the opt-in
+  WATCHLIST-alignment line (`alerts.watchlist_alignment`, previously unused — shows only when
+  a watchlist overlaps confluence, so it stays silent when empty). Both carry the as-of date +
+  descriptive caveat. strategist_view.py only; VPS selftest + workbench 200 + both gates PASS.
