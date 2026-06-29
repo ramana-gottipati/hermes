@@ -162,4 +162,7 @@ def news_page(sym: str = Query("")) -> HTMLResponse:
 
 @router.get("/dash/wire", response_class=HTMLResponse)
 def wire_page() -> HTMLResponse:
-    return HTMLResponse(_shell("Market wire · patearn", render_market_wire(), active="markets", wide=True))
+    # active="wire" (the Wire lens key) → the Markets-altitude tab AND the "News / Wire"
+    # sub-nav item both highlight. "markets" lit the Overview sub-item instead (its key
+    # collides with the altitude name); the registry resolves "wire" → the Markets altitude.
+    return HTMLResponse(_shell("Market wire · patearn", render_market_wire(), active="wire", wide=True))

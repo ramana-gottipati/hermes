@@ -497,6 +497,19 @@ SCREENER_VIRT_JS = """
 """
 
 
+def _state_label(st) -> str:
+    """Whole-word RS/trend-state label for a pill — "UPTREND"→"Uptrend",
+    "BREAKOUT"→"Breakout", "CONSOLIDATING"→"Consolidating", "STRONG_ACCUM"→"Strong
+    Accum". Replaces the old `{st[:5]}` slice that rendered truncated "UPTRE"/"BREAK"/
+    "CONSO"/"DOWNT" on Leaders/Sectors. Mirrors dashboard._state_label so both modules
+    show the same text. The `p-{st}` colour class still uses the raw state — only the
+    visible text changes. Output is the title-case of a fixed enum vocabulary (HTML-safe)."""
+    s = ("" if st is None else str(st)).strip()
+    if not s or s == "—":
+        return s or "—"
+    return s.replace("_", " ").title()
+
+
 def _ck_tile(n, label, accent, cta="", href="") -> str:
     """One cockpit count-strip tile (shared by the strategy detail renders)."""
     a = f' href="{href}"' if href else ""
@@ -902,7 +915,7 @@ def render_markets(idx_date) -> str:
     for v in bundle:
         grp = "broad" if (v["nm"] or "").upper() in _SIZE_NAMES else "sector"
         st = v["st"] or ""
-        rs_chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st else '<span class="mut">—</span>')
+        rs_chip = (f'<span class="pill p-{st}">{_state_label(st)}</span>' if st else '<span class="mut">—</span>')
         abs_chip = f'<span class="pill p-{v["abs_css"]}">{esc(v["abs_label"])}</span>'
         wx = _weather_badge(v["weather"], v.get("wreasons")) if v.get("weather") else '<span class="mut">—</span>'
         brows.append(
@@ -2146,9 +2159,9 @@ def render_leaders() -> str:
                 f'<td>{rk if rk is not None else ""}</td>'
                 f'<td class="l"><a class="row" href="/dash/index?idx={q(r["primary_sector"])}">'
                 f'{esc(r["primary_sector"])}</a></td>'
-                f'<td><span class="pill p-{bs}">{esc(bs[:5])}</span></td>'
-                f'<td><span class="pill p-{ss}">{esc(ss[:5])}</span></td>'
-                f'<td><span class="pill p-{xs}">{esc(xs[:5])}</span></td></tr>')
+                f'<td><span class="pill p-{bs}">{esc(_state_label(bs))}</span></td>'
+                f'<td><span class="pill p-{ss}">{esc(_state_label(ss))}</span></td>'
+                f'<td><span class="pill p-{xs}">{esc(_state_label(xs))}</span></td></tr>')
         return ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
                 '<thead><tr><th class="l">Symbol</th><th>RS rank</th><th class="l">Sector</th>'
                 '<th>stock vs broad</th><th>stock vs sector</th><th>sector vs broad</th></tr></thead>'
@@ -2218,7 +2231,7 @@ def render_sectors() -> str:
             f'<span class="sym">{esc(nm)}</span></a></td>'
             f'<td>{pct(r["r1"])}</td><td>{pct(r["r3"])}</td>'
             f'<td class="l rsgrp"><a class="row" style="display:inline" href="/dash/index?idx={q(nm)}">{strip_rs}</a></td>'
-            f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+            f'<td><span class="pill p-{st}">{_state_label(st)}</span></td>'
             f'<td>{_weather_badge(wk, wr)}</td>'
             f'<td>{pct(r["s3"])}</td></tr>')
     head = ('<h2 style="margin-top:2px">Sector rotation '
@@ -2274,7 +2287,7 @@ def render_rs() -> str:
             f'<span class="sym">{esc(nm)}</span></a></td>'
             f'<td class="l">{strip_rs}</td>'
             f'<td>{pct(r["mom"])}</td>'
-            f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+            f'<td><span class="pill p-{st}">{_state_label(st)}</span></td>'
             f'<td style="min-width:70px"><div class="bar"><span style="width:{p}%"></span></div></td></tr>')
     head = ('<h2 style="margin-top:2px">RS-momentum ranking '
             '<span class="sub" style="margin:0">sectors, strongest first</span></h2>'
