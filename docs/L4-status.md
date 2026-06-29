@@ -10,6 +10,7 @@
 | Commit | What | Files |
 |---|---|---|
 | `1ef085a` | **Pat true multi-turn thread store + single-name credibility intent** | `src/pat/{threads.py(new),web.py,understand.py,eval_set.py}` |
+| `f7fdbe1` | **Wire single-name credibility into the LIVE ₹0 pre-router** (`1ef085a` had only the `parse_fallback` path; the live VPS with Gemini up would not route it deterministically) | `src/pat/disambiguate.py`, `docs/pat-design-and-improvements.md` |
 | `e80bfc5` | Commit the L4 CCI research machinery (byte-identical to VPS) | `src/automation/{cci_backtest,cci_deep_actuals,concall_direction}.py` |
 
 Each commit staged EXACTLY its owned paths (`git diff --cached --name-only` verified); never `git add -A`;
@@ -29,8 +30,12 @@ NEW `understand.detect_single_credibility`: **"is X credible" / "how credible is
 (composite + sub-scores + promises-resolved + the verbatim receipts + provenance footer), instead of
 returning `None` (a dead-end) as they did at boot. Guarded both ways: the plural metric ask
 ("most credible managements") stays the leaders board; the definition ask ("what is credibility") stays the
-glossary explain. (The credibility-trend, confluence, planner, compare, why, strategy intents already
-existed from F2/F-rounds.)
+glossary explain. Wired on **both** paths so it fires identically whether or not Gemini is up: a ₹0
+deterministic pre-route in `disambiguate.route_extra` (`f7fdbe1` — placed after compare/strategy/trend/why,
+before the generic single-stock card) **and** in `understand.parse_fallback` (`1ef085a`). Verified live on
+the VPS: "is TCS credible" → why/credibility; "most credible managements" → leaders; "what is credibility"
+→ explain; "TCS vs INFY" → compare. (The credibility-trend, confluence, planner, compare, why, strategy
+intents already existed from F2/F-rounds.)
 
 ### 3. Ranked top-N — ALREADY SATISFIED for the core; explicit-N cap is the documented F2-7 deferral
 Every list flow is **already ranked + sorted + capped and shows the raw value beside the verdict**
@@ -40,7 +45,7 @@ contract through the frozen `dashboard.py` generics; that is exactly the **F2-7 
 `docs/pat-design-and-improvements.md` (deferred on cost-discipline, lists already capped). Not reopened
 this session — the risk/reward against a frozen call-site is wrong.
 
-### 4. Multi-turn thread store — BUILT + VERIFIED; needs ONE orchestrator line
+### 4. Multi-turn thread store — ✅ CLOSED + LIVE ON PROD (L1 landed the call-site `c736f3a`)
 NEW `src/pat/threads.py` — server-side conversation memory keyed by an optional `tid` (own `pat_threads`
 table, `boards.py` pattern; rolling 12-turn window; server-minted uuid4 `tid`, regex-validated, SQL-bound;
 nothing raises to the caller). `web.render_pat()` now **accepts optional `tid` / `new`**:
@@ -49,18 +54,16 @@ nothing raises to the caller). `web.render_pat()` now **accepts optional `tid` /
   concrete answer as a turn.
 - with the **default `tid=""`: completely INERT** (zero behaviour change) — proven in-browser + by smoke.
 
-**⇒ MULTI-TURN CALL-SITE REQUEST (orchestrator / L1 owns `dashboard.py:1454`, frozen for me):**
-```python
-# in the /dash/pat route — add `request: Request, response: Response` to the signature, then:
-from src.pat import threads
-tid = request.cookies.get("pat_tid") or threads.new_tid()
-response.set_cookie("pat_tid", tid, max_age=2592000, httponly=True, samesite="lax")
-body = render_pat(..., tid=tid, conn=conn)   # one extra kwarg
-```
-The moment that lands, the trail + per-session memory go live with no further L4 change. **VERIFIED on the
-live VPS stack** (`/tmp/trail_verify.py`): a 3-turn thread renders the trail
-`RS leaders › most credible managements › confluence on RELIANCE`, `start over` link present, default
-`tid=""` inert, history correctly ordered.
+**⇒ CALL-SITE CONTRACT — NOW CLOSED.** L1 landed the cookie plumb in `dashboard.py:1449`
+(`dash_pat`: reads/validates/mints the `pat_tid` cookie, forwards `tid`+`new` into `render_pat`, sets the
+cookie `httponly + samesite=lax`, 30d) in commit **`c736f3a`** AND deployed it to the VPS
+(`grep -c pat_tid /opt/hermes/src/web/dashboard.py` → 3). My `render_pat(tid=)` signature having landed
+(`1ef085a`) was the unblock.
+
+**VERIFIED LIVE END-TO-END on the prod VPS** (cookie-jar curl): turn 1 →
+`set-cookie: pat_tid=…; HttpOnly; Max-Age=2592000; SameSite=lax`; turn 2 (same jar) → the
+**"This conversation" trail renders**; `?new=1` → trail cleared (start-over works). Default `tid=""`
+stays inert. Multi-turn is now fully live with no further L4 change needed.
 
 ### 5. RESEARCH — knowable_at leak → 0 — VERIFIED LIVE (Lane D/H work; confirmed, not rebuilt)
 `provenance.lag_audit()` is **non-empty** on the VPS (29,176 pairs): baseline +90/+50 modelled leak
