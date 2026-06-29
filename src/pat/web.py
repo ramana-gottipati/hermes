@@ -30,7 +30,7 @@ from src.pat.flows import (
     build_symbol_resolve_query, build_stock_card_query, build_stock_pattern_query,
     build_credibility_query, build_deterioration_query, build_confluence_query,
     build_confluence_plan_query, PLAN_PILLARS, PLAN_CAPBAND,
-    build_credibility_detail_query,
+    build_credibility_detail_query, build_credibility_trend_query,
 )
 
 
@@ -1560,7 +1560,114 @@ def _why_flow(conn, sym: str, metric: str = "credibility") -> str:
                else _why_from_card(conn, sym, metric))
     out.append('<div class="patChips">'
                + _chip(f"/dash/stock?sym={_u(sym)}", f"full {sym} dossier →")
+               + (_chip(f"/dash/pat?flow=trend&sym={_u(sym)}", "credibility trend →")
+                  if metric == "credibility" else "")
                + _chip(_why_url(sym, "credibility"), "why credible?") + "</div>")
+    return "".join(out)
+
+
+# ── credibility TIME-SERIES ("credibility trend for X") over credibility_series ─
+# A descriptive PIT series: level + momentum + trend-state + tape, period by period.
+# Never a buy signal (the §C falsification stands) — it shows HOW a management's
+# credibility moved, with the as-of period range + n as provenance.
+_TREND_STATE_CLS = {"IMPROVING": "pos", "DETERIORATING": "neg", "STABLE": "mut", "NEW": "mut"}
+
+
+def _trend_state(s) -> str:
+    s = (s or "").strip().upper()
+    cls = _TREND_STATE_CLS.get(s, "mut")
+    return f'<span class="{cls}">{_esc(s.title() or "—")}</span>' if s else '<span class="mut">—</span>'
+
+
+def _trend_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Period</th><th>Credibility</th><th>Guid. acc.</th><th>Momentum</th>'
+            '<th>3-period</th><th>Trend</th><th>Tier</th><th>Tape</th><th>n resolved</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        tape = (r["tape"] or "").replace("_", " ").title()
+        tnote = r["tape_note"]
+        tape_cell = (f'<span title="{_esc(tnote or "")}">{_esc(tape)}</span>'
+                     if tape else '<span class="mut">—</span>')
+        rws.append(
+            '<tr>'
+            f'<td class="sym">{_esc(r["period_label"])}</td>'
+            f'<td>{_n(r["level"], 1)}</td>'
+            f'<td>{_n(r["ga"], 1)}</td>'
+            f'<td>{_sgnp(r["momentum"], 1)}</td>'
+            f'<td>{_sgnp(r["momentum_3p"], 1)}</td>'
+            f'<td>{_trend_state(r["trend"])}</td>'
+            f'<td>{_esc(r["tier"] or "—")}</td>'
+            f'<td class="mut">{tape_cell}</td>'
+            f'<td>{_int(r["n_resolved"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _sgnp(v, d=1) -> str:
+    """Signed value WITHOUT a percent sign (momentum is a points move, not a %)."""
+    if v is None:
+        return '<span class="mut">—</span>'
+    cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
+    return f'<span class="{cls}">{v:+.{d}f}</span>'
+
+
+def _trend_flow(conn, sym: str) -> str:
+    """The credibility TIME-SERIES for one name — level/momentum/trend over the PIT
+    periods (credibility_series). Descriptive; carries its own period-range provenance."""
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym:
+        out.append(_q_bubble("Name a stock — e.g. “credibility trend for NAVINFLUOR”."))
+        return "".join(out)
+    if conn is None:
+        out.append(_q_bubble("Connect to data to chart the trend."))
+        return "".join(out)
+    try:
+        rsql, rparams = build_symbol_resolve_query(sym)
+        hit = conn.execute(rsql, rparams).fetchone()
+    except Exception:
+        hit = None
+    if not hit:
+        out.append(_q_bubble(f'I couldn\'t resolve “{_esc(sym)}”. Check the symbol.'))
+        return "".join(out)
+    sym = hit["symbol"]
+    try:
+        sql, params = build_credibility_trend_query(sym, 24)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    if not rows:
+        out.append(_q_bubble(
+            f'No credibility series for {_esc(sym)} yet — the concall pilot covers a few '
+            'hundred names, not the whole market.'))
+        out.append('<div class="patChips">'
+                   + _chip("/dash/pat?flow=credibility", "credibility leaders →")
+                   + _chip(f"/dash/stock?sym={_u(sym)}", f"{sym} dossier →") + "</div>")
+        return "".join(out)
+    latest, oldest = rows[0], rows[-1]
+    out.append(_q_bubble(
+        f'Credibility TREND for {_esc(sym)} — how the management\'s credibility has moved, '
+        'period by period. The latest read is the top row; this is a descriptive series '
+        '(evidence of consistency over time), not a buy signal.'))
+    # the headline read of the move
+    lat_trend = (latest["trend"] or "").title()
+    out.append(
+        f'<div class="ghdr">Latest: {_n(latest["level"], 1)} '
+        f'(tier {_esc(latest["tier"] or "—")}, {_trend_state(latest["trend"])}) '
+        f'— {len(rows)} periods, {_esc(oldest["period_label"])} → {_esc(latest["period_label"])}</div>')
+    out.append(_trend_table(rows))
+    # provenance footer (this flow carries its OWN as-of, not via _FRESH)
+    out.append(
+        '<div class="patMeta">'
+        f'<span>as-of period: {_esc(latest["period_label"])}</span>'
+        f'<span>series: {len(rows)} concall periods</span>'
+        '<span>coverage: concall pilot · credibility_series · NOT the full universe</span>'
+        '</div>')
+    out.append('<div class="patChips">'
+               + _chip(_why_url(sym, "credibility"), "why credible? (evidence) →")
+               + _chip(f"/dash/stock?sym={_u(sym)}", f"full {sym} dossier →") + "</div>")
     return "".join(out)
 
 
@@ -1757,6 +1864,9 @@ _EXAMPLES = [
     ("Quality & value", [
         "quality compounders", "cheap stocks with ROCE above 20",
         "debt-free names growing over 20%", "quality banks ranked by ROE"]),
+    ("Management credibility (concalls)", [
+        "credible managements", "why is NAVINFLUOR credible",
+        "credibility trend for NAVINFLUOR", "managements with deteriorating credibility"]),
     ("Learn the metrics", [
         "what is p_score", "explain DVPT", "what does RS rank mean"]),
 ]
@@ -1924,7 +2034,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "confluence": "Credibility × accumulation",
                "confluence_plan": "Multi-condition confluence",
                "strategy": "Strategy board", "compare": "Compare stocks",
-               "why": "Why — the evidence"}
+               "why": "Why — the evidence", "trend": "Credibility trend (time-series)"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -1983,7 +2093,7 @@ def _max_date(conn, table, col):
 def _freshness_bar(conn, flow: str) -> str:
     """The as-of + coverage badge for a flow. Confluence/planner/strategy carry their
     own as-of meta; explain/clarify/home have nothing to date → empty (never fabricated)."""
-    if conn is None or flow in ("confluence", "confluence_plan", "strategy", "why"):
+    if conn is None or flow in ("confluence", "confluence_plan", "strategy", "why", "trend"):
         return ""
     spec = _FRESH.get(flow)
     if not spec:
@@ -2185,6 +2295,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _why_flow(conn, sym, strength or "credibility")   # metric rides `strength`
         fb_ctx = {"query": "", "flow": "why", "params": {"sym": sym, "metric": strength or "credibility"},
                   "source": "flow"}
+    elif flow == "trend":
+        body = _trend_flow(conn, sym)                     # credibility series; sym rides `sym`
+        fb_ctx = {"query": "", "flow": "trend", "params": {"sym": sym}, "source": "flow"}
     elif q:
         body, fb_ctx = _free_text(conn, q)
     else:

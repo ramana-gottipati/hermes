@@ -54,7 +54,7 @@ STRATEGY_KEYS = {"all", "mep", "dvpt", "rs", "cpr", "cci", "wolfe", "conviction"
                  "growth", "launchpad"}
 # the metrics a "why is X …?" explanation can drill into (each maps to evidence rows).
 WHY_METRICS = {"credibility", "accumulation", "rs", "valuation", "quality"}
-TASKS = {"rank", "explain", "stock", "strategy", "compare", "why"}
+TASKS = {"rank", "explain", "stock", "strategy", "compare", "why", "trend"}
 # momentum-oscillator screens (the `oscillators` flow). Keys mirror OSC_SCREEN.
 INDICATORS = {"rsi_oversold", "rsi_overbought", "macd_bull", "macd_bear", "macd_positive"}
 
@@ -138,6 +138,9 @@ def validate_intent(obj) -> dict | None:
             return {"task": "why", "symbol": str(sym).strip().upper(),
                     "metric": metric if metric in WHY_METRICS else "credibility"}
         return None
+    if task == "trend":              # credibility time-series ("credibility trend for X")
+        sym = obj.get("symbol") or obj.get("ticker")
+        return {"task": "trend", "symbol": str(sym).strip().upper()} if sym and str(sym).strip() else None
     if task == "ood":                # out-of-domain → a boundary clarify, never an answer
         kind = obj.get("kind")
         return {"task": "ood", "kind": kind if kind in ("advisory", "prediction", "feature", "asset") else "advisory"}
@@ -312,6 +315,10 @@ def compile_intent(intent: dict) -> dict | None:
         sym = (intent.get("symbol") or "").strip()
         metric = intent.get("metric") if intent.get("metric") in WHY_METRICS else "credibility"
         return {"flow": "why", "params": {"sym": sym, "metric": metric}} if sym else None
+
+    if intent.get("task") == "trend":     # credibility time-series for one name
+        sym = (intent.get("symbol") or "").strip()
+        return {"flow": "trend", "params": {"sym": sym}} if sym else None
 
     if intent.get("task") == "ood":       # advisory / prediction / feature / wrong-asset
         return ood_clarify(intent.get("kind"))
@@ -557,6 +564,10 @@ SYSTEM_PARSE = (
     "\"metric\":\"<credibility|accumulation|rs|valuation|quality>\"} (drills into the evidence "
     "+ provenance behind that read; default metric credibility). Distinct from 'tell me about X' "
     "(the whole card) and 'what is RS' (a definition).\n"
+    "  CREDIBILITY TREND (time-series): 'credibility trend for X', 'how has X's credibility "
+    "moved over time', 'X credibility over the quarters', 'credibility history of X' → "
+    "{\"task\":\"trend\",\"symbol\":\"<TICKER>\"} (a PIT level/momentum/trend SERIES over the "
+    "concall periods — distinct from the single-period 'why is X credible' evidence drill).\n"
     "  SINGLE STOCK: 'tell me about INFY' / \"what's wrong with RELIANCE\" / 'is X a "
     "value trap' → {\"task\":\"stock\",\"symbol\":\"<TICKER>\"}.\n"
     "  OSCILLATORS: for a momentum-indicator screen set indicator ∈ [rsi_oversold "
@@ -746,6 +757,51 @@ _WHY_METRIC_KW = [
 ]
 
 
+# A credibility TIME-SERIES ask: "credibility trend for X", "X credibility over time",
+# "how has X's credibility moved". The credibility WORD must be present (so it doesn't
+# steal a plain RS/price "trend" ask), plus a time-series cue OR the word "trend".
+_TS_CUE = ["trend", "over time", "history", "historical", "trajectory", "evolv",
+           "over the years", "over the quarters", "across quarters", "time series",
+           "changed over", "moved over", "track record"]
+_CRED_WORD = ["credib", "trustworth", "concall", "guidance accuracy", "promise-keep",
+              "promise keeping"]
+# X-anchored: "<TICKER> credibility trend", "credibility trend for <TICKER>", etc.
+_TREND_RE = re.compile(
+    r"(?:credibility|trustworthiness|concall)\s+(?:trend|history|trajectory|over\s+time|"
+    r"time\s+series)\s+(?:for|of|in)?\s*([a-z0-9&.\-]{2,18})\b", re.I)
+_TREND_RE2 = re.compile(
+    r"\b([a-z0-9&.\-]{2,18})(?:'s|s')?\s+credibility\s+(?:trend|history|trajectory|over\s+time)",
+    re.I)
+_TREND_RE3 = re.compile(
+    r"how\s+(?:has|did)\s+([a-z0-9&.\-]{2,18})(?:'s|s')?\s+credibility\s+"
+    r"(?:trend|chang|mov|evolv|track)", re.I)
+# trailing "… for/of <TICKER>" (e.g. "credibility over the quarters for ACC") — only
+# fires once the credibility + time-series cues already gated detect_trend.
+_TREND_RE4 = re.compile(r"\b(?:for|of)\s+([a-z0-9&.\-]{2,18})\s*$", re.I)
+
+
+def detect_trend(query: str):
+    """A 'credibility trend for X' time-series ask → symbol, else None. ₹0.
+
+    Requires BOTH a credibility cue AND a time-series cue (or an explicit X-anchored
+    pattern) so a plain price/RS 'trend' ask is NOT captured here."""
+    q = query or ""
+    qn = _norm(q)
+    if not _has_any(qn, _CRED_WORD):
+        return None
+    if not _has_any(qn, _TS_CUE):
+        return None
+    stop = {"THE", "THIS", "THAT", "IT", "A", "AN", "MY", "FOR", "OF", "IN",
+            "TIME", "QUARTERS", "YEARS", "PERIODS"}
+    for rx in (_TREND_RE, _TREND_RE2, _TREND_RE3, _TREND_RE4):
+        m = rx.search(q)
+        if m:
+            sym = m.group(1).strip().upper().strip(".")
+            if sym and sym not in stop and not sym.isdigit():
+                return sym
+    return None
+
+
 def detect_why(query: str):
     """A 'why is X <metric>?' explanation ask → (symbol, metric), else None. ₹0.
     The default metric is credibility (the trust-wedge read most asked 'why' about)."""
@@ -796,6 +852,12 @@ def parse_fallback(query: str) -> dict | None:
         ood = _detect_ood(qn)
         if ood:
             return {"task": "ood", "kind": ood}
+
+        # TREND (credibility time-series) — "credibility trend for X" — checked before
+        # WHY so the series drill wins over the single-period evidence drill.
+        tr = detect_trend(query)
+        if tr:
+            return {"task": "trend", "symbol": tr}
 
         # WHY (explanation) — "why is X credible?" — checked before single-stock/compare
         # so the explanation drill wins over a bare card.

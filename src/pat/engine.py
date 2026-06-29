@@ -49,6 +49,7 @@ _VALID: dict[str, dict] = {
     "strategy":     {"key": "free"},    # strategy_registry board read (any strategy)
     "compare":      {"syms": "free"},   # A-vs-B side-by-side
     "why":          {"sym": "free", "metric": "free"},  # explain the evidence behind a read
+    "trend":        {"sym": "free"},    # credibility time-series for one name
     "explain":      {"explain": "slug"},
 }
 

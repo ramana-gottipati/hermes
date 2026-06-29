@@ -710,6 +710,23 @@ def build_credibility_detail_query(symbol: str) -> tuple[str, list]:
     return sql, [symbol]
 
 
+def build_credibility_trend_query(symbol: str, limit: int = 24) -> tuple[str, list]:
+    """The PIT credibility TIME-SERIES for one symbol (the 'credibility trend for X' ask):
+    level + guidance-accuracy + momentum + trend-state + tape, period by period, newest
+    first, off the precomputed ``credibility_series`` table (18,944 rows). Descriptive —
+    a credibility SERIES, never a buy signal. Bound on symbol; LIMIT bound and clamped."""
+    limit = max(2, min(int(limit or 24), 60))
+    sql = (
+        "SELECT symbol, period_label, period_year, period_month, level, ga, qr, "
+        "n_resolved, deter, momentum, momentum_3p, trend, tape, tape_note, tier "
+        "FROM credibility_series "
+        "WHERE symbol = ? "
+        "ORDER BY period_year DESC, period_month DESC "
+        "LIMIT ?"
+    )
+    return sql, [symbol, limit]
+
+
 def build_symbol_resolve_query(token: str) -> tuple[str, list]:
     """Resolve a free-text token to candidate NSE symbols (exact > prefix > name).
     All values bound; LIKE wildcards are added here, the token is never formatted in."""
