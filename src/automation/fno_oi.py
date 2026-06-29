@@ -107,6 +107,27 @@ def _num(v) -> Optional[float]:
         return None
 
 
+# CL-RS-06: choose the near-month expiry by a parsed DATE, never by a raw string
+# min/<. The current UDiFF feed prints ISO (YYYY-MM-DD, which happens to sort
+# chronologically), but if NSE ever reverts to DD-MMM-YYYY a lexical min() would
+# pick the wrong chain. _exp_key returns a sortable (date) key with a far-future
+# fallback so an unparseable expiry never wins "earliest".
+_FAR_FUTURE = datetime(9999, 12, 31)
+
+
+def _exp_key(xp) -> datetime:
+    """Sortable date key for an expiry string (ISO or DD-MMM-YYYY)."""
+    if not xp:
+        return _FAR_FUTURE
+    s = str(xp).strip()
+    for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%B-%Y"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return _FAR_FUTURE
+
+
 def aggregate_oi(rows: list) -> dict:
     """Per-underlying aggregation of stock FUTURES OI (summed across expiries) +
     the near-month futures price (for basis) + stock OPTIONS OI (PCR) + the
@@ -134,7 +155,8 @@ def aggregate_oi(rows: list) -> dict:
             if up:
                 a["und_price"] = up
             # near-month future = earliest expiry; capture its close for the basis
-            if xp and (a["near_exp"] is None or xp < a["near_exp"]):
+            # (CL-RS-06: compare parsed dates, not raw expiry strings).
+            if xp and (a["near_exp"] is None or _exp_key(xp) < _exp_key(a["near_exp"])):
                 a["near_exp"] = xp
                 a["fut_price"] = _num(r.get("ClsPric"))
         elif tp == "STO":                                # stock option
@@ -259,6 +281,50 @@ def _price_chg_for_date(conn, trade_date: str) -> dict:
     return out
 
 
+# CL-RS-02: a real one-day move in a name's WHOLE futures book is bounded; a
+# day-over-day aggregate OI ratio outside this band is a corporate-action / lot-
+# size / units discontinuity (e.g. BAJFINANCE 1:10 split 2025-06-16 decupled the
+# stored aggregate), NOT a tradeable LONG/SHORT buildup. Outside the band we mark
+# the OI-change % indeterminate (NULL) rather than emitting a fabricated +900%.
+# Ordinary monthly expiry rolls keep the aggregate continuous (verified: the
+# summed STF book glides across roll days), so they pass the band cleanly.
+_OI_JUMP_MAX = 3.0   # fut_oi may be at most 3x the prior day's aggregate
+_OI_DROP_MIN = 1.0 / 3.0   # ...and at least 1/3 of it
+
+
+def _prior_fut_oi_for_date(conn, trade_date: str) -> dict:
+    """{symbol: prior-day stored aggregate fut_oi} — the most recent fno_oi_signals
+    row strictly before trade_date. This is the TRUE prior-day OI (per the audit),
+    used in preference to the within-day reconstruction fut_oi - fut_oi_chg."""
+    row = conn.execute(
+        "SELECT MAX(trade_date) d FROM fno_oi_signals WHERE trade_date < ?",
+        (trade_date,)).fetchone()
+    if not row or not row["d"]:
+        return {}
+    return {r["symbol"]: r["fut_oi"] for r in conn.execute(
+        "SELECT symbol, fut_oi FROM fno_oi_signals WHERE trade_date = ?",
+        (row["d"],)).fetchall() if r["fut_oi"] is not None}
+
+
+def _oi_chg_pct(fut_oi: float, fut_oi_chg: float, prior_stored) -> Optional[float]:
+    """Day-over-day OI change %, made robust to roll / corporate-action breaks.
+
+    Prefer the TRUE prior-day stored aggregate; fall back to the within-day
+    reconstruction (fut_oi - fut_oi_chg) only when no prior row exists. Return
+    None (indeterminate) when the prior base is non-positive OR the day-over-day
+    aggregate ratio is implausible (a units / corporate-action discontinuity)."""
+    prior_oi = (prior_stored if (prior_stored is not None and prior_stored > 0)
+                else (fut_oi - fut_oi_chg))
+    if prior_oi is None or prior_oi <= 0:
+        return None
+    # Plausibility band on the whole-book day-over-day ratio.
+    if fut_oi is not None and fut_oi > 0:
+        ratio = fut_oi / prior_oi
+        if ratio > _OI_JUMP_MAX or ratio < _OI_DROP_MIN:
+            return None
+    return fut_oi_chg / prior_oi * 100.0
+
+
 def compute_for_date(trade_date: str) -> int:
     """Fetch the F&O bhav for trade_date, aggregate STF OI per underlying, pair
     with the cash price change, store the quadrant. Idempotent (INSERT OR REPLACE)."""
@@ -271,12 +337,13 @@ def compute_for_date(trade_date: str) -> int:
     agg = aggregate_oi(_csv_rows(raw))
     with get_conn() as conn:
         price_chg = _price_chg_for_date(conn, trade_date)
+        prior_oi_map = _prior_fut_oi_for_date(conn, trade_date)
         out = []
         for sym, a in agg.items():
             if not a["has_fut"]:
                 continue
-            prior_oi = a["fut_oi"] - a["fut_oi_chg"]
-            oi_chg_pct = (a["fut_oi_chg"] / prior_oi * 100.0) if prior_oi > 0 else None
+            # CL-RS-02: robust OI-change % — true prior-day OI + corp-action guard.
+            oi_chg_pct = _oi_chg_pct(a["fut_oi"], a["fut_oi_chg"], prior_oi_map.get(sym))
             pc = price_chg.get(sym)
             call_oi, put_oi = a["call_oi"], a["put_oi"]
             pcr = (put_oi / call_oi) if call_oi > 0 else None
@@ -284,9 +351,10 @@ def compute_for_date(trade_date: str) -> int:
             fp, up = a["fut_price"], a["und_price"]
             basis = ((fp - up) / up * 100.0) if (fp and up and up > 0) else None
             # option-chain levels from the near-month expiry
+            # (CL-RS-06: earliest by parsed date, not lexical min of strings).
             near_opt = a["opt"].get(a["near_exp"])
             if near_opt is None and a["opt"]:
-                near_opt = a["opt"][min(a["opt"])]
+                near_opt = a["opt"][min(a["opt"], key=_exp_key)]
             mp, sup, res = _option_levels(near_opt) if near_opt else (None, None, None)
             out.append([
                 sym, trade_date,

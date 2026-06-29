@@ -277,10 +277,16 @@ def _character_arrays(asc_rows: list) -> tuple:
     closes = [r["close"] for r in asc_rows]
     adj = adjusted_closes([{"close": r["close"], "prev_close": r["prev_close"]}
                            for r in asc_rows])
+    # CL-MDC-01: delivery VALUE must be split-invariant over the 1m/6m ratio
+    # window — use the ADJUSTED close (same basis as accum_price_drift), NOT the
+    # raw close. A split inside the ≤180d window would otherwise put deliv_qty
+    # and close on different scales and distort deliv_value_ratio_1m_6m / the
+    # up-down skew. (The stored same-day rupee figures delivery_value_today /
+    # _per_trade keep using raw close — they are true single-day turnover.)
     deliv_value = [
-        (r["deliv_qty"] * r["close"])
-        if (r["deliv_qty"] is not None and r["close"] is not None) else None
-        for r in asc_rows
+        (r["deliv_qty"] * adj[k])
+        if (r["deliv_qty"] is not None and adj[k] is not None) else None
+        for k, r in enumerate(asc_rows)
     ]
     num_trades = [r["num_trades"] for r in asc_rows]
     deliv_per = [r["deliv_per"] for r in asc_rows]
@@ -810,8 +816,12 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
             continue
         today_v = dvpts[i]
         # ATH check uses strictly-prior values.
+        # CL-MDC-02: a symbol's FIRST-EVER row is an all-time-high by definition
+        # (nothing precedes it). Match the realtime path (signals.py:549) and the
+        # in-memory MTF path, which both set 1 when prior_max is None — backfill
+        # used to set 0 here, disagreeing with realtime for the very first row.
         if today_v is not None:
-            is_ath = 1 if (prior_max is not None and today_v > prior_max) else 0
+            is_ath = 1 if (prior_max is None or today_v > prior_max) else 0
             if prior_max is None or today_v > prior_max:
                 prior_max = today_v
         else:

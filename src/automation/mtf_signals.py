@@ -259,14 +259,22 @@ def compute_signals(tf: str, symbol: str, bars: list[dict]) -> list[dict]:
         for label, n_bars, top_n in windows:
             lo = max(0, i - n_bars)
             win = [bars[j] for j in range(lo, i) if dvpts[j] is not None]
+            # CL-RS-01: a window is only an honest baseline when it has its FULL
+            # lookback of real prior bars. An under-filled "52-week" baseline (a
+            # young listing with e.g. 2 bars) must NOT score like a mature one —
+            # it would inflate p_score / trigger_rank. We still store the
+            # descriptive avg_close_* from whatever bars exist, but null the
+            # SCORE-BEARING avg_dvpt / avg_power so _count_beaten / _next_p_above
+            # exclude this window until it has matured.
+            full = len(win) >= n_bars
             if win:
-                avg_dvpt = sum(x["dvpt"] for x in win) / len(win)
                 rc = [x["close"] for x in win if x["close"] is not None]
                 avg_close_r = (sum(rc) / len(rc)) if rc else None
                 top = sorted(win, key=lambda x: x["dvpt"], reverse=True)[:top_n]
-                avg_power = sum(x["dvpt"] for x in top) / len(top)
                 pc = [x["close"] for x in top if x["close"] is not None]
                 avg_close_p = (sum(pc) / len(pc)) if pc else None
+                avg_dvpt = (sum(x["dvpt"] for x in win) / len(win)) if full else None
+                avg_power = (sum(x["dvpt"] for x in top) / len(top)) if full else None
             else:
                 avg_dvpt = avg_close_r = avg_power = avg_close_p = None
             sig[f"avg_dvpt_{label}"] = avg_dvpt
