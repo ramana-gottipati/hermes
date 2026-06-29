@@ -764,6 +764,14 @@ def render_home(sig_date, idx_date) -> str:
         boards.append(_board('<span class="em">📉</span> Distribution watch', 'net selling pressure · MEP',
                              mep_rows(mep_distrib), "/dash/mep", "Open the MEP screen", "#db61a2"))
 
+    # RS Band (the level lens) — cheapest / richest sectors vs their own history.
+    from src.web.rsband_view import band_home_inner          # additive; '' if band table empty
+    _band_inner = band_home_inner()
+    if _band_inner:
+        boards.append(_board('<span class="em">📊</span> RS Band',
+                             'cheap &harr; rich vs own history · level lens', _band_inner,
+                             "/dash/rsband", "Open the band", "#d29922"))
+
     cockpit = '<div class="ckpt">' + "".join(boards) + '</div>'
 
     fresh = (f'<div class="sub" style="margin-top:6px">Stock signals <b>{sig_date or "—"}</b> · '
@@ -881,10 +889,14 @@ def render_markets(idx_date) -> str:
     rot_html = "".join(maj_card(v) for v in rot[:8])
     broad_html = "".join(maj_card(allrows[n]) for n in D.MAJOR_BROAD if n in allrows)
 
+    # Group the bundle by SIZE membership, not by `bb` — cap-segment size indexes
+    # (Smallcap 250, the Midcaps, Next 50, …) now carry an RS benchmark but still
+    # belong under "Broad / size", not "Sectoral" (D67).
+    from src.automation.index_signals import SIZE_BASED_INDEX_NAMES as _SIZE_NAMES
     bundle = sorted(allrows.values(), key=lambda v: (v["r3m"] is None, -(v["r3m"] or 0)))
     brows = []
     for v in bundle:
-        grp = "broad" if v["bb"] is None else "sector"
+        grp = "broad" if (v["nm"] or "").upper() in _SIZE_NAMES else "sector"
         st = v["st"] or ""
         rs_chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st else '<span class="mut">—</span>')
         abs_chip = f'<span class="pill p-{v["abs_css"]}">{esc(v["abs_label"])}</span>'
@@ -973,6 +985,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
 
     S, IR, hist, pe_hist, momrows, members, rd = {}, {}, [], [], [], [], []
     rsx, cap, n5 = {}, {}, {}
+    quad_tail = []
     with D.get_conn() as conn:
         known = conn.execute("SELECT 1 FROM index_rows WHERE index_name=? LIMIT 1", (idx,)).fetchone()
         if not known:
@@ -1004,6 +1017,12 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             "WITH latest AS (SELECT MAX(trade_date) d FROM index_signals) "
             "SELECT (0.6*COALESCE(rs_vs_broad_slope_3m,0)+0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom "
             "FROM index_signals, latest WHERE trade_date=latest.d AND broad_benchmark IS NOT NULL").fetchall()]
+        # Mini-RRG tail: this index's RS-Ratio × RS-Momentum journey vs Nifty 500 —
+        # the canonical rotation space the depth panel's "Quadrant" and /dash/rrg use
+        # (improving → leading → weakening → lagging). ~6 months daily, sampled at
+        # render. Empty (→ graceful empty-state) until enough ratio history exists.
+        from src.automation import rrg as _rrg
+        quad_tail = _rrg.tail(idx, "Nifty 500", n=130, conn=conn)
         syms = D._sector_symbols(conn, idx)
         if syms and sig_date:
             ph = ",".join("?" for _ in syms)
@@ -1210,29 +1229,12 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
 
     if not is_broad:
         s3 = S.get("s3")
-        r3 = S.get("r3m")
-
-        def _cl(v, lo, hi):
-            return lo if v < lo else (hi if v > hi else v)
-        xv = r3 if r3 is not None else 0.0
-        yv = s3 if s3 is not None else 0.0
-        px = _cl(90 + (xv / 15.0) * 75.0, 12, 168)
-        py = _cl(90 - (yv / 15.0) * 75.0, 12, 168)
-        quad = (
-            '<div class="card" style="text-align:center">'
-            '<svg viewBox="0 0 180 180" width="170" height="170" style="max-width:100%" '
-            'xmlns="http://www.w3.org/2000/svg">'
-            '<rect x="10" y="10" width="160" height="160" rx="6" fill="#0d1117" stroke="#30363d"/>'
-            '<line x1="90" y1="10" x2="90" y2="170" stroke="#30363d"/>'
-            '<line x1="10" y1="90" x2="170" y2="90" stroke="#30363d"/>'
-            '<text x="160" y="24" fill="#484f58" font-size="7" text-anchor="end">LEADER</text>'
-            '<text x="20" y="24" fill="#484f58" font-size="7">DEFENSIVE</text>'
-            '<text x="160" y="164" fill="#484f58" font-size="7" text-anchor="end">LAZY LAGGARD</text>'
-            '<text x="20" y="164" fill="#484f58" font-size="7">LAGGARD</text>'
-            '<text x="172" y="93" fill="#6e7681" font-size="6" text-anchor="end">ret&#8594;</text>'
-            '<text x="93" y="16" fill="#6e7681" font-size="6">RS&#8593;</text>'
-            f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5" fill="#1f6feb" stroke="#79c0ff" stroke-width="1.5"/>'
-            '</svg><div class="sub" style="margin:6px 0 0">X = 3m return · Y = 3m RS slope</div></div>')
+        # Mini-RRG: this index's RS-Ratio × RS-Momentum rotation journey vs Nifty 500
+        # — the SAME canonical quadrants (improving → leading → weakening → lagging) as
+        # the RS-depth panel below and the full /dash/rrg, so the page speaks one
+        # rotation language (D68). Tail pre-fetched in the data block.
+        from src.web.mini_rrg import mini_rrg_card
+        quad = mini_rrg_card(quad_tail, den="Nifty 500", tail_label="last ~6 months")
         my_mom = 0.6 * (s3 or 0) + 0.4 * (S.get("s6") or 0)
         moms = sorted(momrows)
         pctl = 50
@@ -1446,9 +1448,11 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
              '<a class="row" style="display:inline" href="/dash/markets">Markets</a> · '
              '<a class="row" style="display:inline" href="/dash/sectors">Sectors</a></div>')
     # Price first (own candles) → today's snapshot → relative strength (RS heat +
-    # ratio chart) → constituent roll-up. Price leads; relative read follows.
+    # ratio chart) → RS BAND (the level lens) → constituent roll-up. Price leads.
+    from src.web.rsband_view import band_section          # additive; '' for broad/size indices
+    band_block = band_section(num=idx)
     return (_CKPT_CSS + chart_css + crumb + head + banner + chart_html + snapshot
-            + rs_block + rollup + chart_js)
+            + rs_block + band_block + rollup + chart_js)
 
 
 # --- Launchpad: the data-validated explosive-move SETUP screen (D56) ----------

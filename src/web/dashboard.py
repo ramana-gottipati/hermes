@@ -38,6 +38,11 @@ from src.automation import adjust
 from src.automation.signals import accum_character_read, is_near_key
 from src.core.db import get_conn
 from src.pat.web import render_pat
+from src.web.wolfe_overlay import SNIPPET as _WF_SNIPPET
+from src.web.cpr_overlay import SNIPPET as _CPR_SNIPPET
+from src.web.indicators_overlay import SNIPPET as _MA_SNIPPET
+from src.web.mep_overlay import SNIPPET as _MEP_SNIPPET
+from src.web.stock_chart import SNIPPET as _STOCK_CHART_SNIPPET
 
 router = APIRouter()
 
@@ -68,6 +73,13 @@ header .brand{display:flex;align-items:center;gap:8px;text-decoration:none;color
 .wsnav a{padding:8px 13px;color:#8b949e;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
 .wsnav a.on{color:#e6edf3;border-bottom-color:#3fb950;}
 .wsnav a:hover{color:#e6edf3;}
+.hrow3{padding:0 8px;border-top:1px solid #161b22;}
+.subnav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.subnav::-webkit-scrollbar{display:none;}
+.subnav a{padding:6px 11px;color:#6e7681;text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
+.subnav a.on{color:#c9d1d9;border-bottom-color:#1f6feb;}
+.subnav a:hover{color:#c9d1d9;}
+.subnav .sgrp{padding:6px 3px 6px 8px;color:#484f58;font-size:11px;font-weight:700;white-space:nowrap;align-self:center;text-transform:uppercase;letter-spacing:.4px;}
 .wrap { padding:16px; max-width:760px; margin:0 auto; }
 h2 { font-size:16px; margin:18px 0 10px; color:#e6edf3; }
 .sub { color:#8b949e; font-size:12px; margin:-6px 0 12px; }
@@ -371,12 +383,13 @@ document.addEventListener('DOMContentLoaded', function(){
 # Top workspace tabs = the primary navigation (D54 reframe). Every sub-page maps
 # onto one of the five workspaces so the right tab highlights.
 _WS = {
-    "markets": "markets", "sectors": "markets", "ratio": "markets", "compare": "markets",
+    "markets": "markets", "sectors": "markets", "rs": "markets", "ratio": "markets", "compare": "markets",
     "themes": "themes", "theme": "themes", "tags-review": "themes",
     "screener": "screener",
     "strategies": "strategies", "scan": "strategies", "stocks": "strategies",
     "leaders": "strategies", "laggards": "strategies", "conviction": "strategies",
     "workbench": "strategies", "stock": "strategies", "cpr": "strategies",
+    "mep": "strategies", "launchpad": "strategies", "concalls": "strategies", "wolfe": "strategies",
     "dashboard": "tracker", "portfolios": "tracker", "watchlists": "tracker",
     "performance": "tracker", "tracker": "tracker", "track": "tracker",
     "pat": "pat",
@@ -398,12 +411,64 @@ def _nav(active: str) -> str:
     return "".join(out)
 
 
+# Per-workspace sub-navigation (D-UI-18) — rendered by _shell beneath the top
+# workspace tabs so every page exposes its sibling screens (the biggest
+# findability fix). Tracker keeps its own _track_subnav, Pat its own in-page
+# nav, the Screener its scope/view bar — those (and home) render no strip here.
+# Markets' Rotation group surfaces the three rotation lenses, de-orphaning
+# /dash/rsband. Purely additive: every route keeps its URL (D-UI-24).
+_SUBNAV = {
+    "markets": [
+        ({"markets"}, "/dash/markets", "Overview"),
+        ({"sectors", "rs"}, "/dash/sectors", "Sectors"),
+        (None, None, "Rotation"),
+        ({"rrg"}, "/dash/rrg", "Map"),
+        ({"rotation"}, "/dash/rotation", "Weather"),
+        ({"rsband"}, "/dash/rsband", "Band"),
+        ({"compare"}, "/dash/compare", "Compare"),
+    ],
+    "strategies": [
+        ({"strategies"}, "/dash/strategies", "Hub"),
+        ({"conviction"}, "/dash/conviction", "Conviction"),
+        ({"stocks", "scan", "stock"}, "/dash/stocks", "Positioning"),
+        ({"mep"}, "/dash/mep", "Accumulation"),
+        ({"leaders", "laggards"}, "/dash/leaders", "Strength"),
+        ({"cpr"}, "/dash/cpr", "Structure"),
+        ({"workbench"}, "/dash/workbench", "Workbench"),
+        ({"concalls"}, "/dash/concalls", "Credibility"),
+        ({"launchpad"}, "/dash/launchpad", "Launchpad"),
+        ({"wolfe"}, "/dash/wolfe", "Wolfe"),
+    ],
+    "themes": [
+        ({"themes", "theme"}, "/dash/themes", "Browse"),
+        ({"tags-review"}, "/dash/tags-review", "Review"),
+    ],
+}
+
+
+def _subnav(active: str) -> str:
+    items = _SUBNAV.get(_WS.get(active, active))
+    if not items:
+        return ""
+    out = ['<div class="subnav">']
+    for keys, href, label in items:
+        if href is None:
+            out.append(f'<span class="sgrp">{label}</span>')
+        else:
+            on = "on" if keys and active in keys else ""
+            out.append(f'<a class="{on}" href="{href}">{label}</a>')
+    out.append('</div>')
+    return "".join(out)
+
+
 def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool = False) -> str:
     # In-app Back on every page EXCEPT home (active="dash") — home is the root, so
     # there's nothing to go back to. history.back() with a /dash fallback (never strands).
     back_btn = ("" if active == "dash" else
                 '<a class="hback" href="/dash" title="Back" aria-label="Back" '
                 'onclick="if(window.history.length>1){window.history.back();return false;}">&#8592;</a>')
+    sub = _subnav(active)
+    subrow = f'<div class="hrow3">{sub}</div>' if sub else ''
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -426,6 +491,7 @@ def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool
     </form>
   </div>
   <div class="hrow2">{_nav(active)}</div>
+  {subrow}
 </header>
 <div class="wrap{' wide' if wide else ''}">
 {body}
@@ -1291,7 +1357,7 @@ def dash_mep() -> HTMLResponse:
     from src.web.cockpit import render_mep
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Accumulation & Distribution · MEP · patearn",
-                               render_mep(), "stocks", sig_date or "", wide=True))
+                               render_mep(), "mep", sig_date or "", wide=True))
 
 
 @router.get("/dash/conviction", response_class=HTMLResponse)
@@ -1303,7 +1369,7 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
     from src.web.cockpit import render_conviction
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Conviction · patearn", render_conviction(limit),
-                               "stocks", sig_date or "", wide=True))
+                               "conviction", sig_date or "", wide=True))
     # --- legacy inline body below superseded by cockpit.render_conviction (dead) ---
     from src.automation.stock_rs import conviction_shortlist
     rows = conviction_shortlist(limit=limit)
@@ -1543,7 +1609,7 @@ def dash_rs() -> HTMLResponse:
     Full-bleed cockpit render (cockpit.render_rs); legacy body kept dead."""
     from src.web.cockpit import render_rs
     _, idx_date = _latest_dates()
-    return HTMLResponse(_shell("RS ranking · patearn", render_rs(), "sectors", idx_date or "", wide=True))
+    return HTMLResponse(_shell("RS ranking · patearn", render_rs(), "rs", idx_date or "", wide=True))
     # --- legacy inline body below superseded by cockpit.render_rs (dead) ---
     rows = []
     if idx_date:
@@ -1610,7 +1676,7 @@ def dash_leaders() -> HTMLResponse:
     Full-bleed cockpit render (cockpit.render_leaders); legacy body kept dead."""
     from src.web.cockpit import render_leaders
     sig_date, _ = _latest_dates()
-    return HTMLResponse(_shell("Leaders · patearn", render_leaders(), "stocks", sig_date or "", wide=True))
+    return HTMLResponse(_shell("Leaders · patearn", render_leaders(), "leaders", sig_date or "", wide=True))
     # --- legacy inline body below superseded by cockpit.render_leaders (dead) ---
     from src.automation.stock_rs import leaders_laggards
     leaders = leaders_laggards("leaders", limit=60)
@@ -1704,7 +1770,7 @@ def dash_scan(limit: int = Query(25, ge=5, le=60)) -> HTMLResponse:
 <h2>Layered DVPT scan</h2>
 <div class="sub">Sort: ATH → p_score → r_score → rank. Tap a symbol for full detail.</div>
 <div class="card" style="padding:6px 10px;">
-<table>
+<table class="dt">
 <thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th><th>Δhot</th><th>Near-P</th></tr></thead>
 <tbody>{''.join(trs)}</tbody>
 </table>
@@ -2013,7 +2079,7 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
             '<b>⬇ Export</b> to CSV/Excel. 🟢 gap cell = in the launch band (−1%…+5% of the value-weighted '
             'key price). <a class="row" style="display:inline" href="/dash/stocks">← back to screen</a></div>'
             + table)
-    return HTMLResponse(_shell("Workbench · patearn", body, "stocks", sig_date or ""))
+    return HTMLResponse(_shell("Workbench · patearn", body, "workbench", sig_date or ""))
 
 
 @router.get("/dash/screener", response_class=HTMLResponse)
@@ -3104,7 +3170,7 @@ def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
     from src.web.cockpit import render_concalls
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Management Credibility · patearn", render_concalls(view),
-                               "strategies", sig_date or "", wide=True))
+                               "concalls", sig_date or "", wide=True))
     # --- legacy inline body below superseded by cockpit.render_concalls (dead) ---
     view = "leaders" if view == "leaders" else "avoid"
     with get_conn() as conn:
@@ -3689,7 +3755,8 @@ def _track_subnav(active):
     items = [("dashboard", "/dash/dashboard", "Dashboard"),
              ("portfolios", "/dash/portfolios", "Portfolios"),
              ("watchlists", "/dash/watchlists", "Watchlists"),
-             ("performance", "/dash/performance", "Performance")]
+             ("performance", "/dash/performance", "Performance"),
+             ("import", "/dash/import", "Import")]
     out = ['<div class="fbar" style="margin-bottom:12px">']
     for k, h, lbl in items:
         out.append(f'<a class="fbtn{" on" if k == active else ""}" href="{h}">{lbl}</a>')
@@ -4547,6 +4614,7 @@ def _edit_form(r, books):
         f'<div style="flex:1"><label>Target ₹</label><input name="target" class="field" inputmode="decimal" value="{_rawnum(r["price_target"])}"/></div>'
         f'<div style="flex:1"><label>Stop ₹</label><input name="stop" class="field" inputmode="decimal" value="{_rawnum(r["stop_loss"])}"/></div></div>'
         f'<div style="margin-bottom:10px"><label>Thesis</label><textarea name="thesis" class="field">{_esc(r["entry_thesis"] or "")}</textarea></div>'
+        f'<div style="margin-bottom:10px"><label>Notes <span class="mut" style="font-weight:400">(your running log)</span></label><textarea name="notes" class="field">{_esc(r.get("notes") or "")}</textarea></div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save changes</button>'
         f'<a class="tbtn" href="{back}" style="text-decoration:none;margin-left:8px">Cancel</a>'
         '</form>' + _CS_JS)
@@ -4646,6 +4714,15 @@ def dash_track_close(id: int = Form(...), reason: str = Form("")) -> RedirectRes
     return RedirectResponse("/dash/performance?closed=1", status_code=303)
 
 
+@router.post("/dash/track/reopen")
+def dash_track_reopen(id: int = Form(...)) -> RedirectResponse:
+    # Undo a fat-fingered close: closed → open again, clearing the exit fields.
+    with get_conn() as conn:
+        conn.execute("UPDATE stocks_in_play SET status='open', exit_date=NULL, "
+                     "exit_price=NULL, exit_reason=NULL WHERE id=?", (id,))
+    return RedirectResponse("/dash/portfolios", status_code=303)
+
+
 @router.get("/dash/track/edit", response_class=HTMLResponse)
 def dash_track_edit(id: int = Query(...)) -> HTMLResponse:
     with get_conn() as conn:
@@ -4667,7 +4744,7 @@ def dash_track_update(id: int = Form(...), status: str = Form("open"),
                       strategy_custom: str = Form(""), qty: str = Form(""),
                       entry_date: str = Form(""), entry_price: str = Form(""),
                       target: str = Form(""), stop: str = Form(""),
-                      thesis: str = Form("")) -> RedirectResponse:
+                      thesis: str = Form(""), notes: str = Form("")) -> RedirectResponse:
     status = status if status in ("watch", "open") else "open"
     dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
     strat = (strategy or "Manual").strip() or "Manual"
@@ -4703,8 +4780,9 @@ def dash_track_update(id: int = Form(...), status: str = Form("open"),
                     ep = ep_in
             else:
                 ep = _f(entry_price)
-        sets = "strategy=?, book=?, status=?, qty=?, price_target=?, stop_loss=?, entry_thesis=?"
-        vals = [strat, bk, status, _f(qty), _f(target), _f(stop), (thesis or "").strip() or None]
+        sets = "strategy=?, book=?, status=?, qty=?, price_target=?, stop_loss=?, entry_thesis=?, notes=?"
+        vals = [strat, bk, status, _f(qty), _f(target), _f(stop), (thesis or "").strip() or None,
+                (notes or "").strip() or None]
         if status == "open":
             sets += ", entry_price=?, date_added=COALESCE(?, date_added)"
             vals += [ep, td]
@@ -4729,8 +4807,10 @@ def dash_track_promote(id: int = Form(...)) -> RedirectResponse:
 @router.post("/dash/track/remove")
 def dash_track_remove(id: int = Form(...)) -> RedirectResponse:
     with get_conn() as conn:
+        row = conn.execute("SELECT status FROM stocks_in_play WHERE id=?", (id,)).fetchone()
+        dest = "/dash/watchlists" if (row and row["status"] == "watch") else "/dash/portfolios"
         conn.execute("DELETE FROM stocks_in_play WHERE id=?", (id,))
-    return RedirectResponse("/dash/portfolios", status_code=303)
+    return RedirectResponse(dest, status_code=303)
 
 
 @router.get("/dash/track/alerts", response_class=HTMLResponse)
@@ -5027,6 +5107,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
             f'<td class="num">{_num(then, 1)}</td>'
             f'<td class="num">{_num(cmp_, 1)}</td>'
             f'<td class="num">{_pct(chg)}</td>'
+            f'<td class="num">{_num(r.get("price_target"), 1)}</td>'
+            f'<td class="num">{_num(r.get("stop_loss"), 1)}</td>'
             f'<td class="l">{_snap_chips(snap)}</td>'
             f'<td class="l">{_alert_badges(firing, ready)}</td>'
             f'<td class="l"><a class="tbtn" href="/dash/track/alerts?id={r["id"]}" style="text-decoration:none">Alerts</a> '
@@ -5035,7 +5117,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
             f'{_id_form("/dash/track/remove", r["id"], "Remove", confirm="Remove from watchlist?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th><th>Added</th>'
-            '<th>Days</th><th>Price then</th><th>CMP</th><th>Chg %</th>'
+            '<th>Days</th><th>Price then</th><th>CMP</th><th>Chg %</th><th>Target</th><th>Stop</th>'
             '<th>Live signals</th><th>Signal / alerts</th><th></th></tr></thead><tbody>')
     bq = f"&book={_q(sel_book)}" if sel_book else ""
     exp = ('<div style="display:flex;justify-content:flex-end;margin:0 0 8px">'
@@ -5046,7 +5128,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
 
 
 @router.get("/dash/performance", response_class=HTMLResponse)
-def dash_performance() -> HTMLResponse:
+def dash_performance(just_closed: str = Query("", alias="closed")) -> HTMLResponse:
     today = datetime.now().strftime("%Y-%m-%d")
     with get_conn() as conn:
         openrows = [dict(r) for r in conn.execute(
@@ -5207,13 +5289,14 @@ def dash_performance() -> HTMLResponse:
                 f'<td class="num">{_rpl(pl_rs)}</td>'
                 f'<td class="num">{_pct(pl_pct)}</td>'
                 f'<td class="l mut">{_esc(r.get("exit_reason") or "—")}</td>'
+                f'<td class="l">{_id_form("/dash/track/reopen", r["id"], "Reopen", confirm="Reopen this trade (back to open positions)?")}</td>'
                 '</tr>')
         clog = ('<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">'
                 '<div class="ghdr" style="margin:0">Closed-trades log</div>'
                 '<a class="tbtn" href="/dash/track/export?status=closed" style="text-decoration:none">⬇ Export CSV</a></div>'
                 '<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th>'
                 '<th>Entry date</th><th>Exit date</th><th>Days</th><th>Entry ₹</th><th>Exit ₹</th><th>Qty</th>'
-                '<th>₹ P&amp;L</th><th>Return</th><th>Reason</th></tr></thead><tbody>'
+                '<th>₹ P&amp;L</th><th>Return</th><th>Reason</th><th></th></tr></thead><tbody>'
                 + "".join(trs) + '</tbody></table>')
 
     intro = ('<h2>Performance</h2><div class="sub"><b>Your scoreboard</b> — how your committed ideas '
@@ -5223,7 +5306,10 @@ def dash_performance() -> HTMLResponse:
              '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a> + '
              'closed trades — it fills itself as you take and close positions. EOD data; '
              '₹ metrics need quantity on the position.</span></div>')
-    body = (_TRACK_CSS + _track_subnav("performance") + intro + cards + curve_html
+    body = (_TRACK_CSS + _track_subnav("performance")
+            + ('<div class="banner b-on">&#10003; Position closed &#8212; logged to your scoreboard below.</div>'
+               if just_closed == "1" else '')
+            + intro + cards + curve_html
             + hits_html + attrib + clog)
     return HTMLResponse(_shell("Performance · patearn", body, "performance", wide=True))
 
@@ -5665,7 +5751,7 @@ def dash_import() -> HTMLResponse:
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Upload &amp; preview</button>'
         '<a class="tbtn" href="/dash/portfolios" style="text-decoration:none;margin-left:8px">Cancel</a>'
         '</form>')
-    body = _TRACK_CSS + _track_subnav("portfolios") + '<h2>Import</h2>' + form
+    body = _TRACK_CSS + _track_subnav("import") + '<h2>Import</h2>' + form
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
 
 
@@ -5745,7 +5831,7 @@ def dash_track_export(status: str = Query("open"), book: str = Query("")) -> Res
 
 
 def _imp_err(msg):
-    body = (_TRACK_CSS + _track_subnav("portfolios") + '<h2>Import</h2>'
+    body = (_TRACK_CSS + _track_subnav("import") + '<h2>Import</h2>'
             + f'<div class="banner b-off">{_esc(msg)}</div>'
             + '<div class="empty"><a href="/dash/import" style="color:#58a6ff;text-decoration:none">← Try again</a></div>')
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
@@ -5769,7 +5855,7 @@ async def dash_import_preview(file: UploadFile = File(...), status: str = Form("
         eqnames = {(r[0] or "").upper() for r in conn.execute(
             "SELECT company_name FROM nse_equity_list").fetchall()}
     mp = _detect_mapping(headers, rows, eqset, eqnames)
-    body = _TRACK_CSS + _track_subnav("portfolios") + '<h2>Import — review</h2>' + _imp_review(headers, rows, mp, status, bk)
+    body = _TRACK_CSS + _track_subnav("import") + '<h2>Import — review</h2>' + _imp_review(headers, rows, mp, status, bk)
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
 
 
@@ -6106,11 +6192,15 @@ def dash_stock(sym: str = Query("", max_length=20),
                track: int = Query(0),
                cmp: list[str] = Query(default=[])) -> HTMLResponse:
     sym = sym.upper().strip()
+    _wolfe_btn = (
+        f'<a href="/dash/wolfe?sym={_q(sym)}" style="display:inline-block;margin:8px 0 0;padding:6px 12px;'
+        f'background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;'
+        f'text-decoration:none;font-size:13px">⌁ Wolfe wave</a>' if sym else '')
     search = f"""
 <form class="search" action="/dash/stock" method="get">
   <input name="sym" placeholder="Enter NSE ticker — e.g. BANDHANBNK" value="{_esc(sym)}" autocapitalize="characters" autocomplete="off"/>
   <button type="submit">Go</button>
-</form>
+</form>{_wolfe_btn}
 """
     if not sym:
         body = search + '<div class="empty">Enter a ticker for the full chart — price, DVPT spikes, delivery, and institutional zones.</div>'
@@ -6993,6 +7083,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <button class="fbtn on" data-ctype="candle">Candles</button>
   <button class="fbtn" data-ctype="line">Line</button>
 </div>
+<div class="fbar"><label class="fbtn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="wfChk" style="margin:0">Wolfe wave</label><span id="wfLbl" style="color:#8b949e;font-size:12px;margin-left:8px"></span></div>
 <div class="fbar" id="ivBar">
   <button class="fbtn on" data-ptf="d">Daily</button>
   <button class="fbtn" data-ptf="w">Weekly</button>
@@ -7012,6 +7103,10 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <div id="priceRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
   <div id="priceChart" style="height:300px;"></div>
 </div>
+{_WF_SNIPPET}
+{_CPR_SNIPPET}
+{_MA_SNIPPET}
+{_MEP_SNIPPET}
 <div class="chartwrap">
   <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · DVPT per trade — institutional spikes (amber = institutional-intensity day, r1m &gt; 1)</div>
   <div id="dvptChart" style="height:150px;"></div>
@@ -7051,186 +7146,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 {fno_pane}
 
 <script src="{_LWC_CDN}"></script>
-<script>
-const DATA = {data_json};
-(function(){{
-  if (!window.LightweightCharts) {{ document.getElementById('priceChart').innerHTML='<div style=\\"color:#8b949e;padding:20px\\">Chart library failed to load (offline?).</div>'; return; }}
-  const S = DATA.series;
-  const common = {{
-    layout: {{ background:{{color:'#161b22'}}, textColor:'#8b949e', fontSize:11 }},
-    grid: {{ vertLines:{{color:'#21262d'}}, horzLines:{{color:'#21262d'}} }},
-    timeScale: {{ borderColor:'#30363d', rightOffset:3 }},
-    rightPriceScale: {{ borderColor:'#30363d' }},
-    crosshair: {{ mode: 0 }},
-    handleScroll:true, handleScale:true,
-  }};
-  const pEl=document.getElementById('priceChart');
-  const vEl=document.getElementById('dvptChart');
-  const dEl=document.getElementById('delivChart');
-  const tEl=document.getElementById('tvChart');
-  const pc=LightweightCharts.createChart(pEl, Object.assign({{height:300}}, common));
-  const vc=LightweightCharts.createChart(vEl, Object.assign({{height:150}}, common));
-  const dc=LightweightCharts.createChart(dEl, Object.assign({{height:120}}, common));
-  const tc=LightweightCharts.createChart(tEl, Object.assign({{height:130}}, common));
-
-  const candle=pc.addCandlestickSeries({{upColor:'#3fb950',downColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',borderVisible:false}});
-  candle.setData(S.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
-  DATA.zones.forEach(z=>{{ candle.createPriceLine({{price:z.price,color:z.color,lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label}}); }});
-  // Close-line alternative to the candles (chart-type toggle). Fed alongside the
-  // candles in setIv so switching type is just a visibility flip — the 4-pane
-  // sync graph is untouched.
-  const pline=pc.addLineSeries({{color:'#1f6feb',lineWidth:2,priceLineVisible:false}});
-  pline.setData(S.map(d=>({{time:d.time,value:d.close}})));
-  pline.applyOptions({{visible:false}});
-
-  const dvpt=vc.addHistogramSeries({{priceFormat:{{type:'volume'}}}});
-  dvpt.setData(S.map(d=>({{time:d.time,value:d.dvpt,color:(d.r1m!=null&&d.r1m>1)?'#d29922':'#30506b'}})));
-
-  const deliv=dc.addLineSeries({{color:'#58a6ff',lineWidth:2}});
-  deliv.setData(S.filter(d=>d.deliv!=null).map(d=>({{time:d.time,value:d.deliv}})));
-
-  // 4th pane — total traded value (muted full bar) with delivery value drawn
-  // ON TOP in a brighter colour. Since delivery ₹ ≤ turnover ₹, the bright bar
-  // sits WITHIN the muted bar (both start at 0, overlaid not stacked-additive),
-  // so the bright fraction = the delivered share of the day's turnover.
-  // Option A — robust y-cap so a rare institutional spike (100-800x a normal
-  // day) can't crush every normal day to a sliver. Cap the axis at ~the 98th
-  // percentile of traded value; spike days clip at the top + get an amber ▲
-  // marker (exact value still on hover). Uniform stocks: cap ~= max, no clip.
-  const _tv=S.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
-  let tvCap=_tv.length?_tv[Math.min(_tv.length-1,Math.floor(_tv.length*0.98))]:0;
-  const _cap=()=>({{priceRange:{{minValue:0,maxValue:tvCap||1}}}});
-  const tval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#30363d',autoscaleInfoProvider:_cap}});
-  tval.setData(S.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
-  const dval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#2ea043',autoscaleInfoProvider:_cap}});
-  dval.setData(S.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
-  if(tvCap>0){{
-    const _mk=S.filter(d=>d.tval!=null&&d.tval>tvCap).map(d=>({{time:d.time,position:'aboveBar',color:'#d29922',shape:'arrowUp'}}));
-    if(_mk.length) tval.setMarkers(_mk);
-  }}
-
-  // Sync time scales across the four charts. A reentrancy guard stops a
-  // range click from ping-ponging range updates pc<->vc<->dc<->tc until float
-  // convergence (the source of the range-switch slowness, worst on Max).
-  const charts=[pc,vc,dc,tc];
-  let syncing=false;
-  charts.forEach(src=>{{
-    src.timeScale().subscribeVisibleLogicalRangeChange(r=>{{
-      if(!r||syncing) return;
-      syncing=true;
-      charts.forEach(t=>{{ if(t!==src) t.timeScale().setVisibleLogicalRange(r); }});
-      syncing=false;
-    }});
-  }});
-
-  // Apply the range to ALL charts directly under the guard (N direct
-  // view-sets, zero feedback hops). fitContent() per-chart for Max.
-  function setRange(n){{
-    syncing=true;
-    if(!n||n>=S.length){{
-      charts.forEach(c=>c.timeScale().fitContent());
-    }} else {{
-      const from=S[S.length-n].time, to=S[S.length-1].time;
-      charts.forEach(c=>c.timeScale().setVisibleRange({{from,to}}));
-    }}
-    syncing=false;
-  }}
-  document.querySelectorAll('.rangebar button').forEach(b=>{{
-    b.onclick=()=>{{ document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setRange(parseInt(b.dataset.r)); }};
-  }});
-  setRange(0);
-
-  // --- D/W/M/Q interval toggle (resample ALL 4 panes together so they stay
-  // synced; client-side, no MTF dependency). Candle = OHLC; DVPT pane = the
-  // period's PEAK day (NOT an average — true period DVPT is the MTF engine's
-  // job, doctrine D43-B); delivery % = period mean; traded/delivery value =
-  // period sum (the y-cap recomputes per interval). Zone lines are horizontal,
-  // so they're untouched by the interval.
-  function isoWeekKey(s){{ const d=new Date(s+'T00:00:00Z'); const jd=(d.getUTCDay()+6)%7;
-    d.setUTCDate(d.getUTCDate()-jd+3); const iy=d.getUTCFullYear();
-    const j4=new Date(Date.UTC(iy,0,4)); const j4d=(j4.getUTCDay()+6)%7;
-    j4.setUTCDate(j4.getUTCDate()-j4d+3); const wk=1+Math.round((d-j4)/(7*86400000));
-    return iy+'-W'+('0'+wk).slice(-2); }}
-  function pkey(s,tf){{ if(tf==='w') return isoWeekKey(s); if(tf==='m') return s.slice(0,7);
-    if(tf==='q'){{ const y=s.slice(0,4),mo=parseInt(s.slice(5,7),10); return y+'-Q'+(Math.floor((mo-1)/3)+1); }}
-    return s; }}
-  function resampleBars(tf){{
-    const mk=d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close,dvpt:(d.dvpt||0),
-      hot:(d.r1m!=null&&d.r1m>1),delivSum:(d.deliv!=null?d.deliv:0),delivN:(d.deliv!=null?1:0),
-      tval:(d.tval||0),dval:(d.dval||0)}});
-    if(tf==='d') return S.map(mk);
-    const out=[]; let k=null,c=null;
-    for(const d of S){{ const kk=pkey(d.time,tf);
-      if(kk!==k){{ if(c) out.push(c); k=kk; c=mk(d); }}
-      else {{ c.high=Math.max(c.high,d.high); c.low=Math.min(c.low,d.low); c.close=d.close; c.time=d.time;
-        if((d.dvpt||0)>c.dvpt) c.dvpt=d.dvpt||0; if(d.r1m!=null&&d.r1m>1) c.hot=true;
-        if(d.deliv!=null){{ c.delivSum+=d.deliv; c.delivN++; }}
-        c.tval+=(d.tval||0); c.dval+=(d.dval||0); }}
-    }}
-    if(c) out.push(c);
-    return out;
-  }}
-  function setIv(tf){{
-    const R=resampleBars(tf);
-    syncing=true;
-    candle.setData(R.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
-    pline.setData(R.map(d=>({{time:d.time,value:d.close}})));
-    dvpt.setData(R.map(d=>({{time:d.time,value:d.dvpt,color:d.hot?'#d29922':'#30506b'}})));
-    deliv.setData(R.filter(d=>d.delivN>0).map(d=>({{time:d.time,value:d.delivSum/d.delivN}})));
-    const tv=R.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
-    tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
-    tval.setData(R.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
-    dval.setData(R.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
-    tval.setMarkers(tvCap>0?R.filter(d=>d.tval!=null&&d.tval>tvCap).map(d=>({{time:d.time,position:'aboveBar',color:'#d29922',shape:'arrowUp'}})):[]);
-    syncing=false;
-  }}
-  document.querySelectorAll('[data-ptf]').forEach(b=>{{
-    b.onclick=()=>{{ document.querySelectorAll('[data-ptf]').forEach(x=>x.classList.toggle('on', x===b));
-      setIv(b.dataset.ptf);
-      const rb=document.querySelector('.rangebar button.on'); setRange(rb?parseInt(rb.dataset.r):0); }};
-  }});
-  // Chart-type toggle (candles <-> close line). Visibility flip only — both series
-  // already carry the current interval's data, so the sync graph stays intact.
-  document.querySelectorAll('[data-ctype]').forEach(b=>{{
-    b.onclick=()=>{{ document.querySelectorAll('[data-ctype]').forEach(x=>x.classList.toggle('on', x===b));
-      const ln=b.dataset.ctype==='line';
-      candle.applyOptions({{visible:!ln}}); pline.applyOptions({{visible:ln}}); }};
-  }});
-
-  // Debounced ResizeObserver: coalesce bursts (~100ms) and skip while syncing.
-  let rzT=null;
-  new ResizeObserver(()=>{{
-    if(syncing) return;
-    if(rzT) clearTimeout(rzT);
-    rzT=setTimeout(()=>{{ charts.forEach(c=>c.applyOptions({{}})); }},100);
-  }}).observe(pEl);
-
-  // Crosshair value readout — hover ANY of the 4 panes to see that day's
-  // OHLC + DVPT + delivery + traded/delivery value; latest day when off-chart.
-  const rdt=document.getElementById('priceRdt');
-  function tkey(t){{ return (typeof t==='object'&&t)?(t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2)):t; }}
-  const byT={{}}; S.forEach(d=>byT[d.time]=d);
-  function cr(v){{ return '₹'+Math.round(v).toLocaleString('en-IN'); }}
-  function showR(d){{
-    if(!d){{ rdt.innerHTML=''; return; }}
-    let h='<b>'+d.time+'</b>&nbsp; O '+d.open+'&nbsp; H '+d.high+'&nbsp; L '+d.low
-      +'&nbsp; <b>C '+d.close+'</b>'
-      +(d.dvpt!=null?'&nbsp; · DVPT ₹'+Math.round(d.dvpt).toLocaleString('en-IN'):'')
-      +(d.deliv!=null?'&nbsp; · Deliv '+d.deliv.toFixed(1)+'%':'');
-    if(d.tval!=null){{
-      h+='&nbsp; · Traded '+cr(d.tval);
-      if(d.dval!=null) h+=' / Deliv '+cr(d.dval)
-        +(d.tval>0?' ('+(d.dval/d.tval*100).toFixed(0)+'%)':'');
-    }}
-    rdt.innerHTML=h;
-  }}
-  [pc,vc,dc,tc].forEach(c=>c.subscribeCrosshairMove(p=>{{
-    if(!p||!p.time){{ showR(S[S.length-1]); return; }}
-    showR(byT[tkey(p.time)]||S[S.length-1]);
-  }}));
-  showR(S[S.length-1]);
-}})();
-</script>
+<script>window.__wfdata={data_json};</script>
+{_STOCK_CHART_SNIPPET}
 {tab_js}
 """
     return HTMLResponse(_shell(f"{sym} · patearn", body, "stock", L["trade_date"], wide=True))
@@ -7325,7 +7242,7 @@ def dash_launchpad() -> HTMLResponse:
     from src.web.cockpit import render_launchpad
     return HTMLResponse(_shell("Launchpad · patearn",
                                render_launchpad(sig_date, idx_date),
-                               "strategies", sig_date or "", wide=True))
+                               "launchpad", sig_date or "", wide=True))
 
 
 @router.get("/dash/index", response_class=HTMLResponse)
@@ -7444,7 +7361,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
         if not curve:
             body = (f'<h2>{_esc(idx)} <span class="sub" style="margin:0">vs {_esc(den)}</span></h2>'
                     '<div class="empty">No ratio series (this is a broad/size index, not a sector).</div>')
-            return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "sectors", idx_date or ""))
+            return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "ratio", idx_date or ""))
 
         sig = conn.execute(
             """SELECT rs_vs_broad_trend_state st, ret_3m_pct r3,
@@ -7485,6 +7402,10 @@ def dash_ratio(idx: str = Query("", max_length=60),
                FROM index_signals, latest
                WHERE trade_date=latest.d AND broad_benchmark IS NOT NULL""",
         ).fetchall()
+
+        # Rotation tail for the mini-RRG (canonical RS-Ratio × RS-Momentum vs den).
+        from src.automation import rrg
+        idx_tail = rrg.tail(idx, den, n=130, conn=conn)
 
         # Top constituents by DVPT trigger.
         syms = _sector_symbols(conn, idx)
@@ -7546,33 +7467,16 @@ def dash_ratio(idx: str = Query("", max_length=60),
         f'(0.6·3m + 0.4·6m RS slope, ranked across {n_mom} sectors).</div>'
         f'<div class="card"><div class="bar"><span style="width:{pctl}%"></span></div></div>')
 
-    # --- Absolute × Relative quadrant SVG ---
-    # X = ret_3m_pct (abs), Y = rs_vs_broad_slope_3m (rel). Center origin; clamp.
-    def _clamp(v, lo, hi):
-        return lo if v < lo else (hi if v > hi else v)
-    xv = r3 if r3 is not None else 0.0
-    yv = s3 if s3 is not None else 0.0
-    # Map ±15% to the half-width (75 px). Clamp dot inside the 10..170 box.
-    px = _clamp(90 + (xv / 15.0) * 75.0, 12, 168)
-    py = _clamp(90 - (yv / 15.0) * 75.0, 12, 168)
+    # --- Relative rotation (mini-RRG) — canonical RS-Ratio × RS-Momentum + JdK
+    # quadrants + tail, shared with the depth panel and /dash/rrg (D68). Replaces the
+    # old return×slope "Absolute × Relative" quad whose labels could disagree with it.
+    from src.web.mini_rrg import mini_rrg_card
     quad_html = (
-        '<h2>Absolute × Relative</h2>'
-        '<div class="sub">X = 3m return (abs) · Y = 3m RS slope (vs Nifty 500). '
-        'Top-right = leader; top-left = defensive; bottom-right = lazy laggard.</div>'
-        '<div class="card" style="text-align:center">'
-        f'<svg viewBox="0 0 180 180" width="180" height="180" '
-        'style="max-width:100%" xmlns="http://www.w3.org/2000/svg">'
-        '<rect x="10" y="10" width="160" height="160" rx="6" fill="#0d1117" stroke="#30363d"/>'
-        '<line x1="90" y1="10" x2="90" y2="170" stroke="#30363d" stroke-width="1"/>'
-        '<line x1="10" y1="90" x2="170" y2="90" stroke="#30363d" stroke-width="1"/>'
-        '<text x="160" y="24" fill="#484f58" font-size="7" text-anchor="end">LEADER</text>'
-        '<text x="20" y="24" fill="#484f58" font-size="7">DEFENSIVE</text>'
-        '<text x="160" y="164" fill="#484f58" font-size="7" text-anchor="end">LAZY LAGGARD</text>'
-        '<text x="20" y="164" fill="#484f58" font-size="7">LAGGARD</text>'
-        '<text x="172" y="93" fill="#6e7681" font-size="6" text-anchor="end">ret→</text>'
-        '<text x="93" y="16" fill="#6e7681" font-size="6">RS↑</text>'
-        f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5" fill="#1f6feb" stroke="#79c0ff" stroke-width="1.5"/>'
-        '</svg></div>')
+        '<h2>Relative rotation</h2>'
+        f'<div class="sub">RS-Ratio &times; RS-Momentum vs {_esc(den)}, JdK-normalised ~100 — '
+        'the same read as the depth panel and the full RRG '
+        '(improving &rarr; leading &rarr; weakening &rarr; lagging).</div>'
+        + mini_rrg_card(idx_tail, den=den, tail_label="last ~6 months", size=180))
 
     # --- Auto READ block (deterministic strings, no LLM) ---
     reads = []
@@ -7757,7 +7661,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
 {consts_html}
 {chart_js}
 """
-    return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "sectors",
+    return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "ratio",
                                idx_date or ""))
 
 
