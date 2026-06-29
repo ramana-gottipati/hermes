@@ -941,10 +941,45 @@ def coverage_snapshot(conn=None) -> dict:
 
         # ── lag audit + restatement count ──
         snap["lag_audit"] = lag_audit(conn=c, persist=False)
+        snap["lag_headline"] = lag_headline(snap["lag_audit"])  # flat, render-ready
         snap["restatements"] = _scalar(c, "SELECT COUNT(*) FROM provenance_restatement") or 0
         snap["knowable_captured"] = _scalar(c, "SELECT COUNT(*) FROM provenance_knowable") or 0
         return snap
     return _with_conn(q, conn)
+
+
+def lag_headline(la: dict | None = None, conn=None) -> dict:
+    """A FLAT, render-ready summary of the look-ahead leak for the Coverage/provenance
+    read — so the *effective* leak is VISIBLE, not buried in the nested lag_audit.
+
+    Returns the three headline numbers a trust screen should lead with:
+      {status, n_pairs, baseline_leak_pct, calibrated_leak_pct,
+       effective_leak_pct, demodel_rate_pct, leak_cut_x}
+    'effective' = where a real BSE filing date exists the leak is 0; the calibrated
+    synthetic covers the rest → the blended expected leak. ``leak_cut_x`` = how many
+    times the leak shrank vs the naive +90/+50 baseline. Degrades to status!='ok'
+    when no real dates have accrued (forward-only)."""
+    if la is None:
+        la = lag_audit(conn=conn, persist=False)
+    fh = (la or {}).get("fundamentals_history", {}) if isinstance(la, dict) else {}
+    if not isinstance(fh, dict) or fh.get("status") != "ok":
+        return {"status": (fh or {}).get("status", "no_real_observations_yet"),
+                "n_pairs": (fh or {}).get("n", 0)}
+    base = fh.get("baseline_producer_model", {}) or {}
+    cal = fh.get("calibrated_model", {}) or {}
+    eff = fh.get("effective", {}) or {}
+    base_leak = base.get("leak_pct")
+    eff_leak = eff.get("blended_expected_leak_pct")
+    cut = round(base_leak / eff_leak, 1) if (base_leak and eff_leak) else None
+    return {
+        "status": "ok",
+        "n_pairs": fh.get("n_pairs") or fh.get("n"),
+        "baseline_leak_pct": base_leak,
+        "calibrated_leak_pct": cal.get("leak_pct"),
+        "effective_leak_pct": eff_leak,
+        "demodel_rate_pct": round(100.0 * eff.get("demodel_rate", 0), 1) if eff.get("demodel_rate") is not None else None,
+        "leak_cut_x": cut,
+    }
 
 
 # ── self-check (synthetic in-memory DB — no real data needed) ─────────────────
