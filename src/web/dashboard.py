@@ -1932,7 +1932,9 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                          f'<a class="row" style="display:inline" href="/dash/index?idx={_q(sector)}">'
                          f'See its index page →</a></div>')
     else:
-        head = ('<h2>Stock screen</h2>'
+        # Heading matches the nav lens label "Positioning" (lens_registry Lens("stocks",
+        # "Positioning",…)) so nav-highlight, <h2> and <title> all read one name. P2 #7.
+        head = ('<h2>Positioning</h2>'
                 '<div class="sub">Layered DVPT triggers (today). Filter, then tap a symbol.</div>')
 
     js = ""
@@ -2028,7 +2030,8 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                '<a class="row sub" href="/dash/workbench" style="margin:0 0 8px">'
                'Workbench ⇄ <span class="mut">every DVPT signal in one sortable table</span></a>')
     body = search + ptoggle + badge + wb_link + head + table + watch_block + js
-    return HTMLResponse(_shell("Stocks · patearn", body, "stocks", sig_date or ""))
+    # Title matches the nav lens "Positioning" (one name across nav/heading/title). P2 #7.
+    return HTMLResponse(_shell("Positioning · patearn", body, "stocks", sig_date or ""))
 
 
 @router.get("/dash/workbench", response_class=HTMLResponse)
