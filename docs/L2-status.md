@@ -51,3 +51,44 @@ runtime-swap it.
 - VPS Python 3.10.12 — selftest + py_compile pass there.
 - Parallel lanes are live (Lane L4's `1ef085a` landed mid-session); explicit-path staging kept L2 commits
   clean (no cross-absorption).
+
+---
+
+## WAVE 2 — Mobile + perf + state polish (2026-06-29, re-baselined at `b47b98b`)
+
+### Commits (owned-files-only)
+| Commit | What |
+|---|---|
+| `b239f90` | **Mobile fix.** Audit (`docs/L2-mobile-audit.md`) via a viewport-independent CSS-fact method (env can't drive a real 380px layout viewport — see below). Only real unhandled overflow on the demo path = the dossier `.tabbar` (8-tab nav, nowrap, no mobile rule). Fixed: ≤640px → `overflow-x:auto` so it scrolls inside itself like `.uk-nav`/`.uk-sub`. Everything else already handled by Lane A2. |
+| `75442fd` | **State polish + ⌘K verified.** Native state system (`uk-empty`/`uk-error`/`uk-note`/`uk-skel`/`uk-spin`) was NOT injected on legacy pages → injected `ui_components.components_css()` site-wide (class-scoped, idempotent) + upgraded legacy `.empty` to the centered `uk-empty` look (○ glyph, bold ticker). ⌘K verified: Cmd+K opens overlay, collapses gracefully ≤640px. |
+
+### Backlog coverage (Wave 2)
+1. **Mobile audit** — `docs/L2-mobile-audit.md`; demo path + Sectors/Conviction; CSS-fact method. ✓
+2. **Fix overflow** — one real gap (`.tabbar`) fixed; all others contained/covered. Zero page-overflow
+   provable from CSS facts; screener stays scroll-inside (no-loss). ✓
+3. **Perf** — measured; shell injection already on the fast path (inline `<head>`, ~20 ms parse vs
+   508 ms TTFB + 1.7 MB frozen body). No safe win in owned files; recorded honestly. ✓ (no change shipped)
+4. **State polish** — unified empty/loading/error via `ui_components` site-wide; legacy `.empty` polished. ✓
+5. **⌘K / Ask-Pat** — verified working + mobile-graceful; no fix needed. ✓
+6. **Final pass** — desktop screenshots captured (consistent look + the polished empty state). Real-380px
+   screenshots NOT achievable in-env (constraint below). ✓ (within env limits)
+
+### ⚠️ Environment constraint (real-viewport verification)
+This environment **cannot drive a true narrow layout viewport**: `resize_window` (Chrome) and
+`preview_resize` (Preview) both leave `window.innerWidth` fixed; `chrome.debugger`/CDP
+(`Emulation.setDeviceMetricsOverride`) is unreachable from the page-context `javascript_tool`. So a
+genuine 380px screenshot isn't possible here. Mobile correctness was instead established
+**viewport-independently from the CSS facts** (a block overflows at 380px IFF it's >380px wide AND
+`overflow-x:visible` AND a nowrap-flex/table AND not contained by a scroll ancestor AND not covered by a
+≤640px rule). The `.tabbar` fix was verified the same way (computes `overflow-x:auto` under the ≤640px
+media query on the live VPS). This is a genuine verification-method limitation, surfaced honestly per the
+non-negotiables rather than claimed-as-done.
+
+### Process note (cross-absorption caught + fixed)
+A first attempt at the state-polish commit (`6c0c4fb`, since replaced) wrongly swept in L4's staged
+`screener_plus.py` — the `git add` only staged `shell_skin.py`, but L4 had `screener_plus.py` staged
+concurrently and the plain `git commit` consumed it. Caught immediately, `git reset --soft HEAD~1`, then
+`git commit src/web/shell_skin.py …` (explicit pathspec) → re-committed as `75442fd` touching ONLY
+`shell_skin.py`; L4's `screener_plus.py` was preserved in the index and L4 committed it cleanly in
+`361c95e`. **Lesson reinforced:** `git diff --cached` showing a foreign path is a HARD STOP — unstage it
+or commit with an explicit pathspec; never `git commit` a mixed index.

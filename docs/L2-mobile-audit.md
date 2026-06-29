@@ -39,5 +39,49 @@ overflowing the page. The frozen-pane screener and the `.ck-board`/plain-table s
 are untouched (already correct). Verified by CSS-fact: the rule is present + applies to `.tabbar` at
 ≤640px (computed `overflow-x:auto` under the media query) on the live VPS.
 
-## Perf (Item 3) — see §below in L2-status
-## State polish (Item 4) — unified empty/loading/error via ui_components — see §below
+## Perf (Item 3) — measured; shell injection already on the fast path
+Measured on the live VPS (Chrome Navigation Timing) for the heaviest page `/dash/stock?sym=ACC`
+(1.7 MB body):
+
+| Metric | Value |
+|---|---|
+| TTFB (responseStart) | ~508 ms |
+| responseEnd | ~686 ms |
+| domInteractive | ~705 ms |
+| domContentLoaded | ~886 ms |
+| transfer (gzip) | 371 KB |
+| decoded body | 1695 KB |
+| inline `<head>` CSS (render-blocking) | 42.6 KB across 5 `<style>` blocks |
+
+**Finding:** `domInteractive` (705 ms) is only **~20 ms after `responseEnd`** (686 ms) → CSS/JS parsing
+is **not** the bottleneck. The cost is dominated by **TTFB + the 1.7 MB body HTML transfer**, which lives
+in the FROZEN `dashboard.py`/`cockpit.py` (not L2-owned). The shell's CSS is already on the fast path:
+**inlined in `<head>` (no extra network round-trips)**, and the density `<script>` (1.3 KB) is
+intentionally **synchronous** so it sets `data-density` BEFORE first paint (deferring it would
+reintroduce a flash — a regression). The `cmdk_overlay` CSS/JS is injected at **body-end** (already
+non-blocking). The only micro-redundancy (the `.uk{}` token block re-defines the same `--bg-*` already
+at `:root`, ~1 KB) is harmless and lives in shared `ui_kit._CSS` — not worth a risky edit for ~1 KB.
+
+**Conclusion:** no safe, meaningful first-paint win exists in L2-owned files. CSS externalization was
+already deferred by Lane A2 ("marginal gain vs whole-site blast radius"); this measurement confirms that
+call. Recorded honestly rather than shipping a cosmetic "optimization" with no measurable benefit.
+
+## State polish (Item 4) — SHIPPED
+The native state system (`uk-empty`/`uk-error`/`uk-note`/`uk-skel`/`uk-spin` from `ui_components`) was
+**NOT injected on legacy reskinned pages** (verified live), and the legacy no-data block rendered as a
+bare `<div class="empty">No data…</div>` fragment. Fix (commit `75442fd`, `shell_skin.skin_css`): inject
+`ui_components.components_css()` site-wide (class-scoped, zero bleed, idempotent) + upgrade legacy
+`.empty` to the centered `uk-empty` look (○ glyph + bold ticker + generous padding). Verified live on
+`/dash/stock?sym=ZZZNOTREAL`: all 5 state rules present; `.empty` now flex/column/center with a 30px
+`::before` glyph → reads intentional.
+
+## ⌘K / Ask-Pat (Item 5) — verified, no fix needed
+In-browser: `Cmd+K` opens the overlay (`summonWorks: true`); the topbar hint collapses gracefully at
+≤640px (`.uk-cmdk` padding shrinks, the `kbd` badge hides) while staying reachable + tappable.
+
+## Real-viewport screenshots (Item 6) — constraint
+Genuine 380px screenshots are not achievable in this environment (no CDP, resize tools no-op on the
+layout viewport — see the method note at top). Desktop screenshots captured for the consistent-look
+proof (Markets/Stock/RS-hub/Screener + the polished empty state). Mobile correctness is established
+viewport-independently from the CSS facts (the `.tabbar` fix computes `overflow-x:auto` under the ≤640px
+media query; all other wide blocks are contained or covered by existing ≤640px rules).
