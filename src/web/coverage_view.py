@@ -252,7 +252,7 @@ def _section_universe(snap):
         f'<tr><td class="sym">{K.esc(k)}</td><td class="num">{_n(v)}</td></tr>'
         for k, v in [
             ("Total securities ever observed", u.get("total_securities")),
-            ("Currently listed &amp; active", u.get("active")),
+            ("Currently listed & active", u.get("active")),
             ("Delisted / inactive (retained)", u.get("delisted_or_inactive")),
             ("Left-censored at archive floor", u.get("left_censored_at_floor")),
             ("Continuity-break events", sum(breaks.values()) if breaks else None),
@@ -284,8 +284,19 @@ def _section_matrix(snap):
     for cl in classes:
         nunit = cl.get("n_unit", "symbols")
         cov = f'{_n(cl.get("n"))} <span class="mut">{K.esc(nunit)}</span>'
-        if cl.get("pct_active") is not None:
-            cov += f' <span class="mut">· {cl["pct_active"]}% of active</span>'
+        pa = cl.get("pct_active")
+        if pa is not None:
+            # The denominator is *today's active* set; a survivorship-inclusive archive
+            # (delisted names retained — see Universe) legitimately exceeds it. Label such
+            # cells "of all-time" so >100% reads as the intended breadth, not a bug, while
+            # the exact count + ratio stay visible (no number is hidden).
+            if pa > 100:
+                cov += (f' <span class="mut">· {pa}% of all-time set</span>'
+                        '<span class="uk-badge" title="Count spans every symbol ever observed, '
+                        'including delisted/renamed series the archive retains, so it exceeds '
+                        'today&#39;s active universe by design.">all-time</span>')
+            else:
+                cov += f' <span class="mut">· {pa}% of active</span>'
         bp = K.pill(cl.get("basis", "?").replace("_", " ").lower(), basis_kind.get(cl.get("basis"), "neutral"))
         note = f'<div class="mut" style="font-size:10.5px">{K.esc(cl["note"])}</div>' if cl.get("note") else ""
         mv = ' <span class="uk-badge" title="rows carry method/model version">vers</span>' if cl.get("method_versioned") else ""
@@ -301,7 +312,11 @@ def _section_matrix(snap):
               '<b>as traded</b>: a real NSE exchange date · <b>ingested</b>: a real first-seen/fetch time · '
               '<b>event</b>: a real event date · <b>derived</b>: computed from a real-dated source · '
               '<b>modeled</b>: a synthetic uniform lag (see §6). “days” coverage = distinct '
-              'trading days for market-level/index classes (which have no per-stock split).</div>')
+              'trading days for market-level/index classes (which have no per-stock split). '
+              'A coverage shown <b>“of all-time set”</b> counts every symbol the archive has ever '
+              'observed (delisted/renamed series are retained — see Universe), so it exceeds '
+              'today’s active universe by design; the active-set ratio is shown only where the '
+              'dataset is a subset of currently-active names.</div>')
     return K.card(tbl + legend, eyebrow="Per-data-class coverage matrix")
 
 
