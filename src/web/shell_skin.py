@@ -75,6 +75,15 @@ body.uk-skin header{
 }
 body.uk-skin .hback{border:1px solid #27384a;color:#9bb0c6;border-radius:8px}
 body.uk-skin .hback:hover{border-color:#4d9dff;background:#111824}
+/* M1 FOLLOW-UP (Ramana caught it): two legacy base rules leaked onto the new unified
+   topbar's <nav class="uk-nav">, because they target the bare `nav`/`nav a` elements:
+     nav   { position:fixed; bottom:0; left:0; right:0 }   (the old mobile bottom-bar)
+     nav a { flex:1 1 0; text-align:center }                (the old justified tab row)
+   → the fixed nav was lifted out of the header flex flow and overlaid the logo + search,
+   and the tabs stretched edge-to-edge. Neutralise both for the topbar nav so the logo
+   (left) + tabs (clustered) + search (right) lay out exactly like the native pages. */
+body.uk-skin .uk-top .uk-nav{position:static;bottom:auto;left:auto;right:auto;background:none;border-top:0}
+body.uk-skin .uk-top .uk-nav a{flex:0 0 auto;text-align:initial}
 /* ── cards & boxes ── */
 body.uk-skin .card,
 body.uk-skin .kpi .box,
