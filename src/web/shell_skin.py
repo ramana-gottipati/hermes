@@ -142,6 +142,51 @@ body.uk-skin table.scr tbody tr:hover td{background:#18222f !important}
 /* density — the frozen data grid's vertical row padding follows --grid-pad (6px comfortable
    == current, 3px compact). Only the big data grid is density-driven; small tables stay put. */
 body.uk-skin table.scr td,body.uk-skin table.scr th{padding-top:var(--grid-pad);padding-bottom:var(--grid-pad)}
+/* ════════════════════════════════════════════════════════════════════════════
+   Lane L2 — BLEED-THROUGH NEUTRALISATION (the `9def4ff` bug class, generalised).
+   `dashboard._BASE_CSS` (on every legacy `_shell` page) carries bare-element rules
+   (h2, table, th, td, …). A native ui_kit component (`.uk-card`/`.uk-t`/`.uk-h1`/…)
+   dropped onto a reskinned page either loses properties the native rule doesn't
+   self-assert (e.g. bare `h2{16px}` shrinks a native card heading) or inherits the
+   legacy metric. Verified IN-BROWSER: on /dash/markets an injected uk-card <h2>
+   computed 16px vs 21px on the native /dash/coverage reference.
+   Fix: re-assert the native `.uk-*` geometry under `body.uk-skin .uk-*` so the
+   specificity (0,2,x) outranks every bare element rule — ANY native component on
+   ANY reskinned page now renders identically to the native reference, immune to
+   present + future bare-element bleed-through. Tokens already inherit (ui_tokens
+   is prepended site-wide), so values track the design system, not hardcodes. ──── */
+body.uk-skin .uk-h1{font-size:22px;font-weight:600;margin:0 0 2px;letter-spacing:-.2px;color:var(--ink)}
+body.uk-skin .uk-card>h2,body.uk-skin .uk-card h2.uk-h2{font-size:21px;margin:.83em 0;color:var(--ink);font-weight:600}
+body.uk-skin .uk-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--glass)}
+body.uk-skin .uk-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--ink-3);margin:0 0 11px;display:flex;align-items:center;gap:8px}
+body.uk-skin .uk-stat .lbl{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+body.uk-skin .uk-stat .val{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;font-family:var(--mono);line-height:1;color:var(--ink)}
+/* native frozen table: re-assert metrics so bare `table/th/td` cannot fill in. */
+body.uk-skin table.uk-t{width:100%;border-collapse:collapse;font-size:13px}
+body.uk-skin .uk-t th{background:var(--bg-3);color:var(--ink-3);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;text-align:right;padding:var(--row-pad,10px) 13px;border-bottom:1px solid var(--line-2)}
+body.uk-skin .uk-t th:first-child,body.uk-skin .uk-t td:first-child{text-align:left}
+body.uk-skin .uk-t td{padding:var(--row-pad,10px) 13px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;color:var(--ink-2)}
+body.uk-skin .uk-t td.sym{color:var(--ink);font-weight:600}
+body.uk-skin .uk-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+body.uk-skin .uk-badge{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-3);border:1px solid var(--line-2);border-radius:6px;padding:2px 8px}
+body.uk-skin .uk-seg a{padding:6px 13px;font-size:12px}
+/* ════════════════════════════════════════════════════════════════════════════
+   Lane L2 — DEEPEN the legacy-primitive reskin from COLOUR-only → native GEOMETRY.
+   Lane A retinted colour; the structural gap to the native reference (radius /
+   spacing / elevation / type-scale) stayed. Re-state the geometry the native
+   ui_kit cards/stats use, on the legacy primitives, so a reskinned BODY reads as
+   native (not just dark-with-the-right-blue). No layout/sticky/z-index touched on
+   the frozen-pane grid (that geometry is sacred); only surface + type. ──────────── */
+/* radius + surface only on .card — padding is context-dependent (some .card are compact
+   filter/control strips, not content cards) so DON'T force it; let each keep its own. */
+body.uk-skin .card{border-radius:var(--r)}
+body.uk-skin .maj{border-radius:var(--r);padding:15px 16px}
+body.uk-skin .scard{border-radius:var(--r)}
+body.uk-skin .kpi .box{border-radius:var(--r-sm);padding:13px 14px}
+body.uk-skin .kpi .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
+body.uk-skin .kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+body.uk-skin .chip{border-radius:var(--r-sm)}
+body.uk-skin h2{font-size:16px;font-weight:600;letter-spacing:-.1px}
 /* ── responsive: legacy page body on a phone ── */
 @media (max-width:640px){
   body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
