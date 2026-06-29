@@ -31,6 +31,7 @@ from src.pat.flows import (
     build_credibility_query, build_deterioration_query, build_confluence_query,
     build_confluence_plan_query, PLAN_PILLARS, PLAN_CAPBAND,
     build_credibility_detail_query, build_credibility_trend_query,
+    build_credibility_evidence_query,
 )
 
 
@@ -1465,13 +1466,56 @@ def _why_credibility(conn, sym: str) -> str:
         _fact("Trend", _esc((r["credibility_trend"] or "—").title())),
         _fact("Veto", "⛔ " + _esc(r["veto_reason"] or "active") if veto else "none"),
     ])
+    # peer-relative context (concall_scores.peer_median) — value beside verdict
+    pm = r["peer_median"] if "peer_median" in r.keys() else None
+    if pm is not None and cs is not None:
+        rel = "above" if cs > pm else ("below" if cs < pm else "at")
+        reasons.append(f'{rel} the peer median ({_n(pm,0)}) on composite')
     verdict = ("reads CREDIBLE" if (not veto and (cs or 0) >= 55) else
                "reads WEAK / vetoed" if veto else "reads MIXED")
     body = (f'<div class="patWhyHd">{_esc(sym)} {verdict} — because:</div>'
             f'<ul class="patWhy">' + "".join(f"<li>{x}</li>" for x in reasons) + '</ul>'
             f'<div class="patFacts">{facts}</div>')
+    # F3-4: drill into the UNDERLYING promise-vs-delivery rows (the receipts under the score)
+    body += _why_credibility_evidence(conn, sym)
     return body + _prov(f"credibility as-of: {r['as_of_period'] or '—'}",
+                        f"rank {_int(r['rank'])} of the pilot · {_int(r['n_concalls'])} concalls scored"
+                        if ("rank" in r.keys()) else None,
                         "source: concall track-record (CCI pilot)")
+
+
+_CLASS_CLS = {"BEAT": "pos", "IN_LINE": "mut", "UNDERSTATED": "pos",
+              "MISS": "neg", "OVERSTATED": "neg", "CONCEALED": "neg"}
+_CLASS_LBL = {"BEAT": "BEAT guidance", "IN_LINE": "in line", "UNDERSTATED": "under-promised",
+              "MISS": "MISSED", "OVERSTATED": "over-promised", "CONCEALED": "concealed"}
+
+
+def _why_credibility_evidence(conn, sym: str) -> str:
+    """The actual promise-vs-delivery rows behind the guidance-accuracy score — the
+    'drill into the underlying rows' the explanation should expose (F3-4). Descriptive."""
+    try:
+        sql, params = build_credibility_evidence_query(sym, 6)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    if not rows:
+        return ""
+    items = []
+    for r in rows:
+        cl = (r["classification"] or "").upper()
+        cls = _CLASS_CLS.get(cl, "mut")
+        lbl = _CLASS_LBL.get(cl, cl.title())
+        what = (r["mgmt_expectation"] or "").strip() or (r["evidence"] or "").strip()
+        what = what[:90] + ("…" if len(what) > 90 else "")
+        metric = (r["metric"] or "").strip()
+        items.append(
+            '<li><span class="' + cls + '">' + _esc(lbl) + '</span> '
+            + (f'<b>{_esc(metric)}</b> · ' if metric else '')
+            + f'<span class="mut">{_esc(r["period_label"])}</span>'
+            + (f' — {_esc(what)}' if what else '') + '</li>')
+    return ('<div class="patWhyHd" style="margin-top:10px">The receipts — recent guidance '
+            'vs. what actually happened:</div>'
+            '<ul class="patWhy">' + "".join(items) + '</ul>')
 
 
 def _why_from_card(conn, sym: str, metric: str) -> str:

@@ -19,7 +19,7 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
 | F3-1 | **Time-series asks** — "credibility trend for X", level+momentum+trend over periods; a `trend` task over the `credibility_series` table (18,944 PIT rows) | F2-7 deferred this; mission item 4 names it explicitly. Data EXISTS (credibility_series) | `understand.py` `flows.py` `web.py` `engine.py` `disambiguate.py` | ✅ |
 | F3-2 | **Saved-boards LIST + REOPEN** in Pat itself — a `?flow=boards` view: list saved boards, one-click reopen, delete; not just the Save button | boards.py write path exists but Pat has no list/reopen surface; mission item 2 names "list + reopen" | `web.py` `routes.py` | ✅ |
 | F3-3 | **True server-side session THREAD** — a thread store so a refine can SUBTRACT ("drop the F&O ones") / pivot ("vs last quarter"), not only string-append; carries the last structured intent | current multi-turn is string-concat only — can't subtract/pivot. Mission item 1 = "server-side session context" | NEW `src/pat/thread.py` + `web.py` `routes.py` | ⬜ |
-| F3-4 | **Deepen EXPLANATIONS** — `why` drills into the underlying rows + provenance (as-of period, n promises resolved, veto reason, the concall/delivery/RS evidence) with the coverage caveat | mission item 3 = "drilling into provenance + underlying rows, with the as-of/coverage caveat" | `flows.py` `web.py` | ⬜ |
+| F3-4 | **Deepen EXPLANATIONS** — `why` drills into the underlying rows + provenance (as-of period, n promises resolved, veto reason, the concall/delivery/RS evidence) with the coverage caveat | mission item 3 = "drilling into provenance + underlying rows, with the as-of/coverage caveat" | `flows.py` `web.py` | ✅ |
 | F3-5 | **Ranked top-N** — honor "top 5", "best 10" → a bound `limit` on the surfaced flows | F2-7 deferred; mission item 4 = "ranked rankings" | `understand.py` `flows.py` `web.py` | ⬜ |
 | F3-6 | **Extend the eval-set + OOD/hallucination** — new bands for trend/boards/top-N; more adversarial + SEBI redirect cases | mission item 5 = "extend the eval-set + hallucination/OOD; tighten SEBI guardrails" | `eval_set.py` `disambiguate.py` | ✅ |
 | F3-7 | **Tighten SEBI guardrails** — broaden the advice/predict/target-price/PMS-recommendation redirect vocabulary; never a buy/sell/predict | mission item 5; the guardrail vocab is narrow today | `disambiguate.py` | ✅ |
@@ -56,3 +56,11 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
   WATCHLIST-alignment line (`alerts.watchlist_alignment`, previously unused — shows only when
   a watchlist overlaps confluence, so it stays silent when empty). Both carry the as-of date +
   descriptive caveat. strategist_view.py only; VPS selftest + workbench 200 + both gates PASS.
+- F3-4 — deepened the WHY-credible explanation: it now drills past the score into the
+  UNDERLYING rows. New `build_credibility_evidence_query` over concall_expectations_vs_actual
+  (14,942 rows) + `_why_credibility_evidence` renders "The receipts" — the specific recent
+  guidance vs. what actually happened (BEAT / in-line / MISSED / over-promised / concealed,
+  colour-coded, with the metric + period + the management's own words). Also added peer-median
+  context (above/below the peer median) + a richer provenance footer (rank N of the pilot ·
+  M concalls scored · as-of period). Descriptive evidence, never a recommendation. Live ✓
+  (NAVINFLUOR shows receipts + peer median + rank); eval unchanged; BOTH gates PASS.

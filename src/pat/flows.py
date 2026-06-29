@@ -700,7 +700,7 @@ def build_credibility_detail_query(symbol: str) -> tuple[str, list]:
         "s.transparency_score, s.quantification_rate, s.forward_direction, s.forward_conviction, "
         "s.credibility_trend, s.tier, s.rank, s.n_concalls, s.n_promises_resolved, "
         "s.veto_active, s.veto_reason, s.deterioration_score, s.mispricing_flag, "
-        "s.as_of_period, s.as_of_date "
+        "s.peer_median, s.as_of_period, s.as_of_date "
         "FROM concall_scores s "
         "JOIN (SELECT symbol, MAX(last_updated) AS m FROM concall_scores GROUP BY symbol) x "
         "  ON x.symbol = s.symbol AND x.m = s.last_updated "
@@ -708,6 +708,24 @@ def build_credibility_detail_query(symbol: str) -> tuple[str, list]:
         "LIMIT 1"
     )
     return sql, [symbol]
+
+
+def build_credibility_evidence_query(symbol: str, limit: int = 6) -> tuple[str, list]:
+    """The UNDERLYING promise-vs-delivery rows behind a credibility read (the F3-4 drill):
+    the specific guidance the management gave and how it actually landed (BEAT / IN_LINE /
+    MISS / OVERSTATED / CONCEALED), newest first, from concall_expectations_vs_actual
+    (14,942 rows). Descriptive evidence — the *receipts* under the score. Bound on symbol;
+    LIMIT clamped + bound."""
+    limit = max(1, min(int(limit or 6), 20))
+    sql = (
+        "SELECT period_label, metric, mgmt_expectation, expected_value, actual_value, "
+        "classification, evidence "
+        "FROM concall_expectations_vs_actual "
+        "WHERE symbol = ? AND classification IS NOT NULL "
+        "ORDER BY id DESC "
+        "LIMIT ?"
+    )
+    return sql, [symbol, limit]
 
 
 def build_credibility_trend_query(symbol: str, limit: int = 24) -> tuple[str, list]:
