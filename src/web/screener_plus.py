@@ -331,6 +331,35 @@ def _parity_view() -> str:
         'that Screen+ deliberately summarises to stay readable; both read the SAME '
         'precomputed tables. Promotability = every family present + a superset of lenses. '
         'Descriptive-only; the §C falsification stands (no buy/sell ranking).</div>')
+    # the exact promotion checklist (the nav-slot flip is the orchestrator's, via
+    # lens_registry — this enumerates what is DONE so the flip is a clean swap).
+    checklist = [
+        ("Column-superset of legacy /dash/screener", True, "8/8 analytic families + 3 new lenses (above)"),
+        ("Confluence column (MEP×CCI×RS×CPR×Wolfe)", True, "0-6 confluence with per-pillar dots + ★ flag"),
+        ("Scope parity (Nifty 500 default · all · watch · sectors)", True, "same _sector_symbols + index list as legacy"),
+        ("Saved screens (name / load / delete)", True, "localStorage s2_screens_v1; persists scope + group toggles"),
+        ("Group show/hide toggles (persisted)", True, "localStorage s2_hidden_v1; restored on load"),
+        ("CSV export (visible cols + rows, data-v aware)", True, "client-side Blob; escaped; includes new lenses"),
+        ("Filter + click-to-sort on every column", True, "table.dt + s2filter"),
+        ("Pat bridge (scope → confluence query / save board)", True, "“Ask Pat: confluence here” + “Save as Pat board”"),
+        ("Descriptive framing (no buy/sell ranking)", True, "ranked by confluence count, §C-safe"),
+        ("Nav slot via lens_registry → make it the default Screener", False,
+         "ORCHESTRATOR — register /dash/screen2 as Screener default; legacy stays at /dash/screener"),
+    ]
+    crows = []
+    for label, done, detail in checklist:
+        mark, kind = ("✓ done", "up") if done else ("→ orchestrator", "neutral")
+        crows.append(
+            f'<tr><td>{K.pill(mark, kind)}</td><td class="l"><b>{K.esc(label)}</b></td>'
+            f'<td class="l mut" style="font-size:11.5px">{K.esc(detail)}</td></tr>')
+    n_done = sum(1 for _, d, _ in checklist if d)
+    checklist_html = (
+        '<div class="wb-sec-lbl" style="margin-top:22px">Promotion checklist '
+        f'<span class="mut" style="text-transform:none;font-weight:400">({n_done}/{len(checklist)} done · '
+        'the last is the nav flip)</span></div>'
+        '<table class="dt" style="width:100%"><thead><tr><th>Status</th>'
+        '<th class="l">Requirement</th><th class="l">Evidence / owner</th></tr></thead>'
+        f'<tbody>{"".join(crows)}</tbody></table>')
     head = (
         '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
         '<h1 class="uk-h1">Screen+ · column parity</h1>'
@@ -338,7 +367,7 @@ def _parity_view() -> str:
                   f"{len(rep['extra'])} new lenses") + '</div>'
         f'<div class="sec" style="margin-bottom:6px">{K.pill(verdict, vkind)}</div>')
     back = '<a class="st-open" href="/dash/screen2" style="display:inline-block;margin:10px 0">← back to Screen+</a>'
-    return _CSS + head + back + table + note
+    return _CSS + head + back + table + note + checklist_html
 
 
 # ── the page ─────────────────────────────────────────────────────────────────
