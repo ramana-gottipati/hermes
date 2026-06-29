@@ -370,7 +370,8 @@ def route_extra(query: str) -> dict | None:
         # the model's sector/nuance parse, so it rides the Gemini → fallback path.)
         try:
             from src.pat.understand import (detect_compare, detect_strategy_key,
-                                            detect_why, detect_trend)
+                                            detect_why, detect_trend,
+                                            detect_single_credibility)
             _tr = detect_trend(query)            # "credibility trend for X" → time-series
             if _tr:
                 return {"flow": "trend", "params": {"sym": _tr}}
@@ -383,6 +384,15 @@ def route_extra(query: str) -> dict | None:
             _sk = detect_strategy_key(qn)
             if _sk:
                 return {"flow": "strategy", "params": {"key": _sk}}
+            # single-name credibility ("is X credible" / "confluence on X") → the
+            # evidence-backed why/credibility read, deterministically (₹0). Placed
+            # AFTER compare/strategy (so "X vs Y credibility" / a board ask win) and
+            # BEFORE the generic single-stock card catch below, so a one-name TRUST
+            # question lands on the credibility evidence, not the bare snapshot card.
+            # detect_single_credibility itself defers to why/trend + definition asks.
+            _sc = detect_single_credibility(query)
+            if _sc:
+                return {"flow": "why", "params": {"sym": _sc, "metric": "credibility"}}
         except Exception:
             pass
 

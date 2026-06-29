@@ -205,7 +205,17 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
   ("they did NOT want X; they wanted: <expected>") into the routing prompt. ₹0,
   fails open to '' before any learning. The same store is the labeled dataset for
   the future OWNED offline model.
-- ⬜ `[thread]` P1 — conversational refinement (§6) + implicit re-ask detection.
+- ✅ `[thread]` P1 — **TRUE multi-turn thread store SHIPPED** (§6, Lane L4): new
+  self-contained `src/pat/threads.py` owns `pat_threads` (lazy CREATE TABLE; db.py
+  untouched) — server-side per-browser memory keyed by a `tid` cookie. `render_pat`
+  now accepts an optional `tid` (+ `new=1` 'start over'); renders a compact
+  "This conversation" trail above the answer (only once ≥2 turns) and records each
+  concrete answer as a turn (rolling 12-turn window). **INERT for the default
+  `tid=""`** (zero behaviour change until wired). The L1↔L4 call-site contract
+  (forward a `pat_tid` cookie into `render_pat`) is **already landed** in
+  `dashboard.py:1449` (reads/validates/mints the cookie, sets it httponly+lax 30d).
+  Still open: implicit re-ask detection (a thread rephrase = silent 👎) now that the
+  turn history exists to detect it.
 - ✅ `[all flows]` P1 — "reporting follows the question" extended (§3.2): accumulation
   window ('' / 1m / 3m → re-rank by + lead with ratio_today_vs_power_1m/3m) and movers
   window (today vs this-week, % vs the close ~7 days back via a bound date join). Both
@@ -231,6 +241,18 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
 - ✅ `[eval]` gold eval set (`eval_set.py`) — `run_compiler_eval` (₹0 reasoning check,
   13/13) + `run_route_eval` (end-to-end). The measurement + regression net Pat lacked,
   and the labeled-dataset seed for the owned model.
+- ✅ `[credibility]` NEW intent (Lane L4) — **single-name credibility read**: "is X
+  credible", "how credible is X", "X credibility", "confluence on X", "can I trust X
+  management" → the evidence-backed `why`/credibility flow for ONE name (raw verdict +
+  the credibility evidence beside it), wired as a **₹0 deterministic pre-router** in
+  `disambiguate.route_extra` (so it fires live, before any Gemini token) AND in
+  `parse_fallback` (quota-proof). Precedence: AFTER compare/strategy/trend/why (so
+  "X vs Y", a board ask, or "credibility trend for X" still win) and BEFORE the generic
+  single-stock card (so a one-name TRUST question lands on the evidence, not a bare
+  snapshot). Negative guards verified: a plural "most credible managements" stays the
+  leaders board; "what is credibility" stays the glossary explain. +6 gold cases (route
+  eval 54/55 → 60/61, 0 regressions; compiler 31/31). Descriptive-only (the §C
+  falsification stands — credibility is evidence, never a buy call).
 - ⬜ `[fundamentals]` P2 — emphasis-follows-question (lead with the asked ratio when a
   fundamentals query names one, e.g. "ranked by ROE" → ROE leads). Carved out of the
   reporting-follows-question item above.
@@ -461,6 +483,43 @@ VPS backup: `src/pat/.bak-patf-20260628-175218/`.
 **Open (optional next):** a fundamentals-coverage caveat in the planner footer (the
 value/quality pillars hit the sparse cached-Screener set); sector parse on the ₹0
 planner path; the oscillators nightly job (still pending, ops).
+
+---
+
+## 14. Session wrap — 2026-06-29 (Lane L4: TRUE multi-turn + single-name credibility)
+
+Two Pat capabilities landed, `src/pat/*` only, each verified + harness-green:
+
+1. **TRUE multi-turn thread store** (§6 closed). New self-contained
+   `src/pat/threads.py` owns `pat_threads` (lazy CREATE TABLE; `db.py` untouched) —
+   server-side per-browser conversation memory keyed by a `tid`. `render_pat` gained
+   an optional `tid` (+ `new=1` 'start over'): a compact "This conversation" trail
+   renders above the answer once ≥2 turns exist, and each concrete answer is recorded
+   (rolling 12-turn window). **Completely inert for the default `tid=""`** — zero
+   behaviour change anywhere it isn't wired. The L1↔L4 call-site contract (forward a
+   `pat_tid` cookie into `render_pat`) was found **already landed** by Lane L1 in
+   `dashboard.py:1449` (reads/validates/mints the cookie; sets it httponly + samesite=lax,
+   30 days), so the feature is fully wired end-to-end — verified via TestClient cookie
+   persistence (turn 1 → no trail; turn 2 → trail shows).
+
+2. **Single-name credibility intent** (a new richer NL intent). "is X credible" /
+   "how credible is X" / "X credibility" / "confluence on X" / "can I trust X management"
+   → the evidence-backed `why`/credibility read for one name. Wired as a **₹0
+   deterministic pre-router** in `disambiguate.route_extra` (fires before Gemini) AND in
+   `understand.parse_fallback` (quota-proof), placed after compare/strategy/trend/why and
+   before the generic single-stock card. Negative guards proven: plural "most credible
+   managements" → leaders board; "what is credibility" → glossary explain.
+
+**Verification:** `threads` selftest OK (mint/validate/record/history/context/trim/clear);
+`eval_set` compiler **31/31**, route fallback **60/61** (+6 new credibility cases, 0
+regressions; the only fail is the pre-existing "cheap stocks under PE 15"), EXPLAIN
+493/495 + CATALOG 138/202 floors unchanged, hallucination/injection 8/8;
+`scripts/chrome_gate.py` PASS (11 legacy + 4 native); `/dash/pat` TestClient 200 with the
+trail inert at `tid=""`. Descriptive-only throughout (the §C falsification stands).
+
+**Open / next:** implicit re-ask detection (a thread rephrase = a silent 👎 — the turn
+history now exists to detect it); saved-boards polish; the fundamentals
+emphasis-follows-question lead-column; the offline owned-model fine-tune.
 
 ---
 
