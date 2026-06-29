@@ -5,6 +5,72 @@
 > **bounded** (fits its container, no overflow, retina-crisp), and the L3 action for each.
 > Companion: `docs/chart-redesign-design.md` (§14 resume), `docs/harmonic-pattern-design.md`,
 > memory `charting-overhaul-cpr-spine.md`.
+> **Wave-2 addendum: §8–§11 below** (drawing persistence · families-where · multi-TF harmonic · perf).
+
+---
+
+## WAVE 2 (2026-06-29) — addendum
+
+### §8. Drawing persistence → server (Wave-2 item 1, SHIPPED)
+The on-chart drawing engine now persists **server-side**, so drawings follow the user across
+device + browser (not just a reload in the same one).
+- **`src/web/drawings_store.py`** (NEW, owned) — `GET`/`POST /dash/drawings?sym=X` over a
+  module-owned `chart_drawings` table (`CREATE IF NOT EXISTS` in the module; `db.py` untouched,
+  same pattern as `harmonic_signals`). Whole-set replace, count+size caps (500 items / 256 KB),
+  empty-list deletes the row, never 500s the chart. Router self-mounts via
+  `wolfe_view.include_router` (no `main.py` edit, redeploy-durable).
+- **`stock_chart.py` `makeDraw()`** — on load, adopts the server copy if non-empty (server wins
+  over the local cache; first-time local→server migration if the server is empty); `save()`
+  debounce-POSTs (600 ms coalesce) + flushes on `beforeunload`. `localStorage` stays as the
+  instant/offline cache.
+- **In-browser verified (live, WIPRO):** seeded 2 drawings on the SERVER with `localStorage`
+  cleared (= a different session), hard-reloaded → the engine fetched them, rehydrated
+  `localStorage`, and DREW them (blue trendline + purple hline@250 visible on candles). Round-trip
+  also proven via TestClient + live curl. Commit `6e3b22d`.
+
+### §9. Chart families — where they are / aren't (Wave-2 item 2)
+The chart-type family controls (Candles / Hollow / Heikin-Ashi / Line / Area / Renko / Kagi;
+P&F flagged "soon") live in **`stock_chart.SNIPPET`**, which renders on **`/dash/stock` only**.
+
+| Surface | Renders a price candle chart? | Families available? | Why |
+|---|---|---|---|
+| `/dash/stock` | **YES** (the workstation) | **ALL** (Candles/Hollow/Heikin/Line/Area/Renko/Kagi; P&F soon) | the canonical chart |
+| `/dash/rrg` | No — RRG scatter (SVG) | n/a | not a time-series price chart |
+| `/dash/ratio` | a single ratio LINE (frozen `dashboard.py`) | no | a ratio line, not OHLC; families don't apply |
+| `/dash/rs` | tables + sparklines | n/a | no primary price chart |
+| `/dash/wolfe`, `/dash/harmonic` | scanner tables → click into `/dash/stock` | inherit (on the stock chart) | the overlay draws on the stock chart's families |
+
+**Decision:** chart-type families belong to the **stock workstation** — it is the only surface in
+L3's modules that renders OHLC bars, so "families site-wide" = *available wherever a price candle
+chart renders, which is `/dash/stock`*. The other surfaces are single-purpose (scatter / ratio
+line / tables); adding a Renko/Kagi selector to a ratio line or an RRG scatter would be a control
+that does nothing. No new surface to roll families onto within L3's ownership. (`/dash/ratio`'s
+line chart is in frozen `dashboard.py` — even a Line/Area toggle there is an L1 change, not L3.)
+
+### §10. Multi-TF harmonic (Wave-2 item 3, VERIFIED — no regression)
+Harmonic detection runs **Daily / Weekly / Monthly** consistently — confirmed live:
+- `/dash/harmonic/overlay?sym=ACC&tf=d` → Gartley+Crab BEAR FORMING (4 pts, +PRZ)
+- `…&tf=w` → Butterfly BULL CONFIRMED (5 pts)
+- `…&tf=m` → Crab BULL FORMING (4 pts, +PRZ)
+The `stock_chart.SNIPPET` re-fetches W/M when the price interval crosses into them (`harmTf`
+guard) and re-snaps point dates onto the resampled bars. **In-browser verified (ACC):** Harmonic
+chip ON + interval = Weekly → chip drew on the weekly resample, `window.__wfpc` intact, no chart
+console errors. DESCRIPTIVE-only (read-by-side caveat in the legend). No TF regression found.
+
+### §11. Perf — chart-JS first-paint (Wave-2 item 5, MEASURED → frozen-file hand-off)
+**Measured (live, ACC, Performance API):** the lightweight-charts lib script is **cached
+(transferSize 0), 9 ms duration**, loads at startTime 446 ms; domInteractive 562 ms,
+DOMContentLoaded 813 ms. The lib `<script>` is `async:false, defer:false`.
+- The lib is **NOT the bottleneck** (9 ms cached). The real cost is chart *construction*
+  (5416 bars → `setData` on 7 series) in `boot()`.
+- The lib `<script src=…>` tag for `/dash/stock` is emitted in **frozen `dashboard.py`** (~line
+  7162/8275) — L3 cannot add `defer`/`async` to it.
+- Deferring `boot()` (e.g. `requestIdleCallback`) would risk the `window.__wfpc` contract that the
+  CPR/MA/MEP/RS/Wolfe/Harmonic overlays bind to synchronously after DOMContentLoaded.
+- **Verdict:** the meaningful lever (defer the lib tag) is a **frozen-`dashboard.py` hand-off to
+  L1**; deferring boot in-SNIPPET isn't worth the contract risk for a 9 ms cached lib. Documented,
+  not forced. (If L1 ever adds `defer` to the lib tag, the SNIPPET already guards
+  `if(!window.LightweightCharts)` so it degrades gracefully.)
 
 ---
 
@@ -144,7 +210,7 @@ Shipped and live in `stock_chart.makeDraw()` on `/dash/stock`:
 | 4 | Bounded engine onto RRG | **N/A — RRG self-bounded** (§4); coordinate read-only, no edit |
 | 5 | Bounded engine onto RS + ratio | RS = N/A (no primary chart); ratio = **L1 hand-off** (frozen file, §4) |
 | 6 | Four-family controls consistent across surfaces | **DONE — decision documented** (§5): rail = stock-chart contract |
-| 7 | Drawing engine + magnet + persistence | **DONE** (§6); SQLite persistence = future tier |
+| 7 | Drawing engine + magnet + persistence | **DONE** (§6) + **SQLite server persistence SHIPPED in Wave 2** (§8, `6e3b22d`) |
 | 8 | Harmonic + Wolfe overlays still draw on bounded engine; `__wfpc` intact | **DONE — verified** (§8): `__wfpc`+`__wfcandle` present; wolfe/harmonic/cpr/mep overlay feeds all 200 + drawable; MA50/200 drawing on the bounded chart |
 | 9 | Final in-browser pass — screenshot every surface | **DONE** (§8): fresh-checkout build re-verified `#priceChart{max-width:1280px}` 1058×620 in 1182 vp, no x-overflow, 7 canvases, zero app console errors, full four-family rail |
 
@@ -184,9 +250,9 @@ first (chrome 11+4 · 31 routes + 4 overlays all 200, `HOST=local`).
 - **Console:** zero app/chart errors on the GAMMA page (the only errors captured were benign
   Chrome-extension "message channel closed" noise from a *different* tab).
 
-**Net:** the bounded single-engine contract holds on a clean build of `ccbd25e`. No L3 engine
-build was warranted — the mission was shipped in S41/42/48/49; this session is the verification
-close-out. Deliberately **not** built: SQLite drawing persistence (a documented *future tier*;
-localStorage `hdraw:<sym>` is the current contract and a single-user app does not need cross-device
-sync yet) — a clean one-commit follow-up if Ramana wants it. Ratio-chart bounding and the
-sparkline `preserveAspectRatio="none"` cells remain **L1/L2 hand-offs** (frozen files, §2/§4).
+**Net (Wave 1):** the bounded single-engine contract holds on a clean build of `ccbd25e`. No L3
+engine build was warranted — the mission was shipped in S41/42/48/49; Wave 1 is the verification
+close-out. **Wave 2 then BUILT the one real net-new feature: SQLite server-side drawing
+persistence** (§8, `6e3b22d`) — drawings now follow the user across device+browser, not just a
+same-browser reload. Ratio-chart bounding, the lib-`<script>` `defer` perf lever (§11), and the
+sparkline `preserveAspectRatio="none"` cells remain **L1/L2 hand-offs** (frozen files, §2/§4/§11).

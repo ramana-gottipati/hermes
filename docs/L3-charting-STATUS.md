@@ -1,9 +1,33 @@
 # Lane L3 — Charting site-wide — STATUS (2026-06-29)
 
-> Wrap note for Lane L3. Base HEAD was `05cdeae`; L3 commit = **`ccbd25e`**. Both gates PASS.
-> Full inventory + triage = `docs/L3-chart-inventory.md`.
+> Wrap note for Lane L3. Base HEAD was `05cdeae`; L3 commits = **`ccbd25e`** (Wave 1) +
+> **`6e3b22d`** (Wave 2). Both gates PASS. Full inventory = `docs/L3-chart-inventory.md`
+> (Wave 2 = §8–§11).
 
-## What L3 found
+## WAVE 2 (2026-06-29) — server drawing persistence + verification
+- **SHIPPED — server-side drawing persistence** (`6e3b22d`): NEW `src/web/drawings_store.py`
+  (`GET`/`POST /dash/drawings` over a module-owned `chart_drawings` SQLite table, self-mounted via
+  `wolfe_view.include_router`) + `stock_chart.py` `makeDraw()` adopts the server copy on load
+  (local→server migration if empty) and debounce-POSTs on save + `beforeunload`. localStorage stays
+  the offline cache. **In-browser verified (live WIPRO):** server-seeded drawings with localStorage
+  CLEARED survived a hard reload and DREW (blue trendline + purple hline@250); round-trip also via
+  TestClient + live curl. Deployed atomically (backup `*.bak-L3` → scp LF → CRLF=0 → import-test →
+  restart → health 200).
+- **Families-where (item 2):** documented — families live in `stock_chart.SNIPPET`, available wherever
+  a price candle chart renders = `/dash/stock`; other surfaces are single-purpose so families don't
+  apply. No new surface in L3's modules. (inv §9)
+- **Multi-TF harmonic (item 3):** VERIFIED — D/W/M all detect (D=Gartley+Crab BEAR, W=Butterfly BULL,
+  M=Crab BULL); chip re-fetches W/M on interval change; in-browser ON+Weekly drew, `__wfpc` intact. (inv §10)
+- **Harness gap (item 4):** made the edit (add `/dash/harmonic/overlay?sym=ACC` to OVERLAYS), proved
+  the sweep PASSES with 5 overlays all 200, then **reverted** (shared + foreign-dirty file — not
+  absorbed). **HAND-OFF** via spawn_task `task_d0a923cf` + this note.
+- **Perf (item 5):** MEASURED — lib script cached (transferSize 0, 9 ms), NOT the bottleneck; lib
+  `<script>` tag is in frozen `dashboard.py` (can't add `defer`); deferring `boot()` risks `__wfpc`.
+  **Verdict: frozen-dashboard.py hand-off to L1.** (inv §11)
+
+---
+
+## WAVE 1 — What L3 found
 The L3 mission (bounded engine site-wide · four-family controls · drawing engine ·
 revive-or-retire `hermes-charts.js`) was **largely already shipped** across Sessions
 41/42/48/49 (`stock_chart.SNIPPET`, the four-family rail, the drawing engine + magnet +
