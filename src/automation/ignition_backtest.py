@@ -265,8 +265,11 @@ def compute_and_store(conn=None, limit: Optional[int] = None) -> dict:
                 no_price += 1
                 continue
             idxmap = ps["idx"]
-            # break dates for this symbol (truncate the window at the first break after signal)
-            breaks = [e["ex_date"] for e in security_master.events_for(sym, conn=conn)]
+            # break dates for this symbol, ascending (truncate the window at the first
+            # continuity break that lands inside it). events_for already orders by
+            # ex_date, but sort explicitly so the "first in-window break" logic below is
+            # correct regardless of source order (CL-SCO-09).
+            breaks = sorted(e["ex_date"] for e in security_master.events_for(sym, conn=conn) if e["ex_date"])
             # SS positions present in the price series, ascending
             ss = [(r, idxmap[r["trade_date"]]) for r in by_sym[sym] if r["trade_date"] in idxmap]
             ss.sort(key=lambda t: t[1])
@@ -282,13 +285,25 @@ def compute_and_store(conn=None, limit: Optional[int] = None) -> dict:
                     skipped += 1
                     continue
                 end_idx = min(entry_idx + MAX_HORIZON, len(ps["dates"]) - 1)
-                # truncate at the first continuity break strictly after the signal
+                # CL-SCO-01: truncate at the FIRST continuity break strictly after the
+                # signal whose position lands inside [entry_idx, end_idx]. Iterate ALL
+                # breaks (don't stop at the first one inspected): a pre-signal break must
+                # be skipped, not allowed to abort the scan, and a demerger/merger that
+                # occurs AFTER the signal must still truncate the journey so a
+                # scheme-of-arrangement gap is never counted as a return (the Continuity
+                # non-negotiable). `breaks` is ascending, so the first in-window break is
+                # also the earliest → stop once it is found.
                 brk = 0
                 for bd in breaks:
-                    if bd and bd > r["trade_date"]:
-                        bpos = idxmap.get(bd)
-                        if bpos is not None and entry_idx <= bpos <= end_idx:
-                            end_idx, brk = max(entry_idx, bpos - 1), 1
+                    if bd <= r["trade_date"]:          # pre-signal break — skip, keep scanning
+                        continue
+                    bpos = idxmap.get(bd)
+                    if bpos is None:
+                        continue                        # break date not a trading row in this series
+                    if bpos > end_idx:                  # earliest post-signal break is already past the window
+                        break
+                    if entry_idx <= bpos <= end_idx:    # break lands inside the journey → truncate here
+                        end_idx, brk = max(entry_idx, bpos - 1), 1
                         break
                 if end_idx <= entry_idx:
                     skipped += 1
@@ -301,7 +316,15 @@ def compute_and_store(conn=None, limit: Optional[int] = None) -> dict:
                 bmean = _mean([r[c] for c in POWER_BASELINES])
                 if bmean and bmean > 0 and r["dvpt"]:
                     intensity = r["dvpt"] / bmean
-                censored = 1 if jr["n_days_held"] < MAX_HORIZON and end_idx >= len(ps["dates"]) - 1 and not brk else 0
+                # CL-SCO-03: "censored" = the journey is RIGHT-CENSORED because the
+                # price series ran out before the intended MAX_HORIZON could complete —
+                # a data-exhaustion test, independent of how many days were actually
+                # held. (The old `n_days_held < MAX_HORIZON` clause conflated a genuinely
+                # young/recent signal with a truncated one.) A break-truncated window is
+                # NOT censored — it ended for a real corporate-action reason, flagged
+                # separately by `brk`.
+                data_exhausted = (entry_idx + MAX_HORIZON) > (len(ps["dates"]) - 1)
+                censored = 1 if (data_exhausted and not brk) else 0
                 rec = {
                     "symbol": sym, "signal_date": r["trade_date"],
                     "entry_date": ps["dates"][entry_idx], "intensity": intensity,
@@ -440,8 +463,51 @@ def _selftest() -> None:
     s = summarize(conn=conn, full_only=False)
     assert s["events"] == 1 and s["winners"] == 1, s                  # +50% before -15% = win
     assert s["win_grid_pct"]["tgt+25/stop-15"] == 100.0, s["win_grid_pct"]
+
+    # ── CL-SCO-01: iterate ALL continuity breaks; truncate at the first that lands in
+    # the window. The OLD code `break`-ed on the first POST-signal break inspected even
+    # when it did not truncate — so a leading break that is a NON-TRADING-ROW date
+    # (bpos is None) made the scan miss a later real in-window demerger, and the scheme
+    # gap leaked into the return. This case distinguishes old (MFE=50, scheme gap leaks)
+    # from new (MFE=40, truncated). BRK: signal day0, entry day1 @100; the real DEMERGER
+    # is day7 (after which a scheme gap jumps price to 300 = a fake +200%); the journey
+    # must truncate at day6 (price 140) → MFE ~ +40%, gap excluded.
+    conn.execute("DELETE FROM ignition_outcomes")
+    conn.execute("INSERT INTO security_master (symbol, currently_listed, recently_traded) VALUES ('BRK',1,1)")
+    bprices = [100] * 2 + [105, 110, 120, 130, 140, 150, 300, 300] + [300] * 30  # day7=150 then a scheme gap to 300
+    prev = 100
+    for i, c in enumerate(bprices):
+        o = prev; hi = max(o, c); lo = min(o, c)
+        conn.execute("INSERT INTO bhavcopy_rows VALUES ('BRK',?,?,?,?,?,?,?)",
+                     (day(i), "EQ", o, hi, lo, c, prev))
+        prev = c
+    conn.execute(f"INSERT INTO stock_signals ({cols}) VALUES ({ph})",
+                 ("BRK", day(0), "SS", "ACCUMULATION", 70, 40.0, *([4.0] * len(POWER_BASELINES))))
+    # Two post-signal events: the FIRST (earliest ex_date) is a non-trading-row date
+    # (resolves to no series index) → the scan must SKIP it and keep going; the second
+    # is the real day-7 demerger that must truncate. (Also covers "don't stop early".)
+    conn.executemany("INSERT INTO security_events (symbol, event_type, ex_date, details, source) VALUES (?,?,?,?,?)", [
+        ("BRK", "SCHEME",   "2020-01-04x", "non-trading-row break — must be skipped", "test"),
+        ("BRK", "DEMERGER", day(7),        "post-signal demerger — must truncate", "test"),
+    ])
+    bstats = compute_and_store(conn=conn)            # reprocesses WIN + BRK
+    assert bstats["events_stored"] == 2, bstats
+    brow = dict(conn.execute("SELECT * FROM ignition_outcomes WHERE symbol='BRK'").fetchone())
+    assert brow["break_in_window"] == 1, brow                         # the post-signal break WAS detected
+    # truncated at day 7-1=6 (price 140) → MFE ~ +40%, NOT +200% (the 300 scheme gap excluded)
+    assert 35.0 < brow["mfe_pct"] < 45.0, ("scheme gap leaked into MFE", brow["mfe_pct"])
+    assert brow["entry_date"] == day(1), brow
+    # break-truncated windows are NOT data-censored (CL-SCO-03)
+    assert brow["censored"] == 0, ("break-truncation must not set censored", brow["censored"])
+
+    # ── CL-SCO-03: a recent signal whose forward window runs off the end of the data
+    # is RIGHT-CENSORED (data-exhausted) regardless of n_days_held; nothing to do with
+    # being "young". WIN above ran to the series end with no break → must be censored. ─
+    assert row["censored"] == 1, ("data-exhausted journey must be censored", row["censored"])
+
     print(f"ignition_backtest selftest: OK  mfe={row['mfe_pct']:.1f} "
-          f"mae_pre={row['mae_before_peak_pct']:.1f} ttp={row['time_to_peak_days']}")
+          f"mae_pre={row['mae_before_peak_pct']:.1f} ttp={row['time_to_peak_days']}  "
+          f"| break-truncation mfe={brow['mfe_pct']:.1f} (scheme gap excluded)")
 
 
 def main() -> None:
