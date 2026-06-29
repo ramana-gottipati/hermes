@@ -410,3 +410,12 @@ try:
     router.include_router(_harmonic_router)
 except Exception:  # pragma: no cover - never let the harmonic lane break the Wolfe routes
     pass
+
+# Mount the server-side DRAWING STORE (/dash/drawings GET+POST) onto THIS router too,
+# so the on-chart drawing engine's persistence goes live without a main.py edit and
+# survives a redeploy (committed) — same durable include pattern as harmonic above.
+try:
+    from src.web.drawings_store import router as _drawings_router
+    router.include_router(_drawings_router)
+except Exception:  # pragma: no cover - never let the drawing store break the Wolfe routes
+    pass

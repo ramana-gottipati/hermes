@@ -462,11 +462,37 @@ SNIPPET = """<script>
   function makeDraw(pc, series, host, bar, getRows){
     var sym=new URLSearchParams(location.search).get('sym')||'_';
     var KEY='hdraw:'+sym;
+    // localStorage = instant + offline cache; the SERVER store (/dash/drawings) is the
+    // source of truth when reachable, so drawings follow you across device + browser.
     var items=[]; try{ items=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ items=[]; }
     var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null;
     var FIB=[0,0.236,0.382,0.5,0.618,0.786,1];
 
-    function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+    // ---- server persistence (debounced) -------------------------------------
+    var saveT=null, lastSent=null;
+    function pushServer(){
+      if(sym==='_') return;                       // no symbol → local-only
+      var body=JSON.stringify(items);
+      if(body===lastSent) return;                 // nothing changed since last push
+      lastSent=body;
+      try{ fetch('/dash/drawings?sym='+encodeURIComponent(sym),
+        {method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true})
+        .catch(function(){}); }catch(e){}
+    }
+    function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){}
+      if(saveT) clearTimeout(saveT); saveT=setTimeout(pushServer, 600); }   // coalesce rapid edits
+    // flush a pending save when the tab is hidden / unloaded (don't lose the last edit)
+    window.addEventListener('beforeunload', function(){ if(saveT){ clearTimeout(saveT); pushServer(); } });
+    // on load, adopt the server copy if it has drawings (it wins over the local cache);
+    // if the server is empty but we have a local cache, seed the server from it (migration).
+    if(sym!=='_'){
+      try{ fetch('/dash/drawings?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
+        var srv=(d&&Array.isArray(d.items))?d.items:[];
+        if(srv.length){ items=srv; try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){}
+          lastSent=JSON.stringify(items); sel=null; redraw(); }
+        else if(items.length){ pushServer(); }   // first-time migration: local -> server
+      }).catch(function(){}); }catch(e){}
+    }
     function bars(){ return getRows(); }
     function nearestBarX(x){ var R=bars(),ts=pc.timeScale(),best=null,bd=1e9;
       for(var i=0;i<R.length;i++){ var cx=ts.timeToCoordinate(R[i].time); if(cx==null)continue; var dd=Math.abs(cx-x); if(dd<bd){bd=dd;best=R[i];} } return best; }
