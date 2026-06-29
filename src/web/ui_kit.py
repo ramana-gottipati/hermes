@@ -115,8 +115,9 @@ _CSS = """<style>
 .uk-nav a:hover{color:var(--ink);background:var(--bg-2)}
 .uk-nav a.on{color:var(--ink);background:var(--accent-dim);box-shadow:var(--glass)}
 .uk-cmdk{margin-left:auto;display:inline-flex;align-items:center;gap:9px;padding:6px 11px;border:1px solid var(--line-2);
-  border-radius:9px;color:var(--ink-3);font-size:12px;cursor:pointer;transition:var(--t);background:var(--bg-1)}
+  border-radius:9px;color:var(--ink-3);font:500 12px/1 var(--font);text-align:left;cursor:pointer;transition:var(--t);background:var(--bg-1)}
 .uk-cmdk:hover{border-color:var(--accent);color:var(--ink-2)}
+.uk-cmdk:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
 .uk-cmdk kbd{font-family:var(--mono);background:var(--bg-3);border:1px solid var(--line-2);border-radius:5px;padding:1px 6px;font-size:11px;color:var(--ink-2)}
 
 /* sub-nav (one paradigm everywhere) */
@@ -240,7 +241,13 @@ def chart_host(host_id: str = "ukChart", inner: str = "") -> str:
 
 
 def cmdk_hint() -> str:
-    return '<div class="uk-cmdk">Search or ask Pat <kbd>⌘K</kbd></div>'
+    # WCAG 2.1.1 + 4.1.2 (L2 W3 a11y): the ⌘K summon must be keyboard-reachable AND announced.
+    # A <button> is natively focusable + Enter/Space-activatable + exposes role=button to AT
+    # (the prior <div> was neither). The existing overlay click handler matches .closest(".uk-cmdk")
+    # so a button click opens it unchanged; type=button avoids implicit form submit. aria-keyshortcuts
+    # tells AT the global shortcut; aria-label gives a full accessible name beyond the visible text.
+    return ('<button type="button" class="uk-cmdk" aria-label="Search or ask Pat — open command bar" '
+            'aria-keyshortcuts="Meta+K Control+K">Search or ask Pat <kbd>⌘K</kbd></button>')
 
 
 def cmdk_overlay() -> str:
