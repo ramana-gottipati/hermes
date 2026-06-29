@@ -19,8 +19,12 @@ scripts/wire_v2_surfaces.py applies to the VPS's main.py), renders the actual
 pages through TestClient, and asserts the HTML carries the chrome markers:
 
     uk-skin     body.uk-skin  → shell_skin reskin applied to a legacy page
-    v2bar       .v2bar        → the canonical 4-altitude nav rendered
-    Trust       >Trust<       → the Coverage/Trust utility is present
+    uk-top      .uk-top       → the NATIVE single-row topbar rendered (Lane M1: legacy
+                                pages now render the same uk-top as the native pages,
+                                replacing the old two-row .v2bar header)
+    no .v2bar   class="v2bar" ABSENT → the legacy two-row nav anomaly is gone (header
+                                unified; this is the marker M1 flipped from present→absent)
+    Trust       >Trust<       → the Coverage/Trust utility is present (now inline w/ tabs)
     Wire        /dash/wire    → the News/Wire surface is mounted + linked in nav
     no .hsearch class="hsearch" ABSENT → the legacy search form was swapped out
 
@@ -47,7 +51,8 @@ if _ROOT not in sys.path:
 
 # ── the chrome contract ──────────────────────────────────────────────────────
 # LEGACY pages render through dashboard._shell, so they MUST carry the full reskin
-# chrome: the skin (uk-skin), the v2 nav bar (v2bar), the Trust utility, a Wire
+# chrome: the skin (uk-skin), the NATIVE single-row topbar (uk-top) — Lane M1 unified
+# the header, so the old two-row .v2bar must be ABSENT — the Trust utility, a Wire
 # link, and NO legacy search form (.hsearch). A representative page per altitude +
 # the stock page + the strategy lenses that historically lost their chrome.
 LEGACY_PAGES = [
@@ -65,9 +70,14 @@ LEGACY_PAGES = [
 NATIVE_PAGES = ["/dash/coverage", "/dash/screen2", "/dash/strategist", "/dash/_ui"]
 
 # marker label → (substring, must_be_present)
+# Lane M1 (header unification): legacy pages render the NATIVE single-row `uk-top` topbar
+# (the same one the native pages use) instead of the legacy two-row `.v2bar` header. So
+# `uk-top` MUST be present and the old `.v2bar` MUST be absent — that pair locks the
+# unification (a silent revert to the two-row header now FAILS the gate).
 _LEGACY_MARKERS = [
     ("uk-skin", 'class="uk-skin"', True),
-    ("v2bar", 'class="v2bar"', True),
+    ("uk-top", 'class="uk-top"', True),
+    ("no .v2bar (header unified)", 'class="v2bar"', False),
     ("Trust", ">Trust<", True),
     ("Wire", "/dash/wire", True),
     ("no .hsearch", 'class="hsearch"', False),
@@ -119,7 +129,7 @@ def main() -> int:
 
     fails: list[str] = []
 
-    print("== legacy pages (full chrome: uk-skin · v2bar · Trust · Wire · no .hsearch) ==")
+    print("== legacy pages (full chrome: uk-skin · uk-top · no .v2bar · Trust · Wire · no .hsearch) ==")
     for p in LEGACY_PAGES:
         f = _check(client, p, _LEGACY_MARKERS)
         fails += f

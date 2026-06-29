@@ -289,6 +289,40 @@ def site_nav(active: str = ""):
     return items
 
 
+def native_subnav(active: str = "") -> str:
+    """Render the contextual sub-nav for a page as the NATIVE ui_kit `uk-sub` strip —
+    the SAME registry-driven lens list (`_IA_SUB`/`_altitude_of`/`_SUB_ALIAS`) the legacy
+    `.v2subnav` consumes, but in the native markup so a legacy `_shell` page can carry the
+    identical sub-nav to the native pages (Lane M1: header unification). Returns '' when
+    the active page's altitude has no sub-nav (home/dossier) — caller renders no strip.
+
+    Markup mirrors `ui_kit.subnav([...])`: a `<div class="uk-sub">` of `<a>` items with a
+    leading `<span class="grp">` heading per group run. Dependency-light (only `ui_kit.esc`
+    for escaping, best-effort); defensive — any failure returns ''."""
+    try:
+        from src.web import ui_kit as _K
+        _esc = _K.esc
+    except Exception:  # noqa: BLE001
+        def _esc(s):  # minimal fallback escaper
+            return (str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    try:
+        alt = _altitude_of(active)
+        items = _IA_SUB.get(alt)
+        if not items:
+            return ""
+        parts, last_group = [], None
+        for k, h, lbl, group in items:
+            if group and group != last_group:
+                parts.append(f'<span class="grp">{_esc(group)}</span>')
+            last_group = group
+            on = "on" if (active == k or active in _SUB_ALIAS.get(k, {k})) else ""
+            parts.append(f'<a class="{on}" href="{_esc(h)}">{_esc(lbl)}</a>')
+        return f'<div class="uk-sub" role="navigation" aria-label="Section">{"".join(parts)}</div>'
+    except Exception as e:  # noqa: BLE001 — sub-nav is chrome; never fatal
+        log.warning("native_subnav skipped: %s", e)
+        return ""
+
+
 def _install_skin() -> None:
     """Reskin the legacy dashboard._shell pages into the ui_kit language (Track A) —
     every page (Markets/Screener/Strategies/Tracker/stock/strategy lenses) picks up the

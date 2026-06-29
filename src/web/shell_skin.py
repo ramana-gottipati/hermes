@@ -62,33 +62,19 @@ body.uk-skin{
   -webkit-font-smoothing:antialiased;
   font-feature-settings:'tnum' 1,'cv01' 1;
 }
-/* ── header / chrome ── */
+/* ── header / chrome ──
+   Lane M1: the legacy two-row <header> (hrow1/hrow2/hrow3, the .v2bar nav, the brand
+   logo, .hback, .uk-trustlink) is REPLACED at runtime by the native single-row ui_kit
+   topbar (`.uk-top` + `.uk-sub`), which is styled by ui_kit.css() (injected after this
+   block, so its top-level `.uk-*` rules win). No header rules are needed here anymore —
+   the few defensive remnants below only matter if the header swap fell back to legacy
+   (a <header> still present): keep the chrome dark + the back chip on-brand. */
 body.uk-skin header{
   background:linear-gradient(180deg,rgba(17,24,36,.92),rgba(11,15,23,.66));
   border-bottom:1px solid #1c2937;backdrop-filter:blur(12px);
 }
-body.uk-skin header .brand .logo,
-body.uk-skin header .brand .logo span{color:#eaf1f9 !important;font-weight:600;letter-spacing:.4px;font-size:16px}
-body.uk-skin header .dot{background:#34e0d6 !important;box-shadow:0 0 11px #34e0d6;width:9px;height:9px}
 body.uk-skin .hback{border:1px solid #27384a;color:#9bb0c6;border-radius:8px}
 body.uk-skin .hback:hover{border-color:#4d9dff;background:#111824}
-body.uk-skin .hrow3{border-top:1px solid #111824}
-/* the swapped-in Ask-Pat hint (standalone copy of ui_kit .uk-cmdk, since the body
-   here is NOT inside a .uk wrapper) */
-body.uk-skin .uk-cmdk{margin-left:auto;display:inline-flex;align-items:center;gap:9px;
-  padding:6px 11px;border:1px solid #27384a;border-radius:9px;color:#5c6f84;font-size:12px;
-  cursor:pointer;transition:170ms cubic-bezier(.2,.7,.2,1);background:#0b0f17;white-space:nowrap}
-body.uk-skin .uk-cmdk:hover{border-color:#4d9dff;color:#9bb0c6}
-body.uk-skin .uk-cmdk kbd{font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
-  background:#18222f;border:1px solid #27384a;border-radius:5px;padding:1px 6px;font-size:11px;color:#9bb0c6}
-/* Trust = the institutional lead wedge, lifted into the ALWAYS-VISIBLE top row so it
-   is as findable on the legacy pages as the inline Trust on the native ui_kit pages. */
-body.uk-skin .uk-trustlink{margin-left:auto;display:inline-flex;align-items:center;gap:6px;
-  padding:6px 12px;border:1px solid #2f6f63;border-radius:9px;background:#11221e;color:#dcf6ee;
-  font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:170ms cubic-bezier(.2,.7,.2,1)}
-body.uk-skin .uk-trustlink::before{content:"✓";color:#34e0d6;font-weight:700}
-body.uk-skin .uk-trustlink:hover{border-color:#34e0d6;color:#eafff9}
-body.uk-skin .uk-trustlink + .uk-cmdk{margin-left:0}
 /* ── cards & boxes ── */
 body.uk-skin .card,
 body.uk-skin .kpi .box,
@@ -177,10 +163,54 @@ def skin_css() -> str:
         return _SKIN_CSS
 
 
-# the search form on every legacy page (action=/dash/stock). We swap the WHOLE form
-# for the ui_kit Ask-Pat hint; the Cmd-K overlay (injected by the v2 nav) provides the
-# ticker-jump, so search is preserved, not lost.
-_HSEARCH_RE = re.compile(r'<form class="hsearch".*?</form>', re.S)
+# The legacy two-row header block — `<header>…</header>` produced by dashboard._shell
+# (hrow1 brand+search, hrow2 the .v2bar nav, hrow3 the .v2subnav). Lane M1 replaces this
+# WHOLE block with the native single-row ui_kit topbar so legacy + native pages share one
+# header. Non-greedy, DOTALL: matches exactly the first header element.
+_HEADER_RE = re.compile(r"<header\b[^>]*>.*?</header>", re.S)
+
+
+def _native_header(active) -> str:
+    """The native ui_kit header (single-row `uk-top` + contextual `uk-sub`) for a legacy
+    page, so it is visually indistinguishable from a native page (Coverage/Strategist).
+
+    Reuses the EXISTING native renderers — `ui_kit.topbar` + `ui_kit.nav_links` over
+    `v2_surfaces.site_nav(active)` (Trust is the last inline nav item) and
+    `v2_surfaces.native_subnav(active)` (the registry-driven contextual sub-nav) — so the
+    two code paths converge on ONE header. The Cmd-K overlay is re-injected here (it used
+    to ride on the legacy `_nav` we are replacing) so ⌘K keeps working; it is idempotent
+    (window.__cmdk guard). Defensive: any failure raises to the caller, which falls back
+    to the original legacy header (never a 500)."""
+    from src.web import ui_kit as K
+    from src.web import v2_surfaces as V
+    nav_html = K.nav_links(V.site_nav(active))   # altitude tabs + Trust inline (exactly once)
+    top = K.topbar(active, nav_html=nav_html)    # <div class="uk-top"> … </div>
+    sub = V.native_subnav(active)                # <div class="uk-sub"> … </div> or ''
+    return top + sub + K.cmdk_overlay()
+
+
+# Fallback `active` recovery when reskin() is called without the threaded nav key (e.g. a
+# direct reskin(html) call, or a future global middleware). The legacy `.v2bar` nav marks
+# its current tab with `class="on"` + `aria-current="page"`; recover the altitude from
+# that anchor's href. Best-effort — a miss just means no lit tab, never an error.
+_ACTIVE_HREF_RE = re.compile(r'<a class="on"[^>]*href="(/dash/[^"]+)"[^>]*aria-current="page"')
+# map a top-bar altitude href back to its nav key (the values site_nav highlights on).
+_HREF_TO_ACTIVE = {"/dash/markets": "markets", "/dash/screener": "screener",
+                   "/dash/strategist": "strategies", "/dash/strategies": "strategies",
+                   "/dash/dashboard": "tracker", "/dash/coverage": "coverage"}
+
+
+def _active_from_html(html: str):
+    """Best-effort: recover the page's nav key from the rendered legacy nav's lit tab, so
+    the native header highlights correctly even when `active` was not threaded. Returns
+    None on a miss (header still renders, just no lit altitude)."""
+    try:
+        m = _ACTIVE_HREF_RE.search(html)
+        if m:
+            return _HREF_TO_ACTIVE.get(m.group(1))
+    except Exception:  # noqa: BLE001
+        pass
+    return None
 
 
 def _cmdk_hint() -> str:
@@ -192,10 +222,15 @@ def _cmdk_hint() -> str:
                 '<kbd>&#8984;K</kbd></div>')
 
 
-def _trust_link() -> str:
-    """A prominent Trust chip for the always-visible top row (hrow1) of legacy pages."""
-    return ('<a class="uk-trustlink" href="/dash/coverage" '
-            'title="Trust — data coverage, provenance &amp; strategy validation">Trust</a>')
+def _chrome_css() -> str:
+    """The native ui_kit chrome stylesheet (`.uk-top/.uk-nav/.uk-sub/.uk-cmdk` — all
+    top-level selectors, not `.uk`-scoped), so the native header styles identically on a
+    legacy page whose body is NOT wrapped in `.uk`. Defensive: degrades to '' if absent."""
+    try:
+        from src.web import ui_kit as K
+        return K.css()
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _density_js() -> str:
@@ -208,9 +243,15 @@ def _density_js() -> str:
         return ""
 
 
-def reskin(html: str) -> str:
-    """Post-process one ``_shell`` html string into the ui_kit language. Defensive +
-    idempotent: an already-skinned string (or any non-_shell html) is returned as-is."""
+def reskin(html: str, active=None) -> str:
+    """Post-process one ``_shell`` html string into the ui_kit language + UNIFY its header
+    with the native pages. Defensive + idempotent: an already-skinned string (or any
+    non-_shell html) is returned as-is.
+
+    ``active`` is the page's nav key (the 3rd positional arg of dashboard._shell, threaded
+    by install()'s wrapper). It drives the native topbar/sub-nav highlight. When absent
+    (a direct reskin() call without it) we fall back to extracting it from the rendered
+    nav, then to no-highlight — the page still renders, just without the lit tab."""
     try:
         if not html or _SKIN_MARKER in html:
             return html
@@ -231,16 +272,25 @@ def reskin(html: str) -> str:
         out = re.sub(r"(<body[^>]*>)",
                      r'\1<a class="uk-skip" href="#uk-main">Skip to content</a>', out, count=1)
         out = out.replace('<div class="wrap', '<div id="uk-main" class="wrap', 1)
-        # swap the legacy search box for the Ask-Pat hint (preserve via Cmd-K overlay) +
-        # lift a prominent Trust chip into the top row so it is as findable here as on the
-        # native pages (Ramana repeatedly couldn't find Trust on the legacy home/markets
-        # pages — it sat only in the lower nav row).
-        out, _swapped = _HSEARCH_RE.subn(lambda _m: _trust_link() + _cmdk_hint(), out, count=1)
-        if _swapped:
-            # de-duplicate: now that Trust is in the top row, drop it from the lower v2util.
-            out = re.sub(r'<a class="v2trust[^"]*"[^>]*>Trust</a>', "", out, count=1)
-        # inject the reskin css + the global density switch LAST in <head> (after _BASE_CSS).
-        head_add = skin_css() + _density_js()
+        # ── header UNIFICATION (Lane M1) — replace the legacy two-row <header> (hrow1
+        # brand+search, hrow2 the .v2bar nav, hrow3 the .v2subnav) with the native
+        # single-row ui_kit topbar + contextual sub-nav, so a legacy page is visually
+        # indistinguishable from a native one (Trust inline with the tabs exactly once,
+        # one logo, no justified-tabs anomaly, identical responsive/hamburger behaviour).
+        if active is None:
+            active = _active_from_html(out)
+        try:
+            new_header = _native_header(active)
+            out, _hdr = _HEADER_RE.subn(lambda _m: new_header, out, count=1)
+        except Exception as e:  # noqa: BLE001 — header swap must never break the page
+            log.warning("shell_skin native header swap skipped: %s", e)
+            # Fall back to the legacy header but still swap the search box for the Ask-Pat
+            # hint so the page is at least not showing the old "search ticker…" box.
+            out = _HSEARCH_RE.sub(lambda _m: _cmdk_hint(), out, count=1)
+        # inject the reskin css (body retint) + the native chrome css (header styling) +
+        # the global density switch LAST in <head> (after _BASE_CSS). The chrome css comes
+        # AFTER the skin css so the native `.uk-*` header rules win the source-order tie.
+        head_add = skin_css() + _chrome_css() + _density_js()
         if "</head>" in out:
             out = out.replace("</head>", head_add + "</head>", 1)
         else:
@@ -268,7 +318,14 @@ def install() -> bool:
         return False
 
     def _skinned_shell(*args, **kwargs):
-        return reskin(orig_shell(*args, **kwargs))
+        # dashboard._shell(title, body, active, latest_date="", wide=False): the page's
+        # nav key is the 3rd positional arg (or the `active` kwarg). Thread it into reskin
+        # so the native topbar/sub-nav highlight the correct altitude. Best-effort —
+        # reskin falls back to recovering it from the rendered nav when absent.
+        active = kwargs.get("active")
+        if active is None and len(args) >= 3:
+            active = args[2]
+        return reskin(orig_shell(*args, **kwargs), active)
 
     # keep the wrapped original discoverable (debugging / revert).
     _skinned_shell.__wrapped__ = orig_shell  # type: ignore[attr-defined]
@@ -334,11 +391,36 @@ def _selftest() -> int:
     assert 'class="hsearch"' not in out, "legacy search form still present"
     assert "RELIANCE" in out and ">42<" in out, "body data lost (NOT no-loss)"
     assert out.count(_SKIN_MARKER) == 1, "skin injected more than once"
+    # ── header UNIFICATION (Lane M1): the native single-row topbar REPLACED the legacy
+    # two-row header, so the page now carries the SAME header markup as a native page. ──
+    assert 'class="uk-top"' in out, "native topbar not emitted on legacy page"
+    assert 'class="hrow1"' not in out, "legacy hrow1 header still present"
+    assert 'class="v2bar"' not in out, "legacy .v2bar two-row nav still present"
+    assert 'class="uk-trustlink"' not in out, "legacy top-row Trust chip still present"
+    # Trust is inline with the tabs (a uk-nav anchor) and appears EXACTLY ONCE.
+    assert out.count(">Trust<") == 1, f"Trust must appear exactly once, found {out.count('>Trust<')}"
+    assert 'href="/dash/coverage">Trust<' in out, "Trust must be an inline nav anchor"
+    # the contextual sub-nav rendered for the Markets altitude (registry-driven uk-sub).
+    assert 'class="uk-sub"' in out and 'href="/dash/sectors"' in out, "Markets sub-nav not rendered"
+    # the correct altitude tab is lit.
+    assert 'class="on" href="/dash/markets" aria-current="page"' in out, "Markets tab not highlighted"
+    # ⌘K still works — the overlay was re-injected after the legacy nav was removed.
+    assert 'id="cmdk-ov"' in out, "Cmd-K overlay lost after header swap"
     # reskinning an already-skinned string is a no-op
     assert reskin(out) == out, "reskin not idempotent on its own output"
     # a non-_shell html (no <body>) is returned untouched
     assert reskin("<div>x</div>") == "<div>x</div>", "non-page html mutated"
-    print("shell_skin selftest OK — reskin applied, no-loss, idempotent, defensive")
+    # the native header renders even when `active` is not threaded (a direct reskin call):
+    # the topbar is always present; the sub-nav is present only when the altitude resolves.
+    _direct = reskin(D.__dict__["_shell"].__wrapped__("S", "<div class='card'>z</div>", "markets"))
+    assert 'class="uk-top"' in _direct, "native topbar not rendered on a direct reskin"
+    # `_active_from_html` recovers the altitude from a v2-nav page's lit tab (the production
+    # case where the v2 nav IS installed): build that markup and prove recovery.
+    _v2nav_page = (head := "<header><div class=\"hrow1\"></div>") + \
+        '<a class="on" href="/dash/markets" aria-current="page">Markets</a></header>'
+    assert _active_from_html(_v2nav_page) == "markets", "active not recovered from v2 nav lit tab"
+    print("shell_skin selftest OK — native header unified (uk-top + uk-sub, single inline "
+          "Trust, no hrow1/.v2bar), no-loss, idempotent, defensive")
     return 0
 
 
