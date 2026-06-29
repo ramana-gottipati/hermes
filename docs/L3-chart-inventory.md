@@ -145,11 +145,48 @@ Shipped and live in `stock_chart.makeDraw()` on `/dash/stock`:
 | 5 | Bounded engine onto RS + ratio | RS = N/A (no primary chart); ratio = **L1 hand-off** (frozen file, §4) |
 | 6 | Four-family controls consistent across surfaces | **DONE — decision documented** (§5): rail = stock-chart contract |
 | 7 | Drawing engine + magnet + persistence | **DONE** (§6); SQLite persistence = future tier |
-| 8 | Harmonic + Wolfe overlays still draw on bounded engine; `__wfpc` intact | **verify in-browser** (next) |
-| 9 | Final in-browser pass — screenshot every surface | **next** |
+| 8 | Harmonic + Wolfe overlays still draw on bounded engine; `__wfpc` intact | **DONE — verified** (§8): `__wfpc`+`__wfcandle` present; wolfe/harmonic/cpr/mep overlay feeds all 200 + drawable; MA50/200 drawing on the bounded chart |
+| 9 | Final in-browser pass — screenshot every surface | **DONE** (§8): fresh-checkout build re-verified `#priceChart{max-width:1280px}` 1058×620 in 1182 vp, no x-overflow, 7 canvases, zero app console errors, full four-family rail |
 
 The headline: **the L3 mission was largely already shipped in S41/42/48/49.** L3's net-new value
 this session is the *audit + triage + decision record* (this doc), the `hermes-charts.js`
 retirement, the harness gap-fix (add `/dash/harmonic/overlay` to the overlay sweep), and a fresh
 **in-browser verification** that every overlay still draws on the bounded `__wfpc` after the RRG
 landing in `05cdeae`.
+
+---
+
+## 8. Fresh-checkout in-browser verification (2026-06-29, HEAD `ccbd25e`)
+
+The `ccbd25e` commit message recorded a live-VPS (ACC) verification but left backlog items 8 & 9
+marked "next". This pass **independently re-verifies the bounded contract on a fresh server built
+from the current checkout** (uvicorn on `:8011`, Chrome MCP, symbol `GAMMA` — the only non-empty
+symbol in the local synthetic fixture; ACC/real names live only on the VPS). Both gates ran green
+first (chrome 11+4 · 31 routes + 4 overlays all 200, `HOST=local`).
+
+**Computed-style + DOM evidence (`/dash/stock?sym=GAMMA`):**
+- **Single bounded primitive:** outer wrapper `#priceChart` has **`max-width: 1280px`**; renders
+  **1058×620** inside an **1182px** viewport. `document.scrollWidth (1170) ≤ innerWidth (1182)` →
+  **no horizontal page overflow.** Chart right edge within viewport.
+- **Retina / multi-pane:** `window.LightweightCharts` loaded; **7 `<canvas>`** (price + DVPT +
+  delivery + traded sub-panes), biggest 1058×592 — lightweight-charts' own bitmap canvas = crisp.
+- **Overlay contract intact:** `window.__wfpc` and `window.__wfcandle` both present (objects = the
+  chart/series API refs the overlays bind to). Overlay feeds, fetched same-origin from the page:
+  `/dash/wolfe/overlay` 200 (9.3KB, drawable) · `/dash/harmonic/overlay` 200 (drawable, empty
+  pattern set on synthetic data) · `/dash/cpr/overlay` 200 (35KB) · `/dash/mep/overlay` 200.
+  (`/dash/rs/overlay` returns an empty `[]` for GAMMA — the synthetic fixture has no Nifty-500
+  universe for RS; 200 and wired, draws on the VPS per the prior pass.)
+- **Overlays draw on the bounded engine (visual):** MA50/MA200 smooth lines + the DVPT baseline
+  render *on* the bounded candle chart (screenshot) — proof an overlay binds `__wfpc` and draws.
+- **Four-family rail complete (visual):** CHART TYPE ▾ Candles · STRATEGIES (DVPT/Wolfe/RS/
+  Harmonic/CPR/MEP) · INDICATORS (MA20/50/200/VWAP/Anchored-VWAP/Delivery%/Traded₹) · DRAWINGS
+  (trend/hline/rect/Fib/measure/text + 🧲 magnet + hide-all + clear) · INTERVAL · RANGE + fullscreen.
+- **Console:** zero app/chart errors on the GAMMA page (the only errors captured were benign
+  Chrome-extension "message channel closed" noise from a *different* tab).
+
+**Net:** the bounded single-engine contract holds on a clean build of `ccbd25e`. No L3 engine
+build was warranted — the mission was shipped in S41/42/48/49; this session is the verification
+close-out. Deliberately **not** built: SQLite drawing persistence (a documented *future tier*;
+localStorage `hdraw:<sym>` is the current contract and a single-user app does not need cross-device
+sync yet) — a clean one-commit follow-up if Ramana wants it. Ratio-chart bounding and the
+sparkline `preserveAspectRatio="none"` cells remain **L1/L2 hand-offs** (frozen files, §2/§4).
