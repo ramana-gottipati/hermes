@@ -56,7 +56,7 @@ class Lens:
 # Ordered the way the sub-nav should read. The decided IA (§1):
 #   Markets    : Overview · Sectors · Relative Strength · Rotation·{Map,Weather,Band} ·
 #                Participants · Wire · Compare   (Leaders/"Strength" MOVED here)
-#   Screener   : Screen · Screen+ · Themes · Review · Workbench
+#   Screener   : Screen+ · Screen (classic) · Themes · Review · Workbench  (Screen+ default)
 #   Strategies : Strategist · Conviction · Accumulation{Positioning,MEP} · Structure ·
 #                Credibility · Growth · Launchpad   (Hub MERGED into Strategist;
 #                Positioning+MEP GROUPED under "Accumulation"; Wolfe → overlay)
@@ -87,8 +87,11 @@ LENSES: tuple[Lens, ...] = (
     Lens("compare", "Compare", "market", "markets", "/dash/compare"),
 
     # ── Screener ─────────────────────────────────────────────────────────────
-    Lens("screener", "Screen", "screen", "screener", "/dash/screener"),
+    # Screen+ is the de-facto default (ordered FIRST → the landing click under the
+    # Screener altitude); the legacy wide screener is kept + reachable as "Screen
+    # (classic)". ADDITIVE — both routes live; the sacred /dash/screener is untouched.
     Lens("screen2", "Screen+", "screen", "screener", "/dash/screen2"),
+    Lens("screener", "Screen (classic)", "screen", "screener", "/dash/screener"),
     Lens("themes", "Themes / Baskets", "screen", "screener", "/dash/themes",
          aliases=("theme",)),
     Lens("tags-review", "Review", "screen", "screener", "/dash/tags-review"),
@@ -216,6 +219,12 @@ def _selftest() -> int:
     assert "stock" not in ALT_OF, "stock dossier must not claim a lens/altitude"
     # Trust slot wired for /dash/testing (Lane N2 builds the page).
     assert BY_KEY["testing"].route == "/dash/testing" and BY_KEY["testing"].label == "Strategy validation"
+    # Screen+ is the de-facto default: it LEADS the Screener altitude; the legacy wide
+    # screener is kept + reachable, relabelled "Screen (classic)". Both routes live.
+    _scr = subnav("screener")
+    assert _scr[0].key == "screen2", "Screen+ must be the first/landing Screener lens"
+    assert BY_KEY["screener"].label == "Screen (classic)" and BY_KEY["screener"].route == "/dash/screener"
+    assert {ln.key for ln in _scr} >= {"screen2", "screener"}, "both screeners stay reachable"
     # Lens-carrying link helper.
     assert stock_link("INFY", "mep") == "/dash/stock?sym=INFY#mep"
     assert stock_link("INFY") == "/dash/stock?sym=INFY"

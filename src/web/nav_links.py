@@ -103,15 +103,25 @@ def theme_link(tag: str) -> str:
 
 # ── 2. breadcrumb component ──────────────────────────────────────────────────────
 _CRUMB_CSS = """<style>
+/* The trail must NEVER push the page past the viewport edge (esp. at 380px, where a
+   long sector/symbol crumb would overflow). It still WRAPS to a second line when there
+   are several short items; if a single token is wider than the box it SCROLLS inside
+   itself (overflow-x:auto + max-width:100%) instead of pushing the page. min-width:0
+   lets the flex children shrink; overflow-wrap on links breaks an over-long token. */
 .ngcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;
-  color:#5f7488;margin:0 0 8px;padding:0}
-.ngcrumb a{color:#9bb0c6;text-decoration:none;border-bottom:1px solid transparent;padding:1px 0}
+  color:#5f7488;margin:0 0 8px;padding:0;max-width:100%;min-width:0;overflow-x:auto;
+  -webkit-overflow-scrolling:touch}
+.ngcrumb a{color:#9bb0c6;text-decoration:none;border-bottom:1px solid transparent;padding:1px 0;
+  overflow-wrap:anywhere;min-width:0}
 .ngcrumb a:hover{color:#eaf1f9;border-bottom-color:#4d9dff}
-.ngcrumb .sep{color:#3a4a5c;font-size:11px}
-.ngcrumb .here{color:#eaf1f9;font-weight:600}
+.ngcrumb .sep{color:#3a4a5c;font-size:11px;flex:none}
+.ngcrumb .here{color:#eaf1f9;font-weight:600;overflow-wrap:anywhere;min-width:0}
+/* The lateral rail shares the same risk: its chips are white-space:nowrap, so at 380px
+   they would overflow the page. Contain them to scroll inside the rail box. */
 .nglat{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;
   color:#5f7488;margin:8px 0 4px;padding:8px 11px;border:1px solid #1c2937;
-  border-radius:9px;background:#0e1620}
+  border-radius:9px;background:#0e1620;max-width:100%;min-width:0;overflow-x:auto;
+  -webkit-overflow-scrolling:touch}
 .nglat .lbl{color:#5f7488;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px}
 .nglat a{color:#9bb0c6;text-decoration:none;border:1px solid #27384a;border-radius:7px;
   padding:3px 9px;background:#0b0f17;white-space:nowrap}
