@@ -9,6 +9,56 @@
 
 ---
 
+## WAVE 3 (2026-06-29) — professional analyst tools (§12–§16)
+
+All in `stock_chart.py` (the `/dash/stock` workstation), all **DESCRIPTIVE-only**.
+
+### §12. Fib extension + Fib retracement (Wave-3 item 1)
+- **Fib retracement** (existing, `fib`, amber): 0/0.236/0.382/0.5/0.618/0.786/1 between two pivots.
+- **Fib EXTENSION** (NEW, `fibext`, purple, the `Fx` tool): 0/0.618/1/1.272/1.618/2/2.618 — projects
+  *targets beyond* a measured move; levels past 1.0 dashed. Both: magnet-snap to pivots, editable
+  handles, persisted via `drawings_store` (the JSON blob holds the new type — no schema change).
+
+### §13. Measure + annotate (Wave-3 item 2)
+- **Measure** (`measure`): now shows **Δprice + Δ% + Δbars + Δcalendar-days** between the two clicks
+  (was price+% only). `barsBetween()` counts resampled bars; `calDays()` = calendar gap.
+- **Text annotation** (`text`, existing): click to drop a note; styleable + persisted.
+
+### §14. Indicators — Bollinger + ATR bands (Wave-3 item 3)
+- **Bollinger Bands** (`bb`, 20, 2σ): upper/mid/lower around a 20-period SMA. Purple.
+- **ATR bands** (`atr`, close ± 2×ATR-14): volatility envelope around the close. Green.
+- **Anchored-VWAP** (`avwap`): already existed (anchor at a clicked bar) — noted, not rebuilt.
+- All toggle from the **Indicators** family in the four-family rail; recomputed on resample; the
+  legend carries the "volatility envelope (descriptive)" caveat. **No buy/sell language.**
+
+### §15. Drawing manager (Wave-3 item 4)
+The `≡ list` button opens a floating panel:
+- One row per drawing: **colour picker** (`<input type=color>`) + **width selector** (1/1.4/2/3px) +
+  **delete-one** (×) + click-name-to-select-on-chart.
+- **Export** (download all drawings as `drawings_<sym>.json`) + **Import** (load from a JSON file,
+  replaces current, capped 500, never-throws). Per-drawing `col`/`w` persist via the existing
+  `drawings_store` JSON blob (schema-flexible — no migration).
+
+### §16. Mobile chart QA (Wave-3 item 5)
+- **Chart bounds at 380px:** forced into a 380px container the chart host shrinks to ~250px with
+  **no chart-level overflow** (the `max-width:1280px` + width ResizeObserver). Verified in-browser.
+- **`@media(max-width:640px)`** shortens the chart to `clamp(300px,52vh,460px)` so it isn't
+  awkwardly portrait on a phone; host `touch-action:none` lets lightweight-charts own pinch/drag.
+- The four-family rail wraps (`flex-direction:column` + per-row `flex-wrap`).
+- **HAND-OFF (not L3):** the residual *page-level* horizontal overflow at 380px is from
+  **`NAV.ngcrumb`** (breadcrumb chrome) + a **dashboard.py layout `TABLE`** wrapping the chart —
+  both frozen, outside L3. None of the overflow is from the chart host or rail (`anyMine=0`).
+  → L1/L2 mobile hand-off (L2 is already doing dossier-mobile work, `b239f90`).
+
+### §17. Wave-3 verification (item 6)
+In-browser (dedicated tab, live ACC + WIPRO): every new tool/indicator present; Bollinger+ATR draw;
+the manager shows per-drawing colour/width/delete + export/import on server-loaded drawings; **8
+overlays/indicators toggled together** (DVPT/CPR/Wolfe/Harmonic/RS/VWAP/Bollinger/ATR) →
+`window.__wfpc`+`__wfcandle` intact, 7 canvases, **ZERO console errors**. Screenshots captured.
+Commits `7b49e4e` (tools+indicators+manager) + `8b39551` (mobile).
+
+---
+
 ## WAVE 2 (2026-06-29) — addendum
 
 ### §8. Drawing persistence → server (Wave-2 item 1, SHIPPED)

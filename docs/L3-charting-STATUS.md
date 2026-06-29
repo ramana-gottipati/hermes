@@ -1,8 +1,28 @@
 # Lane L3 — Charting site-wide — STATUS (2026-06-29)
 
-> Wrap note for Lane L3. Base HEAD was `05cdeae`; L3 commits = **`ccbd25e`** (Wave 1) +
-> **`6e3b22d`** (Wave 2). Both gates PASS. Full inventory = `docs/L3-chart-inventory.md`
-> (Wave 2 = §8–§11).
+> Wrap note for Lane L3. Base HEAD was `05cdeae`. L3 commits: W1 `ccbd25e`+`1a9fe2c`,
+> W2 `6e3b22d`+`dc1da97`, **W3 `7b49e4e`+`8b39551`**. Both gates PASS. Full inventory =
+> `docs/L3-chart-inventory.md` (W2 = §8–§11, **W3 = §12–§17**).
+
+## WAVE 3 (2026-06-29) — professional analyst tools
+All in `stock_chart.py`, all DESCRIPTIVE-only, all in-browser verified (dedicated tab):
+- **Fib EXTENSION** tool (`Fx`) — projects 1.272/1.618/2/2.618 targets beyond a move (purple),
+  alongside the existing Fib retracement; magnet + editable handles + persisted. (item 1)
+- **Measure** now reports Δbars + Δcalendar-days on top of Δprice + Δ%. (item 2)
+- **Bollinger Bands (20,2σ) + ATR bands (close±2×ATR-14)** as Indicator overlays in the rail,
+  recomputed on resample, legend caveat "volatility envelope (descriptive)". Anchored-VWAP already
+  existed. (item 3)
+- **Drawing manager** (`≡ list`) — per-drawing colour picker + width selector + delete-one + a
+  list panel + export/import drawings as JSON (caps 500, never-throws). col/w persist via the
+  drawings_store JSON blob (no schema change). (item 4)
+- **Mobile** — `@media(max-width:640px)` shortens the chart (`clamp(300px,52vh,460px)`) +
+  `touch-action:none` for gestures; chart bounds to ~250px in a 380px container with no
+  chart-level overflow. **HAND-OFF:** the residual page overflow at 380px is `NAV.ngcrumb` +
+  a dashboard.py `TABLE` (frozen, L1/L2), NOT the chart (`anyMine=0`). (item 5)
+- **Verification (item 6):** 8 overlays/indicators ON together (DVPT/CPR/Wolfe/Harmonic/RS/VWAP/
+  Bollinger/ATR) → `__wfpc`+`__wfcandle` intact, 7 canvases, ZERO console errors. `7b49e4e`+`8b39551`.
+
+---
 
 ## WAVE 2 (2026-06-29) — server drawing persistence + verification
 - **SHIPPED — server-side drawing persistence** (`6e3b22d`): NEW `src/web/drawings_store.py`
