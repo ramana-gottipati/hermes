@@ -231,11 +231,27 @@ def _section_glance(snap):
         _funnel_step(fn.get("resolved_ge3"), "≥3 resolved") +
         _funnel_step(fn.get("robust_core_ge10"), "robust core ≥10", core=True, arrow=False)
     )
+    # Reconcile the funnel's "scored" with the resolved-promise distribution below it: the
+    # two headline counts differ because "scored" is the LLM credibility *snapshot* set,
+    # while the distribution/tier-matrix count the (slightly smaller) PIT credibility
+    # *series* set (a series needs ≥1 settled period). Stating the gap inline pre-empts the
+    # "why doesn't scored equal the distribution total?" question on the trust page.
+    _buckets = (cci.get("n_resolved_buckets") or {})
+    _series_n = sum(v for v in _buckets.values() if v) or None
+    _scored = fn.get("scored")
+    _recon = ""
+    if isinstance(_scored, int) and isinstance(_series_n, int) and _scored != _series_n:
+        _gap = _scored - _series_n
+        _recon = (f' <b class="num">{_n(_scored)}</b> carry an LLM credibility snapshot; '
+                  f'the resolved-promise distribution and tier matrix below count the '
+                  f'<b class="num">{_n(_series_n)}</b> with a full point-in-time series '
+                  f'(level + momentum), so they total {_n(_series_n)}, not {_n(_scored)} '
+                  f'(the {_n(abs(_gap))}-name gap is names scored but without a settled series yet).')
     funnel = K.card(f'<div class="cov-funnel">{steps}</div>'
                     '<div class="cov-note mut" style="margin-top:11px">The headline is the robust core, '
                     'not the breadth: “symbols touched” counts every name with a concall on file, '
                     'most of which have few or no resolved promises yet. Coverage shrinks left-to-right; '
-                    'each step is a stricter, more honest count.</div>',
+                    f'each step is a stricter, more honest count.{_recon}</div>',
                     eyebrow="CCI settlement funnel — honest, monotone, denominator-first")
     return f'<div style="margin-bottom:6px">{head}</div>{funnel}'
 
