@@ -17,7 +17,7 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
 | # | Item | Why it's a real gap | Files | Status |
 |---|---|---|---|---|
 | F3-1 | **Time-series asks** — "credibility trend for X", level+momentum+trend over periods; a `trend` task over the `credibility_series` table (18,944 PIT rows) | F2-7 deferred this; mission item 4 names it explicitly. Data EXISTS (credibility_series) | `understand.py` `flows.py` `web.py` `engine.py` `disambiguate.py` | ✅ |
-| F3-2 | **Saved-boards LIST + REOPEN** in Pat itself — a `?flow=boards` view: list saved boards, one-click reopen, delete; not just the Save button | boards.py write path exists but Pat has no list/reopen surface; mission item 2 names "list + reopen" | `web.py` `routes.py` | ⬜ |
+| F3-2 | **Saved-boards LIST + REOPEN** in Pat itself — a `?flow=boards` view: list saved boards, one-click reopen, delete; not just the Save button | boards.py write path exists but Pat has no list/reopen surface; mission item 2 names "list + reopen" | `web.py` `routes.py` | ✅ |
 | F3-3 | **True server-side session THREAD** — a thread store so a refine can SUBTRACT ("drop the F&O ones") / pivot ("vs last quarter"), not only string-append; carries the last structured intent | current multi-turn is string-concat only — can't subtract/pivot. Mission item 1 = "server-side session context" | NEW `src/pat/thread.py` + `web.py` `routes.py` | ⬜ |
 | F3-4 | **Deepen EXPLANATIONS** — `why` drills into the underlying rows + provenance (as-of period, n promises resolved, veto reason, the concall/delivery/RS evidence) with the coverage caveat | mission item 3 = "drilling into provenance + underlying rows, with the as-of/coverage caveat" | `flows.py` `web.py` | ⬜ |
 | F3-5 | **Ranked top-N** — honor "top 5", "best 10" → a bound `limit` on the surfaced flows | F2-7 deferred; mission item 4 = "ranked rankings" | `understand.py` `flows.py` `web.py` | ⬜ |
@@ -35,3 +35,9 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
   (not a buy signal). Live ✓ (`flow=trend&sym=NAVINFLUOR` 200, real data); NL battery 7/8
   (trend asks all route; the 1 miss = pre-existing live-Gemini movers flake, fallback correct);
   eval unchanged (31/31, 43/44, hallu 8/8); BOTH gates PASS.
+- F3-2 — saved-boards MANAGER (`flow=boards`): a dedicated list/reopen/delete surface
+  (`_boards_flow` + `_board_href`) that the Home quick-chips only teased; reuses the existing
+  boards.py store + `/pat/board/{save,delete,list}` endpoints (already built). Reopen reruns
+  the NL query against the latest data; delete is a confirm→fetch POST. "manage boards →" chip
+  added to the Home boards strip. Live lifecycle verified (page 200 · save→appears · delete→ok);
+  BOTH gates PASS. (web.py only — backend was already there.)

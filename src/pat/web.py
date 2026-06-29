@@ -247,6 +247,17 @@ _PAT_CSS = """
             cursor:pointer;padding:5px 11px;font-size:12.5px;}
 .patBoardBtn:hover{border-color:#e3b341;}
 .patBoardBtn:disabled{opacity:.7;cursor:default;color:#3fb950;border-color:#2a5c3a;}
+.patBoardList{display:flex;flex-direction:column;gap:6px;margin:10px 0;}
+.patBoardRow{display:flex;align-items:center;gap:8px;background:#0d1117;
+            border:1px solid #21262d;border-radius:9px;padding:8px 10px;}
+.patBoardRow:hover{border-color:#30363d;}
+.patBoardOpen{flex:1;display:flex;flex-direction:column;gap:2px;text-decoration:none;
+            color:#e3b341;font-size:13px;min-width:0;}
+.patBoardSub{color:#8b949e;font-size:11.5px;white-space:nowrap;overflow:hidden;
+            text-overflow:ellipsis;}
+.patBoardDel{background:transparent;border:1px solid #30363d;color:#8b949e;border-radius:7px;
+            cursor:pointer;padding:4px 9px;font-size:11.5px;flex:none;}
+.patBoardDel:hover{border-color:#da3633;color:#f85149;}
 </style>
 """
 
@@ -1888,7 +1899,68 @@ def _boards_home() -> str:
                ("/dash/pat?flow=" + _u(b.get("flow") or ""))
         chips.append(_chip(href, "★ " + b["name"]))
     return ('<div class="ghdr">Your saved boards</div><div class="patChips">'
-            + "".join(chips) + '<a class="patChip" href="/dash/strategist">open workbench →</a></div>')
+            + "".join(chips) + '<a class="patChip" href="/dash/pat?flow=boards">manage boards →</a>'
+            + '<a class="patChip" href="/dash/strategist">open workbench →</a></div>')
+
+
+def _board_href(b: dict) -> str:
+    """Where a saved board reopens to: its NL query (preferred), else flow + params."""
+    if b.get("query"):
+        return "/dash/pat?q=" + _u(b["query"])
+    flow = b.get("flow") or ""
+    if not flow:
+        return "/dash/pat"
+    qs = ["flow=" + _u(flow)]
+    # carry the saved params back through the same generic route params the answer used
+    p = b.get("params") or {}
+    for k in ("sym", "strength", "entry", "align", "val", "sector"):
+        if p.get(k):
+            qs.append(f"{k}=" + _u(p[k]))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _boards_flow() -> str:
+    """The dedicated saved-boards MANAGER (flow=boards): list every pinned NL board,
+    one-click reopen, one-click delete. The list/reopen surface the Home chips only
+    teased. Server-rendered; delete is a fetch POST to /pat/board/delete."""
+    try:
+        from src.pat import boards as B
+        items = B.list_boards(kind="pat", limit=120)
+    except Exception:
+        items = []
+    out = ['<a class="patBack" href="/dash/pat">← back</a>',
+           _q_bubble("Your saved boards — every NL question you pinned. Reopen reruns the "
+                     "same answer (always against the latest data); delete removes the pin.")]
+    if not items:
+        out.append('<div class="empty">No saved boards yet. Run any question, then '
+                   '“★ Save as board” on the answer to pin it here.</div>')
+        return "".join(out)
+    rows = []
+    for b in items:
+        href = _board_href(b)
+        flow_lbl = _FLOW_LABEL.get(b.get("flow") or "", b.get("flow") or "—")
+        sub = _esc(b.get("query") or flow_lbl)
+        rows.append(
+            '<div class="patBoardRow">'
+            f'<a class="patBoardOpen" href="{_esc(href)}">★ {_esc(b["name"])}'
+            f'<span class="patBoardSub">{sub}</span></a>'
+            f'<button type="button" class="patBoardDel" data-name="{_esc(b["name"])}" '
+            'onclick="patDelBoard(this)">delete</button>'
+            '</div>')
+    out.append('<div class="patBoardList">' + "".join(rows) + '</div>')
+    out.append(
+        '<script>if(!window.patDelBoard){window.patDelBoard=function(b){'
+        'var n=b.getAttribute("data-name");if(!n)return;'
+        'if(!confirm("Delete board: "+n+"?"))return;'
+        'fetch("/pat/board/delete",{method:"POST",headers:{"Content-Type":"application/json"},'
+        'body:JSON.stringify({name:n,kind:"pat"})})'
+        '.then(function(r){return r.json();}).then(function(j){'
+        'if(j.ok){var row=b.closest(".patBoardRow");if(row)row.remove();}'
+        'else{b.textContent="failed";}})'
+        '.catch(function(){b.textContent="failed";});};}</script>')
+    out.append('<div class="patChips"><a class="patChip" href="/dash/strategist">'
+               'open the workbench →</a></div>')
+    return "".join(out)
 
 
 def _home() -> str:
@@ -2199,6 +2271,8 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
 
     if flow == "face":                       # the dedicated face-picker page
         return _PAT_CSS + _face_picker()
+    if flow == "boards":                     # the saved-boards manager (list/reopen/delete)
+        return _PAT_CSS + _avatar_picker() + _boards_flow()
 
     # fb_ctx = the answer's context for the 👍/👎 bar, or None for non-answers
     # (home / face / metric chooser). Set per branch so the bar can log exactly
