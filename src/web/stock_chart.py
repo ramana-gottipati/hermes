@@ -65,7 +65,14 @@ SNIPPET = """<script>
     // bounded host: height follows the viewport (clamp) instead of a fixed 480 — the
     // old fixed height + width-only observer made the chart grow wide but never tall
     // ("narrow top, broad sides"). max-width keeps it readable on ultra-wide monitors.
-    host.style.cssText='height:clamp(420px,62vh,760px);max-width:1280px;margin:0 auto;position:relative';
+    host.style.cssText='height:clamp(420px,62vh,760px);max-width:1280px;margin:0 auto;position:relative;touch-action:none';
+    // Mobile responsiveness (<=640px): a shorter chart so it isn't awkwardly portrait on a
+    // narrow phone, and the four-family rail wraps + scrolls instead of overflowing the page.
+    // touch-action:none on the host lets lightweight-charts own the pinch/drag gestures.
+    if(!document.getElementById('hsc-mobile')){ var ms=E('style'); ms.id='hsc-mobile';
+      ms.textContent='@media (max-width:640px){#priceChart{height:clamp(300px,52vh,460px)!important}'
+        +'#priceChart .cfs{height:100vh!important}}';
+      document.head.appendChild(ms); }
     var common={ layout:{background:{color:C.bg},textColor:C.txt,fontSize:11},
       grid:{vertLines:{color:C.grid},horzLines:{color:C.grid}},
       timeScale:{borderColor:'#30363d',rightOffset:3},
