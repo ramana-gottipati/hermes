@@ -46,9 +46,12 @@ MAIN_INCLUDE_ADD = (
 
 
 def _backup(p: Path) -> None:
-    b = p.with_suffix(p.suffix + ".bak-stockchart")
-    if not b.exists():
-        shutil.copy2(p, b)
+    # Timestamped pre-image PER RUN: a single frozen `.bak-stockchart` goes stale after the
+    # first run, so a later run that corrupts the file would have only an outdated backup to
+    # restore from (and this script is meant to be re-run on every deploy). Mirrors wire_v2_surfaces.
+    from datetime import datetime
+    b = p.with_suffix(p.suffix + f".bak-stockchart-{datetime.now():%Y%m%d-%H%M%S}")
+    shutil.copy2(p, b)
 
 
 def patch_dashboard() -> list[str]:

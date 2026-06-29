@@ -70,7 +70,12 @@ def main():
     d = json.load(open(os.path.join(HERE, "dossier.json"), encoding="utf-8"))
     heroes = [build_hero(h) for h in d["heroes"]]
     payload = {"index": d.get("index_used"), "heroes": heroes}
-    html = TEMPLATE.replace("/*__DATA__*/", json.dumps(payload, default=str))
+    # Escape '<' so a ledger field containing '</script>' can't break out of the inline
+    # <script> data block (json.dumps does not escape '/'); the standard < form is
+    # valid JSON and renders identically. (Client-side innerHTML of these fields should also
+    # be esc()'d — tracked as a follow-up; data is internal research, so low-risk today.)
+    html = TEMPLATE.replace("/*__DATA__*/",
+                            json.dumps(payload, default=str).replace("<", "\\u003c"))
     out = os.path.join(ROOT, "docs", "replay-the-tape.html")
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(html)
