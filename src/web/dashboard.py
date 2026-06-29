@@ -2791,7 +2791,7 @@ def _mep_stock_panel_inner(sym: str) -> str:
         f'<div class="box"><div class="num" style="color:{pcol}">{phv:+.2f}</div><div class="lbl">phase score</div></div>'
         f'<div class="box"><div class="num">{_mv_adbar(phv)}</div><div class="lbl">accum &harr; distrib</div></div>'
         f'<div class="box"><div class="num">{(str(held)+"d") if held else "—"}</div><div class="lbl">held in phase</div></div>'
-        f'<div class="box"><div class="num">{m["data_points_used"]}</div><div class="lbl">history days</div></div>'
+        f'<div class="box"><div class="num">{m["data_points_used"] if "data_points_used" in m.keys() else "—"}</div><div class="lbl">history days</div></div>'
         + fno_box +
         '</div>'
         f'<div class="sub" style="margin-top:6px">Today (daily, granular): '
