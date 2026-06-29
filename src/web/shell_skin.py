@@ -211,6 +211,14 @@ body.uk-skin .rsh-bench{border:1px solid var(--line-2);border-radius:var(--r-sm)
   body.uk-skin .scards>*,body.uk-skin .uk-cols>*{min-width:0}
   body.uk-skin .ck-board{overflow-x:auto;-webkit-overflow-scrolling:touch}
   body.uk-skin table:not(.scr):not(.uk-t){display:block;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+  /* L2 Wave2 (mobile audit): the dossier tab nav (.tabbar — Price/Positioning/…/F&O) is a
+     flex-wrap:nowrap row ~1351px wide with overflow-x:visible and NO mobile rule → at 380px
+     it forced horizontal PAGE overflow (or clipped the right tabs). Make it scroll inside
+     itself like the native .uk-nav/.uk-sub do — page stays at viewport width. (Verified
+     viewport-independently from the CSS facts; CDP/real-viewport unavailable in-env.) */
+  body.uk-skin .tabbar{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  body.uk-skin .tabbar::-webkit-scrollbar{display:none}
+  body.uk-skin .tabbar a{flex:0 0 auto;white-space:nowrap}
 }
 </style>"""
 
