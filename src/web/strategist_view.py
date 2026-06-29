@@ -375,7 +375,16 @@ _PAGE_CSS = """<style>
 .bd-del{margin-left:auto;font:inherit;font-size:11px;color:var(--ink-3);background:none;border:none;cursor:pointer}
 .bd-del:hover{color:var(--down)}
 .hide-alerts .wb-alerts-sec,.hide-strategies .wb-strategies-sec,.hide-boards .wb-boards-sec,
-.hide-credibility .wb-cci-sec{display:none}
+.hide-credibility .wb-cci-sec,.hide-changed .wb-changed-sec{display:none}
+.wc-row{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line)}
+.wc-row:last-child{border-bottom:none}
+.wc-strat{font-size:13px;font-weight:600;color:var(--ink);min-width:150px}
+.wc-bits{flex:1;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-3)}
+.wc-up{color:var(--up);font-weight:600}
+.wc-dn{color:var(--down);font-weight:600}
+.wc-chip{display:inline-block;padding:1px 7px;margin:1px;border-radius:6px;font-size:11.5px;font-weight:600}
+.wc-new{background:var(--up-dim);color:var(--up)}
+.wc-drop{background:var(--down-dim,rgba(248,81,73,.12));color:var(--down)}
 .cci-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
 .cci-kv{background:var(--bg-1);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
 .cci-n{font-size:24px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
@@ -444,6 +453,59 @@ def _alerts_strip(conn) -> str:
         f'<div class="sec">{body}</div>'
         f'{extra}'
         '</div>')
+
+
+def _what_changed(conn, rows) -> str:
+    """The 'what changed since last refresh' read — per strategy, the names that NEWLY
+    entered its top set + the ones that DROPPED, diffed against the last board view via
+    alerts.diff_set (namespaced 'strat:<key>'). Makes the board a LIVING watch, not a
+    static snapshot. Descriptive (a membership change, never a buy/sell call). Empty on
+    the very first view (every strategy baselines silently) or with no rows."""
+    if conn is None or not rows:
+        return ""
+    try:
+        from src.pat import alerts as A
+    except Exception:  # noqa: BLE001
+        return ""
+    items = []
+    any_delta = False
+    for r in rows:
+        key = (r.get("key") or "").strip()
+        label = r.get("label") or key or "Strategy"
+        route = _clean_route(r.get("route"))
+        tops = [(t.get("symbol") or "").strip() for t in (r.get("top") or [])
+                if (t.get("symbol") or "").strip() not in ("", "—", "-")]
+        if not key or not tops:
+            continue
+        d = A.diff_set(conn, f"strat:{key}", tops)
+        new, dropped = d.get("new", []), d.get("dropped", [])
+        if d.get("first_run") or (not new and not dropped):
+            continue                       # nothing to show (baseline or unchanged)
+        any_delta = True
+
+        def _chips(syms, cls):
+            return " ".join(
+                f'<a class="wc-chip {cls}" href="/dash/stock?sym={K.esc(s)}">{K.esc(s)}</a>'
+                for s in syms[:10])
+        bits = []
+        if new:
+            bits.append(f'<span class="wc-up">▲ {len(new)} new</span> {_chips(new, "wc-new")}')
+        if dropped:
+            bits.append(f'<span class="wc-dn">▽ {len(dropped)} dropped</span> {_chips(dropped, "wc-drop")}')
+        items.append(
+            f'<div class="wc-row"><a class="wc-strat" href="{K.esc(route)}">{K.esc(label)}</a>'
+            f'<div class="wc-bits">{" · ".join(bits)}</div></div>')
+    if not any_delta:
+        return ('<div class="wb-changed-sec"><div class="wb-sec-lbl">What changed</div>'
+                '<div class="wb-alerts" style="border-left-color:var(--ink-3)">'
+                '<div class="sec" style="font-size:12.5px">No membership changes since your last '
+                'view of the board — every strategy\'s top set is unchanged. (Descriptive.)</div>'
+                '</div></div>')
+    return ('<div class="wb-changed-sec"><div class="wb-sec-lbl">What changed '
+            '<span class="mut" style="text-transform:none;font-weight:400">'
+            '(since your last board view · descriptive)</span></div>'
+            '<div class="wb-alerts" style="border-left-color:var(--accent-cy)">'
+            + "".join(items) + '</div></div>')
 
 
 def _cci_tile(conn) -> str:
@@ -541,7 +603,7 @@ var KEY='wb_hidden_v1';
 function gh(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
 function sh(h){localStorage.setItem(KEY,JSON.stringify(h))}
 function apply(){var h=gh(),wrap=document.getElementById('wbWrap');if(!wrap)return;
-  ['alerts','credibility','strategies','boards'].forEach(function(s){
+  ['alerts','changed','credibility','strategies','boards'].forEach(function(s){
     wrap.classList.toggle('hide-'+s,!!h[s]);
     var b=document.querySelector('.wb-tog[data-s="'+s+'"]');if(b)b.classList.toggle('on',!h[s]);});}
 document.querySelectorAll('.wb-tog[data-s]').forEach(function(b){
@@ -607,11 +669,12 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
         '<div class="uk-card">No strategies available yet. '
         'Check the precomputed tables on this host.</div>')
 
-    # alerts + credibility tile + boards (workbench sections) — best-effort, never break
-    alerts_html = cci_html = boards_html = ""
+    # alerts + what-changed + credibility tile + boards (workbench sections) — best-effort
+    alerts_html = changed_html = cci_html = boards_html = ""
     try:
         with get_conn() as conn:
             alerts_html = _alerts_strip(conn)
+            changed_html = _what_changed(conn, rows)
             cci_html = _cci_tile(conn)
             boards_html = _boards_section(conn)
     except Exception as e:  # noqa: BLE001
@@ -628,6 +691,7 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
     toolbar = (
         '<div class="wb-bar">'
         '<button class="wb-tog on" data-s="alerts">Alerts</button>'
+        '<button class="wb-tog on" data-s="changed">What changed</button>'
         '<button class="wb-tog on" data-s="credibility">Credibility</button>'
         '<button class="wb-tog on" data-s="strategies">Strategies</button>'
         '<button class="wb-tog on" data-s="boards">Boards</button>'
@@ -639,7 +703,7 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
                           f'<div class="st-grid">{cards}</div></div>')
 
     body = (_PAGE_CSS + head + strip + toolbar
-            + f'<div id="wbWrap">{alerts_html}{cci_html}{strategies_section}{boards_html}</div>'
+            + f'<div id="wbWrap">{alerts_html}{changed_html}{cci_html}{strategies_section}{boards_html}</div>'
             + _WB_JS)
     return HTMLResponse(K.shell("Strategist · patearn", body,
                                 active="strategies", sub=_sub("strategist"),

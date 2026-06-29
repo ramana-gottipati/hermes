@@ -121,6 +121,39 @@ def rebaseline(conn, kind: str = "confluence") -> bool:
         return False
 
 
+def diff_set(conn, kind: str, current_syms, as_of=None) -> dict:
+    """GENERIC since-last-refresh diff for ANY named symbol set (e.g. a strategy's
+    top names) — the engine behind the strategist 'what changed' read. Diffs the
+    passed ``current_syms`` against the last snapshot stored under ``kind`` and
+    re-baselines to the current set so the NEXT call shows the delta since this one.
+    First call baselines silently. Returns {new, dropped, count, baseline_at,
+    first_run}. Descriptive; never raises. ``kind`` should be namespaced per strategy
+    (e.g. 'strat:mep')."""
+    out = {"new": [], "dropped": [], "count": 0, "baseline_at": None, "first_run": False}
+    if conn is None:
+        return out
+    try:
+        _ensure(conn)
+        cur = sorted({(s or "").strip().upper() for s in (current_syms or []) if (s or "").strip()})
+        out["count"] = len(cur)
+        last = _last_snapshot(conn, kind)
+        # re-baseline to the current set every read (a board view = the new reference)
+        _store(conn, cur, as_of, kind)
+        if not last:
+            out["first_run"] = True
+            return out
+        try:
+            base = set(json.loads(last["symbols_json"] or "[]"))
+        except Exception:
+            base = set()
+        out["baseline_at"] = last["taken_at"]
+        out["new"] = sorted(set(cur) - base)
+        out["dropped"] = sorted(base - set(cur))
+    except Exception:
+        return out
+    return out
+
+
 def watchlist_alignment(conn, limit: int = 40) -> list[dict]:
     """Which WATCHLIST names are currently in the confluence set (credible AND being
     accumulated) — the opt-in 'something you're watching just aligned' read. Empty if
