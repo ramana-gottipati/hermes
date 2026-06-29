@@ -2230,12 +2230,16 @@ def dash_screener(scope: str = Query("Nifty 500"),
                      + mep_score_td + f'<td class="l g-mep">{_mep_pill(mphst or mst)}</td>')
         g3 = r["g3"]
         g3_tint = " h-pos2" if (g3 is not None and _KEY_BAND[0] <= g3 <= _KEY_BAND[1]) else ""
-        # Near-P = the next pivot ABOVE (npa is a LABEL: P1M/P3M/P12M — which power level is
-        # overhead — NOT a price, so _esc not _num). Breakout / near-52w-high names have none →
-        # that's not missing data, it's "no overhead resistance" (constructive), so render it as
-        # a signal, not a dead dash. Genuine mid-range no-pivot stays "—".
+        # Overhead = the next pivot ABOVE (npa is a LABEL: P1M/P3M/P12M — which power-delivery
+        # level is overhead — NOT a price, so _esc not _num). The raw "P3M" code reads like an
+        # error to a user, so relabel to plain English ("3M pivot +4.2%" = the 3-month power
+        # level sits +4.2% above). Breakout / near-52w-high names have none → that's not missing
+        # data, it's "no overhead resistance" (constructive), so render it as a signal, not a
+        # dead dash. Genuine mid-range no-pivot stays "—".
         if r["npa"]:
-            nearp = f'{_esc(r["npa"])} {_pct(r["gnp"])}'
+            _npa_lbl = str(r["npa"])
+            _npa_lbl = (_npa_lbl[1:] + " pivot") if _npa_lbl[:1] == "P" else _npa_lbl
+            nearp = f'<span title="next power-delivery level overhead">{_esc(_npa_lbl)}</span> {_pct(r["gnp"])}'
         elif r["hh"] is not None and r["hh"] >= -2.0:
             nearp = ('<span class="pos" title="no pivot above — at/near 52w high, '
                      'no overhead resistance">clear</span>')
@@ -2338,7 +2342,8 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-cci">Cred</th><th class="l g-cci">Fwd</th><th class="num g-cci">Deter</th><th class="l g-cci">Veto</th><th class="num g-cci">#C</th>'
             '<th class="l gsep g-themes">Themes</th>'
             '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
-            '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th><th class="num g-ctx">Near-P</th></tr></thead>')
+            '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th>'
+            '<th class="num g-ctx" title="next power-delivery pivot overhead (resistance) + gap %">Overhead</th></tr></thead>')
         grid = (f'<div class="scrwrap"><table class="scr">{thead}'
                 f'<tbody>{"".join(trs)}</tbody></table></div>'
                 '<script>(function(){var w=document.querySelector(".scrwrap");'
@@ -5318,10 +5323,13 @@ def dash_performance(just_closed: str = Query("", alias="closed")) -> HTMLRespon
         clog = ('<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">'
                 '<div class="ghdr" style="margin:0">Closed-trades log</div>'
                 '<a class="tbtn" href="/dash/track/export?status=closed" style="text-decoration:none">⬇ Export CSV</a></div>'
+                # 14-col table > a 380px phone — scroll it INSIDE its own wrapper so the
+                # PAGE doesn't horizontally scroll (mirrors the screener's .scrwrap pattern).
+                '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
                 '<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th>'
                 '<th>Entry date</th><th>Exit date</th><th>Days</th><th>Entry ₹</th><th>Exit ₹</th><th>Qty</th>'
                 '<th>₹ P&amp;L</th><th>Return</th><th>Reason</th><th></th></tr></thead><tbody>'
-                + "".join(trs) + '</tbody></table>')
+                + "".join(trs) + '</tbody></table></div>')
 
     intro = ('<h2>Performance</h2><div class="sub"><b>Your scoreboard</b> — how your committed ideas '
              'actually performed: money-weighted <b>XIRR</b>, realized vs unrealized, the equity curve '
@@ -7196,7 +7204,16 @@ const DATA = __DATA__;
     crosshair: { mode: 0 },
     handleScroll:true, handleScale:true,
   };
-  const chart = LightweightCharts.createChart(host, Object.assign({height:300}, common));
+  // Bound the chart to its container (like the other bounded charts): a clamped,
+  // FIXED height set once at init, and an explicit starting width = the host's real
+  // content box. The ResizeObserver below then re-applies WIDTH ONLY on resize so the
+  // canvas tracks its column at narrow (mobile) widths without overflowing the page.
+  // (Height is never re-written inside the observer — mutating the observed element's
+  //  box from its own callback risks a resize feedback loop.)
+  const CH_H = Math.max(220, Math.min(300, Math.round(window.innerHeight*0.42)));
+  host.style.height = CH_H + 'px';
+  const chart = LightweightCharts.createChart(host, Object.assign(
+    {width: Math.max(0, host.clientWidth), height: CH_H}, common));
   const ratioLine = chart.addLineSeries({color:'#1f6feb',lineWidth:2,priceLineVisible:false});
   const ma50Line  = chart.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   const ma200Line = chart.addLineSeries({color:'#6e7681',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
@@ -7230,9 +7247,19 @@ const DATA = __DATA__;
   setRange(252);
   document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on'));
   const oneY=document.querySelector('.rangebar button[data-r="252"]'); if(oneY) oneY.classList.add('on');
-  // Debounced ResizeObserver (~100ms) — avoid a redraw per resize tick.
-  let rzT=null;
-  new ResizeObserver(()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
+  // Keep the canvas bound to its column: on resize, explicitly resize the chart to the
+  // host's current content width (chart.resize is the call that actually re-lays-out the
+  // canvas in this LWC build; applyOptions({width}) alone does not). Height is the fixed
+  // clamped CH_H. We observe the STABLE parent (.chartwrap, whose box we never mutate)
+  // and only call resize() — so there is no resize feedback loop. This stops the chart
+  // overflowing the page at narrow (mobile) widths.
+  let rzT=null, lastW=host.clientWidth;
+  function fit(){
+    const w=host.clientWidth;
+    if(w>0 && w!==lastW){ lastW=w; chart.resize(w, CH_H); }  // width-gated → a resize() can't re-trigger itself
+  }
+  new ResizeObserver(()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(fit,120); }).observe(host.parentElement || host);
+  window.addEventListener('resize', ()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(fit,120); });
 
   // Crosshair value readout — hover to see the ratio + its 50/200-MA at the
   // cursor; shows the latest when the cursor is off-chart.
