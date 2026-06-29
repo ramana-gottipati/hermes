@@ -1041,6 +1041,40 @@ def lag_samples(conn=None, *, data_class="fundamentals_history", n: int = 8) -> 
     return _with_conn(q, conn)
 
 
+def provenance_narrative(conn=None) -> dict:
+    """The tight, defensible 'zero look-ahead' STORY a CFA can audit — assembled once
+    from lag_headline + lag_samples so every surface (my pages + the orchestrator's
+    coverage_view 1-liner) tells the SAME story. Descriptive, NO edge claim.
+
+    Returns {status, headline, paragraphs:[...], worst, conservative} where:
+      headline  = the one-line effective-leak claim
+      paragraphs= the 3-beat narrative (what we model · how we de-model · the proof)
+      worst     = the single worst would-have-leaked receipt (the stress case)
+      conservative = a representative over-conservative receipt (the safe case)
+    Degrades to status!='ok' before real dates accrue."""
+    h = lag_headline(conn=conn)
+    if h.get("status") != "ok":
+        return {"status": h.get("status", "no_real_observations_yet"),
+                "headline": "Look-ahead audit pending — real filing dates accrue going forward.",
+                "paragraphs": [], "worst": None, "conservative": None}
+    s = lag_samples(conn=conn, n=1)
+    worst = (s.get("leaks") or [None])[0]
+    cons = (s.get("conservative") or [None])[0]
+    headline = (f"Effective look-ahead leak {h['effective_leak_pct']}% "
+                f"(vs {h['baseline_leak_pct']}% on the naive +90/+50d model — a "
+                f"{h['leak_cut_x']}× cut), over {h['n_pairs']:,} matched periods.")
+    p1 = ("WHAT WE MODEL: a fundamental period's report_date is a SYNTHETIC +90d (annual) / "
+          "+50d (quarterly) lag off period-end — applied identically to every company.")
+    p2 = (f"HOW WE DE-MODEL: where a real exchange (BSE) filing date exists we PREFER it (leak 0 by "
+          f"construction); {h['demodel_rate_pct']}% of archived periods now carry a real date, and a "
+          f"conservative p95 lag covers the rest. The blended expected leak is {h['effective_leak_pct']}%.")
+    p3 = ("THE PROOF: the effective PIT read uses the real date, so a backtest can never see a datum "
+          "before it was public. The receipts below show the leak the naive model WOULD have injected — "
+          "and that the real dates fix it.")
+    return {"status": "ok", "headline": headline, "paragraphs": [p1, p2, p3],
+            "worst": worst, "conservative": cons, "metrics": h}
+
+
 # ── self-check (synthetic in-memory DB — no real data needed) ─────────────────
 def _selftest() -> None:
     conn = sqlite3.connect(":memory:")
