@@ -224,6 +224,12 @@ body.uk-skin .rsh-bench{border:1px solid var(--line-2);border-radius:var(--r-sm)
    not class-reachable; a subtle shade nuance, left to the frozen body / flagged.) ── */
 body.uk-skin .ck-tile{background:var(--bg-2);border-color:var(--line)}
 body.uk-skin a.ck-tile:hover{border-color:var(--accent)}
+/* ── CPR strip cells (.cprstrip .c — the pivot tiles on /dash/cpr + the CPR overlay on
+   the dossier): the last class-based old-palette holdout found in the W4 full-site sweep
+   (bg #161b22). Map to --bg-2; the up/dn semantic ink on them is already retinted.
+   Site-wide sweep otherwise clean — every other legacy page's class-based surfaces are
+   already covered by the card / maj / kpi / rsh / ck-tile token maps. ── */
+body.uk-skin .cprstrip .c{background:var(--bg-2)}
 /* ── responsive: legacy page body on a phone ── */
 @media (max-width:640px){
   body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
