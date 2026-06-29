@@ -41,7 +41,8 @@ SNIPPET = """<script>
   // --- the fixed colour grammar (mirrors hermes-charts.js PALETTE) ----------
   var C={up:'#3fb950',down:'#f85149',line:'#1f6feb',dvpt:'#d29922',dvptIdle:'#30506b',
     deliv:'#58a6ff',tval:'#30363d',dval:'#2ea043',vwap:'#f0883e',avwap:'#db61a2',
-    rs:'#39c5cf',wolfe:'#58a6ff',harm:'#f778ba',txt:'#8b949e',txtHi:'#e6edf3',dim:'#6e7681',
+    rs:'#39c5cf',wolfe:'#58a6ff',harm:'#f778ba',bb:'#a371f7',atr:'#56d364',
+    txt:'#8b949e',txtHi:'#e6edf3',dim:'#6e7681',
     border:'#30363d',grid:'#21262d',bg:'#161b22'};
   function E(t,css,html){ var n=document.createElement(t); if(css)n.style.cssText=css; if(html!=null)n.innerHTML=html; return n; }
   function hexA(hex,a){ var h=hex.replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
@@ -104,6 +105,15 @@ SNIPPET = """<script>
     var vwapL=pc.addLineSeries({color:C.vwap,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); vwapL.applyOptions({visible:false});
     var avwapL=pc.addLineSeries({color:C.avwap,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); avwapL.applyOptions({visible:false});
     var avwapAnchor=null;   // {time} chosen via the AVWAP tool
+
+    // Bollinger Bands (20,2) + ATR bands (close +/- k*ATR) — DESCRIPTIVE volatility
+    // envelopes on the price scale, opt-in. Mid = SMA(20); upper/lower = mid +/- 2*stdev.
+    // ATR bands use a 14-period ATR around the close. No buy/sell semantics — just bands.
+    var bbU=pc.addLineSeries({color:C.bb,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); bbU.applyOptions({visible:false});
+    var bbM=pc.addLineSeries({color:C.bb,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); bbM.applyOptions({visible:false});
+    var bbL=pc.addLineSeries({color:C.bb,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); bbL.applyOptions({visible:false});
+    var atrU=pc.addLineSeries({color:C.atr,lineWidth:1,lineStyle:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); atrU.applyOptions({visible:false});
+    var atrLo=pc.addLineSeries({color:C.atr,lineWidth:1,lineStyle:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); atrLo.applyOptions({visible:false});
 
     // ---- resample (D/W/M/Q) — ported verbatim from the proven inline block ---
     function isoWeekKey(s){ var d=new Date(s+'T00:00:00Z'); var jd=(d.getUTCDay()+6)%7;
@@ -191,6 +201,8 @@ SNIPPET = """<script>
       tvalH.setMarkers(tvCap>0?RT.filter(function(d){return d.tval!=null&&d.tval>tvCap;}).map(function(d){return {time:d.time,position:'aboveBar',color:C.dvpt,shape:'arrowUp'};}):[]);
       if(reg.vwap.on) vwapL.setData(vwapFrom(RT,0));
       if(reg.avwap.on) avwapL.setData(vwapFrom(RT, anchorIdx()));
+      if(reg.bb.on){ var bb=bollinger(RT,20,2); bbU.setData(bb.up); bbM.setData(bb.mid); bbL.setData(bb.lo); }
+      if(reg.atr.on){ var ab=atrBands(RT,14,2); atrU.setData(ab.up); atrLo.setData(ab.lo); }
       if(draw) draw.redraw();
       // harmonic: D/W/M is detected on the resampled bars server-side, so when the
       // interval crosses into (or out of) W/M, re-fetch; otherwise just re-snap.
@@ -231,6 +243,18 @@ SNIPPET = """<script>
     function anchorIdx(){ if(!avwapAnchor)return Math.max(0,RT.length-63);
       for(var i=0;i<RT.length;i++){ if(RT[i].time>=avwapAnchor) return i; } return 0; }
 
+    // ---- Bollinger (n,k) + ATR(n) bands — descriptive volatility envelopes ----
+    function bollinger(R,n,k){ n=n||20; k=k||2; var up=[],mid=[],lo=[];
+      for(var i=0;i<R.length;i++){ if(i<n-1) continue; var s=0; for(var j=i-n+1;j<=i;j++) s+=R[j].close; var m=s/n;
+        var vsum=0; for(var j2=i-n+1;j2<=i;j2++){ var dd=R[j2].close-m; vsum+=dd*dd; } var sd=Math.sqrt(vsum/n);
+        mid.push({time:R[i].time,value:m}); up.push({time:R[i].time,value:m+k*sd}); lo.push({time:R[i].time,value:m-k*sd}); }
+      return {up:up,mid:mid,lo:lo}; }
+    function atrBands(R,n,k){ n=n||14; k=k||2; var tr=[],up=[],lo=[],prevA=null;
+      for(var i=0;i<R.length;i++){ var d=R[i]; var t=(i===0)?(d.high-d.low):Math.max(d.high-d.low,Math.abs(d.high-R[i-1].close),Math.abs(d.low-R[i-1].close)); tr.push(t);
+        var a; if(i<n-1){ continue; } else if(i===n-1){ var s=0; for(var j=0;j<n;j++) s+=tr[j]; a=s/n; } else { a=(prevA*(n-1)+t)/n; }
+        prevA=a; up.push({time:d.time,value:d.close+k*a}); lo.push({time:d.time,value:d.close-k*a}); }
+      return {up:up,lo:lo}; }
+
     // ---- crosshair readout (#priceRdt) — keyed on raw daily, like before ----
     var rdt=document.getElementById('priceRdt');
     var byT={}; S0.forEach(function(d){byT[d.time]=d;});
@@ -257,6 +281,8 @@ SNIPPET = """<script>
       harm:{label:'Harmonic',col:C.harm,on:false, fn:function(v){ harmToggle(v); }},
       vwap:{label:'VWAP',col:C.vwap,on:false, fn:function(v){ if(v)vwapL.setData(vwapFrom(RT,0)); vwapL.applyOptions({visible:v}); }},
       avwap:{label:'Anchored VWAP',col:C.avwap,on:false, fn:function(v){ if(v){ avwapL.setData(vwapFrom(RT,anchorIdx())); pickAVWAP(); } avwapL.applyOptions({visible:v}); }},
+      bb:{label:'Bollinger',col:C.bb,on:false, fn:function(v){ if(v){ var b=bollinger(RT,20,2); bbU.setData(b.up); bbM.setData(b.mid); bbL.setData(b.lo); } bbU.applyOptions({visible:v}); bbM.applyOptions({visible:v}); bbL.applyOptions({visible:v}); }},
+      atr:{label:'ATR bands',col:C.atr,on:false, fn:function(v){ if(v){ var a=atrBands(RT,14,2); atrU.setData(a.up); atrLo.setData(a.lo); } atrU.applyOptions({visible:v}); atrLo.applyOptions({visible:v}); }},
       deliv:{label:'Delivery %',col:C.deliv,on:false, fn:function(v){ delivL.applyOptions({visible:v}); reflow(); }},
       flow:{label:'Traded \\u20b9',col:C.dval,on:false, fn:function(v){ tvalH.applyOptions({visible:v}); dvalH.applyOptions({visible:v}); reflow(); }}
     };
@@ -297,6 +323,8 @@ SNIPPET = """<script>
     var indBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px');
     var maAnchor=E('span','display:inline-block;width:0'); maAnchor.id='cprBar'; indBar.appendChild(maAnchor);
     indBar.appendChild(regChip('vwap')); indBar.appendChild(regChip('avwap'));
+    var bbChip=regChip('bb'); bbChip.title='Bollinger Bands (20, 2\\u03c3) \\u2014 descriptive volatility envelope around a 20-period mean, not a buy/sell signal.'; indBar.appendChild(bbChip);
+    var atrChip=regChip('atr'); atrChip.title='ATR bands (close \\u00b1 2\\u00d7ATR-14) \\u2014 descriptive volatility envelope, not a buy/sell signal.'; indBar.appendChild(atrChip);
     indBar.appendChild(regChip('deliv')); indBar.appendChild(regChip('flow'));
 
     // -- family 4: drawings (built below; engine attaches to drawBar) ---------
@@ -332,6 +360,8 @@ SNIPPET = """<script>
       harm:[C.harm,'Harmonic','XABCD reversal geometry — read by side: BULL = modest fit-graded edge, BEAR = tail/regime-only'],
       vwap:[C.vwap,'VWAP','session volume-weighted average price'],
       avwap:[C.avwap,'Anchored VWAP','VWAP from a chosen anchor bar'],
+      bb:[C.bb,'Bollinger','20-period mean \\u00b1 2\\u03c3 volatility envelope (descriptive)'],
+      atr:[C.atr,'ATR bands','close \\u00b1 2\\u00d7ATR(14) volatility envelope (descriptive)'],
       deliv:[C.deliv,'Delivery %','share of traded volume taken to delivery'],
       flow:[C.dval,'Traded / Delivery \\u20b9','rupee traded vs delivered value']
     };
@@ -467,6 +497,9 @@ SNIPPET = """<script>
     var items=[]; try{ items=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ items=[]; }
     var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null;
     var FIB=[0,0.236,0.382,0.5,0.618,0.786,1];
+    // Fib EXTENSION levels — project targets beyond the move (a→b): 0/0.618/1 mark the
+    // measured move, 1.272/1.618/2.0/2.618 are the extension targets. Descriptive geometry.
+    var FIBX=[0,0.618,1,1.272,1.618,2,2.618];
 
     // ---- server persistence (debounced) -------------------------------------
     var saveT=null, lastSent=null;
@@ -520,16 +553,23 @@ SNIPPET = """<script>
         function one(d,isSel){ var col=isSel?'#e6edf3':(d.col||'#58a6ff');
           if(d.t==='hline'){ hline(d.a,col); var pa=px(d.a); if(pa)txt(n2(d.a.price),6*h,(pa.y-4)*v,col); return; }
           if(d.t==='text'){ var pa=px(d.a); if(pa){ txt(d.text||'text',(pa.x+4)*h,pa.y*v,col); } return; }
-          if(d.t==='trend'){ L(d.a,d.b,col,isSel?2:1.4); return; }
+          if(d.t==='trend'){ L(d.a,d.b,col,isSel?Math.max(2,(d.w||1.4)):(d.w||1.4)); return; }
           if(d.t==='measure'){ L(d.a,d.b,col,1.4,true); var pb=px(d.b); if(pb){ var dp=d.b.price-d.a.price,pctv=d.a.price?dp/d.a.price*100:0;
-              txt((dp>=0?'+':'')+n2(dp)+' ('+(pctv>=0?'+':'')+pctv.toFixed(1)+'%)',(pb.x+6)*h,pb.y*v,col); } return; }
+              var nb=barsBetween(d.a.time,d.b.time), days=calDays(d.a.time,d.b.time);
+              var w=(d.col||col)*1; var lw=(isSel?2:1.4);
+              txt((dp>=0?'+':'')+n2(dp)+' ('+(pctv>=0?'+':'')+pctv.toFixed(1)+'%)',(pb.x+6)*h,(pb.y-6)*v,col);
+              txt(nb+' bars \\u00b7 '+days+'d',(pb.x+6)*h,(pb.y+9)*v,hexA(col==='#e6edf3'?'#39c5cf':col,0.95)); } return; }
           if(d.t==='rect'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var X=Math.min(pa.x,pb.x)*h,Y=Math.min(pa.y,pb.y)*v,Wd=Math.abs(pb.x-pa.x)*h,Hd=Math.abs(pb.y-pa.y)*v;
-            x.fillStyle=hexA(col==='#e6edf3'?'#58a6ff':col,0.10); x.fillRect(X,Y,Wd,Hd); x.strokeStyle=col;x.lineWidth=1*v;x.setLineDash([]);x.strokeRect(X,Y,Wd,Hd); return; }
-          if(d.t==='fib'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var x0=Math.min(pa.x,pb.x),x1=Math.max(pa.x,pb.x);
-            for(var i=0;i<FIB.length;i++){ var pr=d.a.price+(d.b.price-d.a.price)*FIB[i]; var py=series.priceToCoordinate(pr); if(py==null)continue;
-              x.strokeStyle=isSel?'#e6edf3':hexA('#d29922',0.8);x.lineWidth=1*v;x.setLineDash([]); x.beginPath();x.moveTo(x0*h,py*v);x.lineTo(x1*h,py*v);x.stroke();
-              txt(FIB[i].toFixed(3)+'  '+n2(pr),(x1+4)*h,py*v,hexA('#d29922',0.95)); } return; }
+            x.fillStyle=hexA(col==='#e6edf3'?'#58a6ff':col,0.10); x.fillRect(X,Y,Wd,Hd); x.strokeStyle=col;x.lineWidth=(isSel?2:1)*v;x.setLineDash([]);x.strokeRect(X,Y,Wd,Hd); return; }
+          if(d.t==='fib'||d.t==='fibext'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var x0=Math.min(pa.x,pb.x),x1=Math.max(pa.x,pb.x);
+            var LV=(d.t==='fibext')?FIBX:FIB, fcol=(d.t==='fibext')?'#a371f7':'#d29922';
+            for(var i=0;i<LV.length;i++){ var pr=d.a.price+(d.b.price-d.a.price)*LV[i]; var py=series.priceToCoordinate(pr); if(py==null)continue;
+              x.strokeStyle=isSel?'#e6edf3':hexA(fcol,0.8);x.lineWidth=1*v;x.setLineDash(LV[i]>1?[3*h,2*h]:[]); x.beginPath();x.moveTo(x0*h,py*v);x.lineTo(x1*h,py*v);x.stroke(); x.setLineDash([]);
+              txt(LV[i].toFixed(3)+'  '+n2(pr),(x1+4)*h,py*v,hexA(fcol,0.95)); } return; }
         }
+        // bars/time helpers (closure over the current resampled rows)
+        function barsBetween(t0,t1){ var R=bars(),i0=-1,i1=-1; for(var i=0;i<R.length;i++){ if(i0<0&&R[i].time>=t0)i0=i; if(R[i].time<=t1)i1=i; } if(i0<0||i1<0)return 0; return Math.abs(i1-i0); }
+        function calDays(t0,t1){ var a=new Date(t0),b=new Date(t1); return Math.round(Math.abs(b-a)/86400000); }
         for(var i=0;i<items.length;i++) one(items[i], items[i]===sel);
         if(draft) one(draft,false);
         // anchor handles on the selected drawing
@@ -552,7 +592,7 @@ SNIPPET = """<script>
         if(d.t==='hline'){ if(Math.abs(pa.y-y)<6) return d; continue; }
         if(d.t==='text'){ if(Math.abs(pa.x-x)<40&&Math.abs(pa.y-y)<12) return d; continue; }
         var pb=d.b?px(d.b):null; if(!pb)continue;
-        if(d.t==='rect'||d.t==='fib'){ if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+4&&y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d; continue; }
+        if(d.t==='rect'||d.t==='fib'||d.t==='fibext'){ if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+4&&y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d; continue; }
         // segment distance for trend/measure
         var dx=pb.x-pa.x,dy=pb.y-pa.y,L2=dx*dx+dy*dy; var tt=L2?((x-pa.x)*dx+(y-pa.y)*dy)/L2:0; tt=Math.max(0,Math.min(1,tt));
         var qx=pa.x+tt*dx,qy=pa.y+tt*dy; if(Math.hypot(x-qx,y-qy)<6) return d; }
@@ -576,7 +616,7 @@ SNIPPET = """<script>
       if(dragging){ dragging=null; save(); } }
     cap.addEventListener('pointerdown',onDown); cap.addEventListener('pointermove',onMove); window.addEventListener('pointerup',onUp);
 
-    function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',measure:'#39c5cf'}[t]||'#58a6ff'; }
+    function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',fibext:'#a371f7',measure:'#39c5cf'}[t]||'#58a6ff'; }
     function setTool(t){ tool=(tool===t)?null:t; cap.style.pointerEvents=(tool||editing)?'auto':'none';
       pc.applyOptions({handleScroll:!tool,handleScale:!tool}); paintTools(); }
     var editing=false;
@@ -586,7 +626,7 @@ SNIPPET = """<script>
 
     // --- the Drawings family UI -------------------------------------------
     var TOOLS=[['trend','\\u2571','Trend line'],['hline','\\u2014','Horizontal line'],['rect','\\u25ad','Rectangle'],
-      ['fib','F','Fib retracement'],['measure','\\u22b9','Measure'],['text','T','Text']];
+      ['fib','F','Fib retracement'],['fibext','Fx','Fib extension (project targets beyond the move)'],['measure','\\u22b9','Measure (\\u0394price, \\u0394%, bars, days)'],['text','T','Text']];
     var btns={};
     function tbtn(css,title,html){ var b=E('span',css,html); b.title=title; return b; }
     function baseBtn(on){ return 'cursor:pointer;font-size:13px;line-height:1;color:'+(on?'#e6edf3':'#8b949e')+';border:1px solid '+(on?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px;min-width:22px;text-align:center'; }
@@ -599,11 +639,58 @@ SNIPPET = """<script>
     var mag=tbtn('','Magnet — snap to nearest OHLC (still draggable)','\\ud83e\\uddf2 magnet'); mag.onclick=function(){ magnet=!magnet; paintTools(); }; btns._mag=mag; bar.appendChild(mag);
     var hide=tbtn('','Hide all drawings (tap again to restore)','hide all'); hide.onclick=function(){ hidden=!hidden; paintTools(); redraw(); }; btns._hide=hide; bar.appendChild(hide);
     var clear=tbtn('cursor:pointer;font-size:11px;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:3px 7px','Delete all drawings','clear');
-    clear.onclick=function(){ if(items.length&&confirm('Delete all '+items.length+' drawing(s)?')){ items=[]; sel=null; save(); redraw(); } }; bar.appendChild(clear);
+    clear.onclick=function(){ if(items.length&&confirm('Delete all '+items.length+' drawing(s)?')){ items=[]; sel=null; save(); renderPanel(); redraw(); } }; bar.appendChild(clear);
+
+    // =====================================================================
+    //  DRAWING MANAGER — per-drawing style (colour/width) + delete-one + a
+    //  list panel + export / import JSON. Caps + never-throws like the store.
+    // =====================================================================
+    var WIDS=[1,1.4,2,3];
+    var manageBtn=tbtn('cursor:pointer;font-size:11px;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:3px 7px','Manage drawings (style / delete / export)','\\u2261 list'); bar.appendChild(manageBtn);
+    var panel=E('div','display:none;position:absolute;top:100%;right:0;z-index:20;margin-top:4px;width:280px;max-height:300px;overflow:auto;background:#0e1320;border:1px solid '+C.border+';border-radius:8px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.5);font-family:-apple-system,Segoe UI,sans-serif');
+    // anchor the panel to the rail's drawings cell (bar) so it floats under the controls
+    if(bar&&bar.style){ bar.style.position='relative'; } bar.appendChild(panel);
+    function dlabel(d){ return {trend:'Trend',hline:'H-line',rect:'Rect',fib:'Fib',fibext:'Fib ext',measure:'Measure',text:'Text'}[d.t]||d.t; }
+    function renderPanel(){
+      if(panel.style.display==='none') return;
+      panel.innerHTML='';
+      var head=E('div','display:flex;justify-content:space-between;align-items:center;margin-bottom:6px');
+      head.appendChild(E('span','font-size:11px;color:'+C.txtHi+';font-weight:600','Drawings ('+items.length+')'));
+      var io=E('div','display:flex;gap:4px');
+      var exp=E('span','cursor:pointer;font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:4px;padding:2px 6px','export'); exp.title='Download all drawings as JSON'; exp.onclick=exportJSON;
+      var imp=E('span','cursor:pointer;font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:4px;padding:2px 6px','import'); imp.title='Load drawings from a JSON file (replaces current)'; imp.onclick=importJSON;
+      io.appendChild(exp); io.appendChild(imp); head.appendChild(io); panel.appendChild(head);
+      if(!items.length){ panel.appendChild(E('div','font-size:11px;color:'+C.dim+';padding:6px 2px','No drawings yet. Pick a tool and draw on the chart.')); return; }
+      items.forEach(function(d,idx){
+        var row=E('div','display:flex;align-items:center;gap:6px;padding:3px 0;border-top:1px solid #161b22');
+        var sw=document.createElement('input'); sw.type='color'; sw.value=normHex(d.col||toolCol(d.t)); sw.title='Colour';
+        sw.style.cssText='width:22px;height:18px;border:none;background:none;padding:0;cursor:pointer';
+        sw.oninput=function(){ d.col=sw.value; save(); redraw(); };
+        var nm=E('span','flex:1;font-size:11px;color:'+C.txt,dlabel(d)+(d.t==='text'&&d.text?(': '+esc(d.text).slice(0,14)):''));
+        nm.style.cursor='pointer'; nm.title='Select on chart'; nm.onclick=function(){ sel=d; redraw(); };
+        var wsel=document.createElement('select'); wsel.style.cssText='background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;font-size:10px;padding:1px 2px';
+        WIDS.forEach(function(w){ var op=document.createElement('option'); op.value=w; op.textContent=w+'px'; if((d.w||1.4)==w)op.selected=true; wsel.appendChild(op); });
+        wsel.title='Line width'; wsel.onchange=function(){ d.w=parseFloat(wsel.value); save(); redraw(); };
+        var del=E('span','cursor:pointer;font-size:13px;color:#f85149;padding:0 3px','\\u00d7'); del.title='Delete this drawing';
+        del.onclick=function(){ var i=items.indexOf(d); if(i>=0){ items.splice(i,1); if(sel===d)sel=null; save(); renderPanel(); redraw(); } };
+        row.appendChild(sw); row.appendChild(nm); row.appendChild(wsel); row.appendChild(del); panel.appendChild(row);
+      });
+    }
+    function esc(s){ return (s||'').replace(/[<>&]/g,''); }
+    function normHex(c){ if(!c)return '#58a6ff'; if(/^#[0-9a-fA-F]{6}$/.test(c))return c; if(/^#[0-9a-fA-F]{3}$/.test(c))return '#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]; return '#58a6ff'; }
+    function exportJSON(){ try{ var blob=new Blob([JSON.stringify(items,null,2)],{type:'application/json'});
+      var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='drawings_'+sym+'.json'; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); },1000); }catch(e){} }
+    function importJSON(){ try{ var inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json';
+      inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(!f)return; var rd=new FileReader();
+        rd.onload=function(){ try{ var arr=JSON.parse(rd.result); if(Array.isArray(arr)){ items=arr.slice(0,500); sel=null; save(); renderPanel(); redraw(); } else alert('That file is not a drawings array.'); }catch(e){ alert('Could not parse that JSON.'); } };
+        rd.readAsText(f); }; inp.click(); }catch(e){} }
+    manageBtn.onclick=function(){ var open=panel.style.display==='none'; panel.style.display=open?'block':'none';
+      manageBtn.style.cssText='cursor:pointer;font-size:11px;color:'+(open?'#e6edf3':'#8b949e')+';border:1px solid '+(open?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px'; if(open)renderPanel(); };
     paintTools();
 
     // Del key removes the selected drawing while editing
-    window.addEventListener('keydown',function(e){ if((e.key==='Delete'||e.key==='Backspace')&&sel){ var i=items.indexOf(sel); if(i>=0){ items.splice(i,1); sel=null; save(); redraw(); e.preventDefault(); } } });
+    window.addEventListener('keydown',function(e){ if((e.key==='Delete'||e.key==='Backspace')&&sel){ var i=items.indexOf(sel); if(i>=0){ items.splice(i,1); sel=null; save(); renderPanel(); redraw(); e.preventDefault(); } } });
 
     return { redraw:redraw };
   }
