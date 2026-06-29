@@ -72,7 +72,26 @@
   W→M→D re-fetch, legend updates — `window.__wfpc` intact, chart bounded 1280×760, ZERO
   console errors. Backups: `*.bak-g3` on VPS.
 
-### Remaining backlog (next batches)
-- G3-4 complete the reusable `hermes-charts.js` drawing engine (site-wide foundation).
-- G3-7 DVPT/RS multi-TF confirm + guard.
-- G3-8 audit owned surfaces for `preserveAspectRatio="none"` stretch.
+### 2026-06-29 — batch 2: multi-TF harmonic SCANNER (commit) 
+- **Scanner timeframe selector** (`harmonic_view.py` + `harmonic_signals.py`): the
+  `/dash/harmonic` page gains a Daily/Weekly/Monthly pill. Daily reads the nightly
+  snapshot (instant); W/M are a live multi-TF scan (`HS.scan(tf=…)` — backward-compatible,
+  `tf="d"` default unchanged, so the nightly persist + Wolfe scanner are untouched). The
+  multi-TF DETECTION hand-off is now discoverable, not chart-only.
+- **Gates:** chrome gate PASS · regression sweep PASS. **Live (browser):** weekly 147
+  setups, monthly 140 setups, pills active, by-side tags render, zero app console errors
+  (the 4 message-channel exceptions seen were the benign Chrome-extension artifact from a
+  prior tab, not our code). Backup: `harmonic_signals.py.bak-g3` on VPS.
+
+### G3-8 audit — CLEAN (no commit needed)
+- No `preserveAspectRatio="none"` stretch in ANY owned file. `wolfe_view.py`'s SVG uses
+  `viewBox="0 0 1000 460" width="100%"` with default proportional scaling — already bounded.
+
+### G3-4 reusable engine — DEFERRED (intentional, not gold-plated)
+- `hermes-charts.js` (`HermesCharts.createStockChart`) + `chart_view.render_stock_chart` are
+  **not consumed by any live page** and `/static/hermes-charts.js` returns **404** (the
+  static mount was never wired). The live `/dash/stock` uses the `stock_chart.py` SNIPPET
+  instead. Completing the unused engine's drawing stub would polish dead code; the real
+  site-wide rollout target (RRG/RS/ratio in `cockpit.py`/`rrg_view.py`) is OFF-LIMITS
+  (non-owned). Left as-is. If the reusable engine is ever revived, port `makeDraw` from
+  `stock_chart.py` and wire the `/static` mount first.

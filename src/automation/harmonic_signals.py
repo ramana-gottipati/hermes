@@ -71,18 +71,25 @@ def _scan_as_of(conn):
     return None
 
 
-def scan(conn, universe="nifty500", k=1.5, fresh=12, max_symbols=None):
+def scan(conn, universe="nifty500", k=1.5, fresh=12, max_symbols=None, tf="d"):
     """Fresh harmonic setups across a universe — actionable-first then freshest. Each row
     matches `_COLS`. CONFIRMED kept only if D is within `fresh` bars; FORMING always (the
-    PRZ is forward-looking). `tag` = the backtest's by-side read (BULL edge / BEAR tail)."""
+    PRZ is forward-looking). `tag` = the backtest's by-side read (BULL edge / BEAR tail).
+
+    tf='d'/'w'/'m' detects on daily / weekly / monthly bars (the multi-TF hand-off). W/M
+    bars are coarser, so `fresh` is widened so recent W/M setups still surface."""
+    from src.automation.harmonic_patterns import resample_series  # local: avoid import cycle at load
     out = []
     syms = scan_universe(conn, universe)
     if max_symbols:
         syms = syms[:max_symbols]
+    fresh_eff = fresh if tf == "d" else max(fresh, 8)
     for sym in syms:
         s = stock_series(conn, sym)
         if not s:
             continue
+        if tf in ("w", "m"):
+            s = resample_series(*s, tf)
         dates, opens, highs, lows, closes = s
         n = len(closes)
         cmp_ = closes[-1]
@@ -95,7 +102,7 @@ def scan(conn, universe="nifty500", k=1.5, fresh=12, max_symbols=None):
                 d_idx = p.points[-1][1]
                 d_price = p.points[-1][2]
                 age = n - 1 - d_idx
-                if age > fresh:
+                if age > fresh_eff:
                     continue
                 in_zone = abs(cmp_ - d_price) / d_price <= 0.02 if d_price else False
                 out.append({"sym": sym, "pattern": p.name, "dir": p.direction,
@@ -105,7 +112,7 @@ def scan(conn, universe="nifty500", k=1.5, fresh=12, max_symbols=None):
             else:  # FORMING
                 c_idx = p.points[-1][1]
                 age = n - 1 - c_idx
-                if age > fresh:
+                if age > fresh_eff:
                     continue
                 lo, hi = p.prz.get("lo"), p.prz.get("hi")
                 in_zone = (lo is not None and min(lo, hi) * 0.99 <= cmp_ <= max(lo, hi) * 1.01)

@@ -91,19 +91,25 @@ def _zone(r):
 
 @router.get("/dash/harmonic", response_class=HTMLResponse)
 def harmonic_page(universe: str = Query("nifty500", max_length=24),
-                  refresh: int = Query(0, ge=0, le=1)):
-    """The harmonic scanner — reads the nightly harmonic_signals snapshot (instant), with a
-    live fallback. Descriptive, read by side; click a row → that stock's chart."""
+                  refresh: int = Query(0, ge=0, le=1),
+                  tf: str = Query("d", pattern="^[dwm]$")):
+    """The harmonic scanner — reads the nightly harmonic_signals snapshot (instant) for the
+    daily timeframe, with a live fallback. W/M timeframes are always a live scan (no nightly
+    snapshot kept for them). Descriptive, read by side; click a row → that stock's chart."""
     uni = universe or "nifty500"
     with get_conn() as conn:
-        data = None if refresh else HS.latest(conn, universe=uni)
+        # snapshot only exists for the daily TF; W/M is a live multi-TF scan (the hand-off)
+        data = None if (refresh or tf != "d") else HS.latest(conn, universe=uni)
         if data:
             rows, scan_date, computed = data["rows"], data.get("scan_date"), data.get("computed_at")
             live = False
         else:
-            rows = HS.scan(conn, universe=uni)
+            rows = HS.scan(conn, universe=uni, tf=tf)
             scan_date, computed, live = None, None, True
     nin = sum(1 for r in rows if r["in_zone"])
+    tf = tf if tf in ("d", "w", "m") else "d"
+    _tf_iv = {"d": "d", "w": "w", "m": "m"}[tf]   # the chart interval to open at
+    _tf_label = {"d": "daily", "w": "weekly", "m": "monthly"}[tf]
     trs = []
     for r in rows:
         bull = r["dir"] == "BULL"
@@ -126,13 +132,21 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
             f'<td>{_esc(r["cmp"])}</td><td>{_zone(r)}</td>'
             f'<td style="color:#8b949e">{sc}</td></tr>')
     if not rows:
-        trs = ['<tr><td colspan="9" style="padding:14px;color:#8b949e">No fresh harmonic setups right now — '
-               'try <a href="/dash/harmonic?refresh=1" style="color:#58a6ff">a live recompute</a>.</td></tr>']
+        trs = [f'<tr><td colspan="9" style="padding:14px;color:#8b949e">No fresh {_tf_label} harmonic setups right now — '
+               f'try <a href="/dash/harmonic?tf={tf}&refresh=1" style="color:#58a6ff">a live recompute</a>.</td></tr>']
     head = ('symbol', 'pattern', 'dir', 'state', 'status', 'age', 'CMP', 'zone / PRZ', 'fit')
-    fresh_line = (f'as-of <b>{_esc(scan_date or "—")}</b> '
-                  f'<span style="color:#6e7681">(nightly snapshot{(" · " + _esc(computed[:16])) if computed else ""})</span> · '
-                  f'<a href="/dash/harmonic?refresh=1" style="color:#58a6ff" title="recompute live now">↻ refresh</a>'
-                  if not live else 'as-of today <span style="color:#6e7681">(live)</span>')
+    if tf == "d":
+        fresh_line = (f'as-of <b>{_esc(scan_date or "—")}</b> '
+                      f'<span style="color:#6e7681">(nightly snapshot{(" · " + _esc(computed[:16])) if computed else ""})</span> · '
+                      f'<a href="/dash/harmonic?refresh=1" style="color:#58a6ff" title="recompute live now">↻ refresh</a>'
+                      if not live else 'as-of today <span style="color:#6e7681">(live)</span>')
+    else:
+        fresh_line = f'{_tf_label} bars <span style="color:#6e7681">(live multi-TF scan)</span>'
+    # timeframe selector — D from the nightly snapshot, W/M live (the multi-TF hand-off)
+    tf_pills = " ".join(
+        f'<a href="/dash/harmonic?tf={t}" style="text-decoration:none;padding:2px 9px;border-radius:5px;font-size:12px;'
+        + ('background:#1f6feb;color:#fff' if t == tf else 'color:#8b949e;border:1px solid #30363d') + f'">{lbl}</a>'
+        for (t, lbl) in (("d", "Daily"), ("w", "Weekly"), ("m", "Monthly")))
     body = (
         '<h2>Harmonic scanner <span style="color:#8b949e;font-size:15px;font-weight:400">— XABCD, read by side</span></h2>'
         '<div class="sub" style="margin-bottom:6px">Auto-detected harmonic patterns '
@@ -146,7 +160,9 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
         'short-drift, reliable only when the broad tape is weak. <b>Click a row</b> for the '
         'chart. <span style="color:#3fb950">● IN</span> = price in the reversal zone now. '
         '<i>Descriptive — not a buy/sell signal.</i></div>'
-        f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(uni)} · {fresh_line} · '
+        f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+        f'<span style="color:#6e7681;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Timeframe</span>{tf_pills}</div>'
+        f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(uni)} · {_tf_label} · {fresh_line} · '
         f'<b>{len(rows)} setups · {nin} in zone now</b></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:#8b949e;text-align:left">'
