@@ -512,10 +512,23 @@ def render_coverage(conn=None) -> str:
         f'· built <span class="num">{K.esc(str(build) or "")}</span> · scope: NSE-listed Indian equities '
         f'(EQ/BE/BZ; SME excluded)</div>'
         f'<div class="cov-note" style="max-width:880px;margin-bottom:10px">{COPY_PAGE}</div>'
-        '<div style="margin:0 0 18px"><a href="/dash/coverage/memo" '
+        # Trails off the trust front-door. Replay the Tape leads (the D-PITCH-1/4 lead wedge):
+        # a PROMINENT accent chip, descriptive framing only ("scrub to a past date; zero
+        # look-ahead") — never a leaderboard/return/edge claim. The print memo follows as the
+        # secondary, muted action.
+        '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:0 0 18px">'
+        '<a href="/dash/replay" '
+        'style="display:inline-flex;align-items:center;gap:8px;border:1px solid var(--accent);'
+        'background:var(--accent-dim);color:var(--ink);border-radius:9px;padding:9px 15px;'
+        'text-decoration:none;font-size:13px;font-weight:600">'
+        '<span aria-hidden="true">&#9654;</span> Replay the Tape'
+        '<span class="mut" style="font-weight:400">&nbsp;— scrub to a past date, zero look-ahead</span>'
+        ' &rarr;</a>'
+        '<a href="/dash/coverage/memo" '
         'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
         'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
-        'text-decoration:none;font-size:13px">Export coverage &amp; provenance memo &rarr;</a></div>'
+        'text-decoration:none;font-size:13px">Export coverage &amp; provenance memo &rarr;</a>'
+        '</div>'
     )
 
     def _safe(fn, *a):
