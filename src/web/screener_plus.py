@@ -242,6 +242,149 @@ def _qual_pill(pq):
     return K.pill(t, kind)
 
 
+# ── "the instrument" — inline static micro-viz (ported from the original Screen) ─────
+# The original /dash/screener leads each column-group with a self-contained inline SVG that
+# turns the buried numbers into a SCANNABLE SHAPE, with the raw sortable values kept beside it
+# (data-first). Screen+ had none (0 SVGs in-browser); these bring that pictorial richness in.
+#
+# Ported as LOCAL, self-contained fns (NO import from dashboard.py / cockpit.py — the
+# parallel-ownership wall stays intact) and RE-TINTED to the institutional value palette
+# (var(--up)/var(--down)/var(--warn)/var(--accent)) instead of the legacy GitHub greens
+# (#2ea043/#3fb950/#7ee787) the source used — so the whole surface speaks ONE green and the
+# "off" cyan-green is gone. All compute ONCE in Python (no per-cell JS), degrade to "—" on NULL.
+# (py3.10 on the VPS → no backslash inside any f-string expression.)
+_UP = "var(--up)"
+_DOWN = "var(--down)"
+_TRACK = "var(--bg-3)"          # instrument track / empty fill
+_HAIR = "var(--line-2)"         # neutral hairline / axis
+_MUT = "var(--ink-3)"           # muted glyph
+
+
+def _mv_ladder(dvpt, p1, p2, p3, p6, p12) -> str:
+    """DVPT-vs-power ladder: a track with up-to-5 notches (P1M…P12M; an --up notch = beaten
+    by today's DVPT), an --up fill to today + a ▲ marker. Surfaces the power_dvpt_* family as
+    one shape (the rank pill + ×power ride the adjacent numeric columns, kept)."""
+    if not dvpt:
+        return '<span class="mut">—</span>'
+    ps = [p1, p2, p3, p6, p12]
+    vals = [v for v in ps if v]
+    maxv = max([dvpt] + vals)
+    if not maxv:
+        return '<span class="mut">—</span>'
+    W, x0, x1, ty, th = 116, 3, 104, 15, 6
+
+    def sx(v):
+        return x0 + (v / maxv) * (x1 - x0)
+    notches = []
+    for v in ps:
+        if not v:
+            continue
+        nx = sx(v)
+        ncol = _UP if dvpt >= v else _MUT
+        notches.append(f'<line x1="{nx:.1f}" y1="{ty-4}" x2="{nx:.1f}" y2="{ty+th+4}" '
+                       f'stroke="{ncol}" stroke-width="1"/>')
+    fw = sx(dvpt) - x0
+    tx = sx(dvpt)
+    tip = f'M{tx-4:.1f},{ty-8} L{tx+4:.1f},{ty-8} L{tx:.1f},{ty-2} Z'
+    return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
+            f'<rect x="{x0}" y="{ty}" width="{x1-x0}" height="{th}" rx="3" fill="{_TRACK}"/>'
+            f'<rect x="{x0}" y="{ty}" width="{fw:.1f}" height="{th}" rx="3" fill="{_UP}"/>'
+            + "".join(notches)
+            + f'<path d="{tip}" fill="{_UP}"/></svg>')
+
+
+def _mv_triglyph(tcr, duo, hh) -> str:
+    """Character triglyph: 3 diverging micro-bars composing the ACCUM/DIST read — WHO
+    (trade-count concentration) · WAY (delivery up/down skew) · CTX (distance from 52w high).
+    Right/--up = the accumulation lean; left/--down = the distribution lean."""
+    def cl(v):
+        return max(-1.0, min(1.0, v))
+    axes = [cl((1 - tcr) * 1.4) if tcr is not None else None,   # WHO: <1 concentrating
+            cl((duo - 1) * 1.0) if duo is not None else None,   # WAY: >1 up-skew
+            cl((hh + 10) / 10) if hh is not None else None]     # CTX: near 52w-high
+    W, cx, half, bh, ys = 42, 21, 17, 5, (5, 12, 19)
+    bars = []
+    for s, y in zip(axes, ys):
+        if s is None:
+            bars.append(f'<rect x="{cx-1}" y="{y-1}" width="2" height="2" fill="{_HAIR}"/>')
+            continue
+        w = abs(s) * half
+        x = cx if s >= 0 else cx - w
+        col = _MUT if abs(s) < 0.12 else (_UP if s > 0 else _DOWN)
+        bars.append(f'<rect x="{x:.1f}" y="{y-2.5:.0f}" width="{max(w,1):.1f}" '
+                    f'height="{bh}" rx="1" fill="{col}"/>')
+    return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
+            f'<line x1="{cx}" y1="2" x2="{cx}" y2="24" stroke="{_HAIR}"/>'
+            + "".join(bars) + '</svg>')
+
+
+def _mv_rsspark(b1, b3, b6, b12) -> str:
+    """RS sparkline: the rs-vs-broad slope trajectory 12m→1m (oldest→newest) as a tiny
+    polyline — --up rising / --down falling. Degrades to a dot when slopes are NULL."""
+    have = [(i, v) for i, v in ((0, b12), (1, b6), (2, b3), (3, b1)) if v is not None]
+    if len(have) < 2:
+        return '<span class="mut" style="font-size:11px">·</span>'
+    vs = [v for _, v in have] + [0.0]
+    mn, mx = min(vs), max(vs)
+    W, x0, x1, y0, y1 = 50, 2, 48, 3, 19
+
+    def sx(i):
+        return x0 + (i / 3) * (x1 - x0)
+
+    def sy(v):
+        return (y0 + y1) / 2 if mx == mn else y1 - ((v - mn) / (mx - mn)) * (y1 - y0)
+    d = " ".join(('L' if k else 'M') + f'{sx(i):.1f},{sy(v):.1f}'
+                 for k, (i, v) in enumerate(have))
+    last = b1 if b1 is not None else have[-1][1]
+    col = _UP if last > 0 else _DOWN
+    zero_y = sy(0)
+    return (f'<svg class="mv" width="{W}" height="22" viewBox="0 0 {W} 22" aria-hidden="true">'
+            f'<line x1="{x0}" y1="{zero_y:.1f}" x2="{x1}" y2="{zero_y:.1f}" stroke="{_HAIR}" '
+            f'stroke-dasharray="2 2"/><path d="{d}" fill="none" stroke="{col}" stroke-width="1.5"/></svg>')
+
+
+def _mv_adbar(score) -> str:
+    """Signed accumulation/distribution mini-bar (the MEP shape). Centre = 0; --up to the
+    right = accumulation, --down to the left = distribution. Clamped to ±2 for display."""
+    if score is None:
+        return '<span class="mut">—</span>'
+    v = max(-2.0, min(2.0, score))
+    frac = v / 2.0 * 50.0
+    if v >= 0:
+        x, w, col = 50.0, frac, _UP
+    else:
+        x, w, col = 50.0 + frac, -frac, _DOWN
+    return (f'<svg class="mv" width="92" height="16" viewBox="0 0 100 16" preserveAspectRatio="none">'
+            f'<rect x="0" y="6.5" width="100" height="3" rx="1.5" fill="{_TRACK}"/>'
+            f'<rect x="{x:.1f}" y="4.5" width="{w:.1f}" height="7" rx="1.5" fill="{col}"/>'
+            f'<line x1="50" y1="2" x2="50" y2="14" stroke="{_MUT}" stroke-width="1"/></svg>')
+
+
+def _rs_heatstrip(b1, b3, b6, b12, b18=None, b24=None) -> str:
+    """Multi-timeframe RS heat strip from the rs-vs-broad slope_%: per cell None→muted ·;
+    ≥+3 strong-up ▲; >+1 mild-up ▲; |x|≤1 flat ▬; <-1 mild-down ▼; ≤-3 strong-down ▼.
+    Renders [1m][3m][6m][12m] left→right (and [18m][24m] when supplied). Value-tinted."""
+    cells = []
+    pairs = [(b1, "1m"), (b3, "3m"), (b6, "6m"), (b12, "12m")]
+    if b18 is not None or b24 is not None:
+        pairs += [(b18, "18m"), (b24, "24m")]
+    for v, lbl in pairs:
+        if v is None:
+            cls, glyph = "hs-nd", "·"
+        elif v >= 3:
+            cls, glyph = "hs-su", "▲"
+        elif v > 1:
+            cls, glyph = "hs-mu", "▲"
+        elif v < -3:
+            cls, glyph = "hs-sd", "▼"
+        elif v < -1:
+            cls, glyph = "hs-md", "▼"
+        else:
+            cls, glyph = "hs-fl", "▬"
+        cells.append(f'<span class="hs-c {cls}">{glyph}<small>{lbl}</small></span>')
+    return '<span class="hstrip">' + "".join(cells) + '</span>'
+
+
 # ── column-parity check (promotability evidence) ──────────────────────────────
 # The legacy /dash/screener (dashboard.py, frozen) surfaces these strategy data
 # FIELDS. Screen+ is promotable to default only if it covers every analytic family
@@ -271,9 +414,9 @@ _SCREEN2_FAMILIES = {
     "Identity (symbol/sector/CMP)":  ["Symbol", "Sector", "CMP"],
     "Confluence (cross-lens 0-6)":   ["Confl (DVPT×MEP×RS×CPR×CCI×Wolfe)"],
     "Conviction (rank/r/p/score)":   ["Rank", "P", "R", "×1m"],
-    "Positioning · DVPT":            ["Rank", "P", "R", "×1m", "Dlv%", "Char", "Surge"],
-    "Accumulation · MEP":            ["Phase", "State"],
-    "Relative strength":             ["RS#", "Trend", "1m", "3m", "6m", "12m"],
+    "Positioning · DVPT":            ["DVPT-vs-power ladder", "Rank", "P", "R", "×1m", "Dlv%", "Char", "Surge"],
+    "Accumulation · MEP":            ["Accum bar", "Phase", "State"],
+    "Relative strength":             ["RS spark", "Heat strip", "RS#", "Trend", "1m", "3m", "6m", "12m"],
     "Structure · CPR":               ["D pattern", "Cmpr", "W pattern"],
     "Credibility · CCI":             ["CCI", "Tier", "Trend"],
     "Wolfe (geometry)":              ["Wolfe dir+zone", "Q"],
@@ -422,6 +565,12 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                                s.rs_rank, s.rs_vs_broad_trend_state rsbt,
                                s.rs_vs_broad_slope_1m b1, s.rs_vs_broad_slope_3m b3,
                                s.rs_vs_broad_slope_6m b6, s.rs_vs_broad_slope_12m b12,
+                               s.rs_vs_broad_slope_18m b18, s.rs_vs_broad_slope_24m b24,
+                               s.delivery_value_per_trade dvpt,
+                               s.power_dvpt_1m p1, s.power_dvpt_2m p2, s.power_dvpt_3m p3,
+                               s.power_dvpt_6m p6, s.power_dvpt_12m p12,
+                               s.trade_count_ratio_1m_6m tcr,
+                               s.deliv_updown_ratio_3m duo,
                                {conv} conv,
                                m.mep_score_smooth mep_ph, m.mep_state_smooth mep_st
                         FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
@@ -481,6 +630,21 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         dpv = r.get("deliv_per")
         dp_txt = f"{dpv:.1f}%" if dpv is not None else "—"
 
+        # ── instruments (ported from the original Screen, retinted to --up/--down) ──
+        # Each leads its group with a scannable SVG shape; sort uses the underlying value.
+        ladder = _mv_ladder(r.get("dvpt"), r.get("p1"), r.get("p2"),
+                            r.get("p3"), r.get("p6"), r.get("p12"))
+        adbar = _mv_adbar(mep_ph)
+        spark = _mv_rsspark(r.get("b1"), r.get("b3"), r.get("b6"), r.get("b12"))
+        heat = _rs_heatstrip(r.get("b1"), r.get("b3"), r.get("b6"), r.get("b12"),
+                            r.get("b18"), r.get("b24"))
+        triglyph = _mv_triglyph(r.get("tcr"), r.get("duo"), r.get("hh"))
+        # sort keys for the instrument cells (the shape's headline number)
+        ix_intensity = None
+        _powers = [r.get(k) for k in ("p1", "p3", "p6", "p12") if r.get(k)]
+        if _powers and r.get("dvpt"):
+            ix_intensity = r["dvpt"] / (sum(_powers) / len(_powers))
+
         trs.append(
             f'<tr>'
             # identity (always visible)
@@ -490,16 +654,20 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             # confluence (lead)
             f'<td class="num cg-conf confl c{confl}" data-v="{confl}"><b>{star}{confl}</b>'
             f'<span class="dots">{dots}</span></td>'
-            # positioning · dvpt
+            # positioning · dvpt — LEADS with the DVPT-vs-power ladder instrument
+            f'<td class="inst l cg-pos" data-v="{ix_intensity if ix_intensity is not None else -1}">{ladder}</td>'
             f'<td class="cg-pos" data-v="{rank}"><span class="uk-pill neutral">{K.esc(str(rank))}</span></td>'
             f'<td class="num cg-pos" data-v="{r.get("p_score") if r.get("p_score") is not None else -1}">{r.get("p_score") if r.get("p_score") is not None else "—"}</td>'
             f'<td class="num cg-pos" data-v="{r.get("r_score") if r.get("r_score") is not None else -1}">{r.get("r_score") if r.get("r_score") is not None else "—"}</td>'
             f'<td class="num cg-pos" data-v="{x1v or 0}">{x1_txt}</td>'
             f'<td class="num cg-pos" data-v="{dpv or 0}">{dp_txt}</td>'
-            # mep
+            # mep — LEADS with the signed accum/distrib bar instrument
+            f'<td class="inst l cg-mep" data-v="{mep_ph if mep_ph is not None else -99}">{adbar}</td>'
             + mep_ph_td +
             f'<td class="l cg-mep" data-v="{r.get("mep_ph") or -99}">{_mep_pill(r.get("mep_st"))}</td>'
-            # rs
+            # rs — LEADS with the RS spark + the multi-TF heat strip instruments
+            f'<td class="inst l cg-rs" data-v="{r.get("b1") if r.get("b1") is not None else -999}">{spark}</td>'
+            f'<td class="inst l cg-rs" data-v="{r.get("b12") if r.get("b12") is not None else -999}">{heat}</td>'
             f'<td class="num cg-rs" data-v="{r.get("rs_rank") if r.get("rs_rank") is not None else -1}"><b>{r.get("rs_rank") if r.get("rs_rank") is not None else "—"}</b></td>'
             f'<td class="l cg-rs" data-v="{K.esc(r.get("rsbt") or "")}">{_trend_pill(r.get("rsbt"))}</td>'
             f'<td class="num cg-rs" data-v="{r.get("b1") or 0}">{_pct(r.get("b1"))}</td>'
@@ -520,7 +688,8 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             # quality · pt14
             f'<td class="num cg-qual" data-v="{pq.get("ns_base") if pq.get("ns_base") is not None else -1}">{_num(pq.get("ns_base"),0)}</td>'
             f'<td class="l cg-qual" data-v="{K.esc(pq.get("tier") or "")}">{_qual_pill(pq)}</td>'
-            # context
+            # context — LEADS with the character triglyph (WHO·WAY·CTX → accum/dist read)
+            f'<td class="inst l cg-ctx" data-v="{r.get("hh") if r.get("hh") is not None else -999}">{triglyph}</td>'
             f'<td class="num cg-ctx" data-v="{r.get("su1") or 0}">{_num(r.get("su1"),2)}</td>'
             f'<td class="num cg-ctx" data-v="{r.get("hh") or -999}">{_pct(r.get("hh"))}</td>'
             f'<td class="l cg-ctx mut" data-v="{K.esc(r.get("ch") or "")}">{K.esc((r.get("ch") or "—"))}</td>'
@@ -531,32 +700,32 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         '<tr class="grp">'
         '<th class="sym">stock</th><th colspan="2">identity</th>'
         '<th class="cg-conf gl" colspan="1">confluence</th>'
-        '<th class="cg-pos gl" colspan="5">positioning · dvpt</th>'
-        '<th class="cg-mep gl" colspan="2">accumulation · mep</th>'
-        '<th class="cg-rs gl" colspan="6">relative strength</th>'
+        '<th class="cg-pos gl" colspan="6">positioning · dvpt</th>'
+        '<th class="cg-mep gl" colspan="3">accumulation · mep</th>'
+        '<th class="cg-rs gl" colspan="8">relative strength</th>'
         '<th class="cg-cpr gl" colspan="3">structure · cpr</th>'
         '<th class="cg-cci gl" colspan="3">credibility · cci</th>'
         '<th class="cg-wol gl" colspan="2">wolfe</th>'
         '<th class="cg-qual gl" colspan="2">quality · pt14</th>'
-        '<th class="cg-ctx gl" colspan="3">context</th></tr>')
+        '<th class="cg-ctx gl" colspan="4">context · character</th></tr>')
     cols = ['Symbol', 'Sector', 'CMP', 'Confl',
-            'Rank', 'P', 'R', '×1m', 'Dlv%',
-            'Phase', 'State',
-            'RS#', 'Trend', '1m', '3m', '6m', '12m',
+            'DVPT vs power', 'Rank', 'P', 'R', '×1m', 'Dlv%',
+            'Accum', 'Phase', 'State',
+            'RS trend', 'Heat', 'RS#', 'Trend', '1m', '3m', '6m', '12m',
             'D', 'Cmpr', 'W',
             'CCI', 'Tier', 'Trend',
             'Wolfe', 'Q',
             'NS', 'pt14',
-            'Surge', '%52wH', 'Char']
+            'Character', 'Surge', '%52wH', 'Char']
     col_groups = ['', '', '', 'cg-conf',
-                  'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos',
-                  'cg-mep', 'cg-mep',
-                  'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs',
+                  'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos',
+                  'cg-mep', 'cg-mep', 'cg-mep',
+                  'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs',
                   'cg-cpr', 'cg-cpr', 'cg-cpr',
                   'cg-cci', 'cg-cci', 'cg-cci',
                   'cg-wol', 'cg-wol',
                   'cg-qual', 'cg-qual',
-                  'cg-ctx', 'cg-ctx', 'cg-ctx']
+                  'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
     col_band = '<tr class="col">' + "".join(
         f'<th class="{("sym" if i==0 else "")} {g}" data-c="{i}">{K.esc(c)}</th>'
         for i, (c, g) in enumerate(zip(cols, col_groups))) + '</tr>'
@@ -595,6 +764,9 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         + '</div>'
         f'<div class="sec" style="margin-bottom:14px">{sub_lbl} · '
         'confluence = pillars aligned now (DVPT · MEP · RS · CPR · CCI · Wolfe). '
+        'Each group leads with an <b>instrument</b> — the <b>DVPT-vs-power ladder</b>, the '
+        '<b>accum/distrib bar</b>, the <b>RS spark</b> and the <b>multi-TF heat strip</b> — '
+        'that turns the buried numbers into a shape, with every raw value kept beside it. '
         'Toggle groups, sort any column, save a screen.</div>')
 
     # Pat bridge — turn the current scope into a conversational confluence query,
@@ -678,9 +850,27 @@ table.s2 td.confl{font-weight:600}
 table.s2 td.confl b{font-size:13px}
 table.s2 td.confl .dots{display:inline-flex;gap:2px;margin-left:6px;vertical-align:middle}
 table.s2 td.confl .cd{width:5px;height:5px;border-radius:50%;background:var(--line-2);display:inline-block}
-table.s2 td.confl .cd.on{background:var(--accent-cy);box-shadow:0 0 5px var(--accent-cy)}
-table.s2 td.confl.c4,table.s2 td.confl.c5,table.s2 td.confl.c6{color:var(--accent-cy)}
-table.s2 td.confl.c3{color:var(--accent)}
+/* GREEN FIX (in-browser-verified): the confluence lead used --accent-cy (#34e0d6, a bright
+   aqua) — an outlier that reads "off/less appealing" vs the institutional value green. Aligned
+   to the value token --up (#3fd486), the same positive tint used everywhere else (pills, deltas,
+   the ported instruments). The neon glow is softened to a subtle value-tint halo. */
+table.s2 td.confl .cd.on{background:var(--up);box-shadow:0 0 4px var(--up-dim)}
+table.s2 td.confl.c4,table.s2 td.confl.c5,table.s2 td.confl.c6{color:var(--up)}
+table.s2 td.confl.c3{color:var(--up);opacity:.85}
+/* ── "the instrument": inline micro-viz cells (ported from the original Screen) ── */
+table.s2 td.inst{padding:3px 8px;text-align:left}
+.mv{vertical-align:middle;display:inline-block}
+/* multi-TF RS heat strip — value-tinted cells (--up up-bands / --warn flat / --down down-bands) */
+.hstrip{display:inline-flex;gap:2px;vertical-align:middle}
+.hstrip .hs-c{width:19px;height:22px;border-radius:4px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-size:10px;line-height:1;font-weight:700}
+.hstrip .hs-c small{font-size:7px;opacity:.7;margin-top:1px;font-weight:600}
+.hstrip .hs-su{background:var(--up-dim);color:var(--up)}
+.hstrip .hs-mu{background:rgba(63,212,134,.07);color:var(--up)}
+.hstrip .hs-fl{background:var(--warn-dim);color:var(--warn)}
+.hstrip .hs-md{background:rgba(255,106,122,.08);color:var(--down)}
+.hstrip .hs-sd{background:var(--down-dim);color:var(--down)}
+.hstrip .hs-nd{background:var(--bg-3);color:var(--ink-3)}
 /* group hide classes (toggled on the wrapper) */
 .h-conf .cg-conf,.h-pos .cg-pos,.h-mep .cg-mep,.h-rs .cg-rs,
 .h-cpr .cg-cpr,.h-cci .cg-cci,.h-wol .cg-wol,.h-qual .cg-qual,.h-ctx .cg-ctx{display:none}

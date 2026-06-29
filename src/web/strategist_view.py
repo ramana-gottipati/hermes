@@ -49,20 +49,30 @@ def _nav_html(active: str) -> str:
 
 
 def _sub(active: str) -> str:
-    """The Strategies altitude sub-nav, with Strategist as the lead item (plan §2a)."""
+    """The Strategies-altitude sub-nav. Registry-driven (single source = lens_registry via
+    v2_surfaces.native_subnav) so it CANNOT drift from the rest of the site. This is the
+    de-dup fix: Screen+ lives in the SCREENER altitude (lens_registry), never under Strategies
+    — `native_subnav('strategist')` correctly omits it (and merges the old 'Hub' into
+    Strategist). Falls back to a registry-faithful static list (still NO Screen+ peer, NO Hub)
+    only if v2_surfaces is unavailable — chrome must never be fatal."""
+    try:
+        from src.web import v2_surfaces as V
+        html = V.native_subnav(active or "strategist")
+        if html:
+            return html
+    except Exception:  # noqa: BLE001 — sub-nav is chrome; never fatal
+        pass
+    # fallback mirrors the registry's Strategies altitude (Hub merged into Strategist;
+    # Positioning + MEP grouped as Accumulation; Wolfe is overlay-only; NO Screen+ here).
     items = [
         ("Strategist", "/dash/strategist", active == "strategist"),
-        ("Hub", "/dash/strategies", False),
         ("Conviction", "/dash/conviction", False),
         ("Positioning", "/dash/stocks", False),
-        ("Accumulation (MEP)", "/dash/mep", False),
+        ("MEP", "/dash/mep", False),
         ("Structure", "/dash/cpr", False),
-        ("Strength", "/dash/leaders", False),
         ("Credibility", "/dash/concalls", False),
-        ("Growth-intent", "/dash/growth", False),
-        ("Wolfe · Scan", "/dash/wolfe/scan", False),
+        ("Growth", "/dash/growth", False),
         ("Launchpad", "/dash/launchpad", False),
-        ("Screen+", "/dash/screen2", False),
     ]
     return K.subnav(items)
 
