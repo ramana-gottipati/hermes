@@ -111,19 +111,37 @@ body.uk-skin :where(a,button,input,select,textarea,summary,[tabindex]):focus-vis
 .uk-denstoggle.on i{background:var(--accent)}
 .uk-top .uk-denstoggle{margin-left:2px}
 
-/* ── print: any page prints as a clean light document (chrome hidden, no shadows) ── */
+/* ── print: any page prints as a clean light document — a leave-behind (D-PITCH-2).
+   L2 W3: deepened — A4 page box with margins + a footer page counter, light-flip the whole
+   palette, hide every interactive-only control, keep tables/cards intact across page breaks,
+   and let value-colour (green/red) survive so a printed dossier still reads the contract. ── */
+@page{margin:16mm 14mm 18mm}
 @media print{
   :root{--bg-0:#fff;--bg-1:#fff;--bg-2:#fff;--bg-3:#f4f6f9;--bg-4:#eef1f5;
-    --line:#d0d7de;--line-2:#b8c2cc;--line-3:#9aa6b2;--ink:#0b0f17;--ink-2:#39424e;--ink-3:#5d6b7a;
+    --line:#c4ccd4;--line-2:#aab4be;--line-3:#9aa6b2;--ink:#0b0f17;--ink-2:#33414e;--ink-3:#5a6775;
     --shadow:none;--glass:none;--e-1:none;--e-2:none;--e-3:none}
-  .uk,body.uk-skin{background:#fff !important;color:#0b0f17}
-  .uk-top,.uk-sub,.v2bar,.v2subnav,.uk-cmdk,.uk-denstoggle,.uk-skip,
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .uk,body.uk-skin,body{background:#fff !important;color:#0b0f17}
+  /* hide all chrome + interactive-only controls (toggles, filters, search, chart fullscreen) */
+  .uk-top,.uk-sub,.v2bar,.v2subnav,.uk-cmdk,.uk-denstoggle,.uk-skip,.uk-seg,.uk-switch,
+  .fbar,.fbtn,.search,.hsearch,.dtf,.tabbar,
   body.uk-skin header,#cmdk-ov,.uk-chart .exp{display:none !important}
-  .uk-card,.uk-tw,.card,.scrwrap,.cprpanel,.maj,.kpi .box{box-shadow:none !important;
-    border-color:#d0d7de !important;break-inside:avoid}
+  .uk-card,.uk-tw,.card,.scrwrap,.cprpanel,.maj,.kpi .box,.uk-stat,.cov-pane{box-shadow:none !important;
+    border-color:#c4ccd4 !important;break-inside:avoid}
+  h1,h2,.uk-h1,.uk-eyebrow{break-after:avoid}
   .uk-page,.wrap,.wrap.wide{max-width:none !important;padding:0 !important}
   a{color:#0b0f17 !important;text-decoration:none}
+  /* tables: repeat the header on every printed page + visible hairlines + no clip */
+  table{border-collapse:collapse}
   thead{display:table-header-group}
+  tr,td,th{break-inside:avoid}
+  th{border-bottom:1px solid #aab4be !important}
+  /* value-colour contract survives print (a printed verdict must still read up/down) */
+  .pos,.up,.uk-pill.up{color:#137a43 !important}
+  .neg,.down,.uk-pill.down{color:#b22433 !important}
+  /* a page-number footer so a multi-page leave-behind is paginated */
+  body::after{content:"patearn — descriptive evidence, point-in-time; not investment advice";
+    position:fixed;bottom:-13mm;left:0;right:0;text-align:center;font-size:8.5px;color:#5a6775}
 }
 </style>"""
 
