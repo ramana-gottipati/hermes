@@ -114,11 +114,14 @@ def render_participants() -> str:
                    f'the classic smart-money/retail divergence.')
 
     series = [_net(h["fut_idx_long"], h["fut_idx_short"]) for h in hist]
+    # guard fii_net=None (CL-VIEW-08): a missing FII index-OI row makes idx_net("FII")
+    # None; `(None/1e5):+.2f` 500s the whole page. Mirror the matrix _cell None-guard.
+    net_str = f"{(fii_net/1e5):+.2f}L" if fii_net is not None else "—"
     gauge = (
         f'<div class="card" style="padding:10px 12px">'
         f'<div style="font-size:13px">FII index-futures stance: '
         f'<b style="color:{scol};font-size:16px">{html.escape(stance.upper())}</b> '
-        f'<span class="mut">— net {(fii_net/1e5):+.2f}L contracts · long:short '
+        f'<span class="mut">— net {net_str} contracts · long:short '
         f'{("%.2f" % fii_ratio) if fii_ratio else "—"}</span></div>'
         f'<div style="margin-top:6px">{_spark(series)}</div>'
         f'<div class="sub mut" style="margin-top:2px;font-size:11px">FII net index-futures '

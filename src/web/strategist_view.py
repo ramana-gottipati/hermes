@@ -169,8 +169,12 @@ def _fallback_summary(conn) -> list[dict]:
             out.append({
                 "key": "mep", "label": "Accumulation · MEP", "route": "/dash/mep",
                 "count": len(accum), "as_of": mep_date,
+                # guard ph=None (CL-VIEW-03): a registry-path / schema-drifted MEP row can
+                # carry a NULL score; `:+.2f` on None raises TypeError and loses the WHOLE
+                # card list. Mirror the None-guard the sibling notes already use (x1/cp/cs).
                 "top": [{"symbol": x["symbol"],
-                         "note": f"{(x['st'] or '').replace('_',' ').title()} {x['ph']:+.2f}"}
+                         "note": (f"{(x['st'] or '').replace('_',' ').title()}"
+                                  + (f" {x['ph']:+.2f}" if x["ph"] is not None else "")).strip()}
                         for x in r[:5]],
                 "health": _staleness(mep_date)})
 
