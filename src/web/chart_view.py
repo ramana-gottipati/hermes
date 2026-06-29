@@ -105,6 +105,13 @@ def render_stock_chart(contract: dict, *, static_base: str = "/static", height: 
                        cpr_tf: str = "W") -> str:
     """Return the HTML block that mounts the engine for one stock.
 
+    ⚠️ DEPRECATED / NOT LIVE (L3 triage 2026-06-29). This boots the original
+    ``hermes-charts.js`` engine, which is no longer wired into the app (``/static`` is
+    not mounted; the live ``/dash/stock`` chart is ``src/web/stock_chart.py``'s SNIPPET
+    — see ``docs/L3-chart-inventory.md`` §3). The OTHER functions in this module
+    (``cpr_segments`` / ``confluence``) ARE live — ``cpr_overlay.py`` imports them. This
+    renderer is reference-only; do not re-wire without an explicit decision.
+
     Streams the lib + engine, an inert JSON island, then a tiny boot call — no
     inline f-string JS logic (that all lives in the reusable engine).
     """
