@@ -476,12 +476,32 @@ _G_ADVICE = ["should i buy", "should i sell", "should i hold", "should i exit",
              "is it a sell", "will i make money", "make me rich", "double my money",
              "multiply my money", "guaranteed return", "safe to invest", "is it safe to invest",
              "what should i buy", "what to buy", "where should i invest", "tell me what to buy",
-             "which stock should i", "is x a buy"]
+             "which stock should i", "is x a buy",
+             # F3-7: tighter SEBI / recommendation boundary
+             "good investment", "good buy", "bad investment", "worth investing",
+             "worth holding", "should one buy", "which share to buy", "which stock to buy",
+             "what to invest in", "where to invest", "best stock to invest", "best stock to buy",
+             "best share to buy", "which to buy", "stock to buy now", "share to buy now"]
+# advice phrased as a request for a RECOMMENDATION / tip / portfolio — a SEBI line
+# distinct from a buy/sell verdict on a named stock. Kept precise (so "tip-toe",
+# "portfolio tracker" etc. are not caught — these are full phrases).
+_G_RECOMMEND = ["recommend me", "recommend a stock", "recommend stocks", "recommend a share",
+                "give me a tip", "stock tip", "share tip", "give me a stock tip",
+                "any tips", "hot tip", "hot stocks to buy", "suggest a stock", "suggest stocks",
+                "suggest me", "suggest some stocks", "build me a portfolio", "make me a portfolio",
+                "recommend a portfolio", "recommend me a portfolio", "model portfolio",
+                "what should my portfolio", "pick stocks for me", "pick a stock for me",
+                "which stocks to invest", "best stocks to invest in", "best stock to invest in"]
 _G_PREDICT = ["predict", "forecast", "price target", "target price", "tomorrow",
               "next week", "next month", "will it go up", "will it rise", "will it fall",
               "will it recover", "when will", "going to crash", "will the market",
               "where will", "by friday", "by monday", "intraday tip", "intraday tips",
-              "tips for today", "multibagger for", "sure shot"]
+              "tips for today", "multibagger for", "sure shot",
+              # F3-7: future-looking "which will become" asks (a prediction, not a screen)
+              "will become", "will be the next", "next multibagger", "future multibagger",
+              "multibagger for 20", "multibaggers for 20", "stocks for 2027", "stocks for 2028",
+              "will double", "will triple", "will 10x", "going to be a multibagger",
+              "which stocks will", "which will go up", "which will rally"]
 _G_FEATURE = ["set an alert", "set alert", "alert me", "alert when", "notify me",
               "remind me", "buy 10", "buy 100", "buy shares", "place an order",
               "square off", "my portfolio", "my holdings", "my p&l", "my pnl",
@@ -538,6 +558,15 @@ def route_guardrail(query: str) -> dict | None:
                 [("Index performance", "/dash/pat?flow=index"),
                  ("Today's movers", "/dash/pat?flow=movers"),
                  ("RS leaders", "/dash/pat?flow=rs")])
+        if _has_any(qn, _G_RECOMMEND):
+            return _redirect(
+                "advice",
+                "I can't recommend stocks, give tips or build a portfolio — that would be "
+                "investment advice, and I'm a screening tool, not a SEBI-registered adviser. "
+                "I can show you the data to research names yourself:",
+                [("Quality & value", "/dash/pat?flow=fundamentals"),
+                 ("Credible managements", "/dash/pat?flow=credibility"),
+                 ("Accumulation", "/dash/pat?flow=accumulation")])
         if _has_any(qn, _G_ADVICE):
             return _redirect(
                 "advice",

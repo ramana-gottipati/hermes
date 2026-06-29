@@ -21,8 +21,8 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
 | F3-3 | **True server-side session THREAD** — a thread store so a refine can SUBTRACT ("drop the F&O ones") / pivot ("vs last quarter"), not only string-append; carries the last structured intent | current multi-turn is string-concat only — can't subtract/pivot. Mission item 1 = "server-side session context" | NEW `src/pat/thread.py` + `web.py` `routes.py` | ⬜ |
 | F3-4 | **Deepen EXPLANATIONS** — `why` drills into the underlying rows + provenance (as-of period, n promises resolved, veto reason, the concall/delivery/RS evidence) with the coverage caveat | mission item 3 = "drilling into provenance + underlying rows, with the as-of/coverage caveat" | `flows.py` `web.py` | ⬜ |
 | F3-5 | **Ranked top-N** — honor "top 5", "best 10" → a bound `limit` on the surfaced flows | F2-7 deferred; mission item 4 = "ranked rankings" | `understand.py` `flows.py` `web.py` | ⬜ |
-| F3-6 | **Extend the eval-set + OOD/hallucination** — new bands for trend/boards/top-N; more adversarial + SEBI redirect cases | mission item 5 = "extend the eval-set + hallucination/OOD; tighten SEBI guardrails" | `eval_set.py` `disambiguate.py` | ⬜ |
-| F3-7 | **Tighten SEBI guardrails** — broaden the advice/predict/target-price/PMS-recommendation redirect vocabulary; never a buy/sell/predict | mission item 5; the guardrail vocab is narrow today | `disambiguate.py` | ⬜ |
+| F3-6 | **Extend the eval-set + OOD/hallucination** — new bands for trend/boards/top-N; more adversarial + SEBI redirect cases | mission item 5 = "extend the eval-set + hallucination/OOD; tighten SEBI guardrails" | `eval_set.py` `disambiguate.py` | ✅ |
+| F3-7 | **Tighten SEBI guardrails** — broaden the advice/predict/target-price/PMS-recommendation redirect vocabulary; never a buy/sell/predict | mission item 5; the guardrail vocab is narrow today | `disambiguate.py` | ✅ |
 | F3-8 | **Polish proactive ALERTS** — surface the watchlist-alignment + dropped-from-confluence read with as-of + descriptive caveat on the workbench; opt-in framing | mission item 6 = "polish the proactive alerts" | `alerts.py` `strategist_view.py` | ⬜ |
 
 ## Progress log
@@ -41,3 +41,12 @@ write path (`aed857f`), configurable workbench (`950830a`), proactive confluence
   the NL query against the latest data; delete is a confirm→fetch POST. "manage boards →" chip
   added to the Home boards strip. Live lifecycle verified (page 200 · save→appears · delete→ok);
   BOTH gates PASS. (web.py only — backend was already there.)
+- F3-6 + F3-7 — eval-set extension + SEBI guardrail hardening: new TREND band (6/6: trend
+  asks route to the series, a bare "why credible" does NOT collapse into it) + 5 tighter OOD
+  cases (target-price / multibaggers-will-become / recommend-portfolio / stock-tip / good-
+  investment). Guardrail vocab broadened: new `_G_RECOMMEND` (tips / portfolio-build) +
+  extended `_G_ADVICE` (good investment / which-to-buy) + `_G_PREDICT` (which-will-become /
+  multibagger-for-20xx). `_route_one` in the eval now mirrors engine.route's real order
+  (guardrail → check → route_extra → fallback). 0 false positives on legit screens (quality
+  compounders / multibagger candidates / credible managements all pass). Eval now route 54/55
+  (OOD 10/10, TREND 6/6, hallu 8/8); live redirects confirmed; BOTH gates PASS.
