@@ -254,11 +254,20 @@ def choose_periods(subject: str, filing_date: Optional[str], candidates: set) ->
     if not filing_date:
         return []
     try:
-        f = date.fromisoformat(filing_date)
+        f = date.fromisoformat(filing_date[:10])   # tolerate a timestamped filing_date (CL-PROV-08)
     except ValueError:
         return []
-    in_window = [(pt, pe) for (pt, pe) in candidates
-                 if (lambda g: MIN_LAG_DAYS <= g <= MAX_LAG_DAYS)((f - date.fromisoformat(pe)).days)]
+    # Slice pe[:10] too: a timestamped period_end would raise ValueError *inside* the
+    # comprehension (not caught by the try above), aborting matching for the whole
+    # announcement and leaving the period MODELED. Skip any pe that still won't parse. (CL-PROV-08)
+    in_window = []
+    for (pt, pe) in candidates:
+        try:
+            g = (f - date.fromisoformat(str(pe)[:10])).days
+        except (ValueError, TypeError):
+            continue
+        if MIN_LAG_DAYS <= g <= MAX_LAG_DAYS:
+            in_window.append((pt, pe))
     distinct_ends = {pe for _, pe in in_window}
     return in_window if len(distinct_ends) == 1 else []   # unambiguous only
 

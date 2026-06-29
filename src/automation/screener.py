@@ -338,7 +338,15 @@ def _read_cache(symbol: str) -> Optional[dict]:
         ).fetchone()
     if not row:
         return None
-    fetched = datetime.fromisoformat(row["fetched_at"].replace(" ", "T"))
+    # Treat a NULL/odd-format fetched_at as a cache-MISS, never a crash: a raise here would
+    # abort the whole fundamentals fetch (the caller falls through to a live fetch on None). (CL-PROV-04)
+    raw = row["fetched_at"]
+    if not raw:
+        return None
+    try:
+        fetched = datetime.fromisoformat(str(raw).replace(" ", "T"))
+    except (ValueError, TypeError):
+        return None
     if datetime.utcnow() - fetched > timedelta(days=SCREENER_CACHE_DAYS):
         return None
     return dict(row)

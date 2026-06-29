@@ -114,7 +114,15 @@ def _build_frame(rows, symbol: str, data_class: str, hconn, *, use_real_knowable
             hconn.close()
     frame: dict = {}
     for ptype, metric, pend, rdate, val in rows:
-        frame.setdefault((ptype, metric), []).append((pend, eff.get((ptype, pend), rdate), val))
+        # Normalise the knowable date to an ISO *date* (YYYY-MM-DD). The eff-map values are
+        # already [:10] (see _effective_date_map); the stored-report_date fallback may carry a
+        # timestamp ('2024-05-10 00:00:00') from some ingest paths, and an un-sliced string
+        # compare against a [:10] as_of would lexicographically drop a period knowable *on*
+        # as_of ('2024-05-10 00:00:00' <= '2024-05-10' is False). Slice both sides → no-leak. (CL-PROV-01)
+        kdate = eff.get((ptype, pend), rdate)
+        if kdate is not None:
+            kdate = str(kdate)[:10]
+        frame.setdefault((ptype, metric), []).append((pend, kdate, val))
     for key in frame:
         frame[key].sort(key=lambda t: t[0])
     return frame
@@ -167,8 +175,10 @@ def _known(frame: dict, ptype: str, metric, as_of: str) -> list:
     `metric` may be a tuple of fallback names (first one with data wins).
     """
     names = (metric,) if isinstance(metric, str) else metric
+    as_of = str(as_of)[:10]   # compare ISO date↔ISO date (frame dates are already [:10]; CL-PROV-01)
     for name in names:
-        out = [(pend, val) for pend, rdate, val in frame.get((ptype, name), []) if rdate <= as_of]
+        out = [(pend, val) for pend, rdate, val in frame.get((ptype, name), [])
+               if rdate is not None and rdate <= as_of]
         if out:
             out.sort(key=lambda t: t[0])
             return out
