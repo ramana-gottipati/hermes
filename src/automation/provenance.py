@@ -982,6 +982,65 @@ def lag_headline(la: dict | None = None, conn=None) -> dict:
     }
 
 
+def lag_samples(conn=None, *, data_class="fundamentals_history", n: int = 8) -> dict:
+    """Concrete 'Replay the Tape' EVIDENCE — real per-period examples a skeptical
+    allocator can audit: for captured periods, the REAL BSE filing date vs the
+    MODELLED report_date and the error (days). Returns the worst would-have-LEAKED
+    cases (real LATER than modelled — a backtest on the modelled date would have seen
+    the datum before it was public) + exemplary CONSERVATIVE cases (real earlier or
+    equal — safe). This is the receipts behind the headline leak %.
+
+    {status, data_class, leaks:[{symbol,period,period_type,modeled,real,err_days}],
+     conservative:[...], n_pairs}. Degrades to status!='ok' on the stub / no captures.
+    Read-only; never raises."""
+    def q(c):
+        d = PROVENANCE.get(data_class)
+        if d is None:
+            return {"status": "unknown_class", "data_class": data_class}
+        rdb = _research_ro()
+        src = rdb if d.db == "research" else c
+        if src is None:
+            return {"status": "research_db_absent", "data_class": data_class}
+        captured = _rows(c, "SELECT key, symbol, knowable_at FROM provenance_knowable "
+                            "WHERE data_class=?", (data_class,))
+        if not captured:
+            return {"status": "no_real_observations_yet", "data_class": data_class, "n_pairs": 0}
+        rows = []
+        for key, sym, knew in captured:
+            parts = key.split("|")          # symbol|period_type|period_end
+            period = parts[-1] if len(parts) >= 2 else None
+            ptype = parts[1] if len(parts) >= 3 else None
+            if not (period and knew):
+                continue
+            if ptype:
+                modeled = _scalar(src, f"SELECT {d.asof_col} FROM {d.tables[0]} "
+                                       f"WHERE symbol=? AND period_type=? AND period_end=? LIMIT 1",
+                                  (sym, ptype, period))
+            else:
+                modeled = _scalar(src, f"SELECT {d.asof_col} FROM {d.tables[0]} "
+                                       f"WHERE symbol=? AND period_end=? LIMIT 1", (sym, period))
+            if not modeled:
+                continue
+            try:
+                err = (date.fromisoformat(knew[:10]) - date.fromisoformat(modeled[:10])).days
+            except ValueError:
+                continue
+            rows.append({"symbol": sym, "period": period, "period_type": ptype,
+                         "modeled": str(modeled)[:10], "real": str(knew)[:10], "err_days": err})
+        if not rows:
+            return {"status": "no_matched_pairs", "data_class": data_class, "n_pairs": 0}
+        leaks = sorted([r for r in rows if r["err_days"] > 0],
+                       key=lambda r: -r["err_days"])[:n]
+        conservative = sorted([r for r in rows if r["err_days"] <= 0],
+                              key=lambda r: r["err_days"])[:n]
+        return {"status": "ok", "data_class": data_class, "n_pairs": len(rows),
+                "leaks": leaks, "conservative": conservative,
+                "note": "err_days = real_filing − modelled_date; >0 = the modelled date was "
+                        "TOO EARLY (would leak); ≤0 = conservative (safe). The effective PIT read "
+                        "prefers the real date, so every captured period here is leak-free in practice."}
+    return _with_conn(q, conn)
+
+
 # ── self-check (synthetic in-memory DB — no real data needed) ─────────────────
 def _selftest() -> None:
     conn = sqlite3.connect(":memory:")
