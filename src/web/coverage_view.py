@@ -103,6 +103,14 @@ COPY_MNAR = ("Concall coverage is missing-not-at-random: India's transcript mand
              "names with concalls is implicitly tilted toward larger, more recent companies — read "
              "coverage with that selection in mind.")
 
+COPY_VALIDATION = ("We test our own strategies and publish what fails. Every strategy we have backtested is "
+                   "recorded with its results net of realistic cost (tier spread + slippage), walk-forward "
+                   "2012–26, no look-ahead — the failures kept as visible as the wins. The honest verdict so "
+                   "far: nothing we have built beats a Nifty 500 buy-and-hold net of cost. We state that "
+                   "plainly rather than bury it, because a research process is only trustworthy if its "
+                   "negative results are on the record. No performance claim follows from this surface — it is "
+                   "the rigor evidence behind the product, not a strategy lens or a return promise.")
+
 # the diligence checklist the screen pre-empts
 PRINCIPLES = [
     ("Survivorship addressed first", "Universe built from the raw archive with delisted names retained; a survivorship-correct universe-as-of-date exists."),
@@ -404,6 +412,25 @@ def _section_principles():
     return K.card(items, eyebrow="Trust-design principles — the diligence checklist this page pre-empts")
 
 
+def _section_validation():
+    """The strategy-validation story: the honest-backtest rigor evidence, surfaced as a
+    Trust artifact with a link to the full /dash/testing record. Descriptive-only; the
+    §C falsification stands — we present validation, never a return promise."""
+    verdict = (
+        '<div class="cov-banner"><span class="d" style="background:var(--down);box-shadow:0 0 7px var(--down)"></span>'
+        '<div><b>Headline verdict:</b> across every strategy we have backtested, '
+        '<b>none beats a Nifty&nbsp;500 buy-and-hold net of cost</b> '
+        '(the bar: Sharpe&nbsp;0.89 / CAGR&nbsp;15.3% / MaxDD&nbsp;&minus;29%). '
+        'We report that rather than bury it.</div></div>')
+    link = ('<div style="margin-top:14px"><a href="/dash/testing" '
+            'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
+            'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
+            'text-decoration:none;font-size:13px">Open the full validation record (every backtest + holdings) &rarr;</a></div>')
+    return K.card(f'<div style="margin-bottom:12px">{verdict}</div>'
+                  f'<div class="cov-note">{COPY_VALIDATION}</div>{link}',
+                  eyebrow="Strategy validation — we test our strategies and report what fails")
+
+
 # ── progressive-disclosure tabs (the best-in-class data-coverage shape: a lead
 # trust band + tabbed drill-down, never one long wall — Daloopa/CRSP pattern) ──
 _COV_TAB_CSS = """<style>
@@ -463,6 +490,7 @@ def render_coverage(conn=None) -> str:
          [(_section_universe, snap), (_section_matrix, snap), (_section_cci, snap)]),
         ("freshness", "Freshness", [(_section_modeled, snap)]),
         ("provenance", "Provenance & lineage", [(_section_registry,)]),
+        ("validation", "Strategy validation", [(_section_validation,)]),
         ("methodology", "Methodology", [(_section_methodology,), (_section_degradation,)]),
         ("limits", "Limits", [(_section_principles,)]),
     ]
