@@ -867,7 +867,18 @@ _SINGLE_CRED_STOP = {"THE", "THIS", "THAT", "IT", "A", "AN", "MY", "ITS", "THEIR
                      "IS", "ARE", "DOES", "DO", "DID", "EXPLAIN", "DEFINE", "MEAN",
                      "MEANS", "WHATS", "HOW", "WHY", "GOOD", "HIGH", "LOW", "BEST",
                      "WORST", "MORE", "LESS", "VERY", "AND", "OR", "OF", "FOR", "IN",
-                     "WITH", "ABOUT", "GET", "SHOW", "FIND", "MANAGEMENTS"}
+                     "WITH", "ABOUT", "GET", "SHOW", "FIND", "MANAGEMENTS",
+                     # DIRECTION qualifiers — "deteriorating/improving/weakening
+                     # credibility" is a BOARD filter (the whole list moving that way),
+                     # NOT a single name. Without these, "X credibility" captured the
+                     # adjective as a ticker (→ a dead-end why{sym:DETERIORATING}); the
+                     # qualifier hits a stop here so route_extra falls through to the
+                     # deterioration / credibility board route instead.
+                     "DETERIORATING", "DETERIORATED", "DETERIORATION", "IMPROVING",
+                     "IMPROVED", "WEAKENING", "WEAKENED", "WEAK", "DECLINING",
+                     "DECLINED", "FALLING", "RISING", "STRENGTHENING", "WORSENING",
+                     "WANING", "SLIPPING", "ERODING", "DECAYING", "DECAY", "GROWING",
+                     "INCREASING", "DECREASING", "POOR", "STRONG", "STRONGER", "WEAKER"}
 
 
 # Explicit "top N" cap: "top 5 X", "top-10 X", "5 most credible", "best 3 …".

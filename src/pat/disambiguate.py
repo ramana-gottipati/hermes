@@ -312,12 +312,26 @@ _CCI_AVOID = ["deterioration", "deteriorating", "avoid tape", "credibility decay
               "losing credibility", "guidance walkback", "guidance walk-back", "walked back guidance",
               "walked back", "walk back guidance", "walkback", "lowered guidance", "cut guidance",
               "stopped disclosing", "stopped reporting", "quietly dropped", "promise dropped",
-              "dropped promise", "concall red flag", "concall red-flag", "credibility deterioration"]
+              "dropped promise", "concall red flag", "concall red-flag", "credibility deterioration",
+              # worst-SIDE credibility direction qualifiers — the whole list moving
+              # down. Credibility-anchored so a bare "weak stock" is unaffected; these
+              # route to the deterioration board (NOT a single name — that mis-parse,
+              # where the adjective was read as a ticker, is QA-round2's Pat bug).
+              "weakening credibility", "worsening credibility", "eroding credibility",
+              "waning credibility", "slipping credibility", "declining credibility",
+              "decaying credibility", "falling credibility", "deteriorating management",
+              "weakening management credibility", "credibility weakening",
+              "credibility declining", "credibility eroding", "credibility slipping"]
 _CCI_LEAD = ["credibility leader", "credible management", "management credibility",
              "mgmt credibility", "most credible", "credibility rank", "credibility score",
              "guidance accuracy", "kept their promise", "kept its promise", "kept promises",
              "delivered on guidance", "promise ledger", "concall credibility",
-             "trustworthy management", "honest management", "credible managements"]
+             "trustworthy management", "honest management", "credible managements",
+             # best-SIDE credibility direction qualifiers — the list improving →
+             # leaders board (the mirror of the deterioration qualifiers above).
+             "improving credibility", "strengthening credibility", "rising credibility",
+             "growing credibility", "credibility improving", "credibility strengthening",
+             "improving management credibility"]
 # bare concall/earnings-call vocabulary (no leader/avoid word) → default to leaders.
 _CCI_GENERIC = ["concall", "conference call", "earnings call", "management guidance",
                 "guidance track record", "follow-through on guidance"]
