@@ -43,7 +43,7 @@ SNIPPET = """<script>
     deliv:'#58a6ff',tval:'#30363d',dval:'#2ea043',vwap:'#f0883e',avwap:'#db61a2',
     rs:'#39c5cf',wolfe:'#58a6ff',harm:'#f778ba',bb:'#a371f7',atr:'#56d364',
     vol:'#3b5168',rsi:'#d2a8ff',macd:'#58a6ff',macdSig:'#f0883e',cmp:'#39c5cf',
-    txt:'#8b949e',txtHi:'#e6edf3',dim:'#6e7681',
+    txt:'#8b949e',txtHi:'#e6edf3',dim:'#7e90a8', // --ink-3: AA-safe inline (stylesheet can't reach a JS-set color)
     border:'#30363d',grid:'#21262d',bg:'#161b22'};
   function E(t,css,html){ var n=document.createElement(t); if(css)n.style.cssText=css; if(html!=null)n.innerHTML=html; return n; }
   function hexA(hex,a){ var h=hex.replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
