@@ -196,3 +196,46 @@ deployed + browser-verified) — the thread trail is now live (confirmed in the 
   file. Thereafter staged+committed **atomically in one call** with an explicit staged-set assertion.
 - Gemini is **503 (high demand)** on the VPS → the live router rides the ₹0 deterministic path
   (route_extra → parse_fallback); never-Claude holds. All explicit-N + intents verified on that path.
+
+---
+
+## WAVE 3 — provenance wedge depth + Pat-as-analyst
+
+### W3 commits (owned paths only; staged set asserted == my paths each time)
+| Commit | What | Files |
+|---|---|---|
+| `d3362ee` | **Pat in-thread context (pronoun resolution) + proactive next-question chips** | `src/pat/{web,threads}.py` |
+| `deaaaf2` | **Strategist "What changed" since-last-view deltas per strategy** | `src/web/strategist_view.py` · `src/pat/alerts.py` |
+| `f972f6e` | **provenance.lag_samples() — the auditable Replay-the-Tape receipts** | `src/automation/provenance.py` |
+| `917b750` | **Screen+ promotion-readiness checklist on the parity page** | `src/web/screener_plus.py` |
+
+### Backlog coverage (W3 items)
+1. **PROVENANCE EVIDENCE DEPTH** (`f972f6e`) — NEW `lag_samples()`: concrete per-period real-vs-modelled
+   examples — worst would-have-LEAKED + exemplary CONSERVATIVE — the receipts behind the headline leak %.
+   Verified live (29,176 pairs): worst **ATLASCYCLE Q2-FY22 modeled 2021-08-19 vs real 2023-06-09 = +659d**;
+   conservative FINPIPE −398d. Pairs with W2's `lag_headline()` → a rich, auditable read. Descriptive.
+2. **PAT IN-THREAD FOLLOW-UPS** (`d3362ee`) — `threads.last_symbol()` + `web._resolve_followup()`: after
+   "tell me about TITAN", "what about its credibility?" resolves the pronoun to the thread subject +
+   rewrites to an explicit query (INERT for tid="" / explicit-ticker). `_subject_followups()` adds "Ask
+   next ↳" chips on single-name answers. **Browser-verified**: "tell me about RELIANCE" → "what about its
+   credibility?" → RELIANCE ("reads CREDIBLE composite 78/100", receipts, provenance footer, trail).
+3. **CCI CREDIBILITY TAPES** — already shipped as the Pat `trend` flow (per-name level/momentum/trend +
+   EARNING_TRUST/DETERIORATION tape, provenance-stamped). Verified live (RELIANCE 24 periods, latest 80.6).
+   Pivoted to verification per the brief (no rebuild); W2/W3 made it more reachable.
+4. **STRATEGIST "WHAT CHANGED"** (`deaaaf2`) — `alerts.diff_set()` + `_what_changed()`: per strategy "▲ N
+   new / ▽ N dropped" vs the last board view → a living watch. NEW toggle. **Browser-verified** (injected a
+   stale `strat:mep` baseline → "Accumulation (MEP): ▲ 5 new · ▽ 2 dropped"; cleaned up after).
+5. **SCREEN+ PROMOTION-READINESS** (`917b750`) — saved-screens/CSV/confluence/scope parity all verified
+   robust; added a **Promotion checklist (9/10 done)** to `/dash/screen2?parity=1`, the 10th being the nav
+   flip (orchestrator, via lens_registry). Clean swap.
+6. **VERIFICATION** — Pat follow-ups in-browser; research on VPS (provenance/cci_rrg/threads selftests +
+   `lag_samples` 29,176 pairs + `lag_headline` 1.42% effective); eval VPS compiler 31/31, route 63/64,
+   TREND 15/15, HALLUC 8/8, ACCURACY 10/10; regression_sweep + chrome_gate PASS before every commit.
+
+### W3 deviations / hand-offs
+- **Coverage page render** of `lag_headline`/`lag_samples` = orchestrator's 1-liner in (non-owned)
+  `coverage_view.py`; data + helpers shipped in `provenance.py`.
+- **Screen+ → default** = orchestrator's `lens_registry` nav slot; readiness proven (checklist 9/10).
+- Item 3 verified, not rebuilt — the `trend` flow already is the tape.
+- CRLF held off with `tr -d '\r'` before every scp; atomic stage+commit with staged-set assertion (no
+  cross-absorption this wave).
