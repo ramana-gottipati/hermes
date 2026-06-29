@@ -213,13 +213,37 @@ def lens_rail(lens_key: str, sym: str) -> str:
     return f'<div class="nglat">{"".join(parts)}</div>'
 
 
+# Tab-aware rails: hide every tagged rail by default and reveal ONLY the active dossier
+# tab's rail. The default tab is Price (no lens → no rail), so the candle chart is no
+# longer buried under 8 stacked "… elsewhere" rows (QA #5). A tiny script syncs rail
+# visibility to the SAME tab control the dossier already wires (`#stabbar a[data-stab]`)
+# + the initial hash; it only toggles display, composing with the dossier's own tab JS.
+_RAILS_CSS = """<style>
+#ngrails .nglat[data-ngtab]{display:none}
+#ngrails .nglat[data-ngtab].ng-on{display:flex}
+</style>"""
+_RAILS_JS = """<script>(function(){
+  var box=document.getElementById('ngrails'); if(!box) return;
+  var bar=document.getElementById('stabbar');
+  function sync(k){ box.querySelectorAll('.nglat[data-ngtab]').forEach(function(r){
+    r.classList.toggle('ng-on', r.getAttribute('data-ngtab')===k); }); }
+  function cur(){ var h=(location.hash||'').replace('#',''); return h||'price'; }
+  if(bar){ bar.querySelectorAll('a[data-stab]').forEach(function(a){
+    a.addEventListener('click', function(){ sync(a.getAttribute('data-stab')); }); }); }
+  window.addEventListener('hashchange', function(){ sync(cur()); });
+  sync(cur());
+})();</script>"""
+
+
 def dossier_lens_rails(sym: str) -> str:
     """The full set of lateral rails for a stock dossier — one row per registry lens
-    that has a dossier tab AND at least one other surface. Each rail is wrapped with a
-    `data-ngtab="<tab>"` attribute so a future tab-aware enhancement could show only the
-    active tab's rail; today they render as a compact stacked block under the tab bar so
-    the loop is reachable regardless of which tab is open. Generated from the registry —
-    a new lens with a dossier tab gets its rail automatically."""
+    that has a dossier tab AND at least one other surface. Each rail carries a
+    `data-ngtab="<tab>"` attribute; they are wrapped in `#ngrails` and shown ONE AT A
+    TIME — only the rail for the currently-open dossier tab is visible (the rest are
+    `display:none`). The default Price tab has no lens rail, so the chart is not pushed
+    down a wall of links (QA #5). Generated from the registry — a new lens with a dossier
+    tab gets its rail automatically. Returns '' when no rail exists (caller injects
+    nothing)."""
     rows = []
     seen_tabs: set[str] = set()
     for ln in _LR.LENSES:
@@ -230,7 +254,9 @@ def dossier_lens_rails(sym: str) -> str:
         if rail:
             rows.append(rail.replace('<div class="nglat">',
                                      f'<div class="nglat" data-ngtab="{_esc(ln.dossier_tab)}">', 1))
-    return "".join(rows)
+    if not rows:
+        return ""
+    return _RAILS_CSS + '<div id="ngrails">' + "".join(rows) + '</div>' + _RAILS_JS
 
 
 # ── injection: post-process the _shell body per route ────────────────────────────

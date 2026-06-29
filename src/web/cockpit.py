@@ -144,12 +144,16 @@ def cci_state(row):
 # First-match-wins. Slope-only inputs are sufficient (breadth + accum-skew refine
 # but are optional, so the badge ships everywhere — markets bundle, /dash/sectors,
 # /dash/index). Returns (key, reasons[]). Zero LLM.
+# Weather badge palette — kept in lockstep with rotation_view.PHASE (D-PITCH-2: the ONE
+# rotation colour contract) so the markets/sectors weather badge speaks the same value
+# language as /dash/rotation: green = improving/leading, red = weakening/lagging, amber =
+# rolling-over caution, blue-free. (accent, dim-bg, border) per state.
 _WEATHER = {
-    "TAILWIND":     ("🌤 Tailwind",     "#7ee787", "#16341f", "#1f6f3a"),
-    "RECOVERY":     ("🌅 Recovery",     "#79c0ff", "#0d2233", "#1f4d7a"),
-    "HEADWIND":     ("🌧 Headwind",     "#ffa198", "#3a1a1a", "#8f1f1f"),
-    "ROLLING-OVER": ("⛅ Rolling over",  "#ffd99a", "#3a3417", "#5a4a1f"),
-    "NEUTRAL":      ("☁ Neutral",       "#8b949e", "#21262d", "#30363d"),
+    "TAILWIND":     ("🌤 Tailwind",     "#3fd486", "#102a1d", "#1f6f3a"),
+    "RECOVERY":     ("🌅 Recovery",     "#7fe6b0", "#10271d", "#2f8f63"),
+    "HEADWIND":     ("🌧 Headwind",     "#ff6a7a", "#2e161b", "#8f1f2a"),
+    "ROLLING-OVER": ("⛅ Rolling over",  "#f6b73c", "#2e2611", "#5a4a1f"),
+    "NEUTRAL":      ("☁ Neutral",       "#7e90a8", "#1a232f", "#30363d"),
 }
 
 
@@ -280,7 +284,7 @@ const IXD = __DATA__;
   var pHost=document.getElementById('idxChart');
   if(pHost && IXD.price && IXD.price.length){
     var pc=LightweightCharts.createChart(pHost, Object.assign({height:320}, common));
-    var candle=pc.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',borderVisible:false});
+    var candle=pc.addCandlestickSeries({upColor:'#3fd486',downColor:'#ff6a7a',wickUpColor:'#3fd486',wickDownColor:'#ff6a7a',borderVisible:false});
     var pline=pc.addLineSeries({color:'#1f6feb',lineWidth:2,priceLineVisible:false});
     var pm50=pc.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     var pm200=pc.addLineSeries({color:'#6e7681',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
@@ -324,9 +328,9 @@ const IXD = __DATA__;
       var win=(rtf==='d'?252:rtf==='w'?52:rtf==='m'?12:4), mk=[];
       for(var i=0;i<vals.length;i++){ var t=vals[i].time, v=vals[i].value, mv=m50map[t];
         if(i>0){ var pv=vals[i-1].value, pmv=m50map[vals[i-1].time];
-          if(mv!=null&&pmv!=null){ if(pv<pmv&&v>=mv) mk.push({time:t,position:'belowBar',color:'#3fb950',shape:'arrowUp',text:'↑50'});
-            else if(pv>=pmv&&v<mv) mk.push({time:t,position:'aboveBar',color:'#f85149',shape:'arrowDown',text:'↓50'}); } }
-        if(i>=win-1){ var hi=true; for(var j=i-win+1;j<i;j++){ if(vals[j].value>=v){ hi=false; break; } } if(hi) mk.push({time:t,position:'aboveBar',color:'#3fb950',shape:'circle'}); } }
+          if(mv!=null&&pmv!=null){ if(pv<pmv&&v>=mv) mk.push({time:t,position:'belowBar',color:'#3fd486',shape:'arrowUp',text:'↑50'});
+            else if(pv>=pmv&&v<mv) mk.push({time:t,position:'aboveBar',color:'#ff6a7a',shape:'arrowDown',text:'↓50'}); } }
+        if(i>=win-1){ var hi=true; for(var j=i-win+1;j<i;j++){ if(vals[j].value>=v){ hi=false; break; } } if(hi) mk.push({time:t,position:'aboveBar',color:'#3fd486',shape:'circle'}); } }
       mk.sort(function(a,b){return a.time<b.time?-1:(a.time>b.time?1:0);});
       rl.setMarkers(mk);
       rSet(curR('#idxRatioRange'));
@@ -366,7 +370,7 @@ STRATEGY_REGISTRY = [
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
          "WHERE s.trade_date=? AND s.mep_state_smooth='STRONG_ACCUM' " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
-    {"key": "RS", "label": "Relative Strength", "accent": "#3fb950", "href": "/dash/leaders",
+    {"key": "RS", "label": "Relative Strength", "accent": "var(--up)", "href": "/dash/leaders",
      "cta": "strong-in-strong leaders",
      "thesis": "Beating the broad market and leading its own sector.",
      "count": lambda conn, d, D: (len(leaders_laggards("leaders", limit=400)) if leaders_laggards else 0)},
@@ -525,9 +529,9 @@ def _mv_adbar(score):
     v = max(-2.0, min(2.0, score))
     frac = v / 2.0 * 50.0          # -50 .. +50 x-units from centre
     if v >= 0:
-        x, w, col = 50.0, frac, "#2ea043"
+        x, w, col = 50.0, frac, "var(--up)"
     else:
-        x, w, col = 50.0 + frac, -frac, "#f85149"
+        x, w, col = 50.0 + frac, -frac, "var(--down)"
     return (f'<svg width="92" height="16" viewBox="0 0 100 16" preserveAspectRatio="none" '
             f'style="vertical-align:middle">'
             f'<rect x="0" y="6.5" width="100" height="3" rx="1.5" fill="#21262d"/>'
@@ -539,8 +543,8 @@ def _mep_pill(state):
     """Coloured MEP state badge."""
     if not state:
         return '<span class="mut">—</span>'
-    c = {"STRONG_ACCUM": "#2ea043", "ACCUM": "#3fb950", "NEUTRAL": "#8b949e",
-         "DISTRIB": "#f0883e", "STRONG_DISTRIB": "#f85149"}.get(state, "#8b949e")
+    c = {"STRONG_ACCUM": "var(--up)", "ACCUM": "var(--up)", "NEUTRAL": "#8b949e",
+         "DISTRIB": "#f0883e", "STRONG_DISTRIB": "var(--down)"}.get(state, "#8b949e")
     txt = {"STRONG_ACCUM": "STRONG ACC", "ACCUM": "ACCUM", "NEUTRAL": "NEUTRAL",
            "DISTRIB": "DISTRIB", "STRONG_DISTRIB": "STRONG DIST"}.get(state, state)
     return (f'<span style="display:inline-block;padding:1px 6px;border-radius:6px;'
@@ -714,7 +718,7 @@ def render_home(sig_date, idx_date) -> str:
                  + '<div class="mut" style="font-size:11px;margin-top:6px">'
                    '<a class="row" style="display:inline" href="/dash/rrg">⟳ Rotation map (RRG) — quadrants &amp; tails</a></div>')
         boards.append(_board('<span class="em">📈</span> Sector rotation', 'RS vs Nifty 500 · 1m/3m/6m/12m/18m/24m',
-                             inner, "/dash/sectors", "See full rotation", "#3fb950"))
+                             inner, "/dash/sectors", "See full rotation", "var(--up)"))
 
     # Strong-in-strong leaders
     if lead_rows:
@@ -726,7 +730,7 @@ def render_home(sig_date, idx_date) -> str:
                    f'<td class="r">{r["rs_rank"] if r["rs_rank"] is not None else "—"}</td></tr>')
         boards.append(_board('<span class="em">🏆</span> Strong-in-strong', 'stock + sector both leading',
                              f'<table class="ck-t"><tbody>{lr}</tbody></table>',
-                             "/dash/leaders", "Leaders &amp; laggards", "#3fb950"))
+                             "/dash/leaders", "Leaders &amp; laggards", "var(--up)"))
 
     # Stealth accumulation
     if stealth:
@@ -748,7 +752,7 @@ def render_home(sig_date, idx_date) -> str:
             sc = r.get("sc")
             ph = r.get("ph")
             phv = ph if ph is not None else sc
-            scol = "#2ea043" if (phv is not None and phv >= 0) else "#f85149"
+            scol = "var(--up)" if (phv is not None and phv >= 0) else "var(--down)"
             dtxt = ("%+.2f" % sc) if sc is not None else "—"
             out += (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
                     f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
@@ -863,9 +867,9 @@ def render_markets(idx_date) -> str:
            f'<div class="ck-tile" style="border-top:3px solid #58a6ff"><div class="ck-n">{pct(nifty1d)}</div>'
            f'<div class="ck-l">Nifty 50 · today</div>'
            f'<div class="ck-c"><span class="pill p-{nifty.get("abs_css","C")}">{esc(n_abs)}</span></div></div>'
-           f'<div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n">{breadth_txt}</div>'
+           f'<div class="ck-tile" style="border-top:3px solid var(--up)"><div class="ck-n">{breadth_txt}</div>'
            f'<div class="ck-l">indices &gt; 200-DMA</div><div class="ck-c">absolute price breadth</div></div>'
-           f'<div class="ck-tile" style="border-top:3px solid #3fb950"><div class="ck-n" style="color:#3fb950">{sect_txt}</div>'
+           f'<div class="ck-tile" style="border-top:3px solid var(--up)"><div class="ck-n" style="color:var(--up)">{sect_txt}</div>'
            f'<div class="ck-l">sectors in RS uptrend</div><div class="ck-c">vs Nifty 500</div></div>'
            f'<div class="ck-tile" style="border-top:3px solid #d2a8ff"><div class="ck-n" style="font-size:15px;padding-top:7px">{esc(lead_txt)}</div>'
            f'<div class="ck-l">size leadership</div><div class="ck-c">by 3m return</div></div></div>')
@@ -927,7 +931,7 @@ def render_markets(idx_date) -> str:
         '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">⟳ RRG map</div>'
         '<div class="ck-l">sector relative-rotation graph</div>'
         '<div class="ck-c">RS-Ratio × RS-Momentum + tails</div></a>'
-        '<a class="ck-tile" style="border-top:3px solid #3fb950" href="/dash/sectors">'
+        '<a class="ck-tile" style="border-top:3px solid var(--up)" href="/dash/sectors">'
         '<div class="ck-n" style="font-size:16px;line-height:1.2;padding-top:6px">📈 Sector Rotation</div>'
         '<div class="ck-l">RS heat per sector · sortable</div>'
         '<div class="ck-c">vs Nifty 500 · 1m/3m/6m/12m/18m/24m</div></a>'
@@ -1304,8 +1308,8 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         med_txt = f"{med_rs:.0f}" if med_rs is not None else "—"
         tiles = _ck_strip([
             _ck_tile(N, "Constituents", "#58a6ff", "equal-weight roll-up"),
-            _ck_tile(breadth_txt, "In RS uptrend", "#3fb950", "members RS-up vs Nifty 500"),
-            _ck_tile(n_leaders, "RS leaders", "#3fb950", "rs_rank ≥ 80"),
+            _ck_tile(breadth_txt, "In RS uptrend", "var(--up)", "members RS-up vs Nifty 500"),
+            _ck_tile(n_leaders, "RS leaders", "var(--up)", "rs_rank ≥ 80"),
             _ck_tile(avg_txt, "Avg RS rank", "#d2a8ff", f"median {med_txt}"),
             _ck_tile(n_near, "Near 52w-high", "#d29922", "within 5%"),
             _ck_tile(n_ath, "ATH-DVPT", "#f0883e", "all-time delivery peak"),
@@ -1317,8 +1321,8 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                 return f'<span style="width:{w:.1f}%;background:{col}"></span>' if n else ''
             bar = ('<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;'
                    'margin:2px 0 6px;background:#21262d">'
-                   + _seg(n_acc, "#2ea043") + _seg(n_cons, "#bb8009")
-                   + _seg(n_neu, "#484f58") + _seg(n_dist, "#f85149") + '</div>')
+                   + _seg(n_acc, "var(--up)") + _seg(n_cons, "#bb8009")
+                   + _seg(n_neu, "#484f58") + _seg(n_dist, "var(--down)") + '</div>')
             split = (f'<div class="card"><div class="ck-h">Accumulation split'
                      '<span class="sub" style="margin:0;font-weight:400">delivery character across members</span></div>'
                      + bar +
@@ -1375,9 +1379,9 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             return f'<table class="ck-t"><tbody>{o}</tbody></table>'
         if ranked:
             lead_board = _board('🏆 RS leaders', 'strongest in the index', _ll(ranked[:8]),
-                                f"/dash/stocks?sector={q(idx)}", "All constituents", "#3fb950")
+                                f"/dash/stocks?sector={q(idx)}", "All constituents", "var(--up)")
             lag_board = _board('🐌 RS laggards', 'weakest in the index', _ll(ranked[-8:][::-1]),
-                               f"/dash/stocks?sector={q(idx)}", "All constituents", "#f85149")
+                               f"/dash/stocks?sector={q(idx)}", "All constituents", "var(--down)")
         else:
             lead_board = lag_board = ""
 
@@ -1421,7 +1425,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             def _mrow(x):
                 sc = x.get("sc"); ph = x.get("ph")
                 phv = ph if ph is not None else sc
-                scol = "#2ea043" if (phv is not None and phv >= 0) else "#f85149"
+                scol = "var(--up)" if (phv is not None and phv >= 0) else "var(--down)"
                 dtxt = ("%+.2f" % sc) if sc is not None else "—"
                 return (f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(x["symbol"])}#mep">'
                         f'<span class="sym">{esc(x["symbol"])}</span></a></td>'
@@ -1643,7 +1647,7 @@ def render_launchpad(sig_date, idx_date) -> str:
 
     deals_note = (f"bulk/block · {esc(deals_td)}" if deals_td else "deals feed pending")
     strip = _ck_strip([
-        _ck_tile(len(fresh), "Fresh triggers", "#3fb950", "setup just turned on (≤2 sessions)"),
+        _ck_tile(len(fresh), "Fresh triggers", "var(--up)", "setup just turned on (≤2 sessions)"),
         _ck_tile(f"⭐ {n_buyer}", "With genuine buyer", "#d2a8ff", deals_note),
         _ck_tile(n_universe, "Precursor universe", "#f0883e", f"raw pattern · ₹{_LP_LIQ/1e7:.0f}cr+ · not a buy list"),
         _ck_tile(n_co, "Coiled", "#58a6ff", "vol contracting, up ≥10%"),
@@ -1809,7 +1813,7 @@ def render_strategies(sig_date, idx_date) -> str:
 # --- CCI: Management Credibility full-bleed board (the "credible screen") ------
 def _cci_tierpill(t) -> str:
     t = t or "—"
-    col = "#3fb950" if t in ("A+", "A") else ("#f85149" if t == "D" else "#8b949e")
+    col = "var(--up)" if t in ("A+", "A") else ("var(--down)" if t == "D" else "#8b949e")
     return f'<span style="color:{col};font-weight:700">{t}</span>'
 
 
@@ -1849,14 +1853,14 @@ def render_concalls(view: str) -> str:
 
     trs = []
     for r in rows:
-        veto = (f'<span style="color:#f85149" title="{esc(r.get("veto_reason") or "")}">⛔ '
+        veto = (f'<span style="color:var(--down)" title="{esc(r.get("veto_reason") or "")}">⛔ '
                 f'{esc((r.get("veto_reason") or "")[:18])}</span>' if r.get("veto_active")
                 else '<span class="mut">—</span>')
         ga = r.get("guidance_accuracy_score")
         ga_cell = (f'{ga:.0f}% <span class="mut">({r.get("n_promises_resolved") or 0})</span>'
                    if ga is not None else '<span class="mut">unproven</span>')
         det = r.get("deterioration_score") or 0
-        det_cell = f'<span style="color:#f85149">{int(det)}</span>' if det else '<span class="mut">0</span>'
+        det_cell = f'<span style="color:var(--down)">{int(det)}</span>' if det else '<span class="mut">0</span>'
         trs.append(
             f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
             f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
@@ -1889,10 +1893,10 @@ def render_concalls(view: str) -> str:
                 f'<div class="ck-n" style="color:{accent}">{n}</div>'
                 f'<div class="ck-l">{label}</div><div class="ck-c">{cta}</div></{tag}>')
     strip = ('<div class="ck-tiles">'
-             + tile(n_proven, "Proven names", "#3fb950", "≥1 promise settled vs actuals")
-             + tile(n_leaders, "Credibility leaders", "#3fb950", "veto-excluded, ranked")
-             + tile(n_avoid, "Avoid tape", "#f85149", "veto / deterioration")
-             + tile(n_veto, "⛔ Vetoed", "#f85149", "pledge / auditor / pt14")
+             + tile(n_proven, "Proven names", "var(--up)", "≥1 promise settled vs actuals")
+             + tile(n_leaders, "Credibility leaders", "var(--up)", "veto-excluded, ranked")
+             + tile(n_avoid, "Avoid tape", "var(--down)", "veto / deterioration")
+             + tile(n_veto, "⛔ Vetoed", "var(--down)", "pledge / auditor / pt14")
              + tile(n_unproven, "Unproven", "#8b949e", "no settled promises yet")
              + tile(n_total, "Scored", "#39c5cf", "names with concall data")
              + '</div>')
@@ -1954,11 +1958,11 @@ def render_mep(sig_date=None) -> str:
                 f"WHERE s.trade_date=? AND s.mep_score_smooth IS NOT NULL {D._SCAN_FILTERS} "
                 "ORDER BY s.mep_score_smooth ASC LIMIT 150", (sig_date,)).fetchall()]
     strip = _ck_strip([
-        _ck_tile(counts.get("STRONG_ACCUM", 0), "Strong accum", "#2ea043", "sustained · weeks"),
-        _ck_tile(counts.get("ACCUM", 0), "Accumulating", "#3fb950", "phase"),
+        _ck_tile(counts.get("STRONG_ACCUM", 0), "Strong accum", "var(--up)", "sustained · weeks"),
+        _ck_tile(counts.get("ACCUM", 0), "Accumulating", "var(--up)", "phase"),
         _ck_tile(counts.get("NEUTRAL", 0), "Consolidating", "#8b949e", "no clear side"),
         _ck_tile(counts.get("DISTRIB", 0), "Distributing", "#f0883e", "phase"),
-        _ck_tile(counts.get("STRONG_DISTRIB", 0), "Strong distrib", "#f85149", "sustained · weeks"),
+        _ck_tile(counts.get("STRONG_DISTRIB", 0), "Strong distrib", "var(--down)", "sustained · weeks"),
     ])
 
     def n3(v):
@@ -1968,8 +1972,8 @@ def render_mep(sig_date=None) -> str:
         sc = r["sc"]                       # daily score (granular, shown underneath)
         ph = r["ph"]                       # smoothed phase score (the headline)
         phv = ph if ph is not None else sc
-        scol = "#2ea043" if (phv is not None and phv >= 0) else "#f85149"
-        dcol = "#2ea043" if (sc is not None and sc >= 0) else "#f85149"
+        scol = "var(--up)" if (phv is not None and phv >= 0) else "var(--down)"
+        dcol = "var(--up)" if (sc is not None and sc >= 0) else "var(--down)"
         return (f'<tr data-mepdir="{direction}">'
                 f'<td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}#mep">'
                 f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
@@ -2009,7 +2013,7 @@ def render_mep(sig_date=None) -> str:
     head = ('<h2 style="margin-top:2px">📊 Accumulation &amp; Distribution '
             '<span class="sub" style="margin:0">MEP — signed, descriptor (D62)</span></h2>'
             '<div class="sub" style="margin-top:2px">A SIGNED read — '
-            '<b style="color:#2ea043">+ accumulation</b> vs <b style="color:#f85149">− distribution</b>, '
+            '<b style="color:var(--up)">+ accumulation</b> vs <b style="color:var(--down)">− distribution</b>, '
             'judged vs each stock\'s OWN history (the side DVPT is blind to). The headline '
             '<b>Phase</b> is a smoothed, hysteresis-banded regime that HOLDS for weeks '
             '(accumulation → consolidation → distribution); <b>Today</b> is the raw daily '
@@ -2088,7 +2092,7 @@ def render_conviction(limit) -> str:
 
     strip = _ck_strip([
         _ck_tile(len(rows), "Conviction names", "#d2a8ff", "all pillars aligned"),
-        _ck_tile(n_near, "🎯 Near key", "#3fb950", "buyable entry band"),
+        _ck_tile(n_near, "🎯 Near key", "var(--up)", "buyable entry band"),
         _ck_tile(n_qual, "★ Quality-confirmed", "#d29922", "pt14 not failing"),
     ])
     if trs:
@@ -2151,8 +2155,8 @@ def render_leaders() -> str:
                 f'<tbody>{trs}</tbody></table></div>')
 
     strip = _ck_strip([
-        _ck_tile(len(leaders), "Leaders", "#3fb950", "strong-in-strong"),
-        _ck_tile(len(laggards), "Laggards", "#f85149", "weak-in-weak"),
+        _ck_tile(len(leaders), "Leaders", "var(--up)", "strong-in-strong"),
+        _ck_tile(len(laggards), "Laggards", "var(--down)", "weak-in-weak"),
     ])
     head = ('<h2 style="margin-top:2px">Leaders &amp; laggards '
             '<span class="sub" style="margin:0">all three RS layers aligned</span></h2>'
@@ -2199,8 +2203,8 @@ def render_sectors() -> str:
     falling = sum(1 for r in rows if (r["s3"] or 0) < 0)
     brk = sum(1 for r in rows if r["st"] == "BREAKOUT")
     strip = _ck_strip([
-        _ck_tile(rising, "Rising · 3m RS", "#3fb950", "outperforming Nifty 500"),
-        _ck_tile(falling, "Falling · 3m RS", "#f85149", "underperforming"),
+        _ck_tile(rising, "Rising · 3m RS", "var(--up)", "outperforming Nifty 500"),
+        _ck_tile(falling, "Falling · 3m RS", "var(--down)", "underperforming"),
         _ck_tile(brk, "Breakout", "#d2a8ff", "fresh RS breakout"),
     ])
     trs = []
@@ -2254,8 +2258,8 @@ def render_rs() -> str:
     rising = sum(1 for r in rows if (r["mom"] or 0) > 0)
     top_nm = rows[0]["nm"] if rows else "—"
     strip = _ck_strip([
-        _ck_tile(esc(top_nm), "Top momentum", "#3fb950", "strongest RS"),
-        _ck_tile(rising, "Rising", "#3fb950", "positive RS momentum"),
+        _ck_tile(esc(top_nm), "Top momentum", "var(--up)", "strongest RS"),
+        _ck_tile(rising, "Rising", "var(--up)", "positive RS momentum"),
         _ck_tile(len(rows), "Sectors ranked", "#58a6ff", "by 0.6·3m + 0.4·6m"),
     ])
     trs = []
@@ -2378,7 +2382,7 @@ def render_themes(idx_date) -> str:
     n_await = sum(1 for t in TT.THEME_VOCAB if counts.get(t["label"], 0) == 0)
     strip = _ck_strip([
         _ck_tile(n_themes, "Themes", "#58a6ff", "controlled vocabulary"),
-        _ck_tile(tagged, "Companies tagged", "#3fb950", "≥1 approved theme"),
+        _ck_tile(tagged, "Companies tagged", "var(--up)", "≥1 approved theme"),
         _ck_tile(n_await, "Awaiting tags", "#d29922", "cross-cutting · AI/manual"),
     ])
     boards = []
@@ -2451,9 +2455,9 @@ def render_theme_detail(name, idx_date, sig_date) -> str:
         return _CKPT_CSS + head + empty
     strip = _ck_strip([
         _ck_tile(N, "Participants", "#58a6ff", "tagged + liquid"),
-        _ck_tile(n_up, "In RS uptrend", "#3fb950", "vs Nifty 500"),
-        _ck_tile(n_lead, "RS leaders", "#3fb950", "rs_rank ≥ 80"),
-        _ck_tile(n_acc, "Accumulating", "#2ea043", "signed-MEP / character"),
+        _ck_tile(n_up, "In RS uptrend", "var(--up)", "vs Nifty 500"),
+        _ck_tile(n_lead, "RS leaders", "var(--up)", "rs_rank ≥ 80"),
+        _ck_tile(n_acc, "Accumulating", "var(--up)", "signed-MEP / character"),
         _ck_tile(n_ath, "ATH-DVPT", "#f0883e", "all-time delivery peak"),
     ])
     cmp_link = ('<div class="sub" style="margin:10px 0 0"><a class="row" style="display:inline" '
@@ -2493,9 +2497,9 @@ def _render_entity_tags(sym, added="", err="") -> str:
     nxt = f"/dash/tags-review?sym={q(sym)}"
     note = ""
     if added:
-        note = f'<div class="card" style="border-left:3px solid #2ea043;margin-bottom:8px">Saved: <b>{esc(added)}</b></div>'
+        note = f'<div class="card" style="border-left:3px solid var(--up);margin-bottom:8px">Saved: <b>{esc(added)}</b></div>'
     elif err:
-        note = (f'<div class="card" style="border-left:3px solid #f85149;margin-bottom:8px">Could not save '
+        note = (f'<div class="card" style="border-left:3px solid var(--down);margin-bottom:8px">Could not save '
                 f'<b>{esc(err)}</b> — must be a vocabulary theme.</div>')
     _src = {"index": "index · membership fact", "ramana": "you added",
             "keyword": "keyword-proposed", "ai": "AI-proposed (Gemini)"}
@@ -2579,9 +2583,9 @@ def render_tags_review(added="", err="", sym="") -> str:
             "ORDER BY as_of DESC, symbol LIMIT 200").fetchall()]
     note = ""
     if added:
-        note = f'<div class="card" style="border-left:3px solid #2ea043;margin-bottom:8px">Saved: <b>{esc(added)}</b></div>'
+        note = f'<div class="card" style="border-left:3px solid var(--up);margin-bottom:8px">Saved: <b>{esc(added)}</b></div>'
     elif err:
-        note = (f'<div class="card" style="border-left:3px solid #f85149;margin-bottom:8px">Could not save '
+        note = (f'<div class="card" style="border-left:3px solid var(--down);margin-bottom:8px">Could not save '
                 f'<b>{esc(err)}</b> — the tag must be in the controlled vocabulary.</div>')
     opts = "".join(f'<option value="{esc(t["label"])}">{esc(t["label"])} · {esc(t["group"])}</option>'
                    for t in TT.THEME_VOCAB)

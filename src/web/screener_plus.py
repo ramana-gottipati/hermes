@@ -63,11 +63,23 @@ def _nav_html(active: str) -> str:
 
 
 def _sub() -> str:
+    """The Screener sub-nav — GENERATED from the lens registry (via v2_surfaces) so this
+    page renders the IDENTICAL strip as every other Screener page and cannot drift. The
+    old hand-rolled list wrongly showed "Strategist" (a Strategies lens) and omitted
+    "Review". Highlighted on Screen+ (`active="screen2"`). Falls back to the correct
+    registry-matching set if v2_surfaces is unavailable."""
+    try:
+        from src.web import v2_surfaces as V
+        s = V.native_subnav("screen2")
+        if s:
+            return s
+    except Exception:  # noqa: BLE001 — sub-nav is chrome; never fatal
+        pass
     return K.subnav([
-        ("Screen", "/dash/screener", False),
         ("Screen+", "/dash/screen2", True),
+        ("Screen (classic)", "/dash/screener", False),
         ("Themes / Baskets", "/dash/themes", False),
-        ("Strategist", "/dash/strategist", False),
+        ("Review", "/dash/tags-review", False),
         ("Workbench", "/dash/workbench", False),
     ])
 
