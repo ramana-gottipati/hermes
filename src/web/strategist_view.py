@@ -374,7 +374,13 @@ _PAGE_CSS = """<style>
 .bd-card .br a{font-size:12px;color:var(--accent)}
 .bd-del{margin-left:auto;font:inherit;font-size:11px;color:var(--ink-3);background:none;border:none;cursor:pointer}
 .bd-del:hover{color:var(--down)}
-.hide-alerts .wb-alerts-sec,.hide-strategies .wb-strategies-sec,.hide-boards .wb-boards-sec{display:none}
+.hide-alerts .wb-alerts-sec,.hide-strategies .wb-strategies-sec,.hide-boards .wb-boards-sec,
+.hide-credibility .wb-cci-sec{display:none}
+.cci-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
+.cci-kv{background:var(--bg-1);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.cci-n{font-size:24px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.cci-l{font-size:12px;color:var(--ink);font-weight:600;margin-top:4px}
+.cci-s{font-size:10.5px;color:var(--ink-3);margin-top:2px}
 </style>"""
 
 
@@ -440,6 +446,67 @@ def _alerts_strip(conn) -> str:
         '</div>')
 
 
+def _cci_tile(conn) -> str:
+    """The Credibility RRG + divergence tile (CCI Phase 3, `credibility_rrg`, 806
+    names) — an at-a-glance DESCRIPTIVE read of management-credibility level×momentum
+    and the credibility÷price divergence. Surfaces the §C-falsified map as a research
+    lens (NEVER a buy/sell ranking; the 1/806-delisted survivorship limit + the
+    no-return-edge verdict stand). Empty if cci_rrg isn't built on this host."""
+    try:
+        from src.automation import cci_rrg
+        if not conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='credibility_rrg'"
+        ).fetchone():
+            return ""
+        s = cci_rrg.summary(conn)
+    except Exception as e:  # noqa: BLE001
+        log.warning("cci tile skipped: %s", e)
+        return ""
+    n = s.get("n", 0)
+    if not n:
+        return ""
+    quad = s.get("by_quadrant", {}) or {}
+    div = s.get("by_divergence", {}) or {}
+    asof = _latest(conn, "credibility_rrg", "as_of_period") or _latest(conn, "concall_scores", "last_updated")
+
+    # the four headline reads (proven&improving = best evidence; low&deteriorating = avoid tape)
+    def _q(*keys):
+        return sum(int(quad.get(k, 0)) for k in keys)
+    proven_up = _q("PROVEN_IMPROVING")
+    proven_slip = _q("PROVEN_SLIPPING")
+    low_det = _q("LOW_DETERIORATING", "UNPROVEN_DETERIORATING")
+    pos_div = int(div.get("POSITIVE_DIVERGENCE", 0))
+    neg_div = int(div.get("NEGATIVE_DIVERGENCE", 0))
+
+    def _kv(label, val, sub, kind="neutral"):
+        col = {"up": "var(--up)", "down": "var(--down)", "cy": "var(--accent-cy)"}.get(kind, "var(--ink)")
+        return (f'<div class="cci-kv"><div class="cci-n" style="color:{col}">{val}</div>'
+                f'<div class="cci-l">{K.esc(label)}</div><div class="cci-s">{K.esc(sub)}</div></div>')
+
+    grid = (
+        '<div class="cci-grid">'
+        + _kv("Proven & improving", proven_up, "high-evidence track record", "up")
+        + _kv("Proven but slipping", proven_slip, "watch — momentum fading", "neutral")
+        + _kv("Low & deteriorating", low_det, "avoid tape (descriptive)", "down")
+        + _kv("Positive divergence", pos_div, "credibility ↑ vs price flat/down", "cy")
+        + _kv("Negative divergence", neg_div, "credibility ↓ vs price up", "down")
+        + '</div>')
+    return (
+        '<div class="wb-cci-sec"><div class="wb-sec-lbl">Credibility RRG · divergence '
+        '<span class="mut" style="text-transform:none;font-weight:400">(CCI Phase 3 · descriptive map)</span></div>'
+        '<div class="wb-alerts" style="border-left-color:var(--accent)">'
+        f'<div class="ah"><b>Management credibility — level × momentum</b>'
+        f'<span class="mut" style="font-size:11px">{n} names · as of {K.esc(str(asof)[:10] if asof else "—")} · '
+        'a research map, NOT a ranked signal (no validated return edge — §C falsified; '
+        'survivorship-limited)</span></div>'
+        f'{grid}'
+        '<div class="sec" style="margin-top:8px;font-size:12px">'
+        '<a class="st-open" href="/dash/pat?flow=credibility">credibility leaders →</a> &nbsp; '
+        '<a class="st-open" href="/dash/pat?flow=deterioration">deterioration tape →</a> &nbsp; '
+        '<a class="st-open" href="/dash/coverage">methodology · coverage →</a>'
+        '</div></div></div>')
+
+
 def _boards_section(conn) -> str:
     """Saved NL-query boards as workbench cards (the 'configurable' part — the user
     pins the views they care about; each reloads its Pat answer)."""
@@ -474,7 +541,7 @@ var KEY='wb_hidden_v1';
 function gh(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
 function sh(h){localStorage.setItem(KEY,JSON.stringify(h))}
 function apply(){var h=gh(),wrap=document.getElementById('wbWrap');if(!wrap)return;
-  ['alerts','strategies','boards'].forEach(function(s){
+  ['alerts','credibility','strategies','boards'].forEach(function(s){
     wrap.classList.toggle('hide-'+s,!!h[s]);
     var b=document.querySelector('.wb-tog[data-s="'+s+'"]');if(b)b.classList.toggle('on',!h[s]);});}
 document.querySelectorAll('.wb-tog[data-s]').forEach(function(b){
@@ -540,11 +607,12 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
         '<div class="uk-card">No strategies available yet. '
         'Check the precomputed tables on this host.</div>')
 
-    # alerts + boards (workbench sections) — best-effort, never break the page
-    alerts_html = boards_html = ""
+    # alerts + credibility tile + boards (workbench sections) — best-effort, never break
+    alerts_html = cci_html = boards_html = ""
     try:
         with get_conn() as conn:
             alerts_html = _alerts_strip(conn)
+            cci_html = _cci_tile(conn)
             boards_html = _boards_section(conn)
     except Exception as e:  # noqa: BLE001
         log.warning("workbench sections skipped: %s", e)
@@ -560,6 +628,7 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
     toolbar = (
         '<div class="wb-bar">'
         '<button class="wb-tog on" data-s="alerts">Alerts</button>'
+        '<button class="wb-tog on" data-s="credibility">Credibility</button>'
         '<button class="wb-tog on" data-s="strategies">Strategies</button>'
         '<button class="wb-tog on" data-s="boards">Boards</button>'
         '<a class="wb-tog" href="/dash/strategist?fmt=csv" style="margin-left:auto">⬇ CSV</a>'
@@ -570,7 +639,7 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
                           f'<div class="st-grid">{cards}</div></div>')
 
     body = (_PAGE_CSS + head + strip + toolbar
-            + f'<div id="wbWrap">{alerts_html}{strategies_section}{boards_html}</div>'
+            + f'<div id="wbWrap">{alerts_html}{cci_html}{strategies_section}{boards_html}</div>'
             + _WB_JS)
     return HTMLResponse(K.shell("Strategist · patearn", body,
                                 active="strategies", sub=_sub("strategist"),
