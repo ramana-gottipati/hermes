@@ -553,17 +553,36 @@ def _tag_chips(labels, link: bool = True, proposed=(), wrap: bool = False, cap=N
     return f'<div class="chips">{inner}</div>' if wrap else inner
 
 
+# NaN/inf render as the em-dash, same as None — a NaN slips through `is not None`
+# (e.g. a 0/0 ratio upstream) and would otherwise print literal "nan%"/"inf".
+# `v != v` is True only for NaN; the inf check catches ±inf without importing math.
+def _nonfinite(v) -> bool:
+    return v is None or v != v or v in (float("inf"), float("-inf"))
+
+
 def _pct(v, decimals=1) -> str:
-    if v is None:
+    if _nonfinite(v):
         return '<span class="mut">—</span>'
     cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
     return f'<span class="{cls}">{v:+.{decimals}f}%</span>'
 
 
 def _num(v, decimals=2) -> str:
-    if v is None:
+    if _nonfinite(v):
         return '<span class="mut">—</span>'
     return f"{v:,.{decimals}f}"
+
+
+def _safe_int(v, default=0) -> int:
+    """int() that never raises on NaN/inf/None/junk (which would 500 a page).
+    A NaN/inf DVPT or delivery-value sneaks through SQLite as a float and would
+    blow up a plain int(); coerce defensively to `default`."""
+    if _nonfinite(v):
+        return default
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
 
 
 # RS trend-state labels are stored as the uppercase enum (UPTREND / BREAKOUT /
@@ -2695,6 +2714,16 @@ def _cci_bar(label: str, v, invert: bool = False) -> str:
 
 
 def _mep_stock_panel(sym: str) -> str:
+    """Per-stock MEP dossier — guarded wrapper. ANY failure (incl. a `mep_signals`
+    schema drift making a by-key column read raise) degrades to an empty panel, never
+    a 500 of the whole stock page — mirrors the CPR/CCI panels' graceful-empty contract."""
+    try:
+        return _mep_stock_panel_inner(sym)
+    except Exception:
+        return ""
+
+
+def _mep_stock_panel_inner(sym: str) -> str:
     """Per-stock MEP (signed accumulation/distribution) dossier — descriptor-only
     (D62). The signed verdict, then the four SIGNED terms each with its within-stock
     z-score and raw value (data-first), two context terms, and DVPT's side-blind
@@ -2936,7 +2965,7 @@ def _fno_stock_panel(sym: str) -> str:
     # OI percentile within the available window (crowdedness of positioning)
     ois = [r["fut_oi"] for r in R if r["fut_oi"] is not None]
     oi_pct = (round(sum(1 for x in ois if x <= cur["fut_oi"]) / len(ois) * 100)
-              if ois and cur["fut_oi"] else None)
+              if ois and cur["fut_oi"] is not None else None)
     basis = cur["basis_pct"]
     spot = cur["und_price"]
 
@@ -3908,7 +3937,9 @@ def _day_delta(conn, sym):
     r = conn.execute("SELECT close, prev_close FROM bhavcopy_rows WHERE symbol=? "
                      "AND series='EQ' AND (segment='CM' OR segment IS NULL) "
                      "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
-    if not r or not r["close"]:
+    # A legit 0 close is real data, not "missing" — only None means no row/value.
+    # (The day-change divisor below still guards a 0 prev_close: undefined, not no-data.)
+    if not r or r["close"] is None:
         return None, None, None
     pc = r["prev_close"]
     dc = ((r["close"] - pc) / pc * 100.0) if pc else None
@@ -4568,10 +4599,16 @@ _EQ_AC = {"key": None, "json": "[]"}
 
 def _equities_ac_json():
     """Cached [{s,n}] equity universe (symbol + company name) for the add-box
-    ticker autocomplete; rebuilt only when the listed-count changes."""
+    ticker autocomplete; rebuilt when the universe changes. The cache key is a
+    fingerprint — COUNT(*) alone would serve STALE names through a rename that keeps
+    the row count constant, so we also fold in MAX(rowid) (catches inserts / deletes /
+    a re-ingested master where rowids advance) and SUM(LENGTH(company_name)) (catches
+    an in-place name edit of the same rowid). All three are O(1) aggregates."""
     try:
         with get_conn() as conn:
-            key = conn.execute("SELECT COUNT(*) FROM nse_equity_list").fetchone()[0]
+            key = tuple(conn.execute(
+                "SELECT COUNT(*), MAX(rowid), "
+                "COALESCE(SUM(LENGTH(company_name)), 0) FROM nse_equity_list").fetchone())
             if _EQ_AC["key"] != key:
                 rows = conn.execute("SELECT symbol, company_name FROM nse_equity_list "
                                     "ORDER BY symbol").fetchall()
@@ -4757,9 +4794,21 @@ def dash_track_quote(sym: str = Query(""), date: str = Query("")):
 
 @router.post("/dash/track/close")
 def dash_track_close(id: int = Form(...), reason: str = Form("")) -> RedirectResponse:
+    # Never write a NULL-price close: a bad/foreign id (no row) or an uncapturable
+    # snapshot (ep is None) would otherwise close the position with exit_price=NULL,
+    # which a later reopen could resurrect — corrupting realised-P/L and XIRR. Only
+    # UPDATE when the row exists AND we have an exit price; otherwise surface the error.
     with get_conn() as conn:
         row = conn.execute("SELECT symbol FROM stocks_in_play WHERE id=?", (id,)).fetchone()
         ep = _capture_snapshot(conn, row["symbol"])[0] if row else None
+        if not row:
+            return RedirectResponse(
+                f"/dash/performance?err={_q('That holding no longer exists — nothing closed.')}",
+                status_code=303)
+        if ep is None:
+            return RedirectResponse(
+                f"/dash/performance?err={_q('No closing price available for ' + str(row['symbol']) + ' — not closed (would corrupt P/L). Try again once an EOD price is in.')}",
+                status_code=303)
         conn.execute("UPDATE stocks_in_play SET status='closed', exit_date=datetime('now'), "
                      "exit_price=?, exit_reason=? WHERE id=?",
                      (ep, (reason or "").strip() or None, id))
@@ -5180,7 +5229,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
 
 
 @router.get("/dash/performance", response_class=HTMLResponse)
-def dash_performance(just_closed: str = Query("", alias="closed")) -> HTMLResponse:
+def dash_performance(just_closed: str = Query("", alias="closed"),
+                     err: str = Query("")) -> HTMLResponse:
     today = datetime.now().strftime("%Y-%m-%d")
     with get_conn() as conn:
         openrows = [dict(r) for r in conn.execute(
@@ -5362,6 +5412,7 @@ def dash_performance(just_closed: str = Query("", alias="closed")) -> HTMLRespon
              'closed trades — it fills itself as you take and close positions. EOD data; '
              '₹ metrics need quantity on the position.</span></div>')
     body = (_TRACK_CSS + _track_subnav("performance")
+            + (f'<div class="banner b-off">{_esc(err)}</div>' if err else '')
             + ('<div class="banner b-on">&#10003; Position closed &#8212; logged to your scoreboard below.</div>'
                if just_closed == "1" else '')
             + intro + cards + curve_html
@@ -5697,6 +5748,11 @@ def _imp_num(s):
         return None
 
 
+# Hard cap on the import upload — generous for any real holdings sheet (500 rows is
+# tiny), tight enough that a zip-bomb .xlsx can't OOM the single VPS before parse.
+_MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
+
 def _parse_upload(filename, data):
     """(headers, rows) from CSV or XLSX bytes; rows = list[list[str]], header = row 0."""
     name = (filename or "").lower()
@@ -5897,7 +5953,13 @@ async def dash_import_preview(file: UploadFile = File(...), status: str = Form("
                              book: str = Form("Main")) -> HTMLResponse:
     status = status if status in ("watch", "open") else "open"
     bk = (book or "Main").strip()[:40] or "Main"
-    data = await file.read()
+    # Cap the upload BEFORE buffering/parsing: a tiny zip-bomb .xlsx can decompress
+    # to gigabytes and OOM the single VPS inside openpyxl. Read one byte past the cap
+    # so we can detect over-size without ever holding the whole oversized payload.
+    data = await file.read(_MAX_UPLOAD_BYTES + 1)
+    if len(data) > _MAX_UPLOAD_BYTES:
+        return _imp_err(f"That file is too large (limit {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB). "
+                        "A holdings sheet should be well under that — check it's the right file.")
     try:
         headers, rows = _parse_upload(file.filename, data)
     except Exception as e:
@@ -5939,7 +6001,7 @@ def dash_import_commit(rows_json: str = Form("[]"), status: str = Form("open"),
 
     def cell(r, ci):
         return str(r[ci]).strip() if (0 <= ci < len(r) and r[ci] is not None) else ""
-    inserted, skipped = 0, []
+    inserted, skipped, bad_dates = 0, [], []
     with get_conn() as conn:
         for r in rows:
             if not isinstance(r, list):
@@ -5953,13 +6015,25 @@ def dash_import_commit(rows_json: str = Form("[]"), status: str = Form("open"),
             strat = ((cell(r, cstr) if cstr >= 0 else "") or "Imported")[:60]
             q = _imp_num(cell(r, cq)) if cq >= 0 else None
             if status == "open":
-                d_in = _imp_date(cell(r, cd)) if cd >= 0 else None
+                # Entry date drives P/L-since + XIRR — NEVER fabricate it. If the user
+                # mapped a date column but the row's value won't parse, SKIP + surface
+                # the row rather than silently stamping today (or the latest bhav date).
+                date_cell = cell(r, cd) if cd >= 0 else ""
+                d_in = _imp_date(date_cell) if date_cell else None
+                if date_cell and d_in is None:
+                    bad_dates.append(sym)
+                    continue
                 o = _ohlc_on(conn, sym, d_in or None)
                 # Import TRUSTS the file's cost basis (averaged price may sit outside
                 # one day's OHLC); fall back to that day's close only if price absent.
                 ep_in = _imp_num(cell(r, cp)) if cp >= 0 else None
                 ep = ep_in if ep_in is not None else (o["close"] if o else None)
-                td = o["trade_date"] if o else datetime.utcnow().strftime("%Y-%m-%d")
+                # Date precedence: the parsed user date (real, even if no bhav row on
+                # it) → else the matched bhav trade_date. Only when NO date was given
+                # at all and there's no bhav row do we fall back to today (a watch-like
+                # "as of now" add, not a fabricated historical entry).
+                td = (d_in or (o["trade_date"] if o else None)
+                      or datetime.utcnow().strftime("%Y-%m-%d"))
                 snap = _capture_snapshot(conn, sym, as_of=td)[1]
                 conn.execute(
                     "INSERT INTO stocks_in_play(symbol,strategy,book,status,date_added,entry_price,qty,"
@@ -5975,9 +6049,15 @@ def dash_import_commit(rows_json: str = Form("[]"), status: str = Form("open"),
                      json.dumps(snap) if snap else None))
             inserted += 1
     url = f"{dest}?book={_q(bk)}&added={_q(str(inserted) + ' holdings')}"
+    errs = []
     if skipped:
         uniq = list(dict.fromkeys(skipped))
-        url += f"&err={_q(str(len(skipped)) + ' row(s) skipped — ticker not recognised: ' + ', '.join(uniq[:8]))}"
+        errs.append(f"{len(skipped)} row(s) skipped — ticker not recognised: {', '.join(uniq[:8])}")
+    if bad_dates:
+        uniqd = list(dict.fromkeys(bad_dates))
+        errs.append(f"{len(bad_dates)} row(s) skipped — entry date unreadable (not imported, to keep P/L correct): {', '.join(uniqd[:8])}")
+    if errs:
+        url += f"&err={_q(' · '.join(errs))}"
     return RedirectResponse(url, status_code=303)
 
 
@@ -6350,7 +6430,7 @@ def dash_stock(sym: str = Query("", max_length=20),
             "time": r["trade_date"],
             "open": o, "high": hi, "low": lo, "close": c,
             "prev_close": r["prev_close"],
-            "dvpt": int(r["dvpt"]) if r["dvpt"] is not None else 0,
+            "dvpt": _safe_int(r["dvpt"]),
             "deliv": round(r["deliv_per"], 1) if r["deliv_per"] is not None else None,
             "r1m": round(r["r1m"], 2) if r["r1m"] is not None else None,
             "tval": round(tval, 2) if tval is not None else None,
@@ -7025,7 +7105,10 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     # --- W2: cockpit verdict count-strip (7 tiles) + tabbed sub-nav -----------
     from src.web.cockpit import _CKPT_CSS as _CK, _ck_tile, _ck_strip, cci_state
     day_chg = None
-    if len(series) >= 2 and series[-2]["close"]:
+    # Distinguish a real prior close from missing data (truthiness dropped a legit 0);
+    # still skip a 0 divisor (a % change off zero is undefined, not "no data").
+    if (len(series) >= 2 and series[-2]["close"] is not None
+            and series[-1]["close"] is not None and series[-2]["close"] != 0):
         day_chg = (series[-1]["close"] / series[-2]["close"] - 1) * 100
     _conv = round(_conv_of(L.get("p_score"), L.get("rs_rank")))
     _xp = L.get("ratio_today_vs_power_1m")
@@ -7142,7 +7225,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 <div class="tabpane" data-tab="price">
 <div class="kpi">
   <div class="box"><div class="num">{L.get('r_score') or 0}/{L.get('p_score') or 0}</div><div class="lbl">r / p score</div></div>
-  <div class="box"><div class="num">{int(L['delivery_value_per_trade'] or 0):,}</div><div class="lbl">DVPT today</div></div>
+  <div class="box"><div class="num">{_safe_int(L.get('delivery_value_per_trade')):,}</div><div class="lbl">DVPT today</div></div>
   <div class="box"><div class="num">{_num(L.get('ratio_today_vs_power_1m'))}</div><div class="lbl">vs power 1m</div></div>
 </div>
 <div class="fbar" id="ctBar">
