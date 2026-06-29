@@ -125,11 +125,74 @@ session metadata (not a data claim). All research reads are stamped (`as_of_peri
 - **Harness**: `regression_sweep.sh` PASS (31 routes + 4 overlays 200 + chrome gate) + `chrome_gate.py`
   PASS, before each commit.
 
-## Deviations / notes
+## Deviations / notes (Wave 1)
 - Items 5–8 were **verified, not rebuilt** — they shipped in Lanes D/H/H2 and are live on the VPS; the L4
   task was to confirm + commit the machinery + state the gaps honestly (kickstart-pick-verify discipline).
   I committed the three untracked owned research modules so the repo inherits them.
-- Item 3's explicit top-N cap stays the documented F2-7 deferral (it needs a frozen-file call-site change).
 - The repo↔VPS `engine.py` divergence noted in memory is **not relevant** to this lane — I did not touch
   `engine.py`.
 - `PROJECT_STATE.md` deliberately NOT edited (per the lane brief — rides the wrap reconciliation).
+
+---
+
+## WAVE 2 — screener unification + strategist depth + provenance durability
+
+Multi-turn went **end-to-end live** between waves: L1 landed the `pat_tid` cookie call-site (`c736f3a`,
+deployed + browser-verified) — the thread trail is now live (confirmed in the W2 top-N screenshot:
+"THIS CONVERSATION: most credible managements › top 5 …").
+
+### W2 commits (owned paths only; staged set verified == my paths each time)
+| Commit | What | Files |
+|---|---|---|
+| `361c95e` | **Screen+ confluence SUPERSET (Wolfe + pt14) + column-parity check** | `src/web/screener_plus.py` |
+| `b8ec3f8` | **Credibility RRG + divergence tile (CCI P3) on the strategist workbench** | `src/web/strategist_view.py` |
+| `a07208d` | **Pat explicit "top N" cap on the ranked list flows (F2-7)** | `src/pat/{web,flows,understand,engine,disambiguate,eval_set}.py` |
+| `313e02f` | **provenance.lag_headline() — surface the EFFECTIVE leak, not buried** | `src/automation/provenance.py` |
+
+### Backlog coverage (W2 items)
+1. **SCREEN+ → DEFAULT-GRADE** (`361c95e`) — added the brief's 5th pillar **Wolfe** (was absent; READ-ONLY
+   `wolfe_signals`) → confluence is now 0-6; added **Quality·pt14** columns (READ-ONLY `pattern_scores`).
+   NEW `parity_report()` + `/dash/screen2?parity=1` page proves **8/8 legacy analytic families covered +
+   3 new lenses (MEP, Confluence, Wolfe) → PROMOTABLE** (parity by family — legacy carries deeper
+   p1-p12/b1-b24 ladders Screen+ summarises; both read the SAME precomputed tables). Saved screens / group
+   toggles / CSV intact. **Promotion to default = a `lens_registry` nav slot → L1/orchestrator's call**
+   (NOT a hand-edit of frozen nav). Documented in the in-app parity page + this note.
+2. **STRATEGIST DEPTH** (`b8ec3f8`) — NEW Credibility RRG·divergence tile from `cci_rrg.summary()` (806
+   names): 155 proven-improving / 37 slipping / 72 low-deteriorating / 331 +divergence / 48 −divergence,
+   each deep-linking to credibility leaders / deterioration tape / coverage. Framed **"a research map, NOT
+   a ranked signal (no validated return edge — §C falsified; survivorship-limited)"**. The existing cards
+   already carry count/freshness/top-names/health from `strategy_registry.summary()` + deep-link to each
+   lens. NEW "Credibility" toolbar toggle. Browser-verified (806 names, real numbers).
+3. **PAT EXPLICIT-N** (`a07208d`) — closes the deferred F2-7. "top 5 credible X" / "top 10 RS leaders" /
+   "best 3 accumulation" cap the list to the **N strongest already-ranked** rows (ranking unchanged, raw
+   values beside the verdict). Wired through ALL routing paths (parse_fallback stamp · engine inject ·
+   route_extra ₹0 pre-route · `_VALID` "int" kind, fail-closed). **Live row counts EXACT** (top 5 → 5,
+   top 10 → 10, bare → 80 safety-cap); browser-verified ("CREDIBILITY LEADERS — TOP 5 (5)").
+   eval TREND 15/15, route 63/64, HALLUC 8/8, ACCURACY 10/10.
+4. **PROVENANCE DURABILITY** (`313e02f`) — `hermes-fundamentals-provenance.timer` **ENABLED + armed**
+   (next Tue 2026-06-30 21:00 UTC); `--demo-capture` proves the forward hook (captured 1, real
+   `knowable_at` stamped, cleaned up, `ok:true`); `lag_audit()` stays non-empty after `--calibrate`
+   (29,176 pairs). NEW **`lag_headline()`** surfaces the effective leak flat: **baseline 11.9% → calibrated
+   4.6% → effective 1.42% · de-model 69.2% · 8.4× cut**, now in `coverage_snapshot()` so the Coverage read
+   + `/v1` can lead with it. **HAND-OFF:** `coverage_view._section_modeled` reads the OLD flat lag_audit
+   shape → a 1-line render of `snap['lag_headline']` by the coverage_view owner makes it visible on the
+   page (the data is now there).
+5. **PAT↔RESEARCH BRIDGE** — verified, no gap: every credibility receipt cites provenance consistently
+   (why = composite+sub-scores+receipts+as-of+source; leaders/deterioration = freshness bar; confluence =
+   dual-lens as-of badge; trend = period-range). The "why credible" drill is already deep.
+6. **CCI DESCRIPTIVE SURFACE** — the credibility RRG (806) is now reachable + readable via the W2
+   strategist tile, clearly DESCRIPTIVE (§C falsification + the 1/806-delisted survivorship limit stated),
+   provenance-stamped (n + as-of). Plus the existing NL credibility/deterioration flows + `/dash/coverage`.
+
+### W2 deviations / hand-offs
+- **Screen+ → default promotion** needs a `lens_registry` nav slot (L1/orchestrator owns nav) — I proved
+  promotability + built the page; the nav swap is theirs.
+- **Coverage page lag_headline render** — a 1-line update in the (non-owned) `coverage_view.py` to read
+  `snap['lag_headline']`; the data + helper are shipped in `provenance.py`.
+- **CRLF gotcha hit + handled:** git's autocrlf converted some working-tree `.py` to CRLF; I CR-stripped
+  (`tr -d '\r'`) before every scp (verified CR=0 on the VPS each time) — repo stays LF.
+- **Cross-absorption caught:** a parallel L2 session staged `shell_skin.py` into the shared index between
+  my `git add` and commit; I unstaged it (their work landed in `75442fd`, not lost) and committed only my
+  file. Thereafter staged+committed **atomically in one call** with an explicit staged-set assertion.
+- Gemini is **503 (high demand)** on the VPS → the live router rides the ₹0 deterministic path
+  (route_extra → parse_fallback); never-Claude holds. All explicit-N + intents verified on that path.
