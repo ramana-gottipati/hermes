@@ -34,7 +34,11 @@ _TOKENS_CSS = """<style>""" + TOKENS_MARKER + """
   /* ── hairlines ── */
   --line:#1c2937; --line-2:#27384a; --line-3:#33485f;
   /* ── ink ── */
-  --ink:#eaf1f9; --ink-2:#9bb0c6; --ink-3:#5c6f84; --ink-4:#3c4a5c;
+  /* WCAG-AA (L2 W3 a11y): --ink-3 was #5c6f84 = 3.44:1 on the card bg → FAILS AA 4.5 for
+     normal text, and it carries eyebrows / captions / table-th / .mut site-wide. Lifted to
+     #7e90a8 = 5.5:1 on bg-2, 5.9:1 on bg-1, 4.9:1 on bg-3 → clears AA on every surface while
+     staying a clearly-muted tertiary (ink-2 #9bb0c6 = 8.6:1 remains the distinct step above). */
+  --ink:#eaf1f9; --ink-2:#9bb0c6; --ink-3:#7e90a8; --ink-4:#3c4a5c;
   /* ── accents + semantics ── */
   --accent:#4d9dff; --accent-2:#6db3ff; --accent-cy:#34e0d6; --accent-dim:rgba(77,157,255,.14);
   --up:#3fd486; --up-dim:rgba(63,212,134,.13);

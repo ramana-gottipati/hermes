@@ -102,12 +102,19 @@ body.uk-skin .kpi .num,body.uk-skin .scard .ct,body.uk-skin .maj .nm{color:#eaf1
 body.uk-skin .kpi .lbl,body.uk-skin .scard .th,body.uk-skin .maj .rr,body.uk-skin .sub,body.uk-skin .ghdr{color:#9bb0c6}
 body.uk-skin h2,body.uk-skin .scard .nm{color:#eaf1f9}
 /* ── tables (colour only; layout untouched) ── */
-body.uk-skin th{color:#5c6f84;border-bottom:1px solid #27384a}
+body.uk-skin th{color:#7e90a8;border-bottom:1px solid #27384a}/* AA: was #5c6f84 (3.4:1) */
 body.uk-skin td{border-bottom:1px solid #1c2937}
 body.uk-skin .sym{color:#eaf1f9}
 /* ── semantic ink ── */
-body.uk-skin .pos{color:#3fd486} body.uk-skin .neg{color:#ff6a7a} body.uk-skin .mut{color:#5c6f84}
+body.uk-skin .pos{color:#3fd486} body.uk-skin .neg{color:#ff6a7a} body.uk-skin .mut{color:#7e90a8}/* AA */
 body.uk-skin .grp{color:#4d9dff}
+/* ── WCAG-AA (L2 W3): legacy classes hardcoding the too-dark greys #6e7681 (4.0:1) /
+   #5f7488 (3.8:1) in the FROZEN bodies — caught here by class so they clear AA without
+   editing dashboard.py/stock_chart.py. Mapped to the AA-safe --ink-3 (#7e90a8). Inline
+   style="color:…" on a few chart-control labels (stock_chart.py) can't be reached by a
+   class rule → flagged to L3. ── */
+body.uk-skin .nglat .lbl,body.uk-skin .snap i,body.uk-skin .subnav a,body.uk-skin .add,
+body.uk-skin .cp-none,body.uk-skin .trow .tb,body.uk-skin .tchip.more{color:var(--ink-3)}
 /* ── empty / loading / error states → the polished native system look ──
    L2 Wave2 (state polish): legacy no-data blocks render a bare left-aligned
    `<div class="empty">No data…</div>` that reads like a broken fragment. Give the legacy
@@ -146,7 +153,7 @@ body.uk-skin .tabbar a.on{color:#eaf1f9;border-bottom-color:#b18cff}
 /* ── the frozen-pane data grid — COLOUR ONLY (sticky/z-index left exactly as-is) ── */
 body.uk-skin .scrwrap{background:#0b0f17;border:1px solid #1c2937;border-radius:12px}
 body.uk-skin table.scr th,body.uk-skin table.scr td{border-bottom:1px solid #161f2b}
-body.uk-skin table.scr thead tr.sgrp th{background:#18222f;color:#5c6f84;border-bottom:1px solid #27384a;border-left:1px solid #1c2937}
+body.uk-skin table.scr thead tr.sgrp th{background:#18222f;color:#7e90a8;border-bottom:1px solid #27384a;border-left:1px solid #1c2937}/* AA */
 body.uk-skin table.scr thead tr.scol th{background:#111824;color:#9bb0c6;border-bottom:1px solid #27384a}
 body.uk-skin table.scr .fz{background:#0b0f17;border-right:1px solid #1c2937}
 body.uk-skin table.scr thead tr.scol th.fz,body.uk-skin table.scr thead tr.sgrp th.fz{background:#18222f}

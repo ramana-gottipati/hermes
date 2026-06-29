@@ -80,7 +80,8 @@ _CSS = """<style>
 .uk{
   --bg-0:#070a10; --bg-1:#0b0f17; --bg-2:#111824; --bg-3:#18222f;
   --line:#1c2937; --line-2:#27384a;
-  --ink:#eaf1f9; --ink-2:#9bb0c6; --ink-3:#5c6f84;
+  /* --ink-3 lifted #5c6f84 → #7e90a8 for WCAG-AA (matches ui_tokens; see note there) */
+  --ink:#eaf1f9; --ink-2:#9bb0c6; --ink-3:#7e90a8;
   --accent:#4d9dff; --accent-cy:#34e0d6; --accent-dim:rgba(77,157,255,.14);
   --up:#3fd486; --up-dim:rgba(63,212,134,.13);
   --down:#ff6a7a; --down-dim:rgba(255,106,122,.13);
@@ -259,7 +260,7 @@ def cmdk_overlay() -> str:
         'style="width:100%;box-sizing:border-box;border:0;background:transparent;color:#eaf1f9;'
         'font-size:16px;padding:17px 19px;outline:none"/>'
         '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 19px 12px;'
-        'color:#5c6f84;font-size:11.5px;border-top:1px solid #1c2937">'
+        'color:#7e90a8;font-size:11.5px;border-top:1px solid #1c2937">'
         '<span>Enter to jump or ask · Esc to close</span>'
         '<span>analytics copilot · closed-vocab, never invents numbers</span></div>'
         '</div></div>'
