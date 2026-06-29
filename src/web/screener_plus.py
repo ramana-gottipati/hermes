@@ -44,7 +44,8 @@ _SECTORS = ["Nifty Bank", "Nifty Financial Services", "Nifty IT", "Nifty Auto",
 _GROUPS = [
     ("conf", "Confluence"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
     ("rs", "Relative strength"), ("cpr", "Structure · CPR"),
-    ("cci", "Credibility · CCI"), ("ctx", "Context"),
+    ("cci", "Credibility · CCI"), ("wol", "Wolfe"), ("qual", "Quality · pt14"),
+    ("ctx", "Context"),
 ]
 
 _LIQ = ("b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL) "
@@ -130,6 +131,61 @@ def _cci_by_sym(conn, syms):
     return out
 
 
+def _wolfe_by_sym(conn, syms):
+    """{sym: row} latest Wolfe scan (wolfe_signals, owned by wolfe.py — READ-ONLY here).
+    The 5th confluence pillar the legacy screener never carried. Descriptive: the §C
+    falsification stands — Wolfe is geometry SELECTION, never a buy/target call.
+    Tries the broadest universe present (nifty500 first); empty if the table is absent."""
+    out = {}
+    if not syms:
+        return out
+    try:
+        if not conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='wolfe_signals'"
+        ).fetchone():
+            return out
+        ph = ",".join("?" for _ in syms)
+        # one row per symbol: prefer the most recent scan, then in-zone, then freshest.
+        for r in conn.execute(
+                f"""SELECT w.sym, w.dir, w.in_zone, w.q, w.age, w.fresh, w.scan_date
+                    FROM wolfe_signals w
+                    JOIN (SELECT sym, MAX(scan_date) m FROM wolfe_signals GROUP BY sym) x
+                      ON x.sym=w.sym AND x.m=w.scan_date
+                    WHERE w.sym IN ({ph})""", syms).fetchall():
+            # keep the strongest read per symbol (in-zone beats not; higher quality wins)
+            prev = out.get(r["sym"])
+            cand = dict(r)
+            if (prev is None
+                    or (cand.get("in_zone") or 0) > (prev.get("in_zone") or 0)
+                    or ((cand.get("in_zone") or 0) == (prev.get("in_zone") or 0)
+                        and (cand.get("q") or 0) > (prev.get("q") or 0))):
+                out[r["sym"]] = cand
+    except Exception as e:  # noqa: BLE001
+        log.warning("wolfe lookup failed: %s", e)
+    return out
+
+
+def _pt14_by_sym(conn, syms):
+    """{sym: row} latest pt14 quality score (pattern_scores, READ-ONLY here) — the
+    14-pattern quality gate the legacy screener's Quality group shows. Lets Screen+
+    carry the quality column so it is a genuine superset, not just a confluence view."""
+    out = {}
+    if not syms:
+        return out
+    try:
+        ph = ",".join("?" for _ in syms)
+        for r in conn.execute(
+                f"""SELECT p.symbol, p.ns_base, p.tier, p.qg_pass, p.hard_disqualified
+                    FROM pattern_scores p
+                    JOIN (SELECT symbol, MAX(scored_at) m FROM pattern_scores GROUP BY symbol) x
+                      ON x.symbol=p.symbol AND x.m=p.scored_at
+                    WHERE p.symbol IN ({ph})""", syms).fetchall():
+            out[r["symbol"]] = dict(r)
+    except Exception as e:  # noqa: BLE001
+        log.warning("pt14 lookup failed: %s", e)
+    return out
+
+
 # ── cell formatters ──────────────────────────────────────────────────────────
 def _num(v, dp=2):
     return f"{v:,.{dp}f}" if isinstance(v, (int, float)) else "—"
@@ -161,16 +217,144 @@ def _tier_pill(t):
     return K.pill(t, kind)
 
 
+def _wolfe_pill(wf):
+    """Wolfe geometry read: BULL/BEAR + in-zone marker. Descriptive (selection, not a call)."""
+    d = (wf.get("dir") or "").lower() if wf else ""
+    if not d:
+        return '<span class="mut">—</span>'
+    in_zone = wf.get("in_zone") or 0
+    label = d.title() + (" ◉" if in_zone else "")
+    kind = "up" if d == "bull" else "down" if d == "bear" else "neutral"
+    return K.pill(label, kind)
+
+
+def _qual_pill(pq):
+    """pt14 quality gate: tier + a ⛔ flag if hard-disqualified."""
+    if not pq:
+        return '<span class="mut">—</span>'
+    t = pq.get("tier") or ""
+    if pq.get("hard_disqualified"):
+        return K.pill("⛔ DQ", "down")
+    if not t:
+        return '<span class="mut">—</span>'
+    kind = "cred" if str(t).startswith("T1") or t in ("A+", "A") else \
+           "warn" if str(t).startswith("T2") or t == "B" else "neutral"
+    return K.pill(t, kind)
+
+
+# ── column-parity check (promotability evidence) ──────────────────────────────
+# The legacy /dash/screener (dashboard.py, frozen) surfaces these strategy data
+# FIELDS. Screen+ is promotable to default only if it covers every analytic family
+# the legacy shows AND adds the confluence/Wolfe/CCI cross-lens the legacy lacks.
+# We enumerate by ANALYTIC FAMILY (not column-for-column micro-parity) — the legacy
+# carries deeper per-family ladders (full p1..p12 power, b1..b24 RS slopes) that
+# Screen+ summarises; the promotability claim is "every family represented + a
+# superset of LENSES", documented here and viewable at /dash/screen2?parity=1.
+_LEGACY_FAMILIES = {
+    "Identity (symbol/sector/CMP)":      ["symbol", "sector", "close"],
+    "Conviction (rank/r/p/score)":       ["trigger_rank", "r_score", "p_score", "conv"],
+    "Positioning · DVPT":                ["delivery_value_per_trade", "power_dvpt_1m",
+                                          "power_dvpt_3m", "is_ath_dvpt", "accum_character",
+                                          "price_vs_hot_avg_pct", "turnover_surge_1m"],
+    "Relative strength":                 ["rs_rank", "rs_vs_broad_trend_state",
+                                          "rs_vs_broad_slope_1m", "rs_vs_broad_slope_3m",
+                                          "rs_vs_broad_slope_12m", "rs_vs_sector_trend_state"],
+    "Quality · pt14":                    ["ns_base", "tier", "qg_pass"],
+    "Structure · CPR":                   ["pattern", "compression_pctile"],
+    "Credibility · CCI":                 ["composite_score", "tier", "credibility_trend"],
+    "Context":                           ["pct_from_52w_high", "turnover_surge_1m",
+                                          "accum_character"],
+}
+# What Screen+ surfaces, by family → the columns it shows (the header `cols` list
+# above is the source of truth; this maps each to its family for the report).
+_SCREEN2_FAMILIES = {
+    "Identity (symbol/sector/CMP)":  ["Symbol", "Sector", "CMP"],
+    "Confluence (cross-lens 0-6)":   ["Confl (DVPT×MEP×RS×CPR×CCI×Wolfe)"],
+    "Conviction (rank/r/p/score)":   ["Rank", "P", "R", "×1m"],
+    "Positioning · DVPT":            ["Rank", "P", "R", "×1m", "Dlv%", "Char", "Surge"],
+    "Accumulation · MEP":            ["Phase", "State"],
+    "Relative strength":             ["RS#", "Trend", "1m", "3m", "6m", "12m"],
+    "Structure · CPR":               ["D pattern", "Cmpr", "W pattern"],
+    "Credibility · CCI":             ["CCI", "Tier", "Trend"],
+    "Wolfe (geometry)":              ["Wolfe dir+zone", "Q"],
+    "Quality · pt14":                ["NS", "pt14 tier"],
+    "Context":                       ["Surge", "%52wH", "Char"],
+}
+
+
+def parity_report() -> dict:
+    """Programmatic column-parity: every legacy analytic FAMILY covered by Screen+?
+    Returns {covered, missing, extra, ok}. Pure (no DB) — the families are static."""
+    legacy_fams = set(_LEGACY_FAMILIES)
+    screen2_fams = set(_SCREEN2_FAMILIES)
+    covered = sorted(legacy_fams & screen2_fams)
+    missing = sorted(legacy_fams - screen2_fams)
+    extra = sorted(screen2_fams - legacy_fams)
+    return {"covered": covered, "missing": missing, "extra": extra,
+            "ok": not missing, "n_legacy": len(legacy_fams), "n_screen2": len(screen2_fams)}
+
+
+def _parity_view() -> str:
+    """The promotability evidence page — family-by-family legacy↔Screen+ coverage."""
+    rep = parity_report()
+    rows = []
+    for fam in sorted(set(_LEGACY_FAMILIES) | set(_SCREEN2_FAMILIES)):
+        in_legacy = fam in _LEGACY_FAMILIES
+        in_s2 = fam in _SCREEN2_FAMILIES
+        leg = ", ".join(_LEGACY_FAMILIES.get(fam, [])) or "—"
+        s2 = ", ".join(_SCREEN2_FAMILIES.get(fam, [])) or "—"
+        if in_legacy and in_s2:
+            mark, kind = "✓ covered", "up"
+        elif in_legacy and not in_s2:
+            mark, kind = "✗ MISSING", "down"
+        else:
+            mark, kind = "+ Screen+ only", "neutral"
+        rows.append(
+            f'<tr><td class="l"><b>{K.esc(fam)}</b></td>'
+            f'<td class="l mut" style="font-size:11.5px">{K.esc(leg)}</td>'
+            f'<td class="l mut" style="font-size:11.5px">{K.esc(s2)}</td>'
+            f'<td>{K.pill(mark, kind)}</td></tr>')
+    verdict = ("PROMOTABLE — every legacy analytic family is represented in Screen+, "
+               "plus the confluence / Wolfe cross-lens the legacy never carried."
+               if rep["ok"] else
+               f"NOT YET — missing families: {', '.join(rep['missing'])}.")
+    vkind = "up" if rep["ok"] else "down"
+    table = (
+        '<table class="dt" style="width:100%;margin-top:12px"><thead><tr>'
+        '<th class="l">Analytic family</th><th class="l">Legacy /dash/screener fields</th>'
+        '<th class="l">Screen+ columns</th><th>Coverage</th></tr></thead>'
+        f'<tbody>{"".join(rows)}</tbody></table>')
+    note = (
+        '<div class="sec" style="margin-top:14px;font-size:12px">'
+        'Parity is checked by analytic FAMILY, not micro-column. The legacy screener '
+        'carries deeper per-family ladders (full p1–p12 DVPT power, b1–b24 RS slopes) '
+        'that Screen+ deliberately summarises to stay readable; both read the SAME '
+        'precomputed tables. Promotability = every family present + a superset of lenses. '
+        'Descriptive-only; the §C falsification stands (no buy/sell ranking).</div>')
+    head = (
+        '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
+        '<h1 class="uk-h1">Screen+ · column parity</h1>'
+        + K.badge(f"{len(rep['covered'])}/{rep['n_legacy']} legacy families covered · "
+                  f"{len(rep['extra'])} new lenses") + '</div>'
+        f'<div class="sec" style="margin-bottom:6px">{K.pill(verdict, vkind)}</div>')
+    back = '<a class="st-open" href="/dash/screen2" style="display:inline-block;margin:10px 0">← back to Screen+</a>'
+    return _CSS + head + back + table + note
+
+
 # ── the page ─────────────────────────────────────────────────────────────────
 @router.get("/dash/screen2", response_class=HTMLResponse)
-def dash_screen2(scope: str = Query("Nifty 500"),
+def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                  limit: int = Query(600, ge=50, le=2000)) -> HTMLResponse:
+    if str(parity or "").strip() in ("1", "true", "yes"):
+        return HTMLResponse(K.shell("Screen+ parity · patearn", _parity_view(),
+                                    active="screener", sub=_sub(),
+                                    nav_html=_nav_html("screener")))
     scope = (scope or "Nifty 500").strip()
     is_all = scope.lower() == "all"
     is_watch = scope.lower() in ("watch", "watchlist")
     rows: list[dict] = []
     sig_date = None
-    cpr_d = cpr_w = cci = {}
+    cpr_d = cpr_w = cci = wolfe = pt14 = {}
     n_members = None
 
     try:
@@ -216,6 +400,8 @@ def dash_screen2(scope: str = Query("Nifty 500"),
                     cpr_d = _cpr_by_tf(conn, syms, "D")
                     cpr_w = _cpr_by_tf(conn, syms, "W")
                     cci = _cci_by_sym(conn, syms)
+                    wolfe = _wolfe_by_sym(conn, syms)
+                    pt14 = _pt14_by_sym(conn, syms)
     except Exception as e:  # noqa: BLE001
         log.warning("screen2 query failed: %s", e)
 
@@ -226,19 +412,24 @@ def dash_screen2(scope: str = Query("Nifty 500"),
         cd = cpr_d.get(sym, {})
         cw = cpr_w.get(sym, {})
         cc = cci.get(sym, {})
+        wf = wolfe.get(sym, {})
+        pq = pt14.get(sym, {})
 
-        # confluence pillars (each 0/1) — the unifying read
+        # confluence pillars (each 0/1) — the unifying read. Now MEP×CCI×RS×CPR×Wolfe
+        # (the 5 the brief names) PLUS the DVPT positioning pillar = a 0-6 confluence.
         p_pos = 1 if (r.get("p_score") or 0) >= 4 else 0
         p_mep = 1 if (r.get("mep_st") or "") in ("ACCUM", "STRONG_ACCUM") else 0
         p_rs = 1 if (r.get("rs_rank") or 0) >= 80 else 0
         p_cpr = 1 if (cd.get("pattern") == "BULL_U") else 0
         p_cci = 1 if (cc.get("tier") or "") in ("A+", "A") else 0
-        confl = p_pos + p_mep + p_rs + p_cpr + p_cci
+        # Wolfe pillar = a BULL setup in its Fib zone now (geometry selection, descriptive).
+        p_wol = 1 if ((wf.get("dir") or "").lower() == "bull" and (wf.get("in_zone") or 0)) else 0
+        confl = p_pos + p_mep + p_rs + p_cpr + p_cci + p_wol
         star = "★ " if confl >= 4 else ""
         dots = "".join(
             f'<span class="cd {"on" if on else ""}" title="{lbl}"></span>'
             for lbl, on in [("DVPT", p_pos), ("MEP", p_mep), ("RS", p_rs),
-                            ("CPR", p_cpr), ("CCI", p_cci)])
+                            ("CPR", p_cpr), ("CCI", p_cci), ("Wolfe", p_wol)])
 
         rank = r.get("rank") or "-"
         mep_ph = r.get("mep_ph")
@@ -287,6 +478,12 @@ def dash_screen2(scope: str = Query("Nifty 500"),
             f'<td class="num cg-cci" data-v="{cc.get("composite_score") or -1}">{_num(cc.get("composite_score"),0)}</td>'
             f'<td class="l cg-cci" data-v="{K.esc(cc.get("tier") or "")}">{_tier_pill(cc.get("tier"))}</td>'
             f'<td class="l cg-cci mut" data-v="{K.esc(cc.get("credibility_trend") or "")}">{K.esc((cc.get("credibility_trend") or "—").title())}</td>'
+            # wolfe (geometry — descriptive selection, the brief's 5th pillar)
+            f'<td class="l cg-wol" data-v="{K.esc(wf.get("dir") or "")}">{_wolfe_pill(wf)}</td>'
+            f'<td class="num cg-wol" data-v="{wf.get("q") or -1}">{_num(wf.get("q"),0)}</td>'
+            # quality · pt14
+            f'<td class="num cg-qual" data-v="{pq.get("ns_base") if pq.get("ns_base") is not None else -1}">{_num(pq.get("ns_base"),0)}</td>'
+            f'<td class="l cg-qual" data-v="{K.esc(pq.get("tier") or "")}">{_qual_pill(pq)}</td>'
             # context
             f'<td class="num cg-ctx" data-v="{r.get("su1") or 0}">{_num(r.get("su1"),2)}</td>'
             f'<td class="num cg-ctx" data-v="{r.get("hh") or -999}">{_pct(r.get("hh"))}</td>'
@@ -303,6 +500,8 @@ def dash_screen2(scope: str = Query("Nifty 500"),
         '<th class="cg-rs gl" colspan="6">relative strength</th>'
         '<th class="cg-cpr gl" colspan="3">structure · cpr</th>'
         '<th class="cg-cci gl" colspan="3">credibility · cci</th>'
+        '<th class="cg-wol gl" colspan="2">wolfe</th>'
+        '<th class="cg-qual gl" colspan="2">quality · pt14</th>'
         '<th class="cg-ctx gl" colspan="3">context</th></tr>')
     cols = ['Symbol', 'Sector', 'CMP', 'Confl',
             'Rank', 'P', 'R', '×1m', 'Dlv%',
@@ -310,6 +509,8 @@ def dash_screen2(scope: str = Query("Nifty 500"),
             'RS#', 'Trend', '1m', '3m', '6m', '12m',
             'D', 'Cmpr', 'W',
             'CCI', 'Tier', 'Trend',
+            'Wolfe', 'Q',
+            'NS', 'pt14',
             'Surge', '%52wH', 'Char']
     col_groups = ['', '', '', 'cg-conf',
                   'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos',
@@ -317,6 +518,8 @@ def dash_screen2(scope: str = Query("Nifty 500"),
                   'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs',
                   'cg-cpr', 'cg-cpr', 'cg-cpr',
                   'cg-cci', 'cg-cci', 'cg-cci',
+                  'cg-wol', 'cg-wol',
+                  'cg-qual', 'cg-qual',
                   'cg-ctx', 'cg-ctx', 'cg-ctx']
     col_band = '<tr class="col">' + "".join(
         f'<th class="{("sym" if i==0 else "")} {g}" data-c="{i}">{K.esc(c)}</th>'
@@ -355,7 +558,7 @@ def dash_screen2(scope: str = Query("Nifty 500"),
         + K.badge(f"as of {str(sig_date)[:10] if sig_date else '—'} · precomputed")
         + '</div>'
         f'<div class="sec" style="margin-bottom:14px">{sub_lbl} · '
-        'confluence = pillars aligned now (DVPT · MEP · RS · CPR · CCI). '
+        'confluence = pillars aligned now (DVPT · MEP · RS · CPR · CCI · Wolfe). '
         'Toggle groups, sort any column, save a screen.</div>')
 
     # Pat bridge — turn the current scope into a conversational confluence query,
@@ -371,6 +574,7 @@ def dash_screen2(scope: str = Query("Nifty 500"),
         '<button type="button" id="s2save" class="gchip">＋ Save current</button>'
         '<button type="button" id="s2del" class="gchip">Delete</button>'
         '<button type="button" id="s2csv" class="gchip">⬇ CSV</button>'
+        '<a class="gchip" href="/dash/screen2?parity=1" title="Column coverage vs the legacy screener">⊃ Parity</a>'
         '<span id="s2count" class="s2-lbl"></span></div>'
         '<div class="s2-bar"><span class="s2-lbl">Pat</span>'
         f'<a class="gchip" href="/dash/pat?q={_q(pat_q)}">Ask Pat: confluence here ↗</a>'
@@ -439,11 +643,11 @@ table.s2 td.confl b{font-size:13px}
 table.s2 td.confl .dots{display:inline-flex;gap:2px;margin-left:6px;vertical-align:middle}
 table.s2 td.confl .cd{width:5px;height:5px;border-radius:50%;background:var(--line-2);display:inline-block}
 table.s2 td.confl .cd.on{background:var(--accent-cy);box-shadow:0 0 5px var(--accent-cy)}
-table.s2 td.confl.c4,table.s2 td.confl.c5{color:var(--accent-cy)}
+table.s2 td.confl.c4,table.s2 td.confl.c5,table.s2 td.confl.c6{color:var(--accent-cy)}
 table.s2 td.confl.c3{color:var(--accent)}
 /* group hide classes (toggled on the wrapper) */
 .h-conf .cg-conf,.h-pos .cg-pos,.h-mep .cg-mep,.h-rs .cg-rs,
-.h-cpr .cg-cpr,.h-cci .cg-cci,.h-ctx .cg-ctx{display:none}
+.h-cpr .cg-cpr,.h-cci .cg-cci,.h-wol .cg-wol,.h-qual .cg-qual,.h-ctx .cg-ctx{display:none}
 </style>"""
 
 _JS = """<script>(function(){
@@ -453,7 +657,7 @@ var KEY='s2_hidden_v1', SKEY='s2_screens_v1';
 function getHidden(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
 function setHidden(h){localStorage.setItem(KEY,JSON.stringify(h))}
 function applyHidden(){var h=getHidden();
-  ['conf','pos','mep','rs','cpr','cci','ctx'].forEach(function(g){
+  ['conf','pos','mep','rs','cpr','cci','wol','qual','ctx'].forEach(function(g){
     wrap.classList.toggle('h-'+g, !!h['cg-'+g]);
     var b=document.querySelector('.gchip[data-g="cg-'+g+'"]'); if(b) b.classList.toggle('on', !h['cg-'+g]);
   });}
