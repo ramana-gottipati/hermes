@@ -81,6 +81,14 @@ body.uk-skin .uk-cmdk{margin-left:auto;display:inline-flex;align-items:center;ga
 body.uk-skin .uk-cmdk:hover{border-color:#4d9dff;color:#9bb0c6}
 body.uk-skin .uk-cmdk kbd{font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
   background:#18222f;border:1px solid #27384a;border-radius:5px;padding:1px 6px;font-size:11px;color:#9bb0c6}
+/* Trust = the institutional lead wedge, lifted into the ALWAYS-VISIBLE top row so it
+   is as findable on the legacy pages as the inline Trust on the native ui_kit pages. */
+body.uk-skin .uk-trustlink{margin-left:auto;display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border:1px solid #2f6f63;border-radius:9px;background:#11221e;color:#dcf6ee;
+  font-size:12.5px;font-weight:600;text-decoration:none;white-space:nowrap;transition:170ms cubic-bezier(.2,.7,.2,1)}
+body.uk-skin .uk-trustlink::before{content:"✓";color:#34e0d6;font-weight:700}
+body.uk-skin .uk-trustlink:hover{border-color:#34e0d6;color:#eafff9}
+body.uk-skin .uk-trustlink + .uk-cmdk{margin-left:0}
 /* ── cards & boxes ── */
 body.uk-skin .card,
 body.uk-skin .kpi .box,
@@ -184,6 +192,12 @@ def _cmdk_hint() -> str:
                 '<kbd>&#8984;K</kbd></div>')
 
 
+def _trust_link() -> str:
+    """A prominent Trust chip for the always-visible top row (hrow1) of legacy pages."""
+    return ('<a class="uk-trustlink" href="/dash/coverage" '
+            'title="Trust — data coverage, provenance &amp; strategy validation">Trust</a>')
+
+
 def _density_js() -> str:
     """The global density switch (defined in ui_kit so it's identical on both shells).
     Defensive: a missing ui_kit degrades to no switch, never breaks the page."""
@@ -217,8 +231,14 @@ def reskin(html: str) -> str:
         out = re.sub(r"(<body[^>]*>)",
                      r'\1<a class="uk-skip" href="#uk-main">Skip to content</a>', out, count=1)
         out = out.replace('<div class="wrap', '<div id="uk-main" class="wrap', 1)
-        # swap the legacy search box for the Ask-Pat hint (preserve via Cmd-K overlay).
-        out = _HSEARCH_RE.sub(lambda _m: _cmdk_hint(), out, count=1)
+        # swap the legacy search box for the Ask-Pat hint (preserve via Cmd-K overlay) +
+        # lift a prominent Trust chip into the top row so it is as findable here as on the
+        # native pages (Ramana repeatedly couldn't find Trust on the legacy home/markets
+        # pages — it sat only in the lower nav row).
+        out, _swapped = _HSEARCH_RE.subn(lambda _m: _trust_link() + _cmdk_hint(), out, count=1)
+        if _swapped:
+            # de-duplicate: now that Trust is in the top row, drop it from the lower v2util.
+            out = re.sub(r'<a class="v2trust[^"]*"[^>]*>Trust</a>', "", out, count=1)
         # inject the reskin css + the global density switch LAST in <head> (after _BASE_CSS).
         head_add = skin_css() + _density_js()
         if "</head>" in out:
