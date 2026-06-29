@@ -1285,7 +1285,7 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 55 — 2026-06-29 — D-PITCH-2: ONE colour contract on the RS-rotation surface — commit `<HASH>`
+### Session 55 — 2026-06-29 — D-PITCH-2: ONE colour contract on the RS-rotation surface — commit `64a8cbc`
 [P2] Closed the deferred `task_2d0d55a2` (flagged in S54): the `/dash/rotation` weather quadrants spoke a second colour language — **blue=Recovery read as "bull", amber=Rolling-over read as "bear"** — clashing with the site value contract (green=up, red=down, blue=neutral accent, amber=caution). Remapped `src/web/rotation_view.py` to the `ui_tokens.py` palette so the rotation reads in ONE contract everywhere it renders.
 - **Quadrant `PHASE` palette → tokens:** Recovery `#7fe6b0` (a lighter tint of `--up` — turning up, not yet confirmed) → Tailwind `#3fd486` (`--up`, strong & strengthening) on the *strengthening* half; Rolling-over `#f6b73c` (`--warn` — a leader cracking = caution) → Headwind `#ff6a7a` (`--down`, weak & weakening) on the *weakening* half; Neutral `#7e90a8` (`--ink-3`). Blue (`--accent #4d9dff`) is deliberately NOT used so it never re-reads as "bull". Descriptive lifecycle, not a buy/sell signal. Kept 6-digit hex so the `{col}33`/`{col}22` alpha-append still works.
 - **Inline value-colours converged too** (L2's skin can't reach inline styles): `_pct` term-structure ± → `#3fd486`/`#ff6a7a`; `_marks` pills → accent `#4d9dff` / up `#3fd486` / down `#ff6a7a` / warn `#f6b73c` / cred `#b18cff`; "See all" link → `#4d9dff`. The page now uses ONE green and ONE red (was the old GitHub `#3fb950`/`#f85149` sitting next to the new tokens).
