@@ -331,6 +331,7 @@ def compile_intent(intent: dict) -> dict | None:
     metric = rank.get("metric")
     window = rank.get("window")
     order = rank.get("order")
+    top_n = rank.get("top_n")
     turning = _filters_improving_1m(filters)
 
     # ── momentum oscillators (RSI/MACD) — a definitive screen selector ────────
@@ -345,7 +346,7 @@ def compile_intent(intent: dict) -> dict | None:
         # that's a stock screen scoped to the sector, not an index-performance pull.
         if (metric in ("delivery", "valuation", "quality", "growth", "pt14", "avoid")
                 or character) and universe == "sector":
-            return _compile_stock(metric, window, order, filters, scope, turning, character)
+            return _compile_stock(metric, window, order, filters, scope, turning, character, top_n)
         params: dict = {}
         iw = _index_window(window)
         if iw:
@@ -374,7 +375,7 @@ def compile_intent(intent: dict) -> dict | None:
                 "params": {"pillars": ",".join(pillars), "sector": sector, "capband": capband}}
 
     # ── STOCK universe (single flow) ──────────────────────────────────────────
-    return _compile_stock(metric, window, order, filters, scope, turning, character)
+    return _compile_stock(metric, window, order, filters, scope, turning, character, top_n)
 
 
 # Map a parsed fundamentals condition (metric, op, value) → a FUND_* chip key. The
@@ -434,8 +435,17 @@ def _compile_fundamentals(metric, order, filters) -> dict:
     return {"flow": "fundamentals", "params": params}
 
 
-def _compile_stock(metric, window, order, filters, scope, turning, character=None) -> dict | None:
+def _compile_stock(metric, window, order, filters, scope, turning, character=None,
+                   top_n=None) -> dict | None:
     sector = scope.get("sector", "") if isinstance(scope, dict) else ""
+    # explicit "top N" → carried only on the ranked LIST flows (credibility/rs/
+    # accumulation); a single-name/explain flow ignores it (no list to cap).
+
+    def _tn(p: dict) -> dict:
+        if top_n:
+            p = dict(p)
+            p["top_n"] = int(top_n)
+        return p
 
     # Special framework screens (no metric ranking): the kill-list + the pt14 tiers.
     if metric == "avoid":
@@ -452,7 +462,9 @@ def _compile_stock(metric, window, order, filters, scope, turning, character=Non
         # the accumulation character, both lenses must agree (the §9.8 "one fusion").
         if character == "accumulation":
             return {"flow": "confluence", "params": {}}
-        return {"flow": "deterioration" if order == "worst" else "credibility", "params": {}}
+        if order == "worst":
+            return {"flow": "deterioration", "params": {}}
+        return {"flow": "credibility", "params": _tn({})}
 
     # Strong-hand delivery CHARACTER — distribution (exiting) / consolidation (coiling)
     # ride the accumulation flow's `character` chip (the catalog §3.1 cheap win).
@@ -486,7 +498,7 @@ def _compile_stock(metric, window, order, filters, scope, turning, character=Non
             params["sector"] = sector
         if order == "worst":
             params["direction"] = "laggards"
-        return {"flow": "rs", "params": params}
+        return {"flow": "rs", "params": _tn(params)}
 
     if metric == "delivery":
         params = {}
@@ -495,7 +507,7 @@ def _compile_stock(metric, window, order, filters, scope, turning, character=Non
             params["window"] = aw
         if sector:
             params["sector"] = sector
-        return {"flow": "accumulation", "params": params}
+        return {"flow": "accumulation", "params": _tn(params)}
 
     if metric in ("valuation", "quality", "growth"):
         return _compile_fundamentals(metric, order, filters)
@@ -844,6 +856,31 @@ _SINGLE_CRED_STOP = {"THE", "THIS", "THAT", "IT", "A", "AN", "MY", "ITS", "THEIR
                      "WITH", "ABOUT", "GET", "SHOW", "FIND", "MANAGEMENTS"}
 
 
+# Explicit "top N" cap: "top 5 X", "top-10 X", "5 most credible", "best 3 …".
+# N only caps the list to the N strongest ALREADY-RANKED rows (ranking unchanged);
+# a bare "top stocks" (no number) leaves it unset → the safety cap applies as before.
+_TOPN_RE = [
+    re.compile(r"\btop[\s\-]*(\d{1,3})\b", re.I),
+    re.compile(r"\b(\d{1,3})\s+(?:most|best|strongest|top|highest|weakest|worst)\b", re.I),
+    re.compile(r"\b(?:best|top|strongest|highest)[\s\-]*(\d{1,3})\b", re.I),
+]
+
+
+def detect_top_n(query: str):
+    """An explicit 'top N' count in the query → int N (1..200), else None. ₹0."""
+    q = query or ""
+    for rx in _TOPN_RE:
+        m = rx.search(q)
+        if m:
+            try:
+                n = int(m.group(1))
+            except (TypeError, ValueError):
+                continue
+            if 1 <= n <= 200:
+                return n
+    return None
+
+
 def detect_single_credibility(query: str):
     """A single-name credibility question → symbol, else None. ₹0.
 
@@ -893,6 +930,21 @@ def _detect_pillars(qn: str, character):
 # Reuses the heuristics from disambiguate; this is a safety net for a Gemini
 # outage/quota, explicitly NOT the primary reasoning path.
 def parse_fallback(query: str) -> dict | None:
+    """Best-effort structured intent from rules alone (+ an explicit top-N stamp on
+    the rank). None if nothing confident."""
+    intent = _parse_fallback_inner(query)
+    # stamp an explicit "top N" onto a ranked intent so BOTH the direct compile path
+    # (eval) and the engine path cap the list consistently. Ranking is unchanged.
+    if isinstance(intent, dict) and isinstance(intent.get("rank"), dict) \
+            and not intent["rank"].get("top_n"):
+        n = detect_top_n(query)
+        if n:
+            intent = dict(intent)
+            intent["rank"] = dict(intent["rank"], top_n=n)
+    return intent
+
+
+def _parse_fallback_inner(query: str) -> dict | None:
     """Best-effort structured intent from rules alone. None if nothing confident."""
     try:
         qn = _norm(query)

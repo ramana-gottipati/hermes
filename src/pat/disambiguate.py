@@ -371,7 +371,10 @@ def route_extra(query: str) -> dict | None:
         try:
             from src.pat.understand import (detect_compare, detect_strategy_key,
                                             detect_why, detect_trend,
-                                            detect_single_credibility)
+                                            detect_single_credibility, detect_top_n)
+            # an explicit "top N" rides the ₹0 credibility/leaders returns below so a
+            # one-shot "top 5 credible managements" caps the list (ranking unchanged).
+            _topn = detect_top_n(query)
             _tr = detect_trend(query)            # "credibility trend for X" → time-series
             if _tr:
                 return {"flow": "trend", "params": {"sym": _tr}}
@@ -413,9 +416,9 @@ def route_extra(query: str) -> dict | None:
         if _has_any(qn, _CCI_AVOID):
             return {"flow": "deterioration", "params": {}}
         if _has_any(qn, _CCI_LEAD):
-            return {"flow": "credibility", "params": {}}
+            return {"flow": "credibility", "params": ({"top_n": _topn} if _topn else {})}
         if _has_any(qn, _CCI_GENERIC):
-            return {"flow": "credibility", "params": {}}
+            return {"flow": "credibility", "params": ({"top_n": _topn} if _topn else {})}
 
         # overvalued / expensive → the inverted valuation screen. CHECKED BEFORE the
         # kill-list so "expensive stocks to avoid" reads as overvalued, not disqualified.

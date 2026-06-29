@@ -50,8 +50,20 @@ ACC_WINDOW: dict[str, tuple[str, str | None]] = {
 ACC_LIMIT = 60  # safety cap on rows returned (not user-controllable)
 
 
+def _eff_limit(default_cap: int, top_n=None) -> int:
+    """Resolve the effective LIMIT for a list flow: an explicit user 'top N'
+    (clamped to 1..default_cap) when given, else the safety cap. The rows are
+    ALWAYS ranked by the flow's metric first, so 'top N' = the N strongest —
+    never an arbitrary slice. Non-numeric/absent top_n → the safety cap."""
+    try:
+        n = int(top_n) if top_n is not None else 0
+    except (TypeError, ValueError):
+        n = 0
+    return min(max(n, 1), default_cap) if n > 0 else default_cap
+
+
 def build_accumulation_query(sector: str = "", strength: str = "", entry: str = "",
-                             window: str = "", character: str = "") -> tuple[str, list]:
+                             window: str = "", character: str = "", top_n=None) -> tuple[str, list]:
     """Compile the accumulation screen to a read-only SELECT over stock_signals.
 
     Enforces the chosen `character` (ACCUMULATION default; DISTRIBUTION / CONSOLIDATION
@@ -93,7 +105,7 @@ def build_accumulation_query(sector: str = "", strength: str = "", entry: str = 
         "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
         "WHERE " + " AND ".join(where) + " "
         "ORDER BY " + order + " "
-        "LIMIT " + str(ACC_LIMIT)
+        "LIMIT " + str(_eff_limit(ACC_LIMIT, top_n))
     )
     return sql, params
 
@@ -156,7 +168,7 @@ RS_WINDOW = {
 
 
 def build_rs_query(sector: str = "", strength: str = "", align: str = "",
-                   window: str = "", direction: str = "") -> tuple[str, list]:
+                   window: str = "", direction: str = "", top_n=None) -> tuple[str, list]:
     """Compile the RS leaders/laggards screen to a read-only SELECT over stock_signals.
 
     `direction` flips leaders (rs_rank floor, DESC) vs laggards (rs_rank ceiling, ASC
@@ -194,7 +206,7 @@ def build_rs_query(sector: str = "", strength: str = "", align: str = "",
         "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
         "WHERE " + " AND ".join(where) + " "
         f"ORDER BY (s.{col} IS NULL), s.{col} {sort}, s.symbol "
-        "LIMIT " + str(RS_LIMIT)
+        "LIMIT " + str(_eff_limit(RS_LIMIT, top_n))
     )
     return sql, params
 
@@ -539,13 +551,14 @@ _CCI_COLS = ("s.symbol, s.tier, s.composite_score, s.guidance_accuracy_score, "
              "s.veto_active, s.veto_reason, s.n_promises_resolved, s.as_of_period ")
 
 
-def build_credibility_query() -> tuple[str, list]:
+def build_credibility_query(top_n=None) -> tuple[str, list]:
     """Credibility LEADERS — veto-excluded, ranked by the measurable composite (D61).
-    Latest score per symbol. Read-only, no user input."""
+    Latest score per symbol. Read-only, no user input. ``top_n`` caps the list to an
+    explicit 'top N' ask (still ranked by composite — the N strongest)."""
     sql = ("SELECT " + _CCI_COLS + _CCI_LATEST +
            "WHERE COALESCE(s.veto_active, 0) = 0 "
            "ORDER BY (s.composite_score IS NULL), s.composite_score DESC, s.symbol "
-           "LIMIT " + str(CCI_LIMIT))
+           "LIMIT " + str(_eff_limit(CCI_LIMIT, top_n)))
     return sql, []
 
 

@@ -211,6 +211,11 @@ ROUTE_CASES = [
     # negative guards: a plural metric ask + a definition ask must NOT be stolen
     ("most credible managements", {"flow": "credibility"}, "TREND"),
     ("what is credibility", {"flow": "explain", "explain": "cci_credibility"}, "TREND"),
+    # ---- explicit TOP-N (L4 W2 / F2-7) — caps the LIST flows to the N strongest
+    #      already-ranked rows (ranking unchanged); a bare ask keeps the safety cap ----
+    ("top 5 credible managements", {"flow": "credibility", "params": {"top_n": 5}}, "TREND"),
+    ("top 10 RS leaders", {"flow": "rs", "params": {"top_n": 10}}, "TREND"),
+    ("best 3 accumulation", {"flow": "accumulation", "params": {"top_n": 3}}, "TREND"),
     # ---- OOD-2: tighter SEBI / advisory boundary (F3-7) — must redirect, never screen ----
     ("what is the target price for INFY", {"flow": "clarify"}, "OOD"),
     ("which stocks will become multibaggers", {"flow": "clarify"}, "OOD"),

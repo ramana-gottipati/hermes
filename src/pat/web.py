@@ -567,7 +567,7 @@ _ACC_BUBBLE = {
 
 
 def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str = "",
-                       character: str = "") -> str:
+                       character: str = "", top_n=None) -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
         _q_bubble(_ACC_BUBBLE.get(character, _ACC_BUBBLE[""])),
@@ -604,15 +604,16 @@ def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_accumulation_query(sector, strength, entry, window, character)
+        sql, params = build_accumulation_query(sector, strength, entry, window, character, top_n=top_n)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
     win_label = ACC_WINDOW.get(window, ACC_WINDOW[""])[0] if window else ""
     wtag = f' · {_esc(win_label)}' if win_label else ''
     tag = f' · {_esc(sector)}' if sector else ''
+    cap = f'top {int(top_n)} · ' if top_n else ''
     clabel = ACC_CHARACTER.get(character, ACC_CHARACTER[""])[0]
-    out.append(f'<div class="ghdr">{_esc(clabel)}{wtag}{tag} ({len(rows)})</div>')
+    out.append(f'<div class="ghdr">{cap}{_esc(clabel)}{wtag}{tag} ({len(rows)})</div>')
     out.append(_acc_table(rows, win_label) if rows
                else '<div class="empty">Nothing matches — loosen the filters.</div>')
     return "".join(out)
@@ -666,7 +667,7 @@ def _rs_table(rows, win_label: str = "RS 3M") -> str:
     return head + "".join(rws) + '</tbody></table></div>'
 
 
-def _rs_flow(conn, sector: str, strength: str, align: str, window: str = "") -> str:
+def _rs_flow(conn, sector: str, strength: str, align: str, window: str = "", top_n=None) -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
         _q_bubble("RS leaders — the names the market is voting for. The window ranks + "
@@ -700,13 +701,14 @@ def _rs_flow(conn, sector: str, strength: str, align: str, window: str = "") -> 
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_rs_query(sector, strength, align, window)
+        sql, params = build_rs_query(sector, strength, align, window, top_n=top_n)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
     win_label = RS_WINDOW.get(window, RS_WINDOW[""])[0]
     tag = f' · {_esc(sector)}' if sector else ''
-    out.append(f'<div class="ghdr">Leaders · {_esc(win_label)}{tag} ({len(rows)})</div>')
+    cap = f'top {int(top_n)} · ' if top_n else ''
+    out.append(f'<div class="ghdr">Leaders · {cap}{_esc(win_label)}{tag} ({len(rows)})</div>')
     out.append(_rs_table(rows, win_label) if rows
                else '<div class="empty">No RS leaders match — loosen the filters.</div>')
     return "".join(out)
@@ -1122,7 +1124,7 @@ def _cci_table(rows, avoid: bool = False) -> str:
     return head + "".join(rws) + "</tbody></table></div>"
 
 
-def _credibility_flow(conn) -> str:
+def _credibility_flow(conn, top_n=None) -> str:
     out = ['<a class="patBack" href="/dash/pat">← back</a>',
            _q_bubble("Credibility leaders — managements ranked by the MEASURABLE concall signal "
                      "(D61): kept-promise accuracy + how falsifiable their guidance is, "
@@ -1131,11 +1133,12 @@ def _credibility_flow(conn) -> str:
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_credibility_query()
+        sql, params = build_credibility_query(top_n=top_n)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
-    out.append(f'<div class="ghdr">Credibility leaders ({len(rows)})</div>')
+    cap = f"top {int(top_n)} " if top_n else ""
+    out.append(f'<div class="ghdr">Credibility leaders — {cap}({len(rows)})</div>')
     out.append(_cci_table(rows) if rows
                else '<div class="empty">No scored concalls yet — the pilot is still extracting.</div>')
     out.append('<div class="patChips">'
@@ -2267,13 +2270,13 @@ def _free_text(conn, q: str):
         if f == "accumulation":
             body = _accumulation_flow(conn, p.get("sector", ""), p.get("strength", ""),
                                       p.get("entry", ""), p.get("window", ""),
-                                      character=p.get("character", ""))
+                                      character=p.get("character", ""), top_n=p.get("top_n"))
         elif f == "rs":
             if p.get("direction") == "laggards":
                 body = _rslag_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("window", ""))
             else:
                 body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""),
-                                p.get("window", ""))
+                                p.get("window", ""), top_n=p.get("top_n"))
         elif f == "fundamentals":
             body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
@@ -2290,7 +2293,7 @@ def _free_text(conn, q: str):
         elif f == "oscillators":
             body = _oscillators_flow(conn, p.get("screen", ""))
         elif f == "credibility":
-            body = _credibility_flow(conn)
+            body = _credibility_flow(conn, top_n=p.get("top_n"))
         elif f == "deterioration":
             body = _deterioration_flow(conn)
         elif f == "confluence":
