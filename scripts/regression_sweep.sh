@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 # regression_sweep.sh — the DO-NO-HARM harness every parallel lane MUST run after every change.
-# Verifies the live VPS still serves every nav route + every chart overlay + healthy units.
+# Two gates, run in order:
+#   1. CHROME gate (clean-checkout, in-process): builds the app from THIS checkout via
+#      TestClient and asserts every page carries the v2 chrome markers (uk-skin · v2bar ·
+#      Trust · Wire · no .hsearch). Catches a silently-reverted skin/nav that a 200 hides
+#      — see scripts/chrome_gate.py. Runs locally, needs no live VPS.
+#   2. LIVE-200 sweep: verifies the live VPS still serves every nav route + chart overlay.
 # Exit 0 = nothing hampered (safe to commit). Exit 1 = a regression — STOP, fix or revert.
 #
-# Usage:  bash scripts/regression_sweep.sh            # sweeps the live VPS via `ssh hermes`
-#         HOST=local bash scripts/regression_sweep.sh # sweeps http://localhost:8000 directly
+# Usage:  bash scripts/regression_sweep.sh             # chrome gate + sweep the live VPS via `ssh hermes`
+#         HOST=local bash scripts/regression_sweep.sh  # chrome gate + sweep http://localhost:8000
+#         SKIP_CHROME=1 bash scripts/regression_sweep.sh  # live-200 sweep only (no in-process build)
 set -u
+
+# Pick the app's python: the first candidate (repo venv first, VPS-style) that can
+# actually import fastapi — avoids a bare python3 shim that lacks the app's deps.
+_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PY=""
+for _cand in "$_ROOT/.venv/bin/python" python python3; do
+  if "$_cand" -c 'import fastapi' >/dev/null 2>&1; then PY="$_cand"; break; fi
+done
 
 BASE="http://localhost:8000"
 _hit() { if [ "${HOST:-vps}" = "local" ]; then curl -s -o /dev/null -m 12 -w '%{http_code}' "$BASE$1"; \
@@ -23,9 +37,21 @@ ROUTES="/dash/markets /dash/screener /dash/screen2 /dash/strategies /dash/strate
 
 # The chart overlays — the work Ramana most cares about not breaking.
 OVERLAYS="/dash/cpr/overlay?sym=ACC /dash/mep/overlay?sym=ACC /dash/rs/overlay?sym=ACC \
-/dash/wolfe/overlay?sym=ACC"
+/dash/wolfe/overlay?sym=ACC /dash/harmonic/overlay?sym=ACC"
 
 fail=0
+
+# ── Gate 1: clean-checkout chrome contract (in-process TestClient, no live VPS) ──
+if [ "${SKIP_CHROME:-0}" != "1" ]; then
+  echo "== chrome gate (clean-checkout TestClient — uk-skin/v2bar/Trust/Wire/no .hsearch) =="
+  if [ -z "$PY" ]; then
+    echo "  ~~ SKIPPED: no python with fastapi found (set up the venv to enable the chrome gate)"
+  elif "$PY" "$_ROOT/scripts/chrome_gate.py"; then :; else
+    echo "  !! chrome gate FAILED — v2 chrome regressed in this checkout"
+    fail=$((fail+1))
+  fi
+fi
+
 echo "== health =="
 h=$(if [ "${HOST:-vps}" = "local" ]; then echo "n/a"; else ssh -o BatchMode=yes hermes 'systemctl is-active hermes-api'; fi)
 echo "  hermes-api: $h"; [ "$h" = "failed" ] && fail=$((fail+1))
