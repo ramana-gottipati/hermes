@@ -384,10 +384,12 @@ document.addEventListener('DOMContentLoaded', function(){
 # onto one of the five workspaces so the right tab highlights.
 _WS = {
     "markets": "markets", "sectors": "markets", "rs": "markets", "ratio": "markets", "compare": "markets",
+    # Leaders/"Strength" is Markets content (RS), per src.web.lens_registry — NOT Strategies.
+    "leaders": "markets", "laggards": "markets",
     "themes": "themes", "theme": "themes", "tags-review": "themes",
     "screener": "screener",
     "strategies": "strategies", "scan": "strategies", "stocks": "strategies",
-    "leaders": "strategies", "laggards": "strategies", "conviction": "strategies",
+    "conviction": "strategies",
     "workbench": "strategies", "stock": "strategies", "cpr": "strategies",
     "mep": "strategies", "launchpad": "strategies", "concalls": "strategies", "wolfe": "strategies",
     "dashboard": "tracker", "portfolios": "tracker", "watchlists": "tracker",
@@ -421,6 +423,7 @@ _SUBNAV = {
     "markets": [
         ({"markets"}, "/dash/markets", "Overview"),
         ({"sectors", "rs"}, "/dash/sectors", "Sectors"),
+        ({"leaders", "laggards"}, "/dash/leaders", "Strength"),
         (None, None, "Rotation"),
         ({"rrg"}, "/dash/rrg", "Map"),
         ({"rotation"}, "/dash/rotation", "Weather"),
@@ -432,7 +435,6 @@ _SUBNAV = {
         ({"conviction"}, "/dash/conviction", "Conviction"),
         ({"stocks", "scan", "stock"}, "/dash/stocks", "Positioning"),
         ({"mep"}, "/dash/mep", "Accumulation"),
-        ({"leaders", "laggards"}, "/dash/leaders", "Strength"),
         ({"cpr"}, "/dash/cpr", "Structure"),
         ({"workbench"}, "/dash/workbench", "Workbench"),
         ({"concalls"}, "/dash/concalls", "Credibility"),
@@ -1444,17 +1446,29 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
 
 
 @router.get("/dash/pat", response_class=HTMLResponse)
-def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query(""),
+def dash_pat(request: Request, flow: str = Query(""), explain: str = Query(""), q: str = Query(""),
              sector: str = Query(""), strength: str = Query(""), entry: str = Query(""),
              align: str = Query(""), val: str = Query(""), qual: str = Query(""),
              grow: str = Query(""), bs: str = Query(""), own: str = Query(""),
-             sym: str = Query("")):
-    """Pat — natural-language guided search + the data glossary (src/pat)."""
+             sym: str = Query(""), new: str = Query("")):
+    """Pat — natural-language guided search + the data glossary (src/pat).
+
+    L1↔L4 contract (src/pat/threads.py): forward a per-browser ``pat_tid`` cookie into
+    render_pat so Pat has TRUE multi-turn memory — mint one on first visit, persist it
+    httponly + samesite=lax for 30 days. The cookie is the only added state; render_pat
+    stays inert for the default tid="" everywhere else. ``new=1`` (the 'start over' chip)
+    clears the thread inside render_pat before rendering. A malformed/forged cookie is
+    rejected (``threads._valid``) and replaced with a fresh server-minted id."""
+    from src.pat import threads as _threads
+    tid = _threads._valid(request.cookies.get("pat_tid", "")) or _threads.new_tid()
     with get_conn() as conn:
         body = render_pat(flow=flow, explain=explain, q=q, sector=sector,
                           strength=strength, entry=entry, align=align,
-                          val=val, qual=qual, grow=grow, bs=bs, own=own, sym=sym, conn=conn)
-    return HTMLResponse(_shell("Pat — patearn", body, "pat"))
+                          val=val, qual=qual, grow=grow, bs=bs, own=own, sym=sym,
+                          conn=conn, tid=tid, new=new)
+    resp = HTMLResponse(_shell("Pat — patearn", body, "pat"))
+    resp.set_cookie("pat_tid", tid, max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax")
+    return resp
 
 
 @router.get("/dash/markets", response_class=HTMLResponse)
