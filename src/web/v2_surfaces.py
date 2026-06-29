@@ -82,6 +82,12 @@ _IA_ALT = [(_alt, _LR.subnav(_alt)[0].route, _ALT_LABELS[_alt])
 # {altitude: [(key, href, label, group), ...]} — overlay-only lenses excluded by subnav().
 _IA_SUB = {_alt: [(ln.key, ln.route, ln.label, ln.group) for ln in _LR.subnav(_alt)]
            for _alt in (*_LR.altitude_order(), "trust")}
+# Discoverability trail (the MEP/Wolfe lesson): the Lab moved to Trust as "Strategy
+# validation". Leave a signposted pointer where it used to live (under Strategies) so the
+# muscle-memory path is not orphaned — a "see also", not a lens.
+if "strategies" in _IA_SUB:
+    _IA_SUB["strategies"].append(
+        ("testing", "/dash/testing", "Strategy validation → Trust", None))
 # sub-nav key -> the set of route `active` values that should highlight it.
 _SUB_ALIAS = {ln.key: _LR.alias_set(ln.key) for ln in _LR.LENSES if ln.aliases}
 # route `active` value -> its altitude (top-bar highlight + which sub-nav renders).
@@ -108,6 +114,10 @@ _V2NAV_CSS = """<style>
 .v2util a,.v2util .v2askpat{font:inherit;font-size:12.5px;cursor:pointer;text-decoration:none;
   border:1px solid #27384a;background:#0b0f17;color:#9bb0c6;border-radius:8px;padding:6px 11px}
 .v2util a.on,.v2util a:hover,.v2util .v2askpat:hover{border-color:#4d9dff;color:#eaf1f9}
+/* Trust = the institutional lead wedge — a prominent teal chip, not a faint link. */
+.v2util a.v2trust{border-color:#2f6f63;background:#11221e;color:#dcf6ee;font-weight:600}
+.v2util a.v2trust::before{content:"✓ ";color:#34e0d6;font-weight:700}
+.v2util a.v2trust:hover{border-color:#34e0d6;color:#eafff9}
 .v2askpat kbd{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;background:#18222f;
   border:1px solid #27384a;border-radius:4px;padding:1px 5px;margin-left:6px;color:#9bb0c6}
 .v2subnav{display:flex;gap:4px;flex-wrap:wrap;padding:7px 0 0;margin:0 0 4px;
@@ -234,8 +244,8 @@ def _install_nav() -> None:
         except Exception:  # noqa: BLE001
             extra = ""
         util = ('<div class="v2util">'
-                f'<a class="{"on" if alt == "trust" else ""}" href="/dash/coverage" '
-                'title="Data coverage &amp; provenance">Trust</a>'
+                f'<a class="v2trust{" on" if alt == "trust" else ""}" href="/dash/coverage" '
+                'title="Trust — data coverage, provenance &amp; strategy validation">Trust</a>'
                 '<button class="v2askpat" type="button" data-cmdk>Ask Pat <kbd>⌘K</kbd></button>'
                 '</div>')
         top = (f'<div class="v2bar"><nav class="wsnav v2nav" aria-label="Primary">'
