@@ -2148,14 +2148,14 @@ def _save_board_btn(q: str, flow: str, params: dict | None = None) -> str:
 # these are one click; even without a thread they carry the name explicitly.
 _SUBJECT_NEXT = {
     "card":  [("↳ is it credible?", "is {S} credible"),
-              ("↳ being accumulated?", "is {S} being accumulated"),
-              ("↳ RS / leadership", "{S} relative strength"),
+              ("↳ being accumulated?", "why is {S} being accumulated"),
+              ("↳ RS / leadership", "why is {S} a leader"),
               ("↳ credibility trend", "credibility trend for {S}")],
     "why":   [("↳ credibility trend", "credibility trend for {S}"),
-              ("↳ being accumulated?", "is {S} being accumulated"),
+              ("↳ being accumulated?", "why is {S} being accumulated"),
               ("↳ full dossier", "tell me about {S}")],
     "trend": [("↳ why credible? (evidence)", "why is {S} credible"),
-              ("↳ being accumulated?", "is {S} being accumulated"),
+              ("↳ being accumulated?", "why is {S} being accumulated"),
               ("↳ full dossier", "tell me about {S}")],
 }
 
@@ -2434,10 +2434,13 @@ _FOLLOWUP_LENS = [
      "credibility trend for {S}"),
     (_re_wf.compile(r"\b(credib|trustworth|promise|guidance|concall track)", _re_wf.I),
      "is {S} credible"),
+    # accumulation / RS / fundamentals about ONE name → the per-name WHY evidence
+    # ("why is X being accumulated" routes to why(metric=accumulation)), NOT the
+    # generic screen — so a single-name follow-up answers about THAT name.
     (_re_wf.compile(r"\b(being accumulat|accumulation|strong hand|smart money|delivery)", _re_wf.I),
-     "is {S} being accumulated"),
+     "why is {S} being accumulated"),
     (_re_wf.compile(r"\b(relative strength|\brs\b|leading|leader|momentum|outperform)", _re_wf.I),
-     "{S} relative strength"),
+     "why is {S} a leader"),
     (_re_wf.compile(r"\b(why)\b", _re_wf.I), "why is {S} credible"),
     (_re_wf.compile(r"\b(fundamental|valuation|cheap|expensive|quality|compounder)", _re_wf.I),
      "tell me about {S}"),

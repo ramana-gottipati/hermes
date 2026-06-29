@@ -373,11 +373,18 @@ def _parity_view() -> str:
 # ── the page ─────────────────────────────────────────────────────────────────
 @router.get("/dash/screen2", response_class=HTMLResponse)
 def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
-                 limit: int = Query(600, ge=50, le=2000)) -> HTMLResponse:
+                 limit: str = Query("600")) -> HTMLResponse:
     if str(parity or "").strip() in ("1", "true", "yes"):
         return HTMLResponse(K.shell("Screen+ parity · patearn", _parity_view(),
                                     active="screener", sub=_sub(),
                                     nav_html=_nav_html("screener")))
+    # CLAMP rather than 422-reject — a hand-typed URL with a bad/out-of-range limit
+    # should still render the screener (demo-grade graceful degradation), not an
+    # error page. `limit` is a str so FastAPI never 422s before we parse it.
+    try:
+        limit = max(50, min(int(str(limit).strip()), 2000))
+    except (TypeError, ValueError):
+        limit = 600
     scope = (scope or "Nifty 500").strip()
     is_all = scope.lower() == "all"
     is_watch = scope.lower() in ("watch", "watchlist")
