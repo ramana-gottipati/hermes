@@ -7062,7 +7062,9 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         _ck_tile(_esc(_tier) if _tier else "—", "Quality · pt14", "#d29922",
                  (f"NS {_num(_ns, 1)}" if _ns is not None else "unscored")),
         _ck_tile(_esc(_ct) if _ct else "—", "Mgmt cred · CCI", "#39c5cf",
-                 (f"{_ccist or 'pilot'} · {_nset}/{_ncalls} settled" if cci_row else "no concall data")),
+                 # Two distinct counts, not a fraction: promises resolved + concalls read.
+                 # "N/M settled" read ambiguously (looked like a ratio); label each explicitly.
+                 (f"{_ccist or 'pilot'} · {_nset} settled · {_ncalls} calls" if cci_row else "no concall data")),
         _ck_tile(_pct(_p52), "vs 52w-high", "#8b949e", "today's close"),
     ])
 
