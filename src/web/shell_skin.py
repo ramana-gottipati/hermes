@@ -108,8 +108,21 @@ body.uk-skin .sym{color:#eaf1f9}
 /* ── semantic ink ── */
 body.uk-skin .pos{color:#3fd486} body.uk-skin .neg{color:#ff6a7a} body.uk-skin .mut{color:#5c6f84}
 body.uk-skin .grp{color:#4d9dff}
-/* ── empty state → the polished system look (ui_components.empty) ── */
-body.uk-skin .empty{color:var(--ink-3);padding:46px 20px;font-size:var(--fs-md);line-height:1.6}
+/* ── empty / loading / error states → the polished native system look ──
+   L2 Wave2 (state polish): legacy no-data blocks render a bare left-aligned
+   `<div class="empty">No data…</div>` that reads like a broken fragment. Give the legacy
+   `.empty` the native `uk-empty` treatment — centered column, a muted ○ glyph above the
+   message, generous padding — so a no-data legacy page reads INTENTIONAL, matching the
+   native ui_components.empty. (The full uk-empty/uk-error/uk-note/uk-skel/uk-spin system is
+   now injected site-wide via skin_css(), so frozen bodies can also emit native states.) */
+body.uk-skin .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;text-align:center;color:var(--ink-3);padding:46px 20px;font-size:var(--fs-md);line-height:1.6}
+body.uk-skin .empty::before{content:"\\25CB";font-size:30px;opacity:.55;line-height:1;margin-bottom:2px}
+body.uk-skin .empty b{color:var(--ink-2);font-weight:600}
+/* legacy inline status/error helpers map to the native note look */
+body.uk-skin .errbox,body.uk-skin .warnbox{display:flex;gap:9px;align-items:flex-start;
+  border:1px solid var(--line-2);background:var(--bg-2);border-radius:var(--r-sm);padding:11px 13px;
+  font-size:var(--fs-sm);color:var(--ink-2);line-height:1.5}
 /* ── inputs / search / filter chips ── */
 body.uk-skin .search input,body.uk-skin .hsearch input,body.uk-skin .dtf{
   background:#0b0f17;border:1px solid #27384a;color:#eaf1f9;border-radius:8px}
@@ -225,15 +238,24 @@ body.uk-skin .rsh-bench{border:1px solid var(--line-2);border-radius:var(--r-sm)
 
 def skin_css() -> str:
     """The reskin stylesheet (`<style>` block). Injected once per legacy page. Prepends the
-    shared `ui_tokens` foundation (tokens + base + a11y + density scale) so every legacy page
-    carries the SAME design language as the native v2 pages — focus rings, reduced-motion and
-    the density switch now work site-wide. Defensive: a missing foundation degrades to the
-    skin alone (never breaks the page)."""
+    shared `ui_tokens` foundation (tokens + base + a11y + density scale) AND the native
+    `ui_components` state system (uk-empty/uk-error/uk-note/uk-skel/uk-spin/…), so every
+    legacy page carries the SAME design language as the native v2 pages — focus rings,
+    reduced-motion, the density switch, and the polished empty/loading/error states now work
+    site-wide. The components stylesheet is fully `.uk-*`-class-scoped (zero bleed onto legacy
+    bare elements) and idempotent (its own marker). Defensive: a missing foundation/components
+    module degrades gracefully (skin alone), never breaks the page."""
     try:
         from src.web import ui_tokens as _T
-        return _T.tokens_css() + _SKIN_CSS
+        head = _T.tokens_css()
     except Exception:  # noqa: BLE001
-        return _SKIN_CSS
+        head = ""
+    try:
+        from src.web import ui_components as _C
+        head += _C.components_css()  # native state system → legacy pages (class-scoped, safe)
+    except Exception:  # noqa: BLE001
+        pass
+    return head + _SKIN_CSS
 
 
 # The legacy two-row header block — `<header>…</header>` produced by dashboard._shell
