@@ -265,3 +265,19 @@ except Exception as _v2_hook_err:  # noqa: BLE001
     import logging as _v2_logging
     _v2_logging.getLogger("hermes.v2").warning("v2 surfaces hook skipped: %s", _v2_hook_err)
 # === end v2 surfaces hook ===
+
+
+# === nav glue hook (durable, Lane N3) ===
+# Cross-page navigation glue: breadcrumbs (Markets → Sector → Stock) + lateral
+# "see this lens elsewhere" rails, generated from src/web/lens_registry. Installs by
+# monkeypatching dashboard._shell (the shell_skin/v2_surfaces runtime-injection pattern)
+# so NO contended page body is edited and a dashboard.py redeploy cannot wipe it.
+# Idempotent (sentinel) + defensive (a failure is logged, never fatal). Reversible:
+# delete this block. Single source of truth = src/web/nav_links.py.
+try:
+    from src.web import nav_links as _nav_links
+    _nav_links.install()
+except Exception as _nav_glue_err:  # noqa: BLE001
+    import logging as _nav_glue_logging
+    _nav_glue_logging.getLogger("hermes.v2").warning("nav glue hook skipped: %s", _nav_glue_err)
+# === end nav glue hook ===
