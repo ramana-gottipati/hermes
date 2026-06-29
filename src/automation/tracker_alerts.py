@@ -261,14 +261,21 @@ def run(dry_run=False):
             return current
 
         message = format_alerts(pending)
-        ok = all(_send(d, message) for d in dests)
-        if ok:
+        # Attempt EVERY destination (a generator with all() short-circuits, so a failure on
+        # the first dest would skip the rest entirely). Mark notified only when ALL succeed;
+        # otherwise leave pending and retry — at-least-once, so a dest that already received
+        # this batch may see a repeat on the next run (acceptable; the schema has one
+        # notified_at flag per alert, not per-destination).
+        results = [(d, _send(d, message)) for d in dests]
+        failed = [d for d, ok in results if not ok]
+        if not failed:
             conn.execute("UPDATE tracker_alert_state SET notified_at=datetime('now') "
                          "WHERE notified_at IS NULL")
             log.info("pushed %d alerts to %d destination(s)", len(pending), len(dests))
         else:
-            log.error("Telegram send failed (blocked/unreachable?) — %d alerts left "
-                      "pending; will retry next run", len(pending))
+            log.error("Telegram send failed for %d/%d destination(s) %s — %d alerts left "
+                      "pending; will retry next run (succeeded dests may see a repeat)",
+                      len(failed), len(dests), failed, len(pending))
         return current
 
 

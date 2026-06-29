@@ -11,10 +11,14 @@ middleware in all cases — never a mutable counter that couldn't survive a bill
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from src.core.db import get_conn
 from src.api.v1.schema import ensure_schema
+
+# Keep only the last few minute-windows — only the current window is ever read, so older
+# rows are dead weight; without this the table grows one row per (key, minute) forever.
+_RATELIMIT_RETAIN_MIN = 5
 
 
 def _minute_window() -> str:
@@ -24,8 +28,10 @@ def _minute_window() -> str:
 def rate_check(key_id: str, limit_per_min: int) -> tuple[bool, int]:
     """Atomically increment this key's current-minute counter; return (within_limit, n)."""
     win = _minute_window()
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=_RATELIMIT_RETAIN_MIN)).strftime("%Y-%m-%dT%H:%M")
     with get_conn() as conn:
         ensure_schema(conn)
+        conn.execute("DELETE FROM v1_ratelimit WHERE window_start < ?", (cutoff,))  # bound table growth
         try:
             row = conn.execute(
                 "INSERT INTO v1_ratelimit(key_id, window_start, n) VALUES(?,?,1) "

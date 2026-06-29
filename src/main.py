@@ -68,7 +68,8 @@ class ChatRequest(BaseModel):
     conversation_id: int | None = Field(
         None, description="Continue an existing conversation; omit to start a new one"
     )
-    fast: bool = Field(False, description="Use HERMES_FAST_MODEL instead of default")
+    fast: bool = Field(True, description="Cheap Haiku tier (default, per the cost doctrine); "
+                                         "pass false for Sonnet-grade reasoning")
 
 
 class ChatResponse(BaseModel):
