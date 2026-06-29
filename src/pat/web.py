@@ -2621,15 +2621,48 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _trend_flow(conn, sym)                     # credibility series; sym rides `sym`
         fb_ctx = {"query": "", "flow": "trend", "params": {"sym": sym}, "source": "flow"}
     elif q:
-        # in-thread follow-up: resolve a pronoun ("its credibility", "what about it")
-        # to the thread's subject + rewrite to an explicit query (inert for tid="").
+        # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
+        #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after
+        #       "strongest stocks") → rebuild the COMBINED query so the planner
+        #       INTERSECTS the new pillar with the prior set (AND, not replace). This
+        #       is the QA-round2 #5 fix.
+        #   (2) PRONOUN follow-up on a single name ("its credibility") → bind to the
+        #       thread subject and rewrite to an explicit query.
         resolved_sym = ""
+        refined_combined = ""
+        q2 = q
         if tid:
-            q2, resolved_sym = _resolve_followup(q, tid)
-        else:
-            q2 = q
+            try:
+                from src.pat import threads as _Tr
+                refined_combined = _Tr.refine_base(tid, q)
+            except Exception:
+                refined_combined = ""
+            if refined_combined:
+                q2 = refined_combined
+            else:
+                q2, resolved_sym = _resolve_followup(q, tid)
         body, fb_ctx = _free_text(conn, q2)
-        if resolved_sym and q2 != q:
+        # The refine must INTERSECT (AND), never silently replace the base set. If the
+        # rebuilt combined query genuinely routed to a multi-pillar flow (the planner /
+        # confluence), the intersection happened → show the "refining" bubble. If it did
+        # NOT (the router collapsed it to a single pillar — see the deferred
+        # disambiguate.route_extra / understand.validate_intent multi-pillar bug), DON'T
+        # claim a refinement that didn't occur: fall back to the analyst's original bare
+        # query so behaviour is exactly the prior status quo (no misleading bubble). This
+        # call-site guard auto-activates the full intersection once that router fix lands.
+        _refined_flow = (fb_ctx or {}).get("flow", "") if refined_combined else ""
+        _did_intersect = _refined_flow in ("confluence_plan", "confluence")
+        if refined_combined and q2 != q and _did_intersect:
+            # the follow-up REFINED the running list (genuine pillar intersection); keep the
+            # ORIGINAL phrasing in the thread record so the trail reads naturally.
+            body = (_q_bubble(f'↳ refining your previous list — read as → "{q2}".') + body)
+            if fb_ctx:
+                fb_ctx["query"] = q
+        elif refined_combined and q2 != q and not _did_intersect:
+            # router did not intersect → re-route the analyst's ORIGINAL query, unmodified,
+            # so we don't show a false "refining" claim over a replaced (non-AND) result.
+            body, fb_ctx = _free_text(conn, q)
+        elif resolved_sym and q2 != q:
             # show the analyst that the pronoun bound to the thread subject, and keep
             # the ORIGINAL phrasing in the thread record (so the trail reads naturally).
             body = (_q_bubble(f'↳ in this thread, I read "{q}" as → {resolved_sym}.') + body)

@@ -204,7 +204,7 @@ svg{display:block;width:100%;height:230px}
 <div class="wrap">
   <div class="mast">
     <div>
-      <h1>HERMES · REPLAY THE TAPE</h1>
+      <h1>PATEARN · REPLAY THE TAPE</h1>
       <p class="big">What the machine knew <em>before</em> the move — reconstructed with zero look-ahead.</p>
     </div>
     <div class="meta">
@@ -312,7 +312,7 @@ function renderHero(h,i){
   const bn=$('div','bignum');
   bn.innerHTML='<div class="pct">+'+fmt(rv.peak_gain_pct,0)+'%</div>'+
     '<div class="lbl">peak by '+dlabel(rv.peak_date)+'  ·  entry '+dlabel(rv.entry_date)+'</div>'+
-    '<div class="cap2">Hermes-rule exit captured +'+fmt(h.known_return,0)+'% in '+h.months+' months</div>';
+    '<div class="cap2">patearn-rule exit captured +'+fmt(h.known_return,0)+'% in '+h.months+' months</div>';
   cw.appendChild(bn);
   story.appendChild(cw);
   root.appendChild(story);

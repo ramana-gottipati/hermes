@@ -193,6 +193,103 @@ def last_symbol(tid: str) -> str:
     return ""
 
 
+# ── CONJUNCTIVE refine across turns (AND, not replace) ────────────────────────
+# When the prior turn produced a ranked LIST (RS leaders / accumulation / credibility
+# / a confluence), a follow-up that ADDS a criterion ("…with credible management",
+# "and the cheap ones", "only small-caps") must REFINE that list — i.e. intersect the
+# new pillar with the prior set — NOT re-route to a pure single-pillar board (which is
+# the QA-round2 #5 bug: "strongest stocks … with credible management" returned a pure
+# credibility list, ~1/80 overlap with the RS leaders it was meant to refine).
+#
+# The mechanism reuses the SAME proven path the URL refine-chips already use: rebuild a
+# COMBINED query ("RS leaders with credible management") and re-route it — the engine's
+# semantic parse (and its deterministic fallback) then sees >=2 strategy families and
+# the compiler intersects them via the confluence planner. We deliberately rebuild the
+# base from the prior flow's CANONICAL phrase (below), not the raw prior text, so the
+# base pillar always fires its keyword in both the LLM and the quota-down fallback path
+# (e.g. a prior "strongest stocks" → canonical "RS leaders", which the fallback's _PIL_RS
+# recognises; "strongest" alone would not).
+
+# Planner-eligible LIST flows → the canonical phrase that re-states the base pillar.
+# MIRRORS web._FLOW_BASE_Q for exactly the multi-row screens a refinement can narrow.
+# (Single-name flows — card/why/trend/compare/stock — are intentionally absent: those
+# are pronoun-subject follow-ups, handled by last_symbol(), not list refinement.)
+LIST_FLOW_BASE = {
+    "rs": "RS leaders",
+    "rslag": "weak laggard stocks",
+    "accumulation": "stocks being accumulated",
+    "distribution": "stocks being distributed",
+    "consolidation": "consolidating stocks",
+    "fundamentals": "quality value stocks",
+    "credibility": "credible companies",
+    "deterioration": "managements with deteriorating credibility",
+    "confluence": "credible companies being accumulated",
+    "confluence_plan": "",   # already a planner; refine appends to its own prior text
+    "movers": "biggest movers today",
+    "pt14": "pt14 quality tier stocks",
+}
+
+# A turn that LOOKS like a conjunctive refinement of a prior list: it leads with an
+# additive connector ("with / and / that are / also / plus / only / but / restricted to")
+# OR is one of the bare added-criteria the refine-chips emit ("small caps", "mid caps",
+# "large caps"). These are the phrases meant to be AND-ed onto the running result, never
+# to stand alone as a fresh screen.
+_REFINE_LEAD = re.compile(
+    r"^\s*(?:"
+    r"with\b|and\b|&\s|that\s+are\b|that\s+is\b|that\s+have\b|which\s+are\b|"
+    r"also\b|plus\b|only\b|but\b|just\b|restrict(?:ed)?\s+to\b|limited\s+to\b|"
+    r"in\s+(?:the\s+)?(?:it|pharma|auto|bank|fmcg|metal|energy|chemical)\b|"
+    r"small[\s-]?caps?\b|mid[\s-]?caps?\b|large[\s-]?caps?\b|micro[\s-]?caps?\b"
+    r")",
+    re.I,
+)
+# A bare cap-band added-criterion (the chip phrasings) with no connector — still a refine.
+_REFINE_BARE = re.compile(r"^\s*(?:small|mid|large|micro)[\s-]?caps?\s*$", re.I)
+# If the follow-up itself NAMES a ticker-shaped token, it is not a list-refinement of the
+# running set (it's a new subject ask) — let the normal router handle it. (Stopwords that
+# are uppercase but not tickers are excluded so "with credible management" isn't blocked.)
+_REFINE_HAS_SYM = re.compile(r"\b[A-Z][A-Z0-9&.\-]{2,15}\b")
+_REFINE_SYM_STOP = {"RS", "MACD", "RSI", "CCI", "MEP", "CPR", "DVPT", "PE", "P", "Q", "IT", "AND", "WITH"}
+
+
+def refine_base(tid: str, q: str) -> str:
+    """If ``q`` is a conjunctive refinement of the thread's most-recent LIST answer,
+    return the COMBINED query ('<canonical base> <q>') to re-route through the planner
+    (which intersects the pillars). Returns '' when it is NOT a list-refinement — a
+    fresh screen, a pronoun/single-name follow-up, or no prior list turn — so the caller
+    falls through to its normal routing. ₹0, never raises.
+    """
+    tid = _valid(tid)
+    q = (q or "").strip()
+    if not tid or not q:
+        return ""
+    if not (_REFINE_LEAD.match(q) or _REFINE_BARE.match(q)):
+        return ""
+    # don't hijack a follow-up that names its own subject ticker (e.g. "and TITAN too")
+    syms = [m for m in _REFINE_HAS_SYM.findall(q) if m not in _REFINE_SYM_STOP]
+    if syms:
+        return ""
+    lt = last_turn(tid)
+    if not lt:
+        return ""
+    flow = (lt.get("flow") or "").strip()
+    if flow not in LIST_FLOW_BASE:
+        return ""
+    # base = the flow's CANONICAL pillar phrase when it has one (so the base pillar's
+    # keyword always fires in both the LLM parse and the quota-down deterministic
+    # fallback — e.g. a free-text "strongest stocks" rebuilds as "RS leaders", which
+    # _PIL_RS recognises). Only fall back to the prior turn's raw NL for a flow with no
+    # canonical phrase (confluence_plan — already a planner; append to its own text).
+    base = LIST_FLOW_BASE.get(flow, "") or (lt.get("query") or "").strip()
+    if not base:
+        return ""
+    combined = f"{base} {q}".strip()
+    # never return a no-op (base already contains the refinement, or q == base)
+    if combined.lower() == base.lower():
+        return ""
+    return combined[:500]
+
+
 def clear(tid: str) -> bool:
     """Forget a thread (the 'start over' affordance)."""
     tid = _valid(tid)
@@ -241,6 +338,32 @@ if __name__ == "__main__":
     assert last_symbol(t2) == "INFY", "last_symbol = first of the newest compare"
     assert last_symbol(new_tid()) == "", "no symbol in an empty thread"
     clear(t2)
+    # ── refine_base: a conjunctive follow-up on a prior LIST rebuilds the combined
+    #    query (canonical base ∩ new pillar) so the planner intersects, not replaces.
+    t3 = new_tid()
+    # the QA-round2 repro: a free-text RS screen, then "with credible management"
+    record(t3, query="strongest stocks over the last month", flow="rs",
+           params={"strength": "leaders", "window": "1m"})
+    rb = refine_base(t3, "with credible management")
+    assert rb == "RS leaders with credible management", \
+        f"refine rebuilds from CANONICAL base (not 'strongest…'), got {rb!r}"
+    # a chip-driven screen (query="") still rebuilds from the canonical phrase
+    t4 = new_tid()
+    record(t4, query="", flow="rs", params={"strength": "leaders"})
+    assert refine_base(t4, "that are credible") == "RS leaders that are credible", \
+        "chip-driven base uses canonical phrase"
+    assert refine_base(t4, "small caps") == "RS leaders small caps", "bare cap-band is a refine"
+    # NOT a refine: a pronoun/single-name follow-up, or a fresh screen, or naming a ticker
+    assert refine_base(t4, "is it credible") == "", "pronoun ask is not a list-refine"
+    assert refine_base(t4, "most credible managements") == "", "a fresh screen is not a refine"
+    assert refine_base(t4, "and TITAN too") == "", "a follow-up naming a ticker is not a refine"
+    # no prior list turn → no refine
+    t5 = new_tid()
+    record(t5, query="tell me about TITAN", flow="card", params={"sym": "TITAN"})
+    assert refine_base(t5, "with credible management") == "", \
+        "single-name prior turn is not a refinable list"
+    assert refine_base(new_tid(), "with credible management") == "", "empty thread → no refine"
+    clear(t3); clear(t4); clear(t5)
     # rolling-window trim
     for i in range(20):
         record(t, query=f"q{i}", flow="rs")

@@ -409,6 +409,27 @@ def route_extra(query: str) -> dict | None:
         if _EXPLAIN_LEAD_RE.search(qn) or qn.endswith(" meaning") or qn.endswith(" mean"):
             return None
 
+        # MULTI-PILLAR refine guard — a CONJUNCTIVE ask that pairs credibility with
+        # ANOTHER strategy family ("RS leaders WITH credible management", "credible &
+        # being accumulated") must INTERSECT via the planner, NOT collapse to the pure
+        # credibility board (the QA-round2 #5 bug: the credibility catch below dropped the
+        # co-present RS/accum/value pillar, returning a disjoint list). Per this function's
+        # own contract (the multi-condition planner is intentionally NOT short-circuited
+        # here), defer to the Gemini→fallback parse whenever ≥2 families are named — it
+        # builds the confluence_plan that AND-s them. A deterioration ("avoid") ask is the
+        # one credibility shape that is never a refinable list, so it still wins first.
+        if not _has_any(qn, _CCI_AVOID):
+            try:
+                from src.pat.understand import _detect_pillars as _dp
+                # _detect_pillars detects the accumulation pillar from the query itself
+                # (its own _PIL_ACCUM scan), so character=None is sufficient to count the
+                # co-present families here.
+                _pil, _fam = _dp(qn, None)
+                if len(_fam) >= 2:
+                    return None          # ≥2 pillars → let the planner intersect them
+            except Exception:
+                pass
+
         # CCI — Management Credibility (concall intelligence). Avoid-tape first (a
         # deterioration ask is more specific than a bare "credibility" ask), then the
         # leaders, then bare concall vocabulary defaults to leaders. High precedence so

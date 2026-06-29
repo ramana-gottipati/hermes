@@ -161,6 +161,15 @@ def validate_intent(obj) -> dict | None:
     if o in ORDERS:
         rank["order"] = o
 
+    # MEMBERSHIP pillars — a filter that names a strategy family as a PRESENCE condition
+    # ("…with credible management", "…that are RS-leading") carries no comparison op (the
+    # model often emits only {metric} or {metric,order}). Keep these metric-only so the
+    # multi-condition planner sees the co-present pillar and INTERSECTS it (the QA-round2
+    # #5 bug was these filters being dropped because an op in OPS was required, collapsing
+    # a two-pillar refine to a single-pillar board). A comparison op is still honoured when
+    # present (and required for the value-bearing numeric metrics, where a bare presence is
+    # meaningless).
+    _MEMBERSHIP_METRICS = {"credibility", "rs", "return", "delivery", "structure"}
     filters = []
     raw_filters = obj.get("filters")
     if isinstance(raw_filters, list):
@@ -168,9 +177,14 @@ def validate_intent(obj) -> dict | None:
             if not isinstance(f, dict):
                 continue
             fm, fw, fo = f.get("metric"), f.get("window"), f.get("op")
-            if fm not in METRICS or fo not in OPS:
+            if fm not in METRICS:
                 continue
-            ff = {"metric": fm, "op": fo}
+            if fo in OPS:
+                ff = {"metric": fm, "op": fo}
+            elif fm in _MEMBERSHIP_METRICS:
+                ff = {"metric": fm}          # presence pillar — no comparison op needed
+            else:
+                continue                     # numeric metric with no valid op → drop
             if fw in WINDOWS:
                 ff["window"] = fw
             v = f.get("value")
