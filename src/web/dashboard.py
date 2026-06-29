@@ -97,14 +97,20 @@ th { text-align:left; color:#8b949e; font-weight:600; padding:8px 6px;
 td { padding:9px 6px; border-bottom:1px solid #21262d; }
 tr:last-child td { border-bottom:none; }
 .sym { font-weight:700; }
-.pos { color:#3fb950; } .neg { color:#f85149; } .mut { color:#8b949e; }
+/* positive / negative numeric text — the site's ONE value-green/red (was the legacy
+   GitHub #3fb950 / #f85149, the most pervasive green on every board's % cells). */
+.pos { color:var(--up); } .neg { color:var(--down); } .mut { color:#8b949e; }
 .pill { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px;
         border-radius:9px; letter-spacing:.4px; }
-.p-SS{background:#1f6f3a;color:#7ee787;} .p-S{background:#225c33;color:#7ee787;}
+/* RS-state + DVPT-rank pills — unified to the institutional value palette: ONE green
+   (var(--up) #3fd486) and ONE red (var(--down)), translucent-dim backgrounds to match
+   the site's .uk-pill treatment. Replaces the legacy GitHub greens (#7ee787/#1f6f3a/
+   #225c33) and reds so dashboard pills read the same green as the rest of the site. */
+.p-SS{background:var(--up-dim);color:var(--up);} .p-S{background:var(--up-dim);color:var(--up);}
 .p-A{background:#2b4f6f;color:#79c0ff;} .p-B{background:#3a3f4b;color:#c9d1d9;}
-.p-C{background:#30363d;color:#8b949e;} .p-BREAKOUT{background:#1f6f3a;color:#7ee787;}
-.p-UPTREND{background:#225c33;color:#7ee787;} .p-CONSOLIDATING{background:#5a4a1f;color:#ffd99a;}
-.p-DOWNTREND{background:#6f2b2b;color:#ffa198;} .p-BREAKDOWN{background:#8f1f1f;color:#ffa198;}
+.p-C{background:#30363d;color:#8b949e;} .p-BREAKOUT{background:var(--up-dim);color:var(--up);}
+.p-UPTREND{background:var(--up-dim);color:var(--up);} .p-CONSOLIDATING{background:rgba(246,183,60,.14);color:var(--warn);}
+.p-DOWNTREND{background:var(--down-dim);color:var(--down);} .p-BREAKDOWN{background:var(--down-dim);color:var(--down);}
 /* D43 accumulation/distribution character pills */
 .ca-acc{background:#16341f;color:#7ee787;} .ca-dist{background:#3a1a1a;color:#ffa198;}
 .ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:#30363d;color:#8b949e;}
@@ -556,6 +562,18 @@ def _num(v, decimals=2) -> str:
     if v is None:
         return '<span class="mut">—</span>'
     return f"{v:,.{decimals}f}"
+
+
+# RS trend-state labels are stored as the uppercase enum (UPTREND / BREAKOUT /
+# CONSOLIDATING / DOWNTREND / BREAKDOWN) — used BOTH as the .p-{STATE} CSS class
+# AND, historically, sliced to 5 chars for the visible text ("UPTRE"/"BREAK"/…),
+# which read as broken. This renders the whole word (title-case) for the user while
+# the class stays the raw enum. Passes through "—"/empty and any unknown value.
+def _state_label(st) -> str:
+    s = ("" if st is None else str(st)).strip()
+    if not s or s == "—":
+        return s or "—"
+    return s.replace("_", " ").title()
 
 
 def _rs_strip(s1, s3, s6, s12, s18=None, s24=None) -> str:
@@ -1209,7 +1227,7 @@ def dash_home() -> HTMLResponse:
             out.append(f'<tr><td><a class="row" href="/dash/ratio?idx={_q(r["nm"])}">'
                        f'<span class="sym">{_esc(r["nm"])}</span></a></td>'
                        f'<td>{strip}</td>'
-                       f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+                       f'<td><span class="pill p-{st}">{_state_label(st)}</span></td>'
                        f'<td>{_pct(r["s3"])}</td></tr>')
         return "".join(out)
 
@@ -1502,7 +1520,7 @@ def dash_markets() -> HTMLResponse:
 
     def maj_card(v):
         st = v["st"]
-        chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st else ''
+        chip = f' <span class="pill p-{st}">{_state_label(st)}</span>' if st else ''
         strip = _rs_strip(v["s1"], v["s3"], v["s6"], v["s12"], v.get("s18"), v.get("s24"))
         return (f'<a class="maj" href="/dash/ratio?idx={_q(v["nm"])}">'
                 f'<div class="nm">{_esc(v["nm"])}{chip}</div>'
@@ -1522,7 +1540,7 @@ def dash_markets() -> HTMLResponse:
     for v in bundle:
         grp = "broad" if v["bb"] is None else "sector"
         st = v["st"] or ""
-        chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st
+        chip = (f'<span class="pill p-{st}">{_state_label(st)}</span>' if st
                 else '<span class="mut">—</span>')
         brows.append(
             f'<tr data-grp="{grp}"><td class="sym">{_esc(v["nm"])}</td>'
@@ -1597,7 +1615,7 @@ def dash_sectors() -> HTMLResponse:
                 f'<td>{_pct(r["r1"])}</td><td>{_pct(r["r3"])}</td>'
                 f'<td class="rsgrp"><a class="row" style="display:inline" '
                 f'href="/dash/ratio?idx={_q(nm)}">{strip}</a></td>'
-                f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+                f'<td><span class="pill p-{st}">{_state_label(st)}</span></td>'
                 f'<td>{_pct(r["s3"])}</td></tr>'
             )
         body = f"""
@@ -1666,7 +1684,7 @@ def dash_rs() -> HTMLResponse:
             f'<span class="sym">{_esc(nm)}</span></a></td>'
             f'<td>{strip}</td>'
             f'<td>{_pct(r["mom"])}</td>'
-            f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
+            f'<td><span class="pill p-{st}">{_state_label(st)}</span></td>'
             f'<td style="min-width:70px"><div class="bar"><span style="width:{p}%"></span></div></td></tr>')
     body = f"""
 {_strategy_badge("RS")}
@@ -1713,9 +1731,9 @@ def dash_leaders() -> HTMLResponse:
                 f'<td>{rk if rk is not None else ""}</td>'
                 f'<td><a class="row" href="/dash/ratio?idx={_q(r["primary_sector"])}">'
                 f'{_esc(r["primary_sector"])}</a></td>'
-                f'<td><span class="pill p-{bs}">{_esc(bs[:5])}</span></td>'
-                f'<td><span class="pill p-{ss}">{_esc(ss[:5])}</span></td>'
-                f'<td><span class="pill p-{xs}">{_esc(xs[:5])}</span></td></tr>')
+                f'<td><span class="pill p-{bs}">{_esc(_state_label(bs))}</span></td>'
+                f'<td><span class="pill p-{ss}">{_esc(_state_label(ss))}</span></td>'
+                f'<td><span class="pill p-{xs}">{_esc(_state_label(xs))}</span></td></tr>')
         return ('<div class="card" style="padding:6px 10px;"><table class="dt">'
                 '<thead><tr><th>Symbol</th><th>RS rank</th><th>Sector</th>'
                 '<th>stock vs broad</th><th>stock vs sector</th>'
@@ -7636,7 +7654,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
             return f"{x:,.{d}f}{suf}" if x is not None else "—"
 
         pts = IR.get("pts")
-        trend_pill = (f'<span class="pill p-{st}">{st[:5]}</span>'
+        trend_pill = (f'<span class="pill p-{st}">{_state_label(st)}</span>'
                       if (st and st != "—") else "—")
         kpi = (
             '<div class="kpi">'
@@ -7669,7 +7687,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
             + f'<div class="sub" style="margin:6px 0 2px"><b>Returns</b> &nbsp;{rets}</div>'
             + f'<div class="sub" style="margin:0 0 10px"><b>Technicals</b> &nbsp;{techs}</div>')
 
-    chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st and st != "—" else ''
+    chip = f' <span class="pill p-{st}">{_state_label(st)}</span>' if st and st != "—" else ''
     other = "Nifty 50" if den == "Nifty 500" else "Nifty 500"
     chart_css = """
 .rangebar { display:flex; gap:6px; margin:8px 0 4px; }
