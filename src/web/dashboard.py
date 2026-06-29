@@ -178,9 +178,11 @@ a.row { color:inherit; text-decoration:none; display:block; }
 .hstrip{display:inline-flex;gap:2px;vertical-align:middle;}
 .hstrip .c{width:20px;height:24px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1;font-weight:700;}
 .hstrip .c small{font-size:7px;opacity:.7;margin-top:1px;font-weight:600;}
-.hs-su{background:#1f6f3a;color:#7ee787;} .hs-mu{background:#225c33;color:#7ee787;}
-.hs-fl{background:#5a4a1f;color:#ffd99a;} .hs-md{background:#6f2b2b;color:#ffa198;}
-.hs-sd{background:#8f1f1f;color:#ffa198;} .hs-nd{background:#21262d;color:#484f58;}
+/* RS-momentum heat strip — up greens / down reds unified to the value palette
+   (was GitHub #7ee787 / #ffa198); the bg darkens by intensity (su brighter than mu). */
+.hs-su{background:#1f6f3a;color:var(--up);} .hs-mu{background:#225c33;color:var(--up);}
+.hs-fl{background:#5a4a1f;color:#ffd99a;} .hs-md{background:#6f2b2b;color:var(--down);}
+.hs-sd{background:#8f1f1f;color:var(--down);} .hs-nd{background:#21262d;color:#484f58;}
 .bar{height:7px;background:#21262d;border-radius:4px;overflow:hidden;} .bar>span{display:block;height:100%;background:#1f6feb;}
 .grp{color:#58a6ff;} th.rsgrp{border-left:1px solid #30363d;} td.rsgrp{border-left:1px solid #30363d;}
 .dttool{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
@@ -7113,11 +7115,20 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 </script>
 """
 
+    # h2 bits — render the DVPT-rank pill ONLY when there's a REAL rank. trigger_rank is
+    # the sentinel string "-" (NOT NULL) for unranked names like RELIANCE, so gate on the
+    # display value not being that placeholder — otherwise the headline showed a stray
+    # "RELIANCE - · …" pill. ⚡ ATH badge only when truthy. Each piece carries its own
+    # leading space so an absent piece leaves no double-gap or dash.
+    _rank_pill = (f' <span class="pill p-{rank}">{rank}</span>'
+                  if str(rank).strip() not in ("", "-") else '')
+    _ath_bit = f' {ath}' if ath else ''
+    _name_bit = (' · ' + _esc(company_name)) if company_name else ''
     body = f"""{search}
 <style>{chart_css}</style>
 {_CK}
 <div class="sub" style="margin:0 0 6px">&#8592; <a class="row" style="display:inline" href="/dash/screener">Screener</a> · <a class="row" style="display:inline" href="/dash/conviction">Conviction</a></div>
-<h2>{_esc(sym)} <span class="pill p-{rank}">{rank}</span> {ath}{(' · ' + _esc(company_name)) if company_name else ''}</h2>
+<h2>{_esc(sym)}{_rank_pill}{_ath_bit}{_name_bit}</h2>
 <div class="sub">{L['trade_date']} · close ₹{_num(today_close,2)} · deliv {_num(L.get('deliv_per'),1)}%</div>
 {verdict_strip}
 {themes_line}
@@ -8283,7 +8294,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
             + picker_html
             + '<div class="empty">No indices selected. Use <b>+ Add</b> or a preset above.</div>'
             + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-        return HTMLResponse(_shell("Compare · patearn", body, "markets", idx_date or ""))
+        return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or ""))
 
     # Note any selected series that has no data for the current mode.
     note = ""
@@ -8355,7 +8366,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
         + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-    return HTMLResponse(_shell("Compare · patearn", body, "markets", idx_date or ""))
+    return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or ""))
 
 
 # Picker JS (plain template) — reveals the add box, filters suggestion chips by
