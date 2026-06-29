@@ -2143,13 +2143,47 @@ def _save_board_btn(q: str, flow: str, params: dict | None = None) -> str:
         '.catch(function(){b.textContent="save failed";});};}</script>')
 
 
-def _convo_tail(flow: str, q: str = "", ctx: str = "", params: dict | None = None) -> str:
-    """The conversation tail on a data answer: refine chips + refine box + save-board."""
+# For a SINGLE-NAME answer (card / why / trend), the natural next questions are the
+# OTHER lenses on the same name — proactive analyst follow-ups. With multi-turn live
+# these are one click; even without a thread they carry the name explicitly.
+_SUBJECT_NEXT = {
+    "card":  [("↳ is it credible?", "is {S} credible"),
+              ("↳ being accumulated?", "is {S} being accumulated"),
+              ("↳ RS / leadership", "{S} relative strength"),
+              ("↳ credibility trend", "credibility trend for {S}")],
+    "why":   [("↳ credibility trend", "credibility trend for {S}"),
+              ("↳ being accumulated?", "is {S} being accumulated"),
+              ("↳ full dossier", "tell me about {S}")],
+    "trend": [("↳ why credible? (evidence)", "why is {S} credible"),
+              ("↳ being accumulated?", "is {S} being accumulated"),
+              ("↳ full dossier", "tell me about {S}")],
+}
+
+
+def _subject_followups(flow: str, sym: str) -> str:
+    """Proactive 'next question' chips for a single-name answer — the other lenses on
+    the same name. '' if the flow has no subject map or no symbol."""
+    specs = _SUBJECT_NEXT.get(flow)
+    if not specs or not sym:
+        return ""
+    chips = []
+    for label, tmpl in specs:
+        nxt = tmpl.format(S=sym)
+        chips.append(f'<a class="patChip patFup" href="/dash/pat?q={_u(nxt)}">{_esc(label)}</a>')
+    return ('<div class="patFupWrap"><span class="patFupLbl">Ask next ↳</span>'
+            '<div class="patChips">' + "".join(chips) + '</div></div>')
+
+
+def _convo_tail(flow: str, q: str = "", ctx: str = "", params: dict | None = None,
+                sym: str = "") -> str:
+    """The conversation tail on a data answer: refine chips + refine box + save-board.
+    For single-name flows, lead with proactive 'ask next' lens chips on the name."""
+    sf = _subject_followups(flow, sym) if sym else ""
     fu = _followups(flow, q)
     rb = _refine_box(ctx or q or _FLOW_BASE_Q.get(flow, ""))
     sb = ('<div class="patSaveRow">'
           + _save_board_btn(q or _FLOW_BASE_Q.get(flow, ""), flow, params) + '</div>')
-    return fu + rb + sb
+    return sf + fu + rb + sb
 
 
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
@@ -2309,7 +2343,9 @@ def _free_text(conn, q: str):
             body = _why_flow(conn, p.get("sym", ""), p.get("metric", "credibility"))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
-            body = body + _convo_tail(f, q=q, ctx=q, params=p)  # multi-turn refine + save-board
+            # single-name flows get proactive 'ask next' lens chips on the same name
+            _sym = (p.get("sym") or "").strip() if f in ("card", "why", "trend") else ""
+            body = body + _convo_tail(f, q=q, ctx=q, params=p, sym=_sym)
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
     # fallback — deterministic glossary keyword search (today's behavior). A chooser,
@@ -2378,6 +2414,77 @@ def _thread_record(tid: str, fb_ctx: dict | None) -> None:
                   params=fb_ctx.get("params") or {})
     except Exception:
         pass
+
+
+# ── in-thread CONTEXT resolution (Pat-as-analyst follow-ups) ──────────────────
+# After "tell me about TITAN", a follow-up like "what about its credibility?" /
+# "and the rotation?" / "is it being accumulated?" resolves the pronoun to TITAN
+# from the thread and rewrites to an explicit query the router already serves. This
+# is what turns single-shot answers into a conversation. INERT for tid="" (no
+# thread) and for a query that already names a subject (no pronoun to bind).
+import re as _re_wf
+
+# a follow-up CONTINUATION: a bare/pronoun lens ask that only makes sense against a
+# prior subject. (label-phrase regex, the explicit-query template). The {S} slot is
+# filled with the resolved symbol. Order matters — first match wins.
+_FOLLOWUP_LENS = [
+    # trend (credibility OVER TIME) is more specific than a point credibility ask → first
+    (_re_wf.compile(r"\b(credibility (trend|history|over time|trajectory)|"
+                    r"trend (of|in) (its )?credib|over time)", _re_wf.I),
+     "credibility trend for {S}"),
+    (_re_wf.compile(r"\b(credib|trustworth|promise|guidance|concall track)", _re_wf.I),
+     "is {S} credible"),
+    (_re_wf.compile(r"\b(being accumulat|accumulation|strong hand|smart money|delivery)", _re_wf.I),
+     "is {S} being accumulated"),
+    (_re_wf.compile(r"\b(relative strength|\brs\b|leading|leader|momentum|outperform)", _re_wf.I),
+     "{S} relative strength"),
+    (_re_wf.compile(r"\b(why)\b", _re_wf.I), "why is {S} credible"),
+    (_re_wf.compile(r"\b(fundamental|valuation|cheap|expensive|quality|compounder)", _re_wf.I),
+     "tell me about {S}"),
+    (_re_wf.compile(r"\b(dossier|snapshot|overview|tell me|pull up|full picture)", _re_wf.I),
+     "tell me about {S}"),
+]
+# the query must LOOK like a follow-up: a leading continuation ("what about", "and",
+# "how about", "what's its") OR an explicit pronoun ("it"/"its"/"that company").
+_FOLLOWUP_LEAD = _re_wf.compile(
+    r"^\s*(what about|how about|and |what'?s its|whats its|what is its|"
+    r"and its|& |also |then )", _re_wf.I)
+_FOLLOWUP_PRONOUN = _re_wf.compile(
+    r"\b(it|its|it'?s|that company|this company|that name|this one|the company|the stock)\b",
+    _re_wf.I)
+# guard: if the query already names a ticker-shaped token, it's not a pronoun ask.
+_HAS_EXPLICIT_SYM = _re_wf.compile(r"\b[A-Z][A-Z0-9&.\-]{2,15}\b")
+
+
+def _resolve_followup(q: str, tid: str):
+    """If q is a context-dependent follow-up and the thread has a subject, return
+    (rewritten_q, resolved_symbol); else (q, '') unchanged. ₹0, never raises."""
+    if not tid or not q:
+        return q, ""
+    is_lead = bool(_FOLLOWUP_LEAD.search(q))
+    has_pronoun = bool(_FOLLOWUP_PRONOUN.search(q))
+    if not (is_lead or has_pronoun):
+        return q, ""
+    # if the analyst already typed a symbol, don't override it with the thread subject
+    # (unless the only "uppercase token" is a stopword like RS — handled by len/guard).
+    explicit = [m for m in _HAS_EXPLICIT_SYM.findall(q)
+                if m not in ("RS", "MACD", "RSI", "CCI", "MEP", "CPR", "DVPT", "PE", "P", "Q")]
+    if explicit:
+        return q, ""
+    try:
+        from src.pat import threads as _T
+        sym = _T.last_symbol(tid)
+    except Exception:
+        sym = ""
+    if not sym:
+        return q, ""
+    for rx, tmpl in _FOLLOWUP_LENS:
+        if rx.search(q):
+            return tmpl.format(S=sym), sym
+    # a bare "what about it?" with no lens → the dossier (the most informative default)
+    if is_lead or has_pronoun:
+        return f"tell me about {sym}", sym
+    return q, ""
 
 
 def render_pat(flow: str = "", explain: str = "", q: str = "",
@@ -2511,7 +2618,20 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _trend_flow(conn, sym)                     # credibility series; sym rides `sym`
         fb_ctx = {"query": "", "flow": "trend", "params": {"sym": sym}, "source": "flow"}
     elif q:
-        body, fb_ctx = _free_text(conn, q)
+        # in-thread follow-up: resolve a pronoun ("its credibility", "what about it")
+        # to the thread's subject + rewrite to an explicit query (inert for tid="").
+        resolved_sym = ""
+        if tid:
+            q2, resolved_sym = _resolve_followup(q, tid)
+        else:
+            q2 = q
+        body, fb_ctx = _free_text(conn, q2)
+        if resolved_sym and q2 != q:
+            # show the analyst that the pronoun bound to the thread subject, and keep
+            # the ORIGINAL phrasing in the thread record (so the trail reads naturally).
+            body = (_q_bubble(f'↳ in this thread, I read "{q}" as → {resolved_sym}.') + body)
+            if fb_ctx:
+                fb_ctx["query"] = q
     else:
         body = _home()
 

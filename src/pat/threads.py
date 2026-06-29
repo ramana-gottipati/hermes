@@ -169,6 +169,30 @@ def context_query(tid: str) -> str:
     return (lt.get("query") or "").strip()
 
 
+def last_symbol(tid: str) -> str:
+    """The most recently referenced SYMBOL in the thread (newest-first scan of the
+    turn params) — the subject an implicit follow-up ('what about its credibility?')
+    resolves the pronoun to. '' if no turn named a single symbol.
+
+    Reads a single-name flow's `sym` param (card/why/trend/stock), or the FIRST of a
+    compare's `syms`. A list/screen turn (no single subject) is skipped, so the
+    pronoun binds to the last name actually discussed, not a screen."""
+    tid = _valid(tid)
+    if not tid:
+        return ""
+    for h in reversed(history(tid)):          # newest first
+        p = h.get("params") or {}
+        sym = (p.get("sym") or "").strip()
+        if sym:
+            return sym.upper()
+        syms = (p.get("syms") or "").strip()
+        if syms:
+            first = syms.split(",")[0].strip()
+            if first:
+                return first.upper()
+    return ""
+
+
 def clear(tid: str) -> bool:
     """Forget a thread (the 'start over' affordance)."""
     tid = _valid(tid)
@@ -208,11 +232,20 @@ if __name__ == "__main__":
     assert context_query(t) == "RS leaders that are credible", "context = latest query"
     lt = last_turn(t)
     assert lt and lt["flow"] == "confluence_plan", "last_turn = newest"
+    # last_symbol: the pronoun subject = the last single-name turn, screens skipped
+    t2 = new_tid()
+    record(t2, query="tell me about TITAN", flow="card", params={"sym": "TITAN"})
+    record(t2, query="most credible managements", flow="credibility", params={})  # a screen
+    assert last_symbol(t2) == "TITAN", "last_symbol = last single-name turn (screen skipped)"
+    record(t2, query="compare INFY and TCS", flow="compare", params={"syms": "INFY,TCS"})
+    assert last_symbol(t2) == "INFY", "last_symbol = first of the newest compare"
+    assert last_symbol(new_tid()) == "", "no symbol in an empty thread"
+    clear(t2)
     # rolling-window trim
     for i in range(20):
         record(t, query=f"q{i}", flow="rs")
     assert len(history(t, limit=50)) <= _MAX_TURNS, "rolling window caps turns"
     clear(t)
     assert history(t) == [], "clear empties the thread"
-    print(f"threads selftest: OK  (mint/validate/record/history/context/trim/clear; "
+    print(f"threads selftest: OK  (mint/validate/record/history/context/last_symbol/trim/clear; "
           f"window={_MAX_TURNS}, n1={n1} n2={n2})")
