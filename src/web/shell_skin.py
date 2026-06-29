@@ -218,6 +218,12 @@ body.uk-skin .rsh-q,body.uk-skin .rsh-mut,body.uk-skin .rsh-sub2{color:var(--ink
 body.uk-skin .rsh-sec,body.uk-skin .rsh-sub,body.uk-skin .rsh-empty,body.uk-skin .rsh-foot{color:var(--ink-3)}
 body.uk-skin .rsh-chip{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--ink-2)}
 body.uk-skin .rsh-bench{border:1px solid var(--line-2);border-radius:var(--r-sm)}
+/* ── Markets "Full index bundle" tiles (.ck-tile): another legacy mini-system carrying the
+   OLD palette (bg #161b22, border #30363d). Map to ui_kit tokens to match the reference.
+   (A few inline-styled tag chips in the same body still hold #21262d/#30363d — inline style,
+   not class-reachable; a subtle shade nuance, left to the frozen body / flagged.) ── */
+body.uk-skin .ck-tile{background:var(--bg-2);border-color:var(--line)}
+body.uk-skin a.ck-tile:hover{border-color:var(--accent)}
 /* ── responsive: legacy page body on a phone ── */
 @media (max-width:640px){
   body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
