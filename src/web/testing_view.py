@@ -96,24 +96,42 @@ def _disp(name):
 
 @router.get("/dash/testing", response_class=HTMLResponse)
 def testing_page():
+    # Degrade gracefully when research.db is absent (a demo laptop / clean checkout /
+    # missing data dir): NEVER 500 — render a polished "unavailable" state instead.
+    con = None
     try:
         con = sqlite3.connect(f"file:{RESEARCH_DB}?mode=ro", uri=True)
     except Exception:
-        con = sqlite3.connect(RESEARCH_DB)
-    try:
         try:
-            reg = _registry(con)
-            holds = _holdings(con)
-        except sqlite3.OperationalError:
-            reg, holds = [], {}
-        nruns = con.execute("SELECT COUNT(*) FROM strategy_runs").fetchone()[0] if reg else 0
-    finally:
-        con.close()
+            con = sqlite3.connect(RESEARCH_DB)
+        except Exception:
+            con = None
+    reg, holds, nruns = [], {}, 0
+    if con is not None:
+        try:
+            try:
+                reg = _registry(con)
+                holds = _holdings(con)
+            except sqlite3.OperationalError:
+                reg, holds = [], {}
+            nruns = con.execute("SELECT COUNT(*) FROM strategy_runs").fetchone()[0] if reg else 0
+        except Exception:
+            reg, holds, nruns = [], {}, 0
+        finally:
+            con.close()
 
     if not reg:
-        body = ("<div class='tlab'>" + _CSS + "<h2>Strategy testing</h2>"
-                "<div class='lead'>Registry empty. Seed it on the VPS:<br>"
-                "<code>python -m explosive_moves.strategy_store --seed</code></div></div>")
+        if con is None:
+            heading = "Research lab — unavailable in this environment"
+            lead = ("The strategy-research database (<code>research.db</code>) is not present on "
+                    "this host, so the testing lab cannot render here. It is populated on the "
+                    "production environment; this surface is read-only and never fabricates results.")
+        else:
+            heading = "Strategy testing"
+            lead = ("Registry empty. Seed it on the VPS:<br>"
+                    "<code>python -m explosive_moves.strategy_store --seed</code>")
+        body = ("<div class='tlab'>" + _CSS + f"<h2>{html.escape(heading)}</h2>"
+                f"<div class='lead'>{lead}</div></div>")
         return HTMLResponse(_shell("Strategy testing", body, active="testing", wide=True))
 
     rows = ""
