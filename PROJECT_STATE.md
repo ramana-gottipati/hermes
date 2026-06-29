@@ -1210,6 +1210,10 @@ Ramana wants to stop spot-fixing and run two focused sessions, each opening with
 - **Telegram bot network block** — `api.telegram.org` unreachable from the Mumbai VPS (DPI throttling). Bot crash-loops. Decided session 16: **wait** (web dashboard is the working alternative). Revisit proxy / Hostinger ticket only if it persists.
 - **SSH rate-limit discipline** (standing operational rule) — never hammer `ssh hermes` on failure (triggers a port-22 IP ban). One attempt; on timeout, wait or restart the router for a fresh IP.
 
+**🟡 P2 — pitch polish (identified S55):**
+
+- **D-PITCH-2 weather palette — finish site-wide.** `/dash/rotation` done (S55, `rotation_view.py` → tokens); `cockpit._WEATHER` (the weather badges on markets/sectors/index) + `rrg_view.QCOLOR` (the `/dash/rrg` "Rotation · Map" scatter, quadrant names Leading/Weakening/Lagging/Improving) still use the legacy palette (`#79c0ff`/`#7ee787`/`#ffd99a`/`#ffa198`; `#3fb950`/`#d29922`/`#f85149`/`#58a6ff`). Remap to `ui_tokens` (`--up`/`--down`/`--warn`/`--accent`) so the rotation, the badges, and the RRG all read in ONE value contract. `cockpit.py` is frozen → do it in the cockpit-owning / RRG lane. (spawn_task filed.)
+
 **🔴 P1 — Next builds:**
 
 A. ✅ **Two-tier DVPT trigger system** (D28) — shipped.
@@ -1280,6 +1284,14 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 55 — 2026-06-29 — D-PITCH-2: ONE colour contract on the RS-rotation surface — commit `<HASH>`
+[P2] Closed the deferred `task_2d0d55a2` (flagged in S54): the `/dash/rotation` weather quadrants spoke a second colour language — **blue=Recovery read as "bull", amber=Rolling-over read as "bear"** — clashing with the site value contract (green=up, red=down, blue=neutral accent, amber=caution). Remapped `src/web/rotation_view.py` to the `ui_tokens.py` palette so the rotation reads in ONE contract everywhere it renders.
+- **Quadrant `PHASE` palette → tokens:** Recovery `#7fe6b0` (a lighter tint of `--up` — turning up, not yet confirmed) → Tailwind `#3fd486` (`--up`, strong & strengthening) on the *strengthening* half; Rolling-over `#f6b73c` (`--warn` — a leader cracking = caution) → Headwind `#ff6a7a` (`--down`, weak & weakening) on the *weakening* half; Neutral `#7e90a8` (`--ink-3`). Blue (`--accent #4d9dff`) is deliberately NOT used so it never re-reads as "bull". Descriptive lifecycle, not a buy/sell signal. Kept 6-digit hex so the `{col}33`/`{col}22` alpha-append still works.
+- **Inline value-colours converged too** (L2's skin can't reach inline styles): `_pct` term-structure ± → `#3fd486`/`#ff6a7a`; `_marks` pills → accent `#4d9dff` / up `#3fd486` / down `#ff6a7a` / warn `#f6b73c` / cred `#b18cff`; "See all" link → `#4d9dff`. The page now uses ONE green and ONE red (was the old GitHub `#3fb950`/`#f85149` sitting next to the new tokens).
+- **Deploy + verify:** live VPS file was byte-identical to git HEAD (no drift); backed up `rotation_view.py.bak.dpitch2-colours-20260629-124751`; scp'd LF (0 CR, sha-matched `124ff9f5…`) → VPS `py_compile` + import-test (PHASE colours echoed) → restart `hermes-api` → 200 on app port AND the public HTTPS door. Sliced the served HTML: the **rotation surface (rwrap → EOF) carries ZERO old clash-hexes**, only tokens; the four quadrant `<h3>`s render `#7fe6b0`/`#3fd486`/`#ff6a7a`/`#f6b73c`. In-browser screenshot confirmed the light-green→green / amber→red lifecycle + the sector-weather banner + pills + table all in-contract. Residual old hexes in the page are **shell-chrome only** (global `<style>` + the "patearn" logo green "e") — every page carries them; that's the chrome cut-over lane, not rotation.
+- **Both gates PASS:** `chrome_gate.py` (11 legacy + 4 native, all markers) + `regression_sweep.sh` (31 routes + 5 overlays all 200 live).
+- **New follow-up identified (queued P2 + spawn_task):** `cockpit._WEATHER` (markets/sectors/index weather badges) and `rrg_view.QCOLOR` (the "Rotation · Map" RRG scatter) still carry the legacy weather palette — they're frozen/other-lane files, so the rotation no longer "mirrors" them. D-PITCH-2 site-wide needs those remapped to the same tokens so the badges + RRG re-converge. Memory: [[l1-unblock-and-4lane-launch]], [[rs-rotation-design]], [[lane-a2-native-ui-design-system]].
 
 ### Session 54 — 2026-06-29 — The 4-lane parallel arc (carry-forward): L1 unblock + L2/L3/L4 to convergence
 [P0] Ran the carry-forward plan (`docs/CARRY-FORWARD-anchor-and-4-lanes.md`) as the orchestrator: L1 (dashboard-core unblock, mine) first, then L2/L3/L4 as autonomous background agents, each fed successive heavy waves to convergence. **49 commits since the anchor `cd98445`; both gates PASS throughout; every commit owned-files-only + staged-set-guarded** — the shared-index cross-absorption hazard hit twice (L2↔L4) and was caught both times by the `git diff --cached --name-only` hard-stop.
