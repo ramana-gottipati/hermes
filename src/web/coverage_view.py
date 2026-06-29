@@ -375,6 +375,47 @@ def _section_modeled(snap):
                   eyebrow="Modeled-vs-filed disclosure")
 
 
+def _section_provenance_story(conn=None):
+    """Replay-the-Tape EVIDENCE on the Coverage page: the *effective* look-ahead leak
+    headline + the 3-beat narrative + the worst/safe per-period receipts a skeptical
+    allocator can audit. Renders provenance.provenance_narrative() so every surface tells
+    the SAME story (L4 W3 helper). Descriptive, NO edge claim; degrades to a note before
+    real BSE filing dates accrue (forward-only). Never 500s (a trust page must not)."""
+    try:
+        nar = P.provenance_narrative(conn)
+    except Exception:  # noqa: BLE001
+        nar = None
+    if not isinstance(nar, dict) or nar.get("status") != "ok":
+        msg = (isinstance(nar, dict) and nar.get("headline")) or (
+            "Zero-look-ahead receipts accrue going forward — real BSE filing dates are "
+            "captured prospectively, then compared against the modelled date.")
+        return K.card(f'<div class="cov-note mut">{K.esc(str(msg))}</div>',
+                      eyebrow="Replay the Tape — zero look-ahead receipts")
+
+    def _receipt(r, kind, tone):
+        if not isinstance(r, dict):
+            return ""
+        ed = r.get("err_days")
+        ed_txt = f'{ed:+d}d' if isinstance(ed, int) else K.esc(str(ed))
+        pt = (" " + K.esc(str(r.get("period_type")))) if r.get("period_type") else ""
+        return (f'<div class="cov-note" style="margin-top:8px"><span class="{tone}">{K.esc(kind)}</span> — '
+                f'<b>{K.esc(str(r.get("symbol", "")))}</b> {K.esc(str(r.get("period", "")))}{pt}: '
+                f'modelled <span class="num">{K.esc(str(r.get("modeled", "")))}</span> vs '
+                f'real <span class="num">{K.esc(str(r.get("real", "")))}</span> '
+                f'(<span class="num">{ed_txt}</span>)</div>')
+
+    head = f'<div class="cov-banner"><div><b>{K.esc(str(nar.get("headline", "")))}</b></div></div>'
+    paras = "".join(f'<div class="cov-note" style="margin-top:9px">{K.esc(str(p))}</div>'
+                    for p in (nar.get("paragraphs") or []))
+    receipts = (_receipt(nar.get("worst"), "Worst would-have-leaked", "warn")
+                + _receipt(nar.get("conservative"), "Representative conservative", "mut"))
+    rcap = ('<div class="cov-note mut" style="margin-top:10px">Receipts — the real BSE filing date vs the '
+            'modelled report date, per period. Positive = modelled earlier than real (a backtest would have '
+            'seen it early); negative = conservative (greyed while already public).</div>') if receipts else ""
+    return K.card(head + paras + receipts + rcap,
+                  eyebrow="Replay the Tape — zero look-ahead receipts")
+
+
 def _section_methodology():
     blocks = [
         ("No proven performance", COPY_NOALPHA),
@@ -489,7 +530,7 @@ def render_coverage(conn=None) -> str:
         ("universe", "Universe & survivorship",
          [(_section_universe, snap), (_section_matrix, snap), (_section_cci, snap)]),
         ("freshness", "Freshness", [(_section_modeled, snap)]),
-        ("provenance", "Provenance & lineage", [(_section_registry,)]),
+        ("provenance", "Provenance & lineage", [(_section_provenance_story, conn), (_section_registry,)]),
         ("validation", "Strategy validation", [(_section_validation,)]),
         ("methodology", "Methodology", [(_section_methodology,), (_section_degradation,)]),
         ("limits", "Limits", [(_section_principles,)]),
