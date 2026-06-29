@@ -134,6 +134,14 @@ body.uk-skin .errbox,body.uk-skin .warnbox{display:flex;gap:9px;align-items:flex
 body.uk-skin .search input,body.uk-skin .hsearch input,body.uk-skin .dtf{
   background:#0b0f17;border:1px solid #27384a;color:#eaf1f9;border-radius:8px}
 body.uk-skin .search button{background:#4d9dff;color:#06121f}
+/* generic bare form controls (W4 sweep): _BASE_CSS gives bare input/select/button the OLD
+   palette (#0d1117 bg, #30363d line, #21262d button, #e6edf3/#c9d1d9 ink). Retint to tokens
+   so any legacy page's form controls (growth sort/filter, etc.) match. .fbtn / .search keep
+   their own rules above (more specific). */
+body.uk-skin input,body.uk-skin select,body.uk-skin textarea{
+  background:var(--bg-1);border-color:var(--line-2);color:var(--ink)}
+body.uk-skin button:not(.fbtn):not(.uk-cmdk):not([data-density-toggle]){
+  background:var(--bg-2);border-color:var(--line-2);color:var(--ink-2)}
 body.uk-skin .fbtn{background:#111824;border:1px solid #1c2937;color:#9bb0c6;border-radius:14px}
 body.uk-skin .fbtn.on{background:#4d9dff;border-color:#4d9dff;color:#06121f}
 /* ── theme chips ── */
@@ -225,11 +233,23 @@ body.uk-skin .rsh-bench{border:1px solid var(--line-2);border-radius:var(--r-sm)
 body.uk-skin .ck-tile{background:var(--bg-2);border-color:var(--line)}
 body.uk-skin a.ck-tile:hover{border-color:var(--accent)}
 /* ── CPR strip cells (.cprstrip .c — the pivot tiles on /dash/cpr + the CPR overlay on
-   the dossier): the last class-based old-palette holdout found in the W4 full-site sweep
-   (bg #161b22). Map to --bg-2; the up/dn semantic ink on them is already retinted.
-   Site-wide sweep otherwise clean — every other legacy page's class-based surfaces are
-   already covered by the card / maj / kpi / rsh / ck-tile token maps. ── */
+   the dossier): a class-based old-palette holdout found in the W4 full-site sweep
+   (bg #161b22). Map to --bg-2; the up/dn semantic ink on them is already retinted. ── */
 body.uk-skin .cprstrip .c{background:var(--bg-2)}
+/* ── Growth-intent (growth_view.py `gw-*`): another self-contained legacy mini-system
+   (like rsh / ck-tile) carrying the OLD palette end-to-end — greys #8b949e/#6e7681,
+   line #30363d, blue #1f6feb/#58a6ff, green/red #3fb950/#f85149, ink #c9d1d9. Map every
+   gw primitive to the ui_kit tokens; gw-mut/gw-count #6e7681 (4.2:1) also clears WCAG-AA
+   via --ink-3. ── */
+body.uk-skin .gw-note,body.uk-skin .gw-claim{color:var(--ink-2)}
+body.uk-skin .gw-mut,body.uk-skin .gw-count{color:var(--ink-3)}
+body.uk-skin .gw-sym{color:var(--ink)}
+body.uk-skin .gw-type{color:var(--accent)}
+body.uk-skin .gw-cr,body.uk-skin .gw-pos{color:var(--up)} body.uk-skin .gw-neg{color:var(--down)}
+body.uk-skin .gw-tab{border:1px solid var(--line);color:var(--ink-2)}
+body.uk-skin .gw-tab:hover{border-color:var(--accent)}
+body.uk-skin .gw-tab.on{background:var(--accent);border-color:var(--accent);color:#06121f}
+body.uk-skin .gw-sort:hover{color:var(--ink)}
 /* ── responsive: legacy page body on a phone ── */
 @media (max-width:640px){
   body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
