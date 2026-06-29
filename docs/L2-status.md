@@ -120,3 +120,39 @@ or commit with an explicit pathspec; never `git commit` a mixed index.
 
 ### Discipline held
 Every commit explicit-pathspec staged; `git diff --cached --name-only` checked == exactly my files before each commit (the W2 cross-absorption lesson). All deploys atomic (concurrent L3/L4), VPS==HEAD safety-diff each time, py3.10 import-test, health 200, browser-verified. No PROJECT_STATE.md edit.
+
+---
+
+## WAVE 4 — Full-site consistency + a11y sweep (2026-06-29, re-baselined `cdbfa5e`)
+
+### Commits (owned-files-only — shell_skin.py)
+| Commit | What |
+|---|---|
+| `14341ab` | `.cprstrip .c` (CPR pivot cells) #161b22 → --bg-2. + fixed an invisible CSS bug: `*/` inside a `rsh-*/ck-tile` comment closed the comment early → the rule silently didn't parse (gate green, only the in-browser check caught it). |
+| `0e7be9d` | Growth `gw-*` mini-system → tokens; + generic bare `input`/`select`/`textarea`/`button` retint. |
+| `91cc054` | `.nv-empty` (News/Wire empty box) → --ink-3/--line/--r. |
+
+### Sweep result (all ~31 surfaces, live computed-style scan)
+The static `grep` css= counts are NOISE (frozen `_BASE_CSS` definitions + my comments). The live RENDER
+is the truth. **Every surface is now class-based-clean** — the W1-W4 `body.uk-skin` maps cover every
+legacy page. Three new class-based holdouts found + fixed (CPR `.cprstrip .c`, Growth `gw-*`, Wire
+`.nv-empty`) + the generic form-control retint. Residual sub-AA / off-shade is exclusively INLINE styles
+in frozen bodies (chart labels, heat-strip micro-glyphs, tag chips) — not class-reachable.
+
+### Backlog coverage (Wave 4)
+1. **Inventory all ~31 surfaces** — `docs/L2-fullsite-sweep.md`, live-scanned each. ✓
+2. **Fix systematically** — CPR/Growth/Wire mini-systems + bare form controls, all via the one
+   `body.uk-skin` lever. ✓
+3. **WCAG-AA everywhere** — the W3 `--ink-3` lift + by-class grey map cover every surface; W4 added
+   gw-mut/gw-count/.nv-empty (#6e7681) to the map. Residual = inline-only (frozen). ✓
+4. **State coverage** — native state system site-wide; legacy `.empty` + `.nv-empty` read intentional. ✓
+5. **Non-owned flags** — chart-control inline contrast (stock_chart.py → task_c0cc1023), rotation colour
+   clash (rotation_view.py, reported), replay trail (coverage_view.py → task_568e63a8). ✓
+6. **Final pass** — screenshot matrix (Coverage/Stock/Markets/CPR) one consistent look; gates green. ✓
+
+### The bug worth remembering
+A CSS **comment containing `*/`** (e.g. `rsh-*/ck-tile`) silently closes the comment early and breaks the
+NEXT rule — it passes `py_compile` AND the chrome gate (the page still 200s, the chrome markers still
+present), and is invisible in the served markup. Only the in-browser computed-style check caught it
+(`myRuleParsed:false`). Never put `*/` inside a CSS comment; verify a new skin rule actually PARSES + wins
+in-browser, not just that it's in the served HTML.
