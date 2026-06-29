@@ -201,6 +201,16 @@ ROUTE_CASES = [
     ("credibility over the quarters for ACC", {"flow": "trend", "params": {"sym": "ACC"}}, "TREND"),
     # negative: a bare credibility 'why' must NOT collapse into the series
     ("why is INFY credible", {"flow": "why", "params": {"sym": "INFY"}}, "TREND"),
+    # ---- single-name CREDIBILITY (L4) — "is X credible" / "confluence on X" → the
+    #      why flow's single-name evidence read; the bare plural metric ask must NOT
+    #      collapse to one name (stays the leaders board) ----
+    ("is TCS credible", {"flow": "why", "params": {"sym": "TCS", "metric": "credibility"}}, "TREND"),
+    ("how credible is INFY", {"flow": "why", "params": {"sym": "INFY", "metric": "credibility"}}, "TREND"),
+    ("confluence on RELIANCE", {"flow": "why", "params": {"sym": "RELIANCE", "metric": "credibility"}}, "TREND"),
+    ("can i trust HDFCBANK management", {"flow": "why", "params": {"sym": "HDFCBANK", "metric": "credibility"}}, "TREND"),
+    # negative guards: a plural metric ask + a definition ask must NOT be stolen
+    ("most credible managements", {"flow": "credibility"}, "TREND"),
+    ("what is credibility", {"flow": "explain", "explain": "cci_credibility"}, "TREND"),
     # ---- OOD-2: tighter SEBI / advisory boundary (F3-7) — must redirect, never screen ----
     ("what is the target price for INFY", {"flow": "clarify"}, "OOD"),
     ("which stocks will become multibaggers", {"flow": "clarify"}, "OOD"),

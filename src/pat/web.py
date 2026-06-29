@@ -237,6 +237,19 @@ _PAT_CSS = """
 .patFupLbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;}
 .patFup{background:#10243a;border-color:#1f4e79;color:#9ad1ff;}
 .patFup:hover{border-color:#58a6ff;}
+.patTrail{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;
+          padding:8px 11px;background:#0d1117;border:1px solid #21262d;border-radius:9px;}
+.patTrailLbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;
+          white-space:nowrap;}
+.patTrailItems{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0;}
+.patTrailItem{font-size:12px;color:#9ad1ff;text-decoration:none;background:#10243a;
+          border:1px solid #1f4e79;border-radius:7px;padding:3px 9px;max-width:260px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.patTrailItem:hover{border-color:#58a6ff;}
+.patTrailSep{color:#586069;font-size:12px;}
+.patTrailNew{font-size:11.5px;color:#8b949e;text-decoration:none;white-space:nowrap;
+          border:1px solid #30363d;border-radius:7px;padding:3px 9px;}
+.patTrailNew:hover{border-color:#8b949e;color:#e6edf3;}
 .patRefine{display:flex;gap:7px;margin:8px 0 2px;}
 .patRefine input[name=add]{flex:1;min-width:180px;background:#0d1117;border:1px solid #30363d;
             color:#e6edf3;border-radius:8px;padding:7px 11px;font-size:13px;}
@@ -2301,17 +2314,95 @@ def _free_text(conn, q: str):
     return _explain_flow("", q), None
 
 
+# ── true multi-turn: server-side thread trail (keyed by an optional `tid`) ─────
+# The thread store (src.pat.threads) remembers the recent turns for a browser
+# session. It is INERT unless the page route forwards a `tid` cookie into
+# render_pat (the call-site plumb is the orchestrator's — see threads.py). When
+# present, we (a) render a compact conversation trail above the answer so the
+# analyst can see + jump back through the thread, and (b) record each concrete
+# answer as a turn. The URL-combined refinement chips stay the primary path; the
+# thread store is additive memory + a visible trail, never a behaviour change for
+# tid="" (the default).
+
+def _thread_trail(tid: str, current_flow: str = "") -> str:
+    """A compact 'this conversation' strip from the thread history. '' if the
+    thread has 0/1 turns (nothing to show) or threads are unavailable."""
+    if not tid:
+        return ""
+    try:
+        from src.pat import threads as _T
+        hist = _T.history(tid)
+    except Exception:
+        hist = []
+    # only worth showing once there's prior context (>=1 earlier turn besides now)
+    if len(hist) < 2:
+        return ""
+    chips = []
+    for h in hist:
+        q = (h.get("query") or "").strip()
+        flow = (h.get("flow") or "").strip()
+        if q:
+            href = "/dash/pat?q=" + _u(q)
+            label = q if len(q) <= 48 else (q[:46] + "…")
+        elif flow:
+            href = "/dash/pat?flow=" + _u(flow)
+            label = _FLOW_LABEL.get(flow, flow)
+        else:
+            continue
+        chips.append(f'<a class="patTrailItem" href="{_esc(href)}">{_esc(label)}</a>')
+    if len(chips) < 2:
+        return ""
+    return (
+        '<div class="patTrail"><span class="patTrailLbl">This conversation</span>'
+        '<div class="patTrailItems">' + '<span class="patTrailSep">›</span>'.join(chips) + '</div>'
+        '<a class="patTrailNew" href="/dash/pat?new=1" title="Start a fresh conversation">'
+        'start over ⟲</a></div>')
+
+
+def _thread_record(tid: str, fb_ctx: dict | None) -> None:
+    """Append the just-rendered concrete answer to the thread. No-op for tid='' or
+    a non-answer (chooser/home). Never raises."""
+    if not tid or not fb_ctx:
+        return
+    flow = fb_ctx.get("flow") or ""
+    # don't record meta/chooser flows as conversation turns
+    if flow in ("explain", "boards", "face", ""):
+        if not (fb_ctx.get("query") or "").strip():
+            return
+    try:
+        from src.pat import threads as _T
+        _T.record(tid, query=fb_ctx.get("query") or "", flow=flow,
+                  params=fb_ctx.get("params") or {})
+    except Exception:
+        pass
+
+
 def render_pat(flow: str = "", explain: str = "", q: str = "",
                sector: str = "", strength: str = "", entry: str = "", align: str = "",
                val: str = "", qual: str = "", grow: str = "", bs: str = "", own: str = "",
-               sym: str = "", conn=None) -> str:
-    """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn)."""
+               sym: str = "", conn=None, tid: str = "", new: str = "") -> str:
+    """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn).
+
+    ``tid`` (optional) keys a server-side conversation thread for TRUE multi-turn —
+    a trail of prior turns above the answer + per-answer memory. It is INERT until
+    the page route forwards a `pat_tid` cookie (the orchestrator's one-line call-site
+    plumb); render_pat is unchanged for the default tid="". ``new=1`` clears the
+    thread (the 'start over' affordance) before rendering."""
     flow = (flow or "").strip().lower()
     explain = (explain or "").strip()
     q = (q or "").strip()
     sector = (sector or "").strip()
     strength = (strength or "").strip().lower()
     sym = (sym or "").strip()
+    tid = (tid or "").strip().lower()
+
+    # 'start over' — forget the thread before rendering (then carry on as a fresh page).
+    if tid and str(new or "").strip() in ("1", "true", "yes"):
+        try:
+            from src.pat import threads as _T
+            _T.clear(tid)
+        except Exception:
+            pass
 
     if flow == "face":                       # the dedicated face-picker page
         return _PAT_CSS + _face_picker()
@@ -2430,7 +2521,15 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
             body = body + _convo_tail(_ff, ctx=_FLOW_BASE_Q.get(_ff, ""),
                                       params=fb_ctx.get("params"))
 
-    out = _PAT_CSS + _avatar_picker() + body
+    # true multi-turn: record this concrete answer as a thread turn, then prepend
+    # the conversation trail (both no-ops for tid=""). Record BEFORE building the
+    # trail so the current turn is part of the shown history.
+    trail = ""
+    if tid:
+        _thread_record(tid, fb_ctx)
+        trail = _thread_trail(tid, current_flow=(fb_ctx or {}).get("flow", ""))
+
+    out = _PAT_CSS + _avatar_picker() + trail + body
     if fb_ctx is not None:
         out += _feedback_bar(**fb_ctx) + _FB_JS
     return out

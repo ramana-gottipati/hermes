@@ -820,6 +820,56 @@ def detect_why(query: str):
     return sym, metric
 
 
+# Single-name credibility ask WITHOUT a "why"/"trend" cue: "is X credible",
+# "how credible is X", "X credibility", "confluence on X". Routes to the `why`
+# flow (the single-name evidence-backed credibility read) — the right answer for
+# a one-name trust question. STOP words guard against catching a bare metric ask
+# ("most credible managements" — no single subject → stays the leaders board).
+_SINGLE_CRED_RE = [
+    re.compile(r"\bis\s+([a-z0-9&.\-]{2,18})(?:'s)?\s+(?:a\s+)?(?:credible|trustworthy)\b", re.I),
+    re.compile(r"\bhow\s+credible\s+is\s+([a-z0-9&.\-]{2,18})\b", re.I),
+    re.compile(r"\bcredibility\s+(?:of|for)\s+([a-z0-9&.\-]{2,18})\b", re.I),
+    re.compile(r"\b([a-z0-9&.\-]{2,18})(?:'s)?\s+credibility\b", re.I),
+    re.compile(r"\bconfluence\s+(?:on|for|of)\s+([a-z0-9&.\-]{2,18})\b", re.I),
+    re.compile(r"\bcan\s+i\s+trust\s+([a-z0-9&.\-]{2,18})(?:'s)?\s+management\b", re.I),
+]
+_SINGLE_CRED_STOP = {"THE", "THIS", "THAT", "IT", "A", "AN", "MY", "ITS", "THEIR",
+                     "MANAGEMENT", "MANAGEMENTS", "COMPANY", "COMPANIES", "PROMOTER",
+                     "PROMOTERS", "BUSINESS", "BUSINESSES", "NAME", "NAMES", "STOCK",
+                     "STOCKS", "MOST", "ALL", "ANY", "WHICH", "WHAT", "SOME",
+                     # verbs/fillers that precede "credibility" in a DEFINITION ask
+                     "IS", "ARE", "DOES", "DO", "DID", "EXPLAIN", "DEFINE", "MEAN",
+                     "MEANS", "WHATS", "HOW", "WHY", "GOOD", "HIGH", "LOW", "BEST",
+                     "WORST", "MORE", "LESS", "VERY", "AND", "OR", "OF", "FOR", "IN",
+                     "WITH", "ABOUT", "GET", "SHOW", "FIND", "MANAGEMENTS"}
+
+
+def detect_single_credibility(query: str):
+    """A single-name credibility question → symbol, else None. ₹0.
+
+    The credibility WORD must anchor it; a bare plural metric ask ('credible
+    managements') hits a stop-word, not a symbol, so it correctly stays the
+    leaders board rather than collapsing to one name."""
+    q = query or ""
+    qn = _norm(q)
+    # don't steal an explicit trend/why ask — those have their own (richer) flows.
+    if detect_trend(q) or detect_why(q):
+        return None
+    # don't steal a DEFINITION ask ("what is credibility", "explain credibility")
+    # — that's the glossary explain flow, not a single-name read.
+    from src.pat import disambiguate as _D
+    if _D._has_any(qn, _D.SYNONYMS["explain"]) or qn.strip().startswith(("what is ", "what does ",
+                                                                          "whats ", "define ")):
+        return None
+    for rx in _SINGLE_CRED_RE:
+        m = rx.search(q)
+        if m:
+            sym = m.group(1).strip().upper().strip(".")
+            if sym and sym not in _SINGLE_CRED_STOP and not sym.isdigit() and len(sym) >= 2:
+                return sym
+    return None
+
+
 def _detect_pillars(qn: str, character):
     """The strategy FAMILIES a raw question names (for the degraded planner path)."""
     pillars: list[str] = []
@@ -864,6 +914,14 @@ def parse_fallback(query: str) -> dict | None:
         wy = detect_why(query)
         if wy:
             return {"task": "why", "symbol": wy[0], "metric": wy[1]}
+
+        # SINGLE-NAME CREDIBILITY ("is X credible", "confluence on X", "X credibility")
+        # → the why flow's single-name evidence read. Checked after why/trend (which
+        # have richer drills) and before compare/single-stock so a one-name trust
+        # question lands on the evidence, not a bare card.
+        sc = detect_single_credibility(query)
+        if sc:
+            return {"task": "why", "symbol": sc, "metric": "credibility"}
 
         # COMPARE (A vs B) — distinctive shape; checked before the single-stock catch.
         cmp_syms = detect_compare(query)
