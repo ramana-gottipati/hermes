@@ -108,7 +108,8 @@ _CSS = """<style>
 .uk-top{display:flex;align-items:center;gap:18px;padding:11px 20px;position:sticky;top:0;z-index:30;
   background:linear-gradient(180deg, rgba(17,24,36,.92), rgba(11,15,23,.66));
   border-bottom:1px solid var(--line); backdrop-filter:blur(12px);}
-.uk-logo{font-weight:600;letter-spacing:.4px;font-size:15px;display:flex;align-items:center;gap:9px;color:var(--ink)}
+.uk-logo{font-weight:600;letter-spacing:.4px;font-size:15px;display:flex;align-items:center;gap:9px;color:var(--ink);text-decoration:none;cursor:pointer}
+.uk-logo:hover{color:var(--ink)}
 .uk-logo .dot{width:9px;height:9px;border-radius:50%;background:var(--accent-cy);box-shadow:0 0 11px var(--accent-cy)}
 .uk-nav{display:flex;gap:3px}
 .uk-nav a{padding:7px 13px;border-radius:9px;color:var(--ink-2);font-size:13px;font-weight:500;transition:var(--t)}
@@ -321,7 +322,8 @@ def topbar(active: str = "", nav_html: str = "") -> str:
         nav_html = "".join(
             f'<a class="{"on" if k == active else ""}" href="/dash/{k}">{esc(lbl)}</a>'
             for k, lbl in _NAV)
-    return (f'<div class="uk-top"><div class="uk-logo"><span class="dot"></span>patearn</div>'
+    return (f'<div class="uk-top"><a class="uk-logo" href="/dash" aria-label="patearn home">'
+            f'<span class="dot"></span>patearn</a>'
             f'<nav class="uk-nav" aria-label="Primary">{nav_html}</nav>{cmdk_hint()}</div>')
 
 
