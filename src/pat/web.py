@@ -1425,7 +1425,8 @@ def _compare_flow(conn, syms: str = "") -> str:
             prow = conn.execute(psql, pparams).fetchone()
         except Exception:
             row, prow = None, None
-        cards.append(f'<div class="patCmpCol">{_stock_card(row, prow) if row else f"<div class=empty>No data for {_esc(sym)}.</div>"}</div>')
+        inner = _stock_card(row, prow) if row else f'<div class="empty">No data for {_esc(sym)}.</div>'
+        cards.append(f'<div class="patCmpCol">{inner}</div>')
     out.append('<div class="patCmp">' + "".join(cards) + '</div>')
     return "".join(out)
 

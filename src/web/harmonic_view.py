@@ -65,7 +65,10 @@ def harmonic_overlay(sym: str = Query("", max_length=24),
         pats = HP.detect(conn, sym, tf=tf, forming=True, max_age=age)
     conf = [p for p in pats if p.state == "CONFIRMED"]
     form = [p for p in pats if p.state == "FORMING"]
-    conf = sorted(conf, key=lambda p: -p.points[-1][1])[:confirmed]   # newest D first
+    # newest D first — sort on the D-point's DATE field (points = [(label, idx, price,
+    # date)]), not [1]=bar-index/[2]=price. Confirmed patterns always carry a real ISO
+    # date at the D point, which sorts lexically; empty-string fallback keeps a None safe.
+    conf = sorted(conf, key=lambda p: (p.points[-1][3] or ""), reverse=True)[:confirmed]
     out = []
     for p in conf + form:
         out.append({

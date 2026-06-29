@@ -426,13 +426,20 @@ def _alerts_strip(conn) -> str:
             f'style="display:inline-flex;padding:3px 9px;background:{bg};border-radius:7px;margin:2px">'
             f'<span class="sym">{K.esc(s)}</span></a>' for s in syms)
 
+    # CL-VIEW-20: the 'new' branch used to splice a raw </div><div> into `body` to break
+    # the chips onto their own row. Wrapped as <div class="sec">{body}</div> that
+    # PREMATURELY CLOSED the sec and left the chips in an unstyled, accidental sibling.
+    # Build the chip row as its own balanced sibling element (`new_chips`) instead, so
+    # `body` is always a single self-contained string.
+    new_chips = ""
     if a.get("first_run"):
         body = (f'<b>{cnt}</b> names currently in confluence (credible ∩ accumulated). '
                 'Baseline set — I\'ll flag new entrants from here.')
         badge = '<span class="wb-new">baseline</span>'
     elif new:
         body = (f'<b>{len(new)}</b> newly aligned since {K.esc(str(a.get("baseline_at"))[:10])} '
-                f'· {cnt} in confluence now:</div><div style="margin:4px 0">{_chips(new[:14])}')
+                f'· {cnt} in confluence now:')
+        new_chips = f'<div class="sec" style="margin:4px 0">{_chips(new[:14])}</div>'
         badge = f'<span class="wb-new">▲ {len(new)} new</span>'
     else:
         body = (f'<b>{cnt}</b> names in confluence (credible ∩ accumulated) · '
@@ -465,6 +472,7 @@ def _alerts_strip(conn) -> str:
         f'<span class="mut" style="font-size:11px">as of {K.esc(str(asof)[:10] if asof else "—")} · descriptive, not a buy call</span>'
         '<button class="wb-seen" onclick="wbMarkSeen(this)">↻ mark seen</button></div>'
         f'<div class="sec">{body}</div>'
+        f'{new_chips}'
         f'{extra}'
         '</div>')
 

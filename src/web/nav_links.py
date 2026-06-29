@@ -189,8 +189,14 @@ def _lens_lateral_links(lens_key: str, sym: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     if ln.route:                                   # the market-wide ranked list
         out.append((ln.route, "market-wide list"))
-    if ln.screener_col:                            # the Screener, filtered to this lens
-        out.append((f"/dash/screener?lens={ln.screener_col}", "open in Screener"))
+    if ln.screener_col:                            # the Screener, with this lens's columns
+        # CL-CHR-2: the legacy /dash/screener honours only scope+limit and SILENTLY
+        # DROPS ?lens=, so the old link landed on the unfiltered grid (a no-op filter
+        # masquerading as one). Point at /dash/screen2 (the default Screen+) instead —
+        # its labelled column-GROUP keys are EXACTLY screener_col (pos/mep/rs/cpr/cci/
+        # qual), so the lens is a first-class, visible, labelled block there. No dead
+        # query param promising a filter the screener never applies.
+        out.append(("/dash/screen2", "open in Screener"))
     if ln.overlay:                                 # the chart overlay (the price tab)
         out.append((stock_link(sym), "on the chart"))
     return out

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import html
 import json
+from contextlib import nullcontext
 from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Query
@@ -351,11 +352,11 @@ def _empty() -> str:
 
 def render_band_lanes(den: str = "Nifty 500", view: str = "lanes", conn=None,
                       tail: str = "12") -> str:
+    # CL-VIEW-10: `with` (own → get_conn(); passed-in → nullcontext) — real exceptions
+    # propagate instead of being masked by __exit__(None,None,None); an early return
+    # inside still closes the owned conn correctly.
     own = conn is None
-    if own:
-        cm = get_conn()
-        conn = cm.__enter__()
-    try:
+    with (get_conn() if own else nullcontext(conn)) as conn:
         den = den if den in BENCHMARKS else "Nifty 500"
         if view == "rrg":                  # 3rd tab: the sector rotation RRG (reused)
             from src.web.rrg_view import render_sectors_map
@@ -366,9 +367,6 @@ def render_band_lanes(den: str = "Nifty 500", view: str = "lanes", conn=None,
                     '<div class="card"><div class="sub">No rotation data yet — '
                     'run the nightly RRG job.</div></div>'))
         data = _lane_data(den, conn)
-    finally:
-        if own:
-            cm.__exit__(None, None, None)
     if not data:
         return _empty()
     block = _clock_block(data) if view == "clock" else _chart_block(data)
@@ -529,11 +527,8 @@ def _channel_page(label_html: str, den: str, series, m, fl, back_href: str,
 
 
 def render_band_channel(num: str, den: str = "Nifty 500", conn=None) -> str:
-    own = conn is None
-    if own:
-        cm = get_conn()
-        conn = cm.__enter__()
-    try:
+    own = conn is None                      # CL-VIEW-10: `with`, not manual enter/exit
+    with (get_conn() if own else nullcontext(conn)) as conn:
         den = den if den in BENCHMARKS else "Nifty 500"
         m = rsband.band_one(num, den, conn=conn)
         series = _ratio_series(conn, num, den)
@@ -546,9 +541,6 @@ def render_band_channel(num: str, den: str = "Nifty 500", conn=None) -> str:
                     break
         except Exception:
             pass
-    finally:
-        if own:
-            cm.__exit__(None, None, None)
     return _channel_page(_esc(num), den, series, m, fl, "/dash/rsband", "&larr; Back to the band")
 
 
@@ -575,17 +567,13 @@ def _stock_ratio_series(conn, sym: str, den: str) -> list[tuple]:
 
 
 def render_stock_channel(sym: str, den: str = "Nifty 500", back_idx: str = "", conn=None) -> str:
-    own = conn is None
-    if own:
-        cm = get_conn()
-        conn = cm.__enter__()
-    try:
+    own = conn is None                      # CL-VIEW-10: `with`, not manual enter/exit
+    with (get_conn() if own else nullcontext(conn)) as conn:
         den = den if den in BENCHMARKS else "Nifty 500"
         series = _stock_ratio_series(conn, sym, den)
+        # CL-VIEW-06: lane_from_series tolerates a thin/1-point series — compute_one()
+        # returns None below MIN_HISTORY (504 pts), so `if series` + that floor is enough.
         m = rsband.lane_from_series([v for _, v in series], series[-1][0]) if series else None
-    finally:
-        if own:
-            cm.__exit__(None, None, None)
     back_href = f'/dash/rsband?idx={quote_plus(back_idx)}' if back_idx else "/dash/rsband"
     back_label = ("&larr; Back to " + _esc(back_idx)) if back_idx else "&larr; Back to the band"
     extra = (f'<a class="row" style="display:inline;color:#58a6ff;text-decoration:none;margin-left:14px" '
@@ -599,11 +587,8 @@ def band_section(num: str = "", sym: str = "", den: str = "Nifty 500", conn=None
     """A compact, embeddable RS-band section (chart + readout + 'open full →' link),
     for the index-detail / stock pages. Pass num (an index) OR sym (a stock). Returns
     '' when there isn't enough RS history — so it embeds cleanly on any page."""
-    own = conn is None
-    if own:
-        cm = get_conn()
-        conn = cm.__enter__()
-    try:
+    own = conn is None                      # CL-VIEW-10: `with`, not manual enter/exit
+    with (get_conn() if own else nullcontext(conn)) as conn:
         den = den if den in BENCHMARKS else "Nifty 500"
         fl = None
         if sym:
@@ -622,9 +607,6 @@ def band_section(num: str = "", sym: str = "", den: str = "Nifty 500", conn=None
                         break
             except Exception:
                 pass
-    finally:
-        if own:
-            cm.__exit__(None, None, None)
     if not m or m.get("rs_band_pct") is None or len(series) < 60:
         return ""
     v, why = rsband.band_verdict(m["rs_band_pct"], m["rs_regime"], m["slope_3m_pct"],
@@ -644,11 +626,8 @@ def band_home_inner(den: str = "Nifty 500", conn=None) -> str:
     """Compact Home-board inner: cheapest (near support) + richest (near resistance)
     + any band breakouts, from the STORED rsband_signals (fast — no on-read recompute).
     Returns '' if the band table isn't populated yet."""
-    own = conn is None
-    if own:
-        cm = get_conn()
-        conn = cm.__enter__()
-    try:
+    own = conn is None                      # CL-VIEW-10: `with`, not manual enter/exit
+    with (get_conn() if own else nullcontext(conn)) as conn:
         den = den if den in BENCHMARKS else "Nifty 500"
         rows = rsband.latest_all(den, conn=conn)
         falls = {}
@@ -658,9 +637,6 @@ def band_home_inner(den: str = "Nifty 500", conn=None) -> str:
                 falls[c["numerator"]] = (dc is not None and dc < 1.0)
         except Exception:
             pass
-    finally:
-        if own:
-            cm.__exit__(None, None, None)
     keep = set(_REAL_SECTORS) if _REAL_SECTORS else None
     data = []
     for r in rows:

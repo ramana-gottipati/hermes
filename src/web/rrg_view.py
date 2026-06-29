@@ -22,6 +22,7 @@ from __future__ import annotations
 import datetime
 import html
 import json
+from contextlib import nullcontext
 from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Query
@@ -56,6 +57,17 @@ QCOLOR = {"Leading": "#3fb950", "Weakening": "#d29922",
 
 def _n(v, dp: int = 1) -> str:
     return "—" if v is None else f"{v:.{dp}f}"
+
+
+def _json_for_script(obj) -> str:
+    """json.dumps for embedding inside an inline <script> block. json.dumps does NOT
+    escape <, >, & — so a name carrying '</script>' (latent today: sector names come
+    from a closed DB allowlist; LIVE once the animated map feeds constituent SYMBOLS,
+    CL-VIEW-02 L752) would break out of the script tag. Escape the three HTML-significant
+    chars to their \\uXXXX forms; numeric data + current names never contain them, so the
+    rendered map/tooltip is byte-identical — this is pure defense-in-depth."""
+    return (json.dumps(obj)
+            .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))
 
 
 def _flags(r: dict) -> str:
@@ -586,7 +598,7 @@ def _sectors_rrg_block(rows: list[dict], caps: dict, tails: dict, den: str, mont
             "rsi": r.get("rsi_of_rs"), "mans": r.get("mansfield"),
         })
     sel = _tail_selector(den, months, tail_base, tail_view) if tail_base else ""
-    js = (_RRG_PLAY_JS.replace("__DATA__", json.dumps(data))
+    js = (_RRG_PLAY_JS.replace("__DATA__", _json_for_script(data))
           .replace("__LINK__", "1" if dot_link else "0"))
 
     def _spd(key, label, on):
@@ -629,17 +641,13 @@ def render_sectors_map(den: str = "Nifty 500", conn=None, months: str = "12",
     reuses the host page's dark CSS. Manages its own conn. `months` (3/6/12/24) = tail
     horizon; if `tail_base` is given a tail-length selector links to it (`tail_view`
     carried as ?view=)."""
+    # CL-VIEW-10: `with` (own → get_conn(); passed-in → nullcontext) so a real exception
+    # propagates with its traceback instead of being swallowed by __exit__(None,None,None).
     own = conn is None
-    if own:
-        cm = get_conn()
-        conn = cm.__enter__()
-    try:
+    with (get_conn() if own else nullcontext(conn)) as conn:
         den = den if den in BENCHMARKS else "Nifty 500"
         months = months if months in _SECTOR_TAILS else "12"
         rows, caps, tails = _fetch(den, conn, months)
-    finally:
-        if own:
-            cm.__exit__(None, None, None)
     if not rows:
         return ""
     return (
