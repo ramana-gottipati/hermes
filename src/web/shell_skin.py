@@ -187,6 +187,17 @@ body.uk-skin .kpi .num{font-family:var(--mono);font-variant-numeric:tabular-nums
 body.uk-skin .kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 body.uk-skin .chip{border-radius:var(--r-sm)}
 body.uk-skin h2{font-size:16px;font-weight:600;letter-spacing:-.1px}
+/* ── RS hub (rs_section.py `rsh-*`): a self-contained mini-design-system Lane A's skin
+   never retinted — it still carries the OLD palette (#161b22 / #30363d / #1f6feb /
+   radius 10px). Verified in-browser: rsh-card bg #161b22 vs native #111824. Map every
+   rsh primitive to the ui_kit tokens so the RS hub matches the native reference. ──── */
+body.uk-skin .rsh-card{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);border-top:3px solid var(--accent)}
+body.uk-skin .rsh-h,body.uk-skin .rsh-sym{color:var(--ink)}
+body.uk-skin .rsh-go{color:var(--accent)}
+body.uk-skin .rsh-q,body.uk-skin .rsh-mut,body.uk-skin .rsh-sub2{color:var(--ink-2)}
+body.uk-skin .rsh-sec,body.uk-skin .rsh-sub,body.uk-skin .rsh-empty,body.uk-skin .rsh-foot{color:var(--ink-3)}
+body.uk-skin .rsh-chip{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--ink-2)}
+body.uk-skin .rsh-bench{border:1px solid var(--line-2);border-radius:var(--r-sm)}
 /* ── responsive: legacy page body on a phone ── */
 @media (max-width:640px){
   body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
