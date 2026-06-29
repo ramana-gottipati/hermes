@@ -328,14 +328,22 @@ def topbar(active: str = "", nav_html: str = "") -> str:
 
 
 def subnav(items: list[tuple[str, str, bool]]) -> str:
-    """items = [(label, href, is_on), ...]; a leading (label, '', False) renders a group tag."""
+    """items = [(label, href, is_on), ...]; a leading (label, '', False) renders a group tag.
+
+    CONSISTENCY (chrome-consistency-sweep §1): the wrapper carries the SAME
+    `role="navigation" aria-label="Section"` landmark as v2_surfaces.native_subnav() — the
+    other sub-nav renderer — so the contextual sub-nav strip is byte-identical whether a page
+    builds it via this native helper (coverage, _ui) or via native_subnav (screen2, strategist,
+    every reskinned legacy page). Before this, native K.subnav() pages emitted a bare
+    `<div class="uk-sub">` with no nav landmark while every other page had one — a screen-reader
+    inconsistency on the Trust front-door. One sub-nav contract, both shells."""
     out = []
     for lbl, href, on in items:
         if not href:
             out.append(f'<span class="grp">{esc(lbl)}</span>')
         else:
             out.append(f'<a class="{"on" if on else ""}" href="{esc(href)}">{esc(lbl)}</a>')
-    return f'<div class="uk-sub">{"".join(out)}</div>'
+    return f'<div class="uk-sub" role="navigation" aria-label="Section">{"".join(out)}</div>'
 
 
 def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: str = "") -> str:

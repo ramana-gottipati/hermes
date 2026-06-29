@@ -384,6 +384,37 @@ def _density_js() -> str:
         return ""
 
 
+# The opening <body …> tag: capture its whole attribute string (everything between `body`
+# and the closing `>`) so we can merge a class without disturbing any other attribute.
+_BODY_TAG_RE = re.compile(r'<body\b(?P<attrs>[^>]*)>', re.S)
+# A `class="…"` / `class='…'` attribute WITHIN that attribute string.
+_BODY_CLASS_RE = re.compile(r'(\bclass\s*=\s*)(["\'])(?P<cls>.*?)\2', re.S)
+
+
+def _add_body_class(html: str, cls: str) -> str:
+    """Add ``cls`` to the first ``<body>``'s class list — a SINGLE substitution that
+    PRESERVES every existing body attribute AND MERGES into (never duplicates) an existing
+    ``class`` (CL-CHR-4). The prior two-step approach produced a *duplicate* ``class`` attr on
+    a ``<body class="x">`` shell (the existing class was then ignored by the browser). Idempotent
+    (a body already carrying ``cls`` is returned unchanged) and defensive (a non-matching/odd
+    body is returned untouched, never raising — a failure must never break the page)."""
+    m = _BODY_TAG_RE.search(html)
+    if not m:
+        return html
+    attrs = m.group("attrs")
+    cm = _BODY_CLASS_RE.search(attrs)
+    if cm:  # body already has a class= → merge into it (preserve order, no duplicate add)
+        classes = cm.group("cls").split()
+        if cls in classes:
+            return html  # already present — leave the page exactly as-is
+        new_cls = (cm.group("cls").rstrip() + " " + cls).strip()
+        new_attrs = attrs[:cm.start()] + f'{cm.group(1)}"{new_cls}"' + attrs[cm.end():]
+    else:    # no class= → append one, keeping every other attribute intact
+        kept = attrs.rstrip()
+        new_attrs = f'{kept} class="{cls}"' if kept else f' class="{cls}"'
+    return html[:m.start()] + f'<body{new_attrs}>' + html[m.end():]
+
+
 def reskin(html: str, active=None) -> str:
     """Post-process one ``_shell`` html string into the ui_kit language + UNIFY its header
     with the native pages. Defensive + idempotent: an already-skinned string (or any
@@ -406,9 +437,7 @@ def reskin(html: str, active=None) -> str:
         # mark the body so the scoped overlay applies (and signals 'already skinned').
         if "<body" not in html:
             return html
-        out = html.replace("<body>", '<body class="uk-skin">', 1)
-        if 'class="uk-skin"' not in out:  # body had attrs already
-            out = re.sub(r"<body(?![^>]*uk-skin)", '<body class="uk-skin"', out, count=1)
+        out = _add_body_class(html, "uk-skin")
         # a11y: a keyboard skip-link as the first focusable element, targeting the page body.
         out = re.sub(r"(<body[^>]*>)",
                      r'\1<a class="uk-skip" href="#uk-main">Skip to content</a>', out, count=1)
@@ -532,6 +561,23 @@ def _selftest() -> int:
     assert 'class="hsearch"' not in out, "legacy search form still present"
     assert "RELIANCE" in out and ">42<" in out, "body data lost (NOT no-loss)"
     assert out.count(_SKIN_MARKER) == 1, "skin injected more than once"
+    # the body carries the skin class EXACTLY ONCE (no duplicate class= attr) — the production
+    # _shell emits a bare <body>, so the merge yields a single class="uk-skin".
+    assert out.count('class="uk-skin"') == 1, "body skin class added more than once"
+    # ── CL-CHR-4: _add_body_class is a SINGLE substitution that preserves attrs + MERGES into
+    # an existing class (never a duplicate class= attr, which the browser would drop). ──
+    assert _add_body_class("<body>", "uk-skin") == '<body class="uk-skin">'
+    assert _add_body_class('<body class="dark">', "uk-skin") == '<body class="dark uk-skin">', \
+        "existing body class must be MERGED, not duplicated"
+    assert _add_body_class('<body data-x="y">', "uk-skin") == '<body data-x="y" class="uk-skin">', \
+        "body attrs must be preserved when adding the skin class"
+    assert _add_body_class('<body class="a b" data-z="1">', "uk-skin") == \
+        '<body class="a b uk-skin" data-z="1">', "class merge must keep sibling attrs"
+    assert _add_body_class('<body class="uk-skin">', "uk-skin") == '<body class="uk-skin">', \
+        "_add_body_class must be idempotent on an already-skinned body"
+    for _probe in ('<body class="dark">', '<body class="a b" data-z="1">', "<body class='q'>"):
+        assert _add_body_class(_probe, "uk-skin").count("class=") == 1, \
+            f"duplicate class= attribute produced for {_probe!r}"
     # ── header UNIFICATION (Lane M1): the native single-row topbar REPLACED the legacy
     # two-row header, so the page now carries the SAME header markup as a native page. ──
     assert 'class="uk-top"' in out, "native topbar not emitted on legacy page"
