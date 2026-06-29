@@ -62,11 +62,24 @@ def _prov(method: str) -> str:
     return '<span class="nv-prov">rule</span>'
 
 
+def _safe_url(u: str) -> str:
+    """Only http(s) URLs survive into an href — `javascript:`/`data:` and other schemes
+    collapse to '#'. News URLs come from an external feed (attacker-influenced), and the
+    shared `_esc` does NOT escape quotes, so we also neutralise attribute-breakout /
+    control chars in the URL itself (defence-in-depth)."""
+    u = (u or "").strip()
+    if not (u.lower().startswith("http://") or u.lower().startswith("https://")):
+        return "#"
+    for ch, rep in (('"', "%22"), ("'", "%27"), ("<", "%3C"), (">", "%3E"), (" ", "%20")):
+        u = u.replace(ch, rep)
+    return u
+
+
 def _row(r: dict, *, syms_html: str = "") -> str:
     date = _esc((r.get("sent_at") or "")[:10])
     src = _esc((r.get("source") or "")[:14])
     title = _esc(r.get("title") or "")
-    url = _esc(r.get("url") or "#")
+    url = _safe_url(r.get("url") or "")
     mid = syms_html or f'<span class="nv-src">{src}</span>'
     return (f'<a class="nv-row" href="{url}" target="_blank" rel="noopener">'
             f'<span class="nv-date">{date}</span>{mid}'

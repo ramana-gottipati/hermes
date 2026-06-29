@@ -81,7 +81,14 @@ from src.web import lens_registry as _LR
 _ALT_LABELS = {"markets": "Markets", "screener": "Screener",
                "strategies": "Strategies", "tracker": "Tracker", "trust": "Trust"}
 # top-bar tab href = the first sub-nav route of each altitude (its landing).
-_IA_ALT = [(_alt, _LR.subnav(_alt)[0].route, _ALT_LABELS[_alt])
+def _alt_landing(_alt: str) -> str:
+    """First routed lens of an altitude, or a safe self-route if the altitude has only
+    overlay-only lenses (subnav() empty) — never index [0] of an empty list at import time."""
+    _sn = _LR.subnav(_alt)
+    return _sn[0].route if _sn else f"/dash/{_alt}"
+
+
+_IA_ALT = [(_alt, _alt_landing(_alt), _ALT_LABELS.get(_alt, _alt.title()))
            for _alt in _LR.altitude_order()]
 # {altitude: [(key, href, label, group), ...]} — overlay-only lenses excluded by subnav().
 _IA_SUB = {_alt: [(ln.key, ln.route, ln.label, ln.group) for ln in _LR.subnav(_alt)]

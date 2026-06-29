@@ -305,6 +305,10 @@ def skin_css() -> str:
 # WHOLE block with the native single-row ui_kit topbar so legacy + native pages share one
 # header. Non-greedy, DOTALL: matches exactly the first header element.
 _HEADER_RE = re.compile(r"<header\b[^>]*>.*?</header>", re.S)
+# Fallback target when the full header swap fails: just the legacy search form
+# (dashboard._shell emits `<form class="hsearch" action="/dash/stock" ...>…</form>`),
+# swapped for the Ask-Pat ⌘K hint so the page never shows the old "search ticker…" box.
+_HSEARCH_RE = re.compile(r'<form class="hsearch".*?</form>', re.S)
 
 
 def _native_header(active) -> str:

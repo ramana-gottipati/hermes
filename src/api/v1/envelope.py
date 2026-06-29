@@ -14,9 +14,23 @@ Red-team laws made structural:
 """
 from __future__ import annotations
 
+from fastapi import HTTPException
+
 from src.automation import provenance as P
 
 METHODOLOGY_VERSION = "v1.0"
+
+# ── redistribution licensing gate (docs/data-licensing-decision.md) ──
+# The `data-feed` scope is the external REDISTRIBUTION channel; it must NOT be served a
+# data-class whose licence forbids redistribution. compliance/research are diligence
+# (own-use) consumers, not redistributors, so they are unaffected. Conservative by design:
+# every currently-live endpoint serves OWNED classes (survivorship/cci_series/signal_events),
+# so this blocks nothing today — it closes the hole structurally for any future route that
+# exposes a vendor-sourced class. NOTE (flagged for Codex/Ramana review): the predicate is
+# scoped to the resolved scope_used == data-feed; broaden to principal-scope if a redistributor
+# key should be refused even when another scope happened to satisfy the endpoint.
+_NON_REDISTRIBUTABLE = {P.VENDOR_TOS, P.NEWS_LICENSE}
+_REDISTRIBUTION_SCOPE = "data-feed"
 
 
 def modeled_value(value, prov: dict) -> dict:
@@ -68,6 +82,14 @@ def ok(conn, *, data, classes, principal, request_id, prov_kw: dict | None = Non
        coverage: str = "", degraded: bool = False, scope_used: str | None = None) -> dict:
     """Assemble a stamped envelope. `classes` = the data-classes present; `prov_kw[class]` =
     kwargs (symbol/as_of/period_type) for that class's provenance_for()."""
+    # Redistribution gate: refuse a non-redistributable class on the external data-feed scope.
+    if scope_used == _REDISTRIBUTION_SCOPE:
+        blocked = [c for c in classes if P.redistribution_status(c) in _NON_REDISTRIBUTABLE]
+        if blocked:
+            raise HTTPException(
+                403, f"redistribution not licensed for data-class(es) {blocked} on the "
+                     f"data-feed (external) scope — see /v1/provenance/registry and "
+                     f"docs/data-licensing-decision.md")
     prov_kw = prov_kw or {}
     prov_map = {}
     for cls in classes:
