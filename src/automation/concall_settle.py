@@ -87,18 +87,21 @@ def _qadd(fy: int, q: int, n: int):
 
 
 def _resolve(rq_fy: int, rq_q: int, horizon: Optional[str]):
-    """Reported quarter (rq) + horizon → the (fy,quarter) that settles the promise."""
+    """Reported quarter (rq) + horizon → ((fy, quarter), want_annual) that settles the
+    promise. `want_annual` is True when the promise is a FULL-YEAR ('fy') target — it
+    must settle against the annual actual, NOT the Q4 QUARTERLY figure that shares the
+    (fy, 4) key (CX-01)."""
     h = horizon or "next_q"
     if h == "this_q":
-        return _qadd(rq_fy, rq_q, 1)            # the quarter in progress at the call
+        return _qadd(rq_fy, rq_q, 1), False     # the quarter in progress at the call
     if h == "next_q":
-        return _qadd(rq_fy, rq_q, 2)
+        return _qadd(rq_fy, rq_q, 2), False
     if h == "fy":
         fy1, _ = _qadd(rq_fy, rq_q, 1)
-        return fy1, 4                            # FY-end of the in-progress year
+        return (fy1, 4), True                    # FY-end of the in-progress year (full-year)
     if h == "multiyear_3_5y":
-        return _qadd(rq_fy, rq_q, 12)
-    return _qadd(rq_fy, rq_q, 2)
+        return _qadd(rq_fy, rq_q, 12), False
+    return _qadd(rq_fy, rq_q, 2), False
 
 
 def settle_symbol(conn, symbol: str) -> dict:
@@ -111,8 +114,13 @@ def settle_symbol(conn, symbol: str) -> dict:
     # (pre-~FY2019 + the broad universe) from the 24-yr fundamentals_history archive.
     # Same shape, so the grading below is unchanged; PIT by construction. concall_results
     # wins where present (setdefault); the archive only fills resolving periods it lacks.
+    # CX-01: deep_actuals now keys the full-year figure at (fy, FY_QUARTER) and the
+    # genuine Q4 QUARTERLY figure at (fy, 4); both merge in by setdefault (Screener's
+    # quarterly concall_results still win the (fy, 1..4) slots where present).
+    FY_QUARTER = "FY"
     try:
-        from src.automation.cci_deep_actuals import deep_actuals
+        from src.automation.cci_deep_actuals import deep_actuals, FY_QUARTER as _FYQ
+        FY_QUARTER = _FYQ
         for k, v in deep_actuals(symbol).items():
             results.setdefault(k, v)
     except Exception as e:  # noqa: BLE001 - the archive must never break settlement
@@ -130,8 +138,19 @@ def settle_symbol(conn, symbol: str) -> dict:
         src = cmap.get(g["source_period"])
         if not src or not src[0]:
             continue
-        rfy, rq = _resolve(src[0], src[1], g["horizon"])
-        res = results.get((rfy, rq))
+        (rfy, rq), want_annual = _resolve(src[0], src[1], g["horizon"])
+        # CX-01: route by granularity. A FULL-YEAR ('fy') promise settles against the
+        # annual actual at (rfy, FY_QUARTER); a QUARTERLY promise (incl. one resolving
+        # to Q4) settles against the (rfy, quarter) QUARTERLY actual. If the matching
+        # granularity isn't available, the promise stays OPEN — we NEVER fall back to
+        # the other granularity (no annual-vs-quarterly mixing, no look-ahead).
+        if want_annual:
+            res = results.get((rfy, FY_QUARTER))
+        else:
+            res = results.get((rfy, rq))
+            # defensive: never grade a quarterly promise against an annual-typed row.
+            if res is not None and res.get("period_type") == "A":
+                res = None
         if not res:
             continue                              # not reported yet → stays OPEN (no look-ahead)
 
