@@ -310,6 +310,12 @@ CREATE TABLE IF NOT EXISTS provenance_lag_calibration (
 """
 
 
+# Connections whose schema we've already ensured this process, keyed by id(conn). The
+# DDL is all IF-NOT-EXISTS (idempotent) but re-running the whole script on EVERY per-cell
+# stamp() is pure overhead; ensure it once per live connection object. (CL-PROV-06)
+_schema_ensured: set = set()
+
+
 # ── connection plumbing (own-or-borrow, the security_master pattern) ──────────
 def _with_conn(fn, conn, *, write: bool = False):
     """Own-or-borrow a connection (the security_master pattern). When we OWN it and
@@ -321,18 +327,27 @@ def _with_conn(fn, conn, *, write: bool = False):
         cm = get_conn()
         conn = cm.__enter__()
     try:
-        conn.executescript(_SCHEMA)
+        ensure_schema(conn)
         r = fn(conn)
         if own and write:
             conn.commit()
         return r
     finally:
         if own:
+            # an owned conn is closed now; drop its cache marker so a future conn that
+            # happens to reuse the same id() address still gets its schema ensured.
+            _schema_ensured.discard(id(conn))
             cm.__exit__(None, None, None)
 
 
 def ensure_schema(conn) -> None:
+    """Run the owned-table DDL once per connection object (idempotent, but skip the
+    re-parse cost on repeat calls against the same live conn). (CL-PROV-06)"""
+    cid = id(conn)
+    if cid in _schema_ensured:
+        return
     conn.executescript(_SCHEMA)
+    _schema_ensured.add(cid)
 
 
 def _key(*parts) -> str:

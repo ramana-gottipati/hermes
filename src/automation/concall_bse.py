@@ -69,7 +69,11 @@ def is_transcript(row: dict) -> bool:
     if sub == TRANSCRIPT_SUBCAT:
         return True
     head = f"{row.get('NEWSSUB') or ''} {row.get('HEADLINE') or ''}".lower()
-    return "earnings call transcript" in head or "transcript of" in head and "earnings" in head
+    # Parenthesised so the intent is explicit (and not read as `A or (B and C)` by accident):
+    # a transcript headline either says "earnings call transcript", or pairs "transcript of"
+    # with "earnings". (CL-CCI-02)
+    return ("earnings call transcript" in head
+            or ("transcript of" in head and "earnings" in head))
 
 
 def period_label(news_dt: Optional[str]) -> Optional[str]:
@@ -179,10 +183,14 @@ def capture_symbol(symbol: str, scripcode: Optional[str], conn, *, from_year: in
     st["found"] = len(anns)
     for a in anns:
         url = ATTACH_HIS + a["attachment"]
-        exists = conn.execute(
-            "SELECT 1 FROM concalls WHERE symbol=? AND period_label=? AND transcript_url=?",
+        # Only skip a row that has ALREADY been captured successfully (transcript_path set).
+        # A prior FETCH_FAIL row (path NULL) must NOT latch — BSE often serves the attachment
+        # on a later run, so we re-attempt any NULL-path row instead of skipping it. (CL-CCI-12)
+        done = conn.execute(
+            "SELECT 1 FROM concalls WHERE symbol=? AND period_label=? AND transcript_url=? "
+            "AND transcript_path IS NOT NULL",
             (symbol, a["period_label"], url)).fetchone()
-        if exists:
+        if done:
             st["skipped"] += 1
             continue
         text, status = download_pdf_text(a["attachment"], session=sess)
@@ -197,17 +205,23 @@ def capture_symbol(symbol: str, scripcode: Optional[str], conn, *, from_year: in
             except OSError as e:
                 log.warning("write %s: %s", path, e)
                 path = None
-        else:
+        if not (status == "OK" and path):
             st["failed"] += 1
         per = _derive_period(a["news_dt"])
+        # UPSERT (not INSERT OR IGNORE): a re-attempt of a previously-failed row must UPDATE it
+        # with the now-available path/status, otherwise the stale FETCH_FAIL row would persist
+        # and the UNIQUE key would silently drop the successful retry. (CL-CCI-12)
         conn.execute(
-            "INSERT OR IGNORE INTO concalls (symbol, period_label, period_type, fy, quarter, "
+            "INSERT INTO concalls (symbol, period_label, period_type, fy, quarter, "
             "concall_month, concall_year, transcript_url, transcript_path, transcript_chars, "
-            "source, parse_status, concall_dt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "source, parse_status, concall_dt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(symbol, period_label, transcript_url) DO UPDATE SET "
+            "transcript_path=excluded.transcript_path, transcript_chars=excluded.transcript_chars, "
+            "parse_status=excluded.parse_status, concall_dt=excluded.concall_dt",
             (symbol, a["period_label"], per.get("period_type"), per.get("fy"), per.get("quarter"),
              per.get("concall_month"), per.get("concall_year"), url, path,
              len(text) if text else None, "bse-ann", status, a["news_dt"]))
-        if status == "OK":
+        if status == "OK" and path:
             st["captured"] += 1
         conn.commit()
         time.sleep(REQUEST_PAUSE)

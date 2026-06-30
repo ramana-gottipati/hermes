@@ -138,10 +138,14 @@ def build_series(conn, symbol: str) -> int:
     conn.execute("DELETE FROM credibility_series WHERE symbol=?", (symbol,))
 
     levels: list[float] = []
-    prev_ym = None
     n = 0
     for i, (T, tym) in enumerate(periods):
-        # promises RESOLVED by T (no look-ahead); and which became known SINCE the prior period
+        # promises RESOLVED by T (no look-ahead); and which became known SINCE the prior period.
+        # "Newly graded" is counted once per promise — at the FIRST series point where it is
+        # resolved — tracked by a per-promise `graded` flag rather than a `res > prev_concall_ym`
+        # window. The old window mis-timed irregular cadence: a >1-quarter filing gap collapsed
+        # (a promise resolved two periods back re-counted as new) and a sub-quarter cadence could
+        # miss the boundary (res == prev_ym excluded by the strict `>`). (CL-CCI-06)
         met = missed = partial = 0
         new_met = new_missed = 0
         for p in promises:
@@ -152,7 +156,8 @@ def build_series(conn, symbol: str) -> int:
                     missed += 1
                 else:
                     partial += 1
-                if prev_ym is None or p["res"] > prev_ym:    # newly graded in this period's window
+                if not p.get("graded"):                      # first period this promise is resolved
+                    p["graded"] = True
                     if p["status"] == "MET":
                         new_met += 1
                     elif p["status"] == "MISSED":
@@ -209,7 +214,6 @@ def build_series(conn, symbol: str) -> int:
             (symbol, T, tym[0], tym[1], round(level, 1), round(ga, 1) if ga is not None else None, qr,
              resolved, deter, momentum, momentum_3p, trend, tape, tape_note, _tier(level)))
         levels.append(level)
-        prev_ym = tym
         n += 1
     return n
 

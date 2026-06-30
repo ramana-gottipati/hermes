@@ -152,7 +152,10 @@ Items:
 def _items_block(items: list[dict]) -> str:
     lines = []
     for i, item in enumerate(items, start=1):
-        lines.append(f"{i}. [{item['source']}] {item['title']}")
+        # Cap the title too, not just the summary — an unbounded title would inflate the
+        # classifier LLM input (token cost / context blow-out). (CL-PROV-12)
+        title = (item.get("title") or "")[:300]
+        lines.append(f"{i}. [{item['source']}] {title}")
         if item.get("summary"):
             lines.append(f"   {item['summary'][:200]}")
     return "\n".join(lines)
@@ -362,31 +365,8 @@ def send_to_telegram(html_message: str, override_chat_id: int | None = None) -> 
         if not _send_raw(chat_id, html_message):
             success = False
     return success
-
-    url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/sendMessage"
-    success = True
-    # Telegram's hard cap is ~4096 chars per message — chunk just in case
-    for chunk in _chunk(html_message, 3800):
-        for chat_id in chat_ids:
-            try:
-                r = requests.post(
-                    url,
-                    json={
-                        "chat_id": chat_id,
-                        "text": chunk,
-                        "parse_mode": "HTML",
-                        "disable_web_page_preview": True,
-                    },
-                    timeout=15,
-                )
-                if not r.ok:
-                    log.error("telegram send failed: %s %s", r.status_code, r.text[:300])
-                    success = False
-            except requests.RequestException as e:
-                log.error("telegram send raised: %s", e)
-                success = False
-            time.sleep(0.3)
-    return success
+    # (CL-PROV-02) removed unreachable dead block after the return above; it referenced an
+    # undefined `chat_ids` and a duplicate chunk-send already handled by _send_raw/_chunk.
 
 
 def _chunk(text: str, limit: int) -> list[str]:

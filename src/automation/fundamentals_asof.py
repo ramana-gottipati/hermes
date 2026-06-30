@@ -205,12 +205,38 @@ def _ann_growth(series: list, n: int):
     return _cagr(series[-1 - n][1], series[-1][1], n)
 
 
-def _ttm(series: list):
-    """(ttm, prior_ttm) = sums of the last 4 and previous 4 quarterly values."""
+def _span_days(series: list) -> Optional[int]:
+    """Days between the first and last period_end of `series` (None if unparseable)."""
+    if len(series) < 2:
+        return 0
+    try:
+        d0 = date.fromisoformat(str(series[0][0])[:10])
+        d1 = date.fromisoformat(str(series[-1][0])[:10])
+    except (ValueError, TypeError):
+        return None
+    return (d1 - d0).days
+
+
+def _consecutive_4q(series: list) -> bool:
+    """True only if the last 4 quarterly points span ~1 year (≤370d) → genuinely
+    consecutive. A wider span means a gap was silently collapsed (missing filings),
+    which would corrupt any TTM sum. CL-PROV-15."""
     if len(series) < 4:
+        return False
+    span = _span_days(series[-4:])
+    return span is not None and span <= 370
+
+
+def _ttm(series: list):
+    """(ttm, prior_ttm) = sums of the last 4 and previous 4 quarterly values.
+    Each window must be genuinely consecutive (≤370d span) or it is None — a
+    collapsed gap would otherwise sum non-adjacent quarters. CL-PROV-15."""
+    if len(series) < 4 or not _consecutive_4q(series):
         return None, None
     ttm = sum(v for _, v in series[-4:])
-    prior = sum(v for _, v in series[-8:-4]) if len(series) >= 8 else None
+    prior = (sum(v for _, v in series[-8:-4])
+             if len(series) >= 8 and _consecutive_4q(series[-8:-4])
+             else None)
     return ttm, prior
 
 
@@ -248,7 +274,7 @@ def as_of_from_frame(frame: dict, as_of: str, *, symbol: Optional[str] = None,
     # TTM growth (quarterly)
     sales_ttm, sales_ttm_prior = _ttm(sales_q)
     np_ttm, np_ttm_prior = _ttm(np_q)
-    eps_ttm = sum(v for _, v in eps_q[-4:]) if len(eps_q) >= 4 else None
+    eps_ttm = sum(v for _, v in eps_q[-4:]) if _consecutive_4q(eps_q) else None  # CL-PROV-15
     sales_g_ttm = _cagr(sales_ttm_prior, sales_ttm, 1)
     profit_g_ttm = _cagr(np_ttm_prior, np_ttm, 1)
 

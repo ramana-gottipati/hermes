@@ -30,6 +30,7 @@ import calendar
 import logging
 import math
 from collections import defaultdict
+from datetime import date
 from statistics import mean, pstdev
 
 from src.core.db import get_conn
@@ -60,12 +61,21 @@ def _build_index(conn, symbol):
         "WHERE symbol=? AND series='EQ' AND close>0 AND prev_close>0 ORDER BY trade_date",
         (symbol,)).fetchall()
     dates, cums, cum = [], [], 0.0
+    dropped = 0
     for r in rows:
         ratio = r["close"] / r["prev_close"]
         if 0.5 <= ratio <= 2.0:
             cum += math.log(ratio)
+        else:
+            # A genuine >100% day exists (corp action / split not yet adjusted, or a bad tick).
+            # We still contribute 0 (can't tell the two apart without a corp-action feed), but
+            # we no longer drop it SILENTLY — log it so biased forward returns are auditable. (CL-CCI-07)
+            dropped += 1
         dates.append(r["trade_date"])
         cums.append(cum)
+    if dropped:
+        log.info("_build_index %s: dropped %d single-day moves beyond +/-100%% (corp-action/bad-tick)",
+                 symbol, dropped)
     return dates, cums
 
 
@@ -109,10 +119,20 @@ def _analyze(rows):
     rising = [e[2] for e in excess if e[1] >= MOM_EVENT]
     falling = [e[2] for e in excess if e[1] <= -MOM_EVENT]
     flat = [e[2] for e in excess if -MOM_EVENT < e[1] < MOM_EVENT]
+    # Level terciles. With many tied `level` values (clustered qr-only points), the raw
+    # `<= lo_thr` / `>= hi_thr` cut would put the SAME tied value in BOTH the low and high
+    # buckets, double-counting ties and biasing the spread the veto keys on. Bucket by the
+    # tercile thresholds but make the buckets disjoint (low strictly below hi_thr, high
+    # strictly above lo_thr), and only report the spread when the thresholds actually differ
+    # (a real gap exists). (CL-CCI-08)
     levs = sorted(e[0] for e in excess)
     lo_thr, hi_thr = levs[len(levs) // 3], levs[2 * len(levs) // 3]
-    low = [e[2] for e in excess if e[0] <= lo_thr]
-    high = [e[2] for e in excess if e[0] >= hi_thr]
+    if hi_thr > lo_thr:
+        low = [e[2] for e in excess if e[0] <= lo_thr]
+        high = [e[2] for e in excess if e[0] >= hi_thr]
+    else:
+        # degenerate: terciles collapsed onto one tied level — no meaningful low/high split.
+        low = high = []
     return {"n_excess": len(excess), "n_months": len(by_month),
             "rising": _stat(rising), "flat": _stat(flat), "falling": _stat(falling),
             "high_level": _stat(high), "low_level": _stat(low)}
@@ -120,10 +140,13 @@ def _analyze(rows):
 
 def run(min_resolved: int = 3, horizons=HORIZONS) -> dict:
     with get_conn() as conn:
+        # Upper year bound tracks the present (today+1) instead of a hardcoded 2026, which
+        # would silently drop post-2026 credibility points as the calendar rolls over. (CL-CCI-15)
+        _ymax = date.today().year + 1
         pts = conn.execute(
             "SELECT symbol, period_year AS y, period_month AS m, level, momentum, n_resolved "
             "FROM credibility_series WHERE momentum IS NOT NULL AND n_resolved>=? "
-            "AND period_year BETWEEN 2010 AND 2026", (min_resolved,)).fetchall()
+            "AND period_year BETWEEN 2010 AND ?", (min_resolved, _ymax)).fetchall()
         last_date = conn.execute("SELECT MAX(trade_date) FROM bhavcopy_rows WHERE series='EQ'").fetchone()[0]
         log.info("loaded %d proven PIT points (n_resolved>=%d); prices through %s",
                  len(pts), min_resolved, last_date)
@@ -243,6 +266,25 @@ def _max_drawdown(idx, entry_bound, exit_bound):
     return math.exp(mdd) - 1.0
 
 
+def _quantile(sorted_xs, q):
+    """Linear-interpolated quantile of an already-sorted list (the numpy 'linear' method).
+    The old `xs[int(q*L)]` floored to index 0 for small L, so 'p5' silently reported the
+    single worst observation and cohorts of different n were not comparable. (CL-CCI-09)"""
+    n = len(sorted_xs)
+    if n == 0:
+        return None
+    if n == 1:
+        return sorted_xs[0]
+    pos = q * (n - 1)
+    lo = int(math.floor(pos))
+    hi = min(lo + 1, n - 1)
+    frac = pos - lo
+    return sorted_xs[lo] + (sorted_xs[hi] - sorted_xs[lo]) * frac
+
+
+_TAIL_MIN_N = 20   # below this a 5th/10th-percentile estimate is too noisy to report
+
+
 def _tail(subset):
     """Left-tail risk stats for records (is_event, exret, raw_ret, mdd, year)."""
     if not subset:
@@ -251,9 +293,13 @@ def _tail(subset):
     raw = [r[2] for r in subset]
     mdd = [r[3] for r in subset if r[3] is not None]
     L = len(ex)
+    # Interpolated quantiles, and only when n is large enough to be meaningful — else None
+    # so a tiny cohort doesn't masquerade as a percentile estimate. (CL-CCI-09)
+    p5 = _quantile(ex, 0.05) if L >= _TAIL_MIN_N else None
+    p10 = _quantile(ex, 0.10) if L >= _TAIL_MIN_N else None
     return {"n": L, "mean_ex": mean(ex),
             "p_dd20": sum(1 for r in raw if r < -0.20) / len(raw),
-            "p5_ex": ex[int(0.05 * L)], "p10_ex": ex[int(0.10 * L)],
+            "p5_ex": p5, "p10_ex": p10,
             "mean_mdd": mean(mdd) if mdd else None}
 
 
@@ -263,10 +309,11 @@ def run_veto(min_resolved: int = 3, horizons=HORIZONS) -> dict:
     on DOWNSIDE, not mean. Survivorship works AGAINST this test (it hides the worst blow-ups), so
     any positive result is a conservative LOWER bound."""
     with get_conn() as conn:
+        _ymax = date.today().year + 1   # not a hardcoded 2026 — see CL-CCI-15
         pts = conn.execute(
             "SELECT symbol, period_year AS y, period_month AS m, momentum, deter, n_resolved "
             "FROM credibility_series WHERE momentum IS NOT NULL AND n_resolved>=? "
-            "AND period_year BETWEEN 2010 AND 2026", (min_resolved,)).fetchall()
+            "AND period_year BETWEEN 2010 AND ?", (min_resolved, _ymax)).fetchall()
         last_date = conn.execute("SELECT MAX(trade_date) FROM bhavcopy_rows WHERE series='EQ'").fetchone()[0]
         idx_cache: dict = {}
 

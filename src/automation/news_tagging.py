@@ -251,9 +251,11 @@ def backfill(conn, *, rebuild: bool = False, limit: Optional[int] = None) -> dic
         q += (" WHERE url NOT IN (SELECT news_url FROM news_symbol_tags "
               "WHERE method IN ('name', 'symbol'))")
     q += " ORDER BY id"
+    params: tuple = ()
     if limit:
-        q += f" LIMIT {int(limit)}"
-    rows = conn.execute(q).fetchall()
+        q += " LIMIT ?"   # bound, not interpolated (CL-PROV-09)
+        params = (int(limit),)
+    rows = conn.execute(q, params).fetchall()
 
     headlines_tagged = tags_written = 0
     for r in rows:

@@ -148,17 +148,18 @@ def chk_provenance_knowable(c) -> dict:
     fut = c.execute("SELECT COUNT(*) FROM provenance_knowable WHERE substr(knowable_at,1,10) > ?", (today,)).fetchone()[0]
     if fut:
         issues.append(f"{fut} knowable_at in the future")
-    # malformed period keys: fundamentals/shareholding keys must be symbol|ptype|period_end (3 parts)
-    bad_key = 0
-    for key, in c.execute("SELECT key FROM provenance_knowable WHERE data_class IN ('fundamentals_history','shareholding_history')"):
-        parts = key.split("|")
-        if len(parts) != 3 or parts[1] not in ("A", "Q"):
-            bad_key += 1
-        else:
-            try:
-                date.fromisoformat(parts[2][:10])
-            except ValueError:
-                bad_key += 1
+    # malformed period keys: fundamentals/shareholding keys must be symbol|ptype|period_end
+    # (exactly 3 parts; ptype A/Q; period_end an ISO date). Push the structural test to SQL
+    # so we don't pull the whole table into Python each run. A key is GOOD iff it matches the
+    # GLOB '*|[AQ]|####-##-##*' AND has exactly two pipes (so 'X|A|...|extra' is rejected). The
+    # GLOB '####-##-##' enforces the date *shape*; an impossible date (2024-13-40) is rare and
+    # not worth a Python pass. (CL-PROV-07)
+    bad_key = c.execute(
+        "SELECT COUNT(*) FROM provenance_knowable "
+        "WHERE data_class IN ('fundamentals_history','shareholding_history') AND NOT ("
+        "  key GLOB '*|[AQ]|[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' "
+        "  AND length(key) - length(replace(key,'|','')) = 2 )"
+    ).fetchone()[0]
     if bad_key:
         issues.append(f"{bad_key} malformed period keys")
     n = fut + bad_key
