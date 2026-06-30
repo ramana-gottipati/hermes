@@ -66,6 +66,7 @@ MIGRATED = [
     "src/web/screener_plus.py",     # _UP/_DOWN/_TRACK python-consts = var() tokens
     "src/web/strategist_view.py",   # .st-*/.wc-* all var()
     "src/web/rotation_view.py",     # PHASE dict already canonical (D-PITCH-2 colour contract)
+    "src/web/rsband_view.py",       # _LANE_JS/_CLOCK_JS canvas-canonical hex + verdict/band var() tokens
 ]
 
 # foundation files legitimately hold palette VALUES as literals — exclude from the legacy scan.

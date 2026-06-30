@@ -48,7 +48,12 @@ _W, _H = 1000, 460
 _PADL, _PADR, _PADT, _PADB = 58, 108, 18, 30
 _BG, _GRID, _AXT = "#161b22", "#21262d", "#8b949e"
 _PRICE = "#58a6ff"
-_BULL, _BEAR = "#3fb950", "#f85149"
+# Directional candle / wave colours. _BULL/_BEAR are used as SVG fill=/stroke=
+# ATTRIBUTES in _chart_svg, where CSS var() is invalid — so these carry the
+# canonical literal hex (#3fd486 up / #ff6a7a down). HTML-context directional
+# colour (summary rows, scanner cells) uses _UP_VAR/_DN_VAR = var(--up)/var(--down).
+_BULL, _BEAR = "#3fd486", "#ff6a7a"
+_UP_VAR, _DN_VAR = "var(--up)", "var(--down)"
 _BAND, _BANDS = "#d29922", "#bb8009"
 
 
@@ -251,7 +256,7 @@ def _summary(d, wi, sym, idx):
            'winner-profile · <a href="/dash/wolfe/scan" style="color:#58a6ff">open the scanner ›</a>); '
            'hover a row for the p1·B·C·F·G·H·I·D breakdown; click to draw:</div>']
     for i, w in enumerate(d["waves"]):
-        col = _BULL if w["direction"] == "BULL" else _BEAR
+        col = _UP_VAR if w["direction"] == "BULL" else _DN_VAR
         sel = (i == wi)
         z = w["zone"]
         zs = f'zone {_fmt(z["low"])}–{_fmt(z["high"])}' if z else 'zone —'
@@ -306,12 +311,12 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
     nin = sum(1 for c in cands if c["in_zone"])
     trs = []
     for c in cands:
-        col = _BULL if c["dir"] == "BULL" else _BEAR
-        tag = ('<span style="color:#3fb950;font-size:11px" title="OOS-validated regime-robust long selection edge">✓ edge</span>'
+        col = _UP_VAR if c["dir"] == "BULL" else _DN_VAR
+        tag = ('<span style="color:var(--up);font-size:11px" title="OOS-validated regime-robust long selection edge">✓ edge</span>'
                if c["dir"] == "BULL" else
                '<span style="color:#d29922;font-size:11px" title="regime-dependent / tail-only — reliable mainly when the broad tape is already weak; not a standalone edge">⚠ tail</span>')
         t1s = _fmt(c["t1"]) if c["t1"] else "—"
-        status = ('<span style="color:#3fb950;font-weight:700">● IN</span>' if c["in_zone"]
+        status = ('<span style="color:var(--up);font-weight:700">● IN</span>' if c["in_zone"]
                   else '<span style="color:#6e7681">watch</span>')
         trs.append(
             # CL-VIEW-09: the symbol sits in a single-quoted JS string inside a double-
@@ -325,8 +330,8 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             f'<td style="color:{col};font-weight:600">{c["dir"]}<br>{tag}</td>'
             f'<td>{status}</td><td style="color:#8b949e">{c["age"]}d</td>'
             f'<td>{_fmt(c["cmp"])}</td><td>{_fmt(c["zlo"])}–{_fmt(c["zhi"])}</td>'
-            f'<td style="color:#f85149">{_fmt(c["sl"])}</td>'
-            f'<td>{t1s}</td><td style="color:#3fb950">{_fmt(c["epa"])}</td>'
+            f'<td style="color:var(--down)">{_fmt(c["sl"])}</td>'
+            f'<td>{t1s}</td><td style="color:var(--up)">{_fmt(c["epa"])}</td>'
             f'<td>{c["up"]:.0f}%</td></tr>')
     if not cands:
         trs = ['<tr><td colspan="10" style="padding:14px;color:#8b949e">No fresh winner-profile setups right now — '
@@ -338,12 +343,12 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
         'zone</b> — that survived <b>true out-of-sample</b> (fit 2004-14 / tested untouched 2015-26, survivorship-aware) '
         'plus a beta/regime control. <b>Read by side:</b> '
-        '<span style="color:#3fb950;font-weight:600">BULL ✓ edge</span> = a regime-robust long selection edge (holds '
+        '<span style="color:var(--up);font-weight:600">BULL ✓ edge</span> = a regime-robust long selection edge (holds '
         'even when the market falls); '
         '<span style="color:#d29922;font-weight:600">BEAR ⚠ tail</span> = regime-dependent / tail-only — reliable '
         'mainly when the broad tape is already weak, not on its own. The edge is in the <b>selection</b>, not the '
         'stop/target. <b>Click a row</b> to see its wave on the chart. '
-        '<span style="color:#3fb950">● IN</span> = price in the entry zone now. <i>Descriptive — not a buy/sell signal.</i></div>'
+        '<span style="color:var(--up)">● IN</span> = price in the entry zone now. <i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(universe)} · '
         + (f'as-of <b>{_esc(cached["scan_date"] or "—")}</b> '
            f'<span style="color:#6e7681">(nightly snapshot{(" · computed " + _esc(cached["computed_at"][:16])) if cached.get("computed_at") else ""})</span> · '

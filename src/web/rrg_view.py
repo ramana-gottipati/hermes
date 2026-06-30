@@ -50,9 +50,12 @@ def _esc(s) -> str:
     return html.escape(str(s), quote=True)
 
 BENCHMARKS = ("Nifty 500", "Nifty 50")
-# Dashboard dark-theme accent palette (matches _BASE_CSS / compare presets).
-QCOLOR = {"Leading": "#3fb950", "Weakening": "#d29922",
-          "Lagging": "#f85149", "Improving": "#58a6ff"}
+# RRG quadrants are DIRECTIONAL → design tokens: Leading=up, Lagging=down,
+# Improving=accent, Weakening=warn. NOTE: these are CSS var() strings — valid in
+# CSS (style="color:…") but INVALID as raw SVG fill=/stroke= attributes, so SVG
+# consumers below inject them via style="fill:…"/style="stroke:…".
+QCOLOR = {"Leading": "var(--up)", "Weakening": "var(--warn)",
+          "Lagging": "var(--down)", "Improving": "var(--accent)"}
 
 
 def _n(v, dp: int = 1) -> str:
@@ -73,19 +76,19 @@ def _json_for_script(obj) -> str:
 def _flags(r: dict) -> str:
     out = []
     if r.get("improving_entry"):
-        out.append('<span class="pill" style="color:#58a6ff">↗ base turn</span>')
+        out.append('<span class="pill" style="color:var(--accent)">↗ base turn</span>')
     if r.get("weakening_warning"):
-        out.append('<span class="pill" style="color:#d29922">↘ rolling over</span>')
+        out.append('<span class="pill" style="color:var(--warn)">↘ rolling over</span>')
     if r.get("rsi_oversold_turn"):
         out.append('<span class="pill">RSI turn</span>')
     if r.get("rs_div_bull"):
-        out.append('<span class="pill" style="color:#3fb950">bull div</span>')
+        out.append('<span class="pill" style="color:var(--up)">bull div</span>')
     if r.get("rs_div_bear"):
-        out.append('<span class="pill" style="color:#f85149">bear div</span>')
+        out.append('<span class="pill" style="color:var(--down)">bear div</span>')
     if r.get("mansfield_cross_up"):
-        out.append('<span class="pill" style="color:#3fb950">MRS+</span>')
+        out.append('<span class="pill" style="color:var(--up)">MRS+</span>')
     if r.get("mansfield_cross_down"):
-        out.append('<span class="pill" style="color:#f85149">MRS−</span>')
+        out.append('<span class="pill" style="color:var(--down)">MRS−</span>')
     return " ".join(out) or '<span class="sub">—</span>'
 
 
@@ -142,10 +145,10 @@ def _svg(rows: list[dict], caps: dict, tails: dict, link_fn=None) -> str:
     s = ['<svg id="rrgsvg" viewBox="0 0 760 480" width="100%" '
          'style="max-width:760px" xmlns="http://www.w3.org/2000/svg">']
     # quadrant tints
-    s.append(f'<rect x="{plot_l}" y="{plot_t}" width="{cx-plot_l:.0f}" height="{cy-plot_t:.0f}" fill="#58a6ff" fill-opacity="0.06"/>')
-    s.append(f'<rect x="{cx:.0f}" y="{plot_t}" width="{plot_r-cx:.0f}" height="{cy-plot_t:.0f}" fill="#3fb950" fill-opacity="0.06"/>')
-    s.append(f'<rect x="{cx:.0f}" y="{cy:.0f}" width="{plot_r-cx:.0f}" height="{plot_b-cy:.0f}" fill="#d29922" fill-opacity="0.06"/>')
-    s.append(f'<rect x="{plot_l}" y="{cy:.0f}" width="{cx-plot_l:.0f}" height="{plot_b-cy:.0f}" fill="#f85149" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{plot_l}" y="{plot_t}" width="{cx-plot_l:.0f}" height="{cy-plot_t:.0f}" style="fill:var(--accent)" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{cx:.0f}" y="{plot_t}" width="{plot_r-cx:.0f}" height="{cy-plot_t:.0f}" style="fill:var(--up)" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{cx:.0f}" y="{cy:.0f}" width="{plot_r-cx:.0f}" height="{plot_b-cy:.0f}" style="fill:var(--warn)" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{plot_l}" y="{cy:.0f}" width="{cx-plot_l:.0f}" height="{plot_b-cy:.0f}" style="fill:var(--down)" fill-opacity="0.06"/>')
     s.append(f'<rect x="{plot_l}" y="{plot_t}" width="{plot_r-plot_l}" height="{plot_b-plot_t}" fill="none" stroke="#30363d"/>')
     s.append(f'<line x1="{cx:.0f}" y1="{plot_t}" x2="{cx:.0f}" y2="{plot_b}" stroke="#30363d" stroke-dasharray="3 3"/>')
     s.append(f'<line x1="{plot_l}" y1="{cy:.0f}" x2="{plot_r}" y2="{cy:.0f}" stroke="#30363d" stroke-dasharray="3 3"/>')
@@ -173,9 +176,9 @@ def _svg(rows: list[dict], caps: dict, tails: dict, link_fn=None) -> str:
               if p["rs_ratio"] is not None and p["rs_momentum"] is not None]
         if len(tl) >= 2:
             pts = " ".join(f"{mx(p['rs_ratio']):.1f},{my(p['rs_momentum']):.1f}" for p in tl)
-            s.append(f'<polyline points="{pts}" fill="none" stroke="{col}" '
+            s.append(f'<polyline points="{pts}" fill="none" style="stroke:{col}" '
                      f'stroke-width="2" stroke-opacity="0.3" stroke-linecap="round"/>')
-        s.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}" fill="{col}" '
+        s.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}" style="fill:{col}" '
                  f'fill-opacity="0.85" stroke="#0d1117" stroke-width="1.4"/>')
         s.append(f'<text x="{x:.1f}" y="{y-rad-3:.1f}" fill="#e6edf3" font-size="9" '
                  f'text-anchor="middle">{_esc(num.replace("Nifty ", ""))}</text>')
@@ -223,13 +226,13 @@ def _table(rows: list[dict], caps: dict, den: str) -> str:
         if dc is None:
             dc_html = '<span style="color:#8b949e">—</span>'
         elif dc < 0:
-            dc_html = f'<span style="color:#3fb950">{dc:.2f} ↑rose</span>'
+            dc_html = f'<span style="color:var(--up)">{dc:.2f} ↑rose</span>'
         elif dc < 1:
-            dc_html = f'<span style="color:#3fb950">{dc:.2f}</span>'
+            dc_html = f'<span style="color:var(--up)">{dc:.2f}</span>'
         else:
-            dc_html = f'<span style="color:#f85149">{dc:.2f}</span>'
-        decol = ("#3fb950" if (de is not None and de > 0)
-                 else ("#f85149" if de is not None else "#8b949e"))
+            dc_html = f'<span style="color:var(--down)">{dc:.2f}</span>'
+        decol = ("var(--up)" if (de is not None and de > 0)
+                 else ("var(--down)" if de is not None else "#8b949e"))
         link = f'/dash/ratio?idx={quote_plus(num)}&den={quote_plus(den)}'
         body.append(
             f'<tr><td><a href="{link}" style="color:#58a6ff;text-decoration:none">{_esc(num)}</a></td>'
@@ -508,10 +511,10 @@ function lbl(x,y,t,op){return '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" f
 var svg=document.getElementById('rrgsvg'),tip=document.getElementById('rrgtip'),wrap=document.getElementById('rrgwrap');
 var cx=MX(100),cy=MY(100),raf=null;
 function grid(){var s='';
- s+='<rect x="'+L+'" y="'+T+'" width="'+(cx-L)+'" height="'+(cy-T)+'" fill="#58a6ff" fill-opacity="0.05"/>';
- s+='<rect x="'+cx+'" y="'+T+'" width="'+(R-cx)+'" height="'+(cy-T)+'" fill="#3fb950" fill-opacity="0.05"/>';
- s+='<rect x="'+cx+'" y="'+cy+'" width="'+(R-cx)+'" height="'+(B-cy)+'" fill="#d29922" fill-opacity="0.05"/>';
- s+='<rect x="'+L+'" y="'+cy+'" width="'+(cx-L)+'" height="'+(B-cy)+'" fill="#f85149" fill-opacity="0.05"/>';
+ s+='<rect x="'+L+'" y="'+T+'" width="'+(cx-L)+'" height="'+(cy-T)+'" style="fill:var(--accent)" fill-opacity="0.05"/>';
+ s+='<rect x="'+cx+'" y="'+T+'" width="'+(R-cx)+'" height="'+(cy-T)+'" style="fill:var(--up)" fill-opacity="0.05"/>';
+ s+='<rect x="'+cx+'" y="'+cy+'" width="'+(R-cx)+'" height="'+(B-cy)+'" style="fill:var(--warn)" fill-opacity="0.05"/>';
+ s+='<rect x="'+L+'" y="'+cy+'" width="'+(cx-L)+'" height="'+(B-cy)+'" style="fill:var(--down)" fill-opacity="0.05"/>';
  s+='<rect x="'+L+'" y="'+T+'" width="'+(R-L)+'" height="'+(B-T)+'" fill="none" stroke="#30363d"/>';
  s+='<line x1="'+cx+'" y1="'+T+'" x2="'+cx+'" y2="'+B+'" stroke="#30363d" stroke-dasharray="3 3"/>';
  s+='<line x1="'+L+'" y1="'+cy+'" x2="'+R+'" y2="'+cy+'" stroke="#30363d" stroke-dasharray="3 3"/>';
@@ -665,11 +668,14 @@ def render_sectors_map(den: str = "Nifty 500", conn=None, months: str = "12",
 # ── single-stock RRG: one stock's RS-Ratio×RS-Momentum journey (the tail) ──────
 _STOCK_RRG_WINDOW = 780      # ~3y sessions: a 24m tail + the JdK normalisation lead-in
 _TAIL_SESSIONS = {"3": 63, "6": 126, "12": 252, "24": 504}
+# (label, text-colour, background-tint) — DIRECTIONAL quadrant tokens. The bg tint
+# replaces the old "{hex}22" alpha-suffix trick (invalid on var()): use the rgb
+# token at ~0.13 alpha (≈0x22), and --accent-dim for the accent quadrant.
 _LEAD_LABEL = {
-    "Leading":   ("Leader — strong &amp; gaining", "#3fb950"),
-    "Improving": ("Improving — basing, turning up", "#58a6ff"),
-    "Weakening": ("Weakening — leader rolling over", "#d29922"),
-    "Lagging":   ("Laggard — weak &amp; falling", "#f85149"),
+    "Leading":   ("Leader — strong &amp; gaining", "var(--up)", "rgba(var(--up-rgb),.13)"),
+    "Improving": ("Improving — basing, turning up", "var(--accent)", "var(--accent-dim)"),
+    "Weakening": ("Weakening — leader rolling over", "var(--warn)", "rgba(var(--warn-rgb),.13)"),
+    "Lagging":   ("Laggard — weak &amp; falling", "var(--down)", "rgba(var(--down-rgb),.13)"),
 }
 
 
@@ -722,7 +728,7 @@ def _stock_rrg_page(sym: str, den: str, tail: str) -> str:
     if seg and (not tailpts or (tailpts[-1]["rs_ratio"], tailpts[-1]["rs_momentum"]) != seg[-1]):
         tailpts.append({"rs_ratio": seg[-1][0], "rs_momentum": seg[-1][1]})
     q = row["quadrant"] or "—"
-    lab, lcol = _LEAD_LABEL.get(q, ("—", "#8b949e"))
+    lab, lcol, lbg = _LEAD_LABEL.get(q, ("—", "#8b949e", "#8b949e22"))
 
     def tpill(t, label):
         on = "background:#1f6feb;border-color:#1f6feb;color:#fff;" if t == tail else ""
@@ -730,7 +736,7 @@ def _stock_rrg_page(sym: str, den: str, tail: str) -> str:
                 f'style="text-decoration:none;margin-right:6px;{on}">{label}</a>')
     head = (back + f'<h2 style="margin-top:6px">{_esc(sym)} — relative rotation '
             f'<span class="sub" style="margin:0">RS-Ratio &times; RS-Momentum vs {_esc(den)} · its journey</span></h2>'
-            f'<div style="margin:4px 0 8px"><span class="pill" style="background:{lcol}22;color:{lcol}">{lab}</span>'
+            f'<div style="margin:4px 0 8px"><span class="pill" style="background:{lbg};color:{lcol}">{lab}</span>'
             f'<span class="sub" style="margin-left:12px">tail: {tpill("3", "3m")}{tpill("6", "6m")}{tpill("12", "12m")}{tpill("24", "24m")}</span></div>')
     foot = (f'<div class="sub" style="margin-top:8px">The dot is today; the tail traces the last {tail} months '
             'of its relative-strength journey (clockwise: improving → leading → weakening → lagging). '

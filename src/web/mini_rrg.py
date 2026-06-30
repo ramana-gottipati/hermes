@@ -21,9 +21,12 @@ import html
 
 from src.automation import rrg
 
-# Matches rrg_view.QCOLOR / the dashboard dark-theme accents exactly.
-_QCOLOR = {"Leading": "#3fb950", "Weakening": "#d29922",
-           "Lagging": "#f85149", "Improving": "#58a6ff"}
+# Directional rotation quadrants → design tokens (RRG ruling, reconciled with
+# rrg_view.QCOLOR): Leading→up, Lagging→down, Improving→accent, Weakening→warn.
+# These are consumed in Python and injected via inline ``style=`` (var() is invalid
+# in a raw SVG fill=/stroke= attribute), so all consumption sites use style="fill:…".
+_QCOLOR = {"Leading": "var(--up)", "Weakening": "var(--warn)",
+           "Lagging": "var(--down)", "Improving": "var(--accent)"}
 
 
 def mini_rrg_card(full_tail, den: str = "Nifty 500", *, tail_label: str = "",
@@ -65,11 +68,11 @@ def mini_rrg_card(full_tail, den: str = "Nifty 500", *, tail_label: str = "",
     p = [f'<svg viewBox="0 0 180 180" width="{size}" height="{size}" style="max-width:100%" '
          f'xmlns="http://www.w3.org/2000/svg" role="img" '
          f'aria-label="Relative rotation graph, currently {html.escape(q)}">']
-    # quadrant tints — improving (TL/blue), leading (TR/green), weakening (BR/amber), lagging (BL/red)
-    p.append(f'<rect x="{L}" y="{T}" width="{cx - L:.0f}" height="{cy - T:.0f}" fill="#58a6ff" fill-opacity="0.06"/>')
-    p.append(f'<rect x="{cx:.0f}" y="{T}" width="{R - cx:.0f}" height="{cy - T:.0f}" fill="#3fb950" fill-opacity="0.06"/>')
-    p.append(f'<rect x="{cx:.0f}" y="{cy:.0f}" width="{R - cx:.0f}" height="{B - cy:.0f}" fill="#d29922" fill-opacity="0.06"/>')
-    p.append(f'<rect x="{L}" y="{cy:.0f}" width="{cx - L:.0f}" height="{B - cy:.0f}" fill="#f85149" fill-opacity="0.06"/>')
+    # quadrant tints — improving (TL/accent), leading (TR/up), weakening (BR/warn), lagging (BL/down)
+    p.append(f'<rect x="{L}" y="{T}" width="{cx - L:.0f}" height="{cy - T:.0f}" style="fill:var(--accent);fill-opacity:0.06"/>')
+    p.append(f'<rect x="{cx:.0f}" y="{T}" width="{R - cx:.0f}" height="{cy - T:.0f}" style="fill:var(--up);fill-opacity:0.06"/>')
+    p.append(f'<rect x="{cx:.0f}" y="{cy:.0f}" width="{R - cx:.0f}" height="{B - cy:.0f}" style="fill:var(--warn);fill-opacity:0.06"/>')
+    p.append(f'<rect x="{L}" y="{cy:.0f}" width="{cx - L:.0f}" height="{B - cy:.0f}" style="fill:var(--down);fill-opacity:0.06"/>')
     p.append(f'<rect x="{L}" y="{T}" width="{R - L}" height="{B - T}" rx="6" fill="none" stroke="#30363d"/>')
     p.append(f'<line x1="{cx:.0f}" y1="{T}" x2="{cx:.0f}" y2="{B}" stroke="#30363d" stroke-dasharray="3 3"/>')
     p.append(f'<line x1="{L}" y1="{cy:.0f}" x2="{R}" y2="{cy:.0f}" stroke="#30363d" stroke-dasharray="3 3"/>')
@@ -80,15 +83,15 @@ def mini_rrg_card(full_tail, den: str = "Nifty 500", *, tail_label: str = "",
     # comet tail (older = fainter/smaller), then today's dot on top
     if len(seg) >= 2:
         poly = " ".join(f"{mx(d['rs_ratio']):.1f},{my(d['rs_momentum']):.1f}" for d in seg)
-        p.append(f'<polyline points="{poly}" fill="none" stroke="{col}" stroke-opacity="0.30" '
+        p.append(f'<polyline points="{poly}" fill="none" style="stroke:{col}" stroke-opacity="0.30" '
                  'stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>')
         n = len(seg)
         for i, d in enumerate(seg[:-1]):
             f = (i + 1) / n
             p.append(f'<circle cx="{mx(d["rs_ratio"]):.1f}" cy="{my(d["rs_momentum"]):.1f}" '
-                     f'r="{1.3 + 2.2 * f:.1f}" fill="{col}" fill-opacity="{0.16 + 0.5 * f:.2f}"/>')
+                     f'r="{1.3 + 2.2 * f:.1f}" style="fill:{col}" fill-opacity="{0.16 + 0.5 * f:.2f}"/>')
     p.append(f'<circle cx="{mx(cur["rs_ratio"]):.1f}" cy="{my(cur["rs_momentum"]):.1f}" r="5" '
-             f'fill="{col}" stroke="#0d1117" stroke-width="1.4"/>')
+             f'style="fill:{col}" stroke="#0d1117" stroke-width="1.4"/>')
     p.append('</svg>')
 
     tnote = f' · tail: {html.escape(tail_label)} (faint &rarr; now)' if tail_label else ''
