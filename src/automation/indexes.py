@@ -137,6 +137,9 @@ _COLS = [
 
 
 def _store(rows: list[dict]) -> int:
+    """CL-MDC-06: return the actual number of rows written (conn.total_changes
+    delta) rather than len(rows). On a silent constraint reject the attempted
+    count would overstate what _mark_date records."""
     if not rows:
         return 0
     placeholders = ",".join("?" * len(_COLS))
@@ -145,8 +148,10 @@ def _store(rows: list[dict]) -> int:
         f"VALUES ({placeholders})"
     )
     with get_conn() as conn:
+        before = conn.total_changes
         conn.executemany(sql, [[r.get(c) for c in _COLS] for r in rows])
-    return len(rows)
+        written = conn.total_changes - before
+    return written
 
 
 def _mark_date(trade_date: str, row_count: int) -> None:
@@ -169,17 +174,20 @@ def _already_ingested(trade_date: str) -> bool:
         return row is not None
 
 
-def fetch_and_store(d: datetime) -> tuple[bool, str]:
-    """Fetch index file for one date and store. Returns (ok, message)."""
+def fetch_and_store(d: datetime) -> tuple[bool, str, int]:
+    """Fetch index file for one date and store. Returns (ok, message, stored)
+    where `stored` is the row count actually written this call (CL-MDC-07:
+    callers test the structured count instead of sniffing "rows" out of the
+    message). already-ingested / fetch-fail / parse-fail → 0."""
     trade_date = d.strftime("%Y-%m-%d")
     if _already_ingested(trade_date):
         log.info("%s already ingested", trade_date)
-        return True, "already ingested"
+        return True, "already ingested", 0
 
     url = _ind_close_url(d)
     raw = _try_fetch(url)
     if not raw:
-        return False, f"fetch failed for {trade_date}"
+        return False, f"fetch failed for {trade_date}", 0
 
     # Archive raw
     fn = url.rsplit("/", 1)[-1]
@@ -195,12 +203,12 @@ def fetch_and_store(d: datetime) -> tuple[bool, str]:
 
     rows = _parse(text, fallback_date=trade_date)
     if not rows:
-        return False, f"parse failed for {trade_date}"
+        return False, f"parse failed for {trade_date}", 0
 
     n = _store(rows)
     _mark_date(trade_date, n)
     log.info("%s %d/%d index rows stored", trade_date, n, len(rows))
-    return True, f"{n} rows"
+    return True, f"{n} rows", n
 
 
 def _latest_likely_trading_day(today: Optional[datetime] = None) -> datetime:
@@ -222,8 +230,8 @@ def run_today() -> tuple[bool, str]:
         # Skip weekends in walk-back
         while d.weekday() >= 5:
             d -= timedelta(days=1)
-        ok, msg = fetch_and_store(d)
-        if ok and "rows" in msg:
+        ok, msg, stored = fetch_and_store(d)
+        if ok and stored > 0:
             any_new = True
         time.sleep(REQUEST_PAUSE_SECONDS)
     return any_new, "done"
@@ -241,8 +249,8 @@ def run_backfill(days_back: int) -> tuple[int, int]:
         if _already_ingested(d.strftime("%Y-%m-%d")):
             skipped += 1
             continue
-        ok, msg = fetch_and_store(d)
-        if ok and "rows" in msg:
+        ok, msg, stored = fetch_and_store(d)
+        if ok and stored > 0:
             fetched += 1
         time.sleep(REQUEST_PAUSE_SECONDS)
     return fetched, skipped
@@ -261,7 +269,7 @@ def main() -> None:
 
     if args.date:
         d = datetime.strptime(args.date, "%Y-%m-%d")
-        ok, msg = fetch_and_store(d)
+        ok, msg, _stored = fetch_and_store(d)
         log.info("%s: %s", args.date, msg)
     elif args.backfill:
         n, sk = run_backfill(args.backfill)

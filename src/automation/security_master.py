@@ -207,12 +207,24 @@ def compute_and_store(conn=None) -> dict:
             if len(lst) < 2:
                 continue
             lst.sort(key=lambda x: x[1] or "")          # by first_date
-            for (osym, _of, ol), (nsym, nf, _nl) in zip(lst, lst[1:]):
-                if osym == nsym:
-                    continue
-                if ol and nf and ol <= nf:               # non-overlapping → clean rename
+            pairs = [((osym, _of, ol), (nsym, nf, _nl))
+                     for (osym, _of, ol), (nsym, nf, _nl) in zip(lst, lst[1:])
+                     if osym != nsym]
+            if not pairs:
+                continue
+            # CL-MDC-13: auto-confirm a rename ONLY when the FULL chain for this
+            # ISIN is a clean, strictly non-overlapping handover. With >2 symbols
+            # on one ISIN, judging each consecutive pair in isolation can stitch a
+            # tidy B→C link onto an ambiguous A→B overlap and mis-attribute history.
+            # If any link overlaps, the whole chain is suspect → all candidates.
+            chain_clean = all(
+                (ol and nf and ol <= nf)
+                for (_osym, _of, ol), (_nsym, nf, _nl) in pairs
+            )
+            for (osym, _of, ol), (nsym, nf, _nl) in pairs:
+                if chain_clean:
                     ren.append((osym, nsym, nf, isin, "isin", 1))
-                else:                                    # overlap → candidate only
+                else:
                     ren.append((osym, nsym, nf, isin, "isin-overlap", 0))
         conn.executemany(
             "INSERT OR REPLACE INTO security_renames "

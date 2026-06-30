@@ -240,6 +240,11 @@ def _character_metrics(dates: list, adj: list, deliv_value: list,
         updown = None
     elif down == 0.0:
         updown = 99.0                # up$ only — cap (avoid div-by-zero blow-up)
+    elif up == 0.0:
+        # CL-MDC-05: down$ only — floor symmetrically at 1/99 so the all-down
+        # extreme mirrors the all-up cap of 99 (was 0.0, an asymmetric threshold
+        # that made "pure distribution" indistinguishable from "merely weak").
+        updown = 1.0 / 99.0
     else:
         updown = up / down
 
@@ -468,7 +473,14 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
 
     # D31 calendar-day windowing helpers.
     def window_subset(days: int):
-        """Return the baseline rows within the last `days` calendar days."""
+        """Return the baseline rows within the last `days` calendar days.
+
+        CL-MDC-14: this lexicographic `b[0] >= cutoff` window math is only
+        correct because every trade_date is normalized to ISO YYYY-MM-DD at
+        ingestion (all three bhavcopy parsers; UDIFF via bhavcopy._norm_iso_date
+        as of CL-MDC-04). _cutoff_date emits the same ISO format, so string
+        ordering == chronological ordering.
+        """
         cutoff = _cutoff_date(trade_date, days)
         return [b for b in baseline_full if b[0] >= cutoff]
 
@@ -643,7 +655,10 @@ def _hot_days_avg_close(prior_rows) -> Optional[float]:
         if today_v is None:
             continue
         baseline_window = [v for v in dvpts[i + 1 : i + 1 + 22] if v is not None]
-        if len(baseline_window) < 22:
+        # CL-MDC-10: require a min count rather than the full 22 non-None points,
+        # otherwise thin/illiquid names (with gappy DVPT) never register a hot
+        # day at all. 15 still gives a meaningful top-5 power baseline.
+        if len(baseline_window) < 15:
             continue
         top5 = sorted(baseline_window, reverse=True)[:5]
         if not top5:

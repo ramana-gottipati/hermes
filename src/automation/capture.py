@@ -51,11 +51,20 @@ MIN_DOWN_DAYS = 5          # need a few down days for the ratio to mean anything
 
 
 # ── pure math (date-aligned close lists, oldest → newest) ─────────────────────
-def _returns(closes: list[float]) -> list[float]:
+def _returns(closes: list) -> list:
+    """Period returns. CL-MDC-12: a non-positive/missing prev close yields None
+    (a skipped observation) rather than a fabricated 0.0 flat day, which would
+    otherwise dilute the up/down-capture denominators. Position is preserved so
+    the sector and benchmark return lists stay index-aligned; capture_window
+    drops any pair where either side is None."""
     out = []
     for i in range(1, len(closes)):
         prev = closes[i - 1]
-        out.append((closes[i] / prev - 1.0) if (prev and prev > 0) else 0.0)
+        cur = closes[i]
+        if prev and prev > 0 and cur is not None:
+            out.append(cur / prev - 1.0)
+        else:
+            out.append(None)
     return out
 
 
@@ -74,8 +83,14 @@ def capture_window(sec_closes: list[float], ben_closes: list[float],
     br = _returns(ben_closes[-(window + 1):])
     n = min(len(sr), len(br))
     sr, br = sr[-n:], br[-n:]
-    if n == 0:
+    # CL-MDC-12: drop any index where either side's return is a skipped (None)
+    # observation, keeping the remaining sector/benchmark returns aligned.
+    pairs = [(sr[i], br[i]) for i in range(n) if sr[i] is not None and br[i] is not None]
+    if not pairs:
         return {"down_capture": None, "up_capture": None, "down_excess": None}
+    sr = [p[0] for p in pairs]
+    br = [p[1] for p in pairs]
+    n = len(pairs)
 
     s_dn = [sr[i] for i in range(n) if br[i] < 0]
     b_dn = [br[i] for i in range(n) if br[i] < 0]
