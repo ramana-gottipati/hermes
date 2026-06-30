@@ -30,7 +30,15 @@ def first_text(response, default: str = "") -> str:
     return default
 
 
-def ask(prompt: str, *, fast: bool = False, system: str | None = None) -> str:
+def ask(prompt: str, *, fast: bool = True, system: str | None = None) -> str:
+    """One-shot text-in/text-out helper.
+
+    CL-SYS-03: defaults to the cheap Haiku tier (`fast=True`) per the cost doctrine
+    (≤ ~Rs300/mo; cheap models in any non-user-initiated path). The premium Sonnet
+    tier is opt-in only — pass `fast=False` explicitly on a user-initiated path where
+    Ramana wants Sonnet-grade reasoning. (`settings.default_model` is the *named*
+    Sonnet tier identifier used by those explicit opt-ins; it is intentionally NOT
+    changed — flipping it would silently downgrade the explicit Sonnet paths.)"""
     model = settings.fast_model if fast else settings.default_model
     response = client().messages.create(
         model=model,

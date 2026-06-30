@@ -107,6 +107,12 @@ def run_analysis(ticker: str, extra: str = "", *, use_sonnet: bool = False) -> s
     Default model is HAIKU (cost-conscious choice — Stage 2 of the two-stage
     flow). Pass use_sonnet=True to force the higher-quality Sonnet path for
     manual /analyze calls where the user wants premium analysis.
+
+    CL-SYS-03 invariant: the Sonnet tier is OPT-IN here (use_sonnet defaults False
+    → Haiku). Any user-initiated /analyze caller that wants Sonnet MUST pass
+    use_sonnet=True explicitly — never rely on a global default to pick Sonnet.
+    (Today the Telegram /analyze command is a claude.ai-redirect guide and does not
+    call this; this stays Haiku-by-default for any future automated caller.)
     """
     from src.core.llm import client, first_text
     from src.core.settings import settings
