@@ -99,45 +99,65 @@ def _backup(path: str) -> str:
     return bak
 
 
+def _restore(changed: list[tuple[str, str, str]]) -> None:
+    """Roll back every already-written file from its backup (most-recent first)."""
+    for p, b, _ in reversed(changed):
+        try:
+            shutil.copy2(b, p)
+            print(f"ROLLED BACK {p} <- {b}", file=sys.stderr)
+        except Exception as re:  # noqa: BLE001
+            print(f"ROLLBACK FAILED for {p}: {re}", file=sys.stderr)
+
+
 def process(root: str, verify: bool) -> int:
     main_py = os.path.join(root, "src", "main.py")
     dash_py = os.path.join(root, "src", "web", "dashboard.py")
     changed: list[tuple[str, str, str]] = []
 
-    # 1. dashboard.py — strip the stale nav block (nav is wrapped at runtime now).
-    with open(dash_py, encoding="utf-8") as f:
-        dtext = f.read()
-    dnew, dhit = _strip_from_marker(dtext, _STALE["dash"])
-    if dnew != dtext:
-        ast.parse(dnew)                  # guard: never write an unparseable file
-        bak = _backup(dash_py)
-        with open(dash_py, "w", encoding="utf-8") as f:
-            f.write(dnew)
-        changed.append((dash_py, bak, "stripped stale v2 nav block"))
+    # CL-SCR-05: the mutation phase touches two files in sequence. The old code had NO
+    # all-or-nothing guarantee: if main.py's ast.parse/write raised AFTER dashboard.py was
+    # already rewritten, dashboard.py was left mutated and only the --verify path ever
+    # rolled back. Wrap the whole write phase so ANY failure (parse guard, copy2, write)
+    # restores every file already written before re-raising — partial state can't leak out.
+    try:
+        # 1. dashboard.py — strip the stale nav block (nav is wrapped at runtime now).
+        with open(dash_py, encoding="utf-8") as f:
+            dtext = f.read()
+        dnew, dhit = _strip_from_marker(dtext, _STALE["dash"])
+        if dnew != dtext:
+            ast.parse(dnew)                  # guard: never write an unparseable file
+            bak = _backup(dash_py)
+            with open(dash_py, "w", encoding="utf-8") as f:
+                f.write(dnew)
+            changed.append((dash_py, bak, "stripped stale v2 nav block"))
 
-    # 2. main.py — strip the stale block + the superseded Lane B mount (now durable via
-    #    _ROUTER_SPECS), then ensure the clean hook at EOF.
-    with open(main_py, encoding="utf-8") as f:
-        mtext = f.read()
-    mnew, mhit = _strip_from_marker(mtext, _STALE["main"])
-    laneB_start, laneB_end = _SUPERSEDED_BLOCKS["main_laneB"]
-    mnew, lbhit = _strip_between_markers(mnew, laneB_start, laneB_end)
-    had_hook = HOOK_MARKER in mnew
-    if not had_hook:
-        mnew = mnew.rstrip() + "\n" + HOOK_BLOCK
-    if mnew != mtext:
-        ast.parse(mnew)                  # guard
-        bak = _backup(main_py)
-        with open(main_py, "w", encoding="utf-8") as f:
-            f.write(mnew)
-        note = []
-        if mhit:
-            note.append("stripped stale block")
-        if lbhit:
-            note.append("stripped superseded Lane B mount (now in _ROUTER_SPECS)")
+        # 2. main.py — strip the stale block + the superseded Lane B mount (now durable via
+        #    _ROUTER_SPECS), then ensure the clean hook at EOF.
+        with open(main_py, encoding="utf-8") as f:
+            mtext = f.read()
+        mnew, mhit = _strip_from_marker(mtext, _STALE["main"])
+        laneB_start, laneB_end = _SUPERSEDED_BLOCKS["main_laneB"]
+        mnew, lbhit = _strip_between_markers(mnew, laneB_start, laneB_end)
+        had_hook = HOOK_MARKER in mnew
         if not had_hook:
-            note.append("added hook")
-        changed.append((main_py, bak, "; ".join(note)))
+            mnew = mnew.rstrip() + "\n" + HOOK_BLOCK
+        if mnew != mtext:
+            ast.parse(mnew)                  # guard
+            bak = _backup(main_py)
+            with open(main_py, "w", encoding="utf-8") as f:
+                f.write(mnew)
+            note = []
+            if mhit:
+                note.append("stripped stale block")
+            if lbhit:
+                note.append("stripped superseded Lane B mount (now in _ROUTER_SPECS)")
+            if not had_hook:
+                note.append("added hook")
+            changed.append((main_py, bak, "; ".join(note)))
+    except Exception as e:  # noqa: BLE001
+        print(f"WRITE PHASE FAILED: {e}", file=sys.stderr)
+        _restore(changed)
+        return 2
 
     for p, b, note in changed:
         print(f"WROTE {p}  ({note})  backup={b}")
@@ -153,9 +173,7 @@ def process(root: str, verify: bool) -> int:
             print("VERIFY: import src.main OK")
         except Exception as e:  # noqa: BLE001
             print(f"VERIFY FAILED: {e}", file=sys.stderr)
-            for p, b, _ in changed:
-                shutil.copy2(b, p)
-                print(f"ROLLED BACK {p} <- {b}", file=sys.stderr)
+            _restore(changed)
             return 2
     return 0
 

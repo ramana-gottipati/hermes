@@ -187,6 +187,11 @@ def simulate(w, highs, lows, closes, n, cfg, log=None):
 # universe + driver                                                           #
 # --------------------------------------------------------------------------- #
 def nifty500(conn):
+    # CL-RES-14: SURVIVORSHIP-BIASED universe. This is the CURRENT Nifty-500 membership
+    # (MAX(snapshot_date)) applied to all history, so names that were in the index during
+    # the backtest but later dropped out (the losers/delistings) are excluded — backtest
+    # results on this universe are optimistically biased. Prefer `inclusive` (point-in-time
+    # liquid universe). Kept for comparison only; runs print a SURVIVORSHIP-BIASED banner.
     return [r[0] for r in conn.execute(
         """SELECT symbol FROM stock_index_membership WHERE index_name='Nifty 500'
            AND snapshot_date=(SELECT MAX(snapshot_date) FROM stock_index_membership WHERE index_name='Nifty 500')
@@ -199,12 +204,17 @@ def inclusive(conn, topn=300):
            GROUP BY symbol HAVING COUNT(*)>=500 ORDER BY AVG(value) DESC LIMIT ?""", (topn,)).fetchall()]
 
 
-def run(universe_name="nifty500", debug=None):
+def run(universe_name="inclusive", debug=None):
+    # CL-RES-14: default is now the point-in-time liquid `inclusive` universe. The
+    # `nifty500` option is survivorship-biased (current membership applied to history)
+    # and is opt-in only.
     with get_conn() as conn:
         names = nifty500(conn) if universe_name == "nifty500" else inclusive(conn)
         if debug:
             names = [debug]
-        print("universe: %s (%d names)%s\n" % (universe_name, len(names), "  [DEBUG]" if debug else ""))
+        bias = "  [SURVIVORSHIP-BIASED — current membership]" if universe_name == "nifty500" else ""
+        print("universe: %s (%d names)%s%s\n" % (universe_name, len(names), bias,
+                                                 "  [DEBUG]" if debug else ""))
         rows = []
         for sym in names:
             s = wolfe.stock_series(conn, sym)
@@ -399,7 +409,7 @@ def oos_report(rows):
 
 
 if __name__ == "__main__":
-    uni = "nifty500"
+    uni = "inclusive"          # CL-RES-14: default to the PIT-liquid universe (nifty500 is opt-in, biased)
     dbg = None
     args = sys.argv[1:]
     for i, a in enumerate(args):

@@ -67,7 +67,8 @@ def build_hero(h):
 
 
 def main():
-    d = json.load(open(os.path.join(HERE, "dossier.json"), encoding="utf-8"))
+    with open(os.path.join(HERE, "dossier.json"), encoding="utf-8") as _fh:  # CL-SCR-11: don't leak the fd
+        d = json.load(_fh)
     heroes = [build_hero(h) for h in d["heroes"]]
     payload = {"index": d.get("index_used"), "heroes": heroes}
     # Escape '<' so a ledger field containing '</script>' can't break out of the inline

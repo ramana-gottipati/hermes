@@ -47,12 +47,38 @@ _DOWN = ("reduce", "decline", "lower", "cut", "delever", "deleverage", "fall", "
          "soften", "down", "headwind", "weak", "pressure", "slowdown", "de-grow")
 
 
-def _approx_anchor_date(year, month) -> Optional[str]:
-    """Approximate concall date = the 15th of the concall month (the precise
-    concall_dt three-clock model is deferred — debate #4). 'YYYY-MM-15' or None."""
+def _month_end_anchor(year, month) -> Optional[str]:
+    """No-look-ahead anchor for a concall whose exact date is unknown: the LAST day of
+    the concall month. The call happened on SOME day in that month; anchoring at the
+    15th (the old default) could start the forward window before the call had actually
+    occurred — a mild look-ahead (CL-RES-12). Month-end is conservatively late: the call
+    is certainly knowable by then, so no future information leaks into the entry.
+    'YYYY-MM-DD' (last day) or None."""
     if not year or not month:
         return None
-    return f"{int(year):04d}-{int(month):02d}-15"
+    y, m = int(year), int(month)
+    import calendar
+    last = calendar.monthrange(y, m)[1]
+    return f"{y:04d}-{m:02d}-{last:02d}"
+
+
+def _anchor_date(concall_date, year, month) -> Optional[str]:
+    """The anchor for the forward-return window. Prefer the ACTUAL concall date when the
+    `concalls` row carries one (zero look-ahead, exact); otherwise fall back to the
+    no-look-ahead month-end approximation. Replaces the old 15th-of-month heuristic,
+    which could anchor before the call actually happened (CL-RES-12)."""
+    if concall_date:
+        s = str(concall_date)[:10]
+        # accept a plausible ISO date only; anything else falls through to month-end.
+        if len(s) == 10 and s[4] == "-" and s[7] == "-":
+            return s
+    return _month_end_anchor(year, month)
+
+
+# Back-compat alias (kept so any external caller of the old name still resolves; now
+# routes through the no-look-ahead month-end anchor rather than the 15th).
+def _approx_anchor_date(year, month) -> Optional[str]:
+    return _month_end_anchor(year, month)
 
 
 def period_direction(con, symbol: str, source_period: str) -> int:
@@ -133,7 +159,8 @@ def gather_observations(con) -> list[dict]:
     and forward return are measured purely from the anchor forward, so the guidance
     gate (GATE A) is unaffected."""
     periods = con.execute(
-        "SELECT DISTINCT g.symbol, g.source_period, c.concall_year, c.concall_month "
+        "SELECT DISTINCT g.symbol, g.source_period, c.concall_year, c.concall_month, "
+        "c.concall_date "
         "FROM concall_guidance g "
         "JOIN concalls c ON c.symbol=g.symbol AND c.period_label=g.source_period").fetchall()
     cred = _per_period_credibility(con)        # {} until a PIT per-period score exists
@@ -141,7 +168,9 @@ def gather_observations(con) -> list[dict]:
     out: list[dict] = []
     for p in periods:
         sym = p["symbol"]
-        anchor = _approx_anchor_date(p["concall_year"], p["concall_month"])
+        # CL-RES-12: actual concall_date when present (exact, zero look-ahead); else the
+        # no-look-ahead month-end approximation. (was: 15th-of-month, a mild look-ahead.)
+        anchor = _anchor_date(p["concall_date"], p["concall_year"], p["concall_month"])
         if not anchor:
             continue
         if sym not in series_cache:

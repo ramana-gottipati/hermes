@@ -213,6 +213,13 @@ def market_regime(index_name: str = "Nifty 50", sma: int = 200):
 
     regime_on = index close > its own ``sma``-day moving average (a long-only trend
     filter). Dates before the SMA warms up are False (no position).
+
+    No look-ahead (CL-RES-03): the gate for trade-entry day ``d`` must be decidable
+    from data knowable BEFORE ``d`` — entries trade at the next session's OPEN, so the
+    decision uses information through the PRIOR close. We therefore compare the index
+    close at ``d`` against the SMA computed up to ``d-1`` (``ma[i-1]``), not the SMA
+    that already folds in ``close[i]`` itself. Using ``ma[i]`` (same-day, self-inclusive)
+    was a 1-bar look-ahead in the regime filter.
     """
     mc = main_conn()
     rows = mc.execute(
@@ -224,7 +231,10 @@ def market_regime(index_name: str = "Nifty 50", sma: int = 200):
     ma = _roll_mean(close, sma)
     on = {}
     for i, d in enumerate(dates):
-        on[d] = bool(close[i] > ma[i]) if (i >= sma - 1 and not np.isnan(ma[i])) else False
+        # ma[i-1] = the SMA as-of the prior close (lagged one bar; no same-day leak).
+        # Warm-up needs sma bars BEFORE today's close, i.e. i-1 >= sma-1  ->  i >= sma.
+        ma_prior = ma[i - 1] if i >= 1 else np.nan
+        on[d] = bool(close[i] > ma_prior) if (i >= sma and not np.isnan(ma_prior)) else False
     return dates, on, {d: float(close[i]) for i, d in enumerate(dates)}
 
 

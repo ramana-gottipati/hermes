@@ -91,15 +91,35 @@ _NATIVE_MARKERS = [
 def _build_client():
     """Build the app exactly as production serves it: import src.main, then apply the
     durable v2 hook (scripts/wire_v2_surfaces.py adds this line to the VPS main.py; we
-    apply it in-process so the gate tests the chrome the VPS would render)."""
+    apply it in-process so the gate tests the chrome the VPS would render).
+
+    CL-SCR-12: the old code just called wire() twice and asserted nothing, so the
+    "idempotency test" was a no-op — a double-wrap regression would pass silently. We
+    now snapshot the route table after the first wire(), wire() a second time, and
+    ASSERT the route count is unchanged. A second wire() that adds routes (double-mount)
+    or wraps the chrome twice is a real bug and now fails the gate before deploy."""
     from fastapi.testclient import TestClient
 
     import src.main as M
     from src.web import v2_surfaces
 
     v2_surfaces.wire(M.app)
-    v2_surfaces.wire(M.app)  # idempotent — re-applying must not double-wrap the chrome
+    routes_before = len(M.app.routes)
+    v2_surfaces.wire(M.app)            # must be idempotent — no new routes, no double-wrap
+    routes_after = len(M.app.routes)
+    if routes_after != routes_before:
+        raise AssertionError(
+            f"v2_surfaces.wire is NOT idempotent: route count {routes_before} -> "
+            f"{routes_after} on a second call (double-mount / double-wrap regression)")
     return TestClient(M.app)
+
+
+# CL-SCR-02: a degraded page can still emit just enough nav scaffolding to satisfy a
+# bare substring like ">Trust<" while having lost its actual body (e.g. an error page
+# that inherits the shell). Require a minimum rendered length so a stub/error page that
+# happens to carry the nav markers cannot false-green the gate. A real Patearn page is
+# several KB; 2KB is comfortably below any real page and well above an error stub.
+_MIN_HTML_LEN = 2048
 
 
 def _check(client, path: str, markers) -> list[str]:
@@ -112,8 +132,19 @@ def _check(client, path: str, markers) -> list[str]:
     if r.status_code != 200:
         return [f"{path} -> {r.status_code} (expected 200)"]
     html = r.text
+    if len(html) < _MIN_HTML_LEN:
+        fails.append(f"{path} -> page suspiciously short ({len(html)}B < {_MIN_HTML_LEN}B): "
+                     "likely a degraded/error stub that still carries nav scaffolding")
+    # require the markers to live inside the document body, not anywhere in the response
+    # (a bare-substring match can be satisfied by a stray comment/attribute on a broken
+    # page). We anchor the must-be-present markers to the <body>..</body> span when one
+    # exists; absence markers still scan the whole document (stricter).
+    lo = html.find("<body")
+    hi = html.rfind("</body>")
+    body = html[lo:hi] if (lo != -1 and hi != -1 and hi > lo) else html
     for label, needle, must_be_present in markers:
-        present = needle in html
+        haystack = body if must_be_present else html
+        present = needle in haystack
         if present != must_be_present:
             verb = "missing" if must_be_present else "leaked (should be gone)"
             fails.append(f"{path} -> chrome marker {verb}: {label}")

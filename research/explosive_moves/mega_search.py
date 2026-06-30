@@ -110,7 +110,16 @@ for sig in SIGS:
                 results.append((sig, ft, n, s19[0], s19[1], s19[2], s12[0], s12[1]))
 
 results.sort(key=lambda r: -r[3])
-print(f"\nTOP 30 by 2019-2026 CAGR (net of cost). robust = also positive 2012-2018\n")
+# CL-RES-07: this ranks 144 = 8 signals x 3 floors x 6 topN configs by ONE window's CAGR
+# with NO multiple-testing adjustment, so the top line is the best-of-144 order statistic
+# (upward biased) — it is NOT an estimate of the edge you would have earned out-of-sample.
+# Treat the table as a HYPOTHESIS-GENERATOR, not a result. The only column that carries
+# evidential weight is both-half survival (positive in 2019-2026 AND 2012-2018); a config
+# that tops the 2019-26 sort but is weak in 2012-18 is flagged OVERFIT below. For a real
+# significance read, deflate by the trial count (e.g. Bonferroni / deflated-Sharpe) — see
+# ml_alpha.deflated_sharpe — rather than reading the rank-1 CAGR at face value.
+print(f"\nTOP 30 by 2019-2026 CAGR (net of cost) — IN-SAMPLE RANK of 144 configs, best-of "
+      f"order statistic, NOT an OOS edge. robust = also positive 2012-2018 (the real test)\n")
 print(f"{'signal':11}{'univ':5}{'topN':>5}{'CAGR19':>8}{'MaxDD19':>9}{'Sharpe':>7}{'CAGR12-18':>10}{'DD12-18':>9}  flag")
 for sig, ft, n, c19, dd19, sh, c12, dd12 in results[:30]:
     flag = ""
