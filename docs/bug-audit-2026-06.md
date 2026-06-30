@@ -11,6 +11,19 @@ Counts (Claude pass): ~170 findings — 1 Critical, ~17 High, ~60 Medium, rest L
 
 ---
 
+## Remediation status — 2026-06-30 (branch `bugfix/audit-p1-2026-06-30`, PR #1, HEAD `c6a6b4b`)
+
+**Codex cross-check DONE** (`codex-bridge/resp-10` + `DISCUSSION-bug-audit.md`): Codex `gpt-5.5` AGREED on all 23 headline `CL-*` and both adjudications; added `CX-01..05`. CX-01/02/03 fixed; CX-04/05 deferred (untracked dormant `code_review.py`).
+
+- **FIXED + committed (held off `main` for review):** the 1 Critical + all High + the bulk of Medium/Low — across the P1 wave (`0ec20f5`…`df4d3af`, `a815e6c`) and the completion wave (`2eab882`, `7599477`, `937a90f`, `8b3f7e8`, `9594c6e`, `dc35453`, `d7ca005`, `fb6837f`, `c6a6b4b`). Each fix real-data-verified read-only on the VPS; chrome_gate PASS.
+- **DEPLOYED live to VPS:** only the P1 security/crash set (CL-SYS-01/02, CL-CHR-1/3/4, CL-VIEW-01/03/08, the market-data recompute). All Medium/Low ride Ramana's PR merge (coordinated deploy) — prod stays at the reviewed P1 state.
+- **⚠ CX-01 (Q4-vs-annual settle):** fixed in code; deploying requires a coordinated re-settle + `concall_scores`/credibility-series recompute (shifts ~1,568 verdicts; supersedes published CCI track-record numbers). Recompute not run.
+- **BLOCKED — parallel session's uncommitted tree edits (untouched):** CL-CCI-01/03/04/05/10/11/13/14, CL-MDC-09, CL-RS-07.
+- **DEFERRED:** untracked-file findings CL-PROV-11 (`enrich.py`), CL-SCR-10 (`pipeline_status.py`), CL-PROV-17 + CX-04/05 (`code_review.py`); plus CL-DASH-14 (1200-line dead-body removal), CL-DASH-17 (sector IN-list), CL-CHR-6 (cockpit palette) — each needs a focused/owner pass.
+- **FALSE-POSITIVE / portability-only (no action, Codex-confirmed):** CL-DASH-11, CL-DASH-02 (+ the verified-clean set at the bottom of this doc).
+
+---
+
 ## TABLE 1 — BUGS
 
 ### Critical
