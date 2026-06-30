@@ -115,7 +115,7 @@ tr:last-child td { border-bottom:none; }
 .p-UPTREND{background:var(--up-dim);color:var(--up);} .p-CONSOLIDATING{background:rgba(246,183,60,.14);color:var(--warn);}
 .p-DOWNTREND{background:var(--down-dim);color:var(--down);} .p-BREAKDOWN{background:var(--down-dim);color:var(--down);}
 /* D43 accumulation/distribution character pills */
-.ca-acc{background:#16341f;color:#7ee787;} .ca-dist{background:#3a1a1a;color:#ffa198;}
+.ca-acc{background:var(--up-dim);color:var(--up);} .ca-dist{background:var(--down-dim);color:var(--down);}
 .ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:#30363d;color:#8b949e;}
 /* Session 33 — THEME tag chips + the themes browse + accumulating-only filter */
 .tchip{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:9px;
@@ -159,8 +159,8 @@ a.row { color:inherit; text-decoration:none; display:block; }
 .banner { border-radius:10px; padding:12px 14px; margin-bottom:12px; font-weight:700;
           display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .banner small { font-weight:400; opacity:.9; }
-.b-on{background:#16341f;color:#7ee787;border:1px solid #1f6f3a;}
-.b-off{background:#3a1a1a;color:#ffa198;border:1px solid #8f1f1f;}
+.b-on{background:var(--up-dim);color:var(--ok);border:1px solid rgba(var(--up-rgb),.35);}
+.b-off{background:var(--down-dim);color:var(--off);border:1px solid rgba(var(--down-rgb),.35);}
 .b-neu{background:#3a3417;color:#ffd99a;border:1px solid #5a4a1f;}
 .majgrid { display:grid; grid-template-columns:1fr; gap:8px; }
 @media(min-width:560px){ .majgrid{ grid-template-columns:1fr 1fr; } }
@@ -205,19 +205,19 @@ tr.dt-hide{display:none!important}
 .scards{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:6px;}
 @media(min-width:560px){.scards{grid-template-columns:1fr 1fr 1fr;}}
 .scard{display:block;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;color:inherit;text-decoration:none;border-top:3px solid #30363d;}
-.scard.sc-POS{border-top-color:#1f6feb;} .scard.sc-RS{border-top-color:#2ea043;} .scard.sc-QUAL{border-top-color:#bb8009;}
+.scard.sc-POS{border-top-color:#1f6feb;} .scard.sc-RS{border-top-color:var(--cat-rs);} .scard.sc-QUAL{border-top-color:#bb8009;}
 .scard.sc-CPR{border-top-color:#8957e5;}
 .scard .nm{font-weight:800;font-size:14px;} .scard .th{color:#8b949e;font-size:11px;margin:4px 0 8px;line-height:1.3;}
 .scard .ct{font-size:13px;font-weight:700;color:#e6edf3;} .scard .ct small{color:#8b949e;font-weight:400;}
 /* CPR (Structure pillar, D53) — pattern glyphs, ★ conviction tier, D·W·M strip */
-.cpg{font-weight:800;font-size:12px;} .cp-bull{color:#3fb950;} .cp-bear{color:#f85149;} .cp-none{color:#6e7681;}
+.cpg{font-weight:800;font-size:12px;} .cp-bull{color:var(--up);} .cp-bear{color:var(--down);} .cp-none{color:#6e7681;}
 .cp-tier{color:#e3b341;font-weight:800;letter-spacing:1px;white-space:nowrap;}
 .cprstrip{display:inline-flex;gap:3px;vertical-align:middle;}
 .cprstrip .c{min-width:30px;padding:2px 4px;border-radius:4px;background:#161b22;border:1px solid #21262d;display:flex;flex-direction:column;align-items:center;line-height:1.15;}
 .cprstrip .c .w{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;}
 .cprstrip .c small{font-size:7px;opacity:.6;font-weight:600;}
 .cprstrip .c.nw{background:#10241a;border-color:#1f6f3a;} .cprstrip .c.nw .w{color:#7ee787;}
-.cprstrip .c.up{box-shadow:inset 0 -2px 0 #2ea043;} .cprstrip .c.dn{box-shadow:inset 0 -2px 0 #f85149;}
+.cprstrip .c.up{box-shadow:inset 0 -2px 0 var(--up);} .cprstrip .c.dn{box-shadow:inset 0 -2px 0 var(--down);}
 .cprpanel{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:6px;}
 .cprpanel table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
 .cprpanel th,.cprpanel td{text-align:right;padding:5px 8px;border-bottom:1px solid #21262d;white-space:nowrap;}
@@ -2448,7 +2448,7 @@ def _fno_stock_panel(sym: str) -> str:
     def _pcell(v):
         if v is None:
             return '<span class="mut">—</span>'
-        return f'<span style="color:{"#2ea043" if v >= 0 else "#f85149"}">{v:+.1f}%</span>'
+        return f'<span style="color:{"var(--up)" if v >= 0 else "var(--down)"}">{v:+.1f}%</span>'
 
     chips = (
         '<div class="kpi">'
@@ -2456,9 +2456,9 @@ def _fno_stock_panel(sym: str) -> str:
         f'border-radius:6px;font-size:12px;font-weight:700;color:{qcol};border:1px solid {qcol}55;'
         f'background:{qcol}14">{_esc(qlbl)}</span></div><div class="lbl">positioning</div></div>'
         f'<div class="box"><div class="num">{_oi(cur["fut_oi"])}</div><div class="lbl">futures OI</div></div>'
-        f'<div class="box"><div class="num" style="color:{"#2ea043" if (cur["fut_oi_chg_pct"] or 0) >= 0 else "#f85149"}">'
+        f'<div class="box"><div class="num" style="color:{"var(--up)" if (cur["fut_oi_chg_pct"] or 0) >= 0 else "var(--down)"}">'
         f'{_f(cur["fut_oi_chg_pct"], 1, True)}%</div><div class="lbl">ΔOI today</div></div>'
-        f'<div class="box"><div class="num" style="color:{"#2ea043" if (basis or 0) >= 0 else "#f85149"}">'
+        f'<div class="box"><div class="num" style="color:{"var(--up)" if (basis or 0) >= 0 else "var(--down)"}">'
         f'{_f(basis, 2, True)}%</div><div class="lbl">basis fut−spot</div></div>'
         f'<div class="box"><div class="num">{_f(cur["pcr"], 2)}</div><div class="lbl">PCR put/call</div></div>'
         f'<div class="box"><div class="num">{streak}d</div><div class="lbl">in {_esc(qlbl.lower())}</div></div>'
@@ -2513,10 +2513,10 @@ def _fno_stock_panel(sym: str) -> str:
             f'<tbody>{hrows}</tbody></table>')
 
     legend = ('<div class="sub mut" style="margin-top:8px;font-size:11px">'
-              '↑price ↑OI = <b style="color:#2ea043">long buildup</b> · '
-              '↓price ↑OI = <b style="color:#f85149">short buildup</b> · '
+              '↑price ↑OI = <b style="color:var(--up)">long buildup</b> · '
+              '↓price ↑OI = <b style="color:var(--down)">short buildup</b> · '
               '↓price ↓OI = <b style="color:#f0883e">long unwind</b> · '
-              '↑price ↓OI = <b style="color:#3fb950">short cover</b>.</div>')
+              '↑price ↓OI = <b style="color:var(--up)">short cover</b>.</div>')
     foot = ('<div class="sub mut" style="margin-top:6px;font-size:11px">Stock-futures OI summed across '
             'expiries vs the cash price move; PCR from stock options. The one channel that names the '
             'strong hand — but DESCRIPTOR-ONLY (D62): it must clear the DSR gate before it ranks or picks.</div>')
