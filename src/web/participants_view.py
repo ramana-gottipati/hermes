@@ -43,11 +43,12 @@ def _cell(v, scale):
     """Signed contracts cell: coloured bipolar bar + value (lakh contracts)."""
     if v is None:
         return '<td class="r mut">—</td>'
-    col = "#2ea043" if v >= 0 else "#f85149"
+    col = "var(--up)" if v >= 0 else "var(--down)"
+    tint = "rgba(var(--up-rgb),.13)" if v >= 0 else "rgba(var(--down-rgb),.13)"
     w = min(100, abs(v) / scale * 100) if scale else 0
     side = "left:50%" if v >= 0 else "right:50%"   # CL-VIEW-07: dead f-prefix dropped
     bar = (f'<span style="position:absolute;top:3px;{side};width:{w/2:.0f}%;height:9px;'
-           f'background:{col}22;border-{"left" if v>=0 else "right"}:2px solid {col}"></span>')
+           f'background:{tint};border-{"left" if v>=0 else "right"}:2px solid {col}"></span>')
     return (f'<td class="r" style="position:relative;color:{col};font-variant-numeric:tabular-nums">'
             f'{bar}<span style="position:relative">{v/1e5:+.2f}L</span></td>')
 
@@ -60,11 +61,11 @@ def _spark(series):
     m = max(abs(min(pts)), abs(max(pts))) or 1
     n = len(pts)
     coords = " ".join(f"{i/(n-1)*100:.1f},{15 - v/m*13:.1f}" for i, v in enumerate(pts))
-    col = "#2ea043" if pts[-1] >= 0 else "#f85149"
+    col = "var(--up)" if pts[-1] >= 0 else "var(--down)"
     return (f'<svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none" '
             f'style="display:block">'
             f'<line x1="0" y1="15" x2="100" y2="15" stroke="#30363d" stroke-width="0.6"/>'
-            f'<polyline points="{coords}" fill="none" stroke="{col}" stroke-width="1.3"/></svg>')
+            f'<polyline points="{coords}" fill="none" style="stroke:{col}" stroke-width="1.3"/></svg>')
 
 
 def render_participants() -> str:
@@ -107,7 +108,7 @@ def render_participants() -> str:
               else "strongly bullish" if (fii_ratio is not None and fii_ratio > 1.7)
               else "bullish-leaning" if (fii_ratio is not None and fii_ratio > 1.1)
               else "balanced")
-    scol = ("#f85149" if "bearish" in stance else "#2ea043" if "bullish" in stance else "#8b949e")
+    scol = ("var(--down)" if "bearish" in stance else "var(--up)" if "bullish" in stance else "var(--ink-2)")
     diverge = ""
     if fii_net is not None and cli_net is not None and (fii_net > 0) != (cli_net > 0):
         diverge = (f' <b style="color:#d29922">FII and retail are on opposite sides</b> — '
@@ -156,7 +157,7 @@ def render_participants() -> str:
     for h in reversed(hist[-15:]):
         nt = _net(h["fut_idx_long"], h["fut_idx_short"])
         rt = _ratio(h["fut_idx_long"], h["fut_idx_short"])
-        c = "#2ea043" if (nt or 0) >= 0 else "#f85149"
+        c = "var(--up)" if (nt or 0) >= 0 else "var(--down)"
         hrows += (f'<tr><td class="l mut">{html.escape(h["trade_date"])}</td>'
                   f'<td class="r" style="color:{c}">{(nt/1e5):+.2f}L</td>'
                   f'<td class="r mut">{("%.2f" % rt) if rt else "—"}</td></tr>')

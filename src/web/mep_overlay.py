@@ -56,7 +56,7 @@ def mep_overlay(sym: str = Query("", max_length=24)):
 SNIPPET = """<script>
 (function(){
   var PC=null, CS=null, prim=null, bands=null, on=false, loaded=false;
-  var COL={A:'rgba(63,185,80,0.07)',SA:'rgba(63,185,80,0.15)',D:'rgba(248,81,73,0.07)',SD:'rgba(248,81,73,0.15)'};
+  var COL={A:'rgba(63,212,134,0.07)',SA:'rgba(63,212,134,0.15)',D:'rgba(255,106,122,0.07)',SD:'rgba(255,106,122,0.15)'};
   function chipCss(a){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 9px;border-radius:20px;'+(a?'background:rgba(188,140,255,0.16);color:#cda9ff':'border:1px solid #30363d;color:#8b949e'); }
   function makePrim(){ var req=null, vis=true;
     var view={ zOrder:function(){return 'bottom';}, renderer:function(){ return { draw:function(tg){

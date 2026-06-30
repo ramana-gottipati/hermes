@@ -67,6 +67,19 @@ MIGRATED = [
     "src/web/strategist_view.py",   # .st-*/.wc-* all var()
     "src/web/rotation_view.py",     # PHASE dict already canonical (D-PITCH-2 colour contract)
     "src/web/rsband_view.py",       # _LANE_JS/_CLOCK_JS canvas-canonical hex + verdict/band var() tokens
+    # Phase 1 (directional migration complete — regression-locked):
+    "src/web/rrg_view.py",          # RRG ruling: QCOLOR→tokens, SVG consumers→style=
+    "src/web/mini_rrg.py",          # RRG ruling, reconciled to rrg_view
+    "src/web/wolfe_view.py",        # bull/bear/in-zone→var(); SVG path→canonical literal
+    "src/web/participants_view.py", # net-long/short→var(); sparkline SVG stroke→style=; {col}22→rgba(var())
+    "src/web/rs_section.py",        # .rsh-rk.up/.dn→var()
+    "src/web/harmonic_view.py",     # _BULL/_BEAR + inline color:→var()
+    "src/web/wolfe_overlay.py",     # canvas zfill/zedge + manual-draw→canonical literal
+    "src/web/cpr_overlay.py",       # canvas regime tint + BULL/BEAR arrows→canonical literal
+    "src/web/mep_overlay.py",       # canvas accum/distrib COL→canonical literal
+    # NOT yet migrated: dashboard.py, stock_chart.py (directional in progress);
+    # growth_view.py + testing_view.py carry a CATEGORICAL green (gw-cr money-accent,
+    # benchmark "row to beat") that is correctly NOT --up — addressed in the categorical phase.
 ]
 
 # foundation files legitimately hold palette VALUES as literals — exclude from the legacy scan.

@@ -61,7 +61,7 @@ _CSS = """
 .tlab tr.bench{background:#10241c}.tlab tr.bench td{color:#3fb950}
 .tlab tr.real td:first-child::before{content:'● ';color:#d29922}
 .tlab tr.flat td:first-child::before{content:'○ ';color:#6b7686}
-.tlab .pos{color:#3fb950}.tlab .neg{color:#f85149}
+.tlab .pos{color:var(--up)}.tlab .neg{color:var(--down)}
 .tlab .legend{color:#8b97a7;font-size:11px;margin:4px 0 22px}
 .tlab .card{background:#161b22;border:1px solid #262e39;border-radius:12px;padding:14px 16px;margin:12px 0}
 .tlab .cn{font-weight:700;font-size:14px}.tlab .cm{color:#8b97a7;font-family:monospace;font-size:11px;margin:3px 0 10px}

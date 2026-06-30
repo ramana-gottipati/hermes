@@ -156,7 +156,7 @@ _CSS = """<style>
 .rsh-sec{color:#6e7681;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .rsh-mut{color:#8b949e;margin-left:auto;}
 .rsh-rk{margin-left:auto;font-weight:600;}
-.rsh-rk.up{color:#7ee787;} .rsh-rk.dn{color:#ffa198;}
+.rsh-rk.up{color:var(--up);} .rsh-rk.dn{color:var(--down);}
 .rsh-sub{color:#6e7681;font-size:10px;text-transform:uppercase;letter-spacing:.4px;margin:6px 0 2px;}
 .rsh-empty{color:#6e7681;font-size:11px;line-height:1.5;}
 .rsh-chips{display:flex;flex-wrap:wrap;gap:4px;}

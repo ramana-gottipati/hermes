@@ -42,7 +42,7 @@ except Exception:  # pragma: no cover
 
 router = APIRouter()
 
-_BULL, _BEAR = "#3fb950", "#f85149"
+_BULL, _BEAR = "var(--up)", "var(--down)"
 
 
 # --------------------------------------------------------------------------- #
@@ -117,10 +117,10 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
     for r in rows:
         bull = r["dir"] == "BULL"
         col = _BULL if bull else _BEAR
-        tag = ('<span style="color:#3fb950;font-size:11px" title="OOS benchmark: bull harmonics beat long-drift at every horizon (Gartley-bull strongest); fit-score stratifies">✓ edge</span>'
+        tag = ('<span style="color:var(--up);font-size:11px" title="OOS benchmark: bull harmonics beat long-drift at every horizon (Gartley-bull strongest); fit-score stratifies">✓ edge</span>'
                if bull else
                '<span style="color:#d29922;font-size:11px" title="≈ short-drift in the backtest — tail/regime only, not a standalone edge">⚠ tail</span>')
-        status = ('<span style="color:#3fb950;font-weight:700">● IN</span>' if r["in_zone"]
+        status = ('<span style="color:var(--up);font-weight:700">● IN</span>' if r["in_zone"]
                   else '<span style="color:#6e7681">watch</span>')
         sc = f'{r["score"]:.2f}' if (r["state"] == "CONFIRMED" and r["score"]) else "—"
         trs.append(
@@ -160,11 +160,11 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
         '(point D printed → reversal candidate) and <b>FORMING</b> (X-A-B-C printed, D '
         'projected into a PRZ — caught down the stream). <b>Read by side</b> '
         '(survivorship-inclusive backtest, 1,052 patterns): '
-        '<span style="color:#3fb950;font-weight:600">BULL ✓ edge</span> = a modest, real, '
+        '<span style="color:var(--up);font-weight:600">BULL ✓ edge</span> = a modest, real, '
         'fit-graded selection edge that beats long-drift at every horizon (Gartley-bull '
         'strongest); <span style="color:#d29922;font-weight:600">BEAR ⚠ tail</span> ≈ '
         'short-drift, reliable only when the broad tape is weak. <b>Click a row</b> for the '
-        'chart. <span style="color:#3fb950">● IN</span> = price in the reversal zone now. '
+        'chart. <span style="color:var(--up)">● IN</span> = price in the reversal zone now. '
         '<i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
         f'<span style="color:#6e7681;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Timeframe</span>{tf_pills}</div>'

@@ -45,8 +45,8 @@ SNIPPET = """<script>
     add({color:'#bb8009',lineWidth:1,lineStyle:2},w.line13);                                   // extended 1-3 rail
     if(done && w.epa){ add({color:w.color,lineWidth:1,lineStyle:0},w.epa); }                   // EPA — only after 5
     var bull=w.dir==='BULL';                                                                   // ALL Fib overlap zones, as
-    var zfill=bull?'rgba(63,185,80,0.16)':'rgba(248,81,73,0.16)';                              // soft GREEN (bull) / RED (bear)
-    var zedge=bull?'rgba(63,185,80,0.70)':'rgba(248,81,73,0.70)';                              // bands, minimal opacity
+    var zfill=bull?'rgba(63,212,134,0.16)':'rgba(255,106,122,0.16)';                              // soft GREEN (bull) / RED (bear)
+    var zedge=bull?'rgba(63,212,134,0.70)':'rgba(255,106,122,0.70)';                              // bands, minimal opacity
     var sv=w.struct.map(function(p){return p.value;});                                         // keep zones near the structure
     var sLo=Math.min.apply(null,sv), sHi=Math.max.apply(null,sv), sR=Math.max(sHi-sLo,sHi*0.02);
     (w.zones||[]).filter(function(z){return z.price>=sLo-sR && z.price<=sHi+sR;}).forEach(function(z,zi){
@@ -146,7 +146,7 @@ SNIPPET = """<script>
     if(manual.length<1) return;
     var asc = manual.length>=4 ? (manual[3].value>manual[1].value) : (manual[manual.length-1].value>=manual[0].value);
     var bear = asc;                                                          // ascending wedge = SELL/BEAR
-    var col = bear? '#f85149' : '#3fb950';
+    var col = bear? '#ff6a7a' : '#3fd486';
     // lightweight-charts needs ascending, unique times — sort + dedupe so an out-of-order
     // or same-bar click can't throw (markers keep their click number).
     var seen={}, lineData=[], marks=[];

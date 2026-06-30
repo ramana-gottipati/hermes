@@ -78,7 +78,7 @@ SNIPPET = """<script>
           if(rx0==null&&rx1==null) return; var x0=(rx0==null?0:rx0), x1=(rx1==null?W:rx1); if(x1<=x0) x1=x0+1;
           var yT=series.priceToCoordinate(s.tc),yB=series.priceToCoordinate(s.bc),yP=series.priceToCoordinate(s.p); if(yT==null||yB==null) return;
           var bx=x0*h,bw=(x1-x0)*h,by=yT*v,bh=(yB-yT)*v;
-          x.fillStyle=s.regime>=0?'rgba(63,185,80,.10)':'rgba(248,81,73,.10)'; x.fillRect(bx,by,bw,bh);
+          x.fillStyle=s.regime>=0?'rgba(63,212,134,.10)':'rgba(255,106,122,.10)'; x.fillRect(bx,by,bw,bh);
           x.fillStyle=s.coil?'rgba(210,153,34,0.42)':'rgba(210,153,34,0.20)'; x.fillRect(bx,by,bw,bh);
           x.strokeStyle=s.coil?'rgba(240,193,80,0.92)':'rgba(210,153,34,0.50)'; x.lineWidth=(s.coil?1.3:0.9)*v;
           x.beginPath(); x.moveTo(bx,by); x.lineTo(bx+bw,by); x.moveTo(bx,by+bh); x.lineTo(bx+bw,by+bh); x.stroke();
@@ -90,8 +90,8 @@ SNIPPET = """<script>
   function markers(){ if(!CS) return; var bars=chartBars(); var mk=[]; var segs=tf?(byTf[tf]||[]):[];
     segs.forEach(function(s){ if(s.pattern!=='BULL_U'&&s.pattern!=='BEAR_INVU') return; var t=snapDate(bars,s.t0); if(t==null) return;
       // marker on the MIDDLE candle (C1) — flagged seg t0 == C1 date, snapped to the chart bar
-      if(s.pattern==='BULL_U') mk.push({time:t,position:'belowBar',color:'#3fb950',shape:'arrowUp',text:'U'+(s.confirmed?'':'?')});
-      else mk.push({time:t,position:'aboveBar',color:'#f85149',shape:'arrowDown',text:'\\u2229'+(s.confirmed?'':'?')}); });
+      if(s.pattern==='BULL_U') mk.push({time:t,position:'belowBar',color:'#3fd486',shape:'arrowUp',text:'U'+(s.confirmed?'':'?')});
+      else mk.push({time:t,position:'aboveBar',color:'#ff6a7a',shape:'arrowDown',text:'\\u2229'+(s.confirmed?'':'?')}); });
     mk.sort(function(a,b){return a.time<b.time?-1:(a.time>b.time?1:0);});
     var seen={}, uniq=[]; for(var i=0;i<mk.length;i++){ if(!seen[mk[i].time]){ seen[mk[i].time]=1; uniq.push(mk[i]); } }
     CS.setMarkers((on&&tf)?uniq:[]); }
