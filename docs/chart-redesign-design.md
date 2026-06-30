@@ -456,6 +456,32 @@ a true split RS pane + RS-of-RS (v5 native panes); log-scale toggle; then the si
 remaining `preserveAspectRatio="none"`). The eventual full `render_stock_chart()` engine swap stays the
 clean end-state for when `dashboard.py` is finally free to own the chart block outright.
 
+**HARMONIC LANE (D72) SCAFFOLDED + BENCHMARKED + LIVE (Lane G, 2026-06-28) — the §13 audit, built.**
+The "auto-detect patterns when I select" / harmonics-first ask (chart §0.1.12), now a real strategy lane
+(durable design + the recorded benchmark = NEW `docs/harmonic-pattern-design.md`). All NEW `harmonic_*`
+modules (Lane-G-owned), reusing the Wolfe engine read-only:
+- `src/automation/harmonic_patterns.py` — XABCD detector: the five well-agreed templates (Gartley/Bat/
+  Butterfly/Crab/Deep-Crab; Cypher/Shark/Three-Drives deferred — specs vary by source), per-type ratio
+  validator, forming-**PRZ** projection (catch-it-forming), fit score; selftest green (Gartley/Crab/noise/PRZ).
+- `src/automation/harmonic_backtest.py` — the reliability GATE (run BEFORE trusting). VPS, 300
+  survivorship-inclusive symbols / 1,052 patterns: **BULL harmonics beat long-drift at every horizon**
+  (60-bar +4.5% vs +2.7%; Gartley-bull strongest +6.3%/63%), the **fit score stratifies** (hi ≥0.6 > lo
+  <0.6), **BEAR ≈ short-drift** (no edge — like Wolfe). → DESCRIPTIVE, read by side.
+- `src/automation/harmonic_signals.py` — scanner + module-owned `harmonic_signals` table (db.py untouched)
+  + nightly `hermes-harmonic-scan.{service,timer}` (Mon-Fri 16:10 UTC). VPS: 143 setups persisted (12 in-zone).
+- Full record + open items in `docs/harmonic-pattern-design.md`.
+
+**HARMONIC SURFACED IN THE UI (Lane G2, 2026-06-29) — commit `1eeae16`, browser-verified LIVE.** The hand-off
+from G, done with **zero frozen-file edits**: NEW `src/web/harmonic_view.py` = `/dash/harmonic` scanner page
+(reads the `harmonic_signals` snapshot, read-by-side) + `/dash/harmonic/overlay` JSON feed, its router **nested
+into the already-mounted `wolfe_view` router** (no main.py edit, committed/durable); `stock_chart.py` gains a
+**Harmonic chip** in the Strategies family that draws each pattern's X-A-B-C-D polyline + markers + the forming
+PRZ on `window.__wfpc` (autoscale-opt-out, re-snapped across the D/W/M/Q resample — `__wfpc` contract untouched
+so CPR/MEP/MA/RS/Wolfe keep working). Chrome-verified: MARICO confirmed Gartley-bear draws on the candles,
+CANHLIFE forming Gartley + PRZ, all overlays coexist, ZERO console errors. **Remaining (hand-offs):** nav entry
+(`v2_surfaces.py`, Lane A) · multi-TF harmonic DETECTION (W/M) · drawing persistence localStorage→SQLite ·
+Renko/P&F + site-wide bounded rollout (touch `cockpit.py`/`rrg_view.py`, non-owned). See harmonic doc §5/§5b.
+
 ## 11. Key file paths
 
 - Focal chart: `src/web/dashboard.py` ~7060–7325 (sync 7204–7230 · resample 7246–7280 · readout

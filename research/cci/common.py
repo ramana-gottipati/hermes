@@ -47,12 +47,38 @@ _DOWN = ("reduce", "decline", "lower", "cut", "delever", "deleverage", "fall", "
          "soften", "down", "headwind", "weak", "pressure", "slowdown", "de-grow")
 
 
-def _approx_anchor_date(year, month) -> Optional[str]:
-    """Approximate concall date = the 15th of the concall month (the precise
-    concall_dt three-clock model is deferred — debate #4). 'YYYY-MM-15' or None."""
+def _month_end_anchor(year, month) -> Optional[str]:
+    """No-look-ahead anchor for a concall whose exact date is unknown: the LAST day of
+    the concall month. The call happened on SOME day in that month; anchoring at the
+    15th (the old default) could start the forward window before the call had actually
+    occurred — a mild look-ahead (CL-RES-12). Month-end is conservatively late: the call
+    is certainly knowable by then, so no future information leaks into the entry.
+    'YYYY-MM-DD' (last day) or None."""
     if not year or not month:
         return None
-    return f"{int(year):04d}-{int(month):02d}-15"
+    y, m = int(year), int(month)
+    import calendar
+    last = calendar.monthrange(y, m)[1]
+    return f"{y:04d}-{m:02d}-{last:02d}"
+
+
+def _anchor_date(concall_date, year, month) -> Optional[str]:
+    """The anchor for the forward-return window. Prefer the ACTUAL concall date when the
+    `concalls` row carries one (zero look-ahead, exact); otherwise fall back to the
+    no-look-ahead month-end approximation. Replaces the old 15th-of-month heuristic,
+    which could anchor before the call actually happened (CL-RES-12)."""
+    if concall_date:
+        s = str(concall_date)[:10]
+        # accept a plausible ISO date only; anything else falls through to month-end.
+        if len(s) == 10 and s[4] == "-" and s[7] == "-":
+            return s
+    return _month_end_anchor(year, month)
+
+
+# Back-compat alias (kept so any external caller of the old name still resolves; now
+# routes through the no-look-ahead month-end anchor rather than the 15th).
+def _approx_anchor_date(year, month) -> Optional[str]:
+    return _month_end_anchor(year, month)
 
 
 def period_direction(con, symbol: str, source_period: str) -> int:
@@ -91,26 +117,60 @@ def forward_return(series, anchor_date: str, lag: int = ENTRY_LAG,
     return (p1 / p0 - 1.0) - COST_BPS / 1e4
 
 
+def _per_period_credibility(con) -> dict[tuple[str, str], dict]:
+    """As-of credibility keyed on (symbol, source_period) — the ONLY join that is
+    free of look-ahead. Returns {} until a true point-in-time per-period score exists.
+
+    CL-RES-01 (the critical leak): the previous code attached the *latest* composite
+    per symbol (``MAX(last_updated)``), which is computed from ALL of a symbol's
+    concalls — including resolutions that happen YEARS after a given anchor. Feeding
+    that as the regressor in GATE B embeds the future in the predictor (the in-code
+    "not look-ahead because the return is measured after" comment was wrong: the
+    *regressor* leaks, not the target). A leaked regressor can manufacture a false
+    PASS on a trust-validation gate, which is the worst possible outcome.
+
+    The correct fix is to join the credibility score that was knowable AS OF the
+    anchor period, on (symbol, source_period). ``concall_scores`` is keyed
+    (symbol, as_of_period) and *looks* like such a series, but it is NOT point-in-time:
+    ``concall_scores.score_symbol`` aggregates a symbol's WHOLE resolved-promise
+    history into every row regardless of ``as_of_period`` (its guidance query has no
+    period/resolution-date bound), and it is re-derived nightly. So even an exact
+    ``as_of_period == source_period`` row still embeds promises resolved long after
+    the anchor. There is therefore NO leak-free per-period score available today.
+
+    Until ``concall_scores`` grows a genuine as-of aggregation (composite restricted
+    to promises resolved on/before the anchor), this returns {} and the gate renders
+    UNSCORED rather than a leaked verdict. When such a series lands, populate this map
+    from it (join on symbol+period, bound by resolution date) and the gates light up
+    automatically — no other change needed."""
+    return {}
+
+
 def gather_observations(con) -> list[dict]:
     """One observation per EXTRACTED concall (a distinct symbol+source_period in
     concall_guidance): its guidance direction, the credibility signals available
-    as-of, and the survivorship-safe forward return. The unit the gates analyse."""
+    AS-OF the anchor, and the survivorship-safe forward return. The unit the gates
+    analyse.
+
+    ``composite``/``quantification``/… are populated ONLY from a leak-free per-period
+    as-of score (see ``_per_period_credibility``). Today that map is empty, so every
+    observation carries ``composite=None`` and ``credibility_asof_available=False`` —
+    GATE B must then report UNSCORED, never PASS (CL-RES-01). The guidance DIRECTION
+    and forward return are measured purely from the anchor forward, so the guidance
+    gate (GATE A) is unaffected."""
     periods = con.execute(
-        "SELECT DISTINCT g.symbol, g.source_period, c.concall_year, c.concall_month "
+        "SELECT DISTINCT g.symbol, g.source_period, c.concall_year, c.concall_month, "
+        "c.concall_date "
         "FROM concall_guidance g "
         "JOIN concalls c ON c.symbol=g.symbol AND c.period_label=g.source_period").fetchall()
-    # latest credibility composite per symbol (a coarse as-of proxy until per-period
-    # scoring lands; fine for the cheap gate — it never enters as look-ahead because
-    # the forward return is measured strictly after the call date).
-    sc = {r["symbol"]: dict(r) for r in con.execute(
-        "SELECT s.* FROM concall_scores s JOIN "
-        "(SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x "
-        "ON x.symbol=s.symbol AND x.m=s.last_updated").fetchall()}
+    cred = _per_period_credibility(con)        # {} until a PIT per-period score exists
     series_cache: dict[str, object] = {}
     out: list[dict] = []
     for p in periods:
         sym = p["symbol"]
-        anchor = _approx_anchor_date(p["concall_year"], p["concall_month"])
+        # CL-RES-12: actual concall_date when present (exact, zero look-ahead); else the
+        # no-look-ahead month-end approximation. (was: 15th-of-month, a mild look-ahead.)
+        anchor = _anchor_date(p["concall_date"], p["concall_year"], p["concall_month"])
         if not anchor:
             continue
         if sym not in series_cache:
@@ -118,11 +178,13 @@ def gather_observations(con) -> list[dict]:
         fr = forward_return(series_cache[sym], anchor)
         if fr is None:
             continue
-        s = sc.get(sym, {})
+        s = cred.get((sym, p["source_period"]), {})       # as-of score, or {} (no leak)
         out.append({
             "symbol": sym, "period": p["source_period"], "anchor": anchor,
             "direction": period_direction(con, sym, p["source_period"]),
             "fwd_ret": fr,
+            # credibility fields come from the as-of join ONLY; None when unavailable.
+            "credibility_asof_available": bool(s),
             "composite": s.get("composite_score"),
             "quantification": s.get("quantification_rate"),
             "guidance_acc": s.get("guidance_accuracy_score"),
@@ -130,6 +192,25 @@ def gather_observations(con) -> list[dict]:
             "veto": s.get("veto_active") or 0,
         })
     return out
+
+
+def unscored_credibility(n_obs: int, n_with_cred: int) -> None:
+    """Standard 'gate cannot render a credibility verdict' message — printed when no
+    leak-free per-period as-of credibility is available (CL-RES-01). This is NOT a
+    PASS and NOT a FAIL: it is the honest 'underpowered/unscored' state. A false PASS
+    on a trust-validation gate is the worst outcome, so the gate stays mute on
+    credibility until a point-in-time per-period score exists."""
+    print("\n  ⚠ UNSCORED — credibility's incremental-alpha verdict is WITHHELD.")
+    print(f"  {n_obs} forward observations formed, but {n_with_cred} carry a leak-free")
+    print("  AS-OF (point-in-time, per-period) credibility score — the only regressor")
+    print("  that does not embed the future.")
+    print("  The per-symbol composite in concall_scores is the LATEST snapshot (it")
+    print("  aggregates a symbol's whole resolved-promise history, incl. resolutions")
+    print("  AFTER each anchor); regressing forward return on it would leak look-ahead")
+    print("  and could manufacture a FALSE PASS. The gate therefore renders no verdict.")
+    print("  Resolution: give concall_scores a genuine as-of aggregation (composite")
+    print("  restricted to promises resolved on/before the anchor period), then")
+    print("  _per_period_credibility() will populate and this gate lights up.\n")
 
 
 def insufficient(n: int) -> None:

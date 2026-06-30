@@ -115,6 +115,11 @@ def main():
             if i0 is None or i0 < 130:
                 continue
             i1 = d2i.get(d1, min(i0 + REBAL, len(ac) - 1))
+            # CL-RES-11: near the series end the fallback can collapse to i1==i0 (or
+            # below), yielding a stale / 0% forward return that pollutes the panel.
+            # factor_zoo guards this; mirror it here — require a strictly forward bar.
+            if i1 <= i0:
+                continue
             if not (ac[i0] > 0 and ac[i1] > 0):
                 continue
             mom6 = ac[i0] / ac[i0 - 126] - 1.0

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 from typing import Iterable, Optional
 
 log = logging.getLogger("hermes.signal_events")
@@ -221,9 +222,22 @@ def stats(conn) -> dict:
 
 
 # --- detection orchestrator (reads existing signal tables; defensive per lens) ---
+# These identifiers are interpolated into SQL (values can't be bound for table/column names),
+# so the table/order/cols a caller may pass are constrained to a fixed allow-list. All current
+# callers pass literals; this asserts the invariant so the pattern can never become an injection
+# vector if a future caller ever derives one of these from data.
+_ALLOWED_TABLES = frozenset({"mep_signals", "credibility_series", "fno_oi_signals"})
+_ALLOWED_ORDER = frozenset({"trade_date", "as_of"})
+_IDENT_LIST_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*")
+
 
 def _latest_two(conn, table: str, symbol: str, cols: str, order: str = "trade_date"):
     """The two most-recent rows for a symbol (curr, prev) or (curr, None). Defensive."""
+    if table not in _ALLOWED_TABLES or order not in _ALLOWED_ORDER \
+            or not _IDENT_LIST_RE.fullmatch(cols):
+        log.error("signal_events._latest_two: rejected non-allowlisted identifier "
+                  "(table=%r order=%r cols=%r)", table, order, cols)
+        return None, None
     try:
         rows = conn.execute(
             f"SELECT {cols}, {order} AS _o FROM {table} WHERE symbol = ? "
@@ -236,6 +250,9 @@ def _latest_two(conn, table: str, symbol: str, cols: str, order: str = "trade_da
 
 
 def _symbols_in(conn, table: str) -> list[str]:
+    if table not in _ALLOWED_TABLES:
+        log.error("signal_events._symbols_in: rejected non-allowlisted table=%r", table)
+        return []
     try:
         return [r[0] for r in conn.execute(f"SELECT DISTINCT symbol FROM {table}").fetchall()]
     except Exception:

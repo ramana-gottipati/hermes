@@ -45,7 +45,7 @@ def _cell(v, scale):
         return '<td class="r mut">—</td>'
     col = "#2ea043" if v >= 0 else "#f85149"
     w = min(100, abs(v) / scale * 100) if scale else 0
-    side = "left:50%" if v >= 0 else f"right:50%"
+    side = "left:50%" if v >= 0 else "right:50%"   # CL-VIEW-07: dead f-prefix dropped
     bar = (f'<span style="position:absolute;top:3px;{side};width:{w/2:.0f}%;height:9px;'
            f'background:{col}22;border-{"left" if v>=0 else "right"}:2px solid {col}"></span>')
     return (f'<td class="r" style="position:relative;color:{col};font-variant-numeric:tabular-nums">'
@@ -114,11 +114,14 @@ def render_participants() -> str:
                    f'the classic smart-money/retail divergence.')
 
     series = [_net(h["fut_idx_long"], h["fut_idx_short"]) for h in hist]
+    # guard fii_net=None (CL-VIEW-08): a missing FII index-OI row makes idx_net("FII")
+    # None; `(None/1e5):+.2f` 500s the whole page. Mirror the matrix _cell None-guard.
+    net_str = f"{(fii_net/1e5):+.2f}L" if fii_net is not None else "—"
     gauge = (
         f'<div class="card" style="padding:10px 12px">'
         f'<div style="font-size:13px">FII index-futures stance: '
         f'<b style="color:{scol};font-size:16px">{html.escape(stance.upper())}</b> '
-        f'<span class="mut">— net {(fii_net/1e5):+.2f}L contracts · long:short '
+        f'<span class="mut">— net {net_str} contracts · long:short '
         f'{("%.2f" % fii_ratio) if fii_ratio else "—"}</span></div>'
         f'<div style="margin-top:6px">{_spark(series)}</div>'
         f'<div class="sub mut" style="margin-top:2px;font-size:11px">FII net index-futures '

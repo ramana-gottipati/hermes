@@ -67,7 +67,18 @@ def fundamentals(fr, asof):
     nw = (eqc + res) if (eqc is not None and res is not None) else None
     de = (borrow / nw) if (borrow is not None and nw and nw > 0) else None
     ic = (op / intr) if (op is not None and intr and intr > 0) else None
-    sh = (npr / eps) if (eps is not None and npr is not None and abs(eps) > 0.1 and npr / eps > 0) else None
+    # CL-RES-13: PIT share count = NetProfit / EPS is numerically unstable as EPS -> 0:
+    # an EPS of Rs 0.11 (or a year of near-break-even earnings) blows the implied share
+    # count up by orders of magnitude, which then propagates into mcap -> velocity /
+    # book-yield gates as noise. Widen the EPS floor from |eps|>0.1 to |eps|>=1.0 (below
+    # Re 1/share the derivation is not trustworthy) and require the result to be finite.
+    # Where EPS is too small to trust, leave sh=None so downstream gates treat mcap as
+    # missing rather than ingesting a fabricated outlier.
+    sh = None
+    if eps is not None and npr is not None and abs(eps) >= 1.0:
+        cand = npr / eps
+        if np.isfinite(cand) and cand > 0:
+            sh = cand
     return {"roce": roce, "de": de, "opm": opm, "ic": ic, "eps": eps, "nw": nw, "sh": sh}
 
 

@@ -40,13 +40,27 @@ def conversation_exists(conversation_id: int) -> bool:
         return row is not None
 
 
-def list_messages(conversation_id: int) -> list[dict]:
-    """Return prior messages for a conversation in chronological order."""
+def list_messages(conversation_id: int, limit: int | None = None) -> list[dict]:
+    """Return prior messages for a conversation in chronological order.
+
+    When `limit` is given, only the most recent `limit` messages are loaded from
+    SQLite (newest-first LIMIT, then reversed to chronological) — so a long thread
+    never pulls its full history into memory just to slice it down to the LLM
+    window (CL-SYS-12). With no limit, the full thread is returned (the
+    /conversations endpoint shows the complete transcript)."""
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id ASC",
-            (conversation_id,),
-        ).fetchall()
+        if limit is not None and limit > 0:
+            rows = conn.execute(
+                "SELECT role, content FROM messages WHERE conversation_id = ? "
+                "ORDER BY id DESC LIMIT ?",
+                (conversation_id, int(limit)),
+            ).fetchall()
+            rows = list(reversed(rows))
+        else:
+            rows = conn.execute(
+                "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id ASC",
+                (conversation_id,),
+            ).fetchall()
         return [{"role": r["role"], "content": r["content"]} for r in rows]
 
 

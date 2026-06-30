@@ -205,7 +205,17 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
   ("they did NOT want X; they wanted: <expected>") into the routing prompt. ₹0,
   fails open to '' before any learning. The same store is the labeled dataset for
   the future OWNED offline model.
-- ⬜ `[thread]` P1 — conversational refinement (§6) + implicit re-ask detection.
+- ✅ `[thread]` P1 — **TRUE multi-turn thread store SHIPPED** (§6, Lane L4): new
+  self-contained `src/pat/threads.py` owns `pat_threads` (lazy CREATE TABLE; db.py
+  untouched) — server-side per-browser memory keyed by a `tid` cookie. `render_pat`
+  now accepts an optional `tid` (+ `new=1` 'start over'); renders a compact
+  "This conversation" trail above the answer (only once ≥2 turns) and records each
+  concrete answer as a turn (rolling 12-turn window). **INERT for the default
+  `tid=""`** (zero behaviour change until wired). The L1↔L4 call-site contract
+  (forward a `pat_tid` cookie into `render_pat`) is **already landed** in
+  `dashboard.py:1449` (reads/validates/mints the cookie, sets it httponly+lax 30d).
+  Still open: implicit re-ask detection (a thread rephrase = silent 👎) now that the
+  turn history exists to detect it.
 - ✅ `[all flows]` P1 — "reporting follows the question" extended (§3.2): accumulation
   window ('' / 1m / 3m → re-rank by + lead with ratio_today_vs_power_1m/3m) and movers
   window (today vs this-week, % vs the close ~7 days back via a bound date join). Both
@@ -231,6 +241,18 @@ the Telegram bot's conversation spine (`src/assistant/conversations.py`,
 - ✅ `[eval]` gold eval set (`eval_set.py`) — `run_compiler_eval` (₹0 reasoning check,
   13/13) + `run_route_eval` (end-to-end). The measurement + regression net Pat lacked,
   and the labeled-dataset seed for the owned model.
+- ✅ `[credibility]` NEW intent (Lane L4) — **single-name credibility read**: "is X
+  credible", "how credible is X", "X credibility", "confluence on X", "can I trust X
+  management" → the evidence-backed `why`/credibility flow for ONE name (raw verdict +
+  the credibility evidence beside it), wired as a **₹0 deterministic pre-router** in
+  `disambiguate.route_extra` (so it fires live, before any Gemini token) AND in
+  `parse_fallback` (quota-proof). Precedence: AFTER compare/strategy/trend/why (so
+  "X vs Y", a board ask, or "credibility trend for X" still win) and BEFORE the generic
+  single-stock card (so a one-name TRUST question lands on the evidence, not a bare
+  snapshot). Negative guards verified: a plural "most credible managements" stays the
+  leaders board; "what is credibility" stays the glossary explain. +6 gold cases (route
+  eval 54/55 → 60/61, 0 regressions; compiler 31/31). Descriptive-only (the §C
+  falsification stands — credibility is evidence, never a buy call).
 - ⬜ `[fundamentals]` P2 — emphasis-follows-question (lead with the asked ratio when a
   fundamentals query names one, e.g. "ranked by ROE" → ROE leads). Carved out of the
   reporting-follows-question item above.
@@ -400,6 +422,104 @@ a model call. Consider a paid Gemini key or per-workload keys if routing misses 
 **Cross-session note (important):** this session ran ALONGSIDE a parallel session doing explosive-move / Portfolio-Tracker work. That session holds uncommitted changes to **`dashboard.py`** and **`PROJECT_STATE.md`**, and owns `research/`, `docs/explosive-move-research.md`. **Pat work deliberately never touched those files** — new chip params reuse the route's already-captured `strength`/`entry` params, and all Pat tracking lives in THIS doc + the auto-memory, not PROJECT_STATE. PROJECT_STATE's Pat session-log is accurate but PARTIAL (stops ~at the engine); **this doc is the current, complete Pat record.** Held-and-untouched: `patearn.py`, `mtf_signals.py`.
 
 **Open (the backlog, §7):** feedback/correction store · clarify-before-guess · few-shot learning · conversational thread · "reporting follows the question" for all flows · the "right not more" answer pass.
+
+---
+
+## 13. Session wrap — 2026-06-28 (Round 7: the analytics-copilot PLANNER)
+
+Pat moved from single-flow answers to a **general analytics planner** — same
+closed-vocab → deterministic-compute contract (the LLM only emits validated JSON;
+it never writes SQL or invents a number; every read is a precomputed table). Lane F,
+commit `3970345`, `src/pat/*` only, LIVE + verified on the real VPS Gemini stack.
+
+**What shipped**
+1. **Multi-condition CONFLUENCE planner.** When an ask names **≥2 strategy FAMILIES**
+   — "credible + accumulating + RS-leading small-caps" — Pat intersects the
+   precomputed tables instead of picking one flow. `understand._plan_pillars`
+   collects the pillars (valuation/quality/growth collapse into ONE `fund` family,
+   so a plain "cheap quality compounder" still routes to the single fundamentals
+   flow — no regression); ≥2 distinct families → `flow=confluence_plan` →
+   `flows.build_confluence_plan_query(pillars, sector, capband)`. Pillar keys are a
+   **closed set** (`PLAN_PILLARS`: credibility · accumulation · distribution · rs ·
+   value · quality · structure); cap-band comes from **index membership**
+   (small = Nifty Smallcap 250, mid = Nifty Midcap 150, large = Nifty 50 ∪ Next 50;
+   `fundamentals.market_cap_cr` is only ~66 rows, unusable). The dedicated
+   credibility×accumulation `confluence` view is preserved for exactly that pair
+   with no scope.
+2. **Any `strategy_registry` strategy askable in English.** New `strategy` task →
+   `web._strategy_flow` renders `strategy_registry.summary()` (Lane C). Closes the
+   **CPR + Wolfe** NL gap (neither had a Pat flow) and adds a "strategist overview"
+   board read. Keys: mep / dvpt / rs / cpr / cci / wolfe / all.
+3. **Compare A-vs-B.** New `compare` task → two `_stock_card`s side by side.
+
+**How (no parallel-owned edits):** all logic in `understand.py` (METRICS += `structure`,
+`scope.capband`, planner + strategy + compare across `compile_intent` / `validate_intent`
+/ `parse_fallback` / `SYSTEM_PARSE`), `flows.py` (the planner query), `web.py` (3
+renderers + dispatch + `_FLOW_LABEL` + `_FRESH`), `engine._VALID` (+3 flows, defense
+in depth), `disambiguate.route_extra` (₹0 compare + strategy pre-router; the planner
+stays on the Gemini→fallback path so the model's sector parse isn't lost). The
+`flow=` path smuggles params through dashboard.py's **already-forwarded** generics
+(pillars→`strength`, capband→`entry`, compare syms→`sym`, strategy key→`strength`) so
+**dashboard.py needs zero edits**.
+
+**Safety / trust:** descriptive-only throughout (the §C falsification stands —
+"evidence, not a buy call"); OOD/SEBI guardrails intact; every answer is
+provenance-stamped (the planner/strategy carry their own as-of meta). Red-team
+passed: closed-set pillars + bound params (no SQL injection), `validate_intent`
+drops off-vocab (no hallucinated columns), prompt-injection never escapes to a
+non-closed flow, `_q_bubble` escapes (no reflected XSS).
+
+**Verification:** `eval_set` extended → compiler **29/29**, route fallback **40/41**
+(new **PLANNER band 9/9**; the only fail is the pre-existing "cheap stocks under
+PE 15"). Live VPS Gemini battery **16/16** (3 planner variants → Multi-condition;
+CPR/Wolfe/overview → Strategy board; compare and/vs → Compare; RS / confluence /
+overvalued / credibility / movers unchanged; advice / predict / gold → redirected)
+plus real data (planner names with as-of footer, 6-strategy board, INFY|TCS
+compare). This deploy also **reconciled the long-standing repo→VPS `engine.py`
+divergence** (the VPS was a strict older subset — missing the route_guardrail block
++ credibility `_VALID`; the consistent-package deploy brought it forward, no loss).
+VPS backup: `src/pat/.bak-patf-20260628-175218/`.
+
+**Open (optional next):** a fundamentals-coverage caveat in the planner footer (the
+value/quality pillars hit the sparse cached-Screener set); sector parse on the ₹0
+planner path; the oscillators nightly job (still pending, ops).
+
+---
+
+## 14. Session wrap — 2026-06-29 (Lane L4: TRUE multi-turn + single-name credibility)
+
+Two Pat capabilities landed, `src/pat/*` only, each verified + harness-green:
+
+1. **TRUE multi-turn thread store** (§6 closed). New self-contained
+   `src/pat/threads.py` owns `pat_threads` (lazy CREATE TABLE; `db.py` untouched) —
+   server-side per-browser conversation memory keyed by a `tid`. `render_pat` gained
+   an optional `tid` (+ `new=1` 'start over'): a compact "This conversation" trail
+   renders above the answer once ≥2 turns exist, and each concrete answer is recorded
+   (rolling 12-turn window). **Completely inert for the default `tid=""`** — zero
+   behaviour change anywhere it isn't wired. The L1↔L4 call-site contract (forward a
+   `pat_tid` cookie into `render_pat`) was found **already landed** by Lane L1 in
+   `dashboard.py:1449` (reads/validates/mints the cookie; sets it httponly + samesite=lax,
+   30 days), so the feature is fully wired end-to-end — verified via TestClient cookie
+   persistence (turn 1 → no trail; turn 2 → trail shows).
+
+2. **Single-name credibility intent** (a new richer NL intent). "is X credible" /
+   "how credible is X" / "X credibility" / "confluence on X" / "can I trust X management"
+   → the evidence-backed `why`/credibility read for one name. Wired as a **₹0
+   deterministic pre-router** in `disambiguate.route_extra` (fires before Gemini) AND in
+   `understand.parse_fallback` (quota-proof), placed after compare/strategy/trend/why and
+   before the generic single-stock card. Negative guards proven: plural "most credible
+   managements" → leaders board; "what is credibility" → glossary explain.
+
+**Verification:** `threads` selftest OK (mint/validate/record/history/context/trim/clear);
+`eval_set` compiler **31/31**, route fallback **60/61** (+6 new credibility cases, 0
+regressions; the only fail is the pre-existing "cheap stocks under PE 15"), EXPLAIN
+493/495 + CATALOG 138/202 floors unchanged, hallucination/injection 8/8;
+`scripts/chrome_gate.py` PASS (11 legacy + 4 native); `/dash/pat` TestClient 200 with the
+trail inert at `tid=""`. Descriptive-only throughout (the §C falsification stands).
+
+**Open / next:** implicit re-ask detection (a thread rephrase = a silent 👎 — the turn
+history now exists to detect it); saved-boards polish; the fundamentals
+emphasis-follows-question lead-column; the offline owned-model fine-tune.
 
 ---
 

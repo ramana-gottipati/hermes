@@ -135,7 +135,15 @@ def call_extractor(
             if not allow_anthropic_fallback:
                 return None, "failed"
 
-    if settings.gemini_api_key and not allow_anthropic_fallback:
+    # CX-03: Anthropic is the ~13x-pricier path. Only ever reach it when the caller
+    # has EXPLICITLY opted in (allow_anthropic_fallback=True). The previous guard only
+    # blocked the Anthropic call when a Gemini key WAS configured — so an UNCONFIGURED
+    # Gemini key (the common timer/dev posture) silently fell through to Anthropic and
+    # spent against the ~Rs300/mo budget. Gate purely on the opt-in flag, key or no key.
+    if not allow_anthropic_fallback:
+        if not settings.gemini_api_key:
+            log.warning("extractor: no GEMINI_API_KEY and anthropic fallback not allowed "
+                        "→ no-LLM skip (set GEMINI_API_KEY or pass allow_anthropic_fallback=True)")
         return None, "failed"
     try:
         return _call_anthropic_haiku(system, user_msg, max_tokens), "anthropic"

@@ -51,6 +51,9 @@ ALLSTAR_RANKS = ("SS", "S")          # the existing all-stars crossings we rank 
 FIRST_IGNITION_FROM = "2019-01-01"   # origin flag evaluated from here (design §3)
 LIQ_FLOOR = 2_500_000                # ₹25 lakh delivery value — drop un-actionable junk
 ACT_INTENSITY = 3.0                  # ACT tier floor (× over peak baselines)
+COOLING_FRAC = 0.80                  # CL-SCO-08: intensity must drop below this
+COOLING_EPS = 1e-9                   #            fraction of the prior (with a small
+                                     #            epsilon band) before we call it COOLING
 
 # transparent, tunable multipliers (stored components → fully auditable)
 CHAR_MULT = {"ACCUMULATION": 1.15, "NEUTRAL": 1.0, "CONSOLIDATION": 0.90,
@@ -197,11 +200,17 @@ def compute_for_date(conn, trade_date: str) -> tuple[list, int]:
         fdate = first_ig.get(r["symbol"])
         is_first = 1 if (fdate and fdate == trade_date) else 0
 
+        # CL-SCO-08: COOLING needs a strictly-positive prior intensity and a fall
+        # below COOLING_FRAC of it, with an epsilon band so a noise-level dip at the
+        # exact boundary doesn't oscillate the status. A None/≤0 prior can't define
+        # "cooling off" → treat as CONTINUING.
+        prev_int = prev_intensity.get(r["symbol"])
         if is_first:
             status = "NEW"
         elif r["symbol"] not in prev_intensity:
             status = "FRESH"
-        elif prev_intensity[r["symbol"]] and intensity < prev_intensity[r["symbol"]] * 0.8:
+        elif (prev_int is not None and prev_int > 0
+              and intensity < prev_int * COOLING_FRAC - COOLING_EPS):
             status = "COOLING"
         else:
             status = "CONTINUING"

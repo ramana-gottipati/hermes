@@ -42,6 +42,15 @@ def main():
             df[c] = pd.to_numeric(df[c], errors="coerce")
     pos = ev[ev.sustained == 1]
     base_rate = len(pos) / (len(pos) + K * len(base))
+    # CL-RES-10: several PATTERNS thresholds above (e.g. vol_66>=0.0356, dist_low_252>=1.30,
+    # ret_22d>=0.094, range_tight_66>=0.49) were DERIVED from this same event table, so the
+    # hit/lift printed for them is IN-SAMPLE — it describes how the data was carved, not an
+    # out-of-sample edge. Patterns marked [REFUTED] failed validation and are kept only as a
+    # negative record. Read lift here as descriptive (which clues co-occur with sustained
+    # moves in-sample); for held-out lift, re-evaluate the frozen predicates on a window not
+    # used to choose the cuts (the walk-forward split in run_backtests.py).
+    print("NOTE (CL-RES-10): data-derived thresholds -> hit/lift below are IN-SAMPLE "
+          "(descriptive provenance), not held-out edge.")
     print(f"monthly events={len(ev)} sustained={len(pos)} baseline={len(base)} (K={K}) base_rate={base_rate:.3f}")
     print(f"\n{'pattern':38s} {'n_ev':>6} {'base%':>6} {'hit':>5} {'lift':>5} "
           f"{'MFEavg':>7} {'MFEmed':>7} {'MAEavg':>7} {'MAEmed':>7} {'>=50%':>6} {'sust':>5}")

@@ -15,6 +15,7 @@ they need the SQL templates, which land with the engine.
 from __future__ import annotations
 
 import json
+import math
 from urllib.parse import quote_plus
 
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
@@ -29,6 +30,9 @@ from src.pat.flows import (
     build_index_query, build_pt14_query, build_disqualified_query,
     build_symbol_resolve_query, build_stock_card_query, build_stock_pattern_query,
     build_credibility_query, build_deterioration_query, build_confluence_query,
+    build_confluence_plan_query, PLAN_PILLARS, PLAN_CAPBAND,
+    build_credibility_detail_query, build_credibility_trend_query,
+    build_credibility_evidence_query,
 )
 
 
@@ -205,6 +209,70 @@ _PAT_CSS = """
 .patFlag b{font-size:11px;text-transform:uppercase;letter-spacing:.4px;}
 .patFlagBad{background:#2a1416;border:1px solid #5c2a2f;color:#f0c0c4;}
 .patFlagOk{background:#0f2417;border:1px solid #2a5c3a;color:#bfe6c9;}
+/* multi-condition planner pills + strategy board + compare (Lane F) */
+.patPill{display:inline-block;background:#172554;border:1px solid #2b3a6a;color:#9db7ff;
+         border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:600;}
+.patPillOk{display:inline-block;background:#0f2417;border:1px solid #2a5c3a;color:#3fb950;
+           border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;}
+.patPillWarn{display:inline-block;background:#2a2410;border:1px solid #5c4a1f;color:#e3b341;
+             border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600;}
+.patStratWrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin:2px 0 6px;}
+.patStrat{background:#161b22;border:1px solid #30363d;border-radius:11px;padding:12px 13px;}
+.psHd{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.psTitle{font-weight:700;font-size:14px;color:#e6edf3;text-decoration:none;}
+.psTitle:hover{color:#58a6ff;}
+.psCount{font-weight:700;font-variant-numeric:tabular-nums;font-size:18px;margin-left:auto;}
+.psNames{font-size:12.5px;line-height:1.7;}
+.psNames a{color:#cdd9e5;text-decoration:none;}
+.psNames a:hover{color:#58a6ff;}
+.psMeta{font-size:11px;margin-top:7px;}
+.psMeta a{color:#58a6ff;text-decoration:none;}
+.patCmp{display:flex;gap:12px;flex-wrap:wrap;}
+.patCmpCol{flex:1;min-width:260px;background:#161b22;border:1px solid #30363d;border-radius:11px;padding:12px 13px;}
+.patWhyHd{font-weight:700;font-size:15px;margin:4px 0 8px;}
+.patWhy{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.7;}
+.patWhy li{margin:2px 0;}
+.patWhy b{color:#e6edf3;}
+.patFupWrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 4px;
+            padding-top:10px;border-top:1px solid #21262d;}
+.patFupLbl{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;}
+.patFup{background:#10243a;border-color:#1f4e79;color:#9ad1ff;}
+.patFup:hover{border-color:#58a6ff;}
+.patTrail{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;
+          padding:8px 11px;background:#0d1117;border:1px solid #21262d;border-radius:9px;}
+.patTrailLbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#8b949e;
+          white-space:nowrap;}
+.patTrailItems{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0;}
+.patTrailItem{font-size:12px;color:#9ad1ff;text-decoration:none;background:#10243a;
+          border:1px solid #1f4e79;border-radius:7px;padding:3px 9px;max-width:260px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.patTrailItem:hover{border-color:#58a6ff;}
+.patTrailSep{color:#586069;font-size:12px;}
+.patTrailNew{font-size:11.5px;color:#8b949e;text-decoration:none;white-space:nowrap;
+          border:1px solid #30363d;border-radius:7px;padding:3px 9px;}
+.patTrailNew:hover{border-color:#8b949e;color:#e6edf3;}
+.patRefine{display:flex;gap:7px;margin:8px 0 2px;}
+.patRefine input[name=add]{flex:1;min-width:180px;background:#0d1117;border:1px solid #30363d;
+            color:#e6edf3;border-radius:8px;padding:7px 11px;font-size:13px;}
+.patRefine input[name=add]:focus{outline:none;border-color:#1f6feb;}
+.patRefine button{background:#1f6feb;border:none;color:#fff;border-radius:8px;cursor:pointer;
+            padding:7px 14px;font-size:13px;}
+.patSaveRow{margin:8px 0 2px;}
+.patBoardBtn{background:#161b22;border:1px solid #30363d;color:#e3b341;border-radius:8px;
+            cursor:pointer;padding:5px 11px;font-size:12.5px;}
+.patBoardBtn:hover{border-color:#e3b341;}
+.patBoardBtn:disabled{opacity:.7;cursor:default;color:#3fb950;border-color:#2a5c3a;}
+.patBoardList{display:flex;flex-direction:column;gap:6px;margin:10px 0;}
+.patBoardRow{display:flex;align-items:center;gap:8px;background:#0d1117;
+            border:1px solid #21262d;border-radius:9px;padding:8px 10px;}
+.patBoardRow:hover{border-color:#30363d;}
+.patBoardOpen{flex:1;display:flex;flex-direction:column;gap:2px;text-decoration:none;
+            color:#e3b341;font-size:13px;min-width:0;}
+.patBoardSub{color:#8b949e;font-size:11.5px;white-space:nowrap;overflow:hidden;
+            text-overflow:ellipsis;}
+.patBoardDel{background:transparent;border:1px solid #30363d;color:#8b949e;border-radius:7px;
+            cursor:pointer;padding:4px 9px;font-size:11.5px;flex:none;}
+.patBoardDel:hover{border-color:#da3633;color:#f85149;}
 </style>
 """
 
@@ -399,23 +467,33 @@ def _u(s) -> str:
     return quote_plus(str(s) if s is not None else "")
 
 
+# CL-PAT-07: shared numeric formatters. A NaN/inf slipping in from a divide-by-zero
+# upstream rendered as "nan"/"inf" (or raised in int(nan)); treat any non-finite value
+# exactly like None → the em-dash placeholder.
+_MUT = '<span class="mut">—</span>'
+
+
+def _finite(v) -> bool:
+    return v is not None and isinstance(v, (int, float)) and math.isfinite(v)
+
+
 def _int(v) -> str:
-    return str(int(v)) if v is not None else '<span class="mut">—</span>'
+    return str(int(v)) if _finite(v) else _MUT
 
 
 def _n(v, d=2) -> str:
-    return f"{v:,.{d}f}" if v is not None else '<span class="mut">—</span>'
+    return f"{v:,.{d}f}" if _finite(v) else _MUT
 
 
 def _sgn(v, d=1) -> str:
-    if v is None:
-        return '<span class="mut">—</span>'
+    if not _finite(v):
+        return _MUT
     cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
     return f'<span class="{cls}">{v:+.{d}f}%</span>'
 
 
 def _cr(v) -> str:
-    return f"{v / 1e7:,.1f}" if v is not None else '<span class="mut">—</span>'
+    return f"{v / 1e7:,.1f}" if _finite(v) else _MUT
 
 
 def _rank_pill(rank) -> str:
@@ -500,7 +578,7 @@ _ACC_BUBBLE = {
 
 
 def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str = "",
-                       character: str = "") -> str:
+                       character: str = "", top_n=None) -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
         _q_bubble(_ACC_BUBBLE.get(character, _ACC_BUBBLE[""])),
@@ -537,15 +615,16 @@ def _accumulation_flow(conn, sector: str, strength: str, entry: str, window: str
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_accumulation_query(sector, strength, entry, window, character)
+        sql, params = build_accumulation_query(sector, strength, entry, window, character, top_n=top_n)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
     win_label = ACC_WINDOW.get(window, ACC_WINDOW[""])[0] if window else ""
     wtag = f' · {_esc(win_label)}' if win_label else ''
     tag = f' · {_esc(sector)}' if sector else ''
+    cap = f'top {int(top_n)} · ' if top_n else ''
     clabel = ACC_CHARACTER.get(character, ACC_CHARACTER[""])[0]
-    out.append(f'<div class="ghdr">{_esc(clabel)}{wtag}{tag} ({len(rows)})</div>')
+    out.append(f'<div class="ghdr">{cap}{_esc(clabel)}{wtag}{tag} ({len(rows)})</div>')
     out.append(_acc_table(rows, win_label) if rows
                else '<div class="empty">Nothing matches — loosen the filters.</div>')
     return "".join(out)
@@ -599,7 +678,7 @@ def _rs_table(rows, win_label: str = "RS 3M") -> str:
     return head + "".join(rws) + '</tbody></table></div>'
 
 
-def _rs_flow(conn, sector: str, strength: str, align: str, window: str = "") -> str:
+def _rs_flow(conn, sector: str, strength: str, align: str, window: str = "", top_n=None) -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
         _q_bubble("RS leaders — the names the market is voting for. The window ranks + "
@@ -633,13 +712,14 @@ def _rs_flow(conn, sector: str, strength: str, align: str, window: str = "") -> 
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_rs_query(sector, strength, align, window)
+        sql, params = build_rs_query(sector, strength, align, window, top_n=top_n)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
     win_label = RS_WINDOW.get(window, RS_WINDOW[""])[0]
     tag = f' · {_esc(sector)}' if sector else ''
-    out.append(f'<div class="ghdr">Leaders · {_esc(win_label)}{tag} ({len(rows)})</div>')
+    cap = f'top {int(top_n)} · ' if top_n else ''
+    out.append(f'<div class="ghdr">Leaders · {cap}{_esc(win_label)}{tag} ({len(rows)})</div>')
     out.append(_rs_table(rows, win_label) if rows
                else '<div class="empty">No RS leaders match — loosen the filters.</div>')
     return "".join(out)
@@ -1055,7 +1135,7 @@ def _cci_table(rows, avoid: bool = False) -> str:
     return head + "".join(rws) + "</tbody></table></div>"
 
 
-def _credibility_flow(conn) -> str:
+def _credibility_flow(conn, top_n=None) -> str:
     out = ['<a class="patBack" href="/dash/pat">← back</a>',
            _q_bubble("Credibility leaders — managements ranked by the MEASURABLE concall signal "
                      "(D61): kept-promise accuracy + how falsifiable their guidance is, "
@@ -1064,11 +1144,12 @@ def _credibility_flow(conn) -> str:
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
     try:
-        sql, params = build_credibility_query()
+        sql, params = build_credibility_query(top_n=top_n)
         rows = list(conn.execute(sql, params))
     except Exception:
         rows = []
-    out.append(f'<div class="ghdr">Credibility leaders ({len(rows)})</div>')
+    cap = f"top {int(top_n)} " if top_n else ""
+    out.append(f'<div class="ghdr">Credibility leaders — {cap}({len(rows)})</div>')
     out.append(_cci_table(rows) if rows
                else '<div class="empty">No scored concalls yet — the pilot is still extracting.</div>')
     out.append('<div class="patChips">'
@@ -1160,6 +1241,516 @@ def _confluence_flow(conn) -> str:
                + _chip("/dash/pat?flow=credibility", "★ credibility leaders")
                + _chip("/dash/pat?flow=accumulation", "↗ accumulation setups")
                + _chip("/dash/concalls", "full CCI board →") + "</div>")
+    return "".join(out)
+
+
+# ── the GENERAL multi-condition CONFLUENCE PLANNER (N pillars + scope) ─────────
+# Carries its params on the flow= path through dashboard.py's ALREADY-forwarded
+# generic params (no dashboard.py edit needed): pillars→strength, capband→entry.
+def _plan_url(pillars: str, sector: str = "", capband: str = "") -> str:
+    qs = ["flow=confluence_plan", "strength=" + _u(pillars)]
+    if sector:
+        qs.append("sector=" + _u(sector))
+    if capband:
+        qs.append("entry=" + _u(capband))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _plan_pill(label: str) -> str:
+    return f'<span class="patPill">{_esc(label)}</span>'
+
+
+def _confluence_plan_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Symbol</th><th>CMP</th><th>Character</th><th>p/r</th><th>RS</th>'
+            '<th>Tier</th><th>Cred</th><th>CPR</th><th>P/E</th><th>ROCE</th>'
+            '<th>Sector</th></tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        rws.append(
+            '<tr>'
+            f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+            f'<td>{_n(r["cmp"])}</td>'
+            f'<td>{_char_pill(r["accum_character"])}</td>'
+            f'<td>{_int(r["p_score"])}/{_int(r["r_score"])}</td>'
+            f'<td>{_int(r["rs_rank"])}</td>'
+            f'<td>{_esc(r["tier"] or "—")}</td>'
+            f'<td>{_n(r["composite_score"], 0)}</td>'
+            f'<td>{_esc((r["cpr_pat"] or "—").replace("BULL_U", "bull-U").replace("BEAR_INVU", "bear-∩"))}</td>'
+            f'<td>{_n(r["pe"], 1)}</td>'
+            f'<td>{_pc(r["roce"])}</td>'
+            f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _confluence_plan_flow(conn, pillars: str = "", sector: str = "", capband: str = "") -> str:
+    """The general planner: intersect ≥2 strategy pillars over the precomputed tables.
+    Pillars come comma-separated (closed set); sector / cap-band narrow the universe."""
+    plist = [p.strip() for p in (pillars or "").split(",") if p.strip() in PLAN_PILLARS]
+    cap_lbl = PLAN_CAPBAND.get(capband, (capband.title() if capband else "", None))[0]
+    scope_bits = " · ".join([b for b in (cap_lbl, (sector or "")) if b]) or "all NSE equities"
+    named = ", ".join(PLAN_PILLARS[p].split(" — ")[0] for p in plist) or "—"
+    out = ['<a class="patBack" href="/dash/pat">← back</a>',
+           _q_bubble("Multi-condition CONFLUENCE — names where ALL of these hold at once, "
+                     f"intersected over the precomputed tables: <b>{_esc(named)}</b> "
+                     f"({_esc(scope_bits)}). Independent lenses agreeing is the highest-"
+                     "evidence read — but it is EVIDENCE, never a buy call, and the lenses "
+                     "sit at different grains (daily delivery/RS × quarterly credibility × "
+                     "period CPR), shown by the as-of footer.")]
+    out.append('<div class="patChips">'
+               + "".join(_plan_pill(PLAN_PILLARS[p].split(" — ")[0]) for p in plist)
+               + (_plan_pill(cap_lbl) if cap_lbl else "")
+               + (_plan_pill(sector) if sector else "") + '</div>')
+    # ≥1 pillar is enough when scoped to a cap-band/sector (e.g. "RS leaders, small-caps");
+    # otherwise a confluence needs ≥2 conditions to be meaningful.
+    if not plist or (len(plist) < 2 and not capband and not sector):
+        out.append('<div class="empty">A confluence needs at least two conditions (or one '
+                   'plus a cap-band/sector). Try “credible companies being accumulated, RS-leading”.</div>')
+        return "".join(out)
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    try:
+        sql, params = build_confluence_plan_query(plist, sector=sector, capband=capband)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    asof_cred = next((r["as_of_period"] for r in rows if r["as_of_period"]), None)
+    try:
+        asof_acc = conn.execute("SELECT MAX(trade_date) FROM stock_signals").fetchone()[0]
+    except Exception:
+        asof_acc = None
+    out.append(f'<div class="ghdr">{_esc(named)} · {_esc(scope_bits)} ({len(rows)})</div>')
+    out.append(_confluence_plan_table(rows) if rows else
+               '<div class="empty">No names satisfy ALL of these conditions right now — '
+               'that scarcity is itself the read (true multi-lens confluence is rare). '
+               'Drop a condition or widen the cap-band.</div>')
+    out.append('<div class="patMeta">'
+               f'<span>delivery / RS as-of: {_esc(asof_acc or "—")}</span>'
+               + (f'<span>credibility as-of: {_esc(asof_cred)}</span>' if "credibility" in plist and asof_cred else "")
+               + '<span>all lenses must agree · descriptive evidence, not a signal</span></div>')
+    out.append('<div class="patChips">'
+               + _chip("/dash/screen2", "open the wide screener →")
+               + _chip("/dash/strategist", "strategist board →") + "</div>")
+    return "".join(out)
+
+
+# ── strategy_registry board read ("what's the MEP/CPR/Wolfe strategy showing") ─
+def _strategy_url(key: str) -> str:
+    return "/dash/pat?flow=strategy" + (("&strength=" + _u(key)) if key and key != "all" else "")
+
+
+def _strategy_card(row: dict) -> str:
+    count = row.get("count")
+    cnt = f'{count:,}' if isinstance(count, int) else "—"
+    health = (row.get("health") or "").lower()
+    hpill = {"ok": ("fresh", "patPillOk"), "stale": ("stale", "patPillWarn"),
+             "empty": ("no data", "patPill"), "link": ("live page", "patPill")}.get(
+                 health, ("—", "patPill"))
+    tops = [t for t in (row.get("top") or [])
+            if (t.get("symbol") or "").strip() not in ("", "—", "-")]
+    names = " · ".join(
+        f'<a class="row" href="/dash/stock?sym={_u(t["symbol"])}">{_esc(t["symbol"])}</a>'
+        f'<span class="mut"> {_esc(t.get("note", ""))}</span>' for t in tops[:5]) or \
+        '<span class="mut">open the lens for live names</span>'
+    asof = row.get("as_of")
+    return (
+        '<div class="patStrat">'
+        f'<div class="psHd"><a class="psTitle" href="{_esc(row.get("route") or "#")}">'
+        f'{_esc(row.get("label") or row.get("key"))}</a>'
+        f'<span class="psCount">{cnt}</span>'
+        f'<span class="{hpill[1]}">{hpill[0]}</span></div>'
+        f'<div class="psNames">{names}</div>'
+        f'<div class="psMeta mut">as of {_esc(str(asof)[:10] if asof else "—")} · '
+        f'<a class="row" href="{_esc(row.get("route") or "#")}">open →</a></div>'
+        '</div>')
+
+
+def _strategy_flow(conn, key: str = "all") -> str:
+    key = (key or "all").strip().lower()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    try:
+        from src.automation import strategy_registry as REG
+        rows = REG.summary(conn) if conn is not None else []
+    except Exception:
+        rows = []
+    if not rows:
+        out.append(_q_bubble("The strategy board reads each strategy's current state from the "
+                             "precomputed tables."))
+        out.append('<div class="empty">No strategy data available on this host yet.</div>')
+        return "".join(out)
+    if key != "all":
+        sel = [r for r in rows if (r.get("key") or "").lower() == key
+               or (r.get("route") or "").rstrip("/").endswith("/" + key)]
+        if sel:
+            lbl = sel[0].get("label") or key
+            out.append(_q_bubble(f"<b>{_esc(lbl)}</b> — its current read from the strategy "
+                                 "registry (count, freshness, top names). Descriptive; open "
+                                 "the deep page for the full board."))
+            out.append('<div class="patStratWrap">' + "".join(_strategy_card(r) for r in sel) + '</div>')
+            return "".join(out)
+        out.append(_q_bubble(f'I don\'t have a “{_esc(key)}” strategy — here is the whole board:'))
+    else:
+        out.append(_q_bubble("The STRATEGIST board — every strategy's current read at a glance "
+                             "(count · freshness · top names). Descriptive; click any to open "
+                             "its deep page."))
+    out.append('<div class="patStratWrap">' + "".join(_strategy_card(r) for r in rows) + '</div>')
+    out.append('<div class="patChips">' + _chip("/dash/strategist", "full strategist board →") + "</div>")
+    return "".join(out)
+
+
+# ── compare two stocks side by side (A vs B) ──────────────────────────────────
+def _compare_flow(conn, syms: str = "") -> str:
+    toks = [t.strip() for t in (syms or "").replace(" ", ",").split(",") if t.strip()][:3]
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if len(toks) < 2:
+        out.append(_q_bubble("Name two stocks to compare, e.g. “compare INFY and TCS”."))
+        return "".join(out)
+    if conn is None:
+        out.append(_q_bubble("Connect to data to compare."))
+        return "".join(out)
+    resolved = []
+    for tok in toks:
+        try:
+            rsql, rparams = build_symbol_resolve_query(tok)
+            hit = conn.execute(rsql, rparams).fetchone()
+        except Exception:
+            hit = None
+        if hit:
+            resolved.append(hit["symbol"])
+    resolved = list(dict.fromkeys(resolved))   # dedupe, keep order
+    if len(resolved) < 2:
+        out.append(_q_bubble(f'I could resolve {len(resolved)} of those tickers. '
+                             'Check the symbols and try again.'))
+        return "".join(out)
+    out.append(_q_bubble("Side by side — latest signals, relative strength, character and "
+                         "fundamentals for each. Descriptive facts, not a recommendation:"))
+    cards = []
+    for sym in resolved:
+        try:
+            csql, cparams = build_stock_card_query(sym)
+            row = conn.execute(csql, cparams).fetchone()
+            psql, pparams = build_stock_pattern_query(sym)
+            prow = conn.execute(psql, pparams).fetchone()
+        except Exception:
+            row, prow = None, None
+        inner = _stock_card(row, prow) if row else f'<div class="empty">No data for {_esc(sym)}.</div>'
+        cards.append(f'<div class="patCmpCol">{inner}</div>')
+    out.append('<div class="patCmp">' + "".join(cards) + '</div>')
+    return "".join(out)
+
+
+# ── "why is X <metric>?" — drill into the evidence + provenance behind a read ──
+def _why_url(sym: str, metric: str = "credibility") -> str:
+    return f"/dash/pat?flow=why&sym={_u(sym)}" + (f"&strength={_u(metric)}" if metric else "")
+
+
+def _prov(*bits) -> str:
+    """A provenance footer: as-of + source, never fabricated."""
+    return ('<div class="patMeta">' + "".join(f'<span>{_esc(b)}</span>' for b in bits if b)
+            + '<span>descriptive evidence · not a recommendation</span></div>')
+
+
+def _why_credibility(conn, sym: str) -> str:
+    try:
+        sql, params = build_credibility_detail_query(sym)
+        r = conn.execute(sql, params).fetchone()
+    except Exception:
+        r = None
+    if not r:
+        return ('<div class="empty">No concall-credibility record for ' + _esc(sym) +
+                ' — it may be outside the concall pilot (hundreds of names, not the full '
+                'universe). Credibility is a DESCRIPTIVE track-record, not a buy signal.</div>'
+                + _prov("coverage: concall pilot"))
+    reasons = []
+    cs = r["composite_score"]
+    if cs is not None:
+        reasons.append(f'composite credibility <b>{_n(cs,0)}/100</b>' +
+                       (f' (tier {_esc(r["tier"])})' if r["tier"] else ''))
+    if r["n_promises_resolved"] is not None:
+        reasons.append(f'<b>{_int(r["n_promises_resolved"])}</b> guidance promises resolved'
+                       + (f', {_pc(r["guidance_accuracy_score"])} kept' if r["guidance_accuracy_score"] is not None else ''))
+    if r["quantification_rate"] is not None:
+        reasons.append(f'guidance is {_pc(r["quantification_rate"])} quantified (falsifiable)')
+    if r["credibility_trend"]:
+        reasons.append(f'trend <b>{_esc((r["credibility_trend"] or "").title())}</b>')
+    veto = bool(r["veto_active"])
+    if veto:
+        reasons.append(f'⛔ VETO active — {_esc(r["veto_reason"] or "a disqualifying flag")}')
+    elif (r["deterioration_score"] or 0) > 0:
+        reasons.append(f'⚠ deterioration flag ({_n(r["deterioration_score"],1)})')
+    else:
+        reasons.append('no veto / deterioration flag')
+    facts = "".join([
+        _fact("Composite", _n(cs, 0)),
+        _fact("Credibility", _n(r["credibility_score"], 0)),
+        _fact("Guidance acc", _pc(r["guidance_accuracy_score"])),
+        _fact("Transparency", _n(r["transparency_score"], 0)),
+        _fact("Quantified", _pc(r["quantification_rate"])),
+        _fact("Promises n", _int(r["n_promises_resolved"])),
+        _fact("Tier", _esc(r["tier"] or "—")),
+        _fact("Trend", _esc((r["credibility_trend"] or "—").title())),
+        _fact("Veto", "⛔ " + _esc(r["veto_reason"] or "active") if veto else "none"),
+    ])
+    # peer-relative context (concall_scores.peer_median) — value beside verdict
+    pm = r["peer_median"] if "peer_median" in r.keys() else None
+    if pm is not None and cs is not None:
+        rel = "above" if cs > pm else ("below" if cs < pm else "at")
+        reasons.append(f'{rel} the peer median ({_n(pm,0)}) on composite')
+    verdict = ("reads CREDIBLE" if (not veto and (cs or 0) >= 55) else
+               "reads WEAK / vetoed" if veto else "reads MIXED")
+    body = (f'<div class="patWhyHd">{_esc(sym)} {verdict} — because:</div>'
+            f'<ul class="patWhy">' + "".join(f"<li>{x}</li>" for x in reasons) + '</ul>'
+            f'<div class="patFacts">{facts}</div>')
+    # F3-4: drill into the UNDERLYING promise-vs-delivery rows (the receipts under the score)
+    body += _why_credibility_evidence(conn, sym)
+    return body + _prov(f"credibility as-of: {r['as_of_period'] or '—'}",
+                        f"rank {_int(r['rank'])} of the pilot · {_int(r['n_concalls'])} concalls scored"
+                        if ("rank" in r.keys()) else None,
+                        "source: concall track-record (CCI pilot)")
+
+
+_CLASS_CLS = {"BEAT": "pos", "IN_LINE": "mut", "UNDERSTATED": "pos",
+              "MISS": "neg", "OVERSTATED": "neg", "CONCEALED": "neg"}
+_CLASS_LBL = {"BEAT": "BEAT guidance", "IN_LINE": "in line", "UNDERSTATED": "under-promised",
+              "MISS": "MISSED", "OVERSTATED": "over-promised", "CONCEALED": "concealed"}
+
+
+def _why_credibility_evidence(conn, sym: str) -> str:
+    """The actual promise-vs-delivery rows behind the guidance-accuracy score — the
+    'drill into the underlying rows' the explanation should expose (F3-4). Descriptive."""
+    try:
+        sql, params = build_credibility_evidence_query(sym, 6)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    if not rows:
+        return ""
+    items = []
+    for r in rows:
+        cl = (r["classification"] or "").upper()
+        cls = _CLASS_CLS.get(cl, "mut")
+        lbl = _CLASS_LBL.get(cl, cl.title())
+        what = (r["mgmt_expectation"] or "").strip() or (r["evidence"] or "").strip()
+        what = what[:90] + ("…" if len(what) > 90 else "")
+        metric = (r["metric"] or "").strip()
+        items.append(
+            '<li><span class="' + cls + '">' + _esc(lbl) + '</span> '
+            + (f'<b>{_esc(metric)}</b> · ' if metric else '')
+            + f'<span class="mut">{_esc(r["period_label"])}</span>'
+            + (f' — {_esc(what)}' if what else '') + '</li>')
+    return ('<div class="patWhyHd" style="margin-top:10px">The receipts — recent guidance '
+            'vs. what actually happened:</div>'
+            '<ul class="patWhy">' + "".join(items) + '</ul>')
+
+
+def _why_from_card(conn, sym: str, metric: str) -> str:
+    try:
+        csql, cparams = build_stock_card_query(sym)
+        r = conn.execute(csql, cparams).fetchone()
+    except Exception:
+        r = None
+    if not r:
+        return '<div class="empty">No signal row for ' + _esc(sym) + ' on the latest date.</div>'
+    reasons, facts = [], ""
+    if metric == "accumulation":
+        ch = r["accum_character"] or "—"
+        reasons.append(f'delivery character <b>{_esc(ch)}</b>')
+        reasons.append(f'positioning p/r <b>{_int(r["p_score"])}/{_int(r["r_score"])}</b>'
+                       + (' (active strong hand)' if (r["p_score"] or 0) > 0 else ''))
+        if r["price_vs_hot_avg_pct"] is not None:
+            reasons.append(f'price vs strong-hand cost: {_sgn(r["price_vs_hot_avg_pct"])}')
+        facts = "".join([_fact("Character", _char_pill(r["accum_character"])),
+                         _fact("p/r", f'{_int(r["p_score"])}/{_int(r["r_score"])}'),
+                         _fact("Trigger", _rank_pill(r["trigger_rank"])),
+                         _fact("Δ hot cost", _sgn(r["price_vs_hot_avg_pct"])),
+                         _fact("Deliv ₹Cr", _cr(r["delivery_value_today"]))])
+        verdict = ("is being ACCUMULATED" if (r["accum_character"] == "ACCUMULATION")
+                   else "is under DISTRIBUTION" if (r["accum_character"] == "DISTRIBUTION")
+                   else "is in CONSOLIDATION")
+    elif metric == "rs":
+        reasons.append(f'RS rank <b>{_int(r["rs_rank"])}/99</b> vs the broad market')
+        if r["rs_vs_broad_trend_state"]:
+            reasons.append(f'broad-RS trend <b>{_esc(r["rs_vs_broad_trend_state"])}</b>')
+        if r["rs_vs_sector_trend_state"]:
+            reasons.append(f'sector-RS trend <b>{_esc(r["rs_vs_sector_trend_state"])}</b>')
+        if r["pct_from_52w_high"] is not None:
+            reasons.append(f'{_sgn(r["pct_from_52w_high"])} from its 52-week high')
+        facts = "".join([_fact("RS rank", _int(r["rs_rank"])),
+                         _fact("Broad trend", _esc(r["rs_vs_broad_trend_state"] or "—")),
+                         _fact("Sector trend", _esc(r["rs_vs_sector_trend_state"] or "—")),
+                         _fact("% off 52wH", _sgn(r["pct_from_52w_high"]))])
+        verdict = ("is an RS LEADER" if (r["rs_rank"] or 0) >= 80
+                   else "is an RS LAGGARD" if (r["rs_rank"] or 99) <= 20 else "is MID-PACK on RS")
+    else:  # valuation / quality
+        reasons.append(f'P/E <b>{_n(r["pe"],1)}</b>, ROCE <b>{_pc(r["roce"])}</b>, ROE <b>{_pc(r["roe"])}</b>')
+        if r["debt_to_equity"] is not None:
+            reasons.append(f'D/E {_n(r["debt_to_equity"],2)}')
+        if r["promoter_pledge"] is not None and r["promoter_pledge"] > 0:
+            reasons.append(f'promoter pledge {_pc(r["promoter_pledge"])}')
+        facts = "".join([_fact("P/E", _n(r["pe"], 1)), _fact("ROCE", _pc(r["roce"])),
+                         _fact("ROE", _pc(r["roe"])), _fact("D/E", _n(r["debt_to_equity"], 2)),
+                         _fact("Promoter", _pc(r["promoter_holding"])),
+                         _fact("Mcap ₹Cr", _n(r["market_cap_cr"], 0))])
+        if metric == "valuation":
+            verdict = ("looks EXPENSIVE" if (r["pe"] or 0) > 40 else
+                       "looks CHEAP" if (r["pe"] or 1e9) < 18 else "is FAIRLY VALUED")
+        else:
+            verdict = ("is HIGH quality" if (r["roce"] or 0) >= 18 else "is MODEST quality")
+    body = (f'<div class="patWhyHd">{_esc(sym)} {verdict} — because:</div>'
+            f'<ul class="patWhy">' + "".join(f"<li>{x}</li>" for x in reasons) + '</ul>'
+            f'<div class="patFacts">{facts}</div>')
+    src = ("source: cached Screener fundamentals" if metric in ("valuation", "quality")
+           else "source: NSE daily delivery / RS signals")
+    asof = "" if metric in ("valuation", "quality") else f"signals as-of: {_max_date(conn,'stock_signals','trade_date') or '—'}"
+    return body + _prov(asof, src)
+
+
+_WHY_LABEL = {"credibility": "credible", "accumulation": "being accumulated",
+              "rs": "a market leader", "valuation": "cheap or expensive", "quality": "high-quality"}
+
+
+def _why_flow(conn, sym: str, metric: str = "credibility") -> str:
+    from src.pat.understand import WHY_METRICS
+    metric = (metric or "credibility").strip().lower()
+    if metric not in WHY_METRICS:
+        metric = "credibility"
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym:
+        out.append(_q_bubble("Name a stock — e.g. “why is INFY credible?”"))
+        return "".join(out)
+    if conn is None:
+        out.append(_q_bubble("Connect to data to explain."))
+        return "".join(out)
+    try:
+        rsql, rparams = build_symbol_resolve_query(sym)
+        hit = conn.execute(rsql, rparams).fetchone()
+    except Exception:
+        hit = None
+    if not hit:
+        out.append(_q_bubble(f'I couldn\'t resolve “{_esc(sym)}”. Check the symbol.'))
+        return "".join(out)
+    sym = hit["symbol"]
+    out.append(_q_bubble(f'Why {_esc(sym)} reads {_WHY_LABEL.get(metric, metric)} — the EVIDENCE '
+                         'behind the read, drilled to the underlying rows + provenance. '
+                         'Switch lens:'))
+    out.append('<div class="patChips">' + "".join(
+        _chip_sel(_why_url(sym, m), m.title(), m == metric) for m in
+        ("credibility", "accumulation", "rs", "valuation", "quality")) + '</div>')
+    out.append(_why_credibility(conn, sym) if metric == "credibility"
+               else _why_from_card(conn, sym, metric))
+    out.append('<div class="patChips">'
+               + _chip(f"/dash/stock?sym={_u(sym)}", f"full {sym} dossier →")
+               + (_chip(f"/dash/pat?flow=trend&sym={_u(sym)}", "credibility trend →")
+                  if metric == "credibility" else "")
+               + _chip(_why_url(sym, "credibility"), "why credible?") + "</div>")
+    return "".join(out)
+
+
+# ── credibility TIME-SERIES ("credibility trend for X") over credibility_series ─
+# A descriptive PIT series: level + momentum + trend-state + tape, period by period.
+# Never a buy signal (the §C falsification stands) — it shows HOW a management's
+# credibility moved, with the as-of period range + n as provenance.
+_TREND_STATE_CLS = {"IMPROVING": "pos", "DETERIORATING": "neg", "STABLE": "mut", "NEW": "mut"}
+
+
+def _trend_state(s) -> str:
+    s = (s or "").strip().upper()
+    cls = _TREND_STATE_CLS.get(s, "mut")
+    return f'<span class="{cls}">{_esc(s.title() or "—")}</span>' if s else '<span class="mut">—</span>'
+
+
+def _trend_table(rows) -> str:
+    head = ('<div class="patTable"><table class="dt"><thead><tr>'
+            '<th>Period</th><th>Credibility</th><th>Guid. acc.</th><th>Momentum</th>'
+            '<th>3-period</th><th>Trend</th><th>Tier</th><th>Tape</th><th>n resolved</th>'
+            '</tr></thead><tbody>')
+    rws = []
+    for r in rows:
+        tape = (r["tape"] or "").replace("_", " ").title()
+        tnote = r["tape_note"]
+        tape_cell = (f'<span title="{_esc(tnote or "")}">{_esc(tape)}</span>'
+                     if tape else '<span class="mut">—</span>')
+        rws.append(
+            '<tr>'
+            f'<td class="sym">{_esc(r["period_label"])}</td>'
+            f'<td>{_n(r["level"], 1)}</td>'
+            f'<td>{_n(r["ga"], 1)}</td>'
+            f'<td>{_sgnp(r["momentum"], 1)}</td>'
+            f'<td>{_sgnp(r["momentum_3p"], 1)}</td>'
+            f'<td>{_trend_state(r["trend"])}</td>'
+            f'<td>{_esc(r["tier"] or "—")}</td>'
+            f'<td class="mut">{tape_cell}</td>'
+            f'<td>{_int(r["n_resolved"])}</td>'
+            '</tr>'
+        )
+    return head + "".join(rws) + '</tbody></table></div>'
+
+
+def _sgnp(v, d=1) -> str:
+    """Signed value WITHOUT a percent sign (momentum is a points move, not a %)."""
+    if v is None:
+        return '<span class="mut">—</span>'
+    cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
+    return f'<span class="{cls}">{v:+.{d}f}</span>'
+
+
+def _trend_flow(conn, sym: str) -> str:
+    """The credibility TIME-SERIES for one name — level/momentum/trend over the PIT
+    periods (credibility_series). Descriptive; carries its own period-range provenance."""
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym:
+        out.append(_q_bubble("Name a stock — e.g. “credibility trend for NAVINFLUOR”."))
+        return "".join(out)
+    if conn is None:
+        out.append(_q_bubble("Connect to data to chart the trend."))
+        return "".join(out)
+    try:
+        rsql, rparams = build_symbol_resolve_query(sym)
+        hit = conn.execute(rsql, rparams).fetchone()
+    except Exception:
+        hit = None
+    if not hit:
+        out.append(_q_bubble(f'I couldn\'t resolve “{_esc(sym)}”. Check the symbol.'))
+        return "".join(out)
+    sym = hit["symbol"]
+    try:
+        sql, params = build_credibility_trend_query(sym, 24)
+        rows = list(conn.execute(sql, params))
+    except Exception:
+        rows = []
+    if not rows:
+        out.append(_q_bubble(
+            f'No credibility series for {_esc(sym)} yet — the concall pilot covers a few '
+            'hundred names, not the whole market.'))
+        out.append('<div class="patChips">'
+                   + _chip("/dash/pat?flow=credibility", "credibility leaders →")
+                   + _chip(f"/dash/stock?sym={_u(sym)}", f"{sym} dossier →") + "</div>")
+        return "".join(out)
+    latest, oldest = rows[0], rows[-1]
+    out.append(_q_bubble(
+        f'Credibility TREND for {_esc(sym)} — how the management\'s credibility has moved, '
+        'period by period. The latest read is the top row; this is a descriptive series '
+        '(evidence of consistency over time), not a buy signal.'))
+    # the headline read of the move
+    lat_trend = (latest["trend"] or "").title()
+    out.append(
+        f'<div class="ghdr">Latest: {_n(latest["level"], 1)} '
+        f'(tier {_esc(latest["tier"] or "—")}, {_trend_state(latest["trend"])}) '
+        f'— {len(rows)} periods, {_esc(oldest["period_label"])} → {_esc(latest["period_label"])}</div>')
+    out.append(_trend_table(rows))
+    # provenance footer (this flow carries its OWN as-of, not via _FRESH)
+    out.append(
+        '<div class="patMeta">'
+        f'<span>as-of period: {_esc(latest["period_label"])}</span>'
+        f'<span>series: {len(rows)} concall periods</span>'
+        '<span>coverage: concall pilot · credibility_series · NOT the full universe</span>'
+        '</div>')
+    out.append('<div class="patChips">'
+               + _chip(_why_url(sym, "credibility"), "why credible? (evidence) →")
+               + _chip(f"/dash/stock?sym={_u(sym)}", f"full {sym} dossier →") + "</div>")
     return "".join(out)
 
 
@@ -1356,9 +1947,92 @@ _EXAMPLES = [
     ("Quality & value", [
         "quality compounders", "cheap stocks with ROCE above 20",
         "debt-free names growing over 20%", "quality banks ranked by ROE"]),
+    ("Management credibility (concalls)", [
+        "credible managements", "why is NAVINFLUOR credible",
+        "credibility trend for NAVINFLUOR", "managements with deteriorating credibility"]),
     ("Learn the metrics", [
         "what is p_score", "explain DVPT", "what does RS rank mean"]),
 ]
+
+
+def _boards_home() -> str:
+    """Saved boards as quick-load chips (server-rendered) — the multi-turn/workbench
+    bridge: a pinned NL query reloads its answer. Empty → nothing rendered."""
+    try:
+        from src.pat import boards as B
+        items = B.list_boards(kind="pat", limit=24)
+    except Exception:
+        items = []
+    if not items:
+        return ""
+    chips = []
+    for b in items:
+        href = ("/dash/pat?q=" + _u(b["query"])) if b.get("query") else \
+               ("/dash/pat?flow=" + _u(b.get("flow") or ""))
+        chips.append(_chip(href, "★ " + b["name"]))
+    return ('<div class="ghdr">Your saved boards</div><div class="patChips">'
+            + "".join(chips) + '<a class="patChip" href="/dash/pat?flow=boards">manage boards →</a>'
+            + '<a class="patChip" href="/dash/strategist">open workbench →</a></div>')
+
+
+def _board_href(b: dict) -> str:
+    """Where a saved board reopens to: its NL query (preferred), else flow + params."""
+    if b.get("query"):
+        return "/dash/pat?q=" + _u(b["query"])
+    flow = b.get("flow") or ""
+    if not flow:
+        return "/dash/pat"
+    qs = ["flow=" + _u(flow)]
+    # carry the saved params back through the same generic route params the answer used
+    p = b.get("params") or {}
+    for k in ("sym", "strength", "entry", "align", "val", "sector"):
+        if p.get(k):
+            qs.append(f"{k}=" + _u(p[k]))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _boards_flow() -> str:
+    """The dedicated saved-boards MANAGER (flow=boards): list every pinned NL board,
+    one-click reopen, one-click delete. The list/reopen surface the Home chips only
+    teased. Server-rendered; delete is a fetch POST to /pat/board/delete."""
+    try:
+        from src.pat import boards as B
+        items = B.list_boards(kind="pat", limit=120)
+    except Exception:
+        items = []
+    out = ['<a class="patBack" href="/dash/pat">← back</a>',
+           _q_bubble("Your saved boards — every NL question you pinned. Reopen reruns the "
+                     "same answer (always against the latest data); delete removes the pin.")]
+    if not items:
+        out.append('<div class="empty">No saved boards yet. Run any question, then '
+                   '“★ Save as board” on the answer to pin it here.</div>')
+        return "".join(out)
+    rows = []
+    for b in items:
+        href = _board_href(b)
+        flow_lbl = _FLOW_LABEL.get(b.get("flow") or "", b.get("flow") or "—")
+        sub = _esc(b.get("query") or flow_lbl)
+        rows.append(
+            '<div class="patBoardRow">'
+            f'<a class="patBoardOpen" href="{_esc(href)}">★ {_esc(b["name"])}'
+            f'<span class="patBoardSub">{sub}</span></a>'
+            f'<button type="button" class="patBoardDel" data-name="{_esc(b["name"])}" '
+            'onclick="patDelBoard(this)">delete</button>'
+            '</div>')
+    out.append('<div class="patBoardList">' + "".join(rows) + '</div>')
+    out.append(
+        '<script>if(!window.patDelBoard){window.patDelBoard=function(b){'
+        'var n=b.getAttribute("data-name");if(!n)return;'
+        'if(!confirm("Delete board: "+n+"?"))return;'
+        'fetch("/pat/board/delete",{method:"POST",headers:{"Content-Type":"application/json"},'
+        'body:JSON.stringify({name:n,kind:"pat"})})'
+        '.then(function(r){return r.json();}).then(function(j){'
+        'if(j.ok){var row=b.closest(".patBoardRow");if(row)row.remove();}'
+        'else{b.textContent="failed";}})'
+        '.catch(function(){b.textContent="failed";});};}</script>')
+    out.append('<div class="patChips"><a class="patChip" href="/dash/strategist">'
+               'open the workbench →</a></div>')
+    return "".join(out)
 
 
 def _home() -> str:
@@ -1368,6 +2042,7 @@ def _home() -> str:
         '<button>Ask</button></form>',
         _q_bubble("Ask me anything in plain English. Not sure what to ask? Tap an "
                   "example — these are the kinds of questions I can answer:"),
+        _boards_home(),
     ]
     for grp, qs in _EXAMPLES:
         out.append(f'<div class="ghdr">{grp}</div><div class="patChips">')
@@ -1390,6 +2065,139 @@ def _home() -> str:
     return "".join(out)
 
 
+# ── multi-turn conversation: context-aware follow-up chips + a refine box ──────
+# A refinement is expressed as a self-contained COMBINED query the planner already
+# intersects (no server thread state, no dashboard.py token plumbing): each chip /
+# the refine box navigates to /dash/pat?q=<context + added-condition>. The chain of
+# combined queries IS the conversation.
+# flow -> a base NL phrase that re-states the current read (for the flow= path,
+# where there's no original q to carry forward).
+_FLOW_BASE_Q = {
+    "rs": "RS leaders", "rslag": "weak laggard stocks",
+    "accumulation": "stocks being accumulated", "fundamentals": "quality value stocks",
+    "credibility": "credible companies", "deterioration": "managements with deteriorating credibility",
+    "confluence": "credible companies being accumulated", "movers": "biggest movers today",
+    "index": "best performing sectoral indices", "oscillators": "oversold stocks",
+    "pt14": "pt14 quality tier stocks", "confluence_plan": "",
+}
+# flow -> the refinement chips to offer (label, the phrase to APPEND to the context).
+_FOLLOWUPS = {
+    "rs": [("↳ being accumulated", "that are being accumulated"),
+           ("↳ credible ones", "with credible management"),
+           ("↳ small-caps", "small caps")],
+    "accumulation": [("↳ RS-leading", "that are RS-leading"),
+                     ("↳ credible ones", "with credible management"),
+                     ("↳ small-caps", "small caps")],
+    "credibility": [("↳ being accumulated", "being accumulated"),
+                    ("↳ RS-leading", "that are RS-leading"),
+                    ("↳ small-caps", "small caps")],
+    "fundamentals": [("↳ being accumulated", "being accumulated"),
+                     ("↳ RS-leading", "that are RS-leading")],
+    "confluence": [("↳ small-caps", "small caps"),
+                   ("↳ mid-caps", "mid caps")],
+    "confluence_plan": [("↳ small-caps", "small caps"),
+                        ("↳ large-caps", "large caps")],
+    "movers": [("↳ this week", "this week")],
+}
+
+
+def _followups(flow: str, q: str = "") -> str:
+    """Context-aware refinement chips (the multi-turn UX): each is a one-click combined
+    query that ADDS a condition to the current read — the planner intersects it."""
+    specs = _FOLLOWUPS.get(flow)
+    if not specs:
+        return ""
+    base = (q or "").strip() or _FLOW_BASE_Q.get(flow, "")
+    if not base:
+        return ""
+    chips = []
+    for label, add in specs:
+        combined = f"{base} {add}".strip()
+        chips.append(f'<a class="patChip patFup" href="/dash/pat?q={_u(combined)}">{_esc(label)}</a>')
+    return ('<div class="patFupWrap"><span class="patFupLbl">Refine ↳</span>'
+            '<div class="patChips">' + "".join(chips) + '</div></div>')
+
+
+def _refine_box(ctx: str) -> str:
+    """A free-text follow-up box: combines the typed refinement with the current
+    context client-side, then asks Pat. ctx travels in the DOM (no server state)."""
+    cattr = _esc(ctx or "")
+    return (
+        '<form class="patRefine" onsubmit="return patRefineGo(this)">'
+        f'<input type="hidden" name="ctx" value="{cattr}"/>'
+        '<input name="add" autocomplete="off" placeholder="…refine — e.g. only small-caps, in IT, that are credible"/>'
+        '<button>Ask ↳</button></form>'
+        '<script>if(!window.patRefineGo){window.patRefineGo=function(f){'
+        'var ctx=(f.ctx.value||"").trim(),add=(f.add.value||"").trim();if(!add)return false;'
+        'var q=ctx?(ctx+" "+add):add;location.href="/dash/pat?q="+encodeURIComponent(q);return false;};}</script>')
+
+
+def _save_board_btn(q: str, flow: str, params: dict | None = None) -> str:
+    """A '★ Save as board' button — prompts a name, POSTs to /pat/board/save (fetch).
+    Stores the NL query + flow + params so the board reloads the same answer."""
+    import json as _json
+    pj = ""
+    try:
+        pj = _esc(_json.dumps(params or {}, separators=(",", ":"), ensure_ascii=False))
+    except Exception:
+        pj = "{}"
+    return (
+        f'<button type="button" class="patBoardBtn" data-q="{_esc(q)}" data-flow="{_esc(flow)}" '
+        f'data-params="{pj}" onclick="patSaveBoard(this)">★ Save as board</button>'
+        '<script>if(!window.patSaveBoard){window.patSaveBoard=function(b){'
+        'var n=prompt("Name this board:");if(!n)return;'
+        'var p={};try{p=JSON.parse(b.getAttribute("data-params")||"{}");}catch(e){}'
+        'fetch("/pat/board/save",{method:"POST",headers:{"Content-Type":"application/json"},'
+        'body:JSON.stringify({name:n,query:b.getAttribute("data-q")||"",'
+        'flow:b.getAttribute("data-flow")||"",params:p,kind:"pat"})})'
+        '.then(function(r){return r.json();}).then(function(j){'
+        'b.textContent=j.ok?("★ Saved: "+n):"save failed";b.disabled=!!j.ok;})'
+        '.catch(function(){b.textContent="save failed";});};}</script>')
+
+
+# For a SINGLE-NAME answer (card / why / trend), the natural next questions are the
+# OTHER lenses on the same name — proactive analyst follow-ups. With multi-turn live
+# these are one click; even without a thread they carry the name explicitly.
+_SUBJECT_NEXT = {
+    "card":  [("↳ is it credible?", "is {S} credible"),
+              ("↳ being accumulated?", "why is {S} being accumulated"),
+              ("↳ RS / leadership", "why is {S} a leader"),
+              ("↳ credibility trend", "credibility trend for {S}")],
+    "why":   [("↳ credibility trend", "credibility trend for {S}"),
+              ("↳ being accumulated?", "why is {S} being accumulated"),
+              ("↳ full dossier", "tell me about {S}")],
+    "trend": [("↳ why credible? (evidence)", "why is {S} credible"),
+              ("↳ being accumulated?", "why is {S} being accumulated"),
+              ("↳ full dossier", "tell me about {S}")],
+}
+
+
+def _subject_followups(flow: str, sym: str) -> str:
+    """Proactive 'next question' chips for a single-name answer — the other lenses on
+    the same name. '' if the flow has no subject map or no symbol."""
+    specs = _SUBJECT_NEXT.get(flow)
+    if not specs or not sym:
+        return ""
+    chips = []
+    for label, tmpl in specs:
+        nxt = tmpl.format(S=sym)
+        chips.append(f'<a class="patChip patFup" href="/dash/pat?q={_u(nxt)}">{_esc(label)}</a>')
+    return ('<div class="patFupWrap"><span class="patFupLbl">Ask next ↳</span>'
+            '<div class="patChips">' + "".join(chips) + '</div></div>')
+
+
+def _convo_tail(flow: str, q: str = "", ctx: str = "", params: dict | None = None,
+                sym: str = "") -> str:
+    """The conversation tail on a data answer: refine chips + refine box + save-board.
+    For single-name flows, lead with proactive 'ask next' lens chips on the name."""
+    sf = _subject_followups(flow, sym) if sym else ""
+    fu = _followups(flow, q)
+    rb = _refine_box(ctx or q or _FLOW_BASE_Q.get(flow, ""))
+    sb = ('<div class="patSaveRow">'
+          + _save_board_btn(q or _FLOW_BASE_Q.get(flow, ""), flow, params) + '</div>')
+    return sf + fu + rb + sb
+
+
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
                "index": "Index performance", "distribution": "Distribution (strong hand exiting)",
@@ -1401,7 +2209,10 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "oscillators": "Momentum (RSI / MACD)",
                "credibility": "Credibility leaders (CCI)",
                "deterioration": "Deterioration / avoid tape (CCI)",
-               "confluence": "Credibility × accumulation"}
+               "confluence": "Credibility × accumulation",
+               "confluence_plan": "Multi-condition confluence",
+               "strategy": "Strategy board", "compare": "Compare stocks",
+               "why": "Why — the evidence", "trend": "Credibility trend (time-series)"}
 
 
 def _clarify_view(q: str, sel: dict) -> str:
@@ -1446,20 +2257,40 @@ _FRESH = {
     "disqualified":  (None, None, "the hard-disqualifier kill-list"),
     "redflags":      (None, None, "the hard-disqualifier kill-list"),
     "oscillators":   (None, None, "RSI / MACD · computed nightly"),
+    "compare":       ("stock_signals", "trade_date", "two names · latest daily signals + cached fundamentals"),
 }
 
 
 def _max_date(conn, table, col):
+    # CL-PAT-11: memoize the MAX(date) probe per connection so a render that draws
+    # several freshness bars (or re-routes a refine) doesn't re-scan the same table.
+    # Keyed off the request-scoped conn via a cache dict it carries; falls back to a
+    # direct query if the conn can't hold the attribute. table/col are hardcoded names.
+    key = (table, col)
+    cache = None
     try:
-        return conn.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]  # noqa: S608 (hardcoded names)
+        cache = conn._pat_maxdate_cache  # type: ignore[attr-defined]
     except Exception:
-        return None
+        try:
+            cache = {}
+            conn._pat_maxdate_cache = cache  # type: ignore[attr-defined]
+        except Exception:
+            cache = None
+    if cache is not None and key in cache:
+        return cache[key]
+    try:
+        val = conn.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]  # noqa: S608 (hardcoded names)
+    except Exception:
+        val = None
+    if cache is not None:
+        cache[key] = val
+    return val
 
 
 def _freshness_bar(conn, flow: str) -> str:
-    """The as-of + coverage badge for a flow. Confluence carries its own dual-lens
-    badge; explain/clarify/home have nothing to date → empty (never fabricated)."""
-    if conn is None or flow == "confluence":
+    """The as-of + coverage badge for a flow. Confluence/planner/strategy carry their
+    own as-of meta; explain/clarify/home have nothing to date → empty (never fabricated)."""
+    if conn is None or flow in ("confluence", "confluence_plan", "strategy", "why", "trend"):
         return ""
     spec = _FRESH.get(flow)
     if not spec:
@@ -1504,13 +2335,13 @@ def _free_text(conn, q: str):
         if f == "accumulation":
             body = _accumulation_flow(conn, p.get("sector", ""), p.get("strength", ""),
                                       p.get("entry", ""), p.get("window", ""),
-                                      character=p.get("character", ""))
+                                      character=p.get("character", ""), top_n=p.get("top_n"))
         elif f == "rs":
             if p.get("direction") == "laggards":
                 body = _rslag_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("window", ""))
             else:
                 body = _rs_flow(conn, p.get("sector", ""), p.get("strength", ""), p.get("align", ""),
-                                p.get("window", ""))
+                                p.get("window", ""), top_n=p.get("top_n"))
         elif f == "fundamentals":
             body = _fundamentals_flow(conn, p.get("val", ""), p.get("qual", ""), p.get("grow", ""),
                                       p.get("bs", ""), p.get("sector", ""), p.get("own", ""))
@@ -1527,13 +2358,25 @@ def _free_text(conn, q: str):
         elif f == "oscillators":
             body = _oscillators_flow(conn, p.get("screen", ""))
         elif f == "credibility":
-            body = _credibility_flow(conn)
+            body = _credibility_flow(conn, top_n=p.get("top_n"))
         elif f == "deterioration":
             body = _deterioration_flow(conn)
         elif f == "confluence":
             body = _confluence_flow(conn)
+        elif f == "confluence_plan":
+            body = _confluence_plan_flow(conn, p.get("pillars", ""), p.get("sector", ""),
+                                         p.get("capband", ""))
+        elif f == "strategy":
+            body = _strategy_flow(conn, p.get("key", "all"))
+        elif f == "compare":
+            body = _compare_flow(conn, p.get("syms", ""))
+        elif f == "why":
+            body = _why_flow(conn, p.get("sym", ""), p.get("metric", "credibility"))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
+            # single-name flows get proactive 'ask next' lens chips on the same name
+            _sym = (p.get("sym") or "").strip() if f in ("card", "why", "trend") else ""
+            body = body + _convo_tail(f, q=q, ctx=q, params=p, sym=_sym)
             note = _q_bubble(f'I read "{q}" as →{_FLOW_LABEL.get(f, f)}. Adjust with the chips below.')
             return note + body, {"query": q, "flow": f, "params": p, "source": "free_text"}
     # fallback — deterministic glossary keyword search (today's behavior). A chooser,
@@ -1541,20 +2384,179 @@ def _free_text(conn, q: str):
     return _explain_flow("", q), None
 
 
+# ── true multi-turn: server-side thread trail (keyed by an optional `tid`) ─────
+# The thread store (src.pat.threads) remembers the recent turns for a browser
+# session. It is INERT unless the page route forwards a `tid` cookie into
+# render_pat (the call-site plumb is the orchestrator's — see threads.py). When
+# present, we (a) render a compact conversation trail above the answer so the
+# analyst can see + jump back through the thread, and (b) record each concrete
+# answer as a turn. The URL-combined refinement chips stay the primary path; the
+# thread store is additive memory + a visible trail, never a behaviour change for
+# tid="" (the default).
+
+def _thread_trail(tid: str, current_flow: str = "") -> str:
+    """A compact 'this conversation' strip from the thread history. '' if the
+    thread has 0/1 turns (nothing to show) or threads are unavailable."""
+    if not tid:
+        return ""
+    try:
+        from src.pat import threads as _T
+        hist = _T.history(tid)
+    except Exception:
+        hist = []
+    # only worth showing once there's prior context (>=1 earlier turn besides now)
+    if len(hist) < 2:
+        return ""
+    chips = []
+    for h in hist:
+        q = (h.get("query") or "").strip()
+        flow = (h.get("flow") or "").strip()
+        if q:
+            href = "/dash/pat?q=" + _u(q)
+            label = q if len(q) <= 48 else (q[:46] + "…")
+        elif flow:
+            href = "/dash/pat?flow=" + _u(flow)
+            label = _FLOW_LABEL.get(flow, flow)
+        else:
+            continue
+        chips.append(f'<a class="patTrailItem" href="{_esc(href)}">{_esc(label)}</a>')
+    if len(chips) < 2:
+        return ""
+    return (
+        '<div class="patTrail"><span class="patTrailLbl">This conversation</span>'
+        '<div class="patTrailItems">' + '<span class="patTrailSep">›</span>'.join(chips) + '</div>'
+        '<a class="patTrailNew" href="/dash/pat?new=1" title="Start a fresh conversation">'
+        'start over ⟲</a></div>')
+
+
+def _thread_record(tid: str, fb_ctx: dict | None) -> None:
+    """Append the just-rendered concrete answer to the thread. No-op for tid='' or
+    a non-answer (chooser/home). Never raises."""
+    if not tid or not fb_ctx:
+        return
+    flow = fb_ctx.get("flow") or ""
+    # don't record meta/chooser flows as conversation turns
+    if flow in ("explain", "boards", "face", ""):
+        if not (fb_ctx.get("query") or "").strip():
+            return
+    try:
+        from src.pat import threads as _T
+        _T.record(tid, query=fb_ctx.get("query") or "", flow=flow,
+                  params=fb_ctx.get("params") or {})
+    except Exception:
+        pass
+
+
+# ── in-thread CONTEXT resolution (Pat-as-analyst follow-ups) ──────────────────
+# After "tell me about TITAN", a follow-up like "what about its credibility?" /
+# "and the rotation?" / "is it being accumulated?" resolves the pronoun to TITAN
+# from the thread and rewrites to an explicit query the router already serves. This
+# is what turns single-shot answers into a conversation. INERT for tid="" (no
+# thread) and for a query that already names a subject (no pronoun to bind).
+import re as _re_wf
+
+# a follow-up CONTINUATION: a bare/pronoun lens ask that only makes sense against a
+# prior subject. (label-phrase regex, the explicit-query template). The {S} slot is
+# filled with the resolved symbol. Order matters — first match wins.
+_FOLLOWUP_LENS = [
+    # trend (credibility OVER TIME) is more specific than a point credibility ask → first
+    (_re_wf.compile(r"\b(credibility (trend|history|over time|trajectory)|"
+                    r"trend (of|in) (its )?credib|over time)", _re_wf.I),
+     "credibility trend for {S}"),
+    (_re_wf.compile(r"\b(credib|trustworth|promise|guidance|concall track)", _re_wf.I),
+     "is {S} credible"),
+    # accumulation / RS / fundamentals about ONE name → the per-name WHY evidence
+    # ("why is X being accumulated" routes to why(metric=accumulation)), NOT the
+    # generic screen — so a single-name follow-up answers about THAT name.
+    (_re_wf.compile(r"\b(being accumulat|accumulation|strong hand|smart money|delivery)", _re_wf.I),
+     "why is {S} being accumulated"),
+    (_re_wf.compile(r"\b(relative strength|\brs\b|leading|leader|momentum|outperform)", _re_wf.I),
+     "why is {S} a leader"),
+    (_re_wf.compile(r"\b(why)\b", _re_wf.I), "why is {S} credible"),
+    (_re_wf.compile(r"\b(fundamental|valuation|cheap|expensive|quality|compounder)", _re_wf.I),
+     "tell me about {S}"),
+    (_re_wf.compile(r"\b(dossier|snapshot|overview|tell me|pull up|full picture)", _re_wf.I),
+     "tell me about {S}"),
+]
+# the query must LOOK like a follow-up: a leading continuation ("what about", "and",
+# "how about", "what's its") OR an explicit pronoun ("it"/"its"/"that company").
+_FOLLOWUP_LEAD = _re_wf.compile(
+    r"^\s*(what about|how about|and |what'?s its|whats its|what is its|"
+    r"and its|& |also |then )", _re_wf.I)
+_FOLLOWUP_PRONOUN = _re_wf.compile(
+    r"\b(it|its|it'?s|that company|this company|that name|this one|the company|the stock)\b",
+    _re_wf.I)
+# guard: if the query already names a ticker-shaped token, it's not a pronoun ask.
+_HAS_EXPLICIT_SYM = _re_wf.compile(r"\b[A-Z][A-Z0-9&.\-]{2,15}\b")
+
+
+def _resolve_followup(q: str, tid: str):
+    """If q is a context-dependent follow-up and the thread has a subject, return
+    (rewritten_q, resolved_symbol); else (q, '') unchanged. ₹0, never raises."""
+    if not tid or not q:
+        return q, ""
+    is_lead = bool(_FOLLOWUP_LEAD.search(q))
+    has_pronoun = bool(_FOLLOWUP_PRONOUN.search(q))
+    if not (is_lead or has_pronoun):
+        return q, ""
+    # if the analyst already typed a symbol, don't override it with the thread subject
+    # (unless the only "uppercase token" is a stopword like RS — handled by len/guard).
+    # CL-PAT-05: stopwords come from the SHARED threads.SYM_STOPWORDS so this list and
+    # the refine resolver's list can't drift apart.
+    try:
+        from src.pat.threads import SYM_STOPWORDS as _SYM_STOP
+    except Exception:
+        _SYM_STOP = frozenset({"RS", "MACD", "RSI", "CCI", "MEP", "CPR", "DVPT", "PE", "P", "Q"})
+    explicit = [m for m in _HAS_EXPLICIT_SYM.findall(q) if m not in _SYM_STOP]
+    if explicit:
+        return q, ""
+    try:
+        from src.pat import threads as _T
+        sym = _T.last_symbol(tid)
+    except Exception:
+        sym = ""
+    if not sym:
+        return q, ""
+    for rx, tmpl in _FOLLOWUP_LENS:
+        if rx.search(q):
+            return tmpl.format(S=sym), sym
+    # a bare "what about it?" with no lens → the dossier (the most informative default)
+    if is_lead or has_pronoun:
+        return f"tell me about {sym}", sym
+    return q, ""
+
+
 def render_pat(flow: str = "", explain: str = "", q: str = "",
                sector: str = "", strength: str = "", entry: str = "", align: str = "",
                val: str = "", qual: str = "", grow: str = "", bs: str = "", own: str = "",
-               sym: str = "", conn=None) -> str:
-    """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn)."""
+               sym: str = "", conn=None, tid: str = "", new: str = "") -> str:
+    """Build the inner HTML for /dash/pat from the chip params (+ optional DB conn).
+
+    ``tid`` (optional) keys a server-side conversation thread for TRUE multi-turn —
+    a trail of prior turns above the answer + per-answer memory. It is INERT until
+    the page route forwards a `pat_tid` cookie (the orchestrator's one-line call-site
+    plumb); render_pat is unchanged for the default tid="". ``new=1`` clears the
+    thread (the 'start over' affordance) before rendering."""
     flow = (flow or "").strip().lower()
     explain = (explain or "").strip()
     q = (q or "").strip()
     sector = (sector or "").strip()
     strength = (strength or "").strip().lower()
     sym = (sym or "").strip()
+    tid = (tid or "").strip().lower()
+
+    # 'start over' — forget the thread before rendering (then carry on as a fresh page).
+    if tid and str(new or "").strip() in ("1", "true", "yes"):
+        try:
+            from src.pat import threads as _T
+            _T.clear(tid)
+        except Exception:
+            pass
 
     if flow == "face":                       # the dedicated face-picker page
         return _PAT_CSS + _face_picker()
+    if flow == "boards":                     # the saved-boards manager (list/reopen/delete)
+        return _PAT_CSS + _avatar_picker() + _boards_flow()
 
     # fb_ctx = the answer's context for the 👍/👎 bar, or None for non-answers
     # (home / face / metric chooser). Set per branch so the bar can log exactly
@@ -1633,17 +2635,100 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "confluence":
         body = _confluence_flow(conn)
         fb_ctx = {"query": "", "flow": "confluence", "params": {}, "source": "flow"}
+    elif flow == "confluence_plan":
+        # planner params smuggled through forwarded generics: pillars=strength, capband=entry
+        pillars = strength
+        capband = (entry or "").strip().lower()
+        body = _confluence_plan_flow(conn, pillars, sector, capband)
+        fb_ctx = {"query": "", "flow": "confluence_plan",
+                  "params": {"pillars": pillars, "sector": sector, "capband": capband},
+                  "source": "flow"}
+    elif flow == "strategy":
+        body = _strategy_flow(conn, strength or "all")    # key rides `strength`
+        fb_ctx = {"query": "", "flow": "strategy", "params": {"key": strength or "all"}, "source": "flow"}
+    elif flow == "compare":
+        body = _compare_flow(conn, sym)                   # "A,B" rides `sym`
+        fb_ctx = {"query": "", "flow": "compare", "params": {"syms": sym}, "source": "flow"}
+    elif flow == "why":
+        body = _why_flow(conn, sym, strength or "credibility")   # metric rides `strength`
+        fb_ctx = {"query": "", "flow": "why", "params": {"sym": sym, "metric": strength or "credibility"},
+                  "source": "flow"}
+    elif flow == "trend":
+        body = _trend_flow(conn, sym)                     # credibility series; sym rides `sym`
+        fb_ctx = {"query": "", "flow": "trend", "params": {"sym": sym}, "source": "flow"}
     elif q:
-        body, fb_ctx = _free_text(conn, q)
+        # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
+        #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after
+        #       "strongest stocks") → rebuild the COMBINED query so the planner
+        #       INTERSECTS the new pillar with the prior set (AND, not replace). This
+        #       is the QA-round2 #5 fix.
+        #   (2) PRONOUN follow-up on a single name ("its credibility") → bind to the
+        #       thread subject and rewrite to an explicit query.
+        resolved_sym = ""
+        refined_combined = ""
+        q2 = q
+        if tid:
+            try:
+                from src.pat import threads as _Tr
+                refined_combined = _Tr.refine_base(tid, q)
+            except Exception:
+                refined_combined = ""
+            if refined_combined:
+                q2 = refined_combined
+            else:
+                q2, resolved_sym = _resolve_followup(q, tid)
+        body, fb_ctx = _free_text(conn, q2)
+        # The refine must INTERSECT (AND), never silently replace the base set. If the
+        # rebuilt combined query genuinely routed to a multi-pillar flow (the planner /
+        # confluence), the intersection happened → show the "refining" bubble. If it did
+        # NOT (the router collapsed it to a single pillar — see the deferred
+        # disambiguate.route_extra / understand.validate_intent multi-pillar bug), DON'T
+        # claim a refinement that didn't occur: fall back to the analyst's original bare
+        # query so behaviour is exactly the prior status quo (no misleading bubble). This
+        # call-site guard auto-activates the full intersection once that router fix lands.
+        _refined_flow = (fb_ctx or {}).get("flow", "") if refined_combined else ""
+        _did_intersect = _refined_flow in ("confluence_plan", "confluence")
+        if refined_combined and q2 != q and _did_intersect:
+            # the follow-up REFINED the running list (genuine pillar intersection); keep the
+            # ORIGINAL phrasing in the thread record so the trail reads naturally.
+            body = (_q_bubble(f'↳ refining your previous list — read as → "{q2}".') + body)
+            if fb_ctx:
+                fb_ctx["query"] = q
+        elif refined_combined and q2 != q and not _did_intersect:
+            # router did not intersect → re-route the analyst's ORIGINAL query, unmodified,
+            # so we don't show a false "refining" claim over a replaced (non-AND) result.
+            # CL-PAT-09: this re-routes `q` after `q2` already routed, so a non-intersecting
+            # refine can cost two parses. The engine.route() LRU cache absorbs the repeat
+            # (identical `q` within the session is then free); a non-intersecting refine is
+            # itself an edge case, so the extra parse on first sight is acceptable.
+            body, fb_ctx = _free_text(conn, q)
+        elif resolved_sym and q2 != q:
+            # show the analyst that the pronoun bound to the thread subject, and keep
+            # the ORIGINAL phrasing in the thread record (so the trail reads naturally).
+            body = (_q_bubble(f'↳ in this thread, I read "{q}" as → {resolved_sym}.') + body)
+            if fb_ctx:
+                fb_ctx["query"] = q
     else:
         body = _home()
 
     # §9.8 freshness + coverage footer on a direct flow= answer (the free-text path
     # adds its own inside _free_text; confluence/explain/clarify/home add nothing).
     if fb_ctx and fb_ctx.get("source") == "flow":
-        body = body + _freshness_bar(conn, fb_ctx.get("flow", ""))
+        _ff = fb_ctx.get("flow", "")
+        body = body + _freshness_bar(conn, _ff)
+        if _ff in _FOLLOWUPS:                       # multi-turn refine on flow= answers too
+            body = body + _convo_tail(_ff, ctx=_FLOW_BASE_Q.get(_ff, ""),
+                                      params=fb_ctx.get("params"))
 
-    out = _PAT_CSS + _avatar_picker() + body
+    # true multi-turn: record this concrete answer as a thread turn, then prepend
+    # the conversation trail (both no-ops for tid=""). Record BEFORE building the
+    # trail so the current turn is part of the shown history.
+    trail = ""
+    if tid:
+        _thread_record(tid, fb_ctx)
+        trail = _thread_trail(tid, current_flow=(fb_ctx or {}).get("flow", ""))
+
+    out = _PAT_CSS + _avatar_picker() + trail + body
     if fb_ctx is not None:
         out += _feedback_bar(**fb_ctx) + _FB_JS
     return out

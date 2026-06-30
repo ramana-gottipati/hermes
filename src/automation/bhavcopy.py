@@ -103,6 +103,16 @@ def _try_fetch(url: str, *, timeout: int = 30) -> Optional[bytes]:
     return r.content
 
 
+def _looks_like_sec_bhav(raw: bytes) -> bool:
+    """CL-MDC-11: robust header sniff for the sec_bhavdata_full CSV. The old
+    check read only the first 6 bytes, so a UTF-8 BOM or any leading whitespace
+    would make it miss the delivery-bearing source and silently fall through to
+    a no-delivery format. Decode a generous prefix, strip a BOM, and look for
+    the SYMBOL header token at the start of the first non-empty line."""
+    head = raw[:512].decode("utf-8-sig", errors="ignore").lstrip("﻿\r\n\t ")
+    return head.upper().startswith("SYMBOL")
+
+
 def fetch_for_date(d: datetime) -> Optional[tuple[bytes, str, str, bool]]:
     """Return (bytes, filename, format_version, has_delivery) or None.
 
@@ -111,7 +121,7 @@ def fetch_for_date(d: datetime) -> Optional[tuple[bytes, str, str, bool]]:
     # 1. sec_bhavdata_full — preferred, has delivery
     sf_url = _sec_bhav_full_url(d)
     raw = _try_fetch(sf_url)
-    if raw and raw[:6].decode("ascii", errors="ignore").startswith(("SYMBOL", " SYMBOL", "SYMBOL ")):
+    if raw and _looks_like_sec_bhav(raw):
         filename = sf_url.rsplit("/", 1)[-1]
         return raw, filename, "sec_bhavdata_full", True
 
@@ -257,7 +267,12 @@ def _parse_udiff(csv_text: str) -> list[dict]:
         symbol = r.get("TckrSymb")
         if not symbol:
             continue
-        trade_date = (r.get("TradDt") or "").strip()
+        # CL-MDC-04/14: normalize TradDt to ISO YYYY-MM-DD like the other two
+        # parsers, instead of storing it verbatim. UDIFF emits ISO already, but
+        # format drift (or a stray time component) would silently corrupt
+        # trade_date — breaking the ON CONFLICT key and every calendar-window
+        # string comparison (b[0] >= cutoff) downstream. Skip the row on failure.
+        trade_date = _norm_iso_date(r.get("TradDt"))
         if not trade_date:
             continue
         rows.append({
@@ -352,6 +367,25 @@ def _i(v):
         return None
 
 
+def _norm_iso_date(v) -> Optional[str]:
+    """Normalize a date string to ISO YYYY-MM-DD. Accepts already-ISO values
+    (possibly with a time/zone suffix) and the d-Mon-Y form NSE uses elsewhere.
+    Returns None on anything unparseable so the caller can skip the row rather
+    than persist a malformed trade_date (CL-MDC-04)."""
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    head = s.split("T", 1)[0].split(" ", 1)[0]
+    for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%b-%y"):
+        try:
+            return datetime.strptime(head, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
 # --- Storage ---------------------------------------------------------------
 
 _COLS = [
@@ -373,13 +407,20 @@ def store_rows(rows: list[dict]) -> int:
         f"ON CONFLICT(symbol, trade_date, series, instrument_type) DO NOTHING"
     )
     n = 0
+    failures = 0
     with get_conn() as conn:
         for r in rows:
             try:
                 conn.execute(sql, [r.get(c) for c in _COLS])
                 n += 1
             except Exception as e:
+                failures += 1
                 log.debug("skip row %s/%s: %s", r.get("symbol"), r.get("trade_date"), e)
+    # CL-MDC-15: a handful of bad rows is tolerable, but losing a meaningful
+    # fraction of a day silently is not — surface it at WARNING when >1%.
+    if failures and failures > max(1, len(rows) // 100):
+        log.warning("store_rows: %d/%d rows failed to insert (%.1f%%)",
+                    failures, len(rows), 100.0 * failures / len(rows))
     return n
 
 
@@ -408,14 +449,18 @@ def date_already_done(trade_date: str, *, require_delivery: bool = False) -> boo
 
 # --- Per-date ingestion -----------------------------------------------------
 
-def ingest_date(d: datetime) -> tuple[bool, str]:
+def ingest_date(d: datetime) -> tuple[bool, str, int]:
+    """Ingest one date. Returns (ok, msg, inserted) where `inserted` is the
+    number of rows actually written this call (CL-MDC-07: callers test the
+    structured count instead of sniffing the message for the substring "rows",
+    which also matched "no rows parsed"). already-ingested / no-data → 0."""
     iso_date = d.strftime("%Y-%m-%d")
     if date_already_done(iso_date):
-        return True, f"{iso_date} already ingested"
+        return True, f"{iso_date} already ingested", 0
 
     fetched = fetch_for_date(d)
     if not fetched:
-        return False, f"{iso_date} no data (holiday/weekend/not-published)"
+        return False, f"{iso_date} no data (holiday/weekend/not-published)", 0
 
     content, filename, fmt, has_delivery = fetched
     save_raw(d, filename, content)
@@ -450,12 +495,12 @@ def ingest_date(d: datetime) -> tuple[bool, str]:
                                 iso_date, mismatch, merged)
 
     if not rows:
-        return False, f"{iso_date} no rows parsed ({fmt})"
+        return False, f"{iso_date} no rows parsed ({fmt})", 0
 
     inserted = store_rows(rows)
     mark_date_done(iso_date, fmt, len(rows), has_delivery)
     tag = "✓delivery" if has_delivery else "no-delivery"
-    return True, f"{iso_date} {inserted}/{len(rows)} rows ({fmt}, {tag})"
+    return True, f"{iso_date} {inserted}/{len(rows)} rows ({fmt}, {tag})", inserted
 
 
 # --- Modes -----------------------------------------------------------------
@@ -466,9 +511,9 @@ def run_recent() -> tuple[bool, str]:
         d = today - timedelta(days=offset)
         if d.weekday() >= 5:
             continue
-        ok, msg = ingest_date(d)
+        ok, msg, inserted = ingest_date(d)
         log.info(msg)
-        if ok and "rows" in msg:
+        if ok and inserted > 0:
             return True, msg
     return False, "no recent bhav copy found"
 
@@ -483,7 +528,7 @@ def run_backfill(days: int) -> tuple[int, int]:
         if d.weekday() >= 5:
             continue
         attempts += 1
-        ok, msg = ingest_date(d)
+        ok, msg, _inserted = ingest_date(d)
         if ok:
             success += 1
         log.info(msg)
@@ -507,7 +552,7 @@ def main() -> None:
         run_backfill(args.backfill)
     elif args.date:
         d = datetime.strptime(args.date, "%Y-%m-%d")
-        ok, msg = ingest_date(d)
+        ok, msg, _inserted = ingest_date(d)
         log.info(msg)
     else:
         ok, msg = run_recent()

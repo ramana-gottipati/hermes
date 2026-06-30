@@ -278,8 +278,12 @@ def compute_signals(tf: str, symbol: str, bars: list[dict]) -> list[dict]:
             regime = 1 if adj_close > c0["p"] else (-1 if adj_close < c0["p"] else 0)
 
         # confirmed — price has actually engaged the turning band.
+        # CL-RS-03: an in-progress (is_partial) W/M period's close is not final, so a
+        # "confirmed" verdict computed against it can still flip before the period
+        # closes. Mirror MTF: never mark a partial row confirmed — it stays an
+        # unconfirmed, descriptive read until the period locks.
         confirmed = 0
-        if c0 and adj_close is not None:
+        if c0 and adj_close is not None and not b["is_partial"]:
             if pattern == "BULL_U" and adj_close > c0["tc"]:
                 confirmed = 1
             elif pattern == "BEAR_INVU" and adj_close < c0["bc"]:

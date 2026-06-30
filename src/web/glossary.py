@@ -98,7 +98,8 @@ def _load() -> None:
 def lookup(term: str) -> Optional[dict]:
     """Return the glossary entry for a term/column, or None."""
     _load()
-    return _ENTRIES[_INDEX[_norm(term)]] if _norm(term) in _INDEX else None
+    nk = _norm(term)   # CL-CHR-9: bind once instead of normalising twice
+    return _ENTRIES[_INDEX[nk]] if nk in _INDEX else None
 
 
 def gloss(term: str, label: Optional[str] = None) -> str:

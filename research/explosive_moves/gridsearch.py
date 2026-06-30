@@ -51,7 +51,17 @@ def main():
     t0 = time.time()
     rows = run(cache, base, GRID)
     rows.sort(key=lambda r: r["exp_ret"], reverse=True)
-    print(f"{key}: {len(rows)} configs, {time.time()-t0:.0f}s. Ranked by expectancy (net/trade):\n")
+    # CL-RES-08: this grid is ranked by IN-SAMPLE expectancy over the WHOLE history, with
+    # no train/test fold. The rank-1 exit config is therefore the best-of-N order statistic,
+    # not an unbiased estimate of forward expectancy — and these exit knobs flow straight
+    # into strategies.py. Read the table as a sensitivity map (which knobs matter, how flat
+    # the surface is), NOT as a tuned config to deploy. Before promoting a row, re-confirm
+    # it on a held-out fold (e.g. fit on 2012-2019, evaluate on 2020-2026) the way
+    # run_backtests.py's walk-forward does; a robust config should sit on a PLATEAU, not a
+    # lone spike.
+    print(f"{key}: {len(rows)} configs, {time.time()-t0:.0f}s. Ranked by IN-SAMPLE expectancy "
+          f"(net/trade; best-of-{len(rows)} order statistic — confirm on a held-out fold "
+          f"before using):\n")
     hdr = f"{'stop':>5} {'atr':>4} {'trailA':>6} {'texit':>5} {'scales':<26} | {'n':>5} {'exp%':>6} {'PF':>5} {'hit':>5} {'wR':>5} {'lR':>6} {'MFEcap':>6}"
     print(hdr); print("-" * len(hdr))
     for r in rows[:18]:

@@ -103,6 +103,14 @@ COPY_MNAR = ("Concall coverage is missing-not-at-random: India's transcript mand
              "names with concalls is implicitly tilted toward larger, more recent companies — read "
              "coverage with that selection in mind.")
 
+COPY_VALIDATION = ("We test our own strategies and publish what fails. Every strategy we have backtested is "
+                   "recorded with its results net of realistic cost (tier spread + slippage), walk-forward "
+                   "2012–26, no look-ahead — the failures kept as visible as the wins. The honest verdict so "
+                   "far: nothing we have built beats a Nifty 500 buy-and-hold net of cost. We state that "
+                   "plainly rather than bury it, because a research process is only trustworthy if its "
+                   "negative results are on the record. No performance claim follows from this surface — it is "
+                   "the rigor evidence behind the product, not a strategy lens or a return promise.")
+
 # the diligence checklist the screen pre-empts
 PRINCIPLES = [
     ("Survivorship addressed first", "Universe built from the raw archive with delisted names retained; a survivorship-correct universe-as-of-date exists."),
@@ -223,11 +231,27 @@ def _section_glance(snap):
         _funnel_step(fn.get("resolved_ge3"), "≥3 resolved") +
         _funnel_step(fn.get("robust_core_ge10"), "robust core ≥10", core=True, arrow=False)
     )
+    # Reconcile the funnel's "scored" with the resolved-promise distribution below it: the
+    # two headline counts differ because "scored" is the LLM credibility *snapshot* set,
+    # while the distribution/tier-matrix count the (slightly smaller) PIT credibility
+    # *series* set (a series needs ≥1 settled period). Stating the gap inline pre-empts the
+    # "why doesn't scored equal the distribution total?" question on the trust page.
+    _buckets = (cci.get("n_resolved_buckets") or {})
+    _series_n = sum(v for v in _buckets.values() if v) or None
+    _scored = fn.get("scored")
+    _recon = ""
+    if isinstance(_scored, int) and isinstance(_series_n, int) and _scored != _series_n:
+        _gap = _scored - _series_n
+        _recon = (f' <b class="num">{_n(_scored)}</b> carry an LLM credibility snapshot; '
+                  f'the resolved-promise distribution and tier matrix below count the '
+                  f'<b class="num">{_n(_series_n)}</b> with a full point-in-time series '
+                  f'(level + momentum), so they total {_n(_series_n)}, not {_n(_scored)} '
+                  f'(the {_n(abs(_gap))}-name gap is names scored but without a settled series yet).')
     funnel = K.card(f'<div class="cov-funnel">{steps}</div>'
                     '<div class="cov-note mut" style="margin-top:11px">The headline is the robust core, '
                     'not the breadth: “symbols touched” counts every name with a concall on file, '
                     'most of which have few or no resolved promises yet. Coverage shrinks left-to-right; '
-                    'each step is a stricter, more honest count.</div>',
+                    f'each step is a stricter, more honest count.{_recon}</div>',
                     eyebrow="CCI settlement funnel — honest, monotone, denominator-first")
     return f'<div style="margin-bottom:6px">{head}</div>{funnel}'
 
@@ -244,7 +268,7 @@ def _section_universe(snap):
         f'<tr><td class="sym">{K.esc(k)}</td><td class="num">{_n(v)}</td></tr>'
         for k, v in [
             ("Total securities ever observed", u.get("total_securities")),
-            ("Currently listed &amp; active", u.get("active")),
+            ("Currently listed & active", u.get("active")),
             ("Delisted / inactive (retained)", u.get("delisted_or_inactive")),
             ("Left-censored at archive floor", u.get("left_censored_at_floor")),
             ("Continuity-break events", sum(breaks.values()) if breaks else None),
@@ -276,8 +300,19 @@ def _section_matrix(snap):
     for cl in classes:
         nunit = cl.get("n_unit", "symbols")
         cov = f'{_n(cl.get("n"))} <span class="mut">{K.esc(nunit)}</span>'
-        if cl.get("pct_active") is not None:
-            cov += f' <span class="mut">· {cl["pct_active"]}% of active</span>'
+        pa = cl.get("pct_active")
+        if pa is not None:
+            # The denominator is *today's active* set; a survivorship-inclusive archive
+            # (delisted names retained — see Universe) legitimately exceeds it. Label such
+            # cells "of all-time" so >100% reads as the intended breadth, not a bug, while
+            # the exact count + ratio stay visible (no number is hidden).
+            if pa > 100:
+                cov += (f' <span class="mut">· {pa}% of all-time set</span>'
+                        '<span class="uk-badge" title="Count spans every symbol ever observed, '
+                        'including delisted/renamed series the archive retains, so it exceeds '
+                        'today&#39;s active universe by design.">all-time</span>')
+            else:
+                cov += f' <span class="mut">· {pa}% of active</span>'
         bp = K.pill(cl.get("basis", "?").replace("_", " ").lower(), basis_kind.get(cl.get("basis"), "neutral"))
         note = f'<div class="mut" style="font-size:10.5px">{K.esc(cl["note"])}</div>' if cl.get("note") else ""
         mv = ' <span class="uk-badge" title="rows carry method/model version">vers</span>' if cl.get("method_versioned") else ""
@@ -293,7 +328,11 @@ def _section_matrix(snap):
               '<b>as traded</b>: a real NSE exchange date · <b>ingested</b>: a real first-seen/fetch time · '
               '<b>event</b>: a real event date · <b>derived</b>: computed from a real-dated source · '
               '<b>modeled</b>: a synthetic uniform lag (see §6). “days” coverage = distinct '
-              'trading days for market-level/index classes (which have no per-stock split).</div>')
+              'trading days for market-level/index classes (which have no per-stock split). '
+              'A coverage shown <b>“of all-time set”</b> counts every symbol the archive has ever '
+              'observed (delisted/renamed series are retained — see Universe), so it exceeds '
+              'today’s active universe by design; the active-set ratio is shown only where the '
+              'dataset is a subset of currently-active names.</div>')
     return K.card(tbl + legend, eyebrow="Per-data-class coverage matrix")
 
 
@@ -367,6 +406,47 @@ def _section_modeled(snap):
                   eyebrow="Modeled-vs-filed disclosure")
 
 
+def _section_provenance_story(conn=None):
+    """Replay-the-Tape EVIDENCE on the Coverage page: the *effective* look-ahead leak
+    headline + the 3-beat narrative + the worst/safe per-period receipts a skeptical
+    allocator can audit. Renders provenance.provenance_narrative() so every surface tells
+    the SAME story (L4 W3 helper). Descriptive, NO edge claim; degrades to a note before
+    real BSE filing dates accrue (forward-only). Never 500s (a trust page must not)."""
+    try:
+        nar = P.provenance_narrative(conn)
+    except Exception:  # noqa: BLE001
+        nar = None
+    if not isinstance(nar, dict) or nar.get("status") != "ok":
+        msg = (isinstance(nar, dict) and nar.get("headline")) or (
+            "Zero-look-ahead receipts accrue going forward — real BSE filing dates are "
+            "captured prospectively, then compared against the modelled date.")
+        return K.card(f'<div class="cov-note mut">{K.esc(str(msg))}</div>',
+                      eyebrow="Replay the Tape — zero look-ahead receipts")
+
+    def _receipt(r, kind, tone):
+        if not isinstance(r, dict):
+            return ""
+        ed = r.get("err_days")
+        ed_txt = f'{ed:+d}d' if isinstance(ed, int) else K.esc(str(ed))
+        pt = (" " + K.esc(str(r.get("period_type")))) if r.get("period_type") else ""
+        return (f'<div class="cov-note" style="margin-top:8px"><span class="{tone}">{K.esc(kind)}</span> — '
+                f'<b>{K.esc(str(r.get("symbol", "")))}</b> {K.esc(str(r.get("period", "")))}{pt}: '
+                f'modelled <span class="num">{K.esc(str(r.get("modeled", "")))}</span> vs '
+                f'real <span class="num">{K.esc(str(r.get("real", "")))}</span> '
+                f'(<span class="num">{ed_txt}</span>)</div>')
+
+    head = f'<div class="cov-banner"><div><b>{K.esc(str(nar.get("headline", "")))}</b></div></div>'
+    paras = "".join(f'<div class="cov-note" style="margin-top:9px">{K.esc(str(p))}</div>'
+                    for p in (nar.get("paragraphs") or []))
+    receipts = (_receipt(nar.get("worst"), "Worst would-have-leaked", "warn")
+                + _receipt(nar.get("conservative"), "Representative conservative", "mut"))
+    rcap = ('<div class="cov-note mut" style="margin-top:10px">Receipts — the real BSE filing date vs the '
+            'modelled report date, per period. Positive = modelled earlier than real (a backtest would have '
+            'seen it early); negative = conservative (greyed while already public).</div>') if receipts else ""
+    return K.card(head + paras + receipts + rcap,
+                  eyebrow="Replay the Tape — zero look-ahead receipts")
+
+
 def _section_methodology():
     blocks = [
         ("No proven performance", COPY_NOALPHA),
@@ -402,6 +482,25 @@ def _section_principles():
         f'<div class="cov-note mut" style="margin-top:3px">{K.esc(d)}</div></div>'
         for i, (t, d) in enumerate(PRINCIPLES))
     return K.card(items, eyebrow="Trust-design principles — the diligence checklist this page pre-empts")
+
+
+def _section_validation():
+    """The strategy-validation story: the honest-backtest rigor evidence, surfaced as a
+    Trust artifact with a link to the full /dash/testing record. Descriptive-only; the
+    §C falsification stands — we present validation, never a return promise."""
+    verdict = (
+        '<div class="cov-banner"><span class="d" style="background:var(--down);box-shadow:0 0 7px var(--down)"></span>'
+        '<div><b>Headline verdict:</b> across every strategy we have backtested, '
+        '<b>none beats a Nifty&nbsp;500 buy-and-hold net of cost</b> '
+        '(the bar: Sharpe&nbsp;0.89 / CAGR&nbsp;15.3% / MaxDD&nbsp;&minus;29%). '
+        'We report that rather than bury it.</div></div>')
+    link = ('<div style="margin-top:14px"><a href="/dash/testing" '
+            'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
+            'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
+            'text-decoration:none;font-size:13px">Open the full validation record (every backtest + holdings) &rarr;</a></div>')
+    return K.card(f'<div style="margin-bottom:12px">{verdict}</div>'
+                  f'<div class="cov-note">{COPY_VALIDATION}</div>{link}',
+                  eyebrow="Strategy validation — we test our strategies and report what fails")
 
 
 # ── progressive-disclosure tabs (the best-in-class data-coverage shape: a lead
@@ -444,10 +543,23 @@ def render_coverage(conn=None) -> str:
         f'· built <span class="num">{K.esc(str(build) or "")}</span> · scope: NSE-listed Indian equities '
         f'(EQ/BE/BZ; SME excluded)</div>'
         f'<div class="cov-note" style="max-width:880px;margin-bottom:10px">{COPY_PAGE}</div>'
-        '<div style="margin:0 0 18px"><a href="/dash/coverage/memo" '
+        # Trails off the trust front-door. Replay the Tape leads (the D-PITCH-1/4 lead wedge):
+        # a PROMINENT accent chip, descriptive framing only ("scrub to a past date; zero
+        # look-ahead") — never a leaderboard/return/edge claim. The print memo follows as the
+        # secondary, muted action.
+        '<div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:0 0 18px">'
+        '<a href="/dash/replay" '
+        'style="display:inline-flex;align-items:center;gap:8px;border:1px solid var(--accent);'
+        'background:var(--accent-dim);color:var(--ink);border-radius:9px;padding:9px 15px;'
+        'text-decoration:none;font-size:13px;font-weight:600">'
+        '<span aria-hidden="true">&#9654;</span> Replay the Tape'
+        '<span class="mut" style="font-weight:400">&nbsp;— scrub to a past date, zero look-ahead</span>'
+        ' &rarr;</a>'
+        '<a href="/dash/coverage/memo" '
         'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
         'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
-        'text-decoration:none;font-size:13px">Export coverage &amp; provenance memo &rarr;</a></div>'
+        'text-decoration:none;font-size:13px">Export coverage &amp; provenance memo &rarr;</a>'
+        '</div>'
     )
 
     def _safe(fn, *a):
@@ -462,7 +574,8 @@ def render_coverage(conn=None) -> str:
         ("universe", "Universe & survivorship",
          [(_section_universe, snap), (_section_matrix, snap), (_section_cci, snap)]),
         ("freshness", "Freshness", [(_section_modeled, snap)]),
-        ("provenance", "Provenance & lineage", [(_section_registry,)]),
+        ("provenance", "Provenance & lineage", [(_section_provenance_story, conn), (_section_registry,)]),
+        ("validation", "Strategy validation", [(_section_validation,)]),
         ("methodology", "Methodology", [(_section_methodology,), (_section_degradation,)]),
         ("limits", "Limits", [(_section_principles,)]),
     ]

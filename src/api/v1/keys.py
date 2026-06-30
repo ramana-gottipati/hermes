@@ -9,11 +9,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import hmac
+import logging
 import os
 import secrets
 
 from src.core.db import get_conn
 from src.api.v1.schema import ensure_schema
+
+_log = logging.getLogger(__name__)
 
 
 def hash_key(raw: str) -> str:
@@ -50,16 +53,29 @@ def _seed(tenant_id: str, name: str, scopes, *, rate=120, key_env: str = "dev",
     return full
 
 
+def _dev_secret(env_var: str, prefix: str) -> str:
+    """Dev-seed secret: from env if set, else a freshly MINTED random secret (never a
+    predictable hardcoded constant). An unconfigured/exposed instance must not be reachable
+    with a known key. Set the env var for a key that is stable across restarts."""
+    secret = os.environ.get(env_var)
+    if not secret:
+        secret = new_key(prefix)[0]
+        _log.warning("%s unset — seeded an EPHEMERAL random dev key (set the env var "
+                     "for a stable key across restarts).", env_var)
+    return secret
+
+
 def seed_dev_key() -> str:
-    """A local dev key with ALL scopes + a high rate limit. Stable secret from env."""
-    secret = os.environ.get("HERMES_V1_DEV_KEY", "pk_dev_local-0000000000000000")
+    """A local dev key with ALL scopes + a high rate limit. Secret from HERMES_V1_DEV_KEY,
+    else an ephemeral random one (no hardcoded constant)."""
+    secret = _dev_secret("HERMES_V1_DEV_KEY", "dev")
     return _seed("dev", "Local Dev", ("research", "compliance", "data-feed"),
                  rate=100000, fixed_secret=secret, key_id="pk_dev")
 
 
 def seed_compliance_key() -> str:
     """A compliance-only tenant (audit/provenance, NO alpha) — proves the two-buyer split."""
-    secret = os.environ.get("HERMES_V1_COMPLIANCE_KEY", "pk_comp_local-000000000000000")
+    secret = _dev_secret("HERMES_V1_COMPLIANCE_KEY", "comp")
     return _seed("compliance-demo", "Compliance Demo", ("compliance",),
                  rate=100000, fixed_secret=secret, key_id="pk_comp")
 

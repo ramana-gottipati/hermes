@@ -13,6 +13,8 @@ Then: GET /  (→ /dash/coverage) · /dash/ui-kit · /v1/coverage (X-API-Key fro
 """
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
@@ -34,5 +36,7 @@ def _root():
 try:
     from src.api.v1.keys import seed_dev_key
     seed_dev_key()
-except Exception:  # noqa: BLE001 — never block startup on the seed
-    pass
+except Exception as _seed_err:  # noqa: BLE001 — never block startup on the seed
+    # CL-SYS-05: log at WARNING so a failed dev-key seed (e.g. unreadable DB) is
+    # visible in the staging logs instead of silently swallowed.
+    logging.getLogger("hermes.preview").warning("dev key seed skipped: %s", _seed_err)

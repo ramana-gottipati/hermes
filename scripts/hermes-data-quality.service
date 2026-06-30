@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes - data-quality monitor (research/provenance lane integrity checks)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Cheap deterministic checks (no LLM/network); persists a snapshot to data_quality_runs and logs a
+# one-line status. Read the detail with: python -m src.automation.data_quality --last
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.data_quality --run --quiet
+StandardOutput=append:/var/log/hermes-data-quality.log
+StandardError=append:/var/log/hermes-data-quality.log

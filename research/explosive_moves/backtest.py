@@ -226,8 +226,26 @@ def portfolio(trades, regime_on, strat: Strategy, start_equity=1.0) -> dict:
             continue
         open_book.append((tr["exit_date"], tr["R0"], w, tr["sym"]))
         taken.append((tr, w))
-    # equity calendar from the TAKEN book only
-    alldates = sorted({d for tr, _ in taken for d in tr["_dates"]})
+    # Equity calendar (CL-RES-05): build the curve on the FULL trading calendar spanned
+    # by the taken book, NOT only the days a position happened to be open. The old code
+    # used `sorted({d for tr,_ in taken for d in tr["_dates"]})`, which silently dropped
+    # every idle (flat, fully-in-cash) day from the series. Compounding then treated a
+    # 3-day idle gap as a single step, which (a) overstates annualized Sharpe/Sortino
+    # (std is taken over active days only, fewer near-zero observations), (b) inflates
+    # CAGR vs the calendar-time `_years()` denominator, and (c) compresses drawdown
+    # DURATION (recovery days off-book vanish). Idle days are real zero-return days and
+    # must be in the curve. `regime_on` is keyed by EVERY index trading date, so it is
+    # the natural full calendar; we restrict it to the span actually traded.
+    active = sorted({d for tr, _ in taken for d in tr["_dates"]})
+    if regime_on and active:
+        cal_all = sorted(regime_on.keys())
+        lo_d, hi_d = active[0], active[-1]
+        alldates = [d for d in cal_all if lo_d <= d <= hi_d]
+        # guard: if the regime calendar somehow misses a traded day, fold it back in
+        if set(active) - set(alldates):
+            alldates = sorted(set(alldates) | set(active))
+    else:
+        alldates = active
     dpos = {d: i for i, d in enumerate(alldates)}
     ndays = len(alldates)
     port_ret = np.zeros(ndays)
@@ -238,7 +256,8 @@ def portfolio(trades, regime_on, strat: Strategy, start_equity=1.0) -> dict:
             if k >= len(path):
                 break
             r = path[k] / prev - 1.0
-            port_ret[dpos[d]] += w * r
+            if d in dpos:                       # idle days stay at their 0.0 seed
+                port_ret[dpos[d]] += w * r
             prev = path[k]
     equity = start_equity * np.cumprod(1.0 + port_ret) if ndays else np.array([start_equity])
     return {"dates": alldates, "equity": equity, "port_ret": port_ret,

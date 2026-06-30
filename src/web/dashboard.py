@@ -27,9 +27,12 @@ All read-only. No LLM. No mutation. Pure SQL over the existing tables.
 import csv
 import io
 import json
+import logging
 import re
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
+
+log = logging.getLogger("hermes.dashboard")
 
 from fastapi import APIRouter, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -38,6 +41,11 @@ from src.automation import adjust
 from src.automation.signals import accum_character_read, is_near_key
 from src.core.db import get_conn
 from src.pat.web import render_pat
+from src.web.wolfe_overlay import SNIPPET as _WF_SNIPPET
+from src.web.cpr_overlay import SNIPPET as _CPR_SNIPPET
+from src.web.indicators_overlay import SNIPPET as _MA_SNIPPET
+from src.web.mep_overlay import SNIPPET as _MEP_SNIPPET
+from src.web.stock_chart import SNIPPET as _STOCK_CHART_SNIPPET
 
 router = APIRouter()
 
@@ -68,6 +76,13 @@ header .brand{display:flex;align-items:center;gap:8px;text-decoration:none;color
 .wsnav a{padding:8px 13px;color:#8b949e;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
 .wsnav a.on{color:#e6edf3;border-bottom-color:#3fb950;}
 .wsnav a:hover{color:#e6edf3;}
+.hrow3{padding:0 8px;border-top:1px solid #161b22;}
+.subnav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.subnav::-webkit-scrollbar{display:none;}
+.subnav a{padding:6px 11px;color:#6e7681;text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
+.subnav a.on{color:#c9d1d9;border-bottom-color:#1f6feb;}
+.subnav a:hover{color:#c9d1d9;}
+.subnav .sgrp{padding:6px 3px 6px 8px;color:#484f58;font-size:11px;font-weight:700;white-space:nowrap;align-self:center;text-transform:uppercase;letter-spacing:.4px;}
 .wrap { padding:16px; max-width:760px; margin:0 auto; }
 h2 { font-size:16px; margin:18px 0 10px; color:#e6edf3; }
 .sub { color:#8b949e; font-size:12px; margin:-6px 0 12px; }
@@ -85,14 +100,20 @@ th { text-align:left; color:#8b949e; font-weight:600; padding:8px 6px;
 td { padding:9px 6px; border-bottom:1px solid #21262d; }
 tr:last-child td { border-bottom:none; }
 .sym { font-weight:700; }
-.pos { color:#3fb950; } .neg { color:#f85149; } .mut { color:#8b949e; }
+/* positive / negative numeric text — the site's ONE value-green/red (was the legacy
+   GitHub #3fb950 / #f85149, the most pervasive green on every board's % cells). */
+.pos { color:var(--up); } .neg { color:var(--down); } .mut { color:#8b949e; }
 .pill { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px;
         border-radius:9px; letter-spacing:.4px; }
-.p-SS{background:#1f6f3a;color:#7ee787;} .p-S{background:#225c33;color:#7ee787;}
+/* RS-state + DVPT-rank pills — unified to the institutional value palette: ONE green
+   (var(--up) #3fd486) and ONE red (var(--down)), translucent-dim backgrounds to match
+   the site's .uk-pill treatment. Replaces the legacy GitHub greens (#7ee787/#1f6f3a/
+   #225c33) and reds so dashboard pills read the same green as the rest of the site. */
+.p-SS{background:var(--up-dim);color:var(--up);} .p-S{background:var(--up-dim);color:var(--up);}
 .p-A{background:#2b4f6f;color:#79c0ff;} .p-B{background:#3a3f4b;color:#c9d1d9;}
-.p-C{background:#30363d;color:#8b949e;} .p-BREAKOUT{background:#1f6f3a;color:#7ee787;}
-.p-UPTREND{background:#225c33;color:#7ee787;} .p-CONSOLIDATING{background:#5a4a1f;color:#ffd99a;}
-.p-DOWNTREND{background:#6f2b2b;color:#ffa198;} .p-BREAKDOWN{background:#8f1f1f;color:#ffa198;}
+.p-C{background:#30363d;color:#8b949e;} .p-BREAKOUT{background:var(--up-dim);color:var(--up);}
+.p-UPTREND{background:var(--up-dim);color:var(--up);} .p-CONSOLIDATING{background:rgba(246,183,60,.14);color:var(--warn);}
+.p-DOWNTREND{background:var(--down-dim);color:var(--down);} .p-BREAKDOWN{background:var(--down-dim);color:var(--down);}
 /* D43 accumulation/distribution character pills */
 .ca-acc{background:#16341f;color:#7ee787;} .ca-dist{background:#3a1a1a;color:#ffa198;}
 .ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:#30363d;color:#8b949e;}
@@ -160,9 +181,11 @@ a.row { color:inherit; text-decoration:none; display:block; }
 .hstrip{display:inline-flex;gap:2px;vertical-align:middle;}
 .hstrip .c{width:20px;height:24px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1;font-weight:700;}
 .hstrip .c small{font-size:7px;opacity:.7;margin-top:1px;font-weight:600;}
-.hs-su{background:#1f6f3a;color:#7ee787;} .hs-mu{background:#225c33;color:#7ee787;}
-.hs-fl{background:#5a4a1f;color:#ffd99a;} .hs-md{background:#6f2b2b;color:#ffa198;}
-.hs-sd{background:#8f1f1f;color:#ffa198;} .hs-nd{background:#21262d;color:#484f58;}
+/* RS-momentum heat strip — up greens / down reds unified to the value palette
+   (was GitHub #7ee787 / #ffa198); the bg darkens by intensity (su brighter than mu). */
+.hs-su{background:#1f6f3a;color:var(--up);} .hs-mu{background:#225c33;color:var(--up);}
+.hs-fl{background:#5a4a1f;color:#ffd99a;} .hs-md{background:#6f2b2b;color:var(--down);}
+.hs-sd{background:#8f1f1f;color:var(--down);} .hs-nd{background:#21262d;color:#484f58;}
 .bar{height:7px;background:#21262d;border-radius:4px;overflow:hidden;} .bar>span{display:block;height:100%;background:#1f6feb;}
 .grp{color:#58a6ff;} th.rsgrp{border-left:1px solid #30363d;} td.rsgrp{border-left:1px solid #30363d;}
 .dttool{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
@@ -371,12 +394,15 @@ document.addEventListener('DOMContentLoaded', function(){
 # Top workspace tabs = the primary navigation (D54 reframe). Every sub-page maps
 # onto one of the five workspaces so the right tab highlights.
 _WS = {
-    "markets": "markets", "sectors": "markets", "ratio": "markets", "compare": "markets",
+    "markets": "markets", "sectors": "markets", "rs": "markets", "ratio": "markets", "compare": "markets",
+    # Leaders/"Strength" is Markets content (RS), per src.web.lens_registry — NOT Strategies.
+    "leaders": "markets", "laggards": "markets",
     "themes": "themes", "theme": "themes", "tags-review": "themes",
     "screener": "screener",
     "strategies": "strategies", "scan": "strategies", "stocks": "strategies",
-    "leaders": "strategies", "laggards": "strategies", "conviction": "strategies",
+    "conviction": "strategies",
     "workbench": "strategies", "stock": "strategies", "cpr": "strategies",
+    "mep": "strategies", "launchpad": "strategies", "concalls": "strategies", "wolfe": "strategies",
     "dashboard": "tracker", "portfolios": "tracker", "watchlists": "tracker",
     "performance": "tracker", "tracker": "tracker", "track": "tracker",
     "pat": "pat",
@@ -398,12 +424,64 @@ def _nav(active: str) -> str:
     return "".join(out)
 
 
+# Per-workspace sub-navigation (D-UI-18) — rendered by _shell beneath the top
+# workspace tabs so every page exposes its sibling screens (the biggest
+# findability fix). Tracker keeps its own _track_subnav, Pat its own in-page
+# nav, the Screener its scope/view bar — those (and home) render no strip here.
+# Markets' Rotation group surfaces the three rotation lenses, de-orphaning
+# /dash/rsband. Purely additive: every route keeps its URL (D-UI-24).
+_SUBNAV = {
+    "markets": [
+        ({"markets"}, "/dash/markets", "Overview"),
+        ({"sectors", "rs"}, "/dash/sectors", "Sectors"),
+        ({"leaders", "laggards"}, "/dash/leaders", "Strength"),
+        (None, None, "Rotation"),
+        ({"rrg"}, "/dash/rrg", "Map"),
+        ({"rotation"}, "/dash/rotation", "Weather"),
+        ({"rsband"}, "/dash/rsband", "Band"),
+        ({"compare"}, "/dash/compare", "Compare"),
+    ],
+    "strategies": [
+        ({"strategies"}, "/dash/strategies", "Hub"),
+        ({"conviction"}, "/dash/conviction", "Conviction"),
+        ({"stocks", "scan", "stock"}, "/dash/stocks", "Positioning"),
+        ({"mep"}, "/dash/mep", "Accumulation"),
+        ({"cpr"}, "/dash/cpr", "Structure"),
+        ({"workbench"}, "/dash/workbench", "Workbench"),
+        ({"concalls"}, "/dash/concalls", "Credibility"),
+        ({"launchpad"}, "/dash/launchpad", "Launchpad"),
+        ({"wolfe"}, "/dash/wolfe", "Wolfe"),
+    ],
+    "themes": [
+        ({"themes", "theme"}, "/dash/themes", "Browse"),
+        ({"tags-review"}, "/dash/tags-review", "Review"),
+    ],
+}
+
+
+def _subnav(active: str) -> str:
+    items = _SUBNAV.get(_WS.get(active, active))
+    if not items:
+        return ""
+    out = ['<div class="subnav">']
+    for keys, href, label in items:
+        if href is None:
+            out.append(f'<span class="sgrp">{label}</span>')
+        else:
+            on = "on" if keys and active in keys else ""
+            out.append(f'<a class="{on}" href="{href}">{label}</a>')
+    out.append('</div>')
+    return "".join(out)
+
+
 def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool = False) -> str:
     # In-app Back on every page EXCEPT home (active="dash") — home is the root, so
     # there's nothing to go back to. history.back() with a /dash fallback (never strands).
     back_btn = ("" if active == "dash" else
                 '<a class="hback" href="/dash" title="Back" aria-label="Back" '
                 'onclick="if(window.history.length>1){window.history.back();return false;}">&#8592;</a>')
+    sub = _subnav(active)
+    subrow = f'<div class="hrow3">{sub}</div>' if sub else ''
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -426,6 +504,7 @@ def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool
     </form>
   </div>
   <div class="hrow2">{_nav(active)}</div>
+  {subrow}
 </header>
 <div class="wrap{' wide' if wide else ''}">
 {body}
@@ -441,11 +520,37 @@ if ('serviceWorker' in navigator) {{
 
 
 def _esc(s) -> str:
-    return (str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # CL-CHR-11: escape `"` too (→ &quot;). `_esc` is used inside double-quoted href/title
+    # attributes across dashboard + cockpit (cockpit imports it as D._esc); a stored URL or
+    # name with a `"` would otherwise break out of the attribute. `&` stays first so the
+    # `&quot;` we introduce is not itself re-escaped. JS single-quote contexts (onclick='…')
+    # are unaffected — we don't touch `'`.
+    return ((str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
 
 
 def _q(s) -> str:
     return quote_plus(str(s) if s is not None else "")
+
+
+# CL-DASH-15: a corrupt snapshot_json/alerts_json used to vanish into a bare `except: {}`.
+# Parse through here instead: a malformed blob is COUNTED + logged at WARNING (so silent
+# data corruption surfaces in the logs) while the caller still degrades to {} and renders.
+_JSON_PARSE_FAILURES = {"snapshot_json": 0, "alerts_json": 0}
+
+
+def _load_json_field(raw, field: str, default):
+    """Parse a stored JSON column; on failure log+count and return `default`. Empty/NULL is
+    a normal empty value (not a failure)."""
+    if not raw:
+        return default
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError) as e:
+        _JSON_PARSE_FAILURES[field] = _JSON_PARSE_FAILURES.get(field, 0) + 1
+        log.warning("corrupt %s (#%d this process): %s", field,
+                    _JSON_PARSE_FAILURES[field], e)
+        return default
 
 
 def _tag_chips(labels, link: bool = True, proposed=(), wrap: bool = False, cap=None) -> str:
@@ -477,17 +582,48 @@ def _tag_chips(labels, link: bool = True, proposed=(), wrap: bool = False, cap=N
     return f'<div class="chips">{inner}</div>' if wrap else inner
 
 
+# NaN/inf render as the em-dash, same as None — a NaN slips through `is not None`
+# (e.g. a 0/0 ratio upstream) and would otherwise print literal "nan%"/"inf".
+# `v != v` is True only for NaN; the inf check catches ±inf without importing math.
+def _nonfinite(v) -> bool:
+    return v is None or v != v or v in (float("inf"), float("-inf"))
+
+
 def _pct(v, decimals=1) -> str:
-    if v is None:
+    if _nonfinite(v):
         return '<span class="mut">—</span>'
     cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
     return f'<span class="{cls}">{v:+.{decimals}f}%</span>'
 
 
 def _num(v, decimals=2) -> str:
-    if v is None:
+    if _nonfinite(v):
         return '<span class="mut">—</span>'
     return f"{v:,.{decimals}f}"
+
+
+def _safe_int(v, default=0) -> int:
+    """int() that never raises on NaN/inf/None/junk (which would 500 a page).
+    A NaN/inf DVPT or delivery-value sneaks through SQLite as a float and would
+    blow up a plain int(); coerce defensively to `default`."""
+    if _nonfinite(v):
+        return default
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+# RS trend-state labels are stored as the uppercase enum (UPTREND / BREAKOUT /
+# CONSOLIDATING / DOWNTREND / BREAKDOWN) — used BOTH as the .p-{STATE} CSS class
+# AND, historically, sliced to 5 chars for the visible text ("UPTRE"/"BREAK"/…),
+# which read as broken. This renders the whole word (title-case) for the user while
+# the class stays the raw enum. Passes through "—"/empty and any unknown value.
+def _state_label(st) -> str:
+    s = ("" if st is None else str(st)).strip()
+    if not s or s == "—":
+        return s or "—"
+    return s.replace("_", " ").title()
 
 
 def _rs_strip(s1, s3, s6, s12, s18=None, s24=None) -> str:
@@ -1012,275 +1148,6 @@ def dash_home() -> HTMLResponse:
     from src.web.cockpit import render_home
     return HTMLResponse(_shell("patearn — Indian-equity strategy cockpit",
                                render_home(sig_date, idx_date), "dash", sig_date or "", wide=True))
-    # --- legacy inline home below is superseded by cockpit.render_home (kept dead) ---
-    nifty, breadth, lead = {}, None, None
-    top_sectors, weak_sectors, top_stocks, stealth_stocks = [], [], [], []
-    pos_count = qual_count = rs_count = 0   # D33d strategy-hub live counts
-    with get_conn() as conn:
-        if idx_date:
-            r = conn.execute(
-                """SELECT ret_1d_pct r1d, ret_1m_pct r1m, pct_above_200d_avg a200
-                   FROM index_signals WHERE index_name='Nifty 50' AND trade_date=?""",
-                (idx_date,),
-            ).fetchone()
-            nifty = dict(r) if r else {}
-            b = conn.execute(
-                """SELECT AVG(CASE WHEN pct_above_200d_avg > 0 THEN 1.0 ELSE 0 END)*100 p
-                   FROM index_signals
-                   WHERE trade_date=? AND pct_above_200d_avg IS NOT NULL""",
-                (idx_date,),
-            ).fetchone()
-            breadth = b["p"] if b and b["p"] is not None else None
-            lr = conn.execute(
-                f"""SELECT index_name FROM index_signals
-                    WHERE trade_date=? AND index_name IN ({','.join('?' for _ in LEADERSHIP_SET)})
-                    ORDER BY COALESCE(ret_3m_pct,-999) DESC LIMIT 1""",
-                (idx_date, *LEADERSHIP_SET),
-            ).fetchone()
-            lead = lr["index_name"] if lr else None
-            top_sectors = [dict(x) for x in conn.execute(
-                f"""SELECT index_name nm, rs_vs_broad_trend_state st,
-                          rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
-                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
-                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24
-                   FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
-                     AND index_name IN ({_real_sectors_in()})
-                   ORDER BY COALESCE(rs_vs_broad_slope_3m,-999) DESC LIMIT 5""",
-                (idx_date,),
-            ).fetchall()]
-            weak_sectors = [dict(x) for x in conn.execute(
-                f"""SELECT index_name nm, rs_vs_broad_trend_state st,
-                          rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
-                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
-                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24
-                   FROM index_signals WHERE trade_date=? AND broad_benchmark IS NOT NULL
-                     AND index_name IN ({_real_sectors_in()})
-                   ORDER BY COALESCE(rs_vs_broad_slope_3m,999) ASC LIMIT 3""",
-                (idx_date,),
-            ).fetchall()]
-        if sig_date:
-            top_stocks = [dict(x) for x in conn.execute(
-                f"""SELECT s.symbol, s.trigger_rank rank, s.is_ath_dvpt ath,
-                           s.price_vs_hot_avg_pct pvh, s.accum_character ch,
-                           b.close cmp, b.prev_close pc,
-                           s.delivery_value_per_trade dvpt, s.delivery_value_today dval,
-                           s.power_dvpt_1m p1, s.power_dvpt_3m p3,
-                           s.power_dvpt_6m p6, s.power_dvpt_12m p12
-                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
-                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
-                    {_SCAN_FILTERS}
-                    ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
-                             COALESCE(s.r_score,-1) DESC LIMIT 5""",
-                (sig_date,),
-            ).fetchall()]
-            # D43 — "stealth accumulation": strong-hand accumulation (ACCUMULATION
-            # + p_score>=3 + concentrated breadth) while still OFF the highs (not
-            # yet marked up) — i.e. quietly building before the crowd notices.
-            stealth_stocks = [dict(x) for x in conn.execute(
-                f"""SELECT s.symbol, s.p_score psc, s.pct_from_52w_high pfh,
-                           s.accum_character ch,
-                           b.close cmp, b.prev_close pc,
-                           s.delivery_value_per_trade dvpt, s.delivery_value_today dval,
-                           s.power_dvpt_1m p1, s.power_dvpt_3m p3,
-                           s.power_dvpt_6m p6, s.power_dvpt_12m p12
-                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
-                    WHERE s.trade_date=? AND s.accum_character='ACCUMULATION'
-                      AND s.p_score>=3
-                      AND COALESCE(s.trade_count_ratio_1m_6m,99) <= 1.1
-                      AND s.pct_from_52w_high <= -10
-                    {_SCAN_FILTERS}
-                    ORDER BY s.p_score DESC, s.pct_from_52w_high ASC LIMIT 5""",
-                (sig_date,),
-            ).fetchall()]
-            pos_count = conn.execute(
-                f"""SELECT COUNT(*) c FROM stock_signals s
-                    JOIN bhavcopy_rows b USING (symbol, trade_date)
-                    WHERE s.trade_date=? AND s.trigger_rank IN ('SS','S')
-                    {_SCAN_FILTERS}""",
-                (sig_date,),
-            ).fetchone()["c"]
-            try:
-                qual_count = conn.execute(
-                    "SELECT COUNT(DISTINCT symbol) c FROM pattern_scores").fetchone()["c"]
-            except Exception:
-                qual_count = 0
-
-    above200 = nifty.get("a200")
-    nifty_up = above200 is not None and above200 > 0
-    if breadth is None:
-        bcls, blabel = "b-neu", "NO DATA"
-    elif breadth >= 60 and nifty_up:
-        bcls, blabel = "b-on", "RISK-ON"
-    elif breadth < 40 or not nifty_up:
-        bcls, blabel = "b-off", "RISK-OFF"
-    else:
-        bcls, blabel = "b-neu", "NEUTRAL"
-    lead_txt = {"Nifty 50": "Large-caps leading",
-                "Nifty Midcap 150": "Mid-caps leading",
-                "Nifty Smallcap 250": "Small-caps leading"}.get(lead, lead or "—")
-    breadth_txt = f"{breadth:.0f}%" if breadth is not None else "—"
-
-    search = ('<form class="search" action="/dash/stock" method="get" autocomplete="off">'
-              '<input name="sym" placeholder="Enter NSE ticker — e.g. RELIANCE" '
-              'autocapitalize="characters"/><button type="submit">Go</button></form>')
-    banner = (f'<div class="banner {bcls}">{blabel}'
-              f'<small>· {breadth_txt} of indices &gt; 200-DMA · {_esc(lead_txt)}</small></div>')
-    kpis = (f'<div class="kpi">'
-            f'<div class="box"><div class="num">{_pct(nifty.get("r1d"))}</div>'
-            f'<div class="lbl">Nifty 50 today</div></div>'
-            f'<div class="box"><div class="num">{breadth_txt}</div>'
-            f'<div class="lbl">indices &gt; 200-DMA</div></div>'
-            f'<div class="box"><div class="num" style="font-size:14px;padding-top:7px;">'
-            f'{_esc(lead_txt)}</div><div class="lbl">leadership 3m</div></div></div>')
-
-    def sect_rows(rows):
-        out = []
-        for r in rows:
-            st = r["st"] or "—"
-            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
-            out.append(f'<tr><td><a class="row" href="/dash/ratio?idx={_q(r["nm"])}">'
-                       f'<span class="sym">{_esc(r["nm"])}</span></a></td>'
-                       f'<td>{strip}</td>'
-                       f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
-                       f'<td>{_pct(r["s3"])}</td></tr>')
-        return "".join(out)
-
-    sectors_block = ""
-    if top_sectors:
-        sectors_block = (
-            _strategy_badge("RS") +
-            '<h2>Top sectors <span class="sub" style="margin:0">by 3m RS</span></h2>'
-            '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Sector</th><th>1m/3m/6m/12m/18m/24m</th><th>Trend</th><th>RS 3m</th></tr></thead>'
-            f'<tbody>{sect_rows(top_sectors)}</tbody></table></div>'
-            '<div class="ghdr">Weakest</div>'
-            '<div class="card" style="padding:6px 10px;"><table>'
-            f'<tbody>{sect_rows(weak_sectors)}</tbody></table></div>'
-            '<a class="row sub" href="/dash/sectors">See full rotation →</a>')
-
-    srows = []
-    for r in top_stocks:
-        rank = r["rank"] or "-"
-        ath = "⚡" if r["ath"] else ""
-        pvh = r["pvh"]
-        entry = ("🟢" if pvh < -3 else ("🔴" if pvh > 3 else "🟡")) if pvh is not None else ""
-        srows.append(f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
-                     f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
-                     f'{_pos_cells(r)}'
-                     f'<td>{_pct(pvh)} {entry}</td>'
-                     f'<td><span class="pill p-{rank}">{rank}</span></td>'
-                     f'<td>{_char_pill(r.get("ch"))}</td></tr>')
-    stocks_block = ""
-    if srows:
-        stocks_block = (
-            _strategy_badge("POS") +
-            '<h2>Top trigger stocks</h2>'
-            '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Symbol</th><th>CMP · Δday</th><th>DVPT · ×power</th>'
-            '<th>Deliv ₹</th><th>Δhot</th><th>Rank</th><th>Character</th></tr></thead>'
-            f'<tbody>{"".join(srows)}</tbody></table></div>'
-            '<a class="row sub" href="/dash/stocks">See all triggers →</a>')
-
-    # D43 — Stealth accumulation board (concentrated ACCUMULATION still off the
-    # highs). The smart-money-buying-before-markup setup.
-    stealth_block = ""
-    if stealth_stocks:
-        stl = ""
-        for r in stealth_stocks:
-            psc = r["psc"] or 0
-            stl += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
-                    f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
-                    f'{_pos_cells(r)}'
-                    f'<td><span class="pill p-{("SS" if psc>=5 else "S" if psc==4 else "A")}">'
-                    f'{psc}/5</span></td>'
-                    f'<td>{_pct(r["pfh"])}</td>'
-                    f'<td>{_char_pill(r.get("ch"))}</td></tr>')
-        stealth_block = (
-            _strategy_badge("POS") +
-            '<h2>Stealth accumulation <span class="sub" style="margin:0">'
-            'concentrated buying, still off the highs</span></h2>'
-            '<div class="card" style="padding:6px 10px;"><table>'
-            '<thead><tr><th>Symbol</th><th>CMP · Δday</th><th>DVPT · ×power</th>'
-            '<th>Deliv ₹</th><th>p-score</th><th>vs 52w-hi</th><th>Character</th></tr></thead>'
-            f'<tbody>{stl}</tbody></table></div>'
-            '<a class="row sub" href="/dash/stocks">See the full screen →</a>')
-
-    # D33c — "strong-in-strong" leaders preview (stock + its sector both leading
-    # the market). Bridges the macro sector read to the micro stock picks.
-    leaders_block = ""
-    if sig_date:
-        from src.automation.stock_rs import leaders_laggards
-        lead_rows = leaders_laggards("leaders", limit=300)
-        rs_count = len(lead_rows)
-        if lead_rows:
-            lr = ""
-            for r in lead_rows[:5]:
-                rk = r["rs_rank"]
-                lr += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
-                       f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
-                       f'<td class="mut">{_esc(r["primary_sector"] or "—")}</td>'
-                       f'<td>{rk if rk is not None else "—"}</td></tr>')
-            leaders_block = (
-                _strategy_badge("RS") +
-                '<h2>Strong-in-strong leaders <span class="sub" style="margin:0">'
-                'stock + sector both leading</span></h2>'
-                '<div class="card" style="padding:6px 10px;"><table>'
-                '<thead><tr><th>Symbol</th><th>Sector</th><th>RS rank</th></tr></thead>'
-                f'<tbody>{lr}</tbody></table></div>'
-                '<a class="row sub" href="/dash/leaders">See leaders &amp; laggards →</a>')
-
-    # D45 — Conviction shortlist preview (ALL three pillars aligned). The payoff
-    # board: an RS leader that institutions are accumulating now, with the entry.
-    conviction_block = ""
-    if sig_date:
-        from src.automation.stock_rs import conviction_shortlist
-        conv_rows = conviction_shortlist(limit=50)
-        if conv_rows:
-            cr = ""
-            for r in conv_rows[:5]:
-                nk = (is_near_key(r.get("gap_to_key_p3m")) or is_near_key(r.get("gap_to_key_p6m"))
-                      or is_near_key(r.get("gap_to_key_p12m")))
-                qual = "★" if (r.get("pt14_tier") and not r.get("pt14_dq")) else ""
-                cr += (f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
-                       f'<span class="sym">{qual}{_esc(r["symbol"])}</span></a></td>'
-                       f'<td class="mut">{_esc(r.get("primary_sector") or "—")}</td>'
-                       f'<td>{r.get("rs_rank") if r.get("rs_rank") is not None else "—"}</td>'
-                       f'<td>{"🎯" if nk else ""}</td></tr>')
-            conviction_block = (
-                '<div class="sbadge" style="background:#1a1430;border-color:#5a3fb8">'
-                '<span class="tag" style="background:#8957e5;color:#fff">● CONVICTION</span>'
-                '<span class="th">All three pillars aligned — an RS leader that institutions are '
-                'accumulating now (D43), with the D44 entry read. The decision-ready shortlist.</span></div>'
-                '<h2>⭐ Conviction shortlist <span class="sub" style="margin:0">'
-                'leader + accumulating + entry</span></h2>'
-                '<div class="card" style="padding:6px 10px;"><table>'
-                '<thead><tr><th>Symbol</th><th>Sector</th><th>RS rank</th><th>Entry</th></tr></thead>'
-                f'<tbody>{cr}</tbody></table></div>'
-                '<a class="row sub" href="/dash/conviction">See the full shortlist →</a>')
-
-    def _scard(cls, nm, thesis, count, href):
-        return (f'<a class="scard sc-{cls}" href="{href}">'
-                f'<div class="nm">{nm}</div><div class="th">{_esc(thesis)}</div>'
-                f'<div class="ct">{count}</div></a>')
-    strat_hub = (
-        '<h2>Strategies <span class="sub" style="margin:0">pick your lens</span></h2>'
-        '<div class="scards">'
-        + _scard("POS", "Positioning", "Smart-money DVPT accumulation & entry zone.",
-                 f'{pos_count} <small>SS/S today</small>', "/dash/stocks")
-        + _scard("RS", "Relative Strength", "Beating the market & leading its sector.",
-                 f'{rs_count} <small>leaders</small>', "/dash/leaders")
-        + _scard("QUAL", "Quality (pt14)", "14-pattern fundamental durability.",
-                 f'{qual_count} <small>scored</small>', "/dash/stock")
-        + '</div>')
-
-    body = (f'{search}{banner}{strat_hub}{conviction_block}{kpis}{sectors_block}{leaders_block}'
-            f'{stocks_block}{stealth_block}'
-            '<h2>Data freshness</h2>'
-            f'<div class="card">Stock signals: <b>{sig_date or "—"}</b><br>'
-            f'Index signals: <b>{idx_date or "—"}</b></div>'
-            '<div class="sub">Read-only mirror of the Telegram bot data. '
-            'Updated nightly 7:30 PM IST.</div>')
-    return HTMLResponse(_shell("patearn — Indian-equity strategy dashboard", body, "dash", sig_date or ""))
 
 
 @router.get("/dash/mep", response_class=HTMLResponse)
@@ -1291,7 +1158,7 @@ def dash_mep() -> HTMLResponse:
     from src.web.cockpit import render_mep
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Accumulation & Distribution · MEP · patearn",
-                               render_mep(), "stocks", sig_date or "", wide=True))
+                               render_mep(), "mep", sig_date or "", wide=True))
 
 
 @router.get("/dash/conviction", response_class=HTMLResponse)
@@ -1303,92 +1170,33 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
     from src.web.cockpit import render_conviction
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Conviction · patearn", render_conviction(limit),
-                               "stocks", sig_date or "", wide=True))
-    # --- legacy inline body below superseded by cockpit.render_conviction (dead) ---
-    from src.automation.stock_rs import conviction_shortlist
-    rows = conviction_shortlist(limit=limit)
-
-    trs = []
-    for r in rows:
-        rk = r.get("rs_rank")
-        g3 = r.get("gap_to_key_p3m")
-        nearkey = (is_near_key(g3) or is_near_key(r.get("gap_to_key_p6m"))
-                   or is_near_key(r.get("gap_to_key_p12m")))
-        pvh = r.get("pvh")
-        bits = []
-        if nearkey:
-            bits.append("🎯 near key")
-        if pvh is not None and pvh < -3:
-            bits.append("🟢 discount")
-        elif pvh is not None and pvh > 3:
-            bits.append("🔴 extended")
-        entry = " ".join(bits) if bits else "🟡 at-cost"
-        tier, dq = r.get("pt14_tier"), r.get("pt14_dq")
-        if tier and not dq:
-            qual = f'<span class="pill p-SS">★ {_esc(tier)}</span>'
-        elif tier and dq:
-            qual = f'<span class="pill p-DOWNTREND">{_esc(tier)} ✗</span>'
-        else:
-            qual = '<span class="mut">unscored</span>'
-        g3s = f'{g3:+.1f}%' if g3 is not None else '—'
-        kp3 = r.get("key_price_p3m")
-        trs.append(
-            f'<tr data-nearkey="{1 if nearkey else 0}" data-qual="{1 if (tier and not dq) else 0}">'
-            f'<td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
-            f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
-            f'<td>{rk if rk is not None else "—"}</td>'
-            f'<td class="mut">{_esc(r.get("primary_sector") or "—")}</td>'
-            f'<td>{_char_pill(r.get("accum_character"))}</td>'
-            f'<td>{entry}</td>'
-            f'<td>{("₹"+_num(kp3,1)) if kp3 else "—"} <span class="mut">({g3s})</span></td>'
-            f'<td><span class="pill p-{r.get("trigger_rank") or "C"}">{r.get("trigger_rank") or "-"}</span> '
-            f'{r.get("p_score") or 0}/5</td>'
-            f'<td>{qual}</td></tr>')
-
-    badge = ('<div class="sbadge" style="background:#1a1430;border-color:#5a3fb8">'
-             '<span class="tag" style="background:#8957e5;color:#fff">● CONVICTION</span>'
-             '<span class="th">The synthesis of all three pillars — a name only lands here if it is '
-             'an <b>RS leader</b> (beating the market AND leading its sector AND its sector beating the '
-             'market), institutions are <b>accumulating</b> it now (D43), shown with the <b>entry</b> read '
-             '(D44 near-key / discount). pt14 <b>quality</b> confirms where scored. Strongest leaders first.</span></div>')
-    if trs:
-        pills = ('<div id="cvbar" class="fbar">'
-                 "<button class=\"fbtn on\" onclick=\"cflt('all',this)\">All</button>"
-                 "<button class=\"fbtn\" onclick=\"cflt('nearkey',this)\">🎯 Near key</button>"
-                 "<button class=\"fbtn\" onclick=\"cflt('qual',this)\">★ Quality-confirmed</button></div>")
-        table = (pills + '<div class="card" style="padding:6px 10px;"><table id="cvtbl" class="dt">'
-                 '<thead><tr><th>Symbol</th><th>RS rank</th><th>Sector</th><th>Character</th>'
-                 '<th>Entry</th><th>Key 3m</th><th>Rank·p</th><th>Quality</th></tr></thead>'
-                 f'<tbody>{"".join(trs)}</tbody></table></div>')
-        js = ("<script>function cflt(f,el){"
-              "document.querySelectorAll('#cvtbl tr[data-nearkey]').forEach(function(r){"
-              "r.style.display=(f==='all'||r.dataset[f]==='1')?'':'none';});"
-              "document.querySelectorAll('#cvbar .fbtn').forEach(function(b){"
-              "b.classList.remove('on');});el.classList.add('on');}</script>")
-    else:
-        table = ('<div class="empty">No names clear all three pillars today — that\'s normal; '
-                 'conviction is rare. Try <a class="row" style="display:inline" href="/dash/leaders">'
-                 'leaders</a> or the <a class="row" style="display:inline" href="/dash/stocks">screen</a>.</div>')
-        js = ""
-    body = (badge + '<h2>⭐ Conviction shortlist</h2>'
-            '<div class="sub">All three strategy pillars aligned. Click a header to sort · type to filter · ⬇ Export. '
-            '🎯 = buyable near the institutional key price · ★ = pt14 quality-confirmed.</div>'
-            + table + js)
-    return HTMLResponse(_shell("Conviction · patearn", body, "stocks", sig_date or ""))
+                               "conviction", sig_date or "", wide=True))
 
 
 @router.get("/dash/pat", response_class=HTMLResponse)
-def dash_pat(flow: str = Query(""), explain: str = Query(""), q: str = Query(""),
+def dash_pat(request: Request, flow: str = Query(""), explain: str = Query(""), q: str = Query(""),
              sector: str = Query(""), strength: str = Query(""), entry: str = Query(""),
              align: str = Query(""), val: str = Query(""), qual: str = Query(""),
              grow: str = Query(""), bs: str = Query(""), own: str = Query(""),
-             sym: str = Query("")):
-    """Pat — natural-language guided search + the data glossary (src/pat)."""
+             sym: str = Query(""), new: str = Query("")):
+    """Pat — natural-language guided search + the data glossary (src/pat).
+
+    L1↔L4 contract (src/pat/threads.py): forward a per-browser ``pat_tid`` cookie into
+    render_pat so Pat has TRUE multi-turn memory — mint one on first visit, persist it
+    httponly + samesite=lax for 30 days. The cookie is the only added state; render_pat
+    stays inert for the default tid="" everywhere else. ``new=1`` (the 'start over' chip)
+    clears the thread inside render_pat before rendering. A malformed/forged cookie is
+    rejected (``threads._valid``) and replaced with a fresh server-minted id."""
+    from src.pat import threads as _threads
+    tid = _threads._valid(request.cookies.get("pat_tid", "")) or _threads.new_tid()
     with get_conn() as conn:
         body = render_pat(flow=flow, explain=explain, q=q, sector=sector,
                           strength=strength, entry=entry, align=align,
-                          val=val, qual=qual, grow=grow, bs=bs, own=own, sym=sym, conn=conn)
-    return HTMLResponse(_shell("Pat — patearn", body, "pat"))
+                          val=val, qual=qual, grow=grow, bs=bs, own=own, sym=sym,
+                          conn=conn, tid=tid, new=new)
+    resp = HTMLResponse(_shell("Pat — patearn", body, "pat"))
+    resp.set_cookie("pat_tid", tid, max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax")
+    return resp
 
 
 @router.get("/dash/markets", response_class=HTMLResponse)
@@ -1397,85 +1205,6 @@ def dash_markets() -> HTMLResponse:
     from src.web.cockpit import render_markets
     return HTMLResponse(_shell("Markets · patearn", render_markets(idx_date),
                                "markets", idx_date or "", wide=True))
-    # --- legacy inline markets below superseded by cockpit.render_markets (dead) ---
-    allrows = {}
-    if idx_date:
-        with get_conn() as conn:
-            for r in conn.execute(
-                """SELECT g.index_name nm, g.ret_1d_pct r1d, g.ret_1m_pct r1m,
-                          g.ret_3m_pct r3m, g.pct_above_200d_avg a200,
-                          g.rs_vs_broad_trend_state st, g.broad_benchmark bb,
-                          g.rs_vs_broad_slope_1m s1, g.rs_vs_broad_slope_3m s3,
-                          g.rs_vs_broad_slope_6m s6, g.rs_vs_broad_slope_12m s12,
-                          g.rs_vs_broad_slope_18m s18, g.rs_vs_broad_slope_24m s24,
-                          x.close_value close
-                   FROM index_signals g
-                   LEFT JOIN index_rows x USING (index_name, trade_date)
-                   WHERE g.trade_date=?""",
-                (idx_date,),
-            ).fetchall():
-                allrows[r["nm"]] = dict(r)
-    if not allrows:
-        return HTMLResponse(_shell("Markets · patearn",
-                                   '<div class="empty">No index data yet.</div>',
-                                   "markets", idx_date or ""))
-
-    def maj_card(v):
-        st = v["st"]
-        chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st else ''
-        strip = _rs_strip(v["s1"], v["s3"], v["s6"], v["s12"], v.get("s18"), v.get("s24"))
-        return (f'<a class="maj" href="/dash/ratio?idx={_q(v["nm"])}">'
-                f'<div class="nm">{_esc(v["nm"])}{chip}</div>'
-                f'<div class="rr"><span class="mut">ABS</span>'
-                f'<span>{_num(v["close"],0)}</span>'
-                f'<span>1d {_pct(v["r1d"])}</span>'
-                f'<span>1m {_pct(v["r1m"])}</span>'
-                f'<span>3m {_pct(v["r3m"])}</span></div>'
-                f'<div class="rr"><span class="grp">RS</span>{strip}'
-                f'<span class="mut" style="font-size:11px">vs Nifty 500</span></div></a>')
-
-    broad_html = "".join(maj_card(allrows[n]) for n in MAJOR_BROAD if n in allrows)
-    sect_html = "".join(maj_card(allrows[n]) for n in MAJOR_SECTORS if n in allrows)
-
-    bundle = sorted(allrows.values(), key=lambda v: (v["r3m"] is None, -(v["r3m"] or 0)))
-    brows = []
-    for v in bundle:
-        grp = "broad" if v["bb"] is None else "sector"
-        st = v["st"] or ""
-        chip = (f'<span class="pill p-{st}">{st[:5]}</span>' if st
-                else '<span class="mut">—</span>')
-        brows.append(
-            f'<tr data-grp="{grp}"><td class="sym">{_esc(v["nm"])}</td>'
-            f'<td>{_pct(v["r1d"])}</td><td>{_pct(v["r1m"])}</td>'
-            f'<td>{_pct(v["r3m"])}</td><td class="rsgrp">{chip}</td></tr>')
-
-    js = ("<script>function mflt(g,el){"
-          "document.querySelectorAll('#mbundle tr[data-grp]').forEach(function(r){"
-          "r.style.display=(g==='all'||r.dataset.grp===g)?'':'none';});"
-          "document.querySelectorAll('#mbar .fbtn').forEach(function(b){"
-          "b.classList.remove('on');});el.classList.add('on');}</script>")
-
-    body = (
-        '<h2>Major indexes &amp; sectors</h2>'
-        '<div class="sub">Broad market + core sectors. Tap any → its stocks. '
-        '<a class="row" style="display:inline" '
-        'href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>'
-        '<div class="ghdr">Broad / size</div>'
-        f'<div class="majgrid">{broad_html}</div>'
-        '<div class="ghdr">Core sectors</div>'
-        f'<div class="majgrid">{sect_html}</div>'
-        '<h2>Full index bundle</h2>'
-        '<div class="sub">Everything else — strategy, thematic, factor.</div>'
-        '<div id="mbar" class="fbar">'
-        "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
-        "<button class=\"fbtn\" onclick=\"mflt('broad',this)\">Broad/Size</button>"
-        "<button class=\"fbtn\" onclick=\"mflt('sector',this)\">Sectoral</button></div>"
-        '<div class="card" style="padding:6px 10px;"><table id="mbundle" class="dt">'
-        '<thead>'
-        '<tr><th></th><th colspan="3">RETURN</th><th class="rsgrp grp">RS</th></tr>'
-        '<tr><th>Index</th><th>1d</th><th>1m</th><th>3m</th><th class="rsgrp">Trend</th></tr></thead>'
-        f'<tbody>{"".join(brows)}</tbody></table></div>' + js)
-    return HTMLResponse(_shell("Markets · patearn", body, "markets", idx_date or ""))
 
 
 @router.get("/dash/sectors", response_class=HTMLResponse)
@@ -1484,57 +1213,6 @@ def dash_sectors() -> HTMLResponse:
     from src.web.cockpit import render_sectors
     _, idx_date = _latest_dates()
     return HTMLResponse(_shell("Sectors · patearn", render_sectors(), "sectors", idx_date or "", wide=True))
-    # --- legacy inline body below superseded by cockpit.render_sectors (dead) ---
-    rows = []
-    if idx_date:
-        with get_conn() as conn:
-            order = ("CASE rs_vs_broad_trend_state WHEN 'BREAKOUT' THEN 0 "
-                     "WHEN 'UPTREND' THEN 1 WHEN 'CONSOLIDATING' THEN 2 "
-                     "WHEN 'DOWNTREND' THEN 3 WHEN 'BREAKDOWN' THEN 4 ELSE 5 END")
-            rows = [dict(r) for r in conn.execute(
-                f"""SELECT index_name, rs_vs_broad_trend_state st,
-                          rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
-                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
-                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24,
-                          ret_1m_pct r1, ret_3m_pct r3
-                   FROM index_signals
-                   WHERE trade_date=? AND broad_benchmark IS NOT NULL
-                     AND index_name IN ({_real_sectors_in()})
-                   ORDER BY {order} ASC, COALESCE(rs_vs_broad_slope_3m,-999) DESC""",
-                (idx_date,),
-            ).fetchall()]
-    if not rows:
-        body = '<div class="empty">No index signals yet. Run the index backfill on the VPS.</div>'
-    else:
-        trs = []
-        for r in rows:
-            st = r["st"] or "—"
-            nm = r["index_name"]
-            strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
-            trs.append(
-                f'<tr><td><a class="row" href="/dash/stocks?sector={_q(nm)}">'
-                f'<span class="sym">{_esc(nm)}</span></a></td>'
-                f'<td>{_pct(r["r1"])}</td><td>{_pct(r["r3"])}</td>'
-                f'<td class="rsgrp"><a class="row" style="display:inline" '
-                f'href="/dash/ratio?idx={_q(nm)}">{strip}</a></td>'
-                f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
-                f'<td>{_pct(r["s3"])}</td></tr>'
-            )
-        body = f"""
-{_strategy_badge("RS")}
-<h2>Sector rotation</h2>
-<div class="sub">Real economic sectors only (factor/thematic indices live under Markets). Sorted strongest RS trend first. Tap a name → its stocks; tap the strip → the ratio chart. <a class="row" style="display:inline" href="/dash/rs">Full RS ranking →</a> · <a class="row" style="display:inline" href="/dash/compare?idx=Nifty+50&idx=Nifty+500">⇄ Compare indices</a></div>
-<div class="card" style="padding:6px 10px;">
-<table class="dt">
-<thead>
-<tr><th colspan="3">RETURN</th><th colspan="3" class="rsgrp grp">RELATIVE STRENGTH vs Nifty 500</th></tr>
-<tr><th>Sector</th><th>1m</th><th>3m</th><th class="rsgrp">1m / 3m / 6m / 12m / 18m / 24m</th><th>Trend</th><th>RS 3m</th></tr>
-</thead>
-<tbody>{''.join(trs)}</tbody>
-</table>
-</div>
-"""
-    return HTMLResponse(_shell("Sectors · patearn", body, "sectors", idx_date or ""))
 
 
 @router.get("/dash/rs", response_class=HTMLResponse)
@@ -1543,63 +1221,7 @@ def dash_rs() -> HTMLResponse:
     Full-bleed cockpit render (cockpit.render_rs); legacy body kept dead."""
     from src.web.cockpit import render_rs
     _, idx_date = _latest_dates()
-    return HTMLResponse(_shell("RS ranking · patearn", render_rs(), "sectors", idx_date or "", wide=True))
-    # --- legacy inline body below superseded by cockpit.render_rs (dead) ---
-    rows = []
-    if idx_date:
-        with get_conn() as conn:
-            rows = [dict(r) for r in conn.execute(
-                f"""SELECT index_name nm, rs_vs_broad_trend_state st,
-                          rs_vs_broad_slope_1m s1, rs_vs_broad_slope_3m s3,
-                          rs_vs_broad_slope_6m s6, rs_vs_broad_slope_12m s12,
-                          rs_vs_broad_slope_18m s18, rs_vs_broad_slope_24m s24,
-                          (0.6*COALESCE(rs_vs_broad_slope_3m,0)
-                           +0.4*COALESCE(rs_vs_broad_slope_6m,0)) mom
-                   FROM index_signals
-                   WHERE trade_date=? AND broad_benchmark IS NOT NULL
-                     AND index_name IN ({_real_sectors_in()})
-                   ORDER BY mom DESC""",
-                (idx_date,),
-            ).fetchall()]
-    if not rows:
-        body = '<div class="empty">No index signals yet. Run the index backfill on the VPS.</div>'
-        return HTMLResponse(_shell("RS ranking · patearn", body, "sectors", idx_date or ""))
-
-    moms = sorted(r["mom"] for r in rows)
-    n_mom = len(moms)
-
-    def _pctl(m):
-        if not n_mom:
-            return 50
-        below = sum(1 for x in moms if x < m)
-        return max(1, min(99, round(below / n_mom * 99)))
-
-    trs = []
-    for i, r in enumerate(rows, 1):
-        st = r["st"] or "—"
-        nm = r["nm"]
-        strip = _rs_strip(r["s1"], r["s3"], r["s6"], r["s12"], r.get("s18"), r.get("s24"))
-        p = _pctl(r["mom"])
-        trs.append(
-            f'<tr><td class="mut">{i}</td>'
-            f'<td><a class="row" href="/dash/ratio?idx={_q(nm)}">'
-            f'<span class="sym">{_esc(nm)}</span></a></td>'
-            f'<td>{strip}</td>'
-            f'<td>{_pct(r["mom"])}</td>'
-            f'<td><span class="pill p-{st}">{st[:5]}</span></td>'
-            f'<td style="min-width:70px"><div class="bar"><span style="width:{p}%"></span></div></td></tr>')
-    body = f"""
-{_strategy_badge("RS")}
-<h2>RS-momentum ranking</h2>
-<div class="sub">All sectors by RS momentum (0.6·3m + 0.4·6m slope vs Nifty 500), strongest first. Tap a sector → its ratio chart. <a class="row" style="display:inline" href="/dash/sectors">← Sector rotation</a></div>
-<div class="card" style="padding:6px 10px;">
-<table class="dt">
-<thead><tr><th>#</th><th>Sector</th><th>1m/3m/6m/12m/18m/24m</th><th>Mom</th><th>Trend</th><th>Pctl</th></tr></thead>
-<tbody>{''.join(trs)}</tbody>
-</table>
-</div>
-"""
-    return HTMLResponse(_shell("RS ranking · patearn", body, "sectors", idx_date or ""))
+    return HTMLResponse(_shell("RS ranking · patearn", render_rs(), "rs", idx_date or "", wide=True))
 
 
 @router.get("/dash/leaders", response_class=HTMLResponse)
@@ -1610,48 +1232,7 @@ def dash_leaders() -> HTMLResponse:
     Full-bleed cockpit render (cockpit.render_leaders); legacy body kept dead."""
     from src.web.cockpit import render_leaders
     sig_date, _ = _latest_dates()
-    return HTMLResponse(_shell("Leaders · patearn", render_leaders(), "stocks", sig_date or "", wide=True))
-    # --- legacy inline body below superseded by cockpit.render_leaders (dead) ---
-    from src.automation.stock_rs import leaders_laggards
-    leaders = leaders_laggards("leaders", limit=60)
-    laggards = leaders_laggards("laggards", limit=40)
-
-    def _tbl(rows, up):
-        if not rows:
-            return ('<div class="card"><div class="sub" style="margin:0">None right now — '
-                    f'no stock has all three RS layers aligned {"up" if up else "down"}.'
-                    '</div></div>')
-        trs = ""
-        for r in rows:
-            rk = r["rs_rank"]
-            bs = r["broad_state"] or "—"
-            ss = r["sector_state"] or "—"
-            xs = r["sector_broad_state"] or "—"
-            trs += (
-                f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
-                f'<span class="sym">{_esc(r["symbol"])}</span></a></td>'
-                f'<td>{rk if rk is not None else ""}</td>'
-                f'<td><a class="row" href="/dash/ratio?idx={_q(r["primary_sector"])}">'
-                f'{_esc(r["primary_sector"])}</a></td>'
-                f'<td><span class="pill p-{bs}">{_esc(bs[:5])}</span></td>'
-                f'<td><span class="pill p-{ss}">{_esc(ss[:5])}</span></td>'
-                f'<td><span class="pill p-{xs}">{_esc(xs[:5])}</span></td></tr>')
-        return ('<div class="card" style="padding:6px 10px;"><table class="dt">'
-                '<thead><tr><th>Symbol</th><th>RS rank</th><th>Sector</th>'
-                '<th>stock vs broad</th><th>stock vs sector</th>'
-                '<th>sector vs broad</th></tr></thead>'
-                f'<tbody>{trs}</tbody></table></div>')
-
-    body = f"""
-{_strategy_badge("RS")}
-<h2>Leaders <span class="sub" style="margin:0">strong-in-strong</span></h2>
-<div class="sub">Stock leads its sector <b>and</b> the market, and the sector leads the market too — all three RS reads in UPTREND/BREAKOUT. Strongest (RS rank) first. Tap a symbol → its page; tap a sector → its ratio chart.</div>
-{_tbl(leaders, True)}
-<h2 style="margin-top:18px">Laggards <span class="sub" style="margin:0">weak-in-weak</span></h2>
-<div class="sub">All three RS reads in DOWNTREND/BREAKDOWN — weakest first.</div>
-{_tbl(laggards, False)}
-"""
-    return HTMLResponse(_shell("Leaders · patearn", body, "stocks", sig_date or ""))
+    return HTMLResponse(_shell("Leaders · patearn", render_leaders(), "leaders", sig_date or "", wide=True))
 
 
 @router.get("/dash/scan", response_class=HTMLResponse)
@@ -1704,7 +1285,7 @@ def dash_scan(limit: int = Query(25, ge=5, le=60)) -> HTMLResponse:
 <h2>Layered DVPT scan</h2>
 <div class="sub">Sort: ATH → p_score → r_score → rank. Tap a symbol for full detail.</div>
 <div class="card" style="padding:6px 10px;">
-<table>
+<table class="dt">
 <thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>Close</th><th>Δhot</th><th>Near-P</th></tr></thead>
 <tbody>{''.join(trs)}</tbody>
 </table>
@@ -1832,7 +1413,9 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                          f'<a class="row" style="display:inline" href="/dash/index?idx={_q(sector)}">'
                          f'See its index page →</a></div>')
     else:
-        head = ('<h2>Stock screen</h2>'
+        # Heading matches the nav lens label "Positioning" (lens_registry Lens("stocks",
+        # "Positioning",…)) so nav-highlight, <h2> and <title> all read one name. P2 #7.
+        head = ('<h2>Positioning</h2>'
                 '<div class="sub">Layered DVPT triggers (today). Filter, then tap a symbol.</div>')
 
     js = ""
@@ -1928,7 +1511,8 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                '<a class="row sub" href="/dash/workbench" style="margin:0 0 8px">'
                'Workbench ⇄ <span class="mut">every DVPT signal in one sortable table</span></a>')
     body = search + ptoggle + badge + wb_link + head + table + watch_block + js
-    return HTMLResponse(_shell("Stocks · patearn", body, "stocks", sig_date or ""))
+    # Title matches the nav lens "Positioning" (one name across nav/heading/title). P2 #7.
+    return HTMLResponse(_shell("Positioning · patearn", body, "stocks", sig_date or ""))
 
 
 @router.get("/dash/workbench", response_class=HTMLResponse)
@@ -2013,7 +1597,7 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
             '<b>⬇ Export</b> to CSV/Excel. 🟢 gap cell = in the launch band (−1%…+5% of the value-weighted '
             'key price). <a class="row" style="display:inline" href="/dash/stocks">← back to screen</a></div>'
             + table)
-    return HTMLResponse(_shell("Workbench · patearn", body, "stocks", sig_date or ""))
+    return HTMLResponse(_shell("Workbench · patearn", body, "workbench", sig_date or ""))
 
 
 @router.get("/dash/screener", response_class=HTMLResponse)
@@ -2150,7 +1734,21 @@ def dash_screener(scope: str = Query("Nifty 500"),
                      + mep_score_td + f'<td class="l g-mep">{_mep_pill(mphst or mst)}</td>')
         g3 = r["g3"]
         g3_tint = " h-pos2" if (g3 is not None and _KEY_BAND[0] <= g3 <= _KEY_BAND[1]) else ""
-        nearp = (f'{_esc(r["npa"])} {_pct(r["gnp"])}' if r["npa"] else '<span class="mut">—</span>')
+        # Overhead = the next pivot ABOVE (npa is a LABEL: P1M/P3M/P12M — which power-delivery
+        # level is overhead — NOT a price, so _esc not _num). The raw "P3M" code reads like an
+        # error to a user, so relabel to plain English ("3M pivot +4.2%" = the 3-month power
+        # level sits +4.2% above). Breakout / near-52w-high names have none → that's not missing
+        # data, it's "no overhead resistance" (constructive), so render it as a signal, not a
+        # dead dash. Genuine mid-range no-pivot stays "—".
+        if r["npa"]:
+            _npa_lbl = str(r["npa"])
+            _npa_lbl = (_npa_lbl[1:] + " pivot") if _npa_lbl[:1] == "P" else _npa_lbl
+            nearp = f'<span title="next power-delivery level overhead">{_esc(_npa_lbl)}</span> {_pct(r["gnp"])}'
+        elif r["hh"] is not None and r["hh"] >= -2.0:
+            nearp = ('<span class="pos" title="no pivot above — at/near 52w high, '
+                     'no overhead resistance">clear</span>')
+        else:
+            nearp = '<span class="mut">—</span>'
         char_cell = (f'<span style="display:inline-flex;align-items:center;gap:6px">'
                      f'{_mv_triglyph(r["tcr"], r["duo"], r["hh"])}{_char_pill(r["ch"])}</span>')
         trs.append(
@@ -2248,7 +1846,8 @@ def dash_screener(scope: str = Query("Nifty 500"),
             '<th class="l gsep g-cci">Cred</th><th class="l g-cci">Fwd</th><th class="num g-cci">Deter</th><th class="l g-cci">Veto</th><th class="num g-cci">#C</th>'
             '<th class="l gsep g-themes">Themes</th>'
             '<th class="num gsep g-qual">pt14</th><th class="l g-qual">Tier</th>'
-            '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th><th class="num g-ctx">Near-P</th></tr></thead>')
+            '<th class="num gsep g-ctx">52w%</th><th class="num g-ctx">Δhot%</th>'
+            '<th class="num g-ctx" title="next power-delivery pivot overhead (resistance) + gap %">Overhead</th></tr></thead>')
         grid = (f'<div class="scrwrap"><table class="scr">{thead}'
                 f'<tbody>{"".join(trs)}</tbody></table></div>'
                 '<script>(function(){var w=document.querySelector(".scrwrap");'
@@ -2577,6 +2176,16 @@ def _cci_bar(label: str, v, invert: bool = False) -> str:
 
 
 def _mep_stock_panel(sym: str) -> str:
+    """Per-stock MEP dossier — guarded wrapper. ANY failure (incl. a `mep_signals`
+    schema drift making a by-key column read raise) degrades to an empty panel, never
+    a 500 of the whole stock page — mirrors the CPR/CCI panels' graceful-empty contract."""
+    try:
+        return _mep_stock_panel_inner(sym)
+    except Exception:
+        return ""
+
+
+def _mep_stock_panel_inner(sym: str) -> str:
     """Per-stock MEP (signed accumulation/distribution) dossier — descriptor-only
     (D62). The signed verdict, then the four SIGNED terms each with its within-stock
     z-score and raw value (data-first), two context terms, and DVPT's side-blind
@@ -2644,7 +2253,7 @@ def _mep_stock_panel(sym: str) -> str:
         f'<div class="box"><div class="num" style="color:{pcol}">{phv:+.2f}</div><div class="lbl">phase score</div></div>'
         f'<div class="box"><div class="num">{_mv_adbar(phv)}</div><div class="lbl">accum &harr; distrib</div></div>'
         f'<div class="box"><div class="num">{(str(held)+"d") if held else "—"}</div><div class="lbl">held in phase</div></div>'
-        f'<div class="box"><div class="num">{m["data_points_used"]}</div><div class="lbl">history days</div></div>'
+        f'<div class="box"><div class="num">{m["data_points_used"] if "data_points_used" in m.keys() else "—"}</div><div class="lbl">history days</div></div>'
         + fno_box +
         '</div>'
         f'<div class="sub" style="margin-top:6px">Today (daily, granular): '
@@ -2818,7 +2427,7 @@ def _fno_stock_panel(sym: str) -> str:
     # OI percentile within the available window (crowdedness of positioning)
     ois = [r["fut_oi"] for r in R if r["fut_oi"] is not None]
     oi_pct = (round(sum(1 for x in ois if x <= cur["fut_oi"]) / len(ois) * 100)
-              if ois and cur["fut_oi"] else None)
+              if ois and cur["fut_oi"] is not None else None)
     basis = cur["basis_pct"]
     spot = cur["und_price"]
 
@@ -3104,78 +2713,7 @@ def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
     from src.web.cockpit import render_concalls
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Management Credibility · patearn", render_concalls(view),
-                               "strategies", sig_date or "", wide=True))
-    # --- legacy inline body below superseded by cockpit.render_concalls (dead) ---
-    view = "leaders" if view == "leaders" else "avoid"
-    with get_conn() as conn:
-        sc = [dict(r) for r in conn.execute(
-            """SELECT s.* FROM concall_scores s
-               JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x
-                 ON x.symbol=s.symbol AND x.m=s.last_updated""").fetchall()]
-        beh = {r["symbol"]: dict(r) for r in conn.execute(
-            """SELECT b.symbol, b.credibility, b.transparency, b.courage, b.evasion,
-                      b.promo_vs_conservative pvc, b.tone_deviation td
-               FROM concall_behavior b
-               JOIN (SELECT symbol, MAX(id) m FROM concall_behavior GROUP BY symbol) x
-                 ON x.symbol=b.symbol AND x.m=b.id""").fetchall()}
-    for r in sc:
-        r.update(beh.get(r["symbol"], {}))
-    if view == "leaders":
-        sc = [r for r in sc if not r.get("veto_active")]
-        sc.sort(key=lambda r: (r.get("composite_score") or 0), reverse=True)
-    else:
-        sc.sort(key=lambda r: ((r.get("deterioration_score") or 0) + (60 if r.get("veto_active") else 0)), reverse=True)
-
-    def tier_pill(t):
-        t = t or "-"
-        cls = "pos" if t in ("A+", "A") else ("neg" if t in ("D",) else "mut")
-        return f'<span class="{cls}">{_esc(t)}</span>'
-
-    trs = []
-    for r in sc:
-        veto = (f'<span class="neg" title="{_esc(r.get("veto_reason") or "")}">⛔ {_esc((r.get("veto_reason") or "")[:20])}</span>'
-                if r.get("veto_active") else '<span class="mut">—</span>')
-        ga = r.get("guidance_accuracy_score")
-        ga_cell = (f'{ga:.0f}% <span class="mut">({r.get("n_promises_resolved") or 0})</span>'
-                   if ga is not None else '<span class="mut">unproven</span>')
-        det = r.get("deterioration_score") or 0
-        det_cell = f'<span class="neg">{det:.0f}</span>' if det else '<span class="mut">0</span>'
-        trs.append(
-            f'<tr><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
-            f'<td>{tier_pill(r.get("tier"))}</td>'
-            f'<td>{_cci_num(r.get("composite_score"))}</td>'
-            f'<td>{_cci_fwd(r.get("forward_direction"))}</td>'
-            f'<td>{veto}</td>'
-            f'<td>{ga_cell}</td>'
-            f'<td>{_cci_num(r.get("quantification_rate"), "%")}</td>'
-            f'<td>{det_cell}</td>'
-            f'<td class="mut">{r.get("as_of_period") or ""}</td>'
-            f'<td class="mut">{r.get("n_concalls") or 0}</td>'
-            f'<td class="mut">{_cci_num(r.get("credibility"))}</td>'
-            f'<td class="mut">{_cci_num(r.get("courage"))}</td>'
-            f'<td class="mut">{_cci_num(r.get("evasion"))}</td></tr>')
-
-    head = ("<th>Symbol</th><th>Tier</th><th>Score</th><th>Forward</th><th>Veto</th>"
-            "<th>Guidance acc.</th><th>Quantif&nbsp;%</th><th>Deterior.</th><th>As of</th><th>#Calls</th>"
-            '<th class="mut">Cred·AI</th><th class="mut">Courage·AI</th><th class="mut">Evasion·AI</th>')
-    table = (f'<table class="dt"><thead><tr>{head}</tr></thead><tbody>'
-             + ("".join(trs) or '<tr><td colspan="13" class="empty">No scored concalls yet — run the pilot.</td></tr>')
-             + "</tbody></table>")
-
-    def tab(key, label):
-        on = " on" if key == view else ""
-        return f'<a class="fbtn{on}" href="/dash/concalls?view={key}">{label}</a>'
-
-    note = ("Avoid tape" if view == "avoid" else "Credibility leaders")
-    body = (f'<h2>Management Credibility <span class="sub" style="margin:0">CCI · concall intelligence</span></h2>'
-            f'<div class="filt">{tab("avoid", "⚠ Avoid tape")}{tab("leaders", "★ Credibility leaders")}</div>'
-            f'<div class="sub"><b>{note}.</b> Ranking uses <b>measurable items only</b> (D61): guidance accuracy '
-            f'(kept-promise hit-rate), quantification % (how falsifiable the guidance is), the ⛔ veto '
-            f'(pledge / auditor-exit / pt14), and deterministic deterioration. The last three <b>·AI</b> columns '
-            f'are a model read shown <b>for context — NOT ranked</b>. A name is <b>unproven</b> until its promises '
-            f'resolve. <b>Pilot</b> — pending the falsification gates.</div>'
-            + table)
-    return HTMLResponse(_shell("Management Credibility · patearn", body, "strategies"))
+                               "concalls", sig_date or "", wide=True))
 
 
 @router.get("/dash/strategies", response_class=HTMLResponse)
@@ -3187,73 +2725,6 @@ def dash_strategies() -> HTMLResponse:
     from src.web.cockpit import render_strategies
     return HTMLResponse(_shell("Strategies · patearn", render_strategies(sig_date, idx_date),
                                "strategies", sig_date or "", wide=True))
-    # --- legacy inline .scard body below superseded by cockpit.render_strategies (dead) ---
-    conv, pos, rs, qual, cpr_top, cci = [], [], [], [], [], []
-    if sig_date:
-        with get_conn() as conn:
-            cpr_top = _cpr_setups(conn, limit=8)   # CPR Structure card (D53)
-            cx = "(0.55*COALESCE(s.p_score,0)/5.0*100.0 + 0.45*COALESCE(s.rs_rank,0))"
-            conv = [dict(r) for r in conn.execute(
-                f"""SELECT s.symbol, {cx} v FROM stock_signals s
-                    JOIN bhavcopy_rows b USING (symbol, trade_date)
-                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL {_SCAN_FILTERS}
-                    ORDER BY v DESC LIMIT 8""", (sig_date,)).fetchall()]
-            pos = [dict(r) for r in conn.execute(
-                f"""SELECT s.symbol, s.trigger_rank v FROM stock_signals s
-                    JOIN bhavcopy_rows b USING (symbol, trade_date)
-                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL {_SCAN_FILTERS}
-                    ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
-                             COALESCE(s.delivery_value_today,0) DESC LIMIT 8""", (sig_date,)).fetchall()]
-            rs = [dict(r) for r in conn.execute(
-                f"""SELECT s.symbol, s.rs_rank v FROM stock_signals s
-                    JOIN bhavcopy_rows b USING (symbol, trade_date)
-                    WHERE s.trade_date=? AND s.rs_rank IS NOT NULL {_SCAN_FILTERS}
-                    ORDER BY s.rs_rank DESC LIMIT 8""", (sig_date,)).fetchall()]
-            qual = [dict(r) for r in conn.execute(
-                """SELECT p.symbol, p.ns_base v FROM pattern_scores p
-                   JOIN (SELECT symbol, MAX(scored_at) m FROM pattern_scores GROUP BY symbol) x
-                     ON x.symbol=p.symbol AND x.m=p.scored_at
-                   WHERE p.ns_base IS NOT NULL ORDER BY p.ns_base DESC LIMIT 8""").fetchall()]
-            cci = [dict(r) for r in conn.execute(
-                """SELECT s.symbol, s.composite_score v FROM concall_scores s
-                   JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x
-                     ON x.symbol=s.symbol AND x.m=s.last_updated
-                   WHERE COALESCE(s.veto_active,0)=0 AND s.composite_score IS NOT NULL
-                   ORDER BY s.composite_score DESC LIMIT 8""").fetchall()]
-
-    def picks(rows, fmt):
-        if not rows:
-            return '<div class="mut" style="font-size:12px;padding:6px 0">No names today.</div>'
-        return '<div class="chips" style="margin-top:8px">' + "".join(
-            f'<a class="chip" href="/dash/stock?sym={_esc(r["symbol"])}">{_esc(r["symbol"])} '
-            f'<span class="mut">{fmt(r["v"])}</span></a>' for r in rows) + '</div>'
-
-    def card(cls, title, thesis, metric, body_picks, href, cta, top=""):
-        ts = f' style="border-top-color:{top}"' if top else ''
-        return (f'<div class="scard sc-{cls}"{ts}>'
-                f'<div class="nm">{title}</div><div class="th">{thesis}</div>'
-                f'<div class="mut" style="font-size:11px;margin-top:6px">number shown = {metric}</div>{body_picks}'
-                f'<a class="row" style="display:inline-block;margin-top:10px;color:#58a6ff;font-weight:700;font-size:12px" '
-                f'href="{href}">{cta} →</a></div>')
-
-    cards = [
-        card("POS", "Conviction", "All pillars aligned — institutions positioning + leading the market.",
-             "conviction score (0–100)", picks(conv, lambda v: f"{v:.0f}"), "/dash/conviction", "See conviction shortlist", "#8957e5"),
-        card("POS", "Positioning · DVPT", "Where institutional delivery money is moving today.",
-             "DVPT trigger rank (SS▶C)", picks(pos, lambda v: _esc(v or "-")), "/dash/scan", "See all triggers"),
-        card("RS", "Relative Strength", "Stocks beating the market and leading their sector.",
-             "relative-strength rank (1–99)", picks(rs, lambda v: f"#{v}"), "/dash/leaders", "See leaders"),
-        card("QUAL", "Quality · pt14", "The 14-pattern durability score — businesses worth owning.",
-             "pt14 quality score (0–100)", picks(qual, lambda v: f"{v:.0f}"), "/dash/screener", "Open screener"),
-        _cpr_card(cpr_top),
-        card("QUAL", "Mgmt Credibility · CCI", "Do managements keep their concall promises? Trust the proven; avoid the deteriorating.",
-             "credibility score (0–100)", picks(cci, lambda v: f"{v:.0f}"), "/dash/concalls", "Open credibility screen", "#d29922"),
-    ]
-    head = ('<h2>Strategies <span class="sub" style="margin:0">today\'s best, by strategy</span></h2>'
-            '<div class="sub">Pick a strategy to see the names it surfaces right now — or open the '
-            '<a class="row" style="display:inline" href="/dash/screener">screener</a> to slice all of them together.</div>')
-    body = head + '<div class="scards">' + "".join(cards) + '</div>'
-    return HTMLResponse(_shell("Strategies · patearn", body, "strategies", sig_date or ""))
 
 
 def _cpr_sep_cell(v):
@@ -3620,6 +3091,18 @@ def _ohlc_on(conn, sym, date=None):
     return dict(r) if r else None
 
 
+def _entry_in_day_range(lo, hi, px) -> bool:
+    """Did `px` plausibly trade within the day's [lo,hi]? CL-DASH-10: the old check used a
+    FIXED ±0.05 absolute band — meaningless across price scales (₹0.05 is nothing on a
+    ₹5,000 stock and huge on a ₹3 stock). Use a RELATIVE tolerance: the larger of a tiny
+    absolute floor (rounding) and 0.1% of the high (tick/feed noise), so the slack scales
+    with the price. Returns True when lo/hi are unknown (can't validate → don't block)."""
+    if lo is None or hi is None or px is None:
+        return True
+    tol = max(0.05, hi * 0.001)
+    return (lo - tol) <= px <= (hi + tol)
+
+
 def _snap_chips(snap):
     """Compact frozen-snapshot chip row from a snapshot dict."""
     if not snap:
@@ -3689,7 +3172,8 @@ def _track_subnav(active):
     items = [("dashboard", "/dash/dashboard", "Dashboard"),
              ("portfolios", "/dash/portfolios", "Portfolios"),
              ("watchlists", "/dash/watchlists", "Watchlists"),
-             ("performance", "/dash/performance", "Performance")]
+             ("performance", "/dash/performance", "Performance"),
+             ("import", "/dash/import", "Import")]
     out = ['<div class="fbar" style="margin-bottom:12px">']
     for k, h, lbl in items:
         out.append(f'<a class="fbtn{" on" if k == active else ""}" href="{h}">{lbl}</a>')
@@ -3789,7 +3273,9 @@ def _day_delta(conn, sym):
     r = conn.execute("SELECT close, prev_close FROM bhavcopy_rows WHERE symbol=? "
                      "AND series='EQ' AND (segment='CM' OR segment IS NULL) "
                      "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
-    if not r or not r["close"]:
+    # A legit 0 close is real data, not "missing" — only None means no row/value.
+    # (The day-change divisor below still guards a 0 prev_close: undefined, not no-data.)
+    if not r or r["close"] is None:
         return None, None, None
     pc = r["prev_close"]
     dc = ((r["close"] - pc) / pc * 100.0) if pc else None
@@ -4271,10 +3757,7 @@ def _fiftytwo(conn, sym, cache):
 def _eval_alerts(row, sig, cmp_, thn, f52):
     """The list of fired-rule messages for `row` right now. EOD — 'crosses' is read
     as 'has reached/passed' at the close. f52 = callable(sym)->(52w_hi, 52w_lo)."""
-    try:
-        rules = json.loads(row.get("alerts_json")) if row.get("alerts_json") else []
-    except Exception:
-        rules = []
+    rules = _load_json_field(row.get("alerts_json"), "alerts_json", [])  # CL-DASH-15
     if not rules:
         return []
     sig = sig or {}
@@ -4353,11 +3836,8 @@ def _alert_badges(firing, ready):
 def _alerts_form(row):
     """Per-item alert editor (POSTs /dash/track/alerts/save). Tick a rule + set a
     threshold; pre-filled from the saved alerts_json."""
-    try:
-        existing = {r["t"]: r.get("v")
-                    for r in (json.loads(row["alerts_json"]) if row["alerts_json"] else [])}
-    except Exception:
-        existing = {}
+    existing = {r["t"]: r.get("v")   # CL-DASH-15: parse via the counted/logged helper
+                for r in _load_json_field(row["alerts_json"], "alerts_json", [])}
     lines = []
     for t, lbl, needs, unit in _ALERT_DEFS:
         chk = " checked" if t in existing else ""
@@ -4449,10 +3929,16 @@ _EQ_AC = {"key": None, "json": "[]"}
 
 def _equities_ac_json():
     """Cached [{s,n}] equity universe (symbol + company name) for the add-box
-    ticker autocomplete; rebuilt only when the listed-count changes."""
+    ticker autocomplete; rebuilt when the universe changes. The cache key is a
+    fingerprint — COUNT(*) alone would serve STALE names through a rename that keeps
+    the row count constant, so we also fold in MAX(rowid) (catches inserts / deletes /
+    a re-ingested master where rowids advance) and SUM(LENGTH(company_name)) (catches
+    an in-place name edit of the same rowid). All three are O(1) aggregates."""
     try:
         with get_conn() as conn:
-            key = conn.execute("SELECT COUNT(*) FROM nse_equity_list").fetchone()[0]
+            key = tuple(conn.execute(
+                "SELECT COUNT(*), MAX(rowid), "
+                "COALESCE(SUM(LENGTH(company_name)), 0) FROM nse_equity_list").fetchone())
             if _EQ_AC["key"] != key:
                 rows = conn.execute("SELECT symbol, company_name FROM nse_equity_list "
                                     "ORDER BY symbol").fetchall()
@@ -4547,6 +4033,7 @@ def _edit_form(r, books):
         f'<div style="flex:1"><label>Target ₹</label><input name="target" class="field" inputmode="decimal" value="{_rawnum(r["price_target"])}"/></div>'
         f'<div style="flex:1"><label>Stop ₹</label><input name="stop" class="field" inputmode="decimal" value="{_rawnum(r["stop_loss"])}"/></div></div>'
         f'<div style="margin-bottom:10px"><label>Thesis</label><textarea name="thesis" class="field">{_esc(r["entry_thesis"] or "")}</textarea></div>'
+        f'<div style="margin-bottom:10px"><label>Notes <span class="mut" style="font-weight:400">(your running log)</span></label><textarea name="notes" class="field">{_esc(r.get("notes") or "")}</textarea></div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save changes</button>'
         f'<a class="tbtn" href="{back}" style="text-decoration:none;margin-left:8px">Cancel</a>'
         '</form>' + _CS_JS)
@@ -4594,7 +4081,7 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
             ep_in = _f(entry_price)
             if ep_in is None:
                 ep = close
-            elif lo is not None and hi is not None and not (lo - 0.05 <= ep_in <= hi + 0.05):
+            elif not _entry_in_day_range(lo, hi, ep_in):   # CL-DASH-10: relative band
                 return RedirectResponse(
                     f"{dest}?err={_q(f'{sym} traded ₹{lo:g}–₹{hi:g} on {td}. ₹{ep_in:g} never traded that day — enter a price in that range.')}",
                     status_code=303)
@@ -4637,13 +4124,34 @@ def dash_track_quote(sym: str = Query(""), date: str = Query("")):
 
 @router.post("/dash/track/close")
 def dash_track_close(id: int = Form(...), reason: str = Form("")) -> RedirectResponse:
+    # Never write a NULL-price close: a bad/foreign id (no row) or an uncapturable
+    # snapshot (ep is None) would otherwise close the position with exit_price=NULL,
+    # which a later reopen could resurrect — corrupting realised-P/L and XIRR. Only
+    # UPDATE when the row exists AND we have an exit price; otherwise surface the error.
     with get_conn() as conn:
         row = conn.execute("SELECT symbol FROM stocks_in_play WHERE id=?", (id,)).fetchone()
         ep = _capture_snapshot(conn, row["symbol"])[0] if row else None
+        if not row:
+            return RedirectResponse(
+                f"/dash/performance?err={_q('That holding no longer exists — nothing closed.')}",
+                status_code=303)
+        if ep is None:
+            return RedirectResponse(
+                f"/dash/performance?err={_q('No closing price available for ' + str(row['symbol']) + ' — not closed (would corrupt P/L). Try again once an EOD price is in.')}",
+                status_code=303)
         conn.execute("UPDATE stocks_in_play SET status='closed', exit_date=datetime('now'), "
                      "exit_price=?, exit_reason=? WHERE id=?",
                      (ep, (reason or "").strip() or None, id))
     return RedirectResponse("/dash/performance?closed=1", status_code=303)
+
+
+@router.post("/dash/track/reopen")
+def dash_track_reopen(id: int = Form(...)) -> RedirectResponse:
+    # Undo a fat-fingered close: closed → open again, clearing the exit fields.
+    with get_conn() as conn:
+        conn.execute("UPDATE stocks_in_play SET status='open', exit_date=NULL, "
+                     "exit_price=NULL, exit_reason=NULL WHERE id=?", (id,))
+    return RedirectResponse("/dash/portfolios", status_code=303)
 
 
 @router.get("/dash/track/edit", response_class=HTMLResponse)
@@ -4667,7 +4175,7 @@ def dash_track_update(id: int = Form(...), status: str = Form("open"),
                       strategy_custom: str = Form(""), qty: str = Form(""),
                       entry_date: str = Form(""), entry_price: str = Form(""),
                       target: str = Form(""), stop: str = Form(""),
-                      thesis: str = Form("")) -> RedirectResponse:
+                      thesis: str = Form(""), notes: str = Form("")) -> RedirectResponse:
     status = status if status in ("watch", "open") else "open"
     dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
     strat = (strategy or "Manual").strip() or "Manual"
@@ -4695,7 +4203,7 @@ def dash_track_update(id: int = Form(...), status: str = Form("open"),
                 ep_in = _f(entry_price)
                 if ep_in is None:
                     ep = close
-                elif lo is not None and hi is not None and not (lo - 0.05 <= ep_in <= hi + 0.05):
+                elif not _entry_in_day_range(lo, hi, ep_in):   # CL-DASH-10: relative band
                     return RedirectResponse(
                         f"{dest}?err={_q(f'{sym} traded ₹{lo:g}–₹{hi:g} on {td}. ₹{ep_in:g} never traded that day — enter a price in that range.')}",
                         status_code=303)
@@ -4703,8 +4211,9 @@ def dash_track_update(id: int = Form(...), status: str = Form("open"),
                     ep = ep_in
             else:
                 ep = _f(entry_price)
-        sets = "strategy=?, book=?, status=?, qty=?, price_target=?, stop_loss=?, entry_thesis=?"
-        vals = [strat, bk, status, _f(qty), _f(target), _f(stop), (thesis or "").strip() or None]
+        sets = "strategy=?, book=?, status=?, qty=?, price_target=?, stop_loss=?, entry_thesis=?, notes=?"
+        vals = [strat, bk, status, _f(qty), _f(target), _f(stop), (thesis or "").strip() or None,
+                (notes or "").strip() or None]
         if status == "open":
             sets += ", entry_price=?, date_added=COALESCE(?, date_added)"
             vals += [ep, td]
@@ -4729,8 +4238,10 @@ def dash_track_promote(id: int = Form(...)) -> RedirectResponse:
 @router.post("/dash/track/remove")
 def dash_track_remove(id: int = Form(...)) -> RedirectResponse:
     with get_conn() as conn:
+        row = conn.execute("SELECT status FROM stocks_in_play WHERE id=?", (id,)).fetchone()
+        dest = "/dash/watchlists" if (row and row["status"] == "watch") else "/dash/portfolios"
         conn.execute("DELETE FROM stocks_in_play WHERE id=?", (id,))
-    return RedirectResponse("/dash/portfolios", status_code=303)
+    return RedirectResponse(dest, status_code=303)
 
 
 @router.get("/dash/track/alerts", response_class=HTMLResponse)
@@ -4867,10 +4378,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
         ep, q = r["entry_price"], r.get("qty")
         pl = ((cmp_ - ep) / ep * 100.0) if (cmp_ and ep) else None
         _, dcp, _pc = dd.get(sym, (None, None, None))
-        try:
-            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-        except Exception:
-            thn = {}
+        thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
         invv = (q * ep) if (q and ep) else None
         rpl = (q * (cmp_ - ep)) if (q and cmp_ is not None and ep) else None
         tdist = _dist_pct(cmp_, r["price_target"], True)
@@ -4968,10 +4476,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
         for r in rows:
             sym = r["symbol"]
             sig = (enr.get(sym) or {}).get("sig") or {}
-            try:
-                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-            except Exception:
-                thn = {}
+            thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
             firing = _eval_alerts(r, sig, live.get(sym, (None, {}))[0], thn,
                                   lambda s: _fiftytwo(conn, s, f52c))
             alerts[r["id"]] = (firing, _ready_to_act(sig))
@@ -5005,10 +4510,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
         sym = r["symbol"]
         cmp_, snap = live.get(sym, (None, {}))
         e = enr.get(sym, {})
-        try:
-            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-        except Exception:
-            thn = {}
+        thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
         then = thn.get("close")     # frozen close on the day it was added
         chg = ((cmp_ - then) / then * 100.0) if (cmp_ and then) else None
         dwatch = _days_between(r["date_added"], today)
@@ -5027,6 +4529,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
             f'<td class="num">{_num(then, 1)}</td>'
             f'<td class="num">{_num(cmp_, 1)}</td>'
             f'<td class="num">{_pct(chg)}</td>'
+            f'<td class="num">{_num(r.get("price_target"), 1)}</td>'
+            f'<td class="num">{_num(r.get("stop_loss"), 1)}</td>'
             f'<td class="l">{_snap_chips(snap)}</td>'
             f'<td class="l">{_alert_badges(firing, ready)}</td>'
             f'<td class="l"><a class="tbtn" href="/dash/track/alerts?id={r["id"]}" style="text-decoration:none">Alerts</a> '
@@ -5035,7 +4539,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
             f'{_id_form("/dash/track/remove", r["id"], "Remove", confirm="Remove from watchlist?")}</td>'
             '</tr>')
     head = ('<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th><th>Added</th>'
-            '<th>Days</th><th>Price then</th><th>CMP</th><th>Chg %</th>'
+            '<th>Days</th><th>Price then</th><th>CMP</th><th>Chg %</th><th>Target</th><th>Stop</th>'
             '<th>Live signals</th><th>Signal / alerts</th><th></th></tr></thead><tbody>')
     bq = f"&book={_q(sel_book)}" if sel_book else ""
     exp = ('<div style="display:flex;justify-content:flex-end;margin:0 0 8px">'
@@ -5046,7 +4550,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
 
 
 @router.get("/dash/performance", response_class=HTMLResponse)
-def dash_performance() -> HTMLResponse:
+def dash_performance(just_closed: str = Query("", alias="closed"),
+                     err: str = Query("")) -> HTMLResponse:
     today = datetime.now().strftime("%Y-%m-%d")
     with get_conn() as conn:
         openrows = [dict(r) for r in conn.execute(
@@ -5207,14 +4712,18 @@ def dash_performance() -> HTMLResponse:
                 f'<td class="num">{_rpl(pl_rs)}</td>'
                 f'<td class="num">{_pct(pl_pct)}</td>'
                 f'<td class="l mut">{_esc(r.get("exit_reason") or "—")}</td>'
+                f'<td class="l">{_id_form("/dash/track/reopen", r["id"], "Reopen", confirm="Reopen this trade (back to open positions)?")}</td>'
                 '</tr>')
         clog = ('<div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">'
                 '<div class="ghdr" style="margin:0">Closed-trades log</div>'
                 '<a class="tbtn" href="/dash/track/export?status=closed" style="text-decoration:none">⬇ Export CSV</a></div>'
+                # 14-col table > a 380px phone — scroll it INSIDE its own wrapper so the
+                # PAGE doesn't horizontally scroll (mirrors the screener's .scrwrap pattern).
+                '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
                 '<table class="dt"><thead><tr><th>Symbol</th><th>Sector</th><th>Book</th><th>Strategy</th>'
                 '<th>Entry date</th><th>Exit date</th><th>Days</th><th>Entry ₹</th><th>Exit ₹</th><th>Qty</th>'
-                '<th>₹ P&amp;L</th><th>Return</th><th>Reason</th></tr></thead><tbody>'
-                + "".join(trs) + '</tbody></table>')
+                '<th>₹ P&amp;L</th><th>Return</th><th>Reason</th><th></th></tr></thead><tbody>'
+                + "".join(trs) + '</tbody></table></div>')
 
     intro = ('<h2>Performance</h2><div class="sub"><b>Your scoreboard</b> — how your committed ideas '
              'actually performed: money-weighted <b>XIRR</b>, realized vs unrealized, the equity curve '
@@ -5223,7 +4732,11 @@ def dash_performance() -> HTMLResponse:
              '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolio</a> + '
              'closed trades — it fills itself as you take and close positions. EOD data; '
              '₹ metrics need quantity on the position.</span></div>')
-    body = (_TRACK_CSS + _track_subnav("performance") + intro + cards + curve_html
+    body = (_TRACK_CSS + _track_subnav("performance")
+            + (f'<div class="banner b-off">{_esc(err)}</div>' if err else '')
+            + ('<div class="banner b-on">&#10003; Position closed &#8212; logged to your scoreboard below.</div>'
+               if just_closed == "1" else '')
+            + intro + cards + curve_html
             + hits_html + attrib + clog)
     return HTMLResponse(_shell("Performance · patearn", body, "performance", wide=True))
 
@@ -5258,10 +4771,7 @@ def dash_dashboard() -> HTMLResponse:
         for r in (openrows + watchrows):
             sym = r["symbol"]
             sig = (enr.get(sym) or {}).get("sig") or {}
-            try:
-                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-            except Exception:
-                thn = {}
+            thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
             cmp_a = cmps.get(sym) if r["status"] == "open" else wcmps.get(sym)
             fr = _eval_alerts(r, sig, cmp_a, thn, lambda s: _fiftytwo(conn, s, f52c))
             if fr:
@@ -5335,10 +4845,7 @@ def dash_dashboard() -> HTMLResponse:
         sym = r["symbol"]
         cmp_ = cmps.get(sym)
         sig = (enr.get(sym) or {}).get("sig") or {}
-        try:
-            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-        except Exception:
-            thn = {}
+        thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
         fl = set(_thesis_flags(thn, sig, cmp_, r["stop_loss"]))
         v, btot = hold_value.get(r["id"]), book_val.get(r.get("book") or "Main")
         conc_pct = (v / btot * 100.0) if (v and btot) else None
@@ -5556,6 +5063,11 @@ def _imp_num(s):
         return None
 
 
+# Hard cap on the import upload — generous for any real holdings sheet (500 rows is
+# tiny), tight enough that a zip-bomb .xlsx can't OOM the single VPS before parse.
+_MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
+
 def _parse_upload(filename, data):
     """(headers, rows) from CSV or XLSX bytes; rows = list[list[str]], header = row 0."""
     name = (filename or "").lower()
@@ -5665,7 +5177,7 @@ def dash_import() -> HTMLResponse:
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Upload &amp; preview</button>'
         '<a class="tbtn" href="/dash/portfolios" style="text-decoration:none;margin-left:8px">Cancel</a>'
         '</form>')
-    body = _TRACK_CSS + _track_subnav("portfolios") + '<h2>Import</h2>' + form
+    body = _TRACK_CSS + _track_subnav("import") + '<h2>Import</h2>' + form
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
 
 
@@ -5709,10 +5221,7 @@ def dash_track_export(status: str = Query("open"), book: str = Query("")) -> Res
         w.writerow(["Symbol", "Added Date", "Strategy", "Book", "Price When Added",
                     "CMP", "Change % Since Added", "Target", "Stop", "Thesis"])
         for r in rows:
-            try:
-                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-            except Exception:
-                thn = {}
+            thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
             then, cmp_ = thn.get("close"), cmps.get(r["symbol"])
             chg = ((cmp_ - then) / then * 100.0) if (cmp_ and then) else None
             w.writerow([r["symbol"], (r["date_added"] or "")[:10], r["strategy"], r.get("book") or "Main",
@@ -5745,7 +5254,7 @@ def dash_track_export(status: str = Query("open"), book: str = Query("")) -> Res
 
 
 def _imp_err(msg):
-    body = (_TRACK_CSS + _track_subnav("portfolios") + '<h2>Import</h2>'
+    body = (_TRACK_CSS + _track_subnav("import") + '<h2>Import</h2>'
             + f'<div class="banner b-off">{_esc(msg)}</div>'
             + '<div class="empty"><a href="/dash/import" style="color:#58a6ff;text-decoration:none">← Try again</a></div>')
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
@@ -5756,7 +5265,13 @@ async def dash_import_preview(file: UploadFile = File(...), status: str = Form("
                              book: str = Form("Main")) -> HTMLResponse:
     status = status if status in ("watch", "open") else "open"
     bk = (book or "Main").strip()[:40] or "Main"
-    data = await file.read()
+    # Cap the upload BEFORE buffering/parsing: a tiny zip-bomb .xlsx can decompress
+    # to gigabytes and OOM the single VPS inside openpyxl. Read one byte past the cap
+    # so we can detect over-size without ever holding the whole oversized payload.
+    data = await file.read(_MAX_UPLOAD_BYTES + 1)
+    if len(data) > _MAX_UPLOAD_BYTES:
+        return _imp_err(f"That file is too large (limit {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB). "
+                        "A holdings sheet should be well under that — check it's the right file.")
     try:
         headers, rows = _parse_upload(file.filename, data)
     except Exception as e:
@@ -5769,7 +5284,7 @@ async def dash_import_preview(file: UploadFile = File(...), status: str = Form("
         eqnames = {(r[0] or "").upper() for r in conn.execute(
             "SELECT company_name FROM nse_equity_list").fetchall()}
     mp = _detect_mapping(headers, rows, eqset, eqnames)
-    body = _TRACK_CSS + _track_subnav("portfolios") + '<h2>Import — review</h2>' + _imp_review(headers, rows, mp, status, bk)
+    body = _TRACK_CSS + _track_subnav("import") + '<h2>Import — review</h2>' + _imp_review(headers, rows, mp, status, bk)
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
 
 
@@ -5798,7 +5313,7 @@ def dash_import_commit(rows_json: str = Form("[]"), status: str = Form("open"),
 
     def cell(r, ci):
         return str(r[ci]).strip() if (0 <= ci < len(r) and r[ci] is not None) else ""
-    inserted, skipped = 0, []
+    inserted, skipped, bad_dates = 0, [], []
     with get_conn() as conn:
         for r in rows:
             if not isinstance(r, list):
@@ -5812,13 +5327,25 @@ def dash_import_commit(rows_json: str = Form("[]"), status: str = Form("open"),
             strat = ((cell(r, cstr) if cstr >= 0 else "") or "Imported")[:60]
             q = _imp_num(cell(r, cq)) if cq >= 0 else None
             if status == "open":
-                d_in = _imp_date(cell(r, cd)) if cd >= 0 else None
+                # Entry date drives P/L-since + XIRR — NEVER fabricate it. If the user
+                # mapped a date column but the row's value won't parse, SKIP + surface
+                # the row rather than silently stamping today (or the latest bhav date).
+                date_cell = cell(r, cd) if cd >= 0 else ""
+                d_in = _imp_date(date_cell) if date_cell else None
+                if date_cell and d_in is None:
+                    bad_dates.append(sym)
+                    continue
                 o = _ohlc_on(conn, sym, d_in or None)
                 # Import TRUSTS the file's cost basis (averaged price may sit outside
                 # one day's OHLC); fall back to that day's close only if price absent.
                 ep_in = _imp_num(cell(r, cp)) if cp >= 0 else None
                 ep = ep_in if ep_in is not None else (o["close"] if o else None)
-                td = o["trade_date"] if o else datetime.utcnow().strftime("%Y-%m-%d")
+                # Date precedence: the parsed user date (real, even if no bhav row on
+                # it) → else the matched bhav trade_date. Only when NO date was given
+                # at all and there's no bhav row do we fall back to today (a watch-like
+                # "as of now" add, not a fabricated historical entry).
+                td = (d_in or (o["trade_date"] if o else None)
+                      or datetime.utcnow().strftime("%Y-%m-%d"))
                 snap = _capture_snapshot(conn, sym, as_of=td)[1]
                 conn.execute(
                     "INSERT INTO stocks_in_play(symbol,strategy,book,status,date_added,entry_price,qty,"
@@ -5834,9 +5361,15 @@ def dash_import_commit(rows_json: str = Form("[]"), status: str = Form("open"),
                      json.dumps(snap) if snap else None))
             inserted += 1
     url = f"{dest}?book={_q(bk)}&added={_q(str(inserted) + ' holdings')}"
+    errs = []
     if skipped:
         uniq = list(dict.fromkeys(skipped))
-        url += f"&err={_q(str(len(skipped)) + ' row(s) skipped — ticker not recognised: ' + ', '.join(uniq[:8]))}"
+        errs.append(f"{len(skipped)} row(s) skipped — ticker not recognised: {', '.join(uniq[:8])}")
+    if bad_dates:
+        uniqd = list(dict.fromkeys(bad_dates))
+        errs.append(f"{len(bad_dates)} row(s) skipped — entry date unreadable (not imported, to keep P/L correct): {', '.join(uniqd[:8])}")
+    if errs:
+        url += f"&err={_q(' · '.join(errs))}"
     return RedirectResponse(url, status_code=303)
 
 
@@ -6106,11 +5639,21 @@ def dash_stock(sym: str = Query("", max_length=20),
                track: int = Query(0),
                cmp: list[str] = Query(default=[])) -> HTMLResponse:
     sym = sym.upper().strip()
+    # CL-DASH-19: cap the compare-overlay list at the source. A hand-crafted URL can repeat
+    # ?cmp= arbitrarily; the downstream loop already stops at _COMPARE_MAX, but the raw list
+    # is materialised first. Slice generously (well above _COMPARE_MAX) so legitimate use is
+    # untouched while an abusive payload can't balloon memory.
+    if cmp:
+        cmp = cmp[:64]
+    _wolfe_btn = (
+        f'<a href="/dash/wolfe?sym={_q(sym)}" style="display:inline-block;margin:8px 0 0;padding:6px 12px;'
+        f'background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;'
+        f'text-decoration:none;font-size:13px">⌁ Wolfe wave</a>' if sym else '')
     search = f"""
 <form class="search" action="/dash/stock" method="get">
   <input name="sym" placeholder="Enter NSE ticker — e.g. BANDHANBNK" value="{_esc(sym)}" autocapitalize="characters" autocomplete="off"/>
   <button type="submit">Go</button>
-</form>
+</form>{_wolfe_btn}
 """
     if not sym:
         body = search + '<div class="empty">Enter a ticker for the full chart — price, DVPT spikes, delivery, and institutional zones.</div>'
@@ -6205,7 +5748,7 @@ def dash_stock(sym: str = Query("", max_length=20),
             "time": r["trade_date"],
             "open": o, "high": hi, "low": lo, "close": c,
             "prev_close": r["prev_close"],
-            "dvpt": int(r["dvpt"]) if r["dvpt"] is not None else 0,
+            "dvpt": _safe_int(r["dvpt"]),
             "deliv": round(r["deliv_per"], 1) if r["deliv_per"] is not None else None,
             "r1m": round(r["r1m"], 2) if r["r1m"] is not None else None,
             "tval": round(tval, 2) if tval is not None else None,
@@ -6256,7 +5799,12 @@ def dash_stock(sym: str = Query("", max_length=20),
     # The institutional zones are computed from recent raw closes; if any
     # corporate action occurred within the zone window we flag it so the
     # overlay isn't silently misaligned.
-    zone_action_recent = any(f != 1.0 for f in factors[-264:]) if n else False
+    # CL-DASH-13: the window is TIED to the longest zone lookback (P12M / R12M = 12 months
+    # ≈ 252 trading sessions, + ~12 sessions slack) instead of a bare magic 264, so if the
+    # zone horizon ever changes this single constant moves with it.
+    _ZONE_LOOKBACK_SESSIONS = 252 + 12   # longest zone (12m) + a small calendar-drift buffer
+    zone_action_recent = (any(f != 1.0 for f in factors[-_ZONE_LOOKBACK_SESSIONS:])
+                          if n else False)
 
     # Institutional zone levels for horizontal lines on the price chart.
     zone_line_defs = [
@@ -6880,7 +6428,10 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     # --- W2: cockpit verdict count-strip (7 tiles) + tabbed sub-nav -----------
     from src.web.cockpit import _CKPT_CSS as _CK, _ck_tile, _ck_strip, cci_state
     day_chg = None
-    if len(series) >= 2 and series[-2]["close"]:
+    # Distinguish a real prior close from missing data (truthiness dropped a legit 0);
+    # still skip a 0 divisor (a % change off zero is undefined, not "no data").
+    if (len(series) >= 2 and series[-2]["close"] is not None
+            and series[-1]["close"] is not None and series[-2]["close"] != 0):
         day_chg = (series[-1]["close"] / series[-2]["close"] - 1) * 100
     _conv = round(_conv_of(L.get("p_score"), L.get("rs_rank")))
     _xp = L.get("ratio_today_vs_power_1m")
@@ -6917,7 +6468,9 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         _ck_tile(_esc(_tier) if _tier else "—", "Quality · pt14", "#d29922",
                  (f"NS {_num(_ns, 1)}" if _ns is not None else "unscored")),
         _ck_tile(_esc(_ct) if _ct else "—", "Mgmt cred · CCI", "#39c5cf",
-                 (f"{_ccist or 'pilot'} · {_nset}/{_ncalls} settled" if cci_row else "no concall data")),
+                 # Two distinct counts, not a fraction: promises resolved + concalls read.
+                 # "N/M settled" read ambiguously (looked like a ratio); label each explicitly.
+                 (f"{_ccist or 'pilot'} · {_nset} settled · {_ncalls} calls" if cci_row else "no concall data")),
         _ck_tile(_pct(_p52), "vs 52w-high", "#8b949e", "today's close"),
     ])
 
@@ -6973,11 +6526,20 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 </script>
 """
 
+    # h2 bits — render the DVPT-rank pill ONLY when there's a REAL rank. trigger_rank is
+    # the sentinel string "-" (NOT NULL) for unranked names like RELIANCE, so gate on the
+    # display value not being that placeholder — otherwise the headline showed a stray
+    # "RELIANCE - · …" pill. ⚡ ATH badge only when truthy. Each piece carries its own
+    # leading space so an absent piece leaves no double-gap or dash.
+    _rank_pill = (f' <span class="pill p-{rank}">{rank}</span>'
+                  if str(rank).strip() not in ("", "-") else '')
+    _ath_bit = f' {ath}' if ath else ''
+    _name_bit = (' · ' + _esc(company_name)) if company_name else ''
     body = f"""{search}
 <style>{chart_css}</style>
 {_CK}
 <div class="sub" style="margin:0 0 6px">&#8592; <a class="row" style="display:inline" href="/dash/screener">Screener</a> · <a class="row" style="display:inline" href="/dash/conviction">Conviction</a></div>
-<h2>{_esc(sym)} <span class="pill p-{rank}">{rank}</span> {ath}{(' · ' + _esc(company_name)) if company_name else ''}</h2>
+<h2>{_esc(sym)}{_rank_pill}{_ath_bit}{_name_bit}</h2>
 <div class="sub">{L['trade_date']} · close ₹{_num(today_close,2)} · deliv {_num(L.get('deliv_per'),1)}%</div>
 {verdict_strip}
 {themes_line}
@@ -6986,13 +6548,14 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 <div class="tabpane" data-tab="price">
 <div class="kpi">
   <div class="box"><div class="num">{L.get('r_score') or 0}/{L.get('p_score') or 0}</div><div class="lbl">r / p score</div></div>
-  <div class="box"><div class="num">{int(L['delivery_value_per_trade'] or 0):,}</div><div class="lbl">DVPT today</div></div>
+  <div class="box"><div class="num">{_safe_int(L.get('delivery_value_per_trade')):,}</div><div class="lbl">DVPT today</div></div>
   <div class="box"><div class="num">{_num(L.get('ratio_today_vs_power_1m'))}</div><div class="lbl">vs power 1m</div></div>
 </div>
 <div class="fbar" id="ctBar">
   <button class="fbtn on" data-ctype="candle">Candles</button>
   <button class="fbtn" data-ctype="line">Line</button>
 </div>
+<div class="fbar"><label class="fbtn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="wfChk" style="margin:0">Wolfe wave</label><span id="wfLbl" style="color:#8b949e;font-size:12px;margin-left:8px"></span></div>
 <div class="fbar" id="ivBar">
   <button class="fbtn on" data-ptf="d">Daily</button>
   <button class="fbtn" data-ptf="w">Weekly</button>
@@ -7012,6 +6575,10 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <div id="priceRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
   <div id="priceChart" style="height:300px;"></div>
 </div>
+{_WF_SNIPPET}
+{_CPR_SNIPPET}
+{_MA_SNIPPET}
+{_MEP_SNIPPET}
 <div class="chartwrap">
   <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · DVPT per trade — institutional spikes (amber = institutional-intensity day, r1m &gt; 1)</div>
   <div id="dvptChart" style="height:150px;"></div>
@@ -7051,186 +6618,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 {fno_pane}
 
 <script src="{_LWC_CDN}"></script>
-<script>
-const DATA = {data_json};
-(function(){{
-  if (!window.LightweightCharts) {{ document.getElementById('priceChart').innerHTML='<div style=\\"color:#8b949e;padding:20px\\">Chart library failed to load (offline?).</div>'; return; }}
-  const S = DATA.series;
-  const common = {{
-    layout: {{ background:{{color:'#161b22'}}, textColor:'#8b949e', fontSize:11 }},
-    grid: {{ vertLines:{{color:'#21262d'}}, horzLines:{{color:'#21262d'}} }},
-    timeScale: {{ borderColor:'#30363d', rightOffset:3 }},
-    rightPriceScale: {{ borderColor:'#30363d' }},
-    crosshair: {{ mode: 0 }},
-    handleScroll:true, handleScale:true,
-  }};
-  const pEl=document.getElementById('priceChart');
-  const vEl=document.getElementById('dvptChart');
-  const dEl=document.getElementById('delivChart');
-  const tEl=document.getElementById('tvChart');
-  const pc=LightweightCharts.createChart(pEl, Object.assign({{height:300}}, common));
-  const vc=LightweightCharts.createChart(vEl, Object.assign({{height:150}}, common));
-  const dc=LightweightCharts.createChart(dEl, Object.assign({{height:120}}, common));
-  const tc=LightweightCharts.createChart(tEl, Object.assign({{height:130}}, common));
-
-  const candle=pc.addCandlestickSeries({{upColor:'#3fb950',downColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',borderVisible:false}});
-  candle.setData(S.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
-  DATA.zones.forEach(z=>{{ candle.createPriceLine({{price:z.price,color:z.color,lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label}}); }});
-  // Close-line alternative to the candles (chart-type toggle). Fed alongside the
-  // candles in setIv so switching type is just a visibility flip — the 4-pane
-  // sync graph is untouched.
-  const pline=pc.addLineSeries({{color:'#1f6feb',lineWidth:2,priceLineVisible:false}});
-  pline.setData(S.map(d=>({{time:d.time,value:d.close}})));
-  pline.applyOptions({{visible:false}});
-
-  const dvpt=vc.addHistogramSeries({{priceFormat:{{type:'volume'}}}});
-  dvpt.setData(S.map(d=>({{time:d.time,value:d.dvpt,color:(d.r1m!=null&&d.r1m>1)?'#d29922':'#30506b'}})));
-
-  const deliv=dc.addLineSeries({{color:'#58a6ff',lineWidth:2}});
-  deliv.setData(S.filter(d=>d.deliv!=null).map(d=>({{time:d.time,value:d.deliv}})));
-
-  // 4th pane — total traded value (muted full bar) with delivery value drawn
-  // ON TOP in a brighter colour. Since delivery ₹ ≤ turnover ₹, the bright bar
-  // sits WITHIN the muted bar (both start at 0, overlaid not stacked-additive),
-  // so the bright fraction = the delivered share of the day's turnover.
-  // Option A — robust y-cap so a rare institutional spike (100-800x a normal
-  // day) can't crush every normal day to a sliver. Cap the axis at ~the 98th
-  // percentile of traded value; spike days clip at the top + get an amber ▲
-  // marker (exact value still on hover). Uniform stocks: cap ~= max, no clip.
-  const _tv=S.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
-  let tvCap=_tv.length?_tv[Math.min(_tv.length-1,Math.floor(_tv.length*0.98))]:0;
-  const _cap=()=>({{priceRange:{{minValue:0,maxValue:tvCap||1}}}});
-  const tval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#30363d',autoscaleInfoProvider:_cap}});
-  tval.setData(S.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
-  const dval=tc.addHistogramSeries({{priceFormat:{{type:'volume'}},color:'#2ea043',autoscaleInfoProvider:_cap}});
-  dval.setData(S.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
-  if(tvCap>0){{
-    const _mk=S.filter(d=>d.tval!=null&&d.tval>tvCap).map(d=>({{time:d.time,position:'aboveBar',color:'#d29922',shape:'arrowUp'}}));
-    if(_mk.length) tval.setMarkers(_mk);
-  }}
-
-  // Sync time scales across the four charts. A reentrancy guard stops a
-  // range click from ping-ponging range updates pc<->vc<->dc<->tc until float
-  // convergence (the source of the range-switch slowness, worst on Max).
-  const charts=[pc,vc,dc,tc];
-  let syncing=false;
-  charts.forEach(src=>{{
-    src.timeScale().subscribeVisibleLogicalRangeChange(r=>{{
-      if(!r||syncing) return;
-      syncing=true;
-      charts.forEach(t=>{{ if(t!==src) t.timeScale().setVisibleLogicalRange(r); }});
-      syncing=false;
-    }});
-  }});
-
-  // Apply the range to ALL charts directly under the guard (N direct
-  // view-sets, zero feedback hops). fitContent() per-chart for Max.
-  function setRange(n){{
-    syncing=true;
-    if(!n||n>=S.length){{
-      charts.forEach(c=>c.timeScale().fitContent());
-    }} else {{
-      const from=S[S.length-n].time, to=S[S.length-1].time;
-      charts.forEach(c=>c.timeScale().setVisibleRange({{from,to}}));
-    }}
-    syncing=false;
-  }}
-  document.querySelectorAll('.rangebar button').forEach(b=>{{
-    b.onclick=()=>{{ document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); setRange(parseInt(b.dataset.r)); }};
-  }});
-  setRange(0);
-
-  // --- D/W/M/Q interval toggle (resample ALL 4 panes together so they stay
-  // synced; client-side, no MTF dependency). Candle = OHLC; DVPT pane = the
-  // period's PEAK day (NOT an average — true period DVPT is the MTF engine's
-  // job, doctrine D43-B); delivery % = period mean; traded/delivery value =
-  // period sum (the y-cap recomputes per interval). Zone lines are horizontal,
-  // so they're untouched by the interval.
-  function isoWeekKey(s){{ const d=new Date(s+'T00:00:00Z'); const jd=(d.getUTCDay()+6)%7;
-    d.setUTCDate(d.getUTCDate()-jd+3); const iy=d.getUTCFullYear();
-    const j4=new Date(Date.UTC(iy,0,4)); const j4d=(j4.getUTCDay()+6)%7;
-    j4.setUTCDate(j4.getUTCDate()-j4d+3); const wk=1+Math.round((d-j4)/(7*86400000));
-    return iy+'-W'+('0'+wk).slice(-2); }}
-  function pkey(s,tf){{ if(tf==='w') return isoWeekKey(s); if(tf==='m') return s.slice(0,7);
-    if(tf==='q'){{ const y=s.slice(0,4),mo=parseInt(s.slice(5,7),10); return y+'-Q'+(Math.floor((mo-1)/3)+1); }}
-    return s; }}
-  function resampleBars(tf){{
-    const mk=d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close,dvpt:(d.dvpt||0),
-      hot:(d.r1m!=null&&d.r1m>1),delivSum:(d.deliv!=null?d.deliv:0),delivN:(d.deliv!=null?1:0),
-      tval:(d.tval||0),dval:(d.dval||0)}});
-    if(tf==='d') return S.map(mk);
-    const out=[]; let k=null,c=null;
-    for(const d of S){{ const kk=pkey(d.time,tf);
-      if(kk!==k){{ if(c) out.push(c); k=kk; c=mk(d); }}
-      else {{ c.high=Math.max(c.high,d.high); c.low=Math.min(c.low,d.low); c.close=d.close; c.time=d.time;
-        if((d.dvpt||0)>c.dvpt) c.dvpt=d.dvpt||0; if(d.r1m!=null&&d.r1m>1) c.hot=true;
-        if(d.deliv!=null){{ c.delivSum+=d.deliv; c.delivN++; }}
-        c.tval+=(d.tval||0); c.dval+=(d.dval||0); }}
-    }}
-    if(c) out.push(c);
-    return out;
-  }}
-  function setIv(tf){{
-    const R=resampleBars(tf);
-    syncing=true;
-    candle.setData(R.map(d=>({{time:d.time,open:d.open,high:d.high,low:d.low,close:d.close}})));
-    pline.setData(R.map(d=>({{time:d.time,value:d.close}})));
-    dvpt.setData(R.map(d=>({{time:d.time,value:d.dvpt,color:d.hot?'#d29922':'#30506b'}})));
-    deliv.setData(R.filter(d=>d.delivN>0).map(d=>({{time:d.time,value:d.delivSum/d.delivN}})));
-    const tv=R.map(d=>d.tval).filter(v=>v!=null&&v>0).sort((a,b)=>a-b);
-    tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
-    tval.setData(R.filter(d=>d.tval!=null).map(d=>({{time:d.time,value:d.tval}})));
-    dval.setData(R.filter(d=>d.dval!=null).map(d=>({{time:d.time,value:d.dval}})));
-    tval.setMarkers(tvCap>0?R.filter(d=>d.tval!=null&&d.tval>tvCap).map(d=>({{time:d.time,position:'aboveBar',color:'#d29922',shape:'arrowUp'}})):[]);
-    syncing=false;
-  }}
-  document.querySelectorAll('[data-ptf]').forEach(b=>{{
-    b.onclick=()=>{{ document.querySelectorAll('[data-ptf]').forEach(x=>x.classList.toggle('on', x===b));
-      setIv(b.dataset.ptf);
-      const rb=document.querySelector('.rangebar button.on'); setRange(rb?parseInt(rb.dataset.r):0); }};
-  }});
-  // Chart-type toggle (candles <-> close line). Visibility flip only — both series
-  // already carry the current interval's data, so the sync graph stays intact.
-  document.querySelectorAll('[data-ctype]').forEach(b=>{{
-    b.onclick=()=>{{ document.querySelectorAll('[data-ctype]').forEach(x=>x.classList.toggle('on', x===b));
-      const ln=b.dataset.ctype==='line';
-      candle.applyOptions({{visible:!ln}}); pline.applyOptions({{visible:ln}}); }};
-  }});
-
-  // Debounced ResizeObserver: coalesce bursts (~100ms) and skip while syncing.
-  let rzT=null;
-  new ResizeObserver(()=>{{
-    if(syncing) return;
-    if(rzT) clearTimeout(rzT);
-    rzT=setTimeout(()=>{{ charts.forEach(c=>c.applyOptions({{}})); }},100);
-  }}).observe(pEl);
-
-  // Crosshair value readout — hover ANY of the 4 panes to see that day's
-  // OHLC + DVPT + delivery + traded/delivery value; latest day when off-chart.
-  const rdt=document.getElementById('priceRdt');
-  function tkey(t){{ return (typeof t==='object'&&t)?(t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2)):t; }}
-  const byT={{}}; S.forEach(d=>byT[d.time]=d);
-  function cr(v){{ return '₹'+Math.round(v).toLocaleString('en-IN'); }}
-  function showR(d){{
-    if(!d){{ rdt.innerHTML=''; return; }}
-    let h='<b>'+d.time+'</b>&nbsp; O '+d.open+'&nbsp; H '+d.high+'&nbsp; L '+d.low
-      +'&nbsp; <b>C '+d.close+'</b>'
-      +(d.dvpt!=null?'&nbsp; · DVPT ₹'+Math.round(d.dvpt).toLocaleString('en-IN'):'')
-      +(d.deliv!=null?'&nbsp; · Deliv '+d.deliv.toFixed(1)+'%':'');
-    if(d.tval!=null){{
-      h+='&nbsp; · Traded '+cr(d.tval);
-      if(d.dval!=null) h+=' / Deliv '+cr(d.dval)
-        +(d.tval>0?' ('+(d.dval/d.tval*100).toFixed(0)+'%)':'');
-    }}
-    rdt.innerHTML=h;
-  }}
-  [pc,vc,dc,tc].forEach(c=>c.subscribeCrosshairMove(p=>{{
-    if(!p||!p.time){{ showR(S[S.length-1]); return; }}
-    showR(byT[tkey(p.time)]||S[S.length-1]);
-  }}));
-  showR(S[S.length-1]);
-}})();
-</script>
+<script>window.__wfdata={data_json};</script>
+{_STOCK_CHART_SNIPPET}
 {tab_js}
 """
     return HTMLResponse(_shell(f"{sym} · patearn", body, "stock", L["trade_date"], wide=True))
@@ -7255,7 +6644,16 @@ const DATA = __DATA__;
     crosshair: { mode: 0 },
     handleScroll:true, handleScale:true,
   };
-  const chart = LightweightCharts.createChart(host, Object.assign({height:300}, common));
+  // Bound the chart to its container (like the other bounded charts): a clamped,
+  // FIXED height set once at init, and an explicit starting width = the host's real
+  // content box. The ResizeObserver below then re-applies WIDTH ONLY on resize so the
+  // canvas tracks its column at narrow (mobile) widths without overflowing the page.
+  // (Height is never re-written inside the observer — mutating the observed element's
+  //  box from its own callback risks a resize feedback loop.)
+  const CH_H = Math.max(220, Math.min(300, Math.round(window.innerHeight*0.42)));
+  host.style.height = CH_H + 'px';
+  const chart = LightweightCharts.createChart(host, Object.assign(
+    {width: Math.max(0, host.clientWidth), height: CH_H}, common));
   const ratioLine = chart.addLineSeries({color:'#1f6feb',lineWidth:2,priceLineVisible:false});
   const ma50Line  = chart.addLineSeries({color:'#d29922',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
   const ma200Line = chart.addLineSeries({color:'#6e7681',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
@@ -7289,9 +6687,19 @@ const DATA = __DATA__;
   setRange(252);
   document.querySelectorAll('.rangebar button').forEach(x=>x.classList.remove('on'));
   const oneY=document.querySelector('.rangebar button[data-r="252"]'); if(oneY) oneY.classList.add('on');
-  // Debounced ResizeObserver (~100ms) — avoid a redraw per resize tick.
-  let rzT=null;
-  new ResizeObserver(()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(()=>{ chart.applyOptions({}); },100); }).observe(host);
+  // Keep the canvas bound to its column: on resize, explicitly resize the chart to the
+  // host's current content width (chart.resize is the call that actually re-lays-out the
+  // canvas in this LWC build; applyOptions({width}) alone does not). Height is the fixed
+  // clamped CH_H. We observe the STABLE parent (.chartwrap, whose box we never mutate)
+  // and only call resize() — so there is no resize feedback loop. This stops the chart
+  // overflowing the page at narrow (mobile) widths.
+  let rzT=null, lastW=host.clientWidth;
+  function fit(){
+    const w=host.clientWidth;
+    if(w>0 && w!==lastW){ lastW=w; chart.resize(w, CH_H); }  // width-gated → a resize() can't re-trigger itself
+  }
+  new ResizeObserver(()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(fit,120); }).observe(host.parentElement || host);
+  window.addEventListener('resize', ()=>{ if(rzT) clearTimeout(rzT); rzT=setTimeout(fit,120); });
 
   // Crosshair value readout — hover to see the ratio + its 50/200-MA at the
   // cursor; shows the latest when the cursor is off-chart.
@@ -7325,7 +6733,7 @@ def dash_launchpad() -> HTMLResponse:
     from src.web.cockpit import render_launchpad
     return HTMLResponse(_shell("Launchpad · patearn",
                                render_launchpad(sig_date, idx_date),
-                               "strategies", sig_date or "", wide=True))
+                               "launchpad", sig_date or "", wide=True))
 
 
 @router.get("/dash/index", response_class=HTMLResponse)
@@ -7444,7 +6852,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
         if not curve:
             body = (f'<h2>{_esc(idx)} <span class="sub" style="margin:0">vs {_esc(den)}</span></h2>'
                     '<div class="empty">No ratio series (this is a broad/size index, not a sector).</div>')
-            return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "sectors", idx_date or ""))
+            return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "ratio", idx_date or ""))
 
         sig = conn.execute(
             """SELECT rs_vs_broad_trend_state st, ret_3m_pct r3,
@@ -7485,6 +6893,10 @@ def dash_ratio(idx: str = Query("", max_length=60),
                FROM index_signals, latest
                WHERE trade_date=latest.d AND broad_benchmark IS NOT NULL""",
         ).fetchall()
+
+        # Rotation tail for the mini-RRG (canonical RS-Ratio × RS-Momentum vs den).
+        from src.automation import rrg
+        idx_tail = rrg.tail(idx, den, n=130, conn=conn)
 
         # Top constituents by DVPT trigger.
         syms = _sector_symbols(conn, idx)
@@ -7546,33 +6958,16 @@ def dash_ratio(idx: str = Query("", max_length=60),
         f'(0.6·3m + 0.4·6m RS slope, ranked across {n_mom} sectors).</div>'
         f'<div class="card"><div class="bar"><span style="width:{pctl}%"></span></div></div>')
 
-    # --- Absolute × Relative quadrant SVG ---
-    # X = ret_3m_pct (abs), Y = rs_vs_broad_slope_3m (rel). Center origin; clamp.
-    def _clamp(v, lo, hi):
-        return lo if v < lo else (hi if v > hi else v)
-    xv = r3 if r3 is not None else 0.0
-    yv = s3 if s3 is not None else 0.0
-    # Map ±15% to the half-width (75 px). Clamp dot inside the 10..170 box.
-    px = _clamp(90 + (xv / 15.0) * 75.0, 12, 168)
-    py = _clamp(90 - (yv / 15.0) * 75.0, 12, 168)
+    # --- Relative rotation (mini-RRG) — canonical RS-Ratio × RS-Momentum + JdK
+    # quadrants + tail, shared with the depth panel and /dash/rrg (D68). Replaces the
+    # old return×slope "Absolute × Relative" quad whose labels could disagree with it.
+    from src.web.mini_rrg import mini_rrg_card
     quad_html = (
-        '<h2>Absolute × Relative</h2>'
-        '<div class="sub">X = 3m return (abs) · Y = 3m RS slope (vs Nifty 500). '
-        'Top-right = leader; top-left = defensive; bottom-right = lazy laggard.</div>'
-        '<div class="card" style="text-align:center">'
-        f'<svg viewBox="0 0 180 180" width="180" height="180" '
-        'style="max-width:100%" xmlns="http://www.w3.org/2000/svg">'
-        '<rect x="10" y="10" width="160" height="160" rx="6" fill="#0d1117" stroke="#30363d"/>'
-        '<line x1="90" y1="10" x2="90" y2="170" stroke="#30363d" stroke-width="1"/>'
-        '<line x1="10" y1="90" x2="170" y2="90" stroke="#30363d" stroke-width="1"/>'
-        '<text x="160" y="24" fill="#484f58" font-size="7" text-anchor="end">LEADER</text>'
-        '<text x="20" y="24" fill="#484f58" font-size="7">DEFENSIVE</text>'
-        '<text x="160" y="164" fill="#484f58" font-size="7" text-anchor="end">LAZY LAGGARD</text>'
-        '<text x="20" y="164" fill="#484f58" font-size="7">LAGGARD</text>'
-        '<text x="172" y="93" fill="#6e7681" font-size="6" text-anchor="end">ret→</text>'
-        '<text x="93" y="16" fill="#6e7681" font-size="6">RS↑</text>'
-        f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5" fill="#1f6feb" stroke="#79c0ff" stroke-width="1.5"/>'
-        '</svg></div>')
+        '<h2>Relative rotation</h2>'
+        f'<div class="sub">RS-Ratio &times; RS-Momentum vs {_esc(den)}, JdK-normalised ~100 — '
+        'the same read as the depth panel and the full RRG '
+        '(improving &rarr; leading &rarr; weakening &rarr; lagging).</div>'
+        + mini_rrg_card(idx_tail, den=den, tail_label="last ~6 months", size=180))
 
     # --- Auto READ block (deterministic strings, no LLM) ---
     reads = []
@@ -7681,7 +7076,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
             return f"{x:,.{d}f}{suf}" if x is not None else "—"
 
         pts = IR.get("pts")
-        trend_pill = (f'<span class="pill p-{st}">{st[:5]}</span>'
+        trend_pill = (f'<span class="pill p-{st}">{_state_label(st)}</span>'
                       if (st and st != "—") else "—")
         kpi = (
             '<div class="kpi">'
@@ -7714,7 +7109,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
             + f'<div class="sub" style="margin:6px 0 2px"><b>Returns</b> &nbsp;{rets}</div>'
             + f'<div class="sub" style="margin:0 0 10px"><b>Technicals</b> &nbsp;{techs}</div>')
 
-    chip = f' <span class="pill p-{st}">{st[:5]}</span>' if st and st != "—" else ''
+    chip = f' <span class="pill p-{st}">{_state_label(st)}</span>' if st and st != "—" else ''
     other = "Nifty 50" if den == "Nifty 500" else "Nifty 500"
     chart_css = """
 .rangebar { display:flex; gap:6px; margin:8px 0 4px; }
@@ -7757,7 +7152,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
 {consts_html}
 {chart_js}
 """
-    return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "sectors",
+    return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "ratio",
                                idx_date or ""))
 
 
@@ -8310,7 +7705,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
             + picker_html
             + '<div class="empty">No indices selected. Use <b>+ Add</b> or a preset above.</div>'
             + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-        return HTMLResponse(_shell("Compare · patearn", body, "markets", idx_date or ""))
+        return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or ""))
 
     # Note any selected series that has no data for the current mode.
     note = ""
@@ -8382,7 +7777,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
         + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-    return HTMLResponse(_shell("Compare · patearn", body, "markets", idx_date or ""))
+    return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or ""))
 
 
 # Picker JS (plain template) — reveals the add box, filters suggestion chips by
@@ -8560,15 +7955,17 @@ _MANIFEST = """{
   ]
 }"""
 
+# CL-DASH-12: PWA icon = the patearn header mark (uptrend line + the cyan/green dot), NOT
+# the legacy Hermes "H" glyph. The brand is patearn; the bare "H" was a leftover. The line
+# rises and centres so the mark reads at any size; the dot is the same accent the topbar
+# logo uses. (Hermes survives only as the Nous agent name, not the product brand.)
 _ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <rect width="512" height="512" rx="96" fill="#0e1116"/>
 <rect width="512" height="512" rx="96" fill="#161b22"/>
-<g stroke="#1f6feb" stroke-width="34" stroke-linecap="round" fill="none">
-  <path d="M120 360 L210 250 L290 300 L392 150"/>
+<g stroke="#1f6feb" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path d="M104 372 L208 248 L296 312 L408 156"/>
 </g>
-<circle cx="392" cy="150" r="26" fill="#3fb950"/>
-<text x="256" y="452" font-family="system-ui,Segoe UI,sans-serif" font-size="92"
-      font-weight="800" fill="#e6edf3" text-anchor="middle">H</text>
+<circle cx="408" cy="156" r="34" fill="#3fb950"/>
 </svg>"""
 
 # Network-first service worker: always try fresh data, fall back to cache offline.

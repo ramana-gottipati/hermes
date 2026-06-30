@@ -1,4 +1,9 @@
-"""/dash/testing — the strategy TESTING lab.
+"""/dash/testing — the "Strategy validation" surface (Trust altitude).
+
+Reframed (Lane N2, nav-IA pass): this is no longer a "strategy lens" — it is the
+audit-grade RIGOR EVIDENCE that sits under Trust, alongside Coverage. It surfaces the
+honest backtest record, including the verdict that nothing beats buy-and-hold net of
+cost. We test our strategies and report what fails — that is the institutional wedge.
 
 Reads the persistent registry (research.db: strategy_registry / strategy_runs /
 strategy_holdings) so backtested strategies + their current holdings live IN THE APP,
@@ -96,25 +101,44 @@ def _disp(name):
 
 @router.get("/dash/testing", response_class=HTMLResponse)
 def testing_page():
+    # Degrade gracefully when research.db is absent (a demo laptop / clean checkout /
+    # missing data dir): NEVER 500 — render a polished "unavailable" state instead.
+    con = None
     try:
         con = sqlite3.connect(f"file:{RESEARCH_DB}?mode=ro", uri=True)
     except Exception:
-        con = sqlite3.connect(RESEARCH_DB)
-    try:
         try:
-            reg = _registry(con)
-            holds = _holdings(con)
-        except sqlite3.OperationalError:
-            reg, holds = [], {}
-        nruns = con.execute("SELECT COUNT(*) FROM strategy_runs").fetchone()[0] if reg else 0
-    finally:
-        con.close()
+            con = sqlite3.connect(RESEARCH_DB)
+        except Exception:
+            con = None
+    reg, holds, nruns = [], {}, 0
+    if con is not None:
+        try:
+            try:
+                reg = _registry(con)
+                holds = _holdings(con)
+            except sqlite3.OperationalError:
+                reg, holds = [], {}
+            nruns = con.execute("SELECT COUNT(*) FROM strategy_runs").fetchone()[0] if reg else 0
+        except Exception:
+            reg, holds, nruns = [], {}, 0
+        finally:
+            con.close()
 
     if not reg:
-        body = ("<div class='tlab'>" + _CSS + "<h2>Strategy testing</h2>"
-                "<div class='lead'>Registry empty. Seed it on the VPS:<br>"
-                "<code>python -m explosive_moves.strategy_store --seed</code></div></div>")
-        return HTMLResponse(_shell("Strategy testing", body, active="testing", wide=True))
+        if con is None:
+            heading = "Strategy validation — unavailable in this environment"
+            lead = ("The strategy-research database (<code>research.db</code>) is not present on "
+                    "this host, so the validation record cannot render here. It is populated on the "
+                    "production environment; this surface is read-only and never fabricates results — "
+                    "absence is shown as absence, not a fabricated number.")
+        else:
+            heading = "Strategy validation"
+            lead = ("Validation registry empty. Seed it on the VPS:<br>"
+                    "<code>python -m explosive_moves.strategy_store --seed</code>")
+        body = ("<div class='tlab'>" + _CSS + f"<h2>{html.escape(heading)}</h2>"
+                f"<div class='lead'>{lead}</div></div>")
+        return HTMLResponse(_shell("Strategy validation", body, active="testing", wide=True))
 
     rows = ""
     for nm, cat, status, sh, cg, dd, cost, cm, cap in reg:
@@ -143,16 +167,21 @@ def testing_page():
 
     body = (
         "<div class='tlab'>" + _CSS +
-        "<h2>Strategy testing</h2>"
-        "<div class='lead'>The research lab — every strategy we've backtested, its results, and the "
-        "current holdings of the deployable candidates. Saved in <code>research.db</code> "
+        "<h2>Strategy validation</h2>"
+        "<div class='lead'>A Trust-altitude rigor record, not a strategy lens: every strategy we have "
+        "backtested, its results net of cost, and the current holdings of the deployable candidates — "
+        "published so the failures are as visible as the wins. Saved in <code>research.db</code> "
         f"({len(reg)} strategies · {nruns} backtest runs); refine a signal, re-run, and a new "
-        "timestamped result appears here. <b>Honest verdict so far: none beats buy-and-hold net of cost.</b></div>"
-        "<div class='bar'>⚖️ <b>The bar:</b> <span class='g'>Nifty 500 buy &amp; hold — Sharpe 0.89 / "
-        "CAGR 15.3% / MaxDD −29%</span>. The choice among the rest is a risk-profile call, not alpha.</div>"
+        "timestamped result appears here. <b>Honest verdict so far: none beats buy-and-hold net of cost</b> "
+        "— and we report that rather than bury it. This is the discipline behind every Patearn number.</div>"
+        "<div class='bar'>⚖️ <b>The bar every active strategy must clear:</b> <span class='g'>Nifty 500 "
+        "buy &amp; hold — Sharpe 0.89 / CAGR 15.3% / MaxDD −29%</span>. The choice among the rest is a "
+        "risk-profile call, not alpha.</div>"
         + table + cards +
         "<div class='note'>Realistic metrics are net of per-name cost (tier spread + 0.5×ATR slippage), "
         "walk-forward 2012–26, no look-ahead. Universe for holdings = live Nifty 500 constituents "
-        "(no delisted tickers, no liquid/ETF funds). Research artifact, not investment advice. "
-        "Full narrative: <code>docs/strategy-ledger.md</code>.</div></div>")
-    return HTMLResponse(_shell("Strategy testing", body, active="testing", wide=True))
+        "(no delisted tickers, no liquid/ETF funds). Descriptive research artifact, not investment advice "
+        "and not a performance claim. Full narrative: <code>docs/strategy-ledger.md</code>. "
+        "See also the <a href='/dash/coverage' style='color:#58a6ff'>Coverage &amp; Settlement ledger</a> "
+        "for the data limits behind these tests.</div></div>")
+    return HTMLResponse(_shell("Strategy validation", body, active="testing", wide=True))

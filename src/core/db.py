@@ -947,8 +947,28 @@ CREATE TABLE IF NOT EXISTS company_about (
 """
 
 
+# Identifier guard for the internal DDL helpers below. These take table/column
+# names that are HARDCODED at every call site today (never user input), but the
+# f-string interpolation into ALTER/PRAGMA is an injection shape one careless
+# refactor away from being exploitable (CL-SYS-04). Assert the identifier is a
+# plain SQL name before it ever reaches the statement; the decl is restricted to
+# a small token set (type + simple constraints/defaults), no arbitrary SQL.
+_IDENT_RE = __import__("re").compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_DECL_RE = __import__("re").compile(r"^[A-Za-z0-9_'() .,\-+]+$")
+
+
+def _assert_ident(name: str) -> str:
+    if not isinstance(name, str) or not _IDENT_RE.match(name):
+        raise ValueError(f"unsafe SQL identifier: {name!r}")
+    return name
+
+
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
     """Idempotently add a column to an existing table (SQLite has no IF NOT EXISTS for columns)."""
+    _assert_ident(table)
+    _assert_ident(column)
+    if not isinstance(decl, str) or not _DECL_RE.match(decl):
+        raise ValueError(f"unsafe column declaration: {decl!r}")
     cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
     if column not in cols:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")

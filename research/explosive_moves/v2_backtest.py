@@ -5,6 +5,13 @@ Unified daily engine (25 slots, stop-loss, 0.5%/side cost). Flags:
   exit_top: sell only when a name falls below this rank (buffer; 25=none, 40=buffer)
   vtarget : volatility target (scale exposure down in turbulence) | None
 Reports CAGR / MaxDD / Calmar / Sharpe / 2022 & 2025 (the crash years) / turnover.
+
+NOTE (CX-02, 2026-06-30): entries are LOOK-AHEAD-CORRECTED. Ranks are computed on the
+rebalance-day close, but new positions now fill at the NEXT bar's open (s+1 open),
+matching the rest of the harness (embase/backtest). Previously they filled at the
+same-day close they were ranked on — a 1-bar look-ahead. Any metrics printed below are
+on the corrected, no-look-ahead basis and are NOT comparable to pre-fix runs; treat
+older v2_backtest numbers as look-ahead-inflated.
 """
 import numpy as np
 from collections import deque
@@ -99,10 +106,19 @@ def run(score="riskadj", exit_top=25, vtarget=None, use_sl=True, dd_brake=None, 
             for k in range(N):
                 if slots[k] is None and ni < len(newcomers):
                     sym = newcomers[ni]; ni += 1; idx = D2I[sym].get(d)
-                    if idx is not None:
-                        px = float(cache[sym]["adj_close"][idx])
-                        slots[k] = {"sym": sym, "entry": px, "prev": px, "peak": px, "sl": px * 0.82}
-                        daily[-1] -= CPS / N; buys += 1
+                    # CX-02 (look-ahead fix, same class as CL-RES-03): the ranking in
+                    # rankings() is computed from day-d CLOSE features. Filling the new
+                    # position at that SAME day-d close means we trade on a signal we
+                    # could only know AT the close — a 1-bar look-ahead. Consistent with
+                    # the rest of the harness (signal as-of close s, ENTER at the open of
+                    # s+1), we fill newcomers at the NEXT bar's adj_open. The daily MTM
+                    # loop then books close[s+1]/open[s+1]-1 on the entry day. Skip if the
+                    # next bar doesn't exist for this symbol (no fillable open).
+                    if idx is not None and (idx + 1) < len(cache[sym]["adj_open"]):
+                        px = float(cache[sym]["adj_open"][idx + 1])
+                        if px == px and px > 0:           # finite, positive open
+                            slots[k] = {"sym": sym, "entry": px, "prev": px, "peak": px, "sl": px * 0.82}
+                            daily[-1] -= CPS / N; buys += 1
         eq_run *= (1 + daily[-1]); peak_run = max(peak_run, eq_run)
     eq = np.cumprod(1 + np.array(daily)); peak = np.maximum.accumulate(eq)
     dd = (eq / peak - 1).min(); yrs = len(eq) / 252

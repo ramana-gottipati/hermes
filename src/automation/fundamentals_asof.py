@@ -6,9 +6,13 @@ patterns fall back to "no time-series available → estimated from current value
 (1,983 syms, 2002→2026, point-in-time via report_date) lets us (a) BACKTEST the patearn score
 with no look-ahead, and (b) replace those estimated signals with real trends.
 
-POINT-IN-TIME CONTRACT: a period is only "known" on/after its report_date
-(period_end + 90d annual / 50d quarterly, stamped by fundamentals_history.py). Every read here
-uses ONLY rows with report_date <= as_of — so a backtest can never peek at unfiled results.
+POINT-IN-TIME CONTRACT: a period is only "known" on/after its EFFECTIVE knowable date. By default
+that is the real BSE filing date captured in provenance_knowable (hermes.db), and where no real date
+exists yet, a CONSERVATIVE calibrated lag (period_end + provenance's learned p95), NOT the producer's
+leaky +90/+50 model. So every read here uses ONLY rows knowable by as_of — and a backtest can neither
+peek at unfiled results (the old +50/+90 leaked ~12% for late filers) nor wait longer than the real
+filing. Degrades gracefully to the stored report_date if provenance / hermes.db is unavailable (laptop).
+See provenance.lag_audit() / calibrate_synthetic_lag() and docs/lane-d-knowable-at-and-veto-2026-06-28.md.
 
 OUTPUT: a flat dict using the SAME keys scoring.score_fundamentals already consumes (so it is a
 drop-in — ZERO changes to scoring.py), PLUS richer time-series keys (roce_rising_3y, opm_trend_3y,
@@ -24,10 +28,67 @@ Pure stdlib + sqlite3 (no numpy/pandas) so it imports cleanly in the production 
 """
 from __future__ import annotations
 
+import os
 import sqlite3
+from datetime import date, timedelta
 from typing import Optional
 
 RESEARCH_DB = "/opt/hermes/data/research.db"
+_HERMES_DB = RESEARCH_DB.replace("research.db", "hermes.db")   # provenance_knowable + calibration live here
+
+
+# --- effective knowable date (real BSE date, else conservative calibrated lag) -------------
+
+def _hermes_ro():
+    """READ-ONLY connection to the main hermes.db (holds provenance_knowable + the lag calibration).
+    None if absent (laptop / fresh box) → callers fall back to the stored modeled report_date."""
+    if not os.path.exists(_HERMES_DB):
+        return None
+    try:
+        return sqlite3.connect(f"file:{_HERMES_DB}?mode=ro", uri=True, timeout=20)
+    except sqlite3.Error:
+        return None
+
+
+def _effective_date_map(symbol: str, periods: set, hconn, data_class: str) -> dict:
+    """{(period_type, period_end): effective_knowable_date} for ``symbol`` — the REAL BSE filing date
+    from provenance_knowable where captured, else period_end + the CONSERVATIVE calibrated lag (never
+    the producer's leaky +90/+50). Returns {} (→ caller keeps the stored report_date) if provenance
+    is unavailable, so this is always backward-compatible."""
+    if hconn is None or not periods:
+        return {}
+    try:
+        from src.automation import provenance
+    except Exception:  # noqa: BLE001
+        return {}
+    sym = symbol.upper().strip()
+    real: dict = {}
+    try:
+        for key, knew in hconn.execute(
+                "SELECT key, knowable_at FROM provenance_knowable WHERE data_class=? AND symbol=?",
+                (data_class, sym)):
+            real[key] = knew
+    except sqlite3.Error:
+        return {}
+    lags: dict = {}
+    out: dict = {}
+    for (ptype, pend) in periods:
+        key = provenance.period_key(sym, ptype, pend)
+        v = real.get(key)
+        if v:
+            out[(ptype, pend)] = str(v)[:10]
+            continue
+        if ptype not in lags:
+            try:
+                lags[ptype] = provenance._calibrated_lag(data_class, ptype, conn=hconn)
+            except Exception:  # noqa: BLE001
+                lags[ptype] = None
+        if lags[ptype] is not None:
+            try:
+                out[(ptype, pend)] = (date.fromisoformat(str(pend)[:10]) + timedelta(days=int(lags[ptype]))).isoformat()
+            except ValueError:
+                pass
+    return out
 
 # Screener metric-name fallbacks: banks/NBFCs report Revenue / Financing Margin %
 # instead of Sales / OPM %, and Borrowings is "Borrowing" on a few pages.
@@ -38,8 +99,42 @@ _BORROW = ("Borrowings", "Borrowing")
 
 # --- loading ---------------------------------------------------------------
 
-def load_symbol_history(symbol: str, *, db_path: str = RESEARCH_DB) -> dict:
-    """{(period_type, metric): [(period_end, report_date, value), ...]} sorted by period_end.
+def _build_frame(rows, symbol: str, data_class: str, hconn, *, use_real_knowable: bool) -> dict:
+    """Rows → {(ptype, metric): [(period_end, EFFECTIVE_date, value)]}. The third element is the
+    EFFECTIVE knowable date (real BSE date, else conservative calibrated lag) when use_real_knowable,
+    else the stored modeled report_date — so _known()'s `rdate <= as_of` gate becomes no-leak."""
+    eff = {}
+    if use_real_knowable:
+        own = False
+        if hconn == "__open__":
+            hconn = _hermes_ro(); own = True
+        periods = {(ptype, pend) for (ptype, _m, pend, _r, _v) in rows}
+        eff = _effective_date_map(symbol, periods, hconn, data_class)
+        if own and hconn is not None:
+            hconn.close()
+    frame: dict = {}
+    for ptype, metric, pend, rdate, val in rows:
+        # Normalise the knowable date to an ISO *date* (YYYY-MM-DD). The eff-map values are
+        # already [:10] (see _effective_date_map); the stored-report_date fallback may carry a
+        # timestamp ('2024-05-10 00:00:00') from some ingest paths, and an un-sliced string
+        # compare against a [:10] as_of would lexicographically drop a period knowable *on*
+        # as_of ('2024-05-10 00:00:00' <= '2024-05-10' is False). Slice both sides → no-leak. (CL-PROV-01)
+        kdate = eff.get((ptype, pend), rdate)
+        if kdate is not None:
+            kdate = str(kdate)[:10]
+        frame.setdefault((ptype, metric), []).append((pend, kdate, val))
+    for key in frame:
+        frame[key].sort(key=lambda t: t[0])
+    return frame
+
+
+def load_symbol_history(symbol: str, *, db_path: str = RESEARCH_DB, hconn="__open__",
+                        use_real_knowable: bool = True) -> dict:
+    """{(period_type, metric): [(period_end, effective_knowable_date, value), ...]} sorted by period_end.
+
+    The effective date prefers the REAL BSE filing date (provenance_knowable), else period_end + the
+    conservative calibrated lag. Pass ``use_real_knowable=False`` for the legacy stored-report_date
+    behaviour, or a shared RO ``hconn`` (else one is opened per call) in a large backtest.
 
     One query per symbol — in a backtest, load the frame ONCE and call as_of_from_frame()
     for every rebalance date instead of re-querying.
@@ -52,15 +147,11 @@ def load_symbol_history(symbol: str, *, db_path: str = RESEARCH_DB) -> dict:
             (symbol.upper().strip(),)).fetchall()
     finally:
         con.close()
-    frame: dict = {}
-    for ptype, metric, pend, rdate, val in rows:
-        frame.setdefault((ptype, metric), []).append((pend, rdate, val))
-    for key in frame:
-        frame[key].sort(key=lambda t: t[0])
-    return frame
+    return _build_frame(rows, symbol, "fundamentals_history", hconn, use_real_knowable=use_real_knowable)
 
 
-def load_shareholding_history(symbol: str, *, db_path: str = RESEARCH_DB) -> dict:
+def load_shareholding_history(symbol: str, *, db_path: str = RESEARCH_DB, hconn="__open__",
+                              use_real_knowable: bool = True) -> dict:
     """Same shape as load_symbol_history, for research.db.shareholding_history (period_type 'Q':
     Promoters / FIIs / DIIs / Public / …). Returns {} if the table doesn't exist yet."""
     con = sqlite3.connect(db_path)
@@ -73,12 +164,7 @@ def load_shareholding_history(symbol: str, *, db_path: str = RESEARCH_DB) -> dic
         return {}
     finally:
         con.close()
-    frame: dict = {}
-    for ptype, metric, pend, rdate, val in rows:
-        frame.setdefault((ptype, metric), []).append((pend, rdate, val))
-    for key in frame:
-        frame[key].sort(key=lambda t: t[0])
-    return frame
+    return _build_frame(rows, symbol, "shareholding_history", hconn, use_real_knowable=use_real_knowable)
 
 
 # --- point-in-time selection ----------------------------------------------
@@ -89,8 +175,10 @@ def _known(frame: dict, ptype: str, metric, as_of: str) -> list:
     `metric` may be a tuple of fallback names (first one with data wins).
     """
     names = (metric,) if isinstance(metric, str) else metric
+    as_of = str(as_of)[:10]   # compare ISO date↔ISO date (frame dates are already [:10]; CL-PROV-01)
     for name in names:
-        out = [(pend, val) for pend, rdate, val in frame.get((ptype, name), []) if rdate <= as_of]
+        out = [(pend, val) for pend, rdate, val in frame.get((ptype, name), [])
+               if rdate is not None and rdate <= as_of]
         if out:
             out.sort(key=lambda t: t[0])
             return out
@@ -117,12 +205,38 @@ def _ann_growth(series: list, n: int):
     return _cagr(series[-1 - n][1], series[-1][1], n)
 
 
-def _ttm(series: list):
-    """(ttm, prior_ttm) = sums of the last 4 and previous 4 quarterly values."""
+def _span_days(series: list) -> Optional[int]:
+    """Days between the first and last period_end of `series` (None if unparseable)."""
+    if len(series) < 2:
+        return 0
+    try:
+        d0 = date.fromisoformat(str(series[0][0])[:10])
+        d1 = date.fromisoformat(str(series[-1][0])[:10])
+    except (ValueError, TypeError):
+        return None
+    return (d1 - d0).days
+
+
+def _consecutive_4q(series: list) -> bool:
+    """True only if the last 4 quarterly points span ~1 year (≤370d) → genuinely
+    consecutive. A wider span means a gap was silently collapsed (missing filings),
+    which would corrupt any TTM sum. CL-PROV-15."""
     if len(series) < 4:
+        return False
+    span = _span_days(series[-4:])
+    return span is not None and span <= 370
+
+
+def _ttm(series: list):
+    """(ttm, prior_ttm) = sums of the last 4 and previous 4 quarterly values.
+    Each window must be genuinely consecutive (≤370d span) or it is None — a
+    collapsed gap would otherwise sum non-adjacent quarters. CL-PROV-15."""
+    if len(series) < 4 or not _consecutive_4q(series):
         return None, None
     ttm = sum(v for _, v in series[-4:])
-    prior = sum(v for _, v in series[-8:-4]) if len(series) >= 8 else None
+    prior = (sum(v for _, v in series[-8:-4])
+             if len(series) >= 8 and _consecutive_4q(series[-8:-4])
+             else None)
     return ttm, prior
 
 
@@ -160,7 +274,7 @@ def as_of_from_frame(frame: dict, as_of: str, *, symbol: Optional[str] = None,
     # TTM growth (quarterly)
     sales_ttm, sales_ttm_prior = _ttm(sales_q)
     np_ttm, np_ttm_prior = _ttm(np_q)
-    eps_ttm = sum(v for _, v in eps_q[-4:]) if len(eps_q) >= 4 else None
+    eps_ttm = sum(v for _, v in eps_q[-4:]) if _consecutive_4q(eps_q) else None  # CL-PROV-15
     sales_g_ttm = _cagr(sales_ttm_prior, sales_ttm, 1)
     profit_g_ttm = _cagr(np_ttm_prior, np_ttm, 1)
 
@@ -245,12 +359,18 @@ def as_of_from_frame(frame: dict, as_of: str, *, symbol: Optional[str] = None,
 
 
 def as_of_fundamentals(symbol: str, as_of: str, *, price: Optional[float] = None,
-                       db_path: str = RESEARCH_DB) -> Optional[dict]:
-    """Convenience: load a symbol's history and compute the as-of dict in one call."""
-    frame = load_symbol_history(symbol, db_path=db_path)
-    if not frame:
-        return None
-    sh = load_shareholding_history(symbol, db_path=db_path)
+                       db_path: str = RESEARCH_DB, use_real_knowable: bool = True) -> Optional[dict]:
+    """Convenience: load a symbol's history and compute the as-of dict in one call. Shares ONE
+    read-only hermes.db connection across both loads for the effective-date lookup."""
+    hconn = _hermes_ro() if use_real_knowable else None
+    try:
+        frame = load_symbol_history(symbol, db_path=db_path, hconn=hconn, use_real_knowable=use_real_knowable)
+        if not frame:
+            return None
+        sh = load_shareholding_history(symbol, db_path=db_path, hconn=hconn, use_real_knowable=use_real_knowable)
+    finally:
+        if hconn is not None:
+            hconn.close()
     return as_of_from_frame(frame, as_of, symbol=symbol.upper().strip(), price=price, sh=sh)
 
 

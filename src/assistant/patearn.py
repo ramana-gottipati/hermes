@@ -107,8 +107,14 @@ def run_analysis(ticker: str, extra: str = "", *, use_sonnet: bool = False) -> s
     Default model is HAIKU (cost-conscious choice — Stage 2 of the two-stage
     flow). Pass use_sonnet=True to force the higher-quality Sonnet path for
     manual /analyze calls where the user wants premium analysis.
+
+    CL-SYS-03 invariant: the Sonnet tier is OPT-IN here (use_sonnet defaults False
+    → Haiku). Any user-initiated /analyze caller that wants Sonnet MUST pass
+    use_sonnet=True explicitly — never rely on a global default to pick Sonnet.
+    (Today the Telegram /analyze command is a claude.ai-redirect guide and does not
+    call this; this stays Haiku-by-default for any future automated caller.)
     """
-    from src.core.llm import client
+    from src.core.llm import client, first_text
     from src.core.settings import settings
 
     model = settings.default_model if use_sonnet else settings.fast_model
@@ -127,7 +133,7 @@ def run_analysis(ticker: str, extra: str = "", *, use_sonnet: bool = False) -> s
         getattr(response.usage, "cache_read_input_tokens", 0) or 0,
         getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
     )
-    return response.content[0].text
+    return first_text(response)
 
 
 # --- Stage 1 — cheap pre-screen on earnings news ---------------------------
@@ -173,7 +179,7 @@ def stage1_screen(item: dict) -> dict:
     import json
     import re
 
-    from src.core.llm import client
+    from src.core.llm import client, first_text
     from src.core.settings import settings
 
     user_msg = STAGE1_USER_TEMPLATE.format(
@@ -192,7 +198,7 @@ def stage1_screen(item: dict) -> dict:
         log.error("stage1 screen call failed: %s", e)
         return {"verdict": "SKIP", "rationale": "screen call failed", "symbol": "", "signals": []}
 
-    raw = response.content[0].text.strip()
+    raw = first_text(response).strip()
     # Strip code fences if present
     if raw.startswith("```"):
         raw = re.sub(r"^```(?:json)?", "", raw).strip()

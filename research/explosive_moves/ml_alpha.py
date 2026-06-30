@@ -97,10 +97,21 @@ c, dd, sh, tx = stats(mr)
 print(f"\n  Nifty 500 (same window):     CAGR {c*100:5.1f}%  MaxDD {dd*100:6.1f}%  Sharpe {sh:.2f}")
 
 # does ML beat simple momentum? feature importance
-samp = np.where(oos & ~np.isnan(ml_scores))[0]
-samp = np.random.default_rng(0).choice(samp, size=min(5000, len(samp)), replace=False)
+# CL-RES-15: permutation importance must be measured on rows the model did NOT train on.
+# `mfull` fits on years < 2024, so the evaluation sample is restricted to the held-out
+# years >= 2024 (intersected with the OOS mask). The old code sampled from `oos`
+# (years >= 2016), which overlaps the 2016-2023 training rows -> importances were partly
+# in-sample (inflated for features the tree memorised on the training span).
 mfull = HistGradientBoostingRegressor(max_iter=300, max_depth=4, random_state=0).fit(X[years < 2024], y[years < 2024])
-pi = permutation_importance(mfull, X[samp], y[samp], n_repeats=3, random_state=0)
-print("\n  Top features the model relies on:")
-for j in np.argsort(pi.importances_mean)[::-1][:10]:
-    print(f"     {feat_cols[j]:26} {pi.importances_mean[j]:+.5f}")
+heldout = oos & (years >= 2024) & ~np.isnan(ml_scores)
+samp = np.where(heldout)[0]
+if len(samp) == 0:                                   # safety: never fall back to in-sample rows
+    print("\n  (no held-out rows >= 2024 for permutation importance; skipping)")
+    pi = None
+else:
+    samp = np.random.default_rng(0).choice(samp, size=min(5000, len(samp)), replace=False)
+    pi = permutation_importance(mfull, X[samp], y[samp], n_repeats=3, random_state=0)
+if pi is not None:
+    print("\n  Top features the model relies on (held-out years >= 2024):")
+    for j in np.argsort(pi.importances_mean)[::-1][:10]:
+        print(f"     {feat_cols[j]:26} {pi.importances_mean[j]:+.5f}")

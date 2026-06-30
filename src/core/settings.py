@@ -35,8 +35,15 @@ class Settings(BaseSettings):
     telegram_allowed_user_ids: str = ""
 
     trading_live: bool = False
-    broker_api_key: str = ""
-    broker_api_secret: str = ""
+    # NOTE: broker_api_key / broker_api_secret were removed (CL-SYS-13) — they
+    # were never read anywhere in the codebase (only `trading_live` is used, in
+    # main.py's status payload) and a declared-but-unused secret field is a latent
+    # secret surface. Re-add them here (and in .env) only when live trading is wired.
+
+    # Optional shared secret for the HTTP POST /chat route (CL-SYS-10). The route
+    # spends Anthropic credits; on the LAN-only posture it is left open, but setting
+    # this in .env turns on an X-Hermes-Secret header check (see src/main.py).
+    chat_shared_secret: str = ""
 
     database_url: str = "sqlite:///./data/hermes.db"
 

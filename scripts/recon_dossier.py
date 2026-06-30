@@ -12,6 +12,7 @@ as_of dict (decoupled from VPS code state). Pure stdlib.
 Usage (on VPS):  python3 /tmp/recon_dossier.py > /tmp/dossier.json
 """
 import json
+import re
 import sqlite3
 import sys
 import statistics as st
@@ -68,6 +69,17 @@ def load_eq(symbol):
     return rows
 
 
+def _qident(name: str) -> str:
+    """Quote an SQLite identifier safely. CL-SCR-04: the column names below are
+    discovered from PRAGMA table_info (schema-sourced, not user input today) but were
+    f-string-interpolated into SQL raw — a latent injection shape. We (a) assert the
+    identifier is a plain word and (b) double-quote it (escaping embedded quotes) so it
+    can never be interpreted as anything but an identifier."""
+    if not isinstance(name, str) or not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name):
+        raise ValueError(f"unsafe column identifier from schema: {name!r}")
+    return '"' + name.replace('"', '""') + '"'
+
+
 def find_index_series():
     """Best-effort Nifty 500 close series {date: close}. Returns ({}, name) if absent."""
     con = sqlite3.connect(HERMES_DB)
@@ -81,8 +93,9 @@ def find_index_series():
         closec = next((c for c in cols if c.lower() in ("close", "closing", "close_value", "value", "last")), None)
         if not (namec and datec and closec):
             return {}, None
+        qname, qdate, qclose = _qident(namec), _qident(datec), _qident(closec)
         names = [r[0] for r in con.execute(
-            f"SELECT DISTINCT {namec} FROM index_rows").fetchall() if r[0]]
+            f"SELECT DISTINCT {qname} FROM index_rows").fetchall() if r[0]]
         target = None
         for cand in ("NIFTY 500", "Nifty 500", "NIFTY500", "Nifty 500 Index"):
             if cand in names:
@@ -93,7 +106,7 @@ def find_index_series():
         if not target:
             return {}, None
         rows = con.execute(
-            f"SELECT {datec},{closec} FROM index_rows WHERE {namec}=? AND {closec} IS NOT NULL",
+            f"SELECT {qdate},{qclose} FROM index_rows WHERE {qname}=? AND {qclose} IS NOT NULL",
             (target,)).fetchall()
         return {str(d): float(c) for d, c in rows}, target
     except Exception as e:
@@ -181,9 +194,21 @@ def price_path(eq, as_of, sell, pre_days=252, post_buffer=40, step=3):
     idx_sell = max((i for i, r in enumerate(eq) if r[0] <= sell), default=len(eq) - 1)
     end_i = min(len(eq), idx_sell + post_buffer)
     seg = eq[start_i:end_i]
-    sampled = [(r[0], round(r[4], 2)) for i, r in enumerate(seg) if i % step == 0]
-    if seg and (seg[-1][0], round(seg[-1][4], 2)) != (sampled[-1] if sampled else None):
-        sampled.append((seg[-1][0], round(seg[-1][4], 2)))
+    # CL-SCR-09: down-sampling by `i % step` can skip the exact AS-OF bar (the gold line),
+    # the SELL bar, and the in-window PEAK — on a "zero look-ahead" demo those are the bars
+    # that MUST be on the sparkline at the right x. Force-include their seg-relative indices
+    # alongside the regular stride, so the rendered path lands precisely on each landmark.
+    keep = set(range(0, len(seg), step))
+    keep.add(0)
+    keep.add(len(seg) - 1)
+    for absid in (idx_asof, idx_sell):          # as-of and sell bars (if inside the window)
+        rel = absid - start_i
+        if 0 <= rel < len(seg):
+            keep.add(rel)
+    if seg:                                     # the peak close within the window
+        peak_rel = max(range(len(seg)), key=lambda j: seg[j][4])
+        keep.add(peak_rel)
+    sampled = [(seg[i][0], round(seg[i][4], 2)) for i in sorted(keep)]
     return {"path": sampled, "asof_date": as_of}
 
 

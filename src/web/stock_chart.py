@@ -41,7 +41,9 @@ SNIPPET = """<script>
   // --- the fixed colour grammar (mirrors hermes-charts.js PALETTE) ----------
   var C={up:'#3fb950',down:'#f85149',line:'#1f6feb',dvpt:'#d29922',dvptIdle:'#30506b',
     deliv:'#58a6ff',tval:'#30363d',dval:'#2ea043',vwap:'#f0883e',avwap:'#db61a2',
-    rs:'#39c5cf',wolfe:'#58a6ff',txt:'#8b949e',txtHi:'#e6edf3',dim:'#6e7681',
+    rs:'#39c5cf',wolfe:'#58a6ff',harm:'#f778ba',bb:'#a371f7',atr:'#56d364',
+    vol:'#3b5168',rsi:'#d2a8ff',macd:'#58a6ff',macdSig:'#f0883e',cmp:'#39c5cf',
+    txt:'#8b949e',txtHi:'#e6edf3',dim:'#7e90a8', // --ink-3: AA-safe inline (stylesheet can't reach a JS-set color)
     border:'#30363d',grid:'#21262d',bg:'#161b22'};
   function E(t,css,html){ var n=document.createElement(t); if(css)n.style.cssText=css; if(html!=null)n.innerHTML=html; return n; }
   function hexA(hex,a){ var h=hex.replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
@@ -64,7 +66,14 @@ SNIPPET = """<script>
     // bounded host: height follows the viewport (clamp) instead of a fixed 480 — the
     // old fixed height + width-only observer made the chart grow wide but never tall
     // ("narrow top, broad sides"). max-width keeps it readable on ultra-wide monitors.
-    host.style.cssText='height:clamp(420px,62vh,760px);max-width:1280px;margin:0 auto;position:relative';
+    host.style.cssText='height:clamp(420px,62vh,760px);max-width:1280px;margin:0 auto;position:relative;touch-action:none';
+    // Mobile responsiveness (<=640px): a shorter chart so it isn't awkwardly portrait on a
+    // narrow phone, and the four-family rail wraps + scrolls instead of overflowing the page.
+    // touch-action:none on the host lets lightweight-charts own the pinch/drag gestures.
+    if(!document.getElementById('hsc-mobile')){ var ms=E('style'); ms.id='hsc-mobile';
+      ms.textContent='@media (max-width:640px){#priceChart{height:clamp(300px,52vh,460px)!important}'
+        +'#priceChart .cfs{height:100vh!important}}';
+      document.head.appendChild(ms); }
     var common={ layout:{background:{color:C.bg},textColor:C.txt,fontSize:11},
       grid:{vertLines:{color:C.grid},horzLines:{color:C.grid}},
       timeScale:{borderColor:'#30363d',rightOffset:3},
@@ -76,6 +85,8 @@ SNIPPET = """<script>
     window.__wfcandle=candle;
     var pline=pc.addLineSeries({color:C.line,lineWidth:2,priceLineVisible:false,lastValueVisible:false}); pline.applyOptions({visible:false});
     var parea=pc.addAreaSeries({lineColor:C.line,topColor:'rgba(31,111,235,0.25)',bottomColor:'rgba(31,111,235,0.02)',lineWidth:2,priceLineVisible:false,lastValueVisible:false}); parea.applyOptions({visible:false});
+    // Kagi: a single reversing line (thick/thin reduced to one stepped line for EOD)
+    var kagiL=pc.addLineSeries({color:C.rs,lineWidth:2,lineStyle:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); kagiL.applyOptions({visible:false});
     // Institutional price zones (P1M/P3M/P6M/P12M/R12M) — part of the DVPT
     // footprint, so they show/hide WITH the DVPT chip (retained for toggling;
     // v4 price-lines have no `visible`, so we remove + re-create).
@@ -93,7 +104,8 @@ SNIPPET = """<script>
     pc.priceScale('dvpt').applyOptions({scaleMargins:FLOW});
     var delivL=pc.addLineSeries({priceScaleId:'deliv',color:C.deliv,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     pc.priceScale('deliv').applyOptions({scaleMargins:FLOW}); delivL.applyOptions({visible:false});
-    var tvCap=0; function capInfo(){ return {priceRange:{minValue:0,maxValue:tvCap||1}}; }
+    var tvCap=0, tvCapRT=null;   // tvCapRT = the RT array tvCap was computed for (CL-VIEW-11 cache)
+    function capInfo(){ return {priceRange:{minValue:0,maxValue:tvCap||1}}; }
     var tvalH=pc.addHistogramSeries({priceScaleId:'tv',priceFormat:{type:'volume'},color:C.tval,autoscaleInfoProvider:capInfo,lastValueVisible:false});
     var dvalH=pc.addHistogramSeries({priceScaleId:'tv',priceFormat:{type:'volume'},color:C.dval,autoscaleInfoProvider:capInfo,lastValueVisible:false});
     pc.priceScale('tv').applyOptions({scaleMargins:FLOW}); tvalH.applyOptions({visible:false}); dvalH.applyOptions({visible:false});
@@ -102,6 +114,51 @@ SNIPPET = """<script>
     var vwapL=pc.addLineSeries({color:C.vwap,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); vwapL.applyOptions({visible:false});
     var avwapL=pc.addLineSeries({color:C.avwap,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); avwapL.applyOptions({visible:false});
     var avwapAnchor=null;   // {time} chosen via the AVWAP tool
+
+    // Bollinger Bands (20,2) + ATR bands (close +/- k*ATR) — DESCRIPTIVE volatility
+    // envelopes on the price scale, opt-in. Mid = SMA(20); upper/lower = mid +/- 2*stdev.
+    // ATR bands use a 14-period ATR around the close. No buy/sell semantics — just bands.
+    var bbU=pc.addLineSeries({color:C.bb,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); bbU.applyOptions({visible:false});
+    var bbM=pc.addLineSeries({color:C.bb,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); bbM.applyOptions({visible:false});
+    var bbL=pc.addLineSeries({color:C.bb,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); bbL.applyOptions({visible:false});
+    var atrU=pc.addLineSeries({color:C.atr,lineWidth:1,lineStyle:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); atrU.applyOptions({visible:false});
+    var atrLo=pc.addLineSeries({color:C.atr,lineWidth:1,lineStyle:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); atrLo.applyOptions({visible:false});
+
+    // =========================================================================
+    //  LOWER INDICATOR PANE — a SECOND lightweight-charts instance under the
+    //  price chart (v4 has no native panes), time-synced to it. Volume / RSI(14) /
+    //  MACD(12,26,9), each opt-in. window.__wfpc (the price chart) is UNTOUCHED so
+    //  every overlay keeps binding to it. DESCRIPTIVE — no buy/sell semantics.
+    // =========================================================================
+    var lpHost=E('div','height:0;min-height:0;max-width:1280px;margin:4px auto 0;position:relative;overflow:hidden;transition:min-height .12s');
+    lpHost.id='lowerPane';
+    var lp=LightweightCharts.createChart(lpHost, Object.assign({height:160}, common, {
+      rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.12,bottom:0.08}},
+      timeScale:{borderColor:'#30363d',rightOffset:3,visible:true,minBarSpacing:0.02} }));
+    window.__wflp=lp;   // exposed for completeness; overlays do NOT use it
+    var volH=lp.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'},color:C.vol,lastValueVisible:false}); volH.applyOptions({visible:false});
+    lp.priceScale('vol').applyOptions({scaleMargins:{top:0.12,bottom:0.08}});
+    var rsiL=lp.addLineSeries({priceScaleId:'rsi',color:C.rsi,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); rsiL.applyOptions({visible:false});
+    lp.priceScale('rsi').applyOptions({scaleMargins:{top:0.12,bottom:0.08}});
+    var rsiHi=null, rsiLo=null;   // 70/30 guide lines (created when RSI turns on)
+    var macdH=lp.addHistogramSeries({priceScaleId:'macd',priceFormat:{type:'price',precision:2,minMove:0.01},lastValueVisible:false}); macdH.applyOptions({visible:false});
+    var macdL=lp.addLineSeries({priceScaleId:'macd',color:C.macd,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); macdL.applyOptions({visible:false});
+    var macdSigL=lp.addLineSeries({priceScaleId:'macd',color:C.macdSig,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}); macdSigL.applyOptions({visible:false});
+    lp.priceScale('macd').applyOptions({scaleMargins:{top:0.12,bottom:0.08}});
+
+    // --- indicator math (descriptive) ---------------------------------------
+    function emaSeries(vals,n){ var k=2/(n+1),out=[],e=null; for(var i=0;i<vals.length;i++){ e=(e==null)?vals[i]:(vals[i]*k+e*(1-k)); out.push(e); } return out; }
+    function rsiFrom(R,n){ n=n||14; if(R.length<n+1) return []; var g=0,l=0,out=[];
+      for(var i=1;i<R.length;i++){ var ch=R[i].close-R[i-1].close, up=ch>0?ch:0, dn=ch<0?-ch:0;
+        if(i<=n){ g+=up; l+=dn; if(i===n){ g/=n; l/=n; var rs=l===0?100:g/l; out.push({time:R[i].time,value:l===0?100:(100-100/(1+rs))}); } }
+        else { g=(g*(n-1)+up)/n; l=(l*(n-1)+dn)/n; var rs2=l===0?100:g/l; out.push({time:R[i].time,value:l===0?100:(100-100/(1+rs2))}); } }
+      return out; }
+    function macdFrom(R){ if(R.length<35) return {macd:[],sig:[],hist:[]}; var cl=R.map(function(d){return d.close;});
+      var e12=emaSeries(cl,12), e26=emaSeries(cl,26); var md=[]; for(var i=0;i<cl.length;i++) md.push(e12[i]-e26[i]);
+      var sg=emaSeries(md,9); var macd=[],sig=[],hist=[];
+      for(var j=25;j<R.length;j++){ macd.push({time:R[j].time,value:md[j]}); sig.push({time:R[j].time,value:sg[j]});
+        var hv=md[j]-sg[j]; hist.push({time:R[j].time,value:hv,color:hv>=0?'rgba(63,185,80,.6)':'rgba(248,81,73,.6)'}); }
+      return {macd:macd,sig:sig,hist:hist}; }
 
     // ---- resample (D/W/M/Q) — ported verbatim from the proven inline block ---
     function isoWeekKey(s){ var d=new Date(s+'T00:00:00Z'); var jd=(d.getUTCDay()+6)%7;
@@ -133,28 +190,134 @@ SNIPPET = """<script>
         var ho=(po==null)?(d.open+d.close)/2:(po+pcl)/2; var hh=Math.max(d.high,ho,hc); var hl=Math.min(d.low,ho,hc);
         out.push({time:d.time,open:ho,high:hh,low:hl,close:hc}); po=ho; pcl=hc; }
       return out; }
+    // ---- Renko / Kagi — price-driven transforms keyed on the bar dates --------
+    // EOD-only: lightweight-charts needs a unique ascending time per row, so when
+    // several bricks/reversals complete on one date we keep the LAST one for that date
+    // (faithful enough for daily investing — every intra-day brick has no EOD data).
+    // brick = ATR-of-RT (a self-scaling box, no static rupee threshold — Ramana's rule).
+    function brickSize(R){ var tr=[]; for(var i=1;i<R.length;i++){ var d=R[i],p=R[i-1];
+        tr.push(Math.max(d.high-d.low, Math.abs(d.high-p.close), Math.abs(d.low-p.close))); }
+      if(!tr.length) return null; tr.sort(function(a,b){return a-b;});
+      var med=tr[Math.floor(tr.length/2)]; return med>0?med:null; }
+    function renko(R){ var bs=brickSize(R); if(!bs||R.length<2) return R.map(rawOHLC);
+      var out=[],lastByT={},base=R[0].close,dir=0;
+      function push(t,o,c,up){ var row={time:t,open:o,high:Math.max(o,c),low:Math.min(o,c),close:c,_up:up};
+        if(lastByT[t]!=null) out[lastByT[t]]=row; else { lastByT[t]=out.length; out.push(row); } }
+      for(var i=0;i<R.length;i++){ var px=R[i].close,t=R[i].time;
+        while(px-base>=bs){ var o=base,c=base+bs; base=c; dir=1; push(t,o,c,true); }
+        while(base-px>=bs){ var o2=base,c2=base-bs; base=c2; dir=-1; push(t,o2,c2,false); } }
+      if(!out.length) out=[{time:R[R.length-1].time,open:base,high:base,low:base,close:base,_up:dir>=0}];
+      return out; }
+    function kagi(R){ var bs=brickSize(R); if(!bs||R.length<2) return R.map(function(d){return {time:d.time,value:d.close};});
+      // thick/thin Kagi reduced to a single reversing line (value series): the line only
+      // turns when price reverses by >= one brick from the running extreme.
+      var out=[],lastByT={},ext=R[0].close,dir=0,val=R[0].close;
+      function put(t,v){ if(lastByT[t]!=null) out[lastByT[t]]={time:t,value:v}; else { lastByT[t]=out.length; out.push({time:t,value:v}); } }
+      put(R[0].time,val);
+      for(var i=1;i<R.length;i++){ var px=R[i].close,t=R[i].time;
+        if(dir>=0){ if(px>ext){ ext=px; val=px; } else if(ext-px>=bs){ dir=-1; ext=px; val=px; } else val=ext; }
+        else { if(px<ext){ ext=px; val=px; } else if(px-ext>=bs){ dir=1; ext=px; val=px; } else val=ext; }
+        put(t,val); }
+      return out; }
 
     // ---- apply current rows to every series ---------------------------------
     function paintPrice(){
-      var data=(ctype==='heikin')?heikin(RT):RT.map(rawOHLC);
+      var data;
+      if(ctype==='heikin') data=heikin(RT);
+      else if(ctype==='renko'){ var rk=renko(RT);
+        candle.setData(rk.map(function(d){return {time:d.time,open:d.open,high:d.high,low:d.low,close:d.close};}));
+        // colour each brick by direction (up/down) regardless of open<close ordering
+        candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:'rgba(0,0,0,0)',wickDownColor:'rgba(0,0,0,0)'});
+        pline.setData([]); parea.setData([]); if(kagiL)kagiL.setData([]); return; }
+      else data=RT.map(rawOHLC);
       candle.setData(data);
       pline.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
       parea.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
+      if(kagiL) kagiL.setData(ctype==='kagi'?kagi(RT):[]);
     }
     function applyRows(){
       paintPrice();
       dvptH.setData(RT.map(function(d){return {time:d.time,value:d.dvpt,color:d.hot?C.dvpt:C.dvptIdle};}));
       delivL.setData(RT.filter(function(d){return d.delivN>0;}).map(function(d){return {time:d.time,value:d.delivSum/d.delivN};}));
-      var tv=RT.map(function(d){return d.tval;}).filter(function(v){return v!=null&&v>0;}).sort(function(a,b){return a-b;});
-      tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
+      // CL-VIEW-11: the 98th-pctile traded-value cap depends only on RT (the resampled
+      // rows), which changes only on an interval switch — not on indicator toggles. Cache
+      // it keyed on the RT array identity so a chip toggle no longer re-sorts the full
+      // series. resample() always returns a fresh array, so the identity check is exact.
+      if(tvCapRT!==RT){
+        var tv=RT.map(function(d){return d.tval;}).filter(function(v){return v!=null&&v>0;}).sort(function(a,b){return a-b;});
+        tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
+        tvCapRT=RT;
+      }
       tvalH.setData(RT.filter(function(d){return d.tval!=null;}).map(function(d){return {time:d.time,value:d.tval};}));
       dvalH.setData(RT.filter(function(d){return d.dval!=null;}).map(function(d){return {time:d.time,value:d.dval};}));
       tvalH.setMarkers(tvCap>0?RT.filter(function(d){return d.tval!=null&&d.tval>tvCap;}).map(function(d){return {time:d.time,position:'aboveBar',color:C.dvpt,shape:'arrowUp'};}):[]);
       if(reg.vwap.on) vwapL.setData(vwapFrom(RT,0));
       if(reg.avwap.on) avwapL.setData(vwapFrom(RT, anchorIdx()));
+      if(reg.bb.on){ var bb=bollinger(RT,20,2); bbU.setData(bb.up); bbM.setData(bb.mid); bbL.setData(bb.lo); }
+      if(reg.atr.on){ var ab=atrBands(RT,14,2); atrU.setData(ab.up); atrLo.setData(ab.lo); }
+      paintLower();
       if(draw) draw.redraw();
+      // harmonic: D/W/M is detected on the resampled bars server-side, so when the
+      // interval crosses into (or out of) W/M, re-fetch; otherwise just re-snap.
+      if(reg && reg.harm && reg.harm.on){
+        var want=(iv==='w'||iv==='m')?iv:'d';
+        if(want!==harmTf){ harmData=null; harmToggle(true); }
+        else if(harmData) harmDraw(harmData);
+      }
     }
     function setIv(tf){ iv=tf; RT=resample(tf); applyRows(); }
+
+    // ---- compare state (rebased multi-symbol overlay) — built into cmpBar below
+    var cmpReg={ items:[] };   // [{sym, series:[lwc points], line}]
+    var CMP_COLORS=['#39c5cf','#f0883e','#a371f7','#56d364','#db61a2'];
+
+    // ---- lower pane: recompute the active sub-indicators + manage pane height -
+    var lpReg={
+      vol:{label:'Volume',col:C.vol,on:false},
+      rsi:{label:'RSI 14',col:C.rsi,on:false},
+      macd:{label:'MACD',col:C.macd,on:false}
+    };
+    function lpAnyOn(){ return lpReg.vol.on||lpReg.rsi.on||lpReg.macd.on; }
+    function paintLower(){
+      if(lpReg.vol.on){ volH.setData(RT.map(function(d){ var vol=(d.tval&&d.close)?d.tval/d.close:0;
+        return {time:d.time,value:vol,color:(d.close>=d.open)?'rgba(63,185,80,.45)':'rgba(248,81,73,.45)'}; })); }
+      if(lpReg.rsi.on){ rsiL.setData(rsiFrom(RT,14));
+        if(!rsiHi){ rsiHi=rsiL.createPriceLine({price:70,color:'#6e7681',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'70'});
+          rsiLo=rsiL.createPriceLine({price:30,color:'#6e7681',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'30'}); } }
+      if(lpReg.macd.on){ var m=macdFrom(RT); macdH.setData(m.hist); macdL.setData(m.macd); macdSigL.setData(m.sig); }
+      syncLower();
+    }
+    // the lower pane is bounded + collapses to 0 when nothing is on (no empty strip).
+    // NOTE: the page skin has an !important height rule that beats a plain inline height
+    // on a bare child div, so we drive the host height via min-height + height!important
+    // (min-height also isn't overridden) to make the pane reliably open/collapse.
+    function lpHeight(){ return lpReg.macd.on?180:(lpAnyOn()?150:0); }
+    function applyLowerHeight(){ var hh=lpHeight();
+      lpHost.style.setProperty('height',hh+'px','important');
+      lpHost.style.setProperty('min-height',hh+'px','important');
+      if(hh){ requestAnimationFrame(function(){ lp.applyOptions({width:lpHost.clientWidth||host.clientWidth,height:hh}); syncLower();
+        // a second, delayed sync — on first open the price range may not be readable in
+        // the same frame the pane resizes, leaving the pane on the wrong window.
+        setTimeout(syncLower,120); setTimeout(syncLower,360); }); } }
+    // ONE-WAY sync: the price chart is the master, the lower pane follows it. We sync the
+    // BAR SPACING + the right-edge logical position so the two x-axes line up bar-for-bar
+    // (both carry the full daily series, so logical indices match). Matching barSpacing is
+    // what makes the lower pane show the SAME window — without it LWC re-fits each chart to
+    // its own minBarSpacing and they drift. One-way only (two-way ping-pongs → froze the
+    // renderer); RAF-coalesced.
+    function syncLower(){ if(!lpAnyOn())return; try{
+      var bs=pc.timeScale().options().barSpacing;
+      lp.timeScale().applyOptions({barSpacing:bs, minBarSpacing:0.02, rightOffset:pc.timeScale().scrollPosition()});
+      var r=pc.timeScale().getVisibleLogicalRange(); if(r) lp.timeScale().setVisibleLogicalRange(r);
+    }catch(e){} }
+    var _syncRAF=null;
+    pc.timeScale().subscribeVisibleLogicalRangeChange(function(r){ if(!lpAnyOn()||!r)return;
+      if(_syncRAF)return; _syncRAF=requestAnimationFrame(function(){ _syncRAF=null; syncLower(); }); });
+    function lpToggle(key,v){ lpReg[key].on=v;
+      if(key==='vol') volH.applyOptions({visible:v});
+      else if(key==='rsi'){ rsiL.applyOptions({visible:v}); if(rsiHi){rsiHi.applyOptions({lineWidth:v?1:0});} }
+      else if(key==='macd'){ macdH.applyOptions({visible:v}); macdL.applyOptions({visible:v}); macdSigL.applyOptions({visible:v}); }
+      if(v) paintLower(); applyLowerHeight(); }
 
     // ---- range --------------------------------------------------------------
     function setRange(nn){
@@ -164,11 +327,15 @@ SNIPPET = """<script>
     function curRange(){ var b=document.querySelector('.rangebar button.on'); return b?parseInt(b.dataset.r):0; }
 
     // ---- chart type ---------------------------------------------------------
+    // Families on ONE chart: candle-series renders Candles/Hollow/Heikin/Renko;
+    // pline=Line, parea=Area, kagiL=Kagi. Visibility is mutually exclusive.
     function setType(t){ ctype=t;
-      var isLine=(t==='line'), isArea=(t==='area'), isC=(!isLine&&!isArea);
-      candle.applyOptions({visible:isC}); pline.applyOptions({visible:isLine}); parea.applyOptions({visible:isArea});
+      var isLine=(t==='line'), isArea=(t==='area'), isKagi=(t==='kagi');
+      var isC=(!isLine&&!isArea&&!isKagi);   // candle series carries candle/hollow/heikin/renko
+      candle.applyOptions({visible:isC}); pline.applyOptions({visible:isLine}); parea.applyOptions({visible:isArea}); kagiL.applyOptions({visible:isKagi});
       if(t==='hollow') candle.applyOptions({upColor:'rgba(0,0,0,0)',borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:C.up,wickDownColor:C.down});
-      else if(isC) candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:false,wickUpColor:C.up,wickDownColor:C.down});
+      else if(t==='candle'||t==='heikin') candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:false,wickUpColor:C.up,wickDownColor:C.down});
+      // renko sets its own brick options inside paintPrice
       paintPrice();
     }
 
@@ -180,6 +347,18 @@ SNIPPET = """<script>
       return out; }
     function anchorIdx(){ if(!avwapAnchor)return Math.max(0,RT.length-63);
       for(var i=0;i<RT.length;i++){ if(RT[i].time>=avwapAnchor) return i; } return 0; }
+
+    // ---- Bollinger (n,k) + ATR(n) bands — descriptive volatility envelopes ----
+    function bollinger(R,n,k){ n=n||20; k=k||2; var up=[],mid=[],lo=[];
+      for(var i=0;i<R.length;i++){ if(i<n-1) continue; var s=0; for(var j=i-n+1;j<=i;j++) s+=R[j].close; var m=s/n;
+        var vsum=0; for(var j2=i-n+1;j2<=i;j2++){ var dd=R[j2].close-m; vsum+=dd*dd; } var sd=Math.sqrt(vsum/n);
+        mid.push({time:R[i].time,value:m}); up.push({time:R[i].time,value:m+k*sd}); lo.push({time:R[i].time,value:m-k*sd}); }
+      return {up:up,mid:mid,lo:lo}; }
+    function atrBands(R,n,k){ n=n||14; k=k||2; var tr=[],up=[],lo=[],prevA=null;
+      for(var i=0;i<R.length;i++){ var d=R[i]; var t=(i===0)?(d.high-d.low):Math.max(d.high-d.low,Math.abs(d.high-R[i-1].close),Math.abs(d.low-R[i-1].close)); tr.push(t);
+        var a; if(i<n-1){ continue; } else if(i===n-1){ var s=0; for(var j=0;j<n;j++) s+=tr[j]; a=s/n; } else { a=(prevA*(n-1)+t)/n; }
+        prevA=a; up.push({time:d.time,value:d.close+k*a}); lo.push({time:d.time,value:d.close-k*a}); }
+      return {up:up,lo:lo}; }
 
     // ---- crosshair readout (#priceRdt) — keyed on raw daily, like before ----
     var rdt=document.getElementById('priceRdt');
@@ -204,13 +383,16 @@ SNIPPET = """<script>
     var reg={
       dvpt:{label:'DVPT',col:C.dvpt,on:true, fn:function(v){ dvptH.applyOptions({visible:v}); setZones(v); reflow(); }},
       rs:{label:'RS',col:C.rs,on:false, fn:function(v){ rsToggle(v); }},
+      harm:{label:'Harmonic',col:C.harm,on:false, fn:function(v){ harmToggle(v); }},
       vwap:{label:'VWAP',col:C.vwap,on:false, fn:function(v){ if(v)vwapL.setData(vwapFrom(RT,0)); vwapL.applyOptions({visible:v}); }},
       avwap:{label:'Anchored VWAP',col:C.avwap,on:false, fn:function(v){ if(v){ avwapL.setData(vwapFrom(RT,anchorIdx())); pickAVWAP(); } avwapL.applyOptions({visible:v}); }},
+      bb:{label:'Bollinger',col:C.bb,on:false, fn:function(v){ if(v){ var b=bollinger(RT,20,2); bbU.setData(b.up); bbM.setData(b.mid); bbL.setData(b.lo); } bbU.applyOptions({visible:v}); bbM.applyOptions({visible:v}); bbL.applyOptions({visible:v}); }},
+      atr:{label:'ATR bands',col:C.atr,on:false, fn:function(v){ if(v){ var a=atrBands(RT,14,2); atrU.setData(a.up); atrLo.setData(a.lo); } atrU.applyOptions({visible:v}); atrLo.applyOptions({visible:v}); }},
       deliv:{label:'Delivery %',col:C.deliv,on:false, fn:function(v){ delivL.applyOptions({visible:v}); reflow(); }},
       flow:{label:'Traded \\u20b9',col:C.dval,on:false, fn:function(v){ tvalH.applyOptions({visible:v}); dvalH.applyOptions({visible:v}); reflow(); }}
     };
     function regChip(key){ var o=reg[key]; var c=E('span',chipCss(o.on,o.col),dot(o.col)+o.label);
-      c.onclick=function(){ o.on=!o.on; o.fn(o.on); c.style.cssText=chipCss(o.on,o.col); c.innerHTML=dot(o.col)+o.label; };
+      c.onclick=function(){ o.on=!o.on; o.fn(o.on); c.style.cssText=chipCss(o.on,o.col); c.innerHTML=dot(o.col)+o.label; if(typeof refreshLegend==='function')refreshLegend(); };
       o.chip=c; return c; }
 
     // =========================================================================
@@ -226,9 +408,9 @@ SNIPPET = """<script>
     // -- family 1: chart type (dropdown — types are NOT indicators) ----------
     var typeSel=E('select','background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:12px;padding:4px 8px');
     [['candle','Candles'],['hollow','Hollow candles'],['heikin','Heikin Ashi'],['line','Line'],['area','Area'],
-     ['renko','Renko (soon)',true],['pnf','Point & Figure (soon)',true]].forEach(function(o){
+     ['renko','Renko'],['kagi','Kagi'],['pnf','Point & Figure (soon)',true]].forEach(function(o){
       var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; if(o[2])op.disabled=true; typeSel.appendChild(op); });
-    typeSel.onchange=function(){ if(typeSel.value==='renko'||typeSel.value==='pnf'){ typeSel.value=ctype; return; } setType(typeSel.value); };
+    typeSel.onchange=function(){ if(typeSel.value==='pnf'){ typeSel.value=ctype; return; } setType(typeSel.value); };
 
     // -- family 2: strategies — pre-create #stratBar so CPR/MEP chips land here -
     var stratBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px'); stratBar.id='stratBar';
@@ -238,12 +420,30 @@ SNIPPET = """<script>
     stratBar.appendChild(regChip('dvpt'));      // DVPT first; CPR/MEP append after
     stratBar.appendChild(wfChip);
     stratBar.appendChild(regChip('rs'));
+    var harmChip=regChip('harm');
+    harmChip.title='Harmonic XABCD — read by side (OOS backtest): BULL = a modest, fit-graded selection edge over drift; BEAR \\u2248 short-drift, tail/regime only. Descriptive, not a buy/sell signal.';
+    stratBar.appendChild(harmChip);
 
     // -- family 3: indicators — #cprBar anchors MA's #maBar into this family ---
     var indBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px');
     var maAnchor=E('span','display:inline-block;width:0'); maAnchor.id='cprBar'; indBar.appendChild(maAnchor);
     indBar.appendChild(regChip('vwap')); indBar.appendChild(regChip('avwap'));
+    var bbChip=regChip('bb'); bbChip.title='Bollinger Bands (20, 2\\u03c3) \\u2014 descriptive volatility envelope around a 20-period mean, not a buy/sell signal.'; indBar.appendChild(bbChip);
+    var atrChip=regChip('atr'); atrChip.title='ATR bands (close \\u00b1 2\\u00d7ATR-14) \\u2014 descriptive volatility envelope, not a buy/sell signal.'; indBar.appendChild(atrChip);
     indBar.appendChild(regChip('deliv')); indBar.appendChild(regChip('flow'));
+
+    // -- family: LOWER PANE — volume / RSI / MACD chips drive the synced lower chart
+    var lpBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:6px');
+    function lpChip(key){ var o=lpReg[key]; var c=E('span',chipCss(o.on,o.col),dot(o.col)+o.label);
+      c.onclick=function(){ var nv=!o.on; lpToggle(key,nv); c.style.cssText=chipCss(o.on,o.col); c.innerHTML=dot(o.col)+o.label; refreshLegend(); };
+      o.chip=c; return c; }
+    var volChip=lpChip('vol'); volChip.title='Volume (\\u2248 traded value / close) in a synced lower pane. Descriptive.';
+    var rsiChip=lpChip('rsi'); rsiChip.title='RSI(14) in a synced lower pane, with 30/70 guides. Descriptive momentum oscillator, not a buy/sell signal.';
+    var macdChip=lpChip('macd'); macdChip.title='MACD(12,26,9): line, signal, histogram in a synced lower pane. Descriptive, not a buy/sell signal.';
+    lpBar.appendChild(volChip); lpBar.appendChild(rsiChip); lpBar.appendChild(macdChip);
+
+    // -- family: COMPARE — rebased multi-symbol overlay (focus vs index/peer) --
+    var cmpBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:4px');
 
     // -- family 4: drawings (built below; engine attaches to drawBar) ---------
     var drawBar=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:4px');
@@ -252,6 +452,8 @@ SNIPPET = """<script>
     row1.appendChild(family('Chart type',typeSel)); row1.appendChild(sep());
     row1.appendChild(family('Strategies',stratBar)); row1.appendChild(sep());
     row1.appendChild(family('Indicators',indBar)); row1.appendChild(sep());
+    row1.appendChild(family('Lower pane',lpBar)); row1.appendChild(sep());
+    row1.appendChild(family('Compare',cmpBar)); row1.appendChild(sep());
     row1.appendChild(family('Drawings',drawBar));
     rail.appendChild(row1);
 
@@ -267,9 +469,45 @@ SNIPPET = """<script>
     if(wfLbl){ var st=E('span','font-size:12px;color:'+C.txt); st.appendChild(wfLbl); row2.appendChild(st); }
     rail.appendChild(row2);
 
+    // -- legend / "Read" strip — names what each ACTIVE overlay means so the chart
+    //    reads as a workstation, not a wall of lines. Descriptive grammar; updates
+    //    on every toggle. Harmonic carries its read-by-side backtest caveat here.
+    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid #161b22;margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt);
+    rail.appendChild(legend);
+    var LEGEND={
+      dvpt:[C.dvpt,'DVPT','rupee value traded; amber = institutional (1m+) day'],
+      rs:[C.rs,'RS','relative strength vs the broad market (docked lane)'],
+      harm:[C.harm,'Harmonic','XABCD reversal geometry — read by side: BULL = modest fit-graded edge, BEAR = tail/regime-only'],
+      vwap:[C.vwap,'VWAP','session volume-weighted average price'],
+      avwap:[C.avwap,'Anchored VWAP','VWAP from a chosen anchor bar'],
+      bb:[C.bb,'Bollinger','20-period mean \\u00b1 2\\u03c3 volatility envelope (descriptive)'],
+      atr:[C.atr,'ATR bands','close \\u00b1 2\\u00d7ATR(14) volatility envelope (descriptive)'],
+      deliv:[C.deliv,'Delivery %','share of traded volume taken to delivery'],
+      flow:[C.dval,'Traded / Delivery \\u20b9','rupee traded vs delivered value']
+    };
+    var LEGEND_LP={
+      vol:[C.vol,'Volume','traded volume (\\u2248 value/close) \\u2014 lower pane'],
+      rsi:[C.rsi,'RSI 14','momentum oscillator, 30/70 guides \\u2014 lower pane (descriptive)'],
+      macd:[C.macd,'MACD','12/26/9 line, signal, histogram \\u2014 lower pane (descriptive)']
+    };
+    function legRow(col,name,desc){ return '<span style="display:inline-flex;align-items:center;gap:5px">'
+        +'<span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'
+        +'<b style="color:'+C.txtHi+'">'+name+'</b><span style="color:'+C.dim+'">'+desc+'</span></span>'; }
+    function refreshLegend(){ var rows=[];
+      for(var k in LEGEND){ if(reg[k]&&reg[k].on){ var L=LEGEND[k]; rows.push(legRow(L[0],L[1],L[2])); } }
+      for(var k2 in LEGEND_LP){ if(lpReg[k2]&&lpReg[k2].on){ var L2=LEGEND_LP[k2]; rows.push(legRow(L2[0],L2[1],L2[2])); } }
+      if(cmpReg&&cmpReg.items.length){ rows.push(legRow(C.cmp,'Compare','rebased to 100 at window start \\u2014 '+cmpReg.items.map(function(c){return c.sym;}).join(', ')+' (descriptive)')); }
+      legend.innerHTML=rows.join(''); legend.style.display=rows.length?'flex':'none'; }
+
     // mount rail just above the chart box; hide the now-folded old rows + panes
     var wrap=host.closest('.chartwrap');
     if(wrap&&wrap.parentNode) wrap.parentNode.insertBefore(rail, wrap); else host.parentNode.insertBefore(rail, host);
+    // mount the lower pane just BELOW the whole .chartwrap (NOT inside it — .chartwrap
+    // constrains its children's height to the price chart, which clipped the pane to 0).
+    // Collapsed (height:0) until a Volume/RSI/MACD chip turns on.
+    var cwrap=host.closest('.chartwrap');
+    if(cwrap&&cwrap.parentNode) cwrap.parentNode.insertBefore(lpHost, cwrap.nextSibling);
+    else if(host.parentNode) host.parentNode.insertBefore(lpHost, host.nextSibling);
     if(ctBar) ctBar.style.display='none';
     if(wfRow) wfRow.style.display='none';
     ['dvptChart','delivChart','tvChart'].forEach(function(id){ var el=document.getElementById(id); if(el){ var w=el.closest('.chartwrap'); if(w)w.style.display='none'; } });
@@ -292,11 +530,12 @@ SNIPPET = """<script>
     var draw=makeDraw(pc,candle,host,drawBar,function(){return RT;});
 
     // boot
-    setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]); reflow();
+    setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]); reflow(); refreshLegend();
     // observe BOTH width and height (the old observer watched width only -> chart grew
     // wide but never tall); height now tracks the clamp + the fullscreen container.
-    var ro=new ResizeObserver(function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h}); });
-    ro.observe(host);
+    var ro=new ResizeObserver(function(){ var w=host.clientWidth,h=host.clientHeight; if(w&&h)pc.applyOptions({width:w,height:h});
+      var lw=lpHost.clientWidth, lh=lpHost.clientHeight; if(lw&&lh)lp.applyOptions({width:lw,height:lh}); });
+    ro.observe(host); ro.observe(lpHost);
     // fullscreen (the requested "enlarge") — pure CSS overlay, no route change; the
     // ResizeObserver above refits the chart to the full viewport and back.
     (function(){
@@ -321,16 +560,127 @@ SNIPPET = """<script>
       if(rsLoaded){ if(rsL)rsL.applyOptions({visible:true}); reflow(); return; }
       rsLoaded=true; reflow(); var sym=new URLSearchParams(location.search).get('sym')||'';
       fetch('/dash/rs/overlay?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
-        if(!d||!d.series||!d.series.length){ reg.rs.on=false; if(reg.rs.chip){reg.rs.chip.style.cssText=chipCss(false,C.rs);reg.rs.chip.innerHTML=dot(C.rs)+'RS';} reflow(); return; }
+        if(!d||!d.series||!d.series.length){ reg.rs.on=false; if(reg.rs.chip){reg.rs.chip.style.cssText=chipCss(false,C.rs);reg.rs.chip.innerHTML=dot(C.rs)+'RS';} reflow(); refreshLegend(); return; }
         rsL=pc.addLineSeries({priceScaleId:'rs',color:C.rs,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:'RS vs '+(d.benchmark||'Nifty 500')});
         pc.priceScale('rs').applyOptions({scaleMargins:{top:0.74,bottom:0.04}});  // docked in the bottom band, not over the candles
         rsL.setData(d.series.map(function(p){return {time:p.t,value:p.v};}));
       }).catch(function(){ rsLoaded=false; });
     }
 
+    // -------- Harmonic XABCD overlay (Strategies) — fetch /dash/harmonic/overlay -----
+    // Draws each detected pattern's X-A-B-C-D polyline + point markers (+ a projected PRZ
+    // band for FORMING) on the price pane (window.__wfpc). DESCRIPTIVE — read by side per
+    // the backtest (docs/harmonic-pattern-design.md: bull = edge, bear = tail). Point
+    // dates are re-snapped onto the current bars so it survives the D/W/M/Q resample.
+    var harmData=null, harmSeries=[];
+    function snapT(t){ if(iv==='d')return t; var best=t,bd=1e18;
+      for(var i=0;i<RT.length;i++){ var dd=Math.abs(new Date(RT[i].time)-new Date(t)); if(dd<bd){bd=dd;best=RT[i].time;} } return best; }
+    function harmClear(){ harmSeries.forEach(function(s){try{pc.removeSeries(s);}catch(e){}}); harmSeries=[]; }
+    function harmDraw(pats){
+      harmClear(); if(!pats) return;
+      pats.forEach(function(p){
+        var bull=p.dir==='BULL', col=bull?C.up:C.down, dashed=p.state==='FORMING';
+        var seen={},clean=[];
+        p.points.forEach(function(q){ var t=snapT(q.t); if(!seen[t]){ seen[t]=1; clean.push({time:t,value:q.price}); } });
+        if(clean.length<2) return;
+        var ls=pc.addLineSeries({color:col,lineWidth:2,lineStyle:dashed?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:function(){return null;}});
+        ls.setData(clean);
+        ls.setMarkers(p.points.map(function(q,i){ var hi=bull?(i%2===1):(i%2===0);
+          return {time:snapT(q.t),position:hi?'aboveBar':'belowBar',color:col,shape:'circle',text:q.label}; }));
+        harmSeries.push(ls);
+        if(p.state==='FORMING'&&p.prz){ var ct=snapT(p.points[p.points.length-1].t),rt=RT[RT.length-1].time;
+          [p.prz.lo,p.prz.hi].forEach(function(lv){ if(lv==null)return;
+            var z=pc.addLineSeries({color:C.harm,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:function(){return null;}});
+            z.setData([{time:ct,value:lv},{time:rt,value:lv}]); harmSeries.push(z); }); }
+      });
+    }
+    // harmonic timeframe (d/w/m) — detected on resampled bars server-side. Defaults to
+    // 'd'; switching the price interval to W/M re-fetches W/M harmonics (the multi-TF
+    // detection hand-off). The overlay returns the patterns for whatever tf is asked.
+    var harmTf='d';
+    function harmFetch(){ var sym=new URLSearchParams(location.search).get('sym')||'';
+      var tf=(iv==='w'||iv==='m')?iv:'d';
+      return fetch('/dash/harmonic/overlay?sym='+encodeURIComponent(sym)+'&tf='+tf).then(function(r){return r.json();}); }
+    function harmToggle(v){
+      if(!v){ harmClear(); return; }
+      if(harmData && harmTf===((iv==='w'||iv==='m')?iv:'d')){ harmDraw(harmData); return; }
+      harmFetch().then(function(d){
+        harmTf=(iv==='w'||iv==='m')?iv:'d';
+        if(!d||!d.patterns||!d.patterns.length){ reg.harm.on=false; harmData=null; harmClear();
+          if(reg.harm.chip){ reg.harm.chip.style.cssText=chipCss(false,C.harm); reg.harm.chip.innerHTML=dot(C.harm)+'Harmonic'; }
+          refreshLegend(); return; }
+        harmData=d.patterns; harmDraw(harmData);
+      }).catch(function(){});
+    }
+
     // anchored-VWAP: arm a one-shot click to choose the anchor bar
     function pickAVWAP(){ var once=function(p){ if(p&&p.time){ avwapAnchor=tkey(p.time); avwapL.setData(vwapFrom(RT,anchorIdx())); } pc.unsubscribeClick(once); };
       pc.subscribeClick(once); }
+
+    // =======================================================================
+    //  COMPARE — rebased multi-symbol overlay (focus vs index/peer), base 100
+    //  at the window start, on a dedicated overlay price scale so the candles
+    //  stay untouched. DESCRIPTIVE relative-performance lens, not a signal.
+    // =======================================================================
+    var cmpScaleInit=false, focusCmpLine=null;
+    // Compare is a RECENT relative-performance lens — cap to ~2y (504 trading days) so it
+    // is both analytically meaningful (rebased to 100 at the window start) and light
+    // (rendering 5400-pt lines for every compared name froze the renderer). All legs share
+    // the same window so they're directly comparable.
+    var CMP_WINDOW=504;
+    function tailWin(rows){ return (rows&&rows.length>CMP_WINDOW)?rows.slice(rows.length-CMP_WINDOW):rows; }
+    function rebaseToWindow(rows){ // rows=[{t|time, c}] ascending -> [{time,value}] base 100 at first
+      rows=tailWin(rows); if(!rows||rows.length<2) return [];
+      var base=null; for(var i=0;i<rows.length;i++){ if(rows[i].c){ base=rows[i].c; break; } }
+      if(!base) return [];
+      return rows.map(function(r){ var tm=(r.time!=null?r.time:r.t); return {time:tm, value:r.c?(r.c/base*100):null}; })
+                 .filter(function(p){return p.value!=null&&p.time!=null;});
+    }
+    function ensureCmpScale(){ if(cmpScaleInit) return;
+      pc.priceScale('cmp').applyOptions({scaleMargins:{top:0.06,bottom:0.28},visible:true}); cmpScaleInit=true; }
+    function focusRows(){ return S0.map(function(d){return {time:d.time,c:d.close};}); }   // focus stock raw close
+    function drawFocusCmp(on){
+      if(on){ ensureCmpScale(); if(!focusCmpLine){ focusCmpLine=pc.addLineSeries({priceScaleId:'cmp',color:C.txtHi,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:(new URLSearchParams(location.search).get('sym')||'this')}); }
+        focusCmpLine.setData(rebaseToWindow(focusRows())); focusCmpLine.applyOptions({visible:true}); }
+      else if(focusCmpLine){ focusCmpLine.applyOptions({visible:false}); } }
+    var cmpMsgEl=null;
+    function cmpMsg(t){ if(!cmpBar)return; if(!cmpMsgEl){ cmpMsgEl=E('span','font-size:11px;color:#d29922;margin-left:4px'); }
+      cmpMsgEl.textContent=t||''; if(t&&cmpMsgEl.parentNode!==cmpBar)cmpBar.appendChild(cmpMsgEl);
+      if(t)setTimeout(function(){ if(cmpMsgEl)cmpMsgEl.textContent=''; },3500); }
+    function addCompare(name){ name=(name||'').trim(); if(!name) return;
+      if(cmpReg.items.length>=4){ cmpMsg('Up to 4 symbols'); return; }
+      if(cmpReg.items.some(function(c){return c.sym.toUpperCase()===name.toUpperCase();})) return;
+      cmpMsg('loading '+name+'\\u2026');
+      fetch('/dash/compare/series?sym='+encodeURIComponent(name)).then(function(r){return r.json();}).then(function(d){
+        if(!d||!d.series||d.series.length<2){ cmpMsg('No series for "'+name+'"'); return; }
+        cmpMsg('');
+        ensureCmpScale(); drawFocusCmp(true);
+        var col=CMP_COLORS[cmpReg.items.length%CMP_COLORS.length];
+        var ln=pc.addLineSeries({priceScaleId:'cmp',color:col,lineWidth:1.5,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:d.sym});
+        ln.setData(rebaseToWindow(d.series));
+        cmpReg.items.push({sym:d.sym,line:ln,col:col});
+        renderCmpBar(); refreshLegend(); reflowCmp();
+      }).catch(function(err){ try{console.error('compare add failed:',err&&err.message,err);}catch(e){} cmpMsg('Could not load "'+name+'"'); });
+    }
+    function removeCompare(i){ var it=cmpReg.items[i]; if(!it) return; try{ pc.removeSeries(it.line); }catch(e){}
+      cmpReg.items.splice(i,1);
+      if(!cmpReg.items.length){ drawFocusCmp(false); if(cmpScaleInit){ pc.priceScale('cmp').applyOptions({visible:false}); } }
+      renderCmpBar(); refreshLegend(); reflowCmp(); }
+    function reflowCmp(){ /* keep candles readable: when compare is on, the cmp scale shares the right gutter */ }
+    // ---- the Compare family UI (input + add + per-symbol chips) -------------
+    function renderCmpBar(){ if(!cmpBar) return; cmpBar.innerHTML='';
+      var inp=document.createElement('input'); inp.type='text'; inp.placeholder='+ symbol / index';
+      inp.title='Add a symbol or index to compare (rebased to 100 at the window start)';
+      inp.style.cssText='background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:12px;padding:3px 7px;width:120px';
+      inp.onkeydown=function(e){ if(e.key==='Enter'){ addCompare(inp.value); inp.value=''; } };
+      var addb=E('span','cursor:pointer;font-size:12px;color:#8b949e;border:1px solid #30363d;border-radius:6px;padding:3px 8px','add');
+      addb.onclick=function(){ addCompare(inp.value); inp.value=''; };
+      cmpBar.appendChild(inp); cmpBar.appendChild(addb);
+      cmpReg.items.forEach(function(c,i){ var ch=E('span',chipCss(true,c.col),dot(c.col)+c.sym+' \\u00d7');
+        ch.title='Remove '+c.sym; ch.style.cursor='pointer'; ch.onclick=function(){ removeCompare(i); }; cmpBar.appendChild(ch); }); }
+    renderCmpBar();   // initial: just the input + add
+    // expose a hook so the UI builder (below, after rail mount) can attach
+    window.__cmpAdd=addCompare; window.__cmpRemove=removeCompare;
   }
 
   // ===========================================================================
@@ -339,11 +689,40 @@ SNIPPET = """<script>
   function makeDraw(pc, series, host, bar, getRows){
     var sym=new URLSearchParams(location.search).get('sym')||'_';
     var KEY='hdraw:'+sym;
+    // localStorage = instant + offline cache; the SERVER store (/dash/drawings) is the
+    // source of truth when reachable, so drawings follow you across device + browser.
     var items=[]; try{ items=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ items=[]; }
     var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null;
     var FIB=[0,0.236,0.382,0.5,0.618,0.786,1];
+    // Fib EXTENSION levels — project targets beyond the move (a→b): 0/0.618/1 mark the
+    // measured move, 1.272/1.618/2.0/2.618 are the extension targets. Descriptive geometry.
+    var FIBX=[0,0.618,1,1.272,1.618,2,2.618];
 
-    function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+    // ---- server persistence (debounced) -------------------------------------
+    var saveT=null, lastSent=null;
+    function pushServer(){
+      if(sym==='_') return;                       // no symbol → local-only
+      var body=JSON.stringify(items);
+      if(body===lastSent) return;                 // nothing changed since last push
+      lastSent=body;
+      try{ fetch('/dash/drawings?sym='+encodeURIComponent(sym),
+        {method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true})
+        .catch(function(){}); }catch(e){}
+    }
+    function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){}
+      if(saveT) clearTimeout(saveT); saveT=setTimeout(pushServer, 600); }   // coalesce rapid edits
+    // flush a pending save when the tab is hidden / unloaded (don't lose the last edit)
+    window.addEventListener('beforeunload', function(){ if(saveT){ clearTimeout(saveT); pushServer(); } });
+    // on load, adopt the server copy if it has drawings (it wins over the local cache);
+    // if the server is empty but we have a local cache, seed the server from it (migration).
+    if(sym!=='_'){
+      try{ fetch('/dash/drawings?sym='+encodeURIComponent(sym)).then(function(r){return r.json();}).then(function(d){
+        var srv=(d&&Array.isArray(d.items))?d.items:[];
+        if(srv.length){ items=srv; try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){}
+          lastSent=JSON.stringify(items); sel=null; redraw(); }
+        else if(items.length){ pushServer(); }   // first-time migration: local -> server
+      }).catch(function(){}); }catch(e){}
+    }
     function bars(){ return getRows(); }
     function nearestBarX(x){ var R=bars(),ts=pc.timeScale(),best=null,bd=1e9;
       for(var i=0;i<R.length;i++){ var cx=ts.timeToCoordinate(R[i].time); if(cx==null)continue; var dd=Math.abs(cx-x); if(dd<bd){bd=dd;best=R[i];} } return best; }
@@ -371,16 +750,23 @@ SNIPPET = """<script>
         function one(d,isSel){ var col=isSel?'#e6edf3':(d.col||'#58a6ff');
           if(d.t==='hline'){ hline(d.a,col); var pa=px(d.a); if(pa)txt(n2(d.a.price),6*h,(pa.y-4)*v,col); return; }
           if(d.t==='text'){ var pa=px(d.a); if(pa){ txt(d.text||'text',(pa.x+4)*h,pa.y*v,col); } return; }
-          if(d.t==='trend'){ L(d.a,d.b,col,isSel?2:1.4); return; }
+          if(d.t==='trend'){ L(d.a,d.b,col,isSel?Math.max(2,(d.w||1.4)):(d.w||1.4)); return; }
           if(d.t==='measure'){ L(d.a,d.b,col,1.4,true); var pb=px(d.b); if(pb){ var dp=d.b.price-d.a.price,pctv=d.a.price?dp/d.a.price*100:0;
-              txt((dp>=0?'+':'')+n2(dp)+' ('+(pctv>=0?'+':'')+pctv.toFixed(1)+'%)',(pb.x+6)*h,pb.y*v,col); } return; }
+              var nb=barsBetween(d.a.time,d.b.time), days=calDays(d.a.time,d.b.time);
+              var w=(d.col||col)*1; var lw=(isSel?2:1.4);
+              txt((dp>=0?'+':'')+n2(dp)+' ('+(pctv>=0?'+':'')+pctv.toFixed(1)+'%)',(pb.x+6)*h,(pb.y-6)*v,col);
+              txt(nb+' bars \\u00b7 '+days+'d',(pb.x+6)*h,(pb.y+9)*v,hexA(col==='#e6edf3'?'#39c5cf':col,0.95)); } return; }
           if(d.t==='rect'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var X=Math.min(pa.x,pb.x)*h,Y=Math.min(pa.y,pb.y)*v,Wd=Math.abs(pb.x-pa.x)*h,Hd=Math.abs(pb.y-pa.y)*v;
-            x.fillStyle=hexA(col==='#e6edf3'?'#58a6ff':col,0.10); x.fillRect(X,Y,Wd,Hd); x.strokeStyle=col;x.lineWidth=1*v;x.setLineDash([]);x.strokeRect(X,Y,Wd,Hd); return; }
-          if(d.t==='fib'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var x0=Math.min(pa.x,pb.x),x1=Math.max(pa.x,pb.x);
-            for(var i=0;i<FIB.length;i++){ var pr=d.a.price+(d.b.price-d.a.price)*FIB[i]; var py=series.priceToCoordinate(pr); if(py==null)continue;
-              x.strokeStyle=isSel?'#e6edf3':hexA('#d29922',0.8);x.lineWidth=1*v;x.setLineDash([]); x.beginPath();x.moveTo(x0*h,py*v);x.lineTo(x1*h,py*v);x.stroke();
-              txt(FIB[i].toFixed(3)+'  '+n2(pr),(x1+4)*h,py*v,hexA('#d29922',0.95)); } return; }
+            x.fillStyle=hexA(col==='#e6edf3'?'#58a6ff':col,0.10); x.fillRect(X,Y,Wd,Hd); x.strokeStyle=col;x.lineWidth=(isSel?2:1)*v;x.setLineDash([]);x.strokeRect(X,Y,Wd,Hd); return; }
+          if(d.t==='fib'||d.t==='fibext'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var x0=Math.min(pa.x,pb.x),x1=Math.max(pa.x,pb.x);
+            var LV=(d.t==='fibext')?FIBX:FIB, fcol=(d.t==='fibext')?'#a371f7':'#d29922';
+            for(var i=0;i<LV.length;i++){ var pr=d.a.price+(d.b.price-d.a.price)*LV[i]; var py=series.priceToCoordinate(pr); if(py==null)continue;
+              x.strokeStyle=isSel?'#e6edf3':hexA(fcol,0.8);x.lineWidth=1*v;x.setLineDash(LV[i]>1?[3*h,2*h]:[]); x.beginPath();x.moveTo(x0*h,py*v);x.lineTo(x1*h,py*v);x.stroke(); x.setLineDash([]);
+              txt(LV[i].toFixed(3)+'  '+n2(pr),(x1+4)*h,py*v,hexA(fcol,0.95)); } return; }
         }
+        // bars/time helpers (closure over the current resampled rows)
+        function barsBetween(t0,t1){ var R=bars(),i0=-1,i1=-1; for(var i=0;i<R.length;i++){ if(i0<0&&R[i].time>=t0)i0=i; if(R[i].time<=t1)i1=i; } if(i0<0||i1<0)return 0; return Math.abs(i1-i0); }
+        function calDays(t0,t1){ var a=new Date(t0),b=new Date(t1); return Math.round(Math.abs(b-a)/86400000); }
         for(var i=0;i<items.length;i++) one(items[i], items[i]===sel);
         if(draft) one(draft,false);
         // anchor handles on the selected drawing
@@ -403,7 +789,7 @@ SNIPPET = """<script>
         if(d.t==='hline'){ if(Math.abs(pa.y-y)<6) return d; continue; }
         if(d.t==='text'){ if(Math.abs(pa.x-x)<40&&Math.abs(pa.y-y)<12) return d; continue; }
         var pb=d.b?px(d.b):null; if(!pb)continue;
-        if(d.t==='rect'||d.t==='fib'){ if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+4&&y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d; continue; }
+        if(d.t==='rect'||d.t==='fib'||d.t==='fibext'){ if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+4&&y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d; continue; }
         // segment distance for trend/measure
         var dx=pb.x-pa.x,dy=pb.y-pa.y,L2=dx*dx+dy*dy; var tt=L2?((x-pa.x)*dx+(y-pa.y)*dy)/L2:0; tt=Math.max(0,Math.min(1,tt));
         var qx=pa.x+tt*dx,qy=pa.y+tt*dy; if(Math.hypot(x-qx,y-qy)<6) return d; }
@@ -427,7 +813,7 @@ SNIPPET = """<script>
       if(dragging){ dragging=null; save(); } }
     cap.addEventListener('pointerdown',onDown); cap.addEventListener('pointermove',onMove); window.addEventListener('pointerup',onUp);
 
-    function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',measure:'#39c5cf'}[t]||'#58a6ff'; }
+    function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',fibext:'#a371f7',measure:'#39c5cf'}[t]||'#58a6ff'; }
     function setTool(t){ tool=(tool===t)?null:t; cap.style.pointerEvents=(tool||editing)?'auto':'none';
       pc.applyOptions({handleScroll:!tool,handleScale:!tool}); paintTools(); }
     var editing=false;
@@ -437,7 +823,7 @@ SNIPPET = """<script>
 
     // --- the Drawings family UI -------------------------------------------
     var TOOLS=[['trend','\\u2571','Trend line'],['hline','\\u2014','Horizontal line'],['rect','\\u25ad','Rectangle'],
-      ['fib','F','Fib retracement'],['measure','\\u22b9','Measure'],['text','T','Text']];
+      ['fib','F','Fib retracement'],['fibext','Fx','Fib extension (project targets beyond the move)'],['measure','\\u22b9','Measure (\\u0394price, \\u0394%, bars, days)'],['text','T','Text']];
     var btns={};
     function tbtn(css,title,html){ var b=E('span',css,html); b.title=title; return b; }
     function baseBtn(on){ return 'cursor:pointer;font-size:13px;line-height:1;color:'+(on?'#e6edf3':'#8b949e')+';border:1px solid '+(on?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px;min-width:22px;text-align:center'; }
@@ -450,11 +836,58 @@ SNIPPET = """<script>
     var mag=tbtn('','Magnet — snap to nearest OHLC (still draggable)','\\ud83e\\uddf2 magnet'); mag.onclick=function(){ magnet=!magnet; paintTools(); }; btns._mag=mag; bar.appendChild(mag);
     var hide=tbtn('','Hide all drawings (tap again to restore)','hide all'); hide.onclick=function(){ hidden=!hidden; paintTools(); redraw(); }; btns._hide=hide; bar.appendChild(hide);
     var clear=tbtn('cursor:pointer;font-size:11px;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:3px 7px','Delete all drawings','clear');
-    clear.onclick=function(){ if(items.length&&confirm('Delete all '+items.length+' drawing(s)?')){ items=[]; sel=null; save(); redraw(); } }; bar.appendChild(clear);
+    clear.onclick=function(){ if(items.length&&confirm('Delete all '+items.length+' drawing(s)?')){ items=[]; sel=null; save(); renderPanel(); redraw(); } }; bar.appendChild(clear);
+
+    // =====================================================================
+    //  DRAWING MANAGER — per-drawing style (colour/width) + delete-one + a
+    //  list panel + export / import JSON. Caps + never-throws like the store.
+    // =====================================================================
+    var WIDS=[1,1.4,2,3];
+    var manageBtn=tbtn('cursor:pointer;font-size:11px;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:3px 7px','Manage drawings (style / delete / export)','\\u2261 list'); bar.appendChild(manageBtn);
+    var panel=E('div','display:none;position:absolute;top:100%;right:0;z-index:20;margin-top:4px;width:280px;max-height:300px;overflow:auto;background:#0e1320;border:1px solid '+C.border+';border-radius:8px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.5);font-family:-apple-system,Segoe UI,sans-serif');
+    // anchor the panel to the rail's drawings cell (bar) so it floats under the controls
+    if(bar&&bar.style){ bar.style.position='relative'; } bar.appendChild(panel);
+    function dlabel(d){ return {trend:'Trend',hline:'H-line',rect:'Rect',fib:'Fib',fibext:'Fib ext',measure:'Measure',text:'Text'}[d.t]||d.t; }
+    function renderPanel(){
+      if(panel.style.display==='none') return;
+      panel.innerHTML='';
+      var head=E('div','display:flex;justify-content:space-between;align-items:center;margin-bottom:6px');
+      head.appendChild(E('span','font-size:11px;color:'+C.txtHi+';font-weight:600','Drawings ('+items.length+')'));
+      var io=E('div','display:flex;gap:4px');
+      var exp=E('span','cursor:pointer;font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:4px;padding:2px 6px','export'); exp.title='Download all drawings as JSON'; exp.onclick=exportJSON;
+      var imp=E('span','cursor:pointer;font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:4px;padding:2px 6px','import'); imp.title='Load drawings from a JSON file (replaces current)'; imp.onclick=importJSON;
+      io.appendChild(exp); io.appendChild(imp); head.appendChild(io); panel.appendChild(head);
+      if(!items.length){ panel.appendChild(E('div','font-size:11px;color:'+C.dim+';padding:6px 2px','No drawings yet. Pick a tool and draw on the chart.')); return; }
+      items.forEach(function(d,idx){
+        var row=E('div','display:flex;align-items:center;gap:6px;padding:3px 0;border-top:1px solid #161b22');
+        var sw=document.createElement('input'); sw.type='color'; sw.value=normHex(d.col||toolCol(d.t)); sw.title='Colour';
+        sw.style.cssText='width:22px;height:18px;border:none;background:none;padding:0;cursor:pointer';
+        sw.oninput=function(){ d.col=sw.value; save(); redraw(); };
+        var nm=E('span','flex:1;font-size:11px;color:'+C.txt,dlabel(d)+(d.t==='text'&&d.text?(': '+esc(d.text).slice(0,14)):''));
+        nm.style.cursor='pointer'; nm.title='Select on chart'; nm.onclick=function(){ sel=d; redraw(); };
+        var wsel=document.createElement('select'); wsel.style.cssText='background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;font-size:10px;padding:1px 2px';
+        WIDS.forEach(function(w){ var op=document.createElement('option'); op.value=w; op.textContent=w+'px'; if((d.w||1.4)==w)op.selected=true; wsel.appendChild(op); });
+        wsel.title='Line width'; wsel.onchange=function(){ d.w=parseFloat(wsel.value); save(); redraw(); };
+        var del=E('span','cursor:pointer;font-size:13px;color:#f85149;padding:0 3px','\\u00d7'); del.title='Delete this drawing';
+        del.onclick=function(){ var i=items.indexOf(d); if(i>=0){ items.splice(i,1); if(sel===d)sel=null; save(); renderPanel(); redraw(); } };
+        row.appendChild(sw); row.appendChild(nm); row.appendChild(wsel); row.appendChild(del); panel.appendChild(row);
+      });
+    }
+    function esc(s){ return (s||'').replace(/[<>&]/g,''); }
+    function normHex(c){ if(!c)return '#58a6ff'; if(/^#[0-9a-fA-F]{6}$/.test(c))return c; if(/^#[0-9a-fA-F]{3}$/.test(c))return '#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]; return '#58a6ff'; }
+    function exportJSON(){ try{ var blob=new Blob([JSON.stringify(items,null,2)],{type:'application/json'});
+      var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='drawings_'+sym+'.json'; a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); },1000); }catch(e){} }
+    function importJSON(){ try{ var inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json';
+      inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(!f)return; var rd=new FileReader();
+        rd.onload=function(){ try{ var arr=JSON.parse(rd.result); if(Array.isArray(arr)){ items=arr.slice(0,500); sel=null; save(); renderPanel(); redraw(); } else alert('That file is not a drawings array.'); }catch(e){ alert('Could not parse that JSON.'); } };
+        rd.readAsText(f); }; inp.click(); }catch(e){} }
+    manageBtn.onclick=function(){ var open=panel.style.display==='none'; panel.style.display=open?'block':'none';
+      manageBtn.style.cssText='cursor:pointer;font-size:11px;color:'+(open?'#e6edf3':'#8b949e')+';border:1px solid '+(open?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px'; if(open)renderPanel(); };
     paintTools();
 
     // Del key removes the selected drawing while editing
-    window.addEventListener('keydown',function(e){ if((e.key==='Delete'||e.key==='Backspace')&&sel){ var i=items.indexOf(sel); if(i>=0){ items.splice(i,1); sel=null; save(); redraw(); e.preventDefault(); } } });
+    window.addEventListener('keydown',function(e){ if((e.key==='Delete'||e.key==='Backspace')&&sel){ var i=items.indexOf(sel); if(i>=0){ items.splice(i,1); sel=null; save(); renderPanel(); redraw(); e.preventDefault(); } } });
 
     return { redraw:redraw };
   }

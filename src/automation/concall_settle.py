@@ -55,6 +55,31 @@ _UP = ("grow", "growth", "increase", "improv", "expand", "higher", "double", "tr
 _DOWN = ("reduce", "decline", "lower", "cut", "delever", "deleverage", "fall", "moderat", "soften", "down")
 MET_TOL, MISS_TOL = 0.97, 0.90       # revenue level bands; margin uses pp bands below
 
+# --- scope/scale commensurability gate (QA-round2 #3 fix) ---------------------
+# A LEVEL (₹cr) promise is settled against concall_results.revenue, which is the
+# CONSOLIDATED top line. Many promises name a SEGMENT / SUBSIDIARY / BRAND / product
+# line ("Campa should cross ₹1,000cr", "JioStar revenue ₹9,497cr", "TDPS Turkey
+# topline") whose figure is a small fraction of the group line. Dividing such a
+# target into consolidated revenue produced absurd Δ (+26038.8%) and a spurious MET.
+# We cannot reliably map a segment figure to a segment actual (we don't have the
+# segment P&L), so the conservative fix is: when the consolidated actual is grossly
+# INCOMMENSURATE with the target (actual ≫ target by a large factor, i.e. the target
+# is clearly not the consolidated line) OR the claim explicitly scopes to a named
+# sub-entity, DON'T emit a Δ/MET/MISSED — mark UNSETTLEABLE (scope mismatch). This
+# can only SUPPRESS a wrong verdict; it never invents a new comparison.
+#
+# JUDGEMENT CALL flagged for the analyst (Ramana): the factor below is the cut between
+# "a plausibly-beaten consolidated target" and "a segment/scale mismatch". Audit of
+# the live ledger shows genuine consolidated MET/MISS sit at |Δ|≲100% (actual≈target),
+# while every inspected case with actual ≥ ~3× target (|Δ|≳200%) is a segment / sub-line
+# / wrong-magnitude extraction, not a real 3-bagger beat. We set the guard at 3× as a
+# CONSERVATIVE default (suppresses only the clearly-incommensurate tail). Tighten/loosen
+# per methodology preference; it is intentionally a single named constant.
+SCOPE_SCALE_FACTOR = 3.0             # actual ≥ 3×target ⇒ target is not the consolidated line ⇒ unsettleable
+# explicit sub-entity cues: when present AND the scale is also off, double-confirms scope mismatch
+_SEGMENT_CUES = ("brand", "subsidiary", "division", "segment", " business", "retail", "jiostar",
+                 "jio platforms", "per month", "per annum", "/t", "per ton", "per tonne")
+
 
 def _qadd(fy: int, q: int, n: int):
     t = fy * 4 + (q - 1) + n
@@ -62,18 +87,21 @@ def _qadd(fy: int, q: int, n: int):
 
 
 def _resolve(rq_fy: int, rq_q: int, horizon: Optional[str]):
-    """Reported quarter (rq) + horizon → the (fy,quarter) that settles the promise."""
+    """Reported quarter (rq) + horizon → ((fy, quarter), want_annual) that settles the
+    promise. `want_annual` is True when the promise is a FULL-YEAR ('fy') target — it
+    must settle against the annual actual, NOT the Q4 QUARTERLY figure that shares the
+    (fy, 4) key (CX-01)."""
     h = horizon or "next_q"
     if h == "this_q":
-        return _qadd(rq_fy, rq_q, 1)            # the quarter in progress at the call
+        return _qadd(rq_fy, rq_q, 1), False     # the quarter in progress at the call
     if h == "next_q":
-        return _qadd(rq_fy, rq_q, 2)
+        return _qadd(rq_fy, rq_q, 2), False
     if h == "fy":
         fy1, _ = _qadd(rq_fy, rq_q, 1)
-        return fy1, 4                            # FY-end of the in-progress year
+        return (fy1, 4), True                    # FY-end of the in-progress year (full-year)
     if h == "multiyear_3_5y":
-        return _qadd(rq_fy, rq_q, 12)
-    return _qadd(rq_fy, rq_q, 2)
+        return _qadd(rq_fy, rq_q, 12), False
+    return _qadd(rq_fy, rq_q, 2), False
 
 
 def settle_symbol(conn, symbol: str) -> dict:
@@ -82,6 +110,21 @@ def settle_symbol(conn, symbol: str) -> dict:
     results = {(r["fy"], r["quarter"]): dict(r) for r in conn.execute(
         "SELECT fy, quarter, period_label, revenue, ebitda_margin, rev_yoy_pct, ebitda_yoy_pct "
         "FROM concall_results WHERE symbol=?", (symbol,)).fetchall()}
+    # Deep actuals: fill the gaps Screener's quarterly concall_results can't reach
+    # (pre-~FY2019 + the broad universe) from the 24-yr fundamentals_history archive.
+    # Same shape, so the grading below is unchanged; PIT by construction. concall_results
+    # wins where present (setdefault); the archive only fills resolving periods it lacks.
+    # CX-01: deep_actuals now keys the full-year figure at (fy, FY_QUARTER) and the
+    # genuine Q4 QUARTERLY figure at (fy, 4); both merge in by setdefault (Screener's
+    # quarterly concall_results still win the (fy, 1..4) slots where present).
+    FY_QUARTER = "FY"
+    try:
+        from src.automation.cci_deep_actuals import deep_actuals, FY_QUARTER as _FYQ
+        FY_QUARTER = _FYQ
+        for k, v in deep_actuals(symbol).items():
+            results.setdefault(k, v)
+    except Exception as e:  # noqa: BLE001 - the archive must never break settlement
+        log.debug("%s: deep actuals unavailable: %s", symbol, e)
     out = {"settled": 0, "met": 0, "missed": 0, "partial": 0, "ongoing": 0}
 
     for g in conn.execute("SELECT * FROM concall_guidance WHERE symbol=? AND status='OPEN'", (symbol,)).fetchall():
@@ -95,8 +138,19 @@ def settle_symbol(conn, symbol: str) -> dict:
         src = cmap.get(g["source_period"])
         if not src or not src[0]:
             continue
-        rfy, rq = _resolve(src[0], src[1], g["horizon"])
-        res = results.get((rfy, rq))
+        (rfy, rq), want_annual = _resolve(src[0], src[1], g["horizon"])
+        # CX-01: route by granularity. A FULL-YEAR ('fy') promise settles against the
+        # annual actual at (rfy, FY_QUARTER); a QUARTERLY promise (incl. one resolving
+        # to Q4) settles against the (rfy, quarter) QUARTERLY actual. If the matching
+        # granularity isn't available, the promise stays OPEN — we NEVER fall back to
+        # the other granularity (no annual-vs-quarterly mixing, no look-ahead).
+        if want_annual:
+            res = results.get((rfy, FY_QUARTER))
+        else:
+            res = results.get((rfy, rq))
+            # defensive: never grade a quarterly promise against an annual-typed row.
+            if res is not None and res.get("period_type") == "A":
+                res = None
         if not res:
             continue                              # not reported yet → stays OPEN (no look-ahead)
 
@@ -106,8 +160,18 @@ def settle_symbol(conn, symbol: str) -> dict:
         status, var = None, None
 
         if metric == "revenue" and tgt is not None and unit in ("rs_cr", "cr") and actual is not None and tgt:
-            var = round(100.0 * (actual - tgt) / abs(tgt), 1)
-            status = "MET" if actual >= tgt * MET_TOL else ("MISSED" if actual < tgt * MISS_TOL else "PARTIAL")
+            # scope/scale gate: a segment/sub-line target divided into the CONSOLIDATED
+            # actual yields garbage. Two conservative triggers, either ⇒ UNSETTLEABLE:
+            #  (a) the consolidated line dwarfs the target (≥3×) — not a consolidated promise;
+            #  (b) the claim explicitly names a sub-entity (brand/subsidiary/segment/…)
+            #      AND the scale is already off (≥1.5×) — corroborated scope mismatch.
+            claim_l = (g["claim_text"] or "").lower()
+            seg_cue = any(c in claim_l for c in _SEGMENT_CUES)
+            if abs(actual) >= abs(tgt) * SCOPE_SCALE_FACTOR or (seg_cue and abs(actual) >= abs(tgt) * 1.5):
+                status, var = "UNSETTLEABLE", None
+            else:
+                var = round(100.0 * (actual - tgt) / abs(tgt), 1)
+                status = "MET" if actual >= tgt * MET_TOL else ("MISSED" if actual < tgt * MISS_TOL else "PARTIAL")
         elif metric == "revenue" and tgt is not None and "%" in unit and yoy is not None:
             var = round(yoy - tgt, 1)            # growth-MAGNITUDE promise ("grow 15%") vs actual YoY
             status = "MET" if yoy >= tgt * 0.9 else ("MISSED" if yoy < tgt * 0.7 else "PARTIAL")
@@ -126,12 +190,19 @@ def settle_symbol(conn, symbol: str) -> dict:
                 status = "MET" if ((up and got_up) or (down and not got_up)) else "MISSED"
                 var = yoy
 
-        if status:
+        if status == "UNSETTLEABLE":
+            # scope/scale mismatch: record the state but NOT a resolution — no
+            # resolved_period, no variance. Excluded from settled/met/missed so it
+            # never enters the credibility rank (guidance-accuracy or Δ).
+            conn.execute("UPDATE concall_guidance SET status='UNSETTLEABLE', resolved_period=NULL, "
+                         "variance_pct=NULL, updated_at=datetime('now') WHERE id=?", (g["id"],))
+            out["unsettleable"] = out.get("unsettleable", 0) + 1
+        elif status:
             conn.execute("UPDATE concall_guidance SET status=?, resolved_period=?, variance_pct=?, "
                          "updated_at=datetime('now') WHERE id=?", (status, res["period_label"], var, g["id"]))
             out["settled"] += 1
             out[status.lower()] = out.get(status.lower(), 0) + 1
-    if out["settled"] or out["ongoing"]:
+    if out["settled"] or out["ongoing"] or out.get("unsettleable"):
         log.info("%s: %s", symbol, out)
     return out
 

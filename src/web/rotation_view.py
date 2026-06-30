@@ -36,14 +36,21 @@ except Exception:
 
 router = APIRouter()
 
-# Phase → (label, accent, dim-bg). Mirrors cockpit._WEATHER / rrg_view.QCOLOR so
-# the rotation is visually consistent with the weather badges and the RRG.
+# Phase → (label, accent, dim-bg). ONE colour contract (pitch D-PITCH-2): the rotation
+# weather reads in the site's value language — green=strength/up (--up #3fd486),
+# red=weakness/down (--down #ff6a7a), amber=caution (--warn #f6b73c). Strengthening half
+# is the green family (Recovery = a lighter, not-yet-confirmed tint of --up → Tailwind =
+# full-strength --up); weakening half runs amber (a leader cracking) → red (weak &
+# weakening). Blue (--accent #4d9dff) stays the neutral accent site-wide and is
+# deliberately NOT used here so it never re-reads as "bull". Descriptive lifecycle, not a
+# buy/sell signal. NOTE: cockpit._WEATHER / rrg_view.QCOLOR still carry the legacy palette
+# (other lanes) — flagged for the same D-PITCH-2 remap so the badges/RRG re-converge.
 PHASE = {
-    "RECOVERY":     ("🌅 Recovery",     "#79c0ff", "#0d2233"),
-    "TAILWIND":     ("🌤 Tailwind",     "#7ee787", "#16341f"),
-    "ROLLING-OVER": ("⛅ Rolling over",  "#ffd99a", "#3a3417"),
-    "HEADWIND":     ("🌧 Headwind",     "#ffa198", "#3a1a1a"),
-    "NEUTRAL":      ("☁ Neutral",       "#8b949e", "#21262d"),
+    "RECOVERY":     ("🌅 Recovery",     "#7fe6b0", "#10271d"),
+    "TAILWIND":     ("🌤 Tailwind",     "#3fd486", "#102a1d"),
+    "ROLLING-OVER": ("⛅ Rolling over",  "#f6b73c", "#2e2611"),
+    "HEADWIND":     ("🌧 Headwind",     "#ff6a7a", "#2e161b"),
+    "NEUTRAL":      ("☁ Neutral",       "#7e90a8", "#1a232f"),
 }
 # grid order = the RRG quadrant layout (top-left, top-right, bottom-left, bottom-right)
 GRID = ("RECOVERY", "TAILWIND", "HEADWIND", "ROLLING-OVER")
@@ -57,7 +64,7 @@ def _esc(s) -> str:
 def _pct(v, dp: int = 1) -> str:
     if v is None:
         return '<span style="color:#6e7681">—</span>'
-    col = "#3fb950" if v > 0 else ("#f85149" if v < 0 else "#8b949e")
+    col = "#3fd486" if v > 0 else ("#ff6a7a" if v < 0 else "#8b949e")
     return f'<span style="color:{col}">{v:+.{dp}f}</span>'
 
 
@@ -65,19 +72,19 @@ def _marks(r: dict) -> str:
     """The §4b leverage reads as compact pills."""
     out = []
     if r.get("rs_leads_price"):
-        out.append('<span class="rmk" style="color:#58a6ff" title="RS at a new 52w high while price still off its high">RS▲&gt;price</span>')
+        out.append('<span class="rmk" style="color:#4d9dff" title="RS at a new 52w high while price still off its high">RS▲&gt;price</span>')
     if r.get("rs_accel_up"):
-        out.append('<span class="rmk" style="color:#3fb950" title="term structure stacked up (1m&gt;3m&gt;6m&gt;12m)">⚡accel</span>')
+        out.append('<span class="rmk" style="color:#3fd486" title="term structure stacked up (1m&gt;3m&gt;6m&gt;12m)">⚡accel</span>')
     if r.get("rs_accel_down"):
-        out.append('<span class="rmk" style="color:#f85149" title="term structure stacked down">⚡down</span>')
+        out.append('<span class="rmk" style="color:#ff6a7a" title="term structure stacked down">⚡down</span>')
     if r.get("delivery_confirmed"):
-        out.append('<span class="rmk" style="color:#d2a8ff" title="DVPT power-day / accumulation coincides — turn is delivery-confirmed">✅deliv</span>')
+        out.append('<span class="rmk" style="color:#b18cff" title="DVPT power-day / accumulation coincides — turn is delivery-confirmed">✅deliv</span>')
     if r.get("abs_trend_up"):
-        out.append('<span class="rmk" style="color:#3fb950" title="absolute price trend up (3m drift &gt; 0) — dual-momentum">abs✔</span>')
+        out.append('<span class="rmk" style="color:#3fd486" title="absolute price trend up (3m drift &gt; 0) — dual-momentum">abs✔</span>')
     if r.get("rsi_overbought"):
-        out.append('<span class="rmk" style="color:#d29922" title="RSI-of-RS &gt; 70 — relative move extended, do not chase">RSI hot</span>')
+        out.append('<span class="rmk" style="color:#f6b73c" title="RSI-of-RS &gt; 70 — relative move extended, do not chase">RSI hot</span>')
     if r.get("rsi_oversold"):
-        out.append('<span class="rmk" style="color:#58a6ff" title="RSI-of-RS &lt; 30 — washed-out, earliest turn tell">RSI cold</span>')
+        out.append('<span class="rmk" style="color:#4d9dff" title="RSI-of-RS &lt; 30 — washed-out, earliest turn tell">RSI cold</span>')
     return " ".join(out)
 
 
@@ -201,7 +208,7 @@ def _cell(phase: str) -> str:
             f'<td style="text-align:right">{_marks(r)}</td></tr>')
     table = (f'<table><tbody>{"".join(body)}</tbody></table>' if body
              else '<div class="sub" style="margin:6px 0">None right now.</div>')
-    more = (f'<div style="margin-top:6px"><a class="row" style="color:#58a6ff" '
+    more = (f'<div style="margin-top:6px"><a class="row" style="color:#4d9dff" '
             f'href="/dash/rotation?phase={quote_plus(phase)}">See all {len(rows)} →</a></div>'
             if len(rows) > 7 else "")
     return (f'<div class="rq" style="border-color:{col}33">'
@@ -272,12 +279,12 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
         except Exception:
             has = None
         if not has:
-            return HTMLResponse(_shell("RS rotation", _CSS + _empty(), active="markets", wide=True))
+            return HTMLResponse(_shell("RS rotation · patearn", _CSS + _empty(), active="markets", wide=True))
+        # CL-VIEW-18: banner + movers share the one open connection (was two get_conn()
+        # contexts per request). _cell/_table below open their own conns via stock_rs.
         banner = _banner(conn)
-    grid = '<div class="rgrid">' + "".join(_cell(p) for p in GRID) + '</div>'
-    movers = ""
-    with get_conn() as conn:
         movers = _movers(conn)
+    grid = '<div class="rgrid">' + "".join(_cell(p) for p in GRID) + '</div>'
     head = ('<h2 style="margin-bottom:2px">RS rotation '
             '<span class="sub" style="margin:0">the four-phase weather rotation · stock × sector</span></h2>'
             '<div class="sub" style="margin-top:2px">Clockwise: 🌅 Recovery → 🌤 Tailwind → '
@@ -285,4 +292,4 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
             'share the phase). Table below = every member of the selected phase, full RS term structure.</div>')
     body = ('<div class="rwrap">' + head + banner + grid + movers
             + _pills(phase) + _table(phase) + '</div>')
-    return HTMLResponse(_shell("RS rotation", _CSS + body, active="markets", wide=True))
+    return HTMLResponse(_shell("RS rotation · patearn", _CSS + body, active="markets", wide=True))

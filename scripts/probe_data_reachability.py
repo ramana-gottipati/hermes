@@ -95,18 +95,41 @@ def probe_deals() -> None:
         print("  cookie seed failed (API may return blank):", e)
     for kind in ("bulk-deals", "block-deals"):
         print(f"  -- {kind} --")
+        backoff = 1.3
         for year in range(datetime.now().year, 2004, -1):
             url = (f"https://www.nseindia.com/api/historical/{kind}"
                    f"?from=01-01-{year}&to=08-01-{year}")
+            # CL-SCR-07: distinguish an HTTP BLOCK (403/429/5xx) from a genuine EMPTY
+            # response. The old code collapsed every exception/non-200 to n=-1 "err",
+            # so a rate-limit block read as "no data that far back" — a misleading floor.
+            # We now label the block status explicitly and back off (exponential, capped)
+            # before the next request so a transient block doesn't poison the rest of the
+            # year-by-year scan.
+            status = ""
+            data = []
             try:
                 r = s.get(url, timeout=20)
-                data = r.json().get("data", []) if r.ok else []
-                n = len(data)
-            except Exception:
-                n = -1
-            extra = f"   fields: {list(data[0].keys())}" if n > 0 else ""
-            print(f"    {year}: {n if n >= 0 else 'err'} rows{extra}")
-            time.sleep(1.3)
+                if r.status_code in (401, 403, 429) or r.status_code >= 500:
+                    status = f"BLOCKED (HTTP {r.status_code})"
+                    backoff = min(backoff * 2, 30.0)
+                else:
+                    try:
+                        data = r.json().get("data", []) if r.ok else []
+                    except Exception:
+                        data = []
+                        status = f"BAD-BODY (HTTP {r.status_code})"
+                    if not status:
+                        backoff = 1.3                      # healthy response -> reset backoff
+            except Exception as e:
+                status = f"REQUEST-ERR ({type(e).__name__})"
+                backoff = min(backoff * 2, 30.0)
+            n = len(data)
+            if status:
+                print(f"    {year}: {status}")
+            else:
+                extra = f"   fields: {list(data[0].keys())}" if n > 0 else ""
+                print(f"    {year}: {n} rows{extra}  (0 rows here = genuinely empty, not blocked)")
+            time.sleep(backoff)
 
 
 if __name__ == "__main__":

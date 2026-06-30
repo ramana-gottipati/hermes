@@ -1,5 +1,15 @@
 /*
- * hermes-charts.js — the reusable Patearn chart engine.
+ * ⚠️ DEPRECATED / NOT LIVE (L3 triage, 2026-06-29). This file is the ORIGINAL
+ * "CPR Spine" engine. It is NOT wired into the running app: `/static` is not mounted
+ * in main.py, and the live /dash/stock chart is built by `src/web/stock_chart.py`'s
+ * SNIPPET (which superseded this in S42, commit ad49c30) — a bounded, four-family,
+ * drawing-capable engine that the live overlays (CPR/MA/MEP/RS/Wolfe/Harmonic) bind
+ * to via window.__wfpc. Keep this file as the reference implementation of the CPR
+ * Spine design only. Do NOT mistake it for live code; do NOT re-wire it without an
+ * explicit decision (see docs/L3-chart-inventory.md §3). Safe to `git rm` if the tree
+ * is ever cleaned (along with _chart_demo.html + chart_view.render_stock_chart).
+ *
+ * hermes-charts.js — the reusable Patearn chart engine (reference / deprecated).
  *
  * ONE responsive price chart + a four-family control bar (chart-type · proprietary
  * strategies · standard indicators · drawings), an overlay registry (per-item

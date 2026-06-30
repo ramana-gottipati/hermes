@@ -183,12 +183,25 @@ def main():
     out("\n" + "=" * 96)
     out("3. BIDIRECTIONAL WALK-FORWARD (frozen config; both windows must be net-positive)")
     out("=" * 96)
+    # HONESTY NOTE (CL-RES-09): the frozen M1/M2 entry cuts in strategies.py were DERIVED
+    # on the 2012-2019 split (the forward-split tree, "T12-19 -> 2020-26"). So for those
+    # canonical configs the 2012-2019 line below is IN-SAMPLE (the derivation window) and
+    # only the 2020-2026 line is genuinely OUT-OF-SAMPLE. The two are NOT independent
+    # evidence; do not read a positive 2012-2019 number as confirmation. The bidirectional
+    # framing is retained for the SECOND fit (TR2/TE2) and for non-derived strategies, but
+    # each line is tagged with its provenance (IN-SAMPLE / OOS) so the report can't be
+    # misread. (A clean test would re-derive the cuts on each train fold; that re-run is
+    # deferred — we LABEL rather than relabel the existing frozen numbers as OOS.)
+    out("    NOTE: M1/M2 cuts were derived on 2012-2019 -> that window is IN-SAMPLE for the")
+    out("          frozen configs; only 2020-2026 is true OOS. Lines tagged accordingly.")
     results["walkforward"] = {}
     for k in ("S1", "S2", "S3", "S4"):
         out(f"\n  {k}:")
-        a = portfolio_line(cache, S[k], regime, TR1, "2012-2019")
-        b = portfolio_line(cache, S[k], regime, TE1, "2020-2026")
+        a = portfolio_line(cache, S[k], regime, TR1, "2012-2019 [IN-SAMPLE: derivation window]")
+        b = portfolio_line(cache, S[k], regime, TE1, "2020-2026 [OOS]")
         a.pop("port"); b.pop("port")
+        a["sample"] = "in_sample_derivation"
+        b["sample"] = "out_of_sample"
         results["walkforward"][k] = {"2012-2019": a, "2020-2026": b}
 
     # ---- 4. S3 DECORRELATION ----

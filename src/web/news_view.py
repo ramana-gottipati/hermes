@@ -62,11 +62,24 @@ def _prov(method: str) -> str:
     return '<span class="nv-prov">rule</span>'
 
 
+def _safe_url(u: str) -> str:
+    """Only http(s) URLs survive into an href — `javascript:`/`data:` and other schemes
+    collapse to '#'. News URLs come from an external feed (attacker-influenced), and the
+    shared `_esc` does NOT escape quotes, so we also neutralise attribute-breakout /
+    control chars in the URL itself (defence-in-depth)."""
+    u = (u or "").strip()
+    if not (u.lower().startswith("http://") or u.lower().startswith("https://")):
+        return "#"
+    for ch, rep in (('"', "%22"), ("'", "%27"), ("<", "%3C"), (">", "%3E"), (" ", "%20")):
+        u = u.replace(ch, rep)
+    return u
+
+
 def _row(r: dict, *, syms_html: str = "") -> str:
     date = _esc((r.get("sent_at") or "")[:10])
     src = _esc((r.get("source") or "")[:14])
     title = _esc(r.get("title") or "")
-    url = _esc(r.get("url") or "#")
+    url = _safe_url(r.get("url") or "")
     mid = syms_html or f'<span class="nv-src">{src}</span>'
     return (f'<a class="nv-row" href="{url}" target="_blank" rel="noopener">'
             f'<span class="nv-date">{date}</span>{mid}'
@@ -117,6 +130,19 @@ def _watchlist_symbols(conn) -> list[str]:
         return []
 
 
+def _recent_market_news(conn, *, limit: int) -> list[dict]:
+    """Market-wide recent headlines straight from the `sent_news` feed (no per-symbol
+    tag needed) — the graceful fallback when the watchlist is empty, so /dash/wire is
+    never a dead end. Defensive: any error degrades to []."""
+    try:
+        rows = conn.execute(
+            "SELECT url, title, source, sent_at FROM sent_news "
+            "ORDER BY sent_at DESC, id DESC LIMIT ?", (int(limit),)).fetchall()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
 def render_market_wire(conn=None, symbols=None, *, limit: int = 40) -> str:
     """Watchlist-scoped Market Wire fragment — recent headlines across your names,
     each row showing the tagged symbol chips. Embeddable as a Markets rail (pass
@@ -133,8 +159,23 @@ def _wire_html(c, symbols, limit: int) -> str:
     rows = _read(wire_for_symbols, list(syms), conn=c, limit=limit) if syms else []
 
     if not syms:
-        return (_CSS + '<div class="nv-wrap"><div class="nv-head"><h2>Market wire</h2></div>'
-                '<div class="nv-empty">Your watchlist is empty — add symbols to see their moving news here.</div></div>')
+        # Empty/unset watchlist → don't dead-end. Fall back to the GLOBAL market wire
+        # (recent headlines straight from the feed) with a clear note on how to filter.
+        grows = _recent_market_news(c, limit=limit)
+        if not grows:
+            return (_CSS + '<div class="nv-wrap"><div class="nv-head"><h2>Market wire</h2></div>'
+                    '<div class="nv-empty">Your watchlist is empty — add symbols to see their '
+                    'moving news here. No market headlines in the feed yet either.</div></div>')
+        body = "".join(_row(r) for r in grows)
+        return (_CSS + '<div class="nv-wrap">'
+                '<div class="nv-head"><h2>Market wire</h2>'
+                f'<span class="nv-count">market-wide · {len(grows)} recent headline'
+                f'{"s" if len(grows) != 1 else ""}</span></div>'
+                '<div class="nv-empty" style="margin-bottom:10px">Add names to your watchlist to '
+                'filter this wire to your stocks. Meanwhile, here is the market-wide feed.</div>'
+                f'<div class="nv-list">{body}</div>'
+                '<div class="nv-foot">Recent headlines across the market feed, newest first. '
+                'Build a watchlist to scope this to your names.</div></div>')
     if not rows:
         return (_CSS + '<div class="nv-wrap"><div class="nv-head"><h2>Market wire</h2>'
                 f'<span class="nv-count">{len(syms)} watchlist names</span></div>'
@@ -162,4 +203,7 @@ def news_page(sym: str = Query("")) -> HTMLResponse:
 
 @router.get("/dash/wire", response_class=HTMLResponse)
 def wire_page() -> HTMLResponse:
-    return HTMLResponse(_shell("Market wire · patearn", render_market_wire(), active="markets", wide=True))
+    # active="wire" (the Wire lens key) → the Markets-altitude tab AND the "News / Wire"
+    # sub-nav item both highlight. "markets" lit the Overview sub-item instead (its key
+    # collides with the altitude name); the registry resolves "wire" → the Markets altitude.
+    return HTMLResponse(_shell("Market wire · patearn", render_market_wire(), active="wire", wide=True))

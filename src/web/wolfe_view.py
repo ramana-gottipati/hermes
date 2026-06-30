@@ -285,11 +285,24 @@ def _summary(d, wi, sym, idx):
 @router.get("/dash/wolfe/scan", response_class=HTMLResponse)
 def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                fresh: int = Query(15, ge=1, le=180),
-               asof: str = Query("", max_length=12)):
+               asof: str = Query("", max_length=12),
+               refresh: int = Query(0, ge=0, le=1)):
     """The winner-profile SCANNER — the OOS-validated reachable-EPA edge across the universe.
-    Each row is clickable → /dash/wolfe?sym=…&pick=winner (draws that stock's winner wave)."""
+    Each row is clickable → /dash/wolfe?sym=…&pick=winner (draws that stock's winner wave).
+
+    Reads the nightly-persisted snapshot (wolfe_signals) for an INSTANT page; falls back to
+    a live winner_scan when there's no snapshot, when `?refresh=1`, or for an `?asof=` replay
+    (PIT replays are always computed live)."""
+    uni = universe or "nifty500"
+    cached = None
     with get_conn() as conn:
-        cands = wolfe.winner_scan(conn, universe=(universe or "nifty500"), fresh=fresh, asof=(asof or None))
+        if not refresh and not asof:
+            cached = wolfe.latest_scan(conn, universe=uni)
+        if cached:
+            cands, eff_fresh = cached["rows"], cached.get("fresh") or fresh
+        else:
+            cands = wolfe.winner_scan(conn, universe=uni, fresh=fresh, asof=(asof or None))
+            eff_fresh = fresh
     nin = sum(1 for c in cands if c["in_zone"])
     trs = []
     for c in cands:
@@ -301,6 +314,10 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         status = ('<span style="color:#3fb950;font-weight:700">● IN</span>' if c["in_zone"]
                   else '<span style="color:#6e7681">watch</span>')
         trs.append(
+            # CL-VIEW-09: the symbol sits in a single-quoted JS string inside a double-
+            # quoted attribute. SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes,
+            # so the value can never contain `'`, `"` or whitespace to break out. Do NOT
+            # swap _q for _esc here — _esc leaves quotes/spaces intact and would break the JS.
             f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(c["sym"])}&pick=winner\'" '
             f'style="cursor:pointer;border-top:1px solid #21262d" '
             f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
@@ -327,10 +344,16 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         'mainly when the broad tape is already weak, not on its own. The edge is in the <b>selection</b>, not the '
         'stop/target. <b>Click a row</b> to see its wave on the chart. '
         '<span style="color:#3fb950">● IN</span> = price in the entry zone now. <i>Descriptive — not a buy/sell signal.</i></div>'
-        f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(universe)} · as-of {_esc(asof or "today")} · '
-        f'fresh ≤ {fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
+        f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(universe)} · '
+        + (f'as-of <b>{_esc(cached["scan_date"] or "—")}</b> '
+           f'<span style="color:#6e7681">(nightly snapshot{(" · computed " + _esc(cached["computed_at"][:16])) if cached.get("computed_at") else ""})</span> · '
+           f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;refresh=1" style="color:#58a6ff" title="recompute live now">↻ refresh</a>'
+           if cached else
+           f'as-of {_esc(asof or "today")} <span style="color:#6e7681">(live)</span>')
+        + f' · fresh ≤ {eff_fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
         ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
-        ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a></div>'
+        ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a>'
+        ' &nbsp;|&nbsp; <a href="/dash/harmonic" style="color:#f778ba">Harmonic scanner ›</a></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:#8b949e;text-align:left">'
         + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
@@ -380,3 +403,23 @@ def wolfe_page(sym: str = Query("", max_length=24),
           'g=document.getElementById("wfGroup");if(cb&&g){cb.addEventListener("change",'
           'function(){g.style.display=this.checked?"":"none";});}})();</script>')
     return HTMLResponse(_shell(f'{d["label"]} — Wolfe', body, "wolfe", wide=True))
+
+
+# Mount the sibling HARMONIC lane (D72) onto THIS already-included router, so /dash/harmonic
+# + /dash/harmonic/overlay go live without a main.py edit and survive a redeploy (committed).
+# Harmonic and Wolfe are siblings (both XABCD-family geometric patterns) — see
+# docs/harmonic-pattern-design.md.
+try:
+    from src.web.harmonic_view import router as _harmonic_router
+    router.include_router(_harmonic_router)
+except Exception:  # pragma: no cover - never let the harmonic lane break the Wolfe routes
+    pass
+
+# Mount the server-side DRAWING STORE (/dash/drawings GET+POST) onto THIS router too,
+# so the on-chart drawing engine's persistence goes live without a main.py edit and
+# survives a redeploy (committed) — same durable include pattern as harmonic above.
+try:
+    from src.web.drawings_store import router as _drawings_router
+    router.include_router(_drawings_router)
+except Exception:  # pragma: no cover - never let the drawing store break the Wolfe routes
+    pass

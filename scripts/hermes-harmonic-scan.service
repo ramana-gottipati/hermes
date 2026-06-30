@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes patearn — nightly harmonic XABCD scan (persist harmonic_signals)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# Materialise fresh harmonic setups (confirmed + forming PRZ) into harmonic_signals so a
+# scanner surface is instant. Pure rule-based compute — NO LLM (₹0), DESCRIPTIVE-only
+# (read by side: BULL = modest fit-graded edge, BEAR = tail/regime — see harmonic_backtest).
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.harmonic_signals --persist-scan --universe nifty500 --fresh 12
+StandardOutput=append:/var/log/hermes-harmonic-scan.log
+StandardError=append:/var/log/hermes-harmonic-scan.log

@@ -50,8 +50,23 @@ CREATE TABLE IF NOT EXISTS tracker_alert_state (
     message     TEXT,                             -- latest human text (live values)
     first_fired TEXT NOT NULL DEFAULT (datetime('now')),
     last_fired  TEXT NOT NULL DEFAULT (datetime('now')),
-    notified_at TEXT,                             -- NULL = pending push (retry next run)
+    notified_at TEXT,                             -- NULL = delivered to ALL dests; else still pending somewhere
     PRIMARY KEY (sip_id, sig)
+);
+"""
+
+# Per-destination delivery ledger (CL-PROV-10). The parent table's single notified_at can't
+# express "delivered to dest A but not dest B"; without it, a partial multi-dest failure marked
+# NOTHING notified and re-sent the whole digest to the dest that already got it. This child table
+# records each successful (alert, dest) delivery so the next run re-sends ONLY to dests that have
+# not yet received that alert. Idempotent; additive (no migration of existing rows needed).
+_DELIVERY_DDL = """
+CREATE TABLE IF NOT EXISTS tracker_alert_delivery (
+    sip_id       INTEGER NOT NULL,
+    sig          TEXT    NOT NULL,
+    dest         TEXT    NOT NULL,                 -- chat_id as text (dests may be large ints)
+    delivered_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (sip_id, sig, dest)
 );
 """
 
@@ -179,6 +194,14 @@ def evaluate(conn):
 
 
 # --- destinations + message ------------------------------------------------
+def _already_delivered(conn, sip_id, sig, dest: str) -> bool:
+    """True if this exact alert (sip_id, sig) has already been delivered to ``dest`` — so we never
+    re-send it to a destination that already received it after a partial multi-dest failure (CL-PROV-10)."""
+    return conn.execute(
+        "SELECT 1 FROM tracker_alert_delivery WHERE sip_id=? AND sig=? AND dest=? LIMIT 1",
+        (sip_id, sig, dest)).fetchone() is not None
+
+
 def _destinations():
     """Prefer a registered patearn group; else DM the owner(s) from
     telegram_allowed_user_ids — ideal for private portfolio alerts when no group
@@ -217,6 +240,7 @@ def format_alerts(items):
 def run(dry_run=False):
     with get_conn() as conn:
         conn.execute(_STATE_DDL)
+        conn.execute(_DELIVERY_DDL)
         current = evaluate(conn)
         cur_keys = {(c["sip_id"], c["sig"]) for c in current}
 
@@ -228,24 +252,26 @@ def run(dry_run=False):
 
         existing = {(r["sip_id"], r["sig"]): dict(r) for r in conn.execute(
             "SELECT * FROM tracker_alert_state").fetchall()}
-        pending = []   # (symbol, kind, message) to push this run
+        pending = []   # dicts {sip_id, sig, symbol, kind, message} still owed to ≥1 dest
         for c in current:
             k = (c["sip_id"], c["sig"])
             if k in existing:
                 conn.execute("UPDATE tracker_alert_state SET last_fired=datetime('now'), "
                              "message=?, symbol=?, kind=? WHERE sip_id=? AND sig=?",
                              (c["message"], c["symbol"], c["kind"], c["sip_id"], c["sig"]))
-                if existing[k]["notified_at"] is None:      # prior send failed → retry
-                    pending.append((c["symbol"], c["kind"], c["message"]))
+                if existing[k]["notified_at"] is None:      # not yet delivered to all dests → still owed
+                    pending.append(c)
             else:
                 conn.execute("INSERT INTO tracker_alert_state(sip_id,sig,symbol,kind,message) "
                              "VALUES(?,?,?,?,?)",
                              (c["sip_id"], c["sig"], c["symbol"], c["kind"], c["message"]))
-                pending.append((c["symbol"], c["kind"], c["message"]))    # newly firing
-        # drop states that stopped firing (so a later re-fire re-notifies)
+                pending.append(c)                            # newly firing
+        # drop states that stopped firing (so a later re-fire re-notifies); clear their per-dest
+        # delivery ledger too so a re-fire is treated as fresh.
         for k in existing:
             if k not in cur_keys:
                 conn.execute("DELETE FROM tracker_alert_state WHERE sip_id=? AND sig=?", k)
+                conn.execute("DELETE FROM tracker_alert_delivery WHERE sip_id=? AND sig=?", k)
 
         if not pending:
             log.info("nothing new to push (%d firing, all already notified)", len(current))
@@ -260,15 +286,45 @@ def run(dry_run=False):
                         "— %d alerts left pending for retry", len(pending))
             return current
 
-        message = format_alerts(pending)
-        ok = all(_send(d, message) for d in dests)
-        if ok:
-            conn.execute("UPDATE tracker_alert_state SET notified_at=datetime('now') "
-                         "WHERE notified_at IS NULL")
-            log.info("pushed %d alerts to %d destination(s)", len(pending), len(dests))
-        else:
-            log.error("Telegram send failed (blocked/unreachable?) — %d alerts left "
-                      "pending; will retry next run", len(pending))
+        # Per-destination delivery (CL-PROV-10). For EACH dest, push only the alerts that dest has
+        # not already received (from the delivery ledger), so the dest that already got an alert is
+        # never re-sent it. Every dest is attempted independently — one dest failing does not block
+        # the others, and on failure only the un-delivered alerts for THAT dest are retried next run.
+        failed_dests = []
+        for d in dests:
+            ds = str(d)
+            owed = [p for p in pending if not _already_delivered(conn, p["sip_id"], p["sig"], ds)]
+            if not owed:
+                continue
+            msg = format_alerts([(p["symbol"], p["kind"], p["message"]) for p in owed])
+            if _send(d, msg):
+                for p in owed:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO tracker_alert_delivery(sip_id,sig,dest) VALUES(?,?,?)",
+                        (p["sip_id"], p["sig"], ds))
+                log.info("pushed %d alerts to destination %s", len(owed), ds)
+            else:
+                failed_dests.append(ds)
+                log.error("Telegram send to destination %s failed — %d alerts left pending for "
+                          "that dest only (other dests unaffected); will retry next run",
+                          ds, len(owed))
+
+        # Mark the parent row notified_at only when an alert has reached EVERY current dest, so the
+        # "all already notified" fast-path and the legacy flag stay meaningful.
+        ndests = len(dests)
+        for p in pending:
+            cnt = conn.execute(
+                "SELECT COUNT(*) FROM tracker_alert_delivery WHERE sip_id=? AND sig=? AND dest IN "
+                "(" + ",".join("?" * ndests) + ")",
+                [p["sip_id"], p["sig"]] + [str(x) for x in dests]).fetchone()[0]
+            if cnt >= ndests:
+                conn.execute("UPDATE tracker_alert_state SET notified_at=datetime('now') "
+                             "WHERE sip_id=? AND sig=? AND notified_at IS NULL",
+                             (p["sip_id"], p["sig"]))
+        if failed_dests:
+            log.error("partial delivery: %d/%d destination(s) failed %s — affected alerts retry "
+                      "next run (succeeded dests will NOT be re-sent)",
+                      len(failed_dests), ndests, failed_dests)
         return current
 
 

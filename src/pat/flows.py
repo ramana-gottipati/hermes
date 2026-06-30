@@ -50,8 +50,20 @@ ACC_WINDOW: dict[str, tuple[str, str | None]] = {
 ACC_LIMIT = 60  # safety cap on rows returned (not user-controllable)
 
 
+def _eff_limit(default_cap: int, top_n=None) -> int:
+    """Resolve the effective LIMIT for a list flow: an explicit user 'top N'
+    (clamped to 1..default_cap) when given, else the safety cap. The rows are
+    ALWAYS ranked by the flow's metric first, so 'top N' = the N strongest —
+    never an arbitrary slice. Non-numeric/absent top_n → the safety cap."""
+    try:
+        n = int(top_n) if top_n is not None else 0
+    except (TypeError, ValueError):
+        n = 0
+    return min(max(n, 1), default_cap) if n > 0 else default_cap
+
+
 def build_accumulation_query(sector: str = "", strength: str = "", entry: str = "",
-                             window: str = "", character: str = "") -> tuple[str, list]:
+                             window: str = "", character: str = "", top_n=None) -> tuple[str, list]:
     """Compile the accumulation screen to a read-only SELECT over stock_signals.
 
     Enforces the chosen `character` (ACCUMULATION default; DISTRIBUTION / CONSOLIDATION
@@ -93,7 +105,7 @@ def build_accumulation_query(sector: str = "", strength: str = "", entry: str = 
         "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
         "WHERE " + " AND ".join(where) + " "
         "ORDER BY " + order + " "
-        "LIMIT " + str(ACC_LIMIT)
+        "LIMIT " + str(_eff_limit(ACC_LIMIT, top_n))
     )
     return sql, params
 
@@ -156,7 +168,7 @@ RS_WINDOW = {
 
 
 def build_rs_query(sector: str = "", strength: str = "", align: str = "",
-                   window: str = "", direction: str = "") -> tuple[str, list]:
+                   window: str = "", direction: str = "", top_n=None) -> tuple[str, list]:
     """Compile the RS leaders/laggards screen to a read-only SELECT over stock_signals.
 
     `direction` flips leaders (rs_rank floor, DESC) vs laggards (rs_rank ceiling, ASC
@@ -194,7 +206,7 @@ def build_rs_query(sector: str = "", strength: str = "", align: str = "",
         "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
         "WHERE " + " AND ".join(where) + " "
         f"ORDER BY (s.{col} IS NULL), s.{col} {sort}, s.symbol "
-        "LIMIT " + str(RS_LIMIT)
+        "LIMIT " + str(_eff_limit(RS_LIMIT, top_n))
     )
     return sql, params
 
@@ -539,13 +551,14 @@ _CCI_COLS = ("s.symbol, s.tier, s.composite_score, s.guidance_accuracy_score, "
              "s.veto_active, s.veto_reason, s.n_promises_resolved, s.as_of_period ")
 
 
-def build_credibility_query() -> tuple[str, list]:
+def build_credibility_query(top_n=None) -> tuple[str, list]:
     """Credibility LEADERS — veto-excluded, ranked by the measurable composite (D61).
-    Latest score per symbol. Read-only, no user input."""
+    Latest score per symbol. Read-only, no user input. ``top_n`` caps the list to an
+    explicit 'top N' ask (still ranked by composite — the N strongest)."""
     sql = ("SELECT " + _CCI_COLS + _CCI_LATEST +
            "WHERE COALESCE(s.veto_active, 0) = 0 "
            "ORDER BY (s.composite_score IS NULL), s.composite_score DESC, s.symbol "
-           "LIMIT " + str(CCI_LIMIT))
+           "LIMIT " + str(_eff_limit(CCI_LIMIT, top_n)))
     return sql, []
 
 
@@ -596,17 +609,174 @@ def build_confluence_query() -> tuple[str, list]:
     return sql, []
 
 
+# ── the GENERAL multi-condition confluence PLANNER (N pillars + scope) ─────────
+# The generalization of build_confluence_query: instead of the fixed credibility ×
+# accumulation pair, intersect ANY combination of the strategy pillars over the
+# precomputed tables — "credible + accumulating + RS-leading small-caps". Every
+# pillar maps to a precomputed condition; the pillar KEYS come ONLY from PLAN_PILLARS
+# (a closed set, never user input), and sector/cap-band are bound — so the dynamic
+# WHERE can never reference an invented column or value. DESCRIPTIVE evidence only
+# (independent lenses agreeing = highest-evidence read, NOT a buy call); the reads
+# sit at different grains (daily delivery/RS × quarterly credibility × period CPR),
+# disclosed by the as-of badges in the renderer.
+PLAN_PILLARS: dict[str, str] = {
+    "credibility":  "credible management — concall track-record (veto-free · ≥3 resolved promises · real composite)",
+    "accumulation": "strong-hand accumulation — delivery character ACCUMULATION + active p_score",
+    "distribution": "strong-hand distribution — delivery character DISTRIBUTION (exiting)",
+    "rs":           "RS leadership — rs_rank ≥ 80 vs the broad market",
+    "value":        "reasonable valuation — P/E < 25",
+    "quality":      "high quality — ROCE > 18%",
+    "structure":    "bullish CPR structure — a daily bull-U reversal",
+}
+# cap-band -> (label, the membership index that defines it). 'large' is special
+# (Nifty 50 ∪ Next 50 — there is no single 'Nifty 100' membership snapshot). Names
+# verified against stock_index_membership; market_cap_cr is too sparse to use.
+PLAN_CAPBAND: dict[str, tuple] = {
+    "small": ("Small-cap", "Nifty Smallcap 250"),
+    "mid":   ("Mid-cap",   "Nifty Midcap 150"),
+    "large": ("Large-cap", None),
+}
+PLAN_LIMIT = 80
+
+# the per-pillar WHERE fragment (NO user input — keys validated against PLAN_PILLARS).
+_PLAN_WHERE = {
+    "credibility":  "COALESCE(c.veto_active,0)=0 AND c.composite_score IS NOT NULL "
+                    "AND COALESCE(c.n_promises_resolved,0)>=3",
+    "accumulation": "s.accum_character='ACCUMULATION' AND s.p_score>0",
+    "distribution": "s.accum_character='DISTRIBUTION'",
+    "rs":           "s.rs_rank>=80",
+    "value":        "f.pe IS NOT NULL AND f.pe<25",
+    "quality":      "f.roce IS NOT NULL AND f.roce>18",
+    "structure":    "st.pattern='BULL_U'",
+}
+
+
+def build_confluence_plan_query(pillars, sector: str = "", capband: str = "") -> tuple[str, list]:
+    """Intersect the requested strategy pillars over the precomputed tables.
+
+    ``pillars`` is filtered against PLAN_PILLARS (closed set) — anything off-menu is
+    dropped, so a hallucinated pillar can never reach SQL. Every name's full evidence
+    (credibility / accumulation / RS / CPR / value / quality) is SELECTed via LEFT
+    JOINs and shown; the requested pillars add the WHERE filters. ``sector`` and
+    ``capband`` narrow the universe (bound / membership-subquery). Read-only.
+    """
+    pset = [p for p in (pillars or []) if p in _PLAN_WHERE]
+    where = [
+        "s.trade_date = (SELECT MAX(trade_date) FROM stock_signals)",
+        "s.symbol IN (SELECT symbol FROM nse_equity_list)",
+    ]
+    params: list = []
+    for p in pset:
+        where.append("(" + _PLAN_WHERE[p] + ")")
+    if sector:
+        where.append("s.primary_sector = ?")
+        params.append(sector)
+    if capband == "large":
+        where.append("s.symbol IN (SELECT symbol FROM stock_index_membership "
+                     "WHERE index_name IN ('Nifty 50','Nifty Next 50'))")
+    elif capband in ("small", "mid"):
+        where.append("s.symbol IN (SELECT symbol FROM stock_index_membership WHERE index_name=?)")
+        params.append(PLAN_CAPBAND[capband][1])
+    sql = (
+        "SELECT s.symbol, pe.close AS cmp, s.accum_character, s.p_score, s.r_score, "
+        "s.trigger_rank, s.rs_rank, s.primary_sector, s.delivery_value_today, "
+        "c.tier, c.composite_score, c.n_promises_resolved, c.forward_direction, c.as_of_period, "
+        "st.pattern AS cpr_pat, st.compression_pctile, f.pe, f.roce, f.market_cap_cr "
+        "FROM stock_signals s "
+        "LEFT JOIN prices_eq pe ON pe.symbol = s.symbol AND pe.trade_date = s.trade_date "
+        "LEFT JOIN ( SELECT cs.symbol, cs.tier, cs.composite_score, cs.n_promises_resolved, "
+        "                   cs.forward_direction, cs.veto_active, cs.as_of_period "
+        "            FROM concall_scores cs "
+        "            JOIN (SELECT symbol, MAX(last_updated) AS m FROM concall_scores GROUP BY symbol) x "
+        "              ON x.symbol = cs.symbol AND x.m = cs.last_updated ) c ON c.symbol = s.symbol "
+        "LEFT JOIN ( SELECT cp.symbol, cp.pattern, cp.compression_pctile "
+        "            FROM cpr_signals cp "
+        "            JOIN (SELECT symbol, MAX(period_end_date) AS d FROM cpr_signals "
+        "                  WHERE timeframe='D' GROUP BY symbol) y "
+        "              ON y.symbol = cp.symbol AND y.d = cp.period_end_date AND cp.timeframe='D' ) st "
+        "         ON st.symbol = s.symbol "
+        "LEFT JOIN fundamentals f ON f.symbol = s.symbol "
+        "WHERE " + " AND ".join(where) + " "
+        "ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC, s.p_score DESC, "
+        "         (c.composite_score IS NULL), c.composite_score DESC, s.symbol "
+        "LIMIT " + str(PLAN_LIMIT)
+    )
+    return sql, params
+
+
+def build_credibility_detail_query(symbol: str) -> tuple[str, list]:
+    """The full credibility EVIDENCE row for one symbol (the 'why is X credible' drill):
+    every measurable that feeds the composite + the veto/deterioration flags + the as-of
+    period (provenance). Latest score for the symbol. Bound on symbol."""
+    sql = (
+        "SELECT s.symbol, s.composite_score, s.credibility_score, s.guidance_accuracy_score, "
+        "s.transparency_score, s.quantification_rate, s.forward_direction, s.forward_conviction, "
+        "s.credibility_trend, s.tier, s.rank, s.n_concalls, s.n_promises_resolved, "
+        "s.veto_active, s.veto_reason, s.deterioration_score, s.mispricing_flag, "
+        "s.peer_median, s.as_of_period, s.as_of_date "
+        "FROM concall_scores s "
+        "JOIN (SELECT symbol, MAX(last_updated) AS m FROM concall_scores GROUP BY symbol) x "
+        "  ON x.symbol = s.symbol AND x.m = s.last_updated "
+        "WHERE s.symbol = ? "
+        "LIMIT 1"
+    )
+    return sql, [symbol]
+
+
+def build_credibility_evidence_query(symbol: str, limit: int = 6) -> tuple[str, list]:
+    """The UNDERLYING promise-vs-delivery rows behind a credibility read (the F3-4 drill):
+    the specific guidance the management gave and how it actually landed (BEAT / IN_LINE /
+    MISS / OVERSTATED / CONCEALED), newest first, from concall_expectations_vs_actual
+    (14,942 rows). Descriptive evidence — the *receipts* under the score. Bound on symbol;
+    LIMIT clamped + bound."""
+    limit = max(1, min(int(limit or 6), 20))
+    sql = (
+        "SELECT period_label, metric, mgmt_expectation, expected_value, actual_value, "
+        "classification, evidence "
+        "FROM concall_expectations_vs_actual "
+        "WHERE symbol = ? AND classification IS NOT NULL "
+        "ORDER BY id DESC "
+        "LIMIT ?"
+    )
+    return sql, [symbol, limit]
+
+
+def build_credibility_trend_query(symbol: str, limit: int = 24) -> tuple[str, list]:
+    """The PIT credibility TIME-SERIES for one symbol (the 'credibility trend for X' ask):
+    level + guidance-accuracy + momentum + trend-state + tape, period by period, newest
+    first, off the precomputed ``credibility_series`` table (18,944 rows). Descriptive —
+    a credibility SERIES, never a buy signal. Bound on symbol; LIMIT bound and clamped."""
+    limit = max(2, min(int(limit or 24), 60))
+    sql = (
+        "SELECT symbol, period_label, period_year, period_month, level, ga, qr, "
+        "n_resolved, deter, momentum, momentum_3p, trend, tape, tape_note, tier "
+        "FROM credibility_series "
+        "WHERE symbol = ? "
+        "ORDER BY period_year DESC, period_month DESC "
+        "LIMIT ?"
+    )
+    return sql, [symbol, limit]
+
+
+def _like_escape(s: str) -> str:
+    """Escape the LIKE metacharacters so a token containing % or _ is matched
+    LITERALLY (CL-PAT-08). Pairs with an `ESCAPE '\\'` clause on the LIKE."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def build_symbol_resolve_query(token: str) -> tuple[str, list]:
     """Resolve a free-text token to candidate NSE symbols (exact > prefix > name).
-    All values bound; LIKE wildcards are added here, the token is never formatted in."""
+    All values bound; LIKE wildcards are added here, the token is never formatted in.
+    CL-PAT-08: the user token is LIKE-escaped (+ ESCAPE clause) so a '%'/'_' in it
+    matches literally instead of turning the prefix/name probe into a match-all."""
     t = (token or "").strip().upper()
-    pref = t.replace("%", "").replace("_", "") + "%"
-    namelike = "%" + (token or "").strip() + "%"
+    pref = _like_escape(t) + "%"
+    namelike = "%" + _like_escape((token or "").strip()) + "%"
     sql = (
         "SELECT symbol, company_name, "
-        "CASE WHEN symbol = ? THEN 0 WHEN symbol LIKE ? THEN 1 ELSE 2 END AS r "
+        "CASE WHEN symbol = ? THEN 0 WHEN symbol LIKE ? ESCAPE '\\' THEN 1 ELSE 2 END AS r "
         "FROM nse_equity_list "
-        "WHERE symbol = ? OR symbol LIKE ? OR company_name LIKE ? "
+        "WHERE symbol = ? OR symbol LIKE ? ESCAPE '\\' OR company_name LIKE ? ESCAPE '\\' "
         "ORDER BY r, length(symbol), symbol "
         "LIMIT 8"
     )

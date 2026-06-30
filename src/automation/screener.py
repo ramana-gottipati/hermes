@@ -12,7 +12,7 @@ No API key needed. No LLM. Pure HTTP + BeautifulSoup.
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import requests
@@ -338,8 +338,20 @@ def _read_cache(symbol: str) -> Optional[dict]:
         ).fetchone()
     if not row:
         return None
-    fetched = datetime.fromisoformat(row["fetched_at"].replace(" ", "T"))
-    if datetime.utcnow() - fetched > timedelta(days=SCREENER_CACHE_DAYS):
+    # Treat a NULL/odd-format fetched_at as a cache-MISS, never a crash: a raise here would
+    # abort the whole fundamentals fetch (the caller falls through to a live fetch on None). (CL-PROV-04)
+    raw = row["fetched_at"]
+    if not raw:
+        return None
+    try:
+        fetched = datetime.fromisoformat(str(raw).replace(" ", "T"))
+    except (ValueError, TypeError):
+        return None
+    # Stored fetched_at is naive UTC (SQLite datetime('now')); make it aware UTC so the
+    # age check uses a tz-aware now() instead of the deprecated/naive utcnow(). (CL-PROV-05)
+    if fetched.tzinfo is None:
+        fetched = fetched.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) - fetched > timedelta(days=SCREENER_CACHE_DAYS):
         return None
     return dict(row)
 

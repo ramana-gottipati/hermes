@@ -67,3 +67,35 @@ def rs_overlay(sym: str = Query("", max_length=24), bench: str = Query("Nifty 50
     if len(series) < 2:
         return JSONResponse(None)
     return JSONResponse({"benchmark": bench, "series": series})
+
+
+@router.get("/dash/compare/series")
+def compare_series(sym: str = Query("", max_length=64)):
+    """JSON: {sym, kind, series:[{t,c}]} — a name's RAW close series (an equity from
+    ``bhavcopy_rows`` or an index from ``index_rows``), ascending. The stock chart's
+    Compare mode rebases each leg to 100 at the visible window start client-side, so
+    this stays a neutral data feed. Tries equity first, then index. Returns null on miss.
+    DESCRIPTIVE — just a price series, no signal."""
+    name = sym.strip()
+    if not name:
+        return JSONResponse(None)
+    up = name.upper()
+    with get_conn() as conn:
+        erows = conn.execute(
+            "SELECT trade_date, close FROM bhavcopy_rows "
+            "WHERE symbol=? AND series='EQ' AND (segment='CM' OR segment IS NULL) "
+            "AND close IS NOT NULL ORDER BY trade_date",
+            (up,),
+        ).fetchall()
+        if len(erows) >= 2:
+            return JSONResponse({"sym": up, "kind": "equity",
+                                 "series": [{"t": r[0], "c": r[1]} for r in erows]})
+        irows = conn.execute(
+            "SELECT trade_date, close_value FROM index_rows "
+            "WHERE index_name=? AND close_value IS NOT NULL ORDER BY trade_date",
+            (name,),
+        ).fetchall()
+    if len(irows) >= 2:
+        return JSONResponse({"sym": name, "kind": "index",
+                             "series": [{"t": r[0], "c": r[1]} for r in irows]})
+    return JSONResponse(None)

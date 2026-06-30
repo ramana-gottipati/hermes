@@ -30,8 +30,48 @@ from fastapi.responses import HTMLResponse
 router = APIRouter()
 
 
+def _foundation() -> str:
+    """The shared design-system foundation (tokens + base + a11y + density) and the native
+    component library, included once in every native v2 page so the showcase components and
+    the density switch are available everywhere. Defensive: degrades to "" if absent."""
+    try:
+        from src.web import ui_tokens as _T
+        from src.web import ui_components as _C
+        return _T.tokens_css() + _C.components_css()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def esc(s) -> str:
     return _html.escape(str(s if s is not None else ""))
+
+
+def density_js() -> str:
+    """The global density switch. Restores the saved density onto <html> IMMEDIATELY (so no
+    flash), then self-injects a small toggle button into the chrome — `.v2util` on legacy
+    pages, `.uk-top` on native pages — and persists the choice to localStorage. Idempotent
+    (window guard); self-contained; safe to include once per page in <head>."""
+    return ('<script>(function(){'
+            'try{if(localStorage.getItem("uk-density")==="compact")'
+            'document.documentElement.setAttribute("data-density","compact");}catch(e){}'
+            'if(window.__ukDens)return;window.__ukDens=1;'
+            'function cur(){return document.documentElement.getAttribute("data-density")==="compact";}'
+            'function upd(){document.querySelectorAll("[data-density-toggle]").forEach(function(b){'
+            'b.classList.toggle("on",cur());b.setAttribute("aria-pressed",cur());});}'
+            'function set(c){var h=document.documentElement;'
+            'if(c){h.setAttribute("data-density","compact");}else{h.removeAttribute("data-density");}'
+            'try{localStorage.setItem("uk-density",c?"compact":"comfortable");}catch(e){}upd();}'
+            'function mk(){var b=document.createElement("button");b.type="button";'
+            'b.setAttribute("data-density-toggle","");b.className="uk-denstoggle";'
+            'b.title="Density \\u2014 comfortable / compact";b.setAttribute("aria-label","Toggle density");'
+            'b.innerHTML="<i></i><i></i><i></i>";'
+            'b.addEventListener("click",function(){set(!cur());});return b;}'
+            'function inj(){var u=document.querySelector(".v2util");'
+            'if(u&&!u.querySelector("[data-density-toggle]")){u.insertBefore(mk(),u.firstChild);}'
+            'var t=document.querySelector(".uk-top");'
+            'if(t&&!t.querySelector("[data-density-toggle]")){t.appendChild(mk());}upd();}'
+            'if(document.readyState!=="loading"){inj();}else{document.addEventListener("DOMContentLoaded",inj);}'
+            '})();</script>')
 
 
 # --- design tokens + base + components (the whole system in one stylesheet) ---
@@ -40,7 +80,8 @@ _CSS = """<style>
 .uk{
   --bg-0:#070a10; --bg-1:#0b0f17; --bg-2:#111824; --bg-3:#18222f;
   --line:#1c2937; --line-2:#27384a;
-  --ink:#eaf1f9; --ink-2:#9bb0c6; --ink-3:#5c6f84;
+  /* --ink-3 lifted #5c6f84 → #7e90a8 for WCAG-AA (matches ui_tokens; see note there) */
+  --ink:#eaf1f9; --ink-2:#9bb0c6; --ink-3:#7e90a8;
   --accent:#4d9dff; --accent-cy:#34e0d6; --accent-dim:rgba(77,157,255,.14);
   --up:#3fd486; --up-dim:rgba(63,212,134,.13);
   --down:#ff6a7a; --down-dim:rgba(255,106,122,.13);
@@ -67,15 +108,17 @@ _CSS = """<style>
 .uk-top{display:flex;align-items:center;gap:18px;padding:11px 20px;position:sticky;top:0;z-index:30;
   background:linear-gradient(180deg, rgba(17,24,36,.92), rgba(11,15,23,.66));
   border-bottom:1px solid var(--line); backdrop-filter:blur(12px);}
-.uk-logo{font-weight:600;letter-spacing:.4px;font-size:15px;display:flex;align-items:center;gap:9px;color:var(--ink)}
+.uk-logo{font-weight:600;letter-spacing:.4px;font-size:15px;display:flex;align-items:center;gap:9px;color:var(--ink);text-decoration:none;cursor:pointer}
+.uk-logo:hover{color:var(--ink)}
 .uk-logo .dot{width:9px;height:9px;border-radius:50%;background:var(--accent-cy);box-shadow:0 0 11px var(--accent-cy)}
 .uk-nav{display:flex;gap:3px}
 .uk-nav a{padding:7px 13px;border-radius:9px;color:var(--ink-2);font-size:13px;font-weight:500;transition:var(--t)}
 .uk-nav a:hover{color:var(--ink);background:var(--bg-2)}
 .uk-nav a.on{color:var(--ink);background:var(--accent-dim);box-shadow:var(--glass)}
 .uk-cmdk{margin-left:auto;display:inline-flex;align-items:center;gap:9px;padding:6px 11px;border:1px solid var(--line-2);
-  border-radius:9px;color:var(--ink-3);font-size:12px;cursor:pointer;transition:var(--t);background:var(--bg-1)}
+  border-radius:9px;color:var(--ink-3);font:500 12px/1 var(--font);text-align:left;cursor:pointer;transition:var(--t);background:var(--bg-1)}
 .uk-cmdk:hover{border-color:var(--accent);color:var(--ink-2)}
+.uk-cmdk:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
 .uk-cmdk kbd{font-family:var(--mono);background:var(--bg-3);border:1px solid var(--line-2);border-radius:5px;padding:1px 6px;font-size:11px;color:var(--ink-2)}
 
 /* sub-nav (one paradigm everywhere) */
@@ -122,10 +165,10 @@ _CSS = """<style>
 .uk-tw{overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--bg-2);max-height:70vh}
 table.uk-t{width:100%;border-collapse:collapse;font-size:13px}
 .uk-t th{position:sticky;top:0;background:var(--bg-3);color:var(--ink-3);font-size:10.5px;text-transform:uppercase;
-  letter-spacing:.5px;font-weight:600;text-align:right;padding:10px 13px;white-space:nowrap;border-bottom:1px solid var(--line-2);z-index:2}
+  letter-spacing:.5px;font-weight:600;text-align:right;padding:var(--row-pad) 13px;white-space:nowrap;border-bottom:1px solid var(--line-2);z-index:2}
 .uk-t th:first-child,.uk-t td:first-child{text-align:left;position:sticky;left:0;background:var(--bg-2)}
 .uk-t th:first-child{z-index:3;background:var(--bg-3)}
-.uk-t td{padding:10px 13px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
+.uk-t td{padding:var(--row-pad) 13px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
 .uk-t td.sym{color:var(--ink);font-weight:600;font-family:var(--font)}
 .uk-t tbody tr{transition:background var(--t)}
 .uk-t tbody tr:hover td{background:var(--bg-3)}
@@ -143,6 +186,21 @@ table.uk-t{width:100%;border-collapse:collapse;font-size:13px}
 
 /* divergence shade helper for signature glyphs */
 .uk-spark{display:block}
+
+/* ── responsive: native chrome + layout on a phone ── */
+@media (max-width:640px){
+  .uk-top{gap:10px;padding:10px 13px}
+  .uk-nav{overflow-x:auto;flex:1 1 auto;scrollbar-width:none}
+  .uk-nav::-webkit-scrollbar{display:none}
+  .uk-nav a{padding:9px 11px}
+  .uk-cmdk{padding:9px 10px}
+  .uk-cmdk kbd{display:none}
+  .uk-sub{padding:8px 13px}
+  .uk-page{padding:16px var(--gutter)}
+  .uk-h1{font-size:var(--fs-2xl)}
+  .uk-row{gap:10px}
+  .uk-tw,.uk-chart{border-radius:var(--r-sm)}
+}
 </style>"""
 
 
@@ -184,7 +242,13 @@ def chart_host(host_id: str = "ukChart", inner: str = "") -> str:
 
 
 def cmdk_hint() -> str:
-    return '<div class="uk-cmdk">Search or ask Pat <kbd>⌘K</kbd></div>'
+    # WCAG 2.1.1 + 4.1.2 (L2 W3 a11y): the ⌘K summon must be keyboard-reachable AND announced.
+    # A <button> is natively focusable + Enter/Space-activatable + exposes role=button to AT
+    # (the prior <div> was neither). The existing overlay click handler matches .closest(".uk-cmdk")
+    # so a button click opens it unchanged; type=button avoids implicit form submit. aria-keyshortcuts
+    # tells AT the global shortcut; aria-label gives a full accessible name beyond the visible text.
+    return ('<button type="button" class="uk-cmdk" aria-label="Search or ask Pat — open command bar" '
+            'aria-keyshortcuts="Meta+K Control+K">Search or ask Pat <kbd>⌘K</kbd></button>')
 
 
 def cmdk_overlay() -> str:
@@ -204,7 +268,7 @@ def cmdk_overlay() -> str:
         'style="width:100%;box-sizing:border-box;border:0;background:transparent;color:#eaf1f9;'
         'font-size:16px;padding:17px 19px;outline:none"/>'
         '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 19px 12px;'
-        'color:#5c6f84;font-size:11.5px;border-top:1px solid #1c2937">'
+        'color:#7e90a8;font-size:11.5px;border-top:1px solid #1c2937">'
         '<span>Enter to jump or ask · Esc to close</span>'
         '<span>analytics copilot · closed-vocab, never invents numbers</span></div>'
         '</div></div>'
@@ -245,8 +309,9 @@ def nav_links(items) -> str:
     is_on), ...]. Used so a v2 (ui_kit) page carries the identical destination set
     as the rest of the site — no dead-ends, one nav contract (the source of that
     list is v2_surfaces.site_nav, kept dependency-free here)."""
+    _cur = ' aria-current="page"'   # standalone (no backslash in any f-string expr)
     return "".join(
-        f'<a class="{"on" if on else ""}" href="{esc(href)}">{esc(lbl)}</a>'
+        f'<a class="{"on" if on else ""}" href="{esc(href)}"{_cur if on else ""}>{esc(lbl)}</a>'
         for href, lbl, on in items)
 
 
@@ -257,27 +322,38 @@ def topbar(active: str = "", nav_html: str = "") -> str:
         nav_html = "".join(
             f'<a class="{"on" if k == active else ""}" href="/dash/{k}">{esc(lbl)}</a>'
             for k, lbl in _NAV)
-    return (f'<div class="uk-top"><div class="uk-logo"><span class="dot"></span>patearn</div>'
-            f'<nav class="uk-nav">{nav_html}</nav>{cmdk_hint()}</div>')
+    return (f'<div class="uk-top"><a class="uk-logo" href="/dash" aria-label="patearn home">'
+            f'<span class="dot"></span>patearn</a>'
+            f'<nav class="uk-nav" aria-label="Primary">{nav_html}</nav>{cmdk_hint()}</div>')
 
 
 def subnav(items: list[tuple[str, str, bool]]) -> str:
-    """items = [(label, href, is_on), ...]; a leading (label, '', False) renders a group tag."""
+    """items = [(label, href, is_on), ...]; a leading (label, '', False) renders a group tag.
+
+    CONSISTENCY (chrome-consistency-sweep §1): the wrapper carries the SAME
+    `role="navigation" aria-label="Section"` landmark as v2_surfaces.native_subnav() — the
+    other sub-nav renderer — so the contextual sub-nav strip is byte-identical whether a page
+    builds it via this native helper (coverage, _ui) or via native_subnav (screen2, strategist,
+    every reskinned legacy page). Before this, native K.subnav() pages emitted a bare
+    `<div class="uk-sub">` with no nav landmark while every other page had one — a screen-reader
+    inconsistency on the Trust front-door. One sub-nav contract, both shells."""
     out = []
     for lbl, href, on in items:
         if not href:
             out.append(f'<span class="grp">{esc(lbl)}</span>')
         else:
             out.append(f'<a class="{"on" if on else ""}" href="{esc(href)}">{esc(lbl)}</a>')
-    return f'<div class="uk-sub">{"".join(out)}</div>'
+    return f'<div class="uk-sub" role="navigation" aria-label="Section">{"".join(out)}</div>'
 
 
 def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: str = "") -> str:
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>{esc(title)}</title>{_CSS}</head>'
-            f'<body style="margin:0"><div class="uk">{topbar(active, nav_html)}{sub}'
-            f'<div class="uk-page">{body}</div></div>{cmdk_overlay()}</body></html>')
+            f'<title>{esc(title)}</title>{_CSS}{_foundation()}{density_js()}</head>'
+            f'<body style="margin:0;background:var(--bg-1);color:var(--ink);font-family:var(--font)">'
+            f'<a class="uk-skip" href="#uk-main">Skip to content</a>'
+            f'<div class="uk">{topbar(active, nav_html)}{sub}'
+            f'<main id="uk-main" class="uk-page">{body}</main></div>{cmdk_overlay()}</body></html>')
 
 
 # --- the living style guide (visual proof of the language) -------------------

@@ -82,7 +82,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 
 1. **Secrets** — never commit `.env`. Anthropic key, Telegram bot token, Telegram allowed user IDs live there only.
 2. **Cost discipline** — operating Hermes (per month) should be ≤ ₹300 API spend. THIS chat session is more expensive than Hermes itself. Bundle changes. Avoid long iterative tinkering. For text/prompt tweaks, suggest SSH-edit on VPS.
-3. **No Sonnet in scheduled jobs.** Anything that runs on a timer uses Haiku, or no LLM at all.
+3. **Cheap models only in scheduled jobs.** Anything that runs on a timer uses approved cheap-model paths only — Haiku or Gemini Flash Lite; never Sonnet/Opus. (Twin of `AGENTS.md` Guardrail #2.)
 4. **Rule-based > LLM for screening.** The Stage 1 screen is pure Python over Screener data. Don't reintroduce LLM-driven screening.
 5. **Value > quantity.** All cross-time-period stock metrics use rupees, not share count. Eliminates corporate-action adjustment bugs.
 6. **Pre-compute over recompute.** Anything stored can be re-derived from raw data; don't normalise away the bhav copy archive.

@@ -42,7 +42,7 @@ import argparse
 import logging
 import sqlite3
 import time
-from datetime import date
+from datetime import date, timedelta
 from typing import Callable, Optional
 
 from src.automation import provenance
@@ -105,11 +105,23 @@ def collect_with_provenance(symbol: str, research_con, *, hermes_con=None,
             "fresh_recent": len(fresh), "captured": captured}
 
 
+DEFAULT_REFRESH_STALE_DAYS = 95       # re-collect once the next quarter has ended (≈1 quarter old)
+
+
 def collect_universe_with_provenance(symbols, *, delay: float = 2.5,
-                                     recency_gate_days: int = DEFAULT_RECENCY_GATE_DAYS) -> dict:
+                                     recency_gate_days: int = DEFAULT_RECENCY_GATE_DAYS,
+                                     refresh_stale_days: Optional[int] = None) -> dict:
     """Scheduler entry point: the ``collect_universe`` loop with the provenance hook (VPS path).
-    Opens research.db (the collector's store) + a MAIN-db conn for observe(). Resumes via the
-    collector's own ``fundamentals_done``. Degrades to a no-op if research.db is absent."""
+    Opens research.db (the collector's store) + a MAIN-db conn for observe(). Degrades to a no-op
+    if research.db is absent.
+
+    Two selection modes:
+      * **backfill** (``refresh_stale_days=None``, default): collect only symbols NOT yet in
+        ``fundamentals_done`` — the initial-build resume behaviour.
+      * **forward refresh** (``refresh_stale_days=N``): RE-collect symbols whose latest stored
+        ``period_end`` is older than N days (a newer quarter has since ended → may now be filed) +
+        any brand-new symbol. This is what captures real first-seen ``knowable_at`` going forward;
+        the per-symbol recency gate keeps only the just-filed period(s)."""
     from src.automation import fundamentals_history
     import os
     if not os.path.exists(fundamentals_history.RESEARCH_DB):
@@ -118,8 +130,15 @@ def collect_universe_with_provenance(symbols, *, delay: float = 2.5,
 
     rcon = sqlite3.connect(fundamentals_history.RESEARCH_DB, timeout=60)
     fundamentals_history._init(rcon)
-    done = {r[0] for r in rcon.execute("SELECT symbol FROM fundamentals_done")}
-    todo = [s for s in symbols if s not in done]
+    if refresh_stale_days is None:
+        done = {r[0] for r in rcon.execute("SELECT symbol FROM fundamentals_done")}
+        todo = [s for s in symbols if s not in done]
+    else:
+        latest = {r[0]: r[1] for r in rcon.execute(
+            "SELECT symbol, MAX(period_end) FROM fundamentals_history GROUP BY symbol")}
+        cutoff = (date.today() - timedelta(days=refresh_stale_days)).isoformat()
+        todo = [s for s in symbols if latest.get(s) is None or (latest[s] or "") < cutoff]
+        log.info("forward-refresh: %d/%d symbols stale (latest period_end < %s)", len(todo), len(symbols), cutoff)
     totals = {"symbols": 0, "rows": 0, "captured": 0}
     with provenance.get_conn() as hcon:
         provenance.ensure_schema(hcon)
@@ -195,35 +214,86 @@ def _selftest() -> None:
           "cross-DB observe on main; ptype-keyed round-trip)")
 
 
+def demo_capture(symbol: str = "_FWDTEST_") -> dict:
+    """Prove the forward hook captures a NEW filing END-TO-END on the REAL VPS DBs: simulate a
+    freshly-filed recent quarter for a throwaway symbol (injected collect_fn → research.db),
+    confirm observe() writes a real ``knowable_at`` into the MAIN-db provenance_knowable, then
+    CLEAN UP both. Non-destructive — proves the live wiring without waiting for an actual filing."""
+    import os
+    from src.automation import fundamentals_history
+    if not os.path.exists(fundamentals_history.RESEARCH_DB):
+        return {"status": "research_db_absent"}
+    # a recent period_end inside the recency gate (last calendar month-end)
+    first_of_month = date.today().replace(day=1)
+    pe = (first_of_month - timedelta(days=1)).isoformat()
+
+    def fake_filing(sym, con):
+        con.execute("INSERT OR REPLACE INTO fundamentals_history VALUES (?,?,?,?,?,?)",
+                    (sym, "Q", pe, pe, "Sales", 1.0))
+        con.commit()
+        return 1
+
+    rcon = sqlite3.connect(fundamentals_history.RESEARCH_DB, timeout=60)
+    fundamentals_history._init(rcon)
+    key = provenance.period_key(symbol, "Q", pe)
+    got = None
+    try:
+        with provenance.get_conn() as hcon:
+            provenance.ensure_schema(hcon)
+            st = collect_with_provenance(symbol, rcon, hermes_con=hcon, collect_fn=fake_filing)
+            got = provenance._scalar(hcon, "SELECT knowable_at FROM provenance_knowable WHERE data_class=? AND key=?",
+                                     (DATA_CLASS, key))
+            hcon.execute("DELETE FROM provenance_knowable WHERE data_class=? AND key=?", (DATA_CLASS, key))
+            hcon.commit()
+        rcon.execute("DELETE FROM fundamentals_history WHERE symbol=?", (symbol,))
+        rcon.execute("DELETE FROM fundamentals_done WHERE symbol=?", (symbol,))
+        rcon.commit()
+    finally:
+        rcon.close()
+    return {"symbol": symbol, "simulated_period": f"Q {pe}", "captured": st.get("captured"),
+            "real_knowable_at": got, "cleaned_up": True,
+            "ok": st.get("captured") == 1 and got is not None}
+
+
+def _liquid_universe() -> list:
+    """The liquid EQ symbol set the collector targets (bhavcopy EQ with recent turnover)."""
+    try:
+        from src.core.db import get_conn
+        with get_conn() as c:
+            return sorted({r[0] for r in c.execute(
+                "SELECT DISTINCT symbol FROM bhavcopy_rows WHERE series='EQ' AND trade_date>='2025-01-01'")})
+    except Exception as e:  # noqa: BLE001
+        log.warning("universe query failed (%s) — pass symbols explicitly on the VPS.", e)
+        return []
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Forward ingest hook: real first-seen knowable_at for fundamentals.")
     ap.add_argument("--selftest", action="store_true", help="offline synthetic validation (no network / research.db)")
     ap.add_argument("--run", action="store_true", help="universe ingest pass with the provenance hook (VPS)")
-    ap.add_argument("--limit", type=int, help="cap symbols for --run")
+    ap.add_argument("--refresh", action="store_true",
+                    help="FORWARD mode: re-collect symbols whose latest period is stale (captures new filings)")
+    ap.add_argument("--stale-days", type=int, default=DEFAULT_REFRESH_STALE_DAYS,
+                    help=f"with --refresh: re-collect if latest period_end older than N days (default {DEFAULT_REFRESH_STALE_DAYS})")
+    ap.add_argument("--limit", type=int, help="cap symbols for --run/--refresh")
     ap.add_argument("--gate-days", type=int, default=DEFAULT_RECENCY_GATE_DAYS, help="recency gate (days)")
+    ap.add_argument("--demo-capture", action="store_true",
+                    help="prove a new-filing capture end-to-end on the real DBs, then clean up")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     if args.selftest:
         _selftest(); return
-    if args.run:
-        import os
-        from src.automation import fundamentals_history
-        mc = sqlite3.connect(f"file:{fundamentals_history.RESEARCH_DB.replace('research.db','hermes.db')}?mode=ro", uri=True) \
-            if os.path.exists(fundamentals_history.RESEARCH_DB) else None
-        # universe = the liquid EQ set the collector uses; reuse its own selection if available
-        try:
-            from src.core.db import get_conn
-            with get_conn() as c:
-                syms = [r[0] for r in c.execute(
-                    "SELECT DISTINCT symbol FROM bhavcopy_rows WHERE series='EQ' AND trade_date>='2025-01-01'")]
-        except Exception as e:  # noqa: BLE001
-            log.warning("universe query failed (%s) — pass symbols explicitly on the VPS.", e)
-            syms = []
-        if mc:
-            mc.close()
-        print(collect_universe_with_provenance(sorted(syms)[: args.limit] if args.limit else sorted(syms),
-                                               recency_gate_days=args.gate_days))
+    if args.demo_capture:
+        import json
+        print(json.dumps(demo_capture(), indent=2)); return
+    if args.run or args.refresh:
+        syms = _liquid_universe()
+        if args.limit:
+            syms = syms[: args.limit]
+        print(collect_universe_with_provenance(
+            syms, recency_gate_days=args.gate_days,
+            refresh_stale_days=(args.stale_days if args.refresh else None)))
         return
     ap.print_help()
 

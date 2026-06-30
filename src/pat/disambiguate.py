@@ -312,12 +312,26 @@ _CCI_AVOID = ["deterioration", "deteriorating", "avoid tape", "credibility decay
               "losing credibility", "guidance walkback", "guidance walk-back", "walked back guidance",
               "walked back", "walk back guidance", "walkback", "lowered guidance", "cut guidance",
               "stopped disclosing", "stopped reporting", "quietly dropped", "promise dropped",
-              "dropped promise", "concall red flag", "concall red-flag", "credibility deterioration"]
+              "dropped promise", "concall red flag", "concall red-flag", "credibility deterioration",
+              # worst-SIDE credibility direction qualifiers — the whole list moving
+              # down. Credibility-anchored so a bare "weak stock" is unaffected; these
+              # route to the deterioration board (NOT a single name — that mis-parse,
+              # where the adjective was read as a ticker, is QA-round2's Pat bug).
+              "weakening credibility", "worsening credibility", "eroding credibility",
+              "waning credibility", "slipping credibility", "declining credibility",
+              "decaying credibility", "falling credibility", "deteriorating management",
+              "weakening management credibility", "credibility weakening",
+              "credibility declining", "credibility eroding", "credibility slipping"]
 _CCI_LEAD = ["credibility leader", "credible management", "management credibility",
              "mgmt credibility", "most credible", "credibility rank", "credibility score",
              "guidance accuracy", "kept their promise", "kept its promise", "kept promises",
              "delivered on guidance", "promise ledger", "concall credibility",
-             "trustworthy management", "honest management", "credible managements"]
+             "trustworthy management", "honest management", "credible managements",
+             # best-SIDE credibility direction qualifiers — the list improving →
+             # leaders board (the mirror of the deterioration qualifiers above).
+             "improving credibility", "strengthening credibility", "rising credibility",
+             "growing credibility", "credibility improving", "credibility strengthening",
+             "improving management credibility"]
 # bare concall/earnings-call vocabulary (no leader/avoid word) → default to leaders.
 _CCI_GENERIC = ["concall", "conference call", "earnings call", "management guidance",
                 "guidance track record", "follow-through on guidance"]
@@ -364,6 +378,41 @@ def route_extra(query: str) -> dict | None:
         if len(qn) < 2:
             return None
 
+        # Lane F: COMPARE (A vs B) + STRATEGY BOARD — distinctive shapes routed
+        # deterministically (₹0, quota-proof), BEFORE the single-stock/flow logic.
+        # (The multi-condition planner is NOT short-circuited here — it benefits from
+        # the model's sector/nuance parse, so it rides the Gemini → fallback path.)
+        try:
+            from src.pat.understand import (detect_compare, detect_strategy_key,
+                                            detect_why, detect_trend,
+                                            detect_single_credibility, detect_top_n)
+            # an explicit "top N" rides the ₹0 credibility/leaders returns below so a
+            # one-shot "top 5 credible managements" caps the list (ranking unchanged).
+            _topn = detect_top_n(query)
+            _tr = detect_trend(query)            # "credibility trend for X" → time-series
+            if _tr:
+                return {"flow": "trend", "params": {"sym": _tr}}
+            _wy = detect_why(query)
+            if _wy:
+                return {"flow": "why", "params": {"sym": _wy[0], "metric": _wy[1]}}
+            _cmp = detect_compare(query)
+            if _cmp:
+                return {"flow": "compare", "params": {"syms": ",".join(_cmp)}}
+            _sk = detect_strategy_key(qn)
+            if _sk:
+                return {"flow": "strategy", "params": {"key": _sk}}
+            # single-name credibility ("is X credible" / "confluence on X") → the
+            # evidence-backed why/credibility read, deterministically (₹0). Placed
+            # AFTER compare/strategy (so "X vs Y credibility" / a board ask win) and
+            # BEFORE the generic single-stock card catch below, so a one-name TRUST
+            # question lands on the credibility evidence, not the bare snapshot card.
+            # detect_single_credibility itself defers to why/trend + definition asks.
+            _sc = detect_single_credibility(query)
+            if _sc:
+                return {"flow": "why", "params": {"sym": _sc, "metric": "credibility"}}
+        except Exception:
+            pass
+
         sym = _extract_symbol(query)
         if sym:
             return {"flow": "card", "params": {"sym": sym}}
@@ -374,6 +423,27 @@ def route_extra(query: str) -> dict | None:
         if _EXPLAIN_LEAD_RE.search(qn) or qn.endswith(" meaning") or qn.endswith(" mean"):
             return None
 
+        # MULTI-PILLAR refine guard — a CONJUNCTIVE ask that pairs credibility with
+        # ANOTHER strategy family ("RS leaders WITH credible management", "credible &
+        # being accumulated") must INTERSECT via the planner, NOT collapse to the pure
+        # credibility board (the QA-round2 #5 bug: the credibility catch below dropped the
+        # co-present RS/accum/value pillar, returning a disjoint list). Per this function's
+        # own contract (the multi-condition planner is intentionally NOT short-circuited
+        # here), defer to the Gemini→fallback parse whenever ≥2 families are named — it
+        # builds the confluence_plan that AND-s them. A deterioration ("avoid") ask is the
+        # one credibility shape that is never a refinable list, so it still wins first.
+        if not _has_any(qn, _CCI_AVOID):
+            try:
+                from src.pat.understand import _detect_pillars as _dp
+                # _detect_pillars detects the accumulation pillar from the query itself
+                # (its own _PIL_ACCUM scan), so character=None is sufficient to count the
+                # co-present families here.
+                _pil, _fam = _dp(qn, None)
+                if len(_fam) >= 2:
+                    return None          # ≥2 pillars → let the planner intersect them
+            except Exception:
+                pass
+
         # CCI — Management Credibility (concall intelligence). Avoid-tape first (a
         # deterioration ask is more specific than a bare "credibility" ask), then the
         # leaders, then bare concall vocabulary defaults to leaders. High precedence so
@@ -381,9 +451,9 @@ def route_extra(query: str) -> dict | None:
         if _has_any(qn, _CCI_AVOID):
             return {"flow": "deterioration", "params": {}}
         if _has_any(qn, _CCI_LEAD):
-            return {"flow": "credibility", "params": {}}
+            return {"flow": "credibility", "params": ({"top_n": _topn} if _topn else {})}
         if _has_any(qn, _CCI_GENERIC):
-            return {"flow": "credibility", "params": {}}
+            return {"flow": "credibility", "params": ({"top_n": _topn} if _topn else {})}
 
         # overvalued / expensive → the inverted valuation screen. CHECKED BEFORE the
         # kill-list so "expensive stocks to avoid" reads as overvalued, not disqualified.
@@ -436,6 +506,14 @@ def route_extra(query: str) -> dict | None:
             if _has_any(qn, ["positive", "above signal", "above the signal", "above its signal"]):
                 return {"flow": "oscillators", "params": {"screen": "macd_positive"}}
             return {"flow": "oscillators", "params": {"screen": "macd_bull"}}
+
+        # index-performance asks ("worst performing sector this year", "indices
+        # recovering") → the deterministic index router (CL-PAT-03: was implemented
+        # but never wired). It already returns None for constituent/non-index asks,
+        # so this is additive (₹0, quota-proof) and never steals a stock-screen ask.
+        idx = route_index(query)
+        if idx:
+            return idx
     except Exception:
         return None
     return None
@@ -454,12 +532,32 @@ _G_ADVICE = ["should i buy", "should i sell", "should i hold", "should i exit",
              "is it a sell", "will i make money", "make me rich", "double my money",
              "multiply my money", "guaranteed return", "safe to invest", "is it safe to invest",
              "what should i buy", "what to buy", "where should i invest", "tell me what to buy",
-             "which stock should i", "is x a buy"]
+             "which stock should i", "is x a buy",
+             # F3-7: tighter SEBI / recommendation boundary
+             "good investment", "good buy", "bad investment", "worth investing",
+             "worth holding", "should one buy", "which share to buy", "which stock to buy",
+             "what to invest in", "where to invest", "best stock to invest", "best stock to buy",
+             "best share to buy", "which to buy", "stock to buy now", "share to buy now"]
+# advice phrased as a request for a RECOMMENDATION / tip / portfolio — a SEBI line
+# distinct from a buy/sell verdict on a named stock. Kept precise (so "tip-toe",
+# "portfolio tracker" etc. are not caught — these are full phrases).
+_G_RECOMMEND = ["recommend me", "recommend a stock", "recommend stocks", "recommend a share",
+                "give me a tip", "stock tip", "share tip", "give me a stock tip",
+                "any tips", "hot tip", "hot stocks to buy", "suggest a stock", "suggest stocks",
+                "suggest me", "suggest some stocks", "build me a portfolio", "make me a portfolio",
+                "recommend a portfolio", "recommend me a portfolio", "model portfolio",
+                "what should my portfolio", "pick stocks for me", "pick a stock for me",
+                "which stocks to invest", "best stocks to invest in", "best stock to invest in"]
 _G_PREDICT = ["predict", "forecast", "price target", "target price", "tomorrow",
               "next week", "next month", "will it go up", "will it rise", "will it fall",
               "will it recover", "when will", "going to crash", "will the market",
               "where will", "by friday", "by monday", "intraday tip", "intraday tips",
-              "tips for today", "multibagger for", "sure shot"]
+              "tips for today", "multibagger for", "sure shot",
+              # F3-7: future-looking "which will become" asks (a prediction, not a screen)
+              "will become", "will be the next", "next multibagger", "future multibagger",
+              "multibagger for 20", "multibaggers for 20", "stocks for 2027", "stocks for 2028",
+              "will double", "will triple", "will 10x", "going to be a multibagger",
+              "which stocks will", "which will go up", "which will rally"]
 _G_FEATURE = ["set an alert", "set alert", "alert me", "alert when", "notify me",
               "remind me", "buy 10", "buy 100", "buy shares", "place an order",
               "square off", "my portfolio", "my holdings", "my p&l", "my pnl",
@@ -516,6 +614,15 @@ def route_guardrail(query: str) -> dict | None:
                 [("Index performance", "/dash/pat?flow=index"),
                  ("Today's movers", "/dash/pat?flow=movers"),
                  ("RS leaders", "/dash/pat?flow=rs")])
+        if _has_any(qn, _G_RECOMMEND):
+            return _redirect(
+                "advice",
+                "I can't recommend stocks, give tips or build a portfolio — that would be "
+                "investment advice, and I'm a screening tool, not a SEBI-registered adviser. "
+                "I can show you the data to research names yourself:",
+                [("Quality & value", "/dash/pat?flow=fundamentals"),
+                 ("Credible managements", "/dash/pat?flow=credibility"),
+                 ("Accumulation", "/dash/pat?flow=accumulation")])
         if _has_any(qn, _G_ADVICE):
             return _redirect(
                 "advice",
