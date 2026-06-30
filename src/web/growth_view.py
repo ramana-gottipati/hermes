@@ -17,9 +17,17 @@ from __future__ import annotations
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from urllib.parse import quote
+
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
 from src.automation.concall_signals import ensure_schema, scan
+
+
+def _q(s) -> str:
+    """URL-encode a symbol for a query string (CL-VIEW-05). `_esc` only HTML-escapes;
+    a symbol with `&`/`%`/space would break the href without percent-encoding."""
+    return quote(str(s) if s is not None else "", safe="")
 
 router = APIRouter()
 
@@ -134,10 +142,11 @@ def _table(rows) -> str:
         av = r["amount_cr"]
         amt = f'<span class="gw-cr">{av:,.0f}</span>' if av is not None else '<span class="gw-mut">—</span>'
         sym = _esc(r["symbol"])
+        sym_q = _q(r["symbol"])   # CL-VIEW-05: URL-encode for the href (sym is HTML-escaped for text)
         per_sort = (r["year"] or 0) * 100 + (r["month"] or 0)
         claim_cls = "gw-neg" if r["polarity"] == -1 else "gw-claim"
         out.append(
-            f'<tr><td><a class="gw-sym" href="/dash/stock?sym={sym}" style="text-decoration:none">{sym}</a></td>'
+            f'<tr><td><a class="gw-sym" href="/dash/stock?sym={sym_q}" style="text-decoration:none">{sym}</a></td>'
             f'<td class="gw-mut" data-sort="{per_sort}">{_esc(r["period_label"] or "")}</td>'
             f'<td class="gw-type">{_esc(r["statement_type"] or "")}</td>'
             f'<td class="num" data-sort="{av if av is not None else -1}">{amt}</td>'

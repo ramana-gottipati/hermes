@@ -314,6 +314,10 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         status = ('<span style="color:#3fb950;font-weight:700">● IN</span>' if c["in_zone"]
                   else '<span style="color:#6e7681">watch</span>')
         trs.append(
+            # CL-VIEW-09: the symbol sits in a single-quoted JS string inside a double-
+            # quoted attribute. SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes,
+            # so the value can never contain `'`, `"` or whitespace to break out. Do NOT
+            # swap _q for _esc here — _esc leaves quotes/spaces intact and would break the JS.
             f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(c["sym"])}&pick=winner\'" '
             f'style="cursor:pointer;border-top:1px solid #21262d" '
             f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'

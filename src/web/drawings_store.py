@@ -93,6 +93,12 @@ def put_drawings(sym: str = Query("", max_length=24),
     Whole-set replace (the client always owns the canonical list and posts it after
     every change) — simpler and race-free vs per-item upserts for a single-user store.
     Caps count + payload size; an empty list deletes the row.
+
+    CL-VIEW-13 (auth note): this route is unauthenticated and keyed ONLY by symbol — which
+    is correct for the current SINGLE-USER deployment (Ramana's drawings, one operator).
+    If/when this ever serves multiple users, the store MUST become per-user: add an owner
+    key (session/user id) to the table PK and the WHERE clauses, and require auth here, or
+    one user's drawings would silently overwrite another's on the same symbol.
     """
     s = _norm_sym(sym)
     if not s:

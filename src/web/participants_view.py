@@ -45,7 +45,7 @@ def _cell(v, scale):
         return '<td class="r mut">—</td>'
     col = "#2ea043" if v >= 0 else "#f85149"
     w = min(100, abs(v) / scale * 100) if scale else 0
-    side = "left:50%" if v >= 0 else f"right:50%"
+    side = "left:50%" if v >= 0 else "right:50%"   # CL-VIEW-07: dead f-prefix dropped
     bar = (f'<span style="position:absolute;top:3px;{side};width:{w/2:.0f}%;height:9px;'
            f'background:{col}22;border-{"left" if v>=0 else "right"}:2px solid {col}"></span>')
     return (f'<td class="r" style="position:relative;color:{col};font-variant-numeric:tabular-nums">'

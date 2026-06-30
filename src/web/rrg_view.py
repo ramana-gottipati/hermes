@@ -277,8 +277,9 @@ def _constituent_data(index_name: str, den: str, conn):
             continue
         braw = [dict(r) for r in reversed(braw)]          # oldest → newest
         adj = adjust.adjusted_closes(braw)
-        ratio = [a / broad[r["trade_date"]] for r, a in zip(braw, adj)
-                 if a and a > 0 and broad.get(r["trade_date"], 0) > 0]
+        # CL-VIEW-14: bind the benchmark close once per row instead of two dict lookups.
+        ratio = [a / bv for r, a in zip(braw, adj)
+                 for bv in (broad.get(r["trade_date"], 0),) if a and a > 0 and bv > 0]
         if len(ratio) < 80:
             continue
         rr, rm = rrg._rs_ratio_momentum(ratio)
@@ -688,8 +689,9 @@ def _stock_rrg(sym: str, den: str, conn):
         return None, []
     braw = [dict(r) for r in reversed(braw)]
     adj = adjust.adjusted_closes(braw)
-    ratio = [a / broad[r["trade_date"]] for r, a in zip(braw, adj)
-             if a and a > 0 and broad.get(r["trade_date"], 0) > 0]
+    # CL-VIEW-14: bind the benchmark close once per row instead of two dict lookups.
+    ratio = [a / bv for r, a in zip(braw, adj)
+             for bv in (broad.get(r["trade_date"], 0),) if a and a > 0 and bv > 0]
     if len(ratio) < 120:
         return None, []
     rr, rm = rrg._rs_ratio_momentum(ratio)

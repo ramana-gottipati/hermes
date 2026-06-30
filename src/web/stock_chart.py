@@ -104,7 +104,8 @@ SNIPPET = """<script>
     pc.priceScale('dvpt').applyOptions({scaleMargins:FLOW});
     var delivL=pc.addLineSeries({priceScaleId:'deliv',color:C.deliv,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     pc.priceScale('deliv').applyOptions({scaleMargins:FLOW}); delivL.applyOptions({visible:false});
-    var tvCap=0; function capInfo(){ return {priceRange:{minValue:0,maxValue:tvCap||1}}; }
+    var tvCap=0, tvCapRT=null;   // tvCapRT = the RT array tvCap was computed for (CL-VIEW-11 cache)
+    function capInfo(){ return {priceRange:{minValue:0,maxValue:tvCap||1}}; }
     var tvalH=pc.addHistogramSeries({priceScaleId:'tv',priceFormat:{type:'volume'},color:C.tval,autoscaleInfoProvider:capInfo,lastValueVisible:false});
     var dvalH=pc.addHistogramSeries({priceScaleId:'tv',priceFormat:{type:'volume'},color:C.dval,autoscaleInfoProvider:capInfo,lastValueVisible:false});
     pc.priceScale('tv').applyOptions({scaleMargins:FLOW}); tvalH.applyOptions({visible:false}); dvalH.applyOptions({visible:false});
@@ -238,8 +239,15 @@ SNIPPET = """<script>
       paintPrice();
       dvptH.setData(RT.map(function(d){return {time:d.time,value:d.dvpt,color:d.hot?C.dvpt:C.dvptIdle};}));
       delivL.setData(RT.filter(function(d){return d.delivN>0;}).map(function(d){return {time:d.time,value:d.delivSum/d.delivN};}));
-      var tv=RT.map(function(d){return d.tval;}).filter(function(v){return v!=null&&v>0;}).sort(function(a,b){return a-b;});
-      tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
+      // CL-VIEW-11: the 98th-pctile traded-value cap depends only on RT (the resampled
+      // rows), which changes only on an interval switch — not on indicator toggles. Cache
+      // it keyed on the RT array identity so a chip toggle no longer re-sorts the full
+      // series. resample() always returns a fresh array, so the identity check is exact.
+      if(tvCapRT!==RT){
+        var tv=RT.map(function(d){return d.tval;}).filter(function(v){return v!=null&&v>0;}).sort(function(a,b){return a-b;});
+        tvCap=tv.length?tv[Math.min(tv.length-1,Math.floor(tv.length*0.98))]:0;
+        tvCapRT=RT;
+      }
       tvalH.setData(RT.filter(function(d){return d.tval!=null;}).map(function(d){return {time:d.time,value:d.tval};}));
       dvalH.setData(RT.filter(function(d){return d.dval!=null;}).map(function(d){return {time:d.time,value:d.dval};}));
       tvalH.setMarkers(tvCap>0?RT.filter(function(d){return d.tval!=null&&d.tval>tvCap;}).map(function(d){return {time:d.time,position:'aboveBar',color:C.dvpt,shape:'arrowUp'};}):[]);

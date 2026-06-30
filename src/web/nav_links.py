@@ -70,10 +70,14 @@ def _esc(s: object) -> str:
 
 def _qsym(sym: object) -> str:
     """URL-safe symbol for a query string. NSE symbols are [A-Z0-9&-]; we percent-encode
-    the few specials defensively without pulling urllib for the hot path."""
+    the few specials defensively without pulling urllib for the hot path.
+    CL-CHR-5: also encode `?`, `=`, `/` — a `?`/`=` would start a new query param and `/`
+    a new path segment, so an odd index/theme name could otherwise corrupt the URL.
+    `%` MUST stay first so we don't double-encode the escapes we just introduced."""
     s = str(sym).strip()
     return (s.replace("%", "%25").replace("&", "%26").replace("#", "%23")
-            .replace("+", "%2B").replace(" ", "%20").replace('"', "%22"))
+            .replace("+", "%2B").replace(" ", "%20").replace('"', "%22")
+            .replace("?", "%3F").replace("=", "%3D").replace("/", "%2F"))
 
 
 # ── 1. canonical link helpers (lens carried as the dossier-tab anchor) ───────────
@@ -277,9 +281,13 @@ _INDEX_H2_RE = re.compile(
     r'<h2 style="margin-top:2px">([^<]{1,60}?)\s*<span class="sub"[^>]*>\s*'
     r'(?:broad / size index|sector)\b')
 # extract the theme name from the theme participants header
-# (cockpit.render_theme_detail: `<h2 style="margin-top:2px">NAME <span class="sub" ...`
-# guarded by the page's "/dash/theme" self-links so we never mis-fire on another <h2>).
-_THEME_H2_RE = re.compile(r'<h2 style="margin-top:2px">([^<]{1,60}?)\s*<span class="sub"')
+# (cockpit.render_theme_detail: `<h2 style="margin-top:2px">NAME <span class="sub" style="margin:0">BLURB`).
+# CL-CHR-10: the old pattern shared its entire prefix with _INDEX_H2_RE (`<h2 style=
+# "margin-top:2px">…<span class="sub"`), so it was only the route `active` dispatch + the
+# call-site "/dash/theme?tag=" guard keeping them apart. Narrow it to the theme header's
+# exact `<span class="sub" style="margin:0">` so it can't latch a differently-styled <h2>
+# even if the active dispatch ever widened. (Still routed only on active in themes/theme.)
+_THEME_H2_RE = re.compile(r'<h2 style="margin-top:2px">([^<]{1,60}?)\s*<span class="sub" style="margin:0">')
 
 
 def _inject_body(body: str, active: str) -> str:
@@ -410,7 +418,10 @@ def _selftest() -> int:
 
     # ── lateral rails are registry-generated ──
     mep_rail = lens_rail("mep", "INFY")
-    assert "/dash/mep" in mep_rail and "lens=mep" in mep_rail and ">on the chart<" in mep_rail
+    # CL-CHR-2 (already shipped) pointed "open in Screener" at /dash/screen2 and dropped the
+    # no-op `?lens=` param; the rail now carries the market-wide list + the screen2 hop + the
+    # chart overlay. (Stale `lens=mep` assertion removed to match the shipped behaviour.)
+    assert "/dash/mep" in mep_rail and "/dash/screen2" in mep_rail and ">on the chart<" in mep_rail
     assert lens_rail("conviction", "INFY") == "" or "market-wide list" in lens_rail("conviction", "INFY")
     rails = dossier_lens_rails("INFY")
     for tab in ("pos", "mep", "rs", "cpr", "cci"):

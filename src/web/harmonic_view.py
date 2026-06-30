@@ -124,6 +124,9 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
                   else '<span style="color:#6e7681">watch</span>')
         sc = f'{r["score"]:.2f}' if (r["state"] == "CONFIRMED" and r["score"]) else "—"
         trs.append(
+            # CL-VIEW-09: symbol in a single-quoted JS string inside a double-quoted attr.
+            # SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes, so the value can
+            # never carry `'`/`"`/whitespace to break out. Do NOT swap _q→_esc here.
             f'<tr onclick="location.href=\'/dash/stock?sym={_q(r["sym"])}\'" '
             f'style="cursor:pointer;border-top:1px solid #21262d" '
             f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'

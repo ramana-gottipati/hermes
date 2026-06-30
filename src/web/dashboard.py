@@ -27,9 +27,12 @@ All read-only. No LLM. No mutation. Pure SQL over the existing tables.
 import csv
 import io
 import json
+import logging
 import re
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
+
+log = logging.getLogger("hermes.dashboard")
 
 from fastapi import APIRouter, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -517,11 +520,37 @@ if ('serviceWorker' in navigator) {{
 
 
 def _esc(s) -> str:
-    return (str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # CL-CHR-11: escape `"` too (→ &quot;). `_esc` is used inside double-quoted href/title
+    # attributes across dashboard + cockpit (cockpit imports it as D._esc); a stored URL or
+    # name with a `"` would otherwise break out of the attribute. `&` stays first so the
+    # `&quot;` we introduce is not itself re-escaped. JS single-quote contexts (onclick='…')
+    # are unaffected — we don't touch `'`.
+    return ((str(s) if s is not None else "").replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
 
 
 def _q(s) -> str:
     return quote_plus(str(s) if s is not None else "")
+
+
+# CL-DASH-15: a corrupt snapshot_json/alerts_json used to vanish into a bare `except: {}`.
+# Parse through here instead: a malformed blob is COUNTED + logged at WARNING (so silent
+# data corruption surfaces in the logs) while the caller still degrades to {} and renders.
+_JSON_PARSE_FAILURES = {"snapshot_json": 0, "alerts_json": 0}
+
+
+def _load_json_field(raw, field: str, default):
+    """Parse a stored JSON column; on failure log+count and return `default`. Empty/NULL is
+    a normal empty value (not a failure)."""
+    if not raw:
+        return default
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError) as e:
+        _JSON_PARSE_FAILURES[field] = _JSON_PARSE_FAILURES.get(field, 0) + 1
+        log.warning("corrupt %s (#%d this process): %s", field,
+                    _JSON_PARSE_FAILURES[field], e)
+        return default
 
 
 def _tag_chips(labels, link: bool = True, proposed=(), wrap: bool = False, cap=None) -> str:
@@ -3767,6 +3796,18 @@ def _ohlc_on(conn, sym, date=None):
     return dict(r) if r else None
 
 
+def _entry_in_day_range(lo, hi, px) -> bool:
+    """Did `px` plausibly trade within the day's [lo,hi]? CL-DASH-10: the old check used a
+    FIXED ±0.05 absolute band — meaningless across price scales (₹0.05 is nothing on a
+    ₹5,000 stock and huge on a ₹3 stock). Use a RELATIVE tolerance: the larger of a tiny
+    absolute floor (rounding) and 0.1% of the high (tick/feed noise), so the slack scales
+    with the price. Returns True when lo/hi are unknown (can't validate → don't block)."""
+    if lo is None or hi is None or px is None:
+        return True
+    tol = max(0.05, hi * 0.001)
+    return (lo - tol) <= px <= (hi + tol)
+
+
 def _snap_chips(snap):
     """Compact frozen-snapshot chip row from a snapshot dict."""
     if not snap:
@@ -4421,10 +4462,7 @@ def _fiftytwo(conn, sym, cache):
 def _eval_alerts(row, sig, cmp_, thn, f52):
     """The list of fired-rule messages for `row` right now. EOD — 'crosses' is read
     as 'has reached/passed' at the close. f52 = callable(sym)->(52w_hi, 52w_lo)."""
-    try:
-        rules = json.loads(row.get("alerts_json")) if row.get("alerts_json") else []
-    except Exception:
-        rules = []
+    rules = _load_json_field(row.get("alerts_json"), "alerts_json", [])  # CL-DASH-15
     if not rules:
         return []
     sig = sig or {}
@@ -4503,11 +4541,8 @@ def _alert_badges(firing, ready):
 def _alerts_form(row):
     """Per-item alert editor (POSTs /dash/track/alerts/save). Tick a rule + set a
     threshold; pre-filled from the saved alerts_json."""
-    try:
-        existing = {r["t"]: r.get("v")
-                    for r in (json.loads(row["alerts_json"]) if row["alerts_json"] else [])}
-    except Exception:
-        existing = {}
+    existing = {r["t"]: r.get("v")   # CL-DASH-15: parse via the counted/logged helper
+                for r in _load_json_field(row["alerts_json"], "alerts_json", [])}
     lines = []
     for t, lbl, needs, unit in _ALERT_DEFS:
         chk = " checked" if t in existing else ""
@@ -4751,7 +4786,7 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
             ep_in = _f(entry_price)
             if ep_in is None:
                 ep = close
-            elif lo is not None and hi is not None and not (lo - 0.05 <= ep_in <= hi + 0.05):
+            elif not _entry_in_day_range(lo, hi, ep_in):   # CL-DASH-10: relative band
                 return RedirectResponse(
                     f"{dest}?err={_q(f'{sym} traded ₹{lo:g}–₹{hi:g} on {td}. ₹{ep_in:g} never traded that day — enter a price in that range.')}",
                     status_code=303)
@@ -4873,7 +4908,7 @@ def dash_track_update(id: int = Form(...), status: str = Form("open"),
                 ep_in = _f(entry_price)
                 if ep_in is None:
                     ep = close
-                elif lo is not None and hi is not None and not (lo - 0.05 <= ep_in <= hi + 0.05):
+                elif not _entry_in_day_range(lo, hi, ep_in):   # CL-DASH-10: relative band
                     return RedirectResponse(
                         f"{dest}?err={_q(f'{sym} traded ₹{lo:g}–₹{hi:g} on {td}. ₹{ep_in:g} never traded that day — enter a price in that range.')}",
                         status_code=303)
@@ -5048,10 +5083,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
         ep, q = r["entry_price"], r.get("qty")
         pl = ((cmp_ - ep) / ep * 100.0) if (cmp_ and ep) else None
         _, dcp, _pc = dd.get(sym, (None, None, None))
-        try:
-            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-        except Exception:
-            thn = {}
+        thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
         invv = (q * ep) if (q and ep) else None
         rpl = (q * (cmp_ - ep)) if (q and cmp_ is not None and ep) else None
         tdist = _dist_pct(cmp_, r["price_target"], True)
@@ -5149,10 +5181,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
         for r in rows:
             sym = r["symbol"]
             sig = (enr.get(sym) or {}).get("sig") or {}
-            try:
-                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-            except Exception:
-                thn = {}
+            thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
             firing = _eval_alerts(r, sig, live.get(sym, (None, {}))[0], thn,
                                   lambda s: _fiftytwo(conn, s, f52c))
             alerts[r["id"]] = (firing, _ready_to_act(sig))
@@ -5186,10 +5215,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
         sym = r["symbol"]
         cmp_, snap = live.get(sym, (None, {}))
         e = enr.get(sym, {})
-        try:
-            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-        except Exception:
-            thn = {}
+        thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
         then = thn.get("close")     # frozen close on the day it was added
         chg = ((cmp_ - then) / then * 100.0) if (cmp_ and then) else None
         dwatch = _days_between(r["date_added"], today)
@@ -5450,10 +5476,7 @@ def dash_dashboard() -> HTMLResponse:
         for r in (openrows + watchrows):
             sym = r["symbol"]
             sig = (enr.get(sym) or {}).get("sig") or {}
-            try:
-                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-            except Exception:
-                thn = {}
+            thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
             cmp_a = cmps.get(sym) if r["status"] == "open" else wcmps.get(sym)
             fr = _eval_alerts(r, sig, cmp_a, thn, lambda s: _fiftytwo(conn, s, f52c))
             if fr:
@@ -5527,10 +5550,7 @@ def dash_dashboard() -> HTMLResponse:
         sym = r["symbol"]
         cmp_ = cmps.get(sym)
         sig = (enr.get(sym) or {}).get("sig") or {}
-        try:
-            thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-        except Exception:
-            thn = {}
+        thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
         fl = set(_thesis_flags(thn, sig, cmp_, r["stop_loss"]))
         v, btot = hold_value.get(r["id"]), book_val.get(r.get("book") or "Main")
         conc_pct = (v / btot * 100.0) if (v and btot) else None
@@ -5906,10 +5926,7 @@ def dash_track_export(status: str = Query("open"), book: str = Query("")) -> Res
         w.writerow(["Symbol", "Added Date", "Strategy", "Book", "Price When Added",
                     "CMP", "Change % Since Added", "Target", "Stop", "Thesis"])
         for r in rows:
-            try:
-                thn = json.loads(r["snapshot_json"]) if r["snapshot_json"] else {}
-            except Exception:
-                thn = {}
+            thn = _load_json_field(r["snapshot_json"], "snapshot_json", {})  # CL-DASH-15
             then, cmp_ = thn.get("close"), cmps.get(r["symbol"])
             chg = ((cmp_ - then) / then * 100.0) if (cmp_ and then) else None
             w.writerow([r["symbol"], (r["date_added"] or "")[:10], r["strategy"], r.get("book") or "Main",
@@ -6327,6 +6344,12 @@ def dash_stock(sym: str = Query("", max_length=20),
                track: int = Query(0),
                cmp: list[str] = Query(default=[])) -> HTMLResponse:
     sym = sym.upper().strip()
+    # CL-DASH-19: cap the compare-overlay list at the source. A hand-crafted URL can repeat
+    # ?cmp= arbitrarily; the downstream loop already stops at _COMPARE_MAX, but the raw list
+    # is materialised first. Slice generously (well above _COMPARE_MAX) so legitimate use is
+    # untouched while an abusive payload can't balloon memory.
+    if cmp:
+        cmp = cmp[:64]
     _wolfe_btn = (
         f'<a href="/dash/wolfe?sym={_q(sym)}" style="display:inline-block;margin:8px 0 0;padding:6px 12px;'
         f'background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;'
@@ -6481,7 +6504,12 @@ def dash_stock(sym: str = Query("", max_length=20),
     # The institutional zones are computed from recent raw closes; if any
     # corporate action occurred within the zone window we flag it so the
     # overlay isn't silently misaligned.
-    zone_action_recent = any(f != 1.0 for f in factors[-264:]) if n else False
+    # CL-DASH-13: the window is TIED to the longest zone lookback (P12M / R12M = 12 months
+    # ≈ 252 trading sessions, + ~12 sessions slack) instead of a bare magic 264, so if the
+    # zone horizon ever changes this single constant moves with it.
+    _ZONE_LOOKBACK_SESSIONS = 252 + 12   # longest zone (12m) + a small calendar-drift buffer
+    zone_action_recent = (any(f != 1.0 for f in factors[-_ZONE_LOOKBACK_SESSIONS:])
+                          if n else False)
 
     # Institutional zone levels for horizontal lines on the price chart.
     zone_line_defs = [
@@ -8632,15 +8660,17 @@ _MANIFEST = """{
   ]
 }"""
 
+# CL-DASH-12: PWA icon = the patearn header mark (uptrend line + the cyan/green dot), NOT
+# the legacy Hermes "H" glyph. The brand is patearn; the bare "H" was a leftover. The line
+# rises and centres so the mark reads at any size; the dot is the same accent the topbar
+# logo uses. (Hermes survives only as the Nous agent name, not the product brand.)
 _ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <rect width="512" height="512" rx="96" fill="#0e1116"/>
 <rect width="512" height="512" rx="96" fill="#161b22"/>
-<g stroke="#1f6feb" stroke-width="34" stroke-linecap="round" fill="none">
-  <path d="M120 360 L210 250 L290 300 L392 150"/>
+<g stroke="#1f6feb" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path d="M104 372 L208 248 L296 312 L408 156"/>
 </g>
-<circle cx="392" cy="150" r="26" fill="#3fb950"/>
-<text x="256" y="452" font-family="system-ui,Segoe UI,sans-serif" font-size="92"
-      font-weight="800" fill="#e6edf3" text-anchor="middle">H</text>
+<circle cx="408" cy="156" r="34" fill="#3fb950"/>
 </svg>"""
 
 # Network-first service worker: always try fresh data, fall back to cache offline.

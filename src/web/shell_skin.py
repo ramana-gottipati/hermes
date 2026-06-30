@@ -334,7 +334,14 @@ def _native_header(active) -> str:
 # direct reskin(html) call, or a future global middleware). The legacy `.v2bar` nav marks
 # its current tab with `class="on"` + `aria-current="page"`; recover the altitude from
 # that anchor's href. Best-effort — a miss just means no lit tab, never an error.
-_ACTIVE_HREF_RE = re.compile(r'<a class="on"[^>]*href="(/dash/[^"]+)"[^>]*aria-current="page"')
+# CL-CHR-7: order-tolerant. The old regex hard-required class→href→aria-current in that
+# exact order; any attribute re-ordering (or a multi-class `class="on foo"`) silently broke
+# recovery. Now we match each `<a …>` open tag, then confirm the on-class + aria-current and
+# pull the /dash href INSIDE the tag regardless of attribute order.
+_A_TAG_RE = re.compile(r'<a\b[^>]*>')
+_A_HREF_RE = re.compile(r'href="(/dash/[^"]+)"')
+_A_ONCLASS_RE = re.compile(r'class="[^"]*\bon\b[^"]*"')
+_A_ARIACUR_RE = re.compile(r'aria-current="page"')
 # map a top-bar altitude href back to its nav key (the values site_nav highlights on).
 _HREF_TO_ACTIVE = {"/dash/markets": "markets", "/dash/screener": "screener",
                    "/dash/strategist": "strategies", "/dash/strategies": "strategies",
@@ -346,9 +353,13 @@ def _active_from_html(html: str):
     the native header highlights correctly even when `active` was not threaded. Returns
     None on a miss (header still renders, just no lit altitude)."""
     try:
-        m = _ACTIVE_HREF_RE.search(html)
-        if m:
-            return _HREF_TO_ACTIVE.get(m.group(1))
+        for tag in _A_TAG_RE.findall(html):
+            if not (_A_ONCLASS_RE.search(tag) and _A_ARIACUR_RE.search(tag)):
+                continue
+            hm = _A_HREF_RE.search(tag)
+            if hm:
+                return _HREF_TO_ACTIVE.get(hm.group(1))
+        return None
     except Exception:  # noqa: BLE001
         pass
     return None

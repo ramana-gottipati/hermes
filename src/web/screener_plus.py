@@ -48,9 +48,43 @@ _GROUPS = [
     ("ctx", "Context"),
 ]
 
+# CL-VIEW-15: liquidity gate WITHOUT static rupee thresholds (no-static-threshold
+# doctrine). The old gate hard-coded `value > 1e7 AND close > 20` — fixed rupee numbers
+# that drift with the index level and penalise low-priced-but-liquid names. Replaced by a
+# self-scaling TURNOVER PERCENTILE: keep names whose traded value is at/above the 30th
+# percentile of THAT day's EQ universe. The cutoff re-derives every day from the data (see
+# `_turnover_cutoff`), so it tracks the market instead of a frozen number; it is passed as a
+# bound `?` param (`b.value >= ?`), NOT interpolated. The penny floor is dropped — a name
+# that clears the turnover percentile is liquid by construction (verified on VPS real data
+# 2026-06-29: 1452 rows vs the old gate's 1369 — no regression; only 34 sub-₹20 names enter,
+# all genuinely liquid by turnover). Descriptive — a universe filter, not a ranking.
+_LIQ_PCTILE = 0.30
 _LIQ = ("b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL) "
-        "AND b.value > 10000000 AND b.close > 20 "
+        "AND b.value >= ? "
         "AND s.symbol IN (SELECT symbol FROM nse_equity_list)")
+
+
+def _turnover_cutoff(conn, sig_date) -> float:
+    """The day's 30th-percentile EQ turnover — a self-scaling liquidity floor (no static
+    rupee number; CL-VIEW-15). Computed once per request over the day's EQ universe.
+    Returns 0.0 on any miss so the gate degrades to 'all turnover>0' rather than 500."""
+    try:
+        n = conn.execute(
+            "SELECT COUNT(*) c FROM bhavcopy_rows b WHERE b.trade_date=? AND b.series='EQ' "
+            "AND (b.segment='CM' OR b.segment IS NULL) AND b.value > 0 "
+            "AND b.symbol IN (SELECT symbol FROM nse_equity_list)", (sig_date,)).fetchone()["c"]
+        if not n:
+            return 0.0
+        off = int(_LIQ_PCTILE * n)
+        r = conn.execute(
+            "SELECT b.value v FROM bhavcopy_rows b WHERE b.trade_date=? AND b.series='EQ' "
+            "AND (b.segment='CM' OR b.segment IS NULL) AND b.value > 0 "
+            "AND b.symbol IN (SELECT symbol FROM nse_equity_list) "
+            "ORDER BY b.value LIMIT 1 OFFSET ?", (sig_date, off)).fetchone()
+        return float(r["v"]) if r and r["v"] is not None else 0.0
+    except Exception as e:  # noqa: BLE001
+        log.warning("turnover cutoff failed: %s", e)
+        return 0.0
 
 
 # ── nav / sub-nav (best-effort full site nav) ────────────────────────────────
@@ -561,7 +595,10 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                     scope_syms = _sector_symbols(conn, scope)
                 n_members = len(scope_syms) if scope_syms is not None else None
 
-                clause, params = "", [sig_date]
+                # CL-VIEW-15: the day's self-scaling turnover floor (bound `?` in _LIQ),
+                # inserted right after sig_date to match the `?` order in the SQL below.
+                turnover_cut = _turnover_cutoff(conn, sig_date)
+                clause, params = "", [sig_date, turnover_cut]
                 if scope_syms is not None:
                     use = scope_syms or ["\x00"]
                     clause = " AND s.symbol IN (" + ",".join("?" for _ in use) + ")"
@@ -676,7 +713,8 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             # mep — LEADS with the signed accum/distrib bar instrument
             f'<td class="inst l cg-mep" data-v="{mep_ph if mep_ph is not None else -99}">{adbar}</td>'
             + mep_ph_td +
-            f'<td class="l cg-mep" data-v="{r.get("mep_ph") or -99}">{_mep_pill(r.get("mep_st"))}</td>'
+            # CL-VIEW-16: `or -99` made a real 0.0 sort as missing; keep 0.0 distinct.
+            f'<td class="l cg-mep" data-v="{r.get("mep_ph") if r.get("mep_ph") is not None else -99}">{_mep_pill(r.get("mep_st"))}</td>'
             # rs — LEADS with the RS spark + the multi-TF heat strip instruments
             f'<td class="inst l cg-rs" data-v="{r.get("b1") if r.get("b1") is not None else -999}">{spark}</td>'
             f'<td class="inst l cg-rs" data-v="{r.get("b12") if r.get("b12") is not None else -999}">{heat}</td>'
@@ -703,7 +741,8 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             # context — LEADS with the character triglyph (WHO·WAY·CTX → accum/dist read)
             f'<td class="inst l cg-ctx" data-v="{r.get("hh") if r.get("hh") is not None else -999}">{triglyph}</td>'
             f'<td class="num cg-ctx" data-v="{r.get("su1") or 0}">{_num(r.get("su1"),2)}</td>'
-            f'<td class="num cg-ctx" data-v="{r.get("hh") or -999}">{_pct(r.get("hh"))}</td>'
+            # CL-VIEW-16: guard 0.0 (at the 52w high) so it doesn't sort as missing.
+            f'<td class="num cg-ctx" data-v="{r.get("hh") if r.get("hh") is not None else -999}">{_pct(r.get("hh"))}</td>'
             f'<td class="l cg-ctx mut" data-v="{K.esc(r.get("ch") or "")}">{K.esc((r.get("ch") or "—"))}</td>'
             '</tr>')
 

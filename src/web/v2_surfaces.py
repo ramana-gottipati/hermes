@@ -25,6 +25,7 @@ their URLs) · ADDITIVE + REVERSIBLE (restore the previous file + restart).
 
 from __future__ import annotations
 
+import html
 import importlib
 import logging
 import re
@@ -251,7 +252,11 @@ def _install_nav() -> None:
                     seen.add(href)
                     unknown.append((href, label))
             if unknown:
-                extra = "".join(f'<a href="{h}">{l}</a>' for h, l in unknown)
+                # CL-CHR-8: escape the scraped href + label — this is the only nav path
+                # that emitted them raw (every other path uses pre-escaped registry data).
+                extra = "".join(
+                    f'<a href="{html.escape(h, quote=True)}">{html.escape(l)}</a>'
+                    for h, l in unknown)
         except Exception:  # noqa: BLE001
             extra = ""
         util = ('<div class="v2util">'

@@ -280,11 +280,11 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
             has = None
         if not has:
             return HTMLResponse(_shell("RS rotation · patearn", _CSS + _empty(), active="markets", wide=True))
+        # CL-VIEW-18: banner + movers share the one open connection (was two get_conn()
+        # contexts per request). _cell/_table below open their own conns via stock_rs.
         banner = _banner(conn)
-    grid = '<div class="rgrid">' + "".join(_cell(p) for p in GRID) + '</div>'
-    movers = ""
-    with get_conn() as conn:
         movers = _movers(conn)
+    grid = '<div class="rgrid">' + "".join(_cell(p) for p in GRID) + '</div>'
     head = ('<h2 style="margin-bottom:2px">RS rotation '
             '<span class="sub" style="margin:0">the four-phase weather rotation · stock × sector</span></h2>'
             '<div class="sub" style="margin-top:2px">Clockwise: 🌅 Recovery → 🌤 Tailwind → '
