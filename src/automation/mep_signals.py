@@ -467,8 +467,13 @@ def _smooth_date(conn, trade_date: str, symbol: Optional[str] = None) -> int:
 
 # --- Modes -----------------------------------------------------------------
 
-def compute_for_date(trade_date: str) -> int:
-    """Compute today's MEP row for every symbol that traded on trade_date."""
+def compute_for_date(trade_date: str, force: bool = False) -> int:
+    """Compute today's MEP row for every symbol that traded on trade_date.
+
+    CL-RS-10: by default an existing (symbol, trade_date) row is skipped so a
+    re-run is cheap. But that meant a row written by a PARTIAL/earlier run was
+    never refreshed once more bhav data landed. Pass force=True (CLI --force) to
+    recompute and overwrite existing rows for the date."""
     ensure_table()
     with get_conn() as conn:
         symbols = [r["symbol"] for r in conn.execute(
@@ -483,7 +488,7 @@ def compute_for_date(trade_date: str) -> int:
     log.info("computing MEP for %d symbols on %s", len(symbols), trade_date)
     n = 0
     for i, sym in enumerate(symbols, 1):
-        if mep_exists(sym, trade_date):
+        if not force and mep_exists(sym, trade_date):
             continue
         sig = compute_mep_for_symbol_date(sym, trade_date)
         if sig and sig.get("mep_score") is not None:
@@ -498,12 +503,12 @@ def compute_for_date(trade_date: str) -> int:
     return n
 
 
-def run_today() -> tuple[bool, str]:
+def run_today(force: bool = False) -> tuple[bool, str]:
     with get_conn() as conn:
         row = conn.execute("SELECT MAX(trade_date) AS d FROM bhavcopy_rows").fetchone()
     if not row or not row["d"]:
         return False, "no bhav data found"
-    n = compute_for_date(row["d"])
+    n = compute_for_date(row["d"], force=force)
     return True, f"computed {n} MEP rows for {row['d']}"
 
 
@@ -602,6 +607,9 @@ def main() -> None:
                    help="Recompute ONLY the smoothed phase from stored daily scores (light).")
     p.add_argument("--date", type=str, help="YYYY-MM-DD — compute one date for all symbols")
     p.add_argument("--symbol", type=str, help="compute one symbol's latest MEP row")
+    p.add_argument("--force", action="store_true",
+                   help="recompute & overwrite existing rows for the date (CL-RS-10) "
+                        "instead of skipping symbols that already have a row")
     args = p.parse_args()
 
     logging.basicConfig(level=logging.INFO,
@@ -635,9 +643,9 @@ def main() -> None:
         n_syms, n_rows = run_resmooth()
         log.info("MEP resmooth complete: %d symbols, %d rows", n_syms, n_rows)
     elif args.date:
-        compute_for_date(args.date)
+        compute_for_date(args.date, force=args.force)
     else:
-        ok, msg = run_today()
+        ok, msg = run_today(force=args.force)
         log.info(msg)
 
 

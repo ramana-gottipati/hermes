@@ -155,8 +155,12 @@ def score_fundamentals(f: dict) -> dict:
     # --- Pattern 2: Operating Leverage (W9) ---
     profit_g = f.get("profit_growth_5y")
     sales_g = f.get("sales_growth_5y")
-    if profit_g is not None and sales_g is not None and sales_g != 0:
-        ratio = profit_g / sales_g if sales_g != 0 else None
+    # CL-SCO-13: drop the dead inner ternary (the `if` already guards sales_g!=0)
+    # and require POSITIVE sales growth — operating leverage is meaningless (and
+    # spuriously "good", since neg/neg → positive ratio) when the top line is
+    # shrinking. A non-growing top line gets no leverage credit.
+    if profit_g is not None and sales_g is not None and sales_g > 0:
+        ratio = profit_g / sales_g
     else:
         ratio = None
     o1 = _score(ratio, 2.0, 1.5) if ratio is not None else -1
@@ -165,7 +169,7 @@ def score_fundamentals(f: dict) -> dict:
     opm_trend = f.get("opm_trend_3y")           # real 3Y OPM trend when point-in-time
     o3 = (_score(opm_trend, 2.0, 0.0), True) if opm_trend is not None else (o2, False)
     patterns[2] = _pattern_block(2, [
-        (o1, profit_g is not None and sales_g is not None),
+        (o1, ratio is not None),            # CL-SCO-13: confidence = leverage computable
         (o2, opm is not None),
         o3,                                 # o3: real 3Y OPM expansion / OPM-level proxy
     ], note="o3 uses real 3Y OPM trend when point-in-time; else OPM-level proxy")
@@ -180,8 +184,10 @@ def score_fundamentals(f: dict) -> dict:
     pe = f.get("pe")
     pb = f.get("pb")
     # Yes if PE < 15, Partial if 15-25, No if > 25
-    v1 = _score(pe, 15, 25, reverse=True) if pe else -1
-    v2 = _score(pb, 2.0, 4.0, reverse=True) if pb else -1
+    # CL-SCO-02: use `is not None` (rest of file does) — `if pe` discarded a real
+    # negative PE (loss-making) and treated PE/PB == 0.0 as missing.
+    v1 = _score(pe, 15, 25, reverse=True) if pe is not None else -1
+    v2 = _score(pb, 2.0, 4.0, reverse=True) if pb is not None else -1
     v3 = v1  # EV/EBITDA proxy with PE
     patterns[4] = _pattern_block(4, [
         (v1, pe is not None),

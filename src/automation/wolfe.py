@@ -350,11 +350,22 @@ def score(p_list, p5, direction, highs, lows, closes, rsi_arr):
         tgt = a.price + s14 * (p5.idx - a.idx)
         up = abs(tgt - entry) / entry * 100.0 if entry else 0.0
         D = 0 if up < 10 else 1 if up < 20 else 2 if up < 35 else 3                    # 0-3
-    s14 = _line(a, d)                                       # H = wedge-rail (1-4 line) adherence, legs 1-2 & 2-3
+    # CL-SCO-07: count bars that touch the 1-4 wedge rail across the intended span
+    # (legs 1-2 & 2-3, i.e. bars strictly between point 1 and point 3 inclusive of 3).
+    # The old test used a RELATIVE tolerance (|h-ln|/ln <= 0.1%) which (a) blows up to
+    # spurious touches when the projected rail `ln` is near zero, and (b) excluded
+    # point 3's bar by ranging to c.idx (exclusive). Switch to an ATR-scaled ABSOLUTE
+    # tolerance (a touch = within ~⅕ ATR of the rail) and include point 3's bar.
+    s14 = _line(a, d)                                       # H = wedge-rail (1-4 line) adherence
+    atr_arr = atr(highs, lows, closes)
     touches = 0
-    for t in range(a.idx + 1, c.idx):
+    for t in range(a.idx + 1, c.idx + 1):
         ln = a.price + s14 * (t - a.idx)
-        if ln > 0 and (abs(highs[t] - ln) / ln <= 0.001 or abs(lows[t] - ln) / ln <= 0.001):
+        a_t = near_atr(atr_arr, t)
+        if not a_t or a_t <= 0:
+            continue
+        tol = 0.2 * a_t
+        if abs(highs[t] - ln) <= tol or abs(lows[t] - ln) <= tol:
             touches += 1
     H = 0 if touches == 0 else 1 if touches < 3 else 2                                 # 0-2
     I = 0                                                   # §B-I RSI divergence (panel-resolved 2026-06-25):
@@ -475,10 +486,19 @@ def _adjust(opens, highs, lows, closes, prevs):
         try:
             f = _adjust_mod.adjustment_factors(
                 [{"close": c, "prev_close": p} for c, p in zip(closes, prevs)])
-            opens = [o * g if o == o else o for o, g in zip(opens, f)]
-            highs = [h * g if h == h else h for h, g in zip(highs, f)]
-            lows = [l * g if l == l else l for l, g in zip(lows, f)]
-            closes = [c * g if c == c else c for c, g in zip(closes, f)]
+            # CL-SCO-10: only the `o == o` (NaN) case was guarded, so a real stored
+            # 0.0 (a corrupt/empty OHLC cell) survived `0 * g = 0` and entered zigzag
+            # as a genuine zero LOW — instantly the all-time low, fabricating a swing.
+            # A price of 0 (or negative) is invalid: map non-finite/≤0 to NaN so the
+            # convention-agnostic detectors (which skip NaN naturally) ignore the bar.
+            def _adj(v, g):
+                if not (v == v) or v <= 0:        # NaN or non-positive ⇒ invalid bar
+                    return float("nan")
+                return v * g
+            opens = [_adj(o, g) for o, g in zip(opens, f)]
+            highs = [_adj(h, g) for h, g in zip(highs, f)]
+            lows = [_adj(l, g) for l, g in zip(lows, f)]
+            closes = [_adj(c, g) for c, g in zip(closes, f)]
         except Exception:
             pass
     return opens, highs, lows, closes
@@ -904,10 +924,12 @@ def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
           scan_date, computed_at) for r in rows])
-    try:
-        conn.commit()
-    except Exception:
-        pass
+    # CL-SCO-12: do NOT commit here. `conn` is always passed in by the caller (the
+    # CLI uses `with get_conn()`, which commits on success / rolls back on error), so
+    # an internal `try: conn.commit() except: pass` (a) committed a foreign connection
+    # mid-transaction and (b) swallowed disk-full / database-locked errors, leaving the
+    # DELETE-then-INSERT half-applied and silent. Let the owner commit and let errors
+    # propagate so the replace stays atomic.
     return len(rows), scan_date
 
 

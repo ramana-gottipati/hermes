@@ -148,16 +148,22 @@ def _rs_ratio_momentum(ratio: list[float]) -> tuple[list[Optional[float]], list[
     rs_ratio = _normalise_100(jdk_rs, NORM_WIN)
 
     # Momentum = normalised EMA of the rate-of-change of the smoothed RS line.
+    # CL-RS-04: the ROC of N smoothed-RS points has only N-1 real values; the old
+    # code prepended a synthetic 0.0 ("no change") so it could align ROC to the
+    # first jdk_rs point. That fake datum biased the EMA seed and the first
+    # MOM_NORM_WIN normalisation windows (pulling early z-scores toward a spurious
+    # zero). We instead drop it: the first real ROC belongs to the SECOND smoothed
+    # point (index start+1), so momentum is simply undefined one bar later.
     start = next((i for i, v in enumerate(jdk_rs) if v is not None), None)
     rs_momentum: list[Optional[float]] = [None] * len(ratio)
     if start is not None and len(jdk_rs) - start >= 2:
         valid = [v for v in jdk_rs[start:] if v is not None]
-        roc = [0.0] + [(valid[i] / valid[i - 1] - 1.0) * 100.0 if valid[i - 1] else 0.0
-                       for i in range(1, len(valid))]
+        roc = [(valid[i] / valid[i - 1] - 1.0) * 100.0 if valid[i - 1] else 0.0
+               for i in range(1, len(valid))]
         mom_ema = _ema(roc, MOM_SMOOTH)
         mom_full: list[Optional[float]] = [None] * len(ratio)
-        for i, v in enumerate(mom_ema):
-            mom_full[start + i] = v
+        for i, v in enumerate(mom_ema):       # roc[i] ↔ valid[i+1] ↔ index start+1+i
+            mom_full[start + 1 + i] = v
         rs_momentum = _normalise_100(mom_full, MOM_NORM_WIN)
     return rs_ratio, rs_momentum
 
@@ -188,8 +194,14 @@ def _divergence(ratio: list[float], rsi: list[Optional[float]], win: int = DIV_W
 
 def compute_one(ratio: list[float]) -> Optional[dict]:
     """All latest RRG/RSI-of-RS/Mansfield metrics + turn flags for one ratio
-    series, or None if too short to define RS-Ratio."""
-    if len(ratio) < NORM_WIN + SMOOTH_SPAN:
+    series, or None if too short to define RS-Ratio AND RS-Momentum."""
+    # CL-RS-11: the old gate only covered RS-Ratio warm-up (NORM_WIN+SMOOTH_SPAN),
+    # but RS-Momentum needs a longer warm-up — the smoothed RS EMA (SMOOTH_SPAN),
+    # then its rate-of-change (drops one bar, CL-RS-04), then the momentum EMA
+    # (MOM_SMOOTH) and the trailing z-window (MOM_NORM_WIN). A series that cleared
+    # the old gate but not this one fell through to the `rs_mom_s[-1] is None`
+    # return — same answer, but the contract is now explicit.
+    if len(ratio) < SMOOTH_SPAN + 1 + MOM_SMOOTH + MOM_NORM_WIN:
         return None
     rs_ratio_s, rs_mom_s = _rs_ratio_momentum(ratio)
     if rs_ratio_s[-1] is None or rs_mom_s[-1] is None:

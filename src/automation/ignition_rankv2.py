@@ -61,6 +61,32 @@ def _mean_std(xs):
     return (mu, var ** 0.5)
 
 
+def _bucket_lift(bk: list) -> Optional[float]:
+    """CL-SCO-11: signed lift as the least-squares SLOPE of bucket win-rate (fraction)
+    regressed across the value-ordered buckets, scaled back to the full Q1→Qk span.
+    The old `(Qk - Q1)` endpoint difference mis-weighted non-monotone features (a U- or
+    hump-shaped feature with equal extremes scored ~0 despite real structure, and a
+    noisy single extreme bucket could dominate). The regression slope uses every bucket,
+    so it tracks the actual monotone trend and damps a single outlier bucket.
+    Returns lift on the same [-1,1]-ish fraction scale as before (≈ endpoint diff for a
+    linear feature), or None if too few populated buckets."""
+    pts = [(i, wr / 100.0) for i, (_n, wr) in enumerate(bk) if wr is not None]
+    if len(pts) < 3:
+        # too few buckets to regress — fall back to the endpoint difference if both ends exist
+        if bk[0][1] is None or bk[-1][1] is None:
+            return None
+        return (bk[-1][1] - bk[0][1]) / 100.0
+    n = len(pts)
+    mx = sum(p[0] for p in pts) / n
+    my = sum(p[1] for p in pts) / n
+    sxx = sum((p[0] - mx) ** 2 for p in pts)
+    if sxx <= 0:
+        return None
+    sxy = sum((p[0] - mx) * (p[1] - my) for p in pts)
+    slope = sxy / sxx                          # win-fraction change per bucket step
+    return slope * (len(bk) - 1)               # scale to the full Q1→Qk span
+
+
 def _weights(events: list) -> dict:
     """Per feature: (signed win-rate lift as weight, mean, std), learned on `events`."""
     w = {}
@@ -70,9 +96,9 @@ def _weights(events: list) -> dict:
         if len(pairs) < 150:
             continue
         bk = _buckets(pairs)
-        if bk[0][1] is None or bk[-1][1] is None:
+        lift = _bucket_lift(bk)
+        if lift is None:
             continue
-        lift = (bk[-1][1] - bk[0][1]) / 100.0
         ms = _mean_std([p[0] for p in pairs])
         if not ms or ms[1] == 0:
             continue
@@ -105,9 +131,14 @@ def _load(conn) -> list:
         w = _is_win(rd["mfe_pct"], rd["mae_before_peak_pct"])
         if w is None:
             continue
+        # CL-SCO-05: keep the TRUE intensity (None when missing). The old -1e9
+        # sentinel only fed the intensity *baseline* ranking, while the v2 model read
+        # the real (None-excluded) value via _feat — so the two comparators silently
+        # used different intensity inputs. None-intensity events are now dropped from
+        # the intensity-baseline decile (see walk_forward) rather than buried by a
+        # magic sentinel, keeping both comparators on the same population semantics.
         out.append({"symbol": rd["symbol"], "year": rd["signal_date"][:4], "win": w,
-                    "intensity": rd["intensity"] if rd["intensity"] is not None else -1e9,
-                    "feat": _feat(rd)})
+                    "intensity": rd["intensity"], "feat": _feat(rd)})
     return out
 
 
@@ -138,12 +169,16 @@ def walk_forward(conn, min_train=MIN_TRAIN, min_test=MIN_TEST) -> dict:
         return {"oos_events": 0}
     base = round(100.0 * sum(1 for e in pool if e["win"]) / len(pool), 1)
     v2_top, k = _topdecile_win(pool, lambda e: e["v2"])
-    int_top, _ = _topdecile_win(pool, lambda e: e["intensity"])
+    # CL-SCO-05: rank the intensity baseline only over events that actually have an
+    # intensity (None excluded) — a None can't be sorted and shouldn't be coerced to
+    # a sentinel that fakes a rank.
+    int_pool = [e for e in pool if e["intensity"] is not None]
+    int_top, _ = _topdecile_win(int_pool, lambda e: e["intensity"]) if int_pool else (None, 0)
     return {"oos_events": len(pool), "test_years": folds, "decile_n": k,
             "base_win": base, "v2_top_decile_win": v2_top,
             "intensity_top_decile_win": int_top,
             "v2_edge_vs_base": round(v2_top - base, 1),
-            "v2_edge_vs_intensity": round(v2_top - int_top, 1)}
+            "v2_edge_vs_intensity": (round(v2_top - int_top, 1) if int_top is not None else None)}
 
 
 _SCHEMA = """
@@ -185,8 +220,10 @@ def compute_and_store(conn=None) -> dict:
                 f"SELECT {', '.join(sel)} FROM ignition_ranking r "
                 f"JOIN stock_signals s ON s.symbol=r.symbol AND s.trade_date=r.trade_date "
                 f"WHERE r.trade_date=?", (d,)).fetchall()
-            scoredrows = [(dict(r)["symbol"], _score(_feat(dict(r)), w),
-                           dict(r)["intensity"], dict(r)["accum_character"]) for r in rows]
+            # CL-SCO-04: bind dict(r) once per row instead of rebuilding it 4×.
+            rdicts = [dict(r) for r in rows]
+            scoredrows = [(rd["symbol"], _score(_feat(rd), w),
+                           rd["intensity"], rd["accum_character"]) for rd in rdicts]
             scoredrows.sort(key=lambda t: t[1], reverse=True)
             conn.execute("DELETE FROM ignition_rank_v2")
             conn.executemany(

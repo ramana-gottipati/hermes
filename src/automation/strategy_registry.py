@@ -143,11 +143,14 @@ def _rs(conn):
         "FROM stock_signals WHERE trade_date=? AND rs_rank IS NOT NULL "
         "ORDER BY rs_rank DESC", (as_of,))
     # "flagged" = strong relative strength (rank in the top decile, 90+).
+    # CL-SCO-15: `count` and `top` must read the SAME population — otherwise a card
+    # could show count=0 yet list 5 names. The card is about the flagged cohort, so
+    # show the flagged names (rows are sorted by rs_rank DESC, so [:5] = strongest).
     flagged = [r for r in rows if (r["rs_rank"] or 0) >= 90]
     count = len(flagged)
     top = [{"symbol": r["symbol"],
             "note": f'RS {r["rs_rank"]} · {(r["rs_vs_broad_trend_state"] or "").title()}'.strip(" ·")}
-           for r in rows[:5]]
+           for r in flagged[:5]]
     return {"key": key, "label": label, "route": route, "count": count,
             "as_of": as_of, "top": top, "health": _health(count, as_of, _STALE_DAYS["rs"])}
 
@@ -190,6 +193,15 @@ def _cci(conn):
         "JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x "
         "  ON x.symbol=s.symbol AND x.m=s.last_updated "
         "ORDER BY s.composite_score DESC")
+    # CL-SCO-15: rows can exist while both date columns are NULL/unhelpful, leaving
+    # as_of None even though we have scores — which would mislabel the card "empty".
+    # Fall back to the max non-null date carried on the rows so a populated card
+    # always reports an as_of.
+    if not as_of and rows:
+        cand = conn.execute(
+            "SELECT MAX(COALESCE(as_of_date, last_updated)) AS d FROM concall_scores"
+        ).fetchone()
+        as_of = (cand["d"] if cand else None) or None
     # "flagged" = the credible cohort (A+/A tiers).
     flagged = [r for r in rows if (r["tier"] or "") in ("A+", "A")]
     count = len(flagged)

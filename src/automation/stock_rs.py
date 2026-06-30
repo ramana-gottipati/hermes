@@ -187,14 +187,19 @@ def compute_symbol_rs(symbol: str, broad_map: dict[str, float],
     # implementation). §4b-2: un-strand the RSI-of-RS read AND extend it from
     # sectors to stocks — the series is already in hand here, so it's one extra
     # O(n) pass, no new fetch. Parallel to rs_hist → map by date.
-    rsi_series = rrg._rsi_series([r["ratio"] for r in rs_hist])
-    rsi_by_date = {rs_hist[i]["trade_date"]: _fin(rsi_series[i])
-                   for i in range(len(rs_hist))}
-
+    # CL-RS-14: Wilder's RSI is recursive, so the full-series pass is unavoidable,
+    # but on the nightly per-date path only ONE date's value is consumed — so we
+    # build the by-date map only over the date(s) we'll actually emit, not the whole
+    # multi-year history.
     target_dates = (
         [trade_date_filter] if trade_date_filter
         else [r["trade_date"] for r in rs_hist]
     )
+    rsi_series = rrg._rsi_series([r["ratio"] for r in rs_hist])
+    _want = set(target_dates)
+    rsi_by_date = {rs_hist[i]["trade_date"]: _fin(rsi_series[i])
+                   for i in range(len(rs_hist))
+                   if rs_hist[i]["trade_date"] in _want}
 
     updates = []
     for d in target_dates:
@@ -225,9 +230,14 @@ def _rank_sql_for(date_clause: str) -> str:
     """
     return f"""
         WITH liquid AS (
+            -- CL-RS-08: a missing 6m slope now falls back to the 3m slope (the
+            -- stock's own momentum), not to 0. The slope distribution isn't
+            -- zero-mean, so coalescing a young listing's absent 6m to 0 dragged
+            -- its blended momentum toward the population's neutral-ish midpoint
+            -- and mis-ranked it. slope_3m is guaranteed present (WHERE clause).
             SELECT s.symbol, s.trade_date,
-                   0.6 * COALESCE(s.rs_vs_broad_slope_3m, ?)
-                 + 0.4 * COALESCE(s.rs_vs_broad_slope_6m, ?) AS mom
+                   0.6 * s.rs_vs_broad_slope_3m
+                 + 0.4 * COALESCE(s.rs_vs_broad_slope_6m, s.rs_vs_broad_slope_3m) AS mom
             FROM stock_signals s
             JOIN bhavcopy_rows b
               ON b.symbol = s.symbol AND b.trade_date = s.trade_date
@@ -256,15 +266,16 @@ def run_rank_pass(trade_date: Optional[str] = None) -> int:
     """Compute rs_rank percentiles. One date if given, else every date.
 
     Returns the number of stock_signals rows whose rs_rank was set. The blend
-    is 0.6·3m + 0.4·6m of rs_vs_broad slope; a missing 6m falls back to 0 via
-    COALESCE so a stock with only 3m history still ranks.
+    is 0.6·3m + 0.4·6m of rs_vs_broad slope; a missing 6m falls back to the 3m
+    slope (CL-RS-08) so a stock with only 3m history still ranks on its own
+    momentum rather than being dragged toward 0.
     """
     if trade_date:
         sql = _rank_sql_for("AND b.trade_date = ?")
-        params = (0.0, 0.0, trade_date)
+        params = (trade_date,)
     else:
         sql = _rank_sql_for("")
-        params = (0.0, 0.0)
+        params = ()
     with get_conn() as conn:
         before = conn.total_changes
         conn.execute(sql, params)

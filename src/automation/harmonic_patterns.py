@@ -234,8 +234,23 @@ def detect_from_series(dates, opens, highs, lows, closes,
             ratios={k2: round(v, 3) for k2, v in r.items()}, score=sc,
             rsi_d=(round(rsi_arr[D.idx], 1) if D.idx < len(rsi_arr) and rsi_arr[D.idx] is not None else None)))
     if forming and len(piv) >= 4:
-        for f in _project_forming(*piv[-4:]):
-            if max_age is None or (n - 1 - piv[-1].idx) <= max_age:
+        # CL-RS-05: an in-progress X-A-B-C can sit one (or two) pivots back from the
+        # very last pivot — the old code only ever projected piv[-4:], so a pattern
+        # whose C is the second-to-last pivot was never caught forming. Scan the last
+        # few trailing 4-pivot windows; the C pivot (window[-1]) is the recency anchor
+        # for max_age, and dedup identical PRZ projections.
+        _FORMING_WINDOWS = 3
+        seen = set()
+        for w in range(1, min(_FORMING_WINDOWS, len(piv) - 3) + 1):
+            window = piv[-3 - w:len(piv) - w + 1] if w > 1 else piv[-4:]
+            c_piv = window[-1]
+            if max_age is not None and (n - 1 - c_piv.idx) > max_age:
+                continue
+            for f in _project_forming(*window):
+                key = (f.name, c_piv.idx, f.prz["mid"] if f.prz else None)
+                if key in seen:
+                    continue
+                seen.add(key)
                 out.append(f)
     return out
 

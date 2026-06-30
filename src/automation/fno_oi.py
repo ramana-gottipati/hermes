@@ -50,6 +50,15 @@ log = logging.getLogger("hermes.fno_oi")
 
 USER_AGENT = "Mozilla/5.0 (Hermes Personal Agent)"
 ARCHIVE_DIR = DB_PATH.parent / "fno"
+# CL-RS-13: HTTP statuses that mean "NSE blocked/throttled us / server hiccup",
+# NOT "no data exists for this date". These must surface as a retryable error so a
+# rate-limit isn't silently recorded as a market holiday (a 0-row gap).
+_RETRYABLE_STATUS = {403, 429, 500, 502, 503, 504}
+
+
+class RetryableFetchError(Exception):
+    """A transient/blocking fetch failure (e.g. NSE 403/429/5xx) — distinct from a
+    genuine 'no F&O bhav for this date' (holiday / not-yet-posted)."""
 _UDIFF_FIRST = "2024-07-01"        # NSE UDiFF F&O era (pre-that needs the legacy parser)
 _FLAT_PRICE = 0.10                 # |price move| < this % ⇒ price treated as flat
 _FLAT_OI = 0.50                    # |OI change| < this % ⇒ OI treated as flat
@@ -71,15 +80,19 @@ def _try_fetch(url: str, *, timeout: int = 30) -> Optional[bytes]:
             "Connection": "keep-alive",
         }, timeout=timeout)
     except requests.RequestException as e:
-        log.debug("fetch error %s: %s", url, e)
-        return None
+        # CL-RS-13: a network-level failure is transient, not a holiday.
+        raise RetryableFetchError(f"network error fetching {url}: {e}") from e
+    if r.status_code in _RETRYABLE_STATUS:
+        raise RetryableFetchError(f"HTTP {r.status_code} fetching {url} (blocked/throttled)")
     if r.status_code != 200 or len(r.content) < 1000:
-        return None
+        return None                       # genuine no-data (404 / tiny body) = holiday/not-posted
     return r.content
 
 
 def fetch_fo_for_date(d: datetime) -> Optional[bytes]:
-    """The UDiFF F&O zip bytes for date d, or None (holiday / not-yet-posted)."""
+    """The UDiFF F&O zip bytes for date d, or None (holiday / not-yet-posted).
+    Raises RetryableFetchError (CL-RS-13) on a transient/blocking failure so callers
+    don't misrecord an NSE block as a market holiday."""
     raw = _try_fetch(_fo_udiff_url(d))
     if raw and raw[:4] in (b"PK\x03\x04", b"PK\x05\x06"):
         return raw
@@ -376,7 +389,10 @@ def run_today() -> tuple[bool, str]:
         row = conn.execute("SELECT MAX(trade_date) d FROM bhavcopy_rows").fetchone()
     if not row or not row["d"]:
         return False, "no cash bhav found"
-    n = compute_for_date(row["d"])
+    try:
+        n = compute_for_date(row["d"])
+    except RetryableFetchError as e:        # CL-RS-13: report a block as a FAILURE, not a 0-row holiday
+        return False, f"F&O OI fetch blocked/throttled for {row['d']}: {e}"
     return True, f"F&O OI: {n} underlyings for {row['d']}"
 
 
