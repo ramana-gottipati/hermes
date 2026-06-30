@@ -73,8 +73,9 @@ def main():
     payload = {"index": d.get("index_used"), "heroes": heroes}
     # Escape '<' so a ledger field containing '</script>' can't break out of the inline
     # <script> data block (json.dumps does not escape '/'); the standard < form is
-    # valid JSON and renders identically. (Client-side innerHTML of these fields should also
-    # be esc()'d — tracked as a follow-up; data is internal research, so low-risk today.)
+    # valid JSON and renders identically. (CL-SCR-01 complete: the client-side render now
+    # also routes every DB-sourced field through the JS esc() helper before innerHTML, so
+    # the build-time block-escape AND the runtime render-escape are both in place.)
     html = TEMPLATE.replace("/*__DATA__*/",
                             json.dumps(payload, default=str).replace("<", "\\u003c"))
     out = os.path.join(ROOT, "docs", "replay-the-tape.html")
@@ -232,12 +233,18 @@ svg{display:block;width:100%;height:230px}
 </div>
 <script>
 const DATA = /*__DATA__*/;
+// CL-SCR-01 (client-side): escape DB-sourced strings before they go into innerHTML.
+// The build-time fix only neutralised '<' in the JSON data block (breakout from the
+// <script>); this protects the RENDER of those fields. Applied to every value that
+// originates from the database (index/index name, symbol, company name, lens, and the
+// ledger metric/period_end/report_date). Numeric fmt()/parsed dlabel() outputs are safe.
+const esc=(v)=>v==null?'':String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 const $=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
 const fmt=(v,d=0)=>v==null?'—':Number(v).toLocaleString('en-IN',{maximumFractionDigits:d,minimumFractionDigits:d});
 const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function dlabel(s){const p=s.split('-');return p[2]+' '+mon[+p[1]-1]+' '+p[0];}
 
-document.getElementById('idxnote').innerHTML='<b>✓</b> Relative strength vs '+(DATA.index||'broad index');
+document.getElementById('idxnote').innerHTML='<b>✓</b> Relative strength vs '+esc(DATA.index||'broad index');
 
 function patColor(p){if(p>=66)return 'var(--go)';if(p>=40)return 'var(--gold)';if(p>=15)return '#6b7686';return '#3a4250';}
 
@@ -248,8 +255,8 @@ function renderHero(h,i){
   const root=$('div','hero'+(i===0?' on':''));root.id='hero'+i;
   // identity
   const id=$('div','idrow');
-  id.innerHTML='<div><p class="name">'+h.name+'</p>'+
-    '<div class="sub">NSE: '+h.symbol+'  ·  lens that fired: <span style="color:var(--gold)">'+h.lens.toUpperCase()+'</span>  ·  latest filing the score could see: '+dlabel(h.latest_filing)+'</div></div>'+
+  id.innerHTML='<div><p class="name">'+esc(h.name)+'</p>'+
+    '<div class="sub">NSE: '+esc(h.symbol)+'  ·  lens that fired: <span style="color:var(--gold)">'+esc((h.lens||'').toUpperCase())+'</span>  ·  latest filing the score could see: '+dlabel(h.latest_filing)+'</div></div>'+
     '<div class="stamp"><div class="k">AS OF</div><div class="v">'+dlabel(h.as_of)+'</div><div class="px">close ₹'+fmt(h.px_asof,1)+'</div></div>';
   root.appendChild(id);
 
@@ -259,8 +266,8 @@ function renderHero(h,i){
   const sc=$('div','card');const s=h.score;
   const tierCls='t'+s.tier.replace(/\D/g,'');
   let pats='';
-  h.patterns.forEach(p=>{pats+='<div class="prow'+(p.qg?' gate':'')+'"><span class="pid">'+p.id+'</span>'+
-    '<span class="pn">'+p.name+'</span>'+
+  h.patterns.forEach(p=>{pats+='<div class="prow'+(p.qg?' gate':'')+'"><span class="pid">'+fmt(p.id)+'</span>'+
+    '<span class="pn">'+esc(p.name)+'</span>'+
     '<span class="pb"><i style="width:'+Math.max(2,p.pct)+'%;background:'+patColor(p.pct)+'"></i></span>'+
     '<span class="pv">'+fmt(p.pct)+'</span></div>';});
   const span=s.ns_hi-s.ns_lo;
@@ -280,7 +287,7 @@ function renderHero(h,i){
     t.pct_off_52w_high>-3?'at new highs':'in a base',t.pct_off_52w_high>-3?'good':'neutral'));
   chips.appendChild(techChip('vs 200-day',(t.pct_vs_sma200>0?'+':'')+fmt(t.pct_vs_sma200,1)+'%',
     t.pct_vs_sma200>0?'above trend':'below trend',t.pct_vs_sma200>0?'good':'warn'));
-  chips.appendChild(techChip('RS vs '+(DATA.index||'index')+' · 6m',(rs.rs_trend_6m_pct>0?'+':'')+fmt(rs.rs_trend_6m_pct,0)+'%',
+  chips.appendChild(techChip('RS vs '+esc(DATA.index||'index')+' · 6m',(rs.rs_trend_6m_pct>0?'+':'')+fmt(rs.rs_trend_6m_pct,0)+'%',
     rs.rs_at_6m_high?'RS at 6-mo high':'outperforming',rs.rs_trend_6m_pct>0?'good':'warn'));
   chips.appendChild(techChip('Delivery (20d)',fmt(t.avg_deliv_pct_20d,0)+'%',
     t.avg_deliv_pct_20d>=45?'high conviction':'normal',t.avg_deliv_pct_20d>=45?'good':'neutral'));
@@ -295,8 +302,8 @@ function renderHero(h,i){
   // --- ledger ---
   const lg=$('div','ledger');
   let rows='';
-  h.ledger.forEach(l=>{const neg=l.value<0;rows+='<tr><td class="met">'+l.metric+'</td>'+
-    '<td>'+l.period_end+'</td><td>'+l.report_date+'</td><td class="lag">+'+l.lag_days+'d</td>'+
+  h.ledger.forEach(l=>{const neg=l.value<0;rows+='<tr><td class="met">'+esc(l.metric)+'</td>'+
+    '<td>'+esc(l.period_end)+'</td><td>'+esc(l.report_date)+'</td><td class="lag">+'+fmt(l.lag_days)+'d</td>'+
     '<td class="val'+(neg?' neg':'')+'">'+fmt(l.value, Math.abs(l.value)<100?2:0)+'</td>'+
     '<td class="ok">✓ before</td></tr>';});
   lg.innerHTML='<h3>the no-look-ahead ledger</h3>'+
@@ -327,7 +334,7 @@ function renderHero(h,i){
 
   // tab
   const tab=$('div','tab'+(i===0?' on':''));
-  tab.innerHTML='<span class="lens">'+h.lens+'</span><span>'+h.symbol+'</span><span class="ret">▲ later +'+fmt(h.reveal.peak_gain_pct,0)+'%</span>';
+  tab.innerHTML='<span class="lens">'+esc(h.lens)+'</span><span>'+esc(h.symbol)+'</span><span class="ret">▲ later +'+fmt(h.reveal.peak_gain_pct,0)+'%</span>';
   tab.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
     document.querySelectorAll('.hero').forEach(x=>x.classList.remove('on'));
     tab.classList.add('on');root.classList.add('on');};
