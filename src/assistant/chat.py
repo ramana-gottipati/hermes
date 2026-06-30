@@ -21,7 +21,7 @@ long threads, vs the ~$0.30/turn that long threads cost without these fixes.
 from anthropic import APIError
 
 from src.assistant import conversations
-from src.core.llm import client
+from src.core.llm import client, first_text
 from src.core.settings import settings
 
 # Keep the last 30 messages (15 turns) in the LLM context. Older messages stay
@@ -151,13 +151,10 @@ def handle(message: str, *, conversation_id: int | None = None, fast: bool = Fal
                 "stop_reason": "unknown_conversation",
                 "usage": {},
             }
-        history = conversations.list_messages(conversation_id)
-
-    # Sliding window — only the most recent N messages get replayed to Claude.
-    # Older messages stay in the SQLite history for the /conversations endpoint,
-    # but they're not sent to the API.
-    if len(history) > MAX_HISTORY_MESSAGES:
-        history = history[-MAX_HISTORY_MESSAGES:]
+        # Only load the most recent MAX_HISTORY_MESSAGES from SQLite (CL-SYS-12) —
+        # older turns stay in the DB for the /conversations endpoint, but a long
+        # thread no longer pulls its entire history into memory just to slice it.
+        history = conversations.list_messages(conversation_id, limit=MAX_HISTORY_MESSAGES)
 
     api_messages = _build_messages(history, message)
     model = settings.fast_model if fast else settings.default_model
@@ -178,7 +175,10 @@ def handle(message: str, *, conversation_id: int | None = None, fast: bool = Fal
             "usage": {},
         }
 
-    reply_text = response.content[0].text
+    reply_text = first_text(
+        response,
+        default="(no text reply — the model returned a non-text stop)",
+    )
 
     # Persist both turns to DB (full history retained even though only the
     # last MAX_HISTORY_MESSAGES are replayed to the LLM).

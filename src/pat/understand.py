@@ -238,8 +238,14 @@ def _filters_improving_1m(filters) -> bool:
         if f.get("metric") in ("return", "rs", "price_move"):
             if f.get("op") == "improving":
                 return True
-            if f.get("op") in (">", ">=") and f.get("window") in ("1m", "1w") \
-                    and (f.get("value") in (0, None) or (isinstance(f.get("value"), (int, float)) and f["value"] <= 0)):
+            # CL-PAT-06: "getting better recently" = an upward op over a short window
+            # with NO positive threshold yet (value unspecified, or a numeric value <= 0).
+            # Test value explicitly: `is None` for missing, and a real number <= 0 — never
+            # `value in (0, None)`, which also swallowed a boolean False (False == 0).
+            v = f.get("value")
+            v_is_nonpos = v is None or (
+                isinstance(v, (int, float)) and not isinstance(v, bool) and v <= 0)
+            if f.get("op") in (">", ">=") and f.get("window") in ("1m", "1w") and v_is_nonpos:
                 return True
     return False
 

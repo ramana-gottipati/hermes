@@ -506,6 +506,14 @@ def route_extra(query: str) -> dict | None:
             if _has_any(qn, ["positive", "above signal", "above the signal", "above its signal"]):
                 return {"flow": "oscillators", "params": {"screen": "macd_positive"}}
             return {"flow": "oscillators", "params": {"screen": "macd_bull"}}
+
+        # index-performance asks ("worst performing sector this year", "indices
+        # recovering") → the deterministic index router (CL-PAT-03: was implemented
+        # but never wired). It already returns None for constituent/non-index asks,
+        # so this is additive (₹0, quota-proof) and never steals a stock-screen ask.
+        idx = route_index(query)
+        if idx:
+            return idx
     except Exception:
         return None
     return None

@@ -15,6 +15,7 @@ they need the SQL templates, which land with the engine.
 from __future__ import annotations
 
 import json
+import math
 from urllib.parse import quote_plus
 
 from src.pat.glossary import GLOSSARY, FAMILIES, get, find, family
@@ -466,23 +467,33 @@ def _u(s) -> str:
     return quote_plus(str(s) if s is not None else "")
 
 
+# CL-PAT-07: shared numeric formatters. A NaN/inf slipping in from a divide-by-zero
+# upstream rendered as "nan"/"inf" (or raised in int(nan)); treat any non-finite value
+# exactly like None → the em-dash placeholder.
+_MUT = '<span class="mut">—</span>'
+
+
+def _finite(v) -> bool:
+    return v is not None and isinstance(v, (int, float)) and math.isfinite(v)
+
+
 def _int(v) -> str:
-    return str(int(v)) if v is not None else '<span class="mut">—</span>'
+    return str(int(v)) if _finite(v) else _MUT
 
 
 def _n(v, d=2) -> str:
-    return f"{v:,.{d}f}" if v is not None else '<span class="mut">—</span>'
+    return f"{v:,.{d}f}" if _finite(v) else _MUT
 
 
 def _sgn(v, d=1) -> str:
-    if v is None:
-        return '<span class="mut">—</span>'
+    if not _finite(v):
+        return _MUT
     cls = "pos" if v > 0 else ("neg" if v < 0 else "mut")
     return f'<span class="{cls}">{v:+.{d}f}%</span>'
 
 
 def _cr(v) -> str:
-    return f"{v / 1e7:,.1f}" if v is not None else '<span class="mut">—</span>'
+    return f"{v / 1e7:,.1f}" if _finite(v) else _MUT
 
 
 def _rank_pill(rank) -> str:
@@ -2251,10 +2262,29 @@ _FRESH = {
 
 
 def _max_date(conn, table, col):
+    # CL-PAT-11: memoize the MAX(date) probe per connection so a render that draws
+    # several freshness bars (or re-routes a refine) doesn't re-scan the same table.
+    # Keyed off the request-scoped conn via a cache dict it carries; falls back to a
+    # direct query if the conn can't hold the attribute. table/col are hardcoded names.
+    key = (table, col)
+    cache = None
     try:
-        return conn.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]  # noqa: S608 (hardcoded names)
+        cache = conn._pat_maxdate_cache  # type: ignore[attr-defined]
     except Exception:
-        return None
+        try:
+            cache = {}
+            conn._pat_maxdate_cache = cache  # type: ignore[attr-defined]
+        except Exception:
+            cache = None
+    if cache is not None and key in cache:
+        return cache[key]
+    try:
+        val = conn.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]  # noqa: S608 (hardcoded names)
+    except Exception:
+        val = None
+    if cache is not None:
+        cache[key] = val
+    return val
 
 
 def _freshness_bar(conn, flow: str) -> str:
@@ -2471,8 +2501,13 @@ def _resolve_followup(q: str, tid: str):
         return q, ""
     # if the analyst already typed a symbol, don't override it with the thread subject
     # (unless the only "uppercase token" is a stopword like RS — handled by len/guard).
-    explicit = [m for m in _HAS_EXPLICIT_SYM.findall(q)
-                if m not in ("RS", "MACD", "RSI", "CCI", "MEP", "CPR", "DVPT", "PE", "P", "Q")]
+    # CL-PAT-05: stopwords come from the SHARED threads.SYM_STOPWORDS so this list and
+    # the refine resolver's list can't drift apart.
+    try:
+        from src.pat.threads import SYM_STOPWORDS as _SYM_STOP
+    except Exception:
+        _SYM_STOP = frozenset({"RS", "MACD", "RSI", "CCI", "MEP", "CPR", "DVPT", "PE", "P", "Q"})
+    explicit = [m for m in _HAS_EXPLICIT_SYM.findall(q) if m not in _SYM_STOP]
     if explicit:
         return q, ""
     try:
@@ -2662,6 +2697,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         elif refined_combined and q2 != q and not _did_intersect:
             # router did not intersect → re-route the analyst's ORIGINAL query, unmodified,
             # so we don't show a false "refining" claim over a replaced (non-AND) result.
+            # CL-PAT-09: this re-routes `q` after `q2` already routed, so a non-intersecting
+            # refine can cost two parses. The engine.route() LRU cache absorbs the repeat
+            # (identical `q` within the session is then free); a non-intersecting refine is
+            # itself an edge case, so the extra parse on first sight is acceptable.
             body, fb_ctx = _free_text(conn, q)
         elif resolved_sym and q2 != q:
             # show the analyst that the pronoun bound to the thread subject, and keep

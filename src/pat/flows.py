@@ -758,17 +758,25 @@ def build_credibility_trend_query(symbol: str, limit: int = 24) -> tuple[str, li
     return sql, [symbol, limit]
 
 
+def _like_escape(s: str) -> str:
+    """Escape the LIKE metacharacters so a token containing % or _ is matched
+    LITERALLY (CL-PAT-08). Pairs with an `ESCAPE '\\'` clause on the LIKE."""
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def build_symbol_resolve_query(token: str) -> tuple[str, list]:
     """Resolve a free-text token to candidate NSE symbols (exact > prefix > name).
-    All values bound; LIKE wildcards are added here, the token is never formatted in."""
+    All values bound; LIKE wildcards are added here, the token is never formatted in.
+    CL-PAT-08: the user token is LIKE-escaped (+ ESCAPE clause) so a '%'/'_' in it
+    matches literally instead of turning the prefix/name probe into a match-all."""
     t = (token or "").strip().upper()
-    pref = t.replace("%", "").replace("_", "") + "%"
-    namelike = "%" + (token or "").strip() + "%"
+    pref = _like_escape(t) + "%"
+    namelike = "%" + _like_escape((token or "").strip()) + "%"
     sql = (
         "SELECT symbol, company_name, "
-        "CASE WHEN symbol = ? THEN 0 WHEN symbol LIKE ? THEN 1 ELSE 2 END AS r "
+        "CASE WHEN symbol = ? THEN 0 WHEN symbol LIKE ? ESCAPE '\\' THEN 1 ELSE 2 END AS r "
         "FROM nse_equity_list "
-        "WHERE symbol = ? OR symbol LIKE ? OR company_name LIKE ? "
+        "WHERE symbol = ? OR symbol LIKE ? ESCAPE '\\' OR company_name LIKE ? ESCAPE '\\' "
         "ORDER BY r, length(symbol), symbol "
         "LIMIT 8"
     )

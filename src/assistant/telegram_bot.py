@@ -15,6 +15,7 @@ Authorization model:
 """
 
 import asyncio
+import html as _html
 import logging
 
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -38,6 +39,15 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 log = logging.getLogger("hermes.telegram")
+
+
+def _h(s) -> str:
+    """HTML-escape a value before it goes into a parse_mode=HTML message.
+
+    Telegram chat titles / user full names are USER-CONTROLLED (a group named
+    '<b>x' or 'A & B' breaks the markup, or worse). Escape every such value at
+    the render site (CL-SYS-09)."""
+    return _html.escape(str(s) if s is not None else "(unnamed)")
 
 
 def _allowed_user_ids() -> set[int]:
@@ -150,8 +160,8 @@ async def on_news_here(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     log.info("news destination registered: chat_id=%s title=%s type=%s", chat.id, chat.title, chat.type)
     await update.message.reply_text(
         f"✓ This chat is now a news destination.\n"
-        f"Type: <b>{chat.type}</b>\n"
-        f"Title: <b>{chat.title or chat.full_name or '(unnamed)'}</b>\n"
+        f"Type: <b>{_h(chat.type)}</b>\n"
+        f"Title: <b>{_h(chat.title or chat.full_name or '(unnamed)')}</b>\n"
         f"chat_id: <code>{chat.id}</code>\n\n"
         f"Market briefs will be posted here. Use /news_stop to remove.",
         parse_mode="HTML",
@@ -194,7 +204,7 @@ async def on_news_where(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     lines = ["<b>News destinations:</b>", ""]
     for r in rows:
-        lines.append(f"• {r['chat_title']} (<code>{r['chat_id']}</code>, {r['chat_type']})")
+        lines.append(f"• {_h(r['chat_title'])} (<code>{r['chat_id']}</code>, {_h(r['chat_type'])})")
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
@@ -213,7 +223,7 @@ async def on_news(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # news_feed.run_and_send is synchronous; run in a thread to avoid blocking
     # the asyncio event loop while we hit RSS endpoints + Claude.
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     ok, status = await loop.run_in_executor(
         None,
         lambda: news_feed.run_and_send(override_chat_id=chat_id, ignore_already_sent=True),
@@ -251,7 +261,7 @@ async def on_dvpt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         days = 15
     days = max(5, min(days, 60))
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: _fetch_flow_rows(ticker, days))
 
     if not rows:
@@ -577,7 +587,7 @@ async def on_pt14(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     from src.automation import scoring, screener as _screener
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
         score = await loop.run_in_executor(
             None,
@@ -721,7 +731,7 @@ async def on_patearn_here(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(
         f"✓ This chat is now a patearn destination.\n"
         f"Auto-analyses triggered by watchlist earnings will land here.\n\n"
-        f"Title: <b>{chat.title or chat.full_name or '(unnamed)'}</b>\n"
+        f"Title: <b>{_h(chat.title or chat.full_name or '(unnamed)')}</b>\n"
         f"chat_id: <code>{chat.id}</code>",
         parse_mode="HTML",
     )
@@ -762,7 +772,7 @@ async def on_scan(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"🔎 Scanning latest day's institutional flow (top {n})…"
     )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: _scan_top_dvpt(n))
 
     if not rows:
@@ -812,7 +822,7 @@ async def on_index(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     raw = " ".join(context.args).upper().strip()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     name, sig = await loop.run_in_executor(None, lambda: _resolve_index_signal(raw))
     if not sig:
         await update.message.reply_text(
@@ -901,7 +911,7 @@ async def on_sectors(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     user_id = update.effective_user.id
     if not _is_authorized(user_id):
         return
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, _fetch_sector_dashboard)
     if not rows:
         await update.message.reply_text("No index signals computed yet.")
@@ -980,7 +990,7 @@ async def on_ratio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     num_raw = args[0].upper().strip()
     den_raw = " ".join(args[1:]).upper().strip()
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     pair = await loop.run_in_executor(None, lambda: _resolve_ratio_pair(num_raw, den_raw))
     if not pair:
         await update.message.reply_text(
@@ -1081,7 +1091,7 @@ async def on_breakouts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     user_id = update.effective_user.id
     if not _is_authorized(user_id):
         return
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None,
         lambda: _fetch_trend_filter(("BREAKOUT", "UPTREND"), limit=30, ascending=False)
     )
@@ -1102,7 +1112,7 @@ async def on_breakdowns(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     user_id = update.effective_user.id
     if not _is_authorized(user_id):
         return
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None,
         lambda: _fetch_trend_filter(("BREAKDOWN", "DOWNTREND"), limit=30, ascending=True)
     )
@@ -1253,7 +1263,7 @@ async def on_rs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode="HTML")
         return
     sym = context.args[0].upper().strip()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     d = await loop.run_in_executor(None, lambda: _fetch_stock_rs(sym))
     if not d or (d.get("bstate") is None and d.get("rs_rank") is None):
         await update.message.reply_text(
@@ -1287,7 +1297,7 @@ async def on_leaders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not _is_authorized(user_id):
         return
     from src.automation.stock_rs import leaders_laggards
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: leaders_laggards("leaders", limit=30))
     if not rows:
         await update.message.reply_text(
@@ -1303,7 +1313,7 @@ async def on_laggards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not _is_authorized(user_id):
         return
     from src.automation.stock_rs import leaders_laggards
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: leaders_laggards("laggards", limit=30))
     if not rows:
         await update.message.reply_text("No weak-in-weak laggards right now.")
@@ -1317,7 +1327,7 @@ async def on_conviction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not _is_authorized(user_id):
         return
     from src.automation.stock_rs import conviction_shortlist
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: conviction_shortlist(limit=30))
     if not rows:
         await update.message.reply_text(
@@ -1526,7 +1536,7 @@ async def on_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     await update.message.reply_text(f"🔎 Searching: {label}…")
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: _scan_triggers(kind))
 
     if not rows:
@@ -1649,7 +1659,7 @@ async def _handle_stock_intent(update: Update, cls: dict) -> None:
         parse_mode="HTML",
     )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     if intent_type in ("SCORE", "BOTH"):
         from src.automation import scoring as _scoring, screener as _screener
@@ -1874,7 +1884,7 @@ async def on_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def _menu_run_scan(context: ContextTypes.DEFAULT_TYPE, chat_id: int, n: int) -> None:
     n = max(5, min(n, 50))
     await context.bot.send_message(chat_id, f"🔎 Scanning top {n}…")
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: _scan_top_dvpt(n))
     if not rows:
         await context.bot.send_message(
@@ -1890,7 +1900,7 @@ async def _menu_run_triggers(context: ContextTypes.DEFAULT_TYPE, chat_id: int, k
     label = {"default": "rank A+ (p_score ≥ 3)", "ss": "SS only",
              "near": "near-break candidates"}.get(kind, "rank A+")
     await context.bot.send_message(chat_id, f"🔎 Searching: {label}…")
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     rows = await loop.run_in_executor(None, lambda: _scan_triggers(kind))
     if not rows:
         await context.bot.send_message(
@@ -1954,7 +1964,7 @@ async def _menu_handle_pending(
         return
 
     chat_id = update.effective_chat.id
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     if pending == "pt14":
         await update.message.reply_text(
@@ -2058,7 +2068,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # --- Natural-language intent routing ---
     # Plain English maps to /pt14, /dvpt or both without the user typing slashes.
     from src.assistant import intent as _intent
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     cls = await loop.run_in_executor(None, lambda: _intent.classify(text))
 
     if cls.get("intent") in ("SCORE", "FLOW", "BOTH") and cls.get("ticker"):
@@ -2085,7 +2095,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # Telegram defaults to fast=True (Haiku) — ~5x cheaper than Sonnet, which
     # is the right default for casual phone chat. Use the /chat HTTP endpoint
     # without fast=true if you want Sonnet-grade reasoning.
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
         None,
         lambda: chat.handle(update.message.text, conversation_id=conv_id, fast=True),

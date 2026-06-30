@@ -25,6 +25,11 @@ from src.api.v1.metering import rate_check
 # NOTE: there is NO "alpha" tier — the §C backtest FALSIFIED the credibility return edge
 # (docs/product-strategy-2026.md §9). The tiers are: compliance (audit/provenance — leads),
 # research (DESCRIPTIVE lenses used in confluence; no standalone edge claim), data-feed (raw facts).
+# CL-SYS-11: this frozenset is the single source of truth for the scope vocabulary; schema.py's
+# tier default + comments are aligned to it. The informational tenant `tier` should be set
+# DETERMINISTICALLY from a scope when minting a tenant (the current `next(iter(scopes))` in
+# keys.seed_* picks an arbitrary set member); prefer the highest-privilege scope present, e.g.
+# `tier = next((s for s in ("compliance", "research", "data-feed") if s in scopes), "research")`.
 SCOPES = frozenset({"research", "compliance", "data-feed"})
 
 # endpoint logical name -> acceptable scopes (ANY-of). Absent => denied (fail-closed).

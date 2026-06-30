@@ -10,10 +10,14 @@ from __future__ import annotations
 
 _SCHEMA = """
 -- tenants (a buyer org). `tier` is informational; the authoritative grants live in v1_api_scopes.
+-- CL-SYS-11: the scope vocabulary is research | compliance | data-feed (auth.SCOPES) — there
+-- is NO "alpha" tier (the §C credibility return-edge was falsified; see auth.py). The default
+-- below is aligned to that vocabulary; `tier` is purely informational and the fail-closed
+-- authorization keys off v1_api_scopes, never this column.
 CREATE TABLE IF NOT EXISTS v1_tenants (
     tenant_id          TEXT PRIMARY KEY,
     name               TEXT NOT NULL,
-    tier               TEXT NOT NULL DEFAULT 'alpha',
+    tier               TEXT NOT NULL DEFAULT 'research',
     rate_limit_per_min INTEGER NOT NULL DEFAULT 120,
     active             INTEGER NOT NULL DEFAULT 1,
     created_at         TEXT NOT NULL DEFAULT (datetime('now'))
@@ -36,7 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_v1_keys_hash ON v1_api_keys(key_hash);
 -- scope absent here is denied.
 CREATE TABLE IF NOT EXISTS v1_api_scopes (
     tenant_id  TEXT NOT NULL,
-    scope      TEXT NOT NULL,                 -- 'alpha' | 'compliance' | 'data-feed'
+    scope      TEXT NOT NULL,                 -- 'research' | 'compliance' | 'data-feed' (auth.SCOPES)
     granted_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (tenant_id, scope)
 );

@@ -54,6 +54,12 @@ CREATE TABLE IF NOT EXISTS pat_threads (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_pat_threads_tid ON pat_threads(tid, turn DESC);
+-- CL-PAT-10: enforce one row per (tid, turn). `MAX(turn)+1` then INSERT can collide under
+-- concurrency; this UNIQUE index turns a colliding INSERT into an IntegrityError the writer
+-- retries instead of silently duplicating a turn. Created IF NOT EXISTS so it is a no-op on
+-- a clean store; on a store that somehow already holds a dup it will error here and the
+-- caller's try/except degrades gracefully (the feature is best-effort).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pat_threads_tid_turn ON pat_threads(tid, turn);
 """
 
 # Keep only the most recent N turns per thread (a rolling conversation window).
@@ -106,16 +112,31 @@ def record(tid: str, query: str = "", flow: str = "", params: dict | None = None
             pj = json.dumps(params, separators=(",", ":"), ensure_ascii=False)[:2000]
         except Exception:
             pj = None
+    import sqlite3 as _sqlite3
     try:
         with get_conn() as conn:
             _ensure(conn)
-            r = conn.execute("SELECT COALESCE(MAX(turn), 0) m FROM pat_threads WHERE tid=?",
-                             (tid,)).fetchone()
-            nxt = int(r["m"]) + 1 if r else 1
-            conn.execute(
-                "INSERT INTO pat_threads (tid, turn, query, flow, params_json) VALUES (?,?,?,?,?)",
-                (tid, nxt, query, flow, pj),
-            )
+            # CL-PAT-10: compute MAX(turn)+1 and INSERT; on the (rare, single-user)
+            # concurrent collision the UNIQUE(tid,turn) index raises IntegrityError —
+            # retry with a freshly-read max a few times rather than duplicating a turn.
+            nxt = None
+            for _ in range(5):
+                r = conn.execute(
+                    "SELECT COALESCE(MAX(turn), 0) m FROM pat_threads WHERE tid=?",
+                    (tid,)).fetchone()
+                nxt = (int(r["m"]) if r else 0) + 1
+                try:
+                    conn.execute(
+                        "INSERT INTO pat_threads (tid, turn, query, flow, params_json) "
+                        "VALUES (?,?,?,?,?)",
+                        (tid, nxt, query, flow, pj),
+                    )
+                    break
+                except _sqlite3.IntegrityError:
+                    nxt = None
+                    continue
+            if nxt is None:
+                return None
             # rolling-window trim: keep the newest _MAX_TURNS
             conn.execute(
                 "DELETE FROM pat_threads WHERE tid=? AND turn <= ?",
@@ -147,7 +168,7 @@ def history(tid: str, limit: int = _MAX_TURNS) -> list[dict]:
         with get_conn() as conn:
             _ensure(conn)
             rows = conn.execute(
-                "SELECT * FROM pat_threads WHERE tid=? ORDER BY turn DESC LIMIT ?",
+                "SELECT * FROM pat_threads WHERE tid=? ORDER BY turn DESC, id DESC LIMIT ?",
                 (tid, limit)).fetchall()
             return [_row(r) for r in reversed(rows)]
     except Exception:
@@ -249,7 +270,12 @@ _REFINE_BARE = re.compile(r"^\s*(?:small|mid|large|micro)[\s-]?caps?\s*$", re.I)
 # running set (it's a new subject ask) — let the normal router handle it. (Stopwords that
 # are uppercase but not tickers are excluded so "with credible management" isn't blocked.)
 _REFINE_HAS_SYM = re.compile(r"\b[A-Z][A-Z0-9&.\-]{2,15}\b")
-_REFINE_SYM_STOP = {"RS", "MACD", "RSI", "CCI", "MEP", "CPR", "DVPT", "PE", "P", "Q", "IT", "AND", "WITH"}
+# CL-PAT-05: SINGLE source of truth for "uppercase tokens that look like a ticker but
+# are really an indicator/word" — shared with pat.web's follow-up resolver so the two
+# stopword lists can't drift. Superset of both prior lists.
+SYM_STOPWORDS = frozenset({"RS", "MACD", "RSI", "CCI", "MEP", "CPR", "DVPT",
+                           "PE", "P", "Q", "IT", "AND", "WITH"})
+_REFINE_SYM_STOP = SYM_STOPWORDS
 
 
 def refine_base(tid: str, q: str) -> str:

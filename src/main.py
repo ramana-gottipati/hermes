@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -95,7 +95,16 @@ def root() -> dict:
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat_endpoint(req: ChatRequest) -> dict:
+def chat_endpoint(req: ChatRequest, x_hermes_secret: str | None = Header(None)) -> dict:
+    # CL-SYS-10: this route spends Anthropic credits and is otherwise unauthenticated.
+    # Hermes runs single-tenant behind the LAN/edge proxy, so it stays open by default;
+    # but when CHAT_SHARED_SECRET is set in .env we require a matching X-Hermes-Secret
+    # header (constant-time compare) so an accidentally-exposed port can't burn credits.
+    secret = settings.chat_shared_secret
+    if secret:
+        import hmac as _hmac
+        if not (x_hermes_secret and _hmac.compare_digest(x_hermes_secret, secret)):
+            raise HTTPException(status_code=401, detail="missing or invalid X-Hermes-Secret")
     return chat.handle(req.message, conversation_id=req.conversation_id, fast=req.fast)
 
 
