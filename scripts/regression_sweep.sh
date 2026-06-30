@@ -66,6 +66,18 @@ if [ "${SKIP_CHROME:-0}" != "1" ]; then
   fi
 fi
 
+# ── Gate 1c: colour-system alignment (ratchet — tokens present / sc-RS decoupled / migrated
+# files free of legacy directional hex; prints the shrinking backlog). In-process, no live VPS. ──
+if [ "${SKIP_CHROME:-0}" != "1" ]; then
+  echo "== colour gate (clean-checkout — tokens · sc-RS · migrated-file directional cleanliness) =="
+  if [ -z "$PY" ]; then
+    echo "  ~~ SKIPPED: no python with fastapi found"
+  elif "$PY" "$_ROOT/scripts/color_gate.py"; then :; else
+    echo "  !! colour gate FAILED — a migrated file regressed to legacy directional colour"
+    fail=$((fail+1))
+  fi
+fi
+
 echo "== health =="
 h=$(if [ "${HOST:-vps}" = "local" ]; then echo "n/a"; else ssh -o BatchMode=yes hermes 'systemctl is-active hermes-api'; fi)
 echo "  hermes-api: $h"; [ "$h" = "failed" ] && fail=$((fail+1))

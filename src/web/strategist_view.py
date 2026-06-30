@@ -398,7 +398,7 @@ _PAGE_CSS = """<style>
 .wc-dn{color:var(--down);font-weight:600}
 .wc-chip{display:inline-block;padding:1px 7px;margin:1px;border-radius:6px;font-size:11.5px;font-weight:600}
 .wc-new{background:var(--up-dim);color:var(--up)}
-.wc-drop{background:var(--down-dim,rgba(248,81,73,.12));color:var(--down)}
+.wc-drop{background:var(--down-dim);color:var(--down)}
 .cci-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
 .cci-kv{background:var(--bg-1);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
 .cci-n{font-size:24px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}

@@ -252,9 +252,10 @@ D:\Hermes\                                          ← local working copy of re
 │   ├── vps-bootstrap.sh                            ← initial VPS deploy script
 │   ├── setup-news.sh                               ← incremental update (rerun for new features)
 │   ├── full-backfill.sh                            ← 5-year bhav copy + signals backfill
-│   ├── regression_sweep.sh                         ← RELEASE GATE (3 gates): chrome gate + nav-integrity gate (both in-process) + live-VPS 200 sweep
+│   ├── regression_sweep.sh                         ← RELEASE GATE (4 in-process gates): chrome + nav-integrity + colour + live-VPS 200 sweep
 │   ├── chrome_gate.py                              ← D74 clean-checkout chrome contract gate (TestClient asserts uk-skin/v2bar/Trust/Wire/no .hsearch)
 │   ├── nav_integrity_gate.py                       ← S60 nav-vs-routes gate (TestClient asserts no dead links / no orphans / no duplicate sub-nav)
+│   ├── color_gate.py                               ← S60 colour-alignment RATCHET (tokenize-based: tokens present / sc-RS≠--up / migrated files clean / prints backlog)
 │   ├── wire_v2_surfaces.py                         ← idempotent post-clobber re-applier of the v2 hook (NO-OP on committed tree since D73)
 │   ├── hermes-theme-seed.{service,timer}           ← weekly deterministic theme-seed (D63); installed to /etc/systemd/system, enabled on VPS
 │   ├── setup-code-review.sh                        ← D68 installer for the GLM-5.2 code reviewer (additive; writes its 2 units, NO git pull)
@@ -1281,6 +1282,15 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 60 (cont.) — 2026-07-01 — Colour-system alignment: red-team + inventory + Phase 0 SHIPPED
+Ramana flagged that bullish/bearish green/red (and backgrounds) are inconsistent site-wide vs the agreed scheme, and asked for intense multi-agent scrutiny + a red-team before any fix. Two workflows ran (the inventory leg first failed on transient API-Overload, re-run clean): a **6-lens adversarial red-team** (39 flaws, 19 high) + a **435-site context-aware colour inventory**.
+- **Verified diagnosis:** two palettes coexist (agreed tokens on `:root` vs legacy GitHub-dark in bodies); `shell_skin` retints classes but CANNOT reach 134 inline-styles / 37 SVG attrs / 44 canvas literals. **93 directional sites** (75 up + 18 down). Deeper root cause: the palette is triplicated as raw hex (`ui_tokens`/`ui_kit`/`shell_skin`), agreeing only by discipline. Exemplars already exist (`screener_plus`, `strategist_view` use `var()` consts).
+- **My first-cut mapping was WRONG and the scrutiny caught it:** "every green→--up" would miscolour brand (wordmark "e"), categorical (`_COMPARE_PALETTE`, 21-colour `_RRG_PALETTE`, RRG quadrants), and status badges. **Corrected rule: map by SEMANTIC ROLE, never hue** — 5 roles incl. a new STATUS role.
+- **Live bug found + fixed:** `shell_skin.py:99` mapped the categorical `.scard.sc-RS` border to `#3fd486` (== the value `--up`) — a category reading as "bullish" that P4 would have baked in. Re-pointed to `var(--cat-rs)` (cyan).
+- **RRG ruling (was the blocker, Ramana delegated):** quadrant = **directional** (Leading=`--up`/Lagging=`--down`/Improving=`--accent`/Weakening=`--warn`) — `rotation_view.py` already does this; reconcile `rrg_view`/`mini_rrg` to it. No new tokens.
+- **Phase 0 SHIPPED (foundation, nothing visual changes except sc-RS green→cyan):** NEW tokens in `ui_tokens.py` (`--up/down/warn-rgb` for any-alpha tints, `--ok/off/neu` status, `--on-accent`, `--cat-rs`); `shell_skin` sc-* borders → `var()`; stale legacy rgba fallback fixed in `strategist_view`; **NEW `scripts/color_gate.py`** (tokenize-based ratchet — tokens present / sc-RS≠--up / migrated-file cleanliness / prints the **213-site** legacy-directional backlog) wired into `regression_sweep.sh` as Gate 1c. All 4 gates PASS; ui_tokens selftest PASS; live render verified (`--cat-rs` in served CSS, sc-RS via `var()`).
+- **Full decision record:** `docs/color-system-alignment.md` (D-COL-1..7). **Phases 1–4 pending** (Phase 1 = migrate the 93 directional sites in the 8 lagging files, ratchet each into the gate). Not deployed (foundation only; rides the branch).
 
 ### Session 60 — 2026-06-30 — Duplicate Tracker sub-nav fix + NAV-INTEGRITY gate (the structural anti-regression)
 Ramana spotted the Tracker workspace rendering **two identical sub-nav strips** (registry text-links + legacy `_track_subnav` pills) and — rightly — asked how a UI-focused process missed it, and whether *tabs were also missing*. Both turned out to be the same root cause: nothing forced the nav graph to agree with the route table.

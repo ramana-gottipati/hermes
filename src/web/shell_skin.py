@@ -96,8 +96,11 @@ body.uk-skin .chip{
 }
 body.uk-skin .maj{border-left:3px solid #4d9dff}
 body.uk-skin .scard{border-top:3px solid #1c2937}
-body.uk-skin .scard.sc-POS{border-top-color:#4d9dff} body.uk-skin .scard.sc-RS{border-top-color:#3fd486}
-body.uk-skin .scard.sc-QUAL{border-top-color:#f6b73c} body.uk-skin .scard.sc-CPR{border-top-color:#b18cff}
+/* Scorecard category borders — CATEGORICAL identity, via tokens (not raw hex). sc-RS was
+   #3fd486 (== the value --up), so a category read as "bullish" AND a P4 remap-retire would
+   bake that miscolor in; re-pointed to --cat-rs (a distinct category-green ≠ --up). */
+body.uk-skin .scard.sc-POS{border-top-color:var(--accent)} body.uk-skin .scard.sc-RS{border-top-color:var(--cat-rs)}
+body.uk-skin .scard.sc-QUAL{border-top-color:var(--warn)} body.uk-skin .scard.sc-CPR{border-top-color:var(--cred)}
 body.uk-skin .kpi .num,body.uk-skin .scard .ct,body.uk-skin .maj .nm{color:#eaf1f9}
 body.uk-skin .kpi .lbl,body.uk-skin .scard .th,body.uk-skin .maj .rr,body.uk-skin .sub,body.uk-skin .ghdr{color:#9bb0c6}
 body.uk-skin h2,body.uk-skin .scard .nm{color:#eaf1f9}
