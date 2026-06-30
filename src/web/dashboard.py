@@ -6403,6 +6403,15 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     cci_html = _cci_stock_panel(sym)         # Management Credibility dossier (CCI, P5)
     mep_html = _mep_stock_panel(sym)         # MEP signed accumulation/distribution dossier (D62)
     fno_html = _fno_stock_panel(sym)         # F&O Open-Interest identity channel ('' if no future)
+    # Per-stock news timeline — the embed the news_view module was built for ("a Wire
+    # rail with a ONE-LINE embed call"), finally wired as the dossier's News tab so the
+    # content is reachable in-page (de-orphans /dash/news). Defensive: a news failure
+    # must never break the dossier, so fall back to an empty pane.
+    try:
+        from src.web.news_view import render_stock_timeline as _render_news
+        news_html = _render_news(sym)
+    except Exception:                        # noqa: BLE001
+        news_html = '<div class="sub mut" style="margin:12px 0">News timeline unavailable.</div>'
 
     # D54 — Track capture: build a frozen-snapshot preview for the action loop.
     _ix = _xpower(L)
@@ -6494,7 +6503,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         return f'<a href="#{k}" data-stab="{k}"{oncls}>{lbl}</a>'
     _tabs = [("price", "Price"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
              ("rs", "Relative Strength"),
-             ("qual", "Quality"), ("cpr", "Structure · CPR"), ("cci", "Credibility · CCI")]
+             ("qual", "Quality"), ("cpr", "Structure · CPR"), ("cci", "Credibility · CCI"),
+             ("news", "News")]
     if fno_html:                              # F&O tab only for single-stock-futures names
         _tabs.append(("fno", "F&O · OI"))
     fno_pane = (f'<div class="tabpane" data-tab="fno" style="display:none">{fno_html}</div>'
@@ -6614,6 +6624,9 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 </div>
 <div class="tabpane" data-tab="cci" style="display:none">
 {cci_html}
+</div>
+<div class="tabpane" data-tab="news" style="display:none">
+{news_html}
 </div>
 {fno_pane}
 
