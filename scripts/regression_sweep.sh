@@ -52,6 +52,20 @@ if [ "${SKIP_CHROME:-0}" != "1" ]; then
   fi
 fi
 
+# ── Gate 1b: nav-integrity contract (no dead links / orphans / duplicate sub-nav) ──
+# chrome_gate proves the right chrome is served; this proves the nav GRAPH is coherent
+# with the route table — catches the duplicate-sub-nav and orphan/dead-link classes a
+# 200 (and a presence check) can't see. Same in-process, no-live-VPS posture.
+if [ "${SKIP_CHROME:-0}" != "1" ]; then
+  echo "== nav-integrity gate (clean-checkout — dead links / orphans / duplicate sub-nav) =="
+  if [ -z "$PY" ]; then
+    echo "  ~~ SKIPPED: no python with fastapi found"
+  elif "$PY" "$_ROOT/scripts/nav_integrity_gate.py"; then :; else
+    echo "  !! nav-integrity gate FAILED — the nav graph drifted from the route table"
+    fail=$((fail+1))
+  fi
+fi
+
 echo "== health =="
 h=$(if [ "${HOST:-vps}" = "local" ]; then echo "n/a"; else ssh -o BatchMode=yes hermes 'systemctl is-active hermes-api'; fi)
 echo "  hermes-api: $h"; [ "$h" = "failed" ] && fail=$((fail+1))

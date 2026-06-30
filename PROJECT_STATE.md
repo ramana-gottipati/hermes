@@ -252,8 +252,9 @@ D:\Hermes\                                          ← local working copy of re
 │   ├── vps-bootstrap.sh                            ← initial VPS deploy script
 │   ├── setup-news.sh                               ← incremental update (rerun for new features)
 │   ├── full-backfill.sh                            ← 5-year bhav copy + signals backfill
-│   ├── regression_sweep.sh                         ← RELEASE GATE (2 gates): chrome gate (in-process) + live-VPS 200 sweep
+│   ├── regression_sweep.sh                         ← RELEASE GATE (3 gates): chrome gate + nav-integrity gate (both in-process) + live-VPS 200 sweep
 │   ├── chrome_gate.py                              ← D74 clean-checkout chrome contract gate (TestClient asserts uk-skin/v2bar/Trust/Wire/no .hsearch)
+│   ├── nav_integrity_gate.py                       ← S60 nav-vs-routes gate (TestClient asserts no dead links / no orphans / no duplicate sub-nav)
 │   ├── wire_v2_surfaces.py                         ← idempotent post-clobber re-applier of the v2 hook (NO-OP on committed tree since D73)
 │   ├── hermes-theme-seed.{service,timer}           ← weekly deterministic theme-seed (D63); installed to /etc/systemd/system, enabled on VPS
 │   ├── setup-code-review.sh                        ← D68 installer for the GLM-5.2 code reviewer (additive; writes its 2 units, NO git pull)
@@ -1280,6 +1281,16 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 60 — 2026-06-30 — Duplicate Tracker sub-nav fix + NAV-INTEGRITY gate (the structural anti-regression)
+Ramana spotted the Tracker workspace rendering **two identical sub-nav strips** (registry text-links + legacy `_track_subnav` pills) and — rightly — asked how a UI-focused process missed it, and whether *tabs were also missing*. Both turned out to be the same root cause: nothing forced the nav graph to agree with the route table.
+- **Root cause (a refactor seam):** Tracker was historically the ONE workspace special-cased to draw its own in-page strip (`_track_subnav`, called from page bodies) instead of the shell's `_SUBNAV`. The Nav-IA pass (`d15a60d`) then generalized sub-nav rendering to the registry for *every* altitude (incl. Tracker) and neutralized the one legacy hook it knew about (`_subnav`) — but `_track_subnav` is a SECOND, bespoke function it didn't know to silence. So the generalization double-rendered exactly the workspace that was special-cased.
+- **Fix (`v2_surfaces._install_nav`):** neutralize `D._track_subnav` alongside the existing `D._subnav` kill (10 lines, same idiom, reversible). Tracker now draws one registry sub-nav like every other altitude.
+- **Why the gates missed it:** chrome_gate/regression_sweep are *presence* checks (Trust present, Wire present, 200 OK). A duplicate passes every one — everything they look for is still there, just twice. "Appears exactly once" / "every page is reachable" are *structural* assertions no gate made.
+- **Full nav-vs-routes audit (production-parity, in-process):** 46 page routes diffed against everything the nav surfaces. **0 dead links; every top-bar tab lands correctly; every registry lens renders in its sub-nav; every sacred page (`/dash/ratio`,`/dash/rrg`,`/dash/compare`,`/dash/rs`) reachable via page-body cross-links.** The 16 "not-in-top-chrome" routes triaged to: intentional destinations (stock/theme/pat-⌘K/_ui/offline), overlay-only lenses (wolfe/harmonic), and a deliberately-retired legacy hub (`/dash/strategies`→merged into strategist). **No tab is missing.**
+- **Correction (looked before deleting):** I had called `/dash/news` a "duplicate of Wire" and proposed removing it. On inspection it is the **per-stock news timeline** (distinct content from `/dash/wire`'s market wire), genuinely unreachable (its embed was never wired into the dossier). NOT deleted — kept + flagged as a KNOWN ORPHAN in the gate allowlist, pending Ramana's embed-or-remove call.
+- **NEW `scripts/nav_integrity_gate.py`** (wired into `regression_sweep.sh` as Gate 1b): builds the app in-process exactly as production wires it and asserts three contracts a 200 can't see — **(A) no dead links** (every nav href resolves to a real route), **(B) no orphans** (every page route is reachable from a rendered surface OR on the REASONED `INTENTIONAL_NON_NAV` allowlist — a new orphan FAILS until a human justifies it), **(C) no double sub-nav** (`_track_subnav` stays neutralised + no page renders the sub-nav container twice). All three **negative-tested** (proven to FAIL on the actual regression) before commit. This converts "did the agent remember to look?" into "the build won't pass if the nav graph drifts."
+- **Verify:** chrome_gate PASS + nav_integrity_gate PASS (A/B/C all green; 46 routes · 38 reachable · 16 allowlisted). v2_surfaces diff is ONLY my 10 lines (no parallel-session absorption). NOT deployed — rides Ramana's review like the rest of the branch.
 
 ### Session 59 — 2026-06-30 — Bug-audit COMPLETION (Medium/Low CL-* + Codex CX-* cross-check) — commits `2eab882`..`c6a6b4b` on PR #1
 Autonomous completion of the full-codebase audit (boot doc `docs/CORRECTION-ARC-HANDOFF.md`). All §A–F open items closed; branch `bugfix/audit-p1-2026-06-30` (PR #1) advanced from `a815e6c` → **`c6a6b4b`** (9 new commits), held off `main` for Ramana's review.

@@ -293,6 +293,16 @@ def _install_nav() -> None:
             D._subnav = lambda active="": ""
         except Exception:  # noqa: BLE001
             pass
+    # Tracker predates the registry and renders its OWN in-page strip (_track_subnav,
+    # called inside the page bodies — not via _shell, so the _subnav kill above misses
+    # it). Now that this nav generates a tracker sub-nav from lens_registry, that bespoke
+    # strip is a SECOND copy of the same five segments → neutralise it too. (Bugfix:
+    # duplicate Tracker sub-nav. Reversible — restores from the .bak on revert.)
+    if hasattr(D, "_track_subnav"):
+        try:
+            D._track_subnav = lambda active="": ""
+        except Exception:  # noqa: BLE001
+            pass
     setattr(D, _NAV_SENTINEL, True)
 
 
