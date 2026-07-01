@@ -66,6 +66,7 @@ _ANCHORS = {
     "roce_level": (15.0, 0.12),   # ROCE ~15% ≈ decent; smooth around it
     "roce_trend": (0.0, 1.0),     # slope pp/yr; rising is good
     "dilution": (1.0, 0.60),      # PAT−EPS CAGR gap of ~1pp/yr tolerable (INVERTED)
+    "dilution_eqcap": (3.0, 0.30),  # fallback: equity-capital CAGR >~3%/yr signals issuance (INVERTED)
     "debt_share": (50.0, 0.05),   # >50% of growth debt-funded starts to hurt (INVERTED)
     "growth_eff": (1.0, 1.50),    # PAT CAGR / CE CAGR; >1 = earnings outgrew capital
 }
@@ -152,7 +153,8 @@ def compute_metrics(frame: dict, as_of: str) -> dict:
     metrics = {
         "as_of": as_of,
         "roiic": None, "roce_latest": None, "roce_avg": None, "roce_trend": None,
-        "dilution_drag": None, "debt_funding_share": None, "growth_efficiency": None,
+        "dilution_drag": None, "equity_capital_cagr": None,
+        "debt_funding_share": None, "growth_efficiency": None,
         "n_years": 0, "span_years": 0, "coverage": coverage,
     }
 
@@ -178,12 +180,13 @@ def compute_metrics(frame: dict, as_of: str) -> dict:
                 metrics["debt_funding_share"] = (
                     100.0 * (bo_m.get(pe1, 0.0) - bo_m.get(pe0, 0.0)) / d_ce
                 )
-            elif d_op > 0:
-                # grew profit while shrinking/holding capital = capital-light growth
-                metrics["roiic"] = 40.0  # strong sentinel (maps high but not absurd)
-                coverage.append("capital_light_growth")
             else:
-                metrics["roiic"] = 0.0
+                # Capital employed is flat or SHRANK (buybacks / deleveraging / distress turnaround).
+                # "Return on INCREMENTAL capital" is then genuinely undefined — ABSTAIN rather than
+                # reward. A sentinel here produced false-positive "elite allocator" reads on distressed
+                # deleveraging (e.g. SUZLON, GMR crawling out of debt). ROCE level/trend + dilution +
+                # growth-efficiency carry the score instead (cf. NESTLE: ROIIC undefined, ROCE 96 → ~100).
+                coverage.append("capital_flat_or_returned")
             ce_cagr = _cagr(ce0, ce1, span)
             pat0, pat1 = np_m.get(pe0), np_m.get(pe1)
             pat_cagr = _cagr(pat0, pat1, span) if (pat0 and pat1) else None
@@ -193,6 +196,10 @@ def compute_metrics(frame: dict, as_of: str) -> dict:
             eps_cagr = _cagr(eps0, eps1, span) if (eps0 and eps1) else None
             if pat_cagr is not None and eps_cagr is not None:
                 metrics["dilution_drag"] = pat_cagr - eps_cagr  # +ve => shares grew
+            # Equity-capital CAGR — a dilution proxy that survives PAT sign changes (loss→profit
+            # turnarounds make the PAT−EPS gap undefined; equity capital still shows the issuance).
+            eqc0, eqc1 = eq_m.get(pe0), eq_m.get(pe1)
+            metrics["equity_capital_cagr"] = _cagr(eqc0, eqc1, span) if (eqc0 and eqc1) else None
     metrics["coverage"] = coverage
     return metrics
 
@@ -216,6 +223,9 @@ def score_metrics(m: dict) -> dict:
     if m.get("dilution_drag") is not None:
         x0, k = _ANCHORS["dilution"]
         comp["dilution"] = 100.0 - _logistic(m["dilution_drag"], x0, k)  # inverted
+    elif m.get("equity_capital_cagr") is not None:
+        x0, k = _ANCHORS["dilution_eqcap"]
+        comp["dilution"] = 100.0 - _logistic(m["equity_capital_cagr"], x0, k)  # fallback, inverted
     if m.get("debt_funding_share") is not None:
         x0, k = _ANCHORS["debt_share"]
         comp["debt_share"] = 100.0 - _logistic(m["debt_funding_share"], x0, k)  # inverted
@@ -284,7 +294,8 @@ def save_score(conn: sqlite3.Connection, r: dict) -> None:
     """Upsert one result into capital_allocation_scores."""
     detail = json.dumps({"components": r.get("components"),
                          "weights_used": r.get("weights_used"),
-                         "span_years": r.get("span_years")})
+                         "span_years": r.get("span_years"),
+                         "equity_capital_cagr": r.get("equity_capital_cagr")})
     conn.execute(
         """INSERT INTO capital_allocation_scores
              (symbol, as_of, ca_score, roiic, roce_latest, roce_avg, roce_trend,
