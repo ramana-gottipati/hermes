@@ -19,8 +19,10 @@ Needs statsmodels in the research venv:
 Read-only. Price/size/momentum/PEAD controls are point-in-time from the bhav
 archive; ROCE/debt are POINT-IN-TIME from fundamentals_history (report_date <= the
 anchor — the `latest_known` pattern, fixing CL-RES-02). The credibility regressor is
-only used when a leak-free per-period as-of score exists; otherwise the gate renders
-UNSCORED (CL-RES-01) rather than a verdict that embeds the future.
+the leak-free per-period AS-OF composite from the precomputed `credibility_series`
+(cci_series.py: composite restricted to promises resolved on/before each anchor, no
+look-ahead). If that series is unbuilt the gate renders UNSCORED (CL-RES-01) rather
+than fall back to the latest snapshot composite, which would embed the future.
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ from bisect import bisect_left
 import numpy as np
 
 from research.cci.common import (main_conn, gather_observations, load_series,
-                                 unscored_credibility, MIN_OBS)
+                                 unscored_credibility, MIN_OBS, MIN_RESOLVED_ASOF)
 from research.explosive_moves.common import RESEARCH_DB
 
 
@@ -162,6 +164,8 @@ def main() -> None:
             rows.append({"y": o["fwd_ret"], "cred": o["composite"], **c})
     n = len(rows)
     print(f"  usable observations (have AS-OF credibility + PIT controls + forward window): {n}")
+    print(f"  credibility regressor: PIT credibility_series.level (as-of composite, >= {MIN_RESOLVED_ASOF} "
+          f"promises settled by the anchor; leak-free — CL-RES-01).")
     if n:
         n_roce = sum(1 for r in rows if r.get("roce") is not None)
         if _FUND_UNAVAILABLE:
