@@ -580,8 +580,8 @@ function hud(k){var p=NF>1?Math.round(k*(NF-1)):0;if(mbEl)mbEl.textContent=LBL[p
 // manual scrub → dots at the cursor's month + a SHORT recent-heading trail (last few
 // points), so ~19 sectors don't pile their whole journeys into a spaghetti of lines.
 function frame(k){var s=grid();
- D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var hp=Math.max(0,Math.round(k*(pts.length-1))),tr=pts.slice(Math.max(0,hp-6),hp+1);if(!tr.length||tr[tr.length-1][0]!==p[0]||tr[tr.length-1][1]!==p[1])tr=tr.concat([p]);
-  s+=path(smooth(tr),sec.col,1.6,0.3);s+=dotC(MX(p[0]),MY(p[1]),sec.col,0.97);});
+ D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var hp=Math.max(0,Math.round(k*(pts.length-1))),tr=pts.slice(Math.max(0,hp-3),hp+1);if(!tr.length||tr[tr.length-1][0]!==p[0]||tr[tr.length-1][1]!==p[1])tr=tr.concat([p]);
+  s+=path(smooth(tr),sec.col,1.3,0.22);s+=dotC(MX(p[0]),MY(p[1]),sec.col,0.97);});
  D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;s+=lbl(MX(p[0]),MY(p[1])-DR-4,sec.k,1);});
  svg.innerHTML='<g>'+s+'</g>';}
 function scrubTo(p){if(raf){cancelAnimationFrame(raf);raf=null;}playing=false;setPlay();tip.style.display='none';curP=p;var k=idxK(p);frame(k);hud(k);}
