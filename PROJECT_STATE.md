@@ -1293,6 +1293,31 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 65 — 2026-07-02 — Colour Phase 3 categorical remainder + Phase 4 de-triplication
+Finished the colour-system alignment (Part A categorical remainder; Part B de-triplicate the
+runtime skin + native foundation). Worked in an isolated git worktree (tree QUIET — only my
+files dirty). Baseline + after every change: all 3 gates (chrome / nav / color) PASS.
+
+**Part A — categorical remainder (mechanical, low risk) — SHIPPED:**
+- **Categorical greens decoupled from the value contract** (D-COL role #2 — a category green
+  must NEVER be `--up`): `growth_view.gw-cr` (money-accent), `testing_view` benchmark "row to
+  beat" (×2), and `dashboard.kt-in` (provenance-internal) all `#3fb950` → `var(--series-4)`
+  (the canonical categorical green in the ramp). Also split `shell_skin` `.gw-cr` out of the
+  `.gw-pos` directional group → `var(--series-4)` (it was mapped to `--up`, a latent role-#2
+  violation on skinned pages; `.gw-pos/.gw-neg` stay directional).
+- **Ratchet grew 13 → 15:** `growth_view.py` + `testing_view.py` are now clean of legacy
+  directional hex → added to `color_gate.MIGRATED` (locked). **Backlog 53 → 49** (dashboard 41,
+  stock_chart 8 remain — the genuine directional Phase-1 work, out of this task's scope).
+- **`_COMPARE_PALETTE` (dashboard) + `_RRG_PALETTE` (rrg_view) + `_fq/_qc` F&O dicts + `.sc-*`
+  scorecard borders — deliberately LEFT + noted** (see D-COL updates below). They are legitimate
+  categorical palettes that are (a) canvas-bound / string-concatenated with alpha suffixes
+  (`{c}55`) so `var()` fails, and (b) not covered by the gate's 4-route render check — forcing a
+  `getComputedStyle` resolver into two live un-gated chart renderers for LOW value is
+  disproportionate risk. Same call the task already makes for `_RRG_PALETTE`.
+- **Verified:** ast.parse OK (5 files); all 3 gates PASS; render sweep `/dash/growth`,
+  `/dash/testing`, `/dash/dashboard` = 200 / 0 SVG-attr leaks / `var(--series-4)` used +
+  `--series-4:#56d364` defined in `:root` (resolves). Commit: (Part A).
+
 ### Session 64 — 2026-07-02 — Colour Phase 2 (bg/hairline/ink) — near-complete via no-git fan-out
 Resumed the colour-system alignment (concurrent with the Session-63 data work; touched only `src/web/*` UI files, never `rsband_view.py` which carried a parallel session's month-scrubber WIP — left intact).
 - **Method that worked (vs S61's rate-limited 23-agent run):** one **batch of 8** async agents (one file each) + the small/canvas files done by hand. Agents were **forbidden from running any git** and did per-occurrence context classification. No rate-limit, no stash loss, no cross-absorption.

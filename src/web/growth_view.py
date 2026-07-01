@@ -61,7 +61,7 @@ table.gw th.num{text-align:right;}
 table.gw td{padding:6px 10px;border-bottom:1px solid #1b2027;vertical-align:top;}
 table.gw td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 table.gw tr:hover td{background:#11161d;}
-.gw-sym{font-weight:700;color:var(--ink);} .gw-cr{color:#3fb950;font-weight:600;}
+.gw-sym{font-weight:700;color:var(--ink);} .gw-cr{color:var(--series-4);font-weight:600;}
 .gw-pos{color:var(--up);} .gw-neg{color:var(--down);} .gw-mut{color:var(--ink-3);}
 .gw-type{color:#58a6ff;font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
 .gw-claim{color:var(--ink);max-width:620px;}

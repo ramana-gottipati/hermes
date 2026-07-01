@@ -52,13 +52,13 @@ _CSS = """
 <style>
 .tlab .lead{color:#8b97a7;font-size:13px;line-height:1.6;max-width:820px;margin:2px 0 18px}
 .tlab .bar{background:#101a16;border:1px solid #1c3a2c;border-radius:10px;padding:11px 15px;margin:0 0 18px;font-size:13px}
-.tlab .bar b{color:#e8ecf1}.tlab .bar .g{color:#3fb950;font-family:monospace}
+.tlab .bar b{color:#e8ecf1}.tlab .bar .g{color:var(--series-4);font-family:monospace}
 .tlab table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:10px}
 .tlab th{text-align:right;color:#8b97a7;font-weight:500;font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:0 10px 7px;border-bottom:1px solid #262e39}
 .tlab th:first-child,.tlab td:first-child{text-align:left}
 .tlab td{padding:6px 10px;border-bottom:1px solid #1b212b;font-family:monospace}
 .tlab td.nm{font-family:inherit;color:#e8ecf1}
-.tlab tr.bench{background:#10241c}.tlab tr.bench td{color:#3fb950}
+.tlab tr.bench{background:#10241c}.tlab tr.bench td{color:var(--series-4)}
 .tlab tr.real td:first-child::before{content:'● ';color:#d29922}
 .tlab tr.flat td:first-child::before{content:'○ ';color:#6b7686}
 .tlab .pos{color:var(--up)}.tlab .neg{color:var(--down)}

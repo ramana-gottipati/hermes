@@ -248,7 +248,10 @@ body.uk-skin .gw-note,body.uk-skin .gw-claim{color:var(--ink-2)}
 body.uk-skin .gw-mut,body.uk-skin .gw-count{color:var(--ink-3)}
 body.uk-skin .gw-sym{color:var(--ink)}
 body.uk-skin .gw-type{color:var(--accent)}
-body.uk-skin .gw-cr,body.uk-skin .gw-pos{color:var(--up)} body.uk-skin .gw-neg{color:var(--down)}
+/* gw-cr is a CATEGORICAL money-accent (crores figure), NOT a gain/loss value — decoupled
+   from the value contract to the categorical ramp (D-COL role #2); gw-pos/gw-neg stay directional. */
+body.uk-skin .gw-cr{color:var(--series-4)}
+body.uk-skin .gw-pos{color:var(--up)} body.uk-skin .gw-neg{color:var(--down)}
 body.uk-skin .gw-tab{border:1px solid var(--line);color:var(--ink-2)}
 body.uk-skin .gw-tab:hover{border-color:var(--accent)}
 body.uk-skin .gw-tab.on{background:var(--accent);border-color:var(--accent);color:#06121f}

@@ -133,3 +133,14 @@ are excluded from the directional scan.
 - **D-COL-6** Standalone exports stay self-contained (hand-aligned + allowlisted), not tokenized.
 - **D-COL-7** Colour-blind safety = preserve existing sign/arrow redundancy; forbid NEW fill-only
   directional surfaces without a non-colour channel.
+- **D-COL-8** (Session 65) The **categorical greens** `gw-cr` / testing-benchmark / `kt-in` →
+  `var(--series-4)` (the ramp green), never `--up` (role #2). `shell_skin .gw-cr` split out of the
+  `.gw-pos` directional group for the same reason.
+- **D-COL-9** (Session 65) **`_COMPARE_PALETTE` (dashboard) is LEFT as curated canvas hex**, same
+  ruling as the 21-colour `_RRG_PALETTE` (§2). Both feed **lightweight-charts (canvas)** where
+  `var()` fails silently, and neither `/dash/compare` nor the RS-overlay is covered by the gate's
+  4-route render check — so a `getComputedStyle` var-resolver would add silent-fail risk to two
+  live hot paths for a LOW-value recolour. Likewise **`_fq/_qc` F&O state dicts** (alpha-suffix
+  concatenation `{c}55` / `{c}14` — no `--*-rgb` token, breaks under `var()`) and the non-directional
+  **`.sc-POS/.sc-QUAL/.sc-CPR`** borders (blue/amber/purple — not backlog, already `--cat-rs` for RS)
+  stay hex. These remain categorical false-positives in the informational backlog by design.
