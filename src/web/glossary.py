@@ -126,16 +126,16 @@ def terms() -> list[str]:
 
 
 _CSS = """
-.gl{position:relative;border-bottom:1px dotted #6e7681;cursor:help;outline:none;}
+.gl{position:relative;border-bottom:1px dotted var(--ink-3);cursor:help;outline:none;}
 .gl-q{font-size:9px;color:#58a6ff;vertical-align:super;margin-left:1px;font-weight:700;}
 .gl-pop{position:absolute;left:0;top:128%;z-index:60;display:none;width:262px;
-  background:#161b22;border:1px solid #30363d;border-radius:8px;padding:9px 11px;
-  font-size:12px;font-weight:400;line-height:1.45;color:#c9d1d9;white-space:normal;
+  background:var(--bg-2);border:1px solid var(--line-2);border-radius:8px;padding:9px 11px;
+  font-size:12px;font-weight:400;line-height:1.45;color:var(--ink);white-space:normal;
   text-align:left;text-transform:none;letter-spacing:normal;
   box-shadow:0 6px 22px rgba(0,0,0,.55);}
 .gl:hover .gl-pop,.gl:focus .gl-pop{display:block;}
-.gl-pop b{color:#e6edf3;display:block;margin-bottom:3px;font-weight:600;}
-.gl-pop .gl-fam{color:#6e7681;font-size:10px;text-transform:uppercase;
+.gl-pop b{color:var(--ink);display:block;margin-bottom:3px;font-weight:600;}
+.gl-pop .gl-fam{color:var(--ink-3);font-size:10px;text-transform:uppercase;
   letter-spacing:.4px;margin-top:6px;display:block;}
 """
 

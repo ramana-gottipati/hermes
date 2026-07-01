@@ -39,10 +39,10 @@ SNIPPET = """<script>
     }};}};
     return { attached:function(p){series=p.series; req=p.requestUpdate;}, detached:function(){series=null;}, updateAllViews:function(){}, paneViews:function(){return [view];}, redraw:function(){ if(req) req(); } };
   }
-  function chipCss(o){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 9px;border-radius:20px;'+(o.on?('background:'+hexA(o.c,0.16)+';color:'+o.c):('border:1px solid #30363d;color:#8b949e')); }
+  function chipCss(o){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 9px;border-radius:20px;'+(o.on?('background:'+hexA(o.c,0.16)+';color:'+o.c):('border:1px solid var(--line-2);color:var(--ink-2)')); }
   function inject(){ var host=document.getElementById('priceChart'); if(!host||document.getElementById('maBar')) return;
     var bar=document.createElement('div'); bar.id='maBar'; bar.style.cssText='display:flex;gap:6px;align-items:center;margin:4px 0 2px;font-family:-apple-system,Segoe UI,sans-serif';
-    var l=document.createElement('span'); l.textContent='Indicators'; l.style.cssText='font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#6e7681;margin-right:2px'; bar.appendChild(l);
+    var l=document.createElement('span'); l.textContent='Indicators'; l.style.cssText='font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3);margin-right:2px'; bar.appendChild(l);
     defs.forEach(function(o){ var c=document.createElement('span');
       function paint(){ c.style.cssText=chipCss(o); c.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:'+o.c+'"></span>MA '+o.n; }
       paint(); c.onclick=function(){ o.on=!o.on; if(prim) prim.redraw(); paint(); }; bar.appendChild(c); });

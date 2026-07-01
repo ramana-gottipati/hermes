@@ -59,50 +59,50 @@ _BASE_CSS = """
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin:0; padding:0; }
 body { font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;
-       background:#0e1116; color:#e6edf3; padding:0 0 28px; min-height:100vh; }
+       background:var(--bg-1); color:var(--ink); padding:0 0 28px; min-height:100vh; }
 header { position:sticky; top:0; z-index:10; background:#0e1116ee;
-         backdrop-filter:blur(8px); border-bottom:1px solid #21262d; }
+         backdrop-filter:blur(8px); border-bottom:1px solid var(--bg-3); }
 .hrow1{display:flex;align-items:center;gap:10px;padding:9px 14px 6px;}
 .hback{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;flex:none;
-border:1px solid #30363d;border-radius:8px;color:#c9d1d9;text-decoration:none;font-size:18px;line-height:1;}
-.hback:hover{border-color:#484f58;background:#161b22;}
+border:1px solid var(--line-2);border-radius:8px;color:var(--ink);text-decoration:none;font-size:18px;line-height:1;}
+.hback:hover{border-color:#484f58;background:var(--bg-2);}
 .hrow2{padding:0 8px;}
 header .logo { font-size:18px; font-weight:800; letter-spacing:.5px; }
 header .dot { width:8px; height:8px; border-radius:50%; background:#2ea043; }
-header .date { color:#8b949e; font-size:12px; }
+header .date { color:var(--ink-2); font-size:12px; }
 header .brand{display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;flex:none;}
 .wsnav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
 .wsnav::-webkit-scrollbar{display:none;}
-.wsnav a{padding:8px 13px;color:#8b949e;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
-.wsnav a.on{color:#e6edf3;border-bottom-color:#3fb950;}
-.wsnav a:hover{color:#e6edf3;}
-.hrow3{padding:0 8px;border-top:1px solid #161b22;}
+.wsnav a{padding:8px 13px;color:var(--ink-2);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
+.wsnav a.on{color:var(--ink);border-bottom-color:#3fb950;}
+.wsnav a:hover{color:var(--ink);}
+.hrow3{padding:0 8px;border-top:1px solid var(--bg-2);}
 .subnav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
 .subnav::-webkit-scrollbar{display:none;}
-.subnav a{padding:6px 11px;color:#6e7681;text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
-.subnav a.on{color:#c9d1d9;border-bottom-color:#1f6feb;}
-.subnav a:hover{color:#c9d1d9;}
+.subnav a{padding:6px 11px;color:var(--ink-3);text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
+.subnav a.on{color:var(--ink);border-bottom-color:#1f6feb;}
+.subnav a:hover{color:var(--ink);}
 .subnav .sgrp{padding:6px 3px 6px 8px;color:#484f58;font-size:11px;font-weight:700;white-space:nowrap;align-self:center;text-transform:uppercase;letter-spacing:.4px;}
 .wrap { padding:16px; max-width:760px; margin:0 auto; }
-h2 { font-size:16px; margin:18px 0 10px; color:#e6edf3; }
-.sub { color:#8b949e; font-size:12px; margin:-6px 0 12px; }
-.card { background:#161b22; border:1px solid #30363d; border-radius:10px;
+h2 { font-size:16px; margin:18px 0 10px; color:var(--ink); }
+.sub { color:var(--ink-2); font-size:12px; margin:-6px 0 12px; }
+.card { background:var(--bg-2); border:1px solid var(--line-2); border-radius:10px;
         padding:14px; margin-bottom:10px; }
 .kpi { display:flex; gap:10px; flex-wrap:wrap; }
-.kpi .box { flex:1; min-width:120px; background:#161b22; border:1px solid #30363d;
+.kpi .box { flex:1; min-width:120px; background:var(--bg-2); border:1px solid var(--line-2);
             border-radius:10px; padding:14px; }
 .kpi .num { font-size:24px; font-weight:800; }
-.kpi .lbl { color:#8b949e; font-size:12px; margin-top:2px; }
+.kpi .lbl { color:var(--ink-2); font-size:12px; margin-top:2px; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
-th { text-align:left; color:#8b949e; font-weight:600; padding:8px 6px;
-     border-bottom:1px solid #30363d; font-size:11px; text-transform:uppercase;
+th { text-align:left; color:var(--ink-2); font-weight:600; padding:8px 6px;
+     border-bottom:1px solid var(--line-2); font-size:11px; text-transform:uppercase;
      letter-spacing:.4px; }
-td { padding:9px 6px; border-bottom:1px solid #21262d; }
+td { padding:9px 6px; border-bottom:1px solid var(--bg-3); }
 tr:last-child td { border-bottom:none; }
 .sym { font-weight:700; }
 /* positive / negative numeric text — the site's ONE value-green/red (was the legacy
    GitHub #3fb950 / #f85149, the most pervasive green on every board's % cells). */
-.pos { color:var(--up); } .neg { color:var(--down); } .mut { color:#8b949e; }
+.pos { color:var(--up); } .neg { color:var(--down); } .mut { color:var(--ink-2); }
 .pill { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px;
         border-radius:9px; letter-spacing:.4px; }
 /* RS-state + DVPT-rank pills — unified to the institutional value palette: ONE green
@@ -110,51 +110,51 @@ tr:last-child td { border-bottom:none; }
    the site's .uk-pill treatment. Replaces the legacy GitHub greens (#7ee787/#1f6f3a/
    #225c33) and reds so dashboard pills read the same green as the rest of the site. */
 .p-SS{background:var(--up-dim);color:var(--up);} .p-S{background:var(--up-dim);color:var(--up);}
-.p-A{background:#2b4f6f;color:#79c0ff;} .p-B{background:#3a3f4b;color:#c9d1d9;}
-.p-C{background:#30363d;color:#8b949e;} .p-BREAKOUT{background:var(--up-dim);color:var(--up);}
+.p-A{background:#2b4f6f;color:#79c0ff;} .p-B{background:#3a3f4b;color:var(--ink);}
+.p-C{background:var(--line-2);color:var(--ink-2);} .p-BREAKOUT{background:var(--up-dim);color:var(--up);}
 .p-UPTREND{background:var(--up-dim);color:var(--up);} .p-CONSOLIDATING{background:rgba(246,183,60,.14);color:var(--warn);}
 .p-DOWNTREND{background:var(--down-dim);color:var(--down);} .p-BREAKDOWN{background:var(--down-dim);color:var(--down);}
 /* D43 accumulation/distribution character pills */
 .ca-acc{background:var(--up-dim);color:var(--up);} .ca-dist{background:var(--down-dim);color:var(--down);}
-.ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:#30363d;color:#8b949e;}
+.ca-cons{background:#3a3417;color:#ffd99a;} .ca-neu{background:var(--line-2);color:var(--ink-2);}
 /* Session 33 — THEME tag chips + the themes browse + accumulating-only filter */
 .tchip{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:9px;
   background:#15324a;color:#9ecbff;border:1px solid #1f4d72;margin:1px 3px 1px 0;
   text-decoration:none;line-height:1.6;white-space:nowrap;}
 .tchip:hover{background:#1f4d72;color:#cfe8ff;}
 .tchip.prop{background:#2b2410;color:#ffd99a;border-color:#5a4a1f;}
-.tchip.more{background:#21262d;color:#8b949e;border-color:#30363d;}
+.tchip.more{background:var(--bg-3);color:var(--ink-2);border-color:var(--line-2);}
 .tchip .tq{opacity:.7;margin-left:1px;}
 .theme-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;}
 .trow{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;
-  text-decoration:none;color:inherit;border-bottom:1px solid #21262d;}
-.trow:last-child{border-bottom:none;} .trow:hover{background:#161b22;}
-.trow .tn{font-weight:700;color:#e6edf3;min-width:118px;}
-.trow .tb{flex:1;font-size:11px;color:#8b949e;}
+  text-decoration:none;color:inherit;border-bottom:1px solid var(--bg-3);}
+.trow:last-child{border-bottom:none;} .trow:hover{background:var(--bg-2);}
+.trow .tn{font-weight:700;color:var(--ink);min-width:118px;}
+.trow .tb{flex:1;font-size:11px;color:var(--ink-2);}
 .trow .tc{font-weight:700;color:#58a6ff;min-width:54px;text-align:right;}
-.accfilter{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c9d1d9;
+.accfilter{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);
   margin:10px 0 6px;cursor:pointer;user-select:none;}
 .ptbl.acc-only tbody tr:not(.is-acc){display:none;}
-nav { position:fixed; bottom:0; left:0; right:0; background:#0e1116;
-      border-top:1px solid #21262d; display:flex; }
-nav a { flex:1; text-align:center; padding:10px 4px; color:#8b949e;
+nav { position:fixed; bottom:0; left:0; right:0; background:var(--bg-1);
+      border-top:1px solid var(--bg-3); display:flex; }
+nav a { flex:1; text-align:center; padding:10px 4px; color:var(--ink-2);
         text-decoration:none; font-size:11px; }
 nav a.active { color:#58a6ff; }
 nav a .ic { font-size:20px; display:block; }
 input,button { font-family:inherit; }
 .search { display:flex; gap:8px; margin-bottom:14px; }
-.search input { flex:1; background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+.search input { flex:1; background:var(--bg-1); border:1px solid var(--line-2); color:var(--ink);
                 padding:11px 12px; border-radius:8px; font-size:15px; }
 .search button { background:#1f6feb; border:none; color:#fff; padding:0 18px;
                  border-radius:8px; font-weight:700; font-size:14px; }
 .zone { display:flex; justify-content:space-between; padding:7px 0;
-        border-bottom:1px solid #21262d; font-size:14px; }
-.zone .lbl { color:#8b949e; width:54px; }
+        border-bottom:1px solid var(--bg-3); font-size:14px; }
+.zone .lbl { color:var(--ink-2); width:54px; }
 .zone .val { font-variant-numeric:tabular-nums; }
-.empty { color:#8b949e; text-align:center; padding:48px 16px; }
+.empty { color:var(--ink-2); text-align:center; padding:48px 16px; }
 a.row { color:inherit; text-decoration:none; display:block; }
 .hsearch { margin-left:auto; flex:none; }
-.hsearch input { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+.hsearch input { background:var(--bg-1); border:1px solid var(--line-2); color:var(--ink);
                  padding:6px 10px; border-radius:7px; font-size:13px; width:110px; }
 .banner { border-radius:10px; padding:12px 14px; margin-bottom:12px; font-weight:700;
           display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
@@ -164,19 +164,19 @@ a.row { color:inherit; text-decoration:none; display:block; }
 .b-neu{background:#3a3417;color:#ffd99a;border:1px solid #5a4a1f;}
 .majgrid { display:grid; grid-template-columns:1fr; gap:8px; }
 @media(min-width:560px){ .majgrid{ grid-template-columns:1fr 1fr; } }
-.maj { background:#161b22; border:1px solid #30363d; border-left:3px solid #1f6feb;
+.maj { background:var(--bg-2); border:1px solid var(--line-2); border-left:3px solid #1f6feb;
        border-radius:8px; padding:10px 12px; display:block; color:inherit; text-decoration:none; }
 .maj .nm { font-weight:700; font-size:14px; }
-.maj .rr { display:flex; gap:14px; margin-top:5px; font-size:12px; color:#8b949e;
+.maj .rr { display:flex; gap:14px; margin-top:5px; font-size:12px; color:var(--ink-2);
            font-variant-numeric:tabular-nums; flex-wrap:wrap; }
 .fbar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
-.fbtn { background:#161b22; border:1px solid #30363d; color:#8b949e; padding:5px 11px;
+.fbtn { background:var(--bg-2); border:1px solid var(--line-2); color:var(--ink-2); padding:5px 11px;
         border-radius:14px; font-size:12px; cursor:pointer; }
 .fbtn.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
 .chips { display:flex; gap:6px; flex-wrap:wrap; }
-.chip { background:#161b22; border:1px solid #30363d; border-radius:8px; padding:7px 10px;
+.chip { background:var(--bg-2); border:1px solid var(--line-2); border-radius:8px; padding:7px 10px;
         font-size:13px; color:inherit; text-decoration:none; }
-.ghdr { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:#8b949e;
+.ghdr { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-2);
         margin:16px 0 8px; font-weight:700; }
 .hstrip{display:inline-flex;gap:2px;vertical-align:middle;}
 .hstrip .c{width:20px;height:24px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1;font-weight:700;}
@@ -185,61 +185,61 @@ a.row { color:inherit; text-decoration:none; display:block; }
    (was GitHub #7ee787 / #ffa198); the bg darkens by intensity (su brighter than mu). */
 .hs-su{background:#1f6f3a;color:var(--up);} .hs-mu{background:#225c33;color:var(--up);}
 .hs-fl{background:#5a4a1f;color:#ffd99a;} .hs-md{background:#6f2b2b;color:var(--down);}
-.hs-sd{background:#8f1f1f;color:var(--down);} .hs-nd{background:#21262d;color:#484f58;}
-.bar{height:7px;background:#21262d;border-radius:4px;overflow:hidden;} .bar>span{display:block;height:100%;background:#1f6feb;}
-.grp{color:#58a6ff;} th.rsgrp{border-left:1px solid #30363d;} td.rsgrp{border-left:1px solid #30363d;}
+.hs-sd{background:#8f1f1f;color:var(--down);} .hs-nd{background:var(--bg-3);color:#484f58;}
+.bar{height:7px;background:var(--bg-3);border-radius:4px;overflow:hidden;} .bar>span{display:block;height:100%;background:#1f6feb;}
+.grp{color:#58a6ff;} th.rsgrp{border-left:1px solid var(--line-2);} td.rsgrp{border-left:1px solid var(--line-2);}
 .dttool{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
-.dtf{flex:1;min-width:120px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 10px;border-radius:7px;font-size:13px}
+.dtf{flex:1;min-width:120px;background:var(--bg-1);border:1px solid var(--line-2);color:var(--ink);padding:6px 10px;border-radius:7px;font-size:13px}
 .dtx{background:#238636;border:none;color:#fff;padding:6px 12px;border-radius:7px;font-weight:700;font-size:12px;cursor:pointer}
-.dtcount{color:#8b949e;font-size:12px}
-table.dt thead th{cursor:pointer;user-select:none;position:sticky;top:0;background:#0e1116;z-index:1}
+.dtcount{color:var(--ink-2);font-size:12px}
+table.dt thead th{cursor:pointer;user-select:none;position:sticky;top:0;background:var(--bg-1);z-index:1}
 table.dt thead th.sorta::after{content:" ▲"} table.dt thead th.sortd::after{content:" ▼"}
 tr.dt-hide{display:none!important}
 /* D33d — strategy thesis badge (stamped on every board) + strategy hub cards */
-.sbadge{display:flex;align-items:flex-start;gap:9px;border-radius:9px;padding:9px 12px;margin-bottom:12px;border:1px solid #30363d;font-size:12px;}
+.sbadge{display:flex;align-items:flex-start;gap:9px;border-radius:9px;padding:9px 12px;margin-bottom:12px;border:1px solid var(--line-2);font-size:12px;}
 .sbadge .tag{font-size:10px;font-weight:800;letter-spacing:.5px;white-space:nowrap;padding:2px 8px;border-radius:8px;}
-.sbadge .th{color:#c9d1d9;opacity:.92;line-height:1.35;}
+.sbadge .th{color:var(--ink);opacity:.92;line-height:1.35;}
 .sb-POS{background:#0d1f33;border-color:#1f4d7a;} .sb-POS .tag{background:#1f6feb;color:#fff;}
 .sb-RS{background:#0f2417;border-color:#1f6f3a;} .sb-RS .tag{background:#2ea043;color:#fff;}
 .sb-QUAL{background:#241f0d;border-color:#5a4a1f;} .sb-QUAL .tag{background:#bb8009;color:#fff;}
 .scards{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:6px;}
 @media(min-width:560px){.scards{grid-template-columns:1fr 1fr 1fr;}}
-.scard{display:block;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;color:inherit;text-decoration:none;border-top:3px solid #30363d;}
+.scard{display:block;background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;padding:12px;color:inherit;text-decoration:none;border-top:3px solid var(--line-2);}
 .scard.sc-POS{border-top-color:#1f6feb;} .scard.sc-RS{border-top-color:var(--cat-rs);} .scard.sc-QUAL{border-top-color:#bb8009;}
 .scard.sc-CPR{border-top-color:#8957e5;}
-.scard .nm{font-weight:800;font-size:14px;} .scard .th{color:#8b949e;font-size:11px;margin:4px 0 8px;line-height:1.3;}
-.scard .ct{font-size:13px;font-weight:700;color:#e6edf3;} .scard .ct small{color:#8b949e;font-weight:400;}
+.scard .nm{font-weight:800;font-size:14px;} .scard .th{color:var(--ink-2);font-size:11px;margin:4px 0 8px;line-height:1.3;}
+.scard .ct{font-size:13px;font-weight:700;color:var(--ink);} .scard .ct small{color:var(--ink-2);font-weight:400;}
 /* CPR (Structure pillar, D53) — pattern glyphs, ★ conviction tier, D·W·M strip */
-.cpg{font-weight:800;font-size:12px;} .cp-bull{color:var(--up);} .cp-bear{color:var(--down);} .cp-none{color:#6e7681;}
+.cpg{font-weight:800;font-size:12px;} .cp-bull{color:var(--up);} .cp-bear{color:var(--down);} .cp-none{color:var(--ink-3);}
 .cp-tier{color:#e3b341;font-weight:800;letter-spacing:1px;white-space:nowrap;}
 .cprstrip{display:inline-flex;gap:3px;vertical-align:middle;}
-.cprstrip .c{min-width:30px;padding:2px 4px;border-radius:4px;background:#161b22;border:1px solid #21262d;display:flex;flex-direction:column;align-items:center;line-height:1.15;}
+.cprstrip .c{min-width:30px;padding:2px 4px;border-radius:4px;background:var(--bg-2);border:1px solid var(--bg-3);display:flex;flex-direction:column;align-items:center;line-height:1.15;}
 .cprstrip .c .w{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;}
 .cprstrip .c small{font-size:7px;opacity:.6;font-weight:600;}
 .cprstrip .c.nw{background:#10241a;border-color:#1f6f3a;} .cprstrip .c.nw .w{color:#7ee787;}
 .cprstrip .c.up{box-shadow:inset 0 -2px 0 var(--up);} .cprstrip .c.dn{box-shadow:inset 0 -2px 0 var(--down);}
-.cprpanel{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:6px;}
+.cprpanel{background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;padding:12px;margin-bottom:6px;}
 .cprpanel table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
-.cprpanel th,.cprpanel td{text-align:right;padding:5px 8px;border-bottom:1px solid #21262d;white-space:nowrap;}
+.cprpanel th,.cprpanel td{text-align:right;padding:5px 8px;border-bottom:1px solid var(--bg-3);white-space:nowrap;}
 .cprpanel th:first-child,.cprpanel td:first-child{text-align:left;}
-.cprverdict{margin-top:9px;font-size:13px;color:#c9d1d9;line-height:1.4;}
-.tabbar{display:flex;gap:6px;margin:4px 0 12px;border-bottom:1px solid #30363d;}
-.tabbar a{padding:7px 14px;font-size:13px;font-weight:700;color:#8b949e;text-decoration:none;border-bottom:2px solid transparent;}
-.tabbar a.on{color:#e6edf3;border-bottom-color:#8957e5;}
+.cprverdict{margin-top:9px;font-size:13px;color:var(--ink);line-height:1.4;}
+.tabbar{display:flex;gap:6px;margin:4px 0 12px;border-bottom:1px solid var(--line-2);}
+.tabbar a{padding:7px 14px;font-size:13px;font-weight:700;color:var(--ink-2);text-decoration:none;border-bottom:2px solid transparent;}
+.tabbar a.on{color:var(--ink);border-bottom-color:#8957e5;}
 /* D54 — full-bleed data workspace with a COMFORTABLE gutter (D-UI-10) */
 .wrap.wide{max-width:1900px;margin:0 auto;padding:14px clamp(12px,4vw,56px);}
 /* D54 — frozen-pane data grid: ONE scroll viewport owns BOTH axes so the header
    band AND the Symbol column stay fixed while scrolling down AND across. */
-.scrwrap{overflow:auto;max-height:calc(100vh - 230px);border:1px solid #30363d;border-radius:10px;background:#0d1117;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+.scrwrap{overflow:auto;max-height:calc(100vh - 230px);border:1px solid var(--line-2);border-radius:10px;background:var(--bg-1);-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
 table.scr{width:100%;min-width:max-content;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;}
 table.scr th,table.scr td{white-space:nowrap;border-bottom:1px solid #1c2128;padding:6px 10px;text-align:right;}
 table.scr th.l,table.scr td.l{text-align:left;}
 table.scr td.num,table.scr th.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
 table.scr td.bold{font-weight:700;}
 table.scr td.gsep,table.scr th.gsep{border-left:1px solid #262c36;}
-table.scr thead tr.sgrp th{position:sticky;top:0;z-index:3;height:26px;background:#0d1117;color:#6e7681;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;text-align:left;border-bottom:1px solid #30363d;border-left:1px solid #262c36;padding:0 10px;}
-table.scr thead tr.scol th{position:sticky;top:26px;z-index:3;background:#0e1116;color:#8b949e;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #30363d;cursor:pointer;padding:6px 10px;}
-table.scr .fz{position:sticky;left:0;z-index:2;background:#0d1117;border-right:1px solid #30363d;text-align:left;}
+table.scr thead tr.sgrp th{position:sticky;top:0;z-index:3;height:26px;background:var(--bg-1);color:var(--ink-3);font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--line-2);border-left:1px solid #262c36;padding:0 10px;}
+table.scr thead tr.scol th{position:sticky;top:26px;z-index:3;background:var(--bg-1);color:var(--ink-2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--line-2);cursor:pointer;padding:6px 10px;}
+table.scr .fz{position:sticky;left:0;z-index:2;background:var(--bg-1);border-right:1px solid var(--line-2);text-align:left;}
 table.scr thead tr.sgrp th.fz,table.scr thead tr.scol th.fz{z-index:6;}
 table.scr tbody .fz{font-weight:700;}
 table.scr tbody tr:nth-child(even) td{background:rgba(255,255,255,.014);}
@@ -1053,7 +1053,7 @@ def _mv_ladder(dvpt, p1, p2, p3, p6, p12) -> str:
         for v in ps if v)
     fw, tx = sx(dvpt) - x0, sx(dvpt)
     return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
-            f'<rect x="{x0}" y="{ty}" width="{x1-x0}" height="{th}" rx="3" fill="#21262d"/>'
+            f'<rect x="{x0}" y="{ty}" width="{x1-x0}" height="{th}" rx="3" style="fill:var(--bg-3)"/>'
             f'<rect x="{x0}" y="{ty}" width="{fw:.1f}" height="{th}" rx="3" style="fill:var(--up)"/>'
             f'{ticks}<path d="M{tx-4:.1f},{ty-8} L{tx+4:.1f},{ty-8} L{tx:.1f},{ty-2} Z" '
             f'style="fill:var(--up)"/></svg>')
@@ -1072,9 +1072,9 @@ def _mv_keyband(gap) -> str:
     col = "var(--up)" if inb else ("var(--warn)" if gap > _KEY_BAND[1] else "var(--accent)")
     b0, b1, m, z = sx(_KEY_BAND[0]), sx(_KEY_BAND[1]), sx(gap), sx(0)
     return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
-            f'<rect x="{x0}" y="{ay-4}" width="{x1-x0}" height="8" rx="2" fill="#161b22" stroke="#21262d"/>'
+            f'<rect x="{x0}" y="{ay-4}" width="{x1-x0}" height="8" rx="2" style="fill:var(--bg-2);stroke:var(--bg-3)"/>'
             f'<rect x="{b0:.1f}" y="{ay-4}" width="{b1-b0:.1f}" height="8" fill="#16341f"/>'
-            f'<line x1="{z:.1f}" y1="{ay-6}" x2="{z:.1f}" y2="{ay+6}" stroke="#6e7681" stroke-dasharray="1 1"/>'
+            f'<line x1="{z:.1f}" y1="{ay-6}" x2="{z:.1f}" y2="{ay+6}" style="stroke:var(--ink-3)" stroke-dasharray="1 1"/>'
             f'<line x1="{m:.1f}" y1="{ay-7}" x2="{m:.1f}" y2="{ay+7}" style="stroke:{col}" stroke-width="2"/>'
             f'<circle cx="{m:.1f}" cy="{ay}" r="2.4" style="fill:{col}"/></svg>')
 
@@ -1092,7 +1092,7 @@ def _mv_triglyph(tcr, duo, hh) -> str:
     bars = []
     for s, y in zip(axes, ys):
         if s is None:
-            bars.append(f'<rect x="{cx-1}" y="{y-1}" width="2" height="2" fill="#30363d"/>')
+            bars.append(f'<rect x="{cx-1}" y="{y-1}" width="2" height="2" style="fill:var(--line-2)"/>')
             continue
         w = abs(s) * half
         x = cx if s >= 0 else cx - w
@@ -1100,7 +1100,7 @@ def _mv_triglyph(tcr, duo, hh) -> str:
         bars.append(f'<rect x="{x:.1f}" y="{y-2.5:.0f}" width="{max(w,1):.1f}" '
                     f'height="{bh}" rx="1" style="fill:{col}"/>')
     return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
-            f'<line x1="{cx}" y1="2" x2="{cx}" y2="24" stroke="#30363d"/>{"".join(bars)}</svg>')
+            f'<line x1="{cx}" y1="2" x2="{cx}" y2="24" style="stroke:var(--line-2)"/>{"".join(bars)}</svg>')
 
 
 def _mv_rsspark(b1, b3, b6, b12) -> str:
@@ -1122,7 +1122,7 @@ def _mv_rsspark(b1, b3, b6, b12) -> str:
     last = b1 if b1 is not None else have[-1][1]
     col = "var(--up)" if last > 0 else "var(--down)"
     return (f'<svg class="mv" width="{W}" height="22" viewBox="0 0 {W} 22" aria-hidden="true">'
-            f'<line x1="{x0}" y1="{sy(0):.1f}" x2="{x1}" y2="{sy(0):.1f}" stroke="#30363d" '
+            f'<line x1="{x0}" y1="{sy(0):.1f}" x2="{x1}" y2="{sy(0):.1f}" style="stroke:var(--line-2)" '
             f'stroke-dasharray="2 2"/><path d="{d}" fill="none" style="stroke:{col}" stroke-width="1.5"/></svg>')
 
 
@@ -2169,10 +2169,10 @@ def _cci_bar(label: str, v, invert: bool = False) -> str:
     good = (100 - v) if invert else v
     col = "var(--up)" if good >= 66 else ("var(--warn)" if good >= 40 else "var(--down)")
     return (f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px">'
-            f'<span style="width:130px;color:#8b949e">{label}</span>'
-            f'<span style="flex:1;max-width:150px;background:#21262d;border-radius:3px;height:7px">'
+            f'<span style="width:130px;color:var(--ink-2)">{label}</span>'
+            f'<span style="flex:1;max-width:150px;background:var(--bg-3);border-radius:3px;height:7px">'
             f'<span style="display:block;height:7px;border-radius:3px;width:{int(v)}%;background:{col}"></span></span>'
-            f'<span style="width:26px;text-align:right;color:#c9d1d9">{int(v)}</span></div>')
+            f'<span style="width:26px;text-align:right;color:var(--ink)">{int(v)}</span></div>')
 
 
 def _mep_stock_panel(sym: str) -> str:
@@ -2240,7 +2240,7 @@ def _mep_stock_panel_inner(sym: str) -> str:
     # F&O identity chip — a VISIBLE component in the KPI row (not just the line below)
     _fq = {"LONG_BUILDUP": ("#2ea043", "Long Buildup"), "SHORT_COVER": ("#3fb950", "Short Cover"),
            "SHORT_BUILDUP": ("#f85149", "Short Buildup"), "LONG_UNWIND": ("#f0883e", "Long Unwind"),
-           "FLAT": ("#8b949e", "Flat")}.get((fo["quadrant"] if fo else None) or "", None)
+           "FLAT": ("var(--ink-2)", "Flat")}.get((fo["quadrant"] if fo else None) or "", None)
     fno_box = ""
     if _fq:
         fno_box = (f'<div class="box"><div class="num"><span style="display:inline-block;padding:1px 6px;'
@@ -2290,7 +2290,7 @@ def _mep_stock_panel_inner(sym: str) -> str:
     if fo and fo["quadrant"]:
         _qc = {"LONG_BUILDUP": "#2ea043", "SHORT_COVER": "#3fb950",
                "SHORT_BUILDUP": "#f85149", "LONG_UNWIND": "#f0883e",
-               "FLAT": "#8b949e"}.get(fo["quadrant"], "#8b949e")
+               "FLAT": "var(--ink-2)"}.get(fo["quadrant"], "var(--ink-2)")
         _qlabel = fo["quadrant"].replace("_", " ").title()
         _oichg = f'{fo["fut_oi_chg_pct"]:+.1f}%' if fo["fut_oi_chg_pct"] is not None else "—"
         _pcr = f'{fo["pcr"]:.2f}' if fo["pcr"] is not None else "—"
@@ -2342,7 +2342,7 @@ def _fno_spark(series) -> str:
     n = len(pts)
     coords = " ".join(f"{i/(n-1)*100:.1f},{26 - (v-lo)/rng*24:.1f}" for i, v in enumerate(pts))
     col = "var(--up)" if pts[-1] >= pts[0] else "var(--down)"
-    return (f'<div style="font-size:11px;color:#8b949e;margin-bottom:2px">Futures-OI trend '
+    return (f'<div style="font-size:11px;color:var(--ink-2);margin-bottom:2px">Futures-OI trend '
             f'(last {n} days, oldest→newest)</div>'
             f'<svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none" '
             f'style="display:block">'
@@ -2369,14 +2369,14 @@ def _fno_levels_bar(spot, sup, res, mp) -> str:
         return (f'<line x1="{_x(v):.1f}" y1="3" x2="{_x(v):.1f}" y2="17" style="stroke:{col}" stroke-width="1.4"/>'
                 if v else "")
     svg = (f'<svg width="100%" height="20" viewBox="0 0 100 20" preserveAspectRatio="none" style="display:block">'
-           f'<line x1="0" y1="10" x2="100" y2="10" stroke="#30363d" stroke-width="0.6"/>'
+           f'<line x1="0" y1="10" x2="100" y2="10" style="stroke:var(--line-2)" stroke-width="0.6"/>'
            f'{tick(sup, "var(--up)")}{tick(res, "var(--down)")}{tick(mp, "#d29922")}'
-           f'<line x1="{_x(spot):.1f}" y1="1" x2="{_x(spot):.1f}" y2="19" stroke="#e6edf3" stroke-width="1.4"/>'
+           f'<line x1="{_x(spot):.1f}" y1="1" x2="{_x(spot):.1f}" y2="19" style="stroke:var(--ink)" stroke-width="1.4"/>'
            f'</svg>')
     def lab(c, name, v):
         return (f'<span style="color:{c}">{name} <b>{v:,.0f}</b></span>' if v else "")
     row = ('<div class="sub" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:3px;font-size:11px">'
-           + " ".join(x for x in (lab("var(--up)", "▎support", sup), lab("#e6edf3", "▎spot", spot),
+           + " ".join(x for x in (lab("var(--up)", "▎support", sup), lab("var(--ink)", "▎spot", spot),
                                   lab("#d29922", "▎max-pain", mp), lab("var(--down)", "▎resistance", res)) if x)
            + '</div>')
     return svg + row
@@ -2695,7 +2695,7 @@ def _cci_stock_panel(sym: str) -> str:
     _stcol = {"pos": "var(--ok)", "mut": "var(--ink-2)", "stale": "var(--warn)"}.get(_tone, "var(--ink-2)")
     state_badge = (f' <span style="font-size:11px;font-weight:700;color:{_stcol};border:1px solid {_stcol};'
                    f'border-radius:8px;padding:1px 7px">{_st}</span>' if _st else "")
-    return ('<div class="ccipanel" style="border:1px solid #30363d;border-radius:8px;padding:14px;margin:14px 0;background:#0d1117">'
+    return ('<div class="ccipanel" style="border:1px solid var(--line-2);border-radius:8px;padding:14px;margin:14px 0;background:var(--bg-1)">'
             f'<h3 style="margin:0 0 6px">Management Credibility{state_badge} '
             f'<span class="mut" style="font-size:12px;font-weight:400">CCI · concall intelligence{asof}</span></h3>'
             + veto + chips + led + flagh + evah + ewh + behh + foot + '</div>')
@@ -2936,23 +2936,23 @@ _TRACK_STRATEGIES = ["DVPT accumulation", "RS leader", "Conviction",
                      "CPR reversal", "Quality", "Manual"]
 
 _TRACK_CSS = """<style>
-.snap{display:inline-block;background:#0d1117;border:1px solid #30363d;border-radius:7px;padding:2px 7px;margin:2px 4px 2px 0;font-size:11px;color:#c9d1d9;font-variant-numeric:tabular-nums}
-.snap i{color:#6e7681;font-style:normal;margin-right:3px}
-.tbtn{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:5px 11px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
+.snap{display:inline-block;background:var(--bg-1);border:1px solid var(--line-2);border-radius:7px;padding:2px 7px;margin:2px 4px 2px 0;font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums}
+.snap i{color:var(--ink-3);font-style:normal;margin-right:3px}
+.tbtn{background:var(--bg-3);border:1px solid var(--line-2);color:var(--ink);padding:5px 11px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit}
 .tbtn-go{background:#238636;border-color:#238636;color:#fff;font-weight:700}
 .thq{color:#58a6ff;cursor:help;font-size:17px;line-height:1}
 .trk-bar{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12px}
-.trk-lbl{width:170px;flex:none;color:#c9d1d9}
+.trk-lbl{width:170px;flex:none;color:var(--ink)}
 .trk-val{width:48px;flex:none;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
-.cap{background:#161b22;border:1px solid #1f4d7a;border-radius:10px;padding:14px;margin:12px 0}
-.cap label{display:block;color:#8b949e;font-size:11px;margin-bottom:4px}
-.cap .field{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:7px;padding:8px 10px;font-size:13px;width:100%;font-family:inherit}
+.cap{background:var(--bg-2);border:1px solid #1f4d7a;border-radius:10px;padding:14px;margin:12px 0}
+.cap label{display:block;color:var(--ink-2);font-size:11px;margin-bottom:4px}
+.cap .field{background:var(--bg-1);border:1px solid var(--line-2);color:var(--ink);border-radius:7px;padding:8px 10px;font-size:13px;width:100%;font-family:inherit}
 .cap .row2{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .cap textarea.field{min-height:48px;resize:vertical}
-.ac-box{position:absolute;left:0;right:0;top:100%;z-index:30;background:#0d1117;border:1px solid #30363d;border-top:none;border-radius:0 0 7px 7px;max-height:260px;overflow:auto}
-.ac-it{padding:6px 10px;cursor:pointer;font-size:13px;color:#c9d1d9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-box{position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--bg-1);border:1px solid var(--line-2);border-top:none;border-radius:0 0 7px 7px;max-height:260px;overflow:auto}
+.ac-it{padding:6px 10px;cursor:pointer;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ac-it:hover,.ac-it.on{background:#1f6feb;color:#fff}
-.ac-n{color:#8b949e;font-size:11px;margin-left:6px}
+.ac-n{color:var(--ink-2);font-size:11px;margin-left:6px}
 .ac-it:hover .ac-n,.ac-it.on .ac-n{color:#cde3ff}
 </style>"""
 
@@ -3569,13 +3569,13 @@ def _curve_svg(series, w=920, h=140):
     leg = (f'<text x="{w-6}" y="14" text-anchor="end" font-size="11" fill="#3fb950">'
            f'portfolio {end_p:.0f}</text>')
     if end_b is not None:
-        leg += (f'<text x="{w-6}" y="28" text-anchor="end" font-size="11" fill="#8b949e">'
+        leg += (f'<text x="{w-6}" y="28" text-anchor="end" font-size="11" style="fill:var(--ink-2)">'
                 f'Nifty 500 {end_b:.0f}</text>')
     return (
         f'<svg viewBox="0 0 {w} {h}" width="100%" preserveAspectRatio="none" '
-        f'style="background:#0d1117;border:1px solid #21262d;border-radius:10px">'
-        f'<line x1="8" y1="{base_y:.1f}" x2="{w-8}" y2="{base_y:.1f}" stroke="#30363d" stroke-dasharray="3 3"/>'
-        f'<path d="{path(bser)}" fill="none" stroke="#6e7681" stroke-width="1.4"/>'
+        f'style="background:var(--bg-1);border:1px solid var(--bg-3);border-radius:10px">'
+        f'<line x1="8" y1="{base_y:.1f}" x2="{w-8}" y2="{base_y:.1f}" style="stroke:var(--line-2)" stroke-dasharray="3 3"/>'
+        f'<path d="{path(bser)}" fill="none" style="stroke:var(--ink-3)" stroke-width="1.4"/>'
         f'<path d="{path(pser)}" fill="none" stroke="#3fb950" stroke-width="1.8"/>'
         f'{leg}</svg>')
 
@@ -3847,7 +3847,7 @@ def _alerts_form(row):
             vinput = (f'<input name="v_{t}" class="field" inputmode="decimal" style="width:110px" '
                       f'value="{vv}" placeholder="{unit or "value"}"/>')
         lines.append(
-            '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #21262d">'
+            '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bg-3)">'
             f'<label style="flex:1;display:flex;align-items:center;gap:8px;margin:0;cursor:pointer">'
             f'<input type="checkbox" name="on_{t}"{chk}/> {lbl}</label>{vinput}</div>')
     return (
@@ -3899,7 +3899,7 @@ def _capture_form(sym, snap):
         '<div class="row2">'
         '<div style="flex:1"><label>Target (optional)</label><input name="target" class="field" placeholder="₹"/></div>'
         '<div style="flex:1"><label>Stop (optional)</label><input name="stop" class="field" placeholder="₹"/></div></div>'
-        '<div style="background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:10px;margin-bottom:12px">'
+        '<div style="background:var(--bg-1);border:1px solid var(--bg-3);border-radius:8px;padding:10px;margin-bottom:12px">'
         '<div class="mut" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">'
         f'Frozen snapshot · saved as of {_esc(asof)}</div>{_snap_chips(snap)}</div>'
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Save</button>'
@@ -4896,7 +4896,7 @@ def dash_dashboard() -> HTMLResponse:
         for sym, st, msgs in fired:
             tier = "watch" if st == "watch" else "position"
             items.append(
-                '<div style="padding:6px 0;border-bottom:1px solid #21262d">'
+                '<div style="padding:6px 0;border-bottom:1px solid var(--bg-3)">'
                 f'<a class="sym" href="/dash/stock?sym={_q(sym)}" style="color:#58a6ff;text-decoration:none">{_esc(sym)}</a> '
                 f'<span class="mut" style="font-size:11px">({tier})</span> '
                 + " ".join(f'<span class="snap" style="background:#3a3417;border-color:#5a4a1f;color:#ffd99a">🔔 {_esc(m)}</span>' for m in msgs)
@@ -4961,9 +4961,9 @@ def dash_dashboard() -> HTMLResponse:
         items = []
         for sym, n in news:
             items.append(
-                '<div style="padding:7px 0;border-bottom:1px solid #21262d">'
+                '<div style="padding:7px 0;border-bottom:1px solid var(--bg-3)">'
                 f'<a class="sym" href="/dash/stock?sym={_q(sym)}" style="color:#58a6ff;text-decoration:none">{_esc(sym)}</a> '
-                f'<a href="{_esc(n["url"])}" target="_blank" rel="noopener" style="color:#e6edf3;text-decoration:none">{_esc(n["title"])}</a> '
+                f'<a href="{_esc(n["url"])}" target="_blank" rel="noopener" style="color:var(--ink);text-decoration:none">{_esc(n["title"])}</a> '
                 f'<span class="mut" style="font-size:11px">· {_esc(n["source"])} · {_esc((n["sent_at"] or "")[:10])}</span></div>')
         news_html = ('<details style="margin-top:18px"><summary class="ghdr" style="cursor:pointer">'
                      f'▸ News for your names <span class="mut" style="text-transform:none;font-weight:400">({len(news)})</span></summary>'
@@ -4975,7 +4975,7 @@ def dash_dashboard() -> HTMLResponse:
         items = []
         for a in upact:
             items.append(
-                '<div style="padding:6px 0;border-bottom:1px solid #21262d">'
+                '<div style="padding:6px 0;border-bottom:1px solid var(--bg-3)">'
                 f'<span class="sym">{_esc(a["symbol"])}</span> '
                 f'<span class="mut">{_esc(a["action_type"])}</span> · ex {_esc(a["ex_date"])} '
                 f'<span class="mut" style="font-size:11px">{_esc(a.get("details") or "")}</span></div>')
@@ -5393,7 +5393,7 @@ const RS_SERIES = __SERIES__;
 window.__bootRS = function(){
   const host = document.getElementById('rsOverlayChart');
   if (!host) return;
-  if (!window.LightweightCharts) { host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+  if (!window.LightweightCharts) { host.innerHTML='<div style="color:var(--ink-2);padding:20px">Chart library failed to load (offline?).</div>'; return; }
   if (!RS_SERIES.length) return;
   const common = {
     layout: { background:{color:'#161b22'}, textColor:'#8b949e', fontSize:11 },
@@ -5537,7 +5537,7 @@ window.__bootRS = function(){
     for(let i=1;i<items.length;i++){ if(items[i].y-items[i-1].y<13) items[i].y=items[i-1].y+13; }
     cont.innerHTML=items.map(it=>'<span style="position:absolute;right:3px;top:'+it.y.toFixed(1)
       +'px;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:'
-      +it.color+';text-shadow:0 0 3px #0e1116,0 0 2px #0e1116">'+_e(it.name)+'</span>').join('');
+      +it.color+';text-shadow:0 0 3px var(--bg-1),0 0 2px var(--bg-1)">'+_e(it.name)+'</span>').join('');
   }
 
   // --- crosshair value row ------------------------------------------------
@@ -5647,7 +5647,7 @@ def dash_stock(sym: str = Query("", max_length=20),
         cmp = cmp[:64]
     _wolfe_btn = (
         f'<a href="/dash/wolfe?sym={_q(sym)}" style="display:inline-block;margin:8px 0 0;padding:6px 12px;'
-        f'background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;'
+        f'background:var(--bg-3);border:1px solid var(--line-2);border-radius:6px;color:var(--ink);'
         f'text-decoration:none;font-size:13px">⌁ Wolfe wave</a>' if sym else '')
     search = f"""
 <form class="search" action="/dash/stock" method="get">
@@ -5922,7 +5922,7 @@ def dash_stock(sym: str = Query("", max_length=20),
         if mult is None:
             return '<span class="mut">—</span>'
         ic = "🔥" if mult >= 3 else ("⚡" if mult >= 1.5 else ("🟢" if mult >= 1 else ("🟡" if mult >= 0.5 else "🔵")))
-        col = "#f0883e" if mult >= 1.5 else ("#3fb950" if mult >= 1 else "#8b949e")
+        col = "#f0883e" if mult >= 1.5 else ("#3fb950" if mult >= 1 else "var(--ink-2)")
         return f'<span style="color:{col};font-weight:700">{mult:.1f}× {ic}</span>'
 
     inertia_rows = []
@@ -5968,7 +5968,7 @@ def dash_stock(sym: str = Query("", max_length=20),
             skew_txt = ("up-skewed" if updown >= 1.3 else
                         "down-skewed" if updown <= 0.77 else "balanced")
             bar = (f'<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;'
-                   f'margin:2px 0 4px;background:#21262d">'
+                   f'margin:2px 0 4px;background:var(--bg-3)">'
                    f'<span style="width:{up_pct:.0f}%;background:var(--up)"></span>'
                    f'<span style="width:{100 - up_pct:.0f}%;background:var(--down)"></span></div>'
                    f'<div class="sub" style="margin:0">Delivery ₹ on up-days (green) vs down-days '
@@ -6380,20 +6380,20 @@ def dash_stock(sym: str = Query("", max_length=20),
 
     chart_css = """
 .rangebar { display:flex; gap:6px; margin:8px 0 4px; }
-.rangebar button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+.rangebar button { background:var(--bg-3); color:var(--ink); border:1px solid var(--line-2);
                    border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer; }
 .rangebar button.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
-.chartwrap { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:8px; margin-bottom:6px; }
-.chartlbl { color:#8b949e; font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
-.cmp-anchor { font-size:12px; color:#8b949e; margin:6px 4px 2px; }
+.chartwrap { background:var(--bg-2); border:1px solid var(--line-2); border-radius:10px; padding:8px; margin-bottom:6px; }
+.chartlbl { color:var(--ink-2); font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
+.cmp-anchor { font-size:12px; color:var(--ink-2); margin:6px 4px 2px; }
 .cmp-vals { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums; padding:8px 4px 2px; }
 .cmp-val { font-weight:600; }
 .cmp-rail { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0 8px; }
-.cmp-chip { display:inline-flex; align-items:center; gap:6px; background:#161b22; border:1px solid #30363d; border-radius:14px; padding:5px 8px 5px 9px; font-size:13px; }
+.cmp-chip { display:inline-flex; align-items:center; gap:6px; background:var(--bg-2); border:1px solid var(--line-2); border-radius:14px; padding:5px 8px 5px 9px; font-size:13px; }
 .cmp-chip.cmp-dim { opacity:.4; }
 .cmp-sw { width:10px; height:10px; border-radius:50%; display:inline-block; }
-.cmp-tag { font-size:9px; font-weight:700; color:#8b949e; background:#21262d; border-radius:4px; padding:1px 4px; letter-spacing:.4px; }
-.cmp-x { color:#8b949e; text-decoration:none; font-size:12px; margin-left:1px; }
+.cmp-tag { font-size:9px; font-weight:700; color:var(--ink-2); background:var(--bg-3); border-radius:4px; padding:1px 4px; letter-spacing:.4px; }
+.cmp-x { color:var(--ink-2); text-decoration:none; font-size:12px; margin-left:1px; }
 .cmp-x:hover { color:#f85149; }
 button.cmp-sugg { cursor:pointer; font-family:inherit; }
 .cmp-sugg.cmp-on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
@@ -6480,7 +6480,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
                  # Two distinct counts, not a fraction: promises resolved + concalls read.
                  # "N/M settled" read ambiguously (looked like a ratio); label each explicitly.
                  (f"{_ccist or 'pilot'} · {_nset} settled · {_ncalls} calls" if cci_row else "no concall data")),
-        _ck_tile(_pct(_p52), "vs 52w-high", "#8b949e", "today's close"),
+        _ck_tile(_pct(_p52), "vs 52w-high", "var(--ink-2)", "today's close"),
     ])
 
     # --- THEME tags (session 33) — multi-label, always visible in the header ---
@@ -6509,7 +6509,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         _tabs.append(("fno", "F&O · OI"))
     fno_pane = (f'<div class="tabpane" data-tab="fno" style="display:none">{fno_html}</div>'
                 if fno_html else "")
-    tabbar = ('<div class="tabbar" id="stabbar" style="position:sticky;top:0;background:#0e1116;z-index:5">'
+    tabbar = ('<div class="tabbar" id="stabbar" style="position:sticky;top:0;background:var(--bg-1);z-index:5">'
               + "".join(_stab(k, l, i == 0) for i, (k, l) in enumerate(_tabs)) + '</div>')
     tab_js = """
 <script>
@@ -6565,7 +6565,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <button class="fbtn on" data-ctype="candle">Candles</button>
   <button class="fbtn" data-ctype="line">Line</button>
 </div>
-<div class="fbar"><label class="fbtn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="wfChk" style="margin:0">Wolfe wave</label><span id="wfLbl" style="color:#8b949e;font-size:12px;margin-left:8px"></span></div>
+<div class="fbar"><label class="fbtn" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="wfChk" style="margin:0">Wolfe wave</label><span id="wfLbl" style="color:var(--ink-2);font-size:12px;margin-left:8px"></span></div>
 <div class="fbar" id="ivBar">
   <button class="fbtn on" data-ptf="d">Daily</button>
   <button class="fbtn" data-ptf="w">Weekly</button>
@@ -6581,8 +6581,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
   <button data-r="0" class="on">Max</button>
 </div>
 <div class="chartwrap">
-  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b>{(' · '+_esc(company_name)) if company_name else ''} — price + institutional zones (split/bonus-adjusted){'  ⚠ recent corporate action — zone overlay approximate' if zone_action_recent else ''}</div>
-  <div id="priceRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
+  <div class="chartlbl"><b style="color:var(--ink)">{_esc(sym)}</b>{(' · '+_esc(company_name)) if company_name else ''} — price + institutional zones (split/bonus-adjusted){'  ⚠ recent corporate action — zone overlay approximate' if zone_action_recent else ''}</div>
+  <div id="priceRdt" style="font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
   <div id="priceChart" style="height:300px;"></div>
 </div>
 {_WF_SNIPPET}
@@ -6590,15 +6590,15 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 {_MA_SNIPPET}
 {_MEP_SNIPPET}
 <div class="chartwrap">
-  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · DVPT per trade — institutional spikes (amber = institutional-intensity day, r1m &gt; 1)</div>
+  <div class="chartlbl"><b style="color:var(--ink)">{_esc(sym)}</b> · DVPT per trade — institutional spikes (amber = institutional-intensity day, r1m &gt; 1)</div>
   <div id="dvptChart" style="height:150px;"></div>
 </div>
 <div class="chartwrap">
-  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · Delivery %</div>
+  <div class="chartlbl"><b style="color:var(--ink)">{_esc(sym)}</b> · Delivery %</div>
   <div id="delivChart" style="height:120px;"></div>
 </div>
 <div class="chartwrap">
-  <div class="chartlbl"><b style="color:#e6edf3">{_esc(sym)}</b> · Traded value (bar) + delivery value (bright = took delivery)</div>
+  <div class="chartlbl"><b style="color:var(--ink)">{_esc(sym)}</b> · Traded value (bar) + delivery value (bright = took delivery)</div>
   <div id="tvChart" style="height:130px;"></div>
 </div>
 </div><!-- /tab price -->
@@ -6647,7 +6647,7 @@ _RATIO_CHART_JS = """
 const DATA = __DATA__;
 (function(){
   const host = document.getElementById('ratioChart');
-  if (!window.LightweightCharts) { host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+  if (!window.LightweightCharts) { host.innerHTML='<div style="color:var(--ink-2);padding:20px">Chart library failed to load (offline?).</div>'; return; }
   const D = DATA;
   const common = {
     layout: { background:{color:'#161b22'}, textColor:'#8b949e', fontSize:11 },
@@ -7126,11 +7126,11 @@ def dash_ratio(idx: str = Query("", max_length=60),
     other = "Nifty 50" if den == "Nifty 500" else "Nifty 500"
     chart_css = """
 .rangebar { display:flex; gap:6px; margin:8px 0 4px; }
-.rangebar button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+.rangebar button { background:var(--bg-3); color:var(--ink); border:1px solid var(--line-2);
                    border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer; }
 .rangebar button.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
-.chartwrap { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:8px; margin-bottom:6px; }
-.chartlbl { color:#8b949e; font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
+.chartwrap { background:var(--bg-2); border:1px solid var(--line-2); border-radius:10px; padding:8px; margin-bottom:6px; }
+.chartlbl { color:var(--ink-2); font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
 """
     fbar = (
         '<div class="fbar">'
@@ -7156,7 +7156,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
 </div>
 <div class="chartwrap">
   <div class="chartlbl">{_esc(idx)} / {_esc(den)} ratio · blue=ratio · amber=50-MA · grey=200-MA · ↑50/↓50 crosses · ● new 52w high</div>
-  <div id="ratioRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
+  <div id="ratioRdt" style="font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;min-height:16px;margin:2px 0 3px;"></div>
   <div id="ratioChart" style="height:300px;"></div>
 </div>
 {pill_row}
@@ -7183,7 +7183,7 @@ const CBASE0 = "__BASE__";        // '100' | '0'
 const CRANGE0 = __RANGE__;        // initial range in trading days
 (function(){
   const host = document.getElementById('compareChart');
-  if (!window.LightweightCharts) { host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+  if (!window.LightweightCharts) { host.innerHTML='<div style="color:var(--ink-2);padding:20px">Chart library failed to load (offline?).</div>'; return; }
   if (!SERIES.length) { return; }
   const common = {
     layout: { background:{color:'#161b22'}, textColor:'#8b949e', fontSize:11 },
@@ -7428,7 +7428,7 @@ const CRANGE0 = __RANGE__;        // initial range in trading days
     for(let i=1;i<items.length;i++){ if(items[i].y-items[i-1].y<13) items[i].y=items[i-1].y+13; }
     cont.innerHTML=items.map(it=>'<span style="position:absolute;right:3px;top:'+it.y.toFixed(1)
       +'px;transform:translateY(-50%);white-space:nowrap;font-size:11px;font-weight:700;color:'
-      +it.color+';text-shadow:0 0 3px #0e1116,0 0 2px #0e1116">'+_e(it.name)+'</span>').join('');
+      +it.color+';text-shadow:0 0 3px var(--bg-1),0 0 2px var(--bg-1)">'+_e(it.name)+'</span>').join('');
   }
   // Debounced ResizeObserver (~100ms); skip while we're mid internal set.
   let rzT=null;
@@ -7680,28 +7680,28 @@ def dash_compare(idx: list[str] = Query(default=[]),
 
     chart_css = """
 .rangebar { display:flex; gap:6px; margin:8px 0 4px; flex-wrap:wrap; }
-.rangebar button { background:#21262d; color:#c9d1d9; border:1px solid #30363d;
+.rangebar button { background:var(--bg-3); color:var(--ink); border:1px solid var(--line-2);
                    border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer; }
 .rangebar button.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
-.chartwrap { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:8px; margin-bottom:6px; }
-.chartlbl { color:#8b949e; font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
+.chartwrap { background:var(--bg-2); border:1px solid var(--line-2); border-radius:10px; padding:8px; margin-bottom:6px; }
+.chartlbl { color:var(--ink-2); font-size:11px; text-transform:uppercase; letter-spacing:.4px; margin:2px 4px 4px; }
 .cmp-rail { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
-.cmp-chip { display:inline-flex; align-items:center; gap:6px; background:#161b22;
-            border:1px solid #30363d; border-radius:14px; padding:5px 8px 5px 9px; font-size:13px; }
+.cmp-chip { display:inline-flex; align-items:center; gap:6px; background:var(--bg-2);
+            border:1px solid var(--line-2); border-radius:14px; padding:5px 8px 5px 9px; font-size:13px; }
 .cmp-chip.cmp-dim { opacity:.4; }
 .cmp-sw { width:10px; height:10px; border-radius:50%; display:inline-block; }
-.cmp-tag { font-size:9px; font-weight:700; color:#8b949e; background:#21262d;
+.cmp-tag { font-size:9px; font-weight:700; color:var(--ink-2); background:var(--bg-3);
            border-radius:4px; padding:1px 4px; letter-spacing:.4px; }
-.cmp-x { color:#8b949e; text-decoration:none; font-size:12px; margin-left:1px; }
+.cmp-x { color:var(--ink-2); text-decoration:none; font-size:12px; margin-left:1px; }
 .cmp-x:hover { color:#f85149; }
 .cmp-sugg.cmp-hide { display:none; }
 button.cmp-sugg { cursor:pointer; font-family:inherit; }
 .cmp-sugg.cmp-on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
 .cmp-presets { display:flex; gap:6px; flex-wrap:wrap; margin:2px 0 12px; }
-.cmp-pin { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0 2px; font-size:12px; color:#8b949e; }
-.cmp-pin input[type=date] { background:#0d1117; border:1px solid #30363d; color:#e6edf3;
+.cmp-pin { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0 2px; font-size:12px; color:var(--ink-2); }
+.cmp-pin input[type=date] { background:var(--bg-1); border:1px solid var(--line-2); color:var(--ink);
                             border-radius:6px; padding:3px 7px; font-size:12px; }
-.cmp-anchor { font-size:12px; color:#8b949e; margin:6px 4px 2px; }
+.cmp-anchor { font-size:12px; color:var(--ink-2); margin:6px 4px 2px; }
 .cmp-vals { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums;
             padding:8px 4px 2px; }
 .cmp-val { font-weight:600; }

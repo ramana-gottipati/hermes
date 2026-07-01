@@ -27,7 +27,7 @@ except Exception:  # pragma: no cover
     def _shell(title, body, active, latest_date="", wide=False):
         return ("<!doctype html><html><head><meta charset='utf-8'>"
                 "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                f"<title>{title}</title><style>body{{background:#0d1117;color:#e6edf3;"
+                f"<title>{title}</title><style>body{{background:var(--bg-1);color:var(--ink);"
                 "font-family:system-ui,sans-serif;margin:0;padding:16px}</style></head>"
                 f"<body>{body}</body></html>")
 
@@ -252,7 +252,7 @@ def _summary(d, wi, sym, idx):
                 '1·3·5 structure at these swing scales.</div>')
     base = f'sym={_q(sym)}' if sym else f'idx={_q(idx)}'
     out = ['<div style="font-size:13px;margin:4px 0 12px">',
-           '<div style="color:#8b949e;margin-bottom:5px">Setups (★ <b style="color:#58a6ff">EDGE</b> = the validated '
+           '<div style="color:var(--ink-2);margin-bottom:5px">Setups (★ <b style="color:#58a6ff">EDGE</b> = the validated '
            'winner-profile · <a href="/dash/wolfe/scan" style="color:#58a6ff">open the scanner ›</a>); '
            'hover a row for the p1·B·C·F·G·H·I·D breakdown; click to draw:</div>']
     for i, w in enumerate(d["waves"]):
@@ -277,11 +277,11 @@ def _summary(d, wi, sym, idx):
         out.append(
             f'<a href="/dash/wolfe?{base}&w={i}" title="{_esc(chip_title)}" '
             f'style="display:block;{style}padding:4px 8px;margin:1px 0;'
-            f'border-radius:4px;text-decoration:none;color:#e6edf3">'
+            f'border-radius:4px;text-decoration:none;color:var(--ink)">'
             f'{wpb}<b style="color:{col}">{w["direction"]} Wolfe</b> · {w["state"]} · '
-            f'<span style="color:#8b949e">pt4 {_esc(p4d)}</span> · {zs}{ups}{rrs} · '
+            f'<span style="color:var(--ink-2)">pt4 {_esc(p4d)}</span> · {zs}{ups}{rrs} · '
             f'<b style="color:{col}">Q{w.get("quality_total",0)}</b>'
-            f'<span style="color:#6e7681;font-size:11px"> {_esc(w.get("source",""))}</span>'
+            f'<span style="color:var(--ink-3);font-size:11px"> {_esc(w.get("source",""))}</span>'
             f'<span style="color:{col}">{mark}</span></a>')
     out.append('</div>')
     return "".join(out)
@@ -317,29 +317,29 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                '<span style="color:#d29922;font-size:11px" title="regime-dependent / tail-only — reliable mainly when the broad tape is already weak; not a standalone edge">⚠ tail</span>')
         t1s = _fmt(c["t1"]) if c["t1"] else "—"
         status = ('<span style="color:var(--up);font-weight:700">● IN</span>' if c["in_zone"]
-                  else '<span style="color:#6e7681">watch</span>')
+                  else '<span style="color:var(--ink-3)">watch</span>')
         trs.append(
             # CL-VIEW-09: the symbol sits in a single-quoted JS string inside a double-
             # quoted attribute. SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes,
             # so the value can never contain `'`, `"` or whitespace to break out. Do NOT
             # swap _q for _esc here — _esc leaves quotes/spaces intact and would break the JS.
             f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(c["sym"])}&pick=winner\'" '
-            f'style="cursor:pointer;border-top:1px solid #21262d" '
+            f'style="cursor:pointer;border-top:1px solid var(--line-2)" '
             f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
             f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(c["sym"])}</b></td>'
             f'<td style="color:{col};font-weight:600">{c["dir"]}<br>{tag}</td>'
-            f'<td>{status}</td><td style="color:#8b949e">{c["age"]}d</td>'
+            f'<td>{status}</td><td style="color:var(--ink-2)">{c["age"]}d</td>'
             f'<td>{_fmt(c["cmp"])}</td><td>{_fmt(c["zlo"])}–{_fmt(c["zhi"])}</td>'
             f'<td style="color:var(--down)">{_fmt(c["sl"])}</td>'
             f'<td>{t1s}</td><td style="color:var(--up)">{_fmt(c["epa"])}</td>'
             f'<td>{c["up"]:.0f}%</td></tr>')
     if not cands:
-        trs = ['<tr><td colspan="10" style="padding:14px;color:#8b949e">No fresh winner-profile setups right now — '
+        trs = ['<tr><td colspan="10" style="padding:14px;color:var(--ink-2)">No fresh winner-profile setups right now — '
                'try <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a> or '
                '<a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
     head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up')
     body = (
-        '<h2>Wolfe scanner <span style="color:#8b949e;font-size:15px;font-weight:400">— winner-profile, read by side</span></h2>'
+        '<h2>Wolfe scanner <span style="color:var(--ink-2);font-size:15px;font-weight:400">— winner-profile, read by side</span></h2>'
         '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
         'zone</b> — that survived <b>true out-of-sample</b> (fit 2004-14 / tested untouched 2015-26, survivorship-aware) '
         'plus a beta/regime control. <b>Read by side:</b> '
@@ -349,18 +349,18 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         'mainly when the broad tape is already weak, not on its own. The edge is in the <b>selection</b>, not the '
         'stop/target. <b>Click a row</b> to see its wave on the chart. '
         '<span style="color:var(--up)">● IN</span> = price in the entry zone now. <i>Descriptive — not a buy/sell signal.</i></div>'
-        f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(universe)} · '
+        f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:10px">{_esc(universe)} · '
         + (f'as-of <b>{_esc(cached["scan_date"] or "—")}</b> '
-           f'<span style="color:#6e7681">(nightly snapshot{(" · computed " + _esc(cached["computed_at"][:16])) if cached.get("computed_at") else ""})</span> · '
+           f'<span style="color:var(--ink-3)">(nightly snapshot{(" · computed " + _esc(cached["computed_at"][:16])) if cached.get("computed_at") else ""})</span> · '
            f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;refresh=1" style="color:#58a6ff" title="recompute live now">↻ refresh</a>'
            if cached else
-           f'as-of {_esc(asof or "today")} <span style="color:#6e7681">(live)</span>')
+           f'as-of {_esc(asof or "today")} <span style="color:var(--ink-3)">(live)</span>')
         + f' · fresh ≤ {eff_fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
         ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
         ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a>'
         ' &nbsp;|&nbsp; <a href="/dash/harmonic" style="color:#f778ba">Harmonic scanner ›</a></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
-        '<thead><tr style="color:#8b949e;text-align:left">'
+        '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table>')
     return HTMLResponse(_shell("Wolfe scanner", body, "wolfe", wide=True))

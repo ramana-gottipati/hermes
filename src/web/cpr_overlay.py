@@ -58,7 +58,7 @@ SNIPPET = """<script>
   function ivOf(){ var b=document.querySelector('[data-ptf].on'); return b?b.dataset.ptf:'d'; }
   // CPR degree = ONE step higher than the chart (Ramana's ladder).
   function ivTf(){ var p=ivOf(); return p==='d'?'W':(p==='w'?'M':(p==='m'?'H':(p==='q'?'H':'W'))); }
-  function chipCss(a){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 9px;border-radius:20px;'+(a?'background:rgba(210,153,34,0.18);color:#e3b341':'border:1px solid #30363d;color:#8b949e'); }
+  function chipCss(a){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 9px;border-radius:20px;'+(a?'background:rgba(210,153,34,0.18);color:#e3b341':'border:1px solid var(--line-2);color:var(--ink-2)'); }
   // --- snap CPR period-boundary dates onto the CURRENT chart bars ---
   function isoWk(s){ var d=new Date(s+'T00:00:00Z'),jd=(d.getUTCDay()+6)%7; d.setUTCDate(d.getUTCDate()-jd+3); var iy=d.getUTCFullYear(),j4=new Date(Date.UTC(iy,0,4)),j4d=(j4.getUTCDay()+6)%7; j4.setUTCDate(j4.getUTCDate()-j4d+3); return iy+'-W'+('0'+(1+Math.round((d-j4)/(7*864e5)))).slice(-2); }
   function pkey(s,iv){ if(iv==='w') return isoWk(s); if(iv==='m') return s.slice(0,7); if(iv==='q'){var y=s.slice(0,4),mo=parseInt(s.slice(5,7),10); return y+'-Q'+(Math.floor((mo-1)/3)+1);} return s; }
@@ -109,7 +109,7 @@ SNIPPET = """<script>
   function inject(){ var host=document.getElementById('priceChart'); if(!host||document.getElementById('cprChip')) return;
     var bar=document.getElementById('stratBar');
     if(!bar){ bar=document.createElement('div'); bar.id='stratBar'; bar.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 2px;font-family:-apple-system,Segoe UI,sans-serif';
-      var l=document.createElement('span'); l.textContent='Strategies'; l.style.cssText='font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:#6e7681;margin-right:2px'; bar.appendChild(l);
+      var l=document.createElement('span'); l.textContent='Strategies'; l.style.cssText='font-size:10px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-3);margin-right:2px'; bar.appendChild(l);
       host.parentNode.insertBefore(bar, host.nextSibling); }
     var chip=document.createElement('span'); chip.id='cprChip'; chip.style.cssText=chipCss(on);
     chip.innerHTML='<span style="width:7px;height:7px;border-radius:50%;background:#d29922"></span>CPR';

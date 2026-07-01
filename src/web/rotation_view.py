@@ -92,26 +92,26 @@ _CSS = """
 <style>
 .rwrap{max-width:1280px}
 .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 16px}
-.rq{border:1px solid #30363d;border-radius:12px;padding:12px 14px;background:#0d1117}
+.rq{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--bg-1)}
 .rq h3{margin:0 0 2px;font-size:15px}
-.rq .rq-sub{color:#8b949e;font-size:11px;margin-bottom:8px}
+.rq .rq-sub{color:var(--ink-2);font-size:11px;margin-bottom:8px}
 .rq .rq-n{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
 .rq table{width:100%;border-collapse:collapse;font-size:12px}
-.rq td{padding:2px 4px;border-bottom:1px solid #161b22;white-space:nowrap}
+.rq td{padding:2px 4px;border-bottom:1px solid var(--bg-2);white-space:nowrap}
 .rq .sym{font-weight:700}
 .rmk{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:7px;
-     background:#161b22;border:1px solid #30363d;margin-right:3px}
-.rbanner{border:1px solid #30363d;border-radius:10px;padding:8px 12px;margin:6px 0 4px;
-         background:#161b22;font-size:13px;color:#c9d1d9}
-.rmovers{margin:4px 0 14px;font-size:12px;color:#c9d1d9}
-.rmovers .mv{display:inline-block;border:1px solid #30363d;border-radius:8px;
-             padding:2px 8px;margin:3px 6px 3px 0;background:#0d1117}
+     background:var(--bg-2);border:1px solid var(--line-2);margin-right:3px}
+.rbanner{border:1px solid var(--line-2);border-radius:10px;padding:8px 12px;margin:6px 0 4px;
+         background:var(--bg-2);font-size:13px;color:var(--ink)}
+.rmovers{margin:4px 0 14px;font-size:12px;color:var(--ink)}
+.rmovers .mv{display:inline-block;border:1px solid var(--line-2);border-radius:8px;
+             padding:2px 8px;margin:3px 6px 3px 0;background:var(--bg-1)}
 .rdt{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
-.rdt th,.rdt td{padding:4px 7px;border-bottom:1px solid #21262d;text-align:right;white-space:nowrap}
+.rdt th,.rdt td{padding:4px 7px;border-bottom:1px solid var(--bg-3);text-align:right;white-space:nowrap}
 .rdt th:first-child,.rdt td:first-child,.rdt th.l,.rdt td.l{text-align:left}
-.rdt thead th{position:sticky;top:0;background:#0d1117;color:#8b949e;font-weight:600;z-index:1}
+.rdt thead th{position:sticky;top:0;background:var(--bg-1);color:var(--ink-2);font-weight:600;z-index:1}
 .rpill{display:inline-block;text-decoration:none;font-size:12px;font-weight:600;
-       padding:4px 11px;border-radius:9px;border:1px solid #30363d;margin-right:6px;color:#c9d1d9}
+       padding:4px 11px;border-radius:9px;border:1px solid var(--line-2);margin-right:6px;color:var(--ink)}
 a.row,a.rpill{text-decoration:none}
 </style>
 """
@@ -121,10 +121,10 @@ def _empty() -> str:
     return (
         '<h2>RS rotation</h2>'
         '<div class="card"><div class="sub">No rotation data yet.</div>'
-        '<p style="color:#c9d1d9;line-height:1.5">This view reads the per-stock '
+        '<p style="color:var(--ink);line-height:1.5">This view reads the per-stock '
         '<code>rs_phase</code> (the weather rotation label) computed by '
         '<code>stock_rs</code>. Once stock signals are computed it populates:</p>'
-        '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;'
+        '<pre style="background:var(--bg-1);border:1px solid var(--line-2);border-radius:6px;'
         'padding:10px;overflow:auto">python -m src.automation.index_signals\n'
         'python -m src.automation.stock_rs</pre></div>')
 
@@ -184,8 +184,8 @@ def _movers(conn) -> str:
         tol = PHASE.get(to, ("?", "", ""))[0].split(" ")[0]
         chips.append(
             f'<span class="mv"><a class="row" href="/dash/stock?sym={quote_plus(r["symbol"])}" '
-            f'style="color:#e6edf3">{_esc(r["symbol"])}</a> '
-            f'<span style="color:#8b949e">{frm}→</span><span style="color:{col}">{tol}</span></span>')
+            f'style="color:var(--ink)">{_esc(r["symbol"])}</a> '
+            f'<span style="color:var(--ink-2)">{frm}→</span><span style="color:{col}">{tol}</span></span>')
     return ('<div class="rmovers"><b>✨ Just turned</b> '
             '<span class="sub">phase changed today (base-turns &amp; cracks first)</span><br>'
             + "".join(chips) + '</div>')
@@ -202,8 +202,8 @@ def _cell(phase: str) -> str:
     for r in rows[:7]:
         body.append(
             f'<tr><td><a class="row sym" href="/dash/stock?sym={quote_plus(r["symbol"])}" '
-            f'style="color:#e6edf3">{_esc(r["symbol"])}</a></td>'
-            f'<td style="color:#8b949e">{_esc((r.get("primary_sector") or "").replace("Nifty ",""))}</td>'
+            f'style="color:var(--ink)">{_esc(r["symbol"])}</a></td>'
+            f'<td style="color:var(--ink-2)">{_esc((r.get("primary_sector") or "").replace("Nifty ",""))}</td>'
             f'<td style="text-align:right">{r["rs_rank"] if r.get("rs_rank") is not None else "—"}</td>'
             f'<td style="text-align:right">{_marks(r)}</td></tr>')
     table = (f'<table><tbody>{"".join(body)}</tbody></table>' if body
@@ -227,7 +227,7 @@ def _table(phase: str) -> str:
     tr = []
     for r in rows:
         sphase = r.get("sector_phase")
-        scol = PHASE.get(sphase, PHASE["NEUTRAL"])[1] if sphase else "#6e7681"
+        scol = PHASE.get(sphase, PHASE["NEUTRAL"])[1] if sphase else "var(--ink-3)"
         slbl = PHASE.get(sphase, ("—", "", ""))[0].split(" ")[-1] if sphase else "—"
         rsi = r.get("rsi")
         # precompute cell text (avoid nested same-quote f-strings — Python 3.11)
@@ -239,9 +239,9 @@ def _table(phase: str) -> str:
         link = quote_plus(r["symbol"])
         tr.append(
             f'<tr><td class="l"><a class="row sym" href="/dash/stock?sym={link}" '
-            f'style="color:#e6edf3;font-weight:700">{sym}</a></td>'
+            f'style="color:var(--ink);font-weight:700">{sym}</a></td>'
             f'<td>{rank_txt}</td>'
-            f'<td class="l" style="color:#8b949e">{sec_txt}</td>'
+            f'<td class="l" style="color:var(--ink-2)">{sec_txt}</td>'
             f'<td style="color:{scol}">{_esc(slbl)}</td>'
             f'<td>{_pct(r.get("b1"))}</td><td>{_pct(r.get("b3"))}</td><td>{_pct(r.get("b6"))}</td>'
             f'<td>{_pct(r.get("b12"))}</td><td>{_pct(r.get("b18"))}</td><td>{_pct(r.get("b24"))}</td>'

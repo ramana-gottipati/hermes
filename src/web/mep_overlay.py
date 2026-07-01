@@ -57,7 +57,7 @@ SNIPPET = """<script>
 (function(){
   var PC=null, CS=null, prim=null, bands=null, on=false, loaded=false;
   var COL={A:'rgba(63,212,134,0.07)',SA:'rgba(63,212,134,0.15)',D:'rgba(255,106,122,0.07)',SD:'rgba(255,106,122,0.15)'};
-  function chipCss(a){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 9px;border-radius:20px;'+(a?'background:rgba(188,140,255,0.16);color:#cda9ff':'border:1px solid #30363d;color:#8b949e'); }
+  function chipCss(a){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 9px;border-radius:20px;'+(a?'background:rgba(188,140,255,0.16);color:#cda9ff':'border:1px solid var(--line-2);color:var(--ink-2)'); }
   function makePrim(){ var req=null, vis=true;
     var view={ zOrder:function(){return 'bottom';}, renderer:function(){ return { draw:function(tg){
       if(!vis||!PC||!bands) return;

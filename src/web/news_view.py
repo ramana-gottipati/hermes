@@ -41,16 +41,16 @@ _CSS = """<style>
 .nv-row{display:flex;align-items:baseline;gap:10px;padding:9px 12px;text-decoration:none;color:inherit;border-top:1px solid var(--bg-3);border-left:3px solid transparent;}
 .nv-row:first-child{border-top:none;}
 .nv-row:hover{background:#1c2230;border-left-color:#1f6feb;}
-.nv-date{color:#6e7681;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:64px;}
-.nv-src{color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;min-width:84px;}
-.nv-title{color:#c9d1d9;font-size:13px;flex:1;line-height:1.4;}
-.nv-row:hover .nv-title{color:#e6edf3;}
+.nv-date{color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:64px;}
+.nv-src{color:var(--ink-2);font-size:10px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;min-width:84px;}
+.nv-title{color:var(--ink);font-size:13px;flex:1;line-height:1.4;}
+.nv-row:hover .nv-title{color:var(--ink);}
 .nv-syms{display:flex;gap:4px;flex-wrap:wrap;min-width:0;}
-.nv-sym{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:600;color:#58a6ff;white-space:nowrap;}
-.nv-prov{font-size:9px;color:#6e7681;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
+.nv-sym{background:var(--bg-1);border:1px solid var(--line-2);border-radius:8px;padding:1px 6px;font-size:10px;font-weight:600;color:#58a6ff;white-space:nowrap;}
+.nv-prov{font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
 .nv-prov.ai{color:#8957e5;}
-.nv-empty{color:#6e7681;font-size:12px;line-height:1.6;padding:14px;border:1px dashed #30363d;border-radius:10px;}
-.nv-foot{color:#6e7681;font-size:11px;margin-top:10px;}
+.nv-empty{color:var(--ink-3);font-size:12px;line-height:1.6;padding:14px;border:1px dashed var(--line-2);border-radius:10px;}
+.nv-foot{color:var(--ink-3);font-size:11px;margin-top:10px;}
 </style>"""
 
 

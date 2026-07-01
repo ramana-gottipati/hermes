@@ -1292,6 +1292,17 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 64 — 2026-07-02 — Colour Phase 2 (bg/hairline/ink) — near-complete via no-git fan-out
+Resumed the colour-system alignment (concurrent with the Session-63 data work; touched only `src/web/*` UI files, never `rsband_view.py` which carried a parallel session's month-scrubber WIP — left intact).
+- **Method that worked (vs S61's rate-limited 23-agent run):** one **batch of 8** async agents (one file each) + the small/canvas files done by hand. Agents were **forbidden from running any git** and did per-occurrence context classification. No rate-limit, no stash loss, no cross-absorption.
+- **Migrated (bg/line/ink → `--bg-*`/`--line-2`/`--ink*` tokens): 15 files** — dashboard.py (~135 sites), stock_chart.py, cockpit.py (incl. re-confirming the `_mv_adbar` SVG-attr fix), rotation/wolfe/harmonic/growth/news views, glossary, testing, mini_rrg, + the indicators/cpr/mep/wolfe overlay chips. **Backlog 450 → 82.**
+- **Correctly LEFT (the 82):** canvas / lightweight-charts config (CSS vars don't apply); JS palette objects that concatenate SVG-attribute strings; alpha-suffix palette values (`{c}55` — no `--*-rgb` token); dual-use SVG-attr constants (`wolfe_view._BG/_GRID/_AXT`); and **standalone assets** (`dashboard._OFFLINE_HTML`, `/icon.svg`, web-manifest JSON, theme-color meta) per **D-COL-6**. `rsband_view.py`'s remaining hexes are its `_LANE_JS` palette (JS/SVG-string) — legitimately hex.
+- **Mechanism honoured:** CSS/inline → `var()`; SVG `fill=`/`stroke=` **attributes** → `style="fill:var(--…)"` (never `fill="var(`, which fails silently); canvas → left.
+- **Verified:** all 16 modified files `ast.parse` OK; **0** `fill=/stroke="var("` leaks site-wide; **all 3 gates PASS** (chrome, nav, color — the color_gate's render guard covers stock/dashboard/rrg/rsband); extra render sweep of 11 routes = all 200 / 0 leaks; tokens confirmed defined + resolving (`--bg-1/2/3`, `--line-2`, `--ink/2/3` present and used 20–77×/page).
+- **Note:** the color_gate ratchet still tracks *directional* only (unchanged 53). A bg/line/ink ratchet was NOT added — it needs an allowlist for the ~82 legitimate leaves (canvas/standalone/alpha/dual-use); deferred as a follow-up rather than risk false positives.
+- **Deploy:** colour-only scp of the 15 files + restart (LF, py3.10, backup first).
+- Commit: colour Phase 2 (15 files) + this entry.
+
 ### Session 63 — 2026-07-02 — Data-roadmap debate (Claude⇄Codex) + capital-allocation MVP shipped
 Ramana shared a ChatGPT "Pattern" data-brainstorm and asked Claude+Codex to debate which new dataset gives the best ROI, then to work autonomously (no per-step confirmation — recorded as a standing preference).
 - **Grounded the brainstorm** against the repo (most of the 40-row wishlist is already built) → `docs/DATASET-RESEARCH-BRIEF.md`.

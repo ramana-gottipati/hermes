@@ -36,7 +36,7 @@ except Exception:  # pragma: no cover
     def _shell(title, body, active, latest_date="", wide=False):
         return ("<!doctype html><html><head><meta charset='utf-8'>"
                 "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                f"<title>{title}</title><style>body{{background:#0d1117;color:#e6edf3;"
+                f"<title>{title}</title><style>body{{background:var(--bg-1);color:var(--ink);"
                 "font-family:system-ui,sans-serif;margin:0;padding:16px}</style></head>"
                 f"<body>{body}</body></html>")
 
@@ -128,33 +128,33 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
             # SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes, so the value can
             # never carry `'`/`"`/whitespace to break out. Do NOT swap _q→_esc here.
             f'<tr onclick="location.href=\'/dash/stock?sym={_q(r["sym"])}\'" '
-            f'style="cursor:pointer;border-top:1px solid #21262d" '
+            f'style="cursor:pointer;border-top:1px solid var(--line-2)" '
             f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
             f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(r["sym"])}</b></td>'
             f'<td>{_esc(r["pattern"])}</td>'
             f'<td style="color:{col};font-weight:600">{r["dir"]}<br>{tag}</td>'
-            f'<td style="color:#8b949e">{_esc(r["state"].title())}</td>'
-            f'<td>{status}</td><td style="color:#8b949e">{r["age"]}d</td>'
+            f'<td style="color:var(--ink-2)">{_esc(r["state"].title())}</td>'
+            f'<td>{status}</td><td style="color:var(--ink-2)">{r["age"]}d</td>'
             f'<td>{_esc(r["cmp"])}</td><td>{_zone(r)}</td>'
-            f'<td style="color:#8b949e">{sc}</td></tr>')
+            f'<td style="color:var(--ink-2)">{sc}</td></tr>')
     if not rows:
-        trs = [f'<tr><td colspan="9" style="padding:14px;color:#8b949e">No fresh {_tf_label} harmonic setups right now — '
+        trs = [f'<tr><td colspan="9" style="padding:14px;color:var(--ink-2)">No fresh {_tf_label} harmonic setups right now — '
                f'try <a href="/dash/harmonic?tf={tf}&refresh=1" style="color:#58a6ff">a live recompute</a>.</td></tr>']
     head = ('symbol', 'pattern', 'dir', 'state', 'status', 'age', 'CMP', 'zone / PRZ', 'fit')
     if tf == "d":
         fresh_line = (f'as-of <b>{_esc(scan_date or "—")}</b> '
-                      f'<span style="color:#6e7681">(nightly snapshot{(" · " + _esc(computed[:16])) if computed else ""})</span> · '
+                      f'<span style="color:var(--ink-3)">(nightly snapshot{(" · " + _esc(computed[:16])) if computed else ""})</span> · '
                       f'<a href="/dash/harmonic?refresh=1" style="color:#58a6ff" title="recompute live now">↻ refresh</a>'
-                      if not live else 'as-of today <span style="color:#6e7681">(live)</span>')
+                      if not live else 'as-of today <span style="color:var(--ink-3)">(live)</span>')
     else:
-        fresh_line = f'{_tf_label} bars <span style="color:#6e7681">(live multi-TF scan)</span>'
+        fresh_line = f'{_tf_label} bars <span style="color:var(--ink-3)">(live multi-TF scan)</span>'
     # timeframe selector — D from the nightly snapshot, W/M live (the multi-TF hand-off)
     tf_pills = " ".join(
         f'<a href="/dash/harmonic?tf={t}" style="text-decoration:none;padding:2px 9px;border-radius:5px;font-size:12px;'
-        + ('background:#1f6feb;color:#fff' if t == tf else 'color:#8b949e;border:1px solid #30363d') + f'">{lbl}</a>'
+        + ('background:#1f6feb;color:#fff' if t == tf else 'color:var(--ink-2);border:1px solid var(--line-2)') + f'">{lbl}</a>'
         for (t, lbl) in (("d", "Daily"), ("w", "Weekly"), ("m", "Monthly")))
     body = (
-        '<h2>Harmonic scanner <span style="color:#8b949e;font-size:15px;font-weight:400">— XABCD, read by side</span></h2>'
+        '<h2>Harmonic scanner <span style="color:var(--ink-2);font-size:15px;font-weight:400">— XABCD, read by side</span></h2>'
         '<div class="sub" style="margin-bottom:6px">Auto-detected harmonic patterns '
         '(Gartley · Bat · Butterfly · Crab · Deep Crab) on daily bars — <b>CONFIRMED</b> '
         '(point D printed → reversal candidate) and <b>FORMING</b> (X-A-B-C printed, D '
@@ -167,11 +167,11 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
         'chart. <span style="color:var(--up)">● IN</span> = price in the reversal zone now. '
         '<i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-        f'<span style="color:#6e7681;font-size:11px;text-transform:uppercase;letter-spacing:.4px">Timeframe</span>{tf_pills}</div>'
-        f'<div style="color:#8b949e;font-size:13px;margin-bottom:10px">{_esc(uni)} · {_tf_label} · {fresh_line} · '
+        f'<span style="color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.4px">Timeframe</span>{tf_pills}</div>'
+        f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:10px">{_esc(uni)} · {_tf_label} · {fresh_line} · '
         f'<b>{len(rows)} setups · {nin} in zone now</b></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
-        '<thead><tr style="color:#8b949e;text-align:left">'
+        '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table>')
     return HTMLResponse(_shell("Harmonic scanner", body, "wolfe", wide=True))

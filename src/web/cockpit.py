@@ -153,7 +153,7 @@ _WEATHER = {
     "RECOVERY":     ("🌅 Recovery",     "#7fe6b0", "#10271d", "#2f8f63"),
     "HEADWIND":     ("🌧 Headwind",     "#ff6a7a", "#2e161b", "#8f1f2a"),
     "ROLLING-OVER": ("⛅ Rolling over",  "#f6b73c", "#2e2611", "#5a4a1f"),
-    "NEUTRAL":      ("☁ Neutral",       "#7e90a8", "#1a232f", "#30363d"),
+    "NEUTRAL":      ("☁ Neutral",       "#7e90a8", "#1a232f", "var(--line-2)"),
 }
 
 
@@ -218,13 +218,13 @@ def _news_card(conn, esc, limit=8):
         when = esc((r["sent_at"] or "")[:10])
         url = r["url"] or ""
         href = url if (url.startswith("http://") or url.startswith("https://")) else ""
-        head = (f'<a class="row" style="display:inline;color:#c9d1d9" target="_blank" '
+        head = (f'<a class="row" style="display:inline;color:var(--ink)" target="_blank" '
                 f'rel="noopener" href="{esc(href)}">{title}</a>' if href else title)
         items.append(
             f'<tr><td class="l">{head}</td>'
             f'<td class="r mut" style="font-size:11px">{src}</td>'
             f'<td class="r mut" style="font-size:11px">{when}</td></tr>')
-    return ('<div class="card ck-board" style="border-top:2px solid #6e7681">'
+    return ('<div class="card ck-board" style="border-top:2px solid var(--ink-3)">'
             '<div class="ck-h">📰 Latest headlines'
             '<span class="sub" style="margin:0;font-weight:400">context, not a signal · market-wide</span></div>'
             f'<table class="ck-t"><tbody>{"".join(items)}</tbody></table></div>')
@@ -398,11 +398,11 @@ STRATEGY_REGISTRY = [
 _CKPT_CSS = """
 <style>
 .ck-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:4px 0 14px;}
-.ck-tile{display:block;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:11px 13px;color:inherit;text-decoration:none;}
+.ck-tile{display:block;background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;padding:11px 13px;color:inherit;text-decoration:none;}
 .ck-tile:hover{border-color:#484f58;}
 .ck-tile .ck-n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
-.ck-tile .ck-l{font-size:12px;font-weight:700;margin-top:5px;color:#e6edf3;}
-.ck-tile .ck-c{font-size:10.5px;color:#8b949e;margin-top:2px;}
+.ck-tile .ck-l{font-size:12px;font-weight:700;margin-top:5px;color:var(--ink);}
+.ck-tile .ck-c{font-size:10.5px;color:var(--ink-2);margin-top:2px;}
 .ckpt{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:12px;align-items:start;margin-bottom:14px;}
 .ck-board{margin:0;padding:12px 14px;}
 .ck-h{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:700;margin-bottom:8px;}
@@ -547,9 +547,9 @@ def _mv_adbar(score):
         x, w, col = 50.0 + frac, -frac, "var(--down)"
     return (f'<svg width="92" height="16" viewBox="0 0 100 16" preserveAspectRatio="none" '
             f'style="vertical-align:middle">'
-            f'<rect x="0" y="6.5" width="100" height="3" rx="1.5" fill="#21262d"/>'
+            f'<rect x="0" y="6.5" width="100" height="3" rx="1.5" style="fill:var(--bg-3)"/>'
             f'<rect x="{x:.1f}" y="4.5" width="{w:.1f}" height="7" rx="1.5" style="fill:{col}"/>'
-            f'<line x1="50" y1="2" x2="50" y2="14" stroke="#6e7681" stroke-width="1"/></svg>')
+            f'<line x1="50" y1="2" x2="50" y2="14" stroke-width="1" style="stroke:var(--ink-3)"/></svg>')
 
 
 def _mep_pill(state):
@@ -1150,11 +1150,11 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         cd.append({"t": r["t"], "o": round(o, 2), "h": round(hi, 2),
                    "l": round(lo, 2), "c": round(c, 2)})
     chart_css = ("<style>.rangebar{display:flex;gap:6px;margin:8px 0 4px;}"
-                 ".rangebar button{background:#21262d;color:#c9d1d9;border:1px solid #30363d;"
+                 ".rangebar button{background:var(--bg-3);color:var(--ink);border:1px solid var(--line-2);"
                  "border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;}"
                  ".rangebar button.on{background:#1f6feb;border-color:#1f6feb;color:#fff;}"
-                 ".chartwrap{background:#161b22;border:1px solid #30363d;border-radius:10px;"
-                 "padding:8px;margin-bottom:6px;}.chartlbl{color:#8b949e;font-size:11px;"
+                 ".chartwrap{background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;"
+                 "padding:8px;margin-bottom:6px;}.chartlbl{color:var(--ink-2);font-size:11px;"
                  "text-transform:uppercase;letter-spacing:.4px;margin:2px 4px 4px;}</style>")
     chart_html = ""
     if cd:
@@ -1169,7 +1169,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             '<button data-r="126">6M</button><button data-r="252" class="on">1Y</button>'
             '<button data-r="504">2Y</button><button data-r="1260">5Y</button><button data-r="0">Max</button></div>'
             f'<div class="chartwrap"><div class="chartlbl">{esc(idx)} · price (candles / line) + 50/200-MA</div>'
-            '<div id="idxRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;'
+            '<div id="idxRdt" style="font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;'
             'min-height:16px;margin:2px 0 3px"></div><div id="idxChart" style="height:320px"></div></div>')
 
     # --- today snapshot: KPI + OHLC/valuation + returns + technicals ----------
@@ -1274,7 +1274,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                 '<button data-r="0">Max</button></div>'
                 f'<div class="chartwrap"><div class="chartlbl">{esc(idx)} ÷ Nifty 500 — relative-strength ratio (line) '
                 '· amber=50-MA · grey=200-MA · ↑/↓50 crosses · ● new high (per interval)</div>'
-                '<div id="idxRatioRdt" style="font-size:12px;color:#c9d1d9;font-variant-numeric:tabular-nums;'
+                '<div id="idxRatioRdt" style="font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;'
                 'min-height:16px;margin:2px 0 3px"></div><div id="idxRatioChart" style="height:280px"></div></div>')
         else:
             ratio_chart = ('<div class="card"><div class="sub" style="margin:0">No RS-ratio series on record '
@@ -1333,7 +1333,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                 w = n / tot_ch * 100
                 return f'<span style="width:{w:.1f}%;background:{col}"></span>' if n else ''
             bar = ('<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;'
-                   'margin:2px 0 6px;background:#21262d">'
+                   'margin:2px 0 6px;background:var(--bg-3)">'
                    + _seg(n_acc, "var(--up)") + _seg(n_cons, "#bb8009")
                    + _seg(n_neu, "#484f58") + _seg(n_dist, "var(--down)") + '</div>')
             split = (f'<div class="card"><div class="ck-h">Accumulation split'
@@ -1826,7 +1826,7 @@ def render_strategies(sig_date, idx_date) -> str:
 # --- CCI: Management Credibility full-bleed board (the "credible screen") ------
 def _cci_tierpill(t) -> str:
     t = t or "—"
-    col = "var(--up)" if t in ("A+", "A") else ("var(--down)" if t == "D" else "#8b949e")
+    col = "var(--up)" if t in ("A+", "A") else ("var(--down)" if t == "D" else "var(--ink-2)")
     return f'<span style="color:{col};font-weight:700">{t}</span>'
 
 
@@ -1910,7 +1910,7 @@ def render_concalls(view: str) -> str:
              + tile(n_leaders, "Credibility leaders", "var(--up)", "veto-excluded, ranked")
              + tile(n_avoid, "Avoid tape", "var(--down)", "veto / deterioration")
              + tile(n_veto, "⛔ Vetoed", "var(--down)", "pledge / auditor / pt14")
-             + tile(n_unproven, "Unproven", "#8b949e", "no settled promises yet")
+             + tile(n_unproven, "Unproven", "var(--ink-2)", "no settled promises yet")
              + tile(n_total, "Scored", "#39c5cf", "names with concall data")
              + '</div>')
 
@@ -1973,7 +1973,7 @@ def render_mep(sig_date=None) -> str:
     strip = _ck_strip([
         _ck_tile(counts.get("STRONG_ACCUM", 0), "Strong accum", "var(--up)", "sustained · weeks"),
         _ck_tile(counts.get("ACCUM", 0), "Accumulating", "var(--up)", "phase"),
-        _ck_tile(counts.get("NEUTRAL", 0), "Consolidating", "#8b949e", "no clear side"),
+        _ck_tile(counts.get("NEUTRAL", 0), "Consolidating", "var(--ink-2)", "no clear side"),
         _ck_tile(counts.get("DISTRIB", 0), "Distributing", "#f0883e", "phase"),
         _ck_tile(counts.get("STRONG_DISTRIB", 0), "Strong distrib", "var(--down)", "sustained · weeks"),
     ])
@@ -2539,7 +2539,7 @@ def _render_entity_tags(sym, added="", err="") -> str:
                 f'<input type="hidden" name="symbol" value="{esc(sym)}">'
                 f'<input type="hidden" name="nxt" value="{esc(nxt)}">'
                 f'<span class="sub" style="margin:0">Add a theme to <b>{esc(sym)}</b>:</span>'
-                '<select name="tag" style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;'
+                '<select name="tag" style="background:var(--bg-1);border:1px solid var(--line-2);color:var(--ink);'
                 f'border-radius:6px;padding:6px 8px">{opts}</select>'
                 '<button type="submit" class="tbtn">+ Add</button></form>')
                if opts else f'<div class="sub" style="margin:10px 0">{esc(sym)} already carries every vocabulary theme.</div>')
@@ -2607,8 +2607,8 @@ def render_tags_review(added="", err="", sym="") -> str:
                '<input type="hidden" name="action" value="add">'
                '<input type="hidden" name="nxt" value="/dash/tags-review">'
                f'<input name="symbol" value="{esc(sym)}" placeholder="TICKER" autocapitalize="characters" '
-               'style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:6px 8px;width:130px"/>'
-               '<select name="tag" style="background:#0d1117;border:1px solid #30363d;color:#e6edf3;'
+               'style="background:var(--bg-1);border:1px solid var(--line-2);color:var(--ink);border-radius:6px;padding:6px 8px;width:130px"/>'
+               '<select name="tag" style="background:var(--bg-1);border:1px solid var(--line-2);color:var(--ink);'
                f'border-radius:6px;padding:6px 8px">{opts}</select>'
                '<button type="submit" class="tbtn">+ Add tag</button>'
                '<span class="sub" style="margin:0">manual tags are approved instantly (source=ramana)</span></form>')

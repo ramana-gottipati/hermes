@@ -212,13 +212,13 @@ SNIPPET = """<script>
     var hasP=!!(DATA&&DATA.prediction), c=(DATA&&DATA.completed)||[];
     var h=tab('wfTabP',mode==='pred','Prediction'+(hasP?'':' (none)'))+' '+tab('wfTabC',mode==='done','Completed'+(c.length?' ('+c.length+')':' (none)'));
     if(mode==='done'&&c.length){
-      h+=' &nbsp; <span id="wfPrev" title="previous (older) Wolfe" style="cursor:pointer;font-size:16px;padding:0 5px;color:#e6edf3">◄</span>'
+      h+=' &nbsp; <span id="wfPrev" title="previous (older) Wolfe" style="cursor:pointer;font-size:16px;padding:0 5px;color:var(--ink)">◄</span>'
        + ' <b>'+(di+1)+'/'+c.length+'</b> '
-       + '<span id="wfNext" title="next (newer) Wolfe" style="cursor:pointer;font-size:16px;padding:0 5px;color:#e6edf3">►</span>';
+       + '<span id="wfNext" title="next (newer) Wolfe" style="cursor:pointer;font-size:16px;padding:0 5px;color:var(--ink)">►</span>';
     }
     var w=curWave();
     h+=' &nbsp;&middot;&nbsp; '+(w?w.summary:(mode==='pred'?'no forming wave':'no completed wave'));
-    if(w) h+=' &nbsp;&middot; <span id="wfFans" style="cursor:pointer;text-decoration:underline;color:#8b949e">'+(fansOn?'hide fib fans':'fib fans')+'</span>';
+    if(w) h+=' &nbsp;&middot; <span id="wfFans" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">'+(fansOn?'hide fib fans':'fib fans')+'</span>';
     h+=drawLink();
     lbl.innerHTML=h;
     var e;

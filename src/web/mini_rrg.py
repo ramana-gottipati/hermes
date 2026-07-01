@@ -91,7 +91,7 @@ def mini_rrg_card(full_tail, den: str = "Nifty 500", *, tail_label: str = "",
             p.append(f'<circle cx="{mx(d["rs_ratio"]):.1f}" cy="{my(d["rs_momentum"]):.1f}" '
                      f'r="{1.3 + 2.2 * f:.1f}" style="fill:{col}" fill-opacity="{0.16 + 0.5 * f:.2f}"/>')
     p.append(f'<circle cx="{mx(cur["rs_ratio"]):.1f}" cy="{my(cur["rs_momentum"]):.1f}" r="5" '
-             f'style="fill:{col}" stroke="#0d1117" stroke-width="1.4"/>')
+             f'style="fill:{col};stroke:var(--bg-1)" stroke-width="1.4"/>')
     p.append('</svg>')
 
     tnote = f' · tail: {html.escape(tail_label)} (faint &rarr; now)' if tail_label else ''

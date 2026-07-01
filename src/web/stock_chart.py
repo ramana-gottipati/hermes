@@ -52,12 +52,12 @@ SNIPPET = """<script>
   function cr(v){ return '\\u20b9'+Math.round(v).toLocaleString('en-IN'); }
   function chipCss(on,col){ return 'cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px;'+
     'padding:3px 9px;border-radius:20px;user-select:none;white-space:nowrap;'+
-    (on?('background:'+hexA(col,0.16)+';color:'+col):('border:1px solid #30363d;color:#8b949e')); }
+    (on?('background:'+hexA(col,0.16)+';color:'+col):('border:1px solid var(--line-2);color:var(--ink-2)')); }
   function dot(col){ return '<span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'; }
 
   function boot(){
     var host=document.getElementById('priceChart'); if(!host) return;
-    if(!window.LightweightCharts){ host.innerHTML='<div style="color:#8b949e;padding:20px">Chart library failed to load (offline?).</div>'; return; }
+    if(!window.LightweightCharts){ host.innerHTML='<div style="color:var(--ink-2);padding:20px">Chart library failed to load (offline?).</div>'; return; }
     var DATA=window.__wfdata; if(!DATA||!DATA.series||!DATA.series.length) return;
     var S0=DATA.series, ZONES=DATA.zones||[];        // S0 = raw daily, never mutated
     var iv='d', ctype='candle', RT=S0.slice();       // RT = current resampled rows
@@ -406,7 +406,7 @@ SNIPPET = """<script>
     var rail=E('div','background:#0e1320;border:1px solid '+C.border+';border-radius:10px;padding:6px 10px;margin:0 0 8px;display:flex;flex-direction:column;gap:2px;font-family:-apple-system,Segoe UI,Roboto,sans-serif');
 
     // -- family 1: chart type (dropdown — types are NOT indicators) ----------
-    var typeSel=E('select','background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:12px;padding:4px 8px');
+    var typeSel=E('select','background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);border-radius:6px;font-size:12px;padding:4px 8px');
     [['candle','Candles'],['hollow','Hollow candles'],['heikin','Heikin Ashi'],['line','Line'],['area','Area'],
      ['renko','Renko'],['kagi','Kagi'],['pnf','Point & Figure (soon)',true]].forEach(function(o){
       var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; if(o[2])op.disabled=true; typeSel.appendChild(op); });
@@ -458,7 +458,7 @@ SNIPPET = """<script>
     rail.appendChild(row1);
 
     // -- compact second line: interval · range · Wolfe status (re-homed) ------
-    var row2=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid #161b22;margin-top:2px;padding-top:4px');
+    var row2=E('div','display:flex;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px');
     var ivBar=document.getElementById('ivBar');
     var rangeBar=document.querySelector('.rangebar');
     var ctBar=document.getElementById('ctBar');
@@ -472,7 +472,7 @@ SNIPPET = """<script>
     // -- legend / "Read" strip — names what each ACTIVE overlay means so the chart
     //    reads as a workstation, not a wall of lines. Descriptive grammar; updates
     //    on every toggle. Harmonic carries its read-by-side backtest caveat here.
-    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid #161b22;margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt);
+    var legend=E('div','display:none;flex-wrap:wrap;gap:4px 12px;border-top:1px solid var(--bg-2);margin-top:2px;padding-top:4px;font-size:11px;color:'+C.txt);
     rail.appendChild(legend);
     var LEGEND={
       dvpt:[C.dvpt,'DVPT','rupee value traded; amber = institutional (1m+) day'],
@@ -671,9 +671,9 @@ SNIPPET = """<script>
     function renderCmpBar(){ if(!cmpBar) return; cmpBar.innerHTML='';
       var inp=document.createElement('input'); inp.type='text'; inp.placeholder='+ symbol / index';
       inp.title='Add a symbol or index to compare (rebased to 100 at the window start)';
-      inp.style.cssText='background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:12px;padding:3px 7px;width:120px';
+      inp.style.cssText='background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);border-radius:6px;font-size:12px;padding:3px 7px;width:120px';
       inp.onkeydown=function(e){ if(e.key==='Enter'){ addCompare(inp.value); inp.value=''; } };
-      var addb=E('span','cursor:pointer;font-size:12px;color:#8b949e;border:1px solid #30363d;border-radius:6px;padding:3px 8px','add');
+      var addb=E('span','cursor:pointer;font-size:12px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:6px;padding:3px 8px','add');
       addb.onclick=function(){ addCompare(inp.value); inp.value=''; };
       cmpBar.appendChild(inp); cmpBar.appendChild(addb);
       cmpReg.items.forEach(function(c,i){ var ch=E('span',chipCss(true,c.col),dot(c.col)+c.sym+' \\u00d7');
@@ -826,16 +826,16 @@ SNIPPET = """<script>
       ['fib','F','Fib retracement'],['fibext','Fx','Fib extension (project targets beyond the move)'],['measure','\\u22b9','Measure (\\u0394price, \\u0394%, bars, days)'],['text','T','Text']];
     var btns={};
     function tbtn(css,title,html){ var b=E('span',css,html); b.title=title; return b; }
-    function baseBtn(on){ return 'cursor:pointer;font-size:13px;line-height:1;color:'+(on?'#e6edf3':'#8b949e')+';border:1px solid '+(on?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px;min-width:22px;text-align:center'; }
+    function baseBtn(on){ return 'cursor:pointer;font-size:13px;line-height:1;color:'+(on?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(on?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px;min-width:22px;text-align:center'; }
     function paintTools(){ TOOLS.forEach(function(t){ if(btns[t[0]])btns[t[0]].style.cssText=baseBtn(tool===t[0]); });
       if(btns._edit)btns._edit.style.cssText=baseBtn(editing);
-      if(btns._mag)btns._mag.style.cssText='cursor:pointer;font-size:11px;color:'+(magnet?'#e6edf3':'#8b949e')+';border:1px solid '+(magnet?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px';
-      if(btns._hide)btns._hide.style.cssText='cursor:pointer;font-size:11px;color:'+(hidden?'#e6edf3':'#8b949e')+';border:1px solid '+(hidden?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px'; }
+      if(btns._mag)btns._mag.style.cssText='cursor:pointer;font-size:11px;color:'+(magnet?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(magnet?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px';
+      if(btns._hide)btns._hide.style.cssText='cursor:pointer;font-size:11px;color:'+(hidden?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(hidden?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px'; }
     var edit=tbtn(baseBtn(false),'Select / edit (drag anchors, Del to remove)','\\u2b0e'); edit.onclick=setEdit; btns._edit=edit; bar.appendChild(edit);
     TOOLS.forEach(function(t){ var b=tbtn(baseBtn(false),t[2],t[1]); b.onclick=function(){ setTool(t[0]); }; btns[t[0]]=b; bar.appendChild(b); });
     var mag=tbtn('','Magnet — snap to nearest OHLC (still draggable)','\\ud83e\\uddf2 magnet'); mag.onclick=function(){ magnet=!magnet; paintTools(); }; btns._mag=mag; bar.appendChild(mag);
     var hide=tbtn('','Hide all drawings (tap again to restore)','hide all'); hide.onclick=function(){ hidden=!hidden; paintTools(); redraw(); }; btns._hide=hide; bar.appendChild(hide);
-    var clear=tbtn('cursor:pointer;font-size:11px;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:3px 7px','Delete all drawings','clear');
+    var clear=tbtn('cursor:pointer;font-size:11px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:5px;padding:3px 7px','Delete all drawings','clear');
     clear.onclick=function(){ if(items.length&&confirm('Delete all '+items.length+' drawing(s)?')){ items=[]; sel=null; save(); renderPanel(); redraw(); } }; bar.appendChild(clear);
 
     // =====================================================================
@@ -843,7 +843,7 @@ SNIPPET = """<script>
     //  list panel + export / import JSON. Caps + never-throws like the store.
     // =====================================================================
     var WIDS=[1,1.4,2,3];
-    var manageBtn=tbtn('cursor:pointer;font-size:11px;color:#8b949e;border:1px solid #30363d;border-radius:5px;padding:3px 7px','Manage drawings (style / delete / export)','\\u2261 list'); bar.appendChild(manageBtn);
+    var manageBtn=tbtn('cursor:pointer;font-size:11px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:5px;padding:3px 7px','Manage drawings (style / delete / export)','\\u2261 list'); bar.appendChild(manageBtn);
     var panel=E('div','display:none;position:absolute;top:100%;right:0;z-index:20;margin-top:4px;width:280px;max-height:300px;overflow:auto;background:#0e1320;border:1px solid '+C.border+';border-radius:8px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.5);font-family:-apple-system,Segoe UI,sans-serif');
     // anchor the panel to the rail's drawings cell (bar) so it floats under the controls
     if(bar&&bar.style){ bar.style.position='relative'; } bar.appendChild(panel);
@@ -854,18 +854,18 @@ SNIPPET = """<script>
       var head=E('div','display:flex;justify-content:space-between;align-items:center;margin-bottom:6px');
       head.appendChild(E('span','font-size:11px;color:'+C.txtHi+';font-weight:600','Drawings ('+items.length+')'));
       var io=E('div','display:flex;gap:4px');
-      var exp=E('span','cursor:pointer;font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:4px;padding:2px 6px','export'); exp.title='Download all drawings as JSON'; exp.onclick=exportJSON;
-      var imp=E('span','cursor:pointer;font-size:10px;color:#8b949e;border:1px solid #30363d;border-radius:4px;padding:2px 6px','import'); imp.title='Load drawings from a JSON file (replaces current)'; imp.onclick=importJSON;
+      var exp=E('span','cursor:pointer;font-size:10px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:4px;padding:2px 6px','export'); exp.title='Download all drawings as JSON'; exp.onclick=exportJSON;
+      var imp=E('span','cursor:pointer;font-size:10px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:4px;padding:2px 6px','import'); imp.title='Load drawings from a JSON file (replaces current)'; imp.onclick=importJSON;
       io.appendChild(exp); io.appendChild(imp); head.appendChild(io); panel.appendChild(head);
       if(!items.length){ panel.appendChild(E('div','font-size:11px;color:'+C.dim+';padding:6px 2px','No drawings yet. Pick a tool and draw on the chart.')); return; }
       items.forEach(function(d,idx){
-        var row=E('div','display:flex;align-items:center;gap:6px;padding:3px 0;border-top:1px solid #161b22');
+        var row=E('div','display:flex;align-items:center;gap:6px;padding:3px 0;border-top:1px solid var(--bg-2)');
         var sw=document.createElement('input'); sw.type='color'; sw.value=normHex(d.col||toolCol(d.t)); sw.title='Colour';
         sw.style.cssText='width:22px;height:18px;border:none;background:none;padding:0;cursor:pointer';
         sw.oninput=function(){ d.col=sw.value; save(); redraw(); };
         var nm=E('span','flex:1;font-size:11px;color:'+C.txt,dlabel(d)+(d.t==='text'&&d.text?(': '+esc(d.text).slice(0,14)):''));
         nm.style.cursor='pointer'; nm.title='Select on chart'; nm.onclick=function(){ sel=d; redraw(); };
-        var wsel=document.createElement('select'); wsel.style.cssText='background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;font-size:10px;padding:1px 2px';
+        var wsel=document.createElement('select'); wsel.style.cssText='background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);border-radius:4px;font-size:10px;padding:1px 2px';
         WIDS.forEach(function(w){ var op=document.createElement('option'); op.value=w; op.textContent=w+'px'; if((d.w||1.4)==w)op.selected=true; wsel.appendChild(op); });
         wsel.title='Line width'; wsel.onchange=function(){ d.w=parseFloat(wsel.value); save(); redraw(); };
         var del=E('span','cursor:pointer;font-size:13px;color:#f85149;padding:0 3px','\\u00d7'); del.title='Delete this drawing';
@@ -883,7 +883,7 @@ SNIPPET = """<script>
         rd.onload=function(){ try{ var arr=JSON.parse(rd.result); if(Array.isArray(arr)){ items=arr.slice(0,500); sel=null; save(); renderPanel(); redraw(); } else alert('That file is not a drawings array.'); }catch(e){ alert('Could not parse that JSON.'); } };
         rd.readAsText(f); }; inp.click(); }catch(e){} }
     manageBtn.onclick=function(){ var open=panel.style.display==='none'; panel.style.display=open?'block':'none';
-      manageBtn.style.cssText='cursor:pointer;font-size:11px;color:'+(open?'#e6edf3':'#8b949e')+';border:1px solid '+(open?'#58a6ff':'#30363d')+';border-radius:5px;padding:3px 7px'; if(open)renderPanel(); };
+      manageBtn.style.cssText='cursor:pointer;font-size:11px;color:'+(open?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(open?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px'; if(open)renderPanel(); };
     paintTools();
 
     // Del key removes the selected drawing while editing
