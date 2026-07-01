@@ -1346,7 +1346,34 @@ scope, `shell_skin.py`). Goal met: the other two now REFERENCE `:root` (D-COL-10
   `ui_tokens` selftest OK; all 3 gates PASS; native pages (`/dash/coverage`, `/coverage/memo`,
   `/strategist`, `/screen2`, `/_ui`) + skinned pages (`/dash/markets`, `/growth`, `/screener`,
   `/dashboard`, `/sectors`, `/stock`) all 200 / `:root` present / new `var()` refs resolve
-  (incl. `--up-rgb`) / **0 SVG-attr leaks**. Commit: (Part B). DEPLOY: pending.
+  (incl. `--up-rgb`) / **0 SVG-attr leaks**. Commit `043401a`.
+
+**DEPLOY — DONE + LIVE + VERIFIED (both parts):** VPS held EXACTLY my base (`dd37c1d`) for all 6
+touched files (md5 match, CR-stripped) — no drift, no parallel work to clobber, so a clean
+colour-only whole-file scp (LF via git blobs). Backup `/opt/hermes/backups/color4-20260701-205543/`
+(6 files); scp'd shell_skin/ui_kit/coverage_view/dashboard/growth_view/testing_view (VPS md5 ==
+my HEAD after); `systemctl restart hermes-api` (healthy 1st try). Live health-check: `/dash/markets`,
+`/growth`, `/testing`, `/dashboard`, `/coverage`, `/coverage/memo`, `/strategist`, `/stock` all
+**200 / 0 SVG-attr leaks / `:root` present**.
+- **⚠ PRE-EXISTING FINDING (flagged, NOT fixed — out of colour-finish scope):** `/dash/screen2`
+  renders **~8,498 `fill=/stroke="var(--…)"` SVG *attribute* leaks** live (silent-fail: `var()`
+  is invalid in an SVG presentation attribute). Root cause: `screener_plus.py` L302-303 define
+  `_UP/_DOWN/_TRACK/_HAIR = "var(--…)"` then interpolate them into SVG **attributes**
+  (`fill="{_UP}"`, `stroke="{col}"`, L336-406) — the exact bug the gate exists to catch, on the
+  file the doc §1 calls the "exemplar". The gate MISSES it because its render check covers only
+  stock/dashboard/rrg/rsband (not screen2), and `screener_plus.py`'s SOURCE has 0 literal
+  `fill="var(` (it's f-string-built), so the static scan is clean too. UNTOUCHED by this session
+  (VPS md5 == my HEAD == base); local shows 0 only because the dev DB has no rows → no SVG cells.
+  **Fix (follow-up):** `fill="{_UP}"` → `style="fill:{_UP}"` at every SVG site in `screener_plus.py`
+  (+ the same audit on any other data-grid SVG), and ADD `/dash/screen2` (with a data fixture) to
+  `color_gate`'s render check so it can't silently recur. Spawned a task.
+- **⚠ GIT DIVERGENCE (surfaced, NOT reconciled):** this work is committed on the worktree branch
+  `claude/objective-kowalevski-685094` (`19aed0b` + `043401a`) based on `dd37c1d`. `origin/main`
+  (`0a2d278`) advanced via a SEPARATE "integrate/consolidation" lineage (rsband scrubbers, parallel
+  claude/* merges) that does NOT contain `dd37c1d` — so my base and origin/main have genuinely
+  diverged (the VPS runs the `dd37c1d` lineage, matching my base). Landing on `main` is a real merge,
+  not a fast-forward; left for the owner to reconcile which lineage is canonical rather than risk
+  tangling parallel work. The deployed VPS state IS current with this colour work regardless.
 
 ### Session 64 — 2026-07-02 — Colour Phase 2 (bg/hairline/ink) — near-complete via no-git fan-out
 Resumed the colour-system alignment (concurrent with the Session-63 data work; touched only `src/web/*` UI files, never `rsband_view.py` which carried a parallel session's month-scrubber WIP — left intact).
