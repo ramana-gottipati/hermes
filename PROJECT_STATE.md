@@ -1293,6 +1293,14 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 65 — 2026-07-02 — News-tab drift CLOSED on VPS (S61's `5ff6f68` finally deployed)
+Closed the drift flagged in Session 64: the live VPS `dashboard.py` was missing the dossier News-tab wiring even though S61 claimed `5ff6f68` was "deployed surgically". S64 (correctly) applied only its colour diff on top of the VPS-current file, so the News feature never reached prod.
+- **Confirmed at HEAD:** both `src/web/dashboard.py` (News tab button `_stab("news",…)` at the tab strip + `data-tab="news"` pane + `render_stock_timeline` embed with a graceful `except` fallback) and `src/web/news_view.py` (`def render_stock_timeline`) carry the wiring; HEAD also includes the Phase-2 colour work, so this whole-file deploy supersedes the colour-only patched `dashboard.py` that was live.
+- **Deploy (whole-file scp, LF):** backed up the live VPS file to `/opt/hermes/src/web/dashboard.py.bak-newsdrift-2026-07-02` (was 428526 B, LF, `md5 20204690…`), then scp'd HEAD `dashboard.py`. **⚠ Line-ending trap caught:** the Git-for-Windows worktree checkout of `dashboard.py` was CRLF (autocrlf) — a naive `grep $'\r'` falsely read "LF only"; the authoritative byte-count (`CR==LF==8043`) exposed it. Re-normalised to LF (`tr -d '\r`) and redeployed → VPS now `CR:0 LF:8043`, matching the LF convention the rest of `/opt/hermes/src/web` uses. `py_compile` clean.
+- **VPS `news_view.py` confirmed current** (LF, `def render_stock_timeline` at :101) — it rode the S64 colour deploy; no redeploy needed.
+- **Restart + verify:** `systemctl restart hermes-api` (active 1st try). Live `/dash/stock?sym=RELIANCE` → **200**; News tab button live (`data-stab="news">News</a>`), News pane live (`data-tab="news"`), timeline **renders 22 news rows** (not the graceful-degrade path); **0** `fill=/stroke="var("` leaks site-wide on the page (colour Phase-2 integrity preserved through the whole-file swap).
+- **Net: `/dash/news` is now reachable as the stock dossier's News tab on prod.** No code change this session (deployed already-committed HEAD); only this PROJECT_STATE entry.
+
 ### Session 64 — 2026-07-02 — Colour Phase 2 (bg/hairline/ink) — near-complete via no-git fan-out
 Resumed the colour-system alignment (concurrent with the Session-63 data work; touched only `src/web/*` UI files, never `rsband_view.py` which carried a parallel session's month-scrubber WIP — left intact).
 - **Method that worked (vs S61's rate-limited 23-agent run):** one **batch of 8** async agents (one file each) + the small/canvas files done by hand. Agents were **forbidden from running any git** and did per-occurrence context classification. No rate-limit, no stash loss, no cross-absorption.
