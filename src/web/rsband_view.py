@@ -102,7 +102,7 @@ def _lane_data(den: str, conn) -> list[dict]:
 # ── the lane chart (SVG built client-side from injected data) ─────────────────
 _LANE_JS = r"""
 (function(){
-var P={ink:'#e6edf3',mut:'#8b949e',grid:'#30363d',track:'#21262d',val:'#3fb950',valF:'rgba(63,185,80,0.10)',rich:'#d29922',richF:'rgba(210,153,34,0.10)',cap:'rgba(248,81,73,0.13)',up:'#3fb950',down:'#f85149',flat:'#8b949e',ghost:'#6e7681',mr:'#39c5bb',poc:'#bc8cff',hollow:'#0d1117'};
+var P={ink:'#e6edf3',mut:'#8b949e',grid:'#30363d',track:'#21262d',val:'#3fd486',valF:'rgba(63,212,134,0.10)',rich:'#d29922',richF:'rgba(210,153,34,0.10)',cap:'rgba(255,106,122,0.13)',up:'#3fd486',down:'#ff6a7a',flat:'#8b949e',ghost:'#6e7681',mr:'#39c5bb',poc:'#bc8cff',hollow:'#0d1117'};
 var KM=[0,3,6,12,18,24],SEC=__SEC__,H=12;
 if(!SEC.length)return;
 function knots(p){var k=[];for(var i=0;i<KM.length;i++){if(p[i]!=null)k.push([KM[i],p[i]]);}return k;}
@@ -124,7 +124,7 @@ function zones(n){var s='',bot=top+n*rowH;
 function laneStr(s,i,head,trail){
  var y=top+i*rowH+rowH/2,now=s.path[0],start=pibAt(s.path,H),net=(start==null||now==null)?0:now-start,c=colNet(net);
  var str='<g class="rblane" data-k="'+encodeURIComponent(s.k)+'" style="cursor:pointer">';
- if(s.verdict=='Accumulate')str+='<rect x="0" y="'+(y-rowH/2+1)+'" width="680" height="'+(rowH-2)+'" fill="rgba(63,185,80,0.08)"/>';
+ if(s.verdict=='Accumulate')str+='<rect x="0" y="'+(y-rowH/2+1)+'" width="680" height="'+(rowH-2)+'" fill="rgba(63,212,134,0.08)"/>';
  str+='<circle cx="10" cy="'+y+'" r="3.4" fill="'+(s.regime=='TRENDING'?P.rich:P.mr)+'"/>';
  str+='<text x="138" y="'+(y+4)+'" fill="'+P.ink+'" font-size="11" text-anchor="end">'+s.k+'</text>';
  str+='<line x1="'+AX0+'" y1="'+y+'" x2="'+AX100+'" y2="'+y+'" stroke="'+P.track+'" stroke-width="1"/>';
@@ -171,8 +171,8 @@ setH(12);
 
 
 def _segbtn(m: int) -> str:
-    return (f'<button data-h="{m}" style="background:transparent;color:#8b949e;border:0;'
-            f'border-right:1px solid #30363d;padding:5px 13px;font-size:13px;cursor:pointer">{m}m</button>')
+    return (f'<button data-h="{m}" style="background:transparent;color:var(--ink-2);border:0;'
+            f'border-right:1px solid var(--line-2);padding:5px 13px;font-size:13px;cursor:pointer">{m}m</button>')
 
 
 def _chart_block(data: list[dict]) -> str:
@@ -181,14 +181,14 @@ def _chart_block(data: list[dict]) -> str:
         '<div class="card" style="padding:10px 12px">'
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
         '<span class="sub" style="margin:0">look back</span>'
-        f'<span id="rbh" style="display:inline-flex;border:1px solid #30363d;border-radius:6px;overflow:hidden">{_segbtn(6)}{_segbtn(12)}{_segbtn(24)}</span>'
-        '<button id="rbplay" style="background:transparent;color:#e6edf3;border:1px solid #30363d;'
+        f'<span id="rbh" style="display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden">{_segbtn(6)}{_segbtn(12)}{_segbtn(24)}</span>'
+        '<button id="rbplay" style="background:transparent;color:var(--ink);border:1px solid var(--line-2);'
         'border-radius:6px;padding:4px 11px;font-size:13px;cursor:pointer">&#9658; Play</button>'
         '<span class="sub" id="rbmov" style="margin:0 0 0 auto"></span></div>'
         '<div id="rbwrap" style="position:relative">'
         '<svg id="rbsvg" viewBox="0 0 680 520" width="100%" xmlns="http://www.w3.org/2000/svg"></svg>'
-        '<div id="rbtip" style="position:absolute;display:none;pointer-events:none;background:#161b22;'
-        'border:1px solid #30363d;border-radius:6px;padding:6px 9px;font-size:12px;color:#e6edf3;'
+        '<div id="rbtip" style="position:absolute;display:none;pointer-events:none;background:var(--bg-2);'
+        'border:1px solid var(--line-2);border-radius:6px;padding:6px 9px;font-size:12px;color:var(--ink);'
         'max-width:280px;line-height:1.45;z-index:5"></div></div>'
         '<div class="sub" style="margin-top:6px">'
         '<span style="color:#39c5bb">&#9679;</span> mean-reverting · '
@@ -200,7 +200,7 @@ def _chart_block(data: list[dict]) -> str:
 
 _CLOCK_JS = r"""
 (function(){
-var P={ink:'#e6edf3',mut:'#8b949e',val:'#3fb950',rich:'#d29922',flat:'#8b949e',up:'#3fb950',down:'#f85149',brk:'#f85149'};
+var P={ink:'#e6edf3',mut:'#8b949e',val:'#3fd486',rich:'#d29922',flat:'#8b949e',up:'#3fd486',down:'#ff6a7a',brk:'#ff6a7a'};
 var SEC=__SEC__;if(!SEC.length)return;
 SEC=SEC.slice().sort(function(a,b){return (a.band==null?999:a.band)-(b.band==null?999:b.band);});
 var cx=280,cy=240,rIn=26,rOut=195,N=SEC.length,svg=document.getElementById('csvg');
@@ -247,8 +247,8 @@ setHZ(6);
 
 
 def _cbtn(m: int) -> str:
-    return (f'<button data-h="{m}" style="background:transparent;color:#8b949e;border:0;'
-            f'border-right:1px solid #30363d;padding:5px 13px;font-size:13px;cursor:pointer">{m}m</button>')
+    return (f'<button data-h="{m}" style="background:transparent;color:var(--ink-2);border:0;'
+            f'border-right:1px solid var(--line-2);padding:5px 13px;font-size:13px;cursor:pointer">{m}m</button>')
 
 
 def _clock_block(data: list[dict]) -> str:
@@ -256,10 +256,10 @@ def _clock_block(data: list[dict]) -> str:
     return (
         '<div class="card" style="padding:10px 12px">'
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
-        '<button id="cbreathe" style="background:transparent;color:#e6edf3;border:1px solid #30363d;'
+        '<button id="cbreathe" style="background:transparent;color:var(--ink);border:1px solid var(--line-2);'
         'border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer">&#9658; Breathe</button>'
         '<span class="sub" style="margin:0">over</span>'
-        '<span id="cbh" style="display:inline-flex;border:1px solid #30363d;border-radius:6px;overflow:hidden">'
+        '<span id="cbh" style="display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden">'
         f'{_cbtn(6)}{_cbtn(12)}{_cbtn(24)}</span>'
         '<span class="sub" style="margin:0">centre = support · rim = resistance · past the rim = breakout · '
         'colour = direction over the chosen window · click a spoke to drill</span></div>'
@@ -271,14 +271,19 @@ def _clock_block(data: list[dict]) -> str:
 def _table(data: list[dict], den: str, link_fn=None) -> str:
     head = ("<thead><tr><th>Sector</th><th>Band</th><th>Regime</th><th>Trend-R²</th>"
             "<th>State</th><th>Verdict</th></tr></thead>")
-    vc = {"Accumulate": "#3fb950", "Add": "#3fb950", "Ride": "#3fb950",
-          "Avoid": "#f85149", "Fade": "#f85149", "Hold": "#8b949e"}
+    vc = {"Accumulate": "var(--up)", "Add": "var(--up)", "Ride": "var(--up)",
+          "Avoid": "var(--down)", "Fade": "var(--down)", "Hold": "var(--ink-2)"}
+    # directional verdict → token rgba tint (var()+hex-alpha is invalid CSS).
+    vbg = {"Accumulate": "rgba(var(--up-rgb),.13)", "Add": "rgba(var(--up-rgb),.13)",
+           "Ride": "rgba(var(--up-rgb),.13)", "Avoid": "rgba(var(--down-rgb),.13)",
+           "Fade": "rgba(var(--down-rgb),.13)", "Hold": "#8b949e22"}
     body = []
     for d in data:
         nm = d["n"]
         col = vc.get(d["verdict"], "#d29922")
-        bcol = ("#3fb950" if (d["band"] is not None and d["band"] <= 20)
-                else "#d29922" if (d["band"] is not None and d["band"] >= 80) else "#e6edf3")
+        bg = vbg.get(d["verdict"], "#d2992222")
+        bcol = ("var(--up)" if (d["band"] is not None and d["band"] <= 20)
+                else "#d29922" if (d["band"] is not None and d["band"] >= 80) else "var(--ink)")
         rcol = "#d29922" if d["regime"] == "TRENDING" else "#39c5bb"
         link = link_fn(nm) if link_fn else f'/dash/rsband?idx={quote_plus(nm)}&den={quote_plus(den)}'
         body.append(
@@ -287,7 +292,7 @@ def _table(data: list[dict], den: str, link_fn=None) -> str:
             f'<td style="color:{rcol}">{_esc(d["regime"].replace("_", "-").lower())}</td>'
             f'<td>{_n(d["tr2"], 2)}</td>'
             f'<td class="sub" style="margin:0">{_esc(d["state"])}</td>'
-            f'<td><span style="background:{col}22;color:{col};padding:2px 9px;border-radius:10px;'
+            f'<td><span style="background:{bg};color:{col};padding:2px 9px;border-radius:10px;'
             f'font-size:12px;font-weight:500">{_esc(d["verdict"])}</span> '
             f'<span class="sub" style="margin:0">{_esc(d["why"])}</span></td></tr>')
     return f'<table class="dt">{head}<tbody>{"".join(body)}</tbody></table>'
@@ -316,17 +321,17 @@ def _tabbar(den: str, view: str) -> str:
     second sticky strip at top:0 collided with it on scroll, so this stays in flow."""
     def tab(v: str, label: str) -> str:
         if v == view:
-            st = ("background:#161b22;color:#58a6ff;border:1px solid #30363d;"
+            st = ("background:var(--bg-2);color:#58a6ff;border:1px solid var(--line-2);"
                   "border-bottom:3px solid #58a6ff;")
         else:
-            st = ("background:transparent;color:#8b949e;border:1px solid transparent;"
+            st = ("background:transparent;color:var(--ink-2);border:1px solid transparent;"
                   "border-bottom:3px solid transparent;")
         return (f'<a href="/dash/rsband?den={quote_plus(den)}&view={v}" '
                 f'style="display:inline-block;padding:9px 26px;font-size:15px;font-weight:600;'
                 f'letter-spacing:.2px;text-decoration:none;border-radius:8px 8px 0 0;'
                 f'margin-right:3px;{st}">{label}</a>')
     return ('<div style="display:flex;align-items:flex-end;margin:8px 0 14px;'
-            'border-bottom:1px solid #30363d">'
+            'border-bottom:1px solid var(--line-2)">'
             + tab("lanes", "Lanes") + tab("clock", "Clock") + tab("rrg", "RRG")
             + '</div>')
 
@@ -430,23 +435,23 @@ def _channel_svg(series: list[tuple], m: dict) -> str:
     def Y(v):
         return B - (v - vmin) / (vmax - vmin) * (B - T) if vmax > vmin else (T + B) / 2
 
-    dotc = "#3fb950" if (m.get("slope_3m_pct") or 0) > 0 else "#f85149"
+    dotc = "var(--up)" if (m.get("slope_3m_pct") or 0) > 0 else "var(--down)"
     s = ['<svg id="chsvg" viewBox="0 0 900 322" width="100%" xmlns="http://www.w3.org/2000/svg">']
     if sup is not None and res is not None:
         s.append(f'<rect x="{L}" y="{Y(res):.1f}" width="{R-L}" height="{Y(sup)-Y(res):.1f}" '
                  f'fill="#58a6ff" fill-opacity="0.07"/>')
     for lv in (ath, atl):
         if lv is not None:
-            s.append(f'<line x1="{L}" y1="{Y(lv):.1f}" x2="{R}" y2="{Y(lv):.1f}" stroke="#6e7681" '
+            s.append(f'<line x1="{L}" y1="{Y(lv):.1f}" x2="{R}" y2="{Y(lv):.1f}" style="stroke:var(--ink-3)" '
                      f'stroke-width="1" stroke-dasharray="1 4" stroke-opacity="0.6"/>')
     if res is not None:
         s.append(f'<line x1="{L}" y1="{Y(res):.1f}" x2="{R}" y2="{Y(res):.1f}" stroke="#d29922" stroke-width="1.3"/>')
         s.append(f'<text x="{R+4}" y="{Y(res)+3:.1f}" fill="#d29922" font-size="10">res</text>')
     if sup is not None:
-        s.append(f'<line x1="{L}" y1="{Y(sup):.1f}" x2="{R}" y2="{Y(sup):.1f}" stroke="#3fb950" stroke-width="1.3"/>')
-        s.append(f'<text x="{R+4}" y="{Y(sup)+3:.1f}" fill="#3fb950" font-size="10">sup</text>')
+        s.append(f'<line x1="{L}" y1="{Y(sup):.1f}" x2="{R}" y2="{Y(sup):.1f}" style="stroke:var(--up)" stroke-width="1.3"/>')
+        s.append(f'<text x="{R+4}" y="{Y(sup)+3:.1f}" style="fill:var(--up)" font-size="10">sup</text>')
     if mid is not None:
-        s.append(f'<line x1="{L}" y1="{Y(mid):.1f}" x2="{R}" y2="{Y(mid):.1f}" stroke="#8b949e" '
+        s.append(f'<line x1="{L}" y1="{Y(mid):.1f}" x2="{R}" y2="{Y(mid):.1f}" style="stroke:var(--ink-2)" '
                  f'stroke-width="1" stroke-dasharray="4 4"/>')
     if poc is not None:
         s.append(f'<line x1="{L}" y1="{Y(poc):.1f}" x2="{R}" y2="{Y(poc):.1f}" stroke="#bc8cff" '
@@ -456,31 +461,31 @@ def _channel_svg(series: list[tuple], m: dict) -> str:
     s.append(f'<polyline points="{poly}" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.9"/>')
     if res is not None:
         s.append(f'<line x1="{X(n-1):.1f}" y1="{Y(res):.1f}" x2="{X(n-1):.1f}" y2="{Y(vals[-1]):.1f}" '
-                 f'stroke="{dotc}" stroke-width="1.5" stroke-dasharray="2 3"/>')
-    s.append(f'<circle cx="{X(n-1):.1f}" cy="{Y(vals[-1]):.1f}" r="7" fill="{dotc}" stroke="#e6edf3" stroke-width="2"/>')
+                 f'style="stroke:{dotc}" stroke-width="1.5" stroke-dasharray="2 3"/>')
+    s.append(f'<circle cx="{X(n-1):.1f}" cy="{Y(vals[-1]):.1f}" r="7" style="fill:{dotc};stroke:var(--ink)" stroke-width="2"/>')
     for i in (0, n // 3, 2 * n // 3, n - 1):
-        s.append(f'<text x="{X(i):.1f}" y="{B+15}" fill="#8b949e" font-size="9" text-anchor="middle">{_esc(dates[i][:4])}</text>')
-    s.append(f'<line id="chx" x1="0" y1="{T}" x2="0" y2="{B}" stroke="#8b949e" stroke-width="1" stroke-dasharray="3 3" style="display:none"/>')
-    s.append('<circle id="chd" r="4" fill="#e6edf3" stroke="#0d1117" stroke-width="1.4" style="display:none"/>')
+        s.append(f'<text x="{X(i):.1f}" y="{B+15}" style="fill:var(--ink-2)" font-size="9" text-anchor="middle">{_esc(dates[i][:4])}</text>')
+    s.append(f'<line id="chx" x1="0" y1="{T}" x2="0" y2="{B}" stroke-width="1" stroke-dasharray="3 3" style="display:none;stroke:var(--ink-2)"/>')
+    s.append('<circle id="chd" r="4" stroke-width="1.4" style="display:none;fill:var(--ink);stroke:var(--bg-1)"/>')
     s.append('</svg>')
     pdata = json.dumps({"pts": [{"x": round(X(i), 1), "y": round(Y(vals[i]), 1),
                                  "d": dates[i], "v": round(vals[i], 4)} for i in range(n)],
                         "sup": sup, "res": res})
     return ('<div id="chwrap" style="position:relative">' + "".join(s)
-            + '<div id="chtip" style="position:absolute;display:none;pointer-events:none;background:#161b22;'
-            'border:1px solid #30363d;border-radius:6px;padding:5px 8px;font-size:12px;color:#e6edf3;'
+            + '<div id="chtip" style="position:absolute;display:none;pointer-events:none;background:var(--bg-2);'
+            'border:1px solid var(--line-2);border-radius:6px;padding:5px 8px;font-size:12px;color:var(--ink);'
             'z-index:5;white-space:nowrap"></div></div>'
             + '<div class="sub" style="margin-top:4px">'
             '<span style="color:#d29922">&mdash;</span> resistance &nbsp; '
-            '<span style="color:#3fb950">&mdash;</span> support &nbsp; '
+            '<span style="color:var(--up)">&mdash;</span> support &nbsp; '
             '<span style="color:#bc8cff">&middot;&middot;&middot;</span> POC (magnet) &nbsp; '
-            '<span style="color:#8b949e">&ndash;&ndash;</span> median &nbsp; '
-            '<span style="color:#6e7681">&middot;&middot;</span> all-time hi/lo &nbsp;·&nbsp; hover to scrub</div>'
+            '<span style="color:var(--ink-2)">&ndash;&ndash;</span> median &nbsp; '
+            '<span style="color:var(--ink-3)">&middot;&middot;</span> all-time hi/lo &nbsp;·&nbsp; hover to scrub</div>'
             + '<script>' + _CH_HOVER_JS.replace("__CH__", pdata) + '</script>')
 
 
-def _mc(label: str, value: str, color: str = "#e6edf3") -> str:
-    return (f'<div style="background:#161b22;border-radius:6px;padding:8px 12px;min-width:118px">'
+def _mc(label: str, value: str, color: str = "var(--ink)") -> str:
+    return (f'<div style="background:var(--bg-2);border-radius:6px;padding:8px 12px;min-width:118px">'
             f'<div class="sub" style="margin:0;font-size:11px">{label}</div>'
             f'<div style="font-size:18px;color:{color}">{value}</div></div>')
 
@@ -489,9 +494,9 @@ def _channel_readout(m: dict, verdict: str, why: str, to_res, to_sup) -> str:
     bp = m["rs_band_pct"]
     lab = ("at RS support" if bp <= 15 else "lower band" if bp < 35 else "mid-band"
            if bp < 65 else "upper band" if bp < 85 else "at RS resistance")
-    vc = {"Accumulate": "#3fb950", "Add": "#3fb950", "Ride": "#3fb950",
-          "Avoid": "#f85149", "Fade": "#f85149", "Hold": "#8b949e"}.get(verdict, "#d29922")
-    bpcol = ("#3fb950" if bp <= 20 else "#d29922" if bp >= 80 else "#e6edf3")
+    vc = {"Accumulate": "var(--up)", "Add": "var(--up)", "Ride": "var(--up)",
+          "Avoid": "var(--down)", "Fade": "var(--down)", "Hold": "var(--ink-2)"}.get(verdict, "#d29922")
+    bpcol = ("var(--up)" if bp <= 20 else "#d29922" if bp >= 80 else "var(--ink)")
     cards = (
         _mc("band position", f'{_n(bp)} <span class="sub" style="margin:0;font-size:11px">{lab}</span>', bpcol)
         + _mc("regime", _esc(m["rs_regime"].replace("_", "-").lower()),
@@ -651,11 +656,11 @@ def band_home_inner(den: str = "Nifty 500", conn=None) -> str:
     if not data:
         return ""
     data.sort(key=lambda d: d["band"])
-    vc = {"Accumulate": "#3fb950", "Add": "#3fb950", "Ride": "#3fb950",
-          "Avoid": "#f85149", "Fade": "#f85149", "Hold": "#8b949e"}
+    vc = {"Accumulate": "var(--up)", "Add": "var(--up)", "Ride": "var(--up)",
+          "Avoid": "var(--down)", "Fade": "var(--down)", "Hold": "var(--ink-2)"}
 
     def row(d):
-        bcol = "#3fb950" if d["band"] <= 20 else "#d29922" if d["band"] >= 80 else "#e6edf3"
+        bcol = "var(--up)" if d["band"] <= 20 else "#d29922" if d["band"] >= 80 else "var(--ink)"
         c = vc.get(d["verdict"], "#d29922")
         return (f'<tr><td class="l"><a class="row" href="/dash/rsband?idx={quote_plus(d["n"])}">'
                 f'<span class="sym">{_esc(d["k"])}</span></a></td>'

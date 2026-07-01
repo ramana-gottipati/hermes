@@ -50,9 +50,12 @@ def _esc(s) -> str:
     return html.escape(str(s), quote=True)
 
 BENCHMARKS = ("Nifty 500", "Nifty 50")
-# Dashboard dark-theme accent palette (matches _BASE_CSS / compare presets).
-QCOLOR = {"Leading": "#3fb950", "Weakening": "#d29922",
-          "Lagging": "#f85149", "Improving": "#58a6ff"}
+# RRG quadrants are DIRECTIONAL → design tokens: Leading=up, Lagging=down,
+# Improving=accent, Weakening=warn. NOTE: these are CSS var() strings — valid in
+# CSS (style="color:…") but INVALID as raw SVG fill=/stroke= attributes, so SVG
+# consumers below inject them via style="fill:…"/style="stroke:…".
+QCOLOR = {"Leading": "var(--up)", "Weakening": "var(--warn)",
+          "Lagging": "var(--down)", "Improving": "var(--accent)"}
 
 
 def _n(v, dp: int = 1) -> str:
@@ -73,19 +76,19 @@ def _json_for_script(obj) -> str:
 def _flags(r: dict) -> str:
     out = []
     if r.get("improving_entry"):
-        out.append('<span class="pill" style="color:#58a6ff">↗ base turn</span>')
+        out.append('<span class="pill" style="color:var(--accent)">↗ base turn</span>')
     if r.get("weakening_warning"):
-        out.append('<span class="pill" style="color:#d29922">↘ rolling over</span>')
+        out.append('<span class="pill" style="color:var(--warn)">↘ rolling over</span>')
     if r.get("rsi_oversold_turn"):
         out.append('<span class="pill">RSI turn</span>')
     if r.get("rs_div_bull"):
-        out.append('<span class="pill" style="color:#3fb950">bull div</span>')
+        out.append('<span class="pill" style="color:var(--up)">bull div</span>')
     if r.get("rs_div_bear"):
-        out.append('<span class="pill" style="color:#f85149">bear div</span>')
+        out.append('<span class="pill" style="color:var(--down)">bear div</span>')
     if r.get("mansfield_cross_up"):
-        out.append('<span class="pill" style="color:#3fb950">MRS+</span>')
+        out.append('<span class="pill" style="color:var(--up)">MRS+</span>')
     if r.get("mansfield_cross_down"):
-        out.append('<span class="pill" style="color:#f85149">MRS−</span>')
+        out.append('<span class="pill" style="color:var(--down)">MRS−</span>')
     return " ".join(out) or '<span class="sub">—</span>'
 
 
@@ -93,10 +96,10 @@ def _empty() -> str:
     return (
         '<h2>Relative rotation — sectors</h2>'
         '<div class="card"><div class="sub">No relative-strength data yet.</div>'
-        '<p style="color:#c9d1d9;line-height:1.5">This view reads sector RS ratios '
+        '<p style="color:var(--ink);line-height:1.5">This view reads sector RS ratios '
         'from <code>ratio_rows</code>. Once index data is ingested, run the nightly '
         'jobs to populate it:</p>'
-        '<pre style="background:#0d1117;border:1px solid #30363d;border-radius:6px;'
+        '<pre style="background:var(--bg-1);border:1px solid var(--line-2);border-radius:6px;'
         'padding:10px;overflow:auto">python -m src.automation.rrg\n'
         'python -m src.automation.capture</pre></div>')
 
@@ -142,20 +145,20 @@ def _svg(rows: list[dict], caps: dict, tails: dict, link_fn=None) -> str:
     s = ['<svg id="rrgsvg" viewBox="0 0 760 480" width="100%" '
          'style="max-width:760px" xmlns="http://www.w3.org/2000/svg">']
     # quadrant tints
-    s.append(f'<rect x="{plot_l}" y="{plot_t}" width="{cx-plot_l:.0f}" height="{cy-plot_t:.0f}" fill="#58a6ff" fill-opacity="0.06"/>')
-    s.append(f'<rect x="{cx:.0f}" y="{plot_t}" width="{plot_r-cx:.0f}" height="{cy-plot_t:.0f}" fill="#3fb950" fill-opacity="0.06"/>')
-    s.append(f'<rect x="{cx:.0f}" y="{cy:.0f}" width="{plot_r-cx:.0f}" height="{plot_b-cy:.0f}" fill="#d29922" fill-opacity="0.06"/>')
-    s.append(f'<rect x="{plot_l}" y="{cy:.0f}" width="{cx-plot_l:.0f}" height="{plot_b-cy:.0f}" fill="#f85149" fill-opacity="0.06"/>')
-    s.append(f'<rect x="{plot_l}" y="{plot_t}" width="{plot_r-plot_l}" height="{plot_b-plot_t}" fill="none" stroke="#30363d"/>')
-    s.append(f'<line x1="{cx:.0f}" y1="{plot_t}" x2="{cx:.0f}" y2="{plot_b}" stroke="#30363d" stroke-dasharray="3 3"/>')
-    s.append(f'<line x1="{plot_l}" y1="{cy:.0f}" x2="{plot_r}" y2="{cy:.0f}" stroke="#30363d" stroke-dasharray="3 3"/>')
+    s.append(f'<rect x="{plot_l}" y="{plot_t}" width="{cx-plot_l:.0f}" height="{cy-plot_t:.0f}" style="fill:var(--accent)" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{cx:.0f}" y="{plot_t}" width="{plot_r-cx:.0f}" height="{cy-plot_t:.0f}" style="fill:var(--up)" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{cx:.0f}" y="{cy:.0f}" width="{plot_r-cx:.0f}" height="{plot_b-cy:.0f}" style="fill:var(--warn)" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{plot_l}" y="{cy:.0f}" width="{cx-plot_l:.0f}" height="{plot_b-cy:.0f}" style="fill:var(--down)" fill-opacity="0.06"/>')
+    s.append(f'<rect x="{plot_l}" y="{plot_t}" width="{plot_r-plot_l}" height="{plot_b-plot_t}" fill="none" style="stroke:var(--line-2)"/>')
+    s.append(f'<line x1="{cx:.0f}" y1="{plot_t}" x2="{cx:.0f}" y2="{plot_b}" style="stroke:var(--line-2)" stroke-dasharray="3 3"/>')
+    s.append(f'<line x1="{plot_l}" y1="{cy:.0f}" x2="{plot_r}" y2="{cy:.0f}" style="stroke:var(--line-2)" stroke-dasharray="3 3"/>')
     # corner labels
-    s.append(f'<text x="{plot_l+6}" y="{plot_t+14}" fill="#6e7681" font-size="9">improving</text>')
-    s.append(f'<text x="{plot_r-6}" y="{plot_t+14}" fill="#6e7681" font-size="9" text-anchor="end">leading</text>')
-    s.append(f'<text x="{plot_r-6}" y="{plot_b-6}" fill="#6e7681" font-size="9" text-anchor="end">weakening</text>')
-    s.append(f'<text x="{plot_l+6}" y="{plot_b-6}" fill="#6e7681" font-size="9">lagging</text>')
-    s.append(f'<text x="{(plot_l+plot_r)/2:.0f}" y="{plot_b+16}" fill="#8b949e" font-size="9" text-anchor="middle">RS-Ratio →</text>')
-    s.append(f'<text x="14" y="{(plot_t+plot_b)/2:.0f}" fill="#8b949e" font-size="9" text-anchor="middle" transform="rotate(-90 14 {(plot_t+plot_b)/2:.0f})">RS-Momentum ↑</text>')
+    s.append(f'<text x="{plot_l+6}" y="{plot_t+14}" style="fill:var(--ink-3)" font-size="9">improving</text>')
+    s.append(f'<text x="{plot_r-6}" y="{plot_t+14}" style="fill:var(--ink-3)" font-size="9" text-anchor="end">leading</text>')
+    s.append(f'<text x="{plot_r-6}" y="{plot_b-6}" style="fill:var(--ink-3)" font-size="9" text-anchor="end">weakening</text>')
+    s.append(f'<text x="{plot_l+6}" y="{plot_b-6}" style="fill:var(--ink-3)" font-size="9">lagging</text>')
+    s.append(f'<text x="{(plot_l+plot_r)/2:.0f}" y="{plot_b+16}" style="fill:var(--ink-2)" font-size="9" text-anchor="middle">RS-Ratio →</text>')
+    s.append(f'<text x="14" y="{(plot_t+plot_b)/2:.0f}" style="fill:var(--ink-2)" font-size="9" text-anchor="middle" transform="rotate(-90 14 {(plot_t+plot_b)/2:.0f})">RS-Momentum ↑</text>')
 
     for r in rows:
         rr, rm = r["rs_ratio"], r["rs_momentum"]
@@ -173,11 +176,11 @@ def _svg(rows: list[dict], caps: dict, tails: dict, link_fn=None) -> str:
               if p["rs_ratio"] is not None and p["rs_momentum"] is not None]
         if len(tl) >= 2:
             pts = " ".join(f"{mx(p['rs_ratio']):.1f},{my(p['rs_momentum']):.1f}" for p in tl)
-            s.append(f'<polyline points="{pts}" fill="none" stroke="{col}" '
+            s.append(f'<polyline points="{pts}" fill="none" style="stroke:{col}" '
                      f'stroke-width="2" stroke-opacity="0.3" stroke-linecap="round"/>')
-        s.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}" fill="{col}" '
-                 f'fill-opacity="0.85" stroke="#0d1117" stroke-width="1.4"/>')
-        s.append(f'<text x="{x:.1f}" y="{y-rad-3:.1f}" fill="#e6edf3" font-size="9" '
+        s.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}" style="fill:{col};stroke:var(--bg-1)" '
+                 f'fill-opacity="0.85" stroke-width="1.4"/>')
+        s.append(f'<text x="{x:.1f}" y="{y-rad-3:.1f}" style="fill:var(--ink)" font-size="9" '
                  f'text-anchor="middle">{_esc(num.replace("Nifty ", ""))}</text>')
         dc = cap.get("down_capture_63") if cap else None
         tip = (f"<b>{_esc(num)}</b><br>{_esc(q)} · RS-ratio {_n(rr)} · RS-mom {_n(rm)}<br>"
@@ -191,8 +194,8 @@ def _svg(rows: list[dict], caps: dict, tails: dict, link_fn=None) -> str:
         '<div id="rrgwrap" style="position:relative">'
         + "".join(s)
         + '<div id="rrgtip" style="position:absolute;display:none;pointer-events:none;'
-        'background:#161b22;border:1px solid #30363d;border-radius:6px;padding:6px 9px;'
-        'font-size:12px;color:#e6edf3;max-width:260px;line-height:1.4;z-index:5"></div></div>'
+        'background:var(--bg-2);border:1px solid var(--line-2);border-radius:6px;padding:6px 9px;'
+        'font-size:12px;color:var(--ink);max-width:260px;line-height:1.4;z-index:5"></div></div>'
         '<div class="sub" style="margin:6px 0 14px">Dot size = upside capture · '
         'tail = the RS-Ratio × RS-Momentum journey over the selected window · '
         'hover for detail.</div>'
@@ -213,7 +216,7 @@ def _table(rows: list[dict], caps: dict, den: str) -> str:
     for r in rows:
         num = r["numerator"]
         q = r["quadrant"] or rrg.quadrant(r["rs_ratio"], r["rs_momentum"]) or "—"
-        col = QCOLOR.get(q, "#8b949e")
+        col = QCOLOR.get(q, "var(--ink-2)")
         cap = caps.get(num) or {}
         dc, uc, de = (cap.get("down_capture_63"), cap.get("up_capture_63"),
                       cap.get("down_excess_63"))
@@ -221,15 +224,15 @@ def _table(rows: list[dict], caps: dict, den: str) -> str:
         # fell (the strongest defensive read — label it, don't show a bare number);
         # >1 falls harder (red). down_excess Δ% is the robust, sign-clean primary.
         if dc is None:
-            dc_html = '<span style="color:#8b949e">—</span>'
+            dc_html = '<span style="color:var(--ink-2)">—</span>'
         elif dc < 0:
-            dc_html = f'<span style="color:#3fb950">{dc:.2f} ↑rose</span>'
+            dc_html = f'<span style="color:var(--up)">{dc:.2f} ↑rose</span>'
         elif dc < 1:
-            dc_html = f'<span style="color:#3fb950">{dc:.2f}</span>'
+            dc_html = f'<span style="color:var(--up)">{dc:.2f}</span>'
         else:
-            dc_html = f'<span style="color:#f85149">{dc:.2f}</span>'
-        decol = ("#3fb950" if (de is not None and de > 0)
-                 else ("#f85149" if de is not None else "#8b949e"))
+            dc_html = f'<span style="color:var(--down)">{dc:.2f}</span>'
+        decol = ("var(--up)" if (de is not None and de > 0)
+                 else ("var(--down)" if de is not None else "var(--ink-2)"))
         link = f'/dash/ratio?idx={quote_plus(num)}&den={quote_plus(den)}'
         body.append(
             f'<tr><td><a href="{link}" style="color:#58a6ff;text-decoration:none">{_esc(num)}</a></td>'
@@ -325,7 +328,7 @@ def _constituent_table(rows: list[dict], den: str) -> str:
     for r in rows:
         sym = r["numerator"]
         q = r["quadrant"] or "—"
-        col = QCOLOR.get(q, "#8b949e")
+        col = QCOLOR.get(q, "var(--ink-2)")
         body.append(
             f'<tr><td><a href="/dash/stock?sym={quote_plus(sym)}" '
             f'style="color:#58a6ff;text-decoration:none">{_esc(sym)}</a></td>'
@@ -350,6 +353,18 @@ _SECTOR_TAILS = ("3", "6", "12", "24")
 # Cadence per window: 3m daily · 6m/12m WEEKLY · 24m MONTHLY closes (Ramana's call —
 # fewer "rotations/parkings" on the long views → a smooth, slow, trackable Play).
 _TAIL_CADENCE = {"3": "D", "6": "W", "12": "W", "24": "M"}
+
+_MONTHS_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _fmt_frame_label(date_str: str, cad: str) -> str:
+    """Short human timeline label for one tail point: monthly cadence → "Jun '26",
+    weekly/daily → "14 Jun" (the period-close date). Drives the scrubber month badge."""
+    mon = _MONTHS_ABBR[int(date_str[5:7]) - 1]
+    if cad == "M":
+        return f"{mon} '{date_str[2:4]}"
+    return f"{int(date_str[8:10])} {mon}"
 
 
 def _period_key(date_str: str, cad: str):
@@ -417,7 +432,8 @@ def _sector_tail(num: str, den: str, months: str, conn) -> list[dict]:
         if len(ratio) < rrg.NORM_WIN + rrg.SMOOTH_SPAN:
             return []
         rr, rm = rrg._rs_ratio_momentum(ratio)
-        pts = [(rr[i], rm[i]) for i in range(len(ratio)) if rr[i] is not None and rm[i] is not None]
+        pts = [(rr[i], rm[i], dates[i]) for i in range(len(ratio))
+               if rr[i] is not None and rm[i] is not None]
         seg = pts[-n:] if len(pts) > n else pts
     else:                                             # 6m/12m weekly · 24m monthly closes
         rdates, rratio = _resample_ratio(dates, ratio, cad)
@@ -425,10 +441,12 @@ def _sector_tail(num: str, den: str, months: str, conn) -> list[dict]:
         if len(rratio) < sm + nm:
             return []
         rr, rm = _rrg_jdk(rratio, *_CADENCE_JDK[cad])
-        pts = [(rr[i], rm[i]) for i in range(len(rratio)) if rr[i] is not None and rm[i] is not None]
+        pts = [(rr[i], rm[i], rdates[i]) for i in range(len(rratio))
+               if rr[i] is not None and rm[i] is not None]
         nper = round(int(months) * 52 / 12) if cad == "W" else int(months)
         seg = pts[-nper:] if len(pts) > nper else pts
-    return [{"rs_ratio": r, "rs_momentum": m} for (r, m) in seg]
+    # date carried per point → the scrubber/badge can name the month at each frame
+    return [{"rs_ratio": r, "rs_momentum": m, "date": d} for (r, m, d) in seg]
 
 
 def _tail_selector(den: str, active: str, base: str, view: str = "") -> str:
@@ -482,7 +500,7 @@ _RRG_PALETTE = [
 _RRG_PLAY_JS = r"""
 (function(){
 var D=__DATA__; if(!D.length) return;
-var INK='#e6edf3',LINK=__LINK__,GHOST='#6e7681';
+var INK='var(--ink)',LINK=__LINK__,GHOST='var(--ink-3)';
 var L=46,R=748,T=16,B=438,DR=7;          // DR = uniform dot radius (size = no hidden encoding)
 var SPD={slow:18000,med:10000,fast:5000},STEP=SPD.slow;   // TOTAL ms for the whole journey
 function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
@@ -502,25 +520,25 @@ function smooth(pts){if(!pts||pts.length<2)return '';var P=pts.map(function(p){r
   var c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6,c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
   d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0].toFixed(1)+','+p2[1].toFixed(1);}
  return d;}
-function dotC(x,y,col,op){return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+DR+'" fill="'+col+'" fill-opacity="'+(op==null?0.95:op)+'" stroke="#0d1117" stroke-width="1.4"/>';}
+function dotC(x,y,col,op){return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+DR+'" fill="'+col+'" fill-opacity="'+(op==null?0.95:op)+'" style="stroke:var(--bg-1)" stroke-width="1.4"/>';}
 // label with a dark halo (paint-order:stroke) so names stay readable over any dot/zone
-function lbl(x,y,t,op){return '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" fill="'+INK+'" fill-opacity="'+(op==null?1:op)+'" font-size="9" text-anchor="middle" style="paint-order:stroke;stroke:#0d1117;stroke-width:2.6px;stroke-linejoin:round">'+esc(t)+'</text>';}
+function lbl(x,y,t,op){return '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" fill-opacity="'+(op==null?1:op)+'" font-size="9" text-anchor="middle" style="fill:var(--ink);paint-order:stroke;stroke:var(--bg-1);stroke-width:2.6px;stroke-linejoin:round">'+esc(t)+'</text>';}
 var svg=document.getElementById('rrgsvg'),tip=document.getElementById('rrgtip'),wrap=document.getElementById('rrgwrap');
 var cx=MX(100),cy=MY(100),raf=null;
 function grid(){var s='';
- s+='<rect x="'+L+'" y="'+T+'" width="'+(cx-L)+'" height="'+(cy-T)+'" fill="#58a6ff" fill-opacity="0.05"/>';
- s+='<rect x="'+cx+'" y="'+T+'" width="'+(R-cx)+'" height="'+(cy-T)+'" fill="#3fb950" fill-opacity="0.05"/>';
- s+='<rect x="'+cx+'" y="'+cy+'" width="'+(R-cx)+'" height="'+(B-cy)+'" fill="#d29922" fill-opacity="0.05"/>';
- s+='<rect x="'+L+'" y="'+cy+'" width="'+(cx-L)+'" height="'+(B-cy)+'" fill="#f85149" fill-opacity="0.05"/>';
- s+='<rect x="'+L+'" y="'+T+'" width="'+(R-L)+'" height="'+(B-T)+'" fill="none" stroke="#30363d"/>';
- s+='<line x1="'+cx+'" y1="'+T+'" x2="'+cx+'" y2="'+B+'" stroke="#30363d" stroke-dasharray="3 3"/>';
- s+='<line x1="'+L+'" y1="'+cy+'" x2="'+R+'" y2="'+cy+'" stroke="#30363d" stroke-dasharray="3 3"/>';
- s+='<text x="'+(L+6)+'" y="'+(T+14)+'" fill="'+GHOST+'" font-size="10">improving</text>';
- s+='<text x="'+(R-6)+'" y="'+(T+14)+'" fill="'+GHOST+'" font-size="10" text-anchor="end">leading</text>';
- s+='<text x="'+(R-6)+'" y="'+(B-6)+'" fill="'+GHOST+'" font-size="10" text-anchor="end">weakening</text>';
- s+='<text x="'+(L+6)+'" y="'+(B-6)+'" fill="'+GHOST+'" font-size="10">lagging</text>';
- s+='<text x="'+((L+R)/2)+'" y="'+(B+16)+'" fill="#8b949e" font-size="9" text-anchor="middle">RS-Ratio →</text>';
- s+='<text x="14" y="'+((T+B)/2)+'" fill="#8b949e" font-size="9" text-anchor="middle" transform="rotate(-90 14 '+((T+B)/2)+')">RS-Momentum ↑</text>';
+ s+='<rect x="'+L+'" y="'+T+'" width="'+(cx-L)+'" height="'+(cy-T)+'" style="fill:var(--accent)" fill-opacity="0.05"/>';
+ s+='<rect x="'+cx+'" y="'+T+'" width="'+(R-cx)+'" height="'+(cy-T)+'" style="fill:var(--up)" fill-opacity="0.05"/>';
+ s+='<rect x="'+cx+'" y="'+cy+'" width="'+(R-cx)+'" height="'+(B-cy)+'" style="fill:var(--warn)" fill-opacity="0.05"/>';
+ s+='<rect x="'+L+'" y="'+cy+'" width="'+(cx-L)+'" height="'+(B-cy)+'" style="fill:var(--down)" fill-opacity="0.05"/>';
+ s+='<rect x="'+L+'" y="'+T+'" width="'+(R-L)+'" height="'+(B-T)+'" fill="none" style="stroke:var(--line-2)"/>';
+ s+='<line x1="'+cx+'" y1="'+T+'" x2="'+cx+'" y2="'+B+'" style="stroke:var(--line-2)" stroke-dasharray="3 3"/>';
+ s+='<line x1="'+L+'" y1="'+cy+'" x2="'+R+'" y2="'+cy+'" style="stroke:var(--line-2)" stroke-dasharray="3 3"/>';
+ s+='<text x="'+(L+6)+'" y="'+(T+14)+'" style="fill:'+GHOST+'" font-size="10">improving</text>';
+ s+='<text x="'+(R-6)+'" y="'+(T+14)+'" style="fill:'+GHOST+'" font-size="10" text-anchor="end">leading</text>';
+ s+='<text x="'+(R-6)+'" y="'+(B-6)+'" style="fill:'+GHOST+'" font-size="10" text-anchor="end">weakening</text>';
+ s+='<text x="'+(L+6)+'" y="'+(B-6)+'" style="fill:'+GHOST+'" font-size="10">lagging</text>';
+ s+='<text x="'+((L+R)/2)+'" y="'+(B+16)+'" style="fill:var(--ink-2)" font-size="9" text-anchor="middle">RS-Ratio →</text>';
+ s+='<text x="14" y="'+((T+B)/2)+'" style="fill:var(--ink-2)" font-size="9" text-anchor="middle" transform="rotate(-90 14 '+((T+B)/2)+')">RS-Momentum ↑</text>';
  return s;}
 function interp(p,f){var n=p.length;if(!n)return null;if(n===1)return p[0];var x=f*(n-1),i=Math.floor(x),t=x-i;if(i>=n-1)return p[n-1];return [p[i][0]+(p[i+1][0]-p[i][0])*t,p[i][1]+(p[i+1][1]-p[i][1])*t];}
 // RESTING = clean dots (STABLE per-sector colour) + a tiny recent-heading stub + de-collided labels.
@@ -532,7 +550,7 @@ function dotsLayer(){var lay=layout(),s='';
  D.forEach(function(sec,idx){var col=sec.col,q=lay[idx],stub=(sec.pts||[]).slice(-3);
   s+='<g class="hit" data-i="'+idx+'" style="cursor:'+(LINK?'pointer':'default')+'">';
   s+=path(smooth(stub),col,1.8,0.5);     // resting: only the last couple of movements, smoothed
-  if(q.leader)s+='<line x1="'+q.x.toFixed(1)+'" y1="'+(q.y-DR-1).toFixed(1)+'" x2="'+q.x.toFixed(1)+'" y2="'+(q.ly+2).toFixed(1)+'" stroke="'+GHOST+'" stroke-width="0.7" stroke-opacity="0.6"/>';
+  if(q.leader)s+='<line x1="'+q.x.toFixed(1)+'" y1="'+(q.y-DR-1).toFixed(1)+'" x2="'+q.x.toFixed(1)+'" y2="'+(q.ly+2).toFixed(1)+'" style="stroke:'+GHOST+'" stroke-width="0.7" stroke-opacity="0.6"/>';
   s+=dotC(q.x,q.y,col,0.95)+lbl(q.x,q.ly,sec.k,1);
   s+='<circle cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(DR+10)+'" fill="transparent"/></g>';});
  return s;}
@@ -541,7 +559,7 @@ function staticView(){if(raf){cancelAnimationFrame(raf);raf=null;}svg.innerHTML=
 function hi(idx){var dl=document.getElementById('dl'),ov=document.getElementById('ov');if(!dl||!ov)return;dl.style.opacity='0.20';
  var sec=D[idx],col=sec.col,pts=ds(sec.pts||[],30),X=MX(sec.now[0]),Y=MY(sec.now[1]),s='';
  s+=path(smooth(pts),col,2,0.62);        // hover: the full journey, smoothed
- s+='<circle cx="'+X.toFixed(1)+'" cy="'+Y.toFixed(1)+'" r="'+(DR+3)+'" fill="none" stroke="#e6edf3" stroke-width="1.5"/>';
+ s+='<circle cx="'+X.toFixed(1)+'" cy="'+Y.toFixed(1)+'" r="'+(DR+3)+'" fill="none" style="stroke:var(--ink)" stroke-width="1.5"/>';
  s+=dotC(X,Y,col,1)+lbl(X,Y-DR-4,sec.k,1);ov.innerHTML=s;}
 function unhi(){var dl=document.getElementById('dl'),ov=document.getElementById('ov');if(dl)dl.style.opacity='1';if(ov)ov.innerHTML='';}
 function wire(){Array.prototype.forEach.call(svg.querySelectorAll('.hit'),function(g){var idx=+g.getAttribute('data-i'),sec=D[idx];
@@ -549,20 +567,41 @@ function wire(){Array.prototype.forEach.call(svg.querySelectorAll('.hit'),functi
  g.addEventListener('mousemove',function(e){var b=wrap.getBoundingClientRect();tip.style.left=Math.min(e.clientX-b.left+12,b.width-210)+'px';tip.style.top=(e.clientY-b.top+12)+'px';});
  g.addEventListener('mouseleave',function(){unhi();tip.style.display='none';});
  if(LINK)g.addEventListener('click',function(){window.location.href='/dash/rrg?idx='+encodeURIComponent(sec.n);});});}
-// PLAY = slow (default), names stay ON, each dot keeps its OWN colour the whole way.
-function play(){if(raf)cancelAnimationFrame(raf);tip.style.display='none';var ovx=document.getElementById('ov');if(ovx)ovx.innerHTML='';
- var trails=D.map(function(){return [];}),t0=null,dur=STEP;          // fixed total duration
- function step(ts){if(!t0)t0=ts;var k=Math.min(1,(ts-t0)/dur),s=grid();
+// ── TIMELINE: shared month labels drive a draggable scrubber + a "which month" badge +
+//    a live quadrant-breadth read, so a cycle is visible as you travel the window. ──
+var LBL=__LABELS__||[],NF=LBL.length,curP=NF?NF-1:0,playing=false;
+var scEl=document.getElementById('rrgscrub'),mbEl=document.getElementById('rrgmonth'),inEl=document.getElementById('rrginsight');
+if(scEl){scEl.max=NF?NF-1:0;scEl.value=curP;}
+function idxK(p){return NF>1?p/(NF-1):1;}                 // frame index → journey fraction 0..1
+function setPlay(){var b=document.getElementById('rrgplay');if(b)b.innerHTML=playing?'&#10073;&#10073; Pause':'&#9658; Play rotation';}
+function qAt(k){var c={L:0,I:0,W:0,G:0};D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;c[p[0]>=100?(p[1]>=100?'L':'W'):(p[1]>=100?'I':'G')]++;});return c;}
+function hud(k){var p=NF>1?Math.round(k*(NF-1)):0;if(mbEl)mbEl.textContent=LBL[p]||'—';if(scEl&&document.activeElement!==scEl)scEl.value=p;
+ if(inEl){var c=qAt(k);inEl.innerHTML='<b>'+(LBL[p]||'')+'</b> &middot; <span style="color:var(--up)">&#9679; leading '+c.L+'</span> &nbsp;<span style="color:var(--accent)">&#9679; improving '+c.I+'</span> &nbsp;<span style="color:var(--warn)">&#9679; weakening '+c.W+'</span> &nbsp;<span style="color:var(--down)">&#9679; lagging '+c.G+'</span>';}}
+// manual scrub → the CUMULATIVE journey up to the cursor (drag back = the dots travel back)
+function frame(k){var s=grid();
+ D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var hp=Math.max(0,Math.round(k*(pts.length-1))),tr=pts.slice(0,hp+1);if(!tr.length||tr[tr.length-1][0]!==p[0]||tr[tr.length-1][1]!==p[1])tr=tr.concat([p]);
+  s+=path(smooth(tr),sec.col,2,0.42);s+=dotC(MX(p[0]),MY(p[1]),sec.col,0.97);});
+ D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;s+=lbl(MX(p[0]),MY(p[1])-DR-4,sec.k,1);});
+ svg.innerHTML='<g>'+s+'</g>';}
+function scrubTo(p){if(raf){cancelAnimationFrame(raf);raf=null;}playing=false;setPlay();tip.style.display='none';curP=p;var k=idxK(p);frame(k);hud(k);}
+if(scEl)scEl.addEventListener('input',function(){scrubTo(+scEl.value);});
+// PLAY = autonomous rotation, RETAINED (slow default, names on, per-sector comet trail) —
+// now a toggle that resumes from the cursor, drives the badge+scrubber, and pauses.
+function play(){if(playing){playing=false;if(raf){cancelAnimationFrame(raf);raf=null;}setPlay();return;}
+ tip.style.display='none';var ovx=document.getElementById('ov');if(ovx)ovx.innerHTML='';playing=true;setPlay();
+ var startK=(curP>=NF-1)?0:idxK(curP),trails=D.map(function(){return [];}),t0=null,dur=STEP;   // resume from cursor
+ function step(ts){if(!t0)t0=ts;var k=startK+(1-startK)*Math.min(1,(ts-t0)/dur),s=grid();
   D.forEach(function(sec,idx){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var col=sec.col,tr=trails[idx];tr.push(p);if(tr.length>12)tr.shift();
    s+=path(smooth(tr),col,2,0.42);       // play: a smooth comet trail behind the dot
    s+=dotC(MX(p[0]),MY(p[1]),col,0.97);});
   D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;s+=lbl(MX(p[0]),MY(p[1])-DR-4,sec.k,1);});
-  svg.innerHTML='<g>'+s+'</g>';if(k<1)raf=requestAnimationFrame(step);else staticView();}
+  svg.innerHTML='<g>'+s+'</g>';curP=NF>1?Math.round(k*(NF-1)):0;hud(k);
+  if(k<1&&playing){raf=requestAnimationFrame(step);}else{playing=false;raf=null;setPlay();staticView();hud(1);}}
  raf=requestAnimationFrame(step);}
-function setSpd(key){STEP=SPD[key]||SPD.slow;Array.prototype.forEach.call(document.querySelectorAll('#rrgspeed button'),function(b){var on=b.getAttribute('data-spd')===key;b.style.background=on?'#1f6feb':'transparent';b.style.color=on?'#fff':'#8b949e';});play();}
+function setSpd(key){STEP=SPD[key]||SPD.slow;Array.prototype.forEach.call(document.querySelectorAll('#rrgspeed button'),function(b){var on=b.getAttribute('data-spd')===key;b.style.background=on?'#1f6feb':'transparent';b.style.color=on?'#fff':'var(--ink-2)';});if(playing){playing=false;if(raf){cancelAnimationFrame(raf);raf=null;}}play();}
 var pb=document.getElementById('rrgplay');if(pb)pb.addEventListener('click',play);
 var sp=document.getElementById('rrgspeed');if(sp)sp.addEventListener('click',function(e){var b=e.target.closest('button');if(b)setSpd(b.getAttribute('data-spd'));});
-staticView();
+staticView();if(NF){curP=NF-1;hud(1);}
 })();
 """
 
@@ -599,23 +638,29 @@ def _sectors_rrg_block(rows: list[dict], caps: dict, tails: dict, den: str, mont
             "rsi": r.get("rsi_of_rs"), "mans": r.get("mansfield"),
         })
     sel = _tail_selector(den, months, tail_base, tail_view) if tail_base else ""
+    # shared timeline labels for the scrubber/badge — from the richest (longest) tail,
+    # which spans the full selected window; every sector's tail ends at the same "now".
+    cad = _TAIL_CADENCE.get(str(months), "D")
+    ref = max((tails.get(r["numerator"]) or [] for r in rows), key=len, default=[])
+    labels = [_fmt_frame_label(p["date"], cad) for p in ref if p.get("date")]
     js = (_RRG_PLAY_JS.replace("__DATA__", _json_for_script(data))
+          .replace("__LABELS__", _json_for_script(labels))
           .replace("__LINK__", "1" if dot_link else "0"))
 
     def _spd(key, label, on):
-        st = ("background:#1f6feb;color:#fff;" if on else "background:transparent;color:#8b949e;")
-        return (f'<button data-spd="{key}" style="{st}border:0;border-right:1px solid #30363d;'
+        st = ("background:#1f6feb;color:#fff;" if on else "background:transparent;color:var(--ink-2);")
+        return (f'<button data-spd="{key}" style="{st}border:0;border-right:1px solid var(--line-2);'
                 f'padding:5px 12px;font-size:13px;cursor:pointer">{label}</button>')
     speed = ('<span class="sub" style="margin:0">speed</span>'
-             '<span id="rrgspeed" style="display:inline-flex;border:1px solid #30363d;'
+             '<span id="rrgspeed" style="display:inline-flex;border:1px solid var(--line-2);'
              'border-radius:6px;overflow:hidden">'
              + _spd("slow", "Slow", True) + _spd("med", "Med", False)
-             + _spd("fast", "Fast", False).replace("border-right:1px solid #30363d;", "") + '</span>')
+             + _spd("fast", "Fast", False).replace("border-right:1px solid var(--line-2);", "") + '</span>')
     return (
         sel
         + '<div class="card" style="padding:8px 10px">'
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">'
-        '<button id="rrgplay" style="background:transparent;color:#e6edf3;border:1px solid #30363d;'
+        '<button id="rrgplay" style="background:transparent;color:var(--ink);border:1px solid var(--line-2);'
         'border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer">&#9658; Play rotation</button>'
         + speed +
         '<span class="sub" style="margin:0">each sector keeps its own <b>colour + name</b> &middot; '
@@ -623,9 +668,18 @@ def _sectors_rrg_block(rows: list[dict], caps: dict, tails: dict, den: str, mont
         '<div id="rrgwrap" style="position:relative">'
         '<svg id="rrgsvg" viewBox="0 0 760 480" width="100%" style="max-width:760px" '
         'xmlns="http://www.w3.org/2000/svg"></svg>'
-        '<div id="rrgtip" style="position:absolute;display:none;pointer-events:none;background:#161b22;'
-        'border:1px solid #30363d;border-radius:6px;padding:6px 9px;font-size:12px;color:#e6edf3;'
+        '<div id="rrgtip" style="position:absolute;display:none;pointer-events:none;background:var(--bg-2);'
+        'border:1px solid var(--line-2);border-radius:6px;padding:6px 9px;font-size:12px;color:var(--ink);'
         'max-width:240px;line-height:1.4;z-index:5"></div></div>'
+        # ── timeline scrubber band: drag the cursor to travel the whole window back/forth;
+        #    the month badge names where you are; Play still runs it autonomously. ──
+        '<div style="margin:10px 2px 2px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        '<span class="pill" id="rrgmonth" style="min-width:76px;text-align:center;font-weight:700;'
+        'background:#1f6feb;border-color:#1f6feb;color:#fff">&mdash;</span>'
+        '<input id="rrgscrub" type="range" min="0" max="0" value="0" step="1" '
+        'style="flex:1;min-width:220px;accent-color:#1f6feb;cursor:pointer" '
+        'aria-label="rotation timeline — drag to travel the window"></div>'
+        '<div id="rrginsight" class="sub" style="margin:2px 2px 6px;min-height:17px"></div>'
         '<div class="sub" style="margin:4px 0 0"><b>Colour + label = the sector</b> (stable as it moves) '
         '&middot; <b>position = its state</b> — the tinted zones are improving / leading / weakening / '
         'lagging &middot; the <b>timeframe</b> sets the whole map (3m daily &middot; 6m/12m weekly &middot; '
@@ -665,11 +719,14 @@ def render_sectors_map(den: str = "Nifty 500", conn=None, months: str = "12",
 # ── single-stock RRG: one stock's RS-Ratio×RS-Momentum journey (the tail) ──────
 _STOCK_RRG_WINDOW = 780      # ~3y sessions: a 24m tail + the JdK normalisation lead-in
 _TAIL_SESSIONS = {"3": 63, "6": 126, "12": 252, "24": 504}
+# (label, text-colour, background-tint) — DIRECTIONAL quadrant tokens. The bg tint
+# replaces the old "{hex}22" alpha-suffix trick (invalid on var()): use the rgb
+# token at ~0.13 alpha (≈0x22), and --accent-dim for the accent quadrant.
 _LEAD_LABEL = {
-    "Leading":   ("Leader — strong &amp; gaining", "#3fb950"),
-    "Improving": ("Improving — basing, turning up", "#58a6ff"),
-    "Weakening": ("Weakening — leader rolling over", "#d29922"),
-    "Lagging":   ("Laggard — weak &amp; falling", "#f85149"),
+    "Leading":   ("Leader — strong &amp; gaining", "var(--up)", "rgba(var(--up-rgb),.13)"),
+    "Improving": ("Improving — basing, turning up", "var(--accent)", "var(--accent-dim)"),
+    "Weakening": ("Weakening — leader rolling over", "var(--warn)", "rgba(var(--warn-rgb),.13)"),
+    "Lagging":   ("Laggard — weak &amp; falling", "var(--down)", "rgba(var(--down-rgb),.13)"),
 }
 
 
@@ -722,7 +779,7 @@ def _stock_rrg_page(sym: str, den: str, tail: str) -> str:
     if seg and (not tailpts or (tailpts[-1]["rs_ratio"], tailpts[-1]["rs_momentum"]) != seg[-1]):
         tailpts.append({"rs_ratio": seg[-1][0], "rs_momentum": seg[-1][1]})
     q = row["quadrant"] or "—"
-    lab, lcol = _LEAD_LABEL.get(q, ("—", "#8b949e"))
+    lab, lcol, lbg = _LEAD_LABEL.get(q, ("—", "var(--ink-2)", "#8b949e22"))
 
     def tpill(t, label):
         on = "background:#1f6feb;border-color:#1f6feb;color:#fff;" if t == tail else ""
@@ -730,7 +787,7 @@ def _stock_rrg_page(sym: str, den: str, tail: str) -> str:
                 f'style="text-decoration:none;margin-right:6px;{on}">{label}</a>')
     head = (back + f'<h2 style="margin-top:6px">{_esc(sym)} — relative rotation '
             f'<span class="sub" style="margin:0">RS-Ratio &times; RS-Momentum vs {_esc(den)} · its journey</span></h2>'
-            f'<div style="margin:4px 0 8px"><span class="pill" style="background:{lcol}22;color:{lcol}">{lab}</span>'
+            f'<div style="margin:4px 0 8px"><span class="pill" style="background:{lbg};color:{lcol}">{lab}</span>'
             f'<span class="sub" style="margin-left:12px">tail: {tpill("3", "3m")}{tpill("6", "6m")}{tpill("12", "12m")}{tpill("24", "24m")}</span></div>')
     foot = (f'<div class="sub" style="margin-top:8px">The dot is today; the tail traces the last {tail} months '
             'of its relative-strength journey (clockwise: improving → leading → weakening → lagging). '

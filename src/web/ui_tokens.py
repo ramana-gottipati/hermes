@@ -45,6 +45,20 @@ _TOKENS_CSS = """<style>""" + TOKENS_MARKER + """
   --down:#ff6a7a; --down-dim:rgba(255,106,122,.13);
   --warn:#f6b73c; --warn-dim:rgba(246,183,60,.14);
   --cred:#b18cff; --cred-dim:rgba(177,140,255,.15);
+  /* ── value RGB triples (colour-alignment Phase 0) — build ANY-alpha tint from ONE source,
+     e.g. rgba(var(--up-rgb),.08), so heat-cells / zone fills / chart tints stop re-hardcoding
+     the legacy RGB (63,185,80 / 248,81,73 / 31,111,235). Values == --up/--down/--warn. ── */
+  --up-rgb:63,212,134; --down-rgb:255,106,122; --warn-rgb:246,183,60;
+  /* ── status / health — present/absent/enabled badges. A role SEPARATE from the value
+     contract (a green "ON" is not a "+x%"); aliased to the value hues but NAMED distinctly so
+     the colour gate + future audits never conflate a status pill with a directional verdict. ── */
+  --ok:#3fd486; --off:#ff6a7a; --neu:#f6b73c;
+  /* ── foreground ON an --accent fill (primary buttons, active pills) — was the orphan #06121f. ── */
+  --on-accent:#06121f;
+  /* ── categorical scorecard identity — a DISTINCT hue (cyan), NEVER a value green, so the RS
+     scorecard border (.sc-RS) can't read as "bullish". Gives the 4 cards 4 distinct hues
+     (POS=accent / RS=cat-rs / QUAL=warn / CPR=cred). Decouples category from the value contract. ── */
+  --cat-rs:#34e0d6;
   /* ── type scale (tabular instrument feel) ── */
   --fs-2xs:10.5px; --fs-xs:11.5px; --fs-sm:12.5px; --fs-md:14px; --fs-lg:16px;
   --fs-xl:19px; --fs-2xl:23px; --fs-3xl:30px;
@@ -155,7 +169,10 @@ def _selftest() -> int:
     css = tokens_css()
     assert TOKENS_MARKER in css
     for tok in ("--bg-1:#0b0f17", "--accent:#4d9dff", "--ink:#eaf1f9", "--up:#3fd486",
-                "--down:#ff6a7a", "--fs-md:14px", "--sp-4:16px", "--r:12px"):
+                "--down:#ff6a7a", "--fs-md:14px", "--sp-4:16px", "--r:12px",
+                # colour-alignment Phase 0 additions
+                "--up-rgb:63,212,134", "--down-rgb:255,106,122", "--warn-rgb:246,183,60",
+                "--ok:#3fd486", "--off:#ff6a7a", "--on-accent:#06121f", "--cat-rs:#34e0d6"):
         assert tok in css, f"missing token {tok}"
     assert 'data-density="compact"' in css and "uk-sr-only" in css and "prefers-reduced-motion" in css
     # the shipped ui_kit values must be preserved exactly (no visual regression)

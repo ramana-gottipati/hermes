@@ -548,7 +548,7 @@ def _mv_adbar(score):
     return (f'<svg width="92" height="16" viewBox="0 0 100 16" preserveAspectRatio="none" '
             f'style="vertical-align:middle">'
             f'<rect x="0" y="6.5" width="100" height="3" rx="1.5" fill="#21262d"/>'
-            f'<rect x="{x:.1f}" y="4.5" width="{w:.1f}" height="7" rx="1.5" fill="{col}"/>'
+            f'<rect x="{x:.1f}" y="4.5" width="{w:.1f}" height="7" rx="1.5" style="fill:{col}"/>'
             f'<line x1="50" y1="2" x2="50" y2="14" stroke="#6e7681" stroke-width="1"/></svg>')
 
 

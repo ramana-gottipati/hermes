@@ -36,9 +36,9 @@ _TABS = [("", "All growth"), ("debt_reduction", "Debt ↓ +2.8%"), ("volume", "V
 
 _CSS = """
 <style>
-.gw-note{color:#8b949e;font-size:13px;line-height:1.5;margin:2px 0 10px;max-width:1100px;}
+.gw-note{color:var(--ink-2);font-size:13px;line-height:1.5;margin:2px 0 10px;max-width:1100px;}
 .gw-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px;}
-.gw-tab{padding:5px 11px;border:1px solid #30363d;border-radius:16px;color:#c9d1d9;font-size:12px;
+.gw-tab{padding:5px 11px;border:1px solid var(--line-2);border-radius:16px;color:var(--ink);font-size:12px;
   text-decoration:none;white-space:nowrap;}
 .gw-tab:hover{border-color:#58a6ff;}
 .gw-tab.on{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:600;}
@@ -62,7 +62,7 @@ table.gw td{padding:6px 10px;border-bottom:1px solid #1b2027;vertical-align:top;
 table.gw td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 table.gw tr:hover td{background:#11161d;}
 .gw-sym{font-weight:700;color:#e6edf3;} .gw-cr{color:#3fb950;font-weight:600;}
-.gw-pos{color:#3fb950;} .gw-neg{color:#f85149;} .gw-mut{color:#6e7681;}
+.gw-pos{color:var(--up);} .gw-neg{color:var(--down);} .gw-mut{color:#6e7681;}
 .gw-type{color:#58a6ff;font-size:11px;text-transform:uppercase;letter-spacing:.3px;}
 .gw-claim{color:#c9d1d9;max-width:620px;}
 </style>

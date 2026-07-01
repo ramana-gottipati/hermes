@@ -39,7 +39,7 @@ SNIPPET = """<script>
 (function(){
   "use strict";
   // --- the fixed colour grammar (mirrors hermes-charts.js PALETTE) ----------
-  var C={up:'#3fb950',down:'#f85149',line:'#1f6feb',dvpt:'#d29922',dvptIdle:'#30506b',
+  var C={up:'#3fd486',down:'#ff6a7a',line:'#1f6feb',dvpt:'#d29922',dvptIdle:'#30506b',
     deliv:'#58a6ff',tval:'#30363d',dval:'#2ea043',vwap:'#f0883e',avwap:'#db61a2',
     rs:'#39c5cf',wolfe:'#58a6ff',harm:'#f778ba',bb:'#a371f7',atr:'#56d364',
     vol:'#3b5168',rsi:'#d2a8ff',macd:'#58a6ff',macdSig:'#f0883e',cmp:'#39c5cf',

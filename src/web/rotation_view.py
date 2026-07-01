@@ -63,8 +63,8 @@ def _esc(s) -> str:
 
 def _pct(v, dp: int = 1) -> str:
     if v is None:
-        return '<span style="color:#6e7681">—</span>'
-    col = "#3fd486" if v > 0 else ("#ff6a7a" if v < 0 else "#8b949e")
+        return '<span style="color:var(--ink-3)">—</span>'
+    col = "#3fd486" if v > 0 else ("#ff6a7a" if v < 0 else "var(--ink-2)")
     return f'<span style="color:{col}">{v:+.{dp}f}</span>'
 
 

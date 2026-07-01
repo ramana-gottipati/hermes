@@ -36,9 +36,9 @@ _CSS = """<style>
 .nv-wrap{max-width:1100px;}
 .nv-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 0 12px;}
 .nv-head h2{margin:0;font-size:18px;}
-.nv-count{color:#8b949e;font-size:12px;}
-.nv-list{display:flex;flex-direction:column;border:1px solid #30363d;border-radius:10px;overflow:hidden;background:#161b22;}
-.nv-row{display:flex;align-items:baseline;gap:10px;padding:9px 12px;text-decoration:none;color:inherit;border-top:1px solid #21262d;border-left:3px solid transparent;}
+.nv-count{color:var(--ink-2);font-size:12px;}
+.nv-list{display:flex;flex-direction:column;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;background:var(--bg-2);}
+.nv-row{display:flex;align-items:baseline;gap:10px;padding:9px 12px;text-decoration:none;color:inherit;border-top:1px solid var(--bg-3);border-left:3px solid transparent;}
 .nv-row:first-child{border-top:none;}
 .nv-row:hover{background:#1c2230;border-left-color:#1f6feb;}
 .nv-date{color:#6e7681;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:64px;}

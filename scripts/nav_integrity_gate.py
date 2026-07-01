@@ -76,12 +76,11 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
     "/dash/wolfe":      "overlay-only lens (registry route=None) — reached from the chart overlay control",
     "/dash/wolfe/scan": "Wolfe scanner — reached from the Wolfe overlay surface, not a tab",
     "/dash/harmonic":   "overlay-only lens (registry route=None) — reached from the chart overlay control",
-    # KNOWN ORPHAN (flagged, not hidden): the per-stock news timeline. Its sibling
-    # /dash/wire (market wire) IS in the Markets sub-nav; this standalone per-stock view
-    # is not currently surfaced or embedded. Kept here EXPLICITLY so the gate stays green
-    # while the embed-or-remove decision is pending — NOT a silent pass.
-    "/dash/news":       "KNOWN ORPHAN — per-stock news timeline, not yet embedded in the dossier "
-                        "nor linked; pending embed-or-remove. Distinct from /dash/wire (market wire).",
+    # per-stock news timeline — its CONTENT is now embedded as the dossier's News tab
+    # (render_stock_timeline), so it is surfaced in-page; the standalone route is kept as
+    # a shareable deep-link (/dash/news?sym=). Distinct from /dash/wire (market wire).
+    "/dash/news":       "per-stock news timeline — content embedded as the stock-dossier News tab; "
+                        "standalone route kept as a shareable deep-link. Distinct from /dash/wire.",
     # reachable via page-BODY cross-links (not the top chrome) — verified live:
     "/dash/ratio":      "sacred ratio page — reached from the index/markets bodies (cockpit ratio links)",
     "/dash/rs":         "full RS ranking — reached from the cockpit 'Full RS ranking' body link",
