@@ -94,12 +94,31 @@ def _lane_data(den: str, conn) -> list[dict]:
             "verdict": v,
             "why": why,
             "href": f"/dash/rsband?idx={quote_plus(nm)}",
+            "asof": lane.get("trade_date"),
         })
     out.sort(key=lambda d: d["band"] if d["band"] is not None else 1e9)
     return out
 
 
 # ── the lane chart (SVG built client-side from injected data) ─────────────────
+_MONTHS_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _month_labels(asof: str, n: int = 25) -> list:
+    """['Jul '26', 'Jun '26', ...] - the calendar month `m` months before `asof`
+    (m=0..n-1), for the band-lane scrubber badge. Pure int math (no datetime)."""
+    y, m = int(asof[:4]), int(asof[5:7])
+    out = []
+    for k in range(n):
+        yy, mm = y, m - k
+        while mm <= 0:
+            mm += 12
+            yy -= 1
+        out.append("%s '%02d" % (_MONTHS_ABBR[mm - 1], yy % 100))
+    return out
+
+
 _LANE_JS = r"""
 (function(){
 var P={ink:'#e6edf3',mut:'#8b949e',grid:'#30363d',track:'#21262d',val:'#3fd486',valF:'rgba(63,212,134,0.10)',rich:'#d29922',richF:'rgba(210,153,34,0.10)',cap:'rgba(255,106,122,0.13)',up:'#3fd486',down:'#ff6a7a',flat:'#8b949e',ghost:'#6e7681',mr:'#39c5bb',poc:'#bc8cff',hollow:'#0d1117'};
@@ -113,6 +132,7 @@ function colNet(n){return n>3?P.up:n<-3?P.down:P.flat;}
 function zc(p){return p>100||p<0?P.down:p<=20?P.val:p>=80?P.rich:'#58a6ff';}
 function vcol(v){return (v=='Accumulate'||v=='Add'||v=='Ride')?P.up:(v=='Avoid'||v=='Fade')?P.down:(v=='Hold')?P.flat:P.rich;}
 var top=44,rowH=23,svg=document.getElementById('rbsvg'),tip=document.getElementById('rbtip');
+var scEl=document.getElementById('rbscrub'),mbEl=document.getElementById('rbmonth'),MLBL=__MLBL__||[];
 function zones(n){var s='',bot=top+n*rowH;
  s+='<rect x="'+(AX0-26)+'" y="'+top+'" width="26" height="'+(bot-top)+'" fill="'+P.cap+'"/><rect x="'+AX100+'" y="'+top+'" width="26" height="'+(bot-top)+'" fill="'+P.cap+'"/>';
  s+='<rect x="'+AX0+'" y="'+top+'" width="'+(xOf(25)-AX0)+'" height="'+(bot-top)+'" fill="'+P.valF+'"/><rect x="'+xOf(75)+'" y="'+top+'" width="'+(AX100-xOf(75))+'" height="'+(bot-top)+'" fill="'+P.richF+'"/>';
@@ -156,13 +176,24 @@ function wire(){Array.prototype.forEach.call(svg.querySelectorAll('.rblane'),fun
 function play(){if(window._rbraf)cancelAnimationFrame(window._rbraf);tip.style.display='none';var trails={};ORD.forEach(function(idx){trails[idx]=[];});var t0=null,dur=700+H*120;
  function step(ts){if(!t0)t0=ts;var k=Math.min(1,(ts-t0)/dur),mk=H*(1-k),s=zones(SEC.length);
   ORD.forEach(function(idx,i){var sec=SEC[idx],pib=pibAt(sec.path,mk),tr=trails[idx];if(pib!=null){tr.push(xOf(pib));if(tr.length>16)tr.shift();}s+=laneStr(sec,i,pib,tr.slice());});
-  svg.innerHTML=s;if(k<1)window._rbraf=requestAnimationFrame(step);else render();}
+  svg.innerHTML=s;if(mbEl)mbEl.textContent=MLBL[Math.round(mk)]||'\u2014';if(scEl)scEl.value=Math.round((H-mk)*10);
+  if(k<1)window._rbraf=requestAnimationFrame(step);else{render();if(mbEl)mbEl.textContent=MLBL[0]||'\u2014';if(scEl)scEl.value=H*10;}}
  window._rbraf=requestAnimationFrame(step);}
+// -- manual scrubber: travel the lookback window; each lane's marker moves to that month --
+function scrubTo(mk){if(window._rbraf){cancelAnimationFrame(window._rbraf);window._rbraf=null;}tip.style.display='none';
+ var s=zones(SEC.length);
+ ORD.forEach(function(idx,i){var sec=SEC[idx],pib=pibAt(sec.path,mk),tr=[];
+  for(var mm=H;mm>mk;mm-=Math.max(0.5,H/14)){var xp=xOf(pibAt(sec.path,mm));if(xp!=null)tr.push(xp);}
+  s+=laneStr(sec,i,pib,tr);});
+ svg.setAttribute('viewBox','0 0 680 '+(top+SEC.length*rowH+14));svg.innerHTML=s;
+ if(mbEl)mbEl.textContent=MLBL[Math.round(mk)]||'\u2014';
+ if(scEl&&document.activeElement!==scEl)scEl.value=Math.round((H-mk)*10);}
+if(scEl)scEl.addEventListener('input',function(){var mk=H-(+scEl.value)/10;if(mk<0)mk=0;if(mk>H)mk=H;scrubTo(mk);});
 function movers(){var arr=SEC.map(function(s){var st=pibAt(s.path,H);return {k:s.k,net:(st==null||s.path[0]==null)?0:s.path[0]-st};});
  var up=arr.slice().sort(function(a,b){return b.net-a.net;}).slice(0,3),dn=arr.slice().sort(function(a,b){return a.net-b.net;}).slice(0,3);
  function f(x){return x.k+' '+(x.net>=0?'+':'')+Math.round(x.net);}
  document.getElementById('rbmov').innerHTML='<span style="color:'+P.up+'">&#9650; '+up.map(f).join(' · ')+'</span>&nbsp;&nbsp;<span style="color:'+P.down+'">&#9660; '+dn.map(f).join(' · ')+'</span>';}
-function setH(h){H=h;Array.prototype.forEach.call(document.querySelectorAll('#rbh button'),function(b){var on=+b.getAttribute('data-h')===h;b.style.background=on?'#1f6feb':'transparent';b.style.color=on?'#fff':'#8b949e';b.style.borderColor=on?'#1f6feb':'#30363d';});movers();render();}
+function setH(h){H=h;Array.prototype.forEach.call(document.querySelectorAll('#rbh button'),function(b){var on=+b.getAttribute('data-h')===h;b.style.background=on?'#1f6feb':'transparent';b.style.color=on?'#fff':'#8b949e';b.style.borderColor=on?'#1f6feb':'#30363d';});if(scEl){scEl.max=H*10;scEl.value=H*10;}if(mbEl)mbEl.textContent=MLBL[0]||'\u2014';movers();render();}
 document.getElementById('rbh').addEventListener('click',function(e){var b=e.target.closest('button');if(b)setH(+b.getAttribute('data-h'));});
 document.getElementById('rbplay').addEventListener('click',play);
 setH(12);
@@ -176,7 +207,10 @@ def _segbtn(m: int) -> str:
 
 
 def _chart_block(data: list[dict]) -> str:
-    js = _LANE_JS.replace("__SEC__", json.dumps(data))
+    asof = next((d.get("asof") for d in data if d.get("asof")), None)
+    mlbl = _month_labels(asof) if asof else []
+    js = (_LANE_JS.replace("__SEC__", json.dumps(data))
+          .replace("__MLBL__", json.dumps(mlbl)))
     return (
         '<div class="card" style="padding:10px 12px">'
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
@@ -190,6 +224,12 @@ def _chart_block(data: list[dict]) -> str:
         '<div id="rbtip" style="position:absolute;display:none;pointer-events:none;background:var(--bg-2);'
         'border:1px solid var(--line-2);border-radius:6px;padding:6px 9px;font-size:12px;color:var(--ink);'
         'max-width:280px;line-height:1.45;z-index:5"></div></div>'
+        '<div style="margin:8px 2px 2px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        '<span class="pill" id="rbmonth" style="min-width:76px;text-align:center;font-weight:700;'
+        'background:#1f6feb;border-color:#1f6feb;color:#fff">&mdash;</span>'
+        '<input id="rbscrub" type="range" min="0" max="120" value="120" step="1" '
+        'style="flex:1;min-width:220px;accent-color:#1f6feb;cursor:pointer" '
+        'aria-label="band timeline - drag to travel the look-back window"></div>'
         '<div class="sub" style="margin-top:6px">'
         '<span style="color:#39c5bb">&#9679;</span> mean-reverting · '
         '<span style="color:#d29922">&#9679;</span> trending &nbsp;|&nbsp; '
