@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes GLM-5.2 code reviewer (report-only) -> Telegram
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.code_review
+StandardOutput=append:/var/log/hermes-code-review.log
+StandardError=append:/var/log/hermes-code-review.log

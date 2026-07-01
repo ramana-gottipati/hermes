@@ -1,0 +1,18 @@
+[Unit]
+Description=Hermes CCI - FREE full-universe transcript CAPTURE (no AI, never extracts)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# A full --universe pass takes many minutes; without this, systemd kills the oneshot at the
+# default ~90s start-timeout and marks it failed.
+TimeoutStartSec=infinity
+# Capture only: --no-ai = ZERO Gemini spend. --include-covered re-checks every symbol for NEW
+# quarterly calls (and re-attempts transient fetch-fails); already-downloaded text is skipped.
+# Decoupled from the paid extraction by doctrine: ingestion is free and the concall-transcript
+# source is PERISHABLE (BSE/IR sites rotate), so capture must never stop for budget. Extraction
+# (paid Gemini) reads the on-disk .txt later and is gated separately.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.concalls --universe 3636 --workers 5 --no-ai --include-covered --min-year 2005
+StandardOutput=append:/var/log/hermes-concall-capture.log
+StandardError=append:/var/log/hermes-concall-capture.log

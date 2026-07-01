@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes Code Review Timer (nightly, report-only)
+Requires=hermes-code-review.service
+
+[Timer]
+# 02:30 IST = 21:00 UTC, daily. Late-night so it reviews the day's work and the
+# summary is waiting by morning; also off-peak for the free GLM-5.2 quota.
+OnCalendar=*-*-* 21:00:00
+Persistent=true
+Unit=hermes-code-review.service
+
+[Install]
+WantedBy=timers.target
