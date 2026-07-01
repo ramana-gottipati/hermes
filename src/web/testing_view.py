@@ -30,7 +30,7 @@ router = APIRouter()
 
 def _shell_fallback(title, body, active="", latest_date="", wide=False):
     return ("<!doctype html><meta charset='utf-8'><title>" + title + "</title>"
-            "<body style='background:#0e1116;color:#e8ecf1;font-family:system-ui;"
+            "<body style='background:var(--bg-1);color:var(--ink);font-family:system-ui;"
             "max-width:1100px;margin:0 auto;padding:24px'>" + body + "</body>")
 
 

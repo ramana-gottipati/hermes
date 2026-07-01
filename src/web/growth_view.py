@@ -36,9 +36,9 @@ _TABS = [("", "All growth"), ("debt_reduction", "Debt ↓ +2.8%"), ("volume", "V
 
 _CSS = """
 <style>
-.gw-note{color:#8b949e;font-size:13px;line-height:1.5;margin:2px 0 10px;max-width:1100px;}
+.gw-note{color:var(--ink-2);font-size:13px;line-height:1.5;margin:2px 0 10px;max-width:1100px;}
 .gw-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px;}
-.gw-tab{padding:5px 11px;border:1px solid #30363d;border-radius:16px;color:#c9d1d9;font-size:12px;
+.gw-tab{padding:5px 11px;border:1px solid var(--line-2);border-radius:16px;color:var(--ink);font-size:12px;
   text-decoration:none;white-space:nowrap;}
 .gw-tab:hover{border-color:#58a6ff;}
 .gw-tab.on{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:600;}

@@ -81,7 +81,7 @@ SNIPPET = """<script>
     if(mode==='pred') return DATA.prediction;
     var c=DATA.completed||[]; if(!c.length) return null; di=Math.max(0,Math.min(di,c.length-1)); return c[di];
   }
-  function tab(id,on,txt){ return '<span id="'+id+'" style="cursor:pointer;padding:1px 8px;border-radius:4px;'+(on?'background:#1f6feb;color:#fff;':'color:#8b949e;border:1px solid #30363d')+'">'+txt+'</span>'; }
+  function tab(id,on,txt){ return '<span id="'+id+'" style="cursor:pointer;padding:1px 8px;border-radius:4px;'+(on?'background:#1f6feb;color:#fff;':'color:var(--ink-2);border:1px solid var(--line-2)')+'">'+txt+'</span>'; }
 
   // -------------------------- MANUAL "✎ draw your own" -------------------------- //
   // Mirrors wolfe.fib_zones BYTE-FOR-BYTE: EXTENSIONS only, leg normalised to (lo,hi)
@@ -200,7 +200,7 @@ SNIPPET = """<script>
     lbl.innerHTML='<b style="color:#58a6ff">✎ DRAW</b> '+next+zs+
       ' &nbsp;&middot; <span id="wfUndo" style="cursor:pointer;text-decoration:underline">undo</span>'+
       ' &middot; <span id="wfReset" style="cursor:pointer;text-decoration:underline">reset</span>'+
-      ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:#8b949e">use auto</span>'+placed;
+      ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">use auto</span>'+placed;
     var e;
     if(e=document.getElementById('wfUndo')) e.onclick=function(){ manual.pop(); drawManual(); controls(); };
     if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; drawManual(); controls(); };

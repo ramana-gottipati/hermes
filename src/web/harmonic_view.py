@@ -121,7 +121,7 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
                if bull else
                '<span style="color:#d29922;font-size:11px" title="≈ short-drift in the backtest — tail/regime only, not a standalone edge">⚠ tail</span>')
         status = ('<span style="color:var(--up);font-weight:700">● IN</span>' if r["in_zone"]
-                  else '<span style="color:#6e7681">watch</span>')
+                  else '<span style="color:var(--ink-3)">watch</span>')
         sc = f'{r["score"]:.2f}' if (r["state"] == "CONFIRMED" and r["score"]) else "—"
         trs.append(
             # CL-VIEW-09: symbol in a single-quoted JS string inside a double-quoted attr.

@@ -64,7 +64,7 @@ def _spark(series):
     col = "var(--up)" if pts[-1] >= 0 else "var(--down)"
     return (f'<svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none" '
             f'style="display:block">'
-            f'<line x1="0" y1="15" x2="100" y2="15" stroke="#30363d" stroke-width="0.6"/>'
+            f'<line x1="0" y1="15" x2="100" y2="15" style="stroke:var(--line-2)" stroke-width="0.6"/>'
             f'<polyline points="{coords}" fill="none" style="stroke:{col}" stroke-width="1.3"/></svg>')
 
 
