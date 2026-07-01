@@ -78,19 +78,13 @@ def density_js() -> str:
 _CSS = """<style>
 .uk, .uk *{box-sizing:border-box}
 .uk{
-  --bg-0:#070a10; --bg-1:#0b0f17; --bg-2:#111824; --bg-3:#18222f;
-  --line:#1c2937; --line-2:#27384a;
-  /* --ink-3 lifted #5c6f84 → #7e90a8 for WCAG-AA (matches ui_tokens; see note there) */
-  --ink:#eaf1f9; --ink-2:#9bb0c6; --ink-3:#7e90a8;
-  --accent:#4d9dff; --accent-cy:#34e0d6; --accent-dim:rgba(77,157,255,.14);
-  --up:#3fd486; --up-dim:rgba(63,212,134,.13);
-  --down:#ff6a7a; --down-dim:rgba(255,106,122,.13);
-  --warn:#f6b73c; --cred:#b18cff; --cred-dim:rgba(177,140,255,.15);
-  --r:12px; --r-sm:8px; --r-lg:18px;
-  --shadow:0 14px 36px rgba(0,0,0,.46); --glass:inset 0 1px 0 rgba(255,255,255,.045);
-  --t:170ms cubic-bezier(.2,.7,.2,1);
-  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,'Helvetica Neue',Arial,sans-serif;
-  --mono:'SF Mono',ui-monospace,'JetBrains Mono','Cascadia Code',Menlo,Consolas,monospace;
+  /* Colour-alignment Phase 4 (de-triplication): the palette/scale tokens are NO LONGER
+     re-hardcoded here — they are inherited from the single source of truth on `:root`
+     (ui_tokens.tokens_css(), included on every native page via ui_kit.shell()'s _foundation()
+     and on the standalone memo via coverage_view._memo_shell). The values were byte-identical
+     to :root (an unguarded shadow copy); referencing :root removes the drift surface. The .uk
+     rule keeps only its own real properties (font/colour/aurora background) below, which read
+     the inherited tokens. */
   font-family:var(--font); color:var(--ink); font-size:14px; line-height:1.5;
   -webkit-font-smoothing:antialiased; font-feature-settings:'tnum' 1, 'cv01' 1;
   background:

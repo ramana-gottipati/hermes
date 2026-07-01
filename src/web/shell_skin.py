@@ -57,8 +57,8 @@ body.uk-skin{
   background:
     radial-gradient(1100px 560px at 82% -12%, rgba(77,157,255,.07), transparent 60%),
     radial-gradient(860px 480px at -8% 8%, rgba(52,224,214,.05), transparent 55%),
-    #0b0f17 !important;
-  color:#eaf1f9;
+    var(--bg-1) !important;
+  color:var(--ink);
   -webkit-font-smoothing:antialiased;
   font-feature-settings:'tnum' 1,'cv01' 1;
 }
@@ -71,10 +71,10 @@ body.uk-skin{
    (a <header> still present): keep the chrome dark + the back chip on-brand. */
 body.uk-skin header{
   background:linear-gradient(180deg,rgba(17,24,36,.92),rgba(11,15,23,.66));
-  border-bottom:1px solid #1c2937;backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);backdrop-filter:blur(12px);
 }
-body.uk-skin .hback{border:1px solid #27384a;color:#9bb0c6;border-radius:8px}
-body.uk-skin .hback:hover{border-color:#4d9dff;background:#111824}
+body.uk-skin .hback{border:1px solid var(--line-2);color:var(--ink-2);border-radius:8px}
+body.uk-skin .hback:hover{border-color:var(--accent);background:var(--bg-2)}
 /* M1 FOLLOW-UP (Ramana caught it): two legacy base rules leaked onto the new unified
    topbar's <nav class="uk-nav">, because they target the bare `nav`/`nav a` elements:
      nav   { position:fixed; bottom:0; left:0; right:0 }   (the old mobile bottom-bar)
@@ -91,26 +91,26 @@ body.uk-skin .cprpanel,
 body.uk-skin .scard,
 body.uk-skin .maj,
 body.uk-skin .chip{
-  background:#111824;border:1px solid #1c2937;border-radius:12px;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:12px;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.045);
 }
-body.uk-skin .maj{border-left:3px solid #4d9dff}
-body.uk-skin .scard{border-top:3px solid #1c2937}
+body.uk-skin .maj{border-left:3px solid var(--accent)}
+body.uk-skin .scard{border-top:3px solid var(--line)}
 /* Scorecard category borders — CATEGORICAL identity, via tokens (not raw hex). sc-RS was
    #3fd486 (== the value --up), so a category read as "bullish" AND a P4 remap-retire would
    bake that miscolor in; re-pointed to --cat-rs (a distinct category-green ≠ --up). */
 body.uk-skin .scard.sc-POS{border-top-color:var(--accent)} body.uk-skin .scard.sc-RS{border-top-color:var(--cat-rs)}
 body.uk-skin .scard.sc-QUAL{border-top-color:var(--warn)} body.uk-skin .scard.sc-CPR{border-top-color:var(--cred)}
-body.uk-skin .kpi .num,body.uk-skin .scard .ct,body.uk-skin .maj .nm{color:#eaf1f9}
-body.uk-skin .kpi .lbl,body.uk-skin .scard .th,body.uk-skin .maj .rr,body.uk-skin .sub,body.uk-skin .ghdr{color:#9bb0c6}
-body.uk-skin h2,body.uk-skin .scard .nm{color:#eaf1f9}
+body.uk-skin .kpi .num,body.uk-skin .scard .ct,body.uk-skin .maj .nm{color:var(--ink)}
+body.uk-skin .kpi .lbl,body.uk-skin .scard .th,body.uk-skin .maj .rr,body.uk-skin .sub,body.uk-skin .ghdr{color:var(--ink-2)}
+body.uk-skin h2,body.uk-skin .scard .nm{color:var(--ink)}
 /* ── tables (colour only; layout untouched) ── */
-body.uk-skin th{color:#7e90a8;border-bottom:1px solid #27384a}/* AA: was #5c6f84 (3.4:1) */
-body.uk-skin td{border-bottom:1px solid #1c2937}
-body.uk-skin .sym{color:#eaf1f9}
+body.uk-skin th{color:var(--ink-3);border-bottom:1px solid var(--line-2)}/* AA: was #5c6f84 (3.4:1) */
+body.uk-skin td{border-bottom:1px solid var(--line)}
+body.uk-skin .sym{color:var(--ink)}
 /* ── semantic ink ── */
-body.uk-skin .pos{color:#3fd486} body.uk-skin .neg{color:#ff6a7a} body.uk-skin .mut{color:#7e90a8}/* AA */
-body.uk-skin .grp{color:#4d9dff}
+body.uk-skin .pos{color:var(--up)} body.uk-skin .neg{color:var(--down)} body.uk-skin .mut{color:var(--ink-3)}/* AA */
+body.uk-skin .grp{color:var(--accent)}
 /* ── WCAG-AA (L2 W3): legacy classes hardcoding the too-dark greys #6e7681 (4.0:1) /
    #5f7488 (3.8:1) in the FROZEN bodies — caught here by class so they clear AA without
    editing dashboard.py/stock_chart.py. Mapped to the AA-safe --ink-3 (#7e90a8). Inline
@@ -135,8 +135,8 @@ body.uk-skin .errbox,body.uk-skin .warnbox{display:flex;gap:9px;align-items:flex
   font-size:var(--fs-sm);color:var(--ink-2);line-height:1.5}
 /* ── inputs / search / filter chips ── */
 body.uk-skin .search input,body.uk-skin .hsearch input,body.uk-skin .dtf{
-  background:#0b0f17;border:1px solid #27384a;color:#eaf1f9;border-radius:8px}
-body.uk-skin .search button{background:#4d9dff;color:#06121f}
+  background:var(--bg-1);border:1px solid var(--line-2);color:var(--ink);border-radius:8px}
+body.uk-skin .search button{background:var(--accent);color:var(--on-accent)}
 /* generic bare form controls (W4 sweep): _BASE_CSS gives bare input/select/button the OLD
    palette (#0d1117 bg, #30363d line, #21262d button, #e6edf3/#c9d1d9 ink). Retint to tokens
    so any legacy page's form controls (growth sort/filter, etc.) match. .fbtn / .search keep
@@ -145,31 +145,33 @@ body.uk-skin input,body.uk-skin select,body.uk-skin textarea{
   background:var(--bg-1);border-color:var(--line-2);color:var(--ink)}
 body.uk-skin button:not(.fbtn):not(.uk-cmdk):not([data-density-toggle]){
   background:var(--bg-2);border-color:var(--line-2);color:var(--ink-2)}
-body.uk-skin .fbtn{background:#111824;border:1px solid #1c2937;color:#9bb0c6;border-radius:14px}
-body.uk-skin .fbtn.on{background:#4d9dff;border-color:#4d9dff;color:#06121f}
+body.uk-skin .fbtn{background:var(--bg-2);border:1px solid var(--line);color:var(--ink-2);border-radius:14px}
+body.uk-skin .fbtn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 /* ── theme chips ── */
 body.uk-skin .tchip{background:#102234;color:#7fc0ff;border:1px solid #1d3a55}
 body.uk-skin .tchip:hover{background:#1d3a55;color:#cfe8ff}
-/* ── banners ── */
-body.uk-skin .b-on{background:rgba(63,212,134,.13);color:#3fd486;border:1px solid #1f6f3a}
-body.uk-skin .b-off{background:rgba(255,106,122,.13);color:#ff6a7a;border:1px solid #8f1f1f}
-body.uk-skin .b-neu{background:rgba(246,183,60,.13);color:#f6b73c;border:1px solid #5a4a1f}
+/* ── banners (STATUS role, D-COL #5) — via tokens, matching dashboard._BASE_CSS's .b-on/.b-off
+   token form (colour identical; the border literals #1f6f3a/#8f1f1f/#5a4a1f had no exact token
+   → expressed as the value-RGB tint, same as the body). ── */
+body.uk-skin .b-on{background:var(--up-dim);color:var(--ok);border:1px solid rgba(var(--up-rgb),.35)}
+body.uk-skin .b-off{background:var(--down-dim);color:var(--off);border:1px solid rgba(var(--down-rgb),.35)}
+body.uk-skin .b-neu{background:var(--warn-dim);color:var(--neu);border:1px solid rgba(var(--warn-rgb),.35)}
 /* ── strategy thesis badge ── */
-body.uk-skin .sbadge{border:1px solid #1c2937}
-body.uk-skin .sbadge .th{color:#9bb0c6}
+body.uk-skin .sbadge{border:1px solid var(--line)}
+body.uk-skin .sbadge .th{color:var(--ink-2)}
 /* ── tab bars ── */
-body.uk-skin .tabbar{border-bottom:1px solid #1c2937}
-body.uk-skin .tabbar a{color:#9bb0c6}
-body.uk-skin .tabbar a.on{color:#eaf1f9;border-bottom-color:#b18cff}
+body.uk-skin .tabbar{border-bottom:1px solid var(--line)}
+body.uk-skin .tabbar a{color:var(--ink-2)}
+body.uk-skin .tabbar a.on{color:var(--ink);border-bottom-color:var(--cred)}
 /* ── the frozen-pane data grid — COLOUR ONLY (sticky/z-index left exactly as-is) ── */
-body.uk-skin .scrwrap{background:#0b0f17;border:1px solid #1c2937;border-radius:12px}
+body.uk-skin .scrwrap{background:var(--bg-1);border:1px solid var(--line);border-radius:12px}
 body.uk-skin table.scr th,body.uk-skin table.scr td{border-bottom:1px solid #161f2b}
-body.uk-skin table.scr thead tr.sgrp th{background:#18222f;color:#7e90a8;border-bottom:1px solid #27384a;border-left:1px solid #1c2937}/* AA */
-body.uk-skin table.scr thead tr.scol th{background:#111824;color:#9bb0c6;border-bottom:1px solid #27384a}
-body.uk-skin table.scr .fz{background:#0b0f17;border-right:1px solid #1c2937}
-body.uk-skin table.scr thead tr.scol th.fz,body.uk-skin table.scr thead tr.sgrp th.fz{background:#18222f}
+body.uk-skin table.scr thead tr.sgrp th{background:var(--bg-3);color:var(--ink-3);border-bottom:1px solid var(--line-2);border-left:1px solid var(--line)}/* AA */
+body.uk-skin table.scr thead tr.scol th{background:var(--bg-2);color:var(--ink-2);border-bottom:1px solid var(--line-2)}
+body.uk-skin table.scr .fz{background:var(--bg-1);border-right:1px solid var(--line)}
+body.uk-skin table.scr thead tr.scol th.fz,body.uk-skin table.scr thead tr.sgrp th.fz{background:var(--bg-3)}
 body.uk-skin table.scr tbody tr:nth-child(even) td.fz{background:#0e1620}
-body.uk-skin table.scr tbody tr:hover td{background:#18222f !important}
+body.uk-skin table.scr tbody tr:hover td{background:var(--bg-3) !important}
 /* density — the frozen data grid's vertical row padding follows --grid-pad (6px comfortable
    == current, 3px compact). Only the big data grid is density-driven; small tables stay put. */
 body.uk-skin table.scr td,body.uk-skin table.scr th{padding-top:var(--grid-pad);padding-bottom:var(--grid-pad)}
@@ -254,7 +256,7 @@ body.uk-skin .gw-cr{color:var(--series-4)}
 body.uk-skin .gw-pos{color:var(--up)} body.uk-skin .gw-neg{color:var(--down)}
 body.uk-skin .gw-tab{border:1px solid var(--line);color:var(--ink-2)}
 body.uk-skin .gw-tab:hover{border-color:var(--accent)}
-body.uk-skin .gw-tab.on{background:var(--accent);border-color:var(--accent);color:#06121f}
+body.uk-skin .gw-tab.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 body.uk-skin .gw-sort:hover{color:var(--ink)}
 /* News/Wire empty-state box (news_view.py .nv-empty): grey #6e7681 (AA 4.0) + dashed
    #30363d border → map to --ink-3 (AA) + --line; the last class-based holdout (on /dash/wire). */

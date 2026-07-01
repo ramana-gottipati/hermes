@@ -1316,7 +1316,37 @@ files dirty). Baseline + after every change: all 3 gates (chrome / nav / color) 
   disproportionate risk. Same call the task already makes for `_RRG_PALETTE`.
 - **Verified:** ast.parse OK (5 files); all 3 gates PASS; render sweep `/dash/growth`,
   `/dash/testing`, `/dash/dashboard` = 200 / 0 SVG-attr leaks / `var(--series-4)` used +
-  `--series-4:#56d364` defined in `:root` (resolves). Commit: (Part A).
+  `--series-4:#56d364` defined in `:root` (resolves). Commit `19aed0b`.
+
+**Part B — Phase 4 de-triplication (HIGH care — the runtime skin + native foundation) — SHIPPED:**
+The palette was hardcoded in THREE places (`ui_tokens.py :root` = source of truth, `ui_kit.py .uk`
+scope, `shell_skin.py`). Goal met: the other two now REFERENCE `:root` (D-COL-10).
+- **`ui_kit.py`:** the `.uk` scope's local token block was a **redundant, byte-identical shadow
+  copy** of `:root` (self-referential `var()` would cycle, so it's DELETED, not rewritten) → `.uk`
+  now inherits `:root`. The **one** `K.css()`-without-`:root` consumer — `coverage_view._memo_shell`
+  (the print/PDF memo) — now prepends `T.tokens_css()`; its `_MEMO_PRINT_CSS` gained
+  `body::after{content:none}` so the printed memo is byte-unchanged (no duplicate foundation footer).
+  NOTE: the ui_tokens selftest does NOT actually assert ui_kit==:root (a task-brief inaccuracy) — the
+  shadow copy was UNGUARDED, so removing it is a real drift-surface reduction.
+- **`shell_skin.py`:** every exact-match hex → `var()` (**34 substitutions**, colour-identical since
+  each token holds the exact value; `:root` is always injected on skinned pages via `skin_css`).
+  The residual directional/status literals migrated: `.pos/.neg`→`--up/--down`, `.mut`→`--ink-3`;
+  `.b-on/.b-off/.b-neu` → `--up-dim/--ok/rgba(var(--up-rgb),.35)` etc. (STATUS role #5, matching
+  `_BASE_CSS`'s token form — the `#1f6f3a`/`#8f1f1f`/`#5a4a1f` borders had no exact token → the
+  value-RGB tint, a tiny opaque→translucent border shift). **Correctly LEFT** (no exact token): the
+  `.tchip` theme-chip categorical blues (`#102234/#7fc0ff/#1d3a55/#cfe8ff`), 2 surface nuances
+  (`#161f2b` table hairline, `#0e1620` even-row fz bg), and the aurora/header gradient rgbas.
+- **Retirement DELIBERATELY DEFERRED (not done):** removing a remap so `_BASE_CSS` wins depends on
+  dashboard.py's per-class migration being *deployed*, which is fragile against the known VPS
+  `dashboard.py` drift (S64) and would silently regress colours a 200 hides — tiny value,
+  catastrophic failure mode. Tokenizing (above) already achieves the "reference :root" goal robustly.
+  The one CRITICAL retire-hazard (D-COL-3, `.sc-RS`→`--up`) is already handled: `.sc-RS`=`--cat-rs`
+  in BOTH `_BASE_CSS` and `shell_skin`.
+- **Verified:** ast.parse OK; `shell_skin._selftest` OK (no-loss/idempotent/header-unify);
+  `ui_tokens` selftest OK; all 3 gates PASS; native pages (`/dash/coverage`, `/coverage/memo`,
+  `/strategist`, `/screen2`, `/_ui`) + skinned pages (`/dash/markets`, `/growth`, `/screener`,
+  `/dashboard`, `/sectors`, `/stock`) all 200 / `:root` present / new `var()` refs resolve
+  (incl. `--up-rgb`) / **0 SVG-attr leaks**. Commit: (Part B). DEPLOY: pending.
 
 ### Session 64 — 2026-07-02 — Colour Phase 2 (bg/hairline/ink) — near-complete via no-git fan-out
 Resumed the colour-system alignment (concurrent with the Session-63 data work; touched only `src/web/*` UI files, never `rsband_view.py` which carried a parallel session's month-scrubber WIP — left intact).
