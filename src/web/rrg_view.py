@@ -577,10 +577,11 @@ function setPlay(){var b=document.getElementById('rrgplay');if(b)b.innerHTML=pla
 function qAt(k){var c={L:0,I:0,W:0,G:0};D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;c[p[0]>=100?(p[1]>=100?'L':'W'):(p[1]>=100?'I':'G')]++;});return c;}
 function hud(k){var p=NF>1?Math.round(k*(NF-1)):0;if(mbEl)mbEl.textContent=LBL[p]||'—';if(scEl&&document.activeElement!==scEl)scEl.value=p;
  if(inEl){var c=qAt(k);inEl.innerHTML='<b>'+(LBL[p]||'')+'</b> &middot; <span style="color:var(--up)">&#9679; leading '+c.L+'</span> &nbsp;<span style="color:var(--accent)">&#9679; improving '+c.I+'</span> &nbsp;<span style="color:var(--warn)">&#9679; weakening '+c.W+'</span> &nbsp;<span style="color:var(--down)">&#9679; lagging '+c.G+'</span>';}}
-// manual scrub → the CUMULATIVE journey up to the cursor (drag back = the dots travel back)
+// manual scrub → dots at the cursor's month + a SHORT recent-heading trail (last few
+// points), so ~19 sectors don't pile their whole journeys into a spaghetti of lines.
 function frame(k){var s=grid();
- D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var hp=Math.max(0,Math.round(k*(pts.length-1))),tr=pts.slice(0,hp+1);if(!tr.length||tr[tr.length-1][0]!==p[0]||tr[tr.length-1][1]!==p[1])tr=tr.concat([p]);
-  s+=path(smooth(tr),sec.col,2,0.42);s+=dotC(MX(p[0]),MY(p[1]),sec.col,0.97);});
+ D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var hp=Math.max(0,Math.round(k*(pts.length-1))),tr=pts.slice(Math.max(0,hp-6),hp+1);if(!tr.length||tr[tr.length-1][0]!==p[0]||tr[tr.length-1][1]!==p[1])tr=tr.concat([p]);
+  s+=path(smooth(tr),sec.col,1.6,0.3);s+=dotC(MX(p[0]),MY(p[1]),sec.col,0.97);});
  D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;s+=lbl(MX(p[0]),MY(p[1])-DR-4,sec.k,1);});
  svg.innerHTML='<g>'+s+'</g>';}
 function scrubTo(p){if(raf){cancelAnimationFrame(raf);raf=null;}playing=false;setPlay();tip.style.display='none';curP=p;var k=idxK(p);frame(k);hud(k);}
