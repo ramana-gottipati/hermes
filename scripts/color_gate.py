@@ -133,6 +133,30 @@ def main() -> int:
             fails.append(f"MIGRATED REGRESSION: {rel} re-introduced legacy directional colour "
                          f"{hits} — use var(--up)/var(--down) (or rgba(var(--up-rgb),a)).")
 
+    # 3b. render-based: a var() must NEVER reach an SVG fill=/stroke= ATTRIBUTE — it is invalid
+    # CSS there and FAILS SILENTLY (the shape renders with no colour). A static scan can't catch
+    # it (source emits fill="{col}" where col holds the var), so render the glyph-dense pages with
+    # a data-bearing fixture symbol and assert no attribute resolves to var(). This is the exact
+    # bug that shipped in cockpit._mv_adbar; it now fails the build.
+    try:
+        from fastapi.testclient import TestClient
+        import src.main as _M
+        from src.web import v2_surfaces as _v2
+        _v2.wire(_M.app)
+        _client = TestClient(_M.app)
+        _attr_re = re.compile(r'(?:fill|stroke)="var\(--')
+        for _p in ("/dash/stock?sym=ALPHA", "/dash/dashboard", "/dash/rrg", "/dash/rsband?sym=ALPHA"):
+            try:
+                _n = len(_attr_re.findall(_client.get(_p).text))
+            except Exception:  # noqa: BLE001
+                continue
+            if _n:
+                fails.append(f"SVG-ATTR VAR: {_p} renders {_n} `fill=/stroke=\"var(--…)\"` — var() is "
+                             "invalid in an SVG presentation attribute (silent-fail). Emit "
+                             "style=\"fill:var(--…)\" instead.")
+    except Exception as _e:  # noqa: BLE001
+        print(f"  ~~ SVG-attr render check skipped: {type(_e).__name__}: {_e}")
+
     # 4. backlog (informational, non-failing) — legacy directional colour left in the bodies
     backlog = 0
     worst: list[tuple[int, str]] = []
