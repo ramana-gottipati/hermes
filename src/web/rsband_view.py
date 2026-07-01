@@ -244,6 +244,10 @@ var P={ink:'#e6edf3',mut:'#8b949e',val:'#3fd486',rich:'#d29922',flat:'#8b949e',u
 var SEC=__SEC__;if(!SEC.length)return;
 SEC=SEC.slice().sort(function(a,b){return (a.band==null?999:a.band)-(b.band==null?999:b.band);});
 var cx=280,cy=240,rIn=26,rOut=195,N=SEC.length,svg=document.getElementById('csvg');
+var scEl=document.getElementById('cbscrub'),mbEl=document.getElementById('cbmonth'),MLBL=__MLBL__||[];
+var KM=[0,3,6,12,18,24];
+function knots(p){var k=[];for(var i=0;i<KM.length;i++){if(p&&p[i]!=null)k.push([KM[i],p[i]]);}return k;}
+function pibAt(p,m){var ks=knots(p);if(!ks.length)return null;if(m<=ks[0][0])return ks[0][1];for(var i=0;i<ks.length-1;i++){if(m>=ks[i][0]&&m<=ks[i+1][0]){var t=(m-ks[i][0])/(ks[i+1][0]-ks[i][0]);return ks[i][1]+(ks[i+1][1]-ks[i][1])*t;}}return ks[ks.length-1][1];}
 function rad(p){if(p==null)p=50;return rIn+(Math.max(-12,Math.min(115,p))/100)*(rOut-rIn);}
 function ang(i){return -Math.PI/2+i/N*Math.PI*2;}
 var HIDX={6:2,12:3,24:5},HZ=6;
@@ -272,15 +276,19 @@ function draw(rads){svg.innerHTML=rings()+spokes(rads);
   g.addEventListener('mouseenter',function(){var t1=document.getElementById('ctxt'),t2=document.getElementById('ctxt2');t1.textContent=(sec.band==null?'n/a':Math.round(sec.band)+'/100 in band');t1.setAttribute('fill',zc(sec.band));t2.textContent=sec.n;});
   g.addEventListener('click',function(){if(sec.href)window.location.href=sec.href;});});}
 function curr(){return SEC.map(function(s){return rad(s.band);});}
+function bandAt(s,mk){var v=pibAt(s.path,mk);return v==null?s.band:v;}
+function hud(mk){var p=Math.round(mk);if(mbEl)mbEl.textContent=MLBL[p]||'\u2014';if(scEl&&document.activeElement!==scEl)scEl.value=Math.round((HZ-mk)*10);}
+function drawAt(mk){draw(SEC.map(function(s){return rad(bandAt(s,mk));}));hud(mk);}
 draw(curr());
 var raf=null;
 function breathe(){if(raf)cancelAnimationFrame(raf);
  var from=SEC.map(function(s){return rad(pH(s));}),to=curr(),t0=null;
- function step(ts){if(!t0)t0=ts;var k=Math.min(1,(ts-t0)/2400),e=1-Math.pow(1-k,3);draw(from.map(function(f,i){return f+(to[i]-f)*e;}));if(k<1)raf=requestAnimationFrame(step);}
+ function step(ts){if(!t0)t0=ts;var k=Math.min(1,(ts-t0)/2400),e=1-Math.pow(1-k,3);draw(from.map(function(f,i){return f+(to[i]-f)*e;}));hud(HZ*(1-e));if(k<1)raf=requestAnimationFrame(step);else hud(0);}
  raf=requestAnimationFrame(step);}
-function setHZ(h){HZ=h;Array.prototype.forEach.call(document.querySelectorAll('#cbh button'),function(b){var on=+b.getAttribute('data-h')===h;b.style.background=on?'#1f6feb':'transparent';b.style.color=on?'#fff':'#8b949e';});if(raf)cancelAnimationFrame(raf);draw(curr());}
+function setHZ(h){HZ=h;Array.prototype.forEach.call(document.querySelectorAll('#cbh button'),function(b){var on=+b.getAttribute('data-h')===h;b.style.background=on?'#1f6feb':'transparent';b.style.color=on?'#fff':'#8b949e';});if(raf)cancelAnimationFrame(raf);if(scEl){scEl.max=HZ*10;scEl.value=HZ*10;}hud(0);draw(curr());}
 document.getElementById('cbh').addEventListener('click',function(e){var b=e.target.closest('button');if(b)setHZ(+b.getAttribute('data-h'));});
 document.getElementById('cbreathe').addEventListener('click',breathe);
+if(scEl)scEl.addEventListener('input',function(){if(raf){cancelAnimationFrame(raf);raf=null;}var mk=HZ-(+scEl.value)/10;if(mk<0)mk=0;if(mk>HZ)mk=HZ;drawAt(mk);});
 setHZ(6);
 })();
 """
@@ -292,7 +300,10 @@ def _cbtn(m: int) -> str:
 
 
 def _clock_block(data: list[dict]) -> str:
-    js = _CLOCK_JS.replace("__SEC__", json.dumps(data))
+    asof = next((d.get("asof") for d in data if d.get("asof")), None)
+    mlbl = _month_labels(asof) if asof else []
+    js = (_CLOCK_JS.replace("__SEC__", json.dumps(data))
+          .replace("__MLBL__", json.dumps(mlbl)))
     return (
         '<div class="card" style="padding:10px 12px">'
         '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
@@ -304,7 +315,13 @@ def _clock_block(data: list[dict]) -> str:
         '<span class="sub" style="margin:0">centre = support · rim = resistance · past the rim = breakout · '
         'colour = direction over the chosen window · click a spoke to drill</span></div>'
         '<svg id="csvg" viewBox="0 0 560 500" width="100%" style="max-width:560px;display:block;margin:0 auto" '
-        'xmlns="http://www.w3.org/2000/svg"></svg></div>'
+        'xmlns="http://www.w3.org/2000/svg"></svg>'
+        '<div style="margin:6px auto 2px;max-width:560px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        '<span class="pill" id="cbmonth" style="min-width:76px;text-align:center;font-weight:700;'
+        'background:#1f6feb;border-color:#1f6feb;color:#fff">&mdash;</span>'
+        '<input id="cbscrub" type="range" min="0" max="60" value="60" step="1" '
+        'style="flex:1;min-width:200px;accent-color:#1f6feb;cursor:pointer" '
+        'aria-label="clock timeline - drag to travel the look-back window"></div></div>'
         '<script>' + js + '</script>')
 
 
