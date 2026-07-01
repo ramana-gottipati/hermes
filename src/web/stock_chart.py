@@ -39,12 +39,20 @@ SNIPPET = """<script>
 (function(){
   "use strict";
   // --- the fixed colour grammar (mirrors hermes-charts.js PALETTE) ----------
-  var C={up:'#3fd486',down:'#ff6a7a',line:'#1f6feb',dvpt:'#d29922',dvptIdle:'#30506b',
-    deliv:'#58a6ff',tval:'#30363d',dval:'#2ea043',vwap:'#f0883e',avwap:'#db61a2',
-    rs:'#39c5cf',wolfe:'#58a6ff',harm:'#f778ba',bb:'#a371f7',atr:'#56d364',
-    vol:'#3b5168',rsi:'#d2a8ff',macd:'#58a6ff',macdSig:'#f0883e',cmp:'#39c5cf',
-    txt:'#8b949e',txtHi:'#e6edf3',dim:'#7e90a8', // --ink-3: AA-safe inline (stylesheet can't reach a JS-set color)
-    border:'#30363d',grid:'#21262d',bg:'#161b22'};
+  // --- the colour grammar, SEEDED FROM THE DESIGN TOKENS (D-COL-4) -----------
+  // canvas/lightweight-charts can't consume var(), so read the token VALUES once from
+  // :root and build the whole C object from them. Every entry carries its exact current
+  // hex as a fallback, so if a token is ever absent the chart is byte-identical to before
+  // (no blank-canvas risk). Chart chrome (bg/grid/border/txt/ink) tracks the page surfaces;
+  // indicator identities map to tokens holding their exact shipped value (no recolour).
+  var _cs=getComputedStyle(document.documentElement);
+  function _t(n,fb){ var v=_cs.getPropertyValue(n); return (v&&v.trim())||fb; }
+  var C={up:_t('--up','#3fd486'),down:_t('--down','#ff6a7a'),line:_t('--chart-line','#1f6feb'),dvpt:_t('--chart-dvpt','#d29922'),dvptIdle:_t('--chart-idle','#30506b'),
+    deliv:_t('--chart-blue','#58a6ff'),tval:_t('--line-2','#30363d'),dval:_t('--chart-dval','#2ea043'),vwap:_t('--accent-orange','#f0883e'),avwap:_t('--series-5','#db61a2'),
+    rs:_t('--series-1','#39c5cf'),wolfe:_t('--chart-blue','#58a6ff'),harm:_t('--series-8','#f778ba'),bb:_t('--series-3','#a371f7'),atr:_t('--series-4','#56d364'),
+    vol:_t('--chart-vol','#3b5168'),rsi:_t('--chart-rsi','#d2a8ff'),macd:_t('--chart-blue','#58a6ff'),macdSig:_t('--accent-orange','#f0883e'),cmp:_t('--series-1','#39c5cf'),
+    txt:_t('--ink-2','#8b949e'),txtHi:_t('--ink','#e6edf3'),dim:_t('--ink-3','#7e90a8'), // --ink-3: AA-safe inline (stylesheet can't reach a JS-set color)
+    border:_t('--line-2','#30363d'),grid:_t('--bg-3','#21262d'),bg:_t('--bg-2','#161b22')};
   function E(t,css,html){ var n=document.createElement(t); if(css)n.style.cssText=css; if(html!=null)n.innerHTML=html; return n; }
   function hexA(hex,a){ var h=hex.replace('#',''); if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
     return 'rgba('+parseInt(h.slice(0,2),16)+','+parseInt(h.slice(2,4),16)+','+parseInt(h.slice(4,6),16)+','+a+')'; }
@@ -76,8 +84,8 @@ SNIPPET = """<script>
       document.head.appendChild(ms); }
     var common={ layout:{background:{color:C.bg},textColor:C.txt,fontSize:11},
       grid:{vertLines:{color:C.grid},horzLines:{color:C.grid}},
-      timeScale:{borderColor:'#30363d',rightOffset:3},
-      rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.06,bottom:0.28}},
+      timeScale:{borderColor:C.border,rightOffset:3},
+      rightPriceScale:{borderColor:C.border,scaleMargins:{top:0.06,bottom:0.28}},
       crosshair:{mode:0}, handleScroll:true, handleScale:true };
     var pc=LightweightCharts.createChart(host, Object.assign({height:host.clientHeight||480}, common));
     window.__wfpc=pc;
@@ -92,7 +100,7 @@ SNIPPET = """<script>
     // v4 price-lines have no `visible`, so we remove + re-create).
     var zoneLines=[];
     function setZones(v){
-      if(v){ if(!zoneLines.length) zoneLines=ZONES.map(function(z){ return candle.createPriceLine({price:z.price,color:z.color||'#6e7681',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label||''}); }); }
+      if(v){ if(!zoneLines.length) zoneLines=ZONES.map(function(z){ return candle.createPriceLine({price:z.price,color:z.color||C.dim,lineWidth:1,lineStyle:2,axisLabelVisible:true,title:z.label||''}); }); }
       else { zoneLines.forEach(function(pl){ try{ candle.removePriceLine(pl); }catch(e){} }); zoneLines=[]; }
     }
     setZones(true);
@@ -269,7 +277,7 @@ SNIPPET = """<script>
 
     // ---- compare state (rebased multi-symbol overlay) — built into cmpBar below
     var cmpReg={ items:[] };   // [{sym, series:[lwc points], line}]
-    var CMP_COLORS=['#39c5cf','#f0883e','#a371f7','#56d364','#db61a2'];
+    var CMP_COLORS=[_t('--series-1','#39c5cf'),_t('--series-2','#f0883e'),_t('--series-3','#a371f7'),_t('--series-4','#56d364'),_t('--series-5','#db61a2')];
 
     // ---- lower pane: recompute the active sub-indicators + manage pane height -
     var lpReg={

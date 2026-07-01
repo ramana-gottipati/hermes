@@ -59,6 +59,22 @@ _TOKENS_CSS = """<style>""" + TOKENS_MARKER + """
      scorecard border (.sc-RS) can't read as "bullish". Gives the 4 cards 4 distinct hues
      (POS=accent / RS=cat-rs / QUAL=warn / CPR=cred). Decouples category from the value contract. ── */
   --cat-rs:#34e0d6;
+  /* ── categorical / chart-series identity (colour-alignment Phase 3). Role #2 (D-COL-1):
+     multi-series + indicator-identity hues that must NEVER be --up/--down even when green/red.
+     Values MATCH the shipped chart palettes (CMP_COLORS + the stock-chart `C` grammar), so
+     seeding the canvas colour objects from getComputedStyle(:root) is colour-preserving. The
+     `--series-*` ramp is the canonical categorical palette (compare overlays / RRG sectors);
+     the `--chart-*` set names the indicator signatures the semantic tokens don't cover. ── */
+  --accent-orange:#f0883e;                 /* VWAP / MACD-signal / DISTRIB / Launchpad — categorical orange */
+  --series-1:#39c5cf; --series-2:#f0883e; --series-3:#a371f7; --series-4:#56d364;
+  --series-5:#db61a2; --series-6:#4d9dff; --series-7:#d29922; --series-8:#f778ba;
+  --chart-line:#1f6feb;                    /* price line / area primary */
+  --chart-blue:#58a6ff;                    /* delivery / wolfe / macd */
+  --chart-dvpt:#d29922;                    /* DVPT footprint amber */
+  --chart-idle:#30506b;                    /* idle DVPT marker (muted) */
+  --chart-vol:#3b5168;                     /* volume histogram (recessive grey-blue) */
+  --chart-dval:#2ea043;                    /* delivered-value bar — categorical green, NOT --up */
+  --chart-rsi:#d2a8ff;                     /* RSI line (lilac) */
   /* ── type scale (tabular instrument feel) ── */
   --fs-2xs:10.5px; --fs-xs:11.5px; --fs-sm:12.5px; --fs-md:14px; --fs-lg:16px;
   --fs-xl:19px; --fs-2xl:23px; --fs-3xl:30px;
@@ -172,7 +188,10 @@ def _selftest() -> int:
                 "--down:#ff6a7a", "--fs-md:14px", "--sp-4:16px", "--r:12px",
                 # colour-alignment Phase 0 additions
                 "--up-rgb:63,212,134", "--down-rgb:255,106,122", "--warn-rgb:246,183,60",
-                "--ok:#3fd486", "--off:#ff6a7a", "--on-accent:#06121f", "--cat-rs:#34e0d6"):
+                "--ok:#3fd486", "--off:#ff6a7a", "--on-accent:#06121f", "--cat-rs:#34e0d6",
+                # colour-alignment Phase 3 (categorical / chart-series identity)
+                "--accent-orange:#f0883e", "--series-1:#39c5cf", "--series-8:#f778ba",
+                "--chart-line:#1f6feb", "--chart-dval:#2ea043"):
         assert tok in css, f"missing token {tok}"
     assert 'data-density="compact"' in css and "uk-sr-only" in css and "prefers-reduced-motion" in css
     # the shipped ui_kit values must be preserved exactly (no visual regression)

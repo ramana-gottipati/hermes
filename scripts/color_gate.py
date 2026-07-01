@@ -48,6 +48,9 @@ REQUIRED_TOKENS = [
     "--up:#3fd486", "--down:#ff6a7a", "--warn:#f6b73c", "--accent:#4d9dff",
     "--up-rgb:63,212,134", "--down-rgb:255,106,122", "--warn-rgb:246,183,60",
     "--ok:#3fd486", "--off:#ff6a7a", "--on-accent:#06121f", "--cat-rs:#34e0d6",
+    # Phase 3 — categorical / chart-series identity (seed the canvas C object + compare palettes)
+    "--accent-orange:#f0883e", "--series-1:#39c5cf", "--series-8:#f778ba",
+    "--chart-line:#1f6feb", "--chart-dval:#2ea043", "--chart-vol:#3b5168",
 ]
 
 # ── legacy DIRECTIONAL colour literals (bull/bear) that a migrated file must not carry.
