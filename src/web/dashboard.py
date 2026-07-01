@@ -1049,14 +1049,14 @@ def _mv_ladder(dvpt, p1, p2, p3, p6, p12) -> str:
         return x0 + (v / maxv) * (x1 - x0)
     ticks = "".join(
         f'<line x1="{sx(v):.1f}" y1="{ty-4}" x2="{sx(v):.1f}" y2="{ty+th+4}" '
-        f'stroke="{"#3fb950" if dvpt >= v else "#6e7681"}" stroke-width="1"/>'
+        f'style="stroke:{"var(--up)" if dvpt >= v else "var(--ink-3)"}" stroke-width="1"/>'
         for v in ps if v)
     fw, tx = sx(dvpt) - x0, sx(dvpt)
     return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
             f'<rect x="{x0}" y="{ty}" width="{x1-x0}" height="{th}" rx="3" fill="#21262d"/>'
-            f'<rect x="{x0}" y="{ty}" width="{fw:.1f}" height="{th}" rx="3" fill="#2ea043"/>'
+            f'<rect x="{x0}" y="{ty}" width="{fw:.1f}" height="{th}" rx="3" style="fill:var(--up)"/>'
             f'{ticks}<path d="M{tx-4:.1f},{ty-8} L{tx+4:.1f},{ty-8} L{tx:.1f},{ty-2} Z" '
-            f'fill="#7ee787"/></svg>')
+            f'style="fill:var(--up)"/></svg>')
 
 
 def _mv_keyband(gap) -> str:
@@ -1069,14 +1069,14 @@ def _mv_keyband(gap) -> str:
     def sx(v):
         return x0 + ((max(lo, min(hi, v)) - lo) / (hi - lo)) * (x1 - x0)
     inb = _KEY_BAND[0] <= gap <= _KEY_BAND[1]
-    col = "#3fb950" if inb else ("#d29922" if gap > _KEY_BAND[1] else "#58a6ff")
+    col = "var(--up)" if inb else ("var(--warn)" if gap > _KEY_BAND[1] else "var(--accent)")
     b0, b1, m, z = sx(_KEY_BAND[0]), sx(_KEY_BAND[1]), sx(gap), sx(0)
     return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
             f'<rect x="{x0}" y="{ay-4}" width="{x1-x0}" height="8" rx="2" fill="#161b22" stroke="#21262d"/>'
             f'<rect x="{b0:.1f}" y="{ay-4}" width="{b1-b0:.1f}" height="8" fill="#16341f"/>'
             f'<line x1="{z:.1f}" y1="{ay-6}" x2="{z:.1f}" y2="{ay+6}" stroke="#6e7681" stroke-dasharray="1 1"/>'
-            f'<line x1="{m:.1f}" y1="{ay-7}" x2="{m:.1f}" y2="{ay+7}" stroke="{col}" stroke-width="2"/>'
-            f'<circle cx="{m:.1f}" cy="{ay}" r="2.4" fill="{col}"/></svg>')
+            f'<line x1="{m:.1f}" y1="{ay-7}" x2="{m:.1f}" y2="{ay+7}" style="stroke:{col}" stroke-width="2"/>'
+            f'<circle cx="{m:.1f}" cy="{ay}" r="2.4" style="fill:{col}"/></svg>')
 
 
 def _mv_triglyph(tcr, duo, hh) -> str:
@@ -1096,9 +1096,9 @@ def _mv_triglyph(tcr, duo, hh) -> str:
             continue
         w = abs(s) * half
         x = cx if s >= 0 else cx - w
-        col = "#484f58" if abs(s) < 0.12 else ("#2ea043" if s > 0 else "#b53b38")
+        col = "var(--ink-4)" if abs(s) < 0.12 else ("var(--up)" if s > 0 else "var(--down)")
         bars.append(f'<rect x="{x:.1f}" y="{y-2.5:.0f}" width="{max(w,1):.1f}" '
-                    f'height="{bh}" rx="1" fill="{col}"/>')
+                    f'height="{bh}" rx="1" style="fill:{col}"/>')
     return (f'<svg class="mv" width="{W}" height="26" viewBox="0 0 {W} 26" aria-hidden="true">'
             f'<line x1="{cx}" y1="2" x2="{cx}" y2="24" stroke="#30363d"/>{"".join(bars)}</svg>')
 
@@ -1120,10 +1120,10 @@ def _mv_rsspark(b1, b3, b6, b12) -> str:
     d = " ".join(f'{"L" if k else "M"}{sx(i):.1f},{sy(v):.1f}'
                  for k, (i, v) in enumerate(have))
     last = b1 if b1 is not None else have[-1][1]
-    col = "#3fb950" if last > 0 else "#f85149"
+    col = "var(--up)" if last > 0 else "var(--down)"
     return (f'<svg class="mv" width="{W}" height="22" viewBox="0 0 {W} 22" aria-hidden="true">'
             f'<line x1="{x0}" y1="{sy(0):.1f}" x2="{x1}" y2="{sy(0):.1f}" stroke="#30363d" '
-            f'stroke-dasharray="2 2"/><path d="{d}" fill="none" stroke="{col}" stroke-width="1.5"/></svg>')
+            f'stroke-dasharray="2 2"/><path d="{d}" fill="none" style="stroke:{col}" stroke-width="1.5"/></svg>')
 
 
 def _pos_cells(r) -> str:
@@ -1549,7 +1549,7 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
     def gapcell(g):
         if g is None:
             return '<td class="mut">—</td>'
-        sty = ' style="background:#16341f;color:#7ee787;font-weight:700"' if is_near_key(g) else ''
+        sty = ' style="background:var(--up-dim);color:var(--up);font-weight:700"' if is_near_key(g) else ''
         return f'<td{sty}>{g:+.1f}%</td>'
 
     def nf(v, d=0):
@@ -1727,7 +1727,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
         if mphv is not None:
             _dtt = ("%+.2f" % msc) if msc is not None else "—"
             mep_score_td = (f'<td class="num g-mep" title="phase score (today {_dtt})" '
-                            f'style="color:{"#2ea043" if mphv>=0 else "#f85149"}">{mphv:+.2f}</td>')
+                            f'style="color:{"var(--up)" if mphv>=0 else "var(--down)"}">{mphv:+.2f}</td>')
         else:
             mep_score_td = '<td class="num g-mep mut">—</td>'
         mep_cells = (f'<td class="inst l gsep g-mep">{_mv_adbar(mphv)}</td>'
@@ -2167,7 +2167,7 @@ def _cci_bar(label: str, v, invert: bool = False) -> str:
     if v is None:
         return ""
     good = (100 - v) if invert else v
-    col = "#3fb950" if good >= 66 else ("#d29922" if good >= 40 else "#f85149")
+    col = "var(--up)" if good >= 66 else ("var(--warn)" if good >= 40 else "var(--down)")
     return (f'<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px">'
             f'<span style="width:130px;color:#8b949e">{label}</span>'
             f'<span style="flex:1;max-width:150px;background:#21262d;border-radius:3px;height:7px">'
@@ -2219,8 +2219,8 @@ def _mep_stock_panel_inner(sym: str) -> str:
     phst = m["mep_state_smooth"] if "mep_state_smooth" in m.keys() else None
     phv = ph if ph is not None else sc
     phstv = phst or st
-    pcol = "#2ea043" if phv >= 0 else "#f85149"
-    scol = "#2ea043" if sc >= 0 else "#f85149"
+    pcol = "var(--up)" if phv >= 0 else "var(--down)"
+    scol = "var(--up)" if sc >= 0 else "var(--down)"
     # days held in the current phase = consecutive most-recent rows of the same phase
     held = None
     try:
@@ -2264,7 +2264,7 @@ def _mep_stock_panel_inner(sym: str) -> str:
     def _trow(name, z, raw):
         zt = f'{z:+.2f}' if z is not None else '—'
         rt = f'{raw:+.3f}' if raw is not None else '—'
-        zc = ("#2ea043" if z >= 0 else "#f85149") if z is not None else "#8b949e"
+        zc = ("var(--up)" if z >= 0 else "var(--down)") if z is not None else "var(--ink-2)"
         return (f'<tr><td class="l">{name}</td>'
                 f'<td class="r" style="color:{zc}">{zt}</td><td class="r mut">{rt}</td></tr>')
     terms = (
@@ -2341,12 +2341,12 @@ def _fno_spark(series) -> str:
     rng = (hi - lo) or 1
     n = len(pts)
     coords = " ".join(f"{i/(n-1)*100:.1f},{26 - (v-lo)/rng*24:.1f}" for i, v in enumerate(pts))
-    col = "#2ea043" if pts[-1] >= pts[0] else "#f85149"
+    col = "var(--up)" if pts[-1] >= pts[0] else "var(--down)"
     return (f'<div style="font-size:11px;color:#8b949e;margin-bottom:2px">Futures-OI trend '
             f'(last {n} days, oldest→newest)</div>'
             f'<svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none" '
             f'style="display:block">'
-            f'<polyline points="{coords}" fill="none" stroke="{col}" stroke-width="1.2"/></svg>')
+            f'<polyline points="{coords}" fill="none" style="stroke:{col}" stroke-width="1.2"/></svg>')
 
 
 def _fno_levels_bar(spot, sup, res, mp) -> str:
@@ -2366,18 +2366,18 @@ def _fno_levels_bar(spot, sup, res, mp) -> str:
         return max(1.0, min(99.0, (v - lo) / rng * 100))
 
     def tick(v, col):
-        return (f'<line x1="{_x(v):.1f}" y1="3" x2="{_x(v):.1f}" y2="17" stroke="{col}" stroke-width="1.4"/>'
+        return (f'<line x1="{_x(v):.1f}" y1="3" x2="{_x(v):.1f}" y2="17" style="stroke:{col}" stroke-width="1.4"/>'
                 if v else "")
     svg = (f'<svg width="100%" height="20" viewBox="0 0 100 20" preserveAspectRatio="none" style="display:block">'
            f'<line x1="0" y1="10" x2="100" y2="10" stroke="#30363d" stroke-width="0.6"/>'
-           f'{tick(sup, "#2ea043")}{tick(res, "#f85149")}{tick(mp, "#d29922")}'
+           f'{tick(sup, "var(--up)")}{tick(res, "var(--down)")}{tick(mp, "#d29922")}'
            f'<line x1="{_x(spot):.1f}" y1="1" x2="{_x(spot):.1f}" y2="19" stroke="#e6edf3" stroke-width="1.4"/>'
            f'</svg>')
     def lab(c, name, v):
         return (f'<span style="color:{c}">{name} <b>{v:,.0f}</b></span>' if v else "")
     row = ('<div class="sub" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:3px;font-size:11px">'
-           + " ".join(x for x in (lab("#2ea043", "▎support", sup), lab("#e6edf3", "▎spot", spot),
-                                  lab("#d29922", "▎max-pain", mp), lab("#f85149", "▎resistance", res)) if x)
+           + " ".join(x for x in (lab("var(--up)", "▎support", sup), lab("#e6edf3", "▎spot", spot),
+                                  lab("#d29922", "▎max-pain", mp), lab("var(--down)", "▎resistance", res)) if x)
            + '</div>')
     return svg + row
 
@@ -2465,7 +2465,7 @@ def _fno_stock_panel(sym: str) -> str:
         '</div>')
 
     # --- cumulative positioning (the multi-week net read, not just today) ---
-    nb_col = "#2ea043" if net_bias > 0 else ("#f85149" if net_bias < 0 else "#8b949e")
+    nb_col = "var(--up)" if net_bias > 0 else ("var(--down)" if net_bias < 0 else "var(--ink-2)")
     cum_chips = (
         '<div class="kpi" style="margin-top:6px">'
         f'<div class="box"><div class="num">{_f(oi_5d, 1, True)}%</div><div class="lbl">OI 5-day</div></div>'
@@ -2573,8 +2573,8 @@ def _cci_stock_panel(sym: str) -> str:
     # --- veto banner (the exogenous integrity gate, in front of everything) ---
     veto = ""
     if S.get("veto_active"):
-        veto = (f'<div style="border:1px solid #f85149;background:#2d1112;border-radius:6px;'
-                f'padding:8px 10px;margin:6px 0;color:#ff7b72;font-size:13px">⛔ <b>VETO</b> — '
+        veto = (f'<div style="border:1px solid var(--down);background:rgba(var(--down-rgb),.09);border-radius:6px;'
+                f'padding:8px 10px;margin:6px 0;color:var(--down);font-size:13px">⛔ <b>VETO</b> — '
                 f'{_esc(S.get("veto_reason") or "forensic disqualifier")}. Credibility capped regardless '
                 f'of how the call sounded (forensic gate, debate #1).</div>')
 
@@ -2692,7 +2692,7 @@ def _cci_stock_panel(sym: str) -> str:
     asof = f' · as of {_esc(S.get("as_of_period"))}' if S.get("as_of_period") else ""
     from src.web.cockpit import cci_state
     _st, _tone = cci_state(S)
-    _stcol = {"pos": "#3fb950", "mut": "#8b949e", "stale": "#d29922"}.get(_tone, "#8b949e")
+    _stcol = {"pos": "var(--ok)", "mut": "var(--ink-2)", "stale": "var(--warn)"}.get(_tone, "var(--ink-2)")
     state_badge = (f' <span style="font-size:11px;font-weight:700;color:{_stcol};border:1px solid {_stcol};'
                    f'border-radius:8px;padding:1px 7px">{_st}</span>' if _st else "")
     return ('<div class="ccipanel" style="border:1px solid #30363d;border-radius:8px;padding:14px;margin:14px 0;background:#0d1117">'
@@ -3397,7 +3397,7 @@ def _health_cell(thn, sig, cmp_=None, stop=None):
         bits.append(f'<span class="snap"><i>conv</i>{_then_now(conv_then, conv_now)}</span>')
     warn = [l for k, (l, _) in _HEALTH_FLAG_LABEL.items() if k in flags]
     if warn:
-        bits.append(f'<span class="snap" style="background:#3a1a1a;border-color:#8f1f1f;color:#ffa198">⚠ {", ".join(warn)}</span>')
+        bits.append(f'<span class="snap" style="background:var(--down-dim);border-color:rgba(var(--down-rgb),.35);color:var(--down)">⚠ {", ".join(warn)}</span>')
     return "".join(b for b in bits if b)
 
 
@@ -3711,7 +3711,7 @@ def _attrib_bars(title, pairs, top_n=8):
         rows = rows[:half] + rows[-half:]
     out = [f'<div class="ghdr">{title}</div>']
     for k, v in rows:
-        col = "#2ea043" if v > 0 else "#f85149"
+        col = "var(--up)" if v > 0 else "var(--down)"
         out.append(
             '<div class="trk-bar">'
             f'<span class="trk-lbl" style="width:150px">{_esc(k)}</span>'
@@ -3827,7 +3827,7 @@ def _alert_badges(firing, ready):
     """Compact cell: a green 'ready to act' badge + amber firing-alert chips."""
     bits = []
     if ready:
-        bits.append(f'<span class="snap" style="background:#16341f;border-color:#1f6f3a;color:#7ee787">⚡ {_esc(ready)}</span>')
+        bits.append(f'<span class="snap" style="background:var(--up-dim);border-color:rgba(var(--up-rgb),.35);color:var(--up)">⚡ {_esc(ready)}</span>')
     for m in firing:
         bits.append(f'<span class="snap" style="background:#3a3417;border-color:#5a4a1f;color:#ffd99a">🔔 {_esc(m)}</span>')
     return "".join(bits) or '<span class="mut">—</span>'
@@ -4657,7 +4657,7 @@ def dash_performance(just_closed: str = Query("", alias="closed"),
             out.append(
                 '<div class="trk-bar">'
                 f'<span class="trk-lbl">{_esc(s["k"])} <i class="mut">n={s["n"]}</i></span>'
-                f'<span class="bar" style="flex:1;height:16px"><span style="width:{hit:.0f}%;background:#2ea043"></span></span>'
+                f'<span class="bar" style="flex:1;height:16px"><span style="width:{hit:.0f}%;background:var(--up)"></span></span>'
                 f'<span class="trk-val">{hit:.0f}%</span>'
                 f'<span class="mut" style="width:74px;text-align:right;font-size:11px">{_pct(s["avg_ret"])}</span>'
                 '</div>')
@@ -5969,8 +5969,8 @@ def dash_stock(sym: str = Query("", max_length=20),
                         "down-skewed" if updown <= 0.77 else "balanced")
             bar = (f'<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;'
                    f'margin:2px 0 4px;background:#21262d">'
-                   f'<span style="width:{up_pct:.0f}%;background:#2ea043"></span>'
-                   f'<span style="width:{100 - up_pct:.0f}%;background:#f85149"></span></div>'
+                   f'<span style="width:{up_pct:.0f}%;background:var(--up)"></span>'
+                   f'<span style="width:{100 - up_pct:.0f}%;background:var(--down)"></span></div>'
                    f'<div class="sub" style="margin:0">Delivery ₹ on up-days (green) vs down-days '
                    f'(red), 3m — ratio <b>{updown:.2f}</b> ({skew_txt}).</div>')
         else:
@@ -5999,8 +5999,8 @@ def dash_stock(sym: str = Query("", max_length=20),
             '</tbody></table>')
         warn = ""
         if char_label == "DISTRIBUTION" and rank in ("SS", "S", "A"):
-            warn = ('<div class="card" style="border-color:#8f1f1f;background:#2a1414;margin-top:8px">'
-                    '<div class="sub" style="margin:0;color:#ffa198">⚠️ Heavy delivery, but on '
+            warn = ('<div class="card" style="border-color:rgba(var(--down-rgb),.35);background:rgba(var(--down-rgb),.08);margin-top:8px">'
+                    '<div class="sub" style="margin:0;color:var(--down)">⚠️ Heavy delivery, but on '
                     'down-days / price rolling over near highs while the crowd broadens — this reads '
                     'as <b>distribution, not accumulation</b>, despite the high trigger rank.</div></div>')
         character_html = f"""
@@ -6678,12 +6678,12 @@ const DATA = __DATA__;
   const mk=[];
   for (let i=0;i<D.length;i++){
     const d=D[i];
-    if (d.cross50) mk.push({time:d.t,position:'belowBar',color:'#3fb950',shape:'arrowUp',text:'↑50'});
-    if (d.nh52)    mk.push({time:d.t,position:'aboveBar',color:'#3fb950',shape:'circle'});
+    if (d.cross50) mk.push({time:d.t,position:'belowBar',color:'#3fd486',shape:'arrowUp',text:'↑50'});
+    if (d.nh52)    mk.push({time:d.t,position:'aboveBar',color:'#3fd486',shape:'circle'});
     if (i>0){
       const p=D[i-1];
       if (d.ma50!=null && p.ma50!=null && d.ratio<d.ma50 && p.ratio>=p.ma50)
-        mk.push({time:d.t,position:'aboveBar',color:'#f85149',shape:'arrowDown',text:'↓50'});
+        mk.push({time:d.t,position:'aboveBar',color:'#ff6a7a',shape:'arrowDown',text:'↓50'});
     }
   }
   mk.sort((a,b)=> a.time<b.time?-1:(a.time>b.time?1:0));
