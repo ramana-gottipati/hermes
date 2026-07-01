@@ -51,12 +51,13 @@ GIFT = "GIFT"
 INHERITANCE = "INHERITANCE"         # transmission / succession
 ALLOTMENT = "ALLOTMENT"            # preferential / rights / bonus / QIP (plumbing)
 CONVERSION = "CONVERSION"           # warrants / convertibles
+SCHEME = "SCHEME"                   # amalgamation / merger / demerger / arrangement (plumbing)
 OFF_MARKET = "OFF_MARKET"           # off-market, otherwise unclassified
 OPEN_MARKET_BUY = "OPEN_MARKET_BUY"
 OPEN_MARKET_SELL = "OPEN_MARKET_SELL"
 UNKNOWN = "UNKNOWN"
 
-_PLUMBING = {INTER_SE, ESOP, GIFT, INHERITANCE, ALLOTMENT, CONVERSION, OFF_MARKET}
+_PLUMBING = {INTER_SE, ESOP, GIFT, INHERITANCE, ALLOTMENT, CONVERSION, SCHEME, OFF_MARKET}
 _PLEDGE_ADVERSE = {PLEDGE_CREATE, PLEDGE_INVOKE}
 
 _PRINCIPAL_KEYS = ("promoter", "director", "kmp", "key managerial", "chairman",
@@ -82,7 +83,8 @@ def classify_txn(mode: Optional[str], acq_disp: Optional[str] = None,
     # --- pledge / encumbrance (SAST Reg 31 is the encumbrance disclosure) ---
     pledge_ctx = _has(m, "pledge", "encumbr", "lien", "non-disposal", "ndu") or (" 31" in (" " + reg))
     if pledge_ctx:
-        if _has(m, "release", "revoke", "revocation", "satisf", "closure", "removal", "return"):
+        # both stems: "revoc" = revocation (correct); "revok" = revoke / NSE's misspelling "Revokation"
+        if _has(m, "release", "revoc", "revok", "satisf", "closure", "removal", "return"):
             return PLEDGE_RELEASE
         if _has(m, "invoc", "invoke"):
             return PLEDGE_INVOKE
@@ -97,25 +99,33 @@ def classify_txn(mode: Optional[str], acq_disp: Optional[str] = None,
         return GIFT
     if _has(m, "inherit", "transmission", "succession", "will", "demise", "deceased", "bequest"):
         return INHERITANCE
-    if _has(m, "prefer", "allotment", "rights issue", "bonus", "qip", "public issue", "ipo"):
+    if _has(m, "prefer", "allotment", "rights issue", "right", "bonus", "qip", "public issue", "ipo"):
         return ALLOTMENT
     if _has(m, "convers", "warrant", "ccd", "fcd", "debenture", "esops conversion"):
         return CONVERSION
+    if _has(m, "amalgamat", "merger", "demerger", "arrangement", "scheme"):
+        return SCHEME
 
     # --- market vs off-market ---
     is_off = _has(m, "off market", "off-market", "offmarket") or ("off" in m and "market" in m)
     is_market = ("market" in m and not is_off) or _has(m, "on market", "on-market", "open market")
-    buy_words = _has(m, "purchase", "buy", "acqui") or _has(ad, "acqui", "purchase", "buy")
-    sell_words = _has(m, "sale", "sell", "dispos") or _has(ad, "dispos", "sale", "sell")
-
     if is_market:
-        if buy_words and not sell_words:
+        # Direction from the MODE first (authoritative); acq/disp only when the mode is ambiguous.
+        # (A "Market Sale" whose tdpTransactionType says "Buy" must not deadlock to UNKNOWN.)
+        m_buy, m_sell = _has(m, "purchase", "buy"), _has(m, "sale", "sell")
+        if m_buy and not m_sell:
             return OPEN_MARKET_BUY
-        if sell_words and not buy_words:
+        if m_sell and not m_buy:
+            return OPEN_MARKET_SELL
+        a_buy = _has(ad, "acqui", "purchase", "buy")
+        a_sell = _has(ad, "dispos", "sale", "sell")
+        if a_buy and not a_sell:
+            return OPEN_MARKET_BUY
+        if a_sell and not a_buy:
             return OPEN_MARKET_SELL
     if is_off:
         return OFF_MARKET
-    # mode blank but direction known and nothing else matched → still off/unknown, NOT conviction
+    # mode blank / "Others" / "-" and nothing matched → NOT conviction
     return UNKNOWN
 
 
@@ -205,6 +215,7 @@ def normalize_row(raw: dict) -> dict:
         "attachment_url": g("attachment_url", "attachment"),
         "amendment_flag": 1 if _has((g("remarks", "note") or "").lower(), "amend", "revis", "correct") else 0,
     }
+    ev["did"] = g("did", "nse_did", "disclosure_id")  # exchange-native id → best dedup key
     ev["signal_class"] = signal_class(txn_class, category)
     return ev
 
@@ -258,6 +269,10 @@ def aggregate(events: list, as_of: str, *, mcap_cr: Optional[float] = None) -> d
 
     pledge_adverse_pct_90 = pledge_pct(90, _PLEDGE_ADVERSE)
     pledge_release_pct_90 = pledge_pct(90, {PLEDGE_RELEASE})
+    # Count, not just %, because NSE pledge rows often carry a 0% holding-change (a pledge doesn't
+    # transfer ownership) — the distress signal is the EVENT existing, not a holding delta.
+    pledge_adverse_ct_90 = sum(1 for e in known
+                               if e.get("txn_class") in _PLEDGE_ADVERSE and in_window(e, 90))
 
     cluster_buyers_30 = len({e.get("person_name_hash") for e in known
                              if e.get("txn_class") == OPEN_MARKET_BUY
@@ -265,15 +280,15 @@ def aggregate(events: list, as_of: str, *, mcap_cr: Optional[float] = None) -> d
                              and e.get("person_name_hash")})
 
     # symbol-level verdict — pledge distress dominates; else net-flow sign
-    if pledge_adverse_pct_90 > 0 or any(
-            e.get("txn_class") == PLEDGE_INVOKE and in_window(e, 90) for e in known):
+    if pledge_adverse_ct_90 > 0:
         verdict = "pledge_risk"
-    elif net_90 > 0 and buy_30 > 0:
-        verdict = "conviction"
+    elif net_90 > 0:
+        verdict = "conviction"      # principals net-bought on the open market over 90d
     elif net_90 < 0:
         verdict = "caution"
     else:
         verdict = "neutral"
+    # (buy_30 / promoter_cluster_buy_30d remain exposed as a FRESHNESS sub-signal on top.)
 
     out = {
         "as_of": as_of,
@@ -283,6 +298,7 @@ def aggregate(events: list, as_of: str, *, mcap_cr: Optional[float] = None) -> d
         "open_market_sell_value_90d": round(sell_90, 2),
         "net_promoter_cashflow_90d": round(net_90, 2),
         "promoter_cluster_buy_30d": cluster_buyers_30,
+        "pledge_adverse_events_90d": pledge_adverse_ct_90,
         "pledge_adverse_pct_90d": round(pledge_adverse_pct_90, 3),
         "pledge_release_pct_90d": round(pledge_release_pct_90, 3),
         "insider_signal_class": verdict,
@@ -342,6 +358,7 @@ def save_events(conn: sqlite3.Connection, events: list) -> int:
     for ev in events:
         if not ev.get("symbol"):
             continue
+        uid = ("NSE:" + str(ev["did"])) if ev.get("did") else _uid(ev)
         conn.execute(
             """INSERT INTO insider_events
                  (uid, symbol, exchange, disclosure_dt, transaction_dt, regulation,
@@ -353,7 +370,7 @@ def save_events(conn: sqlite3.Connection, events: list) -> int:
                  disclosure_dt=excluded.disclosure_dt, txn_class=excluded.txn_class,
                  signal_class=excluded.signal_class, post_pct=excluded.post_pct,
                  amendment_flag=excluded.amendment_flag, parsed_at=datetime('now')""",
-            (_uid(ev), ev["symbol"], ev.get("exchange"), ev.get("disclosure_dt"),
+            (uid, ev["symbol"], ev.get("exchange"), ev.get("disclosure_dt"),
              ev.get("transaction_dt"), ev.get("regulation"), ev.get("person_name_hash"),
              ev.get("category"), ev.get("promoter_group_flag"), ev.get("txn_type_raw"),
              ev.get("txn_class"), ev.get("signal_class"), ev.get("shares"), ev.get("value_rs"),
@@ -364,15 +381,120 @@ def save_events(conn: sqlite3.Connection, events: list) -> int:
     return n
 
 
-def fetch_disclosures(*args, **kwargs):  # pragma: no cover — VPS wiring step
-    """STUB — the exchange fetcher lands in the VPS wiring step, against live formats.
+import time  # noqa: E402
 
-    Confirm the real NSE PIT (Reg 7(2)) CSV/XBRL column names and BSE fallback shape on the
-    VPS, emit raw dicts, then pipe through normalize_row → save_events. Deliberately not
-    implemented locally: the disclosure formats must be validated against real data, and
-    network fetching is an outward action. See module docstring for the source endpoints.
+_NSE_HOME = "https://www.nseindia.com"
+_NSE_PIT_REF = "https://www.nseindia.com/companies-listing/corporate-filings-insider-trading"
+_NSE_PIT_API = "https://www.nseindia.com/api/corporates-pit"
+_NSE_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+           "(KHTML, like Gecko) Chrome/122 Safari/537.36")
+_MON = {m: i for i, m in enumerate(
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], 1)}
+
+
+def _nse_date(s) -> Optional[str]:
+    """'18-Feb-2026 19:06' or '16-Feb-2026' -> '2026-02-18' (ISO). None on failure."""
+    if not s:
+        return None
+    part = str(s).strip().split(" ")[0]
+    bits = part.split("-")
+    if len(bits) != 3:
+        return None
+    dd, mon, yyyy = bits
+    mi = _MON.get(mon[:3].title())
+    if not mi:
+        return None
+    try:
+        return "%04d-%02d-%02d" % (int(yyyy), mi, int(dd))
+    except ValueError:
+        return None
+
+
+def _nse_to_raw(r: dict) -> dict:
+    """Map one NSE corporates-pit row → the raw dict normalize_row understands."""
+    bef = _num(r.get("befAcqSharesPer"))
+    aft = _num(r.get("afterAcqSharesPer"))
+    pct = (aft - bef) if (bef is not None and aft is not None) else None
+    return {
+        "symbol": r.get("symbol"), "exchange": "NSE",
+        "mode": r.get("acqMode"), "acquisition_disposal": r.get("tdpTransactionType"),
+        "regulation": r.get("anex"), "category": r.get("personCategory"),
+        "person_name": r.get("acqName"),
+        # PIT clock = exchange broadcast datetime ('date'); fall back to intimation date
+        "date_of_intimation": _nse_date(r.get("date")) or _nse_date(r.get("intimDt")),
+        "date_of_transaction": _nse_date(r.get("acqtoDt")) or _nse_date(r.get("acqfromDt")),
+        "shares": r.get("secAcq"), "value": r.get("secVal"),
+        "pct_equity": pct, "post_shares": r.get("afterAcqSharesNo"),
+        "post_pct": r.get("afterAcqSharesPer"),
+        "source_url": r.get("xbrl"), "attachment_url": r.get("xbrl"),
+        "remarks": r.get("remarks"), "did": r.get("did"),
+    }
+
+
+def _nse_session():
+    import requests
+    s = requests.Session()
+    h = {"User-Agent": _NSE_UA, "Accept": "application/json,text/plain,*/*",
+         "Accept-Language": "en-US,en;q=0.9", "Referer": _NSE_PIT_REF}
+    s.get(_NSE_HOME, headers=h, timeout=20)          # prime anti-bot cookies
+    s.get(_NSE_PIT_REF, headers=h, timeout=20)
+    return s, h
+
+
+def fetch_disclosures(from_date: str, to_date: str, *, session=None,
+                      headers=None) -> list:
+    """Fetch NSE PIT (insider/promoter/pledge) disclosures for a date range.
+
+    Dates are ISO (YYYY-MM-DD); the NSE API wants DD-MM-YYYY. Returns raw NSE rows.
+    The bulk date-range form is one call per range (no per-symbol fan-out).
     """
-    raise NotImplementedError("fetch_disclosures is a VPS-step stub; see module docstring")
+    if session is None:
+        session, headers = _nse_session()
+
+    def ddmmyyyy(iso):
+        y, m, d = str(iso)[:10].split("-")
+        return "%s-%s-%s" % (d, m, y)
+
+    url = "%s?from_date=%s&to_date=%s" % (_NSE_PIT_API, ddmmyyyy(from_date), ddmmyyyy(to_date))
+    r = session.get(url, headers=headers, timeout=45)
+    r.raise_for_status()
+    data = r.json()
+    rows = data.get("data") if isinstance(data, dict) else data
+    return rows or []
+
+
+def ingest_range(from_date: str, to_date: str, *, chunk_days: int = 30,
+                 pause: float = 1.2) -> dict:
+    """Fetch → normalize → save NSE PIT disclosures across a date range, chunked.
+
+    NSE caps a single query's window, so we walk it in ``chunk_days`` slices.
+    """
+    start = _d(from_date)
+    end = _d(to_date)
+    if not start or not end:
+        raise ValueError("from_date/to_date must be ISO YYYY-MM-DD")
+    session, headers = _nse_session()
+    fetched = saved = 0
+    with get_conn() as conn:
+        ensure_schema(conn)
+        cur = start
+        while cur <= end:
+            chunk_end = min(cur + timedelta(days=chunk_days - 1), end)
+            try:
+                raw = fetch_disclosures(cur.isoformat(), chunk_end.isoformat(),
+                                        session=session, headers=headers)
+            except Exception as e:  # noqa: BLE001 — one bad chunk shouldn't kill the backfill
+                log.warning("PIT fetch failed %s..%s: %s", cur, chunk_end, e)
+                cur = chunk_end + timedelta(days=1)
+                time.sleep(pause)
+                continue
+            events = [normalize_row(_nse_to_raw(x)) for x in raw]
+            saved += save_events(conn, events)
+            fetched += len(raw)
+            log.info("PIT %s..%s: %d rows", cur, chunk_end, len(raw))
+            cur = chunk_end + timedelta(days=1)
+            time.sleep(pause)
+    return {"from": from_date, "to": to_date, "fetched": fetched, "saved": saved}
 
 
 # --- selftest (synthetic, no DB, no network) -------------------------------
@@ -393,6 +515,14 @@ def _selftest() -> int:
         (("Conversion of Warrants", "Acquisition", None), CONVERSION),
         ((None, None, "31"), PLEDGE_CREATE),          # reg-31 with blank mode → encumbrance
         (("", "Acquisition", "7(2)"), UNKNOWN),        # blank mode, no market word → NOT conviction
+        # real NSE strings observed in the live feed:
+        (("Pledge Creation", None, None), PLEDGE_CREATE),
+        (("Revokation of Pledge", None, None), PLEDGE_RELEASE),   # NSE's actual misspelling
+        (("Conversion of security", "Acquisition", None), CONVERSION),
+        (("Preferential Offer", "Acquisition", None), ALLOTMENT),
+        (("Scheme of Amalgamation/Merger/Demerger/Arrangement", "Acquisition", None), SCHEME),
+        (("Market Sale", "Buy", None), OPEN_MARKET_SELL),  # mode wins over contradictory acq/disp
+        (("Public Right", "Acquisition", None), ALLOTMENT),
     ]
     for (mode, ad, reg), want in cases:
         got = classify_txn(mode, ad, reg)
@@ -438,6 +568,10 @@ def _selftest() -> int:
     aggp = aggregate(pledged, "2026-06-01")
     assert aggp["insider_signal_class"] == "pledge_risk", aggp  # pledge dominates even with a buy
     assert aggp["pledge_adverse_pct_90d"] == 8.5, aggp
+    # NSE reality: a pledge row often has 0% holding-change → verdict must fire on COUNT, not %
+    zero_pct = [mk("Pledge Creation", "Promoter", "1000000", "2026-05-25")]
+    azp = aggregate(zero_pct, "2026-06-01")
+    assert azp["insider_signal_class"] == "pledge_risk" and azp["pledge_adverse_events_90d"] == 1, azp
 
     selling = [mk("Market Sale", "Promoter", "40000000", "2026-05-10")]
     assert aggregate(selling, "2026-06-01")["insider_signal_class"] == "caution"
@@ -457,6 +591,11 @@ def main() -> None:
     p.add_argument("--reg", default=None, help="regulation (with --classify)")
     p.add_argument("--cat", default=None, help="category of person (with --classify)")
     p.add_argument("--init-schema", action="store_true", help="create the insider_events table")
+    p.add_argument("--ingest", nargs=2, metavar=("FROM", "TO"),
+                   help="fetch+save NSE PIT disclosures for an ISO date range")
+    p.add_argument("--chunk-days", type=int, default=30, help="ingest chunk size (days)")
+    p.add_argument("--agg", metavar="SYMBOL", help="aggregate stored events for a symbol")
+    p.add_argument("--as-of", default=None, help="ISO date for --agg (default today)")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -471,6 +610,17 @@ def main() -> None:
         with get_conn() as conn:
             ensure_schema(conn)
         log.info("insider_events schema ensured")
+        return
+    if args.ingest:
+        res = ingest_range(args.ingest[0], args.ingest[1], chunk_days=args.chunk_days)
+        log.info("insider ingest: %s", res)
+        return
+    if args.agg:
+        as_of = args.as_of or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        with get_conn() as conn:
+            rows = [dict(r) for r in conn.execute(
+                "SELECT * FROM insider_events WHERE symbol=? ORDER BY disclosure_dt", (args.agg.upper(),))]
+        print(json.dumps(aggregate(rows, as_of), indent=2, default=str))
         return
     p.print_help()
 
