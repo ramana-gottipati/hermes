@@ -7,6 +7,17 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🏛 AUDIT BOOT-CHECK (2026-07-02, binding until the P0s land)
+A full institutional adversarial audit is on record at **`docs/AUDIT-2026-07-02-institutional-review.md`**
+(117 AUD items, scorecard, its own fix prompt — the audit fix-session owns that queue). Before starting
+ANY work, honour its in-flight guardrails:
+1. **Never run `scripts/setup-news.sh` on the VPS** — it silently regresses the live hermes-concalls unit (AUD-28).
+2. **Never `systemctl start` a hermes timer mid-day** — `Requires=` fires the job immediately into the DB (AUD-95).
+3. `hermes-concall-capture.service` is live-broken — next run Sun **Jul-05** fails (AUD-03); the audit fix-session owns it.
+4. AUD-01 security window: uvicorn will bind to 127.0.0.1 + `CHAT_SHARED_SECRET` — curl gates via
+   localhost-on-VPS (ssh) or the Caddy hostname, never the raw `:8000` from outside.
+Also: `src/automation/sast_events.py` is untracked and belongs to another lane — never stage it.
+
 ## STATE DIGEST (as of the Session-75 trio, 2026-07-02 — three parallel lanes all wrapped)
 - **PRIMARY-SOURCE FUNDAMENTALS: Phases 1 + 2 + 2c LIVE (D78/D82).** `fundamentals_xbrl.py` nightly
   16:30 UTC, forward-only, source-tagged, per-symbol continuity gate. **Banks now map** (tag-detected
@@ -50,10 +61,9 @@ PROJECT_STATE entries are enough.**
    `/var/log/hermes-fundamentals-xbrl.log` for runtime + gate-verdict quality — banks flow for the
    first time; gate-evidence fetches make early runs heavy. If a mapper improvement lands, re-arbitrate
    affected symbols with `--regate --symbols ...`. Watch `hermes-shareholding-xbrl` the same nights.
-5. **Kill-switch completion** (queue unchanged): #4 restatement-spike (add a revision counter to the
-   XBRL ingest — `revised` flags already parsed), #1 WML-drawdown + #3 live-IC decay (check whether
-   enough momentum_scan history has accumulated yet; else defer again), and surface WARN/CRIT states
-   on affected pages (data-first: show, don't hide).
+5. **Kill-switch completion — mostly DONE (`be7826a`):** #4 restatement-spike + WARN/CRIT surfacing
+   on affected pages shipped. Remaining: #1 WML-drawdown + #3 live-IC decay (check whether enough
+   momentum_scan history has accumulated yet; else defer again).
 6. **A/B ENHANCEMENTS:** SAST Reg 29 (`corporate-sast-reg29`) + Reg 31 pledge-magnitude
    (`corporate-pledgedata-sast3132`) — per-EVENT pledge magnitude (the SHP `Promoter Pledge` gives the
    quarterly STOCK; Reg 31 gives the FLOW between quarters). Codex resp-14/15.
