@@ -71,7 +71,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 |---|---|
 | Read project state | Open `D:\Hermes\PROJECT_STATE.md` |
 | SSH to VPS | `ssh root@187.127.173.149` |
-| Update VPS from latest GitHub | `wget -qO /tmp/setup.sh https://raw.githubusercontent.com/ramana-gottipati/hermes/main/scripts/setup-news.sh && bash /tmp/setup.sh` |
+| Update VPS from latest GitHub | 🔴 **BANNED until AUD-28 is fixed — do NOT run `setup-news.sh` on the VPS** (its heredoc silently reverts the live `ExecStartPre` on hermes-concalls.service). Deploy by scp + writer-safe restart per `PROJECT_STATE.md`/`vps-deploy-reality` recipe. Also never `systemctl start` a hermes *timer* mid-day (`Requires=` fires the job immediately, AUD-95). See `docs/AUDIT-2026-07-02-institutional-review.md`. |
 | Run 5y bhav copy backfill (background) | `nohup bash /opt/hermes/scripts/full-backfill.sh > /var/log/hermes-backfill.log 2>&1 &` |
 | Pull all VPS data to laptop | Double-click `D:\Hermes\scripts\download-from-vps.bat` |
 | Bot status | `systemctl status hermes-telegram` |
