@@ -82,8 +82,12 @@ symbols passing the series-continuity gate (`fundamentals_xbrl_gate`).
 6. **Beta/sector breach:** any shortlist snapshot violating §4 limits renders the breach on the
    surface itself (data-first: show, don't hide).
 
-Enforcement wiring for #1/#3/#4/#5 into the nightly data-quality timer is the open follow-up;
-#2 and #6 are live by construction (as-of shown on the surface; scan self-heals its cache).
+**Enforcement status (2026-07-02):** #1 (regime leg), #2, #5, plus an event-feed-liveness check
+(insider/ratings staleness — the lesson of the corporates-pit endpoint death) are LIVE in the
+nightly `hermes-data-quality` battery (`data_quality.py` "killswitch.*" checks). #6 is live by
+construction (limits rendered on the surface). Open: #1's WML-drawdown leg (needs accumulated
+`momentum_scan` history), #3 live-IC (same), #4 restatement-spike (needs a revision ledger on the
+XBRL ingest).
 
 ## 6. Change control
 

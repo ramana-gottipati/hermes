@@ -31,9 +31,11 @@ Do NOT burn the context window re-reading history — this file + the top PROJEC
    separate NSE filing class) to replace the Screener shareholding series. Watch the first
    results-season nights (from ~Jul-09): gate-evidence fetches make early runs heavy — check
    `/var/log/hermes-fundamentals-xbrl.log` for runtime + gate verdict quality.
-3. **Kill-switch enforcement wiring** (validation memo §5): momentum-crash guard, live-IC decay,
-   restatement-spike, universe-drift → nightly `hermes-data-quality` (or a small new module);
-   surface breaches on the affected pages (data-first: show, don't hide).
+3. **Kill-switch completion** (partially DONE `93f6abe` — market-freshness, regime, universe-drift
+   + feed-liveness are LIVE in the data-quality battery): remaining = #1's WML-drawdown leg and
+   #3 live-IC decay (both need a few weeks of accumulated momentum_scan history — check
+   feasibility, else defer), #4 restatement-spike (add a revision counter to the XBRL ingest),
+   and surfacing WARN/CRIT states on the affected pages (data-first: show, don't hide).
 4. **A/B ENHANCEMENTS:** SAST Reg 29 (`corporate-sast-reg29`) + Reg 31 pledge-magnitude
    (`corporate-pledgedata-sast3132`) — pledge % that PIT lacks (Codex resp-14/15).
 5. **C consumption wave (needs backtest first):** fold C into `scoring.py` / a screener column /
