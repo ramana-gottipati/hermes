@@ -17,6 +17,7 @@ from __future__ import annotations
 import html
 import math
 from contextlib import nullcontext
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
@@ -100,10 +101,12 @@ def _svg(items) -> str:
         ax, ay = px + (-oy) / mag * L, py + ox / mag * L   # clockwise tangent (screen)
         rsi = it.get("rsi")
         title = f'{_esc(it["n"])} · {lab}' + (f' · RSI {float(rsi):.0f}' if rsi is not None else "")
+        drill = f'/dash/sector-momentum?idx={quote_plus(str(it["n"]))}'
         out.append(f'<line x1="{px:.1f}" y1="{py:.1f}" x2="{ax:.1f}" y2="{ay:.1f}" '
                    f'style="stroke:{col};stroke-width:1.5;opacity:0.65" marker-end="url(#cvel)"/>')
-        out.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5" style="fill:{col}">'
-                   f'<title>{title}</title></circle>')
+        out.append(f'<a href="{drill}"><circle cx="{px:.1f}" cy="{py:.1f}" r="5" '
+                   f'style="fill:{col};cursor:pointer"><title>{title} — drill to constituents'
+                   f'</title></circle></a>')
         if id(it) in labelset:
             out.append(f'<text x="{px + 7:.1f}" y="{py + 3:.1f}" '
                        f'style="fill:var(--ink-2);font:400 11px system-ui">{_esc(_short(it["n"]))}</text>')
