@@ -1216,12 +1216,11 @@ def dash_sectors() -> HTMLResponse:
 
 
 @router.get("/dash/rs", response_class=HTMLResponse)
-def dash_rs() -> HTMLResponse:
-    """Cross-sector RS-momentum ranking (on-read; 0.6·slope_3m + 0.4·slope_6m).
-    Full-bleed cockpit render (cockpit.render_rs); legacy body kept dead."""
-    from src.web.cockpit import render_rs
-    _, idx_date = _latest_dates()
-    return HTMLResponse(_shell("RS ranking · patearn", render_rs(), "rs", idx_date or "", wide=True))
+def dash_rs() -> RedirectResponse:
+    """Legacy cross-sector RS cockpit — SUPERSEDED by the canonical /dash/rs-hub.
+    Redirect (the lens registry already aliases `rs`→rs-hub); orphaned-screen panel
+    decision 2026-07-02 to collapse the duplicate RS surface. Legacy render in git."""
+    return RedirectResponse("/dash/rs-hub", status_code=307)
 
 
 @router.get("/dash/leaders", response_class=HTMLResponse)
@@ -1236,7 +1235,12 @@ def dash_leaders() -> HTMLResponse:
 
 
 @router.get("/dash/scan", response_class=HTMLResponse)
-def dash_scan(limit: int = Query(25, ge=5, le=60)) -> HTMLResponse:
+def dash_scan(limit: int = Query(25, ge=5, le=60)) -> RedirectResponse:
+    # Legacy DVPT trigger scan → SUPERSEDED by /dash/stocks (Positioning); the lens
+    # registry already aliases `scan`→stocks. Orphaned-screen panel decision 2026-07-02
+    # to remove the ranked-list duplicate (also drops a prescriptive framing). Legacy
+    # body below is retained (unreachable) for git-diff clarity.
+    return RedirectResponse("/dash/stocks", status_code=307)
     sig_date, _ = _latest_dates()
     rows = []
     if sig_date:
@@ -2717,14 +2721,11 @@ def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
 
 
 @router.get("/dash/strategies", response_class=HTMLResponse)
-def dash_strategies() -> HTMLResponse:
-    """Workspace: pick a strategy, see TODAY's best stocks from each pillar.
-    Full-bleed, registry-driven cockpit render (cockpit.render_strategies); the
-    legacy inline .scard body below is kept as dead code."""
-    sig_date, idx_date = _latest_dates()
-    from src.web.cockpit import render_strategies
-    return HTMLResponse(_shell("Strategies · patearn", render_strategies(sig_date, idx_date),
-                               "strategies", sig_date or "", wide=True))
+def dash_strategies() -> RedirectResponse:
+    """Legacy strategy hub — MERGED into /dash/strategist (the registry aliases
+    `strategies`→strategist). Redirect; orphaned-screen panel decision 2026-07-02.
+    Legacy cockpit render retained in git history."""
+    return RedirectResponse("/dash/strategist", status_code=307)
 
 
 def _cpr_sep_cell(v):

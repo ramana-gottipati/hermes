@@ -56,7 +56,11 @@ if _ROOT not in sys.path:
 # link, and NO legacy search form (.hsearch). A representative page per altitude +
 # the stock page + the strategy lenses that historically lost their chrome.
 LEGACY_PAGES = [
-    "/dash/markets", "/dash/screener", "/dash/strategies", "/dash/dashboard",
+    # NB: /dash/strategies, /dash/rs, /dash/scan are now 307-redirects to their canonical
+    # successors (strategist / rs-hub / stocks) — orphaned-screen dedup 2026-07-02 — so
+    # they are no longer full chrome pages. /dash/stocks (Positioning) stands in as the
+    # still-live strategies-altitude legacy page.
+    "/dash/markets", "/dash/screener", "/dash/stocks", "/dash/dashboard",
     "/dash/stock?sym=ACC", "/dash/mep", "/dash/cpr", "/dash/leaders",
     "/dash/conviction", "/dash/sectors",
     # /dash/testing must render (graceful "unavailable" state) even when research.db
