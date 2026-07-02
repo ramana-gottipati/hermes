@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "MultiEdit",
+      "NotebookEdit",
+      "Bash",
+      "PowerShell",
+      "WebSearch",
+      "WebFetch",
+      "Skill",
+      "Agent",
+      "Task",
+      "TodoWrite",
+      "Workflow",
+      "Read(//d/**)",
+      "Edit(//d/Hermes/**)",
+      "Read(//c/Users/gotti/.claude/**)",
+      "Edit(//c/Users/gotti/.claude/projects/**)",
+      "Read(//c/Users/gotti/AppData/Local/Temp/claude/**)",
+      "Edit(//c/Users/gotti/AppData/Local/Temp/claude/**)",
+      "mcp__visualize",
+      "mcp__Claude_Preview",
+      "mcp__claude-in-chrome",
+      "mcp__Claude_in_Chrome",
+      "mcp__ccd_session",
+      "mcp__scheduled-tasks",
+      "mcp__mcp-registry"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\gotti\\.claude",
+      "C:\\Users\\gotti\\AppData\\Local\\Temp\\claude"
+    ]
+  }
+}
