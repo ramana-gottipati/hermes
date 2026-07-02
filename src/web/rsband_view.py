@@ -30,6 +30,7 @@ from fastapi.responses import HTMLResponse
 from src.automation import adjust, capture, rsband
 from src.core.db import get_conn
 from src.web.dashboard import _shell
+from src.web import glossary as G       # `?` hover-help on the RS-band column headers
 
 try:
     from src.web.dashboard import REAL_SECTORS as _REAL_SECTORS
@@ -326,8 +327,12 @@ def _clock_block(data: list[dict]) -> str:
 
 
 def _table(data: list[dict], den: str, link_fn=None) -> str:
-    head = ("<thead><tr><th>Sector</th><th>Band</th><th>Regime</th><th>Trend-R²</th>"
-            "<th>State</th><th>Verdict</th></tr></thead>")
+    head = ("<thead><tr><th>Sector</th>"
+            f"<th>{G.gloss('RS band %','Band')}</th>"
+            f"<th>{G.gloss('Regime','Regime')}</th>"
+            "<th>Trend-R²</th>"
+            f"<th>{G.gloss('Break state','State')}</th>"
+            "<th>Verdict</th></tr></thead>")
     vc = {"Accumulate": "var(--up)", "Add": "var(--up)", "Ride": "var(--up)",
           "Avoid": "var(--down)", "Fade": "var(--down)", "Hold": "var(--ink-2)"}
     # directional verdict → token rgba tint (var()+hex-alpha is invalid CSS).
@@ -932,5 +937,5 @@ def rsband_page(den: str = Query("Nifty 500", max_length=40),
             body = render_band_channel(idx, den, conn=conn) + render_constituents(idx, conn, vs)
         return HTMLResponse(_shell(f"{idx} — RS band", body, active="markets", wide=True))
     view = view if view in ("lanes", "clock", "rrg") else "lanes"
-    return HTMLResponse(_shell("RS support & resistance", render_band_lanes(den, view, tail=tail),
+    return HTMLResponse(_shell("RS support & resistance", G.css() + render_band_lanes(den, view, tail=tail),
                                active="markets", wide=True))

@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse
 from src.automation import stock_rs
 from src.core.db import get_conn
 from src.web.dashboard import _shell   # chrome + CSS (import-safe; see rrg_view)
+from src.web import glossary as G       # `?` hover-help on the phase headings + RS columns
 
 try:
     from src.web.dashboard import REAL_SECTORS as _REAL_SECTORS
@@ -212,7 +213,7 @@ def _cell(phase: str) -> str:
             f'href="/dash/rotation?phase={quote_plus(phase)}">See all {len(rows)} →</a></div>'
             if len(rows) > 7 else "")
     return (f'<div class="rq" style="border-color:{col}33">'
-            f'<h3 style="color:{col}">{lbl} <span class="rq-n" style="color:{col}">{len(rows)}</span></h3>'
+            f'<h3 style="color:{col}">{G.gloss("Phase", lbl)} <span class="rq-n" style="color:{col}">{len(rows)}</span></h3>'
             f'<div class="rq-sub">{sub}</div>{table}{more}</div>')
 
 
@@ -221,9 +222,12 @@ def _table(phase: str) -> str:
     lbl = PHASE.get(phase, PHASE["NEUTRAL"])[0]
     if not rows:
         return f'<h3 style="margin-top:14px">{lbl} — all members</h3><div class="sub">None right now.</div>'
-    head = ('<thead><tr><th class="l">Symbol</th><th>RS rank</th><th class="l">Sector</th>'
+    head = ('<thead><tr><th class="l">Symbol</th>'
+            f'<th>{G.gloss("RS rank","RS rank")}</th>'
+            '<th class="l">Sector</th>'
             '<th>Sector</th><th>1m</th><th>3m</th><th>6m</th><th>12m</th><th>18m</th><th>24m</th>'
-            '<th>RSI-RS</th><th class="l">Signals</th><th>CMP</th></tr></thead>')
+            f'<th>{G.gloss("RSI-of-RS","RSI-RS")}</th>'
+            f'<th class="l">{G.gloss("Rotation pills","Signals")}</th><th>CMP</th></tr></thead>')
     tr = []
     for r in rows:
         sphase = r.get("sector_phase")
@@ -292,4 +296,4 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
             'share the phase). Table below = every member of the selected phase, full RS term structure.</div>')
     body = ('<div class="rwrap">' + head + banner + grid + movers
             + _pills(phase) + _table(phase) + '</div>')
-    return HTMLResponse(_shell("RS rotation · patearn", _CSS + body, active="markets", wide=True))
+    return HTMLResponse(_shell("RS rotation · patearn", _CSS + G.css() + body, active="markets", wide=True))

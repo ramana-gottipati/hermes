@@ -31,6 +31,7 @@ from fastapi.responses import HTMLResponse
 from src.automation import adjust, capture, rrg
 from src.core.db import get_conn
 from src.web.dashboard import _shell   # chrome + CSS (import-safe; see investigation)
+from src.web import glossary as G       # `?` hover-help on the RS-depth column headers
 
 # Curated economic-sector whitelist (same set /dash/sectors & /dash/rs use), so the
 # map shows ~19 readable dots instead of all ~170 NSE indices. Defensive import:
@@ -209,9 +210,16 @@ def _svg(rows: list[dict], caps: dict, tails: dict, link_fn=None) -> str:
 
 
 def _table(rows: list[dict], caps: dict, den: str) -> str:
-    head = ("<thead><tr><th>Sector</th><th>Quadrant</th><th>RS-ratio</th>"
-            "<th>RS-mom</th><th>RSI-of-RS</th><th>Mansfield</th>"
-            "<th>Falls-less Δ%</th><th>Down-cap</th><th>Up-cap</th><th>Signals</th></tr></thead>")
+    head = ("<thead><tr><th>Sector</th>"
+            f"<th>{G.gloss('RS Quadrant','Quadrant')}</th>"
+            f"<th>{G.gloss('RS-Ratio','RS-ratio')}</th>"
+            f"<th>{G.gloss('RS-Momentum','RS-mom')}</th>"
+            f"<th>{G.gloss('RSI-of-RS','RSI-of-RS')}</th>"
+            f"<th>{G.gloss('Mansfield','Mansfield')}</th>"
+            f"<th>{G.gloss('Down-excess','Falls-less Δ%')}</th>"
+            f"<th>{G.gloss('Down-capture','Down-cap')}</th>"
+            f"<th>{G.gloss('Up-capture','Up-cap')}</th>"
+            f"<th>{G.gloss('RRG turn flags','Signals')}</th></tr></thead>")
     body = []
     for r in rows:
         num = r["numerator"]
@@ -322,8 +330,11 @@ def _constituent_head(index_name: str, ben: str, vs: str = "sector") -> str:
 
 
 def _constituent_table(rows: list[dict], den: str) -> str:
-    head = ("<thead><tr><th>Stock</th><th>Quadrant</th><th>RS-ratio</th>"
-            "<th>RS-mom</th><th>RSI-of-RS</th></tr></thead>")
+    head = ("<thead><tr><th>Stock</th>"
+            f"<th>{G.gloss('RS Quadrant','Quadrant')}</th>"
+            f"<th>{G.gloss('RS-Ratio','RS-ratio')}</th>"
+            f"<th>{G.gloss('RS-Momentum','RS-mom')}</th>"
+            f"<th>{G.gloss('RSI-of-RS','RSI-of-RS')}</th></tr></thead>")
     body = []
     for r in rows:
         sym = r["numerator"]
@@ -818,7 +829,7 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
         if not rows:
             body = _empty_constituents(idx)
         else:
-            body = (_constituent_head(idx, ben, vs)
+            body = (G.css() + _constituent_head(idx, ben, vs)
                     + _svg(rows, {}, tails, link_fn=lambda s: "/dash/stock?sym=" + quote_plus(s))
                     + _constituent_table(rows, ben))
         return HTMLResponse(_shell(f"{idx} — rotation", body, active="markets", wide=True))
@@ -828,7 +839,7 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
     if not rows:
         body = _empty()
     else:
-        body = (_controls(den)
+        body = (G.css() + _controls(den)
                 + _sectors_rrg_block(rows, caps, tails, den, months,
                                      tail_base="/dash/rrg", tail_view="", dot_link=True)
                 + _table(rows, caps, den))
