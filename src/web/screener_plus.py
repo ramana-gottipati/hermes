@@ -27,6 +27,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web import ui_kit as K
+from src.web import glossary as G  # `?` hover-help — wire the existing (inert) glossary
 
 log = logging.getLogger("hermes.screen2")
 router = APIRouter()
@@ -750,15 +751,15 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     grp_band = (
         '<tr class="grp">'
         '<th class="sym">stock</th><th colspan="2">identity</th>'
-        '<th class="cg-conf gl" colspan="1">confluence</th>'
-        '<th class="cg-pos gl" colspan="6">positioning · dvpt</th>'
-        '<th class="cg-mep gl" colspan="3">accumulation · mep</th>'
-        '<th class="cg-rs gl" colspan="8">relative strength</th>'
-        '<th class="cg-cpr gl" colspan="3">structure · cpr</th>'
-        '<th class="cg-cci gl" colspan="3">credibility · cci</th>'
-        '<th class="cg-wol gl" colspan="2">wolfe</th>'
-        '<th class="cg-qual gl" colspan="2">quality · pt14</th>'
-        '<th class="cg-ctx gl" colspan="4">context · character</th></tr>')
+        '<th class="cg-conf s2gh" colspan="1">confluence</th>'
+        '<th class="cg-pos s2gh" colspan="6">positioning · dvpt</th>'
+        '<th class="cg-mep s2gh" colspan="3">accumulation · mep</th>'
+        '<th class="cg-rs s2gh" colspan="8">relative strength</th>'
+        '<th class="cg-cpr s2gh" colspan="3">structure · cpr</th>'
+        '<th class="cg-cci s2gh" colspan="3">credibility · cci</th>'
+        '<th class="cg-wol s2gh" colspan="2">wolfe</th>'
+        '<th class="cg-qual s2gh" colspan="2">quality · pt14</th>'
+        '<th class="cg-ctx s2gh" colspan="4">context · character</th></tr>')
     cols = ['Symbol', 'Sector', 'CMP', 'Confl',
             'DVPT vs power', 'Rank', 'P', 'R', '×1m', 'Dlv%',
             'Accum', 'Phase', 'State',
@@ -777,9 +778,24 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                   'cg-wol', 'cg-wol',
                   'cg-qual', 'cg-qual',
                   'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
+    # glossary key per column (aligned to `cols`) — `?` hover-help via the wired glossary.
+    # Verified against docs/metrics-glossary.md: only terms that resolve to the CORRECT
+    # definition are wired; '' = plain label (undocumented OR would mis-resolve, e.g. the
+    # CCI 'Tier'/'Trend' columns would wrongly match the pt14 'Tier' entry). gloss() itself
+    # degrades any unknown key to the plain label, so this list is safe by construction.
+    col_terms = ['', '', 'cmp · δ%d · deliv%', '',                    # identity + confluence
+                 'DVPT', 'trigger_rank', 'p_score', 'r_score', '×power', '',   # positioning · dvpt
+                 '', '', '',                                          # mep (undocumented)
+                 'RS vs broad', 'RS heat strip', 'rs_rank', 'RS vs broad', '', '', '', '',  # rs
+                 'pattern', 'compression_pctile', 'pattern',          # cpr
+                 '', '', '',                                          # cci (undoc / mis-resolve)
+                 '', '',                                              # wolfe (undocumented)
+                 'ns_base', 'ns_base',                                # quality · pt14
+                 'accum_character', 'surge 1m', 'pct_from_52w_high', 'accum_character']  # context
     col_band = '<tr class="col">' + "".join(
-        f'<th class="{("sym" if i==0 else "")} {g}" data-c="{i}">{K.esc(c)}</th>'
-        for i, (c, g) in enumerate(zip(cols, col_groups))) + '</tr>'
+        f'<th class="{("sym" if i==0 else "")} {g}" data-c="{i}" data-label="{K.esc(c)}">'
+        f'{G.gloss(t, c) if t else K.esc(c)}</th>'
+        for i, (c, g, t) in enumerate(zip(cols, col_groups, col_terms))) + '</tr>'
     thead = f'<thead>{grp_band}{col_band}</thead>'
     tbody = "".join(trs)
 
@@ -846,7 +862,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         table = ('<div class="uk-card">No rows for this scope on the latest date. '
                  'Try a broader scope, or this host may not have signals computed yet.</div>')
 
-    body = _CSS + head + controls + table + _JS
+    body = _CSS + G.css() + head + controls + table + _JS
     return HTMLResponse(K.shell("Screen+ · patearn", body,
                                 active="screener", sub=_sub(), nav_html=_nav_html("screener")))
 
@@ -895,7 +911,7 @@ _CSS = """<style>
   border:1px solid var(--line-2);border-radius:8px;padding:6px 10px}
 #s2filter{min-width:240px}
 table.s2 th{cursor:pointer;user-select:none}
-table.s2 th.gl{text-align:center;color:var(--ink-2);border-left:1px solid var(--line-2)}
+table.s2 th.s2gh{text-align:center;color:var(--ink-2);border-left:1px solid var(--line-2)}
 table.s2 tr.grp th{background:var(--bg-3);font-size:10px}
 table.s2 td.confl{font-weight:600}
 table.s2 td.confl b{font-size:13px}
@@ -993,7 +1009,7 @@ if(csv)csv.addEventListener('click',function(){
   function visCols(){var out=[];tbl.querySelectorAll('tr.col th').forEach(function(th,i){
     if(th.offsetParent!==null)out.push(i);});return out;}
   var cols=visCols(), lines=[];
-  var hdr=[];tbl.querySelectorAll('tr.col th').forEach(function(th,i){if(cols.indexOf(i)>=0)hdr.push('"'+(th.textContent||'').trim()+'"');});
+  var hdr=[];tbl.querySelectorAll('tr.col th').forEach(function(th,i){if(cols.indexOf(i)>=0){var lbl=th.getAttribute('data-label')||(th.textContent||'').trim();hdr.push('"'+String(lbl).replace(/"/g,'""')+'"');}});
   lines.push(hdr.join(','));
   rowsArr().forEach(function(r){if(r.style.display==='none')return;var c=[];
     cols.forEach(function(i){var td=r.cells[i];var d=td&&td.getAttribute('data-v');

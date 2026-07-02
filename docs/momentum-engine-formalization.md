@@ -20,20 +20,9 @@ alpha. This caveat travels with every number we show.
 
 ## Step 1 (DONE) — exact definitions + the role decision
 
-The variants, precisely as implemented in `research/explosive_moves/factor_zoo.py` (i0 = rebalance
-bar; ac = split-adjusted close; 126≈6mo, 252≈12mo, 66≈3mo trading days):
-
-| Name | Formula | Reading |
-|---|---|---|
-| **MOM6** | `ac[i0]/ac[i0-126] − 1` | 6-month total return |
-| **MOM12** | `ac[i0]/ac[i0-252] − 1` | 12-month total return (the classic) |
-| **RISKADJ** | `MOM6 ÷ vol_66` | return per unit of recent (3-mo) volatility — **best Sharpe** |
-| **LOWVOL** | `−vol_66` | prefers calm names (ballast, weak alone) |
-| **LOWBETA (BAB)** | `−beta` (trailing 252 vs Nifty 50) | prefers low market sensitivity |
-| **RESID_MOM** | `MOM6 − beta·idx_MOM6` | idiosyncratic (market-stripped) momentum |
-| **HI52** | `range_pos_252` (position in the 52-wk high-low band) | proximity to 52-week high |
-| **LOWVOL_MOM** | `0.5·rank(−vol) + 0.5·rank(MOM6)` | momentum with a low-vol tilt — **best drawdown/beta** |
-| **QUAL_MOM** | `0.5·quality + 0.5·rank(MOM6)` | momentum filtered by capital-allocation quality (C) |
+The precise variant formulas and every internal weight live in the single source of truth —
+**`docs/calculations-and-weights.md` §1** (canonical code: `research/explosive_moves/factor_zoo.py`).
+Not restated here, by the no-repetition rule.
 
 **Role decision (confirmed by the data):** the production form is **risk-adjusted / low-vol
 momentum**, NOT raw MOM6/MOM12 (their β≈1.3 and −51% drawdowns are a leveraged-beta liability). Raw
@@ -44,9 +33,11 @@ standalone ranker (see BLOCKING FAILURE MODELS); C/A/B ride on top as veto/confi
 
 ## Roadmap (the slow build — one step per session, Ramana steers each)
 
-- **Step 2 — the canonical ensemble.** Decide the members + weights (candidate: MOM12 + HI52 +
-  RISKADJ + LOWVOL_MOM, equal-rank-blend) and the normalization (cross-sectional percentile, size/
-  sector-neutral?). *Open question for Ramana: equal-weight the 4, or tilt toward the risk-adjusted pair?*
+- **Step 2 — the canonical ensemble. DECIDED 2026-07-02: EQUAL-WEIGHT** MOM12 + HI52 + RISKADJ +
+  LOWVOL_MOM (0.25 each, on cross-sectional percentile ranks). Rationale + the maintained numbers live
+  in `docs/calculations-and-weights.md` §2 (the un-overfit prior; risk-awareness already inside the
+  members; a risk-adjusted tilt is a recorded alternative to test, not the default). Size/sector-
+  neutralisation deferred to the attribution study.
 - **Step 3 — regime gates.** When to shrink/expand the surfaced set: index vs long MA, breadth
   (% above 200DMA), vol spike, drawdown state. Momentum crashes are the main failure mode.
 - **Step 4 — the veto/confirmation layer.** Wire C (capital-allocation) + A (insider/pledge) + B
@@ -66,4 +57,6 @@ small/midcap beta. Until run, treat momentum's *direction* as reliable and its *
 provisional.
 
 ---
-*Status: Step 1 recorded. Awaiting Ramana's call on Step 2 (ensemble membership + weighting).*
+*Status: Steps 1-2 recorded (ensemble = EQUAL-WEIGHT of the 4 survivors; all formulas/weights in
+`docs/calculations-and-weights.md`). Next: Step 3 (regime gates) — or run the beta/size/sector-neutral
+attribution first to confirm the edge is real selection before productionising.*
