@@ -20,11 +20,19 @@ Do NOT burn the context window re-reading history — this file + the top PROJEC
   this shared tree — never `git add -A`, stage explicit paths only.
 
 ## THE QUEUE — do these autonomously, in priority order
-1. **VERIFY dataset-A backfill completion** (rebuild itself DONE session 73, `b136d3f` — do NOT
-   redo). Check `/var/log/hermes-insider-backfill.log` ends clean (gg run May→Jun + chained
-   `--legacy 2026-03-01 2026-04-30`), `SELECT substr(disclosure_dt,1,7), COUNT(*) FROM
-   insider_events GROUP BY 1` has no month gap 2025-11→now, and `--agg` sanity on a pledge-heavy
-   symbol. Then the nightly timer keeps it current (it already routes to the new endpoint).
+1. 🔴 **RE-RUN the dataset-A insider backfill — it was KILLED mid-run (2026-07-02) to end a prod outage.**
+   ROOT CAUSE: the ingest held the SQLite **WAL write lock CONTINUOUSLY across its slow NSE fetches**
+   (the write transaction spans network I/O), which starved `hermes-api`'s startup schema-init
+   (`db._init`) → the app **crash-looped, ALL routes 000** (a manual write couldn't land even at 35s).
+   A UI session stopped the chain (`pkill -f "insider_events --ingest"`) + restarted the app to restore
+   prod; committed batches persist (log reached ~mid-Jun, saved≈1568). **(a)** Re-run: gg May→Jun
+   completion + chained `--legacy 2026-03-01 2026-04-30`; then verify no month gap
+   (`SELECT substr(disclosure_dt,1,7),COUNT(*) FROM insider_events GROUP BY 1`, 2025-11→now) + `--agg`.
+   **(b) FIX THE ROOT CAUSE FIRST — or the next backfill (or the nightly timer) takes prod down again:**
+   scope the ingest write txn to **commit per batch and NOT hold the write lock during fetches**, and/or
+   make `db._init()` **tolerate a locked schema-init** (start read-only + retry). `busy_timeout` alone
+   can't fix it — it must stay **< systemd `TimeoutStartSec` (90s)** or systemd kills the hung startup
+   (I briefly raised it to 120s, saw the crash-loop worsen, and reverted it to the original 30s).
 2. **XBRL Phase 2 — widen the migrated cohort.** (a) Definitional mappers for gate-failing
    symbols (excise-gross Sales, NCI netting, other-operating-income OP); (b) bank/NBFC taxonomy
    mapper (currently skipped loudly); (c) shareholding-pattern filings (promoter/FII/DII/pledge —
@@ -45,6 +53,14 @@ Do NOT burn the context window re-reading history — this file + the top PROJEC
 XBRL migration Phase 1 + timers + validation memo (`26cb3ef`) · momentum-scan freshness (`76c1c98`)
 · panel + attribution + anchor-audit + cost (Session 71) · scanner + its timer · Guardrails #0/#8 ·
 glossary/nav-audit lane (Session 72, parallel session — don't touch `src/web` explainability files).
+· **Rotation-viz + DESIGN-QA arc (Session 74, `72eacea`→`bee4d63`):** timeline scrubbers (RRG / band
+  lanes / clock / constituents), linked channel↔rotation cursor, recency-fade tails, **dense RS gauges**
+  (4 sites — rank is the hero, not a lonely bar), layout recomposition (index RS row, rotation 2×2,
+  participants, coverage CCI, strategist strip, rsband tiles), slimmed empty-states. All via **surgical
+  patches** (never full-overwrite `dashboard`/`cockpit`/`v2_surfaces`/`lens_registry` — D80). Doctrine:
+  *space ∝ importance; max understanding from a minimal, clean set of interactive charts.* ⚠ Gate note:
+  `chrome_gate` fails on `/dash/strategies` — a **307 workspace-root redirect** (a D79/D80 gate-URL-list
+  artifact, NOT a chrome regression); nested content pages have `uk-skin`=119.
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
