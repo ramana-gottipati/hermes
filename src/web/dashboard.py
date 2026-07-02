@@ -30,6 +30,7 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta
+from typing import List
 from urllib.parse import quote_plus
 
 log = logging.getLogger("hermes.dashboard")
@@ -2955,16 +2956,67 @@ _TRACK_CSS = """<style>
 .ac-it:hover,.ac-it.on{background:#1f6feb;color:#fff}
 .ac-n{color:var(--ink-2);font-size:11px;margin-left:6px}
 .ac-it:hover .ac-n,.ac-it.on .ac-n{color:#cde3ff}
+.ckrow{display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 10px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:7px}
+.ck{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.ck input{accent-color:#1f6feb;cursor:pointer;margin:0}
 </style>"""
 
-# Shows/hides the free-text "your own strategy" input when a strategy <select>
-# (marked data-cs) is set to "Manual". One definition, included with each form.
+# Shows/hides the free-text "your own strategy" input when the "Manual" strategy
+# CHECKBOX (marked data-cs) is ticked. Strategy is now a multi-select checkbox
+# group (pick any number of presets + Manual), joined server-side into one
+# comma-separated string. One definition, included with each form.
 _CS_JS = ("<script>function _csToggle(s){var f=s.form;if(!f)return;"
           "var w=f.querySelector('.cs-wrap');if(!w)return;"
-          "var on=s.value==='Manual';w.style.display=on?'':'none';"
+          "var on=!!s.checked;w.style.display=on?'':'none';"
           "if(!on){var i=w.querySelector('input');if(i)i.value='';}}"
           "document.addEventListener('DOMContentLoaded',function(){"
-          "document.querySelectorAll('select[data-cs]').forEach(_csToggle);});</script>")
+          "document.querySelectorAll('input[data-cs]').forEach(_csToggle);});</script>")
+
+
+def _strategy_field(selected=(), manual_text=""):
+    """The multi-select Strategy chooser shared by all Track forms: one checkbox per
+    preset in `_TRACK_STRATEGIES` + a "Manual" box that reveals a free-text basis.
+    `selected` = preset labels to pre-tick; `manual_text` = free-text to pre-fill
+    (also ticks Manual). Checkboxes all POST under name="strategy" (a list), combined
+    server-side by `_join_strategies` into the single comma-joined `strategy` column."""
+    sel = set(selected or ())
+    manual_on = bool((manual_text or "").strip()) or ("Manual" in sel)
+    boxes = []
+    for s in _TRACK_STRATEGIES:
+        on = " checked" if (s in sel or (s == "Manual" and manual_on)) else ""
+        extra = ' data-cs onchange="_csToggle(this)"' if s == "Manual" else ""
+        boxes.append(
+            f'<label class="ck"><input type="checkbox" name="strategy" '
+            f'value="{_esc(s)}"{on}{extra}/>{_esc(s)}</label>')
+    cs_disp = "" if manual_on else "none"
+    return (
+        '<label>Strategy <span class="mut" style="font-weight:400">· pick any number</span></label>'
+        f'<div class="ckrow">{"".join(boxes)}</div>'
+        f'<div class="cs-wrap" style="display:{cs_disp};margin-top:8px">'
+        '<label>Your strategy / basis</label>'
+        f'<input name="strategy_custom" class="field" maxlength="60" value="{_esc(manual_text)}" '
+        'placeholder="name your own — e.g. 52w-high breakout, earnings surprise"/></div>')
+
+
+def _join_strategies(picks, custom):
+    """Combine the multi-select strategy checkboxes (`picks`, a list) + the optional
+    Manual free-text (`custom`) into ONE comma-joined string, order-preserving and
+    deduped. "Manual" is a marker for the free-text, never a stored label. Falls back
+    to "Manual" when nothing was chosen (the column is NOT NULL)."""
+    parts = []
+    for s in (picks or []):
+        s = (s or "").strip()
+        if s and s != "Manual":
+            parts.append(s)
+    c = (custom or "").strip()[:60]
+    if c:
+        parts.append(c)
+    seen, out = set(), []
+    for p in parts:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return ", ".join(out) or "Manual"
 
 # Portfolio entry helper: when List='open', reveals the optional entry date+price
 # override, auto-fills the price from /dash/track/quote, and shows the valid OHLC
@@ -3867,7 +3919,6 @@ def _capture_form(sym, snap):
     """The inline Track capture form (server-rendered; POSTs to /dash/track).
     Entry price + date + the frozen snapshot are captured SERVER-SIDE on submit
     (never trusted from the client) — this only previews what will be saved."""
-    opts = "".join(f'<option value="{_esc(s)}">{_esc(s)}</option>' for s in _TRACK_STRATEGIES)
     asof = snap.get("date") or ""
     px = _num(snap.get("close"), 2) if snap.get("close") is not None else "—"
     return (
@@ -3878,13 +3929,8 @@ def _capture_form(sym, snap):
         '<div class="row2">'
         '<div style="flex:1;min-width:150px"><label>List</label>'
         '<select name="status" class="field"><option value="open">Portfolio · a position</option>'
-        '<option value="watch">Watchlist · an idea</option></select></div>'
-        f'<div style="flex:1;min-width:150px"><label>Strategy</label>'
-        f'<select name="strategy" class="field" data-cs onchange="_csToggle(this)">{opts}</select></div></div>'
-        '<div class="cs-wrap" style="display:none;margin-bottom:10px">'
-        '<label>Your strategy / basis</label>'
-        '<input name="strategy_custom" class="field" maxlength="60" '
-        'placeholder="name your own — e.g. 52w-high breakout, earnings surprise"/></div>'
+        '<option value="watch">Watchlist · an idea</option></select></div></div>'
+        f'<div style="margin-bottom:10px">{_strategy_field()}</div>'
         '<div class="ent-wrap" style="margin-bottom:10px">'
         '<div class="row2" style="margin-bottom:6px">'
         '<div style="flex:1"><label>Entry date (optional)</label>'
@@ -3956,7 +4002,6 @@ def _add_box(default_status, ac_json="[]", books=()):
     the same /dash/track endpoint (entry price + frozen snapshot captured
     SERVER-SIDE); the symbol is typed and validated server-side via _is_listed.
     `books` = existing book names → a datalist for the named-book field."""
-    opts = "".join(f'<option value="{_esc(s)}">{_esc(s)}</option>' for s in _TRACK_STRATEGIES)
     bkopts = "".join(f'<option value="{_esc(b)}"></option>' for b in books)
     sel_open = " selected" if default_status == "open" else ""
     sel_watch = " selected" if default_status == "watch" else ""
@@ -3972,13 +4017,8 @@ def _add_box(default_status, ac_json="[]", books=()):
         f'<option value="watch"{sel_watch}>Watchlist</option></select></div>'
         f'<div style="flex:1;min-width:110px"><label>Book</label>'
         f'<input name="book" class="field" list="bklist" value="Main" maxlength="40" placeholder="Main"/>'
-        f'<datalist id="bklist">{bkopts}</datalist></div>'
-        f'<div style="flex:1;min-width:130px"><label>Strategy</label>'
-        f'<select name="strategy" class="field" data-cs onchange="_csToggle(this)">{opts}</select></div></div>'
-        '<div class="cs-wrap" style="display:none;margin-bottom:10px">'
-        '<label>Your strategy / basis</label>'
-        '<input name="strategy_custom" class="field" maxlength="60" '
-        'placeholder="name your own — e.g. 52w-high breakout, earnings surprise"/></div>'
+        f'<datalist id="bklist">{bkopts}</datalist></div></div>'
+        f'<div style="margin-bottom:10px">{_strategy_field()}</div>'
         f'<div class="ent-wrap" style="margin-bottom:10px;display:{"" if default_status == "open" else "none"}">'
         '<div class="row2" style="margin-bottom:6px">'
         '<div style="flex:1;min-width:130px"><label>Entry date (optional)</label>'
@@ -3999,17 +4039,17 @@ def _add_box(default_status, ac_json="[]", books=()):
 def _edit_form(r, books):
     """Pre-filled form to EDIT a saved holding (POSTs /dash/track/update)."""
     sym = r["symbol"]
-    cur = r["strategy"] or "Manual"
-    preset = cur in _TRACK_STRATEGIES
-    opts = "".join(
-        f'<option value="{_esc(s)}"{" selected" if ((preset and s == cur) or (not preset and s == "Manual")) else ""}>{_esc(s)}</option>'
-        for s in _TRACK_STRATEGIES)
+    # The stored strategy is a comma-joined multi-select: split it back into the
+    # preset checkboxes we recognise + any leftover tokens (a hand-typed basis) that
+    # pre-fill the Manual free-text.
+    stored = [t.strip() for t in (r["strategy"] or "").split(",") if t.strip()]
+    presets = set(_TRACK_STRATEGIES)
+    sel = [t for t in stored if t in presets]
+    manual_text = ", ".join(t for t in stored if t not in presets)
     bkopts = "".join(f'<option value="{_esc(b)}"></option>' for b in books)
     st = r["status"]
     o_sel = " selected" if st == "open" else ""
     w_sel = " selected" if st == "watch" else ""
-    cs_disp = "none" if preset else ""
-    cs_val = "" if preset else _esc(cur)
     back = "/dash/watchlists" if st == "watch" else "/dash/portfolios"
     return (
         '<form class="cap" method="post" action="/dash/track/update">'
@@ -4021,11 +4061,8 @@ def _edit_form(r, books):
         f'<option value="watch"{w_sel}>Watchlist</option></select></div>'
         f'<div style="flex:1;min-width:110px"><label>Book</label>'
         f'<input name="book" class="field" list="bklist" value="{_esc(r.get("book") or "Main")}" maxlength="40"/>'
-        f'<datalist id="bklist">{bkopts}</datalist></div>'
-        f'<div style="flex:1;min-width:130px"><label>Strategy</label>'
-        f'<select name="strategy" class="field" data-cs onchange="_csToggle(this)">{opts}</select></div></div>'
-        f'<div class="cs-wrap" style="display:{cs_disp};margin-bottom:10px"><label>Your strategy / basis</label>'
-        f'<input name="strategy_custom" class="field" maxlength="60" value="{cs_val}"/></div>'
+        f'<datalist id="bklist">{bkopts}</datalist></div></div>'
+        f'<div style="margin-bottom:10px">{_strategy_field(selected=sel, manual_text=manual_text)}</div>'
         '<div class="row2">'
         f'<div style="flex:1"><label>Entry date</label><input type="date" name="entry_date" class="field" value="{_esc((r["date_added"] or "")[:10])}"/></div>'
         f'<div style="flex:1"><label>Entry price ₹</label><input name="entry_price" class="field" inputmode="decimal" value="{_rawnum(r["entry_price"])}"/></div>'
@@ -4041,7 +4078,7 @@ def _edit_form(r, books):
 
 
 @router.post("/dash/track")
-def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
+def dash_track(symbol: str = Form(...), strategy: List[str] = Form(default=[]),
                status: str = Form("open"), thesis: str = Form(""),
                target: str = Form(""), stop: str = Form(""),
                strategy_custom: str = Form(""), book: str = Form("Main"), qty: str = Form(""),
@@ -4049,10 +4086,9 @@ def dash_track(symbol: str = Form(...), strategy: str = Form("Manual"),
     sym = (symbol or "").upper().strip()
     status = status if status in ("watch", "open") else "open"
     dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
-    # Strategy = a preset, OR the user's own free-text basis when "Manual" is chosen.
-    strat = (strategy or "Manual").strip() or "Manual"
-    if strat == "Manual" and (strategy_custom or "").strip():
-        strat = strategy_custom.strip()[:60]
+    # Strategy = any number of preset checkboxes + the user's own free-text basis
+    # (Manual), combined into one comma-joined string.
+    strat = _join_strategies(strategy, strategy_custom)
     bk = (book or "Main").strip()[:40] or "Main"
 
     def _f(x):
@@ -4172,16 +4208,14 @@ def dash_track_edit(id: int = Query(...)) -> HTMLResponse:
 
 @router.post("/dash/track/update")
 def dash_track_update(id: int = Form(...), status: str = Form("open"),
-                      book: str = Form("Main"), strategy: str = Form("Manual"),
+                      book: str = Form("Main"), strategy: List[str] = Form(default=[]),
                       strategy_custom: str = Form(""), qty: str = Form(""),
                       entry_date: str = Form(""), entry_price: str = Form(""),
                       target: str = Form(""), stop: str = Form(""),
                       thesis: str = Form(""), notes: str = Form("")) -> RedirectResponse:
     status = status if status in ("watch", "open") else "open"
     dest = "/dash/watchlists" if status == "watch" else "/dash/portfolios"
-    strat = (strategy or "Manual").strip() or "Manual"
-    if strat == "Manual" and (strategy_custom or "").strip():
-        strat = strategy_custom.strip()[:60]
+    strat = _join_strategies(strategy, strategy_custom)
     bk = (book or "Main").strip()[:40] or "Main"
 
     def _f(x):

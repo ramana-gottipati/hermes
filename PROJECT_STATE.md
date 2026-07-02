@@ -472,6 +472,9 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D77 — Track a stock under MULTIPLE strategies: the strategy picker is a multi-select checkbox group, stored as one comma-joined string (2026-07-02, session 70)
+Ramana flagged that the Track/Add form's Strategy `<select>` forced exactly ONE strategy per position — often wrong, since a name can be a DVPT accumulation AND an RS leader AND a Quality hold at once. **Decision:** replace the single dropdown with a **multi-select checkbox group** (pick all / a few / any number of the presets in `_TRACK_STRATEGIES`) plus the existing "Manual" free-text basis. **Storage stays additive — no DB migration:** the selected labels + the Manual text are combined server-side (`_join_strategies`, order-preserving + deduped) into the SAME single `stocks_in_play.strategy` TEXT column as a comma-joined string (e.g. `"DVPT accumulation, RS leader, earnings surprise"`); empty selection falls back to `"Manual"` so the NOT-NULL column is always satisfied. **UI:** one shared renderer `_strategy_field(selected, manual_text)` feeds all three forms (`_capture_form` stock-page panel, `_add_box` Portfolios/Watchlists quick-add, `_edit_form`); the "Manual" checkbox (marked `data-cs`) reveals the free-text via the reworked `_CS_JS` toggle. `_edit_form` splits the stored string back into recognised preset checks + leftover tokens that pre-fill Manual, so an edit round-trips. Both POST handlers (`/dash/track`, `/dash/track/update`) now bind `strategy: List[str] = Form(default=[])`. **Known tradeoff (accepted):** the Performance page's "hit-rate / P&L by strategy" does a raw `GROUP BY strategy`, so a multi-strategy combo becomes its own group (same fragmentation the free-text "Manual" already caused) — flagged as an open item, not fixed here. Files: `src/web/dashboard.py` only.
+
 ### D76 — Data-roadmap ROI: build C (capital-allocation) → A (insider/promoter) → B (credit ratings); the winner is chosen by NIFTY regime-fit, not popularity (2026-07-02, session 63)
 Ramana had a ChatGPT brainstorm producing a 40-row "data wishlist"; most of it is already built here. Claude+Codex ran a **two-round live debate** (`codex-bridge/DISCUSSION-dataset-roi.md`, `req/resp-12`, `req/resp-13`) on which *new* gap dataset gives the best ROI, scored per attribute, informed by the 20–25y NIFTY regime shift. **Verdict (both agents converged):**
 - **C. Capital-allocation score** — build first. Not a "dataset" — a derived layer over data already held (ROIIC, ROCE level/trend, dilution, debt-funding discipline, growth efficiency). Free, days of work.
@@ -1296,6 +1299,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 70 — 2026-07-02 — Multi-select strategy on the Track form (D77) — BUILT (local)
+Ramana's request from the stock-page Track panel: the Strategy dropdown only allowed one strategy per stock; he needs to tag multiple (all / a few / any) and keep the manual-entry option, with the tagged info stored.
+- **Shipped D77** — turned the single strategy `<select>` into a multi-select checkbox group across all three Track forms via a new shared renderer `_strategy_field()`; added `_join_strategies()` to combine picks + Manual free-text into the existing comma-joined `strategy` column (no DB migration). Reworked `_CS_JS` to toggle the Manual free-text off a checkbox; `_edit_form` splits the stored string back into checks + leftover Manual text for a clean round-trip. Both POST handlers now bind `strategy: List[str]`. New CSS `.ckrow`/`.ck`. Added `from typing import List`.
+- **Verified:** module parses; `_join_strategies` unit-checked against 6 cases (multi-join, Manual+custom, Manual-only, empty→"Manual", dedup, custom-only). Single file touched: `src/web/dashboard.py`.
+- **Open (flagged, not done):** Performance page's `GROUP BY strategy` treats each multi-strategy combo as its own group — a by-single-strategy attribution would need a split/LIKE rework. **Not yet deployed to VPS.**
 
 ### Session 69 — 2026-07-02 — Reconcile `main`↔`origin` + push + VPS deploy-parity audit
 Wrap-up of the colour-work session: integrated all parallel work and made `origin`, `main`, and the VPS consistent.
