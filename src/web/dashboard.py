@@ -6265,6 +6265,15 @@ def dash_stock(sym: str = Query("", max_length=20),
     # as the price chart). Narrow = primary_sector index; broad = 'Nifty 500'.
     # All resampled client-side for the D/W/M/Q toggle, so it's read ONCE here.
     rs_overlay_html = ""
+    # RS momentum pane (RSI-of-RS + divergence) docked under the RS overlay — additive,
+    # isolated (src/web/momentum_pane.py); self-fetches its own conn + degrades to an
+    # empty-state, so it can never break this page.
+    momentum_html = ""
+    try:
+        from src.web import momentum_pane as _mompane
+        momentum_html = _mompane.card_html(sym)
+    except Exception:  # noqa: BLE001
+        momentum_html = ""
     if series:
         rs_sym_name = sym
         rs_narrow_name = L.get("primary_sector")          # may be None
@@ -6650,6 +6659,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 <div class="tabpane" data-tab="rs" style="display:none">
 {rs_html}
 {rs_overlay_html}
+{momentum_html}
 </div>
 <div class="tabpane" data-tab="qual" style="display:none">
 {pt14_html}
