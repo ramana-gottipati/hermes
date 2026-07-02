@@ -21,14 +21,19 @@ Panel rules enforced here:
     reconciliation (--reconcile) is the §4 gate evidence before C switches source.
 
 Values are stored in ₹ crores (existing fundamentals_history convention; XBRL facts
-are absolute INR → ÷1e7). Banks/NBFCs (bank="Y") are skipped loudly in Phase 1 —
-their taxonomy differs and they get a dedicated mapper later.
+are absolute INR → ÷1e7). Banks/NBFCs are mapped since Phase 2 (2026-07-02) by a
+dedicated bank-format extractor (Screener bank conventions: Revenue = InterestEarned,
+Financing Profit, structural PBT/PAT — see extract_bank_for). Detection is tag-based
+(InterestEarned), never the listing flag (HDFCBANK's own listing says bank="N").
+The bank rupee core gated = Revenue / Net Profit / Financing Profit.
 
 Run (VPS):
   python -m src.automation.fundamentals_xbrl --probe RELIANCE
   python -m src.automation.fundamentals_xbrl --reconcile --symbols RELIANCE,TCS,ITC
   python -m src.automation.fundamentals_xbrl --ingest --since 2026-04-01 --symbols ...
   python -m src.automation.fundamentals_xbrl --ingest --since 2026-06-25   # global window
+  python -m src.automation.fundamentals_xbrl --regate --symbols HDFCBANK   # after a mapper change
+  python -m src.automation.fundamentals_xbrl --selftest                    # synthetic, no network/DB
 """
 from __future__ import annotations
 
@@ -309,11 +314,111 @@ def extract_metrics(parsed: dict, filing: dict) -> dict:
     return extract_for(parsed, kind=kind, end=filing["to_date"])
 
 
+# ── bank/NBFC results taxonomy (Phase 2, 2026-07-02) ─────────────────────────
+# Detection is TAG-BASED (InterestEarned present), never the listing's `bank`
+# flag — HDFCBANK's own legacy listing rows carry bank="N" (verified 2026-07-02),
+# and integrated-filing listings carry no flag at all.
+def _is_bank_instance(parsed: dict) -> bool:
+    return any(n == "InterestEarned" for n, _c, _v in parsed["facts"])
+
+
+def extract_bank_for(parsed: dict, *, kind: str, end: str) -> dict:
+    """Bank-format extraction in Screener's bank conventions (validated against
+    HDFCBANK 2026-03-31 conso + standalone, exact to the rupee):
+
+      Revenue          = InterestEarned
+      Interest         = InterestExpended
+      Expenses         = OperatingExpenses + ProvisionsOtherThanTaxAndContingencies
+      Financing Profit = Revenue - Interest - Expenses
+      Profit before tax = OperatingProfitBeforeProvisionAndContingencies - Provisions
+                          + ExceptionalItems
+      Net Profit        = Profit before tax - TaxExpense + ShareOfProfitLossOfAssociates
+
+    PBT/PAT are DERIVED structurally rather than read from their tags (filers
+    misuse them — HDFCBANK's own note admits stuffing minority interest into
+    ExceptionalItems because "the sheet was throwing an error"). Net Profit
+    includes ExceptionalItems (economic truth; SBIN's genuine Q3-FY24 pension
+    provision reconciles Screener EXACTLY only that way) — a filing that abuses
+    the exceptional tag diverges from Screener and honestly gate-fails until
+    the quarter ages out of the evidence window. Tag fallbacks apply only when
+    the structural components are missing.
+
+    QUARTERLY ONLY: Screener's bank ANNUAL series comes from annual reports
+    (separate Depreciation line the results-XBRL doesn't carry — HDFCBANK
+    FY24 Financing Profit off by exactly the year's depreciation), so bank
+    annual rows are skipped loudly; Phase-3 annual-report XBRL owns them.
+    No balance-sheet instants either (bank BS taxonomy differs; Screener bank
+    pages carry no ROCE).
+    """
+    if kind == "A":
+        return {}
+    ids = {"OneD"} if "OneD" in parsed["contexts"] else \
+        _ctx_ids(parsed, end=end, min_days=80, max_days=100)
+    if not ids:
+        return {}
+
+    rev = _fact(parsed, "InterestEarned", ids)
+    int_exp = _fact(parsed, "InterestExpended", ids)
+    op_exp = _fact(parsed, "OperatingExpenses", ids)
+    if op_exp is None:
+        excl = _fact(parsed, "ExpenditureExcludingProvisionsAndContingencies", ids)
+        if excl is not None and int_exp is not None:
+            op_exp = excl - int_exp
+    prov = _fact(parsed, "ProvisionsOtherThanTaxAndContingencies", ids)
+    opbp = _fact(parsed, "OperatingProfitBeforeProvisionAndContingencies", ids)
+    tax = _fact(parsed, "TaxExpense", ids)
+    oi = _fact(parsed, "OtherIncome", ids)
+    eps = _fact(parsed, ("BasicEarningsPerShareAfterExtraordinaryItems",
+                         "BasicEarningsPerShareBeforeExtraordinaryItems"), ids)
+    eqcap = _fact(parsed, "PaidUpValueOfEquityShareCapital", ids)
+
+    # PBT and NP both include ExceptionalItems (economic truth; SBIN's genuine
+    # Q3-FY24 pension provision is 61% off without it). NP additionally carries
+    # the equity-method associates line (SBIN/ICICIBANK conso ~2% short without
+    # it) and stays GROSS of minority interest (HDFCBANK evidence).
+    excep = _fact(parsed, "ExceptionalItems", ids)
+    pbt = (opbp - prov + (excep or 0.0)) if (opbp is not None and prov is not None) else \
+        _fact(parsed, ("ProfitLossFromOrdinaryActivitiesBeforeTax", "ProfitBeforeTax"), ids)
+    assoc = _fact(parsed, "ShareOfProfitLossOfAssociates", ids)
+    pat = (pbt - tax + (assoc or 0.0)) if (pbt is not None and tax is not None) else \
+        _fact(parsed, "ProfitLossForThePeriod", ids)
+
+    # blank/zero-filled column guard (same rationale as the non-bank path)
+    if all((x or 0.0) == 0.0 for x in (rev, int_exp, pbt, pat)):
+        return {}
+
+    m: dict = {}
+
+    def put(name, v, scale=_CR):
+        if v is not None:
+            m[name] = round(v / scale, 4) if scale else v
+
+    put("Revenue", rev)
+    put("Interest", int_exp)
+    put("Other Income", oi)
+    put("Profit before tax", pbt)
+    put("Net Profit", pat)
+    put("EPS in Rs", eps, scale=None)
+    put("Equity Capital", eqcap)
+    if op_exp is not None and prov is not None:
+        put("Expenses", op_exp + prov)
+        if rev is not None and int_exp is not None:
+            fp = rev - int_exp - (op_exp + prov)
+            put("Financing Profit", fp)
+            if rev:
+                m["Financing Margin %"] = round(fp / rev * 100.0, 2)
+    return m
+
+
 def extract_for(parsed: dict, *, kind: str, end: str) -> dict:
     """(metric_name -> value) for one period of one instance, in fundamentals_history
     conventions. kind 'Q' -> the discrete-quarter P&L set; 'A' -> the FY-span P&L set +
     balance-sheet instants at FY end + derived ROCE %. Money in ₹ crores.
+    Bank/NBFC instances (detected by tags, not listing flags) dispatch to the
+    bank-format extractor.
     """
+    if _is_bank_instance(parsed):
+        return extract_bank_for(parsed, kind=kind, end=end)
     # The results-taxonomy encodes the table COLUMN in the context id — OneD = current
     # discrete quarter, FourD = year-to-date (== the FY in an Annual filing), OneI =
     # instant at period end. Filers routinely stamp DEGENERATE dates into FourD (the
@@ -399,7 +504,8 @@ def _ensure_source_column(con: sqlite3.Connection) -> None:
 # patearn growth patterns). A symbol only gets XBRL rows once its latest overlapping
 # periods MATCH on the rupee core (Sales / Net Profit / Operating Profit); mismatching
 # symbols stay Screener-flagged until the Phase-2 definitional mapper.
-_GATE_METRICS = ("Sales", "Net Profit", "Operating Profit")
+_GATE_METRICS = ("Sales", "Net Profit", "Operating Profit",      # non-bank rupee core
+                 "Revenue", "Financing Profit")                   # bank rupee core
 _GATE_TOL = 0.02
 
 
@@ -515,13 +621,14 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
     # cumulative H1/9M rows only exist in the Quarterly listing; Annual FY figures are
     # cumulative by definition (we select the FY-span context), so never drop those.
     n_cum = sum(1 for f in filings if f["cumulative"] and f["period"] != "Annual")
+    # banks are NOT filtered any more (Phase-2 bank mapper; detection is tag-based
+    # inside extract_for — the listing's bank flag is unreliable: HDFCBANK carries "N")
     work = _prefer_consolidated(
-        [f for f in filings if not f["bank"]
-         and not (f["cumulative"] and f["period"] != "Annual")])
-    log.info("ingest window %s..%s: %d filings, %d banks skipped (Phase-2 mapper), "
+        [f for f in filings if not (f["cumulative"] and f["period"] != "Annual")])
+    log.info("ingest window %s..%s: %d filings (%d bank-flagged, now mapped), "
              "%d cumulative skipped, %d to parse", since, until, len(filings), n_bank, n_cum, len(work))
 
-    stats = {"filings": len(filings), "banks_skipped": n_bank, "cumulative_skipped": n_cum,
+    stats = {"filings": len(filings), "bank_flagged": n_bank, "cumulative_skipped": n_cum,
              "parsed": 0, "rows": 0, "fetch_fail": 0, "no_metrics": 0, "gate_fail_syms": 0}
     gcon = sqlite3.connect(research_db)
     _ensure_source_column(gcon)
@@ -638,8 +745,7 @@ def _gate_symbol(con: sqlite3.Connection, sym: str, *, session, headers) -> bool
             filings += list_filings(symbol=sym, period=period, session=session, headers=headers)
             time.sleep(REQUEST_PAUSE)
         hist = _prefer_consolidated(
-            [f for f in filings if not f["bank"]
-             and not (f["cumulative"] and f["period"] != "Annual")])
+            [f for f in filings if not (f["cumulative"] and f["period"] != "Annual")])
         hist = sorted(hist, key=lambda x: x["to_date"], reverse=True)[:6]
         for f in hist:
             xml = fetch_instance(f["xbrl_url"], session=session, headers=headers)
@@ -661,8 +767,9 @@ def _gate_symbol(con: sqlite3.Connection, sym: str, *, session, headers) -> bool
 
 
 # ── reconciliation (the §4 validation-gate evidence; read-only) ───────────────
-_CORE = ("Sales", "Net Profit", "Operating Profit", "EPS in Rs")
-_DERIVED = ("ROCE %", "OPM %")
+_CORE = ("Sales", "Net Profit", "Operating Profit", "EPS in Rs",
+         "Revenue", "Financing Profit")            # last two: bank format
+_DERIVED = ("ROCE %", "OPM %", "Financing Margin %")
 
 
 def reconcile(symbols: list, *, research_db: str = RESEARCH_DB, periods: int = 4) -> dict:
@@ -680,8 +787,7 @@ def reconcile(symbols: list, *, research_db: str = RESEARCH_DB, periods: int = 4
             filings += list_filings(symbol=sym, period=period, session=session, headers=headers)
             time.sleep(REQUEST_PAUSE)
         work = _prefer_consolidated(
-            [f for f in filings if not f["bank"]
-             and not (f["cumulative"] and f["period"] != "Annual")])
+            [f for f in filings if not (f["cumulative"] and f["period"] != "Annual")])
         work = sorted(work, key=lambda x: x["to_date"], reverse=True)[:periods]
         for f in work:
             xml = fetch_instance(f["xbrl_url"], session=session, headers=headers)
@@ -732,6 +838,75 @@ def reconcile(symbols: list, *, research_db: str = RESEARCH_DB, periods: int = 4
     return summary
 
 
+# ── selftest (synthetic, no DB, no network) ───────────────────────────────────
+def _selftest() -> int:
+    """Bank-mapper identity check against the REAL HDFCBANK 2026-03-31 consolidated
+    filing values. Rupee core matches Screener exactly: Revenue 87182.5 /
+    Expenses 44027.87 / Financing Profit -2065.81. PBT/NP are as-filed INCLUDING
+    ExceptionalItems (26948.17 / 20350.76): this specific filing stuffed minority
+    interest into ExceptionalItems (its own note admits it), so its NP diverges
+    from Screener's curated 21074 — the continuity gate is DESIGNED to fail such
+    filings rather than guess. Genuine exceptionals (SBIN Q3-FY24 pension) require
+    inclusion to reconcile at all. Annual kind must return {} (quarterly-only),
+    and a non-bank instance must not dispatch to the bank path.
+    """
+    ctx = ('<context id="OneD"><entity><identifier scheme="s">x</identifier></entity>'
+           '<period><startDate>2026-01-01</startDate><endDate>2026-03-31</endDate>'
+           '</period></context>')
+
+    def fact(name, v):
+        return f'<{name} contextRef="OneD" unitRef="INR" decimals="2">{v}</{name}>'
+
+    bank_xml = ('<xbrl xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' + ctx
+                + fact("InterestEarned", 871825000000)
+                + fact("OtherIncome", 297374400000)
+                + fact("InterestExpended", 452204400000)
+                + fact("OperatingExpenses", 405878200000)
+                + fact("ProvisionsOtherThanTaxAndContingencies", 34400500000)
+                + fact("OperatingProfitBeforeProvisionAndContingencies", 311116800000)
+                + fact("ExceptionalItems", -7234600000)          # MI quirk — must not leak
+                + fact("ProfitLossFromOrdinaryActivitiesBeforeTax", 269481700000)
+                + fact("TaxExpense", 65974100000)
+                + fact("ShareOfProfitLossOfAssociates", 0)
+                + fact("ProfitLossForThePeriod", 203507600000)
+                + fact("BasicEarningsPerShareAfterExtraordinaryItems", 13.22)
+                + fact("PaidUpValueOfEquityShareCapital", 15393400000)
+                + '</xbrl>')
+    parsed = parse_instance(bank_xml)
+    assert _is_bank_instance(parsed), "bank detection failed"
+    m = extract_bank_for(parsed, kind="Q", end="2026-03-31")
+    exp = {"Revenue": 87182.5, "Interest": 45220.44, "Other Income": 29737.44,
+           "Expenses": 44027.87, "Financing Profit": -2065.81,
+           "Profit before tax": 26948.17, "Net Profit": 20350.76,
+           "Financing Margin %": -2.37, "EPS in Rs": 13.22, "Equity Capital": 1539.34}
+    for k, v in exp.items():
+        assert abs(m.get(k, 1e18) - v) < 0.02, f"{k}: got {m.get(k)} want {v}"
+    # dispatch: extract_for must route bank instances to the bank extractor
+    assert extract_for(parsed, kind="Q", end="2026-03-31") == m, "dispatch failed"
+    # bank annual rows are Phase-3 territory (annual-report depreciation split)
+    assert extract_bank_for(parsed, kind="A", end="2026-03-31") == {}, "bank annual not skipped"
+
+    nonbank_xml = ('<xbrl xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' + ctx
+                   + fact("RevenueFromOperations", 100000000)
+                   + fact("ProfitBeforeTax", 20000000)
+                   + fact("FinanceCosts", 1000000)
+                   + fact("DepreciationDepletionAndAmortisationExpense", 2000000)
+                   + fact("ProfitLossForPeriod", 15000000)
+                   + '</xbrl>')
+    p2 = parse_instance(nonbank_xml)
+    assert not _is_bank_instance(p2), "non-bank misdetected as bank"
+    m2 = extract_for(p2, kind="Q", end="2026-03-31")
+    assert m2.get("Sales") == 10.0 and m2.get("Net Profit") == 1.5, m2
+    # zero-filled bank column -> {}
+    zero_xml = ('<xbrl xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' + ctx
+                + fact("InterestEarned", 0) + fact("InterestExpended", 0)
+                + fact("TaxExpense", 0) + fact("ProfitLossForThePeriod", 0) + '</xbrl>')
+    assert extract_for(parse_instance(zero_xml), kind="Q", end="2026-03-31") == {}
+    print("selftest OK  bank mapper (HDFCBANK 2026-03-31 identity + quirk guard) "
+          "+ dispatch + non-bank + zero-guard")
+    return 0
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -746,10 +921,31 @@ def main() -> None:
     ap.add_argument("--db", default=RESEARCH_DB, help="research.db path override")
     ap.add_argument("--overwrite-screener", action="store_true",
                     help="allow XBRL rows to replace Screener-era rows (off by default)")
+    ap.add_argument("--regate", action="store_true",
+                    help="drop cached continuity-gate verdicts for --symbols and re-arbitrate "
+                         "now (use after a mapper change; e.g. banks gated pre-bank-mapper)")
+    ap.add_argument("--selftest", action="store_true",
+                    help="synthetic bank-mapper + dispatch checks (no DB, no network)")
     args = ap.parse_args()
     syms = [s.strip().upper() for s in args.symbols.split(",")] if args.symbols else None
 
-    if args.probe:
+    if args.selftest:
+        raise SystemExit(_selftest())
+    if args.regate:
+        if not syms:
+            ap.error("--regate needs --symbols")
+        session, headers = _nse_session()
+        con = sqlite3.connect(args.db)
+        _ensure_source_column(con)
+        for sym in syms:
+            con.execute("DELETE FROM fundamentals_xbrl_gate WHERE symbol=?", (sym,))
+            con.commit()
+            verdict = _gate_symbol(con, sym, session=session, headers=headers)
+            detail = con.execute("SELECT detail FROM fundamentals_xbrl_gate WHERE symbol=?",
+                                 (sym,)).fetchone()
+            print(f"{sym}: {'PASS' if verdict else 'FAIL'} — {detail[0] if detail else 'no verdict cached (evidence fetch failed)'}")
+        con.close()
+    elif args.probe:
         session, headers = _nse_session()
         for period in ("Quarterly", "Annual"):
             filings = list_filings(symbol=args.probe.upper(), period=period,

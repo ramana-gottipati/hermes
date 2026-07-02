@@ -93,12 +93,55 @@ migrated cohort is exactly the set whose series are provably consistent.
 
 1. **Phase 1 (LIVE):** forward-only nightly ingest, gated, source-tagged, parallel to the frozen
    Screener history. C consumes new XBRL periods only for gate-passed symbols.
-2. **Phase 2:** definitional mappers for gate-failing cohorts (excise-gross revenue, NCI netting,
-   other-operating-income), bank/NBFC taxonomy mapper, shareholding-pattern filings (promoter/
-   FII/DII/pledge — a separate NSE filing class).
+2. **Phase 2 (LIVE 2026-07-02, bank mapper):** see § Phase-2 evidence below. Bank/NBFC results
+   now extracted (Screener bank conventions, tag-based detection, quarterly-only); definitional
+   mappers resolved by evidence (most dissolved); `--regate` CLI re-arbitrates cached verdicts
+   after mapper changes. Still open from the Phase-2 list: shareholding-pattern filings
+   (promoter/FII/DII/pledge — separate NSE filing class, own module).
 3. **Phase 3:** historical backfill from the legacy API (2018+ per symbol) + BSE archive where
    deeper, replacing Screener-era rows symbol-by-symbol where reconciliation allows; then delete
-   `screener.py`.
+   `screener.py`. Bank ANNUAL rows and the excise cohort (ITC) land here by series replacement.
+
+## Phase-2 evidence (2026-07-02, live instances + Screener DB)
+
+**Definitional mappers — evidence dissolved most of the list:**
+- **Excise-gross Sales (ITC): NOT mappable.** The results instances carry NO excise fact — excise
+  sits untagged inside `OtherExpenses`; the filing notes confirm revenue is excise-gross per
+  Ind AS 115/Schedule III. Screener's net-of-excise Sales cannot be reconstructed from this feed.
+  ITC stays gate-failed on the frozen Screener series until Phase-3 series replacement. (Its
+  Feb-2026 excise hike makes even ITC's own series "not strictly comparable" — their words.)
+- **NCI netting (LT): NOT needed.** Screener's LT consolidated Net Profit (3,974 cr, Q3-FY25)
+  equals `ProfitLossForPeriod` INCLUDING non-controlling interests — exactly what Phase 1 already
+  stores. Sales and the OP identity also reproduce exactly on current quarters.
+- **Other-operating-income OP (LT): no current mismatch.** The Screener identity
+  `PBT = OP + OtherIncome − Interest − Depreciation` reproduces to the rupee on Q3-FY25.
+  The reconciliation-era −20% did not recur; the gate arbitrates live at results season.
+
+**Bank/NBFC mapper (the real Phase-2 build) — `extract_bank_for`:**
+- **Detection is TAG-based** (`InterestEarned` present), never the listing flag: HDFCBANK's own
+  legacy listing rows say `bank="N"`, and integrated listings carry no flag at all.
+- Mapping (validated to the rupee against Screener rows, both natures):
+  `Revenue = InterestEarned` · `Interest = InterestExpended` ·
+  `Expenses = OperatingExpenses + ProvisionsOtherThanTaxAndContingencies` ·
+  `Financing Profit = Revenue − Interest − Expenses` ·
+  `PBT = OperatingProfitBeforeProvisionAndContingencies − Provisions + ExceptionalItems` ·
+  `Net Profit = PBT − TaxExpense + ShareOfProfitLossOfAssociates` (structural derivations —
+  tagged PBT/PAT are unreliable: filers stuff MI into ExceptionalItems).
+- **Reconcile (HDFCBANK/ICICIBANK/SBIN × 6 quarters): Revenue 100% · Financing Profit 100% ·
+  Net Profit 100% for ICICIBANK+SBIN.** ExceptionalItems must be INCLUDED (SBIN's genuine
+  Q3-FY24 pension provision is 61% off without it); the associates line must be added
+  (SBIN/ICICIBANK ~2% short without it).
+- **Gate verdicts: ICICIBANK PASS · SBIN PASS · HDFCBANK FAIL (by design)** — HDFCBANK
+  chronically misfiles MI inside ExceptionalItems while tagging `ProfitLossOfMinorityInterest=0`
+  (its own filing note admits the utility forced it), so its Screener-curated NP series cannot
+  be continued from tags. It stays on the frozen Screener series. Honest refusal > guessing.
+- **Quarterly only:** Screener's bank ANNUAL series comes from annual reports (separate
+  Depreciation line absent from results-XBRL — HDFCBANK FY24 Financing Profit off by exactly
+  the year's depreciation). Bank `kind="A"` returns {} loudly; Phase 3 owns bank annuals.
+- Bank rupee core gated = `Revenue / Net Profit / Financing Profit` (added to `_GATE_METRICS`).
+- Known non-gated divergences: bank EPS 2× for HDFCBANK (Screener restated the 2025 1:1 bonus;
+  as-filed is PIT-honest — same class as RELIANCE) · `Financing Margin %` stored precise while
+  Screener stores integer-rounded.
 
 ## Red lines (standing)
 
