@@ -1294,6 +1294,36 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 67 — 2026-07-02 — Explainability gap audit + WIRE the glossary (step 1) — DEPLOYED
+Acting on PRIMARY-INTENT commitment #2 ("explain every term without leaking the formula"). Ran a
+3-agent read-only audit (surfaces-shown · computed-metrics · explanation-infra). **Finding:** the
+canonical glossary content (`docs/metrics-glossary.md`, 33+ formula-free terms) AND the popover
+mechanism (`src/web/glossary.py`, `gloss()`+`css()`) both existed but were **wired to nothing** →
+0 live explainers; separately ~10 strategy families (RRG-depth incl. RS-MOM, MEP, CCI per-term,
+RS-Band, rotation, harmonic/Wolfe, capture/OI, ignition/osc/cap-alloc-C) have no per-term docs.
+
+**Step 1 SHIPPED + DEPLOYED — glossary wired into the primary screener `/dash/screen2`:**
+- `screener_plus.py` column headers now render via `G.gloss(term, label)` — **19 columns** get a `?`
+  hover popover, each verified to resolve to the CORRECT definition (DVPT, Rank, P, R, ×Power,
+  RS-vs-broad, RS-heat-strip, RS#, CPR pattern D/W, Compression%, ns_base/pt14, Character, Surge,
+  52w%, CMP). Left plain: CCI `Tier`/`Trend` (would MIS-resolve to the pt14 `tier` entry), MEP,
+  Wolfe, Confluence (undocumented). `gloss()` degrades unknowns → plain, so the map is safe.
+- Class-collision fix: module already used `.gl` for its group band → renamed local class `gl`→`s2gh`
+  (markup + CSS) to free `.gl` for glossary popover CSS; injected `G.css()` once.
+- CSV integrity: `data-label` per header + CSV export reads it, so the hidden popover definition
+  text can't pollute exported column names.
+- Verified: `_selftest()` 200 · scope/parity 200 · every wired term resolves · `py_compile` clean ·
+  **chrome gate PASS** (11 legacy + 4 native).
+- **DEPLOYED + LIVE (VPS, backup `screener_plus.py.bak.glosswire-20260702-095201`):** shipped the
+  runtime content source `docs/metrics-glossary.md` (was ABSENT on the VPS → every term would have
+  degraded to plain) + updated `screener_plus.py` via LF-blob stream (shas match local; VPS
+  `glossary.py` already identical `437eac18`). `hermes-api` restarted · `/dash/screen2` 200 ·
+  **19 popovers render live** · DVPT def present · 0 stale group-band class. Commit `e53c55d`
+  (rebased onto Session-66's `c670c7e`). Live: `https://srv1704897.hstgr.cloud/dash/screen2`.
+- Open next: extend wiring to `/dash/stock` + home (contended `dashboard.py` → append-safe/worktree),
+  then WRITE the missing defs (RS-MOM first) + a per-metric "how it's computed" schema drill-down
+  (glossary.md line 90). Audit recorded in memory `explainability-gap-audit`.
+
 ### Session 66 — 2026-07-02 — Timeline scrubber: Clock parity, de-cluttered trail, hover-to-trace (info density)
 Follow-ons to the Session-62 rotation/band **timeline scrubber** (all on `main`, deployed + browser-verified):
 - **Clock parity** (`9b22882`): the `/dash/rsband?view=clock` dial got the same draggable scrubber + month badge (reuses `band_path` + `pibAt` interpolation; "Breathe" retained + synced) — so toggling Lanes↔Clock no longer loses the control. Consistency map: scrubber is on ALL multi-sector maps (RRG `/dash/rrg` + embed, band Lanes, Constituents drill-down, Clock) via the shared `_sectors_rrg_block` / `_chart_block`; single-sector Channel views are intentionally left (they're already interactive time-series charts).
