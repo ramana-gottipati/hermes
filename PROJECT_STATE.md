@@ -1300,6 +1300,33 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 72 — 2026-07-02 — Explainability lane + orphaned-screen nav audit (agent-driven)
+Two intents, both agent-orchestrated (Explore/general-purpose subagents) and mostly deployed live.
+
+**A. Orphaned-screen / navigation audit + fix.** 3-stakeholder panel (analyst/PM · data-architect ·
+UI-UX) decided placement for every screen with no nav path. SHIPPED+LIVE: redirects
+`/dash/rs→/dash/rs-hub`, `/dash/scan→/dash/stocks`, `/dash/strategies→/dash/strategist` (`269ff48`);
+RS-ratio link on the RS hub + Screen+ in the ⌘K palette (`e281385`); **Wolfe/Harmonic SCANNERS as a
+Markets "Patterns" nav group** while the chart overlays stay overlay-only (`dbcc04b`, deployed via the
+parallel nav reconcile). Harmonic chart overlay got a ◀▶ stepper + pattern-name label (`0c6975d`).
+`/dash/credibility` flagship went live via a parallel session. Live-verified: 41 nav-reachable screens,
+zero audit orphans. Memory `nav-orphan-audit`.
+
+**B. Explainability lane — "explain every term without leaking the formula".** The glossary popover
+(`glossary.py`) + content (`docs/metrics-glossary.md`) existed but were wired only to Screen+ headers.
+Now: wired Screen+ (`3d538c3`); **+10 metric families written** (RRG-depth incl. RS-MOM, RS-Band,
+rotation, capture, MEP, F&O-OI, oscillators, CCI, capital-allocation, ignition) — formula-safe,
+source-tagged, glossary keys **95→245** (`ca223c4`); popovers wired + LIVE on `/dash/rrg` (RS-MOM at its
+home) + `/dash/rotation`; Screen+ CCI/MEP columns lit (19→25 popovers, `0ce09a9`). Memory
+`explainability-gap-audit`.
+
+**Deferred (deploy blocked by git↔VPS divergence / parallel-held files, all COMMITTED to git):**
+RS-band glossary wiring (`ca223c4`, VPS `rsband_view.py` diverged) and stock-dossier tab glossary
+(`0ce09a9`, VPS `dashboard.py` diverged) — both ride their next reconcile. Recurring theme this session:
+heavy parallel-session churn on shared files → several commits are "shipped to git, deploy deferred" to
+avoid clobbering. Gates (chrome + nav-integrity) PASS throughout; the 2 nav-integrity orphans are a
+parallel session's credibility/momentum pages, not this work.
+
 ### Session 71 — 2026-07-02 — World-class panel + momentum scanner LIVE
 Ran a 4-agent institutional adversarial panel (quant/PM/risk/product) against the whole factor stack, then closed every gap with agent-built evidence, then shipped the honest product of it.
 - **Panel verdict (all agree + ledger):** no fundable scalable alpha; **momentum = beta not selection — PROVEN** (`research/explosive_moves/attribution.py`: RISKADJ residual α +7.3% HAC t=1.99, fails t≥3; WML eats 51%; Fama-MacBeth λ t=3.36 = un-proprietary premium; DSR 0.966/PBO 0.34). **Sell DATA, not signals.** Docs: `docs/institutional-panel-assessment.md`, `predictive-attributes-findings.md` (headline rewritten).
