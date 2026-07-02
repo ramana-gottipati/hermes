@@ -270,7 +270,7 @@ SNIPPET = """<script>
       if(reg && reg.harm && reg.harm.on){
         var want=(iv==='w'||iv==='m')?iv:'d';
         if(want!==harmTf){ harmData=null; harmToggle(true); }
-        else if(harmData) harmDraw(harmData);
+        else if(harmData) harmDrawOne();
       }
     }
     function setIv(tf){ iv=tf; RT=resample(tf); applyRows(); }
@@ -580,17 +580,31 @@ SNIPPET = """<script>
     // band for FORMING) on the price pane (window.__wfpc). DESCRIPTIVE — read by side per
     // the backtest (docs/harmonic-pattern-design.md: bull = edge, bear = tail). Point
     // dates are re-snapped onto the current bars so it survives the D/W/M/Q resample.
-    var harmData=null, harmSeries=[];
+    var harmData=null, harmSeries=[], harmIdx=0, harmBox=null, harmLbl=null;
     function snapT(t){ if(iv==='d')return t; var best=t,bd=1e18;
       for(var i=0;i<RT.length;i++){ var dd=Math.abs(new Date(RT[i].time)-new Date(t)); if(dd<bd){bd=dd;best=RT[i].time;} } return best; }
     function harmClear(){ harmSeries.forEach(function(s){try{pc.removeSeries(s);}catch(e){}}); harmSeries=[]; }
-    function harmDraw(pats){
-      harmClear(); if(!pats) return;
-      pats.forEach(function(p){
-        var bull=p.dir==='BULL', col=bull?C.up:C.down, dashed=p.state==='FORMING';
-        var seen={},clean=[];
-        p.points.forEach(function(q){ var t=snapT(q.t); if(!seen[t]){ seen[t]=1; clean.push({time:t,value:q.price}); } });
-        if(clean.length<2) return;
+    // Stepper (\\u25c0 Gartley \\u00b7 BULL \\u00b7 forming (1/3) \\u25b6) — like the Wolfe wave w-index:
+    // step through the detected patterns ONE at a time (all-at-once buried the chart) and NAME
+    // which harmonic it is. Built once, appended to the rail, shown only while Harmonic is on.
+    function harmEnsureBox(){ if(harmBox) return;
+      harmBox=E('div','display:none;align-items:center;gap:8px;margin-top:3px;font-size:12px;color:'+C.txt);
+      var pv=E('span','cursor:pointer;border:1px solid var(--line-2);border-radius:6px;padding:0 8px;user-select:none','\\u25c0');
+      var nx=E('span','cursor:pointer;border:1px solid var(--line-2);border-radius:6px;padding:0 8px;user-select:none','\\u25b6');
+      pv.title='Previous harmonic pattern'; nx.title='Next harmonic pattern';
+      harmLbl=E('span','','');
+      pv.onclick=function(){ harmStep(-1); }; nx.onclick=function(){ harmStep(1); };
+      harmBox.appendChild(pv); harmBox.appendChild(harmLbl); harmBox.appendChild(nx);
+      rail.appendChild(harmBox); }
+    function harmStep(dlt){ if(!harmData||!harmData.length) return;
+      harmIdx=(harmIdx+dlt+harmData.length)%harmData.length; harmDrawOne(); }
+    function harmDrawOne(){
+      harmClear(); if(!harmData||!harmData.length) return;
+      var p=harmData[harmIdx]; if(!p) return;
+      var bull=p.dir==='BULL', col=bull?C.up:C.down, dashed=p.state==='FORMING';
+      var seen={},clean=[];
+      p.points.forEach(function(q){ var t=snapT(q.t); if(!seen[t]){ seen[t]=1; clean.push({time:t,value:q.price}); } });
+      if(clean.length>=2){
         var ls=pc.addLineSeries({color:col,lineWidth:2,lineStyle:dashed?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:function(){return null;}});
         ls.setData(clean);
         ls.setMarkers(p.points.map(function(q,i){ var hi=bull?(i%2===1):(i%2===0);
@@ -600,7 +614,10 @@ SNIPPET = """<script>
           [p.prz.lo,p.prz.hi].forEach(function(lv){ if(lv==null)return;
             var z=pc.addLineSeries({color:C.harm,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:function(){return null;}});
             z.setData([{time:ct,value:lv},{time:rt,value:lv}]); harmSeries.push(z); }); }
-      });
+      }
+      if(harmLbl){ var nm=p.name||'Harmonic', stt=(p.state==='FORMING')?'forming':'confirmed';
+        harmLbl.innerHTML='<b style="color:'+col+'">'+nm+'</b> \\u00b7 '+(bull?'BULL':'BEAR')+' \\u00b7 '+stt
+          +' <span style="opacity:.65">('+(harmIdx+1)+'/'+harmData.length+')</span>'; }
     }
     // harmonic timeframe (d/w/m) — detected on resampled bars server-side. Defaults to
     // 'd'; switching the price interval to W/M re-fetches W/M harmonics (the multi-TF
@@ -610,14 +627,15 @@ SNIPPET = """<script>
       var tf=(iv==='w'||iv==='m')?iv:'d';
       return fetch('/dash/harmonic/overlay?sym='+encodeURIComponent(sym)+'&tf='+tf).then(function(r){return r.json();}); }
     function harmToggle(v){
-      if(!v){ harmClear(); return; }
-      if(harmData && harmTf===((iv==='w'||iv==='m')?iv:'d')){ harmDraw(harmData); return; }
+      if(!v){ harmClear(); if(harmBox) harmBox.style.display='none'; return; }
+      harmEnsureBox();
+      if(harmData && harmTf===((iv==='w'||iv==='m')?iv:'d')){ if(harmIdx>=harmData.length) harmIdx=0; harmBox.style.display='flex'; harmDrawOne(); return; }
       harmFetch().then(function(d){
         harmTf=(iv==='w'||iv==='m')?iv:'d';
-        if(!d||!d.patterns||!d.patterns.length){ reg.harm.on=false; harmData=null; harmClear();
+        if(!d||!d.patterns||!d.patterns.length){ reg.harm.on=false; harmData=null; harmClear(); if(harmBox) harmBox.style.display='none';
           if(reg.harm.chip){ reg.harm.chip.style.cssText=chipCss(false,C.harm); reg.harm.chip.innerHTML=dot(C.harm)+'Harmonic'; }
           refreshLegend(); return; }
-        harmData=d.patterns; harmDraw(harmData);
+        harmData=d.patterns; harmIdx=0; harmBox.style.display='flex'; harmDrawOne();
       }).catch(function(){});
     }
 
