@@ -66,6 +66,11 @@ _NSE_IF_API = "https://www.nseindia.com/api/integrated-filing-results"
 _NSE_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
            "(KHTML, like Gecko) Chrome/122 Safari/537.36")
 REQUEST_PAUSE = 1.5          # match the house BSE/NSE pacing (concall_bse / insider_events)
+# Results-season guard (AUD-23): first-seen symbols cost ~8 paced gate-evidence
+# fetches each; a heavy night can list hundreds of them. Uncached gate checks
+# past this budget defer to the NEXT nightly run (verdicts are cached forever
+# once computed, so the cohort still converges within a few nights).
+GATE_BUDGET_PER_RUN = int(os.environ.get("HERMES_XBRL_GATE_BUDGET", "25"))
 
 SOURCE_CONSO = "NSE-XBRL-CONSO"
 SOURCE_SA = "NSE-XBRL-SA"
@@ -495,6 +500,11 @@ def _ensure_source_column(con: sqlite3.Connection) -> None:
         con.execute("ALTER TABLE fundamentals_history ADD COLUMN source TEXT")
     con.execute("""CREATE TABLE IF NOT EXISTS fundamentals_xbrl_gate(
         symbol TEXT PRIMARY KEY, checked_at TEXT, pass INTEGER, detail TEXT)""")
+    # results-season survival (AUD-23): instances already processed are never
+    # re-fetched — a revised filing arrives under a NEW xml url, so url-keyed
+    # skip is restatement-safe (same pattern as insider/shareholding)
+    con.execute("""CREATE TABLE IF NOT EXISTS fundamentals_xbrl_seen(
+        xml_url TEXT PRIMARY KEY, processed_at TEXT NOT NULL DEFAULT (datetime('now')))""")
     # revision ledger (kill-switch #4, validation memo §5): INSERT OR REPLACE on
     # fundamentals_history erases the prior value, so a restatement is only countable
     # if journaled at write time. One row per revising filing; broadcast = its PIT clock.
@@ -651,23 +661,68 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
              "%d cumulative skipped, %d to parse", since, until, len(filings), n_bank, n_cum, len(work))
 
     stats = {"filings": len(filings), "bank_flagged": n_bank, "cumulative_skipped": n_cum,
-             "parsed": 0, "rows": 0, "fetch_fail": 0, "no_metrics": 0, "gate_fail_syms": 0}
+             "parsed": 0, "rows": 0, "fetch_fail": 0, "no_metrics": 0, "gate_fail_syms": 0,
+             "skipped_seen": 0, "gate_deferred": 0, "aborted_throttled": False}
     gcon = sqlite3.connect(research_db)
     _ensure_source_column(gcon)
     gcon.commit()
     gate_ok: dict = {}
-    for f in sorted(work, key=lambda x: (x["symbol"], x["to_date"])):
-        sym = f["symbol"]
-        if sym not in gate_ok:
-            gate_ok[sym] = _gate_symbol(gcon, sym, session=session, headers=headers)
-            if not gate_ok[sym]:
-                stats["gate_fail_syms"] += 1
+    gate_budget = [GATE_BUDGET_PER_RUN]
+    consec_fail = [0]
+
+    def gated(sym: str) -> bool:
+        """Cached-verdict lookup with a per-run budget on UNCACHED evidence fetches
+        (~8 paced requests each): past the budget, first-seen symbols defer to the
+        next nightly run instead of blowing up a heavy results-season night."""
+        if sym in gate_ok:
+            return gate_ok[sym]
+        row = gcon.execute("SELECT pass FROM fundamentals_xbrl_gate WHERE symbol=?",
+                           (sym,)).fetchone()
+        if row is None:
+            if gate_budget[0] <= 0:
+                stats["gate_deferred"] += 1
+                gate_ok[sym] = False          # this run only; nothing cached
+                return False
+            gate_budget[0] -= 1
+        gate_ok[sym] = _gate_symbol(gcon, sym, session=session, headers=headers)
         if not gate_ok[sym]:
-            continue
-        xml = fetch_instance(f["xbrl_url"], session=session, headers=headers)
+            stats["gate_fail_syms"] += 1
+        return gate_ok[sym]
+
+    def throttled_fetch(url: str):
+        """fetch_instance + consecutive-failure circuit breaker (nsearchives throttles
+        after ~1.5k fetches — observed 2026-07-02; abort cleanly, resume is cheap)."""
+        xml = fetch_instance(url, session=session, headers=headers)
         time.sleep(REQUEST_PAUSE)
         if xml is None:
             stats["fetch_fail"] += 1
+            consec_fail[0] += 1
+            if consec_fail[0] >= 6:
+                log.warning("xbrl: %d consecutive fetch failures — throttled; aborting "
+                            "cleanly (seen-table resumes next run)", consec_fail[0])
+                stats["aborted_throttled"] = True
+            else:
+                time.sleep(REQUEST_PAUSE + 5 * consec_fail[0])   # gentle backoff
+            return None
+        consec_fail[0] = 0
+        return xml
+
+    def mark_seen(url: str) -> None:
+        gcon.execute("INSERT OR IGNORE INTO fundamentals_xbrl_seen (xml_url) VALUES (?)", (url,))
+        gcon.commit()
+
+    for f in sorted(work, key=lambda x: (x["symbol"], x["to_date"])):
+        if stats["aborted_throttled"]:
+            break
+        sym = f["symbol"]
+        if not gated(sym):
+            continue
+        if gcon.execute("SELECT 1 FROM fundamentals_xbrl_seen WHERE xml_url=?",
+                        (f["xbrl_url"],)).fetchone():
+            stats["skipped_seen"] += 1
+            continue
+        xml = throttled_fetch(f["xbrl_url"])
+        if xml is None:
             continue
         try:
             parsed = parse_instance(xml)
@@ -680,10 +735,12 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             stats["no_metrics"] += 1
             log.warning("no metrics extracted: %s %s %s (fail-loud, not zero-filled)",
                         sym, f["period"], f["to_date"])
+            mark_seen(f["xbrl_url"])          # deterministic outcome; refetch won't change it
             continue
         stats["parsed"] += 1
         stats["rows"] += write_rows(f, metrics, research_db=research_db,
                                     overwrite_screener=overwrite_screener)
+        mark_seen(f["xbrl_url"])
 
     # ── Integrated-Filing era (broadcast Apr-2025 →): parse-first-classify ──────
     if symbols:
@@ -701,18 +758,19 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
     log.info("integrated-filing rows in window: %d", len(if_rows))
 
     candidates: dict = {}          # (sym, ptype, pend) -> best (conso, broadcast) filing
+    if_parsed_urls: list = []      # marked seen only AFTER the candidate flush writes
     for row in if_rows:
+        if stats["aborted_throttled"]:
+            break
         sym = row["symbol"]
-        if sym not in gate_ok:
-            gate_ok[sym] = _gate_symbol(gcon, sym, session=session, headers=headers)
-            if not gate_ok[sym]:
-                stats["gate_fail_syms"] += 1
-        if not gate_ok[sym]:
+        if not gated(sym):
             continue
-        xml = fetch_instance(row["xbrl_url"], session=session, headers=headers)
-        time.sleep(REQUEST_PAUSE)
+        if gcon.execute("SELECT 1 FROM fundamentals_xbrl_seen WHERE xml_url=?",
+                        (row["xbrl_url"],)).fetchone():
+            stats["skipped_seen"] += 1
+            continue
+        xml = throttled_fetch(row["xbrl_url"])
         if xml is None:
-            stats["fetch_fail"] += 1
             continue
         try:
             parsed = parse_instance(xml)
@@ -720,6 +778,7 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             log.warning("parse failed %s %s: %s", sym, row["qe_date"], e)
             stats["no_metrics"] += 1
             continue
+        if_parsed_urls.append(row["xbrl_url"])
         meta = parsed["meta"]
         end = (meta.get("DateOfEndOfReportingPeriod") or row["qe_date"] or "")[:10]
         if not end:
@@ -748,6 +807,8 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
         stats["parsed"] += 1
         stats["rows"] += write_rows(cand, cand["metrics"], research_db=research_db,
                                     overwrite_screener=overwrite_screener)
+    for url in if_parsed_urls:      # flush done — now cheap-skip these next run
+        mark_seen(url)
     gcon.close()
     log.info("ingest done: %s", stats)
     return stats
