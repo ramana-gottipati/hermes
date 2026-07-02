@@ -208,6 +208,8 @@ D:\Hermes\                                          ← local working copy of re
 │   └── visuals\                                     ← saved chart images (credibility-fingerprint.svg, rotation-cycle-clock.svg)
 ├── src\
 │   │   # web: src\web\credibility_fingerprint.py    ← S68 flagship A — /dash/credibility promise-vs-delivery fingerprint (isolated view, mounted via v2_surfaces)
+│   │   # web: src\web\glossary_view.py             ← S72 — /dash/glossary browsable Glossary/Methodology page (renders docs/metrics-glossary.md; same source as the ? popovers; Trust altitude, mounted via v2_surfaces)
+│   │   # web: src\web\glossary.py                  ← the `?` hover-help popover engine (G.gloss/G.css) wired into screen2/rrg/rsband/rotation headers + dossier tabs
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
 │   │   ├── db.py                                   ← SQLite schema + init
@@ -1344,6 +1346,24 @@ RS-band glossary wiring (`ca223c4`, VPS `rsband_view.py` diverged) and stock-dos
 heavy parallel-session churn on shared files → several commits are "shipped to git, deploy deferred" to
 avoid clobbering. Gates (chrome + nav-integrity) PASS throughout; the 2 nav-integrity orphans are a
 parallel session's credibility/momentum pages, not this work.
+
+**Session-72 continued (later commits, live-verified):**
+- Screen+ CCI/MEP columns lit now both families are documented — 19→25 popovers (`0ce09a9`/`0fe5a1a`).
+- **Browsable Glossary / Methodology page SHIPPED + LIVE** (`61cc52c`): NEW `src/web/glossary_view.py`
+  `/dash/glossary` renders `docs/metrics-glossary.md` (same source as the popovers → can't drift) as a
+  filterable, family-grouped reference — **97 terms live**, linked from the Coverage page body + ⌘K.
+  Deployed ADDITIVELY (new module + one `_ROUTER_SPECS` mount line + Coverage link + ⌘K) so it did not
+  touch the diverged `lens_registry`; its Trust nav-lens is committed but rides the reconcile.
+- Live-verified end state: 41 nav screens · RRG 9 popovers (RS-MOM at its home) · rotation 7 · Screen+ 25 ·
+  glossary 97. All Session-72 code pushed to `origin/main`.
+
+**⚠ SYSTEMIC BLOCKER + recommended next action.** git↔VPS DRIFT — parallel sessions scp directly to the
+VPS, so VPS `lens_registry` (carries a VPS-only `/dash/tracker/*` route change not in HEAD), `v2_surfaces`,
+`dashboard.py`, `rsband_view.py` diverge from `origin/main`. This is why 3 finished, committed features are
+deploy-deferred: glossary Trust nav-lens · stock-dossier popovers · RS-band popovers. **Highest-leverage
+next = a git↔VPS deploy-parity RECONCILE** (align VPS to origin/main + fold in the VPS-only Tracker-route
+work) → lands all three at once. Also open (Ramana's 2nd ask this session): **consistent table controls**
+(column add/remove + glossary popovers) on strategy tables like `/dash/stocks` — only Screen+ has them today.
 
 ### Session 71 — 2026-07-02 — World-class panel + momentum scanner LIVE
 Ran a 4-agent institutional adversarial panel (quant/PM/risk/product) against the whole factor stack, then closed every gap with agent-built evidence, then shipped the honest product of it.
