@@ -344,11 +344,64 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
     return stats
 
 
+def sync_pledge_to_fundamentals(*, research_db: str = RESEARCH_DB, hermes_conn=None) -> dict:
+    """S77b class-fix: refresh hermes.db ``fundamentals.promoter_pledge`` from the SHP feed.
+
+    The frozen Screener-era ``fundamentals`` table is still read by pat/flows.py (the
+    NULL-tolerant "clean: Pledge < 5%" screen filter), pat/web.py + dashboard.py (dossier
+    facts) and concall_veto's fallback — all of which saw NULL/stale pledge (the same
+    false-clean class as the S76 veto gap). Rather than rewiring three readers onto a
+    cross-DB join, sync the ONE column from the primary source (guardrail #8-compliant):
+    UPDATE-only for symbols that already have a fundamentals row (never inserts — the Pat
+    screen universe is unchanged), never NULLs an existing value, value-diff writes only.
+    Bounded local txn (no network inside — D82c class). Non-fatal by contract: callers
+    wrap in try/except; a sync failure must never fail the nightly ingest."""
+    latest: dict = {}
+    rcon = sqlite3.connect(f"file:{research_db}?mode=ro", uri=True, timeout=20)
+    try:
+        for sym, val in rcon.execute(
+                "SELECT symbol, value FROM shareholding_history "
+                "WHERE metric='Promoter Pledge' AND value IS NOT NULL ORDER BY period_end"):
+            latest[sym] = val          # ordered by period_end -> latest wins
+    finally:
+        rcon.close()
+
+    stats = {"shp_symbols": len(latest), "fund_rows": 0, "updated": 0, "unchanged": 0}
+    own = hermes_conn is None
+    if own:
+        from src.core.db import get_conn
+        ctx = get_conn()
+        conn = ctx.__enter__()
+    else:
+        ctx, conn = None, hermes_conn
+    try:
+        rows = conn.execute("SELECT symbol, promoter_pledge FROM fundamentals").fetchall()
+        stats["fund_rows"] = len(rows)
+        for r in rows:
+            sym, old = r["symbol"], r["promoter_pledge"]
+            new = latest.get(sym)
+            if new is None:
+                continue                                   # no SHP data -> keep legacy value
+            if old is not None and abs(old - new) < 1e-9:
+                stats["unchanged"] += 1
+                continue
+            conn.execute("UPDATE fundamentals SET promoter_pledge=? WHERE symbol=?", (new, sym))
+            stats["updated"] += 1
+        conn.commit()
+    finally:
+        if own:
+            ctx.__exit__(None, None, None)
+    log.info("pledge->fundamentals sync: %s", stats)
+    return stats
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--probe", metavar="SYMBOL")
     ap.add_argument("--ingest", action="store_true")
+    ap.add_argument("--sync-pledge", action="store_true",
+                    help="refresh fundamentals.promoter_pledge from the SHP feed (also runs after --ingest)")
     ap.add_argument("--since", default=(date.today() - timedelta(days=7)).isoformat())
     ap.add_argument("--until", default=None)
     ap.add_argument("--symbols", default=None, help="comma-separated (default: global window)")
@@ -368,6 +421,12 @@ def main() -> None:
             time.sleep(REQUEST_PAUSE)
     elif args.ingest:
         ingest(since=args.since, until=args.until, symbols=syms, research_db=args.db)
+        try:
+            sync_pledge_to_fundamentals(research_db=args.db)
+        except Exception:  # noqa: BLE001 — the sync must never fail the nightly ingest
+            log.exception("pledge->fundamentals sync failed (non-fatal)")
+    elif args.sync_pledge:
+        sync_pledge_to_fundamentals(research_db=args.db)
     else:
         ap.print_help()
 
