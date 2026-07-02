@@ -524,7 +524,7 @@ function dotC(x,y,col,op){return '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(
 // label with a dark halo (paint-order:stroke) so names stay readable over any dot/zone
 function lbl(x,y,t,op){return '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" fill-opacity="'+(op==null?1:op)+'" font-size="9" text-anchor="middle" style="fill:var(--ink);paint-order:stroke;stroke:var(--bg-1);stroke-width:2.6px;stroke-linejoin:round">'+esc(t)+'</text>';}
 var svg=document.getElementById('rrgsvg'),tip=document.getElementById('rrgtip'),wrap=document.getElementById('rrgwrap');
-var cx=MX(100),cy=MY(100),raf=null;
+var cx=MX(100),cy=MY(100),raf=null,HK=1;
 function grid(){var s='';
  s+='<rect x="'+L+'" y="'+T+'" width="'+(cx-L)+'" height="'+(cy-T)+'" style="fill:var(--accent)" fill-opacity="0.05"/>';
  s+='<rect x="'+cx+'" y="'+T+'" width="'+(R-cx)+'" height="'+(cy-T)+'" style="fill:var(--up)" fill-opacity="0.05"/>';
@@ -554,16 +554,17 @@ function dotsLayer(){var lay=layout(),s='';
   s+=dotC(q.x,q.y,col,0.95)+lbl(q.x,q.ly,sec.k,1);
   s+='<circle cx="'+q.x.toFixed(1)+'" cy="'+q.y.toFixed(1)+'" r="'+(DR+10)+'" fill="transparent"/></g>';});
  return s;}
-function staticView(){if(raf){cancelAnimationFrame(raf);raf=null;}svg.innerHTML='<g>'+grid()+'</g><g id="dl">'+dotsLayer()+'</g><g id="ov" style="pointer-events:none"></g>';wire();}
-// HOVER a sector → trace ITS full journey (dim the rest); overlay layer, zero re-wire.
+function staticView(){if(raf){cancelAnimationFrame(raf);raf=null;}HK=1;svg.innerHTML='<g>'+grid()+'</g><g id="dl">'+dotsLayer()+'</g><g id="ov" style="pointer-events:none"></g>';wire();}
+// HOVER a sector → trace ITS journey UP TO the parked month (dim the rest); overlay layer.
 function hi(idx){var dl=document.getElementById('dl'),ov=document.getElementById('ov');if(!dl||!ov)return;dl.style.opacity='0.20';
- var sec=D[idx],col=sec.col,pts=ds(sec.pts||[],30),X=MX(sec.now[0]),Y=MY(sec.now[1]),s='';
- s+=path(smooth(pts),col,2,0.62);        // hover: the full journey, smoothed
+ var sec=D[idx],col=sec.col,pts=sec.pts||[],hp=Math.max(1,Math.round(HK*((pts.length||1)-1)));
+ var jr=ds(pts.slice(0,hp+1),40),p=interp(pts,HK)||sec.now,X=MX(p[0]),Y=MY(p[1]),s='';
+ s+=path(smooth(jr),col,2,0.62);         // the journey so far, up to the parked month
  s+='<circle cx="'+X.toFixed(1)+'" cy="'+Y.toFixed(1)+'" r="'+(DR+3)+'" fill="none" style="stroke:var(--ink)" stroke-width="1.5"/>';
  s+=dotC(X,Y,col,1)+lbl(X,Y-DR-4,sec.k,1);ov.innerHTML=s;}
 function unhi(){var dl=document.getElementById('dl'),ov=document.getElementById('ov');if(dl)dl.style.opacity='1';if(ov)ov.innerHTML='';}
 function wire(){Array.prototype.forEach.call(svg.querySelectorAll('.hit'),function(g){var idx=+g.getAttribute('data-i'),sec=D[idx];
- g.addEventListener('mouseenter',function(){hi(idx);var h='<b>'+esc(sec.n)+'</b><br>'+sec.q+' · RS-ratio '+sec.now[0].toFixed(1)+' · RS-mom '+sec.now[1].toFixed(1);if(sec.rsi!=null)h+='<br>RSI-of-RS '+sec.rsi.toFixed(1);if(sec.mans!=null)h+=' · Mansfield '+sec.mans.toFixed(2);var cap='';if(sec.dc!=null)cap+='down-cap '+sec.dc.toFixed(2);if(sec.uc!=null)cap+=(cap?' · ':'')+'up-cap '+sec.uc.toFixed(2);if(cap)h+='<br>'+cap;tip.innerHTML=h;tip.style.display='block';});
+ g.addEventListener('mouseenter',function(){hi(idx);var pos=interp(sec.pts||[],HK)||sec.now,q=(pos[0]>=100?(pos[1]>=100?'Leading':'Weakening'):(pos[1]>=100?'Improving':'Lagging')),mo=(LBL&&LBL.length)?LBL[Math.round(HK*(LBL.length-1))]:'';var h='<b>'+esc(sec.n)+'</b>'+(HK<0.999?' <span style="opacity:.65">@ '+mo+'</span>':'')+'<br>'+q+' · RS-ratio '+pos[0].toFixed(1)+' · RS-mom '+pos[1].toFixed(1);if(sec.rsi!=null)h+='<br>RSI-of-RS '+sec.rsi.toFixed(1);if(sec.mans!=null)h+=' · Mansfield '+sec.mans.toFixed(2);var cap='';if(sec.dc!=null)cap+='down-cap '+sec.dc.toFixed(2);if(sec.uc!=null)cap+=(cap?' · ':'')+'up-cap '+sec.uc.toFixed(2);if(cap)h+='<br>'+cap;tip.innerHTML=h;tip.style.display='block';});
  g.addEventListener('mousemove',function(e){var b=wrap.getBoundingClientRect();tip.style.left=Math.min(e.clientX-b.left+12,b.width-210)+'px';tip.style.top=(e.clientY-b.top+12)+'px';});
  g.addEventListener('mouseleave',function(){unhi();tip.style.display='none';});
  if(LINK)g.addEventListener('click',function(){window.location.href='/dash/rrg?idx='+encodeURIComponent(sec.n);});});}
@@ -579,11 +580,12 @@ function hud(k){var p=NF>1?Math.round(k*(NF-1)):0;if(mbEl)mbEl.textContent=LBL[p
  if(inEl){var c=qAt(k);inEl.innerHTML='<b>'+(LBL[p]||'')+'</b> &middot; <span style="color:var(--up)">&#9679; leading '+c.L+'</span> &nbsp;<span style="color:var(--accent)">&#9679; improving '+c.I+'</span> &nbsp;<span style="color:var(--warn)">&#9679; weakening '+c.W+'</span> &nbsp;<span style="color:var(--down)">&#9679; lagging '+c.G+'</span>';}}
 // manual scrub → dots at the cursor's month + a SHORT recent-heading trail (last few
 // points), so ~19 sectors don't pile their whole journeys into a spaghetti of lines.
-function frame(k){var s=grid();
- D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var hp=Math.max(0,Math.round(k*(pts.length-1))),tr=pts.slice(Math.max(0,hp-3),hp+1);if(!tr.length||tr[tr.length-1][0]!==p[0]||tr[tr.length-1][1]!==p[1])tr=tr.concat([p]);
-  s+=path(smooth(tr),sec.col,1.3,0.22);s+=dotC(MX(p[0]),MY(p[1]),sec.col,0.97);});
- D.forEach(function(sec){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;s+=lbl(MX(p[0]),MY(p[1])-DR-4,sec.k,1);});
- svg.innerHTML='<g>'+s+'</g>';}
+function frame(k){HK=k;var dl='';
+ D.forEach(function(sec,idx){var pts=sec.pts||[];if(!pts.length)return;var p=interp(pts,k);if(!p)return;var hp=Math.max(0,Math.round(k*(pts.length-1))),tr=pts.slice(Math.max(0,hp-3),hp+1);if(!tr.length||tr[tr.length-1][0]!==p[0]||tr[tr.length-1][1]!==p[1])tr=tr.concat([p]);var X=MX(p[0]),Y=MY(p[1]);
+  dl+='<g class="hit" data-i="'+idx+'" style="cursor:'+(LINK?'pointer':'default')+'">';
+  dl+=path(smooth(tr),sec.col,1.3,0.22)+dotC(X,Y,sec.col,0.97)+lbl(X,Y-DR-4,sec.k,1);
+  dl+='<circle cx="'+X.toFixed(1)+'" cy="'+Y.toFixed(1)+'" r="'+(DR+10)+'" fill="transparent"/></g>';});
+ svg.innerHTML='<g>'+grid()+'</g><g id="dl">'+dl+'</g><g id="ov" style="pointer-events:none"></g>';wire();}
 function scrubTo(p){if(raf){cancelAnimationFrame(raf);raf=null;}playing=false;setPlay();tip.style.display='none';curP=p;var k=idxK(p);frame(k);hud(k);}
 if(scEl)scEl.addEventListener('input',function(){scrubTo(+scEl.value);});
 // PLAY = autonomous rotation, RETAINED (slow default, names on, per-sector comet trail) —

@@ -459,7 +459,7 @@ svg.addEventListener('mousemove',function(e){
  xl.setAttribute('x1',p.x);xl.setAttribute('x2',p.x);xl.style.display='block';
  dot.setAttribute('cx',p.x);dot.setAttribute('cy',p.y);dot.style.display='block';
  var bp=(sup!=null&&res!=null&&res>sup)?Math.max(0,Math.min(100,(p.v-sup)/(res-sup)*100)):null;
- tip.innerHTML='<b>'+p.d+'</b><br>RS '+p.v+(bp!=null?' &middot; ~'+Math.round(bp)+'/100':'');
+ tip.innerHTML='<b>'+p.d+'</b><br>RS '+p.v+(bp!=null?' &middot; ~'+Math.round(bp)+'/100 '+(bp<=20?'cheap':bp>=80?'rich':'mid'):'');
  tip.style.display='block';
  var w=wrap.getBoundingClientRect();
  tip.style.left=Math.min(e.clientX-w.left+12,w.width-150)+'px';tip.style.top=(e.clientY-w.top-42)+'px';
