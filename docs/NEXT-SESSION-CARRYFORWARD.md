@@ -4,45 +4,53 @@
 any decision. Full-folder access is granted (CLAUDE.md #0). Keep guardrails (esp. #8 primary-sources).
 Do NOT burn the context window re-reading history — this file + the top PROJECT_STATE entry is enough.**
 
-## STATE DIGEST (as of Session 71, 2026-07-02)
-- **Data intelligence layer LIVE + validated on VPS:** C capital-allocation, A insider/promoter/pledge
-  (NSE corporates-pit), B credit ratings (NSE credit-rating). Confluence proven.
-- **Momentum settled by attribution:** it is **beta, not selection alpha** (RISKADJ residual α t=1.99).
-  Fundable only as a ₹50–100cr defensive tilt. → **sell the DATA, not signals** (`docs/institutional-panel-assessment.md`).
-- **Risk-adjusted momentum SCANNER LIVE:** `/dash/momentum-scan` (RISKADJ + ensemble + A/B/C veto,
-  nightly `hermes-momentum-scan.timer`). Built from primary-source prices.
-- **Policies now in the rulebook:** Guardrail #0 (full-folder autonomy), #8 (primary-sources-only).
+## STATE DIGEST (as of Session 73, 2026-07-02)
+- **PRIMARY-SOURCE FUNDAMENTALS LIVE (Guardrail #8 remediated, Phase 1):** `fundamentals_xbrl.py`
+  ingests NSE-XBRL results nightly (16:30 UTC timer), forward-only, source-tagged, real broadcast
+  as knowable_at, **per-symbol series-continuity gate** (`fundamentals_xbrl_gate`; RELIANCE/TCS
+  pass, ITC fails on excise definition — by design). Design + evidence:
+  `docs/fundamentals-xbrl-migration.md` + decision D78. Screener history frozen, never overwritten.
+- **C/A/B nightly timers deployed + smoke-tested** (D79): insider 15:30 / ratings 15:45 (63 events
+  first run) / xbrl 16:30 / capital-allocation 17:15 UTC.
+- **Freshness fixed:** the momentum scan self-heals its `em_cache.pkl` (was pinned at 06-19; now
+  current). EOD bhavcopy pipeline was never broken.
+- **Validation memo written** (`docs/validation-memo.md`): SR-11-7 style, limits, kill-switch
+  definitions. Enforcement wiring of switches #1/#3/#4/#5 into the data-quality timer still open.
+- **⚠ Parallel-session note:** another session works `src/web/*` (glossary/explainability lane) in
+  this shared tree — never `git add -A`, stage explicit paths only.
 
 ## THE QUEUE — do these autonomously, in priority order
-1. **PRIMARY-SOURCE FUNDAMENTALS MIGRATION (Guardrail #8 — highest).** `screener.py` →
-   `fundamentals`/`fundamentals_history` (powers C capital-allocation + patearn) is the one
-   Screener.in dependency. Migrate to **BSE/NSE XBRL financial-results filings** (foundation:
-   `fundamentals_filing_dates.py` BSE dates, `provenance.py`, the `concall_bse.py` BSE-fetch pattern).
-   *Interim already shipped:* the `/dash/momentum-scan` C column is flagged "Screener → migrating".
-   **Both of Ramana's options are handled: (1) flagged now [DONE]; (2) strip/replace C once XBRL lands.**
-   Consult the risk-governance + data-product agents on the XBRL schema + PIT before building.
-2. **DATA FRESHNESS.** The embase cache / bhavcopy is stale (scanner as-of **2026-06-19**). Get the EOD
-   pipeline current so the scanner + signals reflect today. (Check `hermes-bhavcopy.timer` + the cache
-   build; fix whatever stopped updating.)
-3. **VALIDATION MEMO + monitoring (panel gap #6).** Independent replication of the factor Sharpes; a
-   written SR-11-7-style validation memo (lineage, PIT method, the anchor-audit + survivorship findings,
-   limits); kill-switches (momentum-crash guard, β>1.3 cap, sector>25%, live-IC decay, data-freshness,
-   restatement-spike, universe-drift).
-4. **NIGHTLY TIMERS for C/A/B backfills.** Only `hermes-momentum-scan.timer` exists; A (`insider_events
-   --ingest`), B (`credit_ratings --ingest`), C (`capital_allocation --backfill`) still run manually.
-5. **A/B ENHANCEMENTS.** SAST Reg 29 (`corporate-sast-reg29`) + Reg 31 pledge-magnitude feed
+1. **REBUILD DATASET A against `corporates-pit-gg` (feed BROKEN since ~Mar-2026).** The old
+   `/api/corporates-pit` returns empty-200s; the new endpoint returns filing rows (`appId`,
+   `broadcastDateTime`, `symbol`, `regulation`, `xmlFileName`) pointing at per-disclosure XBRL
+   (flat ~28-tag `in-bse-co`: person, category, acquired/disposed qty+value+type, before/after
+   holdings %, mode, from/to dates, RevisedFilling). Build: listing fetch + XML mapper feeding the
+   EXISTING `insider_events` normalizer/taxonomy (keep the classifier). PIT clock =
+   `broadcastDateTime`; AppID = batch id never dedup key. Backfill 2026-03-01→now. Full probe
+   evidence in PROJECT_STATE § open items (top).
+2. **XBRL Phase 2 — widen the migrated cohort.** (a) Definitional mappers for gate-failing
+   symbols (excise-gross Sales, NCI netting, other-operating-income OP); (b) bank/NBFC taxonomy
+   mapper (currently skipped loudly); (c) shareholding-pattern filings (promoter/FII/DII/pledge —
+   separate NSE filing class) to replace the Screener shareholding series. Watch the first
+   results-season nights (from ~Jul-09): gate-evidence fetches make early runs heavy — check
+   `/var/log/hermes-fundamentals-xbrl.log` for runtime + gate verdict quality.
+3. **Kill-switch enforcement wiring** (validation memo §5): momentum-crash guard, live-IC decay,
+   restatement-spike, universe-drift → nightly `hermes-data-quality` (or a small new module);
+   surface breaches on the affected pages (data-first: show, don't hide).
+4. **A/B ENHANCEMENTS:** SAST Reg 29 (`corporate-sast-reg29`) + Reg 31 pledge-magnitude
    (`corporate-pledgedata-sast3132`) — pledge % that PIT lacks (Codex resp-14/15).
-6. **Consumption wave (optional, needs backtest first):** fold C into `scoring.py` / a screener column /
-   the confluence board — only after the XBRL migration + a clean backtest.
+5. **C consumption wave (needs backtest first):** fold C into `scoring.py` / a screener column /
+   the confluence board — only with a clean backtest, and only for gate-passed symbols.
 
-## GUARANTEED-DONE (do NOT redo)
-Panel (4 reviews) · attribution (`attribution.py`, momentum=beta) · anchor-audit (leak disproven) ·
-cost_participation (₹50-100cr fundable) · MVIO proof points (`docs/mvio-dataset-a.md`) · the scanner +
-its nightly timer · Guardrails #0 and #8. Verify via `git log` before touching any of these.
+## GUARANTEED-DONE (do NOT redo — kickstart-pick-verify against these commits)
+XBRL migration Phase 1 + timers + validation memo (`26cb3ef`) · momentum-scan freshness (`76c1c98`)
+· panel + attribution + anchor-audit + cost (Session 71) · scanner + its timer · Guardrails #0/#8 ·
+glossary/nav-audit lane (Session 72, parallel session — don't touch `src/web` explainability files).
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
-> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (start with the primary-source fundamentals
-> migration + data freshness). Full-folder access is granted — don't ask for access/write/delete or
-> per-step confirmation. Get guidance from the agents, not from me; I won't answer. Keep every guardrail
-> (esp. #8 primary-sources-only). Wrap up per the protocol and write the next carry-forward.
+> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (start with the dataset-A rebuild against
+> corporates-pit-gg, then XBRL Phase 2). Full-folder access is granted — don't ask for
+> access/write/delete or per-step confirmation. Get guidance from the agents, not from me; I won't
+> answer. Keep every guardrail (esp. #8 primary-sources-only). Wrap up per the protocol and write
+> the next carry-forward.
