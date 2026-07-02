@@ -6542,9 +6542,13 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         themes_line = ('<div class="sub" style="margin:8px 0 10px">Themes: <span class="mut">none yet</span> '
                        f'<a class="row" style="display:inline;font-size:11px" href="/dash/tags-review?sym={_q(sym)}">+ add</a></div>')
 
+    from src.web import glossary as G   # `?` hover-help on the dossier tab families
+    _TABGLOSS = {"pos": "DVPT", "mep": "MEP phase", "rs": "RS rank",
+                 "qual": "ns_base", "cpr": "pattern", "cci": "Credibility composite"}
     def _stab(k, lbl, on):
         oncls = ' class="on"' if on else ''
-        return f'<a href="#{k}" data-stab="{k}"{oncls}>{lbl}</a>'
+        disp = G.gloss(_TABGLOSS[k], lbl) if k in _TABGLOSS else lbl
+        return f'<a href="#{k}" data-stab="{k}"{oncls}>{disp}</a>'
     _tabs = [("price", "Price"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
              ("rs", "Relative Strength"),
              ("qual", "Quality"), ("cpr", "Structure · CPR"), ("cci", "Credibility · CCI"),
@@ -6591,6 +6595,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     _name_bit = (' · ' + _esc(company_name)) if company_name else ''
     body = f"""{search}
 <style>{chart_css}</style>
+{G.css()}
 {_CK}
 <div class="sub" style="margin:0 0 6px">&#8592; <a class="row" style="display:inline" href="/dash/screener">Screener</a> · <a class="row" style="display:inline" href="/dash/conviction">Conviction</a></div>
 <h2>{_esc(sym)}{_rank_pill}{_ath_bit}{_name_bit}</h2>

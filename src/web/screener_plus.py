@@ -785,10 +785,10 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     # degrades any unknown key to the plain label, so this list is safe by construction.
     col_terms = ['', '', 'cmp · δ%d · deliv%', '',                    # identity + confluence
                  'DVPT', 'trigger_rank', 'p_score', 'r_score', '×power', '',   # positioning · dvpt
-                 '', '', '',                                          # mep (undocumented)
+                 'MEP phase', 'MEP phase', 'MEP daily state',         # mep (now documented)
                  'RS vs broad', 'RS heat strip', 'rs_rank', 'RS vs broad', '', '', '', '',  # rs
                  'pattern', 'compression_pctile', 'pattern',          # cpr
-                 '', '', '',                                          # cci (undoc / mis-resolve)
+                 'Credibility composite', 'Credibility composite', 'Credibility level',  # cci (now documented; NOT 'tier'→pt14)
                  '', '',                                              # wolfe (undocumented)
                  'ns_base', 'ns_base',                                # quality · pt14
                  'accum_character', 'surge 1m', 'pct_from_52w_high', 'accum_character']  # context
