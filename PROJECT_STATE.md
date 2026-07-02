@@ -211,6 +211,7 @@ D:\Hermes\                                          ← local working copy of re
 │   │   # web: src\web\glossary_view.py             ← S72 — /dash/glossary browsable Glossary/Methodology page (renders docs/metrics-glossary.md; same source as the ? popovers; Trust altitude, mounted via v2_surfaces)
 │   │   # web: src\web\glossary.py                  ← the `?` hover-help popover engine (G.gloss/G.css) wired into screen2/rrg/rsband/rotation headers + dossier tabs
 │   │   # web: src\web\table_controls.py            ← S75 — Screen+-consistent table controls (column add/remove persisted in localStorage + `?` header popovers) on strategy tables; /dash/stocks first; dashboard._shell wrap installed by v2_surfaces.wire() (same seam as shell_skin; extend via _PAGES)
+│   │   # web: src\web\dq_banner.py                 ← S76 — kill-switch WARN/CRIT strips on affected pages (momentum checks → rotation/rrg/rsband/stocks/…, feed → participants/mep, restatement → screen2/strategist/growth; /dash/coverage shows all); reads data_quality last_run TTL-cached; dashboard._shell wrap via v2_surfaces.wire() (extend via _PAGES)
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
 │   │   ├── db.py                                   ← SQLite schema + init

@@ -82,12 +82,15 @@ symbols passing the series-continuity gate (`fundamentals_xbrl_gate`).
 6. **Beta/sector breach:** any shortlist snapshot violating §4 limits renders the breach on the
    surface itself (data-first: show, don't hide).
 
-**Enforcement status (2026-07-02):** #1 (regime leg), #2, #5, plus an event-feed-liveness check
-(insider/ratings staleness — the lesson of the corporates-pit endpoint death) are LIVE in the
-nightly `hermes-data-quality` battery (`data_quality.py` "killswitch.*" checks). #6 is live by
-construction (limits rendered on the surface). Open: #1's WML-drawdown leg (needs accumulated
-`momentum_scan` history), #3 live-IC (same), #4 restatement-spike (needs a revision ledger on the
-XBRL ingest).
+**Enforcement status (2026-07-02):** #1 (regime leg), #2, #4, #5, plus an event-feed-liveness
+check (insider/ratings staleness — the lesson of the corporates-pit endpoint death) are LIVE in
+the nightly `hermes-data-quality` battery (`data_quality.py` "killswitch.*" checks). #4's revision
+ledger is `fundamentals_restatements` (journaled by `fundamentals_xbrl.write_rows`; INSERT OR
+REPLACE erases history, so restatements are only countable if journaled at write time); the check
+warms up as INFO until ≥20 symbols are gate-passed. #6 is live by construction (limits rendered on
+the surface). Open: #1's WML-drawdown leg — `momentum_scan` had only 2 nightly snapshots on
+2026-07-02 (2026-06-19, 2026-07-01); it needs ~21 daily snapshots, so re-check ~end-Jul-2026.
+#3 live-IC needs a 6-mo rolling rank-IC observed for 3 consecutive months → not before ~2027-Q1.
 
 ## 6. Change control
 

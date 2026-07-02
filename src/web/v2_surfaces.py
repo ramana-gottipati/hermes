@@ -403,6 +403,17 @@ def _install_table_controls() -> None:
         log.warning("v2 table-controls skipped: %s", e)
 
 
+def _install_dq_banner() -> None:
+    """Kill-switch WARN/CRIT strips on the pages each check gates (validation memo §5 —
+    data-first: show, don't hide) via a dashboard._shell wrap (same seam as the skin).
+    Defensive + idempotent (dq_banner.install owns the sentinel)."""
+    try:
+        from src.web import dq_banner
+        dq_banner.install()
+    except Exception as e:  # noqa: BLE001 — the strip is additive; never break a page
+        log.warning("v2 dq-banner skipped: %s", e)
+
+
 def wire(app):
     """Mount the v2 routes + install the canonical nav + reskin the legacy pages.
     Idempotent + defensive."""
@@ -420,6 +431,7 @@ def wire(app):
         log.warning("v2 nav install skipped: %s", e)
     _install_skin()
     _install_table_controls()
+    _install_dq_banner()
     return app
 
 

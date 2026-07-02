@@ -30,7 +30,7 @@ import json
 import logging
 import os
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from src.automation import provenance
@@ -46,6 +46,9 @@ _RANK = {SEV_OK: 0, SEV_INFO: 1, SEV_WARN: 2, SEV_CRIT: 3}
 LEAK_WARN_PCT = 6.0          # effective blended look-ahead leak above this → warn
 DEMODEL_WARN = 0.55          # de-model rate below this (post-backfill ≈0.73) → warn
 CALIB_STALE_DAYS = 30        # synthetic-lag calibration older than this → warn
+RESTATE_WARN_PCT = 5.0       # kill-switch #4 (validation memo §5): >5% of gate-passed
+                             # symbols revised within 30d → pause auto-ingest
+RESTATE_MIN_UNIVERSE = 20    # below this many gate-passed symbols the % is noise (warmup)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS data_quality_runs (
@@ -313,6 +316,36 @@ def chk_universe_drift(c) -> dict:
                   f"universe {oldest[1]} -> {latest[1]} across {len(counts)} scans")
 
 
+def chk_restatement_spike(r) -> dict:
+    """Kill-switch #4: >RESTATE_WARN_PCT% of gate-passed symbols receiving revised XBRL
+    filings within the trailing 30 days → pause XBRL auto-ingest, re-run the reconciliation
+    cohort. Reads the revision ledger journaled by fundamentals_xbrl.write_rows (INSERT OR
+    REPLACE on fundamentals_history erases the prior value, so the ledger is the only
+    restatement record)."""
+    if (r is None or not _table_exists(r, "fundamentals_restatements")
+            or not _table_exists(r, "fundamentals_xbrl_gate")):
+        return _check("killswitch.restatement_spike", SEV_OK, 0,
+                      "ledger/gate tables absent (no XBRL ingest yet)")
+    denom = r.execute("SELECT COUNT(*) FROM fundamentals_xbrl_gate WHERE pass=1").fetchone()[0]
+    cutoff = (date.today() - timedelta(days=30)).isoformat()
+    rows = r.execute(
+        "SELECT DISTINCT symbol FROM fundamentals_restatements WHERE substr(broadcast,1,10) >= ?",
+        (cutoff,)).fetchall()
+    num = len(rows)
+    if denom < RESTATE_MIN_UNIVERSE:
+        return _check("killswitch.restatement_spike", SEV_INFO if num else SEV_OK, num,
+                      f"warmup: {num} restated / {denom} gate-passed symbols "
+                      f"(% is noise below {RESTATE_MIN_UNIVERSE})")
+    pct = num / denom * 100.0
+    if pct > RESTATE_WARN_PCT:
+        return _check("killswitch.restatement_spike", SEV_WARN, num,
+                      f"{num}/{denom} gate-passed symbols ({pct:.1f}%) revised in 30d "
+                      f"> {RESTATE_WARN_PCT}% — pause XBRL auto-ingest, re-run reconciliation cohort",
+                      [x[0] for x in rows[:10]])
+    return _check("killswitch.restatement_spike", SEV_OK, num,
+                  f"{num}/{denom} gate-passed symbols ({pct:.1f}%) revised in 30d")
+
+
 def chk_feed_freshness(c) -> dict:
     """Event-feed liveness — the check that would have caught the Mar-2026 corporates-pit
     endpoint death within a week (dataset A silently ingested 0 rows for 4 months).
@@ -355,6 +388,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             # kill-switches (validation memo §5)
             (chk_market_freshness, (c,)), (chk_regime_guard, (c,)),
             (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
+            (chk_restatement_spike, (r,)),
         ]
         for fn, fargs in plan:
             try:
@@ -423,6 +457,27 @@ def _selftest() -> None:
     # persisted + readable
     lr = last_run(conn=c)
     assert lr and lr["status"] == SEV_CRIT and lr["report"]["n_critical"] >= 3
+
+    # kill-switch #4 restatement-spike (direct-call on a synthetic research conn):
+    # 3/25 gate-passed symbols revised in-window = 12% > 5% → warn; a 5-symbol
+    # universe is warmup → info, never warn.
+    rr = sqlite3.connect(":memory:")
+    rr.executescript("""
+        CREATE TABLE fundamentals_xbrl_gate(symbol TEXT PRIMARY KEY, checked_at TEXT, pass INTEGER, detail TEXT);
+        CREATE TABLE fundamentals_restatements(symbol TEXT, period_type TEXT, period_end TEXT,
+            broadcast TEXT, n_changed INT, listed_revised INT, recorded_at TEXT);
+    """)
+    rr.executemany("INSERT INTO fundamentals_xbrl_gate VALUES (?,?,1,'ok')",
+                   [(f"S{i:02d}", "x") for i in range(25)])
+    today = date.today().isoformat()
+    rr.executemany("INSERT INTO fundamentals_restatements VALUES (?,?,?,?,1,0,?)",
+                   [(f"S{i:02d}", "Q", "2026-03-31", today, today) for i in range(3)])
+    k = chk_restatement_spike(rr)
+    assert k["severity"] == SEV_WARN and k["count"] == 3, k
+    rr.execute("DELETE FROM fundamentals_xbrl_gate WHERE symbol >= 'S05'")   # 5 left = warmup
+    k2 = chk_restatement_spike(rr)
+    assert k2["severity"] == SEV_INFO and k2["count"] == 3, k2
+    rr.close()
     print(f"data_quality selftest: OK  ({rep['n_critical']} critical, {rep['n_warn']} warn detected on synthetic faults)")
 
 

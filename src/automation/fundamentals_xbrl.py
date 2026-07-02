@@ -495,6 +495,15 @@ def _ensure_source_column(con: sqlite3.Connection) -> None:
         con.execute("ALTER TABLE fundamentals_history ADD COLUMN source TEXT")
     con.execute("""CREATE TABLE IF NOT EXISTS fundamentals_xbrl_gate(
         symbol TEXT PRIMARY KEY, checked_at TEXT, pass INTEGER, detail TEXT)""")
+    # revision ledger (kill-switch #4, validation memo §5): INSERT OR REPLACE on
+    # fundamentals_history erases the prior value, so a restatement is only countable
+    # if journaled at write time. One row per revising filing; broadcast = its PIT clock.
+    con.execute("""CREATE TABLE IF NOT EXISTS fundamentals_restatements(
+        symbol TEXT NOT NULL, period_type TEXT NOT NULL, period_end TEXT NOT NULL,
+        broadcast TEXT NOT NULL, n_changed INTEGER NOT NULL,
+        listed_revised INTEGER NOT NULL DEFAULT 0,
+        recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (symbol, period_type, period_end, broadcast))""")
 
 
 # per-symbol series-continuity gate (reconciliation 2026-07-02, 15-symbol cohort):
@@ -551,6 +560,8 @@ def write_rows(filing: dict, metrics: dict, *, research_db: str = RESEARCH_DB,
 
     Forward-only default: a Screener-era row (source IS NULL) is left untouched; only
     absent keys and prior XBRL rows (restatements — last filed wins) are written.
+    A restatement (an XBRL-era value changing, or a listing-flagged Revised filing) is
+    journaled into fundamentals_restatements for the kill-switch-#4 spike check.
     """
     ptype = "A" if filing["period"] == "Annual" else "Q"
     pend = filing["to_date"]
@@ -562,17 +573,28 @@ def write_rows(filing: dict, metrics: dict, *, research_db: str = RESEARCH_DB,
     con = sqlite3.connect(research_db)
     _ensure_source_column(con)
     n = 0
+    n_restated = 0
     for metric, value in metrics.items():
         cur = con.execute(
-            "SELECT source FROM fundamentals_history WHERE symbol=? AND period_type=? "
+            "SELECT source, value FROM fundamentals_history WHERE symbol=? AND period_type=? "
             "AND period_end=? AND metric=?", (sym, ptype, pend, metric)).fetchone()
         if cur is not None and cur[0] is None and not overwrite_screener:
             continue                     # never silently replace a Screener-era value
+        if (cur is not None and cur[0] is not None and cur[1] is not None
+                and value is not None and abs(float(cur[1]) - float(value)) > 1e-9):
+            n_restated += 1              # an XBRL-era value changing = a restatement
         con.execute(
             "INSERT OR REPLACE INTO fundamentals_history"
             "(symbol,period_type,period_end,report_date,metric,value,source) "
             "VALUES (?,?,?,?,?,?,?)", (sym, ptype, pend, rdate, metric, value, src))
         n += 1
+    if n_restated or filing.get("revised"):
+        con.execute(
+            "INSERT OR REPLACE INTO fundamentals_restatements"
+            "(symbol,period_type,period_end,broadcast,n_changed,listed_revised) "
+            "VALUES (?,?,?,?,?,?)",
+            (sym, ptype, pend, filing["broadcast"], n_restated,
+             int(bool(filing.get("revised")))))
     con.commit()
     con.close()
     if n:
@@ -718,7 +740,7 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             key = (sym, kind, pend)
             cand = {"symbol": sym, "period": "Annual" if kind == "A" else "Quarterly",
                     "to_date": pend, "consolidated": conso, "broadcast": row["broadcast"],
-                    "metrics": metrics}
+                    "revised": row["revised"], "metrics": metrics}
             cur = candidates.get(key)
             if cur is None or (conso, row["broadcast"] or "") > (cur["consolidated"], cur["broadcast"] or ""):
                 candidates[key] = cand
@@ -902,8 +924,38 @@ def _selftest() -> int:
                 + fact("InterestEarned", 0) + fact("InterestExpended", 0)
                 + fact("TaxExpense", 0) + fact("ProfitLossForThePeriod", 0) + '</xbrl>')
     assert extract_for(parse_instance(zero_xml), kind="Q", end="2026-03-31") == {}
+
+    # revision ledger: re-writing a period with a CHANGED value (or a listing-flagged
+    # Revised filing) must journal exactly one fundamentals_restatements row per filing;
+    # an identical re-write (resume/backfill) must journal nothing.
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        rdb = os.path.join(td, "research.db")
+        tcon = sqlite3.connect(rdb)
+        tcon.execute("CREATE TABLE fundamentals_history(symbol TEXT, period_type TEXT, "
+                     "period_end TEXT, report_date TEXT, metric TEXT, value REAL, "
+                     "PRIMARY KEY(symbol,period_type,period_end,metric))")
+        tcon.commit()
+        tcon.close()
+        _observe = provenance.observe
+        provenance.observe = lambda *a, **k: None      # keep the selftest off the live DB
+        try:
+            f0 = {"symbol": "TEST", "period": "Quarterly", "to_date": "2026-03-31",
+                  "consolidated": True, "broadcast": "2026-04-20T18:00:00"}
+            write_rows(f0, {"Sales": 100.0}, research_db=rdb)                 # original
+            write_rows(f0, {"Sales": 100.0}, research_db=rdb)                 # idempotent re-run
+            write_rows(dict(f0, broadcast="2026-05-05T10:00:00", revised=True),
+                       {"Sales": 101.0}, research_db=rdb)                     # the restatement
+        finally:
+            provenance.observe = _observe
+        tcon = sqlite3.connect(rdb)
+        ev = tcon.execute("SELECT broadcast, n_changed, listed_revised "
+                          "FROM fundamentals_restatements").fetchall()
+        tcon.close()
+        assert ev == [("2026-05-05T10:00:00", 1, 1)], f"ledger wrong: {ev}"
+
     print("selftest OK  bank mapper (HDFCBANK 2026-03-31 identity + quirk guard) "
-          "+ dispatch + non-bank + zero-guard")
+          "+ dispatch + non-bank + zero-guard + revision ledger")
     return 0
 
 
