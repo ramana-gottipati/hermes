@@ -245,7 +245,10 @@ def _bench_series(sym: str, conn, bench: str, *, window: int = 756):
                       (sym,)), lambda r: float(r[1]), "Nifty 500")
     if ser:
         return ser
-    return _take(_safe(conn, "SELECT trade_date, ratio FROM ratio_rows WHERE numerator=? AND "
+    # AUD-33: index/sector names are stored Title-case in ratio_rows.numerator ('Nifty IT') but
+    # sym was upper()'d ('NIFTY IT') at :219, so a BINARY match returns nothing and every sector
+    # link on the divergence board rendered an empty pane. Match case-insensitively.
+    return _take(_safe(conn, "SELECT trade_date, ratio FROM ratio_rows WHERE numerator=? COLLATE NOCASE AND "
                        "denominator='Nifty 500' AND ratio IS NOT NULL ORDER BY trade_date",
                        (sym,)), lambda r: float(r[1]), "Nifty 500")
 
