@@ -1,32 +1,20 @@
-"""RSI-of-RS momentum pane + RS/RSI divergence — the momentum layer of the
-RS-momentum-divergence roadmap (docs/rs-momentum-divergence-roadmap.md, Phase 1).
+"""RS momentum pane — RSI-of-RS + divergence + per-stock RRG four-quadrant + benchmark
+switch (roadmap Phase 1, enhanced 2026-07-02 per Ramana's dossier feedback).
 
-SURGICAL + ADDITIVE + ISOLATED (the credibility_fingerprint.py / rsband_view.py
-pattern): a self-contained module with ZERO edits to existing files. It renders the
-RSI-of-RS oscillator docked UNDER the RS line and auto-marks divergences (RS lower-low
-while RSI higher-low = bullish/early recovery; the mirror on highs = bearish/early
-rolling-over). Server-rendered SVG (no chart-engine coupling → cannot break the price
-chart). Pure renderer + divergence detector are dependency-free + self-tested; the DB
-fetch is defensive and degrades to an empty-state, so it can never break a host page.
+Gives a STOCK the SAME rotation analysis the index gets: RS vs a chosen benchmark
+(Nifty 500 · its OWN SECTOR · Nifty 50), the four-quadrant RRG (Leading / Improving /
+Weakening / Lagging — "is it a leader?"), the RSI-of-RS oscillator (with the live value
++ dated x-axis) and RS/RSI divergence. Isolated, server-SVG, on-read (space rule: the RS
+line is stored; RSI/RRG are computed, stored NOWHERE). Reuses rrg._rs_ratio_momentum +
+mini_rrg — the exact engine behind the index RRG. DESCRIPTIVE only.
 
-Data (already computed nightly — no new compute for Phase 1):
-  * rs_extras(numerator, denominator='Nifty 500') → rs_ratio + rsi_of_rs (sectors/indices)
-  * stock_signals(symbol) → rs_vs_broad_today (the RS line) + rsi_of_rs (stocks)
-Design follows the client-grade conventions from the best-in-class audit: 30/50/70
-banding, dashed DIRECTIONAL divergence line (green bull / red bear), hover gloss.
-
-DESCRIPTIVE ONLY — momentum/divergence characterization, never a buy signal.
-
-Public API:
-    detect_divergence(rs, rsi)      -> {'type': 'bullish'|'bearish'|None, 'i1','i2'}
-    pane_svg(dates, rs, rsi, div)   -> the two-pane SVG (RS line + RSI oscillator)
-    card_html(sym, conn=…)          -> dossier-embeddable card (fetches; empty-state safe)
-    router  (GET /dash/momentum)    -> standalone page (mounted via v2_surfaces)
+Public: detect_divergence · pane_svg · card_html(sym, conn=…, bench=…) · router(/dash/momentum)
 """
 from __future__ import annotations
 
 import html
 from contextlib import nullcontext
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
@@ -36,10 +24,20 @@ router = APIRouter()
 _DIV_COL = {"bullish": "var(--up)", "bearish": "var(--down)"}
 _DIV_GLOSS = {"bullish": "RS lower low, RSI higher low — early turn up",
               "bearish": "RS higher high, RSI lower high — early roll-over"}
+# RRG quadrant → (label, colour, plain-English "is it a leader?")
+_QV = {"Leading":   ("Leader", "var(--up)", "strong & strengthening"),
+       "Improving": ("Improving", "var(--accent)", "weak but strengthening — early turn"),
+       "Weakening": ("Weakening", "var(--warn)", "strong but fading"),
+       "Lagging":   ("Lagging", "var(--down)", "weak & weakening")}
+_BENCHES = (("broad", "Nifty 500"), ("sector", "Sector"), ("nifty50", "Nifty 50"))
 
 
 def _esc(s) -> str:
     return html.escape(str(s if s is not None else ""), quote=True)
+
+
+def _short(nm: str) -> str:
+    return str(nm).replace("Nifty ", "").replace(" Index", "")
 
 
 # ── divergence detection (pure) ───────────────────────────────────────────────
@@ -55,9 +53,6 @@ def _pivots(y, kind: str, w: int) -> list[int]:
 
 
 def detect_divergence(rs, rsi, *, w: int = 3) -> dict:
-    """Compare the last two RS pivots against RSI-of-RS at those pivots. Bullish: RS
-    LOWER low but RSI HIGHER low. Bearish: RS HIGHER high but RSI LOWER high. Returns
-    the more recent of the two (same heuristic as rrg._divergence)."""
     if not rs or len(rs) != len(rsi) or len(rs) < (2 * w + 2):
         return {"type": None}
     cands = []
@@ -72,8 +67,8 @@ def detect_divergence(rs, rsi, *, w: int = 3) -> dict:
     return max(cands, key=lambda c: c["i2"])
 
 
-# ── the two-pane renderer (RS line on top, RSI-of-RS oscillator beneath) ───────
-def pane_svg(dates, rs, rsi, div: dict | None = None) -> str:
+# ── the two-pane renderer (RS line + RSI oscillator, dated x-axis, live RSI) ────
+def pane_svg(dates, rs, rsi, div: dict | None = None, label: str = "Nifty 500") -> str:
     n = len(rs or [])
     if n < 2 or len(rsi or []) != n:
         return ""
@@ -95,13 +90,14 @@ def pane_svg(dates, rs, rsi, div: dict | None = None) -> str:
         v = max(0.0, min(100.0, v))
         return ri_bot - v / 100.0 * (ri_bot - ri_top)
 
-    out = ['<svg width="100%" viewBox="0 0 728 316" role="img" '
+    out = ['<svg width="100%" viewBox="0 0 728 334" role="img" '
            'xmlns="http://www.w3.org/2000/svg" '
-           'aria-label="RS line with RSI-of-RS oscillator and divergence">']
-    out.append('<text x="44" y="16" style="fill:var(--ink-2);font:400 12px system-ui">'
-               'RS vs Nifty 500</text>')
-    out.append('<text x="44" y="170" style="fill:var(--ink-2);font:400 12px system-ui">'
-               'RSI of RS · 0–100</text>')
+           f'aria-label="RS line vs {_esc(label)} with RSI-of-RS oscillator, divergence and dates">']
+    out.append(f'<text x="44" y="16" style="fill:var(--ink-2);font:400 12px system-ui">'
+               f'RS vs {_esc(label)}</text>')
+    out.append(f'<text x="44" y="170" style="fill:var(--ink-2);font:400 12px system-ui">'
+               f'RSI of RS · 0–100 · <tspan style="fill:#9085e9;font-weight:600">now '
+               f'{rsi[-1]:.0f}</tspan></text>')
     for lvl in (70, 50, 30):
         y = Yri(lvl)
         out.append(f'<line x1="{L}" y1="{y:.0f}" x2="{R}" y2="{y:.0f}" '
@@ -112,6 +108,16 @@ def pane_svg(dates, rs, rsi, div: dict | None = None) -> str:
     ri_pts = " ".join(f'{X(i):.1f},{Yri(rsi[i]):.1f}' for i in range(n))
     out.append(f'<polyline points="{rs_pts}" style="fill:none;stroke:#2a78d6;stroke-width:2"/>')
     out.append(f'<polyline points="{ri_pts}" style="fill:none;stroke:#9085e9;stroke-width:2"/>')
+    # live end-dots + the RSI value on the chart
+    out.append(f'<circle cx="{X(n - 1):.1f}" cy="{Yrs(rs[-1]):.1f}" r="3.5" style="fill:#2a78d6"/>')
+    out.append(f'<circle cx="{X(n - 1):.1f}" cy="{Yri(rsi[-1]):.1f}" r="3.5" style="fill:#9085e9"/>')
+    out.append(f'<text x="{X(n - 1) - 6:.1f}" y="{Yri(rsi[-1]) - 6:.1f}" text-anchor="end" '
+               f'style="fill:#9085e9;font:600 11px system-ui">{rsi[-1]:.0f}</text>')
+    # dated x-axis (shared): ~5 ticks, YYYY-MM
+    ticks = sorted({0, n // 4, n // 2, 3 * n // 4, n - 1})
+    for i in ticks:
+        out.append(f'<text x="{X(i):.1f}" y="326" text-anchor="middle" '
+                   f'style="fill:var(--ink-3);font:400 10px system-ui">{_esc(str(dates[i])[:7])}</text>')
     if div.get("type"):
         col = _DIV_COL[div["type"]]
         for key in ("i1", "i2"):
@@ -130,12 +136,11 @@ def pane_svg(dates, rs, rsi, div: dict | None = None) -> str:
     return "".join(out)
 
 
-# ── horizon sweep + staged recovery (compact, on-read; space-optimal) ─────────
+# ── horizon sweep + staged recovery (beat/lag vs the CHOSEN benchmark) ─────────
 _HZ = ((5, "1w"), (10, "2w"), (21, "1m"), (63, "3m"), (126, "6m"), (252, "12m"))
 
 
 def _rs_pcts(rs):
-    """[(label, %Δ of the RS line over the horizon), …] — RS %Δ = beat/lag vs Nifty."""
     out = []
     for n, lab in _HZ:
         v = (rs[-1] / rs[-1 - n] - 1.0) * 100.0 if len(rs) > n and rs[-1 - n] else None
@@ -144,7 +149,6 @@ def _rs_pcts(rs):
 
 
 def _stage(pcts):
-    """Staged recovery from the sweep: a turn climbs 1w→2w→1m→3m→6m/12m."""
     d = dict(pcts)
 
     def beat(l):
@@ -165,7 +169,7 @@ def horizon_strip_svg(rs) -> str:
     n, W, Lp = len(pcts), 728, 8
     cw = (W - Lp * 2) / n
     out = [f'<svg width="100%" viewBox="0 0 {W} 58" role="img" '
-           'aria-label="RS beat or lag vs Nifty across horizons">']
+           'aria-label="RS beat or lag vs the benchmark across horizons">']
     for i, (lab, v) in enumerate(pcts):
         x = Lp + i * cw
         col = "var(--up)" if (v is not None and v > 0) else (
@@ -181,11 +185,7 @@ def horizon_strip_svg(rs) -> str:
     return "".join(out)
 
 
-# ── RS series + on-read RSI ───────────────────────────────────────────────────
-# SPACE-OPTIMAL (mandatory rule): the RS line is ALREADY fully stored
-# (stock_signals.rs_vs_broad_today, ratio_rows.ratio); RSI is trivially derivable, so we
-# COMPUTE it on-read and store NOTHING. Storing RSI across ~5.9M rows would add GBs to the
-# 16GB production DB for zero information gain. Derivable series are never persisted.
+# ── RS series (per benchmark) + on-read RSI + per-stock RRG ────────────────────
 def _wilder_rsi(vals, period: int):
     out = [None] * len(vals)
     if len(vals) <= period:
@@ -205,67 +205,136 @@ def _wilder_rsi(vals, period: int):
     return out
 
 
-def _rs_series(sym: str, conn, *, window: int = 180):
-    """Trailing (dates, rs_line[]) from the already-populated RS series: stocks →
-    stock_signals.rs_vs_broad_today ; sectors/indices → ratio_rows.ratio (vs Nifty 500).
-    None if neither has enough history. Pure read — no storage."""
-    for sql, args in (
-        ("SELECT trade_date, rs_vs_broad_today FROM stock_signals "
-         "WHERE symbol=? AND rs_vs_broad_today IS NOT NULL ORDER BY trade_date", (sym,)),
-        ("SELECT trade_date, ratio FROM ratio_rows "
-         "WHERE numerator=? AND denominator='Nifty 500' AND ratio IS NOT NULL "
-         "ORDER BY trade_date", (sym,)),
-    ):
-        try:
-            rows = conn.execute(sql, args).fetchall()
-        except Exception:  # noqa: BLE001
-            rows = []
-        if len(rows) >= 30:
-            rows = rows[-window:] if window else rows
-            return ([r[0] for r in rows], [float(r[1]) for r in rows])
-    return None
+def _safe(conn, sql, args):
+    try:
+        return conn.execute(sql, args).fetchall()
+    except Exception:  # noqa: BLE001
+        return []
 
 
-def _fetch(sym: str, conn, *, period: int = 14, window: int = 180):
-    """(dates, rs_line[], rsi[]) or None — RSI computed on-read (Wilder) from the RS line."""
-    ser = _rs_series(sym, conn, window=window)
-    if ser is None:
-        return None
-    dates, rs = ser
-    rsi = _wilder_rsi(rs, period)
-    idx = [i for i in range(len(rs)) if rsi[i] is not None]
-    if len(idx) < 8:
-        return None
-    return ([dates[i] for i in idx], [rs[i] for i in idx], [rsi[i] for i in idx])
-
-
-def card_html(sym: str, conn=None) -> str:
-    """Dossier-embeddable card. Safe to call with or without a live connection."""
+def _bench_series(sym: str, conn, bench: str, *, window: int = 756):
+    """(dates, ratio[], bench_label) for the chosen benchmark, or None. Pure read.
+    broad→Nifty 500 (stored) · sector→own sector (stored) · nifty50→derived
+    (rs_vs_broad × Nifty500/Nifty50). Space rule: nothing persisted."""
     sym = (sym or "").strip().upper()
+
+    def _take(rows, fn, label):
+        if len(rows) < 30:
+            return None
+        rows = rows[-window:] if window else rows
+        return ([r[0] for r in rows], [fn(r) for r in rows], label)
+
+    if bench == "sector":
+        psec = _safe(conn, "SELECT primary_sector FROM stock_signals WHERE symbol=? AND "
+                     "primary_sector IS NOT NULL ORDER BY trade_date DESC LIMIT 1", (sym,))
+        label = _short(psec[0][0]) if psec and psec[0][0] else "its sector"
+        return _take(_safe(conn, "SELECT trade_date, rs_vs_sector_today FROM stock_signals "
+                           "WHERE symbol=? AND rs_vs_sector_today IS NOT NULL ORDER BY trade_date",
+                           (sym,)), lambda r: float(r[1]), label)
+    if bench == "nifty50":
+        return _take(_safe(conn,
+                     "SELECT s.trade_date, s.rs_vs_broad_today, i5.close_value, i50.close_value "
+                     "FROM stock_signals s "
+                     "JOIN index_rows i5 ON i5.index_name='Nifty 500' AND i5.trade_date=s.trade_date "
+                     "JOIN index_rows i50 ON i50.index_name='Nifty 50' AND i50.trade_date=s.trade_date "
+                     "WHERE s.symbol=? AND s.rs_vs_broad_today IS NOT NULL AND i5.close_value>0 "
+                     "AND i50.close_value>0 ORDER BY s.trade_date", (sym,)),
+                     lambda r: float(r[1]) * float(r[2]) / float(r[3]), "Nifty 50")
+    ser = _take(_safe(conn, "SELECT trade_date, rs_vs_broad_today FROM stock_signals "
+                      "WHERE symbol=? AND rs_vs_broad_today IS NOT NULL ORDER BY trade_date",
+                      (sym,)), lambda r: float(r[1]), "Nifty 500")
+    if ser:
+        return ser
+    return _take(_safe(conn, "SELECT trade_date, ratio FROM ratio_rows WHERE numerator=? AND "
+                       "denominator='Nifty 500' AND ratio IS NOT NULL ORDER BY trade_date",
+                       (sym,)), lambda r: float(r[1]), "Nifty 500")
+
+
+def _rrg(rs):
+    """(current_quadrant, tail[{rs_ratio,rs_momentum,quadrant}]) from the RS ratio series —
+    the SAME rrg engine the index uses."""
+    try:
+        from src.automation import rrg
+    except Exception:  # noqa: BLE001
+        return None, []
+    rr, rm = rrg._rs_ratio_momentum(rs)
+    tail = [{"trade_date": None, "rs_ratio": rr[i], "rs_momentum": rm[i],
+             "quadrant": rrg.quadrant(rr[i], rm[i])}
+            for i in range(len(rs)) if rr[i] is not None and rm[i] is not None]
+    return (tail[-1]["quadrant"] if tail else None), tail
+
+
+def _rrg_card(tail, label: str) -> str:
+    if len(tail) < 3:
+        return ""
+    try:
+        from src.web.mini_rrg import mini_rrg_card
+        return mini_rrg_card(tail, den=label, tail_label=f"rotation vs {label}",
+                             max_pts=14, size=200)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _bench_toggle(sym: str, active: str) -> str:
+    out = []
+    for key, lab in _BENCHES:
+        on = "border-color:var(--accent);color:var(--accent)" if key == active else ""
+        out.append(f'<a class="pill" style="{on}" '
+                   f'href="/dash/momentum?sym={quote_plus(sym)}&amp;bench={key}">{lab}</a>')
+    return f'<div style="margin:0 0 8px;font-size:12px;color:var(--ink-2)">Compare vs: {" ".join(out)}</div>'
+
+
+# ── the card ──────────────────────────────────────────────────────────────────
+def card_html(sym: str, conn=None, bench: str = "broad") -> str:
+    sym = (sym or "").strip().upper()
+    bench = bench if bench in ("broad", "sector", "nifty50") else "broad"
     cm = nullcontext(conn) if conn is not None else _open()
     with cm as c:
-        data = _fetch(sym, c) if c is not None else None
-    if not data:
+        ser = _bench_series(sym, c, bench, window=756) if c is not None else None
+
+    if not ser:
         return ('<div class="card"><div class="h2" style="margin:0 0 4px">'
-                f'{_esc(sym)} — RS momentum</div><div class="sub" style="margin:0">'
-                'No RS/RSI series on record for this name yet (needs the nightly RS '
-                'compute). This card is inert until then — it changes nothing.</div></div>')
-    dates, rs, rsi = data
-    div = detect_divergence(rs, rsi)
-    st, stcol = _stage(_rs_pcts(rs))
+                f'{_esc(sym)} — RS momentum</div>'
+                f'{_bench_toggle(sym, bench)}'
+                '<div class="sub" style="margin:0">No RS series on record for this name vs '
+                f'this benchmark yet ({_esc(bench)}). Needs the nightly RS compute.</div></div>')
+    dates, rs, label = ser
+    rsi = _wilder_rsi(rs, 14)
+    vidx = [i for i in range(len(rs)) if rsi[i] is not None]
+    if len(vidx) < 8:
+        return ('<div class="card"><div class="h2" style="margin:0 0 4px">'
+                f'{_esc(sym)} — RS momentum vs {_esc(label)}</div>{_bench_toggle(sym, bench)}'
+                '<div class="sub" style="margin:0">Not enough history to draw the pane.</div></div>')
+    disp = vidx[-180:]
+    d_dates = [dates[i] for i in disp]
+    d_rs = [rs[i] for i in disp]
+    d_rsi = [rsi[i] for i in disp]
+    div = detect_divergence(d_rs, d_rsi)
+    st, stcol = _stage(_rs_pcts(d_rs))
+    quad, tail = _rrg(rs)
+
     pills = [f'<span class="pill" style="border-color:{stcol};color:{stcol}">Stage: {_esc(st)}</span>']
+    qv = _QV.get(quad)
+    if qv:
+        pills.append(f'<span class="pill" style="border-color:{qv[1]};color:{qv[1]}">'
+                     f'{_esc(sym)} is a {qv[0]} vs {_esc(label)} — {qv[2]}</span>')
+    pills.append(f'<span class="pill" style="border-color:#9085e9;color:#9085e9">RSI {d_rsi[-1]:.0f}</span>')
     if div.get("type"):
         col = _DIV_COL[div["type"]]
         pills.append(f'<span class="pill" style="border-color:{col};color:{col}">'
                      f'{div["type"].title()} divergence — early</span>')
     return (
         '<div class="card">'
-        f'<div class="h2" style="margin:0 0 2px">{_esc(sym)} — RS momentum</div>'
-        '<div class="sub" style="margin:0 0 8px">Beat/lag vs Nifty by horizon, RSI of the RS '
-        'line, and RS/RSI divergence — momentum turns before price. <b>Descriptive.</b></div>'
-        f'<div style="margin:0 0 6px">{" ".join(pills)}</div>'
-        f'{horizon_strip_svg(rs)}'
-        f'{pane_svg(dates, rs, rsi, div)}'
+        f'<div class="h2" style="margin:0 0 2px">{_esc(sym)} — RS momentum &amp; rotation vs {_esc(label)}</div>'
+        '<div class="sub" style="margin:0 0 8px">Four-quadrant rotation (is it a leader?), beat/lag '
+        'by horizon, RSI of the RS line and RS/RSI divergence — momentum turns before price. '
+        '<b>Descriptive.</b></div>'
+        f'{_bench_toggle(sym, bench)}'
+        f'<div style="margin:0 0 8px">{" ".join(pills)}</div>'
+        f'<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">'
+        f'<div style="flex:0 0 auto">{_rrg_card(tail, label)}</div>'
+        f'<div style="flex:1;min-width:280px">{horizon_strip_svg(d_rs)}</div></div>'
+        f'{pane_svg(d_dates, d_rs, d_rsi, div, label)}'
         '</div>'
     )
 
@@ -279,11 +348,11 @@ def _open():
 
 
 @router.get("/dash/momentum", response_class=HTMLResponse)
-def momentum_page(sym: str = Query("")):
+def momentum_page(sym: str = Query(""), bench: str = Query("broad")):
     sym = (sym or "").strip().upper()
-    body = card_html(sym) if sym else (
+    body = card_html(sym, bench=bench) if sym else (
         '<div class="card"><div class="h2">RS momentum</div>'
-        '<div class="sub">Pass ?sym=TICKER.</div></div>')
+        '<div class="sub">Pass ?sym=TICKER (&bench=broad|sector|nifty50).</div></div>')
     try:
         from src.web.dashboard import _shell
         return HTMLResponse(_shell(f"{sym} — RS momentum" if sym else "RS momentum",
@@ -293,13 +362,16 @@ def momentum_page(sym: str = Query("")):
 
 
 def _selftest() -> None:
+    import math
     rs = [10, 9, 8, 7, 6, 7, 8, 7, 6, 5, 6, 7, 8]
     rsi = [40, 36, 33, 30, 28, 33, 38, 35, 33, 34, 40, 45, 50]
     d = detect_divergence(rs, rsi)
     assert d["type"] == "bullish", d
-    assert pane_svg(list(range(len(rs))), rs, rsi, d).startswith("<svg")
-    assert detect_divergence([1, 2, 3], [1, 2, 3])["type"] is None
-    assert '<div class="card"' in card_html("NOSUCHSYM")   # empty-state, no crash
+    assert pane_svg([f"2026-{i:02d}-01" for i in range(1, 14)], rs, rsi, d, "Sector").startswith("<svg")
+    ser = [100 * (1 + 0.0008 * i + 0.03 * math.sin(i / 11)) for i in range(300)]
+    q, tail = _rrg(ser)
+    assert q in ("Leading", "Improving", "Weakening", "Lagging"), q
+    assert '<div class="card"' in card_html("NOSUCHSYM")
     print("momentum_pane selftest: OK")
 
 
