@@ -96,8 +96,14 @@ migrated cohort is exactly the set whose series are provably consistent.
 2. **Phase 2 (LIVE 2026-07-02, bank mapper):** see § Phase-2 evidence below. Bank/NBFC results
    now extracted (Screener bank conventions, tag-based detection, quarterly-only); definitional
    mappers resolved by evidence (most dissolved); `--regate` CLI re-arbitrates cached verdicts
-   after mapper changes. Still open from the Phase-2 list: shareholding-pattern filings
-   (promoter/FII/DII/pledge — separate NSE filing class, own module).
+   after mapper changes. **Phase 2c shareholding SHIPPED (`775badb`):** NEW
+   `src/automation/shareholding_xbrl.py` — SHP XBRL via `corporate-share-holdings-master`
+   (broadcastDate = PIT), category-context extraction (Promoters/Public/FIIs/DIIs, fractions
+   ×100), NEW `Promoter Pledge` metric (% of the promoter group's own holding pledged —
+   verified VIKRAMSOLR 6.77 / JPPOWER 72.99 / SAGCEM 29.99; a filed "No" = real 0.0),
+   forward-only + `source=NSE-XBRL-SHP` + Promoters continuity gate (RELIANCE 0.00pp),
+   nightly `hermes-shareholding-xbrl.timer` 16:45 UTC. Open follow-up: wire
+   `fundamentals_asof.promoter_pledge` (currently hard-None) to the new metric.
 3. **Phase 3:** historical backfill from the legacy API (2018+ per symbol) + BSE archive where
    deeper, replacing Screener-era rows symbol-by-symbol where reconciliation allows; then delete
    `screener.py`. Bank ANNUAL rows and the excise cohort (ITC) land here by series replacement.
