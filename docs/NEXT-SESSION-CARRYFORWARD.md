@@ -20,14 +20,11 @@ Do NOT burn the context window re-reading history — this file + the top PROJEC
   this shared tree — never `git add -A`, stage explicit paths only.
 
 ## THE QUEUE — do these autonomously, in priority order
-1. **REBUILD DATASET A against `corporates-pit-gg` (feed BROKEN since ~Mar-2026).** The old
-   `/api/corporates-pit` returns empty-200s; the new endpoint returns filing rows (`appId`,
-   `broadcastDateTime`, `symbol`, `regulation`, `xmlFileName`) pointing at per-disclosure XBRL
-   (flat ~28-tag `in-bse-co`: person, category, acquired/disposed qty+value+type, before/after
-   holdings %, mode, from/to dates, RevisedFilling). Build: listing fetch + XML mapper feeding the
-   EXISTING `insider_events` normalizer/taxonomy (keep the classifier). PIT clock =
-   `broadcastDateTime`; AppID = batch id never dedup key. Backfill 2026-03-01→now. Full probe
-   evidence in PROJECT_STATE § open items (top).
+1. **VERIFY dataset-A backfill completion** (rebuild itself DONE session 73, `b136d3f` — do NOT
+   redo). Check `/var/log/hermes-insider-backfill.log` ends clean (gg run May→Jun + chained
+   `--legacy 2026-03-01 2026-04-30`), `SELECT substr(disclosure_dt,1,7), COUNT(*) FROM
+   insider_events GROUP BY 1` has no month gap 2025-11→now, and `--agg` sanity on a pledge-heavy
+   symbol. Then the nightly timer keeps it current (it already routes to the new endpoint).
 2. **XBRL Phase 2 — widen the migrated cohort.** (a) Definitional mappers for gate-failing
    symbols (excise-gross Sales, NCI netting, other-operating-income OP); (b) bank/NBFC taxonomy
    mapper (currently skipped loudly); (c) shareholding-pattern filings (promoter/FII/DII/pledge —
