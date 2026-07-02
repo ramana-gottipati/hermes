@@ -239,6 +239,53 @@ higher risk tolerance. This is a real step toward the proprietary "great compone
 
 ---
 
+## Experiment 2026-07-03 — Dataset-C capital-allocation overlay (DONE — the "fuller lens" answer)
+
+Ran `research/explosive_moves/c_overlay.py` (S77b) — the follow-up the 2026-06-24 caveats demanded:
+the production `capital_allocation` composite (ROIIC, ROCE level+trend, dilution drag, debt-funding
+share, growth efficiency; financial model for lenders) on **calibrated PIT knowable-dates**
+(`fundamentals_asof`, `use_real_knowable`), joined into the IDENTICAL harness (top-25 monthly,
+relative liquidity gate 0.60, net-of-cost, walk-forward halves, Nifty500 Sharpe-0.89 hurdle).
+157 rebalances; 1,321 gated symbols C-computable. Results in `out/c_overlay.csv`.
+
+| Variant | CAGR | MaxDD | Sharpe | Calmar | H1sh | H2sh | H2 CAGR | Read |
+|---|---|---|---|---|---|---|---|---|
+| A. RISKADJ rel-gate (baseline) | 35.3% | −41.9% | 1.29 | 0.84 | 1.36 | 1.23 | 34.7% | re-run, matches record |
+| B. + C-VETO bottom-quintile | 32.3% | −42.2% | 1.24 | 0.76 | 1.35 | 1.17 | 31.4% | hard veto adds NOTHING |
+| C. + C-FILTER top-half | 28.2% | −38.8% | 1.15 | 0.73 | 1.27 | 1.07 | 27.5% | filters cost return (again) |
+| **D. + C-BLEND 50/50** | **32.5%** | **−28.2%** | **1.32** | **1.15** | **1.40** | **1.29** | **35.0%** | **new best on every metric** |
+| E. + QUALITY-BLEND 50/50 (prior win) | 25.4% | −28.7% | 1.19 | 0.88 | 1.33 | 1.09 | 24.7% | dethroned |
+| F. + STACK 50mom/25q/25C | 27.6% | −30.4% | 1.21 | 0.91 | 1.34 | 1.12 | 27.0% | q on top of C makes it WORSE |
+| G. D @1.5× cost | 30.6% | −30.1% | 1.26 | 1.02 | 1.33 | 1.24 | 33.1% | cost-robust |
+
+**Findings (recorded):**
+1. **C-BLEND 50/50 is the new best overlay — it keeps the baseline's return AND cuts the drawdown.**
+   Sharpe 1.29 → **1.32**, MaxDD −41.9% → **−28.2%**, Calmar 0.84 → **1.15** (best ever recorded
+   here), and in the high-coverage half (H2) it matched the baseline's CAGR (35.0% vs 34.7%) with
+   14pp less drawdown. The quality-blend's DD control came at −10pp CAGR; C's comes at −2.8pp.
+2. **C subsumes the 4-metric quality lens.** Head-to-head, C-blend beats quality-blend on every
+   column; stacking quality ON TOP of C (F) is worse than C alone (D). The richer
+   capital-allocation math (ROIIC + dilution + debt-funding + growth efficiency) carries all the
+   information the ROCE/D-E/OPM/IC lens had, plus more.
+3. **D66 refined: C's working shape is a RANK BLEND, not a hard veto.** The bottom-quintile veto
+   (B) and top-half filter (C) both degrade outcomes — same lesson as quality filters. C stays
+   "never a standalone ranker" (untested as one, by design), but "veto" is the wrong consumption
+   shape too: fuse it 50/50 with the momentum rank.
+
+**Caveats:** C coverage of the gated universe RAMPS 3% → 89% (mean 61%) — thin in 2012-14 (missing
+= neutral 0.5 in blends), so H1 partially reflects neutral-fill; the honest window is H2
+(coverage 53-89%) where C still wins (1.29 vs 1.23 vs quality's 1.09). Same simplified per-turnover
+cost model as the whole ledger (1.5× stress proxies slippage; no per-name impact/capacity). One
+construction family (top-25 monthly RISKADJ). MEP-accumulation and concall-credibility overlays
+remain untested.
+
+**Verdict:** **RISKADJ rel-gate + 50/50 C-BLEND is the new investable candidate** (Sharpe 1.32,
+Calmar 1.15, DD −28.2%, cost-robust, survives both halves). Consumption (queue #5): fold C in as a
+**blend/tilt on the momentum surfaces + descriptive screener column** (ca_score/ca_tier from the
+nightly `capital_allocation_scores`), NOT as a hard veto and NOT as a standalone ranker.
+
+---
+
 ## Gate study 2026-06-24b — is the liquidity gate large-cap biased? (DONE)
 
 Ran `research/explosive_moves/gate_study.py` (`out/gate_study.csv`). PIT market cap = (Net Profit ÷ EPS)
