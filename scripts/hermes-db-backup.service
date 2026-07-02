@@ -1,0 +1,15 @@
+# AUD-02 — nightly on-box DR backup of the single 16GB SQLite DB.
+# Committed to git (not a VPS-only unit) so the schedule is reviewable/rebuildable.
+[Unit]
+Description=Hermes SQLite DB backup (online .backup + integrity check + rotation)
+# The backup only READS the DB, so it is safe alongside ingest; no ordering hard-dependency.
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/hermes/scripts/hermes-db-backup.sh
+# Never let a hung backup wedge the unit forever (AUD-31 lesson): bound the run.
+RuntimeMaxSec=3600
+Nice=10
+IOSchedulingClass=idle
+# The backup is a read of the whole 16GB file; give it room but never the OOM axe over the API.
+OOMScoreAdjust=200
