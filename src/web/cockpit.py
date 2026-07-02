@@ -1933,7 +1933,9 @@ def render_concalls(view: str) -> str:
     head_html = (
         '<h2 style="margin-top:2px">Management Credibility '
         '<span class="sub" style="margin:0">CCI · concall intelligence</span></h2>'
-        f'<div class="fbar" style="margin:6px 0">{tab("avoid", "⚠ Avoid tape")}{tab("leaders", "★ Credibility leaders")}</div>'
+        f'<div class="fbar" style="margin:6px 0">{tab("avoid", "⚠ Avoid tape")}{tab("leaders", "★ Credibility leaders")}'
+        '<a class="fbtn" href="/dash/credibility" title="Promise-vs-delivery fingerprint — every settled '
+        'promise plotted over time (flagship A)">◔ Fingerprint</a></div>'
         f'<div class="sub" style="margin-top:0"><b>{note}</b> Ranking uses <b>measurable items only</b> '
         '(D61): guidance accuracy, quantification %, the ⛔ veto, and deterministic deterioration. '
         'The last three <b>·AI</b> columns are a model read shown <b>for context — NOT ranked</b>. '
@@ -2493,10 +2495,21 @@ def render_theme_detail(name, idx_date, sig_date) -> str:
 
 
 def _tag_act_btn(action, symbol, tag, label, nxt="/dash/tags-review") -> str:
-    """A one-click POST button (approve/reject/remove) for the review surface."""
+    """A one-click POST button (approve/reject/remove) for the review surface.
+    Destructive actions (remove) get a browser confirm() guard so a stray click
+    can't silently hard-delete a manual tag (D81 — no one-click irreversible delete)."""
     from src.web import dashboard as D
     esc = D._esc
-    return (f'<form method="post" action="/dash/tags" style="display:inline">'
+    onsub = ""
+    if action == "remove":
+        # JS single-quoted string: escape backslashes/quotes so the tag/symbol
+        # (controlled vocab, but be safe) can't break out of the confirm() call.
+        def _js(s):
+            return str(s).replace("\\", "\\\\").replace("'", "\\'").replace('"', "&quot;")
+        msg = (f"Remove the “{_js(tag)}” tag from {_js(symbol)}? "
+               "This permanently deletes your manual tag and can’t be undone from here.")
+        onsub = f" onsubmit=\"return confirm('{msg}')\""
+    return (f'<form method="post" action="/dash/tags" style="display:inline"{onsub}>'
             f'<input type="hidden" name="action" value="{action}">'
             f'<input type="hidden" name="symbol" value="{esc(symbol)}">'
             f'<input type="hidden" name="tag" value="{esc(tag)}">'

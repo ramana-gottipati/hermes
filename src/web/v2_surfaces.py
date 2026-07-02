@@ -65,6 +65,10 @@ _ROUTER_SPECS = [
     # reads the already-computed rsi_of_rs / rs_extras. Durably mounted, no dashboard edit.
     ("momentum", "src.web.momentum_pane", "/dash/momentum"),
     ("divergence", "src.web.divergence_board", "/dash/divergence"),
+    # All-weather capture map (premium-visuals flagship C) — up-capture × down-capture
+    # scatter over the nightly capture_signals snapshot. Isolated, server-SVG, pure read.
+    ("capture-map", "src.web.capture_map", "/dash/capture-map"),
+    ("cycle-clock", "src.web.cycle_clock", "/dash/cycle-clock"),
     # Risk-adjusted momentum SCANNER (candidate shortlister + inline C/A/B veto) — distinct from
     # the RS momentum_pane above; reads the nightly `momentum_scan` table. Durably mounted here.
     ("momentum-scan", "src.web.momentum_view", "/dash/momentum-scan"),
@@ -96,21 +100,24 @@ _ROUTER_SPECS = [
 # Each sub-nav item is (key, href, label, group) where `group` is an optional heading
 # (e.g. "Rotation", "Accumulation") rendered as a non-link separator before its items.
 from src.web import lens_registry as _LR
+from src.web import nested_nav as _NN  # D80: canonical /dash/<workspace>/<page> URLs
 
 _ALT_LABELS = {"markets": "Markets", "screener": "Screener",
                "strategies": "Strategies", "tracker": "Tracker", "trust": "Trust"}
-# top-bar tab href = the first sub-nav route of each altitude (its landing).
+# top-bar tab href = the first sub-nav route of each altitude (its landing), nested.
 def _alt_landing(_alt: str) -> str:
     """First routed lens of an altitude, or a safe self-route if the altitude has only
     overlay-only lenses (subnav() empty) — never index [0] of an empty list at import time."""
     _sn = _LR.subnav(_alt)
-    return _sn[0].route if _sn else f"/dash/{_alt}"
+    return (_NN.nested_path(_sn[0]) or _sn[0].route) if _sn else f"/dash/{_alt}"
 
 
 _IA_ALT = [(_alt, _alt_landing(_alt), _ALT_LABELS.get(_alt, _alt.title()))
            for _alt in _LR.altitude_order()]
 # {altitude: [(key, href, label, group), ...]} — overlay-only lenses excluded by subnav().
-_IA_SUB = {_alt: [(ln.key, ln.route, ln.label, ln.group) for ln in _LR.subnav(_alt)]
+# href is the D80 nested canonical (/dash/<workspace>/<page>); the flat path 307s to it.
+_IA_SUB = {_alt: [(ln.key, _NN.nested_path(ln) or ln.route, ln.label, ln.group)
+                  for ln in _LR.subnav(_alt)]
            for _alt in (*_LR.altitude_order(), "trust")}
 # Discoverability trail (the MEP/Wolfe lesson): the Lab moved to Trust as "Strategy
 # validation". Leave a signposted pointer where it used to live (under Strategies) so the
@@ -126,10 +133,16 @@ _SUB_ALIAS = {ln.key: _LR.alias_set(ln.key) for ln in _LR.LENSES if ln.aliases}
 _ALT_OF: dict[str, str] = dict(_LR.ALT_OF)
 
 # every href the IA homes (the no-loss known set) + the always-present utilities.
+# D80: include BOTH the nested canonical hrefs (from _IA_ALT/_IA_SUB) AND every lens's
+# FLAT registry route + the legacy workspace roots, so the legacy nav's flat links
+# (/dash/themes, /dash/dashboard, …) are recognised as "known" and NOT re-scraped into
+# the top-bar "More" group as duplicates once their canonical URL is nested.
 _KNOWN_HREFS = ({h for _k, h, _l in _IA_ALT}
                 | {h for _its in _IA_SUB.values() for _k, h, _l, _g in _its}
+                | {ln.route for ln in _LR.LENSES if ln.route}
                 | {"/dash/coverage", "/dash/testing", "/dash/pat", "/dash/ratio",
                    "/dash/news", "/dash/leaders", "/dash/wolfe", "/dash/wolfe/scan",
+                   "/dash/dashboard",  # legacy Tracker top-tab flat (now → /dash/tracker/dashboard)
                    # Hub merged into Strategist: its route stays live but must not be
                    # re-surfaced as "More" clutter on the top bar.
                    "/dash/strategies"})
@@ -384,6 +397,12 @@ def wire(app):
     Idempotent + defensive."""
     _mount_routers(app)
     _mount_v1(app)
+    # D80: nest every workspace sub-page under /dash/<workspace>/<page> (flat 307s kept).
+    # Runs AFTER routers are mounted so the flat handlers exist to alias + redirect.
+    try:
+        _NN.nest_routes(app)
+    except Exception as e:  # noqa: BLE001 — nesting is additive; never break wiring
+        log.warning("nested nav install skipped: %s", e)
     try:
         _install_nav()
     except Exception as e:  # noqa: BLE001 — nav install must never break import
@@ -436,13 +455,13 @@ def _selftest() -> int:
 
     # ── the DECIDED Scope × Lens IA (nav-ia-DECISIONS §1) is wired correctly ──
     mkt = D._nav("markets")
-    assert 'href="/dash/leaders"' in mkt, "Leaders must be a Markets sub-nav entry"
+    assert 'href="/dash/markets/leaders"' in mkt, "Leaders must be a Markets sub-nav entry"
     strat = D._nav("strategist")
     # Scope the IA assertions to the SUB-NAV strip (the cmdk ⌘K palette legitimately
     # still lists Wolfe/Hub as searchable destinations — they stay reachable, just not
     # as Strategies sub-nav tabs). The strip is the v2subnav block.
     _strat_strip = strat.split('class="v2subnav"', 1)[-1].split("</div>", 1)[0]
-    assert 'href="/dash/leaders"' not in _strat_strip, "Leaders must NOT be under Strategies"
+    assert 'href="/dash/markets/leaders"' not in _strat_strip, "Leaders must NOT be under Strategies"
     assert 'href="/dash/strategies"' not in _strat_strip, "Hub must be merged into Strategist"
     assert '>Accumulation<' in _strat_strip, "Positioning+MEP must group under 'Accumulation'"
     for gone in ('>Wolfe', '/dash/wolfe'):           # Wolfe demoted to chart overlay

@@ -78,11 +78,17 @@ LENSES: tuple[Lens, ...] = (
     # (gross selection lens, not alpha). RS/momentum content → Markets, beside Leaders.
     Lens("momentum-scan", "Risk-adj momentum", "market", "markets", "/dash/momentum-scan",
          aliases=("momo", "riskadj")),
+    # All-weather capture map (flagship C) — up/down-capture scatter vs the benchmark;
+    # behaviour track record (descriptive), sits with the RS-strength cluster.
+    Lens("capture-map", "All-weather map", "market", "markets", "/dash/capture-map",
+         aliases=("capture", "all-weather")),
     Lens("rrg", "Rotation · Map", "market", "markets", "/dash/rrg",
          group="Rotation"),
     Lens("rotation", "Rotation · Weather", "market", "markets", "/dash/rotation",
          group="Rotation"),
     Lens("rsband", "Rotation · Band", "market", "markets", "/dash/rsband",
+         group="Rotation"),
+    Lens("cycle-clock", "Rotation · Clock", "market", "markets", "/dash/cycle-clock",
          group="Rotation"),
     # Momentum — RSI-of-RS divergence early-warning board (roadmap Phase 1). Market-wide
     # destination; the per-stock momentum pane lives on the dossier (not a nav item).
@@ -135,12 +141,15 @@ LENSES: tuple[Lens, ...] = (
     Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad"),
 
     # ── Tracker ──────────────────────────────────────────────────────────────
-    Lens("dashboard", "Dashboard", "stock", "tracker", "/dash/dashboard",
+    # Tracker tabs are nested under /dash/tracker/* so the URL mirrors the nav
+    # hierarchy (D79). The old flat /dash/<tab> URLs stay alive as 307 redirects
+    # (see dashboard.py _tracker_compat) so existing links/bookmarks never break.
+    Lens("dashboard", "Dashboard", "stock", "tracker", "/dash/tracker/dashboard",
          aliases=("tracker", "track")),
-    Lens("portfolios", "Portfolios", "stock", "tracker", "/dash/portfolios"),
-    Lens("watchlists", "Watchlists", "stock", "tracker", "/dash/watchlists"),
-    Lens("performance", "Performance", "stock", "tracker", "/dash/performance"),
-    Lens("import", "Import", "stock", "tracker", "/dash/import"),
+    Lens("portfolios", "Portfolios", "stock", "tracker", "/dash/tracker/portfolios"),
+    Lens("watchlists", "Watchlists", "stock", "tracker", "/dash/tracker/watchlists"),
+    Lens("performance", "Performance", "stock", "tracker", "/dash/tracker/performance"),
+    Lens("import", "Import", "stock", "tracker", "/dash/tracker/import"),
 
     # ── Trust (utility) ──────────────────────────────────────────────────────
     Lens("coverage", "Coverage", "trust", "trust", "/dash/coverage"),

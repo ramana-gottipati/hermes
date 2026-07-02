@@ -81,6 +81,13 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
     # a shareable deep-link (/dash/news?sym=). Distinct from /dash/wire (market wire).
     "/dash/news":       "per-stock news timeline — content embedded as the stock-dossier News tab; "
                         "standalone route kept as a shareable deep-link. Distinct from /dash/wire.",
+    # per-stock RS-momentum pane — same pattern as /dash/news: its CONTENT is embedded as
+    # the stock-dossier Momentum tab (dashboard._mompane card_html), and every row of the
+    # nav-reachable /dash/divergence board deep-links here per symbol (links are DATA-driven,
+    # so an empty dev DB renders none for the gate to see).
+    "/dash/momentum":   "per-stock RS-momentum pane — content embedded as the stock-dossier "
+                        "Momentum tab; standalone route is the per-symbol deep-link target of "
+                        "the /dash/divergence board rows.",
     # reachable via page-BODY cross-links (not the top chrome) — verified live:
     "/dash/ratio":      "sacred ratio page — reached from the index/markets bodies (cockpit ratio links)",
     "/dash/rs":         "full RS ranking — reached from the cockpit 'Full RS ranking' body link",
@@ -95,6 +102,10 @@ RENDER_SURFACES = [
     "/dash/markets", "/dash/index", "/dash/sectors", "/dash/rrg", "/dash/rs-hub",
     "/dash/coverage", "/dash/dashboard", "/dash/screen2", "/dash/strategist",
     "/dash/stock?sym=ACC", "/dash/screener", "/dash/themes",
+    # CCI board — nav-reachable (Strategies · Credibility); its header links the
+    # credibility fingerprint (/dash/credibility), which the dossier CCI tab also embeds
+    # but only when the dev DB has rows — so the gate verifies THIS static link.
+    "/dash/concalls",
 ]
 
 # altitude landing pages that MUST carry exactly one contextual sub-nav strip.
@@ -139,6 +150,26 @@ def main() -> int:
     page_routes = _page_routes(app)
     real_routes = _all_routes(app)
 
+    # D80 URL nesting: a lens page lives at BOTH its flat route (/dash/wire, kept as a
+    # 307 redirect) and its nested canonical (/dash/markets/wire, what the chrome links).
+    # Derive the equivalence from the SAME engine that installs it (never a hand list),
+    # so either form being linked marks the page reachable — the flat originals must not
+    # read as orphans once the chrome emits nested hrefs.
+    flat_to_nested: dict[str, str] = {}
+    try:
+        from src.web import nested_nav as _NN
+        from src.web import lens_registry as _LR
+        for _ln in _LR.LENSES:
+            _n = _NN.nested_path(_ln)
+            if _ln.route and _n and _n != _ln.route:
+                flat_to_nested[_ln.route] = _n
+            elif _ln.route and _n == _ln.route and _ln.route == f"/dash/{_ln.altitude}/{_ln.key}":
+                # lens already registered at its nested canonical (e.g. Tracker) — its
+                # legacy flat /dash/<key> survives as a 307 compat route; same page.
+                flat_to_nested[f"/dash/{_ln.key}"] = _ln.route
+    except Exception as e:  # noqa: BLE001 — pre-nesting checkouts still gate cleanly
+        print(f"  (nested-nav equivalence unavailable: {type(e).__name__}: {e})")
+
     # render the navigable surfaces; collect everything reachable + all linked hrefs.
     reachable: set[str] = set()
     linked: set[str] = set()
@@ -155,6 +186,13 @@ def main() -> int:
         hs = _hrefs(r.text)
         linked |= hs
         reachable |= hs
+
+    # expand reachability across the flat↔nested equivalence (both directions).
+    for _flat, _nested in flat_to_nested.items():
+        if _nested in reachable:
+            reachable.add(_flat)
+        if _flat in reachable:
+            reachable.add(_nested)
 
     fails: list[str] = list(render_fail)
 

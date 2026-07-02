@@ -3745,6 +3745,21 @@ def _upcoming_actions(conn, symbols, days=45):
         return []
 
 
+def _split_strats(raw):
+    """Split a Track position's strategy field into its component strategies.
+    Multi-strategy positions store a comma-joined string (D77); single-strategy
+    and free-text values pass through unchanged. Returns an order-preserving,
+    de-duplicated list (so one position is never counted twice for the same
+    strategy); a blank field yields an empty list."""
+    parts, seen = [], set()
+    for p in (raw or "").split(","):
+        p = p.strip()
+        if p and p not in seen:
+            seen.add(p)
+            parts.append(p)
+    return parts
+
+
 def _attrib_bars(title, pairs, top_n=8):
     """Signed ₹ return-attribution bars (green + / red −), sorted high→low, capped
     to the extreme movers (top contributors + detractors). % is share of total
@@ -4323,7 +4338,7 @@ async def dash_track_alerts_save(request: Request) -> RedirectResponse:
     return RedirectResponse(dest, status_code=303)
 
 
-@router.get("/dash/portfolios", response_class=HTMLResponse)
+@router.get("/dash/tracker/portfolios", response_class=HTMLResponse)
 def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
     sel_book = book.strip()
     with get_conn() as conn:
@@ -4488,7 +4503,7 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
     return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios", wide=True))
 
 
-@router.get("/dash/watchlists", response_class=HTMLResponse)
+@router.get("/dash/tracker/watchlists", response_class=HTMLResponse)
 def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
     sel_book = book.strip()
     today = datetime.now().strftime("%Y-%m-%d")
@@ -4584,7 +4599,7 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
     return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists", wide=True))
 
 
-@router.get("/dash/performance", response_class=HTMLResponse)
+@router.get("/dash/tracker/performance", response_class=HTMLResponse)
 def dash_performance(just_closed: str = Query("", alias="closed"),
                      err: str = Query("")) -> HTMLResponse:
     today = datetime.now().strftime("%Y-%m-%d")
@@ -4597,12 +4612,25 @@ def dash_performance(just_closed: str = Query("", alias="closed"),
         syms = {r["symbol"] for r in openrows} | {r["symbol"] for r in closed}
         cmps = {r["symbol"]: _capture_snapshot(conn, r["symbol"])[0] for r in openrows}
         enr = _enrich(conn, syms)
-        bystrat = [dict(r) for r in conn.execute(
-            "SELECT strategy k, COUNT(*) n, "
-            "AVG(CASE WHEN exit_price>entry_price THEN 1.0 ELSE 0 END)*100 hit, "
-            "AVG((exit_price-entry_price)/entry_price*100) avg_ret "
-            "FROM stocks_in_play WHERE status='closed' AND entry_price>0 "
-            "AND exit_price IS NOT NULL GROUP BY strategy ORDER BY n DESC").fetchall()]
+        # Hit-rate by strategy — split each position's comma-joined strategy
+        # (D77 multi-select) and attribute it to EACH component, so a combo like
+        # "DVPT accumulation, RS leader" lands in both rows. Single-strategy and
+        # free-text values pass through unchanged; blanks fall back to "—".
+        _sagg = {}
+        for r in closed:
+            ep, xp = r["entry_price"], r["exit_price"]
+            if not ep:
+                continue
+            ret, win = (xp - ep) / ep * 100.0, (1.0 if xp > ep else 0.0)
+            for k in (_split_strats(r["strategy"]) or ["—"]):
+                a = _sagg.setdefault(k, {"n": 0, "wins": 0.0, "ret": 0.0})
+                a["n"] += 1
+                a["wins"] += win
+                a["ret"] += ret
+        bystrat = sorted(
+            [{"k": k, "n": a["n"], "hit": a["wins"] / a["n"] * 100,
+              "avg_ret": a["ret"] / a["n"]} for k, a in _sagg.items()],
+            key=lambda x: x["n"], reverse=True)
         bybook = [dict(r) for r in conn.execute(
             "SELECT book k, COUNT(*) n, "
             "AVG(CASE WHEN exit_price>entry_price THEN 1.0 ELSE 0 END)*100 hit, "
@@ -4712,7 +4740,8 @@ def dash_performance(just_closed: str = Query("", alias="closed"),
                   + _attrib_bars("By holding", [(x["sym"], x["pl_rs"]) for x in recs])
                   + _attrib_bars("By sector", [(x["sector"], x["pl_rs"]) for x in recs])
                   + _attrib_bars("By book", [(x["book"], x["pl_rs"]) for x in recs])
-                  + _attrib_bars("By strategy", [(x["strat"], x["pl_rs"]) for x in recs])
+                  + _attrib_bars("By strategy", [(k, x["pl_rs"]) for x in recs
+                                                 for k in (_split_strats(x["strat"]) or ["—"])])
                   + '</div></details>')
     elif openrows or closed:
         attrib = ('<div class="sub" style="margin-top:14px">Add <b>quantity</b> to your positions to '
@@ -4778,11 +4807,47 @@ def dash_performance(just_closed: str = Query("", alias="closed"),
 
 @router.get("/dash/tracker")
 def dash_tracker_redirect() -> RedirectResponse:
-    # Back-compat: the old scoreboard route is now "Performance".
-    return RedirectResponse("/dash/performance", status_code=307)
+    # The Tracker umbrella lands on its Dashboard cockpit (the first tab).
+    return RedirectResponse("/dash/tracker/dashboard", status_code=307)
 
 
-@router.get("/dash/dashboard", response_class=HTMLResponse)
+# ── Tracker tab URLs live under /dash/tracker/* (D79) so the address mirrors the
+# nav hierarchy (Tracker › Dashboard/Portfolios/Watchlists/Performance/Import).
+# The old flat /dash/<tab> URLs stay alive as 307 redirects to the nested canonical
+# path — query string preserved — so every existing link, bookmark and internal
+# redirect keeps working (no page is rerouted away or orphaned).
+def _tracker_compat(request: Request, tab: str) -> RedirectResponse:
+    q = request.url.query
+    return RedirectResponse(f"/dash/tracker/{tab}" + (f"?{q}" if q else ""),
+                            status_code=307)
+
+
+@router.get("/dash/dashboard")
+def _compat_dashboard(request: Request) -> RedirectResponse:
+    return _tracker_compat(request, "dashboard")
+
+
+@router.get("/dash/portfolios")
+def _compat_portfolios(request: Request) -> RedirectResponse:
+    return _tracker_compat(request, "portfolios")
+
+
+@router.get("/dash/watchlists")
+def _compat_watchlists(request: Request) -> RedirectResponse:
+    return _tracker_compat(request, "watchlists")
+
+
+@router.get("/dash/performance")
+def _compat_performance(request: Request) -> RedirectResponse:
+    return _tracker_compat(request, "performance")
+
+
+@router.get("/dash/import")
+def _compat_import(request: Request) -> RedirectResponse:
+    return _tracker_compat(request, "import")
+
+
+@router.get("/dash/tracker/dashboard", response_class=HTMLResponse)
 def dash_dashboard() -> HTMLResponse:
     """The Tracker cockpit: totals · needs-attention red flags · movers · allocation
     · contributors · news · upcoming corporate actions · every book at a glance."""
@@ -5190,7 +5255,7 @@ def _imp_review(headers, rows, mp, status, book):
         f'<table class="dt"><thead><tr>{thead}</tr></thead><tbody>{prev}</tbody></table>')
 
 
-@router.get("/dash/import", response_class=HTMLResponse)
+@router.get("/dash/tracker/import", response_class=HTMLResponse)
 def dash_import() -> HTMLResponse:
     form = (
         '<form class="cap" method="post" action="/dash/import/preview" enctype="multipart/form-data">'
@@ -6447,6 +6512,19 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 
     cpr_html = _cpr_stock_panel(cpr_by_tf)   # CPR Structure panel (D53)
     cci_html = _cci_stock_panel(sym)         # Management Credibility dossier (CCI, P5)
+    # Flagship A (premium visuals): the promise-vs-delivery FINGERPRINT rides the CCI
+    # tab (Session-68 plan) with a link out to the full /dash/credibility page — the
+    # movement view of the same settled promises the ledger below lists. Defensive:
+    # a fingerprint failure must never break the dossier; empty-state is graceful.
+    try:
+        from src.web import credibility_fingerprint as _credfp
+        cci_html = (
+            _credfp.card_html(sym)
+            + f'<div class="sub" style="margin:4px 0 12px"><a class="row" style="display:inline" '
+              f'href="/dash/credibility?sym={quote_plus(sym)}">Full credibility fingerprint →</a></div>'
+            + cci_html)
+    except Exception:
+        pass
     mep_html = _mep_stock_panel(sym)         # MEP signed accumulation/distribution dossier (D62)
     fno_html = _fno_stock_panel(sym)         # F&O Open-Interest identity channel ('' if no future)
     # Per-stock news timeline — the embed the news_view module was built for ("a Wire

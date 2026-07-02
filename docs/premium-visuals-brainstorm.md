@@ -59,13 +59,15 @@ Each is a dataset where a table hides the insight. Excludes anything that re-plo
   the whole signal. Visual: dumbbell/point per settled promise over time, colored by outcome, on a
   "promise kept" zero baseline. **Descriptive** — "management track record," never a buy signal.
   Image: `docs/visuals/credibility-fingerprint.svg`.
-- **B. Rotation as a cycle-clock, not a 2×2 grid.**
+- **B. Rotation as a cycle-clock, not a 2×2 grid.** *(BUILT 2026-07-02 —
+  `src/web/cycle_clock.py` → `/dash/cycle-clock`, Markets · Rotation lens.)*
   Data: `stock_rs.rs_phase` (RECOVERY→TAILWIND→ROLLING-OVER→HEADWIND) + velocity — a *lifecycle loop*.
   The grid hides *direction and speed of travel* around the loop. Visual: clock/loop, each name a dot
   at its phase-angle, arrow = velocity. Complements RRG (RS-ratio×momentum), doesn't duplicate it.
   Image: `docs/visuals/rotation-cycle-clock.svg`.
-- **C. Up-capture / down-capture scatter ("all-weather" map).**
-  Data: `rs_extras.up_capture_63 / down_capture_63` — a real 2D cloud. Two columns hide the *diagonal*
+- **C. Up-capture / down-capture scatter ("all-weather" map).** *(BUILT 2026-07-02 —
+  `src/web/capture_map.py` → `/dash/capture-map`, Markets · "All-weather map" lens.)*
+  Data: `capture_signals.up_capture_63 / down_capture_63` — a real 2D cloud. Two columns hide the *diagonal*
   (the market line) and the prize quadrant (participates up, defends down). **Descriptive.**
 - **D. DVPT institutional footprint — intensity × horizon × price.**
   Data: R-tier/P-tier ladder (10 baselines) + companion `avg_close_*` price zones (D31). Three
