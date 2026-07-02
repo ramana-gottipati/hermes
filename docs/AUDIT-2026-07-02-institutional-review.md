@@ -73,7 +73,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 
 ### P1 — integrity of shown numbers
 
-**AUD-05 [P1] Trust ledger silently renders "—" for 3 live datasets (rsband, rs_extras, capture)** — `OPEN`
+**AUD-05 [P1] Trust ledger silently renders "—" for 3 live datasets (rsband, rs_extras, capture)** — `DONE S77` (provenance.py: has_symbol=False + new count_col="numerator" override → shows 173/122/173 series not "—"; live schema verified read-only: no symbol col, COUNT(DISTINCT numerator) non-None. ⚠ needs deploy; formal startup selftest still TODO)
 - **Component:** coverage matrix integrity | **Reporter:** perf-trust.
 - **Files:** `src/automation/provenance.py:109,181-189,382-390,897`; DDL at `rrg.py:247`, `rsband.py:322`, `capture.py:132`.
 - **Evidence digest:** those tables are keyed (numerator, denominator) with no `symbol` column; descriptors default `has_symbol=True` → `COUNT(DISTINCT symbol)` errors → `_scalar` swallows to None → live page renders `—` under the header "Every figure is sourced and reproducible". A diligence reader concludes three nightly-populated datasets are empty.

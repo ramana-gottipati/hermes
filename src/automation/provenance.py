@@ -110,6 +110,7 @@ class ProvenanceDescriptor:
     asof_col: str = ""             # the column carrying the as-of/observation date
     asof_real_cols: tuple = ()     # for EVENT classes: real clock columns in priority order
     ingest_col: Optional[str] = None  # 'computed_at'/'fetched_at' — when the row was written (NOT the as-of)
+    count_col: str = ""            # AUD-05: coverage-count column for keyed (no-symbol) tables, e.g. 'numerator' → "N series"
     template: str = ""             # honest display string w/ {placeholders}; ALWAYS embeds the basis word
     derives_from: tuple = ()       # upstream classes a DERIVED class inherits its date from
     cadence: str = ""              # expected refresh cadence (the freshness story)
@@ -179,13 +180,16 @@ PROVENANCE: dict[str, ProvenanceDescriptor] = {
                         ingest_col="computed_at", derives_from=("index_ohlc",),
                         template="Index signal, NSE close {as_of}", cadence="nightly"),
     "rs_extras": _d("rs_extras", "JdK RS-Ratio/Momentum, RSI-of-RS, Mansfield", "computed", "hermes",
-                    ("rs_extras",), "derived", DERIVED, asof_col="trade_date", ingest_col="computed_at",
+                    ("rs_extras",), "derived", DERIVED, has_symbol=False, count_col="numerator",
+                    asof_col="trade_date", ingest_col="computed_at",
                     derives_from=("index_ohlc",), template="RRG read, {as_of}", cadence="nightly"),
     "rsband": _d("rsband", "RS band % / regime / break state", "computed", "hermes",
-                 ("rsband_signals",), "derived", DERIVED, asof_col="trade_date", ingest_col="computed_at",
+                 ("rsband_signals",), "derived", DERIVED, has_symbol=False, count_col="numerator",
+                 asof_col="trade_date", ingest_col="computed_at",
                  derives_from=("index_ohlc",), template="RS band, {as_of}", cadence="nightly"),
     "capture": _d("capture", "Down/up capture, down-excess", "computed", "hermes",
-                  ("capture_signals",), "derived", DERIVED, asof_col="trade_date", ingest_col="computed_at",
+                  ("capture_signals",), "derived", DERIVED, has_symbol=False, count_col="numerator",
+                  asof_col="trade_date", ingest_col="computed_at",
                   derives_from=("index_ohlc",), template="Capture read, {as_of}", cadence="nightly"),
     "signal_events": _d("signal_events", "Typed state-change events", "computed", "hermes",
                         ("signal_events",), "event", DERIVED, asof_col="as_of", ingest_col="detected_at",
@@ -893,6 +897,11 @@ def coverage_snapshot(conn=None) -> dict:
                 n, n_unit = _scalar(rdb, f"SELECT COUNT(DISTINCT symbol) FROM {t}"), "symbols"
                 latest = _scalar(rdb, f"SELECT MAX({d.asof_col}) FROM {t}") if d.asof_col else None
                 rdb.close()
+            elif d.count_col:
+                # AUD-05: keyed no-symbol tables (RS series keyed by numerator/denominator) —
+                # count the entity column so the ledger shows real breadth ("N series"), not "—".
+                n, n_unit = _scalar(c, f"SELECT COUNT(DISTINCT {d.count_col}) FROM {t}"), "series"
+                latest = _scalar(c, f"SELECT MAX({d.asof_col}) FROM {t}") if d.asof_col else None
             elif d.has_symbol:
                 n, n_unit = _scalar(c, f"SELECT COUNT(DISTINCT symbol) FROM {t}"), "symbols"
                 latest = _scalar(c, f"SELECT MAX({d.asof_col}) FROM {t}") if d.asof_col else None
