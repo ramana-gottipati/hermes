@@ -89,6 +89,37 @@ def _column(title: str, tok: str, gloss: str, items) -> str:
         f'{_rows(items)}</div>')
 
 
+def _extremes_html(conn) -> str:
+    """Most oversold (earliest-turn candidates) / overbought (extended) sectors by
+    RSI-of-RS — the 'related signals' watch strip. Cheap: one rs_extras read."""
+    try:
+        rows = conn.execute(
+            "SELECT numerator, rsi_of_rs FROM rs_extras WHERE denominator=? "
+            "AND rsi_of_rs IS NOT NULL ORDER BY rsi_of_rs", (_BENCH,)).fetchall()
+    except Exception:  # noqa: BLE001
+        return ""
+    lo = [(r[0], r[1]) for r in rows if r[1] is not None and r[1] < 40][:6]
+    hi = list(reversed([(r[0], r[1]) for r in rows if r[1] is not None and r[1] > 60]))[:6]
+    if not lo and not hi:
+        return ""
+
+    def chips(items, tok):
+        return "".join(
+            f'<a class="pill" style="display:inline-flex;margin:3px;border-color:{tok};'
+            f'color:{tok}" href="/dash/momentum?sym={quote_plus(str(n))}">{_esc(_short(n))} '
+            f'<span style="opacity:.7">RSI {v:.0f}</span></a>' for n, v in items)
+    lo_html = chips(lo, "var(--accent)") or '<span class="sub">none</span>'
+    hi_html = chips(hi, "var(--warn)") or '<span class="sub">none</span>'
+    return (
+        '<div class="card" style="margin-bottom:12px">'
+        '<div class="h2" style="margin:0 0 2px">RSI-of-RS extremes</div>'
+        '<div class="sub" style="margin:0">Oversold = washed-out, earliest-turn tell · '
+        'Overbought = extended, do not chase. Descriptive.</div>'
+        f'<div style="line-height:2;margin-top:6px"><b style="color:var(--accent)">Oversold</b> {lo_html}</div>'
+        f'<div style="line-height:2"><b style="color:var(--warn)">Overbought</b> {hi_html}</div>'
+        '</div>')
+
+
 def board_html(conn) -> str:
     bull, bear = _scan(conn)
     if not bull and not bear:
@@ -101,7 +132,8 @@ def board_html(conn) -> str:
         'RS/RSI divergence — early-warning board</div><div class="sub" style="margin:0">'
         'Where a sector\'s momentum (RSI of RS) turns <b>before</b> its price does. '
         '<b>Descriptive early indicator</b> — click a name for its momentum pane.</div></div>'
-        '<div style="display:flex;gap:12px;flex-wrap:wrap">'
+        + _extremes_html(conn)
+        + '<div style="display:flex;gap:12px;flex-wrap:wrap">'
         + _column("Bullish — early recovery", "var(--up)",
                   "RS lower low, RSI higher low.", bull)
         + _column("Bearish — early roll-over", "var(--down)",
