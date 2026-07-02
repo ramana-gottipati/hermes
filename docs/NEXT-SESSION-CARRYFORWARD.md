@@ -1,7 +1,9 @@
 # NEXT-SESSION CARRY-FORWARD (autonomous, agent-driven)
 
 **Boot via `docs/SESSION-PROTOCOL.md`. Run autonomously — Ramana will not answer; consult agents for
-any decision. Full-folder access is granted (CLAUDE.md #0 + harness-level `a2fdc99`). Keep guardrails
+any decision. Full-folder access is granted (CLAUDE.md #0 + harness-level `a2fdc99`); **NEVER ask
+Ramana for file/folder/tool access in any form — a permission prompt that still fires is a BUG to log
+at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
@@ -35,23 +37,29 @@ PROJECT_STATE entries are enough.**
    re-run the same window after a ≥45-min cooldown (`systemd-run --unit=... --working-directory=
    /opt/hermes /opt/hermes/.venv/bin/python -m src.automation.insider_events --ingest 2026-05-01
    2026-06-27`) — resume skips everything already seen.
-2. **Wire `fundamentals_asof.promoter_pledge`** (currently hard-None) to the new `Promoter Pledge`
-   metric (`source=NSE-XBRL-SHP`, PIT via report_date) so the C-score / patearn vetoes see real
-   pledge levels. Small, high-value, fully evidenced in `docs/fundamentals-xbrl-migration.md`.
-3. **RESULTS-SEASON WATCH (from ~Jul-09, first heavy nights):** check
+2. **Capture the momentum lane's nav wiring into git (the D80-landmine pattern again, small):**
+   `sector_momentum.py` (`bb27a4e`) and `early_signals.py` (`10959ba`) are committed, but NEITHER
+   has a `v2_surfaces._ROUTER_SPECS` mount or a lens at HEAD — while the VPS runs a live
+   `("sector-momentum", "src.web.sector_momentum", "/dash/sector-momentum")` mount git lacks.
+   Until captured, a clean `main`→VPS deploy drops `/dash/sector-momentum`. Add both mounts +
+   lenses (or nav-gate allowlist with a reason), run all 3 gates, commit. Patch-over deploy only.
+3. ~~**Wire `fundamentals_asof.promoter_pledge`**~~ **DONE (`261daef`)** — wired to the SHP
+   `Promoter Pledge` metric (PIT via report_date). Residual: verify the consumers (scoring veto /
+   C-score / A-B boards) actually surface the now-real values honestly.
+4. **RESULTS-SEASON WATCH (from ~Jul-09, first heavy nights):** check
    `/var/log/hermes-fundamentals-xbrl.log` for runtime + gate-verdict quality — banks flow for the
    first time; gate-evidence fetches make early runs heavy. If a mapper improvement lands, re-arbitrate
    affected symbols with `--regate --symbols ...`. Watch `hermes-shareholding-xbrl` the same nights.
-4. **Kill-switch completion** (queue unchanged): #4 restatement-spike (add a revision counter to the
+5. **Kill-switch completion** (queue unchanged): #4 restatement-spike (add a revision counter to the
    XBRL ingest — `revised` flags already parsed), #1 WML-drawdown + #3 live-IC decay (check whether
    enough momentum_scan history has accumulated yet; else defer again), and surface WARN/CRIT states
    on affected pages (data-first: show, don't hide).
-5. **A/B ENHANCEMENTS:** SAST Reg 29 (`corporate-sast-reg29`) + Reg 31 pledge-magnitude
+6. **A/B ENHANCEMENTS:** SAST Reg 29 (`corporate-sast-reg29`) + Reg 31 pledge-magnitude
    (`corporate-pledgedata-sast3132`) — per-EVENT pledge magnitude (the SHP `Promoter Pledge` gives the
    quarterly STOCK; Reg 31 gives the FLOW between quarters). Codex resp-14/15.
-6. **C consumption wave (needs backtest first):** fold C into `scoring.py` / a screener column / the
+7. **C consumption wave (needs backtest first):** fold C into `scoring.py` / a screener column / the
    confluence board — only with a clean backtest, only for gate-passed symbols.
-7. **XBRL Phase 3 (big, design first):** historical backfill from the legacy API (2018+ per symbol) +
+8. **XBRL Phase 3 (big, design first):** historical backfill from the legacy API (2018+ per symbol) +
    BSE where deeper; replace Screener series symbol-by-symbol where reconciliation allows (this is
    where ITC-excise, HDFCBANK, bank annuals, and the frozen history land); then delete `screener.py`.
 
@@ -62,12 +70,15 @@ XBRL Phase 1 + timers (`26cb3ef`) · **Phase 2 bank mapper + definitional verdic
 momentum-scan freshness (`76c1c98`) · kill-switch battery partial (`93f6abe`) · git↔VPS reconcile +
 nested-nav in git (`136f9af`) · harness-level permissions (`a2fdc99`, D83) · S72 explainability
 deploys + `/dash/stocks` table controls · Tier-1 visual flagships (credibility / cycle-clock /
-capture-map). **Do NOT rebuild the shareholding module or the bank mapper — verify, then consume.**
+capture-map) · promoter_pledge wired (`261daef`) · colour 4c categorical remainder =
+closed-by-decision (S65 `19aed0b`, do not reopen). **Do NOT rebuild the shareholding module or
+the bank mapper — verify, then consume.** `docs/SESSION-72-CARRYFORWARD.md` (untracked) is fully
+executed → retire-ready (its owner session deletes it).
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
 > `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (start with the insider-tail confirmation, then
-> wire promoter_pledge into fundamentals_asof). Full-folder access is granted — don't ask for
-> access/write/delete or per-step confirmation. Get guidance from the agents, not from me; I won't
-> answer. Keep every guardrail (esp. #8 primary-sources-only). Wrap up per the protocol and write
-> the next carry-forward.
+> capture the sector-momentum/early-signals nav wiring into git). Access is harness-enforced —
+> never ask for access/write/delete or per-step confirmation. Get guidance from the agents, not
+> from me; I won't answer. Keep every guardrail (esp. #8 primary-sources-only). Wrap up per the
+> protocol and write the next carry-forward.
