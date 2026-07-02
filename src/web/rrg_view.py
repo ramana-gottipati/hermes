@@ -556,7 +556,7 @@ function dotsLayer(){var lay=layout(),s='';
  return s;}
 function staticView(){if(raf){cancelAnimationFrame(raf);raf=null;}HK=1;svg.innerHTML='<g>'+grid()+'</g><g id="dl">'+dotsLayer()+'</g><g id="ov" style="pointer-events:none"></g>';wire();}
 // HOVER a sector → trace ITS journey UP TO the parked month (dim the rest); overlay layer.
-function hi(idx){var dl=document.getElementById('dl'),ov=document.getElementById('ov');if(!dl||!ov)return;dl.style.opacity='0.20';
+function hiTrace(idx){var dl=document.getElementById('dl'),ov=document.getElementById('ov');if(!dl||!ov)return;dl.style.opacity='0.20';
  var sec=D[idx],col=sec.col,pts=sec.pts||[],hp=Math.max(1,Math.round(HK*((pts.length||1)-1)));
  var jr=ds(pts.slice(0,hp+1),40),p=interp(pts,HK)||sec.now,X=MX(p[0]),Y=MY(p[1]),s='';
  s+=path(smooth(jr),col,2,0.62);         // the journey so far, up to the parked month
@@ -564,7 +564,7 @@ function hi(idx){var dl=document.getElementById('dl'),ov=document.getElementById
  s+=dotC(X,Y,col,1)+lbl(X,Y-DR-4,sec.k,1);ov.innerHTML=s;}
 function unhi(){var dl=document.getElementById('dl'),ov=document.getElementById('ov');if(dl)dl.style.opacity='1';if(ov)ov.innerHTML='';}
 function wire(){Array.prototype.forEach.call(svg.querySelectorAll('.hit'),function(g){var idx=+g.getAttribute('data-i'),sec=D[idx];
- g.addEventListener('mouseenter',function(){hi(idx);var pos=interp(sec.pts||[],HK)||sec.now,q=(pos[0]>=100?(pos[1]>=100?'Leading':'Weakening'):(pos[1]>=100?'Improving':'Lagging')),mo=(LBL&&LBL.length)?LBL[Math.round(HK*(LBL.length-1))]:'';var h='<b>'+esc(sec.n)+'</b>'+(HK<0.999?' <span style="opacity:.65">@ '+mo+'</span>':'')+'<br>'+q+' · RS-ratio '+pos[0].toFixed(1)+' · RS-mom '+pos[1].toFixed(1);if(sec.rsi!=null)h+='<br>RSI-of-RS '+sec.rsi.toFixed(1);if(sec.mans!=null)h+=' · Mansfield '+sec.mans.toFixed(2);var cap='';if(sec.dc!=null)cap+='down-cap '+sec.dc.toFixed(2);if(sec.uc!=null)cap+=(cap?' · ':'')+'up-cap '+sec.uc.toFixed(2);if(cap)h+='<br>'+cap;tip.innerHTML=h;tip.style.display='block';});
+ g.addEventListener('mouseenter',function(){hiTrace(idx);var pos=interp(sec.pts||[],HK)||sec.now,q=(pos[0]>=100?(pos[1]>=100?'Leading':'Weakening'):(pos[1]>=100?'Improving':'Lagging')),mo=(LBL&&LBL.length)?LBL[Math.round(HK*(LBL.length-1))]:'';var h='<b>'+esc(sec.n)+'</b>'+(HK<0.999?' <span style="opacity:.65">@ '+mo+'</span>':'')+'<br>'+q+' · RS-ratio '+pos[0].toFixed(1)+' · RS-mom '+pos[1].toFixed(1);if(sec.rsi!=null)h+='<br>RSI-of-RS '+sec.rsi.toFixed(1);if(sec.mans!=null)h+=' · Mansfield '+sec.mans.toFixed(2);var cap='';if(sec.dc!=null)cap+='down-cap '+sec.dc.toFixed(2);if(sec.uc!=null)cap+=(cap?' · ':'')+'up-cap '+sec.uc.toFixed(2);if(cap)h+='<br>'+cap;tip.innerHTML=h;tip.style.display='block';});
  g.addEventListener('mousemove',function(e){var b=wrap.getBoundingClientRect();tip.style.left=Math.min(e.clientX-b.left+12,b.width-210)+'px';tip.style.top=(e.clientY-b.top+12)+'px';});
  g.addEventListener('mouseleave',function(){unhi();tip.style.display='none';});
  if(LINK)g.addEventListener('click',function(){window.location.href='/dash/rrg?idx='+encodeURIComponent(sec.n);});});}
