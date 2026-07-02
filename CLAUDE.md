@@ -80,6 +80,8 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 
 ## Guardrails for any Claude Code session in this repo
 
+**0. STANDING AUTHORIZATION — full-folder access + autonomy (Ramana, permanent, do not re-ask).** Assume full read/write access to the **entire `D:\Hermes` tree** in every session — **never request folder-by-folder or per-directory permission** for anything inside the repo, and never treat a subfolder you created as needing fresh access. Execute agreed/converged plans autonomously: new modules, tests, docs, `PROJECT_STATE.md` updates, local commits to `main` (topic branch only when isolation is genuinely needed), running local/VPS scripts, spawning agents, and **VPS deploy of verified, gate-passing, additive changes** (recipe: `PROJECT_STATE.md`/VPS-deploy notes). Report outcomes after acting, not permission requests before. **Surface first ONLY** for genuinely costly/destructive/external actions: **paid API spend** (Gemini/GLM/vendor data), **deleting or overwriting work you did not create**, **DB-destructive ops**, or **publishing beyond the VPS site**. (Twin: `AGENTS.md` Guardrail #0.)
+
 1. **Secrets** — never commit `.env`. Anthropic key, Telegram bot token, Telegram allowed user IDs live there only.
 2. **Cost discipline** — operating Hermes (per month) should be ≤ ₹300 API spend. THIS chat session is more expensive than Hermes itself. Bundle changes. Avoid long iterative tinkering. For text/prompt tweaks, suggest SSH-edit on VPS.
 3. **Cheap models only in scheduled jobs.** Anything that runs on a timer uses approved cheap-model paths only — Haiku or Gemini Flash Lite; never Sonnet/Opus. (Twin of `AGENTS.md` Guardrail #2.)

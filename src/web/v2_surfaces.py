@@ -58,6 +58,9 @@ _ROUTER_SPECS = [
     # clone + deploy renders them instead of 404-ing under their sub-nav entries.
     ("growth", "src.web.growth_view", "/dash/growth"),
     ("testing", "src.web.testing_view", "/dash/testing"),
+    # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
+    # delivery track record. Durably mounted so /dash/credibility survives a clobber.
+    ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),
     # RS band lens — its siblings rsband.py/rrg_view.py are committed but the view was
     # left untracked; now committed + durably mounted here (was only the uncommitted
     # main.py import) so /dash/rsband survives a main.py clobber and a clean checkout.

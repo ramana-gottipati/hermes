@@ -203,8 +203,11 @@ D:\Hermes\                                          ← local working copy of re
 │   ├── multi-timeframe-positioning-design.md       ← MTF foundation spec (weekly/monthly resampled signals + timeframe-parameterized engine)
 │   ├── cpr-strategy-design.md                       ← Strategy 4 (STRUCTURE pillar): multi-TF CPR — U/∩ reversal + unusually-narrow compression scanner + cross-TF amplification (larger TF weighted more) + confluence/regime; trend-stack sibling — design in progress (D53)
 │   ├── chart-redesign-design.md                     ← CHARTING OVERHAUL (D71/D72, S41): the "CPR Spine" signature + four-family control bar (chart-type ▾ · proprietary strategies · indicators · drawings) + magnet/hide-all + harmonic-pattern capability audit (§13); build our OWN on lightweight-charts ("inspired, not copy"). Ramana's intents = §0.1. DESIGN LOCKED, build pending
-│   └── ui-design.md                                 ← UI/UX doctrine + revamp + system-growth roadmap (data-first · wide frozen-pane screener · light · no-regression); D54 — design in progress (session 20)
+│   ├── ui-design.md                                 ← UI/UX doctrine + revamp + system-growth roadmap (data-first · wide frozen-pane screener · light · no-regression); D54 — design in progress (session 20)
+│   ├── premium-visuals-brainstorm.md                ← Premium-visuals program (S68): tiers + "data must earn the visual" discipline; flagship A (credibility fingerprint) approved/built
+│   └── visuals\                                     ← saved chart images (credibility-fingerprint.svg, rotation-cycle-clock.svg)
 ├── src\
+│   │   # web: src\web\credibility_fingerprint.py    ← S68 flagship A — /dash/credibility promise-vs-delivery fingerprint (isolated view, mounted via v2_surfaces)
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
 │   │   ├── db.py                                   ← SQLite schema + init
@@ -1293,6 +1296,36 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 69 — 2026-07-02 — Reconcile `main`↔`origin` + push + VPS deploy-parity audit
+Wrap-up of the colour-work session: integrated all parallel work and made `origin`, `main`, and the VPS consistent.
+- **Reconciled the diverged history + PUSHED.** Local `main` had diverged from `origin/main` (16 ahead / 8 behind — the rsband/rrg scrubber, new-gen `rsband.py` `1fd8c19`, cci, and Session-62/65-68 work landed on origin). Merged `origin/main` cleanly (ort auto-merged `PROJECT_STATE.md`; only file touched on both sides). Merge `b357421`; pushed → **`origin/main == main == b357421`** (0/0).
+- **Resolved the uncommitted `rsband_view.py` in the shared tree** (the standing hazard): diffed it and confirmed origin's committed version is a **strict superset** (has BOTH the lane AND the clock scrubber `72eacea`+`9b22882`; the working copy was an earlier lane-only snapshot + cosmetic em-dash diffs). Backed it up (`scratchpad/rsband_view.WIP-backup.py`) then reset → the merge brought in the complete version. No live work lost.
+- **VPS deploy-parity audit (`src/web`, CR-normalised md5, 36 files).** Found ONE gap: `/dash/credibility` (Session 68's flagship-A credibility fingerprint, `8c82c41`) was on `main` but **not deployed** — VPS lacked `credibility_fingerprint.py` and its `v2_surfaces` wiring. Verified it renders 200 + 0 SVG-attr leaks + graceful empty-state, then deployed both files (backup `parity-20260702-052945`, LF, restart). **`/dash/credibility` now live** (renders real fingerprints against VPS CCI data). Re-audit: **0 drift, 0 missing, 36/36 match.**
+- All 3 gates PASS on the merged tree; 9 VPS routes + `/dash/credibility` all 200.
+
+### Session 68 — 2026-07-02 — Premium-visuals program + flagship A (credibility fingerprint) — BUILT (local, not deployed)
+Ramana asked for a large set of easy/quick wins to make Patearn feel *premium* (appearance, data,
+presentation, infographics) under a hard bar: **no obvious/foolish charts — data must EARN the
+visual**; a single chart should convey more than the whole dataset; show a chart of *movement* per
+key datum. Delivered the full brainstorm + program doc `docs/premium-visuals-brainstorm.md` (Tier 0
+site-wide levers · Tier 1 flagship movement visuals · Tier 2 micro-infographics · Tier 3 trust
+heroes · an explicit "what NOT to chart" discipline list). Ramana **endorsed the program and voted
+flagship #1**.
+- **Shipped (local):** `src/web/credibility_fingerprint.py` — NEW isolated view, the management
+  **promise-vs-delivery fingerprint** (`/dash/credibility?sym=`). Plots every SETTLED promise from
+  `concall_guidance` (status MET/PARTIAL/MISSED + `variance_pct`, unit-free so mixed metric types
+  share one y-axis) over time vs a "promise kept" baseline; headline from `concall_scores`
+  (credibility_trend / guidance_accuracy_score). Reusable `card_html(sym, conn=…)` for the dossier
+  CCI tab. **Descriptive only** (GATE B). Durably mounted via `v2_surfaces._ROUTER_SPECS`.
+- **Saved image assets:** `docs/visuals/credibility-fingerprint.svg`, `docs/visuals/rotation-cycle-clock.svg`.
+- **Verified:** py_compile + import + route registration + SVG/card render + chronological
+  `_period_key` sort (Q4FY23 < Q1FY24). Local DB has 0 `concall_guidance` rows (CCI lives on the
+  VPS) → renders the empty-state picker locally; real fingerprints render on the VPS.
+- **~~Open: deploy to VPS~~ DEPLOYED (Session 69, 2026-07-02)** — `/dash/credibility` live on the VPS
+  (200, renders real fingerprints against the VPS `concall_guidance` data). Remaining open: embed
+  `card_html` on the stock dossier CCI tab + link from `/dash/concalls`; then flagship B (rotation
+  cycle-clock) + C (capture scatter).
 
 ### Session 67 — 2026-07-02 — Explainability gap audit + WIRE the glossary (step 1) — DEPLOYED
 Acting on PRIMARY-INTENT commitment #2 ("explain every term without leaking the formula"). Ran a
