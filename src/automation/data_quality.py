@@ -252,6 +252,92 @@ def chk_cross_db_orphans(c, r) -> dict:
                   "credibility_series symbols not in security_master", orphans[:10])
 
 
+# ── kill-switch checks (validation memo §5 — docs/validation-memo.md) ─────────
+def chk_market_freshness(c) -> dict:
+    """Kill-switch #2: EOD staleness. bhavcopy older than ~2 trading days → critical;
+    the momentum scan lagging the latest trade date → warn (its cache self-heals nightly)."""
+    if not _table_exists(c, "bhavcopy_rows"):
+        return _check("killswitch.market_freshness", SEV_OK, 0, "table absent")
+    bmax = c.execute("SELECT MAX(trade_date) FROM bhavcopy_rows").fetchone()[0]
+    if not bmax:
+        return _check("killswitch.market_freshness", SEV_CRIT, 1, "bhavcopy empty")
+    age = (date.today() - date.fromisoformat(str(bmax)[:10])).days
+    if age > 4:            # 2 trading days + weekend/holiday slack
+        return _check("killswitch.market_freshness", SEV_CRIT, 1,
+                      f"bhavcopy stale: last trade_date {bmax} ({age}d ago)")
+    smax = None
+    if _table_exists(c, "momentum_scan"):
+        smax = c.execute("SELECT MAX(as_of) FROM momentum_scan").fetchone()[0]
+    if smax and smax < bmax:
+        return _check("killswitch.market_freshness", SEV_WARN, 1,
+                      f"momentum_scan as_of {smax} < bhavcopy {bmax} (next 21:30 UTC run should heal)")
+    return _check("killswitch.market_freshness", SEV_OK, 0, f"bhavcopy {bmax}, scan {smax or 'n/a'}")
+
+
+def chk_regime_guard(c) -> dict:
+    """Kill-switch #1 (partial): Nifty-50 below its 200DMA = momentum regime OFF — the
+    shortlist surface is suspect in a crash regime. (The WML-drawdown component waits on
+    accumulated momentum_scan history.)"""
+    if not _table_exists(c, "index_rows"):
+        return _check("killswitch.regime", SEV_OK, 0, "table absent")
+    rows = c.execute(
+        "SELECT close_value FROM index_rows WHERE index_name='Nifty 50' "
+        "ORDER BY trade_date DESC LIMIT 200").fetchall()
+    if len(rows) < 200:
+        return _check("killswitch.regime", SEV_OK, 0, f"only {len(rows)} Nifty rows (warmup)")
+    closes = [float(r[0]) for r in rows if r[0] is not None]
+    last, ma200 = closes[0], sum(closes) / len(closes)
+    if last < ma200:
+        return _check("killswitch.regime", SEV_WARN, 1,
+                      f"Nifty 50 {last:.0f} < 200DMA {ma200:.0f} — momentum regime OFF")
+    return _check("killswitch.regime", SEV_OK, 0, f"Nifty 50 {last:.0f} >= 200DMA {ma200:.0f}")
+
+
+def chk_universe_drift(c) -> dict:
+    """Kill-switch #5: scan-eligible universe moving ±20% vs ~a month ago → investigate
+    the liquidity gate / equity list before trusting the ranks."""
+    if not _table_exists(c, "momentum_scan"):
+        return _check("killswitch.universe_drift", SEV_OK, 0, "table absent")
+    counts = c.execute(
+        "SELECT as_of, COUNT(*) FROM momentum_scan GROUP BY as_of ORDER BY as_of DESC LIMIT 25"
+    ).fetchall()
+    if len(counts) < 2:
+        return _check("killswitch.universe_drift", SEV_OK, 0, f"{len(counts)} scan snapshot(s) (warmup)")
+    latest, oldest = counts[0], counts[-1]
+    if oldest[1] > 0:
+        drift = (latest[1] - oldest[1]) / oldest[1] * 100.0
+        if abs(drift) > 20.0:
+            return _check("killswitch.universe_drift", SEV_WARN, 1,
+                          f"universe {oldest[1]} ({oldest[0]}) -> {latest[1]} ({latest[0]}) = {drift:+.0f}%")
+    return _check("killswitch.universe_drift", SEV_OK, 0,
+                  f"universe {oldest[1]} -> {latest[1]} across {len(counts)} scans")
+
+
+def chk_feed_freshness(c) -> dict:
+    """Event-feed liveness — the check that would have caught the Mar-2026 corporates-pit
+    endpoint death within a week (dataset A silently ingested 0 rows for 4 months).
+    Insider disclosures arrive near-daily market-wide; ratings within a month."""
+    problems, notes = 0, []
+    for table, col, max_age, label in (
+            ("insider_events", "disclosure_dt", 7, "insider disclosures"),
+            ("credit_rating_events", "broadcast_dt", 30, "credit-rating events")):
+        if not _table_exists(c, table):
+            continue
+        mx = c.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]
+        if not mx:
+            problems += 1
+            notes.append(f"{label}: empty")
+            continue
+        age = (date.today() - date.fromisoformat(str(mx)[:10])).days
+        if age > max_age:
+            problems += 1
+            notes.append(f"{label}: newest {mx} ({age}d ago > {max_age}d)")
+        else:
+            notes.append(f"{label}: {mx} ok")
+    return _check("killswitch.feed_freshness", SEV_WARN if problems else SEV_OK,
+                  problems, "; ".join(notes) or "tables absent")
+
+
 # ── run all ───────────────────────────────────────────────────────────────────
 def run(conn=None, *, persist: bool = True) -> dict:
     """Run the full battery. Returns {status, n_critical, n_warn, checks:[...]}.
@@ -266,6 +352,9 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_calibration_freshness, (c,)), (chk_leak_and_demodel, (c,)),
             (chk_fundamentals_dates, (r,)), (chk_security_master, (c,)),
             (chk_cross_db_orphans, (c, r)),
+            # kill-switches (validation memo §5)
+            (chk_market_freshness, (c,)), (chk_regime_guard, (c,)),
+            (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
         ]
         for fn, fargs in plan:
             try:
