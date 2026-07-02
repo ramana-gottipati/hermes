@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes SAST Reg29 + pledge-flow ingest (nightly)
+
+[Timer]
+OnCalendar=*-*-* 15:55:00
+Persistent=true
+Unit=hermes-sast-ingest.service
+
+[Install]
+WantedBy=timers.target
