@@ -30,13 +30,16 @@ honesty; momentum is a free demo of what the data enables, not the product.**
    HAC errors + a Fama-MacBeth cross-sectional check + Deflated Sharpe + PBO, with pass/fail stated up
    front (α HAC t ≥ 3.0; DSR ≥ 0.95; PBO < 0.5). **Prediction (quant): full-model α drops below t=2 and
    reallocates to SMB + WML → it's levered beta, not selection.** → build `research/explosive_moves/attribution.py`.
-2. **Terminal-anchor back-adjustment leak (risk agent's biggest single find — believed-closed, isn't).**
-   `adjust.py` anchors the back-adjust factor to the *latest/terminal* price. For delisted names that's a
-   distressed anchor, for survivors it's today's price → **level-based factors (HI52 Sharpe 1.10,
-   range_pos_252, dist-to-high) carry a survivor/non-survivor asymmetry hidden inside a "CA-clean"
-   claim.** Fix: forward-adjust from a fixed base / rolling anchor; add a level-normalization audit; until
-   fixed, flag level factors "anchor-sensitive" and lean the ensemble on anchor-invariant return-momentum
-   (MOM12, RISKADJ, RESID_MOM).
+2. **Terminal-anchor back-adjustment leak — AUDITED & DISPROVEN for deployed factors (2026-07-02).**
+   The risk agent hypothesized `adjust.py`'s terminal-price anchor biases level factors. Audited via
+   `research/explosive_moves/anchor_audit.py` (429 PIT obs, 25 delisted + 29 survivors): the terminal vs
+   as-of anchors DO differ (mean ~20-24%, up to 2.7×), **but the difference is a pure multiplicative
+   scalar that cancels exactly in every ratio-form factor** — range_pos_252 / dist_high_252 / HI52 are
+   anchor-invariant to machine epsilon (4.4e-16), same as pure-return momentum. **No code change needed;
+   the panel's "flag level factors anchor-sensitive" recommendation would be a false warning.** Only a
+   *raw un-normalized rupee-level* factor (or a fixed-rupee threshold) would carry the bias — none
+   deployed. **Guardrail added instead:** any NEW factor must be a pure return or a within-window ratio,
+   never a raw adjusted-price level (aligns with the existing "no static rupee thresholds" rule).
 3. **Survivorship — finish it properly.** Price spine is already survivorship-correct (good), BUT:
    (a) delisted names silently drop out of the return series without **booking the delisting return**
    (−100% insolvency / M&A price) → a return-series leak even with a complete symbol list;
