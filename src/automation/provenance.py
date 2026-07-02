@@ -58,6 +58,7 @@ import argparse
 import logging
 import os
 import sqlite3
+import time as _time
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Optional
@@ -717,6 +718,29 @@ def _summarize_errs(errs: list) -> dict:
     }
 
 
+# ── AUD-04: in-process memoization of the two expensive Coverage/Trust computes ──
+# The Trust front-door (/dash/coverage + its memo + /v1 coverage/health) recomputes a ~25-class
+# snapshot and a ~29k-row lag audit SEVERAL times per page view (coverage_view calls
+# coverage_snapshot 2×, the memo once; lag_audit runs inside each). Measured ~4s/request, worse
+# under concurrency. At single-worker uvicorn (the live config) an in-process cache keyed on the
+# daily bhav trade-date + a short TTL collapses the repeats to one real compute per data-day —
+# warm requests drop to <100ms. Bounded to ONE snapshot object (space-rule OK); the TTL caps
+# intra-day staleness; a falsy key (synthetic selftest stub with no bhav dates) is never cached,
+# so the selftest path always computes fresh.
+_TRUST_TTL = 600.0
+_cov_cache: dict = {"key": None, "at": 0.0, "snap": None}
+_lag_cache: dict = {"key": None, "at": 0.0, "val": None}
+_LAG_DEFAULT_CLASSES = ("fundamentals_history", "shareholding_history")
+
+
+def _trust_fresh_key(conn=None):
+    """Cheap cache key — the latest bhav trade-date. Changes daily when new data lands, so a new
+    trading day invalidates the cache without any explicit bust."""
+    return _with_conn(
+        lambda c: _scalar(c, "SELECT MAX(trade_date) FROM bhavcopy_dates")
+        or _scalar(c, "SELECT MAX(trade_date) FROM bhavcopy_rows"), conn)
+
+
 # ── lag_audit: measure the look-ahead leak vs the REAL filing dates ───────────
 def lag_audit(conn=None, *, classes=("fundamentals_history", "shareholding_history"),
               persist: bool = True) -> dict:
@@ -798,6 +822,16 @@ def lag_audit(conn=None, *, classes=("fundamentals_history", "shareholding_histo
         if rdb is not None:
             rdb.close()
         return out
+    # AUD-04: memoize the read path (the 29k-row scan the Trust surfaces hit repeatedly).
+    if tuple(classes) == _LAG_DEFAULT_CLASSES and not persist:
+        key = _trust_fresh_key(conn); now = _time.time()
+        if (key and _lag_cache["val"] is not None and _lag_cache["key"] == key
+                and now - _lag_cache["at"] < _TRUST_TTL):
+            return _lag_cache["val"]
+        val = _with_conn(q, conn, write=False)
+        if key:
+            _lag_cache.update(key=key, at=now, val=val)
+        return val
     return _with_conn(q, conn, write=persist)
 
 
@@ -971,7 +1005,17 @@ def coverage_snapshot(conn=None) -> dict:
         snap["restatements"] = _scalar(c, "SELECT COUNT(*) FROM provenance_restatement") or 0
         snap["knowable_captured"] = _scalar(c, "SELECT COUNT(*) FROM provenance_knowable") or 0
         return snap
-    return _with_conn(q, conn)
+    # AUD-04: serve a cached snapshot within the same trading day / TTL; only the first request
+    # per data-day pays the full compute. Cheap freshness key is fetched first so a miss is the
+    # only path that runs `q`.
+    key = _trust_fresh_key(conn); now = _time.time()
+    if (key and _cov_cache["snap"] is not None and _cov_cache["key"] == key
+            and now - _cov_cache["at"] < _TRUST_TTL):
+        return _cov_cache["snap"]
+    snap = _with_conn(q, conn)
+    if key:
+        _cov_cache.update(key=key, at=now, snap=snap)
+    return snap
 
 
 def lag_headline(la: dict | None = None, conn=None) -> dict:
