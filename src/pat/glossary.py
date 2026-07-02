@@ -206,6 +206,115 @@ GLOSSARY: dict[str, dict] = {
         "aliases": ["mep state", "accumulation state"],
         "related": ["mep", "accum_character"],
     },
+    # ---- the four signed MEP terms + context (so Pat can explain each column
+    #      on the /dash/mep screen; previously only "mep"/"mep_state" existed and
+    #      "what is CLV?" returned nothing) ---------------------------------------
+    "pressure": {
+        "term": "Pressure (close vs VWAP)",
+        "family": "positioning",
+        "unit": "signed ratio (z-scored)",
+        "source": "mep_signals.pressure",
+        "plain": "Where the close landed vs the day's own VWAP — buyers paid up (+) or sellers pressed it down (−).",
+        "detail": (
+            "One of the four signed terms behind MEP. Pressure = (close − VWAP) / VWAP, "
+            "then standardised against the stock's own trailing history. Positive means "
+            "the close finished ABOVE the day's volume-weighted average price — buyers "
+            "were willing to pay up into the close (accumulation); negative means sellers "
+            "pushed it below VWAP (distribution). It reads intraday conviction, not the "
+            "size of the move."
+        ),
+        "aliases": ["pressure", "close vs vwap", "vwap pressure", "buying pressure",
+                    "selling pressure", "close minus vwap"],
+        "related": ["mep", "clv", "drift_22d", "updown_vol_22d"],
+    },
+    "clv": {
+        "term": "CLV — close-location value",
+        "family": "positioning",
+        "unit": "−1 … +1 (z-scored)",
+        "source": "mep_signals.clv",
+        "plain": "Where in the day's high–low range the stock closed: +1 = on the high, −1 = on the low, 0 = mid.",
+        "detail": (
+            "Close-Location Value = ((close − low) − (high − close)) / (high − low). One "
+            "of the four signed terms behind MEP. +1 means the stock closed right at the "
+            "day's high (demand won the session); −1 means it closed at the low (supply "
+            "won); 0 is mid-range. It measures WHERE price finished within the range, not "
+            "how wide the range was. Standardised against the stock's own history before "
+            "it feeds the MEP score."
+        ),
+        "aliases": ["clv", "close location value", "close-location value", "close in range",
+                    "where did it close", "close position"],
+        "related": ["mep", "pressure", "drift_22d", "updown_vol_22d"],
+    },
+    "drift_22d": {
+        "term": "Drift (22-day)",
+        "family": "positioning",
+        "unit": "% return (realised)",
+        "source": "mep_signals.drift_22d",
+        "plain": "The split-adjusted price return over the last ~22 trading days — ALREADY realised, not a forecast.",
+        "detail": (
+            "Drift = adj_close today ÷ adj_close 22 trading rows ago − 1. It is a look-"
+            "BACK: '+70%' means the stock has ALREADY risen ~70% over the past month — it "
+            "is NOT a prediction that it will move 70%. One of the four signed terms "
+            "behind MEP; it supplies the near-term trend that sits under the intraday "
+            "reads (pressure, CLV). Standardised against the stock's own history in the "
+            "score."
+        ),
+        "aliases": ["drift", "22 day drift", "drift 22d", "monthly drift", "price drift",
+                    "has it already moved", "past return", "trend term"],
+        "related": ["mep", "pressure", "clv", "updown_vol_22d"],
+    },
+    "updown_vol_22d": {
+        "term": "Up/down-volume skew (22-day)",
+        "family": "positioning",
+        "unit": "−1 … +1 (z-scored)",
+        "source": "mep_signals.updown_vol_22d",
+        "plain": "Over ~a month, volume on up days minus down days as a share of total — effort on up (+) or down (−) days.",
+        "detail": (
+            "Up/down-volume skew = (volume on up days − volume on down days) / total "
+            "volume, over the trailing ~22 trading days. One of the four signed terms "
+            "behind MEP. Positive means the heaviest volume printed on days the stock "
+            "ROSE (accumulation effort); negative means volume clustered on down days "
+            "(distribution effort). It reads which side the participation leaned."
+        ),
+        "aliases": ["up down volume", "updown vol", "up/dn vol", "up down skew",
+                    "volume skew", "up day volume", "down day volume"],
+        "related": ["mep", "pressure", "clv", "drift_22d"],
+    },
+    "mep_compression": {
+        "term": "Compression (MEP) — ATR ratio",
+        "family": "positioning",
+        "unit": "ratio",
+        "source": "mep_signals.compression",
+        "plain": "Short-term (14d) volatility ÷ long-term (60d): below 1 = coiled, above 1 = expanding.",
+        "detail": (
+            "Compression = 14-day ATR% ÷ 60-day ATR% (average true range as a % of "
+            "price). Below 1 means the recent range is TIGHTER than the stock's own "
+            "longer-run norm — a coiled spring; above 1 means the range is opening up. On "
+            "the MEP screen it is CONTEXT ONLY — shown beside the verdict, never summed "
+            "into the score. (Distinct from the CPR 'compression percentile', which is "
+            "about the central-pivot width.)"
+        ),
+        "aliases": ["compress", "mep compression", "atr compression", "coiled", "volatility ratio"],
+        "related": ["mep", "drift_22d"],
+    },
+    "mep_phase": {
+        "term": "MEP phase (the headline)",
+        "family": "positioning",
+        "unit": "label + smoothed score",
+        "source": "mep_signals.mep_state_smooth / mep_score_smooth",
+        "plain": "The MEP daily score smoothed over ~3 weeks with hysteresis, so the regime HOLDS instead of whipsawing.",
+        "detail": (
+            "'Phase' is the headline on the MEP screen: the daily MEP score averaged over "
+            "~3 trading weeks and banded with hysteresis, so a stock stays in STRONG_ACCUM "
+            "/ ACCUM / NEUTRAL / DISTRIB / STRONG_DISTRIB for weeks and only crosses when "
+            "pressure is sustained. 'Phase score' is that smoothed number (what the "
+            "Accum↔Distrib bar encodes); 'Today' is the raw daily score underneath, which "
+            "flips often. Read the phase for the regime, Today for the freshest nudge."
+        ),
+        "aliases": ["mep phase", "phase", "phase score", "accumulation phase",
+                    "smoothed mep", "accum distrib phase"],
+        "related": ["mep", "mep_state"],
+    },
     "r_tier": {
         "term": "R-tier baselines (the normal-day bars)",
         "family": "positioning",

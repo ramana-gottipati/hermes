@@ -30,6 +30,20 @@ _HDR_KEYS = {
     "peak rank": "Rank",
     "days fired": "p_score",
     "avg dvpt ₹": "DVPT",
+    # extra (default-hidden) Positioning columns — terse labels -> glossary terms
+    "rs#": "rs_rank",
+    "rs·brd": "rs_vs_broad_today",
+    "rs·sec": "rs_vs_sector_today",
+    "52w-hi": "pct_from_52w_high",
+    "drift3m": "accum_price_drift_3m",
+    "up/dn3m": "deliv_updown_ratio_3m",
+    "dvpt ₹": "DVPT",
+    "pow3m cr": "power_dvpt_3m",
+    "churn": "trade_count_ratio_1m_6m",
+    "key3m": "key_price_p3m",
+    "gap3m": "gap_to_key_p3m",
+    "key6m": "key_price_p6m",
+    "gap6m": "gap_to_key_p6m",
 }
 
 _SENTINEL = "tc-colbar"
@@ -81,9 +95,13 @@ def _enhance(body: str, ns: str) -> str:
         ths = _TH_RE.findall(hm.group(0))
         if len(ths) < _MIN_COLS:
             continue
+        # columns the PAGE marks `<th data-tcoff>` start hidden on first visit
+        # (until the user toggles them) — keeps a wide table's default view clean.
+        off = [str(i) for i, (attrs, _in) in enumerate(ths) if "data-tcoff" in attrs]
+        off_attr = f' data-tc-off="[{",".join(off)}]"' if off else ""
         new_head = _TH_RE.sub(_gloss_th, hm.group(0))
         new_seg = seg[:hm.start()] + new_head + seg[hm.end():]
-        tag = tm.group(0)[:-1] + f' data-tc="{tidx}">'   # tag table for the JS
+        tag = tm.group(0)[:-1] + f' data-tc="{tidx}"{off_attr}>'   # tag table for the JS
         new_seg = tag + new_seg[len(tm.group(0)):]
         labels = [_strip_tags(t[1]) for t in ths]
         out.append(body[pos:tm.start()])
@@ -117,7 +135,9 @@ var NS='__NS__';
 function K(i){return NS+'_'+i}
 document.querySelectorAll('table[data-tc]').forEach(function(t){
   var i=t.getAttribute('data-tc'), hidden=[];
-  try{hidden=JSON.parse(localStorage.getItem(K(i))||'[]')}catch(e){}
+  var raw=localStorage.getItem(K(i));
+  if(raw===null){try{hidden=JSON.parse(t.getAttribute('data-tc-off')||'[]')}catch(e){hidden=[]}}
+  else{try{hidden=JSON.parse(raw)}catch(e){hidden=[]}}
   var bar=document.querySelector('.tc-colbar[data-tc-for="'+i+'"]');
   if(!bar)return;
   function apply(){
@@ -192,6 +212,9 @@ def _selftest() -> int:
     small = "<table><thead><tr><th>A</th><th>B</th></tr></thead></table>"
     assert _enhance(small, "x") == small, "small tables must be untouched"
     assert "NS='tc_stocks'" in out and "localStorage" in out, "persistence JS missing"
+    dh = _enhance('<table><thead><tr><th>A</th><th>B</th><th>C</th><th>D</th>'
+                  '<th data-tcoff>E</th></tr></thead><tbody></tbody></table>', "z")
+    assert 'data-tc-off="[4]"' in dh, "default-off column must seed data-tc-off on the table"
     print(f"table_controls selftest OK — {pops} popovers; picker + persisted "
           "column toggles injected once; idempotent")
     return 0

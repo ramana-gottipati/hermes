@@ -754,7 +754,7 @@ def render_home(sig_date, idx_date) -> str:
                     f'<td class="r">{pct(r.get("pfh"))}</td>')
         boards.append(_board('<span class="em">🕵</span> Stealth accumulation', 'concentrated, still off the highs',
                              trig_rows(stealth, score_cell=stealth_score),
-                             "/dash/stocks", "See the full screen", "#58a6ff"))
+                             "/dash/stocks?view=stealth", "See the full screen", "#58a6ff"))
 
     # MEP — signed accumulation/distribution (descriptor; D62). Additive, Phase-A
     # placement (appended after the DVPT boards). SIGNED, so it can carry a
@@ -1955,6 +1955,7 @@ def render_mep(sig_date=None) -> str:
     The real destination behind every accumulation/distribution link; DVPT keeps
     its own screen at /dash/stocks."""
     from src.web import dashboard as D
+    from src.web import glossary as G   # `?` hover-help on the MEP column headers
     esc, num, pct = D._esc, D._num, D._pct
     if sig_date is None:
         with D.get_conn() as conn:
@@ -2021,12 +2022,25 @@ def render_mep(sig_date=None) -> str:
                  "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
                  "<button class=\"fbtn\" onclick=\"mflt('accum',this)\">📈 Accumulating</button>"
                  "<button class=\"fbtn\" onclick=\"mflt('distrib',this)\">📉 Distributing</button></div>")
+        # Headers carry a `?` glossary popover (G.gloss) keyed on the real source
+        # column, so every MEP term explains itself in-place (AUD: MEP had zero
+        # explainability affordance; Pat/glossary now covers CLV/Pressure/Drift…).
+        thead = (
+            '<thead><tr>'
+            f'<th class="l">Symbol</th><th>{G.gloss("close", "CMP")}</th>'
+            f'<th class="l">{G.gloss("mep_score", "Accum ↔ Distrib")}</th>'
+            f'<th class="l">{G.gloss("mep_state_smooth", "Phase")}</th>'
+            f'<th>{G.gloss("mep_score_smooth", "Phase score")}</th>'
+            f'<th>{G.gloss("mep_score", "Today")}</th>'
+            f'<th>{G.gloss("pressure", "Pressure")}</th>'
+            f'<th>{G.gloss("clv", "CLV")}</th>'
+            f'<th>{G.gloss("drift_22d", "Drift")}</th>'
+            f'<th>{G.gloss("updown_vol_22d", "Up/Dn vol")}</th>'
+            f'<th>{G.gloss("compression", "Compress")}</th>'
+            '</tr></thead>')
         table = (pills + '<div class="card" style="padding:6px 10px;overflow-x:auto">'
-                 '<table id="meptbl" class="dt"><thead><tr><th class="l">Symbol</th><th>CMP</th>'
-                 '<th class="l">Accum ↔ Distrib</th><th class="l">Phase</th><th>Phase score</th>'
-                 '<th>Today</th><th>Pressure</th>'
-                 '<th>CLV</th><th>Drift</th><th>Up/Dn vol</th><th>Compress</th></tr></thead>'
-                 f'<tbody>{rows_html}</tbody></table></div>')
+                 '<table id="meptbl" class="dt">' + thead
+                 + f'<tbody>{rows_html}</tbody></table></div>')
         js = ("<script>function mflt(f,el){"
               "document.querySelectorAll('#meptbl tr[data-mepdir]').forEach(function(r){"
               "r.style.display=(f==='all'||r.dataset.mepdir===f)?'':'none';});"
@@ -2044,7 +2058,7 @@ def render_mep(sig_date=None) -> str:
             '(accumulation → consolidation → distribution); <b>Today</b> is the raw daily '
             'score underneath. Top 150 each end by phase; every raw signed term beside the '
             'verdict. Descriptor / confirmation, not a picker. Sort · filter · ⬇ export.</div>')
-    return _CKPT_CSS + head + strip + table + js
+    return G.css() + _CKPT_CSS + head + strip + table + js
 
 
 def render_conviction(limit) -> str:

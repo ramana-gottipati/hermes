@@ -1301,9 +1301,10 @@ def dash_scan(limit: int = Query(25, ge=5, le=60)) -> RedirectResponse:
 
 @router.get("/dash/stocks", response_class=HTMLResponse)
 def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
-                period: str = Query("d")) -> HTMLResponse:
+                period: str = Query("d"), view: str = Query("")) -> HTMLResponse:
     sig_date, _ = _latest_dates()
     sector = sector.strip()
+    view = view.strip().lower()   # "stealth" = the Stealth-accumulation card's full screen
     period = period if period in ("d", "w", "m") else "d"
     n_days = 5 if period == "w" else 22   # trading-day window for weekly/monthly
     rows, watch, sector_syms = [], [], []
@@ -1314,17 +1315,9 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
             if sector:
                 sector_syms = _sector_symbols(conn, sector)
             if sig_date and not (sector and not sector_syms):
-                params = [sig_date]
-                sector_clause = ""
-                if sector and sector_syms:
-                    ph = ",".join("?" for _ in sector_syms)
-                    sector_clause = f" AND s.symbol IN ({ph})"
-                    params += sector_syms
-                params.append(limit)
-                rank_order = ("CASE s.trigger_rank WHEN 'SS' THEN 0 WHEN 'S' THEN 1 "
-                              "WHEN 'A' THEN 2 WHEN 'B' THEN 3 WHEN 'C' THEN 4 ELSE 5 END")
-                rows = [dict(r) for r in conn.execute(
-                    f"""SELECT s.symbol, s.trigger_rank rank, s.r_score, s.p_score,
+                # shared column list for BOTH the default and the stealth view, so
+                # the extra (default-hidden) columns are declared in exactly one place.
+                _SEL = """s.symbol, s.trigger_rank rank, s.r_score, s.p_score,
                               s.is_ath_dvpt ath, s.price_vs_hot_avg_pct pvh,
                               s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close,
                               s.accum_character ch, s.delivery_value_today dvt,
@@ -1333,16 +1326,48 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                               s.power_dvpt_1m p1, s.power_dvpt_3m p3,
                               s.power_dvpt_6m p6, s.power_dvpt_12m p12,
                               s.gap_to_key_p1m gk1, s.gap_to_key_p3m gk3,
-                              s.gap_to_key_p6m gk6, s.gap_to_key_p12m gk12
-                       FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
-                       WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
-                       {_SCAN_FILTERS}{sector_clause}
-                       ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
-                                COALESCE(s.r_score,-1) DESC, {rank_order} ASC,
-                                COALESCE(s.ratio_today_vs_power_1m,0) DESC
-                       LIMIT ?""",
-                    params,
-                ).fetchall()]
+                              s.gap_to_key_p6m gk6, s.gap_to_key_p12m gk12,
+                              s.rs_rank rsr, s.rs_vs_broad_today rsb, s.rs_vs_sector_today rss,
+                              s.pct_from_52w_high p52, s.accum_price_drift_3m adr,
+                              s.deliv_updown_ratio_3m dur, s.key_price_p3m kp3, s.key_price_p6m kp6"""
+                if view == "stealth":
+                    # AUD backlink fix: the "Stealth accumulation" home card's FULL
+                    # screen must show the SAME population it teases — accumulation
+                    # character + A+ pressure + concentrated churn + still ≥10% off the
+                    # 52w-high — NOT the generic delivery-pivot top-N (which drops the
+                    # card's symbols entirely). Mirrors cockpit.render_home's query.
+                    rows = [dict(r) for r in conn.execute(
+                        f"""SELECT {_SEL}
+                           FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                           WHERE s.trade_date=? AND s.accum_character='ACCUMULATION'
+                             AND COALESCE(s.p_score,0)>=3
+                             AND COALESCE(s.trade_count_ratio_1m_6m,99)<=1.1
+                             AND s.pct_from_52w_high<=-10 {_SCAN_FILTERS}
+                           ORDER BY COALESCE(s.p_score,-1) DESC,
+                                    COALESCE(s.pct_from_52w_high,0) ASC
+                           LIMIT ?""",
+                        (sig_date, limit)).fetchall()]
+                else:
+                    params = [sig_date]
+                    sector_clause = ""
+                    if sector and sector_syms:
+                        ph = ",".join("?" for _ in sector_syms)
+                        sector_clause = f" AND s.symbol IN ({ph})"
+                        params += sector_syms
+                    params.append(limit)
+                    rank_order = ("CASE s.trigger_rank WHEN 'SS' THEN 0 WHEN 'S' THEN 1 "
+                                  "WHEN 'A' THEN 2 WHEN 'B' THEN 3 WHEN 'C' THEN 4 ELSE 5 END")
+                    rows = [dict(r) for r in conn.execute(
+                        f"""SELECT {_SEL}
+                           FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
+                           WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                           {_SCAN_FILTERS}{sector_clause}
+                           ORDER BY COALESCE(s.is_ath_dvpt,0) DESC, COALESCE(s.p_score,-1) DESC,
+                                    COALESCE(s.r_score,-1) DESC, {rank_order} ASC,
+                                    COALESCE(s.ratio_today_vs_power_1m,0) DESC
+                           LIMIT ?""",
+                        params,
+                    ).fetchall()]
         else:
             # ---- WEEKLY / MONTHLY (D33d v1): roll up the daily verdicts over the
             # last N trading days so a mid-window spike isn't missed if you don't
@@ -1399,6 +1424,11 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 f'{win} — so a mid-window institutional spike isn\'t missed if you don\'t check '
                 f'daily. Ranked by peak intensity, then how many days it fired. '
                 f'<a class="row" style="display:inline" href="/dash/stocks?period=d">← back to daily</a></div>')
+    elif view == "stealth":
+        head = ('<h2>🕵 Stealth accumulation</h2>'
+                '<div class="sub">Quiet, concentrated accumulation still ≥10% off the 52-week high — '
+                'the full list behind the home card (accumulation character · A+ pressure · low churn). '
+                '<a class="row" style="display:inline" href="/dash/stocks">← all positioning</a></div>')
     elif sector:
         head = (f'<h2>Stocks in {_esc(sector)}</h2>'
                 f'<div class="sub">{len(sector_syms)} constituents · by trigger strength · '
@@ -1425,6 +1455,18 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
 
     js = ""
     if period == "d":
+        # formatters for the extra (default-hidden) columns — mirror Workbench.
+        def _kpf(v):
+            return f'₹{v:,.1f}' if v is not None else '—'
+
+        def _nfx(v, d=0):
+            return _num(v, d) if v is not None else '—'
+
+        def _gapx(g):
+            if g is None:
+                return '<td class="mut">—</td>'
+            sty = ' style="background:var(--up-dim);color:var(--up);font-weight:700"' if is_near_key(g) else ''
+            return f'<td{sty}>{g:+.1f}%</td>'
         trs = []
         for r in rows:
             rank = r["rank"] or "-"
@@ -1450,6 +1492,19 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                      f'data-distrib="{1 if ch == "DISTRIBUTION" else 0}" '
                      f'data-nearkey="{1 if near_key else 0}"')
             ix = _intensity(r)
+            pow3_cr = f'{r["p3"]/1e7:,.1f}' if r["p3"] else "—"
+            extra = (
+                f'<td class="mut">{_nfx(r["rsr"],0)}</td>'
+                f'<td class="mut">{_nfx(r["rsb"],2)}</td>'
+                f'<td class="mut">{_nfx(r["rss"],2)}</td>'
+                f'<td>{_pct(r["p52"]) if r["p52"] is not None else "—"}</td>'
+                f'<td class="mut">{_nfx(r["adr"],2)}</td>'
+                f'<td class="mut">{_nfx(r["dur"],2)}</td>'
+                f'<td class="mut">{_nfx(r["dvpt"],0)}</td>'
+                f'<td class="mut">{pow3_cr}</td>'
+                f'<td class="mut">{_nfx(r["tcr"],2)}</td>'
+                f'<td>{_kpf(r["kp3"])}</td>' + _gapx(r["gk3"])
+                + f'<td>{_kpf(r["kp6"])}</td>' + _gapx(r["gk6"]))
             trs.append(
                 f'<tr {flags}><td><a class="row" href="/dash/stock?sym={_esc(r["symbol"])}">'
                 f'<span class="sym">{ath}{_esc(r["symbol"])}</span></a></td>'
@@ -1460,7 +1515,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 f'<td>{_pct(pvh)} {entry}</td>'
                 f'<td>{_char_pill(ch)}</td>'
                 f'<td class="mut">{dvt_cr}</td>'
-                f'<td class="mut">{near}</td></tr>')
+                f'<td class="mut">{near}</td>' + extra + '</tr>')
         if trs:
             pills = ('<div id="sbar" class="fbar">'
                      "<button class=\"fbtn on\" onclick=\"sflt('all',this)\">All</button>"
@@ -1472,9 +1527,14 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                      "<button class=\"fbtn\" onclick=\"sflt('accum',this)\">🟢 Accumulation</button>"
                      "<button class=\"fbtn\" onclick=\"sflt('distrib',this)\">🔴 Distribution</button>"
                      "<button class=\"fbtn\" onclick=\"sflt('nearkey',this)\">🎯 Near key price</button></div>")
-            table = (pills + '<div class="card" style="padding:6px 10px;"><table id="stbl" class="dt">'
+            table = (pills + '<div class="card" style="padding:6px 10px;overflow-x:auto"><table id="stbl" class="dt">'
                      '<thead><tr><th>Symbol</th><th>Rank</th><th>r/p</th><th>×pow</th><th>Close</th>'
-                     '<th>Δhot</th><th>Character</th><th>Deliv ₹Cr</th><th>Near-P</th></tr></thead>'
+                     '<th>Δhot</th><th>Character</th><th>Deliv ₹Cr</th><th>Near-P</th>'
+                     '<th data-tcoff>RS#</th><th data-tcoff>RS·brd</th><th data-tcoff>RS·sec</th>'
+                     '<th data-tcoff>52w-hi</th><th data-tcoff>Drift3m</th><th data-tcoff>Up/Dn3m</th>'
+                     '<th data-tcoff>DVPT ₹</th><th data-tcoff>Pow3m Cr</th><th data-tcoff>Churn</th>'
+                     '<th data-tcoff>Key3m</th><th data-tcoff>Gap3m</th><th data-tcoff>Key6m</th>'
+                     '<th data-tcoff>Gap6m</th></tr></thead>'
                      f'<tbody>{"".join(trs)}</tbody></table></div>')
             js = ("<script>function sflt(f,el){"
                   "document.querySelectorAll('#stbl tr[data-ss]').forEach(function(r){"

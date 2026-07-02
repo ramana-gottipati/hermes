@@ -130,11 +130,13 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 
 - **Pressure.** Where the close landed vs the day's own VWAP. **Positive = buyers paid up into the close; negative = sellers pressed it down.** *Source:* `pressure`.
 - **CLV — close-location value (−1…+1).** Where in the day's range the stock closed. **+1 = on the high (demand); −1 = on the low (supply); 0 = mid-range.** *Source:* `clv`.
-- **Drift (22-day).** The split-adjusted price return over the last ~month — the near-term trend under the intraday reads. *Source:* `drift_22d`.
+- **Drift (22-day).** The split-adjusted price return over the **last ~22 trading days (already realised — a look-BACK, not a forecast).** So "+70%" means the stock has *already* risen ~70% over the past month; it is the near-term trend sitting under the intraday reads. *Source:* `drift_22d`.
 - **Up/down-volume skew (22-day, −1…+1).** Over ~a month, volume on up days minus down days as a share of total. **Positive = effort on up days (accumulation); negative = effort on down days (distribution).** *Source:* `updown_vol_22d`.
 - **MEP score (signed).** The blended, within-stock-standardised composite of the four signed terms. **Positive = net accumulation vs the stock's own norm; negative = net distribution.** The raw daily score flips often — read the smoothed phase for the regime. *Source:* `mep_score`.
 - **MEP daily state — STRONG_ACCUM / ACCUM / NEUTRAL / DISTRIB / STRONG_DISTRIB.** The daily score banded — the granular day-to-day view. *Source:* `mep_state`.
 - **MEP phase (headline) — STRONG_ACCUM / ACCUM / NEUTRAL / DISTRIB / STRONG_DISTRIB.** The daily score smoothed over ~3 weeks with hysteresis so a regime *holds* and transitions slowly instead of whipsawing. **This smoothed phase is the headline; the daily state sits underneath.** *Source:* `mep_state_smooth`.
+- **MEP phase score.** The MEP score smoothed over ~3 trading weeks (the number the Accum↔Distrib bar position encodes) — slower and steadier than today's raw score. *Source:* `mep_score_smooth`.
+- **Compression (MEP) — ATR ratio.** Short-term (14-day) volatility ÷ long-term (60-day), both as a % of price. **Below 1 = coiled** (recent range tighter than the stock's own norm — a spring); **above 1 = expanding** (range opening up). Context only — shown beside the verdict, never summed into the score. *Source:* `compression`.
 
 ## F&O Open Interest — positioning (derivatives)
 
