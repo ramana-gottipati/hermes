@@ -67,7 +67,18 @@ These accumulate into one shared vocabulary (reproducible in-session; keys saved
   30/50/70 banding, restrained 2-hue palette, divergence drawn as a thin connecting line). Everything
   additive: sacred routes (`/dash/ratio`, `/dash/rrg`, `/dash/compare`) keep their URLs and behavior.
 
-## 6. Backfill spec (Phase 2 — the one VPS step)
+## 6. Backfill spec — SUPERSEDED by compute-on-read (2026-07-02)
+
+> **SUPERSEDED.** VPS recon showed the RS line is ALREADY fully stored
+> (`stock_signals.rs_vs_broad_today` = 5.68M rows; `ratio_rows.ratio` = 485,944 rows / 382
+> pairs) and `rsi_of_rs` is NOT a series (only 7 dates). A full RSI backfill would write
+> ~5.9M rows and add GBs to a 16.2 GB production DB — a violation of §7 rule 6. So RSI (all
+> horizons) and divergence are now **COMPUTED ON-READ** from the RS line and stored NOWHERE.
+> The backfill script was removed. Proven on real data: RELIANCE RSI 39.1, Nifty IT RSI 26.9.
+> If a table SCAN ever needs a fast column, add a BOUNDED snapshot (1 row/entity), never a
+> full-history series.
+
+_Historical (original plan, kept for context):_
 
 - **Additive columns** (via a module-owned `_ensure_column` guard, mirroring `rs_phase._ROTATION_COLUMNS`):
   `stock_signals` / `index_signals`: `rs_vs_broad_1w, rs_vs_broad_2w, rsi_of_rs_1w, rsi_of_rs_2w`
@@ -88,6 +99,12 @@ These accumulate into one shared vocabulary (reproducible in-session; keys saved
    rewrite `stock_chart.py`.
 4. Every change **import-tested** + run through the project regression gate before it's considered done.
 5. **Nothing existing is removed or re-scoped.** Sacred routes are sacred. Revert path documented.
+6. **SPACE OPTIMIZATION IS MANDATORY.** Never persist a series that is cheaply derivable from an
+   already-stored one (RSI from the RS line, %Δ from the price line). Prefer **compute-on-read**; add
+   a stored column only when a table SCAN genuinely requires it, and then only a **bounded snapshot**
+   (1 row/entity), never full history. Every UI addition must be space-optimal too: compact, dense,
+   no wasted vertical real estate — subordinate panes ≤ ~30% height, reuse existing chrome, no new
+   heavyweight assets. The production DB is 16 GB; treat every stored byte as a cost.
 
 Cross-refs: methodology memory `rotation-phase-methodology`, `docs/rs-rotation-design.md`,
 `docs/premium-visuals-brainstorm.md`, ledger `docs/strategy-ledger.md`.

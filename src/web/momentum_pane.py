@@ -130,38 +130,62 @@ def pane_svg(dates, rs, rsi, div: dict | None = None) -> str:
     return "".join(out)
 
 
-# ── DB fetch (defensive; uses the already-computed nightly series) ─────────────
-def _fetch(sym: str, conn):
-    """(dates, rs_line[], rsi[]) or None. Prefers rs_extras (rs_ratio + rsi_of_rs), falls
-    back to stock_signals (rs_vs_broad_today + rsi_of_rs). Defensive: any miss → None →
-    empty-state, so a host page can never break."""
-    try:
-        rows = conn.execute(
-            "SELECT trade_date, rs_ratio, rsi_of_rs FROM rs_extras "
-            "WHERE numerator=? AND denominator='Nifty 500' "
-            "AND rs_ratio IS NOT NULL AND rsi_of_rs IS NOT NULL ORDER BY trade_date",
-            (sym,)).fetchall()
-    except Exception:  # noqa: BLE001
-        rows = []
-    if len(rows) >= 8:
-        return ([r[0] for r in rows], [float(r[1]) for r in rows], [float(r[2]) for r in rows])
-    try:
-        cols = {r[1] for r in conn.execute("PRAGMA table_info(stock_signals)").fetchall()}
-    except Exception:  # noqa: BLE001
+# ── RS series + on-read RSI ───────────────────────────────────────────────────
+# SPACE-OPTIMAL (mandatory rule): the RS line is ALREADY fully stored
+# (stock_signals.rs_vs_broad_today, ratio_rows.ratio); RSI is trivially derivable, so we
+# COMPUTE it on-read and store NOTHING. Storing RSI across ~5.9M rows would add GBs to the
+# 16GB production DB for zero information gain. Derivable series are never persisted.
+def _wilder_rsi(vals, period: int):
+    out = [None] * len(vals)
+    if len(vals) <= period:
+        return out
+    g = l = 0.0
+    for i in range(1, period + 1):
+        d = vals[i] - vals[i - 1]
+        g += max(d, 0.0)
+        l += max(-d, 0.0)
+    ag, al = g / period, l / period
+    out[period] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    for i in range(period + 1, len(vals)):
+        d = vals[i] - vals[i - 1]
+        ag = (ag * (period - 1) + max(d, 0.0)) / period
+        al = (al * (period - 1) + max(-d, 0.0)) / period
+        out[i] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    return out
+
+
+def _rs_series(sym: str, conn, *, window: int = 180):
+    """Trailing (dates, rs_line[]) from the already-populated RS series: stocks →
+    stock_signals.rs_vs_broad_today ; sectors/indices → ratio_rows.ratio (vs Nifty 500).
+    None if neither has enough history. Pure read — no storage."""
+    for sql, args in (
+        ("SELECT trade_date, rs_vs_broad_today FROM stock_signals "
+         "WHERE symbol=? AND rs_vs_broad_today IS NOT NULL ORDER BY trade_date", (sym,)),
+        ("SELECT trade_date, ratio FROM ratio_rows "
+         "WHERE numerator=? AND denominator='Nifty 500' AND ratio IS NOT NULL "
+         "ORDER BY trade_date", (sym,)),
+    ):
+        try:
+            rows = conn.execute(sql, args).fetchall()
+        except Exception:  # noqa: BLE001
+            rows = []
+        if len(rows) >= 30:
+            rows = rows[-window:] if window else rows
+            return ([r[0] for r in rows], [float(r[1]) for r in rows])
+    return None
+
+
+def _fetch(sym: str, conn, *, period: int = 14, window: int = 180):
+    """(dates, rs_line[], rsi[]) or None — RSI computed on-read (Wilder) from the RS line."""
+    ser = _rs_series(sym, conn, window=window)
+    if ser is None:
         return None
-    rs_col = next((c for c in ("rs_vs_broad_today", "rs_vs_broad", "rs_ratio") if c in cols), None)
-    if "rsi_of_rs" not in cols or rs_col is None:
+    dates, rs = ser
+    rsi = _wilder_rsi(rs, period)
+    idx = [i for i in range(len(rs)) if rsi[i] is not None]
+    if len(idx) < 8:
         return None
-    try:
-        rows = conn.execute(
-            f"SELECT trade_date, {rs_col}, rsi_of_rs FROM stock_signals "
-            f"WHERE symbol=? AND {rs_col} IS NOT NULL AND rsi_of_rs IS NOT NULL "
-            f"ORDER BY trade_date", (sym,)).fetchall()
-    except Exception:  # noqa: BLE001
-        return None
-    if len(rows) < 8:
-        return None
-    return ([r[0] for r in rows], [float(r[1]) for r in rows], [float(r[2]) for r in rows])
+    return ([dates[i] for i in idx], [rs[i] for i in idx], [rsi[i] for i in idx])
 
 
 def card_html(sym: str, conn=None) -> str:
