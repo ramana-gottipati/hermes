@@ -22,14 +22,39 @@ _MOM = ("killswitch.market_freshness", "killswitch.regime", "killswitch.universe
 _FLOW = ("killswitch.feed_freshness",)
 _FUND = ("killswitch.restatement_spike", "fundamentals_history.dates")
 
-# lens `active` key -> checks that gate the page; () = every check (the trust home).
-_PAGES = {
-    "momentum-scan": _MOM, "rrg": _MOM, "rotation": _MOM, "rsband": _MOM,
-    "cycle-clock": _MOM, "leaders": _MOM, "stocks": _MOM,
-    "capture-map": _MOM + _FLOW, "participants": _FLOW, "mep": _FLOW,
-    "screen2": _FUND, "screener": _FUND, "strategist": _FUND,
-    "growth": _FUND, "conviction": _FUND,
-    "coverage": (),
+# _shell's `active` arg is a NAV key, not a lens key, and pages are inconsistent — the
+# momentum/rotation/flow surfaces all pass the workspace "markets" (verified: rotation/
+# rrg/rsband/cycle-clock/capture-map/participants), while the strategy-detail pages pass
+# their own key ("stocks"/"mep"/"conviction"), and the screener passes "screen2"/
+# "screener" (NOT in dashboard._WS). So we can't key on a lens name — we normalize the
+# `active` value to a logical kill-switch WORKSPACE with our OWN complete map (a superset
+# of dashboard._WS; importing that private/partial map would silently drop "screen2").
+_ACT_WS = {
+    # markets — price / momentum / RS / rotation / flow surfaces (all pass "markets" or
+    # a key that resolves here). coverage_view also passes "markets".
+    "markets": "markets", "sectors": "markets", "rs": "markets", "ratio": "markets",
+    "leaders": "markets", "laggards": "markets", "compare": "markets",
+    "rotation": "markets", "rrg": "markets", "rsband": "markets", "cycle-clock": "markets",
+    "capture": "markets", "capture-map": "markets", "participants": "markets",
+    "momentum-scan": "markets",
+    # strategies — stock-selection surfaces (momentum ranks + fundamentals blended)
+    "strategies": "strategies", "stocks": "strategies", "scan": "strategies",
+    "stock": "strategies", "conviction": "strategies", "mep": "strategies",
+    "cpr": "strategies", "concalls": "strategies", "growth": "strategies",
+    "workbench": "strategies", "launchpad": "strategies", "strategist": "strategies",
+    # screener — fundamentals-driven columns
+    "screener": "screener", "screen2": "screener",
+}
+
+# workspace -> the checks whose WARN/CRIT should surface on it. Momentum kill-switches
+# (regime OFF / stale bhavcopy / universe drift) gate every price surface; fundamentals
+# checks (restatement spike / impossible dates) gate the fundamentals surfaces; feed
+# liveness is a pipeline-health signal worth showing on any data surface (the corporates-
+# pit endpoint died silently for 4 months precisely because nothing surfaced it).
+_WS_CHECKS = {
+    "markets": _MOM + _FLOW,
+    "strategies": _MOM + _FUND + _FLOW,
+    "screener": _FUND,
 }
 
 _SENTINEL = "dqb-strip"
@@ -65,8 +90,10 @@ _CSS = """<style>
 .dqb-strip{display:flex;flex-direction:column;gap:3px;margin:0 0 8px;}
 .dqb{display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:1.45;
   border:1px solid;border-radius:8px;padding:5px 10px;}
-.dqb-warn{color:var(--warn);border-color:var(--warn);background:var(--warn-dim);}
-.dqb-crit{color:var(--down);border-color:var(--down);background:rgba(var(--down-rgb),.14);}
+.dqb-warn{color:var(--warn,#f6b73c);border-color:var(--warn,#f6b73c);
+  background:var(--warn-dim,rgba(246,183,60,.14));}
+.dqb-crit{color:var(--down,#ff6a7a);border-color:var(--down,#ff6a7a);
+  background:rgba(var(--down-rgb,255,106,122),.14);}
 .dqb .dqb-k{font-weight:600;white-space:nowrap;}
 .dqb .dqb-at{margin-left:auto;font-size:11px;opacity:.75;white-space:nowrap;}
 </style>"""
@@ -74,11 +101,14 @@ _CSS = """<style>
 
 def _strip_html(active: str) -> str:
     """The strip for one page, or '' when nothing relevant fires."""
-    scope = _PAGES.get(active)
-    if scope is None:
+    ws = _ACT_WS.get(active)
+    if ws is None:
+        return ""
+    scope = _WS_CHECKS.get(ws)
+    if not scope:
         return ""
     run_at, bad = _fetch()
-    hits = [b for b in bad if not scope or b[0] in scope]
+    hits = [b for b in bad if b[0] in scope]
     if not hits:
         return ""
     hits.sort(key=lambda b: (b[1] != "critical", b[0]))
@@ -112,7 +142,7 @@ def install() -> bool:
     def _shell_dqb(*a, **k):
         try:
             act = k["active"] if "active" in k else (a[2] if len(a) > 2 else "")
-            if act in _PAGES:
+            if act in _ACT_WS:
                 if "body" in k and isinstance(k["body"], str):
                     k = dict(k)
                     k["body"] = _enhance(k["body"], act)
@@ -134,20 +164,24 @@ def _selftest() -> int:
         ("killswitch.market_freshness", "critical", "bhavcopy stale: last trade_date 2026-06-25 (7d ago)"),
         ("killswitch.restatement_spike", "warn", "3/25 gate-passed symbols (12.0%) revised in 30d"),
     ])
-    out = _enhance("<h2>Rotation</h2>", "rotation")
-    assert _SENTINEL in out and "dqb-crit" in out, "crit strip missing"
+    # a markets page passes active="markets" (rotation/rrg/rsband/cycle-clock/participants
+    # all do) → momentum checks only, NOT the fundamentals restatement.
+    out = _enhance("<h2>Rotation</h2>", "markets")
+    assert _SENTINEL in out and "dqb-crit" in out, "crit strip missing on markets"
     assert "momentum regime OFF" in out and "bhavcopy stale" in out, "messages must be quoted"
-    assert "restatement" not in out, "fundamentals check must not leak onto a momentum page"
+    assert "restatement" not in out, "fundamentals check must not leak onto a markets page"
     assert out.index("dqb-crit") < out.index("dqb-warn"), "critical must sort first"
-    assert _enhance(out, "rotation") == out, "must be idempotent"
+    assert _enhance(out, "markets") == out, "must be idempotent"
+    # screener page (active="screen2", not in dashboard._WS) → fundamentals checks only.
     s2 = _enhance("<h2>Screen+</h2>", "screen2")
-    assert "restatement" in s2 and "regime" not in s2, "fundamentals page gets only its checks"
-    cov = _enhance("<h2>Coverage</h2>", "coverage")
-    assert all(w in cov for w in ("regime", "bhavcopy", "restatement")), "coverage shows all"
+    assert "restatement" in s2 and "regime" not in s2, "screener gets only its checks"
+    # strategies-detail (active="stocks"/"mep"/…) blends both momentum + fundamentals.
+    strat = _enhance("<h2>Positioning</h2>", "stocks")
+    assert "regime" in strat and "restatement" in strat, "strategies blends momentum+fundamentals"
     assert _enhance("<h2>Wire</h2>", "wire") == "<h2>Wire</h2>", "unmapped page untouched"
     _cache.update(bad=[])
-    assert _enhance("<h2>Rotation</h2>", "rotation") == "<h2>Rotation</h2>", "all-ok = no strip"
-    print("dq_banner selftest OK — scoped strips, crit-first, idempotent, all-ok silent")
+    assert _enhance("<h2>Rotation</h2>", "markets") == "<h2>Rotation</h2>", "all-ok = no strip"
+    print("dq_banner selftest OK — workspace-scoped strips, crit-first, idempotent, all-ok silent")
     return 0
 
 
