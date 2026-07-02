@@ -463,10 +463,86 @@ svg.addEventListener('mousemove',function(e){
  tip.style.display='block';
  var w=wrap.getBoundingClientRect();
  tip.style.left=Math.min(e.clientX-w.left+12,w.width-150)+'px';tip.style.top=(e.clientY-w.top-42)+'px';
+ if(window.__tailMark)window.__tailMark(p.d);          // link: light the same moment on the rotation tail
 });
-svg.addEventListener('mouseleave',function(){xl.style.display='none';dot.style.display='none';tip.style.display='none';});
+svg.addEventListener('mouseleave',function(){xl.style.display='none';dot.style.display='none';tip.style.display='none';if(window.__tailMark)window.__tailMark(null);});
+// exposed so the rotation tail can drive THIS crosshair to a given date (shared cursor)
+function dn(s){return (+s.slice(0,4))*372+(+s.slice(5,7))*31+(+s.slice(8,10));}
+window.__chGoto=function(d){if(!d)return;var b=pts[0],bk=1e18;for(var i=0;i<pts.length;i++){var k=Math.abs(dn(pts[i].d)-dn(d));if(k<bk){bk=k;b=pts[i];}}
+ xl.setAttribute('x1',b.x);xl.setAttribute('x2',b.x);xl.style.display='block';dot.setAttribute('cx',b.x);dot.setAttribute('cy',b.y);dot.style.display='block';
+ var bp2=(sup!=null&&res!=null&&res>sup)?Math.max(0,Math.min(100,(b.v-sup)/(res-sup)*100)):null;
+ tip.innerHTML='<b>'+b.d+'</b><br>RS '+b.v+(bp2!=null?' &middot; ~'+Math.round(bp2)+'/100 '+(bp2<=20?'cheap':bp2>=80?'rich':'mid'):'');tip.style.display='block';tip.style.left='12px';tip.style.top='4px';};
 })();
 """
+
+
+# ── linked single-sector rotation tail (RS-Ratio × RS-Momentum), date-synced to the
+#    channel above via one shared cursor: hover the channel → the same moment lights here,
+#    hover a dot here → the channel crosshair jumps to that date. Level + rotation, one moment.
+_LINK_TAIL_JS = r"""
+(function(){
+var T=__TAIL__;if(!T.length)return;
+var mk=document.getElementById('rtmark'),rl=document.getElementById('rtread');
+function dn(s){return (+s.slice(0,4))*372+(+s.slice(5,7))*31+(+s.slice(8,10));}
+function q(r,m){return r>=100?(m>=100?'leading':'weakening'):(m>=100?'improving':'lagging');}
+function nearD(d){var b=T[0],bk=1e18;for(var i=0;i<T.length;i++){var k=Math.abs(dn(T[i].d)-dn(d));if(k<bk){bk=k;b=T[i];}}return b;}
+window.__tailMark=function(d){if(!d){if(mk)mk.style.display='none';return;}var p=nearD(d);if(!p||!mk)return;
+ mk.setAttribute('cx',p.x);mk.setAttribute('cy',p.y);mk.style.display='block';
+ if(rl)rl.innerHTML='rotation @ <b>'+p.d+'</b> &middot; '+q(p.r,p.m)+' &middot; RS-ratio '+p.r+' &middot; RS-mom '+p.m;};
+Array.prototype.forEach.call(document.querySelectorAll('.rtdot'),function(c){c.style.cursor='pointer';
+ c.addEventListener('mouseenter',function(){var d=c.getAttribute('data-d');window.__tailMark(d);if(window.__chGoto)window.__chGoto(d);});});
+})();
+"""
+
+
+def _rot_tail_svg(tail: list) -> str:
+    """Compact single-sector RRG tail (JdK RS-Ratio × RS-Momentum over the window),
+    every period-dot date-tagged so the shared cursor can light the SAME moment the
+    channel is showing. Returns '' if the tail is too short."""
+    pts = [(p["rs_ratio"], p["rs_momentum"], p["date"]) for p in (tail or [])
+           if p.get("rs_ratio") is not None and p.get("rs_momentum") is not None and p.get("date")]
+    if len(pts) < 2:
+        return ""
+    devs = [abs(v - 100) for (a, b, _) in pts for v in (a, b)]
+    half = max(6.0, min(34.0, (max(devs) if devs else 6.0) * 1.15))
+    lo, hi = 100 - half, 100 + half
+    L, R, T, B = 40, 400, 16, 300
+
+    def X(v):
+        return max(L + 2, min(R - 2, L + (v - lo) / (hi - lo) * (R - L)))
+
+    def Y(v):
+        return max(T + 2, min(B - 2, B - (v - lo) / (hi - lo) * (B - T)))
+
+    cx, cy = X(100), Y(100)
+    s = ['<svg id="rtsvg" viewBox="0 0 420 320" width="100%" style="max-width:420px" '
+         'xmlns="http://www.w3.org/2000/svg">']
+    s.append(f'<rect x="{L}" y="{T}" width="{cx-L:.0f}" height="{cy-T:.0f}" style="fill:var(--accent)" fill-opacity="0.05"/>')
+    s.append(f'<rect x="{cx:.0f}" y="{T}" width="{R-cx:.0f}" height="{cy-T:.0f}" style="fill:var(--up)" fill-opacity="0.05"/>')
+    s.append(f'<rect x="{cx:.0f}" y="{cy:.0f}" width="{R-cx:.0f}" height="{B-cy:.0f}" style="fill:var(--warn)" fill-opacity="0.05"/>')
+    s.append(f'<rect x="{L}" y="{cy:.0f}" width="{cx-L:.0f}" height="{B-cy:.0f}" style="fill:var(--down)" fill-opacity="0.05"/>')
+    s.append(f'<rect x="{L}" y="{T}" width="{R-L}" height="{B-T}" fill="none" style="stroke:var(--line-2)"/>')
+    s.append(f'<line x1="{cx:.0f}" y1="{T}" x2="{cx:.0f}" y2="{B}" style="stroke:var(--line-2)" stroke-dasharray="3 3"/>')
+    s.append(f'<line x1="{L}" y1="{cy:.0f}" x2="{R}" y2="{cy:.0f}" style="stroke:var(--line-2)" stroke-dasharray="3 3"/>')
+    s.append(f'<text x="{L+5}" y="{T+12}" style="fill:var(--ink-3)" font-size="9">improving</text>')
+    s.append(f'<text x="{R-5}" y="{T+12}" style="fill:var(--ink-3)" font-size="9" text-anchor="end">leading</text>')
+    s.append(f'<text x="{R-5}" y="{B-5}" style="fill:var(--ink-3)" font-size="9" text-anchor="end">weakening</text>')
+    s.append(f'<text x="{L+5}" y="{B-5}" style="fill:var(--ink-3)" font-size="9">lagging</text>')
+    poly = " ".join(f"{X(a):.1f},{Y(b):.1f}" for (a, b, _) in pts)
+    s.append(f'<polyline points="{poly}" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.5"/>')
+    for (a, b, d) in pts:
+        s.append(f'<circle class="rtdot" data-d="{d}" cx="{X(a):.1f}" cy="{Y(b):.1f}" r="3" '
+                 f'style="fill:var(--ink-2)" fill-opacity="0.7"/>')
+    na, nb, _nd = pts[-1]
+    s.append(f'<circle cx="{X(na):.1f}" cy="{Y(nb):.1f}" r="6" fill="#58a6ff" style="stroke:var(--ink)" stroke-width="1.5"/>')
+    s.append('<circle id="rtmark" r="7.5" fill="none" stroke="#f0c000" stroke-width="2" style="display:none"/>')
+    s.append('</svg>')
+    tdata = json.dumps([{"x": round(X(a), 1), "y": round(Y(b), 1), "d": d,
+                         "r": round(a, 1), "m": round(b, 1)} for (a, b, d) in pts])
+    return ('<div id="rtwrap" style="position:relative">' + "".join(s) + '</div>'
+            '<div class="sub" id="rtread" style="margin-top:4px;min-height:16px">'
+            'hover the channel above (or a dot) to sync level ↔ rotation</div>'
+            + '<script>' + _LINK_TAIL_JS.replace("__TAIL__", tdata) + '</script>')
 
 
 def _channel_svg(series: list[tuple], m: dict) -> str:
@@ -569,7 +645,7 @@ def _channel_readout(m: dict, verdict: str, why: str, to_res, to_sup) -> str:
 
 
 def _channel_page(label_html: str, den: str, series, m, fl, back_href: str,
-                  back_label: str, extra: str = "") -> str:
+                  back_label: str, extra: str = "", tail=None) -> str:
     head = (f'<a class="row" style="display:inline;color:#58a6ff;text-decoration:none" '
             f'href="{back_href}">{back_label}</a>{extra}')
     if not m or m.get("rs_band_pct") is None or len(series) < 60:
@@ -581,10 +657,18 @@ def _channel_page(label_html: str, den: str, series, m, fl, back_href: str,
     res, sup = m["rs_band_high"], m["rs_band_low"]
     to_res = ((res - last) / last * 100.0) if (res and last) else None
     to_sup = ((last - sup) / last * 100.0) if (sup and last) else None
+    rot = ""
+    rt = _rot_tail_svg(tail) if tail else ""
+    if rt:
+        rot = ('<div class="card" style="padding:10px 12px;margin-top:10px">'
+               '<div class="sub" style="margin:0 0 6px"><b>Rotation path</b> — the same window in '
+               'RS-Ratio × RS-Momentum. Hover the channel above (or a dot) and the matching moment '
+               'lights in both: <b>level</b> (band) ↔ <b>rotation</b> (quadrant).</div>' + rt + '</div>')
     return (head
             + f'<h2 style="margin-top:6px">{label_html} — RS band '
               f'<span class="sub" style="margin:0">vs {_esc(den)} · where it sits in its own history</span></h2>'
             + '<div class="card" style="padding:10px 12px">' + _channel_svg(series, m) + '</div>'
+            + rot
             + _channel_readout(m, v, why, to_res, to_sup))
 
 
@@ -603,7 +687,14 @@ def render_band_channel(num: str, den: str = "Nifty 500", conn=None) -> str:
                     break
         except Exception:
             pass
-    return _channel_page(_esc(num), den, series, m, fl, "/dash/rsband", "&larr; Back to the band")
+        tail = None
+        try:                                  # single-sector rotation tail → the linked cursor
+            from src.web.rrg_view import _sector_tail
+            tail = _sector_tail(num, den, "12", conn)
+        except Exception:
+            tail = None
+    return _channel_page(_esc(num), den, series, m, fl, "/dash/rsband",
+                         "&larr; Back to the band", tail=tail)
 
 
 def _stock_ratio_series(conn, sym: str, den: str) -> list[tuple]:
