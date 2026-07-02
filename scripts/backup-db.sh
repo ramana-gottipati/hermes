@@ -38,14 +38,14 @@ echo "[backup] start $(date -u +%FT%TZ)"
 TABLES=$(sqlite3 "file:$DATA/hermes.db?mode=ro" \
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT IN ($EXCLUDE);")
 # one sqlite3 session = one consistent read snapshot for every dumped table
-{ echo ".bail on"; echo ".mode insert"; for t in $TABLES; do echo ".dump '$t'"; done; } \
+{ echo ".bail on"; echo ".timeout 30000"; echo ".mode insert"; for t in $TABLES; do echo ".dump '$t'"; done; } \
   | sqlite3 "file:$DATA/hermes.db?mode=ro" | gzip > "$DEST/hermes-tables-$DAY.sql.gz.tmp"
 mv "$DEST/hermes-tables-$DAY.sql.gz.tmp" "$DEST/hermes-tables-$DAY.sql.gz"
 echo "[backup] hermes tables: $(du -h "$DEST/hermes-tables-$DAY.sql.gz" | cut -f1) ($(echo "$TABLES" | wc -w) tables)"
 
 # --- nightly: research.db full consistent copy --------------------------------
 rm -f "$DEST/research-$DAY.db"
-sqlite3 "file:$DATA/research.db?mode=ro" "VACUUM INTO '$DEST/research-$DAY.db'"
+sqlite3 "file:$DATA/research.db?mode=ro" "PRAGMA busy_timeout=30000; VACUUM INTO '$DEST/research-$DAY.db'"
 echo "[backup] research.db: $(du -h "$DEST/research-$DAY.db" | cut -f1)"
 
 # --- weekly: em_cache.pkl (full hermes.db DR lives in hermes-db-backup.sh) ----
