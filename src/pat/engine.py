@@ -323,6 +323,25 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, extra)
         return extra
 
+    # (a3) Exact glossary term/alias typed on its own ("clv", "pressure", "drift",
+    #      "close location value") is an EXPLAIN, not a search — resolve it
+    #      deterministically before the model so a bare metric name always defines
+    #      itself (₹0; whole-query exact match only, so multi-word asks fall through).
+    try:
+        g = None
+        if q in GLOSSARY:
+            g = {"flow": "explain", "explain": q}
+        else:
+            for _slug, _e in GLOSSARY.items():
+                if q in ([_e["term"].lower()] + [a.lower() for a in _e.get("aliases", [])]):
+                    g = {"flow": "explain", "explain": _slug}
+                    break
+    except Exception:
+        g = None
+    if g:
+        _cache_put(q, g)
+        return g
+
     # (b) Primary path: Gemini semantically PARSES the query into a structured
     #     intent (never-Claude). The compiler then reasons it onto a flow.
     intent = None
