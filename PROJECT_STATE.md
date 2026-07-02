@@ -1297,6 +1297,13 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 69 — 2026-07-02 — Reconcile `main`↔`origin` + push + VPS deploy-parity audit
+Wrap-up of the colour-work session: integrated all parallel work and made `origin`, `main`, and the VPS consistent.
+- **Reconciled the diverged history + PUSHED.** Local `main` had diverged from `origin/main` (16 ahead / 8 behind — the rsband/rrg scrubber, new-gen `rsband.py` `1fd8c19`, cci, and Session-62/65-68 work landed on origin). Merged `origin/main` cleanly (ort auto-merged `PROJECT_STATE.md`; only file touched on both sides). Merge `b357421`; pushed → **`origin/main == main == b357421`** (0/0).
+- **Resolved the uncommitted `rsband_view.py` in the shared tree** (the standing hazard): diffed it and confirmed origin's committed version is a **strict superset** (has BOTH the lane AND the clock scrubber `72eacea`+`9b22882`; the working copy was an earlier lane-only snapshot + cosmetic em-dash diffs). Backed it up (`scratchpad/rsband_view.WIP-backup.py`) then reset → the merge brought in the complete version. No live work lost.
+- **VPS deploy-parity audit (`src/web`, CR-normalised md5, 36 files).** Found ONE gap: `/dash/credibility` (Session 68's flagship-A credibility fingerprint, `8c82c41`) was on `main` but **not deployed** — VPS lacked `credibility_fingerprint.py` and its `v2_surfaces` wiring. Verified it renders 200 + 0 SVG-attr leaks + graceful empty-state, then deployed both files (backup `parity-20260702-052945`, LF, restart). **`/dash/credibility` now live** (renders real fingerprints against VPS CCI data). Re-audit: **0 drift, 0 missing, 36/36 match.**
+- All 3 gates PASS on the merged tree; 9 VPS routes + `/dash/credibility` all 200.
+
 ### Session 68 — 2026-07-02 — Premium-visuals program + flagship A (credibility fingerprint) — BUILT (local, not deployed)
 Ramana asked for a large set of easy/quick wins to make Patearn feel *premium* (appearance, data,
 presentation, infographics) under a hard bar: **no obvious/foolish charts — data must EARN the
@@ -1315,8 +1322,10 @@ flagship #1**.
 - **Verified:** py_compile + import + route registration + SVG/card render + chronological
   `_period_key` sort (Q4FY23 < Q1FY24). Local DB has 0 `concall_guidance` rows (CCI lives on the
   VPS) → renders the empty-state picker locally; real fingerprints render on the VPS.
-- **Open:** deploy to VPS (not done — awaiting go-ahead); embed `card_html` on the stock dossier CCI
-  tab + link from `/dash/concalls`; then flagship B (rotation cycle-clock) + C (capture scatter).
+- **~~Open: deploy to VPS~~ DEPLOYED (Session 69, 2026-07-02)** — `/dash/credibility` live on the VPS
+  (200, renders real fingerprints against the VPS `concall_guidance` data). Remaining open: embed
+  `card_html` on the stock dossier CCI tab + link from `/dash/concalls`; then flagship B (rotation
+  cycle-clock) + C (capture scatter).
 
 ### Session 67 — 2026-07-02 — Explainability gap audit + WIRE the glossary (step 1) — DEPLOYED
 Acting on PRIMARY-INTENT commitment #2 ("explain every term without leaking the formula"). Ran a
