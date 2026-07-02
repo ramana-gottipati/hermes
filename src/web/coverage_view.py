@@ -34,6 +34,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
 from src.web import ui_kit as K
+from src.web import ui_tokens as T
 from src.automation import provenance as P
 
 router = APIRouter()
@@ -642,6 +643,9 @@ _MEMO_PRINT_CSS = """<style>
   .uk-page{max-width:none!important;padding:0!important}
   a{color:#0b0f17!important}
   thead{display:table-header-group}
+  /* the memo keeps its own single .memo-foot — suppress the shared foundation's print footer
+     (ui_tokens body::after) so the printed memo output is unchanged after Phase-4 de-dup. */
+  body::after{content:none!important}
 }
 </style>"""
 
@@ -701,10 +705,15 @@ def render_coverage_memo(conn=None) -> str:
 
 
 def _memo_shell(body: str) -> str:
+    # Colour-alignment Phase 4: ui_kit no longer re-hardcodes the tokens in its `.uk` scope,
+    # so this standalone memo (the one K.css() consumer that is NOT built via K.shell) must
+    # itself carry the `:root` source of truth. Prepend the shared foundation. The memo keeps
+    # its own `.uk`-scoped print flip (_MEMO_PRINT_CSS), which also neutralises the foundation's
+    # print footer so the printed memo output is unchanged.
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
             '<title>Coverage &amp; Provenance Memo · patearn</title>'
-            f'{K.css()}</head><body style="margin:0"><div class="uk">'
+            f'{T.tokens_css()}{K.css()}</head><body style="margin:0"><div class="uk">'
             f'<div class="uk-page" style="max-width:940px">{body}</div></div></body></html>')
 
 

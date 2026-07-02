@@ -261,7 +261,7 @@ table.scr.cpr-only tbody tr:not(.has-cpr){display:none;}
    The viz sits BESIDE the kept sortable numeric columns (D-UI-1). */
 .mv{vertical-align:middle;display:inline-block;}
 table.scr td.inst{padding:3px 8px 3px 10px;}
-.kt-in{color:#3fb950;} .kt-ext{color:#d29922;} .kt-disc{color:#58a6ff;}
+.kt-in{color:var(--series-4);} .kt-ext{color:#d29922;} .kt-disc{color:#58a6ff;}
 /* Row windowing (perf hand-off Step 2) — Ramana confirmed the 498-row × 4-SVG
    grid scrolls heavy, so the browser now skips layout+paint of OFF-SCREEN rows.
    `contain-intrinsic-size:auto` makes it REMEMBER each row's real size once seen,

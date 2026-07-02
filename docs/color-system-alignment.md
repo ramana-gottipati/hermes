@@ -1,6 +1,9 @@
 # Colour-system alignment — DECISIONS & plan
 
-**Status:** Phase 0 SHIPPED (foundation + gate). Phases 1–4 pending.
+**Status:** Phases 0–4 SHIPPED. Phase 4 (S65) = de-triplicate `ui_kit`/`shell_skin` → reference
+`:root` (D-COL-10); categorical remainder → `--series-4` (D-COL-8/9). Remaining is the
+informational directional backlog in `dashboard.py`/`stock_chart.py` (Phase-1 tail) + the
+deliberately-hex canvas/categorical leaves; retirement of redundant `shell_skin` remaps deferred.
 **Owner doc.** Scrutinised by a 6-lens red-team + a 435-site context-aware inventory (2026-07-01).
 Decisions here are deliberate — surface conflicts before overwriting.
 
@@ -133,3 +136,26 @@ are excluded from the directional scan.
 - **D-COL-6** Standalone exports stay self-contained (hand-aligned + allowlisted), not tokenized.
 - **D-COL-7** Colour-blind safety = preserve existing sign/arrow redundancy; forbid NEW fill-only
   directional surfaces without a non-colour channel.
+- **D-COL-8** (Session 65) The **categorical greens** `gw-cr` / testing-benchmark / `kt-in` →
+  `var(--series-4)` (the ramp green), never `--up` (role #2). `shell_skin .gw-cr` split out of the
+  `.gw-pos` directional group for the same reason.
+- **D-COL-9** (Session 65) **`_COMPARE_PALETTE` (dashboard) is LEFT as curated canvas hex**, same
+  ruling as the 21-colour `_RRG_PALETTE` (§2). Both feed **lightweight-charts (canvas)** where
+  `var()` fails silently, and neither `/dash/compare` nor the RS-overlay is covered by the gate's
+  4-route render check — so a `getComputedStyle` var-resolver would add silent-fail risk to two
+  live hot paths for a LOW-value recolour. Likewise **`_fq/_qc` F&O state dicts** (alpha-suffix
+  concatenation `{c}55` / `{c}14` — no `--*-rgb` token, breaks under `var()`) and the non-directional
+  **`.sc-POS/.sc-QUAL/.sc-CPR`** borders (blue/amber/purple — not backlog, already `--cat-rs` for RS)
+  stay hex. These remain categorical false-positives in the informational backlog by design.
+- **D-COL-10** (Session 65, Phase 4) **De-triplication = make `ui_kit` + `shell_skin` REFERENCE
+  `:root`, NOT delete runtime remaps.** `ui_kit`'s `.uk` local token block was a byte-identical
+  (but UNGUARDED — the selftest never asserted it) shadow copy of `:root` → deleted (self-ref
+  `var()` would cycle); the one standalone consumer `coverage_view._memo_shell` (which included
+  `ui_kit.css()` WITHOUT `:root`) now prepends the foundation, with a `body::after{content:none}`
+  print rule so the memo PDF is byte-unchanged. `shell_skin`'s exact-match hexes → `var()`
+  (colour-identical; `:root` always injected on skinned pages via `skin_css`); no-exact-token
+  nuances (theme-chip blues, 2 surface tints, aurora/header rgbas) stay hex. **Retiring** remaps
+  (removing a rule so `_BASE_CSS` wins) is deliberately **NOT done** — it depends on dashboard.py's
+  per-class migration being deployed, fragile against the known VPS `dashboard.py` drift (S64),
+  and would silently regress colours a 200 hides. The one critical retire-hazard (`.sc-RS`→`--up`,
+  D-COL-3) is already safe: `.sc-RS`=`--cat-rs` in both `_BASE_CSS` and `shell_skin`.

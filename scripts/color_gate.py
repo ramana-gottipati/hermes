@@ -80,9 +80,14 @@ MIGRATED = [
     "src/web/wolfe_overlay.py",     # canvas zfill/zedge + manual-draw→canonical literal
     "src/web/cpr_overlay.py",       # canvas regime tint + BULL/BEAR arrows→canonical literal
     "src/web/mep_overlay.py",       # canvas accum/distrib COL→canonical literal
+    # Categorical phase: the CATEGORICAL greens (gw-cr money-accent, testing benchmark
+    # "row to beat", kt-in provenance) are decoupled from the value contract to --series-4
+    # (D-COL role #2 — NEVER --up); these two files are now clean of legacy directional hex.
+    "src/web/growth_view.py",       # gw-cr money-accent → var(--series-4) (categorical)
+    "src/web/testing_view.py",      # benchmark row "to beat" → var(--series-4) (categorical)
     # NOT yet migrated: dashboard.py, stock_chart.py (directional in progress);
-    # growth_view.py + testing_view.py carry a CATEGORICAL green (gw-cr money-accent,
-    # benchmark "row to beat") that is correctly NOT --up — addressed in the categorical phase.
+    # dashboard.kt-in provenance green is now var(--series-4) but dashboard.py keeps other
+    # directional sites (heat cells, SVG fills) so it stays un-migrated for the directional phase.
 ]
 
 # foundation files legitimately hold palette VALUES as literals — exclude from the legacy scan.
