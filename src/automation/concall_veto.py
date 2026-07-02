@@ -8,66 +8,32 @@ sounded. We do NOT build a new forensic platform — we WIRE the disqualifiers t
 pt14 engine already computes (resources/patearn/SKILL.md) plus the directly-held
 promoter pledge:
 
-  - promoter pledge >= PLEDGE_VETO  -> UNIVERSAL hard veto (even for financials)
+  - promoter pledge >= PLEDGE_VETO  -> UNIVERSAL hard veto (even for financials). Read from
+                                        the PRIMARY source (NSE-XBRL-SHP → research.db
+                                        shareholding_history, metric 'Promoter Pledge', latest
+                                        quarter). The old hermes.db fundamentals.promoter_pledge
+                                        is a STALE Screener-era snapshot (NULL/absent for most
+                                        names — it silently let JPPOWER at ~73% pledged PASS
+                                        this veto) kept only as a last-resort fallback when the
+                                        SHP feed has nothing (guardrail #8: primary-source-first).
   - pt14 hard_disqualified           -> veto, EXCEPT cash-flow/leverage reasons are
                                         sector-SUPPRESSED for banks/NBFCs and heavy-
                                         capex cyclicals (negative CFO is structural
                                         there, not a fraud tell) — Ramana's A3 ruling.
 
-Pledge comes from the PRIMARY source: the NSE SHP XBRL feed (research.db
-``shareholding_history``, metric 'Promoter Pledge'). hermes.db
-``fundamentals.promoter_pledge`` is the frozen Screener-era snapshot and is only
-a per-symbol fallback (S76: JPPOWER 73% pledged had no row there and sailed
-through this veto). Pure SQL over existing tables (`shareholding_history`,
-`fundamentals`, `pattern_scores`). No LLM.
+SQL over hermes.db (`fundamentals`, `stock_signals`, `pattern_scores`) plus a read-only,
+crash-proof cross-DB peek at research.db for the primary-source pledge. No LLM. Degrades
+gracefully (never raises, never blocks the scorer) if research.db is absent or write-locked
+— the D82c DB-lock hazard means the integrity gate can never crash the nightly scorer.
 """
 
 from __future__ import annotations
 
 import os
 import sqlite3
-import time
 from typing import Optional
 
 PLEDGE_VETO = 20.0          # promoter pledge % at/above which the name is vetoed (universal)
-
-# research.db path override (selftest only); None -> provenance.RESEARCH_DB.
-RESEARCH_DB_OVERRIDE: Optional[str] = None
-_SHP_TTL_S = 900.0          # re-read the SHP pledge map at most every 15 min
-# (loaded_monotonic, {symbol: latest pledge %} | False when unavailable | None never loaded)
-_shp_cache: tuple = (0.0, None)
-
-
-def _shp_pledge_map() -> Optional[dict]:
-    """Latest primary-source promoter pledge % per symbol, from research.db
-    shareholding_history (NSE SHP XBRL, metric 'Promoter Pledge'). One bulk
-    read-only query, cached for _SHP_TTL_S. Returns None when research.db is
-    absent/locked (also cached, so a locked DB costs ONE wait per TTL, not one
-    per symbol) — the caller then falls back to the legacy fundamentals column.
-    NEVER raises: the veto must not be able to crash the scorer."""
-    global _shp_cache
-    loaded, cached = _shp_cache
-    if cached is not None and (time.monotonic() - loaded) < _SHP_TTL_S:
-        return cached or None
-    try:
-        from src.automation import provenance
-        path = RESEARCH_DB_OVERRIDE or provenance.RESEARCH_DB
-        if not os.path.exists(path):
-            m: object = False
-        else:
-            rc = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=20)
-            try:
-                rows = rc.execute(
-                    "SELECT symbol, value FROM shareholding_history "
-                    "WHERE metric='Promoter Pledge' AND value IS NOT NULL "
-                    "ORDER BY period_end").fetchall()
-            finally:
-                rc.close()
-            m = {sym: val for sym, val in rows}   # ordered by period_end -> latest wins
-    except Exception:
-        m = False
-    _shp_cache = (time.monotonic(), m)
-    return m or None
 
 # sectors where cash-flow / leverage disqualifiers are SUPPRESSED (structural, not fraud)
 _FIN_SECTORS = ("bank", "financ", "nbfc", "housing finance", "insurance", "capital market", "broking")
@@ -82,13 +48,66 @@ def _sector_suppresses_cashflow(sector: Optional[str]) -> bool:
     return any(k in s for k in _FIN_SECTORS) or any(k in s for k in _HEAVY_CAPEX)
 
 
-def compute_veto(conn, symbol: str, sector: Optional[str] = None) -> tuple[bool, Optional[str]]:
+# --- primary-source promoter pledge (NSE-XBRL-SHP) --------------------------------
+# The authentic pledge lives in research.db.shareholding_history (metric 'Promoter Pledge',
+# source NSE-XBRL-SHP). hermes.db.fundamentals.promoter_pledge is a stale Screener-era
+# snapshot (NULL for most names) — read here ONLY when the SHP feed has nothing.
+_RESEARCH_DB = os.environ.get("HERMES_RESEARCH_DB", "/opt/hermes/data/research.db")
+
+
+def _research_ro():
+    """research.db opened READ-ONLY, or None if absent (laptop / fresh box). Never raises.
+    Mirrors provenance._research_ro() / fundamentals_asof._hermes_ro()."""
+    if not os.path.exists(_RESEARCH_DB):
+        return None
+    try:
+        return sqlite3.connect(f"file:{_RESEARCH_DB}?mode=ro", uri=True, timeout=20)
+    except sqlite3.Error:
+        return None
+
+
+def _shp_pledge(symbol: str, research_conn=None) -> Optional[float]:
+    """Latest primary-source promoter-pledge % for ``symbol`` from the NSE-XBRL-SHP feed
+    (research.db.shareholding_history, metric 'Promoter Pledge', newest period_end — stored
+    as an ISO quarter-end, so ``ORDER BY period_end DESC`` is chronological).
+
+    Returns None when research.db is absent/locked, the table/rows don't exist, or the value
+    is null — the caller then falls back to the stale hermes.db column. NEVER raises: a read
+    failure here must never crash or stall the veto/scorer (D82c DB-lock hazard). Pass a shared
+    read-only ``research_conn`` in the batch path (else one is opened+closed per call)."""
+    own = research_conn is None
+    conn = research_conn or _research_ro()
+    if conn is None:
+        return None
+    try:
+        row = conn.execute(
+            "SELECT value FROM shareholding_history "
+            "WHERE symbol=? AND metric='Promoter Pledge' AND value IS NOT NULL "
+            "ORDER BY period_end DESC LIMIT 1", (symbol.upper().strip(),)
+        ).fetchone()
+        return float(row[0]) if row and row[0] is not None else None
+    except (sqlite3.Error, TypeError, ValueError):
+        return None
+    finally:
+        if own:
+            try:
+                conn.close()
+            except sqlite3.Error:
+                pass
+
+
+def compute_veto(conn, symbol: str, sector: Optional[str] = None, *, research_conn=None) -> tuple[bool, Optional[str]]:
     """Return (veto_active, veto_reason) for a symbol from exogenous integrity signals.
 
     Sector (for the cash-flow suppression rule) is auto-resolved from
     stock_signals.primary_sector when not supplied — this reference to the
     price-derived table lives HERE (the integrity gate), never in the credibility
     scorer, so the scorer's price↔credibility firewall stays clean.
+
+    ``research_conn`` is an optional shared read-only research.db handle for the pledge
+    read (the batch path passes one so N symbols share a single open); when omitted a
+    connection is opened+closed per call. Either way the pledge read degrades to None on
+    any error, so the veto never crashes the scorer.
     """
     reasons: list[str] = []
     if sector is None:
@@ -99,10 +118,11 @@ def compute_veto(conn, symbol: str, sector: Optional[str] = None) -> tuple[bool,
         sector = srow["primary_sector"] if srow else None
 
     # 1. Promoter pledge — the highest-precision, un-spinnable India signal (universal).
-    #    SHP primary source first; the legacy Screener-era column only when the feed
-    #    has no row for the symbol (a 0.0 from SHP is an answer, not a miss).
-    shp = _shp_pledge_map()
-    pledge = shp.get(symbol) if shp else None
+    #    PRIMARY source first: NSE-XBRL-SHP (research.db). The old hermes.db
+    #    fundamentals.promoter_pledge is a STALE Screener snapshot (NULL/absent for most
+    #    names — it silently let JPPOWER at ~73% pledged PASS this hard veto) and is used
+    #    only when the SHP feed has nothing for the symbol (guardrail #8: primary-first).
+    pledge = _shp_pledge(symbol, research_conn)
     if pledge is None:
         fu = conn.execute(
             "SELECT promoter_pledge FROM fundamentals WHERE symbol=?", (symbol,)
@@ -130,89 +150,108 @@ def compute_veto(conn, symbol: str, sector: Optional[str] = None) -> tuple[bool,
 
 
 def veto_map(conn, symbols: list[str], sectors: Optional[dict] = None) -> dict[str, tuple[bool, Optional[str]]]:
-    """Batch compute_veto for the scorer. sectors maps symbol -> sector (optional)."""
+    """Batch compute_veto for the scorer. sectors maps symbol -> sector (optional).
+
+    Opens ONE shared read-only research.db connection for the whole batch (so the pledge
+    read costs a single open, and any lock stall is paid at most once) and closes it after.
+    """
     sectors = sectors or {}
-    return {s: compute_veto(conn, s, sectors.get(s)) for s in symbols}
+    research_conn = _research_ro()
+    try:
+        return {s: compute_veto(conn, s, sectors.get(s), research_conn=research_conn) for s in symbols}
+    finally:
+        if research_conn is not None:
+            try:
+                research_conn.close()
+            except sqlite3.Error:
+                pass
 
 
-# ── selftest (no network, no live DBs) ────────────────────────────────────────
+# --- selftest (synthetic, in-memory; no real DB, no network) --------------------
 
 def _selftest() -> int:
-    """Fixture DBs prove: SHP primary read, latest-period-wins, 0.0-is-an-answer,
-    legacy fallback, absent-research.db degrade, pt14 cash-flow suppression."""
-    global RESEARCH_DB_OVERRIDE, _shp_cache
-    import tempfile
+    """Hermetic checks: the primary SHP pledge drives the veto and overrides the stale
+    column both ways, the newest quarter wins, the stale column is used only as a fallback,
+    a broken/absent research.db degrades without crashing, and the pt14 path is intact."""
+    import sqlite3 as _sql
 
-    tmp = tempfile.mkdtemp(prefix="veto_selftest_")
-    shp_path = os.path.join(tmp, "research.db")
-    rdb = sqlite3.connect(shp_path)
-    rdb.executescript(
-        "CREATE TABLE shareholding_history(symbol TEXT, period_type TEXT, period_end TEXT,"
-        " report_date TEXT, metric TEXT, value REAL, PRIMARY KEY(symbol, period_end, metric));")
-    rdb.executemany(
-        "INSERT INTO shareholding_history VALUES (?,?,?,?,?,?)", [
-            ("JPPOWER", "Q", "2025-12-31", "2026-01-30", "Promoter Pledge", 80.0),
-            ("JPPOWER", "Q", "2026-03-31", "2026-04-30", "Promoter Pledge", 72.99),
-            ("RELIANCE", "Q", "2026-03-31", "2026-04-30", "Promoter Pledge", 0.0),
-            ("VIKRAMSOLR", "Q", "2026-03-31", "2026-04-30", "Promoter Pledge", 6.77),
+    # synthetic hermes.db — what compute_veto reads for the stale fallback + pt14 + sector
+    h = _sql.connect(":memory:")
+    h.row_factory = _sql.Row
+    h.executescript(
+        "CREATE TABLE fundamentals(symbol TEXT, promoter_pledge REAL);"
+        "CREATE TABLE stock_signals(symbol TEXT, primary_sector TEXT, trade_date TEXT);"
+        "CREATE TABLE pattern_scores(symbol TEXT, hard_disqualified INT, disqualifier_reasons TEXT, scored_at TEXT);")
+    h.executemany("INSERT INTO fundamentals VALUES (?,?)", [
+        ("RELIANCE", None),        # stale col NULL (the live bug)
+        ("STALEHIGH", 55.0),       # stale says 55, but SHP will say 0.0 → must NOT veto
+        ("FALLBACKONLY", 30.0),    # not in SHP → fallback fires (veto)
+        ("CLEANFALL", 5.0),        # not in SHP → fallback, no veto
+    ])
+    h.executemany("INSERT INTO pattern_scores VALUES (?,?,?,datetime('now'))", [
+        ("BADRPT", 1, "auditor resignation; RPT"),        # non-cashflow → veto
+        ("BANKCFO", 1, "negative CFO / high leverage"),   # cashflow + bank sector → suppressed
+    ])
+    h.execute("INSERT INTO stock_signals VALUES ('BANKCFO','Private Sector Bank','2026-07-01')")
+
+    # synthetic research.db (primary NSE-XBRL-SHP feed), passed as research_conn
+    r = _sql.connect(":memory:")
+    r.execute("CREATE TABLE shareholding_history"
+              "(symbol TEXT, period_type TEXT, period_end TEXT, report_date TEXT, metric TEXT, value REAL, source TEXT)")
+    r.executemany(
+        "INSERT INTO shareholding_history VALUES (?, 'Q', ?, ?, 'Promoter Pledge', ?, 'NSE-XBRL-SHP')", [
+            ("JPPOWER",    "2026-03-31", "2026-04-20", 72.99),   # textbook >20% → veto
+            ("VIKRAMSOLR", "2026-03-31", "2026-04-20", 6.77),    # <20 → no veto
+            ("RELIANCE",   "2026-03-31", "2026-04-20", 0.0),     # 0 → no veto
+            ("STALEHIGH",  "2026-03-31", "2026-04-20", 0.0),     # SHP 0.0 beats stale 55 → no veto
+            ("LATESTTEST", "2024-03-31", "2024-04-20", 80.0),    # OLD high
+            ("LATESTTEST", "2026-03-31", "2026-04-20", 3.0),     # NEW low → latest wins → no veto
         ])
-    rdb.commit(); rdb.close()
 
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(
-        "CREATE TABLE fundamentals(symbol TEXT PRIMARY KEY, promoter_pledge REAL);"
-        "CREATE TABLE pattern_scores(symbol TEXT, hard_disqualified INTEGER,"
-        " disqualifier_reasons TEXT, scored_at TEXT);"
-        "CREATE TABLE stock_signals(symbol TEXT, primary_sector TEXT, trade_date TEXT);")
-    conn.executemany("INSERT INTO fundamentals VALUES (?,?)", [
-        ("RELIANCE", None),          # live shape: legacy column is NULL
-        ("LEGACYCO", 45.0),          # no SHP row -> must veto via the fallback
-    ])
-    conn.executemany("INSERT INTO pattern_scores VALUES (?,?,?,?)", [
-        ("BANKCO", 1, "negative CFO 3y", "2026-06-01"),
-        ("INDUSTCO", 1, "negative CFO 3y", "2026-06-01"),
-    ])
-    conn.executemany("INSERT INTO stock_signals VALUES (?,?,?)", [
-        ("BANKCO", "Private Sector Bank", "2026-07-01"),
-        ("INDUSTCO", "Specialty Chemicals", "2026-07-01"),
-    ])
+    ok = True
 
-    failures: list[str] = []
+    def check(name, cond):
+        nonlocal ok
+        print(f"  {'ok  ' if cond else 'FAIL'} {name}")
+        ok = ok and bool(cond)
 
-    def check(name, got, want):
-        ok = got == want
-        print(f"  {'PASS' if ok else 'FAIL'}  {name}: got={got!r} want={want!r}")
-        if not ok:
-            failures.append(name)
+    def veto(sym, rc=r):
+        return compute_veto(h, sym, research_conn=rc)
 
-    RESEARCH_DB_OVERRIDE, _shp_cache = shp_path, (0.0, None)
-    a, r = compute_veto(conn, "JPPOWER")
-    check("JPPOWER vetoed from SHP (latest period 72.99, not 80.0)", (a, r), (True, "promoter pledge 73%"))
-    check("RELIANCE clean (SHP 0.0 is an answer; no fallback)", compute_veto(conn, "RELIANCE"), (False, None))
-    check("VIKRAMSOLR clean (6.77 < 20)", compute_veto(conn, "VIKRAMSOLR"), (False, None))
-    check("LEGACYCO vetoed via legacy fallback (no SHP row)",
-          compute_veto(conn, "LEGACYCO"), (True, "promoter pledge 45%"))
-    check("bank CFO disqualifier suppressed", compute_veto(conn, "BANKCO"), (False, None))
-    check("non-bank CFO disqualifier vetoes",
-          compute_veto(conn, "INDUSTCO"), (True, "pt14: negative CFO 3y"))
+    # primary-source pledge drives the veto
+    a, why = veto("JPPOWER")
+    check("JPPOWER 73% pledged -> VETO (was silently passing)", a and "73%" in (why or ""))
+    check("VIKRAMSOLR 6.77% -> no pledge veto", not veto("VIKRAMSOLR")[0])
+    check("RELIANCE 0.0% -> no veto", not veto("RELIANCE")[0])
+    # the crux: the SHP value overrides the stale column, and the newest quarter wins
+    check("STALEHIGH: SHP 0.0 overrides stale 55 -> no veto", not veto("STALEHIGH")[0])
+    check("LATESTTEST: latest quarter (3.0) wins over old 80.0 -> no veto", not veto("LATESTTEST")[0])
+    # stale column used ONLY as a fallback when SHP has nothing
+    check("FALLBACKONLY: SHP empty, stale 30 -> veto via fallback", veto("FALLBACKONLY")[0])
+    check("CLEANFALL: SHP empty, stale 5 -> no veto", not veto("CLEANFALL")[0])
+    # graceful degradation — a broken/absent research.db must never raise
+    broken = _sql.connect(":memory:")   # has NO shareholding_history table
+    check("_shp_pledge on broken research.db -> None (no raise)", _shp_pledge("JPPOWER", broken) is None)
+    check("_shp_pledge symbol absent from feed -> None", _shp_pledge("NOSUCH", r) is None)
+    check("broken research.db still falls back to stale column", compute_veto(h, "FALLBACKONLY", research_conn=broken)[0])
+    check("broken research.db + no stale row -> no crash, no veto", not compute_veto(h, "JPPOWER", research_conn=broken)[0])
+    # pt14 path unchanged
+    check("pt14 non-cashflow disqualifier -> veto", veto("BADRPT")[0])
+    check("pt14 cashflow disqualifier + bank sector -> suppressed", not veto("BANKCFO")[0])
 
-    # research.db absent -> degrade to the legacy column only, never crash.
-    RESEARCH_DB_OVERRIDE, _shp_cache = os.path.join(tmp, "missing.db"), (0.0, None)
-    check("degrade: fallback still vetoes LEGACYCO", compute_veto(conn, "LEGACYCO"), (True, "promoter pledge 45%"))
-    check("degrade: JPPOWER invisible without SHP (documents the gap)",
-          compute_veto(conn, "JPPOWER"), (False, None))
-
-    RESEARCH_DB_OVERRIDE, _shp_cache = None, (0.0, None)
-    print(f"selftest: {'PASS' if not failures else 'FAIL'} ({8 - len(failures)}/8)")
-    return 1 if failures else 0
+    for c in (h, r, broken):
+        c.close()
+    print("concall_veto selftest:", "OK" if ok else "FAILED")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
     import argparse
-    ap = argparse.ArgumentParser(description="CCI forensic veto gate (see compute_veto)")
-    ap.add_argument("--selftest", action="store_true", help="run the fixture-DB selftest")
+    import sys
+
+    ap = argparse.ArgumentParser(description="CCI forensic veto gate")
+    ap.add_argument("--selftest", action="store_true", help="run hermetic synthetic checks (no real DB)")
     args = ap.parse_args()
     if args.selftest:
-        raise SystemExit(_selftest())
+        sys.exit(_selftest())
     ap.error("give --selftest")

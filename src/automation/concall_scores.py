@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Optional
 
 from src.core.db import get_conn
-from src.automation.concall_veto import compute_veto
+from src.automation.concall_veto import compute_veto, _research_ro
 from src.automation.cci_normalize import classify_commitment
 
 log = logging.getLogger("hermes.concall_scores")
@@ -87,7 +87,7 @@ def _quantification_rate(conn, symbol):
     return round(100.0 * quant / len(rows), 1), len(rows)
 
 
-def score_symbol(conn, symbol: str) -> Optional[dict]:
+def score_symbol(conn, symbol: str, *, research_conn=None) -> Optional[dict]:
     order = _order_map(conn, symbol)
     keyf = lambda p: order.get(p, (0, 0))
     g_periods = [r["source_period"] for r in conn.execute(
@@ -100,7 +100,7 @@ def score_symbol(conn, symbol: str) -> Optional[dict]:
     as_of = max(periods, key=keyf)
 
     # --- MEASURABLE inputs only ------------------------------------------------
-    veto_active, veto_reason = compute_veto(conn, symbol)
+    veto_active, veto_reason = compute_veto(conn, symbol, research_conn=research_conn)
 
     by = {r["status"]: r["n"] for r in conn.execute(
         "SELECT status, COUNT(*) n FROM concall_guidance WHERE symbol=? GROUP BY status", (symbol,)).fetchall()}
@@ -204,7 +204,14 @@ def run(symbol: Optional[str] = None, rank_all: bool = True) -> int:
             syms = sorted(set(
                 [r["symbol"] for r in conn.execute("SELECT DISTINCT symbol FROM concall_guidance").fetchall()]
                 + [r["symbol"] for r in conn.execute("SELECT DISTINCT symbol FROM concall_behavior").fetchall()]))
-        scored = [s for s in (score_symbol(conn, x) for x in syms) if s]
+        # ONE shared read-only research.db handle for the whole rerank (primary-source
+        # pledge in compute_veto); degrades to the stale column if research.db is absent.
+        research_conn = _research_ro()
+        try:
+            scored = [s for s in (score_symbol(conn, x, research_conn=research_conn) for x in syms) if s]
+        finally:
+            if research_conn is not None:
+                research_conn.close()
         if rank_all and not symbol:
             live = sorted([s for s in scored if not s["veto_active"]],
                           key=lambda d: d["composite_score"], reverse=True)
