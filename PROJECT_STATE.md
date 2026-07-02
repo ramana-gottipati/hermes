@@ -1300,11 +1300,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 70 — 2026-07-02 — Multi-select strategy on the Track form (D77) — BUILT (local)
+### Session 70 — 2026-07-02 — Multi-select strategy on the Track form (D77) — SHIPPED + DEPLOYED
 Ramana's request from the stock-page Track panel: the Strategy dropdown only allowed one strategy per stock; he needs to tag multiple (all / a few / any) and keep the manual-entry option, with the tagged info stored.
 - **Shipped D77** — turned the single strategy `<select>` into a multi-select checkbox group across all three Track forms via a new shared renderer `_strategy_field()`; added `_join_strategies()` to combine picks + Manual free-text into the existing comma-joined `strategy` column (no DB migration). Reworked `_CS_JS` to toggle the Manual free-text off a checkbox; `_edit_form` splits the stored string back into checks + leftover Manual text for a clean round-trip. Both POST handlers now bind `strategy: List[str]`. New CSS `.ckrow`/`.ck`. Added `from typing import List`.
 - **Verified:** module parses; `_join_strategies` unit-checked against 6 cases (multi-join, Manual+custom, Manual-only, empty→"Manual", dedup, custom-only). Single file touched: `src/web/dashboard.py`.
-- **Open (flagged, not done):** Performance page's `GROUP BY strategy` treats each multi-strategy combo as its own group — a by-single-strategy attribution would need a split/LIKE rework. **Not yet deployed to VPS.**
+- **Open (flagged, not done):** Performance page's `GROUP BY strategy` treats each multi-strategy combo as its own group — a by-single-strategy attribution would need a split/LIKE rework (spun off as a background task, in flight in a parallel session; NOT yet landed).
+- **Deployed to VPS (commit `8e72265`).** The live `dashboard.py` had ONE undeployed hot-edit vs git — `mini_rrg_card(... size=280)` at ~L6984 (git has `size=180`) — so the deploy applied ONLY the D77 diff on top of the live file (`patch`), preserving `size=280` rather than reverting it. Backup `dashboard.py.bak-d77-20260702-104245`; uploaded LF, md5-verified end-to-end, py3.10 parse OK, `hermes-api` restarted. Verified live: `/dash/stock?sym=QUESS&track=1` renders 6 strategy checkboxes + `.ckrow` + Manual free-text, old `<select>` gone; `/dash/{stock,portfolios,watchlists,performance,import}` all 200. **Drift note:** the `size=280` hot-edit is still uncaptured in git — a later reconcile should either commit 280 or confirm 180 is intended.
 
 ### Session 69 — 2026-07-02 — Reconcile `main`↔`origin` + push + VPS deploy-parity audit
 Wrap-up of the colour-work session: integrated all parallel work and made `origin`, `main`, and the VPS consistent.
