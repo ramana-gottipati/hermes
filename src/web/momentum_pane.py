@@ -130,6 +130,57 @@ def pane_svg(dates, rs, rsi, div: dict | None = None) -> str:
     return "".join(out)
 
 
+# ── horizon sweep + staged recovery (compact, on-read; space-optimal) ─────────
+_HZ = ((5, "1w"), (10, "2w"), (21, "1m"), (63, "3m"), (126, "6m"), (252, "12m"))
+
+
+def _rs_pcts(rs):
+    """[(label, %Δ of the RS line over the horizon), …] — RS %Δ = beat/lag vs Nifty."""
+    out = []
+    for n, lab in _HZ:
+        v = (rs[-1] / rs[-1 - n] - 1.0) * 100.0 if len(rs) > n and rs[-1 - n] else None
+        out.append((lab, v))
+    return out
+
+
+def _stage(pcts):
+    """Staged recovery from the sweep: a turn climbs 1w→2w→1m→3m→6m/12m."""
+    d = dict(pcts)
+
+    def beat(l):
+        return (d.get(l) or 0) > 0
+    if beat("1m") and beat("3m") and beat("1w"):
+        return ("Leading", "var(--up)") if beat("6m") and beat("12m") else ("Confirmed", "var(--up)")
+    if beat("1m") and beat("1w"):
+        return "Recovery", "var(--up)"
+    if beat("2w") and beat("1w"):
+        return "Building", "var(--warn)"
+    if beat("1w"):
+        return "Early watch", "var(--warn)"
+    return "No turn", "var(--ink-2)"
+
+
+def horizon_strip_svg(rs) -> str:
+    pcts = _rs_pcts(rs)
+    n, W, Lp = len(pcts), 728, 8
+    cw = (W - Lp * 2) / n
+    out = [f'<svg width="100%" viewBox="0 0 {W} 58" role="img" '
+           'aria-label="RS beat or lag vs Nifty across horizons">']
+    for i, (lab, v) in enumerate(pcts):
+        x = Lp + i * cw
+        col = "var(--up)" if (v is not None and v > 0) else (
+            "var(--down)" if v is not None else "var(--line)")
+        out.append(f'<rect x="{x + 2:.1f}" y="6" width="{cw - 4:.1f}" height="30" rx="4" '
+                   f'style="fill:{col};opacity:0.9"/>')
+        txt = f'{v:+.1f}%' if v is not None else "—"
+        out.append(f'<text x="{x + cw / 2:.1f}" y="25" text-anchor="middle" '
+                   f'style="fill:#fff;font:600 11px system-ui">{txt}</text>')
+        out.append(f'<text x="{x + cw / 2:.1f}" y="50" text-anchor="middle" '
+                   f'style="fill:var(--ink-3);font:400 11px system-ui">{_esc(lab)}</text>')
+    out.append('</svg>')
+    return "".join(out)
+
+
 # ── RS series + on-read RSI ───────────────────────────────────────────────────
 # SPACE-OPTIMAL (mandatory rule): the RS line is ALREADY fully stored
 # (stock_signals.rs_vs_broad_today, ratio_rows.ratio); RSI is trivially derivable, so we
@@ -201,18 +252,20 @@ def card_html(sym: str, conn=None) -> str:
                 'compute). This card is inert until then — it changes nothing.</div></div>')
     dates, rs, rsi = data
     div = detect_divergence(rs, rsi)
-    tag_block = ""
+    st, stcol = _stage(_rs_pcts(rs))
+    pills = [f'<span class="pill" style="border-color:{stcol};color:{stcol}">Stage: {_esc(st)}</span>']
     if div.get("type"):
         col = _DIV_COL[div["type"]]
-        tag_block = (f'<div style="margin:0 0 8px"><span class="pill" '
-                     f'style="border-color:{col};color:{col}">'
-                     f'{div["type"].title()} divergence — early</span></div>')
+        pills.append(f'<span class="pill" style="border-color:{col};color:{col}">'
+                     f'{div["type"].title()} divergence — early</span>')
     return (
         '<div class="card">'
         f'<div class="h2" style="margin:0 0 2px">{_esc(sym)} — RS momentum</div>'
-        '<div class="sub" style="margin:0 0 8px">RSI of the RS line — momentum turns '
-        'before price. <b>Descriptive.</b></div>'
-        f'{tag_block}{pane_svg(dates, rs, rsi, div)}'
+        '<div class="sub" style="margin:0 0 8px">Beat/lag vs Nifty by horizon, RSI of the RS '
+        'line, and RS/RSI divergence — momentum turns before price. <b>Descriptive.</b></div>'
+        f'<div style="margin:0 0 6px">{" ".join(pills)}</div>'
+        f'{horizon_strip_svg(rs)}'
+        f'{pane_svg(dates, rs, rsi, div)}'
         '</div>'
     )
 
