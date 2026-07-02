@@ -20,19 +20,19 @@ Do NOT burn the context window re-reading history — this file + the top PROJEC
   this shared tree — never `git add -A`, stage explicit paths only.
 
 ## THE QUEUE — do these autonomously, in priority order
-1. 🔴 **RE-RUN the dataset-A insider backfill — it was KILLED mid-run (2026-07-02) to end a prod outage.**
-   ROOT CAUSE: the ingest held the SQLite **WAL write lock CONTINUOUSLY across its slow NSE fetches**
-   (the write transaction spans network I/O), which starved `hermes-api`'s startup schema-init
-   (`db._init`) → the app **crash-looped, ALL routes 000** (a manual write couldn't land even at 35s).
-   A UI session stopped the chain (`pkill -f "insider_events --ingest"`) + restarted the app to restore
-   prod; committed batches persist (log reached ~mid-Jun, saved≈1568). **(a)** Re-run: gg May→Jun
-   completion + chained `--legacy 2026-03-01 2026-04-30`; then verify no month gap
-   (`SELECT substr(disclosure_dt,1,7),COUNT(*) FROM insider_events GROUP BY 1`, 2025-11→now) + `--agg`.
-   **(b) FIX THE ROOT CAUSE FIRST — or the next backfill (or the nightly timer) takes prod down again:**
-   scope the ingest write txn to **commit per batch and NOT hold the write lock during fetches**, and/or
-   make `db._init()` **tolerate a locked schema-init** (start read-only + retry). `busy_timeout` alone
-   can't fix it — it must stay **< systemd `TimeoutStartSec` (90s)** or systemd kills the hung startup
-   (I briefly raised it to 120s, saw the crash-loop worsen, and reverted it to the original 30s).
+1. **Dataset-A backfill — ROOT CAUSE FIXED + mostly re-run (session 73 cont., `a4f1c21`); verify the tail.**
+   The outage root cause is fixed in `insider_events.py`: **commit PER FILING** (the write lock never
+   spans a network fetch any more), `insider_gg_seen` resume table (partial runs skip already-parsed
+   instances without re-fetching), 6-consecutive-failure circuit breaker for nsearchives throttling.
+   NOTE a correction to the earlier note: the killed run's "saved≈1568" did NOT persist — it was one
+   giant txn and rolled back fully (DB showed 248). Since then: **legacy Mar–Apr archive ingested clean
+   (2,449 disclosures — the old JSON API still serves pre-cutover months)**; the gg May–Jun re-run was
+   relaunched as transient unit `hermes-insider-backfill2` (journalctl -u …). **Verify:** unit finished
+   without `aborted_throttled` (if throttled, re-run the same window — resume is cheap now); no month
+   gap `SELECT substr(disclosure_dt,1,7),COUNT(*) FROM insider_events GROUP BY 1` (2025-11→now); `--agg`
+   sanity on a pledge-heavy symbol. Optional companion (owner: whoever holds `db.py`): make `db._init()`
+   tolerate a locked schema-init (retry/read-only) — my fix removes the starvation source, theirs would
+   remove the crash-loop failure mode generally; `busy_timeout` must stay < systemd TimeoutStartSec 90s.
 2. **XBRL Phase 2 — widen the migrated cohort.** (a) Definitional mappers for gate-failing
    symbols (excise-gross Sales, NCI netting, other-operating-income OP); (b) bank/NBFC taxonomy
    mapper (currently skipped loudly); (c) shareholding-pattern filings (promoter/FII/DII/pledge —
