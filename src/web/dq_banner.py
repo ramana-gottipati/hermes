@@ -133,7 +133,18 @@ def _enhance(body: str, active: str) -> str:
 
 def install() -> bool:
     """Wrap dashboard._shell so affected pages get the kill-switch strip. Idempotent;
-    signature-transparent (inspects args, passes them through verbatim)."""
+    signature-transparent (inspects args, passes them through verbatim).
+
+    Like shell_skin, this must ALSO rebind the modules that captured `_shell` by
+    reference at import time (`from src.web.dashboard import _shell` in rotation_view /
+    rrg_view / rsband_view / cycle_clock / participants_view / screener_plus …). Those
+    resolve the bare name against their OWN globals, so patching dashboard._shell alone
+    never reaches them — verified live: /dash/markets/rotation rendered 0 strips while
+    /dash/stocks (dashboard-native) rendered 2. table_controls/shell_skin run before us
+    and only shell_skin sweeps, so those refs point at the skin wrapper, not the
+    original — hence we rebind by "is a captured shell ref in src.web", not "is orig"."""
+    import sys
+
     from src.web import dashboard as _dash
     cur = _dash._shell
     if getattr(cur, "_dqb_installed", False):
@@ -153,7 +164,25 @@ def install() -> bool:
         return cur(*a, **k)
 
     _shell_dqb._dqb_installed = True
+    _shell_dqb.__wrapped__ = cur                    # keep the chain walkable
     _dash._shell = _shell_dqb
+
+    # Rebind import-time captures. A module-level `_shell` in the src.web.* namespace is
+    # always a captured reference to some layer of the shell chain (dashboard is the only
+    # definer, and we skip it), so repointing every such ref to our outermost wrapper is
+    # safe: after install nothing legitimately points higher, and the next sweep finds
+    # _shell_dqb and skips (idempotent). main.py imports every router before wire() runs.
+    rebound = 0
+    for _name, _mod in list(sys.modules.items()):
+        if _mod is None or _mod is _dash or not (_name or "").startswith("src.web."):
+            continue
+        try:
+            ref = getattr(_mod, "_shell", None)
+            if callable(ref) and ref is not _shell_dqb and not getattr(ref, "_dqb_installed", False):
+                _mod._shell = _shell_dqb
+                rebound += 1
+        except Exception:  # noqa: BLE001 — a quirky module must never break install
+            continue
     return True
 
 
@@ -179,9 +208,32 @@ def _selftest() -> int:
     strat = _enhance("<h2>Positioning</h2>", "stocks")
     assert "regime" in strat and "restatement" in strat, "strategies blends momentum+fundamentals"
     assert _enhance("<h2>Wire</h2>", "wire") == "<h2>Wire</h2>", "unmapped page untouched"
+
+    # the load-bearing regression: prove install() rebinds a module that captured `_shell`
+    # by reference at import time (the rotation_view/rrg_view pattern) — the bug that made
+    # /dash/markets/rotation render 0 strips while the dashboard-native /dash/stocks worked.
+    import sys
+    import types
+
+    import src.web.dashboard as _D
+    _fake = types.ModuleType("src.web._fake_lens_for_dqb_test")
+    _fake._shell = _D._shell            # as `from src.web.dashboard import _shell` would bind
+    sys.modules[_fake.__name__] = _fake
+    try:
+        _cache.update(at=time.time(), ttl=3600, run_at="2026-07-02 06:30:01", bad=[
+            ("killswitch.regime", "warn", "Nifty 50 24100 < 200DMA 24500 — momentum regime OFF")])
+        assert install() is True and install() is False, "install must be idempotent"
+        assert _fake._shell is _D._shell, "captured _shell ref was not rebound to the dqb wrapper"
+        page = _fake._shell("Rotation · patearn", "<h2>Rotation</h2>", active="markets")
+        assert _SENTINEL in page and "momentum regime OFF" in page, \
+            "rebound view-module ref does not inject the kill-switch strip"
+    finally:
+        del sys.modules[_fake.__name__]
+
     _cache.update(bad=[])
     assert _enhance("<h2>Rotation</h2>", "markets") == "<h2>Rotation</h2>", "all-ok = no strip"
-    print("dq_banner selftest OK — workspace-scoped strips, crit-first, idempotent, all-ok silent")
+    print("dq_banner selftest OK — workspace-scoped strips, crit-first, idempotent, "
+          "all-ok silent, import-time refs rebound")
     return 0
 
 
