@@ -342,6 +342,10 @@ CREATE TABLE IF NOT EXISTS insider_events (
 );
 CREATE INDEX IF NOT EXISTS idx_insider_symbol_disc ON insider_events(symbol, disclosure_dt);
 CREATE INDEX IF NOT EXISTS idx_insider_class ON insider_events(txn_class, disclosure_dt);
+CREATE TABLE IF NOT EXISTS insider_gg_seen (
+    xml_url      TEXT PRIMARY KEY,
+    processed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
@@ -504,6 +508,7 @@ def _legacy_ingest_range(from_date: str, to_date: str, *, chunk_days: int = 30,
                 continue
             events = [normalize_row(_nse_to_raw(x)) for x in raw]
             saved += save_events(conn, events)
+            conn.commit()          # bounded transactions (see ingest_range_gg note)
             fetched += len(raw)
             log.info("PIT %s..%s: %d rows", cur, chunk_end, len(raw))
             cur = chunk_end + timedelta(days=1)
@@ -614,11 +619,14 @@ def ingest_range_gg(from_date: str, to_date: str, *, chunk_days: int = 7,
     if not start or not end:
         raise ValueError("from_date/to_date must be ISO YYYY-MM-DD")
     session, headers = _nse_session()
-    filings = xml_fail = fetched = saved = 0
+    filings = xml_fail = fetched = saved = skipped = 0
+    consec_fail = 0
+    aborted = False
     with get_conn() as conn:
         ensure_schema(conn)
+        conn.commit()
         cur = start
-        while cur <= end:
+        while cur <= end and not aborted:
             chunk_end = min(cur + timedelta(days=chunk_days - 1), end)
             try:
                 rows = fetch_filings_gg(cur.isoformat(), chunk_end.isoformat(),
@@ -634,6 +642,11 @@ def ingest_range_gg(from_date: str, to_date: str, *, chunk_days: int = 7,
                 if not url.lower().endswith(".xml"):
                     xml_fail += 1
                     continue
+                # cheap resume: instances already parsed in a previous (partial) run are
+                # skipped WITHOUT a re-fetch — the fetch is the expensive/throttled part
+                if conn.execute("SELECT 1 FROM insider_gg_seen WHERE xml_url=?", (url,)).fetchone():
+                    skipped += 1
+                    continue
                 try:
                     xr = session.get(url, headers=headers, timeout=45)
                     if xr.status_code != 200:
@@ -641,18 +654,37 @@ def ingest_range_gg(from_date: str, to_date: str, *, chunk_days: int = 7,
                     raws = _gg_xml_to_raws(xr.text, row)
                 except Exception as e:  # noqa: BLE001 — one bad instance shouldn't kill the run
                     xml_fail += 1
+                    consec_fail += 1
                     log.warning("PIT-gg xml failed %s (%s): %s", row.get("symbol"), url[-40:], e)
-                    time.sleep(pause)
+                    if consec_fail >= 6:
+                        # nsearchives throttling detected (observed 2026-07-02: every fetch
+                        # timing out after ~1.5k downloads) — stop burning 45s per miss;
+                        # the run is idempotent + seen-table-resumable, so exit CLEANLY.
+                        log.warning("PIT-gg: %d consecutive fetch failures — throttled; "
+                                    "aborting cleanly (resume by re-running the same window)",
+                                    consec_fail)
+                        aborted = True
+                        break
+                    time.sleep(pause + 5 * consec_fail)   # gentle backoff
                     continue
+                consec_fail = 0
                 events = [normalize_row(r) for r in raws]
                 saved += save_events(conn, events)
+                conn.execute("INSERT OR IGNORE INTO insider_gg_seen (xml_url) VALUES (?)", (url,))
+                # COMMIT PER FILING — the write lock must NEVER span a network fetch.
+                # The 2026-07-02 backfill held one giant txn across paced fetches, starved
+                # hermes-api's startup schema-init (db._init), crash-looped prod to 000,
+                # got pkill'ed, and rolled back everything. WAL commits are cheap; the
+                # lock window is now microseconds per filing.
+                conn.commit()
                 fetched += len(raws)
                 time.sleep(pause)
-            log.info("PIT-gg %s..%s: %d filings -> %d txns (running saved=%d)",
-                     cur, chunk_end, len(rows), fetched, saved)
+            log.info("PIT-gg %s..%s: %d filings -> %d txns (saved=%d, skipped=%d)",
+                     cur, chunk_end, len(rows), fetched, saved, skipped)
             cur = chunk_end + timedelta(days=1)
     return {"from": from_date, "to": to_date, "filings": filings, "fetched": fetched,
-            "saved": saved, "xml_failed": xml_fail}
+            "saved": saved, "skipped_seen": skipped, "xml_failed": xml_fail,
+            "aborted_throttled": aborted}
 
 
 # --- selftest (synthetic, no DB, no network) -------------------------------
