@@ -5,10 +5,15 @@ volumes. Swap to Postgres + asyncpg when there's a real reason (multi-process,
 high write concurrency, or shared state across boxes).
 """
 
+import logging
 import sqlite3
+import threading
+import time as _time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
+
+log = logging.getLogger(__name__)
 
 DB_PATH = Path(__file__).resolve().parents[2] / "data" / "hermes.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -996,7 +1001,10 @@ def _tune(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA foreign_keys = ON")
 
 
-def _init() -> None:
+def _init_ddl() -> None:
+    """One full schema-init/migration pass. Needs the WAL write lock briefly;
+    every statement is idempotent, so a lock-aborted partial pass is safely
+    re-runnable."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     _tune(conn)
@@ -1220,6 +1228,61 @@ def _init() -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def _schema_present() -> bool:
+    """True if a previous boot already created the core schema. Read-only —
+    never blocks on the WAL write lock."""
+    try:
+        conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversations'"
+            ).fetchone()
+            return row is not None
+        finally:
+            conn.close()
+    except sqlite3.OperationalError:
+        return False
+
+
+def _retry_init_ddl() -> None:
+    """Background retry of the schema pass until the write lock frees up."""
+    while True:
+        _time.sleep(60)
+        try:
+            _init_ddl()
+            log.warning("db._init: deferred schema-init completed")
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() and "busy" not in str(e).lower():
+                log.error("db._init: deferred schema-init failed hard: %s", e)
+                return
+            log.warning("db._init: schema still locked; retrying in 60s")
+
+
+def _init() -> None:
+    """Import-time schema init that TOLERATES a locked database.
+
+    2026-07-02 outage: a backfill held the WAL write lock across NSE fetches;
+    _init's DDL (busy_timeout 30s) timed out on every boot -> hermes-api
+    crash-looped, ALL routes 000. busy_timeout alone can't fix it (it must stay
+    < systemd TimeoutStartSec=90s). Instead: if the DDL can't get the lock but
+    the schema already exists from a previous boot, START SERVING on the
+    existing schema and re-run the (idempotent) DDL in the background.
+    A fresh DB (no schema at all) still fails hard — nothing could serve.
+    """
+    try:
+        _init_ddl()
+    except sqlite3.OperationalError as e:
+        msg = str(e).lower()
+        if ("locked" not in msg and "busy" not in msg) or not _schema_present():
+            raise
+        log.warning(
+            "db._init: schema-init blocked by a long-running writer (%s); "
+            "serving on the existing schema, retrying DDL in background", e)
+        threading.Thread(target=_retry_init_ddl, daemon=True,
+                         name="db-init-retry").start()
 
 
 _init()
