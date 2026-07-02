@@ -1336,6 +1336,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 76 — 2026-07-02 — Audit hotfixes AUD-03 / AUD-23 / AUD-24 (data lane, on audit-session alert)
+Time-critical items relayed by the institutional-audit session (`docs/AUDIT-2026-07-02-institutional-review.md`), all verified-then-fixed-then-deployed:
+- **`cfcd1c7` AUD-03 (P0, would fail Sun Jul-05):** `hermes-concall-capture.service` passed `--universe/--workers/--include-covered` that a Jun-30 VPS overwrite removed from `concalls.py` (the workers=5 build was never committed — unrecoverable). Reimplemented per the unit's doctrine comments: `--universe [CAP]` = every latest-bhavcopy symbol (default skips covered; `--include-covered` re-checks all), `--workers N` pool, per-symbol failures non-fatal. Smoke-tested on the VPS with the unit's exact flag shape.
+- **`911d020` AUD-23 (results season ~Jul-09):** `fundamentals_xbrl` ingest now survives heavy nights — `fundamentals_xbrl_seen` url-keyed skip (restatement-safe; IF-era urls marked only AFTER the candidate flush), 6-consec-fail throttle breaker on both API eras, `GATE_BUDGET_PER_RUN` (25) caps first-seen gate-evidence fan-out with defer-to-next-night. Proven on a real research.db copy: run 2 = `skipped_seen` only, zero fetches; the seen-table even dedups filings listed by BOTH the legacy and IF APIs.
+- **`16037b2` AUD-24 (the D82c write-lock class):** `credit_ratings.ingest_range` (one txn across the whole chunked NSE loop) → commit-per-chunk + breaker; `capital_allocation.run_batch` (one txn across full-universe scoring) → commit-per-50. **Class sweep run (agent + shape-grep over all `with get_conn()` writers): no further members** — everything else is fetch-then-write or read-only. Both deployed (compile + selftests green).
+
 ### Session 76 — 2026-07-02 — SAST feeds (Reg-29 + pledge FLOW) + shareholding XBRL consumed + AUD-32 nav capture (data lane cont.)
 The Session-73 data lane continuing through the evening queue. All verified live, gates run, coordinated with the audit + UI lanes via cross-session messages.
 - **`775badb` + `261daef` (earlier this stretch):** shareholding-pattern XBRL module + nightly 16:45 timer + NEW `Promoter Pledge` metric wired PIT into `fundamentals_asof` (JPPOWER 72.99 as-of today, None as-of 2026-04-01 — leak-tested).

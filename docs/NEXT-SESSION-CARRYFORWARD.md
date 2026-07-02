@@ -42,34 +42,32 @@ Also: `src/automation/sast_events.py` is untracked and belongs to another lane �
   2 of 5 queue items were already done/in-flight by siblings).
 
 ## THE QUEUE — do these autonomously, in priority order
-1. **Confirm the insider gg tail landed:** `journalctl -u hermes-insider-backfill3` (or `-backfill4`+)
-   ends without `aborted_throttled` and June count grows past 699
-   (`SELECT substr(disclosure_dt,1,7),COUNT(*) FROM insider_events GROUP BY 1`). If throttled again:
-   re-run the same window after a ≥45-min cooldown (`systemd-run --unit=... --working-directory=
-   /opt/hermes /opt/hermes/.venv/bin/python -m src.automation.insider_events --ingest 2026-05-01
-   2026-06-27`) — resume skips everything already seen.
-2. **Capture the momentum lane's nav wiring into git (the D80-landmine pattern again, small):**
-   `sector_momentum.py` (`bb27a4e`) and `early_signals.py` (`10959ba`) are committed, but NEITHER
-   has a `v2_surfaces._ROUTER_SPECS` mount or a lens at HEAD — while the VPS runs a live
-   `("sector-momentum", "src.web.sector_momentum", "/dash/sector-momentum")` mount git lacks.
-   Until captured, a clean `main`→VPS deploy drops `/dash/sector-momentum`. Add both mounts +
-   lenses (or nav-gate allowlist with a reason), run all 3 gates, commit. Patch-over deploy only.
+1. ~~Confirm the insider gg tail~~ **DONE** — backfill3 completed CLEAN (`aborted_throttled: False`,
+   saved 1,037, resume skipped 224); June = 1,559 events, no month gap 2025-11→2026-07.
+2. ~~Capture sector-momentum/early-signals nav wiring~~ **DONE (`a24cf23`, AUD-32)** — mounts +
+   lenses in git, nav gate PASS (89 routes, 0 orphans).
 3. ~~**Wire `fundamentals_asof.promoter_pledge`**~~ **DONE (`261daef`)** — wired to the SHP
    `Promoter Pledge` metric (PIT via report_date). Residual: verify the consumers (scoring veto /
    C-score / A-B boards) actually surface the now-real values honestly.
-4. **RESULTS-SEASON WATCH (from ~Jul-09, first heavy nights):** check
+4. **AUDIT CORRECTION PROGRAM (`docs/AUDIT-2026-07-02-institutional-review.md`, AUD-01..117 in
+   priority order).** Already fixed from it — do NOT redo: AUD-03 concall-capture CLI (`cfcd1c7`,
+   Jul-05 run will now succeed — VERIFY it did) · AUD-23 fundamentals_xbrl seen-table/breaker/gate-
+   budget (`911d020`) · AUD-24 credit_ratings + capital_allocation bounded txns + full class sweep
+   NEGATIVE for further members (`16037b2`) · AUD-32 nav capture (`a24cf23`). Next by priority:
+   the remaining P0s — HTTP perimeter, DB backup/restore, Trust-page 4s (AUD-04).
+5. **RESULTS-SEASON WATCH (from ~Jul-09, first heavy nights):** check
    `/var/log/hermes-fundamentals-xbrl.log` for runtime + gate-verdict quality — banks flow for the
-   first time; gate-evidence fetches make early runs heavy. If a mapper improvement lands, re-arbitrate
-   affected symbols with `--regate --symbols ...`. Watch `hermes-shareholding-xbrl` the same nights.
-5. **Kill-switch completion — mostly DONE (`be7826a`):** #4 restatement-spike + WARN/CRIT surfacing
+   first time; expect `skipped_seen` to dominate night 2+, `gate_deferred` >0 on heavy nights
+   (budget 25/run, env `HERMES_XBRL_GATE_BUDGET`). If a mapper improvement lands, re-arbitrate with
+   `--regate --symbols ...`. Watch `hermes-shareholding-xbrl` + `hermes-sast-ingest` the same nights.
+6. **Kill-switch completion — mostly DONE (`be7826a`):** #4 restatement-spike + WARN/CRIT surfacing
    on affected pages shipped. Remaining: #1 WML-drawdown + #3 live-IC decay (check whether enough
    momentum_scan history has accumulated yet; else defer again).
-6. **A/B ENHANCEMENTS:** SAST Reg 29 (`corporate-sast-reg29`) + Reg 31 pledge-magnitude
-   (`corporate-pledgedata-sast3132`) — per-EVENT pledge magnitude (the SHP `Promoter Pledge` gives the
-   quarterly STOCK; Reg 31 gives the FLOW between quarters). Codex resp-14/15.
-7. **C consumption wave (needs backtest first):** fold C into `scoring.py` / a screener column / the
+7. ~~SAST Reg 29 + Reg 31~~ **DONE (`eee45f1`)** — `sast_events.py` + nightly 15:55 UTC timer;
+   backfilled 2025-11→now; NRBBEARING roll-up validated.
+8. **C consumption wave (needs backtest first):** fold C into `scoring.py` / a screener column / the
    confluence board — only with a clean backtest, only for gate-passed symbols.
-8. **XBRL Phase 3 (big, design first):** historical backfill from the legacy API (2018+ per symbol) +
+9. **XBRL Phase 3 (big, design first):** historical backfill from the legacy API (2018+ per symbol) +
    BSE where deeper; replace Screener series symbol-by-symbol where reconciliation allows (this is
    where ITC-excise, HDFCBANK, bank annuals, and the frozen history land); then delete `screener.py`.
 
@@ -87,8 +85,8 @@ executed → retire-ready (its owner session deletes it).
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
-> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (start with the insider-tail confirmation, then
-> capture the sector-momentum/early-signals nav wiring into git). Access is harness-enforced —
+> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (start with the promoter_pledge consumer
+> verification, then the audit correction program's remaining P0s). Access is harness-enforced —
 > never ask for access/write/delete or per-step confirmation. Get guidance from the agents, not
 > from me; I won't answer. Keep every guardrail (esp. #8 primary-sources-only). Wrap up per the
 > protocol and write the next carry-forward.
