@@ -47,11 +47,14 @@ honesty; momentum is a free demo of what the data enables, not the product.**
    factors are effectively scored on a listed-today set (must be labeled, not reported as survivorship-free);
    (c) left-censoring: **773 names truncated at the 2004-07-23 archive floor** — disclose as a number; keep
    the headline window 2012+.
-4. **Cost is a DECISION VARIABLE, not a fixed haircut (PM).** The flat 0.5×ATR assumes naïve market
-   orders and *over-penalizes* the fundable form; real desks use VWAP/participation ≤10% ADV (~0.1–0.2×ATR).
-   Replace the flat ATR in `cost_realism.py` with a participation-rate impact model; re-run quarterly
-   large-cap LOWVOL_MOM at ₹50 / ₹200 / ₹500cr. PM prior: ~1.0 net Sharpe *at ₹50cr only* — fundable but
-   not scalable (breakpoint ₹50cr→₹500cr; alpha lives where capacity dies).
+4. **Cost is a DECISION VARIABLE — RESOLVED with numbers (2026-07-02).** Built `cost_participation.py`
+   (Almgren √-law impact `k·σ·√(order/ADV)`, k=0.6, ≤10% ADV/day POV cap, tiered spread/fees) and re-ran
+   quarterly large-cap wide-hold-band LOWVOL_MOM at target AUM. Result: **net Sharpe 1.02 / CAGR 18.1% at
+   ₹50cr (BEATS Nifty-500 0.89/15.3%), 0.83 at ₹200cr, 0.61 at ₹500cr — capacity breakpoint ~₹100-150cr**
+   (beats index to ~₹100cr, first fails ~₹150cr), DD −21% vs index −29%. **This overturns the ledger's
+   AUM-blind "nothing beats buy-&-hold net" as an artifact of the flat 0.5×ATR haircut.** Honest scope: a
+   ₹50-100cr-capacity DEFENSIVE factor tilt, not a scalable alpha — and still contingent on gap #1
+   (is LOWVOL_MOM's signal real selection, attribution pending).
 5. **Doc honesty fix.** Move the net-reality + β-caveat to the TOP of `docs/predictive-attributes-findings.md`
    (a committee reading it beside the ledger's "0.09 net" would flag the inconsistency). Fold the
    never-claim list into any pitch material.

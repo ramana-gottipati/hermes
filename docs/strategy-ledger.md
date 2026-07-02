@@ -374,6 +374,16 @@ drawdown (−23 to −25% vs −29%) — defensive equity, not alpha. **DEFINITI
 research beats buy-and-hold the index net of realistic cost.** The strategy-as-alpha path is closed (recorded in
 full); the genuine assets are the point-in-time rigor and the under-covered Indian-mid-cap data.
 
+> **⚠ CORRECTION (2026-07-02) — the "DEFINITIVE" above was AUM-blind.** The flat 0.5×ATR haircut assumed naïve
+> market orders and charged the same slippage regardless of order size. Re-run with a realistic **participation-rate
+> impact model** (`research/explosive_moves/cost_participation.py`: Almgren √-law `k·σ·√(order/ADV)`, k=0.6, ≤10%
+> ADV/day POV cap, tiered spreads) shows quarterly large-cap wide-hold-band **LOWVOL_MOM DOES beat the index at
+> small size: net Sharpe 1.02 / CAGR 18.1% at ₹50cr, and beats Nifty-500 up to ~₹100cr; first fails ~₹150cr; 0.61
+> at ₹500cr.** So the honest claim is not "nothing works" — it is **"there is a small-capacity (₹50-100cr) defensive
+> factor tilt that beats the index net of realistic execution, but no SCALABLE alpha."** The failure was recorded
+> AND corrected (per the "nothing discarded" rule). Caveat unchanged: still contingent on LOWVOL_MOM being real
+> selection (attribution pending, `attribution.py`).
+
 ---
 
 ## Proprietary-alpha feasibility check (2026-06-24) — the hard truth
