@@ -58,6 +58,29 @@ A strategy "survives" only if it beats **Nifty 500 Sharpe (0.89) in BOTH walk-fo
 
 ---
 
+## ❌ BLOCKING FAILURE MODELS — read before proposing any factor/strategy (2026-07-02)
+
+Ramana's standing rule: **failures are remembered so we never re-walk a dead road.** If a proposal
+matches one of these, it is BLOCKED until it beats the recorded number *net of realistic cost*. Cite
+the exact figures; do not silently re-attempt. (Mirrored in memory `failure-models-ledger`.)
+
+| Failure model | Recorded result (2012-26, top-25 monthly, vs Nifty 500) | Why it blocks |
+|---|---|---|
+| **BOOK_YIELD (deep value / B-P)** | Sharpe 0.61-0.63 · **alpha −1.8%…−2.2% (NEGATIVE)** · **beta 1.54-1.56** · **MaxDD −82%** · fails BOTH halves | Negative alpha + −82% drawdown + high beta = a value-trap engine. **Never a production long-ranker.** The β≈1.54 + MaxDD≈82% alone stop us. |
+| **EARN_YIELD (cheap on P/E)** | Sharpe 0.70 · alpha +0.4% · MaxDD −71% | No index-beating edge standalone; deep drawdown. |
+| **QUALITY standalone** | Sharpe 0.76 · alpha ~0.0% · fails halves | Quality doesn't rank returns alone; only helps *attached to momentum* (QUAL_MOM). → C is a veto/filter, not a ranker. |
+| **Momentum sold as a FUNDABLE strategy** | GROSS Sharpe 1.29 → **NET ~0.09, CAGR negative, MaxDD −69%** under realistic cost (~36%/yr, ~100%/mo turnover) | The headline Sharpe is a flat-cost illusion. Nothing beats Nifty-500 buy-&-hold (0.89) net of realistic cost. Momentum = a **gross selection/analytical lens**, not net alpha; any fundable form must be low-turnover (and is then defensive, not alpha). |
+| ACCEL / PULLBACK / DELIV_MOM (standalone) | Sharpe 0.42-0.85, MaxDD −44%…−70% | Short-thrust chasing / dip-buying / delivery% added no standalone edge. |
+| MEP-accumulation as alpha | Deflated-Sharpe DSR 0.45→0.36 when added | Descriptor-only; adds nothing. Do not re-test as alpha. |
+| CCI credibility as a factor | Spearman ≈0; HIGH−LOW excess −10% @12m (inverse, survivorship) | FALSIFIED as a factor → descriptive/veto only. |
+
+The corollary (the doctrine these failures prove): **price strength is the only gross forward-return
+engine; value/quality/credibility/accumulation are veto/filter/context layers, not rankers; and no
+factor here is a fundable net-of-cost alpha vs the index.** The asset is PIT rigor + under-covered data
++ the analytical selection lens — not a backtested alpha strategy.
+
+---
+
 ## Tier 1 — Ranked-portfolio signals (TESTED, walk-forward). The live benchmark.
 
 Machine: rank every liquid name monthly by a signal → hold top-25 equal-weight → net of a simple
