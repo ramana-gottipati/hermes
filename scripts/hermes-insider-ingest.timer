@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes dataset A insider ingest (nightly, after market-hours filings land)
+
+[Timer]
+OnCalendar=*-*-* 15:30:00
+Persistent=true
+Unit=hermes-insider-ingest.service
+
+[Install]
+WantedBy=timers.target

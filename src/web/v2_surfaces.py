@@ -77,6 +77,9 @@ _ROUTER_SPECS = [
     # Durably mounted so the sub-nav lenses don't 404 after a main.py clobber / clean clone.
     ("harmonic", "src.web.harmonic_view", "/dash/harmonic"),
     ("wolfe", "src.web.wolfe_view", "/dash/wolfe"),
+    # Glossary / Methodology — the browsable "explain every term" page (Trust altitude).
+    # Renders docs/metrics-glossary.md, the SAME source the ? hover-popovers use.
+    ("glossary", "src.web.glossary_view", "/dash/glossary"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

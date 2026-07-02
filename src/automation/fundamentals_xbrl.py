@@ -1,0 +1,782 @@
+"""PRIMARY-SOURCE fundamentals ingest — NSE financial-results XBRL (Guardrail #8).
+
+Replaces the Screener.in dependency for NEW fundamentals periods. The NSE
+``corporates-financial-results`` API returns, per filing: a direct XBRL instance URL,
+the exchange broadcast timestamp (the true PIT ``knowable_at``), and explicit
+Consolidated / Non-cumulative / bank / audited flags — everything the panel memo
+(docs/institutional-panel-assessment.md, XBRL verdict 2026-07-02) requires. The XBRL
+taxonomy is the shared ``in-bse-fin`` results taxonomy (verified live on 2025-26
+filings, post the Apr-2025 Integrated-Filing regime change).
+
+Panel rules enforced here:
+  * consolidated preferred over standalone for the same (symbol, period_end); which one
+    was used is recorded per row in the ``source`` column (NSE-XBRL-CONSO / -SA).
+  * discrete quarters only — cumulative rows (H1/9M) are skipped; annual = the FY-span
+    context of the Annual filing, never a sum of tags.
+  * nil/missing tag is NULL, never zero (Borrowings: a filed balance sheet with no
+    borrowings tags counts as genuinely debt-free — see _borrowings()).
+  * knowable_at = exchange broadcast datetime via provenance.observe(basis=INGESTED
+    semantics); restatements insert with their own broadcast, earliest is preserved.
+  * forward-only: by default never overwrites a Screener-era row (source IS NULL);
+    reconciliation (--reconcile) is the §4 gate evidence before C switches source.
+
+Values are stored in ₹ crores (existing fundamentals_history convention; XBRL facts
+are absolute INR → ÷1e7). Banks/NBFCs (bank="Y") are skipped loudly in Phase 1 —
+their taxonomy differs and they get a dedicated mapper later.
+
+Run (VPS):
+  python -m src.automation.fundamentals_xbrl --probe RELIANCE
+  python -m src.automation.fundamentals_xbrl --reconcile --symbols RELIANCE,TCS,ITC
+  python -m src.automation.fundamentals_xbrl --ingest --since 2026-04-01 --symbols ...
+  python -m src.automation.fundamentals_xbrl --ingest --since 2026-06-25   # global window
+"""
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import re
+import sqlite3
+import time
+import xml.etree.ElementTree as ET
+from datetime import date, datetime, timedelta
+from typing import Optional
+
+import requests
+
+from src.automation import provenance
+
+log = logging.getLogger("hermes.fundamentals_xbrl")
+
+RESEARCH_DB = os.environ.get("HERMES_RESEARCH_DB", "/opt/hermes/data/research.db")
+HERMES_DB = os.environ.get("HERMES_DB", "/opt/hermes/data/hermes.db")
+
+_NSE_HOME = "https://www.nseindia.com"
+_NSE_REF = "https://www.nseindia.com/companies-listing/corporate-filings-financial-results"
+_NSE_API = "https://www.nseindia.com/api/corporates-financial-results"
+# Apr-2025 SEBI Integrated-Filing regime: results filed since then flow through a NEW
+# endpoint (the legacy API stops at Apr-2025 + late old-period filers). Path recovered
+# from /dist/js/sections/corporate-filings.js on 2026-07-02.
+_NSE_IF_API = "https://www.nseindia.com/api/integrated-filing-results"
+_NSE_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+           "(KHTML, like Gecko) Chrome/122 Safari/537.36")
+REQUEST_PAUSE = 1.5          # match the house BSE/NSE pacing (concall_bse / insider_events)
+
+SOURCE_CONSO = "NSE-XBRL-CONSO"
+SOURCE_SA = "NSE-XBRL-SA"
+
+_CR = 1e7                    # absolute INR -> ₹ crores (house storage convention)
+
+
+# ── NSE session (insider_events pattern: prime anti-bot cookies, then API) ────
+def _nse_session():
+    s = requests.Session()
+    h = {"User-Agent": _NSE_UA, "Accept": "application/json,text/plain,*/*",
+         "Accept-Language": "en-US,en;q=0.9", "Referer": _NSE_REF}
+    s.get(_NSE_HOME, headers=h, timeout=20)
+    s.get(_NSE_REF, headers=h, timeout=20)
+    return s, h
+
+
+def _dmy(d: str) -> str:
+    """ISO date -> DD-MM-YYYY (the NSE API's query format)."""
+    return datetime.strptime(d, "%Y-%m-%d").strftime("%d-%m-%Y")
+
+
+_MON = {m: i for i, m in enumerate(
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], 1)}
+
+
+def _parse_nse_dt(s: Optional[str]) -> Optional[str]:
+    """'16-Jan-2025 20:20:21' / '16-Jan-2025' -> ISO ('2025-01-16 20:20:21')."""
+    if not s:
+        return None
+    m = re.match(r"(\d{2})-([A-Za-z]{3})-(\d{4})(?:\s+(\d{2}:\d{2}(?::\d{2})?))?", s.strip())
+    if not m:
+        return None
+    dd, mon, yyyy, hms = m.groups()
+    iso = f"{yyyy}-{_MON[mon.title()]:02d}-{dd}"
+    return f"{iso} {hms}" if hms else iso
+
+
+def list_filings(*, symbol: Optional[str] = None, period: str = "Quarterly",
+                 from_date: Optional[str] = None, to_date: Optional[str] = None,
+                 session=None, headers=None) -> list:
+    """Normalized result-filing rows from the NSE API (symbol-scoped or date-window).
+
+    Each row: symbol, company, period ('Quarterly'/'Annual'), relating_to, from_date,
+    to_date (ISO period bounds), consolidated (bool), cumulative (bool), audited,
+    bank (bool), broadcast (ISO datetime — the PIT knowable_at), xbrl_url.
+    """
+    if session is None:
+        session, headers = _nse_session()
+    params = {"index": "equities", "period": period}
+    if symbol:
+        params["symbol"] = symbol
+    if from_date:
+        params["from_date"] = _dmy(from_date)
+    if to_date:
+        params["to_date"] = _dmy(to_date)
+    r = session.get(_NSE_API, params=params, headers=headers, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    items = j if isinstance(j, list) else (j.get("data") or [])
+    out = []
+    for it in items:
+        xbrl = (it.get("xbrl") or "").strip()
+        if not xbrl.lower().endswith(".xml"):
+            continue
+        fd, td = _parse_nse_dt(it.get("fromDate")), _parse_nse_dt(it.get("toDate"))
+        if not td:
+            continue
+        out.append({
+            "symbol": (it.get("symbol") or "").strip(),
+            "company": it.get("companyName"),
+            "period": it.get("period") or period,
+            "relating_to": it.get("relatingTo"),
+            "from_date": (fd or "")[:10] or None,
+            "to_date": td[:10],
+            "consolidated": (it.get("consolidated") or "").strip().lower() == "consolidated",
+            "cumulative": (it.get("cumulative") or "").strip().lower() == "cumulative",
+            "audited": (it.get("audited") or "").strip(),
+            "bank": (it.get("bank") or "N").strip().upper() == "Y",
+            "broadcast": _parse_nse_dt(it.get("broadCastDate") or it.get("filingDate")),
+            "xbrl_url": xbrl,
+        })
+    return out
+
+
+def list_integrated_filings(*, symbol: Optional[str] = None,
+                            from_date: Optional[str] = None, to_date: Optional[str] = None,
+                            session=None, headers=None) -> list:
+    """Financial rows from the Integrated-Filing API (results broadcast Apr-2025 →).
+
+    The listing is thin (no period bounds / consolidated / bank flags) — those come from
+    the XBRL instance's own meta tags, so integrated filings are parse-first-classify.
+    Returns: symbol, qe_date, broadcast (ISO), revised (bool), xbrl_url.
+    """
+    if session is None:
+        session, headers = _nse_session()
+    params = {"index": "equities"}
+    if symbol:
+        params["symbol"] = symbol
+    if from_date:
+        params["from_date"] = _dmy(from_date)
+    if to_date:
+        params["to_date"] = _dmy(to_date)
+    r = session.get(_NSE_IF_API, params=params, headers=headers, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    items = j if isinstance(j, list) else (j.get("data") or [])
+    out = []
+    for it in items:
+        if "financial" not in (it.get("type") or "").lower():
+            continue                      # governance filings share the endpoint
+        xbrl = (it.get("xbrl") or "").strip()
+        if not xbrl.lower().endswith(".xml"):
+            continue
+        qe = _parse_nse_dt((it.get("qe_Date") or "").title())
+        out.append({
+            "symbol": (it.get("symbol") or "").strip(),
+            "company": it.get("cmName"),
+            "qe_date": (qe or "")[:10] or None,
+            "broadcast": _parse_nse_dt(it.get("broadcast_Date")),
+            "revised": bool(it.get("revised_Date")) or (it.get("type_Sub") or "") == "Revised",
+            "xbrl_url": xbrl,
+        })
+    return out
+
+
+def fetch_instance(url: str, *, session=None, headers=None) -> Optional[str]:
+    if session is None:
+        session, headers = _nse_session()
+    try:
+        r = session.get(url, headers=headers, timeout=45)
+        if r.status_code != 200:
+            log.warning("xbrl fetch %s -> HTTP %s", url, r.status_code)
+            return None
+        return r.text
+    except requests.RequestException as e:  # noqa: PERF203
+        log.warning("xbrl fetch %s failed: %s", url, e)
+        return None
+
+
+# ── XBRL instance parsing ─────────────────────────────────────────────────────
+_XSI_NIL = "{http://www.w3.org/2001/XMLSchema-instance}nil"
+
+
+def _local(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def parse_instance(xml_text: str) -> dict:
+    """Parse a results-taxonomy instance into {contexts, facts, meta}.
+
+    contexts: id -> {"start","end"} (duration) or {"instant"}
+    facts:    list of (localname, contextRef, value_or_None)  — xsi:nil / empty -> None
+    """
+    root = ET.fromstring(xml_text)
+    contexts: dict = {}
+    facts: list = []
+    for el in root.iter():
+        ln = _local(el.tag)
+        if ln == "context":
+            cid = el.get("id")
+            start = end = instant = None
+            for p in el.iter():
+                pl = _local(p.tag)
+                if pl == "startDate":
+                    start = (p.text or "").strip()
+                elif pl == "endDate":
+                    end = (p.text or "").strip()
+                elif pl == "instant":
+                    instant = (p.text or "").strip()
+            if cid:
+                contexts[cid] = {"instant": instant} if instant else {"start": start, "end": end}
+        elif el.get("contextRef") is not None:
+            if el.get(_XSI_NIL) == "true":
+                val = None
+            else:
+                val = (el.text or "").strip() or None
+            facts.append((ln, el.get("contextRef"), val))
+    meta = {}
+    for name, _ctx, val in facts:
+        if name in ("NatureOfReportStandaloneConsolidated", "WhetherResultsAreAuditedOrUnaudited",
+                    "DateOfStartOfReportingPeriod", "DateOfEndOfReportingPeriod",
+                    "DateOfStartOfFinancialYear", "DateOfEndOfFinancialYear",
+                    "LevelOfRoundingUsedInFinancialStatements", "Symbol", "ScripCode"):
+            meta.setdefault(name, val)
+    return {"contexts": contexts, "facts": facts, "meta": meta}
+
+
+def _num(v: Optional[str]) -> Optional[float]:
+    if v is None:
+        return None
+    try:
+        return float(v.replace(",", ""))
+    except ValueError:
+        return None
+
+
+def _ctx_ids(parsed: dict, *, end: str, min_days: int, max_days: int) -> set:
+    """Duration-context ids ending at ``end`` with a span in [min_days, max_days]."""
+    out = set()
+    for cid, c in parsed["contexts"].items():
+        if c.get("end") != end or not c.get("start"):
+            continue
+        try:
+            span = (date.fromisoformat(c["end"]) - date.fromisoformat(c["start"])).days
+        except ValueError:
+            continue
+        if min_days <= span <= max_days:
+            out.add(cid)
+    return out
+
+
+def _instant_ids(parsed: dict, *, at: str) -> set:
+    return {cid for cid, c in parsed["contexts"].items() if c.get("instant") == at}
+
+
+def _fact(parsed: dict, names, ctx_ids: set) -> Optional[float]:
+    """First numeric fact among ``names`` (in priority order) within ctx_ids; nil -> None."""
+    if isinstance(names, str):
+        names = (names,)
+    for name in names:
+        for ln, ctx, val in parsed["facts"]:
+            if ln == name and ctx in ctx_ids:
+                n = _num(val)
+                if n is not None:
+                    return n
+    return None
+
+
+def _borrowings(parsed: dict, inst_ids: set) -> Optional[float]:
+    """Total borrowings (₹ absolute). NULL unless a balance sheet was actually filed;
+    a filed balance sheet (EquityAndLiabilities present) with no borrowings tags is a
+    genuinely debt-free company -> 0.0 (the one place absent legitimately means zero)."""
+    cur = _fact(parsed, "BorrowingsCurrent", inst_ids)
+    non = _fact(parsed, "BorrowingsNoncurrent", inst_ids)
+    if cur is None and non is None:
+        if _fact(parsed, "EquityAndLiabilities", inst_ids) is not None:
+            return 0.0
+        return None
+    return (cur or 0.0) + (non or 0.0)
+
+
+def extract_metrics(parsed: dict, filing: dict) -> dict:
+    """Legacy-listing wrapper: period 'Annual' -> the FY set, else the quarter set."""
+    kind = "A" if filing["period"] == "Annual" else "Q"
+    return extract_for(parsed, kind=kind, end=filing["to_date"])
+
+
+def extract_for(parsed: dict, *, kind: str, end: str) -> dict:
+    """(metric_name -> value) for one period of one instance, in fundamentals_history
+    conventions. kind 'Q' -> the discrete-quarter P&L set; 'A' -> the FY-span P&L set +
+    balance-sheet instants at FY end + derived ROCE %. Money in ₹ crores.
+    """
+    # The results-taxonomy encodes the table COLUMN in the context id — OneD = current
+    # discrete quarter, FourD = year-to-date (== the FY in an Annual filing), OneI =
+    # instant at period end. Filers routinely stamp DEGENERATE dates into FourD (the
+    # RELIANCE FY24 instance repeats the Q4 dates), so the named context is primary and
+    # the date-span match is only a fallback for nonstandard filing utilities.
+    if kind == "A":
+        ids = {"FourD"} if "FourD" in parsed["contexts"] else \
+            _ctx_ids(parsed, end=end, min_days=350, max_days=380)
+    else:
+        ids = {"OneD"} if "OneD" in parsed["contexts"] else \
+            _ctx_ids(parsed, end=end, min_days=80, max_days=100)
+    if not ids:
+        return {}
+
+    m: dict = {}
+
+    def put(name, v, scale=_CR):
+        if v is not None:
+            m[name] = round(v / scale, 4) if scale else v
+
+    sales = _fact(parsed, ("RevenueFromOperations", "RevenueFromOperation"), ids)
+    other_inc = _fact(parsed, "OtherIncome", ids)
+    pbeit = _fact(parsed, "ProfitBeforeExceptionalItemsAndTax", ids)
+    pbt = _fact(parsed, "ProfitBeforeTax", ids)
+    interest = _fact(parsed, "FinanceCosts", ids)
+    dep = _fact(parsed, "DepreciationDepletionAndAmortisationExpense", ids)
+    pat = _fact(parsed, "ProfitLossForPeriod", ids)
+    eps = _fact(parsed, ("BasicEarningsLossPerShareFromContinuingAndDiscontinuedOperations",
+                         "BasicEarningsLossPerShareFromContinuingOperations"), ids)
+    eqcap = _fact(parsed, "PaidUpValueOfEquityShareCapital", ids)
+
+    put("Sales", sales)
+    put("Other Income", other_inc)
+    put("Profit before tax", pbt)
+    put("Interest", interest)
+    put("Depreciation", dep)
+    put("Net Profit", pat)
+    put("EPS in Rs", eps, scale=None)
+    put("Equity Capital", eqcap)
+
+    # Screener-convention Operating Profit (EBITDA, ex other income):
+    #   OP = PBT-before-exceptional + FinanceCosts + Depreciation - OtherIncome
+    base = pbeit if pbeit is not None else pbt
+    if base is not None and interest is not None and dep is not None:
+        op = base + interest + dep - (other_inc or 0.0)
+        put("Operating Profit", op)
+        if sales:
+            m["OPM %"] = round(op / sales * 100.0, 2)
+
+    # a column whose entire rupee core is EXACTLY zero is a blank/zero-filled column
+    # (late filers pad the quarter column with 0s — IL&FSTRANS FY19), not a result
+    if all((x or 0.0) == 0.0 for x in (sales, pat, pbt, interest, dep)):
+        return {}
+
+    if kind == "A":
+        inst = _instant_ids(parsed, at=end)
+        reserves = _fact(parsed, ("OtherEquity", "ReserveExcludingRevaluationReserves"), inst)
+        borrow = _borrowings(parsed, inst)
+        put("Reserves", reserves)
+        put("Borrowings", borrow)
+        # ROCE % (Screener defn ≈ (PBT + Interest) / (EqCap + Reserves + Borrowings)).
+        # Every component must be REAL (nil ≠ zero) — no coerced zeros in the C-score path.
+        if None not in (pbt, interest, eqcap, reserves, borrow):
+            ce = eqcap + reserves + borrow
+            if ce > 0:
+                m["ROCE %"] = round((pbt + interest) / ce * 100.0, 2)
+    return m
+
+
+# ── persistence ───────────────────────────────────────────────────────────────
+def _ensure_source_column(con: sqlite3.Connection) -> None:
+    cols = [r[1] for r in con.execute("PRAGMA table_info(fundamentals_history)")]
+    if "source" not in cols:
+        con.execute("ALTER TABLE fundamentals_history ADD COLUMN source TEXT")
+    con.execute("""CREATE TABLE IF NOT EXISTS fundamentals_xbrl_gate(
+        symbol TEXT PRIMARY KEY, checked_at TEXT, pass INTEGER, detail TEXT)""")
+
+
+# per-symbol series-continuity gate (reconciliation 2026-07-02, 15-symbol cohort):
+# Screener-era rows use restated/netted definitions for SOME symbols (ITC excise-gross
+# revenue, ULTRACEMCO merger restatement, LT other-operating-income) — appending as-filed
+# XBRL rows to such a series would corrupt every cross-boundary CAGR downstream (C-score,
+# patearn growth patterns). A symbol only gets XBRL rows once its latest overlapping
+# periods MATCH on the rupee core (Sales / Net Profit / Operating Profit); mismatching
+# symbols stay Screener-flagged until the Phase-2 definitional mapper.
+_GATE_METRICS = ("Sales", "Net Profit", "Operating Profit")
+_GATE_TOL = 0.02
+
+
+def _continuity_gate(con: sqlite3.Connection, sym: str, xbrl_rows: list) -> bool:
+    """xbrl_rows: [(ptype, period_end, metric, value)] parsed this run. Cached verdict in
+    fundamentals_xbrl_gate. Symbols with no Screener overlap at all auto-pass (new
+    listings — there is no series to be inconsistent with)."""
+    row = con.execute("SELECT pass FROM fundamentals_xbrl_gate WHERE symbol=?", (sym,)).fetchone()
+    if row is not None:
+        return bool(row[0])
+    checked = matched = 0
+    details = []
+    for ptype, pend, metric, value in xbrl_rows:
+        if metric not in _GATE_METRICS or value is None:
+            continue
+        prior = con.execute(
+            "SELECT value FROM fundamentals_history WHERE symbol=? AND period_type=? "
+            "AND period_end=? AND metric=? AND source IS NULL", (sym, ptype, pend, metric)).fetchone()
+        if prior is None or prior[0] is None:
+            continue
+        checked += 1
+        rel = abs(value - float(prior[0])) / max(abs(float(prior[0])), 1e-9)
+        ok = rel <= _GATE_TOL
+        matched += ok
+        if not ok:
+            details.append(f"{metric}@{ptype}/{pend}: xbrl={value} screener={prior[0]} rel={rel:.1%}")
+    if checked == 0:
+        verdict = True                      # no overlap -> nothing to contradict
+        detail = "no Screener overlap (auto-pass)"
+    else:
+        verdict = matched == checked
+        detail = f"ok ({checked} rows)" if verdict else "; ".join(details[:4])
+    con.execute("INSERT OR REPLACE INTO fundamentals_xbrl_gate VALUES (?,datetime('now'),?,?)",
+                (sym, int(verdict), detail))
+    if not verdict:
+        log.warning("continuity gate FAIL %s: %s", sym, detail)
+    return verdict
+
+
+def write_rows(filing: dict, metrics: dict, *, research_db: str = RESEARCH_DB,
+               overwrite_screener: bool = False) -> int:
+    """Upsert one filing's metric rows + observe real PIT. Returns rows written.
+
+    Forward-only default: a Screener-era row (source IS NULL) is left untouched; only
+    absent keys and prior XBRL rows (restatements — last filed wins) are written.
+    """
+    ptype = "A" if filing["period"] == "Annual" else "Q"
+    pend = filing["to_date"]
+    sym = filing["symbol"]
+    src = SOURCE_CONSO if filing["consolidated"] else SOURCE_SA
+    rdate = (filing["broadcast"] or "")[:10] or None
+    if not metrics or not rdate:
+        return 0
+    con = sqlite3.connect(research_db)
+    _ensure_source_column(con)
+    n = 0
+    for metric, value in metrics.items():
+        cur = con.execute(
+            "SELECT source FROM fundamentals_history WHERE symbol=? AND period_type=? "
+            "AND period_end=? AND metric=?", (sym, ptype, pend, metric)).fetchone()
+        if cur is not None and cur[0] is None and not overwrite_screener:
+            continue                     # never silently replace a Screener-era value
+        con.execute(
+            "INSERT OR REPLACE INTO fundamentals_history"
+            "(symbol,period_type,period_end,report_date,metric,value,source) "
+            "VALUES (?,?,?,?,?,?,?)", (sym, ptype, pend, rdate, metric, value, src))
+        n += 1
+    con.commit()
+    con.close()
+    if n:
+        # real exchange broadcast = knowable_at (earliest preserved on restatement)
+        provenance.observe("fundamentals_history", provenance.period_key(sym, ptype, pend),
+                           symbol=sym, knowable_at=filing["broadcast"],
+                           source_note=f"NSE-XBRL results API ({src})")
+    return n
+
+
+def _prefer_consolidated(filings: list) -> list:
+    """Keep one filing per (symbol, period, to_date): consolidated wins over standalone;
+    within the same nature, the latest broadcast wins (restatement = last filed)."""
+    best: dict = {}
+    for f in filings:
+        k = (f["symbol"], f["period"], f["to_date"])
+        cur = best.get(k)
+        if cur is None or (f["consolidated"], f["broadcast"] or "") > (cur["consolidated"], cur["broadcast"] or ""):
+            best[k] = f
+    return list(best.values())
+
+
+def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] = None,
+           research_db: str = RESEARCH_DB, overwrite_screener: bool = False) -> dict:
+    """Forward ingest: NSE result filings broadcast in [since, until] -> fundamentals_history."""
+    until = until or date.today().isoformat()
+    session, headers = _nse_session()
+    filings: list = []
+    for period in ("Quarterly", "Annual"):
+        if symbols:
+            # the NSE API returns 0 rows when symbol AND a date range are combined
+            # (verified 2026-07-02) — fetch the symbol's full list, filter client-side.
+            for s in symbols:
+                filings += list_filings(symbol=s, period=period,
+                                        session=session, headers=headers)
+                time.sleep(REQUEST_PAUSE)
+        else:
+            filings += list_filings(period=period, from_date=since, to_date=until,
+                                    session=session, headers=headers)
+            time.sleep(REQUEST_PAUSE)
+    # window on the BROADCAST date (the knowable_at clock), both paths uniformly
+    filings = [f for f in filings
+               if f["broadcast"] and since <= f["broadcast"][:10] <= until]
+
+    n_bank = sum(1 for f in filings if f["bank"])
+    # cumulative H1/9M rows only exist in the Quarterly listing; Annual FY figures are
+    # cumulative by definition (we select the FY-span context), so never drop those.
+    n_cum = sum(1 for f in filings if f["cumulative"] and f["period"] != "Annual")
+    work = _prefer_consolidated(
+        [f for f in filings if not f["bank"]
+         and not (f["cumulative"] and f["period"] != "Annual")])
+    log.info("ingest window %s..%s: %d filings, %d banks skipped (Phase-2 mapper), "
+             "%d cumulative skipped, %d to parse", since, until, len(filings), n_bank, n_cum, len(work))
+
+    stats = {"filings": len(filings), "banks_skipped": n_bank, "cumulative_skipped": n_cum,
+             "parsed": 0, "rows": 0, "fetch_fail": 0, "no_metrics": 0, "gate_fail_syms": 0}
+    gcon = sqlite3.connect(research_db)
+    _ensure_source_column(gcon)
+    gcon.commit()
+    gate_ok: dict = {}
+    for f in sorted(work, key=lambda x: (x["symbol"], x["to_date"])):
+        sym = f["symbol"]
+        if sym not in gate_ok:
+            gate_ok[sym] = _gate_symbol(gcon, sym, session=session, headers=headers)
+            if not gate_ok[sym]:
+                stats["gate_fail_syms"] += 1
+        if not gate_ok[sym]:
+            continue
+        xml = fetch_instance(f["xbrl_url"], session=session, headers=headers)
+        time.sleep(REQUEST_PAUSE)
+        if xml is None:
+            stats["fetch_fail"] += 1
+            continue
+        try:
+            parsed = parse_instance(xml)
+            metrics = extract_metrics(parsed, f)
+        except ET.ParseError as e:
+            log.warning("parse failed %s %s: %s", sym, f["to_date"], e)
+            stats["no_metrics"] += 1
+            continue
+        if not metrics:
+            stats["no_metrics"] += 1
+            log.warning("no metrics extracted: %s %s %s (fail-loud, not zero-filled)",
+                        sym, f["period"], f["to_date"])
+            continue
+        stats["parsed"] += 1
+        stats["rows"] += write_rows(f, metrics, research_db=research_db,
+                                    overwrite_screener=overwrite_screener)
+
+    # ── Integrated-Filing era (broadcast Apr-2025 →): parse-first-classify ──────
+    if symbols:
+        if_rows = []
+        for s in symbols:
+            if_rows += list_integrated_filings(symbol=s, session=session, headers=headers)
+            time.sleep(REQUEST_PAUSE)
+    else:
+        if_rows = list_integrated_filings(from_date=since, to_date=until,
+                                          session=session, headers=headers)
+        time.sleep(REQUEST_PAUSE)
+    if_rows = [r for r in if_rows
+               if r["broadcast"] and since <= r["broadcast"][:10] <= until]
+    stats["if_filings"] = len(if_rows)
+    log.info("integrated-filing rows in window: %d", len(if_rows))
+
+    candidates: dict = {}          # (sym, ptype, pend) -> best (conso, broadcast) filing
+    for row in if_rows:
+        sym = row["symbol"]
+        if sym not in gate_ok:
+            gate_ok[sym] = _gate_symbol(gcon, sym, session=session, headers=headers)
+            if not gate_ok[sym]:
+                stats["gate_fail_syms"] += 1
+        if not gate_ok[sym]:
+            continue
+        xml = fetch_instance(row["xbrl_url"], session=session, headers=headers)
+        time.sleep(REQUEST_PAUSE)
+        if xml is None:
+            stats["fetch_fail"] += 1
+            continue
+        try:
+            parsed = parse_instance(xml)
+        except ET.ParseError as e:
+            log.warning("parse failed %s %s: %s", sym, row["qe_date"], e)
+            stats["no_metrics"] += 1
+            continue
+        meta = parsed["meta"]
+        end = (meta.get("DateOfEndOfReportingPeriod") or row["qe_date"] or "")[:10]
+        if not end:
+            stats["no_metrics"] += 1
+            continue
+        conso = (meta.get("NatureOfReportStandaloneConsolidated") or "").lower() == "consolidated"
+        fy_end = (meta.get("DateOfEndOfFinancialYear") or "")[:10]
+        jobs = [("Q", end)]
+        if end == fy_end and "FourD" in parsed["contexts"]:
+            jobs.append(("A", end))    # the Q4 integrated filing carries the audited FY column
+        for kind, pend in jobs:
+            metrics = extract_for(parsed, kind=kind, end=pend)
+            if not metrics:
+                stats["no_metrics"] += 1
+                log.warning("no metrics extracted: %s IF/%s %s (bank/NBFC taxonomy or "
+                            "nonstandard contexts — fail-loud)", sym, kind, pend)
+                continue
+            key = (sym, kind, pend)
+            cand = {"symbol": sym, "period": "Annual" if kind == "A" else "Quarterly",
+                    "to_date": pend, "consolidated": conso, "broadcast": row["broadcast"],
+                    "metrics": metrics}
+            cur = candidates.get(key)
+            if cur is None or (conso, row["broadcast"] or "") > (cur["consolidated"], cur["broadcast"] or ""):
+                candidates[key] = cand
+    for cand in candidates.values():
+        stats["parsed"] += 1
+        stats["rows"] += write_rows(cand, cand["metrics"], research_db=research_db,
+                                    overwrite_screener=overwrite_screener)
+    gcon.close()
+    log.info("ingest done: %s", stats)
+    return stats
+
+
+def _gate_symbol(con: sqlite3.Connection, sym: str, *, session, headers) -> bool:
+    """Cached continuity verdict; on first sight, fetch the symbol's recent HISTORICAL
+    filings to build the Screener-overlap evidence (new-window filings have no
+    Screener-era counterpart, so the window itself can't prove continuity)."""
+    row = con.execute("SELECT pass FROM fundamentals_xbrl_gate WHERE symbol=?", (sym,)).fetchone()
+    if row is not None:
+        return bool(row[0])
+    evidence: list = []
+    try:
+        filings: list = []
+        for period in ("Quarterly", "Annual"):
+            filings += list_filings(symbol=sym, period=period, session=session, headers=headers)
+            time.sleep(REQUEST_PAUSE)
+        hist = _prefer_consolidated(
+            [f for f in filings if not f["bank"]
+             and not (f["cumulative"] and f["period"] != "Annual")])
+        hist = sorted(hist, key=lambda x: x["to_date"], reverse=True)[:6]
+        for f in hist:
+            xml = fetch_instance(f["xbrl_url"], session=session, headers=headers)
+            time.sleep(REQUEST_PAUSE)
+            if xml is None:
+                continue
+            try:
+                metrics = extract_metrics(parse_instance(xml), f)
+            except ET.ParseError:
+                continue
+            ptype = "A" if f["period"] == "Annual" else "Q"
+            evidence += [(ptype, f["to_date"], m, v) for m, v in metrics.items()]
+    except requests.RequestException as e:
+        log.warning("gate evidence fetch failed for %s (%s) — deferring, no cache", sym, e)
+        return False
+    verdict = _continuity_gate(con, sym, evidence)
+    con.commit()
+    return verdict
+
+
+# ── reconciliation (the §4 validation-gate evidence; read-only) ───────────────
+_CORE = ("Sales", "Net Profit", "Operating Profit", "EPS in Rs")
+_DERIVED = ("ROCE %", "OPM %")
+
+
+def reconcile(symbols: list, *, research_db: str = RESEARCH_DB, periods: int = 4) -> dict:
+    """Compare XBRL-derived values against existing Screener-era rows (same symbol,
+    period_type, period_end, metric). Prints per-metric within-tolerance rates —
+    the gate is >=99% within 1% (core P&L) and >=97% within 2% (derived ratios)."""
+    session, headers = _nse_session()
+    con = sqlite3.connect(research_db)
+    _ensure_source_column(con)
+    con.commit()
+    results: dict = {m: [] for m in _CORE + _DERIVED}
+    for sym in symbols:
+        filings = []
+        for period in ("Quarterly", "Annual"):
+            filings += list_filings(symbol=sym, period=period, session=session, headers=headers)
+            time.sleep(REQUEST_PAUSE)
+        work = _prefer_consolidated(
+            [f for f in filings if not f["bank"]
+             and not (f["cumulative"] and f["period"] != "Annual")])
+        work = sorted(work, key=lambda x: x["to_date"], reverse=True)[:periods]
+        for f in work:
+            xml = fetch_instance(f["xbrl_url"], session=session, headers=headers)
+            time.sleep(REQUEST_PAUSE)
+            if xml is None:
+                continue
+            try:
+                metrics = extract_metrics(parse_instance(xml), f)
+            except ET.ParseError:
+                continue
+            ptype = "A" if f["period"] == "Annual" else "Q"
+            for metric, xv in metrics.items():
+                if metric not in results:
+                    continue
+                row = con.execute(
+                    "SELECT value FROM fundamentals_history WHERE symbol=? AND period_type=? "
+                    "AND period_end=? AND metric=? AND source IS NULL",
+                    (sym, ptype, f["to_date"], metric)).fetchone()
+                if row is None or row[0] is None:
+                    continue
+                sv = float(row[0])
+                denom = max(abs(sv), 1e-9)
+                results[metric].append(
+                    {"symbol": sym, "period_end": f["to_date"], "ptype": ptype,
+                     "xbrl": xv, "screener": sv, "rel": abs(xv - sv) / denom})
+    con.close()
+
+    summary = {}
+    print(f"\n=== XBRL vs Screener reconciliation ({len(symbols)} symbols, "
+          f"last {periods} filings each) ===")
+    for metric, rows in results.items():
+        if not rows:
+            print(f"{metric:18s}  no overlap rows")
+            continue
+        tol = 0.01 if metric in _CORE else 0.02
+        ok = sum(1 for r in rows if r["rel"] <= tol)
+        pct = ok / len(rows) * 100
+        gate = 99.0 if metric in _CORE else 97.0
+        summary[metric] = {"n": len(rows), "within_pct": round(pct, 1),
+                           "tol": tol, "gate": gate, "pass": pct >= gate}
+        print(f"{metric:18s}  n={len(rows):3d}  within {tol:.0%}: {pct:5.1f}%  "
+              f"(gate {gate:.0f}%) {'PASS' if pct >= gate else 'FAIL'}")
+        worst = sorted(rows, key=lambda r: -r["rel"])[:3]
+        for w in worst:
+            if w["rel"] > tol:
+                print(f"    worst: {w['symbol']} {w['ptype']} {w['period_end']} "
+                      f"xbrl={w['xbrl']} screener={w['screener']} rel={w['rel']:.1%}")
+    return summary
+
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--probe", metavar="SYMBOL", help="parse the latest filings for one symbol and print metrics")
+    ap.add_argument("--ingest", action="store_true", help="forward ingest into fundamentals_history")
+    ap.add_argument("--reconcile", action="store_true", help="compare XBRL vs Screener overlap (read-only gate evidence)")
+    ap.add_argument("--since", default=(date.today() - timedelta(days=7)).isoformat())
+    ap.add_argument("--until", default=None)
+    ap.add_argument("--symbols", default=None, help="comma-separated NSE symbols (default: global window)")
+    ap.add_argument("--periods", type=int, default=4, help="filings per symbol for --reconcile")
+    ap.add_argument("--db", default=RESEARCH_DB, help="research.db path override")
+    ap.add_argument("--overwrite-screener", action="store_true",
+                    help="allow XBRL rows to replace Screener-era rows (off by default)")
+    args = ap.parse_args()
+    syms = [s.strip().upper() for s in args.symbols.split(",")] if args.symbols else None
+
+    if args.probe:
+        session, headers = _nse_session()
+        for period in ("Quarterly", "Annual"):
+            filings = list_filings(symbol=args.probe.upper(), period=period,
+                                   session=session, headers=headers)
+            time.sleep(REQUEST_PAUSE)
+            for f in _prefer_consolidated(
+                    [f for f in filings
+                     if not (f["cumulative"] and f["period"] != "Annual")])[:2]:
+                xml = fetch_instance(f["xbrl_url"], session=session, headers=headers)
+                if xml is None:
+                    continue
+                metrics = extract_metrics(parse_instance(xml), f)
+                nature = "CONSO" if f["consolidated"] else "SA"
+                print(f"\n{f['symbol']} {f['period']} {f['to_date']} [{nature}] "
+                      f"broadcast={f['broadcast']} bank={f['bank']}")
+                for k, v in sorted(metrics.items()):
+                    print(f"  {k:18s} {v}")
+    elif args.reconcile:
+        if not syms:
+            ap.error("--reconcile needs --symbols")
+        reconcile(syms, research_db=args.db, periods=args.periods)
+    elif args.ingest:
+        ingest(since=args.since, until=args.until, symbols=syms,
+               research_db=args.db, overwrite_screener=args.overwrite_screener)
+    else:
+        ap.print_help()
+
+
+if __name__ == "__main__":
+    main()

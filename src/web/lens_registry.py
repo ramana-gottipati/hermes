@@ -147,6 +147,9 @@ LENSES: tuple[Lens, ...] = (
     # Lab → Trust, reframed as "Strategy validation" rigor evidence. Lane N2 builds
     # the page content; N1 only wires this nav slot from the registry.
     Lens("testing", "Strategy validation", "trust", "trust", "/dash/testing"),
+    # Glossary / Methodology — the browsable "explain every term" reference (primary-intent
+    # commitment #2). Same content as the ? hover-popovers; Trust altitude (methodology/help).
+    Lens("glossary", "Glossary", "trust", "trust", "/dash/glossary", aliases=("methodology",)),
 
     # ── Overlay-only (NOT nav lenses) — Wolfe / Harmonic. §3-C: chart overlays,
     # reachable from the chart control, no sub-nav entry. Routes stay live (no 404);
@@ -223,7 +226,8 @@ def _selftest() -> int:
     # The decided altitudes are populated and ordered.
     for alt in altitude_order():
         assert subnav(alt), f"empty altitude: {alt}"
-    assert [ln.altitude for ln in subnav("trust")] == ["trust", "trust"]
+    assert subnav("trust") and all(ln.altitude == "trust" for ln in subnav("trust"))
+    assert BY_KEY["glossary"].route == "/dash/glossary"   # browsable glossary lives in Trust
     # Leaders MOVED to Markets; Positioning/MEP stay under Strategies, grouped.
     assert BY_KEY["leaders"].altitude == "markets", "leaders must be Markets content"
     assert BY_KEY["stocks"].altitude == "strategies" and BY_KEY["stocks"].group == "Accumulation"

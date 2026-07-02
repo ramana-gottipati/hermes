@@ -540,6 +540,8 @@ def render_coverage(conn=None) -> str:
         '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
         f'<h1 class="uk-h1">Coverage &amp; Settlement ledger</h1>'
         f'{K.badge("the limits, stated in writing")}</div>'
+        '<div class="sec" style="margin-bottom:6px"><a class="row" style="display:inline" '
+        'href="/dash/glossary">📖 Glossary &amp; methodology →</a> — every custom metric on this site, defined.</div>'
         f'<div class="sec" style="margin-bottom:6px">Page as of <span class="num">{K.esc(str(as_of) or "—")}</span> '
         f'· built <span class="num">{K.esc(str(build) or "")}</span> · scope: NSE-listed Indian equities '
         f'(EQ/BE/BZ; SME excluded)</div>'
