@@ -10,8 +10,9 @@ The running source of truth for this project is **`D:\Hermes\PROJECT_STATE.md`**
 
 ### Boot procedure (every session, no exceptions)
 
-1. **Read `PROJECT_STATE.md` fully.** It contains current state, all decisions made, the session log, and what's open.
-2. Skim recent commits: `git log --oneline -20`
+0. **Follow `docs/SESSION-PROTOCOL.md`** — the binding start/end checklist — and start work from **`docs/NEXT-SESSION-CARRYFORWARD.md`** (the current queue + takeover prompt). Sessions run **autonomously** (Guardrail #0); get guidance from the agents, not per-step confirmation.
+1. Read the **top Session-log entry** of `PROJECT_STATE.md` (+ grep sections as needed). **Do NOT read the whole file** — protect the context window; lazy-load.
+2. Skim recent commits: `git log --oneline -20`; `git fetch` + verify the tip; **kickstart-pick-verify** before redoing any "open" item.
 3. Only then start making changes.
 
 Don't re-derive the architecture from scratch. The decisions in `PROJECT_STATE.md` § "Decision log" are deliberate. Surface conflicts before overwriting them.

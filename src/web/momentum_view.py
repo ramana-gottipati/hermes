@@ -168,7 +168,7 @@ def momentum_scan_page(sort: str = "riskadj"):
     head = ("<tr><th data-k data-num=1>#</th><th class='l' data-k>Symbol</th>"
             "<th data-k data-num=1>6m</th><th data-k data-num=1>12m</th><th data-k data-num=1>Vol</th>"
             "<th data-k data-num=1>RISKADJ</th><th data-k data-num=1>HI52</th><th data-k data-num=1>Turn₹cr</th>"
-            "<th data-k data-num=1>ENSpct</th><th class='l' data-k>Cap-alloc (C)</th>"
+            "<th data-k data-num=1>ENSpct</th><th class='l' data-k title='derived from Screener.in fundamentals — migrating to BSE/NSE XBRL (primary-source policy)'>Cap-alloc (C)*</th>"
             "<th class='l' data-k>Insider (A)</th><th class='l' data-k>Credit (B)</th><th class='l' data-k>Flag</th></tr>")
     seg = ("<div class='seg'>"
            f"<a class='{'on' if sort!='ens' else ''}' href='/dash/momentum-scan?sort=riskadj'>Risk-adjusted momentum</a>"
@@ -189,5 +189,9 @@ def momentum_scan_page(sort: str = "riskadj"):
         "<div class='note'>RISKADJ = split-adjusted 6-mo return ÷ 66-day return vol (anchor-invariant). "
         "Equity-only (ETFs/liquid funds excluded). Momentum is a research shortlister, not a buy list or a "
         "net-of-cost claim — see <a href='/dash/testing' style='color:#58a6ff'>Strategy validation</a>. "
-        "Weights: <code>docs/calculations-and-weights.md</code>.</div></div>")
+        "Weights: <code>docs/calculations-and-weights.md</code>.<br>"
+        "<b>*Source note:</b> prices / insider (A) / credit (B) are PRIMARY-SOURCE (NSE). "
+        "<b>Capital-allocation (C) is derived from Screener.in fundamentals — being migrated to "
+        "BSE/NSE XBRL per the primary-source-only policy</b> (CLAUDE.md §8); treat the C column as "
+        "provisional until then.</div></div>")
     return HTMLResponse(_shell("Risk-adjusted momentum", body, active="momentum-scan", wide=True))
