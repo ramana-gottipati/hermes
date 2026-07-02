@@ -1,0 +1,11 @@
+[Unit]
+Description=Hermes - dataset B: NSE credit-rating events (rolling 14-day window)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Ratings are sparse; a rolling 14-day window catches delayed publications. Idempotent.
+ExecStart=/bin/bash -c '/opt/hermes/.venv/bin/python -m src.automation.credit_ratings --ingest "$(date -u -d "14 days ago" +%%Y-%%m-%%d)" "$(date -u +%%Y-%%m-%%d)"'
+StandardOutput=append:/var/log/hermes-credit-ratings.log
+StandardError=append:/var/log/hermes-credit-ratings.log

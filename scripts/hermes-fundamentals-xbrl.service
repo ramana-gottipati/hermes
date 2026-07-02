@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes - primary-source fundamentals: NSE financial-results XBRL forward ingest (Guardrail #8)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Rolling 7-day broadcast window: results filed since the last run are ingested into
+# research.db fundamentals_history (source=NSE-XBRL-*) with the real exchange broadcast
+# as knowable_at. Forward-only: never overwrites Screener-era rows.
+ExecStart=/bin/bash -c '/opt/hermes/.venv/bin/python -m src.automation.fundamentals_xbrl --ingest --since "$(date -u -d "7 days ago" +%%Y-%%m-%%d)"'
+StandardOutput=append:/var/log/hermes-fundamentals-xbrl.log
+StandardError=append:/var/log/hermes-fundamentals-xbrl.log

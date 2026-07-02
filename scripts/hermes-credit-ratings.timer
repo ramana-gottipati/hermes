@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes dataset B credit-rating ingest (nightly)
+
+[Timer]
+OnCalendar=*-*-* 15:45:00
+Persistent=true
+Unit=hermes-credit-ratings.service
+
+[Install]
+WantedBy=timers.target

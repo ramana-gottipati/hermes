@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes dataset C capital-allocation rescore (nightly, after the XBRL ingest)
+
+[Timer]
+OnCalendar=*-*-* 17:15:00
+Persistent=true
+Unit=hermes-capital-allocation.service
+
+[Install]
+WantedBy=timers.target
