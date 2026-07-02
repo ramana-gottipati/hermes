@@ -84,6 +84,14 @@ LENSES: tuple[Lens, ...] = (
     # destination; the per-stock momentum pane lives on the dossier (not a nav item).
     Lens("divergence", "Divergence", "market", "markets", "/dash/divergence",
          group="Momentum"),
+    # Pattern SCANNERS (Ramana 2026-07-02): keep Wolfe/Harmonic as chart OVERLAYS (the
+    # route=None records below, reached from the chart control) AND surface the market-wide
+    # SCANNER pages as Markets lenses under a "Patterns" heading. Scans are precomputed
+    # nightly (harmonic_signals / wolfe_signals) → nav-only wiring, zero added compute.
+    Lens("harmonic-scan", "Patterns · Harmonic", "market", "markets", "/dash/harmonic",
+         group="Patterns"),
+    Lens("wolfe-scan", "Patterns · Wolfe", "market", "markets", "/dash/wolfe/scan",
+         group="Patterns"),
     Lens("participants", "Participants", "market", "markets", "/dash/participants",
          dossier_tab="fno", screener_col=None),
     Lens("wire", "News / Wire", "market", "markets", "/dash/wire",
@@ -140,9 +148,12 @@ LENSES: tuple[Lens, ...] = (
     # reachable from the chart control, no sub-nav entry. Routes stay live (no 404);
     # they carry route=None here so the nav generator skips them, but keep their
     # `active`/overlay ids registered so highlight + cross-links still resolve them.
-    Lens("wolfe", "Wolfe wave", "stock", "strategies", route=None,
+    # altitude = "markets" so the scanner pages (which render with active="wolfe") highlight
+    # the Markets altitude where their "Patterns" lenses live. route=None keeps them OFF every
+    # sub-nav (chart-overlay only); overlay_lenses() still returns exactly {wolfe, harmonic}.
+    Lens("wolfe", "Wolfe wave", "stock", "markets", route=None,
          overlay="wolfe", aliases=("wolfe_chart",)),
-    Lens("harmonic", "Harmonic", "stock", "strategies", route=None,
+    Lens("harmonic", "Harmonic", "stock", "markets", route=None,
          overlay="harmonic"),
 )
 

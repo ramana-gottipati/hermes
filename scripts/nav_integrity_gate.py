@@ -71,11 +71,11 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
     "/dash/tracker":    "alias landing of /dash/dashboard (registry alias) — Tracker tab lands on dashboard",
     "/dash/strategies": "RETIRED legacy Strategies hub — merged into /dash/strategist; kept alive (no 404), "
                         "deliberately de-linked (v2_surfaces asserts it must not appear in the Strategist strip)",
-    # overlay-only lenses: route=None in the registry → reached from the chart control,
-    # never a sub-nav entry, but the page route stays live so deep-links don't 404.
-    "/dash/wolfe":      "overlay-only lens (registry route=None) — reached from the chart overlay control",
-    "/dash/wolfe/scan": "Wolfe scanner — reached from the Wolfe overlay surface, not a tab",
-    "/dash/harmonic":   "overlay-only lens (registry route=None) — reached from the chart overlay control",
+    # Wolfe/Harmonic: the per-stock CHART OVERLAY stays overlay-only (route=None records),
+    # AND the market-wide SCANNERS are now Markets "Patterns" nav lenses (Ramana 2026-07-02).
+    # /dash/harmonic + /dash/wolfe/scan are therefore REACHABLE (removed from this allowlist);
+    # /dash/wolfe (the picker landing) stays non-nav — reached from the chart + the scanner body.
+    "/dash/wolfe":      "Wolfe picker/landing — reached from the chart overlay + the Wolfe scanner body; the SCANNER (/dash/wolfe/scan) is the Markets·Patterns nav lens",
     # per-stock news timeline — its CONTENT is now embedded as the dossier's News tab
     # (render_stock_timeline), so it is surfaced in-page; the standalone route is kept as
     # a shareable deep-link (/dash/news?sym=). Distinct from /dash/wire (market wire).

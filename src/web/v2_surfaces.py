@@ -69,6 +69,11 @@ _ROUTER_SPECS = [
     # left untracked; now committed + durably mounted here (was only the uncommitted
     # main.py import) so /dash/rsband survives a main.py clobber and a clean checkout.
     ("rsband", "src.web.rsband_view", "/dash/rsband"),
+    # Pattern SCANNERS — Wolfe + Harmonic market-wide scanner pages (Ramana 2026-07-02:
+    # keep them as chart overlays AND enable the scanners as Markets "Patterns" lenses).
+    # Durably mounted so the sub-nav lenses don't 404 after a main.py clobber / clean clone.
+    ("harmonic", "src.web.harmonic_view", "/dash/harmonic"),
+    ("wolfe", "src.web.wolfe_view", "/dash/wolfe"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────
