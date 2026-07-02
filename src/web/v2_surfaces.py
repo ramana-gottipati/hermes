@@ -392,6 +392,17 @@ def _install_skin() -> None:
         log.warning("v2 shell skin skipped: %s", e)
 
 
+def _install_table_controls() -> None:
+    """Column add/remove + `?` header popovers on the strategy tables (/dash/stocks
+    first) — Screen+-consistent controls via a dashboard._shell wrap (same seam as
+    the skin). Defensive + idempotent (table_controls.install owns the sentinel)."""
+    try:
+        from src.web import table_controls
+        table_controls.install()
+    except Exception as e:  # noqa: BLE001 — the controls are additive; never break a page
+        log.warning("v2 table-controls skipped: %s", e)
+
+
 def wire(app):
     """Mount the v2 routes + install the canonical nav + reskin the legacy pages.
     Idempotent + defensive."""
@@ -408,6 +419,7 @@ def wire(app):
     except Exception as e:  # noqa: BLE001 — nav install must never break import
         log.warning("v2 nav install skipped: %s", e)
     _install_skin()
+    _install_table_controls()
     return app
 
 
