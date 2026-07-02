@@ -187,7 +187,7 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 
 ---
 
-### Open (Session 1 will action)
-- Wire these definitions into **hover-help / "?" explainers** on every metric label and column header (this doc = the content source).
-- A **"how is this computed"** drill-down for the composites (conviction, character, key price).
+### Status
+- ✅ **DONE (S72):** these definitions are wired as `?` **hover-help** across Screen+ / RRG / RS-band / rotation headers + the stock-dossier tabs, AND rendered as a browsable page at **`/dash/glossary`** (`src/web/glossary_view.py`) — both single-sourced from THIS doc so they can't drift. Keys 95→245.
+- Open: a **"how is this computed"** drill-down for the composites (conviction, character, key price) — the calculation *schema* without the proprietary weights.
 - Decide the **conviction formula** (add Quality? CPR? re-weight? backtest?) — a design-panel decision, not a silent default.
