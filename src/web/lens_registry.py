@@ -80,6 +80,10 @@ LENSES: tuple[Lens, ...] = (
          group="Rotation"),
     Lens("rsband", "Rotation · Band", "market", "markets", "/dash/rsband",
          group="Rotation"),
+    # Momentum — RSI-of-RS divergence early-warning board (roadmap Phase 1). Market-wide
+    # destination; the per-stock momentum pane lives on the dossier (not a nav item).
+    Lens("divergence", "Divergence", "market", "markets", "/dash/divergence",
+         group="Momentum"),
     Lens("participants", "Participants", "market", "markets", "/dash/participants",
          dossier_tab="fno", screener_col=None),
     Lens("wire", "News / Wire", "market", "markets", "/dash/wire",
