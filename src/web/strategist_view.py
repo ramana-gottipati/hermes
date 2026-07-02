@@ -363,7 +363,7 @@ _PAGE_CSS = """<style>
 .st-empty{font-size:12px;color:var(--ink-3);flex:1;display:flex;align-items:center}
 .st-open{font-size:12px;color:var(--accent);font-weight:500;margin-top:auto}
 .st-strip{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-.st-strip .uk-card{flex:1;min-width:150px}
+.st-strip .uk-card{flex:0 1 200px;min-width:150px}
 /* workbench: toolbar + section toggles + alerts + boards */
 .wb-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
 .wb-tog{font:inherit;font-size:12px;cursor:pointer;border:1px solid var(--line-2);background:var(--bg-1);

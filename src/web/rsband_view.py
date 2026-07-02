@@ -647,7 +647,7 @@ def _channel_readout(m: dict, verdict: str, why: str, to_res, to_sup) -> str:
         + _mc("trend-R²", _n(m["rs_trend_r2"], 2))
         + _mc("state", _esc(m["rs_band_state"]))
     )
-    return ('<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">' + cards + '</div>'
+    return ('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-top:12px">' + cards + '</div>'
             f'<div style="margin-top:10px;font-size:15px"><span style="color:{vc};font-weight:500">{_esc(verdict)}</span> '
             f'<span class="sub" style="margin:0">— {_esc(why)}</span></div>')
 

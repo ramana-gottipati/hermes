@@ -379,7 +379,7 @@ def _section_cci(snap):
         '<div class="uk-eyebrow" style="margin-top:14px">Tier × resolved count</div>' + (xtab or '<div class="mut cov-note">no scored names in this database</div>'))
     banner = (f'<div class="cov-banner"><span class="d"></span><div>{K.esc(cci.get("paused_note",""))}</div></div>')
     return (f'<div style="margin-bottom:12px">{banner}</div>'
-            f'<div class="uk-row"><div style="flex:1.3;min-width:320px">{left}</div>'
+            f'<div class="uk-row" style="align-items:flex-start"><div style="flex:1.3;min-width:320px">{left}</div>'
             f'<div style="flex:1;min-width:280px">{right}</div></div>')
 
 

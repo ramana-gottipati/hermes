@@ -60,12 +60,14 @@ def _spark(series):
         return ""
     m = max(abs(min(pts)), abs(max(pts))) or 1
     n = len(pts)
-    coords = " ".join(f"{i/(n-1)*100:.1f},{15 - v/m*13:.1f}" for i, v in enumerate(pts))
+    coords = " ".join(f"{i/(n-1)*100:.1f},{26 - v/m*22:.1f}" for i, v in enumerate(pts))
     col = "var(--up)" if pts[-1] >= 0 else "var(--down)"
-    return (f'<svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none" '
+    area = coords + " 100,26 0,26"        # fill the deviation-from-zero band so it reads as a chart
+    return (f'<svg width="100%" height="52" viewBox="0 0 100 52" preserveAspectRatio="none" '
             f'style="display:block">'
-            f'<line x1="0" y1="15" x2="100" y2="15" style="stroke:var(--line-2)" stroke-width="0.6"/>'
-            f'<polyline points="{coords}" fill="none" style="stroke:{col}" stroke-width="1.3"/></svg>')
+            f'<polygon points="{area}" style="fill:{col}" fill-opacity="0.10"/>'
+            f'<line x1="0" y1="26" x2="100" y2="26" style="stroke:var(--line-2)" stroke-width="0.6"/>'
+            f'<polyline points="{coords}" fill="none" style="stroke:{col}" stroke-width="1.4"/></svg>')
 
 
 def render_participants() -> str:
@@ -174,7 +176,13 @@ def render_participants() -> str:
     return (f'<h2 style="margin-top:2px">🧭 Participant positioning '
             f'<span class="sub" style="margin:0">who is long / short — FII · DII · Pro · Client · '
             f'as of {html.escape(d)}</span></h2>'
-            + gauge + matrix + histtbl + foot)
+            + gauge
+            # matrix (5-col) + history (3-col) were two narrow tables each alone in a
+            # full-width card → paired side-by-side so neither leaves a half-empty row.
+            + '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'
+            + f'<div style="flex:1.5 1 340px;min-width:300px">{matrix}</div>'
+            + f'<div style="flex:1 1 250px;min-width:240px">{histtbl}</div></div>'
+            + foot)
 
 
 @router.get("/dash/participants", response_class=HTMLResponse)
