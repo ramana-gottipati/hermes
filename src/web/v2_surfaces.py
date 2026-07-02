@@ -84,6 +84,12 @@ _ROUTER_SPECS = [
     # Glossary / Methodology — the browsable "explain every term" page (Trust altitude).
     # Renders docs/metrics-glossary.md, the SAME source the ? hover-popovers use.
     ("glossary", "src.web.glossary_view", "/dash/glossary"),
+    # Momentum drill surfaces — sector→constituent RSI drill + phase-flip early signals.
+    # Modules were committed (bb27a4e / 10959ba) but the mounts lived only as an
+    # uncommitted VPS patch (AUD-32) — a clean main→VPS deploy 404'd both and
+    # cycle_clock deep-links /dash/sector-momentum. Durably mounted here.
+    ("sector-momentum", "src.web.sector_momentum", "/dash/sector-momentum"),
+    ("early-signals", "src.web.early_signals", "/dash/early-signals"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

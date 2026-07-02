@@ -94,6 +94,14 @@ LENSES: tuple[Lens, ...] = (
     # destination; the per-stock momentum pane lives on the dossier (not a nav item).
     Lens("divergence", "Divergence", "market", "markets", "/dash/divergence",
          group="Momentum"),
+    # Momentum drill surfaces (modules shipped bb27a4e/10959ba; the mounts + this lens
+    # lived only as an uncommitted VPS patch — AUD-32: a clean deploy 404'd both).
+    # early-signals matches the live patch VERBATIM; sector-momentum is NEW even on the
+    # VPS (it was mount-only — reachable solely via cycle-clock deep-links = an orphan).
+    Lens("early-signals", "Early signals", "market", "markets", "/dash/early-signals",
+         group="Momentum"),
+    Lens("sector-momentum", "Sector drill", "market", "markets", "/dash/sector-momentum",
+         group="Momentum", aliases=("sector-rsi",)),
     # Pattern SCANNERS (Ramana 2026-07-02): keep Wolfe/Harmonic as chart OVERLAYS (the
     # route=None records below, reached from the chart control) AND surface the market-wide
     # SCANNER pages as Markets lenses under a "Patterns" heading. Scans are precomputed
