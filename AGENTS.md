@@ -70,6 +70,17 @@ Claude Code and Codex (and sometimes parallel sessions of each) operate on
 
 ## Guardrails
 
+0. **STANDING AUTHORIZATION — full-folder access + autonomy (Ramana, permanent,
+   do not re-ask).** Assume full read/write access to the **entire `D:\Hermes`
+   tree** every session — **never request folder-by-folder / per-directory
+   permission** for anything in the repo, and never treat a subfolder you created
+   as needing fresh access. Execute agreed plans autonomously (new modules, tests,
+   docs, PROJECT_STATE updates, commits to `main`, running scripts, spawning
+   agents, and **VPS deploy of verified gate-passing additive changes**); report
+   after, don't ask before. **Surface first ONLY** for genuinely costly/
+   destructive/external actions: paid API spend, deleting/overwriting work you did
+   not create, DB-destructive ops, or publishing beyond the VPS site. (Twin:
+   `CLAUDE.md` Guardrail #0.)
 1. **Secrets** — never commit `.env`. Anthropic key, Telegram token, allowed user
    IDs, and the paid Gemini key live there only.
 2. **Cost discipline** — Hermes runtime budget is ≤ ₹300/mo API. On timers use
