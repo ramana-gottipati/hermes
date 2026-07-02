@@ -93,7 +93,7 @@ def classify_txn(mode: Optional[str], acq_disp: Optional[str] = None,
     # --- named plumbing modes ---
     if _has(m, "inter-se", "inter se", "interse"):
         return INTER_SE
-    if _has(m, "esop", "employee stock", "exercise of option", "stock option", "sweat"):
+    if _has(m, "esop", "esos", "employee stock", "exercise of option", "stock option", "sweat"):
         return ESOP
     if _has(m, "gift", "donat"):
         return GIFT
@@ -108,7 +108,10 @@ def classify_txn(mode: Optional[str], acq_disp: Optional[str] = None,
 
     # --- market vs off-market ---
     is_off = _has(m, "off market", "off-market", "offmarket") or ("off" in m and "market" in m)
-    is_market = ("market" in m and not is_off) or _has(m, "on market", "on-market", "open market")
+    # block deals are negotiated ON-exchange trades (PIT-gg vocabulary, 2026-07) —
+    # market conviction/caution semantics apply, direction from acq/disp below
+    is_market = ("market" in m and not is_off) or _has(m, "on market", "on-market", "open market",
+                                                       "block deal", "bulk deal")
     if is_market:
         # Direction from the MODE first (authoritative); acq/disp only when the mode is ambiguous.
         # (A "Market Sale" whose tdpTransactionType says "Buy" must not deadlock to UNKNOWN.)
@@ -347,8 +350,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
 
 def _uid(ev: dict) -> str:
+    # Identity must be built from RAW fields only — txn_class is derived, and hashing it
+    # meant every classifier improvement changed the uid and DUPLICATED old rows instead
+    # of reclassifying them via the upsert (caught live on the 2026-07-02 gg re-ingest).
     key = "|".join(str(ev.get(k)) for k in
-                   ("symbol", "transaction_dt", "person_name_hash", "txn_class", "shares", "value_rs"))
+                   ("symbol", "transaction_dt", "person_name_hash", "txn_type_raw", "shares", "value_rs"))
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:20]
 
 
@@ -467,8 +473,16 @@ def ingest_range(from_date: str, to_date: str, *, chunk_days: int = 30,
                  pause: float = 1.2) -> dict:
     """Fetch → normalize → save NSE PIT disclosures across a date range, chunked.
 
-    NSE caps a single query's window, so we walk it in ``chunk_days`` slices.
+    Since ~Mar-2026 this is the ``corporates-pit-gg`` XBRL-per-disclosure feed — NSE
+    retired the legacy ``corporates-pit`` JSON API (it returns empty-200s; verified
+    2026-07-02). The legacy fetcher below is kept for the record only.
     """
+    return ingest_range_gg(from_date, to_date, chunk_days=min(chunk_days, 7), pause=pause)
+
+
+def _legacy_ingest_range(from_date: str, to_date: str, *, chunk_days: int = 30,
+                         pause: float = 1.2) -> dict:
+    """The pre-Mar-2026 JSON-API path (DEAD upstream; kept for provenance/re-testing)."""
     start = _d(from_date)
     end = _d(to_date)
     if not start or not end:
@@ -497,6 +511,150 @@ def ingest_range(from_date: str, to_date: str, *, chunk_days: int = 30,
     return {"from": from_date, "to": to_date, "fetched": fetched, "saved": saved}
 
 
+# --- corporates-pit-gg: the post-Mar-2026 XBRL-per-disclosure feed ----------
+# Listing rows are filing-level (appId = BATCH id, never a dedup key) and point at a
+# per-disclosure XBRL instance (flat `in-bse-co` taxonomy). One instance can carry
+# multiple transactions (one per XBRL context), so the mapper emits one raw dict per
+# transaction context and save_events dedups on the content-hash uid (no `did` here).
+_NSE_PIT_GG_API = "https://www.nseindia.com/api/corporates-pit-gg"
+
+_GG_DOC_TAGS = ("Symbol", "DisclosureUnderRegulation", "DateOfIntimationToCompany",
+                "NameOfTheCompany", "RevisedFilling", "TypeOfInstrument")
+_GG_TXN_TAGS = ("NameOfThePerson", "CategoryOfPerson", "ModeOfAcquisitionOrDisposal",
+                "SecuritiesAcquiredOrDisposedNumberOfSecurity",
+                "SecuritiesAcquiredOrDisposedTransactionType",
+                "SecuritiesAcquiredOrDisposedValueOfSecurity",
+                "SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity",
+                "SecuritiesHeldPostAcquistionOrDisposalPercentageOfShareholding",
+                "SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity",
+                "SecuritiesHeldPriorToAcquisitionOrDisposalPercentageOfShareholding",
+                "DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate",
+                "DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate")
+
+
+def fetch_filings_gg(from_date: str, to_date: str, *, session=None, headers=None) -> list:
+    """Listing rows (appId, symbol, regulation, broadcastDateTime, xmlFileName, …)."""
+    if session is None:
+        session, headers = _nse_session()
+
+    def ddmmyyyy(iso):
+        y, m, d = str(iso)[:10].split("-")
+        return "%s-%s-%s" % (d, m, y)
+
+    url = "%s?index=equities&from_date=%s&to_date=%s" % (
+        _NSE_PIT_GG_API, ddmmyyyy(from_date), ddmmyyyy(to_date))
+    r = session.get(url, headers=headers, timeout=45)
+    r.raise_for_status()
+    data = r.json()
+    rows = data.get("data") if isinstance(data, dict) else data
+    return rows or []
+
+
+def _gg_xml_to_raws(xml_text: str, listing: dict) -> list:
+    """One PIT XBRL instance -> raw dicts normalize_row understands (one per txn context)."""
+    from src.automation.fundamentals_xbrl import parse_instance  # generic XBRL parse
+    parsed = parse_instance(xml_text)
+    doc: dict = {}
+    ctx_facts: dict = {}
+    for name, ctx, val in parsed["facts"]:
+        if name in _GG_DOC_TAGS and val not in (None, ""):
+            doc.setdefault(name, val)
+        if name in _GG_TXN_TAGS:
+            ctx_facts.setdefault(ctx, {})[name] = val
+    # transaction contexts = those actually naming a person or a security movement
+    txn_ctxs = [c for c, f in ctx_facts.items()
+                if f.get("NameOfThePerson") or
+                f.get("SecuritiesAcquiredOrDisposedNumberOfSecurity") is not None]
+    broadcast = _nse_date(listing.get("broadcastDateTime"))
+    regulation = (doc.get("DisclosureUnderRegulation")
+                  or str(listing.get("regulation") or "").replace("Regulation", "").strip())
+    revised = (str(doc.get("RevisedFilling") or "").strip().lower() == "yes"
+               or (listing.get("typeOfSubmission") or "") not in ("", "Original"))
+    raws = []
+    for ctx in txn_ctxs:
+        f = ctx_facts[ctx]
+        prior_pct = _num(f.get("SecuritiesHeldPriorToAcquisitionOrDisposalPercentageOfShareholding"))
+        post_pct = _num(f.get("SecuritiesHeldPostAcquistionOrDisposalPercentageOfShareholding"))
+        pct = (post_pct - prior_pct) if (prior_pct is not None and post_pct is not None) else None
+        raws.append({
+            "symbol": doc.get("Symbol") or listing.get("symbol"), "exchange": "NSE",
+            "mode": f.get("ModeOfAcquisitionOrDisposal"),
+            "acquisition_disposal": f.get("SecuritiesAcquiredOrDisposedTransactionType"),
+            "regulation": regulation, "category": f.get("CategoryOfPerson"),
+            "person_name": f.get("NameOfThePerson"),
+            # PIT clock = the exchange broadcast; intimation date is the fallback
+            "date_of_intimation": broadcast or _nse_date(doc.get("DateOfIntimationToCompany")),
+            "date_of_transaction":
+                _nse_date(f.get("DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate"))
+                or f.get("DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate")
+                or _nse_date(f.get("DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate"))
+                or f.get("DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate"),
+            "shares": f.get("SecuritiesAcquiredOrDisposedNumberOfSecurity"),
+            "value": f.get("SecuritiesAcquiredOrDisposedValueOfSecurity"),
+            "pct_equity": pct,
+            "post_shares": f.get("SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity"),
+            "post_pct": post_pct,
+            "source_url": listing.get("xmlFileName"),
+            "attachment_url": listing.get("ixbrl"),
+            "remarks": "Revised filing" if revised else None,
+            "did": None,     # no exchange-native id in this feed -> content-hash uid
+        })
+    return raws
+
+
+def ingest_range_gg(from_date: str, to_date: str, *, chunk_days: int = 7,
+                    pause: float = 1.2) -> dict:
+    """Fetch corporates-pit-gg filings + their XBRL instances → normalize → save.
+
+    Each filing costs one XML fetch (paced), so backfills are slow-but-bounded;
+    idempotent via the content-hash uid (re-runs update, never duplicate).
+    """
+    start = _d(from_date)
+    end = _d(to_date)
+    if not start or not end:
+        raise ValueError("from_date/to_date must be ISO YYYY-MM-DD")
+    session, headers = _nse_session()
+    filings = xml_fail = fetched = saved = 0
+    with get_conn() as conn:
+        ensure_schema(conn)
+        cur = start
+        while cur <= end:
+            chunk_end = min(cur + timedelta(days=chunk_days - 1), end)
+            try:
+                rows = fetch_filings_gg(cur.isoformat(), chunk_end.isoformat(),
+                                        session=session, headers=headers)
+            except Exception as e:  # noqa: BLE001
+                log.warning("PIT-gg listing failed %s..%s: %s", cur, chunk_end, e)
+                cur = chunk_end + timedelta(days=1)
+                time.sleep(pause)
+                continue
+            filings += len(rows)
+            for row in rows:
+                url = (row.get("xmlFileName") or "").strip()
+                if not url.lower().endswith(".xml"):
+                    xml_fail += 1
+                    continue
+                try:
+                    xr = session.get(url, headers=headers, timeout=45)
+                    if xr.status_code != 200:
+                        raise RuntimeError("HTTP %s" % xr.status_code)
+                    raws = _gg_xml_to_raws(xr.text, row)
+                except Exception as e:  # noqa: BLE001 — one bad instance shouldn't kill the run
+                    xml_fail += 1
+                    log.warning("PIT-gg xml failed %s (%s): %s", row.get("symbol"), url[-40:], e)
+                    time.sleep(pause)
+                    continue
+                events = [normalize_row(r) for r in raws]
+                saved += save_events(conn, events)
+                fetched += len(raws)
+                time.sleep(pause)
+            log.info("PIT-gg %s..%s: %d filings -> %d txns (running saved=%d)",
+                     cur, chunk_end, len(rows), fetched, saved)
+            cur = chunk_end + timedelta(days=1)
+    return {"from": from_date, "to": to_date, "filings": filings, "fetched": fetched,
+            "saved": saved, "xml_failed": xml_fail}
+
+
 # --- selftest (synthetic, no DB, no network) -------------------------------
 
 def _selftest() -> int:
@@ -504,6 +662,10 @@ def _selftest() -> int:
     cases = [
         (("Market Purchase", "Acquisition", "7(2)"), OPEN_MARKET_BUY),
         (("Market Sale", "Disposal", "7(2)"), OPEN_MARKET_SELL),
+        # PIT-gg (post-Mar-2026 XBRL feed) vocabulary
+        (("Block Deal", "Acquisition", "7(2)"), OPEN_MARKET_BUY),
+        (("Block Deal", "Disposal", "7(2)"), OPEN_MARKET_SELL),
+        (("ESOS", None, None), ESOP),
         (("Off Market Sale", "Disposal", None), OFF_MARKET),
         (("Inter-se Transfer", "Acquisition", None), INTER_SE),
         (("Creation of Pledge", None, "31"), PLEDGE_CREATE),
@@ -593,6 +755,9 @@ def main() -> None:
     p.add_argument("--init-schema", action="store_true", help="create the insider_events table")
     p.add_argument("--ingest", nargs=2, metavar=("FROM", "TO"),
                    help="fetch+save NSE PIT disclosures for an ISO date range")
+    p.add_argument("--legacy", action="store_true",
+                   help="use the pre-Mar-2026 corporates-pit JSON API (only for the "
+                        "pre-cutover archive — it still serves 2026-03/04; empty after)")
     p.add_argument("--chunk-days", type=int, default=30, help="ingest chunk size (days)")
     p.add_argument("--agg", metavar="SYMBOL", help="aggregate stored events for a symbol")
     p.add_argument("--as-of", default=None, help="ISO date for --agg (default today)")
@@ -612,7 +777,8 @@ def main() -> None:
         log.info("insider_events schema ensured")
         return
     if args.ingest:
-        res = ingest_range(args.ingest[0], args.ingest[1], chunk_days=args.chunk_days)
+        fn = _legacy_ingest_range if args.legacy else ingest_range
+        res = fn(args.ingest[0], args.ingest[1], chunk_days=args.chunk_days)
         log.info("insider ingest: %s", res)
         return
     if args.agg:
