@@ -730,6 +730,7 @@ def _summarize_errs(errs: list) -> dict:
 _TRUST_TTL = 600.0
 _cov_cache: dict = {"key": None, "at": 0.0, "snap": None}
 _lag_cache: dict = {"key": None, "at": 0.0, "val": None}
+_samples_cache: dict = {}   # (data_class, n) -> {key, at, val} — third AUD-04 trust cache
 _LAG_DEFAULT_CLASSES = ("fundamentals_history", "shareholding_history")
 
 
@@ -1115,7 +1116,19 @@ def lag_samples(conn=None, *, data_class="fundamentals_history", n: int = 8) -> 
                 "note": "err_days = real_filing − modelled_date; >0 = the modelled date was "
                         "TOO EARLY (would leak); ≤0 = conservative (safe). The effective PIT read "
                         "prefers the real date, so every captured period here is leak-free in practice."}
-    return _with_conn(q, conn)
+    # AUD-04 (residual): this was the LAST uncached trust read — provenance_narrative calls it on
+    # EVERY /dash/coverage view, and its per-captured-row point query (29k _scalar hits into
+    # research.db) was the ~0.5s warm-path cost and the whole 6-way concurrency collapse
+    # (measured 10.7s/req). Same freshness-key + TTL pattern as _cov_cache/_lag_cache above.
+    ck = (data_class, n)
+    key = _trust_fresh_key(conn); now = _time.time()
+    ent = _samples_cache.get(ck)
+    if key and ent and ent["key"] == key and now - ent["at"] < _TRUST_TTL:
+        return ent["val"]
+    val = _with_conn(q, conn)
+    if key:
+        _samples_cache[ck] = {"key": key, "at": now, "val": val}
+    return val
 
 
 def provenance_narrative(conn=None) -> dict:
