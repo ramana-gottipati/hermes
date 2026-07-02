@@ -338,28 +338,42 @@ def ingest_range(from_date: str, to_date: str, *, chunk_days: int = 45, pause: f
         raise ValueError("dates must be ISO YYYY-MM-DD")
     session, headers = _session()
     fetched = saved = linked = 0
+    consec_fail = 0
+    aborted = False
     with get_conn() as conn:
         ensure_schema(conn)
+        conn.commit()
         name_map = _load_name_map(conn)
         cur = start
-        while cur <= end:
+        while cur <= end and not aborted:
             ce = min(cur + timedelta(days=chunk_days - 1), end)
             try:
                 raw = fetch_ratings(cur.isoformat(), ce.isoformat(), session=session, headers=headers)
             except Exception as e:  # noqa: BLE001
                 log.warning("CR fetch failed %s..%s: %s", cur, ce, e)
+                consec_fail += 1
+                if consec_fail >= 6:
+                    # NSE throttling — stop burning timeouts; the run is idempotent,
+                    # re-run the same window to resume (AUD-24 / insider_events pattern)
+                    log.warning("CR: %d consecutive fetch failures — aborting cleanly", consec_fail)
+                    aborted = True
+                    break
                 cur = ce + timedelta(days=1)
-                time.sleep(pause)
+                time.sleep(pause + 5 * consec_fail)
                 continue
+            consec_fail = 0
             events = [normalize_cr(x, name_map) for x in raw]
             linked += sum(1 for e in events if e.get("symbol"))
             saved += save_events(conn, events)
+            # COMMIT PER CHUNK — the write lock must never span a network fetch
+            # (the 2026-07-02 outage class, a4f1c21/D82c); a killed run keeps progress.
+            conn.commit()
             fetched += len(raw)
             log.info("CR %s..%s: %d rows", cur, ce, len(raw))
             cur = ce + timedelta(days=1)
             time.sleep(pause)
     return {"from": from_date, "to": to_date, "fetched": fetched, "saved": saved,
-            "linked_to_symbol": linked}
+            "linked_to_symbol": linked, "aborted_throttled": aborted}
 
 
 # --- PIT aggregation / veto ------------------------------------------------

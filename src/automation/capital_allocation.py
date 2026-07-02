@@ -448,6 +448,7 @@ def run_batch(as_of: Optional[str] = None, *, limit: Optional[int] = None,
     scored = failed = 0
     with get_conn() as conn:
         ensure_schema(conn)
+        conn.commit()
         for sym in syms:
             try:
                 r = compute(sym, as_of, db_path=db_path)
@@ -456,7 +457,12 @@ def run_batch(as_of: Optional[str] = None, *, limit: Optional[int] = None,
             except Exception as e:  # noqa: BLE001 — batch resilience
                 log.warning("capital_allocation failed for %s: %s", sym, e)
                 failed += 1
-        ranked = _fill_percentiles(conn, as_of)
+            if scored % 50 == 0:
+                # bounded write txns — a full-universe pass holds the lock for
+                # minutes otherwise and starves hermes-api (AUD-24 / D82c class)
+                conn.commit()
+        conn.commit()
+        ranked = _fill_percentiles(conn, as_of)   # its own short txn via get_conn exit
     return {"as_of": as_of, "universe": len(syms), "scored": scored,
             "failed": failed, "ranked": ranked}
 
