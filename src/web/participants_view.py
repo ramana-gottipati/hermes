@@ -156,7 +156,7 @@ def render_participants() -> str:
 
     # --- history table ---
     hrows = ""
-    for h in reversed(hist[-15:]):
+    for h in reversed(hist[-8:]):        # compact companion to the matrix — the 40-day trend is the sparkline above
         nt = _net(h["fut_idx_long"], h["fut_idx_short"])
         rt = _ratio(h["fut_idx_long"], h["fut_idx_short"])
         c = "var(--up)" if (nt or 0) >= 0 else "var(--down)"
