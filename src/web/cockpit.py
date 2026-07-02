@@ -1286,8 +1286,13 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             f'<a class="row" style="display:inline" href="/dash/ratio?idx={q(idx)}">Standalone ratio page (also vs Nifty 50) &#8594;</a>'
             f' &nbsp;·&nbsp; <a class="row" style="display:inline" href="/dash/compare?idx={q(idx)}&idx=Nifty+500">⇄ Compare (rebased) vs Nifty 500</a></div>'
             + ratio_chart
-            + '<div class="mkt-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">'
-            + quad + gauge + rsdepth + '</div>')
+            # 2-col: the (tall) rotation mini beside a STACK of momentum + depth so the
+            # column heights balance — kills the dead space the old 3-equal-col grid left
+            # under the two short cards. Width-capped so nothing stretches; wraps on mobile.
+            + '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px">'
+            + f'<div style="flex:1 1 300px;max-width:400px">{quad}</div>'
+            + '<div style="flex:1 1 340px;max-width:520px;display:flex;flex-direction:column;gap:12px">'
+            + gauge + rsdepth + '</div></div>')
     elif idx != "Nifty 500":
         # SIZE / broad index (e.g. Midcap 150, Smallcap 250, Next 50, Nifty 50) — no
         # single ratio-line series, so its relative strength = its return vs the broad
