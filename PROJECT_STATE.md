@@ -1293,6 +1293,14 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 66 — 2026-07-02 — Timeline scrubber: Clock parity, de-cluttered trail, hover-to-trace (info density)
+Follow-ons to the Session-62 rotation/band **timeline scrubber** (all on `main`, deployed + browser-verified):
+- **Clock parity** (`9b22882`): the `/dash/rsband?view=clock` dial got the same draggable scrubber + month badge (reuses `band_path` + `pibAt` interpolation; "Breathe" retained + synced) — so toggling Lanes↔Clock no longer loses the control. Consistency map: scrubber is on ALL multi-sector maps (RRG `/dash/rrg` + embed, band Lanes, Constituents drill-down, Clock) via the shared `_sectors_rrg_block` / `_chart_block`; single-sector Channel views are intentionally left (they're already interactive time-series charts).
+- **Scrub trail de-cluttered** (`0006033` → `0a2d278`): manual scrub had drawn every sector's FULL journey to the cursor → ~19 overlapping paths buried the dots. Now a faint ~3-point heading stub only. Play's rolling comet unchanged.
+- **Hover-to-trace while scrubbed + richer readouts** (`eed0b4f`): a parked/scrubbed RRG frame is now hoverable (global `HK` = journey-head fraction) — hover a sector to trace its journey UP TO that month with a month-aware tooltip (quadrant + RS-ratio/mom AT the cursor). Channel hover tooltip now names the zone (cheap/mid/rich).
+- **Doctrine (Ramana):** the single intent of the pattern-identification project is *maximum understanding from a minimal, clean set of interactive charts* — every element must earn its place. Apply to all future viz work.
+- Method: all edits done in **isolated git worktrees** (shared tree flips under parallel colour sessions) → validated scratch artifacts (compile + render smoke-test) → scp deploy → commit → push. New-gen `rsband.py` is committed (`1fd8c19`) so `main→VPS` can't re-500 `/dash`.
+
 ### Session 65 — 2026-07-02 — News-tab drift CLOSED on VPS (S61's `5ff6f68` finally deployed)
 Closed the drift flagged in Session 64: the live VPS `dashboard.py` was missing the dossier News-tab wiring even though S61 claimed `5ff6f68` was "deployed surgically". S64 (correctly) applied only its colour diff on top of the VPS-current file, so the News feature never reached prod.
 - **Confirmed at HEAD:** both `src/web/dashboard.py` (News tab button `_stab("news",…)` at the tab strip + `data-tab="news"` pane + `render_stock_timeline` embed with a graceful `except` fallback) and `src/web/news_view.py` (`def render_stock_timeline`) carry the wiring; HEAD also includes the Phase-2 colour work, so this whole-file deploy supersedes the colour-only patched `dashboard.py` that was live.
