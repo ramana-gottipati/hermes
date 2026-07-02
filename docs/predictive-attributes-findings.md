@@ -1,13 +1,19 @@
 # Predictive attributes — consistency & reliability (deep dive, 2026-07-02)
 
-> **⚠ READ FIRST — the honest headline.** Every Sharpe/alpha below is **GROSS, flat-cost**. Net of
-> realistic slippage the best momentum factor collapses from Sharpe 1.29 → **~0.09**, and **nothing
-> beats Nifty-500 buy-&-hold net of cost** (`docs/strategy-ledger.md` § cost realism). Further, the
-> "+16% alpha at β1.2" is a **single-factor** regression vs Nifty-500 only — **not shown to be
-> beta/size/sector-neutral SELECTION** (attribution pending, `research/explosive_moves/attribution.py`;
-> expected to reveal most of it as levered small-cap + momentum-premium beta). ⇒ Treat everything here
-> as a **GROSS cross-sectional SELECTION lens**, never a net-of-cost alpha or a buy-basket claim. See
-> `docs/institutional-panel-assessment.md`.
+> **⚠ READ FIRST — the honest headline (updated 2026-07-02 with attribution + participation-cost results).**
+> Every Sharpe/alpha below is **GROSS, flat-cost**. Two rigor passes settle what it really is:
+> 1. **It's momentum-BETA, not selection alpha — PROVEN** (`research/explosive_moves/attribution.py`,
+>    7-factor Newey-West). Controlling for the generic momentum factor (WML)+market, RISKADJ's residual
+>    α falls to **+7.3%, HAC t=1.99 → fails the t≥3 selection bar; WML eats 51% of the raw α.** It is
+>    0.95×market + 0.61×a generic momentum premium + a short-low-vol tilt. The momentum premium itself is
+>    real (Fama-MacBeth λ t=3.36, Deflated-Sharpe 0.966, PBO 0.34) but **un-proprietary**. Survivorship is
+>    second-order (delisting-return booking moves Sharpe +0.02).
+> 2. **Net of realistic cost it's small-capacity, not scalable** (`cost_participation.py`): quarterly
+>    large-cap LOWVOL_MOM nets Sharpe **1.02 at ₹50cr (beats Nifty-500), ~breaks even ₹100-150cr, 0.61 at
+>    ₹500cr** — a ₹50-100cr DEFENSIVE tilt, not a large-scale edge. (This corrected the earlier AUM-blind
+>    "nothing beats the index net.")
+> ⇒ Treat everything here as a **GROSS momentum-factor SELECTION lens** — not proprietary alpha, not a
+> scalable strategy. The defensible asset is PIT rigor + the data. See `docs/institutional-panel-assessment.md`.
 
 **Question:** which attributes/dimensions actually forecast forward price moves in Indian equities, how *consistent* (holds across time/regimes) and *reliable* (statistically trustworthy, not overfit) are they, benchmarked to the index?
 

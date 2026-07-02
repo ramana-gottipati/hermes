@@ -25,11 +25,16 @@ honesty; momentum is a free demo of what the data enables, not the product.**
 | Multiple-testing control | 3/10 | 15 factors ranked by Sharpe; no deflated-Sharpe / PBO quantified |
 
 ## The ranked gaps to close (converged across reviewers)
-1. **Residual-alpha attribution (BOTH quant & risk name it #1).** The "+16% alpha" is a single-factor
-   OLS vs Nifty-500 only. Run a 7-factor time-series (MKT/SMB/HML/QMJ/BAB/LIQ/**WML**) with Newey-West
-   HAC errors + a Fama-MacBeth cross-sectional check + Deflated Sharpe + PBO, with pass/fail stated up
-   front (α HAC t ≥ 3.0; DSR ≥ 0.95; PBO < 0.5). **Prediction (quant): full-model α drops below t=2 and
-   reallocates to SMB + WML → it's levered beta, not selection.** → build `research/explosive_moves/attribution.py`.
+1. **Residual-alpha attribution — DONE & DEFINITIVE (2026-07-02, `research/explosive_moves/attribution.py`).**
+   7-factor Newey-West (HAC lag 6), factors on the strategy's own gated universe. **RISKADJ residual α
+   = +7.3%, HAC t = 1.99 → FAILS the t≥3 selection bar; adding WML eats 51% of the raw α** (loadings:
+   MKT +0.95, WML +0.61, BAB −0.58). Fama-MacBeth momentum λ +15% (t 3.36) — the momentum *factor
+   premium* is real but un-proprietary. Deflated Sharpe 0.966, PBO 0.34 — the momentum-beta is genuine &
+   not overfit, just **not ours**. **Verdict: the "+16% alpha" is levered market + generic-momentum beta,
+   NOT selection skill.** The quant's prediction was correct. This closes the core scientific question:
+   *a clean momentum-beta portfolio, not a selection-alpha engine.* (Gap #3 survivorship also settled here:
+   delisting-return booking moves Sharpe only +0.02 → second-order for momentum, which exits death-spirals
+   before they delist; a lower bound, pre-2012/never-ingested names still absent.)
 2. **Terminal-anchor back-adjustment leak — AUDITED & DISPROVEN for deployed factors (2026-07-02).**
    The risk agent hypothesized `adjust.py`'s terminal-price anchor biases level factors. Audited via
    `research/explosive_moves/anchor_audit.py` (429 PIT obs, 25 delisted + 29 survivors): the terminal vs
