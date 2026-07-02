@@ -4,9 +4,11 @@ REM
 REM Usage: double-click this file from File Explorer, OR run from cmd:
 REM   D:\Hermes\scripts\download-from-vps.bat
 REM
-REM You'll be prompted for your VPS root password once. The script downloads
-REM the SQLite database, raw bhav copy CSVs, and any logs to a timestamped
-REM local folder so each run is preserved separately.
+REM Auth is by SSH key (password login was disabled on the VPS 2026-07-03,
+REM AUD-34 — the laptop's default key is authorized). The script downloads
+REM the SQLite database, raw bhav copy CSVs, logs, AND the nightly on-box
+REM backup artifacts (/opt/hermes/backups/db) to a timestamped local folder,
+REM so each run doubles as the OFF-BOX ship of the AUD-02 backups.
 
 setlocal
 
@@ -31,8 +33,9 @@ echo.
 if not exist "%LOCAL_BASE%" mkdir "%LOCAL_BASE%"
 mkdir "%TARGET%"
 
-echo Starting scp (you may be prompted for VPS password)...
+echo Starting scp (key-auth; no password prompt expected)...
 scp -r %VPS_HOST%:%VPS_PATH% "%TARGET%"
+scp -r %VPS_HOST%:/opt/hermes/backups/db "%TARGET%\backups-db"
 
 if errorlevel 1 (
     echo.
