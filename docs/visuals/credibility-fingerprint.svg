@@ -1,0 +1,75 @@
+<svg width="680" height="372" viewBox="0 0 680 372" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Management credibility: guidance versus delivered across eight concall cycles</title>
+<desc>Each cycle shows a guided target (hollow lilac marker) connected to what was delivered (filled marker); green connectors are beats, red are misses. Early cycles are kept promises; the later cycles show a widening streak of misses — a credibility break invisible in a table of tier letters. Illustrative data.</desc>
+<style>
+  .bg{fill:#0b0e13}
+  .t{font:500 14px system-ui,-apple-system,Segoe UI,sans-serif;fill:#eaf1f9}
+  .ts{font:400 12px system-ui,-apple-system,Segoe UI,sans-serif;fill:#9bb0c6}
+  .th{font:500 14px system-ui,-apple-system,Segoe UI,sans-serif;fill:#eaf1f9}
+  .grid{stroke:rgba(255,255,255,0.08);stroke-width:0.5}
+  .axis{stroke:rgba(255,255,255,0.16);stroke-width:0.5}
+</style>
+<rect class="bg" x="0" y="0" width="680" height="372"/>
+
+<line class="grid" x1="70" y1="75" x2="640" y2="75"/>
+<line class="grid" x1="70" y1="150" x2="640" y2="150"/>
+<line class="grid" x1="70" y1="225" x2="640" y2="225"/>
+<line class="axis" x1="70" y1="300" x2="640" y2="300"/>
+
+<text x="60" y="79" text-anchor="end" class="ts">₹30</text>
+<text x="60" y="154" text-anchor="end" class="ts">₹20</text>
+<text x="60" y="229" text-anchor="end" class="ts">₹10</text>
+<text x="60" y="304" text-anchor="end" class="ts">₹0</text>
+<text x="70" y="26" class="th">EPS — guided vs delivered</text>
+
+<g stroke-width="2">
+<line x1="95" y1="210" x2="95" y2="206" stroke="#3fd486"/>
+<line x1="169" y1="195" x2="169" y2="195" stroke="#3fd486"/>
+<line x1="243" y1="180" x2="243" y2="188" stroke="#ff6a7a"/>
+<line x1="317" y1="165" x2="317" y2="158" stroke="#3fd486"/>
+<line x1="391" y1="143" x2="391" y2="150" stroke="#ff6a7a"/>
+<line x1="465" y1="120" x2="465" y2="135" stroke="#ff6a7a"/>
+<line x1="539" y1="98" x2="539" y2="120" stroke="#ff6a7a"/>
+<line x1="613" y1="75" x2="613" y2="105" stroke="#ff6a7a"/>
+</g>
+
+<g fill="#0b0e13" stroke="#b18cff" stroke-width="2">
+<circle cx="95" cy="210" r="6"/>
+<circle cx="169" cy="195" r="6"/>
+<circle cx="243" cy="180" r="6"/>
+<circle cx="317" cy="165" r="6"/>
+<circle cx="391" cy="143" r="6"/>
+<circle cx="465" cy="120" r="6"/>
+<circle cx="539" cy="98" r="6"/>
+<circle cx="613" cy="75" r="6"/>
+</g>
+
+<g stroke="#0b0e13" stroke-width="2">
+<circle cx="95" cy="206" r="6" fill="#3fd486"/>
+<circle cx="169" cy="195" r="6" fill="#3fd486"/>
+<circle cx="243" cy="188" r="6" fill="#ff6a7a"/>
+<circle cx="317" cy="158" r="6" fill="#3fd486"/>
+<circle cx="391" cy="150" r="6" fill="#ff6a7a"/>
+<circle cx="465" cy="135" r="6" fill="#ff6a7a"/>
+<circle cx="539" cy="120" r="6" fill="#ff6a7a"/>
+<circle cx="613" cy="105" r="6" fill="#ff6a7a"/>
+</g>
+
+<text x="95" y="322" text-anchor="middle" class="ts">Q1</text>
+<text x="169" y="322" text-anchor="middle" class="ts">Q2</text>
+<text x="243" y="322" text-anchor="middle" class="ts">Q3</text>
+<text x="317" y="322" text-anchor="middle" class="ts">Q4</text>
+<text x="391" y="322" text-anchor="middle" class="ts">Q5</text>
+<text x="465" y="322" text-anchor="middle" class="ts">Q6</text>
+<text x="539" y="322" text-anchor="middle" class="ts">Q7</text>
+<text x="613" y="322" text-anchor="middle" class="ts">Q8</text>
+
+<line x1="70" y1="348" x2="70" y2="360" stroke="#b18cff" stroke-width="2"/>
+<circle cx="70" cy="354" r="5" fill="#0b0e13" stroke="#b18cff" stroke-width="2"/>
+<text x="84" y="358" class="ts">Guided</text>
+<circle cx="170" cy="354" r="5" fill="#3fd486"/>
+<text x="182" y="358" class="ts">Delivered — beat</text>
+<circle cx="330" cy="354" r="5" fill="#ff6a7a"/>
+<text x="342" y="358" class="ts">Delivered — miss</text>
+<text x="470" y="358" class="ts">Widening misses = credibility breaking</text>
+</svg>

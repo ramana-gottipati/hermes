@@ -1,0 +1,48 @@
+<svg width="680" height="372" viewBox="0 0 680 372" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>RS rotation lifecycle clock — Recovery, Tailwind, Rolling-over, Headwind</title>
+<desc>A loop divided into four phases, clockwise: Recovery (top), Tailwind (right), Rolling-over (bottom), Headwind (left). Each stock is a dot at its phase position with a velocity arrow showing direction and speed of travel around the loop — leadership emerging, cresting, fading, or bottoming. Illustrative data.</desc>
+<defs>
+<marker id="vel" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<style>
+  .bg{fill:#0b0e13}
+  .ts{font:400 12px system-ui,-apple-system,Segoe UI,sans-serif;fill:#9bb0c6}
+  .th{font:500 14px system-ui,-apple-system,Segoe UI,sans-serif}
+  .ring{fill:none;stroke:rgba(255,255,255,0.16);stroke-width:0.5}
+  .div{stroke:rgba(255,255,255,0.08);stroke-width:0.5;stroke-dasharray:3 3}
+</style>
+<rect class="bg" x="0" y="0" width="680" height="372"/>
+
+<circle class="ring" cx="340" cy="186" r="118"/>
+<line class="div" x1="256.6" y1="102.6" x2="423.4" y2="269.4"/>
+<line class="div" x1="423.4" y1="102.6" x2="256.6" y2="269.4"/>
+<circle cx="340" cy="186" r="2.5" fill="#9bb0c6"/>
+<text x="340" y="176" text-anchor="middle" class="ts">RS lifecycle</text>
+
+<text x="340" y="52" text-anchor="middle" class="th" fill="#7fdcae">Recovery</text>
+<text x="474" y="190" text-anchor="start" class="th" fill="#3fd486">Tailwind</text>
+<text x="340" y="346" text-anchor="middle" class="th" fill="#f6b73c">Rolling-over</text>
+<text x="206" y="190" text-anchor="end" class="th" fill="#ff6a7a">Headwind</text>
+
+<g stroke-width="2">
+<line x1="322" y1="116" x2="338" y2="112" stroke="#7fdcae" marker-end="url(#vel)"/>
+<line x1="398" y1="124" x2="408" y2="138" stroke="#3fd486" marker-end="url(#vel)"/>
+<line x1="416" y1="178" x2="413" y2="196" stroke="#3fd486" marker-end="url(#vel)"/>
+<line x1="356" y1="254" x2="338" y2="258" stroke="#f6b73c" marker-end="url(#vel)"/>
+<line x1="266" y1="206" x2="270" y2="188" stroke="#ff6a7a" marker-end="url(#vel)"/>
+</g>
+
+<circle cx="322" cy="116" r="6" fill="#7fdcae"/>
+<circle cx="398" cy="124" r="6" fill="#3fd486"/>
+<circle cx="416" cy="178" r="6" fill="#3fd486"/>
+<circle cx="356" cy="254" r="6" fill="#f6b73c"/>
+<circle cx="266" cy="206" r="6" fill="#ff6a7a"/>
+
+<text x="312" y="110" text-anchor="end" class="ts">ALKYL</text>
+<text x="408" y="118" text-anchor="start" class="ts">TANLA</text>
+<text x="428" y="180" text-anchor="start" class="ts">TITAN</text>
+<text x="356" y="274" text-anchor="middle" class="ts">LTFH</text>
+<text x="256" y="208" text-anchor="end" class="ts">IDEA</text>
+</svg>

@@ -203,8 +203,11 @@ D:\Hermes\                                          ← local working copy of re
 │   ├── multi-timeframe-positioning-design.md       ← MTF foundation spec (weekly/monthly resampled signals + timeframe-parameterized engine)
 │   ├── cpr-strategy-design.md                       ← Strategy 4 (STRUCTURE pillar): multi-TF CPR — U/∩ reversal + unusually-narrow compression scanner + cross-TF amplification (larger TF weighted more) + confluence/regime; trend-stack sibling — design in progress (D53)
 │   ├── chart-redesign-design.md                     ← CHARTING OVERHAUL (D71/D72, S41): the "CPR Spine" signature + four-family control bar (chart-type ▾ · proprietary strategies · indicators · drawings) + magnet/hide-all + harmonic-pattern capability audit (§13); build our OWN on lightweight-charts ("inspired, not copy"). Ramana's intents = §0.1. DESIGN LOCKED, build pending
-│   └── ui-design.md                                 ← UI/UX doctrine + revamp + system-growth roadmap (data-first · wide frozen-pane screener · light · no-regression); D54 — design in progress (session 20)
+│   ├── ui-design.md                                 ← UI/UX doctrine + revamp + system-growth roadmap (data-first · wide frozen-pane screener · light · no-regression); D54 — design in progress (session 20)
+│   ├── premium-visuals-brainstorm.md                ← Premium-visuals program (S68): tiers + "data must earn the visual" discipline; flagship A (credibility fingerprint) approved/built
+│   └── visuals\                                     ← saved chart images (credibility-fingerprint.svg, rotation-cycle-clock.svg)
 ├── src\
+│   │   # web: src\web\credibility_fingerprint.py    ← S68 flagship A — /dash/credibility promise-vs-delivery fingerprint (isolated view, mounted via v2_surfaces)
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
 │   │   ├── db.py                                   ← SQLite schema + init
@@ -1293,6 +1296,27 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 68 — 2026-07-02 — Premium-visuals program + flagship A (credibility fingerprint) — BUILT (local, not deployed)
+Ramana asked for a large set of easy/quick wins to make Patearn feel *premium* (appearance, data,
+presentation, infographics) under a hard bar: **no obvious/foolish charts — data must EARN the
+visual**; a single chart should convey more than the whole dataset; show a chart of *movement* per
+key datum. Delivered the full brainstorm + program doc `docs/premium-visuals-brainstorm.md` (Tier 0
+site-wide levers · Tier 1 flagship movement visuals · Tier 2 micro-infographics · Tier 3 trust
+heroes · an explicit "what NOT to chart" discipline list). Ramana **endorsed the program and voted
+flagship #1**.
+- **Shipped (local):** `src/web/credibility_fingerprint.py` — NEW isolated view, the management
+  **promise-vs-delivery fingerprint** (`/dash/credibility?sym=`). Plots every SETTLED promise from
+  `concall_guidance` (status MET/PARTIAL/MISSED + `variance_pct`, unit-free so mixed metric types
+  share one y-axis) over time vs a "promise kept" baseline; headline from `concall_scores`
+  (credibility_trend / guidance_accuracy_score). Reusable `card_html(sym, conn=…)` for the dossier
+  CCI tab. **Descriptive only** (GATE B). Durably mounted via `v2_surfaces._ROUTER_SPECS`.
+- **Saved image assets:** `docs/visuals/credibility-fingerprint.svg`, `docs/visuals/rotation-cycle-clock.svg`.
+- **Verified:** py_compile + import + route registration + SVG/card render + chronological
+  `_period_key` sort (Q4FY23 < Q1FY24). Local DB has 0 `concall_guidance` rows (CCI lives on the
+  VPS) → renders the empty-state picker locally; real fingerprints render on the VPS.
+- **Open:** deploy to VPS (not done — awaiting go-ahead); embed `card_html` on the stock dossier CCI
+  tab + link from `/dash/concalls`; then flagship B (rotation cycle-clock) + C (capture scatter).
 
 ### Session 67 — 2026-07-02 — Explainability gap audit + WIRE the glossary (step 1) — DEPLOYED
 Acting on PRIMARY-INTENT commitment #2 ("explain every term without leaking the formula"). Ran a
