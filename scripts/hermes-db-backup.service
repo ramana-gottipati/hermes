@@ -7,8 +7,10 @@ Description=Hermes SQLite DB backup (online .backup + integrity check + rotation
 [Service]
 Type=oneshot
 ExecStart=/bin/bash /opt/hermes/scripts/hermes-db-backup.sh
-# Never let a hung backup wedge the unit forever (AUD-31 lesson): bound the run.
-RuntimeMaxSec=3600
+# Never let a hung backup wedge the unit forever (AUD-31 lesson): for Type=oneshot the whole
+# ExecStart counts as "start", so TimeoutStartSec (NOT RuntimeMaxSec, which oneshot ignores)
+# is what bounds and kills a stuck run.
+TimeoutStartSec=3600
 Nice=10
 IOSchedulingClass=idle
 # The backup is a read of the whole 16GB file; give it room but never the OOM axe over the API.
