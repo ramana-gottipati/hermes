@@ -30,6 +30,10 @@ app = FastAPI(title="Hermes", version="0.1.0")
 # the UI session — see docs/ui-perf-handoff.md.
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+# AUD-01a: secret-gate /conversations (PII) with the same X-Hermes-Secret as /chat.
+from src.web.perimeter import ConversationsGuard  # noqa: E402  (surgical mount, frozen file)
+app.add_middleware(ConversationsGuard)
+
 # Web dashboard + installable PWA (served at /dash, manifest/sw/icon at root).
 app.include_router(dashboard_router)
 # Pat's JSON side-channels (feedback/learning) — mounted here so the contended

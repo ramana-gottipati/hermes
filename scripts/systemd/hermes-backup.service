@@ -1,0 +1,12 @@
+# AUD-02 nightly backup (see scripts/backup-db.sh). Installed at
+# /etc/systemd/system/hermes-backup.service. Read-only over the DBs; ionice idle.
+[Unit]
+Description=Hermes nightly DB backup (non-derivable tables + research.db)
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+ExecStart=/bin/bash /opt/hermes/scripts/backup-db.sh
+StandardOutput=append:/var/log/hermes-backup.log
+StandardError=append:/var/log/hermes-backup.log
