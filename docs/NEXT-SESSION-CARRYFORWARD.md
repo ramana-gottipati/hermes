@@ -51,9 +51,21 @@ Also: `src/automation/sast_events.py` is untracked and belongs to another lane �
    saved 1,037, resume skipped 224); June = 1,559 events, no month gap 2025-11→2026-07.
 2. ~~Capture sector-momentum/early-signals nav wiring~~ **DONE (`a24cf23`, AUD-32)** — mounts +
    lenses in git, nav gate PASS (89 routes, 0 orphans).
-3. ~~**Wire `fundamentals_asof.promoter_pledge`**~~ **DONE (`261daef`)** — wired to the SHP
-   `Promoter Pledge` metric (PIT via report_date). Residual: verify the consumers (scoring veto /
-   C-score / A-B boards) actually surface the now-real values honestly.
+3. 🔴 **FIX `concall_veto.py` pledge source — the universal hard-veto reads a STALE column (S76
+   finding).** `promoter_pledge` is now correctly wired into `fundamentals_asof`→`scoring.py` (the
+   >20% veto + P2 both see the real PIT pledge, `261daef`). BUT the OTHER consumer —
+   `concall_veto.compute_veto` (`concall_veto.py:57`), the UNIVERSAL hard veto that fires even for
+   financials — still reads `SELECT promoter_pledge FROM fundamentals` (hermes.db Screener-era
+   snapshot). **Verified live 2026-07-03:** that column is RELIANCE=NULL and has NO ROW at all for
+   JPPOWER/VIKRAMSOLR, while the SHP primary source (research.db `shareholding_history`, metric
+   `Promoter Pledge`) correctly holds **JPPOWER 72.99 / VIKRAMSOLR 6.77 / RELIANCE 0.0**. So a
+   textbook >20% hard-disqualifier (JPPOWER 73% pledged) is SILENTLY PASSING the universal veto.
+   **Fix:** point the pledge read at the latest SHP `Promoter Pledge` (research.db, read-only, like
+   `provenance._research_ro()`/`fundamentals_asof`), fall back to the old column only when the SHP
+   feed has nothing; degrade gracefully if research.db is absent/locked (the veto must NEVER crash
+   the scorer — DB-lock hazard). Add a selftest (none today); verify JPPOWER flips to vetoed and no
+   previously-correct veto regresses; re-run `concall_scores --rerank` on the VPS. Cross-DB + live
+   veto path → do it deliberately, not at a wrap tail.
 4. **AUDIT CORRECTION PROGRAM (`docs/AUDIT-2026-07-02-institutional-review.md`, AUD-01..117 in
    priority order).** Already fixed from it — do NOT redo: AUD-03 concall-capture CLI (`cfcd1c7`,
    Jul-05 run will now succeed — VERIFY it did) · AUD-23 fundamentals_xbrl seen-table/breaker/gate-
@@ -93,8 +105,9 @@ retire-ready (its owner session deletes it).
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
-> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (start with the promoter_pledge consumer
-> verification, then the audit correction program's remaining P0s). Access is harness-enforced —
-> never ask for access/write/delete or per-step confirmation. Get guidance from the agents, not
-> from me; I won't answer. Keep every guardrail (esp. #8 primary-sources-only). Wrap up per the
-> protocol and write the next carry-forward.
+> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (START with queue #3 — the 🔴 `concall_veto.py`
+> stale-pledge fix, evidence in hand: JPPOWER 73% pledged silently passes the universal hard veto —
+> then the audit correction program's remaining P0s). Access is harness-enforced — never ask for
+> access/write/delete or per-step confirmation. Get guidance from the agents, not from me; I won't
+> answer. Keep every guardrail (esp. #8 primary-sources-only). Wrap up per the protocol and write
+> the next carry-forward.
