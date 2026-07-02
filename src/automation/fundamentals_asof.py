@@ -307,11 +307,16 @@ def as_of_from_frame(frame: dict, as_of: str, *, symbol: Optional[str] = None,
                 pb = price / bvps
 
     # Shareholding from the separate quarterly feed (~3y depth; None if not collected yet).
-    promoter = fii = dii = prom_rising = fii_rising = None
+    promoter = fii = dii = prom_rising = fii_rising = pledge = None
     if sh:
         prom_s = _known(sh, "Q", "Promoters", as_of)
         fii_s = _known(sh, "Q", "FIIs", as_of)
         dii_s = _known(sh, "Q", "DIIs", as_of)
+        # % of the promoter group's own holding pledged — NSE SHP XBRL rows only
+        # (source=NSE-XBRL-SHP, 2026-07→; the Screener era never carried pledge).
+        # Feeds patearn's >20%-pledge hard disqualifier PIT.
+        pledge_s = _known(sh, "Q", "Promoter Pledge", as_of)
+        pledge = pledge_s[-1][1] if pledge_s else None
         promoter = prom_s[-1][1] if prom_s else None
         fii = fii_s[-1][1] if fii_s else None
         dii = dii_s[-1][1] if dii_s else None
@@ -339,8 +344,8 @@ def as_of_from_frame(frame: dict, as_of: str, *, symbol: Optional[str] = None,
         "profit_growth_5y": _ann_growth(np_a, 5),
         "profit_growth_3y": _ann_growth(np_a, 3),
         "profit_growth_ttm": profit_g_ttm,
-        # shareholding from the separate quarterly feed (pledge still needs BSE → None)
-        "promoter_holding": promoter, "promoter_pledge": None,
+        # shareholding from the separate quarterly feed (pledge = NSE SHP XBRL, 2026-07→)
+        "promoter_holding": promoter, "promoter_pledge": pledge,
         "fii_holding": fii, "dii_holding": dii,
         "promoter_rising_4q": prom_rising, "fii_rising_4q": fii_rising,
         # --- richer time-series keys for the pattern upgrade (ignored by current scorer) ---
