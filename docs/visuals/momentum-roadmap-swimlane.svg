@@ -1,0 +1,38 @@
+<svg width="680" height="300" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>RS momentum and divergence roadmap — four phases across three lenses</title>
+<desc>Columns are four delivery phases (1 momentum visible, 2 multi-horizon, 3 rotation fused, 4 early-signal engine). Rows are three lenses: financial, data and compute, UI and UX. Each cell states what that lens gets in that phase.</desc>
+<style>
+  .bg{fill:#0b0e13}
+  .t{font:400 11px system-ui,-apple-system,Segoe UI,sans-serif;fill:#eaf1f9}
+  .s{font:400 11px system-ui,-apple-system,Segoe UI,sans-serif;fill:#9bb0c6}
+  .m{font:400 11px system-ui,-apple-system,Segoe UI,sans-serif;fill:#7e90a8}
+  .th{font:500 12px system-ui,-apple-system,Segoe UI,sans-serif;fill:#eaf1f9}
+  .cell{fill:#161b22;stroke:rgba(255,255,255,0.08);stroke-width:0.5}
+</style>
+<rect class="bg" x="0" y="0" width="680" height="300"/>
+<text x="12" y="46" class="m">Lens</text>
+
+<rect class="cell" x="128" y="24" width="124" height="32" rx="4"/><text x="190" y="40" text-anchor="middle" class="th">1 · Momentum</text><text x="190" y="52" text-anchor="middle" class="m">no backfill</text>
+<rect class="cell" x="256" y="24" width="124" height="32" rx="4"/><text x="318" y="40" text-anchor="middle" class="th">2 · Multi-horizon</text><text x="318" y="52" text-anchor="middle" class="m">needs backfill</text>
+<rect class="cell" x="384" y="24" width="124" height="32" rx="4"/><text x="446" y="40" text-anchor="middle" class="th">3 · Rotation fused</text><text x="446" y="52" text-anchor="middle" class="m">RRG + clock</text>
+<rect class="cell" x="512" y="24" width="124" height="32" rx="4"/><text x="574" y="40" text-anchor="middle" class="th">4 · Early-signal</text><text x="574" y="52" text-anchor="middle" class="m">universe scan</text>
+
+<text x="12" y="102" class="th" style="fill:#1baf7a">Financial</text>
+<text x="12" y="176" class="th" style="fill:#2a78d6">Data &amp; compute</text>
+<text x="12" y="250" class="th" style="fill:#9085e9">UI / UX</text>
+
+<rect class="cell" x="128" y="66" width="124" height="66" rx="4"/><rect x="128" y="66" width="3" height="66" fill="#1baf7a"/><text x="142" y="96" class="t">spot the turn</text><text x="142" y="111" class="s">early, before price</text>
+<rect class="cell" x="256" y="66" width="124" height="66" rx="4"/><rect x="256" y="66" width="3" height="66" fill="#1baf7a"/><text x="270" y="96" class="t">staged recovery</text><text x="270" y="111" class="s">confidence tiers</text>
+<rect class="cell" x="384" y="66" width="124" height="66" rx="4"/><rect x="384" y="66" width="3" height="66" fill="#1baf7a"/><text x="398" y="96" class="t">position + speed</text><text x="398" y="111" class="s">of rotation</text>
+<rect class="cell" x="512" y="66" width="124" height="66" rx="4"/><rect x="512" y="66" width="3" height="66" fill="#1baf7a"/><text x="526" y="96" class="t">what's turning</text><text x="526" y="111" class="s">across the market</text>
+
+<rect class="cell" x="128" y="140" width="124" height="66" rx="4"/><rect x="128" y="140" width="3" height="66" fill="#2a78d6"/><text x="142" y="170" class="t">use existing</text><text x="142" y="185" class="s">rsi_of_rs column</text>
+<rect class="cell" x="256" y="140" width="124" height="66" rx="4"/><rect x="256" y="140" width="3" height="66" fill="#2a78d6"/><text x="270" y="170" class="t">backfill 1w/2w</text><text x="270" y="185" class="s">+ short-period RSI</text>
+<rect class="cell" x="384" y="140" width="124" height="66" rx="4"/><rect x="384" y="140" width="3" height="66" fill="#2a78d6"/><text x="398" y="170" class="t">RRG speed</text><text x="398" y="185" class="s">breadth of RSI</text>
+<rect class="cell" x="512" y="140" width="124" height="66" rx="4"/><rect x="512" y="140" width="3" height="66" fill="#2a78d6"/><text x="526" y="170" class="t">divergence scan</text><text x="526" y="185" class="s">whole universe</text>
+
+<rect class="cell" x="128" y="214" width="124" height="66" rx="4"/><rect x="128" y="214" width="3" height="66" fill="#9085e9"/><text x="142" y="244" class="t">RSI pane +</text><text x="142" y="259" class="s">divergence marks</text>
+<rect class="cell" x="256" y="214" width="124" height="66" rx="4"/><rect x="256" y="214" width="3" height="66" fill="#9085e9"/><text x="270" y="244" class="t">horizon heat</text><text x="270" y="259" class="s">strip + ladder</text>
+<rect class="cell" x="384" y="214" width="124" height="66" rx="4"/><rect x="384" y="214" width="3" height="66" fill="#9085e9"/><text x="398" y="244" class="t">Momentum lens</text><text x="398" y="259" class="s">cockpit page</text>
+<rect class="cell" x="512" y="214" width="124" height="66" rx="4"/><rect x="512" y="214" width="3" height="66" fill="#9085e9"/><text x="526" y="244" class="t">home feed</text><text x="526" y="259" class="s">+ alerts</text>
+</svg>
