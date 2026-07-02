@@ -51,7 +51,7 @@ def analysis_system_prompt() -> list[dict]:
         "4. **Pattern Weighted Score (PWS)** and **Normalised Score (NS)** with the "
         "Pessimistic-Base-Optimistic sensitivity band\n"
         "5. **Pattern Activation Count (PAC)** — X / 14\n"
-        "6. **Quality Gate** — pass/fail (top 5 patterns must hit 60% i.e. >= 144 pts of 240)\n"
+        "6. **Quality Gate** — pass/fail (top 5 patterns must hit 60% i.e. >= 151.2 pts of 252)\n"
         "7. **Tier** — T1 / T2 / T3 / T4 / DISQUALIFIED, with rationale\n"
         "8. **Bull case** — what the patterns say will happen\n"
         "9. **Bear case** — at least 3 SPECIFIC, FALSIFIABLE conditions that would break "

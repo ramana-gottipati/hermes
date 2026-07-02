@@ -89,7 +89,11 @@ def build():
     r_riskadj = _rankpct([r["riskadj"] for r in rows])
     r_mom6 = _rankpct([r["mom6"] for r in rows])
     r_lowvol = _rankpct([-r["vol"] for r in rows])
-    lowvol_mom = 0.5 * r_lowvol + 0.5 * r_mom6
+    # AUD-10: re-rank the low-vol/momentum blend so it enters the equal-weight ensemble AS a
+    # percentile rank — canon §2 is mean(rank(MOM12), rank(HI52), rank(RISKADJ), rank(LOWVOL_MOM)).
+    # Without the outer pctrank the blend of two ranks has compressed dispersion → ~30% effective
+    # under-weight vs the intended 0.25.
+    lowvol_mom = pctrank(0.5 * r_lowvol + 0.5 * r_mom6)
     ensemble = np.nanmean(np.vstack([r_mom12, r_hi52, r_riskadj, lowvol_mom]), axis=0)
     for i, r in enumerate(rows):
         r["riskadj_pct"] = round(float(r_riskadj[i]) * 100, 1)

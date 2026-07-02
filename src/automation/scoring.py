@@ -44,8 +44,8 @@ MAX_CWS = sum(w * 6 for w in WEIGHTS.values())  # = 582
 
 # Top 5 patterns for Quality Gate (per SKILL.md):
 QG_PATTERNS = [1, 2, 3, 4, 5]
-QG_MAX = sum(WEIGHTS[p] * 6 for p in QG_PATTERNS)  # 240
-QG_THRESHOLD = 0.60 * QG_MAX  # 144
+QG_MAX = sum(WEIGHTS[p] * 6 for p in QG_PATTERNS)  # 252 (weights 9+9+8+8+8=42 ×6) — AUD-15 canonical
+QG_THRESHOLD = 0.60 * QG_MAX  # 151.2
 
 UNVERIFIED_MULTIPLIER = 0.70
 
@@ -186,8 +186,11 @@ def score_fundamentals(f: dict) -> dict:
     # Yes if PE < 15, Partial if 15-25, No if > 25
     # CL-SCO-02: use `is not None` (rest of file does) — `if pe` discarded a real
     # negative PE (loss-making) and treated PE/PB == 0.0 as missing.
-    v1 = _score(pe, 15, 25, reverse=True) if pe is not None else -1
-    v2 = _score(pb, 2.0, 4.0, reverse=True) if pb is not None else -1
+    # AUD-09: a non-positive PE (loss-maker) or PB (negative book) is NOT cheapness —
+    # score it a hard 0, verified (it is known, not missing), so it earns no valuation
+    # credit inside the Quality Gate. CL-SCO-02 kept negative PE but never handled the sign.
+    v1 = (0 if pe <= 0 else _score(pe, 15, 25, reverse=True)) if pe is not None else -1
+    v2 = (0 if pb <= 0 else _score(pb, 2.0, 4.0, reverse=True)) if pb is not None else -1
     v3 = v1  # EV/EBITDA proxy with PE
     patterns[4] = _pattern_block(4, [
         (v1, pe is not None),

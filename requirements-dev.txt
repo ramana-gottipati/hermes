@@ -1,0 +1,4 @@
+# Dev/CI-only dependencies — NOT installed on the prod VPS runtime.
+# Kept separate from requirements.txt so the production venv stays lean (AUD-82).
+# Install:  pip install -r requirements-dev.txt
+pytest>=8,<10

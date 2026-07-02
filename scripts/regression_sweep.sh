@@ -41,6 +41,20 @@ OVERLAYS="/dash/cpr/overlay?sym=ACC /dash/mep/overlay?sym=ACC /dash/rs/overlay?s
 
 fail=0
 
+# ── Gate 0: numeric unit tests on the computational core (AUD-39) ──
+# The pixel gates below never catch a wrong sign or off-by-one in scoring/signals/PIT.
+# Runs where pytest is installed (VPS venv, CI); SKIPs with a hint otherwise so the
+# sweep still works on a box without the dev deps. A test FAILURE fails the sweep.
+if [ "${SKIP_PYTEST:-0}" != "1" ]; then
+  TPY="$PY"; [ -z "$TPY" ] && TPY="python3"
+  if "$TPY" -m pytest --version >/dev/null 2>&1; then
+    echo "── Gate 0: pytest (golden tests: scoring, momentum ensemble, …) ──"
+    if "$TPY" -m pytest -q "$_ROOT/tests"; then echo "  gate0 pytest: PASS"; else echo "  gate0 pytest: FAIL"; fail=1; fi
+  else
+    echo "── Gate 0: pytest not installed for $TPY — SKIP (pip install -r requirements-dev.txt) ──"
+  fi
+fi
+
 # ── Gate 1: clean-checkout chrome contract (in-process TestClient, no live VPS) ──
 if [ "${SKIP_CHROME:-0}" != "1" ]; then
   echo "== chrome gate (clean-checkout TestClient — uk-skin/v2bar/Trust/Wire/no .hsearch) =="

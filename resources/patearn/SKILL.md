@@ -53,7 +53,7 @@ Report as: `NS range: [pessimistic]% – [base]% – [optimistic]%`
 | T4 — Weak / Watch | < 40% | N/A | Watchlist, no entry |
 | DISQUALIFIED | Any NS | N/A | Zero — no entry |
 
-**Quality Gate rule**: The top 5 patterns (ROCE, Operating Leverage, Tailwind, Valuation, Balance Sheet) have MAX contribution of 240 pts. If a stock scores < 60% on these five specifically (< 144 pts), it cannot reach Tier 1 regardless of total NS. Prevents technical/ownership signals masquerading as quality.
+**Quality Gate rule**: The top 5 patterns (ROCE, Operating Leverage, Tailwind, Valuation, Balance Sheet) have MAX contribution of 252 pts. If a stock scores < 60% on these five specifically (< 151.2 pts), it cannot reach Tier 1 regardless of total NS. Prevents technical/ownership signals masquerading as quality.
 
 **Prior run-up rule**: A stock that has already done > 200% in the past 24 months is capped at Tier 3 maximum, regardless of score. You are buying the story, not the setup.
 
@@ -182,7 +182,7 @@ These are the most common places the framework degrades when applied loosely. Ap
 - Do not conflate a Partial with a Yes because the stock "feels right." Feelings are not signals.
 
 **On the Quality Gate:**
-- If the top 5 patterns don't pass 60% (< 144 pts), the stock cannot be T1. Period. Do not override this because the technical or ownership signals look beautiful. A stock with a perfect VCP and high promoter holding but mediocre ROCE fundamentals is a trade, not a multi-bagger setup.
+- If the top 5 patterns don't pass 60% (< 151.2 pts), the stock cannot be T1. Period. Do not override this because the technical or ownership signals look beautiful. A stock with a perfect VCP and high promoter holding but mediocre ROCE fundamentals is a trade, not a multi-bagger setup.
 
 **On the bear case:**
 - It must be written before the score is saved. It must contain at least 3 specific falsifiable conditions — not "business could deteriorate" but "aluminium cost spike > 15% sustained over 2 quarters would compress EBITDA/MT below ₹15,000, making the current PE unjustifiable."

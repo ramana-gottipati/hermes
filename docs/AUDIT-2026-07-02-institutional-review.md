@@ -101,14 +101,14 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** on saving an `amendment_flag=1` event, supersede prior events matching (symbol, person_name_hash, transaction_dt), or make `aggregate()` keep latest `parsed_at` per natural key.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-09 [P1] Negative PE scores as maximum cheapness inside the Quality Gate** — `OPEN`
+**AUD-09 [P1] Negative PE scores as maximum cheapness inside the Quality Gate** — `DONE S77` (scoring.py:189 pe/pb<=0 → hard 0 verified; D84; golden test tests/test_scoring.py)
 - **Component:** patearn Pattern 4 valuation | **Reporter:** quant.
 - **Files:** `src/automation/scoring.py:88-95,187-191`.
 - **Evidence digest:** `_score(pe,15,25,reverse=True)` returns 2 for PE=-8; `v3=v1` doubles the credit (~27 weighted pts); Pattern 4 is a QG pattern and `check_hard_disqualifiers` has no loss-maker check. CL-SCO-02 deliberately kept negative PE but never handled the sign.
 - **Fix:** zero valuation credit when `pe<=0` (and `pb<=0` guard), keeping verified=True so it isn't treated as missing data.
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-10 [P1] Momentum ensemble deviates from canonical §2: LOWVOL_MOM enters unranked** — `OPEN`
+**AUD-10 [P1] Momentum ensemble deviates from canonical §2: LOWVOL_MOM enters unranked** — `DONE S77` (momentum_scan.py:92 pctrank the blend; D85; test_momentum_ensemble.py; ⚠ needs VPS scan re-run to restate ensemble_pctile)
 - **Component:** momentum ensemble | **Reporter:** quant.
 - **Files:** `research/explosive_moves/momentum_scan.py:92-93`; `docs/calculations-and-weights.md:46`.
 - **Evidence digest:** `nanmean([r_mom12, r_hi52, r_riskadj, 0.5*r_lowvol+0.5*r_mom6])` — the blend is a raw average with compressed dispersion (~30% effective under-weight vs the specified 0.25); doc §2 specifies `rank(LOWVOL_MOM)` and is also stale ("not yet in code"). Shown live as `ensemble_pctile` on /dash/momentum-scan.
@@ -143,7 +143,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** port `RetryableFetchError` to all six fetchers; make `run_recent` scan the full 7-day lookback for not-done weekdays; record holidays as a `row_count=0` sentinel so blocks stay visible failures.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-15 [P1] Quality Gate constants drift: docs/SKILL say 240/144, code computes 252/151.2** — `OPEN`
+**AUD-15 [P1] Quality Gate constants drift: docs/SKILL say 240/144, code computes 252/151.2** — `DONE S77` (docs aligned UP to code 252/151.2 across calc-doc/SKILL/patearn.py + scoring.py comments; D86; test asserts)
 - **Component:** patearn scorer canon | **Reporter:** quant (finder called P0; verifier corrected to P1 — runtime applies the 60% rule correctly against the true max; this is canonical-doc integrity, not wrong results).
 - **Files:** `src/automation/scoring.py:25-30,46-48`; `docs/calculations-and-weights.md:98`; `resources/patearn/SKILL.md:56`; `src/assistant/patearn.py:54`.
 - **Evidence digest:** weights 9+9+8+8+8=42 → QG_MAX=252, threshold 151.2; inline comments and both canonical docs say 240/144. Any reviewer diffing doc vs code finds the flagship gate mis-specified.
@@ -311,7 +311,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** add `as_of` to credibility (serve the as-of series row stamped with knowable/effective dates) and expose attention_queue's existing param; document per-endpoint PIT semantics in OpenAPI.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-39 [P1] Zero automated tests on the computational core; every gate is render-level** — `OPEN`
+**AUD-39 [P1] Zero automated tests on the computational core; every gate is render-level** — `DONE S77 (harness stood up)` (tests/ + conftest.py + requirements-dev.txt + regression_sweep.sh gate-0; seeded with scoring+momentum golden tests; grow the suite with every quant fix)
 - **Component:** testing | **Reporter:** hygiene.
 - **Files:** `scripts/regression_sweep.sh:44-89` (chrome/nav/color/HTTP-200 only); untested: `scoring.py`, `signals.py` (1,177 lines), `provenance.py` (1,274 lines, PIT joins), XIRR Newton+bisection `dashboard.py:3457`, equity-curve/drawdown `:3527`.
 - **Evidence digest:** a wrong sign or off-by-one PIT join ships while every gate passes — the standing integrity breach that makes the rest of this program recur.

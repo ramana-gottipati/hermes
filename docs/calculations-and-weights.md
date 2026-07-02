@@ -39,7 +39,7 @@ contribution," not equal raw-value contribution — the honest way to combine un
 ---
 
 ## 2. Momentum ensemble — Step 2 DECISION (2026-07-02): EQUAL-WEIGHT
-**Canonical source:** *this section* (not yet in code; will be materialized in Step 6 of `docs/momentum-engine-formalization.md`).
+**Canonical source:** *this section*, materialized in `research/explosive_moves/momentum_scan.py` (`scan()`, written to `momentum_scan.ensemble_pctile`, surfaced on `/dash/momentum-scan`). The outer `rank(LOWVOL_MOM)` on the blend is applied per AUD-10 (a blend of two ranks must be re-ranked before averaging, else it carries <0.25 effective weight).
 
 **Members (the both-halves survivors only):** MOM12, HI52, RISKADJ, LOWVOL_MOM.
 **Weights:** **equal — 0.25 each — on cross-sectional percentile ranks.**
@@ -95,7 +95,7 @@ contribution," not equal raw-value contribution — the honest way to combine un
 | 6 | Promoter Conviction | 7 | | 13 | Working Capital | 6 |
 | 7 | Export / Mix Inflection | 7 | | 14 | Volume Confirmation | 5 |
 
-**Derived constants:** `MAX_CWS = Σ(W×6) = 582` · Quality-Gate patterns = {1,2,3,4,5}, `QG_MAX = 240`, `QG_THRESHOLD = 0.60×240 = 144` · `UNVERIFIED_MULTIPLIER = 0.70` (estimated/narrative signals contribute at 70%).
+**Derived constants** (machine-owned by `src/automation/scoring.py:WEIGHTS`): `MAX_CWS = Σ(W×6) = 582` · Quality-Gate patterns = {1,2,3,4,5} with weights 9+9+8+8+8 = 42, so `QG_MAX = 42×6 = 252`, `QG_THRESHOLD = 0.60×252 = 151.2` · `UNVERIFIED_MULTIPLIER = 0.70` (estimated/narrative signals contribute at 70%). *(AUD-15: earlier docs said 240/144, predating the ROCE/operating-leverage weight bump to 9; the code has always computed the value shown here.)*
 **Logic:** weights descend by evidential strength of the pattern (ROCE & operating leverage highest at 9; pure price-action VCP & volume lowest at 5) — quality/durability outrank technical confirmation. patearn score is a **risk filter, not a return-ranker** (D66).
 
 ---
