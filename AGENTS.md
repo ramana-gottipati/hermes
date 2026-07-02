@@ -92,6 +92,13 @@ Claude Code and Codex (and sometimes parallel sessions of each) operate on
    don't normalise away the bhav-copy archive.
 5. **Nothing discarded** — record every research result as a benchmark, even
    failures (`docs/strategy-ledger.md`).
+6. **Data sourcing — PRIMARY SOURCES ONLY (copyright).** Any NEW data feed must
+   come from an authentic/primary source — **NSE, BSE, SEBI, XBRL filings, or
+   genuine official open data.** **Never add a vendor or Screener.in dependency**
+   (Ramana 2026-07-02: copyright risk; vendors may be enabled later, not now).
+   Known exception being remediated: `screener.py` fundamentals (C capital-alloc +
+   patearn) → migrate to BSE/NSE XBRL; don't extend it. Prefer the BSE-announcements
+   pattern (`concall_bse.py`) for anything new. (Twin: `CLAUDE.md` Guardrail #8.)
 
 ## Where to find detail
 

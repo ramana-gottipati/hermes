@@ -89,6 +89,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 5. **Value > quantity.** All cross-time-period stock metrics use rupees, not share count. Eliminates corporate-action adjustment bugs.
 6. **Pre-compute over recompute.** Anything stored can be re-derived from raw data; don't normalise away the bhav copy archive.
 7. **At session wrap, append to `PROJECT_STATE.md` § Session log** with what shipped + commit hashes. The doc is the running source of truth — keep it current.
+8. **Data sourcing — PRIMARY SOURCES ONLY (copyright).** Any NEW data feed must come from an authentic/primary source — **NSE, BSE, SEBI, XBRL filings, or genuine official open data.** **Never add a vendor or Screener.in dependency** (Ramana 2026-07-02: copyright risk; he may enable vendors later, not now). Current known exception being remediated: `screener.py`→`fundamentals`/`fundamentals_history` (powers C capital-allocation + patearn scoring) — migrate to BSE/NSE XBRL; do not extend it, and disclose it where shown. Prefer the BSE-announcements pattern (`concall_bse.py`) for anything new.
 
 ---
 
