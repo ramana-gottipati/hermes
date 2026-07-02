@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes primary-source shareholding-pattern ingest (nightly, between the results ingest and the C rescore)
+
+[Timer]
+OnCalendar=*-*-* 16:45:00
+Persistent=true
+Unit=hermes-shareholding-xbrl.service
+
+[Install]
+WantedBy=timers.target

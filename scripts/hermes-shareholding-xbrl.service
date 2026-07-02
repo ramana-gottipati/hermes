@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes - primary-source shareholding: NSE shareholding-pattern XBRL forward ingest (Guardrail #8 Phase 2c)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Rolling 7-day broadcast window: SHP submissions since the last run land in research.db
+# shareholding_history (source=NSE-XBRL-SHP, incl. the NEW "Promoter Pledge" metric) with
+# the real broadcast as knowable_at. Forward-only; commit-per-filing; throttle breaker.
+ExecStart=/bin/bash -c '/opt/hermes/.venv/bin/python -m src.automation.shareholding_xbrl --ingest --since "$(date -u -d "7 days ago" +%%Y-%%m-%%d)"'
+StandardOutput=append:/var/log/hermes-shareholding-xbrl.log
+StandardError=append:/var/log/hermes-shareholding-xbrl.log
