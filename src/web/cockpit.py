@@ -1258,10 +1258,15 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         if moms:
             below = sum(1 for m in moms if m < my_mom)
             pctl = max(1, min(99, round(below / len(moms) * 99)))
-        gauge = (f'<div class="card"><div class="sub" style="margin:0 0 6px">RS momentum '
-                 f'<b>{pctl}/99</b> — stronger than {pctl}% of {len(moms)} sectors '
-                 f'(0.6·3m + 0.4·6m RS slope).</div>'
-                 f'<div class="bar"><span style="width:{pctl}%"></span></div></div>')
+        # dense: the RANK is the hero (big number), the bar is a compact support strip —
+        # not a thin bar lost in an empty card (space ∝ importance).
+        gauge = (f'<div class="card" style="display:flex;align-items:center;gap:12px">'
+                 f'<div style="font-size:28px;font-weight:700;line-height:1;white-space:nowrap">{pctl}'
+                 f'<span class="sub" style="margin:0;font-size:14px">/99</span></div>'
+                 f'<div style="flex:1;min-width:0">'
+                 f'<div class="bar" style="margin:0 0 4px"><span style="width:{pctl}%"></span></div>'
+                 f'<div class="sub" style="margin:0;font-size:11px;line-height:1.3">RS momentum — stronger than '
+                 f'{pctl}% of {len(moms)} sectors (0.6·3m + 0.4·6m slope)</div></div></div>')
         rs_strip = D._rs_strip(S.get("s1"), S.get("s3"), S.get("s6"), S.get("s12"), S.get("s18"), S.get("s24"))
         if rd:
             ratio_chart = (

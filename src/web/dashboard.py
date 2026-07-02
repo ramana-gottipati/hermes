@@ -6967,9 +6967,13 @@ def dash_ratio(idx: str = Query("", max_length=60),
         pctl = max(1, min(99, round(below / n_mom * 99)))
     gauge_html = (
         '<h2>RS momentum</h2>'
-        f'<div class="sub">{pctl}/99 — stronger than {pctl}% of sectors '
-        f'(0.6·3m + 0.4·6m RS slope, ranked across {n_mom} sectors).</div>'
-        f'<div class="card"><div class="bar"><span style="width:{pctl}%"></span></div></div>')
+        f'<div class="card" style="display:flex;align-items:center;gap:12px">'
+        f'<div style="font-size:28px;font-weight:700;line-height:1;white-space:nowrap">{pctl}'
+        f'<span class="sub" style="margin:0;font-size:14px">/99</span></div>'
+        f'<div style="flex:1;min-width:0">'
+        f'<div class="bar" style="margin:0 0 4px"><span style="width:{pctl}%"></span></div>'
+        f'<div class="sub" style="margin:0;font-size:11px;line-height:1.3">stronger than {pctl}% of sectors '
+        f'(0.6·3m + 0.4·6m slope, ranked across {n_mom} sectors)</div></div></div>')
 
     # --- Relative rotation (mini-RRG) — canonical RS-Ratio × RS-Momentum + JdK
     # quadrants + tail, shared with the depth panel and /dash/rrg (D68). Replaces the

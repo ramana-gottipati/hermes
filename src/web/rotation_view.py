@@ -91,7 +91,7 @@ def _marks(r: dict) -> str:
 _CSS = """
 <style>
 .rwrap{max-width:1280px}
-.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 16px}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 16px;align-items:start}
 .rq{border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--bg-1)}
 .rq h3{margin:0 0 2px;font-size:15px}
 .rq .rq-sub{color:var(--ink-2);font-size:11px;margin-bottom:8px}
