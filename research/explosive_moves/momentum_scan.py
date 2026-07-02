@@ -19,7 +19,7 @@ Run:
 from __future__ import annotations
 import sqlite3
 import numpy as np
-from explosive_moves.embase import load_symbol_cache
+from explosive_moves.embase import build_symbol_cache, load_symbol_cache
 from explosive_moves.factory import pctrank
 
 HDB = "/opt/hermes/data/hermes.db"
@@ -31,8 +31,29 @@ def _rankpct(vals):
     return pctrank(np.array([v if v is not None else np.nan for v in vals], float))
 
 
+def _fresh_cache():
+    """Load the embase symbol cache, rebuilding it first if it lags the DB.
+
+    The cache is a research artifact (em_cache.pkl) that nothing else refreshes; without
+    this check the nightly scan would keep re-serving the date the cache was last built
+    (the exact staleness bug: scan pinned at 2026-06-19 while bhavcopy was current).
+    """
+    con = sqlite3.connect(HDB)
+    dbmax = con.execute("SELECT MAX(trade_date) FROM bhavcopy_rows").fetchone()[0]
+    con.close()
+    try:
+        cache = load_symbol_cache()
+        cachemax = max(A["date"][-1] for A in cache.values())
+    except (FileNotFoundError, EOFError):
+        cache, cachemax = None, None
+    if dbmax and cachemax != dbmax:
+        print(f"cache stale ({cachemax} < db {dbmax}) — rebuilding", flush=True)
+        cache = build_symbol_cache()
+    return cache
+
+
 def build():
-    cache = load_symbol_cache()
+    cache = _fresh_cache()
     # EQUITY-ONLY allowlist (D42): excludes ETFs / liquid-cash funds that trivially win a
     # low-vol screen (LIQUIDBEES/CASHIETF etc. have ~0 vol → mom/vol explodes). Mandatory.
     con = sqlite3.connect(HDB)
