@@ -26,7 +26,7 @@ _PAGES = {"stocks": "tc_stocks"}
 _HDR_KEYS = {
     "r/p": "p_score",
     "×pow": "×Power",
-    "Δhot": "price_vs_hot_avg_pct",
+    "δhot": "price_vs_hot_avg_pct",   # header shows Δhot; Δ str.lower()s to δ
     "peak rank": "Rank",
     "days fired": "p_score",
     "avg dvpt ₹": "DVPT",
@@ -186,6 +186,7 @@ def _selftest() -> int:
     assert _SENTINEL in out and 'data-tc="0"' in out, "picker/table tag missing"
     pops = out.count("gl-pop")
     assert pops >= 6, f"expected >=6 header popovers, got {pops}"
+    assert "price_vs_hot_avg_pct" in out, "Δhot header must resolve (Δ lowercases to δ)"
     assert '<th class="l">Symbol</th>' in out, "unmapped header must stay plain"
     assert _enhance(out, "tc_stocks") == out, "must be idempotent"
     small = "<table><thead><tr><th>A</th><th>B</th></tr></thead></table>"
