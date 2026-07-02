@@ -96,7 +96,7 @@ def _flags(r: dict) -> str:
 def _empty() -> str:
     return (
         '<h2>Relative rotation — sectors</h2>'
-        '<div class="card"><div class="sub">No relative-strength data yet.</div>'
+        '<div class="card" style="max-width:560px"><div class="sub">No relative-strength data yet.</div>'
         '<p style="color:var(--ink);line-height:1.5">This view reads sector RS ratios '
         'from <code>ratio_rows</code>. Once index data is ingested, run the nightly '
         'jobs to populate it:</p>'

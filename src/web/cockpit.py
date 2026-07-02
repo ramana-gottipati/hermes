@@ -1282,7 +1282,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                 '<div id="idxRatioRdt" style="font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums;'
                 'min-height:16px;margin:2px 0 3px"></div><div id="idxRatioChart" style="height:280px"></div></div>')
         else:
-            ratio_chart = ('<div class="card"><div class="sub" style="margin:0">No RS-ratio series on record '
+            ratio_chart = ('<div class="card" style="max-width:560px"><div class="sub" style="margin:0">No RS-ratio series on record '
                            'for this index yet.</div></div>')
         rs_block = (
             '<h2>Relative strength <span class="sub" style="margin:0">vs Nifty 500 · the RS-ratio chart</span></h2>'
