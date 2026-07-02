@@ -34,8 +34,13 @@ Also: `src/automation/sast_events.py` is untracked and belongs to another lane �
   Tail: gg window ~Jun-09→27 resumes via transient timer `hermes-insider-backfill3` (throttle
   cooldown; resume is cheap — seen-table skips re-fetches).
 - **Kill-switches:** market-freshness / regime / universe-drift / feed-liveness LIVE (`93f6abe`);
-  #1 WML-drawdown + #3 live-IC decay wait on accumulated momentum_scan history; #4 restatement-spike
-  + WARN/CRIT page surfacing still open.
+  **#4 restatement-spike LIVE + WARN/CRIT surfacing LIVE (`be7826a`+`ae73dab`+`3d8ae50`)** —
+  `fundamentals_restatements` ledger (journaled at write time; INSERT-OR-REPLACE erases history) +
+  `chk_restatement_spike` (>5%/30d warn, INFO-warmup <20 gate-passed) + NEW `src/web/dq_banner.py`
+  strips (workspace-keyed, sys.modules-swept to reach view modules — verified live on rotation/rrg/
+  rsband/participants/capture-map/stocks/mep). **#1 WML-drawdown + #3 live-IC decay DEFERRED with
+  dated evidence:** momentum_scan had 2 snapshots on Jul-02 → #1 re-check ~end-Jul-2026 (needs ~21
+  daily), #3 ~2027-Q1 (needs 3-mo rolling 6-mo IC). Both recorded in `docs/validation-memo.md` §5.
 - **⚠ Parallel-session discipline:** heavily co-worked tree — stage EXPLICIT paths only, never
   `git add -A`; patch-over (never full-scp) the D80 hot files (`dashboard`/`v2_surfaces`/
   `lens_registry`/`cockpit`); kickstart-pick-verify EVERY queue item before working it (this session:
@@ -60,9 +65,10 @@ Also: `src/automation/sast_events.py` is untracked and belongs to another lane �
    first time; expect `skipped_seen` to dominate night 2+, `gate_deferred` >0 on heavy nights
    (budget 25/run, env `HERMES_XBRL_GATE_BUDGET`). If a mapper improvement lands, re-arbitrate with
    `--regate --symbols ...`. Watch `hermes-shareholding-xbrl` + `hermes-sast-ingest` the same nights.
-6. **Kill-switch completion — mostly DONE (`be7826a`):** #4 restatement-spike + WARN/CRIT surfacing
-   on affected pages shipped. Remaining: #1 WML-drawdown + #3 live-IC decay (check whether enough
-   momentum_scan history has accumulated yet; else defer again).
+6. ~~**Kill-switch completion**~~ **DONE (`be7826a`+`ae73dab`+`3d8ae50`)** — #4 restatement-spike
+   ledger + check LIVE; WARN/CRIT strips (`dq_banner.py`) VERIFIED LIVE on all data surfaces. #1
+   WML-drawdown + #3 live-IC decay DEFERRED with dated re-check windows (end-Jul-2026 / ~2027-Q1 —
+   `validation-memo.md` §5). **Only revisit #1 after ~end-Jul** when momentum_scan has ~21 snapshots.
 7. ~~SAST Reg 29 + Reg 31~~ **DONE (`eee45f1`)** — `sast_events.py` + nightly 15:55 UTC timer;
    backfilled 2025-11→now; NRBBEARING roll-up validated.
 8. **C consumption wave (needs backtest first):** fold C into `scoring.py` / a screener column / the
@@ -78,10 +84,12 @@ XBRL Phase 1 + timers (`26cb3ef`) · **Phase 2 bank mapper + definitional verdic
 momentum-scan freshness (`76c1c98`) · kill-switch battery partial (`93f6abe`) · git↔VPS reconcile +
 nested-nav in git (`136f9af`) · harness-level permissions (`a2fdc99`, D83) · S72 explainability
 deploys + `/dash/stocks` table controls · Tier-1 visual flagships (credibility / cycle-clock /
-capture-map) · promoter_pledge wired (`261daef`) · colour 4c categorical remainder =
-closed-by-decision (S65 `19aed0b`, do not reopen). **Do NOT rebuild the shareholding module or
-the bank mapper — verify, then consume.** `docs/SESSION-72-CARRYFORWARD.md` (untracked) is fully
-executed → retire-ready (its owner session deletes it).
+capture-map) · promoter_pledge wired (`261daef`) · **kill-switch #4 restatement-spike + WARN/CRIT
+surfacing (`be7826a`+`ae73dab`+`3d8ae50`)** · **AUDIT reference doc captured into git (`76484be`)** ·
+colour 4c categorical remainder = closed-by-decision (S65 `19aed0b`, do not reopen). **Do NOT
+rebuild the shareholding module, the bank mapper, or `dq_banner`/`fundamentals_restatements` —
+verify, then consume.** `docs/SESSION-72-CARRYFORWARD.md` (untracked) is fully executed →
+retire-ready (its owner session deletes it).
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
