@@ -10,8 +10,14 @@
 #   - research.db -> consistent VACUUM INTO copy (fundamentals/shareholding PIT history)
 #   - retention: 7 nightly sets
 # Weekly (Sundays, or --full):
-#   - hermes.db   -> full VACUUM INTO copy (retain the newest 1 previous)
 #   - em_cache.pkl -> copy (retain 1)
+#
+# FULL hermes.db DR is deliberately NOT here: scripts/hermes-db-backup.sh (the
+# parallel audit lane's unit, daily 20:35 UTC, online .backup + quick_check +
+# rotate-3) owns it. Its rotation globs hermes-*.db in the same DEST, so this
+# script must never write hermes-*.db-named files — the two systems are
+# complementary by design (full DR there; non-derivable depth + research.db +
+# em_cache here).
 #
 # All reads open the source READ-ONLY (mode=ro URI) — this job can never write
 # the production DBs. Off-box shipping is NOT configured (no remote credentials);
@@ -42,12 +48,8 @@ rm -f "$DEST/research-$DAY.db"
 sqlite3 "file:$DATA/research.db?mode=ro" "VACUUM INTO '$DEST/research-$DAY.db'"
 echo "[backup] research.db: $(du -h "$DEST/research-$DAY.db" | cut -f1)"
 
-# --- weekly: full hermes.db + em_cache.pkl ------------------------------------
+# --- weekly: em_cache.pkl (full hermes.db DR lives in hermes-db-backup.sh) ----
 if [ "$DOW" = 7 ] || [ "${1:-}" = "--full" ]; then
-  rm -f "$DEST/hermes-full-$DAY.db"
-  sqlite3 "file:$DATA/hermes.db?mode=ro" "VACUUM INTO '$DEST/hermes-full-$DAY.db'"
-  echo "[backup] hermes full: $(du -h "$DEST/hermes-full-$DAY.db" | cut -f1)"
-  ls -1t "$DEST"/hermes-full-*.db 2>/dev/null | tail -n +3 | xargs -r rm -f
   cp "$DATA/em_cache.pkl" "$DEST/em_cache-$DAY.pkl.tmp" && mv "$DEST/em_cache-$DAY.pkl.tmp" "$DEST/em_cache-$DAY.pkl"
   ls -1t "$DEST"/em_cache-*.pkl 2>/dev/null | tail -n +2 | xargs -r rm -f
 fi
