@@ -74,6 +74,10 @@ LENSES: tuple[Lens, ...] = (
     # the "Relative strength" item above already names the section.
     Lens("leaders", "Leaders / Laggards", "market", "markets", "/dash/leaders",
          dossier_tab="rs", screener_col="rs", aliases=("laggards",)),
+    # Risk-adjusted momentum SCANNER — candidate shortlister with the C/A/B veto inline
+    # (gross selection lens, not alpha). RS/momentum content → Markets, beside Leaders.
+    Lens("momentum-scan", "Risk-adj momentum", "market", "markets", "/dash/momentum-scan",
+         aliases=("momo", "riskadj")),
     Lens("rrg", "Rotation · Map", "market", "markets", "/dash/rrg",
          group="Rotation"),
     Lens("rotation", "Rotation · Weather", "market", "markets", "/dash/rotation",

@@ -86,8 +86,11 @@ def save(rows, as_of):
     con.executemany(
         "INSERT INTO momentum_scan(symbol,as_of,mom6,mom12,vol_66,riskadj,range_pos_252,"
         "turnover_cr,riskadj_pctile,ensemble_pctile) VALUES (?,?,?,?,?,?,?,?,?,?)",
-        [(r["s"], as_of, r["mom6"], r["mom12"], r["vol"], r["riskadj"], r["hi52"],
-          r["turn"] / 1e7, r["riskadj_pct"], r["ens_pct"]) for r in rows])
+        # cast every numeric to native float — numpy float64 gets stored by sqlite as an 8-byte
+        # BLOB and reads back as `bytes`, which 500s any consumer doing arithmetic on it.
+        [(r["s"], as_of, float(r["mom6"]), float(r["mom12"]), float(r["vol"]), float(r["riskadj"]),
+          float(r["hi52"]) if r["hi52"] == r["hi52"] else None, float(r["turn"]) / 1e7,
+          float(r["riskadj_pct"]), float(r["ens_pct"])) for r in rows])
     con.commit(); con.close()
 
 

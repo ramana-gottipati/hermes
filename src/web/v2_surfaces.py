@@ -65,6 +65,9 @@ _ROUTER_SPECS = [
     # reads the already-computed rsi_of_rs / rs_extras. Durably mounted, no dashboard edit.
     ("momentum", "src.web.momentum_pane", "/dash/momentum"),
     ("divergence", "src.web.divergence_board", "/dash/divergence"),
+    # Risk-adjusted momentum SCANNER (candidate shortlister + inline C/A/B veto) — distinct from
+    # the RS momentum_pane above; reads the nightly `momentum_scan` table. Durably mounted here.
+    ("momentum-scan", "src.web.momentum_view", "/dash/momentum-scan"),
     # RS band lens — its siblings rsband.py/rrg_view.py are committed but the view was
     # left untracked; now committed + durably mounted here (was only the uncommitted
     # main.py import) so /dash/rsband survives a main.py clobber and a clean checkout.
