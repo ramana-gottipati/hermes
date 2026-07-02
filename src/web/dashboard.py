@@ -6150,11 +6150,13 @@ def dash_stock(sym: str = Query("", max_length=20),
         )
         if rs_rank is not None:
             rank_html = (
-                f'<div class="sub" style="margin:8px 0 4px">RS {rs_rank} / 99 — '
-                f'stronger than {rs_rank}% of the market '
-                f'(0.6·3m + 0.4·6m RS slope vs Nifty 500).</div>'
-                f'<div class="card" style="margin-top:0"><div class="bar">'
-                f'<span style="width:{rs_rank}%"></span></div></div>')
+                f'<div class="card" style="display:flex;align-items:center;gap:12px;margin-top:8px">'
+                f'<div style="font-size:28px;font-weight:700;line-height:1;white-space:nowrap">{rs_rank}'
+                f'<span class="sub" style="margin:0;font-size:14px">/99</span></div>'
+                f'<div style="flex:1;min-width:0">'
+                f'<div class="bar" style="margin:0 0 4px"><span style="width:{rs_rank}%"></span></div>'
+                f'<div class="sub" style="margin:0;font-size:11px;line-height:1.3">RS rank — stronger than '
+                f'{rs_rank}% of the market (0.6·3m + 0.4·6m RS slope vs Nifty 500)</div></div></div>')
         else:
             rank_html = ('<div class="sub" style="margin:8px 0 4px">RS rank not '
                          'computed (outside the liquid universe, or insufficient '
