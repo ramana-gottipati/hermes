@@ -86,11 +86,12 @@ def parse_rating(s: Optional[str]) -> dict:
         out["st"] = ("A" + mst.group(1) + mst.group(2)).strip()
         out["st_ord"] = _ST_ORD.get(out["st"])
     t = re.sub(r"\bA\s?[1-4]\s?\+?", " ", t)
-    # long-term — longest tokens first via ordered alternation
-    # no trailing \b: a '+'/'-' suffix is a non-word char, so \b after it would force-drop the notch
-    mlt = re.search(r"\b(AAA|AA\s?[+-]?|A\s?[+-]?|BBB\s?[+-]?|BB\s?[+-]?|B\s?[+-]?|C|D)", t)
+    # long-term — grade must be a WHOLE token: leading \b + a negative lookahead so prose can't
+    # yield spurious grades (e.g. "B" from "BANK", "C" from "Commercial", "D" from "Debentures" in
+    # withdrawal notices). Suffix consumed before the lookahead so "BBB-" keeps its notch.
+    mlt = re.search(r"\b(AAA|AA|BBB|BB|A|B|C|D)\s?([+-]?)(?![A-Za-z0-9])", t)
     if mlt:
-        g = mlt.group(1).replace(" ", "")
+        g = mlt.group(1) + mlt.group(2)
         out["lt"] = g
         out["lt_ord"] = _LT_ORD.get(g)
     return out
@@ -413,6 +414,13 @@ def _selftest() -> int:
     assert p["lt"] is None and p["st"] == "A1+", p       # short-term only
     p = parse_rating("IND D")
     assert p["lt"] == "D" and p["lt_ord"] == _LT_ORD["D"], p
+    # prose / withdrawal notices must NOT yield a grade ("B" from "BANK" was flagging AAA issuers below-IG)
+    assert parse_rating("Withdrawn for Bank Loan facilities")["lt"] is None
+    assert parse_rating("Withdrawn for Commercial Paper")["lt"] is None
+    evw = normalize_cr({"AppID": "w", "CreditRating": "Withdrawn for Bank Loan facilities",
+                        "RatingAction": "Withdrawn for Bank Loan facilities", "CompanyName": "Tata Capital",
+                        "BroadcastDateTime": "05-JAN-2026 10:00:00"})
+    assert evw["below_investment_grade"] == 0 and evw["action_class"] == WITHDRAWN, evw
 
     # notch delta + action from the real Dhruv downgrade (BBB- -> BB+)
     ev = normalize_cr({"AppID": "1", "Symbol": "NOTLISTED", "CompanyName": "Dhruv Consultancy",
