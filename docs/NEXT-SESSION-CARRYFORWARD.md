@@ -17,8 +17,9 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    22/80/443/9443. **Curl gates via `https://srv1704897.hstgr.cloud` or ssh-localhost — the raw
    `:8000` from outside is DEAD.** `/chat` + `/conversations` need header
    `X-Hermes-Secret: <CHAT_SHARED_SECRET from /opt/hermes/.env>`.
-4. **SSH is KEY-ONLY (AUD-34):** password auth refused; laptop default key authorized. sshd config
-   lives in `sshd_config.d/00-hermes-hardening.conf` (the `00-` prefix is load-bearing).
+4. **SSH is KEY-ONLY (AUD-34, fully closed):** password auth refused; laptop default key authorized;
+   **fail2ban sshd jail active**. sshd config lives in `sshd_config.d/00-hermes-hardening.conf`
+   (the `00-` prefix is load-bearing).
 5. **hermes-api bind lives in a systemd DROP-IN** (`hermes-api.service.d/override.conf`) — survives
    unit rewrites; don't "fix" the main unit file.
 
@@ -62,20 +63,28 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    ONLY if the Trust lane hasn't; pull latest coverage_view/provenance first). B1 residuals needing
    RAMANA: off-box backup destination; optional /dash basic-auth. B1 residuals not needing him:
    fail2ban sshd jail, AUD-35 non-root service sandboxing.
-4. **Stale-pledge CLASS SWEEP (S77b finding):** display/filter surfaces still read the frozen
-   `fundamentals.promoter_pledge` — `pat/flows.py:260` ("clean: Pledge < 5%" SCREEN FILTER — same
-   false-clean risk as the veto had), `pat/web.py` dossier facts (~761/1591/1835/1867),
-   `dashboard.py:6186`. Reuse `concall_veto._shp_pledge()`/a shared SHP map; disclose source. The
-   filter is the priority; the displays are P2.
+4. ~~Stale-pledge CLASS SWEEP~~ **DONE (`60ea594`)** — `fundamentals.promoter_pledge` now syncs
+   nightly from the SHP feed (post-`--ingest` hook; `--sync-pledge` CLI); all legacy readers
+   (Pat "clean" filter + dossier displays + veto fallback) get primary-source values with zero
+   reader changes. **CHECK ~Jul-21:** SHP pledge coverage should approach the universe as
+   June-quarter Reg-31 filings flood in (was 76 syms / 6 of 85 fundamentals rows on Jul-03) —
+   `sqlite3 research.db "SELECT COUNT(DISTINCT symbol) FROM shareholding_history WHERE
+   metric='Promoter Pledge'"`. **DEFERRED with evidence (don't re-derive):** the NSE
+   share-holdings-master GLOBAL window only returns latest-filing windows (~90 submissions for
+   all of Apr..Jun-24, not the ~2k quarter mass — `b26eafa` log) — deep PIT pledge HISTORY needs
+   a per-symbol crawl (`list_shp(symbol=...)`, ~2k listings + XBRL, throttle-broken across
+   nights). Only worth it for backtest depth; the live veto/filter self-heal by ~Jul-21.
 5. **C consumption wave (needs backtest first):** fold C into scoring/screener/confluence only with
    a clean backtest, only for gate-passed symbols.
 6. **XBRL Phase 3 (big, design first):** historical backfill (legacy API 2018+ / BSE deeper);
    replace Screener series symbol-by-symbol where reconciliation allows; then delete `screener.py`.
 
 ## GUARANTEED-DONE (do NOT redo — kickstart-pick-verify against these commits)
-Pledge veto SHP primary (`07aca8d`, live+verified) · AUD-01 perimeter (`cc988c6`) · AUD-34 key-only
-SSH (VPS state) · AUD-02 on-box backups BOTH units (`d506cea`+`5f30d95`+`cc988c6`+`b04e4eb`,
-restore-tested, de-duplicated BY DESIGN) · AUD-39/09/10/15/05 tranche (`cef3e91`+`d085395`, live) ·
+Pledge veto SHP primary (`07aca8d`, live+verified; gate-0 pytest `c6722d7`) · pledge column-sync +
+SHP backfill (`60ea594`+`b26eafa`, nightly hook live) · AUD-01 perimeter (`cc988c6`) · AUD-34
+key-only SSH + fail2ban (VPS state) · AUD-02 on-box backups BOTH units
+(`d506cea`+`5f30d95`+`cc988c6`+`b04e4eb`, restore-tested, de-duplicated BY DESIGN,
+busy_timeout-hardened `b26eafa`) · AUD-39/09/10/15/05 tranche (`cef3e91`+`d085395`, live) ·
 AUD-03 concall CLI (`cfcd1c7`) · AUD-23 (`911d020`) · AUD-24 (`16037b2`) · AUD-32 (`a24cf23`) ·
 XBRL Phase 1/2/2c (`26cb3ef`/`5afe4ea`/`775badb`) · outage root-fix (`a4f1c21`+`d5b5933`) ·
 kill-switch battery + #4 + dq_banner (`93f6abe`/`be7826a`+`ae73dab`+`3d8ae50`) · harness permissions
