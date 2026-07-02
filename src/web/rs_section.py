@@ -38,6 +38,7 @@ _LENSES = [
     ("leaders",  "Leaders",  "/dash/leaders",  "who is strong-in-strong",          False),
     ("sectors",  "Sectors",  "/dash/sectors",  "sector RS ranking",                False),
     ("momentum", "Momentum", "/dash/rrg",      "rotation — direction of travel",   True),
+    ("divergence", "Divergence", "/dash/divergence", "momentum turning before price", False),
     ("level",    "Level",    "/dash/rsband",   "cheap vs rich in its own RS range", True),
     ("phase",    "Phase",    "/dash/rotation", "lifecycle state + fresh turns",     False),
 ]
@@ -128,10 +129,34 @@ def _pv_sectors() -> str:
     return '<div class="rsh-empty">returns · RS strip · weather · momentum %ile — open the ranking</div>'
 
 
+def _pv_divergence(den: str) -> str:
+    try:
+        from src.core.db import get_conn
+        from src.web.divergence_board import _scan, _short
+        with get_conn() as conn:
+            bull, bear = _scan(conn)
+        if not bull and not bear:
+            return '<div class="rsh-empty">no divergences (run rrg nightly)</div>'
+
+        def chips(items):
+            return ('<div class="rsh-chips">'
+                    + "".join(f'<span class="rsh-chip">{_esc(_short(x["name"]))}</span>'
+                              for x in items[:4]) + '</div>')
+        out = ""
+        if bull:
+            out += f'<div class="rsh-sub">▲ {len(bull)} bullish · early recovery</div>' + chips(bull)
+        if bear:
+            out += f'<div class="rsh-sub">▼ {len(bear)} bearish · early roll-over</div>' + chips(bear)
+        return out
+    except Exception:
+        return '<div class="rsh-empty">—</div>'
+
+
 _PREVIEW = {
     "leaders": lambda den: _pv_leaders(),
     "sectors": lambda den: _pv_sectors(),
     "momentum": lambda den: _pv_momentum(den),
+    "divergence": lambda den: _pv_divergence(den),
     "level": lambda den: _pv_level(den),
     "phase": lambda den: _pv_phase(),
 }
