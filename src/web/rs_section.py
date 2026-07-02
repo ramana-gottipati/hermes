@@ -182,6 +182,8 @@ def render_rs_hub(den: str = "Nifty 500") -> str:
     return (_CSS + '<div class="rsh-wrap">'
             '<div class="rsh-top"><h2>Relative strength</h2>'
             '<span class="rsh-sub2">rank · momentum · level · phase — one place, vs the benchmark</span>'
+            '<a class="rsh-go" href="/dash/ratio" style="margin-left:10px" '
+            'title="Single pair: an index vs a chosen denominator">RS ratio chart ↗</a>'
             f'{bench}</div>'
             f'<div class="rsh-grid">{"".join(cards)}</div>'
             '<div class="rsh-foot">A Markets-altitude hub (RS is macro content, not a stand-alone strategy). '
