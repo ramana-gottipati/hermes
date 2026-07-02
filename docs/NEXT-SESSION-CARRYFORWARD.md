@@ -36,8 +36,9 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
   non-derivable depth + research.db + em_cache `backup-db.sh` nightly 00:30 UTC `cc988c6`+`b04e4eb`;
   restore PROVEN both sides; **off-box residual**: `download-from-vps.bat` now also pulls
   `backups/db/` — run it periodically; a real off-box destination needs Ramana) · AUD-03 fixed
-  (`cfcd1c7`) — **VERIFY the Sun Jul-05 09:00 UTC run succeeded** · AUD-04 Trust-page 4s still OPEN
-  (owned by the Trust/premium-visuals lane — coverage_view/provenance collision warning stands).
+  (`cfcd1c7`) — **VERIFY the Sun Jul-05 09:00 UTC run succeeded** · **AUD-04 CLOSED (`c948c3f`
+  audit-lane caches + `a207c99` lag_samples memo): /dash/coverage warm 7-8ms, 6-way 42-51ms/req,
+  public 0.21s; cold ~3.7s once/data-day (P3: optional nightly pre-warm). ALL FOUR P0s CLOSED.**
 - **Audit session (S77) tranche LIVE:** AUD-39 pytest harness + gate-0 · AUD-09 negative-PE=0 (D84) ·
   AUD-10 LOWVOL_MOM re-rank (D85; momentum_scan re-run triggered — VERIFY `ensemble_pctile`
   restated) · AUD-15 canon 252/151.2 (D86) · AUD-05 trust-ledger breadth (`d085395`).
@@ -59,8 +60,7 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    `hermes-shareholding-xbrl` + `hermes-sast-ingest` the same nights.
 3. **AUDIT CORRECTION PROGRAM (work the doc's DAG in order, kickstart-pick-verify each):** check
    the audit session's wrap first — B3 remainder (12/64/65/06+07/11), B2 timer truth-capture, B4
-   trust-text honesty, B5 fetch discipline, B6 linkage+UI, B7 db-core+perf **incl. AUD-04** (take it
-   ONLY if the Trust lane hasn't; pull latest coverage_view/provenance first). B1 residuals needing
+   trust-text honesty, B5 fetch discipline, B6 linkage+UI, B7 db-core+perf (~~AUD-04~~ CLOSED — `c948c3f`+`a207c99`). B1 residuals needing
    RAMANA: off-box backup destination; optional /dash basic-auth. B1 residuals not needing him:
    fail2ban sshd jail, AUD-35 non-root service sandboxing.
 4. ~~Stale-pledge CLASS SWEEP~~ **DONE (`60ea594`)** — `fundamentals.promoter_pledge` now syncs
