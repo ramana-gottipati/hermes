@@ -272,7 +272,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** add both `_ROUTER_SPECS` entries + Lens/allowlist entries; nav-integrity gate must pass from `main`. 2-line-class change — coordinate with the lane that owns queue #2 before committing (kickstart-pick-verify).
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-33 [P1] Index names case-broken in momentum pane — every sector link on the divergence board renders an empty pane** — `OPEN`
+**AUD-33 [P1] Index names case-broken in momentum pane — every sector link on the divergence board renders an empty pane** — `DONE S77 (deployed+verified)` (momentum_pane.py:248 numerator match → COLLATE NOCASE; live proof S&P-CNX-500-SHARIAH 0→241 rows; 3 sector panes Nifty IT/CNX Consumption/Nifty Bank now render RS ✓. Commit in the momentum_pane fix)
 - **Component:** momentum_pane | **Reporter:** linkage (finder P0; verifier P1 — board itself works, pane fails safe, data reachable via /dash/rrg).
 - **Files:** `src/web/momentum_pane.py:219,248-250,289,352`; numerators stored Title-case (`index_signals.py:464`); `divergence_board.py:77,109`.
 - **Evidence digest:** `sym.upper()` vs Title-case `ratio_rows.numerator` under BINARY collation → "No RS series on record" for every sector click on Ramana's explicitly requested early-warning board; `index_signals.py:38-40` documents the identical prior bug.
