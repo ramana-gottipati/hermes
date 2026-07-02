@@ -307,10 +307,36 @@ def ingest_symbol(symbol: str, *, min_year: int = DEFAULT_MIN_YEAR,
 
 # --- CLI --------------------------------------------------------------------
 
+def _universe_symbols(cap: int, include_covered: bool) -> list:
+    """Full-universe symbol list for the scheduled capture pass: every symbol in the
+    latest bhav copy (any series — SME/BE concalls exist too), alphabetical. Without
+    include_covered, symbols that already have a concalls row are skipped (cheap
+    first-fill mode); with it, EVERY symbol is re-checked for NEW quarterly calls
+    (already-downloaded text is still skipped inside ingest_symbol). cap>0 truncates."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT symbol FROM bhavcopy_rows "
+            "WHERE trade_date=(SELECT MAX(trade_date) FROM bhavcopy_rows) ORDER BY symbol"
+        ).fetchall()
+        syms = [r["symbol"] for r in rows]
+        if not include_covered:
+            covered = {r["symbol"] for r in conn.execute("SELECT DISTINCT symbol FROM concalls")}
+            syms = [s for s in syms if s not in covered]
+    return syms[:cap] if cap and cap > 0 else syms
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="CCI concall corpus fetcher")
-    ap.add_argument("symbols", nargs="*", help="NSE symbols (omit with --pilot)")
+    ap.add_argument("symbols", nargs="*", help="NSE symbols (omit with --pilot/--universe)")
     ap.add_argument("--pilot", action="store_true", help="use the built-in ~25-name pilot set")
+    ap.add_argument("--universe", type=int, nargs="?", const=0, default=None, metavar="CAP",
+                    help="run over EVERY symbol in the latest bhav copy (optional CAP truncates; "
+                         "0/omitted value = all). The scheduled capture unit uses this.")
+    ap.add_argument("--include-covered", action="store_true",
+                    help="with --universe: also re-check symbols that already have concalls rows "
+                         "for NEW calls (default skips them; downloaded text is always skipped)")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="parallel symbol workers (scheduled unit uses 5; each worker paces itself)")
     ap.add_argument("--min-year", type=int, default=DEFAULT_MIN_YEAR,
                     help=f"download transcripts only for concall year >= this (default {DEFAULT_MIN_YEAR})")
     ap.add_argument("--list-only", action="store_true", help="record metadata, do not download transcripts")
@@ -320,18 +346,38 @@ def main() -> None:
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    symbols = PILOT if args.pilot else [s.upper() for s in args.symbols]
+    if args.universe is not None:
+        symbols = _universe_symbols(args.universe, args.include_covered)
+    else:
+        symbols = PILOT if args.pilot else [s.upper() for s in args.symbols]
     if not symbols:
-        ap.error("give symbols or --pilot")
+        ap.error("give symbols, --pilot, or --universe")
 
     totals = {"entries": 0, "with_transcript": 0, "downloaded": 0, "skipped_old": 0, "failed": 0, "ai": 0}
-    for sym in symbols:
-        res = ingest_symbol(sym, min_year=args.min_year, fetch_transcripts=not args.list_only,
-                            fetch_ai=not args.no_ai, force=args.force, limit=args.limit)
-        for k in totals:
-            totals[k] += res.get(k, 0)
+
+    def one(sym):
+        try:
+            res = ingest_symbol(sym, min_year=args.min_year, fetch_transcripts=not args.list_only,
+                                fetch_ai=not args.no_ai, force=args.force, limit=args.limit)
+        except Exception as e:  # noqa: BLE001 — one bad symbol must not kill a universe pass
+            log.warning("%s: ingest failed: %s", sym, e)
+            res = {"failed": 1}
         time.sleep(REQUEST_PAUSE)
-    log.info("TOTALS over %d symbols: %s", len(symbols), totals)
+        return res
+
+    workers = max(1, args.workers)
+    if workers == 1:
+        results = (one(s) for s in symbols)
+        for res in results:
+            for k in totals:
+                totals[k] += res.get(k, 0)
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for res in pool.map(one, symbols):
+                for k in totals:
+                    totals[k] += res.get(k, 0)
+    log.info("TOTALS over %d symbols (workers=%d): %s", len(symbols), workers, totals)
 
 
 if __name__ == "__main__":
