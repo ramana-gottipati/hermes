@@ -1,5 +1,14 @@
 # Predictive attributes — consistency & reliability (deep dive, 2026-07-02)
 
+> **⚠ READ FIRST — the honest headline.** Every Sharpe/alpha below is **GROSS, flat-cost**. Net of
+> realistic slippage the best momentum factor collapses from Sharpe 1.29 → **~0.09**, and **nothing
+> beats Nifty-500 buy-&-hold net of cost** (`docs/strategy-ledger.md` § cost realism). Further, the
+> "+16% alpha at β1.2" is a **single-factor** regression vs Nifty-500 only — **not shown to be
+> beta/size/sector-neutral SELECTION** (attribution pending, `research/explosive_moves/attribution.py`;
+> expected to reveal most of it as levered small-cap + momentum-premium beta). ⇒ Treat everything here
+> as a **GROSS cross-sectional SELECTION lens**, never a net-of-cost alpha or a buy-basket claim. See
+> `docs/institutional-panel-assessment.md`.
+
 **Question:** which attributes/dimensions actually forecast forward price moves in Indian equities, how *consistent* (holds across time/regimes) and *reliable* (statistically trustworthy, not overfit) are they, benchmarked to the index?
 
 **Method:** live 14-year backtest via `research/explosive_moves/factor_zoo.py` — 157 monthly rebalances (2012-06→2026), 3,515-symbol cache (1,700 with fundamentals), top-25 equal-weight, value-turnover gate, net cost, walk-forward halves (2012-18 vs 2019-26), alpha/beta vs **Nifty 500**. Discussed with Codex (gpt-5.5): methodology `codex-bridge/req/resp-16`, results interpretation `req/resp-17`. Full table `research/explosive_moves/out/factor_zoo.csv`.
