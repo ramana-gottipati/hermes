@@ -69,6 +69,10 @@ _ANCHORS = {
     "dilution_eqcap": (3.0, 0.30),  # fallback: equity-capital CAGR >~3%/yr signals issuance (INVERTED)
     "debt_share": (50.0, 0.05),   # >50% of growth debt-funded starts to hurt (INVERTED)
     "growth_eff": (1.0, 1.50),    # PAT CAGR / CE CAGR; >1 = earnings outgrew capital
+    # financial (bank/NBFC) model — ROCE/ROIIC are meaningless for lenders (leverage IS the business)
+    "roe_level": (13.0, 0.15),    # ROE ~13-15% ≈ decent for a lender
+    "roe_trend": (0.0, 0.80),     # ROE slope pp/yr
+    "roa_level": (1.5, 0.60),     # ROA ~1.5%+ (banks ~1%, good NBFCs 2-4%)
 }
 _WEIGHTS = {
     "roiic": 0.30,
@@ -78,6 +82,16 @@ _WEIGHTS = {
     "debt_share": 0.12,
     "growth_eff": 0.10,
 }
+# financial model weights (keys are component names produced by score_metrics for model='financial')
+_FIN_WEIGHTS = {
+    "roe_level": 0.35,
+    "roe_trend": 0.15,
+    "roa_level": 0.20,
+    "dilution": 0.20,
+    "growth_eff": 0.10,
+}
+_FIN_MARKERS = ("Financing Profit", "Financing Margin %")  # Screener rows unique to lenders
+_TOTAL_ASSETS = ("Total Assets", "Total assets")
 _MIN_YEARS = 3          # aligned annual points required for incremental metrics
 _MIN_SPAN = 2           # calendar-year span required
 _TIER_BANDS = [(80, "EXCELLENT"), (60, "GOOD"), (40, "AVERAGE"), (20, "WEAK"), (0, "POOR")]
@@ -151,8 +165,9 @@ def compute_metrics(frame: dict, as_of: str) -> dict:
         ce.append((pe, nw + bo_m.get(pe, 0.0)))
 
     metrics = {
-        "as_of": as_of,
+        "as_of": as_of, "model": "industrial",
         "roiic": None, "roce_latest": None, "roce_avg": None, "roce_trend": None,
+        "roe_latest": None, "roe_avg": None, "roe_trend": None, "roa_latest": None,
         "dilution_drag": None, "equity_capital_cagr": None,
         "debt_funding_share": None, "growth_efficiency": None,
         "n_years": 0, "span_years": 0, "coverage": coverage,
@@ -204,6 +219,60 @@ def compute_metrics(frame: dict, as_of: str) -> dict:
     return metrics
 
 
+def _is_financial(frame: dict) -> bool:
+    """Lender (bank/NBFC) if Screener reports the Financing-Profit/Margin rows unique to them."""
+    return any(("A", m) in frame for m in _FIN_MARKERS)
+
+
+def compute_metrics_fin(frame: dict, as_of: str) -> dict:
+    """Capital-allocation metrics for LENDERS: ROE / ROA / dilution / book-value growth.
+
+    ROCE/ROIIC/capital-employed/debt-funding are meaningless when borrowing IS the business —
+    applying them mis-rated every NBFC/bank as POOR (e.g. TATACAP). Net worth = Equity + Reserves.
+    """
+    as_of = str(as_of)[:10]
+    np_m = _smap(_known(frame, "A", _NPAT, as_of))
+    eq_m = _smap(_known(frame, "A", _EQCAP, as_of))
+    rs_m = _smap(_known(frame, "A", _RESV, as_of))
+    ta_m = _smap(_known(frame, "A", _TOTAL_ASSETS, as_of))
+    eps_m = _smap(_known(frame, "A", _EPS, as_of))
+    nw_periods = sorted(set(eq_m) & set(rs_m) & set(np_m))
+
+    m = {"as_of": as_of, "model": "financial",
+         "roiic": None, "roce_latest": None, "roce_avg": None, "roce_trend": None,
+         "roe_latest": None, "roe_avg": None, "roe_trend": None, "roa_latest": None,
+         "dilution_drag": None, "equity_capital_cagr": None,
+         "debt_funding_share": None, "growth_efficiency": None,
+         "n_years": len(nw_periods), "span_years": 0, "coverage": ["financial_model"]}
+
+    roe = [(pe, 100.0 * np_m[pe] / (eq_m[pe] + rs_m[pe]))
+           for pe in nw_periods if (eq_m[pe] + rs_m[pe]) > 0]
+    if roe:
+        m["roe_latest"] = roe[-1][1]
+        m["roe_avg"] = sum(v for _, v in roe) / len(roe)
+        m["roe_trend"] = _slope_per_year(roe)
+    ta_periods = sorted(set(ta_m) & set(np_m))
+    if ta_periods and ta_m[ta_periods[-1]] > 0:
+        m["roa_latest"] = 100.0 * np_m[ta_periods[-1]] / ta_m[ta_periods[-1]]
+
+    if len(nw_periods) >= _MIN_YEARS:
+        pe0, pe1 = nw_periods[0], nw_periods[-1]
+        span = _year(pe1) - _year(pe0)
+        m["span_years"] = span
+        if span >= _MIN_SPAN:
+            eqc0, eqc1 = eq_m.get(pe0), eq_m.get(pe1)
+            m["equity_capital_cagr"] = _cagr(eqc0, eqc1, span) if (eqc0 and eqc1) else None
+            nw_cagr = _cagr(eq_m[pe0] + rs_m[pe0], eq_m[pe1] + rs_m[pe1], span)
+            pat_cagr = _cagr(np_m.get(pe0), np_m.get(pe1), span) if (np_m.get(pe0) and np_m.get(pe1)) else None
+            if pat_cagr is not None and nw_cagr and nw_cagr > 0:
+                m["growth_efficiency"] = pat_cagr / nw_cagr          # earnings growth per unit book growth
+            e0, e1 = eps_m.get(pe0), eps_m.get(pe1)
+            eps_cagr = _cagr(e0, e1, span) if (e0 and e1) else None
+            if pat_cagr is not None and eps_cagr is not None:
+                m["dilution_drag"] = pat_cagr - eps_cagr
+    return m
+
+
 def score_metrics(m: dict) -> dict:
     """Map raw metrics -> 0..100 component scores + weighted composite ca_score.
 
@@ -211,34 +280,43 @@ def score_metrics(m: dict) -> dict:
     not silently penalised to zero. Returns {"ca_score", "components", "weights_used"}.
     """
     comp = {}
-    if m.get("roiic") is not None:
-        x0, k = _ANCHORS["roiic"]
-        comp["roiic"] = _logistic(m["roiic"], x0, k)
-    if m.get("roce_latest") is not None:
-        x0, k = _ANCHORS["roce_level"]
-        comp["roce_level"] = _logistic(m["roce_latest"], x0, k)
-    if m.get("roce_trend") is not None:
-        x0, k = _ANCHORS["roce_trend"]
-        comp["roce_trend"] = _logistic(m["roce_trend"], x0, k)
-    if m.get("dilution_drag") is not None:
-        x0, k = _ANCHORS["dilution"]
-        comp["dilution"] = 100.0 - _logistic(m["dilution_drag"], x0, k)  # inverted
-    elif m.get("equity_capital_cagr") is not None:
-        x0, k = _ANCHORS["dilution_eqcap"]
-        comp["dilution"] = 100.0 - _logistic(m["equity_capital_cagr"], x0, k)  # fallback, inverted
-    if m.get("debt_funding_share") is not None:
-        x0, k = _ANCHORS["debt_share"]
-        comp["debt_share"] = 100.0 - _logistic(m["debt_funding_share"], x0, k)  # inverted
-    if m.get("growth_efficiency") is not None:
-        x0, k = _ANCHORS["growth_eff"]
-        comp["growth_eff"] = _logistic(m["growth_efficiency"], x0, k)
+    if m.get("model") == "financial":
+        weights = _FIN_WEIGHTS
+        if m.get("roe_latest") is not None:
+            comp["roe_level"] = _logistic(m["roe_latest"], *_ANCHORS["roe_level"])
+        if m.get("roe_trend") is not None:
+            comp["roe_trend"] = _logistic(m["roe_trend"], *_ANCHORS["roe_trend"])
+        if m.get("roa_latest") is not None:
+            comp["roa_level"] = _logistic(m["roa_latest"], *_ANCHORS["roa_level"])
+        if m.get("dilution_drag") is not None:
+            comp["dilution"] = 100.0 - _logistic(m["dilution_drag"], *_ANCHORS["dilution"])
+        elif m.get("equity_capital_cagr") is not None:
+            comp["dilution"] = 100.0 - _logistic(m["equity_capital_cagr"], *_ANCHORS["dilution_eqcap"])
+        if m.get("growth_efficiency") is not None:
+            comp["growth_eff"] = _logistic(m["growth_efficiency"], *_ANCHORS["growth_eff"])
+    else:
+        weights = _WEIGHTS
+        if m.get("roiic") is not None:
+            comp["roiic"] = _logistic(m["roiic"], *_ANCHORS["roiic"])
+        if m.get("roce_latest") is not None:
+            comp["roce_level"] = _logistic(m["roce_latest"], *_ANCHORS["roce_level"])
+        if m.get("roce_trend") is not None:
+            comp["roce_trend"] = _logistic(m["roce_trend"], *_ANCHORS["roce_trend"])
+        if m.get("dilution_drag") is not None:
+            comp["dilution"] = 100.0 - _logistic(m["dilution_drag"], *_ANCHORS["dilution"])
+        elif m.get("equity_capital_cagr") is not None:
+            comp["dilution"] = 100.0 - _logistic(m["equity_capital_cagr"], *_ANCHORS["dilution_eqcap"])
+        if m.get("debt_funding_share") is not None:
+            comp["debt_share"] = 100.0 - _logistic(m["debt_funding_share"], *_ANCHORS["debt_share"])
+        if m.get("growth_efficiency") is not None:
+            comp["growth_eff"] = _logistic(m["growth_efficiency"], *_ANCHORS["growth_eff"])
 
-    wsum = sum(_WEIGHTS[c] for c in comp)
-    ca = sum(comp[c] * _WEIGHTS[c] for c in comp) / wsum if wsum > 0 else None
+    wsum = sum(weights[c] for c in comp)
+    ca = sum(comp[c] * weights[c] for c in comp) / wsum if wsum > 0 else None
     return {
         "ca_score": round(ca, 2) if ca is not None else None,
         "components": {c: round(v, 2) for c, v in comp.items()},
-        "weights_used": {c: _WEIGHTS[c] for c in comp},
+        "weights_used": {c: weights[c] for c in comp},
     }
 
 
@@ -253,10 +331,13 @@ CREATE TABLE IF NOT EXISTS capital_allocation_scores (
     ca_score      REAL,
     ca_pctile     REAL,
     ca_tier       TEXT,
+    model         TEXT,
     roiic         REAL,
     roce_latest   REAL,
     roce_avg      REAL,
     roce_trend    REAL,
+    roe_latest    REAL,
+    roa_latest    REAL,
     dilution_drag REAL,
     debt_funding_share REAL,
     growth_efficiency  REAL,
@@ -282,7 +363,7 @@ def compute(symbol: str, as_of: Optional[str] = None, *,
     as_of = as_of or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     if frame is None:
         frame = load_symbol_history(symbol, db_path=db_path)
-    m = compute_metrics(frame, as_of)
+    m = compute_metrics_fin(frame, as_of) if _is_financial(frame) else compute_metrics(frame, as_of)
     s = score_metrics(m)
     out = {"symbol": symbol.upper().strip()}
     out.update(m)
@@ -298,18 +379,21 @@ def save_score(conn: sqlite3.Connection, r: dict) -> None:
                          "equity_capital_cagr": r.get("equity_capital_cagr")})
     conn.execute(
         """INSERT INTO capital_allocation_scores
-             (symbol, as_of, ca_score, roiic, roce_latest, roce_avg, roce_trend,
-              dilution_drag, debt_funding_share, growth_efficiency, n_years, coverage, detail_json)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+             (symbol, as_of, ca_score, model, roiic, roce_latest, roce_avg, roce_trend,
+              roe_latest, roa_latest, dilution_drag, debt_funding_share, growth_efficiency,
+              n_years, coverage, detail_json)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
            ON CONFLICT(symbol, as_of) DO UPDATE SET
-             computed_at=datetime('now'), ca_score=excluded.ca_score, roiic=excluded.roiic,
-             roce_latest=excluded.roce_latest, roce_avg=excluded.roce_avg,
-             roce_trend=excluded.roce_trend, dilution_drag=excluded.dilution_drag,
+             computed_at=datetime('now'), ca_score=excluded.ca_score, model=excluded.model,
+             roiic=excluded.roiic, roce_latest=excluded.roce_latest, roce_avg=excluded.roce_avg,
+             roce_trend=excluded.roce_trend, roe_latest=excluded.roe_latest,
+             roa_latest=excluded.roa_latest, dilution_drag=excluded.dilution_drag,
              debt_funding_share=excluded.debt_funding_share,
              growth_efficiency=excluded.growth_efficiency, n_years=excluded.n_years,
              coverage=excluded.coverage, detail_json=excluded.detail_json""",
-        (r["symbol"], r["as_of"], r.get("ca_score"), r.get("roiic"),
+        (r["symbol"], r["as_of"], r.get("ca_score"), r.get("model"), r.get("roiic"),
          r.get("roce_latest"), r.get("roce_avg"), r.get("roce_trend"),
+         r.get("roe_latest"), r.get("roa_latest"),
          r.get("dilution_drag"), r.get("debt_funding_share"), r.get("growth_efficiency"),
          r.get("n_years"), ",".join(r.get("coverage") or []), detail),
     )
@@ -334,19 +418,22 @@ def _universe(db_path: str, min_years: int) -> list:
 
 
 def _fill_percentiles(conn: sqlite3.Connection, as_of: str) -> int:
-    """Cross-sectional percentile + relative tier for a given as_of cohort."""
-    rows = conn.execute(
-        "SELECT id, ca_score FROM capital_allocation_scores "
-        "WHERE as_of=? AND ca_score IS NOT NULL ORDER BY ca_score", (as_of,)).fetchall()
-    n = len(rows)
-    if n == 0:
-        return 0
-    for rank, row in enumerate(rows):
-        pct = 100.0 * (rank + 0.5) / n  # midpoint percentile
-        tier = next(t for lo, t in _TIER_BANDS if pct >= lo)
-        conn.execute("UPDATE capital_allocation_scores SET ca_pctile=?, ca_tier=? WHERE id=?",
-                     (round(pct, 1), tier, row[0]))
-    return n
+    """Cross-sectional percentile + relative tier, ranked WITHIN model (financials vs industrials
+    are not comparable on one scale — an 'EXCELLENT' lender is top-quintile among lenders)."""
+    total = 0
+    for model in ("industrial", "financial"):
+        rows = conn.execute(
+            "SELECT id, ca_score FROM capital_allocation_scores "
+            "WHERE as_of=? AND ca_score IS NOT NULL AND model=? ORDER BY ca_score",
+            (as_of, model)).fetchall()
+        n = len(rows)
+        for rank, row in enumerate(rows):
+            pct = 100.0 * (rank + 0.5) / n
+            tier = next(t for lo, t in _TIER_BANDS if pct >= lo)
+            conn.execute("UPDATE capital_allocation_scores SET ca_pctile=?, ca_tier=? WHERE id=?",
+                         (round(pct, 1), tier, row[0]))
+        total += n
+    return total
 
 
 def run_batch(as_of: Optional[str] = None, *, limit: Optional[int] = None,
@@ -425,7 +512,23 @@ def _selftest() -> int:
     rt = compute("THIN", "2023-06-30", frame=thin)
     assert rt["roiic"] is None and rt["ca_score"] is not None, rt
 
-    print("selftest OK  good=%.1f bad=%.1f thin=%.1f" % (r["ca_score"], rb["ca_score"], rt["ca_score"]))
+    # financial (lender): the 'Financing Profit' marker routes to the ROE/ROA model; ROIIC ignored.
+    fin = frame_from({
+        "Financing Profit": [("2019-03-31", 100), ("2022-03-31", 160)],
+        "Net Profit": [("2019-03-31", 90), ("2020-03-31", 108), ("2021-03-31", 130), ("2022-03-31", 156)],
+        "Equity Capital": [("2019-03-31", 50), ("2020-03-31", 50), ("2021-03-31", 50), ("2022-03-31", 50)],
+        "Reserves": [("2019-03-31", 450), ("2020-03-31", 520), ("2021-03-31", 600), ("2022-03-31", 700)],
+        "Total Assets": [("2019-03-31", 5000), ("2020-03-31", 5800), ("2021-03-31", 6700), ("2022-03-31", 7800)],
+        "EPS in Rs": [("2019-03-31", 9.0), ("2020-03-31", 10.8), ("2021-03-31", 13.0), ("2022-03-31", 15.6)],
+    })
+    rf = compute("BANKX", "2023-06-30", frame=fin)
+    assert rf["model"] == "financial" and rf["roiic"] is None, rf
+    assert rf["roe_latest"] and 20 < rf["roe_latest"] < 22, rf["roe_latest"]      # 156/750
+    assert rf["roa_latest"] and 1.9 < rf["roa_latest"] < 2.1, rf["roa_latest"]    # 156/7800
+    assert rf["ca_score"] and rf["ca_score"] > 55, rf["ca_score"]
+
+    print("selftest OK  good=%.1f bad=%.1f thin=%.1f fin=%.1f"
+          % (r["ca_score"], rb["ca_score"], rt["ca_score"], rf["ca_score"]))
     print("  good metrics:", {k: r[k] for k in ("roiic", "roce_trend", "debt_funding_share", "dilution_drag")})
     print("  bad  metrics:", {k: rb[k] for k in ("roiic", "roce_trend", "debt_funding_share", "dilution_drag")})
     return 0
