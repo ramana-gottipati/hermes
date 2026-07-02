@@ -1251,7 +1251,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         # the RS-depth panel below and the full /dash/rrg, so the page speaks one
         # rotation language (D68). Tail pre-fetched in the data block.
         from src.web.mini_rrg import mini_rrg_card
-        quad = mini_rrg_card(quad_tail, den="Nifty 500", tail_label="last ~6 months")
+        quad = mini_rrg_card(quad_tail, den="Nifty 500", tail_label="last ~6 months", size=280)
         my_mom = 0.6 * (s3 or 0) + 0.4 * (S.get("s6") or 0)
         moms = sorted(momrows)
         pctl = 50

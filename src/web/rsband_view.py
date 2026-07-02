@@ -528,11 +528,19 @@ def _rot_tail_svg(tail: list) -> str:
     s.append(f'<text x="{R-5}" y="{T+12}" style="fill:var(--ink-3)" font-size="9" text-anchor="end">leading</text>')
     s.append(f'<text x="{R-5}" y="{B-5}" style="fill:var(--ink-3)" font-size="9" text-anchor="end">weakening</text>')
     s.append(f'<text x="{L+5}" y="{B-5}" style="fill:var(--ink-3)" font-size="9">lagging</text>')
-    poly = " ".join(f"{X(a):.1f},{Y(b):.1f}" for (a, b, _) in pts)
-    s.append(f'<polyline points="{poly}" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.5"/>')
-    for (a, b, d) in pts:
-        s.append(f'<circle class="rtdot" data-d="{d}" cx="{X(a):.1f}" cy="{Y(b):.1f}" r="3" '
-                 f'style="fill:var(--ink-2)" fill-opacity="0.7"/>')
+    n = len(pts)
+    # comet tail: per-segment lines + dots that fade IN toward now (oldest lightest,
+    # most-recent strongest) so recency reads at a glance — not a flat, uniform web
+    for i in range(n - 1):
+        (a0, b0, _d0), (a1, b1, _d1) = pts[i], pts[i + 1]
+        f = (i + 1) / n
+        s.append(f'<line x1="{X(a0):.1f}" y1="{Y(b0):.1f}" x2="{X(a1):.1f}" y2="{Y(b1):.1f}" '
+                 f'stroke="#58a6ff" stroke-opacity="{0.10 + 0.5 * f:.2f}" '
+                 f'stroke-width="{0.8 + 1.4 * f:.1f}" stroke-linecap="round"/>')
+    for i, (a, b, d) in enumerate(pts):
+        f = (i + 1) / n
+        s.append(f'<circle class="rtdot" data-d="{d}" cx="{X(a):.1f}" cy="{Y(b):.1f}" '
+                 f'r="{2.2 + 1.8 * f:.1f}" style="fill:var(--ink-2)" fill-opacity="{0.2 + 0.7 * f:.2f}"/>')
     na, nb, _nd = pts[-1]
     s.append(f'<circle cx="{X(na):.1f}" cy="{Y(nb):.1f}" r="6" fill="#58a6ff" style="stroke:var(--ink)" stroke-width="1.5"/>')
     s.append('<circle id="rtmark" r="7.5" fill="none" stroke="#f0c000" stroke-width="2" style="display:none"/>')

@@ -80,16 +80,20 @@ def mini_rrg_card(full_tail, den: str = "Nifty 500", *, tail_label: str = "",
     p.append(f'<text x="{R - 4}" y="{T + 10}" style="fill:var(--ink-3)" font-size="7" text-anchor="end">leading</text>')
     p.append(f'<text x="{R - 4}" y="{B - 4}" style="fill:var(--ink-3)" font-size="7" text-anchor="end">weakening</text>')
     p.append(f'<text x="{L + 4}" y="{B - 4}" style="fill:var(--ink-3)" font-size="7">lagging</text>')
-    # comet tail (older = fainter/smaller), then today's dot on top
+    # comet tail (older = fainter/thinner/smaller → recent brighter/thicker), today on top
     if len(seg) >= 2:
-        poly = " ".join(f"{mx(d['rs_ratio']):.1f},{my(d['rs_momentum']):.1f}" for d in seg)
-        p.append(f'<polyline points="{poly}" fill="none" style="stroke:{col}" stroke-opacity="0.30" '
-                 'stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>')
         n = len(seg)
+        # per-segment lines that fade IN toward now, so recency reads at a glance
+        for i in range(n - 1):
+            f = (i + 1) / n
+            p.append(f'<line x1="{mx(seg[i]["rs_ratio"]):.1f}" y1="{my(seg[i]["rs_momentum"]):.1f}" '
+                     f'x2="{mx(seg[i + 1]["rs_ratio"]):.1f}" y2="{my(seg[i + 1]["rs_momentum"]):.1f}" '
+                     f'style="stroke:{col}" stroke-opacity="{0.10 + 0.55 * f:.2f}" '
+                     f'stroke-width="{0.8 + 1.6 * f:.1f}" stroke-linecap="round"/>')
         for i, d in enumerate(seg[:-1]):
             f = (i + 1) / n
             p.append(f'<circle cx="{mx(d["rs_ratio"]):.1f}" cy="{my(d["rs_momentum"]):.1f}" '
-                     f'r="{1.3 + 2.2 * f:.1f}" style="fill:{col}" fill-opacity="{0.16 + 0.5 * f:.2f}"/>')
+                     f'r="{1.2 + 2.8 * f:.1f}" style="fill:{col}" fill-opacity="{0.12 + 0.78 * f:.2f}"/>')
     p.append(f'<circle cx="{mx(cur["rs_ratio"]):.1f}" cy="{my(cur["rs_momentum"]):.1f}" r="5" '
              f'style="fill:{col};stroke:var(--bg-1)" stroke-width="1.4"/>')
     p.append('</svg>')

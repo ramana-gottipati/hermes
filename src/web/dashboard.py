@@ -6980,7 +6980,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
         f'<div class="sub">RS-Ratio &times; RS-Momentum vs {_esc(den)}, JdK-normalised ~100 — '
         'the same read as the depth panel and the full RRG '
         '(improving &rarr; leading &rarr; weakening &rarr; lagging).</div>'
-        + mini_rrg_card(idx_tail, den=den, tail_label="last ~6 months", size=180))
+        + mini_rrg_card(idx_tail, den=den, tail_label="last ~6 months", size=280))
 
     # --- Auto READ block (deterministic strings, no LLM) ---
     reads = []
