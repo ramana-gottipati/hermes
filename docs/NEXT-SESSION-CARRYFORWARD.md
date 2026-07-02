@@ -74,8 +74,17 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    all of Apr..Jun-24, not the ~2k quarter mass — `b26eafa` log) — deep PIT pledge HISTORY needs
    a per-symbol crawl (`list_shp(symbol=...)`, ~2k listings + XBRL, throttle-broken across
    nights). Only worth it for backtest depth; the live veto/filter self-heal by ~Jul-21.
-5. **C consumption wave (needs backtest first):** fold C into scoring/screener/confluence only with
-   a clean backtest, only for gate-passed symbols.
+5. **C consumption wave — BACKTEST DONE (S77b, `fe9d161`+`73e7190`), numbers now in hand:**
+   **C-BLEND 50/50 on the RISKADJ rel-gate core = new best overlay** (net Sharpe 1.32, MaxDD
+   −28.2%, Calmar 1.15, survives halves + 1.5× cost; subsumes the quality lens; hard veto/filter
+   shapes DEGRADE — full table `docs/strategy-ledger.md` § Experiment 2026-07-03). Consumption
+   design per the verdict: (a) descriptive `ca_score`/`ca_tier` column on screener/dossier
+   surfaces (nightly `capital_allocation_scores` already populates); (b) a C-blend variant on the
+   momentum surfaces. NOT a hard veto, NOT a standalone ranker. ⚠ scoring.py + momentum surfaces
+   are audit-lane-hot — kickstart-pick-verify + patch surgically.
+   ALSO VERIFY (AUD-10 residual): the post-fix momentum_scan re-run had NOT landed as of S77b
+   (log mtime 21:31 UTC = pre-fix run; no process live) — confirm `ensemble_pctile` got restated
+   under the re-ranked LOWVOL_MOM weighting before consuming momentum numbers.
 6. **XBRL Phase 3 (big, design first):** historical backfill (legacy API 2018+ / BSE deeper);
    replace Screener series symbol-by-symbol where reconciliation allows; then delete `screener.py`.
 
