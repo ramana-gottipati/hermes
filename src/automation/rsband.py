@@ -72,10 +72,12 @@ MIN_HISTORY = 504     # 2y: below this, no band verdict (the history floor)
 SLOPE_WIN = 63        # ≈3m window for the momentum/direction read
 BREAK_PERSIST = 5     # consecutive closes beyond a rail to confirm a break (≈1 week)
 BREAK_BUFFER = 0.015  # 1.5% penetration buffer (a wick must clear the rail by this)
-HURST_TREND = 0.55    # Hurst ≥ this → TRENDING (band cheap/rich read suppressed)
+TREND_R2 = 0.60       # log-trend R² ≥ this (with meaningful drift) → TRENDING (band suppressed)
+TREND_DRIFT_MIN = 0.15  # min |end-to-end log drift| over the window to call it TRENDING
 
 BAND_STATES = ("INSIDE", "TOUCH_SUP", "TOUCH_RES", "BREAKOUT_UP", "BREAKDOWN_DN")
 REGIMES = ("MEAN_REVERTING", "TRENDING")
+LANE_OFFSETS = (0, 63, 126, 252, 378, 504)   # today · 3m · 6m · 12m · 18m · 24m (trading days)
 
 
 # ── pure math (operate on a ratio series, oldest → newest) ────────────────────
@@ -143,37 +145,26 @@ def _poc_value_area(vals: list[float], bins: int = POC_BINS,
     return poc, lo + lo_b * w, lo + (hi_b + 1) * w
 
 
-def _hurst(series: list[float]) -> Optional[float]:
-    """Diffusion-exponent Hurst on the LOG levels: regress log(std of k-step
-    differences) on log(k). ~0.5 = random walk; >0.55 = trending/persistent;
-    <0.5 = mean-reverting. Stabler than R/S. None if too short."""
+def _trend_fit(series: list[float]) -> tuple[Optional[float], Optional[float]]:
+    """Linear fit of log(level) vs time. Returns (r2, drift): r2 = fraction of
+    variance explained by a straight log-trend, drift = end-to-end log change.
+    High r2 + meaningful |drift| = a structural trend (re-rating) → the band
+    cheap/rich read is suppressed. This replaces a Hurst gate: on daily RS ratios
+    Hurst sees only short-lag diffusion (~0.5 for everything) and cannot separate a
+    multi-year re-rating (Defence R²0.82) from a range-bound series (Bank R²0.01) —
+    trend-R² can. (Calibrated on real sector RS, 2026-06-23.)"""
     lts = [math.log(x) for x in series if x and x > 0]
     n = len(lts)
-    if n < 200:
-        return None
-    xs, ys = [], []
-    for k in (1, 2, 4, 8, 16, 32, 64):
-        if k >= n // 4:
-            break
-        diffs = [lts[i + k] - lts[i] for i in range(n - k)]
-        if len(diffs) < 20:
-            continue
-        m = sum(diffs) / len(diffs)
-        sd = (sum((d - m) ** 2 for d in diffs) / len(diffs)) ** 0.5
-        if sd <= 0:
-            continue
-        xs.append(math.log(k))
-        ys.append(math.log(sd))
-    if len(xs) < 3:
-        return None
-    nn = len(xs)
-    sx, sy = sum(xs), sum(ys)
-    sxx = sum(x * x for x in xs)
-    sxy = sum(xs[i] * ys[i] for i in range(nn))
-    den = nn * sxx - sx * sx
-    if abs(den) < 1e-12:
-        return None
-    return (nn * sxy - sx * sy) / den
+    if n < 60:
+        return None, None
+    mx = (n - 1) / 2.0
+    my = sum(lts) / n
+    sxx = sum((i - mx) ** 2 for i in range(n))
+    sxy = sum((i - mx) * (lts[i] - my) for i in range(n))
+    syy = sum((y - my) ** 2 for y in lts)
+    if sxx <= 0 or syy <= 0:
+        return None, None
+    return (sxy * sxy) / (sxx * syy), lts[-1] - lts[0]
 
 
 def _break_state(vals: list[float], band_pct: Optional[float]) -> str:
@@ -236,8 +227,10 @@ def compute_one(ratio: list[float]) -> Optional[dict]:
 
     poc, val, vah = _poc_value_area(vals[-W_LONG:] if n > W_LONG else vals)
 
-    h = _hurst(vals)
-    regime = "TRENDING" if (h is not None and h >= HURST_TREND) else "MEAN_REVERTING"
+    tr2, tdrift = _trend_fit(win)        # over the same band window as the percentile
+    regime = ("TRENDING" if (tr2 is not None and tr2 >= TREND_R2
+                             and tdrift is not None and abs(tdrift) >= TREND_DRIFT_MIN)
+              else "MEAN_REVERTING")
 
     # detrended twin — percentile on the Mansfield-detrended series (reuse rrg)
     band_pct_detr = None
@@ -268,7 +261,8 @@ def compute_one(ratio: list[float]) -> Optional[dict]:
         "rs_alltime_low": _fin(min(vals)),
         "rs_band_width_pct": _fin(round(width, 1)) if width is not None else None,
         "rs_regime": regime,
-        "rs_hurst": _fin(round(h, 3)) if h is not None else None,
+        "rs_trend_r2": _fin(round(tr2, 3)) if tr2 is not None else None,
+        "rs_trend_drift": _fin(round(tdrift, 3)) if tdrift is not None else None,
         "rs_band_state": state,
         "slope_3m_pct": _fin(round(slope_3m, 2)) if slope_3m is not None else None,
         "band_maturity": "full" if n >= W_PRIMARY else "provisional",
@@ -284,7 +278,8 @@ def slope_dir(slope_3m_pct: Optional[float]) -> str:
 
 def band_verdict(band_pct: Optional[float], regime: str, slope_3m_pct: Optional[float],
                  band_state: Optional[str] = None,
-                 falls_less: Optional[bool] = None) -> tuple[str, str]:
+                 falls_less: Optional[bool] = None,
+                 trend_drift: Optional[float] = None) -> tuple[str, str]:
     """The fused, rule-based verdict (design doc §3). band-position is NEVER a
     standalone trigger — it is crossed with regime, direction, and (optionally)
     the down-capture 'falls-less' veto. Returns (verdict, one-line reason)."""
@@ -295,7 +290,14 @@ def band_verdict(band_pct: Optional[float], regime: str, slope_3m_pct: Optional[
     if band_pct is None:
         return "n/a", "insufficient history for a band read"
     if regime == "TRENDING":
-        return "Trend", "trending regime — band read not valid; follow the trend"
+        # direction is the MULTI-YEAR drift (the structural trend), not the 3m wiggle —
+        # a de-rater bouncing short-term is still a de-rater. Fall back to slope if drift unknown.
+        td = trend_drift if trend_drift is not None else (slope_3m_pct or 0.0) / 100.0
+        if td > 0:
+            return "Ride", "structural uptrend (re-rating) — ride it, don't fade the band"
+        if td < 0:
+            return "Avoid", "structural downtrend (de-rating) — its 'cheap' is a trap"
+        return "Trend", "trending — band read secondary; follow the trend"
     d = slope_dir(slope_3m_pct)
     if band_pct <= 20:
         if d == "down":
@@ -334,7 +336,8 @@ CREATE TABLE IF NOT EXISTS rsband_signals (
     rs_alltime_low    REAL,
     rs_band_width_pct REAL,
     rs_regime         TEXT,
-    rs_hurst          REAL,
+    rs_trend_r2       REAL,
+    rs_trend_drift    REAL,
     rs_band_state     TEXT,
     slope_3m_pct      REAL,
     band_maturity     TEXT,
@@ -351,7 +354,7 @@ _COLS = [
     "rs_band_low", "rs_band_mid", "rs_band_high",
     "rs_poc", "rs_val", "rs_vah",
     "rs_alltime_high", "rs_alltime_low", "rs_band_width_pct",
-    "rs_regime", "rs_hurst", "rs_band_state", "slope_3m_pct",
+    "rs_regime", "rs_trend_r2", "rs_trend_drift", "rs_band_state", "slope_3m_pct",
     "band_maturity", "rs_band_label",
 ]
 
@@ -470,8 +473,57 @@ def band_one(numerator: str, denominator: str, conn=None) -> Optional[dict]:
         res["numerator"], res["denominator"] = numerator, denominator
         res["trade_date"] = dates[-1] if dates else None
         v, why = band_verdict(res["rs_band_pct"], res["rs_regime"],
-                              res["slope_3m_pct"], res["rs_band_state"])
+                              res["slope_3m_pct"], res["rs_band_state"],
+                              trend_drift=res["rs_trend_drift"])
         res["verdict"], res["verdict_why"] = v, why
+        return res
+    finally:
+        if own:
+            cm.__exit__(None, None, None)
+
+
+def lane_from_series(ratio: list[float], last_date=None) -> Optional[dict]:
+    """The lane payload for ANY RS series (oldest → newest): full current metrics
+    PLUS the point-in-time band_pct journey (today / 3 / 6 / 12 / 18 / 24m ago, per
+    LANE_OFFSETS) and the POC as a band-position (0–100). Series-driven so it serves
+    both index lanes (from ratio_rows) and on-read constituent-stock lanes (RS built
+    from bhavcopy ÷ benchmark). Verdict is NOT fused here (the caller joins capture)."""
+    vals = [v for v in ratio if v is not None and v > 0]
+    res = compute_one(vals)
+    if not res:
+        return None
+    n = len(vals)
+    win0 = vals[-W_PRIMARY:] if n >= W_PRIMARY else vals
+    w0 = _decay_weights(len(win0))
+    path = []
+    for off in LANE_OFFSETS:
+        idx = n - 1 - off
+        if idx < MIN_HISTORY:                     # not enough history that far back
+            path.append(None)
+            continue
+        sub = vals[:idx + 1]
+        win = sub[-W_PRIMARY:] if len(sub) >= W_PRIMARY else sub
+        p = _weighted_percentile(win, _decay_weights(len(win)), sub[-1])
+        path.append(round(p, 1) if p is not None else None)
+    poc_pct = (_weighted_percentile(win0, w0, res["rs_poc"])
+               if res.get("rs_poc") is not None else None)
+    res["trade_date"] = last_date
+    res["band_path"] = path
+    res["rs_poc_pct"] = round(poc_pct, 1) if poc_pct is not None else None
+    return res
+
+
+def band_lane(numerator: str, denominator: str, conn=None) -> Optional[dict]:
+    """lane_from_series for one (numerator, denominator) pair already in ratio_rows."""
+    own = conn is None
+    if own:
+        cm = get_conn()
+        conn = cm.__enter__()
+    try:
+        dates, ratio = _series(conn, numerator, denominator)
+        res = lane_from_series(ratio, dates[-1] if dates else None)
+        if res:
+            res["numerator"], res["denominator"] = numerator, denominator
         return res
     finally:
         if own:
@@ -511,13 +563,13 @@ def _selftest() -> None:
     assert r is not None, "compute_one returned None on a long series"
     assert 0 <= r["rs_band_pct"] <= 100, f"band_pct out of range: {r['rs_band_pct']}"
     assert r["rs_band_low"] <= r["rs_band_mid"] <= r["rs_band_high"], "rails not ordered"
-    assert r["rs_regime"] == "MEAN_REVERTING", f"expected MEAN_REVERTING, got {r['rs_regime']} (H={r['rs_hurst']})"
+    assert r["rs_regime"] == "MEAN_REVERTING", f"expected MEAN_REVERTING, got {r['rs_regime']} (R2={r['rs_trend_r2']})"
     assert r["rs_val"] <= r["rs_poc"] <= r["rs_vah"], "value area does not bracket POC"
 
     # 2) Trending series: regime TRENDING (the IT/Defence re-rating case).
     tr = compute_one(_synthetic_trend())
     assert tr is not None
-    assert tr["rs_regime"] == "TRENDING", f"expected TRENDING, got {tr['rs_regime']} (H={tr['rs_hurst']})"
+    assert tr["rs_regime"] == "TRENDING", f"expected TRENDING, got {tr['rs_regime']} (R2={tr['rs_trend_r2']})"
 
     # 3) A fresh all-time high reached on momentum + persistence → BREAKOUT_UP.
     base = _synthetic_meanrevert(800)
@@ -533,7 +585,10 @@ def _selftest() -> None:
     assert band_verdict(10, "MEAN_REVERTING", 3.0, "TOUCH_SUP", True)[0] == "Accumulate"
     assert band_verdict(10, "MEAN_REVERTING", -3.0, "TOUCH_SUP")[0] == "Avoid"
     assert band_verdict(90, "MEAN_REVERTING", -3.0, "TOUCH_RES")[0] == "Fade"
-    assert band_verdict(8, "TRENDING", -3.0)[0] == "Trend", "trending must suppress the cheap/rich verdict"
+    assert band_verdict(8, "TRENDING", -3.0)[0] == "Avoid", "trending-down at a low must read de-rating, not a mean-revert 'cheap'"
+    assert band_verdict(8, "TRENDING", 3.0)[0] == "Ride", "trending-up must read re-rating (ride), not 'cheap'/fade"
+    assert band_verdict(40, "TRENDING", 3.0, trend_drift=-0.5)[0] == "Avoid", "structural downtrend overrides a 3m bounce (the Media case)"
+    assert band_verdict(95, "TRENDING", -1.0, trend_drift=1.0)[0] == "Ride", "structural uptrend rides through a 3m dip"
     assert band_verdict(50, "MEAN_REVERTING", 0.0, "BREAKOUT_UP")[0] == "Ride"
     print("rsband selftest: OK (synthetic)")
 
