@@ -413,7 +413,7 @@ def _controls(den: str, view: str = "lanes") -> str:
 
 def _empty() -> str:
     return ('<h2>RS support &amp; resistance — sectors</h2>'
-            '<div class="card"><div class="sub">No band data yet — needs <code>ratio_rows</code>. '
+            '<div class="card" style="max-width:560px"><div class="sub">No band data yet — needs <code>ratio_rows</code>. '
             'Run <code>python -m src.automation.rsband</code> after the signal chain.</div></div>')
 
 
@@ -431,7 +431,7 @@ def render_band_lanes(den: str = "Nifty 500", view: str = "lanes", conn=None,
             rrg_block = render_sectors_map(den, conn=conn, months=months,
                                            tail_base="/dash/rsband", tail_view="rrg")
             return (_controls(den, "rrg") + (rrg_block or
-                    '<div class="card"><div class="sub">No rotation data yet — '
+                    '<div class="card" style="max-width:560px"><div class="sub">No rotation data yet — '
                     'run the nightly RRG job.</div></div>'))
         data = _lane_data(den, conn)
     if not data:
@@ -912,7 +912,7 @@ def render_constituents(index_name: str, conn, vs: str = "broad") -> str:
             f'<div style="margin:6px 0">{_vs_pills(index_name, vs)}</div>')
     data = _constituent_data(index_name, conn, vs)
     if not data:
-        return (head + '<div class="card"><div class="sub">No constituent band data — membership '
+        return (head + '<div class="card" style="max-width:560px"><div class="sub">No constituent band data — membership '
                 'or price history is missing for this index.</div></div>')
     return (head + _chart_block(data)
             + _table(data, ben_label,
