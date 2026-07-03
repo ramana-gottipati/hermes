@@ -5863,6 +5863,12 @@ def dash_stock(sym: str = Query("", max_length=20),
                 (sym,)).fetchone()
         except Exception:
             pscore = None
+        try:  # capital-allocation (C) — descriptive dossier fact, latest per symbol (S77b consumption)
+            ca = conn.execute(
+                "SELECT ca_score, ca_tier FROM capital_allocation_scores WHERE symbol=? "
+                "ORDER BY as_of DESC LIMIT 1", (sym,)).fetchone()
+        except Exception:
+            ca = None
         try:
             cpr_by_tf = _cpr_latest_by_tf(conn, [sym]).get(sym, {})   # CPR Structure panel (D53)
         except Exception:
@@ -6229,6 +6235,8 @@ def dash_stock(sym: str = Query("", max_length=20),
         tier_line = ""
         if tier:
             tier_line = f'<span class="pill p-SS">{_esc(tier)}</span> NS {_num(ns,1) if ns is not None else "—"}'
+        ca_sc = _num(ca["ca_score"], 0) if (ca and ca["ca_score"] is not None) else "—"
+        ca_ti = _esc(ca["ca_tier"]) if (ca and ca["ca_tier"]) else "—"
         pt14_html = f"""
 <h2>Quality — patearn (pt14) {tier_line}</h2>
 <div class="sub">Cached fundamentals snapshot. Run <code>/pt14 {_esc(sym)}</code> for the full 14-pattern breakdown.</div>
@@ -6245,8 +6253,11 @@ def dash_stock(sym: str = Query("", max_length=20),
     <td class="mut">D/E</td><td>{fv('debt_to_equity')}</td></tr>
 <tr><td class="mut">Promoter</td><td>{fv('promoter_holding','%')}</td>
     <td class="mut">Pledge</td><td>{fv('promoter_pledge','%')}</td></tr>
+<tr><td class="mut">Cap-alloc (C)*</td><td>{ca_sc}</td>
+    <td class="mut">C-tier</td><td>{ca_ti}</td></tr>
 </tbody>
 </table>
+<div class="sub" style="font-size:11px;margin-top:2px">*Capital-allocation (C): ROIIC / ROCE level+trend / dilution / debt-funding composite (0-100) + cross-sectional tier. Descriptive; derived from Screener.in fundamentals, migrating to BSE/NSE XBRL (primary-source policy).</div>
 </div>
 """
     else:
