@@ -222,7 +222,7 @@ svg{display:block;width:100%;height:230px}
     </div>
   </div>
   <div class="ribbon">
-    <span><b>✓</b> No look-ahead — every input filed before the as-of date</span>
+    <span><b>✓</b> No look-ahead — every input modelled available (+90d) before the as-of date</span>
     <span><b>✓</b> Point-in-time fundamentals (report_date gated)</span>
     <span><b>✓</b> Walk-forward validated technical engine</span>
     <span id="idxnote"></span>
@@ -307,10 +307,10 @@ function renderHero(h,i){
     '<td class="val'+(neg?' neg':'')+'">'+fmt(l.value, Math.abs(l.value)<100?2:0)+'</td>'+
     '<td class="ok">✓ before</td></tr>';});
   lg.innerHTML='<h3>the no-look-ahead ledger</h3>'+
-    '<div class="cap">Every fundamental input the score consumed, with the date it was actually <b>filed</b>. '+
-    'The score on '+dlabel(h.as_of)+' could only see results reported on or before that day — note the ~90-day '+
-    'reporting lag on each annual. <b>Nothing here was knowable in hindsight.</b></div>'+
-    '<table><thead><tr><th>Metric</th><th>Period end</th><th>Filed (report_date)</th><th>Lag</th><th>Value</th><th>vs as-of</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<div class="cap">Every fundamental input the score consumed, with its <b>modeled availability date</b> — period-end plus a conservative ~90-day lag (a lower bound on when the result was public, not the exact filing date). '+
+    'The score on '+dlabel(h.as_of)+' could only see results whose modeled availability was on or before that day — the ~90-day '+
+    'reporting lag on each annual is deliberately conservative. <b>Nothing here was knowable in hindsight.</b></div>'+
+    '<table><thead><tr><th>Metric</th><th>Period end</th><th>Modeled avail. (+90d)</th><th>Lag</th><th>Value</th><th>vs as-of</th></tr></thead><tbody>'+rows+'</tbody></table>';
   root.appendChild(lg);
 
   // --- story chart ---
