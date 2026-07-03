@@ -64,7 +64,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** reconcile — restore/commit the CLI that implements `--universe/--workers/--include-covered`, or rewrite the unit to the committed CLI; add a check that every ExecStart parses against the module's argparse.
 - **Effort:** S | **Verdict:** CONFIRMED (P0, live-broken).
 
-**AUD-04 [P0] Trust front-door /dash/coverage: 4.1s every request, 29–38s under 6-way concurrency (+ memo, + /v1 coverage/health share the fix)** — `DONE S77 (c948c3f), deployed+measured` (in-process memoization of coverage_snapshot + lag_audit in provenance.py, keyed on MAX(trade_date)+600s TTL, single-worker-safe, selftest-safe via falsy-key bypass. **Live: 30s-timeout/16s/4.3s → 3.6s cold then 0.47s warm; 12@P6 29-38s→20.7s.** Residual: cache-stampede lock for concurrent cold hits + optional nightly pre-warm to kill the 3.6s first-hit; <100ms would need caching provenance_narrative/render too)
+**AUD-04 [P0] Trust front-door /dash/coverage: 4.1s every request, 29–38s under 6-way concurrency (+ memo, + /v1 coverage/health share the fix)** — `DONE S77 (c948c3f), deployed+measured` (in-process memoization of coverage_snapshot + lag_audit in provenance.py, keyed on MAX(trade_date)+600s TTL, single-worker-safe, selftest-safe via falsy-key bypass. **Live: 30s-timeout/16s/4.3s → 3.6s cold then 0.47s warm; 12@P6 29-38s→20.7s.** Residual CLOSED by the parallel lane (`a207c99`, S77b): `lag_samples` was the LAST uncached trust read — provenance_narrative ran its 29k-row point-query N+1 per view (measured warm 0.47s; 6-way 10.7s/req) → third cache, same key+TTL pattern. **Live after: warm 7-8ms, 6-way concurrent 42-51ms/req, public via Caddy 0.21s — <100ms target BEATEN.** Remaining (P3): optional nightly pre-warm for the once-a-day ~3.7s cold hit + stampede lock)
 - **Component:** coverage_view + provenance snapshot | **Reporters:** perf-trust (page P0 + lag-audit P1 + memo, all CONFIRMED); v1-api-contract's /v1 variant was REFUTED as P0 (threadpool + measured 3.07s, no hang) but its residual P2 (uncached 3s health probe) is covered by this same fix.
 - **Files:** `src/web/coverage_view.py:530,580,658,722-736`, `src/automation/provenance.py:743-1084,857-908`, `src/api/v1/resources.py:32-34`.
 - **Evidence digest:** `coverage_snapshot(conn)` per request, zero caching/ETag; `COUNT(DISTINCT symbol)` over 9.5M-row `bhavcopy_rows` **twice** (bhav_eq+bhav_delivery share the table; stock_signals also double-scanned); the 29,201-row N+1 lag audit into research.db runs **three times** per page view (snapshot → narrative recompute → lag_samples) though `snap` already holds the results; memo recomputes everything again (3.1s). Measured 4.12-4.14s ×3; 12 reqs @P6 = 29.4-38.7s.
@@ -231,7 +231,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** on `status==critical`, Telegram DM via the existing bot token (tracker_alerts path); `OnFailure=hermes-alert@%n.service` on every ingest unit; align the memo text with what ships.
 - **Effort:** S | **Verdict:** CONFIRMED (corrected P1).
 
-**AUD-27 [P1] Scheduler core exists only as unversioned VPS files — 13-step signals chain, pt14batch, deals unrecoverable from git** — `OPEN`
+**AUD-27 [P1] Scheduler core exists only as unversioned VPS files — 13-step signals chain, pt14batch, deals unrecoverable from git** — `DONE 05e25ec (S77b)`: all 26 live hermes*/nous-hermes* units + drop-ins (incl. the bhavcopy chain, api bind override, both backup stacks) captured VERBATIM into `scripts/systemd/vps-live/`; `scripts/install-systemd.sh` = idempotent install + `--check` drift gate (exits 1 on repo↔etc divergence, flags UNCAPTURED live-only files; never enables/starts — AUD-95-safe). Verified: post-install `--check` clean.
 - **Component:** scheduling change-control | **Reporters:** timer-topology + api-src (both CONFIRMED) — merged.
 - **Files:** VPS `/etc/systemd/system/hermes-bhavcopy.service.d/{10-signals,20-rsdepth,30-fnooi,40-participant,50-accumscreen}.conf`; VPS-only `hermes-pt14batch.*`, `hermes-deals.*`; `scripts/setup-news.sh:68-95` writes only the bare bhavcopy unit; `docs/mep-strategy-design.md:65` admits the chain is VPS-managed.
 - **Evidence digest:** rebuild-from-git silently drops the platform's entire signal/RS/OI computation, pt14 scoring and deals ingest; no repo-based reviewer can even see the real schedule.
@@ -252,14 +252,14 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** `After=hermes-bhavcopy.service` on dependents + a cheap freshness gate (abort if `MAX(trade_date)` older than expected) in each consumer; chain capital-allocation `After=hermes-fundamentals-xbrl.service`.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-30 [P1] Persistent-timer catch-up storm on restart/boot, colliding with hermes-api startup (observed live 2026-07-02 12:17)** — `OPEN`
+**AUD-30 [P1] Persistent-timer catch-up storm on restart/boot, colliding with hermes-api startup (observed live 2026-07-02 12:17)** — `MOSTLY DONE 05e25ec (S77b)`: `RandomizedDelaySec=300` on all 20 Persistent hermes timers (300 not 900 — preserves the nightly chain's 15-min spacing). RESIDUAL: no flock/serialization slice yet; setup-news.sh untouched (banned anyway, AUD-28).
 - **Component:** scheduling concurrency | **Reporter:** timer-topology.
 - **Files:** `scripts/setup-news.sh:214,226` (restarts api then immediately starts the 8-min bhavcopy chain); 11+ committed timers `Persistent=true`; zero flock/RandomizedDelaySec anywhere.
 - **Evidence digest:** journal shows 4 timers started the same second while hermes-api flapped 4×; after a real reboot all Persistent timers + VPS-only units fire simultaneously into the DBs while uvicorn boots — the D82 outage class, only partially mitigated by tolerant init.
 - **Fix:** `RandomizedDelaySec=300-900` on Persistent timers; a shared serialization slice or flock wrapper for DB-writing jobs; make setup-news.sh start bhavcopy only outside api restart windows.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-31 [P1] Hung job blocks all future runs: infinite start timeout, no RuntimeMaxSec on any unit (posture rests on a factually wrong comment)** — `OPEN`
+**AUD-31 [P1] Hung job blocks all future runs: infinite start timeout, no RuntimeMaxSec on any unit (posture rests on a factually wrong comment)** — `DONE 05e25ec (S77b)`: `TimeoutStartSec` (the correct knob for the all-oneshot fleet — RuntimeMaxSec is ignored for oneshot, per the 5f30d95 lesson) on every ingest unit via 90-hardening.conf drop-ins: default 30min; bhavcopy 2h, concall-capture 3h, momentum/concalls/fundamentals-xbrl/backup/theme-seed 1h. db-backup already tuned by its own lane.
 - **Component:** scheduling timeout policy | **Reporter:** timer-topology.
 - **Files:** `scripts/hermes-concall-capture.service:5-10` (comment misclaims a ~90s oneshot default kill — oneshot start timeout is disabled by default); zero `RuntimeMaxSec`/`WatchdogSec` across all units.
 - **Evidence digest:** one wedged NSE fetch leaves a unit "activating" forever; systemd silently skips every subsequent fire — a daily ingest stops permanently until someone notices.
@@ -285,7 +285,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** `PermitRootLogin prohibit-password`, `PasswordAuthentication no` (key-only — the laptop key already works), sudo user, fail2ban sshd jail. **Verify key login in a second SSH session before closing the first.**
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-35 [P1] Both public-facing daemons and all ingest units run as root with zero sandboxing** — `OPEN`
+**AUD-35 [P1] Both public-facing daemons and all ingest units run as root with zero sandboxing** — `SANDBOX DONE 05e25ec (S77b), User= migration open`: NoNewPrivileges + PrivateTmp + ProtectHome + ProtectSystem=strict + ReadWritePaths=/opt/hermes /var/log on all hermes services incl. api+telegram (nous/docker units excluded — docker-socket trust domain). Verified live: daemons restarted under sandbox (routes 200, guard intact); data-quality + backup ran sandboxed end-to-end. RESIDUAL: dedicated unprivileged user needs a chown window for the root-owned DBs — do NOT flip User= casually.
 - **Component:** systemd hardening | **Reporter:** sec-ops.
 - **Files:** `scripts/setup-news.sh:197-204` (hermes-api, no User=), `scripts/vps-bootstrap.sh:93` (User=root); zero NoNewPrivileges/ProtectSystem/PrivateTmp anywhere.
 - **Fix:** dedicated unprivileged user; `NoNewPrivileges=yes`, `ProtectSystem=strict`, `PrivateTmp=yes`, `ProtectHome=yes`, `ReadWritePaths=/opt/hermes/data`; roll out unit-by-unit with a writer-safe restart each.
@@ -324,7 +324,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** add compiler+route+explain+hallucination evals to the deploy gate and a nightly timer alerting on fails; run the accuracy layer against the prod DB; fix the Windows charmap crash in the skip printer.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-41 [P1] Stock dossier carries zero sector-state context and no link to any index surface** — `OPEN`
+**AUD-41 [P1] Stock dossier carries zero sector-state context and no link to any index surface** — `DONE S77 (deployed+verified, incl. AUD-77)` (dashboard.py RS tab: descriptive "Sector context" block — stock's own rs_phase (AUD-77) + sector's rs_phase (index_signals identity join, COLLATE NOCASE) + links to /dash/rrg?idx= and /dash/sector-momentum. Live: WIPRO→HEADWIND·Nifty IT→HEADWIND, ZYDUSLIFE→ROLLING-OVER·Nifty Healthcare→TAILWIND. Descriptive-only C10; fail-safe; dossier intact. D80 append-only patch)
 - **Component:** dossier ↔ index linkage | **Reporter:** linkage.
 - **Files:** `src/web/dashboard.py:6244-6248` (sector = plain text), `:6593-6608` (8 verdict tiles, none sector-level); data all exists (`index_signals.rs_phase`, rs_extras quadrant, capture_signals); `nav_links.index_link()` exists unused.
 - **Fix:** add a "Sector context" tile (sector rs_phase pill + RRG quadrant + capture quadrant — one query each on primary_sector); hyperlink the sector name to `/dash/index?idx=` with siblings to `/dash/sector-momentum` and `/dash/rrg?idx=`. Surgical D80-style patch — dashboard.py is frozen-contended; append-only + import-test.
