@@ -14,6 +14,7 @@ Strangler-fig: it consumes the existing modules read-only via resources.py; it r
 """
 from __future__ import annotations
 
+import logging
 from time import monotonic
 from uuid import uuid4
 
@@ -23,6 +24,8 @@ from fastapi.responses import JSONResponse
 from src.api.v1.routes import router
 from src.api.v1 import envelope as E
 from src.api.v1.metering import record_usage
+
+log = logging.getLogger("hermes.v1")
 
 __all__ = ["build_app"]
 
@@ -61,9 +64,15 @@ def build_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def _any_problem(request: Request, exc: Exception):
+        # AUD-36: str(exc) went to the CLIENT verbatim (sqlite paths / SQL fragments on an
+        # internet-facing surface). Full detail now stays server-side keyed by request id;
+        # the client gets a generic detail + the id to quote.
         rid = getattr(request.state, "request_id", None)
+        log.exception("v1 unhandled error request_id=%s path=%s", rid, request.url.path)
         return JSONResponse(status_code=500,
-                            content=E.problem(500, "internal error", str(exc), request_id=rid),
+                            content=E.problem(500, "internal error",
+                                              "unexpected error — quote this request id when reporting",
+                                              request_id=rid),
                             media_type="application/problem+json")
 
     app.include_router(router)

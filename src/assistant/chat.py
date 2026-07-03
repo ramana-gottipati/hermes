@@ -18,11 +18,15 @@ The combination caps Telegram message cost at roughly $0.001-$0.005 even on
 long threads, vs the ~$0.30/turn that long threads cost without these fixes.
 """
 
+import logging
+
 from anthropic import APIError
 
 from src.assistant import conversations
 from src.core.llm import client, first_text
 from src.core.settings import settings
+
+log = logging.getLogger("hermes.chat")
 
 # Keep the last 30 messages (15 turns) in the LLM context. Older messages stay
 # in the DB but stop being replayed. Tune up if Hermes needs longer memory; tune
@@ -167,8 +171,13 @@ def handle(message: str, *, conversation_id: int | None = None, fast: bool = Fal
             messages=api_messages,
         )
     except APIError as e:
+        # AUD-36: e.message went to the client verbatim (account/quota/internal detail,
+        # relayed to Telegram AND the /chat HTTP surface). Full detail stays in the log.
+        log.exception("anthropic call failed (model=%s, conversation_id=%s): %s",
+                      model, conversation_id, e.message)
         return {
-            "reply": f"LLM call failed: {e.message}",
+            "reply": "The model call failed — please try again in a moment. "
+                     "(The full error is in the server log.)",
             "conversation_id": conversation_id,
             "model": model,
             "stop_reason": "api_error",
