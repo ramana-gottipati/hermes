@@ -36,4 +36,13 @@ class ConversationsGuard(BaseHTTPMiddleware):
                 if not hmac.compare_digest(given, secret):
                     return JSONResponse(
                         {"detail": "missing or invalid X-Hermes-Secret"}, status_code=401)
-        return await call_next(request)
+        response = await call_next(request)
+        # Dynamic dashboard pages must never be served from a stale cache: the
+        # responses carry no ETag/Last-Modified, so a browser that cached an OLD
+        # /dash page keeps its OLD links (e.g. a Stealth card still pointing at
+        # `/dash/stocks` without `?view=stealth`) even after a deploy. Tell the
+        # browser not to store /dash HTML so a fresh page (and fresh links) always
+        # loads. (Static assets are served elsewhere and unaffected.)
+        if request.url.path.startswith("/dash"):
+            response.headers["Cache-Control"] = "no-store, must-revalidate"
+        return response
