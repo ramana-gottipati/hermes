@@ -65,7 +65,7 @@ def _scan(conn):
 
 
 # ── render ────────────────────────────────────────────────────────────────────
-def _rows(items) -> str:
+def _rows(items, tok: str = "var(--line-2)") -> str:
     if not items:
         return '<div class="sub" style="margin:6px 0 0">None on record.</div>'
     out = []
@@ -73,7 +73,10 @@ def _rows(items) -> str:
         rsi = it.get("rsi")
         rsi_txt = f' · RSI {float(rsi):.0f}' if rsi is not None else ""
         out.append(
-            f'<a class="pill" style="display:inline-flex;margin:3px" '
+            # color:var(--ink) — an anchor with no color falls back to the BROWSER default
+            # (blue), unreadable on the dark theme and wrong on both themes (S78b report).
+            f'<a class="pill" style="display:inline-flex;margin:3px;color:var(--ink);'
+            f'border-color:{tok}" '
             f'href="/dash/momentum?sym={quote_plus(str(it["name"]))}">'
             f'{_esc(_short(it["name"]))}<span style="opacity:.6">{rsi_txt} · '
             f'{_esc(it.get("date"))}</span></a>')
@@ -86,7 +89,7 @@ def _column(title: str, tok: str, gloss: str, items) -> str:
         f'<div class="h2" style="margin:0 0 2px;color:{tok}">{title} '
         f'<span style="opacity:.55;font-weight:400">({len(items)})</span></div>'
         f'<div class="sub" style="margin:0">{gloss}</div>'
-        f'{_rows(items)}</div>')
+        f'{_rows(items, tok)}</div>')
 
 
 def _extremes_html(conn) -> str:

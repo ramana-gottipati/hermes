@@ -133,7 +133,8 @@ def _picker(conn) -> str:
         return ('<div class="card"><div class="h2" style="margin:0 0 4px">Sector momentum</div>'
                 '<div class="sub" style="margin:0">No sector constituents with RSI-of-RS yet.</div></div>')
     chips = "".join(
-        f'<a class="pill" style="margin:3px" href="/dash/sector-momentum?idx={quote_plus(str(s))}">'
+        f'<a class="pill" style="margin:3px;color:var(--ink)" '
+        f'href="/dash/sector-momentum?idx={quote_plus(str(s))}">'
         f'{_esc(_short(s))} <span style="opacity:.55">{c}</span></a>' for s, c in rows)
     return ('<div class="card"><div class="h2" style="margin:0 0 2px">Sector momentum drill</div>'
             '<div class="sub" style="margin:0 0 6px">Pick a sector to see which constituents drive '

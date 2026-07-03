@@ -75,7 +75,8 @@ def _stock_chips(items) -> str:
         prev_l = _esc(_short(r["prev"] or "—").split(" ")[-1])
         now_l = _esc(_short(r["now"] or "—").split(" ")[-1])
         out.append(
-            f'<a class="pill" style="display:inline-flex;margin:3px" '
+            # color:var(--ink): theme-following; without it anchors render browser-default blue
+            f'<a class="pill" style="display:inline-flex;margin:3px;color:var(--ink)" '
             f'href="/dash/momentum?sym={quote_plus(str(r["sym"]))}">'
             f'<b>{_esc(r["sym"])}</b><span style="opacity:.7"> '
             f'{prev_l}→<span style="color:{pcol}">{now_l}</span>{rk}{_rsi_txt(r.get("rsi"))}'
@@ -91,7 +92,7 @@ def _sector_chips(items) -> str:
         rsi = x.get("rsi")
         rt = f' · RSI {float(rsi):.0f}' if rsi is not None else ""
         out.append(
-            f'<a class="pill" style="display:inline-flex;margin:3px" '
+            f'<a class="pill" style="display:inline-flex;margin:3px;color:var(--ink)" '
             f'href="/dash/sector-momentum?idx={quote_plus(str(x["name"]))}">'
             f'{_esc(_short(x["name"]))}<span style="opacity:.6">{rt} · {_esc(x.get("date"))}</span></a>')
     return f'<div style="line-height:2">{"".join(out)}</div>'
