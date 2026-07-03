@@ -290,9 +290,12 @@ JOIN to the nightly `capital_allocation_scores` (missing C → neutral 50th pcti
 645/707), with a bold **C-blend** column and a descriptive note citing these numbers. A DESCRIPTIVE
 tilt only — not a veto/filter/ranker. Verified live: the blend reorders the top (WELCORP/MCX/BSE/
 SOLARINDS/APARINDS rise on strong capital allocation vs the raw-RISKADJ order HFCL/BLISSGVS/BAJAJCON).
-Pinned by `tests/test_momentum_cblend.py`. Part (a): the descriptive `ca_tier` was already on that
-surface; extending an `ca_score`/`ca_tier` column to the broader screener (screen2) + stock dossier
-is the open remainder of queue #5.
+Pinned by `tests/test_momentum_cblend.py`. **Part (a) LIVE too:** the descriptive C column shipped on
+the wide screener — Screen+ `cap-alloc · C` group (`ca_score` + `ca_tier`) + glossary (`13db67a`) —
+and on the stock dossier — `/dash/stock` pt14 card `Cap-alloc (C)` score + C-tier (`cf2a8cb`), both
+descriptive with the standard Screener→XBRL source disclosure. **Queue #5 is CLOSED end-to-end**
+(descriptive columns + the C-blend momentum tilt); the only open thread is a passive re-check of the
+live blend vs the recorded numbers once a few weeks of nightly `ca_pctile` history accrue.
 
 ---
 
