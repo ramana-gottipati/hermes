@@ -6402,6 +6402,38 @@ def dash_stock(sym: str = Query("", max_length=20),
         momentum_html = _mompane.card_html(sym)
     except Exception:  # noqa: BLE001
         momentum_html = ""
+    # AUD-41/77: descriptive sector-state context on the dossier — the stock's OWN RS phase +
+    # its sector's RS phase (index_signals, identity join on primary_sector), with links into
+    # the sector's index surfaces. Phase is a LABEL only (descriptive, never a gate/ranker —
+    # C10). Fail-safe to '' so it can never break this sacred page.
+    sector_ctx_html = ""
+    try:
+        from urllib.parse import quote_plus as _qp
+        _secn = L.get("primary_sector")
+        with get_conn() as _cx:
+            _sp = _cx.execute("SELECT rs_phase FROM stock_signals WHERE symbol=? AND rs_phase IS NOT NULL "
+                              "ORDER BY trade_date DESC LIMIT 1", (sym,)).fetchone()
+            _stock_phase = _sp[0] if _sp else None
+            _sec_phase = None
+            if _secn:
+                _ip = _cx.execute("SELECT rs_phase FROM index_signals WHERE index_name=? COLLATE NOCASE "
+                                  "AND rs_phase IS NOT NULL ORDER BY trade_date DESC LIMIT 1",
+                                  (_secn,)).fetchone()
+                _sec_phase = _ip[0] if _ip else None
+        if _stock_phase or _sec_phase:
+            _bits = []
+            if _stock_phase:
+                _bits.append(f'{_esc(sym)}: <span class="pill">{_esc(_stock_phase)}</span>')
+            if _secn:
+                _enc = _qp(_secn)
+                _seclink = (f'<a href="/dash/rrg?idx={_enc}">{_esc(_secn)}</a> '
+                            f'<span class="mut">(<a href="/dash/sector-momentum">momentum</a>)</span>')
+                _bits.append(f'sector {_seclink}: <span class="pill">{_esc(_sec_phase)}</span>'
+                             if _sec_phase else f'sector {_seclink}')
+            sector_ctx_html = ('<div class="card" style="margin:8px 0"><div class="sub" style="margin:0">'
+                               '<b>Sector context</b> — ' + ' &nbsp;·&nbsp; '.join(_bits) + '</div></div>')
+    except Exception:  # noqa: BLE001
+        sector_ctx_html = ""
     if series:
         rs_sym_name = sym
         rs_narrow_name = L.get("primary_sector")          # may be None
@@ -6804,6 +6836,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 </div>
 <div class="tabpane" data-tab="rs" style="display:none">
 {rs_html}
+{sector_ctx_html}
 {rs_overlay_html}
 {momentum_html}
 </div>
