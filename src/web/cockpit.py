@@ -776,10 +776,10 @@ def render_home(sig_date, idx_date) -> str:
         return f'<table class="ck-t"><tbody>{out}</tbody></table>'
     if mep_accum:
         boards.append(_board('<span class="em">📈</span> Net accumulation', 'signed pressure · MEP (descriptor)',
-                             mep_rows(mep_accum), "/dash/mep", "Open the MEP screen", "#db61a2"))
+                             mep_rows(mep_accum), "/dash/mep?dir=accum", "Open the MEP screen", "#db61a2"))
     if mep_distrib:
         boards.append(_board('<span class="em">📉</span> Distribution watch', 'net selling pressure · MEP',
-                             mep_rows(mep_distrib), "/dash/mep", "Open the MEP screen", "#db61a2"))
+                             mep_rows(mep_distrib), "/dash/mep?dir=distrib", "Open the MEP screen", "#db61a2"))
 
     # RS Band (the level lens) — cheapest / richest sectors vs their own history.
     from src.web.rsband_view import band_home_inner          # additive; '' if band table empty
@@ -1949,7 +1949,7 @@ def render_concalls(view: str) -> str:
 # reusing the SAME data fetch + instruments the old narrow handlers used. The
 # dashboard.py handlers are thin wrappers that wrap these in _shell(..., wide=True).
 
-def render_mep(sig_date=None) -> str:
+def render_mep(sig_date=None, focus="") -> str:
     """Full-bleed MEP screen — SIGNED accumulation AND distribution (descriptor,
     D62). BOTH ends, data-first: every raw signed term shown beside the verdict.
     The real destination behind every accumulation/distribution link; DVPT keeps
@@ -1957,6 +1957,9 @@ def render_mep(sig_date=None) -> str:
     from src.web import dashboard as D
     from src.web import glossary as G   # `?` hover-help on the MEP column headers
     esc, num, pct = D._esc, D._num, D._pct
+    # `focus` pre-selects one side so the Net-accumulation / Distribution-watch home
+    # cards land on THEIR rows (else the distribution names sit below 150 accum rows).
+    focus = focus if focus in ("accum", "distrib") else ""
     if sig_date is None:
         with D.get_conn() as conn:
             r = conn.execute("SELECT MAX(trade_date) d FROM mep_signals").fetchone()
@@ -2000,7 +2003,8 @@ def render_mep(sig_date=None) -> str:
         phv = ph if ph is not None else sc
         scol = "var(--up)" if (phv is not None and phv >= 0) else "var(--down)"
         dcol = "var(--up)" if (sc is not None and sc >= 0) else "var(--down)"
-        return (f'<tr data-mepdir="{direction}">'
+        hide = ' style="display:none"' if (focus and direction != focus) else ''
+        return (f'<tr data-mepdir="{direction}"{hide}>'
                 f'<td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}#mep">'
                 f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
                 f'<td class="num">{num(r["cmp"], 1)}</td>'
@@ -2018,10 +2022,13 @@ def render_mep(sig_date=None) -> str:
     if accum or distrib:
         rows_html = ("".join(row_html(r, "accum") for r in accum)
                      + "".join(row_html(r, "distrib") for r in distrib))
+        on_all = "" if focus else " on"
+        on_acc = " on" if focus == "accum" else ""
+        on_dis = " on" if focus == "distrib" else ""
         pills = ('<div id="mepbar" class="fbar">'
-                 "<button class=\"fbtn on\" onclick=\"mflt('all',this)\">All</button>"
-                 "<button class=\"fbtn\" onclick=\"mflt('accum',this)\">📈 Accumulating</button>"
-                 "<button class=\"fbtn\" onclick=\"mflt('distrib',this)\">📉 Distributing</button></div>")
+                 f"<button class=\"fbtn{on_all}\" onclick=\"mflt('all',this)\">All</button>"
+                 f"<button class=\"fbtn{on_acc}\" onclick=\"mflt('accum',this)\">📈 Accumulating</button>"
+                 f"<button class=\"fbtn{on_dis}\" onclick=\"mflt('distrib',this)\">📉 Distributing</button></div>")
         # Headers carry a `?` glossary popover (G.gloss) keyed on the real source
         # column, so every MEP term explains itself in-place (AUD: MEP had zero
         # explainability affordance; Pat/glossary now covers CLV/Pressure/Drift…).

@@ -1152,14 +1152,15 @@ def dash_home() -> HTMLResponse:
 
 
 @router.get("/dash/mep", response_class=HTMLResponse)
-def dash_mep() -> HTMLResponse:
+def dash_mep(dir: str = Query("")) -> HTMLResponse:
     """MEP — SIGNED accumulation AND distribution (descriptor, D62). The real
     destination behind every accumulation/distribution link; DVPT keeps /dash/stocks.
-    Full-bleed cockpit render (cockpit.render_mep)."""
+    ``dir=accum|distrib`` pre-selects one side so the Net-accumulation / Distribution-
+    watch home cards land on THEIR rows. Full-bleed cockpit render (cockpit.render_mep)."""
     from src.web.cockpit import render_mep
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Accumulation & Distribution · MEP · patearn",
-                               render_mep(), "mep", sig_date or "", wide=True))
+                               render_mep(focus=dir), "mep", sig_date or "", wide=True))
 
 
 @router.get("/dash/conviction", response_class=HTMLResponse)
