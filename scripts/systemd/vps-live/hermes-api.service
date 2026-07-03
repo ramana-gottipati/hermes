@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes FastAPI (candidates web page)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/hermes-api.log
+StandardError=append:/var/log/hermes-api.log
+
+[Install]
+WantedBy=multi-user.target

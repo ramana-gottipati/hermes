@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes - dataset C: capital-allocation quality scores (full-universe rescore)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Rescores the eligible universe from research.db fundamentals_history annual series.
+# Runs AFTER the XBRL fundamentals ingest so new annual filings are reflected same-night.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.capital_allocation --backfill
+StandardOutput=append:/var/log/hermes-capital-allocation.log
+StandardError=append:/var/log/hermes-capital-allocation.log

@@ -1,0 +1,12 @@
+# AUD-02 backup schedule. DELIBERATELY no Requires=/Wants= on the service:
+# starting/enabling this timer must never fire the job immediately (AUD-95).
+[Unit]
+Description=Nightly Hermes DB backup at 00:30 UTC
+
+[Timer]
+OnCalendar=*-*-* 00:30:00
+Persistent=true
+Unit=hermes-backup.service
+
+[Install]
+WantedBy=timers.target

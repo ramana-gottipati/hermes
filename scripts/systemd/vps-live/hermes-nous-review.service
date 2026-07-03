@@ -1,0 +1,7 @@
+[Unit]
+Description=Nous Hermes nightly code-review sweep (report-only)
+[Service]
+Type=oneshot
+ExecStart=/root/.hermes/nous_review_sweep.sh 3
+StandardOutput=append:/var/log/hermes-nous-review.log
+StandardError=append:/var/log/hermes-nous-review.log

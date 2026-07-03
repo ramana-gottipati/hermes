@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes News Feed (catches earnings announcements)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.news_feed
+StandardOutput=append:/var/log/hermes-news.log
+StandardError=append:/var/log/hermes-news.log

@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes pt14 batch scoring Timer
+Requires=hermes-pt14batch.service
+
+[Timer]
+# Daily 9:00 PM IST = 15:30 UTC — after the signals chain (post-bhavcopy 14:00 UTC).
+OnCalendar=*-*-* 15:30:00
+Persistent=true
+Unit=hermes-pt14batch.service
+
+[Install]
+WantedBy=timers.target

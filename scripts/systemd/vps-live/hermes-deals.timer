@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes Deals Timer
+Requires=hermes-deals.service
+
+[Timer]
+# 8:00 PM IST = 14:30 UTC, Mon-Fri (after bhavcopy 14:00; bulk.csv publishes post-close)
+OnCalendar=Mon..Fri *-*-* 14:30:00
+Persistent=true
+Unit=hermes-deals.service
+
+[Install]
+WantedBy=timers.target

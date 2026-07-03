@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes patearn Tracker alerts -> Telegram push
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.tracker_alerts
+StandardOutput=append:/var/log/hermes-tracker-alerts.log
+StandardError=append:/var/log/hermes-tracker-alerts.log

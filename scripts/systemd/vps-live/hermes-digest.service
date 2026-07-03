@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes patearn Candidate Digest
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.digest
+StandardOutput=append:/var/log/hermes-digest.log
+StandardError=append:/var/log/hermes-digest.log

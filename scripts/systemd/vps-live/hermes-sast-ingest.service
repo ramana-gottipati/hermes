@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes - SAST feeds: Reg 29 stake events + Reg 31/32 pledge flow (rolling 14-day window)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Listing-complete feeds (no per-event archive fetches). Rolling 14 days catches late
+# revisions; content-hash idempotent. Per-chunk commits — lock never spans a fetch.
+ExecStart=/bin/bash -c '/opt/hermes/.venv/bin/python -m src.automation.sast_events --ingest "$(date -u -d "14 days ago" +%%Y-%%m-%%d)" "$(date -u +%%Y-%%m-%%d)"'
+StandardOutput=append:/var/log/hermes-sast-ingest.log
+StandardError=append:/var/log/hermes-sast-ingest.log

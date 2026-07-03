@@ -1,0 +1,16 @@
+# AUD-02 — daily DB backup. OnCalendar is authored in UTC (the box is Etc/UTC; AUD-96 installer
+# asserts this). Runs at 20:30 UTC, AFTER the 16:30–17:15 UTC ingest/scoring chain has settled,
+# so the snapshot captures the day's data. RandomizedDelaySec avoids the boot/restart catch-up
+# storm that collided with hermes-api startup (AUD-30). Persistent so a missed run (box off)
+# catches up once, not never.
+[Unit]
+Description=Daily Hermes DB backup timer
+
+[Timer]
+OnCalendar=*-*-* 20:30:00
+RandomizedDelaySec=600
+Persistent=true
+Unit=hermes-db-backup.service
+
+[Install]
+WantedBy=timers.target

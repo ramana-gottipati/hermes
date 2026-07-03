@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes forward knowable_at capture (Tue + Sat, no LLM)
+# NOTE: deliberately NO `Requires=...service` — a timer ACTIVATES its service via `Unit=` below;
+# a Requires= would couple them so that stopping the service also stops the timer (and vice-versa).
+
+[Timer]
+# Twice weekly: the stale-gate means OFF-season this is nearly a no-op (no symbol is stale, nothing
+# re-scraped), while IN earnings season (Jul-Aug / Oct-Nov / Jan-Feb / Apr-May) it tightens the
+# first-seen bound to <=3-4 days of the real filing. Offset from the other heavy scrapers.
+OnCalendar=Tue,Sat *-*-* 21:00:00
+# Persistent=false: schedule cleanly to the next Tue/Sat with NO catch-up immediate-fire on start.
+# A missed run is harmless — the next run re-checks every stale symbol and first-seen is monotone.
+Persistent=false
+Unit=hermes-fundamentals-provenance.service
+
+[Install]
+WantedBy=timers.target

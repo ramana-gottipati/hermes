@@ -1,0 +1,11 @@
+[Unit]
+Description=Hermes bounded batch pt14 scoring (B6/D46)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.score_batch --limit 40
+StandardOutput=append:/var/log/hermes-pt14batch.log
+StandardError=append:/var/log/hermes-pt14batch.log

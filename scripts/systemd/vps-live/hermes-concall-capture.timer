@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes CCI free full-universe capture (Wed + Sun, no Gemini)
+Requires=hermes-concall-capture.service
+
+[Timer]
+OnCalendar=Wed,Sun *-*-* 09:00:00
+# Persistent=false: schedule cleanly to the next Wed/Sun with NO catch-up immediate-fire on start
+# (the capture is cumulative + idempotent, and the transcript source is perishable over weeks not
+# hours, so skipping a single missed run is harmless — the next run re-checks everything anyway).
+Persistent=false
+Unit=hermes-concall-capture.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes CCI — weekly incremental (ingest new concalls + results + score)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.cci_pipeline --pilot --ingest --extract --oldest --max-calls 18
+StandardOutput=append:/var/log/hermes-concalls.log
+StandardError=append:/var/log/hermes-concalls.log

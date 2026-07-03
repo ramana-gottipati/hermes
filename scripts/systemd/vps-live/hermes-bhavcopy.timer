@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes Bhav Copy Timer
+Requires=hermes-bhavcopy.service
+
+[Timer]
+# 7:30 PM IST = 14:00 UTC, Mon-Fri.
+# Rationale: NSE market closes 3:30 PM IST. sec_bhavdata_full with delivery
+# can lag basic bhav copy by 1-2 hours depending on settlement processing.
+# 7:30 PM gives a 4-hour buffer post-close — ~99% reliable.
+OnCalendar=Mon..Fri *-*-* 14:00:00
+Persistent=true
+Unit=hermes-bhavcopy.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Hermes CCI backfill-drain Timer (Mon-Sat)
+Requires=hermes-concalls.service
+
+[Timer]
+OnCalendar=Mon..Sat *-*-* 07:00:00
+Persistent=true
+Unit=hermes-concalls.service
+
+[Install]
+WantedBy=timers.target

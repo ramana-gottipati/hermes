@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Theme-Tag Seed Timer (weekly)
+Requires=hermes-theme-seed.service
+
+[Timer]
+# Weekly, Sunday 17:30 UTC (23:00 IST) — after the daily bhav ingest + signal
+# compute + any index-membership refresh, so the DETERMINISTIC theme seed
+# reflects current membership. The seed is idempotent (rebuilds source='index'
+# only) and never disturbs the ai/ramana provenance tiers, so a weekly run is
+# safe even though NSE only reconstitutes the thematic indices ~semi-annually.
+OnCalendar=Sun *-*-* 17:30:00
+Persistent=true
+Unit=hermes-theme-seed.service
+
+[Install]
+WantedBy=timers.target

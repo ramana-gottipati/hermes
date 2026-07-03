@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.assistant.telegram_bot
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/hermes-telegram.log
+StandardError=append:/var/log/hermes-telegram.log
+
+[Install]
+WantedBy=multi-user.target

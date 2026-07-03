@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes risk-adjusted momentum scanner (daily, after the EOD data pipeline)
+
+[Timer]
+OnCalendar=*-*-* 21:30:00
+# Persistent: if the box was down at 21:30, run on next boot — a missed daily scan is worth
+# running late. Cheap + idempotent (DELETE+INSERT for the as_of).
+Persistent=true
+Unit=hermes-momentum-scan.service
+
+[Install]
+WantedBy=timers.target

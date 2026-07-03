@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes Wolfe winner-profile scan Timer (nightly, weekdays)
+Requires=hermes-wolfe-scan.service
+
+[Timer]
+# Daily 9:30 PM IST = 16:00 UTC, Mon-Fri — AFTER the data chain (bhavcopy 14:00
+# UTC → signal compute → pt14batch 15:30 UTC), so the scan reflects the day's
+# adjusted closes. Mon-Fri only (no new bars on weekends); Persistent catches a
+# missed run after downtime.
+OnCalendar=Mon..Fri *-*-* 16:00:00
+Persistent=true
+Unit=hermes-wolfe-scan.service
+
+[Install]
+WantedBy=timers.target

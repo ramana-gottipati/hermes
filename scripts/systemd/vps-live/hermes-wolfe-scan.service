@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes patearn — nightly Wolfe winner-profile scan (persist wolfe_signals)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# Materialise the OOS-validated winner-profile scan into wolfe_signals so
+# /dash/wolfe/scan is INSTANT (the live scan is ~30s over the universe) and
+# strategy_registry can give Wolfe a real count/as_of/top for the strategist
+# dashboard. Pure rule-based compute — NO LLM (₹0), descriptive-only.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.wolfe --persist-scan --universe nifty500 --fresh 15
+StandardOutput=append:/var/log/hermes-wolfe-scan.log
+StandardError=append:/var/log/hermes-wolfe-scan.log

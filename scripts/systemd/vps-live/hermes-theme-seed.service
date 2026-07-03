@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes patearn — theme-tag deterministic seed + FREE keyword proposals
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# --seed = deterministic index facts; --keyword-propose = FREE rule-based
+# cross-cutting proposals from company_about (₹0, no LLM, no rate limits). Both
+# idempotent. The opt-in Gemini-only --llm-propose is NOT scheduled (spend call).
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.theme_tags --seed --keyword-propose
+StandardOutput=append:/var/log/hermes-theme-seed.log
+StandardError=append:/var/log/hermes-theme-seed.log

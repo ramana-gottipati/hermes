@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes CCI — ingest the names that matter (targets) then drain extraction oldest-first + score
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# P7/W3: first queue + refresh the high-value targets (portfolio/watchlist/conviction/RS-leaders/pilot)
+# so coverage tracks attention. Non-fatal (-) so a network hiccup never blocks the drain below.
+ExecStartPre=-/opt/hermes/.venv/bin/python -m src.automation.cci_pipeline --targets --ingest
+# then the unchanged bounded oldest-first extraction drain + settle/diff/score over everything
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.cci_pipeline --all --extract --oldest --no-results --max-calls 18
+StandardOutput=append:/var/log/hermes-concalls.log
+StandardError=append:/var/log/hermes-concalls.log

@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes - risk-adjusted momentum scanner (writes momentum_scan for /dash/momentum-scan)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# Uses the research venv (numpy) + the embase feature cache; writes the momentum_scan table
+# (native floats) that the live /dash/momentum-scan screen reads. Gross selection lens, not alpha.
+Environment=PYTHONPATH=/opt/hermes:/opt/hermes/research
+ExecStart=/opt/hermes/.venv-research/bin/python -m explosive_moves.momentum_scan
+StandardOutput=append:/var/log/hermes-momentum-scan.log
+StandardError=append:/var/log/hermes-momentum-scan.log

@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes Digest Timer
+Requires=hermes-digest.service
+
+[Timer]
+# 10:00 AM IST and 6:00 PM IST = 04:30 UTC and 12:30 UTC
+OnCalendar=Mon..Fri *-*-* 04:30:00
+OnCalendar=Mon..Fri *-*-* 12:30:00
+Persistent=true
+Unit=hermes-digest.service
+
+[Install]
+WantedBy=timers.target

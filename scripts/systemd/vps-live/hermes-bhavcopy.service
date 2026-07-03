@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes NSE Bhav Copy fetcher
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.bhavcopy
+StandardOutput=append:/var/log/hermes-bhavcopy.log
+StandardError=append:/var/log/hermes-bhavcopy.log

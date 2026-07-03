@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes primary-source XBRL fundamentals ingest (nightly, results broadcast in the evening IST)
+
+[Timer]
+OnCalendar=*-*-* 16:30:00
+Persistent=true
+Unit=hermes-fundamentals-xbrl.service
+
+[Install]
+WantedBy=timers.target

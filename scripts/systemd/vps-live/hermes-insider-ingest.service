@@ -1,0 +1,12 @@
+[Unit]
+Description=Hermes - dataset A: NSE PIT insider/promoter/pledge disclosures (rolling 7-day window)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Rolling re-scan of the last 7 days: late/amended disclosures are picked up; the
+# ingest dedups on the disclosure identity, so re-runs are idempotent.
+ExecStart=/bin/bash -c '/opt/hermes/.venv/bin/python -m src.automation.insider_events --ingest "$(date -u -d "7 days ago" +%%Y-%%m-%%d)" "$(date -u +%%Y-%%m-%%d)"'
+StandardOutput=append:/var/log/hermes-insider-ingest.log
+StandardError=append:/var/log/hermes-insider-ingest.log

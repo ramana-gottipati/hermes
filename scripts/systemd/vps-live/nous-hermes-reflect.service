@@ -1,0 +1,6 @@
+[Unit]
+Description=Hermes daily self-reflection into the channel learnings journal
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/nous-bridge/reflect.sh
