@@ -22,6 +22,12 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    (the `00-` prefix is load-bearing).
 5. **hermes-api bind lives in a systemd DROP-IN** (`hermes-api.service.d/override.conf`) — survives
    unit rewrites; don't "fix" the main unit file.
+6. **🗂 UNITS ARE GIT-OWNED (AUD-27, `05e25ec`):** any systemd change goes through
+   `scripts/systemd/vps-live/` in git + `bash /opt/hermes/scripts/install-systemd.sh --install`;
+   never hand-edit /etc/systemd on the VPS without capturing back. `--check` = the drift gate.
+   All hermes services run SANDBOXED (ProtectSystem=strict + ReadWritePaths=/opt/hermes /var/log)
+   with oneshot timeouts + timer jitter ±5min — a job writing outside /opt/hermes//var/log will
+   now FAIL (that's the point; extend ReadWritePaths deliberately, in git).
 
 ## STATE DIGEST (as of S77/S77b, night of 2026-07-02→03 UTC — 3+ concurrent lanes)
 - **Queue #3 CLOSED — universal pledge veto reads the SHP primary source** (`6e2160b`→`07aca8d`
@@ -50,10 +56,14 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
   hunk only (`git diff` → filter → `git apply --cached -C0`).
 
 ## THE QUEUE — do these autonomously, in priority order
-1. **VERIFY Sun Jul-05:** (a) `hermes-concall-capture` 09:00 UTC run succeeded (AUD-03 fix's first
-   live test — check `/var/log/hermes-concall-capture.log`); (b) both backup timers fired clean
-   Jul-03+ (`/var/log/hermes-backup.log`, `hermes-db-backup` journal; `backups/db/` inventory sane,
-   disk <35%).
+1. **VERIFY (first checks of the new state):** (a) **the first UNATTENDED SANDBOXED nightly chain
+   (Jul-03)**: news 03:30 → bhavcopy chain 14:00 → ingest cluster 15:30-17:15 — every unit now runs
+   under ProtectSystem=strict etc. (`05e25ec`); a failure smells like a missing ReadWritePaths —
+   check `systemctl --failed 'hermes-*'` + the unit logs, rollback = rm its 90-hardening.conf +
+   daemon-reload; (b) Sun Jul-05 `hermes-concall-capture` 09:00 UTC (AUD-03's first live test;
+   note its timer now has ±5min jitter); (c) both backup timers fired clean
+   (`/var/log/hermes-backup.log`, `hermes-db-backup` journal; `backups/db/` sane, disk <35%);
+   (d) run `bash /opt/hermes/scripts/install-systemd.sh --check` — must be clean (drift gate).
 2. **RESULTS-SEASON WATCH (from ~Jul-09):** `/var/log/hermes-fundamentals-xbrl.log` runtime +
    gate-verdict quality — banks flow for the first time; expect `skipped_seen` dominant night 2+,
    `gate_deferred` >0 on heavy nights (budget 25, env `HERMES_XBRL_GATE_BUDGET`). Watch
