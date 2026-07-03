@@ -284,6 +284,16 @@ Calmar 1.15, DD −28.2%, cost-robust, survives both halves). Consumption (queue
 **blend/tilt on the momentum surfaces + descriptive screener column** (ca_score/ca_tier from the
 nightly `capital_allocation_scores`), NOT as a hard veto and NOT as a standalone ranker.
 
+**CONSUMED — part (b) LIVE (S78, `8068f80`, deployed + verified):** a **C-blend 50/50 sort** on
+`/dash/markets/momentum-scan` — `cblend = mean(riskadj_pctile, COALESCE(ca_pctile, 50))` via a LEFT
+JOIN to the nightly `capital_allocation_scores` (missing C → neutral 50th pctile, ~91% live coverage
+645/707), with a bold **C-blend** column and a descriptive note citing these numbers. A DESCRIPTIVE
+tilt only — not a veto/filter/ranker. Verified live: the blend reorders the top (WELCORP/MCX/BSE/
+SOLARINDS/APARINDS rise on strong capital allocation vs the raw-RISKADJ order HFCL/BLISSGVS/BAJAJCON).
+Pinned by `tests/test_momentum_cblend.py`. Part (a): the descriptive `ca_tier` was already on that
+surface; extending an `ca_score`/`ca_tier` column to the broader screener (screen2) + stock dossier
+is the open remainder of queue #5.
+
 ---
 
 ## Gate study 2026-06-24b — is the liquidity gate large-cap biased? (DONE)
