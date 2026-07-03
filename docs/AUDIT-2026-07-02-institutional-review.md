@@ -166,7 +166,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** reuse the exact-match/disambiguation-chips pattern in `_compare_flow`, `_why_flow`, `_trend_flow`.
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-18 [P1] Replay-the-tape claims "actually filed" dates that are uniform +90d models — violates the house's own never-claim list** — `OPEN`
+**AUD-18 [P1] Replay-the-tape claims "actually filed" dates that are uniform +90d models — violates the house's own never-claim list** — `DONE S77 (deployed+verified)` (relabelled caption + column header + no-look-ahead ribbon to "Modeled avail. (+90d)" in BOTH the generator `scripts/build_dossier_html.py` (durable) and the committed artifact; live VPS copy reconciled in-place preserving its newer hero data. Live: /dash/replay shows "Modeled avail", 0 "actually filed", data intact. Residual enhancement: base-rate line + restatement panel)
 - **Component:** client-facing trust artifact (/dash/replay) | **Reporter:** inst-dd.
 - **Files:** `docs/replay-the-tape.html:139,149,218-221,300`; served via `replay_view.py` → `v2_surfaces.py:47`.
 - **Evidence digest:** every ledger row has `lag_days=90` exactly (Alkyl FY19 "filed" 2019-06-29 = period_end+90 to the day) while the caption says "the date it was actually filed"; the page's own footnote admits "(period end + ~90d)" — internal contradiction; panel red-line (institutional-panel-assessment.md:80-87) forbids exactly this and required a restatement log (absent). Winner-only heroes, no base rates.
@@ -291,7 +291,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** dedicated unprivileged user; `NoNewPrivileges=yes`, `ProtectSystem=strict`, `PrivateTmp=yes`, `ProtectHome=yes`, `ReadWritePaths=/opt/hermes/data`; roll out unit-by-unit with a writer-safe restart each.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-36 [P1] Raw internal exception text leaks to external clients (/v1 catch-all, /chat reply, Telegram replies)** — `OPEN`
+**AUD-36 [P1] Raw internal exception text leaks to external clients (/v1 catch-all, /chat reply, Telegram replies)** — `DONE (external surfaces) 0bb0875 (S77b), deployed+verified`: /v1 catch-all logs the full exception keyed by request_id and returns a generic detail; chat.py logs APIError.message and returns a generic reply (covers /chat AND the bot's chat.handle path). RESIDUAL (P3): telegram_bot.py's 3 own reply sites (603/1679/1987) — single-tenant allowlisted chat, low exposure. NOTE: the apparent prod-fork of chat.py / v1/__init__.py / telegram_bot.py was PURE CRLF (old Windows scp) — content matched git exactly after CR-strip; the two patched files are now LF-clean and git-identical on the VPS.
 - **Component:** error contract | **Reporters:** v1-api-contract (P1 CONFIRMED) + telegram-assistant (P2, finder-only) — merged, same class.
 - **Files:** `src/api/v1/__init__.py:62-67` (RFC-7807 detail = `str(exc)` verbatim — sqlite paths/SQL fragments), `src/assistant/chat.py:171`, `src/assistant/telegram_bot.py:603,1679,1987`.
 - **Fix:** generic client-facing detail ("unexpected error; quote request_id"), full detail server-side keyed by request_id; sweep the three sites.
