@@ -37,6 +37,12 @@
   - **DISQUALIFIED** = hard-fail (e.g. red-flag pattern).
   - So **"Tier 4" = a weak score (<40/100)** on the durability screen. *Source:* `tier`.
 
+## Capital allocation — C (what management did with incremental capital)
+
+- **ca_score (0–100).** Has management compounded *incremental* capital well, or just grown size? Blends return on incremental capital (ROIIC), ROCE level and trend, **dilution drag** (profits growing faster than per-share earnings = quiet share issuance), the share of growth funded by debt, and growth efficiency — each mapped smoothly around documented economic anchors, deliberately **no cliff thresholds**. Banks/NBFCs are scored on an ROE/ROA model instead (leverage IS a lender's business, so ROCE/ROIIC are meaningless there). Recomputed nightly, point-in-time. Inputs currently come from the frozen Screener-era fundamentals archive — migrating to BSE/NSE XBRL under the primary-source policy. *Source:* `ca_score` in `capital_allocation_scores`.
+- **C tier — EXCELLENT / GOOD / AVERAGE / WEAK / POOR.** The ca_score banded by **cross-sectional quintile** within the same model (industrial vs financial) — relative standing among peers scored the same way, never a fixed cutoff. *Source:* `ca_tier`.
+- **C-blend (0–100).** mean(risk-adjusted-momentum percentile, C percentile) — a DESCRIPTIVE tilt of price strength toward well-allocating managements; names without a C score take the neutral 50th percentile. In the recorded walk-forward test (strategy ledger, Experiment 2026-07-03) this blend kept the momentum portfolio's return while cutting its worst drawdown by about a third. Shown as context on the momentum scanner — **never a buy list, never a hard veto** (both harder shapes tested WORSE).
+
 ## Conviction (the cross-pillar composite — read this, you asked)
 
 - **Conviction (0–100).** A composite **I (Claude) introduced** to float the strongest cross-pillar names to the top of the screener. Today it blends **Positioning + Relative Strength**:

@@ -46,7 +46,7 @@ _GROUPS = [
     ("conf", "Confluence"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
     ("rs", "Relative strength"), ("cpr", "Structure · CPR"),
     ("cci", "Credibility · CCI"), ("wol", "Wolfe"), ("qual", "Quality · pt14"),
-    ("ctx", "Context"),
+    ("ca", "Cap-alloc · C"), ("ctx", "Context"),
 ]
 
 # CL-VIEW-15: liquidity gate WITHOUT static rupee thresholds (no-static-threshold
@@ -273,6 +273,36 @@ def _wolfe_pill(wf):
     label = d.title() + (" ◉" if in_zone else "")
     kind = "up" if d == "bull" else "down" if d == "bear" else "neutral"
     return K.pill(label, kind)
+
+
+def _calloc_by_sym(conn, syms):
+    """Latest capital-allocation (C) composite per symbol — ca_score 0..100 +
+    cross-sectional ca_tier (S77b backtest: consumed as a DESCRIPTIVE column /
+    blend tilt, never a hard veto or standalone ranker)."""
+    out = {}
+    if not syms:
+        return out
+    try:
+        ph = ",".join("?" for _ in syms)
+        for r in conn.execute(
+                f"""SELECT c.symbol, c.ca_score, c.ca_tier
+                    FROM capital_allocation_scores c
+                    JOIN (SELECT symbol, MAX(as_of) m FROM capital_allocation_scores GROUP BY symbol) x
+                      ON x.symbol=c.symbol AND x.m=c.as_of
+                    WHERE c.symbol IN ({ph})""", syms).fetchall():
+            out[r["symbol"]] = dict(r)
+    except Exception as e:  # noqa: BLE001
+        log.warning("capital-allocation lookup failed: %s", e)
+    return out
+
+
+def _ca_pill(t):
+    """Capital-allocation tier pill (cross-sectional quintile band)."""
+    if not t:
+        return '<span class="mut">—</span>'
+    kind = "cred" if t == "EXCELLENT" else "up" if t == "GOOD" else \
+           "down" if t == "POOR" else "warn" if t == "WEAK" else "neutral"
+    return K.pill(t.title(), kind)
 
 
 def _qual_pill(pq):
@@ -580,7 +610,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     is_watch = scope.lower() in ("watch", "watchlist")
     rows: list[dict] = []
     sig_date = None
-    cpr_d = cpr_w = cci = wolfe = pt14 = {}
+    cpr_d = cpr_w = cci = wolfe = pt14 = calloc = {}
     n_members = None
 
     try:
@@ -637,6 +667,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                     cci = _cci_by_sym(conn, syms)
                     wolfe = _wolfe_by_sym(conn, syms)
                     pt14 = _pt14_by_sym(conn, syms)
+                    calloc = _calloc_by_sym(conn, syms)
     except Exception as e:  # noqa: BLE001
         log.warning("screen2 query failed: %s", e)
 
@@ -649,6 +680,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         cc = cci.get(sym, {})
         wf = wolfe.get(sym, {})
         pq = pt14.get(sym, {})
+        ca = calloc.get(sym, {})
 
         # confluence pillars (each 0/1) — the unifying read. Now MEP×CCI×RS×CPR×Wolfe
         # (the 5 the brief names) PLUS the DVPT positioning pillar = a 0-6 confluence.
@@ -739,6 +771,9 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             # quality · pt14
             f'<td class="num cg-qual" data-v="{pq.get("ns_base") if pq.get("ns_base") is not None else -1}">{_num(pq.get("ns_base"),0)}</td>'
             f'<td class="l cg-qual" data-v="{K.esc(pq.get("tier") or "")}">{_qual_pill(pq)}</td>'
+            # capital allocation · C (descriptive; S77b backtest verdict — blend/context, never a veto)
+            f'<td class="num cg-ca" data-v="{ca.get("ca_score") if ca.get("ca_score") is not None else -1}">{_num(ca.get("ca_score"),0)}</td>'
+            f'<td class="l cg-ca" data-v="{K.esc(ca.get("ca_tier") or "")}">{_ca_pill(ca.get("ca_tier"))}</td>'
             # context — LEADS with the character triglyph (WHO·WAY·CTX → accum/dist read)
             f'<td class="inst l cg-ctx" data-v="{r.get("hh") if r.get("hh") is not None else -999}">{triglyph}</td>'
             f'<td class="num cg-ctx" data-v="{r.get("su1") or 0}">{_num(r.get("su1"),2)}</td>'
@@ -759,6 +794,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         '<th class="cg-cci s2gh" colspan="3">credibility · cci</th>'
         '<th class="cg-wol s2gh" colspan="2">wolfe</th>'
         '<th class="cg-qual s2gh" colspan="2">quality · pt14</th>'
+        '<th class="cg-ca s2gh" colspan="2">cap-alloc · C</th>'
         '<th class="cg-ctx s2gh" colspan="4">context · character</th></tr>')
     cols = ['Symbol', 'Sector', 'CMP', 'Confl',
             'DVPT vs power', 'Rank', 'P', 'R', '×1m', 'Dlv%',
@@ -768,6 +804,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             'CCI', 'Tier', 'Trend',
             'Wolfe', 'Q',
             'NS', 'pt14',
+            'C', 'C tier',
             'Character', 'Surge', '%52wH', 'Char']
     col_groups = ['', '', '', 'cg-conf',
                   'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos',
@@ -777,6 +814,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                   'cg-cci', 'cg-cci', 'cg-cci',
                   'cg-wol', 'cg-wol',
                   'cg-qual', 'cg-qual',
+                  'cg-ca', 'cg-ca',
                   'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
     # glossary key per column (aligned to `cols`) — `?` hover-help via the wired glossary.
     # Verified against docs/metrics-glossary.md: only terms that resolve to the CORRECT
@@ -791,6 +829,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                  'Credibility composite', 'Credibility composite', 'Credibility level',  # cci (now documented; NOT 'tier'→pt14)
                  '', '',                                              # wolfe (undocumented)
                  'ns_base', 'ns_base',                                # quality · pt14
+                 'ca_score', 'ca_tier',                               # capital allocation · C
                  'accum_character', 'surge 1m', 'pct_from_52w_high', 'accum_character']  # context
     col_band = '<tr class="col">' + "".join(
         f'<th class="{("sym" if i==0 else "")} {g}" data-c="{i}" data-label="{K.esc(c)}">'
@@ -940,7 +979,7 @@ table.s2 td.inst{padding:3px 8px;text-align:left}
 .hstrip .hs-nd{background:var(--bg-3);color:var(--ink-3)}
 /* group hide classes (toggled on the wrapper) */
 .h-conf .cg-conf,.h-pos .cg-pos,.h-mep .cg-mep,.h-rs .cg-rs,
-.h-cpr .cg-cpr,.h-cci .cg-cci,.h-wol .cg-wol,.h-qual .cg-qual,.h-ctx .cg-ctx{display:none}
+.h-cpr .cg-cpr,.h-cci .cg-cci,.h-wol .cg-wol,.h-qual .cg-qual,.h-ca .cg-ca,.h-ctx .cg-ctx{display:none}
 </style>"""
 
 _JS = """<script>(function(){
