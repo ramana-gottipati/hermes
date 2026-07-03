@@ -115,11 +115,18 @@ def momentum_scan_page(sort: str = "riskadj"):
         try:
             as_of = (con.execute("SELECT MAX(as_of) FROM momentum_scan").fetchone() or [None])[0] or ""
             if as_of:
-                order = "ensemble_pctile" if sort == "ens" else "riskadj"
+                order = {"ens": "ensemble_pctile", "cblend": "cblend"}.get(sort, "riskadj")
+                # C-BLEND 50/50 = mean(RISKADJ pctile, capital-allocation C pctile) — the S77b
+                # backtest's new-best overlay (Sharpe 1.32 / Calmar 1.15 / MaxDD -28.2%,
+                # docs/strategy-ledger.md § Experiment 2026-07-03). Missing C -> neutral 50th
+                # pctile, exactly as the backtest neutral-filled. A DESCRIPTIVE tilt, not a buy list.
                 rows = con.execute(
-                    "SELECT symbol,mom6,mom12,vol_66,riskadj,range_pos_252,turnover_cr,"
-                    "riskadj_pctile,ensemble_pctile FROM momentum_scan WHERE as_of=? "
-                    "ORDER BY %s DESC LIMIT 60" % order, (as_of,)).fetchall()
+                    "SELECT m.symbol,m.mom6,m.mom12,m.vol_66,m.riskadj,m.range_pos_252,m.turnover_cr,"
+                    "m.riskadj_pctile,m.ensemble_pctile,"
+                    "(0.5*m.riskadj_pctile + 0.5*COALESCE(c.ca_pctile,50.0)) AS cblend "
+                    "FROM momentum_scan m LEFT JOIN capital_allocation_scores c "
+                    "ON c.symbol=m.symbol AND c.as_of=(SELECT MAX(as_of) FROM capital_allocation_scores) "
+                    "WHERE m.as_of=? ORDER BY %s DESC LIMIT 60" % order, (as_of,)).fetchall()
             pledge, conviction, adverse, catier = _veto_maps(con) if as_of else ({}, {}, {}, {})
         except sqlite3.OperationalError:
             rows = []
@@ -142,7 +149,7 @@ def momentum_scan_page(sort: str = "riskadj"):
         return "clear"
 
     tr = ""
-    for i, (s, m6, m12, vol, ra, hi, turn, rap, enp) in enumerate(rows, 1):
+    for i, (s, m6, m12, vol, ra, hi, turn, rap, enp, cbl) in enumerate(rows, 1):
         tier = catier.get(s, "—")
         a = ("<span class='risk'>pledge×%d</span>" % pledge[s]) if s in pledge else \
             ("<span class='buy'>buy×%d</span>" % conviction[s]) if s in conviction else "·"
@@ -160,6 +167,7 @@ def momentum_scan_page(sort: str = "riskadj"):
                f"<td data-v='{(hi or 0):.2f}'>{(hi or 0):.2f}</td>"
                f"<td data-v='{turn:.0f}'>{turn:,.0f}</td>"
                f"<td data-v='{enp:.1f}'>{enp:.0f}</td>"
+               f"<td data-v='{(cbl or 0):.1f}'><b>{(cbl or 0):.0f}</b></td>"
                f"<td class='tier-{_esc(tier)} l' data-v='{_esc(tier)}'>{_esc(tier)}</td>"
                f"<td class='l' data-v='{a_rank}'>{a}</td>"
                f"<td class='l' data-v='{1 if s in adverse else 0}'>{b}</td>"
@@ -168,10 +176,13 @@ def momentum_scan_page(sort: str = "riskadj"):
     head = ("<tr><th data-k data-num=1>#</th><th class='l' data-k>Symbol</th>"
             "<th data-k data-num=1>6m</th><th data-k data-num=1>12m</th><th data-k data-num=1>Vol</th>"
             "<th data-k data-num=1>RISKADJ</th><th data-k data-num=1>HI52</th><th data-k data-num=1>Turn₹cr</th>"
-            "<th data-k data-num=1>ENSpct</th><th class='l' data-k title='derived from Screener.in fundamentals — migrating to BSE/NSE XBRL (primary-source policy)'>Cap-alloc (C)*</th>"
+            "<th data-k data-num=1>ENSpct</th>"
+            "<th data-k data-num=1 title='C-BLEND 50/50 = mean(RISKADJ pctile, capital-allocation C pctile); S77b best overlay (Sharpe 1.32)'>C-blend</th>"
+            "<th class='l' data-k title='derived from Screener.in fundamentals — migrating to BSE/NSE XBRL (primary-source policy)'>Cap-alloc (C)*</th>"
             "<th class='l' data-k>Insider (A)</th><th class='l' data-k>Credit (B)</th><th class='l' data-k>Flag</th></tr>")
     seg = ("<div class='seg'>"
-           f"<a class='{'on' if sort!='ens' else ''}' href='/dash/momentum-scan?sort=riskadj'>Risk-adjusted momentum</a>"
+           f"<a class='{'on' if sort=='riskadj' else ''}' href='/dash/momentum-scan?sort=riskadj'>Risk-adjusted momentum</a>"
+           f"<a class='{'on' if sort=='cblend' else ''}' href='/dash/momentum-scan?sort=cblend'>C-blend 50/50</a>"
            f"<a class='{'on' if sort=='ens' else ''}' href='/dash/momentum-scan?sort=ens'>Equal-weight ensemble</a></div>")
     body = (
         "<div class='msc'>" + _CSS +
@@ -190,6 +201,12 @@ def momentum_scan_page(sort: str = "riskadj"):
         "Equity-only (ETFs/liquid funds excluded). Momentum is a research shortlister, not a buy list or a "
         "net-of-cost claim — see <a href='/dash/testing' style='color:#58a6ff'>Strategy validation</a>. "
         "Weights: <code>docs/calculations-and-weights.md</code>.<br>"
+        "<b>C-blend 50/50</b> ranks by the mean of the RISKADJ and capital-allocation (C) percentiles — "
+        "the S77b backtest's best risk-adjusted overlay (Sharpe 1.32, Calmar 1.15, MaxDD −28.2% vs "
+        "RISKADJ's −41.9%; survives both walk-forward halves and 1.5× cost, "
+        "<code>docs/strategy-ledger.md</code> § Experiment 2026-07-03). It is a DESCRIPTIVE tilt — "
+        "NOT a hard veto, NOT a standalone ranker, NOT a buy list; a missing C fills to the neutral "
+        "50th percentile (~91% live coverage).<br>"
         "<b>*Source note:</b> prices / insider (A) / credit (B) are PRIMARY-SOURCE (NSE). "
         "<b>Capital-allocation (C) is derived from Screener.in fundamentals — being migrated to "
         "BSE/NSE XBRL per the primary-source-only policy</b> (CLAUDE.md §8); treat the C column as "
