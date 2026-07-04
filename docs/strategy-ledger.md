@@ -72,7 +72,7 @@ the exact figures; do not silently re-attempt. (Mirrored in memory `failure-mode
 | **Momentum sold as a FUNDABLE strategy** | GROSS Sharpe 1.29 → **NET ~0.09, CAGR negative, MaxDD −69%** under realistic cost (~36%/yr, ~100%/mo turnover) | The headline Sharpe is a flat-cost illusion. Nothing beats Nifty-500 buy-&-hold (0.89) net of realistic cost. Momentum = a **gross selection/analytical lens**, not net alpha; any fundable form must be low-turnover (and is then defensive, not alpha). |
 | ACCEL / PULLBACK / DELIV_MOM (standalone) | Sharpe 0.42-0.85, MaxDD −44%…−70% | Short-thrust chasing / dip-buying / delivery% added no standalone edge. |
 | MEP-accumulation as alpha | Deflated-Sharpe DSR 0.45→0.36 when added | Descriptor-only; adds nothing. Do not re-test as alpha. |
-| **PEAD tradeable book (event-time, 2026-07-05)** | net Sharpe **0.10** / CAGR −0.4% / MaxDD −42.9% vs bench 0.85; HEDGED diagnostic **−0.58**; 1.5× cost −0.32; fails both halves | Event drift is REAL descriptively (A-study SUE-Q5×DELIV-T3 CAR60 +7.62%, t_cohort 1.92) but does NOT survive a real-time trailing-rank rule + costs + compounding. Descriptive event lens only. Do not re-attempt any PEAD book without beating these exact numbers under the same no-leak harness. |
+| **PEAD tradeable book (event-time, 2026-07-05)** | ALL constructions fail: trailing net Sharpe **0.10**, no-delivery 0.02, **within-season 0.06** (pre-registered), HEDGED **−0.58**, 1.5× cost −0.32 — vs bench 0.85, both halves | Event drift is REAL descriptively (A-study SUE-Q5×DELIV-T3 CAR60 +7.62%, t_cohort 1.92) but no wrapper survives real-time ranks + costs + compounding; the within-season variant (the last untested cell) also failed. Descriptive event lens only (`pead_surface.py`). Do not re-attempt any PEAD book without beating these exact numbers under the same no-leak harness. |
 | **Accumulation-footprint detector v1 (2026-07-05b)** | pre-registered gate **FAIL 1/4** (only trade-size cleared δ≥+0.20 vs both controls: +0.329/+0.250); 764/947 episodes had NO pre-public window (SEBI PIT T+2); n=54 usable | "Front-detect the insider from the tape" is structurally near-impossible in India at filing granularity. deliv_per showed ~no case elevation (δ≈+0.07) — consistent with MEP's alpha failure. Survivor: avg-trade-size ratio = descriptive column only. Follow-ups (campaign arcs E-04, disclosure drift E-03) require fresh pre-registration. |
 | CCI credibility as a factor | Spearman ≈0; HIGH−LOW excess −10% @12m (inverse, survivorship) | FALSIFIED as a factor → descriptive/veto only. |
 
@@ -359,15 +359,25 @@ Calendar-time portfolio (tradeable rule: trailing SUE-pct ≥0.80 ∧ EAR>0 ∧ 
 
 **Caveats:** survivor-conditioned fundamentals archive (house-wide caveat); A-study effectively
 2019→2026 (archive depth — no pre-2019 walk-forward possible); hedged diagnostic is gross of
-hedge-leg cost/margin; one construction family (equal-weight, 60td hold). **UNTESTED variant
-recorded** for a future pre-registered attempt: within-season-so-far ranks (rank vs already-announced
-cohort-mates — still no-leak) instead of trailing-365d ranks. It goes through the same gate; do not
-dredge it casually.
+hedge-leg cost/margin; one construction family (equal-weight, 60td hold).
 
-**Verdict: PEAD-delivery = a DESCRIPTIVE EVENT LENS (Wolfe/harmonic class), NOT a fundable book.**
-Failure-models table row added (blocking). Consumption candidates (descriptive only, not built): a
-"delivery-confirmed beat/miss" tag on the results-season watch + a dossier event-history fact — the
-+7.6%/60td top-cell number may be cited as context, never as a return promise.
+**The one untested cell — CLOSED (2026-07-05b, pre-registered before the run).** within-season-so-far
+ranks (rank each event's SUE/delivery vs same-(ptype,period_end) cohort-mates that announced STRICTLY
+EARLIER — still no-leak, no same-day peek) instead of trailing-365d ranks. Gate = beat Nifty500 0.89
+both halves. **Result: net Sharpe 0.06 (H1 0.01 / H2 0.07), 287 entries — WORSE than the trailing
+0.10; @1.5× cost −0.36.** Better ranking did not rescue the wrapper; the failure is the long-only
+cash translation + costs, not the rank signal. (The trailing book reproduced byte-identical — 0.10 /
+−0.41% CAGR — a clean refactor check.) **No fundable PEAD construction remains untested.**
+
+**Verdict: PEAD-delivery = a DESCRIPTIVE EVENT LENS (Wolfe/harmonic class), NOT a fundable book —
+every construction (trailing, no-delivery, within-season, hedged) falsified.** Failure-models row
+(blocking). **Descriptive product BUILT + LIVE-verified (`pead_surface.py`, the Results-Reaction
+Ledger):** per-stock PIT event history — real BSE date, SUE, delivery-x, realized +22/+60d abnormal
+move, and the stock's OWN base rates (avg 60d drift; and after "delivery-confirmed beats"
+specifically), plus the population cell as labelled context. Compute-on-read, no storage, offline
+selftest. Demo (real): DIXON delivery-confirmed beats +13.0%/60d (n=7, hit 60%); TANLA −1.8% (n=4) —
+the honest counter-case; ALKYLAMINE +49.4% (n=2). The +7.6%/60td population number may be cited as
+context, NEVER a return promise; the surface renders realized history only.
 
 ---
 

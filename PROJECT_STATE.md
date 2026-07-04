@@ -1355,6 +1355,26 @@ J. **Voice messages** — Whisper STT + ElevenLabs/OpenAI TTS. ~3 hours.
 
 K. **Sector adaptation in scoring.py** — implement Doctrine § D adaptations as code (currently noted only in documentation; scorer applies standard thresholds).
 
+### Session 80b — 2026-07-05 — "build the strategy?" → pre-registered NO + the descriptive product shipped
+Ramana: "can you start building that strategies after recording your study?" CEO answer: the PEAD
+book FAILED — building it would re-walk a failure recorded the same session. Instead ran the ONE
+untested construction on the ledger, then built the validated descriptive product.
+- **Pre-registered gate CLOSED (ledger § Experiment 2026-07-05, within-season cell):** within-season-
+  so-far ranks (rank vs cohort-mates that announced strictly earlier — no same-day leak) — the last
+  untested PEAD wrapper. **net Sharpe 0.06 (H1 0.01/H2 0.07), @1.5× −0.36 → FAILS the Nifty500-0.89
+  gate**, worse than trailing 0.10. Refactored `run_portfolio`→shared `_book`; trailing numbers
+  reproduced byte-identical (clean-refactor proof). **No fundable PEAD construction remains** — every
+  wrapper (trailing/no-deliv/within-season/hedged) falsified.
+- **BUILT + LIVE-verified `research/explosive_moves/pead_surface.py`** — the Results-Reaction Ledger,
+  descriptive product of the study: per-stock PIT results-event history (real BSE date, SUE,
+  delivery-x, realized +22/+60d abnormal vs Nifty500) + the stock's OWN base rates (avg drift; and
+  "delivery-confirmed beats" specifically) + population cell as labelled context. Compute-on-read (no
+  storage), offline `--selftest`, `--demo` verified: **DIXON delivery-confirmed beats +13.0%/60d
+  (n=7); TANLA −1.8% (n=4, honest counter-case); ALKYLAMINE +49.4%.** DESCRIPTIVE, never a forecast.
+- Serves charter N1 (war room, ~Jul-09); surface-wire into dossier deferred (sibling holds
+  `dashboard.py`) — engine is self-contained, wires via thin wrapper when the tree is clear.
+- Temp-index commit again (sibling lane still active); ledger + charter + memory updated.
+
 ### Session 80 — 2026-07-05 — CEO mode: charter shipped + footprint calibration run (gate FAIL, structural finding)
 Ramana escalated the wager: stop advising, own the product. Same session, three deliverables:
 - **`docs/patearn-charter.md` (NEW, canonical per D87):** thesis (evidence machine > signal shop),

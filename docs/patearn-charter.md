@@ -43,6 +43,7 @@ buyer cannot build in-house and cannot get from a vendor.
 | N1 | **Results-season war room**: BSE board-meeting calendar feed (D-01) + expected-results-date column + "delivery-confirmed beat/miss" descriptive tag (PEAD cells as context, never a promise) on the day-after-results surface | **live before Jul-09** |
 | N2 | **Data sprint wave-1** (D88): ASM/GSM lists (D-02) · price-band file (D-03) · SLB volumes (D-04) · bulk/block **history backfill** (D-05) | each ~0.5 session, all ₹0 primary CSVs |
 | N3 | **Trade-size ratio** descriptive column (the D89 survivor: Cliff's δ +0.33/+0.25) on Screen+ + dossier, compute-on-read | descriptive-only, glossary entry required |
+| N1b | **Results-Reaction Ledger ENGINE — BUILT (`pead_surface.py`, S80b):** per-stock PIT results-event history + own base rates, the descriptive product of the (falsified-as-a-book) PEAD study. Compute-on-read, selftested, demo-verified. Remaining: wire into the dossier + war-room surface (thin wrapper; sibling holds `dashboard.py` — deploy when clear) | engine done; surface-wire pending |
 | N4 | **Event-study library**: extract `pead.py`/`footprint.py` shared parts (CAR paths, controls, cohort stats, cost model) into `research/explosive_moves/evlib.py` | refactor, selftest parity |
 | N5 | Verify Jul-05 concall run + first sandboxed nightly chain (carry-forward queue #1) | ops hygiene |
 
@@ -78,6 +79,10 @@ evidence-pack PDF v2 with full event history (P-04) · Reg-31 shareholding-relea
 the ~Jul-21 filing flood (E-14) · survivorship-bias quantifier published as a standing caveat
 number (M-05) · PEAD within-season-so-far variant (pre-register first; ledger 2026-07-05) ·
 MCP server on the VPS (P-06, open item L).
+
+**CLOSED (evidence, not deferral):** PEAD within-season-so-far variant — ran pre-registered
+2026-07-05b, net Sharpe 0.06, FAILED the gate; no fundable PEAD construction remains. The event lens
+ships descriptively (`pead_surface.py`), never as a book.
 
 ## 6. Data-acquisition sprint — what can be brought in QUICKLY (all primary, ₹0)
 

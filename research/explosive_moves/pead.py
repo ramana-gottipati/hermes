@@ -77,6 +77,7 @@ TRAIL_DAYS = 365                     # portfolio trailing-rank reference window
 MIN_PRIORS = 60                      # min prior same-type events before portfolio can rank
 SUE_P, DLV_P = 0.80, 2.0 / 3.0       # portfolio entry thresholds (trailing percentiles)
 H1_END = "2020-12-31"                # walk-forward halves boundary (house convention era-split)
+SEASON_MIN_COHORT = 30               # min already-announced same-season cohort before within-season ranking
 
 
 # ---------- pure helpers (selftested) ----------------------------------------
@@ -385,10 +386,17 @@ def run_portfolio(events: list[dict], cal: list[str], label: str, out_lines: lis
         if use_delivery and not (dp == dp and dp >= DLV_P):
             continue
         picks.append(e)
+    return _book(picks, cal, label, out_lines, cost_mult, idx_ret)
+
+
+def _book(picks: list[dict], cal: list[str], label: str, out_lines: list[str],
+          cost_mult: float = 1.0, idx_ret: dict[str, float] | None = None) -> dict | None:
+    """Shared book builder: equal-weight across daily-active picks, side costs folded into
+    each pick's first/last day, net equity curve + full/halves stats. ``idx_ret`` set =
+    subtract index return on invested days (hedged diagnostic)."""
     if len(picks) < 40:
         out_lines.append(f"  {label}: only {len(picks)} qualifying entries — skipped")
         return None
-    # daily return stream per pick, with costs folded into first/last day
     day_rets: dict[str, list[float]] = {}
     for e in picks:
         cost = side_cost(e["med_turn"], e["atr"], cost_mult)
@@ -397,7 +405,8 @@ def run_portfolio(events: list[dict], cal: list[str], label: str, out_lines: lis
         rets[-1] -= cost
         for d, r in zip(e["dates_path"], rets):
             day_rets.setdefault(d, []).append(r)
-    d0, d1 = picks[0]["entry_date"], max(e["dates_path"][-1] for e in picks)
+    d0 = min(e["entry_date"] for e in picks)
+    d1 = max(e["dates_path"][-1] for e in picks)
     days = [d for d in cal if d0 < d <= d1]
     eq, curve, invested, sizes = 1.0, [], 0, []
     for d in days:
@@ -411,12 +420,10 @@ def run_portfolio(events: list[dict], cal: list[str], label: str, out_lines: lis
             sizes.append(len(rs))
         curve.append(eq)
     st = equity_stats(days, curve)
-    idx0 = None
     out_lines.append(f"  {label}: entries={len(picks)}  window={days[0]}..{days[-1]}  "
                      f"invested={invested/len(days)*100:.0f}% of days  book avg={np.mean(sizes):.1f} max={max(sizes)}")
     out_lines.append(f"    net  CAGR={st['cagr']*100:6.2f}%  MaxDD={st['maxdd']*100:6.1f}%  "
                      f"Sharpe={st['sharpe']:5.2f}  Calmar={st['calmar']:5.2f}")
-    # halves
     for tag, lo, hi in (("H1", days[0], H1_END), ("H2", H1_END, days[-1])):
         sub = [(d, c) for d, c in zip(days, curve) if lo <= d <= hi]
         if len(sub) > 250:
@@ -424,6 +431,46 @@ def run_portfolio(events: list[dict], cal: list[str], label: str, out_lines: lis
             out_lines.append(f"    {tag} {sub[0][0]}..{sub[-1][0]}: Sharpe={s2['sharpe']:5.2f}  "
                              f"CAGR={s2['cagr']*100:6.2f}%  MaxDD={s2['maxdd']*100:6.1f}%")
     return {"days": days, "curve": curve, "picks": picks, "stats": st}
+
+
+def _season_select(events: list[dict]) -> list[dict]:
+    """WITHIN-SEASON-SO-FAR picker (pure). Rank each event's SUE / delivery ONLY against
+    same-(ptype, period_end) cohort-mates that announced STRICTLY EARLIER — a whole same-t0
+    group is ranked against prior groups, then all added together, so there is no same-day
+    leak. Enter if within-season SUE pctile >= SUE_P, EAR>0, delivery pctile >= DLV_P."""
+    from collections import defaultdict
+    cohorts: dict[tuple, list[dict]] = defaultdict(list)
+    for e in events:
+        cohorts[(e["ptype"], e["pend"])].append(e)
+    picks: list[dict] = []
+    for evs in cohorts.values():
+        evs = sorted(evs, key=lambda x: x["t0"])
+        seen_sue: list[float] = []
+        seen_dlv: list[float] = []
+        i = 0
+        while i < len(evs):
+            t0 = evs[i]["t0"]
+            group = []
+            while i < len(evs) and evs[i]["t0"] == t0:
+                group.append(evs[i]); i += 1
+            if len(seen_sue) >= SEASON_MIN_COHORT:
+                for e in group:
+                    sp = sum(1 for v in seen_sue if v <= e["sue"]) / len(seen_sue)
+                    dp = sum(1 for v in seen_dlv if v <= e["deliv_x"]) / len(seen_dlv)
+                    if sp >= SUE_P and e["ear"] > 0 and dp >= DLV_P:
+                        picks.append(e)
+            for e in group:
+                seen_sue.append(e["sue"]); seen_dlv.append(e["deliv_x"])
+    return picks
+
+
+def run_portfolio_season(events: list[dict], cal: list[str], label: str,
+                         out_lines: list[str], cost_mult: float = 1.0) -> dict | None:
+    """The ONE untested PEAD construction on the ledger (pre-registered 2026-07-05): rank
+    within the same reporting season as it unfolds, not against a trailing-365d mixed-season
+    window. PRE-REGISTERED GATE: net Sharpe beats Nifty-500 (0.89) in BOTH halves -> a
+    fundable strategy exists, build it; otherwise PEAD stays a descriptive lens (ledger)."""
+    return _book(_season_select(events), cal, label, out_lines, cost_mult)
 
 
 def bench_stats(hcon, d0: str, d1: str, out_lines: list[str]) -> None:
@@ -494,6 +541,11 @@ def main() -> None:
     run_portfolio(events, cal, "no-delivery variant (SUE+EAR only)", out, use_delivery=False)
     run_portfolio(events, cal, "cost x1.5 stress", out, cost_mult=1.5)
     run_portfolio(events, cal, "HEDGED diagnostic (minus index, gross hedge leg)", out, idx_ret=iret)
+    out.append("\n=== PRE-REGISTERED VARIANT — within-season-so-far ranks (the ledger's one untested cell) ===")
+    out.append("rule: SUE pctile vs already-announced same-(ptype,period_end) cohort >=0.80 AND EAR>0 AND "
+               "delivery pctile >=0.667, hold 60td, NET. GATE: beat Nifty500 0.89 both halves -> fundable.")
+    run_portfolio_season(events, cal, "PEAD within-season (full)", out)
+    run_portfolio_season(events, cal, "PEAD within-season @1.5x cost", out, cost_mult=1.5)
     if p_full:
         bench_stats(hcon, p_full["days"][0], p_full["days"][-1], out)
 
@@ -546,6 +598,13 @@ def selftest() -> None:
     assert abs(car[0] - 0.10) < 1e-9 and abs(car[1] - (0.21 - 0.10)) < 1e-9
     # cost monotone in ATR and tier
     assert side_cost(30e7, 0.02) < side_cost(2e7, 0.02) < side_cost(2e7, 0.06)
+    # within-season selector: none before the min cohort; only top-SUE names after; EAR gate blocks
+    evs = [{"ptype": "Q", "pend": "2025-03-31",
+            "t0": f"2025-{5 + d // 28:02d}-{(d % 28) + 1:02d}",
+            "sue": float(d), "deliv_x": float(d), "ear": 1.0} for d in range(35)]
+    picks = _season_select(evs)
+    assert len(picks) == 5 and all(p["sue"] >= 30 for p in picks), [p["sue"] for p in picks]
+    assert _season_select([dict(e, ear=-1.0) for e in evs]) == []
     print("PEAD selftest OK")
 
 
