@@ -476,6 +476,31 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D89 — Footprint detector v1: pre-registered gate FAIL; trade-size ratio = the descriptive survivor; detection pivots to campaign-arcs + disclosure drift (2026-07-05, S80)
+The gate (≥2/4 a-priori features at Cliff's δ ≥ +0.20 vs BOTH control sets) failed 1/4 on 54 usable
+case windows — **because 764/947 disclosed-accumulation episodes have no pre-public tape window at
+all (SEBI PIT T+2 disclosure)**. Decisions: (a) NO accumulation detector ships; MEP stays
+descriptive; (b) avg-trade-size ratio (only gate-clearing feature, δ +0.329/+0.250) approved as a
+descriptive compute-on-read column (charter N3); (c) the detection product line targets
+campaign-arc continuation (E-04) and post-disclosure drift (E-03), each requiring a fresh
+pre-registered gate. Numbers: ledger § Study 2026-07-05b. WHY recorded as a win for the process:
+the structural finding reshapes the roadmap more than a pass would have.
+
+### D88 — Data-acquisition sprint wave-1 approved: board-meeting calendar · ASM/GSM · price bands · SLB · bulk/block history backfill (2026-07-05, S80)
+All primary-source (guardrail #8 by construction), all ₹0, each ~0.5 session on existing ingest
+patterns. Board-meeting calendar (D-01) lands FIRST — it powers the results-season war room
+(charter N1, live before ~Jul-09). Wave-2 (announcement categories, MWPL, AMFI MF portfolios)
+unlocks after the war room ships. Full table: `docs/patearn-charter.md` §6.
+
+### D87 — CEO operating mode: `docs/patearn-charter.md` is the canonical roadmap; sessions execute its NOW queue by default (2026-07-05, S80)
+Ramana directed the model to stop advising and dictate development. The charter (thesis, dated
+Now/Next/Later, pre-registration doctrine, 50-idea bank, not-do list, KPIs, governance) is the
+standing plan; carry-forward queues derive from charter §3; deviations and amendments happen ONLY
+via new D-log entries. Binding constraints unchanged (≤₹300/mo · primary sources only · cheap
+models in timers · failure-ledger discipline · surface-first list). WHY a charter and not more
+queue entries: direction must survive session boundaries the same way state does — as a versioned
+doc with an amendment rule, not as chat advice.
+
 ### D83 — Session permissions are harness-enforced: committed `.claude/settings.json` with `bypassPermissions`; no session may ever ask Ramana for access again (2026-07-02)
 Ramana's standing full-tree authorization (Guardrail #0) kept being "asked again" because it lived only in prose + the gitignored `settings.local.json`: (a) Claude Code's safety layer re-prompts on complex shell commands (nested-quote `ssh`/`scp` deploy one-liners) even with a bare `Bash` allow rule — hence 480+ accumulated one-off rules; (b) worktree/scratchpad sessions never load the local file (gitignored); (c) paths outside `D:\Hermes` (`~/.claude` memory, Temp scratchpads) always prompted (`additionalDirectories` was empty). Fix: NEW committed **`.claude/settings.json`** — `permissions.defaultMode: "bypassPermissions"` + full tool/MCP/path allowlist + `additionalDirectories` for `~/.claude` and the Temp claude tree — which loads in every session and every worktree checkout; plus CLAUDE.md **Guardrail #0-bis** (never ask for access; never weaken the file; a surviving prompt = bug to report, not a cue to ask). WHY bypass and not more allow rules: only `bypassPermissions` also silences the injection-heuristic re-prompts that ignore allowlists. Behavioural guardrails (surface-first for paid spend / deleting others' work / DB-destructive / publishing) are unchanged — they are conversation-level, not harness prompts.
 
@@ -1329,6 +1354,28 @@ I. **Kite Connect intraday** — ~₹500/mo when Ramana wants real-time alerts.
 J. **Voice messages** — Whisper STT + ElevenLabs/OpenAI TTS. ~3 hours.
 
 K. **Sector adaptation in scoring.py** — implement Doctrine § D adaptations as code (currently noted only in documentation; scorer applies standard thresholds).
+
+### Session 80 — 2026-07-05 — CEO mode: charter shipped + footprint calibration run (gate FAIL, structural finding)
+Ramana escalated the wager: stop advising, own the product. Same session, three deliverables:
+- **`docs/patearn-charter.md` (NEW, canonical per D87):** thesis (evidence machine > signal shop),
+  operating principles (pre-registered gates; event-time frontier; descriptive-≠-apologetic;
+  capacity ceilings as moats; correctness first), dated NOW queue (results-season war room live
+  before ~Jul-09), data sprint waves (D88), **50-entry idea bank** (E/X/D/P/M ids), not-do list,
+  KPIs, governance. Carry-forward queues now derive from charter §3.
+- **`research/explosive_moves/footprint.py` (NEW):** detection study — do tape descriptors elevate
+  during disclosed accumulation (insider conviction buys + Reg-29 ACQ, windows trimmed to end
+  before first disclosure) vs self- and cross-controls? **Pre-registered gate FAIL 1/4** (ledger
+  § Study 2026-07-05b): only avg-trade-size cleared (δ +0.329/+0.250 → approved as DESCRIPTIVE
+  column, charter X-01/N3); deliv_per ≈ flat during real accumulation (coherent with MEP's DSR
+  0.36 failure); **structural finding: 764/947 episodes have NO pre-public window (SEBI PIT T+2)**
+  → detection pivots to campaign-arcs (E-04) + post-disclosure drift (E-03), pre-registration
+  required. Composite top-5% lift 2.65× on n=54 = underpowered, recorded as such.
+- **Label-inventory recon (recorded):** insider_events 10,008 evts/871 syms (conviction 3,008;
+  disclosure era 2025-11→2026-07) · sast_reg29 3,424/830 (ACQ 2,350) · bulk_block_deals only
+  2 WEEKS deep (history backfill = D-05, quick win; `client_name` present → smart-buyer graph P-01)
+  · credit_rating_events 2,798 but 59 syms (130 UPGRADEs — E-02 needs scrip-map widening).
+- Failure-models table + memory updated. Sibling lane still active — same temp-index commit
+  discipline as S79 (own hunks only; sibling's dirty `PROJECT_STATE.md`/`dashboard.py` untouched).
 
 ### Session 79 — 2026-07-05 — PEAD event study (new-ideas wager): event lens real, fundable book falsified
 Ramana challenged the model to generate genuinely NEW ideas from the existing data. Pitched a reframe

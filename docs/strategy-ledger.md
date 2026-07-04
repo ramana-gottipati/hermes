@@ -73,6 +73,7 @@ the exact figures; do not silently re-attempt. (Mirrored in memory `failure-mode
 | ACCEL / PULLBACK / DELIV_MOM (standalone) | Sharpe 0.42-0.85, MaxDD −44%…−70% | Short-thrust chasing / dip-buying / delivery% added no standalone edge. |
 | MEP-accumulation as alpha | Deflated-Sharpe DSR 0.45→0.36 when added | Descriptor-only; adds nothing. Do not re-test as alpha. |
 | **PEAD tradeable book (event-time, 2026-07-05)** | net Sharpe **0.10** / CAGR −0.4% / MaxDD −42.9% vs bench 0.85; HEDGED diagnostic **−0.58**; 1.5× cost −0.32; fails both halves | Event drift is REAL descriptively (A-study SUE-Q5×DELIV-T3 CAR60 +7.62%, t_cohort 1.92) but does NOT survive a real-time trailing-rank rule + costs + compounding. Descriptive event lens only. Do not re-attempt any PEAD book without beating these exact numbers under the same no-leak harness. |
+| **Accumulation-footprint detector v1 (2026-07-05b)** | pre-registered gate **FAIL 1/4** (only trade-size cleared δ≥+0.20 vs both controls: +0.329/+0.250); 764/947 episodes had NO pre-public window (SEBI PIT T+2); n=54 usable | "Front-detect the insider from the tape" is structurally near-impossible in India at filing granularity. deliv_per showed ~no case elevation (δ≈+0.07) — consistent with MEP's alpha failure. Survivor: avg-trade-size ratio = descriptive column only. Follow-ups (campaign arcs E-04, disclosure drift E-03) require fresh pre-registration. |
 | CCI credibility as a factor | Spearman ≈0; HIGH−LOW excess −10% @12m (inverse, survivorship) | FALSIFIED as a factor → descriptive/veto only. |
 
 The corollary (the doctrine these failures prove): **price strength is the only gross forward-return
@@ -367,6 +368,52 @@ dredge it casually.
 Failure-models table row added (blocking). Consumption candidates (descriptive only, not built): a
 "delivery-confirmed beat/miss" tag on the results-season watch + a dossier event-history fact — the
 +7.6%/60td top-cell number may be cited as context, never as a return promise.
+
+---
+
+## Study 2026-07-05b — accumulation-footprint calibration on disclosure labels (DONE — gate FAIL; one survivor + a structural market finding)
+
+Ran `research/explosive_moves/footprint.py` (NEW; offline `--selftest`; read-only; outputs
+`out/footprint_windows.csv` + `footprint_summary.txt` on the VPS). A DETECTION study, not returns:
+do our tape descriptors elevate WHILE disclosed accumulation is actually happening
+(pre-disclosure transaction windows), vs (a) the same stock at random other times (self-controls)
+and (b) other stocks on the same dates (cross-controls)? Labels = `insider_events`
+conviction OPEN_MARKET_BUY episodes (≥₹50L or ≥0.10% eq, clustered ≤10 sessions) +
+`sast_reg29_events` ACQ (≥0.25% acquired), windows trimmed to END BEFORE first public disclosure.
+**Pre-registered gate (in the module docstring before the run): ≥2 of 4 a-priori features at
+Cliff's δ ≥ +0.20 vs BOTH control sets.**
+
+**Result: FAIL — 1/4.** 947 material episodes → **54 usable case windows** (+104 self / +108
+cross controls); **764/947 dropped as disclosure-too-fast** (SEBI PIT Reg-7(2) T+2 rule leaves
+<3 pre-public sessions).
+
+| feature | δ vs self | δ vs cross | read |
+|---|---|---|---|
+| f_trade_size (a-priori) | **+0.329** | **+0.250** | **PASS — the one robust signature: insiders buy in bigger clips** |
+| f_deliv_value (a-priori) | +0.322 | +0.196 | missed cross gate by 0.004 |
+| f_updel_share (a-priori) | +0.093 | +0.053 | fail |
+| f_deliv_per (a-priori) | +0.072 | +0.083 | fail — DVPT's core barely moves during real accumulation |
+| f_turnover | +0.317 | +0.171 | (non-a-priori) elevated |
+| f_overnight | −0.112 | −0.036 | insiders don't gap it up |
+
+Composite (a-priori mean-pctl): top-5% precision 53.8% vs 20.3% base = **2.65× lift** — but on
+n=54, underpowered; NOT a spec sheet. Case composite by source: both=0.637 > insider=0.572 >
+sast=0.547 (multi-source campaigns are the most visible).
+
+**Findings (recorded):**
+1. **Structural:** India's T+2 insider-disclosure regime means the pre-public tape window barely
+   exists at filing granularity — the detection product is NOT front-running the filing; it is
+   (a) **campaign-arc detection** across multi-filing sequences and (b) **post-disclosure drift**
+   (the filing itself as an event) — both queued as pre-registered follow-ups (charter E-03/E-04).
+2. **Avg-trade-size ratio is the validated survivor** (only gate-clearing feature) → approved as a
+   DESCRIPTIVE column (compute-on-read), with glossary entry; never a detector claim on n=54.
+3. **deliv_per shows ~no elevation during genuine accumulation** — coherent with MEP's recorded
+   alpha failure (DSR 0.36): the delivery LEVEL is mostly noise; delivered VALUE + clip size carry
+   what little signature exists.
+
+**Caveats:** labels span only the ingest era (~2025-11 → 2026-07); n=54 cases; controls matched on
+length + symbol/date but not size/sector; bulk/block labels excluded (2-week table depth — backfill
+queued D-05). **Verdict: no detector ships; MEP stays descriptive; failure-models row added.**
 
 ---
 
