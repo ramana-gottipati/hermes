@@ -754,7 +754,7 @@ def render_home(sig_date, idx_date) -> str:
                     f'<td class="r">{pct(r.get("pfh"))}</td>')
         boards.append(_board('<span class="em">🕵</span> Stealth accumulation', 'concentrated, still off the highs',
                              trig_rows(stealth, score_cell=stealth_score),
-                             "/dash/stocks?view=stealth", "See the full screen", "#58a6ff"))
+                             "/dash/strategies/stealth", "See the full screen", "#58a6ff"))
 
     # MEP — signed accumulation/distribution (descriptor; D62). Additive, Phase-A
     # placement (appended after the DVPT boards). SIGNED, so it can carry a

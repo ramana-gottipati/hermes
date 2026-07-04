@@ -134,10 +134,19 @@ LENSES: tuple[Lens, ...] = (
     Lens("conviction", "Conviction", "stock", "strategies", "/dash/conviction",
          dossier_tab="verdict"),
     # Positioning + MEP GROUP under one "Accumulation" heading (two views, both kept).
-    Lens("stocks", "Positioning", "stock", "strategies", "/dash/stocks",
+    Lens("stocks", "Stocks", "stock", "strategies", "/dash/stocks",
          dossier_tab="pos", screener_col="pos", overlay="dvpt",
-         group="Accumulation", aliases=("scan",)),
-    Lens("mep", "MEP", "stock", "strategies", "/dash/mep",
+         group="Accumulation", aliases=("scan", "positioning")),
+    # Stealth accumulation — a DISTINCT population (accumulation character + A+ pressure
+    # + low churn + >=10% off the 52w-high), so it earns its OWN nested link (D80) rather
+    # than the old /dash/stocks?view=stealth query-param orphan. Sibling under the same
+    # "Accumulation" group; nests to /dash/strategies/stealth. Served by dash_stealth,
+    # which reuses the dash_stocks view=='stealth' render (no query duplication). The old
+    # ?view=stealth URL still serves + also highlights Stealth (active derived from view).
+    Lens("stealth", "Stealth", "stock", "strategies", "/dash/stealth",
+         dossier_tab="pos", screener_col="pos", overlay="dvpt",
+         group="Accumulation", aliases=("stealth-accumulation",)),
+    Lens("mep", "Accum / Distrib", "stock", "strategies", "/dash/mep",
          dossier_tab="mep", screener_col="mep", overlay="mep",
          group="Accumulation"),
     Lens("cpr", "Structure", "stock", "strategies", "/dash/cpr",
@@ -248,7 +257,13 @@ def _selftest() -> int:
     # Leaders MOVED to Markets; Positioning/MEP stay under Strategies, grouped.
     assert BY_KEY["leaders"].altitude == "markets", "leaders must be Markets content"
     assert BY_KEY["stocks"].altitude == "strategies" and BY_KEY["stocks"].group == "Accumulation"
+    assert BY_KEY["stocks"].label == "Stocks", "the DVPT list's label must say 'Stocks' (matches /dash/stocks)"
     assert BY_KEY["mep"].altitude == "strategies" and BY_KEY["mep"].group == "Accumulation"
+    # Stealth is a first-class destination (own nested link /dash/strategies/stealth),
+    # NOT a query-param orphan — it sits in the Accumulation group beside Stocks + MEP.
+    assert BY_KEY["stealth"].altitude == "strategies" and BY_KEY["stealth"].group == "Accumulation"
+    assert BY_KEY["stealth"].route == "/dash/stealth"
+    assert [ln.key for ln in subnav("strategies") if ln.group == "Accumulation"] == ["stocks", "stealth", "mep"]
     # Hub merged into Strategist (strategies alias points at strategist).
     assert ALT_OF.get("strategies") == "strategies"
     assert "strategies" in BY_KEY["strategist"].aliases

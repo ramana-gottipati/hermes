@@ -1429,7 +1429,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
         head = ('<h2>🕵 Stealth accumulation</h2>'
                 '<div class="sub">Quiet, concentrated accumulation still ≥10% off the 52-week high — '
                 'the full list behind the home card (accumulation character · A+ pressure · low churn). '
-                '<a class="row" style="display:inline" href="/dash/stocks">← all positioning</a></div>')
+                '<a class="row" style="display:inline" href="/dash/stocks">← all stocks</a></div>')
     elif sector:
         head = (f'<h2>Stocks in {_esc(sector)}</h2>'
                 f'<div class="sub">{len(sector_syms)} constituents · by trigger strength · '
@@ -1577,8 +1577,23 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                '<a class="row sub" href="/dash/workbench" style="margin:0 0 8px">'
                'Workbench ⇄ <span class="mut">every DVPT signal in one sortable table</span></a>')
     body = search + ptoggle + badge + wb_link + head + table + watch_block + js
-    # Title matches the nav lens "Positioning" (one name across nav/heading/title). P2 #7.
-    return HTMLResponse(_shell("Positioning · patearn", body, "stocks", sig_date or ""))
+    # Stealth (view=="stealth") is its OWN destination (lens "stealth") — highlight it and
+    # title it accordingly whether reached via the canonical /dash/strategies/stealth or the
+    # legacy /dash/stocks?view=stealth. Otherwise this is the Stocks list (lens "stocks").
+    _active = "stealth" if view == "stealth" else "stocks"
+    _title = "Stealth accumulation · patearn" if view == "stealth" else "Stocks · patearn"
+    return HTMLResponse(_shell(_title, body, _active, sig_date or ""))
+
+
+@router.get("/dash/stealth", response_class=HTMLResponse)
+def dash_stealth() -> HTMLResponse:
+    """Stealth accumulation as a FIRST-CLASS destination (D80): its own nested link
+    /dash/strategies/stealth + an Accumulation sub-nav entry — replacing the old
+    /dash/stocks?view=stealth orphan (a view with no nav door). Reuses the dash_stocks
+    stealth render verbatim (one query, no duplication); the legacy ?view=stealth URL
+    keeps working and also highlights Stealth."""
+    # pass every arg explicitly — a direct call must not receive the Query() defaults.
+    return dash_stocks(sector="", limit=40, period="d", view="stealth")
 
 
 @router.get("/dash/workbench", response_class=HTMLResponse)

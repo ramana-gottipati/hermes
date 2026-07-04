@@ -275,7 +275,7 @@ def cmdk_overlay() -> str:
         'tracker:"/dash/dashboard",coverage:"/dash/coverage",trust:"/dash/coverage",news:"/dash/wire",'
         'wire:"/dash/wire","relative strength":"/dash/rs-hub",rs:"/dash/rs-hub",growth:"/dash/growth",'
         'wolfe:"/dash/wolfe/scan",rotation:"/dash/rrg",sectors:"/dash/sectors",conviction:"/dash/conviction",'
-        'accumulation:"/dash/mep",mep:"/dash/mep",credibility:"/dash/concalls",concalls:"/dash/concalls",'
+        'accumulation:"/dash/mep",mep:"/dash/mep",stocks:"/dash/stocks",positioning:"/dash/stocks",stealth:"/dash/strategies/stealth",credibility:"/dash/concalls",concalls:"/dash/concalls",'
         'screen:"/dash/screen2",ratio:"/dash/ratio",watchlists:"/dash/watchlists",portfolios:"/dash/portfolios",'
         'launchpad:"/dash/launchpad",participants:"/dash/participants",'
         'glossary:"/dash/glossary",methodology:"/dash/glossary",terms:"/dash/glossary"};'
