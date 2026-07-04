@@ -1583,7 +1583,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
     # legacy /dash/stocks?view=stealth. Otherwise this is the Stocks list (lens "stocks").
     _active = "stealth" if view == "stealth" else "stocks"
     _title = "Stealth accumulation · patearn" if view == "stealth" else "Stocks · patearn"
-    return HTMLResponse(_shell(_title, body, _active, sig_date or ""))
+    return HTMLResponse(_shell(_title, body, _active, sig_date or "", wide=True))
 
 
 @router.get("/dash/stealth", response_class=HTMLResponse)
@@ -1679,7 +1679,7 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
             '<b>⬇ Export</b> to CSV/Excel. 🟢 gap cell = in the launch band (−1%…+5% of the value-weighted '
             'key price). <a class="row" style="display:inline" href="/dash/stocks">← back to screen</a></div>'
             + table)
-    return HTMLResponse(_shell("Workbench · patearn", body, "workbench", sig_date or ""))
+    return HTMLResponse(_shell("Workbench · patearn", body, "workbench", sig_date or "", wide=True))
 
 
 @router.get("/dash/screener", response_class=HTMLResponse)
@@ -2952,7 +2952,7 @@ def dash_cpr(tab: str = Query("reversals"), tf: str = Query(""),
         body = ('<h2>CPR · Structure</h2>'
                 '<div class="empty">No CPR signals yet — run the CPR backfill on the VPS:<br>'
                 '<code>python -m src.automation.cpr_signals --backfill --timeframe all</code></div>')
-        return HTMLResponse(_shell("CPR · patearn", body, "cpr"))
+        return HTMLResponse(_shell("CPR · patearn", body, "cpr", wide=True))
 
     # tab bar
     def _tab(key, label):
@@ -3000,7 +3000,7 @@ def dash_cpr(tab: str = Query("reversals"), tf: str = Query(""),
             f'<div class="sub">{intro}</div>')
     body = head + tabbar + fbars + content
     return HTMLResponse(_shell("CPR · patearn", body, "cpr",
-                               latest.get("D") or latest.get("W") or ""))
+                               latest.get("D") or latest.get("W") or "", wide=True))
 
 
 # === D54 (UI Phase 1) — strategy → watchlist → portfolio ACTION LOOP ========
@@ -7093,14 +7093,14 @@ def dash_ratio(idx: str = Query("", max_length=60),
 
     if not idx:
         body = '<div class="empty">No index selected. Reach this page from a Markets or Sectors RS cell.</div>'
-        return HTMLResponse(_shell("Ratio · patearn", body, "sectors", idx_date or ""))
+        return HTMLResponse(_shell("Ratio · patearn", body, "sectors", idx_date or "", wide=True))
 
     with get_conn() as conn:
         known = conn.execute(
             "SELECT 1 FROM index_rows WHERE index_name=? LIMIT 1", (idx,)).fetchone()
         if not known:
             body = f'<div class="empty">Unknown index <b>{_esc(idx)}</b>.</div>'
-            return HTMLResponse(_shell("Ratio · patearn", body, "sectors", idx_date or ""))
+            return HTMLResponse(_shell("Ratio · patearn", body, "sectors", idx_date or "", wide=True))
 
         curve = conn.execute(
             """SELECT r.trade_date, r.ratio, s.ratio_ma_50, s.ratio_ma_200,
@@ -7116,7 +7116,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
         if not curve:
             body = (f'<h2>{_esc(idx)} <span class="sub" style="margin:0">vs {_esc(den)}</span></h2>'
                     '<div class="empty">No ratio series (this is a broad/size index, not a sector).</div>')
-            return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "ratio", idx_date or ""))
+            return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "ratio", idx_date or "", wide=True))
 
         sig = conn.execute(
             """SELECT rs_vs_broad_trend_state st, ret_3m_pct r3,
@@ -7421,7 +7421,7 @@ def dash_ratio(idx: str = Query("", max_length=60),
 {chart_js}
 """
     return HTMLResponse(_shell(f"{idx} ratio · patearn", body, "ratio",
-                               idx_date or ""))
+                               idx_date or "", wide=True))
 
 
 # Multi-index compare chart JS (plain template — no f-string; placeholders are
@@ -7973,7 +7973,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
             + picker_html
             + '<div class="empty">No indices selected. Use <b>+ Add</b> or a preset above.</div>'
             + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-        return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or ""))
+        return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or "", wide=True))
 
     # Note any selected series that has no data for the current mode.
     note = ""
@@ -8045,7 +8045,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
         + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
-    return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or ""))
+    return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or "", wide=True))
 
 
 # Picker JS (plain template) — reveals the add box, filters suggestion chips by
