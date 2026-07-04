@@ -27,9 +27,12 @@ Run on VPS:
 """
 from __future__ import annotations
 
+import bisect
 import sqlite3
 import sys
-from datetime import date
+from datetime import date, datetime, timedelta
+
+import numpy as np
 
 from .common import RESEARCH_DB, main_conn
 from . import pead
@@ -79,14 +82,124 @@ def _reactions_for(sym: str, hcon, rcon, idx_dates, idx_map) -> list[dict]:
     if ss is None:
         return []
     out = []
-    today = date.today().isoformat()
     for e in sorted(cand, key=lambda x: x["t0"]):
-        fe = pead.tape_features(ss, e, idx_dates, idx_map)
-        if fe is None:
-            continue
-        fe["is_settled"] = fe["dates_path"][-1] <= today if fe.get("dates_path") else True
-        out.append(fe)
+        fe = reaction_row(ss, e, idx_dates, idx_map)
+        if fe is not None:
+            out.append(fe)
     return out
+
+
+def reaction_row(ss, ev: dict, idx_dates, idx_map) -> dict | None:
+    """Scanner-grade features for ONE event — like pead.tape_features but WITHOUT the 40-row
+    forward requirement, so a freshly-reported name (no drift yet) still appears. car22/car60 are
+    NaN until enough forward sessions exist. None only if unusable (illiquid / CA / not traded)."""
+    i0 = bisect.bisect_left(ss.date, ev["t0"])
+    if i0 >= ss.n or i0 < pead.MIN_PRIOR_ROWS:
+        return None
+    entry = i0 + pead.ENTRY_LAG
+    if entry >= ss.n:                                  # results so fresh the entry hasn't traded
+        return None
+    mt = ss.med_turn[i0 - 1]
+    if not (mt == mt and mt >= pead.LIQ_FLOOR):
+        return None
+    if ss.is_ca[max(0, i0 - 1):entry + 1].any() or ss.gap_days(i0 - 1, entry) > 6:
+        return None
+    ac = ss.adj_close
+    if not (ac[i0 - 1] > 0 and ac[entry] > 0):
+        return None
+    li0 = pead.idx_level_asof(idx_dates, idx_map, ss.date[i0 - 1])
+    li1 = pead.idx_level_asof(idx_dates, idx_map, ss.date[entry])
+    if not (li0 == li0 and li1 == li1 and li0 > 0 and li1 > 0):
+        return None
+    ear = (ac[entry] / ac[i0 - 1] - 1.0) - (li1 / li0 - 1.0)
+    dv = ss.deliv_qty[i0:entry + 1] * ss.close[i0:entry + 1]
+    base = ss.deliv_qty[i0 - pead.DELIV_BASE_WIN:i0] * ss.close[i0 - pead.DELIV_BASE_WIN:i0]
+    base = base[~np.isnan(base) & (base > 0)]
+    if len(base) < pead.DELIV_BASE_WIN // 2 or np.isnan(dv).any():
+        return None
+    deliv_x = float(np.mean(dv) / np.median(base))
+
+    def _car(h: int) -> float:
+        j = entry + h
+        if j >= ss.n or ss.gap_days(entry, j) > h * 2 + 20:
+            return float("nan")
+        il = pead.idx_level_asof(idx_dates, idx_map, ss.date[j])
+        if not (ac[j] > 0 and il == il and il > 0):
+            return float("nan")
+        return float((ac[j] / ac[entry] - 1.0) - (il / li1 - 1.0))
+
+    return {"sym": ev["sym"], "ptype": ev["ptype"], "pend": ev["pend"], "t0": ev["t0"],
+            "entry_date": ss.date[entry], "sue": ev["sue"], "ear": float(ear),
+            "deliv_x": deliv_x, "med_turn": float(mt), "car22": _car(22), "car60": _car(60),
+            "is_settled": entry + 60 < ss.n}
+
+
+def _breakpoints(events: list[dict]) -> tuple[float, float]:
+    """Descriptive population breakpoints: SUE 80th pctile (top quintile), delivery 2/3 pctile
+    (top tercile) — the same cut the 2026-07-05 study used to define its cells."""
+    sues = np.array([e["sue"] for e in events if e.get("sue") == e.get("sue")])
+    dlvs = np.array([e["deliv_x"] for e in events if e.get("deliv_x") == e.get("deliv_x")])
+    return float(np.quantile(sues, 0.80)), float(np.quantile(dlvs, 2.0 / 3.0))
+
+
+def write_snapshot(days_back: int = 180, db_path: str = RESEARCH_DB) -> int:
+    """Nightly scanner precompute (the house pattern — a view then just reads the table). Builds
+    the settled population for descriptive breakpoints, then writes every results event in the
+    last ``days_back`` days (incl. fresh no-drift ones) to research.db.results_reactions."""
+    hcon = main_conn()
+    rcon = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=30)
+    print("building settled event population for breakpoints...", flush=True)
+    settled, idx_dates, idx_map = pead.build_events(hcon, rcon, progress=True)
+    sue_hi, dlv_hi = _breakpoints(settled)
+    print(f"breakpoints: SUE p80={sue_hi:.3f}  deliv p67={dlv_hi:.3f}  (n_settled={len(settled)})", flush=True)
+    real = pead.load_real_dates(hcon)
+    np_map = pead.load_np(rcon)
+    rcon.close()
+    cand = pead.assemble_events(real, np_map)
+    cutoff = (date.today() - timedelta(days=days_back)).isoformat()
+    recent: dict[str, list[dict]] = {}
+    for e in cand:
+        if e["t0"] >= cutoff:
+            recent.setdefault(e["sym"], []).append(e)
+    rows = []
+    for sym, evs in recent.items():
+        ss = pead.load_series(hcon, sym)
+        if ss is None:
+            continue
+        for e in evs:
+            r = reaction_row(ss, e, idx_dates, idx_map)
+            if r is None:
+                continue
+            r["sue_high"] = int(r["sue"] >= sue_hi)
+            r["deliv_high"] = int(r["deliv_x"] >= dlv_hi)
+            r["beat"] = int(r["sue"] > 0)
+            rows.append(r)
+    hcon.close()
+
+    def _n(x):
+        return None if (x is None or x != x) else float(x)
+
+    con = sqlite3.connect(db_path, timeout=60)
+    con.execute("""CREATE TABLE IF NOT EXISTS results_reactions(
+        sym TEXT, ptype TEXT, pend TEXT, t0 TEXT, entry_date TEXT, sue REAL, ear REAL,
+        deliv_x REAL, med_turn REAL, car22 REAL, car60 REAL, beat INT, sue_high INT,
+        deliv_high INT, settled INT, PRIMARY KEY(sym, ptype, pend))""")
+    con.execute("CREATE TABLE IF NOT EXISTS results_reactions_meta(k TEXT PRIMARY KEY, v TEXT)")
+    con.execute("DELETE FROM results_reactions")
+    con.executemany("INSERT OR REPLACE INTO results_reactions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    [(r["sym"], r["ptype"], r["pend"], r["t0"], r["entry_date"], _n(r["sue"]),
+                      _n(r["ear"]), _n(r["deliv_x"]), _n(r["med_turn"]), _n(r["car22"]), _n(r["car60"]),
+                      r["beat"], r["sue_high"], r["deliv_high"], int(r["is_settled"])) for r in rows])
+    for k, v in (("sue_hi", f"{sue_hi:.4f}"), ("dlv_hi", f"{dlv_hi:.4f}"),
+                 ("n_settled", str(len(settled))), ("n_rows", str(len(rows))),
+                 ("days_back", str(days_back)),
+                 ("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M"))):
+        con.execute("INSERT OR REPLACE INTO results_reactions_meta VALUES (?,?)", (k, v))
+    con.commit()
+    con.close()
+    print(f"wrote results_reactions: {len(rows)} recent rows (cutoff {cutoff}); "
+          f"beats+deliv {sum(1 for r in rows if r['sue_high'] and r['deliv_high'])}", flush=True)
+    return len(rows)
 
 
 def summarize(events: list[dict]) -> dict:
@@ -176,6 +289,9 @@ def selftest() -> None:
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
         selftest()
+    elif "--snapshot" in sys.argv:
+        rest = [a for a in sys.argv[1:] if not a.startswith("--")]
+        write_snapshot(days_back=int(rest[0]) if rest else 180)
     elif "--demo" in sys.argv:
         args = [a for a in sys.argv[1:] if a != "--demo"]
         demo(args or ["DIXON", "TANLA", "ALKYLAMINE", "PERSISTENT"])

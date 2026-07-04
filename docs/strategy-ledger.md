@@ -379,6 +379,15 @@ selftest. Demo (real): DIXON delivery-confirmed beats +13.0%/60d (n=7, hit 60%);
 the honest counter-case; ALKYLAMINE +49.4% (n=2). The +7.6%/60td population number may be cited as
 context, NEVER a return promise; the surface renders realized history only.
 
+**SCANNER SHIPPED — `/dash/results-reactions` LIVE (S80c).** The descriptive lens now has a board in
+the exact shape of the other scanners (rotation / momentum-scan / rsband): a nightly research-venv
+snapshot (`pead_surface --snapshot` → `research.db.results_reactions`, 1,570 recent events, 159
+delivery-confirmed top-beats, breakpoints SUE p80=2.09 / deliv p67=2.83) rendered by a pure-stdlib
+view (`src/web/results_reactions.py`) — who just reported, SUE, delivery-x, the population cell +
+its base-rate, and realized +22/+60d drift once settled. A DESCRIPTIVE data surface, not a signal;
+the failed book is cited on the page itself. Mounted via `v2_surfaces._ROUTER_SPECS` (curl-verified
+200). Open: nightly-chain wiring + nav-lens (nested URL).
+
 ---
 
 ## Study 2026-07-05b — accumulation-footprint calibration on disclosure labels (DONE — gate FAIL; one survivor + a structural market finding)

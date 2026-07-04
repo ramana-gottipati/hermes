@@ -476,6 +476,19 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D90 — A validated DESCRIPTIVE lens gets a scanner surface even when its strategy fails; the results-reaction scanner is live via the nightly-precompute + thin-view pattern (2026-07-05, S80c)
+Ramana: a failed *strategy* is not a reason to withhold the *data surface* — every other descriptive
+lens (rotation, momentum-scan, rsband, Wolfe, harmonic) has a `/dash/*` scanner. Decision: the PEAD
+event lens, validated descriptively (book falsified, D-ledger 2026-07-05), ships as
+`/dash/results-reactions`. Architecture is the standing house pattern — a nightly research-venv job
+precomputes a table (`results_reactions`), a pure-stdlib view renders it (never computes, no numpy,
+never holds a write) — the SAME shape as momentum-scan/`momentum_scan` and capture-map/`capture_signals`.
+Mounted via `v2_surfaces._ROUTER_SPECS` (durable, additive). The page cites its own failed book so the
+surface can never over-promise. WHY a decision and not just a task: it sets the rule for every future
+lens — descriptive validation earns a scanner; the scanner is the product, the strategy was only ever
+one candidate consumer. Shared-tree caveat: the live mount sits on the forked `v2_surfaces.py` and is
+git-reconciled at the next de-fork, not half-merged mid-flight.
+
 ### D89 — Footprint detector v1: pre-registered gate FAIL; trade-size ratio = the descriptive survivor; detection pivots to campaign-arcs + disclosure drift (2026-07-05, S80)
 The gate (≥2/4 a-priori features at Cliff's δ ≥ +0.20 vs BOTH control sets) failed 1/4 on 54 usable
 case windows — **because 764/947 disclosed-accumulation episodes have no pre-public tape window at
@@ -1354,6 +1367,33 @@ I. **Kite Connect intraday** — ~₹500/mo when Ramana wants real-time alerts.
 J. **Voice messages** — Whisper STT + ElevenLabs/OpenAI TTS. ~3 hours.
 
 K. **Sector adaptation in scoring.py** — implement Doctrine § D adaptations as code (currently noted only in documentation; scorer applies standard thresholds).
+
+### Session 80c — 2026-07-05 — "should we not have a scanner like the others?" → Results-Reaction Scanner LIVE
+Ramana's follow-up: don't build the failed strategy, but a descriptive lens deserves a scanner just
+like every other lens has one. Correct — built it in the house pattern.
+- **LIVE `/dash/results-reactions`** — the Results-Reaction Scanner: who just reported, Net-Profit
+  surprise (SUE, no analysts), was it delivery-confirmed, realized +22/+60d abnormal drift once
+  settled, population base-rate as labelled context. DESCRIPTIVE (the failed book is cited ON the
+  page), the shape of rotation/momentum-scan/rsband — not a signal.
+- **Architecture = the house scanner pattern** (nightly precompute → thin view reads a table):
+  - `pead_surface.py --snapshot` (research venv, reuses the validated engine via new `build_events`
+    + relaxed `reaction_row` that keeps fresh no-drift names) writes `research.db.results_reactions`
+    (+ `_meta`). First run: **1,570 recent events, 159 delivery-confirmed top-beats**, breakpoints
+    SUE p80=2.09 / deliv p67=2.83.
+  - **NEW `src/web/results_reactions.py`** — pure-stdlib APIRouter (no numpy), reads the table RO,
+    renders via shared `_shell`, graceful empty-state. Import-tests clean in the prod venv.
+- **Mounted surgically on the FORKED live `v2_surfaces.py`** (git↔VPS forked; sibling active in nav):
+  append-only insert after the early-signals `_ROUTER_SPECS` entry, `.bak-rr` backup + import-test +
+  rollback guard (NOT a full-file scp). Writer-safe restart (DB idle, no ingest running);
+  curl-verified 200 (377KB, real rows, base-rate banner, confirmed-beats tab); momentum-scan/rotation
+  still 307 (D80 nested redirects, unchanged), coverage 200 — no collateral damage.
+- **Deliberately NOT in git this commit:** the `v2_surfaces.py` mount line — the file is git↔VPS
+  forked and the sibling holds it dirty; half-merging a moving forked file is the flip hazard. The
+  mount is LIVE on the VPS and will be captured when the `v2_surfaces` fork is reconciled (VPS→git
+  adoption). Recorded as D90 + open item. Nightly-snapshot chain wiring + nav-lens (nested URL) also
+  pending the respective forks settling.
+- Git (this commit, temp-index, own hunks only): `results_reactions.py` (new) + `pead.py`/
+  `pead_surface.py` (build_events/reaction_row/snapshot) + ledger + charter + this entry.
 
 ### Session 80b — 2026-07-05 — "build the strategy?" → pre-registered NO + the descriptive product shipped
 Ramana: "can you start building that strategies after recording your study?" CEO answer: the PEAD

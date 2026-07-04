@@ -488,24 +488,20 @@ def bench_stats(hcon, d0: str, d1: str, out_lines: list[str]) -> None:
 
 # ---------- main ----------------------------------------------------------------
 
-def main() -> None:
-    os.makedirs(OUT_DIR, exist_ok=True)
-    hcon = main_conn()
-    rcon = sqlite3.connect(f"file:{RESEARCH_DB}?mode=ro", uri=True, timeout=30)
-    out: list[str] = []
-    print("loading real dates + Net Profit archive...", flush=True)
+def build_events(hcon, rcon, progress: bool = False) -> tuple[list[dict], list[str], dict[str, float]]:
+    """Full-universe settled event set + index levels — the shared spine for the backtest AND
+    the scanner snapshot (single source, no divergence). Each event carries the tape features
+    (ear, deliv_x, CAR path) from tape_features (which requires >=40 forward rows — so this is
+    the SETTLED population; fresh just-reported events are added separately by the scanner)."""
     real = load_real_dates(hcon)
     np_map = load_np(rcon)
-    rcon.close()
     cand = assemble_events(real, np_map)
-    print(f"candidate events with real dates + SUE: {len(cand)}", flush=True)
-
     idx_dates, idx_map = index_levels(hcon)
-    syms = sorted({e["sym"] for e in cand})
     by_sym: dict[str, list[dict]] = {}
     for e in cand:
         by_sym.setdefault(e["sym"], []).append(e)
     events: list[dict] = []
+    syms = sorted(by_sym)
     for k, sym in enumerate(syms):
         ss = load_series(hcon, sym)
         if ss is None:
@@ -514,8 +510,19 @@ def main() -> None:
             fe = tape_features(ss, e, idx_dates, idx_map)
             if fe is not None:
                 events.append(fe)
-        if (k + 1) % 300 == 0:
+        if progress and (k + 1) % 300 == 0:
             print(f"  tape-joined {k+1}/{len(syms)} symbols, events={len(events)}", flush=True)
+    return events, idx_dates, idx_map
+
+
+def main() -> None:
+    os.makedirs(OUT_DIR, exist_ok=True)
+    hcon = main_conn()
+    rcon = sqlite3.connect(f"file:{RESEARCH_DB}?mode=ro", uri=True, timeout=30)
+    out: list[str] = []
+    print("loading real dates + Net Profit archive...", flush=True)
+    events, idx_dates, idx_map = build_events(hcon, rcon, progress=True)
+    rcon.close()
     print(f"final events: {len(events)}", flush=True)
     out.append(f"PEAD study — {len(events)} events with real BSE dates, liquid, CA-clean "
                f"(survivor-conditioned fundamentals archive; entry = close of day0+1)")
