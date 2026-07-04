@@ -123,7 +123,7 @@ _CSS = """<style>
 .uk-sub .grp{align-self:center;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-3);padding:0 4px 0 10px}
 
 /* layout */
-.uk-page{padding:22px 20px;max-width:1320px;margin:0 auto}
+.uk-page{padding:22px 20px;max-width:1900px;margin:0 auto}
 .uk-grid{display:grid;gap:14px}
 .uk-row{display:flex;gap:14px;flex-wrap:wrap}
 .uk-h1{font-size:22px;font-weight:600;margin:0 0 2px;letter-spacing:-.2px}
