@@ -1330,6 +1330,36 @@ J. **Voice messages** — Whisper STT + ElevenLabs/OpenAI TTS. ~3 hours.
 
 K. **Sector adaptation in scoring.py** — implement Doctrine § D adaptations as code (currently noted only in documentation; scorer applies standard thresholds).
 
+### Session 79 — 2026-07-05 — PEAD event study (new-ideas wager): event lens real, fundable book falsified
+Ramana challenged the model to generate genuinely NEW ideas from the existing data. Pitched a reframe
+(capacity-ceiling anomalies as moats · event-time vs calendar-time · supervised disclosure-calibration
+· microstructure state machine incl. a live T2T/BE delivery-contamination bug in every delivery signal)
+plus 11 concrete candidates, then built #1 end-to-end the same session:
+- **NEW `research/explosive_moves/pead.py`** — delivery-confirmed PEAD on REAL BSE result dates
+  (`provenance_knowable`, ground-truthed vs RELIANCE/TCS/DIXON actual announcement days; annual keys
+  ARE Q4-results dates), SUE without analysts (Net-Profit-rupee seasonal random walk), 6,966 liquid
+  CA-clean events, descriptive cohort tables + a no-leak trailing-rank calendar-time portfolio
+  (CL-RES-03: entry decidable at entry close), tier+ATR costs, offline `--selftest`, read-only,
+  outputs in VPS `out/`.
+- **Result (ledger § Experiment 2026-07-05):** descriptive interaction CONFIRMED, long side only —
+  A-study SUE-Q5×DELIV-T3 CAR60 **+7.62%** (t_cohort 1.92; ×EAR>0 **2.82**); delivery adds ~+4pp over
+  same-SUE low-delivery; no short-side drift; drift accrues 22→60d. **Every fundable wrapper FAILS:**
+  net Sharpe 0.10 vs bench 0.85, hedged diagnostic −0.58, 1.5× cost −0.32 → **failure-models table
+  row added (blocking)**. Verdict: descriptive event lens (Wolfe/harmonic class); consumption
+  candidates = results-season "delivery-confirmed beat/miss" tag + dossier fact (descriptive only).
+- **Data-reality findings recorded in the ledger:** annual SUE computable only from FY2019 (Screener
+  annual depth ~12y); quarterly archive ~13 qtrs → Q-events explode 2025+; laptop `data/*.db` are
+  EMPTY STUBS — research runs happen on the VPS (house pattern held).
+- Deploy hygiene: module scp'd LF-clean (additive, no service touched). A sibling lane was ACTIVE
+  during the session (`949ed66` landed mid-session; `dashboard.py` dirty) — this commit was built via
+  a temp-index so the sibling's uncommitted `PROJECT_STATE.md`/`dashboard.py` state stays untouched;
+  this entry is staged as its own hunk only.
+- Open (new, gated per ledger discipline): the pitched idea queue — supervised footprint calibration
+  on SAST/insider/bulk-deal labels · BE/T2T delivery-contamination mask · ASM/GSM+price-band state
+  machine · SLB short-interest ingest · F&O-entry / index-add prediction · filing-latency delta ·
+  overnight/intraday split · organic delivery (deliv − block deals) · PEAD within-season-so-far
+  variant (pre-register before running).
+
 ### Session 77b — 2026-07-03 — Queue #3 pledge-veto reconciled + audit B1 executed (perimeter / SSH / backup lane)
 This is the lane the S77 entry below calls "a parallel lane" — the record from its side, and the corrections to the below entry's in-flight observations: **`perimeter.py` IS committed (`cc988c6`)**, and the two AUD-02 backup systems are now **de-duplicated by design (`b04e4eb`)**.
 - **Queue #3 (🔴 concall_veto stale pledge) — CLOSED, the racy way:** built + committed the SHP primary-source fix (`6e2160b`, 8/8 selftest), then deploy-verify found the audit-B3 sibling (worktree `zen-diffie-ffb2e7`) had ALREADY deployed its own richer implementation to the VPS at 21:24 UTC (per-call `_shp_pledge` + shared `research_conn` threaded through `concall_scores.score_symbol/run`) and reranked at 21:25 — live-selftested OK but uncommitted, and main's version would have CRASHED the live scorer (kwarg mismatch). **Adopted the live implementation verbatim into git (`07aca8d`, both files, byte-identical to VPS + worktree).** Verified live: `compute_veto('JPPOWER')` → `(True, 'promoter pledge 73%')`; RELIANCE/VIKRAMSOLR/TCS/SBIN clean; vetoed set = EMSLIMITED + PAISALO (22%, SHP-sourced); JPPOWER can't appear in `concall_scores` (no concall corpus) — the veto bites via `compute_veto`/`veto_map` consumers. No rerank redone (the 21:25 run already consumed the fix). **Class sweep:** the hard-veto path is fixed everywhere; STILL-STALE `fundamentals.promoter_pledge` readers are display/filter-only — `pat/flows.py:260` ("clean: Pledge < 5%" screen filter), `pat/web.py` dossier facts, `dashboard.py:6186` — logged as open item.

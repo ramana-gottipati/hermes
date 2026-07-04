@@ -72,6 +72,7 @@ the exact figures; do not silently re-attempt. (Mirrored in memory `failure-mode
 | **Momentum sold as a FUNDABLE strategy** | GROSS Sharpe 1.29 → **NET ~0.09, CAGR negative, MaxDD −69%** under realistic cost (~36%/yr, ~100%/mo turnover) | The headline Sharpe is a flat-cost illusion. Nothing beats Nifty-500 buy-&-hold (0.89) net of realistic cost. Momentum = a **gross selection/analytical lens**, not net alpha; any fundable form must be low-turnover (and is then defensive, not alpha). |
 | ACCEL / PULLBACK / DELIV_MOM (standalone) | Sharpe 0.42-0.85, MaxDD −44%…−70% | Short-thrust chasing / dip-buying / delivery% added no standalone edge. |
 | MEP-accumulation as alpha | Deflated-Sharpe DSR 0.45→0.36 when added | Descriptor-only; adds nothing. Do not re-test as alpha. |
+| **PEAD tradeable book (event-time, 2026-07-05)** | net Sharpe **0.10** / CAGR −0.4% / MaxDD −42.9% vs bench 0.85; HEDGED diagnostic **−0.58**; 1.5× cost −0.32; fails both halves | Event drift is REAL descriptively (A-study SUE-Q5×DELIV-T3 CAR60 +7.62%, t_cohort 1.92) but does NOT survive a real-time trailing-rank rule + costs + compounding. Descriptive event lens only. Do not re-attempt any PEAD book without beating these exact numbers under the same no-leak harness. |
 | CCI credibility as a factor | Spearman ≈0; HIGH−LOW excess −10% @12m (inverse, survivorship) | FALSIFIED as a factor → descriptive/veto only. |
 
 The corollary (the doctrine these failures prove): **price strength is the only gross forward-return
@@ -296,6 +297,76 @@ and on the stock dossier — `/dash/stock` pt14 card `Cap-alloc (C)` score + C-t
 descriptive with the standard Screener→XBRL source disclosure. **Queue #5 is CLOSED end-to-end**
 (descriptive columns + the C-blend momentum tilt); the only open thread is a passive re-check of the
 live blend vs the recorded numbers once a few weeks of nightly `ca_pctile` history accrue.
+
+---
+
+## Experiment 2026-07-05 — PEAD on REAL BSE result dates, delivery-confirmed (DONE — event lens real / every fundable wrapper falsified)
+
+Ran `research/explosive_moves/pead.py` (NEW; offline `--selftest`; read-only; full output
+`out/pead_events.csv` + `out/pead_summary.txt` on the VPS). Hypothesis **pre-registered in chat
+before touching data**: post-results drift [+2,+60td] rises in SUE (seasonal-random-walk
+**Net-Profit-rupee** surprise — no analyst estimates; guardrail #5 value-based) and is stronger when
+the 2-session reaction ran on abnormal DELIVERED VALUE. Event dates = ONLY real BSE filing dates
+(`provenance_knowable`, 29.2k keys; ground-truthed: RELIANCE|A|2024-03-31 → 2024-04-22 = the actual
+Q4FY24 results day — annual keys ARE results-day dates in India, same board meeting). 6,966 events
+after ₹1cr-med-turn liquidity + CA-hygiene + suspension gates. Entry = close of day0+1; CAR vs
+Nifty 500. Descriptive tables rank within event cohorts (science, not tradeable); the PORTFOLIO
+ranks only against trailing-365d PRIOR events (CL-RES-03 — decidable at the entry close), with tier
+half-spread+fees + 0.5×ATR slippage per side.
+
+**Effective windows (archive-driven, recorded):** annual SUE needs 4+ aligned annual NPs → the ~12y
+Screener annual depth makes A-events computable only from FY2019 (density 2019 A307 → 2024 A585;
+2015-18 = 4-8/yr despite ~1,000 real dates/yr). Quarterly archive ~13 qtrs → Q-events explode 2025+
+(2,796 in 2025). So Study A ≈ 2019→2026 annual (n=3,130), Study Q ≈ 2023→2026 quarterly (n=3,654).
+
+| CAR60 vs Nifty500 (descriptive, cohort-ranked) | n | mean | med | hit | t | t_cohort |
+|---|---|---|---|---|---|---|
+| A: ALL | 3,130 | +3.50% | −0.12% | 49.5% | 8.20 | 0.99 |
+| A: SUE Q1 → Q5 (monotone) | ~625 ea | +2.12% → +5.07% | | | | Q5: 2.32 |
+| A: DELIV T3 (vs T1 +3.16% / T2 +2.28%) | 1,051 | +5.05% | +1.04% | 52.0% | 6.27 | 1.79 |
+| **A: SUE Q5 × DELIV T3** | 235 | **+7.62%** | +1.91% | 51.9% | 4.20 | 1.92 |
+| A: SUE Q5 × DELIV T1 | 200 | +3.67% | +0.44% | 51.0% | 2.49 | 1.84 |
+| A: Q5 × T3 × EAR>0 | 130 | +7.46% | +1.10% | 50.8% | 2.94 | **2.82** |
+| A: SUE Q1 × DELIV T3 | 164 | −0.22% | −0.73% | 47.6% | −0.12 | −0.04 |
+| Q: ALL (2023-26 era) | 3,654 | −0.92% | −3.06% | 40.7% | −3.21 | 0.02 |
+| Q: SUE Q5 × DELIV T3 | 330 | +1.43% | −2.29% | 46.1% | 1.29 | 1.06 |
+
+Calendar-time portfolio (tradeable rule: trailing SUE-pct ≥0.80 ∧ EAR>0 ∧ deliv-pct ≥⅔, hold 60td, NET):
+
+| Book (2019-05 → 2026-07) | Sharpe | CAGR | MaxDD | read |
+|---|---|---|---|---|
+| PEAD full (344 entries, 65% invested, book avg 17.6) | 0.10 | −0.41% | −42.9% | FAILS both halves (H1 −0.33 / H2 0.24) |
+| no-delivery variant (SUE+EAR only) | 0.02 | −1.94% | −56.6% | delivery filter helps; nowhere near enough |
+| 1.5× cost stress | −0.32 | −9.89% | −67.4% | cost-fragile |
+| HEDGED diagnostic (minus index; gross hedge leg) | **−0.58** | −12.00% | −68.1% | the real-time picks did NOT beat the index at all |
+| **Nifty 500 B&H same window (the bar)** | **0.85** | 13.98% | −38.3% | H1 0.70 / H2 0.96 |
+
+**Findings (recorded):**
+1. **The pre-registered interaction is REAL at event level — long side only.** Delivery is the active
+   ingredient: the same top-quintile surprise drifts +7.62% on high delivered value vs +3.67% on low
+   (~+4pp from conviction confirmation). Bad news does NOT drift (Q1×T3 ≈ 0) — consistent with
+   Indian shorting friction. Best honest read: Q5×T3×EAR>0 at cohort-t 2.82.
+2. **Drift accrues 22→60d; CAR5 ≈ 0 everywhere** — slow-digestion shape (classic PEAD), not day-0
+   momentum bleed. Medians ≪ means, hit ~52%: tail-carried — the same SELECTION shape as the
+   Wolfe-bull / harmonic edges.
+3. **Every tradeable wrapper dies.** Long-only cash book 0.10 net Sharpe (smallcap beta drawdowns +
+   ~35% idle-cash drag + costs); hedged diagnostic −0.58 — under thresholds decidable at entry the
+   picks didn't beat the index AT ALL. The within-cohort descriptive edge does not survive
+   translation to real-time trailing ranks (distributional drift across seasons + era mixing + cost).
+4. **Study Q era read:** 2023-26 announcers underperformed the index on average (size drag,
+   t_cohort ≈ 0); the ORDERING survives (Q5−Q1 ≈ +2.4pp) but nothing clears cohort-t 2.
+
+**Caveats:** survivor-conditioned fundamentals archive (house-wide caveat); A-study effectively
+2019→2026 (archive depth — no pre-2019 walk-forward possible); hedged diagnostic is gross of
+hedge-leg cost/margin; one construction family (equal-weight, 60td hold). **UNTESTED variant
+recorded** for a future pre-registered attempt: within-season-so-far ranks (rank vs already-announced
+cohort-mates — still no-leak) instead of trailing-365d ranks. It goes through the same gate; do not
+dredge it casually.
+
+**Verdict: PEAD-delivery = a DESCRIPTIVE EVENT LENS (Wolfe/harmonic class), NOT a fundable book.**
+Failure-models table row added (blocking). Consumption candidates (descriptive only, not built): a
+"delivery-confirmed beat/miss" tag on the results-season watch + a dossier event-history fact — the
++7.6%/60td top-cell number may be cited as context, never as a return promise.
 
 ---
 
