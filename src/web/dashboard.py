@@ -1449,9 +1449,10 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                          f'<a class="row" style="display:inline" href="/dash/index?idx={_q(sector)}">'
                          f'See its index page →</a></div>')
     else:
-        # Heading matches the nav lens label "Positioning" (lens_registry Lens("stocks",
-        # "Positioning",…)) so nav-highlight, <h2> and <title> all read one name. P2 #7.
-        head = ('<h2>Positioning</h2>'
+        # Heading matches the nav lens label "Stocks" (lens_registry Lens("stocks",
+        # "Stocks",…)) so nav-highlight, <h2> and <title> all read one name. The DVPT
+        # "positioning" concept lives in the POSITIONING badge strapline below, not here.
+        head = ('<h2>Stocks</h2>'
                 '<div class="sub">Layered DVPT triggers (today). Filter, then tap a symbol.</div>')
 
     js = ""
