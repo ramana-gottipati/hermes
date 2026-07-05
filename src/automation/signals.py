@@ -57,7 +57,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional
 
-from src.automation.adjust import adjusted_closes
+from src.automation.adjust import adjusted_closes, adjustment_factors
 from src.core.db import get_conn
 
 # D31 windowing — calendar days (NOT trading days).
@@ -338,14 +338,16 @@ def is_near_key(gap) -> bool:
 
 
 def _key_price_metrics(dates, dvpts, avg_prices, deliv_qtys, closes,
-                       values, volumes, num_trades, i) -> dict:
+                       values, volumes, num_trades, factors, i) -> dict:
     """Compute the 15 stored D44 numerics for row index `i` from full per-symbol
     arrays ordered OLDEST→NEWEST.
 
       key_price_p{label}  = value-weighted mean price over the SAME top-N power-
-                            DVPT days p_stats selects (weight = deliv_qty·price;
-                            price = avg_price, fallback close) — the big
-                            institutional day dominates the cost line.
+                            DVPT days p_stats selects (weight = delivered VALUE
+                            deliv_qty·raw_price, split-invariant; the averaged
+                            price is SPLIT/BONUS-ADJUSTED to today's basis so a
+                            split inside the window can't mix price scales) — the
+                            big institutional day dominates the cost line.
       gap_to_key_p{label} = (today_close − key) / key · 100  (signed; −=below cost)
       avg_trade_qty             = volume / num_trades        (today, ticket size)
       avg_deliv_qty_per_trade   = deliv_qty / num_trades     (today)
@@ -362,14 +364,14 @@ def _key_price_metrics(dates, dvpts, avg_prices, deliv_qtys, closes,
         cand.sort(key=lambda j: dvpts[j], reverse=True)
         num = den = 0.0
         for j in cand[:top_n]:
-            price = avg_prices[j] if avg_prices[j] is not None else closes[j]
+            raw = avg_prices[j] if avg_prices[j] is not None else closes[j]
             dq = deliv_qtys[j]
-            if price is None or price <= 0 or dq is None:
+            if raw is None or raw <= 0 or dq is None:
                 continue
-            w = dq * price                 # delivered value on that day
+            w = dq * raw                   # delivered VALUE (split-invariant) = the weight
             if w <= 0:
                 continue
-            num += price * w
+            num += (raw * factors[j]) * w  # average the SPLIT-ADJUSTED price (today basis) — no cross-split scale mixing
             den += w
         kp = (num / den) if den > 0 else None
         out[f"key_price_p{label}"] = kp
@@ -405,7 +407,12 @@ def _key_price_arrays(asc_rows) -> tuple:
     values     = [r["value"] for r in asc_rows]
     volumes    = [r["volume"] for r in asc_rows]
     num_trades = [r["num_trades"] for r in asc_rows]
-    return dates, dvpts, avg_prices, deliv_qtys, closes, values, volumes, num_trades
+    # split/bonus back-adjustment factors (newest row = 1.0) so key_price averages
+    # prices on ONE basis — a split inside a window no longer mixes pre/post scales.
+    factors    = adjustment_factors([{"close": r["close"],
+                                      "prev_close": (r["prev_close"] if "prev_close" in r.keys() else None)}
+                                     for r in asc_rows])
+    return dates, dvpts, avg_prices, deliv_qtys, closes, values, volumes, num_trades, factors
 
 
 def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[dict]:
@@ -1038,7 +1045,7 @@ def _backfill_keyprice_for_symbol(conn, symbol: str) -> int:
     for every existing stock_signals row of `symbol`. Pure additive UPDATE — it
     touches no other column, so all D28/D31/D43 values stay byte-identical."""
     bhav = conn.execute(
-        """SELECT trade_date, close, avg_price, value, volume, deliv_qty, num_trades
+        """SELECT trade_date, close, prev_close, avg_price, value, volume, deliv_qty, num_trades
            FROM bhavcopy_rows
            WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
            ORDER BY trade_date ASC""",
