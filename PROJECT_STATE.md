@@ -1386,6 +1386,18 @@ Ramana: "extreme, intense, deep research into the data — missed perspectives, 
 - **Two "quick wins" deliberately DECLINED (argue-back):** (a) deals `client_key` stored column — raw `client_name` already stored, key is derivable on-read (more consistent than freezing at ingest) and no scan consumes it → doctrine #5; normalize on-read when the fingerprint dynamic is built. (b) editing `/dash/testing`'s "none beats buy-and-hold net of cost" claim — a specialist called it FALSE, but it is the DOCTRINE-aligned honest verdict (`strategy-ledger.md:558`, validation-memo); the champion's fundability under participation costs is UNPROVEN (advisor experiment #1). Changing it either way now = an unverified trust-surface claim → left intact; routed to the pre-registered cost re-cut.
 - **Open (correction program, sequenced in postmortem §10):** foundation = canonical-symbol resolver + rename-boundary fix (renames break 100 % of price tapes / orphan ~188 fundamentals links) · DQ feed-liveness+nonzero battery (catches the `corporate_actions`-404 silent-death class) · concall PIT-clock backfill. Surface-first (need Ramana): cost-reality re-cut experiment (read-only, settles the champion) · prod `stock_signals` rebuild for ~2 GB reclaim · paid ~₹1,139 LLM concall extraction (defer). Coordinated with sibling S80 — its Results-Reaction Scanner mount is VPS-only on the forked `v2_surfaces.py` (preserve at de-fork). (This entry also folds a pre-existing orphaned doc hunk: open-item **L** + the `## Session log` header relocation + the S77 B1 expansion — confirmed not the sibling's.)
 
+### Session 80g — 2026-07-05 — Closed the reaction-snapshot refresh gap (honesty correction)
+"so there is nothing open?" surfaced that S80d/e/f wired only the CALENDAR nightly; the reaction
+snapshot (`pead_surface --snapshot`, the "just reported" half) was still MANUAL -> the scanner's
+backward half would go stale. Overstated "self-refreshes"; fixed immediately.
+- **NEW `hermes-results-reactions.{service,timer}` + hardening drop-ins** (git-owned vps-live/,
+  AUD-27): research-venv oneshot `pead_surface --snapshot 200`, nightly **18:00 UTC** (after the
+  15:30-17:15 ingest cluster so it sees the day's bhavcopy), sandboxed, `Persistent=false`
+  (AUD-95-safe). install -> enable --now; verified armed for 18:08 today (scheduled, not a catch-up),
+  service inactive, `--check` clean.
+- **Both halves now self-refresh:** forward calendar 02:00 UTC + reaction snapshot 18:00 UTC.
+- Git (temp-index own hunks): 4 unit files + this entry.
+
 ### Session 80f — 2026-07-05 — "do it NOW": ran the calendar today + scanner is a first-class nav lens
 Ramana: "don't postpone things for tomorrow." Closed the two S80d/S80e deferrals immediately.
 - **Ran the calendar SERVICE now** (not just left the timer for 02:00): `systemctl start

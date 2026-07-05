@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes results-reaction snapshot (nightly 18:00 UTC, after the ingest cluster)
+
+[Timer]
+OnCalendar=*-*-* 18:00:00
+Persistent=false
+Unit=hermes-results-reactions.service
+
+[Install]
+WantedBy=timers.target

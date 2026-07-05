@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes - Results-Reaction scanner snapshot (research venv; nightly after the ingest cluster)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes/research
+Environment=PYTHONPATH=/opt/hermes:/opt/hermes/research
+# Rebuilds research.db.results_reactions (SUE + delivery + forward CAR over the last 200d of
+# real-date results events) so the /dash/results-reactions "just reported" half stays current
+# through the season. Reads bhavcopy + fundamentals; scheduled AFTER the 15:30-17:15 UTC ingest
+# cluster so it sees the day's data. Idempotent (DELETE + rewrite of the snapshot table).
+ExecStart=/opt/hermes/.venv-research/bin/python -m explosive_moves.pead_surface --snapshot 200
+StandardOutput=append:/var/log/hermes-results-reactions.log
+StandardError=append:/var/log/hermes-results-reactions.log
