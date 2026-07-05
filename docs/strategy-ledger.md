@@ -75,6 +75,7 @@ the exact figures; do not silently re-attempt. (Mirrored in memory `failure-mode
 | **PEAD tradeable book (event-time, 2026-07-05)** | ALL constructions fail: trailing net Sharpe **0.10**, no-delivery 0.02, **within-season 0.06** (pre-registered), HEDGED **−0.58**, 1.5× cost −0.32 — vs bench 0.85, both halves | Event drift is REAL descriptively (A-study SUE-Q5×DELIV-T3 CAR60 +7.62%, t_cohort 1.92) but no wrapper survives real-time ranks + costs + compounding; the within-season variant (the last untested cell) also failed. Descriptive event lens only (`pead_surface.py`). Do not re-attempt any PEAD book without beating these exact numbers under the same no-leak harness. |
 | **Accumulation-footprint detector v1 (2026-07-05b)** | pre-registered gate **FAIL 1/4** (only trade-size cleared δ≥+0.20 vs both controls: +0.329/+0.250); 764/947 episodes had NO pre-public window (SEBI PIT T+2); n=54 usable | "Front-detect the insider from the tape" is structurally near-impossible in India at filing granularity. deliv_per showed ~no case elevation (δ≈+0.07) — consistent with MEP's alpha failure. Survivor: avg-trade-size ratio = descriptive column only. Follow-ups (campaign arcs E-04, disclosure drift E-03) require fresh pre-registration. |
 | CCI credibility as a factor | Spearman ≈0; HIGH−LOW excess −10% @12m (inverse, survivorship) | FALSIFIED as a factor → descriptive/veto only. |
+| **C-BLEND 50/50 as a FUNDABLE book (2026-07-05c)** | Flat-cost Sharpe **1.32** (recorded champion) → participation-cost **NET 0.52 @Rs25cr · 0.17 @Rs50cr · −0.30 @Rs100cr**; beats the index at NO AUM; H2 (honest window) 0.70 @Rs50cr < 0.89; ann cost 22%→86% | The 1.32 was **flat-cost only**. Monthly rebalance × mid-cap tilt (median capacity ~Rs38cr) makes Almgren participation impact fatal; the RISKADJ core is worse. C-BLEND stays a **descriptive/paper overlay** (D66 fence holds), never a fundable book. Only participation-fundable corner = quarterly large-cap **LOWVOL_MOM** (1.02 @Rs50cr, ~Rs100cr ceiling). Re-cost: `cblend_cost_recut.py`. |
 
 The corollary (the doctrine these failures prove): **price strength is the only gross forward-return
 engine; value/quality/credibility/accumulation are veto/filter/context layers, not rankers; and no
@@ -298,6 +299,45 @@ and on the stock dossier — `/dash/stock` pt14 card `Cap-alloc (C)` score + C-t
 descriptive with the standard Screener→XBRL source disclosure. **Queue #5 is CLOSED end-to-end**
 (descriptive columns + the C-blend momentum tilt); the only open thread is a passive re-check of the
 live blend vs the recorded numbers once a few weeks of nightly `ca_pctile` history accrue.
+
+**⚠ RE-STATED 2026-07-05c:** the net Sharpe 1.32 here is **flat-cost only**. Under the participation-cost
+model the C-BLEND champion is **NOT fundable** (0.17 @Rs50cr; beats the index at no AUM) — see
+Experiment 2026-07-05c below. C-BLEND stays a descriptive/paper overlay; the *fundable* claim is withdrawn.
+
+---
+
+## Experiment 2026-07-05c — C-BLEND cost-reality re-cut (DONE — champion NOT fundable; the 1.32 is flat-cost-only)
+
+The recorded champion (Experiment 2026-07-03) — **C-BLEND 50/50, net Sharpe 1.32 / MaxDD −28.2% / Calmar
+1.15** — had only ever been costed with the FLAT 0.3%/turnover model (+ a 1.5× stress proxy), never with
+the participation-rate (Almgren sqrt-law) model in `cost_participation.py`. Re-cut via
+`research/explosive_moves/cblend_cost_recut.py` (read-only; it reproduces the recorded 1.32 *exactly*
+under flat cost, so the delta below is the **cost model alone**), the champion's construction unchanged
+(monthly, TOPN 25, relative liquidity gate 0.60, `sel_c_blend`, PIT `attach_c`):
+
+| strategy | AUM | net Sharpe | net CAGR | MaxDD | ann cost | > index? |
+|---|---|---|---|---|---|---|
+| C-BLEND (monthly) | Rs25cr | 0.52 | 9.9% | −46.8% | 21.9% | no |
+| C-BLEND | Rs50cr | 0.17 | 1.2% | −69.6% | 30.2% | no |
+| C-BLEND | Rs100cr | −0.30 | −9.7% | −89.0% | 41.4% | no |
+| RISKADJ core (monthly) | Rs50cr | −0.11 | −6.4% | −86.1% | 41.0% | no |
+| **LOWVOL_MOM (qtr, large-cap)** | **Rs50cr** | **1.02** | **18.1%** | **−21.4%** | **3.9%** | **YES** |
+| LOWVOL_MOM | Rs100cr | 0.94 | 16.5% | −22.7% | 5.4% | YES |
+| Nifty 500 B&H | — | 0.89 | 15.3% | −29.2% | 0% | — |
+
+Halves (C-BLEND net Sharpe): Rs50cr → H1 −0.60 / **H2 0.70**; Rs100cr → H1 −1.35 / H2 0.40. Even in the
+honest H2 window (C coverage ~81%) it nets 0.70 — below the 0.89 hurdle.
+
+**Verdict (pre-registered kill criterion met): C-BLEND is NOT fundable** — it beats the index at NO tested
+AUM and is already below the hurdle at the smallest size (Rs25cr, 0.52). Cause: the monthly cadence
+(12×/yr turnover) on a mid-cap-tilted book (median clip = 10% of ADV at only ~Rs38cr) drives participation
+cost 22%→86% across Rs25→500cr; the RISKADJ core (capacity ~Rs30cr) is worse. The **1.32 is RE-STATED as
+flat-cost-only**; C-BLEND remains a legitimate descriptive/paper overlay (the D66 fence — blend + a
+descriptive column, never a book), and the only participation-fundable corner stays quarterly large-cap
+LOWVOL_MOM (~Rs100cr ceiling). LOWVOL_MOM's 1.02 @Rs50cr reproduced exactly, validating the harness.
+Caveats: survivor-conditioned C archive (true net if anything lower); single 2012–26 path; one impact
+calibration (k=0.6, POV 10%, delay 0.5). This CONFIRMS the standing "nothing beats buy-and-hold net of
+cost" verdict (§ Cost realism) rather than overturning it. Failure-models row added.
 
 ---
 
