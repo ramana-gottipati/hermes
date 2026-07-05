@@ -122,7 +122,7 @@ def _ro():
 def _empty(msg):
     body = (_CSS + '<div class="rr"><h2>Results-Reaction Scanner</h2>'
             f'<div class="base">{msg}</div>' + _render_upcoming(_upcoming(14)) + '</div>')
-    return HTMLResponse(_shell("Results-Reaction Scanner", body, active="markets", wide=True))
+    return HTMLResponse(_shell("Results-Reaction Scanner", body, active="results-reactions", wide=True))
 
 
 def _upcoming(days=14):
@@ -261,5 +261,5 @@ def results_reactions(view: str = Query("all")):
             f'confirmation the US PEAD literature lacks; it is descriptive only — the book built on it '
             f'is in the failure ledger.</div>',
             '</div>']
-    return HTMLResponse(_shell("Results-Reaction Scanner", "".join(body), active="markets",
+    return HTMLResponse(_shell("Results-Reaction Scanner", "".join(body), active="results-reactions",
                                latest_date=meta.get("generated_at", ""), wide=True))

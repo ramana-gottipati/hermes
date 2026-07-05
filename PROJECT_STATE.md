@@ -1386,6 +1386,25 @@ Ramana: "extreme, intense, deep research into the data — missed perspectives, 
 - **Two "quick wins" deliberately DECLINED (argue-back):** (a) deals `client_key` stored column — raw `client_name` already stored, key is derivable on-read (more consistent than freezing at ingest) and no scan consumes it → doctrine #5; normalize on-read when the fingerprint dynamic is built. (b) editing `/dash/testing`'s "none beats buy-and-hold net of cost" claim — a specialist called it FALSE, but it is the DOCTRINE-aligned honest verdict (`strategy-ledger.md:558`, validation-memo); the champion's fundability under participation costs is UNPROVEN (advisor experiment #1). Changing it either way now = an unverified trust-surface claim → left intact; routed to the pre-registered cost re-cut.
 - **Open (correction program, sequenced in postmortem §10):** foundation = canonical-symbol resolver + rename-boundary fix (renames break 100 % of price tapes / orphan ~188 fundamentals links) · DQ feed-liveness+nonzero battery (catches the `corporate_actions`-404 silent-death class) · concall PIT-clock backfill. Surface-first (need Ramana): cost-reality re-cut experiment (read-only, settles the champion) · prod `stock_signals` rebuild for ~2 GB reclaim · paid ~₹1,139 LLM concall extraction (defer). Coordinated with sibling S80 — its Results-Reaction Scanner mount is VPS-only on the forked `v2_surfaces.py` (preserve at de-fork). (This entry also folds a pre-existing orphaned doc hunk: open-item **L** + the `## Session log` header relocation + the S77 B1 expansion — confirmed not the sibling's.)
 
+### Session 80f — 2026-07-05 — "do it NOW": ran the calendar today + scanner is a first-class nav lens
+Ramana: "don't postpone things for tomorrow." Closed the two S80d/S80e deferrals immediately.
+- **Ran the calendar SERVICE now** (not just left the timer for 02:00): `systemctl start
+  hermes-results-calendar.service` -> Result=success, ExecMainStatus=0, 119 rows (idempotent) -- the
+  full sandboxed systemd path validated TODAY, not discovered tomorrow.
+- **Nav-lens LIVE: `/dash/results-reactions` is now a first-class Markets lens** (was URL-only). Added
+  a `Lens` record (key `results-reactions`, label "Results reactions", Markets, aliases
+  results/earnings/war-room) to `lens_registry` (the single nav source); `nested_nav` auto-derived the
+  canonical nested URL. Verified localhost + public: **/dash/markets/results-reactions -> 200, flat
+  /dash/results-reactions -> 307 -> nested, sub-nav link present, upcoming panel intact; momentum-scan
+  /rotation/coverage still 200 (no collateral).** View now passes `active="results-reactions"` for the
+  correct sub-nav highlight.
+- **Shared-tree (D80):** `lens_registry.py` is git<->VPS forked (sibling active in nav), so the lens
+  was added SURGICALLY to the live file (`.bak-rr` backup + import-verify + rollback guard), NOT
+  full-file-overwritten. Like the S80c `_ROUTER_SPECS` mount, the lens is LIVE-on-VPS + intentionally
+  NOT in git -- BOTH nav additions (mount tuple + lens record) get captured when the
+  v2_surfaces/lens_registry fork is reconciled (VPS->git). Recorded here for the reconciler.
+- Git (temp-index own hunks): `results_reactions.py` (active-highlight fix) + charter (N1 fully DONE) + this entry.
+
 ### Session 80e — 2026-07-05 — Results-calendar nightly refresh wired (git-owned systemd, AUD-95-safe)
 Continuation of S80d ("go ahead" on the deferred nightly wiring). The D-01 board-meeting calendar now
 self-refreshes so the war room stays current through the season.
