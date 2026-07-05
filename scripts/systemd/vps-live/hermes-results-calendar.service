@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes - dataset D-01: NSE board-meeting / results calendar (forward 30-day window)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Forward calendar of results board meetings; a 30-day horizon refreshed daily keeps the
+# war-room "Upcoming results" panel (/dash/results-reactions) current. Network happens
+# before the DB write; idempotent (INSERT OR IGNORE keyed symbol/date/purpose).
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.results_calendar --fetch --days 30
+StandardOutput=append:/var/log/hermes-results-calendar.log
+StandardError=append:/var/log/hermes-results-calendar.log

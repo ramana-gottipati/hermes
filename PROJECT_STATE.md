@@ -1386,6 +1386,21 @@ Ramana: "extreme, intense, deep research into the data — missed perspectives, 
 - **Two "quick wins" deliberately DECLINED (argue-back):** (a) deals `client_key` stored column — raw `client_name` already stored, key is derivable on-read (more consistent than freezing at ingest) and no scan consumes it → doctrine #5; normalize on-read when the fingerprint dynamic is built. (b) editing `/dash/testing`'s "none beats buy-and-hold net of cost" claim — a specialist called it FALSE, but it is the DOCTRINE-aligned honest verdict (`strategy-ledger.md:558`, validation-memo); the champion's fundability under participation costs is UNPROVEN (advisor experiment #1). Changing it either way now = an unverified trust-surface claim → left intact; routed to the pre-registered cost re-cut.
 - **Open (correction program, sequenced in postmortem §10):** foundation = canonical-symbol resolver + rename-boundary fix (renames break 100 % of price tapes / orphan ~188 fundamentals links) · DQ feed-liveness+nonzero battery (catches the `corporate_actions`-404 silent-death class) · concall PIT-clock backfill. Surface-first (need Ramana): cost-reality re-cut experiment (read-only, settles the champion) · prod `stock_signals` rebuild for ~2 GB reclaim · paid ~₹1,139 LLM concall extraction (defer). Coordinated with sibling S80 — its Results-Reaction Scanner mount is VPS-only on the forked `v2_surfaces.py` (preserve at de-fork). (This entry also folds a pre-existing orphaned doc hunk: open-item **L** + the `## Session log` header relocation + the S77 B1 expansion — confirmed not the sibling's.)
 
+### Session 80e — 2026-07-05 — Results-calendar nightly refresh wired (git-owned systemd, AUD-95-safe)
+Continuation of S80d ("go ahead" on the deferred nightly wiring). The D-01 board-meeting calendar now
+self-refreshes so the war room stays current through the season.
+- **NEW units (git-owned, `scripts/systemd/vps-live/`, AUD-27):** `hermes-results-calendar.service`
+  (oneshot -> `results_calendar --fetch --days 30`, prod venv) + `.timer` (OnCalendar 02:00 UTC / ~07:30
+  IST pre-market) + `.service.d/90-hardening.conf` (TimeoutStartSec 1800 + ProtectSystem=strict +
+  ReadWritePaths=/opt/hermes /var/log sandbox, mirrors credit-ratings) + `.timer.d/90-hardening.conf`.
+- **Deliberate `Persistent=false`** (UNLIKE the Persistent=true ingest timers): a forward calendar needs
+  no boot catch-up, and it makes enabling mid-day AUD-95-safe -- no missed-elapse catch-up fire.
+- **Deployed the house way:** scp -> `install-systemd.sh --install` (repo->/etc + daemon-reload; the
+  script never enables -- AUD-95 by construction) -> manual `systemctl enable --now ...timer`. **Verified:
+  NEXT = Mon Jul-06 02:01 UTC (armed for tomorrow, did NOT fire now), service inactive, `--check` clean.**
+  Charter N1 now DONE (only the scanner nav-lens nit remains).
+- Git (temp-index own hunks; sibling active on security-master/PROJECT_STATE): 4 unit files + charter + this entry.
+
 ### Session 80d — 2026-07-05 — Results-season war room LIVE: forward board-meeting calendar (D-01) + scanner
 "go for it" -> executed the charter's top NOW item (N1), ahead of the ~Jul-09 open.
 - **D-01 board-meeting calendar feed BUILT (`src/automation/results_calendar.py`, NEW):** the forward

@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes results-calendar refresh (daily 02:00 UTC / ~07:30 IST, pre-market)
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=false
+Unit=hermes-results-calendar.service
+
+[Install]
+WantedBy=timers.target
