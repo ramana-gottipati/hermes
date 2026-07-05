@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sqlite3
 from datetime import date, timedelta
 from typing import Optional
 
@@ -59,8 +60,25 @@ EQUITY_SERIES = ("EQ", "BE", "BZ")
 # this many calendar days of the latest archived trading day.
 ACTIVE_GAP_DAYS = 20
 
+# A rename auto-confirm additionally requires the handover gap (old symbol's LAST
+# trade → new symbol's FIRST trade) to be at most this many days. A multi-year gap
+# on a shared ISIN is almost always ISIN RECYCLING (a delisted scrip's ISIN reissued
+# to a different company), not a rename — the LTI→LTM false-edge class (last trade
+# 2022-12, "effective" 2026-02). Over the cap → kept as an unconfirmed candidate.
+MAX_RENAME_GAP_DAYS = 400
+
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
+def _day_gap(a: Optional[str], b: Optional[str]) -> Optional[int]:
+    """Whole days from ISO date ``a`` to ``b`` (b − a); None if either is missing/unparseable."""
+    if not a or not b:
+        return None
+    try:
+        return (date.fromisoformat(b[:10]) - date.fromisoformat(a[:10])).days
+    except ValueError:
+        return None
+
+
 def classify_event(action_type: Optional[str], details: Optional[str]) -> Optional[str]:
     """Map a corporate action to a continuity-BREAKING event type, or None.
 
@@ -222,10 +240,13 @@ def compute_and_store(conn=None) -> dict:
                 for (_osym, _of, ol), (_nsym, nf, _nl) in pairs
             )
             for (osym, _of, ol), (nsym, nf, _nl) in pairs:
-                if chain_clean:
+                gap = _day_gap(ol, nf)
+                gap_ok = gap is not None and gap <= MAX_RENAME_GAP_DAYS
+                if chain_clean and gap_ok:
                     ren.append((osym, nsym, nf, isin, "isin", 1))
                 else:
-                    ren.append((osym, nsym, nf, isin, "isin-overlap", 0))
+                    src = "isin-gap" if (chain_clean and not gap_ok) else "isin-overlap"
+                    ren.append((osym, nsym, nf, isin, src, 0))
         conn.executemany(
             "INSERT OR REPLACE INTO security_renames "
             "(old_symbol, new_symbol, effective_date, isin, source, confirmed) "
@@ -320,6 +341,48 @@ def canonical(symbol: str, conn=None) -> str:
     return _with_conn(q, conn)
 
 
+def aliases_on(conn, symbol: str) -> list:
+    """RO-SAFE: every symbol this entity has traded under — the canonical (current)
+    symbol plus every CONFIRMED prior name in its rename chain, in BOTH directions.
+    Use it so a cross-DB archive read for the CURRENT symbol still finds history filed
+    under an OLD one (AKZOINDIA↔JSWDULUX, LTI↔LTM). Assumes the tables already exist
+    (no schema init) so it is safe on a ``mode=ro`` handle; positional row access so it
+    needs no ``row_factory``; degrades to ``[symbol]`` on any error."""
+    s = (symbol or "").upper().strip()
+    if not s:
+        return []
+    try:
+        cur, seen = s, {s}                                    # forward → canonical
+        while True:
+            nxt = conn.execute(
+                "SELECT new_symbol FROM security_renames "
+                "WHERE old_symbol=? AND confirmed=1 ORDER BY effective_date DESC LIMIT 1",
+                (cur,)).fetchone()
+            if not nxt or nxt[0] in seen:
+                break
+            cur = nxt[0]
+            seen.add(cur)
+        out, frontier = {cur, s}, [cur]                       # backward BFS over the chain
+        while frontier:
+            node = frontier.pop()
+            for r in conn.execute(
+                    "SELECT old_symbol FROM security_renames "
+                    "WHERE new_symbol=? AND confirmed=1", (node,)).fetchall():
+                if r[0] not in out:
+                    out.add(r[0])
+                    frontier.append(r[0])
+        return sorted(out)
+    except sqlite3.Error:
+        return [s]
+
+
+def aliases(symbol: str, conn=None) -> list:
+    """``aliases_on`` for the RW / standalone caller (opens + schema-inits its own
+    connection). Read-only callers already holding a ``mode=ro`` handle should call
+    ``aliases_on(conn, symbol)`` directly (it skips schema init)."""
+    return _with_conn(lambda c: aliases_on(c, symbol), conn)
+
+
 def load_renames(csv_path: str, conn=None) -> int:
     """Ingest the authoritative NSE symbol-change CSV (tolerant header detection;
     looks for columns containing 'old'/'new' symbol + an 'applicable'/'date' col).
@@ -382,6 +445,9 @@ def _selftest() -> None:
         ("DELISTO",  "2012-03-01", "EQ", None), ("DELISTO",  "2016-09-30", "EQ", None),
         ("ZOMATO",   "2021-07-23", "EQ", "INEZOM01015"), ("ZOMATO", "2023-03-01", "EQ", "INEZOM01015"),
         ("ETERNAL",  "2023-09-01", "EQ", "INEZOM01015"), ("ETERNAL", "2026-06-19", "EQ", "INEZOM01015"),
+        # OLDGAP→NEWGAP share an ISIN but hand over across a MULTI-YEAR gap (ISIN recycled) → must NOT auto-confirm
+        ("OLDGAP",   "2018-01-05", "EQ", "INEGAP01010"), ("OLDGAP",  "2020-01-01", "EQ", "INEGAP01010"),
+        ("NEWGAP",   "2025-06-01", "EQ", "INEGAP01010"), ("NEWGAP",  "2026-06-19", "EQ", "INEGAP01010"),
     ]
     conn.executemany("INSERT INTO bhavcopy_rows VALUES (?,?,?,?)", bhav)
     conn.execute("INSERT INTO bhavcopy_dates VALUES ('2026-06-22')")
@@ -418,6 +484,14 @@ def _selftest() -> None:
     assert canonical("ZOMATO", conn=conn) == "ETERNAL", "ZOMATO should resolve to ETERNAL"
     assert canonical("RELIANCE", conn=conn) == "RELIANCE"
     assert stats["renames_confirmed"] >= 1 and stats["events"] == 1, stats
+
+    # reverse aliases: a read for the CURRENT symbol must reach its OLD names (archive keyed old)
+    assert set(aliases("ETERNAL", conn=conn)) == {"ZOMATO", "ETERNAL"}, aliases("ETERNAL", conn=conn)
+    assert set(aliases("ZOMATO", conn=conn)) == {"ZOMATO", "ETERNAL"}, "alias set is chain-wide either way"
+    assert aliases("RELIANCE", conn=conn) == ["RELIANCE"], "no renames → just itself"
+    # ISIN-recycling guard: a multi-year handover gap must NOT auto-confirm (LTI→LTM class)
+    assert canonical("OLDGAP", conn=conn) == "OLDGAP", "a >400d ISIN gap must stay an unconfirmed candidate"
+    assert set(aliases("NEWGAP", conn=conn)) == {"NEWGAP"}, "an unconfirmed gap edge must not join the alias set"
 
     print(f"security_master selftest: OK  {stats}")
 
