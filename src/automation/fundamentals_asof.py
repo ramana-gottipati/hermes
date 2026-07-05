@@ -99,6 +99,22 @@ _BORROW = ("Borrowings", "Borrowing")
 
 # --- loading ---------------------------------------------------------------
 
+def _aliases(symbol: str, hconn) -> list:
+    """Rename-safe symbol union — the current symbol + every CONFIRMED prior name it traded under
+    (via ``security_master.aliases_on`` on the hermes RO connection), so a fundamentals read for the
+    CURRENT symbol still finds history filed under an OLD one (JSWDULUX↔AKZOINDIA). For every
+    non-renamed name this returns just ``[symbol]`` → identical to the old ``WHERE symbol=?``. Degrades
+    to ``[symbol]`` when hermes.db is absent (laptop) or the resolver errors."""
+    s = symbol.upper().strip()
+    if hconn is None or hconn == "__open__":
+        return [s]
+    try:
+        from src.automation.security_master import aliases_on
+        return aliases_on(hconn, s) or [s]
+    except Exception:  # noqa: BLE001
+        return [s]
+
+
 def _build_frame(rows, symbol: str, data_class: str, hconn, *, use_real_knowable: bool) -> dict:
     """Rows → {(ptype, metric): [(period_end, EFFECTIVE_date, value)]}. The third element is the
     EFFECTIVE knowable date (real BSE date, else conservative calibrated lag) when use_real_knowable,
@@ -139,32 +155,53 @@ def load_symbol_history(symbol: str, *, db_path: str = RESEARCH_DB, hconn="__ope
     One query per symbol — in a backtest, load the frame ONCE and call as_of_from_frame()
     for every rebalance date instead of re-querying.
     """
-    con = sqlite3.connect(db_path)
+    own_h = False
+    h = hconn
+    if h == "__open__":
+        h = _hermes_ro(); own_h = True                 # one hermes RO handle for BOTH aliases and dates
     try:
-        rows = con.execute(
-            "SELECT period_type, metric, period_end, report_date, value "
-            "FROM fundamentals_history WHERE symbol=? AND value IS NOT NULL",
-            (symbol.upper().strip(),)).fetchall()
+        syms = _aliases(symbol, h)                      # rename-safe: current + confirmed prior names
+        con = sqlite3.connect(db_path)
+        try:
+            ph = ",".join("?" * len(syms))
+            rows = con.execute(
+                "SELECT period_type, metric, period_end, report_date, value "
+                f"FROM fundamentals_history WHERE symbol IN ({ph}) AND value IS NOT NULL",
+                syms).fetchall()
+        finally:
+            con.close()
+        return _build_frame(rows, symbol, "fundamentals_history", h, use_real_knowable=use_real_knowable)
     finally:
-        con.close()
-    return _build_frame(rows, symbol, "fundamentals_history", hconn, use_real_knowable=use_real_knowable)
+        if own_h and h is not None:
+            h.close()
 
 
 def load_shareholding_history(symbol: str, *, db_path: str = RESEARCH_DB, hconn="__open__",
                               use_real_knowable: bool = True) -> dict:
     """Same shape as load_symbol_history, for research.db.shareholding_history (period_type 'Q':
-    Promoters / FIIs / DIIs / Public / …). Returns {} if the table doesn't exist yet."""
-    con = sqlite3.connect(db_path)
+    Promoters / FIIs / DIIs / Public / …). Rename-safe (queries the symbol + confirmed prior names).
+    Returns {} if the table doesn't exist yet."""
+    own_h = False
+    h = hconn
+    if h == "__open__":
+        h = _hermes_ro(); own_h = True
     try:
-        rows = con.execute(
-            "SELECT period_type, metric, period_end, report_date, value "
-            "FROM shareholding_history WHERE symbol=? AND value IS NOT NULL",
-            (symbol.upper().strip(),)).fetchall()
-    except sqlite3.OperationalError:
-        return {}
+        syms = _aliases(symbol, h)
+        con = sqlite3.connect(db_path)
+        try:
+            ph = ",".join("?" * len(syms))
+            rows = con.execute(
+                "SELECT period_type, metric, period_end, report_date, value "
+                f"FROM shareholding_history WHERE symbol IN ({ph}) AND value IS NOT NULL",
+                syms).fetchall()
+        except sqlite3.OperationalError:
+            return {}
+        finally:
+            con.close()
+        return _build_frame(rows, symbol, "shareholding_history", h, use_real_knowable=use_real_knowable)
     finally:
-        con.close()
-    return _build_frame(rows, symbol, "shareholding_history", hconn, use_real_knowable=use_real_knowable)
+        if own_h and h is not None:
+            h.close()
 
 
 # --- point-in-time selection ----------------------------------------------
