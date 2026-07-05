@@ -353,7 +353,13 @@ def chk_feed_freshness(c) -> dict:
     problems, notes = 0, []
     for table, col, max_age, label in (
             ("insider_events", "disclosure_dt", 7, "insider disclosures"),
-            ("credit_rating_events", "broadcast_dt", 30, "credit-rating events")):
+            ("credit_rating_events", "broadcast_dt", 30, "credit-rating events"),
+            ("sast_reg29_events", "broadcast_dt", 21, "SAST reg-29 stakes"),
+            ("sast_pledge_events", "broadcast_dt", 30, "SAST pledge flow"),
+            ("bulk_block_deals", "trade_date", 5, "bulk/block deals"),
+            ("fii_dii_flows", "trade_date", 5, "FII/DII flows"),
+            ("participant_oi", "trade_date", 5, "participant OI"),
+            ("fno_oi_signals", "trade_date", 5, "F&O OI")):
         if not _table_exists(c, table):
             continue
         mx = c.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]
@@ -369,6 +375,44 @@ def chk_feed_freshness(c) -> dict:
             notes.append(f"{label}: {mx} ok")
     return _check("killswitch.feed_freshness", SEV_WARN if problems else SEV_OK,
                   problems, "; ".join(notes) or "tables absent")
+
+
+def chk_derived_liveness(c) -> dict:
+    """The three largest DERIVED tables (stock_signals / mep_signals / cpr_signals) plus the index
+    tape recompute EVERY trading day from bhavcopy — if a nightly compute job dies they silently
+    FREEZE with no banner anywhere (the exact gap the audit flagged: a nightly-signals death shows
+    nothing). Compare each to the bhavcopy clock; stale beyond ~2 trading days = a dead compute job
+    = CRIT. Also surface the long-known corporate_actions dead pipe (split-adjust still works via
+    adjust.py's prev_close inference, so WARN not CRIT)."""
+    if not _table_exists(c, "bhavcopy_rows"):
+        return _check("liveness.derived", SEV_OK, 0, "bhavcopy absent")
+    bmax = c.execute("SELECT MAX(trade_date) FROM bhavcopy_rows").fetchone()[0]
+    if not bmax:
+        return _check("liveness.derived", SEV_OK, 0, "bhavcopy empty")
+    bref = date.fromisoformat(str(bmax)[:10])
+    stale, ok = [], []
+    for table, col in (("stock_signals", "trade_date"), ("mep_signals", "trade_date"),
+                       ("cpr_signals", "period_end_date"), ("index_signals", "trade_date")):
+        if not _table_exists(c, table):
+            continue
+        mx = c.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]
+        if not mx:
+            stale.append(f"{table} EMPTY")
+            continue
+        d = (bref - date.fromisoformat(str(mx)[:10])).days
+        (stale if d > 4 else ok).append(
+            f"{table} {mx}" + (f" ({d}d behind bhav {bmax})" if d > 4 else ""))
+    ca = c.execute("SELECT COUNT(*) FROM corporate_actions").fetchone()[0] \
+        if _table_exists(c, "corporate_actions") else 0
+    if stale:
+        return _check("liveness.derived", SEV_CRIT, len(stale),
+                      "DERIVED COMPUTE FROZEN: " + "; ".join(stale)
+                      + ("" if ca else "; corporate_actions EMPTY (dead pipe)"))
+    if not ca:
+        return _check("liveness.derived", SEV_WARN, 1,
+                      f"derived tables track bhav {bmax}; corporate_actions EMPTY (dead pipe — "
+                      "resurrect a primary feed; split-adjust falls back to adjust.py prev_close)")
+    return _check("liveness.derived", SEV_OK, 0, f"derived tables + corp-actions track bhav {bmax}")
 
 
 # ── run all ───────────────────────────────────────────────────────────────────
@@ -388,6 +432,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             # kill-switches (validation memo §5)
             (chk_market_freshness, (c,)), (chk_regime_guard, (c,)),
             (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
+            (chk_derived_liveness, (c,)),
             (chk_restatement_spike, (r,)),
         ]
         for fn, fargs in plan:
