@@ -40,7 +40,7 @@ buyer cannot build in-house and cannot get from a vendor.
 
 | # | Item | Gate / deadline |
 |---|---|---|
-| N1 | **Results-season war room**: BSE board-meeting calendar feed (D-01) + expected-results-date column + "delivery-confirmed beat/miss" descriptive tag (PEAD cells as context, never a promise) on the day-after-results surface | **live before Jul-09** |
+| N1 | **Results-season war room — LIVE (S80d, ahead of Jul-09).** `/dash/results-reactions` now shows BOTH halves: forward **"Upcoming results — next 14 days"** (NSE board-meeting calendar, D-01) + the "just reported" delivery-confirmed reaction table. Remaining: nightly refresh of the calendar feed (systemd, deferred — populated manually for now) | forward+back LIVE; nightly-refresh pending |
 | N2 | **Data sprint wave-1** (D88): ASM/GSM lists (D-02) · price-band file (D-03) · SLB volumes (D-04) · bulk/block **history backfill** (D-05) | each ~0.5 session, all ₹0 primary CSVs |
 | N3 | **Trade-size ratio** descriptive column (the D89 survivor: Cliff's δ +0.33/+0.25) on Screen+ + dossier, compute-on-read | descriptive-only, glossary entry required |
 | N1b | **Results-Reaction SCANNER — LIVE `/dash/results-reactions` (S80c):** the descriptive board from the (falsified-as-a-book) PEAD study — who just reported, was the surprise delivery-confirmed, realized +22/+60d drift, population base-rate as labelled context. Nightly `results_reactions` snapshot (research venv) → pure-stdlib view (house pattern, like momentum-scan). Mounted surgically on the forked live `v2_surfaces.py` (import-tested, curl-verified 200). Remaining: nightly-chain wiring for the snapshot + nav-lens entry (nested URL) when the nav fork reconciles | scanner LIVE; nightly+nav pending |

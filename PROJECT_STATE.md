@@ -1386,6 +1386,29 @@ Ramana: "extreme, intense, deep research into the data — missed perspectives, 
 - **Two "quick wins" deliberately DECLINED (argue-back):** (a) deals `client_key` stored column — raw `client_name` already stored, key is derivable on-read (more consistent than freezing at ingest) and no scan consumes it → doctrine #5; normalize on-read when the fingerprint dynamic is built. (b) editing `/dash/testing`'s "none beats buy-and-hold net of cost" claim — a specialist called it FALSE, but it is the DOCTRINE-aligned honest verdict (`strategy-ledger.md:558`, validation-memo); the champion's fundability under participation costs is UNPROVEN (advisor experiment #1). Changing it either way now = an unverified trust-surface claim → left intact; routed to the pre-registered cost re-cut.
 - **Open (correction program, sequenced in postmortem §10):** foundation = canonical-symbol resolver + rename-boundary fix (renames break 100 % of price tapes / orphan ~188 fundamentals links) · DQ feed-liveness+nonzero battery (catches the `corporate_actions`-404 silent-death class) · concall PIT-clock backfill. Surface-first (need Ramana): cost-reality re-cut experiment (read-only, settles the champion) · prod `stock_signals` rebuild for ~2 GB reclaim · paid ~₹1,139 LLM concall extraction (defer). Coordinated with sibling S80 — its Results-Reaction Scanner mount is VPS-only on the forked `v2_surfaces.py` (preserve at de-fork). (This entry also folds a pre-existing orphaned doc hunk: open-item **L** + the `## Session log` header relocation + the S77 B1 expansion — confirmed not the sibling's.)
 
+### Session 80d — 2026-07-05 — Results-season war room LIVE: forward board-meeting calendar (D-01) + scanner
+"go for it" -> executed the charter's top NOW item (N1), ahead of the ~Jul-09 open.
+- **D-01 board-meeting calendar feed BUILT (`src/automation/results_calendar.py`, NEW):** the forward
+  "who reports next" half. Primary source = NSE event-calendar API (guardrail #8; symbol-native, no
+  scrip map), reusing insider_events' anti-bot session priming. NEW table **`board_meetings`**
+  (symbol/company/meeting_date/purpose/is_results, UNIQUE(symbol,meeting_date,purpose)); an is_results
+  classifier separates results BMs from buyback/fund-raising/dividend-only. Offline `--selftest`; CLI
+  `--fetch [--days N]` / `--upcoming N`. First live fetch: **119 board meetings, 97 results-BMs** over
+  30d - verified accurate (TCS Jul-09, HCLTECH Jul-13, LTTS Jul-14, HDFC cluster Jul-15).
+- **War room surfaced on `/dash/results-reactions` (the S80c scanner):** added an "Upcoming results -
+  next 14 days" panel (reads `board_meetings` from hermes.db RO, grouped by date, dossier-linked)
+  ABOVE the "just reported" delivery-confirmed reaction table. Both halves of the war room now live;
+  the view stays pure-stdlib + graceful-degrade. Deployed (view is mine, scp'd LF-clean), writer-safe
+  restart (DB idle), curl-verified 200 with the panel + real symbols. Route already mounted (S80c) so
+  NO forked-file change this turn.
+- **Open (recorded):** nightly refresh of the calendar (systemd git-owned-units process AUD-27 -
+  deferred to a clean pass; populated manually for now, fresh through the season open) + the still-
+  pending nav-lens entry for the scanner (nested URL, when the v2_surfaces/lens_registry fork settles).
+  New file `src/automation/results_calendar.py`; new command `python -m src.automation.results_calendar
+  --fetch`; new table `board_meetings`.
+- Git (temp-index, own hunks; sibling committed S81/D91 concurrently): `results_calendar.py` (new) +
+  `results_reactions.py` (upcoming panel) + charter (N1) + this entry.
+
 ### Session 80c — 2026-07-05 — "should we not have a scanner like the others?" → Results-Reaction Scanner LIVE
 Ramana's follow-up: don't build the failed strategy, but a descriptive lens deserves a scanner just
 like every other lens has one. Correct — built it in the house pattern.

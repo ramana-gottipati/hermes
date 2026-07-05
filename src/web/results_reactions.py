@@ -26,6 +26,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 RESEARCH_DB = "/opt/hermes/data/research.db"
+HERMES_DB = "/opt/hermes/data/hermes.db"
 router = APIRouter()
 
 
@@ -101,6 +102,13 @@ _CSS = """
 .rr .dot{color:#d29922}.rr .dot.s{color:#3fd486}
 .rr .note{color:var(--ink-2);font-size:11px;margin-top:16px;border-top:1px solid var(--line-2);
           padding-top:11px;line-height:1.6;max-width:900px}
+.rr .up{border:1px solid var(--line-2);border-radius:10px;padding:10px 14px;margin:0 0 14px;background:var(--bg-1)}
+.rr .up .uph{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:6px}
+.rr .up .uprow{display:flex;gap:8px;align-items:baseline;padding:4px 0;border-top:1px solid var(--bg-3);flex-wrap:wrap}
+.rr .up .upd{font-size:11px;color:var(--ink-2);min-width:80px;font-weight:600;font-variant-numeric:tabular-nums}
+.rr .up .ups{font-size:11px;text-decoration:none;color:var(--ink);border:1px solid var(--line-2);
+             border-radius:6px;padding:1px 6px;background:var(--bg-2)}
+.rr .up .more{color:var(--ink-3);font-size:11px}
 </style>"""
 
 
@@ -113,8 +121,57 @@ def _ro():
 
 def _empty(msg):
     body = (_CSS + '<div class="rr"><h2>Results-Reaction Scanner</h2>'
-            f'<div class="base">{msg}</div></div>')
+            f'<div class="base">{msg}</div>' + _render_upcoming(_upcoming(14)) + '</div>')
     return HTMLResponse(_shell("Results-Reaction Scanner", body, active="markets", wide=True))
+
+
+def _upcoming(days=14):
+    """Next `days` of results board meetings from board_meetings (hermes.db, the D-01 calendar
+    feed). Returns [] if the table/DB is absent — the war-room forward half degrades cleanly."""
+    import datetime as _dt
+    try:
+        con = sqlite3.connect(f"file:{HERMES_DB}?mode=ro", uri=True, timeout=10)
+    except sqlite3.Error:
+        return []
+    try:
+        if not con.execute("SELECT name FROM sqlite_master WHERE type='table' "
+                           "AND name='board_meetings'").fetchone():
+            return []
+        lo = _dt.date.today().isoformat()
+        hi = (_dt.date.today() + _dt.timedelta(days=days)).isoformat()
+        return con.execute(
+            "SELECT meeting_date, symbol, purpose FROM board_meetings "
+            "WHERE is_results=1 AND meeting_date>=? AND meeting_date<=? "
+            "ORDER BY meeting_date ASC, symbol ASC LIMIT 160", (lo, hi)).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        con.close()
+
+
+def _render_upcoming(rows):
+    import datetime as _dt
+    if not rows:
+        return ('<div class="up"><div class="uph">📅 Upcoming results calendar</div>'
+                '<div class="more">No board-meeting calendar loaded yet — the NSE feed populates '
+                '<code>board_meetings</code> nightly (D-01).</div></div>')
+    bydate = {}
+    for md, sym, _pu in rows:
+        bydate.setdefault(md, []).append(sym)
+    out = ['<div class="up"><div class="uph">📅 Upcoming results — next 14 days '
+           '<span style="color:var(--ink-3);font-weight:400">(NSE board-meeting calendar · who reports next)</span>'
+           '</div>']
+    for md, syms in bydate.items():
+        try:
+            lbl = _dt.date.fromisoformat(md).strftime("%a %d %b")
+        except ValueError:
+            lbl = md
+        chips = " ".join(f'<a class="ups" href="/dash/stock?symbol={_esc(s)}">{_esc(s)}</a>'
+                         for s in syms[:16])
+        more = f' <span class="more">+{len(syms)-16} more</span>' if len(syms) > 16 else ""
+        out.append(f'<div class="uprow"><span class="upd">{lbl}</span><span>{chips}{more}</span></div>')
+    out.append('</div>')
+    return "".join(out)
 
 
 @router.get("/dash/results-reactions", response_class=HTMLResponse)
@@ -184,6 +241,7 @@ def results_reactions(view: str = Query("all")):
             f'<div class="l">deliv-confirmed top-beats</div></div>'
             f'<div class="kpi"><div class="n">{n_settled}</div><div class="l">settled (60d elapsed)</div></div>'
             '</div>',
+            _render_upcoming(_upcoming(14)),
             '<div class="tabs">'
             f'<a href="/dash/results-reactions" class="{"on" if not confirmed_only else ""}">All recent</a>'
             f'<a href="/dash/results-reactions?view=confirmed" class="{"on" if confirmed_only else ""}">'
