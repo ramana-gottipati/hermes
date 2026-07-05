@@ -405,6 +405,8 @@ def extract_bank_for(parsed: dict, *, kind: str, end: str) -> dict:
     put("Net Profit", pat)
     put("EPS in Rs", eps, scale=None)
     put("Equity Capital", eqcap)
+    put("Provisions", prov)          # credit cost as its OWN metric (also folded into Expenses below);
+                                     # enables credit_cost_ratio = Provisions / Revenue for banks/NBFCs
     if op_exp is not None and prov is not None:
         put("Expenses", op_exp + prov)
         if rev is not None and int_exp is not None:
@@ -959,7 +961,7 @@ def _selftest() -> int:
     assert _is_bank_instance(parsed), "bank detection failed"
     m = extract_bank_for(parsed, kind="Q", end="2026-03-31")
     exp = {"Revenue": 87182.5, "Interest": 45220.44, "Other Income": 29737.44,
-           "Expenses": 44027.87, "Financing Profit": -2065.81,
+           "Expenses": 44027.87, "Financing Profit": -2065.81, "Provisions": 3440.05,
            "Profit before tax": 26948.17, "Net Profit": 20350.76,
            "Financing Margin %": -2.37, "EPS in Rs": 13.22, "Equity Capital": 1539.34}
     for k, v in exp.items():
