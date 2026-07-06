@@ -749,12 +749,14 @@ GLOSSARY: dict[str, dict] = {
         "source": "fundamentals.* (pe, pb, roce, roe, debt_to_equity, promoter_holding, growth, opm, …)",
         "plain": "The cached fundamental snapshot — valuation, returns, growth, balance sheet, holding.",
         "detail": (
-            "A periodically-cached pull from Screener.in: valuation (PE, PB, book "
-            "value, dividend yield), returns (ROCE, ROE and their 3-year averages), "
-            "growth (sales & profit over 5y / 3y / TTM), margins (OPM), balance "
+            "A periodically-cached snapshot originally sourced from Screener.in: valuation "
+            "(PE, PB, book value, dividend yield), returns (ROCE, ROE and their 3-year "
+            "averages), growth (sales & profit over 5y / 3y / TTM), margins (OPM), balance "
             "sheet (debt-to-equity, debt, cash, interest coverage) and ownership "
             "(promoter holding & pledge, FII / DII). These feed pt14 and the "
-            "'screen by fundamentals' flow."
+            "'screen by fundamentals' flow. Provenance: this Screener-sourced series is a "
+            "legacy feed being migrated to primary NSE/BSE XBRL filings (broadcast-timestamped, "
+            "point-in-time); valuation ratios can lag the latest results until XBRL covers them."
         ),
         "aliases": ["fundamentals", "pe", "roce", "roe", "promoter holding", "valuation", "screener"],
         "related": ["pt14", "financials_adaptation"],

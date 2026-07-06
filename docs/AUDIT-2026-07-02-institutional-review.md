@@ -180,7 +180,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** either compute shortlist trailing beta + sector weights nightly and render with breach highlighting, or amend memo §5 to mark #6 OPEN. Never let the memo claim more than code does (same-commit doc rule).
 - **Effort:** S (doc) / M (feature) | **Verdict:** CONFIRMED.
 
-**AUD-20 [P1] /dash/glossary leaks exact thresholds/weights under its own "never the proprietary formula" promise** — `OPEN`
+**AUD-20 [P1] /dash/glossary leaks exact thresholds/weights under its own "never the proprietary formula" promise** — `DONE S77 (deployed+verified)` (metrics-glossary.md: stripped conviction 0.55/0.45, ★ p_score≥4∧rs_rank≥80, CPR knobs D1.0/W2.5/M5.0, Structure weights D1·W2·M3+formula → concepts+inputs+polarity only; values stay machine-owned in code constants. Live: 0 leaked numbers)
 - **Component:** glossary trust surface | **Reporter:** pat-nl-explainability.
 - **Files:** `docs/metrics-glossary.md:47,67,68` (rendered), `:43-46` (conviction weights, canonical content); `src/web/glossary_view.py:57,80`.
 - **Evidence digest:** ★ triple-confirm rule (p_score≥4 ∧ rs_rank≥80), R1-R4 knobs, ★-Structure weights D1·W2·M3 + score formula all render live directly under the promise sentence. Self-contradiction is the credibility cost as much as the leak.

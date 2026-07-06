@@ -43,12 +43,12 @@
 - **C tier — EXCELLENT / GOOD / AVERAGE / WEAK / POOR.** The ca_score banded by **cross-sectional quintile** within the same model (industrial vs financial) — relative standing among peers scored the same way, never a fixed cutoff. *Source:* `ca_tier`.
 - **C-blend (0–100).** mean(risk-adjusted-momentum percentile, C percentile) — a DESCRIPTIVE tilt of price strength toward well-allocating managements; names without a C score take the neutral 50th percentile. In the recorded walk-forward test (strategy ledger, Experiment 2026-07-03) this blend kept the momentum portfolio's return while cutting its worst drawdown by about a third. Shown as context on the momentum scanner — **never a buy list, never a hard veto** (both harder shapes tested WORSE).
 
-## Conviction (the cross-pillar composite — read this, you asked)
+## Conviction (the cross-pillar composite)
 
 - **Conviction (0–100).** A composite that floats the strongest cross-pillar names to the top of the screener. Today it blends two inputs into one positioning-weighted 0–100 sort key: **institutional positioning strength** (the power score) and **relative-strength rank**. (The exact blend weights are internal — see the calculations reference.)
 - **★ (triple-confirm flag)** = a **strong power score** **and** a **high relative-strength rank** **and** quality not failing — the "all aligned" headline.
 - **⚠ Honest caveats (important):**
-  - It currently **does NOT include Quality (pt14)** — I held it out until the pt14 scale was confirmed (now confirmed → folding it in is open work).
+  - It currently **does NOT include Quality (pt14)** — Quality was held out until the pt14 scale was confirmed (now confirmed → folding it in is open work).
   - The blend weights are a **reasonable default, not backtested.** Conviction is a **sorting heuristic**, not a validated model or a price target. Tuning/validating it (and adding Quality) is open.
   - **CPR (Structure) is deliberately NOT folded into this number (D53, 2026-06-19).** The build panel + the user agreed: keep the composite as positioning+RS, and surface CPR as its own parallel **★ Structure tier** + a one-click **"CPR-confirmed"** screener gate instead. Rationale: the composite is already unvalidated, CPR has no live history yet, and the doctrine is "master each pillar alone, then club." Folding CPR (and/or Quality) in — as an amplifier or a re-weight — is a future decision once CPR has been observed.
 
