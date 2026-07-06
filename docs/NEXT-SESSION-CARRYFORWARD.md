@@ -84,11 +84,15 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    all of Apr..Jun-24, not the ~2k quarter mass — `b26eafa` log) — deep PIT pledge HISTORY needs
    a per-symbol crawl (`list_shp(symbol=...)`, ~2k listings + XBRL, throttle-broken across
    nights). Only worth it for backtest depth; the live veto/filter self-heal by ~Jul-21.
-5. ~~C consumption wave~~ **DONE end-to-end (S77b):** backtest (`fe9d161`+`73e7190`) → momentum
-   C-blend sort (sibling `8068f80`) → Screen+ 'cap-alloc · C' column group + glossary entries
-   (`13db67a`), all live-verified. Open nits only: dashboard.py dossier C fact (frozen-file,
-   marginal) · re-check the blend live vs the recorded numbers after a few weeks of nightly
-   ca_pctile history. Superseded text below kept for the numbers:
+5. ~~C consumption wave~~ **DONE end-to-end (S77b + S78):** backtest (`fe9d161`+`73e7190`) → momentum
+   C-blend 50/50 sort on `/dash/markets/momentum-scan` (`8068f80`) → Screen+ 'cap-alloc · C' column
+   group + glossary (`13db67a`) → **stock-dossier `Cap-alloc (C)` score+tier on `/dash/stock`
+   (`cf2a8cb`, S78, verify-then-swap deploy)** — all live-verified, all DESCRIPTIVE only (D66 fence;
+   the C-BLEND re-cost `2026-07-05c` found it is NOT fundable at AUM — paper/descriptive overlay only,
+   see the failure-models table). **NO build nits remain.** Only passive follow-up: re-check the live
+   blend vs the recorded backtest numbers once a few weeks of nightly `ca_pctile` history accrue.
+   Gate-0 tests: `tests/test_momentum_cblend.py` + `tests/test_concall_veto.py`. Superseded text below
+   kept for the numbers:
    **(was) C consumption wave — BACKTEST DONE (S77b, `fe9d161`+`73e7190`), numbers now in hand:**
    **C-BLEND 50/50 on the RISKADJ rel-gate core = new best overlay** (net Sharpe 1.32, MaxDD
    −28.2%, Calmar 1.15, survives halves + 1.5× cost; subsumes the quality lens; hard veto/filter
