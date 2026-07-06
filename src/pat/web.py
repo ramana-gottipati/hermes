@@ -2252,11 +2252,11 @@ _FRESH = {
     "index":         ("index_signals", "trade_date", "NSE sectoral & thematic indices · daily"),
     "credibility":   ("concall_scores", "last_updated", "concall pilot · hundreds of names, NOT the full universe"),
     "deterioration": ("concall_scores", "last_updated", "concall pilot · veto + deterioration flags"),
-    "fundamentals":  (None, None, "cached Screener snapshot · the surfaced set, not the whole market"),
+    "fundamentals":  ("fundamentals", "fetched_at", "Screener-sourced snapshot (migrating to NSE XBRL) · valuation ratios may lag · surfaced set, not the whole market"),
     "pt14":          (None, None, "pt14 scored on demand for surfaced names"),
     "disqualified":  (None, None, "the hard-disqualifier kill-list"),
     "redflags":      (None, None, "the hard-disqualifier kill-list"),
-    "oscillators":   (None, None, "RSI / MACD · computed nightly"),
+    "oscillators":   ("stock_oscillators", "trade_date", "RSI / MACD · computed nightly"),
     "compare":       ("stock_signals", "trade_date", "two names · latest daily signals + cached fundamentals"),
 }
 

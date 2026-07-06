@@ -811,20 +811,23 @@ GLOSSARY: dict[str, dict] = {
         "related": ["delivery_value", "dvpt"],
     },
     "financials_adaptation": {
-        "term": "Sector-adapted thresholds for financials",
+        "term": "Financials & the pt14 score — a known limitation",
         "family": "concepts",
         "unit": "—",
-        "source": "doctrine (pt14 scoring for HFCs / NBFCs / banks)",
-        "plain": "Banks and NBFCs are scored on bank metrics, not the standard pattern thresholds.",
+        "source": "analyst doctrine (manual Phase-4) — NOT the automated pt14 scorer",
+        "plain": "The automated pt14 score applies the SAME non-financial thresholds to banks and NBFCs, so their scores read misleadingly low — treat a financial's pt14 tier with caution.",
         "detail": (
-            "The 14 patterns were built for non-financial companies, so applying "
-            "them raw makes banks and NBFCs score misleadingly low (their D/E is 6–8× "
-            "by design, ROCE is suppressed by leverage). For financials Pat reads "
-            "ROE/ROA, NII growth, GNPA, CAR and ALM discipline instead. Any "
-            "financial-sector score is tagged as using sector-adapted thresholds."
+            "The 14 patterns were built for non-financial companies. Applied raw to a "
+            "bank / NBFC they mislead: leverage is 6–8× by design (and D/E > 2 even trips a "
+            "hard disqualifier), ROCE is structurally suppressed by leverage. The adaptation "
+            "— reading ROE/ROA, NII growth, GNPA, CAR and ALM discipline instead — is a "
+            "MANUAL Phase-4 judgement, not something the automated scorer does today, and "
+            "financial scores are NOT tagged as adapted. So read a financial's pt14 tier as a "
+            "weak signal; lean on the credibility (CCI) and fundamentals reads plus human "
+            "judgement for banks."
         ),
         "aliases": ["financials", "banks", "nbfc", "hfc", "sector adapted", "doctrine d"],
-        "related": ["pt14", "fundamentals"],
+        "related": ["pt14", "fundamentals", "cci_credibility"],
     },
 
     # ──────────────────── management credibility (CCI) ────────────────────
