@@ -152,7 +152,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 
 ### P1 — trust-artifact / claims integrity
 
-**AUD-16 [P1] Pat's glossary describes a bank/NBFC-adapted pt14 scoring that does not exist in code** — `OPEN`
+**AUD-16 [P1] Pat's glossary describes a bank/NBFC-adapted pt14 scoring that does not exist in code** — `DONE S77 (deployed+verified)` (glossary.py financials_adaptation rewritten to the truth: automated scorer applies SAME thresholds, D/E>2 hard-rejects banks, NOT tagged, adaptation is manual Phase-4 only. Live: old "scored on bank metrics" claim 0 remaining; /dash/glossary+/dash/pat 200)
 - **Component:** Pat glossary | **Reporter:** pat-nl-explainability (finder P0; verifier P1 — computed scores unchanged, but a materially false explanation on a live trust surface).
 - **Files:** `src/pat/glossary.py:710-716`; `src/automation/scoring.py` (no financial dispatch; D/E>2 hard-reject applies to banks raw).
 - **Evidence digest:** "For financials Pat reads ROE/ROA, NII growth, GNPA, CAR… Any financial-sector score is tagged as sector-adapted" — zero code support; D24 doctrine exists only in manual Phase-4 analysis. Bank pt14 scores are raw non-financial thresholds and are NOT tagged.
@@ -187,7 +187,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** strip exact thresholds/weights from rendered bullets (polarity + inputs only, per the doc's own §Status plan); move formula blocks into `docs/calculations-and-weights.md` (internal).
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-21 [P1] Frozen Screener fundamentals answered by Pat with no as-of date** — `OPEN`
+**AUD-21 [P1] Frozen Screener fundamentals answered by Pat with no as-of date** — `DONE S77 (deployed+verified)` (web.py _FRESH["fundamentals"]→("fundamentals","fetched_at",…) + oscillators→stock_oscillators.trade_date + honest "Screener→XBRL, may lag" caveat. Live: _freshness_bar now emits "data as-of: 2026-07-06 15:31:42". Note: table is refreshed not frozen (AUD-48 path) — caveat reworded to match reality)
 - **Component:** Pat freshness contract | **Reporter:** pat-nl-explainability.
 - **Files:** `src/pat/web.py:2240,2255,2290-2301`; `src/core/db.py:416` (fetched_at exists).
 - **Evidence digest:** `_FRESH["fundamentals"] = (None, None, …)` — the trust-contract comment promises an as-of disclosure the bar omits; the table is frozen (Guardrail #8) so PE screens decay undated.
