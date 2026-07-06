@@ -84,7 +84,7 @@ header .brand{display:flex;align-items:center;gap:8px;text-decoration:none;color
 .subnav a.on{color:var(--ink);border-bottom-color:#1f6feb;}
 .subnav a:hover{color:var(--ink);}
 .subnav .sgrp{padding:6px 3px 6px 8px;color:#484f58;font-size:11px;font-weight:700;white-space:nowrap;align-self:center;text-transform:uppercase;letter-spacing:.4px;}
-.wrap { padding:16px; max-width:760px; margin:0 auto; }
+.wrap { padding:16px; max-width:1500px; margin:0 auto; }
 h2 { font-size:16px; margin:18px 0 10px; color:var(--ink); }
 .sub { color:var(--ink-2); font-size:12px; margin:-6px 0 12px; }
 .card { background:var(--bg-2); border:1px solid var(--line-2); border-radius:10px;
