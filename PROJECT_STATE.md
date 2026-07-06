@@ -1380,6 +1380,20 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ### Session 82 — 2026-07-06 — Surgical dedup batch (data-perfection continuation, S81 lane)
 The S81 postmortem lane continuing Ramana's "make the data perfect" directive: the five-item surgical
 data-cleaning batch, all closed in one pass (`80c4c90`), every migration overlap-guarded + live-verified.
+- **CONTINUATION — concall PIT clocks BACKFILLED (`3297a50`), the Tier-2 prerequisite for all event-time
+  text work.** NEW `src/automation/concall_clock.py` (18/18 selftest): (1) `transcript_publish_dt` —
+  330 bse-ann rows relabeled (their `concall_dt` WAS the BSE announcement/publish timestamp; screener
+  rows stay NULL — no real record, never modeled); (2) `concall_dt` — regexed off the transcript cover
+  page, accepted only inside the period_label month ±21d fence, anchor-phrase preferred, ambiguity
+  REFUSED → **16,208/21,829 stamped (74%)**, 5,621 refused-not-guessed; (3) `result_filing_dt` — (fy,
+  quarter)→period_end→earliest real BSE date in `provenance_knowable` (pead convention, 5-200d fence;
+  A-key = Q4 day), filing-must-precede-call sanity net (244 suspect mappings refused) → **15,126
+  stamped**. **Verified: 0 ordering violations over 7,009 co-stamped pairs; filing→call lag avg 2.1d
+  (min −1, max 70) — two independently-derived clocks agree; RELIANCE Q4-FY24 = 2024-04-22 exactly
+  matches pead.py's ground truth.** Fix-forward: `concall_bse` capture now stamps publish_dt (correct
+  column) + regexes the call date from in-hand text. Open: chain `concall_clock --backfill` after the
+  Sunday capture (unit-maintenance window) so new screener-source rows get stamped; concall event
+  studies (transcript-publish drift etc.) remain pre-registration-gated per the ledger.
 - **Index case-variant keys MERGED:** NSE flipped index-name casing over the years, splitting single-index
   history across two keys (`Nifty Midcap 50` = 905 rows 2012-15 under `NIFTY` + 2,626 under `Nifty`;
   `ratio_rows` carried only ONE casing → the RS/ratio machinery silently dropped the other era). Zero
