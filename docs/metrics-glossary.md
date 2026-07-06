@@ -45,15 +45,11 @@
 
 ## Conviction (the cross-pillar composite — read this, you asked)
 
-- **Conviction (0–100).** A composite **I (Claude) introduced** to float the strongest cross-pillar names to the top of the screener. Today it blends **Positioning + Relative Strength**:
-  ```
-  conviction = 0.55 × (p_score ÷ 5 × 100)   ← 55%: institutional positioning strength
-             + 0.45 × rs_rank               ← 45%: relative-strength rank (1–99)
-  ```
-- **★ (triple-confirm flag)** = `p_score ≥ 4` **and** `rs_rank ≥ 80` **and** quality not failing — the "all aligned" headline.
+- **Conviction (0–100).** A composite that floats the strongest cross-pillar names to the top of the screener. Today it blends two inputs into one positioning-weighted 0–100 sort key: **institutional positioning strength** (the power score) and **relative-strength rank**. (The exact blend weights are internal — see the calculations reference.)
+- **★ (triple-confirm flag)** = a **strong power score** **and** a **high relative-strength rank** **and** quality not failing — the "all aligned" headline.
 - **⚠ Honest caveats (important):**
   - It currently **does NOT include Quality (pt14)** — I held it out until the pt14 scale was confirmed (now confirmed → folding it in is open work).
-  - The weights (0.55/0.45) are a **reasonable default, not backtested.** Conviction is a **sorting heuristic**, not a validated model or a price target. Tuning/validating it (and adding Quality) is open.
+  - The blend weights are a **reasonable default, not backtested.** Conviction is a **sorting heuristic**, not a validated model or a price target. Tuning/validating it (and adding Quality) is open.
   - **CPR (Structure) is deliberately NOT folded into this number (D53, 2026-06-19).** The build panel + the user agreed: keep the composite as positioning+RS, and surface CPR as its own parallel **★ Structure tier** + a one-click **"CPR-confirmed"** screener gate instead. Rationale: the composite is already unvalidated, CPR has no live history yet, and the doctrine is "master each pillar alone, then club." Folding CPR (and/or Quality) in — as an amplifier or a re-weight — is a future decision once CPR has been observed.
 
 ## Price / context
@@ -70,8 +66,8 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Width% (the coil metric).** (TC−BC) ÷ Pivot × 100. **Smaller = narrower = more coiled** (a bigger move pending). Shown per timeframe (D%/W%/M% in the screener). *Source:* `width_pct`.
 - **Compression percentile (Comp%).** How narrow today's CPR is **vs this stock's own history** — the fraction of the trailing N CPR widths (≈252 D / 52 W / 24 M) that are *wider* than now. **High = unusually coiled FOR THIS STOCK** (the truer "unusual" than a flat %). *Source:* `compression_pctile`.
 - **Pattern — U / ∩.** A **reversal**: three consecutive CPRs where each leg is a clean directional step (both band lines move the same way). **BULL_U** = down-step then up-step (a bottom); **BEAR_INVU** (∩) = up-step then down-step (a top). *Source:* `pattern`.
-- **Rank — R1…R4.** Narrowness of the two recent bands, with **C0 (today's coil)** the priority bar: **R1** both narrow (sharpest) · **R2** C0 narrow · **R3** C1 narrow · **R4** neither. Derived on read vs the per-TF knob (D 1.0 / W 2.5 / M 5.0%). 
-- **★ Structure tier (the cross-TF conviction).** A reversal on a faster timeframe is **amplified** when slower timeframes are also coiled/aligned — **the larger TF carries more weight** (D 1 · W 2 · M 3). Score = base rank (R1=4…R4=1) + Σ over other TFs `w_TF · (narrow? + reversal-aligned? + regime-aligned?)` + confluence. Transparent tiers: **★★★ Prime** (strong base + a higher TF coiled+aligned + regime) · **★★ Strong** (strong base + some higher-TF support) · **★ Setup** (reversal present, little higher-TF support). Always shown with its D·W·M breakdown. **Derived on read — weights are tunable, nothing re-materialized.**
+- **Rank — R1…R4.** Narrowness of the two recent bands, with **C0 (today's coil)** the priority bar: **R1** both narrow (sharpest) · **R2** C0 narrow · **R3** C1 narrow · **R4** neither. Derived on read vs a per-timeframe width knob (exact values internal). 
+- **★ Structure tier (the cross-TF conviction).** A reversal on a faster timeframe is **amplified** when slower timeframes are also coiled/aligned — **the larger TF carries more weight**. The score sums the base rank with weighted contributions from each other timeframe's coil / reversal / regime alignment plus confluence (exact weights internal). Transparent tiers: **★★★ Prime** (strong base + a higher TF coiled+aligned + regime) · **★★ Strong** (strong base + some higher-TF support) · **★ Setup** (reversal present, little higher-TF support). Always shown with its D·W·M breakdown. **Derived on read — weights are tunable, nothing re-materialized.**
 - **Regime.** Sign of close vs the pivot: **above** (+) / **below** (−). The higher-TF trend context that the amplifier rewards. *Source:* `regime`.
 - **Confirmed.** Price has engaged the turning band (bull-U: close > TC; bear-∩: close < BC). A `confirmed` flag, not a gate — unconfirmed "forming" setups still show. *Source:* `confirmed`.
 - **Fresh (days-since).** Bars since the pattern first appeared on that timeframe — **0 = formed this period** (fresh surfaces first; a stale signal isn't a signal). *Source:* `days_since_pattern`.
