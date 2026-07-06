@@ -26,10 +26,10 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    `scripts/systemd/vps-live/` in git + `bash /opt/hermes/scripts/install-systemd.sh --install`;
    never hand-edit /etc/systemd on the VPS without capturing back. `--check` = the drift gate.
    All hermes services run SANDBOXED (ProtectSystem=strict + ReadWritePaths=/opt/hermes /var/log)
-   with oneshot timeouts + timer jitter ±5min — a job writing outside /opt/hermes//var/log will
+   with oneshot timeouts + timer jitter ±5min — a job writing outside /opt/hermes or /var/log will
    now FAIL (that's the point; extend ReadWritePaths deliberately, in git).
 
-## STATE DIGEST (as of S77/S77b, night of 2026-07-02→03 UTC — 3+ concurrent lanes)
+## STATE DIGEST (as of S77b/S78, night of 2026-07-02→03 UTC — 3+ concurrent lanes)
 - **Queue #3 CLOSED — universal pledge veto reads the SHP primary source** (`6e2160b`→`07aca8d`
   adopted the LIVE sibling implementation; `concall_veto.py` + `concall_scores.py` byte-identical
   git↔VPS). Verified live: JPPOWER → `(True, 'promoter pledge 73%')`; vetoed set = EMSLIMITED +
@@ -37,7 +37,7 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
   checks). ⚠ JPPOWER has no concall corpus so it never appears in `concall_scores` — the veto bites
   via `compute_veto`/`veto_map`.
 - **Audit P0s:** AUD-01 perimeter DONE (`cc988c6`, residual: optional Caddy basic-auth on /dash) ·
-  AUD-34 key-only SSH DONE (residual: fail2ban, sudo user) · AUD-02 on-box DONE with TWO
+  AUD-34 key-only SSH + fail2ban DONE (residual: dedicated sudo user only) · AUD-02 on-box DONE with TWO
   complementary units (full DR `hermes-db-backup.sh` daily 20:35 UTC rotate-3 `d506cea`+`5f30d95`;
   non-derivable depth + research.db + em_cache `backup-db.sh` nightly 00:30 UTC `cc988c6`+`b04e4eb`;
   restore PROVEN both sides; **off-box residual**: `download-from-vps.bat` now also pulls
@@ -69,10 +69,13 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    `gate_deferred` >0 on heavy nights (budget 25, env `HERMES_XBRL_GATE_BUDGET`). Watch
    `hermes-shareholding-xbrl` + `hermes-sast-ingest` the same nights.
 3. **AUDIT CORRECTION PROGRAM (work the doc's DAG in order, kickstart-pick-verify each):** check
-   the audit session's wrap first — B3 remainder (12/64/65/06+07/11), B2 timer truth-capture, B4
-   trust-text honesty, B5 fetch discipline, B6 linkage+UI, B7 db-core+perf (~~AUD-04~~ CLOSED — `c948c3f`+`a207c99`). B1 residuals needing
-   RAMANA: off-box backup destination; optional /dash basic-auth. B1 residuals not needing him:
-   fail2ban sshd jail, AUD-35 non-root service sandboxing.
+   the audit session's wrap first. Remaining: B3 remainder (12/64/65/06+07/11), B4 trust-text
+   honesty, B5 fetch discipline, B6 linkage+UI. DONE this session — do NOT redo: ~~B2 timer
+   truth-capture~~ `05e25ec` · ~~B7 AUD-04 perf~~ `c948c3f`+`a207c99` · ~~AUD-36 error-leak~~
+   `0bb0875`. B1 residuals needing RAMANA: off-box backup destination; optional /dash basic-auth.
+   B1 residual not needing him: **AUD-35 dedicated non-root `User=`** (the sandbox itself is
+   already done `05e25ec`; only the unprivileged-user migration remains — needs a chown window for
+   the root-owned DBs, so its own deliberate step, not a tail).
 4. ~~Stale-pledge CLASS SWEEP~~ **DONE (`60ea594`)** — `fundamentals.promoter_pledge` now syncs
    nightly from the SHP feed (post-`--ingest` hook; `--sync-pledge` CLI); all legacy readers
    (Pat "clean" filter + dossier displays + veto fallback) get primary-source values with zero
@@ -130,15 +133,20 @@ busy_timeout-hardened `b26eafa`) · AUD-39/09/10/15/05 tranche (`cef3e91`+`d0853
 AUD-03 concall CLI (`cfcd1c7`) · AUD-23 (`911d020`) · AUD-24 (`16037b2`) · AUD-32 (`a24cf23`) ·
 XBRL Phase 1/2/2c (`26cb3ef`/`5afe4ea`/`775badb`) · outage root-fix (`a4f1c21`+`d5b5933`) ·
 kill-switch battery + #4 + dq_banner (`93f6abe`/`be7826a`+`ae73dab`+`3d8ae50`) · harness permissions
-(`a2fdc99`). **Do NOT rebuild any backup unit, the shareholding module, the bank mapper, or
-dq_banner — verify, then consume.** `docs/SESSION-72-CARRYFORWARD.md` (untracked) retire-ready —
+(`a2fdc99`) · **B2 systemd truth-capture + fleet hardening (AUD-27/30/31/35-sandbox, `05e25ec`;
+units git-owned under `scripts/systemd/vps-live/`)** · **AUD-04 trust-page perf (`c948c3f`+`a207c99`)** ·
+**AUD-36 external exception-leak (`0bb0875`)** · **C consumption end-to-end — momentum C-blend
+(`8068f80`) + Screen+ column + glossary (`13db67a`) + dossier (`cf2a8cb`)** · **divergence-board
+theme-token pill fix (`55a83c0`)**. **Do NOT rebuild any backup unit, the shareholding module, the
+bank mapper, dq_banner, or the captured systemd units — verify, then consume.** `docs/SESSION-72-CARRYFORWARD.md` (untracked) retire-ready —
 its owner session deletes it.
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
-> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (START with queue #1 Jul-05 verifications if
-> it's Sunday or later, else queue #3 — the audit correction program, checking the audit session's
-> wrap for what's already landed). Access is harness-enforced — never ask for access/write/delete or
+> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (START with queue #1 — the new-state verifies:
+> the first sandboxed nightly chain, the Jul-05 concall run, both backup timers, and the
+> `install-systemd.sh --check` drift gate — then queue #3, the audit correction program, checking
+> the audit session's wrap for what's already landed). Access is harness-enforced — never ask for access/write/delete or
 > per-step confirmation. Get guidance from the agents, not from me; I won't answer. Keep every
 > guardrail (esp. #8 primary-sources-only). Remember the perimeter: curl via the Caddy hostname or
 > ssh-localhost, never raw :8000. Wrap up per the protocol and write the next carry-forward.
