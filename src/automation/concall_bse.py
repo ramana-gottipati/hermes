@@ -208,19 +208,32 @@ def capture_symbol(symbol: str, scripcode: Optional[str], conn, *, from_year: in
         if not (status == "OK" and path):
             st["failed"] += 1
         per = _derive_period(a["news_dt"])
+        # PIT clocks (concall_clock convention): NEWS_DT is the transcript-ANNOUNCEMENT
+        # timestamp = the PUBLISH clock (it must never impersonate the call date — the
+        # pre-2026-07 rows that wrote it into concall_dt were relabeled by the clock
+        # backfill). The true call date comes off the cover page, in-hand right here.
+        call_dt = None
+        if status == "OK" and text:
+            try:
+                from src.automation.concall_clock import extract_call_date
+                call_dt = extract_call_date(text, a["period_label"])
+            except Exception:  # noqa: BLE001 — the clock must never fail a capture
+                call_dt = None
         # UPSERT (not INSERT OR IGNORE): a re-attempt of a previously-failed row must UPDATE it
         # with the now-available path/status, otherwise the stale FETCH_FAIL row would persist
         # and the UNIQUE key would silently drop the successful retry. (CL-CCI-12)
         conn.execute(
             "INSERT INTO concalls (symbol, period_label, period_type, fy, quarter, "
             "concall_month, concall_year, transcript_url, transcript_path, transcript_chars, "
-            "source, parse_status, concall_dt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) "
+            "source, parse_status, concall_dt, transcript_publish_dt) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(symbol, period_label, transcript_url) DO UPDATE SET "
             "transcript_path=excluded.transcript_path, transcript_chars=excluded.transcript_chars, "
-            "parse_status=excluded.parse_status, concall_dt=excluded.concall_dt",
+            "parse_status=excluded.parse_status, concall_dt=excluded.concall_dt, "
+            "transcript_publish_dt=excluded.transcript_publish_dt",
             (symbol, a["period_label"], per.get("period_type"), per.get("fy"), per.get("quarter"),
              per.get("concall_month"), per.get("concall_year"), url, path,
-             len(text) if text else None, "bse-ann", status, a["news_dt"]))
+             len(text) if text else None, "bse-ann", status, call_dt, a["news_dt"]))
         if status == "OK" and path:
             st["captured"] += 1
         conn.commit()
@@ -285,6 +298,7 @@ def _selftest() -> None:
         period_label TEXT NOT NULL, period_type TEXT, fy INT, quarter INT, concall_month INT,
         concall_year INT, transcript_url TEXT NOT NULL DEFAULT '', transcript_path TEXT,
         transcript_chars INT, source TEXT, parse_status TEXT, concall_dt TEXT,
+        transcript_publish_dt TEXT,
         UNIQUE(symbol, period_label, transcript_url))""")
     conn.execute("CREATE TABLE bse_scrip_map (symbol TEXT PRIMARY KEY, scripcode TEXT)")
     conn.execute("INSERT INTO bse_scrip_map VALUES ('ZZ','999999')")
@@ -294,14 +308,17 @@ def _selftest() -> None:
     mod.fetch_transcript_announcements = lambda code, a, b, session=None: [
         {"news_dt": "2025-08-14", "attachment": "x.pdf", "headline": "Earnings Call Transcript",
          "period_label": "Aug 2025"}]
-    mod.download_pdf_text = lambda att, session=None: ("hello transcript world", "OK")
+    mod.download_pdf_text = lambda att, session=None: ("Call held on August 14, 2025.", "OK")
     try:
         st = capture_symbol("ZZ", None, conn, store_dir="/tmp/_cbse_selftest")
     finally:
         mod.fetch_transcript_announcements, mod.download_pdf_text = _f, _d
     assert st["found"] == 1 and st["captured"] == 1, st
     row = conn.execute("SELECT symbol, period_label, source, parse_status, transcript_chars FROM concalls").fetchone()
-    assert row == ("ZZ", "Aug 2025", "bse-ann", "OK", 22), row
+    assert row == ("ZZ", "Aug 2025", "bse-ann", "OK", 29), row
+    # PIT clocks: NEWS_DT lands in the PUBLISH column; the call date is regexed off the text.
+    clocks = conn.execute("SELECT transcript_publish_dt, concall_dt FROM concalls").fetchone()
+    assert clocks == ("2025-08-14", "2025-08-14"), clocks
     # idempotent: re-capturing the same announcement is skipped
     mod.fetch_transcript_announcements = lambda code, a, b, session=None: [
         {"news_dt": "2025-08-14", "attachment": "x.pdf", "headline": "x", "period_label": "Aug 2025"}]
