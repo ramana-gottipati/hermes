@@ -79,6 +79,14 @@ def run() -> int:
     # Atomic within one transaction (get_conn commits on success, rolls back on
     # error) — so the table is never left empty by a mid-write failure.
     with get_conn() as conn:
+        # AUD-43: refuse a suspicious shrink. A truncated feed would replace the full allowlist
+        # with a stub and silently gate every equity scanner; real delisting churn is a few %,
+        # never a cliff. Keep the current table if the new list is < 90% of it.
+        existing = conn.execute("SELECT COUNT(*) n FROM nse_equity_list").fetchone()["n"]
+        if existing and len(rows) < 0.9 * existing:
+            log.critical("nse_equity_list REFUSED: fetched %d < 90%% of existing %d — keeping the "
+                         "current allowlist (suspected truncated feed)", len(rows), existing)
+            return existing
         conn.execute("DELETE FROM nse_equity_list")
         conn.executemany(
             """INSERT OR REPLACE INTO nse_equity_list
