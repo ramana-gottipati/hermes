@@ -1377,6 +1377,21 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 83 — 2026-07-07 — Full-estate strategic review (17-agent panel + verification wave)
+Advisory session (no code changes): 8 inventory agents (state/ledger/audit/DBs/surfaces/ideas/harnesses/
+signals) → 32-claim verification against tree+git → 4-lens synthesis (insights/product/junk/viz) →
+completeness critic → main-session reconciliation. Deliverable: **`docs/strategic-review-2026-07-07.md`**
+(TRANSIENT; retire per its header) — ~9 gate-ready ₹0 studies ranked · discussed-but-unbuilt disposition
+(BUILD-NOW/NEXT/DEFER/KILL) · reconciled T-2→season-wk-4 calendar (X-02 gates all delivery-cohort visuals) ·
+junk/kill list · KPI scorecard (spec-sheets RED 0/3; MTTR unmeasured; #8 AMBER) · dormant-asset disposition
+(briefs/C sub-metrics/lag-audit/fii_dii/signal_events/oscillators…) · ranked visuals. Key verifications:
+Pat overvalued-inversion already FIXED (`understand.py:404`); oscillators scheduling gap CONFIRMED (no unit
+in git-owned systemd; Pat reads the table); 13 stale-open doc markers verified BUILT (see review §5.2);
+charter D-05 premise contradicted by `deals.py:11`; S78 log entry still missing. Charter amendments
+recommended (D-log, not applied here): D-05 re-scope; X-02/X-06/E-02/E-06 idea-bank corrections.
+Panel-freshness lesson recorded: tree moved 9 commits mid-review (`3297a50` concall clocks, AUD-08/20
+closures, `292a069` AUD-17) — pin tip + kickstart-pick-verify per pick. Commit: this entry + the review doc.
+
 ### Session 82 — 2026-07-06 — Surgical dedup batch (data-perfection continuation, S81 lane)
 The S81 postmortem lane continuing Ramana's "make the data perfect" directive: the five-item surgical
 data-cleaning batch, all closed in one pass (`80c4c90`), every migration overlap-guarded + live-verified.
