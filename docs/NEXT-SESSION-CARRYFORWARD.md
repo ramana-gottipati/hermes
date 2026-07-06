@@ -106,6 +106,20 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    under the re-ranked LOWVOL_MOM weighting before consuming momentum numbers.
 6. **XBRL Phase 3 (big, design first):** historical backfill (legacy API 2018+ / BSE deeper);
    replace Screener series symbol-by-symbol where reconciliation allows; then delete `screener.py`.
+7. **LIGHT THEME — real runtime support (Ramana asked S78b; design-first, own work item).**
+   FINDING (don't re-derive): the product has **no runtime light theme today** — no
+   `prefers-color-scheme` handling, no theme toggle anywhere; every visitor gets DARK regardless of
+   OS setting. The ONLY light context that exists is **print** — `ui_tokens.py` (`@media print`)
+   flips the palette (`--bg-*`→#fff, `--ink`→#0b0f17, `a{color:#0b0f17!important}`). **That print
+   token-set IS the ready-made light palette to reuse.** Scope: an `@media (prefers-color-scheme:
+   light)` (or a `body[data-theme=light]` toggle) block in `ui_tokens.py` re-pointing the same
+   tokens. ⚠ BIG REVIEW SURFACE — it instantly restyles all 35+ screens: **charts, inline SVG
+   micro-visuals, and any hardcoded rgba/hex overlays** (not driven by tokens) need a design pass to
+   hit the premium-visuals bar; audit for non-token colours first (`grep -rn 'rgba(\|#[0-9a-f]\{6\}'
+   src/web` beyond the token files). The S78b pill fix (`55a83c0`, `color:var(--ink)`) is already
+   light-safe — the pattern to follow everywhere. Do NOT bolt on in a tail; treat as a headline
+   session. Decision for Ramana: OS-follow (`prefers-color-scheme`) vs an explicit user toggle
+   (persisted like the density toggle) — default recommendation is a toggle (predictable, testable).
 
 ## GUARANTEED-DONE (do NOT redo — kickstart-pick-verify against these commits)
 Pledge veto SHP primary (`07aca8d`, live+verified; gate-0 pytest `c6722d7`) · pledge column-sync +
