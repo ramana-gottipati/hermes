@@ -234,6 +234,29 @@ def _d(s: Optional[str]) -> Optional[date]:
         return None
 
 
+def _supersede(events: list) -> list:
+    """AUD-08: a Revised filing (amendment_flag=1) mints a NEW row with corrected shares/value
+    (the _uid hashes value), so without this the original + revision BOTH count — double-counting
+    promoter cashflow, cluster-buy and pledge tallies. Collapse each natural-key group that
+    contains an amendment down to its latest amendment (by parsed_at). Groups with no amendment
+    are left intact — genuinely distinct same-day trades by the same person must NOT be merged.
+    Per-symbol input, so the natural key is (person, txn_date, txn_type)."""
+    from collections import defaultdict
+    groups: dict = defaultdict(list)
+    for e in events:
+        nk = (e.get("person_name_hash"), e.get("transaction_dt"), e.get("txn_type_raw"))
+        groups[nk].append(e)
+    out: list = []
+    for grp in groups.values():
+        amends = [e for e in grp if e.get("amendment_flag")]
+        if amends:
+            amends.sort(key=lambda e: e.get("parsed_at") or "")
+            out.append(amends[-1])       # the latest amendment supersedes the whole group
+        else:
+            out.extend(grp)
+    return out
+
+
 def aggregate(events: list, as_of: str, *, mcap_cr: Optional[float] = None) -> dict:
     """Point-in-time roll-up for one symbol. Only events with disclosure_dt <= as_of count.
 
@@ -242,6 +265,7 @@ def aggregate(events: list, as_of: str, *, mcap_cr: Optional[float] = None) -> d
     """
     ao = _d(as_of)
     known = [e for e in events if (_d(e.get("disclosure_dt")) and _d(e["disclosure_dt"]) <= ao)]
+    known = _supersede(known)  # AUD-08: collapse revised filings so flow isn't double-counted
 
     def in_window(e, days):
         dd = _d(e.get("disclosure_dt"))
