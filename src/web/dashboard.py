@@ -8237,8 +8237,8 @@ _ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 </svg>"""
 
 # Network-first service worker: always try fresh data, fall back to cache offline.
-_SW_JS = """const CACHE = 'hermes-v3';
-const SHELL = ['/dash', '/icon.svg', '/manifest.webmanifest', '/dash/offline'];
+_SW_JS = """const CACHE = 'hermes-v4';
+const SHELL = ['/icon.svg', '/manifest.webmanifest', '/dash/offline'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
