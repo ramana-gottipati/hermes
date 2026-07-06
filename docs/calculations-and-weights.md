@@ -107,5 +107,19 @@ contribution," not equal raw-value contribution — the honest way to combine un
 
 ---
 
+## 5b. Conviction composite, ★ flags & CPR-Structure (INTERNAL — not client-facing)
+
+These exact thresholds/weights are deliberately kept OUT of the client glossary (AUD-20) but are recorded here as the machine-owned canon (the code constants remain the single source of truth).
+
+**Canonical sources:** `src/web/dashboard.py` (conviction blend + ★ rule), `src/automation/cpr_signals.py` (CPR knobs + Structure weights), `src/automation/stock_rs.py` (rs_rank blend).
+
+- **Conviction (0–100):** `0.55 × (p_score ÷ 5 × 100) + 0.45 × rs_rank`. Positioning-weighted; not backtested (a sorting heuristic, not a model). Quality (pt14) deliberately excluded pending validation.
+- **★ (triple-confirm flag):** `p_score ≥ 4` **and** `rs_rank ≥ 80` **and** quality-not-failing (`dashboard.py:1718`).
+- **CPR width knobs (per-TF):** Daily 1.0% · Weekly 2.5% · Monthly 5.0% (narrowness thresholds; derived on read).
+- **★ Structure tier weights:** larger TF carries more weight — D 1 · W 2 · M 3. `score = base rank (R1=4…R4=1) + Σ over other TFs w_TF·(narrow? + reversal-aligned? + regime-aligned?) + confluence`. Tiers ★★★ Prime / ★★ Strong / ★ Setup. Weights tunable, nothing re-materialized.
+- **rs_rank blend:** stock-vs-broad and stock-vs-sector combined 0.6 / 0.4 (`stock_rs.py:239`).
+
+---
+
 ## 6. Maintenance rule
 When any weight/anchor/threshold changes: (1) edit the **canonical code constant**; (2) update the **single** entry in this file; (3) if a UI/glossary surface shows it, have that surface **read/link** it — never hard-code a second copy. Reviewers check *this file* for "how is it calculated," not scattered code comments.

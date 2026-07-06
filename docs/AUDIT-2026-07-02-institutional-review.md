@@ -337,7 +337,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** 2-query plan — when rank asks a sector superlative, run build_index_query, map top index_name→primary_sector, bind into ACC/RS flows; add rs_phase to flow SELECTs + a phase chip.
 - **Effort:** L | **Verdict:** CONFIRMED.
 
-**AUD-43 [P1] equity_list replaced wholesale with no minimum-row sanity — one truncated CSV shrinks the allowlist gating every scanner** — `OPEN`
+**AUD-43 [P1] equity_list replaced wholesale with no minimum-row sanity — one truncated CSV shrinks the allowlist gating every scanner** — `DONE S77 (deployed+verified)` (equity_list.run() refuses the replace when fetched < 90% of existing rows; log critical, keep the current allowlist. VPS AST+import OK)
 - **Component:** format-drift defense | **Reporter:** api-src (finder-only — not adversarially verified).
 - **Files:** `src/automation/equity_list.py:48,71-81`.
 - **Fix:** refuse the replace if new count < 90% of existing (log critical); add row-count bands vs trailing median to bhavcopy/indexes before marking a date done.
