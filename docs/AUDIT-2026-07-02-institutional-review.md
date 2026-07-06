@@ -159,7 +159,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** rewrite the entry to the truth (standard thresholds applied to financials; known limitation, scores unreliable for banks; not tagged) — or implement the adaptation; either way fix the text in the same session.
 - **Effort:** S | **Verdict:** CONFIRMED (corrected P1).
 
-**AUD-17 [P1] Pat compare/why/trend silently take the first fuzzy symbol match — confident wrong-company answers** — `OPEN`
+**AUD-17 [P1] Pat compare/why/trend silently take the first fuzzy symbol match — confident wrong-company answers** — `DONE S77 (deployed+verified)` (web.py `_resolve_or_chips()`: prefer exact symbol, else disambiguation chips + stop; wired into all 3 flows. Live: "compare TATA,INFY"→chips not TATACHEM; "why TATA"→chips; control RELIANCE,INFY→renders card)
 - **Component:** Pat symbol resolution | **Reporter:** pat-nl-explainability.
 - **Files:** `src/pat/web.py:1417-1422,1628-1635,1711-1718` vs the correct guard at `:1903-1911`; resolver `src/pat/flows.py:775-783`.
 - **Evidence digest:** "compare TATA and INFY" silently compares TATACHEM; "why is TATA credible" answers for the wrong company with full evidence formatting — the exact failure Pat's design doc promises never to give. `_stock_flow` already has the "Did you mean…" pattern; the other three skip it.
