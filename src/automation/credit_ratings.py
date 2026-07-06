@@ -262,6 +262,22 @@ def _cr_uid(e: dict) -> str:
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:20]
 
 
+# Canonical agency names — filings carry typo/variant spellings of the same SEBI-registered
+# CRA ("Acute Ratings & Research" is a filing typo of Acuité; there is no such registered
+# agency). Normalise ONLY the stored column, NEVER the _cr_uid input: the uid hashes the RAW
+# fields, so a re-served filing must keep producing the same uid — normalising before the
+# hash would fork duplicates on re-ingest.
+_AGENCY_CANON = {
+    "acute ratings & research limited": "Acuite Ratings & Research Limited",
+}
+
+
+def _canon_agency(name):
+    if not name:
+        return name
+    return _AGENCY_CANON.get(" ".join(str(name).split()).lower(), name)
+
+
 def save_events(conn: sqlite3.Connection, events: list) -> int:
     n = 0
     for e in events:
@@ -279,7 +295,8 @@ def save_events(conn: sqlite3.Connection, events: list) -> int:
                  notch_delta=excluded.notch_delta, lt_ord=excluded.lt_ord,
                  watch_flag=excluded.watch_flag,
                  below_investment_grade=excluded.below_investment_grade, parsed_at=datetime('now')""",
-            (_cr_uid(e), e.get("app_id"), e.get("symbol"), e.get("issuer_name"), e.get("isin"), e.get("agency"),
+            (_cr_uid(e), e.get("app_id"), e.get("symbol"), e.get("issuer_name"), e.get("isin"),
+             _canon_agency(e.get("agency")),
              e.get("rating_raw"), e.get("rating_earlier_raw"), e.get("lt_grade"), e.get("lt_ord"),
              e.get("lt_ord_earlier"), e.get("st_grade"), e.get("outlook"), e.get("notch_delta"),
              e.get("action_raw"), e.get("action_class"), e.get("watch_flag"),

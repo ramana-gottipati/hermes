@@ -239,9 +239,15 @@ def chk_security_master(c) -> dict:
         "SELECT COUNT(*) FROM security_master WHERE status NOT IN ('ACTIVE','INACTIVE')").fetchone()[0]
     bad_dates = c.execute(
         "SELECT COUNT(*) FROM security_master WHERE last_date < first_date").fetchone()[0]
-    sev = SEV_WARN if (bad_status or bad_dates) else SEV_OK
+    # INACTIVE + currently_listed=1 is NOT a contradiction — it is the SUSPENDED signature
+    # (in the NSE equity list but no trades for >ACTIVE_GAP_DAYS, e.g. KALYANI 2025-07).
+    # Surface it as information so nobody re-files it as corruption.
+    suspended = c.execute(
+        "SELECT COUNT(*) FROM security_master WHERE status='INACTIVE' AND currently_listed=1").fetchone()[0]
+    sev = SEV_WARN if (bad_status or bad_dates) else (SEV_INFO if suspended else SEV_OK)
     return _check("security_master.sanity", sev, bad_status + bad_dates,
-                  f"{bad_status} bad status, {bad_dates} last_date<first_date")
+                  f"{bad_status} bad status, {bad_dates} last_date<first_date; "
+                  f"{suspended} listed-but-suspended (INACTIVE + in equity list — real state)")
 
 
 def chk_cross_db_orphans(c, r) -> dict:
@@ -377,6 +383,23 @@ def chk_feed_freshness(c) -> dict:
                   problems, "; ".join(notes) or "tables absent")
 
 
+def chk_index_name_variants(c) -> dict:
+    """NSE has historically flipped index-name casing ("NIFTY Midcap 50" vs "Nifty Midcap 50"),
+    silently splitting one index's history across two keys. The known groups are canonicalised
+    at ingest (indexes._NAME_CANON) + merged in the data; this check WARNs if a NEW variant
+    group ever appears so it gets folded into the canon map instead of splitting history again."""
+    if not _table_exists(c, "index_rows"):
+        return _check("index.name_variants", SEV_OK, 0, "table absent")
+    groups = c.execute(
+        "SELECT GROUP_CONCAT(index_name, ' | ') FROM (SELECT DISTINCT index_name FROM index_rows) "
+        "GROUP BY lower(index_name) HAVING COUNT(*) > 1").fetchall()
+    if groups:
+        return _check("index.name_variants", SEV_WARN, len(groups),
+                      "case-variant index keys splitting history (extend indexes._NAME_CANON + merge)",
+                      [g[0] for g in groups[:10]])
+    return _check("index.name_variants", SEV_OK, 0, "no case-variant index keys")
+
+
 def chk_derived_liveness(c) -> dict:
     """The three largest DERIVED tables (stock_signals / mep_signals / cpr_signals) plus the index
     tape recompute EVERY trading day from bhavcopy — if a nightly compute job dies they silently
@@ -432,7 +455,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             # kill-switches (validation memo §5)
             (chk_market_freshness, (c,)), (chk_regime_guard, (c,)),
             (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
-            (chk_derived_liveness, (c,)),
+            (chk_derived_liveness, (c,)), (chk_index_name_variants, (c,)),
             (chk_restatement_spike, (r,)),
         ]
         for fn, fargs in plan:

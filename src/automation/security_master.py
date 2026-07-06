@@ -192,6 +192,10 @@ def compute_and_store(conn=None) -> dict:
             isin = l_isin or r["bisin"]
             currently_listed = 1 if sym in listed else 0
             recently = 1 if (active_floor and last and last >= active_floor) else 0
+            # status = TRADING recency, not listing state (currently_listed carries that axis).
+            # INACTIVE + currently_listed=1 is therefore a real, expected combination: a
+            # listed-but-SUSPENDED name (in the equity list, no trades for >ACTIVE_GAP_DAYS —
+            # e.g. KALYANI, last trade 2025-07-04). Do not "fix" it as a contradiction.
             status = "ACTIVE" if recently else "INACTIVE"
             rows.append((sym, first, last, n, isin, company, listing,
                          currently_listed, recently, status))

@@ -108,7 +108,7 @@ def _parse(csv_text: str, fallback_date: str) -> list[dict]:
                 trade_date = fallback_date
 
         rows.append({
-            "index_name":     name.strip(),
+            "index_name":     _canon_index(name.strip()),
             "trade_date":     trade_date,
             "open_value":     _f(r.get("Open Index Value") or r.get("Open")),
             "high_value":     _f(r.get("High Index Value") or r.get("High")),
@@ -126,6 +126,25 @@ def _parse(csv_text: str, fallback_date: str) -> list[dict]:
             "dividend_yield": _f(r.get("Div Yield") or r.get("Dividend Yield")),
         })
     return rows
+
+
+# NSE flipped index-name CASING over the years ("NIFTY Midcap 50" 2012-15 → "Nifty Midcap 50"
+# 2015-…), silently splitting one index's history across two keys and starving every
+# `index_name = ?` consumer (ratio/RS/signals) of the other-cased era. Canonicalise the known
+# variant groups to the CURRENT feed casing at ingest (anchor = what the live feed emits, so
+# tomorrow's rows are already canonical → zero rename churn). The DQ battery
+# (chk_index_name_variants) WARNs if NSE ever mints a NEW variant group.
+_NAME_CANON = {
+    "nifty midcap 100":     "NIFTY Midcap 100",
+    "nifty midcap 50":      "Nifty Midcap 50",
+    "nifty smallcap 100":   "NIFTY Smallcap 100",
+    "nifty tr 1x inverse":  "NIFTY TR 1X Inverse",
+    "nifty tr 2x leverage": "NIFTY TR 2X Leverage",
+}
+
+
+def _canon_index(name: str) -> str:
+    return _NAME_CANON.get(" ".join(name.split()).lower(), name)
 
 
 _COLS = [
