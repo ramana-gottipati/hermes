@@ -228,7 +228,7 @@ tr.dt-hide{display:none!important}
 .tabbar a{padding:7px 14px;font-size:13px;font-weight:700;color:var(--ink-2);text-decoration:none;border-bottom:2px solid transparent;}
 .tabbar a.on{color:var(--ink);border-bottom-color:#8957e5;}
 /* D54 — full-bleed data workspace with a COMFORTABLE gutter (D-UI-10) */
-.wrap.wide{max-width:1900px;margin:0 auto;padding:14px clamp(12px,4vw,56px);}
+.wrap.wide{max-width:1500px;margin:0 auto;padding:14px clamp(12px,4vw,56px);}
 /* D54 — frozen-pane data grid: ONE scroll viewport owns BOTH axes so the header
    band AND the Symbol column stay fixed while scrolling down AND across. */
 .scrwrap{overflow:auto;max-height:calc(100vh - 230px);border:1px solid var(--line-2);border-radius:10px;background:var(--bg-1);-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
