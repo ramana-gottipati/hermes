@@ -1402,6 +1402,31 @@ def _strategy_flow(conn, key: str = "all") -> str:
 
 
 # ── compare two stocks side by side (A vs B) ──────────────────────────────────
+def _resolve_or_chips(conn, token, out, flow="stock"):
+    """AUD-17: resolve a token to ONE candidate row, preferring an EXACT symbol match. If the
+    token is ambiguous (several fuzzy matches, none exact) or unmatched, append a 'did you mean?'
+    / 'no match' bubble to `out` and return None — so compare/why/trend STOP instead of confidently
+    answering for the wrong company (the guard _stock_flow had, which these three skipped)."""
+    try:
+        rsql, rparams = build_symbol_resolve_query(token)
+        cands = list(conn.execute(rsql, rparams))
+    except Exception:  # noqa: BLE001
+        cands = []
+    if not cands:
+        out.append(_q_bubble(f'No NSE stock matches "{_esc(token)}". Try the exact symbol (e.g. RELIANCE, INFY).'))
+        return None
+    exact = [c for c in cands if (c["symbol"] or "").upper() == token.upper()]
+    if len(cands) > 1 and not exact:
+        out.append(_q_bubble(f'"{_esc(token)}" is ambiguous — did you mean?'))
+        out.append('<div class="patChips">')
+        for c in cands:
+            lbl = f'{c["symbol"]} — {c["company_name"] or ""}'.strip(" —")
+            out.append(_chip(f"/dash/pat?flow={flow}&sym={_u(c['symbol'])}", lbl))
+        out.append('</div>')
+        return None
+    return exact[0] if exact else cands[0]
+
+
 def _compare_flow(conn, syms: str = "") -> str:
     toks = [t.strip() for t in (syms or "").replace(" ", ",").split(",") if t.strip()][:3]
     out = ['<a class="patBack" href="/dash/pat">← back</a>']
@@ -1413,13 +1438,10 @@ def _compare_flow(conn, syms: str = "") -> str:
         return "".join(out)
     resolved = []
     for tok in toks:
-        try:
-            rsql, rparams = build_symbol_resolve_query(tok)
-            hit = conn.execute(rsql, rparams).fetchone()
-        except Exception:
-            hit = None
-        if hit:
-            resolved.append(hit["symbol"])
+        hit = _resolve_or_chips(conn, tok, out, "stock")   # AUD-17: exact-or-disambiguate, never silent-guess
+        if hit is None:
+            return "".join(out)
+        resolved.append(hit["symbol"])
     resolved = list(dict.fromkeys(resolved))   # dedupe, keep order
     if len(resolved) < 2:
         out.append(_q_bubble(f'I could resolve {len(resolved)} of those tickers. '
@@ -1624,13 +1646,8 @@ def _why_flow(conn, sym: str, metric: str = "credibility") -> str:
     if conn is None:
         out.append(_q_bubble("Connect to data to explain."))
         return "".join(out)
-    try:
-        rsql, rparams = build_symbol_resolve_query(sym)
-        hit = conn.execute(rsql, rparams).fetchone()
-    except Exception:
-        hit = None
-    if not hit:
-        out.append(_q_bubble(f'I couldn\'t resolve “{_esc(sym)}”. Check the symbol.'))
+    hit = _resolve_or_chips(conn, sym, out, "why")   # AUD-17: exact-or-disambiguate, never silent-guess
+    if hit is None:
         return "".join(out)
     sym = hit["symbol"]
     out.append(_q_bubble(f'Why {_esc(sym)} reads {_WHY_LABEL.get(metric, metric)} — the EVIDENCE '
@@ -1707,13 +1724,8 @@ def _trend_flow(conn, sym: str) -> str:
     if conn is None:
         out.append(_q_bubble("Connect to data to chart the trend."))
         return "".join(out)
-    try:
-        rsql, rparams = build_symbol_resolve_query(sym)
-        hit = conn.execute(rsql, rparams).fetchone()
-    except Exception:
-        hit = None
-    if not hit:
-        out.append(_q_bubble(f'I couldn\'t resolve “{_esc(sym)}”. Check the symbol.'))
+    hit = _resolve_or_chips(conn, sym, out, "trend")   # AUD-17: exact-or-disambiguate, never silent-guess
+    if hit is None:
         return "".join(out)
     sym = hit["symbol"]
     try:
