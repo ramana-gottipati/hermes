@@ -29,6 +29,45 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    with oneshot timeouts + timer jitter ±5min — a job writing outside /opt/hermes or /var/log will
    now FAIL (that's the point; extend ReadWritePaths deliberately, in git).
 
+## 🎯 CHARTER IS THE ROADMAP + S80h STATE (2026-07-05 — read FIRST; results season opens ~Jul-09)
+**`docs/patearn-charter.md` is now the canonical plan (D87):** thesis · dated NOW/NEXT/LATER · 50-item
+idea bank (E/X/D/P/M) · data-sprint table · KPIs · not-do list. Execute charter §3 NOW by default;
+decide-record-execute, no advisory menus; every study through a PRE-REGISTERED gate, failures recorded
++ BLOCKING (cite the numbers before re-attempting). The audit-era digest + queue BELOW stay valid but
+are now SECONDARY to the charter.
+
+**Shipped S79–S80h (don't rebuild — verify + consume):**
+- **Results-season WAR ROOM LIVE + self-refreshing** — `/dash/markets/results-reactions` (charter N1
+  DONE): forward NSE board-meeting calendar (D-01, `board_meetings`, nightly
+  `hermes-results-calendar.timer` 02:00 UTC) + delivery-confirmed reaction scanner (nightly
+  `hermes-results-reactions` snapshot 18:00 UTC). First-class Markets nav lens; git-captured +
+  clean-checkout-verified (`1a9369e`).
+- **PEAD event lens — descriptive edge REAL, tradeable book FALSIFIED** (every wrapper incl.
+  within-season) · **footprint detector gate FAIL** (T+2 structural) — both BLOCKING failure-table
+  rows; descriptive products only (the scanner + `pead_surface.py`). New modules:
+  `research/explosive_moves/{pead,pead_surface,footprint}.py`, `src/web/results_reactions.py`,
+  `src/automation/results_calendar.py`, 2 timer stacks in `scripts/systemd/vps-live/`.
+- **⚠ Sibling S81 lanes in flight (don't stomp; check origin tip + `git log` first):** data-estate
+  postmortem (`docs/DATA-POSTMORTEM-2026-07-05.md`) + the **season-critical XBRL
+  Provisions-merged-into-Expenses extractor fix** (must land before banks report ~Jul-09/18) + census
+  corrections + security-master. **NAV files `v2_surfaces.py`/`lens_registry.py` are git↔VPS FORKED:**
+  my scanner mount+lens are in git (`1a9369e`); a non-mine early-signals/sector-momentum reordering
+  stays VPS-only (its owner's to settle — don't absorb it).
+
+## ⚡ IMMEDIATE QUEUE (S80h — do these before the audit-program queue below)
+1. **VERIFY the 2 new timers' first runs:** `hermes-results-calendar` (02:00 UTC) +
+   `hermes-results-reactions` snapshot (18:00 UTC) — journal `Result=success`,
+   `/var/log/hermes-results-*.log` clean, war room shows fresh data
+   (`results_reactions_meta.generated_at` recent, `board_meetings` current); `systemctl --failed
+   'hermes-*'` empty; `install-systemd.sh --check` clean.
+2. **RESULTS-SEASON WATCH — LIVE THIS WEEK:** calendar shows TCS Jul-09, HCLTECH Jul-13, LTTS Jul-14,
+   POLYCAB/TECHM Jul-16, HDFC/ICICI/Axis Jul-18. Watch the reaction snapshot fill in as names report +
+   the XBRL bank flow (audit-era queue #2 below); the sibling's Provisions fix must land first.
+3. **TOP CHARTER PICKS for new build:** **X-02** T2T/BE delivery-contamination mask (correctness —
+   pollutes MEP/DVPT delivery signals TODAY) · **E-03** post-disclosure drift + **E-04** campaign-arcs
+   (footprint pivots — pre-register the gate) · **D-02..D-05** quick primary feeds (ASM/GSM · price
+   bands · SLB · bulk/block history). Full bank: charter §7.
+
 ## STATE DIGEST (as of S77b/S78, night of 2026-07-02→03 UTC — 3+ concurrent lanes)
 - **Queue #3 CLOSED — universal pledge veto reads the SHP primary source** (`6e2160b`→`07aca8d`
   adopted the LIVE sibling implementation; `concall_veto.py` + `concall_scores.py` byte-identical
@@ -125,7 +164,7 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    (persisted like the density toggle) — default recommendation is a toggle (predictable, testable).
 
 ## GUARANTEED-DONE (do NOT redo — kickstart-pick-verify against these commits)
-Pledge veto SHP primary (`07aca8d`, live+verified; gate-0 pytest `c6722d7`) · pledge column-sync +
+**S79-S80h (2026-07-05 — results-season war room + PEAD studies):** PEAD study + pre-registered within-season variant (`f9f0b20`+`7d37127`) · footprint gate-FAIL (`f3eb0c4`) · CEO charter + D87/88/89/90 (`f3eb0c4`) · Results-Reaction scanner + `pead_surface` engine (`960eb3a`+`7d37127`) · war-room D-01 board-meeting calendar + `board_meetings` (`19423bf`) · 2 nightly timers calendar+snapshot (`c5dacd6`+`9b1f987`, AUD-95-safe) · scanner nav-lens + git-capture, clean-checkout-verified (`205e303`+`1a9369e`). Don't rebuild any of these. · Pledge veto SHP primary (`07aca8d`, live+verified; gate-0 pytest `c6722d7`) · pledge column-sync +
 SHP backfill (`60ea594`+`b26eafa`, nightly hook live) · AUD-01 perimeter (`cc988c6`) · AUD-34
 key-only SSH + fail2ban (VPS state) · AUD-02 on-box backups BOTH units
 (`d506cea`+`5f30d95`+`cc988c6`+`b04e4eb`, restore-tested, de-duplicated BY DESIGN,
@@ -142,7 +181,8 @@ bank mapper, dq_banner, or the captured systemd units — verify, then consume.*
 its owner session deletes it.
 
 ## KICKOFF PROMPT (paste to start the next session)
-> Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`, then execute
+> Continue the Hermes/Patearn work autonomously.
+> **FIRST read `docs/patearn-charter.md` (canonical, D87) + the CHARTER/⚡IMMEDIATE blocks at the TOP of this doc — the war room shipped; charter §3 NOW is the primary queue; the audit-era queue below is secondary.** Boot per `docs/SESSION-PROTOCOL.md`, then execute
 > `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (START with queue #1 — the new-state verifies:
 > the first sandboxed nightly chain, the Jul-05 concall run, both backup timers, and the
 > `install-systemd.sh --check` drift gate — then queue #3, the audit correction program, checking
