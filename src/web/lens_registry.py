@@ -82,6 +82,11 @@ LENSES: tuple[Lens, ...] = (
     # behaviour track record (descriptive), sits with the RS-strength cluster.
     Lens("capture-map", "All-weather map", "market", "markets", "/dash/capture-map",
          aliases=("capture", "all-weather")),
+    # Results-Reaction SCANNER (S80f) -- the war-room board: forward NSE results calendar +
+    # delivery-confirmed reaction cells. Descriptive (the failed PEAD book is cited on-page);
+    # reads the nightly results_reactions snapshot + board_meetings. A Markets scanner lens.
+    Lens("results-reactions", "Results reactions", "market", "markets", "/dash/results-reactions",
+         aliases=("results", "earnings", "war-room")),
     Lens("rrg", "Rotation · Map", "market", "markets", "/dash/rrg",
          group="Rotation"),
     Lens("rotation", "Rotation · Weather", "market", "markets", "/dash/rotation",

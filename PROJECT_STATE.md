@@ -1387,6 +1387,22 @@ Ramana: "extreme, intense, deep research into the data — missed perspectives, 
 - **Open (correction program, sequenced in postmortem §10):** foundation = canonical-symbol resolver + rename-boundary fix (renames break 100 % of price tapes / orphan ~188 fundamentals links) · DQ feed-liveness+nonzero battery (catches the `corporate_actions`-404 silent-death class) · concall PIT-clock backfill. Surface-first (need Ramana): cost-reality re-cut experiment (read-only, settles the champion) · prod `stock_signals` rebuild for ~2 GB reclaim · paid ~₹1,139 LLM concall extraction (defer). Coordinated with sibling S80 — its Results-Reaction Scanner mount is VPS-only on the forked `v2_surfaces.py` (preserve at de-fork). (This entry also folds a pre-existing orphaned doc hunk: open-item **L** + the `## Session log` header relocation + the S77 B1 expansion — confirmed not the sibling's.)
 - **DATA-PERFECTION CONTINUATION ("I want the data to be perfect"):** driving the data-integrity defect inventory to zero, correctness-first. Shipped + verified LIVE: **(1) rename-boundary** — `security_master.aliases()` reverse resolver + ISIN-recycling gap guard (`ffbf8a2`); `security_renames` rebuilt (314 confirmed, 10 big-gap false-edges → `isin-gap` candidates); rename-safe `fundamentals_asof` reads (`f1da68d`) query the symbol + confirmed prior names. Live-proven: GUJENERGY (renamed ex-GUJGASLTD 2026-07-01, same ISIN, Screener-frozen) **0→39 metrics**, RELIANCE intact. **(2) key_price/gap_to_key split-fragility** (`453e013`) — `_key_price_metrics` averaged RAW avg_price across each window so a split mixed pre/post price scales → −60..−80% artifacts; now weights by delivered VALUE (split-invariant) but averages the SPLIT-ADJUSTED price (`adjust.adjustment_factors`). Read-only-proven: 14/14 poisoned names had a trailing-12m split (splitx 5-24×), all healed (RNBDENIMS −93.7→+5.7, V2RETAIL −89.8→−0.0, SIKKO −96.2→−15.3); `--backfill-keyprice` heals the 5.95M stored rows (ran). **(3) DQ derived-liveness battery** (`39fec05`) — NEW `chk_derived_liveness` CRITs if stock/mep/cpr/index_signals freeze vs the bhav clock (the silent-compute-death gap the audit flagged) + WARNs the `corporate_actions` dead pipe; `chk_feed_freshness` generalized 2→8 flow feeds; verified live (feed_freshness OK ×8, liveness.derived WARN). Plus the **cost-reality re-cut** DONE (champion NOT fundable; 1.32 re-stated flat-cost-only, `3aa5beb`; failure-ledger + memory updated). **Remaining defect list:** corporate_actions feed resurrection (now battery-surfaced) · surgical batch (credit 633-NULL symbol map, Acute/Acuite agency dedup, `NIFTY`/`Nifty` index-key dedup, concall_signals 5,593 phantom-row rebuild, security_master INACTIVE+listed contradiction) · Tier-2 PIT clocks (concall publish_dt, shareholding real-date calibration post-Reg-31) · **ETF-in-EQ-series exclusion (NEW — found via the key_price verify: gold-ETF units pollute EQ scans)** · table_census nightly snapshot.
 
+### Session 80h — 2026-07-05 — Nav additions git-captured (the integrity residual, closed)
+"git-capture the nav additions when the fork settles." Diffed the fork first: the VPS<->git
+divergence on v2_surfaces.py / lens_registry.py is MY two additions + a pre-existing NON-mine
+reordering of early-signals/sector-momentum (stale uncommitted VPS state -- git's nav files were
+byte-unchanged all session; no active nav lane, so "settling" could be indefinite). My hunks are
+cleanly separable, so captured JUST them to git -- did NOT absorb the non-mine reordering (not mine):
+- `v2_surfaces._ROUTER_SPECS` += the results-reactions mount tuple.
+- `lens_registry.LENSES` += the results-reactions Lens (byte-matching the live VPS text so the
+  eventual reconcile of the remaining fork is conflict-free).
+- Verified: py_compile clean; `lens_registry._selftest` PASS (43 lenses); lens in `subnav('markets')`.
+  A clean git checkout+deploy now renders the nav-integrated scanner (view+engine already in git,
+  `results_reactions.py` 960eb3a).
+- **Resolves the S80c/S80f "live-on-VPS, not in git" residual.** Remaining nav fork = ONLY the
+  non-mine early-signals/sector-momentum reordering + comment edits (its owner's to settle).
+- Git (temp-index own hunks): both nav files + this entry.
+
 ### Session 80g — 2026-07-05 — Closed the reaction-snapshot refresh gap (honesty correction)
 "so there is nothing open?" surfaced that S80d/e/f wired only the CALENDAR nightly; the reaction
 snapshot (`pead_surface --snapshot`, the "just reported" half) was still MANUAL -> the scanner's

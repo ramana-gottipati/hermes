@@ -90,6 +90,9 @@ _ROUTER_SPECS = [
     # cycle_clock deep-links /dash/sector-momentum. Durably mounted here.
     ("sector-momentum", "src.web.sector_momentum", "/dash/sector-momentum"),
     ("early-signals", "src.web.early_signals", "/dash/early-signals"),
+    # Results-Reaction Scanner — descriptive board from the (falsified-as-a-book) PEAD
+    # study (ledger 2026-07-05); reads the nightly results_reactions snapshot. Pure stdlib.
+    ("results-reactions", "src.web.results_reactions", "/dash/results-reactions"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────
