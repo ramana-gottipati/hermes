@@ -1377,6 +1377,39 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 82 — 2026-07-06 — Surgical dedup batch (data-perfection continuation, S81 lane)
+The S81 postmortem lane continuing Ramana's "make the data perfect" directive: the five-item surgical
+data-cleaning batch, all closed in one pass (`80c4c90`), every migration overlap-guarded + live-verified.
+- **Index case-variant keys MERGED:** NSE flipped index-name casing over the years, splitting single-index
+  history across two keys (`Nifty Midcap 50` = 905 rows 2012-15 under `NIFTY` + 2,626 under `Nifty`;
+  `ratio_rows` carried only ONE casing → the RS/ratio machinery silently dropped the other era). Zero
+  same-date overlap verified, then all 5 groups merged across `index_rows`/`index_signals` (+ the TR pair
+  in `ratio_rows`/`ratio_signals`) — Midcap 50 now ONE key 2012-02-21→2026-07-06 (3,531 rows). Fix-forward:
+  `indexes._NAME_CANON` canonicalises at ingest (anchor = current feed casing → zero churn); NEW battery
+  check `chk_index_name_variants` WARNs if NSE ever mints a new variant group.
+- **Agency typo dedup:** `Acute Ratings & Research` (38 rows) = filing typo of Acuité → canonicalised to
+  `Acuite Ratings & Research Limited` (62 rows, one agency). **uid-safe by construction** — `_cr_uid`
+  hashes the RAW agency string; `_canon_agency` applies only at the stored column, so re-served filings
+  keep deduping (normalising before the hash would have forked duplicates on re-ingest).
+- **`concall_signals` rebuilt** (57,271 stale → 57,964 fully-derived): the table had drifted from
+  `concall_guidance` (rebuild never chained after `--force` re-extracts). Count is join-shaped (a
+  period can carry >1 concall row), not 1:1 with guidance — the S79-corpus "5,593 phantom rows"
+  arithmetic was naive; the real defect was staleness, now zero by construction. Chain `--rebuild`
+  after extract when extraction resumes (Gemini-capped, so no re-drift meanwhile).
+- **KALYANI "impossible row" reclassified as TRUTH:** `status` = trading recency, `currently_listed` =
+  listing axis → INACTIVE+listed = **listed-but-suspended** (real state; last trade 2025-07-04).
+  Documented at the derivation; `chk_security_master` now surfaces "1 listed-but-suspended" as INFO.
+  Deliberately did NOT mint a third status value (3 consumers filter on ACTIVE/INACTIVE).
+- **Credit NULL-symbol VERDICT (no code change):** probed all 34 distinct NULL-symbol issuers through the
+  module's own name map AND `security_master` company names → **0 hits**. The 655 rows are structurally
+  UNLISTED debt issuers (ABHFL, ECL Finance, EXIM, InvITs) — `symbol IS NULL` is correct-as-designed;
+  the postmortem's "ratings symbol-mapping repair" proposal is **evidence-killed** (do not re-attempt).
+- Also verified this lane: the cost-recut artifact is REAL on the VPS (`out/cblend_cost_recut.csv`
+  Jul-5 15:35, matches the recorded ledger numbers exactly) — the "agent failed" notification was
+  process-restart noise, not a missing run. **Data-perfection remaining:** corporate_actions feed
+  resurrection (battery-surfaced) · Tier-2 PIT clocks (concall publish_dt; shareholding calibration
+  post-Reg-31 ~Jul-21) · ETF-in-EQ-series exclusion · table_census snapshot.
+
 ### Session 81 — 2026-07-05 — Data-estate postmortem (12-specialist analyst team) + first corrections
 Ramana: "extreme, intense, deep research into the data — missed perspectives, dynamics, conclusions, strategies; build the world's-best analyst / risk / architect / UX / advisor team and postmortem the estate." Ran as a multi-agent program (advisor → 12 domain specialists on live read-only SQL → 3-lens risk panel adjudicating 81 candidate dynamics [51 clear / 30 caution / 0 kill] → architect + UI/UX plans → advisor synthesis → completeness critic).
 - **NEW `docs/DATA-POSTMORTEM-2026-07-05.md`** (527 lines, `3787dfc`) — exec summary, estate-in-numbers (corrected), missed-perspectives master list, per-domain postmortems, new-dynamics catalog, strategy pre-registration queue, do-NOT-do list, architect build plan, UI/UX surface plan, the sequenced program, open questions.
