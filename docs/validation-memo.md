@@ -87,8 +87,11 @@ check (insider/ratings staleness — the lesson of the corporates-pit endpoint d
 the nightly `hermes-data-quality` battery (`data_quality.py` "killswitch.*" checks). #4's revision
 ledger is `fundamentals_restatements` (journaled by `fundamentals_xbrl.write_rows`; INSERT OR
 REPLACE erases history, so restatements are only countable if journaled at write time); the check
-warms up as INFO until ≥20 symbols are gate-passed. #6 is live by construction (limits rendered on
-the surface). Open: #1's WML-drawdown leg — `momentum_scan` had only 2 nightly snapshots on
+warms up as INFO until ≥20 symbols are gate-passed. **#6 (the §4 beta ≤ 1.3 / sector ≤ 25% limits) is
+OPEN — NOT enforced.** The shortlist does not yet compute a trailing portfolio beta or sector weights,
+so those limits are a stated mandate, not a machine-checked control (a validator re-performing this memo
+must not read them as live). Build: a nightly beta + sector-weight computation on the shortlist with
+breach highlighting → then flip this to LIVE. Open: #1's WML-drawdown leg — `momentum_scan` had only 2 nightly snapshots on
 2026-07-02 (2026-06-19, 2026-07-01); it needs ~21 daily snapshots, so re-check ~end-Jul-2026.
 #3 live-IC needs a 6-mo rolling rank-IC observed for 3 consecutive months → not before ~2027-Q1.
 

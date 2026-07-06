@@ -173,7 +173,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** relabel the column "Modeled availability (+90d, conservative)"; add restatement-log panel + a base-rate line (N signals, hit rate); or regenerate heroes from real `provenance_knowable` dates.
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-19 [P1] Validation memo asserts enforcement that does not exist (§4 beta≤1.3 / sector≤25% limits "live by construction")** — `OPEN`
+**AUD-19 [P1] Validation memo asserts enforcement that does not exist (§4 beta≤1.3 / sector≤25% limits "live by construction")** — `DONE S77 (honest doc downgrade)` (validation-memo.md §5: "#6 live by construction" → "#6 OPEN — NOT enforced; shortlist computes no trailing beta/sector weights; stated mandate not a machine-checked control", with the build path to flip it LIVE. Feature-build deferred per open-decision default)
 - **Component:** validation memo integrity | **Reporter:** inst-dd.
 - **Files:** `docs/validation-memo.md:87-91`; `src/web/momentum_view.py` (no beta/sector columns); no shortlist beta/sector-weight computation anywhere in src/.
 - **Evidence digest:** SR 11-7 documentation-integrity failure — a validator re-performing the memo finds a false attestation. Kill-switch battery covers freshness/regime/drift/restatement/feed, not §4 limits.
