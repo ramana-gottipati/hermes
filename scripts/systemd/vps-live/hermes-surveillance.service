@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes NSE surveillance ingest (ASM/GSM lists + price bands — charter D-02/D-03)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.surveillance --ingest
+StandardOutput=append:/var/log/hermes-surveillance.log
+StandardError=append:/var/log/hermes-surveillance.log

@@ -1398,6 +1398,18 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
   load, 11 tinted cells live; flat-list fallback wrapped in try/except).
 - Deploy: md5 fork-check (only CRLF-noise diffs), LF-normalized scp, py_compile+import gates,
   writer-safe api restart. dashboard.py was clean vs HEAD (the historic fork has healed).
+- **Wave 2 — D-02 + D-03 LIVE (charter D88 wave-1 feeds, both in ONE module):** NEW
+  `src/automation/surveillance.py` (--ingest/--selftest; fetch-all-then-write, short txns) →
+  `surveillance_flags` (append/day; first ingest: ASM-LT 154 · ASM-ST 48 · GSM 64, as_of from the
+  feed's own dates) + `price_bands_current` (3,301-row daily snapshot; 20%×2196 · 5%×673 ·
+  No-Band×210 · 10%×172 · 2%×50) + `price_band_events` (transitions only — X-05 band-lock study
+  fuel; day-1 = baseline, 0 events). Endpoints live-probed first (reportASM/reportGSM/sec_list.csv
+  all 200). Units: `hermes-surveillance.{service,timer}` + hardening + OnFailure pager drop-ins,
+  git-owned, installed, **timer armed 15:10 UTC weekdays (safe pattern: no Requires=,
+  Persistent=false — arming verified NOT to fire)**, drift gate clean. Glossary: ASM/GSM + price
+  band + Ticket + Churn + T2T-exclusion entries added. Consumers (war-room ASM chip, band-lock
+  board) = NEXT, per the boards-not-gates rule. **Charter §3 N2 wave-1 now: D-01 ✓ D-02 ✓ D-03 ✓ ·
+  D-04 SLB = NEXT · D-05 re-scope by D-log (deals.py:11 contradicts the free-history premise).**
 
 ### Session 83b — 2026-07-07 — T-2 season-integrity list EXECUTED (the review's §4 calendar, pre-Jul-09 block)
 All seven items, live-verified on the VPS at ~01:15 UTC (safe window, no timers near):

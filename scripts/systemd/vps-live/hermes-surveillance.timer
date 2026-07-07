@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes surveillance ingest (nightly 15:10 UTC = 20:40 IST, weekdays)
+# Deliberately NO Requires= (AUD-95: a Requires-coupled timer fires the job the moment the
+# timer is started; the results-calendar/provenance pattern is the safe house convention).
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 15:10:00
+# Persistent=false: no catch-up fire on boot/enable; a missed day self-heals next evening
+# (surveillance_flags appends by the feed's own as_of date; bands re-baseline harmlessly).
+Persistent=false
+Unit=hermes-surveillance.service
+
+[Install]
+WantedBy=timers.target
