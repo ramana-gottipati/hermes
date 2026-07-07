@@ -1394,6 +1394,30 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 83h — 2026-07-07/08 — ETF-in-EQ-series exclusion: instrument_class FUND/EQUITY live (data-perfection lane)
+The last routine data-perfection item from the postmortem (`2ebb229`). Evidence-first finding: the
+D42 equity-list idiom (`symbol IN nse_equity_list`) already keeps PRODUCT scans equity-only
+(screen2/Pat/cockpit/CPR/stock_rs audited ✓; momentum_pane/rotation/sector-momentum grep hits =
+false alarms), but it CONFLATES fund-ness with delisted-ness — research wanting "delisted companies
+yes, funds no" had no way to say it, which is how gold-ETF units polluted the S81 key_price
+analysis and the postmortem's velocity scans.
+- **NEW `nse_etf_list`** (equity_list.py `run_etfs()`): NSE `/api/etf` primary source, **328 ETFs**
+  — covers every blank-ISIN polluter (MONIFTY500/GROWWSLVR/SILVER1/NV20/…); same non-empty-only +
+  90 % shrink-guard contract as the equity list; rides the existing nightly bhavcopy-chain
+  ExecStart (module main; try/except so the ETF leg can never fail the signals step).
+- **`security_master.instrument_class`** = FUND when in `nse_etf_list` ∪ ISIN `INF%` (delisted
+  funds) ∪ tiny name-net (endswith BEES / contains ETF — GOLD% is the documented trap: GOLDIAM is
+  a real jeweller); else EQUITY. ALTER-guarded; graceful sans ETF list; NEW `fund_symbols()`
+  helper = the survivorship-aware exclusion set for research scans. Selftest extended (all three
+  FUND routes + the GOLDIAM trap).
+- **VERIFIED LIVE: 474 FUND classified**; all 12 known polluters → FUND; GOLDIAM → EQUITY;
+  `stock_signals` latest carries 329 fund rows now IDENTIFIABLE at the raw layer (kept by design —
+  classify, don't delete; GOLDBEES ratio pages stay legitimate). NEW battery `chk_fund_leak`:
+  FUND in the latest RANKED momentum output → WARN; live = **ok, ranked outputs fund-free**.
+- Data-perfection remaining: table_census · SHP lag calibration (~Jul-21) · adjust-vs-tape factor
+  reconciliation. (Coordinated around the active season lane: staged own-hunk-only — its S83g
+  entry + spec_sheets/prereg work were mid-flight in the shared tree.)
+
 ### Session 83e — 2026-07-07 — corporate_actions feed RESURRECTED (data-perfection lane, S81/S82 continuation)
 The last Tier-1 build from the data-postmortem: the corporate-actions pipe, dead at 0 rows for ~6
 months (old nsearchives CSVs 404 permanently), is live end-to-end (`9d354b0`).
