@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes corporate-actions refresh (daily 02:20 UTC / ~07:50 IST, pre-market)
+
+[Timer]
+OnCalendar=*-*-* 02:20:00
+Persistent=false
+Unit=hermes-corp-actions.service
+
+[Install]
+WantedBy=timers.target

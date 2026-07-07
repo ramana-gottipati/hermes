@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes - NSE corporate-actions ingest (trailing 45-day window)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Resurrected feed (data-postmortem 2026-07-06): the table sat 0 rows for ~6 months after the
+# old archive CSVs 404'd, silently disabling the security_events continuity-break spine. The
+# live primary source is the NSE corporates-corporateActions API (camelCase — the hyphenated
+# path is dead). Trailing 45d window nightly = self-healing overlap; idempotent
+# (UNIQUE(symbol, action_type, ex_date, details)); network happens before each short write txn.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.corp_actions --fetch --days 45
+StandardOutput=append:/var/log/hermes-corp-actions.log
+StandardError=append:/var/log/hermes-corp-actions.log
