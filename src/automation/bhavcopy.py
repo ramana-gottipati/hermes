@@ -398,30 +398,40 @@ _COLS = [
 ]
 
 
-def store_rows(rows: list[dict]) -> int:
+def store_rows(rows: list[dict]) -> tuple[int, int, int]:
+    """AUD-13: returns (inserted, skipped_conflict, failures). `inserted` uses cursor.rowcount so
+    an ON CONFLICT DO NOTHING skip (row already present) is NOT miscounted as an insert, and a
+    row that RAISES is real loss — letting the caller leave a lossy date UNMARKED for retry."""
     if not rows:
-        return 0
+        return (0, 0, 0)
     placeholders = ",".join("?" * len(_COLS))
     sql = (
         f"INSERT INTO bhavcopy_rows ({','.join(_COLS)}) VALUES ({placeholders}) "
         f"ON CONFLICT(symbol, trade_date, series, instrument_type) DO NOTHING"
     )
-    n = 0
+    inserted = 0
+    skipped = 0
     failures = 0
     with get_conn() as conn:
         for r in rows:
             try:
-                conn.execute(sql, [r.get(c) for c in _COLS])
-                n += 1
+                cur = conn.execute(sql, [r.get(c) for c in _COLS])
+                # ON CONFLICT DO NOTHING → rowcount 0 is a legitimate skip (already present),
+                # NOT an insert. Only a raised exception is real data loss.
+                if cur.rowcount and cur.rowcount > 0:
+                    inserted += 1
+                else:
+                    skipped += 1
             except Exception as e:
                 failures += 1
                 log.debug("skip row %s/%s: %s", r.get("symbol"), r.get("trade_date"), e)
-    # CL-MDC-15: a handful of bad rows is tolerable, but losing a meaningful
-    # fraction of a day silently is not — surface it at WARNING when >1%.
-    if failures and failures > max(1, len(rows) // 100):
-        log.warning("store_rows: %d/%d rows failed to insert (%.1f%%)",
-                    failures, len(rows), 100.0 * failures / len(rows))
-    return n
+    if failures:
+        # AUD-13 / CL-MDC-15: a row that RAISED (locked DB, schema error) is real loss — escalate
+        # to ERROR so the caller leaves the date UNMARKED and it retries, instead of a permanent
+        # silent hole in the primary archive that date_already_done would skip forever.
+        log.error("store_rows: %d/%d rows FAILED to insert (%.1f%%) — date must NOT be marked done",
+                  failures, len(rows), 100.0 * failures / len(rows))
+    return (inserted, skipped, failures)
 
 
 def mark_date_done(trade_date: str, format_version: str, row_count: int, has_delivery: bool) -> None:
@@ -497,10 +507,15 @@ def ingest_date(d: datetime) -> tuple[bool, str, int]:
     if not rows:
         return False, f"{iso_date} no rows parsed ({fmt})", 0
 
-    inserted = store_rows(rows)
-    mark_date_done(iso_date, fmt, len(rows), has_delivery)
+    inserted, skipped, failures = store_rows(rows)
+    if failures:
+        # AUD-13: rows were lost to errors (e.g. a locked DB mid-ingest) — do NOT mark the date
+        # complete, so run_recent / the backfill re-attempt it instead of a permanent silent hole.
+        return False, f"{iso_date} INCOMPLETE: {failures}/{len(rows)} rows failed — left for retry", inserted
+    # Reconciled: every row is accounted for (inserted or a legitimate conflict-skip).
+    mark_date_done(iso_date, fmt, inserted + skipped, has_delivery)
     tag = "✓delivery" if has_delivery else "no-delivery"
-    return True, f"{iso_date} {inserted}/{len(rows)} rows ({fmt}, {tag})", inserted
+    return True, f"{iso_date} {inserted} new/{skipped} had/{len(rows)} rows ({fmt}, {tag})", inserted
 
 
 # --- Modes -----------------------------------------------------------------
