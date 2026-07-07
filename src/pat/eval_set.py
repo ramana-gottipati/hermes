@@ -538,11 +538,17 @@ def run_hallucination_eval() -> dict:
 
 if __name__ == "__main__":
     import sys
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # AUD-40: no Windows charmap crash
+    except Exception:  # noqa: BLE001
+        pass
+    _gate = "--gate" in sys.argv
     c = run_compiler_eval()
     print(f"COMPILER eval: {c['passed']}/{c['total']} passed")
     for f in c["fails"]:
         print(f"  FAIL {f['label']}\n       expect={f['expect']} got={f['got']}")
-    parser = sys.argv[1] if len(sys.argv) > 1 else "fallback"
+    _pargs = [a for a in sys.argv[1:] if not a.startswith("--")]
+    parser = _pargs[0] if _pargs else "fallback"
     r = run_route_eval(parser)
     print(f"\nROUTE eval ({r['parser']}): {r['passed']}/{r['total']} passed")
     for band in ("LIVE", "CLARIFY", "OOD", "PARTIAL", "PLANNER", "TREND"):
@@ -577,3 +583,14 @@ if __name__ == "__main__":
             print(f"    {f['q']!r} -> {f['why']}" + (f"  sample={f.get('sample')}" if f.get("sample") else ""))
     except Exception as e:
         print(f"\nACCURACY eval skipped (no DB): {e}")
+    # AUD-40: fail the PROCESS on any eval failure so a deploy gate / nightly timer catches Pat
+    # regressions instead of them shipping silently. (--gate just adds a one-line verdict.)
+    _fail = (len(c["fails"]) + len(r["fails"]) + len(x["fails"]) +
+             len(h["fails"]) + len(cat.get("fails", [])))
+    try:
+        _fail += len(a["fails"])   # `a` exists only if the accuracy eval ran
+    except NameError:
+        pass
+    if _gate:
+        print(f"\n=== pat-eval gate: {'PASS' if _fail == 0 else f'FAIL ({_fail} failures)'} ===")
+    sys.exit(1 if _fail else 0)
