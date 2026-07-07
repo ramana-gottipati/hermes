@@ -205,7 +205,7 @@ def _parse_sec_bhavdata_full(csv_text: str) -> list[dict]:
             "strike_price": None,
             "option_type": None,
             "format_version": "sec_bhavdata_full",
-            "raw_json": json.dumps(r, ensure_ascii=False),
+            "raw_json": None,  # AUD-44: stopped — write-only, zero readers, ~3GB; raw CSVs already archived via save_raw
         })
     return rows
 
@@ -250,7 +250,7 @@ def _parse_legacy_bhav(csv_text: str) -> list[dict]:
             "strike_price": None,
             "option_type": None,
             "format_version": "legacy",
-            "raw_json": json.dumps(r, ensure_ascii=False),
+            "raw_json": None,  # AUD-44: stopped — write-only, zero readers, ~3GB; raw CSVs already archived via save_raw
         })
     return rows
 
@@ -301,7 +301,7 @@ def _parse_udiff(csv_text: str) -> list[dict]:
             "strike_price": _f(r.get("StrkPric")),
             "option_type": r.get("OptnTp"),
             "format_version": "udiff",
-            "raw_json": json.dumps(r, ensure_ascii=False),
+            "raw_json": None,  # AUD-44: stopped — write-only, zero readers, ~3GB; raw CSVs already archived via save_raw
         })
     return rows
 

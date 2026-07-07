@@ -343,7 +343,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** refuse the replace if new count < 90% of existing (log critical); add row-count bands vs trailing median to bhavcopy/indexes before marking a date done.
 - **Effort:** S | **Verdict:** finder-only (unverified).
 
-**AUD-44 [P1] bhavcopy_rows.raw_json ≈3GB write-only duplication with zero readers (~19% of the DB)** — `OPEN`
+**AUD-44 [P1] bhavcopy_rows.raw_json ≈3GB write-only duplication with zero readers (~19% of the DB)** — `STOP-POPULATE DONE S77 (deployed), NULLing pass deferred` (bhavcopy.py 3 sites → raw_json=None; confirmed zero readers repo-wide; raw CSVs already archived via save_raw. New rows stop growing the column. **Remaining: the one-time historical NULLing pass is DB-destructive (surface-first) — do post-backup (AUD-02 exists now) in a maintenance window, then VACUUM to reclaim**)
 - **Component:** space discipline | **Reporter:** db-schema.
 - **Files:** `src/automation/bhavcopy.py:208,253,304`; `src/core/db.py:132`.
 - **Evidence digest:** written, never SELECTed anywhere; the raw NSE files are already archived on disk back to 2004 (`save_raw`), so Guardrail #6 is satisfied by the file archive — this is a third copy. Violates the binding space-optimization mandate and directly worsens AUD-02's backup cost.
