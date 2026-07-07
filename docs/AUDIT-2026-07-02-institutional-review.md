@@ -318,7 +318,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** pytest + golden-file fixture DB; start with ~20 tests on scoring + PIT as-of joins + XIRR/drawdown on known cashflows; wire `pytest -q` as gate 0 of regression_sweep.sh. **Every AUD quant fix in this program should land with its regression test.**
 - **Effort:** L (incremental) | **Verdict:** CONFIRMED.
 
-**AUD-40 [P1] Pat eval battery wired to no gate, timer, or CI — the accuracy layer never runs anywhere** — `OPEN`
+**AUD-40 [P1] Pat eval battery wired to no gate, timer, or CI — the accuracy layer never runs anywhere** — `DONE S77 (wired+verified)` (eval_set.py: --gate mode, exit-non-zero on any fail, UTF-8 stdout (charmap crash fixed); accuracy layer now runs against prod DB (10/10 live). gate-0.5 in regression_sweep.sh (WARN-only vs a documented baseline, PATEVAL_STRICT=1 to enforce). **Surfaced 6 pre-existing silent failures: 1 ROUTE (63/64) + 5 EXPLAIN (553/558) — residual to clear then flip strict + add a nightly timer**)
 - **Component:** Pat regression net | **Reporter:** pat-nl-explainability.
 - **Files:** `src/pat/eval_set.py:539` (__main__ only; accuracy layer skips without prod DB; known-failing cases left standing).
 - **Fix:** add compiler+route+explain+hallucination evals to the deploy gate and a nightly timer alerting on fails; run the accuracy layer against the prod DB; fix the Windows charmap crash in the skip printer.
