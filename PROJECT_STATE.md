@@ -161,13 +161,13 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 1. **Telegram bot** — Ramana chats with Hermes via `@ramana_hermes_bot`. Conversational memory persists in SQLite. Currently uses Haiku 4.5 by default to keep cost down.
 2. **Indian market news intelligence** — twice-daily news poller (9 AM + 5 PM IST weekdays) pulls from Moneycontrol / Livemint / ET Markets / Business Standard, Haiku classifies items, EARNINGS items trigger Stage 1 rule-based scoring.
-3. **patearn 14-pattern Indian equity screener** — rule-based Python scoring (no LLM) using Screener.in fundamentals on-demand, plus NSE bhav copy with delivery data, plus corporate actions, plus pre-computed rolling "delivery value per trade" signals.
+3. **patearn 14-pattern Indian equity screener** — rule-based Python scoring (no LLM) on primary-source fundamentals (**NSE-XBRL forward ingest, D78/D82; the legacy Screener series is FROZEN**, never re-scraped for new coverage), plus NSE bhav copy with delivery data, plus pre-computed rolling "delivery value per trade" signals.
 
 **Deep stock analysis (Phase 4 qualitative)** is done in **claude.ai** under Ramana's existing $20/mo subscription — NOT via the API. Hermes does the data collection, filtering, and rule-based scoring; claude.ai handles the reasoning. This is the deliberate cost-control design choice.
 
 **Current Anthropic API spend pattern (target):** ~₹150–300/month. Cap set at $10/month in console.anthropic.com.
 
-**5-year bhav copy backfill** — built and ready to run on VPS but not yet executed at the time of this writing. Single command to start: `nohup bash /opt/hermes/scripts/full-backfill.sh > /var/log/hermes-backfill.log 2>&1 &`
+**Bhav copy archive** — the backfill EXECUTED long ago (session 14 era); the archive now reaches back to 2004-07 (~9.4M rows; delivery fields from ~2011). The command survives in `scripts/full-backfill.sh` for disaster recovery only. *(TL;DR corrected S83d — it had claimed "not yet executed" for weeks.)*
 
 ---
 
@@ -475,6 +475,23 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D92 — Charter v1.1: evidence-driven amendments + the spec-sheet surface (2026-07-07, S83d)
+Per charter §10 (evidence wins; amend by D-log, never silent edit): (1) **D-05 re-scoped** — free
+bulk/block HISTORY does not exist (`deals.py:11`); the live feed accumulates forward-only
+(`e6ab37d`), so X-03/P-01 build on the deepening window. (2) **X-02 closed by evidence** — every
+delivery engine was ALREADY EQ-only (signals/mep/mtf/research loader/Pat's `prices_eq`); zero dup
+(symbol,trade_date) keys live; T2T names are EXCLUDED not polluting (786 names / 50.5K symbol-days
+per year). Shipped as belt-and-braces web-join predicates + `chk_t2t_universe` (the standing honesty
+number) + a glossary note; X-02b (price-only stragglers: cpr/wolfe/oscillators/cci/ignition/fno) is
+a post-season consistency decision. (3) **X-06 is half-built** (`amihud_22d` nightly). (4) **E-06's
+BE→EQ release leg needs no D-02** (series transitions live in the bhav PK). (5) **NOW queue**: N1✓
+N2 D-01/02/03✓ (D-04 open) N3✓ N4✓ N5✓. (6) **M-01 shipped as a FACADE** (`evlib.py`) over pead.py —
+WHY: the nightly war-room snapshot imports pead.py directly; migrating functions mid-season risks
+the Jul-09 surface for zero analytical gain; new studies import evlib, so a future real split moves
+only evlib's import lines. (7) **P-03 shipped** — `/dash/spec-sheets` (Trust lens) is the
+pre-registration ledger surface with failures displayed; the §9 "3 spec-sheets by end-Aug" KPI is
+satisfied by content that already existed in the strategy ledger.
 
 ### D91 — Table census MUST use COUNT(*) / dbstat, never MAX(rowid); trust-surface coverage numbers are machine-generated, never hand-carried (2026-07-05, S81)
 The data-estate postmortem found the estate briefing (and any census-sourced trust number) inflated up to 588×: `MAX(rowid)` counts INSERT-OR-REPLACE churn, not rows. Verified live: `ratio_rows` 486,504 not 286M · `index_signals` 300,353 not 932K · `concalls` 24,088 not 75.9K · `credit_rating_events` 2,798 not 18.3K. Decision: (a) every row-count census uses `COUNT(*)` (or `dbstat`/`pageno×page_size` for the >4 GB btrees where dbstat's pgsize 32-bit-overflows); (b) `/dash/coverage` and every `/v1` `_meta` envelope draw coverage from a machine-generated snapshot, never a hand-typed figure; (c) the space-doctrine (#5) target is re-pointed at the ~6.4 GB re-derivable `stock_signals`/`mep_signals`/`cpr_signals` history + ~4.3 GB over-indexing (an INDEX DIET), NOT `ratio_rows` (exonerated at ~50 MB). WHY a decision: it changes what every future audit and trust surface is allowed to quote. Evidence: `docs/DATA-POSTMORTEM-2026-07-05.md` §1–2.
@@ -1200,7 +1217,7 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ## What's NOT yet built / open items
 
-### ✅ DATASET A feed — REBUILT on corporates-pit-gg (same session 73, `b136d3f`); residual = backfill completion check
+### ✅ DATASET A feed — REBUILT on corporates-pit-gg (same session 73, `b136d3f`); residual backfill-completion check CLOSED (June tail confirmed clean 699→1,559 — S79 log; S83d annotation)
 NSE retired the legacy `corporates-pit` JSON API ~end-Apr-2026 (it still serves the 2026-03/04 archive — 2,057+392 rows probed — then goes empty; the page moved to **`corporates-pit-gg`**, filing rows → per-disclosure XBRL, flat `in-bse-co` taxonomy). Rebuilt: `fetch_filings_gg` + `_gg_xml_to_raws` (one txn per XBRL context, multi-txn instances handled) feed the EXISTING normalizer/classifier; `ingest_range` routes to the new path so the CLI + `hermes-insider-ingest.timer` work unchanged; `--legacy` covers the pre-cutover archive. Real-data fixes: Block-Deal/ESOS taxonomy + **uid no longer hashes derived `txn_class`** (was duplicating rows on every classifier improvement). Verified: 161 filings → 309 txns, 0 XML failures, UNKNOWN 2/248. **Residual (mostly CLOSED session 75):** month distribution verified — NO gap 2025-11→2026-07 (Mar 2,057 + Apr 392 = the legacy archive exactly); `--agg` sane on DMART (175 events, 49 pledge-adverse 90d → `pledge_risk`). Outage root causes fixed+verified (D82c). Last tail: the throttle-aborted gg run (reached ~Jun-09, saved=1668 persisted) resumes via transient timer `hermes-insider-backfill3` (parallel session babysits); confirm June fills in (`journalctl -u hermes-insider-backfill3` ends without `aborted_throttled`, June count grows past 699).
 
 ### 🧭 UI RESTORE + MIGRATION — TRACKED (2026-06-28, Ramana-flagged) — `docs/ui-restore-and-migration-TRACKER.md`
@@ -1281,10 +1298,10 @@ Ramana wants to stop spot-fixing and run two focused sessions, each opening with
 
 ### Other open items (queued, in priority order)
 
-**🟡 Session-72 open (explainability + nav):**
-- **Deploy-deferred, committed to git — apply via D80 PATCH-OVER (never full-scp):** glossary **Trust nav-lens** (`61cc52c`; the /dash/glossary PAGE is already live via an additive mount + Coverage link + ⌘K), **stock-dossier** tab popovers (`0ce09a9`), **RS-band** popovers (`ca223c4`). The co-edited VPS `lens_registry`/`dashboard.py`/`rsband_view.py` diverge from HEAD (D80 nesting + parallel work) → patch ONLY the relevant hunks onto the live files + restart; do NOT full-file-scp and do NOT revert the VPS `/dash/<workspace>/<page>` nesting.
-- **Consistent table controls** (Ramana, session 72): column add/remove chips + `?` glossary popovers on the strategy tables (`/dash/stocks` Positioning, etc.) — only Screen+ has them today. The data-first wide-table treatment must be uniform wherever a table is shown.
-- Optional: mirror the harmonic ◀▶ chart-overlay stepper onto the Wolfe overlay.
+**✅ Session-72 block — CLOSED (annotated S83d hygiene pass; do NOT re-execute):**
+- ~~Deploy-deferred glossary trio~~ **all three LIVE since S75** (`136f9af` captured VPS state; main equivalents `0fe5a1a`+`163cd29`; the `0ce09a9`/`ca223c4` hashes are dangling — their content shipped under different hashes).
+- ~~Consistent table controls~~ **SHIPPED** — `/dash/stocks` (`8c8367a`), stealth (S83c). Residual = cockpit tables + classic screener extension (AUD-71 sweep, post-season).
+- ~~Wolfe ◀▶ stepper~~ **already existed** (`wolfe_overlay.py:215`, `74faeee`).
 
 **🟢 P0 — Operational reconciliation (RESOLVED in session 16, 2026-06-17):**
 
@@ -1298,12 +1315,12 @@ Ramana wants to stop spot-fixing and run two focused sessions, each opening with
 
 - **`/dash/compare` chart — BOTH bugs FIXED**, verified hands-on in the live browser (Chrome MCP), exactly as the note below demanded. ONE root cause: boot ran before lightweight-charts' first layout settled. **(1) Left-edge rebase:** `setRange` set the correct deterministic anchor (1Y → `2025-06-11`) but a layout-settle `subscribeVisibleTimeRangeChange` re-anchored everything to a transient mid-window date (observed `2026-02-05`) after `internalSet` cleared → **fix:** gate the fluid pan-reanchor on genuine user input (a `userInteracted` flag set by `wheel/pointerdown/mousedown/touchstart` on the chart host); buttons/pin still anchor explicitly, settle-time events are inert. The `rightOffset:3` / `getVisibleRange`-lag / short-series-`commonAnchor` hypotheses were red herrings. **(2) Gutter names empty:** `positionNames()` ran before `priceToCoordinate()` laid out (returned null) → **fix:** bounded `requestAnimationFrame` retry until each label places. Verified: fresh load + all 4 ranges (each anchors to its own left edge) + a short 4th series (Nifty India Defence). Full write-up: § Decision log **D49g**. (The detailed symptom notes just below are now historical — kept for the record.)
 
-**🔴 P0 — still open:**
+**🔴 P0 — ~~still open~~ RESOLVED (S83d annotation — this red block is HISTORICAL; the green D49g block above records the fix, `ddf7640`, verified hands-on in session 19; kept for the record only):**
 
 - **`/dash/compare` chart — TWO bugs the user still reports UNRESOLVED (session 18, D49b–D49f).** I iterated on these BLIND (canvas/DOM rendering can't be curl-verified — only `py_compile` + route-200 + reading the source), and the user confirms both are still wrong. **Next session MUST debug hands-on (browser devtools / live screenshots), not by reading code.**
   1. **Rebase-to-base-100 at the visible LEFT EDGE is still off.** Symptom: "REBASED FROM `<date>`" shows a date that is NOT the visible window's left edge, so lines don't all start at 100 at the left. Data verified: the 3 indices (Nifty 50/500/Realty) span 2021-06-02→2026-06-18 (1246 rows); the 1Y left edge is **2025-06-11**, but it anchored at 2025-12-26 then 2025-09-26 across attempts. Tried (D49d) a `bootAnchor()` reading `getVisibleRange()` (failed — lags a frame), then (D49e) made `setRange` anchor to the deterministic `allT[len-n]` + seed under `internalSet` to kill a setData-auto-fit race. STILL reported broken. Hypotheses to check live: `rightOffset:3` shifting the real visible edge vs `allT[len-n]`; `commonAnchor(edge)` returning a later date if a series (India Defence, ~1087 rows, newer) lacks data exactly at `edge`; a late `subscribeVisibleTimeRangeChange` re-anchoring after boot. The RS-overlay chart's `reanchorToView()` boot pattern works — compare to it.
   2. **Line-name labels.** Want: **value badge on the Y axis + the line's NAME in a right gutter, vertically aligned to that line's value** (NOT on the chart covering lines, NOT only in the bottom legend). D49f built this (`#cmpNames` 104px gutter + `positionNames()` using `series.priceToCoordinate(v)`, de-collision ≥13px, "Nifty " prefix stripped). The latest screenshot showed the gutter labels rendering and roughly aligned (India Defence/500/50) — but the user still says "not resolved", so either the alignment is visually off, the stripped names aren't wanted, or they're conflating it with bug #1. **Get a precise restatement from the user.** If good, replicate to the D48 stock RS-overlay chart for consistency.
-- **Telegram bot network block** — `api.telegram.org` unreachable from the Mumbai VPS (DPI throttling). Bot crash-loops. Decided session 16: **wait** (web dashboard is the working alternative). Revisit proxy / Hostinger ticket only if it persists.
+- **Telegram bot network block** — `api.telegram.org` unreachable from the Mumbai VPS (DPI throttling). Bot crash-loops. Decided session 16: **wait** (web dashboard is the working alternative). **S83b update: the block has LIFTED — api.telegram.org answers 302 from the VPS and the AUD-26 pager DM was delivered live (2026-07-07).** `hermes-telegram` unit health itself still needs a check when convenient.
 - **SSH rate-limit discipline** (standing operational rule) — never hammer `ssh hermes` on failure (triggers a port-22 IP ban). One attempt; on timeout, wait or restart the router for a fresh IP.
 
 **🔴 P1 — Next builds:**
@@ -1324,7 +1341,7 @@ B7. ✅ **THEME TAGS (D63) — SHIPPED + DEPLOYED (session 33).** Multi-label th
 B7. ✅ **Dashboard macro→micro redesign Phase 1 + index membership** — SHIPPED (D38). Markets major/bundle split, Stocks hub, Home regime overview, header search everywhere, sector→stock drill (via populated `stock_index_membership`). **Phase 2 pending:** stock-RS card on the stock page (needs D33), breadcrumb + section reorder, inline sparklines, pt14 batch scoring (B6), click-sort on the bundle.
 
 B8. **Positioning pillar — deepening, item by item.** ✅ **Item 1 (D43): accumulation/distribution CHARACTER** — SHIPPED (session 18). ✅ **Item 2 (D44): value-weighted institutional key price + multi-horizon near-key entry + ticket/surge + one-screen workbench** — SHIPPED (session 18, additive, no regression). **Future items (NOT built):**
-  - **NSE bulk & block deals direction feed** — the only public source that names buyer/seller + side (trades >0.5% of equity, reported with counterparty + BUY/SELL). The lone GROUND-TRUTH for the WHICH-WAY axis that delivery data can only infer from price; would *confirm* (not just infer) accumulation vs distribution on names where a block printed. Free daily CSV from NSE.
+  - ~~NSE bulk & block deals direction feed~~ **BUILT (`e6ab37d` + `hermes-deals.timer`, accumulating daily since ~S6x; S83d annotation).** Only the pre-existing HISTORY remains impossible free (`deals.py:11`; charter D-05 re-scoped by D92).
   - **Fiscal-quarter / week-number grain** (parked from the D44 spec) — bucket signals by NSE fiscal quarter + ISO week for quarter-over-quarter / week-over-week reads. ⚠ NOTE: `docs/multi-timeframe-positioning-design.md` exists but its "D42/D43" labels PREDATE the now-shipped D42 (equity allowlist) and D43 (character) — **renumber those references when that multi-timeframe layer is actually built** so the decision numbers don't collide.
   - **Saved-query alerts** (parked from the D44 spec) — let a saved screen/query notify when a stock newly enters it (e.g. newly 🎯 near-key, or newly ACCUMULATION). Pairs with the D41-Phase-3 saved-screener/query-builder.
   - **EWMA key-price variant** (parked from the D44 spec) — `key_price_ewma_p*` (exponentially-weighted toward recent power days) as an explore-alongside to the WMA `key_price_p*` deliverable.
@@ -1376,6 +1393,34 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 83d — 2026-07-07 — Season week-2: spec-sheets live, evlib+placebo, trust-claim fixes, charter v1.1, hygiene
+- **P-03 SHIPPED — `/dash/spec-sheets` (Trust lens, `spec_sheets.py`):** the pre-registration ledger
+  as a surface — 3 sheets (PEAD lens-confirmed/book-falsified · footprint gate-FAIL · Wolfe-bull
+  selection edge) with exact ledger numbers, failures badged on purpose; live MTTR box (excludes the
+  Jul-07 baseline seed); live placebo box. §9 KPI "3 spec-sheets by end-Aug" = satisfied. Deploy:
+  lens_registry + v2_surfaces patched SURGICALLY on the live forked files (D80 discipline).
+- **M-01 + M-02 SHIPPED (`evlib.py`):** facade over pead/footprint (source of truth unmoved —
+  see D92 for why) + the placebo-date harness with a pre-registered convention (same-pipeline null,
+  seed 42, n≥200 to publish). **First published number:** PEAD confirmed cell observed +5.95% CAR60
+  vs shuffled-date null mean +2.98% / p95 +4.54% → clears the band at 1.31×, empirical p=0.005
+  (n=200 shuffles, harness-cell n=567 — note: the harness's ≥-cut cell is broader than the study's
+  235-event cell; both labeled). `out/placebo_pead.json`; the spec-sheet box self-updates.
+- **Trust-surface false claim FIXED:** `/dash/testing` no longer renders "none beats buy-and-hold"
+  (superseded 2026-07-02); new verdict = nothing FUNDABLE at AUM w/ the C-BLEND re-cut + LOWVOL_MOM
+  corner numbers + a link to Spec sheets. Machine ledger healed: `strategy_runs` +3 rows
+  (C-BLEND flat champion 1.32 · participation re-cut 0.17@50cr · PEAD book 0.10), registry +2,
+  both live on the page.
+- **#8 disclosure LIVE** on both guidance surfaces (concalls board + dossier CCI foot): ~98.6% of
+  the corpus is Screener-DISCOVERED (frozen legacy; BSE-primary migration in progress); extraction
+  runs on primary documents. AUD-48 scrape-path shrink itself = M-effort on the live news chain →
+  post-season, recorded.
+- **Charter v1.1 (D92)** — see the decision-log entry. **Hygiene pass:** S78 log entry
+  RECONSTRUCTED; TL;DR two false claims fixed; stale-open markers annotated CLOSED (S72 block,
+  compare red block, bulk/block feed, dataset-A residual, Telegram block lifted);
+  `docs/SESSION-72-CARRYFORWARD.md` retired per its own retire condition.
+- **Fork-check bonus:** captured the VPS-only leaders RSI-RS column from live `cockpit.py` into git
+  (a sibling's uncommitted work — AUD-27 discipline, attributed).
 
 ### Session 83c — 2026-07-07 — Season week-1 wave 1: X-02 verified+closed, N3 ticket ratio live, quick wins
 - **X-02 RE-SCOPED BY EVIDENCE (the postmortem claim was too wide):** signals.py, mep_signals.py,
@@ -1664,6 +1709,15 @@ Ramana escalated the wager: stop advising, own the product. Same session, three 
   · credit_rating_events 2,798 but 59 syms (130 UPGRADEs — E-02 needs scrip-map widening).
 - Failure-models table + memory updated. Sibling lane still active — same temp-index commit
   discipline as S79 (own hunks only; sibling's dirty `PROJECT_STATE.md`/`dashboard.py` untouched).
+
+### Session 78 — 2026-07-04 — Seam-defect fixes (Ramana's four integration catches) [RECONSTRUCTED S83d]
+Entry reconstructed during the S83d hygiene pass: the work shipped and was live-verified in
+`23338a0`+`4f4fed0` but the session never wrote its log entry (mandatory-rule breach, recorded as a
+scar — the rule is the same-commit update). The four seams (each unit-green but journey-broken;
+standing lesson = WALK THE JOURNEY): (1) Stealth home-card linked `/dash/stocks` without its filter →
+`?view=stealth` + canonical `/dash/strategies/stealth`; (2) the thin 9-column picker → render the full
+column set as `<th data-tcoff>` default-hidden; (3) bare MEP table headers → `G.gloss` popovers;
+(4) Pat blank on "CLV" → 6 glossary entries + deterministic `engine.route()` explain-pre-route.
 
 ### Session 79 — 2026-07-05 — PEAD event study (new-ideas wager): event lens real, fundable book falsified
 Ramana challenged the model to generate genuinely NEW ideas from the existing data. Pitched a reframe

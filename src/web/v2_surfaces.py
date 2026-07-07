@@ -93,6 +93,9 @@ _ROUTER_SPECS = [
     # Results-Reaction Scanner — descriptive board from the (falsified-as-a-book) PEAD
     # study (ledger 2026-07-05); reads the nightly results_reactions snapshot. Pure stdlib.
     ("results-reactions", "src.web.results_reactions", "/dash/results-reactions"),
+    # P-03 (charter §9 KPI): the pre-registration ledger as a Trust surface — one sheet
+    # per completed study, failures displayed on purpose. Pure stdlib; cites the ledger.
+    ("spec-sheets", "src.web.spec_sheets", "/dash/spec-sheets"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

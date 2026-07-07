@@ -1,6 +1,8 @@
 # Patearn Charter — operating doctrine (CEO mode)
 
-**v1.0 — 2026-07-05.** Canonical roadmap (PROJECT_STATE D87). Sessions execute § NOW by default;
+**v1.1 — amended 2026-07-07 by D-log D92** (evidence-driven corrections per §10: D-05 re-scoped ·
+X-02 closed-by-evidence · X-06 half-built · E-06 needs no D-02 · NOW-queue statuses). Original
+v1.0 2026-07-05. Canonical roadmap (PROJECT_STATE D87). Sessions execute § NOW by default;
 deviations = new D-log entries. Reviewed every results season. Binding constraints are inherited,
 not renegotiated here: ≤₹300/mo API spend · primary sources only (CLAUDE.md #8) · cheap models in
 timers · failure-ledger discipline (cite numbers before re-attempts) · surface-first only for paid
@@ -41,11 +43,11 @@ buyer cannot build in-house and cannot get from a vendor.
 | # | Item | Gate / deadline |
 |---|---|---|
 | N1 | **Results-season war room — LIVE + self-refreshing (S80d/S80e, ahead of Jul-09).** `/dash/results-reactions` shows BOTH halves: forward **"Upcoming results — next 14 days"** (NSE board-meeting calendar, D-01) + the "just reported" delivery-confirmed reaction table. Calendar refreshes **nightly** via `hermes-results-calendar.timer` (02:00 UTC, `Persistent=false`, sandboxed, git-owned per AUD-27) AND ran on-demand to validate the path today. Scanner is a **first-class Markets nav lens** (`/dash/markets/results-reactions`; flat 307→nested; sub-nav link live) — no longer URL-only. | **DONE** |
-| N2 | **Data sprint wave-1** (D88): ASM/GSM lists (D-02) · price-band file (D-03) · SLB volumes (D-04) · bulk/block **history backfill** (D-05) | each ~0.5 session, all ₹0 primary CSVs |
-| N3 | **Trade-size ratio** descriptive column (the D89 survivor: Cliff's δ +0.33/+0.25) on Screen+ + dossier, compute-on-read | descriptive-only, glossary entry required |
+| N2 | **Data sprint wave-1** (D88): ~~D-02~~ ✓ · ~~D-03~~ ✓ (both LIVE S83c, `surveillance.py` + armed timer) · SLB volumes (D-04) still open · ~~D-05 history backfill~~ **RE-SCOPED by D92** — free history doesn't exist (`deals.py:11`); the feed accumulates forward | D-04 ~0.5 session |
+| N3 | ~~Trade-size ratio~~ **DONE (S83c)** — `ticket_ratio_1m_6m` live on Screen+/Positioning/stealth/dossier + glossary (D89 survivor numbers cited; stored column justified by the cross-sectional scan, latest-date fill + nightly) | shipped descriptive-only |
 | N1b | **Results-Reaction SCANNER — LIVE `/dash/results-reactions` (S80c):** the descriptive board from the (falsified-as-a-book) PEAD study — who just reported, was the surprise delivery-confirmed, realized +22/+60d drift, population base-rate as labelled context. Nightly `results_reactions` snapshot (research venv) → pure-stdlib view (house pattern, like momentum-scan). Mounted surgically on the forked live `v2_surfaces.py` (import-tested, curl-verified 200). Remaining: nightly-chain wiring for the snapshot + nav-lens entry (nested URL) when the nav fork reconciles | scanner LIVE; nightly+nav pending |
-| N4 | **Event-study library**: extract `pead.py`/`footprint.py` shared parts (CAR paths, controls, cohort stats, cost model) into `research/explosive_moves/evlib.py` | refactor, selftest parity |
-| N5 | Verify Jul-05 concall run + first sandboxed nightly chain (carry-forward queue #1) | ops hygiene |
+| N4 | ~~Event-study library~~ **DONE (S83d) as a FACADE** — `evlib.py` is the one import surface over `pead.py`/`footprint.py` (source of truth unmoved: the nightly war-room snapshot imports pead directly; no mid-season migration) **+ M-02 placebo harness pulled forward** (shuffled-date null, published convention, first number = the PEAD confirmed cell) | selftest ✓ |
+| N5 | ~~Verify Jul-05 concall run + first sandboxed nightly chain~~ **DONE (S83b)** — concall-capture Jul-05 SUCCESS (1h44m); backups clean ×2; drift gate clean; **bonus root-cause: the provenance 7-col INSERT crash (fixed + paged)** | ops ✓ |
 
 ## 4. NEXT — July/August
 
@@ -92,7 +94,7 @@ ships descriptively (`pead_surface.py`), never as a book.
 | D-02 | ASM / GSM surveillance lists | NSE+BSE daily CSV | 0.5 s | state machine, forced-flow events, veto context |
 | D-03 | Security-wise price bands | NSE daily CSV | 0.5 s | band-lock detection (X-05), queue anomaly |
 | D-04 | SLB lending volumes | NSE daily report | 0.5–1 s | India's only short-interest proxy; squeeze + crowding flags |
-| D-05 | Bulk/block deal HISTORY | NSE archive CSVs | 0.5 s | organic delivery (X-03), smart-buyer graph (P-01); table exists, 2 weeks deep today |
+| D-05 | ~~Bulk/block deal HISTORY~~ **RE-SCOPED (D92)** — the premise was wrong: no free archive exists (`deals.py:11`); the live feed (`e6ab37d`) accumulates forward | n/a | X-03/P-01 build on the accumulating window as it deepens |
 | D-06 | Announcement categories | BSE (existing pattern) | 1 s | governance red-flag events (E-07), order-win tags |
 | D-07 | MWPL / F&O eligibility inputs | NSE daily | 0.5 s | F&O-entry prediction (E-09) |
 | D-08 | AMFI monthly MF portfolios | AMFI/AMC disclosures | 1–2 s | institutional ground truth; calibration labels wave-2 |
@@ -112,11 +114,15 @@ resignation · E-08 index add/drop · E-09 F&O inclusion · E-10 buyback tender 
 dividend surprise · E-12 rebrand pump · E-13 board-meeting anticipation · E-14 shareholding-release
 combos · E-15 QIP/rights/preferential pricing anchors · E-16 merger record-dates · E-17
 relisting behavior.
-**Descriptive lenses (compute-on-read):** X-01 trade-size ratio (approved) · X-02 T2T mask
-(correctness) · X-03 organic delivery · X-04 overnight/intraday split · X-05 band-lock streaks ·
-X-06 Amihud illiquidity + liquidity-migration · X-07 volume-at-price shelves · X-08
-institutional-footprint week composite · X-09 base-length × breakout velocity · X-10
-expiry/holiday conditioning.
+**Descriptive lenses (compute-on-read):** X-01 trade-size ratio (**SHIPPED S83c**) · X-02 T2T mask
+(**CLOSED BY EVIDENCE, D92** — every delivery engine was already EQ-only; exclusion not pollution;
+`chk_t2t_universe` publishes the mass; residual X-02b = the price-only stragglers, post-season) ·
+X-03 organic delivery (forward window only, per the D-05 re-scope) · X-04 overnight/intraday split ·
+X-05 band-lock streaks (**data now flowing** — `price_band_events`, S83c) · X-06 Amihud illiquidity +
+liquidity-migration (**half-built**: `amihud_22d` computes nightly, `mep_signals.py:286`; only the
+migration delta is new) · X-07 volume-at-price shelves · X-08 institutional-footprint week composite
+(inherits the D89 front-detection FAIL — admissible only reframed post-public) · X-09 base-length ×
+breakout velocity · X-10 expiry/holiday conditioning.
 **Data feeds:** D-01…D-12 (§6).
 **Product:** P-01 smart-buyer graph · P-02 results-day auto-refresh SLA · P-03 detection
 spec-sheet page (incl. failures) · P-04 evidence-pack v2 · P-05 replay-any-date demo API ·

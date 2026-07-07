@@ -2773,7 +2773,10 @@ def _cci_stock_panel(sym: str) -> str:
     foot = ('<div class="mut" style="font-size:11px;margin-top:10px">Ranking uses <b>measurable items only</b> '
             '(D61): guidance accuracy, quantification %, the ⛔ veto, and deterministic deterioration (★). '
             'Behaviour / expectation reads inform but do not rank. <b>Pilot</b> — carried until the falsification '
-            'gates clear. <a class="row" style="display:inline" href="/dash/concalls">Full CCI board →</a></div>')
+            'gates clear. Corpus provenance (guardrail-#8): ~98.6% of transcripts were <b>discovered</b> via '
+            'Screener.in links (legacy path, frozen; BSE-primary migration in progress) — extraction and '
+            'settlement run on the primary documents. '
+            '<a class="row" style="display:inline" href="/dash/concalls">Full CCI board →</a></div>')
 
     asof = f' · as of {_esc(S.get("as_of_period"))}' if S.get("as_of_period") else ""
     from src.web.cockpit import cci_state

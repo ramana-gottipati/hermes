@@ -2,8 +2,9 @@
 
 Reframed (Lane N2, nav-IA pass): this is no longer a "strategy lens" — it is the
 audit-grade RIGOR EVIDENCE that sits under Trust, alongside Coverage. It surfaces the
-honest backtest record, including the verdict that nothing beats buy-and-hold net of
-cost. We test our strategies and report what fails — that is the institutional wedge.
+honest backtest record, including the standing verdict that nothing here is FUNDABLE
+net of realistic participation cost at AUM (the best flat-cost champion failed its
+2026-07-05 cost re-cut). We test our strategies and report what fails — that is the wedge.
 
 Reads the persistent registry (research.db: strategy_registry / strategy_runs /
 strategy_holdings) so backtested strategies + their current holdings live IN THE APP,
@@ -14,7 +15,7 @@ CSS consistency, with a defensive fallback. Read-only — never writes any table
 
 Refine loop: edit a signal/params -> re-run its backtest -> strategy_store.record_run()
 appends a timestamped row -> this page shows the new result. The honest verdict
-(nothing beats buy-and-hold net of cost) is shown, not hidden.
+(no fundable net-of-cost alpha at AUM) is shown, not hidden.
 """
 from __future__ import annotations
 
@@ -172,8 +173,13 @@ def testing_page():
         "backtested, its results net of cost, and the current holdings of the deployable candidates — "
         "published so the failures are as visible as the wins. Saved in <code>research.db</code> "
         f"({len(reg)} strategies · {nruns} backtest runs); refine a signal, re-run, and a new "
-        "timestamped result appears here. <b>Honest verdict so far: none beats buy-and-hold net of cost</b> "
-        "— and we report that rather than bury it. This is the discipline behind every Patearn number.</div>"
+        "timestamped result appears here. <b>Honest verdict (re-cut 2026-07-05): nothing is FUNDABLE "
+        "net of realistic participation cost at AUM.</b> The best flat-cost champion (C-BLEND 50/50, "
+        "Sharpe 1.32) fails at scale — net 0.52 @₹25cr, 0.17 @₹50cr, −0.30 @₹100cr vs the 0.89 index "
+        "bar; every PEAD event-book wrapper died (net 0.10, hedged −0.58); the one participation-"
+        "fundable corner is quarterly large-cap LOWVOL_MOM (1.02 @₹50cr, ceiling ~₹150cr — defensive, "
+        "not alpha). We publish those failures rather than bury them; the full pre-registered record "
+        "is on <a href='/dash/spec-sheets' style='color:var(--accent)'>Spec sheets</a>.</div>"
         "<div class='bar'>⚖️ <b>The bar every active strategy must clear:</b> <span class='g'>Nifty 500 "
         "buy &amp; hold — Sharpe 0.89 / CAGR 15.3% / MaxDD −29%</span>. The choice among the rest is a "
         "risk-profile call, not alpha.</div>"

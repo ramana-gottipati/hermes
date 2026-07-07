@@ -181,6 +181,8 @@ LENSES: tuple[Lens, ...] = (
     # Glossary / Methodology — the browsable "explain every term" reference (primary-intent
     # commitment #2). Same content as the ? hover-popovers; Trust altitude (methodology/help).
     Lens("glossary", "Glossary", "trust", "trust", "/dash/glossary", aliases=("methodology",)),
+    Lens("spec-sheets", "Spec sheets", "trust", "trust", "/dash/spec-sheets",
+         aliases=("pre-registration", "studies")),
 
     # ── Overlay-only (NOT nav lenses) — Wolfe / Harmonic. §3-C: chart overlays,
     # reachable from the chart control, no sub-nav entry. Routes stay live (no 404);

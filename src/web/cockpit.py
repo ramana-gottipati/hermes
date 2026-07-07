@@ -1940,7 +1940,11 @@ def render_concalls(view: str) -> str:
         '(D61): guidance accuracy, quantification %, the ⛔ veto, and deterministic deterioration. '
         'The last three <b>·AI</b> columns are a model read shown <b>for context — NOT ranked</b>. '
         'A name is <b>unproven</b> until its promises resolve. <b>Pilot</b> — the historical backfill '
-        'accrues ≈18 concalls/day via the nightly cron; open any name for its full dossier.</div>')
+        'accrues ≈18 concalls/day via the nightly cron; open any name for its full dossier. '
+        '<span style="color:var(--ink-3)">Corpus provenance (guardrail-#8 disclosure): ~98.6% of '
+        'transcripts were <b>discovered</b> via Screener.in links (legacy path, frozen; BSE-primary '
+        'migration in progress) — extraction and settlement run on the primary documents themselves.'
+        '</span></div>')
     return _CKPT_CSS + head_html + strip + table
 
 
@@ -2190,13 +2194,17 @@ def render_leaders() -> str:
                 f'<tr><td class="l"><a class="row" href="/dash/stock?sym={esc(r["symbol"])}">'
                 f'<span class="sym">{esc(r["symbol"])}</span></a></td>'
                 f'<td>{rk if rk is not None else ""}</td>'
+                # RSI-RS column: CAPTURED from the live VPS file during the S83d fork-check —
+                # a sibling session's uncommitted live-only work (AUD-27 discipline: live is
+                # truth, capture verbatim; attribution: parallel session, not S83d).
+                f'<td>{("%.0f" % r.get("rsi")) if r.get("rsi") is not None else "-"}</td>'
                 f'<td class="l"><a class="row" href="/dash/index?idx={q(r["primary_sector"])}">'
                 f'{esc(r["primary_sector"])}</a></td>'
                 f'<td><span class="pill p-{bs}">{esc(_state_label(bs))}</span></td>'
                 f'<td><span class="pill p-{ss}">{esc(_state_label(ss))}</span></td>'
                 f'<td><span class="pill p-{xs}">{esc(_state_label(xs))}</span></td></tr>')
         return ('<div class="card" style="padding:6px 10px;overflow-x:auto"><table class="dt">'
-                '<thead><tr><th class="l">Symbol</th><th>RS rank</th><th class="l">Sector</th>'
+                '<thead><tr><th class="l">Symbol</th><th>RS rank</th><th>RSI-RS</th><th class="l">Sector</th>'
                 '<th>stock vs broad</th><th>stock vs sector</th><th>sector vs broad</th></tr></thead>'
                 f'<tbody>{trs}</tbody></table></div>')
 
