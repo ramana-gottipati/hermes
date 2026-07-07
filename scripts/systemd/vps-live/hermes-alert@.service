@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes failure pager — Telegram DM that %i failed (AUD-26)
+# Template instantiated by OnFailure=hermes-alert@%n.service (95-onfailure.conf drop-ins on
+# season-critical units). Deliberately unhardened: it must read /opt/hermes/.env and reach
+# api.telegram.org even when the failing unit's sandbox is the thing that broke.
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/hermes/scripts/alert-telegram.sh %i

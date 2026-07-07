@@ -1377,6 +1377,34 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 83b — 2026-07-07 — T-2 season-integrity list EXECUTED (the review's §4 calendar, pre-Jul-09 block)
+All seven items, live-verified on the VPS at ~01:15 UTC (safe window, no timers near):
+- **AUD-26 paging LIVE (partial→doc):** `hermes-alert@.service` + `scripts/alert-telegram.sh` + `95-onfailure.conf`
+  drop-ins on 9 season-critical units; installed via `install-systemd.sh --install` (drift gate clean);
+  **smoke-tested — Ramana was DM'd** (`PAGER-SMOKE-TEST-ignore`). Telegram reachable from VPS (302).
+- **AUD-29 freshness gate (season path):** `pead_surface.write_snapshot` refuses-if-stale (weekday-lag ≥3
+  vs expected IST session, abort BEFORE DELETE, exit 1 → pages) + stamps `tape_max_trade_date`/lag meta;
+  board renders live amber/red "tape not fresh" banner (anchor = last completed IST session — no morning
+  false-flags); `After=hermes-bhavcopy.service` on the snapshot unit.
+- **MTTR ledger:** new `research.db.reaction_mttr` (sym,ptype,pend,t0,first_seen_utc; INSERT OR IGNORE at
+  snapshot write + log line) — charter §9 filing→surface KPI is a number from tonight. ⚠ First run seeds
+  the baseline (all current rows count as newly-seen); real MTTR starts with tomorrow's filings.
+- **X-02-lite:** VERIFIED structurally safe, not coded — `explosive_moves/common.py:89` `_SERIES_FILTER`
+  loads EQ-only, so BE/T2T rows can never pollute the board's Deliv×; documented in the board footer.
+  Full site-wide X-02 mask (signals/MEP paths do NOT series-filter) stays a week-1 item.
+- **earnings_triggers dead pipe FIXED:** helpers had ZERO call sites — new `_watchlist_earnings_rescue()`
+  in `news_feed.py` forces watchlist EARNINGS items past the routine-INLINE filter once per (symbol,url),
+  with `earnings_triggers` as the dedup ledger (the table un-deads with a real consumer).
+- **BONUS root-cause (found by the ops sweep): `hermes-fundamentals-provenance` had failed silently Jul-04**
+  — D78's `source` column made `fundamentals_history` 7-col; the Screener-side collector's positional
+  6-value INSERT crashed. Fixed with named columns (source stays NULL = the Screener-era marker the XBRL
+  forward-only guard keys on); proven against a 7-col schema in the prod venv; next live fire TONIGHT
+  21:00 UTC — now paged if it fails again.
+- **Ops verifications (queue #1):** concall-capture Jul-05 first live run SUCCESS (1h44m) · both backup
+  units clean, rotation working, disk 41% · `install-systemd.sh --check` clean · api restarted
+  writer-safe; board live-verified via ssh-localhost `curl -L` (57 calendar chips, T2T note, no false
+  stale banner). Season path now FROZEN per the review §4.
+
 ### Session 83 — 2026-07-07 — Full-estate strategic review (17-agent panel + verification wave)
 Advisory session (no code changes): 8 inventory agents (state/ledger/audit/DBs/surfaces/ideas/harnesses/
 signals) → 32-claim verification against tree+git → 4-lens synthesis (insights/product/junk/viz) →

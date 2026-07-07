@@ -119,6 +119,44 @@ def _ro():
         return None
 
 
+def _tape_lag(meta):
+    """Live weekday-lag of the snapshot's tape date (stamped by the nightly job, AUD-29).
+    Computed at RENDER time, so a dead snapshot job also trips it — its stamp ages. The
+    anchor is the last COMPLETED IST session (today only after ~20:00 IST on a weekday),
+    so morning renders never false-flag. Twin of pead_surface._expected_session/_weekday_lag."""
+    import datetime as _dt
+    mx = (meta.get("tape_max_trade_date") or "")[:10]
+    if not mx:
+        return None, None                      # pre-AUD-29 snapshot: no stamp, no banner
+    try:
+        d = _dt.date.fromisoformat(mx)
+    except ValueError:
+        return mx, None
+    ist = _dt.datetime.utcnow() + _dt.timedelta(hours=5, minutes=30)
+    anchor = ist.date()
+    if ist.weekday() >= 5 or ist.hour < 20:
+        anchor -= _dt.timedelta(days=1)
+    while anchor.weekday() >= 5:
+        anchor -= _dt.timedelta(days=1)
+    lag, cur = 0, d + _dt.timedelta(days=1)
+    while cur <= anchor:
+        if cur.weekday() < 5:
+            lag += 1
+        cur += _dt.timedelta(days=1)
+    return mx, lag
+
+
+def _stale_banner(meta):
+    tape_max, lag = _tape_lag(meta)
+    if lag is None or lag < 1:
+        return ""
+    col = "#ff6a7a" if lag >= 3 else "#f6b73c"
+    return (f'<div class="base" style="border-color:{col}"><b style="color:{col}">⚠ tape not '
+            f'fresh:</b> delivery/price data runs to <b>{_esc(tape_max)}</b> ({lag} weekday(s) '
+            f'behind — holiday or pipeline lag). Every number below is honest as of that date; '
+            f'nothing here is presented as tonight&#39;s data.</div>')
+
+
 def _empty(msg):
     body = (_CSS + '<div class="rr"><h2>Results-Reaction Scanner</h2>'
             f'<div class="base">{msg}</div>' + _render_upcoming(_upcoming(14)) + '</div>')
@@ -228,6 +266,7 @@ def results_reactions(view: str = Query("all")):
             'sessions elapse — the realized abnormal drift vs Nifty&nbsp;500. Descriptive realized '
             'history, <b>not a forecast or a buy list</b>. SUE = Net-Profit seasonal surprise (no '
             'analysts); Deliv× = reaction-window delivered value vs its own trailing median.</div>',
+            _stale_banner(meta),
             f'<div class="base">📎 <b>Descriptive base rate</b> (14y settled events, 2026-07-05 study): '
             f'a top-quintile surprise <b>confirmed by top-tercile delivery drifted +7.6% over 60 '
             f'sessions</b> (n=235); the same surprise on thin delivery only +3.7%; bad news did not '
@@ -259,7 +298,9 @@ def results_reactions(view: str = Query("all")):
             f'<code>results_reactions</code> table (research.db). ● settled (full 60d) · ◔ fresh, drift '
             f'still accruing. Rows capped at 500, most recent first. Delivery is the India-specific '
             f'confirmation the US PEAD literature lacks; it is descriptive only — the book built on it '
-            f'is in the failure ledger.</div>',
+            f'is in the failure ledger. T2T/BE-series rows never enter this board — the loader reads '
+            f'the EQ series only, so Deliv× cannot be trade-to-trade-polluted (delivery in a T2T '
+            f'series is definitionally 100%).</div>',
             '</div>']
     return HTMLResponse(_shell("Results-Reaction Scanner", "".join(body), active="results-reactions",
                                latest_date=meta.get("generated_at", ""), wide=True))

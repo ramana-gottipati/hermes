@@ -416,6 +416,32 @@ def _mark_earnings_triggered(symbol: str, news_url: str, news_title: str) -> Non
         )
 
 
+def _watchlist_earnings_rescue(items: list[dict]) -> set[str]:
+    """Watchlist names reporting results always make the brief (results-season war-room rule).
+
+    An EARNINGS item tagged with a watchlist symbol bypasses the routine-INLINE filter, once per
+    (symbol, url) — `earnings_triggers` is the dedup ledger (it existed as a dead pipe: helpers
+    with no caller). Returns the news urls to force-include in the send filter."""
+    try:
+        wl = _watchlist_symbols()
+    except Exception as e:
+        log.warning("watchlist earnings trigger skipped: %s", e)
+        return set()
+    if not wl:
+        return set()
+    rescue: set[str] = set()
+    for item in items:
+        if item.get("category") != "EARNINGS":
+            continue
+        for t in (item.get("tickers") or []):
+            t = (t or "").upper().strip()
+            if t and t in wl and not _earnings_already_triggered(t, item["url"]):
+                _mark_earnings_triggered(t, item["url"], item.get("title", ""))
+                rescue.add(item["url"])
+                log.info("watchlist earnings trigger: %s — %s", t, item.get("title", "")[:90])
+    return rescue
+
+
 def _candidate_already_screened(news_url: str) -> bool:
     with get_conn() as conn:
         row = conn.execute(
@@ -609,8 +635,10 @@ def run_and_send(override_chat_id: int | None = None, *, ignore_already_sent: bo
     except Exception as e:
         log.error("stage1 screen pipeline raised: %s", e)
 
-    signal = [it for it in annotated if is_worth_sending(it)]
-    log.info("%d items kept after filter (from %d)", len(signal), len(annotated))
+    rescued = _watchlist_earnings_rescue(annotated)
+    signal = [it for it in annotated if is_worth_sending(it) or it["url"] in rescued]
+    log.info("%d items kept after filter (from %d, %d watchlist-earnings rescued)",
+             len(signal), len(annotated), len(rescued))
 
     if not signal:
         # Still mark them so we don't re-classify these same items on the next run

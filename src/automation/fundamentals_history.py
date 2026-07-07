@@ -94,7 +94,13 @@ def collect(symbol: str, con) -> int:
     for sec, ptype in SECTIONS.items():
         rows += [(symbol,) + r for r in _parse_section(soup, sec, ptype)]
     if rows:
-        con.executemany("INSERT OR REPLACE INTO fundamentals_history VALUES (?,?,?,?,?,?)", rows)
+        # Columns MUST be named: D78 added a 7th column (source, fundamentals_xbrl.py) and a
+        # positional 6-value insert now throws. source stays NULL here — NULL marks a
+        # Screener-era row; the XBRL writer's forward-only guard keys on `source IS NULL`.
+        con.executemany(
+            "INSERT OR REPLACE INTO fundamentals_history"
+            "(symbol, period_type, period_end, report_date, metric, value) VALUES (?,?,?,?,?,?)",
+            rows)
     con.execute("INSERT OR REPLACE INTO fundamentals_done VALUES (?,?,datetime('now'))", (symbol, len(rows)))
     con.commit()
     return len(rows)

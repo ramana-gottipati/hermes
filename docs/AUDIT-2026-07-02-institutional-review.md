@@ -224,7 +224,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** declarative `(table, date_col, max_age_days)` list covering every scheduled writer; date-freshness guard in `chk_regime_guard`; bhavcopy trading-day gap check (holiday-tolerant) — pairs with AUD-14's holiday sentinel.
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-26 [P1] Data-quality CRITICALs never page the operator — no push path, no OnFailure= on any unit** — `OPEN`
+**AUD-26 [P1] Data-quality CRITICALs never page the operator — no push path, no OnFailure= on any unit** — `PARTIAL S83 (2026-07-07)`: push path LIVE — `hermes-alert@.service` template + `scripts/alert-telegram.sh` (Telegram DM via .env token; always-exit-0 so a failing pager never cascades) + `OnFailure=hermes-alert@%n.service` drop-ins (`95-onfailure.conf`) on 9 season-critical units (bhavcopy, results-calendar, results-reactions, fundamentals-xbrl, fundamentals-provenance, shareholding-xbrl, sast-ingest, insider-ingest, data-quality). Smoke-tested live (paged chat 2829…906). Residual: OnFailure class-sweep to the remaining units + a `status==critical` DM from data_quality itself (banner is still pull-only).
 - **Component:** alerting | **Reporters:** api-src (P0→verified P1); inst-dd's "write-only battery" variant was REFUTED (dq_banner.py already surfaces WARN/CRIT on pages) but its Telegram-push residual folds here.
 - **Files:** `src/automation/data_quality.py`, `src/automation/tracker_alerts.py` (reusable delivery path), all 18 systemd units (zero `OnFailure=`); `validation-memo.md:75` promises "ops alert fires" — unimplemented.
 - **Evidence digest:** pull-only surfacing (banner) exists; nothing pushes. Known deferral: the bot process was network-blocked for sends in a prior session — verify and solve, don't re-defer silently.
@@ -245,7 +245,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** regenerate the heredocs from installed truth (do with AUD-27), or replace heredocs with committed unit files the script copies; install-guard the dormant code-review units.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-29 [P1] Zero encoded ordering in the timer dependency chain — failed upstream silently feeds stale data downstream as fresh** — `OPEN`
+**AUD-29 [P1] Zero encoded ordering in the timer dependency chain — failed upstream silently feeds stale data downstream as fresh** — `PARTIAL S83 (2026-07-07)`: the SEASON path is gated — `pead_surface.write_snapshot` refuses-if-stale (weekday-lag ≥3 vs the expected IST session → aborts BEFORE the snapshot DELETE, exits 1 → pages via AUD-26) and stamps `tape_max_trade_date`/`tape_weekday_lag` into `results_reactions_meta`; the war-room board computes the lag live at render (anchor = last completed IST session, so mornings never false-flag) and shows an amber/red "tape not fresh" banner; `After=hermes-bhavcopy.service` on the snapshot unit. Residual: the same refuse-if-stale gate on pt14batch / capital-allocation / momentum-scan / evening consumers.
 - **Component:** scheduling ordering | **Reporter:** timer-topology.
 - **Files:** all `scripts/*.timer`/`*.service` (no inter-service After=/Requires=); e.g. `hermes-capital-allocation.service:9` "Runs AFTER the XBRL ingest" = a 45-minute hope.
 - **Evidence digest:** one NSE failure at 14:00 → that evening's alerts/scans/pt14 run on yesterday's bars presented as fresh; detection is next-morning-06:30 and tolerates 4 days.

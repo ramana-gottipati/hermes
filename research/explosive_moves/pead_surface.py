@@ -49,6 +49,41 @@ POP_ALL = (0.0350, 3130)
 DELIV_HIGH = 1.5                       # "delivery-confirmed" descriptive threshold (x trailing median)
 
 
+def _expected_session(now_utc: datetime) -> date:
+    """The last IST session whose bhav copy SHOULD exist by now: today (IST) only after
+    ~20:00 IST on a weekday (bhav publishes ~19:00-19:30 IST), else the previous weekday.
+    Twin of the copy in src/web/results_reactions.py — keep in sync."""
+    ist = now_utc + timedelta(hours=5, minutes=30)
+    d = ist.date()
+    if ist.weekday() >= 5 or ist.hour < 20:
+        d -= timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d
+
+
+def _weekday_lag(mx_iso: str, anchor: date) -> int:
+    """Weekdays strictly after ``mx_iso`` through ``anchor`` (the expected session). 0 = tape
+    current; 1-2 can be a holiday; >=3 means the bhav pipeline is dead, not a holiday. 99 on
+    unparseable input."""
+    try:
+        d = date.fromisoformat(str(mx_iso)[:10])
+    except ValueError:
+        return 99
+    lag, cur = 0, d + timedelta(days=1)
+    while cur <= anchor:
+        if cur.weekday() < 5:
+            lag += 1
+        cur += timedelta(days=1)
+    return lag
+
+
+def _tape_freshness(hcon) -> tuple[str, int]:
+    """(max bhavcopy trade_date, weekday-lag to the expected session) — the AUD-29 input."""
+    mx = hcon.execute("SELECT MAX(trade_date) FROM bhavcopy_rows").fetchone()[0] or ""
+    return str(mx)[:10], _weekday_lag(mx, _expected_session(datetime.utcnow()))
+
+
 def _reactions_for(sym: str, hcon, rcon, idx_dates, idx_map) -> list[dict]:
     """Every past results event for one symbol with realized descriptive outcomes, oldest first."""
     real: dict[tuple, str] = {}
@@ -147,6 +182,15 @@ def write_snapshot(days_back: int = 180, db_path: str = RESEARCH_DB) -> int:
     the settled population for descriptive breakpoints, then writes every results event in the
     last ``days_back`` days (incl. fresh no-drift ones) to research.db.results_reactions."""
     hcon = main_conn()
+    tape_max, tape_lag = _tape_freshness(hcon)
+    print(f"tape freshness: max trade_date={tape_max} weekday_lag={tape_lag}", flush=True)
+    if tape_lag >= 3:
+        # AUD-29 refuse-if-stale: keep yesterday's board intact (abort BEFORE the DELETE) and
+        # exit nonzero so OnFailure pages. Never rewrite the war room from a dead tape.
+        hcon.close()
+        raise SystemExit(
+            f"STALE TAPE: bhavcopy max trade_date={tape_max} is {tape_lag} weekdays behind — "
+            f"refusing to rewrite results_reactions (previous snapshot left intact)")
     rcon = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=30)
     print("building settled event population for breakpoints...", flush=True)
     settled, idx_dates, idx_map = pead.build_events(hcon, rcon, progress=True)
@@ -190,9 +234,26 @@ def write_snapshot(days_back: int = 180, db_path: str = RESEARCH_DB) -> int:
                     [(r["sym"], r["ptype"], r["pend"], r["t0"], r["entry_date"], _n(r["sue"]),
                       _n(r["ear"]), _n(r["deliv_x"]), _n(r["med_turn"]), _n(r["car22"]), _n(r["car60"]),
                       r["beat"], r["sue_high"], r["deliv_high"], int(r["is_settled"])) for r in rows])
+    # MTTR ledger (charter §9 filing→surface KPI): first time a results event reaches this
+    # board, record when. Separate table so it survives the snapshot DELETE; day-level t0
+    # (the real BSE date) vs UTC first-seen makes "same evening" a measurable number.
+    con.execute("""CREATE TABLE IF NOT EXISTS reaction_mttr(
+        sym TEXT, ptype TEXT, pend TEXT, t0 TEXT, first_seen_utc TEXT,
+        PRIMARY KEY(sym, ptype, pend))""")
+    now_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ")
+    new_seen = 0
+    for r in rows:
+        cur = con.execute("INSERT OR IGNORE INTO reaction_mttr VALUES (?,?,?,?,?)",
+                          (r["sym"], r["ptype"], r["pend"], r["t0"], now_utc))
+        if cur.rowcount:
+            new_seen += 1
+            print(f"MTTR first-seen: {r['sym']} {r['ptype']}/{r['pend']} t0={r['t0']} "
+                  f"seen={now_utc}", flush=True)
+    print(f"MTTR: {new_seen} newly-surfaced results events this run", flush=True)
     for k, v in (("sue_hi", f"{sue_hi:.4f}"), ("dlv_hi", f"{dlv_hi:.4f}"),
                  ("n_settled", str(len(settled))), ("n_rows", str(len(rows))),
                  ("days_back", str(days_back)),
+                 ("tape_max_trade_date", tape_max), ("tape_weekday_lag", str(tape_lag)),
                  ("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M"))):
         con.execute("INSERT OR REPLACE INTO results_reactions_meta VALUES (?,?)", (k, v))
     con.commit()
@@ -283,6 +344,17 @@ def selftest() -> None:
     assert summarize([])["n"] == 0
     assert "no PIT results events" in render("XX", [])
     assert "results reactions" in render("DIXON", evs)
+    # AUD-29 weekday-lag arithmetic: Fri->Tue crosses Mon+Tue = 2; same-day = 0; garbage = 99
+    assert _weekday_lag("2026-07-03", date(2026, 7, 7)) == 2
+    assert _weekday_lag("2026-07-07", date(2026, 7, 7)) == 0
+    assert _weekday_lag("2026-07-04", date(2026, 7, 6)) == 1      # Sat tape -> Mon = 1 weekday
+    assert _weekday_lag("garbage", date(2026, 7, 7)) == 99
+    # expected-session anchor (IST): Tue 01:00 UTC = pre-open -> Mon; Tue 15:00 UTC = 20:30 IST
+    # -> Tue itself; Sat 16:00 UTC -> Fri; Mon 05:00 UTC = 10:30 IST mid-session -> Fri
+    assert _expected_session(datetime(2026, 7, 7, 1, 0)) == date(2026, 7, 6)
+    assert _expected_session(datetime(2026, 7, 7, 15, 0)) == date(2026, 7, 7)
+    assert _expected_session(datetime(2026, 7, 4, 16, 0)) == date(2026, 7, 3)
+    assert _expected_session(datetime(2026, 7, 6, 5, 0)) == date(2026, 7, 3)
     print("PEAD_SURFACE selftest OK")
 
 
