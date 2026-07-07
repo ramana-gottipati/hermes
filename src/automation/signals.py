@@ -203,11 +203,12 @@ def _ret_signs(adj: list) -> list:
 
 def _character_metrics(dates: list, adj: list, deliv_value: list,
                        num_trades: list, deliv_per: list, ret_sign: list,
-                       i: int) -> dict:
-    """Compute the 7 stored D43 numerics for row index `i`, given full
+                       values: list, i: int) -> dict:
+    """Compute the 8 stored D43/N3 numerics for row index `i`, given full
     per-symbol arrays ordered OLDEST→NEWEST. Calendar-day windows (30/90/180)
     matching signals._WINDOWS; delivery ₹ is value-based (split-invariant);
-    direction + drift + 52w-high use ADJUSTED closes."""
+    direction + drift + 52w-high use ADJUSTED closes; `values` is raw daily
+    turnover (₹) for the N3 ticket-size ratio."""
     d = dates[i]
     lo30  = bisect.bisect_left(dates, _cutoff_date(d, 30))
     lo90  = bisect.bisect_left(dates, _cutoff_date(d, 90))
@@ -224,6 +225,22 @@ def _character_metrics(dates: list, adj: list, deliv_value: list,
     trade_count_ratio = (tc30 / tc180) if (tc30 is not None and tc180 and tc180 > 0) else None
     avg_deliv_pct_1m = _avg(deliv_per, lo30)
     avg_deliv_pct_6m = _avg(deliv_per, lo180)
+
+    # N3 (X-01): rupee ticket-size velocity — (Σvalue/Σtrades) 1m vs 6m, a ratio of
+    # SUMS so zero-trade days can't skew a daily mean. Rupee-based (guardrail #5) so
+    # split-invariant without adjustment; None before ~mid-2011 (num_trades NULL).
+    # Descriptive only: the D89 study's surviving feature (Cliff's δ +0.329/+0.250
+    # vs both controls) — the detector built on it FAILED its gate (1/4).
+    def _ticket(lo):
+        v = t = 0.0
+        for j in range(lo, i + 1):
+            if values[j] is not None and num_trades[j]:
+                v += values[j]
+                t += num_trades[j]
+        return (v / t) if t > 0 else None
+
+    tk30, tk180 = _ticket(lo30), _ticket(lo180)
+    ticket_ratio = (tk30 / tk180) if (tk30 is not None and tk180 and tk180 > 0) else None
 
     # WHICH WAY — value-weighted up/down delivery skew over 90 cal days.
     up = down = 0.0
@@ -267,6 +284,7 @@ def _character_metrics(dates: list, adj: list, deliv_value: list,
     return {
         "deliv_value_ratio_1m_6m": deliv_value_ratio,
         "trade_count_ratio_1m_6m": trade_count_ratio,
+        "ticket_ratio_1m_6m": ticket_ratio,
         "avg_deliv_pct_1m": avg_deliv_pct_1m,
         "avg_deliv_pct_6m": avg_deliv_pct_6m,
         "deliv_updown_ratio_3m": updown,
@@ -295,8 +313,9 @@ def _character_arrays(asc_rows: list) -> tuple:
     ]
     num_trades = [r["num_trades"] for r in asc_rows]
     deliv_per = [r["deliv_per"] for r in asc_rows]
+    values = [r["value"] for r in asc_rows]        # raw ₹ turnover (N3 ticket ratio)
     ret_sign = _ret_signs(adj)
-    return adj, deliv_value, num_trades, deliv_per, ret_sign
+    return adj, deliv_value, num_trades, deliv_per, ret_sign, values
 
 
 def _delivery_value_per_trade(deliv_qty, close, num_trades) -> Optional[float]:
@@ -589,8 +608,8 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     # the newest row, so its index in the ascending arrays is the last one.
     asc = list(reversed(rows))
     dates_a = [r["trade_date"] for r in asc]
-    adj_a, dv_a, nt_a, dp_a, rs_a = _character_arrays(asc)
-    cm = _character_metrics(dates_a, adj_a, dv_a, nt_a, dp_a, rs_a, len(asc) - 1)
+    adj_a, dv_a, nt_a, dp_a, rs_a, val_a = _character_arrays(asc)
+    cm = _character_metrics(dates_a, adj_a, dv_a, nt_a, dp_a, rs_a, val_a, len(asc) - 1)
     signal.update(cm)
     signal["accum_character"] = accum_character(
         signal["p_score"], cm["trade_count_ratio_1m_6m"], cm["deliv_updown_ratio_3m"],
@@ -702,8 +721,9 @@ _SIGNAL_COLS = [
     "r_score", "p_score", "trigger_rank",
     "is_ath_dvpt", "hot_days_avg_price", "price_vs_hot_avg_pct",
     "next_p_above", "gap_to_next_p_pct",
-    # D43 accumulation/distribution character (7 stored numerics + derived label)
-    "deliv_value_ratio_1m_6m", "trade_count_ratio_1m_6m",
+    # D43 accumulation/distribution character (8 stored numerics + derived label;
+    # ticket_ratio_1m_6m is the N3/X-01 addition)
+    "deliv_value_ratio_1m_6m", "trade_count_ratio_1m_6m", "ticket_ratio_1m_6m",
     "avg_deliv_pct_1m", "avg_deliv_pct_6m",
     "deliv_updown_ratio_3m", "accum_price_drift_3m", "pct_from_52w_high",
     "accum_character",
@@ -821,7 +841,7 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
     date_to_idx = {d: i for i, d in enumerate(dates)}
 
     # D43 character arrays (oldest→newest, matching `bhav`/`dates` ordering).
-    char_adj, char_dv, char_nt, char_dp, char_rs = _character_arrays(bhav)
+    char_adj, char_dv, char_nt, char_dp, char_rs, char_val = _character_arrays(bhav)
 
     # Running ATH-DVPT max over strictly-prior history.
     prior_max = None
@@ -920,7 +940,7 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
             pvh = None
 
         # D43 accumulation/distribution character for this date.
-        cm = _character_metrics(dates, char_adj, char_dv, char_nt, char_dp, char_rs, i)
+        cm = _character_metrics(dates, char_adj, char_dv, char_nt, char_dp, char_rs, char_val, i)
         clabel = accum_character(
             p_score, cm["trade_count_ratio_1m_6m"], cm["deliv_updown_ratio_3m"],
             cm["accum_price_drift_3m"], cm["pct_from_52w_high"],
@@ -939,8 +959,9 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
             r_score, p_score, rank,
             is_ath, hot_avg, pvh,
             next_above, gap,
-            # D43 character — 7 numerics + derived label
+            # D43 character — 8 numerics (incl. N3 ticket) + derived label
             cm["deliv_value_ratio_1m_6m"], cm["trade_count_ratio_1m_6m"],
+            cm["ticket_ratio_1m_6m"],
             cm["avg_deliv_pct_1m"], cm["avg_deliv_pct_6m"],
             cm["deliv_updown_ratio_3m"], cm["accum_price_drift_3m"],
             cm["pct_from_52w_high"], clabel,
@@ -963,6 +984,7 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
                       is_ath_dvpt = ?, hot_days_avg_price = ?, price_vs_hot_avg_pct = ?,
                       next_p_above = ?, gap_to_next_p_pct = ?,
                       deliv_value_ratio_1m_6m = ?, trade_count_ratio_1m_6m = ?,
+                      ticket_ratio_1m_6m = ?,
                       avg_deliv_pct_1m = ?, avg_deliv_pct_6m = ?,
                       deliv_updown_ratio_3m = ?, accum_price_drift_3m = ?,
                       pct_from_52w_high = ?, accum_character = ?
@@ -1180,5 +1202,49 @@ def main() -> None:
         log.info(msg)
 
 
+def backfill_ticket_ratio_latest() -> int:
+    """N3 one-off: populate ticket_ratio_1m_6m for the LATEST trade_date only
+    (additive UPDATE — the nightly forward-fills from tonight; history stays NULL
+    per the space doctrine and recomputes on-read from bhav when a study needs it).
+    Reuses _character_metrics' exact window math via minimal arrays."""
+    with get_conn() as conn:
+        row = conn.execute("SELECT MAX(trade_date) d FROM stock_signals").fetchone()
+        d = row["d"]
+        syms = [r["symbol"] for r in conn.execute(
+            "SELECT symbol FROM stock_signals WHERE trade_date = ? "
+            "AND ticket_ratio_1m_6m IS NULL", (d,)).fetchall()]
+    log.info("ticket-ratio latest fill: %s, %d symbols", d, len(syms))
+    n = 0
+    for k, sym in enumerate(syms, 1):
+        cutoff = _cutoff_date(d, 190)
+        with get_conn() as conn:
+            rows = conn.execute(
+                """SELECT trade_date, value, num_trades FROM bhavcopy_rows
+                   WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
+                     AND trade_date <= ? AND trade_date >= ? ORDER BY trade_date ASC""",
+                (sym, d, cutoff)).fetchall()
+            if not rows or rows[-1]["trade_date"] != d:
+                continue
+            dates = [r["trade_date"] for r in rows]
+            vals = [r["value"] for r in rows]
+            nts = [r["num_trades"] for r in rows]
+            none_l = [None] * len(rows)
+            cm = _character_metrics(dates, none_l, none_l, nts, none_l,
+                                    [0] * len(rows), vals, len(rows) - 1)
+            tk = cm["ticket_ratio_1m_6m"]
+            if tk is not None:
+                conn.execute("UPDATE stock_signals SET ticket_ratio_1m_6m = ? "
+                             "WHERE symbol = ? AND trade_date = ?", (tk, sym, d))
+                n += 1
+        if k % 300 == 0:
+            log.info("  ticket fill: %d/%d", k, len(syms))
+    log.info("ticket-ratio latest fill done: %d rows updated", n)
+    return n
+
+
 if __name__ == "__main__":
-    main()
+    import sys as _sys
+    if "--fill-ticket-latest" in _sys.argv:
+        backfill_ticket_ratio_latest()
+    else:
+        main()

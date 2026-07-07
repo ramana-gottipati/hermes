@@ -18,7 +18,8 @@ import re
 from src.web import glossary as G
 
 # pages to enhance: `active` lens key -> localStorage namespace
-_PAGES = {"stocks": "tc_stocks"}
+# (stealth is the same shared table rendered under its own lens key — S83c)
+_PAGES = {"stocks": "tc_stocks", "stealth": "tc_stealth"}
 
 # header text -> glossary term, where the visible label is too terse to resolve.
 # Everything else resolves via G.gloss(header_text) or degrades to a plain label
@@ -40,6 +41,7 @@ _HDR_KEYS = {
     "dvpt ₹": "DVPT",
     "pow3m cr": "power_dvpt_3m",
     "churn": "trade_count_ratio_1m_6m",
+    "ticket": "ticket_ratio_1m_6m",
     "key3m": "key_price_p3m",
     "gap3m": "gap_to_key_p3m",
     "key6m": "key_price_p6m",

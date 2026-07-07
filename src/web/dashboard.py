@@ -1322,7 +1322,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                               s.is_ath_dvpt ath, s.price_vs_hot_avg_pct pvh,
                               s.next_p_above nextp, s.gap_to_next_p_pct gap, b.close,
                               s.accum_character ch, s.delivery_value_today dvt,
-                              s.trade_count_ratio_1m_6m tcr,
+                              s.trade_count_ratio_1m_6m tcr, s.ticket_ratio_1m_6m tkr,
                               s.delivery_value_per_trade dvpt,
                               s.power_dvpt_1m p1, s.power_dvpt_3m p3,
                               s.power_dvpt_6m p6, s.power_dvpt_12m p12,
@@ -1505,6 +1505,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                 f'<td class="mut">{_nfx(r["dvpt"],0)}</td>'
                 f'<td class="mut">{pow3_cr}</td>'
                 f'<td class="mut">{_nfx(r["tcr"],2)}</td>'
+                f'<td class="mut">{_nfx(r["tkr"],2)}</td>'
                 f'<td>{_kpf(r["kp3"])}</td>' + _gapx(r["gk3"])
                 + f'<td>{_kpf(r["kp6"])}</td>' + _gapx(r["gk6"]))
             trs.append(
@@ -1535,6 +1536,7 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
                      '<th data-tcoff>RS#</th><th data-tcoff>RS·brd</th><th data-tcoff>RS·sec</th>'
                      '<th data-tcoff>52w-hi</th><th data-tcoff>Drift3m</th><th data-tcoff>Up/Dn3m</th>'
                      '<th data-tcoff>DVPT ₹</th><th data-tcoff>Pow3m Cr</th><th data-tcoff>Churn</th>'
+                     '<th data-tcoff>Ticket</th>'
                      '<th data-tcoff>Key3m</th><th data-tcoff>Gap3m</th><th data-tcoff>Key6m</th>'
                      '<th data-tcoff>Gap6m</th></tr></thead>'
                      f'<tbody>{"".join(trs)}</tbody></table></div>')
@@ -1619,6 +1621,7 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
                           s.delivery_value_today dvt, s.pct_from_52w_high hh
                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                     AND b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL)
                    {_SCAN_FILTERS}
                    ORDER BY COALESCE(s.p_score,-1) DESC,
                             COALESCE(s.delivery_value_today,0) DESC
@@ -1743,6 +1746,7 @@ def dash_screener(scope: str = Query("Nifty 500"),
                    FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date)
                    LEFT JOIN mep_signals m ON m.symbol=s.symbol AND m.trade_date=s.trade_date
                    WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL
+                     AND b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL)
                    {_SCAN_FILTERS}{scope_clause}
                    ORDER BY conv DESC, COALESCE(s.p_score,-1) DESC,
                             COALESCE(s.delivery_value_today,0) DESC
@@ -6163,7 +6167,11 @@ def dash_stock(sym: str = Query("", max_length=20),
                    else "concentrated (few hands)" if (tcr is not None and tcr <= 1.1)
                    else "steady" if tcr is not None else "—")
         dvr = L.get("deliv_value_ratio_1m_6m")
-        ticket = (dvr / tcr) if (dvr is not None and tcr and tcr > 0) else None
+        # N3: prefer the stored traded-value ticket ratio (the D89 survivor construct);
+        # fall back to the delivered-value proxy for pre-column history rows.
+        tk_real = L.get("ticket_ratio_1m_6m")
+        ticket = tk_real if tk_real is not None else (
+            (dvr / tcr) if (dvr is not None and tcr and tcr > 0) else None)
         ticket_txt = ("rising" if (ticket is not None and ticket >= 1.1)
                       else "falling" if (ticket is not None and ticket <= 0.9)
                       else "flat" if ticket is not None else "—")

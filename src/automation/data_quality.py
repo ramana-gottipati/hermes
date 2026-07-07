@@ -438,6 +438,27 @@ def chk_derived_liveness(c) -> dict:
     return _check("liveness.derived", SEV_OK, 0, f"derived tables + corp-actions track bhav {bmax}")
 
 
+def chk_t2t_universe(c) -> dict:
+    """X-02 disclosure (S83c): delivery-based measures read series='EQ' only, so names under
+    trade-to-trade surveillance (BE/BZ — delivery 100% by settlement rule) are EXCLUDED, not
+    polluted. This check publishes the excluded mass so the honesty note stays a live number;
+    it never fails — a large T2T cohort is market state, not a defect."""
+    if not _table_exists(c, "bhavcopy_rows"):
+        return _check("delivery.t2t_excluded", SEV_OK, 0, "bhavcopy absent")
+    bmax = c.execute("SELECT MAX(trade_date) FROM bhavcopy_rows").fetchone()[0]
+    if not bmax:
+        return _check("delivery.t2t_excluded", SEV_OK, 0, "bhavcopy empty")
+    today_n = c.execute(
+        "SELECT COUNT(*) FROM bhavcopy_rows WHERE trade_date=? AND series IN ('BE','BZ')",
+        (bmax,)).fetchone()[0]
+    yr = c.execute(
+        "SELECT COUNT(*), COUNT(DISTINCT symbol) FROM bhavcopy_rows "
+        "WHERE trade_date>=date(?, '-365 day') AND series IN ('BE','BZ')", (bmax,)).fetchone()
+    return _check("delivery.t2t_excluded", SEV_OK, today_n,
+                  f"T2T/BE excluded from delivery signals BY DESIGN: {today_n} names on {bmax}; "
+                  f"{yr[0]} symbol-days / {yr[1]} names last 365d (X-02 honesty number)")
+
+
 # ── run all ───────────────────────────────────────────────────────────────────
 def run(conn=None, *, persist: bool = True) -> dict:
     """Run the full battery. Returns {status, n_critical, n_warn, checks:[...]}.
@@ -456,6 +477,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_market_freshness, (c,)), (chk_regime_guard, (c,)),
             (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
             (chk_derived_liveness, (c,)), (chk_index_name_variants, (c,)),
+            (chk_t2t_universe, (c,)),
             (chk_restatement_spike, (r,)),
         ]
         for fn, fargs in plan:

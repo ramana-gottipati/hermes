@@ -1377,6 +1377,28 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 83c — 2026-07-07 — Season week-1 wave 1: X-02 verified+closed, N3 ticket ratio live, quick wins
+- **X-02 RE-SCOPED BY EVIDENCE (the postmortem claim was too wide):** signals.py, mep_signals.py,
+  mtf_signals.py, research `_SERIES_FILTER`, and Pat's `prices_eq` view were ALL already EQ-only;
+  live DB shows ZERO duplicate (symbol,trade_date) keys — so delivery signals were never polluted;
+  T2T names are EXCLUDED (786 names / 50,538 symbol-days last 365d). Shipped: belt-and-braces
+  `b.series='EQ'` predicates on the 2 web joins (dashboard.py workbench + stocks scan), a standing
+  DQ honesty number (`chk_t2t_universe` in data_quality.py — publishes the excluded mass nightly),
+  and a glossary "T2T/BE exclusion" note. Residual X-02b (post-season): EQ-consistency decision for
+  the price-only stragglers (cpr/wolfe/oscillators/cci/ignition/fno read all series).
+- **N3/X-01 ticket_ratio_1m_6m LIVE end-to-end:** computed in `_character_metrics` (ratio of sums,
+  Σvalue/Σtrades 1m vs 6m, rupee-based #5), `_ensure_column` migration, nightly via _SIGNAL_COLS +
+  batch-backfill path, one-off latest-date fill (`signals.py --fill-ticket-latest`; 2,386 symbols,
+  mean 1.031, range 0.08–13.96), Screen+ 'Ticket' column (context·character group, colspan 5),
+  /dash/stocks + stealth 'Ticket' data-tcoff column, dossier WHO-line prefers the stored column
+  (proxy fallback), glossary entry (+ the dangling Churn popover fixed free). All curl-verified
+  live incl. the `?` popover resolving.
+- **Quick wins:** `stealth` added to `table_controls._PAGES` (chips+gloss verified live) ·
+  war-room upcoming calendar upgraded to the weekday-aligned 2×5 HEAT-STRIP (cell tint = evening
+  load, 11 tinted cells live; flat-list fallback wrapped in try/except).
+- Deploy: md5 fork-check (only CRLF-noise diffs), LF-normalized scp, py_compile+import gates,
+  writer-safe api restart. dashboard.py was clean vs HEAD (the historic fork has healed).
+
 ### Session 83b — 2026-07-07 — T-2 season-integrity list EXECUTED (the review's §4 calendar, pre-Jul-09 block)
 All seven items, live-verified on the VPS at ~01:15 UTC (safe window, no timers near):
 - **AUD-26 paging LIVE (partial→doc):** `hermes-alert@.service` + `scripts/alert-telegram.sh` + `95-onfailure.conf`

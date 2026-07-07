@@ -650,6 +650,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                                s.power_dvpt_1m p1, s.power_dvpt_2m p2, s.power_dvpt_3m p3,
                                s.power_dvpt_6m p6, s.power_dvpt_12m p12,
                                s.trade_count_ratio_1m_6m tcr,
+                               s.ticket_ratio_1m_6m tkr,
                                s.deliv_updown_ratio_3m duo,
                                {conv} conv,
                                m.mep_score_smooth mep_ph, m.mep_state_smooth mep_st
@@ -777,6 +778,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             # context — LEADS with the character triglyph (WHO·WAY·CTX → accum/dist read)
             f'<td class="inst l cg-ctx" data-v="{r.get("hh") if r.get("hh") is not None else -999}">{triglyph}</td>'
             f'<td class="num cg-ctx" data-v="{r.get("su1") or 0}">{_num(r.get("su1"),2)}</td>'
+            f'<td class="num cg-ctx" data-v="{r.get("tkr") or 0}">{_num(r.get("tkr"),2)}</td>'
             # CL-VIEW-16: guard 0.0 (at the 52w high) so it doesn't sort as missing.
             f'<td class="num cg-ctx" data-v="{r.get("hh") if r.get("hh") is not None else -999}">{_pct(r.get("hh"))}</td>'
             f'<td class="l cg-ctx mut" data-v="{K.esc(r.get("ch") or "")}">{K.esc((r.get("ch") or "—"))}</td>'
@@ -795,7 +797,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         '<th class="cg-wol s2gh" colspan="2">wolfe</th>'
         '<th class="cg-qual s2gh" colspan="2">quality · pt14</th>'
         '<th class="cg-ca s2gh" colspan="2">cap-alloc · C</th>'
-        '<th class="cg-ctx s2gh" colspan="4">context · character</th></tr>')
+        '<th class="cg-ctx s2gh" colspan="5">context · character</th></tr>')
     cols = ['Symbol', 'Sector', 'CMP', 'Confl',
             'DVPT vs power', 'Rank', 'P', 'R', '×1m', 'Dlv%',
             'Accum', 'Phase', 'State',
@@ -805,7 +807,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             'Wolfe', 'Q',
             'NS', 'pt14',
             'C', 'C tier',
-            'Character', 'Surge', '%52wH', 'Char']
+            'Character', 'Surge', 'Ticket', '%52wH', 'Char']
     col_groups = ['', '', '', 'cg-conf',
                   'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos',
                   'cg-mep', 'cg-mep', 'cg-mep',
@@ -815,7 +817,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                   'cg-wol', 'cg-wol',
                   'cg-qual', 'cg-qual',
                   'cg-ca', 'cg-ca',
-                  'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
+                  'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
     # glossary key per column (aligned to `cols`) — `?` hover-help via the wired glossary.
     # Verified against docs/metrics-glossary.md: only terms that resolve to the CORRECT
     # definition are wired; '' = plain label (undocumented OR would mis-resolve, e.g. the
@@ -830,7 +832,8 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                  '', '',                                              # wolfe (undocumented)
                  'ns_base', 'ns_base',                                # quality · pt14
                  'ca_score', 'ca_tier',                               # capital allocation · C
-                 'accum_character', 'surge 1m', 'pct_from_52w_high', 'accum_character']  # context
+                 'accum_character', 'surge 1m', 'ticket_ratio_1m_6m',
+                 'pct_from_52w_high', 'accum_character']  # context
     col_band = '<tr class="col">' + "".join(
         f'<th class="{("sym" if i==0 else "")} {g}" data-c="{i}" data-label="{K.esc(c)}">'
         f'{G.gloss(t, c) if t else K.esc(c)}</th>'

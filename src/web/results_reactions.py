@@ -196,20 +196,50 @@ def _render_upcoming(rows):
     bydate = {}
     for md, sym, _pu in rows:
         bydate.setdefault(md, []).append(sym)
-    out = ['<div class="up"><div class="uph">📅 Upcoming results — next 14 days '
-           '<span style="color:var(--ink-3);font-weight:400">(NSE board-meeting calendar · who reports next)</span>'
-           '</div>']
-    for md, syms in bydate.items():
-        try:
-            lbl = _dt.date.fromisoformat(md).strftime("%a %d %b")
-        except ValueError:
-            lbl = md
-        chips = " ".join(f'<a class="ups" href="/dash/stock?symbol={_esc(s)}">{_esc(s)}</a>'
-                         for s in syms[:16])
-        more = f' <span class="more">+{len(syms)-16} more</span>' if len(syms) > 16 else ""
-        out.append(f'<div class="uprow"><span class="upd">{lbl}</span><span>{chips}{more}</span></div>')
-    out.append('</div>')
-    return "".join(out)
+    # S83c heat-strip: weekday-aligned 2×5 grid, cell tint scaled by count — "which evening
+    # is heavy" at a glance (the read that matters for same-evening MTTR during season).
+    try:
+        days, d = [], _dt.date.today()
+        while len(days) < 10:
+            if d.weekday() < 5:
+                days.append(d)
+            d += _dt.timedelta(days=1)
+        peak = max((len(v) for v in bydate.values()), default=1) or 1
+        cells = []
+        for d in days:
+            syms = bydate.get(d.isoformat(), [])
+            n = len(syms)
+            alpha = (0.05 + 0.30 * (n / peak)) if n else 0.0
+            chips = " ".join(f'<a class="ups" href="/dash/stock?symbol={_esc(s)}">{_esc(s)}</a>'
+                             for s in syms[:6])
+            more = f' <span class="more">+{n - 6}</span>' if n > 6 else ""
+            cells.append(
+                f'<td style="vertical-align:top;padding:6px 8px;border:1px solid var(--bg-3);'
+                f'background:rgba(177,140,255,{alpha:.2f});min-width:108px;width:20%">'
+                f'<div class="upd">{d.strftime("%a %d %b")}'
+                f'{f" <b>{n}</b>" if n else ""}</div>'
+                f'<div style="margin-top:3px;line-height:2.0">{chips}{more}</div></td>')
+        grid = ('<table style="border-collapse:collapse;width:100%"><tr>'
+                + "".join(cells[:5]) + '</tr><tr>' + "".join(cells[5:]) + '</tr></table>')
+        return ('<div class="up"><div class="uph">📅 Upcoming results — next 14 days '
+                '<span style="color:var(--ink-3);font-weight:400">(NSE board-meeting calendar · '
+                'cell tint = how heavy that evening is)</span></div>' + grid + '</div>')
+    except Exception:
+        # degrade to the flat per-date list — never break the war room over a visual
+        out = ['<div class="up"><div class="uph">📅 Upcoming results — next 14 days '
+               '<span style="color:var(--ink-3);font-weight:400">(NSE board-meeting calendar · who reports next)</span>'
+               '</div>']
+        for md, syms in bydate.items():
+            try:
+                lbl = _dt.date.fromisoformat(md).strftime("%a %d %b")
+            except ValueError:
+                lbl = md
+            chips = " ".join(f'<a class="ups" href="/dash/stock?symbol={_esc(s)}">{_esc(s)}</a>'
+                             for s in syms[:16])
+            more = f' <span class="more">+{len(syms)-16} more</span>' if len(syms) > 16 else ""
+            out.append(f'<div class="uprow"><span class="upd">{lbl}</span><span>{chips}{more}</span></div>')
+        out.append('</div>')
+        return "".join(out)
 
 
 @router.get("/dash/results-reactions", response_class=HTMLResponse)

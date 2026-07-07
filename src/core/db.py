@@ -1149,6 +1149,9 @@ def _init_ddl() -> None:
         #   CONTEXT   — pct_from_52w_high (near highs vs in a base)
         _ensure_column(conn, "stock_signals", "deliv_value_ratio_1m_6m", "REAL")
         _ensure_column(conn, "stock_signals", "trade_count_ratio_1m_6m", "REAL")
+        # N3/X-01 (S83c): rupee ticket-size velocity — (Σvalue/Σtrades) 1m vs 6m.
+        # Descriptive-only (D89 survivor δ +0.329/+0.250; detector gate FAILED 1/4).
+        _ensure_column(conn, "stock_signals", "ticket_ratio_1m_6m",      "REAL")
         _ensure_column(conn, "stock_signals", "avg_deliv_pct_1m",        "REAL")
         _ensure_column(conn, "stock_signals", "avg_deliv_pct_6m",        "REAL")
         _ensure_column(conn, "stock_signals", "deliv_updown_ratio_3m",   "REAL")
