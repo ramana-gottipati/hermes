@@ -1421,7 +1421,9 @@ months (old nsearchives CSVs 404 permanently), is live end-to-end (`9d354b0`).
   exclusion · table_census · SHP lag calibration (~Jul-21) · adjust.py-vs-tape factor reconciliation
   (new follow-up: cross-validate inferred split factors against the authoritative tape).
 
-### Session 83e — 2026-07-07/08 — Season weeks-3-4: THREE pre-registered studies (all NULL, placebo-caught), CAR fan live, M-05/M-03
+### Session 83f — 2026-07-07/08 — Season weeks-3-4: THREE pre-registered studies (all NULL, placebo-caught), CAR fan live, M-05/M-03
+<!-- renumbered from S83e at wrap: a parallel lane claimed S83e (corporate_actions resurrection) minutes earlier -->
+
 - **Three pre-registered event studies RAN — all three published NULLS** (full numbers:
   `docs/strategy-ledger.md § Studies 2026-07-08`; sheets on `/dash/spec-sheets`, now 6 studies):
   **E-03 insider drift** — value-Q4 CAR60 +8.26% (t 2.87) KILLED by the placebo (null p95 +9.52%;
