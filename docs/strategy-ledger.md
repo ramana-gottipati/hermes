@@ -306,6 +306,27 @@ Experiment 2026-07-05c below. C-BLEND stays a descriptive/paper overlay; the *fu
 
 ---
 
+## Studies 2026-07-08 — three pre-registered event studies: ALL NULL (the placebo harness kills two would-be lenses) (S83e)
+
+Modules (gate in each docstring BEFORE the run; JSONs in `research/explosive_moves/out/`):
+`insider_drift.py` · `filing_latency.py` · `concall_intent.py` — all on `evlib` (M-01), with the
+M-02 shuffled-date placebo (n=200, seed 42) or label-permutation (500 perms) as pre-registered.
+
+| Study | The headline that WOULD have shipped | Why it is NULL (blocking numbers) |
+|---|---|---|
+| **E-03 insider disclosure drift** (460 post-AUD-08 conviction clusters <5% eq · 247 usable · entry = first disclosure + lag) | value-Q4 CAR60 **+8.26%** (n=66, plain t 2.87); ALL +7.90% (t 4.60) | **Placebo p95 +9.52% > observed** (null mean +3.38%, inflation 0.87×, emp-p 0.085); t_cohort NaN — the feed is ~10 months deep → 2-3 quarterly cohorts, no clustered inference possible. The "drift" is the hot 2025-26 tape those buys sit in, not the disclosure. NO insider-drift lens ships. Re-attempt needs ≥8 quarterly cohorts of feed depth AND a placebo-clearing observed mean. |
+| **Filing-latency tell** (1,924 scored events, ≥3 prior filings, late_score vs own trailing median) | late-Q5 filers carry the WEAKEST surprises (mean SUE 0.77 vs early-Q1 1.04) — the "hiding something" folk story is directionally REAL in the fundamentals | …but not in returns: Q5−Q1 CAR60 gap **−0.81%**, union t_cohort −0.84, inside the label-permutation band (\|gap\| p95 2.51%). Lateness predicts surprise MIX, not drift. NO war-room flag ships. |
+| **Concall growth-intent walk-forward** (9,461 (call,type) events on real `concall_dt`, 2015→2026) | six types pass t_cohort ≥ 2 + same-sign halves: debt_reduction **+3.52%** (t 2.43) · capex +3.07% (t 2.70) · revenue +1.70% (t 2.57) · demand_outlook +1.90% (t 2.23) · other · new_product | **Placebo (largest passing type, per pre-reg): observed +1.90% vs null mean +2.75% / p95 +3.66%** — inflation 0.52×, emp-p 0.925: random windows of the SAME covered names drift MORE than post-call windows. Every passing type's mean sits inside that null band (even debt_reduction's +3.52% < p95 +3.66%). The old month-granular panel tilts (debt_reduction +2.8% etc.) are hereby recorded **not reproducible on real dates** — covered-universe beta, not content edge. Guidance stays a candor/promise DESCRIPTIVE axis; no content chip ships as an edge. |
+
+Class rules these nulls add: (1) an event study whose cohorts concentrate in <8 quarters cannot
+claim cohort-clustered significance — E-03's `t_cohort=NaN` is the tell, not a formality; (2)
+**"covered-name drift" is the null that kills content-conditioned concall claims** — always placebo
+against random windows of the same names; (3) a directionally-true fundamentals story (late→weak
+surprise) is not a returns story. KPI: pre-registered studies this quarter now 6 (target ≥4),
+100% ledgered.
+
+---
+
 ## Experiment 2026-07-05c — C-BLEND cost-reality re-cut (DONE — champion NOT fundable; the 1.32 is flat-cost-only)
 
 The recorded champion (Experiment 2026-07-03) — **C-BLEND 50/50, net Sharpe 1.32 / MaxDD −28.2% / Calmar

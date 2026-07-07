@@ -169,6 +169,53 @@ def reaction_row(ss, ev: dict, idx_dates, idx_map) -> dict | None:
             "is_settled": entry + 60 < ss.n}
 
 
+def _event_car_path(e: dict, idx_dates, idx_map, hold: int = 60) -> list | None:
+    """Rebuild an event's CAR path (entry→entry+hold) from the stored stock_rets +
+    dates_path that tape_features carries — no re-fetch. None if index gaps."""
+    il0 = pead.idx_level_asof(idx_dates, idx_map, e["entry_date"])
+    if not (il0 == il0 and il0 > 0):
+        return None
+    cs, out = 1.0, []
+    for r, d in zip(e.get("stock_rets") or [], e.get("dates_path") or []):
+        if len(out) >= hold:
+            break
+        cs *= (1.0 + r)
+        il = pead.idx_level_asof(idx_dates, idx_map, d)
+        if not (il == il and il > 0):
+            return None
+        out.append(cs / (il / il0) - 1.0)
+    return out if len(out) >= 40 else None
+
+
+def cohort_car_fan(settled: list[dict], idx_dates, idx_map,
+                   sue_hi: float, dlv_hi: float) -> dict:
+    """S83e CAR-fan payload: per cell, the per-step mean + IQR band over the SETTLED
+    population (the 14y base rates the board's table cites). Cells: the confirmed
+    corner, its thin-delivery sibling, misses, and ALL. Bounded: 4 cells x 3 x 61
+    floats. Pure compute; the caller stores it as one meta JSON."""
+    def _cell(sel, need=50):
+        paths = []
+        for e in sel:
+            p = _event_car_path(e, idx_dates, idx_map)
+            if p:
+                paths.append(p + [p[-1]] * (60 - len(p)))     # pad truncated tails flat
+        if len(paths) < need:
+            return None
+        arr = np.array([p[:60] for p in paths])
+        return {"n": int(arr.shape[0]),
+                "mean": [round(float(x), 5) for x in arr.mean(axis=0)],
+                "p25": [round(float(x), 5) for x in np.percentile(arr, 25, axis=0)],
+                "p75": [round(float(x), 5) for x in np.percentile(arr, 75, axis=0)]}
+    hi_s = [e for e in settled if (e.get("sue") or 0) >= sue_hi]
+    out = {
+        "confirmed": _cell([e for e in hi_s if (e.get("deliv_x") or 0) >= dlv_hi]),
+        "thin_deliv": _cell([e for e in hi_s if (e.get("deliv_x") or 0) < dlv_hi]),
+        "miss": _cell([e for e in settled if e.get("sue") is not None and e["sue"] <= 0]),
+        "all": _cell(settled, need=200),
+    }
+    return {k: v for k, v in out.items() if v}
+
+
 def _breakpoints(events: list[dict]) -> tuple[float, float]:
     """Descriptive population breakpoints: SUE 80th pctile (top quintile), delivery 2/3 pctile
     (top tercile) — the same cut the 2026-07-05 study used to define its cells."""
@@ -196,6 +243,18 @@ def write_snapshot(days_back: int = 180, db_path: str = RESEARCH_DB) -> int:
     settled, idx_dates, idx_map = pead.build_events(hcon, rcon, progress=True)
     sue_hi, dlv_hi = _breakpoints(settled)
     print(f"breakpoints: SUE p80={sue_hi:.3f}  deliv p67={dlv_hi:.3f}  (n_settled={len(settled)})", flush=True)
+    # S83e CAR fan — additive + failure-isolated: the board's table must never suffer
+    # for a visual. Bounded payload (≤4 cells × 3 × 61 floats) into one meta key.
+    fan_json = None
+    try:
+        import json as _json
+        fan = cohort_car_fan(settled, idx_dates, idx_map, sue_hi, dlv_hi)
+        if fan:
+            fan_json = _json.dumps(fan)
+            print(f"car fan: cells={list(fan)} "
+                  f"n_confirmed={fan.get('confirmed', {}).get('n')}", flush=True)
+    except Exception as _e:                                    # noqa: BLE001
+        print(f"car fan skipped: {type(_e).__name__}: {_e}", flush=True)
     real = pead.load_real_dates(hcon)
     np_map = pead.load_np(rcon)
     rcon.close()
@@ -256,6 +315,9 @@ def write_snapshot(days_back: int = 180, db_path: str = RESEARCH_DB) -> int:
                  ("tape_max_trade_date", tape_max), ("tape_weekday_lag", str(tape_lag)),
                  ("generated_at", datetime.now().strftime("%Y-%m-%d %H:%M"))):
         con.execute("INSERT OR REPLACE INTO results_reactions_meta VALUES (?,?)", (k, v))
+    if fan_json:
+        con.execute("INSERT OR REPLACE INTO results_reactions_meta VALUES (?,?)",
+                    ("car_fan", fan_json))
     con.commit()
     con.close()
     print(f"wrote results_reactions: {len(rows)} recent rows (cutoff {cutoff}); "
@@ -344,6 +406,16 @@ def selftest() -> None:
     assert summarize([])["n"] == 0
     assert "no PIT results events" in render("XX", [])
     assert "results reactions" in render("DIXON", evs)
+    # S83e car-fan path math: constant index -> CAR path = cumulative stock return
+    fake_idx_dates = [f"2024-01-{d:02d}" for d in range(1, 30)]
+    fake_idx_map = {d: 100.0 for d in fake_idx_dates}
+    ev_fan = {"entry_date": "2024-01-02",
+              "stock_rets": [0.01] * 45, "dates_path": fake_idx_dates[1:2] * 45}
+    p = _event_car_path(ev_fan, fake_idx_dates, fake_idx_map)
+    assert p is not None and abs(p[0] - 0.01) < 1e-9 and p[-1] > p[0]
+    assert _event_car_path({"entry_date": "2024-01-02", "stock_rets": [0.01] * 10,
+                            "dates_path": fake_idx_dates[1:11]},
+                           fake_idx_dates, fake_idx_map) is None      # <40 rows -> None
     # AUD-29 weekday-lag arithmetic: Fri->Tue crosses Mon+Tue = 2; same-day = 0; garbage = 99
     assert _weekday_lag("2026-07-03", date(2026, 7, 7)) == 2
     assert _weekday_lag("2026-07-07", date(2026, 7, 7)) == 0

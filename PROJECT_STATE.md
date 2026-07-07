@@ -1421,6 +1421,32 @@ months (old nsearchives CSVs 404 permanently), is live end-to-end (`9d354b0`).
   exclusion · table_census · SHP lag calibration (~Jul-21) · adjust.py-vs-tape factor reconciliation
   (new follow-up: cross-validate inferred split factors against the authoritative tape).
 
+### Session 83e — 2026-07-07/08 — Season weeks-3-4: THREE pre-registered studies (all NULL, placebo-caught), CAR fan live, M-05/M-03
+- **Three pre-registered event studies RAN — all three published NULLS** (full numbers:
+  `docs/strategy-ledger.md § Studies 2026-07-08`; sheets on `/dash/spec-sheets`, now 6 studies):
+  **E-03 insider drift** — value-Q4 CAR60 +8.26% (t 2.87) KILLED by the placebo (null p95 +9.52%;
+  hot-tape artifact; feed too shallow for cohort inference). **Filing-latency** — late filers DO
+  carry weaker surprises (SUE 0.77 vs 1.04, the folk story is real in fundamentals) but no drift
+  (gap −0.81% inside the ±2.51% permutation band). **Concall growth-intent walk-forward** — 9,461
+  real-dated events; six types pass t+halves and the placebo unmasks ALL of it as covered-name
+  beta (random windows of the same names drift +2.75%, p95 +3.66% > every observed type mean);
+  the old panel tilts recorded not-reproducible-on-real-dates. **M-02 earned its existence on day
+  two — two plausible lenses would have shipped without it.** KPI: 6 pre-registered studies this
+  quarter (target ≥4), 100% ledgered. New modules: `insider_drift.py`, `filing_latency.py`,
+  `concall_intent.py`; `evlib` gained `cohort_t()` + the M-03 DSR/PBO re-exports.
+- **CAR fan LIVE on the war room** (viz #1; its X-02 gate was satisfied by the S83c evidence):
+  `pead_surface.cohort_car_fan` (additive, failure-isolated, bounded ~7KB meta) + server-SVG in
+  the view — 14y cohort mean+IQR paths (confirmed n=572 / thin-delivery / miss / all) with this
+  season's fresh reporters as +22d dots and the falsification line PRINTED ON THE CHART.
+- **M-05 standing-caveats box** live on spec-sheets (44.1% tape-mass unjoinable · 1,706/1,722
+  delisted dark · 2004-07-23 left-censor); **M-03** = evlib re-export (factory auto-wiring = next
+  factory session, recorded). **P-04 assembly has begun** in place: the spec-sheets page now
+  carries 6 gated studies + placebo + MTTR + standing caveats — the evidence-pack core accrues
+  there; the PDF assembly is the end-July step.
+- Ops: surveillance day-2 fire clean (14 band-change events captured); snapshot re-ran with the
+  fan; transient study runner cleaned. ⚠ Tonight's 21:00 UTC provenance fire (the 7-col crash
+  fix's first scheduled test) was pending at wrap — it pages if it fails.
+
 ### Session 83d — 2026-07-07 — Season week-2: spec-sheets live, evlib+placebo, trust-claim fixes, charter v1.1, hygiene
 - **P-03 SHIPPED — `/dash/spec-sheets` (Trust lens, `spec_sheets.py`):** the pre-registration ledger
   as a surface — 3 sheets (PEAD lens-confirmed/book-falsified · footprint gate-FAIL · Wolfe-bull

@@ -146,6 +146,83 @@ def _tape_lag(meta):
     return mx, lag
 
 
+def _car_fan_svg(meta, fresh_rows):
+    """S83e: the event-time CAR fan — cohort mean paths + IQR band over the 14y settled
+    population (from the snapshot's bounded `car_fan` meta), with this season's fresh
+    reporters as dots at their +22d mark. Server-SVG, zero JS. The falsification line
+    is printed ON the chart so the visual can never be mistaken for a strategy."""
+    import json as _json
+    try:
+        fan = _json.loads(meta.get("car_fan") or "")
+    except (ValueError, TypeError):
+        return ""
+    if not fan.get("confirmed"):
+        return ""
+    W, H, L, T = 860, 300, 46, 18
+    pw, ph = W - L - 14, H - T - 46
+    ys = []
+    for c in fan.values():
+        ys += c["p25"] + c["p75"] + c["mean"]
+    lo, hi = min(ys + [-0.02]), max(ys + [0.05])
+    span = (hi - lo) or 1.0
+
+    def X(i):
+        return L + pw * i / 59.0
+
+    def Y(v):
+        return T + ph * (1 - (v - lo) / span)
+
+    def poly(c):
+        up = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(c["p75"]))
+        dn = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in reversed(list(enumerate(c["p25"]))))
+        return up + " " + dn
+
+    def line(c, col, wdt, dash=""):
+        pts = " ".join(f"{X(i):.1f},{Y(v):.1f}" for i, v in enumerate(c["mean"]))
+        return (f'<polyline points="{pts}" fill="none" stroke="{col}" '
+                f'stroke-width="{wdt}"{dash}/>')
+
+    conf, alle = fan["confirmed"], fan.get("all")
+    parts = [f'<svg viewBox="0 0 {W} {H}" style="width:100%;max-width:{W}px;height:auto" '
+             'xmlns="http://www.w3.org/2000/svg" role="img" '
+             'aria-label="Event-time abnormal-return fan after results">']
+    for gv in (0.0, 0.05, 0.10):
+        if lo <= gv <= hi:
+            parts.append(f'<line x1="{L}" y1="{Y(gv):.1f}" x2="{W-14}" y2="{Y(gv):.1f}" '
+                         f'stroke="#2a3242" stroke-width="1"/>'
+                         f'<text x="{L-6}" y="{Y(gv)+4:.1f}" fill="#7e90a8" font-size="10" '
+                         f'text-anchor="end">{gv*100:+.0f}%</text>')
+    parts.append(f'<polygon points="{poly(conf)}" fill="rgba(177,140,255,.16)"/>')
+    if alle:
+        parts.append(line(alle, "#7e90a8", 1.4, ' stroke-dasharray="4 3"'))
+    if fan.get("thin_deliv"):
+        parts.append(line(fan["thin_deliv"], "#4d9dff", 1.6))
+    if fan.get("miss"):
+        parts.append(line(fan["miss"], "#ff6a7a", 1.4))
+    parts.append(line(conf, "#b18cff", 2.6))
+    dots = 0
+    for r in fresh_rows:
+        c22 = r.get("car22")
+        if c22 is None or r.get("settled") or dots >= 40:
+            continue
+        parts.append(f'<circle cx="{X(21):.1f}" cy="{Y(c22):.1f}" r="2.6" '
+                     f'fill="#f6b73c" opacity=".85"><title>{_esc(r["sym"])} +22d '
+                     f'{c22*100:+.1f}%</title></circle>')
+        dots += 1
+    for i in (0, 21, 59):
+        parts.append(f'<text x="{X(i):.1f}" y="{H-30}" fill="#7e90a8" font-size="10" '
+                     f'text-anchor="middle">+{i+1}d</text>')
+    parts.append(
+        f'<text x="{L}" y="{H-12}" fill="#7e90a8" font-size="10.5">'
+        f'▉ top-beat·deliv✓ mean+IQR (n={conf["n"]}) · ▬ thin-delivery · ▬ miss · ▬ all · '
+        f'● fresh reporters at +22d — realized history, not a forecast. '
+        f'The tradeable book on this drift FAILED (net Sharpe 0.10 vs index 0.85, hedged −0.58).'
+        f'</text></svg>')
+    return ('<div class="up"><div class="uph">📈 What historically followed — abnormal return '
+            'vs Nifty 500, day-by-day after results (14y settled population)</div>'
+            + "".join(parts) + '</div>')
+
+
 def _stale_banner(meta):
     tape_max, lag = _tape_lag(meta)
     if lag is None or lag < 1:
@@ -311,6 +388,7 @@ def results_reactions(view: str = Query("all")):
             f'<div class="kpi"><div class="n">{n_settled}</div><div class="l">settled (60d elapsed)</div></div>'
             '</div>',
             _render_upcoming(_upcoming(14)),
+            _car_fan_svg(meta, [{"sym": r[1], "car22": r[6], "settled": r[11]} for r in rows]),
             '<div class="tabs">'
             f'<a href="/dash/results-reactions" class="{"on" if not confirmed_only else ""}">All recent</a>'
             f'<a href="/dash/results-reactions?view=confirmed" class="{"on" if confirmed_only else ""}">'

@@ -59,6 +59,33 @@ sast_episodes = footprint.sast_episodes
 merge_episodes = footprint.merge_episodes
 window_features = footprint.window_features
 case_indices = footprint.case_indices
+# M-03: the Deflated-Sharpe + PBO stages, one import away for every study/factory run
+try:
+    from .attribution import deflated_sharpe, pbo_cscv          # noqa: F401
+except Exception:                                               # pragma: no cover
+    deflated_sharpe = pbo_cscv = None                           # scipy-less env degrades
+
+
+# ── shared cohort statistics (the bucket_table pattern, reusable) ─────────────
+
+def cohort_t(pairs: list, min_per_cohort: int = 5, min_cohorts: int = 4) -> dict:
+    """Cohort-clustered stats for [(t0, x), ...]: plain t + quarterly-cohort t
+    (mean of cohort means over their dispersion — the pead bucket_table pattern,
+    robust to same-quarter cross-correlation). NaNs dropped."""
+    xs = np.array([x for _t, x in pairs if x == x], dtype=float)
+    if len(xs) < 3:
+        return {"n": int(len(xs))}
+    t_plain = float(xs.mean() / (xs.std(ddof=1) / np.sqrt(len(xs))))
+    cm: dict[str, list[float]] = {}
+    for t0, x in pairs:
+        if x == x:
+            cm.setdefault(cohort_of(str(t0)), []).append(float(x))
+    cmeans = np.array([np.mean(v) for v in cm.values() if len(v) >= min_per_cohort])
+    t_c = (float(cmeans.mean() / (cmeans.std(ddof=1) / np.sqrt(len(cmeans))))
+           if len(cmeans) > min_cohorts - 1 else float("nan"))
+    return {"n": int(len(xs)), "mean": float(xs.mean()), "median": float(np.median(xs)),
+            "hit": float((xs > 0).mean()), "t": t_plain, "t_cohort": t_c,
+            "n_cohorts": int(len(cmeans))}
 
 
 # ── M-02: placebo-date machinery ──────────────────────────────────────────────
@@ -154,6 +181,12 @@ def selftest() -> None:
     # façade identity — the import surface IS pead/footprint, not a copy
     assert build_events is pead.build_events and car_path is pead.car_path
     assert window_features is footprint.window_features
+    # cohort_t: 8 quarters x 6 events of +1% -> huge t, zero dispersion handled by ddof guard
+    pairs = [(f"20{18 + q // 4}-{(q % 4) * 3 + 1:02d}-15", 0.01 + 0.001 * (i % 3))
+             for q in range(8) for i in range(6)]
+    ct = cohort_t(pairs)
+    assert ct["n"] == 48 and ct["n_cohorts"] == 8 and ct["mean"] > 0 and ct["t_cohort"] > 2
+    assert cohort_t([("2024-01-01", float("nan"))])["n"] == 0
     # placebo_stats arithmetic
     s = placebo_stats(0.08, [0.01, 0.02, -0.01, 0.00, 0.03])
     assert s["n_null"] == 5 and abs(s["observed"] - 0.08) < 1e-12

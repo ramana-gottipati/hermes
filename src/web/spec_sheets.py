@@ -119,6 +119,59 @@ _SHEETS = [
         "source": "docs/strategy-ledger.md § Study 2026-07-05b · research/explosive_moves/footprint.py",
     },
     {
+        "title": "Insider disclosure drift (E-03, post-public)",
+        "verdict": ("gate FAIL — placebo caught it", "v-fail", None, None),
+        "pre_reg": "2026-07-07 (module docstring before the run)",
+        "hypothesis": "Conviction promoter-buy clusters drift up after their first public "
+                      "disclosure (the pre-public window is structurally dead — SEBI T+2).",
+        "gate": "Top-value-quartile CAR60 t_cohort ≥ 2 AND observed clears the shuffled-date "
+                "placebo p95 (n=200, seed 42).",
+        "result": "The trap this page exists for: value-Q4 CAR60 <b class='num'>+8.26%</b> "
+                  "(n=66, plain t 2.87) — looks like a product. The placebo null's p95 is "
+                  "<b class='num'>+9.52%</b>: random windows of the same names drift just as "
+                  "hard (the 2025-26 tape). Inflation 0.87×, empirical p 0.085; cohort t is "
+                  "NaN because the feed is only ~10 months deep. NULL published.",
+        "ships": "Nothing. Re-attempt condition on record: ≥8 quarterly cohorts of feed depth "
+                 "and a placebo-clearing mean.",
+        "source": "docs/strategy-ledger.md § Studies 2026-07-08 · research/explosive_moves/insider_drift.py",
+    },
+    {
+        "title": "Filing-latency tell (late vs own norm)",
+        "verdict": ("gate FAIL — null published", "v-fail", None, None),
+        "pre_reg": "2026-07-07",
+        "hypothesis": "Filing later than one's own historical norm is a tell — lateness "
+                      "predicts bad surprises and negative drift.",
+        "gate": "|t_cohort(Q5−Q1 CAR60)| ≥ 2 AND |gap| > label-permutation p95 (500 perms).",
+        "result": "Half the folk story is real: the latest filers carry the weakest surprises "
+                  "(mean SUE <b class='num'>0.77</b> vs <b class='num'>1.04</b> for the "
+                  "earliest). But it does not price: CAR60 gap <b class='num'>−0.81%</b> "
+                  "(t_cohort −0.84), inside the ±2.51% permutation band. Lateness predicts "
+                  "surprise MIX, not tradeable drift.",
+        "ships": "Nothing — no war-room flag. The surprise-mix fact may inform reading, "
+                 "never a signal.",
+        "source": "docs/strategy-ledger.md § Studies 2026-07-08 · research/explosive_moves/filing_latency.py",
+    },
+    {
+        "title": "Concall growth-intent walk-forward (real call dates)",
+        "verdict": ("gate FAIL — covered-name beta", "v-fail", None, None),
+        "pre_reg": "2026-07-07; design correction recorded before the run (condition on "
+                   "statement PRESENCE at the call, not settlement)",
+        "hypothesis": "Calls pushing specific guidance content (debt reduction, capex, volume…) "
+                      "drift differently over the next 60 sessions — the old month-granular "
+                      "panel showed +2.8%/+2.3%/+1.5% tilts.",
+        "gate": "Per type (n≥100): t_cohort ≥ 2 AND same-sign halves AND the largest passing "
+                "type clears the date-shuffle placebo.",
+        "result": "9,461 real-dated events. Six types pass t+halves (debt_reduction "
+                  "<b class='num'>+3.52%</b> t 2.43; capex +3.07% t 2.70) — and the placebo "
+                  "unmasks all of it: random windows of the SAME covered names drift "
+                  "<b class='num'>+2.75%</b> (p95 <b class='num'>+3.66%</b>); the observed "
+                  "means sit inside the null band (inflation 0.52×, emp-p 0.925). The old "
+                  "panel tilts are recorded NOT reproducible on real dates.",
+        "ships": "Nothing as an edge. Guidance remains a candor / kept-promise DESCRIPTIVE "
+                 "axis (Gate B fence unchanged).",
+        "source": "docs/strategy-ledger.md § Studies 2026-07-08 · research/explosive_moves/concall_intent.py",
+    },
+    {
         "title": "Wolfe waves — geometry as a selection lens",
         "verdict": ("descriptive selection edge (BULL only)", "v-desc", "trade book FALSIFIED", "v-fail"),
         "pre_reg": "§A locked 2026-06-24 (rules), §C trade-mechanics tested 2026-06-25",
@@ -233,6 +286,15 @@ def spec_sheets():
             'ranking, or a return promise.</div>',
             _mttr_box(),
             _placebo_box(),
+            '<div class="live">📏 <b>Standing caveats (M-05)</b> — printed beside every claim, '
+            'not buried: <b class="num">44.1%</b> of the 22-year tape mass is unjoinable to '
+            'fundamentals (the delistings live exactly there); <b class="num">1,706 / 1,722</b> '
+            'delisted names are fundamentally dark; the price archive is left-censored at '
+            '<b class="num">2004-07-23</b> (773 names). Every fundamentals-conditioned lift is '
+            'therefore survivor-tilted — the survivor-vs-terminal re-cut (attribution.py §5) '
+            'measures the direction of that bias, and the Deflated-Sharpe / PBO stages (M-03) '
+            'are one import away in <code>evlib</code> for every study; factory auto-wiring '
+            'lands with the next factory run.</div>',
             "".join(_sheet_html(s) for s in _SHEETS),
             '<div class="note">Numbers are hand-carried from '
             '<code>docs/strategy-ledger.md</code> (the canonical record) and the machine '
