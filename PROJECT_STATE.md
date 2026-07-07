@@ -1394,6 +1394,54 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 83i — 2026-07-08 — Pat eval gate: 6 pre-existing misses fixed → battery 100% green + strict-by-default + nightly pager (AUD-40 follow-through)
+AUD-40 wired the Pat NL eval battery into a gate (`src/pat/eval_set.py --gate` + gate-0.5 in
+`scripts/regression_sweep.sh`) but it ran WARN-only against a known ~6-miss baseline. This session
+cleared the baseline (root-caused + fixed every one), made the gate environment-independent, flipped
+it to strict, and added a nightly enforcing timer. **Committed to `main` (paths below); Pat src files
+scp'd to the VPS + gate re-run there = 100% green on live data (ROUTE 64/64 · EXPLAIN 558/558 ·
+COMPILER 31/31 · HALLUCINATION 8/8 · ACCURACY 10/10).**
+- **The 6 misses — diagnosed, not silenced:**
+  1. **ROUTE `cheap stocks under PE 15` → `val:''` (wanted `deep`).** The compiler already maps a
+     `{valuation,<,15}` filter to the deep tier (its INTENT case passed) — but `parse_fallback`
+     never *extracted* "under PE 15" into a filter, so the ₹0 degraded path emitted bare
+     `metric:valuation` → default cheap. **Fix:** new `detect_pe_threshold()` (both orderings:
+     "under PE 15" / "PE over 80") in `understand.py`, wired into `_parse_fallback_inner` → emits the
+     valuation filter (and sets `metric=valuation` when otherwise unset).
+  2–3. **EXPLAIN `explain vs market` / `explain vs sector` → None.** `detect_compare`'s `_VS_RE`
+     read "explain vs market" as compare(EXPLAIN, MARKET), stealing it before the explain path (the
+     `what is…`/`what does…` templates already passed — only `explain X` collided). **Fix:** expanded
+     `detect_compare`'s stop-set with explain-lead words (EXPLAIN/DEFINE/WHAT/…) + non-ticker RHS
+     words (MARKET/SECTOR/NIFTY/INDEX/BROAD/PEERS).
+  4–6. **EXPLAIN `financials & the pt14 score — a known limitation` → None.** The only glossary term
+     >45 chars whose long part is NOT parenthetical (the eval strips parens, so the other 4 long
+     terms pass) — so `parse_fallback`'s `len(term)<=45` guard returned None before it could resolve.
+     **Fix:** renamed the term to the real term **`Financials & the pt14 score`** (the "known
+     limitation" caveat already lives in `plain`/`detail`); slug `financials_adaptation` unchanged →
+     zero external-ref breakage.
+- **Gate hardened (so strict-by-default is correct EVERYWHERE, not just where a file is absent):**
+  (a) the **CATALOG** eval is now PRINTED but NOT gated — it's a deterministic-FLOOR *coverage*
+  metric (141/202; many phrasings legitimately return None and defer to the live model), and it only
+  ever "passed" on the VPS because `docs/pat-question-catalog.md` is absent there; gating a by-design
+  <100% metric would wedge the gate on any dev checkout. Matches gate-0.5's stated battery
+  (compiler·route·explain·hallucination·accuracy). (b) the **ACCURACY** eval now treats a missing
+  table/column as a SKIP, not a FAIL — a feature's schema absent in THIS env (e.g. a partial dev DB
+  lacking `stock_oscillators`) can't be tested; a predicate violation is still the real signal.
+- **Enforcement:** `regression_sweep.sh` gate-0.5 flipped to **strict by default**
+  (`PATEVAL_STRICT` default 0→1; `PATEVAL_STRICT=0` remains a documented WARN-only escape hatch).
+  NEW nightly **`hermes-pateval.{service,timer}`** (08:15 UTC daily, `--gate`) +
+  `95-onfailure.conf` → `OnFailure=hermes-alert@%n` = the AUD-26 Telegram-DM pager (which HAS
+  landed — DM proven live 2026-07-07). Installed on the VPS, `daemon-reload`, manual service run =
+  green (Result=success), timer enabled + scheduled; units version-controlled in
+  `scripts/systemd/vps-live/`.
+- **NOT restarted:** hermes-api left running — a research writer (`explosive_moves.dividend_drift
+  --run`) held the DB at wrap (DB-lock-restart hazard). The gate/timer import the new files fresh
+  from disk (green now); live Pat picks up the minor `understand.py`/`glossary.py` changes on its
+  next natural restart (fallback-path + one compare edge case + a glossary label — no live regression).
+- **Paths:** `src/pat/understand.py` · `src/pat/glossary.py` · `src/pat/eval_set.py` ·
+  `scripts/regression_sweep.sh` · `scripts/systemd/vps-live/hermes-pateval.{service,timer}` +
+  `hermes-pateval.service.d/95-onfailure.conf`.
+
 ### Session 83h — 2026-07-07/08 — ETF-in-EQ-series exclusion: instrument_class FUND/EQUITY live (data-perfection lane)
 The last routine data-perfection item from the postmortem (`2ebb229`). Evidence-first finding: the
 D42 equity-list idiom (`symbol IN nse_equity_list`) already keeps PRODUCT scans equity-only

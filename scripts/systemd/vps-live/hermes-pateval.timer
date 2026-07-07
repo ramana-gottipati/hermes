@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes Pat NL eval gate (daily)
+
+[Timer]
+# 08:15 UTC (13:45 IST) — a quiet window between the 07:02 concalls refresh and the 14:04
+# bhavcopy ingest, so the read-only accuracy eval runs clear of the heavy writers.
+OnCalendar=*-*-* 08:15:00
+# Persistent: if the box was down at 08:15, run late on next boot — a missed Pat-regression
+# check is worth catching. Cheap + idempotent (read-only over code + DB).
+Persistent=true
+Unit=hermes-pateval.service
+
+[Install]
+WantedBy=timers.target

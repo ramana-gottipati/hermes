@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes - Pat NL eval gate (routing / explain / hallucination + accuracy)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# AUD-40: the Pat eval battery run as a HARD gate — compiler · route · explain ·
+# hallucination (+accuracy on live data). ₹0, deterministic, no LLM/network. A non-zero
+# exit (any correctness eval regressed) fails the unit → OnFailure pages via hermes-alert@
+# (the AUD-26 Telegram DM path). The CATALOG coverage metric is printed but NOT gated.
+# Reproduce by hand:  cd /opt/hermes && PYTHONPATH=/opt/hermes .venv/bin/python -m src.pat.eval_set --gate
+ExecStart=/opt/hermes/.venv/bin/python -m src.pat.eval_set --gate
+StandardOutput=append:/var/log/hermes-pateval.log
+StandardError=append:/var/log/hermes-pateval.log

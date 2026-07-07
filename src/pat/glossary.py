@@ -813,7 +813,7 @@ GLOSSARY: dict[str, dict] = {
         "related": ["delivery_value", "dvpt"],
     },
     "financials_adaptation": {
-        "term": "Financials & the pt14 score — a known limitation",
+        "term": "Financials & the pt14 score",
         "family": "concepts",
         "unit": "—",
         "source": "analyst doctrine (manual Phase-4) — NOT the automated pt14 scorer",

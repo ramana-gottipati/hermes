@@ -760,7 +760,15 @@ def detect_compare(query: str):
         m = rx.search(query or "")
         if m:
             a, b = m.group(1).strip().upper(), m.group(2).strip().upper()
-            stop = {"AND", "VS", "THE", "A", "AN", "TO", "OF", "IT"}
+            stop = {"AND", "VS", "VERSUS", "THE", "A", "AN", "TO", "OF", "IT", "IN", "ON",
+                    # explain-lead / definition words — so "explain vs market" is NOT read
+                    # as a compare of EXPLAIN vs MARKET (AUD-40 eval miss; the glossary
+                    # aliases "vs market"/"vs sector" must reach the explain path).
+                    "EXPLAIN", "DEFINE", "DEFINITION", "MEANING", "WHAT", "WHATS",
+                    # non-ticker RHS of a metric alias ("X vs market/sector/nifty") — never
+                    # a two-ticker compare.
+                    "MARKET", "MARKETS", "SECTOR", "SECTORS", "NIFTY", "INDEX", "INDICES",
+                    "BROAD", "PEERS", "PEER", "BENCHMARK"}
             if a and b and a != b and a not in stop and b not in stop:
                 return [a, b]
     return None
@@ -935,6 +943,37 @@ def detect_single_credibility(query: str):
             sym = m.group(1).strip().upper().strip(".")
             if sym and sym not in _SINGLE_CRED_STOP and not sym.isdigit() and len(sym) >= 2:
                 return sym
+    return None
+
+
+# A numeric P/E threshold in a raw query ("under PE 15", "PE over 80", "p/e below 20")
+# → (op, value). Both orderings (dir→pe→num and pe→dir→num) are covered. The degraded
+# parser used to DROP the number and always emit the default cheap screen (AUD-40 eval
+# miss: "cheap stocks under PE 15" → default, not deep-value); compile_intent's
+# _fund_chip maps this filter to the right tier (v≤15 → deep, op '>' → rich).
+_PE_TOKEN = r"(?:p/e|pe|price[\s\-]*to[\s\-]*earnings)"
+_PE_UNDER = r"(?:under|below|less\s+than|lower\s+than|<)"
+_PE_OVER = r"(?:over|above|more\s+than|greater\s+than|higher\s+than|>)"
+_PE_RE = [
+    (re.compile(rf"\b{_PE_TOKEN}\b\s*(?:ratio)?\s*(?:of\s+)?{_PE_UNDER}\s*(\d{{1,4}})", re.I), "<"),
+    (re.compile(rf"\b{_PE_TOKEN}\b\s*(?:ratio)?\s*(?:of\s+)?{_PE_OVER}\s*(\d{{1,4}})", re.I), ">"),
+    (re.compile(rf"{_PE_UNDER}\s+(?:a\s+)?{_PE_TOKEN}\b\s*(?:ratio\s+)?(?:of\s+)?(\d{{1,4}})", re.I), "<"),
+    (re.compile(rf"{_PE_OVER}\s+(?:a\s+)?{_PE_TOKEN}\b\s*(?:ratio\s+)?(?:of\s+)?(\d{{1,4}})", re.I), ">"),
+]
+
+
+def detect_pe_threshold(query: str):
+    """A numeric P/E constraint ('under PE 15', 'PE over 80') → (op, value), else None. ₹0."""
+    q = _norm(query)
+    for rx, op in _PE_RE:
+        m = rx.search(q)
+        if m:
+            try:
+                v = int(m.group(1))
+            except (TypeError, ValueError):
+                continue
+            if 1 <= v <= 1000:
+                return op, v
     return None
 
 
@@ -1174,6 +1213,15 @@ def _parse_fallback_inner(query: str) -> dict | None:
                            "reversing", "bottoming", "bottomed", "picking up", "started rising",
                            "improving", "coming back", "uptick"]):
             filters.append({"metric": "return", "window": "1m", "op": "improving"})
+
+        # numeric P/E threshold ("under PE 15" / "PE over 80") → a valuation filter the
+        # compiler maps to the right tier (deep/rich). Was dropped before → default cheap
+        # screen (AUD-40). Set metric=valuation when the ask carries no other metric.
+        pe_thr = detect_pe_threshold(qn)
+        if pe_thr:
+            filters.append({"metric": "valuation", "op": pe_thr[0], "value": pe_thr[1]})
+            if not metric:
+                metric = "valuation"
 
         rank = {}
         if metric:
