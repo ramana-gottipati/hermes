@@ -129,7 +129,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** point-in-time universe join per trade_date in the all-dates rank pass; re-run the rank backfill.
 - **Effort:** M | **Verdict:** finder-only (unverified).
 
-**AUD-13 [P1] bhavcopy marks a trade date complete even when row inserts fail; inserted counts lie** — `OPEN`
+**AUD-13 [P1] bhavcopy marks a trade date complete even when row inserts fail; inserted counts lie** — `DONE S77 (deployed, AST-verified)` (store_rows→(inserted,skipped,failures) via cursor.rowcount; ingest_date leaves the date UNMARKED + returns False on any failure (→ retried), marks done only when inserted+skipped==len(rows); failures escalate to ERROR. Guard-only, idempotent. Golden test deferred: needs a bhavcopy_rows schema fixture)
 - **Component:** bhavcopy store/ingest | **Reporter:** data-eng.
 - **Files:** `src/automation/bhavcopy.py:411-424,437-447,500-501`.
 - **Evidence digest:** per-row exceptions swallowed (DEBUG; WARNING only >1%), `n` counts conflict-skips as inserts, then `mark_date_done(..., len(rows))` unconditionally; `date_already_done` skips forever → a locked DB during ingest creates a permanent silent hole in the primary archive that no re-run heals.
