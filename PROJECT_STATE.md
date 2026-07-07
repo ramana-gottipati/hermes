@@ -1394,6 +1394,33 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 83e — 2026-07-07 — corporate_actions feed RESURRECTED (data-perfection lane, S81/S82 continuation)
+The last Tier-1 build from the data-postmortem: the corporate-actions pipe, dead at 0 rows for ~6
+months (old nsearchives CSVs 404 permanently), is live end-to-end (`9d354b0`).
+- **Root cause of the endpoint: NSE RENAMED the API to camelCase** — `corporates-corporateActions`;
+  the hyphenated `corporates-corporate-actions` 404s uniformly. Differential-probed (event-calendar +
+  corporates-pit 200 in the SAME session → path-dead, not anti-bot); dated windows serve history to
+  ≥2006. Record for every future NSE feed: a uniform 404 on one `/api/*` path ≠ blocked — probe
+  siblings, then hunt the rename.
+- **`corp_actions.py` fetch layer rewritten** onto the live API (90d windows, session priming,
+  consecutive-failure breaker, per-window short txns — AUD-24; AGM/EGM announcement rows filtered
+  out, 14,185 skipped; ratio parser handles "From Rs 10/- Per Share To Re 1/-"). Selftest 11/11 incl.
+  classify_event integration + idempotent store. Old CSV parse/store bones kept.
+- **BACKFILL CLEAN: 92/92 windows, 0 failures → 26,826 actions 2004-03-18→2026-07-07** (22,561
+  dividend · 715 bonus · 668 split · 368 rights · 344 buyback · 105 demerger · 107 scheme …).
+  **Ground truth exact:** RELIANCE Jio demerger ex-date **2023-07-20**; V2RETAIL 10:1 split
+  2026-03-25 and BESTAGRO 10:1 2026-01-16 match the key_price split factors measured in S81.
+- **`security_events` 0 → 226** (105 DEMERGER / 116 SCHEME / 4 AMALGAMATION / 1 MERGER) via the
+  security_master rebuild; **`has_break_between('RELIANCE','2023-…')` = True — the continuity-break
+  API works for the first time ever**, and the /dash/coverage demerger claim is now TRUE. Battery
+  `liveness.derived` WARN **cleared** (corp-actions track bhav).
+- **Nightly wired:** `hermes-corp-actions.{service,timer}` (02:20 UTC, trailing 45d self-healing
+  window) in git `scripts/systemd/vps-live/` + installed + armed. `Persistent=false` → `enable --now`
+  armed WITHOUT firing (verified service stayed inactive; AUD-95-safe); `OnFailure=hermes-alert@` —
+  this exact feed once died silently, failure now pages. **Data-perfection remaining:** ETF-in-EQ
+  exclusion · table_census · SHP lag calibration (~Jul-21) · adjust.py-vs-tape factor reconciliation
+  (new follow-up: cross-validate inferred split factors against the authoritative tape).
+
 ### Session 83d — 2026-07-07 — Season week-2: spec-sheets live, evlib+placebo, trust-claim fixes, charter v1.1, hygiene
 - **P-03 SHIPPED — `/dash/spec-sheets` (Trust lens, `spec_sheets.py`):** the pre-registration ledger
   as a surface — 3 sheets (PEAD lens-confirmed/book-falsified · footprint gate-FAIL · Wolfe-bull
