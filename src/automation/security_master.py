@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS security_master (
     currently_listed INTEGER DEFAULT 0,
     recently_traded  INTEGER DEFAULT 0,
     status           TEXT,
+    instrument_class TEXT,          -- EQUITY | FUND (ETF / MF unit; data-postmortem 2026-07-07)
     computed_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_secm_isin  ON security_master(isin);
@@ -164,6 +165,10 @@ def compute_and_store(conn=None) -> dict:
         conn = cm.__enter__()
     try:
         conn.executescript(_SCHEMA)
+        try:                                             # pre-existing DBs: add the class column
+            conn.execute("ALTER TABLE security_master ADD COLUMN instrument_class TEXT")
+        except Exception:  # noqa: BLE001 — already present
+            pass
         latest = _latest_trade_date(conn)
         active_floor = _minus_days(latest, ACTIVE_GAP_DAYS)
 
@@ -172,6 +177,17 @@ def compute_and_store(conn=None) -> dict:
         for r in conn.execute(
                 "SELECT symbol, isin, company_name, listing_date FROM nse_equity_list"):
             listed[r["symbol"]] = (r["isin"], r["company_name"], r["listing_date"])
+
+        # FUND identification (the ETF-in-EQ-series exclusion): the live exchange ETF list
+        # (nse_etf_list, refreshed by equity_list.run_etfs) is the POSITIVE id — it covers the
+        # blank-ISIN polluters (MONIFTY500, GROWWSLVR, NV20...). INF-prefix ISINs (mutual-fund
+        # instruments) cover DELISTED/renamed fund tickers the live list no longer carries. The
+        # name net stays deliberately tiny — endswith-BEES / contains-ETF only; broader patterns
+        # are the documented trap (GOLD% would hit GOLDIAM, the real jeweller).
+        try:
+            etf_syms = {r[0] for r in conn.execute("SELECT symbol FROM nse_etf_list")}
+        except Exception:  # noqa: BLE001 — list not fetched yet (laptop / first run)
+            etf_syms = set()
 
         # survivorship spine from the RAW archive (KEEPS delisted names)
         series_ph = ",".join("?" * len(EQUITY_SERIES))
@@ -197,8 +213,11 @@ def compute_and_store(conn=None) -> dict:
             # listed-but-SUSPENDED name (in the equity list, no trades for >ACTIVE_GAP_DAYS —
             # e.g. KALYANI, last trade 2025-07-04). Do not "fix" it as a contradiction.
             status = "ACTIVE" if recently else "INACTIVE"
+            iclass = ("FUND" if (sym in etf_syms or str(isin or "").startswith("INF")
+                                 or sym.endswith("BEES") or "ETF" in sym)
+                      else "EQUITY")
             rows.append((sym, first, last, n, isin, company, listing,
-                         currently_listed, recently, status))
+                         currently_listed, recently, status, iclass))
             if isin:
                 isin_map.setdefault(isin, []).append((sym, first, last))
 
@@ -206,7 +225,8 @@ def compute_and_store(conn=None) -> dict:
         conn.executemany(
             "INSERT OR REPLACE INTO security_master "
             "(symbol, first_date, last_date, n_days, isin, company_name, listing_date, "
-            " currently_listed, recently_traded, status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            " currently_listed, recently_traded, status, instrument_class) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             rows)
 
         # continuity-breaking corporate events
@@ -263,6 +283,7 @@ def compute_and_store(conn=None) -> dict:
             "securities": len(rows),
             "active": sum(x[8] for x in rows),
             "delisted_or_inactive": sum(1 for x in rows if not x[8]),
+            "funds": sum(1 for x in rows if x[10] == "FUND"),
             "events": len(ev),
             "renames_confirmed": sum(1 for x in ren if x[5] == 1),
             "rename_candidates": sum(1 for x in ren if x[5] == 0),
@@ -325,6 +346,19 @@ def has_break_between(symbol: str, start: str, end: str, conn=None) -> bool:
             "SELECT COUNT(*) n FROM security_events WHERE symbol=? AND ex_date > ? AND ex_date <= ?",
             (symbol, start, end)).fetchone()
         return (r["n"] or 0) > 0
+    return _with_conn(q, conn)
+
+
+def fund_symbols(conn=None) -> set:
+    """Every symbol classified FUND (ETF / MF unit) — the survivorship-aware exclusion set
+    for research scans: 'delisted companies yes, funds no', which the live-equity-list
+    idiom (`IN nse_equity_list`) cannot express (it also drops delisted companies)."""
+    def q(c):
+        try:
+            return {r[0] for r in c.execute(
+                "SELECT symbol FROM security_master WHERE instrument_class='FUND'")}
+        except Exception:  # noqa: BLE001 — column absent (pre-migration DB)
+            return set()
     return _with_conn(q, conn)
 
 
@@ -452,6 +486,11 @@ def _selftest() -> None:
         # OLDGAP→NEWGAP share an ISIN but hand over across a MULTI-YEAR gap (ISIN recycled) → must NOT auto-confirm
         ("OLDGAP",   "2018-01-05", "EQ", "INEGAP01010"), ("OLDGAP",  "2020-01-01", "EQ", "INEGAP01010"),
         ("NEWGAP",   "2025-06-01", "EQ", "INEGAP01010"), ("NEWGAP",  "2026-06-19", "EQ", "INEGAP01010"),
+        # fund instruments trading in series EQ — must classify FUND, never EQUITY
+        ("MONIFTY500", "2024-01-05", "EQ", None),          # blank ISIN → caught by the ETF list
+        ("GOLDBEES",   "2020-01-05", "EQ", None),          # name net (endswith BEES)
+        ("DEADFUND",   "2016-01-05", "EQ", "INF204KB1882"),  # delisted fund → INF-prefix ISIN
+        ("GOLDIAM",    "2019-01-05", "EQ", None),          # the documented trap: a REAL equity
     ]
     conn.executemany("INSERT INTO bhavcopy_rows VALUES (?,?,?,?)", bhav)
     conn.execute("INSERT INTO bhavcopy_dates VALUES ('2026-06-22')")
@@ -462,7 +501,10 @@ def _selftest() -> None:
     conn.executemany("INSERT INTO nse_equity_list VALUES (?,?,?,?)", [
         ("RELIANCE", "INE002A01018", "Reliance Industries", "1995-01-01"),
         ("ETERNAL",  "INEZOM01015",  "Eternal Ltd",         "2021-07-23"),
+        ("GOLDIAM",  "INE025B01025", "Goldiam International", "1995-01-01"),
     ])
+    conn.execute("CREATE TABLE nse_etf_list (symbol TEXT PRIMARY KEY, name TEXT, assets TEXT, snapshot_date TEXT)")
+    conn.execute("INSERT INTO nse_etf_list VALUES ('MONIFTY500','Motilal Nifty 500 ETF','Equity','2026-07-07')")
 
     stats = compute_and_store(conn=conn)
 
@@ -496,6 +538,16 @@ def _selftest() -> None:
     # ISIN-recycling guard: a multi-year handover gap must NOT auto-confirm (LTI→LTM class)
     assert canonical("OLDGAP", conn=conn) == "OLDGAP", "a >400d ISIN gap must stay an unconfirmed candidate"
     assert set(aliases("NEWGAP", conn=conn)) == {"NEWGAP"}, "an unconfirmed gap edge must not join the alias set"
+
+    # instrument_class (the ETF-in-EQ-series exclusion): all three FUND routes + the GOLDIAM trap
+    fs = fund_symbols(conn=conn)
+    assert fs == {"MONIFTY500", "GOLDBEES", "DEADFUND"}, fs
+    assert get("MONIFTY500", conn=conn)["instrument_class"] == "FUND", "ETF-list route"
+    assert get("GOLDBEES", conn=conn)["instrument_class"] == "FUND", "BEES name-net route"
+    assert get("DEADFUND", conn=conn)["instrument_class"] == "FUND", "INF-isin route (delisted fund)"
+    assert get("GOLDIAM", conn=conn)["instrument_class"] == "EQUITY", "GOLD% trap: real equity stays EQUITY"
+    assert get("RELIANCE", conn=conn)["instrument_class"] == "EQUITY"
+    assert stats["funds"] == 3, stats
 
     print(f"security_master selftest: OK  {stats}")
 

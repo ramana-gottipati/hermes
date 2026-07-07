@@ -400,6 +400,28 @@ def chk_index_name_variants(c) -> dict:
     return _check("index.name_variants", SEV_OK, 0, "no case-variant index keys")
 
 
+def chk_fund_leak(c) -> dict:
+    """Regression guard for the ETF-in-EQ-series exclusion: FUND-class instruments
+    (security_master.instrument_class, fed by nse_etf_list + INF ISINs) must never appear
+    in the RANKED momentum output — an ETF in a stock momentum book is wrong data. The raw
+    layers (bhavcopy/stock_signals) legitimately carry fund rows; ranked outputs must not."""
+    if not (_table_exists(c, "momentum_scan") and _table_exists(c, "security_master")):
+        return _check("fund.leak", SEV_OK, 0, "tables absent")
+    try:
+        funds = c.execute(
+            "SELECT COUNT(*) FROM momentum_scan mo JOIN security_master m ON m.symbol=mo.symbol "
+            "WHERE mo.as_of=(SELECT MAX(as_of) FROM momentum_scan) "
+            "AND m.instrument_class='FUND'").fetchone()[0]
+        n_class = c.execute(
+            "SELECT COUNT(*) FROM security_master WHERE instrument_class='FUND'").fetchone()[0]
+    except sqlite3.OperationalError:
+        return _check("fund.leak", SEV_INFO, 0, "instrument_class not populated yet (pre-migration)")
+    if funds:
+        return _check("fund.leak", SEV_WARN, funds,
+                      f"{funds} FUND-class instruments in the latest momentum_scan (universe gate broken?)")
+    return _check("fund.leak", SEV_OK, 0, f"ranked outputs fund-free ({n_class} FUND instruments classified)")
+
+
 def chk_derived_liveness(c) -> dict:
     """The three largest DERIVED tables (stock_signals / mep_signals / cpr_signals) plus the index
     tape recompute EVERY trading day from bhavcopy — if a nightly compute job dies they silently
@@ -477,7 +499,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_market_freshness, (c,)), (chk_regime_guard, (c,)),
             (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
             (chk_derived_liveness, (c,)), (chk_index_name_variants, (c,)),
-            (chk_t2t_universe, (c,)),
+            (chk_t2t_universe, (c,)), (chk_fund_leak, (c,)),
             (chk_restatement_spike, (r,)),
         ]
         for fn, fargs in plan:
