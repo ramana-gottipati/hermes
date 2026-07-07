@@ -172,6 +172,41 @@ _SHEETS = [
         "source": "docs/strategy-ledger.md § Studies 2026-07-08 · research/explosive_moves/concall_intent.py",
     },
     {
+        "title": "Dividend-surprise drift (E-11, post-ex)",
+        "verdict": ("gate FAIL — payer beta", "v-fail", None, None),
+        "pre_reg": "2026-07-07 · the first gate HASHED before its run (M-04 registry)",
+        "hypothesis": "A dividend far above a name's own norm marks strength that drifts "
+                      "over the following 60 sessions (post-ex, the conservative clock).",
+        "gate": "Surprise-Q5 CAR60 t_cohort ≥ 2 AND the date-shuffle placebo clears "
+                "(n=200, seed 42).",
+        "result": "22 years, 9,166 usable events. Q5 drifts +1.61% (t 2.60) — and so does "
+                  "everything else: CUTS drift <b class='num'>+1.99%</b>, hikes +1.61%, the "
+                  "LOWEST-surprise quintile +2.28% (55 cohorts). The placebo seals it: "
+                  "post-ex windows (+2.13%) drift LESS than random windows of the same "
+                  "payers (null mean <b class='num'>+2.48%</b>, p95 +3.58%). The 'surprise' "
+                  "has no direction — it is dividend-payer beta.",
+        "ships": "Nothing. Class rule generalized: covered-name / payer-universe drift is "
+                 "the null every event claim must beat.",
+        "source": "docs/strategy-ledger.md § Studies 2026-07-08 (S83g) · research/explosive_moves/dividend_drift.py",
+    },
+    {
+        "title": "Rebrand pump (E-12, stitched rename series)",
+        "verdict": ("gate FAIL — no pump exists", "v-fail", None, None),
+        "pre_reg": "2026-07-07 · gate hashed before the run",
+        "hypothesis": "A symbol rename pumps on the new identity, then fades.",
+        "gate": "CAR22 t_cohort ≥ 2 AND placebo clears (pump); mean(CAR60−CAR22) < 0 with "
+                "|t| ≥ 2 (fade). Wolfe power rule: 111 usable events = full-power claim.",
+        "result": "The folk story is simply dead: CAR22 <b class='num'>−0.41%</b> (below "
+                  "even the placebo null of +0.47%), CAR60 +0.12%. No pump, and the fade "
+                  "leg earns no claim (pooled t 0.23; the cohort means run negative — "
+                  "outlier-carried, recorded as nuance). Method dividend: renames are "
+                  "unmeasurable on naive per-symbol series — this study shipped the "
+                  "reusable STITCHED old→new loader.",
+        "ships": "Nothing tradeable; the stitched loader joins the harness for every "
+                 "future boundary-crossing study.",
+        "source": "docs/strategy-ledger.md § Studies 2026-07-08 (S83g) · research/explosive_moves/rebrand_pump.py",
+    },
+    {
         "title": "Wolfe waves — geometry as a selection lens",
         "verdict": ("descriptive selection edge (BULL only)", "v-desc", "trade book FALSIFIED", "v-fail"),
         "pre_reg": "§A locked 2026-06-24 (rules), §C trade-mechanics tested 2026-06-25",
@@ -258,14 +293,34 @@ def _placebo_box():
             f'{"" if (infl or 0) > 1 else " NOT"}.</span></div>')
 
 
-def _sheet_html(s):
+def _prereg_hashes():
+    """module -> gate sha256 from the M-04 registry (research.db). {} when absent."""
+    try:
+        con = sqlite3.connect(f"file:{RESEARCH_DB}?mode=ro", uri=True, timeout=10)
+        out = dict(con.execute("SELECT module, gate_sha256 FROM prereg_registry"))
+        con.close()
+        return out
+    except sqlite3.Error:
+        return {}
+
+
+def _sheet_html(s, hashes=None):
     v1, c1, v2, c2 = s["verdict"]
     badges = f'<span class="verdict {c1}">{_esc(v1)}</span>'
     if v2:
         badges += f'<span class="verdict {c2}">{_esc(v2)}</span>'
+    hchip = ""
+    if hashes:
+        import re as _re
+        m = _re.search(r"explosive_moves/(\w+)\.py", s.get("source", ""))
+        h = hashes.get(m.group(1)) if m else None
+        if h:
+            hchip = (f' · gate sha256 <span class="num" title="M-04 registry: the study '
+                     f'docstring (hypothesis + gate) hashed at registration; --verify '
+                     f'flags any post-hoc edit">{_esc(h[:12])}…</span>')
     return (
         f'<div class="sheet"><h3>{_esc(s["title"])}{badges}</h3>'
-        f'<div class="meta">pre-registered: {_esc(s["pre_reg"])}</div>'
+        f'<div class="meta">pre-registered: {_esc(s["pre_reg"])}{hchip}</div>'
         f'<div class="row"><div class="k">Hypothesis</div><div>{s["hypothesis"]}</div></div>'
         f'<div class="row"><div class="k">Gate (before the run)</div><div>{s["gate"]}</div></div>'
         f'<div class="row"><div class="k">Recorded result</div><div>{s["result"]}</div></div>'
@@ -295,7 +350,7 @@ def spec_sheets():
             'measures the direction of that bias, and the Deflated-Sharpe / PBO stages (M-03) '
             'are one import away in <code>evlib</code> for every study; factory auto-wiring '
             'lands with the next factory run.</div>',
-            "".join(_sheet_html(s) for s in _SHEETS),
+            "".join(_sheet_html(s, _prereg_hashes()) for s in _SHEETS),
             '<div class="note">Numbers are hand-carried from '
             '<code>docs/strategy-ledger.md</code> (the canonical record) and the machine '
             'ledger in <code>research.db.strategy_runs</code>; the standing corollary those '

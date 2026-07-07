@@ -325,6 +325,18 @@ against random windows of the same names; (3) a directionally-true fundamentals 
 surprise) is not a returns story. KPI: pre-registered studies this quarter now 6 (target ≥4),
 100% ledgered.
 
+**S83g extension (2026-07-07/08) — two more, the first with gates HASHED before the run (M-04):**
+
+| Study | The tell | Why NULL (blocking numbers) |
+|---|---|---|
+| **E-11 dividend-surprise drift** (gate `e9bd1a7f…`; 15,486 events 2004→2026, 9,166 usable, post-EX clock) | surprise-Q5 CAR60 +1.61% (t_cohort 2.60) looks tidy — but **CUT names drift +1.99% (t 2.07) and HIKES +1.61% (t 2.86): the "surprise" has NO direction**, and even the lowest-surprise quintile drifts +2.28% (t_cohort 2.37, 55 cohorts) | **Placebo: observed +2.13% vs null mean +2.48% / p95 +3.58%** (inflation 0.60, emp-p 0.71) — random windows of dividend PAYERS drift more than post-ex windows. Payer-universe beta on a 22y sample; the covered-name-drift class rule generalizes beyond concalls. No chip ships. |
+| **E-12 rebrand pump** (gate `c3f48a42…`; 324 renames → 111 usable on a STITCHED old→new series loader; full power per the n≥50 rule) | the folk story is simply dead: CAR22 **−0.41%** (no pump), CAR60 +0.12%; placebo agrees (null +0.47%, observed below it) | Pump gate fails outright. Fade: pooled mean +0.53% (t 0.23 → no claim per pre-reg) while the COHORT means run negative (t_cohort −2.82) — outlier-carried, recorded as nuance only. Method note: the stitched loader is the reusable piece — rename-boundary events are unmeasurable with naive per-symbol series by construction. |
+
+Quarter tally: **8 pre-registered studies, 8 honest results (2 descriptive-confirmed early, 6 nulls),
+100% ledgered, gates hashed from #7 on.** The evidence machine's sales pitch writes itself: five
+plausible-looking lenses (+8.3% insider drift, +3.5% debt-reduction calls, +1.6% dividend surprise…)
+were killed by the placebo harness before a client ever saw them.
+
 ---
 
 ## Experiment 2026-07-05c — C-BLEND cost-reality re-cut (DONE — champion NOT fundable; the 1.32 is flat-cost-only)

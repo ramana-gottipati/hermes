@@ -1445,6 +1445,36 @@ months (old nsearchives CSVs 404 permanently), is live end-to-end (`9d354b0`).
   exclusion · table_census · SHP lag calibration (~Jul-21) · adjust.py-vs-tape factor reconciliation
   (new follow-up: cross-validate inferred split factors against the authoritative tape).
 
+### Session 83g — 2026-07-07/08 — Season LATER list: E-11/E-12 run pre-hashed, M-04 registry live, the rest honestly triaged
+- **M-04 pre-registration registry LIVE** (`prereg.py` + `research.db.prereg_registry`): sha256 of
+  every study's docstring gate; `--verify` = the tamper check; hash chips render on
+  `/dash/spec-sheets`. All 8 modules registered; the 5 pre-registry studies carry the honest
+  "retro-hashed; runs predate the hash (git is the witness)" note; **`dividend_drift`
+  (`e9bd1a7f…`) and `rebrand_pump` (`c3f48a42…`) are the first gates hashed BEFORE first run.**
+- **E-11 + E-12 RAN — both NULL, both instructive** (ledger § Studies 2026-07-08, S83g extension;
+  sheets 7-8 on `/dash/spec-sheets`): **E-11** (15,486 dividend events → 9,166 usable, 22y):
+  surprise-Q5 +1.61% t 2.60 BUT cuts drift +1.99% and the lowest quintile +2.28% — no direction;
+  placebo: post-ex +2.13% < random payer windows +2.48% (p95 +3.58%) → **payer-universe beta; the
+  covered-name-drift class rule generalizes.** **E-12** (324 renames → 111 usable, full power, on
+  a NEW stitched old→new series loader — the reusable piece): CAR22 −0.41% vs null +0.47% — the
+  rebrand pump does not exist; fade earns no claim (pooled t 0.23, cohort-negative nuance recorded).
+  **Quarter tally: 8 pre-registered studies, 8 honest results, 100% ledgered, hashed from #7 on.**
+- **Honest triage of the rest of the LATER basket (recorded, not half-built):**
+  · D-07 MWPL / D-09 FPI-fortnightly / D-10 short-delivery — direct URL probes 404'd (NSDL page is
+    postback-driven); each needs a 0.5s endpoint-discovery pass before an ingest is honest — NO
+    dead pipes built. · D-08 AMFI portfolios = 1-2 dedicated sessions (per-AMC formats), own session.
+  · E-08/E-09 blocked on data depth (membership-change history; MWPL). · E-14 waits for the
+    ~Jul-21 Reg-31 flood. · **E-10 buyback calculator: data confirmed READY (344 BUYBACK rows
+    2012→2026 in corporate_actions) — queued NEXT.** · M-03: evlib re-export done (S83f); factory
+    print-wiring lands with the next factory RUN (unrun wiring ≠ shipped). · P-04 PDF: no exporter
+    exists in the codebase (grep-verified); spine accrues on spec-sheets; assembly = end-July as
+    planned. · P-06 MCP: tools layer exists, server mount deferred per the decisive product ranking
+    (build when a named buyer asks; the personal-use variant needs an auth/exposure design pass).
+  · Chrome batch / dashboard carve-out / native-shell migration: deliberately NOT touched
+    mid-season — that IS the post-season engineering block by the calendar's own design.
+  · Ramana-owned (standing): index diet + mep/cpr reclaim · AUD-44 destructive NULLing (write-stop
+    already landed) · off-box backup destination · licensing posture · ₹ concall backlog.
+
 ### Session 83f — 2026-07-07/08 — Season weeks-3-4: THREE pre-registered studies (all NULL, placebo-caught), CAR fan live, M-05/M-03
 <!-- renumbered from S83e at wrap: a parallel lane claimed S83e (corporate_actions resurrection) minutes earlier -->
 

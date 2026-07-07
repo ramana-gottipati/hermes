@@ -86,6 +86,16 @@ MCP server on the VPS (P-06, open item L).
 2026-07-05b, net Sharpe 0.06, FAILED the gate; no fundable PEAD construction remains. The event lens
 ships descriptively (`pead_surface.py`), never as a book.
 
+**§5 status (S83g sweep, 2026-07-07/08):** P-03 ✓ (spec-sheets live, S83d) · M-05 ✓ (standing-caveats
+box) · M-04 ✓ (`prereg.py` registry, gates hashed — E-11/E-12 pre-hashed before first run) ·
+M-03 half (evlib re-export; factory print-wiring = next factory run) · E-11 + E-12 RUN
+(pre-registered; results in the ledger § Studies) · E-14 waits ~Jul-21 Reg-31 flood · E-08/E-09
+blocked on data depth (membership-change history; D-07) · D-09/D-10 (+D-07) need an
+endpoint-discovery pass first (direct probes 404; NO dead pipes built) · D-08 = its own 1-2
+sessions · P-04 spine accrues on spec-sheets, PDF assembly end-July · P-06 deferred per the
+product ranking (named-buyer trigger; personal-use variant needs an auth design) · E-10 data
+confirmed READY (344 BUYBACK rows) — queued NEXT.
+
 ## 6. Data-acquisition sprint — what can be brought in QUICKLY (all primary, ₹0)
 
 | ID | Feed | Source | Effort | Unlocks |
