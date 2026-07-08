@@ -14,10 +14,12 @@ flag — each linking to that strategy's deep page.
           "top":   [{"symbol","note"}],   # the strongest few current names
           "health":"ok" | "stale" | "empty" }
 
-CONTRACT (binding): reads ONLY precomputed tables (mep_signals, concall_scores,
-cpr_signals, stock_signals) — it NEVER recomputes a strategy on read; the nightly jobs
-own the compute. If a table is missing/empty or a query fails, that strategy degrades to
-health="empty" (never raises) so one cold table can't break the whole dashboard.
+CONTRACT (binding): reads ONLY precomputed tables (stock_signals, mep_signals,
+cpr_signals, concall_scores, concall_signals, launchpad_signals, momentum_scan,
+wolfe_signals + results_reactions in research.db) — it NEVER recomputes a strategy
+on read; the nightly jobs own the compute. If a table is missing/empty or a query
+fails, that strategy degrades to health="empty" (never raises) so one cold table
+can't break the whole dashboard.
 
 Wolfe is computed on-demand (no persisted table — see wolfe.py), so its row is
 descriptive: count=None, health="ok", a note pointing at the live scanner.
@@ -33,14 +35,22 @@ import sqlite3
 from contextlib import nullcontext
 
 try:
-    from src.core.db import get_conn
+    from src.core.db import DB_PATH, get_conn
 except Exception:  # pragma: no cover - import-path fallback
-    from core.db import get_conn  # type: ignore
+    from core.db import DB_PATH, get_conn  # type: ignore
 
 
 # Per-strategy staleness budget (calendar days from the latest data date to today).
 # Daily signals refresh every trading night; concalls are quarterly, so far more lenient.
-_STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150}
+_STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150,
+               "conviction": 7, "growth": 150, "launchpad": 7,
+               "momentum": 7, "reactions": 10}
+
+# Liquidity / universe gate for whole-universe rankers — mirrors
+# dashboard._SCAN_FILTERS, kept self-contained (same choice strategist_view made).
+_LIQ = ("b.series='EQ' AND (b.segment='CM' OR b.segment IS NULL) "
+        "AND b.value > 10000000 AND b.close > 20 "
+        "AND s.symbol IN (SELECT symbol FROM nse_equity_list)")
 
 
 # --------------------------------------------------------------------------- #
@@ -109,8 +119,35 @@ def _mep(conn):
             "as_of": as_of, "top": top, "health": _health(count, as_of, _STALE_DAYS["mep"])}
 
 
+def _conviction(conn):
+    """The cross-pillar shortlist — names strong on BOTH the strong-hand delivery
+    footprint (p_score) AND relative strength at once. Same blend the Conviction
+    deep page / strategist fallback uses (0.55 positioning + 0.45 RS, flag >= 78)."""
+    key, label, route = "conviction", "Conviction", "/dash/conviction"
+    if not _table_exists(conn, "stock_signals"):
+        return _empty(key, label, route)
+    as_of = _max_date(conn, "stock_signals", "trade_date")
+    if not as_of:
+        return _empty(key, label, route)
+    conv = "(0.55*COALESCE(s.p_score,0)/5.0*100.0 + 0.45*COALESCE(s.rs_rank,0))"
+    rows = _rows(conn,
+        f"SELECT s.symbol, {conv} conv "
+        f"FROM stock_signals s JOIN bhavcopy_rows b USING (symbol, trade_date) "
+        f"WHERE s.trade_date=? AND s.delivery_value_per_trade IS NOT NULL AND {_LIQ} "
+        f"ORDER BY conv DESC LIMIT 600", (as_of,))
+    flagged = [r for r in rows if (r["conv"] or 0) >= 78]
+    count = len(flagged)
+    top = [{"symbol": r["symbol"], "note": f'conv {r["conv"]:.0f}'} for r in flagged[:5]]
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": as_of, "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["conviction"])}
+
+
 def _dvpt(conn):
-    key, label, route = "dvpt", "Delivery (DVPT)", "/dash/screener"
+    # route = /dash/stocks (the Positioning table), matching the Strategies-altitude
+    # catalog — the old /dash/screener route made the board grow a SECOND, link-only
+    # "Positioning" card beside this one (dedup is by route).
+    key, label, route = "dvpt", "Positioning (DVPT)", "/dash/stocks"
     if not _table_exists(conn, "stock_signals"):
         return _empty(key, label, route)
     as_of = _max_date(conn, "stock_signals", "trade_date")
@@ -218,6 +255,141 @@ def _cci(conn):
             "health": _health(count, as_of, _STALE_DAYS["cci"])}
 
 
+def _growth(conn):
+    """Growth-intent — forward proposals managements committed to on concalls
+    (capex / expansion / debt-cut / new products), Rs-normalised. Flagged = the
+    distinct companies with a growth-polarity statement in the last 12 months."""
+    key, label, route = "growth", "Growth-intent", "/dash/growth"
+    if not _table_exists(conn, "concall_signals"):
+        return _empty(key, label, route)
+    r = conn.execute("SELECT MAX(year*100+month) ym FROM concall_signals "
+                     "WHERE is_growth_intent=1").fetchone()
+    ym = r["ym"] if r else None
+    if not ym:
+        return _empty(key, label, route)
+    yr, mo = int(ym) // 100, int(ym) % 100
+    as_of = f"{yr:04d}-{mo:02d}-01"
+    lo = (yr - 1) * 100 + mo
+    rows = _rows(conn,
+        "SELECT symbol, statement_type, MAX(COALESCE(amount_cr,0)) amt "
+        "FROM concall_signals "
+        "WHERE is_growth_intent=1 AND COALESCE(polarity,1) >= 0 "
+        "  AND (year*100+month) >= ? "
+        "GROUP BY symbol ORDER BY amt DESC", (lo,))
+    count = len(rows)
+    top = []
+    for r in rows[:5]:
+        typ = (r["statement_type"] or "growth").replace("_", " ")
+        note = (f'{typ} · Rs{r["amt"]:,.0f}cr' if r["amt"] else typ)
+        top.append({"symbol": r["symbol"], "note": note})
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": as_of, "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["growth"])}
+
+
+def _launchpad(conn):
+    """Launchpad — the D56-validated explosive-move precursors, read from the
+    nightly launchpad_signals snapshot (launchpad_signals.py, wolfe pattern).
+    Flagged = FRESH triggers (rising edge <= 2 sessions) — the actionable cut."""
+    key, label, route = "launchpad", "Launchpad", "/dash/launchpad"
+    if not _table_exists(conn, "launchpad_signals"):
+        # snapshot not materialised yet on this host — descriptive link row
+        return {"key": key, "label": label, "route": route, "count": None,
+                "as_of": None,
+                "top": [{"symbol": "—",
+                         "note": "nightly snapshot pending — open the lens for the live scan"}],
+                "health": "ok"}
+    try:
+        meta = dict(conn.execute("SELECT k, v FROM launchpad_scan_meta").fetchall())
+    except Exception:  # noqa: BLE001
+        meta = {}
+    as_of = meta.get("scan_date") or _max_date(conn, "launchpad_signals", "scan_date")
+    if not as_of:
+        return _empty(key, label, route)
+    rows = _rows(conn,
+        "SELECT symbol, flags, age, buyer FROM launchpad_signals WHERE scan_date=? "
+        "ORDER BY buyer DESC, (age IS NULL), age ASC, med_turn DESC", (as_of,))
+    fresh = [r for r in rows if r["age"] is not None and r["age"] <= 2]
+    count = len(fresh)
+    top = []
+    for r in fresh[:5]:
+        bits = [(r["flags"] or "").replace("|", "+").replace("_", "·")]
+        bits.append("fresh" if r["age"] == 0 else f'{r["age"]}d')
+        if r["buyer"]:
+            bits.append("⭐ buyer")
+        top.append({"symbol": r["symbol"], "note": " · ".join(b for b in bits if b)})
+    if not count:
+        # scan ran, nothing fresh — a healthy, current read (mirror wolfe's shape)
+        return {"key": key, "label": label, "route": route, "count": 0, "as_of": as_of,
+                "top": [{"symbol": "—", "note": "no fresh precursor triggers"}],
+                "health": "ok" if not _stale(as_of, _STALE_DAYS["launchpad"]) else "stale"}
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": as_of, "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["launchpad"])}
+
+
+def _momentum(conn):
+    """Momentum ensemble — the nightly risk-adjusted momentum scan
+    (momentum_scan, explosive_moves.momentum_scan). Flagged = top-decile
+    ensemble percentile. DESCRIPTIVE: attribution proved this is momentum BETA,
+    not stock-selection (see docs/strategy-ledger.md) — a tilt, never a buy list."""
+    key, label, route = "momentum", "Momentum · ensemble", "/dash/markets/momentum-scan"
+    if not _table_exists(conn, "momentum_scan"):
+        return _empty(key, label, route)
+    as_of = _max_date(conn, "momentum_scan", "as_of")
+    if not as_of:
+        return _empty(key, label, route)
+    rows = _rows(conn,
+        "SELECT symbol, ensemble_pctile p FROM momentum_scan "
+        "WHERE as_of=? AND ensemble_pctile IS NOT NULL "
+        "ORDER BY ensemble_pctile DESC", (as_of,))
+    flagged = [r for r in rows if (r["p"] or 0) >= 90]
+    count = len(flagged)
+    top = [{"symbol": r["symbol"], "note": f'ens {r["p"]:.0f}'} for r in flagged[:5]]
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": str(as_of)[:10], "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["momentum"])}
+
+
+def _reactions(conn):
+    """Results reactions — the season war-room scanner (results_reactions in
+    research.db, refreshed nightly). Flagged = delivery-CONFIRMED reactions
+    (big earnings surprise AND holding money showed up the same day)."""
+    key, label, route = ("reactions", "Results reactions",
+                         "/dash/markets/results-reactions")
+    rdb = DB_PATH.parent / "research.db"
+    if not rdb.exists():
+        return _empty(key, label, route)
+    try:
+        con = sqlite3.connect(f"file:{rdb}?mode=ro", uri=True)
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    try:
+        con.row_factory = sqlite3.Row
+        if not con.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                           "AND name='results_reactions'").fetchone():
+            return _empty(key, label, route)
+        meta = dict(con.execute("SELECT k, v FROM results_reactions_meta").fetchall())
+        as_of = str(meta.get("generated_at") or "")[:10] or None
+        n_conf = con.execute("SELECT COUNT(*) n FROM results_reactions "
+                             "WHERE sue_high=1 AND deliv_high=1").fetchone()["n"]
+        rows = con.execute(
+            "SELECT sym, ptype, deliv_x FROM results_reactions "
+            "WHERE sue_high=1 AND deliv_high=1 "
+            "ORDER BY t0 DESC, deliv_x DESC LIMIT 5").fetchall()
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    finally:
+        con.close()
+    top = [{"symbol": r["sym"],
+            "note": ((r["ptype"] or "results") +
+                     (f' · {r["deliv_x"]:.1f}× deliv' if r["deliv_x"] is not None else ""))}
+           for r in rows]
+    return {"key": key, "label": label, "route": route, "count": n_conf,
+            "as_of": as_of, "top": top,
+            "health": _health(n_conf, as_of, _STALE_DAYS["reactions"])}
+
+
 def _wolfe(conn):
     key, label, route = "wolfe", "Wolfe (winner-profile)", "/dash/wolfe/scan"
     # Prefer the nightly-persisted snapshot (wolfe_signals, owned by wolfe.py). If it
@@ -248,7 +420,8 @@ def _wolfe(conn):
 
 
 # registry order = the order the Strategist dashboard shows the cards.
-_READERS = [_mep, _dvpt, _rs, _cpr, _cci, _wolfe]
+_READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci,
+            _growth, _launchpad, _momentum, _reactions, _wolfe]
 
 
 def summary(conn=None) -> list[dict]:
@@ -282,7 +455,9 @@ def _selftest():
         for t in r["top"]:
             assert set(t) >= {"symbol", "note"}, f"{r['key']} bad top item: {t}"
         keys.add(r["key"])
-    assert "wolfe" in keys, "wolfe row missing"
+    for want in ("conviction", "dvpt", "mep", "cpr", "rs", "cci",
+                 "growth", "launchpad", "momentum", "reactions", "wolfe"):
+        assert want in keys, f"{want} row missing"
     print(f"OK  strategy_registry.summary() -> {len(rows)} rows")
     for r in rows:
         print(f"  {r['key']:6} {r['health']:6} count={str(r['count']):>5} "

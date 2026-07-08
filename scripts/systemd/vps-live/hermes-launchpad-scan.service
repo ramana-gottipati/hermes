@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes patearn — nightly Launchpad precursor scan (persist launchpad_signals)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# Materialise the D56-validated Launchpad precursor scan into launchpad_signals so
+# /dash/launchpad renders INSTANTLY (the live scan was ~9s over 130d x ~1k liquid
+# names, on EVERY request — measured S84) and strategy_registry can give Launchpad
+# a real count/as_of/top on the strategist board. Pure rule-based compute — NO LLM
+# (Rs0), descriptive-only. Same pattern as hermes-wolfe-scan.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.launchpad_signals --persist-scan
+StandardOutput=append:/var/log/hermes-launchpad-scan.log
+StandardError=append:/var/log/hermes-launchpad-scan.log

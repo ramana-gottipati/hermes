@@ -7002,8 +7002,9 @@ const DATA = __DATA__;
 
 @router.get("/dash/launchpad", response_class=HTMLResponse)
 def dash_launchpad() -> HTMLResponse:
-    """Live Launchpad setup screen (cockpit.render_launchpad) — the D56 validated
-    explosive-move precursors over today's liquid universe, computed render-time."""
+    """Launchpad setup screen (cockpit.render_launchpad) — the D56 validated
+    explosive-move precursors over today's liquid universe, served from the
+    nightly launchpad_signals snapshot (memoised live-scan fallback)."""
     sig_date, idx_date = _latest_dates()
     from src.web.cockpit import render_launchpad
     return HTMLResponse(_shell("Launchpad · patearn",

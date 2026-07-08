@@ -1603,9 +1603,28 @@ def _lp_net_buyers(conn):
     return out, td
 
 
+_LP_MEMO: dict = {}
+
+
+def _lp_live(conn, T):
+    """Live-scan fallback for render_launchpad when the nightly launchpad_signals
+    snapshot is absent or stale (fresh install, first day, holiday edge). Memoised
+    per bhav date so only the FIRST render pays the whole-universe scan (the
+    AUD-04 audit-lane-cache pattern); the nightly persist normally makes this
+    path dead."""
+    got = _LP_MEMO.get(T)
+    if got is None:
+        from src.automation import launchpad_signals as LPS
+        hits, _t, deals_td = LPS.scan(conn)
+        _LP_MEMO.clear()               # hold ONE date's scan at a time — never grows
+        _LP_MEMO[T] = got = (hits, deals_td)
+    return got
+
+
 def render_launchpad(sig_date, idx_date) -> str:
     """Full-bleed live Launchpad — the validated explosive-move precursor universe
-    over today's liquid (≥₹5cr) names, computed render-time. Honest framing: the raw
+    over today's liquid (≥₹5cr) names, read from the nightly launchpad_signals
+    snapshot (memoised live-scan fallback). Honest framing: the raw
     pattern is COMMON in a trend (a precursor universe, not a buy list); the actionable
     cut is the FRESH rising edge (the setup just turned on) + a ⭐ when a genuine
     institutional bulk/block net-buyer is present on the same name (the research's
@@ -1613,44 +1632,34 @@ def render_launchpad(sig_date, idx_date) -> str:
     from src.web import dashboard as D
     esc, pct, num = D._esc, D._pct, D._num
 
-    rows_by_sym, T, regime_a200, net_set, deals_td = {}, None, None, set(), None
+    T = regime_a200 = None
+    hits, deals_td = [], None
     with D.get_conn() as conn:
-        tr = conn.execute("SELECT MAX(trade_date) d FROM bhavcopy_rows WHERE series='EQ'").fetchone()
+        # No series='EQ' filter here: it defeats idx_bhav_date and turns a 0.1ms
+        # index-max into a 3.2s scan of the 16GB table (measured S84). Every
+        # trading day has EQ rows, so the MAX is identical; a hypothetical
+        # mismatch only routes to the live-scan fallback, never a wrong page.
+        tr = conn.execute("SELECT MAX(trade_date) d FROM bhavcopy_rows").fetchone()
         T = tr["d"] if tr else None
         if not T:
             return _CKPT_CSS + '<div class="empty">No bhavcopy data yet.</div>'
-        cand = [x["symbol"] for x in conn.execute(
-            "SELECT symbol FROM bhavcopy_rows WHERE trade_date=? AND series='EQ' "
-            "AND (segment='CM' OR segment IS NULL) AND value>=? AND close>20 "
-            "AND symbol IN (SELECT symbol FROM nse_equity_list)", (T, _LP_LIQ)).fetchall()]
-        if cand:
-            import datetime as _dt
-            lo = (_dt.date.fromisoformat(T) - _dt.timedelta(days=130)).isoformat()
-            ph = ",".join("?" for _ in cand)
-            for x in conn.execute(
-                    f"SELECT symbol, close, prev_close, volume, value FROM bhavcopy_rows "
-                    f"WHERE symbol IN ({ph}) AND trade_date>=? AND trade_date<=? AND series='EQ' "
-                    f"AND (segment='CM' OR segment IS NULL) ORDER BY symbol, trade_date ASC",
-                    (*cand, lo, T)).fetchall():
-                rows_by_sym.setdefault(x["symbol"], []).append(x)
         rg = conn.execute("SELECT pct_above_200d_avg a200 FROM index_signals "
                           "WHERE index_name='Nifty 50' ORDER BY trade_date DESC LIMIT 1").fetchone()
         regime_a200 = rg["a200"] if rg else None
-        net_set, deals_td = _lp_net_buyers(conn)
-
-    hits = []
-    for sym, rs in rows_by_sym.items():
+        # The whole-universe gather (was ~9s per request, EVERY request) is now
+        # PRE-COMPUTED nightly into launchpad_signals (hermes-launchpad-scan.timer,
+        # wolfe_signals pattern) — read the snapshot when it matches today's bhav
+        # date; otherwise fall back to a per-date-memoised live scan.
+        snap = None
         try:
-            res = _lp_features([x["close"] for x in rs], [x["prev_close"] for x in rs],
-                               [x["volume"] for x in rs], [x["value"] for x in rs])
-        except Exception:
-            res = None
-        if not res:
-            continue
-        flags, m = res
-        if flags and m["med_turn"] is not None and m["med_turn"] >= _LP_LIQ:
-            m["buyer"] = sym in net_set
-            hits.append((sym, flags, m))
+            from src.automation import launchpad_signals as LPS
+            snap = LPS.latest(conn)
+        except Exception:  # noqa: BLE001 — the snapshot is an accelerator, never fatal
+            snap = None
+        if snap is not None and snap.get("scan_date") == T:
+            hits, deals_td = snap["hits"], snap.get("deals_date")
+        else:
+            hits, deals_td = _lp_live(conn, T)
 
     n_universe = len(hits)
     fresh = [h for h in hits if (h[2]["age"] is not None and h[2]["age"] <= 2)]

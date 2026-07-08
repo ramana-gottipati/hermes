@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes Launchpad precursor scan Timer (nightly, weekdays)
+# Deliberately NO Requires= (AUD-95): enabling/starting this timer mid-day must
+# only SCHEDULE the job, never fire it — the backup-timer pattern.
+
+[Timer]
+# Daily 9:50 PM IST = 16:20 UTC, Mon-Fri — after the bhavcopy chain (14:00 UTC),
+# the deals ingest (14:30 UTC), wolfe (16:00) and harmonic (16:10), so the scan
+# reflects today's adjusted closes AND today's bulk/block deals for the ⭐ buyer
+# overlay. Mon-Fri only (no new bars on weekends); Persistent catches a missed
+# run after downtime.
+OnCalendar=Mon..Fri *-*-* 16:20:00
+Persistent=true
+Unit=hermes-launchpad-scan.service
+
+[Install]
+WantedBy=timers.target

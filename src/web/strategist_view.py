@@ -260,7 +260,56 @@ _CATALOG = [
     ("Growth-intent", "/dash/growth"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
+    ("Momentum · ensemble", "/dash/markets/momentum-scan"),
+    ("Results reactions", "/dash/markets/results-reactions"),
 ]
+
+
+# One plain-English line per strategy — WHAT it is and HOW to read it, shown ON
+# the card (Ramana 2026-07-08: a bare term like DVPT/CPR/CCI with no context is
+# useless at the decision point). Keyed by clean route so it works for both the
+# registry and the fallback rows. Second element = the glossary filter term the
+# card's "glossary →" link lands on (/dash/glossary?q=…). Descriptive voice —
+# how to read, never the proprietary formula.
+_BLURB: dict[str, tuple[str, str]] = {
+    "/dash/conviction": (
+        "Cross-pillar shortlist — names strong on BOTH the strong-hand delivery "
+        "footprint (DVPT) and relative strength at the same time.", "conviction"),
+    "/dash/stocks": (
+        "DVPT = delivery value per trade: when buyers took DELIVERY today, how big "
+        "was the average ticket vs this stock's normal — and heaviest — days?", "DVPT"),
+    "/dash/screener": (
+        "DVPT = delivery value per trade: when buyers took DELIVERY today, how big "
+        "was the average ticket vs this stock's normal — and heaviest — days?", "DVPT"),
+    "/dash/mep": (
+        "A SIGNED read: quiet accumulation (+) vs distribution (−) — the side that "
+        "DVPT alone can't tell you. Descriptive companion, not a call.", "MEP"),
+    "/dash/cpr": (
+        "Central Pivot Range — chart structure from the prior period's range. The "
+        "card counts fresh daily BULL-U compressions and confirmed reversals.", "CPR"),
+    "/dash/leaders": (
+        "Relative strength vs Nifty 500 — top-decile RS ranks. Falling LESS than "
+        "the market still counts as strength.", "RS rank"),
+    "/dash/concalls": (
+        "CCI = did management DO what it said on earlier concalls? Scored from the "
+        "company's own call history. Descriptive — no return edge is claimed.", "credibility"),
+    "/dash/growth": (
+        "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new "
+        "products — ₹-normalised and scannable.", "growth intent"),
+    "/dash/launchpad": (
+        "Validated explosive-move precursors (momentum-continuation / coiled). The "
+        "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "
+        "showed up in bulk/block deals the same day.", "launchpad"),
+    "/dash/wolfe/scan": (
+        "Winner-profile wave scan — read by SIDE: bulls carried the edge in "
+        "testing, bears are tail-only. Descriptive overlay.", "wolfe"),
+    "/dash/markets/momentum-scan": (
+        "Equal-weight momentum ensemble percentile (12m · 52w-high · risk-adj · "
+        "low-vol) with the C-blend column. Beta, not stock-picking — descriptive.", "momentum"),
+    "/dash/markets/results-reactions": (
+        "This results season, delivery-confirmed: big earnings surprises where "
+        "holding money actually showed up, tracked for post-earnings drift.", "results"),
+}
 
 
 def _augment_catalog(rows: list[dict]) -> list[dict]:
@@ -339,8 +388,16 @@ def _card(row: dict) -> str:
         f'<div class="st-sub">{K.esc(as_of_str)}</div></div>'
         f'{K.pill(htext, hkind)}</div>')
 
+    # the plain-English "what am I looking at" line + a glossary deep-link — every
+    # card explains its own term at the decision point (never the formula).
+    b = _BLURB.get(_clean_route(route))
+    blurb = ""
+    if b:
+        blurb = (f'<div class="st-blurb">{K.esc(b[0])} '
+                 f'<a href="/dash/glossary?q={quote_plus(b[1])}">glossary →</a></div>')
+
     foot = f'<a class="st-open" href="{K.esc(route)}">Open {K.esc(label)} →</a>'
-    return f'<div class="st-card">{head}{names}{foot}</div>'
+    return f'<div class="st-card">{head}{blurb}{names}{foot}</div>'
 
 
 _PAGE_CSS = """<style>
@@ -360,6 +417,8 @@ _PAGE_CSS = """<style>
 .st-name:hover{background:var(--bg-3)}
 .st-name .sym{color:var(--ink);font-weight:600}
 .st-name .note{color:var(--ink-3);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+.st-blurb{font-size:11.5px;color:var(--ink-3);line-height:1.45}
+.st-blurb a{color:var(--accent);white-space:nowrap}
 .st-empty{font-size:12px;color:var(--ink-3);flex:1;display:flex;align-items:center}
 .st-open{font-size:12px;color:var(--accent);font-weight:500;margin-top:auto}
 .st-strip{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
@@ -753,6 +812,8 @@ def _selftest() -> int:
     assert r.status_code == 200, r.status_code
     assert "Strategist" in r.text and "st-grid" in r.text
     assert "wb-bar" in r.text and "Confluence alerts" in r.text, "workbench sections missing"
+    assert "delivery value per trade" in r.text, "card explainer blurbs missing"
+    assert "/dash/glossary?q=" in r.text, "glossary deep-links missing"
     # exercise the NON-empty boards path (the quote_plus-class bug hid there): seed a
     # board, render, assert it appears + the page still 200s, then clean up.
     try:

@@ -194,9 +194,51 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Ignition status — NEW / FRESH / CONTINUING / COOLING.** **NEW** = first-ever full ignition. **FRESH** = ignited today, not ranked yesterday. **CONTINUING** = still ranked, intensity holding. **COOLING** = intensity dropped meaningfully off the prior day. *Source:* `status`.
 - **Breadth (0–5).** How many of the 5 peak-day baselines today's delivery-per-trade beat. *Source:* `breadth`.
 
+## Launchpad — explosive-move precursors (D56)
+
+> The bottom-up research lens: conditions that *preceded* validated explosive moves, scanned nightly over the liquid (≥₹5cr median-turnover) universe into `launchpad_signals`. A **precursor universe, not a buy list** — the raw pattern is common inside any trend; the actionable cut is the **fresh rising edge**.
+
+- **MOM·CONT.** Momentum continuing: up strongly over the last month while volume has *not yet* expanded and the trading range is wide — the move is running ahead of the crowd. Backtest "S1" core: net-positive in BOTH walk-forward windows (2012-19 / 2020-26), beta ~0.4. *Source:* `launchpad_signals.flags`.
+- **COILED.** Up ≥10% over the month while realized volatility is *contracting* — energy stored, not spent. *Source:* `launchpad_signals.flags`.
+- **PULLBACK.** The weaker mean-reversion leg (shaken in volatility after a flat month) — only the recent regime was net-positive; read as the diversifier, not the engine. *Source:* `launchpad_signals.flags`.
+- **Fresh (age).** How many sessions the setup has been on. **age 0 = it switched on TODAY** (off yesterday) — the backtest enters on this rising edge, not the 8th day of a run. The board counts age ≤ 2 as fresh. *Source:* `launchpad_signals.age`.
+- **⭐ Genuine buyer.** A one-sided institutional **net buyer** in the same name's bulk/block deals the same day (non-churn category, net ≥60% one-way) — the research's high-conviction intersection. *Source:* `launchpad_signals.buyer` (deals ⋈ client classification).
+- **Regime gate.** The validated book only *trades* these when Nifty 50 is above its 200-DMA; setups are still shown when it isn't (regime is the timing gate, not a filter).
+
+## Wolfe — winner-profile wave scan
+
+> A five-point wave geometry (points 1-2-3-4-5, with 5 overshooting the 1–3 trend-line into a reversal zone). Nightly scan persisted to `wolfe_signals`; **descriptive-only** — the §C backtest split the edge **by side**.
+
+- **Side (BULL / BEAR).** BULL setups carried the edge in testing (~+1.4% α to target); **BEAR is tail-only** (a few large winners, most don't work). Read the side, not just the shape. *Source:* `wolfe_signals.dir`.
+- **In-zone.** Price currently inside the computed reversal zone (the actionable window); age = bars since the pattern completed. *Source:* `wolfe_signals.in_zone`, `.age`.
+
+## Momentum ensemble — the risk-adjusted scan
+
+> The nightly `momentum_scan`: 12-month momentum · 52-week-high proximity · risk-adjusted momentum · low-vol momentum, equal-weighted into one percentile. **Attribution proved this is momentum BETA, not stock-selection skill** (residual α failed t≥3; see the strategy ledger) — a *tilt* you ride knowingly, never a buy list.
+
+- **Ensemble %ile (1–99).** The equal-weight blend of the four momentum sleeves, ranked cross-sectionally. ≥90 = top decile. *Source:* `momentum_scan.ensemble_pctile`.
+- **C-blend.** 50/50 mean of risk-adjusted-momentum percentile and the capital-allocation (C) percentile — the best *paper* overlay in the 2026-07 backtest (flat-cost only; **not fundable at AUM**, hence a descriptive column). *Computed on read.*
+
+## Growth-intent — concall forward proposals
+
+> What managements said they will DO next — capex, expansion, debt-reduction, new products, volume targets — extracted from earnings-call transcripts into `concall_signals`, **₹-amounts normalized** so a "₹500cr capex" is comparable across companies.
+
+- **Statement type.** capex / expansion / debt_reduction / new_product / volume. The Phase-3 content-scan showed these carry a modest historical forward tilt (debt-reduction and volume strongest, ~+2-3% at 3m, de-marketed) — **historical content reads, not a validated signal**. *Source:* `concall_signals.statement_type`.
+- **₹ crore.** The normalized amount when the statement was monetary; capacity/other statements carry none. *Source:* `concall_signals.amount_cr`.
+- **Polarity.** +1 grow/expand · −1 pullback ("no capex this year" is information too) · 0 neutral. *Source:* `concall_signals.polarity`.
+
+## Results reactions — the season war room
+
+> Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.
+
+- **SUE (earnings surprise).** The size of the earnings beat/miss vs the name's own history — "high" = the big-surprise cohort. *Source:* `results_reactions.sue`, `.sue_high`.
+- **Deliv ×.** Day-0 delivered value vs the stock's normal day — "3.2×" = three times its ordinary delivery. High SUE **and** high delivery = the confirmed cell (the historically interesting one). *Source:* `results_reactions.deliv_x`, `.deliv_high`.
+- **CAR 22/60.** Cumulative abnormal return 22/60 sessions after the report — the descriptive drift fan. ● settled = the full window has elapsed; ◔ fresh = drift still accruing. **The PEAD *lens* is real; every tradeable wrapper on it failed net-of-cost gates** — this page describes, it does not recommend. *Source:* `results_reactions.car22`, `.car60`, `.settled`.
+
 ---
 
 ### Status
 - ✅ **DONE (S72):** these definitions are wired as `?` **hover-help** across Screen+ / RRG / RS-band / rotation headers + the stock-dossier tabs, AND rendered as a browsable page at **`/dash/glossary`** (`src/web/glossary_view.py`) — both single-sourced from THIS doc so they can't drift. Keys 95→245.
+- ✅ **S84:** strategy-lens sections added (Launchpad · Wolfe · Momentum ensemble · Growth-intent · Results reactions) so every card on `/dash/strategist` deep-links to a real definition (`/dash/glossary?q=…`).
 - Open: a **"how is this computed"** drill-down for the composites (conviction, character, key price) — the calculation *schema* without the proprietary weights.
 - Decide the **conviction formula** (add Quality? CPR? re-weight? backtest?) — a design-panel decision, not a silent default.

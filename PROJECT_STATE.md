@@ -476,6 +476,31 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D93 — Strategies board: every card MEASURED + EXPLAINED; whole-universe lenses must be nightly-persisted, never render-time (2026-07-08, S84)
+Ramana's product review (S84) found the Strategies workspace failing its front-door job: 4 of 10
+cards permanently hollow ("—", "Open the lens →"), /dash/launchpad taking **9s per request**
+(render-time whole-universe scan — a guardrail-#6 violation), bare jargon (DVPT/CPR/CCI/RS) with
+zero context at the decision point, and the newest lenses (momentum ensemble, results war room)
+invisible from the Strategies altitude. Decisions, all shipped + live-verified:
+1. **A strategy card is only allowed on the board if it shows count + as-of + top names + a
+   plain-English one-liner.** `strategy_registry` grew from 6 → 11 readers (conviction, growth,
+   launchpad, momentum, reactions added); link-only cards are now reserved for genuinely
+   snapshot-less hosts, not for lenses that simply never got a reader.
+2. **Whole-universe compute NEVER runs on page render** — the Launchpad scan is materialised
+   nightly into `launchpad_signals` (+ `launchpad_scan_meta`) by `hermes-launchpad-scan.timer`
+   (16:20 UTC, wolfe-scan pattern, **no `Requires=` on the timer by design** so mid-day
+   enable/start only schedules — the AUD-95-safe backup-timer pattern). Page reads the snapshot;
+   live compute survives only as a per-date-memoised fallback. 9.0s → **0.01-0.02s** measured.
+3. **`MAX(trade_date) … WHERE series='EQ'` is banned on hot paths** — the filter defeats
+   `idx_bhav_date` and turns a 0.1ms index-max into a 3.2s scan of the 16GB table. Unfiltered MAX
+   is value-identical (every trading day has EQ rows). Swept: only offline backtest CLIs still use
+   the filtered form (fine there).
+4. **Every strategy term the board shows must resolve in docs/metrics-glossary.md** — 5 new
+   sections (Launchpad · Wolfe · Momentum ensemble · Growth-intent · Results reactions); cards
+   carry the one-liner + a `/dash/glossary?q=<term>` deep-link (the glossary filter now accepts
+   `?q=`). DVPT-card route fixed to `/dash/stocks` (was `/dash/screener`, which spawned a
+   duplicate hollow "Positioning" card via the route-dedup).
+
 ### D92 — Charter v1.1: evidence-driven amendments + the spec-sheet surface (2026-07-07, S83d)
 Per charter §10 (evidence wins; amend by D-log, never silent edit): (1) **D-05 re-scoped** — free
 bulk/block HISTORY does not exist (`deals.py:11`); the live feed accumulates forward-only
@@ -1242,9 +1267,9 @@ The full plan, ranked table, the **CPR Spine** signature, the four-family contro
 - **PWA cache** — the dashboard service worker can serve a stale cached page after a deploy; users need a hard-refresh until the SW cache version is bumped (edits `dashboard.py`, deferred while the CCI/web session holds it).
 - ✅ **CCI guidance-settlement pass (D59) — BUILT** (`concall_settle.py`, committed `0d836dd`): deterministic OPEN→MET/MISSED/PARTIAL, idempotent, no look-ahead. **Operational rule stands:** re-run settle after any `--force` re-extract *before* `concall_scores --rerank`. Optional later: a `UNIQUE(symbol, source_period, claim_text)` backstop (needs a `concall_guidance` rebuild).
 
-### 🚀 EXPLOSIVE-MOVE "Launchpad" — discovered + validated, NOT yet productized (D56, session 25)
+### 🚀 EXPLOSIVE-MOVE "Launchpad" — validated + productized (D56 → D93); research follow-ons open
 The research is done (`research/explosive_moves/`, `docs/explosive-move-research.md`); the edge holds OOS + every year. Open follow-ons, in priority order:
-1. **Live "Launchpad" daily screener** (highest value) — the M1∪M2 setup (volatile/wide-range + shakeout-or-thrust) with the S1 sustain filter (low-ATR / near-52w-high / non-penny), as a daily scan + a Strategies card on the dashboard. All inputs already exist nightly in `stock_signals`/bhavcopy. Fold the rule into Decision log + retire the research doc to a pointer.
+1. ✅ **Live "Launchpad" daily screener — DONE (S84, D93):** nightly `launchpad_signals` snapshot (`hermes-launchpad-scan.timer` 16:20 UTC) + instant `/dash/launchpad` + a MEASURED Strategies card (count/as-of/top/fresh-age/⭐buyer) via `strategy_registry._launchpad`.
 2. **Tradeable backtest with costs** — add slippage/transaction-cost/position-sizing + entry-stop-target derived from the per-event MFE/MAE distributions already computed. (Current study is precursor-discovery, NOT a P&L backtest.)
 3. **RS-era deep-dive (2021+)** where `rs_rank` is dense — likely sharpens M1/W1; consider adding RS rank to the live Launchpad gate.
 4. **Sensitivity re-runs** via env params (`EM_LIQ_FLOOR`/`EM_THRUST`/`EM_HOLD`) — confirm thresholds; `weekly_signals`/`monthly_signals` (D52 MTF) would add multi-TF precursors if populated.
@@ -1393,6 +1418,55 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 84 — 2026-07-08 — Strategies workspace rescue: launchpad 9s→0.01s · all 11 cards measured · every term explained on-card (D93; Ramana product review)
+**Trigger:** Ramana's review — "screener → strategy changeover is slow", "why are the strategy
+cards empty", "DVPT / CPR / CCI mean nothing without context", "the new strategies aren't
+appearing anywhere". All four verified real and fixed, live:
+- **Perf:** `/dash/launchpad` was a render-time whole-universe scan — **9.0s per request,
+  every request** (measured). Now nightly-persisted (`src/automation/launchpad_signals.py`,
+  NEW: scan/persist/latest + `launchpad_signals`/`launchpad_scan_meta` tables;
+  `hermes-launchpad-scan.{service,timer}` + hardening drop-ins in `scripts/systemd/vps-live/`,
+  16:20 UTC Mon-Fri, timer deliberately Requires-free = AUD-95-safe). First snapshot
+  materialised on the VPS (390 precursors, 11.4s, as-of 2026-07-07); timer enabled, first
+  scheduled fire tonight 16:21 UTC. Second bug: `MAX(trade_date) WHERE series='EQ'` defeats
+  `idx_bhav_date` → 3.2s (D93 #3). **Measured after: launchpad 0.01-0.02s (was 9.0s),
+  strategist board 0.10s external, all pages 200.**
+- **Empty cards:** `strategy_registry` 6 → **11 readers** — added `_conviction` (0.55·p_score +
+  0.45·RS blend, flag ≥78), `_growth` (concall_signals growth-intent, 12-month window,
+  ₹-normalised tops), `_launchpad` (fresh ≤2 sessions + ⭐buyer from the snapshot), `_momentum`
+  (momentum_scan ensemble ≥90th pctile), `_reactions` (research.db results_reactions,
+  delivery-confirmed count). `_dvpt` route fixed → `/dash/stocks` (kills the duplicate hollow
+  "Positioning" card). Live board now: conviction 28 · dvpt 297 · mep 975 · cpr 765 · rs 130 ·
+  cci 135 · growth 715 · launchpad 136 · momentum 21 · reactions 159 · wolfe 76 — **zero
+  link-only leftovers.**
+- **Explainability:** every card renders a plain-English one-liner (`_BLURB` in
+  `strategist_view.py` — "DVPT = delivery value per trade: …", CPR, CCI, RS, all 11) + a
+  `glossary →` deep-link; `/dash/glossary` accepts `?q=` prefill (4-line JS). 5 new
+  `docs/metrics-glossary.md` sections: Launchpad · Wolfe · Momentum ensemble · Growth-intent ·
+  Results reactions (voice: descriptive, failure-ledger caveats inline — momentum=beta,
+  PEAD wrappers net-fail, wolfe by-side).
+- **Discoverability:** Momentum · ensemble + Results reactions are now Strategies-board cards
+  (measured, not link-only) — the "new strategies" are visible from the Strategies altitude,
+  not only under Markets.
+- **Verified:** local selftests (registry 11 rows · strategist blurb asserts · imports) + VPS
+  py_compile + pytest 18 passed/1 skipped (local venv; VPS venv has no pytest) + live curls
+  (11 cards, 11 blurbs, 11 glossary links, launchpad page 81 rows + tiles + regime banner) +
+  `install-systemd.sh --check` clean for the new units.
+- **Deploy notes:** verify-then-swap per file (4/6 byte-identical to HEAD; VPS
+  `strategy_registry.py` was HEAD-with-CRLF — replaced with LF; VPS `metrics-glossary.md` was
+  behind HEAD, no live-only lines). Pre-existing UNCAPTURED live-only units flagged by the
+  drift gate, NOT mine, left for their owners: `hermes-pateval.timer` (S83i lane),
+  `hermes-corp-actions.service`(+drop-ins) (S83e lane).
+- **Follow-ups:** (a) VERIFY tonight's first `hermes-launchpad-scan` timer run (~16:21 UTC,
+  journal + `/var/log/hermes-launchpad-scan.log` + snapshot date rolls to 2026-07-08);
+  (b) strategist board sits at ~0.10-0.40s (alerts/what-changed/CCI-tile sections) — fine, but
+  a per-data-day memo is the next lever if Ramana still feels it; (c) sibling lanes should
+  git-capture their pateval/corp-actions units.
+Commits: (this commit). Files: `src/automation/launchpad_signals.py` (NEW) ·
+`src/automation/strategy_registry.py` · `src/web/cockpit.py` · `src/web/strategist_view.py` ·
+`src/web/glossary_view.py` · `src/web/dashboard.py` (docstring) · `docs/metrics-glossary.md` ·
+`scripts/systemd/vps-live/hermes-launchpad-scan.*` (4 files) · `PROJECT_STATE.md`.
 
 ### Session 83i — 2026-07-08 — Pat eval gate: 6 pre-existing misses fixed → battery 100% green + strict-by-default + nightly pager (AUD-40 follow-through)
 AUD-40 wired the Pat NL eval battery into a gate (`src/pat/eval_set.py --gate` + gate-0.5 in

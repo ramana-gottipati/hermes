@@ -113,6 +113,9 @@ function apply(){var q=(f.value||'').toLowerCase().trim();
   secs.forEach(function(s){ var vis=[].slice.call(s.querySelectorAll('.gv-row,.gv-solo'))
     .some(function(r){return r.style.display!=='none';}); s.style.display=vis?'':'none'; });}
 f.addEventListener('input',apply);
+// deep-link: /dash/glossary?q=DVPT prefills the filter (strategy cards land ON their term)
+try{var q0=new URLSearchParams(location.search).get('q');
+if(q0){f.value=q0; apply();}}catch(e){}
 })();</script>"""
 
 
