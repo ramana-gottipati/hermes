@@ -1774,11 +1774,19 @@ locks** (obs/implied = 1.19–1.21 — tape right, stock locked +20% on the adju
 equity price impact) · remainder genuinely fenced. Fixes: `_group_price_legs` (group-aware
 in-row recovery, double-compound-proof) shared by `price_ratios`+`reconcile` · `adjust.
 tape_agrees()` shared gate with band-lock acceptance (exact tape ratio still applied) ·
-deb/pref excluded at parse+read. Selftests 17/17 + 7/7. Note: my classifier's own first-pass
+deb/pref excluded at parse+read. Selftests 19/19 + 7/7. Note: my classifier's own first-pass
 labels were partly wrong (4 "BONUS_SWAP" + 1 "DATE_SHIFT" were really in-row compounds whose
 swapped/shifted arithmetic coincidentally fit) — the per-row details text was the arbiter, not
-the hypothesis score. Reconcile re-run + the four-leg heal of every factor-changed symbol:
-counts AMENDED below when the run lands.
+the hypothesis score. A second pass (`72c4ce4`) caught two near-miss text forms the first
+missed: from-less split subjects ("Face Value Split Rs.10/- To…", "Spl-Rs10 To Rs2") and the
+abbreviated "Bonus Deb1:1".
+- **✅ RESULT: 77 → 6 suspects** (AHLEAST · DVL · KWALITY · LAKSHVILAS rights-mix · SHARONBIO ·
+  TVSMOTOR no-move row — all honestly fenced, gate keeps refusing). Reconcile now: 947 CAUGHT /
+  118 MISSED / 6 SUSPECT / 138 NO_RATIO / 144 NO_BHAV / 1 NEGLIGIBLE (1,354 groups unchanged).
+- **✅ Consequence heal COMPLETE:** every factor-changed symbol (old-suspect ∪ new-missed, minus
+  the 6 fenced + the morning 92) = **70 symbols, four legs (mep + cpr D/W/M/H + triggers +
+  keyprice), 0 failures, 10.5 min** (`/tmp/heal_tape.py`, resume-safe). hermes-api restarted on
+  the new gate pre-heal. Tonight's `chk_action_tape_agreement` battery is the standing monitor.
 
 ### Session 96 — 2026-07-10 — P-04 EVIDENCE PACK live (/dash/evidence-pack) — the procurement artifact, assembled not authored (season lane)
 The S93b top pick executed as recorded (kickstart-pick-verify: no PDF exporter existed, only
