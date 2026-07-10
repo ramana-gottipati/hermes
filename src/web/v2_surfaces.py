@@ -73,6 +73,9 @@ _ROUTER_SPECS = [
     # Corp-actions calendar (D94 queue #5, S91) — forward ex-dates from the nightly
     # corporate_actions feed; flag logic single-sourced in corp_actions.flagged_symbols.
     ("actions", "src.web.actions_view", "/dash/actions"),
+    # Surveillance-transition tape (D94 queue #6, S92) — ASM/GSM snapshot diffs +
+    # band events; flag logic single-sourced in surveillance.flagged_symbols.
+    ("surveillance", "src.web.surveil_view", "/dash/surveillance"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),

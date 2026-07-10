@@ -113,8 +113,10 @@ M-03 half (evlib re-export; factory print-wiring = next factory run) · E-11 + E
 blocked on data depth (membership-change history; D-07) · D-09/D-10 (+D-07) need an
 endpoint-discovery pass first (direct probes 404; NO dead pipes built) · D-08 = its own 1-2
 sessions · P-04 spine accrues on spec-sheets, PDF assembly end-July · P-06 deferred per the
-product ranking (named-buyer trigger; personal-use variant needs an auth design) · E-10 data
-confirmed READY (344 BUYBACK rows) — queued NEXT.
+product ranking (named-buyer trigger; personal-use variant needs an auth design) · **E-10 SHIPPED
+(S93, 2026-07-10): `/dash/buyback-calc` — the personal-scale tender-quota calculator + the 344-row
+BUYBACK tape; acceptance ratio stays a user assumption (no fabricated priors); a buyback drift
+STUDY remains its own future pre-registration.**
 
 ## 6. Data-acquisition sprint — what can be brought in QUICKLY (all primary, ₹0)
 

@@ -639,8 +639,8 @@ empty? why not proactive?") exposed two things D93 missed and one it now answers
    5. ✅ **Forward corporate-actions calendar — DONE (S91):** `/dash/actions` (Markets) +
       card + pillar + glossary + gate; 32 names in the 14d cohort; ledger-fenced to pure
       logistics (E-11 placebo-NULL + E-12 dead quoted on-page).
-   6. **Surveillance-transition tape** — `surveillance_flags` 797 + `price_band_events` 52
-      (ASM/GSM entry/exit + band tightenings; context, never a gate — glossary exists).
+   6. ✅ **Surveillance-transition tape — DONE (S92):** `/dash/surveillance` + card + pillar
+      + glossary + gate; 52 moves in 30d. **🏁 QUEUE COMPLETE 6/6 — see the S92 closure.**
    Next session starts at #1. ~130K primary-source event rows currently reach no decision
    surface — that is the honest answer to "is that all the data can do": no.
 
@@ -1650,6 +1650,58 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 93 — 2026-07-10 — E-10 buyback tender-quota calculator LIVE (/dash/buyback-calc)
+- **NEW `src/web/buyback_calc.py`** — the personal-scale capacity-moat tool (charter §2.4): a
+  client-side tender-arbitrage calculator (vanilla JS, zero deps — shares/accepted/returned split,
+  tender + residual legs, net + simple-annualized, breakeven exit price, acceptance-sensitivity
+  table at 20/33/50/66/100%) over the SEBI mechanism (15% small-shareholder reservation, ₹2,00,000
+  record-date cap = the moat), plus the 344-row BUYBACK tape from `corporate_actions` (best-effort
+  price parse; click-to-fill). **Honesty fences on-page:** acceptance ratio = the USER's assumption
+  (realized ratios are company-published post-offer, not in our data — no fabricated prior); the
+  record-date ₹2L eligibility buffer warning; arithmetic-not-advice; any buyback drift STUDY needs
+  its own pre-registration. Glossary: acceptance-ratio + small-shareholder entries.
+- Nav: Markets lens beside the corp-actions calendar + durable router mount; nav gate PASS.
+- **Multi-session note (the real story of the deploy):** the sibling lane's 09:01 wave clobbered my
+  first surgical live-patch (expected hazard of live-only patches — their S92 surveillance-tape
+  work landed in the SAME three shared files simultaneously). Resolution per protocol: my hunks
+  were committed via INDEX-CRAFTED blobs (HEAD + my lines only — `hash-object`/`update-index`), the
+  sibling's uncommitted S92 worktree hunks untouched; the live re-patch after this commit is
+  git-durable. Chrome-gate residual: the pre-existing /dash/strategies marker artifact (their lane,
+  recorded S83d — live page carries the skin).
+
+### Session 92 — 2026-07-10 — SURVEILLANCE-TRANSITION TAPE live (D94 queue #6) — 🏁 THE D94 QUEUE IS COMPLETE (6/6 in 3 days)
+The last D94 item (ledger check: NO study exists on this feed either way — the tape is pure
+fact; the standing "context, never a gate" framing carried from the glossary verbatim):
+- **`/dash/surveillance` (NEW `src/web/surveil_view.py`, Markets — nested
+  `/dash/markets/surveillance`)** — restriction MOVES: ASM-LT/ST + GSM entries/exits/stage
+  shifts (derived by diffing consecutive NSE list dates; earliest date = baseline, nothing
+  "enters" on day one) + price-band SET/REMOVED/TIGHTENED/RELAXED from the change log
+  (NULL semantics honest). Tiles (moves 30d · restriction ▲/▽ · tightenings · under-now
+  LT/ST/GSM census) + the tape + "under surveillance now" membership boards. 7-11ms.
+- **Single-source flags:** `surveillance.transitions()/flagged_symbols()/current_state()`
+  (FLAG_DAYS=30). **Live: 52 names with a move in 30d** — ZSARACOM/TEAMTECH/TARSONS
+  ▲ entered ASM-ST Stage I · UNICHEMLAB ▲ band 20→10 · SKMEGGPROD ▽ exited. Card ==
+  pillar (19 measured) == board_health (**17 strategies, prod OK**).
+- **Wiring:** registry `_surveil` (17 readers) · strategist card + blurb · cockpit SURVEIL
+  pillar · markets Lens + `_ROUTER_SPECS` · glossary "Surveillance transitions" section
+  (▲/▽ bookkeeping · stage Δ · band semantics · T2T exclusion cross-ref). Journey-walked
+  end-to-end, local selftests + pytest 18/1.
+- **Multi-lane discipline this round:** D95 lane COMMITTED mid-session (fd4b4b1 — verified
+  live cockpit carries BOTH lanes' code, no clobber; my pull-patch-push preserved their
+  deploy) · buyback-calc lane (S85g) still UNCOMMITTED in lens_registry/v2_surfaces/
+  metrics-glossary — those three partial-staged (my surveillance hunks only), their
+  `buyback_calc.py` untouched.
+- **🏁 D94 CLOSURE — the "unsurfaced data" arc (S84b decision → S86-S92 execution):**
+  ~130K primary-source event rows → SIX live lenses in 3 days, every one with page + card
+  + home pillar + glossary + board_health coverage, every one descriptive with its
+  ledger/fence honesty: ① insider (78 fresh-conviction; plumbing classified out) ·
+  ② ratings (E-02 dedup: 3 true ≠ 11 raw) · ③ stake×pledge (Reg-29(1) levels +
+  CONTROL_PCT=25 fences) · ④ holdings QoQ (provenance-honest; STRUCTURAL_PP=25, RBLBANK
+  0→60pp caught) · ⑤ corp-actions calendar (E-11/E-12 nulls quoted) · ⑥ surveillance tape.
+  The board went 6 measured cards (Jul-08) → **17 measured strategies + 19 home pillars
+  (Jul-10)**, all machine-gated nightly. **Next roadmap = back to the charter NOW queue**
+  (results season live; E-studies self-gating).
 
 ### Session 91 — 2026-07-10 — CORP-ACTIONS CALENDAR live (D94 queue #5): forward ex-dates, ledger-fenced to pure logistics
 D94 queue #5 executed (ledger cited pre-build, both walls quoted on-page and in the
