@@ -304,6 +304,29 @@ def _prereg_hashes():
         return {}
 
 
+# Hoisted so the evidence pack (P-04, evidence_pack.py) assembles the SAME strings —
+# these two blocks live here once; the pack imports them, never restates them.
+M05_BOX = (
+    '<div class="live">📏 <b>Standing caveats (M-05)</b> — printed beside every claim, '
+    'not buried: <b class="num">44.1%</b> of the 22-year tape mass is unjoinable to '
+    'fundamentals (the delistings live exactly there); <b class="num">1,706 / 1,722</b> '
+    'delisted names are fundamentally dark; the price archive is left-censored at '
+    '<b class="num">2004-07-23</b> (773 names). Every fundamentals-conditioned lift is '
+    'therefore survivor-tilted — the survivor-vs-terminal re-cut (attribution.py §5) '
+    'measures the direction of that bias, and the Deflated-Sharpe / PBO stages (M-03) '
+    'are one import away in <code>evlib</code> for every study; factory auto-wiring '
+    'lands with the next factory run.</div>')
+
+NOTE_HTML = (
+    '<div class="note">Numbers are hand-carried from '
+    '<code>docs/strategy-ledger.md</code> (the canonical record) and the machine '
+    'ledger in <code>research.db.strategy_runs</code>; the standing corollary those '
+    'failures prove: price strength is the only gross forward-return engine we have '
+    'found, value/quality/credibility/accumulation are context layers not rankers, '
+    'and no factor here is a fundable net-of-cost alpha vs the index at AUM. '
+    'Descriptive research record, not investment advice.</div>')
+
+
 def _sheet_html(s, hashes=None):
     v1, c1, v2, c2 = s["verdict"]
     badges = f'<span class="verdict {c1}">{_esc(v1)}</span>'
@@ -338,26 +361,14 @@ def spec_sheets():
             'and the result goes to the ledger — win or lose. These are the completed studies, '
             '<b>failures included on purpose</b>: a page that only showed wins would be '
             'marketing, and the discipline is the product. Nothing here is a signal, a '
-            'ranking, or a return promise.</div>',
+            'ranking, or a return promise. These sheets — with the coverage boundary and '
+            'the live season record — are assembled into the print-ready '
+            '<a href="/dash/evidence-pack">evidence pack</a>.</div>',
             _mttr_box(),
             _placebo_box(),
-            '<div class="live">📏 <b>Standing caveats (M-05)</b> — printed beside every claim, '
-            'not buried: <b class="num">44.1%</b> of the 22-year tape mass is unjoinable to '
-            'fundamentals (the delistings live exactly there); <b class="num">1,706 / 1,722</b> '
-            'delisted names are fundamentally dark; the price archive is left-censored at '
-            '<b class="num">2004-07-23</b> (773 names). Every fundamentals-conditioned lift is '
-            'therefore survivor-tilted — the survivor-vs-terminal re-cut (attribution.py §5) '
-            'measures the direction of that bias, and the Deflated-Sharpe / PBO stages (M-03) '
-            'are one import away in <code>evlib</code> for every study; factory auto-wiring '
-            'lands with the next factory run.</div>',
+            M05_BOX,
             "".join(_sheet_html(s, _prereg_hashes()) for s in _SHEETS),
-            '<div class="note">Numbers are hand-carried from '
-            '<code>docs/strategy-ledger.md</code> (the canonical record) and the machine '
-            'ledger in <code>research.db.strategy_runs</code>; the standing corollary those '
-            'failures prove: price strength is the only gross forward-return engine we have '
-            'found, value/quality/credibility/accumulation are context layers not rankers, '
-            'and no factor here is a fundable net-of-cost alpha vs the index at AUM. '
-            'Descriptive research record, not investment advice.</div>',
+            NOTE_HTML,
             '</div>']
     return HTMLResponse(_shell("Detection spec-sheets", "".join(body),
                                active="spec-sheets", wide=True))

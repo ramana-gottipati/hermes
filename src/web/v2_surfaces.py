@@ -45,6 +45,9 @@ _ROUTER_SPECS = [
     # front-door (D-PITCH-1/4). A tiny view that serves docs/replay-the-tape.html verbatim;
     # durably mounted here so the trail off Coverage never dead-ends after a main.py clobber.
     ("replay", "src.web.replay_view", "/dash/replay"),
+    # Evidence pack (charter P-04, S96) — the procurement artifact assembled live from
+    # spec-sheets + coverage boundary + season SLA + replay pointer; print-CSS → PDF.
+    ("evidence-pack", "src.web.evidence_pack", "/dash/evidence-pack"),
     ("rs-hub", "src.web.rs_section", "/dash/rs-hub"),
     ("news", "src.web.news_view", "/dash/wire"),
     # Lane B surfaces — durably mounted here so they no longer depend on the

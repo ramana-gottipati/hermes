@@ -564,6 +564,12 @@ def render_coverage(conn=None) -> str:
         'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
         'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
         'text-decoration:none;font-size:13px">Export coverage &amp; provenance memo &rarr;</a>'
+        # Evidence pack (P-04): the one-document procurement assembly (spec-sheets +
+        # this ledger's boundary + season SLA + replay pointer), print-CSS → PDF.
+        '<a href="/dash/evidence-pack" '
+        'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
+        'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
+        'text-decoration:none;font-size:13px">Evidence pack (print) &rarr;</a>'
         '</div>'
     )
 

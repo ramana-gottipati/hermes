@@ -112,7 +112,10 @@ M-03 half (evlib re-export; factory print-wiring = next factory run) · E-11 + E
 (pre-registered; results in the ledger § Studies) · E-14 waits ~Jul-21 Reg-31 flood · E-08/E-09
 blocked on data depth (membership-change history; D-07) · D-09/D-10 (+D-07) need an
 endpoint-discovery pass first (direct probes 404; NO dead pipes built) · D-08 = its own 1-2
-sessions · P-04 spine accrues on spec-sheets, PDF assembly end-July · P-06 deferred per the
+sessions · **P-04 SHIPPED (S96, 2026-07-10): `/dash/evidence-pack` — the print-CSS procurement
+assembly (P-03 sheets verbatim + coverage boundary + live season SLA + replay pointer; browser
+print→PDF, zero deps; every number imported from the surface that owns it, never restated)** ·
+P-06 deferred per the
 product ranking (named-buyer trigger; personal-use variant needs an auth design) · **E-10 SHIPPED
 (S93, 2026-07-10): `/dash/buyback-calc` — the personal-scale tender-quota calculator + the 344-row
 BUYBACK tape; acceptance ratio stays a user assumption (no fabricated priors); a buyback drift

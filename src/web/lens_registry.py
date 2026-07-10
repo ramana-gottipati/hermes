@@ -206,6 +206,10 @@ LENSES: tuple[Lens, ...] = (
     Lens("glossary", "Glossary", "trust", "trust", "/dash/glossary", aliases=("methodology",)),
     Lens("spec-sheets", "Spec sheets", "trust", "trust", "/dash/spec-sheets",
          aliases=("pre-registration", "studies")),
+    # Evidence pack (charter P-04, S96) — the print-ready procurement assembly of
+    # spec-sheets + coverage boundary + season SLA + replay pointer.
+    Lens("evidence-pack", "Evidence pack", "trust", "trust", "/dash/evidence-pack",
+         aliases=("procurement", "pack")),
 
     # ── Overlay-only (NOT nav lenses) — Wolfe / Harmonic. §3-C: chart overlays,
     # reachable from the chart control, no sub-nav entry. Routes stay live (no 404);

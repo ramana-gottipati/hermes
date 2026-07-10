@@ -212,6 +212,7 @@ D:\Hermes\                                          ← local working copy of re
 │   │   # web: src\web\glossary.py                  ← the `?` hover-help popover engine (G.gloss/G.css) wired into screen2/rrg/rsband/rotation headers + dossier tabs
 │   │   # web: src\web\table_controls.py            ← S75 — Screen+-consistent table controls (column add/remove persisted in localStorage + `?` header popovers) on strategy tables; /dash/stocks first; dashboard._shell wrap installed by v2_surfaces.wire() (same seam as shell_skin; extend via _PAGES)
 │   │   # web: src\web\dq_banner.py                 ← S76 — kill-switch WARN/CRIT strips on the data surfaces each check gates: keyed by WORKSPACE (own `_ACT_WS` active→ws map, superset of dashboard._WS incl. screen2; `_WS_CHECKS`) — markets=momentum+feed, strategies=+fundamentals, screener=fundamentals. Reads data_quality last_run (TTL-cached). dashboard._shell wrap via v2_surfaces.wire() PLUS a sys.modules sweep (like shell_skin) to reach view modules that captured `_shell` at import time — WITHOUT the sweep the strip only reaches dashboard-native pages (the rotation-0/stocks-2 bug). Extend: `_ACT_WS`/`_WS_CHECKS`.
+│   │   # web: src\web\evidence_pack.py             ← S96 — /dash/evidence-pack (charter P-04): the print-ready procurement assembly of spec-sheets (imported verbatim) + coverage boundary + live season SLA + replay pointer; browser print→PDF over the ui_tokens @media print block, zero deps; Trust lens, mounted via v2_surfaces
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
 │   │   ├── db.py                                   ← SQLite schema + init
@@ -1688,6 +1689,50 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 96 — 2026-07-10 — P-04 EVIDENCE PACK live (/dash/evidence-pack) — the procurement artifact, assembled not authored (season lane)
+The S93b top pick executed as recorded (kickstart-pick-verify: no PDF exporter existed, only
+planning-doc mentions). Strategic-review shape honoured verbatim: "assembles P-03 +
+replay-the-tape + SLA one-pager into the procurement artifact."
+- **NEW `src/web/evidence_pack.py`** — ONE print-ready document assembling the trust surfaces:
+  the 8 P-03 spec-sheets VERBATIM (gate-hash chips included), the coverage boundary
+  (`_section_glance` + per-class matrix + the COPY_* boundary statements), the live season
+  service record (filing→surface MTTR + M-02 placebo + COPY_INFRA single-node honesty), and a
+  Replay-the-Tape section that describes the demonstrator's mechanics + its two worked cases
+  and deliberately quotes NO returns. "PDF assembly" = the browser's own print engine over the
+  site-wide ui_tokens `@media print` block (light flip, chrome strip, table pagination,
+  disclaimer footer, `@page` margins) + page-level `.brk` section breaks and a screen-only
+  print toolbar — **zero new dependencies**.
+- **Numbers-live-once enforced by IMPORTS:** spec_sheets M-05 box + closing note hoisted to
+  module constants (`M05_BOX`/`NOTE_HTML`; page renders identically — 8 sheets + all markers
+  re-verified); the pack imports `_SHEETS/_sheet_html/_prereg_hashes/_mttr_box/_placebo_box`
+  and coverage_view's sections/copy. The pack never invents a number (D91 spirit); every
+  section degrades to its live-route pointer if a source is absent (trust surfaces never 500).
+- **Wiring:** durable `_ROUTER_SPECS` mount (trust cluster, away from the append-tail) +
+  `Lens("evidence-pack", trust)` + coverage front-door chip beside the memo export +
+  spec-sheets lead cross-link. No glossary work needed (no new terms — matches how
+  spec-sheets shipped). Nav gate PASS (109 routes, 0 orphans) · chrome gate PASS · pytest 18/1.
+- **Deploy per the fork-check recipe:** v2_surfaces + lens_registry live≠HEAD (comment/order
+  fork ONLY — mounts/lenses set-identical; the recorded live-only reordering) → live copies
+  pulled, my hunks applied to THEM, pushed back; coverage_view + spec_sheets live==HEAD →
+  replaced (LF-normalized; local coverage_view was CRLF on disk); all 5 files `py_compile`d on
+  VPS py3.10 BEFORE the swap; `.bak-s96` backups; writer-safe restart (only the two always-on
+  daemons active). Walked live via the Caddy hostname: 200, warm 49ms (the 3.3s first hit =
+  the once-per-data-day cold coverage_snapshot, AUD-04 pattern), 8 sheets, 7 hash chips
+  (Wolfe §A predates the M-04 registry), placebo box carries the real PEAD readout, MTTR box
+  shows the honest seed text, print CSS + `@page` verified IN the served HTML.
+- **Season watches (all checked, nothing due today):** digest timer armed 03:20 UTC = 35 min
+  AFTER today's 02:45 slot → **first DM fires Sat Jul-11 02:45** (benign; `Persistent=no` by
+  design) · `reaction_mttr` 0 fresh mints — tonight's 18:00 snapshot is the first real chance
+  (TCS reported Jul-09 evening; delivery confirmation needs today's bhav) · `gate_deferred` 0
+  all week, `if_filings` ramping (7 on Jul-09, `gate_fail_syms` 3 = the quality gate working) ·
+  E-02/E-14/E-04 fire Jul-22/Jul-25/Aug-1 — nothing to harvest yet.
+- Charter §5 status row ticked: **P-04 SHIPPED (S96)**. Product roadmap rank #2 trust artifact
+  delivered ahead of the end-July target.
+- Harness TIL: the `Monitor` tool (until-loop on a remote condition) could have watched
+  tonight's first MTTR mints / first SLB fire instead of deferring both to the next session's
+  carry-forward.
+- Commit: (this commit).
 
 ### Session 94 — 2026-07-10 — D95 residue: the 92-symbol historical heal RERUN (driver fixed; a real backfill-path bug in signals.py closed)
 Picked up the S89b-recorded failed heal (Ramana: "take up something else and proceed"). Diagnosed
