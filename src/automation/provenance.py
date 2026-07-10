@@ -658,6 +658,16 @@ def _calibrated_lag(data_class: str, period_type: Optional[str], conn=None) -> i
     return int(t.get(pt, t.get("_default", 90)))
 
 
+# Reg-31 FLOOD GATE (S85b, "calibrate when Reg-31 lands"): shareholding real dates arrive as
+# a DEADLINE FLOOD (~2k filers by ~21 days after each quarter end); the first weeks hold only
+# EARLY filers, whose fast lags would bias chosen_lag LOW and ADMIT leak on the ~84K
+# modeled-era rows the calibration governs. A class listed here calibrates only once its
+# real-date sample is flood-sized — until then the conservative _MODELED_LAG_DAYS default
+# stays in force, and the nightly --calibrate keeps trying: the calibration row appears BY
+# ITSELF the night the flood crosses the bar (no scheduler, no manual step).
+_CAL_MIN_N = {"shareholding_history": 750}
+
+
 def calibrate_synthetic_lag(conn=None, *, percentile: int = 95, clip=(1, 400)) -> dict:
     """Learn a conservative synthetic lag from the REAL filing dates in provenance_knowable: for
     each (class, period_type), lag = real_knowable − period_end, clipped to ``clip`` (drops the
@@ -665,7 +675,8 @@ def calibrate_synthetic_lag(conn=None, *, percentile: int = 95, clip=(1, 400)) -
     ``percentile`` of that distribution (p95 ⇒ the modeled fallback under-shoots the real date
     only ~5% of the time → look-ahead nearly eliminated for the not-yet-de-modeled rows). Persists
     one current row per (class, ptype); idempotent. Empty (defaults stay in force) until real
-    dates exist."""
+    dates exist — and, for classes in ``_CAL_MIN_N``, until the sample is flood-sized (an
+    early-filer-only sample must not set the lag; see the gate note above)."""
     lo, hi = clip
 
     def q(c):
@@ -684,6 +695,13 @@ def calibrate_synthetic_lag(conn=None, *, percentile: int = 95, clip=(1, 400)) -
                     continue
                 if lo <= lag <= hi:
                     by_pt.setdefault(ptype, []).append(lag)
+            total = sum(len(v) for v in by_pt.values())
+            need = _CAL_MIN_N.get(cls, 0)
+            if total < need:
+                out[cls] = {"_skipped": {"n": total, "need": need}}
+                log.info("calibration gated for %s: %d real dates < %d (waiting for the "
+                         "Reg-31 flood; modeled default stays in force)", cls, total, need)
+                continue
             for pt, vals in by_pt.items():
                 vals.sort()
                 chosen = _pct(vals, percentile)
@@ -1271,6 +1289,18 @@ def _selftest() -> None:
     pcal = provenance_for("fundamentals_history", symbol="NOPE", as_of="2025-06-30", period_type="Q", conn=conn)
     assert pcal["basis"] == MODELED and pcal["lag_days"] == 92, pcal       # calibrated lag, not the 65 default
     assert pcal["effective_as_of"] == "2025-09-30", pcal                   # 2025-06-30 + 92d
+
+    # Reg-31 flood gate: a class below its _CAL_MIN_N must NOT calibrate — an early-filer-only
+    # sample would bias chosen_lag low; the modeled default stays in force until the flood lands.
+    for i, (pe, kn) in enumerate([("2026-06-30", "2026-07-05"), ("2026-06-30", "2026-07-08")]):
+        observe("shareholding_history", period_key("SH%d" % i, "Q", pe), conn=conn,
+                symbol="SH%d" % i, knowable_at=kn)
+    cal2 = calibrate_synthetic_lag(conn=conn, percentile=95)
+    assert cal2["shareholding_history"]["_skipped"] == {"n": 2, "need": _CAL_MIN_N["shareholding_history"]}, cal2
+    assert conn.execute("SELECT COUNT(*) FROM provenance_lag_calibration "
+                        "WHERE data_class='shareholding_history'").fetchone()[0] == 0, \
+        "gated class must write NO calibration row"
+    assert cal2["fundamentals_history"]["Q"]["chosen_lag"] == 92, "ungated class unaffected by the gate"
 
     # lag_audit tolerates no-matched-pairs gracefully (synthetic has no research.db)
     la = lag_audit(conn=conn, persist=False)

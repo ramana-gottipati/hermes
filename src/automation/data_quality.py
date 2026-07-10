@@ -186,8 +186,24 @@ def chk_calibration_freshness(c) -> dict:
         except (ValueError, TypeError):
             stale += 1
     sev = SEV_WARN if stale else SEV_OK
+    # flood-gated classes (provenance._CAL_MIN_N) with no calibration row yet: show the
+    # countdown so the season digest can watch the Reg-31 flood approach the bar.
+    pending = ""
+    try:
+        from src.automation.provenance import _CAL_MIN_N
+        have = {r[0] for r in rows}
+        parts = []
+        for cls, need in _CAL_MIN_N.items():
+            if cls not in have:
+                n = c.execute("SELECT COUNT(*) FROM provenance_knowable WHERE data_class=?",
+                              (cls,)).fetchone()[0]
+                parts.append(f"{cls} gated: {n}/{need} real dates (calibrates itself when the flood lands)")
+        if parts:
+            pending = "; " + "; ".join(parts)
+    except Exception:  # noqa: BLE001
+        pass
     return _check("calibration.freshness", sev, stale,
-                  f"{stale}/{len(rows)} calibration rows older than {CALIB_STALE_DAYS}d",
+                  f"{stale}/{len(rows)} calibration rows older than {CALIB_STALE_DAYS}d{pending}",
                   [[r[0], r[1], r[2], str(r[3])[:10]] for r in rows])
 
 
