@@ -38,7 +38,10 @@ SNIPPET = """<script>
   function add(opts,data){ var s=window.__wfpc.addLineSeries(Object.assign({priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},opts,NS)); s.setData(data); ser.push(s); return s; }
   function clear(){ ser.forEach(function(s){try{window.__wfpc.removeSeries(s);}catch(e){}}); ser=[]; fans=[]; }
   function setFans(on){ fansOn=on; fans.forEach(function(s){try{s.applyOptions({visible:on});}catch(e){}}); }
-  function fan(arr,col,w){ if(!arr) return; arr.forEach(function(f){ var s=add({color:col,lineWidth:1,lineStyle:0,visible:fansOn},[{time:w.struct[0].time,value:f.value},{time:w.last_time,value:f.value}]); fans.push(s); }); }
+  function fan(arr,col,w,tag){ if(!arr) return; arr.forEach(function(f){ var s=add({color:col,lineWidth:1,lineStyle:0,visible:fansOn},[{time:w.struct[0].time,value:f.value},{time:w.last_time,value:f.value}]);
+    // name every grid line (leg + ratio + price) — an unlabeled fan is unreadable
+    try{ s.setMarkers([{time:w.last_time,position:'inBar',color:col,shape:'square',text:tag+'\\u00d7'+f.r+' '+f.value}]); }catch(e){}
+    fans.push(s); }); }
   function drawWave(w){
     var done = w.state==='CONFIRMED';
     var ss=add({color:w.color,lineWidth:2,lineStyle:0},w.struct); ss.setMarkers(w.markers);   // 1-2-3-4-(5)
@@ -71,8 +74,8 @@ SNIPPET = """<script>
       var sp=add({color:w.color,lineWidth:1,lineStyle:2},[{time:w.p4_time,value:w.p4_value},{time:w.last_time,value:w.p5pred.value}]);
       sp.setMarkers([{time:w.last_time,position:(w.dir==='BEAR'?'aboveBar':'belowBar'),color:w.color,shape:'circle',text:'5?'}]);
     }
-    fan(w.fib12,'rgba(88,166,255,0.45)',w);                                                    // leg 1-2 extension fan
-    fan(w.fib34,'rgba(210,153,34,0.45)',w);                                                    // leg 3-4 extension fan
+    fan(w.fib12,'rgba(88,166,255,0.45)',w,'1-2 ');                                             // leg 1-2 extension fan
+    fan(w.fib34,'rgba(210,153,34,0.45)',w,'3-4 ');                                             // leg 3-4 extension fan
     setFans(fansOn);
   }
   function panTo(w){ if(w&&w.pan_from&&w.pan_to){ try{ window.__wfpc.timeScale().setVisibleRange({from:w.pan_from,to:w.pan_to}); }catch(e){} } }

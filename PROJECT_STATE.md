@@ -476,6 +476,17 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D96 — The Wolfe ◄/► walk is freshness-guaranteed; quality curates only history (2026-07-10, S86c)
+The completed-walk cap (`_OVERLAY_MAX=40`, top-N by §B quality) was taken across the WHOLE
+history, so on a long series a freshly confirmed wave could lose to decades-old high-Q waves and
+become invisible — exactly how Ramana's textbook TCS Jun-2026 falling wedge (Q15.0, §A all-pass,
+leg ratio 0.937) vanished: TCS has 261 confirmed waves since 2004 and the #40 quality cutoff is
+Q17.33. Decision: `wolfe._FRESH_KEEP_BARS = 250` — every CONFIRMED wave whose point 5 printed
+within the last trading year enters the walk regardless of Q; the walk still sorts newest-first.
+WHY a decision: the walk's job is reading CURRENT structure — the quality cut exists only to
+curate the historical tail, and must never gate recency. §A geometry, §B scoring and the
+winner-profile scanner are untouched. (TCS walk 37→53; the missed wave now sits at 2/53.)
+
 ### D95 — Corporate-action adjustment is TAPE-PRIMARY with a tolerance gate; the D36 prev_close layer is measured-dead (2026-07-10, S86b)
 The S85e adjust-vs-tape reconciliation FALSIFIED D36's core assumption: NSE does NOT write the
 adjusted prior close into bhav `prev_close` on ex-dates (measured across every era 2004→2026;
@@ -1468,7 +1479,38 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 86b — 2026-07-10 — Adjust-vs-tape reconciliation: prev_close layer measured DEAD; tape-primary factors LIVE (D95; data-perfection lane)
+### Session 86c — 2026-07-10 — Wolfe walk freshness fix (D96) + drawings v2: direct-edit · level catalog · future space · confluence (Ramana's chart-review batch)
+Ramana reviewed `/dash/stock` (RAMCOSYS / TCS / ITCHOTELS screenshots) and raised 6 items; all
+diagnosed with numbers, 5 shipped, 1 was data-reality:
+- **"Why didn't Wolfe fetch the TCS wedge?" — the detector DID find it** (BULL, pts
+  2026-03-30 · 04-21 · 05-14 · 06-02, p5 2026-07-01, `frac@5`, Q15.0; §A all-pass, leg ratio
+  0.937): it was hidden by the overlay's top-40-by-quality cut → **D96 freshness guarantee**
+  (`_FRESH_KEEP_BARS=250`). TCS walk 37→53, the wave is now **2/53** (1/53 = the `frac@20`
+  coarse copy of the same wedge, Q16). Its §B chips explain the modest Q: **C=0** (p5 pierced
+  the 1.618∩1.272 zone at 2159.4 by 7.5%, close 2049.5 hasn't re-entered the band), F=1
+  (zone gap 1.97%), I=0 (no RSI divergence). Verified against the real series via an
+  in-memory-DB harness on the exact `overlay_for` path.
+- **ITCHOTELS "data only from 2025" — data reality, not a bug:** listed 2025-01-29 (ITC
+  demerger); NSE ran it in the T2T **'BE' series for the first 9 sessions** → our EQ-series
+  chart starts 2025-02-11. Pre-demerger hotels history lives inside ITC's own series.
+- **Drawings v2** (`stock_chart.py` makeDraw): (1) **future projection space** — 60 weekday
+  whitespace bars (26w/12m/8q per interval) extend the axis; clicks past the last candle
+  resolve onto future dates so a manual EPA can be drawn forward; (2) **direct editability** —
+  click any drawing to select/drag anchors (host-capture hit-test, chart pan untouched on
+  miss); **double-click opens a per-drawing editor** (colour · width · delete · trend extend
+  segment/→/↔ ray · text edit · fib LEVEL PICKER); Del guarded vs typing fields; the ⬎ mode
+  stays; (3) **fib extension catalog** — defaults now include **4.236**; pickable catalog
+  1.13 / 1.272 / 1.382 / 1.618 / 2 / 2.382 / 2.618 / 3 / 3.618 / 4.236 / 4.618, **each named
+  by its market role** in the editor (per-drawing `lv`, persists through `/dash/drawings`
+  unchanged — store is schema-free JSON); (4) **conflux bands** — extension levels (>1.0
+  only, the `wolfe.fib_zones` rule) from two DIFFERENT fib drawings agreeing within 1% shade
+  an amber band labelled `r∩r` (rail toggle, default on).
+- **Wolfe fib-fan labels** (`wolfe_overlay.py`): the "fib fans" grid lines now carry
+  `1-2 ×r price` / `3-4 ×r price` markers — an unlabeled fan was unreadable.
+- Gates: `node --check` on both embedded snippets PASS · wolfe import PASS · overlay harness
+  on real TCS series PASS. Known nits (deliberate): whitespace anchors drawn on Daily degrade
+  to the last real bar after an interval switch; whole-body drag not built (anchor drag +
+  editor cover the ask).
 The last data-perfection follow-up became the biggest correctness find of the program (`cb8f487`).
 - **THE FINDING:** full-history audit (1,354 event-groups, 2004→2026) proved the D36 prev_close
   detector NEVER fired — bhav `prev_close` carries the RAW prior close on ex-dates in every era.

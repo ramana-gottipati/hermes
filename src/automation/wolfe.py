@@ -707,6 +707,12 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
 
 
 _OVERLAY_MAX = 40   # cap the ◄/► candle-overlay walk to the top-N waves by §B quality
+_FRESH_KEEP_BARS = 250   # freshness guarantee: a confirmed wave whose point 5 printed within
+                         # the last ~1 trading year ALWAYS enters the walk, whatever its §B Q.
+                         # (2026-07-10, Ramana's TCS miss: the top-40-by-quality cut was taken
+                         # across the FULL 22y history — 261 confirmed waves, #40 cutoff Q17.33 —
+                         # so the live Jun-2026 wedge at Q15.0 was silently invisible. The walk
+                         # exists to read CURRENT structure first; quality curates only history.)
 
 
 def overlay_for(conn, sym=None, idx=None):
@@ -740,7 +746,11 @@ def overlay_for(conn, sym=None, idx=None):
     # Nov-2022 ranks ~30) that a tighter cap would hide. Then show NEWEST-FIRST.
     conf = [w for w in ws if w["state"] == "CONFIRMED" and w["p5"]]
     conf.sort(key=lambda w: -(w.get("quality_total") or 0))
-    confirmed = dedupe(sorted(conf[:_OVERLAY_MAX], key=lambda w: -last_idx(w)))
+    top = conf[:_OVERLAY_MAX]
+    top_ids = {id(w) for w in top}
+    fresh = [w for w in conf if id(w) not in top_ids
+             and (n - 1 - last_idx(w)) <= _FRESH_KEEP_BARS]
+    confirmed = dedupe(sorted(top + fresh, key=lambda w: -last_idx(w)))
     completed = [_wave_payload(w, dates, n) for w in confirmed]
     # prediction = the single most-recent FORMING wave, only if fresh (a prediction is
     # about current price, not a closed-out historical structure).

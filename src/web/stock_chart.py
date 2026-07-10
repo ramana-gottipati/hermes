@@ -69,6 +69,23 @@ SNIPPET = """<script>
     var DATA=window.__wfdata; if(!DATA||!DATA.series||!DATA.series.length) return;
     var S0=DATA.series, ZONES=DATA.zones||[];        // S0 = raw daily, never mutated
     var iv='d', ctype='candle', RT=S0.slice();       // RT = current resampled rows
+    // FUT = future WHITESPACE times appended to the price series so the time scale
+    // extends past the last candle — drawings (trendlines, EPA projections, fib
+    // anchors) can then land in real future space instead of snapping back to the
+    // last bar. Weekday-stepped for daily; 7d/1mo/3mo for W/M/Q. Whitespace rows
+    // carry no OHLC, so nothing else changes (readout falls back to the last bar).
+    var FUT=[];
+    function futureTimes(){ var N={d:60,w:26,m:12,q:8}[iv]||0, out=[];
+      if(!N||!RT.length) return out;
+      var t=new Date(RT[RT.length-1].time+'T00:00:00Z');
+      for(var i=0;i<N;i++){
+        if(iv==='d'){ do{ t.setUTCDate(t.getUTCDate()+1); }while(t.getUTCDay()===0||t.getUTCDay()===6); }
+        else if(iv==='w'){ t.setUTCDate(t.getUTCDate()+7); }
+        else if(iv==='m'){ t.setUTCMonth(t.getUTCMonth()+1); }
+        else { t.setUTCMonth(t.getUTCMonth()+3); }
+        out.push({time:t.toISOString().slice(0,10)});
+      }
+      return out; }
 
     // ---- the ONE chart ------------------------------------------------------
     // bounded host: height follows the viewport (clamp) instead of a fixed 480 — the
@@ -238,9 +255,9 @@ SNIPPET = """<script>
         candle.applyOptions({upColor:C.up,downColor:C.down,borderVisible:true,borderUpColor:C.up,borderDownColor:C.down,wickUpColor:'rgba(0,0,0,0)',wickDownColor:'rgba(0,0,0,0)'});
         pline.setData([]); parea.setData([]); if(kagiL)kagiL.setData([]); return; }
       else data=RT.map(rawOHLC);
-      candle.setData(data);
-      pline.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
-      parea.setData(RT.map(function(d){return {time:d.time,value:d.close};}));
+      candle.setData(data.concat(FUT));   // whitespace tail = the future projection space
+      pline.setData(RT.map(function(d){return {time:d.time,value:d.close};}).concat(FUT));
+      parea.setData(RT.map(function(d){return {time:d.time,value:d.close};}).concat(FUT));
       if(kagiL) kagiL.setData(ctype==='kagi'?kagi(RT):[]);
     }
     function applyRows(){
@@ -273,7 +290,7 @@ SNIPPET = """<script>
         else if(harmData) harmDrawOne();
       }
     }
-    function setIv(tf){ iv=tf; RT=resample(tf); applyRows(); }
+    function setIv(tf){ iv=tf; RT=resample(tf); FUT=futureTimes(); applyRows(); }
 
     // ---- compare state (rebased multi-symbol overlay) — built into cmpBar below
     var cmpReg={ items:[] };   // [{sym, series:[lwc points], line}]
@@ -535,7 +552,7 @@ SNIPPET = """<script>
     //  DRAWING ENGINE — curated T1 (trendline/ray/rect/Fib/text/measure) +
     //  magnet (snap nearest OHLC, still overridable) + hide-all + persistence.
     // =========================================================================
-    var draw=makeDraw(pc,candle,host,drawBar,function(){return RT;});
+    var draw=makeDraw(pc,candle,host,drawBar,function(){return RT;},function(){return FUT;});
 
     // boot
     setIv('d'); setType('candle'); setRange(0); showR(S0[S0.length-1]); reflow(); refreshLegend();
@@ -712,17 +729,36 @@ SNIPPET = """<script>
   // ===========================================================================
   //  makeDraw — the drawing primitive + tool palette (its own closure)
   // ===========================================================================
-  function makeDraw(pc, series, host, bar, getRows){
+  function makeDraw(pc, series, host, bar, getRows, getFut){
     var sym=new URLSearchParams(location.search).get('sym')||'_';
     var KEY='hdraw:'+sym;
     // localStorage = instant + offline cache; the SERVER store (/dash/drawings) is the
     // source of truth when reachable, so drawings follow you across device + browser.
     var items=[]; try{ items=JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ items=[]; }
-    var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null;
+    var tool=null, magnet=true, hidden=false, draft=null, sel=null, dragging=null, conflux=true;
     var FIB=[0,0.236,0.382,0.5,0.618,0.786,1];
-    // Fib EXTENSION levels — project targets beyond the move (a→b): 0/0.618/1 mark the
-    // measured move, 1.272/1.618/2.0/2.618 are the extension targets. Descriptive geometry.
-    var FIBX=[0,0.618,1,1.272,1.618,2,2.618];
+    // Fib EXTENSION defaults — project targets beyond the move (a→b): 0/0.618/1 mark the
+    // measured move; 1.272/1.618/2/2.618/4.236 are the default targets. A drawing can
+    // carry its own level set (d.lv) chosen in the double-click editor from EXT_ALL.
+    var FIBX=[0,0.618,1,1.272,1.618,2,2.618,4.236];
+    var EXT_ALL=[0,0.618,1,1.13,1.272,1.382,1.618,2,2.382,2.618,3,3.618,4.236,4.618];
+    // what each level IS — shown beside the checkbox in the editor (Ramana 2026-07-10)
+    var FIBN={
+      0:'anchor - start of the measured move', 0.236:'shallow retrace', 0.382:'standard retrace',
+      0.5:'half-back of the move', 0.618:'golden retrace', 0.786:'deep retrace',
+      1:'full move - the prior extreme',
+      1.13:'bull-trap / false-breakout zone',
+      1.272:'first major target beyond the prior extreme',
+      1.382:'intermediate shelf before the golden level',
+      1.618:'golden extension - the primary institutional target',
+      2:'measured-move double',
+      2.382:'minor target that front-runs 2.618',
+      2.618:'major target for strongly trending stocks',
+      3:'triple the original move',
+      3.618:'extreme extension - strong macro runs',
+      4.236:'ultimate extension - highly overextended zone',
+      4.618:'Wolfe zone ratio (the detector G-component)'};
+    function lvOf(d){ return d.lv||((d.t==='fibext')?FIBX:FIB); }
 
     // ---- server persistence (debounced) -------------------------------------
     var saveT=null, lastSent=null;
@@ -750,9 +786,22 @@ SNIPPET = """<script>
       }).catch(function(){}); }catch(e){}
     }
     function bars(){ return getRows(); }
+    function fut(){ return (getFut&&getFut())||[]; }
+    function tstr(t){ if(t==null)return null; if(typeof t==='string')return t;
+      if(typeof t==='object'&&t.year)return t.year+'-'+('0'+t.month).slice(-2)+'-'+('0'+t.day).slice(-2); return ''+t; }
     function nearestBarX(x){ var R=bars(),ts=pc.timeScale(),best=null,bd=1e9;
       for(var i=0;i<R.length;i++){ var cx=ts.timeToCoordinate(R[i].time); if(cx==null)continue; var dd=Math.abs(cx-x); if(dd<bd){bd=dd;best=R[i];} } return best; }
-    function snap(x,y){ var b=nearestBarX(x); if(!b) return {time:pc.timeScale().coordinateToTime(x),price:series.coordinateToPrice(y)};
+    function snap(x,y){
+      // clicks PAST the last real bar resolve onto the whitespace (future) times, so a
+      // trendline / EPA / fib anchor can be projected forward instead of snapping back.
+      var R=bars(), ts=pc.timeScale();
+      if(R.length){ var lx=ts.timeToCoordinate(R[R.length-1].time);
+        if(lx!=null && x>lx+(ts.options().barSpacing||6)/2){
+          var t=tstr(ts.coordinateToTime(x)); var FU=fut();
+          if(t==null&&FU.length) t=FU[FU.length-1].time;   // beyond the whitespace end → clamp
+          if(t!=null) return {time:t, price:series.coordinateToPrice(y)};
+        } }
+      var b=nearestBarX(x); if(!b) return {time:tstr(pc.timeScale().coordinateToTime(x)),price:series.coordinateToPrice(y)};
       var price=series.coordinateToPrice(y);
       if(magnet){ var cands=[b.open,b.high,b.low,b.close],bp=price,bd=1e9;
         for(var i=0;i<cands.length;i++){ var cy=series.priceToCoordinate(cands[i]); if(cy==null)continue; var dd=Math.abs(cy-y); if(dd<bd){bd=dd;bp=cands[i];} } price=bp; }
@@ -762,6 +811,37 @@ SNIPPET = """<script>
         var lo=0,hi=R.length-1,k=null; while(lo<=hi){var m=(lo+hi)>>1; if(R[m].time<=t){k=R[m].time;lo=m+1;}else hi=m-1;}
         if(k!=null)x=pc.timeScale().timeToCoordinate(k); }
       var y=series.priceToCoordinate(a.price); return (x==null||y==null)?null:{x:x,y:y}; }
+    function extendPts(pa,pb,mode,W){ // mode: 0 segment · 1 ray beyond b · 2 both ways
+      if(!mode) return [pa,pb];
+      var dx=pb.x-pa.x, dy=pb.y-pa.y, a={x:pa.x,y:pa.y}, b={x:pb.x,y:pb.y};
+      if(dx===0&&dy===0) return [pa,pb];
+      function push(pt,sgn){ if(dx===0){ pt.y=(sgn*dy>0)?1e5:-1e5; return; }
+        var X=(sgn*dx>0)?W+60:-60; pt.y=pa.y+dy*(X-pa.x)/dx; pt.x=X; }
+      push(b,1); if(mode===2) push(a,-1); return [a,b]; }
+    // narrow confluences ACROSS Fib drawings: extension levels (>1.0 ONLY — retrace
+    // levels made false zones, same rule as wolfe.fib_zones) from two DIFFERENT fib
+    // drawings agreeing within 1% → a shaded band, tightest-first, deduped, top 6.
+    function confluxBands(){
+      var sets=[];
+      for(var i=0;i<items.length;i++){ var d=items[i]; if(d.t!=='fib'&&d.t!=='fibext') continue;
+        var LV=lvOf(d), pr=[];
+        for(var j=0;j<LV.length;j++){ if(LV[j]<=1) continue;
+          pr.push({r:LV[j], v:d.a.price+(d.b.price-d.a.price)*LV[j]}); }
+        if(pr.length) sets.push(pr); }
+      if(sets.length<2) return [];
+      var out=[];
+      for(var a2=0;a2<sets.length;a2++) for(var b2=a2+1;b2<sets.length;b2++)
+        for(var i2=0;i2<sets[a2].length;i2++) for(var j2=0;j2<sets[b2].length;j2++){
+          var v1=sets[a2][i2].v, v2=sets[b2][j2].v, mid=(v1+v2)/2;
+          if(mid&&Math.abs(v1-v2)<=0.01*Math.abs(mid))
+            out.push({lo:Math.min(v1,v2),hi:Math.max(v1,v2),mid:mid,
+                      lab:sets[a2][i2].r+'\\u2229'+sets[b2][j2].r}); }
+      out.sort(function(q1,q2){return (q1.hi-q1.lo)-(q2.hi-q2.lo);});
+      var ded=[];
+      for(var k2=0;k2<out.length;k2++){ var z=out[k2], dup=false;
+        for(var k3=0;k3<ded.length;k3++){ if(Math.abs(z.mid-ded[k3].mid)<=0.01*Math.abs(z.mid)){ dup=true; break; } }
+        if(!dup) ded.push(z); }
+      return ded.slice(0,6); }
 
     // the canvas primitive (top z) — paints every drawing + the live draft
     var reqUpd=null;
@@ -776,7 +856,10 @@ SNIPPET = """<script>
         function one(d,isSel){ var col=isSel?'#e6edf3':(d.col||'#58a6ff');
           if(d.t==='hline'){ hline(d.a,col); var pa=px(d.a); if(pa)txt(n2(d.a.price),6*h,(pa.y-4)*v,col); return; }
           if(d.t==='text'){ var pa=px(d.a); if(pa){ txt(d.text||'text',(pa.x+4)*h,pa.y*v,col); } return; }
-          if(d.t==='trend'){ L(d.a,d.b,col,isSel?Math.max(2,(d.w||1.4)):(d.w||1.4)); return; }
+          if(d.t==='trend'){ var ta=px(d.a),tb=px(d.b); if(!ta||!tb)return;
+            var ee=extendPts(ta,tb,d.x|0,W);
+            x.strokeStyle=col; x.lineWidth=(isSel?Math.max(2,(d.w||1.4)):(d.w||1.4))*v; x.setLineDash([]);
+            x.beginPath(); x.moveTo(ee[0].x*h,ee[0].y*v); x.lineTo(ee[1].x*h,ee[1].y*v); x.stroke(); return; }
           if(d.t==='measure'){ L(d.a,d.b,col,1.4,true); var pb=px(d.b); if(pb){ var dp=d.b.price-d.a.price,pctv=d.a.price?dp/d.a.price*100:0;
               var nb=barsBetween(d.a.time,d.b.time), days=calDays(d.a.time,d.b.time);
               var w=(d.col||col)*1; var lw=(isSel?2:1.4);
@@ -785,7 +868,7 @@ SNIPPET = """<script>
           if(d.t==='rect'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var X=Math.min(pa.x,pb.x)*h,Y=Math.min(pa.y,pb.y)*v,Wd=Math.abs(pb.x-pa.x)*h,Hd=Math.abs(pb.y-pa.y)*v;
             x.fillStyle=hexA(col==='#e6edf3'?'#58a6ff':col,0.10); x.fillRect(X,Y,Wd,Hd); x.strokeStyle=col;x.lineWidth=(isSel?2:1)*v;x.setLineDash([]);x.strokeRect(X,Y,Wd,Hd); return; }
           if(d.t==='fib'||d.t==='fibext'){ var pa=px(d.a),pb=px(d.b); if(!pa||!pb)return; var x0=Math.min(pa.x,pb.x),x1=Math.max(pa.x,pb.x);
-            var LV=(d.t==='fibext')?FIBX:FIB, fcol=(d.t==='fibext')?'#a371f7':'#d29922';
+            var LV=lvOf(d), fcol=(d.t==='fibext')?'#a371f7':'#d29922';
             for(var i=0;i<LV.length;i++){ var pr=d.a.price+(d.b.price-d.a.price)*LV[i]; var py=series.priceToCoordinate(pr); if(py==null)continue;
               x.strokeStyle=isSel?'#e6edf3':hexA(fcol,0.8);x.lineWidth=1*v;x.setLineDash(LV[i]>1?[3*h,2*h]:[]); x.beginPath();x.moveTo(x0*h,py*v);x.lineTo(x1*h,py*v);x.stroke(); x.setLineDash([]);
               txt(LV[i].toFixed(3)+'  '+n2(pr),(x1+4)*h,py*v,hexA(fcol,0.95)); } return; }
@@ -793,6 +876,14 @@ SNIPPET = """<script>
         // bars/time helpers (closure over the current resampled rows)
         function barsBetween(t0,t1){ var R=bars(),i0=-1,i1=-1; for(var i=0;i<R.length;i++){ if(i0<0&&R[i].time>=t0)i0=i; if(R[i].time<=t1)i1=i; } if(i0<0||i1<0)return 0; return Math.abs(i1-i0); }
         function calDays(t0,t1){ var a=new Date(t0),b=new Date(t1); return Math.round(Math.abs(b-a)/86400000); }
+        if(conflux){ var CB=confluxBands();
+          for(var ci=0;ci<CB.length;ci++){ var zz=CB[ci];
+            var cy1=series.priceToCoordinate(zz.hi), cy2=series.priceToCoordinate(zz.lo);
+            if(cy1==null||cy2==null) continue;
+            var yTop=Math.min(cy1,cy2), bh=Math.max(2,Math.abs(cy2-cy1));
+            x.fillStyle='rgba(227,179,65,0.12)'; x.fillRect(0,yTop*v,W*h,bh*v);
+            txt('conflux '+zz.lab+'  '+n2(zz.mid),6*h,(yTop-4)*v,'rgba(227,179,65,0.95)');
+          } }
         for(var i=0;i<items.length;i++) one(items[i], items[i]===sel);
         if(draft) one(draft,false);
         // anchor handles on the selected drawing
@@ -811,14 +902,27 @@ SNIPPET = """<script>
     function hitAnchor(x,y){ for(var i=0;i<items.length;i++){ var d=items[i]; var keys=['a','b'];
         for(var k=0;k<keys.length;k++){ var a=d[keys[k]]; if(!a)continue; var p=px(a); if(!p)continue;
           if(Math.abs(p.x-x)<8&&Math.abs(p.y-y)<8) return {d:d,key:keys[k]}; } } return null; }
-    function hitBody(x,y){ for(var i=items.length-1;i>=0;i--){ var d=items[i]; var pa=px(d.a); if(!pa)continue;
+    function hitBody(x,y){ var W=host.clientWidth||600;
+      for(var i=items.length-1;i>=0;i--){ var d=items[i]; var pa=px(d.a); if(!pa)continue;
         if(d.t==='hline'){ if(Math.abs(pa.y-y)<6) return d; continue; }
         if(d.t==='text'){ if(Math.abs(pa.x-x)<40&&Math.abs(pa.y-y)<12) return d; continue; }
         var pb=d.b?px(d.b):null; if(!pb)continue;
-        if(d.t==='rect'||d.t==='fib'||d.t==='fibext'){ if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+4&&y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d; continue; }
-        // segment distance for trend/measure
-        var dx=pb.x-pa.x,dy=pb.y-pa.y,L2=dx*dx+dy*dy; var tt=L2?((x-pa.x)*dx+(y-pa.y)*dy)/L2:0; tt=Math.max(0,Math.min(1,tt));
-        var qx=pa.x+tt*dx,qy=pa.y+tt*dy; if(Math.hypot(x-qx,y-qy)<6) return d; }
+        if(d.t==='rect'){ if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+4&&y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d; continue; }
+        if(d.t==='fib'||d.t==='fibext'){
+          // any of the drawing's LEVEL lines is a hit target (a 4.236 can sit far
+          // outside the a-b anchor box), plus the anchor box itself.
+          if(x>=Math.min(pa.x,pb.x)-4&&x<=Math.max(pa.x,pb.x)+64){
+            var LV=lvOf(d), hitLv=false;
+            for(var j=0;j<LV.length;j++){ var lp=d.a.price+(d.b.price-d.a.price)*LV[j];
+              var yy=series.priceToCoordinate(lp); if(yy!=null&&Math.abs(yy-y)<5){ hitLv=true; break; } }
+            if(hitLv) return d;
+            if(y>=Math.min(pa.y,pb.y)-4&&y<=Math.max(pa.y,pb.y)+4) return d;
+          }
+          continue; }
+        // segment distance for trend/measure (trend honours its extend mode)
+        var ep=(d.t==='trend')?extendPts(pa,pb,d.x|0,W):[pa,pb];
+        var dx=ep[1].x-ep[0].x,dy=ep[1].y-ep[0].y,L2=dx*dx+dy*dy; var tt=L2?((x-ep[0].x)*dx+(y-ep[0].y)*dy)/L2:0; tt=Math.max(0,Math.min(1,tt));
+        var qx=ep[0].x+tt*dx,qy=ep[0].y+tt*dy; if(Math.hypot(x-qx,y-qy)<6) return d; }
       return null; }
 
     function onDown(e){ var p=rel(e);
@@ -837,7 +941,26 @@ SNIPPET = """<script>
         if(pa&&pb&&(Math.abs(pb.x-pa.x)>3||Math.abs(pb.y-pa.y)>3)){ items.push(draft); sel=draft; save(); }
         draft=null; finishTool(); redraw(); return; }
       if(dragging){ dragging=null; save(); } }
-    cap.addEventListener('pointerdown',onDown); cap.addEventListener('pointermove',onMove); window.addEventListener('pointerup',onUp);
+    cap.addEventListener('pointerdown',onDown); window.addEventListener('pointermove',onMove); window.addEventListener('pointerup',onUp);
+    // Drawings are DIRECTLY editable (Ramana 2026-07-10): click one to select and drag
+    // its anchors, double-click to configure — no need to arm the ⬎ edit mode first.
+    // Capture phase: a hit swallows the event BEFORE the chart pans; a miss falls
+    // through untouched, so normal chart scroll/zoom is unaffected.
+    host.addEventListener('pointerdown',function(e){
+      if(tool||editing||hidden) return;
+      if(edPop&&edPop.contains(e.target)) return;
+      var p=rel(e);
+      var ha=hitAnchor(p.x,p.y);
+      if(ha){ sel=ha.d; dragging=ha; e.stopPropagation(); e.preventDefault(); redraw(); return; }
+      var hb=hitBody(p.x,p.y);
+      if(hb){ if(sel!==hb){ sel=hb; redraw(); } e.stopPropagation(); e.preventDefault(); return; }
+      if(sel){ sel=null; closeEditor(); redraw(); } },true);
+    host.addEventListener('dblclick',function(e){
+      if(hidden) return;
+      if(edPop&&edPop.contains(e.target)) return;
+      var p=rel(e);
+      var ha=hitAnchor(p.x,p.y); var hb=ha?ha.d:hitBody(p.x,p.y);
+      if(hb){ sel=hb; e.stopPropagation(); e.preventDefault(); redraw(); openEditor(hb,p.x,p.y); } },true);
 
     function toolCol(t){ return {trend:'#58a6ff',rect:'#58a6ff',fib:'#d29922',fibext:'#a371f7',measure:'#39c5cf'}[t]||'#58a6ff'; }
     function setTool(t){ tool=(tool===t)?null:t; cap.style.pointerEvents=(tool||editing)?'auto':'none';
@@ -847,19 +970,81 @@ SNIPPET = """<script>
       pc.applyOptions({handleScroll:!editing,handleScale:!editing}); paintTools(); }
     function finishTool(){ tool=null; if(!editing){ cap.style.pointerEvents='none'; pc.applyOptions({handleScroll:true,handleScale:true}); } paintTools(); }
 
+    // =====================================================================
+    //  PER-DRAWING EDITOR — double-click any drawing (or ⚙ in ≡ list).
+    //  Common: colour · width · delete. Trend: extend segment/→/↔ (EPA ray).
+    //  Text: content. Fib/FibX: the LEVEL PICKER — every catalogue level with
+    //  its market role beside it; only ticked levels render (persisted, d.lv).
+    // =====================================================================
+    var edPop=null;
+    function closeEditor(){ if(edPop&&edPop.parentNode){ edPop.parentNode.removeChild(edPop); } edPop=null; }
+    function edRow(){ return E('div','display:flex;align-items:center;gap:6px;margin:5px 0'); }
+    function openEditor(d,X,Y){ closeEditor();
+      edPop=E('div','position:absolute;z-index:30;width:290px;max-height:370px;overflow:auto;background:#0e1320;border:1px solid #30363d;border-radius:8px;padding:9px;box-shadow:0 8px 24px rgba(0,0,0,.55);font-family:-apple-system,Segoe UI,sans-serif;font-size:11px;color:#c9d1d9');
+      var head=E('div','display:flex;justify-content:space-between;align-items:center;margin-bottom:4px');
+      head.appendChild(E('b','font-size:12px;color:#e6edf3',dlabel(d)));
+      var xb=E('span','cursor:pointer;color:#8b949e;font-size:14px;padding:0 4px','\\u00d7'); xb.onclick=closeEditor; head.appendChild(xb);
+      edPop.appendChild(head);
+      var r1=edRow();
+      var sw=document.createElement('input'); sw.type='color'; sw.value=normHex(d.col||toolCol(d.t));
+      sw.style.cssText='width:26px;height:20px;border:none;background:none;padding:0;cursor:pointer'; sw.title='Colour';
+      sw.oninput=function(){ d.col=sw.value; save(); redraw(); };
+      r1.appendChild(sw);
+      var wsel=document.createElement('select'); wsel.style.cssText='background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;font-size:10px;padding:1px 2px';
+      WIDS.forEach(function(w2){ var op=document.createElement('option'); op.value=w2; op.textContent=w2+'px'; if((d.w||1.4)==w2)op.selected=true; wsel.appendChild(op); });
+      wsel.title='Line width'; wsel.onchange=function(){ d.w=parseFloat(wsel.value); save(); redraw(); }; r1.appendChild(wsel);
+      if(d.t==='trend'){
+        var ex=document.createElement('select'); ex.style.cssText=wsel.style.cssText;
+        ex.title='Project the line past its anchors (EPA-style ray)';
+        [[0,'segment'],[1,'extend \\u2192'],[2,'extend \\u2194']].forEach(function(o){ var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; if((d.x|0)===o[0])op.selected=true; ex.appendChild(op); });
+        ex.onchange=function(){ d.x=parseInt(ex.value,10); save(); redraw(); }; r1.appendChild(ex);
+      }
+      var del=E('span','cursor:pointer;color:#f85149;border:1px solid #30363d;border-radius:4px;padding:2px 7px;margin-left:auto','delete');
+      del.onclick=function(){ var i=items.indexOf(d); if(i>=0){ items.splice(i,1); if(sel===d)sel=null; save(); renderPanel(); redraw(); } closeEditor(); };
+      r1.appendChild(del); edPop.appendChild(r1);
+      if(d.t==='text'){
+        var r2=edRow(); var ti=document.createElement('input'); ti.type='text'; ti.value=d.text||'';
+        ti.style.cssText='flex:1;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;font-size:11px;padding:3px 6px';
+        ti.oninput=function(){ d.text=ti.value; save(); redraw(); }; r2.appendChild(ti); edPop.appendChild(r2);
+      }
+      if(d.t==='fib'||d.t==='fibext'){
+        var cat=(d.t==='fibext')?EXT_ALL:FIB, cur=lvOf(d);
+        edPop.appendChild(E('div','margin:6px 0 2px;color:#8b949e;font-size:10px;letter-spacing:.4px;text-transform:uppercase','Levels \\u2014 tick what this drawing shows'));
+        cat.forEach(function(r){
+          var row=E('label','display:flex;align-items:flex-start;gap:6px;padding:2px 0;cursor:pointer');
+          var cb2=document.createElement('input'); cb2.type='checkbox'; cb2.checked=cur.indexOf(r)>=0; cb2.style.cssText='margin-top:2px';
+          cb2.onchange=function(){ var nv=lvOf(d).slice(); var ix=nv.indexOf(r);
+            if(cb2.checked&&ix<0)nv.push(r); if(!cb2.checked&&ix>=0)nv.splice(ix,1);
+            nv.sort(function(a3,b3){return a3-b3;}); d.lv=nv; save(); redraw(); };
+          row.appendChild(cb2);
+          row.appendChild(E('span','flex:1;line-height:1.35','<b style="color:#e6edf3">'+r+'</b> <span style="color:#7e90a8">'+(FIBN[r]||'')+'</span>'));
+          edPop.appendChild(row); });
+        var rst=E('span','cursor:pointer;color:#58a6ff;font-size:10px;text-decoration:underline','reset to defaults');
+        rst.onclick=function(){ d.lv=null; save(); redraw(); openEditor(d,X,Y); };
+        edPop.appendChild(rst);
+      }
+      var hw=host.clientWidth||600, hh=host.clientHeight||400;
+      edPop.style.left=Math.max(6,Math.min(X+12,hw-305))+'px';
+      edPop.style.top=Math.max(6,Math.min(Y+12,hh-200))+'px';
+      host.appendChild(edPop);
+    }
+
     // --- the Drawings family UI -------------------------------------------
-    var TOOLS=[['trend','\\u2571','Trend line'],['hline','\\u2014','Horizontal line'],['rect','\\u25ad','Rectangle'],
-      ['fib','F','Fib retracement'],['fibext','Fx','Fib extension (project targets beyond the move)'],['measure','\\u22b9','Measure (\\u0394price, \\u0394%, bars, days)'],['text','T','Text']];
+    var TOOLS=[['trend','\\u2571','Trend line \\u2014 double-click it to extend into a ray (EPA)'],['hline','\\u2014','Horizontal line'],['rect','\\u25ad','Rectangle'],
+      ['fib','F','Fib retracement \\u2014 double-click the drawing to choose levels'],['fibext','Fx','Fib extension (project targets beyond the move) \\u2014 double-click the drawing to choose levels (1.13\\u20134.618, each named)'],['measure','\\u22b9','Measure (\\u0394price, \\u0394%, bars, days)'],['text','T','Text']];
     var btns={};
     function tbtn(css,title,html){ var b=E('span',css,html); b.title=title; return b; }
     function baseBtn(on){ return 'cursor:pointer;font-size:13px;line-height:1;color:'+(on?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(on?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px;min-width:22px;text-align:center'; }
     function paintTools(){ TOOLS.forEach(function(t){ if(btns[t[0]])btns[t[0]].style.cssText=baseBtn(tool===t[0]); });
       if(btns._edit)btns._edit.style.cssText=baseBtn(editing);
       if(btns._mag)btns._mag.style.cssText='cursor:pointer;font-size:11px;color:'+(magnet?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(magnet?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px';
+      if(btns._cfx)btns._cfx.style.cssText='cursor:pointer;font-size:11px;color:'+(conflux?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(conflux?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px';
       if(btns._hide)btns._hide.style.cssText='cursor:pointer;font-size:11px;color:'+(hidden?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(hidden?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px'; }
-    var edit=tbtn(baseBtn(false),'Select / edit (drag anchors, Del to remove)','\\u2b0e'); edit.onclick=setEdit; btns._edit=edit; bar.appendChild(edit);
+    var edit=tbtn(baseBtn(false),'Select / edit \\u2014 or just click a drawing directly; double-click configures it; Del removes it','\\u2b0e'); edit.onclick=setEdit; btns._edit=edit; bar.appendChild(edit);
     TOOLS.forEach(function(t){ var b=tbtn(baseBtn(false),t[2],t[1]); b.onclick=function(){ setTool(t[0]); }; btns[t[0]]=b; bar.appendChild(b); });
     var mag=tbtn('','Magnet — snap to nearest OHLC (still draggable)','\\ud83e\\uddf2 magnet'); mag.onclick=function(){ magnet=!magnet; paintTools(); }; btns._mag=mag; bar.appendChild(mag);
+    var cfx=tbtn('','Narrow confluences: shade where extension levels (>1.0 only \\u2014 the Wolfe zone rule) from two different Fib drawings agree within 1%','conflux');
+    cfx.onclick=function(){ conflux=!conflux; paintTools(); redraw(); }; btns._cfx=cfx; bar.appendChild(cfx);
     var hide=tbtn('','Hide all drawings (tap again to restore)','hide all'); hide.onclick=function(){ hidden=!hidden; paintTools(); redraw(); }; btns._hide=hide; bar.appendChild(hide);
     var clear=tbtn('cursor:pointer;font-size:11px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:5px;padding:3px 7px','Delete all drawings','clear');
     clear.onclick=function(){ if(items.length&&confirm('Delete all '+items.length+' drawing(s)?')){ items=[]; sel=null; save(); renderPanel(); redraw(); } }; bar.appendChild(clear);
@@ -894,9 +1079,11 @@ SNIPPET = """<script>
         var wsel=document.createElement('select'); wsel.style.cssText='background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);border-radius:4px;font-size:10px;padding:1px 2px';
         WIDS.forEach(function(w){ var op=document.createElement('option'); op.value=w; op.textContent=w+'px'; if((d.w||1.4)==w)op.selected=true; wsel.appendChild(op); });
         wsel.title='Line width'; wsel.onchange=function(){ d.w=parseFloat(wsel.value); save(); redraw(); };
+        var cfg=E('span','cursor:pointer;font-size:11px;color:var(--ink-2);padding:0 3px','\\u2699'); cfg.title='Configure (levels / extend / colour)';
+        cfg.onclick=function(){ sel=d; redraw(); openEditor(d,24,24); };
         var del=E('span','cursor:pointer;font-size:13px;color:#f85149;padding:0 3px','\\u00d7'); del.title='Delete this drawing';
         del.onclick=function(){ var i=items.indexOf(d); if(i>=0){ items.splice(i,1); if(sel===d)sel=null; save(); renderPanel(); redraw(); } };
-        row.appendChild(sw); row.appendChild(nm); row.appendChild(wsel); row.appendChild(del); panel.appendChild(row);
+        row.appendChild(sw); row.appendChild(nm); row.appendChild(wsel); row.appendChild(cfg); row.appendChild(del); panel.appendChild(row);
       });
     }
     function esc(s){ return (s||'').replace(/[<>&]/g,''); }
@@ -912,8 +1099,12 @@ SNIPPET = """<script>
       manageBtn.style.cssText='cursor:pointer;font-size:11px;color:'+(open?'var(--ink)':'var(--ink-2)')+';border:1px solid '+(open?'#58a6ff':'var(--line-2)')+';border-radius:5px;padding:3px 7px'; if(open)renderPanel(); };
     paintTools();
 
-    // Del key removes the selected drawing while editing
-    window.addEventListener('keydown',function(e){ if((e.key==='Delete'||e.key==='Backspace')&&sel){ var i=items.indexOf(sel); if(i>=0){ items.splice(i,1); sel=null; save(); renderPanel(); redraw(); e.preventDefault(); } } });
+    // Del removes the selected drawing; Escape closes the editor popover.
+    window.addEventListener('keydown',function(e){
+      if(e.key==='Escape'&&edPop){ closeEditor(); return; }
+      if((e.key==='Delete'||e.key==='Backspace')&&sel){
+        var tg=e.target&&e.target.tagName; if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT') return;
+        var i=items.indexOf(sel); if(i>=0){ items.splice(i,1); sel=null; closeEditor(); save(); renderPanel(); redraw(); e.preventDefault(); } } });
 
     return { redraw:redraw };
   }
