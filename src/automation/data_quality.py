@@ -422,6 +422,32 @@ def chk_fund_leak(c) -> dict:
     return _check("fund.leak", SEV_OK, 0, f"ranked outputs fund-free ({n_class} FUND instruments classified)")
 
 
+def chk_table_census(c) -> dict:
+    """D91 census guard: the machine snapshot must stay fresh, and no data table may
+    silently SHRINK >20% day-over-day (the truncation/purge signature — the class the
+    588x MAX(rowid) census fiasco and the ratio_rows purge both belonged to)."""
+    try:
+        from src.automation import table_census as _tc
+    except Exception:  # noqa: BLE001
+        return _check("census.sanity", SEV_INFO, 0, "table_census module absent")
+    days = _tc.latest_dates(c, 1)
+    if not days:
+        return _check("census.sanity", SEV_INFO, 0, "no census yet (first nightly run takes it)")
+    try:
+        age = (date.today() - date.fromisoformat(str(days[0])[:10])).days
+    except ValueError:
+        return _check("census.sanity", SEV_WARN, 1, f"unparseable census_date {days[0]!r}")
+    if age > 3:
+        return _check("census.sanity", SEV_WARN, 1, f"census stale: last {days[0]} ({age}d ago)")
+    shrunk = _tc.shrunk_tables(c)
+    if shrunk:
+        return _check("census.sanity", SEV_WARN, len(shrunk),
+                      "tables shrank >20% day-over-day (truncation/purge signature): "
+                      + "; ".join(shrunk[:5]), shrunk[:10])
+    n = c.execute("SELECT COUNT(*) FROM table_census WHERE census_date=?", (days[0],)).fetchone()[0]
+    return _check("census.sanity", SEV_OK, 0, f"census {days[0]}: {n} tables, no shrink alarms")
+
+
 def chk_derived_liveness(c) -> dict:
     """The three largest DERIVED tables (stock_signals / mep_signals / cpr_signals) plus the index
     tape recompute EVERY trading day from bhavcopy — if a nightly compute job dies they silently
@@ -489,6 +515,15 @@ def run(conn=None, *, persist: bool = True) -> dict:
         ensure_schema(c)
         r = _research_ro()
         checks = []
+        # the nightly (persist) run takes the D91 machine census FIRST, so the trust
+        # surfaces + chk_table_census below always have a fresh COUNT(*)-truth snapshot;
+        # ad-hoc persist=False runs skip it (a full census walks every btree once).
+        if persist:
+            try:
+                from src.automation import table_census as _tc
+                _tc.run_census(c)
+            except Exception as e:  # noqa: BLE001 — census failure must not block the checks
+                checks.append(_check("census.run", SEV_INFO, 0, f"census failed: {e}"))
         plan = [
             (chk_credibility_periods, (c,)), (chk_credibility_levels, (c,)),
             (chk_concall_periods, (c,)), (chk_concall_scores, (c,)), (chk_provenance_knowable, (c,)),
@@ -500,6 +535,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
             (chk_derived_liveness, (c,)), (chk_index_name_variants, (c,)),
             (chk_t2t_universe, (c,)), (chk_fund_leak, (c,)),
+            (chk_table_census, (c,)),
             (chk_restatement_spike, (r,)),
         ]
         for fn, fargs in plan:
@@ -547,10 +583,12 @@ def _selftest() -> None:
     c.executescript("""
         CREATE TABLE credibility_series (symbol TEXT, period_year INT, period_month INT, level REAL);
         CREATE TABLE concall_scores (symbol TEXT, guidance_accuracy_score REAL, n_promises_resolved INT);
-        CREATE TABLE security_master (symbol TEXT, first_date TEXT, last_date TEXT, status TEXT);
+        CREATE TABLE security_master (symbol TEXT, first_date TEXT, last_date TEXT, status TEXT,
+                                      currently_listed INTEGER DEFAULT 0);
         INSERT INTO credibility_series VALUES ('GOOD',2025,3,82.0),('BADP',225,3,80.0),('BADL',2025,3,150.0);
         INSERT INTO concall_scores VALUES ('GOOD',90.0,12),('BAD',120.0,-1);
-        INSERT INTO security_master VALUES ('GOOD','2015-01-01','2026-06-01','ACTIVE'),('BAD','2020-01-01','2019-01-01','WEIRD');
+        INSERT INTO security_master (symbol, first_date, last_date, status)
+            VALUES ('GOOD','2015-01-01','2026-06-01','ACTIVE'),('BAD','2020-01-01','2019-01-01','WEIRD');
     """)
     # a future knowable_at (critical) + a malformed key (warn)
     c.execute("INSERT INTO provenance_knowable (data_class,key,symbol,knowable_at) VALUES "
@@ -565,6 +603,10 @@ def _selftest() -> None:
     assert by["concall_scores.sanity"]["severity"] == SEV_CRIT and by["concall_scores.sanity"]["count"] == 1
     assert by["provenance_knowable.sanity"]["severity"] == SEV_CRIT          # future date dominates
     assert by["security_master.sanity"]["severity"] == SEV_WARN and by["security_master.sanity"]["count"] == 2
+    # D91 census: the persist run must have taken a same-day census of the synthetic
+    # tables and the guard must read it back clean (one day → no shrink comparison yet).
+    assert by["census.sanity"]["severity"] == SEV_OK, by["census.sanity"]
+    assert c.execute("SELECT COUNT(*) FROM table_census").fetchone()[0] >= 3
     assert rep["status"] == SEV_CRIT and rep["n_critical"] >= 3
     # persisted + readable
     lr = last_run(conn=c)
