@@ -91,8 +91,9 @@ are now SECONDARY to the charter.
    registry reader + measured card + blurb + glossary + board_health coverage; data ALREADY
    ingested, zero new deps):** ~~① insider-activity~~ **✅ DONE S86** (`/dash/insider`, 78
    fresh-conviction names; flag logic = `insider_events.flagged_symbols`, single source) ·
-   **② credit-rating transitions (`credit_rating_events` 3,008) ← NEXT** · ③ SAST+pledge
-   confluence (3,582+603) · ④ SHP QoQ deltas (84,699, research.db) · ⑤ forward corp-actions
+   ~~② credit-rating transitions~~ **✅ DONE S87** (`/dash/ratings`; E-02 dedup verbatim —
+   3 true actions ≠ 11 raw rows; healthy-zero branch for quiet windows) · **← NEXT: ③ SAST+pledge
+   confluence (3,582+603)** · ④ SHP QoQ deltas (84,699, research.db) · ⑤ forward corp-actions
    calendar (26,868+226) · ⑥ surveillance-transition tape (797+52). Front-door parity rule
    (D94): any new strategy = strategist card AND home pillar AND board_health, same session.
    ⚠ lens_registry.py + v2_surfaces.py stay git↔VPS FORKED — patch the LIVE copies with your

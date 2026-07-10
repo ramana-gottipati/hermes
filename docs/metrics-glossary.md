@@ -239,6 +239,18 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Cluster buy.** ≥2 distinct principals buying the same name inside 30 days — historically the more interesting shape than one large buy. *Source:* distinct `person_name_hash` count.
 - **Net 90d (₹).** Principal open-market buys minus sells over 90 days, in rupees. The SIGN drives the symbol verdict (relative, no rupee threshold — house principle). *Source:* `aggregate()`.
 
+## Credit-rating transitions (quality migration)
+
+> Every agency action on a listed issuer's debt, from **NSE's centralised rating-disclosure database** (LODR-mandated) into `credit_rating_events`. The headline counts **company-level actions, never raw rows** — one issuer's multi-ISIN debt programs re-rated the same day collapse to ONE action per direction (the pre-registered E-02 study measured raw rows at ~6× pseudo-replication: 118 notch-rows → 19 true events). Broadcast-date anchored. **Descriptive — the E-02 drift study is armed and self-gating; no return edge is claimed in either direction.**
+
+- **Transition (deduped).** One (company × broadcast day × direction) upgrade or downgrade, max notch kept across that issuer's instruments. The card counts distinct companies with a transition in the trailing **90 days** (true actions run ~2/month — a 30d window would be noise-thin). *Source:* `credit_ratings.transitions()`.
+- **Notch.** Steps moved on the long-term scale (D=1 … AAA=20). "▲2" = a two-notch upgrade — rarer and stronger than two single-notch moves. *Source:* `notch_delta` / `lt_ord − lt_ord_earlier`.
+- **Fresh default vs re-affirmed D.** Only a *fresh move into* D counts as a DEFAULT event; quarterly re-affirmations of already-defaulted debt are classified out (else the default count inflates ~5×). *Source:* `action_class`.
+- **Fell below IG (fallen angel ✦).** A downgrade that crosses under BBB− (investment-grade floor) — the institutionally-forced-selling threshold. *Source:* `below_investment_grade`.
+- **Watch ◉.** Agency placed the rating under watch — direction pending, not yet a transition; tracked separately from the headline. *Source:* `watch_flag`, `action_class='WATCH'`.
+- **Reaffirmations.** The bulk of the raw feed (~85%); zero-information for transitions, visible in the tape, never in the headline. *Source:* `action_class='REAFFIRM'`.
+- **Unmapped rows.** Rating rows on debt-only issuers with no listed equity — disclosed in the census tile, excluded from company counts (mapping widens conservatively; see E-02's mapping notes). *Source:* `symbol IS NULL`.
+
 ## Results reactions — the season war room
 
 > Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.

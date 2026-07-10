@@ -259,6 +259,7 @@ _CATALOG = [
     ("Credibility · CCI", "/dash/concalls"),
     ("Growth-intent", "/dash/growth"),
     ("Insider activity", "/dash/insider"),
+    ("Rating transitions", "/dash/ratings"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
     ("Momentum · ensemble", "/dash/markets/momentum-scan"),
@@ -301,6 +302,10 @@ _BLURB: dict[str, tuple[str, str]] = {
         "Skin in the game: promoters / directors / KMP buying or selling with their "
         "OWN money, from SEBI PIT filings. Open-market flows only — ESOPs, gifts and "
         "pledges are classified out. Descriptive.", "insider"),
+    "/dash/ratings": (
+        "Agency upgrades / downgrades on listed issuers' debt, deduped to COMPANY-level "
+        "actions (multi-ISIN re-ratings collapse — raw rows overstate ~6×). A quality-"
+        "migration tape; no return edge claimed.", "rating"),
     "/dash/launchpad": (
         "Validated explosive-move precursors (momentum-continuation / coiled). The "
         "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "

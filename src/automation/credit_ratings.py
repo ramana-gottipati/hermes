@@ -307,6 +307,75 @@ def save_events(conn: sqlite3.Connection, events: list) -> int:
     return n
 
 
+# --- whole-universe transition roll-up (S87 ratings lens: page+card+pillar+gate) --
+
+def transitions(conn, days: int = 90, as_of: Optional[str] = None):
+    """Company-level rating TRANSITIONS (UPGRADE/DOWNGRADE/fresh DEFAULT) in the
+    trailing `days`, deduped EXACTLY like the E-02 study gate
+    (research/explosive_moves/rating_drift.py, S85e): one event per (symbol,
+    broadcast day, direction), max |notch| kept — multi-ISIN debt re-ratings of
+    the same issuer collapse to ONE action (the study measured 118 raw
+    notch-rows → 19 true events; counting rows is 6× pseudo-replication). Only
+    rows with a mapped listed symbol count; the unmapped remainder is REPORTED,
+    not hidden. Returns (events, census, as_of) with events newest-first."""
+    if not as_of:
+        r = conn.execute("SELECT MAX(COALESCE(broadcast_dt, rating_date)) "
+                         "FROM credit_rating_events").fetchone()
+        as_of = str(r[0])[:10] if r and r[0] else None
+    if not as_of:
+        return [], {}, None
+    rows = conn.execute(
+        "SELECT symbol, issuer_name, agency, action_class, lt_grade, lt_ord, "
+        "lt_ord_earlier, notch_delta, outlook, watch_flag, below_investment_grade, "
+        "COALESCE(broadcast_dt, rating_date) t0, attachment_url "
+        "FROM credit_rating_events "
+        "WHERE COALESCE(broadcast_dt, rating_date) >= date(?, ?) "
+        "AND action_class IN ('UPGRADE', 'DOWNGRADE', 'DEFAULT')",
+        (as_of, f"-{int(days)} days")).fetchall()
+    best: dict = {}
+    unmapped = 0
+    for r in rows:
+        sym = _valid_symbol(r["symbol"])
+        if not sym:
+            unmapped += 1
+            continue
+        sign = 1 if r["action_class"] == "UPGRADE" else -1
+        notch = r["notch_delta"]
+        if notch is None and r["lt_ord"] is not None and r["lt_ord_earlier"] is not None:
+            notch = r["lt_ord"] - r["lt_ord_earlier"]
+        key = (sym, str(r["t0"])[:10], sign)
+        rank = abs(notch or 0)
+        cur = best.get(key)
+        if cur is None or rank > cur[0]:
+            e = dict(zip(("symbol", "issuer_name", "agency", "action_class", "lt_grade",
+                          "lt_ord", "lt_ord_earlier", "notch_delta", "outlook",
+                          "watch_flag", "below_investment_grade", "t0",
+                          "attachment_url"), tuple(r)))
+            e.update({"symbol": sym, "notch": notch, "sign": sign})
+            best[key] = (rank, e)
+    events = [v[1] for v in best.values()]
+    events.sort(key=lambda e: (str(e["t0"]), abs(e.get("notch") or 0)), reverse=True)
+    census = {"raw_transition_rows": len(rows), "deduped_actions": len(events),
+              "unmapped_rows": unmapped}
+    return events, census, as_of
+
+
+def flagged_symbols(conn, as_of: Optional[str] = None, days: int = 90):
+    """The card/pillar/gate cohort (single source, D94 parity rule): distinct
+    symbols with a DEDUPED up/down rating transition in the trailing 90 days
+    (true company-level actions run ~2/month post-dedup — a 30d window would be
+    noise-thin). Keeps each symbol's newest event. Returns ([(symbol, event)],
+    as_of), newest + biggest-notch first."""
+    events, _census, as_of = transitions(conn, days=days, as_of=as_of)
+    per: dict = {}
+    for e in events:                       # events are newest-first already
+        per.setdefault(e["symbol"], e)
+    out = sorted(per.items(),
+                 key=lambda kv: (str(kv[1]["t0"]), abs(kv[1].get("notch") or 0)),
+                 reverse=True)
+    return out, as_of
+
+
 # --- fetch -----------------------------------------------------------------
 
 _NSE_HOME = "https://www.nseindia.com"

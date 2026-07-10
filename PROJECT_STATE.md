@@ -543,7 +543,8 @@ empty? why not proactive?") exposed two things D93 missed and one it now answers
    blurb + glossary + board_health coverage (the D93 recipe):
    1. ✅ **Insider-activity lens — DONE (S86, same day):** `/dash/insider` + card + pillar +
       glossary + gate; 78 fresh-conviction names live. See the S86 session entry.
-   2. **Credit-rating transitions lens** — `credit_rating_events` 3,008 rows. **← NEXT**
+   2. ✅ **Credit-rating transitions lens — DONE (S87, same day):** `/dash/ratings` + card +
+      pillar + glossary + gate; E-02 dedup verbatim (3 true actions from 11 raw rows live).
    3. **SAST + pledge confluence board** — `sast_reg29_events` 3,582 + `sast_pledge_events`
       603 (dataset-roadmap idea, now dated + ordered).
    4. **SHP QoQ delta lens** — `shareholding_history` 84,699 rows (promoter/FII/DII deltas).
@@ -1496,6 +1497,39 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 87 — 2026-07-10 — CREDIT-RATING TRANSITIONS LENS live end-to-end (D94 queue #2): E-02-honest dedup, 3 true actions ≠ 11 raw rows
+D94 queue #2 executed with the full D93 recipe + the failure-ledger contract (E-02 cited
+BEFORE build: 118 raw notch-rows → 19 true events, S85e — counting rows = 6× pseudo-
+replication; study ARMED, no drift verdict → lens is descriptive-only):
+- **`/dash/ratings` (NEW `src/web/ratings_view.py`)** — NSE rating-disclosure register as a
+  lens: tiles (↑/↓ 90d · fallen-angels ✦ · watch ◉ · DEDUP CENSUS disclosed on-page) +
+  deduped transitions board (from→to grades, notch arrows, agency, outlook, ⇗ filing links
+  to the NSE archive) + the raw tape (class tabs incl. reaffirm ocean, window/symbol
+  filters). 15ms render; honest-empty off-prod.
+- **Single-source flag logic:** NEW `credit_ratings.transitions()` + `flagged_symbols()` —
+  the E-02 dedup VERBATIM (one event per symbol × broadcast day × direction, max |notch|;
+  mapped symbols only, unmapped REPORTED). 90d card window (true actions ~2/month — 30d
+  would be noise-thin). **Live: 3 company-level transitions as of 2026-07-07 (3↑/0↓) from
+  11 raw rows, 4 unmapped disclosed** — TFCILTD ↑1→AA- (Brickwork) · IOB ↑1→AA+ (CRISIL) ·
+  TVSMOTOR ↑→AAA (CARE). Card == home pillar == board_health by construction.
+- **Wiring:** `strategy_registry._ratings` (13 readers; healthy-zero branch for quiet 90d
+  windows) · strategist card + blurb · cockpit RATINGS pillar (14 measured home pillars) ·
+  lens_registry Lens (nested `/dash/strategies/ratings` 200, sub-nav entry renders) +
+  `_ROUTER_SPECS` mount · metrics-glossary "Credit-rating transitions" section (notch /
+  fresh-default vs re-affirmed D / fallen angel / watch / unmapped census) · **board_health
+  gates 13 strategies (prod run OK)**.
+- **Deploy discipline upgrades (deploy-reality skill):** recipe FULLY read pre-deploy →
+  caught the CR-STRIP GOTCHA — switched all stripping to `tr -d '\r'` (sed banned on this
+  VPS, 2026-06-26 incident) + added remote IMPORT tests (not just py_compile) + `.bak-s87`
+  backups on all 6 hot targets. **Integrity re-check of every S84-S86 deployed file: all 10
+  byte-identical to git HEAD after CR-normalisation — no sed corruption ever occurred.**
+  Forked-nav protocol repeated (pull live → patch hunks → push back).
+- **Journey walk (all seams PASS):** home pillar → card (blurb + gloss link) → page (tiles
+  278 rows, 403 ⇗ links) → nested URL → filters (DOWNGRADE tab: 16 down-chips, 0 reaffirm)
+  → glossary?q=rating → gate 13/13. Local: ratings_view selftest · registry 13 rows ·
+  pytest 18/1.
+- **Next in the D94 queue: ③ SAST + pledge confluence board** (3,582 + 603 events).
 
 ### Session 86d — 2026-07-10 — Claude-harness optimization: doctrine → installed skills, token trims, state-doc gate, daily TIL (D97)
 Harness-side program (Ramana: "go for all the changes suggested"); most artifacts live OUTSIDE the repo:

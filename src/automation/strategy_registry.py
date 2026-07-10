@@ -44,7 +44,7 @@ except Exception:  # pragma: no cover - import-path fallback
 # Daily signals refresh every trading night; concalls are quarterly, so far more lenient.
 _STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150,
                "conviction": 7, "growth": 150, "launchpad": 7,
-               "momentum": 7, "reactions": 10, "insider": 7}
+               "momentum": 7, "reactions": 10, "insider": 7, "ratings": 10}
 
 # Liquidity / universe gate for whole-universe rankers — mirrors
 # dashboard._SCAN_FILTERS, kept self-contained (same choice strategist_view made).
@@ -282,6 +282,43 @@ def _insider(conn):
             "health": _health(count, as_of, _STALE_DAYS["insider"])}
 
 
+def _ratings(conn):
+    """Credit-rating transitions — DEDUPED company-level up/down actions in the
+    trailing 90d (D94 queue #2). Flag logic lives in
+    credit_ratings.flagged_symbols (the E-02 dedup: one event per symbol ×
+    broadcast day × direction — raw rows are ~6× pseudo-replication).
+    Descriptive; the pre-registered E-02 drift study is armed — no return claim."""
+    key, label, route = "ratings", "Rating transitions", "/dash/ratings"
+    if not _table_exists(conn, "credit_rating_events"):
+        return _empty(key, label, route)
+    try:
+        from src.automation import credit_ratings as CRR
+        flags, as_of = CRR.flagged_symbols(conn)
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    if not as_of:
+        return _empty(key, label, route)
+    count = len(flags)
+    if not count:
+        # quiet 90d window over a LIVE feed (true actions ~2/month) — healthy zero
+        return {"key": key, "label": label, "route": route, "count": 0,
+                "as_of": str(as_of)[:10],
+                "top": [{"symbol": "—", "note": "no company-level transitions in 90d"}],
+                "health": "ok" if not _stale(as_of, _STALE_DAYS["ratings"]) else "stale"}
+    top = []
+    for sym, e in flags[:5]:
+        arrow = "↑" if e["sign"] > 0 else "↓"
+        notch = abs(e.get("notch") or 0)
+        note = f'{arrow}{notch if notch else ""} {(e.get("lt_grade") or "").strip()}'.strip()
+        agency = (e.get("agency") or "").split(" Ratings")[0].split(" Limited")[0].strip()
+        if agency:
+            note += f' · {agency}'
+        top.append({"symbol": sym, "note": note})
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": str(as_of)[:10], "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["ratings"])}
+
+
 def _growth(conn):
     """Growth-intent — forward proposals managements committed to on concalls
     (capex / expansion / debt-cut / new products), Rs-normalised. Flagged = the
@@ -447,7 +484,7 @@ def _wolfe(conn):
 
 
 # registry order = the order the Strategist dashboard shows the cards.
-_READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci, _insider,
+_READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci, _insider, _ratings,
             _growth, _launchpad, _momentum, _reactions, _wolfe]
 
 
@@ -483,7 +520,7 @@ def _selftest():
             assert set(t) >= {"symbol", "note"}, f"{r['key']} bad top item: {t}"
         keys.add(r["key"])
     for want in ("conviction", "dvpt", "mep", "cpr", "rs", "cci", "insider",
-                 "growth", "launchpad", "momentum", "reactions", "wolfe"):
+                 "ratings", "growth", "launchpad", "momentum", "reactions", "wolfe"):
         assert want in keys, f"{want} row missing"
     print(f"OK  strategy_registry.summary() -> {len(rows)} rows")
     for r in rows:

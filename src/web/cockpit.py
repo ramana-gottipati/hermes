@@ -29,6 +29,11 @@ try:
     from src.automation.insider_events import flagged_symbols as _insider_flagged
 except Exception:  # noqa: BLE001
     _insider_flagged = None
+# credit_ratings likewise (RATINGS pillar — the E-02-deduped transition cohort).
+try:
+    from src.automation.credit_ratings import flagged_symbols as _ratings_flagged
+except Exception:  # noqa: BLE001
+    _ratings_flagged = None
 
 
 def _near(g) -> bool:
@@ -404,6 +409,11 @@ STRATEGY_REGISTRY = [
      "thesis": "Skin in the game — principals (promoters/directors/KMP) net-buying on the open market with their own money, bought within the last 30 days. SEBI PIT filings, plumbing classified out. Descriptive.",
      "count": lambda conn, d, D: (len(_insider_flagged(conn)[0])
                                   if _insider_flagged else None)},
+    {"key": "RATINGS", "label": "Rating moves", "accent": "#79c0ff", "href": "/dash/ratings",
+     "cta": "transitions · 90d",
+     "thesis": "Agency upgrades/downgrades on listed issuers, deduped to COMPANY-level actions (multi-ISIN debt re-ratings collapse; raw rows overstate ~6× — E-02). Quality migration, descriptive — no return edge claimed.",
+     "count": lambda conn, d, D: (len(_ratings_flagged(conn)[0])
+                                  if _ratings_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",

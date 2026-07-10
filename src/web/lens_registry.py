@@ -164,6 +164,9 @@ LENSES: tuple[Lens, ...] = (
     # pledge / plumbing); the D94 unsurfaced-data queue #1 (S86). Descriptive.
     Lens("insider", "Insider", "stock", "strategies", "/dash/insider",
          aliases=("insider-activity", "promoter-buying", "pit-disclosures")),
+    # Credit-rating transitions — deduped company-level agency actions (D94 #2, S87).
+    Lens("ratings", "Ratings", "stock", "strategies", "/dash/ratings",
+         aliases=("credit-ratings", "rating-transitions", "upgrades-downgrades")),
     Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad"),
 
     # ── Tracker ──────────────────────────────────────────────────────────────

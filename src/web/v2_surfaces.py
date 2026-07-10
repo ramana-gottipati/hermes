@@ -61,6 +61,9 @@ _ROUTER_SPECS = [
     # Insider activity lens (D94 queue #1, S86) — SEBI PIT disclosures classified;
     # reads insider_events; flag logic single-sourced in insider_events.flagged_symbols.
     ("insider", "src.web.insider_view", "/dash/insider"),
+    # Credit-rating transitions lens (D94 queue #2, S87) — reads credit_rating_events;
+    # flag logic single-sourced in credit_ratings.flagged_symbols (E-02 dedup).
+    ("ratings", "src.web.ratings_view", "/dash/ratings"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),
