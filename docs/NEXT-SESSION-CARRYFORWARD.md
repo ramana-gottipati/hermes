@@ -300,10 +300,16 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
   point-4-strength descriptor remains (awaiting Ramana's worked chart example; legs 1-2 ∩ 2-3
   confluence). ⚠ Ramana-review note in PROJECT_STATE D102: the §A EPA-lock semantics (both
   pruned examples recorded) — his call whether such wedges should count as live.
-  **VERIFY tonight:** the 16:00 UTC run persists THREE snapshots — journal "persisted N
-  winner-profile setups + M structure-watch rows + K approaching-5 rows"; runtime ~9-15 min
-  (three detect passes + warm state cache; consolidation to one pass = future polish),
-  timeout 1800s.
+  🔴 **D108 SUPERSEDES ALL OF THE ABOVE WOLFE-SURFACE NOTES (S105, Ramana-directed surgical
+  revert):** `wolfe.py`+`wolfe_view.py` are back at the **D96 baseline (`9d04bd9`)** — the
+  STR/LND split, structure watch, §B2 withhold, lifecycle queues/chips and recency sort are
+  REMOVED from code (their history stays in PROJECT_STATE D98–D102; designs preserved in
+  `docs/wolfe-NEXT-SESSION.md` for the methodical re-apply WITH Ramana) — **plus the
+  MANDATORY 2/3/4 fractal gate** (his verbatim rule; ~32% of previously surfaced waves fail
+  it). D96 keeps his TCS wave on the walk. Do NOT rebuild any removed surface without his
+  explicit go; the nightly wolfe-scan returns to winner-only fresh-15 semantics; the
+  `:watch`/`:forming` snapshot rows + `wolfe_epa_state` table are unused-but-harmless residue.
+  Wolfe-lane residue still open: D95 tape-wiring · point-4-strength (needs his example).
 
 ## 🏛 AUDIT BOOT-CHECK (2026-07-02/03, binding)
 The audit reference is **`docs/AUDIT-2026-07-02-institutional-review.md`** (117 AUD items; statuses

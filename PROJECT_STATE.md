@@ -481,6 +481,30 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D108 — Wolfe REVERTED to the D96 baseline + the MANDATORY 2/3/4 fractal gate; the D98–D102 display/queue layer is REMOVED (2026-07-10, S105; Ramana: revert scope decided surgically after "I am really disappointed that the fractal has been ignored")
+Two rulings from Ramana, executed exactly:
+1. **THE RULE (his verbatim intent): points 2, 3 and 4 MUST each be a fractal, minimum
+   2-fractal — "without a fractal, do not consider them."** Point 1: NO gate (a 2/5-fractal
+   there is the valued §B-A bonus, not mandatory). Point 5: NO gate (§B1 entry timeliness;
+   `find_p5`'s 1-3 line-cross rule confirmed correct and untouched). This was always §B1's
+   ladder but lived only as the soft B score component, so candle/zigzag-pivot waves were
+   ACCEPTED and merely scored lower — **measured 32% (735/2,239 over 10 names) of surfaced
+   waves violated it** (e.g. TCS BULL 2005-01-07, degrees [0,0,0,0], CONFIRMED). Pre-D96 the
+   top-40-by-Q cap hid them; D96 freshness + the S89 queue/recency work SURFACED them — the
+   gate was never enforced, and exposing that read as "you broke it." Fixed as a PRE-FILTER
+   in `detect_waves` (after `_classify`, before `find_p5`); §A geometry + §B math untouched.
+2. **REVERT D98–D102 (surgical):** `wolfe.py` + `wolfe_view.py` reconstructed to their
+   `9d04bd9` state — **keeping D96** (`_FRESH_KEEP_BARS`; his TCS wave stays visible on the
+   walk) and removing rank_attention/recency sort (D99), the STR/LND split + structure watch
+   (D98), the §B2 withhold (D100), the lifecycle queues/progress chips/CLOSED chips + epa
+   cache wiring (D101/D102) and the §A-lock prune (`4e36bee`) — to be re-applied methodically
+   WITH him, corrections-first. Verified safe: every commit touching the two files since
+   `9d04bd9` was this lane's own. Systemd untouched (the wolfe-scan ExecStart carries no
+   flag tied to the removed code; the `:watch`/`:forming`/`wolfe_epa_state` rows/table
+   become unused data, harmless). The D98–D107 decision entries below stand as history —
+   recorded forward-only, per instruction. Canon doc updated to match code
+   (calculations-and-weights §5c/§5d now carry the revert note).
+
 ### D107 — Every DVPT price zone lives on ONE per-date-anchored adjusted basis; hot-day has ONE shared core; the >30% fallback needs tape corroboration (2026-07-10, S104 — closes AUD-06 + AUD-07 + AUD-11)
 The last raw-close price math in the signal path is gone. (a) AUD-06: the D31 zone tuples
 (`avg_close_r*/p*`), the hot-day averaged closes and the D44 key-price weights now use closes
@@ -1806,6 +1830,28 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 105 — 2026-07-10 — WOLFE REVERT + THE MANDATORY 2/3/4 FRACTAL GATE (D108): back to the D96 baseline, his rule enforced at detection (Ramana-directed, surgical)
+The evening arc, in order: his flag "the fractal has been ignored" → a fractal-visibility build
+(fingerprint + floors) was code-complete in-tree → his correction landed (the REAL defect: the
+2/3/4 fractal rule was never a detection gate; 32% of surfaced waves violate it) → his final
+scope: **revert today's Wolfe layer, keep D96, add the gate; re-apply corrections methodically
+with him.** Executed per D108: `wolfe.py`+`wolfe_view.py` → `9d04bd9` state (only this lane had
+touched them — verified); the mandatory gate added as a detect-time pre-filter; the abandoned
+visibility build discarded un-landed (its design survives in the ★ brief `ae84185` + the gate
+spec `725a0df`, both on main, for the methodical re-apply). Selftest ALL PASS with the gate.
+Verification (walk, live, 10-name cohort TCS/RAMCOSYS/RELIANCE/INFY/HDFCBANK/ICICIBANK/SBIN/
+TATAMOTORS/LT/WIPRO): **before 2,398 waves · 754 violations (31%) → after 1,655 waves ·
+0 violations**; **TCS walk 53 → 49 completed, HIS wave at 2/49** (pt4 2026-06-02, Q15, §B chips
+intact — the D96 promise held through the revert); RAMCOSYS 44 / RELIANCE 43 completed, pages
+200; nightly persist back on winner/fresh-15 semantics: **76 → 63 setups** (13 non-fractal
+winners pruned), as-of 2026-07-10; on-box selftest ALL PASS with the gate. ALSO this session (same lane, before
+the revert directive): **S102/P-05 completion** (`235a424` — the orphaned run's deploy verified
+claim-by-claim, then landed) and the **timer-fleet first-fire verifies**: SLB 15:16 UTC ✅
+(3,074 vol rows / 363 syms + 13,352 open positions) · wolfe-scan 16:04 UTC ✅ Finished 8m45s
+CPU — 757 winners + 814 watch + 305 approaching-5, as-of 2026-07-10 (the D101/D102 machinery's
+one unattended proof; post-revert the nightly returns to winner-only fresh-15 semantics and the
+extra snapshots go unused). Commit: (this).
 
 ### Session 104 — 2026-07-10 — AUD-06/07/11 CLOSED (D107): the quant-integrity batch — adjusted zones, one hot-day core, tape-corroborated fallback; commit `4548a01`
 The assessment session's (S99) #1-ranked pick, executed end-to-end in the main session:

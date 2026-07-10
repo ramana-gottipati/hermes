@@ -121,31 +121,29 @@ These exact thresholds/weights are deliberately kept OUT of the client glossary 
 
 ---
 
-## 5c. Wolfe §B display split + structure watch (D98 — display/selection layer only)
+## 5c. Wolfe display/queue layer — REVERTED (D108, 2026-07-10) + the mandatory 2/3/4 fractal gate
 
-**Canonical sources:** `src/automation/wolfe.py` (`score_split`, `_WATCH_MIN_STRUCTURE`, `watch_scan`); the §B rubric itself lives in `docs/wolfe-rules.md` §B3 and is UNCHANGED by this layer.
+**Canonical source:** `src/automation/wolfe.py` at the D96 baseline (`9d04bd9`) + the D108 gate.
 
-- **STR/LND split (display regroup, no rubric change):** `STR = p1×2 + B + H` (shape, max **11**) · `LND = C + F + G + I + D` (landing, max **13**); `STR + LND = Q`. Shown wherever the Q badge appears (walk summary, /dash/wolfe list, scan + watch tables). ⚠ **LND inverts as a trade filter** — the OOS winner profile deliberately prefers LOW D/F, so scan winners show low LND by design; the tooltips say so.
-- **Structure-watch bar:** `wolfe._WATCH_MIN_STRUCTURE = 10.0` (STR ≥ 10 of 11; the TCS Jul-01 archetype is 11/11). **Membership window (D101):** the lifecycle state — **OPEN** (point 5 printed, the EPA 1-4 line not crossed since; `wolfe.epa_touch_idx`, range-crossing-inclusive) at ANY age; `fresh` is an optional explicit narrowing only (the old 15-bar default died — it kept CLOSED rows and hid old OPEN ones). Sort = **attention DESC** (current-first; stale-OPEN "zombies" sink by decay) — **never by Q** (Q inverts as a trade filter). The R8 `wolfe_epa_state` cache makes the nightly state check incremental (CLOSED cached forever; OPEN checks only new bars; 0.5% p1/p4 drift guard for tape re-adjustments).
-- **Scanner queue membership (D101):** same OPEN-state window as the watch (no age cap; `fresh` optional explicit narrowing); sort = in-zone first, then attention DESC; counted 60-row slice + show-all. **The ✓edge/⚠tail badges render only for rows with p5 ≤ 15 bars** — the population the OOS validation (+2.14% net median) was measured on; older OPEN rows carry a plain "open" tag (reading candidates — the edge claim does not extend to them).
-- **Approaching-5 queue membership (D102/R3):** §A-valid FORMING wedges (points 1–4, no 5) still inside the point-5 search window — `find_p5`'s own cap, `p4 + max(10, 4×(p4−p1))` bars — **and NOT §A-locked** (no post-4 bar has touched the EPA 1-4 line: `find_p5` stops its search there, so a touched wedge can never print a 5 — the lock exclusion pruned 84 of 386 first-cut rows). Row frame: SL = the point-4 breach level; target = the predicted-5 confluence (tightest fib zone on the point-5 side of point 3); one row per sym+dir; attention-sorted; counted 60-slice. No new constants — both liveness tests are §A's own mechanics.
-- **Progress chips (D102/R3, display-only — never a sort key):** play B: `nearing-EPA` (CMP within `wolfe._NEAR_EPA_PCT = 0.02` of the current EPA line) → `crossed-3` (CMP past the point-3 level — his milestone) → `in-zone` (entry confluence band, ±0.5% slack; zone-less waves fall back to the point-5 level) → `beyond-zone` → `reversing`. Play A: `at-5-zone` / `approaching` / `no zone`.
-- **§B2 entry-qualification withhold (D100):** `wolfe.entry_qualified` — a wave whose point 5 pierced beyond BOTH legs' 4.618 extensions (bull: p5 < min of the two · bear: > max) and has no CLOSE back inside the [min-4.618, max-4.618] band since, is withheld from BOTH actionable queues **visibly** ("N withheld (§B2)" count + `?nq=1` toggle + ⊘ chip); the chart/walk always show it. No new numeric constant — 4.618 comes from `_FIB_R` (wolfe-rules.md §B2 is the rule's canon).
-- **Watch membership:** CONFIRMED + p5 ≤ fresh + STR ≥ bar + **not shown on the scan** (fails the winner profile `D≤1 & p1≥2 & F≤2`, or passes it with no fib confluence — the scanner requires the zone). **One row per (sym, direction)** — the detector's fractal-degree twins of a single wedge collapse to the strongest-shape/freshest copy (a correlated-market p5 day otherwise floods the list: 140→95 on 2026-07-10). Persisted nightly by the same `--persist-scan` run under `wolfe_signals.universe='<uni>:watch'`. The page shows the freshest **60** by default with a counted "show all N" link (`?wall=1`) — an explicit slice, never a silent cap (Ramana 2026-07-10: raised from 30 so a TCS-archetype row a few sessions behind a correlated selloff low — TCS rendered 57th that day — stays on the default view). Descriptive-only: the raw lens is §C-falsified (median −2% net/trade, tail game) — the watch never claims an edge.
+- **The one live rule this section now carries — the MANDATORY 2/3/4 fractal gate (D108, Ramana
+  verbatim: points 2, 3, 4 "must, minimum 2 fractals; without a fractal do not consider them"):**
+  `detect_waves` rejects any candidate wave unless points 2 AND 3 AND 4 each satisfy
+  `frac_degree(...) ≥ 2`. Point 1: no gate (a fractal there is the §B-A bonus). Point 5: no gate
+  (§B1 entry timeliness; `find_p5` untouched). No numeric constants beyond §B1's own ladder.
+- **Everything this section previously documented was removed with the D98–D102 revert** (STR/LND
+  display split · structure watch + its 60-row slice · §B2 not-entry-qualified withhold · OPEN/CLOSED
+  state-filtered queue membership · approaching-5 queue · progress chips · `_NEAR_EPA_PCT`). The
+  history lives in PROJECT_STATE D98–D102/D108; the designs live in `docs/wolfe-NEXT-SESSION.md`
+  (★ brief + gate spec) for the methodical re-apply WITH Ramana. Unused-but-harmless residue:
+  `wolfe_signals` rows under `'<uni>:watch'`/`'<uni>:forming'` + the extra nullable columns +
+  the `wolfe_epa_state` table (no reader references them at the baseline).
 
----
+## 5d. Wolfe attention rank — REVERTED (D108, 2026-07-10)
 
-## 5d. Wolfe attention rank (D99 — the ONE ranking system; recency never edits Q)
-
-**Canonical source:** `src/automation/wolfe.py` (`rank_attention`, `_ATTENTION_HALF_LIFE_BARS = 60`, `freshness_tier`). Approved by Ramana 2026-07-10 ("go ahead with the 60-bar half-life default").
-
-- **Formula:** `rank_attention = Q × 0.5^(age_bars_since_p5 / 60)` — §B quality decayed by recency. **Q itself stays PURE and timeless** (his rubric; recency is not quality) — recency enters ONLY at the ranking layer, as its own visible field (age-in-bars + tier chip on every ranked row).
-- **Anchors (sanity):** TCS Q15 @ 6 bars ≈ **14.0** · Q17.33 from 2019 ≈ **0** · Q20 @ 30 bars ≈ **14.1** — fresh-strong and very-recent-decent compete; stale-strong retires to the all-time view.
-- **Sorts:** ranked Wolfe surfaces default to **current-first** (rank_attention DESC); **"Q all-time"** (pure §B DESC) stays as an explicit labeled toggle (`/dash/wolfe?…&sort=q`). Both orders carry the same rows — ranks order, filters declare, nothing hides (D96/D98 guarantees untouched underneath).
-- **Freshness tiers (display):** hot ≤10 bars · fresh ≤60 (one half-life) · aging ≤250 (the D96 keep-window) · archive beyond.
-- **Supersedes WolfeRank** (the 6-dim 0-100 blend whose 5%-weight freshness died in 40 bars — dead weight): removed from compute and payload; upside%/R:R remain as secondary context data. One ranking system: Q = quality (§B3), rank_attention = attention/sort, winner profile = the only edge filter (§C).
-
----
+`rank_attention`/the 60-bar half-life and the WolfeRank removal were part of the reverted D99
+layer; at the `9d04bd9` baseline the /dash/wolfe list sorts by the §B quality total with the
+legacy WolfeRank shown as secondary context. A recency/fractal treatment of the ranking returns
+only as a Ramana-signed re-apply (PROJECT_STATE D108).
 
 ## 6. Maintenance rule
 When any weight/anchor/threshold changes: (1) edit the **canonical code constant**; (2) update the **single** entry in this file; (3) if a UI/glossary surface shows it, have that surface **read/link** it — never hard-code a second copy. Reviewers check *this file* for "how is it calculated," not scattered code comments.

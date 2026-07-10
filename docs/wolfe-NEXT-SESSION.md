@@ -38,26 +38,45 @@ This block states the fractal rules exactly, then the gap, then the build.
 10. **Dedup keeps the higher-§B copy** → a fractal-clean wave outranks a zigzag-only copy of the
     same structure. (Fractals 2 & 10 = HIS numbers; we do NOT use 20/30 for quality — B1 note.)
 
-### 2 · THE GAP — why it reads as "ignored" (all DISPLAY/RANKING, geometry is fine)
-- **Invisible as a fractal:** degree is shown only *derived* — `p1×2=6`, or the `source` tag
-  `frac@5`. "Is point 1 a strong 10-bar fractal?" — his first question of any wave — is not a field.
-- **Subordinate to recency:** since **D99** the default sort is `rank_attention = Q × 0.5^(age/60)`.
-  Fractal strength lives only INSIDE Q (via A, B), so a **fresh candle/zigzag-pivot wave can outrank
-  an older clean 10-fractal wave** — recency now competes with fractal quality instead of the two
-  being visibly separate axes (the same lesson as the STR/LND split, not yet applied to the fractal).
-- **Union still admits non-fractal pivots:** with recency the sort key, a fresh `zz@k` weak-pivot
-  wave can top the list even though B1 wants 2/3/4 ≥ 2-fractal.
+### 1b · POINT-5 RULE — CONFIRMED CORRECT IN CODE, DO NOT TOUCH (`find_p5`, wolfe.py:280)
+Point 5 needs **no fractal**. It is confirmed ONLY when price crosses/touches the **extended 1-3
+line** AND goes beyond point 3: BULL → a low **below the extended 1-3 support line** and **below
+point 3** (`lows[t] < rail and lows[t] < c.price`); BEAR → the mirror above. It keeps extending
+(deepest overshoot) until the 1-4 EPA line is touched, then locks. This is exactly Ramana's
+description ("it will be called point 5 only if it crosses or touches the 1-3 line, beyond point 3")
+and it is intact. (Micro-note: code uses strict `<` — an EXACT touch on the line doesn't register;
+negligible for real overshoots, revisit only if he wants literal touch = `<=`.)
 
-### 3 · #1 NEXT TASK — make the fractal a FIRST-CLASS, VISIBLE dimension (decide-record-execute)
-Put these to Ramana (his §B is his — sign-off before encoding; §A geometry + §B component MATH stay
-LOCKED, only surfacing/sort changes):
-- **(i) Show fractal degree per pivot** on the wave summary + every ranked row — e.g.
-  `1:10fr · 2:5fr · 3:2fr · 4:10fr` (a "fractal fingerprint"), so the strength reads at a glance.
-- **(ii) Fractal-strength must not be buried by recency** — options: a fractal FLOOR on the actionable
-  queues (e.g. p1 ≥ 2-fractal, matching the winner profile's `p1≥2`), OR a fractal term folded into
-  `rank_attention`, OR a "fractal-clean only" filter/toggle on the ranked surfaces. Recommend the
-  toggle + floor first (visible, reversible) before touching the rank formula.
-- **(iii) Fractal degree as its own sortable/filterable field** (like age is now).
+### 2 · THE GAP — the 2/3/4 fractal is MANDATORY but only SOFT-SCORED (correctness, not cosmetics)
+**Ramana (2026-07-10, verbatim intent):** *"Points 2, 3, and 4 should ALWAYS have a minimum of
+two fractals. Without a fractal, do not consider them, or bring it back to me. Point 1 maybe
+doesn't need a fractal — a 2- or 5-fractal there is valuable but NOT mandatory. It was working
+beautifully before I touched it."*
+- **THE REGRESSION:** `_classify` (wolfe.py:196) gates GEOMETRY only — kinds, descending/ascending
+  1-3, leg ratio, point placement. It does **NOT** require points 2/3/4 to be fractals. The fractal
+  enters ONLY as the soft `score()` B component (floored at 1), so a candle/zigzag-pivot wave is
+  ACCEPTED and merely scores lower. Detection unions `zz@1/1.5/2.5` pivots that are frequently NOT
+  fractals. **Measured (2026-07-10, VPS, 10 names, 2,239 waves): 32% (735) have points 2/3/4 that
+  are NOT all ≥ 2-fractal** — e.g. TCS BULL 2005-01-07 `degs=[0,0,0,0]` (no fractal anywhere) still
+  CONFIRMED. Before D96/D98/D99 these hid below the top-40-by-Q cut; the freshness guarantee +
+  structure watch + recency sort now SURFACE them → the "you broke it" he is seeing. The gate was
+  never enforced; we exposed what it would have caught.
+- **Secondary (visibility):** even for valid waves the degree is shown only *derived* (`p1×2=6`,
+  source `frac@5`), and since D99 the default sort `Q × 0.5^(age/60)` lets a fresh weak-pivot wave
+  outrank an older clean 10-fractal wave — fractal strength has no visible axis of its own.
+
+### 3 · #1 NEXT TASK — ENFORCE the mandatory 2/3/4 fractal gate (correctness), THEN surface it
+**(A) HARD GATE (do first — this is the regression fix, aligns with his explicit instruction):**
+in `_classify` (or as a filter in `detect_waves`), **REJECT any wave whose points 2, 3, AND 4 are
+not EACH ≥ 2-fractal** (`frac_degree(...) >= 2`). Point 1 = NO gate (candle allowed; 2/5/10-fractal
+is a scored bonus via A, kept). Point 5 = NO fractal gate (unchanged — candle overshoot; §A4 rule
+below). Expected effect: the ~32% non-fractal waves stop being surfaced → restores the pre-touch
+"only clean waves" behaviour. Gate-test on TCS (his archetype survives: its 2/3/4 are `frac@5`),
+RAMCOSYS, RELIANCE; walk the /dash/wolfe list + scan live. Keep it behind nothing — it is the rule,
+not an option. §A geometry + §B component MATH stay LOCKED; this ADDS a pre-filter.
+**(B) VISIBILITY (after A):** per-pivot fractal fingerprint on the summary + ranked rows
+(`1:10fr · 2:5fr · 3:2fr · 4:10fr`); optional fractal-degree sort/filter. Preference order for the
+badge = **10 > 5 > 2 > candle** (his stated ranking; `_lvl` already encodes it 3/2/1/0).
 
 ### 4 · WHAT WAS ASKED THIS ARC + SHIPPED (do NOT redo — verify + build on)
 - TCS bull Wolfe "not fetched" → **D96** freshness guarantee (`_FRESH_KEEP_BARS=250`); the detector
