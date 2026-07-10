@@ -32,7 +32,17 @@ __all__ = ["build_app"]
 
 def build_app() -> FastAPI:
     app = FastAPI(title="Patearn /v1", version=E.METHODOLOGY_VERSION,
-                  description="Entitled, metered, provenance-stamped Indian-equity read API.")
+                  description=(
+                      "Entitled, metered, provenance-stamped Indian-equity read API.\n\n"
+                      "**PIT semantics (AUD-38):** `/universe`, `/securities/{symbol}/credibility` "
+                      "and `/attention` accept `as_of=YYYY-MM-DD` and serve what was KNOWABLE on "
+                      "that date — credibility by the month-granular knowable rule (a period row "
+                      "becomes knowable on its month's last calendar day; the served row carries "
+                      "`knowable_from`), attention by resolving to the last computed event batch "
+                      "on-or-before the date. The same `as_of` always returns the same answer, so "
+                      "clients can run their own leak audits. Every response is additionally "
+                      "stamped with `_meta.as_of` + per-class provenance, with or without the "
+                      "parameter."))
 
     @app.middleware("http")
     async def _observe(request: Request, call_next):

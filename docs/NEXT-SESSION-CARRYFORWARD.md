@@ -68,7 +68,18 @@ active watches):**
 · **hermes-fundamentals-provenance.timer** Sat Jul-11 21:00 UTC (S84 4h ceiling — journal
   Finished + 2767/2767; a scheduled task tracks it separately)
 
-## 🥈 S96 WRAP (2026-07-10, season lane) — P-04 SHIPPED; the estate is armed + watch-dated
+## 🥈 S96+S96b WRAP (2026-07-10, season lane) — P-04 SHIPPED + AUD-38 CLOSED (P-05 unblocked)
+**✅ AUD-38 SHIPPED (S96b, same session):** /v1 is PIT-queryable — `credibility?as_of=` (month-end
+knowable rule via `cci_series.series_asof`, `knowable_from` stamped, typed absence for a
+PIT-empty past) + `attention?as_of=` (last-batch-≤-date resolver; honest-empty before the feed) +
+the PIT contract in OpenAPI + RFC-7807 422 on malformed dates. Tests `tests/test_v1_pit.py`
+(10, incl. leap-Feb boundary) + selftest 5b; live-walked on ICICIPRULI (97-pt series, exact
+boundary serve). Two bonus fixes: lowercase symbols no longer bypass rename resolution
+(normalize-before-canonical) and the v1 selftest's stale `lag_days==90` now asserts the
+INVARIANT (calibrated lag: VPS serves 114, laptop default 120 — never pin cross-box constants).
+Findings: `signal_events` = **0 rows in prod** (bus has no producer — spawn-task chip filed);
+5 live /v1+automation files were CRLF (content==HEAD; now LF). **P-05 is UNBLOCKED** — needs an
+API key provisioned on the box (`HERMES_V1_DEV_KEY` unset) for live-key demos.
 **✅ P-04 evidence pack LIVE (S96): `/dash/evidence-pack`** — print-CSS procurement assembly
 (browser print→PDF, zero deps): 8 P-03 sheets IMPORTED verbatim + coverage boundary
 (glance/matrix/COPY_*) + live season MTTR/placebo + replay pointer (no returns quoted). Trust
@@ -76,7 +87,7 @@ lens + coverage front-door chip + spec-sheets cross-link; nav/chrome gates PASS;
 (warm 49ms; first daily hit ~3.3s = cold coverage_snapshot, expected). Deploy note that saved
 the session: v2_surfaces + lens_registry live≠HEAD is a COMMENT/ORDER fork only — pull live,
 patch, push back; never full-file scp from git. **No P-04 work remains** — next product rank
-is P-05 replay-any-date API (needs AUD-38 as_of plumbing FIRST or the demo lies; early Aug).
+is P-05 replay-any-date API (~~needs AUD-38 first~~ **AUD-38 DONE S96b** — P-05 is buildable now).
 **ARMED, self-executing — verify DMs, never rebuild** (gates hashed, `prereg --verify` = tamper
 check; results → `research/explosive_moves/out/*.json`; each completed run needs a LEDGER entry +
 spec-sheet): season digest daily 02:45 — **first DM ever fires Sat Jul-11 02:45 UTC** (timer
@@ -123,7 +134,8 @@ committing co-hot files. Ledger: 10 pre-registered studies (2 confirmed · 6 nul
 - **DATED-WATCH 11** (armed timers/studies + season signals)
 - **STALE MARKERS FIXED 2** (this session; docs-only)
 
-**⚠ IN FLIGHT this session (parallel lane; do NOT stage):** `src/api/v1/{__init__,routes,resources,selftest}.py` + `src/automation/{cci_series,signal_events}.py` + `tests/test_v1_pit.py` — that lane is landing **AUD-38** (PIT on /v1 credibility) and probably **AUD-37** (metering). Working-tree only; not on `main`.
+~~⚠ IN FLIGHT (AUD-38 lane)~~ **✅ LANDED (S96b, same day):** the fenced files committed clean —
+AUD-38 only (the selftest edit was a stale-expectation fix, NOT AUD-37; metering stays open).
 
 **VERIFIED-OPEN — highest priority (P1, ranked):**
 1. **AUD-06** DVPT zones / D44 key-price / hot-day averages computed on RAW closes (`signals.py:456,357-379,402-404,487-509,637-675`). Live signals wrong-scale through any split window; also swallows PROJECT_STATE B5 residual.
@@ -145,7 +157,7 @@ committing co-hot files. Ledger: 10 pre-registered studies (2 confirmed · 6 nul
 - **UI Track A cosmetic residual** — per-page hand-conversion to native `ui_kit.shell` (runtime reskin makes this optional).
 - **B5** unify dashboard D36 to `adjust.adjusted_closes` + zones on adjusted prices — SAME class as AUD-06; land together.
 
-**Charter §4 NEXT — live build candidates (S98 kickoff prompt is the source):** X-04 overnight/intraday split + pump-flag · X-05 band-lock streak board (data flowing) · X-06 Amihud illiquidity migration delta (half-built) · X-07 volume-at-price shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag · **P-05 replay-any-date API — BLOCKED on AUD-38 (in-flight this session)**.
+**Charter §4 NEXT — live build candidates (S98 kickoff prompt is the source):** X-04 overnight/intraday split + pump-flag · X-05 band-lock streak board (data flowing) · X-06 Amihud illiquidity migration delta (half-built) · X-07 volume-at-price shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag · **P-05 replay-any-date API — UNBLOCKED (AUD-38 done S96b; provision a v1 API key on the box for live demos)**.
 
 **BLOCKED (external gate / Ramana input required):**
 - **AUD-42** BLOCKED as-written; feasible via index-class routing (per Blockers section).
@@ -176,7 +188,7 @@ committing co-hot files. Ledger: 10 pre-registered studies (2 confirmed · 6 nul
 **TRANSIENT docs whose retire condition looks met (flag only — do NOT delete without owner check):**
 `docs/next-session-handoff.md` (Tracker workspace redesign per memory = SHIPPED+VPS-verified) · `docs/next-session-kickstart.md` (UI Phase 2/3 stubs superseded by S45+ ui_kit reskin). Both explicitly TRANSIENT-tagged. Absorption owner: next session that touches them.
 
-**No new build directed from this assessment** — this lane is triage-only. Recommended next-session pick (per charter §4 kickoff, unchanged): X-04 or X-05 as first product picks; AUD-06/07/11 batch as the next quant-integrity block; wait for the in-flight AUD-38 lane to land before touching P-05.
+**No new build directed from this assessment** — this lane is triage-only. Recommended next-session pick (per charter §4 kickoff, unchanged): X-04 or X-05 as first product picks; AUD-06/07/11 batch as the next quant-integrity block; ~~wait for AUD-38~~ AUD-38 landed (S96b) — P-05 is pickable.
 
 ---
 
@@ -481,7 +493,7 @@ its owner session deletes it.
 > board (data flowing since S83c `price_band_events`) · X-06 Amihud illiquidity migration
 > delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price shelves · D-06
 > announcement-category taxonomy → E-07 auditor-resignation red-flag · P-05 replay-any-date
-> API (needs AUD-38 as_of plumbing FIRST or the demo lies)
+> API (AUD-38 as_of plumbing DONE S96b — buildable; provision a v1 key on the box first)
 > unless a study's gate has newly reconciled; ALSO verify the first-ever season-digest DM
 > (Sat Jul-11 02:45 UTC — a missing DM = real bug, see the S96 block);
 > (3) respect the standing fences: 17 gated lenses stay DESCRIPTIVE with their honesty

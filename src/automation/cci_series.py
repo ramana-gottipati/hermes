@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import logging
 import re
+from calendar import monthrange
 from datetime import date
 from typing import Optional
 
@@ -236,6 +237,33 @@ def series_for(conn, symbol: str) -> list[dict]:
     return [dict(r) for r in conn.execute(
         "SELECT * FROM credibility_series WHERE symbol=? ORDER BY period_year, period_month",
         (symbol.upper().strip(),)).fetchall()]
+
+
+def series_asof(conn, symbol: str, as_of: str) -> Optional[dict]:
+    """The newest credibility point KNOWABLE on `as_of` (AUD-38 PIT serve), or None.
+
+    Knowable-date rule (month-granular, conservative): a series row carries only
+    (period_year, period_month) — the concall's intra-month date is not stored — so a
+    row is treated as knowable from the LAST calendar day of its period month. A query
+    dated mid-month therefore excludes that month's row rather than risk serving a
+    point from a call that hadn't happened yet (no-look-ahead over precision). Rows
+    with no period_year/month cannot be dated and are excluded from PIT serves.
+    The chosen row is returned with `knowable_from` (ISO date) stamped.
+    """
+    try:
+        target = date.fromisoformat(str(as_of).strip()[:10])
+    except ValueError:
+        return None
+    best: Optional[dict] = None
+    for r in series_for(conn, symbol):          # ordered oldest -> newest
+        y, m = r.get("period_year"), r.get("period_month")
+        if not y or not m:
+            continue
+        knowable = date(int(y), int(m), monthrange(int(y), int(m))[1])
+        if knowable <= target:
+            best = dict(r)
+            best["knowable_from"] = knowable.isoformat()
+    return best
 
 
 def latest_tape(conn, kind: str = "DETERIORATION", limit: int = 20) -> list[dict]:

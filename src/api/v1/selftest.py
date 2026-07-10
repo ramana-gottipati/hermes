@@ -76,15 +76,34 @@ def run() -> None:
         note = (jc["data"].get("note") or "").lower()
         assert "no validated return edge" in note and "not a ranked" in note, "credibility must carry the no-edge caveat"
 
+        # 5b) AUD-38 — the PIT params are ON the contract: malformed as_of -> RFC-7807 422;
+        #     well-formed -> 200 with the pit stamp echoed (credibility) / honest-empty queue
+        #     before the feed's first batch (attention). Seam semantics: tests/test_v1_pit.py.
+        bad = c.get("/securities/RELIANCE/credibility?as_of=nope", headers=H)
+        assert bad.status_code == 422, f"malformed as_of must 422 (got {bad.status_code})"
+        pit = c.get("/securities/RELIANCE/credibility?as_of=2020-01-01", headers=H)
+        assert pit.status_code == 200, pit.text
+        assert (pit.json()["data"].get("pit") or {}).get("as_of") == "2020-01-01", "pit stamp missing"
+        att = c.get("/attention?as_of=2020-01-01", headers=H)
+        assert att.status_code == 200 and att.json()["data"]["attention"] == [], \
+            "attention as_of before the first batch must serve an honest empty, not error"
+
         # 6) metering: append-only usage rows were written for the dev key (incl. the 4xx)
         with get_conn() as conn:
             n = conn.execute("SELECT COUNT(*) c FROM v1_usage WHERE key_id='pk_dev'").fetchone()["c"]
         assert n >= 4, f"usage log should have rows (got {n})"
 
-        # 7) MODELED value serialises NON-BARE (the un-strippable-caveat law)
+        # 7) MODELED value serialises NON-BARE (the un-strippable-caveat law).
+        #    lag_days is CALIBRATED since the Lane-H knowable_at leak-cut (cdd3751): a box
+        #    with capture rows serves its measured lag (114 on the VPS today), a bare box
+        #    the conservative default (120) — so assert the INVARIANT (a positive lag is
+        #    present and echoed in the display), never a magic number. The old `== 90`
+        #    hardcoded the retired producer model and went stale in that sweep (S96b).
         mv = E.modeled_value("2024-06-29", P.provenance_for("fundamentals_history", symbol="X",
                                                             as_of="2024-03-31", period_type="A"))
-        assert isinstance(mv, dict) and mv["basis"] == "MODELED" and mv["lag_days"] == 90 \
+        assert isinstance(mv, dict) and mv["basis"] == "MODELED" \
+            and isinstance(mv.get("lag_days"), int) and mv["lag_days"] > 0 \
+            and f"+{mv['lag_days']}d" in (mv["display"] or "") \
             and "modeled" in (mv["display"] or "").lower(), mv
 
         # 8) RFC-7807 on a 401 too

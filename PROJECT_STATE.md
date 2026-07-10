@@ -1712,6 +1712,48 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 96b — 2026-07-10 — AUD-38 CLOSED: /v1 is PIT-queryable (as_of on credibility + attention) — P-05 unblocked (season lane, same session as S96)
+Ramana's directive: keep self-prompting. Pick = the audit's own P1 + the carry-forward's named
+P-05 prerequisite ("as_of plumbing FIRST or the demo lies"). Kickstart-pick-verified OPEN in the
+audit doc; the exact fix prescription (routes/resources/signal_events lines) followed.
+- **`/securities/{symbol}/credibility?as_of=YYYY-MM-DD`** — serves the point KNOWABLE on that
+  date via NEW `cci_series.series_asof()`: **month-granular knowable rule** (a period (Y,M) row
+  becomes knowable on month M's LAST calendar day — the call's intra-month date isn't stored, so
+  the conservative no-leak bound is served; `knowable_from` stamped on every PIT row; undateable
+  NULL-month rows excluded from PIT serves). PIT-empty past = typed absence with `pit` stamp,
+  **degraded=False** (a valid historical answer, not service degradation).
+- **`/attention?as_of=`** — NEW `signal_events.latest_batch_on_or_before()` resolves to the last
+  computed batch ≤ date (weekend/holiday miss ≠ empty tape; before the first batch = honest
+  empty). attention_queue's exact-match semantics untouched for existing consumers.
+- **Contract:** OpenAPI carries the PIT semantics (sub-app description + per-param Query docs);
+  malformed as_of → RFC-7807 422 (version-portable manual check, not Query regex); same as_of →
+  same answer, so a PMS client can run their own leak audit — the AUD-38 wedge.
+- **Real bug caught by the new tests:** `resources.credibility` passed RAW input to
+  `security_master.canonical()` — lowercase queries silently BYPASSED rename resolution
+  (uppercase `old_symbol` rows can't match) and echoed unnormalized symbols. Input now
+  normalized before rename-following.
+- **Second stale-gate fix:** v1 selftest asserted `lag_days == 90` (the retired producer model)
+  — red at HEAD since the Lane-H knowable_at leak-cut (`cdd3751`). First re-pin to 120 was
+  WRONG TOO: the VPS serves a CALIBRATED 114 (real BSE first-seen captures) vs the laptop's
+  120 conservative default. Assertion now tests the INVARIANT (positive lag present + echoed
+  in display), never a magic number. Selftest green on BOTH boxes, incl. new 5b PIT checks.
+- **Tests:** NEW `tests/test_v1_pit.py` (10 tests, hermetic in-memory: month-end boundary incl.
+  leap-Feb, undateable exclusion, batch resolver, unchanged no-as_of paths) — pytest 28/1.
+- **Deploy:** 6 files (v1 routes/resources/__init__/selftest + cci_series/signal_events) —
+  fork-check found live copies **content-identical to HEAD but CRLF** (a past un-normalized
+  deploy; now LF); py_compile pre-swap, .bak-s96b backups, writer-safe restart. **Walked on
+  prod data:** ICICIPRULI 97-pt series — latest Apr-2026 vs as_of 2025-06-30 → Jun-2025 point
+  `knowable_from=2025-06-30` (exact boundary serve) vs 2023-01-31 → Jan-2023 point; on-box
+  selftest OK; OpenAPI PIT description + as_of param live via Caddy.
+- **Finding (pre-existing, flagged as a spawn-task chip):** `signal_events` has **0 rows in
+  prod** — the Tier-0 bus has no producer wired on the VPS; every consumer (home Attention
+  Queue, /v1/attention) renders honest-empty. Not a regression; needs its own wiring session.
+- No v1 API key exists on the box (`HERMES_V1_DEV_KEY` unset) — endpoint walk = the on-box
+  selftest (TestClient over the real app); a live-key curl awaits key provisioning.
+- Harness TIL: AskUserQuestion-free autonomy held; the day's rule reconfirmed — assert
+  invariants, not environment constants, in cross-box selftests.
+- Commit: (hash added at wrap).
+
 ### Session 99 — 2026-07-10 — Open-items assessment (dedicated triage lane): ~90 candidates classified · 2 stale markers fixed in canonical homes · Assessment section appended to carry-forward
 Docs-only triage session (no `src/`/`scripts/` changes). Swept: PROJECT_STATE § "What's NOT yet
 built" + AUDIT-2026-07-02 (117 AUD items) + charter §3/§4/§5/§7 + memory bodies (54 files with

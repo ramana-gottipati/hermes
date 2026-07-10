@@ -34,12 +34,29 @@ def health(conn) -> dict:
     return {"status": "ok", "as_of": snap.get("as_of"), "degraded": is_degraded(snap)}
 
 
-def credibility(conn, symbol: str):
-    """(canonical_symbol, latest_series_row|None). Resolves renames first (no look-ahead)."""
-    sym = security_master.canonical(symbol, conn=conn) or symbol.upper().strip()
+def credibility(conn, symbol: str, *, as_of: str | None = None):
+    """(canonical_symbol, series_row|None). Resolves renames first (no look-ahead).
+
+    With `as_of` (AUD-38 PIT): the row as it was KNOWABLE on that date — month-granular
+    knowable rule in cci_series.series_asof, `knowable_from` stamped on the row.
+    Without: the latest settled row (unchanged behaviour).
+
+    Input is normalized BEFORE rename-following (S96b): security_renames stores uppercase
+    symbols, so an un-normalized query used to bypass rename resolution silently."""
+    raw = symbol.upper().strip()
+    sym = security_master.canonical(raw, conn=conn) or raw
+    if as_of:
+        return sym, cci_series.series_asof(conn, sym, as_of)
     series = cci_series.series_for(conn, sym)
     return sym, (series[-1] if series else None)
 
 
-def attention(conn, *, limit: int = 6) -> list:
+def attention(conn, *, limit: int = 6, as_of: str | None = None) -> list:
+    """With `as_of` (AUD-38 PIT): the queue as it stood on that date — the last computed
+    event batch on-or-before it (empty only when the feed has nothing that early)."""
+    if as_of:
+        batch = signal_events.latest_batch_on_or_before(conn, as_of)
+        if batch is None:
+            return []
+        return signal_events.attention_queue(conn, as_of=batch, limit=min(limit, 6))
     return signal_events.attention_queue(conn, limit=min(limit, 6))

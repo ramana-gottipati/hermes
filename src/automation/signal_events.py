@@ -190,6 +190,21 @@ def events_for(conn, symbol: str, *, limit: int = 50) -> list[dict]:
                  (symbol.strip().upper(), int(limit)))
 
 
+def latest_batch_on_or_before(conn, as_of: str) -> Optional[str]:
+    """The newest signal_events batch date <= `as_of`, or None when none exists yet.
+
+    The PIT resolver behind `/v1/attention?as_of=…` (AUD-38): "the queue as it stood on
+    date D" serves the last computed event batch on-or-before D — an exact-date miss
+    (weekend/holiday, or a date before the feed began) must not read as an empty tape.
+    Callers pass the result to attention_queue(as_of=…), whose exact-match semantics
+    stay unchanged for every existing consumer.
+    """
+    ensure_schema(conn)
+    row = conn.execute("SELECT MAX(as_of) FROM signal_events WHERE as_of <= ?",
+                       (str(as_of).strip()[:10],)).fetchone()
+    return row[0] if row and row[0] else None
+
+
 def attention_queue(conn, *, as_of: Optional[str] = None, symbols: Optional[Iterable[str]] = None,
                     limit: int = 6) -> list[dict]:
     """The home headline: the most impactful recent state-changes (impact = magnitude × recency).

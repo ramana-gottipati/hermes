@@ -304,7 +304,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** try/finally around call_next recording the exception path; bytes from Content-Length; count record_usage failures to a visible metric; add a daily/monthly quota beside rate_check.
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-38 [P1] PIT — the product wedge — is not on the /v1 contract (5 of 6 endpoints latest-row-only)** — `OPEN`
+**AUD-38 [P1] PIT — the product wedge — is not on the /v1 contract (5 of 6 endpoints latest-row-only)** — `DONE S96b (2026-07-10): as_of on credibility (month-end knowable rule, knowable_from stamped) + attention (last-batch-on-or-before resolver); PIT contract in OpenAPI (app description + per-param); malformed as_of → RFC-7807 422; regression tests tests/test_v1_pit.py + selftest 5b; live-verified on ICICIPRULI (97-pt series). P-05 unblocked.`
 - **Component:** /v1 PIT semantics | **Reporter:** v1-api-contract.
 - **Files:** `src/api/v1/routes.py:61,78-79,105`; `src/api/v1/resources.py:41`; `signal_events.py:193-203` (as_of exists internally, unexposed).
 - **Evidence digest:** only /universe takes `as_of`; credibility serves `series[-1]`; a PMS/AIF client cannot run their own leak audit against the paid API — the replay-the-tape claim is demoable but not purchasable. (Envelope does stamp `_meta.as_of` — outputs are PIT-stamped, not PIT-queryable.)

@@ -10,7 +10,9 @@ gets 403 before the gate is ever reached).
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from src.core.db import get_conn
 from src.api.v1 import resources as R
@@ -18,6 +20,19 @@ from src.api.v1 import envelope as E
 from src.api.v1.auth import require_scope, Principal
 
 router = APIRouter()
+
+# AUD-38: PIT date params are validated here (not via Query regex — version-portable) and
+# documented per-endpoint; the OpenAPI description on each param is the client contract.
+_AS_OF_FMT = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _check_as_of(as_of: str | None) -> str | None:
+    if as_of is None:
+        return None
+    v = str(as_of).strip()
+    if not _AS_OF_FMT.match(v):
+        raise HTTPException(422, "as_of must be an ISO date (YYYY-MM-DD)")
+    return v
 
 # §C FALSIFIED the credibility return edge (docs/product-strategy-2026.md §9): CCI survives ONLY
 # as a DESCRIPTIVE per-name diligence lens, never a ranked buy/sell signal. Client-facing labels
@@ -76,18 +91,36 @@ def provenance_registry(request: Request, p: Principal = Depends(require_scope("
 
 
 @router.get("/securities/{symbol}/credibility", tags=["research"])
-def credibility(symbol: str, request: Request, p: Principal = Depends(require_scope("credibility"))):
-    """DESCRIPTIVE per-name guidance track-record (the §C-surviving use). Never ranked; no edge claim."""
+def credibility(symbol: str, request: Request,
+                as_of: str | None = Query(
+                    None,
+                    description="PIT date (YYYY-MM-DD): serve the credibility point as it was "
+                                "KNOWABLE on this date (AUD-38). Month-granular knowable rule: a "
+                                "period row becomes knowable on the LAST calendar day of its "
+                                "period month (the call's intra-month date is not stored, so the "
+                                "conservative bound is served — no look-ahead, ever). The served "
+                                "row carries `knowable_from`. Omit for the latest settled point."),
+                p: Principal = Depends(require_scope("credibility"))):
+    """DESCRIPTIVE per-name guidance track-record (the §C-surviving use). Never ranked; no edge claim.
+
+    PIT semantics: with `as_of`, the response is reproducible — the same date always returns the
+    same point (or a typed absence when nothing was knowable yet), so a client can run their own
+    leak audit against this endpoint."""
+    as_of = _check_as_of(as_of)
     with get_conn() as conn:
-        sym, latest = R.credibility(conn, symbol)
+        sym, latest = R.credibility(conn, symbol, as_of=as_of)
         if not latest:
-            data = {"symbol": sym,
-                    "credibility": E.absence(f"no settled credibility for {sym} (unproven / not covered)"),
-                    "note": _CRED_NOTE}
+            reason = (f"no credibility KNOWABLE on {as_of} for {sym} (first settled point is later, "
+                      f"or not covered)" if as_of else
+                      f"no settled credibility for {sym} (unproven / not covered)")
+            data = {"symbol": sym, "credibility": E.absence(reason), "note": _CRED_NOTE}
+            if as_of:
+                data["pit"] = {"as_of": as_of, "knowable_rule": "period-month-end"}
             return E.ok(conn, data=data, classes=["cci_series"], principal=p, request_id=_rid(request),
                         prov_kw={"cci_series": {"symbol": sym}},
                         coverage="descriptive credibility track-record (no validated return edge — §C); settled subset only",
-                        degraded=True, scope_used=_scope(request))
+                        degraded=not as_of,  # a PIT-empty past is a valid answer, not degradation
+                        scope_used=_scope(request))
         n = latest.get("n_resolved") or 0
         cred = {"track_record": _track_record(latest.get("tier"), n, latest.get("ga")),  # strong/mixed/weak/unproven
                 "n_resolved": n, "as_of": latest.get("period_label"),
@@ -95,6 +128,9 @@ def credibility(symbol: str, request: Request, p: Principal = Depends(require_sc
                 "robust": n >= 10,
                 "_raw_tier": latest.get("tier"), "_raw_level": latest.get("level")}  # data-first transparency
         data = {"symbol": sym, "credibility": cred, "note": _CRED_NOTE}
+        if as_of:
+            cred["knowable_from"] = latest.get("knowable_from")
+            data["pit"] = {"as_of": as_of, "knowable_rule": "period-month-end"}
         return E.ok(conn, data=data, classes=["cci_series"], principal=p, request_id=_rid(request),
                     prov_kw={"cci_series": {"symbol": sym, "as_of": latest.get("period_label")}},
                     coverage="descriptive credibility track-record (no validated return edge — §C)",
@@ -102,9 +138,23 @@ def credibility(symbol: str, request: Request, p: Principal = Depends(require_sc
 
 
 @router.get("/attention", tags=["research"])
-def attention(request: Request, limit: int = 6, p: Principal = Depends(require_scope("attention"))):
-    """Recent typed state-change events — DESCRIPTIVE context, not signals to trade."""
+def attention(request: Request, limit: int = 6,
+              as_of: str | None = Query(
+                  None,
+                  description="PIT date (YYYY-MM-DD): serve the attention queue as it stood on "
+                              "this date (AUD-38) — the last computed event batch on-or-before "
+                              "it (weekends/holidays resolve to the prior batch). Each row "
+                              "carries its own as_of (data date) and detected_at (when the "
+                              "nightly detection actually ran — the knowable moment). Omit for "
+                              "the latest batch."),
+              p: Principal = Depends(require_scope("attention"))):
+    """Recent typed state-change events — DESCRIPTIVE context, not signals to trade.
+
+    PIT semantics: with `as_of`, the same date always returns the same batch — replayable for
+    client-side leak audits. An empty list before the feed's first batch is the honest answer."""
+    as_of = _check_as_of(as_of)
     with get_conn() as conn:
-        q = R.attention(conn, limit=limit)
-        return E.ok(conn, data={"attention": q}, classes=["signal_events"], principal=p, request_id=_rid(request),
+        q = R.attention(conn, limit=limit, as_of=as_of)
+        return E.ok(conn, data={"attention": q} | ({"pit": {"as_of": as_of}} if as_of else {}),
+                    classes=["signal_events"], principal=p, request_id=_rid(request),
                     coverage="descriptive state-changes (not signals to trade)", scope_used=_scope(request))
