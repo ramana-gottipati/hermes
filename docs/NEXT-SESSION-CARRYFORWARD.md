@@ -55,13 +55,14 @@ are now SECONDARY to the charter.
   stays VPS-only (its owner's to settle — don't absorb it).
 
 ## ⚡ IMMEDIATE QUEUE (S80h — do these before the audit-program queue below)
-0. **VERIFY the new `hermes-launchpad-scan.timer` first run (S84, ~16:21 UTC Jul-08):**
-   journal `Result=success`, `/var/log/hermes-launchpad-scan.log` clean, and
-   `launchpad_scan_meta.scan_date` rolled to the new bhav date (else /dash/launchpad falls to
-   the memoised live path — works, but slow-once). The Strategies board is now 11 MEASURED
-   cards + on-card explainers (D93) — don't re-add link-only cards. Also: sibling lanes left
-   `hermes-pateval.timer` + `hermes-corp-actions.service`(+drop-ins) UNCAPTURED (live-only,
-   drift-gate flagged) — their owners should git-capture them.
+0. ~~VERIFY hermes-launchpad-scan first run~~ **✅ DONE (Jul-10): Jul-08 + Jul-09 runs green,
+   snapshot rolls nightly, page 8-10ms.** The Strategies board is now 11 MEASURED cards +
+   on-card explainers (D93) — don't re-add link-only cards. NEW verify:
+   **`hermes-fundamentals-provenance` Sat Jul-11 21:00 UTC run must FINISH** — S84 addendum
+   raised its TimeoutStartSec 1800→4h (`99-timeout.conf`) after the fleet cap SIGTERM'd the
+   ~110-min re-collect at 675/2767 on Jul-07; expect journal `Finished` + log 2767/2767.
+   Also: sibling lanes left `hermes-pateval.timer` + `hermes-corp-actions.service`(+drop-ins)
+   UNCAPTURED (live-only, drift-gate flagged) — their owners should git-capture them.
 1. **VERIFY the 2 new timers' first runs:** `hermes-results-calendar` (02:00 UTC) +
    `hermes-results-reactions` snapshot (18:00 UTC) — journal `Result=success`,
    `/var/log/hermes-results-*.log` clean, war room shows fresh data

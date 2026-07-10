@@ -1458,11 +1458,20 @@ appearing anywhere". All four verified real and fixed, live:
   behind HEAD, no live-only lines). Pre-existing UNCAPTURED live-only units flagged by the
   drift gate, NOT mine, left for their owners: `hermes-pateval.timer` (S83i lane),
   `hermes-corp-actions.service`(+drop-ins) (S83e lane).
-- **Follow-ups:** (a) VERIFY tonight's first `hermes-launchpad-scan` timer run (~16:21 UTC,
-  journal + `/var/log/hermes-launchpad-scan.log` + snapshot date rolls to 2026-07-08);
-  (b) strategist board sits at ~0.10-0.40s (alerts/what-changed/CCI-tile sections) — fine, but
-  a per-data-day memo is the next lever if Ramana still feels it; (c) sibling lanes should
-  git-capture their pateval/corp-actions units.
+- **Follow-ups:** (a) ✅ VERIFIED (Jul-10 03:00 UTC): TWO scheduled `hermes-launchpad-scan`
+  runs green — Jul-08 16:21 (421 precursors, as-of 07-08) and Jul-09 16:20 (314, as-of 07-09);
+  `launchpad_scan_meta.scan_date == MAX(bhavcopy)` (2026-07-09), page 8-10ms, board card
+  "as of 2026-07-09". (b) strategist board sits at ~0.10-0.40s (alerts/what-changed/CCI-tile
+  sections) — fine, but a per-data-day memo is the next lever if Ramana still feels it;
+  (c) sibling lanes should git-capture their pateval/corp-actions units.
+- **S84 addendum (Jul-10, found during the verify sweep):** `hermes-fundamentals-provenance`
+  was FAILED — the fleet-wide `TimeoutStartSec=1800` (90-hardening.conf) SIGTERM'd the
+  full-universe re-collect mid-run on Jul-07 (killed at 675/2767 symbols, ~110 min needed,
+  pager fired). NOT a wedge — steady progress in the log. Fix: per-unit `99-timeout.conf`
+  (TimeoutStartSec=4h — wedge-guard stays finite), installed + `reset-failed`; nothing
+  started (AUD-95). **VERIFY its Sat Jul-11 21:00 UTC run completes** (journal
+  `Finished`, log reaches 2767/2767). Jul-04's separate exit-code failure was the known
+  7-col-INSERT crash (already fixed by that lane — the pager drop-in cites it).
 Commits: (this commit). Files: `src/automation/launchpad_signals.py` (NEW) ·
 `src/automation/strategy_registry.py` · `src/web/cockpit.py` · `src/web/strategist_view.py` ·
 `src/web/glossary_view.py` · `src/web/dashboard.py` (docstring) · `docs/metrics-glossary.md` ·
