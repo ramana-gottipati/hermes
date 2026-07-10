@@ -82,11 +82,14 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
   ≤15-bar window. ✅ R7 = D100. ALL §D clarifications resolved (point-2/3 = the §A point-4 gate;
   no liveness cutoff; point-4-strength recorded — needs his worked example).
   ✅ **R3+R4 BUILT same session (D102, "build R3 and R4"):** the approaching-5 forming queue
-  (play A: SL=pt-4 breach, predicted-5 target, §A search-window liveness) = the scan page's
-  third section; play-B progress chips (nearing-EPA→crossed-3→in-zone→beyond-zone→reversing)
-  on both confirmed queues; `✓EPA {n}b`/`EPA open` chips on walk+list; per-symbol validation
-  readout on /dash/wolfe. **LIFECYCLE PROGRAM COMPLETE** — only the point-4-strength descriptor
-  remains (awaiting Ramana's worked chart example; legs 1-2 ∩ 2-3 confluence).
+  (play A: SL=pt-4 breach, predicted-5 target, §A search-window liveness **+ the §A-lock
+  exclusion `4e36bee`** — walk-caught on TATACAP/SUNDARMFIN, 84/386 dead rides pruned, 302
+  live) = the scan page's third section; play-B progress chips (nearing-EPA→crossed-3→in-zone
+  →beyond-zone→reversing) on both confirmed queues; `✓EPA {n}b`/`EPA open` chips on walk+list;
+  per-symbol validation readout on /dash/wolfe. **LIFECYCLE PROGRAM COMPLETE** — only the
+  point-4-strength descriptor remains (awaiting Ramana's worked chart example; legs 1-2 ∩ 2-3
+  confluence). ⚠ Ramana-review note in PROJECT_STATE D102: the §A EPA-lock semantics (both
+  pruned examples recorded) — his call whether such wedges should count as live.
   **VERIFY tonight:** the 16:00 UTC run persists THREE snapshots — journal "persisted N
   winner-profile setups + M structure-watch rows + K approaching-5 rows"; runtime ~9-15 min
   (three detect passes + warm state cache; consolidation to one pass = future polish),
