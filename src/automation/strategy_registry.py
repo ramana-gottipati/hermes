@@ -45,7 +45,7 @@ except Exception:  # pragma: no cover - import-path fallback
 _STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150,
                "conviction": 7, "growth": 150, "launchpad": 7,
                "momentum": 7, "reactions": 10, "insider": 7, "ratings": 10, "sast": 7,
-               "shp": 150, "actions": 7, "surveil": 7}
+               "shp": 150, "actions": 7, "surveil": 7, "bandlock": 7}
 
 # Liquidity / universe gate for whole-universe rankers — mirrors
 # dashboard._SCAN_FILTERS, kept self-contained (same choice strategist_view made).
@@ -452,6 +452,39 @@ def _surveil(conn):
             "health": _health(count, as_of, _STALE_DAYS["surveil"])}
 
 
+def _bandlock(conn):
+    """Band-lock streaks — names that closed PINNED at their daily price band for
+    FLAG_MIN_STREAK+ consecutive sessions (charter X-05, S96c). Flag logic in
+    band_lock.flagged_symbols. Queue-imbalance tell on as-traded prices, never a
+    gate — no study exists on lock streaks in either direction; window opens at
+    the band feed's birth (band_lock.FEED_BIRTH)."""
+    key, label, route = "bandlock", "Band locks", "/dash/band-locks"
+    if not (_table_exists(conn, "price_bands_current")
+            and _table_exists(conn, "bhavcopy_rows")):
+        return _empty(key, label, route)
+    try:
+        from src.automation import band_lock as BL
+        flags, as_of = BL.flagged_symbols(conn)
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    if not as_of:
+        return _empty(key, label, route)
+    count = len(flags)
+    if not count:
+        return {"key": key, "label": label, "route": route, "count": 0,
+                "as_of": str(as_of)[:10],
+                "top": [{"symbol": "—", "note": "no multi-day band locks active"}],
+                "health": "ok" if not _stale(as_of, _STALE_DAYS["bandlock"]) else "stale"}
+    top = []
+    for sym, s in flags[:5]:
+        arrow = "▲" if s["dir"] == "UP" else "▼"
+        mv = f' {s["move_pct"]:+.1f}%' if s.get("move_pct") is not None else ""
+        top.append({"symbol": sym, "note": f'{arrow} {s["days"]}d @ {s["band"]:g}% band{mv}'})
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": str(as_of)[:10], "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["bandlock"])}
+
+
 def _growth(conn):
     """Growth-intent — forward proposals managements committed to on concalls
     (capex / expansion / debt-cut / new products), Rs-normalised. Flagged = the
@@ -618,8 +651,8 @@ def _wolfe(conn):
 
 # registry order = the order the Strategist dashboard shows the cards.
 _READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci, _insider, _ratings,
-            _sast, _shp, _actions, _surveil, _growth, _launchpad, _momentum,
-            _reactions, _wolfe]
+            _sast, _shp, _actions, _surveil, _bandlock, _growth, _launchpad,
+            _momentum, _reactions, _wolfe]
 
 
 def summary(conn=None) -> list[dict]:

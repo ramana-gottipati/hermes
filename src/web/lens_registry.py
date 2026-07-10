@@ -73,6 +73,10 @@ LENSES: tuple[Lens, ...] = (
     Lens("buyback-calc", "Buyback calc", "market", "markets", "/dash/buyback-calc",
          aliases=("buyback", "tender", "buybacks")),
     # Surveillance transitions — ASM/GSM/band restriction moves (D94 #6, S92).
+    # Band-lock streaks (charter X-05, S96c) — names pinned at their daily band;
+    # flag logic single-sourced in band_lock.flagged_symbols.
+    Lens("band-locks", "Band locks", "market", "markets", "/dash/band-locks",
+         aliases=("bandlock", "circuit", "locks")),
     Lens("surveillance", "Surveillance", "market", "markets", "/dash/surveillance",
          aliases=("asm", "gsm", "price-bands", "surveillance-transitions")),
     Lens("sectors", "Sectors", "market", "markets", "/dash/sectors",

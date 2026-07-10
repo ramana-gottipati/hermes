@@ -115,7 +115,15 @@ active watches):**
 · **hermes-fundamentals-provenance.timer** Sat Jul-11 21:00 UTC (S84 4h ceiling — journal
   Finished + 2767/2767; a scheduled task tracks it separately)
 
-## 🥈 S96+S96b WRAP (2026-07-10, season lane) — P-04 SHIPPED + AUD-38 CLOSED (P-05 unblocked)
+## 🥈 S96+S96b+S96c WRAP (2026-07-10, season lane) — P-04 + AUD-38 + X-05 all SHIPPED
+**✅ X-05 band-lock streaks LIVE (S96c): `/dash/band-locks`** — the 18th measured strategy
+(card+pillar+glossary+board gate, all off `band_lock.flagged_symbols`). Locks detected on
+AS-TRADED prices vs per-date bands RECONSTRUCTED from the change log; window honestly floored
+at the feed's birth (2026-07-07, on-page fence). Day-one board: 13 locks / 4 flagged —
+NATIONSTD ▼3d −27.1%. Two catches for the estate: (a) **never pair trade_date with series in
+one bhavcopy_rows WHERE** — the planner picks idx_bhav_series (3.16s/date vs 4ms; page went
+19s→108ms by filtering series in Python); (b) live metrics-glossary.md had LOST the committed
+S93 buyback entries (past clobber) — healed by this deploy.
 **✅ AUD-38 SHIPPED (S96b, same session):** /v1 is PIT-queryable — `credibility?as_of=` (month-end
 knowable rule via `cci_series.series_asof`, `knowable_from` stamped, typed absence for a
 PIT-empty past) + `attention?as_of=` (last-batch-≤-date resolver; honest-empty before the feed) +
@@ -209,7 +217,7 @@ AUD-38 only (the selftest edit was a stale-expectation fix, NOT AUD-37; metering
 - **UI Track A cosmetic residual** — per-page hand-conversion to native `ui_kit.shell` (runtime reskin makes this optional).
 - **B5** unify dashboard D36 to `adjust.adjusted_closes` + zones on adjusted prices — SAME class as AUD-06; land together.
 
-**Charter §4 NEXT — live build candidates (S98 kickoff prompt is the source):** X-04 overnight/intraday split + pump-flag · X-05 band-lock streak board (data flowing) · X-06 Amihud illiquidity migration delta (half-built) · X-07 volume-at-price shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag · **P-05 replay-any-date API — UNBLOCKED (AUD-38 done S96b; provision a v1 API key on the box for live demos)**.
+**Charter §4 NEXT — live build candidates (S98 kickoff prompt is the source):** X-04 overnight/intraday split + pump-flag · ~~X-05 band-lock streak board~~ **✅ SHIPPED S96c** (`/dash/band-locks`, 18th strategy) · X-06 Amihud illiquidity migration delta (half-built) · X-07 volume-at-price shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag · **P-05 replay-any-date API — UNBLOCKED (AUD-38 done S96b; provision a v1 API key on the box for live demos)**.
 
 **BLOCKED (external gate / Ramana input required):**
 - **AUD-42** BLOCKED as-written; feasible via index-class routing (per Blockers section).
@@ -240,7 +248,7 @@ AUD-38 only (the selftest edit was a stale-expectation fix, NOT AUD-37; metering
 **TRANSIENT docs whose retire condition looks met (flag only — do NOT delete without owner check):**
 `docs/next-session-handoff.md` (Tracker workspace redesign per memory = SHIPPED+VPS-verified) · `docs/next-session-kickstart.md` (UI Phase 2/3 stubs superseded by S45+ ui_kit reskin). Both explicitly TRANSIENT-tagged. Absorption owner: next session that touches them.
 
-**No new build directed from this assessment** — this lane is triage-only. Recommended next-session pick (per charter §4 kickoff, unchanged): X-04 or X-05 as first product picks; AUD-06/07/11 batch as the next quant-integrity block; ~~wait for AUD-38~~ AUD-38 landed (S96b) — P-05 is pickable.
+**No new build directed from this assessment** — this lane is triage-only. Recommended next-session pick (per charter §4 kickoff): ~~X-05~~ shipped S96c → X-04 as the next product pick; AUD-06/07/11 batch as the next quant-integrity block; ~~wait for AUD-38~~ AUD-38 landed (S96b) — P-05 is pickable.
 
 ---
 
@@ -542,15 +550,14 @@ its owner session deletes it.
 > `run_detection` summary and `signal_events --stats` latest_as_of must flip to 2026-07-10);
 > (2) kickstart-pick-verify the next build from charter §4/§7 — the E-studies are ARMED and
 > self-gating (E-02 Jul-22; E-04/E-14 depth-gated; do NOT run early). Prefer
-> product/consumption picks. **Deprioritized: P-04 (S96) · E-10 (S93) · D103 heal (S98).**
-> **Live candidates:** X-04 overnight/intraday split + pump-flag · X-05 band-lock streak
-> board (⚠ possibly IN FLIGHT — `band_lock.py` sighted untracked in the main tree 12:46 UTC
-> Jul-10; kickstart-verify before picking) · X-06 Amihud illiquidity migration
-> delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price shelves · D-06
+> product/consumption picks. **Deprioritized: P-04 (S96) · E-10 (S93) · D103 heal (S98) ·
+> X-05 (S96c — the "sighted in flight 12:46 UTC" watch resolved: LANDED).**
+> **Live candidates:** X-04 overnight/intraday split + pump-flag · X-06 Amihud illiquidity
+> migration delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price shelves · D-06
 > announcement-category taxonomy → E-07 auditor-resignation red-flag · P-05 replay-any-date
 > API (AUD-38 DONE S96b `56c731a` + D104 real-clock refinement S100 `0874e9a` — buildable;
-> provision a v1 key on the box first) · ⚠ signal_events PRODUCER wiring is IN FLIGHT in a
-> parallel lane (claims "S100" — stale, must renumber; see the S100 block) — don't pick it
+> provision a v1 key on the box first) · ~~signal_events producer in flight~~ **LANDED S101
+> (`6733dda`)** — the natural bus follow-up is a HOME-surface attention face (see 🚌 block)
 > unless a study's gate has newly reconciled; ALSO verify the first-ever season-digest DM
 > (Sat Jul-11 02:45 UTC — a missing DM = real bug, see the S96 block);
 > (3) respect the standing fences: 17 gated lenses stay DESCRIPTIVE with their honesty

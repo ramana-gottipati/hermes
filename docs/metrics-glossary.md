@@ -297,6 +297,15 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Band tightened / relaxed.** The daily move limit changed (20 → 10 → 5 → 2): tighter bands + close-at-band streaks are a queue-imbalance tell. NULL semantics kept honest: first appearance = "band set", dropped from the file = "band removed". *Source:* `price_band_events`.
 - **Under now.** Membership (the latest lists), distinct from the tape (events). T2T names show no delivery metrics site-wide by rule — excluded, not polluted. *Source:* `surveillance_flags`, `price_bands_current`.
 
+## Band-lock streaks
+
+> Names that closed **pinned at their daily price band** — close == high == the +band% limit (**upper lock ▲**: the buy queue outran the band) or close == low == the −band% floor (**lower lock ▼**) — and for how many consecutive sessions. A lock means the auction could not clear inside the permitted range. Detected on **as-traded prices** (exchange bands apply to raw prices, never adjusted series), each day's band **reconstructed** from the change log. **A queue-imbalance tell, never a gate** — no study exists on lock streaks in either direction; any claim that locks precede returns needs its own pre-registered gate first (M-04).
+
+- **Upper / lower lock (▲/▼).** The close sat at the day's extreme AND within 0.1% of the theoretical limit (±band% of the previous close — tick-rounding tolerance). Unbanded names (F&O, "No Band") can never lock and are excluded, not approximated. *Source:* `band_lock.locks_on_date()`.
+- **Streak.** Consecutive same-direction locked trading days ending at the latest bhav date; ⚑ flags streaks ≥ 2 days (the persistence cohort — page == card == pillar == board gate). *Source:* `band_lock.active_streaks()` / `flagged_symbols()`.
+- **The honest window.** Bands are reconstructable only back to the feed's first captured day (**2026-07-07**, `band_lock.FEED_BIRTH`) — streaks cannot exceed the window and earlier locks are invisible by construction; the board deepens every trading night.
+- **Move over streak.** Cumulative % from the previous close before the first locked day to the latest close — bookkeeping of the pin, not a forecast. *Source:* `band_lock.active_streaks()`.
+
 ## Results reactions — the season war room
 
 > Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.

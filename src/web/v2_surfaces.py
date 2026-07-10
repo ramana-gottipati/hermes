@@ -79,6 +79,9 @@ _ROUTER_SPECS = [
     # Surveillance-transition tape (D94 queue #6, S92) — ASM/GSM snapshot diffs +
     # band events; flag logic single-sourced in surveillance.flagged_symbols.
     ("surveillance", "src.web.surveil_view", "/dash/surveillance"),
+    # Band-lock streak board (charter X-05, S96c) — reads price_bands_current/events +
+    # raw bhav OHLC; flag logic single-sourced in band_lock.flagged_symbols.
+    ("band-locks", "src.web.bandlock_view", "/dash/band-locks"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),

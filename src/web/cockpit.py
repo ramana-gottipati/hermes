@@ -55,6 +55,11 @@ try:
     from src.automation.surveillance import flagged_symbols as _surveil_flagged
 except Exception:  # noqa: BLE001
     _surveil_flagged = None
+# band locks likewise (BANDLOCK pillar — multi-day locks at the daily price band).
+try:
+    from src.automation.band_lock import flagged_symbols as _bandlock_flagged
+except Exception:  # noqa: BLE001
+    _bandlock_flagged = None
 
 
 def _near(g) -> bool:
@@ -454,6 +459,11 @@ STRATEGY_REGISTRY = [
      "thesis": "Names whose exchange-restriction state MOVED — ASM/GSM entry/exit/stage, price-band tightenings. Forced-flow context (100% margins, T2T), never a gate; no study exists on this feed either way.",
      "count": lambda conn, d, D: (len(_surveil_flagged(conn)[0])
                                   if _surveil_flagged else None)},
+    {"key": "BANDLOCK", "label": "Band locks", "accent": "#58a6ff", "href": "/dash/band-locks",
+     "cta": "pinned at the band · streaks",
+     "thesis": "Names that closed AT their daily price band — the auction could not clear the permitted range — and for how many straight sessions. Queue-imbalance tell on as-traded prices; the window opens at the band feed's birth (2026-07-07). Descriptive, never a gate.",
+     "count": lambda conn, d, D: (len(_bandlock_flagged(conn)[0])
+                                  if _bandlock_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",

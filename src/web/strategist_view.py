@@ -264,6 +264,7 @@ _CATALOG = [
     ("Holdings · QoQ", "/dash/shp"),
     ("Corp actions", "/dash/actions"),
     ("Surveillance Δ", "/dash/surveillance"),
+    ("Band locks", "/dash/band-locks"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
     ("Momentum · ensemble", "/dash/markets/momentum-scan"),
@@ -326,6 +327,11 @@ _BLURB: dict[str, tuple[str, str]] = {
         "Exchange restriction MOVES — names entering/leaving ASM/GSM, stage shifts, "
         "price-band tightenings. Forced-flow context (margins, T2T), never a gate; "
         "no study exists on this feed either way.", "surveillance"),
+    "/dash/band-locks": (
+        "Names that closed PINNED at their daily price band — and for how many straight "
+        "sessions. Queue-imbalance tell on as-traded prices, window opens at the feed's "
+        "birth (2026-07-07); descriptive, never a gate — no study exists on lock streaks.",
+        "band-lock"),
     "/dash/launchpad": (
         "Validated explosive-move precursors (momentum-continuation / coiled). The "
         "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "

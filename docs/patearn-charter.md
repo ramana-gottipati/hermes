@@ -153,7 +153,9 @@ relisting behavior.
 (**CLOSED BY EVIDENCE, D92** — every delivery engine was already EQ-only; exclusion not pollution;
 `chk_t2t_universe` publishes the mass; residual X-02b = the price-only stragglers, post-season) ·
 X-03 organic delivery (forward window only, per the D-05 re-scope) · X-04 overnight/intraday split ·
-X-05 band-lock streaks (**data now flowing** — `price_band_events`, S83c) · X-06 Amihud illiquidity +
+**X-05 SHIPPED (S96c, 2026-07-10): `/dash/band-locks` — lock streaks on reconstructed per-date
+bands, window fenced to the feed's birth Jul-07; 18th measured strategy (card+pillar+glossary+
+board gate); descriptive, no study)** · X-06 Amihud illiquidity +
 liquidity-migration (**half-built**: `amihud_22d` computes nightly, `mep_signals.py:286`; only the
 migration delta is new) · X-07 volume-at-price shelves · X-08 institutional-footprint week composite
 (inherits the D89 front-detection FAIL — admissible only reframed post-public) · X-09 base-length ×

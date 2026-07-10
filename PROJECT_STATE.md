@@ -1848,6 +1848,41 @@ commit to land (`56c731a`), then rebuilt my contribution as an additive refineme
 - Commit: `0874e9a` (backfilled; the session was terminated mid-wrap by a harness session limit —
   the carry-forward rewrite landed in the follow-up docs commit).
 
+### Session 96c — 2026-07-10 — X-05 BAND-LOCK STREAKS live (/dash/band-locks) — the 18th measured strategy (season lane, same session as S96/S96b)
+Self-prompted continuation; pick = the S99 triage's own top product recommendation.
+Kickstart-pick-verified open (zero band-lock code; surveillance consumes band CHANGES only).
+- **NEW `src/automation/band_lock.py`** (single source): a name is UPPER/LOWER-LOCKED when it
+  closed AT its daily ±band% limit (close==high/low within 0.1% of prev_close×(1±band), _EPS
+  paisa float-equality) on AS-TRADED prices — bands apply to raw prices, never adjusted.
+  **Per-date bands RECONSTRUCTED** from `price_bands_current` (one-day snapshot) walked back
+  through `price_band_events` — exact, zero new storage (space doctrine), floored at
+  FEED_BIRTH=2026-07-07 (the feed's first capture; pre-window locks invisible BY CONSTRUCTION,
+  stated on-page). Streaks = consecutive same-direction locks ending at the latest bhav date;
+  flags = streaks ≥ 2d. Hermetic selftest (reconstruction · detection · unbanded exclusion ·
+  streaks · flags) + pytest wrapper `tests/test_band_lock.py` — suite 29/1.
+- **NEW `src/web/bandlock_view.py`** (`/dash/band-locks`, Markets, nests to
+  `/dash/markets/band-locks`): tiles (locked today ▲/▼ · flagged · longest/window) + the
+  active-locks board (side chip, streak, band %, close, move-over-streak, since) + the
+  honest-window fence + healthy-zero branch. **Live day one: 13 active locks, 4 flagged —
+  NATIONSTD ▼3d −27.1% (results-disappointment archetype), VISL/TICL ▼3d, COCKERILL ▲ +10%.**
+- **Wiring (D93 recipe, full parity):** registry `_bandlock` reader (18 readers now) +
+  strategist card + blurb + cockpit BANDLOCK pillar + markets Lens + `_ROUTER_SPECS` mount +
+  glossary "Band-lock streaks" section. board_health: **18 strategies measured, OK**. Nav +
+  chrome gates PASS; page==card==pillar==gate all read band_lock.flagged_symbols.
+- **Perf bug caught by walking the journey:** first live render was **19s** — the compound
+  `(trade_date AND series)` predicate lured SQLite onto `idx_bhav_series` (measured 3.16s/date)
+  instead of `idx_bhav_date` (0.004s). Fix: date-only SQL + series filtered in Python —
+  **page now 108ms** (~175×). Standing lesson for any bhavcopy_rows reader: never pair
+  trade_date with series in one WHERE on this DB; check the plan.
+- **Live-estate heal (found by fork-check):** the live `docs/metrics-glossary.md` was MISSING
+  the S93 buyback entries that are committed at HEAD (a past full-file scp clobber) — this
+  deploy restored them alongside the new section (live now == HEAD + band-locks).
+- Deploy: 7 files + the module, py_compile pre-swap, .bak-s96c backups, writer-safe restarts;
+  lens_registry/v2_surfaces patched on their live fork (comment/order-only, again verified).
+- FRAMING kept everywhere: queue-imbalance TELL, never a gate; no study exists on lock streaks
+  (ledger checked); any drift claim needs its own pre-registered gate (M-04). Descriptive only.
+- Commit: (hash at wrap).
+
 ### Session 96b — 2026-07-10 — AUD-38 CLOSED: /v1 is PIT-queryable (as_of on credibility + attention) — P-05 unblocked (season lane, same session as S96)
 Ramana's directive: keep self-prompting. Pick = the audit's own P1 + the carry-forward's named
 P-05 prerequisite ("as_of plumbing FIRST or the demo lies"). Kickstart-pick-verified OPEN in the
