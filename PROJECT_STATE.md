@@ -1445,6 +1445,25 @@ hand-carried figure (the class behind the 588× MAX(rowid) census fiasco).
   battery check) · /dash/coverage + /v1 `_meta` should QUOTE `table_census` (wire when the trust
   surface is next open — provenance/coverage_view are audit-lane-hot).
 
+### Session 85b — 2026-07-10 — E-04 campaign-arcs ARMED: gate frozen today, study self-gating, monthly depth DM
+"Run E-04 once the insider feed deepens" executed as a TRIGGER, not a premature run — the E-03 null's
+re-attempt condition (≥8 qtr cohorts; feed was ~10mo) is BLOCKING for this feed class, so running now
+would burn a knowably-underpowered registration.
+- **NEW `research/explosive_moves/campaign_arcs.py`** — full E-04 pre-registration in the docstring
+  (arc = ≥2 episodes ≤120d apart; event = the REPEAT going public; PASS = arc CAR60 t_cohort≥2 AND
+  placebo-clearing AND arc>single margin; ticket-ratio detection context reported not gated;
+  attrition clause re-verifies depth on USABLE events). **Gate hashed into M-04 TODAY
+  (`947814278f7e…`) — registered before the run is even possible; the strongest registration yet.**
+  `--run` REFUSES under-depth (`--force-underpowered` = labeled exploratory only, not gate-eligible).
+- **Monthly depth watcher LIVE:** `hermes-e04-gate.{service,timer}` (1st 03:05 UTC, safe pattern,
+  hardened + self-paging) DMs the measured depth via a STDLIB-only sender (the research venv has no
+  requests/pydantic — found by the live test, fixed with urllib + direct .env parse; the gate hash
+  survived the code fix, `--verify` OK).
+- **Live baseline (first DM delivered, HTTP 200): NOT-YET — 4/8 qtr cohorts ≥5 · 247 arc events
+  (2025-Q4 33 · 2026-Q1 130 · 2026-Q2 78 · 2026-Q3 6) — already ~4× the charter's 57-episode hint.**
+  GO ≈ mid-2027 at current density. Note: the 131mo "span" is stretched by sparse old SAST rows;
+  the COHORT condition is the binding one (correct-conservative).
+
 ### Session 85 — 2026-07-10 — Season-ops digest LIVE on the Telegram path (the daily operate routine, automated)
 - **NEW `src/automation/season_digest.py`** (--send/--print/--selftest; ₹0, no LLM, read-only
   everywhere, every section failure-isolated): one morning DM = unit health + pager fires 24h ·

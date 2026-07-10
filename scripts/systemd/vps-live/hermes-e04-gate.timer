@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes E-04 depth gate (monthly, 1st 03:05 UTC — the E-03 re-attempt condition, watched)
+# NO Requires= (AUD-95-safe house pattern: arming never fires the job).
+
+[Timer]
+# Monthly cadence matches how fast a quarterly-cohort condition can actually change; the DM
+# doubles as the reminder that the pre-registered study exists and is self-arming.
+OnCalendar=*-*-01 03:05:00
+Persistent=false
+Unit=hermes-e04-gate.service
+
+[Install]
+WantedBy=timers.target

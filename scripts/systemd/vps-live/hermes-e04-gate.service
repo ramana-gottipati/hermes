@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes E-04 depth-gate check (monthly DM: is the insider feed deep enough yet?)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes:/opt/hermes/research
+ExecStart=/opt/hermes/.venv-research/bin/python -m explosive_moves.campaign_arcs --depth-gate --notify
+StandardOutput=append:/var/log/hermes-e04-gate.log
+StandardError=append:/var/log/hermes-e04-gate.log

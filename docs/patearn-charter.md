@@ -56,8 +56,12 @@ buyer cannot build in-house and cannot get from a vendor.
 - **E-03 Disclosure-event drift** — conviction insider filings as *events* (the T+2 disclosure IS
   tradeable information; the footprint study proved the pre-public window doesn't exist — so test
   the post-public drift instead). Reuses the PEAD harness verbatim.
-- **E-04 Campaign-arc study** — multi-filing accumulation sequences (the 57 merged insider+SAST
-  episodes hint these are the real fish); detection target = arc continuation, not front-running.
+- **E-04 Campaign-arc study** — multi-filing accumulation sequences; detection target = arc
+  continuation, not front-running. **ARMED S85b (2026-07-10): gate frozen + hashed
+  (`947814278f7e…`, M-04) long before the run is possible; `campaign_arcs.py --run` REFUSES until
+  the E-03 depth condition holds (≥8 qtr cohorts ≥5 arc events + ≥24mo feed); a monthly timer
+  (`hermes-e04-gate`, 1st 03:05 UTC) DMs the measured depth. Baseline: 4/8 cohorts, 247 arc events
+  (already 4× the 57-episode hint) — GO ≈ mid-2027 at current arc density, earlier if it rises.**
 - **X-02 T2T/BE delivery-contamination mask** — in BE series delivery is definitionally 100%;
   every delivery signal (MEP/DVPT/DELIV features) is polluted on those rows + transition days.
   Site-wide correctness fix, ships with a data-quality note.
