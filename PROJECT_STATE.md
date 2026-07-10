@@ -1847,6 +1847,15 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 107 — 2026-07-11 — Wolfe overlay: top badge (dir · points/total · rank) + navigation stays STATIC (no re-zoom) (`f7d7a87`)
+Two small overlay asks, live: (1) a fixed top-of-chart BADGE per wave — `▲ BULL / ▼ BEAR · N/24 pts ·
+rank #k/total` (points = §B quality_total over `_QUALITY_MAX=24`; rank = position within the current
+Open/Closed section by points; `_wave_payload` now exposes points/points_max/rank_tier/wolfe_rank).
+(2) `panTo(w)` REMOVED from `redraw` — ◄/► navigation no longer pans/zooms; the chart stays wherever
+Ramana set it (he keeps it zoomed out to the whole picture), only the selected wave swaps in, the one
+left disappears. Engine math untouched. His TCS wave badge reads `▲ BULL · 15/24 pts · rank #30/34`
+(honest — strong structure, modest §B total; the pending weightage rebalance is what lifts it).
+
 ### Session 106 — 2026-07-11 — Wolfe lifecycle 3-sections (D109): Prediction / Open / Closed, the SIMPLE non-hiding re-add + closure-neatness readout
 Ramana asked for the three sections back (Prediction / Open / Closed) with the CLOSED ones showing
 "how neatly it closed". Built on the D108 baseline, additive + non-hiding (the D101/D102 mistake NOT
