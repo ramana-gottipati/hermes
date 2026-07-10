@@ -477,6 +477,23 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D99 — Wolfe recency is a first-class RANKING field: rank_attention = Q × 0.5^(age/60); WolfeRank superseded (2026-07-10, S89; RAMANA-APPROVED — "go ahead with the 60-bar half-life default")
+Ramana (via the main session, same day): "recentness is crucial… if we need to add a ranking, we
+can consider recentness as well" + explicit approval of the 60-bar half-life. Executed:
+- **Q stays PURE and timeless** (his §B rubric; a decaying Q stops meaning quality). Recency enters
+  ONLY at the ranking layer: `wolfe.rank_attention(q, age) = Q × 0.5^(age_since_p5/60)`,
+  `_ATTENTION_HALF_LIFE_BARS = 60` machine-owned, canon `docs/calculations-and-weights.md` §5d.
+- **Ranked surfaces default to current-first** (attention DESC); **"Q all-time"** is an explicit
+  labeled toggle (`?sort=q`). Age-in-bars + freshness tier (hot ≤10 · fresh ≤60 · aging ≤250 ·
+  archive) now VISIBLE on every /dash/wolfe row and on the ◄/► walk summary; the STR/LND split
+  chips (D98) cover "no component buried". Anchors: TCS Q15@6b ≈ 14.0 · Q17.33@2019 ≈ 0 ·
+  Q20@30b ≈ 14.1.
+- **ONE ranking system:** WolfeRank (6-dim 0-100; its 5% freshness died in 40 bars — dead weight)
+  is REMOVED from compute/payload/summary; upside%/R:R stay as context data. End state: Q =
+  quality · rank_attention = attention/sort · winner profile = the only edge filter.
+- **Ranks order, filters declare, nothing hides:** the D96 `_FRESH_KEEP_BARS=250` walk guarantee
+  and the D98 watch/scan windows sit UNDER the ranking, untouched.
+
 ### D98 — Wolfe visibility: Q stays the history curator; the §B badge SPLITS into STR/LND; a "structure watch" complements the scan (2026-07-10, S89; panel-decided, Ramana veto open)
 The S89 sweep quantified what the pre-D96 top-40-by-Q cap hid (read-only, exact `overlay_for`
 replay on the VPS archive): of **6,064** fresh confirmed waves (p5 ≤ 250 bars) across the
@@ -1549,6 +1566,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ## Session log (reverse chronological — newest at top)
 
 ### Session 89 — 2026-07-10 — Wolfe "strength" deep-dive (D98): cap-sweep quantified · Q splits into STR/LND · Structure watch live (S86c incident follow-through)
+- **D99 ADDENDUM (same session, Ramana-approved via the main session):** recency = first-class
+  ranking field — `rank_attention = Q × 0.5^(age/60)` (60-bar half-life his approved default);
+  /dash/wolfe defaults to current-first with an explicit "Q all-time" toggle; age + freshness tier
+  visible on every ranked row AND the ◄/► walk summary; **WolfeRank removed** (superseded — one
+  ranking system). Q untouched; D96/D98 visibility guarantees untouched. Canon: §5d of
+  calculations-and-weights. Anchors verified: TCS 14.0 · 2019-stale ≈0 · Q20@30b 14.1.
 Ramana's questions ("did we select the strongest? on what basis? I feel I missed many entries")
 answered with numbers, then built. Commits: (see git log this date — wolfe.py, wolfe_view.py,
 calculations-and-weights.md §5c, PROJECT_STATE).

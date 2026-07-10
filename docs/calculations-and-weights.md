@@ -131,5 +131,17 @@ These exact thresholds/weights are deliberately kept OUT of the client glossary 
 
 ---
 
+## 5d. Wolfe attention rank (D99 — the ONE ranking system; recency never edits Q)
+
+**Canonical source:** `src/automation/wolfe.py` (`rank_attention`, `_ATTENTION_HALF_LIFE_BARS = 60`, `freshness_tier`). Approved by Ramana 2026-07-10 ("go ahead with the 60-bar half-life default").
+
+- **Formula:** `rank_attention = Q × 0.5^(age_bars_since_p5 / 60)` — §B quality decayed by recency. **Q itself stays PURE and timeless** (his rubric; recency is not quality) — recency enters ONLY at the ranking layer, as its own visible field (age-in-bars + tier chip on every ranked row).
+- **Anchors (sanity):** TCS Q15 @ 6 bars ≈ **14.0** · Q17.33 from 2019 ≈ **0** · Q20 @ 30 bars ≈ **14.1** — fresh-strong and very-recent-decent compete; stale-strong retires to the all-time view.
+- **Sorts:** ranked Wolfe surfaces default to **current-first** (rank_attention DESC); **"Q all-time"** (pure §B DESC) stays as an explicit labeled toggle (`/dash/wolfe?…&sort=q`). Both orders carry the same rows — ranks order, filters declare, nothing hides (D96/D98 guarantees untouched underneath).
+- **Freshness tiers (display):** hot ≤10 bars · fresh ≤60 (one half-life) · aging ≤250 (the D96 keep-window) · archive beyond.
+- **Supersedes WolfeRank** (the 6-dim 0-100 blend whose 5%-weight freshness died in 40 bars — dead weight): removed from compute and payload; upside%/R:R remain as secondary context data. One ranking system: Q = quality (§B3), rank_attention = attention/sort, winner profile = the only edge filter (§C).
+
+---
+
 ## 6. Maintenance rule
 When any weight/anchor/threshold changes: (1) edit the **canonical code constant**; (2) update the **single** entry in this file; (3) if a UI/glossary surface shows it, have that surface **read/link** it — never hard-code a second copy. Reviewers check *this file* for "how is it calculated," not scattered code comments.

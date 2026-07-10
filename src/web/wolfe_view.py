@@ -246,15 +246,26 @@ def _form(sym="", idx=""):
         '<button type="submit">Chart</button></form>')
 
 
-def _summary(d, wi, sym, idx):
+def _summary(d, wi, sym, idx, sort=""):
     if not d["waves"]:
         return ('<div class="sub">No Wolfe setup in view — the detector found no valid '
                 '1·3·5 structure at these swing scales.</div>')
-    base = f'sym={_q(sym)}' if sym else f'idx={_q(idx)}'
+    base = (f'sym={_q(sym)}' if sym else f'idx={_q(idx)}') + ('&sort=q' if sort == 'q' else '')
+    alltime = sort == 'q'
+    toggle = (
+        '<span style="color:var(--ink-3)">sort:</span> '
+        + (f'<a href="/dash/wolfe?{(f"sym={_q(sym)}" if sym else f"idx={_q(idx)}")}" style="color:#58a6ff">⚡ current-first</a>'
+           if alltime else '<b title="rank_attention = Q × 0.5^(age/60) — §B quality decayed by recency (D99); '
+           'Q itself never changes">⚡ current-first</b>')
+        + ' · '
+        + ('<b title="pure §B quality, timeless — the all-time view">Q all-time</b>' if alltime else
+           f'<a href="/dash/wolfe?{(f"sym={_q(sym)}" if sym else f"idx={_q(idx)}")}&sort=q" style="color:#58a6ff" '
+           f'title="pure §B quality, timeless — the all-time view">Q all-time</a>'))
     out = ['<div style="font-size:13px;margin:4px 0 12px">',
            '<div style="color:var(--ink-2);margin-bottom:5px">Setups (★ <b style="color:#58a6ff">EDGE</b> = the validated '
-           'winner-profile · <a href="/dash/wolfe/scan" style="color:#58a6ff">open the scanner ›</a>); '
-           'hover a row for the p1·B·C·F·G·H·I·D breakdown; click to draw:</div>']
+           'winner-profile · <a href="/dash/wolfe/scan" style="color:#58a6ff">open the scanner ›</a>) · '
+           + toggle +
+           '; hover a row for the p1·B·C·F·G·H·I·D breakdown; click to draw:</div>']
     for i, w in enumerate(d["waves"]):
         col = _UP_VAR if w["direction"] == "BULL" else _DN_VAR
         sel = (i == wi)
@@ -275,8 +286,8 @@ def _summary(d, wi, sym, idx):
                  f' = STR {stq:g}/11 · LND {lnq:g}/13</span>') if stq is not None else ''
         chip_title = (f'§B  p1×2={sc.get("p1",0)*2}  B={sc.get("B",0)}  C={sc.get("C",0)}  '
                       f'F={sc.get("F",0)}  G={sc.get("G",0)}  H={sc.get("H",0)}  I={sc.get("I",0)}  '
-                      f'D={sc.get("D",0)}    ·    WolfeRank {w["wolfe_rank"]}{w["rank_tier"]} q{w["quality"]}'
-                      f'    ·    source {w.get("source","")}') if sc else ''
+                      f'D={sc.get("D",0)}    ·    attn {w.get("rank_attention")} '
+                      f'(Q × 0.5^(age/60), D99)    ·    source {w.get("source","")}') if sc else ''
         p4d = w["pivots"][3]["date"]
         bdr = "#1f6feb" if wp else col
         style = (f'background:#1c2430;border-left:3px solid {bdr};' if (sel or wp) else 'border-left:3px solid transparent;')
@@ -287,7 +298,13 @@ def _summary(d, wi, sym, idx):
             f'{wpb}<b style="color:{col}">{w["direction"]} Wolfe</b> · {w["state"]} · '
             f'<span style="color:var(--ink-2)">pt4 {_esc(p4d)}</span> · {zs}{ups}{rrs} · '
             f'<b style="color:{col}">Q{w.get("quality_total",0)}</b>{split}'
-            f'<span style="color:var(--ink-3);font-size:11px"> {_esc(w.get("source",""))}</span>'
+            + (f' · <span style="color:var(--ink-2)" title="bars since point 5 (point 4 while forming) — '
+               f'recency is its own field, never baked into Q (D99)">{w["age"]}b '
+               f'<b>{w.get("fresh_tier","")}</b></span>' if w.get("age") is not None else '')
+            + (f' · <span style="color:var(--ink-2);font-size:11px" title="attention rank = Q × 0.5^(age/60) — '
+               f'the current-first sort key (D99)">attn {w["rank_attention"]:g}</span>'
+               if w.get("rank_attention") is not None else '')
+            + f'<span style="color:var(--ink-3);font-size:11px"> {_esc(w.get("source",""))}</span>'
             f'<span style="color:{col}">{mark}</span></a>')
     out.append('</div>')
     return "".join(out)
@@ -478,9 +495,11 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
 def wolfe_page(sym: str = Query("", max_length=24),
                idx: str = Query("", max_length=48),
                w: int = Query(0, ge=0),
-               pick: str = Query("", max_length=12)):
+               pick: str = Query("", max_length=12),
+               sort: str = Query("", max_length=12)):
     sym = sym.strip().upper()
     idx = idx.strip()
+    sort = "q" if sort == "q" else ""          # D99: default = current-first (attention)
     if not sym and not idx:
         body = ('<h2>Wolfe wave</h2>'
                 '<div class="sub">Pick a stock or index, or open the '
@@ -489,7 +508,8 @@ def wolfe_page(sym: str = Query("", max_length=24),
         return HTMLResponse(_shell("Wolfe wave", body, "wolfe"))
 
     with get_conn() as conn:
-        d = wolfe.analyze(conn, sym=sym or None, idx=idx or None)
+        d = wolfe.analyze(conn, sym=sym or None, idx=idx or None,
+                          sort=("q" if sort == "q" else "attention"))
     if not d:
         body = (f'<h2>Wolfe wave</h2><div class="empty">No price history for '
                 f'<b>{_esc(sym or idx)}</b>.</div>' + _form(sym, idx))
@@ -509,7 +529,7 @@ def wolfe_page(sym: str = Query("", max_length=24),
     body = (
         f'<h2>{_esc(d["label"])} — Wolfe wave</h2>'
         + _form(sym, idx)
-        + _summary(d, w, sym, idx)
+        + _summary(d, w, sym, idx, sort)
         + '<div class="card" style="padding:12px">'
         + f'<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;'
           f'font-size:14px;margin-bottom:10px;user-select:none">'

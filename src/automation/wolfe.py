@@ -532,10 +532,13 @@ def index_series(conn, idx):
     return dates, list(closes), list(closes), list(closes), closes  # o=h=l=c (index = close only)
 
 
-def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
+def analyze(conn, sym=None, idx=None, pad=25, all_waves=False, sort="attention"):
     """View-ready dict: the visible window + detected waves (lines, zone, target).
     all_waves=True keeps EVERY detected wave (no recent-window prune) — used by the
-    overlay's ◄/► timeline walk through historical completed Wolfe waves."""
+    overlay's ◄/► timeline walk through historical completed Wolfe waves.
+    sort (D99): "attention" (default) = current-first by rank_attention
+    (Q × 0.5^(age/60), recency-decayed attention); "q" = the labeled all-time view,
+    pure §B quality. Both orders carry the SAME rows — ranks order, nothing hides."""
     if sym:
         s, label, kind = stock_series(conn, sym), sym, "stock"
     elif idx:
@@ -546,7 +549,6 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
         return None
     dates, opens, highs, lows, closes = s
     n = len(closes)
-    cur = closes[-1]
     waves, atr_arr = detect_waves(highs, lows, closes)
     x0 = 0 if all_waves else max(0, min((w.p[0].idx for w in waves[-3:]), default=n - 300) - pad)
     x1 = n - 1
@@ -559,7 +561,7 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
         t5 = int(w.p5.idx if w.p5 else (zone["t5"] if zone else w.p[3].idx))
         target = epa_at(w, t5)
         entry = w.p5.price if w.p5 else (zone["center"] if zone else None)
-        upside = rr = rank = rank_tier = None
+        upside = rr = None
         if entry is not None and zone:
             buf = 0.5 * a                                  # stop just beyond the actual overshoot
             if w.direction == "BULL":
@@ -570,31 +572,32 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
                 reward, risk = entry - target, stop - entry
             upside = round(100.0 * reward / entry, 1) if entry else None
             rr = round(reward / risk, 2) if risk and risk > 0 else None
-            # --- WolfeRank (0-100): the 6 dimensions ----------------------- #
-            track = w.quality                                          # structure
-            target_s = min(1.0, max(0.0, (upside or 0) / 50.0))        # 5->EPA amplitude
-            rr_s = min(1.0, max(0.0, (rr or 0) / 3.0))                 # risk-reward
-            zone_s = _sc(w.sym_price, 2.0)                             # zone strength (symmetry proxy *)
-            prox_s = max(0.0, 1.0 - abs(cur - entry) / a / 5.0)        # proximity of price to entry
-            age = n - 1 - (w.p5.idx if w.p5 else w.p[3].idx)
-            fresh_s = max(0.0, 1.0 - age / 40.0)                       # freshness
-            rank = round(100.0 * (0.30 * track + 0.20 * target_s + 0.20 * rr_s
-                                  + 0.15 * zone_s + 0.10 * prox_s + 0.05 * fresh_s), 1)
-            rank_tier = "A" if rank >= 70 else "B" if rank >= 50 else "C"
+        # D99: recency is a first-class, VISIBLE field — age in bars since point 5
+        # (point 4 while forming) + the attention rank. WolfeRank (6-dim 0-100 with a
+        # 5%-weight freshness dying in 40 bars) is SUPERSEDED — one ranking system.
+        qt = w.score["total"] if w.score else 0
+        age = n - 1 - (w.p5.idx if w.p5 else w.p[3].idx)
+        attn = rank_attention(qt, age)
         out.append({
             "direction": w.direction, "tier": w.tier, "quality": round(w.quality, 2),
-            "quality_total": (w.score["total"] if w.score else 0), "score": w.score,
+            "quality_total": qt, "score": w.score,
             "source": w.source,
             "state": w.state, "sym_price": round(w.sym_price, 2),
             "pivots": [{"idx": p.idx, "price": p.price, "kind": p.kind, "date": dates[p.idx]} for p in w.p],
             "p5": ({"idx": w.p5.idx, "price": w.p5.price, "date": dates[w.p5.idx]} if w.p5 else None),
             "line13_slope": w.line13_slope, "epa_slope": w.epa_slope,
             "zone": zone, "target": target, "upside_pct": upside, "rr": rr,
-            "wolfe_rank": rank, "rank_tier": rank_tier, "target_fibs": target_fibs(w),
+            "age": age, "fresh_tier": freshness_tier(age),
+            "rank_attention": (round(attn, 2) if attn is not None else None),
+            "target_fibs": target_fibs(w),
         })
-    # rank by the §B quality points-sum (the locked quality metric); WolfeRank/upside/RR
-    # stay in the payload as secondary CONTEXT (data-first), no longer the sort key.
-    out.sort(key=lambda x: (-(x["quality_total"] or 0), -(x["wolfe_rank"] or 0)))
+    # D99 sort — "attention" (default, current-first): §B Q decayed by age (half-life
+    # 60 bars); "q": the labeled all-time view on pure §B quality. upside/RR stay as
+    # secondary CONTEXT (data-first); recency never edits Q itself.
+    if sort == "q":
+        out.sort(key=lambda x: (-(x["quality_total"] or 0), -(x["rank_attention"] or 0)))
+    else:
+        out.sort(key=lambda x: (-(x["rank_attention"] or 0), -(x["quality_total"] or 0)))
     return {"label": label, "kind": kind, "n": n, "x0": x0, "x1": x1,
             "dates": dates, "opens": opens, "closes": closes, "highs": highs, "lows": lows,
             "has_ohlc": kind == "stock", "waves": out}
@@ -651,6 +654,33 @@ def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.02):
 # ⚠ LND INVERTS as a trade filter: the OOS winner profile deliberately prefers LOW
 # D/F (reachable EPA, not-narrowest zone), so scan winners show low LND BY DESIGN.
 _WATCH_MIN_STRUCTURE = 10.0   # structure-watch bar: STR >= 10 of 11 (TCS archetype = 11/11)
+
+
+_ATTENTION_HALF_LIFE_BARS = 60   # D99 (Ramana 2026-07-10, approved default): the attention
+                                 # rank's half-life. Anchors: TCS Q15 @ 6 bars ≈ 14.0 ·
+                                 # Q17.33 from 2019 ≈ 0 · Q20 @ 30 bars ≈ 14.1 — fresh-strong
+                                 # and very-recent-decent compete; stale-strong retires to
+                                 # the labeled all-time (pure-Q) view.
+
+
+def rank_attention(q, age_bars):
+    """D99 attention rank = §B Q decayed by recency: Q × 0.5^(age_since_p5 / half-life).
+    Q itself stays PURE and timeless (his rubric; recency is NOT quality) — recency
+    enters ONLY here, at the ranking layer, as its own visible field. This SUPERSEDES
+    WolfeRank (its 5%-weight freshness term dying in 40 bars was dead weight): one
+    ranking system. Ranks order, filters declare, nothing hides (D96/D98)."""
+    if q is None or age_bars is None:
+        return None
+    return q * 0.5 ** (age_bars / _ATTENTION_HALF_LIFE_BARS)
+
+
+def freshness_tier(age_bars):
+    """Display tier for age-since-p5 (D99): hot ≤10 · fresh ≤60 (one half-life) ·
+    aging ≤250 (the D96 walk keep-window) · archive beyond."""
+    if age_bars is None:
+        return ''
+    return ('hot' if age_bars <= 10 else 'fresh' if age_bars <= 60
+            else 'aging' if age_bars <= _FRESH_KEEP_BARS else 'archive')
 
 
 def score_split(sc):
@@ -721,7 +751,7 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
                + (f' · 5≈{p5pred["value"]}' if p5pred else '')
                + f' · Q{w.get("quality_total",0)}'
                + (f' = STR {stq:g}/11 · LND {lnq:g}/13' if stq is not None else '')
-               + (f' (rank {w["wolfe_rank"]}{w["rank_tier"]})' if w.get("wolfe_rank") is not None else '')
+               + (f' · age {w["age"]}b {w.get("fresh_tier","")}' if w.get("age") is not None else '')
                + qbits)
     return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
             "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
@@ -795,8 +825,6 @@ def overlay_for(conn, sym=None, idx=None):
             for i in range(b0, n)]
     return {"prediction": prediction, "completed": completed,
             "label": d["label"], "kind": d["kind"], "bars": bars}
-# * zone_s uses symmetry as a confluence-tightness proxy until Ramana's exact
-#   legs-1-2/3-4 Fib overlay is wired (open item).
 
 
 # --------------------------------------------------------------------------- #
