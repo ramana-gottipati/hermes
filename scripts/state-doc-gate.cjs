@@ -20,8 +20,13 @@
  * expanded via `git ls-files -mod` and unioned into the staged set (add -A/. => all
  * modified+untracked+deleted), so single-line add+commit flows are gated correctly.
  *
+ * Pathspec commits (v1.2): `git commit --only <paths>` / `git commit [--] <paths>` commit THOSE
+ * paths regardless of what else sits in the shared index — judged on the pathspec expansion, so a
+ * sibling session's staged src/ file can no longer false-block a state-doc-only commit (the exact
+ * flow the safe-git-add-new skill mandates in a contested index). Quoted strings (commit messages)
+ * are stripped before token-parsing so message words never read as paths.
+ *
  * Known accepted gaps (kept simple on purpose):
- *   - `git commit <pathspec>` commits are judged by the index, not the pathspec.
  *   - Commands run from a subdirectory report paths relative to it (repo-root flows are the norm).
  *   - A quoted literal like echo "git commit" can false-positive; state:skip covers it.
  */
@@ -57,6 +62,51 @@ process.stdin.on('end', () => {
     const fs = require('fs');
     const path = require('path');
     if (!fs.existsSync(path.join(root, 'PROJECT_STATE.md'))) return finish(0);
+
+    // v1.2 — explicit pathspecs after `commit` define the commit's content; judge them directly.
+    const seg = cmd.match(/\bgit\s+(?:-[cC]\s+\S+\s+|--\S+\s+)*commit(?![\w-])([^&;|]*)/);
+    if (seg && seg[1]) {
+      const rest = seg[1]
+        .replace(/"(?:[^"\\]|\\.)*"/g, ' ')
+        .replace(/'(?:[^'\\]|\\.)*'/g, ' ');
+      const toks = rest.split(/\s+/).filter(Boolean);
+      const paths = [];
+      for (let i = 0; i < toks.length; i++) {
+        const t = toks[i];
+        if (t === '--') continue;
+        if (/^-(m|F|c|C|t)$/.test(t) || /^--(message|file|template|fixup|squash|reuse-message|reedit-message|author|date)(=.*)?$/.test(t)) {
+          if (!t.includes('=')) i++; // skip the option's argument (quoted ones are already stripped)
+          continue;
+        }
+        if (t.startsWith('-')) continue;
+        paths.push(t.replace(/^["']|["']$/g, ''));
+      }
+      if (paths.length) {
+        let judged = null;
+        try {
+          judged = run('git diff HEAD --name-only -- ' + paths.join(' '))
+            .split(/\r?\n/)
+            .concat(run('git ls-files -o --exclude-standard -- ' + paths.join(' ')).split(/\r?\n/))
+            .filter(Boolean);
+        } catch (_) {
+          judged = null; // unparseable pathspec -> fall through to index judgment
+        }
+        if (judged) {
+          const needsP = judged.some((f) => /^(src|scripts)\//.test(f));
+          const hasP =
+            judged.some((f) => /^PROJECT_STATE\.md$/i.test(f)) ||
+            paths.some((p) => /(^|\/)PROJECT_STATE\.md$/i.test(p));
+          if (needsP && !hasP) {
+            process.stderr.write(
+              'state-doc-gate: this pathspec commit touches src/ or scripts/ without PROJECT_STATE.md. ' +
+                'Include PROJECT_STATE.md in the same commit, or append "state:skip" for a deliberate exception.\n'
+            );
+            return finish(2);
+          }
+          return finish(0);
+        }
+      }
+    }
 
     let staged = run('git diff --cached --name-only').split(/\r?\n/).filter(Boolean);
 

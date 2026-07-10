@@ -1961,6 +1961,14 @@ Harness-side program (Ramana: "go for all the changes suggested"); most artifact
   en route: hook matchers must be EXACT tool names on runtime 2.1.143 (`Bash|PowerShell` regex form
   never registers); settings.local.json now carries two exact-match entries. S89's organic
   `state:skip` commit (`10f461f`) independently confirms the gate lives in real desktop sessions.
+- Gate v1.2 (found by the gate blocking its own maintainer, live mid-session): explicit-pathspec
+  commits (`git commit --only <paths>` / `git commit -- <paths>`) are now judged on the PATHSPEC
+  expansion, not the shared index — a sibling's staged src/ file no longer false-blocks a
+  state-doc-only commit (the exact flow `safe-git-add-new` mandates in a contested index; the
+  skill↔gate contradiction is resolved). Quoted message text is stripped before parsing so commit
+  messages can't read as paths. 21-case matrix green. ALSO learned: hooks HOT-RELOAD on settings
+  change on this runtime — the "live from next session" caveat is obsolete; the gate armed itself
+  mid-session and immediately caught this very case.
 - Shipped in THIS commit (docs + gate script); harness artifacts referenced above are file-level, not repo.
 
 ### Session 86c — 2026-07-10 — Wolfe walk freshness fix (D96) + drawings v2: direct-edit · level catalog · future space · confluence (Ramana's chart-review batch)
