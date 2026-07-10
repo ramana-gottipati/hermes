@@ -260,6 +260,7 @@ _CATALOG = [
     ("Growth-intent", "/dash/growth"),
     ("Insider activity", "/dash/insider"),
     ("Rating transitions", "/dash/ratings"),
+    ("Stake · Pledge", "/dash/sast"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
     ("Momentum · ensemble", "/dash/markets/momentum-scan"),
@@ -306,6 +307,10 @@ _BLURB: dict[str, tuple[str, str]] = {
         "Agency upgrades / downgrades on listed issuers' debt, deduped to COMPANY-level "
         "actions (multi-ISIN re-ratings collapse — raw rows overstate ~6×). A quality-"
         "migration tape; no return edge claimed.", "rating"),
+    "/dash/sast": (
+        "Big-holder stake moves (SAST Reg-29) crossed with promoter pledge FLOW "
+        "(Reg-31/32) — names where BOTH fired in 90d, shaped constructive / distress / "
+        "mixed. Post-disclosure, % of equity, descriptive.", "pledge"),
     "/dash/launchpad": (
         "Validated explosive-move precursors (momentum-continuation / coiled). The "
         "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "

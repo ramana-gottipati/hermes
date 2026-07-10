@@ -64,6 +64,9 @@ _ROUTER_SPECS = [
     # Credit-rating transitions lens (D94 queue #2, S87) — reads credit_rating_events;
     # flag logic single-sourced in credit_ratings.flagged_symbols (E-02 dedup).
     ("ratings", "src.web.ratings_view", "/dash/ratings"),
+    # Stake × pledge confluence board (D94 queue #3, S88) — reads the two SAST feeds;
+    # flag logic single-sourced in sast_events.flagged_symbols (confluence cohort).
+    ("sast", "src.web.sast_view", "/dash/sast"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),

@@ -34,6 +34,11 @@ try:
     from src.automation.credit_ratings import flagged_symbols as _ratings_flagged
 except Exception:  # noqa: BLE001
     _ratings_flagged = None
+# sast_events likewise (SAST pillar — the stake×pledge confluence cohort).
+try:
+    from src.automation.sast_events import flagged_symbols as _sast_flagged
+except Exception:  # noqa: BLE001
+    _sast_flagged = None
 
 
 def _near(g) -> bool:
@@ -414,6 +419,11 @@ STRATEGY_REGISTRY = [
      "thesis": "Agency upgrades/downgrades on listed issuers, deduped to COMPANY-level actions (multi-ISIN debt re-ratings collapse; raw rows overstate ~6× — E-02). Quality migration, descriptive — no return edge claimed.",
      "count": lambda conn, d, D: (len(_ratings_flagged(conn)[0])
                                   if _ratings_flagged else None)},
+    {"key": "SAST", "label": "Stake · Pledge", "accent": "#e85aad", "href": "/dash/sast",
+     "cta": "confluence · 90d",
+     "thesis": "Substantial-holder stake moves (Reg-29) crossed with promoter pledge FLOW (Reg-31/32) — names where both fired in 90 days, shaped constructive/distress/mixed. Post-disclosure, % of equity, descriptive (footprint front-detection FAILED its gate; E-04/E-05 pending).",
+     "count": lambda conn, d, D: (len(_sast_flagged(conn)[0])
+                                  if _sast_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",

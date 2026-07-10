@@ -251,6 +251,20 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Reaffirmations.** The bulk of the raw feed (~85%); zero-information for transitions, visible in the tape, never in the headline. *Source:* `action_class='REAFFIRM'`.
 - **Unmapped rows.** Rating rows on debt-only issuers with no listed equity — disclosed in the census tile, excluded from company counts (mapping widens conservatively; see E-02's mapping notes). *Source:* `symbol IS NULL`.
 
+## Stake & pledge confluence (SAST)
+
+> Two NSE SAST disclosure feeds crossed on one board: **Reg 29** — substantial-holder stake moves (crossing 5%, or ±2% by an existing ≥5% holder), promoter-flagged; **Reg 31/32** — promoter pledge FLOW with magnitude (creation / release / invocation, each event's % of equity + the post-event total encumbrance). Broadcast-date anchored; all magnitudes in **% of equity, never share counts**. **Post-disclosure by construction** — the footprint study proved 764/947 such episodes had NO pre-public window (SEBI T+2); the arc/velocity studies (E-04/E-05) are pre-registered and pending, so nothing here predicts.
+
+- **Confluence name.** A symbol where BOTH a stake event and a pledge event landed inside 90 days — the board's population. The crossing itself is the read. *Source:* `sast_events.universe_confluence()`.
+- **Shape (descriptive).** **constructive** = holders added stake while encumbrance fell or held · **distress** = an invocation, or stake selling into rising encumbrance · **mixed** = both feeds present, neither pattern. A label for what already happened, never a forecast. *Source:* `sast_events._shape()`.
+- **Stake net (90d).** % of diluted capital acquired minus sold by substantial holders in the window — **Reg 29(2) transaction deltas only**. Reg 29(1) initial-crossing filings disclose the whole HOLDING as the "acquired" figure (a level, not a flow) and are counted separately as **crossings**, never summed (else a hyperactive filer sums to an impossible ±185% of capital — caught live, S88). *Source:* `pct_acq`, `pct_sale` where `reg_type='Reg29(2)'`.
+- **Crossing (29(1)).** A new or re-disclosed ≥5% position — "a substantial holder appeared here." A fact about ownership structure, not a flow. *Source:* `reg_type='Reg29(1)'`.
+- **Control transfer ⚡.** A single filing moving **≥25% of capital** (the SEBI takeover-code open-offer trigger) — an M&A / promoter-restructuring event, not accumulation, and persons-acting-in-concert co-filings would double-count it (caught live: one ~50% block filed by two entities). Badged and counted, **never summed into flows**. *Source:* `pct_acq/pct_sale ≥ 25` on `Reg29(2)`.
+- **Pledge net (90d).** % of equity pledged (created) minus released — **positive = encumbrance rising** (adverse). *Source:* `event_pct` by `event_type`.
+- **Invocation.** The lender seized and can sell the pledged shares — always adverse, and it dominates the shape. *Source:* `event_type='INVOKE'`.
+- **Encumb now.** The TOTAL % of equity encumbered after the latest pledge filing — the stock (level), where the flow columns are the delta. Complements the quarterly SHP pledge level. *Source:* `encumb_pct`.
+- **Pledge stock vs flow.** The quarterly shareholding pattern (SHP) gives the pledge *level* per quarter; this feed gives the *flow between quarters* — the same distinction as holdings vs trades. *Source:* `shareholding_history` (stock) vs `sast_pledge_events` (flow).
+
 ## Results reactions — the season war room
 
 > Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.

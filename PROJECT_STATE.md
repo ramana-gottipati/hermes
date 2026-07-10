@@ -545,8 +545,9 @@ empty? why not proactive?") exposed two things D93 missed and one it now answers
       glossary + gate; 78 fresh-conviction names live. See the S86 session entry.
    2. ✅ **Credit-rating transitions lens — DONE (S87, same day):** `/dash/ratings` + card +
       pillar + glossary + gate; E-02 dedup verbatim (3 true actions from 11 raw rows live).
-   3. **SAST + pledge confluence board** — `sast_reg29_events` 3,582 + `sast_pledge_events`
-      603 (dataset-roadmap idea, now dated + ordered).
+   3. ✅ **SAST + pledge confluence board — DONE (S88, same day):** `/dash/sast` + card +
+      pillar + glossary + gate; 37 confluence names; Reg-29(1)-level + control-transfer
+      inflation caught live and fenced (CONTROL_PCT=25). See the S88 session entry.
    4. **SHP QoQ delta lens** — `shareholding_history` 84,699 rows (promoter/FII/DII deltas).
    5. **Forward corporate-actions calendar** — `corporate_actions` 26,868 + `security_events`
       226 (sibling of the board-meetings war-room calendar).
@@ -1497,6 +1498,41 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 88 — 2026-07-10 — STAKE × PLEDGE CONFLUENCE BOARD live (D94 queue #3) — two live data-honesty catches: Reg-29(1) levels-as-flows + control-transfer double-counts
+D94 queue #3 executed (ledger cited pre-build: footprint detector gate-FAIL — 764/947
+episodes had NO pre-public window, SEBI T+2 → post-disclosure reads only; E-04/E-05
+armed-not-run → no arc/velocity claims anywhere on the surface):
+- **`/dash/sast` (NEW `src/web/sast_view.py`)** — the two Dataset-A+ SAST feeds crossed:
+  Reg-29 substantial-holder stake moves × Reg-31/32 promoter pledge FLOW. Tiles
+  (confluence · shapes · invocations · control-⚡ · census) + the confluence board (names
+  with BOTH feeds in 90d, shape chips constructive/distress/mixed, stake/pledge nets in %
+  of equity, latest total encumbrance, per-symbol tape drill) + unified raw tape (both
+  feeds, ⇗ NSE filing links, feed tabs, filters). 29ms render.
+- **Single-source flags:** `sast_events.universe_confluence()/_shape()/flagged_symbols()`
+  wrap the module's existing PIT `aggregate()` (zero duplication). **Live: 37 confluence
+  names as of 2026-07-09 (8 constructive / 6 distress / 26 mixed pre-fix→ shapes re-cut
+  post-fix)** — top: VISACHROME constructive (stake +8.4 · pledge −41.4) · SHRIRAMFIN
+  distress (pledge +34.2) · NRBBEARING constructive (+16.9 · −17.2) · MPHASIS (pledge
+  −30.6). Card == pillar (15 measured) == board_health (**14 strategies, prod OK**).
+- **🔎 CATCH #1 (walk-the-journey save):** first live card read "stake +185.2% of capital"
+  (PAISALO) — impossible. Root cause: **Reg-29(1) initial-crossing filings report the
+  whole HOLDING as totAcqDiluted** (pct_acq == pct_after == 35.9% verified) — LEVELS
+  summed as flows. Fix in `aggregate()`: flows = Reg-29(2) deltas only; 29(1) counted as
+  `stake_crossings_90d`.
+- **🔎 CATCH #2:** HINDZINC still showed −100.2% — one ~50.1% controlling block filed by
+  TWO related entities (PAC co-filings), COHANCE a 56% promoter restructuring filed both
+  ways. These are M&A events, not accumulation. Fix: **`CONTROL_PCT = 25.0` (the SEBI
+  takeover-code open-offer trigger) — a single filing ≥25% of capital = a CONTROL
+  TRANSFER: counted (`control_transfers_90d`), ⚡-badged on the board, NEVER summed into
+  flows.** Post-fix every top-row number passes the smell test. Both catches are
+  glossary-documented (Stake net · Crossing · Control transfer ⚡).
+- **Wiring:** registry `_sast` (14 readers, healthy-zero branch) · strategist card +
+  blurb · cockpit SAST pillar · Lens + `_ROUTER_SPECS` (forked-nav protocol, 3rd
+  repetition, clean) · glossary "Stake & pledge confluence" section (stock-vs-flow
+  distinction spelled out). Journey-walked: pillar → card → page/nested → feed tabs →
+  glossary → gate, all PASS; local selftests + pytest 18/1.
+- **Next in the D94 queue: ④ SHP QoQ deltas** (`shareholding_history` 84,699, research.db).
 
 ### Session 87 — 2026-07-10 — CREDIT-RATING TRANSITIONS LENS live end-to-end (D94 queue #2): E-02-honest dedup, 3 true actions ≠ 11 raw rows
 D94 queue #2 executed with the full D93 recipe + the failure-ledger contract (E-02 cited

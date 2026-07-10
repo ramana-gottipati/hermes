@@ -314,6 +314,11 @@ def ingest_range(from_date: str, to_date: str, *, chunk_days: int = 30,
 
 
 # ── PIT aggregation (broadcast-date clock; magnitude-based) ──────────────────
+# SEBI takeover-code open-offer trigger — one filing moving >= this % of capital
+# is a control event (M&A / promoter restructuring), not an accumulation flow.
+CONTROL_PCT = 25.0
+
+
 def aggregate(symbol: str, as_of: str, *, conn=None) -> dict:
     """Pledge-flow + stake-move roll-up for one symbol, PIT on broadcast_dt.
 
@@ -331,7 +336,8 @@ def aggregate(symbol: str, as_of: str, *, conn=None) -> dict:
             "WHERE symbol=? AND substr(broadcast_dt,1,10) <= ? ORDER BY broadcast_dt",
             (symbol.upper(), as_of)).fetchall()
         r29 = conn.execute(
-            "SELECT acq_sale, promoter_flag, pct_acq, pct_sale, broadcast_dt FROM sast_reg29_events "
+            "SELECT acq_sale, promoter_flag, pct_acq, pct_sale, broadcast_dt, reg_type "
+            "FROM sast_reg29_events "
             "WHERE symbol=? AND substr(broadcast_dt,1,10) <= ? ORDER BY broadcast_dt",
             (symbol.upper(), as_of)).fetchall()
     finally:
@@ -350,8 +356,25 @@ def aggregate(symbol: str, as_of: str, *, conn=None) -> dict:
     released = sum(e[1] or 0.0 for e in pl if e[0] == "RELEASE" and _in(e[3], 90))
     invoked = sum(1 for e in pl if e[0] == "INVOKE" and _in(e[3], 90))
     latest_encumb = next((e[2] for e in reversed(pl) if e[2] is not None), None)
-    stake_acq = sum(e[2] or 0.0 for e in r29 if e[0] == "ACQ" and _in(e[4], 90))
-    stake_sale = sum(e[3] or 0.0 for e in r29 if e[0] == "SALE" and _in(e[4], 90))
+    # FLOW = Reg 29(2) deltas ONLY, below the control threshold. Two live-verified
+    # inflation modes (S88):
+    #   * Reg 29(1) initial-crossing filings report the whole HOLDING as
+    #     totAcqDiluted (PAISALO: pct_acq == pct_after == 35.9%) — a LEVEL, not a
+    #     flow; summing them made stake_net ±185% of capital. Counted as
+    #     `stake_crossings_90d` instead.
+    #   * Control-size transfers (HINDZINC: one ~50.1% block filed by two related
+    #     entities; COHANCE: a 56% promoter restructuring) are M&A events, not
+    #     accumulation flows — and PAC co-filings double-count them. SEBI's
+    #     takeover-code trigger (25%) is the principled line: >=25% of capital in
+    #     one filing = a CONTROL TRANSFER, counted + badged, never summed.
+    flows = [e for e in r29 if e[5] != "Reg29(1)"]
+    stake_acq = sum(e[2] or 0.0 for e in flows
+                    if e[0] == "ACQ" and (e[2] or 0.0) < CONTROL_PCT and _in(e[4], 90))
+    stake_sale = sum(e[3] or 0.0 for e in flows
+                     if e[0] == "SALE" and (e[3] or 0.0) < CONTROL_PCT and _in(e[4], 90))
+    control = sum(1 for e in flows
+                  if max(e[2] or 0.0, e[3] or 0.0) >= CONTROL_PCT and _in(e[4], 90))
+    crossings = sum(1 for e in r29 if e[5] == "Reg29(1)" and _in(e[4], 90))
     return {
         "symbol": symbol.upper(), "as_of": as_of,
         "n_pledge_events_known": len(pl), "n_reg29_known": len(r29),
@@ -362,10 +385,75 @@ def aggregate(symbol: str, as_of: str, *, conn=None) -> dict:
         "latest_encumbered_pct": latest_encumb,
         "stake_acquired_pct_90d": round(stake_acq, 2),
         "stake_sold_pct_90d": round(stake_sale, 2),
+        "stake_crossings_90d": crossings,
+        "control_transfers_90d": control,
         "sast_signal": ("invocation_risk" if invoked else
                         "encumbrance_rising" if created - released > 0.5 else
                         "encumbrance_falling" if released - created > 0.5 else "neutral"),
     }
+
+
+# ── whole-universe confluence roll-up (S88 board: page+card+pillar+gate) ──────
+
+def _shape(agg: dict) -> str:
+    """DESCRIPTIVE shape of a confluence name — a crossing label, never a call
+    (footprint detector FAILED its gate: post-disclosure reads only; E-04/E-05
+    are armed-not-run, so no arc/velocity claim lives here):
+      constructive = holders adding stake while encumbrance falls / stays flat;
+      distress     = any invocation, or stake selling while encumbrance rises;
+      mixed        = both feeds present, neither pattern."""
+    stake_net = agg["stake_acquired_pct_90d"] - agg["stake_sold_pct_90d"]
+    if agg["pledge_invocations_90d"] > 0 or (
+            stake_net < 0 and agg["sast_signal"] == "encumbrance_rising"):
+        return "distress"
+    if stake_net > 0 and agg["sast_signal"] in ("encumbrance_falling", "neutral"):
+        return "constructive"
+    return "mixed"
+
+
+def universe_confluence(conn, days: int = 90):
+    """Per-symbol PIT roll-up for every CONFLUENCE name — a symbol with BOTH a
+    Reg-29 stake event AND a Reg-31/32 pledge event inside the trailing `days`
+    (broadcast-date anchored). Reuses aggregate() per symbol (indexed reads).
+    Returns ({symbol: agg+shape+stake_net}, census, as_of)."""
+    ensure_schema(conn)
+    r = conn.execute(
+        "SELECT MAX(d) FROM (SELECT MAX(substr(broadcast_dt,1,10)) d FROM sast_reg29_events "
+        "UNION ALL SELECT MAX(substr(broadcast_dt,1,10)) FROM sast_pledge_events)").fetchone()
+    as_of = r[0] if r else None
+    if not as_of:
+        return {}, {}, None
+    lo = (datetime.strptime(as_of, "%Y-%m-%d").date() - timedelta(days=days)).isoformat()
+    s29 = {x[0] for x in conn.execute(
+        "SELECT DISTINCT symbol FROM sast_reg29_events WHERE substr(broadcast_dt,1,10) >= ?",
+        (lo,))}
+    spl = {x[0] for x in conn.execute(
+        "SELECT DISTINCT symbol FROM sast_pledge_events WHERE substr(broadcast_dt,1,10) >= ?",
+        (lo,))}
+    confl = sorted(s29 & spl)
+    out: dict = {}
+    for sym in confl:
+        a = aggregate(sym, as_of, conn=conn)
+        a["stake_net_pct_90d"] = round(
+            a["stake_acquired_pct_90d"] - a["stake_sold_pct_90d"], 2)
+        a["shape"] = _shape(a)
+        out[sym] = a
+    census = {"stake_names": len(s29), "pledge_names": len(spl),
+              "confluence_names": len(confl)}
+    return out, census, as_of
+
+
+def flagged_symbols(conn, as_of: Optional[str] = None, days: int = 90):
+    """The card/pillar/gate cohort (single source, D94 parity rule): the
+    confluence names — both feeds active on the same symbol inside 90 days.
+    Sorted by combined magnitude (|stake net %| + |pledge net %|), so the top
+    of the card is the loudest crossing, whatever its shape. Returns
+    ([(symbol, agg)], as_of)."""
+    aggs, _census, got_as_of = universe_confluence(conn, days=days)
+    out = sorted(aggs.items(),
+                 key=lambda kv: -(abs(kv[1]["stake_net_pct_90d"])
+                                  + abs(kv[1]["net_pledge_flow_90d"])))
+    return out, (as_of or got_as_of)
 
 
 # ── selftest (synthetic; no DB, no network) ───────────────────────────────────

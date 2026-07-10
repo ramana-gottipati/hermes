@@ -167,6 +167,9 @@ LENSES: tuple[Lens, ...] = (
     # Credit-rating transitions — deduped company-level agency actions (D94 #2, S87).
     Lens("ratings", "Ratings", "stock", "strategies", "/dash/ratings",
          aliases=("credit-ratings", "rating-transitions", "upgrades-downgrades")),
+    # Stake × pledge confluence — SAST Reg-29 × Reg-31/32 crossings (D94 #3, S88).
+    Lens("sast", "Stake · Pledge", "stock", "strategies", "/dash/sast",
+         aliases=("stake-pledge", "confluence", "pledge-flow", "substantial-holders")),
     Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad"),
 
     # ── Tracker ──────────────────────────────────────────────────────────────
