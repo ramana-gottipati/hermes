@@ -126,8 +126,10 @@ are now SECONDARY to the charter.
    3 true actions ≠ 11 raw rows; healthy-zero branch for quiet windows) · ~~③ SAST+pledge~~
    **✅ DONE S88** (`/dash/sast`, 37 confluence names; ⚠ flows = Reg-29(2) deltas <25% ONLY —
    29(1) filings are HOLDING levels and ≥25% filings are control transfers, both fenced in
-   `sast_events.aggregate()`; never "simplify" that back) · **← NEXT: ④ SHP QoQ deltas
-   (84,699, research.db)** · ⑤ forward corp-actions
+   `sast_events.aggregate()`; never "simplify" that back) · ~~④ SHP QoQ deltas~~ **✅ DONE
+   S90** (`/dash/shp`; flags = adjacent quarters, MATERIAL_PP=1pp, STRUCTURAL_PP=25 fence —
+   ≥25pp/class = ownership event (RBLBANK 0→60pp), badged never flagged; provenance ⓧ
+   disclosed, archive frozen + XBRL takeover) · **← NEXT: ⑤ forward corp-actions
    calendar (26,868+226) · ⑥ surveillance-transition tape (797+52). Front-door parity rule
    (D94): any new strategy = strategist card AND home pillar AND board_health, same session.
    ⚠ lens_registry.py + v2_surfaces.py stay git↔VPS FORKED — patch the LIVE copies with your

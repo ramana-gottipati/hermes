@@ -39,6 +39,12 @@ try:
     from src.automation.sast_events import flagged_symbols as _sast_flagged
 except Exception:  # noqa: BLE001
     _sast_flagged = None
+# shareholding_xbrl likewise (SHP pillar — material QoQ holder-mix shifts;
+# opens research.db read-only itself, so no conn is passed).
+try:
+    from src.automation.shareholding_xbrl import flagged_symbols as _shp_flagged
+except Exception:  # noqa: BLE001
+    _shp_flagged = None
 
 
 def _near(g) -> bool:
@@ -424,6 +430,10 @@ STRATEGY_REGISTRY = [
      "thesis": "Substantial-holder stake moves (Reg-29) crossed with promoter pledge FLOW (Reg-31/32) — names where both fired in 90 days, shaped constructive/distress/mixed. Post-disclosure, % of equity, descriptive (footprint front-detection FAILED its gate; E-04/E-05 pending).",
      "count": lambda conn, d, D: (len(_sast_flagged(conn)[0])
                                   if _sast_flagged else None)},
+    {"key": "SHP", "label": "Holdings · QoQ", "accent": "#9e86ff", "href": "/dash/shp",
+     "cta": "material shifts, latest Q",
+     "thesis": "Who added, who trimmed, quarter over quarter — promoter/FII/DII/public/pledge in percentage points of equity. Frozen archive + NSE-XBRL takeover, provenance marked. Descriptive.",
+     "count": lambda conn, d, D: (len(_shp_flagged()[0]) if _shp_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",

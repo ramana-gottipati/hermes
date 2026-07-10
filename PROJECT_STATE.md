@@ -596,7 +596,9 @@ empty? why not proactive?") exposed two things D93 missed and one it now answers
    3. ✅ **SAST + pledge confluence board — DONE (S88, same day):** `/dash/sast` + card +
       pillar + glossary + gate; 37 confluence names; Reg-29(1)-level + control-transfer
       inflation caught live and fenced (CONTROL_PCT=25). See the S88 session entry.
-   4. **SHP QoQ delta lens** — `shareholding_history` 84,699 rows (promoter/FII/DII deltas).
+   4. ✅ **SHP QoQ delta lens — DONE (S90):** `/dash/shp` + card + pillar + glossary + gate;
+      330 material shifts / 1,440 paired; provenance-honest (frozen archive + NSE-XBRL
+      takeover disclosed); STRUCTURAL_PP=25 fence (RBLBANK 0→60pp = event, not drift).
    5. **Forward corporate-actions calendar** — `corporate_actions` 26,868 + `security_events`
       226 (sibling of the board-meetings war-room calendar).
    6. **Surveillance-transition tape** — `surveillance_flags` 797 + `price_band_events` 52
@@ -1607,6 +1609,38 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 90 — 2026-07-10 — HOLDINGS QoQ LENS live (D94 queue #4) — provenance-honest by design + the structural-event fence (RBLBANK 0→60pp caught)
+D94 queue #4 executed. The queue item hit guardrail #8 head-on — `shareholding_history` =
+83,933 frozen Screener-era archive rows + 766 NSE-XBRL rows (the June-quarter primary flood
+lands through ~Jul-21) — resolved by the C-scores precedent: **consume the frozen archive
+READ-ONLY (zero new fetching), let `shareholding_xbrl.py` own every new quarter, and
+disclose provenance ON-PAGE** (census tile: primary vs archive cells; ⓧ marks any pair
+crossing the seam — near-consistent by the module's own 1pp continuity gate).
+- **`/dash/shp` (NEW `src/web/shp_view.py`)** — who added / who trimmed, QoQ, in pp of
+  equity: tiles (material shifts · promoter up/down · FII adds · structural ⚡ · quarter
+  census · provenance takeover) + the movers board (ΔProm/ΔFII/ΔDII/ΔPublic/ΔPledge +
+  levels, ⓧ/◌/⚡ marks) + per-symbol quarter-series drill (`?sym=`, provenance per row).
+  0.21s render; honest-empty off-prod.
+- **Single-source flags:** `shareholding_xbrl.universe_deltas()/flagged_symbols()` —
+  calendar-quarter buckets (event-dated stragglers bucket-latest), pairs anchored on the
+  Promoters series, **adjacent-quarters-only flagging** (◌ gap pairs shown, never counted),
+  `MATERIAL_PP=1.0` on promoter/FII/DII. **Live: 330 material shifts, 1,440 symbols
+  paired** — top: GUJGASLTD (P−21.9 → FII+6.6/DII+9.9) · SGMART (P+21.6 ⓧ) · ASHIKA
+  (P+16.5) · AVG (P−10.0/DII+14.9). Card == pillar (16 measured) == board_health
+  (**15 strategies, prod OK**).
+- **🔎 CATCH (the recurring rows≠events lesson, 3rd time this arc):** first card read
+  "RBLBANK P+60.0" — RBL has NO promoter; the data is REAL (its acquirer completed in
+  June and re-classified as a 60% promoter; both sources agree) but it's an ownership
+  TRANSFORMATION, not holder-mix drift. Fence: **`STRUCTURAL_PP=25.0`** (kin to
+  sast_events.CONTROL_PCT) — any class moving ≥25pp/quarter = structural event: ⚡-badged,
+  tiled (13 live), excluded from the material-shift cohort. Glossary-documented.
+- **Wiring:** registry `_shp` (15 readers) · strategist card + blurb · cockpit SHP pillar ·
+  Lens("shp","Holdings") + `_ROUTER_SPECS` (forked-nav protocol, 4th clean repetition) ·
+  metrics-glossary "Holdings QoQ" section (pledge stock-vs-flow cross-ref to the SAST
+  board). Journey-walked: pillar → card → page/nested/drill → glossary → gate, all PASS;
+  local selftests + pytest 18/1.
+- **D94 queue: ⑤ forward corp-actions calendar is NEXT** (26,868 + 226 rows, hermes.db).
 
 ### Session 89 — 2026-07-10 — Wolfe "strength" deep-dive (D98): cap-sweep quantified · Q splits into STR/LND · Structure watch live (S86c incident follow-through)
 - **D99 ADDENDUM (same session, Ramana-approved via the main session):** recency = first-class

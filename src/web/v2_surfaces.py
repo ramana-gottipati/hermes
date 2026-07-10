@@ -67,6 +67,9 @@ _ROUTER_SPECS = [
     # Stake × pledge confluence board (D94 queue #3, S88) — reads the two SAST feeds;
     # flag logic single-sourced in sast_events.flagged_symbols (confluence cohort).
     ("sast", "src.web.sast_view", "/dash/sast"),
+    # Holdings QoQ deltas lens (D94 queue #4, S90) — reads shareholding_history
+    # (research.db); flag logic single-sourced in shareholding_xbrl.flagged_symbols.
+    ("shp", "src.web.shp_view", "/dash/shp"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),

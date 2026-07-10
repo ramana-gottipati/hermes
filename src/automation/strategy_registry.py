@@ -44,7 +44,8 @@ except Exception:  # pragma: no cover - import-path fallback
 # Daily signals refresh every trading night; concalls are quarterly, so far more lenient.
 _STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150,
                "conviction": 7, "growth": 150, "launchpad": 7,
-               "momentum": 7, "reactions": 10, "insider": 7, "ratings": 10, "sast": 7}
+               "momentum": 7, "reactions": 10, "insider": 7, "ratings": 10, "sast": 7,
+               "shp": 150}
 
 # Liquidity / universe gate for whole-universe rankers — mirrors
 # dashboard._SCAN_FILTERS, kept self-contained (same choice strategist_view made).
@@ -351,6 +352,41 @@ def _sast(conn):
             "health": _health(count, as_of, _STALE_DAYS["sast"])}
 
 
+def _shp(conn):
+    """Holdings QoQ — material quarter-over-quarter holder-mix shifts from
+    shareholding_history (research.db; frozen archive + NSE-XBRL takeover,
+    D94 queue #4). Flag logic lives in shareholding_xbrl.flagged_symbols
+    (|Δ| >= 1.0pp on promoter/FII/DII, adjacent quarters only). Descriptive."""
+    key, label, route = "shp", "Holdings · QoQ", "/dash/shp"
+    try:
+        from src.automation import shareholding_xbrl as SX
+        flags, as_of = SX.flagged_symbols()
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    if not as_of:
+        return _empty(key, label, route)
+    count = len(flags)
+    if not count:
+        return {"key": key, "label": label, "route": route, "count": 0,
+                "as_of": str(as_of)[:10],
+                "top": [{"symbol": "—", "note": "no material QoQ shifts in the latest pairs"}],
+                "health": "ok" if not _stale(as_of, _STALE_DAYS["shp"]) else "stale"}
+    top = []
+    for sym, r in flags[:5]:
+        bits = []
+        for m, tag in (("Promoters", "P"), ("FIIs", "F"), ("DIIs", "D")):
+            d = r["metrics"].get(m, (None, None, None))[2]
+            if d is not None and abs(d) >= 0.05:
+                bits.append(f"{tag}{d:+.1f}")
+        note = " ".join(bits) or "shift"
+        if r["mixed"]:
+            note += " ⓧ"
+        top.append({"symbol": sym, "note": note})
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": str(as_of)[:10], "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["shp"])}
+
+
 def _growth(conn):
     """Growth-intent — forward proposals managements committed to on concalls
     (capex / expansion / debt-cut / new products), Rs-normalised. Flagged = the
@@ -517,7 +553,7 @@ def _wolfe(conn):
 
 # registry order = the order the Strategist dashboard shows the cards.
 _READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci, _insider, _ratings,
-            _sast, _growth, _launchpad, _momentum, _reactions, _wolfe]
+            _sast, _shp, _growth, _launchpad, _momentum, _reactions, _wolfe]
 
 
 def summary(conn=None) -> list[dict]:
@@ -552,7 +588,7 @@ def _selftest():
             assert set(t) >= {"symbol", "note"}, f"{r['key']} bad top item: {t}"
         keys.add(r["key"])
     for want in ("conviction", "dvpt", "mep", "cpr", "rs", "cci", "insider",
-                 "ratings", "sast", "growth", "launchpad", "momentum",
+                 "ratings", "sast", "shp", "growth", "launchpad", "momentum",
                  "reactions", "wolfe"):
         assert want in keys, f"{want} row missing"
     print(f"OK  strategy_registry.summary() -> {len(rows)} rows")

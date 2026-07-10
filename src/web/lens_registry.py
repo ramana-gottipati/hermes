@@ -170,6 +170,9 @@ LENSES: tuple[Lens, ...] = (
     # Stake × pledge confluence — SAST Reg-29 × Reg-31/32 crossings (D94 #3, S88).
     Lens("sast", "Stake · Pledge", "stock", "strategies", "/dash/sast",
          aliases=("stake-pledge", "confluence", "pledge-flow", "substantial-holders")),
+    # Holdings QoQ — shareholding-pattern deltas, archive + NSE-XBRL (D94 #4, S90).
+    Lens("shp", "Holdings", "stock", "strategies", "/dash/shp",
+         aliases=("shareholding", "holdings-qoq", "fii-dii", "holder-mix")),
     Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad"),
 
     # ── Tracker ──────────────────────────────────────────────────────────────

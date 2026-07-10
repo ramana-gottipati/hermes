@@ -261,6 +261,7 @@ _CATALOG = [
     ("Insider activity", "/dash/insider"),
     ("Rating transitions", "/dash/ratings"),
     ("Stake · Pledge", "/dash/sast"),
+    ("Holdings · QoQ", "/dash/shp"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
     ("Momentum · ensemble", "/dash/markets/momentum-scan"),
@@ -311,6 +312,10 @@ _BLURB: dict[str, tuple[str, str]] = {
         "Big-holder stake moves (SAST Reg-29) crossed with promoter pledge FLOW "
         "(Reg-31/32) — names where BOTH fired in 90d, shaped constructive / distress / "
         "mixed. Post-disclosure, % of equity, descriptive.", "pledge"),
+    "/dash/shp": (
+        "Who added, who trimmed, quarter over quarter — promoter / FII / DII / public / "
+        "pledge in percentage points of equity. Frozen archive + NSE-XBRL takeover, "
+        "provenance marked per pair. Descriptive.", "holdings"),
     "/dash/launchpad": (
         "Validated explosive-move precursors (momentum-continuation / coiled). The "
         "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "

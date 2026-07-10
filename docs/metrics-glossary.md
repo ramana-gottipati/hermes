@@ -265,6 +265,17 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Encumb now.** The TOTAL % of equity encumbered after the latest pledge filing — the stock (level), where the flow columns are the delta. Complements the quarterly SHP pledge level. *Source:* `encumb_pct`.
 - **Pledge stock vs flow.** The quarterly shareholding pattern (SHP) gives the pledge *level* per quarter; this feed gives the *flow between quarters* — the same distinction as holdings vs trades. *Source:* `shareholding_history` (stock) vs `sast_pledge_events` (flow).
 
+## Holdings QoQ (shareholding-pattern deltas)
+
+> The quarterly shareholding pattern as **deltas** — who added, who trimmed, in **percentage points of equity**, quarter over quarter. **Provenance disclosed by design (guardrail #8):** history is the FROZEN archive collection (read-only, never re-fetched); every NEW quarter arrives from **NSE SHP XBRL filings** (the primary source, `shareholding_xbrl.py`), which takes the board over organically — a continuity gate requires XBRL↔archive agreement within 1pp where they overlap. Descriptive — holder-mix facts, not signals.
+
+- **Δ Prom / Δ FII / Δ DII / Δ Public (pp).** The change in that holder class's % of equity between the symbol's two latest quarters. The flag = **|Δ| ≥ 1.0 pp** on promoters, FIIs or DIIs (unit-honest: points of capital, no rupee constants). *Source:* `shareholding_history`, paired by calendar-quarter bucket.
+- **Adjacent-only flagging (◌).** Deltas only FLAG when the two quarters are consecutive; a reporting gap (◌) is shown but never counted as a QoQ shift. *Source:* quarter-bucket adjacency.
+- **Structural event (⚡).** Any holder class moving **≥25pp in one quarter** — a new promoter appearing via acquisition, a delisting-scale restructure (live example: RBLBANK 0→60pp promoter when its acquirer completed). An ownership TRANSFORMATION, kin to the SAST board's control transfers — badged and shown, never counted in the material-shift cohort. *Source:* `STRUCTURAL_PP=25`.
+- **Mixed pair (ⓧ).** One quarter from the frozen archive, one from NSE XBRL — near-consistent by the 1pp continuity gate, still marked so you know which numbers cross the provenance seam. *Source:* `source` column per row.
+- **Pledge stock (vs flow).** `Promoter Pledge` here is the quarterly *level* (sparse until the Reg-31 flood completes each quarter); the SAST board's pledge columns are the *flow between quarters*. Same distinction as holdings vs trades. *Source:* `shareholding_history` vs `sast_pledge_events`.
+- **Quarterly cadence.** SHP filings are due ~21 days after quarter-end — the latest-quarter column FILLS during that window (June-quarter flood lands through ~Jul-21); the census tile shows coverage honestly rather than pretending completeness.
+
 ## Results reactions — the season war room
 
 > Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.

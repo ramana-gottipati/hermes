@@ -270,6 +270,125 @@ def write_rows(con: sqlite3.Connection, filing: dict, metrics: dict) -> int:
     return n
 
 
+# ── whole-universe QoQ deltas (S90 holdings lens: page+card+pillar+gate) ──────
+
+# Metrics that participate in the deltas board; the FLAG uses the first three.
+_DELTA_METRICS = ("Promoters", "FIIs", "DIIs", "Public", "Promoter Pledge")
+# Material shift = >= this many percentage-POINTS of equity quarter-over-quarter
+# (unit-honest: pp of capital, never a rupee constant).
+MATERIAL_PP = 1.0
+# >= this many pp on ANY holder class = a STRUCTURAL ownership event (new promoter
+# via acquisition, delisting-scale restructure — e.g. RBLBANK's 0->60pp promoter
+# appearance when its acquirer completed, S90), not holder-mix drift. Mirrors
+# sast_events.CONTROL_PCT (the SEBI takeover trigger): badged, never flagged.
+STRUCTURAL_PP = 25.0
+
+
+def _qbucket(period_end: str) -> str:
+    """Calendar-quarter bucket for a period_end date ('2026-06-30' -> '2026-Q2').
+    Event-dated stragglers (e.g. Reg-31-synced pledge rows dated Jul-01) bucket
+    into their own calendar quarter; within a bucket the LATEST row wins."""
+    y, m = int(str(period_end)[:4]), int(str(period_end)[5:7])
+    return f"{y}-Q{(m + 2) // 3}"
+
+
+def _q_adjacent(q0: str, q1: str) -> bool:
+    y0, n0 = int(q0[:4]), int(q0[-1])
+    y1, n1 = int(q1[:4]), int(q1[-1])
+    return (y0 * 4 + n0) - (y1 * 4 + n1) == 1
+
+
+def universe_deltas(research_db: str = RESEARCH_DB, lookback_days: int = 400):
+    """Per-symbol quarter-over-quarter holder-mix deltas over shareholding_history.
+    Opens research.db READ-ONLY itself (web-path callers hold only the hermes.db
+    conn). Pairing is anchored on the Promoters series (the most complete metric):
+    q0 = the symbol's latest Promoters bucket, q1 = its prior one; per metric the
+    delta uses those two buckets when both cells exist. `adjacent` = consecutive
+    calendar quarters (a gapped pair is shown but NEVER flagged as a QoQ shift);
+    `mixed` = the two cells come from different sources (frozen archive vs
+    NSE-XBRL — near-consistent by the 1pp continuity gate, still disclosed).
+    Returns (rows, census, as_of)."""
+    try:
+        con = sqlite3.connect(f"file:{research_db}?mode=ro", uri=True)
+    except Exception:  # noqa: BLE001 — research.db absent on this host
+        return {}, {}, None
+    try:
+        cells: dict = {}
+        as_of = None
+        ph = ",".join("?" for _ in _DELTA_METRICS)
+        for sym, pend, metric, val, src in con.execute(
+                f"SELECT symbol, period_end, metric, value, source FROM shareholding_history "
+                f"WHERE metric IN ({ph}) AND value IS NOT NULL AND period_end >= "
+                f"date((SELECT MAX(period_end) FROM shareholding_history), ?)",
+                (*_DELTA_METRICS, f"-{int(lookback_days)} days")):
+            pend = str(pend)
+            key = (sym, metric, _qbucket(pend))
+            cur = cells.get(key)
+            if cur is None or pend > cur[0]:
+                cells[key] = (pend, val, src)
+            if as_of is None or pend > as_of:
+                as_of = pend
+    finally:
+        con.close()
+    if not cells:
+        return {}, {}, None
+    # symbol -> its Promoters buckets (the pairing anchor)
+    anchors: dict = {}
+    for (sym, metric, qb) in cells:
+        if metric == "Promoters":
+            anchors.setdefault(sym, []).append(qb)
+    rows: dict = {}
+    n_mixed = 0
+    for sym, buckets in anchors.items():
+        qs = sorted(set(buckets), reverse=True)
+        if len(qs) < 2:
+            continue
+        q0, q1 = qs[0], qs[1]
+        metrics: dict = {}
+        mixed = False
+        for m in _DELTA_METRICS:
+            c0, c1 = cells.get((sym, m, q0)), cells.get((sym, m, q1))
+            if c0 is None or c1 is None:
+                if c0 is not None:
+                    metrics[m] = (c0[1], None, None)
+                continue
+            metrics[m] = (c0[1], c1[1], round(c0[1] - c1[1], 2))
+            if (c0[2] or "") != (c1[2] or ""):
+                mixed = True
+        if not metrics:
+            continue
+        n_mixed += 1 if mixed else 0
+        structural = any(d[2] is not None and abs(d[2]) >= STRUCTURAL_PP
+                         for d in metrics.values())
+        rows[sym] = {"q0": q0, "q1": q1, "adjacent": _q_adjacent(q0, q1),
+                     "mixed": mixed, "structural": structural, "metrics": metrics}
+    latest_q = max((r["q0"] for r in rows.values()), default=None)
+    census = {"symbols_paired": len(rows),
+              "latest_quarter": latest_q,
+              "in_latest_quarter": sum(1 for r in rows.values() if r["q0"] == latest_q),
+              "mixed_pairs": n_mixed,
+              "xbrl_cells": sum(1 for (_s, _m, _q), c in cells.items() if c[2]),
+              "archive_cells": sum(1 for c in cells.values() if not c[2])}
+    return rows, census, as_of
+
+
+def flagged_symbols(research_db: str = RESEARCH_DB):
+    """The card/pillar/gate cohort (single source, D94 parity rule): symbols with
+    an ADJACENT-quarter pair and a material shift — |Δ| >= MATERIAL_PP percentage
+    points on Promoters, FIIs or DIIs. Sorted by the biggest absolute shift.
+    Returns ([(symbol, row)], as_of)."""
+    rows, _census, as_of = universe_deltas(research_db)
+
+    def _maxshift(r):
+        return max((abs(d[2]) for m, d in r["metrics"].items()
+                    if m in ("Promoters", "FIIs", "DIIs") and d[2] is not None),
+                   default=0.0)
+    flags = [(s, r) for s, r in rows.items()
+             if r["adjacent"] and not r["structural"] and _maxshift(r) >= MATERIAL_PP]
+    flags.sort(key=lambda kv: -_maxshift(kv[1]))
+    return flags, as_of
+
+
 def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] = None,
            research_db: str = RESEARCH_DB, pause: float = REQUEST_PAUSE) -> dict:
     """Forward ingest of shareholding patterns broadcast in [since, until]."""
