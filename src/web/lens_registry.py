@@ -65,6 +65,10 @@ class Lens:
 LENSES: tuple[Lens, ...] = (
     # ── Markets ──────────────────────────────────────────────────────────────
     Lens("markets", "Overview", "market", "markets", "/dash/markets"),
+    # Attention queue (D106, S103) — the signal-event bus's human face: every lens's
+    # typed state-changes in one magnitude-ranked, PIT-replayable tape (bus = D105).
+    Lens("attention", "Attention", "market", "markets", "/dash/attention",
+         aliases=("bus", "events", "signal-events", "queue", "attention-queue")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),

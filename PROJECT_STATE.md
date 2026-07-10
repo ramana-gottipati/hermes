@@ -214,6 +214,8 @@ D:\Hermes\                                          ← local working copy of re
 │   │   # web: src\web\dq_banner.py                 ← S76 — kill-switch WARN/CRIT strips on the data surfaces each check gates: keyed by WORKSPACE (own `_ACT_WS` active→ws map, superset of dashboard._WS incl. screen2; `_WS_CHECKS`) — markets=momentum+feed, strategies=+fundamentals, screener=fundamentals. Reads data_quality last_run (TTL-cached). dashboard._shell wrap via v2_surfaces.wire() PLUS a sys.modules sweep (like shell_skin) to reach view modules that captured `_shell` at import time — WITHOUT the sweep the strip only reaches dashboard-native pages (the rotation-0/stocks-2 bug). Extend: `_ACT_WS`/`_WS_CHECKS`.
 │   │   # web: src\web\evidence_pack.py             ← S96 — /dash/evidence-pack (charter P-04): the print-ready procurement assembly of spec-sheets (imported verbatim) + coverage boundary + live season SLA + replay pointer; browser print→PDF over the ui_tokens @media print block, zero deps; Trust lens, mounted via v2_surfaces
 │   │   # web: src\web\replay_any_date.py           ← S102 — /dash/replay-any-date (charter P-05): the LIVE replay demo — any symbol + any date through the entitled /v1 API IN-PROCESS (TestClient over build_app; demo key = settings.hermes_v1_dev_key from .env, self-healing seed_dev_key on 401, value never rendered); panels lift the envelope verbatim (pit chips, typed absences, RFC-7807 as-is) + reproduction curl; Trust lens + coverage front-door chip; degrades honestly with no key
+│   │   # web: src\web\attention_view.py            ← S103 (D106) — /dash/attention + the Home "Attention" card: the signal-event bus's human face (magnitude-ranked tape, lens filters, ?as_of= PIT replay via the /v1 resolver, batch-history pivot); reads ONLY signal_events read APIs; hermetic tests tests\test_attention_view.py; Markets lens, mounted via v2_surfaces
+│   │   # automation: src\automation\tracker_alerts.py ← Tracker alert push (2026-06-21, `bc26980`; retro-doc'd S103): EOD alert-rule eval over watch+open + Telegram push via digest._send; edge-triggered dedup (tracker_alert_state), retry-while-blocked; hermes-tracker-alerts.timer 17:00 UTC; rule logic mirrors dashboard _eval_alerts/_ready_to_act — keep in sync
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
 │   │   ├── db.py                                   ← SQLite schema + init
@@ -467,7 +469,7 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 - `cpr_signals` (D53, CPR "Structure" pillar) — nightly-materialized multi-timeframe CPR per (symbol, period_end_date, **timeframe ∈ D/W/M**), PK on those three. GEOMETRY + widths STORED (objective): `p, bc, tc, width_pct` (the C0 CPR from the prior period's split-adjusted H/L/C; width ÷ pivot) · `c1_width_pct, c2_width_pct` (prior two bands, for the rank) · `compression_pctile` (own-history percentile, ≈252 D / 52 W / 24 M; high = unusually coiled) · `pattern` (BULL_U/BEAR_INVU/NONE) · `leg_in_clean, leg_turn_clean` · `separation_pct, depth_pct` · `regime` (sign close−P) · `days_since_pattern` (0=fresh; NULL=none) · `confirmed` (price engaged) · `close, adj_used, is_partial` (W/M current period), `n_bars_used`. The R1–R4 narrowness RANK, the cross-TF AMPLIFICATION, the ★ CONVICTION TIER + confluence are **DERIVED ON READ** (tunable knob/weights — `dashboard._CPR_MAXW`=D1.0/W2.5/M5.0, `_CPR_WEIGHT`=D1/W2/M3 — nothing re-materialized; mirrors D43-G). Indexes: `idx_cpr_tf_date`, `idx_cpr_sym_tf`, `idx_cpr_tf_date_pattern`. **Self-resampled** from `bhavcopy_rows` (split-adjusted) by `cpr_signals.py` — NOT dependent on the held MTF `bars_weekly/bars_monthly` (CPR-A5). `stock_signals` UNTOUCHED. Populate: `python -m src.automation.cpr_signals --backfill --timeframe all`; nightly `--recent --timeframe all`.
 
-- `stocks_in_play` (D54, UI Phase 1 — the action loop) — one row per tracked idea. `status` ∈ `watch`|`open`|`closed` (watch = the lightweight watchlist tier, open = a committed position-under-a-strategy, closed = exited). Cols: `symbol, strategy, status, date_added, entry_price, price_target, stop_loss, entry_thesis, snapshot_json` (**FROZEN** as-of-add signal values — conviction/p/r/rank/×power/key-gap/RS/pt14/character — the daily `stock_signals` row overwrites nightly so it can't be reconstructed later; the one place denormalization is correct), `exit_date, exit_price, exit_reason, notes`. Indexes `idx_sip_status(status,strategy)`, `idx_sip_symbol(symbol)`. Written ONLY via the `/dash/track*` POSTs; mark-to-market + hit-rate are pure-SQL/point-lookups on read. The legacy `watchlist` (symbol PK) is kept untouched (the `scope=watch` screener source).
+- `stocks_in_play` (D54, UI Phase 1 — the action loop) — one row per tracked idea. `status` ∈ `watch`|`open`|`closed` (watch = the lightweight watchlist tier, open = a committed position-under-a-strategy, closed = exited). Cols: `symbol, strategy, status, date_added, entry_price, price_target, stop_loss, entry_thesis, snapshot_json` (**FROZEN** as-of-add signal values — conviction/p/r/rank/×power/key-gap/RS/pt14/character — the daily `stock_signals` row overwrites nightly so it can't be reconstructed later; the one place denormalization is correct), `exit_date, exit_price, exit_reason, notes`. Indexes `idx_sip_status(status,strategy)`, `idx_sip_symbol(symbol)`. Written ONLY via the `/dash/track*` POSTs; mark-to-market + hit-rate are pure-SQL/point-lookups on read. The legacy `watchlist` (symbol PK) is kept untouched (the `scope=watch` screener source). **Tracker-umbrella deltas (2026-06-20/21 wave, retro-doc'd S103):** += `book` TEXT default `'Main'` (named books) · `qty` REAL nullable (absolute ₹ P&L) · `alerts_json` TEXT (per-item EOD alert rules, edited at `/dash/track/alerts`). Companion tables: `tracker_alert_state` (edge-triggered dedup for the Telegram push — push once on start-firing, drop on stop) + `tracker_alert_delivery` (send/queue log; rows stay pending while Telegram is blocked and flush when reachable).
 
 **Theme tags (D63, session 33) — the multi-label thematic layer:**
 - `company_tags` (symbol, tag, source ∈ `index`/`ai`/`ramana`, confidence, as_of, approved 0/1, note; PK (symbol, tag, source)) — a company carries SEVERAL tags. `index` = deterministic fact seeded from a thematic index (approved=1); `ai` = LLM-proposed (approved=0, "proposed"); `ramana` = hand-approved (approved=1). Reads dedupe by tag. Indexes: `idx_company_tags_tag(tag, approved)`, `_symbol(symbol, approved)`, `_review(approved, source)`. Vocabulary + seeder + helpers in `src/automation/theme_tags.py` (`THEME_VOCAB` = 19 deterministic + 6 cross-cutting). Seed: `python -m src.automation.theme_tags --seed` (idempotent; rebuilds source='index' only; weekly via `hermes-theme-seed.timer`).
@@ -478,6 +480,24 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D106 — The Attention Queue is a bus FACE, not a strategy lens: no card/pillar-gate parity, within-lens magnitude ranking, PIT replay mirrors /v1 (2026-07-10, S103)
+WHY: the D94 front-door parity rule (strategist card AND home pillar AND board_health, all off one
+`flagged_symbols`) exists for GATED STRATEGIES — surfaces that flag a cohort. The bus's home face
+(`/dash/attention` + the Home "Attention" card — D105's "one bus, four faces") aggregates OTHER
+lenses' typed state-changes and flags nothing itself, so parity would double-count every source
+lens's gate; deliberately NO strategist card / board_health entry. Shape: an isolated view
+(`src/web/attention_view.py`) reading ONLY `signal_events`' public read APIs — `attention_queue`
+on Home (hard-capped 6 so it stays a queue, not a firehose), the full magnitude-ranked tape with
+lens filter chips, `?as_of=` replay through `latest_batch_on_or_before` (the /v1 resolver: an
+exact-date miss serves the last batch on-or-before, never a fake-empty tape; typed absence before
+the feed's birth), and a per-batch/per-lens history pivot. Impact = magnitude (normalized WITHIN
+each lens — flips 1.0 by construction; deal prints = within-day value PERCENTILE, %-relative per
+the working principles) then recency; stated on-page as attention-ranking, NEVER a return
+forecast (no follow-through study exists — M-04-class gate required before any such claim).
+rs-lens rows link to /dash/rsband, not the stock dossier (index-grain names have no dossier).
+Home wiring is defensive (`attention_home_inner()` returns '' on empty/unreadable → board
+omitted; Home can never break on this face).
 
 ### D105 — The signal-event bus producer lives INSIDE the bhavcopy chain (drop-in step 60), not on its own timer (2026-07-10, S101)
 WHY: `run_detection` derives events from tables the chain itself writes (`mep_signals` @10,
@@ -956,6 +976,8 @@ The dedicated UI/UX redesign session (planned "Session 1" in `docs/ui-design.md 
 **Phases 2–3 (designed in the stencils, not yet built):** the "instrument" screener micro-viz that surfaces the under-utilized 88-col `stock_signals` data; metric **hover-help `?` popovers** (content baked from `metrics-glossary.md`); comparison enrichment (auto-rebase + transposed metric table); per-stock **news** + a static typed strip; **onboarding** strip + glossary page; the **inline-row Track** affordance on the screener/strategy grids. UI decisions logged in `docs/ui-design.md §13`.
 
 **Follow-up — session 24 (2026-06-20): inline "+ Add a stock" on Portfolios & Watchlists (closes a discoverability gap).** Ramana reported "tracker/watchlists/portfolios … not able to add anything in there at all." Diagnosis: the loop was 100% functional on the VPS (routes deployed, `python-multipart` present, `stocks_in_play` exists, POST `/dash/track` returns 303 + inserts) — but per the original D54 design, **capture lived ONLY on the stock page**; the Portfolios/Watchlists/Tracker pages were view-only, so they read as "can't add." Fix (chosen from a 4-option menu = "inline add box on pages"): a compact **`_add_box(default_status)`** form rendered on both `/dash/portfolios` (default Portfolio) and `/dash/watchlists` (default Watchlist), empty AND populated states — typed ticker + list + strategy + optional thesis → POSTs the SAME `/dash/track` endpoint (entry + frozen snapshot still captured server-side; no new write path). Added **`_is_listed(conn, sym)`** validation (NSE equity list ∪ has-signals, permissive on any lookup error so a missing table never blocks a legit add) → typo tickers get a red `b-off` error banner via `?err=` instead of a junk row. Additive, reuses existing CSS (`.cap`/`.field`/`.row2`/`.banner`); the stock-page `+ Track` form is unchanged. Verified end-to-end on VPS: empty pages render the box; valid add (RELIANCE) → entry frozen ₹1309.5; invalid (ZZNOTREAL) rejected, 0 rows; error banner renders; all key routes 200; QA rows cleaned. Deployed `scp dashboard.py` + `systemctl restart hermes-api`. **(S24 cont.)** Added a Manual→free-text `strategy_custom` field to the add boxes (the custom basis is stored as the strategy, so hit-rate-by-strategy can group by the user's own names) and sharpened each tab's copy to communicate the funnel — **Watchlist** (watching) → **Portfolio** (committed) → **Tracker** (scoreboard). Per Ramana's explicit call, the **Tracker stays a derived scoreboard, NOT a third list** (no add box; it auto-fills from Portfolio + closed trades).
+
+**Tracker umbrella + autobuild steps 2–5 — ALL SHIPPED (2026-06-20/21; retro-doc'd S103 — this was the "PROJECT_STATE entry owed" debt from the parallel-session freeze, sources: memory `tracker-workspace-redesign` + git log + live schema).** The 4-segment **Tracker workspace** (Dashboard · Portfolios · Watchlists · Performance; Portfolio left the top nav) with multiple NAMED books: umbrella+books+rename `682296b` · ticker autocomplete `66be6df` · entry validation/backdating `01d2b14` · watchlist change-tracking `7ffde05` · qty+₹P&L `5efb545` · edit-after-save `f80a0e7` · smart CSV/Excel importer `/dash/import` (symbol column auto-detected by value-match to the NSE universe) `6bf3191` + segments spec `09910a4` (`docs/tracker-segments-spec.md` = the design source). Autobuild wave: **Step 2** Portfolios enrichment `ea1772e` (sector/cap tier, invested ₹, day Δ, target/stop distance, days held, **thesis-health** = DVPT character + RS + conviction then→now with ⚠ decay flags, dividends, per-book KPI header w/ XIRR Newton+bisection) · **Step 3** Performance `d1a3aae` (XIRR/CAGR/realized-unrealized, rebased equity curve vs Nifty 500 + max drawdown, signed-₹ return attribution by holding/sector/book/strategy, hit-rate by book, closed-trades log) · **Step 4** Dashboard cockpit `e15f305` (KPI row, severity-ordered needs-attention red-flag board, movers, allocation/concentration, held/watched news, upcoming corp-actions) · **Step 5** Watchlist alerts engine `137f694` (`alerts_json` rules: price cross · %-since-add · 52w proximity · RS≥N · char→ACCUM · DVPT trigger · near target/stop; editor `/dash/track/alerts`+`/save`; 🔔 firing + ⚡ ready-to-act surfaced on Watchlists/Dashboard) · CSV template + export round-trip `169373c` · **Telegram push `bc26980`**: self-contained `src/automation/tracker_alerts.py` + `hermes-tracker-alerts.timer` (17:00 UTC daily, post-bhav), edge-triggered dedup via `tracker_alert_state`, retry-while-blocked queue; **rule logic mirrors dashboard `_eval_alerts`/`_ready_to_act` 1:1 — keep in sync on any alert-rule change** (a shared-module refactor remains open). All VPS-verified at ship time (QATEST-scoped rows, cleaned).
 
 ### D53 — CPR "STRUCTURE" pillar (the 4th strategy): multi-TF CPR reversal + compression, queryable + triggerable EOD — SHIPPED (CPR build session, 2026-06-19)
 
@@ -1515,10 +1537,10 @@ Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry
 - **Signal-event bus — remaining faces + lenses (S101; producer itself is WIRED, D105):**
   (a) **dvpt lens** — no banded dvpt state column exists to diff (which horizon, what bands =
   its own design); **quality/cpr lenses** likewise not emitting (LENSES vocabulary reserves
-  them). (b) **No home-surface face** — the only live readers are `/v1/attention` (+ `as_of`);
-  the "home Attention Queue" the S96b chip named does not exist in code. A home
-  pillar/card reading `attention_queue()` is a natural product pick (front-door parity rule
-  applies when it becomes a strategy surface). (c) rs lens is INDEX-grain (`rsband_signals`
+  them). (b) ~~No home-surface face~~ **✅ CLOSED S103 (D106):** `/dash/attention` + the Home
+  "Attention" card (`src/web/attention_view.py`) serve the queue with PIT replay. Faces still
+  unbuilt: the "since you last looked" brief (`events_since` has no user surface), the alert
+  rail, and the SSE stream. (c) rs lens is INDEX-grain (`rsband_signals`
   numerators vs Nifty 500) — a stock-grain rs lens needs a banded state on the stock RS estate
   first.
 
@@ -1759,6 +1781,61 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 103 — 2026-07-10 — D106: the Attention Queue face — the bus's HOME surface (`/dash/attention` + the Home card); S101 bus watch + timer battery verified; commit «S103-HASH»
+The S101 chip's "natural next product pick" built and shipped: the signal-event bus (D105) now
+has its HUMAN face. **NEW `src/web/attention_view.py`** (isolated; reads ONLY `signal_events`'
+public read APIs): `/dash/attention` = the full magnitude-ranked tape of the current batch
+(symbol · lens chip · event ± direction · raw **from → to** kept beside the verdict · impact bar ·
+honest note · detected-UTC), lens filter chips, **`?as_of=` PIT replay** through
+`latest_batch_on_or_before` — the SAME resolver `/v1/attention` uses, with the requested→served
+line disclosed on-page and typed absence ("none") before the feed's birth — plus a per-batch/
+per-lens history pivot and the impact/PIT fence box. **Home face:** `attention_home_inner()` —
+the hard-capped (6) queue as a cockpit board ("🔔 Attention"), defensively imported in
+`cockpit.py` ('' → board omitted; Home can never break on this face). Nav: `attention` Lens
+(Markets, after Overview; aliases bus/events/signal-events/queue) + `_ROUTER_SPECS` mount.
+Glossary: new **"Attention queue — the signal-event bus"** section (4 entries: signal event ·
+attention queue · impact/magnitude semantics per lens · as_of-vs-detected PIT) — deep-linked
+`?q=attention` from the page. **DELIBERATE (D106): no strategist card / board_health entry** —
+this is a bus FACE aggregating other lenses' state-changes, not a gated strategy; parity would
+double-count the source lenses' gates. Tests: **NEW `tests/test_attention_view.py`** (6 hermetic
+— data-first render, honest-empties, rs-lens link routing, PIT composition, route+replay walk,
+home-card cap; the TestClient cross-thread sqlite gotcha documented in-file) — suite 48+1skip
+green, v2_surfaces mount-contract selftest green.
+- **Boot note (multi-session craft):** booted INTO a sibling's mid-flight rebase (S96c landing
+  onto the S101 tip; conflicts in the two state docs). Followed multi-session-safety: touched
+  NOTHING, watched `.git` state — the sibling resolved, amended and pushed `c18728b` within
+  ~2 min; booted on its tip. Zero interference, zero lost work.
+- **Deploy (recipe followed; all backups `.bak-s102-*`):** fork-prechecks first (live cockpit md5
+  == HEAD base `acbfe69c…`; live glossary CR-stripped == HEAD `d7a0affd…`; no attention artifacts
+  on box) → straight scp for the NEW module + cockpit + glossary (LF-staged via `tr`), **anchored
+  in-place inserts on the two D80-FORKED nav files** (`/tmp/deploy_s102_nav.py`: unique-anchor
+  asserts + rollback; both PATCHED, py_compile OK) → remote `import src.main` OK (nesting engine
+  auto-picked the lens: **40 nested lens routes**, was 39) → `fuser` writers=0 → restart → /dash
+  200. **WALKED LIVE (all seams):** Home 🔔 board rendering real events · Markets sub-nav shows
+  `/dash/markets/attention` · tape serves batch 2026-07-10 · replay 2026-07-05→2026-07-02
+  disclosed · `?lens=oi` filter · glossary `?q=attention` renders · 7 routes 200. **The walk
+  caught 2 defects unit-tests missed (fixed + regression-tested + redeployed same hour):**
+  (1) the tile/filter counted the render cap (200), not the batch (273) — now full-batch truth +
+  an explicit "showing top 200 of 273 by impact" line ("oi only 142 of 273"); (2) replaying a
+  pre-bus date served a 2020 batch beside a "never fabricates earlier events" fence — ROOT CAUSE:
+  the S101 seed swept stale/delisted symbols whose LAST mep flip is dated 2004–2020 (~real
+  state-changes, detected 2026-07-10 — two-clock honest under D105). Kept per nothing-discarded;
+  the fence now EXPLAINS the two clocks instead of contradicting the data; batch history pivots
+  the last 12 computed days. Tests 8 hermetic → suite 50+1skip green.
+- **🔭 Verify battery (the S98/S101 watches, results):**
+  · **🚌 S101 bus watch: GREEN** — chain Finished 14:10:52 UTC exit 0 (16 steps, ~9 min); the
+    step-60 summary `run_detection: {'mep': 131, 'oi': 142}` is in **/var/log/hermes-bhavcopy.log**
+    (the chain steps log to the FILE, not the journal — the watch condition's "journal" wording
+    refined); `--stats` latest_as_of **2026-07-09 → 2026-07-10**, events 1,188 → 1,461 (+131 mep
+    +142 oi — exactly the summary; idempotent over the seed ✓). No failed units.
+  · **hermes-slb 15:16 UTC + hermes-wolfe-scan 16:02 UTC:** results appended at wrap-2 below
+    (both still ahead of the clock at this commit; a watcher is armed).
+  · **results-reactions 18:01 UTC / board-health 22:01 UTC / season-digest Sat 02:45 UTC:**
+    handed forward (fire after this session's window).
+- **Harness TIL:** EnterWorktree would have let the build start during the sibling's mid-rebase
+  window instead of watching it finish — the wait was short here, but for a longer-running
+  sibling the worktree path keeps the lane productive without touching the shared tree.
 
 ### Session 102 — 2026-07-10 — P-05 SHIPPED: /dash/replay-any-date — the live replay demo over the entitled /v1 API (same lane as S100/D104; Ramana: "complete that now")
 Charter P-05 ("replay-any-date demo API", strategic-review NEXT/early-Aug, "wow factor high but

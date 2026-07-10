@@ -85,6 +85,9 @@ _ROUTER_SPECS = [
     # Band-lock streak board (charter X-05, S96c) — reads price_bands_current/events +
     # raw bhav OHLC; flag logic single-sourced in band_lock.flagged_symbols.
     ("band-locks", "src.web.bandlock_view", "/dash/band-locks"),
+    # Attention queue (D106, S103) — the signal-event bus's home face; reads ONLY the
+    # bus's public read APIs (signal_events.attention_queue et al.), PIT replay via ?as_of=.
+    ("attention", "src.web.attention_view", "/dash/attention"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),

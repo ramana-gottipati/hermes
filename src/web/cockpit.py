@@ -882,6 +882,18 @@ def render_home(sig_date, idx_date) -> str:
                              'cheap &harr; rich vs own history · level lens', _band_inner,
                              "/dash/rsband", "Open the band", "#d29922"))
 
+    # Attention queue (D106) — the signal-event bus's home face: the hard-capped
+    # most-impactful state-changes of the latest batch. Defensive: '' omits the board.
+    try:
+        from src.web.attention_view import attention_home_inner
+        _att_inner = attention_home_inner()
+    except Exception:  # noqa: BLE001 — Home never breaks on this face
+        _att_inner = ""
+    if _att_inner:
+        boards.append(_board('<span class="em">🔔</span> Attention',
+                             'what changed · all lenses · the signal bus', _att_inner,
+                             "/dash/attention", "Open the queue", "#58a6ff"))
+
     cockpit = '<div class="ckpt">' + "".join(boards) + '</div>'
 
     fresh = (f'<div class="sub" style="margin-top:6px">Stock signals <b>{sig_date or "—"}</b> · '

@@ -314,6 +314,15 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Deliv ×.** Day-0 delivered value vs the stock's normal day — "3.2×" = three times its ordinary delivery. High SUE **and** high delivery = the confirmed cell (the historically interesting one). *Source:* `results_reactions.deliv_x`, `.deliv_high`.
 - **CAR 22/60.** Cumulative abnormal return 22/60 sessions after the report — the descriptive drift fan. ● settled = the full window has elapsed; ◔ fresh = drift still accruing. **The PEAD *lens* is real; every tradeable wrapper on it failed net-of-cost gates** — this page describes, it does not recommend. *Source:* `results_reactions.car22`, `.car60`, `.settled`.
 
+## Attention queue — the signal-event bus
+
+> "One bus, four faces": every lens emits TYPED state-change events to one table (`signal_events`, nightly as bhavcopy-chain step 60); the Attention queue (`/dash/attention` + the Home card) is the human face, `/v1/attention` the machine face. An event is a **derived judgement that something changed** — never a recommendation.
+
+- **Signal event.** One typed state-change for one name on one day: MEP phase flip, credibility step, F&O quadrant flip, index RS-band flip, or a bulk/block deal print. The raw **before → after** states are kept beside the verdict (data-first), and events are idempotent — one per (symbol, lens, type, day). *Source:* `signal_events` via `src/automation/signal_events.py`.
+- **Attention queue.** The current batch's events ranked by **impact (magnitude), then recency**, hard-capped on Home (6) so it stays a queue, not a firehose. The full tape with lens filters and replay lives at `/dash/attention`. *Source:* `signal_events.attention_queue`.
+- **Impact / magnitude (bus).** Normalized **within each lens**: a phase/quadrant flip is 1.0 by construction; a credibility step is \|Δlevel\|/50 (capped 1); a percentile breach is its depth into the band; a deal print is the symbol's within-day deal-value **percentile** (relative, never a rupee constant). It ranks attention inside a batch; **it is not a return forecast** — no study exists on event follow-through. *Source:* `signal_events.magnitude`.
+- **as_of vs detected (bus PIT).** `as_of` = the trading/period day the change is computed **for** (the batch key); `detected_at` = when the bus observed it. Replaying `?as_of=` serves the **last computed batch on-or-before** the requested day (the `/v1/attention` resolver — a weekend/holiday miss must not read as an empty tape). The bus went live 2026-07-10 and never fabricates earlier events. *Source:* `signal_events.as_of`, `.detected_at`.
+
 ---
 
 ### Status
