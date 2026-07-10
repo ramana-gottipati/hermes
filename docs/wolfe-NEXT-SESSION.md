@@ -1,11 +1,89 @@
 # Wolfe Wave — session wrap-up + AUTONOMOUS run-book (2026-06-23)
 
-> **TRANSIENT** ([[transient-doc-lifecycle]]). Retire once the Fib-extension / wave-selection issue is
-> resolved and the feature is committed. Fold the durable parts into `docs/wolfe-wave-design.md` +
-> PROJECT_STATE, then `git rm` this file.
->
-> **Read order for a fresh session:** CLAUDE.md → PROJECT_STATE.md → `docs/wolfe-wave-design.md` (the full
-> design, correct convention in §2) → **this file** → memory `[[wolfe-wave-strategy]]`.
+> **Read order for a fresh session:** CLAUDE.md → PROJECT_STATE.md (§Decision log D96–D103) →
+> `docs/wolfe-wave-design.md` → **the ★ FRACTAL-FOCUS block directly below** → memory
+> `[[wolfe-wave-strategy]]`. The rest of this file (from "0c" down) is 2026-06 archaeology.
+
+---
+
+## ★ WOLFE CARRY-FORWARD — FRACTAL FOCUS (2026-07-10, Ramana-flagged; THIS is the top of the queue)
+
+**Ramana's words:** *"I am really disappointed that the fractal has been ignored."* The fractal is
+the CORE of his Wolfe method — it is BOTH the pivot mechanism AND the point-1 strength score — and
+the S89 ranking work (recency, STR/LND split, lifecycle) surfaced it only *derived* and *buried*.
+This block states the fractal rules exactly, then the gap, then the build.
+
+### 1 · THE FRACTAL RULES (verified against `wolfe.py` + `wolfe-rules.md §B1`, current main)
+1. **Pivot mechanism = Williams / Fyers Fractals 2 & 10, on the DAILY timeframe** —
+   `fractal_pivots(high, low, periods=(2,10))`. This is HIS Fyers setup; it **replaced the
+   ATR-zigzag** as the primary pivot source. Never revert to zigzag-primary.
+2. **A fractal HIGH at bar i = a strict, UNIQUE local max of `high[]` over `period` bars each side**
+   (`count == 1` — no ties); a fractal LOW = strict unique local min of `low[]`.
+3. **Pivots merge across periods → a strictly ALTERNATING H/L sequence** (consecutive same-kind →
+   keep the more extreme). The Wolfe 1-4 scan slides over that alternating sequence.
+4. **A fractal only CONFIRMS `period` bars later → point-in-time safe** — the most-recent `period`
+   bars carry no fractal yet (this is a feature: no repaint).
+5. **DETECTION unions multi-degree fractals — `DETECT_DEGREES = (2, 5, 10, 20, 30)` — with the
+   ATR-zigzag grid** (`zz@1/1.5/2.5`). Additive: coarse 20/30 surface long-range waves; the union
+   never loses a wave the base found.
+6. **QUALITY reads each pivot's fractal DEGREE** via `frac_degree` (largest of 10→5→2) → `_lvl`:
+   **candle = 0 · 2-fractal = 1 · 5-fractal = 2 · 10-fractal = 3.** **Quality CAPS at 10** — 20/30
+   help detection only, never raise the score.
+7. **Point-1 strength = component A = point-1 fractal level (0–3), and it is ×2 in the score** —
+   the single highest-weighted component (point 1 is the most significant pivot).
+8. **Points 2/3/4 = component B = the AVERAGE of their fractal levels (floored at 1).** Rule: 2/3/4
+   must be **≥ 2-fractal — never just a candle.** Point 1: minimum = candle extreme, best = 10-fractal.
+9. **Point 5 has NO fractal gate — candle extreme only** (entry timeliness; waiting for a fractal to
+   confirm 5 would miss the entry).
+10. **Dedup keeps the higher-§B copy** → a fractal-clean wave outranks a zigzag-only copy of the
+    same structure. (Fractals 2 & 10 = HIS numbers; we do NOT use 20/30 for quality — B1 note.)
+
+### 2 · THE GAP — why it reads as "ignored" (all DISPLAY/RANKING, geometry is fine)
+- **Invisible as a fractal:** degree is shown only *derived* — `p1×2=6`, or the `source` tag
+  `frac@5`. "Is point 1 a strong 10-bar fractal?" — his first question of any wave — is not a field.
+- **Subordinate to recency:** since **D99** the default sort is `rank_attention = Q × 0.5^(age/60)`.
+  Fractal strength lives only INSIDE Q (via A, B), so a **fresh candle/zigzag-pivot wave can outrank
+  an older clean 10-fractal wave** — recency now competes with fractal quality instead of the two
+  being visibly separate axes (the same lesson as the STR/LND split, not yet applied to the fractal).
+- **Union still admits non-fractal pivots:** with recency the sort key, a fresh `zz@k` weak-pivot
+  wave can top the list even though B1 wants 2/3/4 ≥ 2-fractal.
+
+### 3 · #1 NEXT TASK — make the fractal a FIRST-CLASS, VISIBLE dimension (decide-record-execute)
+Put these to Ramana (his §B is his — sign-off before encoding; §A geometry + §B component MATH stay
+LOCKED, only surfacing/sort changes):
+- **(i) Show fractal degree per pivot** on the wave summary + every ranked row — e.g.
+  `1:10fr · 2:5fr · 3:2fr · 4:10fr` (a "fractal fingerprint"), so the strength reads at a glance.
+- **(ii) Fractal-strength must not be buried by recency** — options: a fractal FLOOR on the actionable
+  queues (e.g. p1 ≥ 2-fractal, matching the winner profile's `p1≥2`), OR a fractal term folded into
+  `rank_attention`, OR a "fractal-clean only" filter/toggle on the ranked surfaces. Recommend the
+  toggle + floor first (visible, reversible) before touching the rank formula.
+- **(iii) Fractal degree as its own sortable/filterable field** (like age is now).
+
+### 4 · WHAT WAS ASKED THIS ARC + SHIPPED (do NOT redo — verify + build on)
+- TCS bull Wolfe "not fetched" → **D96** freshness guarantee (`_FRESH_KEEP_BARS=250`); the detector
+  had ALWAYS found it (`frac@5`, §A all-pass) — the top-40-by-Q overlay cap hid it. TCS walk now 53.
+- "On what basis is strength identified?" → **D98** §B scorecard, split **STR (shape, /11) vs LND
+  (landing, /13)**; the sweep proved the old cap hid **55%** of fresh waves.
+- "Recentness is very important, add it to ranking" → **D99** `rank_attention = Q × 0.5^(age/60)`,
+  **60-bar half-life (Ramana-approved)**, current-first default + all-time toggle, WolfeRank retired.
+- "Approve R7" → **D100** §B2 4.618 "not entry-qualified" VISIBLE withhold on the actionable queues.
+- Lifecycle "build R1+R2+R8 / R3+R4" → **D101/D102** FORMING / OPEN / CLOSED queues + progress chips,
+  event-driven EPA. Latest tip `4e36bee` (forming queue excludes A-locked wedges).
+
+### 5 · OPEN (Wolfe-only) + OWNERSHIP
+- **Fractal-visibility build (§3 above) — the priority.**
+- **Point-4 strength descriptor** — BLOCKED on Ramana's worked chart example (canon §D item 4).
+- **Wolfe tape-wiring** — D95 residue: pass `corp_actions` events into wolfe's adjust path so split/
+  bonus history is tape-primary like the other 10 consumers (owner = Wolfe lane).
+- **Ownership:** the S89 "Review Wolfe strength" session owns all `wolfe.py / wolfe_view.py /
+  wolfe_overlay.py`; work in its worktree or coordinate — verify tip before editing (current `4e36bee`).
+
+### 6 · INVARIANTS (never touch)
+- **§A geometry LOCKED** (tag `wolfe-advanced`; base `74faeee`). **§B component math LOCKED** — only
+  display/sort may change without a fresh Ramana sign-off.
+- **Descriptive-only** — no buy/sell verdict; §C edge splits by side (BULL = selection edge, BEAR =
+  tail-only). **Candles only · one wave at a time · PIT-safe.**
+- **Fractals 2 & 10 is HIS mechanism** — quality caps at 10; 20/30 are detection-only.
 
 ---
 
