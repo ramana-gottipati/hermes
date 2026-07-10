@@ -865,6 +865,101 @@ def entry_qualified(p, p5, closes, direction, end=None):
     return False, "pierced both 4.618s (%.1f / %.1f), no return yet" % (a, b)
 
 
+# --------------------------------------------------------------------------- #
+# D101 / R1+R8 — wave lifecycle state (Ramana's §D taxonomy), EVENT-DRIVEN.    #
+#   OPEN   = point 5 printed, the EPA (1-4) line NOT crossed after 5 → the     #
+#            actionable state ("open items are my actual need").               #
+#   CLOSED = the line crossed after 5 → reference/validation only.             #
+# His mechanism, verbatim-adopted: the EPA is a LINE FORMULA — a wave's state  #
+# is persisted once known (wolfe_epa_state, owned HERE, db.py untouched); the  #
+# nightly run scans an OPEN wave only from its last checked bar forward, and   #
+# a CLOSED wave never again. "You don't have to monitor every bar."            #
+# --------------------------------------------------------------------------- #
+def epa_touch_idx(w, highs, lows, n, start=None):
+    """First bar in [start or p5+1, n) whose RANGE crosses the EPA (1-4) line —
+    bull: high >= line · bear: low <= line (crossing-inclusive, no exact touch
+    needed). None = still OPEN. PIT: uses only bars < n."""
+    p1 = w.p[0]
+    t0 = start if start is not None else w.p5.idx + 1
+    for t in range(max(t0, w.p5.idx + 1), n):
+        epa_t = p1.price + w.epa_slope * (t - p1.idx)
+        if (w.direction == 'BULL' and highs[t] >= epa_t) or \
+           (w.direction == 'BEAR' and lows[t] <= epa_t):
+            return t
+    return None
+
+
+def _ensure_state_table(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS wolfe_epa_state (
+            sym             TEXT NOT NULL,
+            dir             TEXT NOT NULL,
+            p1date          TEXT NOT NULL,
+            p4date          TEXT NOT NULL,
+            p1price         REAL,
+            p4price         REAL,
+            state           TEXT NOT NULL,      -- OPEN | CLOSED
+            p5date          TEXT,
+            epa_touch_date  TEXT,
+            bars_5_to_epa   INTEGER,
+            checked_through TEXT,
+            PRIMARY KEY (sym, dir, p1date, p4date)
+        )""")
+
+
+def wave_state(conn, sym, w, dates, highs, lows, n, write=False):
+    """Cached OPEN/CLOSED for one CONFIRMED wave (R8). Returns
+    (state, epa_touch_date, bars_5_to_epa).
+    - cache hit CLOSED → returned as-is, zero bars scanned (closed is forever);
+    - cache hit OPEN   → scan only bars after checked_through;
+    - miss, or p1/p4 price drift >0.5% (a corp-action re-adjustment rescaled
+      history — D95 era) → full scan from point 5.
+    conn=None (e.g. an ?asof= PIT replay) computes without the cache; write=False
+    (live web requests) reads the cache but never writes — only the nightly
+    persist (write=True) updates rows."""
+    key = (sym, w.direction, dates[w.p[0].idx], dates[w.p[3].idx])
+    row = None
+    if conn is not None:
+        try:
+            row = conn.execute(
+                "SELECT p1price, p4price, state, epa_touch_date, bars_5_to_epa,"
+                " checked_through FROM wolfe_epa_state "
+                "WHERE sym=? AND dir=? AND p1date=? AND p4date=?", key).fetchone()
+        except Exception:
+            row = None                        # table absent on a cold host
+    start = None
+    if row:
+        drift = (row[0] is None or row[1] is None
+                 or abs(row[0] - w.p[0].price) > 0.005 * abs(w.p[0].price or 1)
+                 or abs(row[1] - w.p[3].price) > 0.005 * abs(w.p[3].price or 1))
+        if not drift:
+            if row[2] == "CLOSED":
+                return "CLOSED", row[3], row[4]
+            if row[5]:                        # OPEN: resume after the last checked bar
+                import bisect
+                start = bisect.bisect_right(dates, row[5])
+    ti = epa_touch_idx(w, highs, lows, n, start=start)
+    if ti is None:
+        state, tdate, bars = "OPEN", None, None
+    else:
+        state, tdate, bars = "CLOSED", dates[ti], ti - w.p5.idx
+    if conn is not None and write:
+        _ensure_state_table(conn)
+        conn.execute(
+            "INSERT INTO wolfe_epa_state (sym,dir,p1date,p4date,p1price,p4price,"
+            " state,p5date,epa_touch_date,bars_5_to_epa,checked_through) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(sym,dir,p1date,p4date) DO UPDATE SET"
+            " p1price=excluded.p1price, p4price=excluded.p4price,"
+            " state=excluded.state, p5date=excluded.p5date,"
+            " epa_touch_date=excluded.epa_touch_date,"
+            " bars_5_to_epa=excluded.bars_5_to_epa,"
+            " checked_through=excluded.checked_through",
+            key + (w.p[0].price, w.p[3].price, state, dates[w.p5.idx],
+                   tdate, bars, dates[n - 1]))
+    return state, tdate, bars
+
+
 def t1_confluence(p, direction, tol=0.02):
     """T1 partial target = leg-1-2's 0.618 ∩ leg-3-4's 0.618 (None if they don't converge)."""
     bull = direction == "BULL"
@@ -892,10 +987,17 @@ def scan_universe(conn, universe="nifty500"):
     return [s.strip().upper() for s in str(universe).split(",") if s.strip()]
 
 
-def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
-    """FRESH winner-profile Wolfe setups across a universe — the scanner feed. Each item:
-    sym/dir/cmp/zone/sl/t1/epa/up%/age/in_zone/dates, actionable-first then freshest. PIT
-    via `asof` (bars <= as-of; the fractal/point-5 design is naturally point-in-time)."""
+def winner_scan(conn, universe="nifty500", fresh=None, asof=None, state_write=False):
+    """OPEN winner-profile Wolfe setups across a universe — the scanner feed.
+    D101/R2: queue membership = lifecycle STATE (OPEN — point 5 printed, EPA not
+    yet crossed), NOT an age window; a CLOSED wave is reference-only ("no benefit
+    from continuously monitoring it") and an OPEN wave stays actionable at any age
+    (the attention sort buries stale ones). `fresh` remains an OPTIONAL narrowing
+    (explicit ?fresh= only — default None = no age cap). Each item:
+    sym/dir/cmp/zone/sl/t1/epa/up%/age/attn/in_zone/dates, actionable-first then
+    current-first. PIT via `asof` (bars <= as-of; the state cache is bypassed on
+    replays). state_write=True (the nightly persist) updates the R8 state cache;
+    live web calls read it without writing."""
     import bisect
     out = []
     for sym in scan_universe(conn, universe):
@@ -915,8 +1017,13 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
             if w.state != "CONFIRMED" or not w.p5 or not is_winner_profile(w.score):
                 continue
             age = n - 1 - w.p5.idx
-            if age > fresh:
+            if fresh is not None and age > fresh:
                 continue
+            st, _td, _b5 = wave_state(None if asof else conn, sym, w,
+                                      dates, highs, lows, n,
+                                      write=state_write and not asof)
+            if st != "OPEN":
+                continue                      # CLOSED = reference, never a queue row
             _e12, _e34, zones = fib_zones(w.p[0].price, w.p[1].price, w.p[2].price, w.p[3].price, direction=w.direction)
             if not zones:
                 continue
@@ -928,6 +1035,7 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
             up = abs(epa - z["price"]) / z["price"] * 100.0 if z["price"] else 0.0
             stq, lnq = score_split(w.score)
             eq, _why = entry_qualified(w.p, w.p5, closes, w.direction)
+            attn = rank_attention(w.score["total"], age)
             out.append({
                 "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
                 "zlo": round(z["low"], 1), "zhi": round(z["high"], 1), "zprice": round(z["price"], 1),
@@ -936,23 +1044,31 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
                 "str": stq, "lnd": lnq, "D": w.score.get("D"), "p1": w.score.get("p1"),
                 "F": w.score.get("F"), "C": w.score.get("C"),
                 "nq": 0 if eq else 1,          # §B2 not-entry-qualified (D100) — view withholds visibly
+                "attn": (round(attn, 2) if attn is not None else None),
                 "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
-    out.sort(key=lambda r: (not r["in_zone"], r["age"]))
+        if state_write and not asof:
+            conn.commit()      # per-symbol: never hold the write lock across the
+                               # multi-minute universe pass (D82c; per-filing-commit lesson)
+    # actionable-now first, then current-first (attention DESC — D99/R6; age-sort
+    # would let a stale zombie outrank a fresh strong wave once the age cap is gone)
+    out.sort(key=lambda r: (not r["in_zone"], -(r["attn"] or 0)))
     return out
 
 
-def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
-    """STRUCTURE WATCH (D98) — fresh CONFIRMED waves whose §B *shape* is near-perfect
-    (STR >= _WATCH_MIN_STRUCTURE of 11) but which the SCAN does not show: either they
-    FAIL the OOS winner profile, or they pass it with no fib confluence (the scanner
-    requires the zone — it is the entry/stop). The scan's explicit complement ("what
-    the edge filter rejected, and why"). NO validated edge — the raw lens is
-    §C-falsified (median −2% net, a tail game); this is a reading surface, never a
-    signal. Rows mirror winner_scan's shape plus the profile legs (D/p1/F) and C as
-    context. Zone-less waves are KEPT (the wave is the story here, not the entry)
-    with zlo/zhi/zprice/sl/t1 = None.
-    Sort: freshest first, STR desc tie-break — NEVER by Q (Q inverts as a filter)."""
+def watch_scan(conn, universe="nifty500", fresh=None, asof=None, state_write=False):
+    """STRUCTURE WATCH (D98/D101) — OPEN confirmed waves whose §B *shape* is
+    near-perfect (STR >= _WATCH_MIN_STRUCTURE of 11) but which the SCAN does not
+    show: either they FAIL the OOS winner profile, or they pass it with no fib
+    confluence (the scanner requires the zone — it is the entry/stop). The scan's
+    explicit complement ("what the edge filter rejected, and why").
+    D101/R2: membership = OPEN state (EPA not crossed), not an age window; `fresh`
+    is an OPTIONAL explicit narrowing (default None). NO validated edge — the raw
+    lens is §C-falsified (median −2% net, a tail game); a reading surface, never a
+    signal. Rows mirror winner_scan's shape plus the profile legs (D/p1/F) and C
+    as context. Zone-less waves are KEPT (the wave is the story here, not the
+    entry) with zlo/zhi/zprice/sl/t1 = None.
+    Sort: current-first (attention DESC — never by Q; Q inverts as a filter)."""
     import bisect
     out = []
     for sym in scan_universe(conn, universe):
@@ -975,8 +1091,13 @@ def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
             if stq is None or stq < _WATCH_MIN_STRUCTURE:
                 continue
             age = n - 1 - w.p5.idx
-            if age > fresh:
+            if fresh is not None and age > fresh:
                 continue
+            st, _td, _b5 = wave_state(None if asof else conn, sym, w,
+                                      dates, highs, lows, n,
+                                      write=state_write and not asof)
+            if st != "OPEN":
+                continue                      # CLOSED = reference, never a queue row
             _e12, _e34, zones = fib_zones(w.p[0].price, w.p[1].price, w.p[2].price,
                                           w.p[3].price, direction=w.direction)
             if is_winner_profile(w.score) and zones:
@@ -990,6 +1111,7 @@ def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
             up = abs(epa - cmp_) / cmp_ * 100.0 if cmp_ else 0.0   # EPA distance from CMP
             sc = w.score or {}
             eq, _why = entry_qualified(w.p, w.p5, closes, w.direction)
+            attn = rank_attention(sc.get("total"), age)
             out.append({
                 "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
                 "zlo": (round(z["low"], 1) if z else None),
@@ -1001,8 +1123,11 @@ def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
                 "str": stq, "lnd": lnq, "D": sc.get("D"), "p1": sc.get("p1"),
                 "F": sc.get("F"), "C": sc.get("C"),
                 "nq": 0 if eq else 1,          # §B2 not-entry-qualified (D100)
+                "attn": (round(attn, 2) if attn is not None else None),
                 "in_zone": bool(z and z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
+        if state_write and not asof:
+            conn.commit()      # per-symbol write window (D82c — see winner_scan)
     # one row per (sym, direction): the detector's fractal-degree twins of one wedge
     # (frac@10 vs frac@20 copies of the same structure) collapse to the strongest-shape,
     # freshest copy — the chart draws every variant on click-through. A correlated-market
@@ -1014,7 +1139,7 @@ def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
         if b is None or (-(r["str"] or 0), r["age"]) < (-(b["str"] or 0), b["age"]):
             best[k] = r
     out = list(best.values())
-    out.sort(key=lambda r: (r["age"], -(r["str"] or 0)))
+    out.sort(key=lambda r: -(r["attn"] or 0))  # current-first (D99/R6), never by Q
     return out
 
 
@@ -1069,7 +1194,8 @@ def _ensure_scan_table(conn):
                 "ALTER TABLE wolfe_signals ADD COLUMN p1_comp INTEGER",
                 "ALTER TABLE wolfe_signals ADD COLUMN f_comp INTEGER",
                 "ALTER TABLE wolfe_signals ADD COLUMN c_comp INTEGER",
-                "ALTER TABLE wolfe_signals ADD COLUMN nq_flag INTEGER"):
+                "ALTER TABLE wolfe_signals ADD COLUMN nq_flag INTEGER",
+                "ALTER TABLE wolfe_signals ADD COLUMN attn REAL"):
         try:
             conn.execute(ddl)
         except Exception:
@@ -1089,27 +1215,28 @@ def _scan_as_of(conn):
     return None
 
 
-def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
+def persist_scan(conn, universe="nifty500", fresh=None, computed_at=None):
     """Materialise winner_scan(universe) into wolfe_signals as a clean snapshot
     (replace the prior rows for this universe). Returns (n_rows, scan_date).
     `computed_at` is passed in (callers stamp the wall-clock; this module avoids
-    Date.now-style nondeterminism)."""
+    Date.now-style nondeterminism). D101: fresh defaults to None (membership =
+    OPEN state, no age cap); state_write=True keeps the R8 cache current."""
     _ensure_scan_table(conn)
-    rows = winner_scan(conn, universe=universe, fresh=fresh)
+    rows = winner_scan(conn, universe=universe, fresh=fresh, state_write=True)
     scan_date = _scan_as_of(conn)
     conn.execute("DELETE FROM wolfe_signals WHERE universe=?", (universe,))
     conn.executemany(
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
         " p5date,p4date,fresh,scan_date,computed_at,"
-        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag,attn) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
           scan_date, computed_at,
           r.get("str"), r.get("lnd"), r.get("D"), r.get("p1"), r.get("F"), r.get("C"),
-          r.get("nq"))
+          r.get("nq"), r.get("attn"))
          for r in rows])
     # CL-SCO-12: do NOT commit here. `conn` is always passed in by the caller (the
     # CLI uses `with get_conn()`, which commits on success / rolls back on error), so
@@ -1120,7 +1247,7 @@ def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
     return len(rows), scan_date
 
 
-def persist_watch(conn, universe="nifty500", fresh=15, computed_at=None):
+def persist_watch(conn, universe="nifty500", fresh=None, computed_at=None):
     """Materialise watch_scan() under universe='<uni>:watch' (D98) — same clean-snapshot
     semantics and the same nightly run as persist_scan (the CLI persists both). The
     ':watch' suffix keeps it invisible to every exact-match universe reader
@@ -1128,7 +1255,7 @@ def persist_watch(conn, universe="nifty500", fresh=15, computed_at=None):
     Order matters: the ~60s watch_scan compute runs BEFORE the DDL/DELETE so the
     write window stays milliseconds — never hold the write lock across the detect
     pass (the D82c lesson; the 16:00 UTC timer overlaps the ingest cluster)."""
-    rows = watch_scan(conn, universe=universe, fresh=fresh)
+    rows = watch_scan(conn, universe=universe, fresh=fresh, state_write=True)
     _ensure_scan_table(conn)
     scan_date = _scan_as_of(conn)
     key = universe + ":watch"
@@ -1137,13 +1264,14 @@ def persist_watch(conn, universe="nifty500", fresh=15, computed_at=None):
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
         " p5date,p4date,fresh,scan_date,computed_at,"
-        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag,attn) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(key, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
           scan_date, computed_at,
-          r["str"], r["lnd"], r["D"], r["p1"], r["F"], r["C"], r["nq"]) for r in rows])
+          r["str"], r["lnd"], r["D"], r["p1"], r["F"], r["C"], r["nq"],
+          r.get("attn")) for r in rows])
     return len(rows), scan_date
 
 
@@ -1157,11 +1285,15 @@ def latest_scan(conn, universe="nifty500"):
     base = ("SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
             "p5date,p4date,fresh,scan_date,computed_at{ext} "
             "FROM wolfe_signals WHERE universe=? "
-            "ORDER BY in_zone DESC, age ASC")
-    recs, tier = None, 2
-    for tier, ext in ((2, ",str_sub,lnd_sub,nq_flag"), (1, ",str_sub,lnd_sub"), (0, "")):
+            "ORDER BY {order}")
+    tiers = ((3, ",str_sub,lnd_sub,nq_flag,attn", "in_zone DESC, attn DESC"),
+             (2, ",str_sub,lnd_sub,nq_flag", "in_zone DESC, age ASC"),
+             (1, ",str_sub,lnd_sub", "in_zone DESC, age ASC"),
+             (0, "", "in_zone DESC, age ASC"))
+    recs, tier = None, 3
+    for tier, ext, order in tiers:
         try:
-            recs = conn.execute(base.format(ext=ext), (universe,)).fetchall()
+            recs = conn.execute(base.format(ext=ext, order=order), (universe,)).fetchall()
             break
         except Exception:
             recs = None
@@ -1172,7 +1304,8 @@ def latest_scan(conn, universe="nifty500"):
              "age": r[10], "Q": r[11], "in_zone": bool(r[12]),
              "p5date": r[13], "p4date": r[14],
              "str": (r[18] if tier >= 1 else None), "lnd": (r[19] if tier >= 1 else None),
-             "nq": ((r[20] or 0) if tier >= 2 else 0)}
+             "nq": ((r[20] or 0) if tier >= 2 else 0),
+             "attn": (r[21] if tier >= 3 else None)}
             for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
@@ -1186,11 +1319,15 @@ def latest_watch(conn, universe="nifty500"):
             "p5date,p4date,fresh,scan_date,computed_at,"
             "str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp{ext} "
             "FROM wolfe_signals WHERE universe=? "
-            "ORDER BY age ASC, str_sub DESC")
-    recs, has_nq = None, True
-    for has_nq, ext in ((True, ",nq_flag"), (False, "")):
+            "ORDER BY {order}")
+    tiers = ((2, ",nq_flag,attn", "attn DESC"),
+             (1, ",nq_flag", "age ASC, str_sub DESC"),
+             (0, "", "age ASC, str_sub DESC"))
+    recs, tier = None, 2
+    for tier, ext, order in tiers:
         try:
-            recs = conn.execute(base.format(ext=ext), (universe + ":watch",)).fetchall()
+            recs = conn.execute(base.format(ext=ext, order=order),
+                                (universe + ":watch",)).fetchall()
             break
         except Exception:
             recs = None
@@ -1202,7 +1339,8 @@ def latest_watch(conn, universe="nifty500"):
              "p5date": r[13], "p4date": r[14],
              "str": r[18], "lnd": r[19], "D": r[20], "p1": r[21],
              "F": r[22], "C": r[23],
-             "nq": ((r[24] or 0) if has_nq else 0)} for r in recs]
+             "nq": ((r[24] or 0) if tier >= 1 else 0),
+             "attn": (r[25] if tier >= 2 else None)} for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
 
@@ -1218,7 +1356,9 @@ def _cli():
     ap = argparse.ArgumentParser(description="Wolfe scanner — persist the winner-profile scan")
     ap.add_argument("--persist-scan", action="store_true", help="materialise winner_scan into wolfe_signals")
     ap.add_argument("--universe", default="nifty500", help="nifty500 | inclusive | sym,sym,…")
-    ap.add_argument("--fresh", type=int, default=15, help="max age (bars) of a setup")
+    ap.add_argument("--fresh", type=int, default=None,
+                    help="OPTIONAL max age (bars); default = no age cap — membership is the "
+                         "OPEN lifecycle state (D101), stale rows sink by attention")
     args = ap.parse_args()
     if args.persist_scan:
         stamp = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

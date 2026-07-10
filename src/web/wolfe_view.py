@@ -343,7 +343,7 @@ def _fail_legs(r):
 
 @router.get("/dash/wolfe/scan", response_class=HTMLResponse)
 def wolfe_scan(universe: str = Query("nifty500", max_length=24),
-               fresh: int = Query(15, ge=1, le=180),
+               fresh: int = Query(0, ge=0, le=5000),
                asof: str = Query("", max_length=12),
                refresh: int = Query(0, ge=0, le=1),
                wall: int = Query(0, ge=0, le=1),
@@ -360,10 +360,14 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         if not refresh and not asof:
             cached = wolfe.latest_scan(conn, universe=uni)
         if cached:
-            cands, eff_fresh = cached["rows"], cached.get("fresh") or fresh
+            cands, eff_fresh = cached["rows"], cached.get("fresh")
         else:
-            cands = wolfe.winner_scan(conn, universe=uni, fresh=fresh, asof=(asof or None))
-            eff_fresh = fresh
+            # D101: fresh=0 (default) = no age cap — membership is the OPEN state;
+            # an explicit ?fresh=N still narrows. Live calls read the R8 state
+            # cache without writing; ?asof= replays bypass it entirely.
+            cands = wolfe.winner_scan(conn, universe=uni, fresh=(fresh or None),
+                                      asof=(asof or None))
+            eff_fresh = fresh or None
         # D98 structure watch — nightly snapshot only (no ~30s live fallback);
         # an ?asof= replay hides it (the watch snapshot is not PIT-replayable).
         watch = wolfe.latest_watch(conn, universe=uni) if not asof else None
@@ -373,12 +377,24 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
     if not nq:
         cands = [c for c in cands if not c.get("nq")]
     nin = sum(1 for c in cands if c["in_zone"])
+    # D101: the scanner is state-filtered (all OPEN, any age) so it needs the same
+    # counted slice as the watch — attention-sorted, freshest ideas first, nothing silent.
+    _SCAN_SHOW = 60
+    scan_all_n = len(cands)
+    if not wall:
+        cands = cands[:_SCAN_SHOW]
     trs = []
     for c in cands:
         col = _UP_VAR if c["dir"] == "BULL" else _DN_VAR
-        tag = ('<span style="color:var(--up);font-size:11px" title="OOS-validated regime-robust long selection edge">✓ edge</span>'
-               if c["dir"] == "BULL" else
-               '<span style="color:#d29922;font-size:11px" title="regime-dependent / tail-only — reliable mainly when the broad tape is already weak; not a standalone edge">⚠ tail</span>')
+        # Ledger honesty: the OOS validation (+2.14% net median) measured FRESH entries
+        # (p5 ≤ 15 bars). Older OPEN rows are reading candidates — no edge badge.
+        in_window = c.get("age") is not None and c["age"] <= 15
+        if in_window:
+            tag = ('<span style="color:var(--up);font-size:11px" title="OOS-validated regime-robust long selection edge (validated on fresh entries, p5 ≤ 15 bars)">✓ edge</span>'
+                   if c["dir"] == "BULL" else
+                   '<span style="color:#d29922;font-size:11px" title="regime-dependent / tail-only — reliable mainly when the broad tape is already weak; not a standalone edge">⚠ tail</span>')
+        else:
+            tag = ('<span style="color:var(--ink-3);font-size:11px" title="OPEN (EPA not crossed) but outside the validated freshness window (p5 ≤ 15 bars) — a reading candidate, the backtested edge claim does not extend here">open</span>')
         t1s = _fmt(c["t1"]) if c["t1"] else "—"
         status = ('<span style="color:#d29922;font-size:11px" title="§B2: point 5 pierced BOTH legs&#39; '
                   '4.618 extensions and price has not closed back into that band — not entry-qualified '
@@ -408,9 +424,8 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                if c.get("str") is not None else '')
             + '</td></tr>')
     if not cands:
-        trs = ['<tr><td colspan="11" style="padding:14px;color:var(--ink-2)">No fresh winner-profile setups right now — '
-               'try <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a> or '
-               '<a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
+        trs = ['<tr><td colspan="11" style="padding:14px;color:var(--ink-2)">No OPEN winner-profile setups right now — '
+               'try <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
     head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up', 'Q = STR+LND')
     # ---- D98: STRUCTURE WATCH — the scan's complement (descriptive, NO edge) ---- #
     wrows_all = (watch or {}).get("rows") or []
@@ -452,14 +467,15 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
     watch_html = (
         '<h3 style="margin:26px 0 4px">Structure watch '
         '<span style="color:var(--ink-2);font-size:14px;font-weight:400">— textbook shape, no validated edge</span></h3>'
-        '<div class="sub" style="margin-bottom:6px">Fresh confirmed waves whose <b>shape</b> is near-perfect '
-        '(STR ≥ 10/11) but which the scanner above does not show — the edge filter&#39;s rejects, listed so a '
-        'textbook wedge is never invisible (the TCS Jul-01 miss, D96/D98). <b>No edge claim:</b> the raw Wolfe '
-        'lens is falsified as a trade signal (median −2% net per trade — a tail game); only the winner profile '
-        'above carries the validated edge. Each row shows <b>why</b> it is not on the scan: the three profile '
-        'legs D · p1 · F with ✓/✗ (C is context, not a leg). <b>EPA dist</b> = distance from CMP to the EPA '
-        'target (far EPA = the D✗ that usually fails these). Sorted freshest-first, never by Q. '
-        '<i>Descriptive — a reading surface, not a signal.</i></div>'
+        '<div class="sub" style="margin-bottom:6px"><b>OPEN</b> confirmed waves (point 5 printed, EPA not '
+        'crossed — any age, D101) whose <b>shape</b> is near-perfect (STR ≥ 10/11) but which the scanner above '
+        'does not show — the edge filter&#39;s rejects, listed so a textbook wedge is never invisible (the TCS '
+        'Jul-01 miss, D96/D98). Completed waves (EPA crossed) are reference-only and live on the chart walk. '
+        '<b>No edge claim:</b> the raw Wolfe lens is falsified as a trade signal (median −2% net per trade — a '
+        'tail game); only the winner profile above carries the validated edge. Each row shows <b>why</b> it is '
+        'not on the scan: the three profile legs D · p1 · F with ✓/✗ (C is context, not a leg). <b>EPA dist</b> '
+        '= distance from CMP to the EPA target (far EPA = the D✗ that usually fails these). Sorted '
+        'current-first by attention, never by Q. <i>Descriptive — a reading surface, not a signal.</i></div>'
         + (
             f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:8px">'
             f'<b>{len(wrows_all)}</b> waves (one per symbol+direction) · as-of '
@@ -497,21 +513,28 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         '<span style="color:#d29922;font-weight:600">BEAR ⚠ tail</span> = regime-dependent / tail-only — reliable '
         'mainly when the broad tape is already weak, not on its own. The edge is in the <b>selection</b>, not the '
         'stop/target. <b>Click a row</b> to see its wave on the chart. '
-        '<span style="color:var(--up)">● IN</span> = price in the entry zone now. Setups with no fib-extension '
-        'confluence cannot be listed here (the zone is the entry/stop) — strong-shape ones surface in the '
-        'Structure watch below. <i>Descriptive — not a buy/sell signal.</i></div>'
+        '<span style="color:var(--up)">● IN</span> = price in the entry zone now. '
+        '<b>OPEN waves only</b> (point 5 printed, the EPA line not yet crossed — his lifecycle, D101): '
+        'a completed wave (EPA touched) is reference, not action — it lives on the chart walk, never here; '
+        'an OPEN wave stays listed at ANY age (current-first — stale ones sink by attention, and the '
+        '✓/⚠ edge badge only appears inside the validated freshness window, p5 ≤ 15 bars). Setups with no '
+        'fib-extension confluence cannot be listed here (the zone is the entry/stop) — strong-shape ones '
+        'surface in the Structure watch below. <i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:10px">{_esc(universe)} · '
         + (f'as-of <b>{_esc(cached["scan_date"] or "—")}</b> '
            f'<span style="color:var(--ink-3)">(nightly snapshot{(" · computed " + _esc(cached["computed_at"][:16])) if cached.get("computed_at") else ""})</span> · '
            f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;refresh=1" style="color:#58a6ff" title="recompute live now">↻ refresh</a>'
            if cached else
            f'as-of {_esc(asof or "today")} <span style="color:var(--ink-3)">(live)</span>')
-        + f' · fresh ≤ {eff_fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
+        + (f' · fresh ≤ {eff_fresh} bars' if eff_fresh else ' · OPEN state, no age cap')
+        + f' · <b>{scan_all_n} OPEN candidates · {nin} actionable now</b>'
+        + (f' · showing the top {len(cands)} by attention — '
+           f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall=1&amp;nq={nq}" '
+           f'style="color:#58a6ff">show all {scan_all_n}</a>' if scan_all_n > len(cands) else '')
         + (f' · <span style="color:#d29922">{withheld_n} withheld (§B2 not entry-qualified)</span> '
-           f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall={wall}&amp;nq={0 if nq else 1}" '
-           f'style="color:#58a6ff">{"hide" if nq else "show"}</a>' if withheld_n else '')
+           f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall={1 if not nq else wall}&amp;nq={0 if nq else 1}" '
+           f'style="color:#58a6ff">{"hide" if nq else "show all"}</a>' if withheld_n else '')
         + ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
-        ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a>'
         ' &nbsp;|&nbsp; <a href="/dash/harmonic" style="color:#f778ba">Harmonic scanner ›</a></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:var(--ink-2);text-align:left">'

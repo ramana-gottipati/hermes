@@ -40,17 +40,20 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
   not-entry-qualified withhold live on both actionable queues — visible count + `?nq=1` toggle +
   ⊘ chip; chart/walk untouched per B2's own clause. NO open Wolfe decisions remain; the lifecycle
   build queue is R1+R2+R8 → R3/R4/R6.
-- **🧭 NEW — LIFECYCLE PROGRAM (Ramana directive, S89 tail; RECORDED, build queued):** his
-  FORMING / OPEN (EPA untouched = "my actual need") / CLOSED (EPA touched = reference-only)
-  taxonomy is canon in `docs/wolfe-rules.md` §D (verbatim + state machine); recommendations
-  **R1–R7** + probe numbers in PROJECT_STATE § open items ("Wolfe lifecycle program").
-  **Next Wolfe session builds R1+R2+R8 first** (state-as-data; actionable surfaces filter by
-  STATE not age; event-driven EPA state per his line-formula directive), then R3/R4/R6/R7.
-  ✅ ALL clarifications RESOLVED same day (§D items 1-5): the point-2/3 bound = the §A point-4
-  channel gate (already enforced, NO code change — "do not modify the wave count"); OPEN spans
-  two phases (approaching-5 / riding-to-EPA); NO liveness cutoff (state-filter + attention-order
-  + counted slice); NEW recorded-not-built: point-4 strength via legs 1-2 ∩ 2-3 confluence
-  (needs his worked example before build).
+- **🧭 LIFECYCLE PROGRAM (Ramana directive, S89 tail — canon `wolfe-rules.md` §D):**
+  ✅ **R1+R2+R8 BUILT (D101, "go ahead and build"):** queue membership = OPEN state (EPA line not
+  crossed) at ANY age — the 15-bar proxy died; `wolfe_epa_state` event-driven cache (CLOSED
+  forever-cached, OPEN incremental from checked_through, 0.5% drift guard, per-symbol commits);
+  the git-owned unit dropped `--fresh 15` (installed, drift gate exit 0 — NO timer start);
+  attention-ordered counted 60-slices on both queues; edge badges scoped to the validated
+  ≤15-bar window. ✅ R7 = D100. ALL §D clarifications resolved (point-2/3 = the §A point-4 gate;
+  no liveness cutoff; point-4-strength recorded — needs his worked example).
+  **REMAINING queue: R3** (rename/split the two actionable phases "open — approaching 5" /
+  "open — riding to EPA" + progress chips in-zone → reversing → crossed-3 → nearing-EPA) +
+  **R4** (CLOSED `✓EPA (n bars)` chips on the walk/list + per-symbol validation readout) +
+  **R6** polish. **VERIFY tonight:** the 16:00 UTC run uses the NEW unit (no --fresh) — journal
+  "persisted N winner-profile setups + M structure-watch rows" with N ≈ hundreds now (OPEN
+  any-age), runtime ~8-15 min first nights (cache warms), timeout 1800s.
 - **VERIFY next session:** tonight's `hermes-wolfe-scan` 16:00 UTC run must persist BOTH snapshots —
   journal shows "persisted N winner-profile setups + M structure-watch rows"; run takes ~6 min now
   (timeout 1800s, checked); `wolfe_signals` universes `nifty500` + `nifty500:watch` both fresh.

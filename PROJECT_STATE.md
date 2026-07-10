@@ -477,6 +477,29 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D101 — Wolfe queue membership = the OPEN lifecycle state; the EPA check is event-driven (2026-07-10, S89; executes Ramana's §D directive + "go ahead and build R1+R2+R8")
+The 15-bar age window dies as the actionability criterion (it was a proxy that kept 7/76 + 1/140
+already-CLOSED rows on the queues while hiding 686 still-OPEN winner-profile waves):
+- **R1 (state as data):** `wolfe.epa_touch_idx` — first bar after point 5 whose RANGE crosses the
+  1-4 line (bull high ≥ line / bear low ≤ line, crossing-inclusive — his "no exact touch needed").
+  OPEN = not crossed (actionable) · CLOSED = crossed (reference).
+- **R8 (event-driven, his line-formula directive):** `wolfe_epa_state` cache (owned by wolfe.py,
+  db.py untouched): CLOSED is cached forever (never rescanned); OPEN resumes from
+  `checked_through` (nightly = new bars only); a >0.5% p1/p4 price drift (tape re-adjustment,
+  D95 era) invalidates the row honestly. **Per-symbol commits** keep every write window at
+  milliseconds (D82c discipline). Live web reads use the cache without writing; `?asof=` PIT
+  replays bypass it.
+- **R2 (state-filtered queues):** winner scan + structure watch = OPEN waves at ANY age
+  (`--fresh` now an OPTIONAL explicit narrowing; the git-owned unit dropped `--fresh 15`,
+  installed via install-systemd.sh, no timer start). Both queues sort current-first by attention
+  (in-zone first on the scanner) with counted 60-row slices + show-all. **Ledger scope honesty:**
+  the ✓edge/⚠tail badges render ONLY inside the validated freshness window (p5 ≤ 15 bars — the
+  population the +2.14% OOS claim was measured on); older OPEN rows carry a plain "open" tag =
+  reading candidates. CLOSED exclusion is declared on-page (reference lives on the chart walk).
+WHY a decision: Ramana's §D taxonomy verbatim — "open items are truly actionable… my primary
+concern"; "I gain no benefit from continuously monitoring" completed waves; "you don't have to
+monitor every bar." Descriptive-only stands; §A/§B untouched; D96/D98/D100 guarantees intact.
+
 ### D100 — §B2 "not entry-qualified" is a VISIBLE withhold on the actionable Wolfe queues (2026-07-10, S89; RAMANA-APPROVED — "approve R7, go ahead")
 His §B2 rule (wolfe-rules.md, documented 2026-06-25, unimplemented until now): point 5 piercing
 BEYOND BOTH legs' 4.618 extensions with no return → "not entry-qualified" until price closes back
@@ -1406,14 +1429,11 @@ CLOSED**. TODAY: **7 of 76 scan rows and 1 of 140 watch rows are CLOSED = dead r
 surfaces**. The mirror hole: **686 winner-profile OPEN waves sit beyond the 15-bar window**
 (mostly ancient — ages 85…3,422 bars). Validation stat (descriptive): when EPA does get touched,
 median bars from p5 = **BULL 18 (p25 5 · p75 101) · BEAR 10 (p25 4 · p75 30)**. TCS wedge = OPEN.
-**R1 — State as first-class data:** `epa_touch` (first bar after 5 touching the 1-4 line; PIT per
-  §C) → every confirmed payload + snapshot carries `state OPEN/CLOSED`, `epa_touch_date`,
-  `bars_5_to_epa` (nullable ALTERs, D98 pattern).
-**R2 — Actionable surfaces filter by STATE + a liveness bound, not age alone:** scan + watch drop
-  CLOSED rows (the 7+1 today) and admit OPEN beyond 15 bars **up to a liveness bound** — zombie
-  evidence says pure-OPEN floods (686 winners alone). Liveness candidates (HIS pick, see R5):
-  age ≤ ~60 bars (≈ the D99 half-life; covers BEAR p75=30 and most of BULL) · price-proximity to
-  the structure · his invalidation bound. Age stays a visible column either way.
+**R1 — ✅ BUILT (D101):** `epa_touch_idx` + `wave_state` — OPEN/CLOSED per confirmed wave via the
+  1-4 line-formula crossing (PIT per §C); queues filter on it; the walk/list state chips = R4 (next).
+**R2 — ✅ BUILT (D101, per his liveness answer — NO artificial bound):** scan + watch = OPEN at any
+  age, attention-ordered (zombies sink), counted 60-slices; `--fresh` optional narrowing only;
+  edge badges scoped to the validated ≤15-bar window. Dead CLOSED rows gone.
 **R3 — Two actionable queues = his two plays:** "Riding to 5" = ALL live FORMING §A-valid wedges
   (today the chart shows only the single most-recent): ride direction, SL = pt-4 breach level,
   target = predicted-5 zone, distance-to-zone. "Riding to EPA" = the OPEN queue with progress
@@ -1433,12 +1453,12 @@ median bars from p5 = **BULL 18 (p25 5 · p75 101) · BEAR 10 (p25 4 · p75 30)*
 **R7 — ✅ DONE same day (D100, "approve R7, go ahead"):** `entry_qualified()` + `nq_flag` persisted;
   BOTH actionable queues withhold visibly ("N withheld (§B2)" + `?nq=1` toggle + ⊘ chip);
   chart/walk untouched per B2's own clause. Closed open decision ③.
-**R8 — EPA state is event-driven (his mechanism, adopted):** the EPA is a line formula; a wave's
-  state is PERSISTED once known — one initial pass from point 5 establishes it (historical waves
-  only), then the nightly checks just the new bar's range vs `epa(t)` (crossing-inclusive:
-  bull high ≥ line / bear low ≤ line). Never a rescan, never bar-babysitting.
-**Build order (fully unblocked):** R1+R2+R8 first (state semantics + dead-row fix), then
-R3/R4/R6/R7. Everything additive; §A/§B untouched; descriptive-only stands.
+**R8 — ✅ BUILT (D101):** `wolfe_epa_state` cache — CLOSED cached forever, OPEN resumes from
+  `checked_through` (nightly = new bars only), 0.5% p1/p4 drift guard, per-symbol commits (D82c).
+**Remaining build queue:** R3 (two named "open items" queues with progress chips: in-zone →
+reversing → crossed-3 → nearing-EPA) + R4 (CLOSED `✓EPA (n bars)` chips on the walk/list +
+per-symbol validation readout) + R6 display polish. Everything additive; §A/§B untouched;
+descriptive-only stands.
 
 ### 🌊 Wolfe honesty residuals (S89/D98 — small, deliberate deferrals)
 - **§B2 pierced-4.618 withhold is documented but NOT implemented in the scanner** (`docs/wolfe-rules.md`
@@ -1747,7 +1767,12 @@ dead zone (112 events / 92 symbols) across the estate (one commit, 10 files).
   withhold, visible + counted + toggleable on both queues, chart untouched. First live cut: 76
   winners / 0 withheld · watch 95 → 84 shown + **11 withheld**. Walk-the-journey caught a
   slice-composition seam (only 5 of the 11 chips showed under the 60-row default after clicking
-  "show") → the show link now jumps to the full list (`?nq=1&wall=1`, `10f461f`). R1+R2+R8 next.
+  "show") → the show link now jumps to the full list (`?nq=1&wall=1`, `10f461f`).
+- **R1+R2+R8 BUILT same session (D101, "go ahead and build"):** queue membership = OPEN lifecycle
+  state at any age (the 15-bar proxy died); `wolfe_epa_state` event-driven cache (CLOSED forever,
+  OPEN incremental, drift guard, per-symbol commits per D82c); unit dropped `--fresh 15`
+  (git-owned install, drift gate clean); both queues attention-ordered with counted 60-slices;
+  edge badges scoped to the validated ≤15-bar window (ledger honesty). Remaining: R3/R4/R6.
 Ramana's questions ("did we select the strongest? on what basis? I feel I missed many entries")
 answered with numbers, then built. Commits: (see git log this date — wolfe.py, wolfe_view.py,
 calculations-and-weights.md §5c, PROJECT_STATE).
