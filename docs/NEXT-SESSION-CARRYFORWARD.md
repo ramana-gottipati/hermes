@@ -310,6 +310,10 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
   explicit go; the nightly wolfe-scan returns to winner-only fresh-15 semantics; the
   `:watch`/`:forming` snapshot rows + `wolfe_epa_state` table are unused-but-harmless residue.
   Wolfe-lane residue still open: D95 tape-wiring · point-4-strength (needs his example).
+  🧊 **WOLFE IS FROZEN pending Ramana's weightage sign-off** — a §B re-weighting proposal sits
+  with him (A 6→5 · C 3→4 · F 3→4 · H 2→3, plus the §B0.4 "touched not cut" EPA recode: 0.3%
+  tolerance over the FULL 1-4 span, cuts don't count). NO Wolfe code changes by ANY lane until
+  he answers; the complete strength concept = wolfe-rules.md §B0 (canon, `43e075f`).
 
 ## 🏛 AUDIT BOOT-CHECK (2026-07-02/03, binding)
 The audit reference is **`docs/AUDIT-2026-07-02-institutional-review.md`** (117 AUD items; statuses

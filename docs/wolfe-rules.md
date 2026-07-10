@@ -58,8 +58,9 @@
 **1 · The pivots must be real fractals (structure).**
 - **Points 2, 3, 4 MUST each be a fractal — minimum 2-fractal. MANDATORY.** A wave whose 2/3/4 are
   not all ≥ 2-fractal is **not a Wolfe — do not consider it** (reject at detection, or surface it
-  to Ramana). This is a HARD GATE, not a soft score. *(Code status 2026-07-10: currently only
-  soft-scored via B — the mandatory reject GATE is the agreed next code change.)*
+  to Ramana). This is a HARD GATE, not a soft score. *(Code status: ✅ ENFORCED since `0c89e8f`,
+  2026-07-10 — `detect_waves` rejects at detection, after `_classify`; D108. Measured effect:
+  2,398 → 1,655 waves / 754 → 0 violations on the 10-name cohort; scan 76 → 63 setups.)*
 - **Point 1 does NOT need a fractal** — a candle extreme is allowed. But a 2- or 5-fractal at point 1
   is genuinely significant and valued (scored ×2 as component A). Optional, not mandatory.
 - **Point 5 needs no fractal** (entry timeliness). Preference order everywhere: **10 > 5 > 2 > candle.**
