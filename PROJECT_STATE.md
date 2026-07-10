@@ -1702,11 +1702,16 @@ ModuleNotFoundError):
    CLI path was equally broken at HEAD; the nightly path was unaffected (its rows carry value).
    **FIX (this commit): `value` added to the SELECT; `_character_arrays`' docstring now names
    every required column incl. value.**
-- **Rerun driver `/tmp/heal92b.py`** (VPS scratch): cpr W/M/Q + triggers ONLY — mep committed
-  clean in the first run; keyprice was healed by the standalone morning `--backfill-keyprice`.
+- **Rerun driver `/tmp/heal92b.py`** (VPS scratch): cpr D/W/M/H + triggers ONLY — the first
+  driver's "Q" timeframe never existed (the CPR engine set is D/W/M/H); mep committed clean in
+  the first run; keyprice was healed by the standalone morning `--backfill-keyprice`.
   Resume-safe (done-file), per-symbol commits (D82c short-transaction discipline), symbol-args
-  smoke mode. Smoke-tested on one symbol, then launched for the full MISSED_DEAD_ZONE set —
-  completion counts + verification to be AMENDED here when the run finishes.
+  smoke mode. Smoke-tested on KITEX (triggers 3,286 rows; CPR D 3,287 / W 708 / M 177 / H 38).
+  **✅ COMPLETE (same session): 92/92 symbols, 0 failures, 7.1 min** (per-symbol triggers walks
+  of 500–3,700 rows each). Verified: all 92 carry CPR rows on every timeframe incl. H; 69 run to
+  2026-07-09 and the other 23 are delisted names healed to their own last trading day
+  (BANKRAJAS 2010-08-23 … HINDDORROL 2018-05-21) — survivorship-inclusive by design. The deep
+  history of the D95 dead-zone set no longer mixes price scales in cpr/triggers/mep/key_price.
 - Remaining D95 residue after this: wolfe tape-wiring (owner = the Wolfe lane) · stock_rs
   historical rows (no per-symbol backfill path; heals forward nightly) · the 77 TAPE_SUSPECT review.
 
