@@ -498,6 +498,14 @@ Completes the §D lifecycle program on the surfaces:
   EPA (median BULL/BEAR bars) — validation, not a forecast" (his "useful for validation" layer).
 - Readers consolidated (`_latest_aux`, tiered — older snapshots degrade, never break); the
   nightly run persists THREE snapshots (winner/watch/forming) in three short transactions.
+- **§A-LOCK EXCLUSION (same day, walk-the-journey catch on TATACAP):** `find_p5` STOPS the
+  point-5 search at the first post-4 bar whose range touches the EPA (1-4) line — such a wedge
+  can never print a 5, yet still reads FORMING. The first forming snapshot listed these as live
+  rides (TATACAP "at-5-zone" — its EPA was touched Jun-18, the day after point 4; SUNDARMFIN
+  likewise on Jun-29's 4,431 dip). `forming_scan` now mirrors the lock and excludes them:
+  **386 → 302 rows (84 dead rides, 22%, pruned)**. ⚠ Ramana-review note (not a code change,
+  §A untouched): if his eye says such wedges are still live, that's a `find_p5` EPA-lock
+  semantics question — both examples are recorded here for his review.
 WHY a decision: the queues now SPEAK the lifecycle (§D) instead of merely filtering by it —
 each row says which play it belongs to and how far the ride has progressed. Descriptive-only
 stands; §A/§B untouched; D96/D98/D100/D101 guarantees intact.

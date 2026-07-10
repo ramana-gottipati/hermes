@@ -1059,6 +1059,19 @@ def forming_scan(conn, universe="nifty500", asof=None):
             cap = d.idx + max(10, int(4.0 * (d.idx - a.idx)))
             if n - 1 > cap:
                 continue                      # search window exhausted — can no longer confirm
+            # §A LOCK (walk-the-journey catch on TATACAP, 2026-07-10): find_p5 STOPS
+            # the point-5 search at the first post-4 bar whose range touches the EPA
+            # (1-4) line — such a wedge can never print a 5, so the ride-to-5 is dead
+            # even though the wave still reads FORMING. Exclude it from the queue.
+            locked = False
+            for t in range(d.idx + 1, min(n - 1, cap) + 1):
+                epa_t = a.price + w.epa_slope * (t - a.idx)
+                if (w.direction == 'BULL' and highs[t] >= epa_t) or \
+                   (w.direction == 'BEAR' and lows[t] <= epa_t):
+                    locked = True
+                    break
+            if locked:
+                continue
             age = n - 1 - d.idx
             bull = w.direction == "BULL"
             _e12, _e34, zones = fib_zones(w.p[0].price, w.p[1].price, w.p[2].price,
