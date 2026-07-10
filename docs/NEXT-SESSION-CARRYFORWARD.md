@@ -36,9 +36,17 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
 - ~~RAMANA VETO ①/② (STR/LND split · Structure watch)~~ **✅ RATIFIED 2026-07-10:** his recency
   directive itself mandated the split chips (item 6), and he tuned the watch's default slice
   30→60 and confirmed "60 is fine, keep it" — both surfaces are accepted, no longer flag them.
-- **RAMANA DECISION ③ (the ONLY open Wolfe question):** wolfe-rules.md §B2 "pierced-both-4.618s →
-  screener withholds until return" is documented but UNIMPLEMENTED — building it would REMOVE
-  scan rows, so it stays his call.
+- **RAMANA DECISION ③:** wolfe-rules.md §B2 "pierced-both-4.618s → screener withholds until
+  return" is documented but UNIMPLEMENTED — building it would REMOVE scan rows, so it stays his
+  call (recommendation R7 folds it into the lifecycle program as an on-queue chip).
+- **🧭 NEW — LIFECYCLE PROGRAM (Ramana directive, S89 tail; RECORDED, build queued):** his
+  FORMING / OPEN (EPA untouched = "my actual need") / CLOSED (EPA touched = reference-only)
+  taxonomy is canon in `docs/wolfe-rules.md` §D (verbatim + state machine); recommendations
+  **R1–R7** + probe numbers in PROJECT_STATE § open items ("Wolfe lifecycle program").
+  **Next Wolfe session builds R1+R2 first** (state-as-data via `epa_touch`; actionable surfaces
+  filter by STATE not age — same failure class as D96). ⚠ ONE clarification gates R5/R7: his
+  "bull: cannot fall below point 2 / bear: below point 3" bounds — ask, never guess (§D lists
+  the 3 candidate readings).
 - **VERIFY next session:** tonight's `hermes-wolfe-scan` 16:00 UTC run must persist BOTH snapshots —
   journal shows "persisted N winner-profile setups + M structure-watch rows"; run takes ~6 min now
   (timeout 1800s, checked); `wolfe_signals` universes `nifty500` + `nifty500:watch` both fresh.

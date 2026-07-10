@@ -1377,6 +1377,46 @@ Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry
 
 ## What's NOT yet built / open items
 
+### 🧭 WOLFE LIFECYCLE PROGRAM — R1–R7 (Ramana directive 2026-07-10, S89 tail; canon = wolfe-rules.md §D; RECORDED, build queued)
+His taxonomy: **FORMING** (pts 1-4, no 5) = play A "ride 4→5" (SL = point-4 breach; target =
+predicted-5 confluence) · **OPEN** (5 printed, EPA untouched) = play B "ride 5→EPA" — *"open items
+are truly actionable… my primary concern. That is my actual need"* · **CLOSED** (EPA touched) =
+reference/validation only — *"I gain no benefit from continuously monitoring it."*
+**PROBE (read-only, Nifty-500, 2026-07-10 — `/tmp/wolfe_lifecycle_probe.py`, rerunnable):** of all
+67,973 confirmed waves ever, 27,958 (41%) never touched their EPA (OPEN) — incl. multi-year
+zombies → **state alone is not liveness**. Fresh≤15: 639 waves = 582 OPEN / **57 (9%) already
+CLOSED**. TODAY: **7 of 76 scan rows and 1 of 140 watch rows are CLOSED = dead rows on actionable
+surfaces**. The mirror hole: **686 winner-profile OPEN waves sit beyond the 15-bar window**
+(mostly ancient — ages 85…3,422 bars). Validation stat (descriptive): when EPA does get touched,
+median bars from p5 = **BULL 18 (p25 5 · p75 101) · BEAR 10 (p25 4 · p75 30)**. TCS wedge = OPEN.
+**R1 — State as first-class data:** `epa_touch` (first bar after 5 touching the 1-4 line; PIT per
+  §C) → every confirmed payload + snapshot carries `state OPEN/CLOSED`, `epa_touch_date`,
+  `bars_5_to_epa` (nullable ALTERs, D98 pattern).
+**R2 — Actionable surfaces filter by STATE + a liveness bound, not age alone:** scan + watch drop
+  CLOSED rows (the 7+1 today) and admit OPEN beyond 15 bars **up to a liveness bound** — zombie
+  evidence says pure-OPEN floods (686 winners alone). Liveness candidates (HIS pick, see R5):
+  age ≤ ~60 bars (≈ the D99 half-life; covers BEAR p75=30 and most of BULL) · price-proximity to
+  the structure · his invalidation bound. Age stays a visible column either way.
+**R3 — Two actionable queues = his two plays:** "Riding to 5" = ALL live FORMING §A-valid wedges
+  (today the chart shows only the single most-recent): ride direction, SL = pt-4 breach level,
+  target = predicted-5 zone, distance-to-zone. "Riding to EPA" = the OPEN queue with progress
+  chips: `in-zone → reversing → crossed-3` (his milestone: "point 5 will eventually cross point
+  3") `→ nearing-EPA (dist%)`. Both descriptive-labelled (ledger cited on-page).
+**R4 — CLOSED = reference layer:** walk/list keep CLOSED waves with a `✓EPA (n bars)` chip (the
+  walk reads history — that is its job); actionable queues exclude them; optional per-symbol
+  validation readout (EPA touch-rate, median bars) as DESCRIPTIVE method-validation.
+**R5 — Clarify before encoding (GATES R2's bound + R7):** his sentence "bull: price cannot fall
+  below point 2 / bear: cannot fall below point 3" is ambiguous under the locked conventions —
+  3 candidate readings in wolfe-rules.md §D; ask, never guess (the 2026-06-24 lesson).
+**R6 — Sorting split by surface intent:** reading surfaces (walk/list) keep D99 attention;
+  actionable queues order by state-progress (in-zone/nearest first, then EPA-distance), age
+  visible but not the key.
+**R7 — §B2 pierced-4.618 withhold = a lifecycle chip:** implement his B2 verbatim as a
+  "not entry-qualified (below both 4.618s, no return)" chip/filter on the actionable queues
+  ONLY — never removed from the chart/walk. Resolves open decision ③ inside this program.
+**Build order:** R1+R2 first (semantics; kills dead rows + reopens live-but-aged), then R3/R4/R6,
+then R5/R7 after his §D answers. Everything additive; §A/§B untouched; descriptive-only stands.
+
 ### 🌊 Wolfe honesty residuals (S89/D98 — small, deliberate deferrals)
 - **§B2 pierced-4.618 withhold is documented but NOT implemented in the scanner** (`docs/wolfe-rules.md`
   §B2: point 5 pierces BOTH legs' 4.618 with no return → the screener should flag "not entry-qualified";
@@ -1575,6 +1615,13 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
   visible on every ranked row AND the ◄/► walk summary; **WolfeRank removed** (superseded — one
   ranking system). Q untouched; D96/D98 visibility guarantees untouched. Canon: §5d of
   calculations-and-weights. Anchors verified: TCS 14.0 · 2019-stale ≈0 · Q20@30b 14.1.
+- **LIFECYCLE ADDENDUM (session tail):** Ramana defined the FORMING/OPEN/CLOSED actionability
+  taxonomy (EPA-touch = the state boundary; "open items are my actual need") → recorded verbatim
+  in `wolfe-rules.md` §D + the R1–R7 program with probe numbers in § open items ("Wolfe lifecycle
+  program"): **7/76 scan + 1/140 watch rows today are already CLOSED (dead)**; 686 winner-profile
+  OPEN waves sit beyond the 15-bar window (mostly multi-year zombies → liveness bound needed);
+  EPA-touch medians BULL 18b / BEAR 10b. Watch default slice 30→60 same day ("60 is fine").
+  One §D clarification gates R5/R7 (his point-2/point-3 bounds). Nothing built yet — R1+R2 queued.
 Ramana's questions ("did we select the strongest? on what basis? I feel I missed many entries")
 answered with numbers, then built. Commits: (see git log this date — wolfe.py, wolfe_view.py,
 calculations-and-weights.md §5c, PROJECT_STATE).

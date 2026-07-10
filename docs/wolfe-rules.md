@@ -110,6 +110,27 @@
 
 ---
 
+## § D — Lifecycle & actionability (Ramana, 2026-07-10 — recorded verbatim, derived states below)
+
+**His words (S89 session, condensed but verbatim):** *"We are trying to predict the next Wolf wave… Once point 5 has formed, we can see where the wave stands. If a point is completed and the EPA line has already been touched, then after forming the five points, any price that touches the EPA line does not create a new actionable point — it serves only as a reference. Useful for validation (showing which points are completed) but not for taking action. I gain no benefit from continuously monitoring it. **Open items, however, are truly actionable, and they are my primary concern. That is my actual need.** The first component still being formed is also actionable: I can ride the tide from point 4 to point 5, using a stop-loss based on point 4… Point 5 will eventually cross point 3, and my position may move beyond that. In a bullish Wolf wave, point 5 can dip below point 3 and may even reach the relevant Fibonacci ratios within the narrow confluence zones."*
+
+### The lifecycle (derived — every confirmed structure is in exactly one state)
+
+| State | Definition | Actionable? | The play |
+|---|---|---|---|
+| **FORMING** | points 1–4 locked (§A), point 5 not printed | **YES — play A ("ride to 5")** | ride the 4→5 leg (bull: down / bear: up); **SL = the point-4 breach level** (§A already voids the wave on a 4-breach); target = the predicted-5 fib confluence zone(s). Bull note: 5 can dip below 3, potentially to the narrow confluence zones. |
+| **OPEN** | point 5 printed; the EPA (1-4) line **not yet touched** after 5 | **YES — play B ("ride to EPA") — his PRIMARY need** | the reversal from 5 toward the EPA target; milestone: the move crossing the point-3 level ("point 5 will eventually cross point 3, and my position may move beyond that"). |
+| **CLOSED** | EPA touched at any bar after point 5 | **NO — reference/validation only** | proves the method on that wave ("shows which points are completed"); belongs on reading surfaces (walk/history), never on actionable queues. Later EPA touches create no new action. |
+
+- **`epa_touch` is PIT-honest**: first bar t > point-5 where bull high ≥ EPA(t) / bear low ≤ EPA(t) — computable from bars ≤ as-of, replayable per §C.
+- **State ≠ age.** Age (bars since p5) is a *recency* field (D99 ranking); OPEN/CLOSED is the *actionability* state. An OPEN wave 40 bars old is actionable; a CLOSED wave 3 bars old is not. Actionable surfaces must filter by STATE (age remains a visible column + rank input).
+- **Descriptive-only stands (§C gate):** "actionable" here = *worth the analyst's attention*, never a machine buy/sell. Ledger: the raw lens is falsified as a trade signal (median −2% net, tail game); the winner profile (+2.14% OOS) is the only validated selection edge and it, too, stays a scanner.
+
+### ⚠ OPEN CLARIFICATION (do not encode until Ramana confirms)
+His sentence: *"In a bullish Wolf wave, the price cannot fall below point 2; in a bearish Wolf wave, it cannot fall below point 3."* Under the locked conventions (bull: 1·3·5 descending LOWS, 2·4 highs · bear: 1·3·5 ascending highs, 2·4 lows) neither reading is unambiguous — candidate interpretations: (a) invalidation bounds for the ride-to-5 leg (complementing the §A point-4 breach rule), (b) invalidation bounds for the post-5 ride to EPA, (c) a restatement of the §A channel gates (point 4 inside the 1-2 channel). Encoded NOWHERE until he picks; §A stays locked regardless.
+
+---
+
 ## Build status
 - **§ A** — deployed on the VPS; isolated files committed. Revert = git `74faeee` or VPS `*.bak-base` / `*.bak-port`.
 - **§ B** — **BUILT + DEPLOYED + BROWSER-VERIFIED 2026-06-25 (the port).** `detect_waves` now UNIONS the base ATR-zigzag pivots with multi-degree Williams fractals (degrees 2/5/10/20/30) — additive, never loses a base wave (Ramana's call) — validated by the UNCHANGED §A `_classify`; every wave carries the §B `score()` points-sum. Distance floor `sym_lo` 0.5→**0.2**; `fib_zones` confluence tolerance 0.6%→**2%** (so narrowness F can bucket); dedupe keeps the higher-§B copy; the ◄/► candle-overlay walk capped to the **top-40 by quality** (full list stays on `/dash/wolfe`). Both surfaces lead with the wave (dir · status · pt4 date · ₹ zone), show **Q** + the `p1·B·C·F·G·H·I·D` breakdown (chips on hover for the list). Verified live on candles: RELIANCE incl. the base-MISSED **Nov-2022** `frac@5` wave (rank ~6/37 in the walk, exact pivots) + PARAS's validated monthly bear preserved; zero console errors. Component **I** (RSI divergence) then refined (panel-resolved) to the spec-literal *rsi-min* — I=2 iff RSI(14) at point 5 is NOT the lowest (bull) / highest (bear) RSI over the decline into it `[pt4+1 .. p5-5]` — catching grind divergences (RELIANCE Nov-2022 now **I=2 / Q18**, was I=0/Q16; base rate 38.5% ≈ the analyst's ~1-in-3 at exhaustion overshoots). The skeptic's prior-swing-low+bounce variant was empirically tested and DROPPED (it missed the Nov-2022 grind divergence and under-fired at 17%). **Still DESCRIPTIVE-ONLY** — the §C edge backtest is un-run (the gate).
