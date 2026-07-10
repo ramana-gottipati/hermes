@@ -1595,7 +1595,8 @@ calculations-and-weights.md §5c, PROJECT_STATE).
   design); (3) **Structure watch** on /dash/wolfe/scan: fresh ≤15 · STR ≥ 10/11 · not-on-the-scan
   (profile fails + zone-less winners), one row per sym+dir (fractal-degree twins collapse,
   140→95 on the Jul-01 correlated low), why-not-in-scan chips = profile legs D/p1/F ✓/✗ + C as
-  context, sorted age/STR never Q, freshest-30 slice with counted show-all (never silent).
+  context, sorted age/STR never Q, freshest-60 slice with counted show-all (never silent;
+  Ramana raised 30→60 same day — TCS rendered 57th behind the Jul-01 correlated low).
   Nightly: same `--persist-scan` run persists both snapshots under `wolfe_signals` universe
   `'nifty500'` + `'nifty500:watch'` (6 nullable cols added by idempotent ALTER; legacy snapshots
   degrade to plain Q — two-tier `latest_scan`). **Write-lock discipline held:** two separate

@@ -404,7 +404,11 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
     head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up', 'Q = STR+LND')
     # ---- D98: STRUCTURE WATCH — the scan's complement (descriptive, NO edge) ---- #
     wrows_all = (watch or {}).get("rows") or []
-    _WATCH_SHOW = 30          # default display slice — NEVER a silent cap (counted link below)
+    _WATCH_SHOW = 60          # default display slice — NEVER a silent cap (counted link below).
+                              # Ramana 2026-07-10: raised 30→60 so the TCS-archetype rows a few
+                              # sessions behind a correlated selloff low stay on the default view
+                              # (his ask was "50 so TCS shows"; TCS rendered 57th that day — 50
+                              # still hid it, 60 = the minimal round value that delivers the ask).
     wrows = wrows_all if wall else wrows_all[:_WATCH_SHOW]
     wtrs = []
     for r in wrows:

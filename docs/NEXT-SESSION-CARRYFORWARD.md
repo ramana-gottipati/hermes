@@ -31,7 +31,7 @@ Shipped (panel-decided, all additive/revertible; PROJECT_STATE D98 + memory `wol
 the S89 sweep proved the old top-40-by-Q walk cap hid **55% of fresh waves** (3,121 restored by D96;
 104 TCS-archetype had NO surface) → **Q badge now displays as STR x/11 · LND y/13** (rubric untouched;
 LND INVERTS as a trade filter — gloss everywhere) + **Structure watch** section on `/dash/wolfe/scan`
-(fresh≤15 · STR≥10/11 · not-on-the-scan; 95 rows, freshest-30 shown, counted show-all; why-chips =
+(fresh≤15 · STR≥10/11 · not-on-the-scan; 95 rows, freshest-60 shown per Ramana, counted show-all; why-chips =
 profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibility.py`.
 - **RAMANA VETO ①:** the STR/LND display split of his §B Q (components/totals untouched) — revert =
   one-line if he prefers the single Q.
