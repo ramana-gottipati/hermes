@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes season-ops digest (daily 02:45 UTC = 08:15 IST)
+# NO Requires= (AUD-95-safe house pattern: arming the timer never fires the job).
+
+[Timer]
+# Daily incl. weekends: the digest is its own liveness signal — a missing morning DM
+# means breakage, so it must arrive even on no-data days.
+OnCalendar=*-*-* 02:45:00
+Persistent=false
+Unit=hermes-season-digest.service
+
+[Install]
+WantedBy=timers.target

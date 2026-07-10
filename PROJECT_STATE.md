@@ -1419,6 +1419,24 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 85 — 2026-07-10 — Season-ops digest LIVE on the Telegram path (the daily operate routine, automated)
+- **NEW `src/automation/season_digest.py`** (--send/--print/--selftest; ₹0, no LLM, read-only
+  everywhere, every section failure-isolated): one morning DM = unit health + pager fires 24h ·
+  tape freshness (AUD-29 IST anchor) · war-room fresh reporters + deliv-confirmed + the live
+  MTTR number · XBRL last-night stats parsed from the ingest-done dict + continuity-FAIL count ·
+  ASM/GSM/band-Δ state · DQ battery (named warns) · today/tomorrow results calendar with chips ·
+  backup age + disk. **Delivers even all-green — the DM is its own liveness signal** (the
+  monitors-never-page lesson); recipient = the operator id (the pager's), NOT patearn_destinations.
+- Units: `hermes-season-digest.{service,timer}` + hardening + its own 95-onfailure (**the digest
+  watches the fleet; the pager watches the digest**). Timer 02:45 UTC daily (08:15 IST), the safe
+  no-Requires/Persistent=false pattern; armed, next fire Sat — verified no immediate fire.
+- **First digest SENT live** (03:20 UTC) — and the dry run immediately out-operated the manual
+  routine: it surfaced a pager fire (hermes-pateval, the S84 lane's new strict gate, failed 03:18 —
+  11 min AFTER the manual sweep had looked) that the by-hand grep missed. Working as intended.
+- Drift-gate residue closed in passing: the pateval/corp-actions units flagged UNCAPTURED were
+  already in git — only the VPS repo-mirror was stale; server-side sync → `--check` clean
+  (converged with the sibling's `6adc79a` reading the same conclusion).
+
 ### Session 84 — 2026-07-08 — Strategies workspace rescue: launchpad 9s→0.01s · all 11 cards measured · every term explained on-card (D93; Ramana product review)
 **Trigger:** Ramana's review — "screener → strategy changeover is slow", "why are the strategy
 cards empty", "DVPT / CPR / CCI mean nothing without context", "the new strategies aren't

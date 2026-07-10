@@ -1,0 +1,9 @@
+[Unit]
+Description=Hermes season-ops digest (the daily operate routine as one Telegram DM)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.season_digest --send
+StandardOutput=append:/var/log/hermes-season-digest.log
+StandardError=append:/var/log/hermes-season-digest.log
