@@ -181,7 +181,7 @@ def _tape(conn, window: int, cls: str, sym: str, min_cr: float) -> str:
         where.append("COALESCE(value_rs,0) >= ?"); params.append(min_cr * 1e7)
     rows = conn.execute(
         "SELECT disclosure_dt, transaction_dt, symbol, category, txn_class, signal_class, "
-        "shares, value_rs, mode, amendment_flag FROM insider_events "
+        "shares, value_rs, mode, amendment_flag, source_url FROM insider_events "
         f"WHERE {' AND '.join(where)} ORDER BY disclosure_dt DESC, value_rs DESC LIMIT 400",
         params).fetchall()
     if not rows:
@@ -198,10 +198,15 @@ def _tape(conn, window: int, cls: str, sym: str, min_cr: float) -> str:
             f'<td class="l iv-mut">{_esc((r["txn_class"] or "").replace("_", " ").lower())}</td>'
             f'<td class="num" data-sort="{r["shares"] or 0}">{f"{int(r[6]):,}" if r["shares"] else "—"}</td>'
             f'<td class="num" data-sort="{r["value_rs"] or 0}">{_cr(r["value_rs"])}</td>'
-            f'<td class="l iv-mut" title="{_esc(r["mode"] or "")}">{_esc((r["mode"] or "—")[:34])}</td></tr>')
+            f'<td class="l iv-mut" title="{_esc(r["mode"] or "")}">{_esc((r["mode"] or "—")[:34])}</td>'
+            + (f'<td class="l"><a href="{_esc(r["source_url"])}" target="_blank" rel="noopener" '
+               f'title="the XBRL disclosure document on the NSE archive — the primary source '
+               f'this row was parsed from">⇗</a></td>' if r["source_url"]
+               else '<td class="l iv-mut">—</td>') + '</tr>')
     head = ('<tr><th class="l">Disclosed</th><th class="l">Symbol</th><th class="l">Who</th>'
             '<th class="l">Signal</th><th class="l">Type</th><th data-t="n">Shares</th>'
-            '<th data-t="n">Value</th><th class="l">Mode (as filed)</th></tr>')
+            '<th data-t="n">Value</th><th class="l">Mode (as filed)</th>'
+            '<th class="l" title="link to the filed XBRL document on nsearchives.nseindia.com">Filing</th></tr>')
     return (f'<div class="iv-ctrl"><input id="ivTapeF" placeholder="Filter the tape…"/>'
             f'<span class="iv-count" id="ivTapeC"></span></div>'
             f'<div style="max-height:56vh;overflow:auto"><table class="iv" id="ivTape">'
@@ -242,6 +247,9 @@ def dash_insider(window: int = 90, cls: str = "", sym: str = "",
                 'The headline reads only <b>open-market</b> buys and sells — ESOPs, gifts, inter-se transfers and '
                 'other plumbing are classified out (visible in the tape below). Revised filings supersede their '
                 'originals, so nothing is double-counted. All flows in <b>rupees, not share counts</b>. '
+                '<b>Source:</b> NSE\'s corporate-filings register + each disclosure\'s own XBRL '
+                'instance document — every tape row links (⇗) to the filed document on the NSE '
+                'archive; nothing here is scraped from a third-party site. '
                 '<a href="/dash/glossary?q=insider">glossary →</a></div>')
             body_parts.append(_tiles(aggs, flagged, as_of or ""))
             body_parts.append('<div class="iv-h">By symbol <small>— PIT roll-up, 30/90-day windows, '

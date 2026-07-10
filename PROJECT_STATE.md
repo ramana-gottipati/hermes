@@ -1478,6 +1478,11 @@ ahead with the insider activity lens"):
 - **Verified:** local (insider_view selftest populated+empty paths · registry 12 rows ·
   strategist selftest · imports · pytest 18/1) + VPS (py_compile, page/nested/filter curls
   200, card+pillar+glossary render, board_health `12 strategies measured` exit 0).
+- **Provenance made clickable (same day, Ramana "is this just scraping?"):** every tape row
+  now links (⇗) to its OWN filed XBRL document on `nsearchives.nseindia.com` (source_url is
+  populated on 10,055/10,055 rows) + an explicit source note on the page. The feed is NOT
+  third-party scraping: NSE's corporate-filings register (corporates-pit-gg) + each
+  disclosure's XBRL instance — the same documents the regulator gets.
 - **Next in the D94 queue: ② credit-rating transitions lens** (`credit_rating_events` 3,008).
 
 ### Session 84b — 2026-07-10 — Front-door parity + board-health pager: home strip 12/12 measured, hollow cards now PAGE (D94; Ramana challenge follow-through)
