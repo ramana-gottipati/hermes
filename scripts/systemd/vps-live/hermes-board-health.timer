@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes strategist-board health gate Timer (nightly, weekdays)
+# Deliberately NO Requires= (AUD-95): enabling/starting this timer mid-day must
+# only SCHEDULE the job, never fire it — the backup-timer pattern.
+
+[Timer]
+# 22:00 UTC Mon-Fri — after the ENTIRE nightly chain: bhavcopy 14:00, deals
+# 14:30, wolfe 16:00, harmonic 16:10, launchpad 16:20, reactions 18:00,
+# momentum 21:30. So a missed upstream job is caught the SAME night.
+OnCalendar=Mon..Fri *-*-* 22:00:00
+Persistent=true
+Unit=hermes-board-health.service
+
+[Install]
+WantedBy=timers.target

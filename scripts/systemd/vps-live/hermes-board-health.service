@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes patearn — strategist-board health gate (hollow/stale strategy cards page)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# Walks the same strategy_registry read the strategist board + home count-strip
+# consume; exits 2 when any card is hollow (no data) or stale -> OnFailure pages
+# (S84b, D94: a hollow card must page the night it appears, never wait for the
+# CEO to find it). Read-only, NO LLM (Rs0).
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.board_health --check
+StandardOutput=append:/var/log/hermes-board-health.log
+StandardError=append:/var/log/hermes-board-health.log

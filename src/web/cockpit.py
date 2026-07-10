@@ -387,9 +387,31 @@ STRATEGY_REGISTRY = [
      "thesis": "Do managements keep their promises? Measurable guidance-accuracy + a deterioration / ⛔veto avoid-tape, from earnings concalls. (Pilot — backfill accruing.)",
      "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM concall_scores").fetchone()["c"]},
     {"key": "LAUNCH", "label": "Launchpad", "accent": "#f0883e", "href": "/dash/launchpad",
-     "cta": "validated setup screen",
-     "thesis": "Validated explosive-move precursors (momentum-continuation ∪ coiled ∪ pullback), computed live over today's liquid universe. D56 research — net-of-costs, walk-forward-positive momentum core; a setup screen, not advice.",
-     "count": lambda conn, d, D: None},
+     "cta": "fresh triggers today",
+     "thesis": "Validated explosive-move precursors (momentum-continuation ∪ coiled ∪ pullback) from the nightly launchpad_signals snapshot. D56 research — net-of-costs, walk-forward-positive momentum core; a setup screen, not advice.",
+     # was hardcoded None ("—" on the front page) because the live scan cost ~9s;
+     # the S84 nightly snapshot removed that excuse — count the FRESH rising edge.
+     "count": lambda conn, d, D: conn.execute(
+         "SELECT COUNT(*) c FROM launchpad_signals WHERE age<=2").fetchone()["c"]},
+    {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
+     "cta": "companies committing",
+     "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",
+     "count": lambda conn, d, D: conn.execute(
+         "SELECT COUNT(DISTINCT symbol) c FROM concall_signals WHERE is_growth_intent=1 "
+         "AND COALESCE(polarity,1)>=0 AND (year*100+month) >= "
+         "(SELECT MAX(year*100+month)-100 FROM concall_signals WHERE is_growth_intent=1)"
+     ).fetchone()["c"]},
+    {"key": "MOM", "label": "Momentum", "accent": "#ffa657", "href": "/dash/markets/momentum-scan",
+     "cta": "top-decile ensemble",
+     "thesis": "Equal-weight momentum ensemble (12m · 52w-high · risk-adj · low-vol), top decile. Attribution says this is momentum BETA, not selection — a tilt you ride knowingly, never a buy list.",
+     "count": lambda conn, d, D: conn.execute(
+         "SELECT COUNT(*) c FROM momentum_scan WHERE as_of=(SELECT MAX(as_of) FROM momentum_scan) "
+         "AND ensemble_pctile>=90").fetchone()["c"]},
+    {"key": "WOLFE", "label": "Wolfe", "accent": "#8b949e", "href": "/dash/wolfe/scan",
+     "cta": "winner-profile setups",
+     "thesis": "Winner-profile wave scan from the nightly wolfe_signals snapshot — read by SIDE (bulls carried the edge in testing; bears are tail-only). Descriptive overlay.",
+     "count": lambda conn, d, D: conn.execute(
+         "SELECT COUNT(*) c FROM wolfe_signals WHERE universe='nifty500'").fetchone()["c"]},
 ]
 
 

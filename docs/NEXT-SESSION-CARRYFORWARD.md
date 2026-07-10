@@ -74,6 +74,15 @@ are now SECONDARY to the charter.
 2. **RESULTS-SEASON WATCH — LIVE THIS WEEK:** calendar shows TCS Jul-09, HCLTECH Jul-13, LTTS Jul-14,
    POLYCAB/TECHM Jul-16, HDFC/ICICI/Axis Jul-18. Watch the reaction snapshot fill in as names report +
    the XBRL bank flow (audit-era queue #2 below); the sibling's Provisions fix must land first.
+2-bis. **D94 LENS QUEUE (Ramana ask 2026-07-10 — work top-down, one per session, D93 recipe:
+   registry reader + measured card + blurb + glossary + board_health coverage; data ALREADY
+   ingested, zero new deps):** ① insider-activity lens (`insider_events` 10,055) ·
+   ② credit-rating transitions (`credit_rating_events` 3,008) · ③ SAST+pledge confluence
+   (3,582+603) · ④ SHP QoQ deltas (84,699, research.db) · ⑤ forward corp-actions calendar
+   (26,868+226) · ⑥ surveillance-transition tape (797+52). Front-door parity rule (D94):
+   any new strategy = strategist card AND home pillar AND board_health, same session.
+   `hermes-board-health.timer` (22:00 UTC) now PAGES on hollow/stale cards — if it fires,
+   fix the upstream job, don't mute the gate.
 3. **TOP CHARTER PICKS for new build:** **X-02** T2T/BE delivery-contamination mask (correctness —
    pollutes MEP/DVPT delivery signals TODAY) · **E-03** post-disclosure drift + **E-04** campaign-arcs
    (footprint pivots — pre-register the gate) · **D-02..D-05** quick primary feeds (ASM/GSM · price

@@ -476,6 +476,37 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D94 — Front-door parity + the board-health pager + the unsurfaced-data lens queue (2026-07-10, S84b)
+Ramana's follow-up challenge ("is that all you could do with the data? why are cards still
+empty? why not proactive?") exposed two things D93 missed and one it now answers:
+1. **Front-door parity RULE:** every strategy measured on `/dash/strategist` MUST also be a
+   MEASURED pillar on the home count-strip (`cockpit.STRATEGY_REGISTRY`) — the front page is
+   the first surface the CEO/customer walks. Fixed: LAUNCH's hardcoded `count: None` (the
+   "—" tile existed BECAUSE the scan cost 9s pre-D93 — the excuse died with the snapshot,
+   the sweep was missed = the audit's "fixes never class-swept" theme) now counts fresh
+   triggers; GROWTH / MOMENTUM / WOLFE pillars added (12 measured pillars). The one
+   remaining "—" on home is a per-stock `ca-neu` pill (honest no-C-score display, correct).
+2. **Hollow cards must PAGE, not wait for the CEO:** new `src/automation/board_health.py` +
+   `hermes-board-health.timer` (22:00 UTC Mon-Fri, after the whole chain incl. momentum
+   21:30; Requires-free; OnFailure=hermes-alert@). FAIL(2) on any card with no data or
+   stale-beyond-budget; WARN on zero-flagged-with-fresh-data (legit market condition).
+   Proof both ways: prod first run = `11 strategies measured, exit 0`; the laptop stub
+   correctly FAILs (6 hollow + 4 stale) — detection demonstrated, not assumed.
+3. **The unsurfaced-data lens queue (DECIDED, ordered; all data already ingested nightly —
+   zero new dependencies, all primary-source):** each = registry reader + measured card +
+   blurb + glossary + board_health coverage (the D93 recipe):
+   1. **Insider-activity lens** — `insider_events` 10,055 rows (AUD-08 supersede-fixed).
+   2. **Credit-rating transitions lens** — `credit_rating_events` 3,008 rows.
+   3. **SAST + pledge confluence board** — `sast_reg29_events` 3,582 + `sast_pledge_events`
+      603 (dataset-roadmap idea, now dated + ordered).
+   4. **SHP QoQ delta lens** — `shareholding_history` 84,699 rows (promoter/FII/DII deltas).
+   5. **Forward corporate-actions calendar** — `corporate_actions` 26,868 + `security_events`
+      226 (sibling of the board-meetings war-room calendar).
+   6. **Surveillance-transition tape** — `surveillance_flags` 797 + `price_band_events` 52
+      (ASM/GSM entry/exit + band tightenings; context, never a gate — glossary exists).
+   Next session starts at #1. ~130K primary-source event rows currently reach no decision
+   surface — that is the honest answer to "is that all the data can do": no.
+
 ### D93 — Strategies board: every card MEASURED + EXPLAINED; whole-universe lenses must be nightly-persisted, never render-time (2026-07-08, S84)
 Ramana's product review (S84) found the Strategies workspace failing its front-door job: 4 of 10
 cards permanently hollow ("—", "Open the lens →"), /dash/launchpad taking **9s per request**
@@ -1418,6 +1449,30 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 84b — 2026-07-10 — Front-door parity + board-health pager: home strip 12/12 measured, hollow cards now PAGE (D94; Ramana challenge follow-through)
+**Trigger:** Ramana — "is that all you could do with the data? why are so many cards empty?
+why not proactive?" Live re-walk found the strategist board HOLDING (0 empty) but the HOME
+count-strip hollow: `cockpit.STRATEGY_REGISTRY` had LAUNCH hardcoded `count: None` (the "—"
+tile survived D93 — the 9s-scan excuse died with the snapshot but the sweep was missed) and
+NO pillars for growth/momentum/wolfe. Shipped + live-verified (writer-safe restart; verify-
+then-swap, cockpit md5 == HEAD pre-edit):
+- **Home strip 8 → 12 pillars, ALL measured:** LAUNCH = fresh triggers from
+  `launchpad_signals` (age≤2) · +GROWTH (concall growth-intent, 12m distinct) · +MOM
+  (ensemble ≥90th at latest scan, beta-honest thesis) · +WOLFE (nifty500 snapshot count).
+  Live: only remaining "—" on home = a per-stock `ca-neu` pill (correct no-C-score display).
+- **`board_health.py` + `hermes-board-health.timer` (22:00 UTC Mon-Fri, Requires-free,
+  OnFailure=hermes-alert@):** FAIL→page on hollow/stale cards, WARN on zero-flagged-fresh.
+  Prod first run: `board-health OK: 11 strategies measured` (conviction 31 · dvpt 280 ·
+  mep 957 · cpr 572 · rs 130 · cci 137 · growth 715 · launchpad 82 · momentum 22 ·
+  reactions 158 · wolfe 76, all as-of 2026-07-09). Laptop stub correctly FAILs
+  (6 hollow + 4 stale) — the detector detects.
+- **D94 recorded:** front-door parity rule + the 6-lens unsurfaced-data queue (~130K
+  primary-source event rows with no decision surface today: insider 10,055 ·
+  credit-rating 3,008 · SAST 3,582+603 · SHP 84,699 · corp-actions 26,868+226 ·
+  surveillance 797+52). Next session starts at queue #1 (insider-activity lens).
+- Units synced to the VPS vps-live mirror at deploy time (the Jul-10 mirror rule) —
+  drift gate stays exit-clean.
 
 ### Session 85d — 2026-07-10 — SHP lag calibration ARMED for the Reg-31 flood (self-executing min-N gate; data-perfection lane)
 Ramana: "go ahead with the SHP lag calibration when Reg-31 lands." Encoded as CODE, not a scheduler
