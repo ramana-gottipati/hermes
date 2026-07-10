@@ -1752,7 +1752,7 @@ audit doc; the exact fix prescription (routes/resources/signal_events lines) fol
   selftest (TestClient over the real app); a live-key curl awaits key provisioning.
 - Harness TIL: AskUserQuestion-free autonomy held; the day's rule reconfirmed — assert
   invariants, not environment constants, in cross-box selftests.
-- Commit: (hash added at wrap).
+- Commit: `56c731a`.
 
 ### Session 99 — 2026-07-10 — Open-items assessment (dedicated triage lane): ~90 candidates classified · 2 stale markers fixed in canonical homes · Assessment section appended to carry-forward
 Docs-only triage session (no `src/`/`scripts/` changes). Swept: PROJECT_STATE § "What's NOT yet
