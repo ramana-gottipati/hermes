@@ -15,8 +15,14 @@
  *   - Fail-open on ANY internal error, non-git dirs, and repos without a
  *     PROJECT_STATE.md at their root. A broken gate must never block all commits.
  *
+ * Compound commands: the hook runs BEFORE the Bash call, so `git add X && git commit`
+ * would see a pre-add index. When the command carries a `git add`, its pathspecs are
+ * expanded via `git ls-files -mod` and unioned into the staged set (add -A/. => all
+ * modified+untracked+deleted), so single-line add+commit flows are gated correctly.
+ *
  * Known accepted gaps (kept simple on purpose):
  *   - `git commit <pathspec>` commits are judged by the index, not the pathspec.
+ *   - Commands run from a subdirectory report paths relative to it (repo-root flows are the norm).
  *   - A quoted literal like echo "git commit" can false-positive; state:skip covers it.
  */
 'use strict';
@@ -58,6 +64,23 @@ process.stdin.on('end', () => {
     // modified tracked files that aren't staged yet.
     if (/(^|\s)--all\b/.test(cmd) || /(^|\s)-[A-Za-z]*a[A-Za-z]*\b/.test(cmd)) {
       staged = staged.concat(run('git diff --name-only').split(/\r?\n/).filter(Boolean));
+    }
+
+    // Compound `git add ... && git commit` in ONE call: the add hasn't run yet at hook
+    // time, so expand the add's pathspecs (git itself resolves globs/dirs) and union them.
+    const addMatch = /\bgit\s+add\b/.test(cmd) && cmd.match(/\bgit\s+add\s+([^&;|]*)/);
+    if (addMatch) {
+      const toks = addMatch[1]
+        .split(/\s+/)
+        .map((t) => t.replace(/^["']|["']$/g, ''))
+        .filter((t) => t && !t.startsWith('-'));
+      try {
+        const spec = toks.length ? toks.join(' ') : '.';
+        const expanded = run('git ls-files -m -o -d --exclude-standard -- ' + spec);
+        staged = staged.concat(expanded.split(/\r?\n/).filter(Boolean));
+      } catch (_) {
+        /* unparseable pathspec -> fall back to index-only view (fail-open) */
+      }
     }
     if (!staged.length) return finish(0);
 
