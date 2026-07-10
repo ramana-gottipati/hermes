@@ -7,7 +7,46 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## 🥇 S96 WRAP (2026-07-10, season lane) — P-04 SHIPPED; the estate is armed + watch-dated
+## 🥇 S98 WRAP (2026-07-10) — S97's promised heal LANDED: 28 in-row-compound symbols · reconcile 77→6
+**✅ D103 residue closed (S98):** the S97 wrap promised "the four-leg heal of every factor-
+changed symbol: counts AMENDED below when the run lands." This session ran it. Diagnosis
+(`/tmp/s98_survey.py`): `_group_price_legs` returns >1 leg on **28 distinct single-row
+filings** — for each, pre-S97 parser saw only the first leg, so the stored adjusted-close
+history was scaled by the wrong factor. Impact scale (from `/tmp/s98_check_factors.py`):
+ONGC 2011-02-08 fixed 0.25 vs naive 1.0 · TITAN 2011-06-23 fixed 0.05 vs 1.0 · TECHM
+2015-03-19 fixed 0.25 vs 1.0 · BAJFINANCE 2016-09-08 fixed 0.10 vs 1.0 · HINDZINC · MMTC ·
+VAKRANGEE — marquee nifty500 in the set. **Heal driver `/tmp/s98_heal.py`** (VPS scratch,
+S94 `heal92b.py` pattern; per-symbol commits, resume-safe `/tmp/s98_heal.done`): 4-leg walk
+per symbol — cpr D/W/M/H (`process_symbol`) + triggers + mep + keyprice; each reads a fresh
+`_action_events` so post-S97 legs propagate through. **27/27 OK, 0 failures, ~5.7 min wall
+time** (per-sym 2.3–41.6s). Anchor CPR unchanged (2026-07-09 ONGC pivot 245.61 sane); the
+pre-2011 history is now on the correct base (ONGC 2011-02-07 pivot 174.08 → 181.71).
+**Reconcile amendment: 77 → 6 TAPE_SUSPECT** (S85e baseline 77 · S97 parser+gate 11 ·
+`72c4ce4` second-pass + this heal → 6). Post-heal detail: `{NO_RATIO_CAUGHT:128,
+CAUGHT_FALLBACK:947, NO_BHAV:144, TAPE_SUSPECT:6, MISSED_DEAD_ZONE:118, NO_RATIO_UNCAUGHT:10,
+NEGLIGIBLE:1}` over 1,354 groups. Residual 6 are genuinely-fenced parse-quirks (no
+recoverable ratio) — descriptive-only, no further action. Selftests: adjust 7/7 ·
+corp_actions 17/17 (all S96+S97 checks). Dossier `/dash/stock?symbol=ONGC|TECHM` both 200.
+Session ships only PROJECT_STATE + this carry-forward (no `src/`/`scripts/`); state-doc
+gate silent. **No S98 open loop remains.**
+**Verifies still due this session-end (armed timers, first fires TODAY/tomorrow — treat as
+active watches):**
+· **hermes-slb.timer** 15:16 UTC Jul-10 (armed 09:20; drift-clean; next journal must show
+  Finished + `/var/log/hermes-slb.log` one clean line + rows for 2026-07-10 in
+  `slb_volumes`+`slb_open_positions`)
+· **hermes-wolfe-scan.timer** 16:04 UTC Jul-10 (D101/D102 first scheduled run under the
+  three-snapshot code — journal must show `persisted N winner-profile setups + M
+  structure-watch rows + K approaching-5 rows`; runtime ~9-15 min)
+· **hermes-results-reactions.timer** 18:01 UTC Jul-10 (first evening after TCS reported —
+  MTTR box on `/dash/results-reactions` + evidence-pack should show fresh `first_seen`)
+· **hermes-board-health.timer** 22:01 UTC Jul-10 (silent = green; a page = a hollow
+  strategy card — fix upstream, never mute the pager)
+· **hermes-season-digest.timer** Sat Jul-11 02:45 UTC (**first DM ever**; missing = real
+  bug per S96 note — page it, do NOT `systemctl start` mid-day per AUD-95)
+· **hermes-fundamentals-provenance.timer** Sat Jul-11 21:00 UTC (S84 4h ceiling — journal
+  Finished + 2767/2767; a scheduled task tracks it separately)
+
+## 🥈 S96 WRAP (2026-07-10, season lane) — P-04 SHIPPED; the estate is armed + watch-dated
 **✅ P-04 evidence pack LIVE (S96): `/dash/evidence-pack`** — print-CSS procurement assembly
 (browser print→PDF, zero deps): 8 P-03 sheets IMPORTED verbatim + coverage boundary
 (glance/matrix/COPY_*) + live season MTTR/placebo + replay pointer (no returns quoted). Trust
@@ -334,15 +373,24 @@ its owner session deletes it.
 
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously.
-> **The charter §3 NOW queue is SWEPT (S95) and the D94 lens queue is COMPLETE (S92) — the
-> roadmap altitude is now charter §4 NEXT + §7 idea bank.** Boot per `docs/SESSION-PROTOCOL.md`,
-> read the 🏁/🧰/🌊 blocks at the TOP of `docs/NEXT-SESSION-CARRYFORWARD.md`, then:
-> (1) run the WRAP-REPORT verifies (SLB first run · board-health first fire · the Wolfe
-> new-unit run; the Sat provenance check is already a scheduled task — skip it);
+> **State on 2026-07-10 wrap:** charter §3 NOW queue SWEPT (S95); D94 lens queue COMPLETE
+> 6/6 (S92); P-04 evidence pack LIVE (S96); **D103 residue closed (S98) — 28 in-row-compound
+> symbols healed 4-leg, reconcile 77 → 6 TAPE_SUSPECT (baseline S85e → S97 parser → S98
+> heal). No S94/S97/S98 residue open.** Roadmap altitude = charter §4 NEXT + §7 idea bank.
+> Boot per `docs/SESSION-PROTOCOL.md`, read the 🥇/🧰/🌊 blocks at the TOP of
+> `docs/NEXT-SESSION-CARRYFORWARD.md`, then:
+> (1) run the WRAP-REPORT verifies (5 timers listed in the S98 block — SLB / Wolfe /
+> results-reactions / board-health first fires Jul-10 + season-digest first-DM Sat Jul-11
+> 02:45 UTC — a missing DM is a real bug, do NOT `systemctl start` mid-day per AUD-95;
+> Sat 21:00 provenance is on its own scheduled task, skip);
 > (2) kickstart-pick-verify the next build from charter §4/§7 — the E-studies are ARMED and
-> self-gating (E-02 fires Jul-22; E-04/E-14 depth-gated; do NOT run them early), so prefer
-> product/consumption picks (~~P-04~~ **SHIPPED S96** — next: Wolfe lifecycle R3/R4/R6 per
-> the S89 block, or P-05 replay-any-date API which needs AUD-38 as_of plumbing FIRST)
+> self-gating (E-02 Jul-22; E-04/E-14 depth-gated; do NOT run early). Prefer
+> product/consumption picks. **Deprioritized: P-04 (S96) · E-10 (S93) · D103 heal (S98).**
+> **Live candidates:** X-04 overnight/intraday split + pump-flag · X-05 band-lock streak
+> board (data flowing since S83c `price_band_events`) · X-06 Amihud illiquidity migration
+> delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price shelves · D-06
+> announcement-category taxonomy → E-07 auditor-resignation red-flag · P-05 replay-any-date
+> API (needs AUD-38 as_of plumbing FIRST or the demo lies)
 > unless a study's gate has newly reconciled; ALSO verify the first-ever season-digest DM
 > (Sat Jul-11 02:45 UTC — a missing DM = real bug, see the S96 block);
 > (3) respect the standing fences: 17 gated lenses stay DESCRIPTIVE with their honesty

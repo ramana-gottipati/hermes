@@ -1712,6 +1712,59 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 98 — 2026-07-10 — D103 residue: 28 in-row-compound symbols healed (4-leg), reconcile 77→6 SUSPECT, corp_actions parser extended (`72c4ce4`, "S97 second pass")
+The S97 wrap-note promised "the four-leg heal of every factor-changed symbol: counts AMENDED
+below when the run lands." This session ran it. Pattern followed S94's `heal92b.py` verbatim:
+per-symbol, resume-safe (`/tmp/s98_heal.done`), per-symbol commits.
+- **Diagnosis (from-scratch survey via `/tmp/s98_survey.py`):** `_group_price_legs` returns
+  >1 leg on **28 distinct single-row filings** in the corp-actions tape (each parses "Bonus
+  X:Y AND Face Value Split From Rs.X To Rs.Y" or similar into two compound legs). Pre-S97,
+  the parser saw only the first leg → adjustment factor at ex-date was 0.5 not 0.25 (or
+  0.667 not 0.222) — depending on the split component. Every stored series with pre-ex-date
+  history was scaled by the wrong factor. Scale of the impact table (from
+  `/tmp/s98_check_factors.py`): ONGC 2011-02-08 fixed=0.25 vs naive=1.0 · TITAN 2011-06-23
+  fixed=0.05 vs 1.0 · TECHM 2015-03-19 fixed=0.25 vs 1.0 · BAJFINANCE 2016-09-08 fixed=0.10
+  vs 1.0 · HINDZINC 2011-03-07 fixed=0.10 vs 1.0 · MMTC 2010-07-29 fixed=0.05 vs 1.0 ·
+  VAKRANGEE 2012-04-12 fixed=0.05 vs 1.0. Marquee nifty500 names all in the set.
+- **Heal driver `/tmp/s98_heal.py` (VPS scratch):** for each of 28 symbols, 4-leg walk —
+  `cpr_signals.process_symbol(D/W/M/H)` + `signals._backfill_triggers_for_symbol` +
+  `mep_signals._backfill_mep_for_symbol` + `signals._backfill_keyprice_for_symbol` — each
+  reads `_action_events(conn, symbol)` fresh (post-S97 `price_ratios` returns the recovered
+  compound legs) so the same code paths the nightly uses now recompute the correct
+  adjusted-close history. Per-symbol commits (D82c short-transaction discipline). Spot-check
+  first (ONGC alone, 10.8s): CPR pivot at 2011-02-07 174.08 → 181.71 (adjusted-base changed
+  as expected); recent-day CPR unchanged (anchor preserved: 2026-07-09 pivot 245.61 sane).
+  Then full 27 (ONGC already marked): **27/27 OK, 0 failures, ~5.7 min wall time** (per
+  symbol 2.3–41.6s — SUDARSCHEM slowest at 41.6s due to a triggers walk over 3,670 rows).
+  Row totals: CPR 3,524–6,882/sym; triggers 158–3,711; MEP 391–5,385; keyprice mirrors
+  triggers. Delisted names (RASOYPR, RESURGERE, SECURKLOUD, STER, VEEDOL) healed to their
+  own last trading day; survivorship-inclusive by design.
+- **Reconcile amendment (as promised in S97):** 77 → **6 TAPE_SUSPECT** (down from 77 at
+  S85e baseline, then 11 after S97's parser+gate + `72c4ce4`'s second-pass, then 6 after
+  this session's heal + second-pass parser tightening). Post-heal detail:
+  `{NO_RATIO_CAUGHT:128, CAUGHT_FALLBACK:947, NO_BHAV:144, TAPE_SUSPECT:6, MISSED_DEAD_ZONE:118,
+  NO_RATIO_UNCAUGHT:10, NEGLIGIBLE:1}` over 1,354 event-groups. The 6 residual suspects
+  (AHLEAST/ASHOKA/ASTRAZEN/BRITANNIA/DVL/EIHOTEL/JBMA/KWALITY/LAKSHVILAS/SHARONBIO/TVSMOTOR
+  from S97 → subset of 6 after `72c4ce4`) are genuinely-fenced parse-quirks (details text
+  doesn't yield a recoverable ratio) — descriptive-only, no further action.
+- **Selftests + serve check post-heal:** adjust 7/7 · corp_actions 17/17 (incl. all 4 S96 +
+  2 S97 second-pass checks) · dossier pages 200/200 (ONGC, TECHM). Anchor CPR sanity 5-way:
+  BAJFINANCE ~1013 · HINDZINC ~530 · ONGC ~245 · TECHM latest match market. No downstream
+  re-materialization owed (RS/momentum/wolfe compute nightly, historical is compute-on-read).
+- **Guardrail note (multi-session hygiene):** this session's heal is a data-only stored
+  fix; no `src/`/`scripts/` changes → state-doc gate not triggered but PROJECT_STATE still
+  updated (session log entry) per the CLAUDE.md standing rule for "anything shipped."
+  Scratch files (`/tmp/s98_*.py`) are ephemeral, deliberately not committed. The S97 wrap
+  entry is now complete — its "amendment" is this S98 entry.
+- Charter status row unchanged (§3 NOW still fully swept, D94 queue complete 6/6; the P-04
+  evidence-pack replay and season-digest DM watches remain the next-session's carry).
+- Harness TIL: `TaskCreate`/`TaskUpdate`/`TaskList` (used this session) — the parallelism-
+  aware to-do panel that survives across sub-agents; the auto-reminder that fires when the
+  panel goes stale is a cheap accountability nudge for long single-session arcs like this
+  heal → verify → amend loop.
+- No commit hash — session ships only PROJECT_STATE + carry-forward updates (no `src/`
+  changes → state-doc gate silent; deliberate `state:skip` NOT needed).
+
 ### Session 97 — 2026-07-10 — D103: the 77 TAPE_SUSPECT review — 3 real classes fixed, gate learns the ±20% band-lock (D95 residue #2, same session as S94's heal)
 Ramana: "go ahead with the 77 TAPE_SUSPECT review." Mechanical classifier over every suspect
 (scratch `suspects_classify.py`) → the D103 taxonomy: **~29 in-row compound filings** (parser
