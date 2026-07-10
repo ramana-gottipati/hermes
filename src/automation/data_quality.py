@@ -438,6 +438,35 @@ def chk_fund_leak(c) -> dict:
     return _check("fund.leak", SEV_OK, 0, f"ranked outputs fund-free ({n_class} FUND instruments classified)")
 
 
+def chk_action_tape_agreement(c) -> dict:
+    """S85e forward guard: recent SPLIT/BONUS/CONSOLIDATION tape events vs the observed
+    ex-day move. TAPE_SUSPECT (disagreement beyond the adjust tolerance) = parse/NSE
+    quirk → WARN for review (the gate refuses these, so series stay safe). Dead-zone
+    events (3–30% move) are factor-correct for tape-wired consumers (signals) but still
+    invisible to the not-yet-wired ones (mep/cpr/stock_rs/wolfe) → surfaced as INFO
+    until that adoption wave completes."""
+    if not _table_exists(c, "corporate_actions"):
+        return _check("action.tape_agreement", SEV_OK, 0, "tape absent")
+    try:
+        from src.automation.corp_actions import reconcile
+        rec = reconcile(c, since=(date.today() - timedelta(days=45)).isoformat())
+    except Exception as e:  # noqa: BLE001
+        return _check("action.tape_agreement", SEV_INFO, 0, f"reconcile unavailable: {e}")
+    sus = rec["counts"].get("TAPE_SUSPECT", 0)
+    dz = rec["counts"].get("MISSED_DEAD_ZONE", 0)
+    if sus:
+        return _check("action.tape_agreement", SEV_WARN, sus,
+                      f"{sus} recent tape event(s) disagree with the observed ex-day move "
+                      f"(parse/NSE quirk — review; the tolerance gate refused them); "
+                      f"{dz} dead-zone event(s)", rec["detail"]["TAPE_SUSPECT"][:5])
+    msg = f"{rec['groups']} recent action-groups reconcile clean"
+    if dz:
+        msg += (f"; {dz} dead-zone event(s) — tape-wired consumers adjust these, "
+                f"un-wired (mep/cpr/rs/wolfe) still miss them")
+    return _check("action.tape_agreement", SEV_INFO if dz else SEV_OK, dz, msg,
+                  rec["detail"]["MISSED_DEAD_ZONE"][:5])
+
+
 def chk_table_census(c) -> dict:
     """D91 census guard: the machine snapshot must stay fresh, and no data table may
     silently SHRINK >20% day-over-day (the truncation/purge signature — the class the
@@ -551,7 +580,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_universe_drift, (c,)), (chk_feed_freshness, (c,)),
             (chk_derived_liveness, (c,)), (chk_index_name_variants, (c,)),
             (chk_t2t_universe, (c,)), (chk_fund_leak, (c,)),
-            (chk_table_census, (c,)),
+            (chk_table_census, (c,)), (chk_action_tape_agreement, (c,)),
             (chk_restatement_spike, (r,)),
         ]
         for fn, fargs in plan:

@@ -58,6 +58,19 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from src.automation.adjust import adjusted_closes, adjustment_factors
+
+
+def _action_events(conn, symbol: str) -> dict:
+    """Authoritative corporate-action price ratios for the tape-primary adjustment layer
+    (S85e: the prev_close detector never fired on this archive, so sub-30% actions — a 1:3
+    bonus ≈ −25% — were invisible to the inference; the tape closes that dead zone).
+    Empty dict when the tape is absent/unreadable — the inference layers then stand alone,
+    exactly the legacy behavior."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a signals compute
+        return {}
 from src.core.db import get_conn
 
 # D31 windowing — calendar days (NOT trading days).
@@ -293,13 +306,15 @@ def _character_metrics(dates: list, adj: list, deliv_value: list,
     }
 
 
-def _character_arrays(asc_rows: list) -> tuple:
+def _character_arrays(asc_rows: list, events: dict = None) -> tuple:
     """Build the per-symbol arrays _character_metrics needs from bhav rows
     ordered OLDEST→NEWEST. Each row needs close/prev_close/deliv_qty/
-    num_trades/deliv_per."""
+    num_trades/deliv_per. ``events`` = the corporate-action ratio tape
+    (tape-primary adjustment; None → legacy inference only)."""
     closes = [r["close"] for r in asc_rows]
-    adj = adjusted_closes([{"close": r["close"], "prev_close": r["prev_close"]}
-                           for r in asc_rows])
+    adj = adjusted_closes([{"trade_date": r["trade_date"], "close": r["close"],
+                            "prev_close": r["prev_close"]}
+                           for r in asc_rows], events)
     # CL-MDC-01: delivery VALUE must be split-invariant over the 1m/6m ratio
     # window — use the ADJUSTED close (same basis as accum_price_drift), NOT the
     # raw close. A split inside the ≤180d window would otherwise put deliv_qty
@@ -414,9 +429,10 @@ def _key_price_metrics(dates, dvpts, avg_prices, deliv_qtys, closes,
     return out
 
 
-def _key_price_arrays(asc_rows) -> tuple:
+def _key_price_arrays(asc_rows, events: dict = None) -> tuple:
     """Per-symbol arrays for _key_price_metrics from bhav rows OLDEST→NEWEST.
-    Each row needs close/avg_price/value/volume/deliv_qty/num_trades."""
+    Each row needs close/avg_price/value/volume/deliv_qty/num_trades.
+    ``events`` = the corporate-action ratio tape (tape-primary adjustment)."""
     dates      = [r["trade_date"] for r in asc_rows]
     dvpts      = [_delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
                   for r in asc_rows]
@@ -428,9 +444,9 @@ def _key_price_arrays(asc_rows) -> tuple:
     num_trades = [r["num_trades"] for r in asc_rows]
     # split/bonus back-adjustment factors (newest row = 1.0) so key_price averages
     # prices on ONE basis — a split inside a window no longer mixes pre/post scales.
-    factors    = adjustment_factors([{"close": r["close"],
+    factors    = adjustment_factors([{"trade_date": r["trade_date"], "close": r["close"],
                                       "prev_close": (r["prev_close"] if "prev_close" in r.keys() else None)}
-                                     for r in asc_rows])
+                                     for r in asc_rows], events)
     return dates, dvpts, avg_prices, deliv_qtys, closes, values, volumes, num_trades, factors
 
 
@@ -608,7 +624,8 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     # the newest row, so its index in the ascending arrays is the last one.
     asc = list(reversed(rows))
     dates_a = [r["trade_date"] for r in asc]
-    adj_a, dv_a, nt_a, dp_a, rs_a, val_a = _character_arrays(asc)
+    events = _action_events(conn, symbol)                 # authoritative action tape (S85e)
+    adj_a, dv_a, nt_a, dp_a, rs_a, val_a = _character_arrays(asc, events)
     cm = _character_metrics(dates_a, adj_a, dv_a, nt_a, dp_a, rs_a, val_a, len(asc) - 1)
     signal.update(cm)
     signal["accum_character"] = accum_character(
@@ -619,7 +636,7 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     # --- D44 value-weighted key price + entry/ticket/surge (ADDITIVE) ------
     # Reuses the same oldest→newest `asc` rows; computes only the 15 NEW
     # columns and never touches anything set above.
-    kp_arrays = _key_price_arrays(asc)
+    kp_arrays = _key_price_arrays(asc, events)
     signal.update(_key_price_metrics(*kp_arrays, len(asc) - 1))
 
     return signal
@@ -841,7 +858,8 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
     date_to_idx = {d: i for i, d in enumerate(dates)}
 
     # D43 character arrays (oldest→newest, matching `bhav`/`dates` ordering).
-    char_adj, char_dv, char_nt, char_dp, char_rs, char_val = _character_arrays(bhav)
+    char_adj, char_dv, char_nt, char_dp, char_rs, char_val = _character_arrays(
+        bhav, _action_events(conn, symbol))
 
     # Running ATH-DVPT max over strictly-prior history.
     prior_max = None
@@ -1076,7 +1094,7 @@ def _backfill_keyprice_for_symbol(conn, symbol: str) -> int:
     if not bhav:
         return 0
 
-    arrays = _key_price_arrays(bhav)
+    arrays = _key_price_arrays(bhav, _action_events(conn, symbol))
     dates = arrays[0]
     date_to_idx = {d: j for j, d in enumerate(dates)}
 

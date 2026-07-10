@@ -179,6 +179,94 @@ def store_actions(rows: list, conn=None) -> int:
             cm.__exit__(None, None, None)
 
 
+# ── the adjustment-tape read side (S85e reconciliation) ──────────────────────
+
+def price_ratios(conn, symbol: str) -> dict:
+    """{ex_date: implied PRICE ratio} for a symbol's SPLIT / BONUS / CONSOLIDATION rows
+    with parsed ratios — same-day events COMPOUND (a split and a bonus sharing one
+    ex-date multiply, e.g. RNBDENIMS 2026-04-02: 2→1 split × 1:2 bonus = 0.5 × 1/3).
+
+      SPLIT / CONSOLIDATION  F→T : price × T/F
+      BONUS m:n (m new per n held): price × n/(m+n)
+
+    The consumer (adjust.adjustment_factors ``events=``) tolerance-gates every ratio
+    against the observed ex-day move, so an unparsed / mis-dated / suspect tape row can
+    never corrupt a series — worst case the inference layers stand alone (legacy)."""
+    out: dict = {}
+    for at, ex, rf, rt in conn.execute(
+            "SELECT action_type, ex_date, ratio_from, ratio_to FROM corporate_actions "
+            "WHERE symbol=? AND action_type IN ('SPLIT','BONUS','CONSOLIDATION') "
+            "AND ex_date IS NOT NULL", (symbol,)):
+        if not rf or not rt or rf <= 0 or rt <= 0:
+            continue
+        r = (rt / rf) if at in ("SPLIT", "CONSOLIDATION") else (rt / (rf + rt))
+        out[ex] = out.get(ex, 1.0) * r
+    return {k: v for k, v in out.items() if 0.02 < v < 50 and abs(v - 1) >= 0.001}
+
+
+def reconcile(conn, since: Optional[str] = None) -> dict:
+    """Adjust-vs-tape reconciliation: classify every SPLIT/BONUS/CONSOLIDATION event-group
+    (symbol × ex_date; same-day events compound) against the observed ex-day close move.
+
+      CAUGHT_FALLBACK   move > CC_THRESH → the legacy jump-fallback adjusted it
+      MISSED_DEAD_ZONE  3%..30% move, tape+observed agree → NO inferred factor existed
+                        (the S85e defect class; tape-wired consumers now adjust these)
+      TAPE_SUSPECT      implied vs observed disagree > tape tolerance → parse/NSE quirk,
+                        review — the gate refuses these, inference stands
+      NO_RATIO_*        tape row lacks a parsed ratio (fallback may still catch)
+      NO_BHAV           no trading rows at the ex-date (delisted/SME) — nothing to adjust
+      NEGLIGIBLE        implied move < 3% (below detector scale)
+
+    Full-history audit 2026-07-10: 888 CAUGHT / 112 MISSED (92 symbols) / 77 SUSPECT
+    / 144 NO_BHAV / 132 NO_RATIO / 1 NEGLIGIBLE — recorded in PROJECT_STATE S85e."""
+    from src.automation.adjust import CC_THRESH, _TAPE_TOL
+    where = "AND ex_date >= ?" if since else ""
+    args = (since,) if since else ()
+    evs = conn.execute(
+        f"SELECT symbol, action_type, ex_date, ratio_from, ratio_to FROM corporate_actions "
+        f"WHERE action_type IN ('SPLIT','BONUS','CONSOLIDATION') AND ex_date IS NOT NULL {where} "
+        f"ORDER BY symbol, ex_date", args).fetchall()
+    groups: dict = {}
+    for sym, at, ex, rf, rt in evs:
+        groups.setdefault((sym, ex), []).append((at, rf, rt))
+    counts: dict = {}
+    detail: dict = {"MISSED_DEAD_ZONE": [], "TAPE_SUSPECT": []}
+
+    def bump(k):
+        counts[k] = counts.get(k, 0) + 1
+
+    for (sym, ex), grp in sorted(groups.items()):
+        implied, have_ratio = 1.0, True
+        for at, rf, rt in grp:
+            if not rf or not rt or rf <= 0 or rt <= 0:
+                have_ratio = False
+                continue
+            implied *= (rt / rf) if at in ("SPLIT", "CONSOLIDATION") else (rt / (rf + rt))
+        rows = conn.execute(
+            "SELECT trade_date, close FROM bhavcopy_rows WHERE symbol=? AND series IN ('EQ','BE','BZ') "
+            "AND trade_date<=? ORDER BY trade_date DESC LIMIT 2", (sym, ex)).fetchall()
+        if len(rows) < 2 or rows[0][0] != ex or not rows[1][1] or not rows[0][1]:
+            bump("NO_BHAV")
+            continue
+        observed = rows[0][1] / rows[1][1]
+        caught = abs(observed - 1) > CC_THRESH and 0.02 < observed < 50
+        if not have_ratio:
+            bump("NO_RATIO_CAUGHT" if caught else "NO_RATIO_UNCAUGHT")
+            continue
+        if abs(implied - 1) < 0.03:
+            bump("NEGLIGIBLE")
+            continue
+        if abs(observed / implied - 1) > _TAPE_TOL:
+            bump("TAPE_SUSPECT")
+            detail["TAPE_SUSPECT"].append((sym, ex, round(implied, 3), round(observed, 3)))
+        elif caught:
+            bump("CAUGHT_FALLBACK")
+        else:
+            bump("MISSED_DEAD_ZONE")
+            detail["MISSED_DEAD_ZONE"].append((sym, ex, round(implied, 3), round(observed, 3)))
+    return {"groups": len(groups), "counts": counts, "detail": detail}
+
+
 # ── network (VPS; not exercised by --selftest) ───────────────────────────────
 
 def _nse_session():
@@ -317,6 +405,32 @@ def _selftest() -> int:
     check("store inserts 4 then 0 (idempotent)", n1 == 4 and n2 == 0)
     check("rowcount counts real inserts only",
           con.execute("SELECT COUNT(*) FROM corporate_actions").fetchone()[0] == 4)
+
+    # price_ratios: the adjustment-tape read side (S85e)
+    con.execute("CREATE TABLE bhavcopy_rows (symbol TEXT, trade_date TEXT, series TEXT, close REAL)")
+    cub = normalize_api_row({"symbol": "CUB", "subject": "Bonus 1:3", "exDate": "12-Jun-2026"})
+    rnb_s = normalize_api_row({"symbol": "RNB", "subject":
+                               "Face Value Split (Sub-Division) - From Rs 2/- Per Share To Re 1/- Per Share",
+                               "exDate": "02-Apr-2026"})
+    rnb_b = normalize_api_row({"symbol": "RNB", "subject": "Bonus 1:2", "exDate": "02-Apr-2026"})
+    store_actions([cub, rnb_s, rnb_b], conn=con)
+    pr = price_ratios(con, "CUB")
+    check("bonus 1:3 -> price x 0.75", abs(pr["2026-06-12"] - 0.75) < 1e-9)
+    pr2 = price_ratios(con, "RNB")
+    # split 2→1 = ×0.5; bonus 1:2 (1 new per 2 held) = ×2/3 → compound exactly 1/3
+    check("same-day split x bonus COMPOUND (0.5 x 2/3 = 1/3)", abs(pr2["2026-04-02"] - (1.0 / 3)) < 1e-9)
+    check("dividend/demerger never in the ratio tape", price_ratios(con, "RELIANCE") == {})
+
+    # reconcile: dead-zone vs caught vs suspect classification on synthetic bhav
+    con.executemany("INSERT INTO bhavcopy_rows VALUES (?,?,?,?)", [
+        ("CUB", "2026-06-11", "EQ", 256.8), ("CUB", "2026-06-12", "EQ", 201.7),   # -21.5% agree -> MISSED
+        ("RNB", "2026-04-01", "EQ", 100.0), ("RNB", "2026-04-02", "EQ", 33.5),    # ~1/3, agrees -> CAUGHT
+        ("SIKKO", "2026-05-02", "EQ", 100.0), ("SIKKO", "2026-05-05", "EQ", 99.0)])
+    sik = normalize_api_row({"symbol": "SIKKO", "subject": "Bonus 1:1", "exDate": "05-May-2026"})
+    store_actions([sik], conn=con)                        # tape says -50%, market says flat -> SUSPECT
+    rec = reconcile(con)
+    check("reconcile classes", rec["counts"].get("MISSED_DEAD_ZONE") == 1
+          and rec["counts"].get("CAUGHT_FALLBACK") == 1 and rec["counts"].get("TAPE_SUSPECT") == 1)
     con.close()
 
     print("corp_actions selftest:", "OK" if ok else "FAILED")
@@ -333,6 +447,8 @@ def main() -> None:
     p.add_argument("--from-year", type=int, default=2004)
     p.add_argument("--window", nargs=2, metavar=("FROM", "TO"), help="explicit ISO range")
     p.add_argument("--stats", action="store_true")
+    p.add_argument("--reconcile", metavar="SINCE", nargs="?", const="2004-01-01",
+                   help="adjust-vs-tape reconciliation audit from SINCE (default: full history)")
     p.add_argument("--selftest", action="store_true")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -341,6 +457,14 @@ def main() -> None:
         raise SystemExit(_selftest())
     if args.stats:
         log.info("corporate_actions: %s", table_stats())
+        return
+    if args.reconcile:
+        with get_conn() as conn:
+            rec = reconcile(conn, since=args.reconcile)
+        print("reconcile since %s: %d groups -> %s" % (args.reconcile, rec["groups"], rec["counts"]))
+        for k in ("MISSED_DEAD_ZONE", "TAPE_SUSPECT"):
+            if rec["detail"][k]:
+                print("  %s (%d): %s" % (k, len(rec["detail"][k]), rec["detail"][k][:12]))
         return
     today = date.today().isoformat()
     if args.window:
