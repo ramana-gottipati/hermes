@@ -7,6 +7,27 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🥇 S93b WRAP (2026-07-10, season lane) — TOP PICK + the armed estate
+**TOP PICK: P-04 evidence-pack PDF assembly** (Ramana asked; the wrap interrupted it). Inputs, do
+NOT re-derive: spine LIVE at `/dash/spec-sheets` (8 hashed studies + placebo + MTTR + M-05 caveats);
+**no PDF exporter exists** (grep-verified S83d); `/dash/replay` serves replay-the-tape. Honest
+shape: a `/dash/evidence-pack` print-CSS assembly page (browser print→PDF, zero deps) pulling
+spec-sheets + coverage/SLA + replay + live season MTTR. Product rank #2 trust artifact, end-July.
+**ARMED, self-executing — verify DMs, never rebuild** (gates hashed, `prereg --verify` = tamper
+check; results → `research/explosive_moves/out/*.json`; each completed run needs a LEDGER entry +
+spec-sheet): season digest daily 02:45 · **E-02 monthly 22nd (first Jul-22**; true events 19/300 —
+years out) · **E-14 monthly 25th (first Jul-25 — GO may be its FIRST fire** once the ~Jul-21 flood
++ S85d calibration date the 28 SHP quarters; baseline 94/1,000) · E-04 monthly 1st (4/8 cohorts,
+GO ≈ mid-2027). **Season watches:** tonight's 18:00 snapshot mints the first real MTTR numbers ·
+Sat 21:00 provenance under the 4h ceiling · `gate_deferred` as XBRL volume ramps · ~Jul-21 pledge
+coverage (was 76 syms). **Guaranteed-done (kickstart-pick-verify, never redo):** T-2 `fd2528b` ·
+wk1 `e60eba0`/`e61ba4a` (X-02 closed-by-evidence, N3 ticket, D-02/03 feed) · wk2 `8f0df2c` (P-03
+spec-sheets, evlib+placebo, testing-page truth, #8 disclosure, charter v1.1/D92) · wks3-4 `9ae0345`
+(3 placebo-caught NULLS + CAR fan) · `1ed0316` (E-11/E-12 nulls, M-04) · triggers `0fba51c`/
+`3ff1ee2`/`7614603` · digest `3a1c953` · E-10 calc `60fcdd8`+**`5805e6f` (S93b: the S92 lane's
+commit DROPPED my v2_surfaces mount — grep HEAD for the other lane's newest anchors before
+committing co-hot files)**. Ledger: 10 pre-registered studies (2 confirmed · 6 nulls · 2 armed).
+
 ## 🧰 S86d HARNESS NOTE (2026-07-10) — session infrastructure changed, applies to YOUR session
 - `.claude/settings.local.json` now carries three additive keys: `disableClaudeAiConnectors` (claude.ai
   connector fleet no longer loads in Hermes sessions), a PreToolUse **state-doc gate**
