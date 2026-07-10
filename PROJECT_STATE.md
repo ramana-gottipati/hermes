@@ -1732,7 +1732,7 @@ replay-the-tape + SLA one-pager into the procurement artifact."
 - Harness TIL: the `Monitor` tool (until-loop on a remote condition) could have watched
   tonight's first MTTR mints / first SLB fire instead of deferring both to the next session's
   carry-forward.
-- Commit: (this commit).
+- Commit: `f6077a7`.
 
 ### Session 94 — 2026-07-10 — D95 residue: the 92-symbol historical heal RERUN (driver fixed; a real backfill-path bug in signals.py closed)
 Picked up the S89b-recorded failed heal (Ramana: "take up something else and proceed"). Diagnosed
@@ -2109,6 +2109,18 @@ Harness-side program (Ramana: "go for all the changes suggested"); most artifact
   messages can't read as paths. 21-case matrix green. ALSO learned: hooks HOT-RELOAD on settings
   change on this runtime — the "live from next session" caveat is obsolete; the gate armed itself
   mid-session and immediately caught this very case.
+- Gate v1.3 (closes the S95 🐛 #0-bis wrap report): `git add A B PROJECT_STATE.md && git commit`
+  false-blocked when PROJECT_STATE.md was UNMODIFIED — it expands to nothing via `ls-files -m -o -d`,
+  so v1.1/v1.2 couldn't see it. Naming PROJECT_STATE.md as an add token now counts as carrying it
+  (mirrors the pathspec branch's token check). Matrix green incl. all regressions.
+- WRAP (session close): CLAUDE.md /doctor-style trim `960abc6` (1,453→1,262 words; MANDATORY section
+  now cites the gate; bans compressed, all guardrails byte-intact). Skills repo PUBLISHED private →
+  `github.com/ramana-gottipati/ramana-ops` (harness-optimization GUIDE lives in its README = THE
+  reference; created via API + stored git credential, no gh CLI). `claude-til` verified live (first
+  run consumed changelog v2.1.206, state seeded, 106-word TIL). Cross-project: Cirqle CLAUDE.md trim
+  `2573aa80` LOCAL-ONLY on `Ramana_NewCirqle_UI` (account-split cred; push queued in Cirqle's cursor
+  stanza + CF-OPS-PUSH-CLAUDEMD-TRIM). Memory: full arc in `claude-harness-optimization` + index slim
+  73→67 entries. Session commits: `83f1c79` · `1baee82` (v1.1) · `87d26fd` (v1.2) · `960abc6` · this one (v1.3+wrap).
 - Shipped in THIS commit (docs + gate script); harness artifacts referenced above are file-level, not repo.
 
 ### Session 86c — 2026-07-10 — Wolfe walk freshness fix (D96) + drawings v2: direct-edit · level catalog · future space · confluence (Ramana's chart-review batch)

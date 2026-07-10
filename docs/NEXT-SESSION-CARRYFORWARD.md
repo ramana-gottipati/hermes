@@ -33,18 +33,21 @@ expect journal Finished + 2767/2767) · `gate_deferred` 0 all week so far, `if_f
 (X-02 closed-by-evidence, N3 ticket, D-02/03 feed) · wk2 `8f0df2c` (P-03 spec-sheets,
 evlib+placebo, testing-page truth, #8 disclosure, charter v1.1/D92) · wks3-4 `9ae0345` (3
 placebo-caught NULLS + CAR fan) · `1ed0316` (E-11/E-12 nulls, M-04) · triggers `0fba51c`/
-`3ff1ee2`/`7614603` · digest `3a1c953` · E-10 calc `60fcdd8`+`5805e6f` · **P-04 pack (S96, this
-wrap's commit)** — the S93b lesson stands: grep HEAD for the other lane's newest anchors before
+`3ff1ee2`/`7614603` · digest `3a1c953` · E-10 calc `60fcdd8`+`5805e6f` · **P-04 pack (S96,
+`f6077a7`)** — the S93b lesson stands: grep HEAD for the other lane's newest anchors before
 committing co-hot files. Ledger: 10 pre-registered studies (2 confirmed · 6 nulls · 2 armed).
 
 ## 🧰 S86d HARNESS NOTE (2026-07-10) — session infrastructure changed, applies to YOUR session
 - `.claude/settings.local.json` now carries three additive keys: `disableClaudeAiConnectors` (claude.ai
-  connector fleet no longer loads in Hermes sessions), a PreToolUse **state-doc gate**
-  (`scripts/state-doc-gate.cjs` — BLOCKS any `git commit` that stages `src/` or `scripts/` without
-  PROJECT_STATE.md in the same commit; deliberate exception: append `state:skip` to the commit command;
-  fail-open on errors), and 118 `skillOverrides` hiding the never-used cowork skill fleet
-  (anthropic-skills/engineering/pdf-viewer/core skills all KEPT). Hooks load at session start, so the
-  gate IS live for you. If it misfires, that's a wrap-report bug (#0-bis), not a reason to weaken settings.
+  connector fleet no longer loads in Hermes sessions), a PreToolUse **state-doc gate v1.3, restart-verified**
+  (`scripts/state-doc-gate.cjs` — BLOCKS any `git commit` carrying `src/`/`scripts/` changes without
+  PROJECT_STATE.md; judges what the commit ACTUALLY carries — pathspec `--only`/`-- <paths>` commits,
+  compound `git add … && git commit`, and an unmodified state-doc named in the add all handled; deliberate
+  exception: `state:skip` in the command; fail-open on errors), and 118 `skillOverrides` hiding the
+  never-used cowork skill fleet (anthropic-skills/engineering/pdf-viewer/core skills all KEPT). Hooks
+  HOT-RELOAD on settings change (matchers must be EXACT tool names — regex forms never register on this
+  runtime). If the gate misfires, that's a wrap-report bug (#0-bis) — report it; the S95 report was fixed
+  same-day as v1.3.
 - 6 new user-level skills exist (failure-ledger · walk-the-journey · deploy-reality ·
   multi-session-safety · transient-doc-lifecycle · explain-visual) — invoke them at their trigger
   points; MEMORY.md index is now slim one-liners (detail lives in the body files — extend bodies, never
@@ -315,10 +318,10 @@ its owner session deletes it.
   ③ the Wolfe lane's new-unit 16:00 UTC run (its own carry-note above) · ④ Sat 21:00 UTC
   provenance run — a SCHEDULED TASK (`verify-provenance-timeout-fix`, Sun 08:00 IST) already
   reports it; don't duplicate.
-- **🐛 HARNESS BUG (#0-bis wrap report):** `scripts/state-doc-gate.cjs` v1.1 FALSE-POSITIVE
-  on a compound `git add A B PROJECT_STATE.md && git commit` (PROJECT_STATE was in the add;
-  the gate still blocked). Workaround: run the add and the commit as SEPARATE commands.
-  Gate owner (S86d lane) should fix pathspec expansion across `&&`.
+- ~~🐛 HARNESS BUG (#0-bis wrap report): state-doc-gate v1.1 false-positive on compound
+  `git add A B PROJECT_STATE.md && git commit`~~ **✅ FIXED same day — gate v1.3 (S86d lane):**
+  root cause = an UNMODIFIED PROJECT_STATE.md expands to nothing via `ls-files -m -o -d`; naming
+  it as an add token now counts as carrying it. Matrix-covered; no workaround needed anymore.
 - **⚠ S93 buyback orphan (owner: the S85g/S93 lane):** its commit `cc2b151` shipped the
   Lens + glossary but NOT `src/web/buyback_calc.py` (still untracked) nor its
   `_ROUTER_SPECS` mount (uncommitted working-tree line) — /dash/buyback-calc 404s from a
