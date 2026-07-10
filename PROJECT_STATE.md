@@ -1652,6 +1652,14 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 93b — 2026-07-10 — wrap: cross-lane git clobber caught + repaired (v2_surfaces buyback mount)
+The S92 lane's commit (`1a78be9`) carried an older v2_surfaces file state and dropped the S93
+buyback-calc router line from HEAD minutes after it landed (lens + glossary survived). Caught at
+wrap by grep-verifying HEAD, re-added (`S93b` comment marks it). Standing lesson for BOTH lanes:
+before committing a co-hot file, `grep` HEAD for the OTHER lane's newest anchors — the state-doc
+gate can't see semantic drops. LIVE VPS still serves the page (my patch); a redeploy from the
+pre-fix HEAD would have 404'd it silently.
+
 ### Session 93 — 2026-07-10 — E-10 buyback tender-quota calculator LIVE (/dash/buyback-calc)
 - **NEW `src/web/buyback_calc.py`** — the personal-scale capacity-moat tool (charter §2.4): a
   client-side tender-arbitrage calculator (vanilla JS, zero deps — shares/accepted/returned split,

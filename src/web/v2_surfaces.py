@@ -114,6 +114,10 @@ _ROUTER_SPECS = [
     # P-03 (charter §9 KPI): the pre-registration ledger as a Trust surface — one sheet
     # per completed study, failures displayed on purpose. Pure stdlib; cites the ledger.
     ("spec-sheets", "src.web.spec_sheets", "/dash/spec-sheets"),
+    # E-10 (S93): buyback tender-quota calculator — personal-scale capacity-moat tool.
+    # RE-ADDED S93b: the S92 lane's commit carried an older file state and dropped this
+    # line minutes after it landed — cross-lane git clobber, see PROJECT_STATE S93.
+    ("buyback-calc", "src.web.buyback_calc", "/dash/buyback-calc"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────
