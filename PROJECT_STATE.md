@@ -1712,6 +1712,43 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 99 — 2026-07-10 — Open-items assessment (dedicated triage lane): ~90 candidates classified · 2 stale markers fixed in canonical homes · Assessment section appended to carry-forward
+Docs-only triage session (no `src/`/`scripts/` changes). Swept: PROJECT_STATE § "What's NOT yet
+built" + AUDIT-2026-07-02 (117 AUD items) + charter §3/§4/§5/§7 + memory bodies (54 files with
+open markers) + TRANSIENT-tagged docs (18 files). Every candidate ran through
+kickstart-pick-verify (git log -S, file existence, mount check).
+- **Tally:** VERIFIED-OPEN 47 (mostly P1/P2 audit hygiene; 2 currently in-flight in a parallel
+  lane) · PARTIAL 5 (AUD-02/26/29/30/34/35 have residuals) · BLOCKED 7 · DATED-WATCH 11 (armed
+  timers + season triggers). Highest-priority P1 VERIFIED-OPEN: AUD-06/07/11 (quant integrity
+  batch — zones/keyprice/hot-day on RAW closes + corp-action rescale on >30% moves) · AUD-14
+  (throttle-as-holiday class sweep) · AUD-22 (research PIT bypass) · AUD-25 (feed-liveness 4/12) ·
+  AUD-28 (deploy-script regression).
+- **IN FLIGHT catch (multi-session-safety):** working tree carries `src/api/v1/{__init__,routes,
+  resources,selftest}.py` + `src/automation/{cci_series,signal_events}.py` + `tests/test_v1_pit.py`
+  + an untracked `6/` dir — a parallel lane is landing AUD-38 (PIT on /v1 credibility) + likely
+  AUD-37 (metering). NOT staged. Recorded so the S98/S99 wrap does not absorb them.
+- **STALE MARKERS FIXED (canonical homes, docs-only edits):**
+  1. `docs/NEXT-SESSION-CARRYFORWARD.md` — "S93 buyback orphan" note in the S84-95 wrap block
+     said `src/web/buyback_calc.py` was untracked and its `_ROUTER_SPECS` mount uncommitted.
+     Verified via `git log --oneline --all -- src/web/buyback_calc.py` → committed at `60fcdd8`
+     (S93 E-10 shipping commit); mount re-added at `5805e6f` (S93b). Note flipped to CLOSED.
+  2. `docs/AUDIT-2026-07-02-institutional-review.md` §Blockers — AUD-101 status flipped from
+     "BLOCKED on AUD-04" to "UNBLOCKED 2026-07-10 (AUD-04 landed `c948c3f`+`a207c99` S77)".
+- **Appended:** `docs/NEXT-SESSION-CARRYFORWARD.md` gained a compact "📋 OPEN-ITEMS ASSESSMENT
+  2026-07-10" section directly under the S86d harness note (additive — no sibling edits): counts
+  per class · VERIFIED-OPEN list ranked by priority · BLOCKED with blockers · DATED watches with
+  dates · stale-marker record.
+- **TRANSIENT candidates flagged (not deleted — owner decides):** `docs/next-session-handoff.md`
+  (Tracker workspace = SHIPPED per memory) · `docs/next-session-kickstart.md` (UI Phase 2/3
+  superseded by S45 ui_kit reskin).
+- **Guardrail note:** deliberate `state:skip` NOT needed — no `src/`/`scripts/` in the commit;
+  state-doc gate silent.
+- Harness TIL: `explain-visual` skill — a compact class-tally table (5 classes × counts) would
+  read faster than the prose in the assessment section; would have used it if a follow-up read
+  needed a one-look summary.
+- Commit: `<pending>` (docs only: PROJECT_STATE.md + NEXT-SESSION-CARRYFORWARD.md + AUDIT-2026-
+  07-02-institutional-review.md).
+
 ### Session 98 — 2026-07-10 — D103 residue: 28 in-row-compound symbols healed (4-leg), reconcile 77→6 SUSPECT, corp_actions parser extended (`72c4ce4`, "S97 second pass")
 The S97 wrap-note promised "the four-leg heal of every factor-changed symbol: counts AMENDED
 below when the run lands." This session ran it. Pattern followed S94's `heal92b.py` verbatim:
