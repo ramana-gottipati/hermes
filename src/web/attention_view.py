@@ -14,6 +14,11 @@ falsified), MEP is a descriptor (D62), deal prints are logistics. Magnitude rank
 attention WITHIN a batch; it is not a return forecast and no study exists on
 event-follow-through (any such claim needs its own pre-registered gate first).
 
+S108 adds the "since you last looked" brief (D110) at the top of the live view: a
+cookie-keyed strip of everything DETECTED since the viewer's last visit (the bus's
+own `events_since` feed), distinct from the impact-ranked current-batch queue below.
+Last-visit is a client cookie (a timestamp) — no per-user server state, no new table.
+
 Isolation: brand-new module; reads ONLY through signal_events' public read APIs;
 degrades to an honest empty state, never a 500. Route: /dash/attention.
 Home face: `attention_home_inner()` — '' when the bus is empty (board omitted).
@@ -22,7 +27,7 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
@@ -32,6 +37,8 @@ from src.automation import signal_events as SE
 router = APIRouter()
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}")   # the last-seen cookie shape
+_SEEN_COOKIE = "patearn_bus_seen"    # holds the viewer's last-visit detected_at (client-side)
 _PAGE_LIMIT = 200          # the full-page tape cap (the home face stays at the hard 6)
 
 _LENS_META = {
@@ -79,6 +86,11 @@ table.at tr:hover td{background:#11161d;}
 .at-replay input{background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);
   border-radius:7px;padding:3px 8px;font-size:12px;}
 .at-home td{padding:3px 6px;border-bottom:1px solid #1b2027;font-size:12px;}
+.at-seen{border-radius:10px;padding:9px 13px;margin:0 0 12px;font-size:12.5px;
+  line-height:1.5;border:1px solid var(--line-2);}
+.at-seen-new{background:rgba(88,166,255,.10);border-color:rgba(88,166,255,.35);color:var(--ink);}
+.at-seen-none{background:var(--bg-2);color:var(--ink-2);}
+.at-seen-more{margin-top:6px;color:var(--ink-3);font-size:11.5px;}
 </style>
 """
 
@@ -175,10 +187,41 @@ def _lens_filter_chips(active: str | None) -> str:
     return '<div class="at-chips">' + "".join(chips) + "</div>"
 
 
+def render_since_last_looked(new_events: list[dict], since_ts: str | None,
+                             *, first_visit: bool, limit: int = 15) -> str:
+    """The 'since you last looked' brief — events DETECTED after the viewer's last visit,
+    newest first, ACROSS batches (distinct from the impact-ranked current-batch queue below).
+    Reads the bus's purpose-built events_since feed. first_visit (no/!valid cookie) → a gentle
+    intro, never a fake '0 new'. Pure over its inputs so the whole brief is hermetically tested."""
+    if first_visit:
+        return ('<div class="at-seen at-seen-new">👋 <b>First visit.</b> The live tape is '
+                'below. Next time, this strip shows only what changed <i>since you last '
+                'looked</i> — your last visit is remembered in a browser cookie (a timestamp, '
+                'nothing more), never server-side.</div>')
+    if not new_events:
+        return (f'<div class="at-seen at-seen-none">✓ <b>All caught up</b> — nothing new '
+                f'since your last visit (<span class="at-state">{_esc(str(since_ts or ""))}'
+                f'</span> UTC).</div>')
+    rows = []
+    for e in new_events[:limit]:
+        rows.append(
+            f'<tr><td>{_sym_cell(e)}</td><td>{_lens_chip(e.get("lens") or "")}</td>'
+            f'<td class="at-noteline">{_esc(e.get("note") or "")}</td>'
+            f'<td class="num" style="color:var(--ink-3);white-space:nowrap">'
+            f'{_esc(str(e.get("as_of") or ""))}</td></tr>')
+    more = (f'<div class="at-seen-more">+ {len(new_events) - limit} more new — see the full '
+            f'tape below</div>' if len(new_events) > limit else "")
+    return (f'<div class="at-seen at-seen-new">🆕 <b>{len(new_events)} new</b> since your '
+            f'last visit (<span class="at-state">{_esc(str(since_ts or ""))}</span> UTC), '
+            f'newest first:<table class="at" style="margin-top:8px"><tbody>'
+            f'{"".join(rows)}</tbody></table>{more}</div>')
+
+
 @router.get("/dash/attention", response_class=HTMLResponse)
-def attention_page(as_of: str = "", lens: str = "") -> HTMLResponse:
+def attention_page(request: Request, as_of: str = "", lens: str = "") -> HTMLResponse:
     body = [_CSS]
     served: str | None = None
+    seen_stamp: str | None = None      # write-back cookie value = the latest detected_at
     try:
         with get_conn() as conn:
             st = SE.stats(conn)
@@ -207,6 +250,17 @@ def attention_page(as_of: str = "", lens: str = "") -> HTMLResponse:
                 'carries the date it is computed <i>for</i> (<code>as_of</code>, point-in-'
                 'time honest). An event is a <b>state-change, never a recommendation</b>. '
                 '<a href="/dash/glossary?q=attention">glossary →</a></div>')
+            # --- "since you last looked" brief (LIVE view only; a replay is a historical
+            # read, not a visit) — reuses the bus's events_since feed, keyed on a client
+            # cookie. Compute against the OLD cookie, then stamp the cookie to now. ---
+            if not requested and (st.get("events") or 0) > 0:
+                seen_stamp = conn.execute(
+                    "SELECT MAX(detected_at) FROM signal_events").fetchone()[0]
+                cookie_val = request.cookies.get(_SEEN_COOKIE)
+                valid = bool(cookie_val and _TS_RE.match(cookie_val))
+                new_ev = SE.events_since(conn, cookie_val, limit=200) if valid else []
+                body.append(render_since_last_looked(
+                    new_ev, cookie_val if valid else None, first_visit=not valid))
             if requested:
                 body.append(
                     f'<div class="at-pit">⏪ <b>Replay:</b> requested <b>{_esc(requested)}</b> → '
@@ -256,8 +310,12 @@ def attention_page(as_of: str = "", lens: str = "") -> HTMLResponse:
             'populated on this host. Events are emitted nightly on production as step 60 '
             'of the bhavcopy chain (<code>src/automation/signal_events.py --detect</code>). '
             'This surface is read-only and never fabricates data.</div>')
-    return HTMLResponse(_shell("Attention · patearn", "".join(body),
+    resp = HTMLResponse(_shell("Attention · patearn", "".join(body),
                                "attention", str(served or "")[:10], wide=True))
+    if seen_stamp:      # remember THIS visit so the next one is incremental (1yr, /dash-scoped)
+        resp.set_cookie(_SEEN_COOKIE, seen_stamp, max_age=31_536_000,
+                        samesite="lax", path="/dash")
+    return resp
 
 
 def attention_home_inner(limit: int = 6) -> str:

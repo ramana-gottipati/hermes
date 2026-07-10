@@ -137,6 +137,44 @@ def test_replay_serves_old_dated_events_honestly(patched, conn):
     assert "2019-05-01" in r.text and "OLDCO" in r.text
 
 
+def test_since_last_looked_pure_branches():
+    # First visit: gentle intro, never a fake "0 new".
+    assert "First visit" in av.render_since_last_looked([], None, first_visit=True)
+    # Returning, nothing new: honest all-caught-up with the timestamp echoed.
+    h = av.render_since_last_looked([], "2026-07-10 12:00:00", first_visit=False)
+    assert "All caught up" in h and "2026-07-10 12:00:00" in h
+    # Returning, N new: count + newest-first list.
+    ev = [{"symbol": "RELIANCE", "lens": "mep", "note": "x", "as_of": "2026-07-10"}]
+    h = av.render_since_last_looked(ev, "2026-07-01 00:00:00", first_visit=False)
+    assert "1 new" in h and "RELIANCE" in h
+
+
+def test_since_last_looked_route_cookie_flow(patched):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    app = FastAPI()
+    app.include_router(av.router)
+
+    # No cookie → first visit; the response STAMPS the last-seen cookie for next time.
+    r = TestClient(app).get("/dash/attention")
+    assert r.status_code == 200 and "First visit" in r.text
+    assert r.cookies.get("patearn_bus_seen")               # write-back happened
+
+    # Old cookie → everything detected since counts as new (seeded events are ~now).
+    old = TestClient(app); old.cookies.set("patearn_bus_seen", "2020-01-01 00:00:00")
+    r = old.get("/dash/attention")
+    assert "since your last visit" in r.text and "RELIANCE" in r.text
+
+    # Future cookie → all caught up (nothing detected after it).
+    fut = TestClient(app); fut.cookies.set("patearn_bus_seen", "2099-01-01 00:00:00")
+    r = fut.get("/dash/attention")
+    assert "All caught up" in r.text
+
+    # A replay is a historical read, NOT a visit — the brief is suppressed there.
+    r = TestClient(app).get("/dash/attention?as_of=2026-07-09")
+    assert "since your last visit" not in r.text and "First visit" not in r.text
+
+
 def test_home_inner_capped_and_safe(patched, conn):
     html = av.attention_home_inner(limit=6)
     assert "RELIANCE" in html or "VEDL" in html

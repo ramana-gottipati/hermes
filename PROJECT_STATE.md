@@ -481,6 +481,24 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D110 — "Since you last looked" = a CLIENT-cookie last-seen, no server-side per-user state, no new table (2026-07-10, S108)
+WHY: the bus's third face (the "since you last looked" brief — `events_since` filtered by the
+viewer's last visit) needs to remember one thing per viewer: when they last looked. The options
+were a server-side per-user table (keyed on identity) or a client cookie holding a `detected_at`
+timestamp. Chose the **cookie** — the product is single-user (Ramana) today and the value is pure
+UX state (not data, not identity), so a table would add a write path, a schema migration, and a
+notion of "user" the product doesn't otherwise have, for zero benefit. The cookie is stored in the
+SAME format as `detected_at` (space-separated) so lexicographic string comparison against the
+column is chronological; Starlette quotes the space on the wire and round-trips it (walk-verified,
+incl. quoted/unquoted/garbage cookies). A malformed/absent cookie degrades to a "first visit"
+intro (a `_TS_RE` guard, never a fake "0 new", never fed to SQL as garbage). Write-back stamps the
+cookie to the latest `detected_at` on every live render, so the next visit is incremental. The
+brief is SUPPRESSED on a `?as_of=` replay (a replay is a historical read, not a visit). Trade-off
+accepted: clearing cookies resets "last seen" (acceptable for UX state); if the product ever grows
+real multi-user accounts, this migrates to a per-user store then — not before. Consistent with the
+space-optimization doctrine (no new table for derivable/ephemeral state) and D106 (a bus FACE, no
+gate/parity).
+
 ### D109 — The Wolfe overlay has 3 lifecycle sections (Prediction / Open / Closed), SIMPLE and non-hiding — the D101/D102 concept re-added the right way (2026-07-11, S106; Ramana: "I asked for three sections")
 Ramana asked for the lifecycle back — but as three clear, labelled sections, NOT the reverted
 D101/D102 queues that filtered by recency and buried his TCS wave. Definitions (his, canon — §A8):
@@ -1603,9 +1621,10 @@ Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry
   (a) **dvpt lens** — no banded dvpt state column exists to diff (which horizon, what bands =
   its own design); **quality/cpr lenses** likewise not emitting (LENSES vocabulary reserves
   them). (b) ~~No home-surface face~~ **✅ CLOSED S103 (D106):** `/dash/attention` + the Home
-  "Attention" card (`src/web/attention_view.py`) serve the queue with PIT replay. Faces still
-  unbuilt: the "since you last looked" brief (`events_since` has no user surface), the alert
-  rail, and the SSE stream. (c) rs lens is INDEX-grain (`rsband_signals`
+  "Attention" card (`src/web/attention_view.py`) serve the queue with PIT replay. ~~the "since
+  you last looked" brief~~ **✅ CLOSED S108 (D110):** the cookie-keyed `events_since` strip atop
+  the live view. Faces still unbuilt: the **alert rail** and the **SSE stream**. (c) rs lens is
+  INDEX-grain (`rsband_signals`
   numerators vs Nifty 500) — a stock-grain rs lens needs a banded state on the stock RS estate
   first.
 
@@ -1846,6 +1865,31 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 108 — 2026-07-10 (late) — D110: the bus's THIRD face — "since you last looked" brief on /dash/attention (continuation of S103's D106; commit «S108-HASH»)
+Closed the next unbuilt bus face without opening a new session (Ramana: "continue it here … close
+the open items … precision and care"). **`src/web/attention_view.py`** gains the "since you last
+looked" brief — a cookie-keyed strip at the top of the LIVE `/dash/attention` view showing every
+event **detected since the viewer's last visit**, newest first, across batches (distinct from the
+impact-ranked current-batch queue below it). Reuses the bus's purpose-built `events_since` feed;
+the design (client cookie, no table) is **D110**. Behaviour, all walk-verified live on the box:
+first visit → a gentle intro + the response stamps the `patearn_bus_seen` cookie (Starlette quotes
+the space-in-value, round-trips); returning, nothing newer → "✓ All caught up (<ts> UTC)";
+returning with an older last-seen → "🆕 200 new since your last visit" + a symbol strip (21STCENMGM
+… capped 15, "+N more below"); a `?as_of=` replay SUPPRESSES the brief (historical read, not a
+visit); a garbage/unquoted cookie degrades to first-visit via the `_TS_RE` guard (no crash, no
+SQL). NO nav/router change (a section on the existing route) and NO strategist card / board_health
+(D106 fence holds — a bus face, not a gated strategy). Glossary: one bullet added to the "Attention
+queue" section. Tests: +2 (`tests/test_attention_view.py` → 10; suite 55+1skip green). Deploy:
+isolated whole-file scp after a CR-strip + fork-check (live≡HEAD modulo the S102→S103 docstring
+label), backup `.bak-s106-*`, box py_compile + import-test, writer-safe restart (verified the sole
+DB holder was hermes-api's own handle, not an external writer), then the five-seam live walk above.
+- **Collision handling:** the wolfe lane claimed S106/D109 mid-flight (`2541009`, lifecycle
+  re-add) — this lane renumbered to **S108/D110** pre-push (the S100/S101/S103 recipe) and
+  rebased onto their tip; zero file overlap (bus vs wolfe).
+- **Harness TIL:** `curl` without `-L` greps the D80 nesting **307 stub** (`/dash/attention` →
+  `/dash/markets/attention`) and silently finds nothing — the walk's first pass looked "broken"
+  until `-L` followed the redirect. Bake `-L` into every route walk on this site.
 
 ### Session 107 — 2026-07-11 — Wolfe overlay: top badge (dir · points/total · rank) + navigation stays STATIC (no re-zoom) (`f7d7a87`)
 Two small overlay asks, live: (1) a fixed top-of-chart BADGE per wave — `▲ BULL / ▼ BEAR · N/24 pts ·
