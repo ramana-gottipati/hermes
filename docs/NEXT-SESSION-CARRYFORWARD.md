@@ -7,6 +7,28 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🏁 S97 WRAP (2026-07-10, main session — Ramana-steered) — chart batch + D95 residue BOTH closed; nothing of mine open
+Three arcs, all shipped + live-verified + state-doc'd; **do NOT redo any of them**:
+1. **S86c chart batch (D96 + drawings v2, `9d04bd9`+`d83c50f`):** Wolfe walk freshness guarantee
+   (TCS wedge 2/53) · drawings direct-edit + dblclick editor · fib catalog w/ 4.236 + named
+   levels · future whitespace projection · conflux bands @2%. Known nits (deliberate, build
+   on ask): whitespace anchors degrade across interval switch; no whole-body drag.
+2. **S94 (`2562ca7`+`025f514`):** the S89b failed 92-symbol heal RERUN — driver fixed
+   (`_partial_key` arg order · CPR tf set is D/W/M/H not Q) + the REPO bug (`value` column
+   missing from `_backfill_triggers_for_symbol`'s SELECT). 92/92, 0 failures, 7.1 min.
+3. **S97/D103 (`5d252f9`+`72c4ce4`+`eb706c6`):** TAPE_SUSPECT 77→6 (in-row compounds ·
+   band-lock gate · deb/pref exclusion; 6 remain honestly fenced) + the **70-symbol four-leg
+   consequence heal (0 failures, 10.5 min, `/tmp/heal_tape.py` + `/tmp/heal_tape.done`)**.
+   ⚠ OVERLAP NOTE: the S98 lane independently healed 27 of these same symbols minutes apart
+   (it read S97's "counts AMENDED when the run lands" as un-run — kickstart-verify lesson,
+   inverted). Harmless (idempotent recomputes, identical outputs) — but the heal is now
+   DOUBLE-covered: any future session must treat D103's consequence heal as **DONE**.
+Watches inherited by whoever runs next (also armed as in-session crons here): the timer
+fleet below (S96 wrap list) esp. **wolfe-scan 16:04 UTC dual/triple snapshot** + tonight's
+`chk_action_tape_agreement` battery, which should go QUIETER (suspects 77→6; louder = page).
+D95 residue after all this: **wolfe tape-wiring (Wolfe lane owns)** · stock_rs history
+(heals forward by design; a backfill path is buildable if Ramana wants it) — nothing else.
+
 ## 🥇 S98 WRAP (2026-07-10) — S97's promised heal LANDED: 28 in-row-compound symbols · reconcile 77→6
 **✅ D103 residue closed (S98):** the S97 wrap promised "the four-leg heal of every factor-
 changed symbol: counts AMENDED below when the run lands." This session ran it. Diagnosis
@@ -91,6 +113,72 @@ committing co-hot files. Ledger: 10 pre-registered studies (2 confirmed · 6 nul
   multi-session-safety · transient-doc-lifecycle · explain-visual) — invoke them at their trigger
   points; MEMORY.md index is now slim one-liners (detail lives in the body files — extend bodies, never
   re-fatten index lines). Full inventory: memory `claude-harness-optimization`.
+
+## 📋 OPEN-ITEMS ASSESSMENT 2026-07-10 (dedicated triage lane — sources swept: PROJECT_STATE §Open, AUDIT doc, charter §3/§4/§5/§7, memory bodies, TRANSIENT docs)
+
+**Method:** grep-first over every open marker; kickstart-pick-verify each candidate (git log -S, file existence, mount check). Class tally across ~90 candidates:
+- **VERIFIED-OPEN 47** (mostly P1/P2 AUD hygiene; 2 in-flight this session)
+- **PARTIAL 5** (AUD-02/26/29/30/34/35 — on-box/perimeter/sandbox landed, one residual each)
+- **BLOCKED 7** (external gate or Ramana input required)
+- **DATED-WATCH 11** (armed timers/studies + season signals)
+- **STALE MARKERS FIXED 2** (this session; docs-only)
+
+**⚠ IN FLIGHT this session (parallel lane; do NOT stage):** `src/api/v1/{__init__,routes,resources,selftest}.py` + `src/automation/{cci_series,signal_events}.py` + `tests/test_v1_pit.py` — that lane is landing **AUD-38** (PIT on /v1 credibility) and probably **AUD-37** (metering). Working-tree only; not on `main`.
+
+**VERIFIED-OPEN — highest priority (P1, ranked):**
+1. **AUD-06** DVPT zones / D44 key-price / hot-day averages computed on RAW closes (`signals.py:456,357-379,402-404,487-509,637-675`). Live signals wrong-scale through any split window; also swallows PROJECT_STATE B5 residual.
+2. **AUD-07** backfill vs nightly hot-day definition disagree (`signals.py:899-908` vs `:644,657-663`). Do WITH AUD-06 (same backfill re-run).
+3. **AUD-11** corp-action fallback rescales entire history on >30% real crashes (F&O names). Blockers doc reformulates: widen callers' SELECT + volume corroboration.
+4. **AUD-14** throttle→"holiday" class sweep — 5 fetchers still carry the bug (`RetryableFetchError` lives only in `fno_oi.py`).
+5. **AUD-22** research replication stack bypasses PIT layer (leaky report_date joins). Fix = route through `fundamentals_asof.py` with PYTHONPATH note.
+6. **AUD-25** feed-liveness monitoring covers 4 of 12 feeds; regime guard reads undated rows.
+7. **AUD-28** `setup-news.sh` heredoc regresses live CCI unit (do WITH AUD-27 remainder — replace heredocs with committed unit files).
+8. **AUD-37/38** IN FLIGHT this session (do NOT restart).
+9. **AUD-12** historical rs_rank percentiles survivorship-biased (finder-only — verify first).
+
+**VERIFIED-OPEN — P2/P3 (54 items; batchable):** AUD-45 (canonical weights doc coverage), AUD-46 (v1 write-txn fan-out), AUD-47-56 (SHP restatement journal + Screener SHRINK + XBRL SA/CONSO + NSE http shared client + /v1 versioning/selftest teardown/stale docstrings), AUD-58-100 (TRI benchmark, kill-switches #1/#3, sub-nav consolidation, chrome sunset, glossary drift, resource containment, timezone, DDL fragmentation, dead schema), AUD-101-117 (P3 polish; **AUD-101 is now UNBLOCKED** — AUD-04 landed).
+
+**PROJECT_STATE §Open — VERIFIED-OPEN highlights:**
+- **Charting overhaul (D71/D72) Phases 3-5** — drawing engine, four-family remainder, harmonic backtest.
+- **DVPT picking-strategy program (D47 throughline)** — multi-TF signal engine · ignition ranking + `ranking_history` · `security_master` · absolute backtest · champion/challenger.
+- **Positioning-pillar tail** — fiscal-quarter grain, saved-query alerts, EWMA key-price, promoter/FII/DII quarterly deltas, F&O OI/PCR.
+- **UI Track A cosmetic residual** — per-page hand-conversion to native `ui_kit.shell` (runtime reskin makes this optional).
+- **B5** unify dashboard D36 to `adjust.adjusted_closes` + zones on adjusted prices — SAME class as AUD-06; land together.
+
+**Charter §4 NEXT — live build candidates (S98 kickoff prompt is the source):** X-04 overnight/intraday split + pump-flag · X-05 band-lock streak board (data flowing) · X-06 Amihud illiquidity migration delta (half-built) · X-07 volume-at-price shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag · **P-05 replay-any-date API — BLOCKED on AUD-38 (in-flight this session)**.
+
+**BLOCKED (external gate / Ramana input required):**
+- **AUD-42** BLOCKED as-written; feasible via index-class routing (per Blockers section).
+- **AUD-58** BLOCKED — new niftyindices.com TRI fetcher required.
+- **AUD-62** BLOCKED (workers=2 unsafe until AUD-46 lands).
+- **AUD-59** BLOCKED on AUD-26 push-path (PARTIAL — waits on class-sweep + status==critical DM).
+- **Wolfe point-4-strength descriptor** BLOCKED on Ramana's worked chart example (canon §D item 4).
+- **E-08/E-09** BLOCKED on membership-change history depth (D-07).
+- **D-09/D-10** BLOCKED — endpoint-discovery pass needed (direct probes 404).
+
+**DATED-WATCH (armed; verify at fire — none require action ahead of time):**
+- 2026-07-10 15:16 UTC — `hermes-slb.timer` first fire (D-04 SLB feed).
+- 2026-07-10 16:04 UTC — `hermes-wolfe-scan.timer` first fire under D101/D102 three-snapshot code.
+- 2026-07-10 18:01 UTC — `hermes-results-reactions.timer` first evening post-TCS.
+- 2026-07-10 22:01 UTC — `hermes-board-health.timer` (silent = green).
+- 2026-07-11 02:45 UTC — **first-ever season-digest DM** (missing = real bug; do NOT `systemctl start` per AUD-95).
+- 2026-07-11 21:00 UTC — `hermes-fundamentals-provenance.timer` under S84 4h ceiling.
+- ~2026-07-18 — banks report (results-season flow).
+- ~2026-07-21 — SHP pledge coverage flood (Reg-31); AUD-25 residual check hooks here.
+- 2026-07-22 — E-02 rating-drift first scheduled fire (aborts-with-census).
+- 2026-07-25 — E-14 SHP combos first fire (GO possible if S85d dating clears floors).
+- 2026-08-01 — E-04 campaign-arcs monthly depth-DM.
+
+**STALE MARKERS FIXED (docs-only, canonical homes):**
+- **NEXT-SESSION-CARRYFORWARD.md S84-95 wrap block:** the "S93 buyback orphan" note now marked CLOSED — `src/web/buyback_calc.py` committed at `60fcdd8`, mount re-added at `5805e6f` (verified via `git log --oneline --all -- src/web/buyback_calc.py`).
+- **AUDIT-2026-07-02 §Blockers:** AUD-101 status flipped from "BLOCKED on AUD-04" to "UNBLOCKED 2026-07-10 (AUD-04 landed `c948c3f`+`a207c99`)".
+
+**TRANSIENT docs whose retire condition looks met (flag only — do NOT delete without owner check):**
+`docs/next-session-handoff.md` (Tracker workspace redesign per memory = SHIPPED+VPS-verified) · `docs/next-session-kickstart.md` (UI Phase 2/3 stubs superseded by S45+ ui_kit reskin). Both explicitly TRANSIENT-tagged. Absorption owner: next session that touches them.
+
+**No new build directed from this assessment** — this lane is triage-only. Recommended next-session pick (per charter §4 kickoff, unchanged): X-04 or X-05 as first product picks; AUD-06/07/11 batch as the next quant-integrity block; wait for the in-flight AUD-38 lane to land before touching P-05.
+
+---
 
 ## 🌊 S89 WOLFE D98+D99 (2026-07-10, `bf9b353`+`8a1dfea` live+walked) — 2 vetoes + 1 decision + 1 verify
 **D99 EXECUTED (Ramana-approved via main session — NOT a veto item):** recency = first-class ranking
@@ -364,10 +452,10 @@ its owner session deletes it.
   `git add A B PROJECT_STATE.md && git commit`~~ **✅ FIXED same day — gate v1.3 (S86d lane):**
   root cause = an UNMODIFIED PROJECT_STATE.md expands to nothing via `ls-files -m -o -d`; naming
   it as an add token now counts as carrying it. Matrix-covered; no workaround needed anymore.
-- **⚠ S93 buyback orphan (owner: the S85g/S93 lane):** its commit `cc2b151` shipped the
-  Lens + glossary but NOT `src/web/buyback_calc.py` (still untracked) nor its
-  `_ROUTER_SPECS` mount (uncommitted working-tree line) — /dash/buyback-calc 404s from a
-  clean checkout. That lane must land its view + mount (do NOT absorb it).
+- ~~**⚠ S93 buyback orphan**~~ **✅ CLOSED (verified 2026-07-10, open-items assessment):**
+  `src/web/buyback_calc.py` is committed at `60fcdd8` (S93 E-10 shipping commit); the
+  `_ROUTER_SPECS` mount was re-added at `5805e6f` (S93b nav-drop repair). Live route serves
+  from a clean checkout; no orphan remains.
 - **Multi-lane craft notes that saved the night (reuse them):** verify-then-swap md5 per
   file pre-deploy · pull-patch-push for the FORKED nav files (5 clean repetitions) ·
   `git apply --cached` / `git hash-object + update-index` for partial staging when a
