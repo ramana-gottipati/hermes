@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes E-02 run attempt (monthly on the 22nd 03:10 UTC — first fire 2026-07-22, post-Reg-31-flood)
+# NO Requires= (AUD-95-safe). The run is self-gating: while the sample is short it aborts at
+# reconciliation in seconds (census DM); the month it reconciles, the full pre-registered
+# protocol completes automatically and DMs the verdict.
+
+[Timer]
+OnCalendar=*-*-22 03:10:00
+Persistent=false
+Unit=hermes-e02-run.service
+
+[Install]
+WantedBy=timers.target

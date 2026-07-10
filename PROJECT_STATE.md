@@ -1474,6 +1474,28 @@ then-swap, cockpit md5 == HEAD pre-edit):
 - Units synced to the VPS vps-live mirror at deploy time (the Jul-10 mirror rule) —
   drift gate stays exit-clean.
 
+### Session 85e — 2026-07-10 — E-02 rating-drift ARMED for Jul-22: gate frozen, mapping widened, dedup falsifies the premise
+"Run E-02 after the Jul-21 flood" executed as the now-standard armed-trigger pattern (E-04's twin):
+- **NEW `research/explosive_moves/rating_drift.py`** — full pre-registration (UPGRADE/DOWNGRADE
+  clean-cohort CAR60 t≥2 + placebo, direction-consistent; PEAD-overlap clause gates on events
+  >±5 sessions from the symbol's own results date; ISIN/agency dedup = one event per
+  (symbol, broadcast-date, direction)). **Gate hashed TODAY (`fb1525c7859a…`) before any run.**
+  The mapping widen is compute-on-read inside the module (equity-ISIN + conservative
+  unique-name match vs security_master; no ingest edits, no stored columns).
+- **Self-gating run ARMED:** `hermes-e02-run.{service,timer}` fires monthly on the 22nd
+  (**first fire 2026-07-22 03:10 UTC** — the requested post-flood anchor), hardened + paged;
+  while the sample is short it ABORTS-WITH-CENSUS in seconds per its own pre-registered
+  protocol (a valid, ledgerable execution) and DMs the numbers; the month reconciliation
+  passes, the full protocol completes automatically.
+- **Baseline reconciliation (DM delivered): NOT-YET — 19/300 actionable (15↑/4↓) · 2/8 cohorts ·
+  widen +5 (all ISIN; name-match added 0 — unmapped issuers are mostly UNLISTED entities).**
+  The load-bearing finding: **the dedup gate collapsed 118 raw notch-changes to 19 true events**
+  (multi-ISIN same-day debt re-ratings = 6× pseudo-replication) — the charter's "130 upgrade
+  events" premise counted rows, not events; true accrual ≈ 2/month → the sample gate is YEARS
+  out, honestly tracked monthly. Charter §4 E-02 amended accordingly.
+- Also: `_notify_dm` hardened vs BrokenPipeError (a `| head` on the CLI crashed the post-send
+  print; the DM itself had delivered); both frozen gate hashes re-verified OK after the fix.
+
 ### Session 85d — 2026-07-10 — SHP lag calibration ARMED for the Reg-31 flood (self-executing min-N gate; data-perfection lane)
 Ramana: "go ahead with the SHP lag calibration when Reg-31 lands." Encoded as CODE, not a scheduler
 (`df36a4e`): the calibration fires itself the night the flood crosses the bar.

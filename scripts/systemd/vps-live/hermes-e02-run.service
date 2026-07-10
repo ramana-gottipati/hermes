@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes E-02 rating-drift run (self-gating: aborts-with-numbers until the sample reconciles)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes:/opt/hermes/research
+ExecStart=/opt/hermes/.venv-research/bin/python -m explosive_moves.rating_drift --run --notify
+StandardOutput=append:/var/log/hermes-e02-run.log
+StandardError=append:/var/log/hermes-e02-run.log

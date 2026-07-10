@@ -51,8 +51,16 @@ buyer cannot build in-house and cannot get from a vendor.
 
 ## 4. NEXT — July/August
 
-- **E-02 Credit-rating drift study** — 130 upgrade events already ingested; widen the 59-symbol
-  scrip mapping first. Pre-register before running.
+- **E-02 Credit-rating drift study** — **ARMED S85e (2026-07-10): gate frozen + hashed
+  (`fb1525c7859a…`, M-04); self-gating `rating_drift.py --run` fires monthly on the 22nd
+  (first: 2026-07-22 per the post-flood anchor), ABORTS-with-census per its own pre-registration
+  until the sample reconciles (≥300 deduped actionable + ≥8 qtr cohorts).** The mapping widen is
+  built in (compute-on-read: equity-ISIN + conservative name-match; +5 events, all ISIN).
+  **Baseline finding (2026-07-10): the ISIN-dedup gate collapses 118 raw notch-changes to 19 TRUE
+  events (15↑/4↓, ~2/month)** — multi-ISIN debt re-ratings were 6× pseudo-replication; the
+  charter's old "130 upgrade events" premise measured rows, not events. Sample horizon at current
+  accrual ≈ years, not weeks — the monthly DM tracks it; the run completes itself the month it
+  reconciles.
 - **E-03 Disclosure-event drift** — conviction insider filings as *events* (the T+2 disclosure IS
   tradeable information; the footprint study proved the pre-public window doesn't exist — so test
   the post-public drift instead). Reuses the PEAD harness verbatim.

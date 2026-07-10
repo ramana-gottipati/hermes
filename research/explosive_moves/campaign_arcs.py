@@ -150,9 +150,16 @@ def _notify_dm(text: str) -> None:
                 urllib.request.Request(
                     f"https://api.telegram.org/bot{token}/sendMessage", data=data),
                 timeout=15) as r:
-            print(f"notify: sent (HTTP {r.status})", flush=True)
+            status = r.status
+        try:
+            print(f"notify: sent (HTTP {status})", flush=True)
+        except BrokenPipeError:                                 # `| head` closed stdout —
+            pass                                                # the DM already delivered
     except Exception as e:                                      # noqa: BLE001
-        print(f"notify failed: {type(e).__name__}: {e}", flush=True)
+        try:
+            print(f"notify failed: {type(e).__name__}: {e}", flush=True)
+        except BrokenPipeError:
+            pass
 
 
 def run(force_underpowered: bool = False) -> dict:
