@@ -521,6 +521,9 @@ WHY a decision: Ramana's "did we select the strongest — on what basis?" expose
 blends two stories (TCS Q15 = perfect 11/11 shape · 4/13 landing) and that "strongest-by-Q" is a
 reading rank, not an edge rank. The split names the axes; the watch makes the edge filter's
 rejects first-class instead of invisible. Everything additive + revertible; §A LOCKED throughout.
+**RATIFIED same day:** his D99 recency directive mandated the split chips (item 6), and he tuned
+the watch default (30→60, "60 is fine, keep it") — both surfaces accepted; the veto flags are
+closed. Only the §B2 pierced-4.618 withhold decision remains open (see open items).
 
 ### D97 — Session-harness program: the state-doc rule is machine-enforced; session-local settings carry the trims (2026-07-10, S86d)
 The CLAUDE.md mandatory rule ("PROJECT_STATE.md updated in the same commit as code") was doctrine-only

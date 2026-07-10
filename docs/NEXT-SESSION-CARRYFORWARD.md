@@ -33,12 +33,12 @@ the S89 sweep proved the old top-40-by-Q walk cap hid **55% of fresh waves** (3,
 LND INVERTS as a trade filter — gloss everywhere) + **Structure watch** section on `/dash/wolfe/scan`
 (fresh≤15 · STR≥10/11 · not-on-the-scan; 95 rows, freshest-60 shown per Ramana, counted show-all; why-chips =
 profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibility.py`.
-- **RAMANA VETO ①:** the STR/LND display split of his §B Q (components/totals untouched) — revert =
-  one-line if he prefers the single Q.
-- **RAMANA VETO ②:** the Structure-watch surface itself (its criteria are in
-  `docs/calculations-and-weights.md` §5c — bar STR≥10, window 15, sort age/STR).
-- **RAMANA DECISION ③ (open item, not built):** wolfe-rules.md §B2 "pierced-both-4.618s → screener
-  withholds until return" is documented but UNIMPLEMENTED — building it would REMOVE scan rows.
+- ~~RAMANA VETO ①/② (STR/LND split · Structure watch)~~ **✅ RATIFIED 2026-07-10:** his recency
+  directive itself mandated the split chips (item 6), and he tuned the watch's default slice
+  30→60 and confirmed "60 is fine, keep it" — both surfaces are accepted, no longer flag them.
+- **RAMANA DECISION ③ (the ONLY open Wolfe question):** wolfe-rules.md §B2 "pierced-both-4.618s →
+  screener withholds until return" is documented but UNIMPLEMENTED — building it would REMOVE
+  scan rows, so it stays his call.
 - **VERIFY next session:** tonight's `hermes-wolfe-scan` 16:00 UTC run must persist BOTH snapshots —
   journal shows "persisted N winner-profile setups + M structure-watch rows"; run takes ~6 min now
   (timeout 1800s, checked); `wolfe_signals` universes `nifty500` + `nifty500:watch` both fresh.
