@@ -346,7 +346,8 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                fresh: int = Query(15, ge=1, le=180),
                asof: str = Query("", max_length=12),
                refresh: int = Query(0, ge=0, le=1),
-               wall: int = Query(0, ge=0, le=1)):
+               wall: int = Query(0, ge=0, le=1),
+               nq: int = Query(0, ge=0, le=1)):
     """The winner-profile SCANNER — the OOS-validated reachable-EPA edge across the universe.
     Each row is clickable → /dash/wolfe?sym=…&pick=winner (draws that stock's winner wave).
 
@@ -366,6 +367,11 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         # D98 structure watch — nightly snapshot only (no ~30s live fallback);
         # an ?asof= replay hides it (the watch snapshot is not PIT-replayable).
         watch = wolfe.latest_watch(conn, universe=uni) if not asof else None
+    # D100 (§B2, Ramana-approved): not-entry-qualified rows are WITHHELD from the
+    # actionable queues — visibly and countably (toggle ?nq=1), never silently.
+    withheld_n = sum(1 for c in cands if c.get("nq"))
+    if not nq:
+        cands = [c for c in cands if not c.get("nq")]
     nin = sum(1 for c in cands if c["in_zone"])
     trs = []
     for c in cands:
@@ -374,8 +380,12 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                if c["dir"] == "BULL" else
                '<span style="color:#d29922;font-size:11px" title="regime-dependent / tail-only — reliable mainly when the broad tape is already weak; not a standalone edge">⚠ tail</span>')
         t1s = _fmt(c["t1"]) if c["t1"] else "—"
-        status = ('<span style="color:var(--up);font-weight:700">● IN</span>' if c["in_zone"]
-                  else '<span style="color:var(--ink-3)">watch</span>')
+        status = ('<span style="color:#d29922;font-size:11px" title="§B2: point 5 pierced BOTH legs&#39; '
+                  '4.618 extensions and price has not closed back into that band — not entry-qualified '
+                  'until it returns; the chart still shows the wave">⊘ §B2 withheld</span>'
+                  if c.get("nq") else
+                  ('<span style="color:var(--up);font-weight:700">● IN</span>' if c["in_zone"]
+                   else '<span style="color:var(--ink-3)">watch</span>'))
         trs.append(
             # CL-VIEW-09: the symbol sits in a single-quoted JS string inside a double-
             # quoted attribute. SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes,
@@ -404,6 +414,9 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
     head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up', 'Q = STR+LND')
     # ---- D98: STRUCTURE WATCH — the scan's complement (descriptive, NO edge) ---- #
     wrows_all = (watch or {}).get("rows") or []
+    w_withheld_n = sum(1 for r in wrows_all if r.get("nq"))     # D100 §B2 withhold
+    if not nq:
+        wrows_all = [r for r in wrows_all if not r.get("nq")]
     _WATCH_SHOW = 60          # default display slice — NEVER a silent cap (counted link below).
                               # Ramana 2026-07-10: raised 30→60 so the TCS-archetype rows a few
                               # sessions behind a correlated selloff low stay on the default view
@@ -418,6 +431,10 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                 'legs&#39; 1-2 and 3-4 grids never agree within 2%">no zone</span>')
         split = (f'{r["str"]:g}/11 · {r["lnd"]:g}/13' if r.get("str") is not None else '—')
         qv = f'{r["Q"]:g}' if r.get("Q") is not None else '—'
+        legs = _fail_legs(r)
+        if r.get("nq"):
+            legs += ('&nbsp; <span style="color:#d29922" title="§B2: pierced both 4.618s, no close '
+                     'back into the band — not entry-qualified until it returns">⊘ §B2</span>')
         wtrs.append(
             f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(r["sym"])}&pick=watch\'" '
             f'style="cursor:pointer;border-top:1px solid var(--line-2)" '
@@ -430,7 +447,7 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             f'<td style="color:var(--ink-2)">{r["up"]:.0f}%</td>'
             f'<td title="§B split — STR = shape (p1×2 + pts-2/3/4 + rail), LND = landing '
             f'(C zone · F gap · G 4.618 · I RSI · D upside)">Q{qv} = <b>{split}</b></td>'
-            f'<td style="font-size:12px">{_fail_legs(r)}</td></tr>')
+            f'<td style="font-size:12px">{legs}</td></tr>')
     whead = ('symbol', 'dir', 'age', 'CMP', 'fib zone', 'EPA', 'EPA dist', 'Q = STR+LND', 'why not in the scan')
     watch_html = (
         '<h3 style="margin:26px 0 4px">Structure watch '
@@ -449,8 +466,11 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             f'<b>{_esc((watch or {}).get("scan_date") or "—")}</b> '
             f'<span style="color:var(--ink-3)">(nightly snapshot — ↻ refresh above applies to the scanner only)</span>'
             + (f' · showing the {len(wrows)} freshest — '
-               f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall=1" style="color:#58a6ff">show all {len(wrows_all)}</a>'
+               f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall=1&amp;nq={nq}" style="color:#58a6ff">show all {len(wrows_all)}</a>'
                if len(wrows_all) > len(wrows) else '')
+            + (f' · <span style="color:#d29922">{w_withheld_n} withheld (§B2)</span> '
+               f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall={wall}&amp;nq={0 if nq else 1}" '
+               f'style="color:#58a6ff">{"hide" if nq else "show"}</a>' if w_withheld_n else '')
             + '</div>'
             '<table style="width:100%;border-collapse:collapse;font-size:13px">'
             '<thead><tr style="color:var(--ink-2);text-align:left">'
@@ -484,7 +504,10 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
            if cached else
            f'as-of {_esc(asof or "today")} <span style="color:var(--ink-3)">(live)</span>')
         + f' · fresh ≤ {eff_fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
-        ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
+        + (f' · <span style="color:#d29922">{withheld_n} withheld (§B2 not entry-qualified)</span> '
+           f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall={wall}&amp;nq={0 if nq else 1}" '
+           f'style="color:#58a6ff">{"hide" if nq else "show"}</a>' if withheld_n else '')
+        + ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
         ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a>'
         ' &nbsp;|&nbsp; <a href="/dash/harmonic" style="color:#f778ba">Harmonic scanner ›</a></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'

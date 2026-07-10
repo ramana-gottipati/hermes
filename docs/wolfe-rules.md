@@ -61,6 +61,7 @@
 
 ### B2 · 4.618 entry-qualification — **SCREENER ONLY, never removed from the chart**
 - If point 5 pierces **below both** legs' 4.618 (bull; **above both** for bear) **and** price has **not returned** into the 4.618 zone → flag **"not entry-qualified"** until it returns. The user still sees the wave on the chart; only the scanner withholds it.
+- **✅ BUILT (D100, 2026-07-10, Ramana: "approve R7, go ahead"):** `wolfe.entry_qualified()` — pierced = point-5 beyond BOTH 4.618s (bull below min / bear above max); returned = a CLOSE back into the [min-4.618, max-4.618] band after point 5 (PIT). Withheld **visibly + counted** on `/dash/wolfe/scan` (both the winner table and the structure watch) with a show/hide toggle — never silent, never on the chart/walk.
 
 ### B3 · Quality ranking components
 | # | Component | Computed from | Points |

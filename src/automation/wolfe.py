@@ -840,6 +840,31 @@ def is_winner_profile(score):
     return bool(score) and score.get("D", 9) <= 1 and score.get("p1", 0) >= 2 and score.get("F", 9) <= 2
 
 
+def entry_qualified(p, p5, closes, direction, end=None):
+    """§B2 verbatim (Ramana; D100): if point 5 pierced BEYOND BOTH legs' 4.618
+    extensions and price has NOT since CLOSED back into the [min-4.618, max-4.618]
+    band, the wave is "not entry-qualified" — the SCANNER/WATCH withhold it VISIBLY
+    (counted, toggleable), the chart/walk always show it (B2's own clause).
+    Returns (qualified, why). PIT: closes[p5.idx+1 : end] only."""
+    if not p5:
+        return True, None
+    e12, e34, _z = fib_zones(p[0].price, p[1].price, p[2].price, p[3].price,
+                             direction=direction)
+    a, b = e12.get(4.618), e34.get(4.618)
+    if a is None or b is None:
+        return True, None
+    lo, hi = min(a, b), max(a, b)
+    bull = direction == "BULL"
+    if (p5.price >= lo) if bull else (p5.price <= hi):
+        return True, None                     # did not pierce beyond BOTH 4.618s
+    n = end if end is not None else len(closes)
+    returned = any((closes[t] >= lo) if bull else (closes[t] <= hi)
+                   for t in range(p5.idx + 1, n))
+    if returned:
+        return True, None                     # returned into the band -> qualified again
+    return False, "pierced both 4.618s (%.1f / %.1f), no return yet" % (a, b)
+
+
 def t1_confluence(p, direction, tol=0.02):
     """T1 partial target = leg-1-2's 0.618 ∩ leg-3-4's 0.618 (None if they don't converge)."""
     bull = direction == "BULL"
@@ -902,6 +927,7 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
             epa = w.p[0].price + w.epa_slope * (n - 1 - w.p[0].idx)
             up = abs(epa - z["price"]) / z["price"] * 100.0 if z["price"] else 0.0
             stq, lnq = score_split(w.score)
+            eq, _why = entry_qualified(w.p, w.p5, closes, w.direction)
             out.append({
                 "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
                 "zlo": round(z["low"], 1), "zhi": round(z["high"], 1), "zprice": round(z["price"], 1),
@@ -909,6 +935,7 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
                 "up": round(up, 1), "age": age, "Q": w.score["total"],
                 "str": stq, "lnd": lnq, "D": w.score.get("D"), "p1": w.score.get("p1"),
                 "F": w.score.get("F"), "C": w.score.get("C"),
+                "nq": 0 if eq else 1,          # §B2 not-entry-qualified (D100) — view withholds visibly
                 "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
     out.sort(key=lambda r: (not r["in_zone"], r["age"]))
@@ -962,6 +989,7 @@ def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
             epa = w.p[0].price + w.epa_slope * (n - 1 - w.p[0].idx)
             up = abs(epa - cmp_) / cmp_ * 100.0 if cmp_ else 0.0   # EPA distance from CMP
             sc = w.score or {}
+            eq, _why = entry_qualified(w.p, w.p5, closes, w.direction)
             out.append({
                 "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
                 "zlo": (round(z["low"], 1) if z else None),
@@ -972,6 +1000,7 @@ def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
                 "up": round(up, 1), "age": age, "Q": sc.get("total"),
                 "str": stq, "lnd": lnq, "D": sc.get("D"), "p1": sc.get("p1"),
                 "F": sc.get("F"), "C": sc.get("C"),
+                "nq": 0 if eq else 1,          # §B2 not-entry-qualified (D100)
                 "in_zone": bool(z and z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
     # one row per (sym, direction): the detector's fractal-degree twins of one wedge
@@ -1031,14 +1060,16 @@ def _ensure_scan_table(conn):
         )""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_wolfe_universe "
                  "ON wolfe_signals(universe, in_zone DESC, age ASC)")
-    # D98: STR/LND split + winner-profile legs (nullable — pre-D98 snapshots stay valid;
-    # idempotent ALTERs, still owned by wolfe.py, db.py untouched).
+    # D98: STR/LND split + winner-profile legs · D100: §B2 not-entry-qualified flag
+    # (nullable — older snapshots stay valid; idempotent ALTERs, still owned by
+    # wolfe.py, db.py untouched).
     for ddl in ("ALTER TABLE wolfe_signals ADD COLUMN str_sub REAL",
                 "ALTER TABLE wolfe_signals ADD COLUMN lnd_sub REAL",
                 "ALTER TABLE wolfe_signals ADD COLUMN d_comp INTEGER",
                 "ALTER TABLE wolfe_signals ADD COLUMN p1_comp INTEGER",
                 "ALTER TABLE wolfe_signals ADD COLUMN f_comp INTEGER",
-                "ALTER TABLE wolfe_signals ADD COLUMN c_comp INTEGER"):
+                "ALTER TABLE wolfe_signals ADD COLUMN c_comp INTEGER",
+                "ALTER TABLE wolfe_signals ADD COLUMN nq_flag INTEGER"):
         try:
             conn.execute(ddl)
         except Exception:
@@ -1071,13 +1102,14 @@ def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
         " p5date,p4date,fresh,scan_date,computed_at,"
-        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
           scan_date, computed_at,
-          r.get("str"), r.get("lnd"), r.get("D"), r.get("p1"), r.get("F"), r.get("C"))
+          r.get("str"), r.get("lnd"), r.get("D"), r.get("p1"), r.get("F"), r.get("C"),
+          r.get("nq"))
          for r in rows])
     # CL-SCO-12: do NOT commit here. `conn` is always passed in by the caller (the
     # CLI uses `with get_conn()`, which commits on success / rolls back on error), so
@@ -1105,13 +1137,13 @@ def persist_watch(conn, universe="nifty500", fresh=15, computed_at=None):
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
         " p5date,p4date,fresh,scan_date,computed_at,"
-        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(key, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
           scan_date, computed_at,
-          r["str"], r["lnd"], r["D"], r["p1"], r["F"], r["C"]) for r in rows])
+          r["str"], r["lnd"], r["D"], r["p1"], r["F"], r["C"], r["nq"]) for r in rows])
     return len(rows), scan_date
 
 
@@ -1119,28 +1151,28 @@ def latest_scan(conn, universe="nifty500"):
     """Read the persisted scan snapshot for a universe (instant). Returns
     {rows:[…same shape as winner_scan…], scan_date, computed_at, fresh} or None
     when the table is absent/empty (caller falls back to a live winner_scan).
-    Two-tier read: a pre-D98 snapshot/table (no split columns) degrades to
-    str/lnd = None instead of failing to the ~30s live scan."""
+    Tiered read: a pre-D100 snapshot (no nq_flag) degrades to nq=0; a pre-D98
+    table (no split columns) degrades to str/lnd = None — never failing to the
+    ~30s live scan."""
     base = ("SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
             "p5date,p4date,fresh,scan_date,computed_at{ext} "
             "FROM wolfe_signals WHERE universe=? "
             "ORDER BY in_zone DESC, age ASC")
-    recs, ext = None, True
-    try:
-        recs = conn.execute(base.format(ext=",str_sub,lnd_sub"), (universe,)).fetchall()
-    except Exception:
-        ext = False
+    recs, tier = None, 2
+    for tier, ext in ((2, ",str_sub,lnd_sub,nq_flag"), (1, ",str_sub,lnd_sub"), (0, "")):
         try:
-            recs = conn.execute(base.format(ext=""), (universe,)).fetchall()
+            recs = conn.execute(base.format(ext=ext), (universe,)).fetchall()
+            break
         except Exception:
-            return None
+            recs = None
     if not recs:
         return None
     rows = [{"sym": r[0], "dir": r[1], "cmp": r[2], "zlo": r[3], "zhi": r[4],
              "zprice": r[5], "sl": r[6], "t1": r[7], "epa": r[8], "up": r[9],
              "age": r[10], "Q": r[11], "in_zone": bool(r[12]),
              "p5date": r[13], "p4date": r[14],
-             "str": (r[18] if ext else None), "lnd": (r[19] if ext else None)}
+             "str": (r[18] if tier >= 1 else None), "lnd": (r[19] if tier >= 1 else None),
+             "nq": ((r[20] or 0) if tier >= 2 else 0)}
             for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
@@ -1150,16 +1182,18 @@ def latest_watch(conn, universe="nifty500"):
     """Read the persisted structure-watch snapshot (universe='<uni>:watch', D98).
     None when absent — the page shows 'snapshot pending'; there is NO live fallback
     (a live watch pass costs ~30s over the universe; the watch is a nightly read)."""
-    try:
-        cur = conn.execute(
-            "SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
+    base = ("SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
             "p5date,p4date,fresh,scan_date,computed_at,"
-            "str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp "
+            "str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp{ext} "
             "FROM wolfe_signals WHERE universe=? "
-            "ORDER BY age ASC, str_sub DESC", (universe + ":watch",))
-        recs = cur.fetchall()
-    except Exception:
-        return None
+            "ORDER BY age ASC, str_sub DESC")
+    recs, has_nq = None, True
+    for has_nq, ext in ((True, ",nq_flag"), (False, "")):
+        try:
+            recs = conn.execute(base.format(ext=ext), (universe + ":watch",)).fetchall()
+            break
+        except Exception:
+            recs = None
     if not recs:
         return None
     rows = [{"sym": r[0], "dir": r[1], "cmp": r[2], "zlo": r[3], "zhi": r[4],
@@ -1167,7 +1201,8 @@ def latest_watch(conn, universe="nifty500"):
              "age": r[10], "Q": r[11], "in_zone": bool(r[12]),
              "p5date": r[13], "p4date": r[14],
              "str": r[18], "lnd": r[19], "D": r[20], "p1": r[21],
-             "F": r[22], "C": r[23]} for r in recs]
+             "F": r[22], "C": r[23],
+             "nq": ((r[24] or 0) if has_nq else 0)} for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
 

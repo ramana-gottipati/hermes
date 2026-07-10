@@ -36,9 +36,10 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
 - ~~RAMANA VETO ①/② (STR/LND split · Structure watch)~~ **✅ RATIFIED 2026-07-10:** his recency
   directive itself mandated the split chips (item 6), and he tuned the watch's default slice
   30→60 and confirmed "60 is fine, keep it" — both surfaces are accepted, no longer flag them.
-- **RAMANA DECISION ③:** wolfe-rules.md §B2 "pierced-both-4.618s → screener withholds until
-  return" is documented but UNIMPLEMENTED — building it would REMOVE scan rows, so it stays his
-  call (recommendation R7 folds it into the lifecycle program as an on-queue chip).
+- ~~RAMANA DECISION ③~~ **✅ APPROVED + BUILT same day (D100, "approve R7, go ahead"):** §B2
+  not-entry-qualified withhold live on both actionable queues — visible count + `?nq=1` toggle +
+  ⊘ chip; chart/walk untouched per B2's own clause. NO open Wolfe decisions remain; the lifecycle
+  build queue is R1+R2+R8 → R3/R4/R6.
 - **🧭 NEW — LIFECYCLE PROGRAM (Ramana directive, S89 tail; RECORDED, build queued):** his
   FORMING / OPEN (EPA untouched = "my actual need") / CLOSED (EPA touched = reference-only)
   taxonomy is canon in `docs/wolfe-rules.md` §D (verbatim + state machine); recommendations

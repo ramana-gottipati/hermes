@@ -477,6 +477,20 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D100 — §B2 "not entry-qualified" is a VISIBLE withhold on the actionable Wolfe queues (2026-07-10, S89; RAMANA-APPROVED — "approve R7, go ahead")
+His §B2 rule (wolfe-rules.md, documented 2026-06-25, unimplemented until now): point 5 piercing
+BEYOND BOTH legs' 4.618 extensions with no return → "not entry-qualified" until price closes back
+into the [min-4.618, max-4.618] band. Implemented as `wolfe.entry_qualified()` (PIT: closes after
+p5 only; crossing-inclusive by inequality) → an `nq` flag on winner_scan + watch_scan rows,
+persisted (`wolfe_signals.nq_flag`, idempotent ALTER, tiered readers so older snapshots degrade to
+qualified). The VIEW withholds nq rows from BOTH actionable queues **visibly and countably**:
+"N withheld (§B2 not entry-qualified) — show/hide" toggle (`?nq=1`), amber ⊘ chip on revealed
+rows. Per B2's own clause the chart/◄/► walk ALWAYS show the wave — only the scanner withholds.
+WHY a decision: the last open Wolfe question (decision ③) — a documented method rule the scanner
+ignored; the D96/D98 doctrine applies (filters declare, nothing hides), so the withhold is counted,
+never silent. R5's same-day resolution confirmed no additional bound applies (his "point-2/3"
+sentence = the §A point-4 gate, already enforced). Closes R7 of the lifecycle program.
+
 ### D99 — Wolfe recency is a first-class RANKING field: rank_attention = Q × 0.5^(age/60); WolfeRank superseded (2026-07-10, S89; RAMANA-APPROVED — "go ahead with the 60-bar half-life default")
 Ramana (via the main session, same day): "recentness is crucial… if we need to add a ranking, we
 can consider recentness as well" + explicit approval of the 60-bar half-life. Executed:
@@ -1416,9 +1430,9 @@ median bars from p5 = **BULL 18 (p25 5 · p75 101) · BEAR 10 (p25 4 · p75 30)*
   artificial cutoff — "open or completed is sufficient"); the OPEN queues filter by STATE only,
   attention buries zombies, counted default-slice + show-all pages it. Progress chips
   (in-zone → reversing → crossed-3 → nearing-EPA) are DISPLAY, not the sort key.
-**R7 — §B2 pierced-4.618 withhold = a lifecycle chip (UNBLOCKED):** his B2 verbatim as a
-  "not entry-qualified (below both 4.618s, no return)" chip on the actionable queues ONLY —
-  never removed from the chart/walk. Resolves open decision ③ inside this program.
+**R7 — ✅ DONE same day (D100, "approve R7, go ahead"):** `entry_qualified()` + `nq_flag` persisted;
+  BOTH actionable queues withhold visibly ("N withheld (§B2)" + `?nq=1` toggle + ⊘ chip);
+  chart/walk untouched per B2's own clause. Closed open decision ③.
 **R8 — EPA state is event-driven (his mechanism, adopted):** the EPA is a line formula; a wave's
   state is PERSISTED once known — one initial pass from point 5 establishes it (historical waves
   only), then the nightly checks just the new bar's range vs `epa(t)` (crossing-inclusive:
@@ -1691,7 +1705,10 @@ crossing the seam — near-consistent by the module's own 1pp continuity gate).
   program"): **7/76 scan + 1/140 watch rows today are already CLOSED (dead)**; 686 winner-profile
   OPEN waves sit beyond the 15-bar window (mostly multi-year zombies → liveness bound needed);
   EPA-touch medians BULL 18b / BEAR 10b. Watch default slice 30→60 same day ("60 is fine").
-  One §D clarification gates R5/R7 (his point-2/point-3 bounds). Nothing built yet — R1+R2 queued.
+  §D clarifications all RESOLVED same day (point-2/3 = the §A point-4 gate, no code change; OPEN
+  spans two phases; EPA state = line-formula/event-driven; no liveness cutoff; point-4-strength
+  nugget recorded). **R7 BUILT same day as D100** ("approve R7, go ahead"): §B2 not-entry-qualified
+  withhold, visible + counted + toggleable on both queues, chart untouched. R1+R2+R8 queued next.
 Ramana's questions ("did we select the strongest? on what basis? I feel I missed many entries")
 answered with numbers, then built. Commits: (see git log this date — wolfe.py, wolfe_view.py,
 calculations-and-weights.md §5c, PROJECT_STATE).
