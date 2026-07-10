@@ -1,9 +1,5 @@
 # Hermes — CLAUDE.md (session orientation)
 
-**Location:** `D:\Hermes\CLAUDE.md` (project root — auto-loaded by Claude Code on session start)
-
----
-
 ## ⚠️ READ THIS FIRST — and the MANDATORY UPDATE RULE
 
 The running source of truth for this project is **`D:\Hermes\PROJECT_STATE.md`**.
@@ -19,18 +15,10 @@ Don't re-derive the architecture from scratch. The decisions in `PROJECT_STATE.m
 
 ### 🔴 MANDATORY: Update PROJECT_STATE.md as you work
 
-This is a **binding rule, not a suggestion**:
-
-- **Every time a new decision is made** (architectural choice, defaults change, policies change) → append it to § "Decision log" in `PROJECT_STATE.md` **in the same commit** as the code change.
-- **Every time code structure changes** (new file, new table, new command, new service) → update the relevant section of `PROJECT_STATE.md` (Quick reference / Architecture / Database schema / commands tables) **in the same commit**.
-- **Every time an open item is closed** or a new one identified → update § "What's NOT yet built / open items" **in the same commit**.
-- **Before ending any session that shipped anything** → append a new entry at the TOP of § "Session log" with date, what shipped, and the commit hash(es).
-
-A commit that changes code without updating `PROJECT_STATE.md` is **incomplete**. Treat the update as part of the work, not as paperwork afterwards.
-
-The goal: any future session reading `PROJECT_STATE.md` should have a complete and current picture of the system, without having to grep the codebase to figure out what's actually there.
-
-### When to update specifically
+**Binding rule:** every decision, structure change, open-item change, and session's shipped work
+updates its `PROJECT_STATE.md` section **in the SAME commit** as the code. Machine-enforced for
+commits touching `src/`/`scripts/` by the PreToolUse gate `scripts/state-doc-gate.cjs` (D97;
+deliberate exception = append `state:skip` to the commit command). Route by this table:
 
 | If you do this in a session... | Update this section of PROJECT_STATE.md... |
 |---|---|
@@ -38,11 +26,11 @@ The goal: any future session reading `PROJECT_STATE.md` should have a complete a
 | Add or change a DB table / column | § "Database schema" |
 | Add a new file in `src/` or `scripts/` | § "Key file paths" |
 | Make an architectural choice (model selection, schedule change, etc.) | § "Decision log" (numbered entry with WHY) |
-| Build something that was open | Remove from § "What's NOT yet built" |
-| Discover something missing or broken | Add to § "What's NOT yet built" |
-| End the session with any shipped work | New § "Session log" entry at top |
+| Build something that was open / discover something broken | § "What's NOT yet built" (remove / add) |
+| End the session with any shipped work | New § "Session log" entry at top, with commit hashes |
 
-This rule applies even if the user does not explicitly ask for it. The user *has* asked for it, once, here. This file makes it permanent.
+Goal: a future session gets the complete current picture from `PROJECT_STATE.md` without grepping
+the codebase.
 
 ---
 
@@ -61,7 +49,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 - **Bot library:** python-telegram-bot 21.7
 - **LLM:** Anthropic Claude (Haiku 4.5 default; Sonnet on user-initiated /analyze only)
 - **Datastore:** SQLite at `/opt/hermes/data/hermes.db` (single-file portability)
-- **Config:** `.env` file + `pydantic-settings` (load_dotenv with override=True; see `src/core/settings.py`)
+- **Config:** `.env` + `pydantic-settings` (`src/core/settings.py`)
 
 ---
 
@@ -69,9 +57,8 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 
 | Goal | Command |
 |---|---|
-| Read project state | Open `D:\Hermes\PROJECT_STATE.md` |
 | SSH to VPS | `ssh root@187.127.173.149` |
-| Update VPS from latest GitHub | 🔴 **BANNED until AUD-28 is fixed — do NOT run `setup-news.sh` on the VPS** (its heredoc silently reverts the live `ExecStartPre` on hermes-concalls.service). Deploy by scp + writer-safe restart per `PROJECT_STATE.md`/`vps-deploy-reality` recipe. Also never `systemctl start` a hermes *timer* mid-day (`Requires=` fires the job immediately, AUD-95). See `docs/AUDIT-2026-07-02-institutional-review.md`. |
+| Update VPS from latest GitHub | 🔴 **BANNED — never run `setup-news.sh` on the VPS** (AUD-28: its heredoc reverts live units) **and never `systemctl start` a hermes timer mid-day** (AUD-95: `Requires=` fires the job). Deploy = scp + writer-safe restart (`vps-deploy-reality` memory / PROJECT_STATE recipe). |
 | Run 5y bhav copy backfill (background) | `nohup bash /opt/hermes/scripts/full-backfill.sh > /var/log/hermes-backfill.log 2>&1 &` |
 | Pull all VPS data to laptop | Double-click `D:\Hermes\scripts\download-from-vps.bat` |
 | Bot status | `systemctl status hermes-telegram` |
