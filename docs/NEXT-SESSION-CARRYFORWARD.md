@@ -7,6 +7,29 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🆕 S100 WRAP (2026-07-10, audit lane) — D104: the /v1 PIT knowable clock upgraded to REAL event dates (AUD-38 refined; `0874e9a` live)
+- **On the wire now:** `credibility?as_of=` serves the EVENT tier — `knowable_from =
+  max(concall_dt, transcript_publish_dt)` per period (16,208 concalls carry a real clock;
+  `result_filing_dt` refused — filings precede calls = the leak direction) with S96b's
+  month-end rule kept verbatim as the MODELED fallback. Rows stamp `knowable_basis`;
+  `pit.knowable_rule` names the applied rule; `/universe` as_of strictly validated (422).
+  Walked live: ICICIPRULI as_of 2019-01-25 → "Feb 2019" point knowable 2019-01-22 EVENT
+  (34 days earlier than month-end permitted); the 2025-06-30 boundary serve unchanged.
+  +5 golden tests (`tests/test_v1_pit.py` §5; 33 pass), on-box selftest green, public
+  OpenAPI carries the two-tier contract. Semantics: PROJECT_STATE **D104**.
+- **Multi-lane collision resolved by ADOPT-THEN-REFINE (reusable recipe):** this lane built
+  AUD-38 independently; the pre-deploy fork-check caught S96b's implementation ALREADY
+  DEPLOYED-uncommitted, its session mid-flight. Response: reset the divergent branch (kept at
+  `backup/s99-divergent-aud38`), import the live bytes, WAIT for its commit (`56c731a`),
+  re-diff the delta against the LANDED commit — its deployed files were OLDER than its final
+  commit (selftest polished in between), so a straight live-import diff would have silently
+  REVERTED that polish — then land the refinement only. Standing rule hardened: **fork-check
+  the VPS live files for EVERY pick** (not just the nav files) before building.
+- **⚠ Number-collision watch:** an active lane is building the signal_events PRODUCER wiring
+  (the S96b chip — bhavcopy-chain step + docstrings) whose draft claims "S100"; that number is
+  taken by this landed session. That lane renumbers at its wrap (S101+, re-check origin) — its
+  landing also makes "signal_events has 0 rows / no producer" OBSOLETE; nobody else pick it.
+
 ## 🏁 S97 WRAP (2026-07-10, main session — Ramana-steered) — chart batch + D95 residue BOTH closed; nothing of mine open
 Three arcs, all shipped + live-verified + state-doc'd; **do NOT redo any of them**:
 1. **S86c chart batch (D96 + drawings v2, `9d04bd9`+`d83c50f`):** Wolfe walk freshness guarantee
@@ -77,9 +100,13 @@ the PIT contract in OpenAPI + RFC-7807 422 on malformed dates. Tests `tests/test
 boundary serve). Two bonus fixes: lowercase symbols no longer bypass rename resolution
 (normalize-before-canonical) and the v1 selftest's stale `lag_days==90` now asserts the
 INVARIANT (calibrated lag: VPS serves 114, laptop default 120 — never pin cross-box constants).
-Findings: `signal_events` = **0 rows in prod** (bus has no producer — spawn-task chip filed);
-5 live /v1+automation files were CRLF (content==HEAD; now LF). **P-05 is UNBLOCKED** — needs an
-API key provisioned on the box (`HERMES_V1_DEV_KEY` unset) for live-key demos.
+Findings: `signal_events` = **0 rows in prod** (bus has no producer — spawn-task chip filed;
+⚠ producer wiring now IN FLIGHT in a parallel lane, see the S100 block); 5 live /v1+automation
+files were CRLF (content==HEAD; now LF). **P-05 is UNBLOCKED** — needs an API key provisioned
+on the box (`HERMES_V1_DEV_KEY` unset) for live-key demos. **REFINED S100 (D104, `0874e9a`):**
+the knowable clock is now two-tier — the REAL concall/transcript event date when captured
+(basis EVENT; month-end stays as the MODELED fallback); `knowable_basis` + `pit.knowable_rule`
+ride the wire; `/universe` as_of strictly validated.
 **✅ P-04 evidence pack LIVE (S96): `/dash/evidence-pack`** — print-CSS procurement assembly
 (browser print→PDF, zero deps): 8 P-03 sheets IMPORTED verbatim + coverage boundary
 (glance/matrix/COPY_*) + live season MTTR/placebo + replay pointer (no returns quoted). Trust
@@ -145,7 +172,8 @@ AUD-38 only (the selftest edit was a stale-expectation fix, NOT AUD-37; metering
 5. **AUD-22** research replication stack bypasses PIT layer (leaky report_date joins). Fix = route through `fundamentals_asof.py` with PYTHONPATH note.
 6. **AUD-25** feed-liveness monitoring covers 4 of 12 feeds; regime guard reads undated rows.
 7. **AUD-28** `setup-news.sh` heredoc regresses live CCI unit (do WITH AUD-27 remainder — replace heredocs with committed unit files).
-8. **AUD-37/38** IN FLIGHT this session (do NOT restart).
+8. **AUD-37** /v1 metering under-records (500s unlogged, bytes_out=0) — still OPEN.
+   ~~AUD-38~~ **DONE twice-over: S96b `56c731a` + S100 real-clock refinement `0874e9a`** — do NOT restart.
 9. **AUD-12** historical rs_rank percentiles survivorship-biased (finder-only — verify first).
 
 **VERIFIED-OPEN — P2/P3 (54 items; batchable):** AUD-45 (canonical weights doc coverage), AUD-46 (v1 write-txn fan-out), AUD-47-56 (SHP restatement journal + Screener SHRINK + XBRL SA/CONSO + NSE http shared client + /v1 versioning/selftest teardown/stale docstrings), AUD-58-100 (TRI benchmark, kill-switches #1/#3, sub-nav consolidation, chrome sunset, glossary drift, resource containment, timezone, DDL fragmentation, dead schema), AUD-101-117 (P3 polish; **AUD-101 is now UNBLOCKED** — AUD-04 landed).
@@ -490,17 +518,22 @@ its owner session deletes it.
 > self-gating (E-02 Jul-22; E-04/E-14 depth-gated; do NOT run early). Prefer
 > product/consumption picks. **Deprioritized: P-04 (S96) · E-10 (S93) · D103 heal (S98).**
 > **Live candidates:** X-04 overnight/intraday split + pump-flag · X-05 band-lock streak
-> board (data flowing since S83c `price_band_events`) · X-06 Amihud illiquidity migration
+> board (⚠ possibly IN FLIGHT — `band_lock.py` sighted untracked in the main tree 12:46 UTC
+> Jul-10; kickstart-verify before picking) · X-06 Amihud illiquidity migration
 > delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price shelves · D-06
 > announcement-category taxonomy → E-07 auditor-resignation red-flag · P-05 replay-any-date
-> API (AUD-38 as_of plumbing DONE S96b — buildable; provision a v1 key on the box first)
+> API (AUD-38 DONE S96b `56c731a` + D104 real-clock refinement S100 `0874e9a` — buildable;
+> provision a v1 key on the box first) · ⚠ signal_events PRODUCER wiring is IN FLIGHT in a
+> parallel lane (claims "S100" — stale, must renumber; see the S100 block) — don't pick it
 > unless a study's gate has newly reconciled; ALSO verify the first-ever season-digest DM
 > (Sat Jul-11 02:45 UTC — a missing DM = real bug, see the S96 block);
 > (3) respect the standing fences: 17 gated lenses stay DESCRIPTIVE with their honesty
 > fences (E-02 dedup · CONTROL_PCT/STRUCTURAL_PP=25 · plumbing classes · placebo-nulls
 > quoted); front-door parity rule (D94) for any new strategy; forked-nav pull-patch-push;
-> `tr` not sed; explicit-path staging (siblings run hot — S93's buyback orphan is ITS
-> owner's to land).
+> `tr` not sed; explicit-path staging; **fork-check the VPS live files for EVERY pick before
+> building** (S100's AUD-38 collision: a sibling had deployed uncommitted work — and its
+> deployed files were older than its eventual commit; re-diff deltas against the LANDED
+> commit, never against live bytes).
 > Access is harness-enforced — never ask for access or per-step confirmation; get guidance
 > from the agents, not from me; I won't answer. Keep every guardrail (esp. #8
 > primary-sources-only). Perimeter: curl via the Caddy hostname or ssh-localhost, never raw

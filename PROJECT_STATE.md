@@ -1765,9 +1765,12 @@ commit to land (`56c731a`), then rebuilt my contribution as an additive refineme
   delta against the landed commit, file by file. (2) Session numbers moved twice mid-session
   (S97→S99 claimed while working); claim at commit time only.
 - Deploy: cci_series.py + routes.py + __init__.py + selftest.py + tests (code delta only;
-  signal_events/resources byte-identical to S96b). Walked live on ICICIPRULI: as_of mid-month now
-  serves the EVENT-dated point where S96b's rule waited for month-end (see wrap verify).
-- Commit: see entry-final hash note.
+  signal_events/resources byte-identical to S96b). Walked live on ICICIPRULI: as_of 2019-01-25 →
+  "Feb 2019" point knowable 2019-01-22 EVENT (34 days earlier than month-end permitted);
+  2019-01-21 → the prior Dec-2018 point (no leak); S96b's 2025-06-30 month-end boundary serve
+  byte-identical. Public OpenAPI (Caddy hostname) carries the two-tier contract + D104 param docs.
+- Commit: `0874e9a` (backfilled; the session was terminated mid-wrap by a harness session limit —
+  the carry-forward rewrite landed in the follow-up docs commit).
 
 ### Session 96b — 2026-07-10 — AUD-38 CLOSED: /v1 is PIT-queryable (as_of on credibility + attention) — P-05 unblocked (season lane, same session as S96)
 Ramana's directive: keep self-prompting. Pick = the audit's own P1 + the carry-forward's named
