@@ -50,6 +50,49 @@
 
 > Additive only. Strengthens detection coverage + ranking + entry-qualification. **Never** changes § A.
 
+### B0 · THE STRENGTH OF A WOLFE — THE COMPLETE CONCEPT (Ramana, canon; restated 2026-07-10)
+> Ramana has stated this repeatedly and asked that the WHOLE concept be written down, not just the
+> formulas. The strength of a Wolfe is not one number — it is several INDEPENDENT things all lining
+> up at once. A wave is strong only when they agree. The five drivers:
+
+**1 · The pivots must be real fractals (structure).**
+- **Points 2, 3, 4 MUST each be a fractal — minimum 2-fractal. MANDATORY.** A wave whose 2/3/4 are
+  not all ≥ 2-fractal is **not a Wolfe — do not consider it** (reject at detection, or surface it
+  to Ramana). This is a HARD GATE, not a soft score. *(Code status 2026-07-10: currently only
+  soft-scored via B — the mandatory reject GATE is the agreed next code change.)*
+- **Point 1 does NOT need a fractal** — a candle extreme is allowed. But a 2- or 5-fractal at point 1
+  is genuinely significant and valued (scored ×2 as component A). Optional, not mandatory.
+- **Point 5 needs no fractal** (entry timeliness). Preference order everywhere: **10 > 5 > 2 > candle.**
+
+**2 · The Fib confluence zone (drawn from the 1-2 and 3-4 legs).**
+- Draw the Fib EXTENSIONS on the two thrust legs (1-2 and 3-4), projected toward the overshoot.
+  Where a leg-1-2 ratio COINCIDES with a leg-3-4 ratio = a **confluence zone**.
+- A **NARROW** confluence zone is stronger — the tighter the two ratios agree, the higher the
+  conviction (component **F**). A zone containing a **4.618** ratio is a wildcard bonus (component **G**).
+
+**3 · How close point 5 lands to the confluence zone (point-5 placement).**
+- The **closer price at point 5 sits to a narrow confluence zone, the stronger the wave** (component
+  **C**). A point 5 landing exactly on a tight zone is the highest-conviction reversal.
+
+**4 · The EPA line (point 1 through point 4) as support / resistance.**
+- The **EPA line runs from point 1 through point 4** and extends forward — it is the target line.
+- **The line must be TOUCHED, not CUT.** For any candle formed **between points 1 and 4**, if its
+  **high or low comes within 0.3% of the EPA line**, that extreme is *touching* the line. A candle
+  that slices THROUGH the line is a *cut*, not a touch, and does not count.
+- **Every clean touch confirms the line is acting as strong support/resistance** — a line price
+  respects (touches and turns from) will **attract price back to it.** More touches ⇒ stronger EPA
+  line ⇒ stronger wave (component **H**). The upside from point 5 to the EPA line is the tradeable
+  target (component **D**).
+
+**5 · Momentum confirmation (RSI divergence at point 5).**
+- At point 5, price prints a new extreme but **RSI(14) does not** (component **I**) — the
+  momentum-divergence that lifts the reversal's odds.
+
+**The score = (A×2) + B + C + F + G + H + I + D** — a plain points sum; higher = stronger. Point 1
+is shown separately (×2 = its high significance). **Freshness/recency is NOT part of strength** — a
+wave's quality does not change because point 5 printed today vs last month; recency, if used at all,
+is a SEPARATE display axis, never mixed into the quality score.
+
 ### B1 · Pivot sourcing (surfaces missed waves + enables quality)
 | Point | Minimum allowed | Better → Best |
 |---|---|---|
@@ -78,7 +121,7 @@
 **C · Point-5 placement** — ≤ 0.1% (touching, buffered) = **3** · 0.1–0.5% = 2 · 0.5–1.5% = 1 · > 1.5% / none = 0
 **F · Zone narrowness** — ≤ 0.6% = **3** · 0.6–1.2% = 2 · 1.2–2% = 1  *(⇒ the confluence finder must widen its tolerance 0.6% → 2%)*
 **G · Zone has 4.618** — includes a 4.618 (of *either* leg) = **2** · otherwise = **1**
-**H · EPA line-touches** — count candle highs/lows sitting on the 1-4 line (within **0.1%** of the line) in the **1→2** and **2→3** legs only: 0 touches = **0** · 1–2 = **1** · ≥ 3 = **2**
+**H · EPA line-touches (support/resistance strength)** — count candles whose **high OR low is within 0.3% of the 1-4 (EPA) line**, across the **FULL span between points 1 and 4** — the line must be **TOUCHED, not CUT** (a candle slicing through the line does not count). 0 touches = **0** · 1–2 = **1** · ≥ 3 = **2**. More touches = the EPA line is a stronger S/R level that attracts price back to it. *(Ramana refinement 2026-07-10 — supersedes the earlier "0.1%, legs 1→2 & 2→3 only". CODE STATUS: documented here; the live code still uses the old ~0.2×ATR tolerance over 1→3 — update when the fractal-gate work lands. He is OK with this not being coded today, but it is now RECORDED.)*
 **I · RSI divergence at point 5** — price prints a new extreme but **RSI(14) does not** (bull: lower-low price + higher-low RSI · bear: higher-high price + lower-high RSI). **Present = +2 · none = 0** (binary). A momentum-divergence confirmation that lifts the reversal's profitability.
 
 **D · Max upside %** — < 10% = **0** · 10–20% = **1** · 20–35% = **2** · > 35% = **3**
