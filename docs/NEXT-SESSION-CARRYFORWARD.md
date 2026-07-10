@@ -20,7 +20,13 @@ PROJECT_STATE entries are enough.**
   points; MEMORY.md index is now slim one-liners (detail lives in the body files — extend bodies, never
   re-fatten index lines). Full inventory: memory `claude-harness-optimization`.
 
-## 🌊 S89 WOLFE D98 (2026-07-10, `bf9b353` live+walked) — 3 items FOR RAMANA + 1 verify
+## 🌊 S89 WOLFE D98+D99 (2026-07-10, `bf9b353`+`8a1dfea` live+walked) — 2 vetoes + 1 decision + 1 verify
+**D99 EXECUTED (Ramana-approved via main session — NOT a veto item):** recency = first-class ranking
+field. `rank_attention = Q × 0.5^(age/60)` (his approved 60-bar half-life; canon §5d) — /dash/wolfe
+defaults to **current-first** with a labeled "Q all-time" toggle; age + freshness tier (hot/fresh/
+aging/archive) on every ranked row + the walk summary; **WolfeRank removed** (one ranking system).
+Q untouched; D96/D98 guarantees untouched. Verified live on TCS (wedge leads, attn 14, 6b hot) +
+RAMCOSYS.
 Shipped (panel-decided, all additive/revertible; PROJECT_STATE D98 + memory `wolfe-wave-strategy`):
 the S89 sweep proved the old top-40-by-Q walk cap hid **55% of fresh waves** (3,121 restored by D96;
 104 TCS-archetype had NO surface) → **Q badge now displays as STR x/11 · LND y/13** (rubric untouched;
