@@ -59,6 +59,39 @@ waves — do NOT re-add filtering/recency).
 - Code: `wolfe.epa_touched()` (open vs closed) + `wolfe.close_quality()` (neatness). Overlay tabs
   Prediction / Open / Closed, default = **Open** (the live setups). D109.
 
+### A9 · Point 5 is ALIVE, and the SPRING-AND-RECLAIM doctrine (Ramana, canon 2026-07-11)
+> This has been discussed repeatedly and MUST stay written down. Point 5 is not a fixed dot the
+> moment it prints — it is a living, evolving pivot, and *how price behaves around the confluence
+> zone after it* is central to the wave's quality.
+
+**1 · Point 5 keeps changing until it locks.** Point 5 = the DEEPEST overshoot past the 1-3 line.
+If, after the first candidate point 5, a later candle prints a NEW lower low (bull) / higher high
+(bear), point 5 **shifts to that new extreme**. It only locks once the EPA (1-4) line is touched
+(the wave closes). So a "fresh" point 5 can still move; treat it as live. (Code: `find_p5`.)
+
+**2 · The confluence zone is the EXPECTED point-5 reversal zone** — a *support* for a bull, a
+*resistance* for a bear. Where point 5 lands relative to it drives component **C**.
+
+**3 · SPRING-AND-RECLAIM — "any depth that reclaims counts."** Point 5 does NOT have to form
+*inside* the zone. Very often it **breaks the zone and overshoots below it** (bull) — the zone
+(a support) is breached, so it **flips into resistance**. Then price **reclaims** it: it comes
+back UP into / through the zone and lives at or above it again. **That reclaim — breaching the
+broken zone back the other way — is a valid, often STRONG point-5 reversal** (the break was a
+stop-hunt / spring). **The depth of the overshoot does not matter — any depth that reclaims
+counts.** (TCS 2026: point 5 = 1976.8 sprang 3.6% below the 2.0∩1.618 zone [2051-2078], then
+reclaimed to 2069 — a textbook spring-reclaim.)
+
+**4 · FRESH vs REACTING — read the CURRENT price.** When point 5 is fresh, *where price lands and
+where it is right now* matters most:
+- reclaimed the zone (back inside / above) → **strong** (C=3).
+- not reclaimed yet, but price is **NEAR the zone and turning back toward it** → it still has a
+  chance → **partial** (C=1). "When it is going near, it might always reverse — look at the price."
+- pierced and still far, not reclaiming → **weak** (C=0).
+- landed cleanly INSIDE the zone → **strongest**, graded by distance to centre (C up to 4).
+
+Mirror everything for a bear (resistance broken up → flips to support → reclaimed down = strong).
+Code: component **C** in `wolfe.score` implements exactly this (D111).
+
 ---
 
 ## § B — ADVANCED rules (agreed 2026-06-25 · NOT yet built · all tunable)
@@ -125,24 +158,25 @@ is a SEPARATE display axis, never mixed into the quality score.
 ### B3 · Quality ranking components
 | # | Component | Computed from | Points |
 |---|---|---|---|
-| **A** | Point-1 strength *(separate rating; ×2 in the score)* | point 1 fractal level | 0/1/2/3 → **×2 = 0–6** |
+| **A** | Point-1 strength | is point 1 a fractal? | candle **1** · any fractal (≥2-fr) **4** |
 | **B** | Structure strength | **average** fractal of points 2, 3, 4 | 1–3 |
-| **C** | Point-5 placement | distance to nearest strong fib zone | 0–3 |
-| **F** | Zone narrowness | the confluence gap | 1–3 |
+| **C** | Point-5 placement (spring/reclaim §A9) | point 5 vs the confluence zone | 0–4 |
+| **F** | Zone narrowness | the confluence gap | 0–4 |
 | **D** | Max upside % | point 5 → EPA *(buckets below)* | 0–3 |
-| **I** | RSI divergence at point 5 | price vs RSI(14) | 0 or 2 |
-| **G** | Zone has 4.618 *(wild card)* | zone composition | 1 or 2 |
-| **H** | EPA line-touches *(wild card)* | candle hi/lo on the 1-4 line, regions 1-2 & 2-3 | 0 / 1 / 2 |
+| **I** | RSI divergence at point 5 | p5 low vs the PRIOR pivot low (pt3) | 0 or 2 |
+| **G** | Zone extension DEPTH | deepest fib ratio in the zone | 0 / 1 / 2 |
+| **H** | EPA touched-not-cut | clean touches of the 1-4 line, pts 1→4 | 0 / 1 / 2 / 3 |
 
-**C · Point-5 placement** — ≤ 0.1% (touching, buffered) = **3** · 0.1–0.5% = 2 · 0.5–1.5% = 1 · > 1.5% / none = 0
-**F · Zone narrowness** — ≤ 0.6% = **3** · 0.6–1.2% = 2 · 1.2–2% = 1  *(⇒ the confluence finder must widen its tolerance 0.6% → 2%)*
-**G · Zone has 4.618** — includes a 4.618 (of *either* leg) = **2** · otherwise = **1**
-**H · EPA line-touches (support/resistance strength)** — count candles whose **high OR low is within 0.3% of the 1-4 (EPA) line**, across the **FULL span between points 1 and 4** — the line must be **TOUCHED, not CUT** (a candle slicing through the line does not count). 0 touches = **0** · 1–2 = **1** · ≥ 3 = **2**. More touches = the EPA line is a stronger S/R level that attracts price back to it. *(Ramana refinement 2026-07-10 — supersedes the earlier "0.1%, legs 1→2 & 2→3 only". CODE STATUS: documented here; the live code still uses the old ~0.2×ATR tolerance over 1→3 — update when the fractal-gate work lands. He is OK with this not being coded today, but it is now RECORDED.)*
-**I · RSI divergence at point 5** — price prints a new extreme but **RSI(14) does not** (bull: lower-low price + higher-low RSI · bear: higher-high price + lower-high RSI). **Present = +2 · none = 0** (binary). A momentum-divergence confirmation that lifts the reversal's profitability.
+**A · Point-1** — candle low (bull) / high (bear) = **1** · any fractal present (≥ 2-fractal) = **4**. Flat, no grade, no ×2. Point 1 is optional (Ramana: "we do not need a strong fractal at point 1; a 2- or 5-fractal is valuable but not mandatory").
+**C · Point-5 placement — the §A9 spring-and-reclaim** — landed INSIDE the zone: ≤ 0.1% from centre = **4** · ≤ 0.5% = 3 · ≤ 1.0% = 2 · ≤ 1.5% = 1. Pierced the zone (**ANY depth**) then **reclaimed** it = **3** · pierced, not reclaimed but price **near (≤ 2%) and turning back** = **1** · pierced & far, no reclaim = **0**. (See §A9 for the doctrine.)
+**F · Zone narrowness** — ≤ 0.3% = **4** · 0.3–0.6% = 3 · 0.6–1.2% = 2 · 1.2–2% = 1 · > 2% = 0.
+**G · Zone extension DEPTH** (Ramana 2026-07-11) — the zone contains **4.618** (of either leg) = **2** (the farthest / strongest overshoot) · **2.618 / 3.618 / 4.236** = **1** (deep, strong, not the last) · shallow only (1.272 / 1.414 / 1.618 / 2.0) = **0**.
+**H · EPA touched-not-cut (S/R strength)** — count candles **strictly between points 1 and 4** whose high or low is within **0.3%** of the 1-4 line AND that sit **entirely on one side** of it (a **CUT** — the line passes through the candle — does NOT count). 0 = **0** · 1–2 = **1** · 3–4 = **2** · **> 4 = 3**.
+**I · RSI divergence at point 5** — compare point 5's low against the **PRIOR pivot low (point 3)**: price prints a **lower low** but RSI(14) a **higher low** (bull) · mirror for bear. Present = **+2** · else 0. *(Fixed 2026-07-11: the old code compared p5 to the fall pt4→p5, the wrong reference, and missed real divergences.)*
 
 **D · Max upside %** — < 10% = **0** · 10–20% = **1** · 20–35% = **2** · > 35% = **3**
 
-**Quality score = (A×2) + B + C + F + G + H + I + D** — a plain **points sum** (≈ 3–24), higher = the better pick. **Point 1 is also shown as its own separate "start" rating** (the ×2 is its high-significance weight). Point 1 is never averaged into B; point 5 is never scored on a fractal (only C / G / H placement). No weighted-0-100 blend, no freshness.
+**Quality score = A + B + C + F + G + H + I + D** — a plain **points sum**, **max 25** (A4 + B3 + C4 + F4 + G2 + H3 + I2 + D3). Higher = the better pick. Point 1 is never averaged into B; point 5 is never scored on a fractal. No weighted-0-100 blend, no freshness. **✅ LIVE (D111, 2026-07-11)** — incl. 2.0 restored to the confluence ratios (`_FIB_R`, 1.414 kept).
 
 **Freshness is NOT a rank dimension** — a wave's quality doesn't change because point 5 moved today vs last week. If useful at all, freshness becomes a *scanner* "new today" flag, kept separate from the quality rank. (The old generic R:R / "live extras" are superseded by A–H.)
 

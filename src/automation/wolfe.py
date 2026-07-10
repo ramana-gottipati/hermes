@@ -313,76 +313,84 @@ def score(p_list, p5, direction, highs, lows, closes, rsi_arr):
     a, b, c, d = p_list
     bull = direction == 'BULL'
     n = len(highs)
-    A = _lvl(frac_degree(highs, lows, a.idx, a.kind))                                   # 0-3
+    p1_lvl = _lvl(frac_degree(highs, lows, a.idx, a.kind))     # point-1 fractal level 0-3 (kept for the scan filter)
+    A = 4 if p1_lvl >= 1 else 1     # Ramana 2026-07-11: candle point-1 = 1 pt · ANY fractal (>=2-fr) = 4 pts (flat, no grade, no ×2)
     B = max(1.0, (_lvl(frac_degree(highs, lows, b.idx, b.kind))                         # 1-3 (floored)
                   + _lvl(frac_degree(highs, lows, c.idx, c.kind))
                   + _lvl(frac_degree(highs, lows, d.idx, d.kind))) / 3.0)
     _e12, _e34, zones = fib_zones(a.price, b.price, c.price, d.price,
                                   direction=direction, tol_frac=0.02)
-    C = F = D = 0
-    G = 1
+    C = F = G = D = 0
     entry = p5.price if p5 else d.price                    # default; refined to the zone below
     if zones:
         z = min(zones, key=lambda zz: abs(entry - zz["price"]))
         lo, hi = min(z["low"], z["high"]), max(z["low"], z["high"])
         gap = (hi - lo) / z["price"] * 100.0 if z["price"] else 99
-        F = 3 if gap <= 0.6 else 2 if gap <= 1.2 else 1 if gap <= 2.0 else 0           # 1-3
-        G = 2 if (z["r12"] == 4.618 or z["r34"] == 4.618) else 1                       # 1-2 (Ramana-locked)
+        F = 4 if gap <= 0.3 else 3 if gap <= 0.6 else 2 if gap <= 1.2 else 1 if gap <= 2.0 else 0   # 0-4 (Ramana +wt; F<=2 still = gap>0.6% for the scan)
+        # G by DEPTH of the extension in the zone (Ramana 2026-07-11): 4.618 = 2 (the farthest/
+        # strongest overshoot reversal) · 2.618/3.618/4.236 = 1 (deep, strong, not the last) ·
+        # shallow (1.272/1.414/1.618/2.0) = 0. A deeper extension confluence = a stronger point-5.
+        _deep = (2.618, 3.618, 4.236)
+        G = (2 if (z["r12"] == 4.618 or z["r34"] == 4.618)
+             else 1 if (z["r12"] in _deep or z["r34"] in _deep) else 0)
         if p5:
             if lo <= p5.price <= hi:                       # clean land INSIDE the zone band
                 dist = abs(p5.price - z["price"]) / p5.price * 100.0
-                C = 3 if dist <= 0.1 else 2 if dist <= 0.5 else 1 if dist <= 1.5 else 0
+                C = 4 if dist <= 0.1 else 3 if dist <= 0.5 else 2 if dist <= 1.0 else 1 if dist <= 1.5 else 0   # 0-4 (Ramana +wt)
                 entry = z["price"]
-            else:                                          # pierced beyond the band
-                depth = (lo - p5.price) if bull else (p5.price - hi)
-                depth_pct = depth / z["price"] * 100.0 if z["price"] else 99
-                # returned into the band after the overshoot? PIT: bars <= end only;
-                # zone fixed by the structure (no future zone-shopping).
-                ret = any((closes[t] >= lo) if bull else (closes[t] <= hi)
-                          for t in range(p5.idx + 1, n))
-                if 0 < depth_pct <= 1.5 and ret:           # pierce-and-RETURN: a notch below clean
-                    C = 2
+            else:                                          # point 5 PIERCED the zone (a SPRING)
+                # SPRING-AND-RECLAIM (Ramana, canon §A9): point 5 breaks the zone by ANY depth,
+                # then price CLOSES BACK into/through it = a valid, often STRONG point-5 reversal
+                # (the break was a stop-hunt; the broken zone flips support→resistance, and
+                # reclaiming it up confirms the turn). "Any depth that reclaims counts." If it has
+                # NOT reclaimed yet but price is NEAR the zone and working back toward it, partial
+                # credit — the fresh point 5 is still live and has a chance. Else 0. PIT: bars > p5.
+                reclaimed = any((closes[t] >= lo) if bull else (closes[t] <= hi)
+                                for t in range(p5.idx + 1, n))
+                if reclaimed:
+                    C = 3                                  # sprang below then reclaimed the zone = strong
                     entry = lo if bull else hi
-                else:                                      # deep break, or not (yet) returned
-                    C = 0
+                else:
+                    cur = closes[-1]                        # the fresh, still-living point 5: where is price NOW?
+                    near = (cur >= lo * 0.98) if bull else (cur <= hi * 1.02)   # within ~2% of the band, turning back
+                    C = 1 if near else 0
+                    if near:
+                        entry = lo if bull else hi
     if p5:                                                 # D = tradeable upside from ENTRY (not the spike)
         s14 = _line(a, d)
         tgt = a.price + s14 * (p5.idx - a.idx)
         up = abs(tgt - entry) / entry * 100.0 if entry else 0.0
         D = 0 if up < 10 else 1 if up < 20 else 2 if up < 35 else 3                    # 0-3
-    # CL-SCO-07: count bars that touch the 1-4 wedge rail across the intended span
-    # (legs 1-2 & 2-3, i.e. bars strictly between point 1 and point 3 inclusive of 3).
-    # The old test used a RELATIVE tolerance (|h-ln|/ln <= 0.1%) which (a) blows up to
-    # spurious touches when the projected rail `ln` is near zero, and (b) excluded
-    # point 3's bar by ranging to c.idx (exclusive). Switch to an ATR-scaled ABSOLUTE
-    # tolerance (a touch = within ~⅕ ATR of the rail) and include point 3's bar.
-    s14 = _line(a, d)                                       # H = wedge-rail (1-4 line) adherence
-    atr_arr = atr(highs, lows, closes)
+    # H = the EPA (1-4) line as SUPPORT/RESISTANCE — "touched, NOT cut" (Ramana 2026-07-11):
+    # a CUT (the line passes THROUGH a candle: low <= line <= high — price moved through it) is
+    # NOT a touch. A TOUCH = the candle sits ENTIRELY ON ONE SIDE of the line AND its facing
+    # extreme (a low reaching DOWN to the line, or a high reaching UP to it) comes WITHIN 0.3%
+    # then reverses (the line held as S/R). Counted STRICTLY BETWEEN point 1 and point 4 (the
+    # endpoints define the line). Buckets: 0->0 · 1-2->1 · 3-4->2 · >4->3.
+    s14 = _line(a, d)
+    _EPA_TOUCH_TOL = 0.003                                  # 0.3% buffer (Ramana-chosen 2026-07-11)
     touches = 0
-    for t in range(a.idx + 1, c.idx + 1):
+    for t in range(a.idx + 1, d.idx):
         ln = a.price + s14 * (t - a.idx)
-        a_t = near_atr(atr_arr, t)
-        if not a_t or a_t <= 0:
+        if ln <= 0 or lows[t] <= ln <= highs[t]:           # invalid, OR a CUT (line inside the candle)
             continue
-        tol = 0.2 * a_t
-        if abs(highs[t] - ln) <= tol or abs(lows[t] - ln) <= tol:
+        gap = (lows[t] - ln) if lows[t] > ln else (ln - highs[t])   # facing extreme -> line
+        if gap / ln <= _EPA_TOUCH_TOL:
             touches += 1
-    H = 0 if touches == 0 else 1 if touches < 3 else 2                                 # 0-2
-    I = 0                                                   # §B-I RSI divergence (panel-resolved 2026-06-25):
-    if p5 and rsi_arr[p5.idx] is not None:                  # point 5 is the deepest PRICE extreme by build, so
-        ref_v = None                                        # divergence = RSI(14) at p5 is NOT the lowest (bull)
-        for t in range(d.idx + 1, p5.idx - 4):             # / highest (bear) RSI over the decline INTO it
-            rv = rsi_arr[t]                                 # [pt4+1 .. p5-5] — i.e. RSI failed to confirm the
-            if rv is None:                                  # new price extreme (the textbook regular divergence).
-                continue                                    # Anchored to the prior RSI trough of the whole move,
-            if ref_v is None or (rv < ref_v if bull else rv > ref_v):  # not one bar: catches GRIND divergences
-                ref_v = rv                                  # like RELIANCE Nov-2022 (RSI bottomed early, then a
-        if ref_v is not None and ((bull and rsi_arr[p5.idx] > ref_v)   # lower price low on a higher RSI low).
-                                  or ((not bull) and rsi_arr[p5.idx] < ref_v)):
-            I = 2                                           # binary +2 (§B-I; no magnitude gate — skeptic's
-        # swing-low+bounce variant MISSED grinds and under-fired; quant + Ramana-proxy carried it.
-    total = A * 2 + B + C + F + G + H + I + D
-    return {"p1": A, "B": round(B, 2), "C": C, "F": F, "G": G, "H": H, "I": I, "D": D,
+    H = 0 if touches == 0 else 1 if touches <= 2 else 2 if touches <= 4 else 3
+    # I = RSI(14) divergence at point 5 (Ramana 2026-07-11 fix). Compare point 5's low against
+    # the PRIOR PIVOT LOW = point 3 (bull) / point 3 high (bear) — the textbook regular divergence:
+    # BULL price prints a LOWER low at 5 but RSI a HIGHER low; BEAR the mirror. p5 is a lower low
+    # than p3 by construction (find_p5 requires it), so we only test the RSI side. The OLD code
+    # compared p5 to the RSI DURING the fall pt4->p5 (the WRONG reference) and MISSED real
+    # divergences — e.g. TCS pt3(May-14) RSI 27.4 -> pt5(Jul-01) RSI 29.4 across a lower price low.
+    I = 0
+    r5 = rsi_arr[p5.idx] if p5 else None
+    r3 = rsi_arr[c.idx]
+    if r5 is not None and r3 is not None and ((bull and r5 > r3) or ((not bull) and r5 < r3)):
+        I = 2
+    total = A + B + C + F + G + H + I + D                   # A is now the 1/4 points directly (no ×2)
+    return {"p1": p1_lvl, "A": A, "B": round(B, 2), "C": C, "F": F, "G": G, "H": H, "I": I, "D": D,
             "total": round(total, 2)}
 
 
@@ -674,12 +682,15 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
 # overshoot, so an extension∩extension coincidence is a genuine forward target. The
 # 0.236–1.0 levels are RETRACEMENTS (inside the leg) and must NOT enter the overlap test
 # — they were producing false "zones" sitting within the structure (e.g. 0.786∩0.618).
-_FIB_R = (1.272, 1.414, 1.618, 2.618, 3.618, 4.236, 4.618)
+_FIB_R = (1.272, 1.414, 1.618, 2.0, 2.618, 3.618, 4.236, 4.618)   # 2.0 RESTORED (Ramana 2026-07-11):
+# it is a standard charting Fib EXTENSION (the drawing tool's FIBX already carried it), and the set
+# already keeps 1.414 (√2) which is equally non-φ — so excluding 2.0 was arbitrary and hid real
+# confluences (e.g. TCS 2.0∩1.414 ≈ 2090). 1.414 KEPT (his call — keep both).
 
 # The maximum §B quality points a wave can score — A(6)+B(3)+C(3)+F(3)+G(2)+H(2)+I(2)+D(3).
 # The overlay badge shows points/_QUALITY_MAX. Bump this WITH any §B weightage change
 # (Ramana's pending rebalance → 25/26) so the "out of total" stays truthful.
-_QUALITY_MAX = 24
+_QUALITY_MAX = 25   # A(4)+B(3)+C(4)+F(4)+G(2)+H(3)+I(2)+D(3) after the 2026-07-11 Ramana rebalance
 
 
 def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.02):
@@ -764,7 +775,7 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
             p5pred = {"value": z["price"], "low": z["low"], "high": z["high"],
                       "label": f'5 ≈ {z["price"]} (1-2 ×{z["r12"]} ∩ 3-4 ×{z["r34"]})'}
     sc = w.get("score") or {}
-    qbits = (f' · [p1×2={sc.get("p1",0)*2} B={sc.get("B",0)} C={sc.get("C",0)} F={sc.get("F",0)} '
+    qbits = (f' · [A={sc.get("A",0)} B={sc.get("B",0)} C={sc.get("C",0)} F={sc.get("F",0)} '
              f'G={sc.get("G",0)} H={sc.get("H",0)} I={sc.get("I",0)} D={sc.get("D",0)}]') if sc else ''
     # lifecycle badge (Ramana's 3 sections): OPEN = point 5 in, EPA target pending;
     # CLOSED = EPA reached (+ how neatly). Leads the §B chips so he reads state first.

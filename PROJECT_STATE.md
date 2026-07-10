@@ -481,6 +481,24 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D111 — The §B quality score REBALANCED to Ramana's exact spec + three real fixes (2026-07-11, S109; renumbered from D110 which the bus lane claimed — long line-by-line debate, all his calls)
+The full §B rescoring, decided component-by-component with Ramana against his own TCS wave, now LIVE
+(max 25, formula A+B+C+F+G+H+I+D):
+- **A (point-1)** = candle **1** / any fractal **4** (flat, no ×2 — "we don't need a strong fractal at point 1").
+- **C (point-5 placement) = the SPRING-AND-RECLAIM doctrine (§A9):** point 5 may break the zone by
+  ANY depth and then RECLAIM it (support→resistance flip breached back) = a valid strong reversal;
+  in-zone graded by distance (≤0.1%→4 … →1); pierced+reclaimed = 3; pierced+near(≤2%)-turning = 1;
+  pierced+far = 0. This FIXED the C=0 Ramana challenged — his TCS point 5 (1976.8, sprang 3.6% below
+  the 2051-2078 zone) reclaimed to 2069 → C 0→3.
+- **F (zone narrowness)** widened to 0-4 (≤0.3%→4). **G (extension DEPTH):** 4.618→2 · 2.618/3.618/4.236→1 · shallow→0.
+- **H (EPA touched-not-cut):** candles pts 1→4 within 0.3% of the 1-4 line, one side only (a CUT ≠ touch); 0 / 1-2→1 / 3-4→2 / >4→3.
+- **I (RSI divergence) BUG FIXED:** compare point 5's low to the PRIOR pivot low (point 3), not the
+  fall pt4→p5. Caught the real TCS divergence (pt3 RSI 27.4 → pt5 29.4 on a lower price low) → I 0→2.
+- **2.0 RESTORED to `_FIB_R`** (kept 1.414): 2.0 is a standard charting Fib extension the drawing tool already carried.
+OOS winner-profile scan preserved (reads the point-1 fractal LEVEL, kept separately, + F<=2 = gap>0.6%).
+TCS wave 13→**18/25** (A4 B3 C3 F2 G0 H2 I2 D2). §A geometry, D108 gate, `find_p5` untouched. Doctrine
+at wolfe-rules.md §A9 (point 5 is alive + spring-reclaim + S/R flip) + §B3.
+
 ### D110 — "Since you last looked" = a CLIENT-cookie last-seen, no server-side per-user state, no new table (2026-07-10, S108)
 WHY: the bus's third face (the "since you last looked" brief — `events_since` filtered by the
 viewer's last visit) needs to remember one thing per viewer: when they last looked. The options
@@ -1865,6 +1883,16 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 109 — 2026-07-11 — Wolfe §B score REBALANCED (D111): spring-reclaim C, deep-extension G, 2.0 restored, divergence bug fixed — all Ramana-directed line by line
+A long, high-value debate against his own TCS wave. He challenged C=0 and the missing divergence; both
+were real. Shipped (D111, max 25): A=1/4 · **C = spring-and-reclaim (any depth that reclaims counts, §A9)**
+· F 0-4 · **G graded by extension depth** · H touched-not-cut (cut≠touch, >4→3) · **I divergence reference
+fixed** (vs prior pivot low pt3) · **2.0 back in the confluence ratios**. His TCS wave 13→18/25 (C 0→3
+once the July-10 reclaim to 2069 landed; I 0→2). Winner-profile scan preserved. Doctrine WRITTEN DOWN at
+wolfe-rules.md §A9 + §B3 (he was emphatic — "I strongly need the documentation… could become a training
+video"). §A geometry + D108 gate + find_p5 untouched. (Renumbered D110→D111, S108→S109: the bus lane took
+those numbers concurrently.)
 
 ### Session 108 — 2026-07-10 (late) — D110: the bus's THIRD face — "since you last looked" brief on /dash/attention (continuation of S103's D106; commit «S108-HASH»)
 Closed the next unbuilt bus face without opening a new session (Ramana: "continue it here … close
