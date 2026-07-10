@@ -79,9 +79,6 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
   winner-profile setups + M structure-watch rows + K approaching-5 rows"; runtime ~9-15 min
   (three detect passes + warm state cache; consolidation to one pass = future polish),
   timeout 1800s.
-- **VERIFY next session:** tonight's `hermes-wolfe-scan` 16:00 UTC run must persist BOTH snapshots —
-  journal shows "persisted N winner-profile setups + M structure-watch rows"; run takes ~6 min now
-  (timeout 1800s, checked); `wolfe_signals` universes `nifty500` + `nifty500:watch` both fresh.
 
 ## 🏛 AUDIT BOOT-CHECK (2026-07-02/03, binding)
 The audit reference is **`docs/AUDIT-2026-07-02-institutional-review.md`** (117 AUD items; statuses
