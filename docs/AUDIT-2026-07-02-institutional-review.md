@@ -80,14 +80,14 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** `has_symbol=False` + key-column override (`COUNT(DISTINCT numerator)` or distinct trade_date days); startup selftest asserting every PROVENANCE class yields non-None `n` on prod schema.
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-06 [P1] D31 price zones, D44 key prices and hot-day averages computed on RAW closes across ≤360d windows** — `OPEN`
+**AUD-06 [P1] D31 price zones, D44 key prices and hot-day averages computed on RAW closes across ≤360d windows** — `FIXED «S104-HASH» (2026-07-10 D107; golden test tests/test_signals_adjusted.py; VPS backfills queued post-chain)`
 - **Component:** DVPT price zones | **Reporter:** quant.
 - **Files:** `src/automation/signals.py:456,357-379,402-404,487-509,637-675`.
 - **Evidence digest:** baselines/key-price weights/hot-day closes all use raw `close`; a 1:10 split inside the window makes `gap_to_key_p12m` read ~-90%; the 🎯 near-key flags in conviction_shortlist and /dvpt zones show garbage until the window rolls past. CL-MDC-01 fixed only the D43 deliv_value arrays for this exact hazard; PROJECT_STATE D36 itself lists this as a known open limitation.
 - **Fix:** feed adjusted closes (already computed in `_character_arrays`) into baseline tuples, key-price weights and hot-day closes; then re-run `--backfill-triggers` and `--backfill-keyprice` on the VPS (background, per-chunk commits).
 - **Effort:** M | **Verdict:** CONFIRMED.
 
-**AUD-07 [P1] Backfill and nightly disagree on hot-day definition (22-of-22 uncapped vs 15-of-22 capped)** — `OPEN`
+**AUD-07 [P1] Backfill and nightly disagree on hot-day definition (22-of-22 uncapped vs 15-of-22 capped)** — `FIXED «S104-HASH» (2026-07-10 D107; golden test tests/test_signals_adjusted.py; VPS backfills queued post-chain)`
 - **Component:** DVPT hot-day baseline | **Reporter:** quant. Do together with AUD-06 (same backfill re-run).
 - **Files:** `src/automation/signals.py:899-908` (backfill) vs `:644,657-663` (nightly, CL-MDC-10).
 - **Evidence digest:** same (symbol,date) gets different `hot_days_avg_price` depending on which path wrote it; backfill comment falsely claims "same definition as D28". Inconsistent stored history that /scan sorts on.
@@ -115,7 +115,7 @@ Ranking rule applied: **integrity of shown numbers > user-facing performance > i
 - **Fix:** `pctrank()` the blend before averaging; update doc §2 canonical pointer to momentum_scan.py.
 - **Effort:** S | **Verdict:** CONFIRMED.
 
-**AUD-11 [P1] Corp-action fallback rescales entire history on genuine >30% crashes (F&O names)** — `OPEN`
+**AUD-11 [P1] Corp-action fallback rescales entire history on genuine >30% crashes (F&O names)** — `FIXED «S104-HASH» (2026-07-10 D107; golden test tests/test_signals_adjusted.py; VPS backfills queued post-chain)`
 - **Component:** split/bonus adjustment | **Reporter:** quant.
 - **Files:** `src/automation/adjust.py:33-35,52-70`.
 - **Evidence digest:** when prev_close doesn't flag, any single-day close move >30% is treated as an unadjusted corporate action and ALL prior history is scaled. The "circuit limits make it impossible" premise is false for derivatives-segment names (YESBANK -55% 2020-03-06). Consumers: stock_rs, mep_signals, cpr_signals, charts. Corrupts exactly the blow-up events an institution scrutinises.

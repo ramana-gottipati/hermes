@@ -481,6 +481,31 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D107 — Every DVPT price zone lives on ONE per-date-anchored adjusted basis; hot-day has ONE shared core; the >30% fallback needs tape corroboration (2026-07-10, S104 — closes AUD-06 + AUD-07 + AUD-11)
+The last raw-close price math in the signal path is gone. (a) AUD-06: the D31 zone tuples
+(`avg_close_r*/p*`), the hot-day averaged closes and the D44 key-price weights now use closes
+SPLIT/BONUS-ADJUSTED to the computing date's own basis — realtime is naturally per-date anchored
+(newest fetched row = factor 1.0) and the backfill re-anchors the same cumulative factors by
+division (`fac[j]/fac[i]`), so a 1:10 split inside a ≤360d window can no longer make
+`gap_to_key_p12m` read −90% or mix scales in the zones. DVPT itself stays qty × raw price —
+delivered VALUE is split-invariant (guardrail #5) and deliberately untouched. (b) AUD-07: the
+hot-day definition is ONE shared `_hot_days_core` (CL-MDC-10 min-15 + 250-row/372-day cap) used by
+BOTH write paths — the backfill's strict-22-of-22-uncapped variant (whose comment falsely claimed
+D28 parity) is deleted; the golden test asserts nightly==backfill equality on 17 columns at a
+pre-split AND a post-split date. (c) AUD-11: when the caller holds the authoritative tape
+(`events` provided), the >30% close-jump fallback no longer rescales history unless a tape entry
+within ±3 rows AGREES with the observed move (mis-dated-filing corroboration) — a tape-silent
+−55% day (YESBANK 2020-03-06, derivatives segment, no circuit) is a REAL move and stays on the
+raw tape; `events=None` callers remain byte-identical legacy. WHY a decision: these signals feed
+conviction_shortlist, /dvpt zones and /scan sorts — wrong-scale zones through split windows and
+path-dependent hot-day values are exactly the class of number-integrity defect the audit's theme
+#5 ("pixels are gated, numbers are not") called out; the fix lands WITH its golden regression
+(`tests/test_signals_adjusted.py`, 45 assertions) per the audit's binding discipline. Rollout:
+code deploy same-day; `--backfill-triggers` + `--backfill-keyprice` re-run on the VPS in
+background (nohup, per-chunk commits) AFTER tonight's chain, with a before/after sample-symbol
+verify; until the backfill lands, historical rows keep the old mixed-scale values (fresh nightly
+rows are correct from tonight).
+
 ### D106 — The Attention Queue is a bus FACE, not a strategy lens: no card/pillar-gate parity, within-lens magnitude ranking, PIT replay mirrors /v1 (2026-07-10, S103)
 WHY: the D94 front-door parity rule (strategist card AND home pillar AND board_health, all off one
 `flagged_symbols`) exists for GATED STRATEGIES — surfaces that flag a cohort. The bus's home face
@@ -1781,6 +1806,26 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 104 — 2026-07-10 — AUD-06/07/11 CLOSED (D107): the quant-integrity batch — adjusted zones, one hot-day core, tape-corroborated fallback; commit «S104-HASH»
+The assessment session's (S99) #1-ranked pick, executed end-to-end in the main session:
+- **AUD-06:** D31 zones / D44 key-price / hot-day closes now on the per-date-anchored adjusted
+  basis in BOTH write paths (`signals.py`: baseline tuples, `_hot_days_core` inputs, `f_i`
+  re-anchor in `_key_price_metrics`); the historical key-price basis-mix (backfilled pre-split
+  rows compared today-basis key against own-basis close) fixed by the same `fac[j]/fac[i]` re-anchor.
+- **AUD-07:** one shared `_hot_days_core` (min-15, 250-row/372-day cap) replaces the backfill's
+  strict-22 uncapped block; false "same definition as D28" comment gone.
+- **AUD-11:** `adjust.py` fallback corroboration (±3-row tape agreement) on the events-provided
+  path; legacy path byte-identical; +4 selftests (11/11 green).
+- **Golden regression** `tests/test_signals_adjusted.py`: 45 assertions — post-split-scale zones,
+  nightly==backfill on 17 columns at pre- AND post-split dates, pre-split key-price in own basis.
+- Verified the pick against tip first (kickstart-pick-verify): X-05 had already shipped in a
+  sibling lane (`f7d81d0`) — the AUD batch was the right claim; the in-flight AUD-38 lane's files
+  were left untouched and it wrapped as S103 mid-arc.
+- VPS: code deployed same-day; full `--backfill-triggers` + `--backfill-keyprice` re-run queued
+  post-chain (nohup, per-chunk commits) + sample-symbol before/after verify — see carry-forward.
+- Harness TIL: the `?? 6` stray file mystery — a live sibling's redirect typo; `git status`
+  freshness matters more than any cached mental model of the tree.
 
 ### Session 103 — 2026-07-10 — D106: the Attention Queue face — the bus's HOME surface (`/dash/attention` + the Home card); S101 bus watch + timer battery verified; commit «S103-HASH»
 The S101 chip's "natural next product pick" built and shipped: the signal-event bus (D105) now

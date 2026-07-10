@@ -392,6 +392,12 @@ def _key_price_metrics(dates, dvpts, avg_prices, deliv_qtys, closes,
     """
     d = dates[i]
     today_close = closes[i]
+    # AUD-06: re-anchor the cumulative factors to row i's own basis — for the
+    # nightly path (i = newest row) f_i is 1.0 and nothing changes; for
+    # backfilled HISTORICAL rows the key price now lands in THAT date's price
+    # scale, the same basis as the stored close it is compared against (the
+    # gap was previously scale-mixed for pre-split historical rows).
+    f_i = factors[i] if factors[i] else 1.0
     out = {}
     for label, days, top_n in _WINDOWS:
         lo = bisect.bisect_left(dates, _cutoff_date(d, days))
@@ -408,7 +414,7 @@ def _key_price_metrics(dates, dvpts, avg_prices, deliv_qtys, closes,
             w = dq * raw                   # delivered VALUE (split-invariant) = the weight
             if w <= 0:
                 continue
-            num += (raw * factors[j]) * w  # average the SPLIT-ADJUSTED price (today basis) — no cross-split scale mixing
+            num += (raw * (factors[j] / f_i)) * w  # SPLIT-ADJUSTED price in row i's basis — no cross-split scale mixing
             den += w
         kp = (num / den) if den > 0 else None
         out[f"key_price_p{label}"] = kp
@@ -477,6 +483,7 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
             """,
             (symbol, trade_date, cutoff),
         ).fetchall()
+        events = _action_events(conn, symbol) if rows else None   # authoritative tape (S85e)
 
     if not rows:
         return None
@@ -485,6 +492,19 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     if today_row["trade_date"] != trade_date:
         return None
 
+    # AUD-06: ONE adjusted-price basis for every price-zone computation below.
+    # Anchor = this trade_date (newest fetched row → factor 1.0), so zone /
+    # hot-day / key-price averages land in the anchor date's own price basis —
+    # and because the backfill re-anchors the same cumulative factors by
+    # division, both write paths produce identical rows.
+    asc = list(reversed(rows))
+    fac_asc = adjustment_factors(
+        [{"trade_date": r["trade_date"], "close": r["close"],
+          "prev_close": r["prev_close"]} for r in asc],
+        events,
+    )
+    n_rows = len(rows)
+
     today_dvpt = _delivery_value_per_trade(
         today_row["deliv_qty"], today_row["close"], today_row["num_trades"]
     )
@@ -492,13 +512,17 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     today_total = today_row["value"]
 
     # Build a per-day baseline list (excluding today) with both DVPT and close.
-    # Each entry: (trade_date_str, dvpt, close).
+    # Each entry: (trade_date_str, dvpt, adjusted_close). AUD-06: the zone
+    # close is SPLIT/BONUS-ADJUSTED to the anchor basis — DVPT itself stays
+    # qty × raw price (delivered VALUE is split-invariant, guardrail #5).
     baseline_full = []
-    for r in rows[1:]:
+    for idx, r in enumerate(rows[1:]):
         dvpt = _delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
         if dvpt is None:
             continue
-        baseline_full.append((r["trade_date"], dvpt, r["close"]))
+        fk = fac_asc[n_rows - 2 - idx]
+        ac = (r["close"] * fk) if r["close"] is not None else None
+        baseline_full.append((r["trade_date"], dvpt, ac))
 
     n_baseline = len(baseline_full)
 
@@ -614,8 +638,14 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
         signal["is_ath_dvpt"] = None
 
     # Hot-day average close: avg close on last 10 days where that day's
-    # DVPT > its own 1m power baseline.
-    hot_avg = _hot_days_avg_close(rows[1:])
+    # DVPT > its own 1m power baseline. AUD-06: averaged closes are adjusted
+    # to the anchor basis (today's raw close IS the anchor basis, factor 1.0).
+    prior_adj_desc = [
+        (rows[1 + idx]["close"] * fac_asc[n_rows - 2 - idx])
+        if rows[1 + idx]["close"] is not None else None
+        for idx in range(n_rows - 1)
+    ]
+    hot_avg = _hot_days_avg_close(rows[1:], prior_adj_desc, anchor_date=trade_date)
     signal["hot_days_avg_price"] = hot_avg
     if hot_avg is not None and today_row["close"] is not None and hot_avg > 0:
         signal["price_vs_hot_avg_pct"] = (today_row["close"] - hot_avg) / hot_avg * 100.0
@@ -625,9 +655,8 @@ def compute_signals_for_symbol_date(symbol: str, trade_date: str) -> Optional[di
     # --- D43 accumulation/distribution character --------------------------
     # `rows` is newest-first; the metric helpers want oldest→newest. Today is
     # the newest row, so its index in the ascending arrays is the last one.
-    asc = list(reversed(rows))
+    # `asc` + `events` were computed up top (AUD-06) — reuse them here.
     dates_a = [r["trade_date"] for r in asc]
-    events = _action_events(conn, symbol)                 # authoritative action tape (S85e)
     adj_a, dv_a, nt_a, dp_a, rs_a, val_a = _character_arrays(asc, events)
     cm = _character_metrics(dates_a, adj_a, dv_a, nt_a, dp_a, rs_a, val_a, len(asc) - 1)
     signal.update(cm)
@@ -680,45 +709,68 @@ def _next_p_above(today_v, p_baselines: list, p_labels: tuple) -> tuple:
     return label, gap_pct
 
 
-def _hot_days_avg_close(prior_rows) -> Optional[float]:
-    """Avg close on the last 10 prior days where that day's DVPT exceeded its
-    own 1m power baseline (top-5 avg of preceding 22 days). Used to anchor the
-    'price vs where smart money was buying' (D26 / D28). None if <1 hot day.
-    """
-    if not prior_rows:
-        return None
-    cap = min(len(prior_rows), 250)
-    dvpts = []
-    closes = []
-    for r in prior_rows[:cap]:
-        v = _delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
-        dvpts.append(v)
-        closes.append(r["close"])
+def _hot_days_core(dvpts_desc, closes_desc, dates_desc=None,
+                   anchor_date=None) -> Optional[float]:
+    """THE hot-day definition — the single shared core for the nightly and the
+    backfill write paths (AUD-07: they previously disagreed — strict 22-of-22
+    uncapped in the backfill vs min-15 capped in the nightly — so the same
+    (symbol, date) stored different hot_days_avg_price depending on which path
+    wrote it). Semantics = the CL-MDC-10 nightly rule:
 
+      Scan prior days NEWEST-first, at most 250 rows and (when dates are
+      supplied) at most 372 calendar days back from the anchor. A day is HOT
+      when its DVPT exceeds its own 1m power baseline = mean of the top-5
+      among the ≥15 non-None DVPTs in the 22 trading days immediately
+      preceding it. Average the closes of the first 10 hot days.
+
+    AUD-06: `closes_desc` must be SPLIT/BONUS-ADJUSTED to the anchor date's
+    price basis — a split inside the scan window would otherwise mix scales.
+    """
+    cap = min(len(dvpts_desc), 250)
+    date_floor = (_cutoff_date(anchor_date, 372)
+                  if (anchor_date and dates_desc) else None)
     hot_closes = []
-    for i in range(len(dvpts)):
-        today_v = dvpts[i]
+    for i in range(cap):
+        if date_floor is not None and dates_desc[i] < date_floor:
+            break
+        today_v = dvpts_desc[i]
         if today_v is None:
             continue
-        baseline_window = [v for v in dvpts[i + 1 : i + 1 + 22] if v is not None]
+        baseline_window = [v for v in dvpts_desc[i + 1: i + 1 + 22] if v is not None]
         # CL-MDC-10: require a min count rather than the full 22 non-None points,
         # otherwise thin/illiquid names (with gappy DVPT) never register a hot
         # day at all. 15 still gives a meaningful top-5 power baseline.
         if len(baseline_window) < 15:
             continue
         top5 = sorted(baseline_window, reverse=True)[:5]
-        if not top5:
-            continue
         power_1m = sum(top5) / len(top5)
         if power_1m <= 0:
             continue
-        if today_v / power_1m > 1.0 and closes[i] is not None and closes[i] > 0:
-            hot_closes.append(closes[i])
+        c = closes_desc[i]
+        if today_v / power_1m > 1.0 and c is not None and c > 0:
+            hot_closes.append(c)
             if len(hot_closes) == 10:
                 break
     if not hot_closes:
         return None
     return sum(hot_closes) / len(hot_closes)
+
+
+def _hot_days_avg_close(prior_rows, adj_closes_desc=None,
+                        anchor_date=None) -> Optional[float]:
+    """Nightly wrapper over `_hot_days_core`: builds the DVPT array from raw
+    rows (delivered value = qty × raw price, split-invariant) and averages the
+    ADJUSTED closes when the caller provides them (AUD-06). Used to anchor the
+    'price vs where smart money was buying' (D26 / D28). None if <1 hot day.
+    """
+    if not prior_rows:
+        return None
+    dvpts = [_delivery_value_per_trade(r["deliv_qty"], r["close"], r["num_trades"])
+             for r in prior_rows]
+    closes = (adj_closes_desc if adj_closes_desc is not None
+              else [r["close"] for r in prior_rows])
+    dates = [r["trade_date"] for r in prior_rows]
+    return _hot_days_core(dvpts, closes, dates, anchor_date)
 
 
 _SIGNAL_COLS = [
@@ -860,9 +912,20 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
         dates[i]  = r["trade_date"]
     date_to_idx = {d: i for i, d in enumerate(dates)}
 
+    events = _action_events(conn, symbol)                 # authoritative tape (S85e)
+    # AUD-06: cumulative split/bonus factors over the FULL history (anchor =
+    # newest row, factor 1.0). Re-anchoring to any date d is a division by
+    # fac_asc[i_d] — every zone/hot average below then lands in d's own price
+    # basis, byte-matching the realtime path (which is per-date anchored).
+    fac_asc = adjustment_factors(
+        [{"trade_date": r["trade_date"], "close": r["close"],
+          "prev_close": r["prev_close"]} for r in bhav],
+        events,
+    )
+
     # D43 character arrays (oldest→newest, matching `bhav`/`dates` ordering).
     char_adj, char_dv, char_nt, char_dp, char_rs, char_val = _character_arrays(
-        bhav, _action_events(conn, symbol))
+        bhav, events)
 
     # Running ATH-DVPT max over strictly-prior history.
     prior_max = None
@@ -891,12 +954,15 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
             is_ath = None
 
         # Build the strictly-prior baseline list for THIS date `d`.
-        # We need (date, dvpt, close) for every prior trade with non-None dvpt.
+        # (date, dvpt, adjusted_close) — AUD-06: closes re-anchored to d's own
+        # basis (fac_asc[j] / f_i) so a split inside a window can't mix scales.
+        f_i = fac_asc[i] if fac_asc[i] else 1.0
         prior = []
         for j in range(i):
             if dvpts[j] is None:
                 continue
-            prior.append((dates[j], dvpts[j], closes[j]))
+            ac = (closes[j] * fac_asc[j] / f_i) if closes[j] is not None else None
+            prior.append((dates[j], dvpts[j], ac))
 
         # Slice helpers — calendar-day windows on the prior list.
         def window_subset(days: int):
@@ -939,22 +1005,18 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
         rank = _rank_from_p_score(p_score)
         next_above, gap = _next_p_above(today_v, p_dvpts, _P_LABELS)
 
-        # Hot-days avg close (same definition as D28 — last 10 prior days
-        # where that day's DVPT exceeded its own 1m power baseline of
-        # top-5 of the 22 trading days immediately preceding it).
-        hot_closes = []
-        j = i - 1
-        while j >= 0 and len(hot_closes) < 10:
-            v_j = dvpts[j]
-            if v_j is not None and (j - 22) >= 0:
-                sub = [v for v in dvpts[j - 22 : j] if v is not None]
-                if len(sub) >= 22:
-                    top5 = sorted(sub, reverse=True)[:5]
-                    p1m_j = sum(top5) / len(top5)
-                    if p1m_j > 0 and v_j / p1m_j > 1.0 and closes[j] is not None and closes[j] > 0:
-                        hot_closes.append(closes[j])
-            j -= 1
-        hot_avg = (sum(hot_closes) / len(hot_closes)) if hot_closes else None
+        # Hot-days avg close — THE shared definition (`_hot_days_core`:
+        # CL-MDC-10 min-15 + 250-row/372-day cap, adjusted closes). AUD-07
+        # closed: this block previously used a strict 22-of-22 UNCAPPED rule
+        # and disagreed with the nightly for the same (symbol, date).
+        start = max(0, i - 280)        # 250 scanned + 22-day baseline margin
+        hot_avg = _hot_days_core(
+            dvpts[start:i][::-1],
+            [(closes[j] * fac_asc[j] / f_i) if closes[j] is not None else None
+             for j in range(start, i)][::-1],
+            dates[start:i][::-1],
+            d,
+        )
         if hot_avg is not None and closes[i] is not None and hot_avg > 0:
             pvh = (closes[i] - hot_avg) / hot_avg * 100.0
         else:

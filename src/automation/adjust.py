@@ -108,7 +108,23 @@ def adjustment_factors(rows: list[dict], events: Optional[dict] = None) -> list[
         if ratio is None and prior_close and prior_close > 0 and this_close:
             r_cc = this_close / prior_close
             if abs(r_cc - 1) > CC_THRESH and 0.02 < r_cc < 50:
-                ratio = r_cc
+                if events is None:
+                    ratio = r_cc          # legacy callers: byte-identical
+                else:
+                    # AUD-11: with the authoritative tape IN HAND, a >30% day
+                    # with NO corroborating tape entry is a REAL move (crash /
+                    # circuit chain — YESBANK −55% on 2020-03-06 is a
+                    # derivatives-segment name with no circuit limit), NOT an
+                    # unadjusted action; rescaling all prior history would
+                    # corrupt exactly the blow-ups an institution scrutinises.
+                    # A tape entry within ±3 rows that AGREES with the observed
+                    # move corroborates a mis-DATED filing → apply the observed
+                    # ratio (the move itself marks the true ex-day).
+                    for k in range(max(0, i - 3), min(n, i + 4)):
+                        t = events.get(rows[k].get("trade_date"))
+                        if t and 0.02 < t < 50 and tape_agrees(r_cc, t):
+                            ratio = r_cc
+                            break
         if ratio is not None:
             cum *= ratio
         factors[i - 1] = cum
@@ -173,6 +189,18 @@ def _selftest() -> int:
     check("None events == legacy", adjustment_factors(flat) == adjustment_factors(flat, events=None))
     check("adjusted_closes threads events",
           adjusted_closes(dead, events={"d3": 0.75})[0] == 75.0)
+
+    # ── AUD-11: the >30% fallback must not rescale genuine crashes ──────────
+    crash = mk([("d1", 100.0), ("d2", 101.0), ("d3", 45.0), ("d4", 46.0)])  # −55% day
+    exp = 45.0 / 101.0
+    check("AUD-11: tape-silent crash NOT rescaled (events provided)",
+          adjustment_factors(crash, events={}) == [1.0] * 4)
+    check("AUD-11: legacy path (events=None) unchanged on the same crash",
+          abs(adjustment_factors(crash)[1] - exp) < 1e-9)
+    check("AUD-11: mis-dated tape within ±3 rows corroborates the fallback",
+          abs(adjustment_factors(crash, events={"d2": 0.45})[1] - exp) < 1e-9)
+    check("AUD-11: disagreeing nearby tape does NOT corroborate",
+          adjustment_factors(crash, events={"d2": 0.10}) == [1.0] * 4)
 
     print("adjust selftest:", "OK" if ok else "FAILED")
     return 0 if ok else 1

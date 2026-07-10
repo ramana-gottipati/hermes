@@ -197,9 +197,18 @@ committing co-hot files. Ledger: 10 pre-registered studies (2 confirmed · 6 nul
 AUD-38 only (the selftest edit was a stale-expectation fix, NOT AUD-37; metering stays open).
 
 **VERIFIED-OPEN — highest priority (P1, ranked):**
-1. **AUD-06** DVPT zones / D44 key-price / hot-day averages computed on RAW closes (`signals.py:456,357-379,402-404,487-509,637-675`). Live signals wrong-scale through any split window; also swallows PROJECT_STATE B5 residual.
-2. **AUD-07** backfill vs nightly hot-day definition disagree (`signals.py:899-908` vs `:644,657-663`). Do WITH AUD-06 (same backfill re-run).
-3. **AUD-11** corp-action fallback rescales entire history on >30% real crashes (F&O names). Blockers doc reformulates: widen callers' SELECT + volume corroboration.
+1. ~~**AUD-06** DVPT zones / D44 key-price / hot-day averages on RAW closes~~ **✅ FIXED — D107, S104
+   «S104-HASH»:** per-date-anchored adjusted basis in BOTH write paths (`fac[j]/fac[i]` re-anchor);
+   golden test `tests/test_signals_adjusted.py` (45 asserts). ⏳ **VERIFY: post-chain VPS backfills
+   tonight** (`--backfill-triggers` + `--backfill-keyprice`, nohup per-chunk; sample before/after in
+   `/var/log/hermes-aud06-backfill.log`) — historical rows carry old mixed-scale values until it lands.
+2. ~~**AUD-07** backfill vs nightly hot-day definition disagree~~ **✅ FIXED — D107:** one shared
+   `_hot_days_core` (CL-MDC-10 min-15 + 250-row/372-day cap) in both paths; golden test asserts
+   nightly==backfill on 17 columns at pre- AND post-split dates.
+3. ~~**AUD-11** corp-action fallback rescales history on >30% real crashes~~ **✅ FIXED — D107:**
+   tape-corroborated fallback (±3-row agreement) SUPERSEDES the Blockers-doc volume-corroboration
+   idea — the authoritative tape is the corroborator, no SELECT widening needed; `events=None`
+   callers byte-identical; +4 adjust selftests.
 4. **AUD-14** throttle→"holiday" class sweep — 5 fetchers still carry the bug (`RetryableFetchError` lives only in `fno_oi.py`).
 5. **AUD-22** research replication stack bypasses PIT layer (leaky report_date joins). Fix = route through `fundamentals_asof.py` with PYTHONPATH note.
 6. **AUD-25** feed-liveness monitoring covers 4 of 12 feeds; regime guard reads undated rows.
@@ -215,7 +224,9 @@ AUD-38 only (the selftest edit was a stale-expectation fix, NOT AUD-37; metering
 - **DVPT picking-strategy program (D47 throughline)** — multi-TF signal engine · ignition ranking + `ranking_history` · `security_master` · absolute backtest · champion/challenger.
 - **Positioning-pillar tail** — fiscal-quarter grain, saved-query alerts, EWMA key-price, promoter/FII/DII quarterly deltas, F&O OI/PCR.
 - **UI Track A cosmetic residual** — per-page hand-conversion to native `ui_kit.shell` (runtime reskin makes this optional).
-- **B5** unify dashboard D36 to `adjust.adjusted_closes` + zones on adjusted prices — SAME class as AUD-06; land together.
+- **B5** unify dashboard D36 to `adjust.adjusted_closes` — the "zones on adjusted prices" HALF is
+  CLOSED by D107 (S104); the dashboard's INLINE D36 copy (chart renderer) is the remaining half —
+  class-sweep it to `adjust.adjusted_closes(events=)` in a dashboard-owned lane.
 
 **Charter §4 NEXT — live build candidates (S98 kickoff prompt is the source):** X-04 overnight/intraday split + pump-flag · ~~X-05 band-lock streak board~~ **✅ SHIPPED S96c** (`/dash/band-locks`, 18th strategy) · X-06 Amihud illiquidity migration delta (half-built) · X-07 volume-at-price shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag · **P-05 replay-any-date API — UNBLOCKED (AUD-38 done S96b; provision a v1 API key on the box for live demos)**.
 
