@@ -1798,7 +1798,7 @@ as_of plumbing first or the demo lies") — the plumbing landed as AUD-38+D104, 
   quant batch w/ VPS backfills, not a tail · AUD-14 fetcher sweep = deploy-window-unsafe minutes
   before the 14:00 UTC chain · AUD-37 quota half = design-first · light theme = banned as a tail
   · everything else Ramana-blocked / future-dated / another lane's. Nothing else cleanly doable.
-- Commit: (this). Deploy: 7 files + the new view; writer-checked restarts ×2; api active, 0
+- Commit: `235a424`. Deploy: 7 files + the new view; writer-checked restarts ×2; api active, 0
   failed units, /dash 200.
 
 ### Session 101 — 2026-07-10 — Signal-event bus WIRED: producer = bhavcopy-chain step 60; dead cci lens fixed; rs + deal lenses added (S96b spawn-task chip; renumbered S100→S101 per the S100 lane's collision watch)
