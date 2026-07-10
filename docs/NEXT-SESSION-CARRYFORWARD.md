@@ -61,8 +61,11 @@ are now SECONDARY to the charter.
    **`hermes-fundamentals-provenance` Sat Jul-11 21:00 UTC run must FINISH** — S84 addendum
    raised its TimeoutStartSec 1800→4h (`99-timeout.conf`) after the fleet cap SIGTERM'd the
    ~110-min re-collect at 675/2767 on Jul-07; expect journal `Finished` + log 2767/2767.
-   Also: sibling lanes left `hermes-pateval.timer` + `hermes-corp-actions.service`(+drop-ins)
-   UNCAPTURED (live-only, drift-gate flagged) — their owners should git-capture them.
+   ~~pateval/corp-actions UNCAPTURED~~ ✅ RESOLVED (Jul-10): both stacks were already IN git
+   (S83e/S83i), byte-identical to /etc — only the VPS-side vps-live MIRROR was missing them;
+   synced server-side, `install-systemd.sh --check` now exit-clean (0 UNCAPTURED/DRIFT).
+   RULE: after committing any systemd unit, also scp it to `/opt/hermes/scripts/systemd/
+   vps-live/` — the on-box drift gate compares /etc against that mirror, not against GitHub.
 1. **VERIFY the 2 new timers' first runs:** `hermes-results-calendar` (02:00 UTC) +
    `hermes-results-reactions` snapshot (18:00 UTC) — journal `Result=success`,
    `/var/log/hermes-results-*.log` clean, war room shows fresh data

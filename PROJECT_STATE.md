@@ -1463,7 +1463,13 @@ appearing anywhere". All four verified real and fixed, live:
   `launchpad_scan_meta.scan_date == MAX(bhavcopy)` (2026-07-09), page 8-10ms, board card
   "as of 2026-07-09". (b) strategist board sits at ~0.10-0.40s (alerts/what-changed/CCI-tile
   sections) — fine, but a per-data-day memo is the next lever if Ramana still feels it;
-  (c) sibling lanes should git-capture their pateval/corp-actions units.
+  (c) ✅ RESOLVED (Jul-10, Ramana ask): the pateval/corp-actions "UNCAPTURED" noise was NOT
+  missing git capture — both stacks were already committed (S83e/S83i) and byte-identical to
+  /etc; the gap was the VPS-side `/opt/hermes/scripts/systemd/vps-live/` MIRROR never
+  receiving them (units deploy by scp, and those lanes committed without syncing the mirror).
+  Synced server-side (`cp` from /etc, byte-exact) → `install-systemd.sh --check` now
+  **exit-clean, zero UNCAPTURED/DRIFT**. Lesson for every lane: committing a unit to git is
+  half the job — scp it to the VPS vps-live mirror too, or the on-box drift gate cries wolf.
 - **S84 addendum (Jul-10, found during the verify sweep):** `hermes-fundamentals-provenance`
   was FAILED — the fleet-wide `TimeoutStartSec=1800` (90-hardening.conf) SIGTERM'd the
   full-universe re-collect mid-run on Jul-07 (killed at 675/2767 symbols, ~110 min needed,
