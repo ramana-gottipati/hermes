@@ -31,9 +31,9 @@ a stuck `rebase --continue` (empty `ls-files -u` yet refusing) resolved by manua
   detected late — now EXPLAINED by the fence, kept per nothing-discarded). Deploy: anchored
   inserts on the two FORKED nav files (`/tmp/deploy_s102_nav.py` pattern, backups
   `.bak-s102-*`), straight scp for the isolated module; the nesting engine picked the lens
-  automatically (40 nested lens routes). **Bus faces still unbuilt:** since-you-last-looked
-  brief (`events_since` has no user surface) · alert rail · SSE · dvpt/quality/cpr lenses ·
-  stock-grain rs.
+  automatically (40 nested lens routes). **Bus faces:** ~~since-you-last-looked brief~~ **✅
+  BUILT S108/D110** (`/dash/attention` top strip, cookie-keyed `events_since`; PROJECT_STATE
+  Session 108). Still unbuilt: alert rail · SSE · dvpt/quality/cpr lenses · stock-grain rs.
 - **🎬 S102 (P-05 lane): /dash/replay-any-date LIVE** — any symbol + any date through the
   entitled /v1 API in-process; pit chips / typed absences / RFC-7807 verbatim; reproduction
   curls; coverage front-door chip; **`HERMES_V1_DEV_KEY` now provisioned on the box** (0600,
@@ -115,9 +115,9 @@ DVPT picking-strategy program (D47) · positioning-pillar tail · UI Track A cos
 2. **Product:** **X-04 overnight/intraday split + pump-flag** (top remaining charter X-item) ·
    X-06 Amihud migration delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price
    shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag.
-3. **Bus follow-ups (natural after D106):** the since-you-last-looked brief (`events_since` →
-   a "since your last visit" strip; design where it lives — Home vs a dossier strip) · alert
-   rail · dvpt lens design (needs a banded state first).
+3. **Bus follow-ups (natural after D106):** ~~since-you-last-looked brief~~ **✅ DONE S108/D110**
+   → remaining: the **alert rail** (push a firing event via `tracker_alerts`-style dedup) · the
+   **SSE stream** (live tape) · dvpt lens design (needs a banded state first).
 4. **Quant-integrity:** AUD-14 (morning window) · AUD-22 · AUD-37 (design-first).
 5. **P-05 follow-through:** the demo is LIVE with a provisioned key — next is Ramana-facing
    (pitch/demo assets), not build.
@@ -167,11 +167,12 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 > UTC, silent = green) results in the journals; **first-ever season-digest DM Sat 02:45 UTC —
 > missing = real bug, page it, never `systemctl start` mid-day (AUD-95)**; Sat 21:00
 > provenance is on its own scheduled task, skip.
-> (2) Pick per § NEXT PICKS: wolfe lane → **🧊 FROZEN pending Ramana's §B weightage sign-off**
-> (no Wolfe code by any lane until he answers — `579d989`); product lane → X-04
-> overnight/intraday split + pump-flag; bus lane → the since-you-last-looked brief; quant
-> lane → AUD-14 (morning window only). E-studies are armed + self-gating (E-02 Jul-22 ·
-> E-14 Jul-25 · E-04 Aug-01) — do NOT run early.
+> (2) Pick per § NEXT PICKS: wolfe lane → the §B weightage sign-off was FROZEN at `579d989`
+> BUT the wolfe lane has since pushed S106/S107 (`2541009`/`5bbeb68`) — **check the wolfe
+> lane's own latest state, this freeze line may be stale**; product lane → X-04
+> overnight/intraday split + pump-flag; bus lane → the **alert rail / SSE** (the
+> since-you-last-looked brief shipped S108/D110); quant lane → AUD-14 (morning window only).
+> E-studies are armed + self-gating (E-02 Jul-22 · E-14 Jul-25 · E-04 Aug-01) — do NOT run early.
 > (3) Standing fences: descriptive-only estate + honesty fences; D106 — the attention face
 > carries NO gate, never promote it to a strategy without its own study; forked-nav files =
 > pull-patch-push or anchored inserts, NEVER full-file scp; `tr` not sed; explicit-path
