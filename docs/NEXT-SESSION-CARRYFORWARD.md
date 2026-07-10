@@ -34,7 +34,7 @@ expect journal Finished + 2767/2767) · `gate_deferred` 0 all week so far, `if_f
 evlib+placebo, testing-page truth, #8 disclosure, charter v1.1/D92) · wks3-4 `9ae0345` (3
 placebo-caught NULLS + CAR fan) · `1ed0316` (E-11/E-12 nulls, M-04) · triggers `0fba51c`/
 `3ff1ee2`/`7614603` · digest `3a1c953` · E-10 calc `60fcdd8`+`5805e6f` · **P-04 pack (S96,
-`f6077a7`)** — the S93b lesson stands: grep HEAD for the other lane's newest anchors before
+`21547b3`)** — the S93b lesson stands: grep HEAD for the other lane's newest anchors before
 committing co-hot files. Ledger: 10 pre-registered studies (2 confirmed · 6 nulls · 2 armed).
 
 ## 🧰 S86d HARNESS NOTE (2026-07-10) — session infrastructure changed, applies to YOUR session

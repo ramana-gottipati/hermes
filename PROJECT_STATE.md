@@ -1732,7 +1732,12 @@ replay-the-tape + SLA one-pager into the procurement artifact."
 - Harness TIL: the `Monitor` tool (until-loop on a remote condition) could have watched
   tonight's first MTTR mints / first SLB fire instead of deferring both to the next session's
   carry-forward.
-- Commit: `f6077a7`.
+- Commit: `21547b3` (authored as `f6077a7`; the S86d lane's same-minute rebase rewrote the
+  hash — same tree, verified). Wrap-race note for the record: the hash-backfill commit
+  (`68acd98`) co-carried the S86d lane's FINISHED carry-forward hunks (gate-v1.3 note) —
+  their on-disk write landed between my Edit and my add; content correct + nothing lost,
+  recorded here for attribution. Shared-tree racing remains the standing hazard: re-read
+  `git status` between staging and committing shared docs.
 
 ### Session 94 — 2026-07-10 — D95 residue: the 92-symbol historical heal RERUN (driver fixed; a real backfill-path bug in signals.py closed)
 Picked up the S89b-recorded failed heal (Ramana: "take up something else and proceed"). Diagnosed
