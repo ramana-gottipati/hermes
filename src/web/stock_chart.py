@@ -819,8 +819,9 @@ SNIPPET = """<script>
         var X=(sgn*dx>0)?W+60:-60; pt.y=pa.y+dy*(X-pa.x)/dx; pt.x=X; }
       push(b,1); if(mode===2) push(a,-1); return [a,b]; }
     // narrow confluences ACROSS Fib drawings: extension levels (>1.0 ONLY — retrace
-    // levels made false zones, same rule as wolfe.fib_zones) from two DIFFERENT fib
-    // drawings agreeing within 1% → a shaded band, tightest-first, deduped, top 6.
+    // levels made false zones) from two DIFFERENT fib drawings agreeing within 2% —
+    // BOTH rules mirror wolfe.fib_zones (tol_frac=0.02) so a manual two-leg drawing
+    // finds the same zones the auto Wolfe calls. Shaded band, tightest-first, top 6.
     function confluxBands(){
       var sets=[];
       for(var i=0;i<items.length;i++){ var d=items[i]; if(d.t!=='fib'&&d.t!=='fibext') continue;
@@ -833,13 +834,13 @@ SNIPPET = """<script>
       for(var a2=0;a2<sets.length;a2++) for(var b2=a2+1;b2<sets.length;b2++)
         for(var i2=0;i2<sets[a2].length;i2++) for(var j2=0;j2<sets[b2].length;j2++){
           var v1=sets[a2][i2].v, v2=sets[b2][j2].v, mid=(v1+v2)/2;
-          if(mid&&Math.abs(v1-v2)<=0.01*Math.abs(mid))
+          if(mid&&Math.abs(v1-v2)<=0.02*Math.abs(mid))
             out.push({lo:Math.min(v1,v2),hi:Math.max(v1,v2),mid:mid,
                       lab:sets[a2][i2].r+'\\u2229'+sets[b2][j2].r}); }
       out.sort(function(q1,q2){return (q1.hi-q1.lo)-(q2.hi-q2.lo);});
       var ded=[];
       for(var k2=0;k2<out.length;k2++){ var z=out[k2], dup=false;
-        for(var k3=0;k3<ded.length;k3++){ if(Math.abs(z.mid-ded[k3].mid)<=0.01*Math.abs(z.mid)){ dup=true; break; } }
+        for(var k3=0;k3<ded.length;k3++){ if(Math.abs(z.mid-ded[k3].mid)<=0.02*Math.abs(z.mid)){ dup=true; break; } }
         if(!dup) ded.push(z); }
       return ded.slice(0,6); }
 
@@ -1043,7 +1044,7 @@ SNIPPET = """<script>
     var edit=tbtn(baseBtn(false),'Select / edit \\u2014 or just click a drawing directly; double-click configures it; Del removes it','\\u2b0e'); edit.onclick=setEdit; btns._edit=edit; bar.appendChild(edit);
     TOOLS.forEach(function(t){ var b=tbtn(baseBtn(false),t[2],t[1]); b.onclick=function(){ setTool(t[0]); }; btns[t[0]]=b; bar.appendChild(b); });
     var mag=tbtn('','Magnet — snap to nearest OHLC (still draggable)','\\ud83e\\uddf2 magnet'); mag.onclick=function(){ magnet=!magnet; paintTools(); }; btns._mag=mag; bar.appendChild(mag);
-    var cfx=tbtn('','Narrow confluences: shade where extension levels (>1.0 only \\u2014 the Wolfe zone rule) from two different Fib drawings agree within 1%','conflux');
+    var cfx=tbtn('','Narrow confluences: shade where extension levels (>1.0 only) from two different Fib drawings agree within 2% \\u2014 the same rule the auto Wolfe zones use','conflux');
     cfx.onclick=function(){ conflux=!conflux; paintTools(); redraw(); }; btns._cfx=cfx; bar.appendChild(cfx);
     var hide=tbtn('','Hide all drawings (tap again to restore)','hide all'); hide.onclick=function(){ hidden=!hidden; paintTools(); redraw(); }; btns._hide=hide; bar.appendChild(hide);
     var clear=tbtn('cursor:pointer;font-size:11px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:5px;padding:3px 7px','Delete all drawings','clear');

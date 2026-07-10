@@ -1503,8 +1503,10 @@ diagnosed with numbers, 5 shipped, 1 was data-reality:
   1.13 / 1.272 / 1.382 / 1.618 / 2 / 2.382 / 2.618 / 3 / 3.618 / 4.236 / 4.618, **each named
   by its market role** in the editor (per-drawing `lv`, persists through `/dash/drawings`
   unchanged — store is schema-free JSON); (4) **conflux bands** — extension levels (>1.0
-  only, the `wolfe.fib_zones` rule) from two DIFFERENT fib drawings agreeing within 1% shade
-  an amber band labelled `r∩r` (rail toggle, default on).
+  only) from two DIFFERENT fib drawings agreeing within 2% shade an amber band labelled
+  `r∩r` (rail toggle, default on; BOTH thresholds mirror `wolfe.fib_zones tol_frac=0.02`,
+  proven on the TCS legs: manual bands land on the auto zone 2159 — the 1% first cut found
+  nothing there, caught by the exact-source node gate).
 - **Wolfe fib-fan labels** (`wolfe_overlay.py`): the "fib fans" grid lines now carry
   `1-2 ×r price` / `3-4 ×r price` markers — an unlabeled fan was unreadable.
 - Gates: `node --check` on both embedded snippets PASS · wolfe import PASS · overlay harness
