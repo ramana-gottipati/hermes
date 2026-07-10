@@ -43,10 +43,13 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
   FORMING / OPEN (EPA untouched = "my actual need") / CLOSED (EPA touched = reference-only)
   taxonomy is canon in `docs/wolfe-rules.md` §D (verbatim + state machine); recommendations
   **R1–R7** + probe numbers in PROJECT_STATE § open items ("Wolfe lifecycle program").
-  **Next Wolfe session builds R1+R2 first** (state-as-data via `epa_touch`; actionable surfaces
-  filter by STATE not age — same failure class as D96). ⚠ ONE clarification gates R5/R7: his
-  "bull: cannot fall below point 2 / bear: below point 3" bounds — ask, never guess (§D lists
-  the 3 candidate readings).
+  **Next Wolfe session builds R1+R2+R8 first** (state-as-data; actionable surfaces filter by
+  STATE not age; event-driven EPA state per his line-formula directive), then R3/R4/R6/R7.
+  ✅ ALL clarifications RESOLVED same day (§D items 1-5): the point-2/3 bound = the §A point-4
+  channel gate (already enforced, NO code change — "do not modify the wave count"); OPEN spans
+  two phases (approaching-5 / riding-to-EPA); NO liveness cutoff (state-filter + attention-order
+  + counted slice); NEW recorded-not-built: point-4 strength via legs 1-2 ∩ 2-3 confluence
+  (needs his worked example before build).
 - **VERIFY next session:** tonight's `hermes-wolfe-scan` 16:00 UTC run must persist BOTH snapshots —
   journal shows "persisted N winner-profile setups + M structure-watch rows"; run takes ~6 min now
   (timeout 1800s, checked); `wolfe_signals` universes `nifty500` + `nifty500:watch` both fresh.

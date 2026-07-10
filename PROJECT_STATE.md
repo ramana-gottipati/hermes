@@ -1407,17 +1407,23 @@ median bars from p5 = **BULL 18 (p25 5 · p75 101) · BEAR 10 (p25 4 · p75 30)*
 **R4 — CLOSED = reference layer:** walk/list keep CLOSED waves with a `✓EPA (n bars)` chip (the
   walk reads history — that is its job); actionable queues exclude them; optional per-symbol
   validation readout (EPA touch-rate, median bars) as DESCRIPTIVE method-validation.
-**R5 — Clarify before encoding (GATES R2's bound + R7):** his sentence "bull: price cannot fall
-  below point 2 / bear: cannot fall below point 3" is ambiguous under the locked conventions —
-  3 candidate readings in wolfe-rules.md §D; ask, never guess (the 2026-06-24 lesson).
-**R6 — Sorting split by surface intent:** reading surfaces (walk/list) keep D99 attention;
-  actionable queues order by state-progress (in-zone/nearest first, then EPA-distance), age
-  visible but not the key.
-**R7 — §B2 pierced-4.618 withhold = a lifecycle chip:** implement his B2 verbatim as a
-  "not entry-qualified (below both 4.618s, no return)" chip/filter on the actionable queues
-  ONLY — never removed from the chart/walk. Resolves open decision ③ inside this program.
-**Build order:** R1+R2 first (semantics; kills dead rows + reopens live-but-aged), then R3/R4/R6,
-then R5/R7 after his §D answers. Everything additive; §A/§B untouched; descriptive-only stands.
+**R5 — ✅ RESOLVED same day (his answer):** the "point-2/point-3" bound = the POINT-4 channel rule
+  §A already enforces (bull 4≤2 · bear 4≥2 + breach void) — no new rule, no code change; his
+  explicit instruction: "do not modify the wave count… existing rules are working well."
+  NEW recorded (not built): point-4 STRENGTH via legs 1-2 ∩ 2-3 fib confluence (§D item 4).
+**R6 — Sorting:** ALL Wolfe surfaces keep D99 attention as the order (his liveness answer: no
+  artificial cutoff — "open or completed is sufficient"); the OPEN queues filter by STATE only,
+  attention buries zombies, counted default-slice + show-all pages it. Progress chips
+  (in-zone → reversing → crossed-3 → nearing-EPA) are DISPLAY, not the sort key.
+**R7 — §B2 pierced-4.618 withhold = a lifecycle chip (UNBLOCKED):** his B2 verbatim as a
+  "not entry-qualified (below both 4.618s, no return)" chip on the actionable queues ONLY —
+  never removed from the chart/walk. Resolves open decision ③ inside this program.
+**R8 — EPA state is event-driven (his mechanism, adopted):** the EPA is a line formula; a wave's
+  state is PERSISTED once known — one initial pass from point 5 establishes it (historical waves
+  only), then the nightly checks just the new bar's range vs `epa(t)` (crossing-inclusive:
+  bull high ≥ line / bear low ≤ line). Never a rescan, never bar-babysitting.
+**Build order (fully unblocked):** R1+R2+R8 first (state semantics + dead-row fix), then
+R3/R4/R6/R7. Everything additive; §A/§B untouched; descriptive-only stands.
 
 ### 🌊 Wolfe honesty residuals (S89/D98 — small, deliberate deferrals)
 - **§B2 pierced-4.618 withhold is documented but NOT implemented in the scanner** (`docs/wolfe-rules.md`
