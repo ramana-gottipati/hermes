@@ -297,13 +297,49 @@ theme-token pill fix (`55a83c0`)**. **Do NOT rebuild any backup unit, the shareh
 bank mapper, dq_banner, or the captured systemd units — verify, then consume.** `docs/SESSION-72-CARRYFORWARD.md` (untracked) retire-ready —
 its owner session deletes it.
 
+## 📋 S84-S95 WRAP REPORT (2026-07-10, the D93/D94/charter-sweep arc — this lane)
+- **Shipped (all committed + pushed + live-verified):** launchpad 9s→0.01s nightly snapshot
+  (D93) · board-health pager (D94) · SIX D94 lenses (insider/ratings/stake×pledge/holdings/
+  corp-actions/surveillance — each page+card+pillar+glossary+gate, each with its honesty
+  fence) · D-04 SLB feed + timer + 21d seed · provenance 4h-timeout fix · drift-mirror sync ·
+  glossary ?q= deep-links. Estate: **17 gated strategies · 19 home pillars.**
+- **VERIFY tonight/next boot:** ① `hermes-slb` first scheduled run 15:16 UTC (journal
+  Finished + one clean log line + rows for Jul-10) · ② `hermes-board-health` first scheduled
+  fire 22:01 UTC (exit 0 = silent; a page = a hollow card, fix upstream, never mute) ·
+  ③ the Wolfe lane's new-unit 16:00 UTC run (its own carry-note above) · ④ Sat 21:00 UTC
+  provenance run — a SCHEDULED TASK (`verify-provenance-timeout-fix`, Sun 08:00 IST) already
+  reports it; don't duplicate.
+- **🐛 HARNESS BUG (#0-bis wrap report):** `scripts/state-doc-gate.cjs` v1.1 FALSE-POSITIVE
+  on a compound `git add A B PROJECT_STATE.md && git commit` (PROJECT_STATE was in the add;
+  the gate still blocked). Workaround: run the add and the commit as SEPARATE commands.
+  Gate owner (S86d lane) should fix pathspec expansion across `&&`.
+- **⚠ S93 buyback orphan (owner: the S85g/S93 lane):** its commit `cc2b151` shipped the
+  Lens + glossary but NOT `src/web/buyback_calc.py` (still untracked) nor its
+  `_ROUTER_SPECS` mount (uncommitted working-tree line) — /dash/buyback-calc 404s from a
+  clean checkout. That lane must land its view + mount (do NOT absorb it).
+- **Multi-lane craft notes that saved the night (reuse them):** verify-then-swap md5 per
+  file pre-deploy · pull-patch-push for the FORKED nav files (5 clean repetitions) ·
+  `git apply --cached` / `git hash-object + update-index` for partial staging when a
+  sibling's hunks share your file · `tr -d '\r'` NEVER sed for CR-strip · remote IMPORT
+  test, not just py_compile.
+
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously.
-> **FIRST read `docs/patearn-charter.md` (canonical, D87) + the CHARTER/⚡IMMEDIATE blocks at the TOP of this doc — the war room shipped; charter §3 NOW is the primary queue; the audit-era queue below is secondary.** Boot per `docs/SESSION-PROTOCOL.md`, then execute
-> `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom (START with queue #1 — the new-state verifies:
-> the first sandboxed nightly chain, the Jul-05 concall run, both backup timers, and the
-> `install-systemd.sh --check` drift gate — then queue #3, the audit correction program, checking
-> the audit session's wrap for what's already landed). Access is harness-enforced — never ask for access/write/delete or
-> per-step confirmation. Get guidance from the agents, not from me; I won't answer. Keep every
-> guardrail (esp. #8 primary-sources-only). Remember the perimeter: curl via the Caddy hostname or
-> ssh-localhost, never raw :8000. Wrap up per the protocol and write the next carry-forward.
+> **The charter §3 NOW queue is SWEPT (S95) and the D94 lens queue is COMPLETE (S92) — the
+> roadmap altitude is now charter §4 NEXT + §7 idea bank.** Boot per `docs/SESSION-PROTOCOL.md`,
+> read the 🏁/🧰/🌊 blocks at the TOP of `docs/NEXT-SESSION-CARRYFORWARD.md`, then:
+> (1) run the WRAP-REPORT verifies (SLB first run · board-health first fire · the Wolfe
+> new-unit run; the Sat provenance check is already a scheduled task — skip it);
+> (2) kickstart-pick-verify the next build from charter §4/§7 — the E-studies are ARMED and
+> self-gating (E-02 fires Jul-22; E-04/E-14 depth-gated; do NOT run them early), so prefer
+> product/consumption picks (e.g. P-04 per the season lane's S93b note, or Wolfe lifecycle
+> R3/R4/R6 per the S89 block) unless a study's gate has newly reconciled;
+> (3) respect the standing fences: 17 gated lenses stay DESCRIPTIVE with their honesty
+> fences (E-02 dedup · CONTROL_PCT/STRUCTURAL_PP=25 · plumbing classes · placebo-nulls
+> quoted); front-door parity rule (D94) for any new strategy; forked-nav pull-patch-push;
+> `tr` not sed; explicit-path staging (siblings run hot — S93's buyback orphan is ITS
+> owner's to land).
+> Access is harness-enforced — never ask for access or per-step confirmation; get guidance
+> from the agents, not from me; I won't answer. Keep every guardrail (esp. #8
+> primary-sources-only). Perimeter: curl via the Caddy hostname or ssh-localhost, never raw
+> :8000. Wrap per the protocol and refresh this carry-forward + kickoff prompt.
