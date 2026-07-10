@@ -76,11 +76,14 @@ are now SECONDARY to the charter.
    the XBRL bank flow (audit-era queue #2 below); the sibling's Provisions fix must land first.
 2-bis. **D94 LENS QUEUE (Ramana ask 2026-07-10 — work top-down, one per session, D93 recipe:
    registry reader + measured card + blurb + glossary + board_health coverage; data ALREADY
-   ingested, zero new deps):** ① insider-activity lens (`insider_events` 10,055) ·
-   ② credit-rating transitions (`credit_rating_events` 3,008) · ③ SAST+pledge confluence
-   (3,582+603) · ④ SHP QoQ deltas (84,699, research.db) · ⑤ forward corp-actions calendar
-   (26,868+226) · ⑥ surveillance-transition tape (797+52). Front-door parity rule (D94):
-   any new strategy = strategist card AND home pillar AND board_health, same session.
+   ingested, zero new deps):** ~~① insider-activity~~ **✅ DONE S86** (`/dash/insider`, 78
+   fresh-conviction names; flag logic = `insider_events.flagged_symbols`, single source) ·
+   **② credit-rating transitions (`credit_rating_events` 3,008) ← NEXT** · ③ SAST+pledge
+   confluence (3,582+603) · ④ SHP QoQ deltas (84,699, research.db) · ⑤ forward corp-actions
+   calendar (26,868+226) · ⑥ surveillance-transition tape (797+52). Front-door parity rule
+   (D94): any new strategy = strategist card AND home pillar AND board_health, same session.
+   ⚠ lens_registry.py + v2_surfaces.py stay git↔VPS FORKED — patch the LIVE copies with your
+   hunks (pull → Edit → push back), never full-file scp from git (S86 did this correctly).
    `hermes-board-health.timer` (22:00 UTC) now PAGES on hollow/stale cards — if it fires,
    fix the upstream job, don't mute the gate.
 3. **TOP CHARTER PICKS for new build:** **X-02** T2T/BE delivery-contamination mask (correctness —

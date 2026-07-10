@@ -227,6 +227,18 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **₹ crore.** The normalized amount when the statement was monetary; capacity/other statements carry none. *Source:* `concall_signals.amount_cr`.
 - **Polarity.** +1 grow/expand · −1 pullback ("no capex this year" is information too) · 0 neutral. *Source:* `concall_signals.polarity`.
 
+## Insider activity — SEBI PIT disclosures (skin in the game)
+
+> Every promoter / director / KMP transaction filed under the SEBI Prohibition-of-Insider-Trading rules, ingested nightly from NSE into `insider_events` and **classified** so signal isn't buried in plumbing. Anchored on the **disclosure date** (when the market could know), not the transaction date. Revised filings **supersede** their originals (AUD-08) — nothing is double-counted. All flows in **rupees, not share counts**. Descriptive — a conviction read, not a buy list.
+
+- **Principals.** Promoters, promoter group, directors, KMP — the informed control persons. Designated persons / employees are tracked but weighted as "other". *Source:* `insider_events.category`.
+- **Conviction (signal).** A principal **buying on the open market** with their own money — the strongest insider read. The card counts names where principals are net-buyers over 90d AND bought within the last 30d. *Source:* `signal_class='conviction'`.
+- **Caution (signal).** A principal **selling on the open market**. One sale is noise (tax, diversification); persistent net selling is the read. *Source:* `signal_class='caution'`.
+- **Plumbing.** ESOPs, gifts, inheritance, inter-se (within promoter family) transfers, allotments, conversions, scheme swaps — ownership motion that carries **no market conviction**. Classified out of every headline; visible in the tape. *Source:* `txn_class`.
+- **Pledge risk / release.** Pledge created or invoked = a distress tell that DOMINATES the symbol verdict (a promoter buying while pledging is not conviction). Release is relief, **not auto-bullish**. *Source:* `signal_class='pledge_risk' / 'pledge_relief'`.
+- **Cluster buy.** ≥2 distinct principals buying the same name inside 30 days — historically the more interesting shape than one large buy. *Source:* distinct `person_name_hash` count.
+- **Net 90d (₹).** Principal open-market buys minus sells over 90 days, in rupees. The SIGN drives the symbol verdict (relative, no rupee threshold — house principle). *Source:* `aggregate()`.
+
 ## Results reactions — the season war room
 
 > Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.

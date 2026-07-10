@@ -495,8 +495,9 @@ empty? why not proactive?") exposed two things D93 missed and one it now answers
 3. **The unsurfaced-data lens queue (DECIDED, ordered; all data already ingested nightly —
    zero new dependencies, all primary-source):** each = registry reader + measured card +
    blurb + glossary + board_health coverage (the D93 recipe):
-   1. **Insider-activity lens** — `insider_events` 10,055 rows (AUD-08 supersede-fixed).
-   2. **Credit-rating transitions lens** — `credit_rating_events` 3,008 rows.
+   1. ✅ **Insider-activity lens — DONE (S86, same day):** `/dash/insider` + card + pillar +
+      glossary + gate; 78 fresh-conviction names live. See the S86 session entry.
+   2. **Credit-rating transitions lens** — `credit_rating_events` 3,008 rows. **← NEXT**
    3. **SAST + pledge confluence board** — `sast_reg29_events` 3,582 + `sast_pledge_events`
       603 (dataset-roadmap idea, now dated + ordered).
    4. **SHP QoQ delta lens** — `shareholding_history` 84,699 rows (promoter/FII/DII deltas).
@@ -1449,6 +1450,35 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 86 — 2026-07-10 — INSIDER-ACTIVITY LENS live end-to-end (D94 queue #1): 10,055 PIT filings → page + card + pillar + glossary + gate
+D94 queue #1 executed with the full D93 recipe, live-verified same session (Ramana: "go
+ahead with the insider activity lens"):
+- **`/dash/insider` (NEW `src/web/insider_view.py`)** — SEBI PIT disclosures as a decision
+  lens: strip tiles (fresh conviction · principal buys/sells ₹ · cluster buys · pledge-risk
+  names) + per-symbol PIT board (supersede-collapsed 30/90d windows, verdict chips, sortable)
+  + the raw filing tape (signal-class tabs, window/symbol/min-₹ filters, amendments marked ✎).
+  Honest-empty on hosts without the table; 0.25s render (614 symbols on board).
+- **Single-source flag logic:** NEW `insider_events.universe_aggregate()` +
+  `flagged_symbols()` — the fresh-conviction cohort (principals net-bought 90d — which also
+  means no pledge distress — AND bought inside 30d). Card == home pillar == board_health by
+  construction. **Live: 78 names as of 2026-07-09** — top: MSPL ₹116.5cr/30d (6 distinct
+  buyers — a cluster), MAHSEAMLES ₹102.7cr, THOMASCOOK ₹48.4cr, SKIPPER ₹22.5cr, NIITLTD
+  ₹14.2cr (2 buyers). All value-based (₹, never share counts), disclosure-date anchored.
+- **Wiring:** `strategy_registry._insider` (12 readers now) · strategist card + blurb ·
+  cockpit INSIDER pillar (13 measured home pillars) · `lens_registry` Lens (nested
+  `/dash/strategies/insider` 200) + `v2_surfaces._ROUTER_SPECS` durable mount ·
+  metrics-glossary "Insider activity" section (principals / conviction / caution / plumbing /
+  pledge dominance / cluster / net-90d) · **board_health now gates 12 strategies (prod run
+  OK)**. Reused the existing classifier + PIT `aggregate()` (momentum_view's veto source) —
+  no second system.
+- **Forked-nav deploy done right:** lens_registry.py + v2_surfaces.py are git↔VPS forked
+  (S80h) — pulled the LIVE copies, applied only my hunks, pushed back (sibling's VPS-only
+  diff preserved); committed the same hunks to git.
+- **Verified:** local (insider_view selftest populated+empty paths · registry 12 rows ·
+  strategist selftest · imports · pytest 18/1) + VPS (py_compile, page/nested/filter curls
+  200, card+pillar+glossary render, board_health `12 strategies measured` exit 0).
+- **Next in the D94 queue: ② credit-rating transitions lens** (`credit_rating_events` 3,008).
 
 ### Session 84b — 2026-07-10 — Front-door parity + board-health pager: home strip 12/12 measured, hollow cards now PAGE (D94; Ramana challenge follow-through)
 **Trigger:** Ramana — "is that all you could do with the data? why are so many cards empty?

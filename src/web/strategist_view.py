@@ -258,6 +258,7 @@ _CATALOG = [
     ("Strength · RS", "/dash/leaders"),
     ("Credibility · CCI", "/dash/concalls"),
     ("Growth-intent", "/dash/growth"),
+    ("Insider activity", "/dash/insider"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
     ("Momentum · ensemble", "/dash/markets/momentum-scan"),
@@ -296,6 +297,10 @@ _BLURB: dict[str, tuple[str, str]] = {
     "/dash/growth": (
         "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new "
         "products — ₹-normalised and scannable.", "growth intent"),
+    "/dash/insider": (
+        "Skin in the game: promoters / directors / KMP buying or selling with their "
+        "OWN money, from SEBI PIT filings. Open-market flows only — ESOPs, gifts and "
+        "pledges are classified out. Descriptive.", "insider"),
     "/dash/launchpad": (
         "Validated explosive-move precursors (momentum-continuation / coiled). The "
         "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "

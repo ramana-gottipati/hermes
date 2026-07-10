@@ -23,6 +23,12 @@ try:
     from src.automation.stock_rs import leaders_laggards, conviction_shortlist
 except Exception:  # keep the page resilient if the module shifts
     leaders_laggards = conviction_shortlist = None
+# insider_events imports only core.db — cycle-safe; single source for the
+# INSIDER pillar count (== strategist card == board_health, by construction).
+try:
+    from src.automation.insider_events import flagged_symbols as _insider_flagged
+except Exception:  # noqa: BLE001
+    _insider_flagged = None
 
 
 def _near(g) -> bool:
@@ -393,6 +399,11 @@ STRATEGY_REGISTRY = [
      # the S84 nightly snapshot removed that excuse — count the FRESH rising edge.
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM launchpad_signals WHERE age<=2").fetchone()["c"]},
+    {"key": "INSIDER", "label": "Insider activity", "accent": "#f778ba", "href": "/dash/insider",
+     "cta": "fresh promoter buying",
+     "thesis": "Skin in the game — principals (promoters/directors/KMP) net-buying on the open market with their own money, bought within the last 30 days. SEBI PIT filings, plumbing classified out. Descriptive.",
+     "count": lambda conn, d, D: (len(_insider_flagged(conn)[0])
+                                  if _insider_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",

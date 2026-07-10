@@ -44,7 +44,7 @@ except Exception:  # pragma: no cover - import-path fallback
 # Daily signals refresh every trading night; concalls are quarterly, so far more lenient.
 _STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150,
                "conviction": 7, "growth": 150, "launchpad": 7,
-               "momentum": 7, "reactions": 10}
+               "momentum": 7, "reactions": 10, "insider": 7}
 
 # Liquidity / universe gate for whole-universe rankers — mirrors
 # dashboard._SCAN_FILTERS, kept self-contained (same choice strategist_view made).
@@ -255,6 +255,33 @@ def _cci(conn):
             "health": _health(count, as_of, _STALE_DAYS["cci"])}
 
 
+def _insider(conn):
+    """Insider activity — the fresh-conviction cohort from insider_events
+    (D94 queue #1): principals net-BOUGHT on the open market over 90d with
+    buying inside the last 30d. Flag logic lives in
+    insider_events.flagged_symbols (single source: card == pillar == gate)."""
+    key, label, route = "insider", "Insider activity", "/dash/insider"
+    if not _table_exists(conn, "insider_events"):
+        return _empty(key, label, route)
+    try:
+        from src.automation import insider_events as IE
+        flags, as_of = IE.flagged_symbols(conn)
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    if not as_of:
+        return _empty(key, label, route)
+    count = len(flags)
+    top = []
+    for sym, a in flags[:5]:
+        note = f'₹{a["open_market_buy_value_30d"] / 1e7:,.1f}cr 30d'
+        if a["promoter_cluster_buy_30d"] >= 2:
+            note += f' · {a["promoter_cluster_buy_30d"]} buyers'
+        top.append({"symbol": sym, "note": note})
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": str(as_of)[:10], "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["insider"])}
+
+
 def _growth(conn):
     """Growth-intent — forward proposals managements committed to on concalls
     (capex / expansion / debt-cut / new products), Rs-normalised. Flagged = the
@@ -420,7 +447,7 @@ def _wolfe(conn):
 
 
 # registry order = the order the Strategist dashboard shows the cards.
-_READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci,
+_READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci, _insider,
             _growth, _launchpad, _momentum, _reactions, _wolfe]
 
 
@@ -455,7 +482,7 @@ def _selftest():
         for t in r["top"]:
             assert set(t) >= {"symbol", "note"}, f"{r['key']} bad top item: {t}"
         keys.add(r["key"])
-    for want in ("conviction", "dvpt", "mep", "cpr", "rs", "cci",
+    for want in ("conviction", "dvpt", "mep", "cpr", "rs", "cci", "insider",
                  "growth", "launchpad", "momentum", "reactions", "wolfe"):
         assert want in keys, f"{want} row missing"
     print(f"OK  strategy_registry.summary() -> {len(rows)} rows")

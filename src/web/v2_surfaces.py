@@ -58,6 +58,9 @@ _ROUTER_SPECS = [
     # clone + deploy renders them instead of 404-ing under their sub-nav entries.
     ("growth", "src.web.growth_view", "/dash/growth"),
     ("testing", "src.web.testing_view", "/dash/testing"),
+    # Insider activity lens (D94 queue #1, S86) — SEBI PIT disclosures classified;
+    # reads insider_events; flag logic single-sourced in insider_events.flagged_symbols.
+    ("insider", "src.web.insider_view", "/dash/insider"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),

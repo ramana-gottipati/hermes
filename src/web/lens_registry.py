@@ -160,6 +160,10 @@ LENSES: tuple[Lens, ...] = (
          dossier_tab="cci", screener_col="cci"),
     Lens("growth", "Growth", "stock", "strategies", "/dash/growth",
          dossier_tab="qual", screener_col="qual"),
+    # Insider activity — SEBI PIT disclosures classified (conviction / caution /
+    # pledge / plumbing); the D94 unsurfaced-data queue #1 (S86). Descriptive.
+    Lens("insider", "Insider", "stock", "strategies", "/dash/insider",
+         aliases=("insider-activity", "promoter-buying", "pit-disclosures")),
     Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad"),
 
     # ── Tracker ──────────────────────────────────────────────────────────────

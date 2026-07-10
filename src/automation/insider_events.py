@@ -336,6 +336,48 @@ def aggregate(events: list, as_of: str, *, mcap_cr: Optional[float] = None) -> d
     return out
 
 
+# --- whole-universe roll-up (S86 insider lens: page + card + pillar + gate) --
+
+_AGG_COLS = ("symbol, disclosure_dt, transaction_dt, txn_type_raw, txn_class, "
+             "category, person_name_hash, amendment_flag, parsed_at, value_rs, pct_equity")
+
+
+def universe_aggregate(conn, as_of: Optional[str] = None, days: int = 95):
+    """PIT roll-up for EVERY symbol with insider activity in the trailing `days`
+    (95 covers the 90d verdict windows + weekend slack). One indexed read
+    (~4K rows), grouped in-memory, aggregate() per symbol — cheap on-read for
+    the strategist card / home pillar / board-health gate; the /dash/insider
+    page passes a longer window. Returns ({symbol: aggregate-dict}, as_of)."""
+    from collections import defaultdict
+    if not as_of:
+        r = conn.execute("SELECT MAX(disclosure_dt) FROM insider_events").fetchone()
+        as_of = r[0] if r else None
+    if not as_of:
+        return {}, None
+    bysym: dict = defaultdict(list)
+    for row in conn.execute(
+            f"SELECT {_AGG_COLS} FROM insider_events "
+            f"WHERE disclosure_dt >= date(?, ?)", (as_of, f"-{int(days)} days")):
+        e = dict(zip(_AGG_COLS.replace(" ", "").split(","), row))
+        bysym[e["symbol"]].append(e)
+    return {s: aggregate(evts, as_of) for s, evts in bysym.items()}, as_of
+
+
+def flagged_symbols(conn, as_of: Optional[str] = None):
+    """The FRESH-conviction cohort — the number every consumer shows for this
+    lens (strategist card == home pillar == board_health, by construction):
+    principals net-BOUGHT on the open market over 90d (verdict 'conviction',
+    which also means no pledge distress in the window) AND some of that buying
+    landed within the last 30 days. Sorted by 30d buy value desc.
+    Returns ([(symbol, aggregate-dict), ...], as_of)."""
+    aggs, as_of = universe_aggregate(conn, as_of)
+    flags = [(s, a) for s, a in aggs.items()
+             if a["insider_signal_class"] == "conviction"
+             and a["open_market_buy_value_30d"] > 0]
+    flags.sort(key=lambda x: -x[1]["open_market_buy_value_30d"])
+    return flags, as_of
+
+
 # --- DB layer (hermes.db) --------------------------------------------------
 
 _SCHEMA = """
