@@ -1652,6 +1652,27 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 94 — 2026-07-10 — D95 residue: the 92-symbol historical heal RERUN (driver fixed; a real backfill-path bug in signals.py closed)
+Picked up the S89b-recorded failed heal (Ramana: "take up something else and proceed"). Diagnosed
+with real tracebacks — the recipe's own step 1; the recorded `/tmp/diag_heal.py` had never actually
+run (a `/tmp` script needs the `sys.path` bootstrap; its "ssh flake" was partly a silent
+ModuleNotFoundError):
+1. **cpr leg:** the driver called `_partial_key(tf, conn)` — the signature is `(conn, tf)` →
+   `'str' object has no attribute 'execute'` on every W/M/Q call. Driver-side fix.
+2. **triggers leg — a REPO bug, not driver-only:** D95's `_character_arrays` reads `r["value"]`
+   (the N3 ticket ratio) but `_backfill_triggers_for_symbol`'s bhav SELECT never fetched `value`
+   → `IndexError: No item with that key` on every symbol. The committed `--backfill-triggers`
+   CLI path was equally broken at HEAD; the nightly path was unaffected (its rows carry value).
+   **FIX (this commit): `value` added to the SELECT; `_character_arrays`' docstring now names
+   every required column incl. value.**
+- **Rerun driver `/tmp/heal92b.py`** (VPS scratch): cpr W/M/Q + triggers ONLY — mep committed
+  clean in the first run; keyprice was healed by the standalone morning `--backfill-keyprice`.
+  Resume-safe (done-file), per-symbol commits (D82c short-transaction discipline), symbol-args
+  smoke mode. Smoke-tested on one symbol, then launched for the full MISSED_DEAD_ZONE set —
+  completion counts + verification to be AMENDED here when the run finishes.
+- Remaining D95 residue after this: wolfe tape-wiring (owner = the Wolfe lane) · stock_rs
+  historical rows (no per-symbol backfill path; heals forward nightly) · the 77 TAPE_SUSPECT review.
+
 ### Session 93b — 2026-07-10 — wrap: cross-lane git clobber caught + repaired (v2_surfaces buyback mount)
 The S92 lane's commit (`1a78be9`) carried an older v2_surfaces file state and dropped the S93
 buyback-calc router line from HEAD minutes after it landed (lens + glossary survived). Caught at

@@ -309,8 +309,11 @@ def _character_metrics(dates: list, adj: list, deliv_value: list,
 def _character_arrays(asc_rows: list, events: dict = None) -> tuple:
     """Build the per-symbol arrays _character_metrics needs from bhav rows
     ordered OLDEST→NEWEST. Each row needs close/prev_close/deliv_qty/
-    num_trades/deliv_per. ``events`` = the corporate-action ratio tape
-    (tape-primary adjustment; None → legacy inference only)."""
+    num_trades/deliv_per/value (value = raw ₹ turnover for the N3 ticket
+    ratio — a caller whose SELECT omits it gets an IndexError on line ~331,
+    which is exactly how the first 92-symbol heal driver died). ``events`` =
+    the corporate-action ratio tape (tape-primary adjustment; None → legacy
+    inference only)."""
     closes = [r["close"] for r in asc_rows]
     adj = adjusted_closes([{"trade_date": r["trade_date"], "close": r["close"],
                             "prev_close": r["prev_close"]}
@@ -838,7 +841,7 @@ def _backfill_triggers_for_symbol(conn, symbol: str) -> int:
     price-zone columns). Per-symbol bulk fetch + batch UPDATE.
     """
     bhav = conn.execute(
-        """SELECT trade_date, close, prev_close, deliv_qty, deliv_per, num_trades
+        """SELECT trade_date, close, prev_close, deliv_qty, deliv_per, num_trades, value
            FROM bhavcopy_rows
            WHERE symbol = ? AND series = 'EQ' AND (segment = 'CM' OR segment IS NULL)
            ORDER BY trade_date ASC""",
