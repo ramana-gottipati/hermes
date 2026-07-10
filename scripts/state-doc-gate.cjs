@@ -124,6 +124,10 @@ process.stdin.on('end', () => {
         .split(/\s+/)
         .map((t) => t.replace(/^["']|["']$/g, ''))
         .filter((t) => t && !t.startsWith('-'));
+      // v1.3 (S95 wrap-report fix): PROJECT_STATE.md named as an add token counts as intent
+      // to carry it — an UNMODIFIED state doc expands to nothing via ls-files -m -o -d and
+      // v1.1/v1.2 false-blocked exactly that flow. Mirrors the pathspec branch's token check.
+      if (toks.some((p) => /(^|\/)PROJECT_STATE\.md$/i.test(p))) return finish(0);
       try {
         const spec = toks.length ? toks.join(' ') : '.';
         const expanded = run('git ls-files -m -o -d --exclude-standard -- ' + spec);
