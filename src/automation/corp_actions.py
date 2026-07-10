@@ -65,16 +65,28 @@ _SPLIT_RE = re.compile(
 )
 
 
+# S96 (TAPE_SUSPECT review): bonus DEBENTURES / PREFERENCE shares carry a ratio in the
+# subject but do NOT rescale the equity price (audited: BRITANNIA/NTPC/DRREDDY/ZEEL/
+# ASTRAZEN all show ex-day moves of −3…−7% against "implied" −50…−95%). Never a ratio.
+_DEB_PREF_RE = re.compile(r"DEBENTURE|PREFERENCE", re.IGNORECASE)
+# a bonus ratio riding inside a SPLIT-typed filing's text ("Spl-Rs10 To Rs2/Bonus-1:2")
+_BONUS_TXT_RE = re.compile(r"BONUS\W{0,15}?(\d+)\s*:\s*(\d+)", re.IGNORECASE)
+_SPLIT_WORD_RE = re.compile(r"SPLIT|SUB\s*-?\s*DIVISION|CONSOLIDAT", re.IGNORECASE)
+
+
 def _parse_ratio(action_type: str, purpose_text: str) -> tuple:
     """Best-effort (from, to) ratio.
 
       "Bonus 1:5"                                             → (1, 5)
       "... From Rs 10/- Per Share To Re 1/- Per Share"        → (10, 1)
       "Rs 2 Per Share Dividend"                               → (None, None)
+      "Bonus Debentures 6:1" / "Bonus Preference 21:1"        → (None, None)  (S96)
     """
     if not purpose_text:
         return None, None
     text = purpose_text.strip()
+    if action_type == "BONUS" and _DEB_PREF_RE.search(text):
+        return None, None
     if action_type in ("SPLIT", "CONSOLIDATION"):
         m = _SPLIT_RE.search(text)
         if m:
@@ -83,6 +95,44 @@ def _parse_ratio(action_type: str, purpose_text: str) -> tuple:
     if m:
         return float(m.group(1)), float(m.group(2))
     return None, None
+
+
+def _group_price_legs(rows: list) -> list:
+    """PRICE-ratio legs for ONE (symbol, ex_date) event-group; rows =
+    (action_type, ratio_from, ratio_to, details).
+
+    S96 (TAPE_SUSPECT review — 29/77 suspects were this): NSE frequently files a
+    compound event as ONE row — "Bonus 1:1 And Face Value Split From Rs.10/- To
+    Re.1/-" — typed by the first keyword, with `_parse_ratio` capturing only the
+    first ratio. The lost leg is recovered here from the details text. Group-aware:
+    an in-text extra leg is added only when NO separate row of that type already
+    exists on the ex-date (else a two-row filing would double-compound).
+    Bonus DEBENTURE / PREFERENCE rows contribute nothing (no equity price impact)."""
+    has_split_row = any(at in ("SPLIT", "CONSOLIDATION") and rf and rt
+                        for at, rf, rt, _ in rows)
+    has_bonus_row = any(at == "BONUS" and rf and rt for at, rf, rt, _ in rows)
+    legs = []
+    for at, rf, rt, details in rows:
+        text = details or ""
+        if at == "BONUS" and _DEB_PREF_RE.search(text):
+            continue
+        if rf and rt and rf > 0 and rt > 0:
+            legs.append((rt / rf) if at in ("SPLIT", "CONSOLIDATION") else (rt / (rf + rt)))
+        if at == "BONUS" and not has_split_row and _SPLIT_WORD_RE.search(text):
+            m = _SPLIT_RE.search(text)
+            if m:
+                f, t = float(m.group(1)), float(m.group(2))
+                if f > 0 and t > 0 and f != t:
+                    legs.append(t / f)
+                    has_split_row = True
+        elif at in ("SPLIT", "CONSOLIDATION") and not has_bonus_row and not _DEB_PREF_RE.search(text):
+            m = _BONUS_TXT_RE.search(text)
+            if m:
+                bf, bt = float(m.group(1)), float(m.group(2))
+                if bf > 0 and bt > 0:
+                    legs.append(bt / (bf + bt))
+                    has_bonus_row = True
+    return legs
 
 
 def _detect_action_type_from_purpose(purpose: str) -> Optional[str]:
@@ -191,16 +241,21 @@ def price_ratios(conn, symbol: str) -> dict:
 
     The consumer (adjust.adjustment_factors ``events=``) tolerance-gates every ratio
     against the observed ex-day move, so an unparsed / mis-dated / suspect tape row can
-    never corrupt a series — worst case the inference layers stand alone (legacy)."""
-    out: dict = {}
-    for at, ex, rf, rt in conn.execute(
-            "SELECT action_type, ex_date, ratio_from, ratio_to FROM corporate_actions "
+    never corrupt a series — worst case the inference layers stand alone (legacy).
+    S96: legs come from ``_group_price_legs`` — in-row compound filings recovered,
+    bonus debentures/preference excluded."""
+    groups: dict = {}
+    for at, ex, rf, rt, det in conn.execute(
+            "SELECT action_type, ex_date, ratio_from, ratio_to, details FROM corporate_actions "
             "WHERE symbol=? AND action_type IN ('SPLIT','BONUS','CONSOLIDATION') "
             "AND ex_date IS NOT NULL", (symbol,)):
-        if not rf or not rt or rf <= 0 or rt <= 0:
-            continue
-        r = (rt / rf) if at in ("SPLIT", "CONSOLIDATION") else (rt / (rf + rt))
-        out[ex] = out.get(ex, 1.0) * r
+        groups.setdefault(ex, []).append((at, rf, rt, det))
+    out: dict = {}
+    for ex, rows in groups.items():
+        v = 1.0
+        for leg in _group_price_legs(rows):
+            v *= leg
+        out[ex] = v
     return {k: v for k, v in out.items() if 0.02 < v < 50 and abs(v - 1) >= 0.001}
 
 
@@ -219,16 +274,16 @@ def reconcile(conn, since: Optional[str] = None) -> dict:
 
     Full-history audit 2026-07-10: 888 CAUGHT / 112 MISSED (92 symbols) / 77 SUSPECT
     / 144 NO_BHAV / 132 NO_RATIO / 1 NEGLIGIBLE — recorded in PROJECT_STATE S85e."""
-    from src.automation.adjust import CC_THRESH, _TAPE_TOL
+    from src.automation.adjust import CC_THRESH, tape_agrees
     where = "AND ex_date >= ?" if since else ""
     args = (since,) if since else ()
     evs = conn.execute(
-        f"SELECT symbol, action_type, ex_date, ratio_from, ratio_to FROM corporate_actions "
+        f"SELECT symbol, action_type, ex_date, ratio_from, ratio_to, details FROM corporate_actions "
         f"WHERE action_type IN ('SPLIT','BONUS','CONSOLIDATION') AND ex_date IS NOT NULL {where} "
         f"ORDER BY symbol, ex_date", args).fetchall()
     groups: dict = {}
-    for sym, at, ex, rf, rt in evs:
-        groups.setdefault((sym, ex), []).append((at, rf, rt))
+    for sym, at, ex, rf, rt, det in evs:
+        groups.setdefault((sym, ex), []).append((at, rf, rt, det))
     counts: dict = {}
     detail: dict = {"MISSED_DEAD_ZONE": [], "TAPE_SUSPECT": []}
 
@@ -236,12 +291,14 @@ def reconcile(conn, since: Optional[str] = None) -> dict:
         counts[k] = counts.get(k, 0) + 1
 
     for (sym, ex), grp in sorted(groups.items()):
-        implied, have_ratio = 1.0, True
-        for at, rf, rt in grp:
-            if not rf or not rt or rf <= 0 or rt <= 0:
-                have_ratio = False
-                continue
-            implied *= (rt / rf) if at in ("SPLIT", "CONSOLIDATION") else (rt / (rf + rt))
+        # S96: same leg math as price_ratios — in-row compounds + deb/pref exclusion.
+        # have_ratio distinguishes "no parseable price event" (deb/pref-only groups
+        # land here too — correct: nothing to adjust) from a computed implied ratio.
+        legs = _group_price_legs(grp)
+        have_ratio = bool(legs)
+        implied = 1.0
+        for leg in legs:
+            implied *= leg
         rows = conn.execute(
             "SELECT trade_date, close FROM bhavcopy_rows WHERE symbol=? AND series IN ('EQ','BE','BZ') "
             "AND trade_date<=? ORDER BY trade_date DESC LIMIT 2", (sym, ex)).fetchall()
@@ -256,7 +313,7 @@ def reconcile(conn, since: Optional[str] = None) -> dict:
         if abs(implied - 1) < 0.03:
             bump("NEGLIGIBLE")
             continue
-        if abs(observed / implied - 1) > _TAPE_TOL:
+        if not tape_agrees(observed, implied):
             bump("TAPE_SUSPECT")
             detail["TAPE_SUSPECT"].append((sym, ex, round(implied, 3), round(observed, 3)))
         elif caught:
@@ -468,6 +525,33 @@ def _selftest() -> int:
     rec = reconcile(con)
     check("reconcile classes", rec["counts"].get("MISSED_DEAD_ZONE") == 1
           and rec["counts"].get("CAUGHT_FALLBACK") == 1 and rec["counts"].get("TAPE_SUSPECT") == 1)
+
+    # S96 — the TAPE_SUSPECT review classes: in-row compound filings, bonus
+    # debentures/preference, and the ±20% ex-day band-lock acceptance.
+    mix = normalize_api_row({"symbol": "MIX", "subject":
+                             "Bonus 1:1 And Face Value Split (Sub-Division) - "
+                             "From Rs 10/- Per Share To Re 1/- Per Share",
+                             "exDate": "10-Jun-2026"})
+    deb = normalize_api_row({"symbol": "DEB", "subject":
+                             "Scheme Of Arrangement - Bonus Debentures 6:1",
+                             "exDate": "10-Jun-2026"})
+    lock = normalize_api_row({"symbol": "LOCK", "subject":
+                              "Face Value Split (Sub-Division) - From Rs 10/- Per Share "
+                              "To Rs 2/- Per Share", "exDate": "05-May-2026"})
+    store_actions([mix, deb, lock], conn=con)
+    pr3 = price_ratios(con, "MIX")
+    check("S96 in-row compound (bonus 1:1 × split 10→1 = 0.05)",
+          abs(pr3["2026-06-10"] - 0.05) < 1e-9)
+    check("S96 bonus debentures never enter the tape", price_ratios(con, "DEB") == {})
+    from src.automation.adjust import tape_agrees
+    check("S96 band-lock gate (±20% circuit on the adjusted base)",
+          tape_agrees(0.24, 0.2) and tape_agrees(0.16, 0.2)
+          and not tape_agrees(0.26, 0.2) and not tape_agrees(1.0, 0.5))
+    con.executemany("INSERT INTO bhavcopy_rows VALUES (?,?,?,?)", [
+        ("LOCK", "2026-05-02", "EQ", 100.0), ("LOCK", "2026-05-05", "EQ", 24.0)])
+    rec2 = reconcile(con)
+    check("S96 band-locked ex-day is CAUGHT, not SUSPECT",
+          rec2["counts"].get("TAPE_SUSPECT") == 1 and rec2["counts"].get("CAUGHT_FALLBACK") == 2)
     con.close()
 
     print("corp_actions selftest:", "OK" if ok else "FAILED")

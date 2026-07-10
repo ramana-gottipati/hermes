@@ -45,6 +45,25 @@ CC_THRESH = 0.30   # close-jump fallback: >30% single-day move = action NSE
 _TAPE_TOL = 0.18   # tape ratio accepted only when the observed ex-day move agrees
                    # within this relative band (audit: real matches sit ≤ ~10%,
                    # market drift included; suspects/parse errors sit far outside)
+_BAND_LOCK_TOL = 0.025   # S96: residual sitting ON a ±20% exchange price band
+
+
+def tape_agrees(observed: float, tape: float) -> bool:
+    """The S85e tolerance gate + the S96 band-lock exception (D102).
+
+    Accept the tape ratio when the observed ex-day close move matches it within
+    ±_TAPE_TOL — OR when the residual move ON TOP of the ratio sits exactly on a
+    ±20% exchange price-band limit (obs/tape ≈ 1.20 or 0.80, within 2.5%). The
+    TAPE_SUSPECT review (S96) found 34 of the 77 suspects were exactly this:
+    the tape was RIGHT and the stock re-opened on the adjusted base then locked
+    the circuit (residuals 1.19–1.21, across 2006→2025). The exact tape ratio is
+    still what gets applied — the band-locked move stays a real market move."""
+    if not tape or tape <= 0 or observed is None or observed <= 0:
+        return False
+    res = observed / tape
+    if abs(res - 1) <= _TAPE_TOL:
+        return True
+    return abs(res / 1.20 - 1) <= _BAND_LOCK_TOL or abs(res / 0.80 - 1) <= _BAND_LOCK_TOL
 
 
 def adjustment_factors(rows: list[dict], events: Optional[dict] = None) -> list[float]:
@@ -77,7 +96,7 @@ def adjustment_factors(rows: list[dict], events: Optional[dict] = None) -> list[
         if events:
             tape = events.get(rows[i].get("trade_date"))
             if (tape and 0.02 < tape < 50 and prior_close and this_close
-                    and prior_close > 0 and abs(this_close / prior_close / tape - 1) <= _TAPE_TOL):
+                    and prior_close > 0 and tape_agrees(this_close / prior_close, tape)):
                 ratio = tape
         # prev_close layer (measured never-firing on this archive — kept for safety).
         if ratio is None and pc and prior_close and prior_close > 0:

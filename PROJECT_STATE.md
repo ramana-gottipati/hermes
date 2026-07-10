@@ -478,6 +478,28 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D103 — TAPE_SUSPECT triage: in-row compound filings recovered; bonus debentures excluded; the ±20% ex-day band-lock is ACCEPTED by the tape gate (2026-07-10, S97; Ramana: "go ahead with the 77 TAPE_SUSPECT review")
+The D95 audit's 77 refused-tape suspects were reviewed with a mechanical classifier (hypotheses
+tested per group against the observed ex-day move). Three real classes + a fenced remainder:
+1. **In-row compound filings (~29):** NSE files "Bonus 1:1 And Face Value Split From Rs.10/- To
+   Re.1/-" as ONE row — typed BONUS, `_parse_ratio` captured only the first ratio, the split leg
+   silently lost (TITAN · TECHM · ONGC · HINDZINC · BAJFINANCE · EDELWEISS …). Fix:
+   `corp_actions._group_price_legs` recovers the riding leg from the details text, GROUP-aware
+   (an in-text extra leg is added only when no separate row of that type shares the ex-date, so
+   a two-row filing can never double-compound). `price_ratios` and `reconcile` share this leg math.
+2. **Ex-day circuit lock (~34):** observed/implied = 1.19–1.21 across 2006→2025 — the tape was
+   RIGHT; the stock re-opened on the adjusted base and locked the +20% band, and the ±18% gate
+   refused exactly-band-locked days by construction. Fix: `adjust.tape_agrees()` (the now-shared
+   gate) additionally accepts a residual sitting ON ±20% (obs/tape ≈ 1.20 or 0.80, within 2.5%);
+   the EXACT tape ratio is still what gets applied. WHY safe: a false acceptance needs a wrong
+   ratio landing within 2.5% of a band limit; refusal (status quo) left ~34 real events noisy or
+   unadjusted — incl. sub-30% ones the fallback never catches (SBC 2024 bonus 1:2, −20.1% move).
+3. **Bonus debentures / preference shares (5):** BRITANNIA · NTPC · DRREDDY · ZEEL · ASTRAZEN —
+   a ratio in the subject, no equity price impact; excluded at parse AND read time.
+The remainder stays fenced (rights-mixed · mis-dated · no-move oddities) — the gate keeps
+refusing them, inference stands. Selftests +4 (17/17 corp_actions, 7/7 adjust). Every symbol
+whose factors changed gets the full four-leg historical heal (S97 session entry has counts).
+
 ### D102 — The two lifecycle plays are first-class queues with progress chips; CLOSED waves wear reference chips (2026-07-10, S89; Ramana: "build R3 and R4")
 Completes the §D lifecycle program on the surfaces:
 - **R3a — "Open — approaching point 5" queue** (`wolfe.forming_scan` + nightly `persist_forming`
@@ -1689,6 +1711,21 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 97 — 2026-07-10 — D103: the 77 TAPE_SUSPECT review — 3 real classes fixed, gate learns the ±20% band-lock (D95 residue #2, same session as S94's heal)
+Ramana: "go ahead with the 77 TAPE_SUSPECT review." Mechanical classifier over every suspect
+(scratch `suspects_classify.py`) → the D103 taxonomy: **~29 in-row compound filings** (parser
+kept only the first ratio of "Bonus AND Split" single-row subjects) · **~34 ex-day circuit
+locks** (obs/implied = 1.19–1.21 — tape right, stock locked +20% on the adjusted base; the
+±18% gate refused them by construction) · **5 bonus debentures/preference** (ratio with no
+equity price impact) · remainder genuinely fenced. Fixes: `_group_price_legs` (group-aware
+in-row recovery, double-compound-proof) shared by `price_ratios`+`reconcile` · `adjust.
+tape_agrees()` shared gate with band-lock acceptance (exact tape ratio still applied) ·
+deb/pref excluded at parse+read. Selftests 17/17 + 7/7. Note: my classifier's own first-pass
+labels were partly wrong (4 "BONUS_SWAP" + 1 "DATE_SHIFT" were really in-row compounds whose
+swapped/shifted arithmetic coincidentally fit) — the per-row details text was the arbiter, not
+the hypothesis score. Reconcile re-run + the four-leg heal of every factor-changed symbol:
+counts AMENDED below when the run lands.
 
 ### Session 96 — 2026-07-10 — P-04 EVIDENCE PACK live (/dash/evidence-pack) — the procurement artifact, assembled not authored (season lane)
 The S93b top pick executed as recorded (kickstart-pick-verify: no PDF exporter existed, only
