@@ -42,7 +42,22 @@
 - The 1-4 line. Drawn **only after point 5 is confirmed**. Runs to the chart's **right edge**.
 
 ### A7 · Display
-- **Candles only** · **one wave at a time** · **Prediction / Completed** sections with **◄ / ►** timeline nav · zone bands = soft translucent **green (bull) / red (bear)**.
+- **Candles only** · **one wave at a time** · **Prediction / Open / Closed** sections with **◄ / ►** timeline nav · zone bands = soft translucent **green (bull) / red (bear)**.
+
+### A8 · Lifecycle sections (Ramana, canon 2026-07-11) — the 3 sections, and why
+Every wave sits in exactly ONE of three states. Nothing is ever hidden — a wave is only *labelled*
+by state (this is the SIMPLE lifecycle; the reverted D101/D102 queues over-complicated it and buried
+waves — do NOT re-add filtering/recency).
+- **PREDICTION** — point 5 **not yet formed** (still building toward the point-5 zone). No EPA yet.
+- **OPEN** — point 5 **formed**, and the **EPA (1-4) target line has NOT yet been touched** after
+  point 5. *This is the current, actionable situation* — the reversal is expected but price has not
+  reached target. As new waves confirm, the OPEN count grows; a wave stays OPEN until its EPA is hit.
+- **CLOSED** — after point 5, price **reached and touched the EPA line** (the study played out). Kept
+  for reference / to gauge confidence. Each closed wave shows **HOW NEATLY it closed**: bars from
+  point 5 to the first EPA touch (speed) + the largest give-back during that run (choppiness) →
+  `clean` (≤3% pullback) · `ok` (≤7%) · `choppy` (>7%). *("Completed" = point 5 printed = OPEN ∪ CLOSED.)*
+- Code: `wolfe.epa_touched()` (open vs closed) + `wolfe.close_quality()` (neatness). Overlay tabs
+  Prediction / Open / Closed, default = **Open** (the live setups). D109.
 
 ---
 

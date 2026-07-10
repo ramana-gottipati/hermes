@@ -462,6 +462,54 @@ def line13_at(wave, t):
     return wave.p[0].price + wave.line13_slope * (t - wave.p[0].idx)
 
 
+def epa_touched(wave, highs, lows, n):
+    """CLOSED test (Ramana): a wave is CLOSED once, AFTER point 5, price REACHES
+    and TOUCHES the 1-4 (EPA) target line. BULL: a high ≥ the EPA line; BEAR: a
+    low ≤ it. A confirmed wave whose EPA is NOT yet touched stays OPEN."""
+    if not wave.p5:
+        return False
+    bull = wave.direction == 'BULL'
+    for t in range(wave.p5.idx + 1, n):
+        lv = epa_at(wave, t)
+        if (bull and highs[t] >= lv) or ((not bull) and lows[t] <= lv):
+            return True
+    return False
+
+
+def close_quality(wave, highs, lows, n):
+    """HOW NEATLY a CLOSED wave reached the EPA (Ramana: "even if closed, I want to
+    see how neatly it was closed"). From point 5 to the FIRST EPA touch: bars taken
+    (speed) + the largest give-back during that run (choppiness). A fast run with a
+    small pullback = a clean close; a slow, choppy run = a messy one."""
+    if not wave.p5:
+        return None
+    bull = wave.direction == 'BULL'
+    tt = None
+    for t in range(wave.p5.idx + 1, n):
+        lv = epa_at(wave, t)
+        if (bull and highs[t] >= lv) or ((not bull) and lows[t] <= lv):
+            tt = t
+            break
+    if tt is None:
+        return None
+    maxdd = 0.0
+    if bull:
+        run = highs[wave.p5.idx]
+        for t in range(wave.p5.idx, tt + 1):
+            run = max(run, highs[t])
+            if run > 0:
+                maxdd = max(maxdd, (run - lows[t]) / run * 100.0)
+    else:
+        run = lows[wave.p5.idx]
+        for t in range(wave.p5.idx, tt + 1):
+            run = min(run, lows[t])
+            if run > 0:
+                maxdd = max(maxdd, (highs[t] - run) / run * 100.0)
+    tier = 'clean' if maxdd <= 3.0 else 'ok' if maxdd <= 7.0 else 'choppy'
+    return {"bars_to_epa": tt - wave.p5.idx, "pullback_pct": round(maxdd, 2),
+            "tier": tier, "touch_idx": tt}
+
+
 def point5_zone(wave, atr_val):
     """Anticipated point-5 price zone (Wolfe symmetry: leg 4-5 ≈ leg 2-3), clamped
     to the overshoot side of the 1-3 line. Returns {center, low, high} or None."""
@@ -594,10 +642,19 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
             rank = round(100.0 * (0.30 * track + 0.20 * target_s + 0.20 * rr_s
                                   + 0.15 * zone_s + 0.10 * prox_s + 0.05 * fresh_s), 1)
             rank_tier = "A" if rank >= 70 else "B" if rank >= 50 else "C"
+        # LIFECYCLE (Ramana's 3 sections): prediction = no point 5 · open = point 5
+        # printed, EPA target NOT yet touched (the actionable now) · closed = EPA
+        # touched (reference; carries how-neatly-it-closed).
+        if not w.p5:
+            lifecycle, cq = "prediction", None
+        elif epa_touched(w, highs, lows, n):
+            lifecycle, cq = "closed", close_quality(w, highs, lows, n)
+        else:
+            lifecycle, cq = "open", None
         out.append({
             "direction": w.direction, "tier": w.tier, "quality": round(w.quality, 2),
             "quality_total": (w.score["total"] if w.score else 0), "score": w.score,
-            "source": w.source,
+            "source": w.source, "lifecycle": lifecycle, "close_quality": cq,
             "state": w.state, "sym_price": round(w.sym_price, 2),
             "pivots": [{"idx": p.idx, "price": p.price, "kind": p.kind, "date": dates[p.idx]} for p in w.p],
             "p5": ({"idx": w.p5.idx, "price": w.p5.price, "date": dates[w.p5.idx]} if w.p5 else None),
@@ -704,15 +761,27 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
     sc = w.get("score") or {}
     qbits = (f' · [p1×2={sc.get("p1",0)*2} B={sc.get("B",0)} C={sc.get("C",0)} F={sc.get("F",0)} '
              f'G={sc.get("G",0)} H={sc.get("H",0)} I={sc.get("I",0)} D={sc.get("D",0)}]') if sc else ''
+    # lifecycle badge (Ramana's 3 sections): OPEN = point 5 in, EPA target pending;
+    # CLOSED = EPA reached (+ how neatly). Leads the §B chips so he reads state first.
+    lc = w.get("lifecycle")
+    cq = w.get("close_quality") or {}
+    lc_txt = ''
+    if lc == 'open':
+        lc_txt = ' · OPEN (EPA target pending)'
+    elif lc == 'closed':
+        lc_txt = (f' · CLOSED ({cq.get("tier","")}: reached EPA in {cq.get("bars_to_epa","?")} bars, '
+                  f'pullback {cq.get("pullback_pct","?")}%)')
     # lead with the WAVE Ramana reads (dir · status · point-4 date · ₹ zone), THEN the Q
     # quality badge + the §B chips (panel/Ramana-proxy: "I read the wave, not letter-soup").
     summary = (f'{w["direction"]} Wolfe · {w["state"]} · pt4 {w["pivots"][3]["date"]}'
+               + lc_txt
                + (f' · zone {zones[0]["price"]}' if zones else '')
                + (f' · 5≈{p5pred["value"]}' if p5pred else '')
                + f' · Q{w.get("quality_total",0)}'
                + (f' (rank {w["wolfe_rank"]}{w["rank_tier"]})' if w.get("wolfe_rank") is not None else '')
                + qbits)
     return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
+            "lifecycle": lc, "close_quality": w.get("close_quality"),
             "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
             "p5pred": p5pred, "p4_time": p[3]["date"], "p4_value": round(p[3]["price"], 2),
             "last_time": dates[line_r], "fib12": fib12, "fib34": fib34, "zones": zones,

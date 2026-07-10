@@ -481,6 +481,22 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D109 — The Wolfe overlay has 3 lifecycle sections (Prediction / Open / Closed), SIMPLE and non-hiding — the D101/D102 concept re-added the right way (2026-07-11, S106; Ramana: "I asked for three sections")
+Ramana asked for the lifecycle back — but as three clear, labelled sections, NOT the reverted
+D101/D102 queues that filtered by recency and buried his TCS wave. Definitions (his, canon — §A8):
+**PREDICTION** = point 5 not yet formed · **OPEN** = point 5 formed, EPA (1-4) target NOT yet touched
+(the current, actionable set) · **CLOSED** = price reached and touched the EPA line after point 5
+(reference), each showing HOW NEATLY it closed. Built additively on the D108 baseline: two pure
+engine helpers — `wolfe.epa_touched()` (open vs closed) + `wolfe.close_quality()` (bars-to-EPA +
+largest give-back during the run → clean ≤3% / ok ≤7% / choppy >7%) — surface a `lifecycle` +
+`close_quality` on every wave; `wolfe_overlay.py` splits the old "Completed" tab into **Open** and
+**Closed** tabs (default = Open), filtering the SAME confirmed list by lifecycle — **nothing hidden,
+no recency, no queue reorg** (the D108 lesson held). Verified on the real TCS series: **his wave reads
+OPEN** (EPA target 2511.6 vs price ~2049, Q15), 34 open / 15 closed in the walk; closed examples show
+`clean: EPA in 4 bars, pullback 1.36%`. WHY: he needs to see, at a glance, which studies are still
+live (OPEN) vs played-out (CLOSED) and how cleanly the closed ones resolved — that is how he gauges
+confidence in the method. §A geometry + §B math + the D108 gate all untouched — this is display only.
+
 ### D108 — Wolfe REVERTED to the D96 baseline + the MANDATORY 2/3/4 fractal gate; the D98–D102 display/queue layer is REMOVED (2026-07-10, S105; Ramana: revert scope decided surgically after "I am really disappointed that the fractal has been ignored")
 Two rulings from Ramana, executed exactly (his COMPLETE strength concept — the 5 drivers: fractal structure · fib confluence zone · point-5 placement · EPA line as touched-not-cut S/R · RSI divergence — is canonically documented at docs/wolfe-rules.md §B0, commit 43e075f; read that before any Wolfe scoring change):
 1. **THE RULE (his verbatim intent): points 2, 3 and 4 MUST each be a fractal, minimum
@@ -1830,6 +1846,20 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 106 — 2026-07-11 — Wolfe lifecycle 3-sections (D109): Prediction / Open / Closed, the SIMPLE non-hiding re-add + closure-neatness readout
+Ramana asked for the three sections back (Prediction / Open / Closed) with the CLOSED ones showing
+"how neatly it closed". Built on the D108 baseline, additive + non-hiding (the D101/D102 mistake NOT
+repeated): `wolfe.epa_touched()` + `wolfe.close_quality()` engine helpers → `lifecycle` +
+`close_quality` on every wave; `wolfe_overlay.py` Open/Closed tabs (default Open) filtering the same
+confirmed list. His TCS wave reads OPEN (target 2511.6, price ~2049, Q15); closed waves show e.g.
+`clean: EPA in 4 bars, pullback 1.36%`. §A/§B/D108-gate untouched — display only. Landed on origin's
+canonical revert lineage (patched onto `acc513e`, not my local twin — avoided re-diverging). Doc:
+wolfe-rules.md §A8. Deploy + live-verify below.
+- **STILL PENDING his sign-off (from S105, not coded):** the §B weightage rebalance — point-1 1/4,
+  point-5 3→4, zone 3→4, EPA touches 2→3 — AND the EPA touched-not-cut recode. He confirmed the
+  point-1 (1/4) + EPA-touch rules but the BUFFER is unresolved (0.3% vs 3%) and the highest-weight
+  touch-count needs his nod. That is the next Wolfe coding step, gated on his two numbers.
 
 ### Session 105 — 2026-07-10 — WOLFE REVERT + THE MANDATORY 2/3/4 FRACTAL GATE (D108): back to the D96 baseline, his rule enforced at detection (Ramana-directed, surgical)
 The evening arc, in order: his flag "the fractal has been ignored" → a fractal-visibility build

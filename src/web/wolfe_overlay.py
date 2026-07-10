@@ -79,10 +79,25 @@ SNIPPET = """<script>
     setFans(fansOn);
   }
   function panTo(w){ if(w&&w.pan_from&&w.pan_to){ try{ window.__wfpc.timeScale().setVisibleRange({from:w.pan_from,to:w.pan_to}); }catch(e){} } }
+  // Ramana's 3 sections, all from the SAME confirmed-wave list — filtered by lifecycle,
+  // NOTHING hidden: open = point 5 in, EPA target not yet reached (the actionable now);
+  // closed = EPA reached (reference + how neatly). Prediction = forming (no point 5).
+  function listFor(m){
+    var c=(DATA&&DATA.completed)||[];
+    if(m==='open') return c.filter(function(w){return w.lifecycle==='open';});
+    if(m==='closed') return c.filter(function(w){return w.lifecycle==='closed';});
+    return c;
+  }
+  function defaultMode(){
+    if(listFor('open').length) return 'open';       // the current live setups first
+    if(DATA&&DATA.prediction) return 'pred';
+    if(listFor('closed').length) return 'closed';
+    return 'pred';
+  }
   function curWave(){
     if(!DATA) return null;
     if(mode==='pred') return DATA.prediction;
-    var c=DATA.completed||[]; if(!c.length) return null; di=Math.max(0,Math.min(di,c.length-1)); return c[di];
+    var c=listFor(mode); if(!c.length) return null; di=Math.max(0,Math.min(di,c.length-1)); return c[di];
   }
   function tab(id,on,txt){ return '<span id="'+id+'" style="cursor:pointer;padding:1px 8px;border-radius:4px;'+(on?'background:#1f6feb;color:#fff;':'color:var(--ink-2);border:1px solid var(--line-2)')+'">'+txt+'</span>'; }
 
@@ -187,7 +202,7 @@ SNIPPET = """<script>
   }
   function exitDraw(){
     clear(); manual=[]; manualZones=[];
-    mode=(DATA&&DATA.prediction)?'pred':'done'; di=0; redraw();
+    mode=defaultMode(); di=0; redraw();
   }
   function drawLink(){ return ' &nbsp;&middot; <span id="wfDraw" style="cursor:pointer;text-decoration:underline;color:#58a6ff">✎ draw your own</span>'; }
   function wireDraw(){ var e;
@@ -212,21 +227,25 @@ SNIPPET = """<script>
   function controls(){
     if(!lbl) return;
     if(mode==='draw'){ renderDraw(); return; }
-    var hasP=!!(DATA&&DATA.prediction), c=(DATA&&DATA.completed)||[];
-    var h=tab('wfTabP',mode==='pred','Prediction'+(hasP?'':' (none)'))+' '+tab('wfTabC',mode==='done','Completed'+(c.length?' ('+c.length+')':' (none)'));
-    if(mode==='done'&&c.length){
+    var hasP=!!(DATA&&DATA.prediction), op=listFor('open'), cl=listFor('closed');
+    var h=tab('wfTabP',mode==='pred','Prediction'+(hasP?'':' (none)'))
+       +' '+tab('wfTabO',mode==='open','Open'+(op.length?' ('+op.length+')':' (none)'))
+       +' '+tab('wfTabC',mode==='closed','Closed'+(cl.length?' ('+cl.length+')':' (none)'));
+    var lst=listFor(mode);
+    if((mode==='open'||mode==='closed')&&lst.length){
       h+=' &nbsp; <span id="wfPrev" title="previous (older) Wolfe" style="cursor:pointer;font-size:16px;padding:0 5px;color:var(--ink)">◄</span>'
-       + ' <b>'+(di+1)+'/'+c.length+'</b> '
+       + ' <b>'+(di+1)+'/'+lst.length+'</b> '
        + '<span id="wfNext" title="next (newer) Wolfe" style="cursor:pointer;font-size:16px;padding:0 5px;color:var(--ink)">►</span>';
     }
     var w=curWave();
-    h+=' &nbsp;&middot;&nbsp; '+(w?w.summary:(mode==='pred'?'no forming wave':'no completed wave'));
+    h+=' &nbsp;&middot;&nbsp; '+(w?w.summary:(mode==='pred'?'no forming wave':mode==='open'?'no open wave':'no closed wave'));
     if(w) h+=' &nbsp;&middot; <span id="wfFans" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">'+(fansOn?'hide fib fans':'fib fans')+'</span>';
     h+=drawLink();
     lbl.innerHTML=h;
     var e;
-    if(e=document.getElementById('wfTabP')) e.onclick=function(){ mode='pred'; redraw(); };
-    if(e=document.getElementById('wfTabC')) e.onclick=function(){ mode='done'; redraw(); };
+    if(e=document.getElementById('wfTabP')) e.onclick=function(){ mode='pred'; di=0; redraw(); };
+    if(e=document.getElementById('wfTabO')) e.onclick=function(){ mode='open'; di=0; redraw(); };
+    if(e=document.getElementById('wfTabC')) e.onclick=function(){ mode='closed'; di=0; redraw(); };
     if(e=document.getElementById('wfPrev')) e.onclick=function(){ di++; redraw(); };   // older
     if(e=document.getElementById('wfNext')) e.onclick=function(){ di--; redraw(); };   // newer
     if(e=document.getElementById('wfFans')) e.onclick=function(){ setFans(!fansOn); controls(); };
@@ -247,7 +266,7 @@ SNIPPET = """<script>
         if(lbl){ lbl.innerHTML='no auto Wolfe wave'+drawLink(); wireDraw(); }   // still let him draw his own
         return;
       }
-      DATA=d; mode=d.prediction?'pred':'done'; di=0; redraw();
+      DATA=d; mode=defaultMode(); di=0; redraw();
     }).catch(function(){ if(lbl) lbl.textContent='overlay error'; });
   }
   cb.addEventListener('change', function(){
