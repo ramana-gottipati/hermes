@@ -476,6 +476,23 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D95 — Corporate-action adjustment is TAPE-PRIMARY with a tolerance gate; the D36 prev_close layer is measured-dead (2026-07-10, S86b)
+The S85e adjust-vs-tape reconciliation FALSIFIED D36's core assumption: NSE does NOT write the
+adjusted prior close into bhav `prev_close` on ex-dates (measured across every era 2004→2026;
+r_pc = 1.0 on all sampled ex-dates incl. IPCALAB 2022) — the "primary" detector never fired once,
+and every adjustment ever made came from the ≥30 % close-jump fallback alone. Actions moving
+3–30 % (a 1:3 bonus ≈ −25 %) were therefore invisible: **112 event-groups / 92 symbols** carried
+mixed price scales in 52w-high / RS / drift / key_price. Decision: the adjustment doctrine is now
+**tape-primary** — `corp_actions.price_ratios` (exact ex-date + ratio; same-day events compound)
+drives `adjust.adjustment_factors(events=)`, **tolerance-gated ±18 %** against the observed ex-day
+move so a mis-parsed/mis-dated tape row can never corrupt a series (77 TAPE_SUSPECTs — reversed
+bonus-subject conventions, split-across-rows compounds — are refused and flagged, inference stands).
+`events=None` stays byte-identical legacy. The prev_close layer is KEPT but documented dead. WHY a
+decision: every consumer of adjusted prices must eventually pass the tape (`signals.py` wired now;
+mep/cpr/stock_rs/mtf/wolfe/ignition_backtest/cockpit/rrg_view/dashboard-inline = the recorded
+adoption wave), and no new consumer may ship inference-only. Permanent audit: `corp_actions
+--reconcile`; nightly guard: `chk_action_tape_agreement`.
+
 ### D94 — Front-door parity + the board-health pager + the unsurfaced-data lens queue (2026-07-10, S84b)
 Ramana's follow-up challenge ("is that all you could do with the data? why are cards still
 empty? why not proactive?") exposed two things D93 missed and one it now answers:
@@ -1450,6 +1467,30 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 86b — 2026-07-10 — Adjust-vs-tape reconciliation: prev_close layer measured DEAD; tape-primary factors LIVE (D95; data-perfection lane)
+The last data-perfection follow-up became the biggest correctness find of the program (`cb8f487`).
+- **THE FINDING:** full-history audit (1,354 event-groups, 2004→2026) proved the D36 prev_close
+  detector NEVER fired — bhav `prev_close` carries the RAW prior close on ex-dates in every era.
+  Only the ≥30 % jump-fallback ever worked → the 3–30 % dead zone (small bonuses/splits) was
+  invisible: **112 event-groups / 92 symbols** (CUB, BRIGADE, CONCOR, KARURVYSYA, SAKSOFT,
+  ASTRAL, AJANTPHARM …) had 52w-high/RS/drift/key_price mixing price scales. 13 misses since 2024.
+- **THE FIX (D95):** tape-primary adjustment — `corp_actions.price_ratios` (SPLIT/CONSOL F→T = T/F;
+  BONUS m:n = n/(m+n); same-day events COMPOUND) → `adjust.adjustment_factors(events=)`,
+  tolerance-gated ±18 % vs the observed move (77 TAPE_SUSPECTs refused + flagged — e.g. reversed
+  bonus conventions; the gate is why a bad tape row can never corrupt a series). `events=None` =
+  byte-identical legacy. First-ever `adjust.py` selftest (7/7). `signals.py` wired (nightly +
+  both backfills, failure-isolated); **live proof: CUB's 1:3 bonus now adjusts by exactly 0.75**
+  (was: nothing) — incl. its 2017/2018 dead-zone bonuses. Tape-aware `--backfill-keyprice`
+  re-heal run for the 92-symbol set.
+- **Permanent artifacts:** `corp_actions --reconcile` CLI (reproduces the audit: 888 CAUGHT / 112
+  MISSED / 77 SUSPECT / 144 NO_BHAV / 132 NO_RATIO) · battery `chk_action_tape_agreement`
+  (recent suspects WARN; dead-zone INFO until adoption completes) — live: "14 recent groups
+  reconcile clean; 2 dead-zone".
+- **OPEN (the adoption wave, per D95):** pass the tape in the remaining adjusted-price consumers —
+  mep_signals · cpr_signals · stock_rs · mtf_signals · wolfe · ignition_backtest · cockpit ·
+  rrg_view · dashboard-inline — then the historical character/RS re-heal for the 92-symbol set;
+  review the 77 TAPE_SUSPECTs (ratio-parse vs NSE-subject quirks).
 
 ### Session 86 — 2026-07-10 — INSIDER-ACTIVITY LENS live end-to-end (D94 queue #1): 10,055 PIT filings → page + card + pillar + glossary + gate
 D94 queue #1 executed with the full D93 recipe, live-verified same session (Ramana: "go
