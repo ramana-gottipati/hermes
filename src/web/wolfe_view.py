@@ -469,8 +469,11 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall=1&amp;nq={nq}" style="color:#58a6ff">show all {len(wrows_all)}</a>'
                if len(wrows_all) > len(wrows) else '')
             + (f' · <span style="color:#d29922">{w_withheld_n} withheld (§B2)</span> '
-               f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall={wall}&amp;nq={0 if nq else 1}" '
-               f'style="color:#58a6ff">{"hide" if nq else "show"}</a>' if w_withheld_n else '')
+               # "show" jumps to the FULL list (wall=1) — a withheld row past the 60-slice
+               # would otherwise stay invisible after the user explicitly asked to see them
+               # (walk-the-journey catch: only 5 of 11 chips showed under the default slice).
+               f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall={1 if not nq else wall}&amp;nq={0 if nq else 1}" '
+               f'style="color:#58a6ff">{"hide" if nq else "show all"}</a>' if w_withheld_n else '')
             + '</div>'
             '<table style="width:100%;border-collapse:collapse;font-size:13px">'
             '<thead><tr style="color:var(--ink-2);text-align:left">'
