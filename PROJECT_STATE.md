@@ -1708,7 +1708,10 @@ crossing the seam — near-consistent by the module's own 1pp continuity gate).
   §D clarifications all RESOLVED same day (point-2/3 = the §A point-4 gate, no code change; OPEN
   spans two phases; EPA state = line-formula/event-driven; no liveness cutoff; point-4-strength
   nugget recorded). **R7 BUILT same day as D100** ("approve R7, go ahead"): §B2 not-entry-qualified
-  withhold, visible + counted + toggleable on both queues, chart untouched. R1+R2+R8 queued next.
+  withhold, visible + counted + toggleable on both queues, chart untouched. First live cut: 76
+  winners / 0 withheld · watch 95 → 84 shown + **11 withheld**. Walk-the-journey caught a
+  slice-composition seam (only 5 of the 11 chips showed under the 60-row default after clicking
+  "show") → the show link now jumps to the full list (`?nq=1&wall=1`, `10f461f`). R1+R2+R8 next.
 Ramana's questions ("did we select the strongest? on what basis? I feel I missed many entries")
 answered with numbers, then built. Commits: (see git log this date — wolfe.py, wolfe_view.py,
 calculations-and-weights.md §5c, PROJECT_STATE).
