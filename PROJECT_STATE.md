@@ -2062,8 +2062,11 @@ dead zone (112 events / 92 symbols) across the estate (one commit, 10 files).
   (git-owned install, drift gate clean); both queues attention-ordered with counted 60-slices;
   edge badges scoped to the validated ≤15-bar window (ledger honesty). Remaining: R3/R4/R6.
 Ramana's questions ("did we select the strongest? on what basis? I feel I missed many entries")
-answered with numbers, then built. Commits: (see git log this date — wolfe.py, wolfe_view.py,
-calculations-and-weights.md §5c, PROJECT_STATE).
+answered with numbers, then built — the full arc D98→D102 in ONE day, every step his-word-gated.
+Commit roll: `bf9b353` (D98 split+watch) · `1cd0d53` (watch 60) · `8a1dfea` (D99 attention) ·
+`a284a71`+`10f461f` (D100 §B2 withhold + walk-caught slice seam) · `a3e6edf` (D101 state
+queues + epa cache) · `fac6e0c` (D102 lifecycle queues) · `4e36bee` (§A-lock exclusion,
+walk-caught on TATACAP) + interleaved docs commits. All live-walked on the VPS.
 - **THE SWEEP (read-only, VPS, exact `overlay_for` replay):** Nifty-500 — **6,064** fresh confirmed
   waves (p5 ≤ 250 bars); **3,334 (55%) were outside the old top-40-by-Q cut**; D96 restored
   **3,121 on 386/500 symbols** (mean walk 33→40). Of the restored: **307 (10%)** pass the winner
