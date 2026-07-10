@@ -94,6 +94,20 @@ a stuck `rebase --continue` (empty `ls-files -u` yet refusing) resolved by manua
   `docs/ui-perf-handoff.md` (its own banner: retire once perf Steps 1–5 are shipped/folded).
 - `patearn-tracker-autobuild` scheduled task: already disabled + self-labeled DONE — inert.
 
+## 🌳 WORKTREE STATUS (validated S108, 2026-07-11 — do NOT re-investigate)
+All 7 worktrees surveyed; **every branch is already an ancestor of main** (0 ahead each) — nothing
+to merge at the branch level. The only uncommitted work, and its verdict:
+- **`.../6430507e/…/wt-wt` (`tmp/s108-weights`)** — the **§B weightage rebalance** in flight
+  (point-1/C/F/H reweight + EPA touched-not-cut recode, `_QUALITY_MAX` 24→25, comments dated
+  "Ramana 2026-07-11"). **LEAVE IT — this lane is finishing it** (Ramana directive S108). It lands
+  the frozen-pending-sign-off work; do not absorb/commit it from any other lane.
+- **pat-eval (`blissful-nash`)** — its uncommitted AUD-40 work is **already in main via `9ed6aa4`**
+  (identical changeset); the worktree copy is un-cleaned cruft. Nothing to do.
+- **main-tree wolfe files** — were a **stale pre-S106/S107 snapshot** (net-deletion, zero unique
+  content); restored to HEAD S108 so they can't revert shipped work. Clean now.
+- Other worktrees (`charming-brattain`, `objective-kowalevski` detached, `fervent-dubinsky`) —
+  clean, fully contained in main. Removable whenever their sessions end.
+
 ## 📋 OPEN-ITEMS ASSESSMENT (2026-07-10 triage lane, updated post-S104)
 **P1 VERIFIED-OPEN (ranked):** ~~AUD-06/07~~ **✅ S104** · ~~AUD-11~~ **✅ S104** ·
 **AUD-14** throttle→"holiday" class sweep (5 fetchers; `RetryableFetchError` lives only in
