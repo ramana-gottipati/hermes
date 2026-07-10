@@ -257,6 +257,7 @@ D:\Hermes\                                          ← local working copy of re
 │   └── exit-protocol.md
 ├── scripts\
 │   ├── vps-bootstrap.sh                            ← initial VPS deploy script
+│   ├── state-doc-gate.cjs                          ← PreToolUse commit gate: src|scripts commit must carry PROJECT_STATE.md (D97; hatch `state:skip`)
 │   ├── setup-news.sh                               ← incremental update (rerun for new features)
 │   ├── full-backfill.sh                            ← 5-year bhav copy + signals backfill
 │   ├── regression_sweep.sh                         ← RELEASE GATE (4 in-process gates): chrome + nav-integrity + colour + live-VPS 200 sweep
@@ -475,6 +476,23 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D97 — Session-harness program: the state-doc rule is machine-enforced; session-local settings carry the trims (2026-07-10, S86d)
+The CLAUDE.md mandatory rule ("PROJECT_STATE.md updated in the same commit as code") was doctrine-only
+and decayed across sessions. Decision: enforce it at the harness level — `scripts/state-doc-gate.cjs`
+(PreToolUse hook, matcher `Bash|PowerShell`) blocks any `git commit` that stages `src/` or `scripts/`
+without PROJECT_STATE.md staged. Fail-open on ALL internal errors (a broken gate must never block all
+commits); deliberate exception = append `state:skip` to the commit command; 12-case pipe-test matrix
+green (git-log/commit-tree negatives, `-a` sweep, compound commands, malformed stdin, state-less repos).
+Wired via `.claude/settings.local.json` — NEVER the committed `.claude/settings.json` (#0-bis: only
+Ramana edits that file). The same settings file also gained `disableClaudeAiConnectors: true` and 118
+`skillOverrides: "off"` entries hiding the never-used cowork skill fleet in Hermes sessions (KEPT:
+anthropic-skills incl. patearn, engineering, pdf-viewer, and core code-review/plan/claude-api). WHY:
+fixed per-session context cost was dominated by payloads with measured-zero usage, and rules that must
+never be violated belong in hooks, not memory (Cirqle `memory-md-gate.cjs` precedent). Constraints
+discovered: inline cowork plugins CANNOT be disabled via settings or CLI (desktop app loads them via
+`--plugin-dir`, "always on while present" — per-plugin removal is desktop-UI-only), and
+`disableBundledSkills` is REJECTED (doc-confirmed it also removes core code-review/claude-api/loop).
 
 ### D96 — The Wolfe ◄/► walk is freshness-guaranteed; quality curates only history (2026-07-10, S86c)
 The completed-walk cap (`_OVERLAY_MAX=40`, top-N by §B quality) was taken across the WHOLE
@@ -1478,6 +1496,28 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 86d — 2026-07-10 — Claude-harness optimization: doctrine → installed skills, token trims, state-doc gate, daily TIL (D97)
+Harness-side program (Ramana: "go for all the changes suggested"); most artifacts live OUTSIDE the repo:
+- **6 new user-level skills** distilled from ratified doctrine — failure-ledger · walk-the-journey ·
+  deploy-reality · multi-session-safety · transient-doc-lifecycle · explain-visual — plus
+  `before-creating-md` generalized to any project memory dir (Cirqle founder-lock appendix preserved).
+  `~/.claude/skills` is now a git repo (`49ebb29`, 10 skills + README). All hot-registered same session.
+- **Token trims (Hermes-scoped via `.claude/settings.local.json`):** claude.ai connectors OFF ·
+  118 cowork `skillOverrides` OFF (anthropic-skills/patearn, engineering, pdf-viewer, core all KEPT) ·
+  MEMORY.md index fold-then-slimmed to one-liners (71 entries, backup `.bak-20260710`; 2 stale memory
+  bodies healed during folding). Inline cowork plugins are settings-immune (`--plugin-dir`) — removal
+  is desktop-app UI only (Ramana).
+- **D97 state-doc gate:** `scripts/state-doc-gate.cjs` + hooks wiring — the same-commit PROJECT_STATE
+  rule is now machine-enforced (12-case matrix green; hooks snapshot at start → live from next session;
+  `state:skip` escape hatch). SESSION-PROTOCOL wrap checklist gains a **Harness-TIL** line.
+- **Daily learning:** scheduled task `claude-til-daily` (~07:30, changelog-diff-or-curriculum TIL
+  ≤120 words, state-carrying, token-frugal). Needs one manual "Run now" to pre-approve WebFetch.
+- Deliberately NOT done: Hermes Batch-API migration (live VPS jobs untouched — separate decision);
+  cowork plugin removal + claude.ai-side connector cleanup (Ramana-only surfaces).
+- Harness TIL (first entry): `skillOverrides` per-skill "off"/"name-only" is the surgical alternative
+  to `disableBundledSkills` — the latter would have killed code-review/claude-api/loop.
+- Shipped in THIS commit (docs + gate script); harness artifacts referenced above are file-level, not repo.
 
 ### Session 86c — 2026-07-10 — Wolfe walk freshness fix (D96) + drawings v2: direct-edit · level catalog · future space · confluence (Ramana's chart-review batch)
 Ramana reviewed `/dash/stock` (RAMCOSYS / TCS / ITCHOTELS screenshots) and raised 6 items; all

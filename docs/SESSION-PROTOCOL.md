@@ -39,6 +39,8 @@ incomplete. Two companion files:
 2. **Commit everything**, on `main`. Before each commit: `git diff --cached --name-only` — confirm the
    staged set is **only your files** (no cross-absorption from parallel sessions; no stray `src/web`).
 3. **MEMORY + docs** updated (new decisions, failures recorded *and* corrected, weights single-sourced).
+   - **Harness TIL** — add ONE line to the Session-log entry: a Claude Code feature NOT used this
+     session that would have helped (compounding-learning habit, S86; pairs with the daily claude-til task).
 4. **Verify**: routes 200 / gates pass / no orphaned pages / no leaked secrets.
 5. **Rewrite `docs/NEXT-SESSION-CARRYFORWARD.md`** — refresh the state digest, re-prioritize the queue,
    remove shipped items, and update the takeover prompt.

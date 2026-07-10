@@ -7,6 +7,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🧰 S86d HARNESS NOTE (2026-07-10) — session infrastructure changed, applies to YOUR session
+- `.claude/settings.local.json` now carries three additive keys: `disableClaudeAiConnectors` (claude.ai
+  connector fleet no longer loads in Hermes sessions), a PreToolUse **state-doc gate**
+  (`scripts/state-doc-gate.cjs` — BLOCKS any `git commit` that stages `src/` or `scripts/` without
+  PROJECT_STATE.md in the same commit; deliberate exception: append `state:skip` to the commit command;
+  fail-open on errors), and 118 `skillOverrides` hiding the never-used cowork skill fleet
+  (anthropic-skills/engineering/pdf-viewer/core skills all KEPT). Hooks load at session start, so the
+  gate IS live for you. If it misfires, that's a wrap-report bug (#0-bis), not a reason to weaken settings.
+- 6 new user-level skills exist (failure-ledger · walk-the-journey · deploy-reality ·
+  multi-session-safety · transient-doc-lifecycle · explain-visual) — invoke them at their trigger
+  points; MEMORY.md index is now slim one-liners (detail lives in the body files — extend bodies, never
+  re-fatten index lines). Full inventory: memory `claude-harness-optimization`.
+
 ## 🏛 AUDIT BOOT-CHECK (2026-07-02/03, binding)
 The audit reference is **`docs/AUDIT-2026-07-02-institutional-review.md`** (117 AUD items; statuses
 are being updated IN the doc as lanes land fixes — trust the doc over this digest).
