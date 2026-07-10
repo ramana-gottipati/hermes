@@ -198,7 +198,7 @@ AUD-38 only (the selftest edit was a stale-expectation fix, NOT AUD-37; metering
 
 **VERIFIED-OPEN — highest priority (P1, ranked):**
 1. ~~**AUD-06** DVPT zones / D44 key-price / hot-day averages on RAW closes~~ **✅ FIXED — D107, S104
-   «S104-HASH»:** per-date-anchored adjusted basis in BOTH write paths (`fac[j]/fac[i]` re-anchor);
+   `4548a01`:** per-date-anchored adjusted basis in BOTH write paths (`fac[j]/fac[i]` re-anchor);
    golden test `tests/test_signals_adjusted.py` (45 asserts). ⏳ **VERIFY: post-chain VPS backfills
    tonight** (`--backfill-triggers` + `--backfill-keyprice`, nohup per-chunk; sample before/after in
    `/var/log/hermes-aud06-backfill.log`) — historical rows carry old mixed-scale values until it lands.

@@ -1807,7 +1807,7 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 104 — 2026-07-10 — AUD-06/07/11 CLOSED (D107): the quant-integrity batch — adjusted zones, one hot-day core, tape-corroborated fallback; commit «S104-HASH»
+### Session 104 — 2026-07-10 — AUD-06/07/11 CLOSED (D107): the quant-integrity batch — adjusted zones, one hot-day core, tape-corroborated fallback; commit `4548a01`
 The assessment session's (S99) #1-ranked pick, executed end-to-end in the main session:
 - **AUD-06:** D31 zones / D44 key-price / hot-day closes now on the per-date-anchored adjusted
   basis in BOTH write paths (`signals.py`: baseline tuples, `_hot_days_core` inputs, `f_i`
