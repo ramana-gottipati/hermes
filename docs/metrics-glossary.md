@@ -276,6 +276,16 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Pledge stock (vs flow).** `Promoter Pledge` here is the quarterly *level* (sparse until the Reg-31 flood completes each quarter); the SAST board's pledge columns are the *flow between quarters*. Same distinction as holdings vs trades. *Source:* `shareholding_history` vs `sast_pledge_events`.
 - **Quarterly cadence.** SHP filings are due ~21 days after quarter-end — the latest-quarter column FILLS during that window (June-quarter flood lands through ~Jul-21); the census tile shows coverage honestly rather than pretending completeness.
 
+## Corporate-actions calendar (ex-dates)
+
+> The NSE corporate-actions feed (nightly ingest, 26.8K actions 2004→present) as a **forward calendar**: what goes ex, when, for which names. **Logistics, not signal** — the pre-registered E-11 dividend-surprise-drift study came back NULL against placebo (dividend *payers* drift in random windows too; cuts and hikes drifted the same; "no chip ships") and E-12 rebrand-pump is dead (CAR22 −0.41%). Both live in the failure ledger; this page never suggests action.
+
+- **Ex-date.** The first trading day the stock trades WITHOUT the entitlement — buy on/after it and the dividend/bonus/split isn't yours. The calendar groups by this date. *Source:* `corporate_actions.ex_date`.
+- **Record date.** The bookkeeping cutoff — you must be a holder ON this date (T+1 settled) to receive the entitlement; it trails the ex-date mechanically. *Source:* `record_date`.
+- **Ratio (from:to).** Bonus/split terms as filed — a 1:1 bonus doubles share count and halves the price; **the value doesn't move**, which is why every cross-time metric on this site is in rupees, never share counts. These events feed the adjusted-price engine (`corp_actions.price_ratios` / `adjust.py`). *Source:* `ratio_from`, `ratio_to`.
+- **Details (as filed).** The exchange's own purpose string ("Dividend - Rs 6.70 Per Share") — shown verbatim, amounts are information, never thresholds. *Source:* `details`.
+- **Restructure context.** Demergers / schemes / amalgamations from `security_events` — the identity-level events that explain why a series breaks or a symbol vanishes. *Source:* `security_events` (security master).
+
 ## Results reactions — the season war room
 
 > Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.

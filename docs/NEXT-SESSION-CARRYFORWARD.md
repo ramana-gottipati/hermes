@@ -132,8 +132,9 @@ are now SECONDARY to the charter.
    `sast_events.aggregate()`; never "simplify" that back) · ~~④ SHP QoQ deltas~~ **✅ DONE
    S90** (`/dash/shp`; flags = adjacent quarters, MATERIAL_PP=1pp, STRUCTURAL_PP=25 fence —
    ≥25pp/class = ownership event (RBLBANK 0→60pp), badged never flagged; provenance ⓧ
-   disclosed, archive frozen + XBRL takeover) · **← NEXT: ⑤ forward corp-actions
-   calendar (26,868+226) · ⑥ surveillance-transition tape (797+52). Front-door parity rule
+   disclosed, archive frozen + XBRL takeover) · ~~⑤ corp-actions calendar~~ **✅ DONE S91**
+   (`/dash/actions`, Markets altitude; logistics-only — E-11/E-12 nulls quoted on-page;
+   32 names ex-in-14d) · **← LAST: ⑥ surveillance-transition tape (797+52)**. Front-door parity rule
    (D94): any new strategy = strategist card AND home pillar AND board_health, same session.
    ⚠ lens_registry.py + v2_surfaces.py stay git↔VPS FORKED — patch the LIVE copies with your
    hunks (pull → Edit → push back), never full-file scp from git (S86 did this correctly).

@@ -599,8 +599,9 @@ empty? why not proactive?") exposed two things D93 missed and one it now answers
    4. ✅ **SHP QoQ delta lens — DONE (S90):** `/dash/shp` + card + pillar + glossary + gate;
       330 material shifts / 1,440 paired; provenance-honest (frozen archive + NSE-XBRL
       takeover disclosed); STRUCTURAL_PP=25 fence (RBLBANK 0→60pp = event, not drift).
-   5. **Forward corporate-actions calendar** — `corporate_actions` 26,868 + `security_events`
-      226 (sibling of the board-meetings war-room calendar).
+   5. ✅ **Forward corporate-actions calendar — DONE (S91):** `/dash/actions` (Markets) +
+      card + pillar + glossary + gate; 32 names in the 14d cohort; ledger-fenced to pure
+      logistics (E-11 placebo-NULL + E-12 dead quoted on-page).
    6. **Surveillance-transition tape** — `surveillance_flags` 797 + `price_band_events` 52
       (ASM/GSM entry/exit + band tightenings; context, never a gate — glossary exists).
    Next session starts at #1. ~130K primary-source event rows currently reach no decision
@@ -1615,6 +1616,35 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 91 — 2026-07-10 — CORP-ACTIONS CALENDAR live (D94 queue #5): forward ex-dates, ledger-fenced to pure logistics
+D94 queue #5 executed (ledger cited pre-build, both walls quoted on-page and in the
+glossary: **E-11 dividend-surprise drift = placebo-NULL** — payers drift in random windows
+too, cuts and hikes drifted the same, "no chip ships" — and **E-12 rebrand pump = dead**,
+CAR22 −0.41%). The calendar is therefore LOGISTICS ONLY: what goes ex, when, for whom.
+- **`/dash/actions` (NEW `src/web/actions_view.py`, Markets altitude — nested
+  `/dash/markets/actions`)** — the forward calendar day-by-day (symbol, type chip, ratio,
+  details-as-filed, record date) over `corporate_actions` (26.8K rows, nightly
+  hermes-corp-actions feed) + tiles (14d cohort · dividends · bonus/splits · rights/
+  buybacks · feed freshness) + the just-went-ex tape (30d) + `security_events`
+  restructure context (180d). Cross-linked with the results war-room calendar. 17ms.
+- **Single-source flags:** `corp_actions.upcoming()/flagged_symbols()` (FLAG_DAYS=14).
+  **Live: 32 names going ex inside 14d** (dividend season — AEGISLOG/APOLLOTYRE/AXISBANK…
+  ex 07-10). Card == pillar (17 measured) == board_health (**16 strategies, prod OK**).
+- **Wiring:** registry `_actions` (16 readers, healthy-zero branch) · strategist card +
+  blurb · cockpit ACTIONS pillar · Lens("actions") in the MARKETS workspace +
+  `_ROUTER_SPECS` (forked-nav protocol, 5th clean repetition) · glossary
+  "Corporate-actions calendar" section (ex-date vs record date · ratio semantics · the
+  value-not-quantity cross-ref: these events re-base the adjusted-price engine).
+  Journey-walked: pillar → card → page/nested/filters → glossary → gate, all PASS;
+  local selftests + pytest 18/1.
+- **⚠ Parallel-lane note (multi-session-safety catch, recorded for its owner):** the D95
+  tape-primary lane holds UNCOMMITTED `_lp_features(dates=, events=)` hunks in cockpit.py
+  (+ adjust.py/launchpad_signals.py) — my S91 deploy carried that cockpit hunk to the VPS
+  **inert** (default args; the VPS launchpad_signals never passes them). My commit stages
+  ONLY my cockpit hunks (`git apply --cached`, verified 0 `_lp_features` refs staged) —
+  the D95 lane owns landing its own work.
+- **D94 queue: ⑥ surveillance-transition tape is the LAST item.**
 
 ### Session 90 — 2026-07-10 — HOLDINGS QoQ LENS live (D94 queue #4) — provenance-honest by design + the structural-event fence (RBLBANK 0→60pp caught)
 D94 queue #4 executed. The queue item hit guardrail #8 head-on — `shareholding_history` =

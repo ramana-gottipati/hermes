@@ -45,6 +45,11 @@ try:
     from src.automation.shareholding_xbrl import flagged_symbols as _shp_flagged
 except Exception:  # noqa: BLE001
     _shp_flagged = None
+# corp_actions likewise (ACTIONS pillar — names going ex in the next 14 days).
+try:
+    from src.automation.corp_actions import flagged_symbols as _actions_flagged
+except Exception:  # noqa: BLE001
+    _actions_flagged = None
 
 
 def _near(g) -> bool:
@@ -434,6 +439,11 @@ STRATEGY_REGISTRY = [
      "cta": "material shifts, latest Q",
      "thesis": "Who added, who trimmed, quarter over quarter — promoter/FII/DII/public/pledge in percentage points of equity. Frozen archive + NSE-XBRL takeover, provenance marked. Descriptive.",
      "count": lambda conn, d, D: (len(_shp_flagged()[0]) if _shp_flagged else None)},
+    {"key": "ACTIONS", "label": "Corp actions", "accent": "#f5a97f", "href": "/dash/actions",
+     "cta": "going ex · next 14d",
+     "thesis": "Dividends, bonuses, splits, rights and buybacks with an ex-date ahead — the events that re-base the adjusted-price engine. Logistics, not signal (dividend-drift NULL vs placebo; rebrand-pump dead — failure ledger).",
+     "count": lambda conn, d, D: (len(_actions_flagged(conn)[0])
+                                  if _actions_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",

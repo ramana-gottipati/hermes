@@ -65,6 +65,9 @@ class Lens:
 LENSES: tuple[Lens, ...] = (
     # ── Markets ──────────────────────────────────────────────────────────────
     Lens("markets", "Overview", "market", "markets", "/dash/markets"),
+    # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
+    Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
+         aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
     Lens("sectors", "Sectors", "market", "markets", "/dash/sectors",
          dossier_tab=None, aliases=("rs",)),
     Lens("rs-hub", "Relative strength", "market", "markets", "/dash/rs-hub",

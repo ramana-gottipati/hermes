@@ -262,6 +262,7 @@ _CATALOG = [
     ("Rating transitions", "/dash/ratings"),
     ("Stake · Pledge", "/dash/sast"),
     ("Holdings · QoQ", "/dash/shp"),
+    ("Corp actions", "/dash/actions"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
     ("Momentum · ensemble", "/dash/markets/momentum-scan"),
@@ -316,6 +317,10 @@ _BLURB: dict[str, tuple[str, str]] = {
         "Who added, who trimmed, quarter over quarter — promoter / FII / DII / public / "
         "pledge in percentage points of equity. Frozen archive + NSE-XBRL takeover, "
         "provenance marked per pair. Descriptive.", "holdings"),
+    "/dash/actions": (
+        "What goes ex, when — dividends, bonuses, splits, rights, buybacks, day by day. "
+        "Logistics only: dividend-drift tested NULL vs placebo and rebrand-pump is dead "
+        "(failure ledger) — awareness, never advice.", "ex-date"),
     "/dash/launchpad": (
         "Validated explosive-move precursors (momentum-continuation / coiled). The "
         "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "

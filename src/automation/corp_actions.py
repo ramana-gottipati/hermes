@@ -352,6 +352,43 @@ def table_stats() -> dict:
                 "ex_date_range": (rng[0], rng[1])}
 
 
+# ── forward calendar roll-up (S91 actions lens: page+card+pillar+gate) ────────
+
+FLAG_DAYS = 14      # the card window: an ex-date inside the next 2 weeks
+
+
+def upcoming(conn, days: int = 60):
+    """FORWARD corporate actions: rows with ex_date from today out `days` days,
+    soonest first. Pure read; the nightly hermes-corp-actions ingest owns the
+    data. DESCRIPTIVE/LOGISTICAL ONLY — the ledger closed both event-drift
+    stories on this feed (E-11 dividend drift: placebo-caught NULL, 'no chip
+    ships'; E-12 rebrand pump: dead) — this calendar tells you WHAT happens
+    WHEN, never what to do about it. Returns (rows, as_of) where as_of =
+    the feed's latest ingest stamp."""
+    rows = [dict(zip(("symbol", "action_type", "ex_date", "record_date",
+                      "ratio_from", "ratio_to", "details"), tuple(r)))
+            for r in conn.execute(
+                "SELECT symbol, action_type, ex_date, record_date, ratio_from, "
+                "ratio_to, details FROM corporate_actions "
+                "WHERE ex_date >= date('now') AND ex_date <= date('now', ?) "
+                "ORDER BY ex_date ASC, symbol ASC", (f"+{int(days)} days",))]
+    r = conn.execute("SELECT MAX(fetched_at) FROM corporate_actions").fetchone()
+    as_of = str(r[0])[:10] if r and r[0] else None
+    return rows, as_of
+
+
+def flagged_symbols(conn):
+    """The card/pillar/gate cohort (single source, D94 parity rule): distinct
+    symbols with a corporate action going ex inside the next FLAG_DAYS days,
+    soonest ex-date first. Returns ([(symbol, row)], as_of)."""
+    rows, as_of = upcoming(conn, days=FLAG_DAYS)
+    per: dict = {}
+    for r in rows:
+        per.setdefault(r["symbol"], r)          # rows are soonest-first already
+    out = sorted(per.items(), key=lambda kv: (kv[1]["ex_date"], kv[0]))
+    return out, as_of
+
+
 # ── selftest (offline, synthetic — no network, no real DB) ───────────────────
 
 def _selftest() -> int:

@@ -45,7 +45,7 @@ except Exception:  # pragma: no cover - import-path fallback
 _STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150,
                "conviction": 7, "growth": 150, "launchpad": 7,
                "momentum": 7, "reactions": 10, "insider": 7, "ratings": 10, "sast": 7,
-               "shp": 150}
+               "shp": 150, "actions": 7}
 
 # Liquidity / universe gate for whole-universe rankers — mirrors
 # dashboard._SCAN_FILTERS, kept self-contained (same choice strategist_view made).
@@ -387,6 +387,38 @@ def _shp(conn):
             "health": _health(count, as_of, _STALE_DAYS["shp"])}
 
 
+def _actions(conn):
+    """Corp-actions calendar — names going ex inside the next 14 days (D94 #5).
+    Flag logic lives in corp_actions.flagged_symbols. LOGISTICS only: the
+    ledger closed dividend-drift (E-11 placebo-NULL) and rebrand-pump (E-12
+    dead) — this card schedules awareness, never suggests action."""
+    key, label, route = "actions", "Corp actions", "/dash/actions"
+    if not _table_exists(conn, "corporate_actions"):
+        return _empty(key, label, route)
+    try:
+        from src.automation import corp_actions as CA
+        flags, as_of = CA.flagged_symbols(conn)
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    if not as_of:
+        return _empty(key, label, route)
+    count = len(flags)
+    if not count:
+        return {"key": key, "label": label, "route": route, "count": 0,
+                "as_of": str(as_of)[:10],
+                "top": [{"symbol": "—", "note": "nothing going ex in the next 14d"}],
+                "health": "ok" if not _stale(as_of, _STALE_DAYS["actions"]) else "stale"}
+    top = []
+    for sym, r in flags[:5]:
+        kind = (r["action_type"] or "").title()
+        ratio = (f' {r["ratio_from"]:g}:{r["ratio_to"]:g}'
+                 if r["ratio_from"] and r["ratio_to"] else "")
+        top.append({"symbol": sym, "note": f'{kind}{ratio} · ex {str(r["ex_date"])[5:]}'})
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": str(as_of)[:10], "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["actions"])}
+
+
 def _growth(conn):
     """Growth-intent — forward proposals managements committed to on concalls
     (capex / expansion / debt-cut / new products), Rs-normalised. Flagged = the
@@ -553,7 +585,8 @@ def _wolfe(conn):
 
 # registry order = the order the Strategist dashboard shows the cards.
 _READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci, _insider, _ratings,
-            _sast, _shp, _growth, _launchpad, _momentum, _reactions, _wolfe]
+            _sast, _shp, _actions, _growth, _launchpad, _momentum, _reactions,
+            _wolfe]
 
 
 def summary(conn=None) -> list[dict]:
@@ -588,8 +621,8 @@ def _selftest():
             assert set(t) >= {"symbol", "note"}, f"{r['key']} bad top item: {t}"
         keys.add(r["key"])
     for want in ("conviction", "dvpt", "mep", "cpr", "rs", "cci", "insider",
-                 "ratings", "sast", "shp", "growth", "launchpad", "momentum",
-                 "reactions", "wolfe"):
+                 "ratings", "sast", "shp", "actions", "growth", "launchpad",
+                 "momentum", "reactions", "wolfe"):
         assert want in keys, f"{want} row missing"
     print(f"OK  strategy_registry.summary() -> {len(rows)} rows")
     for r in rows:

@@ -70,6 +70,9 @@ _ROUTER_SPECS = [
     # Holdings QoQ deltas lens (D94 queue #4, S90) — reads shareholding_history
     # (research.db); flag logic single-sourced in shareholding_xbrl.flagged_symbols.
     ("shp", "src.web.shp_view", "/dash/shp"),
+    # Corp-actions calendar (D94 queue #5, S91) — forward ex-dates from the nightly
+    # corporate_actions feed; flag logic single-sourced in corp_actions.flagged_symbols.
+    ("actions", "src.web.actions_view", "/dash/actions"),
     # Credibility fingerprint (premium-visuals flagship A) — per-symbol promise-vs-
     # delivery track record. Durably mounted so /dash/credibility survives a clobber.
     ("credibility", "src.web.credibility_fingerprint", "/dash/credibility"),
