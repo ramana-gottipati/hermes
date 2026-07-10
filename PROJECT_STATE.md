@@ -1717,11 +1717,16 @@ dead zone (112 events / 92 symbols) across the estate (one commit, 10 files).
   dual-venv import tests.
 - **VERIFIED LIVE:** dual-venv imports OK · all module `_action_events` resolve CUB 2026-06-12 →
   0.75 · mep recompute OK · writer-safe `hermes-api` restart · journey green (`/dash` 200;
-  `/dash/rrg|rsband|launchpad` → D80 nested redirects → 200). **Targeted 92-symbol historical
-  heal launched** (mep + cpr W/M/Q + triggers + keyprice per dead-zone symbol,
-  `/var/log/hermes-heal92.log`). Remaining D95 residue: wolfe wiring at owner-reconcile ·
-  stock_rs HISTORICAL rows (heal forward via nightly; no per-symbol history backfill path) ·
-  77 TAPE_SUSPECT review.
+  `/dash/rrg|rsband|launchpad` → D80 nested redirects → 200). **92-symbol historical heal:
+  first driver FAILED and was killed** (`/var/log/hermes-heal92.log`: my hand-rolled cpr leg
+  raised `'str' object has no attribute 'execute'` and the triggers leg `No item with that key`
+  per symbol; the mep + keyprice legs ran clean). Rerun recipe: take ONE traceback for
+  `_backfill_triggers_for_symbol` + verify `cpr_signals.process_symbol` arg order live, fix the
+  driver, relaunch — VPS ssh went flaky (long commands dropping) before the traceback landed.
+  NOTE: tonight's nightly chain recomputes every symbol's LATEST rows tape-aware regardless —
+  only deep history awaits the fixed driver. Remaining D95 residue: the heal rerun · wolfe
+  wiring at owner-reconcile · stock_rs HISTORICAL rows (heals forward via nightly; no
+  per-symbol history backfill path) · 77 TAPE_SUSPECT review.
 
 ### Session 89 — 2026-07-10 — Wolfe "strength" deep-dive (D98): cap-sweep quantified · Q splits into STR/LND · Structure watch live (S86c incident follow-through)
 - **D99 ADDENDUM (same session, Ramana-approved via the main session):** recency = first-class
