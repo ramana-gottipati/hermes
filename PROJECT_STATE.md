@@ -1881,7 +1881,7 @@ Kickstart-pick-verified open (zero band-lock code; surveillance consumes band CH
   lens_registry/v2_surfaces patched on their live fork (comment/order-only, again verified).
 - FRAMING kept everywhere: queue-imbalance TELL, never a gate; no study exists on lock streaks
   (ledger checked); any drift claim needs its own pre-registered gate (M-04). Descriptive only.
-- Commit: (hash at wrap).
+- Commit: `f7d81d0` (rebased over S101; authored as 923672c).
 
 ### Session 96b — 2026-07-10 — AUD-38 CLOSED: /v1 is PIT-queryable (as_of on credibility + attention) — P-05 unblocked (season lane, same session as S96)
 Ramana's directive: keep self-prompting. Pick = the audit's own P1 + the carry-forward's named
