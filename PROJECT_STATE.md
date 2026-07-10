@@ -1419,6 +1419,31 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 85d — 2026-07-10 — SHP lag calibration ARMED for the Reg-31 flood (self-executing min-N gate; data-perfection lane)
+Ramana: "go ahead with the SHP lag calibration when Reg-31 lands." Encoded as CODE, not a scheduler
+(`df36a4e`): the calibration fires itself the night the flood crosses the bar.
+- **Why not calibrate now:** the ~164 real SHP dates on record are EARLY FILERS ONLY — their fast
+  lags would bias `chosen_lag` LOW and ADMIT leak on the ~84K modeled-era (+30 d) shareholding
+  rows the calibration governs. Waiting for the deadline mass is the honest p95.
+- **The gate:** `provenance._CAL_MIN_N = {shareholding_history: 750}` — below the bar,
+  `calibrate_synthetic_lag` writes NO row (returns `_skipped {n, need}` + logs); the nightly
+  `--calibrate` keeps trying; the June-quarter Reg-31 flood (~Jul-21, ~2k filers) crosses 750 and
+  the row appears BY ITSELF. `chk_calibration_freshness` shows the countdown — live:
+  **"shareholding_history gated: 164/750 real dates (calibrates itself when the flood lands)"** —
+  so the battery/season digest watch the flood approach nightly.
+- **Root-cause side-find (kickstart-pick-verified):** the provenance nightly had FAILED its last
+  two fires (Jul-04 crash; Jul-07 SIGTERM at the 30-min `TimeoutStartSec` — the season flood
+  outgrew the crawl budget). The S84 sibling's 4 h bump (`63c83a8`) IS installed live
+  (`TimeoutStartUSec=4h`) → the nightly self-heals from its Jul-11 fire. Ran `--calibrate`
+  manually meanwhile: **fundamentals refreshed** (A n=13,569 p95=114 · Q n=15,624 p95=59,
+  `calibrated_at` 2026-07-10 — was stuck at 06-30); shareholding correctly gated (159 in-clip).
+- Selftests green incl. the new flood-gate case (gated class writes no row; ungated unaffected).
+- **VERIFY ~Jul-22 (queue item):** (a) the shareholding calibration row APPEARED post-flood —
+  record its n/p50/p95 here + retire the +30 d modeled note in the SHP docs; (b) the provenance
+  nightly ran clean under the 4 h budget (Jul-11 fire onward); (c) `fundamentals_asof` SHP reads
+  then ride the measured p95 automatically (no code change needed — `_calibrated_lag` picks up
+  the row). With this, EVERY data-perfection item is either closed or self-executing.
+
 ### Session 85b — 2026-07-10 — table_census LIVE: the D91 machine census (data-perfection lane, final routine item)
 D91 made operational (`5773dda`): coverage numbers can now come from a MACHINE snapshot, never a
 hand-carried figure (the class behind the 588× MAX(rowid) census fiasco).
