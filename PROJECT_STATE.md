@@ -1445,7 +1445,9 @@ hand-carried figure (the class behind the 588× MAX(rowid) census fiasco).
   battery check) · /dash/coverage + /v1 `_meta` should QUOTE `table_census` (wire when the trust
   surface is next open — provenance/coverage_view are audit-lane-hot).
 
-### Session 85b — 2026-07-10 — E-04 campaign-arcs ARMED: gate frozen today, study self-gating, monthly depth DM
+### Session 85c — 2026-07-10 — E-04 campaign-arcs ARMED: gate frozen today, study self-gating, monthly depth DM
+<!-- renumbered from S85b at wrap: the data-perfection lane claimed S85b (table_census) minutes earlier -->
+
 "Run E-04 once the insider feed deepens" executed as a TRIGGER, not a premature run — the E-03 null's
 re-attempt condition (≥8 qtr cohorts; feed was ~10mo) is BLOCKING for this feed class, so running now
 would burn a knowably-underpowered registration.
