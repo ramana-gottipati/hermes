@@ -20,6 +20,23 @@ PROJECT_STATE entries are enough.**
   points; MEMORY.md index is now slim one-liners (detail lives in the body files — extend bodies, never
   re-fatten index lines). Full inventory: memory `claude-harness-optimization`.
 
+## 🌊 S89 WOLFE D98 (2026-07-10, `bf9b353` live+walked) — 3 items FOR RAMANA + 1 verify
+Shipped (panel-decided, all additive/revertible; PROJECT_STATE D98 + memory `wolfe-wave-strategy`):
+the S89 sweep proved the old top-40-by-Q walk cap hid **55% of fresh waves** (3,121 restored by D96;
+104 TCS-archetype had NO surface) → **Q badge now displays as STR x/11 · LND y/13** (rubric untouched;
+LND INVERTS as a trade filter — gloss everywhere) + **Structure watch** section on `/dash/wolfe/scan`
+(fresh≤15 · STR≥10/11 · not-on-the-scan; 95 rows, freshest-30 shown, counted show-all; why-chips =
+profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibility.py`.
+- **RAMANA VETO ①:** the STR/LND display split of his §B Q (components/totals untouched) — revert =
+  one-line if he prefers the single Q.
+- **RAMANA VETO ②:** the Structure-watch surface itself (its criteria are in
+  `docs/calculations-and-weights.md` §5c — bar STR≥10, window 15, sort age/STR).
+- **RAMANA DECISION ③ (open item, not built):** wolfe-rules.md §B2 "pierced-both-4.618s → screener
+  withholds until return" is documented but UNIMPLEMENTED — building it would REMOVE scan rows.
+- **VERIFY next session:** tonight's `hermes-wolfe-scan` 16:00 UTC run must persist BOTH snapshots —
+  journal shows "persisted N winner-profile setups + M structure-watch rows"; run takes ~6 min now
+  (timeout 1800s, checked); `wolfe_signals` universes `nifty500` + `nifty500:watch` both fresh.
+
 ## 🏛 AUDIT BOOT-CHECK (2026-07-02/03, binding)
 The audit reference is **`docs/AUDIT-2026-07-02-institutional-review.md`** (117 AUD items; statuses
 are being updated IN the doc as lanes land fixes — trust the doc over this digest).
