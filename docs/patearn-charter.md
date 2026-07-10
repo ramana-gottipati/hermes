@@ -162,8 +162,11 @@ migration delta is new) · X-07 volume-at-price shelves · X-08 institutional-fo
 breakout velocity · X-10 expiry/holiday conditioning.
 **Data feeds:** D-01…D-12 (§6).
 **Product:** P-01 smart-buyer graph · P-02 results-day auto-refresh SLA · P-03 detection
-spec-sheet page (incl. failures) · P-04 evidence-pack v2 · P-05 replay-any-date demo API ·
-P-06 MCP server.
+spec-sheet page (incl. failures) · P-04 evidence-pack v2 · **P-05 SHIPPED (S102, 2026-07-10):
+`/dash/replay-any-date` — any symbol, any date, through the entitled /v1 API itself (auth +
+metering + provenance stamps), knowable clock stamped per D104 (EVENT/MODELED), reproduction
+curl on every panel; demo key provisioned in .env; delivered ~3 weeks ahead of the early-Aug
+target** · P-06 MCP server.
 **Method/infra:** M-01 event-study library · M-02 placebo harness · M-03 Deflated-Sharpe stage ·
 M-04 pre-registration registry · M-05 survivorship quantifier.
 

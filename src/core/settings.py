@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     # this in .env turns on an X-Hermes-Secret header check (see src/main.py).
     chat_shared_secret: str = ""
 
+    # /v1 demo key for the replay-any-date page (charter P-05). The stable secret of the
+    # all-scopes dev/demo tenant (src/api/v1/keys.seed_dev_key reads the same name from the
+    # process env). Lives ONLY in .env on the box; never rendered, logged or committed.
+    # Empty = /dash/replay-any-date degrades to an honest "not provisioned" note.
+    hermes_v1_dev_key: str = ""
+
     database_url: str = "sqlite:///./data/hermes.db"
 
 

@@ -48,6 +48,9 @@ _ROUTER_SPECS = [
     # Evidence pack (charter P-04, S96) — the procurement artifact assembled live from
     # spec-sheets + coverage boundary + season SLA + replay pointer; print-CSS → PDF.
     ("evidence-pack", "src.web.evidence_pack", "/dash/evidence-pack"),
+    # Replay ANY date (charter P-05, S102) — the live demo over the entitled /v1 API:
+    # pick symbol + date, get what was knowable then (D104 clocks), curl included.
+    ("replay-any-date", "src.web.replay_any_date", "/dash/replay-any-date"),
     ("rs-hub", "src.web.rs_section", "/dash/rs-hub"),
     ("news", "src.web.news_view", "/dash/wire"),
     # Lane B surfaces — durably mounted here so they no longer depend on the

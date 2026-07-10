@@ -30,7 +30,7 @@ run() { c=$(_hit "$1"); if [ "$c" != "200" ]; then sleep 3; c=$(_hit "$1"); fi; 
 
 # Every nav route (4 altitudes + every lens + every strategy + Trust/Pat). Add new routes here.
 ROUTES="/dash/markets /dash/screener /dash/screen2 /dash/strategies /dash/strategist /dash/dashboard \
-/dash/stock /dash/coverage /dash/replay /dash/pat /dash/mep /dash/conviction /dash/cpr /dash/concalls /dash/leaders \
+/dash/stock /dash/coverage /dash/replay /dash/replay-any-date /dash/band-locks /dash/pat /dash/mep /dash/conviction /dash/cpr /dash/concalls /dash/leaders \
 /dash/growth /dash/wolfe /dash/wolfe/scan /dash/rs-hub /dash/rrg /dash/rotation /dash/rsband \
 /dash/participants /dash/wire /dash/compare /dash/sectors /dash/themes /dash/workbench /dash/launchpad \
 /dash/testing /dash/ratio /dash/_ui"

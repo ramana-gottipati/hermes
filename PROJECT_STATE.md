@@ -213,6 +213,7 @@ D:\Hermes\                                          ← local working copy of re
 │   │   # web: src\web\table_controls.py            ← S75 — Screen+-consistent table controls (column add/remove persisted in localStorage + `?` header popovers) on strategy tables; /dash/stocks first; dashboard._shell wrap installed by v2_surfaces.wire() (same seam as shell_skin; extend via _PAGES)
 │   │   # web: src\web\dq_banner.py                 ← S76 — kill-switch WARN/CRIT strips on the data surfaces each check gates: keyed by WORKSPACE (own `_ACT_WS` active→ws map, superset of dashboard._WS incl. screen2; `_WS_CHECKS`) — markets=momentum+feed, strategies=+fundamentals, screener=fundamentals. Reads data_quality last_run (TTL-cached). dashboard._shell wrap via v2_surfaces.wire() PLUS a sys.modules sweep (like shell_skin) to reach view modules that captured `_shell` at import time — WITHOUT the sweep the strip only reaches dashboard-native pages (the rotation-0/stocks-2 bug). Extend: `_ACT_WS`/`_WS_CHECKS`.
 │   │   # web: src\web\evidence_pack.py             ← S96 — /dash/evidence-pack (charter P-04): the print-ready procurement assembly of spec-sheets (imported verbatim) + coverage boundary + live season SLA + replay pointer; browser print→PDF over the ui_tokens @media print block, zero deps; Trust lens, mounted via v2_surfaces
+│   │   # web: src\web\replay_any_date.py           ← S102 — /dash/replay-any-date (charter P-05): the LIVE replay demo — any symbol + any date through the entitled /v1 API IN-PROCESS (TestClient over build_app; demo key = settings.hermes_v1_dev_key from .env, self-healing seed_dev_key on 401, value never rendered); panels lift the envelope verbatim (pit chips, typed absences, RFC-7807 as-is) + reproduction curl; Trust lens + coverage front-door chip; degrades honestly with no key
 │   ├── main.py                                     ← FastAPI app (incl. /candidates view)
 │   ├── core\
 │   │   ├── db.py                                   ← SQLite schema + init
@@ -1758,6 +1759,47 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 102 — 2026-07-10 — P-05 SHIPPED: /dash/replay-any-date — the live replay demo over the entitled /v1 API (same lane as S100/D104; Ramana: "complete that now")
+Charter P-05 ("replay-any-date demo API", strategic-review NEXT/early-Aug, "wow factor high but
+as_of plumbing first or the demo lies") — the plumbing landed as AUD-38+D104, so the demo ships
+~3 weeks early. Spec assembled from its canonical homes, nothing invented:
+- **NEW `src/web/replay_any_date.py` → `/dash/replay-any-date`** (Trust cluster): pick ANY symbol
+  + ANY date → three panels (credibility · attention · universe) rendered from the REAL /v1
+  contract called IN-PROCESS (TestClient over `build_app()` — auth, metering, provenance stamps
+  all exercised; no self-HTTP hop). Every value is the envelope's own (pit chips: requested
+  as-of / knowable_from / basis EVENT|MODELED / rule applied; typed absences verbatim; RFC-7807
+  errors shown as-is — a malformed date's 422 IS the demo). Each panel prints the reproduction
+  curl (`$PATEARN_KEY` placeholder). Worked examples on-page: ICICIPRULI 2019-01-25 (EVENT clock
+  Jan-22) · one-day-before (no leak) · TANLA 2020 · a recent date showing the S101 bus live.
+  Descriptive-only language; the §C no-edge note rides the credibility panel; NO returns quoted.
+- **Demo key provisioned:** `HERMES_V1_DEV_KEY` generated ON the box and appended to
+  `/opt/hermes/.env` (0600; value never printed/rendered/committed); dev tenant seeded (3 scopes).
+  NEW `settings.hermes_v1_dev_key` field (pydantic .env path — the service has NO EnvironmentFile,
+  os.environ was never going to see it); the page self-heals a selftest teardown of the tenant
+  (seed_dev_key retry on 401). No key → honest "not provisioned" panel, never a 500.
+- **Integrated, not orphaned:** `_ROUTER_SPECS` mount + `Lens("replay-any-date", trust)` (both
+  FORKED nav files patched live-side pull-patch-push AND git-side; S96c's band-locks entries
+  preserved — the stash-pop merge was verified both-entries-coexist) + coverage front-door chip
+  (the P-04 chip pattern — this is what the nav gate crawls; lens-only left it "orphan") +
+  evidence-pack §5 cross-link + `/dash/replay-any-date` AND S96c's forgotten `/dash/band-locks`
+  added to the regression-sweep route contract. **Nav gate PASS (no orphans).** Charter §7 P-05
+  row ticked SHIPPED.
+- **Tests:** NEW `tests/test_replay_any_date.py` (no-key degrade · junk symbol never reaches the
+  API · keyed end-to-end journey on the stub DB with teardown); suite 45 pass / 1 skip (incl.
+  S96c + S101 tests post-rebase). Walked live via the Caddy hostname: EVENT case chips exact,
+  TANLA MODELED, coverage chip live, 422 verbatim, curls present.
+- **Chrome gate finding (pre-existing, NOT this lane's):** `/dash/strategies → uk-skin marker
+  missing` fails in the gate's in-process testserver app while the LIVE page serves 7 uk-skin
+  markers. Isolated by two file-swap tests on the box: reproduces with pre-S96c strategist_view
+  AND pre-S102 nav files — predates today's lanes; likely a shell_skin monkeypatch boot-order
+  nuance in the gate context. Spawn-task chip filed (`task_fd684c67`); live site unaffected.
+- Queue sweep verdict (each kickstart-pick-verified, none started): AUD-06/07/11 = a headline
+  quant batch w/ VPS backfills, not a tail · AUD-14 fetcher sweep = deploy-window-unsafe minutes
+  before the 14:00 UTC chain · AUD-37 quota half = design-first · light theme = banned as a tail
+  · everything else Ramana-blocked / future-dated / another lane's. Nothing else cleanly doable.
+- Commit: (this). Deploy: 7 files + the new view; writer-checked restarts ×2; api active, 0
+  failed units, /dash 200.
 
 ### Session 101 — 2026-07-10 — Signal-event bus WIRED: producer = bhavcopy-chain step 60; dead cci lens fixed; rs + deal lenses added (S96b spawn-task chip; renumbered S100→S101 per the S100 lane's collision watch)
 The S96b finding ("`signal_events` = 0 rows in prod — bus has no producer") is CLOSED. Diagnosis:

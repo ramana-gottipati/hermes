@@ -570,6 +570,12 @@ def render_coverage(conn=None) -> str:
         'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
         'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
         'text-decoration:none;font-size:13px">Evidence pack (print) &rarr;</a>'
+        # Replay any date (P-05): the LIVE counterpart of Replay-the-Tape — any symbol,
+        # any date, through the entitled /v1 API, knowable clock stamped (D104).
+        '<a href="/dash/replay-any-date" '
+        'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
+        'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
+        'text-decoration:none;font-size:13px">Replay any date (live API) &rarr;</a>'
         '</div>'
     )
 

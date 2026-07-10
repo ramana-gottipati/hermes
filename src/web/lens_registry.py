@@ -214,6 +214,10 @@ LENSES: tuple[Lens, ...] = (
     # spec-sheets + coverage boundary + season SLA + replay pointer.
     Lens("evidence-pack", "Evidence pack", "trust", "trust", "/dash/evidence-pack",
          aliases=("procurement", "pack")),
+    # Replay any date (charter P-05, S102) — the live PIT demo over the entitled /v1 API:
+    # any symbol, any date, knowable clock stamped (D104), curl included.
+    Lens("replay-any-date", "Replay any date", "trust", "trust", "/dash/replay-any-date",
+         aliases=("replay-api", "pit-replay")),
 
     # ── Overlay-only (NOT nav lenses) — Wolfe / Harmonic. §3-C: chart overlays,
     # reachable from the chart control, no sub-nav entry. Routes stay live (no 404);

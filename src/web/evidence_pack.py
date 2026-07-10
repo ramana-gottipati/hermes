@@ -215,7 +215,10 @@ def evidence_pack():
         'score as it stood), then reveals what followed. Every number is date-stamped; '
         'no return is quoted here because the demonstration is the audit trail, not a '
         'performance claim. It is interactive by nature and therefore lives outside this '
-        'printed pack: <a href="/dash/replay">/dash/replay</a>.</div>',
+        'printed pack: <a href="/dash/replay">/dash/replay</a>. Its live counterpart '
+        '(charter P-05) replays ANY symbol and ANY date through the entitled /v1 API '
+        'itself — knowable clock stamped, curl included: '
+        '<a href="/dash/replay-any-date">/dash/replay-any-date</a>.</div>',
 
         # ── close ──
         SS.NOTE_HTML,
