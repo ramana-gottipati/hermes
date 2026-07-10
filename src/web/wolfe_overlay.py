@@ -24,6 +24,15 @@ Three modes Ramana navigates:
     SELL (red, zones above); descending = BUY (green, zones below). DESCRIPTIVE only —
     draws the geometry + zones, never a buy/sell verdict.
 
+  AUTO-DRAW (Ramana 2026-07-11): an opt-in "auto-snap" pulls points 1/3/5 onto the local LOWS
+  and 2/4 onto the local HIGHS of a BULL wave (reversed on a BEAR) — direction is read from
+  points 1->2 — so a click near a pivot lands ON it. The EPA (1-4) target line is drawn AS
+  SOON AS point 4 is in (before point 5) and extended to the right edge; the 1-2 and 3-4 legs
+  are extended too so their intersection is visible. A STRICT gate warns "The distance between
+  points 1 and 2 is less than the distance between points 3 and 4." whenever leg 3-4 exceeds
+  leg 1-2. Any point is editable: double-click it on the chart (or click its chip) then click
+  to drop it. Still DESCRIPTIVE-only.
+
 A "fib fans" link reveals the two full extension grids. Off by default; series opt out
 of autoscale; best viewed in Candles mode. No imports.
 """
@@ -34,6 +43,7 @@ SNIPPET = """<script>
   var lbl=document.getElementById('wfLbl');
   var ser=[], fans=[], DATA=null, fansOn=false, mode='pred', di=0;
   var BARS=null, manual=[], manualZones=[], probe=null, clickWired=false;
+  var autosnap=true, editing=null, wfWarn='';                                 // auto-draw: magnet on, no point being edited
   var NS={autoscaleInfoProvider:function(){return null;}};
   function add(opts,data){ var s=window.__wfpc.addLineSeries(Object.assign({priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},opts,NS)); s.setData(data); ser.push(s); return s; }
   function clear(){ ser.forEach(function(s){try{window.__wfpc.removeSeries(s);}catch(e){}}); ser=[]; fans=[]; }
@@ -185,6 +195,34 @@ SNIPPET = """<script>
       return (Math.abs(price-b.h)<=Math.abs(price-b.l))? b.h : b.l; } }
     return price;
   }
+  // ---- auto-draw helpers (Ramana, 2026-07-11): snap 1/3/5 to lows & 2/4 to highs on a BULL
+  //      wave (reversed on a BEAR); direction read from points 1->2. ----
+  var SNAPW=3;
+  function barIx(ts){ if(!BARS) return -1; for(var i=0;i<BARS.length;i++){ if(BARS[i].t===ts) return i; } return -1; }
+  function nearestBar(ts){ if(!BARS) return -1; var tv=Date.parse(ts); if(isNaN(tv)) return barIx(ts);
+    var best=-1,bd=1e18; for(var i=0;i<BARS.length;i++){ var d=Math.abs(Date.parse(BARS[i].t)-tv); if(d<bd){bd=d;best=i;} } return best; }
+  function snapExtreme(bar,kind){ var best=bar, bp=(kind==='low'?BARS[bar].l:BARS[bar].h);
+    for(var j=Math.max(0,bar-SNAPW);j<=Math.min(BARS.length-1,bar+SNAPW);j++){ var v=(kind==='low'?BARS[j].l:BARS[j].h);
+      if(kind==='low'? v<bp : v>bp){ bp=v; best=j; } } return {t:BARS[best].t, v:bp}; }
+  function dirBull(){ return manual.length>=2 ? (manual[1].value>manual[0].value) : null; }
+  function roleKind(i,bull){ var low=(i%2===0); return bull? (low?'low':'high') : (low?'high':'low'); }
+  function resnap(){ if(!BARS) return; var bull=dirBull();                     // re-pin every placed point to its role extreme
+    for(var i=0;i<manual.length;i++){ var p=manual[i], bar=barIx(p.time); if(bar<0) bar=nearestBar(p.time); if(bar<0) continue;
+      if(autosnap && bull!==null){ var s=snapExtreme(bar,roleKind(i,bull)); p.time=s.t; p.value=s.v; }
+      else { var b=BARS[bar]; p.value=(Math.abs(p.value-b.h)<=Math.abs(p.value-b.l))? b.h : b.l; }
+      p.value=Math.round(p.value*100)/100; } }
+  function nearestManual(ts){ var cb=barIx(ts); if(cb<0) cb=nearestBar(ts); if(cb<0) return null;
+    var best=null,bd=4; for(var i=0;i<manual.length;i++){ var pb=barIx(manual[i].time); if(pb<0) pb=nearestBar(manual[i].time);
+      var d=Math.abs(pb-cb); if(d<bd){ bd=d; best=i; } } return best; }
+  function legLenPx(i,j){ try{ var tsc=window.__wfpc.timeScale();                // leg length as DRAWN (pixels); price-Δ fallback
+      var xi=tsc.timeToCoordinate(manual[i].time), xj=tsc.timeToCoordinate(manual[j].time);
+      var yi=ensureProbe().priceToCoordinate(manual[i].value), yj=ensureProbe().priceToCoordinate(manual[j].value);
+      if(xi!=null&&xj!=null&&yi!=null&&yj!=null){ var dx=xj-xi,dy=yj-yi; return Math.sqrt(dx*dx+dy*dy); } }catch(e){}
+    return Math.abs(manual[j].value-manual[i].value); }
+  function onDbl(ev){ if(mode!=='draw'||!manual.length) return;                 // double-click a point on the chart -> edit it
+    try{ var el=window.__wfpc.chartElement(); if(!el) return; var r=el.getBoundingClientRect();
+      var tt=window.__wfpc.timeScale().coordinateToTime(ev.clientX-r.left); if(tt==null) return;
+      var idx=nearestManual(normTime(tt)); if(idx!=null){ editing=idx; drawManual(); controls(); if(ev.preventDefault) ev.preventDefault(); } }catch(e){} }
   function rightTime(){ return (BARS&&BARS.length)? BARS[BARS.length-1].t : (manual.length? manual[manual.length-1].time : null); }
   function isHigh(i){ var L=manual.length;
     if(L===1) return false;
@@ -219,22 +257,41 @@ SNIPPET = """<script>
         s.setMarkers([{time:rt,position:(zi%2?'belowBar':'aboveBar'),color:col,shape:'square',text:'Z'+(zi+1)+' '+x.price+' ('+x.r12+'∩'+x.r34+')'}]);
       });
     }
+    wfWarn='';
+    if(manual.length>=4){
+      var rt2=rightTime(), rb=(BARS?BARS.length-1:-1);
+      var b0=barIx(manual[0].time), b1=barIx(manual[1].time), b2=barIx(manual[2].time), b3=barIx(manual[3].time);
+      if(b0>=0&&b3>=0&&b3!==b0&&rb>=0){                                        // EPA = 1-4 line, drawn AT point 4 (before 5), extended right
+        var epaSl=(manual[3].value-manual[0].value)/(b3-b0), epaR=Math.round((manual[0].value+epaSl*(rb-b0))*100)/100;
+        var eL=add({color:'#e3a008',lineWidth:2,lineStyle:0},[{time:manual[0].time,value:manual[0].value},{time:rt2,value:epaR}]);
+        try{ eL.setMarkers([{time:rt2,position:'inBar',color:'#e3a008',shape:'square',text:'EPA '+epaR}]); }catch(e){}
+      }
+      var extLeg=function(a,bb,ba,bx){ if(ba<0||bx<0||ba===bx||rb<0) return;   // extend legs 1-2 & 3-4 so their intersection is visible
+        var s=(manual[bb].value-manual[a].value)/(bx-ba);
+        add({color:'rgba(88,166,255,0.55)',lineWidth:1,lineStyle:2},[{time:manual[a].time,value:manual[a].value},{time:rt2,value:Math.round((manual[a].value+s*(rb-ba))*100)/100}]); };
+      extLeg(0,1,b0,b1); extLeg(2,3,b2,b3);
+      if(legLenPx(2,3) > legLenPx(0,1))                                        // STRICT symmetry gate: leg 1-2 must be >= leg 3-4
+        wfWarn='The distance between points 1 and 2 is less than the distance between points 3 and 4.';
+    }
   }
   function onClick(param){
     if(mode!=='draw'||!param||!param.point||param.time==null) return;
     var price=ensureProbe().coordinateToPrice(param.point.y);
     if(price==null) return;
     var t=normTime(param.time);
-    manual.push({time:t,value:Math.round(snap(t,price)*100)/100});
-    drawManual(); controls();
+    if(editing!=null){ manual[editing]={time:t,value:Math.round(price*100)/100}; editing=null; resnap(); drawManual(); controls(); return; }  // drop the edited point
+    if(manual.length>=5) return;
+    manual.push({time:t,value:Math.round(price*100)/100}); resnap(); drawManual(); controls();
   }
   function enterDraw(){
-    mode='draw'; clear(); manual=[]; manualZones=[]; ensureProbe();
-    if(!clickWired){ try{ window.__wfpc.subscribeClick(onClick); }catch(e){} clickWired=true; }
+    mode='draw'; clear(); manual=[]; manualZones=[]; editing=null; wfWarn=''; ensureProbe();
+    if(!clickWired){ try{ window.__wfpc.subscribeClick(onClick); }catch(e){}
+      try{ var el=window.__wfpc.chartElement&&window.__wfpc.chartElement(); if(el) el.addEventListener('dblclick',onDbl); }catch(e){}
+      clickWired=true; }
     controls();
   }
   function exitDraw(){
-    clear(); manual=[]; manualZones=[];
+    clear(); manual=[]; manualZones=[]; editing=null; wfWarn='';
     mode=defaultMode(); di=0; redraw();
   }
   function drawLink(){ return ' &nbsp;&middot; <span id="wfDraw" style="cursor:pointer;text-decoration:underline;color:#58a6ff">✎ draw your own</span>'; }
@@ -244,18 +301,28 @@ SNIPPET = """<script>
   function renderDraw(){
     if(!lbl) return;
     var labels=['1','2','3','4','5 (overshoot, optional)'];
-    var next = manual.length<5 ? ('click point '+labels[manual.length]) : '5 points placed';
-    var placed = manual.length? (' &middot; '+manual.map(function(p,i){return (i+1)+':'+p.value;}).join('  ')) : '';
+    var next = editing!=null ? ('editing point '+(editing+1)+' — click the chart to move it')
+             : (manual.length<5 ? ('click point '+labels[manual.length]) : '5 points placed');
+    var chips = manual.length? (' &nbsp;&middot;&nbsp; '+manual.map(function(p,i){                 // click a chip (or double-click the point) to edit it
+        return '<span class="wfPt" data-i="'+i+'" style="cursor:pointer;padding:0 4px;border-radius:3px;'+
+          (editing===i?'background:#1f6feb;color:#fff':'text-decoration:underline;color:var(--ink-2)')+'">'+(i+1)+':'+p.value+'</span>';
+      }).join(' ')) : '';
     var zs = manualZones.length? (' &nbsp;&middot; <b style="color:#d29922">zones:</b> '+
       manualZones.map(function(x,i){return 'Z'+(i+1)+' '+x.price+' ('+x.r12+'∩'+x.r34+')';}).join('  &middot; ')) : '';
-    lbl.innerHTML='<b style="color:#58a6ff">✎ DRAW</b> '+next+zs+
-      ' &nbsp;&middot; <span id="wfUndo" style="cursor:pointer;text-decoration:underline">undo</span>'+
+    var warnHtml = wfWarn? (' &nbsp;&middot; <b style="color:#ff6a7a">⚠ '+wfWarn+'</b>') : '';
+    lbl.innerHTML='<b style="color:#58a6ff">✎ DRAW</b> '+next+
+      ' &nbsp;&middot; <span id="wfSnap" title="auto-snap 1/3/5 to lows, 2/4 to highs (reversed on a bear)" style="cursor:pointer;text-decoration:underline;color:'+(autosnap?'#3fd486':'var(--ink-2)')+'">'+(autosnap?'auto-snap: on':'auto-snap: off')+'</span>'+
+      ' &middot; <span id="wfUndo" style="cursor:pointer;text-decoration:underline">undo</span>'+
       ' &middot; <span id="wfReset" style="cursor:pointer;text-decoration:underline">reset</span>'+
-      ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">use auto</span>'+placed;
+      ' &middot; <span id="wfAuto" style="cursor:pointer;text-decoration:underline;color:var(--ink-2)">use auto</span>'+
+      chips+zs+warnHtml;
     var e;
-    if(e=document.getElementById('wfUndo')) e.onclick=function(){ manual.pop(); drawManual(); controls(); };
-    if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; drawManual(); controls(); };
+    if(e=document.getElementById('wfSnap')) e.onclick=function(){ autosnap=!autosnap; resnap(); drawManual(); controls(); };
+    if(e=document.getElementById('wfUndo')) e.onclick=function(){ manual.pop(); if(editing!=null&&editing>=manual.length) editing=null; resnap(); drawManual(); controls(); };
+    if(e=document.getElementById('wfReset')) e.onclick=function(){ manual=[]; manualZones=[]; editing=null; wfWarn=''; drawManual(); controls(); };
     if(e=document.getElementById('wfAuto')) e.onclick=function(){ exitDraw(); };
+    var pts=document.querySelectorAll('.wfPt');
+    for(var k=0;k<pts.length;k++){ pts[k].onclick=function(){ editing=parseInt(this.getAttribute('data-i'),10); drawManual(); controls(); }; }
   }
   function controls(){
     if(!lbl) return;

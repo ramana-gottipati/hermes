@@ -493,6 +493,26 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D113 — Wolfe MANUAL "draw your own" gains auto-snap + auto-EPA + a STRICT 1-2≥3-4 gate + point-edit (2026-07-11, S112, Ramana-directed; renumbered from the draw-lane's provisional D111, which the §B rebalance claimed)
+Ramana directed enhancements to the manual `✎ draw your own` overlay — a DESCRIPTIVE geometry surface,
+orthogonal to §B scoring (the §B freeze it was scoped around has since been LIFTED and landed as D111).
+Four additions, all in `src/web/wolfe_overlay.py` draw-mode JS only (zero `wolfe.py` / scoring touch):
+1. **Auto-snap (opt-in, default on)** — direction read from points 1→2; then points 1/3/5 snap to the
+   local **LOWS** and 2/4 to local **HIGHS** on a BULL wave (reversed on a BEAR), ±3-bar window, so a
+   click near a pivot lands ON the extreme. Off = the prior nearest-high/low snap.
+2. **EPA auto-extends** — the 1-4 target is drawn the moment point 4 lands (BEFORE point 5), extended
+   to the right edge + labelled; the 1-2 and 3-4 legs are extended too so their intersection shows.
+3. **STRICT symmetry gate (his rule: 1-2 ≥ 3-4, no tolerance)** — whenever leg 3-4 is longer than leg
+   1-2 (leg length as DRAWN, pixel space, price-Δ fallback) it shows his exact warning: "The distance
+   between points 1 and 2 is less than the distance between points 3 and 4." Strict `>` per his answer.
+4. **Point editing** — double-click a point on the chart (or click its readout chip) to grab it, then
+   click to drop it re-snapped. Repeatable, no mode toggle.
+STAYS DESCRIPTIVE-only. Built on a worktree off the D110 baseline (296ec6c), then rebased onto the
+lifecycle (D109) + overlay-badge (S107) + §B-rebalance (D111) main and merged — the draw-mode
+functions applied CLEANLY (only `exitDraw` needed a union: `editing=null;wfWarn=''` + `mode=defaultMode()`).
+Verified LIVE on /dash/stock against real RELIANCE candles: auto-snap, EPA, the exact warning, and
+double-click edit all confirmed; coexists with the Open/Closed lifecycle tabs.
+
 ### D111 — The §B quality score REBALANCED to Ramana's exact spec + three real fixes (2026-07-11, S109; renumbered from D110 which the bus lane claimed — long line-by-line debate, all his calls)
 The full §B rescoring, decided component-by-component with Ramana against his own TCS wave, now LIVE
 (max 25, formula A+B+C+F+G+H+I+D):
@@ -1910,6 +1930,27 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 112 — 2026-07-11 — Wolfe manual draw-tool MERGED to main (D113): auto-snap + auto-EPA + strict 1-2≥3-4 warning + point-edit; live-walk verified
+Ramana asked to improve the `✎ draw your own` overlay. Shipped four additions to
+`src/web/wolfe_overlay.py` draw-mode JS only (see D113): **auto-snap** (1/3/5→lows, 2/4→highs on bull,
+reversed bear; direction from points 1→2; ±3-bar; opt-in, default on), **auto-EPA** (1-4 target drawn
+at point 4 before point 5, extended right + labelled; legs 1-2 & 3-4 extended so their intersection
+shows), a **STRICT symmetry gate** (his exact sentence "The distance between points 1 and 2 is less
+than the distance between points 3 and 4." whenever leg 3-4 > leg 1-2), and **point-edit** (double-click
+a point or its chip → click to re-drop, re-snapped). First prototyped as an in-chat interactive widget
+to lock the geometry before coding.
+- **Deployed + LIVE-WALKED:** built on a worktree off the D110 baseline, deployed to the VPS overlay
+  (writer-safe scp+restart; /health 200), then verified on the REAL `/dash/stock` page via a driven
+  browser — auto-snap pulled points onto real RELIANCE bar highs/lows, the EPA + Fib zones drew at
+  point 4, the STRICT warning fired verbatim (leg 3-4 wider than 1-2), and double-click grabbed a point
+  to move it. All confirmed, coexisting with the Open/Closed lifecycle tabs (nothing clobbered).
+- **Multi-lane reconcile:** the branch was rebased onto the evolved main (lifecycle D109 + overlay-badge
+  S107 + §B-rebalance D111); the draw-mode functions applied CLEANLY — only `exitDraw` needed a union
+  (`editing=null;wfWarn=''` + `mode=defaultMode()`). Renumbered the provisional D111/S108 → **D113/S112**
+  (D111 = the landed §B rescore, not the draw tool; S111 = the strategy-docs layer). The §B freeze this
+  was scoped around is now LIFTED (D111 landed).
+- **STILL DESCRIPTIVE-only.** No `wolfe.py` / scoring change.
 
 ### Session 111 — 2026-07-11 — Canonical STRATEGY REFERENCE LAYER `docs/strategies/` (drafted S109, renumbered on the S109/S110 collision) + Wolfe reconciled to the landed D111
 Ramana: "proper documentation is missing … our terminology shifts and leaves us without a reference … for each of these strategies create and maintain thorough documentation … run autonomously." Built a NEW canonical reference layer at **`docs/strategies/`** — 9 strategy pages + a README index — on one strict 10-section template, fanned out across **8 parallel research-and-write agents** (one per strategy, grounded in its design doc + code + `strategy-ledger.md` + PROJECT_STATE + memory). A REFERENCE layer ON TOP of the design docs: thin on math, heavy on definition/status/terminology, LINKS the deep sources — never duplicates the ledger tables or `calculations-and-weights.md` constants (memory `calculations-weights-canonical` honored). Commits `6899a94` (layer) + `35940f6` (Wolfe reconcile + stamps).
