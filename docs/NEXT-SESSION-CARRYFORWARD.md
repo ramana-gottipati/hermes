@@ -101,6 +101,16 @@ to merge at the branch level. The only uncommitted work, and its verdict:
   (point-1/C/F/H reweight + EPA touched-not-cut recode, `_QUALITY_MAX` 24→25, comments dated
   "Ramana 2026-07-11"). **LEAVE IT — this lane is finishing it** (Ramana directive S108). It lands
   the frozen-pending-sign-off work; do not absorb/commit it from any other lane.
+  **🔭 VERIFY WHEN IT LANDS (Ramana directive S108):** the moment a NEW `src/automation/wolfe.py`
+  commit appears on origin/main (past `e6c75d6`; signature `_QUALITY_MAX` ≠ 24), verify it landed
+  CLEAN: (1) worktree committed + pushed, tree clean; (2) the commit carries a PROJECT_STATE
+  decision + session entry (the state-doc gate enforces it); (3) `py_compile` + `import
+  src.automation.wolfe` + the wolfe selftest/tests pass; (4) walk `/dash/wolfe` + `/dash/wolfe/scan`
+  200 and the TCS wave payload computes with the new weights (badge shows points/`_QUALITY_MAX`),
+  the **D108 2/3/4 fractal gate still enforced**; (5) full test suite green + no regression to the
+  attention face / site; (6) if deployed, box `wolfe.py` == git and the wolfe-scan timer's next run
+  persists cleanly. This session armed a background watch for the landing; if it didn't fire before
+  wrap, run this battery when you see the commit.
 - **pat-eval (`blissful-nash`)** — its uncommitted AUD-40 work is **already in main via `9ed6aa4`**
   (identical changeset); the worktree copy is un-cleaned cruft. Nothing to do.
 - **main-tree wolfe files** — were a **stale pre-S106/S107 snapshot** (net-deletion, zero unique
