@@ -1873,7 +1873,7 @@ The assessment session's (S99) #1-ranked pick, executed end-to-end in the main s
 - Harness TIL: the `?? 6` stray file mystery — a live sibling's redirect typo; `git status`
   freshness matters more than any cached mental model of the tree.
 
-### Session 103 — 2026-07-10 — D106: the Attention Queue face — the bus's HOME surface (`/dash/attention` + the Home card); S101 bus watch + timer battery verified; commit «S103-HASH»
+### Session 103 — 2026-07-10 — D106: the Attention Queue face — the bus's HOME surface (`/dash/attention` + the Home card); S101 bus watch + timer battery verified; commit ee5c7a4
 The S101 chip's "natural next product pick" built and shipped: the signal-event bus (D105) now
 has its HUMAN face. **NEW `src/web/attention_view.py`** (isolated; reads ONLY `signal_events`'
 public read APIs): `/dash/attention` = the full magnitude-ranked tape of the current batch
@@ -1920,8 +1920,20 @@ green, v2_surfaces mount-contract selftest green.
     (the chain steps log to the FILE, not the journal — the watch condition's "journal" wording
     refined); `--stats` latest_as_of **2026-07-09 → 2026-07-10**, events 1,188 → 1,461 (+131 mep
     +142 oi — exactly the summary; idempotent over the seed ✓). No failed units.
-  · **hermes-slb 15:16 UTC + hermes-wolfe-scan 16:02 UTC:** results appended at wrap-2 below
-    (both still ahead of the clock at this commit; a watcher is armed).
+  · **hermes-slb 15:16 UTC first scheduled run: GREEN** — journal `Finished` (1-second run);
+    exactly one clean log line (`slb ingest complete: 1 trading day(s) written` — volumes
+    3,074 rows / 363 symbols · open_positions 13,352, latest 2026-07-10); Jul-10 rows live:
+    **150 `slb_volumes` + 439 `slb_open_positions`**. The D-04 feed is production-cadenced.
+  · **hermes-wolfe-scan 16:02 UTC first three-snapshot run: GREEN** — exit 0 in 8m45s (inside
+    the 9–15 min window); the summary lands in **/var/log/hermes-wolfe-scan.log** (file, not
+    journal — same nuance as the chain): `persisted 757 winner-profile setups + 814
+    structure-watch rows + 305 approaching-5 rows for nifty500 (as-of 2026-07-10)` — all three
+    D101/D102 sections persisted on the first scheduled pass. ⚠ Interpretation caveat: hours
+    later the S105/D108 wolfe revert REMOVED structure-watch/lifecycle surfaces — this run
+    predates that; future nightly summaries will differ by design.
+  · **hermes-results-reactions 18:01 UTC: GREEN** — `Finished` (1m11s CPU); log: `MTTR: 1
+    newly-surfaced results events this run` (the FIRST real MTTR mint, post-TCS) + `wrote
+    results_reactions: 1571 recent rows … beats+deliv 157`.
   · **results-reactions 18:01 UTC / board-health 22:01 UTC / season-digest Sat 02:45 UTC:**
     handed forward (fire after this session's window).
 - **Harness TIL:** EnterWorktree would have let the build start during the sibling's mid-rebase
