@@ -138,7 +138,10 @@ are now SECONDARY to the charter.
    ≥25pp/class = ownership event (RBLBANK 0→60pp), badged never flagged; provenance ⓧ
    disclosed, archive frozen + XBRL takeover) · ~~⑤ corp-actions calendar~~ **✅ DONE S91**
    (`/dash/actions`, Markets altitude; logistics-only — E-11/E-12 nulls quoted on-page;
-   32 names ex-in-14d) · **← LAST: ⑥ surveillance-transition tape (797+52)**. Front-door parity rule
+   32 names ex-in-14d) · ~~⑥ surveillance tape~~ **✅ DONE S92 — 🏁 D94 QUEUE COMPLETE 6/6**
+   (`/dash/surveillance`; snapshot-diff transitions, band events, "context never a gate").
+   **The strategies estate is now 17 machine-gated lenses + 19 home pillars — next roadmap =
+   the charter NOW queue.** Standing rules that OUTLIVE the queue: front-door parity rule
    (D94): any new strategy = strategist card AND home pillar AND board_health, same session.
    ⚠ lens_registry.py + v2_surfaces.py stay git↔VPS FORKED — patch the LIVE copies with your
    hunks (pull → Edit → push back), never full-file scp from git (S86 did this correctly).

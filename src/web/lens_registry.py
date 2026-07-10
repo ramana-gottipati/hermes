@@ -72,6 +72,9 @@ LENSES: tuple[Lens, ...] = (
     # (charter §2.4); companion to the corp-actions calendar it sits beside.
     Lens("buyback-calc", "Buyback calc", "market", "markets", "/dash/buyback-calc",
          aliases=("buyback", "tender", "buybacks")),
+    # Surveillance transitions — ASM/GSM/band restriction moves (D94 #6, S92).
+    Lens("surveillance", "Surveillance", "market", "markets", "/dash/surveillance",
+         aliases=("asm", "gsm", "price-bands", "surveillance-transitions")),
     Lens("sectors", "Sectors", "market", "markets", "/dash/sectors",
          dossier_tab=None, aliases=("rs",)),
     Lens("rs-hub", "Relative strength", "market", "markets", "/dash/rs-hub",

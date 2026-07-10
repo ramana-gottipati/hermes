@@ -45,7 +45,7 @@ except Exception:  # pragma: no cover - import-path fallback
 _STALE_DAYS = {"mep": 7, "dvpt": 7, "rs": 7, "cpr": 10, "cci": 150,
                "conviction": 7, "growth": 150, "launchpad": 7,
                "momentum": 7, "reactions": 10, "insider": 7, "ratings": 10, "sast": 7,
-               "shp": 150, "actions": 7}
+               "shp": 150, "actions": 7, "surveil": 7}
 
 # Liquidity / universe gate for whole-universe rankers — mirrors
 # dashboard._SCAN_FILTERS, kept self-contained (same choice strategist_view made).
@@ -419,6 +419,39 @@ def _actions(conn):
             "health": _health(count, as_of, _STALE_DAYS["actions"])}
 
 
+def _surveil(conn):
+    """Surveillance transitions — names whose exchange-restriction state MOVED
+    in the trailing 30d: ASM/GSM entry/exit/stage or a price-band change
+    (D94 #6, the queue's last item). Flag logic in surveillance.flagged_symbols.
+    Context, never a gate — no study exists on this feed either way."""
+    key, label, route = "surveil", "Surveillance Δ", "/dash/surveillance"
+    if not _table_exists(conn, "surveillance_flags"):
+        return _empty(key, label, route)
+    try:
+        from src.automation import surveillance as SV
+        flags, as_of = SV.flagged_symbols(conn)
+    except Exception:  # noqa: BLE001
+        return _empty(key, label, route)
+    if not as_of:
+        return _empty(key, label, route)
+    count = len(flags)
+    if not count:
+        return {"key": key, "label": label, "route": route, "count": 0,
+                "as_of": str(as_of)[:10],
+                "top": [{"symbol": "—", "note": "no restriction moves in 30d"}],
+                "health": "ok" if not _stale(as_of, _STALE_DAYS["surveil"]) else "stale"}
+    top = []
+    for sym, e in flags[:5]:
+        arrow = {"up": "▲", "down": "▽"}.get(e["direction"], "→")
+        note = f'{arrow} {e["kind"]} {e["what"].lower()}'
+        if e.get("to") not in (None, ""):
+            note += f' → {e["to"]}'
+        top.append({"symbol": sym, "note": note})
+    return {"key": key, "label": label, "route": route, "count": count,
+            "as_of": str(as_of)[:10], "top": top,
+            "health": _health(count, as_of, _STALE_DAYS["surveil"])}
+
+
 def _growth(conn):
     """Growth-intent — forward proposals managements committed to on concalls
     (capex / expansion / debt-cut / new products), Rs-normalised. Flagged = the
@@ -585,8 +618,8 @@ def _wolfe(conn):
 
 # registry order = the order the Strategist dashboard shows the cards.
 _READERS = [_conviction, _dvpt, _mep, _cpr, _rs, _cci, _insider, _ratings,
-            _sast, _shp, _actions, _growth, _launchpad, _momentum, _reactions,
-            _wolfe]
+            _sast, _shp, _actions, _surveil, _growth, _launchpad, _momentum,
+            _reactions, _wolfe]
 
 
 def summary(conn=None) -> list[dict]:
@@ -621,8 +654,8 @@ def _selftest():
             assert set(t) >= {"symbol", "note"}, f"{r['key']} bad top item: {t}"
         keys.add(r["key"])
     for want in ("conviction", "dvpt", "mep", "cpr", "rs", "cci", "insider",
-                 "ratings", "sast", "shp", "actions", "growth", "launchpad",
-                 "momentum", "reactions", "wolfe"):
+                 "ratings", "sast", "shp", "actions", "surveil", "growth",
+                 "launchpad", "momentum", "reactions", "wolfe"):
         assert want in keys, f"{want} row missing"
     print(f"OK  strategy_registry.summary() -> {len(rows)} rows")
     for r in rows:

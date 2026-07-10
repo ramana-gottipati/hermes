@@ -288,6 +288,15 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Details (as filed).** The exchange's own purpose string ("Dividend - Rs 6.70 Per Share") — shown verbatim, amounts are information, never thresholds. *Source:* `details`.
 - **Restructure context.** Demergers / schemes / amalgamations from `security_events` — the identity-level events that explain why a series breaks or a symbol vanishes. *Source:* `security_events` (security master).
 
+## Surveillance transitions (ASM / GSM / bands)
+
+> The NSE surveillance lists as an **event tape**: names entering or leaving ASM (long/short-term) and GSM, stage shifts, and price-band changes. Transitions are DIFFS of consecutive published lists (the earliest stored date is the baseline — nothing is called "entered" on day one); band moves come straight from the change log. **Context, never a gate** — a name entering ASM often sees mechanically FORCED flows (leveraged positions unwinding under 100% margins or T2T settlement), which is information, not a verdict. **No study has been run on this feed in either direction** — the tape states facts and stops.
+
+- **Restriction UP (▲) / DOWN (▽).** Entered a framework or band tightened = restriction up; exited or band relaxed/removed = down. Directional bookkeeping, not sentiment. *Source:* `surveillance.transitions()`.
+- **Stage Δ.** The name stayed listed but its stage moved (e.g. ASM Stage I → II — margins escalate by stage). Shown as old → new, no ordering guessed. *Source:* `surveillance_flags.stage`.
+- **Band tightened / relaxed.** The daily move limit changed (20 → 10 → 5 → 2): tighter bands + close-at-band streaks are a queue-imbalance tell. NULL semantics kept honest: first appearance = "band set", dropped from the file = "band removed". *Source:* `price_band_events`.
+- **Under now.** Membership (the latest lists), distinct from the tape (events). T2T names show no delivery metrics site-wide by rule — excluded, not polluted. *Source:* `surveillance_flags`, `price_bands_current`.
+
 ## Results reactions — the season war room
 
 > Live during results season: every reported name's day-0 reaction, kept only when it is **delivery-confirmed** — a big earnings surprise (SUE) *and* unusually heavy delivery the same day (holding money showed up, not just churn). Snapshot refreshed nightly into `results_reactions` (research.db); forward calendar in `board_meetings`.

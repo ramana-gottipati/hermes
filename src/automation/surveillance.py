@@ -225,6 +225,109 @@ def ingest() -> dict:
     return stats
 
 
+# ── transition roll-up (S92 surveillance lens: page+card+pillar+gate) ─────────
+
+FLAG_DAYS = 30      # the card window — surveillance moves are sparse
+
+
+def _band_num(b):
+    try:
+        return float(b)
+    except (TypeError, ValueError):
+        return None                       # 'No Band' / NULL
+
+
+def transitions(conn, days: int = FLAG_DAYS):
+    """The surveillance-transition tape, derived on read (tiny tables):
+      * ASM/GSM ENTERED / EXITED / STAGE-Δ — diffs of CONSECUTIVE snapshot dates
+        per framework (the earliest stored date is the BASELINE: nothing is
+        called 'entered' on the feed's first day);
+      * price-band SET / REMOVED / TIGHTENED / RELAXED — from the
+        price_band_events log (NULL old = first appearance, NULL new = dropped).
+    Returns (events, as_of) newest-first; every event: {d, symbol, kind, what,
+    frm, to, direction} with direction in 'up' (restriction up) / 'down' / 'flat'.
+    DESCRIPTIVE context, never a gate — no study exists on this feed either way."""
+    events: list = []
+    dates = [r[0] for r in conn.execute(
+        "SELECT DISTINCT as_of FROM surveillance_flags ORDER BY as_of")]
+    as_of = dates[-1] if dates else None
+    for frm_w in ("ASM-LT", "ASM-ST", "GSM"):
+        prev: dict = {}
+        first = True
+        for d in dates:
+            cur = {r[0]: (r[1] or "") for r in conn.execute(
+                "SELECT symbol, stage FROM surveillance_flags "
+                "WHERE as_of=? AND framework=?", (d, frm_w))}
+            if not cur:
+                continue                    # framework absent on this list date
+            if not first:
+                for s in cur.keys() - prev.keys():
+                    events.append({"d": d, "symbol": s, "kind": frm_w, "what": "ENTERED",
+                                   "frm": None, "to": cur[s], "direction": "up"})
+                for s in prev.keys() - cur.keys():
+                    events.append({"d": d, "symbol": s, "kind": frm_w, "what": "EXITED",
+                                   "frm": prev[s], "to": None, "direction": "down"})
+                for s in cur.keys() & prev.keys():
+                    if cur[s] != prev[s]:
+                        events.append({"d": d, "symbol": s, "kind": frm_w,
+                                       "what": "STAGE Δ", "frm": prev[s], "to": cur[s],
+                                       "direction": "flat"})
+            prev, first = cur, False
+    for r in conn.execute(
+            "SELECT as_of, symbol, old_band, new_band FROM price_band_events"):
+        o, n = _band_num(r[2]), _band_num(r[3])
+        if r[2] is None and r[3] is not None:
+            what, direction = "BAND SET", "flat"
+        elif r[3] is None:
+            what, direction = "BAND REMOVED", "down"
+        elif o is not None and n is not None and n < o:
+            what, direction = "TIGHTENED", "up"
+        elif o is not None and n is not None and n > o:
+            what, direction = "RELAXED", "down"
+        else:
+            what, direction = "BAND Δ", "flat"
+        events.append({"d": r[0], "symbol": r[1], "kind": "BAND", "what": what,
+                       "frm": r[2], "to": r[3], "direction": direction})
+        if as_of is None or r[0] > as_of:
+            as_of = r[0]
+    if as_of and days:
+        lo = conn.execute("SELECT date(?, ?)",
+                          (as_of, f"-{int(days)} days")).fetchone()[0]
+        events = [e for e in events if e["d"] >= lo]
+    events.sort(key=lambda e: (e["d"], e["symbol"]), reverse=True)
+    return events, as_of
+
+
+def flagged_symbols(conn):
+    """The card/pillar/gate cohort (single source, D94 parity rule): distinct
+    symbols with ANY surveillance transition or band change in the trailing
+    30 days, newest event kept per symbol. Returns ([(symbol, event)], as_of)."""
+    events, as_of = transitions(conn)
+    per: dict = {}
+    for e in events:                        # newest-first already
+        per.setdefault(e["symbol"], e)
+    out = sorted(per.items(), key=lambda kv: kv[1]["d"], reverse=True)
+    return out, as_of
+
+
+def current_state(conn):
+    """Who is under what RIGHT NOW: latest snapshot per framework + the tight
+    current bands. Returns {framework: [(symbol, stage)], 'BAND': [(sym, band)]}."""
+    out: dict = {}
+    for frm_w in ("ASM-LT", "ASM-ST", "GSM"):
+        r = conn.execute("SELECT MAX(as_of) FROM surveillance_flags WHERE framework=?",
+                         (frm_w,)).fetchone()
+        if not r or not r[0]:
+            continue
+        out[frm_w] = [(x[0], x[1] or "—") for x in conn.execute(
+            "SELECT symbol, stage FROM surveillance_flags WHERE as_of=? AND framework=? "
+            "ORDER BY stage, symbol", (r[0], frm_w))]
+    out["BAND"] = [(x[0], x[1]) for x in conn.execute(
+        "SELECT symbol, band FROM price_bands_current "
+        "WHERE band IN ('2','5') ORDER BY CAST(band AS REAL), symbol")]
+    return out
+
+
 # ── selftest (offline) ───────────────────────────────────────────────────────
 
 def selftest() -> None:

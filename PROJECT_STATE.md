@@ -565,7 +565,8 @@ closed. Only the §B2 pierced-4.618 withhold decision remains open (see open ite
 ### D97 — Session-harness program: the state-doc rule is machine-enforced; session-local settings carry the trims (2026-07-10, S86d)
 The CLAUDE.md mandatory rule ("PROJECT_STATE.md updated in the same commit as code") was doctrine-only
 and decayed across sessions. Decision: enforce it at the harness level — `scripts/state-doc-gate.cjs`
-(PreToolUse hook, matcher `Bash|PowerShell`) blocks any `git commit` that stages `src/` or `scripts/`
+(PreToolUse hooks — one EXACT matcher each for `Bash` and `PowerShell`; regex matchers like
+`Bash|PowerShell` silently fail to register on runtime 2.1.143) blocks any `git commit` that stages `src/` or `scripts/`
 without PROJECT_STATE.md staged. Fail-open on ALL internal errors (a broken gate must never block all
 commits); deliberate exception = append `state:skip` to the commit command; 12-case pipe-test matrix
 green (git-log/commit-tree negatives, `-a` sweep, compound commands, malformed stdin, state-less repos).
@@ -1954,6 +1955,12 @@ Harness-side program (Ramana: "go for all the changes suggested"); most artifact
   the hook runs BEFORE the Bash call, so the pre-exec index missed same-call adds; now unions the
   add's expanded pathspecs (`git ls-files -m -o -d`; add -A/. → all modified+untracked+deleted).
   15-case matrix green incl. NO false block on docs-only compound while a sibling's src/ is dirty.
+- Restart-VERIFIED via a fresh headless probe session: user skills 10/10 registered · memory index
+  67 entries with zero retired-file refs · the gate BLOCKS a real commit pre-execution (it read the
+  live shared index holding a sibling's staged src file — exactly the designed behavior). Found+fixed
+  en route: hook matchers must be EXACT tool names on runtime 2.1.143 (`Bash|PowerShell` regex form
+  never registers); settings.local.json now carries two exact-match entries. S89's organic
+  `state:skip` commit (`10f461f`) independently confirms the gate lives in real desktop sessions.
 - Shipped in THIS commit (docs + gate script); harness artifacts referenced above are file-level, not repo.
 
 ### Session 86c — 2026-07-10 — Wolfe walk freshness fix (D96) + drawings v2: direct-edit · level catalog · future space · confluence (Ramana's chart-review batch)

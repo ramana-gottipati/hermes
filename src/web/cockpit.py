@@ -50,6 +50,11 @@ try:
     from src.automation.corp_actions import flagged_symbols as _actions_flagged
 except Exception:  # noqa: BLE001
     _actions_flagged = None
+# surveillance likewise (SURVEIL pillar — restriction moves in the last 30 days).
+try:
+    from src.automation.surveillance import flagged_symbols as _surveil_flagged
+except Exception:  # noqa: BLE001
+    _surveil_flagged = None
 
 
 def _near(g) -> bool:
@@ -444,6 +449,11 @@ STRATEGY_REGISTRY = [
      "thesis": "Dividends, bonuses, splits, rights and buybacks with an ex-date ahead — the events that re-base the adjusted-price engine. Logistics, not signal (dividend-drift NULL vs placebo; rebrand-pump dead — failure ledger).",
      "count": lambda conn, d, D: (len(_actions_flagged(conn)[0])
                                   if _actions_flagged else None)},
+    {"key": "SURVEIL", "label": "Surveillance Δ", "accent": "#e0823d", "href": "/dash/surveillance",
+     "cta": "restriction moves · 30d",
+     "thesis": "Names whose exchange-restriction state MOVED — ASM/GSM entry/exit/stage, price-band tightenings. Forced-flow context (100% margins, T2T), never a gate; no study exists on this feed either way.",
+     "count": lambda conn, d, D: (len(_surveil_flagged(conn)[0])
+                                  if _surveil_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",

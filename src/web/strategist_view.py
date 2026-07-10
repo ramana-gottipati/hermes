@@ -263,6 +263,7 @@ _CATALOG = [
     ("Stake · Pledge", "/dash/sast"),
     ("Holdings · QoQ", "/dash/shp"),
     ("Corp actions", "/dash/actions"),
+    ("Surveillance Δ", "/dash/surveillance"),
     ("Wolfe · Scan", "/dash/wolfe/scan"),
     ("Launchpad", "/dash/launchpad"),
     ("Momentum · ensemble", "/dash/markets/momentum-scan"),
@@ -321,6 +322,10 @@ _BLURB: dict[str, tuple[str, str]] = {
         "What goes ex, when — dividends, bonuses, splits, rights, buybacks, day by day. "
         "Logistics only: dividend-drift tested NULL vs placebo and rebrand-pump is dead "
         "(failure ledger) — awareness, never advice.", "ex-date"),
+    "/dash/surveillance": (
+        "Exchange restriction MOVES — names entering/leaving ASM/GSM, stage shifts, "
+        "price-band tightenings. Forced-flow context (margins, T2T), never a gate; "
+        "no study exists on this feed either way.", "surveillance"),
     "/dash/launchpad": (
         "Validated explosive-move precursors (momentum-continuation / coiled). The "
         "actionable cut is the FRESH trigger; ⭐ = a genuine institutional buyer "
