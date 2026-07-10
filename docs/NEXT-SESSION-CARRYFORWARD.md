@@ -101,6 +101,14 @@ are being updated IN the doc as lanes land fixes — trust the doc over this dig
    with oneshot timeouts + timer jitter ±5min — a job writing outside /opt/hermes or /var/log will
    now FAIL (that's the point; extend ReadWritePaths deliberately, in git).
 
+## 🏁 CHARTER §3 NOW — FULLY SWEPT (S95, 2026-07-10)
+N1 ✓ · N1b ✓ (remainder ticked w/ evidence) · N2 ✓ (D-04 SLB feed LIVE S95 — `slb.py`,
+`hermes-slb.timer` 15:15 UTC, 21d seed: 2,924 vol / 12,913 open-pos rows; VERIFY tonight's
+first scheduled run ~15:16 UTC: journal Finished + `/var/log/hermes-slb.log` one clean line)
+· N3 ✓ · N4 ✓ · N5 ✓. **Roadmap altitude now = charter §4 NEXT** — E-studies armed +
+self-gating (E-02 Jul-22 · E-04/E-14 depth-gated · E-03 waits on disclosure depth); the
+D94 lens estate (17 gated strategies) is the consumption surface.
+
 ## 🎯 CHARTER IS THE ROADMAP + S80h STATE (2026-07-05 — read FIRST; results season opens ~Jul-09)
 **`docs/patearn-charter.md` is now the canonical plan (D87):** thesis · dated NOW/NEXT/LATER · 50-item
 idea bank (E/X/D/P/M) · data-sprint table · KPIs · not-do list. Execute charter §3 NOW by default;

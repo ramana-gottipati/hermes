@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes SLB ingest Timer (nightly, weekdays)
+# Deliberately NO Requires= (AUD-95): enabling/starting this timer mid-day must
+# only SCHEDULE the job, never fire it — the backup-timer pattern.
+
+[Timer]
+# 8:45 PM IST = 15:15 UTC Mon-Fri — the SLB EOD files publish by ~6 PM IST;
+# this slots after the deals ingest (14:30 UTC) and before the ingest cluster
+# (15:30+ UTC). Persistent catches a missed run after downtime.
+OnCalendar=Mon..Fri *-*-* 15:15:00
+Persistent=true
+Unit=hermes-slb.service
+
+[Install]
+WantedBy=timers.target

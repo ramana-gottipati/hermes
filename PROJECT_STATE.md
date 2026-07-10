@@ -1700,6 +1700,30 @@ pre-fix HEAD would have 404'd it silently.
   git-durable. Chrome-gate residual: the pre-existing /dash/strategies marker artifact (their lane,
   recorded S83d — live page carries the skin).
 
+### Session 95 — 2026-07-10 — D-04 SLB FEED LIVE — 🏁 the charter §3 NOW queue is fully swept (N1-N5 all closed)
+Charter-NOW execution after the D94 closure ("go ahead with the charter NOW queue"):
+kickstart-pick-verify found ONE genuinely open item (N2's D-04 tail) + one stale-pending row
+(N1b's remainder, already closed by earlier lanes — ticked with evidence).
+- **D-04 SLB feed (NEW `src/automation/slb.py`):** the NSE SLB daily files — **bhavcopy**
+  (`SLBM_BC_*.DAT`: lending-fee quotes prev/O/H/L/C + matched qty + value per symbol ×
+  tenure series, headerless zero-padded format parsed + selftested) and **open positions**
+  (`slb_openpos_*.csv`: outstanding lent stock — India's only short-interest proxy).
+  Channel = nsearchives statics (the deals.py-class tier, no cookie dance). Endpoint
+  discovery via `api/daily-reports?key=SLBS` (recorded in the module docstring). Tables
+  `slb_volumes` + `slb_open_positions` (UNIQUE per as_of×symbol×series); per-day commits
+  (write never spans a fetch); 404 = holiday skip; one bad day never kills a run.
+- **Units:** `hermes-slb.{service,timer}` + hardening + OnFailure pager, timer 15:15 UTC
+  Mon-Fri **Requires-free** (AUD-95-safe), git-owned + VPS mirror synced, drift gate
+  exit-clean, enabled (first scheduled fire tonight 15:16 UTC).
+- **Seed:** 21 trading days (Jun-10→Jul-09) = **2,924 volume rows / 358 symbols +
+  12,913 open-position rows.** DESCRIPTIVE DATA ONLY — no study exists; the charter's
+  squeeze/crowding flags are future pre-registered consumers, not this feed.
+- **N1b remainder ticked with evidence:** the reactions snapshot timer verified live
+  (S83b) + the results-reactions Lens committed (markets section) — charter row → DONE.
+- **Charter §3 NOW = fully swept.** Next roadmap altitude: §4 NEXT (E-studies are armed +
+  self-gating: E-02 fires Jul-22, E-04/E-14 depth-gated; X-02✓; the D94 lens estate feeds
+  E-03 disclosure-drift when its depth condition holds).
+
 ### Session 92 — 2026-07-10 — SURVEILLANCE-TRANSITION TAPE live (D94 queue #6) — 🏁 THE D94 QUEUE IS COMPLETE (6/6 in 3 days)
 The last D94 item (ledger check: NO study exists on this feed either way — the tape is pure
 fact; the standing "context, never a gate" framing carried from the glossary verbatim):

@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes patearn — nightly SLB volumes + open-positions ingest (D-04)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# Dataset D-04 (charter data sprint): the NSE SLB daily bhavcopy (lending fees,
+# matched qty, value) + open positions (outstanding lent stock) — India's only
+# short-interest proxy. Static primary archives (nsearchives), no LLM (Rs0),
+# descriptive data only; per-day commits, 404 = holiday skip.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.slb --ingest
+StandardOutput=append:/var/log/hermes-slb.log
+StandardError=append:/var/log/hermes-slb.log
