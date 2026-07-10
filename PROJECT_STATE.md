@@ -482,7 +482,7 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ## Decision log (the big ones)
 
 ### D108 — Wolfe REVERTED to the D96 baseline + the MANDATORY 2/3/4 fractal gate; the D98–D102 display/queue layer is REMOVED (2026-07-10, S105; Ramana: revert scope decided surgically after "I am really disappointed that the fractal has been ignored")
-Two rulings from Ramana, executed exactly:
+Two rulings from Ramana, executed exactly (his COMPLETE strength concept — the 5 drivers: fractal structure · fib confluence zone · point-5 placement · EPA line as touched-not-cut S/R · RSI divergence — is canonically documented at docs/wolfe-rules.md §B0, commit 43e075f; read that before any Wolfe scoring change):
 1. **THE RULE (his verbatim intent): points 2, 3 and 4 MUST each be a fractal, minimum
    2-fractal — "without a fractal, do not consider them."** Point 1: NO gate (a 2/5-fractal
    there is the valued §B-A bonus, not mandatory). Point 5: NO gate (§B1 entry timeliness;
