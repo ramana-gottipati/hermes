@@ -89,7 +89,7 @@ def scan(conn):
         lo = (_dt.date.fromisoformat(T) - _dt.timedelta(days=130)).isoformat()
         ph = ",".join("?" for _ in cand)
         for x in conn.execute(
-                f"SELECT symbol, close, prev_close, volume, value FROM bhavcopy_rows "
+                f"SELECT symbol, trade_date, close, prev_close, volume, value FROM bhavcopy_rows "
                 f"WHERE symbol IN ({ph}) AND trade_date>=? AND trade_date<=? AND series='EQ' "
                 f"AND (segment='CM' OR segment IS NULL) ORDER BY symbol, trade_date ASC",
                 (*cand, lo, T)).fetchall():
@@ -100,8 +100,14 @@ def scan(conn):
     hits = []
     for sym, rs in rows_by_sym.items():
         try:
+            try:                                          # D95 tape-primary adjustment
+                from src.automation.corp_actions import price_ratios
+                events = price_ratios(conn, sym)
+            except Exception:  # noqa: BLE001
+                events = {}
             res = _lp_features([x["close"] for x in rs], [x["prev_close"] for x in rs],
-                               [x["volume"] for x in rs], [x["value"] for x in rs])
+                               [x["volume"] for x in rs], [x["value"] for x in rs],
+                               dates=[x["trade_date"] for x in rs], events=events)
         except Exception:  # noqa: BLE001 — one bad symbol never kills the scan
             res = None
         if not res:

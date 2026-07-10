@@ -44,6 +44,16 @@ except Exception:
 router = APIRouter()
 
 
+def _action_events(conn, symbol: str) -> dict:
+    """Corporate-action ratio tape for the tape-primary adjustment layer (D95).
+    {} when the tape is absent/unreadable — inference-only, the legacy behavior."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a render
+        return {}
+
+
 def _esc(s) -> str:
     """HTML-escape DB-sourced text (index names) before interpolation — guards the
     SVG/text, the data-html tooltip attribute, and the table against e.g. an
@@ -287,7 +297,7 @@ def _constituent_data(index_name: str, den: str, conn):
         if len(braw) < 80:
             continue
         braw = [dict(r) for r in reversed(braw)]          # oldest → newest
-        adj = adjust.adjusted_closes(braw)
+        adj = adjust.adjusted_closes(braw, _action_events(conn, sym))
         # CL-VIEW-14: bind the benchmark close once per row instead of two dict lookups.
         ratio = [a / bv for r, a in zip(braw, adj)
                  for bv in (broad.get(r["trade_date"], 0),) if a and a > 0 and bv > 0]
@@ -759,7 +769,7 @@ def _stock_rrg(sym: str, den: str, conn):
     if len(braw) < 120:
         return None, []
     braw = [dict(r) for r in reversed(braw)]
-    adj = adjust.adjusted_closes(braw)
+    adj = adjust.adjusted_closes(braw, _action_events(conn, sym))
     # CL-VIEW-14: bind the benchmark close once per row instead of two dict lookups.
     ratio = [a / bv for r, a in zip(braw, adj)
              for bv in (broad.get(r["trade_date"], 0),) if a and a > 0 and bv > 0]

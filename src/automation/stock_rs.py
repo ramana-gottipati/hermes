@@ -44,6 +44,16 @@ from typing import Optional
 
 from src.core.db import get_conn
 from src.automation.adjust import adjusted_closes
+
+
+def _action_events(conn, symbol: str) -> dict:
+    """Corporate-action ratio tape for the tape-primary adjustment layer (D95).
+    {} when the tape is absent/unreadable — inference-only, the legacy behavior."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a compute
+        return {}
 # REUSE the D32 ratio engine + the size/broad-index exclusion set — do not
 # reinvent the RS math nor re-list which indices count as "the market".
 from src.automation.index_signals import compute_ratio_signal, SIZE_BASED_INDEX_NAMES
@@ -108,10 +118,11 @@ def build_rs_history(symbol: str, broad_map: dict[str, float]) -> list[dict]:
                ORDER BY trade_date ASC""",
             (symbol,),
         ).fetchall()]
+        events = _action_events(conn, symbol)             # D95 tape-primary adjustment
     if not rows:
         return []
 
-    adj = adjusted_closes(rows)  # parallel adjusted-close list, oldest→newest
+    adj = adjusted_closes(rows, events)  # parallel adjusted-close list, oldest→newest
     out: list[dict] = []
     for r, a in zip(rows, adj):
         if a is None or a <= 0:

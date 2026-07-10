@@ -215,7 +215,12 @@ def _price_series(conn, symbol):
     if len(rows) < 2:
         return None
     rl = [dict(r) for r in rows]
-    f = adjust.adjustment_factors(rl)
+    try:                                                  # D95 tape-primary adjustment
+        from src.automation.corp_actions import price_ratios
+        events = price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001
+        events = {}
+    f = adjust.adjustment_factors(rl, events)
     ao = [(r["open"] * f[i]) if r["open"] else None for i, r in enumerate(rl)]
     ah = [(r["high"] * f[i]) if r["high"] else None for i, r in enumerate(rl)]
     al = [(r["low"] * f[i]) if r["low"] else None for i, r in enumerate(rl)]

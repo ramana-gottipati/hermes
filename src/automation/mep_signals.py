@@ -233,9 +233,20 @@ def _smooth_chain(scores: list) -> tuple:
     return smooth_scores, smooth_states
 
 
-def _term_arrays(asc_rows: list) -> dict:
+def _action_events(conn, symbol: str) -> dict:
+    """Corporate-action ratio tape for the tape-primary adjustment layer (D95).
+    {} when the tape is absent/unreadable — inference-only, the legacy behavior."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a compute
+        return {}
+
+
+def _term_arrays(asc_rows: list, events: dict = None) -> dict:
     """Per-day SIGNED + context term arrays from bhav rows OLDEST→NEWEST.
-    Needs close/prev_close/avg_price/high/low/value/volume."""
+    Needs close/prev_close/avg_price/high/low/value/volume. ``events`` = the
+    corporate-action ratio tape (D95 tape-primary adjustment)."""
     n = len(asc_rows)
     close = [r["close"] for r in asc_rows]
     high  = [r["high"] for r in asc_rows]
@@ -243,8 +254,9 @@ def _term_arrays(asc_rows: list) -> dict:
     vwap  = [r["avg_price"] for r in asc_rows]
     vol   = [r["volume"] for r in asc_rows]
     val   = [r["value"] for r in asc_rows]
-    adj   = adjusted_closes([{"close": r["close"], "prev_close": r["prev_close"]}
-                             for r in asc_rows])
+    adj   = adjusted_closes([{"trade_date": r["trade_date"], "close": r["close"],
+                              "prev_close": r["prev_close"]}
+                             for r in asc_rows], events)
     signs = _ret_signs(adj)
 
     pressure = [None] * n
@@ -360,9 +372,10 @@ def compute_mep_for_symbol_date(symbol: str, trade_date: str) -> Optional[dict]:
             """,
             (symbol, trade_date, cutoff),
         ).fetchall()
+        events = _action_events(conn, symbol)
     if not rows or rows[-1]["trade_date"] != trade_date:
         return None
-    arr = _term_arrays(rows)
+    arr = _term_arrays(rows, events)
     return _row_from_arrays(symbol, arr, len(rows) - 1)
 
 
@@ -525,7 +538,7 @@ def _backfill_mep_for_symbol(conn, symbol: str) -> int:
     ).fetchall()
     if not rows:
         return 0
-    arr = _term_arrays(rows)
+    arr = _term_arrays(rows, _action_events(conn, symbol))
     daily = [_row_from_arrays(symbol, arr, i) for i in range(len(rows))]
     # smoothed PHASE over the full daily-score series (None warmup gaps preserved
     # so indices stay aligned with `daily`)

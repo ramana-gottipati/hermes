@@ -1692,6 +1692,37 @@ crossing the seam — near-consistent by the module's own 1pp continuity gate).
   local selftests + pytest 18/1.
 - **D94 queue: ⑤ forward corp-actions calendar is NEXT** (26,868 + 226 rows, hermes.db).
 
+### Session 89b — 2026-07-10 — D95 tape adoption wave: 10 adjusted-price consumers tape-primary (data-perfection lane)
+The D95 follow-through: every wired consumer of adjusted prices now passes the authoritative
+corporate-action ratio tape into `adjust.adjustment_factors/adjusted_closes`, closing the 3–30 %
+dead zone (112 events / 92 symbols) across the estate (one commit, 10 files).
+- **Wired:** `mep_signals` (term arrays + nightly + backfill) · `cpr_signals` + `mtf_signals`
+  (resample + process_symbol) · `stock_rs` (the stock-vs-index ratio builder → RS everywhere) ·
+  `ignition_backtest` (`_price_series`) · `launchpad_signals` + `cockpit._lp_features` (dates
+  threaded; SELECT gains trade_date) · `rrg_view` ×2 · `rsband_view` ×2 ·
+  `research/explosive_moves/common.py` (`SymbolSeries`/`load_series` — the embase cache feeding
+  every backtest; **existing em_cache pickles heal on next rebuild**). Each module carries a
+  failure-isolated `_action_events` helper ({} → byte-identical legacy).
+- **DEFERRED with evidence — `wolfe.py`:** its LIVE copy is 63 lines AHEAD of git (the S89 lane's
+  uncommitted D100 §B2 pierced-4.618 entry-qualification); the drift gate refused the push (the
+  flip hazard, working as designed). Wiring recipe for the owner at reconcile: `_adjust(...,
+  dates=None, events=None)` building trade_date dicts + `price_ratios(conn, sym)` in
+  `stock_series` — the exact 2-hunk pattern every other module got. Also deferred:
+  `dashboard.py` inline copy (frozen file, open item B5) · `anchor_audit` +
+  `research/wolfe_waves/common` (rerun-on-demand tools).
+- **Shared-tree notes:** cockpit.py's live copy already EQUALLED my working edit before my push —
+  a sibling deploy shipped the shared working tree mid-wave (the tree cuts both ways; the
+  smart gate now classifies already-live vs push vs fork). The 5 automation files from an
+  aborted first attempt were live-untested for ~minutes — closed by the completed run's
+  dual-venv import tests.
+- **VERIFIED LIVE:** dual-venv imports OK · all module `_action_events` resolve CUB 2026-06-12 →
+  0.75 · mep recompute OK · writer-safe `hermes-api` restart · journey green (`/dash` 200;
+  `/dash/rrg|rsband|launchpad` → D80 nested redirects → 200). **Targeted 92-symbol historical
+  heal launched** (mep + cpr W/M/Q + triggers + keyprice per dead-zone symbol,
+  `/var/log/hermes-heal92.log`). Remaining D95 residue: wolfe wiring at owner-reconcile ·
+  stock_rs HISTORICAL rows (heal forward via nightly; no per-symbol history backfill path) ·
+  77 TAPE_SUSPECT review.
+
 ### Session 89 — 2026-07-10 — Wolfe "strength" deep-dive (D98): cap-sweep quantified · Q splits into STR/LND · Structure watch live (S86c incident follow-through)
 - **D99 ADDENDUM (same session, Ramana-approved via the main session):** recency = first-class
   ranking field — `rank_attention = Q × 0.5^(age/60)` (60-bar half-life his approved default);

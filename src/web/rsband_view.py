@@ -42,6 +42,16 @@ router = APIRouter()
 BENCHMARKS = ("Nifty 500", "Nifty 50")
 
 
+def _action_events(conn, symbol: str) -> dict:
+    """Corporate-action ratio tape for the tape-primary adjustment layer (D95).
+    {} when the tape is absent/unreadable — inference-only, the legacy behavior."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a render
+        return {}
+
+
 def _esc(s) -> str:
     return html.escape(str(s), quote=True)
 
@@ -723,7 +733,7 @@ def _stock_ratio_series(conn, sym: str, den: str) -> list[tuple]:
     if not braw:
         return []
     braw = [dict(r) for r in braw]
-    adj = adjust.adjusted_closes(braw)
+    adj = adjust.adjusted_closes(braw, _action_events(conn, sym))
     out = []
     for r, a in zip(braw, adj):
         b = ben.get(r["trade_date"])
@@ -874,7 +884,7 @@ def _constituent_data(index_name: str, conn, vs: str = "broad") -> list[dict]:
         if len(braw) < _CONSTITUENT_MIN:
             continue
         braw = [dict(r) for r in braw]
-        adj = adjust.adjusted_closes(braw)
+        adj = adjust.adjusted_closes(braw, _action_events(conn, sym))
         rs, last = [], None
         for r, a in zip(braw, adj):
             b = ben_map.get(r["trade_date"])

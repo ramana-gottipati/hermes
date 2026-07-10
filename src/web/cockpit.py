@@ -1605,17 +1605,22 @@ def _lp_at(adj, vols, vals, s):
                    "vol66": vol66, "med_turn": med_turn}
 
 
-def _lp_features(closes, prev_closes, vols, vals):
+def _lp_features(closes, prev_closes, vols, vals, dates=None, events=None):
     """Today's flags + metrics for ONE symbol, PLUS the rising-edge age: how many
     consecutive sessions (ending today) the setup has been on. age 0 = it just
     triggered today (off yesterday) — a genuine FRESH entry (the backtest enters on
-    the rising edge, not the 8th day of a run). Returns (flags, metrics) or None."""
+    the rising edge, not the 8th day of a run). Returns (flags, metrics) or None.
+    ``dates``+``events`` = the corporate-action ratio tape (D95 tape-primary)."""
     from src.automation import adjust
     n = len(closes)
     if n < 30:
         return None
-    adj = adjust.adjusted_closes([{"close": c, "prev_close": p}
-                                  for c, p in zip(closes, prev_closes)])
+    if dates is not None:
+        adj = adjust.adjusted_closes([{"trade_date": d, "close": c, "prev_close": p}
+                                      for d, c, p in zip(dates, closes, prev_closes)], events)
+    else:
+        adj = adjust.adjusted_closes([{"close": c, "prev_close": p}
+                                      for c, p in zip(closes, prev_closes)])
     if not adj or adj[-1] is None:
         return None
     s = n - 1

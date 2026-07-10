@@ -118,7 +118,17 @@ def _fetch_daily(conn, symbol: str) -> list:
     ).fetchall()
 
 
-def resample(tf: str, daily_rows: list, partial_key) -> list[dict]:
+def _action_events(conn, symbol: str) -> dict:
+    """Corporate-action ratio tape for the tape-primary adjustment layer (D95).
+    {} when the tape is absent/unreadable — inference-only, the legacy behavior."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a compute
+        return {}
+
+
+def resample(tf: str, daily_rows: list, partial_key, events: dict = None) -> list[dict]:
     """Resample OLDEST→NEWEST daily rows into timeframe period bars (oldest→newest),
     each carrying SPLIT-ADJUSTED H/L/C. A CPR only needs prior-period H/L/C, so
     this is far lighter than the MTF delivery bar (CPR-A5 / design §9).
@@ -134,9 +144,11 @@ def resample(tf: str, daily_rows: list, partial_key) -> list[dict]:
         return []
 
     # Per-day cumulative back-adjustment factor (newest anchored at 1.0).
+    # ``events`` = the corporate-action ratio tape (D95 tape-primary adjustment).
     factors = adjustment_factors([
-        {"close": r["close"], "prev_close": r["prev_close"]} for r in daily_rows
-    ])
+        {"trade_date": r["trade_date"], "close": r["close"], "prev_close": r["prev_close"]}
+        for r in daily_rows
+    ], events)
 
     # Adjusted per-day H/L/C + anomaly flag (on the adjusted close-to-close move).
     adj_days = []
@@ -388,7 +400,7 @@ def process_symbol(conn, tf: str, symbol: str, partial_key,
     daily = _fetch_daily(conn, symbol)
     if not daily:
         return 0
-    bars = resample(tf, daily, partial_key)
+    bars = resample(tf, daily, partial_key, _action_events(conn, symbol))
     if not bars:
         return 0
     signals = compute_signals(tf, symbol, bars)

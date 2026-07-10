@@ -139,12 +139,23 @@ def _fetch_daily(conn, symbol: str) -> list:
     ).fetchall()
 
 
-def resample(tf: str, daily_rows: list, partial_key) -> list[dict]:
+def _action_events(conn, symbol: str) -> dict:
+    """Corporate-action ratio tape for the tape-primary adjustment layer (D95).
+    {} when the tape is absent/unreadable — inference-only, the legacy behavior."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a compute
+        return {}
+
+
+def resample(tf: str, daily_rows: list, partial_key, events: dict = None) -> list[dict]:
     """Resample OLDEST->NEWEST daily rows into timeframe bars (oldest->newest).
 
     `partial_key` is the period key of the market's latest trading session; the
     bar carrying that key is flagged is_partial (week/month-to-date). A delisted
     stock has no bar in the current period, so its final bar stays complete.
+    ``events`` = the corporate-action ratio tape (D95 tape-primary adjustment).
     """
     if not daily_rows:
         return []
@@ -154,7 +165,7 @@ def resample(tf: str, daily_rows: list, partial_key) -> list[dict]:
     adj = adjusted_closes([
         {"trade_date": r["trade_date"], "close": r["close"], "prev_close": r["prev_close"]}
         for r in daily_rows
-    ])
+    ], events)
 
     # Group consecutive days into buckets (rows already sorted ascending).
     buckets: list[tuple] = []   # (key, [(row, adj_close), ...])
@@ -369,7 +380,7 @@ def process_symbol(conn, tf: str, symbol: str, partial_key,
     daily = _fetch_daily(conn, symbol)
     if not daily:
         return 0
-    bars = resample(tf, daily, partial_key)
+    bars = resample(tf, daily, partial_key, _action_events(conn, symbol))
     if not bars:
         return 0
     for b in bars:

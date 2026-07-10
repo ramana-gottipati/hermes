@@ -107,7 +107,9 @@ class SymbolSeries:
     prev_close → split-clean but genuine big moves preserved).
     """
 
-    def __init__(self, symbol: str, rows: list[sqlite3.Row]):
+    def __init__(self, symbol: str, rows: list[sqlite3.Row], events: dict = None):
+        """``events`` = the corporate-action ratio tape (D95 tape-primary adjustment);
+        None → legacy inference-only factors."""
         self.symbol = symbol
         self.n = len(rows)
         self.date = [r["trade_date"] for r in rows]
@@ -124,8 +126,9 @@ class SymbolSeries:
         self.avg_price = np.array([_f(r["avg_price"]) for r in rows], dtype=float)  # NSE VWAP (2020+)
 
         adj = load_adjust()
-        dict_rows = [{"close": r["close"], "prev_close": r["prev_close"]} for r in rows]
-        self.factors = np.array(adj.adjustment_factors(dict_rows), dtype=float)
+        dict_rows = [{"trade_date": r["trade_date"], "close": r["close"],
+                      "prev_close": r["prev_close"]} for r in rows]
+        self.factors = np.array(adj.adjustment_factors(dict_rows, events), dtype=float)
         self.adj_close = self.close * self.factors
         self.adj_high = self.high * self.factors
         self.adj_low = self.low * self.factors
@@ -162,7 +165,12 @@ def load_series(con: sqlite3.Connection, symbol: str) -> Optional[SymbolSeries]:
             ORDER BY trade_date ASC""", (symbol,)).fetchall()
     if len(rows) < 30:
         return None
-    return SymbolSeries(symbol, rows)
+    try:                                                  # D95 tape-primary adjustment
+        from src.automation.corp_actions import price_ratios
+        events = price_ratios(con, symbol)
+    except Exception:  # noqa: BLE001
+        events = None
+    return SymbolSeries(symbol, rows, events)
 
 
 def _trailing_median(x: np.ndarray, win: int) -> np.ndarray:
