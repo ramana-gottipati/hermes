@@ -477,6 +477,34 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D98 — Wolfe visibility: Q stays the history curator; the §B badge SPLITS into STR/LND; a "structure watch" complements the scan (2026-07-10, S89; panel-decided, Ramana veto open)
+The S89 sweep quantified what the pre-D96 top-40-by-Q cap hid (read-only, exact `overlay_for`
+replay on the VPS archive): of **6,064** fresh confirmed waves (p5 ≤ 250 bars) across the
+Nifty-500, **3,334 (55%) were outside the cap**; net of dedupe **D96 restored 3,121 waves on
+386/500 symbols**. Only **307 (10%)** pass the winner profile (visible ≤15 bars on the scan —
+which itself only exists since Jun-25); **2,814 had NO discovery surface**; **104 are the TCS
+archetype** (structure ≥10/11, failed landing). Inclusive-300 repeats the shape (56%, 252/300).
+Ramana was unavailable → the 4-seat institutional panel decided (unanimous ×3), veto open:
+1. **Walk history curation stays Q-top-40** (+ the D96 fresh guarantee): §B4 doctrine —
+   quality is timeless, timing is a separate axis; freshness was the only hole and D96 plugged it.
+2. **The Q badge splits for display: `STR = p1×2+B+H` (shape, /11) + `LND = C+F+G+I+D`
+   (landing, /13), STR+LND = Q** — everywhere the badge shows (walk summary, /dash/wolfe list,
+   scan/watch tables). NO rubric change (components, values, totals, wolfe-rules.md §B3 all
+   untouched — `wolfe.score_split` is a display regroup). Mandatory gloss: **LND INVERTS as a
+   trade filter** (the OOS profile prefers LOW D/F, so scan winners show low LND by design).
+3. **"Structure watch" ships as the scan's complement on /dash/wolfe/scan** (`wolfe.watch_scan`
+   + nightly `persist_watch` under `wolfe_signals.universe='<uni>:watch'`, same `--persist-scan`
+   run): fresh (≤15 bars, mirrors the scan) CONFIRMED waves with STR ≥ 10/11 that the scan does
+   NOT show — winner-profile fails AND zone-less winners (closing the silent 4/80 drop). Rows
+   carry why-it-fails chips: the three profile legs D/p1/F ✓/✗ (C = context, NOT a leg — panel
+   condition). Sort age-ASC/STR-DESC, NEVER by Q (Q inverts as a trade filter). Header cites the
+   §C falsification (raw median −2% net, tail game) — descriptive reading surface, no edge claim.
+   Constants canon: `docs/calculations-and-weights.md` §5c.
+WHY a decision: Ramana's "did we select the strongest — on what basis?" exposed that ONE Q number
+blends two stories (TCS Q15 = perfect 11/11 shape · 4/13 landing) and that "strongest-by-Q" is a
+reading rank, not an edge rank. The split names the axes; the watch makes the edge filter's
+rejects first-class instead of invisible. Everything additive + revertible; §A LOCKED throughout.
+
 ### D97 — Session-harness program: the state-doc rule is machine-enforced; session-local settings carry the trims (2026-07-10, S86d)
 The CLAUDE.md mandatory rule ("PROJECT_STATE.md updated in the same commit as code") was doctrine-only
 and decayed across sessions. Decision: enforce it at the harness level — `scripts/state-doc-gate.cjs`
@@ -1305,9 +1333,16 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 
 ### Deploy / update flow (when code changes)
 
-1. On laptop: edit code in `D:\Hermes\` → commit → push to GitHub
-2. On VPS: `wget -qO /tmp/setup.sh https://raw.githubusercontent.com/ramana-gottipati/hermes/main/scripts/setup-news.sh && bash /tmp/setup.sh`
-3. Script: git pull → pip install → restart all services → done in ~30 seconds
+🔴 **The setup-news.sh flow below is BANNED (AUD-28** — its heredoc silently reverts the live
+`ExecStartPre` on hermes-concalls.service; also the VPS git tree is dirty so its `git pull`
+fails). **Deploy = scp per-file (LF! use `tr -d '\r'`, never `sed 's/\r$//'`) + py_compile +
+import test + writer-check (`fuser data/hermes.db` empty) + `systemctl restart hermes-api`** —
+full recipe in the `vps-deploy-reality` memory + `docs/AUDIT-2026-07-02-institutional-review.md`.
+Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry — patch hunks).
+
+~~1. On laptop: edit code in `D:\Hermes\` → commit → push to GitHub~~
+~~2. On VPS: `wget -qO /tmp/setup.sh …setup-news.sh && bash /tmp/setup.sh`~~ **(BANNED, see above)**
+~~3. Script: git pull → pip install → restart all services~~
 
 ### First-time 5-year backfill (one-shot)
 
@@ -1321,6 +1356,20 @@ It scps `/opt/hermes/data/` into `D:\Hermes-data-backup\<datestamp>\` — preser
 ---
 
 ## What's NOT yet built / open items
+
+### 🌊 Wolfe honesty residuals (S89/D98 — small, deliberate deferrals)
+- **§B2 pierced-4.618 withhold is documented but NOT implemented in the scanner** (`docs/wolfe-rules.md`
+  §B2: point 5 pierces BOTH legs' 4.618 with no return → the screener should flag "not entry-qualified";
+  the chart always shows the wave). Implementing it REMOVES scan rows → **Ramana's call**, not a lane's.
+- **Structure watch is snapshot-only** — no `?asof=` PIT replay, no live `?refresh` (a live watch pass
+  costs a full ~3-min universe detect); stated on-page. Nightly `--persist-scan` (16:00 UTC) refreshes
+  both snapshots; the `inclusive` universe has no watch snapshot (timer runs nifty500 only).
+- **G.gloss keys for STR/LND** not added (the scan page explains them via title-tooltips + an on-page
+  legend); converge on `G.gloss` when the AUD-71 glossary extension pass next touches wolfe_view.
+- **D96/D98 walk-visibility invariant to preserve:** a quality cap must never gate recency, and any new
+  Wolfe surface must state which waves it EXCLUDES (the S89 visibility map in the session log is the
+  reference; the sweep is reproducible: `research/wolfe_waves/sweep_cap_visibility.py` — first-run
+  JSONs on the VPS at `/tmp/wolfe_sweep_s87_*.json` until reboot).
 
 ### ✅ DATASET A feed — REBUILT on corporates-pit-gg (same session 73, `b136d3f`); residual backfill-completion check CLOSED (June tail confirmed clean 699→1,559 — S79 log; S83d annotation)
 NSE retired the legacy `corporates-pit` JSON API ~end-Apr-2026 (it still serves the 2026-03/04 archive — 2,057+392 rows probed — then goes empty; the page moved to **`corporates-pit-gg`**, filing rows → per-disclosure XBRL, flat `in-bse-co` taxonomy). Rebuilt: `fetch_filings_gg` + `_gg_xml_to_raws` (one txn per XBRL context, multi-txn instances handled) feed the EXISTING normalizer/classifier; `ingest_range` routes to the new path so the CLI + `hermes-insider-ingest.timer` work unchanged; `--legacy` covers the pre-cutover archive. Real-data fixes: Block-Deal/ESOS taxonomy + **uid no longer hashes derived `txn_class`** (was duplicating rows on every classifier improvement). Verified: 161 filings → 309 txns, 0 XML failures, UNKNOWN 2/248. **Residual (mostly CLOSED session 75):** month distribution verified — NO gap 2025-11→2026-07 (Mar 2,057 + Apr 392 = the legacy archive exactly); `--agg` sane on DMART (175 events, 49 pledge-adverse 90d → `pledge_risk`). Outage root causes fixed+verified (D82c). Last tail: the throttle-aborted gg run (reached ~Jun-09, saved=1668 persisted) resumes via transient timer `hermes-insider-backfill3` (parallel session babysits); confirm June fills in (`journalctl -u hermes-insider-backfill3` ends without `aborted_throttled`, June count grows past 699).
@@ -1499,6 +1548,43 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 89 — 2026-07-10 — Wolfe "strength" deep-dive (D98): cap-sweep quantified · Q splits into STR/LND · Structure watch live (S86c incident follow-through)
+Ramana's questions ("did we select the strongest? on what basis? I feel I missed many entries")
+answered with numbers, then built. Commits: (see git log this date — wolfe.py, wolfe_view.py,
+calculations-and-weights.md §5c, PROJECT_STATE).
+- **THE SWEEP (read-only, VPS, exact `overlay_for` replay):** Nifty-500 — **6,064** fresh confirmed
+  waves (p5 ≤ 250 bars); **3,334 (55%) were outside the old top-40-by-Q cut**; D96 restored
+  **3,121 on 386/500 symbols** (mean walk 33→40). Of the restored: **307 (10%)** pass the winner
+  profile (scan flashed them ≤15 bars; scan exists only since Jun-25) · **2,814 had NO discovery
+  surface** · **104 = the TCS archetype** (STR ≥ 10/11, failed landing). Inclusive-300: same shape
+  (56% outside cap, 252/300 symbols). Reproducible: `research/wolfe_waves/sweep_cap_visibility.py`
+  (first-run JSONs: VPS `/tmp/wolfe_sweep_s87_{nifty500,inclusive}.json`, /tmp-ephemeral).
+- **VISIBILITY MAP (class-sweep, all 4 surfaces):** walk = top-40-Q ∪ fresh≤250, newest-first (+1
+  forming ≤90 bars) · /dash/wolfe = recent-window list, no cap (the TCS wedge WAS there, 1/6 —
+  it's a lookup surface, not discovery; fixed the stale "FULL list lives on /dash/wolfe" comment) ·
+  scan = winner-profile + fresh≤15 + zone-required (**4/80 winners were silently zone-dropped —
+  now surfaced in the watch**) · registry/cockpit/board = scan snapshot, exact-universe reads
+  (`:watch` rows invisible to them by key design).
+- **D98 SHIPPED (panel-decided 3×unanimous, Ramana veto open):** (1) walk history stays Q-curated
+  (§B4 doctrine: quality timeless, timing separate — D96 already split the axes); (2) **Q badge
+  splits into STR x/11 · LND y/13** on the walk summary, /dash/wolfe list, scan + watch tables
+  (`wolfe.score_split`; rubric untouched; mandatory inversion gloss — winners show LOW LND by
+  design); (3) **Structure watch** on /dash/wolfe/scan: fresh ≤15 · STR ≥ 10/11 · not-on-the-scan
+  (profile fails + zone-less winners), one row per sym+dir (fractal-degree twins collapse,
+  140→95 on the Jul-01 correlated low), why-not-in-scan chips = profile legs D/p1/F ✓/✗ + C as
+  context, sorted age/STR never Q, freshest-30 slice with counted show-all (never silent).
+  Nightly: same `--persist-scan` run persists both snapshots under `wolfe_signals` universe
+  `'nifty500'` + `'nifty500:watch'` (6 nullable cols added by idempotent ALTER; legacy snapshots
+  degrade to plain Q — two-tier `latest_scan`). **Write-lock discipline held:** two separate
+  transactions + rows-computed-before-DELETE, so the ~6-min run (was ~3) never holds the write
+  lock beyond ms (D82c; unit timeout 1800s ≫ 6 min, checked).
+- **Constants canon:** `docs/calculations-and-weights.md` §5c. Gates: py_compile + import (VPS
+  py3.10) + in-memory persist/read/legacy-tier smoke + live persist (76 winners + 95 watch rows)
+  + walk-the-journey curls (below).
+- **Honest residuals:** §B2 pierced-4.618 scan-withhold is documented in wolfe-rules.md but NOT
+  implemented (it would REMOVE scan rows — Ramana's call; recorded in open items) · watch is
+  snapshot-only (no ?asof= PIT replay, no live refresh — stated on-page) · G.gloss keys for
+  STR/LND not added (scan page uses title-tooltips + on-page legend; converge later per AUD-71).
 ### Session 88 — 2026-07-10 — STAKE × PLEDGE CONFLUENCE BOARD live (D94 queue #3) — two live data-honesty catches: Reg-29(1) levels-as-flows + control-transfer double-counts
 D94 queue #3 executed (ledger cited pre-build: footprint detector gate-FAIL — 764/947
 episodes had NO pre-public window, SEBI T+2 → post-disclosure reads only; E-04/E-05

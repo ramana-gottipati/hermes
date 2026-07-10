@@ -643,6 +643,27 @@ def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.02):
     return e12, e34, zones[:6]
 
 
+# ---- §B display split + structure-watch bar (D98, panel-decided 2026-07-10) -- #
+# STR/LND regroup the LOCKED §B components for DISPLAY & watch-selection only —
+# the rubric, per-component values and the Q total are untouched (wolfe-rules.md §B3):
+#   STR (shape,   max 11) = p1×2 + B + H — how well the wedge is BUILT.
+#   LND (landing, max 13) = C + F + G + I + D — how point 5 LANDED (zone/RSI/upside).
+# ⚠ LND INVERTS as a trade filter: the OOS winner profile deliberately prefers LOW
+# D/F (reachable EPA, not-narrowest zone), so scan winners show low LND BY DESIGN.
+_WATCH_MIN_STRUCTURE = 10.0   # structure-watch bar: STR >= 10 of 11 (TCS archetype = 11/11)
+
+
+def score_split(sc):
+    """(structure, landing) sub-totals of a §B score dict — a display regroup of the
+    locked components, never a rubric change. (None, None) when there is no score."""
+    if not sc:
+        return None, None
+    structure = (sc.get("p1", 0) or 0) * 2 + (sc.get("B", 0) or 0) + (sc.get("H", 0) or 0)
+    landing = ((sc.get("C", 0) or 0) + (sc.get("F", 0) or 0) + (sc.get("G", 0) or 0)
+               + (sc.get("I", 0) or 0) + (sc.get("D", 0) or 0))
+    return round(structure, 2), round(landing, 2)
+
+
 def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
     """Shape ONE analyzed wave for the candle overlay: 1-2-3-4-(5) structure + numbered
     markers, the 1-3 line (the point-5 confirmation rail), the EPA, the two Fib grids and
@@ -692,11 +713,14 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
     qbits = (f' · [p1×2={sc.get("p1",0)*2} B={sc.get("B",0)} C={sc.get("C",0)} F={sc.get("F",0)} '
              f'G={sc.get("G",0)} H={sc.get("H",0)} I={sc.get("I",0)} D={sc.get("D",0)}]') if sc else ''
     # lead with the WAVE Ramana reads (dir · status · point-4 date · ₹ zone), THEN the Q
-    # quality badge + the §B chips (panel/Ramana-proxy: "I read the wave, not letter-soup").
+    # quality badge + the STR/LND split (D98 — one Q hides two stories) + the §B chips
+    # (panel/Ramana-proxy: "I read the wave, not letter-soup").
+    stq, lnq = score_split(sc)
     summary = (f'{w["direction"]} Wolfe · {w["state"]} · pt4 {w["pivots"][3]["date"]}'
                + (f' · zone {zones[0]["price"]}' if zones else '')
                + (f' · 5≈{p5pred["value"]}' if p5pred else '')
                + f' · Q{w.get("quality_total",0)}'
+               + (f' = STR {stq:g}/11 · LND {lnq:g}/13' if stq is not None else '')
                + (f' (rank {w["wolfe_rank"]}{w["rank_tier"]})' if w.get("wolfe_rank") is not None else '')
                + qbits)
     return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
@@ -741,9 +765,10 @@ def overlay_for(conn, sym=None, idx=None):
         return out
 
     # completed = confirmed waves. The ◄/► walk is ONE-at-a-time, so cap it to the top
-    # _OVERLAY_MAX by §B quality (the union can surface 200+; the FULL list lives on
-    # /dash/wolfe, click-to-draw). 40 keeps mid-quality historical waves (RELIANCE
-    # Nov-2022 ranks ~30) that a tighter cap would hide. Then show NEWEST-FIRST.
+    # _OVERLAY_MAX by §B quality (the union can surface 200+; /dash/wolfe lists the
+    # RECENT-WINDOW waves, click-to-draw — not the full history). 40 keeps mid-quality
+    # historical waves (RELIANCE Nov-2022 ranks ~30) that a tighter cap would hide.
+    # Then show NEWEST-FIRST.
     conf = [w for w in ws if w["state"] == "CONFIRMED" and w["p5"]]
     conf.sort(key=lambda w: -(w.get("quality_total") or 0))
     top = conf[:_OVERLAY_MAX]
@@ -848,14 +873,91 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
             t1 = t1_confluence(w.p, w.direction)
             epa = w.p[0].price + w.epa_slope * (n - 1 - w.p[0].idx)
             up = abs(epa - z["price"]) / z["price"] * 100.0 if z["price"] else 0.0
+            stq, lnq = score_split(w.score)
             out.append({
                 "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
                 "zlo": round(z["low"], 1), "zhi": round(z["high"], 1), "zprice": round(z["price"], 1),
                 "sl": round(sl, 1), "t1": (round(t1, 1) if t1 else None), "epa": round(epa, 1),
                 "up": round(up, 1), "age": age, "Q": w.score["total"],
+                "str": stq, "lnd": lnq, "D": w.score.get("D"), "p1": w.score.get("p1"),
+                "F": w.score.get("F"), "C": w.score.get("C"),
                 "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
     out.sort(key=lambda r: (not r["in_zone"], r["age"]))
+    return out
+
+
+def watch_scan(conn, universe="nifty500", fresh=15, asof=None):
+    """STRUCTURE WATCH (D98) — fresh CONFIRMED waves whose §B *shape* is near-perfect
+    (STR >= _WATCH_MIN_STRUCTURE of 11) but which the SCAN does not show: either they
+    FAIL the OOS winner profile, or they pass it with no fib confluence (the scanner
+    requires the zone — it is the entry/stop). The scan's explicit complement ("what
+    the edge filter rejected, and why"). NO validated edge — the raw lens is
+    §C-falsified (median −2% net, a tail game); this is a reading surface, never a
+    signal. Rows mirror winner_scan's shape plus the profile legs (D/p1/F) and C as
+    context. Zone-less waves are KEPT (the wave is the story here, not the entry)
+    with zlo/zhi/zprice/sl/t1 = None.
+    Sort: freshest first, STR desc tie-break — NEVER by Q (Q inverts as a filter)."""
+    import bisect
+    out = []
+    for sym in scan_universe(conn, universe):
+        s = stock_series(conn, sym)
+        if not s:
+            continue
+        dates, _o, highs, lows, closes = s
+        if asof:
+            k = bisect.bisect_right(dates, asof)
+            if k < 60:
+                continue
+            dates, highs, lows, closes = dates[:k], highs[:k], lows[:k], closes[:k]
+        n = len(closes)
+        cmp_ = closes[-1]
+        waves, _ = detect_waves(highs, lows, closes)
+        for w in waves:
+            if w.state != "CONFIRMED" or not w.p5:
+                continue
+            stq, lnq = score_split(w.score)
+            if stq is None or stq < _WATCH_MIN_STRUCTURE:
+                continue
+            age = n - 1 - w.p5.idx
+            if age > fresh:
+                continue
+            _e12, _e34, zones = fib_zones(w.p[0].price, w.p[1].price, w.p[2].price,
+                                          w.p[3].price, direction=w.direction)
+            if is_winner_profile(w.score) and zones:
+                continue                      # already on the scan table
+            bull = w.direction == "BULL"
+            z = (sorted(zones, key=lambda zz: (-zz["price"] if bull else zz["price"]))[0]
+                 if zones else None)
+            sl = (z["low"] * 0.997 if bull else z["high"] * 1.003) if z else None
+            t1 = t1_confluence(w.p, w.direction)
+            epa = w.p[0].price + w.epa_slope * (n - 1 - w.p[0].idx)
+            up = abs(epa - cmp_) / cmp_ * 100.0 if cmp_ else 0.0   # EPA distance from CMP
+            sc = w.score or {}
+            out.append({
+                "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
+                "zlo": (round(z["low"], 1) if z else None),
+                "zhi": (round(z["high"], 1) if z else None),
+                "zprice": (round(z["price"], 1) if z else None),
+                "sl": (round(sl, 1) if sl is not None else None),
+                "t1": (round(t1, 1) if t1 else None), "epa": round(epa, 1),
+                "up": round(up, 1), "age": age, "Q": sc.get("total"),
+                "str": stq, "lnd": lnq, "D": sc.get("D"), "p1": sc.get("p1"),
+                "F": sc.get("F"), "C": sc.get("C"),
+                "in_zone": bool(z and z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
+                "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
+    # one row per (sym, direction): the detector's fractal-degree twins of one wedge
+    # (frac@10 vs frac@20 copies of the same structure) collapse to the strongest-shape,
+    # freshest copy — the chart draws every variant on click-through. A correlated-market
+    # p5 day (e.g. the Jul-01 selloff low) otherwise floods the list with twins (140→95).
+    best = {}
+    for r in out:
+        k = (r["sym"], r["dir"])
+        b = best.get(k)
+        if b is None or (-(r["str"] or 0), r["age"]) < (-(b["str"] or 0), b["age"]):
+            best[k] = r
+    out = list(best.values())
+    out.sort(key=lambda r: (r["age"], -(r["str"] or 0)))
     return out
 
 
@@ -901,6 +1003,18 @@ def _ensure_scan_table(conn):
         )""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_wolfe_universe "
                  "ON wolfe_signals(universe, in_zone DESC, age ASC)")
+    # D98: STR/LND split + winner-profile legs (nullable — pre-D98 snapshots stay valid;
+    # idempotent ALTERs, still owned by wolfe.py, db.py untouched).
+    for ddl in ("ALTER TABLE wolfe_signals ADD COLUMN str_sub REAL",
+                "ALTER TABLE wolfe_signals ADD COLUMN lnd_sub REAL",
+                "ALTER TABLE wolfe_signals ADD COLUMN d_comp INTEGER",
+                "ALTER TABLE wolfe_signals ADD COLUMN p1_comp INTEGER",
+                "ALTER TABLE wolfe_signals ADD COLUMN f_comp INTEGER",
+                "ALTER TABLE wolfe_signals ADD COLUMN c_comp INTEGER"):
+        try:
+            conn.execute(ddl)
+        except Exception:
+            pass  # column already exists
 
 
 def _scan_as_of(conn):
@@ -928,12 +1042,15 @@ def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
     conn.executemany(
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
-        " p5date,p4date,fresh,scan_date,computed_at) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " p5date,p4date,fresh,scan_date,computed_at,"
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
-          scan_date, computed_at) for r in rows])
+          scan_date, computed_at,
+          r.get("str"), r.get("lnd"), r.get("D"), r.get("p1"), r.get("F"), r.get("C"))
+         for r in rows])
     # CL-SCO-12: do NOT commit here. `conn` is always passed in by the caller (the
     # CLI uses `with get_conn()`, which commits on success / rolls back on error), so
     # an internal `try: conn.commit() except: pass` (a) committed a foreign connection
@@ -943,16 +1060,75 @@ def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
     return len(rows), scan_date
 
 
+def persist_watch(conn, universe="nifty500", fresh=15, computed_at=None):
+    """Materialise watch_scan() under universe='<uni>:watch' (D98) — same clean-snapshot
+    semantics and the same nightly run as persist_scan (the CLI persists both). The
+    ':watch' suffix keeps it invisible to every exact-match universe reader
+    (latest_scan, strategy_registry, cockpit).
+    Order matters: the ~60s watch_scan compute runs BEFORE the DDL/DELETE so the
+    write window stays milliseconds — never hold the write lock across the detect
+    pass (the D82c lesson; the 16:00 UTC timer overlaps the ingest cluster)."""
+    rows = watch_scan(conn, universe=universe, fresh=fresh)
+    _ensure_scan_table(conn)
+    scan_date = _scan_as_of(conn)
+    key = universe + ":watch"
+    conn.execute("DELETE FROM wolfe_signals WHERE universe=?", (key,))
+    conn.executemany(
+        "INSERT INTO wolfe_signals "
+        "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
+        " p5date,p4date,fresh,scan_date,computed_at,"
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [(key, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
+          r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
+          1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
+          scan_date, computed_at,
+          r["str"], r["lnd"], r["D"], r["p1"], r["F"], r["C"]) for r in rows])
+    return len(rows), scan_date
+
+
 def latest_scan(conn, universe="nifty500"):
     """Read the persisted scan snapshot for a universe (instant). Returns
     {rows:[…same shape as winner_scan…], scan_date, computed_at, fresh} or None
-    when the table is absent/empty (caller falls back to a live winner_scan)."""
+    when the table is absent/empty (caller falls back to a live winner_scan).
+    Two-tier read: a pre-D98 snapshot/table (no split columns) degrades to
+    str/lnd = None instead of failing to the ~30s live scan."""
+    base = ("SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
+            "p5date,p4date,fresh,scan_date,computed_at{ext} "
+            "FROM wolfe_signals WHERE universe=? "
+            "ORDER BY in_zone DESC, age ASC")
+    recs, ext = None, True
+    try:
+        recs = conn.execute(base.format(ext=",str_sub,lnd_sub"), (universe,)).fetchall()
+    except Exception:
+        ext = False
+        try:
+            recs = conn.execute(base.format(ext=""), (universe,)).fetchall()
+        except Exception:
+            return None
+    if not recs:
+        return None
+    rows = [{"sym": r[0], "dir": r[1], "cmp": r[2], "zlo": r[3], "zhi": r[4],
+             "zprice": r[5], "sl": r[6], "t1": r[7], "epa": r[8], "up": r[9],
+             "age": r[10], "Q": r[11], "in_zone": bool(r[12]),
+             "p5date": r[13], "p4date": r[14],
+             "str": (r[18] if ext else None), "lnd": (r[19] if ext else None)}
+            for r in recs]
+    return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
+            "fresh": recs[0][15]}
+
+
+def latest_watch(conn, universe="nifty500"):
+    """Read the persisted structure-watch snapshot (universe='<uni>:watch', D98).
+    None when absent — the page shows 'snapshot pending'; there is NO live fallback
+    (a live watch pass costs ~30s over the universe; the watch is a nightly read)."""
     try:
         cur = conn.execute(
             "SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
-            "p5date,p4date,fresh,scan_date,computed_at "
+            "p5date,p4date,fresh,scan_date,computed_at,"
+            "str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp "
             "FROM wolfe_signals WHERE universe=? "
-            "ORDER BY in_zone DESC, age ASC", (universe,))
+            "ORDER BY age ASC, str_sub DESC", (universe + ":watch",))
         recs = cur.fetchall()
     except Exception:
         return None
@@ -961,7 +1137,9 @@ def latest_scan(conn, universe="nifty500"):
     rows = [{"sym": r[0], "dir": r[1], "cmp": r[2], "zlo": r[3], "zhi": r[4],
              "zprice": r[5], "sl": r[6], "t1": r[7], "epa": r[8], "up": r[9],
              "age": r[10], "Q": r[11], "in_zone": bool(r[12]),
-             "p5date": r[13], "p4date": r[14]} for r in recs]
+             "p5date": r[13], "p4date": r[14],
+             "str": r[18], "lnd": r[19], "D": r[20], "p1": r[21],
+             "F": r[22], "C": r[23]} for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
 
@@ -981,9 +1159,15 @@ def _cli():
     args = ap.parse_args()
     if args.persist_scan:
         stamp = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # D98: the same nightly run also materialises the structure watch — but in a
+        # SEPARATE connection/transaction, so the scan snapshot commits before the
+        # watch's ~60s detect pass starts (no long write-lock hold; D82c discipline).
         with get_conn() as conn:
             n, scan_date = persist_scan(conn, universe=args.universe, fresh=args.fresh, computed_at=stamp)
-        print(f"persisted {n} winner-profile setups for {args.universe} (as-of {scan_date}, computed {stamp})")
+        with get_conn() as conn:
+            nw, _ = persist_watch(conn, universe=args.universe, fresh=args.fresh, computed_at=stamp)
+        print(f"persisted {n} winner-profile setups + {nw} structure-watch rows "
+              f"for {args.universe} (as-of {scan_date}, computed {stamp})")
     else:
         ap.print_help()
 

@@ -267,6 +267,12 @@ def _summary(d, wi, sym, idx):
         wpb = ('<span style="background:#1f6feb;color:#fff;font-size:10px;padding:0 5px;border-radius:4px;'
                'margin-right:5px" title="reachable-EPA winner-profile — the validated edge">★ EDGE</span>') if wp else ''
         sc = w.get("score") or {}
+        stq, lnq = wolfe.score_split(sc)
+        split = (f'<span style="color:var(--ink-2);font-size:11px" '
+                 f'title="§B split — STR = shape (p1×2 + pts-2/3/4 + rail touches, max 11), '
+                 f'LND = landing (C zone · F gap · G 4.618 · I RSI · D upside, max 13). '
+                 f'⚠ LND inverts as a trade filter — the validated profile prefers low D/F.">'
+                 f' = STR {stq:g}/11 · LND {lnq:g}/13</span>') if stq is not None else ''
         chip_title = (f'§B  p1×2={sc.get("p1",0)*2}  B={sc.get("B",0)}  C={sc.get("C",0)}  '
                       f'F={sc.get("F",0)}  G={sc.get("G",0)}  H={sc.get("H",0)}  I={sc.get("I",0)}  '
                       f'D={sc.get("D",0)}    ·    WolfeRank {w["wolfe_rank"]}{w["rank_tier"]} q{w["quality"]}'
@@ -280,18 +286,50 @@ def _summary(d, wi, sym, idx):
             f'border-radius:4px;text-decoration:none;color:var(--ink)">'
             f'{wpb}<b style="color:{col}">{w["direction"]} Wolfe</b> · {w["state"]} · '
             f'<span style="color:var(--ink-2)">pt4 {_esc(p4d)}</span> · {zs}{ups}{rrs} · '
-            f'<b style="color:{col}">Q{w.get("quality_total",0)}</b>'
+            f'<b style="color:{col}">Q{w.get("quality_total",0)}</b>{split}'
             f'<span style="color:var(--ink-3);font-size:11px"> {_esc(w.get("source",""))}</span>'
             f'<span style="color:{col}">{mark}</span></a>')
     out.append('</div>')
     return "".join(out)
 
 
+def _leg(name, val, ok, rule):
+    """One winner-profile leg chip: value + ✓/✗, tooltip = the rule (D98 watch)."""
+    if val is None:
+        return ''
+    col = 'var(--up)' if ok else 'var(--down)'
+    return (f'<span style="color:{col};white-space:nowrap" title="{rule}">'
+            f'{name}{val:g}{"✓" if ok else "✗"}</span>')
+
+
+def _fail_legs(r):
+    """Why-it-fails chips for a structure-watch row: the THREE profile legs (D/p1/F)
+    with pass-fail state; C (zone landing) shown muted as CONTEXT — it is NOT a leg
+    of the validated filter (panel condition, D98)."""
+    d, p1, fz, c = r.get("D"), r.get("p1"), r.get("F"), r.get("C")
+    parts = [_leg('D', d, d is not None and d <= 1,
+                  'winner profile needs D ≤ 1 — upside to EPA under 20% (reachable)'),
+             _leg('p1', p1, p1 is not None and p1 >= 2,
+                  'winner profile needs p1 ≥ 2 — a strong fractal point-1'),
+             _leg('F', fz, fz is not None and fz <= 2,
+                  'winner profile needs F ≤ 2 — not the narrowest zone')]
+    if c is not None:
+        parts.append(f'<span style="color:var(--ink-3)" '
+                     f'title="point-5 zone landing — context, NOT a profile leg">C{c:g}</span>')
+    if (d is not None and d <= 1 and p1 is not None and p1 >= 2
+            and fz is not None and fz <= 2 and r.get("zlo") is None):
+        parts.append('<span style="color:#d29922" title="passes all three profile legs but has '
+                     'no fib confluence — the scanner requires the zone (it is the entry/stop)">'
+                     'zone-less winner</span>')
+    return '&nbsp; '.join(p for p in parts if p)
+
+
 @router.get("/dash/wolfe/scan", response_class=HTMLResponse)
 def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                fresh: int = Query(15, ge=1, le=180),
                asof: str = Query("", max_length=12),
-               refresh: int = Query(0, ge=0, le=1)):
+               refresh: int = Query(0, ge=0, le=1),
+               wall: int = Query(0, ge=0, le=1)):
     """The winner-profile SCANNER — the OOS-validated reachable-EPA edge across the universe.
     Each row is clickable → /dash/wolfe?sym=…&pick=winner (draws that stock's winner wave).
 
@@ -308,6 +346,9 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         else:
             cands = wolfe.winner_scan(conn, universe=uni, fresh=fresh, asof=(asof or None))
             eff_fresh = fresh
+        # D98 structure watch — nightly snapshot only (no ~30s live fallback);
+        # an ?asof= replay hides it (the watch snapshot is not PIT-replayable).
+        watch = wolfe.latest_watch(conn, universe=uni) if not asof else None
     nin = sum(1 for c in cands if c["in_zone"])
     trs = []
     for c in cands:
@@ -332,12 +373,76 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             f'<td>{_fmt(c["cmp"])}</td><td>{_fmt(c["zlo"])}–{_fmt(c["zhi"])}</td>'
             f'<td style="color:var(--down)">{_fmt(c["sl"])}</td>'
             f'<td>{t1s}</td><td style="color:var(--up)">{_fmt(c["epa"])}</td>'
-            f'<td>{c["up"]:.0f}%</td></tr>')
+            f'<td>{c["up"]:.0f}%</td>'
+            f'<td style="color:var(--ink-2)" title="§B read-quality, split STR (shape: p1×2+B+H, max 11) '
+            f'+ LND (landing: C+F+G+I+D, max 13). ⚠ LND inverts as a trade filter — the validated profile '
+            f'prefers LOW D/F, so winners here show low LND by design.">Q{c["Q"]:g}'
+            + (f' <span style="color:var(--ink-3);font-size:11px">= {c["str"]:g}+{c["lnd"]:g}</span>'
+               if c.get("str") is not None else '')
+            + '</td></tr>')
     if not cands:
-        trs = ['<tr><td colspan="10" style="padding:14px;color:var(--ink-2)">No fresh winner-profile setups right now — '
+        trs = ['<tr><td colspan="11" style="padding:14px;color:var(--ink-2)">No fresh winner-profile setups right now — '
                'try <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a> or '
                '<a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
-    head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up')
+    head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up', 'Q = STR+LND')
+    # ---- D98: STRUCTURE WATCH — the scan's complement (descriptive, NO edge) ---- #
+    wrows_all = (watch or {}).get("rows") or []
+    _WATCH_SHOW = 30          # default display slice — NEVER a silent cap (counted link below)
+    wrows = wrows_all if wall else wrows_all[:_WATCH_SHOW]
+    wtrs = []
+    for r in wrows:
+        col = _UP_VAR if r["dir"] == "BULL" else _DN_VAR
+        zone = (f'{_fmt(r["zlo"])}–{_fmt(r["zhi"])}' if r["zlo"] is not None else
+                '<span style="color:var(--ink-3)" title="no fib-extension confluence — the '
+                'legs&#39; 1-2 and 3-4 grids never agree within 2%">no zone</span>')
+        split = (f'{r["str"]:g}/11 · {r["lnd"]:g}/13' if r.get("str") is not None else '—')
+        qv = f'{r["Q"]:g}' if r.get("Q") is not None else '—'
+        wtrs.append(
+            f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(r["sym"])}&pick=watch\'" '
+            f'style="cursor:pointer;border-top:1px solid var(--line-2)" '
+            f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
+            f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(r["sym"])}</b></td>'
+            f'<td style="color:{col};font-weight:600">{r["dir"]}</td>'
+            f'<td style="color:var(--ink-2)">{r["age"]}d</td>'
+            f'<td>{_fmt(r["cmp"])}</td><td>{zone}</td>'
+            f'<td style="color:var(--ink-2)">{_fmt(r["epa"])}</td>'
+            f'<td style="color:var(--ink-2)">{r["up"]:.0f}%</td>'
+            f'<td title="§B split — STR = shape (p1×2 + pts-2/3/4 + rail), LND = landing '
+            f'(C zone · F gap · G 4.618 · I RSI · D upside)">Q{qv} = <b>{split}</b></td>'
+            f'<td style="font-size:12px">{_fail_legs(r)}</td></tr>')
+    whead = ('symbol', 'dir', 'age', 'CMP', 'fib zone', 'EPA', 'EPA dist', 'Q = STR+LND', 'why not in the scan')
+    watch_html = (
+        '<h3 style="margin:26px 0 4px">Structure watch '
+        '<span style="color:var(--ink-2);font-size:14px;font-weight:400">— textbook shape, no validated edge</span></h3>'
+        '<div class="sub" style="margin-bottom:6px">Fresh confirmed waves whose <b>shape</b> is near-perfect '
+        '(STR ≥ 10/11) but which the scanner above does not show — the edge filter&#39;s rejects, listed so a '
+        'textbook wedge is never invisible (the TCS Jul-01 miss, D96/D98). <b>No edge claim:</b> the raw Wolfe '
+        'lens is falsified as a trade signal (median −2% net per trade — a tail game); only the winner profile '
+        'above carries the validated edge. Each row shows <b>why</b> it is not on the scan: the three profile '
+        'legs D · p1 · F with ✓/✗ (C is context, not a leg). <b>EPA dist</b> = distance from CMP to the EPA '
+        'target (far EPA = the D✗ that usually fails these). Sorted freshest-first, never by Q. '
+        '<i>Descriptive — a reading surface, not a signal.</i></div>'
+        + (
+            f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:8px">'
+            f'<b>{len(wrows_all)}</b> waves (one per symbol+direction) · as-of '
+            f'<b>{_esc((watch or {}).get("scan_date") or "—")}</b> '
+            f'<span style="color:var(--ink-3)">(nightly snapshot — ↻ refresh above applies to the scanner only)</span>'
+            + (f' · showing the {len(wrows)} freshest — '
+               f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall=1" style="color:#58a6ff">show all {len(wrows_all)}</a>'
+               if len(wrows_all) > len(wrows) else '')
+            + '</div>'
+            '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+            '<thead><tr style="color:var(--ink-2);text-align:left">'
+            + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in whead)
+            + '</tr></thead><tbody>'
+            + ("".join(wtrs) or '<tr><td colspan="9" style="padding:12px;color:var(--ink-2)">'
+                                'No fresh strong-shape rejects right now.</td></tr>')
+            + '</tbody></table>'
+            if watch is not None else
+            '<div style="color:var(--ink-3);font-size:13px">Snapshot pending — the nightly Wolfe scan '
+            '(16:00 UTC) materialises the watch; until then this section is empty'
+            + (' (PIT replays show the scanner only).' if asof else '.') + '</div>'
+        ))
     body = (
         '<h2>Wolfe scanner <span style="color:var(--ink-2);font-size:15px;font-weight:400">— winner-profile, read by side</span></h2>'
         '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
@@ -348,7 +453,9 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         '<span style="color:#d29922;font-weight:600">BEAR ⚠ tail</span> = regime-dependent / tail-only — reliable '
         'mainly when the broad tape is already weak, not on its own. The edge is in the <b>selection</b>, not the '
         'stop/target. <b>Click a row</b> to see its wave on the chart. '
-        '<span style="color:var(--up)">● IN</span> = price in the entry zone now. <i>Descriptive — not a buy/sell signal.</i></div>'
+        '<span style="color:var(--up)">● IN</span> = price in the entry zone now. Setups with no fib-extension '
+        'confluence cannot be listed here (the zone is the entry/stop) — strong-shape ones surface in the '
+        'Structure watch below. <i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:10px">{_esc(universe)} · '
         + (f'as-of <b>{_esc(cached["scan_date"] or "—")}</b> '
            f'<span style="color:var(--ink-3)">(nightly snapshot{(" · computed " + _esc(cached["computed_at"][:16])) if cached.get("computed_at") else ""})</span> · '
@@ -362,7 +469,8 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
-        + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table>')
+        + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table>'
+        + watch_html)
     return HTMLResponse(_shell("Wolfe scanner", body, "wolfe", wide=True))
 
 
@@ -391,6 +499,12 @@ def wolfe_page(sym: str = Query("", max_length=24),
         wps = [(i, ww) for i, ww in enumerate(d["waves"]) if wolfe.is_winner_profile(ww.get("score"))]
         if wps:
             w = max(wps, key=lambda iw: iw[1]["pivots"][3]["idx"])[0]
+    elif pick == "watch" and d.get("waves"):      # from the structure watch → the freshest strong-shape confirmed wave
+        wps = [(i, ww) for i, ww in enumerate(d["waves"])
+               if ww["state"] == "CONFIRMED" and ww.get("p5")
+               and (wolfe.score_split(ww.get("score"))[0] or 0) >= wolfe._WATCH_MIN_STRUCTURE]
+        if wps:
+            w = max(wps, key=lambda iw: iw[1]["p5"]["idx"])[0]
 
     body = (
         f'<h2>{_esc(d["label"])} — Wolfe wave</h2>'

@@ -121,5 +121,15 @@ These exact thresholds/weights are deliberately kept OUT of the client glossary 
 
 ---
 
+## 5c. Wolfe §B display split + structure watch (D98 — display/selection layer only)
+
+**Canonical sources:** `src/automation/wolfe.py` (`score_split`, `_WATCH_MIN_STRUCTURE`, `watch_scan`); the §B rubric itself lives in `docs/wolfe-rules.md` §B3 and is UNCHANGED by this layer.
+
+- **STR/LND split (display regroup, no rubric change):** `STR = p1×2 + B + H` (shape, max **11**) · `LND = C + F + G + I + D` (landing, max **13**); `STR + LND = Q`. Shown wherever the Q badge appears (walk summary, /dash/wolfe list, scan + watch tables). ⚠ **LND inverts as a trade filter** — the OOS winner profile deliberately prefers LOW D/F, so scan winners show low LND by design; the tooltips say so.
+- **Structure-watch bar:** `wolfe._WATCH_MIN_STRUCTURE = 10.0` (STR ≥ 10 of 11; the TCS Jul-01 archetype is 11/11). Fresh window = the scan's `fresh` param (**15 bars** — deliberately mirrors the winner scan so the watch is its literal complement). Sort = age ASC, STR DESC — **never by Q** (Q inverts as a trade filter; a Q-sort would read as a recommendation ranking).
+- **Watch membership:** CONFIRMED + p5 ≤ fresh + STR ≥ bar + **not shown on the scan** (fails the winner profile `D≤1 & p1≥2 & F≤2`, or passes it with no fib confluence — the scanner requires the zone). **One row per (sym, direction)** — the detector's fractal-degree twins of a single wedge collapse to the strongest-shape/freshest copy (a correlated-market p5 day otherwise floods the list: 140→95 on 2026-07-10). Persisted nightly by the same `--persist-scan` run under `wolfe_signals.universe='<uni>:watch'`. The page shows the freshest 30 by default with a counted "show all N" link (`?wall=1`) — an explicit slice, never a silent cap. Descriptive-only: the raw lens is §C-falsified (median −2% net/trade, tail game) — the watch never claims an edge.
+
+---
+
 ## 6. Maintenance rule
 When any weight/anchor/threshold changes: (1) edit the **canonical code constant**; (2) update the **single** entry in this file; (3) if a UI/glossary surface shows it, have that surface **read/link** it — never hard-code a second copy. Reviewers check *this file* for "how is it calculated," not scattered code comments.
