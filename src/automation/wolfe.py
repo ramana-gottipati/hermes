@@ -676,6 +676,11 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False):
 # — they were producing false "zones" sitting within the structure (e.g. 0.786∩0.618).
 _FIB_R = (1.272, 1.414, 1.618, 2.618, 3.618, 4.236, 4.618)
 
+# The maximum §B quality points a wave can score — A(6)+B(3)+C(3)+F(3)+G(2)+H(2)+I(2)+D(3).
+# The overlay badge shows points/_QUALITY_MAX. Bump this WITH any §B weightage change
+# (Ramana's pending rebalance → 25/26) so the "out of total" stays truthful.
+_QUALITY_MAX = 24
+
 
 def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.02):
     """Standard Fib EXTENSIONS on swing 1-2 and swing 3-4, drawn the way Ramana draws
@@ -782,6 +787,8 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
                + qbits)
     return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
             "lifecycle": lc, "close_quality": w.get("close_quality"),
+            "points": w.get("quality_total", 0), "points_max": _QUALITY_MAX,
+            "rank_tier": w.get("rank_tier"), "wolfe_rank": w.get("wolfe_rank"),
             "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
             "p5pred": p5pred, "p4_time": p[3]["date"], "p4_value": round(p[3]["price"], 2),
             "last_time": dates[line_r], "fib12": fib12, "fib34": fib34, "zones": zones,

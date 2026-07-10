@@ -79,6 +79,39 @@ SNIPPET = """<script>
     setFans(fansOn);
   }
   function panTo(w){ if(w&&w.pan_from&&w.pan_to){ try{ window.__wfpc.timeScale().setVisibleRange({from:w.pan_from,to:w.pan_to}); }catch(e){} } }
+  // -------- badge (top of the chart): direction · points/total · rank ---------
+  // Fixed at the top so it stays put while the chart stays static (Ramana: no zoom on nav).
+  var badgeEl=null;
+  function ensureBadge(){
+    if(badgeEl) return badgeEl;
+    var host=document.getElementById('priceChart'); if(!host) return null;
+    if(getComputedStyle(host).position==='static') host.style.position='relative';
+    badgeEl=document.createElement('div');
+    badgeEl.style.cssText='position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:6;'+
+      'font:600 12px -apple-system,Segoe UI,sans-serif;padding:4px 12px;border-radius:14px;'+
+      'pointer-events:none;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.45)';
+    host.appendChild(badgeEl);
+    return badgeEl;
+  }
+  function waveRank(w){                       // rank of w within the CURRENT section, by points
+    if(mode!=='open'&&mode!=='closed') return null;
+    var lst=listFor(mode); if(!lst.length) return null;
+    var pts=(w.points!=null?w.points:0), better=0;
+    for(var i=0;i<lst.length;i++){ if((lst[i].points!=null?lst[i].points:0)>pts) better++; }
+    return {rank:better+1, total:lst.length};
+  }
+  function updateBadge(w){
+    var b=ensureBadge(); if(!b) return;
+    if(!w||mode==='draw'){ b.style.display='none'; return; }
+    var bull=w.dir==='BULL', col=bull?'#3fd486':'#ff6a7a', rk=waveRank(w);
+    b.style.display='block';
+    b.style.background=bull?'rgba(63,212,134,0.16)':'rgba(255,106,122,0.16)';
+    b.style.color=col; b.style.border='1px solid '+col;
+    b.innerHTML=(bull?'\\u25b2 BULL':'\\u25bc BEAR')
+      +' &nbsp;\\u00b7&nbsp; '+(w.points!=null?w.points:'?')+'/'+(w.points_max||24)+' pts'
+      +(rk?' &nbsp;\\u00b7&nbsp; rank #'+rk.rank+'/'+rk.total:'');
+  }
+  function hideBadge(){ if(badgeEl) badgeEl.style.display='none'; }
   // Ramana's 3 sections, all from the SAME confirmed-wave list — filtered by lifecycle,
   // NOTHING hidden: open = point 5 in, EPA target not yet reached (the actionable now);
   // closed = EPA reached (reference + how neatly). Prediction = forming (no point 5).
@@ -254,7 +287,9 @@ SNIPPET = """<script>
   function redraw(){
     if(mode==='draw'){ controls(); return; }
     if(!window.__wfpc||!DATA){ controls(); return; }
-    clear(); var w=curWave(); if(w){ drawWave(w); panTo(w); } controls();
+    // Ramana: the chart stays STATIC on nav — draw the selected wave, clear the one we're
+    // leaving, but do NOT pan/zoom (panTo removed). Only the badge updates.
+    clear(); var w=curWave(); if(w){ drawWave(w); } updateBadge(w); controls();
   }
   function load(){
     if(lbl) lbl.textContent='loading…';
@@ -271,7 +306,7 @@ SNIPPET = """<script>
   }
   cb.addEventListener('change', function(){
     if(this.checked){ if(DATA||BARS!==null) redraw(); else load(); }
-    else { clear(); manual=[]; manualZones=[]; mode='pred'; if(lbl) lbl.textContent=''; }
+    else { clear(); manual=[]; manualZones=[]; mode='pred'; hideBadge(); if(lbl) lbl.textContent=''; }
   });
 })();
 </script>"""
