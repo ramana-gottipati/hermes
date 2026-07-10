@@ -1765,7 +1765,7 @@ The S96b finding ("`signal_events` = 0 rows in prod — bus has no producer") is
 ExecStart anywhere runs `--detect`) **AND the cci lens was silently dead** — `run_detection`
 ordered `credibility_series` by an `as_of` column that table does not have (it is PERIOD-keyed);
 the defensive except swallowed the SQL error on every symbol, so even a wired run would have
-emitted cci-nothing forever. Shipped (this commit; hash backfilled next docs commit):
+emitted cci-nothing forever. Shipped (`6733dda`):
 - **Wiring = drop-in step 60 of the existing hermes-bhavcopy chain** (D105):
   `scripts/systemd/vps-live/hermes-bhavcopy.service.d/60-signal-events.conf` — sequentially
   guaranteed AFTER 10-signals (`mep_signals`), 20-rsdepth (`rsband_signals`), 30-fnooi

@@ -7,6 +7,31 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🚌 S101 WRAP (2026-07-10, bus lane) — signal-event bus PRODUCER WIRED + SEEDED: bhavcopy-chain step 60 (D105, `6733dda` live) — the S96b "0 rows / no producer" finding is CLOSED
+- **What landed:** `--detect` = drop-in step 60 of the hermes-bhavcopy chain
+  (`hermes-bhavcopy.service.d/60-signal-events.conf`, git-owned mirror + `--install`, drift
+  gate CLEAN, merged chain 16 ExecStart steps) — sequenced AFTER the very steps that write
+  mep/rsband/fno_oi; **no new timer, nothing enabled/started (zero AUD-95 surface)**. Producer
+  fixes: the cci lens was SILENTLY DEAD (ordered `credibility_series` by a nonexistent
+  `as_of` col; defensive except ate the error) — now period-ordered with `as_of` =
+  `date(computed_at)` (knowable-day, D104's doctrine applied bus-side); NEW rs lens
+  (index-grain `rs_band_state` flips vs Nifty 500) + deal lens (`deal_print` per symbol/day,
+  magnitude = within-day value pctile); collect-then-commit per lens (write-lock outage class).
+  Tests: `tests/test_signal_events.py` 8 hermetic (incl. the dead-loop regression); PIT suite
+  untouched-green. Readers/schema UNTOUCHED per the chip.
+- **Seeded live 12:51 UTC: 1,188 events in 1.0s** — mep 288 · cci 654 · oi 213 · deal 33 ·
+  rs 0 (SQL-verified honest zero: no band flips Jul-08→09). `attention_queue` serves 6 real
+  events; `R.attention()` PIT replay reaches the Jul-01 cci batch. /v1 HTTP walk still blocked
+  BY DESIGN (`v1_api_keys` 0 rows — the P-05 provisioning gap, unchanged).
+- **🔭 VERIFY TONIGHT (added to the S98 battery):** the 14:04 UTC bhavcopy chain now runs
+  step 60 — journal `hermes-bhavcopy` must show the `run_detection` summary line after the
+  chain (~15:00-15:45 UTC); `--stats` latest_as_of flips to 2026-07-10. Idempotent over the
+  seed; a step-60 crash fails the chain unit → pager (that's by design, fix upstream).
+- **Still not built (PROJECT_STATE §What's-NOT-built):** dvpt/quality/cpr lenses (no banded
+  state / undesigned) · a home-surface face (`/v1/attention` is the ONLY live reader — the
+  chip's "home Attention Queue" does not exist in code; natural next product pick) ·
+  stock-grain rs.
+
 ## 🆕 S100 WRAP (2026-07-10, audit lane) — D104: the /v1 PIT knowable clock upgraded to REAL event dates (AUD-38 refined; `0874e9a` live)
 - **On the wire now:** `credibility?as_of=` serves the EVENT tier — `knowable_from =
   max(concall_dt, transcript_publish_dt)` per period (16,208 concalls carry a real clock;
@@ -25,10 +50,9 @@ PROJECT_STATE entries are enough.**
   commit (selftest polished in between), so a straight live-import diff would have silently
   REVERTED that polish — then land the refinement only. Standing rule hardened: **fork-check
   the VPS live files for EVERY pick** (not just the nav files) before building.
-- **⚠ Number-collision watch:** an active lane is building the signal_events PRODUCER wiring
-  (the S96b chip — bhavcopy-chain step + docstrings) whose draft claims "S100"; that number is
-  taken by this landed session. That lane renumbers at its wrap (S101+, re-check origin) — its
-  landing also makes "signal_events has 0 rows / no producer" OBSOLETE; nobody else pick it.
+- ~~⚠ Number-collision watch~~ **✅ RESOLVED same day:** the signal_events producer lane
+  renumbered to **S101** as prescribed, ff-merged onto this wrap and landed (`6733dda`, D105 —
+  see the 🚌 S101 block above). "signal_events has 0 rows / no producer" is now OBSOLETE.
 
 ## 🏁 S97 WRAP (2026-07-10, main session — Ramana-steered) — chart batch + D95 residue BOTH closed; nothing of mine open
 Three arcs, all shipped + live-verified + state-doc'd; **do NOT redo any of them**:
@@ -100,8 +124,8 @@ the PIT contract in OpenAPI + RFC-7807 422 on malformed dates. Tests `tests/test
 boundary serve). Two bonus fixes: lowercase symbols no longer bypass rename resolution
 (normalize-before-canonical) and the v1 selftest's stale `lag_days==90` now asserts the
 INVARIANT (calibrated lag: VPS serves 114, laptop default 120 — never pin cross-box constants).
-Findings: `signal_events` = **0 rows in prod** (bus has no producer — spawn-task chip filed;
-⚠ producer wiring now IN FLIGHT in a parallel lane, see the S100 block); 5 live /v1+automation
+Findings: ~~`signal_events` = 0 rows in prod (bus has no producer)~~ **✅ CLOSED S101
+(`6733dda`, D105): producer wired + seeded 1,188 events — see the 🚌 S101 block**; 5 live /v1+automation
 files were CRLF (content==HEAD; now LF). **P-05 is UNBLOCKED** — needs an API key provisioned
 on the box (`HERMES_V1_DEV_KEY` unset) for live-key demos. **REFINED S100 (D104, `0874e9a`):**
 the knowable clock is now two-tier — the REAL concall/transcript event date when captured
@@ -513,7 +537,9 @@ its owner session deletes it.
 > (1) run the WRAP-REPORT verifies (5 timers listed in the S98 block — SLB / Wolfe /
 > results-reactions / board-health first fires Jul-10 + season-digest first-DM Sat Jul-11
 > 02:45 UTC — a missing DM is a real bug, do NOT `systemctl start` mid-day per AUD-95;
-> Sat 21:00 provenance is on its own scheduled task, skip);
+> Sat 21:00 provenance is on its own scheduled task, skip; PLUS the 🚌 S101 bus watch:
+> tonight's 14:04 UTC bhavcopy chain runs NEW step 60 — journal must show the
+> `run_detection` summary and `signal_events --stats` latest_as_of must flip to 2026-07-10);
 > (2) kickstart-pick-verify the next build from charter §4/§7 — the E-studies are ARMED and
 > self-gating (E-02 Jul-22; E-04/E-14 depth-gated; do NOT run early). Prefer
 > product/consumption picks. **Deprioritized: P-04 (S96) · E-10 (S93) · D103 heal (S98).**
