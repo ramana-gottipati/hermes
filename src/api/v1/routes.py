@@ -2,11 +2,18 @@
 -> a stamped envelope. Honesty + entitlement + metering are enforced upstream (deps,
 envelope, middleware), so a new endpoint inherits them by construction.
 
-Scope to the HONEST faces (red-team sequencing verdict): the compliance/data-feed reads
-(coverage, universe, registry, health) are live; the ALPHA reads (credibility, attention)
-are gated behind HERMES_V1_ALPHA=1 (default OFF) and return 501 until the §C lead-time
-backtest + data-licensing land — the entitlement split is still provable (a compliance key
-gets 403 before the gate is ever reached).
+All faces are HONEST faces: the compliance/data-feed reads (coverage, universe, registry,
+health) plus the research reads (credibility, attention), which serve as DESCRIPTIVE lenses
+with the structural no-edge caveat — the §C backtest FALSIFIED the credibility return edge,
+so there is NO alpha tier/gate and nothing here is a ranked signal (auth.py owns the scope
+vocabulary; the selftest pins the caveat). [An earlier draft of this docstring described an
+HERMES_V1_ALPHA 501 gate that was never the shipped behaviour — corrected S100.]
+
+PIT semantics (AUD-38/D104): `/universe`, `/securities/{symbol}/credibility` and
+`/attention` accept `as_of=YYYY-MM-DD` (strictly validated -> 422) and serve what was
+KNOWABLE on that date; each PIT response carries a `pit` block naming the knowable rule
+actually applied, so a client can run their own leak audit. `/coverage`, `/meta/health`
+and `/provenance/registry` are deliberately current-state only.
 """
 from __future__ import annotations
 
@@ -33,6 +40,10 @@ def _check_as_of(as_of: str | None) -> str | None:
     if not _AS_OF_FMT.match(v):
         raise HTTPException(422, "as_of must be an ISO date (YYYY-MM-DD)")
     return v
+
+# D104: the knowable ruleset for credibility PIT serves — the applied rule per response
+# rides pit.knowable_rule (concall-event-date when a real clock served, else period-month-end).
+_KNOWABLE_RULESET = "concall-event-date (real clock, when captured) else period-month-end"
 
 # §C FALSIFIED the credibility return edge (docs/product-strategy-2026.md §9): CCI survives ONLY
 # as a DESCRIPTIVE per-name diligence lens, never a ranked buy/sell signal. Client-facing labels
@@ -73,8 +84,19 @@ def coverage(request: Request, p: Principal = Depends(require_scope("coverage"))
 
 
 @router.get("/universe", tags=["compliance"])
-def universe(request: Request, as_of: str | None = None,
-            p: Principal = Depends(require_scope("universe"))):
+def universe(request: Request,
+             as_of: str | None = Query(
+                 None,
+                 description="PIT membership (YYYY-MM-DD): count the survivorship-correct "
+                             "universe on this date (security_master.universe_on; "
+                             "first_date <= d <= last_date, delisted names retained). Omit "
+                             "for the policy + current spine."),
+             p: Principal = Depends(require_scope("universe"))):
+    """Universe-construction policy + survivorship spine.
+
+    PIT semantics (AUD-38): `as_of` replays MEMBERSHIP on a past date; the policy text,
+    disclosures and archive floor/ceiling always describe the CURRENT spine."""
+    as_of = _check_as_of(as_of)  # S100: strict everywhere as_of is accepted (was silent-None here)
     with get_conn() as conn:
         u = R.universe(conn, as_of=as_of)
         return E.ok(conn, data=u, classes=["survivorship"], principal=p, request_id=_rid(request),
@@ -95,11 +117,14 @@ def credibility(symbol: str, request: Request,
                 as_of: str | None = Query(
                     None,
                     description="PIT date (YYYY-MM-DD): serve the credibility point as it was "
-                                "KNOWABLE on this date (AUD-38). Month-granular knowable rule: a "
-                                "period row becomes knowable on the LAST calendar day of its "
-                                "period month (the call's intra-month date is not stored, so the "
-                                "conservative bound is served — no look-ahead, ever). The served "
-                                "row carries `knowable_from`. Omit for the latest settled point."),
+                                "KNOWABLE on this date (AUD-38/D104). Two-tier knowable rule, both "
+                                "no-look-ahead: when the period's REAL public clock is captured "
+                                "(concall held / transcript published — max of the two), the row is "
+                                "knowable from that date (`knowable_basis` EVENT); otherwise from "
+                                "the LAST calendar day of its period month (`knowable_basis` "
+                                "MODELED — the conservative bound). The served row carries "
+                                "`knowable_from` + `knowable_basis`; `pit.knowable_rule` names the "
+                                "rule actually applied. Omit for the latest settled point."),
                 p: Principal = Depends(require_scope("credibility"))):
     """DESCRIPTIVE per-name guidance track-record (the §C-surviving use). Never ranked; no edge claim.
 
@@ -115,7 +140,7 @@ def credibility(symbol: str, request: Request,
                       f"no settled credibility for {sym} (unproven / not covered)")
             data = {"symbol": sym, "credibility": E.absence(reason), "note": _CRED_NOTE}
             if as_of:
-                data["pit"] = {"as_of": as_of, "knowable_rule": "period-month-end"}
+                data["pit"] = {"as_of": as_of, "knowable_rule": _KNOWABLE_RULESET}
             return E.ok(conn, data=data, classes=["cci_series"], principal=p, request_id=_rid(request),
                         prov_kw={"cci_series": {"symbol": sym}},
                         coverage="descriptive credibility track-record (no validated return edge — §C); settled subset only",
@@ -130,7 +155,11 @@ def credibility(symbol: str, request: Request,
         data = {"symbol": sym, "credibility": cred, "note": _CRED_NOTE}
         if as_of:
             cred["knowable_from"] = latest.get("knowable_from")
-            data["pit"] = {"as_of": as_of, "knowable_rule": "period-month-end"}
+            cred["knowable_basis"] = latest.get("knowable_basis")   # EVENT | MODELED (D104)
+            data["pit"] = {"as_of": as_of,
+                           "knowable_rule": ("concall-event-date"
+                                             if latest.get("knowable_basis") == "EVENT"
+                                             else "period-month-end")}
         return E.ok(conn, data=data, classes=["cci_series"], principal=p, request_id=_rid(request),
                     prov_kw={"cci_series": {"symbol": sym, "as_of": latest.get("period_label")}},
                     coverage="descriptive credibility track-record (no validated return edge — §C)",

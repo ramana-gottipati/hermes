@@ -478,6 +478,30 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D104 — /v1 PIT knowable clock is TWO-TIER: the real concall/transcript event date when captured, month-end only as the fallback (2026-07-10, S100; refines S96b's AUD-38 base)
+S96b shipped the credibility PIT serve on a month-granular rule justified by "the call's
+intra-month date is not stored" — but it IS stored: `concalls.concall_dt` carries a real
+(S84 BSE-calibrated) date on 16,208 of 39,900 rows, `transcript_publish_dt` on 330. Serving
+month-end when the real clock is captured needlessly coarsens the leak-audit story P-05 sells.
+The refined rule, pinned in `tests/test_v1_pit.py` §5 (S96b's own tests untouched and still
+passing — the fallback is byte-compatible):
+- **EVENT tier:** a series point is knowable from `max(concall_dt, transcript_publish_dt)` of
+  its (symbol, period_label) — the LATER real clock is the stricter availability bound; max
+  again across duplicate filings. Basis stamped `knowable_basis=EVENT`.
+- **`result_filing_dt` is deliberately NOT a knowable clock** for call-derived content —
+  filings usually PRECEDE the call (fixture: filing 01-18, call 01-22), so using them would
+  claim knowability too early. That is the leak direction; refused structurally.
+- **MODELED tier (= S96b's rule, unchanged):** no captured clock → knowable from the LAST
+  calendar day of the period month; undateable rows stay PIT-excluded.
+- **Period order ≠ knowable order:** real calls can precede their label month (live:
+  ICICIPRULI "Feb 2019" called 2019-01-22), so the floor walks EVERY row's own clock and the
+  newest qualifying PERIOD wins — never a label-order shortcut. Unparseable clock strings are
+  skipped (a lexical max over junk must never serve a row).
+- **Contract additions are additive:** served rows carry `knowable_basis` beside S96b's
+  `knowable_from`; `pit.knowable_rule` names the rule ACTUALLY applied per response
+  ("concall-event-date" | "period-month-end"). 422/absence/degraded semantics unchanged.
+  `/universe` as_of now goes through the same strict check (was silent-None on garbage).
+
 ### D103 — TAPE_SUSPECT triage: in-row compound filings recovered; bonus debentures excluded; the ±20% ex-day band-lock is ACCEPTED by the tape gate (2026-07-10, S97; Ramana: "go ahead with the 77 TAPE_SUSPECT review")
 The D95 audit's 77 refused-tape suspects were reviewed with a mechanical classifier (hypotheses
 tested per group against the observed ex-day move). Three real classes + a fenced remainder:
@@ -1711,6 +1735,39 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 100 — 2026-07-10 — D104: the /v1 PIT knowable clock upgraded to the REAL concall/transcript event date (refines S96b same-day; the mid-flight collision resolved by adopt-then-refine)
+Booted onto AUD-38 as the top doable pick (D94 queue complete; heal lanes hot on hermes.db) and
+built a full implementation — then the live-file fork-check caught **S96b's implementation already
+deployed on the VPS, uncommitted** (its session mid-flight in the main tree). Followed the standing
+doctrine (adopt-live > stomp, S77 pledge-veto precedent): reset my divergent branch
+(`backup/s99-divergent-aud38` kept for the record), imported the live S96b state, WAITED for its
+commit to land (`56c731a`), then rebuilt my contribution as an additive refinement on that base:
+- **The refinement (D104):** S96b's month-end rule rested on "the call's intra-month date is not
+  stored" — false premise; `concalls.concall_dt` is real on 16,208 rows (S84 BSE calibration).
+  NEW `cci_series._real_clock_map()`; `series_asof()` now serves the EVENT tier
+  (`max(concall_dt, transcript_publish_dt)` per label — the later clock is the stricter bound;
+  `result_filing_dt` refused: filings precede calls = the leak direction) and falls back to
+  S96b's month-end MODELED tier unchanged. Rows stamp `knowable_basis` beside `knowable_from`;
+  `pit.knowable_rule` names the rule actually applied ("concall-event-date" | "period-month-end").
+- **Consistency + honesty sweep in the same files:** `/universe` as_of through the strict 422
+  check (was silent-None on garbage) + PIT docstring; routes.py's stale module docstring (the
+  never-shipped HERMES_V1_ALPHA 501 gate) rewritten to the truth; app-level OpenAPI description
+  updated to the two-tier rule; selftest asserts `pit.knowable_rule` is named.
+- **Tests:** +5 in `tests/test_v1_pit.py` §5 on a concalls-bearing fixture (clock-beats-label
+  inversion · transcript-stricter + filing-ignored · label-only stays month-end · unparseable
+  clock ignored · resource roundtrip carries basis). S96b's 10 tests untouched and green (its
+  fixtures have no concalls table → pure-fallback behavior is pinned unchanged). pytest 33+1skip;
+  selftest green.
+- **Multi-lane craft notes (this nearly went wrong twice):** (1) the sibling's DEPLOYED files were
+  OLDER than its eventual COMMIT (selftest §7 was polished in between) — importing live bytes and
+  diffing against the later commit would have silently REVERTED the polish; always re-diff the
+  delta against the landed commit, file by file. (2) Session numbers moved twice mid-session
+  (S97→S99 claimed while working); claim at commit time only.
+- Deploy: cci_series.py + routes.py + __init__.py + selftest.py + tests (code delta only;
+  signal_events/resources byte-identical to S96b). Walked live on ICICIPRULI: as_of mid-month now
+  serves the EVENT-dated point where S96b's rule waited for month-end (see wrap verify).
+- Commit: see entry-final hash note.
 
 ### Session 96b — 2026-07-10 — AUD-38 CLOSED: /v1 is PIT-queryable (as_of on credibility + attention) — P-05 unblocked (season lane, same session as S96)
 Ramana's directive: keep self-prompting. Pick = the audit's own P1 + the carry-forward's named

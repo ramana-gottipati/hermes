@@ -239,30 +239,77 @@ def series_for(conn, symbol: str) -> list[dict]:
         (symbol.upper().strip(),)).fetchall()]
 
 
+def _real_clock_map(conn, symbol: str) -> dict:
+    """period_label -> ISO date the period's CALL content became public (D104 EVENT tier).
+
+    Uses max(concall_dt, transcript_publish_dt) per filing — the LATER real clock is the
+    stricter availability bound — and max again across duplicate filings. 16k+ concalls
+    rows carry a real clock (the S84 BSE calibration), so "the intra-month date is not
+    stored" no longer holds; when it IS stored, serve it. ``result_filing_dt`` is
+    deliberately NOT a knowable clock: filings usually PRECEDE the call, so using them
+    would claim call-derived content knowable too early (the leak direction).
+    Unparseable clocks are skipped; an absent concalls table (stub DBs) returns {} and
+    callers fall back to the month-end rule."""
+    out: dict = {}
+    try:
+        rows = conn.execute(
+            "SELECT period_label, concall_dt, transcript_publish_dt FROM concalls "
+            "WHERE symbol=? AND (concall_dt IS NOT NULL OR transcript_publish_dt IS NOT NULL)",
+            (symbol,)).fetchall()
+    except Exception:  # noqa: BLE001 — no concalls table here: month-end fallback everywhere
+        return out
+    for r in rows:
+        real = []
+        for c in (r["concall_dt"], r["transcript_publish_dt"]):
+            s = str(c or "").strip()[:10]
+            if len(s) == 10:
+                try:
+                    date.fromisoformat(s)
+                except ValueError:
+                    continue
+                real.append(s)
+        if real:
+            best = max(real)
+            if best > out.get(r["period_label"], ""):
+                out[r["period_label"]] = best
+    return out
+
+
 def series_asof(conn, symbol: str, as_of: str) -> Optional[dict]:
     """The newest credibility point KNOWABLE on `as_of` (AUD-38 PIT serve), or None.
 
-    Knowable-date rule (month-granular, conservative): a series row carries only
-    (period_year, period_month) — the concall's intra-month date is not stored — so a
-    row is treated as knowable from the LAST calendar day of its period month. A query
-    dated mid-month therefore excludes that month's row rather than risk serving a
-    point from a call that hadn't happened yet (no-look-ahead over precision). Rows
-    with no period_year/month cannot be dated and are excluded from PIT serves.
-    The chosen row is returned with `knowable_from` (ISO date) stamped.
+    Knowable-date rule (D104, two tiers, both no-look-ahead):
+      * EVENT — when the period's REAL public clock is captured (concalls.concall_dt /
+        transcript_publish_dt), the row is knowable from max(call, transcript) of that
+        period. Real clocks can PRECEDE the label month (live case: an ICICIPRULI
+        'Feb 2019' point whose call was held 2019-01-22), so every row's own clock is
+        checked and the newest qualifying PERIOD wins — never a label-order shortcut.
+      * MODELED — with no captured clock, the row is knowable from the LAST calendar
+        day of its period month: a query dated mid-month excludes that month's row
+        rather than risk serving a point from a call that hadn't happened yet.
+    Rows with no period_year/month cannot be dated and are excluded from PIT serves.
+    The chosen row is returned with `knowable_from` (ISO date) + `knowable_basis`
+    (EVENT | MODELED — provenance.py's basis vocabulary) stamped.
     """
     try:
         target = date.fromisoformat(str(as_of).strip()[:10])
     except ValueError:
         return None
+    real = _real_clock_map(conn, symbol.upper().strip())
     best: Optional[dict] = None
     for r in series_for(conn, symbol):          # ordered oldest -> newest
-        y, m = r.get("period_year"), r.get("period_month")
-        if not y or not m:
-            continue
-        knowable = date(int(y), int(m), monthrange(int(y), int(m))[1])
+        clock = real.get(r.get("period_label"))
+        if clock:
+            knowable, basis = date.fromisoformat(clock), "EVENT"
+        else:
+            y, m = r.get("period_year"), r.get("period_month")
+            if not y or not m:
+                continue
+            knowable, basis = date(int(y), int(m), monthrange(int(y), int(m))[1]), "MODELED"
         if knowable <= target:
             best = dict(r)
             best["knowable_from"] = knowable.isoformat()
+            best["knowable_basis"] = basis
     return best
 
 

@@ -84,6 +84,8 @@ def run() -> None:
         pit = c.get("/securities/RELIANCE/credibility?as_of=2020-01-01", headers=H)
         assert pit.status_code == 200, pit.text
         assert (pit.json()["data"].get("pit") or {}).get("as_of") == "2020-01-01", "pit stamp missing"
+        assert (pit.json()["data"].get("pit") or {}).get("knowable_rule"), \
+            "pit must name the knowable rule applied (D104)"
         att = c.get("/attention?as_of=2020-01-01", headers=H)
         assert att.status_code == 200 and att.json()["data"]["attention"] == [], \
             "attention as_of before the first batch must serve an honest empty, not error"

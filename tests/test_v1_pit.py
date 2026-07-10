@@ -128,3 +128,77 @@ def test_credibility_resource_pit_roundtrip(conn):
     assert row["knowable_from"] == "2024-08-31"
     _, none_row = R.credibility(conn, "TESTCO", as_of="2024-01-01")
     assert none_row is None
+
+
+# ── 5. D104 real-clock refinement: EVENT tier over the month-end fallback ─────
+# When concalls carries the period's REAL public clock (concall_dt /
+# transcript_publish_dt — 16k+ filings do), the row is knowable from
+# max(call, transcript) instead of the month-end bound. Everything above this
+# section runs with NO concalls table — pinning that the fallback alone still
+# behaves exactly as S96b shipped it.
+
+@pytest.fixture()
+def conn_clk():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    cci_series.ensure_schema(c)
+    c.execute("CREATE TABLE security_renames (old_symbol TEXT, new_symbol TEXT, "
+              "confirmed INT, effective_date TEXT)")
+    c.execute("CREATE TABLE concalls (symbol TEXT, period_label TEXT, concall_dt TEXT, "
+              "transcript_publish_dt TEXT, result_filing_dt TEXT)")
+
+    def cred(label, y, m, level):
+        c.execute("INSERT INTO credibility_series (symbol, period_label, period_year, "
+                  "period_month, level, tier, n_resolved) VALUES ('CLKCO',?,?,?,?, 'C', 3)",
+                  (label, y, m, level))
+
+    # the live ICICIPRULI shape: a Feb-labeled point whose call happened in JANUARY.
+    cred("Jan 2019", 2019, 1, 10.0)                      # unparseable clock -> month-end
+    cred("Feb 2019", 2019, 2, 20.0)                      # real call 2019-01-22
+    cred("Apr 2019", 2019, 4, 42.9)                      # call 04-24, transcript 04-28
+    cred("May 2019", 2019, 5, 44.0)                      # label-only -> month-end
+    c.executemany("INSERT INTO concalls VALUES (?,?,?,?,?)", [
+        ("CLKCO", "Feb 2019", "2019-01-22", None, "2019-01-18"),  # filing BEFORE the call
+        ("CLKCO", "Apr 2019", "2019-04-24", "2019-04-28", "2019-04-20"),
+        ("CLKCO", "Jan 2019", "garbage-dt", None, None),          # parse-guard case
+    ])
+    c.commit()
+    yield c
+    c.close()
+
+
+def test_real_clock_beats_label_month(conn_clk):
+    # On 2019-01-25 the Feb-labeled point IS knowable (call held Jan-22) while the Jan
+    # label-only point is NOT yet (month-end Jan-31) — the period/knowable order inversion.
+    row = cci_series.series_asof(conn_clk, "CLKCO", "2019-01-25")
+    assert row is not None and row["period_label"] == "Feb 2019"
+    assert row["knowable_from"] == "2019-01-22" and row["knowable_basis"] == "EVENT"
+
+
+def test_transcript_is_the_stricter_clock_and_filing_is_ignored(conn_clk):
+    # Apr knowable = max(call 04-24, transcript 04-28) = 04-28; the 04-20 result filing
+    # must NOT make it knowable early (filings precede calls — the leak direction).
+    assert cci_series.series_asof(conn_clk, "CLKCO", "2019-04-27")["period_label"] == "Feb 2019"
+    row = cci_series.series_asof(conn_clk, "CLKCO", "2019-04-28")
+    assert row["period_label"] == "Apr 2019"
+    assert row["knowable_from"] == "2019-04-28" and row["knowable_basis"] == "EVENT"
+
+
+def test_label_only_rows_keep_the_month_end_rule(conn_clk):
+    # May has no clock row at all -> MODELED month-end, exactly the S96b rule.
+    assert cci_series.series_asof(conn_clk, "CLKCO", "2019-05-30")["period_label"] == "Apr 2019"
+    row = cci_series.series_asof(conn_clk, "CLKCO", "2019-05-31")
+    assert row["period_label"] == "May 2019"
+    assert row["knowable_from"] == "2019-05-31" and row["knowable_basis"] == "MODELED"
+
+
+def test_unparseable_clock_is_ignored_not_trusted(conn_clk):
+    # Jan's 'garbage-dt' clock must be skipped (parse guard): before Feb's real clock
+    # NOTHING is knowable — a lexical max() over junk must never serve a row.
+    assert cci_series.series_asof(conn_clk, "CLKCO", "2019-01-21") is None
+
+
+def test_resource_roundtrip_carries_basis(conn_clk):
+    sym, row = R.credibility(conn_clk, "clkco", as_of="2019-01-25")
+    assert sym == "CLKCO" and row["period_label"] == "Feb 2019"
+    assert row["knowable_basis"] == "EVENT"
