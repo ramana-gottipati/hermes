@@ -477,6 +477,31 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D102 — The two lifecycle plays are first-class queues with progress chips; CLOSED waves wear reference chips (2026-07-10, S89; Ramana: "build R3 and R4")
+Completes the §D lifecycle program on the surfaces:
+- **R3a — "Open — approaching point 5" queue** (`wolfe.forming_scan` + nightly `persist_forming`
+  under `'<uni>:forming'`): §A-valid FORMING wedges still inside their point-5 search window
+  (find_p5's own cap, p4 + max(10, 4×(p4−p1)) — method-native liveness, not a new constant).
+  Play-A frame per row: ride direction (bull 4→5 ↓ / bear ↑), **SL = the point-4 breach level**
+  (§A voids there), target = the predicted-5 confluence (the p5pred side-of-3 pick; zone-less
+  wedges say so), distance-to-zone, `at-5-zone` status = price AT the predicted confluence.
+  One row per sym+dir, attention-sorted, counted 60-slice. Third section on /dash/wolfe/scan.
+- **R3b — play-B progress chips** on the scanner + watch rows (`wolfe.progress_chip`, persisted
+  `progress` col): `nearing-EPA` (≤2% of the line, `_NEAR_EPA_PCT`) → `crossed-3` (his milestone:
+  "point 5 will eventually cross point 3, and my position may move beyond that") → `in-zone` →
+  `beyond-zone` → `reversing` (zone-less waves fall back to the point-5 level). DISPLAY only —
+  attention stays the sort (R6).
+- **R4 — CLOSED = the reference layer, visibly:** `analyze()` now carries per-wave lifecycle
+  state (cache-read, never writes on a page request) → the ◄/► walk summary and every
+  /dash/wolfe list row wear `✓EPA {n}b` (completed, reference-only) or `EPA open` chips; plus
+  the per-symbol **validation readout** on /dash/wolfe: "History: N confirmed · X% touched their
+  EPA (median BULL/BEAR bars) — validation, not a forecast" (his "useful for validation" layer).
+- Readers consolidated (`_latest_aux`, tiered — older snapshots degrade, never break); the
+  nightly run persists THREE snapshots (winner/watch/forming) in three short transactions.
+WHY a decision: the queues now SPEAK the lifecycle (§D) instead of merely filtering by it —
+each row says which play it belongs to and how far the ride has progressed. Descriptive-only
+stands; §A/§B untouched; D96/D98/D100/D101 guarantees intact.
+
 ### D101 — Wolfe queue membership = the OPEN lifecycle state; the EPA check is event-driven (2026-07-10, S89; executes Ramana's §D directive + "go ahead and build R1+R2+R8")
 The 15-bar age window dies as the actionability criterion (it was a proxy that kept 7/76 + 1/140
 already-CLOSED rows on the queues while hiding 686 still-OPEN winner-profile waves):
@@ -1456,10 +1481,14 @@ median bars from p5 = **BULL 18 (p25 5 · p75 101) · BEAR 10 (p25 4 · p75 30)*
   chart/walk untouched per B2's own clause. Closed open decision ③.
 **R8 — ✅ BUILT (D101):** `wolfe_epa_state` cache — CLOSED cached forever, OPEN resumes from
   `checked_through` (nightly = new bars only), 0.5% p1/p4 drift guard, per-symbol commits (D82c).
-**Remaining build queue:** R3 (two named "open items" queues with progress chips: in-zone →
-reversing → crossed-3 → nearing-EPA) + R4 (CLOSED `✓EPA (n bars)` chips on the walk/list +
-per-symbol validation readout) + R6 display polish. Everything additive; §A/§B untouched;
-descriptive-only stands.
+**R3 — ✅ BUILT (D102, "build R3 and R4"):** the "approaching-5" forming queue (play A: SL=pt-4
+  breach, predicted-5 target, §A search-window liveness) as the scan page's third section +
+  play-B progress chips (nearing-EPA→crossed-3→in-zone→beyond-zone→reversing) on both confirmed
+  queues. **R4 — ✅ BUILT (D102):** `✓EPA {n}b` / `EPA open` chips on the walk + list + the
+  per-symbol validation readout (touch-rate + median bars). **R6 — absorbed** (attention orders
+  everywhere; chips are display-only). **PROGRAM COMPLETE** except the point-4-strength
+  descriptor (§D item 4 — awaiting Ramana's worked example). Everything additive; §A/§B
+  untouched; descriptive-only stands.
 
 ### 🌊 Wolfe honesty residuals (S89/D98 — small, deliberate deferrals)
 - **§B2 pierced-4.618 withhold is documented but NOT implemented in the scanner** (`docs/wolfe-rules.md`

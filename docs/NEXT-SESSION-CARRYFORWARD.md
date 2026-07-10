@@ -69,12 +69,16 @@ profile legs D/p1/F). Reproducible sweep: `research/wolfe_waves/sweep_cap_visibi
   attention-ordered counted 60-slices on both queues; edge badges scoped to the validated
   ≤15-bar window. ✅ R7 = D100. ALL §D clarifications resolved (point-2/3 = the §A point-4 gate;
   no liveness cutoff; point-4-strength recorded — needs his worked example).
-  **REMAINING queue: R3** (rename/split the two actionable phases "open — approaching 5" /
-  "open — riding to EPA" + progress chips in-zone → reversing → crossed-3 → nearing-EPA) +
-  **R4** (CLOSED `✓EPA (n bars)` chips on the walk/list + per-symbol validation readout) +
-  **R6** polish. **VERIFY tonight:** the 16:00 UTC run uses the NEW unit (no --fresh) — journal
-  "persisted N winner-profile setups + M structure-watch rows" with N ≈ hundreds now (OPEN
-  any-age), runtime ~8-15 min first nights (cache warms), timeout 1800s.
+  ✅ **R3+R4 BUILT same session (D102, "build R3 and R4"):** the approaching-5 forming queue
+  (play A: SL=pt-4 breach, predicted-5 target, §A search-window liveness) = the scan page's
+  third section; play-B progress chips (nearing-EPA→crossed-3→in-zone→beyond-zone→reversing)
+  on both confirmed queues; `✓EPA {n}b`/`EPA open` chips on walk+list; per-symbol validation
+  readout on /dash/wolfe. **LIFECYCLE PROGRAM COMPLETE** — only the point-4-strength descriptor
+  remains (awaiting Ramana's worked chart example; legs 1-2 ∩ 2-3 confluence).
+  **VERIFY tonight:** the 16:00 UTC run persists THREE snapshots — journal "persisted N
+  winner-profile setups + M structure-watch rows + K approaching-5 rows"; runtime ~9-15 min
+  (three detect passes + warm state cache; consolidation to one pass = future polish),
+  timeout 1800s.
 - **VERIFY next session:** tonight's `hermes-wolfe-scan` 16:00 UTC run must persist BOTH snapshots —
   journal shows "persisted N winner-profile setups + M structure-watch rows"; run takes ~6 min now
   (timeout 1800s, checked); `wolfe_signals` universes `nifty500` + `nifty500:watch` both fresh.

@@ -261,7 +261,21 @@ def _summary(d, wi, sym, idx, sort=""):
         + ('<b title="pure §B quality, timeless — the all-time view">Q all-time</b>' if alltime else
            f'<a href="/dash/wolfe?{(f"sym={_q(sym)}" if sym else f"idx={_q(idx)}")}&sort=q" style="color:#58a6ff" '
            f'title="pure §B quality, timeless — the all-time view">Q all-time</a>'))
+    st = d.get("epa_stats") or {}
+    stats_line = ''
+    if st.get("conf"):
+        med_bits = ' · '.join(b for b in (
+            (f'median BULL {st["med_bull"]}b' if st.get("med_bull") is not None else ''),
+            (f'BEAR {st["med_bear"]}b' if st.get("med_bear") is not None else '')) if b)
+        stats_line = (
+            f'<div style="color:var(--ink-3);font-size:12px;margin-bottom:5px" '
+            f'title="his reference layer (§D): completed waves validate the method — they are '
+            f'not actionable. Touch = the price range crossing the 1-4 line after point 5.">'
+            f'History: <b>{st["conf"]}</b> confirmed waves · <b>{st["rate"]}%</b> touched their EPA'
+            + (f' ({med_bits} from point 5)' if med_bits else '')
+            + ' — validation, not a forecast.</div>')
     out = ['<div style="font-size:13px;margin:4px 0 12px">',
+           stats_line,
            '<div style="color:var(--ink-2);margin-bottom:5px">Setups (★ <b style="color:#58a6ff">EDGE</b> = the validated '
            'winner-profile · <a href="/dash/wolfe/scan" style="color:#58a6ff">open the scanner ›</a>) · '
            + toggle +
@@ -304,6 +318,12 @@ def _summary(d, wi, sym, idx, sort=""):
             + (f' · <span style="color:var(--ink-2);font-size:11px" title="attention rank = Q × 0.5^(age/60) — '
                f'the current-first sort key (D99)">attn {w["rank_attention"]:g}</span>'
                if w.get("rank_attention") is not None else '')
+            + (f' · <span style="color:var(--ink-3);font-size:11px" title="EPA touched {_esc(str(w.get("epa_touch_date") or ""))} '
+               f'— completed: reference/validation only, no longer actionable (§D)">✓EPA {w["bars_5_to_epa"]}b</span>'
+               if w.get("wave_state") == "CLOSED" else
+               (f' · <span style="color:var(--up);font-size:11px" title="point 5 printed, the EPA line not yet '
+                f'crossed — actionable (his primary need, §D)">EPA open</span>'
+                if w.get("wave_state") == "OPEN" else ''))
             + f'<span style="color:var(--ink-3);font-size:11px"> {_esc(w.get("source",""))}</span>'
             f'<span style="color:{col}">{mark}</span></a>')
     out.append('</div>')
@@ -341,6 +361,26 @@ def _fail_legs(r):
     return '&nbsp; '.join(p for p in parts if p)
 
 
+_PROG = {   # D102/R3 — play-B/A progress chips (display only, never a sort key)
+    "nearing-EPA": ('var(--up)', 'CMP within 2% of the EPA line — the ride is nearly complete'),
+    "crossed-3":   ('var(--up)', 'price crossed the point-3 level — his milestone: "point 5 will '
+                                 'eventually cross point 3, and my position may move beyond that"'),
+    "in-zone":     ('var(--up)', 'price at the entry confluence now'),
+    "beyond-zone": ('#d29922',   'price still beyond the overshoot side of the entry zone'),
+    "reversing":   ('var(--ink-2)', 'off the point-5 extreme, below the point-3 milestone'),
+    "at-5-zone":   ('var(--up)', 'price AT the predicted point-5 confluence — the reversal window'),
+    "approaching": ('var(--ink-2)', 'riding the 4→5 leg toward the predicted confluence'),
+    "no zone":     ('var(--ink-3)', 'no fib-extension confluence target for point 5'),
+}
+
+
+def _prog_chip(p):
+    if not p:
+        return '<span style="color:var(--ink-3)">—</span>'
+    col, tip = _PROG.get(p, ('var(--ink-2)', ''))
+    return f'<span style="color:{col};white-space:nowrap;font-size:12px" title="{tip}">{p}</span>'
+
+
 @router.get("/dash/wolfe/scan", response_class=HTMLResponse)
 def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                fresh: int = Query(0, ge=0, le=5000),
@@ -368,9 +408,10 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             cands = wolfe.winner_scan(conn, universe=uni, fresh=(fresh or None),
                                       asof=(asof or None))
             eff_fresh = fresh or None
-        # D98 structure watch — nightly snapshot only (no ~30s live fallback);
-        # an ?asof= replay hides it (the watch snapshot is not PIT-replayable).
+        # D98 structure watch + D102 approaching-5 queue — nightly snapshots only
+        # (no minutes-long live fallback); an ?asof= replay hides them.
         watch = wolfe.latest_watch(conn, universe=uni) if not asof else None
+        forming = wolfe.latest_forming(conn, universe=uni) if not asof else None
     # D100 (§B2, Ramana-approved): not-entry-qualified rows are WITHHELD from the
     # actionable queues — visibly and countably (toggle ?nq=1), never silently.
     withheld_n = sum(1 for c in cands if c.get("nq"))
@@ -401,7 +442,7 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                   'until it returns; the chart still shows the wave">⊘ §B2 withheld</span>'
                   if c.get("nq") else
                   ('<span style="color:var(--up);font-weight:700">● IN</span>' if c["in_zone"]
-                   else '<span style="color:var(--ink-3)">watch</span>'))
+                   else _prog_chip(c.get("progress"))))
         trs.append(
             # CL-VIEW-09: the symbol sits in a single-quoted JS string inside a double-
             # quoted attribute. SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes,
@@ -462,8 +503,10 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             f'<td style="color:var(--ink-2)">{r["up"]:.0f}%</td>'
             f'<td title="§B split — STR = shape (p1×2 + pts-2/3/4 + rail), LND = landing '
             f'(C zone · F gap · G 4.618 · I RSI · D upside)">Q{qv} = <b>{split}</b></td>'
+            f'<td>{_prog_chip(r.get("progress"))}</td>'
             f'<td style="font-size:12px">{legs}</td></tr>')
-    whead = ('symbol', 'dir', 'age', 'CMP', 'fib zone', 'EPA', 'EPA dist', 'Q = STR+LND', 'why not in the scan')
+    whead = ('symbol', 'dir', 'age', 'CMP', 'fib zone', 'EPA', 'EPA dist', 'Q = STR+LND',
+             'progress', 'why not in the scan')
     watch_html = (
         '<h3 style="margin:26px 0 4px">Structure watch '
         '<span style="color:var(--ink-2);font-size:14px;font-weight:400">— textbook shape, no validated edge</span></h3>'
@@ -495,12 +538,72 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             '<thead><tr style="color:var(--ink-2);text-align:left">'
             + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in whead)
             + '</tr></thead><tbody>'
-            + ("".join(wtrs) or '<tr><td colspan="9" style="padding:12px;color:var(--ink-2)">'
-                                'No fresh strong-shape rejects right now.</td></tr>')
+            + ("".join(wtrs) or '<tr><td colspan="10" style="padding:12px;color:var(--ink-2)">'
+                                'No OPEN strong-shape rejects right now.</td></tr>')
             + '</tbody></table>'
             if watch is not None else
             '<div style="color:var(--ink-3);font-size:13px">Snapshot pending — the nightly Wolfe scan '
             '(16:00 UTC) materialises the watch; until then this section is empty'
+            + (' (PIT replays show the scanner only).' if asof else '.') + '</div>'
+        ))
+    # ---- D102/R3: OPEN — APPROACHING 5 (play A: ride the 4→5 leg) --------------- #
+    frows_all = (forming or {}).get("rows") or []
+    _FORM_SHOW = 60
+    frows = frows_all if wall else frows_all[:_FORM_SHOW]
+    ftrs = []
+    for r in frows:
+        col = _UP_VAR if r["dir"] == "BULL" else _DN_VAR
+        ride = ('4→5 ↓' if r["dir"] == "BULL" else '4→5 ↑')
+        zone = (f'{_fmt(r["zlo"])}–{_fmt(r["zhi"])}' if r["zlo"] is not None else
+                '<span style="color:var(--ink-3)" title="no fib-extension confluence on the '
+                'point-5 side of point 3">no zone</span>')
+        split = (f'{r["str"]:g}/11 · {r["lnd"]:g}/13' if r.get("str") is not None else '—')
+        qv = f'{r["Q"]:g}' if r.get("Q") is not None else '—'
+        ftrs.append(
+            f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(r["sym"])}&pick=forming\'" '
+            f'style="cursor:pointer;border-top:1px solid var(--line-2)" '
+            f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
+            f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(r["sym"])}</b></td>'
+            f'<td style="color:{col};font-weight:600">{r["dir"]}<br>'
+            f'<span style="color:var(--ink-3);font-size:11px" title="the play-A ride direction into point 5">{ride}</span></td>'
+            f'<td style="color:var(--ink-2)" title="bars since point 4">{r["age"]}d</td>'
+            f'<td>{_fmt(r["cmp"])}</td><td>{zone}</td>'
+            f'<td style="color:var(--ink-2)">{(str(r["up"]) + "%") if r["up"] is not None else "—"}</td>'
+            f'<td style="color:var(--down)" title="the point-4 breach level — §A voids the wave there">{_fmt(r["sl"])}</td>'
+            f'<td title="§B split — STR = shape, LND = landing">Q{qv} = <b>{split}</b></td>'
+            f'<td>{_prog_chip(r.get("progress"))}</td></tr>')
+    fhead = ('symbol', 'dir · ride', 'age (p4)', 'CMP', 'predicted-5 zone', 'dist to zone',
+             'SL (pt-4)', 'Q = STR+LND', 'status')
+    forming_html = (
+        '<h3 style="margin:26px 0 4px">Open — approaching point 5 '
+        '<span style="color:var(--ink-2);font-size:14px;font-weight:400">— play A: ride the 4→5 leg</span></h3>'
+        '<div class="sub" style="margin-bottom:6px">§A-valid wedges with points 1–4 locked and <b>no point 5 '
+        'yet</b>, still inside their point-5 search window (the §A cap — past it the wave can never confirm). '
+        'His play: <b>ride the tide from point 4 to point 5</b> (bull wedge: down / bear: up), '
+        '<b>SL = the point-4 breach level</b> (§A voids the wave there), target = the predicted-5 fib '
+        'confluence on the correct side of point 3. <b>at-5-zone</b> = price AT the predicted confluence — '
+        'the reversal window. One row per symbol+direction; sorted current-first by attention. '
+        '<i>Descriptive — the raw lens is falsified as a trade signal (median −2% net); a reading queue, '
+        'not a signal.</i></div>'
+        + (
+            f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:8px">'
+            f'<b>{len(frows_all)}</b> forming wedges · as-of '
+            f'<b>{_esc((forming or {}).get("scan_date") or "—")}</b> '
+            f'<span style="color:var(--ink-3)">(nightly snapshot)</span>'
+            + (f' · showing the top {len(frows)} by attention — '
+               f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;wall=1&amp;nq={nq}" style="color:#58a6ff">show all {len(frows_all)}</a>'
+               if len(frows_all) > len(frows) else '')
+            + '</div>'
+            '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+            '<thead><tr style="color:var(--ink-2);text-align:left">'
+            + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in fhead)
+            + '</tr></thead><tbody>'
+            + ("".join(ftrs) or '<tr><td colspan="9" style="padding:12px;color:var(--ink-2)">'
+                                'No live forming wedges right now.</td></tr>')
+            + '</tbody></table>'
+            if forming is not None else
+            '<div style="color:var(--ink-3);font-size:13px">Snapshot pending — the nightly Wolfe scan '
+            '(16:00 UTC) materialises this queue'
             + (' (PIT replays show the scanner only).' if asof else '.') + '</div>'
         ))
     body = (
@@ -540,7 +643,7 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table>'
-        + watch_html)
+        + watch_html + forming_html)
     return HTMLResponse(_shell("Wolfe scanner", body, "wolfe", wide=True))
 
 
@@ -578,6 +681,10 @@ def wolfe_page(sym: str = Query("", max_length=24),
                and (wolfe.score_split(ww.get("score"))[0] or 0) >= wolfe._WATCH_MIN_STRUCTURE]
         if wps:
             w = max(wps, key=lambda iw: iw[1]["p5"]["idx"])[0]
+    elif pick == "forming" and d.get("waves"):    # from the approaching-5 queue → the freshest live forming wedge
+        wps = [(i, ww) for i, ww in enumerate(d["waves"]) if ww["state"] == "FORMING"]
+        if wps:
+            w = max(wps, key=lambda iw: iw[1]["pivots"][3]["idx"])[0]
 
     body = (
         f'<h2>{_esc(d["label"])} — Wolfe wave</h2>'

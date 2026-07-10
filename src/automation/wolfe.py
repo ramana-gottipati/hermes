@@ -550,6 +550,26 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False, sort="attention")
     dates, opens, highs, lows, closes = s
     n = len(closes)
     waves, atr_arr = detect_waves(highs, lows, closes)
+    # R4/D102 — lifecycle state per confirmed wave (cache-read, never writes on a
+    # page request) + the per-symbol validation readout ("useful for validation,
+    # not for action" — his reference layer): EPA touch-rate and median bars 5→EPA.
+    wstate_map = {}
+    _closed_bars = {"BULL": [], "BEAR": []}
+    for w in waves:
+        if w.state == "CONFIRMED" and w.p5:
+            st = wave_state(conn, label, w, dates, highs, lows, n)
+            wstate_map[id(w)] = st
+            if st[0] == "CLOSED" and st[2] is not None:
+                _closed_bars[w.direction].append(st[2])
+    _n_conf = len(wstate_map)
+    _n_closed = sum(1 for v in wstate_map.values() if v[0] == "CLOSED")
+    def _med(v):
+        v = sorted(v)
+        return v[len(v) // 2] if v else None
+    epa_stats = {"conf": _n_conf, "closed": _n_closed,
+                 "rate": (round(100.0 * _n_closed / _n_conf) if _n_conf else None),
+                 "med_bull": _med(_closed_bars["BULL"]),
+                 "med_bear": _med(_closed_bars["BEAR"])}
     x0 = 0 if all_waves else max(0, min((w.p[0].idx for w in waves[-3:]), default=n - 300) - pad)
     x1 = n - 1
     out = []
@@ -578,7 +598,11 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False, sort="attention")
         qt = w.score["total"] if w.score else 0
         age = n - 1 - (w.p5.idx if w.p5 else w.p[3].idx)
         attn = rank_attention(qt, age)
+        wst = wstate_map.get(id(w))
         out.append({
+            "wave_state": (wst[0] if wst else ("FORMING" if not w.p5 else None)),
+            "epa_touch_date": (wst[1] if wst else None),
+            "bars_5_to_epa": (wst[2] if wst else None),
             "direction": w.direction, "tier": w.tier, "quality": round(w.quality, 2),
             "quality_total": qt, "score": w.score,
             "source": w.source,
@@ -600,7 +624,7 @@ def analyze(conn, sym=None, idx=None, pad=25, all_waves=False, sort="attention")
         out.sort(key=lambda x: (-(x["rank_attention"] or 0), -(x["quality_total"] or 0)))
     return {"label": label, "kind": kind, "n": n, "x0": x0, "x1": x1,
             "dates": dates, "opens": opens, "closes": closes, "highs": highs, "lows": lows,
-            "has_ohlc": kind == "stock", "waves": out}
+            "has_ohlc": kind == "stock", "waves": out, "epa_stats": epa_stats}
 
 
 # Fib EXTENSION ratios only ( >1.0 ) — these project BEYOND each thrust leg toward the
@@ -752,6 +776,8 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
                + f' · Q{w.get("quality_total",0)}'
                + (f' = STR {stq:g}/11 · LND {lnq:g}/13' if stq is not None else '')
                + (f' · age {w["age"]}b {w.get("fresh_tier","")}' if w.get("age") is not None else '')
+               + (f' · ✓EPA {w["bars_5_to_epa"]}b' if w.get("wave_state") == "CLOSED"
+                  else (' · EPA open' if w.get("wave_state") == "OPEN" else ''))
                + qbits)
     return {"color": color, "dir": w["direction"], "state": w["state"], "dashed": dashed,
             "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
@@ -960,6 +986,35 @@ def wave_state(conn, sym, w, dates, highs, lows, n, write=False):
     return state, tdate, bars
 
 
+_NEAR_EPA_PCT = 0.02   # D102/R3: "nearing-EPA" progress chip = CMP within 2% of the
+                       # current EPA line value (display taxonomy only, never a sort key)
+
+
+def progress_chip(direction, cmp_, zlo, zhi, p3price, p5price, epa_now):
+    """Play-B progress along the 5→EPA ride (D102/R3, his milestones): where does
+    the CURRENT price sit? nearing-EPA (≤2% of the line) → crossed-3 (past the
+    point-3 level — "point 5 will eventually cross point 3, and my position may
+    move beyond that") → in-zone (at the entry confluence; falls back to the
+    point-5 level for zone-less waves) → beyond-zone (still past the overshoot
+    side) → reversing (off the extreme, below the pt-3 milestone).
+    DISPLAY only — never a sort key (attention orders the queues)."""
+    if cmp_ is None:
+        return None
+    bull = direction == "BULL"
+    if epa_now is not None and abs(epa_now - cmp_) <= _NEAR_EPA_PCT * abs(cmp_):
+        return "nearing-EPA"
+    if p3price is not None and ((cmp_ >= p3price) if bull else (cmp_ <= p3price)):
+        return "crossed-3"
+    lo = zlo if zlo is not None else p5price
+    hi = zhi if zhi is not None else p5price
+    if lo is not None and hi is not None:
+        if min(lo, hi) * 0.995 <= cmp_ <= max(lo, hi) * 1.005:
+            return "in-zone"
+        if (cmp_ < min(lo, hi) * 0.995) if bull else (cmp_ > max(lo, hi) * 1.005):
+            return "beyond-zone"
+    return "reversing"
+
+
 def t1_confluence(p, direction, tol=0.02):
     """T1 partial target = leg-1-2's 0.618 ∩ leg-3-4's 0.618 (None if they don't converge)."""
     bull = direction == "BULL"
@@ -970,6 +1025,78 @@ def t1_confluence(p, direction, tol=0.02):
         l12, l34 = min(a, b) + 0.618 * abs(b - a), min(c, d) + 0.618 * abs(d - c)
     mid = (l12 + l34) / 2.0
     return mid if mid and abs(l12 - l34) / abs(mid) <= tol else None
+
+
+def forming_scan(conn, universe="nifty500", asof=None):
+    """OPEN — APPROACHING 5 (D102/R3, play A): §A-valid FORMING wedges (points 1-4
+    locked, no point 5 yet) still INSIDE their point-5 search window — find_p5's own
+    cap, p4 + max(10, 4×(p4−p1)) bars — a method-native liveness, not an arbitrary
+    cutoff (past the cap the §A detector will never confirm a 5, so the ride is dead).
+    The play: ride the 4→5 leg (bull: down / bear: up), SL = the point-4 breach level
+    (§A voids the wave there), target = the predicted-5 confluence — the tightest fib
+    zone on the correct side of point 3 (the p5pred logic); zone-less wedges are KEPT
+    and say so. Sorted current-first by attention (age = bars since point 4).
+    Descriptive-only: the raw lens is §C-falsified; this is a reading queue."""
+    import bisect
+    out = []
+    for sym in scan_universe(conn, universe):
+        s = stock_series(conn, sym)
+        if not s:
+            continue
+        dates, _o, highs, lows, closes = s
+        if asof:
+            k = bisect.bisect_right(dates, asof)
+            if k < 60:
+                continue
+            dates, highs, lows, closes = dates[:k], highs[:k], lows[:k], closes[:k]
+        n = len(closes)
+        cmp_ = closes[-1]
+        waves, _ = detect_waves(highs, lows, closes)
+        for w in waves:
+            if w.state != "FORMING" or w.p5:
+                continue
+            a, d = w.p[0], w.p[3]
+            cap = d.idx + max(10, int(4.0 * (d.idx - a.idx)))
+            if n - 1 > cap:
+                continue                      # search window exhausted — can no longer confirm
+            age = n - 1 - d.idx
+            bull = w.direction == "BULL"
+            _e12, _e34, zones = fib_zones(w.p[0].price, w.p[1].price, w.p[2].price,
+                                          w.p[3].price, direction=w.direction)
+            side = [z for z in zones
+                    if (z["price"] < w.p[2].price if bull else z["price"] > w.p[2].price)]
+            z = side[0] if side else None
+            dist = (abs(cmp_ - z["price"]) / cmp_ * 100.0 if (z and cmp_) else None)
+            sc = w.score or {}
+            stq, lnq = score_split(sc)
+            attn = rank_attention(sc.get("total"), age)
+            out.append({
+                "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
+                "zlo": (round(z["low"], 1) if z else None),
+                "zhi": (round(z["high"], 1) if z else None),
+                "zprice": (round(z["price"], 1) if z else None),
+                "sl": round(d.price, 1),      # the point-4 breach level (§A void)
+                "t1": None, "epa": None,      # no EPA before point 5 (his rule)
+                "up": (round(dist, 1) if dist is not None else None),
+                "age": age, "Q": sc.get("total"),
+                "str": stq, "lnd": lnq, "D": sc.get("D"), "p1": sc.get("p1"),
+                "F": sc.get("F"), "C": sc.get("C"),
+                "nq": None,                   # §B2 needs a point 5 — N/A while forming
+                "attn": (round(attn, 2) if attn is not None else None),
+                "progress": ("at-5-zone" if (z and z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005)
+                             else ("approaching" if z else "no zone")),
+                "in_zone": bool(z and z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
+                "p5date": None, "p4date": dates[d.idx]})
+    # one row per (sym, dir) — fractal-degree twins collapse (strongest shape, freshest)
+    best = {}
+    for r in out:
+        k = (r["sym"], r["dir"])
+        b = best.get(k)
+        if b is None or (-(r["str"] or 0), r["age"]) < (-(b["str"] or 0), b["age"]):
+            best[k] = r
+    out = list(best.values())
+    out.sort(key=lambda r: -(r["attn"] or 0))
+    return out
 
 
 def scan_universe(conn, universe="nifty500"):
@@ -1045,6 +1172,8 @@ def winner_scan(conn, universe="nifty500", fresh=None, asof=None, state_write=Fa
                 "F": w.score.get("F"), "C": w.score.get("C"),
                 "nq": 0 if eq else 1,          # §B2 not-entry-qualified (D100) — view withholds visibly
                 "attn": (round(attn, 2) if attn is not None else None),
+                "progress": progress_chip(w.direction, cmp_, z["low"], z["high"],
+                                          w.p[2].price, w.p5.price, epa),
                 "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
         if state_write and not asof:
@@ -1124,6 +1253,10 @@ def watch_scan(conn, universe="nifty500", fresh=None, asof=None, state_write=Fal
                 "F": sc.get("F"), "C": sc.get("C"),
                 "nq": 0 if eq else 1,          # §B2 not-entry-qualified (D100)
                 "attn": (round(attn, 2) if attn is not None else None),
+                "progress": progress_chip(w.direction, cmp_,
+                                          (z["low"] if z else None),
+                                          (z["high"] if z else None),
+                                          w.p[2].price, w.p5.price, epa),
                 "in_zone": bool(z and z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
         if state_write and not asof:
@@ -1195,7 +1328,8 @@ def _ensure_scan_table(conn):
                 "ALTER TABLE wolfe_signals ADD COLUMN f_comp INTEGER",
                 "ALTER TABLE wolfe_signals ADD COLUMN c_comp INTEGER",
                 "ALTER TABLE wolfe_signals ADD COLUMN nq_flag INTEGER",
-                "ALTER TABLE wolfe_signals ADD COLUMN attn REAL"):
+                "ALTER TABLE wolfe_signals ADD COLUMN attn REAL",
+                "ALTER TABLE wolfe_signals ADD COLUMN progress TEXT"):
         try:
             conn.execute(ddl)
         except Exception:
@@ -1229,14 +1363,14 @@ def persist_scan(conn, universe="nifty500", fresh=None, computed_at=None):
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
         " p5date,p4date,fresh,scan_date,computed_at,"
-        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag,attn) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag,attn,progress) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
           scan_date, computed_at,
           r.get("str"), r.get("lnd"), r.get("D"), r.get("p1"), r.get("F"), r.get("C"),
-          r.get("nq"), r.get("attn"))
+          r.get("nq"), r.get("attn"), r.get("progress"))
          for r in rows])
     # CL-SCO-12: do NOT commit here. `conn` is always passed in by the caller (the
     # CLI uses `with get_conn()`, which commits on success / rolls back on error), so
@@ -1264,14 +1398,37 @@ def persist_watch(conn, universe="nifty500", fresh=None, computed_at=None):
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
         " p5date,p4date,fresh,scan_date,computed_at,"
-        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag,attn) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag,attn,progress) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(key, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
           scan_date, computed_at,
           r["str"], r["lnd"], r["D"], r["p1"], r["F"], r["C"], r["nq"],
-          r.get("attn")) for r in rows])
+          r.get("attn"), r.get("progress")) for r in rows])
+    return len(rows), scan_date
+
+
+def persist_forming(conn, universe="nifty500", computed_at=None):
+    """Materialise forming_scan() under universe='<uni>:forming' (D102/R3) — the
+    'open — approaching 5' queue, same clean-snapshot semantics and nightly run."""
+    rows = forming_scan(conn, universe=universe)
+    _ensure_scan_table(conn)
+    scan_date = _scan_as_of(conn)
+    key = universe + ":forming"
+    conn.execute("DELETE FROM wolfe_signals WHERE universe=?", (key,))
+    conn.executemany(
+        "INSERT INTO wolfe_signals "
+        "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
+        " p5date,p4date,fresh,scan_date,computed_at,"
+        " str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp,nq_flag,attn,progress) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [(key, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
+          r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
+          1 if r["in_zone"] else 0, r["p5date"], r["p4date"], None,
+          scan_date, computed_at,
+          r["str"], r["lnd"], r["D"], r["p1"], r["F"], r["C"], r["nq"],
+          r.get("attn"), r.get("progress")) for r in rows])
     return len(rows), scan_date
 
 
@@ -1286,11 +1443,12 @@ def latest_scan(conn, universe="nifty500"):
             "p5date,p4date,fresh,scan_date,computed_at{ext} "
             "FROM wolfe_signals WHERE universe=? "
             "ORDER BY {order}")
-    tiers = ((3, ",str_sub,lnd_sub,nq_flag,attn", "in_zone DESC, attn DESC"),
+    tiers = ((4, ",str_sub,lnd_sub,nq_flag,attn,progress", "in_zone DESC, attn DESC"),
+             (3, ",str_sub,lnd_sub,nq_flag,attn", "in_zone DESC, attn DESC"),
              (2, ",str_sub,lnd_sub,nq_flag", "in_zone DESC, age ASC"),
              (1, ",str_sub,lnd_sub", "in_zone DESC, age ASC"),
              (0, "", "in_zone DESC, age ASC"))
-    recs, tier = None, 3
+    recs, tier = None, 4
     for tier, ext, order in tiers:
         try:
             recs = conn.execute(base.format(ext=ext, order=order), (universe,)).fetchall()
@@ -1305,7 +1463,8 @@ def latest_scan(conn, universe="nifty500"):
              "p5date": r[13], "p4date": r[14],
              "str": (r[18] if tier >= 1 else None), "lnd": (r[19] if tier >= 1 else None),
              "nq": ((r[20] or 0) if tier >= 2 else 0),
-             "attn": (r[21] if tier >= 3 else None)}
+             "attn": (r[21] if tier >= 3 else None),
+             "progress": (r[22] if tier >= 4 else None)}
             for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
@@ -1314,20 +1473,32 @@ def latest_scan(conn, universe="nifty500"):
 def latest_watch(conn, universe="nifty500"):
     """Read the persisted structure-watch snapshot (universe='<uni>:watch', D98).
     None when absent — the page shows 'snapshot pending'; there is NO live fallback
-    (a live watch pass costs ~30s over the universe; the watch is a nightly read)."""
+    (a live watch pass costs minutes over the universe; the watch is a nightly read)."""
+    return _latest_aux(conn, universe + ":watch")
+
+
+def latest_forming(conn, universe="nifty500"):
+    """Read the persisted 'open — approaching 5' snapshot (universe='<uni>:forming',
+    D102/R3). None when absent — snapshot-only, like the watch."""
+    return _latest_aux(conn, universe + ":forming")
+
+
+def _latest_aux(conn, key):
+    """Shared tiered reader for the watch/forming snapshots (attention-ordered;
+    older snapshots degrade gracefully instead of failing)."""
     base = ("SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
             "p5date,p4date,fresh,scan_date,computed_at,"
             "str_sub,lnd_sub,d_comp,p1_comp,f_comp,c_comp{ext} "
             "FROM wolfe_signals WHERE universe=? "
             "ORDER BY {order}")
-    tiers = ((2, ",nq_flag,attn", "attn DESC"),
+    tiers = ((3, ",nq_flag,attn,progress", "attn DESC"),
+             (2, ",nq_flag,attn", "attn DESC"),
              (1, ",nq_flag", "age ASC, str_sub DESC"),
              (0, "", "age ASC, str_sub DESC"))
-    recs, tier = None, 2
+    recs, tier = None, 3
     for tier, ext, order in tiers:
         try:
-            recs = conn.execute(base.format(ext=ext, order=order),
-                                (universe + ":watch",)).fetchall()
+            recs = conn.execute(base.format(ext=ext, order=order), (key,)).fetchall()
             break
         except Exception:
             recs = None
@@ -1340,7 +1511,8 @@ def latest_watch(conn, universe="nifty500"):
              "str": r[18], "lnd": r[19], "D": r[20], "p1": r[21],
              "F": r[22], "C": r[23],
              "nq": ((r[24] or 0) if tier >= 1 else 0),
-             "attn": (r[25] if tier >= 2 else None)} for r in recs]
+             "attn": (r[25] if tier >= 2 else None),
+             "progress": (r[26] if tier >= 3 else None)} for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
 
@@ -1369,8 +1541,11 @@ def _cli():
             n, scan_date = persist_scan(conn, universe=args.universe, fresh=args.fresh, computed_at=stamp)
         with get_conn() as conn:
             nw, _ = persist_watch(conn, universe=args.universe, fresh=args.fresh, computed_at=stamp)
+        with get_conn() as conn:
+            nf, _ = persist_forming(conn, universe=args.universe, computed_at=stamp)
         print(f"persisted {n} winner-profile setups + {nw} structure-watch rows "
-              f"for {args.universe} (as-of {scan_date}, computed {stamp})")
+              f"+ {nf} approaching-5 rows for {args.universe} "
+              f"(as-of {scan_date}, computed {stamp})")
     else:
         ap.print_help()
 
