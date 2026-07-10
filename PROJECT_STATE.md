@@ -1419,6 +1419,32 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 85b — 2026-07-10 — table_census LIVE: the D91 machine census (data-perfection lane, final routine item)
+D91 made operational (`5773dda`): coverage numbers can now come from a MACHINE snapshot, never a
+hand-carried figure (the class behind the 588× MAX(rowid) census fiasco).
+- **NEW `src/automation/table_census.py`** — nightly census of EVERY table in both DBs:
+  `COUNT(*)` (never rowid) + best-effort as-of boundaries (priority date-column heuristic) →
+  `hermes.table_census`, one row per (census_date, db, table). **134 tables (96 hermes + 38
+  research) in 20.2 s live**; kept as tiny daily HISTORY (~KB/day, the D93 bounded-snapshot class)
+  so day-over-day deltas can alarm. First census on record: `ratio_rows` **487,602** ·
+  `bhavcopy_rows` **9,379,458** (2004-07-23→2026-07-09) · `fundamentals_history` **768,227**.
+- **Rides the existing nightly DQ battery** (persist path takes the census FIRST; ad-hoc runs skip
+  the btree walk — zero new units). NEW `chk_table_census`: WARN on census staleness >3 d and on
+  any table shrinking >20 % day-over-day above a 500-row floor — the truncation/purge signature.
+  Live: `census.sanity → ok, 134 tables, no shrink alarms`; the shrink comparison arms with
+  tomorrow's 06:30 UTC run. Selftests: census 8/8 + dq suite green.
+- **Bug of MINE fixed (from `80c4c90`, caught by today's stricter gate):** `chk_security_master`'s
+  suspended-count query reads `currently_listed`, which the dq SELFTEST's synthetic table lacked →
+  the check threw in-fixture and the selftest KeyError'd (the live table always had the column; the
+  nightly stayed green). Fixture repaired. Lesson: after editing a check, run the module SELFTEST,
+  not just the battery.
+- **Data-perfection program: ALL buildable items now CLOSED** (census → renames → key_price splits →
+  index keys → agency dedup → signals rebuild → concall PIT clocks → corporate_actions →
+  ETF/instrument_class → table_census). Remaining are calendar-gated / follow-ups only: SHP lag
+  calibration (~Jul-21 Reg-31 flood) · adjust-vs-tape split-factor reconciliation (natural next
+  battery check) · /dash/coverage + /v1 `_meta` should QUOTE `table_census` (wire when the trust
+  surface is next open — provenance/coverage_view are audit-lane-hot).
+
 ### Session 85 — 2026-07-10 — Season-ops digest LIVE on the Telegram path (the daily operate routine, automated)
 - **NEW `src/automation/season_digest.py`** (--send/--print/--selftest; ₹0, no LLM, read-only
   everywhere, every section failure-isolated): one morning DM = unit health + pager fires 24h ·
