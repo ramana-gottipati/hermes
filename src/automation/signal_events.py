@@ -21,6 +21,18 @@ The detection ORCHESTRATOR (`run_detection`) reads existing signal tables defens
 never a crash. The core (emit + the read-APIs + the pure detectors) is fully testable
 without the production tables.
 
+PRODUCTION WIRING (S101, 2026-07-10): `--detect` runs as step 60 of the nightly
+hermes-bhavcopy chain (scripts/systemd/vps-live/hermes-bhavcopy.service.d/
+60-signal-events.conf) — sequentially AFTER the 10-signals (mep_signals),
+20-rsdepth (rsband_signals) and 30-fnooi (fno_oi_signals) steps that write the
+tables this reads; deals (14:30 UTC) and credibility (07:00 UTC) land earlier via
+their own timers. Live lenses: mep · cci · oi · rs (INDEX-grain, vs Nifty 500 —
+the stock-grain RS estate has no banded state column) · deal. NOT yet emitting:
+dvpt (no banded state column exists — needs its own design), quality, cpr.
+Writes are collect-then-commit per lens: the read loops run lock-free and each
+lens flushes in one short transaction (the DB write-lock outage class — never
+hold a write txn across thousands of reads).
+
 CLI:
     python -m src.automation.signal_events --detect [--asof YYYY-MM-DD]
     python -m src.automation.signal_events --stats
@@ -274,14 +286,33 @@ def _symbols_in(conn, table: str) -> list[str]:
         return []
 
 
+# The rs lens benchmark: rsband_signals is keyed (numerator, denominator, trade_date)
+# — index/sector numerators against two benchmarks; the bus reads the canonical one.
+_RS_BENCHMARK = "Nifty 500"
+
+
+def _flush(conn, lens: str, pending: list) -> int:
+    """Write one lens's collected (symbol, as_of, ev, note) events in a single short
+    transaction. The lens read-loops above run lock-free; holding a write txn across
+    thousands of interleaved reads is the known DB write-lock outage class."""
+    n = 0
+    for sym, as_of, ev, note in pending:
+        n += emit(conn, sym, lens, as_of, ev, note=note)
+    conn.commit()
+    return n
+
+
 def run_detection(conn, as_of: Optional[str] = None) -> dict:
     """Compare the latest two states per lens per symbol and emit events. Each lens is
     independent + defensive — a missing table/column yields zero events, never a crash.
-    Column names are probed tolerantly so this survives schema drift across the VPS DB."""
+    Column names are probed tolerantly so this survives schema drift across the VPS DB.
+    Live lenses: mep, cci, oi, rs (index-grain), deal — see the module header for why
+    dvpt/quality/cpr do not emit yet. Reads collect per lens; writes flush per lens."""
     ensure_schema(conn)
     emitted = {lens: 0 for lens in LENSES}
 
     # MEP phase flip (mep_signals.mep_state_smooth or mep_phase) ---------------
+    pending: list = []
     for sym in _symbols_in(conn, "mep_signals"):
         for col in ("mep_state_smooth", "mep_phase", "mep_state"):
             curr, prev = _latest_two(conn, "mep_signals", sym, col)
@@ -290,28 +321,111 @@ def run_detection(conn, as_of: Optional[str] = None) -> dict:
             if prev is not None:
                 ev = detect_phase_flip(prev.get(col), curr.get(col))
                 if ev:
-                    emitted["mep"] += emit(conn, sym, "mep", curr.get("_o") or (as_of or ""), ev)
+                    pending.append((sym, str(curr.get("_o") or as_of or ""), ev, ""))
             break
+    emitted["mep"] = _flush(conn, "mep", pending)
 
     # CCI credibility step (credibility_series.level/trend) --------------------
+    # PERIOD-keyed table: ordered by (period_year, period_month) — it has NO
+    # trade_date/as_of column (the original order="as_of" probe errored on every
+    # symbol and the defensive except made this lens a silent permanent no-op —
+    # the S101 fix). Event as_of = the day the new period row LANDED (computed_at
+    # date): the PIT-knowable date, and the one that lets a step surface in that
+    # day's attention batch instead of being backdated weeks to the concall period.
+    pending = []
     for sym in _symbols_in(conn, "credibility_series"):
-        curr, prev = _latest_two(conn, "credibility_series", sym, "level, trend", order="as_of")
-        if curr is not None and prev is not None:
+        try:
+            rows = conn.execute(
+                "SELECT level, trend, substr(computed_at, 1, 10) AS _knowable "
+                "FROM credibility_series WHERE symbol = ? "
+                "AND period_year IS NOT NULL AND period_month IS NOT NULL "
+                "ORDER BY period_year DESC, period_month DESC LIMIT 2",
+                (sym,)).fetchall()
+        except Exception:
+            rows = []
+        if len(rows) == 2:
+            curr, prev = dict(rows[0]), dict(rows[1])
             ev = detect_credibility_step(prev.get("level"), curr.get("level"),
                                          prev.get("trend"), curr.get("trend"))
             if ev:
-                emitted["cci"] += emit(conn, sym, "cci", str(curr.get("_o") or as_of or ""), ev)
+                pending.append((sym, str(curr.get("_knowable") or as_of or ""), ev, ""))
+    emitted["cci"] = _flush(conn, "cci", pending)
 
     # F&O OI quadrant flip (fno_oi_signals.quadrant) ---------------------------
+    pending = []
     for sym in _symbols_in(conn, "fno_oi_signals"):
         curr, prev = _latest_two(conn, "fno_oi_signals", sym, "quadrant")
         if curr is not None and prev is not None and "quadrant" in curr:
             ev = detect_phase_flip(prev.get("quadrant"), curr.get("quadrant"))
             if ev:
                 ev["event_type"] = "oi_flip"
-                emitted["oi"] += emit(conn, sym, "oi", str(curr.get("_o") or as_of or ""), ev)
+                pending.append((sym, str(curr.get("_o") or as_of or ""), ev, ""))
+    emitted["oi"] = _flush(conn, "oi", pending)
 
-    conn.commit()
+    # RS-band state flip (rsband_signals — INDEX-grain: index/sector numerators vs
+    # the Nifty 500 benchmark; event symbol = the numerator name) ---------------
+    pending = []
+    try:
+        nums = [r[0] for r in conn.execute(
+            "SELECT DISTINCT numerator FROM rsband_signals WHERE denominator = ?",
+            (_RS_BENCHMARK,)).fetchall()]
+    except Exception:
+        nums = []
+    for num in nums:
+        try:
+            rows = conn.execute(
+                "SELECT rs_band_state, trade_date FROM rsband_signals "
+                "WHERE numerator = ? AND denominator = ? AND rs_band_state IS NOT NULL "
+                "ORDER BY trade_date DESC LIMIT 2",
+                (num, _RS_BENCHMARK)).fetchall()
+        except Exception:
+            rows = []
+        if len(rows) == 2:
+            curr, prev = dict(rows[0]), dict(rows[1])
+            ev = detect_phase_flip(prev.get("rs_band_state"), curr.get("rs_band_state"))
+            if ev:
+                pending.append((num, str(curr.get("trade_date") or as_of or ""), ev,
+                                f"{num}: RS-band state {ev['from_state']} → {ev['to_state']} "
+                                f"vs {_RS_BENCHMARK}"))
+    emitted["rs"] = _flush(conn, "rs", pending)
+
+    # Deal print (bulk_block_deals — one event per symbol on the latest deal day;
+    # magnitude = the symbol's total deal value PERCENTILE within that day's
+    # printed symbols — relative, never a rupee-constant threshold) -------------
+    pending = []
+    try:
+        row = conn.execute("SELECT MAX(trade_date) FROM bulk_block_deals").fetchone()
+        deal_day = row[0] if row else None
+    except Exception:
+        deal_day = None
+    if deal_day:
+        try:
+            aggs = [dict(r) for r in conn.execute(
+                "SELECT symbol, COUNT(*) AS n, "
+                "SUM(CASE WHEN side = 'BUY'  THEN COALESCE(qty, 0) * COALESCE(price, 0) "
+                "         ELSE 0 END) AS buy_val, "
+                "SUM(CASE WHEN side = 'SELL' THEN COALESCE(qty, 0) * COALESCE(price, 0) "
+                "         ELSE 0 END) AS sell_val "
+                "FROM bulk_block_deals WHERE trade_date = ? GROUP BY symbol",
+                (deal_day,)).fetchall()]
+        except Exception:
+            aggs = []
+        totals = sorted((r["buy_val"] or 0) + (r["sell_val"] or 0) for r in aggs)
+        for r in aggs:
+            total = (r["buy_val"] or 0) + (r["sell_val"] or 0)
+            pct = (sum(1 for t in totals if t <= total) / len(totals)) if totals else 0.0
+            net = (r["buy_val"] or 0) - (r["sell_val"] or 0)
+            direction = "up" if net > 0 else ("down" if net < 0 else "flip")
+            side_word = "net BUY" if net > 0 else ("net SELL" if net < 0 else "two-sided")
+            ev = {"event_type": "deal_print", "direction": direction,
+                  "from_state": None,
+                  "to_state": f"{r['n']} print(s) ₹{total / 1e7:.1f}cr",
+                  "magnitude": round(pct, 4)}
+            pending.append((r["symbol"], str(deal_day), ev,
+                            f"{r['symbol']}: {r['n']} bulk/block deal print(s) — "
+                            f"₹{total / 1e7:.1f}cr {side_word}"))
+    emitted["deal"] = _flush(conn, "deal", pending)
+
     log.info("signal_events run_detection: %s", {k: v for k, v in emitted.items() if v})
     return {"emitted": emitted, "total": sum(emitted.values())}
 

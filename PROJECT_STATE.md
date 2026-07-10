@@ -478,6 +478,19 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 
 ## Decision log (the big ones)
 
+### D105 — The signal-event bus producer lives INSIDE the bhavcopy chain (drop-in step 60), not on its own timer (2026-07-10, S101)
+WHY: `run_detection` derives events from tables the chain itself writes (`mep_signals` @10,
+`rsband_signals` @20, `fno_oi_signals` @30) — a sibling ExecStart is the only wiring that makes
+"after the sources" a systemd-sequencing GUARANTEE instead of a clock guess; it adds zero new
+timers (no AUD-95 enable/start surface), inherits the chain's OnFailure pager + hardening, and
+follows the established isolated-drop-in pattern (30-fnooi/50-accumscreen precedents: a step-60
+failure cannot break the upstream chain). Trade-off accepted: no weekend runs (Mon–Fri chain) —
+a Sat credibility step is still caught by Monday's latest-two diff; only back-to-back weekend
+steps on the same symbol could collapse into one event (rare, tolerable for an attention
+surface). Event-dating doctrine: a state-change event is stamped `as_of` = the day the change
+became KNOWABLE (trade_date for tape lenses; `date(computed_at)` for the period-keyed cci) —
+PIT honesty over raw period labels, the same doctrine D104 applies on the serve side.
+
 ### D104 — /v1 PIT knowable clock is TWO-TIER: the real concall/transcript event date when captured, month-end only as the fallback (2026-07-10, S100; refines S96b's AUD-38 base)
 S96b shipped the credibility PIT serve on a month-granular rule justified by "the call's
 intra-month date is not stored" — but it IS stored: `concalls.concall_dt` carries a real
@@ -1498,6 +1511,16 @@ Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry
 
 ## What's NOT yet built / open items
 
+- **Signal-event bus — remaining faces + lenses (S101; producer itself is WIRED, D105):**
+  (a) **dvpt lens** — no banded dvpt state column exists to diff (which horizon, what bands =
+  its own design); **quality/cpr lenses** likewise not emitting (LENSES vocabulary reserves
+  them). (b) **No home-surface face** — the only live readers are `/v1/attention` (+ `as_of`);
+  the "home Attention Queue" the S96b chip named does not exist in code. A home
+  pillar/card reading `attention_queue()` is a natural product pick (front-door parity rule
+  applies when it becomes a strategy surface). (c) rs lens is INDEX-grain (`rsband_signals`
+  numerators vs Nifty 500) — a stock-grain rs lens needs a banded state on the stock RS estate
+  first.
+
 ### 🧭 WOLFE LIFECYCLE PROGRAM — R1–R7 (Ramana directive 2026-07-10, S89 tail; canon = wolfe-rules.md §D; RECORDED, build queued)
 His taxonomy: **FORMING** (pts 1-4, no 5) = play A "ride 4→5" (SL = point-4 breach; target =
 predicted-5 confluence) · **OPEN** (5 printed, EPA untouched) = play B "ride 5→EPA" — *"open items
@@ -1735,6 +1758,59 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 101 — 2026-07-10 — Signal-event bus WIRED: producer = bhavcopy-chain step 60; dead cci lens fixed; rs + deal lenses added (S96b spawn-task chip; renumbered S100→S101 per the S100 lane's collision watch)
+The S96b finding ("`signal_events` = 0 rows in prod — bus has no producer") is CLOSED. Diagnosis:
+**built-but-never-wired** (kickstart-pick-verified: no commit since S96b touches wiring; no unit's
+ExecStart anywhere runs `--detect`) **AND the cci lens was silently dead** — `run_detection`
+ordered `credibility_series` by an `as_of` column that table does not have (it is PERIOD-keyed);
+the defensive except swallowed the SQL error on every symbol, so even a wired run would have
+emitted cci-nothing forever. Shipped (this commit; hash backfilled next docs commit):
+- **Wiring = drop-in step 60 of the existing hermes-bhavcopy chain** (D105):
+  `scripts/systemd/vps-live/hermes-bhavcopy.service.d/60-signal-events.conf` — sequentially
+  guaranteed AFTER 10-signals (`mep_signals`), 20-rsdepth (`rsband_signals`), 30-fnooi
+  (`fno_oi_signals`); deals (14:30 UTC) + credibility (07:00 UTC) land earlier via their own
+  timers. **No new timer → no AUD-95 surface** (nothing enabled/started; the already-enabled
+  14:00 UTC bhavcopy timer executes the step on its next fire). Failures page via the chain's
+  existing `OnFailure=hermes-alert@`.
+- **cci lens FIXED:** ordered by `(period_year, period_month)` DESC, NULL-period rows excluded;
+  event `as_of` = `date(computed_at)` — the PIT-knowable day the row LANDED (also the only
+  dating that lets a step surface in that day's attention batch instead of being backdated
+  weeks to the concall period).
+- **rs lens NEW (index-grain):** `phase_flip` on `rsband_signals.rs_band_state`, numerator vs
+  the `Nifty 500` benchmark (123 index/sector series; the stock-grain RS estate has no banded
+  state column — honest fence, recorded in §What's-NOT-built). **deal lens NEW:** one
+  `deal_print` per symbol on the latest `bulk_block_deals` day; magnitude = within-day deal-value
+  PERCENTILE (relative — no rupee-constant thresholds, standing rule); side mix + ₹cr kept in
+  note/to_state (data-first).
+- **Write discipline:** collect-then-commit per lens — read loops run lock-free, each lens
+  flushes in one short write txn (the DB write-lock outage class cannot recur here; matters
+  because the chain tail overlaps the 15:30+ ingest-cluster writers).
+- **Readers UNTOUCHED** (`attention_queue`/`latest_batch_on_or_before` semantics final per the
+  chip): `tests/test_v1_pit.py` green; NEW `tests/test_signal_events.py` (8 hermetic
+  producer tests: per-lens emission incl. the cci dead-loop regression, knowable-day dating,
+  deal percentile/direction, idempotent re-run, producer→reader seam).
+- **Deploy + live verify (2026-07-10 ~12:51 UTC, 73 min before the chain fire):** md5-verified
+  swap (live was byte-identical to HEAD first; backup `signal_events.py.bak-20260710-s100`);
+  drop-in scp'd to the vps-live MIRROR then `install-systemd.sh --install` (exactly 1 DRIFT =
+  the new file, installed + daemon-reload; NO enable/start anywhere) → `--check` CLEAN; merged
+  chain = **16 ExecStart steps** (was 15); remote import OK. **SEED RUN (direct CLI, not
+  systemctl): 1,188 events in 1.0s — mep 288 · cci 654 (the fixed lens is the biggest emitter)
+  · oi 213 · deal 33 · rs 0 (SQL-verified HONEST zero: no Nifty-500 band-state changes
+  Jul-08→09; sticky bands)**; `--stats` latest_as_of=2026-07-09. Reader walk: `attention_queue`
+  6 live events (magnitude-tied mep flips) · `latest_batch_on_or_before(2026-07-10)`=2026-07-09
+  · `R.attention()` (the exact /v1 fn) 3 rows fresh + 6 rows at `as_of=2026-07-01` (PIT replay
+  reaching the older cci batch). HTTP-level /v1 curl untestable BY DESIGN: `v1_api_keys` = 0
+  rows (fail-closed 401) — the P-05 key-provisioning gap stands. **WATCH: tonight's 14:04 UTC
+  chain executes step 60 on-schedule** — journal must show the `run_detection` summary line;
+  `--stats` latest_as_of flips to 2026-07-10 (idempotent over the seed). Renumber redeploy:
+  S101-stamped .py + .conf re-pushed post-collision-resolution, md5 == HEAD re-verified.
+- **Consumer truth (chip correction):** the only live bus readers are `/v1/attention` (+ its
+  AUD-38 `as_of`) — the "home Attention Queue" named in the chip does NOT exist in code
+  (repo-wide grep); building that face is a product pick, recorded in §What's-NOT-built.
+- Harness TIL: the `Monitor` tool (until-condition watcher) could have babysat tonight's
+  14:04 UTC chain fire in-session instead of handing the verify forward — candidate for all
+  first-fire timer verifies.
 
 ### Session 100 — 2026-07-10 — D104: the /v1 PIT knowable clock upgraded to the REAL concall/transcript event date (refines S96b same-day; the mid-flight collision resolved by adopt-then-refine)
 Booted onto AUD-38 as the top doable pick (D94 queue complete; heal lanes hot on hermes.db) and
