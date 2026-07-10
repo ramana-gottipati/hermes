@@ -98,6 +98,14 @@ MCP server on the VPS (P-06, open item L).
 2026-07-05b, net Sharpe 0.06, FAILED the gate; no fundable PEAD construction remains. The event lens
 ships descriptively (`pead_surface.py`), never as a book.
 
+**E-14 ARMED S85f (2026-07-10):** gate frozen + hashed (`c005e2a2289d…`, M-04) — three ΔQoQ combos
+only (promoter↑ / promoter↓ / promoter↑×FII↑ at the 0.25pp inertia floor; pledge REPORTED-only per
+the 6.8/6.9% tail null); self-gating `shp_combos.py --run` fires monthly on the 25th (**first:
+2026-07-25**, deliberately trailing the flood + the S85d calibration by a few nights); aborts-with-
+census until dated releases ≥1,000 + per-combo n≥50 & 8 cohorts. Baseline DM: 94/1,000 dated (all
+real, 0 calibrated) · G1 18 · G2 20 · G3 4 — **the one armed study whose GO can be its FIRST fire**,
+since calibrated dating of the 28 historical quarters clears the floors at once.
+
 **§5 status (S83g sweep, 2026-07-07/08):** P-03 ✓ (spec-sheets live, S83d) · M-05 ✓ (standing-caveats
 box) · M-04 ✓ (`prereg.py` registry, gates hashed — E-11/E-12 pre-hashed before first run) ·
 M-03 half (evlib re-export; factory print-wiring = next factory run) · E-11 + E-12 RUN

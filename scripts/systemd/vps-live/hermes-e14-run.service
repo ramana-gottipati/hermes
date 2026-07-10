@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes E-14 shareholding-combos run (self-gating: aborts-with-census until the flood + calibration land)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes:/opt/hermes/research
+ExecStart=/opt/hermes/.venv-research/bin/python -m explosive_moves.shp_combos --run --notify
+StandardOutput=append:/var/log/hermes-e14-run.log
+StandardError=append:/var/log/hermes-e14-run.log

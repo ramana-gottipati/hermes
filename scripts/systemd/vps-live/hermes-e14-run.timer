@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes E-14 run attempt (monthly on the 25th 03:15 UTC — first fire 2026-07-25, post-flood + calibration buffer)
+# NO Requires= (AUD-95-safe). Self-gating: aborts at reconciliation in seconds while the
+# dated-release coverage / combo depth is short (census DM); completes the pre-registered
+# protocol automatically the month it reconciles. The 25th (not the 22nd) deliberately
+# trails the Reg-31 flood by a few nights so the capture + the S85d lag calibration land first.
+
+[Timer]
+OnCalendar=*-*-25 03:15:00
+Persistent=false
+Unit=hermes-e14-run.service
+
+[Install]
+WantedBy=timers.target

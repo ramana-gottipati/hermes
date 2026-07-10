@@ -29,7 +29,8 @@ from datetime import datetime, timezone
 
 RDB = "/opt/hermes/data/research.db"
 STUDIES = ["pead", "footprint", "insider_drift", "filing_latency", "concall_intent",
-           "dividend_drift", "rebrand_pump", "campaign_arcs", "rating_drift", "evlib"]
+           "dividend_drift", "rebrand_pump", "campaign_arcs", "rating_drift",
+           "shp_combos", "evlib"]
 RETRO = {"pead", "footprint", "insider_drift", "filing_latency", "concall_intent", "evlib"}
 
 _DDL = """CREATE TABLE IF NOT EXISTS prereg_registry(

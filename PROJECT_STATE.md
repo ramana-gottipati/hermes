@@ -1787,6 +1787,10 @@ Harness-side program (Ramana: "go for all the changes suggested"); most artifact
   cowork plugin removal + claude.ai-side connector cleanup (Ramana-only surfaces).
 - Harness TIL (first entry): `skillOverrides` per-skill "off"/"name-only" is the surgical alternative
   to `disableBundledSkills` — the latter would have killed code-review/claude-api/loop.
+- Gate v1.1 (same session, pre-restart-verify): closed the compound `git add X && git commit` gap —
+  the hook runs BEFORE the Bash call, so the pre-exec index missed same-call adds; now unions the
+  add's expanded pathspecs (`git ls-files -m -o -d`; add -A/. → all modified+untracked+deleted).
+  15-case matrix green incl. NO false block on docs-only compound while a sibling's src/ is dirty.
 - Shipped in THIS commit (docs + gate script); harness artifacts referenced above are file-level, not repo.
 
 ### Session 86c — 2026-07-10 — Wolfe walk freshness fix (D96) + drawings v2: direct-edit · level catalog · future space · confluence (Ramana's chart-review batch)
@@ -1903,6 +1907,26 @@ then-swap, cockpit md5 == HEAD pre-edit):
   surveillance 797+52). Next session starts at queue #1 (insider-activity lens).
 - Units synced to the VPS vps-live mirror at deploy time (the Jul-10 mirror rule) —
   drift gate stays exit-clean.
+
+### Session 85f — 2026-07-10 — E-14 shareholding combos ARMED for Jul-25: the third self-executing study trigger
+- **NEW `research/explosive_moves/shp_combos.py`** — E-14 pre-registration frozen + hashed
+  (`c005e2a2289d…`) with the failure-ledger priors bound in: exactly THREE gated ΔQoQ combos
+  (promoter↑ / promoter↓ / promoter↑×FII↑, 0.25pp inertia floor — multiplicity capped by design);
+  **pledge combos REPORTED-only** (the CCI-veto tail null 6.8%/6.9% stands + 164-row coverage);
+  per-combo gate = |t_cohort|≥2 + sign-as-expected + placebo-clearing. Dates: REAL
+  (provenance_knowable) where present, else the S85d lane's CALIBRATED report_date — the
+  reconciliation gate (dated ≥1,000 + per-combo n≥50 & 8 cohorts) encodes the postmortem's
+  "flood + calibration first, THEN pre-register" dependency mechanically.
+- **`hermes-e14-run.{service,timer}` armed: monthly 25th, first fire 2026-07-25 03:15 UTC**
+  (deliberately 3-4 nights behind the flood so capture + the sibling's calibration land first);
+  hardened + paged; abort-with-census DMs until GO, then the protocol completes itself.
+- **Baseline (DM delivered): NOT-YET — 94/1,000 dated (all real, 0 calibrated) · G1 n=18 ·
+  G2 n=20 · G3 n=4.** Distinctive vs E-02/E-04: E-14's GO can plausibly be its FIRST fire —
+  calibrated dating of the 28 historical SHP quarters (84,699 rows · 1,541 syms · 2019→2026)
+  clears the combo floors immediately once the S85d artifact exists. Jul-25 tells.
+- The estate now runs **four self-executing research triggers** (E-04 depth · E-02 sample ·
+  E-14 flood+calibration · the S85d SHP calibration itself) — each pre-registered, hashed,
+  self-paging, and reporting to the operator's phone.
 
 ### Session 85e — 2026-07-10 — E-02 rating-drift ARMED for Jul-22: gate frozen, mapping widened, dedup falsifies the premise
 "Run E-02 after the Jul-21 flood" executed as the now-standard armed-trigger pattern (E-04's twin):
