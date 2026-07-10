@@ -68,10 +68,17 @@ _SPLIT_RE = re.compile(
 # S96 (TAPE_SUSPECT review): bonus DEBENTURES / PREFERENCE shares carry a ratio in the
 # subject but do NOT rescale the equity price (audited: BRITANNIA/NTPC/DRREDDY/ZEEL/
 # ASTRAZEN all show ex-day moves of −3…−7% against "implied" −50…−95%). Never a ratio.
-_DEB_PREF_RE = re.compile(r"DEBENTURE|PREFERENCE", re.IGNORECASE)
+_DEB_PREF_RE = re.compile(r"DEBENTURE|PREFERENCE|\bDEB(?![A-Za-z])", re.IGNORECASE)  # "Bonus Deb1:1" too
 # a bonus ratio riding inside a SPLIT-typed filing's text ("Spl-Rs10 To Rs2/Bonus-1:2")
 _BONUS_TXT_RE = re.compile(r"BONUS\W{0,15}?(\d+)\s*:\s*(\d+)", re.IGNORECASE)
-_SPLIT_WORD_RE = re.compile(r"SPLIT|SUB\s*-?\s*DIVISION|CONSOLIDAT", re.IGNORECASE)
+_SPLIT_WORD_RE = re.compile(r"SPLIT|\bSPL\b|SUB\s*-?\s*DIVISION|CONSOLIDAT", re.IGNORECASE)
+# split ratios WITHOUT the "From … To …" scaffolding ("Face Value Split Rs.10/- To Rs.5",
+# "Spl-Rs10 To Rs2") — the strict _SPLIT_RE needs from/of, these filings drop it (S97).
+_SPLIT_TXT_RE = re.compile(
+    r"(?:SPLIT|\bSPL\b|SUB\s*-?\s*DIVISION|CONSOLIDAT\w*)\W{0,25}?"
+    r"(?:RS?\.?|RE\.?|INR)?\s*([\d.]+)\s*(?:/-)?\s*(?:TO|INTO)\s*(?:RS?\.?|RE\.?|INR)?\s*([\d.]+)",
+    re.IGNORECASE,
+)
 
 
 def _parse_ratio(action_type: str, purpose_text: str) -> tuple:
@@ -88,7 +95,7 @@ def _parse_ratio(action_type: str, purpose_text: str) -> tuple:
     if action_type == "BONUS" and _DEB_PREF_RE.search(text):
         return None, None
     if action_type in ("SPLIT", "CONSOLIDATION"):
-        m = _SPLIT_RE.search(text)
+        m = _SPLIT_RE.search(text) or _SPLIT_TXT_RE.search(text)
         if m:
             return float(m.group(1)), float(m.group(2))
     m = _RATIO_RE.search(text)
@@ -119,7 +126,7 @@ def _group_price_legs(rows: list) -> list:
         if rf and rt and rf > 0 and rt > 0:
             legs.append((rt / rf) if at in ("SPLIT", "CONSOLIDATION") else (rt / (rf + rt)))
         if at == "BONUS" and not has_split_row and _SPLIT_WORD_RE.search(text):
-            m = _SPLIT_RE.search(text)
+            m = _SPLIT_RE.search(text) or _SPLIT_TXT_RE.search(text)
             if m:
                 f, t = float(m.group(1)), float(m.group(2))
                 if f > 0 and t > 0 and f != t:
@@ -552,6 +559,16 @@ def _selftest() -> int:
     rec2 = reconcile(con)
     check("S96 band-locked ex-day is CAUGHT, not SUSPECT",
           rec2["counts"].get("TAPE_SUSPECT") == 1 and rec2["counts"].get("CAUGHT_FALLBACK") == 2)
+    # S97 second pass: from-less split texts + abbreviated "Deb"
+    eih = normalize_api_row({"symbol": "EIH2", "subject": "Spl-Rs10 To Rs2/Bonus-1:2",
+                             "exDate": "12-Sep-2026"})
+    deb2 = normalize_api_row({"symbol": "DEB2", "subject": "Sch Of Agmt- Bonus Deb1:1",
+                              "exDate": "12-Sep-2026"})
+    store_actions([eih, deb2], conn=con)
+    pr4 = price_ratios(con, "EIH2")
+    check("S97 from-less split text recovered (0.2 × 2/3 = 0.1333)",
+          abs(pr4["2026-09-12"] - (0.2 * 2 / 3)) < 1e-9)
+    check("S97 abbreviated Bonus Deb excluded", price_ratios(con, "DEB2") == {})
     con.close()
 
     print("corp_actions selftest:", "OK" if ok else "FAILED")
