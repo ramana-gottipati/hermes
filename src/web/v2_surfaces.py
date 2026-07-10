@@ -79,6 +79,13 @@ _ROUTER_SPECS = [
     # Corp-actions calendar (D94 queue #5, S91) — forward ex-dates from the nightly
     # corporate_actions feed; flag logic single-sourced in corp_actions.flagged_symbols.
     ("actions", "src.web.actions_view", "/dash/actions"),
+    # Market Internals (deep-data value sprint) — the 22-year absolute market-health surface
+    # (price-breadth + the MEP tape + delivery + dispersion + coil) from the bounded
+    # market_internals_daily snapshot. New self-contained module, additive.
+    ("market-internals", "src.web.market_internals_view", "/dash/market-internals"),
+    # Launchpad track record (deep-data value sprint, orphan rescue) — surfaces the
+    # ignition_outcomes study (50k signals) as the evidence behind the launchpad screen.
+    ("launchpad-track", "src.web.launchpad_track_view", "/dash/launchpad-track"),
     # Surveillance-transition tape (D94 queue #6, S92) — ASM/GSM snapshot diffs +
     # band events; flag logic single-sourced in surveillance.flagged_symbols.
     ("surveillance", "src.web.surveil_view", "/dash/surveillance"),

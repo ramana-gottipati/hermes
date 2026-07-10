@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell        # chrome + CSS (import-safe)
+from src.web import infographics as ifx      # shared inline-SVG primitives
 
 router = APIRouter()
 
@@ -70,6 +71,88 @@ def _spark(series):
             f'<polyline points="{coords}" fill="none" style="stroke:{col}" stroke-width="1.4"/></svg>')
 
 
+def _pct_of(sorted_vals, v):
+    if not sorted_vals or v is None:
+        return 50.0
+    lo, hi = 0, len(sorted_vals)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if sorted_vals[mid] <= v:
+            lo = mid + 1
+        else:
+            hi = mid
+    return 100.0 * lo / len(sorted_vals)
+
+
+def render_positioning_tape(conn) -> str:
+    """The FLAGSHIP fix (D-recon): the FII stance across its FULL history (~2.5y), with a
+    percentile gauge and the FII-vs-retail mirror — replacing the amnesiac 40-day sparkline
+    below with the regime + extremity the short window hides. Descriptive positioning (D62)."""
+    rows = conn.execute(
+        "SELECT trade_date, client_type, fut_idx_long, fut_idx_short FROM participant_oi "
+        "WHERE client_type IN ('FII','CLIENT') ORDER BY trade_date").fetchall()
+    if not rows:
+        return ""
+    fii_ls, fii_net, cli_net, dates = {}, {}, {}, []
+    for r in rows:
+        d, ct = r["trade_date"], r["client_type"]
+        lo, sh = r["fut_idx_long"], r["fut_idx_short"]
+        if ct == "FII":
+            if d not in fii_net:
+                dates.append(d)
+            fii_net[d] = (lo - sh) if (lo is not None and sh is not None) else None
+            fii_ls[d] = (lo / sh) if (lo and sh) else None
+        else:
+            cli_net[d] = (lo - sh) if (lo is not None and sh is not None) else None
+    dates = sorted(set(dates))
+    if len(dates) < 20:
+        return ""
+    ratio = [fii_ls.get(d) for d in dates]
+    fii_n = [(fii_net.get(d) / 1e5) if fii_net.get(d) is not None else None for d in dates]
+    cli_n = [(cli_net.get(d) / 1e5) if cli_net.get(d) is not None else None for d in dates]
+    latest = next((r for r in reversed(ratio) if r is not None), None)
+    dist = sorted(r for r in ratio if r is not None)
+    pct = _pct_of(dist, latest) if latest is not None else 50.0
+
+    if pct <= 12:
+        extreme = (f'<b style="color:var(--down)">near-record net-short</b> — more bearish than '
+                   f'{100 - pct:.0f}% of the last {len(dist)} days')
+    elif pct >= 88:
+        extreme = (f'<b style="color:var(--up)">near-record net-long</b> — more bullish than '
+                   f'{pct:.0f}% of the last {len(dist)} days')
+    else:
+        extreme = f'{ifx._ord(pct)} percentile of {len(dist)} days'
+
+    tape = (
+        '<div class="sub" style="margin:16px 0 4px">📼 The positioning tape '
+        '<span class="mut">— the FII stance across its FULL 2.5-year history, not the last 40 days</span></div>'
+        '<div class="card" style="padding:12px 14px">'
+        f'<div style="font-size:13px">FII index-futures long:short — '
+        f'<b style="font-variant-numeric:tabular-nums">{("%.2f" % latest) if latest else "—"}</b> '
+        f'<span class="mut">· {extreme}</span></div>'
+        '<div style="font-size:11px;color:var(--ink-3);margin:8px 0 2px">'
+        'LONG:SHORT RATIO — green = net long (&gt;1), red = net short (&lt;1)</div>'
+        + ifx.spark_area(ratio, h=120, signed=True, baseline=1.0)
+        + '<div style="max-width:520px;margin-top:8px">'
+        + ifx.pct_gauge(latest, dist, label="today", vfmt=2) + '</div>'
+        + '<div class="sub mut" style="margin-top:6px;font-size:11px">FII index-futures shorts are '
+          'largely hedge/arb-driven — read this as <b>stance and extremity</b>, never a directional '
+          'timing call (D62). The percentile answers "how unusual is today vs its own history".</div>'
+        '</div>'
+        '<div class="sub" style="margin:16px 0 4px">🪞 Smart money vs retail '
+        '<span class="mut">— who is on the other side of the FII short</span></div>'
+        '<div class="card" style="padding:12px 14px">'
+        '<div style="font-size:11px;color:var(--ink-3);margin-bottom:2px">FII net index position (lakh contracts)</div>'
+        + ifx.spark_area(fii_n, h=84, signed=True, baseline=0)
+        + '<div style="font-size:11px;color:var(--ink-3);margin:10px 0 2px">CLIENT (retail + HNI) net index position</div>'
+        + ifx.spark_area(cli_n, h=84, signed=True, baseline=0)
+        + '<div class="sub mut" style="margin-top:6px;font-size:11px">A near-perfect mirror: as FII '
+          'shorts deepen, retail longs swell in lockstep — retail is the counterparty. "CLIENT" is '
+          'retail + HNI + residual, not pure retail. Positioning context, not a signal.</div>'
+        '</div>')
+    return tape
+
+
 def render_participants() -> str:
     with get_conn() as conn:
         d = conn.execute("SELECT MAX(trade_date) m FROM participant_oi").fetchone()["m"]
@@ -82,6 +165,7 @@ def render_participants() -> str:
             "SELECT trade_date, fut_idx_long, fut_idx_short FROM participant_oi "
             "WHERE client_type='FII' ORDER BY trade_date DESC LIMIT 40", (
             )).fetchall()][::-1]
+        tape_html = render_positioning_tape(conn)   # the full-history flagship tape
 
     def idx_net(ct):
         r = rows.get(ct, {})
@@ -177,6 +261,7 @@ def render_participants() -> str:
             f'<span class="sub" style="margin:0">who is long / short — FII · DII · Pro · Client · '
             f'as of {html.escape(d)}</span></h2>'
             + gauge
+            + tape_html
             # matrix (5-col) + history (3-col) were two narrow tables each alone in a
             # full-width card → paired side-by-side so neither leaves a half-empty row.
             + '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'

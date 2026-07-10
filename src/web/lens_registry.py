@@ -69,6 +69,12 @@ LENSES: tuple[Lens, ...] = (
     # typed state-changes in one magnitude-ranked, PIT-replayable tape (bus = D105).
     Lens("attention", "Attention", "market", "markets", "/dash/attention",
          aliases=("bus", "events", "signal-events", "queue", "attention-queue")),
+    # Market Internals (deep-data sprint) — the ABSOLUTE market-health surface back to 2004:
+    # price-breadth (adv/dec) + the tape (MEP accum/distrib effort-breadth) + delivery regime +
+    # dispersion + coil. Reads the bounded market_internals_daily snapshot. The hero is the
+    # price-breadth vs effort-breadth divergence. Descriptive market-state — not a signal.
+    Lens("market-internals", "Market internals", "market", "markets", "/dash/market-internals",
+         aliases=("internals", "breadth", "market-health", "advance-decline")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
@@ -192,6 +198,12 @@ LENSES: tuple[Lens, ...] = (
     Lens("shp", "Holdings", "stock", "strategies", "/dash/shp",
          aliases=("shareholding", "holdings-qoq", "fii-dii", "holder-mix")),
     Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad"),
+    # Launchpad track record (deep-data sprint, orphan rescue) — surfaces ignition_outcomes
+    # (50k historical signals, 2019→) as the honest outcome distribution behind the screen:
+    # gain-vs-pain by character, first-vs-repeat, the drawdown-recovery ladder. Point-in-time
+    # study, gross of costs, ledger-cited (validated screen, no fundable edge net of cost).
+    Lens("launchpad-track", "Launchpad · evidence", "stock", "strategies", "/dash/launchpad-track",
+         aliases=("launchpad-outcomes", "track-record", "ignition-outcomes")),
 
     # ── Tracker ──────────────────────────────────────────────────────────────
     # Tracker tabs are nested under /dash/tracker/* so the URL mirrors the nav

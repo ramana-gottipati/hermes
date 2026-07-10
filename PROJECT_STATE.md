@@ -190,6 +190,14 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 ### Key file paths
 
+**Deep-data value sprint (S110/D112) — new/changed modules:**
+- `src/web/infographics.py` — NEW leaf module: 8 tested theme-aware inline-SVG primitives (heat_ribbon · spark_area · stream · heat_grid · diverging_bars · floating_bars · pct_gauge + signed/sequential colour honoring the value contract). Zero `src` imports; safe to import from any view. The shared "diverse charts" vocabulary.
+- `src/web/market_internals_view.py` — NEW: `/dash/market-internals` (22y market-health flagship; reads `market_internals_daily`).
+- `src/automation/market_internals.py` — NEW: builds `market_internals_daily` (`backfill` + `refresh_tail`; run `python -m src.automation.market_internals --backfill`).
+- `src/web/launchpad_track_view.py` — NEW: `/dash/launchpad-track` (orphan rescue — the `ignition_outcomes` outcome study behind the launchpad screen).
+- `src/web/participants_view.py` — UPGRADED: the full-history FII positioning tape + percentile gauge + retail mirror (additive above the existing gauge/matrix).
+- `src/web/lens_registry.py`, `src/web/v2_surfaces.py` — +2 lens records / +2 `_ROUTER_SPECS` mounts (market-internals, launchpad-track).
+
 **On Ramana's Windows laptop (D: drive):**
 ```
 D:\Hermes\                                          ← local working copy of repo
@@ -441,6 +449,9 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 - `rs_extras` (numerator, denominator, trade_date, rs_ratio, rs_momentum, quadrant, rsi_of_rs, mansfield, improving_entry, weakening_warning, mom/mansfield centerline crosses, rsi_oversold_turn, rs_div_bull/bear) — JdK RS-Ratio/RS-Momentum + RSI-of-RS + Mansfield + base/turn flags per (sector, benchmark).
 - `capture_signals` (numerator, denominator, trade_date, down_capture_63/126/252, up_capture_63/126/252, down_excess_63, capture_spread_63) — "falls less than the Nifty" defensive RS per (sector, benchmark).
 
+**Deep-data value sprint (S110/D112 — `src/automation/market_internals.py` owns this; bounded snapshot, NO new timer):**
+- `market_internals_daily` (d PK, n_eq, adv, dec, unch, pct_adv, avg_dp, disp, mep_n, mep_acc, mep_dis, mep_net, avg_comp, computed_at) — ONE row per trading day of absolute market internals over 22y (2004→2026, ~5.4k rows): price-breadth + delivery-% + winsorised cross-sectional return-dispersion (from `bhavcopy_rows` series='EQ') and accum/distrib effort-breadth + mean ATR-coil (from `mep_signals.mep_state_smooth`/`compression`). Backs `/dash/market-internals`. Rebuilt idempotently by `market_internals.backfill`; `refresh_tail` appends new dates only.
+
 **Conversation memory:**
 - `conversations` (id, created_at, title, telegram_user_id)
 - `messages` (id, conversation_id, role, content, created_at)
@@ -499,6 +510,21 @@ The full §B rescoring, decided component-by-component with Ramana against his o
 OOS winner-profile scan preserved (reads the point-1 fractal LEVEL, kept separately, + F<=2 = gap>0.6%).
 TCS wave 13→**18/25** (A4 B3 C3 F2 G0 H2 I2 D2). §A geometry, D108 gate, `find_p5` untouched. Doctrine
 at wolfe-rules.md §A9 (point 5 is alive + spring-reclaim + S/R flip) + §B3.
+
+### D112 — Deep-data value sprint: mine the DEPTH the product doesn't surface, descriptive-only, before any new source (2026-07-11, S110)
+WHY: Ramana asked to maximize value from data already held (no new feeds) — deeper insights /
+new attributes / diverse visuals, not beautification. Decisions: (1) surface the **depth** the
+UI hides — 22-year breadth/tape/delivery/dispersion (`market_internals_daily`), the full-history
+FII positioning arc, the 50k-row ignition outcome study — rather than re-skin existing views;
+(2) every new surface is **STRICTLY DESCRIPTIVE** with on-page honesty fences (no new
+ranked/tradeable claim — failure-ledger), and aggregate where individual ranking is
+falsified/vetoed (D66) so the aggregate sidesteps it; (3) prefer **bounded snapshots +
+compute-on-read** over new nightly timers (space mandate; avoids the AUD-95 timer hazard) — the
+one new table is ~5.4k rows and self-heals its tail on read; (4) a shared `infographics.py` SVG
+primitive set so the "diverse charts" read as one system and honor the value-colour contract
+(directional = --up/--down; categorical = --series/--chart; color_gate-enforced). New lenses are
+additive; existing pages (participants) are upgraded in place, never replaced. (Note: D111 was
+taken by the parallel wolfe lane — this sprint is D112.)
 
 ### D110 — "Since you last looked" = a CLIENT-cookie last-seen, no server-side per-user state, no new table (2026-07-10, S108)
 WHY: the bus's third face (the "since you last looked" brief — `events_since` filtered by the
@@ -1884,6 +1910,17 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 110 — 2026-07-11 — DEEP-DATA VALUE SPRINT: 3 insight flagships + an orphan rescue from EXISTING data (no new sources)
+Ramana: "with the data we have today, before adding any new sources … extract deeper insights, new perspectives, additional attributes … diverse charts/analytics/infographics, not just standard stock visuals … orphan pages/overlooked details … by tomorrow morning." Ran a **6-agent parallel recon** across the estate (deep-history breadth · microstructure · the features panel · participants/derivatives · 24y fundamentals · orphan audit), every finding SQL-validated on the VPS, then built the highest-value, honesty-fenced, **descriptive** surfaces:
+- **Market Internals** (`/dash/market-internals`, NEW Markets lens) — the ABSOLUTE 22-year market-health surface the product never had (its only "breadth" was RS-relative, 2011+). Price-breadth (adv/dec) + the MEP **tape** (accum/distrib *effort*-breadth) + delivery-conviction regime + cross-sectional dispersion + coil, from a new bounded `market_internals_daily` snapshot (5,426 rows, 2004→2026). **HERO = price-breadth vs effort-breadth divergence** (distribution-into-strength — a warning the cap-weighted index can't show). Extremes validated exactly vs history (GFC tape −92 · COVID −74, coil 1.69 · 2009 thrust +90 · 2008 6% adv).
+- **FII Positioning Tape** (upgrade `participants_view.py`, additive) — replaced the amnesiac 40-day sparkline with the full **2.5-year** FII long:short stream + a percentile gauge (today 0.12 = **near-record net-short, 12th pctile of 620 days**) + the smart-money-vs-retail mirror. Existing gauge/matrix kept.
+- **Launchpad Track Record** (`/dash/launchpad-track`, NEW Strategies lens — ORPHAN RESCUE) — surfaced `ignition_outcomes` (50,334 signals since 2019, read by NO page): gain-vs-pain MFE/MAE envelope by character (ACCUM +18% median 12m, 45% hit +25%, **−24% median drawdown FIRST**), first-vs-repeat, the 12m outcome distribution (37% negative — honest spread), + the `averaging_zones` recovery ladder. Point-in-time study, GROSS of costs, ledger-cited ("validated screen, no fundable edge net of cost").
+- **Shared:** `src/web/infographics.py` — 8 tested, theme-aware SVG primitives (heat_ribbon · spark_area · stream · heat_grid · diverging_bars · floating_bars · pct_gauge) honoring the value-colour contract (color_gate clean). `src/automation/market_internals.py` — canonical snapshot builder (`backfill` + `refresh_tail`; **NO new timer** — page reads the table, tail computed on read).
+- **Discipline held:** descriptive-only (no new tradeable/ranked claim — failure-ledger: MEP D62, launchpad no-net-edge, all fenced on-page) · primary-sources-only · additive-never-replace · bounded snapshot (space mandate; no AUD-95 timer) · gates PASS (nav/chrome/color) · multi-session-safe (isolated new modules; forked-file inserts).
+- **Validated but DEFERRED to the morning briefing** (data earns the chart, but a live page waits): Sector Fundamental Regime Map (tag coverage ~322 syms — build once tags broaden) · the features **Anatomy Fingerprint** (a counter-narrative: big moves launch from momentum/RS, NOT the tight-base/accumulation-footprint setup — deliv z −0.50) · quality-tier migration alluvial (veto-frame, returns flat across tiers) · ownership DII/FII drift · SLB short-interest (expiry-roll artifact + ~1mo) · 22y seasonality calendar. `stock_oscillators` diagnosed = orphaned one-shot (PK=symbol, ran once 2026-06-21; drop or wire nightly).
+- **Harness TIL:** the Claude Preview *screenshot* tool times out on SVG-dense pages (500+ inline rects); `preview_inspect` (DOM text + computed styles + bounding box) is the reliable verify path for heavy-SVG pages — use it instead of screenshots.
+- Commits: `<deep-data-sprint>` (hash in carry-forward). Multi-lane: diverged from S108 (local `7f6fc14` docs/strategies + origin `dfbe175` wolfe §B) → commit-then-pull-rebase (union-resolve PROJECT_STATE), renumbered S109→**S110** on collision.
 
 ### Session 109 — 2026-07-11 — Wolfe §B score REBALANCED (D111): spring-reclaim C, deep-extension G, 2.0 restored, divergence bug fixed — all Ramana-directed line by line
 A long, high-value debate against his own TCS wave. He challenged C=0 and the missing divergence; both
