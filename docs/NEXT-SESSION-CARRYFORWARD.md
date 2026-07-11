@@ -30,13 +30,13 @@ DEEP-DATA VALUE SPRINT** (this lane). All pushed.
 
 **🧊→✅ Wolfe §B freeze LIFTED:** the S108 carry-forward's "FROZEN pending Ramana's §B weightage sign-off"
 is RESOLVED — he ratified the rebalance line-by-line (D111, `dfbe175`). The D108 2/3/4 fractal gate stays enforced.
-Wolfe draw-tool commit `8fc40dc` is still on branch `wolfe-draw-tool` (unmerged; see `docs/strategies/README.md` recon flags).
+Wolfe draw-tool is now **MERGED to main (D113/S112, `35a11e7`)** — the old `8fc40dc` on branch `wolfe-draw-tool` was NOT used (renumbered from its provisional "D111"). (`docs/strategies/README.md` recon flags.)
 
 **✅ Wolfe winner-profile OOS RE-VALIDATED (2026-07-11, later Wolfe-lane; `2545a91` doc + `3c54c8a` state) — resolves PROJECT_STATE WOLFE OPEN ITEM (5).** Re-ran the committed `phase2_oos.py`/`phase3_betacontrol.py` harness READ-ONLY on the VPS archive under the CURRENT scoring: **filter UNCHANGED** (the 2004-14 fit re-derives the identical `D≤1·p1≥2·F≤2`; the F 0-4 widening is neutral), **BULL edge intact** (test 2015-26 medNet **+4.4%**, α **+5.07**), **placebo-gap negative everywhere** (edge = selection-not-craft, reaffirmed). **BEAR now FAILS the primary (survivorship-aware) OOS `medNet≥0` bar** → inclusive verdict **IN-SAMPLE-ONLY** (−0.98%); nifty500 SURVIVED (point-est). Softer than the June baseline (inclusive winner +2.14%→+0.81%) — attributed to the **D108 fractal gate**, NOT the rebalance and NOT point-4 (**A/B-confirmed neutral**). **Descriptive-only UNCHANGED. DON'T re-run** — full record in `wolfe-wave.md` §4+§8, the PROJECT_STATE D111 block, and the `wolfe-wave-strategy` memory. (Re-run recipe there if ever needed.)
 
 ## 🔔 2026-07-10 EVENING — FOUR lanes landed the same day (read all four; none is redoable)
 **S102 (P-05, Ramana: "complete that now") · S103 (attention face, D106) · S104 (AUD-06/07/11,
-D107) · the Wolfe FRACTAL arc → S105/D108 revert + 🧊 FREEZE (see 🌀).** Canonical chain:
+D107) · the Wolfe FRACTAL arc → S105/D108 revert + 🧊 FREEZE (LIFTED 2026-07-11, D111; see 🌀).** Canonical chain:
 `235a424`→`fdb964a`→`ee5c7a4`→`4548a01`→`8637ea8`→`020bb6f`→`0c89e8f`→`43e075f`→`51cbd02`→
 `579d989` (a twin local S105 implementation was dropped un-pushed — settled, see 🌀).
 Multi-lane craft that kept it clean: renumber-on-collision
@@ -82,10 +82,10 @@ a stuck `rebase --continue` (empty `ls-files -u` yet refusing) resolved by manua
   `wolfe-wave-strategy` reconciliation note): the local twins `94f56fa`/`b85b983` were dropped
   un-pushed; **origin `0c89e8f`→`43e075f`→`51cbd02`→`579d989` is the single truth; VPS aligned
   to origin bytes, hash-verified.**
-  **🧊 WOLFE IS FROZEN (Ramana gate):** NO Wolfe code by ANY lane until he signs off the §B
-  weightage proposal (A 6→5 · C 3→4 · F 3→4 · H 2→3 + the §B0.4 "touched not cut" EPA recode);
-  canon = `wolfe-rules.md` §B0 (5 drivers; freshness is NOT strength). See `579d989` +
-  `docs/wolfe-NEXT-SESSION.md`.
+  **🧊→✅ WOLFE FREEZE LIFTED (2026-07-11, D111):** the "no Wolfe code until §B sign-off" gate is
+  RESOLVED — Ramana ratified the §B rebalance line-by-line (`dfbe175`; G→`_QUALITY_MAX`=27, `d5551cc`),
+  the draw tool merged (D113, `35a11e7`), point-4 reconciliation landed, and the winner-profile OOS
+  was re-validated (`2545a91`). The D108 2/3/4 fractal gate stays enforced. Canon = `wolfe-rules.md` §A9+§B3.
 
 **🔭 TONIGHT'S BATTERY (results — DONE, do not re-verify):**
 - **🚌 S101 bus watch GREEN:** chain `Finished` 14:10:52 UTC exit 0 (16 steps, ~9 min); step-60
@@ -167,9 +167,11 @@ or ask a FRESH session with the GitHub connector authorized: "enable main branch
 force-pushes + deletions, enforce_admins:true, no required PR/checks."
 
 ## 🎯 NEXT PICKS (charter §4/§7 altitude; kickstart-pick-verify EVERY pick + fork-check VPS live files)
-1. **Wolfe lane: 🧊 FROZEN** — no Wolfe code by any lane until Ramana signs off the §B
-   weightage proposal (🌀 bullet, `579d989`). When he answers, `docs/wolfe-NEXT-SESSION.md`
-   is the run-book.
+1. **Wolfe lane: ✅ UNFROZEN — §B rebalance (D111), draw tool (D113), point-4 reconciliation, and
+   the winner-profile OOS re-validation all LANDED 2026-07-11.** Remaining open (PROJECT_STATE D111
+   block): **point-4-STRENGTH** (needs his worked chart) · **D95 tape-wiring** · **§C trade-mechanics
+   as a runnable PIT backtest** · **G/scoring PIT** (as-of LTP). Run-book `docs/wolfe-NEXT-SESSION.md`;
+   kickstart-pick-verify each.
 2. **Product:** **X-04 overnight/intraday split + pump-flag** (top remaining charter X-item) ·
    X-06 Amihud migration delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price
    shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag.
@@ -225,9 +227,9 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 > UTC, silent = green) results in the journals; **first-ever season-digest DM Sat 02:45 UTC —
 > missing = real bug, page it, never `systemctl start` mid-day (AUD-95)**; Sat 21:00
 > provenance is on its own scheduled task, skip.
-> (2) Pick per § NEXT PICKS: wolfe lane → the §B weightage sign-off was FROZEN at `579d989`
-> BUT the wolfe lane has since pushed S106/S107 (`2541009`/`5bbeb68`) — **check the wolfe
-> lane's own latest state, this freeze line may be stale**; product lane → X-04
+> (2) Pick per § NEXT PICKS: wolfe lane → **UNFROZEN — §B rebalance (D111), draw tool (D113),
+> point-4, and the winner-profile OOS re-validation all landed 2026-07-11; remaining = point-4-
+> strength (his chart) / D95 tape-wiring / §C PIT backtest**; product lane → X-04
 > overnight/intraday split + pump-flag; bus lane → the **alert rail / SSE** (the
 > since-you-last-looked brief shipped S108/D110); quant lane → AUD-14 (morning window only).
 > E-studies are armed + self-gating (E-02 Jul-22 · E-14 Jul-25 · E-04 Aug-01) — do NOT run early.
