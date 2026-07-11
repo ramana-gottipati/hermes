@@ -45,7 +45,7 @@ strategy without its own pre-registered, leak-free study that beats the recorded
 |---|---|---|---|---|
 | **DVPT** | Delivery Value per Trade ("Positioning") | **DESCRIPTIVE-ONLY** — engine live, picker thesis refuted | D62 · D28/D31/D43/D44 · D56 · D107 · D47 | [dvpt.md](dvpt.md) |
 | **MEP** | signed accumulation/distribution (price-tape) | **DESCRIPTOR-ONLY** — failed the alpha gate | D62 · D65 · D61 | [mep.md](mep.md) |
-| **Wolfe Wave** | 5-point reversal geometry (Patearn variation) | **DESCRIPTIVE-ONLY** · §B scoring **ratified D111** (max 25) | D96 · D108 · D109 · D111 | [wolfe-wave.md](wolfe-wave.md) |
+| **Wolfe Wave** | 5-point reversal geometry (Patearn variation) | **DESCRIPTIVE-ONLY** · §B scoring **ratified D111** (max = `_QUALITY_MAX`, now 27) | D96 · D108 · D109 · D111 · D113 | [wolfe-wave.md](wolfe-wave.md) |
 | **Relative Strength** | RS suite (RRG · RS-band · rotation · Mansfield · capture · size-index) | **DESCRIPTIVE** lens suite (deployed) | D39 · D40 · D64 · D67 | [relative-strength.md](relative-strength.md) |
 | **CPR** | Central Pivot Range ("CPR Spine") | **LIVE** — descriptive charting lens | D53 · D71 | [cpr.md](cpr.md) |
 | **CCI** | **Concall Credibility Index** (≠ Commodity Channel Index) | **FAILED-AS-FACTOR → DESCRIPTIVE / VETO-ONLY** | D60 · D61 · 2026-06-25 falsification · Gate B fail | [cci.md](cci.md) |
@@ -66,7 +66,7 @@ The whole reason this folder exists. Use the **canonical** column; retire the **
 | **Momentum (factor)** | RISKADJ ranked-rotation = 6-mo return ÷ 3-mo vol, top-25 monthly | RS-Momentum (descriptive) · "momentum is fundable" (it is **not**, net of cost) |
 | **CCI** | **Concall Credibility Index** (the scored core of the "Concall Intelligence" program) | **Commodity Channel Index** (an unrelated price oscillator) |
 | **CPR** | **Central Pivot Range** (Pivot + BC/TC), the "CPR Spine" charting lens | generic support/resistance · RS-band |
-| **Wolfe: "strength"** | the §B score — eight components, max 25, ratified D111 (spring-and-reclaim C, §A9); **freshness is NOT strength** | recency/freshness · the removed D98–D102 STR/LND vocabulary · "D111 = the draw tool" (D111 is the §B rescore) |
+| **Wolfe: "strength"** | the §B score — eight components (max = `_QUALITY_MAX`, now 27), ratified D111 (spring-and-reclaim C, §A9); **freshness is NOT strength** | recency/freshness · the removed D98–D102 STR/LND vocabulary · "D111 = the draw tool" (D111 is the §B rescore; the draw tool is **D113**) |
 | **"C" (capital allocation)** | the modern quality composite (ROIIC, ROCE, dilution, debt-funding, growth efficiency) | the older 4-metric quality lens it **subsumes** (D66) |
 
 ## The rest of the estate (catalogued — design doc is the current reference)
@@ -84,20 +84,18 @@ full page on request.
 | **Concall Intelligence (content / growth-intent)** | descriptive candor axis — content edge **placebo-killed** (2026-07-08) | covered in [cci.md](cci.md); [concall-intelligence-design.md](../concall-intelligence-design.md) |
 | **Season / event-study estate (E-02…E-14)** | armed, self-gating, **descriptive**; placebo harness kills would-be lenses | ledger "Studies 2026-07-08"; memory `season-armed-triggers-estate` |
 
-## ⚠ Known reconciliation items (surfaced during the S109 build — not yet actioned)
+## ⚠ Known reconciliation items (surfaced during the S109 build)
 
-These are honest gaps the doc build found. They are **documentation/reconcile flags, not fixes made
-this session** (e.g. Wolfe is frozen; code changes are out of scope for a docs pass):
+Honest gaps the doc build found. **Items 1–2 have since been RESOLVED (D113 / D114); 3–5 remain open:**
 
-1. **Wolfe draw tool — unmerged, un-numbered.** Its commit `8fc40dc` sits on branch `wolfe-draw-tool`,
-   **not merged to main**, and carries **no decision number** — it was provisionally "D111" in memory
-   *before* D111 was assigned to the §B rescore. The parallel lifecycle-overlay work must merge *with*
-   it (FLIP HAZARD on `wolfe_overlay.py`). Note: the §B **freeze is LIFTED** — the §B rescore landed as
-   **D111** (`dfbe175`, S109). See [wolfe-wave.md](wolfe-wave.md) §5/§8/§9.
-2. **patearn scoring vs methodology** — `scoring.py` `WEIGHTS` and [patterns.md](../../resources/patearn/patterns.md)
-   agree on the top-5 Quality-Gate patterns and total envelope, but **patterns 6–14 are re-labelled /
-   re-weighted** between code and doc (a deliberate adaptation to what's computable). The code comment
-   "Pattern weights from patterns.md" is slightly inaccurate. See [patearn.md](patearn.md) §9.
+1. **✅ RESOLVED — Wolfe draw tool merged (D113 / S112, `35a11e7`).** It is now on main together with the
+   D109 lifecycle layer (the abandoned branch commit `8fc40dc` was not used; the tool was provisionally
+   "D111" before the §B rescore claimed that number → renumbered **D113**). The §B freeze is lifted (the
+   rescore = **D111**, `dfbe175`, S109). See [wolfe-wave.md](wolfe-wave.md) §5/§8.
+2. **✅ RESOLVED — patearn code↔methodology mapping made explicit (D114).** The deliberate patterns-6–14
+   computable adaptation is now mapped in [patterns.md](../../resources/patearn/patterns.md) § "Implementation
+   mapping (scoring.py)", and the stale `# Pattern weights from patterns.md` comment is corrected — scoring
+   output unchanged. See [patearn.md](patearn.md) §9.
 3. **`calculations-and-weights.md` coverage gap** — it has sections for Momentum / capital-allocation /
    patearn / A-B / Conviction / Wolfe, but **none for DVPT, MEP, CCI, or Harmonic** — whose constants
    currently live in code + `metrics-glossary.md`. Either add those sections or amend the "numbers live
