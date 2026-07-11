@@ -327,12 +327,13 @@ def score(p_list, p5, direction, highs, lows, closes, rsi_arr):
         lo, hi = min(z["low"], z["high"]), max(z["low"], z["high"])
         gap = (hi - lo) / z["price"] * 100.0 if z["price"] else 99
         F = 4 if gap <= 0.3 else 3 if gap <= 0.6 else 2 if gap <= 1.2 else 1 if gap <= 2.0 else 0   # 0-4 (Ramana +wt; F<=2 still = gap>0.6% for the scan)
-        # G by DEPTH of the extension in the zone (Ramana 2026-07-11): 4.618 = 2 (the farthest/
-        # strongest overshoot reversal) · 2.618/3.618/4.236 = 1 (deep, strong, not the last) ·
-        # shallow (1.272/1.414/1.618/2.0) = 0. A deeper extension confluence = a stronger point-5.
-        _deep = (2.618, 3.618, 4.236)
-        G = (2 if (z["r12"] == 4.618 or z["r34"] == 4.618)
-             else 1 if (z["r12"] in _deep or z["r34"] in _deep) else 0)
+        # G by DEPTH of the extension in ANY of the wave's confluence zones (Ramana 2026-07-11:
+        # "reward a 4.618 confluence ANYWHERE in the wave", not just the point-5 zone `z`):
+        # 4.618 present = 2 (the farthest/strongest overshoot reversal) · 2.618/3.618/4.236 = 1
+        # (deep, strong, not the last) · shallow only (1.272/1.414/1.618/2.0) = 0.
+        _ratios = {r for zz in zones for r in (zz["r12"], zz["r34"])}
+        G = (2 if 4.618 in _ratios
+             else 1 if (_ratios & {2.618, 3.618, 4.236}) else 0)
         if p5:
             if lo <= p5.price <= hi:                       # clean land INSIDE the zone band
                 dist = abs(p5.price - z["price"]) / p5.price * 100.0
