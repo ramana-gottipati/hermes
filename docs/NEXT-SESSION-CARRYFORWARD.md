@@ -14,19 +14,23 @@ deep-extension G · 2.0 restored · RSI-divergence fix — Ramana line-by-line) 
 docs/strategies** (canonical `docs/strategies/` reference layer, 9 pages) · **`686f7b9` S110/D112
 DEEP-DATA VALUE SPRINT** (this lane). All pushed.
 
-**🆕 S110 — 3 NEW insight surfaces LIVE + deployed (verify-then-consume, do NOT rebuild — memory
-`deep-data-insight-lenses`):**
+**🆕 S110 — 6 NEW insight surfaces + a full BEGINNER-READABILITY + DRILL-DOWN arc, all LIVE + deployed
+(verify-then-consume, do NOT rebuild — memory `deep-data-insight-lenses`):**
 - `/dash/market-internals` — 22y market health (price-breadth + the MEP **tape** + delivery/dispersion/
-  coil) from bounded **`market_internals_daily`** (5426 rows, **NO timer**; rebuild/refresh via
-  `python -m src.automation.market_internals --backfill` / `refresh_tail`). HERO = price-vs-effort divergence.
-- `/dash/participants` **UPGRADED** — full 2.5y FII long:short tape + percentile gauge + retail mirror (additive; existing gauge/matrix kept).
-- `/dash/launchpad-track` — **orphan rescue**: `ignition_outcomes` (50k signals) outcome distribution + `averaging_zones` ladder. ⚠ `ret_12m` is in PERCENT units.
-- `/dash/move-anatomy` (Trust lens — **PROMOTED from deferred** at Ramana's ask) — the `features` panel (166K events, was unread) as a descriptive fingerprint: moves launch from **momentum/RS** (z +0.88), NOT accumulation-footprint (delivery z −0.49) + MFE/MAE envelope. Leak-safe (precursors only); reads research.db; linked from Coverage Trust index.
-- `/dash/sector-economics` (Markets lens — **PROMOTED from deferred**) — median ROCE/OPM by sector × year over a decade (`fundamentals_history` ⋈ `company_tags` index-source); fundamental complement to RS Sectors; metric toggle + swings cards. Fences: survivorship/thin(~322)/multi-label/financials-use-RoE. Auto-navs (Markets).
-- Shared **`src/web/infographics.py`** — 8 tested SVG primitives; **reuse for any new chart, don't hand-roll**. Morning **briefing Artifact** delivered (diverse-charts deliverable + the DEFERRED queue).
-- **Deferred (VALIDATED, build when the caveat clears — don't re-recon):** tier-migration alluvial (D66 veto) · ownership DII/FII drift (~3y) · SLB short-interest (expiry-roll artifact) · seasonality calendar. (✅ SHIPPED same session: `/dash/move-anatomy` [Anatomy Fingerprint] + `/dash/sector-economics` [Sector Regime Map].) `stock_oscillators` = orphaned one-shot → drop or wire.
-- Deploy craft: new modules clean-scp'd (CR-strip `tr`); FORKED nav (`lens_registry`/`v2_surfaces`) **anchored-inserted** (assert count==1 + rollback), NEVER full-scp; import-test + writer-safe restart; gates PASS; walked LIVE (`curl -sL`, flat→nested 307). Both new lenses in sub-nav (not orphaned).
+  coil) from bounded **`market_internals_daily`** (5426 rows, **NO timer**; rebuild via
+  `python -m src.automation.market_internals --backfill`). HERO = price-vs-effort divergence.
+- `/dash/participants` **UPGRADED** — full 2.5y FII long:short tape + percentile gauge + retail mirror.
+- `/dash/launchpad-track` — orphan rescue: `ignition_outcomes` (50k signals) outcome distribution + `averaging_zones` ladder. ⚠ `ret_12m` in PERCENT units.
+- `/dash/move-anatomy` (Trust) — the `features` fingerprint: moves launch from momentum/RS (z +0.88), NOT accumulation (delivery z −0.49) + MFE/MAE envelope. Leak-safe. σ shown here (hidden in the guide).
+- `/dash/sector-economics` (Markets) — median ROCE/OPM by sector × year; **CLICK a cell → "Behind the number" DRILL** = the constituent companies + their values (`heat_grid(cell_link=)` + `?drill=SECTOR~YEAR`, server-rendered, no JS).
+- `/dash/reading-guide` (Trust) — beginner's VISUAL guide: opens with a WORKED walkthrough on the REAL 22y breadth ribbon (crashes marked 2008/COVID/2024), then the 6 chart shapes each with a REAL example, plain-word ideas, golden rule.
+- **Beginner-readability arc (4 rounds, layered/ADDITIVE — nothing removed):** shared `infographics.readability_css()`/`bottom_line()`/`plain()`/`how_to_read_link()` — a "Bottom line" band (bottom-line-FIRST on every page), an "In plain English" line under each chart, plain metric labels (tech name = grey subtext), number scales, acronym glosses. `diverging_bars(show_values=)` + `floating_bars(unit=)` + hover `<title>` tooltips on all value charts. The site-wide **`dq_banner.py`** kill-switch banner made beginner-facing (plain "Market mood" label + summary; raw tech on hover + a "why?" link; **DISPLAY-ONLY** via `_PLAIN` map, stored check messages untouched).
+- Shared **`src/web/infographics.py`** — 8 tested SVG primitives + the readability scaffold + hover tooltips + `cell_link` drill seam; **reuse, don't hand-roll**. Morning **briefing Artifact** delivered.
+- **Deferred (VALIDATED, build when the caveat clears):** tier-migration alluvial (D66 veto) · ownership DII/FII drift (~3y) · SLB short-interest (roll-artifact) · seasonality calendar. `stock_oscillators` = orphaned one-shot → drop or wire.
+- Deploy craft: MY modules = clean scp (CR-strip `tr`, **READ-then-write** — a `wb`-before-read one-liner truncated a file once, caught by the import-test rollback); FORKED files (`lens_registry`/`v2_surfaces`/`coverage_view`) = anchored inserts (assert count==1 + rollback), NEVER full-scp; import-test + writer-safe restart; gates PASS; walked LIVE (`curl -sL`). Commits `686f7b9`…`b4810f3`. ⚠ Parallel Wolfe lane is HOT — 2 push races this session (non-fast-forward reject → re-fetch + `git rebase origin/main` + push).
 - ⚠ Untracked **`.claude/launch.json`** (dev preview harness → scratchpad path) left uncommitted, harmless — `rm` or ignore.
+
+**▶ NEXT PICK — Ramana's last request, INTERRUPTED at wrap (do this first):** EXTEND the click-drill pattern to the **breadth** + **launchpad** charts. Template = the sector heat_grid drill just shipped (`heat_grid(cell_link=…)` + a `?drill=` server-rendered panel, no client JS). (a) **Breadth** (`/dash/market-internals`, a `heat_ribbon`/`spark_area` — NOT a grid): add a click-through seam to `heat_ribbon`/`spark_area` (mirror `cell_link`) so a day/week → a `?drill=DATE` panel of that day's advancers/decliners (or the accum/distrib names — query `bhavcopy_rows`/`mep_signals` for that date). (b) **Launchpad** (`/dash/launchpad-track`, `floating_bars`): click a character bar → a `?drill=CHARACTER` panel listing the actual `ignition_outcomes` signals behind that character. Keep it server-rendered (the "no excessive complexity" bar Ramana set).
 
 **🧊→✅ Wolfe §B freeze LIFTED:** the S108 carry-forward's "FROZEN pending Ramana's §B weightage sign-off"
 is RESOLVED — he ratified the rebalance line-by-line (D111, `dfbe175`). The D108 2/3/4 fractal gate stays enforced.
