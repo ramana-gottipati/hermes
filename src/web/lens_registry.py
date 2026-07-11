@@ -75,6 +75,14 @@ LENSES: tuple[Lens, ...] = (
     # price-breadth vs effort-breadth divergence. Descriptive market-state — not a signal.
     Lens("market-internals", "Market internals", "market", "markets", "/dash/market-internals",
          aliases=("internals", "breadth", "market-health", "advance-decline")),
+    # Move anatomy (deep-data sprint) — the features event panel as a descriptive fingerprint:
+    # what precedes a big move (momentum/RS elevated, delivery SUPPRESSED) + the MFE/MAE envelope.
+    # Aggregate, leak-safe, post-selection base-rate — descriptive market-wide insight, NOT a signal.
+    # HOMED IN MARKETS (D115): it's a market-wide analytical insight, sibling to Market internals &
+    # Sector economics — belongs where analysts look, not buried in the Trust/methodology corner.
+    # (Still cross-linked from the Coverage/Trust evidence index via coverage_view.)
+    Lens("move-anatomy", "Move anatomy", "market", "markets", "/dash/move-anatomy",
+         aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
@@ -234,11 +242,6 @@ LENSES: tuple[Lens, ...] = (
          aliases=("how-to-read", "chart-guide", "reading")),
     Lens("spec-sheets", "Spec sheets", "trust", "trust", "/dash/spec-sheets",
          aliases=("pre-registration", "studies")),
-    # Move anatomy (deep-data sprint) — the features event panel as a descriptive fingerprint:
-    # what precedes a big move (momentum/RS elevated, delivery SUPPRESSED) + the MFE/MAE envelope.
-    # Aggregate, leak-safe, post-selection base-rate — evidence/methodology, NOT a signal.
-    Lens("move-anatomy", "Move anatomy", "trust", "trust", "/dash/move-anatomy",
-         aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
     # Evidence pack (charter P-04, S96) — the print-ready procurement assembly of
     # spec-sheets + coverage boundary + season SLA + replay pointer.
     Lens("evidence-pack", "Evidence pack", "trust", "trust", "/dash/evidence-pack",

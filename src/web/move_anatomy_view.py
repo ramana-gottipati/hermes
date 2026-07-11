@@ -182,11 +182,16 @@ def dash_move_anatomy() -> HTMLResponse:
         ev, bs = env.get("event", {}), env.get("baseline", {})
         fb = []
         if ev.get("mfe") is not None:
-            fb.append((f'Big-move events (n={ev["n"]:,})', ev["mae"], ev["mfe"],
-                       f'reached +50% in {ev["big50"]:.0f}%'))
+            fb.append((f'Big-move events (n={ev["n"]:,})', ev["mae"], ev["mfe"]))
         if bs.get("mfe") is not None:
-            fb.append((f'Quiet baseline (n={bs["n"]:,})', bs["mae"], bs["mfe"],
-                       f'{bs["big50"]:.0f}%'))
+            fb.append((f'Quiet baseline (n={bs["n"]:,})', bs["mae"], bs["mfe"]))
+        # big50 ("reached +50%") shown as a caption line below — an end-label on the bar
+        # overprinted the rise-label at the right edge (same fix as the launchpad chart).
+        _big50 = ''
+        if ev.get("big50") is not None and bs.get("big50") is not None:
+            _big50 = (f'<div class="ma-sub">Reached <b>+50%</b> within 6 months: '
+                      f'<b>{ev["big50"]:.0f}%</b> of big-move events vs '
+                      f'{bs["big50"]:.0f}% of random quiet days.</div>')
         body.append('<div class="ma-panel">'
                     '<div class="ma-h">Gain vs pain <small>— over the next 6 months, the typical best '
                     'rise (green, right) vs worst dip (red, left)</small></div>'
@@ -200,6 +205,7 @@ def dash_move_anatomy() -> HTMLResponse:
                     'favourable excursion, MAE = maximum adverse excursion). Post-selection &amp; '
                     'survivorship-biased — a base-rate, not an achievable return.</div>'
                     + ifx.floating_bars(fb, w=700, bar_h=32, label_w=210, unit="%")
+                    + _big50
                     + '</div>')
 
         # TABLE
