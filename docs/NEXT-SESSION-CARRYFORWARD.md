@@ -32,6 +32,8 @@ DEEP-DATA VALUE SPRINT** (this lane). All pushed.
 is RESOLVED — he ratified the rebalance line-by-line (D111, `dfbe175`). The D108 2/3/4 fractal gate stays enforced.
 Wolfe draw-tool commit `8fc40dc` is still on branch `wolfe-draw-tool` (unmerged; see `docs/strategies/README.md` recon flags).
 
+**✅ Wolfe winner-profile OOS RE-VALIDATED (2026-07-11, later Wolfe-lane; `2545a91` doc + `3c54c8a` state) — resolves PROJECT_STATE WOLFE OPEN ITEM (5).** Re-ran the committed `phase2_oos.py`/`phase3_betacontrol.py` harness READ-ONLY on the VPS archive under the CURRENT scoring: **filter UNCHANGED** (the 2004-14 fit re-derives the identical `D≤1·p1≥2·F≤2`; the F 0-4 widening is neutral), **BULL edge intact** (test 2015-26 medNet **+4.4%**, α **+5.07**), **placebo-gap negative everywhere** (edge = selection-not-craft, reaffirmed). **BEAR now FAILS the primary (survivorship-aware) OOS `medNet≥0` bar** → inclusive verdict **IN-SAMPLE-ONLY** (−0.98%); nifty500 SURVIVED (point-est). Softer than the June baseline (inclusive winner +2.14%→+0.81%) — attributed to the **D108 fractal gate**, NOT the rebalance and NOT point-4 (**A/B-confirmed neutral**). **Descriptive-only UNCHANGED. DON'T re-run** — full record in `wolfe-wave.md` §4+§8, the PROJECT_STATE D111 block, and the `wolfe-wave-strategy` memory. (Re-run recipe there if ever needed.)
+
 ## 🔔 2026-07-10 EVENING — FOUR lanes landed the same day (read all four; none is redoable)
 **S102 (P-05, Ramana: "complete that now") · S103 (attention face, D106) · S104 (AUD-06/07/11,
 D107) · the Wolfe FRACTAL arc → S105/D108 revert + 🧊 FREEZE (see 🌀).** Canonical chain:
