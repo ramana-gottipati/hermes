@@ -315,3 +315,43 @@ Critical columns to export:
 - Debtor Days, Creditor Days, Inventory Days
 - Market Capitalization
 - EPS (last 10 years)
+
+---
+
+## IMPLEMENTATION MAPPING (scoring.py)
+
+The automated Stage-1 scorer [`src/automation/scoring.py`](../../src/automation/scoring.py) implements this
+methodology **as far as the fundamentals feed allows**. Two things a future reader must know:
+
+1. **Quality-Gate patterns 1–5 are implemented faithfully** — same numbers, same weights (ROCE 9 ·
+   Operating Leverage 9 · Sectoral Tailwind 8 · Valuation 8 · Balance Sheet 8). This is the load-bearing screen.
+2. **Patterns 6–14 in the code are a DELIBERATE reorganization to what is numerically computable.** The
+   code's pattern *numbers, labels and weights for 6–14 do NOT line up 1:1* with this document's 6–14 —
+   do not assume "pattern #N" means the same thing in both places. Use the map below.
+
+| code # (`scoring.py`) | code label | what it computes | methodology # (this doc) |
+|---|---|---|---|
+| 1 | ROCE | ROCE level + real 3Y trend/avg | **1** ROCE / ROE Trajectory |
+| 2 | Operating Leverage | profit-vs-sales growth, OPM + 3Y trend | **2** Operating Leverage |
+| 3 | Structural Sectoral Tailwind | *(Phase-4 judgment; scored Partial)* | **3** Structural Sectoral Tailwind |
+| 4 | Valuation | PE, PB | **4** Valuation Asymmetry |
+| 5 | Balance Sheet Quality | D/E, interest coverage | **5** Balance Sheet Deleveraging |
+| 6 | Promoter Conviction | promoter holding, pledge, accumulation | **8** Promoter / Insider Accumulation |
+| 7 | Export / Mix Inflection | *(Phase-4 concall/segment; Partial)* | **6** Mix Premiumisation + **9** Export |
+| 8 | Institutional Neglect | FII holding (lower = better) | **10** Institutional Neglect |
+| 9 | Earnings Momentum | profit growth TTM/3Y + acceleration | *computable adjunct — no distinct methodology pattern* |
+| 10 | Margin Expansion | OPM level + 3Y OPM trend | *margin facet of methodology #2 / #6* |
+| 11 | VCP / Technical | *(Phase-4 bhav + ATR; Partial)* | **11** Tight Base & Breakout / VCP |
+| 12 | Receivables Discipline | debtor days | **12** Working Capital Efficiency · receivables (w2) |
+| 13 | Working Capital | cash-conversion cycle, WC days | **12** Working Capital Efficiency · CCC (w1) |
+| 14 | Volume Confirmation | *(Phase-4 bhav; Partial)* | volume facet of **11** / **14** |
+
+**Methodology patterns with no distinct code implementation** (Phase-4 qualitative only): **#7 Capex Cycle
+Completion**, **#13 Management Quality & Disclosure**, **#14 Relative Strength & Stage of Move** (RS itself
+is computed in the RS suite, not the patearn scorer).
+
+**Weights.** The code's 6–14 weights were adapted to this reorganization and differ from the nominal weights
+above where the semantics map (e.g. VCP is W5 in code vs W6 here). **This is intentional. Changing
+`scoring.py`'s weights to match this document is a scoring-behaviour change — every NS moves — a signed
+decision (D114), not a doc edit.** This document remains the canonical *methodology*; `scoring.py` is its
+*computable Stage-1 approximation*.

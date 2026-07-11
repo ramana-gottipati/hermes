@@ -21,22 +21,30 @@ from src.core.db import get_conn
 
 log = logging.getLogger("hermes.scoring")
 
-# Pattern weights from patterns.md
+# ── Pattern weights ─────────────────────────────────────────────────────
+# Quality-Gate patterns 1-5 mirror resources/patearn/patterns.md EXACTLY (the
+# load-bearing screen). Patterns 6-14 are a DELIBERATE reorganization to what
+# is computable from fundamentals (see the module docstring): the code
+# numbering / labels / weights here do NOT line up 1:1 with patterns.md's
+# canonical 6-14. Authoritative code<->methodology map:
+#   resources/patearn/patterns.md § "Implementation mapping (scoring.py)".
+# ⚠ These weights drive the NS score — re-aligning them to patterns.md's
+#   nominal numbers is a SCORING-BEHAVIOUR change, not a doc fix (needs sign-off; D114).
 WEIGHTS = {
-    1: 9,  # ROCE
-    2: 9,  # Operating Leverage
-    3: 8,  # Structural Sectoral Tailwind
-    4: 8,  # Valuation
-    5: 8,  # Balance Sheet Quality
-    6: 7,  # Promoter Conviction
-    7: 7,  # Export / Mix Inflection
-    8: 6,  # Institutional Neglect
-    9: 6,  # Earnings Momentum
-    10: 6, # Margin Expansion
-    11: 5, # VCP / Technical (price action)
-    12: 7, # Receivables Discipline
-    13: 6, # Working Capital
-    14: 5, # Volume Confirmation
+    1: 9,  # ROCE / ROE Trajectory        = methodology #1
+    2: 9,  # Operating Leverage           = methodology #2
+    3: 8,  # Structural Sectoral Tailwind = methodology #3
+    4: 8,  # Valuation                    = methodology #4
+    5: 8,  # Balance Sheet Quality        = methodology #5
+    6: 7,  # Promoter Conviction          = methodology #8 (Promoter/Insider Accumulation)
+    7: 7,  # Export / Mix Inflection      = methodology #6 + #9 (Mix Premiumisation + Export)
+    8: 6,  # Institutional Neglect        = methodology #10
+    9: 6,  # Earnings Momentum            = computable adjunct (no distinct methodology pattern)
+    10: 6, # Margin Expansion             = margin facet of methodology #2 / #6
+    11: 5, # VCP / Technical (price)      = methodology #11 (W6 in methodology)
+    12: 7, # Receivables Discipline       = methodology #12 · receivables (w2)
+    13: 6, # Working Capital              = methodology #12 · cash-conversion cycle (w1)
+    14: 5, # Volume Confirmation          = volume facet of methodology #11 / #14
 }
 
 # MAX_CWS = sum(W * 6) for each pattern (3 signals * 2 pts each) = sum of W * 6
