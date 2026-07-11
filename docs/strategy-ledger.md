@@ -155,9 +155,18 @@ is whether layering them on Tier 1 **adds alpha or cuts drawdown** (QUAL_MOM hin
 | RS suite (RRG, RSI-of-RS, Mansfield, capture, RS-band) | relative strength vs index | deployed (descriptive) |
 | Concall Intelligence | management guidance-accuracy / credibility | **RETURN-TESTED 2026-06-25 → NO validated factor** (see section below); descriptive dossier only |
 | F&O OI / participant positioning | FII/DII/Pro/Client long-short | deployed (descriptive) |
-| Wolfe / Ignition / theme tags | geometry / ML challenger / classification | built |
+| Wolfe / Ignition / theme tags | geometry / ML challenger / classification | **Wolfe: winner-profile RETURN-TESTED → BULL *selection* edge / BEAR fails the primary OOS bar, descriptive-only (OOS re-validated 2026-07-11 — see § below)**; Ignition / tags built |
 
 ---
+
+## Wolfe winner-profile — BULL *selection* edge / FAILS as a book; OOS RE-VALIDATED 2026-07-11 under the D111 rebalance
+
+The Tier-3 Wolfe lens's only return-tested claim is the **winner-profile selection filter** (`D≤1 · p1≥2 · F≤2` = reachable EPA + strong point-1 + not-narrowest zone), NOT the raw pattern. Original true-OOS derivation 2026-06-26 (fit 2004-14 → freeze → test UNTOUCHED 2015-26, + beta-control + placebo); **re-run 2026-07-11 under the CURRENT scoring** after the D111 §B rebalance + point-4 reconciliation (the June numbers predated the D108 fractal gate).
+
+- **Verdict:** **DESCRIPTIVE-ONLY SCANNER, split by side.** **BULL = a real, regime-robust long *selection* edge; BEAR = tail-only and now FAILS the primary OOS bar; the raw Wolfe trade and any mechanical book = REJECTED** (median −2% net; placebo-negative → the entry/stop/target craft SUBTRACTS value). A re-validated *score* is not a validated *strategy* — the edge is in *which name / direction / when*, not the trade-craft.
+- **Numbers (test window 2015-26, current scoring):** unfiltered baseline medNet **−2.1%** → winner-profile ALL **+0.81%** (inclusive / survivorship-aware) · +1.86% (nifty500 sensitivity); **BULL +4.4%** (residual **α +5.07**, CI [+2.0,+7.3] excl 0; positive even when the market falls); **BEAR −0.98%** inclusive (regime-stripped **−2.1%**, decaying 2015-20→2021-26) → **inclusive verdict IN-SAMPLE-ONLY**, nifty500 SURVIVED (point-estimate, bear CI straddles 0). **Placebo-gap NEGATIVE everywhere** (ALL −1.7 · BULL −0.5 · BEAR −2.2). The 2004-14 fit **re-derives the IDENTICAL rule** (F 0-4 widening is neutral to the filter). **Softer than the June baseline** (winner +2.14%→+0.81%, BEAR +1.03%→−0.98%, n 1787→1591) — attributed (A/B-MEASURED) to the **D108 mandatory fractal gate** (removed ~⅓ of waves), NOT the rebalance and NOT point-4 (`_reconcile_point4`-disabled = +0.78% ≈ +0.81% enabled).
+- **Provenance:** `research/wolfe_waves/phase2_oos.py` + `phase3_betacontrol.py` (isolated, read-only; live VPS Nifty-500 archive, survivorship-inclusive PRIMARY + nifty500 sensitivity; bootstrap CIs, sub-era split, leak-neutralized `D_pit`). Folded into `docs/strategies/wolfe-wave.md` §4+§8 (`2545a91`), PROJECT_STATE D111 block (`3c54c8a`), memory `[[wolfe-wave-strategy]]`.
+- **Supersedes:** the 2026-06-26 "survived true OOS (+2.14% / bears +1.1%)" numbers carried in the Wolfe docs — those predate the D108 gate. The **BULL selection edge and the selection-not-craft (placebo-negative) finding HOLD**; the BEAR "survived" is **downgraded to fails-the-primary-bar**. **Do NOT re-attempt a Wolfe trading book without first beating these numbers under the same PIT harness** (same class as PEAD-delivery / harmonic — a descriptive event/geometry lens, not a fundable book).
 
 ## Concall Intelligence — RETURN-TESTED + FALSIFIED as a factor (2026-06-25)
 
