@@ -1,7 +1,7 @@
 # Wolfe Wave (Patearn variation) — Canonical Reference
 
 > **Class:** CANONICAL reference (permanent — do not archive).
-> **Status:** DESCRIPTIVE-ONLY · **Governing decision(s):** D96 / D108 / D109 / D111 · **Reconciled:** 2026-07-11 (S111).
+> **Status:** DESCRIPTIVE-ONLY · **Governing decision(s):** D96 / D108 / D109 / D111 / D113 · **Reconciled:** 2026-07-11 (S113).
 > **Charter:** the single canonical definition + current-state reference for Wolfe Wave. Deep design: [wolfe-wave-design.md](../wolfe-wave-design.md) + [wolfe-rules.md](../wolfe-rules.md) (rules of record, now incl. §A9 spring-and-reclaim + §B3 ratified scoring); re-apply run-book: [wolfe-NEXT-SESSION.md](../wolfe-NEXT-SESSION.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a formula's constants — it links.
 
 **One-line definition:** a Wolfe Wave is a **5-pivot reversal structure** — points 1·2·3·4 define a converging channel, point **5** overshoots the extended **1-3 line** and reverses toward the **EPA (1-4) target line** — surfaced in patearn as a **DESCRIPTIVE-ONLY** lens in which **the machine detects and validates points 1·2·3·4 (fractal-gated) and Ramana's Fibonacci-confluence method owns point 5**, and whose only validated edge is **selection** (which name / direction / when), never trade-craft.
@@ -12,15 +12,16 @@
 >
 > The long-standing **§B weightage freeze is LIFTED.** On 2026-07-11 Ramana signed off the full §B
 > rescore **component-by-component against his own TCS wave** — decision **D111** (S109, commit
-> `dfbe175`). The ratified score is **LIVE, max 25**, formula **A + B + C + F + G + H + I + D**
-> (`_QUALITY_MAX = 25` in [wolfe.py](../../src/automation/wolfe.py); the overlay badge now reads
-> `points/25`). What changed from the pre-freeze proposal:
+> `dfbe175`). The ratified score is **LIVE**, formula **A + B + C + F + G + H + I + D**, normalised
+> against **`_QUALITY_MAX`** in [wolfe.py](../../src/automation/wolfe.py) — **currently 27** (it was 25
+> at D111, then G was widened 0-2→0-4; see §8). The overlay badge reads `points/_QUALITY_MAX`. What
+> changed from the pre-freeze proposal:
 > - **A (point-1)** = candle **1** / any fractal **4**, *flat* — the old **×2 multiplier is gone**
 >   ("we don't need a strong fractal at point 1").
 > - **C (point-5 placement) = the SPRING-AND-RECLAIM doctrine ([wolfe-rules.md](../wolfe-rules.md) §A9):**
 >   point 5 may break the zone by **any depth** and then **reclaim** it (support→resistance flip
 >   breached back) = a valid strong reversal. This fixed the C=0 Ramana challenged (his TCS point 5).
-> - **G** graded by extension **depth** (4.618→2 · 2.618/3.618/4.236→1 · shallow→0); **F** widened 0–4.
+> - **G** = the confluence zone **nearest the current price**, graded **0–4** by ratio depth (4.618 deepest); **F** widened 0–4. (G was 0–2 at D111, later widened to 0–4 — the interim "anywhere in the wave" reading was reverted.)
 > - **H (EPA "touched not cut")** landed: candles pts 1→4 within 0.3% of the 1-4 line, one side only;
 >   a *cut* ≠ a touch; scale 0 / 1-2→1 / 3-4→2 / >4→3.
 > - **I (RSI divergence) bug fixed** — compare point 5's low to the **prior pivot low (point 3)**,
@@ -30,11 +31,12 @@
 > is written down at [wolfe-rules.md](../wolfe-rules.md) §A9 + §B3 (Ramana: "I strongly need the
 > documentation… could become a training video").
 >
-> **Still separate / unmerged — the draw tool.** `✎ draw your own` (auto-snap, auto-EPA, strict
-> 1-2 ≥ 3-4 warning, dblclick-edit) is a DESCRIPTIVE geometry feature whose commit `8fc40dc` lives
-> on branch **`wolfe-draw-tool`, not merged to main**, and carries **no decision number** (it was
-> provisionally called "D111" in memory before D111 was assigned to the §B rescore — do not conflate
-> them). Verify its merge/live state before relying on it. See the **FLIP HAZARD** in §5.
+> **The draw tool — ✅ MERGED (D113, S112, `35a11e7`).** `✎ draw your own` (auto-snap: pts 1/3/5→lows,
+> 2/4→highs; auto-EPA the moment point 4 lands; STRICT 1-2 ≥ 3-4 gate; double-click point-edit) is a
+> DESCRIPTIVE geometry surface, orthogonal to §B scoring, now **on main** (draw-mode JS only, zero
+> `wolfe.py`/scoring touch). It landed via a fresh commit under **D113/S112** — the abandoned branch
+> commit `8fc40dc` was NOT used, and D113 was renumbered from the draw-lane's provisional "D111",
+> which the §B rescore claimed. **Do not conflate D113 (draw tool) with D111 (§B rescore).**
 
 ---
 
@@ -55,7 +57,7 @@ Textbook Wolfe = 5-point reversal geometry with an EPA (Estimated Price at Arriv
 | **Spring-and-reclaim point-5 doctrine** | Point 5 may pierce the confluence zone by ANY depth and then **reclaim** it (a support→resistance flip breached back) — that reclaim, not the overshoot depth, is the strong-reversal tell. ([wolfe-rules.md](../wolfe-rules.md) §A9, D111.) | **Yes** |
 | **"Touched not cut" EPA rule (H)** | The EPA/1-4 line is strong S/R only where a candle comes within **0.3%** of it (a touch, one side only); a candle slicing *through* is a *cut* and does not count. More clean touches ⇒ stronger line. (§B3 H; landed D111.) | **Yes** |
 | **Three-section lifecycle overlay** | Every wave sits in exactly ONE of **Prediction / Open / Closed** (see §3). Simple, labelled, **non-hiding**. (D109) | **Yes** |
-| **The draw tool** *(unmerged — branch `wolfe-draw-tool`)* | `✎ draw your own` on the stock chart: click points 1→5, auto-snap to real pivots, auto-EPA, strict symmetry warning, double-click edit. No decision number yet; verify merge state. | **Yes** |
+| **The draw tool** *(merged — D113 / S112)* | `✎ draw your own` on the stock chart: click points 1→5, auto-snap (1/3/5→lows, 2/4→highs), auto-EPA at point 4, strict 1-2 ≥ 3-4 warning, double-click edit. | **Yes** |
 
 Everything else — the L,H,L,H / H,L,H,L convention, the extension-fan Fib method, the EPA line — is the standard method, encoded faithfully.
 
@@ -72,7 +74,7 @@ Everything else — the L,H,L,H / H,L,H,L convention, the extension-fan Fib meth
 
 **The EPA line** = the 1-4 line, drawn only after point 5 confirms, extended to the right edge; it is the reversal target.
 
-**The §B strength score (ratified D111 — LIVE, no longer frozen).** A plain points sum over the eight drivers — **A + B + C + F + G + H + I + D**, higher = stronger, normalised against **`_QUALITY_MAX = 25`**. Point 1 (**A**) is scored *flat* (candle 1 / fractal 4 — the pre-freeze ×2 was dropped); **freshness is deliberately excluded** (a quality cap must never gate recency — D96). The component definitions, buckets and tolerances live once in code — [src/automation/wolfe.py](../../src/automation/wolfe.py) — and are written down once in [wolfe-rules.md](../wolfe-rules.md) §B3 (+ §A9 for C). **This page does not restate those constants** — read the code/canon, do not re-derive. As a *trade filter* the raw §B total INVERTS, so the scanner uses the winner profile (§4), not the raw score.
+**The §B strength score (ratified D111 — LIVE, no longer frozen).** A plain points sum over the eight drivers — **A + B + C + F + G + H + I + D**, higher = stronger, normalised against **`_QUALITY_MAX`** (currently 27). Point 1 (**A**) is scored *flat* (candle 1 / fractal 4 — the pre-freeze ×2 was dropped); **freshness is deliberately excluded** (a quality cap must never gate recency — D96). The component definitions, buckets and tolerances live once in code — [src/automation/wolfe.py](../../src/automation/wolfe.py) — and are written down once in [wolfe-rules.md](../wolfe-rules.md) §B3 (+ §A9 for C). **This page does not restate those constants** — read the code/canon, do not re-derive. As a *trade filter* the raw §B total INVERTS, so the scanner uses the winner profile (§4), not the raw score.
 
 **Lifecycle (D109 — the overlay's three sections, canon [wolfe-rules.md](../wolfe-rules.md) §A8):**
 - **PREDICTION** — point 5 not yet formed (still building toward the point-5 zone); no EPA yet.
@@ -89,7 +91,7 @@ Everything else — the L,H,L,H / H,L,H,L convention, the extension-fan Fib meth
 
 **The D108 revert + fractal gate (2026-07-10, S105, Ramana-directed).** After "I am really disappointed that the fractal has been ignored," the code was **REVERTED to the D96 baseline (`9d04bd9`)** and the 2/3/4 fractal rule was promoted from a soft score component to a **MANDATORY detection gate** (his verbatim: "must, minimum 2 fractals; without a fractal do not consider"). Measured: **32%** of surfaced waves violated it (e.g. TCS BULL 2005-01-07, degrees `[0,0,0,0]`, still CONFIRMED before the gate). The entire **D98–D102 layer was REMOVED from code** — STR/LND split, structure-watch, attention/recency ranking, §B2 withhold, lifecycle queues/progress chips/CLOSED chips, EPA cache wiring — to be re-applied methodically *with* him. §A geometry and the §B component math were left untouched (and the latter then ratified by D111).
 
-**§B resolved (was the headline freeze).** The A/C/F/G/H/I recode that used to gate all Wolfe work is **decided and live (D111, `dfbe175`)** — see the callout at the top. There is no longer a scoring freeze; the remaining open threads (§9) are the unmerged draw tool, point-4-strength, and the D98–D102 re-apply, none of which block §B.
+**§B resolved (was the headline freeze).** The A/C/F/G/H/I recode that used to gate all Wolfe work is **decided and live (D111, `dfbe175`)** — see the callout at the top. There is no longer a scoring freeze; the remaining open threads (§9) are point-4-strength and the D98–D102 re-apply, none of which block §B.
 
 ## 5. Where it lives (code · routes · DB · timers)
 
@@ -110,7 +112,7 @@ Everything else — the L,H,L,H / H,L,H,L convention, the extension-fan Fib meth
 
 **DB:** `wolfe_signals` (CREATE-IF-NOT-EXISTS **owned by `wolfe.py`; `db.py` is untouched** by design). Residue from the reverted D101/D102 layer — the `wolfe_epa_state` table and the `'<uni>:watch'` / `'<uni>:forming'` snapshot rows — is now **unused but harmless** (no reader references it at the D108 baseline).
 
-> **🔴 FLIP HAZARD — `wolfe_overlay.py`.** The live VPS file is a **UNION** of a parallel lane's lifecycle (Open/Closed) layer *and* the draw tool, 3-way-merged (only `exitDraw` conflicted). The draw-tool commit `8fc40dc` lives on branch **`wolfe-draw-tool`, NOT on main**. **NEVER full-file `scp` or overwrite `wolfe_overlay.py` from either lane without merging BOTH hunk sets first** — either copy overwriting the other reverts it (the classic flip). VPS pre-deploy backup exists (`wolfe_overlay.py.bak-*`).
+> **🔴 DEPLOY CAUTION — `wolfe_overlay.py`.** The flip hazard is **resolved at the git level**: main's `wolfe_overlay.py` now carries BOTH the D109 lifecycle (Open/Closed) layer *and* the D113 draw tool together. But the earlier D111 point-4 incident showed a full-file `scp` of a **stale** file reverting shipped work — so the rule stands: **deploy `wolfe_overlay.py` / `wolfe.py` from main's CURRENT file, never a stale copy**, and keep a pre-deploy backup (`wolfe_overlay.py.bak-*`).
 
 ## 6. Data & provenance
 
@@ -124,11 +126,11 @@ Everything else — the L,H,L,H / H,L,H,L convention, the extension-fan Fib meth
 - **EPA** — Estimated Price at Arrival; the **1-4 line**, the reversal target. Drawn only after point 5 confirms.
 - **Spring-and-reclaim (§A9)** — point 5 pierces the confluence zone by ANY depth then reclaims it (support→resistance flip breached back); the reclaim, not the depth, is the strong-reversal tell (C component, D111).
 - **"Touched not cut" (H)** — a candle within 0.3% of the EPA/1-4 line, one side only, *touches* it (confirms S/R); a candle slicing through *cuts* it (does not count). Scale to >4 touches → 3.
-- **§B components (8, max 25)** — A point-1 · B symmetry · C point-5 placement · F zone narrowness · G extension depth · H touched-not-cut · I RSI divergence · D direction/context. Strength = several agreeing at once; **freshness is NOT strength**.
+- **§B components (8; max = `_QUALITY_MAX`, currently 27)** — A point-1 · B symmetry · C point-5 placement · F zone narrowness · G confluence-zone-nearest-price (0–4) · H touched-not-cut · I RSI divergence · D direction/context. Strength = several agreeing at once; **freshness is NOT strength**.
 - **Lifecycle** — **Prediction** (no point 5) · **Open** (point 5, EPA untouched — actionable) · **Closed** (EPA touched — reference), with a closure-neatness readout.
 - **Winner profile** — the OOS-validated selection filter (reachable EPA + strong point-1 + not-narrowest zone); the §B *total* INVERTS as a trade filter, so the scanner uses the winner profile, not raw Q.
 
-**⚠️ DEPRECATED — historical only (REMOVED from code by D108).** The **STR/LND** split (STR = shape /11, LND = landing /13), **structure-watch**, **attention rank** (`rank_attention = Q × 0.5^(age/60)`), the **§B2 "not entry-qualified" withhold queues**, and the D101/D102 **lifecycle queues / progress chips** are **no longer in the code**. They survive as design in [wolfe-NEXT-SESSION.md](../wolfe-NEXT-SESSION.md) and as history in [PROJECT_STATE.md](../../PROJECT_STATE.md) (D98–D102) for the methodical re-apply *with* Ramana. Do not cite this vocabulary as current behaviour. **Also:** "D111 = the draw tool" is a **deprecated** memory-era label — D111 is the §B rescore; the draw tool is unmerged and un-numbered.
+**⚠️ DEPRECATED — historical only (REMOVED from code by D108).** The **STR/LND** split (STR = shape /11, LND = landing /13), **structure-watch**, **attention rank** (`rank_attention = Q × 0.5^(age/60)`), the **§B2 "not entry-qualified" withhold queues**, and the D101/D102 **lifecycle queues / progress chips** are **no longer in the code**. They survive as design in [wolfe-NEXT-SESSION.md](../wolfe-NEXT-SESSION.md) and as history in [PROJECT_STATE.md](../../PROJECT_STATE.md) (D98–D102) for the methodical re-apply *with* Ramana. Do not cite this vocabulary as current behaviour. **Also:** "D111 = the draw tool" is a **deprecated** memory-era label — **D111 is the §B rescore; the draw tool is D113** (merged, S112).
 
 ## 8. Decision & session history
 
@@ -139,12 +141,12 @@ Terse chronological (full entries in [PROJECT_STATE.md](../../PROJECT_STATE.md) 
 - **D108** (S105, `0c89e8f`) — **REVERT to the D96 baseline + the MANDATORY 2/3/4 fractal gate**; the D98–D102 layer removed. §A geometry + §B math untouched.
 - **D109** (S106, `2541009`) — the overlay's **three lifecycle sections** (Prediction / Open / Closed), simple and non-hiding, re-added on the D108 baseline (Ramana: "I asked for three sections").
 - **S107** (`f7d7a87`) — overlay badge (dir · points/total · rank); chart stays STATIC on nav (no re-zoom).
-- **draw tool** (`8fc40dc`, branch `wolfe-draw-tool`, **unmerged**, no D-number) — `✎ draw your own` upgraded and live on the branch: auto-snap (points 1/3/5→lows, 2/4→highs), auto-EPA at point 4, STRICT 1-2 ≥ 3-4 symmetry warning, double-click point edit. (Provisionally called "D111" in memory *before* D111 was assigned to the §B rescore.)
-- **D111** (2026-07-11, S109, `dfbe175`) — **the §B quality score REBALANCED to Ramana's exact spec** (max 25; A flat 1/4 · C spring-and-reclaim §A9 · G extension-depth · F 0–4 · H touched-not-cut >4→3 · I divergence-reference fixed · 2.0 restored). His TCS wave 13→**18/25**. §A geometry + D108 gate + `find_p5` untouched. **The §B freeze is thereby lifted.**
+- **D111** (2026-07-11, S109, `dfbe175`) — **the §B quality score REBALANCED to Ramana's exact spec** (max 25 at the time; A flat 1/4 · C spring-and-reclaim §A9 · G extension-depth · F 0–4 · H touched-not-cut >4→3 · I divergence-reference fixed · 2.0 restored). His TCS wave 13→**18** (25-scale). §A geometry + D108 gate + `find_p5` untouched. **The §B freeze is thereby lifted.**
+- **Post-D111 G refinement** (`d5551cc` → `9350974`, Wolfe lane) — G widened 0–2 → **0–4** (the confluence zone **nearest the current price**, by ratio depth; the interim "anywhere in the wave" reading was reverted), lifting **`_QUALITY_MAX` 25 → 27**.
+- **D113** (2026-07-11, S112, `35a11e7`) — **the draw tool MERGED to main**: `✎ draw your own` auto-snap (points 1/3/5→lows, 2/4→highs), auto-EPA the moment point 4 lands, STRICT 1-2 ≥ 3-4 gate, double-click point-edit — draw-mode JS only, zero `wolfe.py`/scoring touch. (Renumbered from the draw-lane's provisional "D111", which the §B rescore claimed; the abandoned branch commit `8fc40dc` was not used.)
 
 ## 9. Open items / frozen work
 
-- **The draw tool is unmerged.** Commit `8fc40dc` (branch `wolfe-draw-tool`) is not on main and carries no decision number; the parallel lifecycle-overlay work must be committed and merged *with* it (see the §5 FLIP HAZARD). Surface to Ramana whether the live lifecycle layer + draw tool land together, and mint a decision number when they do.
 - **Point-4-strength descriptor** — recorded, NOT built; **BLOCKED on Ramana's worked chart example**. His method detail: point 4 is strong where the legs **1-2 ∩ 2-3** Fib confluence intersect (a *different* leg pair than the point-5 zones' 1-2 ∩ 3-4). ([wolfe-rules.md](../wolfe-rules.md) §D item 4.)
 - **D98–D102 methodical re-apply** — the removed recency/STR-LND/structure-watch/attention/lifecycle-queue estate is designed in [wolfe-NEXT-SESSION.md](../wolfe-NEXT-SESSION.md), to be re-added *with* him on the D108 baseline, not rebuilt unilaterally.
 - **D95 tape-wiring** — pass `corp_actions` events into Wolfe's adjust path so split/bonus history is tape-primary like the other consumers (owner = Wolfe lane).
@@ -155,13 +157,13 @@ Terse chronological (full entries in [PROJECT_STATE.md](../../PROJECT_STATE.md) 
 - **Deep design / intent / history:** [wolfe-wave-design.md](../wolfe-wave-design.md)
 - **Rules of record (§A geometry LOCKED · §A9 spring-and-reclaim · §B3 ratified scoring · §C PIT/backtest):** [wolfe-rules.md](../wolfe-rules.md)
 - **Re-apply run-book (★ fractal-focus brief + the removed D98–D102 estate):** [wolfe-NEXT-SESSION.md](../wolfe-NEXT-SESSION.md)
-- **Weights / constants (live in code; the ratified §B):** [src/automation/wolfe.py](../../src/automation/wolfe.py) (`_QUALITY_MAX=25`, `_FIB_R`) + [calculations-and-weights.md](../calculations-and-weights.md) §5c/§5d
+- **Weights / constants (live in code; the ratified §B):** [src/automation/wolfe.py](../../src/automation/wolfe.py) (`_QUALITY_MAX`, currently 27; `_FIB_R`) + [calculations-and-weights.md](../calculations-and-weights.md) §5c/§5d
 - **Strategy ledger (Wolfe row — descriptive/selection class):** [strategy-ledger.md](../strategy-ledger.md)
-- **Memory:** `[[wolfe-wave-strategy]]` (the canonical running record — split-by-side, §C trade-mechanics appendix). ⚠ Its "D111 = draw tool" line predates the real D111 (§B rescore) — this page supersedes it.
-- **Decisions:** [PROJECT_STATE.md](../../PROJECT_STATE.md) § Decision log — D96 / D108 / D109 / D111.
+- **Memory:** `[[wolfe-wave-strategy]]` (the canonical running record — split-by-side, §C trade-mechanics appendix). ⚠ Its "D111 = draw tool" line is superseded — D111 is the §B rescore; the draw tool is **D113** (merged, S112).
+- **Decisions:** [PROJECT_STATE.md](../../PROJECT_STATE.md) § Decision log — D96 / D108 / D109 / D111 / D113.
 
 ## Maintenance
 
-- **§B is ratified (D111), not frozen.** If the weights change again, update **this doc, [wolfe-rules.md](../wolfe-rules.md) §B3, and `_QUALITY_MAX`** together in the same commit; keep the top callout's max-25 figure and the badge (`points/25`) in sync.
-- **The draw tool / lifecycle merge is the live operational risk** — keep the §5 FLIP HAZARD and the §9 unmerged-draw-tool line accurate until `8fc40dc` (and the lifecycle overlay) land on main with a decision number.
+- **§B is ratified (D111), not frozen** — and still being refined by the Wolfe lane (G widened → `_QUALITY_MAX` = 27). This page references `_QUALITY_MAX` rather than a hard-coded max so it does not re-stale; if the components change again, update **this doc + [wolfe-rules.md](../wolfe-rules.md) §B3 + `_QUALITY_MAX`** together.
+- **Draw tool + lifecycle are merged (D113 / D109).** The §5 note is now a deploy caution (ship main's current `wolfe_overlay.py`, never a stale copy), not a flip hazard.
 - **Never restate weights/thresholds here** — link to code + [wolfe-rules.md](../wolfe-rules.md) §B3. This page fixes *definition, status and terminology*; the numbers live once, in code.
