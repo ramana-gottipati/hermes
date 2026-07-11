@@ -155,6 +155,14 @@ Wolfe point-4-strength (needs his worked chart) · E-08/E-09 (D-07 depth) · D-0
 (endpoint discovery). **PROJECT_STATE §Open highlights:** charting D71/D72 Phases 3-5 ·
 DVPT picking-strategy program (D47) · positioning-pillar tail · UI Track A cosmetic residual.
 **Light theme** = design-first headline session (never a tail; the S78b finding stands).
+**🔒 REPO HYGIENE — enable `main` branch protection (do-once, ~30s):** GitHub → Settings → Rules
+→ new branch ruleset on `main`: **Block force pushes** + **Restrict deletions**; leave *Require PR*
+/ *status checks* OFF (keep the lanes' direct FF pushes working); bypass list empty (applies to
+admins). WHY: S112/D113 surfaced a live gap — a divergent local `main` (e.g. `6f36bde`) could
+force-push over origin's linear history and drop merged work; a ruleset is the only close. Can't be
+done mid-session (no `gh`; claude.ai connectors register only at session start) → do it in the UI,
+or ask a FRESH session with the GitHub connector authorized: "enable main branch protection to block
+force-pushes + deletions, enforce_admins:true, no required PR/checks."
 
 ## 🎯 NEXT PICKS (charter §4/§7 altitude; kickstart-pick-verify EVERY pick + fork-check VPS live files)
 1. **Wolfe lane: 🧊 FROZEN** — no Wolfe code by any lane until Ramana signs off the §B
