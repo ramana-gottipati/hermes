@@ -53,7 +53,7 @@ Textbook Wolfe = 5-point reversal geometry with an EPA (Estimated Price at Arriv
 | Layer | What it adds | Proprietary? |
 |---|---|---|
 | **MANDATORY 2/3/4 fractal-detection gate** | Points 2, 3 and 4 must EACH be a **≥ 2-fractal** (strict Williams fractal); a wave whose 2/3/4 are not all fractals is **not a Wolfe — do not consider it**. Point 1 needs no fractal (a fractal there is a scored bonus); point 5 needs no fractal (entry timeliness). This is a **hard detection gate**, not a soft score. (D108) | **Yes** — Ramana's rule, enforced in code since `0c89e8f`. |
-| **§B strength score (ratified D111)** | Strength = eight INDEPENDENT things agreeing, summed to **max 25**: **A** point-1 quality · **B** symmetry · **C** point-5 placement (spring-and-reclaim, §A9) · **F** zone narrowness · **G** extension depth · **H** EPA touched-not-cut · **I** RSI divergence · **D** direction/context. Buckets + tolerances: [wolfe-rules.md](../wolfe-rules.md) §B3 + [wolfe.py](../../src/automation/wolfe.py). | **Yes** |
+| **§B strength score (ratified D111)** | Strength = eight INDEPENDENT things agreeing, summed to **`_QUALITY_MAX`** (currently 27): **A** point-1 quality · **B** symmetry · **C** point-5 placement (spring-and-reclaim, §A9) · **F** zone narrowness · **G** confluence-zone-nearest-price (0–4) · **H** EPA touched-not-cut · **I** RSI divergence · **D** direction/context. Buckets + tolerances: [wolfe-rules.md](../wolfe-rules.md) §B3 + [wolfe.py](../../src/automation/wolfe.py). | **Yes** |
 | **Spring-and-reclaim point-5 doctrine** | Point 5 may pierce the confluence zone by ANY depth and then **reclaim** it (a support→resistance flip breached back) — that reclaim, not the overshoot depth, is the strong-reversal tell. ([wolfe-rules.md](../wolfe-rules.md) §A9, D111.) | **Yes** |
 | **"Touched not cut" EPA rule (H)** | The EPA/1-4 line is strong S/R only where a candle comes within **0.3%** of it (a touch, one side only); a candle slicing *through* is a *cut* and does not count. More clean touches ⇒ stronger line. (§B3 H; landed D111.) | **Yes** |
 | **Three-section lifecycle overlay** | Every wave sits in exactly ONE of **Prediction / Open / Closed** (see §3). Simple, labelled, **non-hiding**. (D109) | **Yes** |
@@ -97,7 +97,7 @@ Everything else — the L,H,L,H / H,L,H,L convention, the extension-fan Fib meth
 
 | Piece | Path / name |
 |---|---|
-| Detector + §A geometry + §B score (max 25) + `fib_zones` + `find_p5` + `winner_scan` + `persist_scan` + `epa_touched`/`close_quality` (D109) | [src/automation/wolfe.py](../../src/automation/wolfe.py) |
+| Detector + §A geometry + §B score (max `_QUALITY_MAX`) + `fib_zones` + `find_p5` + `winner_scan` + `persist_scan` + `epa_touched`/`close_quality` (D109) | [src/automation/wolfe.py](../../src/automation/wolfe.py) |
 | Ranked page + scanner + JSON overlay endpoint | [src/web/wolfe_view.py](../../src/web/wolfe_view.py) |
 | Stock-chart candle overlay SNIPPET (Prediction/Open/Closed tabs **+ ✎ Draw** mode) | [src/web/wolfe_overlay.py](../../src/web/wolfe_overlay.py) |
 | Nightly persist unit | `scripts/hermes-wolfe-scan.service` + `.timer` |
