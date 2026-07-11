@@ -169,7 +169,7 @@ def divergence_page():
         body = board_html(conn) if conn is not None else board_html(None)
     try:
         from src.web.dashboard import _shell
-        return HTMLResponse(_shell("RS/RSI divergence", body, active="markets", wide=True))
+        return HTMLResponse(_shell("RS/RSI divergence", body, active="divergence", wide=True))
     except Exception:  # noqa: BLE001
         return HTMLResponse(body)
 

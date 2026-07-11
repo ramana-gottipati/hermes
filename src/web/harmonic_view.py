@@ -174,4 +174,4 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table>')
-    return HTMLResponse(_shell("Harmonic scanner", body, "wolfe", wide=True))
+    return HTMLResponse(_shell("Harmonic scanner", body, "harmonic", wide=True))

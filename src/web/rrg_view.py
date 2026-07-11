@@ -829,7 +829,7 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
     den = den if den in BENCHMARKS else "Nifty 500"
     if sym:                               # SINGLE-STOCK rotation (its journey tail)
         return HTMLResponse(_shell(f"{sym} — rotation", _stock_rrg_page(sym, den, tail),
-                                   active="markets", wide=True))
+                                   active="rrg", wide=True))
     if idx:                               # DRILL-DOWN: the stocks inside one index
         # Default benchmark = the SECTOR itself (which participants lead/lag the
         # sector → spreads them across quadrants); vs=broad = vs Nifty 500.
@@ -842,7 +842,7 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
             body = (G.css() + _constituent_head(idx, ben, vs)
                     + _svg(rows, {}, tails, link_fn=lambda s: "/dash/stock?sym=" + quote_plus(s))
                     + _constituent_table(rows, ben))
-        return HTMLResponse(_shell(f"{idx} — rotation", body, active="markets", wide=True))
+        return HTMLResponse(_shell(f"{idx} — rotation", body, active="rrg", wide=True))
     months = tail if tail in _SECTOR_TAILS else "12"      # sector level — selectable tail
     with get_conn() as conn:
         rows, caps, tails = _fetch(den, conn, months)
@@ -853,4 +853,4 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
                 + _sectors_rrg_block(rows, caps, tails, den, months,
                                      tail_base="/dash/rrg", tail_view="", dot_link=True)
                 + _table(rows, caps, den))
-    return HTMLResponse(_shell("Relative rotation — sectors", body, active="markets", wide=True))
+    return HTMLResponse(_shell("Relative rotation — sectors", body, active="rrg", wide=True))

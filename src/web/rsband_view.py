@@ -940,12 +940,12 @@ def rsband_page(den: str = Query("Nifty 500", max_length=40),
     if sym:                                # DEEPEST DRILL: one stock's band Channel
         with get_conn() as conn:
             body = render_stock_channel(sym, den, idx, conn=conn)
-        return HTMLResponse(_shell(f"{sym} — RS band", body, active="markets", wide=True))
+        return HTMLResponse(_shell(f"{sym} — RS band", body, active="rsband", wide=True))
     if idx:                                # DRILL: one sector's Channel + its constituents
         vs = vs if vs in ("broad", "sector") else "broad"
         with get_conn() as conn:
             body = render_band_channel(idx, den, conn=conn) + render_constituents(idx, conn, vs)
-        return HTMLResponse(_shell(f"{idx} — RS band", body, active="markets", wide=True))
+        return HTMLResponse(_shell(f"{idx} — RS band", body, active="rsband", wide=True))
     view = view if view in ("lanes", "clock", "rrg") else "lanes"
     return HTMLResponse(_shell("RS support & resistance", G.css() + render_band_lanes(den, view, tail=tail),
-                               active="markets", wide=True))
+                               active="rsband", wide=True))

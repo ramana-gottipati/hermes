@@ -283,7 +283,7 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
         except Exception:
             has = None
         if not has:
-            return HTMLResponse(_shell("RS rotation · patearn", _CSS + _empty(), active="markets", wide=True))
+            return HTMLResponse(_shell("RS rotation · patearn", _CSS + _empty(), active="rotation", wide=True))
         # CL-VIEW-18: banner + movers share the one open connection (was two get_conn()
         # contexts per request). _cell/_table below open their own conns via stock_rs.
         banner = _banner(conn)
@@ -296,4 +296,4 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
             'share the phase). Table below = every member of the selected phase, full RS term structure.</div>')
     body = ('<div class="rwrap">' + head + banner + grid + movers
             + _pills(phase) + _table(phase) + '</div>')
-    return HTMLResponse(_shell("RS rotation · patearn", _CSS + G.css() + body, active="markets", wide=True))
+    return HTMLResponse(_shell("RS rotation · patearn", _CSS + G.css() + body, active="rotation", wide=True))

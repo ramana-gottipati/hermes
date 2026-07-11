@@ -142,7 +142,7 @@ def cycle_clock_page():
         body = clock_html(conn) if conn is not None else clock_html(None)
     try:
         from src.web.dashboard import _shell
-        return HTMLResponse(_shell("Rotation lifecycle clock", body, active="markets", wide=True))
+        return HTMLResponse(_shell("Rotation lifecycle clock", body, active="cycle-clock", wide=True))
     except Exception:  # noqa: BLE001
         return HTMLResponse(body)
 

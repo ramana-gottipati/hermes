@@ -1,7 +1,7 @@
 """RS Section — P0 of UI Architecture v2 (docs/ui-architecture-v2.md §0.1, §13).
 
 The first-class **Relative Strength** hub that lives at the MARKETS altitude
-(active="markets"). RS is NOT a top-level tab and NOT a Strategies lens — its
+(active="rs-hub"). RS is NOT a top-level tab and NOT a Strategies lens — its
 macro face is Markets content (§0.1, corrected by the 2026-06-23 red-team).
 
 Isolation (per §0.8): this is a brand-new module so it cannot collide with the
@@ -219,4 +219,4 @@ def render_rs_hub(den: str = "Nifty 500") -> str:
 @router.get("/dash/rs-hub", response_class=HTMLResponse)
 def rs_hub(den: str = Query("Nifty 500")) -> HTMLResponse:
     return HTMLResponse(_shell("Relative strength · patearn",
-                               render_rs_hub(den), active="markets", wide=True))
+                               render_rs_hub(den), active="rs-hub", wide=True))

@@ -137,7 +137,7 @@ def early_signals_page():
         body = feed_html(conn) if conn is not None else feed_html(None)
     try:
         from src.web.dashboard import _shell
-        return HTMLResponse(_shell("Early signals", body, active="markets", wide=True))
+        return HTMLResponse(_shell("Early signals", body, active="early-signals", wide=True))
     except Exception:  # noqa: BLE001
         return HTMLResponse(body)
 

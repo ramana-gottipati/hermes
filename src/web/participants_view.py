@@ -295,4 +295,4 @@ def dash_participants() -> HTMLResponse:
         row = conn.execute("SELECT MAX(trade_date) d FROM bhavcopy_rows").fetchone()
     sig_date = row["d"] if row and row["d"] else ""
     return HTMLResponse(_shell("Participants · patearn", render_participants(),
-                               "markets", sig_date, wide=True))
+                               "participants", sig_date, wide=True))

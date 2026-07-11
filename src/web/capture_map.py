@@ -210,7 +210,7 @@ def capture_map_page(den: str = Query("Nifty 500", max_length=40),
     try:
         from src.web.dashboard import _shell
         return HTMLResponse(_shell("All-weather capture map", body,
-                                   active="markets", wide=True))
+                                   active="capture-map", wide=True))
     except Exception:  # noqa: BLE001
         return HTMLResponse(body)
 

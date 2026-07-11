@@ -148,10 +148,12 @@ LENSES: tuple[Lens, ...] = (
     # route=None records below, reached from the chart control) AND surface the market-wide
     # SCANNER pages as Markets lenses under a "Patterns" heading. Scans are precomputed
     # nightly (harmonic_signals / wolfe_signals) → nav-only wiring, zero added compute.
+    # aliases carry the scanner pages' emitted active id ("harmonic"/"wolfe" — the overlay keys)
+    # so /dash/harmonic and /dash/wolfe/scan highlight their "Patterns" sub-nav lens (D118).
     Lens("harmonic-scan", "Patterns · Harmonic", "market", "markets", "/dash/harmonic",
-         group="Patterns"),
+         group="Patterns", aliases=("harmonic",)),
     Lens("wolfe-scan", "Patterns · Wolfe", "market", "markets", "/dash/wolfe/scan",
-         group="Patterns"),
+         group="Patterns", aliases=("wolfe",)),
     Lens("participants", "Participants", "market", "markets", "/dash/participants",
          dossier_tab="fno", screener_col=None),
     Lens("wire", "News / Wire", "market", "markets", "/dash/wire",

@@ -158,7 +158,7 @@ def sector_momentum_page(idx: str = Query("")):
     try:
         from src.web.dashboard import _shell
         title = f"{_short(idx)} — sector momentum" if idx else "Sector momentum"
-        return HTMLResponse(_shell(title, body, active="markets", wide=True))
+        return HTMLResponse(_shell(title, body, active="sector-momentum", wide=True))
     except Exception:  # noqa: BLE001
         return HTMLResponse(body)
 
