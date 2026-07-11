@@ -274,6 +274,7 @@ def render_participants() -> str:
             + ifx.bottom_line(f'Right now foreign investors (FIIs) are <b>{_blurb}</b>. This page shows '
                               'who is positioned which way in the futures market — foreigners, Indian '
                               'funds, professional desks, and everyday investors.')
+            + ifx.how_to_read_link()
             + '<div class="sub mut" style="font-size:11px;margin:2px 0 8px">FII = foreign investors · '
               'DII = Indian mutual funds/insurers · Pro = professional trading desks · Client = everyday '
               '+ wealthy retail · “long” = betting up, “short” = betting down.</div>'

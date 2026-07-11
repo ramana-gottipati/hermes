@@ -130,6 +130,7 @@ def dash_launchpad_track() -> HTMLResponse:
                 f'but only after a typical <b>{overall["med_mae"]:.0f}% dip first</b>, and only '
                 f'<b>{overall["hit25"]:.0f}%</b> reached a +25% gain. Treat it as a shortlist worth '
                 'watching, <b>not a guarantee</b>: outcomes are a wide spread, shown below.'))
+            body.append(ifx.how_to_read_link())
 
             # tiles
             def tile(n, c, l, s):

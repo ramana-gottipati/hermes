@@ -151,6 +151,7 @@ def dash_move_anatomy() -> HTMLResponse:
                 "“accumulation” setup that popular lore assumes; in fact real buying is a touch "
                 "<b>below</b> normal beforehand. This is a description of 15 years of history, not a "
                 "buy rule.")
+            + ifx.how_to_read_link()
             + '<div class="ma-thesis">The panel of 166K labelled moves says something the setup lore '
             'doesn\'t: big moves launch from <b>momentum and strength</b> — trailing return, relative '
             'strength, price above its long averages — <b>not</b> from a tight base with heavy '

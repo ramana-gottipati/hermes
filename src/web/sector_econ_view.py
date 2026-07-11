@@ -152,6 +152,7 @@ def dash_sector_economics(metric: str = "roce") -> HTMLResponse:
             f'Measured by <b>{_esc(mdesc.lower())}</b>, the strongest sectors of the last decade are '
             f'<b>{_esc(top)}</b>' + (f', while <b>{_esc(mv)}</b> swings the most with global cycles' if mv else '')
             + '. This is about the <b>businesses</b> underneath — how good they are — not their share prices.'))
+        body.append(ifx.how_to_read_link())
 
         tabs = "".join(f'<a class="{"on" if metric==k else ""}" href="/dash/sector-economics?metric={k}">'
                        f'{_esc(v[1])}</a>' for k, v in _METRICS.items())

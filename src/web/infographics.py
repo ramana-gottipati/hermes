@@ -449,7 +449,16 @@ def readability_css() -> str:
         ".rd-plain .rd-txt{font-size:12.5px;line-height:1.5;color:var(--ink-2);}"
         ".rd-plain .rd-txt b{color:var(--ink);}"
         ".rd-tech{color:var(--ink-3);font-size:10px;font-weight:400;display:block;margin-top:1px;}"
+        ".rd-htr{margin:-4px 0 14px;font-size:12px;}"
+        ".rd-htr a{color:var(--accent-cy);text-decoration:none;border-bottom:1px dotted var(--accent-cy);}"
+        ".rd-htr a:hover{border-bottom-style:solid;}"
         "</style>")
+
+
+def how_to_read_link(href: str = "/dash/reading-guide") -> str:
+    """A small 'New here? How to read these charts' link — sits under the bottom-line on each
+    user-facing lens, pointing at the visual reading guide."""
+    return f'<div class="rd-htr"><a href="{href}">New here? How to read these charts →</a></div>'
 
 
 def bottom_line(text_html: str) -> str:

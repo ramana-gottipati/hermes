@@ -216,6 +216,7 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 f'stocks rose</b>, buying pressure is <b>{"positive" if (_l["mep_net"] or 0) >= 0 else "negative"}</b>, '
                 f'and trading is <b>{"unusually calm" if (_l["avg_comp"] or 1) < 1 else "choppy"}</b>. These "internals" '
                 'tell you how healthy the market is <i>underneath</i> the one number everyone quotes.'))
+            body.append(ifx.how_to_read_link())
 
             # tiles: latest value + its percentile vs FULL 22y history
             body.append(_tiles(allrows))

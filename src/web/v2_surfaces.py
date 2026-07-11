@@ -93,6 +93,9 @@ _ROUTER_SPECS = [
     # (research.db fundamentals ⋈ hermes company_tags). Aggregate, descriptive; the fundamental
     # complement to the RS-based Sectors lens.
     ("sector-economics", "src.web.sector_econ_view", "/dash/sector-economics"),
+    # How to read the charts (deep-data value sprint) — beginner's visual guide to the site's
+    # chart shapes + plain-word ideas; linked from every deep-data lens header + Coverage.
+    ("reading-guide", "src.web.reading_guide_view", "/dash/reading-guide"),
     # Surveillance-transition tape (D94 queue #6, S92) — ASM/GSM snapshot diffs +
     # band events; flag logic single-sourced in surveillance.flagged_symbols.
     ("surveillance", "src.web.surveil_view", "/dash/surveillance"),
