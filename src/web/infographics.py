@@ -427,8 +427,45 @@ def pct_gauge(value: float, dist: list, w: int = 480, h: int = 64, label: str = 
     return "".join(out)
 
 
+# ── readability scaffold — the beginner on-ramp layer (additive, one design system) ──
+# Used by the deep-data lenses so "plain English" + "bottom line" read identically everywhere.
+def readability_css() -> str:
+    """A <style> block for the .rd-bottom (takeaway band) + .rd-plain (in-plain-English line).
+    Include once per page (theme-aware via tokens). Additive — never restyles existing content."""
+    return (
+        "<style>"
+        ".rd-bottom{display:flex;gap:12px;align-items:baseline;"
+        "background:linear-gradient(90deg,rgba(var(--up-rgb),.07),rgba(var(--up-rgb),.015));"
+        "border:1px solid var(--line-2);border-left:3px solid var(--up);border-radius:0 12px 12px 0;"
+        "padding:12px 16px;margin:2px 0 16px;max-width:1120px;}"
+        ".rd-bottom .rd-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;"
+        "color:var(--up);font-weight:700;white-space:nowrap;flex:none;padding-top:3px;}"
+        ".rd-bottom .rd-txt{font-size:14.5px;line-height:1.55;color:var(--ink);}"
+        ".rd-bottom .rd-txt b{color:var(--ink);}"
+        ".rd-plain{display:flex;gap:9px;align-items:baseline;margin:7px 0 11px;padding-left:11px;"
+        "border-left:2px solid var(--accent-cy);max-width:1080px;}"
+        ".rd-plain .rd-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;"
+        "color:var(--accent-cy);font-weight:700;white-space:nowrap;flex:none;padding-top:2px;}"
+        ".rd-plain .rd-txt{font-size:12.5px;line-height:1.5;color:var(--ink-2);}"
+        ".rd-plain .rd-txt b{color:var(--ink);}"
+        ".rd-tech{color:var(--ink-3);font-size:10px;font-weight:400;display:block;margin-top:1px;}"
+        "</style>")
+
+
+def bottom_line(text_html: str) -> str:
+    """The single-sentence takeaway band — sits at the top of a page, above the intro."""
+    return f'<div class="rd-bottom"><span class="rd-lbl">Bottom line</span><span class="rd-txt">{text_html}</span></div>'
+
+
+def plain(text_html: str) -> str:
+    """The 'in plain English' translation line — sits under a chart's technical caption."""
+    return f'<div class="rd-plain"><span class="rd-lbl">In plain English</span><span class="rd-txt">{text_html}</span></div>'
+
+
 def _selftest() -> int:
     import re
+    assert readability_css().startswith("<style>") and "rd-bottom" in readability_css()
+    assert 'class="rd-bottom"' in bottom_line("x") and 'class="rd-plain"' in plain("y")
     seq = [signed_fill(-1), signed_fill(0), signed_fill(1), seq_fill(0), seq_fill(.5), seq_fill(1)]
     assert all(c for c in seq)
     charts = {

@@ -35,6 +35,10 @@ router = APIRouter()
 _RESEARCH_DB = os.environ.get("HERMES_RESEARCH_DB", "/opt/hermes/data/research.db")
 _METRICS = {"roce": ("ROCE %", "Return on capital employed", "%"),
             "opm": ("OPM %", "Operating margin", "%")}
+_METRIC_PLAIN = {
+    "roce": "how much profit a company earns for every ₹100 of capital it puts to work — higher = a better business",
+    "opm": "how much profit is left from every ₹100 of sales — higher = fatter margins",
+}
 _Y0, _Y1 = 2015, 2026
 _MIN_N = 5
 
@@ -126,7 +130,7 @@ def _compute(metric_key: str, research_db: str):
 def dash_sector_economics(metric: str = "roce") -> HTMLResponse:
     metric = metric if metric in _METRICS else "roce"
     mlabel, mdesc, munit = _METRICS[metric]
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     try:
         d = _compute(metric, _RESEARCH_DB)
         if not d or not d["sectors"]:
@@ -137,11 +141,17 @@ def dash_sector_economics(metric: str = "roce") -> HTMLResponse:
             '<h2 style="margin:0 0 2px">Sector economics '
             f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">a decade of each '
             f'sector\'s fundamentals · {mdesc} · median by sector × year</small></h2>'
-            '<div class="se-note">The <a href="/dash/sectors">Sectors</a> lens shows sector '
-            '<b>relative strength</b> (price). This is the orthogonal read — how the <b>economics</b> '
-            'of each sector drifted over a decade, from the depth of the fundamentals archive. Warmer '
-            'cells = higher ' + _esc(mdesc.lower()) + '. <b>Aggregate &amp; descriptive</b> — sector '
-            'context, never a ranking.</div>')
+            '<div class="se-note">The <a href="/dash/sectors">Sectors</a> lens tracks sector '
+            '<b>share prices</b>. This is the other side of the coin — how the actual <b>business quality</b> '
+            'of each sector changed over a decade. <b>' + _esc(mdesc) + '</b> is ' + _esc(_METRIC_PLAIN[metric])
+            + '. Warmer cells = higher. <b>Aggregate &amp; descriptive</b> — sector context, never a ranking.</div>')
+
+        top = ", ".join(d["sectors"][:2])
+        mv = d["movers"][0][0] if d["movers"] else None
+        body.append(ifx.bottom_line(
+            f'Measured by <b>{_esc(mdesc.lower())}</b>, the strongest sectors of the last decade are '
+            f'<b>{_esc(top)}</b>' + (f', while <b>{_esc(mv)}</b> swings the most with global cycles' if mv else '')
+            + '. This is about the <b>businesses</b> underneath — how good they are — not their share prices.'))
 
         tabs = "".join(f'<a class="{"on" if metric==k else ""}" href="/dash/sector-economics?metric={k}">'
                        f'{_esc(v[1])}</a>' for k, v in _METRICS.items())
@@ -151,7 +161,11 @@ def dash_sector_economics(metric: str = "roce") -> HTMLResponse:
             '<div class="se-panel">'
             f'<div class="se-h">{_esc(mlabel)} by sector, FY{_Y0 % 100}→FY{_Y1 % 100} '
             '<small>— median of current index constituents</small></div>'
-            '<div class="se-sub">Each cell is the <b>median</b> across that sector\'s current index '
+            + ifx.plain('Each <b>row</b> is a sector, each <b>column</b> a year. The <b>warmer (oranger)</b> '
+                        'the cell, the more profitable that sector was that year. Read across a row to watch '
+                        'a sector rise or fade over the decade; a <b>blank</b> cell means too few companies '
+                        'to be reliable.')
+            + '<div class="se-sub">Each cell is the <b>median</b> across that sector\'s current index '
             f'members (blank where fewer than {_MIN_N} report). Read a row left-to-right for a sector\'s '
             'decade; read a column for the market that year.</div>'
             '<div class="se-legend"><span>low</span><span class="ramp"></span><span>high</span></div>'

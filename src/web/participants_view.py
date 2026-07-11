@@ -132,6 +132,9 @@ def render_positioning_tape(conn) -> str:
         f'<span class="mut">· {extreme}</span></div>'
         '<div style="font-size:11px;color:var(--ink-3);margin:8px 0 2px">'
         'LONG:SHORT RATIO — green = net long (&gt;1), red = net short (&lt;1)</div>'
+        + ifx.plain('This line is foreigners’ <b>“up” bets divided by “down” bets</b> on the whole '
+                    'market. <b>Above</b> the dotted line = betting the market rises; <b>below</b> = betting it '
+                    'falls. It’s sitting near the bottom of its 2½-year range — an unusually bearish stance.')
         + ifx.spark_area(ratio, h=120, signed=True, baseline=1.0)
         + '<div style="max-width:520px;margin-top:8px">'
         + ifx.pct_gauge(latest, dist, label="today", vfmt=2) + '</div>'
@@ -142,7 +145,10 @@ def render_positioning_tape(conn) -> str:
         '<div class="sub" style="margin:16px 0 4px">🪞 Smart money vs retail '
         '<span class="mut">— who is on the other side of the FII short</span></div>'
         '<div class="card" style="padding:12px 14px">'
-        '<div style="font-size:11px;color:var(--ink-3);margin-bottom:2px">FII net index position (lakh contracts)</div>'
+        + ifx.plain('For every bet, someone takes the other side. Watch the two lines mirror each other: '
+                    'as <b>foreigners</b> pile on “down” bets (first chart dips), <b>everyday investors</b> '
+                    'pile on “up” bets (second chart rises) by almost the same amount. Retail is the counterparty.')
+        + '<div style="font-size:11px;color:var(--ink-3);margin-bottom:2px">FII net index position (lakh contracts)</div>'
         + ifx.spark_area(fii_n, h=84, signed=True, baseline=0)
         + '<div style="font-size:11px;color:var(--ink-3);margin:10px 0 2px">CLIENT (retail + HNI) net index position</div>'
         + ifx.spark_area(cli_n, h=84, signed=True, baseline=0)
@@ -257,9 +263,20 @@ def render_participants() -> str:
             'the per-stock F&amp;O·OI tab. Index-option bias = (call-long + put-short) − (call-short + '
             'put-long). Descriptor / sentiment context (D62) — not a standalone timing signal.</div>')
 
+    _bear = (fii_ratio is not None and fii_ratio < 0.9)
+    _blurb = ("betting hard against the market — they hold far more “down” bets than “up”, and everyday "
+              "investors are taking the other side" if _bear else
+              "leaning bullish — more “up” bets than “down”")
     return (f'<h2 style="margin-top:2px">🧭 Participant positioning '
             f'<span class="sub" style="margin:0">who is long / short — FII · DII · Pro · Client · '
             f'as of {html.escape(d)}</span></h2>'
+            + ifx.readability_css()
+            + ifx.bottom_line(f'Right now foreign investors (FIIs) are <b>{_blurb}</b>. This page shows '
+                              'who is positioned which way in the futures market — foreigners, Indian '
+                              'funds, professional desks, and everyday investors.')
+            + '<div class="sub mut" style="font-size:11px;margin:2px 0 8px">FII = foreign investors · '
+              'DII = Indian mutual funds/insurers · Pro = professional trading desks · Client = everyday '
+              '+ wealthy retail · “long” = betting up, “short” = betting down.</div>'
             + gauge
             + tape_html
             # matrix (5-col) + history (3-col) were two narrow tables each alone in a

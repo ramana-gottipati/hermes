@@ -134,16 +134,16 @@ def _tiles(rows: list) -> str:
     pa = last["pct_adv"]
     mn = last["mep_net"]
     t = [
-        tile(f'{pa:.0f}%', "var(--up)" if pa >= 50 else "var(--down)", "Advancing today",
-             f'{last["adv"]}▲ / {last["dec"]}▼ of {last["n_eq"]} · {_phrase(_pctile(padv, pa), "weak", "broad")}'),
-        tile(f'{mn:+.0f}', "var(--up)" if mn >= 0 else "var(--down)", "The tape (net accum−distrib)",
-             _phrase(_pctile(mep, mn), "distribution", "accumulation")),
-        tile(f'{last["avg_dp"]:.0f}%', "var(--chart-blue)", "Delivery conviction",
-             _phrase(_pctile(dps, last["avg_dp"]), "low-conviction era", "high-conviction")),
-        tile(f'{last["disp"]:.2f}', "var(--accent-orange)", "Dispersion",
-             _phrase(_pctile(disp, last["disp"]), "macro / correlated", "stock-picker's")),
-        tile(f'{last["avg_comp"]:.2f}', "var(--series-1)", "Coil ↔ expansion",
-             ("coiled" if last["avg_comp"] < 1 else "expanded") + f' · {_phrase(_pctile(coil, last["avg_comp"]), "coiled", "expanded")}'),
+        tile(f'{pa:.0f}%', "var(--up)" if pa >= 50 else "var(--down)", "Stocks rising today",
+             f'{last["adv"]}▲ up / {last["dec"]}▼ down of {last["n_eq"]} · {_phrase(_pctile(padv, pa), "weak", "broad")}'),
+        tile(f'{mn:+.0f}', "var(--up)" if mn >= 0 else "var(--down)", "Buying pressure (“the tape”)",
+             f'scale −100…+100 · + = buyers paying up · {_phrase(_pctile(mep, mn), "selling", "buying")}'),
+        tile(f'{last["avg_dp"]:.0f}%', "var(--chart-blue)", "Real buying (“delivery”)",
+             f'share held overnight, not day-traded · {_phrase(_pctile(dps, last["avg_dp"]), "low-conviction era", "high-conviction")}'),
+        tile(f'{last["disp"]:.2f}', "var(--accent-orange)", "How differently stocks move",
+             f'low = all move together · {_phrase(_pctile(disp, last["disp"]), "macro / all-together", "stock-pickers")}'),
+        tile(f'{last["avg_comp"]:.2f}', "var(--series-1)", "Calm vs violent (“coil”)",
+             ("under 1 = calm/coiled" if last["avg_comp"] < 1 else "over 1 = violent") + f' · {_phrase(_pctile(coil, last["avg_comp"]), "calm", "violent")}'),
     ]
     return f'<div class="mi-tiles">{"".join(t)}</div>'
 
@@ -170,14 +170,18 @@ def _anchor_table(conn) -> str:
     if not trs:
         return ""
     return ('<table class="mi-anc"><thead><tr><th class="l">Date</th><th class="l">Event</th>'
-            '<th>% adv</th><th>Deliv</th><th>Disp</th><th>Tape</th><th>Coil</th></tr></thead>'
+            '<th title="share of stocks that rose">% up</th>'
+            '<th title="real buying / delivery %">Real-buy</th>'
+            '<th title="how differently stocks moved">Spread</th>'
+            '<th title="buying pressure, −100…+100">Pressure</th>'
+            '<th title="calm (&lt;1) vs violent (&gt;1)">Calm/wild</th></tr></thead>'
             f'<tbody>{"".join(trs)}</tbody></table>')
 
 
 @router.get("/dash/market-internals", response_class=HTMLResponse)
 def dash_market_internals(window: str = "5y") -> HTMLResponse:
     window = window if window in _WINDOWS else "5y"
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = ""
     try:
         with get_conn() as conn:
@@ -205,6 +209,13 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 '<span class="warn">distributes</span>, the market is being distributed into strength — a '
                 'warning the cap-weighted index can\'t show. <b>Descriptive market-state, point-in-time — '
                 'not a signal.</b> <a href="/dash/glossary?q=breadth">glossary →</a></div>')
+
+            _l = allrows[-1]
+            body.append(ifx.bottom_line(
+                f'Beneath the headline index, the market\'s vital signs today: <b>{_l["pct_adv"]:.0f}% of '
+                f'stocks rose</b>, buying pressure is <b>{"positive" if (_l["mep_net"] or 0) >= 0 else "negative"}</b>, '
+                f'and trading is <b>{"unusually calm" if (_l["avg_comp"] or 1) < 1 else "choppy"}</b>. These "internals" '
+                'tell you how healthy the market is <i>underneath</i> the one number everyone quotes.'))
 
             # tiles: latest value + its percentile vs FULL 22y history
             body.append(_tiles(allrows))
@@ -234,6 +245,10 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 'Top: <b>price-breadth</b> — % of stocks advancing (green) vs declining (red). '
                 'Bottom: <b>the tape</b> — net accumulation−distribution, whether buyers are paying up. '
                 'They usually agree; where they diverge is the story.',
+                ifx.plain('Two strips. The <b>top</b> is how many stocks rose (green) vs fell (red) each '
+                          'day. The <b>bottom</b> is whether buyers were aggressive (green) or quietly '
+                          'stepping back (red). They usually match — when the top is green but the bottom '
+                          'red, prices are rising while buyers back away. That gap is the warning sign.'),
                 '<div class="mi-lbl">PRICE-BREADTH · % advancing (smoothed) — centred at 50</div>',
                 ifx.spark_area(pb_line, h=104, signed=True, baseline=0),
                 '<div class="mi-lbl">daily texture</div>',
@@ -250,6 +265,9 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 'Market-wide delivery-% — the share of volume taken to demat, not intraday-churned. '
                 'It fell structurally from ~64% (2004-13) to ~54% (post-2020) as the F&O / algo era took '
                 'over. Delivery <i>spikes</i> on panic days (intraday traders vanish; only holders transact).',
+                ifx.plain('“Delivery” = shares actually bought to <b>keep</b>, not flipped the same day. '
+                          'The share doing so has fallen for two decades as fast/algo trading grew — and '
+                          'it <b>jumps on crash days</b>, when only genuine holders are left standing.'),
                 ifx.spark_area(_roll(avg_dp, k), h=120, color="var(--chart-blue)")))
 
             # Dispersion regime
@@ -258,6 +276,9 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 'Cross-sectional stdev of daily returns. <b>High</b> = names move on their own merits '
                 '(selection pays); <b>low</b> = everything moves together (macro / risk-on-off). It spikes '
                 'in every crisis (COVID 5.97, GFC 5.81) and has drifted structurally lower.',
+                ifx.plain('When this is <b>high</b>, stocks go their own ways, so picking the right one '
+                          'matters more; when <b>low</b>, they all move together on the day\'s big news. '
+                          'It jumps in every crisis.'),
                 ifx.spark_area(_roll(disp, k), h=120, color="var(--accent-orange)")))
 
             # Coil
@@ -266,6 +287,9 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 'Mean ATR-compression across the universe (short-vs-long range). <b>&lt;1 coiled</b> '
                 '(quiet, wound tight) · <b>&gt;1 expanded</b> (violent, unwound). Expansion peaks coincide '
                 'with the distribution thrusts above (COVID 1.69).',
+                ifx.plain('Think of a spring. <b>Below 1</b>, the market is wound tight and quiet; '
+                          '<b>above 1</b>, it\'s snapping around violently. The violent spikes line up '
+                          'with the crashes above.'),
                 ifx.spark_area(_roll(coil, k), h=120, color="var(--series-1)")))
 
             # Crisis fingerprints (proof it tracks history)
@@ -273,6 +297,9 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 'Crisis fingerprints <small>— the internals, validated against known history</small>',
                 'The same five internals on the days everyone remembers. Every extreme lines up: '
                 'the tape reads −92 at the GFC low, −74 at the COVID low, +90 on the 2009 thrust.',
+                ifx.plain('A sanity check: the same five gauges on the days everyone remembers. On crash '
+                          'days almost nothing rose, buying pressure was deeply negative, and trading was '
+                          'violent — exactly what you\'d expect. Proof the gauges are real, not made up.'),
                 _anchor_table(conn)))
     except Exception:  # noqa: BLE001 — honest empty state, never 500
         body.append(

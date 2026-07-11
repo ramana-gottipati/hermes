@@ -88,7 +88,7 @@ def _agg(rows, keyfn):
 
 @router.get("/dash/launchpad-track", response_class=HTMLResponse)
 def dash_launchpad_track() -> HTMLResponse:
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = ""
     try:
         with get_conn() as conn:
@@ -124,6 +124,13 @@ def dash_launchpad_track() -> HTMLResponse:
                 'a <b>validated screen with no fundable edge net of cost</b>; this page quantifies the '
                 'screen\'s character, it is not a recommendation. <a href="/dash/launchpad">← today\'s scan</a></div>')
 
+            body.append(ifx.bottom_line(
+                f'When this screen flags a stock (an “ignition” = a stock waking up on heavy volume), '
+                f'historically it went on to about <b>{overall["med_r12"]:+.0f}% over the next year</b> — '
+                f'but only after a typical <b>{overall["med_mae"]:.0f}% dip first</b>, and only '
+                f'<b>{overall["hit25"]:.0f}%</b> reached a +25% gain. Treat it as a shortlist worth '
+                'watching, <b>not a guarantee</b>: outcomes are a wide spread, shown below.'))
+
             # tiles
             def tile(n, c, l, s):
                 return (f'<div class="lt-tile"><div class="n" style="color:{c}">{n}</div>'
@@ -134,11 +141,11 @@ def dash_launchpad_track() -> HTMLResponse:
                 + tile(f'{overall["hit25"]:.0f}%', "var(--up)", "Hit +25% in 12m",
                        "share that reached a +25% move")
                 + tile(f'{overall["med_r12"]:+.0f}%', "var(--up)" if overall["med_r12"] >= 0 else "var(--down)",
-                       "Median 12m return", "typical outcome (median, not mean)")
-                + tile(f'{overall["med_mae"]:.0f}%', "var(--down)", "Median drawdown first",
-                       "the pain before the payoff (MAE)")
-                + tile(f'{_median([r["mfe_pct"] for r in rows]):.0f}%', "var(--up)", "Median peak (MFE)",
-                       "best excursion reached in-window")
+                       "Typical 1-year return", "the middle outcome (median, not average)")
+                + tile(f'{overall["med_mae"]:.0f}%', "var(--down)", "Typical dip first",
+                       "the pain before the payoff (analysts: MAE)")
+                + tile(f'{_median([r["mfe_pct"] for r in rows]):.0f}%', "var(--up)", "Typical best rise",
+                       "the biggest gain along the way (analysts: MFE)")
                 + '</div>')
 
             # MFE/MAE envelope by character
@@ -147,12 +154,14 @@ def dash_launchpad_track() -> HTMLResponse:
                    f'hit+25% {v["hit25"]:.0f}%' if v["hit25"] is not None else "")
                   for k, v in order if v["med_mfe"] is not None and v["med_mae"] is not None]
             body.append(
-                '<div class="lt-panel"><div class="lt-h">Gain vs pain, by ignition character '
-                '<small>— median favourable (MFE) vs adverse (MAE) excursion</small></div>'
-                '<div class="lt-sub">Each bar spans the typical <b>drawdown</b> (red, left) to the typical '
-                '<b>peak</b> (green, right) an ignition of that character reached within the window. The '
-                'accumulation-character cohort carries the best gain-for-pain — but every character sits '
-                'through a real drawdown first. Medians (means are tail-pulled).</div>'
+                '<div class="lt-panel"><div class="lt-h">Gain vs pain, by signal type '
+                '<small>— the typical dip (red) vs best rise (green) over the next 6 months</small></div>'
+                + ifx.plain('Each bar is the typical <b>journey</b> after a signal: the <b>dip you\'d sit '
+                            'through</b> (red, left) and the <b>best rise you\'d see</b> (green, right). The '
+                            '“accumulation” type had the best rise-for-dip — but <b>every</b> type dips first. '
+                            '(“Character” = whether the stock was being quietly bought, neutral, or sold beforehand.)')
+                + '<div class="lt-sub">Medians (averages are pulled up by a few huge winners). Analysts: '
+                'MFE = best rise, MAE = worst dip.</div>'
                 + ifx.floating_bars(fb, w=680, bar_h=30, label_w=190)
                 + '</div>')
 
@@ -171,9 +180,12 @@ def dash_launchpad_track() -> HTMLResponse:
                         f'<td>{v["hit25"]:.0f}%</td><td class="lt-pos">+{v["med_mfe"]:.0f}%</td>'
                         f'<td class="lt-neg">{v["med_mae"]:.0f}%</td></tr>')
             body.append(
-                '<div class="lt-panel"><div class="lt-h">By character · by first-vs-repeat ignition</div>'
-                '<div class="lt-sub">First ignitions (a name\'s first fire after a quiet base) run more '
-                'explosively — and with a fatter tail — than repeats. All medians.</div>'
+                '<div class="lt-panel"><div class="lt-h">By signal type · and first-time vs repeat</div>'
+                + ifx.plain('A <b>first-time</b> signal (a name\'s first wake-up after a long quiet spell) '
+                            'is more <b>hit-or-miss</b>: most fizzle — its middle outcome is actually '
+                            '<b>negative</b> — while a rare few explode. <b>Repeat</b> signals are steadier '
+                            '(a higher middle outcome). Averages hide this; the middle (median) reveals it.')
+                + '<div class="lt-sub">All figures are medians (the middle outcome).</div>'
                 '<table class="lt"><thead><tr><th class="l">Cohort</th><th>N</th><th>Med 12m</th>'
                 '<th>Hit +25%</th><th>Med peak</th><th>Med drawdown</th></tr></thead>'
                 f'<tbody>{trs}</tbody></table></div>')
@@ -191,12 +203,13 @@ def dash_launchpad_track() -> HTMLResponse:
                             f'<span class="lt-lbar"><i style="width:{rr:.0f}%"></i></span>'
                             f'<span class="v">{rr:.0f}%</span></div>')
                 body.append(
-                    '<div class="lt-panel"><div class="lt-h">The drawdown-recovery ladder '
-                    '<small>— should you sit through it? (averaging_zones)</small></div>'
-                    '<div class="lt-sub">Of all entries that fell to −X%, the share that still went on to '
-                    f'reach +25%. Base rate across all entries: <b>{base:.0f}%</b>. The deeper the hole, the '
-                    'lower the odds — an honest antidote to reflexive averaging-down. Descriptive base-rates.</div>'
-                    f'<div class="lt-lad">{lad}</div></div>')
+                    '<div class="lt-panel"><div class="lt-h">If it drops, is it worth holding? '
+                    '<small>— the recovery ladder</small></div>'
+                    + ifx.plain('Say you bought a stock and it fell by the amount on the left. Each bar is '
+                                'the share of stocks that <b>still went on to a +25% gain</b>. The deeper '
+                                f'the fall, the worse the odds (from <b>{base:.0f}%</b> overall) — a reality '
+                                'check before “averaging down” on a loser.')
+                    + f'<div class="lt-lad">{lad}</div></div>')
     except Exception:  # noqa: BLE001 — honest empty state, never 500
         body.append(
             '<h2>Launchpad — the track record</h2><div class="lt-note">The '
@@ -227,12 +240,13 @@ def _hist_panel(r12: list) -> str:
         bars += (f'<div class="lt-hbar"><span class="c">{pctlab}</span>'
                  f'<i style="height:{c/cmax*100:.0f}%;background:{col};opacity:.8"></i>'
                  f'<span class="x">{_esc(lab)}</span></div>')
-    return ('<div class="lt-panel"><div class="lt-h">Distribution of 12-month outcomes '
-            '<small>— the spread is the point</small></div>'
-            '<div class="lt-sub">Ignition outcomes are a wide distribution, not a single number: a heavy '
-            'right tail of big winners, a real left tail of losers. Any single signal lands somewhere in '
-            'here — the median is the honest expectation.</div>'
-            f'<div class="lt-hist">{bars}</div></div>')
+    return ('<div class="lt-panel"><div class="lt-h">Where the 1-year outcomes landed '
+            '<small>— the spread is the whole point</small></div>'
+            + ifx.plain('Outcomes are not one number — they\'re a <b>spread</b>. About a third end up '
+                        '<b>down</b> (the two left bars); a smaller group become <b>huge winners</b> '
+                        '(+100% or more). Any single pick lands somewhere in here — which is why the '
+                        '“typical” (middle) figure, not the best case, is the honest expectation.')
+            + f'<div class="lt-hist">{bars}</div></div>')
 
 
 def wire(app):

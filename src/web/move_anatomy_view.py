@@ -37,24 +37,25 @@ router = APIRouter()
 
 _RESEARCH_DB = os.environ.get("HERMES_RESEARCH_DB", "/opt/hermes/data/research.db")
 
-# curated precursors → (display label, column, family). Ordered by family; the chart re-sorts by z.
+# curated precursors → (plain label, technical name, column, family). Plain label drives the
+# chart + leads the table; technical name shown as grey subtext. Chart re-sorts by z.
 # ALL are legitimate no-look-ahead precursors (trailing/structural). Outcomes are NEVER inputs.
 _PRECURSORS = [
-    ("Trailing 12m return", "ret_252d", "Momentum / strength"),
-    ("Trailing 3m return", "ret_66d", "Momentum / strength"),
-    ("RS rank vs market", "h_rs_rank", "Momentum / strength"),
-    ("RS slope (3m)", "h_rs_vs_broad_slope_3m", "Momentum / strength"),
-    ("Close vs 200-DMA", "close_vs_sma200", "Momentum / strength"),
-    ("Close vs 50-DMA", "close_vs_sma50", "Momentum / strength"),
-    ("50-DMA slope", "sma50_slope", "Momentum / strength"),
-    ("Range position (52w)", "range_pos_252", "Momentum / strength"),
-    ("NR ratio (10/60)", "nr_ratio_10_60", "Base / volatility"),
-    ("ATR contraction", "atr_contraction", "Base / volatility"),
-    ("Volume dry-up (5/22)", "vol_dryup_5_22", "Base / volatility"),
-    ("Big-delivery days", "big_deliv_days_10", "Delivery / accumulation"),
-    ("Delivery trend", "deliv_trend", "Delivery / accumulation"),
-    ("Strong-delivery days", "n_strong_deliv_22", "Delivery / accumulation"),
-    ("Delivery %", "deliv_per_s", "Delivery / accumulation"),
+    ("Up over the past year", "12-month return", "ret_252d", "Trend & strength"),
+    ("Up over the past 3 months", "3-month return", "ret_66d", "Trend & strength"),
+    ("Stronger than the market", "RS rank vs market", "h_rs_rank", "Trend & strength"),
+    ("Strength improving vs market", "RS slope, 3m", "h_rs_vs_broad_slope_3m", "Trend & strength"),
+    ("Above its 1-year trend line", "Close vs 200-DMA", "close_vs_sma200", "Trend & strength"),
+    ("Above its ~2-month trend line", "Close vs 50-DMA", "close_vs_sma50", "Trend & strength"),
+    ("Short-term trend rising", "50-DMA slope", "sma50_slope", "Trend & strength"),
+    ("Near its 1-year high", "Range position, 52w", "range_pos_252", "Trend & strength"),
+    ("Trading range getting tighter", "NR ratio 10/60", "nr_ratio_10_60", "Quiet base"),
+    ("Day-to-day swings shrinking", "ATR contraction", "atr_contraction", "Quiet base"),
+    ("Volume drying up", "Volume dry-up 5/22", "vol_dryup_5_22", "Quiet base"),
+    ("Days of heavy real buying", "Big-delivery days", "big_deliv_days_10", "Real buying"),
+    ("Real-buying trend rising", "Delivery trend", "deliv_trend", "Real buying"),
+    ("Days of strong real buying", "Strong-delivery days", "n_strong_deliv_22", "Real buying"),
+    ("Share bought to hold, not day-traded", "Delivery %", "deliv_per_s", "Real buying"),
 ]
 
 _CSS = """
@@ -91,14 +92,14 @@ def _compute(_dbpath: str):
     """Fingerprint z-scores + MFE/MAE envelope. Cached (the panel is a static study)."""
     con = sqlite3.connect(f"file:{_dbpath}?mode=ro", uri=True)
     try:
-        cols = [c for _, c, _ in _PRECURSORS]
+        cols = [c for _, _, c, _ in _PRECURSORS]
         # one aggregate pass per group — baseline needs avg + avg(sq) for the std
         base_sel = ", ".join(f"avg({c}), avg({c}*{c})" for c in cols)
         b = con.execute(f"SELECT {base_sel} FROM features WHERE label=0").fetchone()
         evt_sel = ", ".join(f"avg({c})" for c in cols)
         e = con.execute(f"SELECT {evt_sel} FROM features WHERE label=1").fetchone()
         fp = []
-        for i, (lab, col, fam) in enumerate(_PRECURSORS):
+        for i, (plain_l, tech_l, col, fam) in enumerate(_PRECURSORS):
             bmean, bsq, emean = b[2 * i], b[2 * i + 1], e[i]
             if bmean is None or bsq is None or emean is None:
                 continue
@@ -106,7 +107,7 @@ def _compute(_dbpath: str):
             sd = math.sqrt(var) if var > 0 else None
             if not sd:
                 continue
-            fp.append({"label": lab, "family": fam, "z": (emean - bmean) / sd,
+            fp.append({"label": plain_l, "tech": tech_l, "family": fam, "z": (emean - bmean) / sd,
                        "evt": emean, "base": bmean})
         # excursion envelope — MEDIAN mfe/mae, only fully-completed forward windows
         env = {}
@@ -130,7 +131,7 @@ def _compute(_dbpath: str):
 
 @router.get("/dash/move-anatomy", response_class=HTMLResponse)
 def dash_move_anatomy() -> HTMLResponse:
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     try:
         d = _compute(_RESEARCH_DB)
         fp = sorted(d["fp"], key=lambda r: -r["z"])
@@ -144,7 +145,13 @@ def dash_move_anatomy() -> HTMLResponse:
             '<h2 style="margin:0 0 2px">Move anatomy '
             '<small style="color:var(--ink-3);font-size:12px;font-weight:400">what actually precedes '
             f'a big move · {n_evt:,} events vs a {n_base:,} quiet-day baseline · 2011→2026</small></h2>'
-            '<div class="ma-thesis">The panel of 166K labelled moves says something the setup lore '
+            + ifx.bottom_line(
+                "Big market moves start from <b>strength and momentum</b> — a stock that is already "
+                "rising and beating the market. They do <b>not</b> start from the quiet, heavy-buying "
+                "“accumulation” setup that popular lore assumes; in fact real buying is a touch "
+                "<b>below</b> normal beforehand. This is a description of 15 years of history, not a "
+                "buy rule.")
+            + '<div class="ma-thesis">The panel of 166K labelled moves says something the setup lore '
             'doesn\'t: big moves launch from <b>momentum and strength</b> — trailing return, relative '
             'strength, price above its long averages — <b>not</b> from a tight base with heavy '
             'delivery. Delivery actually runs <b>below</b> baseline before a move. It quietly confirms '
@@ -154,13 +161,18 @@ def dash_move_anatomy() -> HTMLResponse:
         # FINGERPRINT
         bars = [(f'{r["label"]}', r["z"]) for r in fp]
         body.append('<div class="ma-panel">'
-                    '<div class="ma-h">The fingerprint <small>— each precursor, event-mean minus '
-                    'baseline-mean, in baseline std-devs (σ)</small></div>'
-                    '<div class="ma-sub">Read it left-to-right: what was <b>elevated</b> on pre-move '
-                    'days (cyan, right) vs <b>suppressed</b> (orange, left) relative to a normal quiet '
-                    'day. This is a <i>description</i> of the pre-move population, not a recipe.</div>'
-                    '<div class="ma-leg"><span><i style="background:var(--series-1)"></i>elevated before moves</span>'
-                    '<span><i style="background:var(--accent-orange)"></i>suppressed before moves</span></div>'
+                    '<div class="ma-h">The fingerprint <small>— each trait: how far above/below a '
+                    'normal day it was, just before big moves (in σ = "normal-day steps"; bigger = more '
+                    'unusual)</small></div>'
+                    + ifx.plain(
+                        'Each bar is one trait. Bars to the <b>right (cyan)</b> were <b>higher than a '
+                        'normal day</b> before big moves; to the <b>left (orange)</b>, <b>lower</b>. '
+                        'The shape of it: <b>trend and strength sit at the top; “real buying” sits at '
+                        'the bottom</b> — the opposite of what the accumulation setup would predict.')
+                    + '<div class="ma-sub">Ranked most-elevated to most-suppressed. A '
+                    '<i>description</i> of what pre-move days looked like — not a recipe.</div>'
+                    '<div class="ma-leg"><span><i style="background:var(--series-1)"></i>higher than normal before moves</span>'
+                    '<span><i style="background:var(--accent-orange)"></i>lower than normal before moves</span></div>'
                     + ifx.diverging_bars(bars, w=640, bar_h=22, label_w=180, unit="σ",
                                          pos_color=_POS, neg_color=_NEG)
                     + '</div>')
@@ -175,12 +187,17 @@ def dash_move_anatomy() -> HTMLResponse:
             fb.append((f'Quiet baseline (n={bs["n"]:,})', bs["mae"], bs["mfe"],
                        f'{bs["big50"]:.0f}%'))
         body.append('<div class="ma-panel">'
-                    '<div class="ma-h">The excursion envelope <small>— median forward gain (MFE) vs '
-                    'pain (MAE), 6-month window</small></div>'
-                    '<div class="ma-sub">How far up vs how far down, after the fact. Events carry a far '
-                    'better gain-for-pain than the quiet baseline — but this is <b>post-selection</b> '
-                    '(the move already fired) and survivorship-biased, so it is a base-rate, never an '
-                    'achievable return.</div>'
+                    '<div class="ma-h">Gain vs pain <small>— over the next 6 months, the typical best '
+                    'rise (green, right) vs worst dip (red, left)</small></div>'
+                    + ifx.plain(
+                        'After a big move fires, the typical stock later ran up ~<b>40%</b> at best and '
+                        'only dipped ~<b>10%</b> first (top bar). A <b>random quiet day</b>: +11% up, '
+                        '−18% down. So big-move setups had far better upside-for-downside — <b>but you '
+                        'only know a move “fired” after the fact</b>, so treat this as history, not a '
+                        'promised return.')
+                    + '<div class="ma-sub">Medians over a fixed 6-month window (analysts: MFE = maximum '
+                    'favourable excursion, MAE = maximum adverse excursion). Post-selection &amp; '
+                    'survivorship-biased — a base-rate, not an achievable return.</div>'
                     + ifx.floating_bars(fb, w=700, bar_h=32, label_w=210)
                     + '</div>')
 
@@ -188,14 +205,19 @@ def dash_move_anatomy() -> HTMLResponse:
         trs = ""
         for r in fp:
             cls = "ma-hi" if r["z"] >= 0 else "ma-lo"
-            trs += (f'<tr><td class="l">{_esc(r["label"])}</td>'
+            trs += (f'<tr><td class="l">{_esc(r["label"])}'
+                    f'<span class="rd-tech">{_esc(r["tech"])}</span></td>'
                     f'<td class="l ma-fam">{_esc(r["family"])}</td>'
                     f'<td class="{cls}">{r["z"]:+.2f}σ</td>'
                     f'<td style="color:var(--ink-3)">{r["evt"]:.2f}</td>'
                     f'<td style="color:var(--ink-3)">{r["base"]:.2f}</td></tr>')
-        body.append('<div class="ma-panel"><div class="ma-h">Every precursor, ranked</div>'
-                    '<table class="ma"><thead><tr><th class="l">Precursor</th><th class="l">Family</th>'
-                    '<th>z (σ)</th><th>Event</th><th>Baseline</th></tr></thead>'
+        body.append('<div class="ma-panel"><div class="ma-h">Every trait, ranked '
+                    '<small>— plain name on top, the analyst name beneath</small></div>'
+                    + ifx.plain('“How unusual” is the same σ as the chart. The last two columns are the '
+                                'raw averages it comes from — <b>before moves</b> vs a <b>normal day</b> '
+                                '— there only if you want the arithmetic.')
+                    + '<table class="ma"><thead><tr><th class="l">Trait</th><th class="l">Group</th>'
+                    '<th>How unusual</th><th>Before moves</th><th>Normal day</th></tr></thead>'
                     f'<tbody>{trs}</tbody></table></div>')
 
         body.append(
