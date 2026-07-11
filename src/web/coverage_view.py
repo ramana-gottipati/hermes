@@ -576,6 +576,12 @@ def render_coverage(conn=None) -> str:
         'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
         'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
         'text-decoration:none;font-size:13px">Replay any date (live API) &rarr;</a>'
+        # Move anatomy (deep-data sprint): the features event panel as a descriptive fingerprint —
+        # what precedes a big move (momentum/RS elevated, delivery suppressed) + the MFE/MAE envelope.
+        '<a href="/dash/move-anatomy" '
+        'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'
+        'background:var(--bg-2);color:var(--ink-2);border-radius:9px;padding:8px 14px;'
+        'text-decoration:none;font-size:13px">Move anatomy (what precedes a move) &rarr;</a>'
         '</div>'
     )
 

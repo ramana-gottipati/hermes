@@ -226,6 +226,11 @@ LENSES: tuple[Lens, ...] = (
     Lens("glossary", "Glossary", "trust", "trust", "/dash/glossary", aliases=("methodology",)),
     Lens("spec-sheets", "Spec sheets", "trust", "trust", "/dash/spec-sheets",
          aliases=("pre-registration", "studies")),
+    # Move anatomy (deep-data sprint) — the features event panel as a descriptive fingerprint:
+    # what precedes a big move (momentum/RS elevated, delivery SUPPRESSED) + the MFE/MAE envelope.
+    # Aggregate, leak-safe, post-selection base-rate — evidence/methodology, NOT a signal.
+    Lens("move-anatomy", "Move anatomy", "trust", "trust", "/dash/move-anatomy",
+         aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
     # Evidence pack (charter P-04, S96) — the print-ready procurement assembly of
     # spec-sheets + coverage boundary + season SLA + replay pointer.
     Lens("evidence-pack", "Evidence pack", "trust", "trust", "/dash/evidence-pack",

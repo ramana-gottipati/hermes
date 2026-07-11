@@ -86,6 +86,9 @@ _ROUTER_SPECS = [
     # Launchpad track record (deep-data value sprint, orphan rescue) — surfaces the
     # ignition_outcomes study (50k signals) as the evidence behind the launchpad screen.
     ("launchpad-track", "src.web.launchpad_track_view", "/dash/launchpad-track"),
+    # Move anatomy (deep-data value sprint) — the features event panel as a descriptive
+    # fingerprint (what precedes a move) + MFE/MAE envelope. Reads research.db, leak-safe.
+    ("move-anatomy", "src.web.move_anatomy_view", "/dash/move-anatomy"),
     # Surveillance-transition tape (D94 queue #6, S92) — ASM/GSM snapshot diffs +
     # band events; flag logic single-sourced in surveillance.flagged_symbols.
     ("surveillance", "src.web.surveil_view", "/dash/surveillance"),

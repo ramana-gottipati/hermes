@@ -301,8 +301,12 @@ def heat_grid(row_labels: list, col_labels: list, values: list, w: int = 1100,
 
 # ── 5. diverging_bars — signed horizontal bars from a centre 0 ────────────────
 def diverging_bars(items: list, w: int = 620, bar_h: int = 20, vmax: float | None = None,
-                   label_w: int = 172, unit: str = "") -> str:
-    """items: list of (label, value). +→green right / -→red left. For z-profiles, nets."""
+                   label_w: int = 172, unit: str = "",
+                   pos_color: str = "var(--up)", neg_color: str = "var(--down)") -> str:
+    """items: list of (label, value). +→pos_color right / -→neg_color left. Default is the
+    value contract (green/red) for signed VERDICTS (net flows). For a non-directional signed
+    profile (e.g. a z-fingerprint: 'elevated vs suppressed', NOT good vs bad) pass a neutral
+    categorical pair so it can't be misread as bullish/bearish."""
     items = [(l, v) for l, v in items if v is not None]
     if not items:
         return _empty(w, 60)
@@ -315,7 +319,7 @@ def diverging_bars(items: list, w: int = 620, bar_h: int = 20, vmax: float | Non
     for i, (lab, v) in enumerate(items):
         y = 6 + i * bar_h
         bl = _clamp(v / vmax, -1, 1) * half
-        col = "var(--up)" if v >= 0 else "var(--down)"
+        col = pos_color if v >= 0 else neg_color
         x = cx if v >= 0 else cx + bl
         out.append(f'<rect x="{x:.1f}" y="{y+2}" width="{abs(bl):.1f}" height="{bar_h-6}" '
                    f'rx="2" fill="{col}" opacity="0.85"/>')
