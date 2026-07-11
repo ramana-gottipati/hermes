@@ -2,7 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** **DESCRIPTIVE-ONLY** (the two-tier engine + surfaces are LIVE and compute nightly, but the original *leading smart-money picker* thesis was empirically **refuted** — DVPT is a within-stock confirmation/character lens, never a cross-stock alpha ranker). · **Governing decision(s):** D62 (the reframe) · D28/D31/D43/D44 (the live engine) · D56 (refutation) · D107 (number integrity) · D47 (deep-history data) · **Reconciled:** 2026-07-11 (S111).
-> **Charter:** the single canonical definition + current-state reference for DVPT. Deep design: [dvpt-picking-strategy-design.md](../dvpt-picking-strategy-design.md) (kept rich per its §14 doc-persistence rule) + [multi-timeframe-positioning-design.md](../multi-timeframe-positioning-design.md). Numbers live in code + [metrics-glossary.md](../metrics-glossary.md) (the DVPT term defs) and [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a constant — it links.
+> **Charter:** the single canonical definition + current-state reference for DVPT. Deep design: [dvpt-picking-strategy-design.md](../dvpt-picking-strategy-design.md) (kept rich per its §14 doc-persistence rule) + [multi-timeframe-positioning-design.md](../multi-timeframe-positioning-design.md). Numbers live in code + [metrics-glossary.md](../metrics-glossary.md) (the DVPT term defs) and [calculations-and-weights.md §5e](../calculations-and-weights.md); this page never restates a constant — it links.
 
 **One-line definition:** DVPT (Delivery Value per Trade) = Σ(delivered value ₹) ÷ Σ(number of trades) for a period — the average ₹-clip-size of a *delivered* trade, read off NSE bhav-copy delivery data as a **side-blind** measure of *how big* the hands transacting were, **not** *which side* initiated or whether it will pay forward.
 
@@ -119,7 +119,7 @@ Terse, chronological (full text in [PROJECT_STATE.md](../../PROJECT_STATE.md) §
 
 - Deep design: [dvpt-picking-strategy-design.md](../dvpt-picking-strategy-design.md) (§0 = the reframe; §1 = the superseded original thesis; §13 = universe integrity; §14 = doc-persistence rule) · [multi-timeframe-positioning-design.md](../multi-timeframe-positioning-design.md).
 - Falsification & benchmarks: [strategy-ledger.md](../strategy-ledger.md) — the BLOCKING FAILURE MODELS table, the 2026-07-05b footprint study, Tier-3 lenses row.
-- Metric definitions / constants: [metrics-glossary.md](../metrics-glossary.md) ("Positioning — DVPT" + "Ignition") · [calculations-and-weights.md](../calculations-and-weights.md) (canonical weights).
+- Metric definitions / constants: [metrics-glossary.md](../metrics-glossary.md) ("Positioning — DVPT" + "Ignition") · [calculations-and-weights.md §5e](../calculations-and-weights.md) (the DVPT windows + trigger ladder + key-band).
 - Refutation research: [explosive-move-research.md](../explosive-move-research.md) (D56 / Launchpad / counter-DVPT).
 - Code: [`src/automation/signals.py`](../../src/automation/signals.py) · [`src/automation/ignition.py`](../../src/automation/ignition.py) · [`src/automation/accum_screen.py`](../../src/automation/accum_screen.py) · [`src/core/db.py`](../../src/core/db.py).
 - Sibling reference: [mep.md](mep.md).

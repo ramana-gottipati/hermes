@@ -2,7 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** **DESCRIPTOR-ONLY** (built, deployed, computing nightly across every stock surface — but its predictive/ranking role **failed** a walk-forward + Deflated-Sharpe gate, so it characterises/confirms and **never ranks, sizes, or sorts-by-default**). · **Governing decision(s):** D62 (descriptor-only doctrine, joint with the DVPT reframe) · D65 (headlined as a smoothed hysteresis PHASE) · D61 (rank on measurable inputs only). · **Reconciled:** 2026-07-11 (S111).
-> **Charter:** the single canonical definition + current-state reference for MEP. Deep design + per-step build log + the multi-lens decode: [mep-strategy-design.md](../mep-strategy-design.md) (§1, §8 = the DSR fail, §9 = the PHASE, §10 = the framework); run-book: [mep-NEXT-SESSION.md](../mep-NEXT-SESSION.md). Numbers live in code + [metrics-glossary.md](../metrics-glossary.md) ("MEP" section) and [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a constant — it links.
+> **Charter:** the single canonical definition + current-state reference for MEP. Deep design + per-step build log + the multi-lens decode: [mep-strategy-design.md](../mep-strategy-design.md) (§1, §8 = the DSR fail, §9 = the PHASE, §10 = the framework); run-book: [mep-NEXT-SESSION.md](../mep-NEXT-SESSION.md). Numbers live in code + [metrics-glossary.md](../metrics-glossary.md) ("MEP" section) and [calculations-and-weights.md §5f](../calculations-and-weights.md); this page never restates a constant — it links.
 
 **One-line definition:** MEP = the **signed** Net Accumulation Pressure — a within-stock, side-aware composite of price-tape channels (OHLC + VWAP + volume, **not** delivery-per-trade) where **positive = accumulation, negative = distribution** — read as a character/confirmation lens, never as a stock picker.
 
@@ -106,7 +106,7 @@ Terse, chronological (full text in [PROJECT_STATE.md](../../PROJECT_STATE.md) §
 
 - Deep design + build log: [mep-strategy-design.md](../mep-strategy-design.md) (§1 = the signal; §8 = the DSR fail; §9 = the PHASE + calibration; §10 = the multi-lens NAP decode) · run-book [mep-NEXT-SESSION.md](../mep-NEXT-SESSION.md).
 - Falsification & benchmarks: [strategy-ledger.md](../strategy-ledger.md) — BLOCKING FAILURE MODELS ("MEP-accumulation as alpha"), Tier-3 lenses row, the 2026-07-05b footprint study, the "proprietary-alpha feasibility" section.
-- Metric definitions / constants: [metrics-glossary.md](../metrics-glossary.md) ("MEP — signed accumulation / distribution") · [calculations-and-weights.md](../calculations-and-weights.md).
+- Metric definitions / constants: [metrics-glossary.md](../metrics-glossary.md) ("MEP — signed accumulation / distribution") · [calculations-and-weights.md §5f](../calculations-and-weights.md) (the four z-terms + phase hysteresis).
 - Code: [`src/automation/mep_signals.py`](../../src/automation/mep_signals.py) · [`src/web/mep_overlay.py`](../../src/web/mep_overlay.py) · [`src/automation/fno_oi.py`](../../src/automation/fno_oi.py) · [`src/core/db.py`](../../src/core/db.py).
 - Sibling reference: [dvpt.md](dvpt.md).
 - PROJECT_STATE sections: Decisions D62 / D65 / D61; the Session 34 / Session 35 log entries.
