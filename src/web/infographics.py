@@ -257,8 +257,10 @@ def stream(dates: list, bands: list, w: int = 1100, h: int = 170, normalize: boo
 def heat_grid(row_labels: list, col_labels: list, values: list, w: int = 1100,
               cell_h: int = 26, vmin: float | None = None, vmax: float | None = None,
               fmt: int = 0, row_w: int = 118, signed: bool = False,
-              na=None) -> str:
-    """values: list-of-rows (len row_labels) each len col_labels; None→greyed 'n/a' cell."""
+              na=None, cell_link=None, unit: str = "") -> str:
+    """values: list-of-rows (len row_labels) each len col_labels; None→greyed 'n/a' cell.
+    cell_link(i,j)->href makes a populated cell a click-through (SVG <a>) — the drill-down seam.
+    unit is appended to the hover tooltip's value (e.g. '%')."""
     if not row_labels or not col_labels:
         return _empty(w, 60)
     flat = [x for row in values for x in row if x is not None]
@@ -290,18 +292,23 @@ def heat_grid(row_labels: list, col_labels: list, values: list, w: int = 1100,
                 continue
             t = (v - vmin) / rng
             fill = signed_fill((v / (max(abs(vmin), abs(vmax)) or 1))) if signed else seq_fill(t)
-            out.append(f'<rect x="{x:.1f}" y="{y}" width="{cw-1.5:.1f}" height="{cell_h-1.5}" '
-                       f'fill="{fill}" rx="2"><title>{_esc(rl)} · {_esc(cl if False else col_labels[j])}: {_num(v,2)}</title></rect>')
-            out.append(f'<text x="{x+cw/2:.1f}" y="{y+cell_h/2+3:.1f}" fill="var(--ink)" '
-                       f'font-size="9.5" text-anchor="middle" style="font-variant-numeric:tabular-nums">'
-                       f'{_num(v,fmt)}</text>')
+            tip = f'{_esc(rl)} · {_esc(col_labels[j])}: {_num(v, 2)}{_esc(unit)}'
+            href = cell_link(i, j) if cell_link else None
+            if href:
+                tip += " · click to break down"
+            cell = (f'<rect x="{x:.1f}" y="{y}" width="{cw-1.5:.1f}" height="{cell_h-1.5}" '
+                    f'fill="{fill}" rx="2"><title>{tip}</title></rect>'
+                    f'<text x="{x+cw/2:.1f}" y="{y+cell_h/2+3:.1f}" fill="var(--ink)" '
+                    f'font-size="9.5" text-anchor="middle" style="font-variant-numeric:tabular-nums" '
+                    f'pointer-events="none">{_num(v,fmt)}</text>')
+            out.append(f'<a href="{_esc(href)}">{cell}</a>' if href else cell)
     out.append("</svg>")
     return "".join(out)
 
 
 # ── 5. diverging_bars — signed horizontal bars from a centre 0 ────────────────
 def diverging_bars(items: list, w: int = 620, bar_h: int = 20, vmax: float | None = None,
-                   label_w: int = 172, unit: str = "",
+                   label_w: int = 172, unit: str = "", show_values: bool = True,
                    pos_color: str = "var(--up)", neg_color: str = "var(--down)") -> str:
     """items: list of (label, value). +→pos_color right / -→neg_color left. Default is the
     value contract (green/red) for signed VERDICTS (net flows). For a non-directional signed
@@ -322,20 +329,21 @@ def diverging_bars(items: list, w: int = 620, bar_h: int = 20, vmax: float | Non
         col = pos_color if v >= 0 else neg_color
         x = cx if v >= 0 else cx + bl
         out.append(f'<rect x="{x:.1f}" y="{y+2}" width="{abs(bl):.1f}" height="{bar_h-6}" '
-                   f'rx="2" fill="{col}" opacity="0.85"/>')
+                   f'rx="2" fill="{col}" opacity="0.85"><title>{_esc(lab)}: {_num(v,2)}{_esc(unit)}</title></rect>')
         out.append(f'<text x="{label_w-8}" y="{y+bar_h/2+3:.1f}" fill="var(--ink-2)" '
                    f'font-size="11" text-anchor="end">{_esc(lab)}</text>')
-        vx = cx + bl + (5 if v >= 0 else -5)
-        anc = "start" if v >= 0 else "end"
-        out.append(f'<text x="{vx:.1f}" y="{y+bar_h/2+3:.1f}" fill="var(--ink-3)" font-size="10" '
-                   f'text-anchor="{anc}" style="font-variant-numeric:tabular-nums">{_num(v,2)}{_esc(unit)}</text>')
+        if show_values:
+            vx = cx + bl + (5 if v >= 0 else -5)
+            anc = "start" if v >= 0 else "end"
+            out.append(f'<text x="{vx:.1f}" y="{y+bar_h/2+3:.1f}" fill="var(--ink-3)" font-size="10" '
+                       f'text-anchor="{anc}" style="font-variant-numeric:tabular-nums">{_num(v,2)}{_esc(unit)}</text>')
     out.append("</svg>")
     return "".join(out)
 
 
 # ── 6. floating_bars — MFE/MAE style [lo..hi] bars on a shared signed scale ────
 def floating_bars(items: list, w: int = 620, bar_h: int = 26, label_w: int = 150,
-                  vlo: float | None = None, vhi: float | None = None) -> str:
+                  vlo: float | None = None, vhi: float | None = None, unit: str = "") -> str:
     """items: list of (label, lo, hi, end_text). Bar spans lo..hi; zero line marked.
     lo (e.g. MAE, negative) red end, hi (MFE, positive) green end."""
     items = [it for it in items if it[1] is not None and it[2] is not None]
@@ -366,13 +374,14 @@ def floating_bars(items: list, w: int = 620, bar_h: int = 26, label_w: int = 150
                    f'<stop offset="{_clamp((zx-x0)/max(x1-x0,1),0,1):.2f}" stop-color="var(--warn)"/>'
                    f'<stop offset="1" stop-color="var(--up)"/></linearGradient></defs>')
         out.append(f'<rect x="{x0:.1f}" y="{y+3}" width="{x1-x0:.1f}" height="{bar_h-9}" rx="3" '
-                   f'fill="url(#_fb{i})" opacity="0.9"/>')
+                   f'fill="url(#_fb{i})" opacity="0.9"><title>{_esc(lab)}: dips {_num(lo,1)}{_esc(unit)}, '
+                   f'rises +{_num(hi,1)}{_esc(unit)}</title></rect>')
         out.append(f'<text x="{label_w-8}" y="{y+bar_h/2+3:.1f}" fill="var(--ink-2)" '
                    f'font-size="11" text-anchor="end">{_esc(lab)}</text>')
         out.append(f'<text x="{x0-4:.1f}" y="{y+bar_h/2+3:.1f}" fill="var(--down)" font-size="9.5" '
-                   f'text-anchor="end" style="font-variant-numeric:tabular-nums">{_num(lo,1)}</text>')
+                   f'text-anchor="end" style="font-variant-numeric:tabular-nums">{_num(lo,1)}{_esc(unit)}</text>')
         out.append(f'<text x="{x1+4:.1f}" y="{y+bar_h/2+3:.1f}" fill="var(--up)" font-size="9.5" '
-                   f'text-anchor="start" style="font-variant-numeric:tabular-nums">+{_num(hi,1)}</text>')
+                   f'text-anchor="start" style="font-variant-numeric:tabular-nums">+{_num(hi,1)}{_esc(unit)}</text>')
         if end:
             out.append(f'<text x="{w-2}" y="{y+bar_h/2+3:.1f}" fill="var(--ink-3)" font-size="9.5" '
                        f'text-anchor="end">{_esc(end)}</text>')
@@ -414,7 +423,8 @@ def pct_gauge(value: float, dist: list, w: int = 480, h: int = 64, label: str = 
     out.append(f'<polygon points="{" ".join(f"{x:.1f},{y:.1f}" for x,y in pts)}" '
                f'fill="var(--series-6)" opacity="0.16"/>')
     out.append(f'<line x1="{ml}" y1="{yb}" x2="{ml+pw}" y2="{yb}" stroke="var(--line-2)" stroke-width="1"/>')
-    out.append(f'<line x1="{mx:.1f}" y1="6" x2="{mx:.1f}" y2="{yb}" stroke="var(--accent)" stroke-width="2"/>')
+    out.append(f'<line x1="{mx:.1f}" y1="6" x2="{mx:.1f}" y2="{yb}" stroke="var(--accent)" stroke-width="2">'
+               f'<title>{_esc(label)} = {_num(value, vfmt)} — {pct:.0f}th percentile of {len(d)} readings</title></line>')
     out.append(f'<circle cx="{mx:.1f}" cy="6" r="3" fill="var(--accent)"/>')
     out.append(f'<text x="{ml}" y="{h-4}" fill="var(--ink-3)" font-size="9.5">{_num(lo,vfmt)}</text>')
     out.append(f'<text x="{ml+pw}" y="{h-4}" fill="var(--ink-3)" font-size="9.5" text-anchor="end">{_num(hi,vfmt)}</text>')
@@ -422,7 +432,7 @@ def pct_gauge(value: float, dist: list, w: int = 480, h: int = 64, label: str = 
     tx = mx + (5 if pct < 55 else -5)
     out.append(f'<text x="{tx:.1f}" y="{h-4}" fill="var(--accent-2)" font-size="10" '
                f'text-anchor="{anc}" style="font-variant-numeric:tabular-nums">'
-               f'{_esc(label)} {pct:.0f}th pct</text>')
+               f'{_esc(label)} {pct:.0f}th percentile</text>')
     out.append("</svg>")
     return "".join(out)
 

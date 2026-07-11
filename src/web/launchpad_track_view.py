@@ -165,7 +165,7 @@ def dash_launchpad_track() -> HTMLResponse:
                             '(“Character” = whether the stock was being quietly bought, neutral, or sold beforehand.)')
                 + '<div class="lt-sub">Medians (averages are pulled up by a few huge winners). Analysts: '
                 'MFE = best rise, MAE = worst dip.</div>'
-                + ifx.floating_bars(fb, w=680, bar_h=30, label_w=190)
+                + ifx.floating_bars(fb, w=680, bar_h=30, label_w=190, unit="%")
                 + '</div>')
 
             # character table

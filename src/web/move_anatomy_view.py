@@ -199,7 +199,7 @@ def dash_move_anatomy() -> HTMLResponse:
                     + '<div class="ma-sub">Medians over a fixed 6-month window (analysts: MFE = maximum '
                     'favourable excursion, MAE = maximum adverse excursion). Post-selection &amp; '
                     'survivorship-biased — a base-rate, not an achievable return.</div>'
-                    + ifx.floating_bars(fb, w=700, bar_h=32, label_w=210)
+                    + ifx.floating_bars(fb, w=700, bar_h=32, label_w=210, unit="%")
                     + '</div>')
 
         # TABLE

@@ -260,9 +260,9 @@ def dash_reading_guide() -> HTMLResponse:
     # 3. fingerprint (real z)
     body.append(_card(
         "The fingerprint (spreading bars)", bool(r["fp"]),
-        ifx.diverging_bars(r["fp"], w=620, bar_h=26, label_w=210, pos_color="var(--series-1)", neg_color="var(--accent-orange)") if r["fp"] else
+        ifx.diverging_bars(r["fp"], w=620, bar_h=26, label_w=210, show_values=False, pos_color="var(--series-1)", neg_color="var(--accent-orange)") if r["fp"] else
         ifx.diverging_bars([("Much higher than normal", 0.9), ("A bit higher", 0.4), ("A bit lower", -0.5), ("Much lower", -0.85)],
-                           w=620, bar_h=26, label_w=210, pos_color="var(--series-1)", neg_color="var(--accent-orange)"),
+                           w=620, bar_h=26, label_w=210, show_values=False, pos_color="var(--series-1)", neg_color="var(--accent-orange)"),
         "the real thing — what stands out just before big market moves",
         "Bars spread <b>left and right</b> from a centre line — one per trait. (This is the actual result: "
         "before big moves, strength is up top, heavy buying is at the bottom.)",
@@ -273,8 +273,8 @@ def dash_reading_guide() -> HTMLResponse:
     # 4. gain-vs-pain (real env)
     body.append(_card(
         "The gain-vs-pain bar", bool(r["env"]),
-        ifx.floating_bars(r["env"], w=640, bar_h=32, label_w=175) if r["env"] else
-        ifx.floating_bars([("A big-move setup", -10, 40, "best rise"), ("A random quiet day", -18, 11, "")], w=640, bar_h=32, label_w=175),
+        ifx.floating_bars(r["env"], w=640, bar_h=32, label_w=175, unit="%") if r["env"] else
+        ifx.floating_bars([("A big-move setup", -10, 40, "best rise"), ("A random quiet day", -18, 11, "")], w=640, bar_h=32, label_w=175, unit="%"),
         "the real typical journey — dip you sit through vs rise you get",
         "A <b>floating bar</b> showing a typical journey, not one number: how far something dips and how far it rises.",
         "The <b>red end (left)</b> = how far it typically <b>dipped</b>; the <b>green end (right)</b> = how "
@@ -295,11 +295,11 @@ def dash_reading_guide() -> HTMLResponse:
     # 6. heat-grid (real sector)
     if r["sector"]:
         secs, cols, mat = r["sector"]
-        grid_svg = ifx.heat_grid(secs, cols, mat, w=620, cell_h=28, fmt=0, row_w=118)
+        grid_svg = ifx.heat_grid(secs, cols, mat, w=620, cell_h=28, fmt=0, row_w=118, unit="%")
         grid_cap = "the real thing — how profitable each sector was, year by year"
     else:
         grid_svg = ifx.heat_grid(["Sector A", "Sector B", "Sector C"], ["2019", "2021", "2023", "2025"],
-                                 [[12, 18, 22, 25], [30, 28, 26, 24], [8, 14, 9, 16]], w=620, cell_h=28, fmt=0, row_w=92)
+                                 [[12, 18, 22, 25], [30, 28, 26, 24], [8, 14, 9, 16]], w=620, cell_h=28, fmt=0, row_w=92, unit="%")
         grid_cap = "example — sectors down the side, years across the top"
     body.append(_card(
         "The coloured table (heat-grid)", bool(r["sector"]), grid_svg, grid_cap,

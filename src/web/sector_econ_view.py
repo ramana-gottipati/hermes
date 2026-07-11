@@ -64,6 +64,14 @@ _CSS = """
 .se-legend{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--ink-3);margin:8px 0 2px;}
 .se-legend .ramp{width:120px;height:10px;border-radius:3px;
   background:linear-gradient(90deg,#123b46,#175e63,#2f8f7f,#7bb26a,#d6b13f,#f0883e);}
+.se-drill{border-left:3px solid var(--accent);}
+.se-dlist{display:flex;flex-direction:column;gap:5px;margin-top:6px;max-width:560px;}
+.se-drow{display:flex;align-items:center;gap:10px;font-size:12.5px;}
+.se-drow .k{width:110px;color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.se-drow .k:hover{text-decoration:underline;}
+.se-dbar{flex:1;height:14px;background:var(--bg-3);border-radius:7px;overflow:hidden;}
+.se-dbar i{display:block;height:100%;opacity:.78;}
+.se-drow .v{width:58px;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums;}
 </style>
 """
 
@@ -126,8 +134,68 @@ def _compute(metric_key: str, research_db: str):
             "n_syms": len(tags)}
 
 
+@lru_cache(maxsize=64)
+def _drill(metric_key: str, sector: str, year: str, research_db: str):
+    """The DRILL-DOWN: the constituent companies behind one (sector, year) median cell — each
+    company's own metric value that FY. Returns [(symbol, value), …] sorted desc, + the median.
+    Answers "what values make up this number?". Never raises."""
+    metric_col = _METRICS[metric_key][0]
+    try:
+        with get_conn() as h:
+            syms = [r[0] for r in h.execute(
+                "SELECT symbol FROM company_tags WHERE approved=1 AND source='index' AND tag=?",
+                (sector,)).fetchall()]
+        if not syms:
+            return None
+        con = sqlite3.connect(f"file:{research_db}?mode=ro", uri=True)
+        try:
+            q = ("SELECT symbol, value FROM fundamentals_history WHERE metric=? AND period_type='A' "
+                 "AND value IS NOT NULL AND substr(period_end,1,4)=? AND symbol IN (%s)"
+                 % ",".join("?" * len(syms)))
+            rows = con.execute(q, [metric_col, year, *syms]).fetchall()
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001
+        return None
+    vals = {}
+    for sym, v in rows:
+        vals[sym] = v
+    if not vals:
+        return None
+    items = sorted(vals.items(), key=lambda kv: -kv[1])
+    med = statistics.median([v for _, v in items])
+    return items, med
+
+
+def _drill_panel(metric: str, munit: str, sector: str, year: str) -> str:
+    d = _drill(metric, sector, year, _RESEARCH_DB)
+    fy = f"FY{year[2:]}"
+    if not d:
+        return ('<div class="se-panel"><div class="se-h">No breakdown available</div>'
+                f'<div class="se-sub">Couldn\'t load the companies behind {_esc(sector)} · {_esc(fy)}. '
+                '<a href="/dash/sector-economics?metric=' + _esc(metric) + '">← back to the map</a></div></div>')
+    items, med = d
+    vmax = max(abs(v) for _, v in items) or 1.0
+    rows = ""
+    for sym, v in items:
+        w = min(100, abs(v) / vmax * 100)
+        col = "var(--up)" if v >= 0 else "var(--down)"
+        rows += (f'<div class="se-drow"><a class="k" href="/dash/stock?sym={_esc(sym)}">{_esc(sym)}</a>'
+                 f'<span class="se-dbar"><i style="width:{w:.0f}%;background:{col}"></i></span>'
+                 f'<span class="v">{v:.1f}{_esc(munit)}</span></div>')
+    return (
+        '<div class="se-panel se-drill">'
+        f'<div class="se-h">Behind the number · {_esc(sector)} · {_esc(fy)} '
+        f'<small>— the {len(items)} companies that make up the {med:.1f}{_esc(munit)} median</small></div>'
+        + ifx.plain(f'The map cell shows the <b>middle</b> company ({med:.1f}{_esc(munit)}). Here is every '
+                    f'{_esc(sector)} company that reported that year, best to worst — the values that '
+                    'the single cell summarises. Click a name for its full page.')
+        + f'<div class="se-dlist">{rows}</div>'
+        f'<div style="margin-top:10px"><a href="/dash/sector-economics?metric={_esc(metric)}">← back to the map</a></div></div>')
+
+
 @router.get("/dash/sector-economics", response_class=HTMLResponse)
-def dash_sector_economics(metric: str = "roce") -> HTMLResponse:
+def dash_sector_economics(metric: str = "roce", drill: str = "") -> HTMLResponse:
     metric = metric if metric in _METRICS else "roce"
     mlabel, mdesc, munit = _METRICS[metric]
     body = [_CSS, ifx.readability_css()]
@@ -165,13 +233,20 @@ def dash_sector_economics(metric: str = "roce") -> HTMLResponse:
             + ifx.plain('Each <b>row</b> is a sector, each <b>column</b> a year. The <b>warmer (oranger)</b> '
                         'the cell, the more profitable that sector was that year. Read across a row to watch '
                         'a sector rise or fade over the decade; a <b>blank</b> cell means too few companies '
-                        'to be reliable.')
+                        'to be reliable. <b>Click any cell</b> to see the companies behind that number.')
             + '<div class="se-sub">Each cell is the <b>median</b> across that sector\'s current index '
-            f'members (blank where fewer than {_MIN_N} report). Read a row left-to-right for a sector\'s '
-            'decade; read a column for the market that year.</div>'
+            f'members (blank where fewer than {_MIN_N} report). Hover a cell for its value; <b>click</b> it '
+            'to break it down into the individual companies.</div>'
             '<div class="se-legend"><span>low</span><span class="ramp"></span><span>high</span></div>'
-            + ifx.heat_grid(d["sectors"], yr_labels, d["matrix"], w=1060, cell_h=27, fmt=1, row_w=118)
+            + ifx.heat_grid(
+                d["sectors"], yr_labels, d["matrix"], w=1060, cell_h=27, fmt=1, row_w=118, unit=munit,
+                cell_link=lambda i, j: (f'/dash/sector-economics?metric={metric}'
+                                        f'&drill={d["sectors"][i]}~{d["years"][j]}#drill'))
             + '</div>')
+
+        if drill and "~" in drill:
+            sector, _, year = drill.partition("~")
+            body.append(f'<div id="drill"></div>{_drill_panel(metric, munit, sector, year)}')
 
         if d["movers"]:
             cards = ""
@@ -226,10 +301,11 @@ def _selftest() -> int:
     app = FastAPI()
     app.include_router(router)
     c = TestClient(app)
-    for url in ("/dash/sector-economics", "/dash/sector-economics?metric=opm"):
+    for url in ("/dash/sector-economics", "/dash/sector-economics?metric=opm",
+                "/dash/sector-economics?metric=roce&drill=IT~2025"):
         r = c.get(url)
         assert r.status_code == 200 and "Sector economics" in r.text
-    print("sector_econ_view selftest OK — page 200 (populated or honest-empty), metrics 200")
+    print("sector_econ_view selftest OK — page 200 (populated or honest-empty), metrics + drill 200")
     return 0
 
 
