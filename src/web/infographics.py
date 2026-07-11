@@ -358,8 +358,10 @@ def floating_bars(items: list, w: int = 620, bar_h: int = 26, label_w: int = 150
     vhi = vhi if vhi is not None else max(it[2] for it in items)
     if vhi == vlo:
         vhi = vlo + 1
-    plot_l = label_w
-    pw = w - plot_l - 46
+    # left gutter so the leftmost bar's dip (lo) value label clears the row label;
+    # right gutter for the rise (hi) label. Both keep numeric labels from overprinting.
+    plot_l = label_w + 44
+    pw = w - plot_l - 52
 
     def X(v):
         return plot_l + _lin(v, vlo, vhi, 0, pw)
