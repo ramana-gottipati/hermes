@@ -83,12 +83,6 @@ LENSES: tuple[Lens, ...] = (
     # (Still cross-linked from the Coverage/Trust evidence index via coverage_view.)
     Lens("move-anatomy", "Move anatomy", "market", "markets", "/dash/move-anatomy",
          group="Big picture", aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
-    # Sector economics (deep-data sprint) — median ROCE/OPM by sector × year over a decade;
-    # the FUNDAMENTAL complement to the RS-based Sectors lens. CLUSTERED with the deep-data trio
-    # near the front of Markets (D116, Ramana) under the "Big picture" group heading — the three
-    # aggregate/market-wide analytics sit together instead of scattered down a long sub-nav.
-    Lens("sector-economics", "Sector economics", "market", "markets", "/dash/sector-economics",
-         group="Big picture", aliases=("sector-fundamentals", "sector-quality", "sector-econ")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
@@ -105,6 +99,11 @@ LENSES: tuple[Lens, ...] = (
          aliases=("asm", "gsm", "price-bands", "surveillance-transitions")),
     Lens("sectors", "Sectors", "market", "markets", "/dash/sectors",
          dossier_tab=None, aliases=("rs",)),
+    # Sector economics (deep-data sprint) — median ROCE/OPM by sector × year over a decade;
+    # the FUNDAMENTAL complement to the RS-based Sectors lens above — kept ADJACENT to it (D117,
+    # Ramana) rather than in the front "Big picture" cluster. Aggregate, descriptive.
+    Lens("sector-economics", "Sector economics", "market", "markets", "/dash/sector-economics",
+         aliases=("sector-fundamentals", "sector-quality", "sector-econ")),
     Lens("rs-hub", "Relative strength", "market", "markets", "/dash/rs-hub",
          dossier_tab="rs", screener_col="rs"),
     # Leaders/"Strength" — MOVED to Markets (§0.1, divergence #1). RS is Markets content.
