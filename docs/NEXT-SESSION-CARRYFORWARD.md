@@ -7,6 +7,29 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🆕 2026-07-11 — S109 + S110 landed (three lanes, all on origin/main; none redoable)
+Diverged from S108 then reconciled by commit-then-pull-rebase (union-resolved PROJECT_STATE — two
+S109 entries KEPT + S110 at top): **`dfbe175` S109/D111 Wolfe §B rebalance** (spring-reclaim C ·
+deep-extension G · 2.0 restored · RSI-divergence fix — Ramana line-by-line) · **`6899a94` S109
+docs/strategies** (canonical `docs/strategies/` reference layer, 9 pages) · **`686f7b9` S110/D112
+DEEP-DATA VALUE SPRINT** (this lane). All pushed.
+
+**🆕 S110 — 3 NEW insight surfaces LIVE + deployed (verify-then-consume, do NOT rebuild — memory
+`deep-data-insight-lenses`):**
+- `/dash/market-internals` — 22y market health (price-breadth + the MEP **tape** + delivery/dispersion/
+  coil) from bounded **`market_internals_daily`** (5426 rows, **NO timer**; rebuild/refresh via
+  `python -m src.automation.market_internals --backfill` / `refresh_tail`). HERO = price-vs-effort divergence.
+- `/dash/participants` **UPGRADED** — full 2.5y FII long:short tape + percentile gauge + retail mirror (additive; existing gauge/matrix kept).
+- `/dash/launchpad-track` — **orphan rescue**: `ignition_outcomes` (50k signals) outcome distribution + `averaging_zones` ladder. ⚠ `ret_12m` is in PERCENT units.
+- Shared **`src/web/infographics.py`** — 8 tested SVG primitives; **reuse for any new chart, don't hand-roll**. Morning **briefing Artifact** delivered (diverse-charts deliverable + the DEFERRED queue).
+- **Deferred (VALIDATED, build when the caveat clears — don't re-recon):** Sector Regime Map (~322 tagged syms) · features **Anatomy Fingerprint** (leak-strict; moves launch from momentum NOT accumulation) · tier-migration alluvial (D66 veto) · ownership DII/FII drift (~3y) · SLB short-interest (expiry-roll artifact) · seasonality calendar. `stock_oscillators` = orphaned one-shot → drop or wire.
+- Deploy craft: new modules clean-scp'd (CR-strip `tr`); FORKED nav (`lens_registry`/`v2_surfaces`) **anchored-inserted** (assert count==1 + rollback), NEVER full-scp; import-test + writer-safe restart; gates PASS; walked LIVE (`curl -sL`, flat→nested 307). Both new lenses in sub-nav (not orphaned).
+- ⚠ Untracked **`.claude/launch.json`** (dev preview harness → scratchpad path) left uncommitted, harmless — `rm` or ignore.
+
+**🧊→✅ Wolfe §B freeze LIFTED:** the S108 carry-forward's "FROZEN pending Ramana's §B weightage sign-off"
+is RESOLVED — he ratified the rebalance line-by-line (D111, `dfbe175`). The D108 2/3/4 fractal gate stays enforced.
+Wolfe draw-tool commit `8fc40dc` is still on branch `wolfe-draw-tool` (unmerged; see `docs/strategies/README.md` recon flags).
+
 ## 🔔 2026-07-10 EVENING — FOUR lanes landed the same day (read all four; none is redoable)
 **S102 (P-05, Ramana: "complete that now") · S103 (attention face, D106) · S104 (AUD-06/07/11,
 D107) · the Wolfe FRACTAL arc → S105/D108 revert + 🧊 FREEZE (see 🌀).** Canonical chain:
