@@ -57,6 +57,32 @@ _WS_CHECKS = {
     "screener": _FUND,
 }
 
+# Beginner-facing display for the kill-switch checks (Ramana: the raw "killswitch.regime …
+# momentum regime OFF" banner reads as jargon). A plain LABEL replaces the raw check id, and a
+# plain one-line SUMMARY replaces the technical message on the surface — the FULL technical
+# message stays on hover (title=) and in /dash/coverage, so power users lose nothing. DISPLAY
+# ONLY: the stored check messages (consumed by board_health / coverage) are never changed.
+_PLAIN = {
+    "killswitch.regime": ("Market mood",
+                          "Cautious — the market (Nifty 50) is below its 1-year trend line, so momentum is weak."),
+    "killswitch.market_freshness": ("Data freshness",
+                                    "Today's market prices may be running a little behind."),
+    "killswitch.universe_drift": ("Stock list",
+                                  "The set of tracked stocks shifted more than usual."),
+    "killswitch.feed_freshness": ("Data feed", "One of the data feeds is running late."),
+    "killswitch.restatement_spike": ("Restatements",
+                                     "More companies than usual revised past figures recently."),
+    "fundamentals_history.dates": ("Data check", "A data-consistency check flagged something to review."),
+}
+
+
+def _plain(check: str, msg: str) -> tuple:
+    """(plain label, plain summary) for a check — falls back to a de-jargoned id + raw msg."""
+    if check in _PLAIN:
+        return _PLAIN[check]
+    lab = check.replace("killswitch.", "").replace("_", " ").replace(".", " ").strip().title()
+    return (lab or "Note"), msg
+
 _SENTINEL = "dqb-strip"
 _TTL = 600            # battery writes nightly; refresh at most every 10 min
 _TTL_ERR = 120        # after a failed read (e.g. writer holds the lock) retry sooner
@@ -95,7 +121,9 @@ _CSS = """<style>
 .dqb-crit{color:var(--down,#ff6a7a);border-color:var(--down,#ff6a7a);
   background:rgba(var(--down-rgb,255,106,122),.14);}
 .dqb .dqb-k{font-weight:600;white-space:nowrap;}
-.dqb .dqb-at{margin-left:auto;font-size:11px;opacity:.75;white-space:nowrap;}
+.dqb .dqb-why{color:inherit;opacity:.7;text-decoration:underline;text-underline-offset:2px;font-size:11px;white-space:nowrap;}
+.dqb .dqb-why:hover{opacity:1;}
+.dqb .dqb-at{margin-left:auto;font-size:11px;opacity:.7;white-space:nowrap;}
 </style>"""
 
 
@@ -116,9 +144,13 @@ def _strip_html(active: str) -> str:
     for check, sev, msg in hits[:_MAX_LINES]:
         cls = "dqb-crit" if sev == "critical" else "dqb-warn"
         icon = "&#9888;" if sev == "critical" else "&#9650;"
+        label, plain = _plain(check, msg)
+        tip = html.escape(f"{check}: {msg}")          # full technical detail on hover
         lines.append(
-            f'<div class="dqb {cls}">{icon} <span class="dqb-k">{html.escape(check)}</span> '
-            f'{html.escape(msg)} <span class="dqb-at">data-quality {html.escape(str(run_at or "")[:16])}</span></div>')
+            f'<div class="dqb {cls}" title="{tip}">{icon} '
+            f'<span class="dqb-k">{html.escape(label)}</span> {html.escape(plain)} '
+            f'<a class="dqb-why" href="/dash/coverage">why?</a>'
+            f'<span class="dqb-at">as of {html.escape(str(run_at or "")[:10])}</span></div>')
     if len(hits) > _MAX_LINES:
         lines.append(f'<div class="dqb dqb-warn">+{len(hits) - _MAX_LINES} more — see /dash/coverage</div>')
     return f'<div class="{_SENTINEL}">' + "".join(lines) + "</div>" + _CSS
@@ -197,7 +229,10 @@ def _selftest() -> int:
     # all do) → momentum checks only, NOT the fundamentals restatement.
     out = _enhance("<h2>Rotation</h2>", "markets")
     assert _SENTINEL in out and "dqb-crit" in out, "crit strip missing on markets"
-    assert "momentum regime OFF" in out and "bhavcopy stale" in out, "messages must be quoted"
+    # beginner-facing: plain LABELS shown, raw check-id/message kept on hover (title=)
+    assert "Market mood" in out and "Data freshness" in out, "plain labels must show"
+    assert "momentum regime OFF" in out and "bhavcopy stale" in out, "raw detail must stay (in title=)"
+    assert 'class="dqb-k">killswitch.regime<' not in out, "raw check-id must NOT be the visible chip"
     assert "restatement" not in out, "fundamentals check must not leak onto a markets page"
     assert out.index("dqb-crit") < out.index("dqb-warn"), "critical must sort first"
     assert _enhance(out, "markets") == out, "must be idempotent"
