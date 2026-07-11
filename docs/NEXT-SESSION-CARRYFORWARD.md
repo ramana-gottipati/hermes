@@ -14,6 +14,14 @@ deep-extension G · 2.0 restored · RSI-divergence fix — Ramana line-by-line) 
 docs/strategies** (canonical `docs/strategies/` reference layer, 9 pages) · **`686f7b9` S110/D112
 DEEP-DATA VALUE SPRINT** (this lane). All pushed.
 
+**✅ S111–S116 — the `docs/strategies/` layer RECONCILED + COMPLETED (docs-only, all on origin; DON'T redo — kickstart-pick-verify).** The S109 canonical layer (9 pages + README) was hardened over five follow-on sessions as the multi-lane Wolfe/insights churn settled:
+- **S111** (`35940f6`/`b653e00`) — Wolfe page reconciled to the LANDED D111 (freeze→lifted; `_QUALITY_MAX` de-pinned 25→27, G 0-4) + wired into DOC_INDEX / CLAUDE.md / §Key-paths.
+- **S113 / D114** (`e45f701`) — patearn `scoring.py` ↔ `patterns.md` reconciled: patterns 6–14 are a DELIBERATE computable adaptation, mapping now explicit in `patterns.md` § "Implementation mapping (scoring.py)"; **scoring output byte-identical** (Ramana chose document-the-mapping, not re-score).
+- **S114** (`dc05614`) — D-number verification across all 9 pages vs origin's decision log: only README was stale (fixed); the other 8 correct (incl. the suspect cci-D56 / cpr-D95, both confirmed right).
+- **S115** (`626cbff`) — added **`calculations-and-weights.md` §5e DVPT · §5f MEP · §5g CCI · §5h Harmonic** (real constants pulled from code) → the "numbers live once" doc now covers EVERY strategy.
+- **S116** (`c212e62`) — cross-linked the 4 pages to those exact §5e–§5h sections + killed harmonic's stale "ratio bands not folded in here" caveat.
+- **README reconciliation flags: 1–3 RESOLVED; only 4–5 OPEN + pickable (both NON-doc):** **#4** RS D67 size-index backfill (one-time VPS `index_signals --backfill`; not repo-verifiable) · **#5** CPR Telegram `/cpr` (designed, never shipped — a code build). Memory `wolfe-wave-strategy` D111 line + line-12 back-pointer reconciled. Scratchpad helpers retired; all this lane's worktrees removed.
+
 **🆕 S110 — 6 NEW insight surfaces + a full BEGINNER-READABILITY + DRILL-DOWN arc, all LIVE + deployed
 (verify-then-consume, do NOT rebuild — memory `deep-data-insight-lenses`):**
 - `/dash/market-internals` — 22y market health (price-breadth + the MEP **tape** + delivery/dispersion/
