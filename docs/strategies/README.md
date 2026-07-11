@@ -116,10 +116,16 @@ Honest gaps the doc build found. **Items 1–3 have since been RESOLVED; 4–5 r
    status without a new pre-registered, leak-free study recorded in [strategy-ledger.md](../strategy-ledger.md)
    that beats the recorded numbers (skill `failure-ledger`).
 4. **Adding a new strategy.** Copy the shared template (below), fill all 10 sections + Maintenance, add
-   a row to the Status matrix + Terminology canon here, and wire it into [DOC_INDEX.md](../DOC_INDEX.md)
-   and `PROJECT_STATE.md` § Key file paths.
+   a row to the Status matrix + Terminology canon here, **serve it** (add the slug to
+   `src/web/strategies_view.py` `_PAGES` → renders at `/dash/strategy-ref?p=<slug>`), and wire it into
+   [DOC_INDEX.md](../DOC_INDEX.md) and `PROJECT_STATE.md` § Key file paths.
 5. **Keep siblings in sync.** DVPT ↔ MEP, RS ↔ Momentum, Wolfe ↔ Harmonic cross-link each other; a
    terminology change on one must be mirrored on its sibling.
+6. **Machine backstop — the continuous-docs gate.** `tests/test_strategy_docs_coverage.py` FAILS the
+   suite if the artifacts drift: every served page must have a file on disk **and** a Status-matrix row,
+   and every `docs/strategies/*.md` must be served. It is the enforcement behind items 1 & 4 — run it
+   (or the suite) before shipping any strategy change. (It cannot catch a strategy built in code with
+   *no* doc at all — that stays the CLAUDE.md new-strategy rule's job.)
 
 ### Shared template (copy for any new strategy page)
 

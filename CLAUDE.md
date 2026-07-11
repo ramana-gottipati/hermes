@@ -97,7 +97,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 | Topic | File |
 |---|---|
 | Current state, decisions, open items, session log | **`PROJECT_STATE.md`** |
-| **Strategy definitions, status & terminology (canonical)** | **`docs/strategies/`** (start at `docs/strategies/README.md`) |
+| **Strategy definitions, status & terminology (canonical)** | **`docs/strategies/`** (start at `docs/strategies/README.md`) — **continuously maintained**: every new/changed strategy updates its page in the SAME commit (served at `/dash/strategy-ref`); machine backstop = `tests/test_strategy_docs_coverage.py` |
 | Bhav copy + DVPT signals architecture (Word) | `docs/hermes-bhavcopy-architecture.docx` |
 | patearn methodology (source skill) | `resources/patearn/SKILL.md` + sibling files |
 | Telegram bot implementation | `src/assistant/telegram_bot.py` |
