@@ -237,6 +237,7 @@ LENSES: tuple[Lens, ...] = (
     # Glossary / Methodology — the browsable "explain every term" reference (primary-intent
     # commitment #2). Same content as the ? hover-popovers; Trust altitude (methodology/help).
     Lens("glossary", "Glossary", "trust", "trust", "/dash/glossary", aliases=("methodology",)),
+    Lens("strategy-ref", "Strategy reference", "trust", "trust", "/dash/strategy-ref"),
     # How to read the charts (deep-data sprint) — the VISUAL companion to the Glossary: a
     # beginner's guide to the site's chart shapes + plain-word ideas. Linked from every lens header.
     Lens("reading-guide", "How to read", "trust", "trust", "/dash/reading-guide",

@@ -131,6 +131,7 @@ _ROUTER_SPECS = [
     # Glossary / Methodology — the browsable "explain every term" page (Trust altitude).
     # Renders docs/metrics-glossary.md, the SAME source the ? hover-popovers use.
     ("glossary", "src.web.glossary_view", "/dash/glossary"),
+    ("strategy-ref", "src.web.strategies_view", "/dash/strategy-ref"),
     # Momentum drill surfaces — sector→constituent RSI drill + phase-flip early signals.
     # Modules were committed (bb27a4e / 10959ba) but the mounts lived only as an
     # uncommitted VPS patch (AUD-32) — a clean main→VPS deploy 404'd both and
