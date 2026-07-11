@@ -327,13 +327,21 @@ def score(p_list, p5, direction, highs, lows, closes, rsi_arr):
         lo, hi = min(z["low"], z["high"]), max(z["low"], z["high"])
         gap = (hi - lo) / z["price"] * 100.0 if z["price"] else 99
         F = 4 if gap <= 0.3 else 3 if gap <= 0.6 else 2 if gap <= 1.2 else 1 if gap <= 2.0 else 0   # 0-4 (Ramana +wt; F<=2 still = gap>0.6% for the scan)
-        # G by DEPTH of the extension in ANY of the wave's confluence zones (Ramana 2026-07-11:
-        # "reward a 4.618 confluence ANYWHERE in the wave", not just the point-5 zone `z`):
-        # 4.618 present = 2 (the farthest/strongest overshoot reversal) · 2.618/3.618/4.236 = 1
-        # (deep, strong, not the last) · shallow only (1.272/1.414/1.618/2.0) = 0.
-        _ratios = {r for zz in zones for r in (zz["r12"], zz["r34"])}
-        G = (2 if 4.618 in _ratios
-             else 1 if (_ratios & {2.618, 3.618, 4.236}) else 0)
+        # G (Ramana 2026-07-11, CORRECTED — "anywhere" was wrong): judge the confluence zone
+        # NEAREST THE CURRENT PRICE (LTP). It starts at point 5 and tracks the LTP as price
+        # travels up toward point 3 (bull) / down toward point 3 (bear); the zones all sit
+        # between point 5 and point 3, so once price clears point 3 nothing is near and G=0.
+        # Score by the ratios of that nearest zone IF the LTP is near it (its band ±2%), else 0:
+        #   not near any zone = 0 · a shallow confluence = 1 · zone involves 2.618 = 2 ·
+        #   involves 4.618 = 3 · involves BOTH 2.618 and 4.618 (one from each leg) = 4.
+        cur = closes[-1]
+        gz = min(zones, key=lambda zz: abs(cur - zz["price"]))
+        g_lo, g_hi = min(gz["low"], gz["high"]), max(gz["low"], gz["high"])
+        if g_lo * 0.98 <= cur <= g_hi * 1.02:              # LTP near this zone's band (±2%)
+            _rr = {gz["r12"], gz["r34"]}
+            G = (4 if (2.618 in _rr and 4.618 in _rr) else 3 if 4.618 in _rr
+                 else 2 if 2.618 in _rr else 1)
+        # else: G stays 0 (init) — price not near any confluence zone
         if p5:
             if lo <= p5.price <= hi:                       # clean land INSIDE the zone band
                 dist = abs(p5.price - z["price"]) / p5.price * 100.0
@@ -691,7 +699,7 @@ _FIB_R = (1.272, 1.414, 1.618, 2.0, 2.618, 3.618, 4.236, 4.618)   # 2.0 RESTORED
 # The maximum §B quality points a wave can score — A(6)+B(3)+C(3)+F(3)+G(2)+H(2)+I(2)+D(3).
 # The overlay badge shows points/_QUALITY_MAX. Bump this WITH any §B weightage change
 # (Ramana's pending rebalance → 25/26) so the "out of total" stays truthful.
-_QUALITY_MAX = 25   # A(4)+B(3)+C(4)+F(4)+G(2)+H(3)+I(2)+D(3) after the 2026-07-11 Ramana rebalance
+_QUALITY_MAX = 27   # A(4)+B(3)+C(4)+F(4)+G(4)+H(3)+I(2)+D(3) — G widened to 0-4 (2026-07-11)
 
 
 def fib_zones(p1, p2, p3, p4, direction="BEAR", ratios=_FIB_R, tol_frac=0.02):
