@@ -114,15 +114,7 @@ def dash_launchpad_track() -> HTMLResponse:
             body.append(
                 '<h2 style="margin:0 0 2px">Launchpad — the track record '
                 f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">does the ignition '
-                f'screen actually work? · {len(rows):,} historical signals · study as of {_esc(as_of)}</small></h2>'
-                '<div class="lt-note">The Launchpad page shows only <b>today\'s</b> scan. This is the '
-                f'evidence behind it: every ignition signal since 2019 ({len(rows):,} of them), with the '
-                'return it delivered <b>and the drawdown you\'d have sat through first</b>. '
-                '<b>Read it as a distribution, not a promise:</b> this is a point-in-time study '
-                f'(computed {_esc(as_of)}), <b>gross of costs</b>, and survivorship-exposed (delisted '
-                'losers are absent, so returns are biased up). The ledger is explicit — the launchpad is '
-                'a <b>validated screen with no fundable edge net of cost</b>; this page quantifies the '
-                'screen\'s character, it is not a recommendation. <a href="/dash/launchpad">← today\'s scan</a></div>')
+                f'screen actually work? · {len(rows):,} historical signals · study as of {_esc(as_of)}</small></h2>')
 
             body.append(ifx.bottom_line(
                 f'When this screen flags a stock (an “ignition” = a stock waking up on heavy volume), '
@@ -131,6 +123,16 @@ def dash_launchpad_track() -> HTMLResponse:
                 f'<b>{overall["hit25"]:.0f}%</b> reached a +25% gain. Treat it as a shortlist worth '
                 'watching, <b>not a guarantee</b>: outcomes are a wide spread, shown below.'))
             body.append(ifx.how_to_read_link())
+            body.append(
+                '<div class="lt-note">The Launchpad page shows only <b>today\'s</b> scan. This is the '
+                f'evidence behind it: every ignition signal since 2019 ({len(rows):,} of them), with the '
+                'return it delivered <b>and the drawdown you\'d have sat through first</b>. '
+                '<b>Read it as a distribution, not a promise:</b> this is a point-in-time study '
+                f'(computed {_esc(as_of)}), <b>gross of costs</b> (before brokerage &amp; taxes), and '
+                'survivorship-exposed (delisted losers are absent, so returns are biased up). The ledger '
+                'is explicit — the launchpad is a <b>validated screen with no fundable edge net of cost</b> '
+                '(no profit once real costs are paid); this page quantifies the screen\'s character, it is '
+                'not a recommendation. <a href="/dash/launchpad">← today\'s scan</a></div>')
 
             # tiles
             def tile(n, c, l, s):

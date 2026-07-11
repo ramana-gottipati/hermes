@@ -181,7 +181,7 @@ def dash_sector_economics(metric: str = "roce") -> HTMLResponse:
                           f'<div class="d">FY{_Y0 % 100} <b>{first:.1f}</b> → FY{_Y1 % 100} '
                           f'<b class="{dcls}">{last:.1f}</b>{munit} '
                           f'<span style="color:var(--ink-3)">· peak {hi:.1f} / trough {lo:.1f}, '
-                          f'swing {swing:.1f}pp</span></div></div>')
+                          f'a {swing:.1f}-point swing</span></div></div>')
             body.append('<div class="se-panel"><div class="se-h">Biggest swings '
                         '<small>— the sectors whose economics moved most</small></div>'
                         '<div class="se-sub">The widest peak-to-trough range over the decade — cyclical '

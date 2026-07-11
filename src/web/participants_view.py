@@ -138,9 +138,10 @@ def render_positioning_tape(conn) -> str:
         + ifx.spark_area(ratio, h=120, signed=True, baseline=1.0)
         + '<div style="max-width:520px;margin-top:8px">'
         + ifx.pct_gauge(latest, dist, label="today", vfmt=2) + '</div>'
-        + '<div class="sub mut" style="margin-top:6px;font-size:11px">FII index-futures shorts are '
-          'largely hedge/arb-driven — read this as <b>stance and extremity</b>, never a directional '
-          'timing call (D62). The percentile answers "how unusual is today vs its own history".</div>'
+        + '<div class="sub mut" style="margin-top:6px;font-size:11px">FII shorts are mostly <b>hedging '
+          'and arbitrage</b> (protective/paired trades), not simple bets the market will fall — so read '
+          'this as <b>stance and how extreme it is</b>, never a market-timing call (D62). The percentile '
+          'just answers "how unusual is today vs its own history".</div>'
         '</div>'
         '<div class="sub" style="margin:16px 0 4px">🪞 Smart money vs retail '
         '<span class="mut">— who is on the other side of the FII short</span></div>'
@@ -218,8 +219,8 @@ def render_participants() -> str:
         f'{("%.2f" % fii_ratio) if fii_ratio else "—"}</span></div>'
         f'<div style="margin-top:6px">{_spark(series)}</div>'
         f'<div class="sub mut" style="margin-top:2px;font-size:11px">FII net index-futures '
-        f'position, last {len(series)} days (oldest→newest). Net short = hedged/bearish; '
-        f'watch the swing, not the level.{diverge}</div></div>')
+        f'position, last {len(series)} days (oldest→newest). Net short = leaning bearish (often just '
+        f'hedging); watch the swing, not the level.{diverge}</div></div>')
 
     # --- positioning matrix ---
     scale = max((abs(idx_net(c) or 0) for c in _ORDER), default=1) or 1

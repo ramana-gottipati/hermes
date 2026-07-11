@@ -111,12 +111,12 @@ def _phrase(p: float, low_word: str, high_word: str) -> str:
     if p <= 8:
         return f"22-yr low — deeply {low_word}"
     if p <= 25:
-        return f"{low_word} ({_ord(p)} pctile of 22y)"
+        return f"{low_word} ({_ord(p)} percentile of 22y)"
     if p >= 92:
         return f"22-yr high — deeply {high_word}"
     if p >= 75:
-        return f"{high_word} ({_ord(p)} pctile)"
-    return f"middling ({_ord(p)} pctile of 22y)"
+        return f"{high_word} ({_ord(p)} percentile)"
+    return f"middling ({_ord(p)} percentile of 22y)"
 
 
 def _tiles(rows: list) -> str:
@@ -141,7 +141,7 @@ def _tiles(rows: list) -> str:
         tile(f'{last["avg_dp"]:.0f}%', "var(--chart-blue)", "Real buying (“delivery”)",
              f'share held overnight, not day-traded · {_phrase(_pctile(dps, last["avg_dp"]), "low-conviction era", "high-conviction")}'),
         tile(f'{last["disp"]:.2f}', "var(--accent-orange)", "How differently stocks move",
-             f'low = all move together · {_phrase(_pctile(disp, last["disp"]), "macro / all-together", "stock-pickers")}'),
+             f'low = all move together · {_phrase(_pctile(disp, last["disp"]), "moving in lockstep", "selection-driven")}'),
         tile(f'{last["avg_comp"]:.2f}', "var(--series-1)", "Calm vs violent (“coil”)",
              ("under 1 = calm/coiled" if last["avg_comp"] < 1 else "over 1 = violent") + f' · {_phrase(_pctile(coil, last["avg_comp"]), "calm", "violent")}'),
     ]
@@ -200,15 +200,7 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
             body.append(
                 '<h2 style="margin:0 0 2px">Market Internals '
                 f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">the health beneath the '
-                f'index · 22 years (2004→) · as of {_esc(as_of)}</small></h2>'
-                '<div class="mi-note">Every other "breadth" view here is <b>relative</b> (RS vs the '
-                'benchmark) and starts 2011. This is the <b>absolute</b> market internal — how many stocks '
-                'actually rose, whether buyers paid up (the tape), how much was delivered, how independently '
-                'stocks moved — back to <b>2004</b>, the era no other lens can reach. '
-                '<b>The hero is the divergence:</b> when price-breadth rises while the tape '
-                '<span class="warn">distributes</span>, the market is being distributed into strength — a '
-                'warning the cap-weighted index can\'t show. <b>Descriptive market-state, point-in-time — '
-                'not a signal.</b> <a href="/dash/glossary?q=breadth">glossary →</a></div>')
+                f'index · 22 years (2004→) · as of {_esc(as_of)}</small></h2>')
 
             _l = allrows[-1]
             body.append(ifx.bottom_line(
@@ -217,6 +209,15 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                 f'and trading is <b>{"unusually calm" if (_l["avg_comp"] or 1) < 1 else "choppy"}</b>. These "internals" '
                 'tell you how healthy the market is <i>underneath</i> the one number everyone quotes.'))
             body.append(ifx.how_to_read_link())
+            body.append(
+                '<div class="mi-note">Every other "breadth" view here is <b>relative</b> (RS vs the '
+                'benchmark) and starts 2011. This is the <b>absolute</b> market internal — how many stocks '
+                'actually rose, whether buyers paid up (the tape), how much was delivered, how independently '
+                'stocks moved — back to <b>2004</b>, the era no other lens can reach. '
+                '<b>The hero is the divergence:</b> when price-breadth rises while the tape '
+                '<span class="warn">distributes</span>, the market is being distributed into strength — a '
+                'warning the cap-weighted index can\'t show. <b>Descriptive market-state, point-in-time — '
+                'not a signal.</b> <a href="/dash/glossary?q=breadth">glossary →</a></div>')
 
             # tiles: latest value + its percentile vs FULL 22y history
             body.append(_tiles(allrows))
