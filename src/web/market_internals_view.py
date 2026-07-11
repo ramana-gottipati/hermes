@@ -24,6 +24,8 @@ signal — no ranking, no "buy". Route: /dash/market-internals [?window=1y|3y|5y
 """
 from __future__ import annotations
 
+from functools import lru_cache
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
@@ -68,6 +70,16 @@ table.mi-anc th{color:var(--ink-3);font-weight:600;text-align:right;padding:4px 
 table.mi-anc td{padding:4px 9px;border-bottom:1px solid #171d25;text-align:right;font-variant-numeric:tabular-nums;}
 table.mi-anc td.l,table.mi-anc th.l{text-align:left;}
 .mi-pos{color:var(--up);} .mi-neg{color:var(--down);}
+.mi-drill{border-left:3px solid var(--accent);}
+.mi-dgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px;}
+@media(max-width:640px){.mi-dgrid{grid-template-columns:1fr;}}
+.mi-dch{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px;}
+.mi-drow{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:2px 0;}
+.mi-drow .k{width:104px;color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mi-drow .k:hover{text-decoration:underline;}
+.mi-drow .c{width:56px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;}
+.mi-drow .dv{color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums;margin-left:auto;}
+.mi-dlink{color:var(--accent);text-decoration:none;}.mi-dlink:hover{text-decoration:underline;}
 </style>
 """
 
@@ -162,7 +174,8 @@ def _anchor_table(conn) -> str:
             continue
         mep = r["mep_net"]
         trs.append(
-            f'<tr><td class="l">{_esc(d)}</td><td class="l" style="color:var(--ink-3)">{_esc(lab)}</td>'
+            f'<tr><td class="l"><a class="mi-dlink" href="/dash/market-internals?window=all&drill={_esc(d)}#drill">'
+            f'{_esc(d)}</a></td><td class="l" style="color:var(--ink-3)">{_esc(lab)}</td>'
             f'<td class="{"mi-pos" if r["pct_adv"]>=50 else "mi-neg"}">{r["pct_adv"]:.0f}%</td>'
             f'<td>{r["avg_dp"]:.0f}%</td><td>{r["disp"]:.2f}</td>'
             f'<td class="{"mi-pos" if mep>=0 else "mi-neg"}">{mep:+.0f}</td>'
@@ -178,8 +191,56 @@ def _anchor_table(conn) -> str:
             f'<tbody>{"".join(trs)}</tbody></table>')
 
 
+@lru_cache(maxsize=128)
+def _breadth_drill(date: str):
+    """The DRILL-DOWN: the individual stocks behind one day's breadth — the biggest gainers and
+    losers (liquid EQ names) that composed the 'X rose / Y fell' number. Never raises."""
+    try:
+        with get_conn() as conn:
+            s = conn.execute("SELECT n_eq,adv,dec,pct_adv,avg_dp,mep_net,avg_comp FROM "
+                             "market_internals_daily WHERE d=?", (date,)).fetchone()
+            if not s:
+                return None
+            q = ("SELECT symbol, close/prev_close-1.0 AS chg, deliv_qty*close AS dval "
+                 "FROM bhavcopy_rows WHERE series='EQ' AND trade_date=? AND prev_close>0 AND close>0 "
+                 "AND value>10000000 ORDER BY chg %s LIMIT 12")
+            gain = [(r["symbol"], r["chg"], r["dval"]) for r in conn.execute(q % "DESC", (date,)).fetchall()]
+            lose = [(r["symbol"], r["chg"], r["dval"]) for r in conn.execute(q % "ASC", (date,)).fetchall()]
+    except Exception:  # noqa: BLE001
+        return None
+    return (dict(s), gain, lose)
+
+
+def _breadth_drill_panel(date: str, window: str) -> str:
+    d = _breadth_drill(date)
+    if not d:
+        return ('<div class="mi-panel"><div class="mi-h">No breakdown for that day</div>'
+                '<div class="mi-sub">Couldn\'t load the movers for ' + _esc(date) + '. '
+                f'<a href="/dash/market-internals?window={_esc(window)}">← back</a></div></div>')
+    s, gain, lose = d
+
+    def col(title, rows):
+        items = ""
+        for sym, chg, dval in rows:
+            cls = "mi-pos" if chg >= 0 else "mi-neg"
+            items += (f'<div class="mi-drow"><a class="k" href="/dash/stock?sym={_esc(sym)}">{_esc(sym)}</a>'
+                      f'<span class="c {cls}">{chg*100:+.1f}%</span>'
+                      f'<span class="dv">₹{dval/1e7:.0f}cr</span></div>')
+        return f'<div class="mi-dcol"><div class="mi-dch">{title}</div>{items or "<div class=mi-sub>—</div>"}</div>'
+
+    return (
+        '<div class="mi-panel mi-drill" id="drill">'
+        f'<div class="mi-h">Behind the breadth · {_esc(date)} '
+        f'<small>— {s["adv"]} stocks rose, {s["dec"]} fell of {s["n_eq"]} ({s["pct_adv"]:.0f}% up)</small></div>'
+        + ifx.plain('The tile said "<b>{p:.0f}% rose</b>" — here are the <b>individual stocks</b> behind '
+                    'that day: the biggest gainers and losers (liquid names, ₹1cr+ traded). '
+                    'These are the values the one breadth number summarises.'.format(p=s["pct_adv"]))
+        + f'<div class="mi-dgrid">{col("Biggest gainers", gain)}{col("Biggest losers", lose)}</div>'
+        f'<div style="margin-top:10px"><a href="/dash/market-internals?window={_esc(window)}">← back to the map</a></div></div>')
+
+
 @router.get("/dash/market-internals", response_class=HTMLResponse)
-def dash_market_internals(window: str = "5y") -> HTMLResponse:
+def dash_market_internals(window: str = "5y", drill: str = "") -> HTMLResponse:
     window = window if window in _WINDOWS else "5y"
     body = [_CSS, ifx.readability_css()]
     as_of = ""
@@ -228,6 +289,9 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
             body.append(f'<div class="mi-ctrl">{tabs}<span style="color:var(--ink-3);font-size:11px">'
                         f'{len(rows)} trading days shown</span></div>')
 
+            if drill:
+                body.append(_breadth_drill_panel(drill, window))
+
             dates = [r["d"] for r in rows]
             pct_adv = [r["pct_adv"] for r in rows]
             mep_net = [r["mep_net"] for r in rows]
@@ -241,6 +305,7 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
             tp_line = _roll(mep_net, k)
             pb_ribbon = [(d, ((p or 50) - 50) / 50.0) for d, p in zip(dates, pct_adv)]
             tp_ribbon = [(d, (m or 0) / 100.0) for d, m in zip(dates, mep_net)]
+            _dl = lambda i: f'/dash/market-internals?window={window}&drill={dates[i]}#drill'  # noqa: E731
             div_note = _divergence_note(pct_adv[-1], mep_net[-1], pb_line[-1], tp_line[-1])
             body.append(_panel(
                 'Price-breadth vs the tape <small>— the market\'s two breadths</small>',
@@ -253,12 +318,12 @@ def dash_market_internals(window: str = "5y") -> HTMLResponse:
                           'red, prices are rising while buyers back away. That gap is the warning sign.'),
                 '<div class="mi-lbl">PRICE-BREADTH · % advancing (smoothed) — centred at 50</div>',
                 ifx.spark_area(pb_line, h=104, signed=True, baseline=0),
-                '<div class="mi-lbl">daily texture</div>',
-                ifx.heat_ribbon(pb_ribbon, h=34),
+                '<div class="mi-lbl">daily texture — click any day to see its biggest movers</div>',
+                ifx.heat_ribbon(pb_ribbon, h=34, cell_link=_dl),
                 '<div class="mi-lbl" style="margin-top:12px">THE TAPE · net accumulation−distribution (smoothed)</div>',
                 ifx.spark_area(tp_line, h=104, signed=True, baseline=0),
-                '<div class="mi-lbl">daily texture</div>',
-                ifx.heat_ribbon(tp_ribbon, h=34),
+                '<div class="mi-lbl">daily texture — click a day</div>',
+                ifx.heat_ribbon(tp_ribbon, h=34, cell_link=_dl),
                 f'<div class="mi-div"><span>⚠</span><span>{div_note}</span></div>'))
 
             # Delivery-conviction regime
@@ -350,7 +415,7 @@ def _selftest() -> int:
     app.include_router(router)
     c = TestClient(app)
     for url in ("/dash/market-internals", "/dash/market-internals?window=all",
-                "/dash/market-internals?window=1y"):
+                "/dash/market-internals?window=1y", "/dash/market-internals?drill=2020-03-23"):
         r = c.get(url)
         assert r.status_code == 200, url
         assert "Market Internals" in r.text

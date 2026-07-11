@@ -108,10 +108,11 @@ def seq_fill(t: float) -> str:
 
 # ── 1. signed heat-ribbon — one thin bar per period, colour = signed value ─────
 def heat_ribbon(cells: list, w: int = 1100, h: int = 46, vmax: float | None = None,
-                title_at: list | None = None) -> str:
+                title_at: list | None = None, cell_link=None) -> str:
     """cells: list of (label, value). value>0 green / <0 red, |value| = intensity
     (normalised by vmax, default = max|value|). Iconic breadth/regime strip.
-    title_at: optional list of (frac 0..1, text) era annotations under the strip."""
+    title_at: optional list of (frac 0..1, text) era annotations under the strip.
+    cell_link(i)->href makes each bar a click-through (SVG <a>) — the drill-down seam."""
     cells = [(lab, v) for lab, v in cells if v is not None]
     if not cells:
         return _empty(w, h)
@@ -120,10 +121,13 @@ def heat_ribbon(cells: list, w: int = 1100, h: int = 46, vmax: float | None = No
     bw = w / n
     top, band = 2, h - 20
     bars = []
-    for i, (_, v) in enumerate(cells):
+    for i, (lab, v) in enumerate(cells):
         x = i * bw
-        bars.append(f'<rect x="{x:.2f}" y="{top}" width="{bw+0.6:.2f}" height="{band}" '
-                    f'fill="{signed_fill(v/vmax)}"/>')
+        href = cell_link(i) if cell_link else None
+        tip = f'{_esc(lab)}{" · click to break down" if href else ""}'
+        rect = (f'<rect x="{x:.2f}" y="{top}" width="{bw+0.6:.2f}" height="{band}" '
+                f'fill="{signed_fill(v/vmax)}"><title>{tip}</title></rect>')
+        bars.append(f'<a href="{_esc(href)}">{rect}</a>' if href else rect)
     # baseline midline
     mid = top + band / 2
     out = [_open(w, h), "".join(bars),
@@ -343,7 +347,8 @@ def diverging_bars(items: list, w: int = 620, bar_h: int = 20, vmax: float | Non
 
 # ── 6. floating_bars — MFE/MAE style [lo..hi] bars on a shared signed scale ────
 def floating_bars(items: list, w: int = 620, bar_h: int = 26, label_w: int = 150,
-                  vlo: float | None = None, vhi: float | None = None, unit: str = "") -> str:
+                  vlo: float | None = None, vhi: float | None = None, unit: str = "",
+                  bar_link=None) -> str:
     """items: list of (label, lo, hi, end_text). Bar spans lo..hi; zero line marked.
     lo (e.g. MAE, negative) red end, hi (MFE, positive) green end."""
     items = [it for it in items if it[1] is not None and it[2] is not None]
@@ -373,9 +378,11 @@ def floating_bars(items: list, w: int = 620, bar_h: int = 26, label_w: int = 150
                    f'<stop offset="0" stop-color="var(--down)"/>'
                    f'<stop offset="{_clamp((zx-x0)/max(x1-x0,1),0,1):.2f}" stop-color="var(--warn)"/>'
                    f'<stop offset="1" stop-color="var(--up)"/></linearGradient></defs>')
-        out.append(f'<rect x="{x0:.1f}" y="{y+3}" width="{x1-x0:.1f}" height="{bar_h-9}" rx="3" '
-                   f'fill="url(#_fb{i})" opacity="0.9"><title>{_esc(lab)}: dips {_num(lo,1)}{_esc(unit)}, '
-                   f'rises +{_num(hi,1)}{_esc(unit)}</title></rect>')
+        href = bar_link(i) if bar_link else None
+        rect = (f'<rect x="{x0:.1f}" y="{y+3}" width="{x1-x0:.1f}" height="{bar_h-9}" rx="3" '
+                f'fill="url(#_fb{i})" opacity="0.9"><title>{_esc(lab)}: dips {_num(lo,1)}{_esc(unit)}, '
+                f'rises +{_num(hi,1)}{_esc(unit)}{" · click to break down" if href else ""}</title></rect>')
+        out.append(f'<a href="{_esc(href)}">{rect}</a>' if href else rect)
         out.append(f'<text x="{label_w-8}" y="{y+bar_h/2+3:.1f}" fill="var(--ink-2)" '
                    f'font-size="11" text-anchor="end">{_esc(lab)}</text>')
         out.append(f'<text x="{x0-4:.1f}" y="{y+bar_h/2+3:.1f}" fill="var(--down)" font-size="9.5" '

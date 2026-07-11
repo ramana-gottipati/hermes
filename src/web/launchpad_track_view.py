@@ -17,6 +17,8 @@ Route: /dash/launchpad-track. Reads ignition_outcomes + averaging_zones (hermes.
 """
 from __future__ import annotations
 
+from functools import lru_cache
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
@@ -25,6 +27,53 @@ from src.web.dashboard import _shell, _esc
 from src.web import infographics as ifx
 
 router = APIRouter()
+
+
+@lru_cache(maxsize=32)
+def _char_drill(character: str):
+    """The DRILL-DOWN: the actual signals behind one character bar — the biggest winners and
+    losers among that character's ignitions (the real names behind the median). Never raises."""
+    try:
+        with get_conn() as conn:
+            q = ("SELECT symbol, signal_date, ret_12m, mfe_pct, mae_from_entry_pct FROM ignition_outcomes "
+                 "WHERE character=? AND ret_12m IS NOT NULL ORDER BY ret_12m %s LIMIT 12")
+            win = [(r["symbol"], r["signal_date"], r["ret_12m"]) for r in conn.execute(q % "DESC", (character,)).fetchall()]
+            los = [(r["symbol"], r["signal_date"], r["ret_12m"]) for r in conn.execute(q % "ASC", (character,)).fetchall()]
+            n = conn.execute("SELECT count(*) FROM ignition_outcomes WHERE character=? AND ret_12m "
+                             "IS NOT NULL", (character,)).fetchone()[0]
+    except Exception:  # noqa: BLE001
+        return None
+    return (n, win, los) if win else None
+
+
+def _char_drill_panel(character: str) -> str:
+    d = _char_drill(character)
+    if not d:
+        return ('<div class="lt-panel"><div class="lt-h">No breakdown</div>'
+                f'<div class="lt-sub">Couldn\'t load the signals for {_esc(character)}. '
+                '<a href="/dash/launchpad-track">← back</a></div></div>')
+    n, win, los = d
+
+    def col(title, rows):
+        items = ""
+        for sym, date, r12 in rows:
+            cls = "lt-pos" if (r12 or 0) >= 0 else "lt-neg"
+            items += (f'<div class="lt-drow"><a class="k" href="/dash/stock?sym={_esc(sym)}">{_esc(sym)}</a>'
+                      f'<span class="dt">{_esc(str(date)[:10])}</span>'
+                      f'<span class="c {cls}">{r12:+.0f}%</span></div>')
+        return f'<div class="lt-dcol"><div class="lt-dch">{title}</div>{items or "<div class=lt-sub>—</div>"}</div>'
+
+    return (
+        '<div class="lt-panel lt-drill" id="drill">'
+        f'<div class="lt-h">Behind the "{_esc(character)}" bar '
+        f'<small>— the biggest winners &amp; losers among its {n:,} signals</small></div>'
+        + ifx.plain('The bar showed the <b>typical</b> journey. Here are the <b>real signals</b> behind it — '
+                    'the biggest 12-month winners and losers. The spread (a few big winners, a real tail of '
+                    'losers) is exactly why the median, not the best case, is the honest read. '
+                    '<i>The most extreme numbers reflect corporate actions or very thin stocks — the study '
+                    'is unadjusted at the tails.</i> Click a name for its page.')
+        + f'<div class="lt-dgrid">{col("Biggest winners (12m)", win)}{col("Biggest losers (12m)", los)}</div>'
+        '<div style="margin-top:10px"><a href="/dash/launchpad-track">← back to the track record</a></div></div>')
 
 _CSS = """
 <style>
@@ -55,6 +104,15 @@ table.lt td.l,table.lt th.l{text-align:left;}
 .lt-hbar i{width:100%;border-radius:3px 3px 0 0;}
 .lt-hbar .c{font-size:9px;color:var(--ink-3);}
 .lt-hbar .x{font-size:9px;color:var(--ink-3);margin-top:2px;white-space:nowrap;}
+.lt-drill{border-left:3px solid var(--accent);}
+.lt-dgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px;}
+@media(max-width:640px){.lt-dgrid{grid-template-columns:1fr;}}
+.lt-dch{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px;}
+.lt-drow{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:2px 0;}
+.lt-drow .k{width:96px;color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lt-drow .k:hover{text-decoration:underline;}
+.lt-drow .dt{color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums;}
+.lt-drow .c{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600;}
 </style>
 """
 
@@ -87,7 +145,7 @@ def _agg(rows, keyfn):
 
 
 @router.get("/dash/launchpad-track", response_class=HTMLResponse)
-def dash_launchpad_track() -> HTMLResponse:
+def dash_launchpad_track(drill: str = "") -> HTMLResponse:
     body = [_CSS, ifx.readability_css()]
     as_of = ""
     try:
@@ -153,20 +211,24 @@ def dash_launchpad_track() -> HTMLResponse:
 
             # MFE/MAE envelope by character
             order = sorted(by_char.items(), key=lambda kv: -kv[1]["n"])
+            _fbo = [(k, v) for k, v in order if v["med_mfe"] is not None and v["med_mae"] is not None]
             fb = [(f'{k} (n={v["n"]:,})', v["med_mae"], v["med_mfe"],
-                   f'hit+25% {v["hit25"]:.0f}%' if v["hit25"] is not None else "")
-                  for k, v in order if v["med_mfe"] is not None and v["med_mae"] is not None]
+                   f'hit+25% {v["hit25"]:.0f}%' if v["hit25"] is not None else "") for k, v in _fbo]
+            fb_chars = [k for k, _ in _fbo]
             body.append(
                 '<div class="lt-panel"><div class="lt-h">Gain vs pain, by signal type '
                 '<small>— the typical dip (red) vs best rise (green) over the next 6 months</small></div>'
                 + ifx.plain('Each bar is the typical <b>journey</b> after a signal: the <b>dip you\'d sit '
                             'through</b> (red, left) and the <b>best rise you\'d see</b> (green, right). The '
                             '“accumulation” type had the best rise-for-dip — but <b>every</b> type dips first. '
-                            '(“Character” = whether the stock was being quietly bought, neutral, or sold beforehand.)')
+                            '<b>Click a bar</b> to see the actual signals behind it.')
                 + '<div class="lt-sub">Medians (averages are pulled up by a few huge winners). Analysts: '
                 'MFE = best rise, MAE = worst dip.</div>'
-                + ifx.floating_bars(fb, w=680, bar_h=30, label_w=190, unit="%")
+                + ifx.floating_bars(fb, w=680, bar_h=30, label_w=190, unit="%",
+                                    bar_link=lambda i: f'/dash/launchpad-track?drill={fb_chars[i]}#drill')
                 + '</div>')
+            if drill:
+                body.append(_char_drill_panel(drill))
 
             # character table
             trs = ""
@@ -269,8 +331,9 @@ def _selftest() -> int:
     app = FastAPI()
     app.include_router(router)
     c = TestClient(app)
-    r = c.get("/dash/launchpad-track")
-    assert r.status_code == 200 and "track record" in r.text
+    for u in ("/dash/launchpad-track", "/dash/launchpad-track?drill=ACCUMULATION"):
+        r = c.get(u)
+        assert r.status_code == 200 and "track record" in r.text
     print("launchpad_track_view selftest OK — page 200 (populated or honest-empty)")
     return 0
 
