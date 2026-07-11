@@ -150,11 +150,34 @@ def _open():
         return nullcontext(None)
 
 
+def _default_sector(conn) -> str:
+    """Largest sector by RSI-of-RS constituent count — shown by default so the landing page
+    is a real drill, not just an empty picker."""
+    d = _rsi_date(conn)
+    if conn is None or not d:
+        return ""
+    try:
+        r = conn.execute(
+            "SELECT primary_sector FROM stock_signals WHERE trade_date=? AND rsi_of_rs IS NOT NULL "
+            "AND primary_sector IS NOT NULL GROUP BY primary_sector ORDER BY COUNT(*) DESC LIMIT 1",
+            (d,)).fetchone()
+        return str(r[0]) if r else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 @router.get("/dash/sector-momentum", response_class=HTMLResponse)
 def sector_momentum_page(idx: str = Query("")):
     idx = (idx or "").strip()
     with _open() as conn:
-        body = (drill_html(idx, conn) if idx else _picker(conn)) if conn is not None else _picker(None)
+        if conn is None:
+            body = _picker(None)
+        elif idx:
+            body = drill_html(idx, conn)
+        else:
+            # landing = picker + the largest sector's drill, so it opens on real content
+            dflt = _default_sector(conn)
+            body = _picker(conn) + (drill_html(dflt, conn) if dflt else "")
     try:
         from src.web.dashboard import _shell
         title = f"{_short(idx)} — sector momentum" if idx else "Sector momentum"

@@ -491,8 +491,8 @@ def leaders_laggards(kind: str = "leaders", limit: int = 50,
     market directly. Liquid universe only. Leaders ordered by broad rs_rank DESC
     (strongest first); laggards by rs_rank ASC (weakest first).
 
-    Returns dicts: symbol, rs_rank, primary_sector, broad_state, sector_state,
-    sector_broad_state, close, value. Shared by the dashboard (/dash/leaders +
+    Returns dicts: symbol, rs_rank, primary_sector, rsi (RSI-of-RS), broad_state,
+    sector_state, sector_broad_state, close, value. Shared by the dashboard (/dash/leaders +
     Home preview) and the Telegram /leaders /laggards commands.
     """
     states = _LEADER_STATES if kind == "leaders" else _LAGGARD_STATES
@@ -507,7 +507,7 @@ def leaders_laggards(kind: str = "leaders", limit: int = 50,
         if not trade_date or not idx_date:
             return []
         sql = f"""
-            SELECT s.symbol, s.rs_rank, s.primary_sector,
+            SELECT s.symbol, s.rs_rank, s.primary_sector, s.rsi_of_rs AS rsi,
                    s.rs_vs_broad_trend_state  AS broad_state,
                    s.rs_vs_sector_trend_state AS sector_state,
                    i.rs_vs_broad_trend_state  AS sector_broad_state,

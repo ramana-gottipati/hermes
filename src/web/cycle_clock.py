@@ -90,6 +90,7 @@ def _svg(items) -> str:
                    f'style="fill:{col};font:500 13px system-ui">{lab}</text>')
     scored = sorted(items, key=lambda it: math.hypot(it["rr"] - 100, it["mm"] - 100), reverse=True)
     labelset = {id(it) for it in scored[:10]}
+    labels: list = []                                # collected, then de-cluttered below
     for it in items:
         dx, dy = it["rr"] - 100, it["mm"] - 100
         px = cx + dx / maxmag * inner
@@ -108,8 +109,15 @@ def _svg(items) -> str:
                    f'style="fill:{col};cursor:pointer"><title>{title} — drill to constituents'
                    f'</title></circle></a>')
         if id(it) in labelset:
-            out.append(f'<text x="{px + 7:.1f}" y="{py + 3:.1f}" '
-                       f'style="fill:var(--ink-2);font:400 11px system-ui">{_esc(_short(it["n"]))}</text>')
+            labels.append((py, px, _short(it["n"])))
+    # de-clutter: stack labels that fall in the same cluster so they don't overprint
+    labels.sort()
+    _prev = -1e9
+    for _ly, _lx, _txt in labels:
+        y = _ly if _ly - _prev >= 13.0 else _prev + 13.0
+        _prev = y
+        out.append(f'<text x="{_lx + 7:.1f}" y="{y + 3:.1f}" '
+                   f'style="fill:var(--ink-2);font:400 11px system-ui">{_esc(_txt)}</text>')
     out.append('</svg>')
     return "".join(out)
 

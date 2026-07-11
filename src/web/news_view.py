@@ -24,6 +24,8 @@ Wiring (deferred, when the tree frees):
 """
 from __future__ import annotations
 
+import html as _html
+
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
@@ -78,7 +80,9 @@ def _safe_url(u: str) -> str:
 def _row(r: dict, *, syms_html: str = "") -> str:
     date = _esc((r.get("sent_at") or "")[:10])
     src = _esc((r.get("source") or "")[:14])
-    title = _esc(r.get("title") or "")
+    # feed titles arrive HTML-encoded (e.g. "Oil &amp; Gas"); unescape once so _esc doesn't
+    # double-encode them into a literal "&amp;". html.unescape also normalises &#39; etc.
+    title = _esc(_html.unescape(r.get("title") or ""))
     url = _safe_url(r.get("url") or "")
     mid = syms_html or f'<span class="nv-src">{src}</span>'
     return (f'<a class="nv-row" href="{url}" target="_blank" rel="noopener">'
