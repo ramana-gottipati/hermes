@@ -74,7 +74,7 @@ LENSES: tuple[Lens, ...] = (
     # dispersion + coil. Reads the bounded market_internals_daily snapshot. The hero is the
     # price-breadth vs effort-breadth divergence. Descriptive market-state — not a signal.
     Lens("market-internals", "Market internals", "market", "markets", "/dash/market-internals",
-         aliases=("internals", "breadth", "market-health", "advance-decline")),
+         group="Big picture", aliases=("internals", "breadth", "market-health", "advance-decline")),
     # Move anatomy (deep-data sprint) — the features event panel as a descriptive fingerprint:
     # what precedes a big move (momentum/RS elevated, delivery SUPPRESSED) + the MFE/MAE envelope.
     # Aggregate, leak-safe, post-selection base-rate — descriptive market-wide insight, NOT a signal.
@@ -82,7 +82,13 @@ LENSES: tuple[Lens, ...] = (
     # Sector economics — belongs where analysts look, not buried in the Trust/methodology corner.
     # (Still cross-linked from the Coverage/Trust evidence index via coverage_view.)
     Lens("move-anatomy", "Move anatomy", "market", "markets", "/dash/move-anatomy",
-         aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
+         group="Big picture", aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
+    # Sector economics (deep-data sprint) — median ROCE/OPM by sector × year over a decade;
+    # the FUNDAMENTAL complement to the RS-based Sectors lens. CLUSTERED with the deep-data trio
+    # near the front of Markets (D116, Ramana) under the "Big picture" group heading — the three
+    # aggregate/market-wide analytics sit together instead of scattered down a long sub-nav.
+    Lens("sector-economics", "Sector economics", "market", "markets", "/dash/sector-economics",
+         group="Big picture", aliases=("sector-fundamentals", "sector-quality", "sector-econ")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
@@ -99,10 +105,6 @@ LENSES: tuple[Lens, ...] = (
          aliases=("asm", "gsm", "price-bands", "surveillance-transitions")),
     Lens("sectors", "Sectors", "market", "markets", "/dash/sectors",
          dossier_tab=None, aliases=("rs",)),
-    # Sector economics (deep-data sprint) — median ROCE/OPM by sector × year over a decade;
-    # the FUNDAMENTAL complement to the RS-based Sectors lens above. Aggregate, descriptive.
-    Lens("sector-economics", "Sector economics", "market", "markets", "/dash/sector-economics",
-         aliases=("sector-fundamentals", "sector-quality", "sector-econ")),
     Lens("rs-hub", "Relative strength", "market", "markets", "/dash/rs-hub",
          dossier_tab="rs", screener_col="rs"),
     # Leaders/"Strength" — MOVED to Markets (§0.1, divergence #1). RS is Markets content.
