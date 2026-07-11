@@ -1,7 +1,7 @@
 # Harmonic Patterns (XABCD / PRZ) — Canonical Reference
 
 > **Class:** CANONICAL reference (permanent — do not archive).
-> **Status:** LIVE (descriptive) · backtest-GATED · **Governing decision(s):** D72 (harmonic lane) · D71 (charting-overhaul parent) · **Reconciled:** 2026-07-11 (S109).
+> **Status:** LIVE (descriptive) · backtest-GATED · **Governing decision(s):** D72 (harmonic lane) · D71 (charting-overhaul parent) · **Reconciled:** 2026-07-11 (S111).
 > **Charter:** the single canonical definition + current-state reference for the harmonic lens. Deep design: [harmonic-pattern-design.md](../harmonic-pattern-design.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a ratio constant — it links.
 
 **One-line definition:** Harmonic patterns are five-point (X-A-B-C-D) price structures whose leg lengths match a named Fibonacci-ratio template (Gartley · Bat · Butterfly · Crab · Deep Crab), completing at a **D-point** inside a **Potential Reversal Zone (PRZ)** where the prior swing is expected to reverse.

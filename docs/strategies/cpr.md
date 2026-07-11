@@ -1,7 +1,7 @@
 # CPR — Central Pivot Range (Patearn charting lens) — Canonical Reference
 
 > **Class:** CANONICAL reference (permanent — do not archive).
-> **Status:** LIVE (descriptive charting lens) · **Governing decision(s):** D53 (CPR "STRUCTURE" pillar / engine) · D71 (the "CPR Spine" charting overlay) · **Reconciled:** 2026-07-11 (S109).
+> **Status:** LIVE (descriptive charting lens) · **Governing decision(s):** D53 (CPR "STRUCTURE" pillar / engine) · D71 (the "CPR Spine" charting overlay) · **Reconciled:** 2026-07-11 (S111).
 > **Charter:** the single canonical definition + current-state reference for CPR. Deep design: [cpr-strategy-design.md](../cpr-strategy-design.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a formula's constants — it links.
 
 **One-line definition:** CPR (Central Pivot Range) is a three-line band — a central **Pivot** wrapped by a **BC/TC** envelope — projected from a period's *prior* High/Low/Close and read at several degrees (Daily / Weekly / Monthly / Half-yearly); Patearn renders it as the amber **"CPR Spine"** behind price and screens on its width/shape as **descriptive structure and context**, never as a ranked or fundable return signal.
@@ -122,4 +122,4 @@ Client-facing definitions live in [metrics-glossary.md](../metrics-glossary.md) 
 - **Honesty fence is load-bearing.** CPR stays **descriptive** (charting/context/selection) and **out of the Conviction number** until a leak-free out-of-sample return backtest is recorded in the ledger. Do not soften §4 without that evidence.
 - **Two faces, one primitive.** Keep the D53 engine (`cpr_signals`) and the D71 Spine (`cpr_overlay.py`) in sync conceptually — the overlay reads the engine's table via `chart_view`. The Spine's **one-degree-higher ladder** is Ramana's rule; the screener reads same-degree CPRs — don't conflate them.
 - **On any material CPR change,** update: this page, [cpr-strategy-design.md](../cpr-strategy-design.md), [calculations-and-weights.md](../calculations-and-weights.md), [metrics-glossary.md](../metrics-glossary.md), and the PROJECT_STATE Session log — in the same commit as the code (state-doc gate).
-- **Reconciled:** 2026-07-11 (S109). Re-verify against `cpr_signals.py` + `cpr_overlay.py` + `chart_view.py` before treating any file:line detail as current.
+- **Reconciled:** 2026-07-11 (S111). Re-verify against `cpr_signals.py` + `cpr_overlay.py` + `chart_view.py` before treating any file:line detail as current.

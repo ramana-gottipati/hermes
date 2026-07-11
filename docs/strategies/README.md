@@ -1,6 +1,6 @@
 # Patearn Strategy Reference — Canonical Index
 
-> **Class:** CANONICAL (permanent — do not archive). **Reconciled:** 2026-07-11 (S109).
+> **Class:** CANONICAL (permanent — do not archive). **Reconciled:** 2026-07-11 (S111).
 > **Why this folder exists.** Our strategies are home-grown *variations* of known techniques, and
 > their names had started to drift (DVPT vs DDPK vs MEP; CCI meaning two different things; "momentum"
 > meaning both the RS axis and the factor engine). This folder is the **single canonical reference
@@ -45,7 +45,7 @@ strategy without its own pre-registered, leak-free study that beats the recorded
 |---|---|---|---|---|
 | **DVPT** | Delivery Value per Trade ("Positioning") | **DESCRIPTIVE-ONLY** — engine live, picker thesis refuted | D62 · D28/D31/D43/D44 · D56 · D107 · D47 | [dvpt.md](dvpt.md) |
 | **MEP** | signed accumulation/distribution (price-tape) | **DESCRIPTOR-ONLY** — failed the alpha gate | D62 · D65 · D61 | [mep.md](mep.md) |
-| **Wolfe Wave** | 5-point reversal geometry (Patearn variation) | **DESCRIPTIVE-ONLY** · §B scoring **🧊 FROZEN** | D96 · D108 · D109 · D111 | [wolfe-wave.md](wolfe-wave.md) |
+| **Wolfe Wave** | 5-point reversal geometry (Patearn variation) | **DESCRIPTIVE-ONLY** · §B scoring **ratified D111** (max 25) | D96 · D108 · D109 · D111 | [wolfe-wave.md](wolfe-wave.md) |
 | **Relative Strength** | RS suite (RRG · RS-band · rotation · Mansfield · capture · size-index) | **DESCRIPTIVE** lens suite (deployed) | D39 · D40 · D64 · D67 | [relative-strength.md](relative-strength.md) |
 | **CPR** | Central Pivot Range ("CPR Spine") | **LIVE** — descriptive charting lens | D53 · D71 | [cpr.md](cpr.md) |
 | **CCI** | **Concall Credibility Index** (≠ Commodity Channel Index) | **FAILED-AS-FACTOR → DESCRIPTIVE / VETO-ONLY** | D60 · D61 · 2026-06-25 falsification · Gate B fail | [cci.md](cci.md) |
@@ -66,7 +66,7 @@ The whole reason this folder exists. Use the **canonical** column; retire the **
 | **Momentum (factor)** | RISKADJ ranked-rotation = 6-mo return ÷ 3-mo vol, top-25 monthly | RS-Momentum (descriptive) · "momentum is fundable" (it is **not**, net of cost) |
 | **CCI** | **Concall Credibility Index** (the scored core of the "Concall Intelligence" program) | **Commodity Channel Index** (an unrelated price oscillator) |
 | **CPR** | **Central Pivot Range** (Pivot + BC/TC), the "CPR Spine" charting lens | generic support/resistance · RS-band |
-| **Wolfe: "strength"** | the §B0 five-driver structural-strength concept (canon; **freshness is NOT strength**) | recency/freshness · the removed D98–D102 STR/LND vocabulary |
+| **Wolfe: "strength"** | the §B score — eight components, max 25, ratified D111 (spring-and-reclaim C, §A9); **freshness is NOT strength** | recency/freshness · the removed D98–D102 STR/LND vocabulary · "D111 = the draw tool" (D111 is the §B rescore) |
 | **"C" (capital allocation)** | the modern quality composite (ROIIC, ROCE, dilution, debt-funding, growth efficiency) | the older 4-metric quality lens it **subsumes** (D66) |
 
 ## The rest of the estate (catalogued — design doc is the current reference)
@@ -89,9 +89,11 @@ full page on request.
 These are honest gaps the doc build found. They are **documentation/reconcile flags, not fixes made
 this session** (e.g. Wolfe is frozen; code changes are out of scope for a docs pass):
 
-1. **Wolfe draw tool (D111)** — the carve-out is canonical per Ramana's directive, but its commit
-   `8fc40dc` sits on branch `wolfe-draw-tool` and is **not merged to main**, and **D111 is not yet in
-   the PROJECT_STATE decision log**. See [wolfe-wave.md](wolfe-wave.md) §8/§9.
+1. **Wolfe draw tool — unmerged, un-numbered.** Its commit `8fc40dc` sits on branch `wolfe-draw-tool`,
+   **not merged to main**, and carries **no decision number** — it was provisionally "D111" in memory
+   *before* D111 was assigned to the §B rescore. The parallel lifecycle-overlay work must merge *with*
+   it (FLIP HAZARD on `wolfe_overlay.py`). Note: the §B **freeze is LIFTED** — the §B rescore landed as
+   **D111** (`dfbe175`, S109). See [wolfe-wave.md](wolfe-wave.md) §5/§8/§9.
 2. **patearn scoring vs methodology** — `scoring.py` `WEIGHTS` and [patterns.md](../../resources/patearn/patterns.md)
    agree on the top-5 Quality-Gate patterns and total envelope, but **patterns 6–14 are re-labelled /
    re-weighted** between code and doc (a deliberate adaptation to what's computable). The code comment
