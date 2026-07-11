@@ -124,16 +124,15 @@ to merge at the branch level. The only uncommitted work, and its verdict:
   (point-1/C/F/H reweight + EPA touched-not-cut recode, `_QUALITY_MAX` 24→25, comments dated
   "Ramana 2026-07-11"). **LEAVE IT — this lane is finishing it** (Ramana directive S108). It lands
   the frozen-pending-sign-off work; do not absorb/commit it from any other lane.
-  **🔭 VERIFY WHEN IT LANDS (Ramana directive S108):** the moment a NEW `src/automation/wolfe.py`
-  commit appears on origin/main (past `e6c75d6`; signature `_QUALITY_MAX` ≠ 24), verify it landed
-  CLEAN: (1) worktree committed + pushed, tree clean; (2) the commit carries a PROJECT_STATE
-  decision + session entry (the state-doc gate enforces it); (3) `py_compile` + `import
-  src.automation.wolfe` + the wolfe selftest/tests pass; (4) walk `/dash/wolfe` + `/dash/wolfe/scan`
-  200 and the TCS wave payload computes with the new weights (badge shows points/`_QUALITY_MAX`),
-  the **D108 2/3/4 fractal gate still enforced**; (5) full test suite green + no regression to the
-  attention face / site; (6) if deployed, box `wolfe.py` == git and the wolfe-scan timer's next run
-  persists cleanly. This session armed a background watch for the landing; if it didn't fire before
-  wrap, run this battery when you see the commit.
+  **✅ VERIFIED CLEAN (S108-lane, `dfbe175` = S109/D111) — do NOT re-verify.** The rebalance
+  landed + deployed; the full battery passed: pushed + worktree clean · state-doc D111+S109
+  present · py_compile + import OK, `_QUALITY_MAX=25` (A4·B3·C4·F4·G2·H3·I2·D3 = Ramana's spec) ·
+  suite 55 pass/1 skip, no regression · **D108 2/3/4 fractal gate intact** (§B-score-only diff,
+  §A detection untouched) · `/dash/wolfe`+`/dash/wolfe/scan` 200 · box `wolfe.py` md5 == git ·
+  `_wave_payload` sets `points_max=_QUALITY_MAX` (overlay badges render /25 on-read). Two honest
+  non-defects: the persisted `wolfe_signals` scan refreshes to /25 on tonight's 16:02 UTC run
+  (on-read already /25); and `dfbe175` ships **no committed wolfe test** (the `tests/test_wolfe.py`
+  in the tree is a separate lane's uncommitted file) — a coverage gap for the wolfe lane to close.
 - **pat-eval (`blissful-nash`)** — its uncommitted AUD-40 work is **already in main via `9ed6aa4`**
   (identical changeset); the worktree copy is un-cleaned cruft. Nothing to do.
 - **main-tree wolfe files** — were a **stale pre-S106/S107 snapshot** (net-deletion, zero unique
