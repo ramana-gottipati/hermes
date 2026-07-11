@@ -403,6 +403,44 @@ def score(p_list, p5, direction, highs, lows, closes, rsi_arr):
             "total": round(total, 2)}
 
 
+def _reconcile_point4(waves):
+    """Point-4 reconciliation (Ramana, 2026-07-11): among waves that share the SAME
+    1-2-3 skeleton, point 4 is the EXTREME high (BULL) / low (BEAR) of the rally into
+    point 5 — his rule "select the maximum high before the next decline; exclude any
+    subsequent lower highs." The multi-scale pivot union can surface several point-4
+    candidates for one wave (a later, LOWER high that is a cleaner / higher-degree fractal
+    among them), and the §B score then rewards the tidier fractal over the true apex — so a
+    lower, later high wins the display (TARSONS Feb-2022: Feb-21@674.5 deg-5 beat the true
+    Feb-10@698.8 deg-2). This collapses each 1-2-3 group to its extreme point 4. It only
+    ever chooses among candidates that ALREADY cleared §A geometry and the D108 2/3/4
+    fractal gate — it never invents a point and never drops a lone structure — so it is
+    orthogonal to the §B weightage (incl. the D111 rebalance): a raw-price selection, not a
+    score change. Tie (equal point-4 price) → higher §B total, then earliest bar (stable)."""
+    out = []
+    for w in waves:
+        twin_i = None
+        for i, o in enumerate(out):
+            if (o.direction == w.direction
+                    and abs(o.p[0].idx - w.p[0].idx) <= 3
+                    and abs(o.p[1].idx - w.p[1].idx) <= 3
+                    and abs(o.p[2].idx - w.p[2].idx) <= 3):
+                twin_i = i
+                break
+        if twin_i is None:
+            out.append(w)
+            continue
+        o = out[twin_i]
+        bull = w.direction == 'BULL'
+        if w.p[3].price == o.p[3].price:              # exact tie → deterministic fallback
+            wins = ((w.score or {}).get("total", 0.0), -w.p[3].idx) > \
+                   ((o.score or {}).get("total", 0.0), -o.p[3].idx)
+        else:
+            wins = (w.p[3].price > o.p[3].price) if bull else (w.p[3].price < o.p[3].price)
+        if wins:
+            out[twin_i] = w
+    return out
+
+
 def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.2, sym_hi=1.0,
                  degrees=DETECT_DEGREES):
     """Find Wolfe 1-4 structures (with point 5 if it has overshot). (waves, atr_arr).
@@ -463,6 +501,11 @@ def detect_waves(high, low, close, ks=(1.0, 1.5, 2.5), atr_period=14, sym_lo=0.2
                and abs(o.p[3].idx - w.p[3].idx) <= 3 for o in kept):
             continue
         kept.append(w)
+    # point-4 reconciliation (2026-07-11): among waves sharing the same 1-2-3, keep the
+    # EXTREME point 4 (Ramana's "maximum high before the next decline"), not the tidiest
+    # fractal. Fixes the later-lower-high mislabel; fixed at the source so every surface
+    # (overlay_for / winner_scan / /dash/wolfe) inherits it. Orthogonal to the §B weightage.
+    kept = _reconcile_point4(kept)
     kept.sort(key=lambda w: w.p[3].idx)
     return kept, atr_arr
 
