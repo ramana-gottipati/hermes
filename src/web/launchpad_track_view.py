@@ -32,13 +32,27 @@ router = APIRouter()
 @lru_cache(maxsize=32)
 def _char_drill(character: str):
     """The DRILL-DOWN: the actual signals behind one character bar — the biggest winners and
-    losers among that character's ignitions (the real names behind the median). Never raises."""
+    losers among that character's ignitions (the real names behind the median). Never raises.
+
+    CREDIBLE SUBSET (else the tails read as "broken", not "honest"): the raw ignition_outcomes
+    tails are dominated by data artifacts — ETFs marked -99%, penny stocks at +16000% (the study
+    is corp-action-UNADJUSTED, so a split on a thin name looks like a 100-bagger), and the same
+    symbol repeated 30×. We keep only (a) EQUITY instruments — ETFs/FUNDs excluded via
+    security_master.instrument_class; (b) entry price ≥ ₹50 — penny artifacts blow up unadjusted
+    returns; (c) one row per symbol (the best for winners / worst for losers). The real
+    multibaggers (TANLA +17×) and real wipeouts (YESBANK, FRETAIL) survive; the noise doesn't.
+    n stays the FULL character population (the bar's real N); the lists are the credible subset."""
     try:
         with get_conn() as conn:
-            q = ("SELECT symbol, signal_date, ret_12m, mfe_pct, mae_from_entry_pct FROM ignition_outcomes "
-                 "WHERE character=? AND ret_12m IS NOT NULL ORDER BY ret_12m %s LIMIT 12")
-            win = [(r["symbol"], r["signal_date"], r["ret_12m"]) for r in conn.execute(q % "DESC", (character,)).fetchall()]
-            los = [(r["symbol"], r["signal_date"], r["ret_12m"]) for r in conn.execute(q % "ASC", (character,)).fetchall()]
+            q = ("SELECT symbol, signal_date, ret_12m FROM ("
+                 "SELECT o.symbol, o.signal_date, o.ret_12m, "
+                 "ROW_NUMBER() OVER (PARTITION BY o.symbol ORDER BY o.ret_12m {d}) rn "
+                 "FROM ignition_outcomes o "
+                 "WHERE o.character=? AND o.ret_12m IS NOT NULL AND o.entry_price >= 50 "
+                 "AND o.symbol NOT IN (SELECT symbol FROM security_master WHERE instrument_class <> 'EQUITY')"
+                 ") WHERE rn=1 ORDER BY ret_12m {d} LIMIT 12")
+            win = [(r["symbol"], r["signal_date"], r["ret_12m"]) for r in conn.execute(q.format(d="DESC"), (character,)).fetchall()]
+            los = [(r["symbol"], r["signal_date"], r["ret_12m"]) for r in conn.execute(q.format(d="ASC"), (character,)).fetchall()]
             n = conn.execute("SELECT count(*) FROM ignition_outcomes WHERE character=? AND ret_12m "
                              "IS NOT NULL", (character,)).fetchone()[0]
     except Exception:  # noqa: BLE001
@@ -67,11 +81,12 @@ def _char_drill_panel(character: str) -> str:
         '<div class="lt-panel lt-drill" id="drill">'
         f'<div class="lt-h">Behind the "{_esc(character)}" bar '
         f'<small>— the biggest winners &amp; losers among its {n:,} signals</small></div>'
-        + ifx.plain('The bar showed the <b>typical</b> journey. Here are the <b>real signals</b> behind it — '
-                    'the biggest 12-month winners and losers. The spread (a few big winners, a real tail of '
-                    'losers) is exactly why the median, not the best case, is the honest read. '
-                    '<i>The most extreme numbers reflect corporate actions or very thin stocks — the study '
-                    'is unadjusted at the tails.</i> Click a name for its page.')
+        + ifx.plain('The bar showed the <b>typical</b> journey. Here are the <b>real names</b> behind it — '
+                    'the biggest 12-month winners and losers. The spread (a few big multibaggers, a real tail '
+                    'of wipeouts) is exactly why the <b>median</b>, not the best case, is the honest read. '
+                    '<i>Shown: liquid stocks only — ETFs and sub-₹50 penny names are filtered out and each '
+                    'name appears once, so corporate-action artifacts don\'t crowd out the real stories.</i> '
+                    'Click a name for its page.')
         + f'<div class="lt-dgrid">{col("Biggest winners (12m)", win)}{col("Biggest losers (12m)", los)}</div>'
         '<div style="margin-top:10px"><a href="/dash/launchpad-track">← back to the track record</a></div></div>')
 
@@ -212,8 +227,9 @@ def dash_launchpad_track(drill: str = "") -> HTMLResponse:
             # MFE/MAE envelope by character
             order = sorted(by_char.items(), key=lambda kv: -kv[1]["n"])
             _fbo = [(k, v) for k, v in order if v["med_mfe"] is not None and v["med_mae"] is not None]
-            fb = [(f'{k} (n={v["n"]:,})', v["med_mae"], v["med_mfe"],
-                   f'hit+25% {v["hit25"]:.0f}%' if v["hit25"] is not None else "") for k, v in _fbo]
+            # dip→rise only (2 clean numbers); "hit +25%" lives in the table below — a 3rd label on
+            # the bar collided with the rise-label at the right edge and hurt beginner readability.
+            fb = [(f'{k} (n={v["n"]:,})', v["med_mae"], v["med_mfe"]) for k, v in _fbo]
             fb_chars = [k for k, _ in _fbo]
             body.append(
                 '<div class="lt-panel"><div class="lt-h">Gain vs pain, by signal type '
