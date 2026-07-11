@@ -89,6 +89,10 @@ _ROUTER_SPECS = [
     # Move anatomy (deep-data value sprint) — the features event panel as a descriptive
     # fingerprint (what precedes a move) + MFE/MAE envelope. Reads research.db, leak-safe.
     ("move-anatomy", "src.web.move_anatomy_view", "/dash/move-anatomy"),
+    # Sector economics (deep-data value sprint) — median ROCE/OPM by sector × year over a decade
+    # (research.db fundamentals ⋈ hermes company_tags). Aggregate, descriptive; the fundamental
+    # complement to the RS-based Sectors lens.
+    ("sector-economics", "src.web.sector_econ_view", "/dash/sector-economics"),
     # Surveillance-transition tape (D94 queue #6, S92) — ASM/GSM snapshot diffs +
     # band events; flag logic single-sourced in surveillance.flagged_symbols.
     ("surveillance", "src.web.surveil_view", "/dash/surveillance"),

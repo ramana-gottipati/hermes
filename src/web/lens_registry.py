@@ -91,6 +91,10 @@ LENSES: tuple[Lens, ...] = (
          aliases=("asm", "gsm", "price-bands", "surveillance-transitions")),
     Lens("sectors", "Sectors", "market", "markets", "/dash/sectors",
          dossier_tab=None, aliases=("rs",)),
+    # Sector economics (deep-data sprint) — median ROCE/OPM by sector × year over a decade;
+    # the FUNDAMENTAL complement to the RS-based Sectors lens above. Aggregate, descriptive.
+    Lens("sector-economics", "Sector economics", "market", "markets", "/dash/sector-economics",
+         aliases=("sector-fundamentals", "sector-quality", "sector-econ")),
     Lens("rs-hub", "Relative strength", "market", "markets", "/dash/rs-hub",
          dossier_tab="rs", screener_col="rs"),
     # Leaders/"Strength" — MOVED to Markets (§0.1, divergence #1). RS is Markets content.
