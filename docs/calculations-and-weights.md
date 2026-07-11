@@ -145,5 +145,72 @@ layer; at the `9d04bd9` baseline the /dash/wolfe list sorts by the §B quality t
 legacy WolfeRank shown as secondary context. A recency/fractal treatment of the ranking returns
 only as a Ramana-signed re-apply (PROJECT_STATE D108).
 
+## 5e. DVPT — Delivery Value per Trade (the "Positioning" two-tier trigger)
+**Canonical source:** `src/automation/signals.py` — `_WINDOWS`, `_rank_from_p_score`, `_KEY_BAND`, `_CHAR_FETCH_DAYS`. Daily `delivery_value_per_trade = Σ(delivery ₹) ÷ Σ(num_trades)`; period rollups **sum numerator and denominator** (never an average of daily ratios — value > quantity, Guardrail #5). DESCRIPTIVE-ONLY, within-stock confirmation lens, never a cross-stock ranker (D62; `docs/strategies/dvpt.md`).
+
+**Two-tier self-referential baselines (`_WINDOWS`, calendar-day windows):**
+| Window | Calendar days | Power top-N |
+|---|--:|--:|
+| 1m | 30 | 4 |
+| 2m | 60 | 7 |
+| 3m | 90 | 12 |
+| 6m | 180 | 20 |
+| 12m | 360 | 30 |
+
+- **R-tier** = flat rolling DVPT average per window ("above a normal day"). **P-tier** = average DVPT of only the **top-N highest-DVPT days** in each window ("above the institutional peak days"; top-N per the table).
+- **Scores:** `r_score` / `p_score` = count of the five R / P baselines today's DVPT beats (0–5). **`trigger_rank`** from `p_score`: 5→**SS** · 4→**S** · 3→**A** · 2→**B** · 1→**C** · 0→**—**.
+- **D44 launch zone (`_KEY_BAND = (−1.0, 5.0)`):** the "action zone" fires when `gap_to_key` ∈ **[key−1%, key+5%]** — asymmetric (tighter below the value-weighted key price than above), re-tunes on read with no backfill.
+- **D43 character** fetches `_CHAR_FETCH_DAYS = 372` calendar days (a full year of adjusted closes for the 52-week-high context); the up/down direction read discards any single-day move **> 30%** as an unadjusted corp-action artifact.
+
+**Logic:** everything is judged against the stock's **own** history — no market-wide rupee threshold (the "no rupee-constant thresholds" rule), so a thin small-cap and a large-cap are each measured against themselves. Top-N grows with the window (4→30) so a "power day" means the same thing at every horizon: an outlier vs that window's own peak days.
+
+## 5f. MEP — signed accumulation/distribution (the price-tape read)
+**Canonical source:** `src/automation/mep_signals.py`. Daily score = the **within-stock z-average of four SIGNED directional terms** (+ = accumulation, − = distribution), **equal-weighted (¼ each) on z-scores** so unlike units combine honestly. DESCRIPTOR-ONLY (D62 — failed the walk-forward + Deflated-Sharpe gate; `docs/strategies/mep.md`).
+
+**The four summed terms (equal weight):**
+| Term | Formula | Reads |
+|---|---|---|
+| pressure | `(close − VWAP) / VWAP` | did buyers pay up intraday? |
+| clv | `((close−low) − (high−close)) / (high−low)` | where in the range it closed |
+| drift_22d | adjusted-close return over ~22 rows | trend direction |
+| updown_vol_22d | `(up-day vol − down-day vol) / total vol`, 22 rows | effort direction |
+
+- **Standardisation:** within-stock z over `_Z_WIN = 200` trailing rows (`_Z_MIN = 40` min; clamp `_Z_CLAMP = ±4.0` so one outlier day can't dominate). Lookbacks `_DRIFT_LB = _UPDOWN_LB = 22`. Corp-action guard `_CC_THRESH = 0.30` (a > 30% single-day move isn't a real up/down day). **Context, NOT summed:** compression (`_ATR_SHORT/_ATR_LONG = 14/60`) and `amihud_22d` (`_AMIHUD_LB = 22`).
+- **PHASE — the smoothed regime with hysteresis (D65):** the daily oscillator is averaged over `_SMOOTH_WIN = 15` rows (`_SMOOTH_MIN = 5`) into 5 phases — **STRONG_DISTRIB · DISTRIB · NEUTRAL · ACCUM · STRONG_ACCUM**. Enter the **higher** phase at score `≥ _SMOOTH_HI = [−0.40, −0.10, 0.28, 0.62]`; drop to the **lower** at `< _SMOOTH_LO = [−0.62, −0.28, 0.10, 0.40]`. The LO→HI gap is the anti-flap band (a pressure oscillator ≠ a regime).
+
+**Logic:** delivery is side-blind, so MEP reads the *price tape* for the direction the DVPT delivery lens (§5e) structurally cannot. Its only edge over DVPT is that it is signed (a distribution-warning surface); the smoothed **phase** is the headline, the daily score the granular pressure read. Never ranks.
+
+## 5g. CCI — Concall Credibility Index (FAILED-AS-FACTOR → descriptive)
+**Canonical source:** `src/automation/concall_scores.py` (weight constants) + `src/automation/cci_series.py` (PIT composition). A point-in-time management-credibility level from earnings-call promises graded against outcomes. **FALSIFIED as a factor → descriptive/veto dossier only, never ranked** (`docs/strategies/cci.md`).
+
+**Level (per resolved-through date T):** `base = W_GA·guidance_accuracy + W_QR·quantification_rate` (or `qr` alone with no resolved track record) → `level = clamp₀₋₁₀₀(base − DETER_PEN_PER·deter_flags)`; if **unproven** (no settled promises) → `level = min(level, UNPROVEN_CEILING)`.
+
+| Constant | Value | Logic |
+|---|--:|---|
+| W_GA (guidance-accuracy) | **0.65** | the resolved track record dominates |
+| W_QR (quantification-rate) | 0.35 | falsifiable-numbers share is secondary |
+| UNPROVEN_CEILING | 55.0 | no A/A+ tier without a *settled* promise |
+| DETER_PEN_PER | 6.0 | composite penalty per recent deterministic deterioration flag |
+| RECENT_PERIODS | 4 | window (periods) for "recent" deterioration |
+
+**Logic:** measurable inputs only (D61) — track record + quantification with a hard veto path; self-testimony/tone is demoted (the 8-lens debate showed tone-scoring ranks the best-spoken frauds highest). The weights are moot for ranking: CCI is **falsified as a factor** (Spearman ≈ 0, HIGH−LOW −10%@12m inverse), so these constants drive only the descriptive per-name dossier.
+
+## 5h. Harmonic patterns — XABCD Fibonacci ratio bands
+**Canonical source:** `src/automation/harmonic_patterns.py` — `HARMONICS` (per-type acceptance bands + ideals), `_FIB_CD` (D-projection). A pattern = five swing points X-A-B-C-D whose leg ratios fall inside a type's Fibonacci bands; the PRZ (potential reversal zone) is projected while D forms. LIVE but DESCRIPTIVE, **backtest-gated** (`docs/strategies/harmonic.md`).
+
+**Acceptance bands `(lo, hi)` + the ideal used for scoring (`HARMONICS`; AB=retrace of XA · BC=retrace of AB · CD=extension of BC · AD=retrace/ext of XA):**
+| Type | AB | BC | CD | AD | ideals (AB · CD · AD) |
+|---|---|---|---|---|---|
+| Gartley | 0.55–0.66 | 0.382–0.886 | 1.13–1.618 | 0.74–0.83 | 0.618 · 1.27 · 0.786 |
+| Bat | 0.382–0.50 | 0.382–0.886 | 1.50–2.618 | 0.85–0.92 | 0.45 · 2.0 · 0.886 |
+| Butterfly | 0.74–0.83 | 0.382–0.886 | 1.50–2.24 | 1.20–1.70 | 0.786 · 1.80 · 1.27 |
+| Crab | 0.382–0.618 | 0.382–0.886 | 2.0–3.80 | 1.55–1.70 | 0.50 · 3.0 · 1.618 |
+| DeepCrab | 0.85–0.92 | 0.382–0.886 | 2.0–3.80 | 1.55–1.70 | 0.886 · 3.0 · 1.618 |
+
+- **PRZ projection (`_FIB_CD`, the CD extension per type):** Gartley 1.27 · Bat 1.618 · Butterfly 1.618 · Crab 2.618 · DeepCrab 2.24.
+- **Fit score** = mean closeness of the AB/CD/AD ratios to their ideals (**1.0 = bullseye, 0 = at a band edge**).
+
+**Logic:** the bands are the standard harmonic-trading ratios encoded faithfully, the ideal the textbook centre. The score is geometry-fit only — like Wolfe (§5c), the edge is **selection, tail-carried**, not the fit number; no fundable book is claimed until the reliability backtest clears.
+
 ## 6. Maintenance rule
 When any weight/anchor/threshold changes: (1) edit the **canonical code constant**; (2) update the **single** entry in this file; (3) if a UI/glossary surface shows it, have that surface **read/link** it — never hard-code a second copy. Reviewers check *this file* for "how is it calculated," not scattered code comments.

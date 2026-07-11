@@ -1938,6 +1938,14 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 115 — 2026-07-11 — Closed README reconciliation flag #3: `calculations-and-weights.md` now covers DVPT / MEP / CCI / Harmonic
+The last open *documentation* flag from the S109 strategy-doc build (flags 4–5 are a VPS check + a code build, not docs). `calculations-and-weights.md` (the "numbers live once in code, explained once here" canonical doc) had sections for Momentum / C / patearn / A-B / Conviction / Wolfe but **none for four descriptive lenses** — their constants lived only in code + `metrics-glossary.md`. Added, all real constants pulled from code + each with a `Canonical source` line + honesty fence, matching the house style:
+- **§5e DVPT** (`signals.py`) — the two-tier trigger: `_WINDOWS` 1m/2m/3m/6m/12m with power top-N 4/7/12/20/30, `p_score`→SS/S/A/B/C ladder, `_KEY_BAND (−1,5)` launch zone, `_CHAR_FETCH_DAYS 372`, the >30% corp-action guard.
+- **§5f MEP** (`mep_signals.py`) — four equal-weight (¼ each) within-stock z-terms pressure/clv/drift_22d/updown_vol_22d + the D65 phase hysteresis (`_SMOOTH_HI = [−0.40,−0.10,0.28,0.62]` / `_SMOOTH_LO = [−0.62,−0.28,0.10,0.40]` over 5 phases).
+- **§5g CCI** (`concall_scores.py` + `cci_series.py`) — `W_GA/W_QR = 0.65/0.35`, `UNPROVEN_CEILING 55`, `DETER_PEN_PER 6`, `RECENT_PERIODS 4` + the level formula.
+- **§5h Harmonic** (`harmonic_patterns.py`) — the `HARMONICS` XABCD acceptance bands + ideals for Gartley/Bat/Butterfly/Crab/DeepCrab + `_FIB_CD` PRZ projection + the mean-closeness fit score.
+README flags **1–3 now all RESOLVED** (4 = RS D67 VPS backfill, 5 = CPR `/cpr` unshipped — both non-doc). Docs-only; zero code touched. Commit `<S115-HASH>`.
+
 ### Session 114 — 2026-07-11 — Strategy-doc reconciliation sweep: Wolfe draw-tool status + README flags + a full D-number verification across all 9 pages
 Post-S113 doc-hygiene pass driven by the multi-lane churn (D-numbers keep colliding/renumbering — D111 alone meant "draw tool" then "§B rescore"). Three things, all docs-only, all on origin:
 - **Wolfe doc refreshed to reality** (`6b8e7bb`): the draw tool MERGED as **D113/S112** (`35a11e7`) — `docs/strategies/wolfe-wave.md` still said "unmerged branch feature (`8fc40dc`)", now corrected across the callout / §2 / §7 / §8 (added the D113 entry + the post-D111 G-widening) / §9. §5 **FLIP HAZARD → DEPLOY CAUTION** (lifecycle D109 + draw tool D113 are BOTH on main now — the git-level flip risk is closed; the deploy rule stands). Also de-pinned the §B max: G was widened 0-2→0-4 so **`_QUALITY_MAX` 25→27**; the page now references `_QUALITY_MAX` instead of a hard-coded number so the churn won't re-stale it. Header governing decisions D96/D108/D109/D111 → +**D113**.

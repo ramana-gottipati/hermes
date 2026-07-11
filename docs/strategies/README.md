@@ -86,7 +86,7 @@ full page on request.
 
 ## ⚠ Known reconciliation items (surfaced during the S109 build)
 
-Honest gaps the doc build found. **Items 1–2 have since been RESOLVED (D113 / D114); 3–5 remain open:**
+Honest gaps the doc build found. **Items 1–3 have since been RESOLVED; 4–5 remain open:**
 
 1. **✅ RESOLVED — Wolfe draw tool merged (D113 / S112, `35a11e7`).** It is now on main together with the
    D109 lifecycle layer (the abandoned branch commit `8fc40dc` was not used; the tool was provisionally
@@ -96,10 +96,10 @@ Honest gaps the doc build found. **Items 1–2 have since been RESOLVED (D113 / 
    computable adaptation is now mapped in [patterns.md](../../resources/patearn/patterns.md) § "Implementation
    mapping (scoring.py)", and the stale `# Pattern weights from patterns.md` comment is corrected — scoring
    output unchanged. See [patearn.md](patearn.md) §9.
-3. **`calculations-and-weights.md` coverage gap** — it has sections for Momentum / capital-allocation /
-   patearn / A-B / Conviction / Wolfe, but **none for DVPT, MEP, CCI, or Harmonic** — whose constants
-   currently live in code + `metrics-glossary.md`. Either add those sections or amend the "numbers live
-   in calculations-and-weights.md" doctrine to name the real owners.
+3. **✅ RESOLVED — `calculations-and-weights.md` now covers DVPT / MEP / CCI / Harmonic.** Added §5e (DVPT
+   two-tier trigger), §5f (MEP signed accum/distrib + phase hysteresis), §5g (CCI credibility weights),
+   §5h (Harmonic XABCD ratio bands) — real constants pulled from code, matching the house style. The
+   "numbers live in calculations-and-weights.md" doctrine now holds for every strategy page.
 4. **RS D67 size-index backfill** — the 11 cap-segment RS history requires a one-time VPS
    `index_signals --backfill`; **not verifiable from the repo** — confirm on the box. See [relative-strength.md](relative-strength.md) §9.
 5. **CPR Telegram `/cpr`** — designed (design §7) but **never shipped** (`telegram_bot.py` has no `cpr`
