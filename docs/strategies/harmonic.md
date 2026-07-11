@@ -2,7 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** LIVE (descriptive) · backtest-GATED · **Governing decision(s):** D72 (harmonic lane) · D71 (charting-overhaul parent) · **Reconciled:** 2026-07-11 (S111).
-> **Charter:** the single canonical definition + current-state reference for the harmonic lens. Deep design: [harmonic-pattern-design.md](../harmonic-pattern-design.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a ratio constant — it links.
+> **Charter:** the single canonical definition + current-state reference for the harmonic lens. Deep design: [harmonic-pattern-design.md](../harmonic-pattern-design.md). Numbers live in code + [calculations-and-weights.md §5h](../calculations-and-weights.md); this page never restates a ratio constant — it links.
 
 **One-line definition:** Harmonic patterns are five-point (X-A-B-C-D) price structures whose leg lengths match a named Fibonacci-ratio template (Gartley · Bat · Butterfly · Crab · Deep Crab), completing at a **D-point** inside a **Potential Reversal Zone (PRZ)** where the prior swing is expected to reverse.
 
@@ -136,7 +136,7 @@ The full result table and per-pattern breakdown live in [harmonic-pattern-design
 
 - **Design of record:** [harmonic-pattern-design.md](../harmonic-pattern-design.md) — ratio-template table (§2), the reliability benchmark (§3), scanner/UI (§4–§5b), open/next (§5).
 - **Strategy ledger:** [strategy-ledger.md](../strategy-ledger.md) — Tier-3 built analytical lenses ("Wolfe / Ignition / theme tags"); the Wolfe/harmonic **SELECTION-shape, tail-carried** characterization.
-- **Canonical numbers:** [calculations-and-weights.md](../calculations-and-weights.md) — the site's single weights explainer. ⚠ Harmonic ratio bands are **not yet folded in here**; they currently live in code (`HARMONICS`) + design §2 (see §8 / Maintenance).
+- **Canonical numbers:** [calculations-and-weights.md §5h](../calculations-and-weights.md) — the XABCD ratio bands (`HARMONICS`) + PRZ projection (`_FIB_CD`) are now folded in there (explains the code; code stays canonical).
 - **Code:** [harmonic_patterns.py](../../src/automation/harmonic_patterns.py) · [harmonic_signals.py](../../src/automation/harmonic_signals.py) · [harmonic_backtest.py](../../src/automation/harmonic_backtest.py) · [harmonic_view.py](../../src/web/harmonic_view.py).
 - **Memory:** `charting-overhaul-cpr-spine` (harmonic lane built + surfaced, XABCD+PRZ, descriptive).
 - **PROJECT_STATE:** [PROJECT_STATE.md](../../PROJECT_STATE.md) § Decision log (D71/D72), § Session log (S48/S49), § Database schema (`harmonic_signals`), § Telegram/nav (Markets "Patterns" lens).
@@ -146,7 +146,7 @@ The full result table and per-pattern breakdown live in [harmonic-pattern-design
 
 ## Maintenance
 
-- **Link, never duplicate.** Ratio constants stay in code (`HARMONICS`); if they are ever centralised into [calculations-and-weights.md](../calculations-and-weights.md), update §3/§10 to link there and delete the "not yet folded in" caveat.
+- **Link, never duplicate.** Ratio constants stay canonical in code (`HARMONICS`) and are explained in [calculations-and-weights.md §5h](../calculations-and-weights.md); update both together when a band changes.
 - **Code is authoritative over the design table.** If `harmonic_patterns.py` and design §2 disagree on a band, the code wins; reconcile the design doc, not this page.
 - **Keep the fence intact.** Any promotion beyond "descriptive / backtest-gated" requires a recorded, leak-free, cost-aware gate result (§4) and a new Decision-log entry — do not soften the honesty fence without it.
 - **On change:** new templates, a W/M re-gate, or a confluence column update §2/§5/§9 here and the design doc; bump **Reconciled** and add a Decision/Session pointer in §8.
