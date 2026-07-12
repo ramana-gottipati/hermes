@@ -90,6 +90,8 @@ import sqlite3
 import statistics
 from datetime import date
 
+from src.automation.adjust import adjusted_closes
+
 # --------------------------------------------------------------------------- #
 #  FROZEN-FAMILY MACHINE SPEC  (hashed into research.db.prereg_registry at P0)  #
 # --------------------------------------------------------------------------- #
@@ -181,6 +183,18 @@ MECHANISMS = [
 ]
 
 _PREREG_MODULE = "seasonal_tape"
+_PREREG_MODULE_STOCK = "seasonal_tape_stock"
+STOCK_RESIDUAL_MODEL = ("r = R_stock - (alpha + beta*R_market); market = Nifty 500 (MARKET-ONLY; "
+                        "sector strip DEFERRED - a stock sits in several Nifty sector indices AND "
+                        "sector history is back-calc capped at 2012)")
+STOCK_UNIVERSE_SPEC = {
+    "membership": "stock_index_membership index_name=Nifty 500 @ latest snapshot_date "
+                  "(current-membership => survivor-conditional, gate 11)",
+    "order": "company_profile.priority_rank asc (90d turnover liquidity)",
+    "returns": "corp-action-ADJUSTED bhavcopy_rows EQ close via adjust.adjusted_closes + "
+              "corp_actions.price_ratios; NEVER raw close/prev_close",
+    "min_obs": 250,
+}
 _NAN = float("nan")
 
 
@@ -204,6 +218,24 @@ def _canon_spec() -> dict:
 def frozen_family_hash() -> str:
     """sha256 over a canonical JSON of the whole frozen family (== gate_hash discipline)."""
     blob = json.dumps(_canon_spec(), sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _canon_spec_stock() -> dict:
+    """The exact object hashed for the STOCK (P2) frozen-family fingerprint — a SEPARATE
+    pre-registered family from the index/sector one (module='seasonal_tape_stock'). Built on TOP
+    of _canon_spec() (same axes/gates/mechanisms/defaults) plus the stock-only residual model and
+    universe spec, so it is deliberately a DIFFERENT hash — never conflated with frozen_family_hash()."""
+    spec = _canon_spec()
+    spec["module"] = _PREREG_MODULE_STOCK
+    spec["stock_residual_model"] = STOCK_RESIDUAL_MODEL
+    spec["stock_universe"] = STOCK_UNIVERSE_SPEC
+    return spec
+
+
+def frozen_family_hash_stock() -> str:
+    """sha256 over a canonical JSON of the STOCK frozen family (distinct from frozen_family_hash())."""
+    blob = json.dumps(_canon_spec_stock(), sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
@@ -563,6 +595,14 @@ def certify_cell(scope: str, axis: str, cell: int, stack: dict,
         g_mech_sign = _sign(script_z) == mech["sign"]
 
     colored = bool(g_years and g_null and fdr_pass and g_sign and g_mech_sign)
+    # Gate 7 (STOCK ONLY): a results-month (earnings-cadence mask) cell that would otherwise
+    # certify is re-badged PEAD-in-costume and force-DECERTIFIED — a script that survives ONLY
+    # because it collapses when the quarterly filing window is inside it is not a calendar
+    # tendency, it's the ledger-blocking PEAD wrapper wearing a different hat (ledger, 0.10 vs
+    # 0.85 bench). Index/sector cells are UNAFFECTED (no mask mechanism is registered for them).
+    mask_decert = bool(colored and scope == "stock" and mech and mech.get("kind") == "mask")
+    if mask_decert:
+        colored = False
     signed = colored and mech is not None and mech["kind"] == "signed"
     conf = 0.0
     if _finite(emp_block) and _finite(emp_rot):
@@ -585,6 +625,8 @@ def certify_cell(scope: str, axis: str, cell: int, stack: dict,
         flags.append(mech["kind"])
     if colored and not g_mech_sign:
         flags.append("sign-vs-pledge")
+    if mask_decert:
+        flags.append("mask-decert")
 
     return {
         "scope": scope, "axis": axis, "cell": cell,
@@ -668,6 +710,55 @@ def load_index_returns(conn: sqlite3.Connection, index_name: str) -> tuple[list,
     return dates[1:], ret
 
 
+def load_stock_returns(rconn: sqlite3.Connection, symbol: str) -> tuple[list, list]:
+    """Oldest-first daily %-change of one stock, CORP-ACTION-ADJUSTED (adjust.adjusted_closes fed
+    by corp_actions.price_ratios) — NEVER raw close/prev_close (ex-day prev_close does not
+    self-adjust; a raw return would inject a false split/bonus jump, S85e)."""
+    rows = [dict(r) for r in rconn.execute(
+        "SELECT trade_date, close, prev_close FROM bhavcopy_rows "
+        "WHERE symbol=? AND series='EQ' AND (segment='CM' OR segment IS NULL) "
+        "ORDER BY trade_date ASC", (symbol,)).fetchall()]
+    if len(rows) < 2:
+        return [], []
+    try:
+        from src.automation.corp_actions import price_ratios
+        events = price_ratios(rconn, symbol)
+    except Exception:  # noqa: BLE001 — the tape must never fail a compute; falls back to inference
+        events = {}
+    adj = adjusted_closes(rows, events)
+    dates = [str(r["trade_date"])[:10] for r in rows]
+    ret = [(adj[i] / adj[i - 1] - 1.0)
+           if (adj[i] is not None and adj[i] > 0 and adj[i - 1] is not None and adj[i - 1] > 0)
+           else _NAN
+           for i in range(1, len(adj))]
+    return dates[1:], ret
+
+
+def stock_universe(rconn: sqlite3.Connection, limit: int | None = None) -> list:
+    """Nifty 500 constituents @ latest snapshot_date, ordered by company_profile.priority_rank
+    (90d turnover liquidity) ascending, unranked names last — the frozen STOCK_UNIVERSE_SPEC
+    membership/order. Current-membership only (survivor-conditional, gate 11)."""
+    row = rconn.execute(
+        "SELECT MAX(snapshot_date) FROM stock_index_membership WHERE index_name='Nifty 500'").fetchone()
+    snap = row[0] if row else None
+    if not snap:
+        return []
+    has_profile = rconn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='company_profile'").fetchone()
+    if has_profile:
+        rows = rconn.execute(
+            "SELECT m.symbol AS symbol FROM stock_index_membership m "
+            "LEFT JOIN company_profile p ON p.symbol = m.symbol "
+            "WHERE m.index_name='Nifty 500' AND m.snapshot_date=? "
+            "ORDER BY (p.priority_rank IS NULL), p.priority_rank ASC, m.symbol ASC", (snap,)).fetchall()
+    else:  # defensive: company_profile is populated by a separate enrichment pass (enrich.py)
+        rows = rconn.execute(
+            "SELECT symbol FROM stock_index_membership WHERE index_name='Nifty 500' "
+            "AND snapshot_date=? ORDER BY symbol ASC", (snap,)).fetchall()
+    out = [r["symbol"] for r in rows]
+    return out[:limit] if limit is not None else out
+
+
 def _aligned(a_dates, a_vals, b_dates, b_vals):
     """Inner-join two oldest-first daily series on date -> (dates, a, b)."""
     bmap = dict(zip(b_dates, b_vals))
@@ -678,10 +769,16 @@ def _aligned(a_dates, a_vals, b_dates, b_vals):
     return ds, av, bv
 
 
-def compute_entity(dates: list, ret: list, scope: str, market: list | None = None) -> dict:
-    """Full per-entity pipeline for all three axes. Returns cells/stack/outlook payloads."""
+def compute_entity(dates: list, ret: list, scope: str, market: list | None = None,
+                   resid_scope: str | None = None) -> dict:
+    """Full per-entity pipeline for all three axes. Returns cells/stack/outlook payloads.
+
+    `resid_scope` (optional) lets the RESIDUAL MATH differ from the storage/certification
+    `scope` — the P2 stock market-only residual reuses the ALREADY-TESTED scope='sector' path
+    (strip market only) via resid_scope='sector', while every cell is still stored/labeled/
+    certified as scope='stock' (mechanism registry + gate 7 mask-decert apply correctly)."""
     g = GATES
-    resid = pit_residuals(dates, ret, scope, market=market, warmup_years=g["warmup_years"])
+    resid = pit_residuals(dates, ret, resid_scope or scope, market=market, warmup_years=g["warmup_years"])
     if sum(1 for r in resid if _finite(r)) < 250:
         return {}
     result = {"cells": [], "stack": [], "outlook": []}
@@ -817,6 +914,42 @@ def backfill(read_path: str, write_path: str, scope: str = "all", limit: int | N
     return counts
 
 
+def backfill_stocks(read_path: str, write_path: str, limit: int | None = None) -> dict:
+    """Compute + persist the bounded snapshot for STOCK entities (P2) — the MARKET-ONLY residual
+    (resid_scope='sector' math, scope='stock' storage/certification), a SEPARATE pre-registered
+    frozen family (frozen_family_hash_stock()). Mirrors backfill()'s per-entity commit discipline
+    exactly; read-only on the archive; NEVER touches the index/sector frozen family or its rows."""
+    rconn = _ro(read_path)
+    wconn = sqlite3.connect(write_path, timeout=60)
+    wconn.executescript(_SCHEMA)
+    wconn.execute("INSERT OR REPLACE INTO seasonal_meta VALUES ('frozen_family_stock_sha256', ?)",
+                  (frozen_family_hash_stock(),))
+    wconn.commit()
+    counts = {"stock": 0, "colored": 0, "skipped": 0}
+    try:
+        mkt_stored = _resolve_names(rconn, [MARKET]).get(MARKET, MARKET)
+        market_dates, market_ret = load_index_returns(rconn, mkt_stored)
+        for sym in stock_universe(rconn, limit):
+            dates, ret = load_stock_returns(rconn, sym)
+            if len(dates) < 250:
+                counts["skipped"] += 1
+                continue
+            ad, av, mk = _aligned(dates, ret, market_dates, market_ret)
+            if len(ad) < 250:
+                counts["skipped"] += 1
+                continue
+            payload = compute_entity(ad, av, "stock", market=mk, resid_scope="sector")
+            if not payload:
+                counts["skipped"] += 1
+                continue
+            _write(wconn, "stock", sym, payload)
+            counts["stock"] += 1
+            counts["colored"] += sum(1 for v in payload["cells"] if v["colored"])
+    finally:
+        rconn.close(); wconn.close()
+    return counts
+
+
 def stats(path: str) -> dict:
     con = _ro(path)
     try:
@@ -841,28 +974,33 @@ def _research_db() -> str:
     return os.environ.get("HERMES_RESEARCH_DB", "/opt/hermes/data/research.db")
 
 
-def register(force: bool = False, db_path: str | None = None) -> dict:
+def register(force: bool = False, db_path: str | None = None,
+             module: str | None = None, hash_fn=None) -> dict:
     """P0: write frozen_family_hash() into research.db.prereg_registry (first-registration-wins,
-    tamper-evident). Standalone path — does NOT touch the in-flight explosive_moves.prereg STUDIES."""
+    tamper-evident). Standalone path — does NOT touch the in-flight explosive_moves.prereg STUDIES.
+    `module`/`hash_fn` (optional) let the STOCK family register under its own module id + hash
+    (module='seasonal_tape_stock', hash_fn=frozen_family_hash_stock) without touching this path's
+    zero-arg (index/sector) behavior."""
     import datetime
     path = db_path or _research_db()
-    h = frozen_family_hash()
+    mod = module or _PREREG_MODULE
+    h = (hash_fn or frozen_family_hash)()
     con = sqlite3.connect(path, timeout=30)
     try:
         con.execute("CREATE TABLE IF NOT EXISTS prereg_registry (module TEXT PRIMARY KEY, "
                     "gate_sha256 TEXT NOT NULL, registered_at TEXT NOT NULL, note TEXT)")
-        cur = con.execute("SELECT gate_sha256 FROM prereg_registry WHERE module=?", (_PREREG_MODULE,)).fetchone()
+        cur = con.execute("SELECT gate_sha256 FROM prereg_registry WHERE module=?", (mod,)).fetchone()
         now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
         if cur is None:
             con.execute("INSERT INTO prereg_registry VALUES (?,?,?,?)",
-                        (_PREREG_MODULE, h, now, "frozen BEFORE first compute"))
+                        (mod, h, now, "frozen BEFORE first compute"))
             con.commit()
             return {"action": "registered", "sha256": h, "at": now}
         if cur[0] == h:
             return {"action": "already-registered", "sha256": h}
         if force:
             con.execute("UPDATE prereg_registry SET gate_sha256=?, registered_at=?, note=? WHERE module=?",
-                        (h, now, "FORCED re-register", _PREREG_MODULE))
+                        (h, now, "FORCED re-register", mod))
             con.commit()
             return {"action": "forced", "sha256": h, "was": cur[0]}
         return {"action": "TAMPER", "stored": cur[0], "current": h}
@@ -870,16 +1008,18 @@ def register(force: bool = False, db_path: str | None = None) -> dict:
         con.close()
 
 
-def verify(db_path: str | None = None) -> dict:
+def verify(db_path: str | None = None, module: str | None = None, hash_fn=None) -> dict:
+    """Tamper-check the freeze. `module`/`hash_fn` mirror register()'s STOCK-family override."""
     path = db_path or _research_db()
+    mod = module or _PREREG_MODULE
     con = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=30)
     try:
-        cur = con.execute("SELECT gate_sha256 FROM prereg_registry WHERE module=?", (_PREREG_MODULE,)).fetchone()
+        cur = con.execute("SELECT gate_sha256 FROM prereg_registry WHERE module=?", (mod,)).fetchone()
     except sqlite3.OperationalError:
         cur = None
     finally:
         con.close()
-    h = frozen_family_hash()
+    h = (hash_fn or frozen_family_hash)()
     if cur is None:
         return {"ok": False, "reason": "not-registered", "current": h}
     return {"ok": cur[0] == h, "stored": cur[0], "current": h}
@@ -993,6 +1133,40 @@ def _selftest() -> int:
     assert verify(db_path=tmp)["ok"], "verify should pass right after register"
     os.remove(tmp)
 
+    # 9b) STOCK frozen family (P2) is pre-registered under its OWN module + a DISTINCT hash — it
+    # must never conflate with the index/sector family (frozen 2882ccbc...).
+    hs1 = frozen_family_hash_stock()
+    assert hs1 != h1 and len(hs1) == 64, hs1
+    tmp2 = os.path.join(tempfile.gettempdir(), "seasonal_prereg_stock_selftest.db")
+    if os.path.exists(tmp2):
+        os.remove(tmp2)
+    rs_reg = register(db_path=tmp2, module=_PREREG_MODULE_STOCK, hash_fn=frozen_family_hash_stock)
+    assert rs_reg["action"] == "registered" and rs_reg["sha256"] == hs1, rs_reg
+    vs = verify(db_path=tmp2, module=_PREREG_MODULE_STOCK, hash_fn=frozen_family_hash_stock)
+    assert vs["ok"], "stock verify should pass right after stock register"
+    # the plain (index/sector) module id must still be absent from this fresh DB
+    assert verify(db_path=tmp2)["reason"] == "not-registered"
+    os.remove(tmp2)
+
+    # 9c) the P2 stock market-only residual REUSES the already-tested scope='sector' math
+    # (resid_scope='sector') while storing/certifying as scope='stock'; no stock mechanism is
+    # ever 'signed' (M-RESULTS is mask-only), so every stock cell must have signed==False.
+    stock_payload = compute_entity(dts, sret, "stock", market=mret, resid_scope="sector")
+    assert stock_payload and stock_payload["cells"], "empty stock payload"
+    assert all(not c["signed"] for c in stock_payload["cells"]), "stock cells must never be signed"
+
+    # 9d) gate 7 fix: a stock cell in an earnings-cadence MASK month (M-RESULTS: 1,4,7,10) that
+    # clears every other gate is FORCE-DECERTIFIED (PEAD-in-costume) — an identical index/sector
+    # cell in the same month is UNAFFECTED (no mask mechanism registered for those scopes).
+    fake_years = list(range(2001, 2021))                      # 20 years, uniform +1.0sigma
+    fake_stack = {(4, y): (1.0, 250) for y in fake_years}      # month=4 -> in M-RESULTS cells
+    fake_nb = {4: {"emp_p": 0.001, "null_p95": 0.5}}
+    fake_nr = {4: {"emp_p": 0.001, "null_p95": 0.5}}
+    cell_stock = certify_cell("stock", "month", 4, fake_stack, fake_nb, fake_nr, True, GATES)
+    assert cell_stock["colored"] is False and "mask-decert" in cell_stock["gate_flags"], cell_stock
+    cell_index = certify_cell("index", "month", 4, fake_stack, fake_nb, fake_nr, True, GATES)
+    assert cell_index["colored"] is True, cell_index
+
     # 10) end-to-end DB write to an in-memory-ish temp hermes.db
     import tempfile as _t
     tmpdb = os.path.join(_t.gettempdir(), "seasonal_engine_selftest.db")
@@ -1013,7 +1187,8 @@ def _selftest() -> int:
     os.remove(tmpdb)
 
     print(f"seasonal_tape selftest OK — leak-free z, market-strip, 2 non-inert nulls, gates, "
-          f"DB roundtrip, frozen-family {h1[:12]} (cf. E-11 e9bd1a7f / E-12 c3f48a42)")
+          f"DB roundtrip, frozen-family {h1[:12]} / stock-family {hs1[:12]} (distinct, mask-decert "
+          f"verified) (cf. E-11 e9bd1a7f / E-12 c3f48a42)")
     return 0
 
 
@@ -1022,8 +1197,15 @@ if __name__ == "__main__":
     argv = sys.argv[1:]
     if not argv or "--selftest" in argv:
         raise SystemExit(_selftest())
+    if "--register-stock" in argv:
+        print(register(module=_PREREG_MODULE_STOCK, hash_fn=frozen_family_hash_stock,
+                       force="--force" in argv))
+        raise SystemExit(0)
     if "--register" in argv:
         print(register(force="--force" in argv)); raise SystemExit(0)
+    if "--verify-stock" in argv:
+        v = verify(module=_PREREG_MODULE_STOCK, hash_fn=frozen_family_hash_stock)
+        print(v); raise SystemExit(0 if v.get("ok") else 1)
     if "--verify" in argv:
         v = verify(); print(v); raise SystemExit(0 if v.get("ok") else 1)
     if "--stats" in argv:
@@ -1037,6 +1219,10 @@ if __name__ == "__main__":
             if i + 1 < len(argv):
                 scope = argv[i + 1]
         lim = int(argv[argv.index("--limit") + 1]) if "--limit" in argv else None
-        print(backfill(str(DB_PATH), str(DB_PATH), scope=scope, limit=lim))
+        if scope == "stock":
+            print(backfill_stocks(str(DB_PATH), str(DB_PATH), limit=lim))
+        else:
+            print(backfill(str(DB_PATH), str(DB_PATH), scope=scope, limit=lim))
         raise SystemExit(0)
-    print("usage: --selftest | --register [--force] | --verify | --backfill [--scope index|sector|all] [--limit N] | --stats")
+    print("usage: --selftest | --register [--force] | --register-stock [--force] | --verify | "
+          "--verify-stock | --backfill [--scope index|sector|stock|all] [--limit N] | --stats")

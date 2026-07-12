@@ -1580,11 +1580,16 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
              '<a class="row" style="display:inline" href="/dash/markets">Markets</a> · '
              '<a class="row" style="display:inline" href="/dash/sectors">Sectors</a></div>')
     # Price first (own candles) → today's snapshot → relative strength (RS heat +
-    # ratio chart) → RS BAND (the level lens) → constituent roll-up. Price leads.
+    # ratio chart) → RS BAND (the level lens) → seasonal card → constituent roll-up. Price leads.
     from src.web.rsband_view import band_section          # additive; '' for broad/size indices
     band_block = band_section(num=idx)
+    try:                                                   # LAZY import (seasonal_view imports
+        from src.web.seasonal_view import seasonal_card    # dashboard._shell/_esc at module load)
+        season_block = seasonal_card("index" if is_broad else "sector", idx)
+    except Exception:  # noqa: BLE001 — honest-empty; must never break the index page
+        season_block = ""
     return (_CKPT_CSS + chart_css + crumb + head + banner + chart_html + snapshot
-            + rs_block + band_block + rollup + chart_js)
+            + rs_block + band_block + season_block + rollup + chart_js)
 
 
 # --- Launchpad: the data-validated explosive-move SETUP screen (D56) ----------

@@ -6668,6 +6668,15 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     except Exception:                        # noqa: BLE001
         news_html = '<div class="sub mut" style="margin:12px 0">News timeline unavailable.</div>'
 
+    # Seasonal tape card (P2 stock scope) — LAZY import: seasonal_view does a top-level
+    # `from src.web.dashboard import _shell, _esc`, so importing it at module scope here would
+    # be circular. Defensive: '' (honest-empty) for any symbol without a P2 backfill yet.
+    try:
+        from src.web.seasonal_view import seasonal_card as _seasonal_card
+        season_html = _seasonal_card('stock', sym, heading=False)
+    except Exception:                        # noqa: BLE001
+        season_html = ''
+
     # D54 — Track capture: build a frozen-snapshot preview for the action loop.
     _ix = _xpower(L)
     _kg = L.get("gap_to_key_p3m")
@@ -6763,7 +6772,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     _tabs = [("price", "Price"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
              ("rs", "Relative Strength"),
              ("qual", "Quality"), ("cpr", "Structure · CPR"), ("cci", "Credibility · CCI"),
-             ("news", "News")]
+             ("news", "News"), ("seasonal", "Seasonal")]
     if fno_html:                              # F&O tab only for single-stock-futures names
         _tabs.append(("fno", "F&O · OI"))
     fno_pane = (f'<div class="tabpane" data-tab="fno" style="display:none">{fno_html}</div>'
@@ -6889,6 +6898,9 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 </div>
 <div class="tabpane" data-tab="news" style="display:none">
 {news_html}
+</div>
+<div class="tabpane" data-tab="seasonal" style="display:none">
+{season_html}
 </div>
 {fno_pane}
 

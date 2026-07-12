@@ -22,6 +22,7 @@ from __future__ import annotations
 import sqlite3
 import statistics
 from functools import lru_cache
+from urllib.parse import quote
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
@@ -127,6 +128,83 @@ def _compute(scope: str, entity: str, db_path: str):
     return {"years": years, "smap": smap, "cmap": cmap, "omap": omap}
 
 
+def _consensus_ribbon_cells(d: dict, order: list) -> list:
+    """The consensus-ribbon cell list: (month label, signed value) per dash_seasonal's Consensus
+    script panel — t = sign(script_z)*conf for certified months, None (greyed, filtered by
+    heat_ribbon) otherwise. Extracted so seasonal_card can reuse the IDENTICAL read."""
+    cells = []
+    for m in order:
+        c = d["cmap"].get(m)
+        if c and c.get("colored") and c.get("script_z") is not None:
+            sign = 1.0 if c["script_z"] >= 0 else -1.0
+            cells.append((_MONTH_ABBR[m], sign * float(c.get("conf") or 0.0)))
+        else:
+            cells.append((_MONTH_ABBR[m], None))     # greyed -> filtered by heat_ribbon
+    return cells
+
+
+_CARD_CSS = (
+    "<style>"
+    ".sc-card{background:var(--bg-1);border:1px solid var(--line);border-radius:13px;"
+    "padding:14px 16px;margin:0 0 14px;max-width:620px;}"
+    ".sc-card .sc-h{font-size:14px;font-weight:700;margin:0 0 8px;color:var(--ink);}"
+    ".sc-card .sc-bl{font-size:13px;line-height:1.5;color:var(--ink);margin:0 0 8px;}"
+    ".sc-card .sc-note{font-size:11.5px;color:var(--ink-3);margin:6px 0 8px;}"
+    ".sc-card .sc-fence{font-size:11px;color:var(--ink-2);line-height:1.5;border-left:2px solid var(--warn);"
+    "padding:6px 10px;margin:8px 0;background:rgba(var(--warn-rgb),.05);border-radius:0 8px 8px 0;}"
+    ".sc-card .sc-fence ul{margin:2px 0 4px;padding-left:16px;}"
+    ".sc-card .sc-fence b{color:var(--ink);}"
+    ".sc-card a{color:var(--accent-cy);text-decoration:none;font-size:12px;}"
+    "</style>"
+)
+
+
+def seasonal_card(scope: str, entity: str, *, db_path: str | None = None, heading: bool = True) -> str:
+    """Reusable COMPACT seasonal card for embedding in another lens (the stock detail page's
+    Seasonal tab, the index/sector detail page). Resolves `entity` case-insensitively against the
+    frozen universe for `scope` (index_rows/index casing is inconsistent; stock symbols are usually
+    already upper). Returns '' (honest-empty) when the scope/entity has no snapshot coverage — a
+    silent no-op for the caller, never a fabricated card.
+
+    DESCRIPTIVE-ONLY FENCE: reads ONLY seasonal_cells + seasonal_stack (via _compute) — this card
+    must NEVER read or surface seasonal_outlook (the forward 1-month horizon + traffic-light read);
+    that stays exclusive to the full /dash/seasonal-tape page. `d["omap"]` is deliberately unused."""
+    path = db_path or _DB_PATH
+    ents = _entities(scope, path)
+    if not ents:
+        return ''
+    resolved = {e.upper(): e for e in ents}.get((entity or "").strip().upper())
+    if not resolved:
+        return ''
+    d = _compute(scope, resolved, path)
+    if not d:
+        return ''
+    certified = [c for c in d["cmap"].values() if c.get("colored")]
+    if certified:
+        names = ", ".join(sorted(_MONTH_ABBR[c["cell"]] for c in certified))
+        bl = (f'<b>{_esc(resolved)}</b>: <b>{_esc(names)}</b> survive(s) the full certification stack '
+              '— historically hot/cold after stripping the market, with a named mechanism behind each.')
+    else:
+        bl = (f'<b>{_esc(resolved)}</b>: no calendar cell survives certification — '
+              'indistinguishable from chance.')
+    heading_html = ('<div class="sc-h">Seasonal tape <small style="font-weight:400;color:var(--ink-3);'
+                    'font-size:11px">25-year calendar seasonality</small></div>') if heading else ''
+    caveats = '<li>Single-day residual spikes may reflect an un-taped corporate action.</li>'
+    if scope == 'stock':
+        caveats += '<li>Current-membership universe — survivor-conditional.</li>'
+    link = f'/dash/seasonal-tape?scope={scope}&entity={quote(resolved)}'
+    return (
+        _CARD_CSS
+        + '<div class="sc-card">' + heading_html
+        + f'<div class="sc-bl">{bl}</div>'
+        + ifx.heat_ribbon(_consensus_ribbon_cells(d, _FISCAL_ORDER), w=560, h=34)
+        + f'<div class="sc-note">{len(certified)} of 12 months certified; the rest '
+          'indistinguishable from chance.</div>'
+        + f'<div class="sc-fence"><ul>{caveats}</ul><b>Descriptive calendar context, never a signal.</b></div>'
+        + f'<div><a href="{_esc(link)}">Open the full seasonal tape →</a></div>'
+        + '</div>')
+
+
 def _drill_panel(scope: str, entity: str, d: dict, month: int, order: list) -> str:
     """Server-rendered breakdown for one month cell: the per-year z values behind the script."""
     label = _MONTH_ABBR.get(month, str(month))
@@ -165,14 +243,18 @@ def _drill_panel(scope: str, entity: str, d: dict, month: int, order: list) -> s
 
 @router.get("/dash/seasonal-tape", response_class=HTMLResponse)
 def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill: str = "") -> HTMLResponse:
-    scope = scope if scope in ("index", "sector") else "index"
+    scope = scope if scope in ("index", "sector", "stock") else "index"
     order = _CAL_ORDER if cal == "cy" else _FISCAL_ORDER
     body = [_CSS, ifx.readability_css()]
     try:
         ents = _entities(scope, _DB_PATH)
         if not ents:
             raise LookupError("no snapshot")
-        if entity not in ents:
+        if scope == "stock":
+            # ~500-symbol universe — case-insensitive resolve (deep-links from the stock card use
+            # the upper-cased symbol already, but never trust the caller's casing).
+            entity = {e.upper(): e for e in ents}.get((entity or "").strip().upper()) or ents[0]
+        elif entity not in ents:
             entity = ents[0]
         d = _compute(scope, entity, _DB_PATH)
         if not d:
@@ -197,10 +279,18 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
         # controls: scope + entity + calendar
         scope_tabs = "".join(
             f'<a class="{"on" if scope==s else ""}" href="/dash/seasonal-tape?scope={s}">{lbl}</a>'
-            for s, lbl in (("index", "Index"), ("sector", "Sector")))
-        ent_chips = "".join(
-            f'<a class="{"on" if e==entity else ""}" href="/dash/seasonal-tape?scope={scope}&entity={_esc(e)}&cal={cal}">{_esc(e)}</a>'
-            for e in ents)
+            for s, lbl in (("index", "Index"), ("sector", "Sector"), ("stock", "Stock")))
+        if scope == "stock":
+            # ~500-symbol universe — never render the full chip row; show only the current entity
+            # (reached via a deep-link from the stock's own seasonal card) + a count note.
+            ent_chips = (f'<a class="on" href="/dash/seasonal-tape?scope=stock&entity={_esc(entity)}'
+                        f'&cal={cal}">{_esc(entity)}</a>'
+                        f'<span class="st-chip" style="margin-left:8px">{len(ents)} stocks covered — '
+                        'reach one from its own /dash/stock page (Seasonal tab)</span>')
+        else:
+            ent_chips = "".join(
+                f'<a class="{"on" if e==entity else ""}" href="/dash/seasonal-tape?scope={scope}&entity={_esc(e)}&cal={cal}">{_esc(e)}</a>'
+                for e in ents)
         cal_tabs = "".join(
             f'<a class="{"on" if cal==c else ""}" href="/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}&cal={c}">{lbl}</a>'
             for c, lbl in (("fy", "Apr–Mar"), ("cy", "Jan–Dec")))
@@ -226,14 +316,7 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             + '</div>')
 
         # consensus ribbon: t = sign(script_z)*conf, colored cells only (paleness = 1-emp_p)
-        ribbon_cells = []
-        for m in order:
-            c = d["cmap"].get(m)
-            if c and c.get("colored") and c.get("script_z") is not None:
-                sign = 1.0 if c["script_z"] >= 0 else -1.0
-                ribbon_cells.append((_MONTH_ABBR[m], sign * float(c.get("conf") or 0.0)))
-            else:
-                ribbon_cells.append((_MONTH_ABBR[m], None))     # greyed -> filtered by heat_ribbon
+        ribbon_cells = _consensus_ribbon_cells(d, order)
         body.append(
             '<div class="st-panel"><div class="st-h">Consensus script '
             '<small>— hue = direction, paleness = uncertainty; only certified months are drawn</small></div>'
@@ -377,7 +460,26 @@ def _selftest() -> int:
         # honest-empty path (unknown scope-entity still 200)
         r4 = c.get("/dash/seasonal-tape?scope=index&entity=DoesNotExist")
         assert r4.status_code == 200
-        print("seasonal_view selftest OK — stack + consensus + outlook + drill render; empty-state safe")
+        # scope=stock is now whitelisted (no snapshot in this tmp DB -> honest empty-state page)
+        r5 = c.get("/dash/seasonal-tape?scope=stock&entity=DOESNOTEXIST")
+        assert r5.status_code == 200
+
+        # seasonal_card: the reusable embed — non-empty for a covered sector, with the deep-link
+        # + a ribbon (SVG); case-insensitive entity resolution.
+        card = seasonal_card("sector", "nifty auto", db_path=tmp)
+        assert card, "seasonal_card should render for a covered sector (case-insensitive)"
+        assert "/dash/seasonal-tape?scope=sector" in card and "entity=Nifty%20Auto" in card, \
+            "card missing the seasonal-tape deep-link"
+        assert "<svg" in card, "card missing the consensus ribbon"
+        # honest-empty: no stock snapshot at all in this tmp DB
+        assert seasonal_card("stock", "DOESNOTEXIST", db_path=tmp) == "", \
+            "seasonal_card should honest-empty for an uncovered stock"
+        # DESCRIPTIVE-ONLY FENCE: the card must never leak the forward-outlook / traffic-light read
+        for token in ("1M", "🟢", "🟡", "⚪", "Forward outlook"):
+            assert token not in card, f"seasonal_card leaked a forward-outlook token: {token!r}"
+
+        print("seasonal_view selftest OK — stack + consensus + outlook + drill render; stock scope "
+              "wired; seasonal_card embeds + honest-empties + fences the forward outlook")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
