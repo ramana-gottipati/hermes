@@ -1140,6 +1140,325 @@ def latest_scan(conn, universe="nifty500"):
             "fresh": recs[0][15]}
 
 
+# --------------------------------------------------------------------------- #
+# OPEN TRADES — "remaining ROI" view (2026-07-12, additive; PLAN doc            #
+# docs/wolfe-open-trades-PLAN.md). The FRESH winner_scan above is age-capped    #
+# (≤15 bars) — it surfaces only the just-printed calls. open_scan drops the age #
+# cap and instead keeps every winner-profile setup whose EPA (1-4) target is    #
+# NOT yet reached (`epa_touched` False) → the population of OPEN trades with run #
+# still left, at ANY age. It ADDS from-CMP metrics (run%/risk%/R:R) + enriches  #
+# each row with size / sector-tags / liquidity / RS so the view can filter.     #
+# It does NOT touch detection, §A geometry, §B scoring, winner_scan, the         #
+# crossing rule, or point-4 reconciliation. Descriptive-only — Wolfe carries no #
+# buy/sell signal; the validated +edge is measured on FRESH ≤15d entries only,  #
+# older open trades are badged "open · judge the run" (never hidden).           #
+# --------------------------------------------------------------------------- #
+# Size buckets — the four that PARTITION Nifty 500 exactly (50+50+150+250=500),  #
+# plus Microcap 250 (outside Nifty 500, the inclusive cohort). Keys are the      #
+# canonical NSE title-case index_name strings (src/automation/membership.py).   #
+_OPEN_SIZE_BUCKETS = ("Nifty 50", "Nifty Next 50", "Nifty Midcap 150",
+                      "Nifty Smallcap 250", "Nifty Microcap 250")
+# short labels for the size column / the filter dropdown values.
+_OPEN_SIZE_SHORT = {"Nifty 50": "N50", "Nifty Next 50": "Next50",
+                    "Nifty Midcap 150": "Mid150", "Nifty Smallcap 250": "Small250",
+                    "Nifty Microcap 250": "Micro250"}
+
+
+def open_metrics(cmp_, epa, sl, bull):
+    """Reward:risk if you ENTER NOW, measured from the CURRENT price (CMP):
+      run%  = remaining move to the EPA target  (BULL (epa−cmp)/cmp · BEAR (cmp−epa)/cmp)
+      risk% = distance to the stop              (BULL (cmp−sl)/cmp  · BEAR (sl−cmp)/cmp)
+      R:R   = run% / risk% (None when risk%≤0 — no valid stop distance from here).
+    Distinct from the scanner's `up%`, which is room from the ZONE, not from CMP."""
+    if not cmp_:
+        return {"run": None, "risk": None, "rr": None}
+    if bull:
+        run = (epa - cmp_) / cmp_ * 100.0
+        risk = (cmp_ - sl) / cmp_ * 100.0
+    else:
+        run = (cmp_ - epa) / cmp_ * 100.0
+        risk = (sl - cmp_) / cmp_ * 100.0
+    run, risk = round(run, 1), round(risk, 1)
+    rr = round(run / risk, 2) if (risk and risk > 0) else None
+    return {"run": run, "risk": risk, "rr": rr}
+
+
+def enrich_open_rows(conn, rows):
+    """Attach descriptive metadata to each open_scan row from ONE batch query per
+    source — size bucket (latest membership snapshot), sector tags (company_tags,
+    multi-label, approved), liquidity (traded ₹cr + delivery%) and RS rank (latest
+    stock_signals). Metadata only — never touches geometry/score. Mutates + returns."""
+    if not rows:
+        return rows
+    size_of, tags_of, sig = {}, {}, {}
+    try:                                      # size — each sym in exactly ONE of the buckets
+        ph = ",".join("?" * len(_OPEN_SIZE_BUCKETS))
+        for sym, idx in conn.execute(
+                "SELECT symbol,index_name FROM stock_index_membership "
+                f"WHERE index_name IN ({ph}) AND snapshot_date=("
+                "  SELECT MAX(snapshot_date) FROM stock_index_membership sm2 "
+                "  WHERE sm2.index_name=stock_index_membership.index_name)",
+                _OPEN_SIZE_BUCKETS).fetchall():
+            size_of[sym] = idx
+    except Exception:
+        pass
+    try:                                      # sector tags — multi-label, live only
+        for sym, tag in conn.execute(
+                "SELECT symbol,tag FROM company_tags WHERE approved=1").fetchall():
+            tags_of.setdefault(sym, set()).add(tag)
+    except Exception:
+        pass
+    try:                                      # liquidity + RS + primary_sector (latest signals)
+        d = conn.execute("SELECT MAX(trade_date) FROM stock_signals").fetchone()
+        d = d[0] if d else None
+        if d:
+            for sym, rs, sec, tv, dv in conn.execute(
+                    "SELECT symbol,rs_rank,primary_sector,total_value_today,"
+                    "delivery_value_today FROM stock_signals WHERE trade_date=?",
+                    (d,)).fetchall():
+                sig[sym] = {"rs": rs, "sec": sec,
+                            "tv_cr": (round(tv / 1e7, 1) if tv else None),
+                            "deliv_pct": (round(dv / tv * 100.0, 1)
+                                          if (tv and dv is not None and tv > 0) else None)}
+    except Exception:
+        pass
+    for r in rows:
+        sm = size_of.get(r["sym"])
+        r["size"] = _OPEN_SIZE_SHORT.get(sm, sm)
+        r["tags"] = sorted(tags_of.get(r["sym"], []))
+        s = sig.get(r["sym"], {})
+        r["rs"] = s.get("rs")
+        r["psector"] = s.get("sec")
+        r["tv_cr"] = s.get("tv_cr")
+        r["deliv_pct"] = s.get("deliv_pct")
+    return rows
+
+
+def open_scan(conn, universe="nifty500"):
+    """OPEN winner-profile Wolfe trades — point 5 printed, EPA (1-4) NOT yet reached
+    (run still left), ANY age. Mirrors winner_scan's row shape but drops the fresh
+    age-cap and instead keeps `not epa_touched`, then adds the from-CMP run%/risk%/R:R
+    and enriches (size/sector/liquidity/RS). Sorted most-room-first (actionable first).
+    The heavy path — persist via persist_open_scan and read via latest_open_scan."""
+    out = []
+    for sym in scan_universe(conn, universe):
+        s = stock_series(conn, sym)
+        if not s:
+            continue
+        dates, _o, highs, lows, closes = s
+        n = len(closes)
+        cmp_ = closes[-1]
+        waves, _ = detect_waves(highs, lows, closes)
+        for w in waves:
+            if w.state != "CONFIRMED" or not w.p5 or not is_winner_profile(w.score):
+                continue
+            if epa_touched(w, highs, lows, n):      # CLOSED — target reached, no run left
+                continue
+            _e12, _e34, zones = fib_zones(w.p[0].price, w.p[1].price, w.p[2].price,
+                                          w.p[3].price, direction=w.direction)
+            if not zones:
+                continue
+            bull = w.direction == "BULL"
+            z = sorted(zones, key=lambda zz: (-zz["price"] if bull else zz["price"]))[0]
+            sl = z["low"] * 0.997 if bull else z["high"] * 1.003
+            t1 = t1_confluence(w.p, w.direction)
+            epa = w.p[0].price + w.epa_slope * (n - 1 - w.p[0].idx)
+            up = abs(epa - z["price"]) / z["price"] * 100.0 if z["price"] else 0.0
+            m = open_metrics(cmp_, epa, sl, bull)
+            # INVALIDATED = price has fallen through the stop (BULL cmp<sl / BEAR cmp>sl):
+            # still technically open (EPA untouched) but the setup is broken — kept per
+            # "nothing discarded", flagged, and sunk to the bottom of every sort so a
+            # blown trade never masquerades as "best remaining ROI".
+            invalid = bool((bull and cmp_ < sl) or ((not bull) and cmp_ > sl))
+            out.append({
+                "sym": sym, "dir": w.direction, "cmp": round(cmp_, 1),
+                "zlo": round(z["low"], 1), "zhi": round(z["high"], 1), "zprice": round(z["price"], 1),
+                "sl": round(sl, 1), "t1": (round(t1, 1) if t1 else None), "epa": round(epa, 1),
+                "up": round(up, 1), "age": n - 1 - w.p5.idx, "Q": w.score["total"],
+                "run": m["run"], "risk": m["risk"], "rr": m["rr"], "invalid": invalid,
+                "comp": {k: w.score.get(k, 0) for k in ("p1", "B", "C", "F", "G", "H", "I", "D")},
+                "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
+                "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
+    enrich_open_rows(conn, out)
+    return sort_open_rows(out, "run")
+
+
+# ── server-side filter + sort (the SAME logic drives the view, the sort, AND any
+# export — the persist stores the FULL population and the view filters it here, so
+# a filter is always a server-side operation, never front-end only). ──────────
+def _agebar(v):
+    return {"15": 15, "30": 30, "60": 60, "120": 120}.get(str(v))
+
+
+def filter_open_rows(rows, size="", sector="", direction="", maxage="", minq="",
+                     minroom="", status="", minliq="", minrr=""):
+    """Apply the 9 top-of-page filters server-side. Values are the dropdown params;
+    empty / 'all' / 'any' = no constraint. `minq` may be 'top20' (his best waves) —
+    keep only the top-20-by-Q of the surviving set. Returns a NEW filtered list."""
+    out = list(rows)
+    if size and size.lower() not in ("all", ""):
+        want = _OPEN_SIZE_SHORT.get(size, size)          # accept full or short label
+        out = [r for r in out if (r.get("size") or "") == want]
+    if sector and sector.lower() not in ("all", ""):
+        out = [r for r in out if sector in (r.get("tags") or [])]
+    if direction and direction.lower() not in ("all", ""):
+        out = [r for r in out if r["dir"] == direction.upper()]
+    ab = _agebar(maxage)
+    if ab is not None:
+        out = [r for r in out if (r.get("age") is not None and r["age"] <= ab)]
+    if minroom and str(minroom).lower() not in ("any", ""):
+        try:
+            thr = float(minroom)
+            out = [r for r in out if (r.get("run") is not None and r["run"] >= thr)]
+        except ValueError:
+            pass
+    if status and status.lower() not in ("all", ""):
+        if status == "in":                               # actionable = in the zone AND not blown
+            out = [r for r in out if r.get("in_zone") and not r.get("invalid")]
+        elif status == "watch":
+            out = [r for r in out if not r.get("in_zone") and not r.get("invalid")]
+    if minliq and str(minliq).lower() not in ("any", ""):
+        try:
+            thr = float(minliq)                          # ₹ crore of traded value
+            out = [r for r in out if (r.get("tv_cr") is not None and r["tv_cr"] >= thr)]
+        except ValueError:
+            pass
+    if minrr and str(minrr).lower() not in ("any", ""):
+        try:
+            thr = float(minrr)
+            out = [r for r in out if (r.get("rr") is not None and r["rr"] >= thr)]
+        except ValueError:
+            pass
+    if minq and str(minq).lower() not in ("any", ""):
+        if str(minq).lower() == "top20":                 # his "best / rank-one waves"
+            out = sorted(out, key=lambda r: -(r.get("Q") or 0))[:20]
+        else:
+            try:
+                thr = float(minq)
+                out = [r for r in out if (r.get("Q") is not None and r["Q"] >= thr)]
+            except ValueError:
+                pass
+    return out
+
+
+def sort_open_rows(rows, sort="run"):
+    """Sort the open-trades rows; INVALIDATED (below-stop) rows always sink last so a
+    blown setup never leads. Keys: run (most room) · rr (best risk-adjusted) ·
+    q (strongest structure) · age (freshest)."""
+    inv = lambda r: 1 if r.get("invalid") else 0
+    if sort == "rr":
+        key = lambda r: (inv(r), -(r.get("rr") if r.get("rr") is not None else -1e9))
+    elif sort == "q":
+        key = lambda r: (inv(r), -(r.get("Q") or 0))
+    elif sort == "age":
+        key = lambda r: (inv(r), r.get("age", 1 << 30))
+    else:                                                # run% (default), most room first
+        key = lambda r: (inv(r), -(r.get("run") if r.get("run") is not None else -1e9))
+    return sorted(rows, key=key)
+
+
+# ── persisted OPEN scan — an ISOLATED table (wolfe.py owns it, CREATE IF NOT
+# EXISTS; db.py untouched, same isolation as wolfe_signals). Snapshot the FULL
+# population nightly so the filterable view is instant; the view filters/sorts the
+# snapshot server-side. Clean-snapshot semantics = DELETE-by-universe then INSERT.
+_OPEN_COLS = ("sym", "dir", "cmp", "zlo", "zhi", "zprice", "sl", "t1", "epa", "up",
+              "age", "q", "run", "risk", "rr", "invalid", "in_zone", "p5date",
+              "p4date", "size", "rs", "psector", "tv_cr", "deliv_pct", "comp", "tags")
+
+
+def _ensure_open_table(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS wolfe_open_signals (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            universe     TEXT NOT NULL,
+            sym          TEXT NOT NULL,
+            dir          TEXT NOT NULL,
+            cmp          REAL,
+            zlo          REAL,
+            zhi          REAL,
+            zprice       REAL,
+            sl           REAL,
+            t1           REAL,
+            epa          REAL,
+            up           REAL,
+            age          INTEGER,
+            q            REAL,
+            run          REAL,
+            risk         REAL,
+            rr           REAL,
+            invalid      INTEGER,
+            in_zone      INTEGER,
+            p5date       TEXT,
+            p4date       TEXT,
+            size         TEXT,
+            rs           REAL,
+            psector      TEXT,
+            tv_cr        REAL,
+            deliv_pct    REAL,
+            comp         TEXT,
+            tags         TEXT,
+            scan_date    TEXT,
+            computed_at  TEXT
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_wolfe_open_universe "
+                 "ON wolfe_open_signals(universe, invalid ASC, run DESC)")
+
+
+def persist_open_scan(conn, universe="nifty500", computed_at=None):
+    """Materialise open_scan(universe) into wolfe_open_signals as a clean snapshot
+    (replace this universe's rows). Returns (n_rows, scan_date). Owner (caller)
+    commits — same atomic contract as persist_scan (CL-SCO-12)."""
+    _ensure_open_table(conn)
+    rows = open_scan(conn, universe=universe)
+    scan_date = _scan_as_of(conn)
+    import json as _json
+    conn.execute("DELETE FROM wolfe_open_signals WHERE universe=?", (universe,))
+    conn.executemany(
+        "INSERT INTO wolfe_open_signals "
+        "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,run,risk,rr,invalid,"
+        " in_zone,p5date,p4date,size,rs,psector,tv_cr,deliv_pct,comp,tags,scan_date,computed_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
+          r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"], r["run"], r["risk"],
+          r["rr"], 1 if r["invalid"] else 0, 1 if r["in_zone"] else 0, r["p5date"],
+          r["p4date"], r.get("size"), r.get("rs"), r.get("psector"), r.get("tv_cr"),
+          r.get("deliv_pct"), _json.dumps(r.get("comp") or {}),
+          _json.dumps(r.get("tags") or []), scan_date, computed_at) for r in rows])
+    return len(rows), scan_date
+
+
+def latest_open_scan(conn, universe="nifty500"):
+    """Read the persisted OPEN snapshot for a universe (instant). Returns
+    {rows:[…same shape as open_scan…], scan_date, computed_at} or None when the table
+    is absent/empty (the view then shows a build-the-snapshot notice, since a live
+    open_scan over the universe is minutes-long)."""
+    import json as _json
+    try:
+        cur = conn.execute(
+            "SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,run,risk,rr,invalid,"
+            "in_zone,p5date,p4date,size,rs,psector,tv_cr,deliv_pct,comp,tags,scan_date,"
+            "computed_at FROM wolfe_open_signals WHERE universe=?", (universe,))
+        recs = cur.fetchall()
+    except Exception:
+        return None
+    if not recs:
+        return None
+
+    def _j(v, default):
+        try:
+            return _json.loads(v) if v else default
+        except Exception:
+            return default
+    rows = [{"sym": r[0], "dir": r[1], "cmp": r[2], "zlo": r[3], "zhi": r[4],
+             "zprice": r[5], "sl": r[6], "t1": r[7], "epa": r[8], "up": r[9],
+             "age": r[10], "Q": r[11], "run": r[12], "risk": r[13], "rr": r[14],
+             "invalid": bool(r[15]), "in_zone": bool(r[16]), "p5date": r[17],
+             "p4date": r[18], "size": r[19], "rs": r[20], "psector": r[21],
+             "tv_cr": r[22], "deliv_pct": r[23], "comp": _j(r[24], {}),
+             "tags": _j(r[25], [])} for r in recs]
+    return {"rows": rows, "scan_date": recs[0][26], "computed_at": recs[0][27]}
+
+
 def _cli():
     """Nightly entry: `python -m src.automation.wolfe --persist-scan`."""
     import argparse
@@ -1150,15 +1469,35 @@ def _cli():
         from core.db import get_conn  # type: ignore
     ap = argparse.ArgumentParser(description="Wolfe scanner — persist the winner-profile scan")
     ap.add_argument("--persist-scan", action="store_true", help="materialise winner_scan into wolfe_signals")
+    ap.add_argument("--persist-open", action="store_true",
+                    help="materialise open_scan (OPEN trades, remaining-ROI view) into wolfe_open_signals")
     ap.add_argument("--universe", default="nifty500", help="nifty500 | inclusive | sym,sym,…")
     ap.add_argument("--fresh", type=int, default=15, help="max age (bars) of a setup")
     args = ap.parse_args()
+    did = False
     if args.persist_scan:
+        did = True
         stamp = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with get_conn() as conn:
             n, scan_date = persist_scan(conn, universe=args.universe, fresh=args.fresh, computed_at=stamp)
         print(f"persisted {n} winner-profile setups for {args.universe} (as-of {scan_date}, computed {stamp})")
-    else:
+        # Piggyback the OPEN-trades snapshot onto the SAME nightly timer invocation
+        # (hermes-wolfe-scan runs `--persist-scan`), so the remaining-ROI view stays
+        # current with NO systemd unit change. Non-fatal: a failure here must never
+        # break the proven winner-profile persist above.
+        try:
+            with get_conn() as conn:
+                no, od = persist_open_scan(conn, universe=args.universe, computed_at=stamp)
+            print(f"persisted {no} OPEN winner-profile trades for {args.universe} (as-of {od})")
+        except Exception as e:  # noqa: BLE001
+            print(f"open-scan persist skipped (non-fatal): {e}")
+    if args.persist_open and not args.persist_scan:      # standalone (manual / backfill)
+        did = True
+        stamp = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with get_conn() as conn:
+            no, od = persist_open_scan(conn, universe=args.universe, computed_at=stamp)
+        print(f"persisted {no} OPEN winner-profile trades for {args.universe} (as-of {od}, computed {stamp})")
+    if not did:
         ap.print_help()
 
 

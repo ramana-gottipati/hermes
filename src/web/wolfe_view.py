@@ -379,6 +379,8 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         + f' · fresh ≤ {eff_fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
         ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
         ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a>'
+        ' &nbsp;|&nbsp; <a href="/dash/wolfe/trades" style="color:#3fb950" title="every OPEN winner-profile '
+        'trade at any age, ranked by remaining ROI, with filters">Open trades — remaining ROI ›</a>'
         ' &nbsp;|&nbsp; <a href="/dash/harmonic" style="color:#f778ba">Harmonic scanner ›</a></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:var(--ink-2);text-align:left">'
@@ -396,8 +398,9 @@ def wolfe_page(sym: str = Query("", max_length=24),
     idx = idx.strip()
     if not sym and not idx:
         body = ('<h2>Wolfe wave</h2>'
-                '<div class="sub">Pick a stock or index, or open the '
-                '<a href="/dash/wolfe/scan" style="color:#58a6ff">winner-profile scanner ›</a>. '
+                '<div class="sub">Pick a stock or index, open the '
+                '<a href="/dash/wolfe/scan" style="color:#58a6ff">fresh winner-profile scanner ›</a>, '
+                'or browse every <a href="/dash/wolfe/trades" style="color:#3fb950">open trade by remaining ROI ›</a>. '
                 'The detector ranks every 1·3·5 setup; the chart draws the selected one.</div>' + _form())
         return HTMLResponse(_shell("Wolfe wave", body, "wolfe"))
 
@@ -448,4 +451,16 @@ try:
     from src.web.drawings_store import router as _drawings_router
     router.include_router(_drawings_router)
 except Exception:  # pragma: no cover - never let the drawing store break the Wolfe routes
+    pass
+
+# Mount the OPEN-TRADES "remaining ROI" filterable view (/dash/wolfe/trades) onto THIS
+# router so it goes live without a v2_surfaces / lens_registry edit and survives a
+# redeploy (committed) — same durable include pattern as harmonic/drawings above. It is
+# a sub-page of the Wolfe lens (reachable from the scanner + the wolfe page), fully
+# additive: it never touches detection / §A / §B / winner_scan. See
+# docs/wolfe-open-trades-PLAN.md.
+try:
+    from src.web.wolfe_trades_view import router as _wolfe_trades_router
+    router.include_router(_wolfe_trades_router)
+except Exception:  # pragma: no cover - never let the open-trades view break the Wolfe routes
     pass

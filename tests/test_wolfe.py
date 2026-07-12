@@ -80,3 +80,75 @@ def test_crossing_admits_converging_bull():
     # falling-wedge mirror: rails 1-3 (lows) & 2-4 (highs) both fall, 2-4 steeper down -> meet ahead.
     a = _pv(0, 60.0, "L"); b = _pv(40, 66.0, "H"); c = _pv(50, 48.0, "L"); d = _pv(54, 58.0, "H")
     assert _classify(a, b, c, d, 0.2, 1.0) == "BULL"
+
+
+# --- OPEN TRADES "remaining ROI" view (2026-07-12, S121/D120) -----------------
+# Regression guards for the additive open_scan/persist/filter layer. The persist
+# round-trip test in particular guards the 27-vs-29 bind-count bug that an empty-rows
+# smoke test cannot catch (executemany over [] never validates bindings).
+from src.automation import wolfe as _W
+
+
+def _open_row(**kw):
+    r = {"sym": "RELIANCE", "dir": "BULL", "cmp": 1400.0, "zlo": 1380.0, "zhi": 1410.0,
+         "zprice": 1395.0, "sl": 1375.0, "t1": 1450.0, "epa": 1600.0, "up": 14.6,
+         "age": 8, "Q": 19.0, "run": 14.3, "risk": 1.8, "rr": 7.94, "invalid": False,
+         "in_zone": True, "p5date": "2026-07-01", "p4date": "2026-06-20",
+         "comp": {"p1": 2, "B": 2}, "size": "N50", "rs": 72, "psector": "Energy",
+         "tv_cr": 1095.0, "deliv_pct": 56.0, "tags": ["Energy", "Oil & Gas"]}
+    r.update(kw)
+    return r
+
+
+def test_open_metrics_bull_and_bear_symmetric():
+    assert _W.open_metrics(100.0, 130.0, 90.0, True) == {"run": 30.0, "risk": 10.0, "rr": 3.0}
+    assert _W.open_metrics(100.0, 70.0, 110.0, False) == {"run": 30.0, "risk": 10.0, "rr": 3.0}
+
+
+def test_open_metrics_below_stop_rr_none():
+    # price through the stop -> risk% <= 0 -> R:R undefined (never a divide/negative rr)
+    assert _W.open_metrics(100.0, 130.0, 105.0, True)["rr"] is None
+    assert _W.open_metrics(None, 1, 1, True) == {"run": None, "risk": None, "rr": None}
+
+
+def test_filter_open_rows_each_filter():
+    rows = [_open_row(sym="A", size="N50", tags=["Pharma"], tv_cr=50.0, rr=4.0, run=40.0, dir="BULL", in_zone=True, invalid=False, age=5, Q=20.0),
+            _open_row(sym="B", size="Mid150", tags=["IT"], tv_cr=2.0, rr=0.5, run=15.0, dir="BEAR", in_zone=False, invalid=False, age=40, Q=12.0),
+            _open_row(sym="C", size="Small250", tags=["Defence"], tv_cr=100.0, rr=None, run=80.0, dir="BULL", in_zone=True, invalid=True, age=90, Q=25.0)]
+    S = lambda **k: sorted(r["sym"] for r in _W.filter_open_rows(rows, **k))
+    assert S(size="N50") == ["A"]
+    assert S(sector="IT") == ["B"]
+    assert S(direction="bear") == ["B"]
+    assert S(minliq="5") == ["A", "C"]           # B (₹2cr) excluded
+    assert S(minrr="2") == ["A"]                  # B rr0.5 out, C rr None out
+    assert S(minroom="30") == ["A", "C"]          # run >= 30
+    assert S(maxage="15") == ["A"]                # age <= 15
+    assert S(status="in") == ["A"]               # C is in_zone but invalid -> excluded
+    assert [r["sym"] for r in _W.filter_open_rows(rows, minq="top20")][:3] == ["C", "A", "B"]  # by Q desc
+
+
+def test_sort_open_rows_invalid_sinks_last():
+    rows = [_open_row(sym="OK", run=10.0, rr=1.0, Q=5.0, age=3, invalid=False, in_zone=False),
+            _open_row(sym="BAD", run=99.0, rr=None, Q=99.0, age=1, invalid=True, in_zone=False)]
+    for s in ("run", "rr", "q", "age"):
+        assert [r["sym"] for r in _W.sort_open_rows(rows, s)][-1] == "BAD"
+
+
+def test_persist_open_scan_roundtrip_binds_all_columns(monkeypatch):
+    # guards the bind-count blocker: 3 real rows must persist WITHOUT ProgrammingError
+    # and read back with scan_date/computed_at + every enriched field intact.
+    import sqlite3
+    monkeypatch.setattr(_W, "open_scan", lambda conn, universe="nifty500": [
+        _open_row(),
+        _open_row(sym="TIRUPATIFL", size="Small250", tv_cr=3.4, tags=["Financial Services"], in_zone=False, rr=11.5),
+        _open_row(sym="BLOWN", invalid=True, rr=None, in_zone=False)])
+    conn = sqlite3.connect(":memory:")
+    n, _sd = _W.persist_open_scan(conn, universe="u", computed_at="2026-07-12 23:30:00")
+    assert n == 3
+    got = _W.latest_open_scan(conn, universe="u")
+    assert got is not None and len(got["rows"]) == 3
+    assert got["computed_at"] == "2026-07-12 23:30:00"
+    r = next(x for x in got["rows"] if x["sym"] == "RELIANCE")
+    assert r["run"] == 14.3 and r["rr"] == 7.94 and r["size"] == "N50"
+    assert r["tv_cr"] == 1095.0 and r["tags"] == ["Energy", "Oil & Gas"] and r["comp"] == {"p1": 2, "B": 2}
+    assert next(x for x in got["rows"] if x["sym"] == "BLOWN")["invalid"] is True
