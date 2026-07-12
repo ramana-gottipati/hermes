@@ -68,7 +68,7 @@ LENSES: tuple[Lens, ...] = (
     # Attention queue (D106, S103) — the signal-event bus's human face: every lens's
     # typed state-changes in one magnitude-ranked, PIT-replayable tape (bus = D105).
     Lens("attention", "Attention", "market", "markets", "/dash/attention",
-         aliases=("bus", "events", "signal-events", "queue", "attention-queue")),
+         group="Big picture", aliases=("bus", "events", "signal-events", "queue", "attention-queue")),
     # Market Internals (deep-data sprint) — the ABSOLUTE market-health surface back to 2004:
     # price-breadth (adv/dec) + the tape (MEP accum/distrib effort-breadth) + delivery regime +
     # dispersion + coil. Reads the bounded market_internals_daily snapshot. The hero is the
@@ -90,45 +90,45 @@ LENSES: tuple[Lens, ...] = (
          group="Big picture", aliases=("seasonality", "calendar", "season", "seasonal")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
-         aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
+         group="Events & flow", aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
     # E-10 buyback tender-quota calculator (S85g) — the personal-scale capacity-moat tool
     # (charter §2.4); companion to the corp-actions calendar it sits beside.
     Lens("buyback-calc", "Buyback calc", "market", "markets", "/dash/buyback-calc",
-         aliases=("buyback", "tender", "buybacks")),
+         group="Events & flow", aliases=("buyback", "tender", "buybacks")),
     # Surveillance transitions — ASM/GSM/band restriction moves (D94 #6, S92).
     # Band-lock streaks (charter X-05, S96c) — names pinned at their daily band;
     # flag logic single-sourced in band_lock.flagged_symbols.
     Lens("band-locks", "Band locks", "market", "markets", "/dash/band-locks",
-         aliases=("bandlock", "circuit", "locks")),
+         group="Events & flow", aliases=("bandlock", "circuit", "locks")),
     Lens("surveillance", "Surveillance", "market", "markets", "/dash/surveillance",
-         aliases=("asm", "gsm", "price-bands", "surveillance-transitions")),
+         group="Events & flow", aliases=("asm", "gsm", "price-bands", "surveillance-transitions")),
     Lens("sectors", "Sectors", "market", "markets", "/dash/sectors",
-         dossier_tab=None, aliases=("rs",)),
+         dossier_tab=None, group="Sectors", aliases=("rs",)),
     # Sector economics (deep-data sprint) — median ROCE/OPM by sector × year over a decade;
     # the FUNDAMENTAL complement to the RS-based Sectors lens above — kept ADJACENT to it (D117,
     # Ramana) rather than in the front "Big picture" cluster. Aggregate, descriptive.
     Lens("sector-economics", "Sector economics", "market", "markets", "/dash/sector-economics",
-         aliases=("sector-fundamentals", "sector-quality", "sector-econ")),
+         group="Sectors", aliases=("sector-fundamentals", "sector-quality", "sector-econ")),
     Lens("rs-hub", "Relative strength", "market", "markets", "/dash/rs-hub",
-         dossier_tab="rs", screener_col="rs"),
+         dossier_tab="rs", screener_col="rs", group="Strength & momentum"),
     # Leaders/"Strength" — MOVED to Markets (§0.1, divergence #1). RS is Markets content.
     # Leaders sits directly after the RS hub (it IS RS content) — no separate heading,
     # the "Relative strength" item above already names the section.
     Lens("leaders", "Leaders / Laggards", "market", "markets", "/dash/leaders",
-         dossier_tab="rs", screener_col="rs", aliases=("laggards",)),
+         dossier_tab="rs", screener_col="rs", group="Strength & momentum", aliases=("laggards",)),
     # Risk-adjusted momentum SCANNER — candidate shortlister with the C/A/B veto inline
     # (gross selection lens, not alpha). RS/momentum content → Markets, beside Leaders.
     Lens("momentum-scan", "Risk-adj momentum", "market", "markets", "/dash/momentum-scan",
-         aliases=("momo", "riskadj")),
+         group="Strength & momentum", aliases=("momo", "riskadj")),
     # All-weather capture map (flagship C) — up/down-capture scatter vs the benchmark;
     # behaviour track record (descriptive), sits with the RS-strength cluster.
     Lens("capture-map", "All-weather map", "market", "markets", "/dash/capture-map",
-         aliases=("capture", "all-weather")),
+         group="Strength & momentum", aliases=("capture", "all-weather")),
     # Results-Reaction SCANNER (S80f) -- the war-room board: forward NSE results calendar +
     # delivery-confirmed reaction cells. Descriptive (the failed PEAD book is cited on-page);
     # reads the nightly results_reactions snapshot + board_meetings. A Markets scanner lens.
     Lens("results-reactions", "Results reactions", "market", "markets", "/dash/results-reactions",
-         aliases=("results", "earnings", "war-room")),
+         group="Events & flow", aliases=("results", "earnings", "war-room")),
     Lens("rrg", "Rotation · Map", "market", "markets", "/dash/rrg",
          group="Rotation"),
     Lens("rotation", "Rotation · Weather", "market", "markets", "/dash/rotation",
@@ -140,15 +140,15 @@ LENSES: tuple[Lens, ...] = (
     # Momentum — RSI-of-RS divergence early-warning board (roadmap Phase 1). Market-wide
     # destination; the per-stock momentum pane lives on the dossier (not a nav item).
     Lens("divergence", "Divergence", "market", "markets", "/dash/divergence",
-         group="Momentum"),
+         group="Strength & momentum"),
     # Momentum drill surfaces (modules shipped bb27a4e/10959ba; the mounts + this lens
     # lived only as an uncommitted VPS patch — AUD-32: a clean deploy 404'd both).
     # early-signals matches the live patch VERBATIM; sector-momentum is NEW even on the
     # VPS (it was mount-only — reachable solely via cycle-clock deep-links = an orphan).
     Lens("early-signals", "Early signals", "market", "markets", "/dash/early-signals",
-         group="Momentum"),
+         group="Strength & momentum"),
     Lens("sector-momentum", "Sector drill", "market", "markets", "/dash/sector-momentum",
-         group="Momentum", aliases=("sector-rsi",)),
+         group="Sectors", aliases=("sector-rsi",)),
     # Pattern SCANNERS (Ramana 2026-07-02): keep Wolfe/Harmonic as chart OVERLAYS (the
     # route=None records below, reached from the chart control) AND surface the market-wide
     # SCANNER pages as Markets lenses under a "Patterns" heading. Scans are precomputed
@@ -160,9 +160,9 @@ LENSES: tuple[Lens, ...] = (
     Lens("wolfe-scan", "Patterns · Wolfe", "market", "markets", "/dash/wolfe/scan",
          group="Patterns", aliases=("wolfe",)),
     Lens("participants", "Participants", "market", "markets", "/dash/participants",
-         dossier_tab="fno", screener_col=None),
+         dossier_tab="fno", screener_col=None, group="Events & flow"),
     Lens("wire", "News / Wire", "market", "markets", "/dash/wire",
-         aliases=("news",)),
+         group="Events & flow", aliases=("news",)),
     Lens("compare", "Compare", "market", "markets", "/dash/compare"),
 
     # ── Screener ─────────────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ LENSES: tuple[Lens, ...] = (
     Lens("strategist", "Strategist", "stock", "strategies", "/dash/strategist",
          aliases=("strategies",)),
     Lens("conviction", "Conviction", "stock", "strategies", "/dash/conviction",
-         dossier_tab="verdict"),
+         dossier_tab="verdict", group="Conviction & structure"),
     # Positioning + MEP GROUP under one "Accumulation" heading (two views, both kept).
     Lens("stocks", "Stocks", "stock", "strategies", "/dash/stocks",
          dossier_tab="pos", screener_col="pos", overlay="dvpt",
@@ -199,31 +199,32 @@ LENSES: tuple[Lens, ...] = (
          dossier_tab="mep", screener_col="mep", overlay="mep",
          group="Accumulation"),
     Lens("cpr", "Structure", "stock", "strategies", "/dash/cpr",
-         dossier_tab="cpr", screener_col="cpr", overlay="cpr"),
+         dossier_tab="cpr", screener_col="cpr", overlay="cpr", group="Conviction & structure"),
     Lens("concalls", "Credibility", "stock", "strategies", "/dash/concalls",
-         dossier_tab="cci", screener_col="cci"),
+         dossier_tab="cci", screener_col="cci", group="Fundamentals"),
     Lens("growth", "Growth", "stock", "strategies", "/dash/growth",
-         dossier_tab="qual", screener_col="qual"),
+         dossier_tab="qual", screener_col="qual", group="Fundamentals"),
     # Insider activity — SEBI PIT disclosures classified (conviction / caution /
     # pledge / plumbing); the D94 unsurfaced-data queue #1 (S86). Descriptive.
     Lens("insider", "Insider", "stock", "strategies", "/dash/insider",
-         aliases=("insider-activity", "promoter-buying", "pit-disclosures")),
+         group="Ownership & filings", aliases=("insider-activity", "promoter-buying", "pit-disclosures")),
     # Credit-rating transitions — deduped company-level agency actions (D94 #2, S87).
     Lens("ratings", "Ratings", "stock", "strategies", "/dash/ratings",
-         aliases=("credit-ratings", "rating-transitions", "upgrades-downgrades")),
+         group="Ownership & filings", aliases=("credit-ratings", "rating-transitions", "upgrades-downgrades")),
     # Stake × pledge confluence — SAST Reg-29 × Reg-31/32 crossings (D94 #3, S88).
     Lens("sast", "Stake · Pledge", "stock", "strategies", "/dash/sast",
-         aliases=("stake-pledge", "confluence", "pledge-flow", "substantial-holders")),
+         group="Ownership & filings", aliases=("stake-pledge", "confluence", "pledge-flow", "substantial-holders")),
     # Holdings QoQ — shareholding-pattern deltas, archive + NSE-XBRL (D94 #4, S90).
     Lens("shp", "Holdings", "stock", "strategies", "/dash/shp",
-         aliases=("shareholding", "holdings-qoq", "fii-dii", "holder-mix")),
-    Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad"),
+         group="Ownership & filings", aliases=("shareholding", "holdings-qoq", "fii-dii", "holder-mix")),
+    Lens("launchpad", "Launchpad", "stock", "strategies", "/dash/launchpad",
+         group="Launchpad"),
     # Launchpad track record (deep-data sprint, orphan rescue) — surfaces ignition_outcomes
     # (50k historical signals, 2019→) as the honest outcome distribution behind the screen:
     # gain-vs-pain by character, first-vs-repeat, the drawdown-recovery ladder. Point-in-time
     # study, gross of costs, ledger-cited (validated screen, no fundable edge net of cost).
     Lens("launchpad-track", "Launchpad · evidence", "stock", "strategies", "/dash/launchpad-track",
-         aliases=("launchpad-outcomes", "track-record", "ignition-outcomes")),
+         group="Launchpad", aliases=("launchpad-outcomes", "track-record", "ignition-outcomes")),
 
     # ── Tracker ──────────────────────────────────────────────────────────────
     # Tracker tabs are nested under /dash/tracker/* so the URL mirrors the nav

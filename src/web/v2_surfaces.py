@@ -481,6 +481,19 @@ def _install_dq_banner() -> None:
         log.warning("v2 dq-banner skipped: %s", e)
 
 
+def _install_left_rail(app) -> None:
+    """Turn the horizontal `.uk-sub` lens strip into the collapsible, grouped LEFT RAIL
+    (registry-driven) via a guarded HTML middleware — the ONE seam that catches BOTH page
+    families (legacy `_shell`+skin AND native `ui_kit.shell`), since both emit `.uk-sub` +
+    `#uk-main`. Runs LAST so it post-processes the fully assembled + reskinned page.
+    Defensive + idempotent (left_rail.install owns the app.state flag)."""
+    try:
+        from src.web import left_rail
+        left_rail.install(app)
+    except Exception as e:  # noqa: BLE001 — the rail is additive; never break wiring
+        log.warning("v2 left-rail skipped: %s", e)
+
+
 def wire(app):
     """Mount the v2 routes + install the canonical nav + reskin the legacy pages.
     Idempotent + defensive."""
@@ -499,6 +512,7 @@ def wire(app):
     _install_skin()
     _install_table_controls()
     _install_dq_banner()
+    _install_left_rail(app)   # LAST: post-processes the assembled page into the left rail
     return app
 
 
