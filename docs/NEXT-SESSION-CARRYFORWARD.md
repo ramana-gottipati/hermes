@@ -45,7 +45,15 @@ PROJECT_STATE entries are enough.**
   `/dash/stock?sym=…&wolfe=<p5date>` auto-selects the same wave (new `p5_time` in `_wave_payload` +
   `wolfe_overlay.py` load-time match). Live-verified on TATAPOWER (frames to 2025, header "setup of
   2025-08-29"). EPA = the 1-4 line (p1→p4) extended to today. Live-verified. PLAN doc retired.
-  **▶ A multi-lens improvements brainstorm (`wf_67b9dbb9`) ran — see PROJECT_STATE S121 / present to Ramana.** Memory
+  **▶ 4-lens improvements brainstorm (`wf_67b9dbb9`) → 12 prioritized ideas. Ramana picked QUICK WINS
+  #1-3, SHIPPED + LIVE (`6319654`):** split "watch" + signed distance-to-zone (`zone_gap_pct`) + a
+  Proximity filter (≤2/5/10%, 10 filters now) · sticky symbol column + header · symbol as a real `<a>`
+  (new-tab fanning). **BACKLOG (Ramana to pick — all additive/descriptive):** #4 dual target run→T1
+  beside run→EPA (honest floor vs the aggressive EPA) · #5 age-graded EPA muting · #6 ATR-normalized
+  run/risk + razor-stop flag · #7 §B breakdown on the row (parity w/ fresh scanner) · #8 RS with-trend
+  vs counter-trend label + min-RS filter · #9 breadth/concentration strip · #10 snapshot-staleness
+  banner · #11 inline price-ladder micro-column (SL·zone·CMP·T1·EPA) · #12 "what changed since you last
+  looked" daily diff. Full detail: workflow journal + this session's summary. Memory
   `wolfe-wave-strategy` updated. ⚠ **Three `state:skip` commits (`282081f`/`ba02287`/`9bb04f5`)** —
   PROJECT_STATE was entangled with the parallel S120 lane's uncommitted niftyindices edit, so the
   S121/D120/D121 doc bullets ride the seasonal lane's next PROJECT_STATE commit (verify they land, or
