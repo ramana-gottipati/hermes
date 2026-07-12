@@ -38,7 +38,14 @@ PROJECT_STATE entries are enough.**
   (`a2dcf06`, Ramana: "I dive into a result, do a study, and return — the filters I set are gone"):** the
   active filter+sort set is remembered in a `wolfe_open_filters` cookie (30d, httponly); a bare return
   visit 307-redirects to the saved querystring so the analyst returns to their shortlist, not the full
-  140; `?clear=1` wipes it; CSV never redirects (D110-style client-cookie). Live-verified. PLAN doc retired. Memory
+  140; `?clear=1` wipes it; CSV never redirects (D110-style client-cookie). **+ ROW-CLICK DRAWS THE CORRECT
+  WAVE (`7dbeb79`, Ramana: a 211-day-old TATAPOWER entry opened its LATEST wave):** the row now passes
+  `p5date+p4date` (two waves can share a p5) and `wolfe_page` uses `analyze(all_waves=True)` + selects
+  the exact wave, framing to it; p5 date shown in the age cell; "↗ Open full stock chart" link →
+  `/dash/stock?sym=…&wolfe=<p5date>` auto-selects the same wave (new `p5_time` in `_wave_payload` +
+  `wolfe_overlay.py` load-time match). Live-verified on TATAPOWER (frames to 2025, header "setup of
+  2025-08-29"). EPA = the 1-4 line (p1→p4) extended to today. Live-verified. PLAN doc retired.
+  **▶ A multi-lens improvements brainstorm (`wf_67b9dbb9`) ran — see PROJECT_STATE S121 / present to Ramana.** Memory
   `wolfe-wave-strategy` updated. ⚠ **Three `state:skip` commits (`282081f`/`ba02287`/`9bb04f5`)** —
   PROJECT_STATE was entangled with the parallel S120 lane's uncommitted niftyindices edit, so the
   S121/D120/D121 doc bullets ride the seasonal lane's next PROJECT_STATE commit (verify they land, or
