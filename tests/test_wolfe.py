@@ -6,7 +6,7 @@ true apex (Feb-10 @ 698.8, a degree-2 fractal, §B total 12.67). Pure over Wave-
 — no DB or market data needed."""
 from types import SimpleNamespace as NS
 
-from src.automation.wolfe import _reconcile_point4
+from src.automation.wolfe import _reconcile_point4, _classify
 
 
 def _p(idx, price):
@@ -50,3 +50,33 @@ def test_equal_point4_price_breaks_deterministically():
     for order in ([lowq, highq], [highq, lowq]):
         out = _reconcile_point4(order)
         assert len(out) == 1 and out[0].score["total"] == 14.0
+
+
+# --- convergence rule (2026-07-11): rails 1-3 and 2-4 must cross forward of point 4 ---
+def _pv(idx, price, kind):
+    return NS(idx=idx, price=price, kind=kind)
+
+
+def test_crossing_admits_converging_bear_the_leg_ratio_killed():
+    # rising wedge: leg 3-4 (10) out-prices leg 1-2 (6) -> the OLD cap rejected it; but rail 2-4
+    # is steep (point 2 parked late) and out-angles rail 1-3 -> they meet forward -> now valid.
+    a = _pv(0, 50.0, "H"); b = _pv(40, 44.0, "L"); c = _pv(50, 62.0, "H"); d = _pv(54, 52.0, "L")
+    assert _classify(a, b, c, d, 0.2, 1.0) == "BEAR"
+
+
+def test_crossing_rejects_diverging_bear():
+    # valid ordering, but rail 1-3 steeper than 2-4 -> they cross in the PAST -> diverge -> reject.
+    a = _pv(0, 50.0, "H"); b = _pv(10, 44.0, "L"); c = _pv(50, 80.0, "H"); d = _pv(52, 46.0, "L")
+    assert _classify(a, b, c, d, 0.2, 1.0) is None
+
+
+def test_crossing_rejects_parallel_rails():
+    # rails exactly parallel (both slope 0.4) -> never intersect -> reject.
+    a = _pv(0, 50.0, "H"); b = _pv(10, 45.0, "L"); c = _pv(50, 70.0, "H"); d = _pv(60, 65.0, "L")
+    assert _classify(a, b, c, d, 0.2, 1.0) is None
+
+
+def test_crossing_admits_converging_bull():
+    # falling-wedge mirror: rails 1-3 (lows) & 2-4 (highs) both fall, 2-4 steeper down -> meet ahead.
+    a = _pv(0, 60.0, "L"); b = _pv(40, 66.0, "H"); c = _pv(50, 48.0, "L"); d = _pv(54, 58.0, "H")
+    assert _classify(a, b, c, d, 0.2, 1.0) == "BULL"

@@ -215,12 +215,21 @@ def _classify(a, b, c, d, sym_lo, sym_hi):
     leg34 = abs(d.price - c.price)
     if leg12 <= 0 or leg34 <= 0:
         return None
-    # distance rule (Ramana, ENFORCED): leg 1-2 >= leg 3-4 in PRICE → ratio leg34/leg12
-    # capped at 1.0 (a contracting wedge). Confirmed by example: the April RELIANCE bear
-    # (leg34 62 > leg12 42) is a "mistake" precisely because the 2nd leg is bigger; his
-    # May-Jun bull (91.7 > 58.5) is filtered the same way. PARAS (98.65 >= 57.5) survives.
-    # sym_lo keeps a small floor so a noise-sized 2nd leg can't qualify.
-    if not (sym_lo <= leg34 / leg12 <= sym_hi):
+    # convergence rule (Ramana, 2026-07-11 — SUPERSEDES the price-only leg-ratio cap):
+    # extend the two wedge rails 1-3 and 2-4; they must INTERSECT at a bar AFTER point 4
+    # (a genuine converging wedge). Whether they meet is a slope question (price ÷ time),
+    # not a price one — the old |leg34| <= |leg12| cap ignored time and wrongly killed
+    # converging wedges whose thrust leg 3-4 out-priced leg 1-2 (when leg 1-2 spanned more
+    # time, its late point 2 steepens the 2-4 rail into convergence). Direction-blind: solve
+    # the crossing bar, require it forward of point 4; parallel rails (no crossing) fail.
+    # sym_lo/sym_hi stay in the signature but no longer gate. Measured 2026-07-11: on
+    # Nifty-500 this admits ~4,551 true converging wedges the cap killed and drops ~3,146
+    # that passed on symmetry but whose rails never converge (net +1,405).
+    s13, s24 = _line(a, c), _line(b, d)
+    if abs(s13 - s24) < 1e-12:                              # parallel — rails never meet
+        return None
+    t_cross = ((b.price - a.price) + s13 * a.idx - s24 * b.idx) / (s13 - s24)
+    if t_cross <= d.idx:                                    # must cross forward of point 4
         return None
     # Ramana's point-placement rules:
     #   point 2 vs 1 — BULL: 2 above 1;  BEAR: 2 below 1.
