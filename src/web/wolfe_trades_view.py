@@ -19,6 +19,7 @@ router (durable-include pattern) so it needs no v2_surfaces / lens_registry edit
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 from urllib.parse import urlencode
 
@@ -286,9 +287,19 @@ def _parse_seen(cookie):
     return d
 
 
+def _seen_key(r):
+    """A short, STABLE token for a wave (sym+p5date). Hashed so the #12 cookie stays well
+    under the ~4KB browser limit even at the row cap (a raw 'sym|p5date' fingerprint over
+    ~170+ rows crossed 4KB and browsers then silently dropped the whole cookie, turning the
+    diff off exactly when the list was largest — review finding, 2026-07-13). 8 hex chars →
+    ~11 B/row → 200 rows ≈ 2.2KB. Collision prob at 200 rows ≈ 5e-6 → at worst a missed
+    badge, never wrong data."""
+    return hashlib.blake2s(f'{r.get("sym","")}|{r.get("p5date","")}'.encode(), digest_size=4).hexdigest()
+
+
 def _seen_str(rows):
     """Compact fingerprint of the ranked set for the 'what changed' diff (cap 200)."""
-    return ";".join(f'{r["sym"]}|{r.get("p5date","")}={_statuskey(r)}' for r in rows[:200])
+    return ";".join(f'{_seen_key(r)}={_statuskey(r)}' for r in rows[:200])
 
 
 def _staleness_banner(scan_date, latest_data):
@@ -481,8 +492,7 @@ def wolfe_trades(request: Request,
     # (over all_rows so filtering never fabricates 'new'). First-ever visit marks nothing.
     _prior = _parse_seen(request.cookies.get(_SEEN_COOKIE))
     for _r in all_rows:
-        _key = f'{_r["sym"]}|{_r.get("p5date","")}'
-        _was = _prior.get(_key)
+        _was = _prior.get(_seen_key(_r))
         _r["_new"] = bool(_prior) and _was is None
         _r["_flip"] = _was is not None and _was != _statuskey(_r)
     rows = wolfe.filter_open_rows(

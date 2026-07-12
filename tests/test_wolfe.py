@@ -280,11 +280,12 @@ def test_open_growth_helpers():
     assert TV._staleness_banner("2024-10-04", "2024-10-04") == ""
     # #11 ladder renders an svg
     assert "<svg" in TV._ladder(r()) and "circle" in TV._ladder(r())
-    # #12 seen fingerprint round-trip
+    # #12 seen fingerprint round-trip (hashed keys) + cookie stays under the ~4KB limit
     rows = [_open_row(sym="A", p5date="d1", in_zone=True), _open_row(sym="B", p5date="d2", invalid=True)]
-    s = TV._seen_str(rows)
-    d = TV._parse_seen(s)
-    assert d["A|d1"] == "I" and d["B|d2"] == "X"
+    d = TV._parse_seen(TV._seen_str(rows))
+    assert d[TV._seen_key(rows[0])] == "I" and d[TV._seen_key(rows[1])] == "X"
+    big = [_open_row(sym=f"SYMBOL{i:04d}", p5date="2026-07-01", in_zone=(i % 2 == 0)) for i in range(200)]
+    assert len(TV._seen_str(big)) < 3500      # 200 rows must fit well under the 4096-byte cookie ceiling
 
 
 def test_min_rs_filter():
