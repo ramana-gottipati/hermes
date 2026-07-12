@@ -38,7 +38,8 @@ _FILTER_COOKIE = "wolfe_open_filters"
 _STATE_DEFAULTS = {"universe": ("nifty500",), "size": ("", "all"), "sector": ("", "all"),
                    "dir": ("", "all"), "maxage": ("", "all"), "minq": ("", "any"),
                    "minroom": ("", "any"), "status": ("", "all"), "minliq": ("", "any"),
-                   "minrr": ("", "any"), "minprox": ("", "any"), "sort": ("", "run")}
+                   "minrr": ("", "any"), "minprox": ("", "any"), "minrs": ("", "any"),
+                   "sort": ("", "run")}
 
 
 def _active_state(params):
@@ -173,23 +174,198 @@ def _status_word(r):
     return "in_zone" if r.get("in_zone") else "watch"
 
 
+# ── growth helpers (backlog #4-#12) — all descriptive, all from fields on the row ──
+_MIN_RS_OPTS = [("any", "Any RS"), ("50", "RS ≥ 50"), ("70", "RS ≥ 70"), ("85", "RS ≥ 85 (leaders)")]
+_SEEN_COOKIE = "wolfe_open_seen"
+
+
+def _run_t1(r):
+    """#4 conservative run% — to T1 (the 0.618∩0.618 near target), not the far EPA."""
+    cmp_, t1 = r.get("cmp"), r.get("t1")
+    if not cmp_ or not t1:
+        return None
+    return round(((t1 - cmp_) if r["dir"] == "BULL" else (cmp_ - t1)) / cmp_ * 100, 1)
+
+
+def _age_mute(age):
+    """#5 the EPA extrapolates further (less trustworthy) the older the wave — return a
+    (css, prefix) that progressively mutes the EPA/run cells."""
+    if age is None or age <= 30:
+        return "", ""
+    if age <= 90:
+        return "color:var(--ink-2);", ""
+    return "color:var(--ink-3);", "~"          # far past formation → muted + a '~'
+
+
+def _risk_cell(r):
+    """#6 risk% with ATR context + a razor-stop flag (stop tighter than ~0.8 normal days)."""
+    risk, atr = r.get("risk"), r.get("atr_pct")
+    if risk is None:
+        return '<span style="color:var(--ink-3)">—</span>'
+    base = f'{risk:.1f}%'
+    if atr and atr > 0 and risk > 0:
+        x = risk / atr
+        extra = (f' · {x:.1f}×ATR' + (' <span style="color:#d29922" title="stop is inside ~one '
+                 'normal day\'s range — easily whipsawed">⚠ razor</span>' if x < 0.8 else ''))
+        return f'{base}<span style="color:var(--ink-3);font-size:11px">{extra}</span>'
+    return base
+
+
+def _comp_title(r):
+    """#7 the §B component breakdown as a hover string (parity with the fresh scanner)."""
+    c = r.get("comp") or {}
+    if not c:
+        return "§B breakdown unavailable"
+    return ("§B  A(pt-1 fractal)=%s · B(pts 2/3/4)=%s · C(pt-5)=%s · F(zone)=%s · "
+            "G(extension)=%s · H(EPA touch)=%s · I(RSI div)=%s · D(upside)=%s"
+            % tuple(c.get(k, 0) for k in ("p1", "B", "C", "F", "G", "H", "I", "D")))
+
+
+def _rs_cell(r):
+    """#8 RS rank + a with-trend / counter-trend label (leaders vs laggards)."""
+    rs = r.get("rs")
+    if not isinstance(rs, (int, float)):
+        return '<span style="color:var(--ink-3)">—</span>'
+    bull = r["dir"] == "BULL"
+    tag, col = "", "var(--ink-2)"
+    if bull:
+        if rs >= 60:
+            tag, col = "leader", "var(--up)"
+        elif rs <= 40:
+            tag, col = "counter-trend", "#d29922"
+    else:
+        if rs <= 40:
+            tag, col = "weak (with trend)", "var(--up)"
+        elif rs >= 60:
+            tag, col = "counter-trend", "#d29922"
+    lab = (f'<br><span style="font-size:10px;color:{col}">{tag}</span>' if tag else '')
+    return f'<span style="color:{col}">{rs:.0f}</span>{lab}'
+
+
+def _ladder(r):
+    """#11 a compact inline SVG: SL · zone band · CMP (colored by status) · T1 · EPA on a
+    normalized price axis — the trade's shape at a glance."""
+    cmp_, sl, zlo, zhi, t1, epa = (r.get(k) for k in ("cmp", "sl", "zlo", "zhi", "t1", "epa"))
+    pts = [x for x in (sl, zlo, zhi, cmp_, t1, epa) if x is not None]
+    if cmp_ is None or len(pts) < 2:
+        return '<span style="color:var(--ink-3)">—</span>'
+    lo, hi = min(pts), max(pts)
+    rng = (hi - lo) or 1.0
+    W, H = 118, 16
+
+    def X(v):
+        return 3 + (v - lo) / rng * (W - 6)
+    S = [f'<svg width="{W}" height="{H}" style="vertical-align:middle" '
+         f'aria-label="stop {sl} · zone {zlo}-{zhi} · CMP {cmp_} · T1 {t1} · EPA {epa}">']
+    if zlo is not None and zhi is not None:
+        x0, x1 = X(min(zlo, zhi)), X(max(zlo, zhi))
+        S.append(f'<rect x="{x0:.0f}" y="3" width="{max(2, x1 - x0):.0f}" height="{H - 6}" fill="#1f6feb" opacity="0.35"/>')
+    S.append(f'<line x1="3" y1="{H // 2}" x2="{W - 3}" y2="{H // 2}" stroke="#30363d"/>')
+    if sl is not None:
+        S.append(f'<line x1="{X(sl):.0f}" y1="2" x2="{X(sl):.0f}" y2="{H - 2}" stroke="#ff6a7a" stroke-width="1.5"/>')
+    if epa is not None:
+        S.append(f'<line x1="{X(epa):.0f}" y1="2" x2="{X(epa):.0f}" y2="{H - 2}" stroke="#3fb950" stroke-width="1.5"/>')
+    if t1 is not None:
+        S.append(f'<line x1="{X(t1):.0f}" y1="3.5" x2="{X(t1):.0f}" y2="{H - 3.5}" stroke="#d29922"/>')
+    col = "#3fd486" if r.get("in_zone") else "#ff6a7a" if r.get("invalid") else "#c9d1d9"
+    S.append(f'<circle cx="{X(cmp_):.0f}" cy="{H // 2}" r="3" fill="{col}" stroke="#0d1117"/>')
+    S.append('</svg>')
+    return "".join(S)
+
+
+def _statuskey(r):
+    return "X" if r.get("invalid") else ("I" if r.get("in_zone") else "W")
+
+
+def _parse_seen(cookie):
+    d = {}
+    for part in (cookie or "").split(";"):
+        if "=" in part:
+            k, v = part.split("=", 1)
+            d[k] = v
+    return d
+
+
+def _seen_str(rows):
+    """Compact fingerprint of the ranked set for the 'what changed' diff (cap 200)."""
+    return ";".join(f'{r["sym"]}|{r.get("p5date","")}={_statuskey(r)}' for r in rows[:200])
+
+
+def _staleness_banner(scan_date, latest_data):
+    """#10 warn when the ranked snapshot lags the latest available data (nightly missed)."""
+    if not scan_date or not latest_data or str(scan_date) >= str(latest_data):
+        return ""
+    return (f'<div class="wtstale">⚠ Snapshot is stale — ranked as-of <b>{_esc(scan_date)}</b>, but the '
+            f'latest data is <b>{_esc(latest_data)}</b>. The nightly <code>--persist-open</code> run may '
+            'have missed; prices, status and run% may be out of date.</div>')
+
+
+def _breadth(rows):
+    """#9 a compute-on-read concentration read of the CURRENTLY FILTERED set — direction
+    split, size mix, top sectors, and the median trade — so crowding is visible."""
+    from collections import Counter
+    if not rows:
+        return ""
+    nb = sum(1 for r in rows if r["dir"] == "BULL")
+    ne = len(rows) - nb
+    sizes = Counter(r.get("size") or "—" for r in rows)
+    tags = Counter(t for r in rows for t in (r.get("tags") or []))
+
+    def _med(key):
+        vals = sorted(r[key] for r in rows if r.get(key) is not None)
+        return vals[len(vals) // 2] if vals else None
+    top_sec = " · ".join(f"{_esc(t)} ×{c}" for t, c in tags.most_common(3))
+    size_mix = " · ".join(f"{_esc(k)} {v}" for k, v in sizes.most_common())
+    mr, mrisk, mrr = _med("run"), _med("risk"), _med("rr")
+    parts = [f'<b style="color:var(--up)">{nb}</b> bull · <b style="color:var(--down)">{ne}</b> bear']
+    if size_mix:
+        parts.append("sizes: " + size_mix)
+    if top_sec:
+        parts.append("top sectors: " + top_sec)
+    if mr is not None:
+        med = f"median run {mr:+.0f}%"
+        if mrisk is not None:
+            med += f" · risk {mrisk:.0f}%"
+        if mrr is not None:
+            med += f" · R:R {mrr:.1f}"
+        parts.append(med)
+    return '<div class="wtbreadth">' + ' &nbsp;|&nbsp; '.join(parts) + '</div>'
+
+
+def _whatsnew_badge(r):
+    """#12 what-changed-since-you-last-looked badge (set by the diff in the handler)."""
+    if r.get("_new"):
+        return ('<br><span style="background:#1f6feb;color:#fff;font-size:9px;padding:0 4px;'
+                'border-radius:3px" title="new to the ranked list since you last looked">NEW</span>')
+    if r.get("_flip"):
+        now = _statuskey(r)
+        if now == "I":
+            return '<br><span style="color:var(--up);font-size:10px" title="entered the entry zone since you last looked">→ in zone</span>'
+        if now == "X":
+            return '<br><span style="color:var(--down);font-size:10px" title="fell below the stop since you last looked">→ stopped</span>'
+        return '<br><span style="color:var(--ink-3);font-size:10px" title="left the entry zone since you last looked">→ watch</span>'
+    return ''
+
+
 def _csv_response(rows, scan_date):
     """Server-side CSV of the filtered + sorted rows (the plain, flat, analyst-friendly
     shape). Honors the exact same filter/sort the page shows — a download, not a signal."""
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["symbol", "direction", "sector_tags", "size", "cmp", "zone_low",
-                "zone_high", "stop", "t1", "epa", "run_pct", "risk_pct", "rr", "q",
-                "rs", "traded_cr", "delivery_pct", "age_bars", "setup_p5_date",
-                "status", "edge", "as_of"])
+                "zone_high", "stop", "t1", "epa", "run_pct", "run_t1_pct", "risk_pct",
+                "atr_pct", "rr", "q", "rs", "gap_to_zone_pct", "traded_cr", "delivery_pct",
+                "age_bars", "setup_p5_date", "status", "edge", "as_of"])
     for r in rows:
         edge = "edge" if (r.get("age") is not None and r["age"] <= 15) else "open"
+        rt1 = _run_t1(r)
         w.writerow([
             r.get("sym"), r.get("dir"), "|".join(r.get("tags") or []), r.get("size") or "",
             r.get("cmp"), r.get("zlo"), r.get("zhi"), r.get("sl"), r.get("t1") or "",
-            r.get("epa"), r.get("run"), r.get("risk"),
+            r.get("epa"), r.get("run"), (rt1 if rt1 is not None else ""), r.get("risk"),
+            (r.get("atr_pct") if r.get("atr_pct") is not None else ""),
             (r.get("rr") if r.get("rr") is not None else ""), r.get("Q"),
-            (r.get("rs") if r.get("rs") is not None else ""),
+            (r.get("rs") if r.get("rs") is not None else ""), wolfe.zone_gap_pct(r),
             (r.get("tv_cr") if r.get("tv_cr") is not None else ""),
             (r.get("deliv_pct") if r.get("deliv_pct") is not None else ""),
             r.get("age"), r.get("p5date") or "", _status_word(r), edge, scan_date])
@@ -264,6 +440,7 @@ def wolfe_trades(request: Request,
                  minliq: str = Query("", max_length=8),
                  minrr: str = Query("", max_length=6),
                  minprox: str = Query("", max_length=6),
+                 minrs: str = Query("", max_length=6),
                  sort: str = Query("run", max_length=6),
                  format: str = Query("", max_length=6),
                  clear: int = Query(0, ge=0, le=1)):
@@ -273,7 +450,7 @@ def wolfe_trades(request: Request,
     uni = universe or "nifty500"
     params = {"universe": uni, "size": size, "sector": sector, "dir": dir,
               "maxage": maxage, "minq": minq, "minroom": minroom, "status": status,
-              "minliq": minliq, "minrr": minrr, "minprox": minprox, "sort": sort}
+              "minliq": minliq, "minrr": minrr, "minprox": minprox, "minrs": minrs, "sort": sort}
     active = _active_state(params)
     # STICKY FILTERS: a bare return visit (no filter params) restores the last-used set
     # so the analyst comes back to their shortlist, not the full list. The redirected
@@ -285,6 +462,7 @@ def wolfe_trades(request: Request,
     with get_conn() as conn:
         snap = wolfe.latest_open_scan(conn, universe=uni)
         sector_opts = _sector_opts(conn)
+        latest_data = wolfe._scan_as_of(conn)   # #10 for the staleness check
 
     if not snap:
         note = ('<h2>Wolfe <span style="color:var(--ink-2);font-size:15px;font-weight:400">— open trades, remaining ROI</span></h2>'
@@ -299,9 +477,18 @@ def wolfe_trades(request: Request,
 
     all_rows = snap["rows"]
     total_open = len(all_rows)
+    # #12 "what changed since you last looked" — diff the FULL ranked set vs the seen-cookie
+    # (over all_rows so filtering never fabricates 'new'). First-ever visit marks nothing.
+    _prior = _parse_seen(request.cookies.get(_SEEN_COOKIE))
+    for _r in all_rows:
+        _key = f'{_r["sym"]}|{_r.get("p5date","")}'
+        _was = _prior.get(_key)
+        _r["_new"] = bool(_prior) and _was is None
+        _r["_flip"] = _was is not None and _was != _statuskey(_r)
     rows = wolfe.filter_open_rows(
         all_rows, size=size, sector=sector, direction=dir, maxage=maxage,
-        minq=minq, minroom=minroom, status=status, minliq=minliq, minrr=minrr, minprox=minprox)
+        minq=minq, minroom=minroom, status=status, minliq=minliq, minrr=minrr,
+        minprox=minprox, minrs=minrs)
     rows = wolfe.sort_open_rows(rows, sort)
 
     # CSV export — the SAME filtered + sorted rows drive the download (the plan's
@@ -326,6 +513,7 @@ def wolfe_trades(request: Request,
         + _sel("minliq", _LIQ_OPTS, minliq, "Min liquidity")
         + _sel("minrr", _RR_OPTS, minrr, "Min R:R")
         + _sel("minprox", _PROX_OPTS, minprox, "Distance to zone")
+        + _sel("minrs", _MIN_RS_OPTS, minrs, "Min RS")
         + f'<a class="wtclear" href="/dash/wolfe/trades?universe={_q(uni)}&amp;clear=1" '
           'title="clear all filters + forget them">clear</a>'
         + '</form>')
@@ -367,10 +555,21 @@ def wolfe_trades(request: Request,
         rr = r.get("rr")
         rr_s = (f'<b style="color:{col}" title="reward:risk if you enter now (capped display &gt;{wolfe._RR_DISPLAY_CAP:.0f})">{_rr_disp(rr)}</b>' if rr is not None
                 else '<span style="color:var(--ink-3)">—</span>')
-        run_s = (f'{r["run"]:+.1f}%' if r.get("run") is not None else "—")
-        risk_s = (f'{r["risk"]:.1f}%' if r.get("risk") is not None else "—")
-        rs = r.get("rs")
-        rs_s = f'{rs:.0f}' if isinstance(rs, (int, float)) else "—"
+        # #5 the EPA extrapolates further (less trustworthy) the older the wave → mute it,
+        # and #4 show the conservative run→T1 beside the aggressive run→EPA.
+        emute_css, emute_pre = _age_mute(r.get("age"))
+        if r.get("run") is not None:
+            rt1 = _run_t1(r)
+            t1sub = (f'<br><span style="color:var(--ink-3);font-size:10.5px" '
+                     f'title="conservative run — to T1 (the near 0.618∩0.618 target), a realistic floor '
+                     f'vs the far EPA">T1 {rt1:+.0f}%</span>' if rt1 is not None else '')
+            run_s = (f'<span style="{emute_css or ("color:%s;" % _UP)}font-weight:600" '
+                     f'title="run to the EPA target from CMP'
+                     f'{" — extrapolated far past formation; treat as directional, not precise" if emute_pre else ""}">'
+                     f'{emute_pre}{r["run"]:+.1f}%</span>{t1sub}')
+        else:
+            run_s = '<span style="color:var(--ink-3)">—</span>'
+        epa_s = f'<span style="{emute_css or "color:var(--up);"}">{emute_pre}{_num(r["epa"])}</span>'
         dim = ' opacity:0.6;' if r.get("invalid") else ''
         # the wave URL — shared by the whole-row click AND the symbol anchor (so the
         # symbol supports Ctrl/middle-click "open in a new tab"). stopPropagation keeps a
@@ -389,25 +588,26 @@ def wolfe_trades(request: Request,
             f'<td style="color:var(--ink-3)">{_esc(r.get("size") or "—")}</td>'
             f'<td>{_liq_cell(r)}</td>'
             f'<td>{status_cell}</td>'
+            f'<td title="stop · entry zone · CMP · T1 · EPA at a glance">{_ladder(r)}</td>'
             f'<td>{_num(r["cmp"])}</td>'
             f'<td style="color:var(--ink-2)">{_num(r["zlo"])}–{_num(r["zhi"])}</td>'
             f'<td style="color:var(--down)">{_num(r["sl"])}</td>'
             f'<td>{_num(r["t1"]) if r.get("t1") else "—"}</td>'
-            f'<td style="color:var(--up)">{_num(r["epa"])}</td>'
-            f'<td style="color:{_UP};font-weight:600">{run_s}</td>'
-            f'<td style="color:var(--ink-2)">{risk_s}</td>'
+            f'<td>{epa_s}</td>'
+            f'<td style="white-space:nowrap">{run_s}</td>'
+            f'<td style="color:var(--ink-2);white-space:nowrap">{_risk_cell(r)}</td>'
             f'<td style="text-align:center">{rr_s}</td>'
-            f'<td style="text-align:center"><b style="color:{col}">{_num_q(r.get("Q"))}</b></td>'
-            f'<td style="text-align:center;color:var(--ink-2)">{rs_s}</td>'
+            f'<td style="text-align:center" title="{_esc(_comp_title(r))}"><b style="color:{col}">{_num_q(r.get("Q"))}</b></td>'
+            f'<td style="text-align:center">{_rs_cell(r)}</td>'
             f'<td style="color:var(--ink-3);white-space:nowrap" title="point-5 (setup) date · click the row to draw this exact wave">{r.get("age")}d '
             f'<span style="font-size:11px;color:var(--ink-2)">{_esc(r.get("p5date") or "")}</span></td>'
-            f'<td style="text-align:center">{badge}</td></tr>')
+            f'<td style="text-align:center">{badge}{_whatsnew_badge(r)}</td></tr>')
     if not rows:
-        trs = ['<tr><td colspan="18" style="padding:14px;color:var(--ink-2)">No open trades match '
+        trs = ['<tr><td colspan="19" style="padding:14px;color:var(--ink-2)">No open trades match '
                'these filters — loosen a dropdown or <a href="/dash/wolfe/trades?universe='
                + _q(uni) + '&amp;clear=1" style="color:#58a6ff">clear all</a>.</td></tr>']
 
-    head = ("symbol", "dir", "sector", "size", "liquidity / deliv", "status", "CMP",
+    head = ("symbol", "dir", "sector", "size", "liquidity / deliv", "status", "trade", "CMP",
             "entry zone", "stop", "T1", "EPA", "run %", "risk %", "R:R",
             f"Q/{wolfe._QUALITY_MAX}", "RS", "age", "")
 
@@ -417,6 +617,7 @@ def wolfe_trades(request: Request,
         _CSS
         + '<h2>Wolfe <span style="color:var(--ink-2);font-size:15px;font-weight:400">— open trades, remaining ROI</span></h2>'
         + wolfe_view_toggle("open")
+        + _staleness_banner(snap.get("scan_date"), latest_data)
         + '<div class="sub" style="margin-bottom:8px">Every <b>OPEN</b> winner-profile Wolfe setup — '
         'point 5 printed, the EPA (1-4) target <b>not yet reached</b>, so run is still left — at <b>any age</b>, '
         'ranked by how much room is left from the current price. '
@@ -429,6 +630,7 @@ def wolfe_trades(request: Request,
         f'<div class="sub" style="margin-bottom:8px;font-size:12px">{sortbar}</div>'
         + fbar
         + _bottom_line(rows, total_open, snap.get("held_out", 0))
+        + _breadth(rows)
         + f'<div style="color:var(--ink-2);font-size:13px;margin:8px 0 10px">{_esc(uni)} · '
           f'as-of <b>{sd}</b> <span style="color:var(--ink-3)">(nightly snapshot'
           f'{(" · computed " + ca) if ca else ""})</span> · '
@@ -441,7 +643,10 @@ def wolfe_trades(request: Request,
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px;white-space:nowrap">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>')
-    return _sticky(HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe", wide=True)), active, clear)
+    resp = _sticky(HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe", wide=True)), active, clear)
+    resp.set_cookie(_SEEN_COOKIE, _seen_str(all_rows), max_age=2592000,   # remember for the next-look diff
+                    path="/dash/wolfe/trades", samesite="lax", httponly=True)
+    return resp
 
 
 def _num_q(v):
@@ -474,4 +679,8 @@ _CSS = """<style>
 .wttab tbody td:first-child{position:sticky;left:0;z-index:1;background:var(--bg-1,#0d1117)}
 .wttab thead th:first-child{position:sticky;left:0;top:0;z-index:3;background:#0e141c}
 .wttab tbody tr.wtrow:hover td{background:#1c2430}
+.wtbreadth{font-size:12.5px;color:#9bb0c6;margin:4px 0 2px;padding:7px 12px;background:#0e141c;
+  border:1px solid #1c2937;border-radius:8px}
+.wtstale{font-size:13px;margin:8px 0;padding:9px 12px;background:#2a1e0e;border:1px solid #5c4415;
+  border-left:3px solid #d29922;border-radius:8px;color:#e8d3a3}
 </style>"""

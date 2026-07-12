@@ -1268,7 +1268,11 @@ def open_scan(conn, universe="nifty500"):
         dates, _o, highs, lows, closes = s
         n = len(closes)
         cmp_ = closes[-1]
-        waves, _ = detect_waves(highs, lows, closes)
+        waves, atr_arr = detect_waves(highs, lows, closes)
+        # ATR(14) at the latest bar as a % of price — lets the view express the stop/target
+        # in "normal days" and flag a razor stop (risk% inside one day's range).
+        _atr = atr_arr[n - 1] if (atr_arr and n and atr_arr[n - 1]) else None
+        atr_pct = round(_atr / cmp_ * 100.0, 2) if (_atr and cmp_) else None
         for w in waves:
             if w.state != "CONFIRMED" or not w.p5 or not is_winner_profile(w.score):
                 continue
@@ -1306,6 +1310,7 @@ def open_scan(conn, universe="nifty500"):
                 "run": m["run"], "risk": m["risk"], "rr": m["rr"], "invalid": invalid,
                 "comp": {k: w.score.get(k, 0) for k in ("p1", "B", "C", "F", "G", "H", "I", "D")},
                 "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
+                "atr_pct": atr_pct,
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
     enrich_open_rows(conn, ranked)
     return sort_open_rows(ranked, "run"), held_out
@@ -1338,7 +1343,7 @@ def zone_gap_pct(r):
 
 
 def filter_open_rows(rows, size="", sector="", direction="", maxage="", minq="",
-                     minroom="", status="", minliq="", minrr="", minprox=""):
+                     minroom="", status="", minliq="", minrr="", minprox="", minrs=""):
     """Apply the 9 top-of-page filters server-side. Values are the dropdown params;
     empty / 'all' / 'any' = no constraint. `minq` may be 'top20' (his best waves) —
     keep only the top-20-by-Q of the surviving set. Returns a NEW filtered list."""
@@ -1380,6 +1385,12 @@ def filter_open_rows(rows, size="", sector="", direction="", maxage="", minq="",
         try:                                              # keep rows within N% of the entry zone (in-zone = 0, always pass)
             thr = float(minprox)
             out = [r for r in out if abs(zone_gap_pct(r)) <= thr]
+        except ValueError:
+            pass
+    if minrs and str(minrs).lower() not in ("any", ""):
+        try:                                              # RS-rank floor (0-100 percentile vs Nifty 500)
+            thr = float(minrs)
+            out = [r for r in out if (r.get("rs") is not None and r["rs"] >= thr)]
         except ValueError:
             pass
     if minq and str(minq).lower() not in ("any", ""):
@@ -1452,12 +1463,14 @@ def _ensure_open_table(conn):
             tags         TEXT,
             scan_date    TEXT,
             computed_at  TEXT,
-            held_out     INTEGER
+            held_out     INTEGER,
+            atr_pct      REAL
         )""")
-    try:   # idempotent — older snapshots predate the disclosed-holdout column
-        conn.execute("ALTER TABLE wolfe_open_signals ADD COLUMN held_out INTEGER")
-    except Exception:
-        pass
+    for _col, _type in (("held_out", "INTEGER"), ("atr_pct", "REAL")):
+        try:   # idempotent — older snapshots predate these columns
+            conn.execute(f"ALTER TABLE wolfe_open_signals ADD COLUMN {_col} {_type}")
+        except Exception:
+            pass
     conn.execute("CREATE INDEX IF NOT EXISTS idx_wolfe_open_universe "
                  "ON wolfe_open_signals(universe, invalid ASC, run DESC)")
 
@@ -1474,14 +1487,15 @@ def persist_open_scan(conn, universe="nifty500", computed_at=None):
     conn.executemany(
         "INSERT INTO wolfe_open_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,run,risk,rr,invalid,"
-        " in_zone,p5date,p4date,size,rs,psector,tv_cr,deliv_pct,comp,tags,scan_date,computed_at,held_out) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " in_zone,p5date,p4date,size,rs,psector,tv_cr,deliv_pct,comp,tags,scan_date,computed_at,held_out,atr_pct) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"], r["run"], r["risk"],
           r["rr"], 1 if r["invalid"] else 0, 1 if r["in_zone"] else 0, r["p5date"],
           r["p4date"], r.get("size"), r.get("rs"), r.get("psector"), r.get("tv_cr"),
           r.get("deliv_pct"), _json.dumps(r.get("comp") or {}),
-          _json.dumps(r.get("tags") or []), scan_date, computed_at, held_out) for r in rows])
+          _json.dumps(r.get("tags") or []), scan_date, computed_at, held_out,
+          r.get("atr_pct")) for r in rows])
     return len(rows), scan_date, held_out
 
 
@@ -1495,7 +1509,7 @@ def latest_open_scan(conn, universe="nifty500"):
         cur = conn.execute(
             "SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,run,risk,rr,invalid,"
             "in_zone,p5date,p4date,size,rs,psector,tv_cr,deliv_pct,comp,tags,scan_date,"
-            "computed_at,held_out FROM wolfe_open_signals WHERE universe=?", (universe,))
+            "computed_at,held_out,atr_pct FROM wolfe_open_signals WHERE universe=?", (universe,))
         recs = cur.fetchall()
     except Exception:
         return None
@@ -1513,7 +1527,7 @@ def latest_open_scan(conn, universe="nifty500"):
              "invalid": bool(r[15]), "in_zone": bool(r[16]), "p5date": r[17],
              "p4date": r[18], "size": r[19], "rs": r[20], "psector": r[21],
              "tv_cr": r[22], "deliv_pct": r[23], "comp": _j(r[24], {}),
-             "tags": _j(r[25], [])} for r in recs]
+             "tags": _j(r[25], []), "atr_pct": r[29]} for r in recs]
     return {"rows": rows, "scan_date": recs[0][26], "computed_at": recs[0][27],
             "held_out": (recs[0][28] if recs[0][28] is not None else 0)}
 

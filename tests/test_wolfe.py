@@ -256,3 +256,37 @@ def test_zone_gap_and_proximity_filter():
     rows = [row(sym="NEAR", cmp=103.0), row(sym="FAR", cmp=130.0)]   # ~1% vs ~21% above the zone
     got = [r["sym"] for r in _W.filter_open_rows(rows, minprox="5")]
     assert "NEAR" in got and "FAR" not in got
+
+
+def test_open_growth_helpers():
+    from src.web import wolfe_trades_view as TV
+    r = lambda **k: _open_row(**{"cmp": 100.0, "t1": 112.0, "risk": 4.0, "atr_pct": 2.0,
+                                 "age": 10, "rs": 75, "dir": "BULL", **k})
+    # #4 conservative run→T1 (BULL) + BEAR mirror
+    assert TV._run_t1(r(cmp=100.0, t1=112.0)) == 12.0
+    assert TV._run_t1(r(dir="BEAR", cmp=100.0, t1=88.0)) == 12.0
+    assert TV._run_t1(r(t1=None)) is None
+    # #5 age-graded muting: young crisp, old muted with '~'
+    assert TV._age_mute(10) == ("", "")
+    assert TV._age_mute(120)[1] == "~"
+    # #6 razor flag when risk% < 0.8×ATR
+    assert "razor" in TV._risk_cell(r(risk=1.0, atr_pct=2.0))       # 0.5×ATR -> razor
+    assert "razor" not in TV._risk_cell(r(risk=6.0, atr_pct=2.0))   # 3×ATR -> fine
+    # #8 RS label
+    assert "leader" in TV._rs_cell(r(dir="BULL", rs=85))
+    assert "counter-trend" in TV._rs_cell(r(dir="BULL", rs=20))
+    # #10 staleness only when the snapshot lags the data
+    assert TV._staleness_banner("2024-09-01", "2024-10-04") != ""
+    assert TV._staleness_banner("2024-10-04", "2024-10-04") == ""
+    # #11 ladder renders an svg
+    assert "<svg" in TV._ladder(r()) and "circle" in TV._ladder(r())
+    # #12 seen fingerprint round-trip
+    rows = [_open_row(sym="A", p5date="d1", in_zone=True), _open_row(sym="B", p5date="d2", invalid=True)]
+    s = TV._seen_str(rows)
+    d = TV._parse_seen(s)
+    assert d["A|d1"] == "I" and d["B|d2"] == "X"
+
+
+def test_min_rs_filter():
+    rows = [_open_row(sym="HI", rs=80), _open_row(sym="LO", rs=20)]
+    assert [x["sym"] for x in _W.filter_open_rows(rows, minrs="50")] == ["HI"]
