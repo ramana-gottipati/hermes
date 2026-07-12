@@ -212,6 +212,49 @@ cross-sectional factor test, recorded here in narrative.)
   of costs vs Nifty 500 — the Tier-1 `factory.py` machinery — plus fix the ₹-magnitude normalizer to test
   capex/debt INTENSITY (likely stronger than the bare event).** Reproduce: `cci_backtest --mode all`.
 
+**HEDGE-DENSITY lexical drift (2026-07-12, AI-pattern-engine slice 1) → NULL; pre-registered (hash `538a08a8`, hashed BEFORE the run).**
+First live test of the propose→gate→surface engine. DETERMINISTIC hedge/uncertainty word-density per transcript
+(Loughran-McDonald weak-modal+uncertainty lexicon, NO LLM → no look-ahead leak), differenced WITHIN each name vs its
+own prior-3-call baseline — deliberately clearing the breadth wall (16,140 calls / **1,573 symbols** vs CCI's 377 and
+content's ~44) and the covered-name-drift null that killed `concall_intent`. Hypothesis: a within-name hedging SPIKE
+precedes 60d UNDERperformance vs Nifty 500. **FALSIFIED on every gate leg** (spike n=2,684): mean CAR60 **+1.50%**
+(WRONG sign — predicted negative), cohort-t **+0.47** (needed ≤ −2), both halves POSITIVE (+2.4% / +1.4%),
+Cliff δ(spike,drop) **+0.03** (needed ≤ −0.10). Placebo not reached (failed stage 1). ⚠ naive t was **+4.22** —
+same-quarter clustering; `evlib.cohort_t` collapses it to 0.47, i.e. the gate CAUGHT a backwards false positive a raw
+t-test would have sold. **Do NOT re-mine concall hedging-language as a return factor** — deterministic lexical tone
+carries no forward signal at 60d. Verdict `FAIL-null-published`. Reproduce: `python -m explosive_moves.hedge_density
+--build && ... --run`; feature cached in `research.db.concall_lexical`, gate frozen in the module docstring.
+
+**↳ DATA REVIEW (2026-07-13) — verdict UNCHANGED; reported n's corrected; feature re-characterized.** A joint
+code+data review (external reviewer + 2-seat internal panel + read-only VPS diagnostics) re-examined this null.
+**FAIL-null stands, and is *especially* informative: the feature was biased toward finding a language effect and
+still failed the return gate.** Honest-reporting corrections (none change the verdict):
+- **Breadth:** within-name deltas need ≥4 calls → **1,097 delta-eligible symbols** (NOT the 1,573 corpus symbols;
+  spike cohort ≈ 700-900 distinct). **Distinct calls = 15,824** (NOT 16,140 — that counted pre-collapse transcripts;
+  316 same-date re-uploads collapse).
+- **Construct validity:** hedge_density is dominated by 5 ubiquitous modals (would/should/may/could/maybe = **64.7%**
+  of all LEX hits vs a **2.4%** genuine-uncertainty register), so it reads as within-name **seasonal/modal
+  conditional-language density, NOT "conviction erosion."** The SPIKE tercile is **50-59% Q2 (Apr-Jun, FY-end
+  guidance season) calls every year** vs a 33% baseline — the "spike" is largely guidance-season conditionality; the
+  cohort-t gate correctly collapsed the naive t (+4.22 → +0.47) this clustering induces.
+- **Provenance:** 98% Screener-sourced (Guardrail #8) — no promotion beyond the VPS until a primary NSE/BSE/XBRL
+  corpus. Source did NOT bias density (screener 0.01142 vs bse-ann 0.01139).
+- **Robustness caveats (do not change, if anything harden, the null):** right-censoring drops the dense 2026 slice
+  from CAR60 (needs ~85 fwd days); the fixed half-split sits at ~the 20th event-percentile (median event ~2023-12) →
+  low-power both-halves leg; **potential** concalls-coverage survivorship (UNMEASURED — the bhavcopy price archive
+  likely retains delisted series, so the risk is coverage of dead names, not the price series).
+- **Data quality:** 10 zero-hedge feature rows = 8 short truncated stubs + 2 mis-filed non-transcript docs (INTELLECT,
+  TRACXN) — exclude in any successor.
+- **Prereg hash `538a08a8` CONFIRMED tamper-clean** (VPS `prereg.py --verify` = OK; an earlier "drift" scare was an
+  `ast.get_docstring(clean=True)` dedent artifact — always hash the RAW `__doc__`).
+- **Correctness fixes (2026-07-13):** placebo-cohort match, feature PK→(symbol,concall_dt)+keep-fullest dedup,
+  rank-disjoint terciles, DB-handle try/finally, partial-cache refuse — all were DEAD CODE in the failing run, so the
+  verdict is unchanged; a rebuild+re-run on the new PK grain re-syncs the n's (~5 distinct calls appear / 316 collapse
+  on date, not label).
+**Any feature change (lexicon/weighting/negation/de-dup/outcome) = a NEW pre-registered study (`hedge_density_v2`,
+realized-VOLATILITY outcome not return, quarter-adjusted double-difference), NEVER an edit to this frozen null; v2
+must cite this ledger (every prior event-wrapper net-failed 0.02-0.10 vs 0.85; `concall_intent` placebo-killed).**
+
 ---
 
 ## Experiment 2026-06-24 — relative gate + PIT quality overlay (DONE)
