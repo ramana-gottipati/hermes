@@ -25,11 +25,17 @@ PROJECT_STATE entries are enough.**
   dominated by ancient un-triggered waves (73% >1yr) whose extrapolated 1-4 EPA gave negative targets /
   +12000% "room" → panel ruled KEEP the canonical formula (don't fork it) + **age-cap the ranked
   population at 252 bars (1yr) + coherence floor + DISCLOSE the held-out count + standout guards**.
-  Live now: **140 ranked + 596 disclosed-held-out**, bottom-line sane. Tests 17/17. PLAN doc retired.
-  Memory `wolfe-wave-strategy` updated. ⚠ Two `state:skip` commits (`282081f`/`ba02287`) — PROJECT_STATE
-  was entangled with the parallel S120 lane's uncommitted edits, so the S121/D120/D121 doc bullets ride
-  the seasonal lane's next PROJECT_STATE commit (verify they land, or commit PROJECT_STATE once that lane
-  finishes).
+  Live now: **140 ranked + 596 disclosed-held-out**, bottom-line sane. Tests 17/17. Then a **NAV fix
+  (`9bb04f5`, D120 correction — Ramana: "I don't see this page at all"):** the view had been mounted
+  WITHOUT a lens (to dodge the co-edited nav files), leaving it orphaned/invisible. Once the S120 lane
+  committed its `lens_registry`/`v2_surfaces` edits (clean), added **`Lens("wolfe-trades", "Patterns ·
+  Open trades", … /dash/wolfe/trades …)`** → now at **Markets→Patterns→"Open trades"**, canonical
+  **`/dash/markets/wolfe-trades`** (flat 307s), own tab highlights. Deployed `lens_registry.py` by
+  ANCHORED INSERT (VPS forked/behind HEAD; backup `.bak-navlens`). PLAN doc retired. Memory
+  `wolfe-wave-strategy` updated. ⚠ **Three `state:skip` commits (`282081f`/`ba02287`/`9bb04f5`)** —
+  PROJECT_STATE was entangled with the parallel S120 lane's uncommitted niftyindices edit, so the
+  S121/D120/D121 doc bullets ride the seasonal lane's next PROJECT_STATE commit (verify they land, or
+  commit PROJECT_STATE once that lane finishes).
 - **S120 / seasonal — Seasonal Tape lens LIVE (`9a82731`, a parallel session).** Descriptive calendar-
   seasonality at `/dash/markets/seasonal-tape`. Shows honest grey (0 certified — pre-2012 index depth;
   the session sourced 2004-12 niftyindices history but still 0 survive FDR, correctly NOT forced green).
