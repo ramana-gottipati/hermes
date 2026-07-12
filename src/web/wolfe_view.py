@@ -350,8 +350,14 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                '<a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
     head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up',
             'A', 'B', 'C', 'F', 'G', 'H', 'I', 'D', 'Q')
+    try:   # the Fresh setups ⇄ Open trades switch (one 'Patterns · Wolfe' tab)
+        from src.web.wolfe_trades_view import wolfe_view_toggle as _wvt
+        _toggle_html = _wvt("fresh")
+    except Exception:  # pragma: no cover — never let the toggle break the scanner
+        _toggle_html = ""
     body = (
-        '<h2>Wolfe scanner <span style="color:var(--ink-2);font-size:15px;font-weight:400">— winner-profile, read by side</span></h2>'
+        '<h2>Wolfe <span style="color:var(--ink-2);font-size:15px;font-weight:400">— winner-profile scanner, read by side</span></h2>'
+        + _toggle_html +
         '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
         'zone</b> — that survived <b>true out-of-sample</b> (fit 2004-14 / tested untouched 2015-26, survivorship-aware) '
         'plus a beta/regime control. <b>Read by side:</b> '
@@ -379,8 +385,6 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         + f' · fresh ≤ {eff_fresh} bars · <b>{len(cands)} candidates · {nin} actionable now</b>'
         ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">inclusive</a>'
         ' · <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a>'
-        ' &nbsp;|&nbsp; <a href="/dash/wolfe/trades" style="color:#3fb950" title="every OPEN winner-profile '
-        'trade at any age, ranked by remaining ROI, with filters">Open trades — remaining ROI ›</a>'
         ' &nbsp;|&nbsp; <a href="/dash/harmonic" style="color:#f778ba">Harmonic scanner ›</a></div>'
         '<table style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:var(--ink-2);text-align:left">'

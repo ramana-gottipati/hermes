@@ -68,6 +68,27 @@ _FILTER_KEYS = ("size", "sector", "dir", "maxage", "minq", "minroom",
                 "status", "minliq", "minrr")
 
 
+def wolfe_view_toggle(active):
+    """The Fresh setups ⇄ Open trades switch shown at the top of BOTH Wolfe views.
+    They live under ONE 'Patterns · Wolfe' nav tab (Ramana 2026-07-13) — this segmented
+    control is the mode switch between them. `active` = 'fresh' | 'open'."""
+    def _it(key, href, label, sub):
+        on = " on" if active == key else ""
+        return (f'<a class="wtg{on}" href="{href}"><b>{label}</b>'
+                f'<span>{_esc(sub)}</span></a>')
+    return (
+        '<div class="wtgbar" role="tablist">'
+        + _it("fresh", "/dash/wolfe/scan", "Fresh setups", "≤15d · validated edge")
+        + _it("open", "/dash/wolfe/trades", "Open trades", "any age · remaining ROI, filterable")
+        + '</div>'
+        '<style>.wtgbar{display:inline-flex;gap:3px;background:#0e141c;border:1px solid #1c2937;'
+        'border-radius:11px;padding:3px;margin:4px 0 12px}.wtg{display:flex;flex-direction:column;'
+        'gap:1px;padding:6px 15px;border-radius:8px;text-decoration:none;color:#9bb0c6;line-height:1.25}'
+        '.wtg b{font-size:13.5px;font-weight:600}.wtg span{font-size:10.5px;color:#5f7488;letter-spacing:.02em}'
+        '.wtg:hover{color:#eaf1f9}.wtg.on{background:#1c2937;color:#eaf1f9}'
+        '.wtg.on span{color:#8ba3ba}</style>')
+
+
 def _sector_opts(conn):
     """Sector dropdown = the live company_tags vocabulary (multi-label, approved)."""
     opts = [("all", "All sectors")]
@@ -225,14 +246,15 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         sector_opts = _sector_opts(conn)
 
     if not snap:
-        note = ('<h2>Open trades — remaining ROI</h2>'
+        note = ('<h2>Wolfe <span style="color:var(--ink-2);font-size:15px;font-weight:400">— open trades, remaining ROI</span></h2>'
+                + wolfe_view_toggle("open") +
                 '<div class="sub" style="margin:10px 0">The nightly open-trades snapshot '
                 'has not been built yet for this universe. It rides the '
                 '<code>hermes-wolfe-scan</code> timer (<code>python -m src.automation.wolfe '
                 '--persist-open</code>) — check back after the next nightly run, or open the '
                 '<a href="/dash/wolfe/scan" style="color:#58a6ff">fresh winner-profile scanner ›</a> '
                 'in the meantime.</div>')
-        return HTMLResponse(_shell("Open trades — Wolfe", note, "wolfe-trades", wide=True))
+        return HTMLResponse(_shell("Open trades — Wolfe", note, "wolfe", wide=True))
 
     all_rows = snap["rows"]
     total_open = len(all_rows)
@@ -336,8 +358,9 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
     ca = _esc((snap.get("computed_at") or "")[:16])
     body = (
         _CSS
-        + '<h2>Open trades <span style="color:var(--ink-2);font-size:15px;font-weight:400">— remaining ROI, ranked</span></h2>'
-        '<div class="sub" style="margin-bottom:8px">Every <b>OPEN</b> winner-profile Wolfe setup — '
+        + '<h2>Wolfe <span style="color:var(--ink-2);font-size:15px;font-weight:400">— open trades, remaining ROI</span></h2>'
+        + wolfe_view_toggle("open")
+        + '<div class="sub" style="margin-bottom:8px">Every <b>OPEN</b> winner-profile Wolfe setup — '
         'point 5 printed, the EPA (1-4) target <b>not yet reached</b>, so run is still left — at <b>any age</b>, '
         'ranked by how much room is left from the current price. '
         '<b style="color:var(--up)">run%</b> = move to the EPA target from CMP · '
@@ -361,7 +384,7 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px;white-space:nowrap">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>')
-    return HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe-trades", wide=True))
+    return HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe", wide=True))
 
 
 def _num_q(v):

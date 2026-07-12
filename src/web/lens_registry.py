@@ -157,15 +157,12 @@ LENSES: tuple[Lens, ...] = (
     # so /dash/harmonic and /dash/wolfe/scan highlight their "Patterns" sub-nav lens (D118).
     Lens("harmonic-scan", "Patterns · Harmonic", "market", "markets", "/dash/harmonic",
          group="Patterns", aliases=("harmonic",)),
+    # Wolfe = ONE Patterns lens with a Fresh setups ⇄ Open trades toggle (Ramana 2026-07-13).
+    # The scanner (fresh winner-profile) + the open-trades remaining-ROI view live under this
+    # single tab; the /dash/wolfe/trades open view emits active="wolfe" too (highlights this
+    # lens) and is reached via the on-page toggle, NOT its own nav entry.
     Lens("wolfe-scan", "Patterns · Wolfe", "market", "markets", "/dash/wolfe/scan",
          group="Patterns", aliases=("wolfe",)),
-    # Wolfe "Open trades — remaining ROI" companion view (S121/D120). A SIBLING Patterns
-    # lens next to the fresh scanner: same detector, but the OPEN winner-profile setups at
-    # any age (≤1yr ranked), ranked by remaining ROI from CMP. Emits active="wolfe-trades"
-    # (distinct from the scanner's "wolfe") so it highlights its OWN tab; nested engine
-    # gives it /dash/markets/wolfe-trades.
-    Lens("wolfe-trades", "Patterns · Open trades", "market", "markets", "/dash/wolfe/trades",
-         group="Patterns", aliases=("wolfe-trades",)),
     Lens("participants", "Participants", "market", "markets", "/dash/participants",
          dossier_tab="fno", screener_col=None, group="Events & flow"),
     Lens("wire", "News / Wire", "market", "markets", "/dash/wire",
