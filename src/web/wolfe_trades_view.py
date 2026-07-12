@@ -232,7 +232,7 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
                 '--persist-open</code>) — check back after the next nightly run, or open the '
                 '<a href="/dash/wolfe/scan" style="color:#58a6ff">fresh winner-profile scanner ›</a> '
                 'in the meantime.</div>')
-        return HTMLResponse(_shell("Open trades — Wolfe", note, "wolfe", wide=True))
+        return HTMLResponse(_shell("Open trades — Wolfe", note, "wolfe-trades", wide=True))
 
     all_rows = snap["rows"]
     total_open = len(all_rows)
@@ -361,7 +361,7 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px;white-space:nowrap">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>')
-    return HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe", wide=True))
+    return HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe-trades", wide=True))
 
 
 def _num_q(v):

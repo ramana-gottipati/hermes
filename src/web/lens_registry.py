@@ -159,6 +159,13 @@ LENSES: tuple[Lens, ...] = (
          group="Patterns", aliases=("harmonic",)),
     Lens("wolfe-scan", "Patterns · Wolfe", "market", "markets", "/dash/wolfe/scan",
          group="Patterns", aliases=("wolfe",)),
+    # Wolfe "Open trades — remaining ROI" companion view (S121/D120). A SIBLING Patterns
+    # lens next to the fresh scanner: same detector, but the OPEN winner-profile setups at
+    # any age (≤1yr ranked), ranked by remaining ROI from CMP. Emits active="wolfe-trades"
+    # (distinct from the scanner's "wolfe") so it highlights its OWN tab; nested engine
+    # gives it /dash/markets/wolfe-trades.
+    Lens("wolfe-trades", "Patterns · Open trades", "market", "markets", "/dash/wolfe/trades",
+         group="Patterns", aliases=("wolfe-trades",)),
     Lens("participants", "Participants", "market", "markets", "/dash/participants",
          dossier_tab="fno", screener_col=None, group="Events & flow"),
     Lens("wire", "News / Wire", "market", "markets", "/dash/wire",
