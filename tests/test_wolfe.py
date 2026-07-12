@@ -220,3 +220,27 @@ def test_open_trades_csv_export_shape_and_filters():
     assert len([l for l in body.splitlines() if l]) == 3          # header + 2 rows
     aaa = [l for l in body.splitlines() if l.startswith("AAA")][0]
     assert "Pharma" in aaa and ",edge," in aaa and aaa.endswith(",2026-07-10")
+
+
+def test_open_active_state_only_nondefaults():
+    from src.web import wolfe_trades_view as TV
+    # all defaults -> empty (a bare view, nothing to remember)
+    assert TV._active_state({"universe": "nifty500", "size": "", "sort": "run", "minliq": "any", "status": "all"}) == {}
+    # real filters + a non-default sort survive
+    assert TV._active_state({"size": "N50", "sort": "rr", "sector": "all", "minrr": "2", "universe": "nifty500"}) == {"size": "N50", "sort": "rr", "minrr": "2"}
+
+
+def test_open_sticky_cookie_set_and_clear():
+    from src.web import wolfe_trades_view as TV
+    from fastapi.responses import HTMLResponse
+
+    def _setcookies(resp):
+        return [v.decode() for k, v in resp.raw_headers if k == b"set-cookie"]
+    # active filters -> the remembered-filters cookie is written with the encoded state
+    on = _setcookies(TV._sticky(HTMLResponse("x"), {"size": "N50", "sort": "rr"}, 0))
+    assert on and "wolfe_open_filters=" in on[0] and "size" in on[0]
+    # clear -> a Set-Cookie that expires it
+    off = _setcookies(TV._sticky(HTMLResponse("x"), {}, 1))
+    assert off and "wolfe_open_filters=" in off[0]
+    # no active filters, no clear -> no cookie churn
+    assert _setcookies(TV._sticky(HTMLResponse("x"), {}, 0)) == []

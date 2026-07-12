@@ -20,12 +20,41 @@ from __future__ import annotations
 
 import csv
 import io
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Query
-from fastapi.responses import HTMLResponse, Response
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from src.core.db import get_conn
 from src.automation import wolfe
+
+# STICKY FILTERS (Ramana 2026-07-13): "I dive into a result, do a study, and return —
+# the filters I set are gone." The analyst's filtered shortlist must survive navigating
+# away (to a wave chart) and back. We remember the active filter+sort set in a cookie; a
+# bare return visit to the view restores it (redirect to the saved querystring). Same
+# client-cookie, no-server-state pattern as D110's "since you last looked".
+_FILTER_COOKIE = "wolfe_open_filters"
+# per-param default/empty values that count as "not set" (so we only remember real filters)
+_STATE_DEFAULTS = {"universe": ("nifty500",), "size": ("", "all"), "sector": ("", "all"),
+                   "dir": ("", "all"), "maxage": ("", "all"), "minq": ("", "any"),
+                   "minroom": ("", "any"), "status": ("", "all"), "minliq": ("", "any"),
+                   "minrr": ("", "any"), "sort": ("", "run")}
+
+
+def _active_state(params):
+    """The subset of filter/sort params that differ from their defaults (the state worth
+    remembering / that means 'the user has filtered')."""
+    return {k: v for k, v in params.items() if v and v not in _STATE_DEFAULTS.get(k, ())}
+
+
+def _sticky(resp, active, clear):
+    """Set (or clear) the remembered-filters cookie on the outgoing response."""
+    if clear:
+        resp.delete_cookie(_FILTER_COOKIE, path="/dash/wolfe/trades")
+    elif active:
+        resp.set_cookie(_FILTER_COOKIE, urlencode(active), max_age=2592000,   # 30 days
+                        path="/dash/wolfe/trades", samesite="lax", httponly=True)
+    return resp
 
 try:
     from src.web.dashboard import _shell, _esc, _q
@@ -222,7 +251,8 @@ def _bottom_line(rows, total_open, held_out=0):
 
 
 @router.get("/dash/wolfe/trades", response_class=HTMLResponse)
-def wolfe_trades(universe: str = Query("nifty500", max_length=24),
+def wolfe_trades(request: Request,
+                 universe: str = Query("nifty500", max_length=24),
                  size: str = Query("", max_length=12),
                  sector: str = Query("", max_length=40),
                  dir: str = Query("", max_length=8),
@@ -233,7 +263,8 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
                  minliq: str = Query("", max_length=8),
                  minrr: str = Query("", max_length=6),
                  sort: str = Query("run", max_length=6),
-                 format: str = Query("", max_length=6)):
+                 format: str = Query("", max_length=6),
+                 clear: int = Query(0, ge=0, le=1)):
     """Open winner-profile trades, ranked by remaining ROI, with 9 server-side filters.
     Reads the nightly wolfe_open_signals snapshot (instant); a live open_scan over the
     universe is minutes-long, so when the snapshot is absent we show a build notice."""
@@ -241,6 +272,14 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
     params = {"universe": uni, "size": size, "sector": sector, "dir": dir,
               "maxage": maxage, "minq": minq, "minroom": minroom, "status": status,
               "minliq": minliq, "minrr": minrr, "sort": sort}
+    active = _active_state(params)
+    # STICKY FILTERS: a bare return visit (no filter params) restores the last-used set
+    # so the analyst comes back to their shortlist, not the full list. The redirected
+    # request carries the params → renders normally (no loop). `clear=1` skips this.
+    if not active and not clear and format.lower() != "csv":
+        saved = request.cookies.get(_FILTER_COOKIE)
+        if saved:
+            return RedirectResponse(f"/dash/wolfe/trades?{saved}", status_code=307)
     with get_conn() as conn:
         snap = wolfe.latest_open_scan(conn, universe=uni)
         sector_opts = _sector_opts(conn)
@@ -254,7 +293,7 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
                 '--persist-open</code>) — check back after the next nightly run, or open the '
                 '<a href="/dash/wolfe/scan" style="color:#58a6ff">fresh winner-profile scanner ›</a> '
                 'in the meantime.</div>')
-        return HTMLResponse(_shell("Open trades — Wolfe", note, "wolfe", wide=True))
+        return _sticky(HTMLResponse(_shell("Open trades — Wolfe", note, "wolfe", wide=True)), active, clear)
 
     all_rows = snap["rows"]
     total_open = len(all_rows)
@@ -284,7 +323,8 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         + _sel("status", _STATUS_OPTS, status, "Status")
         + _sel("minliq", _LIQ_OPTS, minliq, "Min liquidity")
         + _sel("minrr", _RR_OPTS, minrr, "Min R:R")
-        + f'<a class="wtclear" href="/dash/wolfe/trades?universe={_q(uni)}">clear</a>'
+        + f'<a class="wtclear" href="/dash/wolfe/trades?universe={_q(uni)}&amp;clear=1" '
+          'title="clear all filters + forget them">clear</a>'
         + '</form>')
 
     # ── sort links (carry the current filters) ───────────────────────────────
@@ -348,7 +388,7 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
     if not rows:
         trs = ['<tr><td colspan="18" style="padding:14px;color:var(--ink-2)">No open trades match '
                'these filters — loosen a dropdown or <a href="/dash/wolfe/trades?universe='
-               + _q(uni) + '" style="color:#58a6ff">clear all</a>.</td></tr>']
+               + _q(uni) + '&amp;clear=1" style="color:#58a6ff">clear all</a>.</td></tr>']
 
     head = ("symbol", "dir", "sector", "size", "liquidity / deliv", "status", "CMP",
             "entry zone", "stop", "T1", "EPA", "run %", "risk %", "R:R",
@@ -384,7 +424,7 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px;white-space:nowrap">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>')
-    return HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe", wide=True))
+    return _sticky(HTMLResponse(_shell("Open trades — Wolfe", body, "wolfe", wide=True)), active, clear)
 
 
 def _num_q(v):
