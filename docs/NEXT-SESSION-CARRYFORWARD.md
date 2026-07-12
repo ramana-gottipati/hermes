@@ -20,7 +20,16 @@ PROJECT_STATE entries are enough.**
   the S120 seasonal lane on those forked files). Additive — detection/§A/§B/`winner_scan`/point-4
   UNTOUCHED. 5 new tests (`tests/test_wolfe.py`, 13/13). ⚠ An adversarial 16-agent review caught a
   persist bind-count blocker (27 of 29 cols) an empty-rows smoke test can't surface — FIXED + guarded.
-  PLAN doc `docs/wolfe-open-trades-PLAN.md` retired. Memory `wolfe-wave-strategy` top block updated.
+  Then a same-session **bottom-line insight band + server-side CSV export** (`282081f`) and a
+  **metric-semantics fix (D121, `ba02287`, panel `wf_dd906a08`):** the live 736-row snapshot was
+  dominated by ancient un-triggered waves (73% >1yr) whose extrapolated 1-4 EPA gave negative targets /
+  +12000% "room" → panel ruled KEEP the canonical formula (don't fork it) + **age-cap the ranked
+  population at 252 bars (1yr) + coherence floor + DISCLOSE the held-out count + standout guards**.
+  Live now: **140 ranked + 596 disclosed-held-out**, bottom-line sane. Tests 17/17. PLAN doc retired.
+  Memory `wolfe-wave-strategy` updated. ⚠ Two `state:skip` commits (`282081f`/`ba02287`) — PROJECT_STATE
+  was entangled with the parallel S120 lane's uncommitted edits, so the S121/D120/D121 doc bullets ride
+  the seasonal lane's next PROJECT_STATE commit (verify they land, or commit PROJECT_STATE once that lane
+  finishes).
 - **S120 / seasonal — Seasonal Tape lens LIVE (`9a82731`, a parallel session).** Descriptive calendar-
   seasonality at `/dash/markets/seasonal-tape`. Shows honest grey (0 certified — pre-2012 index depth;
   the session sourced 2004-12 niftyindices history but still 0 survive FDR, correctly NOT forced green).
