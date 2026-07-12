@@ -1318,8 +1318,27 @@ def _agebar(v):
     return {"15": 15, "30": 30, "60": 60, "120": 120}.get(str(v))
 
 
+def zone_gap_pct(r):
+    """SIGNED % distance from CMP to the entry zone (0 when price is IN the zone).
+    Sign carries the two opposite 'watch' situations the flat status hid:
+      POSITIVE = price ran PAST the entry (BULL above the zone / BEAR below it) — the
+                 setup is working, wait for a pullback/bounce to enter.
+      NEGATIVE = price is on the STOP side of the zone (BULL below / BEAR above) —
+                 drifting toward the stop, deteriorating."""
+    if r.get("in_zone"):
+        return 0.0
+    cmp_, zlo, zhi = r.get("cmp"), r.get("zlo"), r.get("zhi")
+    if not cmp_ or zlo is None or zhi is None:
+        return 0.0
+    if r.get("dir") == "BULL":
+        g = (cmp_ - zhi) / cmp_ * 100 if cmp_ > zhi else -(zlo - cmp_) / cmp_ * 100
+    else:
+        g = (zlo - cmp_) / cmp_ * 100 if cmp_ < zlo else -(cmp_ - zhi) / cmp_ * 100
+    return round(g, 1)
+
+
 def filter_open_rows(rows, size="", sector="", direction="", maxage="", minq="",
-                     minroom="", status="", minliq="", minrr=""):
+                     minroom="", status="", minliq="", minrr="", minprox=""):
     """Apply the 9 top-of-page filters server-side. Values are the dropdown params;
     empty / 'all' / 'any' = no constraint. `minq` may be 'top20' (his best waves) —
     keep only the top-20-by-Q of the surviving set. Returns a NEW filtered list."""
@@ -1355,6 +1374,12 @@ def filter_open_rows(rows, size="", sector="", direction="", maxage="", minq="",
         try:
             thr = float(minrr)
             out = [r for r in out if (r.get("rr") is not None and r["rr"] >= thr)]
+        except ValueError:
+            pass
+    if minprox and str(minprox).lower() not in ("any", ""):
+        try:                                              # keep rows within N% of the entry zone (in-zone = 0, always pass)
+            thr = float(minprox)
+            out = [r for r in out if abs(zone_gap_pct(r)) <= thr]
         except ValueError:
             pass
     if minq and str(minq).lower() not in ("any", ""):

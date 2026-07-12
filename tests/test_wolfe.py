@@ -244,3 +244,15 @@ def test_open_sticky_cookie_set_and_clear():
     assert off and "wolfe_open_filters=" in off[0]
     # no active filters, no clear -> no cookie churn
     assert _setcookies(TV._sticky(HTMLResponse("x"), {}, 0)) == []
+
+
+def test_zone_gap_and_proximity_filter():
+    row = lambda **k: _open_row(**{"dir": "BULL", "cmp": 100.0, "zlo": 100.0, "zhi": 102.0,
+                                   "in_zone": False, "invalid": False, **k})
+    assert _W.zone_gap_pct(row(cmp=110.0)) > 0          # BULL above zone (ran up) -> +
+    assert _W.zone_gap_pct(row(cmp=96.0)) < 0           # BULL below zone (toward stop) -> -
+    assert _W.zone_gap_pct(row(dir="BEAR", cmp=90.0)) > 0   # BEAR below zone (ran down) -> +
+    assert _W.zone_gap_pct(row(in_zone=True)) == 0.0
+    rows = [row(sym="NEAR", cmp=103.0), row(sym="FAR", cmp=130.0)]   # ~1% vs ~21% above the zone
+    got = [r["sym"] for r in _W.filter_open_rows(rows, minprox="5")]
+    assert "NEAR" in got and "FAR" not in got

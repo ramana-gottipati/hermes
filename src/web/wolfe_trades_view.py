@@ -38,7 +38,7 @@ _FILTER_COOKIE = "wolfe_open_filters"
 _STATE_DEFAULTS = {"universe": ("nifty500",), "size": ("", "all"), "sector": ("", "all"),
                    "dir": ("", "all"), "maxage": ("", "all"), "minq": ("", "any"),
                    "minroom": ("", "any"), "status": ("", "all"), "minliq": ("", "any"),
-                   "minrr": ("", "any"), "sort": ("", "run")}
+                   "minrr": ("", "any"), "minprox": ("", "any"), "sort": ("", "run")}
 
 
 def _active_state(params):
@@ -92,6 +92,7 @@ _STATUS_OPTS = [("all", "In zone + watching"), ("in", "Actionable now (in zone)"
 _LIQ_OPTS = [("any", "Any liquidity"), ("1", "≥ ₹1 cr traded"), ("5", "≥ ₹5 cr"),
              ("25", "≥ ₹25 cr"), ("100", "≥ ₹100 cr")]
 _RR_OPTS = [("any", "Any R:R"), ("1.5", "R:R ≥ 1.5"), ("2", "R:R ≥ 2"), ("3", "R:R ≥ 3")]
+_PROX_OPTS = [("any", "Any distance"), ("2", "≤ 2% from zone"), ("5", "≤ 5%"), ("10", "≤ 10%")]
 
 _FILTER_KEYS = ("size", "sector", "dir", "maxage", "minq", "minroom",
                 "status", "minliq", "minrr")
@@ -262,6 +263,7 @@ def wolfe_trades(request: Request,
                  status: str = Query("", max_length=8),
                  minliq: str = Query("", max_length=8),
                  minrr: str = Query("", max_length=6),
+                 minprox: str = Query("", max_length=6),
                  sort: str = Query("run", max_length=6),
                  format: str = Query("", max_length=6),
                  clear: int = Query(0, ge=0, le=1)):
@@ -271,7 +273,7 @@ def wolfe_trades(request: Request,
     uni = universe or "nifty500"
     params = {"universe": uni, "size": size, "sector": sector, "dir": dir,
               "maxage": maxage, "minq": minq, "minroom": minroom, "status": status,
-              "minliq": minliq, "minrr": minrr, "sort": sort}
+              "minliq": minliq, "minrr": minrr, "minprox": minprox, "sort": sort}
     active = _active_state(params)
     # STICKY FILTERS: a bare return visit (no filter params) restores the last-used set
     # so the analyst comes back to their shortlist, not the full list. The redirected
@@ -299,7 +301,7 @@ def wolfe_trades(request: Request,
     total_open = len(all_rows)
     rows = wolfe.filter_open_rows(
         all_rows, size=size, sector=sector, direction=dir, maxage=maxage,
-        minq=minq, minroom=minroom, status=status, minliq=minliq, minrr=minrr)
+        minq=minq, minroom=minroom, status=status, minliq=minliq, minrr=minrr, minprox=minprox)
     rows = wolfe.sort_open_rows(rows, sort)
 
     # CSV export — the SAME filtered + sorted rows drive the download (the plan's
@@ -323,6 +325,7 @@ def wolfe_trades(request: Request,
         + _sel("status", _STATUS_OPTS, status, "Status")
         + _sel("minliq", _LIQ_OPTS, minliq, "Min liquidity")
         + _sel("minrr", _RR_OPTS, minrr, "Min R:R")
+        + _sel("minprox", _PROX_OPTS, minprox, "Distance to zone")
         + f'<a class="wtclear" href="/dash/wolfe/trades?universe={_q(uni)}&amp;clear=1" '
           'title="clear all filters + forget them">clear</a>'
         + '</form>')
@@ -351,7 +354,14 @@ def wolfe_trades(request: Request,
         elif r.get("in_zone"):
             status_cell = '<span style="color:var(--up);font-weight:700" title="price in the entry zone now">● IN</span>'
         else:
-            status_cell = '<span style="color:var(--ink-3)" title="not yet in the entry zone">watch</span>'
+            gap = wolfe.zone_gap_pct(r)
+            if gap >= 0:      # ran past the entry — working, wait for a pullback/bounce
+                status_cell = (f'<span style="color:var(--ink-3)" title="price ran past the entry zone '
+                               f'({"above" if bull else "below"} it) — the setup is working; wait for a '
+                               f'pullback to enter">watch · +{gap:.1f}% to zone</span>')
+            else:             # on the stop side of the zone — drifting toward the stop
+                status_cell = (f'<span style="color:#d29922" title="price is on the stop side of the entry '
+                               f'zone, drifting toward the stop — deteriorating">watch · {gap:.1f}% (toward stop)</span>')
         tags = ", ".join(r.get("tags") or []) or (r.get("psector") or "—")
         tags_short = tags if len(tags) <= 26 else tags[:24] + "…"
         rr = r.get("rr")
@@ -362,12 +372,18 @@ def wolfe_trades(request: Request,
         rs = r.get("rs")
         rs_s = f'{rs:.0f}' if isinstance(rs, (int, float)) else "—"
         dim = ' opacity:0.6;' if r.get("invalid") else ''
+        # the wave URL — shared by the whole-row click AND the symbol anchor (so the
+        # symbol supports Ctrl/middle-click "open in a new tab"). stopPropagation keeps a
+        # plain click on the anchor from ALSO firing the row's onclick.
+        wave_href = (f'/dash/wolfe?sym={_q(r["sym"])}&p5={_q(r.get("p5date") or "")}'
+                     f'&p4={_q(r.get("p4date") or "")}')
         trs.append(
             # _q percent-encodes the symbol → safe inside the single-quoted JS string.
-            f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(r["sym"])}&p5={_q(r.get("p5date") or "")}&p4={_q(r.get("p4date") or "")}\'" '
-            f'style="cursor:pointer;border-top:1px solid var(--line-2);{dim}" '
-            f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
-            f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(r["sym"])}</b></td>'
+            f'<tr class="wtrow" onclick="location.href=\'{wave_href}\'" '
+            f'style="cursor:pointer;border-top:1px solid var(--line-2);{dim}">'
+            f'<td style="padding:6px 10px"><a href="{wave_href}" onclick="event.stopPropagation()" '
+            f'style="color:{col};font-weight:700;text-decoration:none" '
+            f'title="draw this exact wave — Ctrl/middle-click to open in a new tab">{_esc(r["sym"])}</a></td>'
             f'<td style="color:{col};font-weight:600">{r["dir"]}</td>'
             f'<td style="color:var(--ink-2)" title="{_esc(tags)}">{_esc(tags_short)}</td>'
             f'<td style="color:var(--ink-3)">{_esc(r.get("size") or "—")}</td>'
@@ -421,7 +437,7 @@ def wolfe_trades(request: Request,
           'title="download the filtered + sorted rows as CSV">⬇ CSV</a>'
           ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=' + _q(uni) + '" style="color:#58a6ff">fresh scanner ›</a>'
           '</div>'
-        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+        '<div class="wtwrap"><table class="wttab" style="width:100%;border-collapse:collapse;font-size:13px">'
         '<thead><tr style="color:var(--ink-2);text-align:left">'
         + "".join(f'<th style="padding:6px 10px;white-space:nowrap">{h}</th>' for h in head)
         + '</tr></thead><tbody>' + "".join(trs) + '</tbody></table></div>')
@@ -452,4 +468,10 @@ _CSS = """<style>
 .wtbl{font-size:13.5px;line-height:1.5;margin:8px 0 4px;padding:10px 12px;
   background:#0e1a14;border:1px solid #1c3a2a;border-left:3px solid #3fb950;border-radius:8px;color:#c7d5e0}
 @media (prefers-color-scheme:light){.wtbl{background:#f0f8f2;border-color:#cce8d5;color:#243b30}}
+/* sticky symbol column + header so the wide table stays readable while scrolling */
+.wtwrap{max-height:78vh;overflow:auto;border:1px solid #1c2937;border-radius:8px}
+.wttab thead th{position:sticky;top:0;z-index:2;background:#0e141c}
+.wttab tbody td:first-child{position:sticky;left:0;z-index:1;background:var(--bg-1,#0d1117)}
+.wttab thead th:first-child{position:sticky;left:0;top:0;z-index:3;background:#0e141c}
+.wttab tbody tr.wtrow:hover td{background:#1c2430}
 </style>"""
