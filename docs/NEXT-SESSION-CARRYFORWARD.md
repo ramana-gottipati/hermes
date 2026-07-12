@@ -122,8 +122,9 @@ a stuck `rebase --continue` (empty `ls-files -u` yet refusing) resolved by manua
   results events this run` (the FIRST real MTTR mint, post-TCS) + 1,571 rows, beats+deliv 157.
 - **Still to watch (hand forward):** board-health 22:01 UTC Jul-10 (silent = green — check the
   journal next boot) · **first-ever season-digest DM Sat 02:45 UTC (missing = real bug — page
-  it, do NOT `systemctl start` per AUD-95)** · Sat 21:00 provenance = its own scheduled task
-  (`verify-provenance-timeout-fix`, Sun 08:00 IST) — skip · banks report ~Jul-18 · ~Jul-21
+  it, do NOT `systemctl start` per AUD-95)** · **Sat 21:00 provenance ✅ VERIFIED (2026-07-12):
+  finished ~1h59m under the new 4h cap, full universe 2763/2763 symbols, 0 failed units — fix
+  holds, no chunking needed** · banks report ~Jul-18 · ~Jul-21
   SHP pledge-coverage flood check · E-02 Jul-22 · E-14 Jul-25 · E-04 Aug-01 (armed,
   self-gating — do NOT run early).
 

@@ -3276,8 +3276,11 @@ appearing anywhere". All four verified real and fixed, live:
   full-universe re-collect mid-run on Jul-07 (killed at 675/2767 symbols, ~110 min needed,
   pager fired). NOT a wedge — steady progress in the log. Fix: per-unit `99-timeout.conf`
   (TimeoutStartSec=4h — wedge-guard stays finite), installed + `reset-failed`; nothing
-  started (AUD-95). **VERIFY its Sat Jul-11 21:00 UTC run completes** (journal
-  `Finished`, log reaches 2767/2767). Jul-04's separate exit-code failure was the known
+  started (AUD-95). **✅ VERIFIED (2026-07-12, scheduled task):** the first run under the 4h
+  cap — Sat Jul-11 21:00:03→22:59:28 UTC — **Finished cleanly in ~1h59m** (well under 4h,
+  no `start operation timed out`, 0 failed hermes-* units). Log reached the full universe
+  **2763/2763 symbols** (767,142 rows, 22 captured) — far past the old 675 SIGTERM point.
+  Fix holds; no job-side chunking needed. Jul-04's separate exit-code failure was the known
   7-col-INSERT crash (already fixed by that lane — the pager drop-in cites it).
 Commits: (this commit). Files: `src/automation/launchpad_signals.py` (NEW) ·
 `src/automation/strategy_registry.py` · `src/web/cockpit.py` · `src/web/strategist_view.py` ·
