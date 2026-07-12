@@ -48,12 +48,15 @@ PROJECT_STATE entries are enough.**
   **▶ 4-lens improvements brainstorm (`wf_67b9dbb9`) → 12 prioritized ideas. Ramana picked QUICK WINS
   #1-3, SHIPPED + LIVE (`6319654`):** split "watch" + signed distance-to-zone (`zone_gap_pct`) + a
   Proximity filter (≤2/5/10%, 10 filters now) · sticky symbol column + header · symbol as a real `<a>`
-  (new-tab fanning). **BACKLOG (Ramana to pick — all additive/descriptive):** #4 dual target run→T1
-  beside run→EPA (honest floor vs the aggressive EPA) · #5 age-graded EPA muting · #6 ATR-normalized
-  run/risk + razor-stop flag · #7 §B breakdown on the row (parity w/ fresh scanner) · #8 RS with-trend
-  vs counter-trend label + min-RS filter · #9 breadth/concentration strip · #10 snapshot-staleness
-  banner · #11 inline price-ladder micro-column (SL·zone·CMP·T1·EPA) · #12 "what changed since you last
-  looked" daily diff. Full detail: workflow journal + this session's summary. Memory
+  (new-tab fanning). **THEN Ramana "grow fully" → ALL 9 remaining items BUILT + LIVE (`4fdf119`, 22
+  tests):** #4 dual target run→T1 beside run→EPA · #5 age-graded EPA muting (`~`) · #6 ATR-normalized
+  risk + razor flag (NEW `atr_pct` persisted col — re-persist done) · #7 §B breakdown tooltip on Q ·
+  #8 RS with-trend/counter-trend label + min-RS filter · #9 breadth/concentration strip · #10 snapshot-
+  staleness banner · #11 inline price-ladder micro-column (SL·zone·CMP·T1·EPA SVG) · #12 "what changed
+  since you last looked" (NEW/→in-zone/→stopped via a `wolfe_open_seen` cookie diff). 11 filters; CSV
+  gained run_t1/atr_pct/gap_to_zone. Live-verified (T1 subs, `~`-muted EPAs, 70 ×ATR cells + 21 razor
+  flags, 140 §B tooltips + 140 ladder SVGs, breadth "47 bull · 93 bear", min-RS=70→25). The Wolfe
+  open-trades tool is now feature-complete against the brainstorm. Memory
   `wolfe-wave-strategy` updated. ⚠ **Three `state:skip` commits (`282081f`/`ba02287`/`9bb04f5`)** —
   PROJECT_STATE was entangled with the parallel S120 lane's uncommitted niftyindices edit, so the
   S121/D120/D121 doc bullets ride the seasonal lane's next PROJECT_STATE commit (verify they land, or
