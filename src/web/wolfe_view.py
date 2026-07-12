@@ -397,7 +397,9 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
 def wolfe_page(sym: str = Query("", max_length=24),
                idx: str = Query("", max_length=48),
                w: int = Query(0, ge=0),
-               pick: str = Query("", max_length=12)):
+               pick: str = Query("", max_length=12),
+               p5: str = Query("", max_length=12),
+               p4: str = Query("", max_length=12)):
     sym = sym.strip().upper()
     idx = idx.strip()
     if not sym and not idx:
@@ -408,21 +410,51 @@ def wolfe_page(sym: str = Query("", max_length=24),
                 'The detector ranks every 1·3·5 setup; the chart draws the selected one.</div>' + _form())
         return HTMLResponse(_shell("Wolfe wave", body, "wolfe"))
 
+    # A SPECIFIC wave requested by its point dates (from an open-trades / scanner row) needs
+    # the FULL history — the default analyze() prunes to a recent window, so an older wave
+    # (e.g. a 211-day-old open trade) would be dropped. all_waves=True keeps every wave.
+    specific = bool(p5 or p4)
     with get_conn() as conn:
-        d = wolfe.analyze(conn, sym=sym or None, idx=idx or None)
+        d = wolfe.analyze(conn, sym=sym or None, idx=idx or None, all_waves=specific)
     if not d:
         body = (f'<h2>Wolfe wave</h2><div class="empty">No price history for '
                 f'<b>{_esc(sym or idx)}</b>.</div>' + _form(sym, idx))
         return HTMLResponse(_shell("Wolfe wave", body, "wolfe"))
 
-    if pick == "winner" and d.get("waves"):       # from the scanner → draw the freshest winner-profile setup
+    if specific and d.get("waves"):
+        # select the EXACT wave by its point-5 AND point-4 dates (two waves can share a p5,
+        # so both dates are needed to disambiguate). Put it first + cap the list so the
+        # "Setups" summary isn't the full 150-wave history.
+        found = None
+        for i, ww in enumerate(d["waves"]):
+            wp5 = (ww.get("p5") or {}).get("date") or ""
+            wp4 = ww["pivots"][3]["date"]
+            if (not p5 or wp5 == p5) and (not p4 or wp4 == p4):
+                found = i
+                break
+        if found is not None:
+            target = d["waves"][found]
+            others = [x for j, x in enumerate(d["waves"]) if j != found][:29]
+            d["waves"] = [target] + others
+            w = 0
+    elif pick == "winner" and d.get("waves"):       # from the scanner → draw the freshest winner-profile setup
         wps = [(i, ww) for i, ww in enumerate(d["waves"]) if wolfe.is_winner_profile(ww.get("score"))]
         if wps:
             w = max(wps, key=lambda iw: iw[1]["pivots"][3]["idx"])[0]
 
+    # the specific wave drawn (if requested) — its point-5 date, for the header + the stock link
+    _sel_w = d["waves"][w] if d.get("waves") and 0 <= w < len(d["waves"]) else None
+    _sel_p5 = (_sel_w.get("p5") or {}).get("date") if _sel_w else (p5 or "")
     body = (
-        f'<h2>{_esc(d["label"])} — Wolfe wave</h2>'
+        f'<h2>{_esc(d["label"])} — Wolfe wave'
+        + (f' <span style="color:var(--ink-2);font-size:15px;font-weight:400">— setup of {_esc(_sel_p5)}</span>' if (specific and _sel_p5) else '')
+        + '</h2>'
         + _form(sym, idx)
+        + (f'<div style="margin:-2px 0 10px"><a href="/dash/stock?sym={_q(sym)}'
+           + (f'&amp;wolfe={_q(_sel_p5)}' if _sel_p5 else '')
+           + '" style="color:#3fb950;font-weight:600;text-decoration:none">↗ Open full stock chart</a>'
+           '<span style="color:var(--ink-3);font-size:12px"> — the same wave on the full price chart, '
+           'with the regular drawing + indicator tools</span></div>' if sym else '')
         + _summary(d, w, sym, idx)
         + '<div class="card" style="padding:12px">'
         + f'<label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;'

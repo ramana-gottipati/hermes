@@ -235,7 +235,7 @@ def _bottom_line(rows, total_open, held_out=0):
 
     def _name(r, extra):
         col = _UP if r["dir"] == "BULL" else _DN
-        return (f'<a href="/dash/wolfe?sym={_q(r["sym"])}&pick=winner" '
+        return (f'<a href="/dash/wolfe?sym={_q(r["sym"])}&p5={_q(r.get("p5date") or "")}&p4={_q(r.get("p4date") or "")}" '
                 f'style="color:{col};font-weight:600;text-decoration:none">{_esc(r["sym"])}</a> {extra}')
     parts = [f'<b>Bottom line:</b> <b>{n}</b> ranked open trade{"s" if n != 1 else ""} '
              f'{"match these filters" if n != total_open else "in view"} — '
@@ -364,7 +364,7 @@ def wolfe_trades(request: Request,
         dim = ' opacity:0.6;' if r.get("invalid") else ''
         trs.append(
             # _q percent-encodes the symbol → safe inside the single-quoted JS string.
-            f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(r["sym"])}&pick=winner\'" '
+            f'<tr onclick="location.href=\'/dash/wolfe?sym={_q(r["sym"])}&p5={_q(r.get("p5date") or "")}&p4={_q(r.get("p4date") or "")}\'" '
             f'style="cursor:pointer;border-top:1px solid var(--line-2);{dim}" '
             f'onmouseover="this.style.background=\'#1c2430\'" onmouseout="this.style.background=\'transparent\'">'
             f'<td style="padding:6px 10px"><b style="color:{col}">{_esc(r["sym"])}</b></td>'
@@ -383,7 +383,8 @@ def wolfe_trades(request: Request,
             f'<td style="text-align:center">{rr_s}</td>'
             f'<td style="text-align:center"><b style="color:{col}">{_num_q(r.get("Q"))}</b></td>'
             f'<td style="text-align:center;color:var(--ink-2)">{rs_s}</td>'
-            f'<td style="color:var(--ink-3)" title="setup: point 5 on {_esc(r.get("p5date") or "")}">{r.get("age")}d</td>'
+            f'<td style="color:var(--ink-3);white-space:nowrap" title="point-5 (setup) date · click the row to draw this exact wave">{r.get("age")}d '
+            f'<span style="font-size:11px;color:var(--ink-2)">{_esc(r.get("p5date") or "")}</span></td>'
             f'<td style="text-align:center">{badge}</td></tr>')
     if not rows:
         trs = ['<tr><td colspan="18" style="padding:14px;color:var(--ink-2)">No open trades match '

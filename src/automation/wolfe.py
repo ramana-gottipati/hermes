@@ -863,6 +863,7 @@ def _wave_payload(w, dates, n, marker_shape="circle", dashed=False):
             "rank_tier": w.get("rank_tier"), "wolfe_rank": w.get("wolfe_rank"),
             "struct": struct, "line13": line13, "epa": epa, "markers": markers, "summary": summary,
             "p5pred": p5pred, "p4_time": p[3]["date"], "p4_value": round(p[3]["price"], 2),
+            "p5_time": (p5["date"] if p5 else None),   # for the stock overlay's ?wolfe= auto-select
             "last_time": dates[line_r], "fib12": fib12, "fib34": fib34, "zones": zones,
             "pan_from": dates[pf], "pan_to": dates[pan_r]}
 

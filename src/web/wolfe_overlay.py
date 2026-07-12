@@ -368,7 +368,21 @@ SNIPPET = """<script>
         if(lbl){ lbl.innerHTML='no auto Wolfe wave'+drawLink(); wireDraw(); }   // still let him draw his own
         return;
       }
-      DATA=d; mode=defaultMode(); di=0; redraw();
+      DATA=d; mode=defaultMode(); di=0;
+      // AUTO-SELECT a specific wave by its point-5 date (from a Wolfe "open trades" link,
+      // /dash/stock?sym=…&wolfe=YYYY-MM-DD) — so the full chart opens ON that exact wave,
+      // not the newest. Falls back to the default (newest) when the param is absent/unmatched.
+      var want=new URLSearchParams(location.search).get('wolfe');
+      if(want&&DATA.completed){
+        for(var k=0;k<DATA.completed.length;k++){
+          if(DATA.completed[k].p5_time===want){
+            mode=(DATA.completed[k].lifecycle==='closed')?'closed':'open';
+            var lst=listFor(mode); var ix=lst.indexOf(DATA.completed[k]); if(ix>=0) di=ix;
+            break;
+          }
+        }
+      }
+      redraw();
     }).catch(function(){ if(lbl) lbl.textContent='overlay error'; });
   }
   cb.addEventListener('change', function(){
