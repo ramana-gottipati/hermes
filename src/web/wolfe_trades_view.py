@@ -18,8 +18,11 @@ router (durable-include pattern) so it needs no v2_surfaces / lens_registry edit
 """
 from __future__ import annotations
 
+import csv
+import io
+
 from fastapi import APIRouter, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from src.core.db import get_conn
 from src.automation import wolfe
@@ -113,6 +116,74 @@ def _liq_cell(r):
             f'{" — thin/illiquid, gap-prone" if thin else ""}">₹{tv:,.1f} cr{dps}{warn}</span>')
 
 
+def _status_word(r):
+    if r.get("invalid"):
+        return "below_stop"
+    return "in_zone" if r.get("in_zone") else "watch"
+
+
+def _csv_response(rows, scan_date):
+    """Server-side CSV of the filtered + sorted rows (the plain, flat, analyst-friendly
+    shape). Honors the exact same filter/sort the page shows — a download, not a signal."""
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["symbol", "direction", "sector_tags", "size", "cmp", "zone_low",
+                "zone_high", "stop", "t1", "epa", "run_pct", "risk_pct", "rr", "q",
+                "rs", "traded_cr", "delivery_pct", "age_bars", "setup_p5_date",
+                "status", "edge", "as_of"])
+    for r in rows:
+        edge = "edge" if (r.get("age") is not None and r["age"] <= 15) else "open"
+        w.writerow([
+            r.get("sym"), r.get("dir"), "|".join(r.get("tags") or []), r.get("size") or "",
+            r.get("cmp"), r.get("zlo"), r.get("zhi"), r.get("sl"), r.get("t1") or "",
+            r.get("epa"), r.get("run"), r.get("risk"),
+            (r.get("rr") if r.get("rr") is not None else ""), r.get("Q"),
+            (r.get("rs") if r.get("rs") is not None else ""),
+            (r.get("tv_cr") if r.get("tv_cr") is not None else ""),
+            (r.get("deliv_pct") if r.get("deliv_pct") is not None else ""),
+            r.get("age"), r.get("p5date") or "", _status_word(r), edge, scan_date])
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="wolfe-open-trades.csv"'})
+
+
+def _bottom_line(rows, total_open):
+    """Bottom-line-FIRST band (readability doctrine): surface the answer — how many
+    are actionable + the standout trades by R:R and by room — before the analyst
+    scans the table. Computed over the CURRENTLY FILTERED set."""
+    n = len(rows)
+    if not n:
+        return ('<div class="wtbl"><b>Bottom line:</b> no open trades match these filters '
+                f'— of {total_open} open, none pass. Loosen a dropdown.</div>')
+    live = [r for r in rows if not r.get("invalid")]
+    n_act = sum(1 for r in rows if r.get("in_zone") and not r.get("invalid"))
+    n_edge = sum(1 for r in rows if (r.get("age") is not None and r["age"] <= 15))
+    n_blown = sum(1 for r in rows if r.get("invalid"))
+
+    def _pick(key):
+        cand = [r for r in live if r.get(key) is not None]
+        return max(cand, key=lambda r: r[key]) if cand else None
+    best_rr = _pick("rr")
+    most_room = _pick("run")
+
+    def _name(r, extra):
+        if not r:
+            return "—"
+        col = _UP if r["dir"] == "BULL" else _DN
+        return (f'<a href="/dash/wolfe?sym={_q(r["sym"])}&pick=winner" '
+                f'style="color:{col};font-weight:600;text-decoration:none">{_esc(r["sym"])}</a> {extra}')
+    parts = [f'<b>Bottom line:</b> <b>{n}</b> open trade{"s" if n != 1 else ""} '
+             f'{"match these filters" if n != total_open else "in view"} — '
+             f'<b style="color:var(--up)">{n_act}</b> actionable now, {n_edge} fresh (★edge)'
+             + (f', {n_blown} below stop (shown last)' if n_blown else '') + '.']
+    if best_rr and best_rr.get("rr") is not None:
+        parts.append('Best risk-adjusted: ' + _name(best_rr,
+                     f'<span style="color:var(--ink-2)">R:R {best_rr["rr"]:.2f}, {best_rr["run"]:+.0f}% room</span>') + '.')
+    if most_room and (not best_rr or most_room["sym"] != best_rr["sym"]) and most_room.get("run") is not None:
+        parts.append('Most room left: ' + _name(most_room,
+                     f'<span style="color:var(--ink-2)">{most_room["run"]:+.0f}%, R:R {most_room["rr"] if most_room.get("rr") is not None else "—"}</span>') + '.')
+    return '<div class="wtbl">' + " ".join(parts) + '</div>'
+
+
 @router.get("/dash/wolfe/trades", response_class=HTMLResponse)
 def wolfe_trades(universe: str = Query("nifty500", max_length=24),
                  size: str = Query("", max_length=12),
@@ -124,7 +195,8 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
                  status: str = Query("", max_length=8),
                  minliq: str = Query("", max_length=8),
                  minrr: str = Query("", max_length=6),
-                 sort: str = Query("run", max_length=6)):
+                 sort: str = Query("run", max_length=6),
+                 format: str = Query("", max_length=6)):
     """Open winner-profile trades, ranked by remaining ROI, with 9 server-side filters.
     Reads the nightly wolfe_open_signals snapshot (instant); a live open_scan over the
     universe is minutes-long, so when the snapshot is absent we show a build notice."""
@@ -152,6 +224,12 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         all_rows, size=size, sector=sector, direction=dir, maxage=maxage,
         minq=minq, minroom=minroom, status=status, minliq=minliq, minrr=minrr)
     rows = wolfe.sort_open_rows(rows, sort)
+
+    # CSV export — the SAME filtered + sorted rows drive the download (the plan's
+    # "same params drive the view, the sort, AND any export"). Server-side, honest.
+    if format.lower() == "csv":
+        return _csv_response(rows, snap.get("scan_date") or "")
+
     nin = sum(1 for r in rows if r.get("in_zone") and not r.get("invalid"))  # actionable = in zone, not blown
 
     # ── filter bar (one GET form; each select auto-submits) ──────────────────
@@ -254,10 +332,13 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         '<i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div class="sub" style="margin-bottom:8px;font-size:12px">{sortbar}</div>'
         + fbar
+        + _bottom_line(rows, total_open)
         + f'<div style="color:var(--ink-2);font-size:13px;margin:8px 0 10px">{_esc(uni)} · '
           f'as-of <b>{sd}</b> <span style="color:var(--ink-3)">(nightly snapshot'
           f'{(" · computed " + ca) if ca else ""})</span> · '
           f'<b>{len(rows)} of {total_open} open trades</b> · {nin} actionable now'
+          f' &nbsp;|&nbsp; <a href="/dash/wolfe/trades?{_qs(params, format="csv")}" style="color:#3fb950" '
+          'title="download the filtered + sorted rows as CSV">⬇ CSV</a>'
           ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=' + _q(uni) + '" style="color:#58a6ff">fresh scanner ›</a>'
           '</div>'
         '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
@@ -288,4 +369,7 @@ _CSS = """<style>
 .wtclear{align-self:flex-end;font-size:12px;color:#7d93a8;text-decoration:none;
   padding:6px 8px;border:1px solid #27384a;border-radius:6px}
 .wtclear:hover{color:#eaf1f9;border-color:#4d9dff}
+.wtbl{font-size:13.5px;line-height:1.5;margin:8px 0 4px;padding:10px 12px;
+  background:#0e1a14;border:1px solid #1c3a2a;border-left:3px solid #3fb950;border-radius:8px;color:#c7d5e0}
+@media (prefers-color-scheme:light){.wtbl{background:#f0f8f2;border-color:#cce8d5;color:#243b30}}
 </style>"""

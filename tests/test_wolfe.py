@@ -152,3 +152,20 @@ def test_persist_open_scan_roundtrip_binds_all_columns(monkeypatch):
     assert r["run"] == 14.3 and r["rr"] == 7.94 and r["size"] == "N50"
     assert r["tv_cr"] == 1095.0 and r["tags"] == ["Energy", "Oil & Gas"] and r["comp"] == {"p1": 2, "B": 2}
     assert next(x for x in got["rows"] if x["sym"] == "BLOWN")["invalid"] is True
+
+
+def test_open_trades_csv_export_shape_and_filters():
+    # the CSV export is server-side and honors the same rows it is handed (the view
+    # filters/sorts upstream); guard the header + row shape + filter-honesty here.
+    from src.web import wolfe_trades_view as TV
+    rows = [_open_row(sym="AAA", tags=["Pharma"], tv_cr=50.0),
+            _open_row(sym="BBB", tags=["IT"], tv_cr=2.0, dir="BEAR", rr=3.0)]
+    resp = TV._csv_response(rows, "2026-07-10")
+    body = resp.body.decode()
+    assert resp.media_type == "text/csv"
+    assert "attachment; filename=" in resp.headers.get("content-disposition", "")
+    head = body.splitlines()[0]
+    assert head.startswith("symbol,direction,sector_tags,size,cmp") and head.endswith(",as_of")
+    assert len([l for l in body.splitlines() if l]) == 3          # header + 2 rows
+    aaa = [l for l in body.splitlines() if l.startswith("AAA")][0]
+    assert "Pharma" in aaa and ",edge," in aaa and aaa.endswith(",2026-07-10")
