@@ -34,7 +34,11 @@ PROJECT_STATE entries are enough.**
   view emits `active="wolfe"` (highlights the one tab), reached via the toggle at `/dash/wolfe/trades`
   (flat; `/dash/markets/wolfe-trades` now 404). Deployed `lens_registry.py` by ANCHORED INSERT then
   anchored-DELETE (VPS forked/behind HEAD; backups `.bak-navlens`/`.bak-navmerge`). LESSON: match the
-  user's IA mental model — one Wolfe page/two views, a toggle not a second tab. PLAN doc retired. Memory
+  user's IA mental model — one Wolfe page/two views, a toggle not a second tab. **+ STICKY FILTERS
+  (`a2dcf06`, Ramana: "I dive into a result, do a study, and return — the filters I set are gone"):** the
+  active filter+sort set is remembered in a `wolfe_open_filters` cookie (30d, httponly); a bare return
+  visit 307-redirects to the saved querystring so the analyst returns to their shortlist, not the full
+  140; `?clear=1` wipes it; CSV never redirects (D110-style client-cookie). Live-verified. PLAN doc retired. Memory
   `wolfe-wave-strategy` updated. ⚠ **Three `state:skip` commits (`282081f`/`ba02287`/`9bb04f5`)** —
   PROJECT_STATE was entangled with the parallel S120 lane's uncommitted niftyindices edit, so the
   S121/D120/D121 doc bullets ride the seasonal lane's next PROJECT_STATE commit (verify they land, or
