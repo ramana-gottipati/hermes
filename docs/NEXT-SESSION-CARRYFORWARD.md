@@ -7,6 +7,26 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🆕 2026-07-12 — S120 + S121 landed (both on origin/main; do NOT redo — kickstart-pick-verify)
+- **S121 / D120 — Wolfe "Open trades — remaining ROI" view SHIPPED + LIVE (`7c4fd74`).** The ONE
+  designed-not-built feature is done. **`/dash/wolfe/trades`** — every OPEN winner-profile trade
+  (p5 printed, EPA 1-4 NOT touched, ANY age) ranked by remaining ROI from CMP (run%/risk%/R:R), with
+  9 server-side filters (Size · Sector `company_tags` · Direction · Max-age · min-Q/top20 · min-room% ·
+  Status · **min-liquidity** = the TIRUPATIFL lesson · min-R:R) + 4 sorts. **LIVE-verified on the VPS:
+  736 open trades render; every filter narrows server-side** (minliq 736→725→593→393; top20→20;
+  maxage15→60; Pharma→63). Isolated `wolfe_open_signals` table + `--persist-open` piggybacked on the
+  `hermes-wolfe-scan` timer (NO unit change). NEW `wolfe_trades_view.py` mounted onto `wolfe_view.router`
+  via the durable include — **needs NO `v2_surfaces`/`lens_registry` edit** (that's how it sidestepped
+  the S120 seasonal lane on those forked files). Additive — detection/§A/§B/`winner_scan`/point-4
+  UNTOUCHED. 5 new tests (`tests/test_wolfe.py`, 13/13). ⚠ An adversarial 16-agent review caught a
+  persist bind-count blocker (27 of 29 cols) an empty-rows smoke test can't surface — FIXED + guarded.
+  PLAN doc `docs/wolfe-open-trades-PLAN.md` retired. Memory `wolfe-wave-strategy` top block updated.
+- **S120 / seasonal — Seasonal Tape lens LIVE (`9a82731`, a parallel session).** Descriptive calendar-
+  seasonality at `/dash/markets/seasonal-tape`. Shows honest grey (0 certified — pre-2012 index depth;
+  the session sourced 2004-12 niftyindices history but still 0 survive FDR, correctly NOT forced green).
+  Its follow-on edits to PROJECT_STATE + `metrics-glossary`/`strategy-ledger`/`prereg.py`/`hedge_density.py`
+  were still uncommitted in the shared tree at S121 wrap — that lane owns committing them.
+
 ## 🆕 2026-07-11 — S109 + S110 landed (three lanes, all on origin/main; none redoable)
 Diverged from S108 then reconciled by commit-then-pull-rebase (union-resolved PROJECT_STATE — two
 S109 entries KEPT + S110 at top): **`dfbe175` S109/D111 Wolfe §B rebalance** (spring-reclaim C ·
@@ -238,15 +258,16 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`
 > (§ AT SESSION START), then execute `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom —
-> read the 🔔 FOUR-LANE block + 🔭 battery results FIRST (S102/S103/S104/fractal all landed
-> 2026-07-10 evening; do NOT redo any of them).
+> read the 🆕 S120 + S121 block FIRST (Seasonal Tape + the Wolfe "Open trades — remaining ROI"
+> view both landed 2026-07-12 + on origin/main; do NOT redo either — kickstart-pick-verify).
 > (1) Run the remaining watches: results-reactions (Jul-10 18:01 UTC) + board-health (22:01
 > UTC, silent = green) results in the journals; **first-ever season-digest DM Sat 02:45 UTC —
 > missing = real bug, page it, never `systemctl start` mid-day (AUD-95)**; Sat 21:00
 > provenance is on its own scheduled task, skip.
-> (2) Pick per § NEXT PICKS: wolfe lane → **UNFROZEN — §B rebalance (D111), draw tool (D113),
-> point-4, and the winner-profile OOS re-validation all landed 2026-07-11; remaining = point-4-
-> strength (his chart) / D95 tape-wiring / §C PIT backtest**; product lane → X-04
+> (2) Pick per § NEXT PICKS: wolfe lane → **the "Open trades" view shipped S121/D120 (`7c4fd74`);
+> remaining = point-4-strength (his chart) / D95 tape-wiring / §C PIT backtest**; seasonal lane →
+> pre-2012 SECTOR-index history (still 2012-capped → sector tapes grey) + a durable niftyindices
+> fetcher in `indexes.py`; product lane → X-04
 > overnight/intraday split + pump-flag; bus lane → the **alert rail / SSE** (the
 > since-you-last-looked brief shipped S108/D110); quant lane → AUD-14 (morning window only).
 > E-studies are armed + self-gating (E-02 Jul-22 · E-14 Jul-25 · E-04 Aug-01) — do NOT run early.
