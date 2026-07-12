@@ -136,22 +136,73 @@ def test_sort_open_rows_invalid_sinks_last():
 
 def test_persist_open_scan_roundtrip_binds_all_columns(monkeypatch):
     # guards the bind-count blocker: 3 real rows must persist WITHOUT ProgrammingError
-    # and read back with scan_date/computed_at + every enriched field intact.
+    # and read back with scan_date/computed_at/held_out + every enriched field intact.
     import sqlite3
-    monkeypatch.setattr(_W, "open_scan", lambda conn, universe="nifty500": [
+    monkeypatch.setattr(_W, "open_scan", lambda conn, universe="nifty500": ([
         _open_row(),
         _open_row(sym="TIRUPATIFL", size="Small250", tv_cr=3.4, tags=["Financial Services"], in_zone=False, rr=11.5),
-        _open_row(sym="BLOWN", invalid=True, rr=None, in_zone=False)])
+        _open_row(sym="BLOWN", invalid=True, rr=None, in_zone=False)], 7))     # 7 held out
     conn = sqlite3.connect(":memory:")
-    n, _sd = _W.persist_open_scan(conn, universe="u", computed_at="2026-07-12 23:30:00")
-    assert n == 3
+    n, _sd, held = _W.persist_open_scan(conn, universe="u", computed_at="2026-07-12 23:30:00")
+    assert n == 3 and held == 7
     got = _W.latest_open_scan(conn, universe="u")
     assert got is not None and len(got["rows"]) == 3
-    assert got["computed_at"] == "2026-07-12 23:30:00"
+    assert got["computed_at"] == "2026-07-12 23:30:00" and got["held_out"] == 7
     r = next(x for x in got["rows"] if x["sym"] == "RELIANCE")
     assert r["run"] == 14.3 and r["rr"] == 7.94 and r["size"] == "N50"
     assert r["tv_cr"] == 1095.0 and r["tags"] == ["Energy", "Oil & Gas"] and r["comp"] == {"p1": 2, "B": 2}
     assert next(x for x in got["rows"] if x["sym"] == "BLOWN")["invalid"] is True
+
+
+def test_open_rr_display_cap():
+    from src.web import wolfe_trades_view as TV
+    assert TV._rr_disp(4.0) == "4.00"
+    assert TV._rr_disp(250.0) == f"&gt;{_W._RR_DISPLAY_CAP:.0f}"    # razor-risk artifact clamped for display
+    assert TV._rr_disp(None) == "—"
+
+
+def test_open_scan_age_cap_and_coherence(monkeypatch):
+    # open_scan must HOLD OUT (count, not rank) waves older than the cap OR with an
+    # incoherent target (epa<=0 / wrong side of the stop). Build 3 synthetic waves.
+    from types import SimpleNamespace as _NS
+
+    def _wv(direction, p5idx, epa_slope):
+        p = [_NS(idx=0, price=100.0, kind="L"), _NS(idx=5, price=120.0, kind="H"),
+             _NS(idx=8, price=95.0, kind="L"), _NS(idx=12, price=118.0, kind="H")]
+        return _NS(direction=direction, state="CONFIRMED",
+                   p5=_NS(idx=p5idx, price=90.0, kind="L"), p=p, epa_slope=epa_slope,
+                   score={"total": 15, "p1": 2, "B": 2, "C": 3, "F": 2, "G": 1, "H": 2, "I": 2, "D": 1})
+    n = 400
+    # wave A: fresh (p5 near the end), sane upward EPA -> RANKED
+    wa = _wv("BULL", n - 10, 2.0)
+    # wave B: ancient p5 (age huge) -> HELD OUT by the age cap
+    wb = _wv("BULL", 20, 2.0)
+    # wave C: fresh but epa slope negative -> epa<=0 far out -> incoherent -> HELD OUT
+    wc = _wv("BULL", n - 8, -50.0)
+    monkeypatch.setattr(_W, "scan_universe", lambda conn, universe: ["X"])
+    monkeypatch.setattr(_W, "stock_series", lambda conn, sym: (
+        [f"d{i}" for i in range(n)], [100.0] * n, [130.0] * n, [80.0] * n, [110.0] * n))
+    monkeypatch.setattr(_W, "detect_waves", lambda h, l, c: ([wa, wb, wc], None))
+    monkeypatch.setattr(_W, "is_winner_profile", lambda s: True)
+    monkeypatch.setattr(_W, "epa_touched", lambda w, h, l, n: False)
+    monkeypatch.setattr(_W, "fib_zones", lambda *a, **k: (None, None, [{"low": 108.0, "high": 112.0, "price": 110.0, "r12": 2.618, "r34": 4.618}]))
+    monkeypatch.setattr(_W, "t1_confluence", lambda p, d: None)
+    monkeypatch.setattr(_W, "enrich_open_rows", lambda conn, rows: rows)
+    ranked, held = _W.open_scan(None, universe="nifty500")
+    assert held == 2 and len(ranked) == 1        # B (ancient) + C (incoherent) held out; only A ranked
+    assert ranked[0]["age"] <= _W._OPEN_MAX_AGE_BARS and ranked[0]["epa"] > 0
+
+
+def test_bottom_line_standout_guards_reject_razor_and_thin():
+    from src.web import wolfe_trades_view as TV
+    rows = [
+        _open_row(sym="RAZOR", rr=99.0, run=20.0, risk=0.2, tv_cr=200.0),      # risk too thin -> not best-rr
+        _open_row(sym="THIN", rr=6.0, run=80.0, risk=8.0, tv_cr=1.0),          # illiquid -> excluded from standouts
+        _open_row(sym="GOOD", rr=4.0, run=30.0, risk=7.5, tv_cr=90.0)]         # the tradeable representative
+    band = TV._bottom_line(rows, 3, held_out=536)
+    assert "Best risk-adjusted" in band and "sym=GOOD" in band       # GOOD wins, not RAZOR
+    assert "RAZOR" not in band.split("Best risk-adjusted")[1].split(".")[0]   # RAZOR not the headline
+    assert "held out" in band and "536" in band                      # held-out disclosed
 
 
 def test_open_trades_csv_export_shape_and_filters():

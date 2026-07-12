@@ -146,42 +146,58 @@ def _csv_response(rows, scan_date):
                     headers={"Content-Disposition": 'attachment; filename="wolfe-open-trades.csv"'})
 
 
-def _bottom_line(rows, total_open):
-    """Bottom-line-FIRST band (readability doctrine): surface the answer — how many
-    are actionable + the standout trades by R:R and by room — before the analyst
-    scans the table. Computed over the CURRENTLY FILTERED set."""
+# Standout-pick guards (panel wf_dd906a08): the headline must be a TRADEABLE
+# representative, not a near-zero-risk / thin-stock outlier.
+_STANDOUT_MIN_RISK = 2.0        # risk% floor — R:R is denominator noise below this
+_STANDOUT_MIN_LIQ = 5.0         # ₹cr traded — the thin-stock (TIRUPATIFL) lesson
+
+
+def _rr_disp(rr):
+    """Display R:R, capped at the sane ceiling (">10" above it — an honest reward:risk
+    above ~10 is almost always a stop-too-tight artifact)."""
+    if rr is None:
+        return "—"
+    return f"&gt;{wolfe._RR_DISPLAY_CAP:.0f}" if rr > wolfe._RR_DISPLAY_CAP else f"{rr:.2f}"
+
+
+def _bottom_line(rows, total_open, held_out=0):
+    """Bottom-line-FIRST band (readability doctrine): surface the answer — how many are
+    actionable + the standout trades by R:R and by room — before the analyst scans the
+    table. Standout picks are GUARDED (min risk% floor + min liquidity) so the headline
+    is a tradeable representative, not a razor-stop or microcap outlier (panel
+    wf_dd906a08). Computed over the CURRENTLY FILTERED set."""
     n = len(rows)
+    hnote = (f' <span style="color:var(--ink-3)">({held_out} older/out-of-domain waves held out '
+             'of the ranked view — their 1-4 target extrapolates too far past formation to '
+             'compare to today\'s price; still detected + drawn on each stock\'s chart)</span>') if held_out else ''
     if not n:
         return ('<div class="wtbl"><b>Bottom line:</b> no open trades match these filters '
-                f'— of {total_open} open, none pass. Loosen a dropdown.</div>')
-    live = [r for r in rows if not r.get("invalid")]
+                f'— of {total_open} ranked open, none pass. Loosen a dropdown.{hnote}</div>')
     n_act = sum(1 for r in rows if r.get("in_zone") and not r.get("invalid"))
     n_edge = sum(1 for r in rows if (r.get("age") is not None and r["age"] <= 15))
     n_blown = sum(1 for r in rows if r.get("invalid"))
-
-    def _pick(key):
-        cand = [r for r in live if r.get(key) is not None]
-        return max(cand, key=lambda r: r[key]) if cand else None
-    best_rr = _pick("rr")
-    most_room = _pick("run")
+    # eligible standouts: not blown, liquid enough (the thin-stock lesson)
+    elig = [r for r in rows if not r.get("invalid") and (r.get("tv_cr") or 0) >= _STANDOUT_MIN_LIQ]
+    rr_cands = [r for r in elig if r.get("rr") is not None and (r.get("risk") or 0) >= _STANDOUT_MIN_RISK]
+    best_rr = max(rr_cands, key=lambda r: r["rr"]) if rr_cands else None
+    room_cands = [r for r in elig if r.get("run") is not None]
+    most_room = max(room_cands, key=lambda r: r["run"]) if room_cands else None
 
     def _name(r, extra):
-        if not r:
-            return "—"
         col = _UP if r["dir"] == "BULL" else _DN
         return (f'<a href="/dash/wolfe?sym={_q(r["sym"])}&pick=winner" '
                 f'style="color:{col};font-weight:600;text-decoration:none">{_esc(r["sym"])}</a> {extra}')
-    parts = [f'<b>Bottom line:</b> <b>{n}</b> open trade{"s" if n != 1 else ""} '
+    parts = [f'<b>Bottom line:</b> <b>{n}</b> ranked open trade{"s" if n != 1 else ""} '
              f'{"match these filters" if n != total_open else "in view"} — '
              f'<b style="color:var(--up)">{n_act}</b> actionable now, {n_edge} fresh (★edge)'
              + (f', {n_blown} below stop (shown last)' if n_blown else '') + '.']
-    if best_rr and best_rr.get("rr") is not None:
+    if best_rr:
         parts.append('Best risk-adjusted: ' + _name(best_rr,
-                     f'<span style="color:var(--ink-2)">R:R {best_rr["rr"]:.2f}, {best_rr["run"]:+.0f}% room</span>') + '.')
-    if most_room and (not best_rr or most_room["sym"] != best_rr["sym"]) and most_room.get("run") is not None:
+                     f'<span style="color:var(--ink-2)">R:R {_rr_disp(best_rr["rr"])}, {best_rr["run"]:+.0f}% room</span>') + '.')
+    if most_room and (not best_rr or most_room["sym"] != best_rr["sym"]):
         parts.append('Most room left: ' + _name(most_room,
-                     f'<span style="color:var(--ink-2)">{most_room["run"]:+.0f}%, R:R {most_room["rr"] if most_room.get("rr") is not None else "—"}</span>') + '.')
-    return '<div class="wtbl">' + " ".join(parts) + '</div>'
+                     f'<span style="color:var(--ink-2)">{most_room["run"]:+.0f}%, R:R {_rr_disp(most_room.get("rr"))}</span>') + '.')
+    return '<div class="wtbl">' + " ".join(parts) + hnote + '</div>'
 
 
 @router.get("/dash/wolfe/trades", response_class=HTMLResponse)
@@ -277,7 +293,7 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         tags = ", ".join(r.get("tags") or []) or (r.get("psector") or "—")
         tags_short = tags if len(tags) <= 26 else tags[:24] + "…"
         rr = r.get("rr")
-        rr_s = (f'<b style="color:{col}">{rr:.2f}</b>' if rr is not None
+        rr_s = (f'<b style="color:{col}" title="reward:risk if you enter now (capped display &gt;{wolfe._RR_DISPLAY_CAP:.0f})">{_rr_disp(rr)}</b>' if rr is not None
                 else '<span style="color:var(--ink-3)">—</span>')
         run_s = (f'{r["run"]:+.1f}%' if r.get("run") is not None else "—")
         risk_s = (f'{r["risk"]:.1f}%' if r.get("risk") is not None else "—")
@@ -332,11 +348,11 @@ def wolfe_trades(universe: str = Query("nifty500", max_length=24),
         '<i>Descriptive — not a buy/sell signal.</i></div>'
         f'<div class="sub" style="margin-bottom:8px;font-size:12px">{sortbar}</div>'
         + fbar
-        + _bottom_line(rows, total_open)
+        + _bottom_line(rows, total_open, snap.get("held_out", 0))
         + f'<div style="color:var(--ink-2);font-size:13px;margin:8px 0 10px">{_esc(uni)} · '
           f'as-of <b>{sd}</b> <span style="color:var(--ink-3)">(nightly snapshot'
           f'{(" · computed " + ca) if ca else ""})</span> · '
-          f'<b>{len(rows)} of {total_open} open trades</b> · {nin} actionable now'
+          f'<b>{len(rows)} of {total_open} ranked open trades</b> · {nin} actionable now'
           f' &nbsp;|&nbsp; <a href="/dash/wolfe/trades?{_qs(params, format="csv")}" style="color:#3fb950" '
           'title="download the filtered + sorted rows as CSV">⬇ CSV</a>'
           ' &nbsp;|&nbsp; <a href="/dash/wolfe/scan?universe=' + _q(uni) + '" style="color:#58a6ff">fresh scanner ›</a>'
