@@ -93,6 +93,9 @@ _ROUTER_SPECS = [
     # (research.db fundamentals ⋈ hermes company_tags). Aggregate, descriptive; the fundamental
     # complement to the RS-based Sectors lens.
     ("sector-economics", "src.web.sector_econ_view", "/dash/sector-economics"),
+    # Seasonal tape (P0/P1) — 25y calendar seasonality of PIT idiosyncratic residuals from the
+    # bounded seasonal_cells/seasonal_stack/seasonal_outlook snapshot. Descriptive-only, gated.
+    ("seasonal-tape", "src.web.seasonal_view", "/dash/seasonal-tape"),
     # How to read the charts (deep-data value sprint) — beginner's visual guide to the site's
     # chart shapes + plain-word ideas; linked from every deep-data lens header + Coverage.
     ("reading-guide", "src.web.reading_guide_view", "/dash/reading-guide"),

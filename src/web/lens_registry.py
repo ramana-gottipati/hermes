@@ -83,6 +83,11 @@ LENSES: tuple[Lens, ...] = (
     # (Still cross-linked from the Coverage/Trust evidence index via coverage_view.)
     Lens("move-anatomy", "Move anatomy", "market", "markets", "/dash/move-anatomy",
          group="Big picture", aliases=("anatomy", "fingerprint", "what-precedes-a-move")),
+    # Seasonal tape (P0/P1) — 25y calendar seasonality of PIT idiosyncratic residuals,
+    # certification-gated (placebo nulls + FDR + N>=15 + OOS sign + pledged mechanism).
+    # Descriptive-only, never a signal.
+    Lens("seasonal-tape", "Seasonal tape", "market", "markets", "/dash/seasonal-tape",
+         group="Big picture", aliases=("seasonality", "calendar", "season", "seasonal")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
