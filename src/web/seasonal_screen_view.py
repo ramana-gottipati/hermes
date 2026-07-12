@@ -1,12 +1,16 @@
 """seasonal_screen_view.py — two read-only companions to the Seasonal tape lens (src/web/seasonal_view.py):
 
-1. /dash/seasonal-screen — a This-Month LOOKUP over the descriptive seasonal base-rates
-   (seasonal_cells, axis='month'). FIX-1 (frozen gate-10 / no cross-entity ranking): this is
-   NOT a ranked leaderboard. Default order is alphabetical by symbol/entity, default lean='all'
-   (no hot pre-filter), no top-N-by-hit-rate slice. Sorting is at most an optional column
-   convenience sitting behind a hard, non-dismissable banner naming what this is (and is not).
-   Every row shows the Wilson 95% confidence interval prominently, so most rows visibly read
-   "indistinguishable from chance" — the point of the whole page.
+1. /dash/seasonal-screen — a This-Month RANKED base-rate view over the descriptive seasonal
+   base-rates (seasonal_cells, axis='month'). D122 (2026-07-13, Ramana-authorized amendment of
+   the gate-10 / no-cross-entity-ranking doctrine — see seasonal_tape.py docstring exception):
+   this surface now defaults to a ranked "bullish/bearish this month" ordering (sort=hit,
+   dir=desc, lean=hot), with explicit view-mode toggles for Bullish / Bearish / Lookup (A-Z).
+   This remains a DISPLAY-layer amendment only — still descriptive, still NOT certified, NOT
+   tradeable; kept honest by a hard, non-dismissable banner naming what this is (and is not),
+   plus a rank column and lean arrow. Every row shows the Wilson 95% confidence interval
+   prominently, so most rows visibly read "indistinguishable from chance" even while ranked —
+   the point of the whole page. Frozen z-family hashes are unaffected (this file never touches
+   _canon_spec/GATES/frozen_family_hash*).
 
 2. /dash/seasonal-divergence — do two indices move together on the calendar, and where do they
    diverge? Reads seasonal_cells (scope='index', the cross-year SCRIPT) and seasonal_stack
@@ -111,9 +115,9 @@ def _pearson(xs: list, ys: list) -> float | None:
 
 # ── /dash/seasonal-screen ──────────────────────────────────────────────────────────
 @router.get("/dash/seasonal-screen", response_class=HTMLResponse)
-def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "sym",
-                          dir: str = "asc", min_years: int = 15, q: str = "",
-                          lean: str = "all") -> HTMLResponse:
+def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit",
+                          dir: str = "desc", min_years: int = 15, q: str = "",
+                          lean: str = "hot") -> HTMLResponse:
     scope = scope if scope in ("index", "sector", "stock") else "stock"
     sort = sort if sort in ("sym", "hit", "z", "years") else "sym"
     dir = dir if dir in ("asc", "desc") else "asc"
@@ -166,14 +170,16 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "sym"
 
         month_name = _MONTH_ABBR.get(m, str(m))
         body.append('<h2 style="margin:0 0 2px">This-month screen '
-                    f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">descriptive '
+                    f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">ranked '
                     f'{month_name} base-rates, {scope}-level, over history</small></h2>')
 
-        # FIX-1: the hard, non-dismissable banner — this is a lookup, not a leaderboard.
+        # D122 (2026-07-13, Ramana-authorized): ranked display-layer amendment — still honest,
+        # still not certified/not tradeable, CI kept prominent.
         body.append(
-            '<div class="ssc-banner"><b>Descriptive seasonal BASE-RATES over history — NOT a '
-            'pick-list, NOT tradeable, NOT a certified ranking; ordering is a convenience, not a '
-            'recommendation. Most rows are grey = indistinguishable from chance.</b>'
+            '<div class="ssc-banner"><b>Ranked by historical BASE-RATE for this month — the '
+            'descriptive ordering you asked for (D122), NOT a certified signal and NOT '
+            'tradeable. Check the 95% CI: when it straddles 50% the lean is noise, and most rows '
+            'do. Ordering ≠ recommendation.</b>'
             f'<span class="n">{total} {scope} entities covered for {_esc(month_name)}'
             f'{" (min " + str(min_years) + "y history)" if min_years else ""}.</span></div>')
         body.append(ifx.how_to_read_link())
@@ -190,12 +196,20 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "sym"
         month_tabs = "".join(
             f'<a class="{"on" if mm==m else ""}" href="{_qs(month=mm)}">{_MONTH_ABBR[mm]}</a>'
             for mm in _CAL_ORDER)
-        lean_tabs = "".join(
-            f'<a class="{"on" if lean==lv else ""}" href="{_qs(lean=lv)}">{lbl}</a>'
-            for lv, lbl in (("all", "all (default)"), ("hot", "leans up"), ("cold", "leans down")))
+        # D122: mode presets set (lean, sort, dir) together — Bullish/Bearish are ranked views,
+        # Lookup is the original alphabetical non-ranked view. Active mode = exact (lean,sort,dir) match.
+        _modes = (
+            ("hot", "hit", "desc", "▲ Bullish (most-up)"),
+            ("cold", "hit", "asc", "▼ Bearish (most-down)"),
+            ("all", "sym", "asc", "Lookup (A–Z)"),
+        )
+        mode_tabs = "".join(
+            f'<a class="{"on" if (lean, sort, dir) == (lv, sr, dr) else ""}" '
+            f'href="{_qs(lean=lv, sort=sr, dir=dr)}">{lbl}</a>'
+            for lv, sr, dr, lbl in _modes)
         body.append(f'<div class="ssc-ctrl"><span class="lbl">scope</span>{scope_tabs}</div>')
         body.append(f'<div class="ssc-ctrl"><span class="lbl">month</span>{month_tabs}</div>')
-        body.append(f'<div class="ssc-ctrl"><span class="lbl">optional filter, never the default read</span>{lean_tabs}</div>')
+        body.append(f'<div class="ssc-ctrl"><span class="lbl">view</span>{mode_tabs}</div>')
         body.append(
             f'<form class="ssc-search" method="get" action="/dash/seasonal-screen">'
             f'<input type="hidden" name="month" value="{m}"/>'
@@ -212,7 +226,7 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "sym"
             return f'<a href="{_qs(sort=col, dir=nd)}">{label}</a>'
 
         rows_html = ""
-        for d in shown:
+        for i, d in enumerate(shown, 1):
             link = (f'/dash/stock?sym={_esc(d["entity"])}' if scope == "stock"
                     else f'/dash/seasonal-tape?scope={scope}&entity={quote(d["entity"])}')
             if d["k"] is not None and d["years"]:
@@ -222,9 +236,17 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "sym"
             ci_txt = f'{d["lo"]*100:.0f}–{d["hi"]*100:.0f}%' if d["lo"] is not None else "—"
             z_txt = f'{d["z"]:+.2f}σ' if d["z"] is not None else "—"
             status = "certified" if d["colored"] else "grey / not gated"
+            z = d["z"]
+            if z is not None and z > 0:
+                lean_arrow = '<span style="color:var(--pos)">▲</span>'
+            elif z is not None and z < 0:
+                lean_arrow = '<span style="color:var(--neg)">▼</span>'
+            else:
+                lean_arrow = '<span style="color:var(--ink-3)">·</span>'
             rows_html += (
                 '<tr>'
-                f'<td class="sym"><a href="{_esc(link)}">{_esc(d["entity"])}</a></td>'
+                f'<td class="rk" style="color:var(--ink-3);font-variant-numeric:tabular-nums">{i}</td>'
+                f'<td class="sym">{lean_arrow} <a href="{_esc(link)}">{_esc(d["entity"])}</a></td>'
                 f'<td>{_esc(hit_txt)}</td>'
                 f'<td class="ci">{_esc(ci_txt)}</td>'
                 f'<td class="z">{_esc(z_txt)}</td>'
@@ -235,12 +257,13 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "sym"
         if rows_html:
             body.append(
                 '<div class="ssc-panel"><div class="ssc-h">Base rates for '
-                f'{_esc(month_name)} <small>— alphabetical by default; column headers are an '
-                'optional sort convenience, not a recommendation</small></div>'
+                f'{_esc(month_name)} <small>— ranked by this-month hit-rate; column headers '
+                're-sort, not a recommendation</small></div>'
                 + ifx.plain('Every row is a per-entity historical base-rate for this one calendar '
                             'month, with its 95% confidence interval. When that interval straddles '
                             '50%, the apparent lean is noise — most rows do.')
                 + '<div style="overflow-x:auto"><table class="ssc-t"><thead><tr>'
+                '<th>#</th>'
                 f'<th>{_hdr("sym", "Symbol")}</th>'
                 f'<th>{_hdr("hit", "Hist hit-rate k/n (P%)")}</th>'
                 '<th>95% CI lo–hi%</th>'
@@ -248,7 +271,7 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "sym"
                 f'<th>{_hdr("years", "Years")}</th>'
                 '<th>Status</th>'
                 '</tr></thead><tbody>' + rows_html + '</tbody></table></div>'
-                + f'<div class="ssc-note">Showing A–Z 1–{len(shown)} of {total} total'
+                + f'<div class="ssc-note">Showing 1–{len(shown)} of {total} total'
                   f'{" (narrow with the search box to see more)" if total > len(shown) else ""}.</div>'
                 + '</div>')
         else:
@@ -439,7 +462,8 @@ def wire(app):
 def _selftest() -> int:
     """Populate a temp snapshot via the real engine backfill (index + sector), point both routes
     at it, and assert: both routes 200, no forward-return/expected-move/'1M'/traffic-light token
-    leaks, and the screen's default ordering is alphabetical (never a ranked leaderboard)."""
+    leaks, and the screen's default ordering is the D122 RANKED base-rate view (sort=hit desc,
+    lean=hot) kept honest by the amended banner + Wilson CI, never a bare unlabeled leaderboard."""
     import os
     import re
     import tempfile
@@ -480,16 +504,25 @@ def _selftest() -> int:
     try:
         app = FastAPI(); app.include_router(router); c = TestClient(app)
 
-        # -- screen: index scope, default (alphabetical, no lean filter) ---------------
-        r1 = c.get("/dash/seasonal-screen?scope=index&month=10")
+        # -- screen: index scope, NEW default (D122: ranked by hit-rate desc, lean=hot) -
+        # month=6 is chosen because BOTH synthetic index entities carry a positive script_z
+        # there (Nifty 500 68% hit, Nifty 200 50% hit) so both survive the lean=hot filter
+        # and the hit-rate-desc ranking is directly observable.
+        r1 = c.get("/dash/seasonal-screen?scope=index&month=6")
         assert r1.status_code == 200 and "This-month screen" in r1.text, r1.status_code
-        assert "NOT a pick-list" in r1.text and "NOT tradeable" in r1.text, "FIX-1 banner missing"
-        i200, i500 = r1.text.find("Nifty 200"), r1.text.find("Nifty 500")
-        assert i200 != -1 and i500 != -1 and i200 < i500, \
-            "default screen order must be alphabetical (Nifty 200 before Nifty 500), never ranked"
+        assert "Ranked by historical BASE-RATE" in r1.text and "D122" in r1.text, \
+            "D122 ranked-doctrine banner missing"
+        assert "NOT a certified signal" in r1.text and "NOT tradeable" in r1.text, \
+            "honest banner (not certified / not tradeable) missing"
+        assert "95% CI" in r1.text, "Wilson CI column missing"
+        i500, i200 = r1.text.find("Nifty 500"), r1.text.find("Nifty 200")
+        assert i500 != -1 and i200 != -1 and i500 < i200, \
+            "default screen order must now be RANKED by hit-rate desc (D122): Nifty 500 " \
+            "(68% hit) before Nifty 200 (50% hit), never alphabetical-only"
 
-        # -- screen: sector scope + current-month default (month=0) --------------------
-        r2 = c.get("/dash/seasonal-screen?scope=sector")
+        # -- screen: sector scope + current-month default (month=0); lean=all so the assertion
+        # below is not itself coupled to the sign of Nifty Auto's script_z on any given run day --
+        r2 = c.get("/dash/seasonal-screen?scope=sector&lean=all")
         assert r2.status_code == 200 and "Nifty Auto" in r2.text, "sector scope failed"
 
         # -- screen: optional lean/sort convenience must not error ----------------------
@@ -525,8 +558,9 @@ def _selftest() -> int:
             for token in ("1M", "\U0001F7E2", "\U0001F7E1", "⚪"):
                 assert token not in text, f"leaked forbidden token {token!r}"
 
-        print("seasonal_screen_view selftest OK — screen defaults alphabetical (FIX-1), both "
-              "routes 200 + honest-empty, no forward-return/expected-move/1M/traffic-light leaks")
+        print("seasonal_screen_view selftest OK — screen defaults to RANKED base-rate view "
+              "(D122: sort=hit desc, lean=hot) with honest banner + Wilson CI, both routes 200 "
+              "+ honest-empty, no forward-return/expected-move/1M/traffic-light leaks")
     finally:
         _DB_PATH = saved
         if os.path.exists(tmp):
