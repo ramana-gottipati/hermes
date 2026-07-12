@@ -1588,8 +1588,13 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
         season_block = seasonal_card("index" if is_broad else "sector", idx)
     except Exception:  # noqa: BLE001 — honest-empty; must never break the index page
         season_block = ""
+    try:                                                   # guarded: seasonal_events_view may
+        from src.web.seasonal_events_view import event_cadence_card  # not exist on every host yet
+        season_events = event_cadence_card("index" if is_broad else "sector", idx)
+    except Exception:  # noqa: BLE001 — honest-empty; must never break the index page
+        season_events = ""
     return (_CKPT_CSS + chart_css + crumb + head + banner + chart_html + snapshot
-            + rs_block + band_block + season_block + rollup + chart_js)
+            + rs_block + band_block + season_block + season_events + rollup + chart_js)
 
 
 # --- Launchpad: the data-validated explosive-move SETUP screen (D56) ----------

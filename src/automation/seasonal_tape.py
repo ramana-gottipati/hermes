@@ -195,6 +195,21 @@ STOCK_UNIVERSE_SPEC = {
               "corp_actions.price_ratios; NEVER raw close/prev_close",
     "min_obs": 250,
 }
+
+# ---- ALL-EQ widened universe (additive family 'seasonal_tape_stock_all') ------------------
+# A THIRD, separate pre-registered family — same residual math as seasonal_tape_stock, but a
+# widened membership (every liquid EQ symbol, not just current Nifty 500 constituents). Never
+# conflated with STOCK_UNIVERSE_SPEC / frozen_family_hash_stock() (that family stays frozen &
+# reproducible; this one is additive, register-before-compute, first-registration-wins).
+_PREREG_MODULE_STOCK_ALL = "seasonal_tape_stock_all"
+STOCK_UNIVERSE_SPEC_ALL = {
+    "membership": "ALL bhavcopy_rows series=EQ (segment=CM or NULL) symbols with >=250 sessions, "
+                  "EXCLUDING security_master.instrument_class=FUND; survivor-conditional gate 11",
+    "order": "trailing ~130-session avg daily turnover COALESCE(value,close*volume) DESC, "
+            "priority_rank ASC, symbol",
+    "returns": "corp-action-ADJUSTED via adjust.adjusted_closes + corp_actions.price_ratios",
+    "min_obs": 250,
+}
 _NAN = float("nan")
 
 
@@ -236,6 +251,27 @@ def _canon_spec_stock() -> dict:
 def frozen_family_hash_stock() -> str:
     """sha256 over a canonical JSON of the STOCK frozen family (distinct from frozen_family_hash())."""
     blob = json.dumps(_canon_spec_stock(), sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _canon_spec_stock_all() -> dict:
+    """The exact object hashed for the ALL-EQ STOCK frozen-family fingerprint — the additive
+    'seasonal_tape_stock_all' family (widened universe: every liquid EQ symbol, not just current
+    Nifty 500 constituents). Built the same way _canon_spec_stock() is — _canon_spec() plus the
+    stock-only residual model — but with STOCK_UNIVERSE_SPEC_ALL (not STOCK_UNIVERSE_SPEC), so it
+    is deliberately a THIRD, distinct hash from both frozen_family_hash() and
+    frozen_family_hash_stock(); never conflated with either."""
+    spec = _canon_spec()
+    spec["module"] = _PREREG_MODULE_STOCK_ALL
+    spec["stock_residual_model"] = STOCK_RESIDUAL_MODEL
+    spec["stock_universe"] = STOCK_UNIVERSE_SPEC_ALL
+    return spec
+
+
+def frozen_family_hash_stock_all() -> str:
+    """sha256 over a canonical JSON of the ALL-EQ STOCK frozen family (distinct from
+    frozen_family_hash() and frozen_family_hash_stock())."""
+    blob = json.dumps(_canon_spec_stock_all(), sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
@@ -759,6 +795,122 @@ def stock_universe(rconn: sqlite3.Connection, limit: int | None = None) -> list:
     return out[:limit] if limit is not None else out
 
 
+def _fund_set(rconn: sqlite3.Connection) -> set:
+    """Guarded READ-ONLY set of symbols classified FUND (ETF/MF unit). Deliberately a bare SELECT
+    on the caller's connection (never security_master.fund_symbols(), whose _with_conn() runs
+    conn.executescript(_SCHEMA) even on a passed-in connection — that write attempt would raise on
+    a mode=ro handle). Degrades to set() if the table/column is absent."""
+    try:
+        return {r[0] for r in rconn.execute(
+            "SELECT symbol FROM security_master WHERE instrument_class='FUND'")}
+    except sqlite3.Error:
+        return set()
+
+
+def _eq_liquidity_ranked(rconn: sqlite3.Connection, min_obs: int = 250,
+                         recent_days: int = 130) -> list:
+    """[(symbol, n_obs, adv)] for every EQ symbol with >=min_obs sessions, EXCLUDING FUNDs, via ONE
+    GROUP BY over bhavcopy_rows; adv = trailing ~recent_days avg daily turnover
+    COALESCE(value, close*volume) (NULL -> 0.0); sorted adv DESC, company_profile.priority_rank
+    ASC (unranked last), symbol ASC — the frozen STOCK_UNIVERSE_SPEC_ALL order."""
+    fund = _fund_set(rconn)
+    drows = rconn.execute(
+        "SELECT DISTINCT trade_date FROM bhavcopy_rows "
+        "WHERE series='EQ' AND (segment='CM' OR segment IS NULL) "
+        "ORDER BY trade_date DESC LIMIT ?", (recent_days,)).fetchall()
+    lo = drows[-1][0] if drows else "9999-99-99"
+    rows = rconn.execute(
+        "SELECT symbol, COUNT(*) n, "
+        "AVG(CASE WHEN trade_date>=? THEN COALESCE(value, close*volume) END) adv "
+        "FROM bhavcopy_rows WHERE series='EQ' AND (segment='CM' OR segment IS NULL) "
+        "GROUP BY symbol HAVING n>=?", (lo, min_obs)).fetchall()
+    prank = {}
+    if rconn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='company_profile'").fetchone():
+        prank = {r[0]: r[1] for r in rconn.execute("SELECT symbol, priority_rank FROM company_profile")}
+    out = [(r[0], r[1], (r[2] or 0.0)) for r in rows if r[0] not in fund]
+    out.sort(key=lambda t: (-(t[2]), prank.get(t[0]) if prank.get(t[0]) is not None else 10 ** 9, t[0]))
+    return out
+
+
+def stock_universe_all(rconn: sqlite3.Connection, limit: int | None = None,
+                       min_obs: int = 250) -> list:
+    """The widened 'seasonal_tape_stock_all' universe: every liquid EQ symbol (>=min_obs sessions,
+    FUNDs excluded), liquidity-ranked (STOCK_UNIVERSE_SPEC_ALL order). Delegates to
+    _eq_liquidity_ranked() (one GROUP BY, read-only)."""
+    ranked = _eq_liquidity_ranked(rconn, min_obs=min_obs)
+    out = [sym for sym, _n, _adv in ranked]
+    return out[:limit] if limit is not None else out
+
+
+def resolve_stock_symbol(rconn: sqlite3.Connection, query: str) -> str | None:
+    """Resolve a free-typed query to a tradeable EQ symbol, read-only, in order: (1) exact
+    upper/trim match that is EQ-in-bhav and not FUND; (2) security_master canonical alias (via the
+    RO-SAFE security_master.aliases_on(), which assumes tables already exist and never writes);
+    (3) company-name prefix match (company_profile, else security_master); else None."""
+    q = (query or "").upper().strip()
+    if not q:
+        return None
+    fund = _fund_set(rconn)
+
+    def _eq_ok(sym: str) -> bool:
+        if not sym or sym in fund:
+            return False
+        return bool(rconn.execute(
+            "SELECT 1 FROM bhavcopy_rows WHERE symbol=? AND series='EQ' "
+            "AND (segment='CM' OR segment IS NULL) LIMIT 1", (sym,)).fetchone())
+
+    if _eq_ok(q):
+        return q
+    try:
+        from src.automation.security_master import aliases_on
+        for alt in aliases_on(rconn, q):
+            if alt != q and _eq_ok(alt):
+                return alt
+    except Exception:  # noqa: BLE001 — resolution must never raise; falls through to name search
+        pass
+    try:
+        if rconn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='company_profile'").fetchone():
+            row = rconn.execute(
+                "SELECT symbol FROM company_profile WHERE UPPER(company_name) LIKE ? "
+                "ORDER BY (priority_rank IS NULL), priority_rank ASC LIMIT 1", (q + "%",)).fetchone()
+            if row and _eq_ok(row[0]):
+                return row[0]
+    except sqlite3.Error:
+        pass
+    try:
+        row = rconn.execute(
+            "SELECT symbol FROM security_master WHERE UPPER(company_name) LIKE ? "
+            "ORDER BY symbol ASC LIMIT 1", (q + "%",)).fetchone()
+        if row and _eq_ok(row[0]):
+            return row[0]
+    except sqlite3.Error:
+        pass
+    return None
+
+
+def _stock_snapshot_fresh(conn: sqlite3.Connection, symbol: str, since_ts: str | None = None,
+                          max_age_days: int = 120) -> bool:
+    """True if a scope='stock' snapshot for `symbol` already exists and is 'fresh'. With
+    `since_ts` (FIX-3): fresh means computed_at >= since_ts (the all-family REGISTRATION time, not
+    mere recency) — used to gate the first all-family backfill's rewrite. Without it: fresh means
+    computed within max_age_days of today."""
+    row = conn.execute(
+        "SELECT MAX(computed_at) FROM seasonal_cells WHERE scope='stock' AND entity=?",
+        (symbol,)).fetchone()
+    ts = row[0] if row and row[0] else None
+    if not ts:
+        return False
+    if since_ts is not None:
+        return ts >= since_ts
+    try:
+        age_days = (date.today() - date.fromisoformat(ts[:10])).days
+        return age_days <= max_age_days
+    except ValueError:
+        return False
+
+
 def _aligned(a_dates, a_vals, b_dates, b_vals):
     """Inner-join two oldest-first daily series on date -> (dates, a, b)."""
     bmap = dict(zip(b_dates, b_vals))
@@ -936,6 +1088,100 @@ def backfill_stocks(read_path: str, write_path: str, limit: int | None = None) -
                 continue
             ad, av, mk = _aligned(dates, ret, market_dates, market_ret)
             if len(ad) < 250:
+                counts["skipped"] += 1
+                continue
+            payload = compute_entity(ad, av, "stock", market=mk, resid_scope="sector")
+            if not payload:
+                counts["skipped"] += 1
+                continue
+            _write(wconn, "stock", sym, payload)
+            counts["stock"] += 1
+            counts["colored"] += sum(1 for v in payload["cells"] if v["colored"])
+    finally:
+        rconn.close(); wconn.close()
+    return counts
+
+
+_MARKET_CACHE: dict = {}     # {db-file-path: (dates, ret)} — module-level, avoids re-querying
+                             # the market leg per on-demand lookup within the same process
+
+
+def _market_cache_key(rconn: sqlite3.Connection):
+    """The underlying DB file path (via PRAGMA database_list), so the cache is keyed per
+    hermes.db rather than per short-lived connection object."""
+    try:
+        row = rconn.execute("PRAGMA database_list").fetchone()
+        return row[2] if row and row[2] else id(rconn)
+    except sqlite3.Error:
+        return id(rconn)
+
+
+def _cached_market_returns(rconn: sqlite3.Connection) -> tuple[list, list]:
+    key = _market_cache_key(rconn)
+    if key not in _MARKET_CACHE:
+        mkt_stored = _resolve_names(rconn, [MARKET]).get(MARKET, MARKET)
+        _MARKET_CACHE[key] = load_index_returns(rconn, mkt_stored)
+    return _MARKET_CACHE[key]
+
+
+def compute_stock_inmemory(rconn: sqlite3.Connection, symbol: str) -> dict | None:
+    """FIX-2 (no web-process DB writes): compute one stock's cells/stack/outlook payload ENTIRELY
+    IN MEMORY for direct render, READ-ONLY on hermes.db. This is the pre-persist bridge for a
+    searched symbol the nightly backfill_stocks_all() hasn't (yet) written — it NEVER writes to
+    hermes.db (no _write() call here, ever). Returns None if the symbol doesn't resolve or lacks
+    enough history."""
+    sym = resolve_stock_symbol(rconn, symbol)
+    if not sym:
+        return None
+    dates, ret = load_stock_returns(rconn, sym)
+    if len(dates) < 250:
+        return None
+    market_dates, market_ret = _cached_market_returns(rconn)
+    ad, av, mk = _aligned(dates, ret, market_dates, market_ret)
+    if len(ad) < 250:
+        return None
+    payload = compute_entity(ad, av, "stock", market=mk, resid_scope="sector")
+    if not payload:
+        return None
+    payload["entity"] = sym
+    return payload
+
+
+def backfill_stocks_all(read_path: str, write_path: str, limit: int | None = None,
+                        min_obs: int = 250, skip_fresh: bool = True,
+                        reg_ts: str | None = None) -> dict:
+    """Compute + persist the bounded snapshot for the WIDENED all-EQ stock universe (additive
+    family 'seasonal_tape_stock_all', frozen_family_hash_stock_all()) — mirrors backfill_stocks()'s
+    per-entity-commit discipline exactly; read-only on the archive.
+
+    FIX-3: when skip_fresh, an entity is skipped ONLY if _stock_snapshot_fresh(wconn, sym,
+    since_ts=reg_ts) — i.e. computed_at >= the all-family registration time when `reg_ts` is given
+    (the correct gate: rewrite+re-stamp everything computed BEFORE the new family was registered),
+    falling back to plain recency when `reg_ts` is None. Stamps seasonal_meta
+    'frozen_family_stock_all_sha256' and DELETEs the now-obsolete 'frozen_family_stock_sha256' key
+    (stock_all supersedes cb32d1b; cb32d1b itself stays untouched in research.db.prereg_registry as
+    immutable history)."""
+    rconn = _ro(read_path)
+    wconn = sqlite3.connect(write_path, timeout=60)
+    wconn.executescript(_SCHEMA)
+    wconn.execute("INSERT OR REPLACE INTO seasonal_meta VALUES ('frozen_family_stock_all_sha256', ?)",
+                  (frozen_family_hash_stock_all(),))
+    wconn.execute("DELETE FROM seasonal_meta WHERE k='frozen_family_stock_sha256'")
+    wconn.commit()
+    counts = {"stock": 0, "colored": 0, "skipped": 0}
+    try:
+        mkt_stored = _resolve_names(rconn, [MARKET]).get(MARKET, MARKET)
+        market_dates, market_ret = load_index_returns(rconn, mkt_stored)
+        for sym in stock_universe_all(rconn, limit=limit, min_obs=min_obs):
+            if skip_fresh and _stock_snapshot_fresh(wconn, sym, since_ts=reg_ts):
+                counts["skipped"] += 1
+                continue
+            dates, ret = load_stock_returns(rconn, sym)
+            if len(dates) < min_obs:
+                counts["skipped"] += 1
+                continue
+            ad, av, mk = _aligned(dates, ret, market_dates, market_ret)
+            if len(ad) < min_obs:
                 counts["skipped"] += 1
                 continue
             payload = compute_entity(ad, av, "stock", market=mk, resid_scope="sector")
@@ -1186,9 +1432,99 @@ def _selftest() -> int:
     assert s["present"] and s["cells"] > 0, s
     os.remove(tmpdb)
 
+    # 11) frozen hashes UNCHANGED (byte-untouched gate) + the new stock_all family is a THIRD,
+    # distinct hash never conflated with either.
+    assert frozen_family_hash()[:8] == "2882ccbc", frozen_family_hash()[:8]
+    assert frozen_family_hash_stock()[:8] == "cb32d1b9", frozen_family_hash_stock()[:8]
+    hs_all = frozen_family_hash_stock_all()
+    assert len(hs_all) == 64 and hs_all != h1 and hs_all != hs1, hs_all
+
+    # 12) stock_all register/verify roundtrip on a fresh temp research.db (own module id).
+    tmp3 = os.path.join(tempfile.gettempdir(), "seasonal_prereg_stock_all_selftest.db")
+    if os.path.exists(tmp3):
+        os.remove(tmp3)
+    rall = register(db_path=tmp3, module=_PREREG_MODULE_STOCK_ALL, hash_fn=frozen_family_hash_stock_all)
+    assert rall["action"] == "registered" and rall["sha256"] == hs_all, rall
+    vall = verify(db_path=tmp3, module=_PREREG_MODULE_STOCK_ALL, hash_fn=frozen_family_hash_stock_all)
+    assert vall["ok"], "stock_all verify should pass right after stock_all register"
+    os.remove(tmp3)
+
+    # 13) widened universe: build a synthetic multi-year hermes.db (reusing the SAME 25y `dts`
+    # calendar + mret/sret from step 2, so residual/PIT warmup gates are satisfied for real) with
+    # a high-turnover EQ, a low-turnover EQ, and a high-turnover FUND (must be excluded from BOTH
+    # the ranking and resolution) -> proves liquidity ranking, FUND exclusion, and
+    # resolve_stock_symbol's exact/alias/company-name paths together.
+    def _levels(rets, start):
+        lvl = start
+        out = []
+        for r in rets:
+            lvl *= (1 + (r if _finite(r) else 0.0))
+            out.append(lvl)
+        return out
+
+    idx_lvl = _levels(mret, 1000.0)
+    hiliq_lvl = _levels(sret, 500.0)
+    loliq_lvl = _levels([0.5 * r for r in mret], 200.0)
+    fund_lvl = _levels([0.3 * r for r in sret], 50.0)
+
+    tmpu = os.path.join(tempfile.gettempdir(), "seasonal_universe_selftest.db")
+    if os.path.exists(tmpu):
+        os.remove(tmpu)
+    ucon = sqlite3.connect(tmpu)
+    ucon.executescript("""
+        CREATE TABLE bhavcopy_rows (symbol TEXT, trade_date TEXT, series TEXT, segment TEXT,
+                                    close REAL, prev_close REAL, volume INTEGER, value REAL);
+        CREATE TABLE index_rows (index_name TEXT, trade_date TEXT, close_value REAL);
+        CREATE TABLE security_master (symbol TEXT PRIMARY KEY, instrument_class TEXT,
+                                       company_name TEXT);
+        CREATE TABLE security_renames (old_symbol TEXT, new_symbol TEXT, effective_date TEXT,
+                                       isin TEXT, source TEXT, confirmed INTEGER);
+        CREATE TABLE company_profile (symbol TEXT PRIMARY KEY, priority_rank INTEGER,
+                                      company_name TEXT);
+    """)
+    for i, d in enumerate(dts):
+        ucon.execute("INSERT INTO index_rows VALUES (?,?,?)", ("Nifty 500", d, idx_lvl[i]))
+        ucon.execute("INSERT INTO bhavcopy_rows VALUES (?,?,?,?,?,?,?,?)",
+                     ("HILIQ", d, "EQ", "CM", hiliq_lvl[i], None, 100000, 1.0e8))
+        ucon.execute("INSERT INTO bhavcopy_rows VALUES (?,?,?,?,?,?,?,?)",
+                     ("LOLIQ", d, "EQ", "CM", loliq_lvl[i], None, 100, 1.0e4))
+        ucon.execute("INSERT INTO bhavcopy_rows VALUES (?,?,?,?,?,?,?,?)",
+                     ("PLANTFUND", d, "EQ", "CM", fund_lvl[i], None, 500000, 1.0e9))
+    ucon.execute("INSERT INTO security_master VALUES ('PLANTFUND','FUND','Plant Fund ETF')")
+    ucon.execute("INSERT INTO security_master VALUES ('HILIQ','EQUITY','Hi Liquidity Ltd')")
+    ucon.execute("INSERT INTO security_renames VALUES ('OLDHILIQ','HILIQ','2015-01-01','X','test',1)")
+    ucon.execute("INSERT INTO company_profile VALUES ('HILIQ', 1, 'Hi Liquidity Ltd')")
+    ucon.execute("INSERT INTO company_profile VALUES ('LOLIQ', 2, 'Lo Liquidity Ltd')")
+    ucon.commit(); ucon.close()
+    uro = _ro(tmpu)
+    ranked = [sym for sym, _n, _adv in _eq_liquidity_ranked(uro, min_obs=250)]
+    assert "PLANTFUND" not in ranked, "FUND must be excluded from the liquidity ranking"
+    assert ranked and ranked[0] == "HILIQ", f"highest-turnover EQ must rank first: {ranked}"
+    uni_all = stock_universe_all(uro, min_obs=250)
+    assert "PLANTFUND" not in uni_all and "HILIQ" in uni_all and "LOLIQ" in uni_all, uni_all
+    assert resolve_stock_symbol(uro, "hiliq") == "HILIQ", "exact (upper/trim) resolution"
+    assert resolve_stock_symbol(uro, "OLDHILIQ") == "HILIQ", "security_master alias resolution"
+    assert resolve_stock_symbol(uro, "Hi Liquidity") == "HILIQ", "company-name prefix resolution"
+    assert resolve_stock_symbol(uro, "PLANTFUND") is None, "a FUND must never resolve"
+    assert resolve_stock_symbol(uro, "NOSUCHSYMBOL") is None, "unknown query -> None"
+
+    # 14) compute_stock_inmemory is READ-ONLY: assert seasonal_cells row count is unchanged by the
+    # call (the table doesn't even exist yet here, i.e. count stays 0 -> proves no write happened).
+    before_rows = uro.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='seasonal_cells'").fetchone()[0]
+    assert before_rows == 0, "seasonal_cells must not pre-exist in this synthetic db"
+    payload_im = compute_stock_inmemory(uro, "hiliq")
+    assert payload_im is not None and payload_im.get("entity") == "HILIQ", payload_im
+    after_rows = uro.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='seasonal_cells'").fetchone()[0]
+    assert after_rows == 0, "compute_stock_inmemory must never create/write seasonal_cells"
+    uro.close()
+    os.remove(tmpu)
+
     print(f"seasonal_tape selftest OK — leak-free z, market-strip, 2 non-inert nulls, gates, "
-          f"DB roundtrip, frozen-family {h1[:12]} / stock-family {hs1[:12]} (distinct, mask-decert "
-          f"verified) (cf. E-11 e9bd1a7f / E-12 c3f48a42)")
+          f"DB roundtrip, frozen-family {h1[:12]} / stock-family {hs1[:12]} / stock-all-family "
+          f"{hs_all[:12]} (all distinct, mask-decert + read-only on-demand verified) "
+          f"(cf. E-11 e9bd1a7f / E-12 c3f48a42)")
     return 0
 
 
@@ -1197,12 +1533,19 @@ if __name__ == "__main__":
     argv = sys.argv[1:]
     if not argv or "--selftest" in argv:
         raise SystemExit(_selftest())
+    if "--register-stock-all" in argv:
+        print(register(module=_PREREG_MODULE_STOCK_ALL, hash_fn=frozen_family_hash_stock_all,
+                       force="--force" in argv))
+        raise SystemExit(0)
     if "--register-stock" in argv:
         print(register(module=_PREREG_MODULE_STOCK, hash_fn=frozen_family_hash_stock,
                        force="--force" in argv))
         raise SystemExit(0)
     if "--register" in argv:
         print(register(force="--force" in argv)); raise SystemExit(0)
+    if "--verify-stock-all" in argv:
+        v = verify(module=_PREREG_MODULE_STOCK_ALL, hash_fn=frozen_family_hash_stock_all)
+        print(v); raise SystemExit(0 if v.get("ok") else 1)
     if "--verify-stock" in argv:
         v = verify(module=_PREREG_MODULE_STOCK, hash_fn=frozen_family_hash_stock)
         print(v); raise SystemExit(0 if v.get("ok") else 1)
@@ -1219,10 +1562,14 @@ if __name__ == "__main__":
             if i + 1 < len(argv):
                 scope = argv[i + 1]
         lim = int(argv[argv.index("--limit") + 1]) if "--limit" in argv else None
-        if scope == "stock":
+        if scope == "stock-all":
+            print(backfill_stocks_all(str(DB_PATH), str(DB_PATH), limit=lim,
+                                      skip_fresh=("--skip-fresh" in argv)))
+        elif scope == "stock":
             print(backfill_stocks(str(DB_PATH), str(DB_PATH), limit=lim))
         else:
             print(backfill(str(DB_PATH), str(DB_PATH), scope=scope, limit=lim))
         raise SystemExit(0)
-    print("usage: --selftest | --register [--force] | --register-stock [--force] | --verify | "
-          "--verify-stock | --backfill [--scope index|sector|stock|all] [--limit N] | --stats")
+    print("usage: --selftest | --register [--force] | --register-stock [--force] | "
+          "--register-stock-all [--force] | --verify | --verify-stock | --verify-stock-all | "
+          "--backfill [--scope index|sector|stock|stock-all|all] [--limit N] [--skip-fresh] | --stats")

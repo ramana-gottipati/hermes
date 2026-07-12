@@ -6677,6 +6677,15 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     except Exception:                        # noqa: BLE001
         season_html = ''
 
+    # Event-cadence card (factual event-timing vs the stock's own cadence) — guarded lazy
+    # import: seasonal_events_view does not exist yet on every host; '' (honest-empty) until
+    # it lands, same defensive pattern as the seasonal card above.
+    try:
+        from src.web.seasonal_events_view import event_cadence_card
+        events_html = event_cadence_card('stock', sym)
+    except Exception:                        # noqa: BLE001
+        events_html = ''
+
     # D54 — Track capture: build a frozen-snapshot preview for the action loop.
     _ix = _xpower(L)
     _kg = L.get("gap_to_key_p3m")
@@ -6901,6 +6910,7 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
 </div>
 <div class="tabpane" data-tab="seasonal" style="display:none">
 {season_html}
+{events_html}
 </div>
 {fno_pane}
 

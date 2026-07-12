@@ -88,6 +88,14 @@ LENSES: tuple[Lens, ...] = (
     # Descriptive-only, never a signal.
     Lens("seasonal-tape", "Seasonal tape", "market", "markets", "/dash/seasonal-tape",
          group="Big picture", aliases=("seasonality", "calendar", "season", "seasonal")),
+    # This-month screen (FIX-1: a per-entity LOOKUP of descriptive month base-rates, NOT a
+    # ranked leaderboard — default order is alphabetical, no default lean filter).
+    Lens("seasonal-screen", "This-month screen", "market", "markets", "/dash/seasonal-screen",
+         group="Big picture", aliases=("month-screen", "seasonal-scan", "bullish-this-month", "bearish-this-month")),
+    # Index divergence — do two indices move together on the calendar, and where do they
+    # diverge? Descriptive co-movement history, never a signal.
+    Lens("seasonal-divergence", "Index divergence", "market", "markets", "/dash/seasonal-divergence",
+         group="Big picture", aliases=("index-overlap", "co-movement", "nifty200-vs-nifty50")),
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          group="Events & flow", aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),

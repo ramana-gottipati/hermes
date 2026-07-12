@@ -96,6 +96,10 @@ _ROUTER_SPECS = [
     # Seasonal tape (P0/P1) — 25y calendar seasonality of PIT idiosyncratic residuals from the
     # bounded seasonal_cells/seasonal_stack/seasonal_outlook snapshot. Descriptive-only, gated.
     ("seasonal-tape", "src.web.seasonal_view", "/dash/seasonal-tape"),
+    # This-month screen + Index divergence (FIX-1 non-ranked lookup + descriptive co-movement) —
+    # two read-only companions to the seasonal tape, same module.
+    ("seasonal-screen", "src.web.seasonal_screen_view", "/dash/seasonal-screen"),
+    ("seasonal-divergence", "src.web.seasonal_screen_view", "/dash/seasonal-divergence"),
     # How to read the charts (deep-data value sprint) — beginner's visual guide to the site's
     # chart shapes + plain-word ideas; linked from every deep-data lens header + Coverage.
     ("reading-guide", "src.web.reading_guide_view", "/dash/reading-guide"),

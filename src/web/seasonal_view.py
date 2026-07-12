@@ -40,6 +40,7 @@ _MONTH_ABBR = {1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
 _FISCAL_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
 _CAL_ORDER = list(range(1, 13))
 _LIGHT = {"green": "🟢", "amber": "🟡", "white": "⚪"}
+_WEEKDAY_ABBR = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu", 4: "Fri"}
 
 _CSS = """
 <style>
@@ -69,6 +70,17 @@ _CSS = """
 .st-dbar i{display:block;height:100%;opacity:.78;position:absolute;top:0;}
 .st-drow .v{width:64px;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums;}
 .st-chip{font-size:11px;color:var(--ink-3);}
+.st-search{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0;}
+.st-search .st-in{padding:5px 10px;border:1px solid var(--line-2);border-radius:8px;
+  background:var(--bg-2);color:var(--ink);font-size:13px;min-width:240px;}
+.st-search button{padding:5px 14px;border:1px solid var(--accent);border-radius:8px;
+  background:var(--accent);color:#fff;font-size:12.5px;cursor:pointer;}
+.st-empty{background:var(--bg-2);border:1px dashed var(--line-2);border-radius:10px;
+  padding:14px 16px;color:var(--ink-2);font-size:12.5px;line-height:1.55;max-width:1060px;}
+.st-empty b{color:var(--ink);}
+.st-strip--desc{opacity:.55;}
+.st-cap{color:var(--ink-3);font-size:11px;margin-top:4px;}
+.st-prompt{color:var(--ink-2);font-size:13px;margin:10px 0;max-width:900px;}
 </style>
 """
 
@@ -117,6 +129,18 @@ def _compute(scope: str, entity: str, db_path: str):
             "SELECT cell, k, n, ci_lo, ci_hi, base_rate, edge, fail_avg, fail_worst, light, mechanism "
             "FROM seasonal_outlook WHERE scope=? AND entity=? AND axis='month' ORDER BY cell",
             (scope, entity)).fetchall()
+        try:
+            wk_rows = con.execute(
+                "SELECT cell, script_z, n_years, conf, colored, mechanism, gate_flags FROM seasonal_cells "
+                "WHERE scope=? AND entity=? AND axis='iso_week'", (scope, entity)).fetchall()
+        except Exception:  # noqa: BLE001 — older snapshot without this axis populated -> {}
+            wk_rows = []
+        try:
+            wd_rows = con.execute(
+                "SELECT cell, script_z, n_years, conf, colored, mechanism, gate_flags FROM seasonal_cells "
+                "WHERE scope=? AND entity=? AND axis='weekday'", (scope, entity)).fetchall()
+        except Exception:  # noqa: BLE001
+            wd_rows = []
     finally:
         con.close()
     if not stack:
@@ -125,7 +149,9 @@ def _compute(scope: str, entity: str, db_path: str):
     smap = {(r["cell"], r["year"]): r["mean_z"] for r in stack}
     cmap = {r["cell"]: dict(r) for r in cells}
     omap = {r["cell"]: dict(r) for r in outlook}
-    return {"years": years, "smap": smap, "cmap": cmap, "omap": omap}
+    wcmap = {r["cell"]: dict(r) for r in wk_rows}
+    dcmap = {r["cell"]: dict(r) for r in wd_rows}
+    return {"years": years, "smap": smap, "cmap": cmap, "omap": omap, "wcmap": wcmap, "dcmap": dcmap}
 
 
 def _consensus_ribbon_cells(d: dict, order: list) -> list:
@@ -141,6 +167,102 @@ def _consensus_ribbon_cells(d: dict, order: list) -> list:
         else:
             cells.append((_MONTH_ABBR[m], None))     # greyed -> filtered by heat_ribbon
     return cells
+
+
+def _axis_strip_cells(cmap: dict, order: list, label_fn) -> tuple:
+    """The DESCRIPTIVE strip cell list for a secondary axis (weekly/weekday): (label, script_z) for
+    EVERY cell with >=15 years and a script_z, regardless of certification — gating this strip to
+    certified-only would empty out almost everywhere (the whole point of this lens is that most
+    cells don't certify). Returns (cells, n_cert, n_desc) so the caller can caption both counts."""
+    cells, n_cert, n_desc = [], 0, 0
+    for c in order:
+        row = cmap.get(c)
+        populated = bool(row and (row.get("n_years") or 0) >= 15 and row.get("script_z") is not None)
+        if populated:
+            cells.append((label_fn(c), float(row["script_z"])))
+            n_desc += 1
+            if row.get("colored"):
+                n_cert += 1
+        else:
+            cells.append((label_fn(c), None))
+    return cells, n_cert, n_desc
+
+
+def _strip_panel(title: str, small: str, plain: str, cmap: dict, order: list, label_fn, *,
+                 w: int, h: int, unit: str, title_at: list | None = None) -> str:
+    """A DESCRIPTIVE (dimmed) heat-ribbon strip for a secondary axis (weekly/weekday) — shows the
+    raw script_z shape for every populated cell (NOT certified-only, unlike the Consensus panel).
+    st-empty (never heat_ribbon's literal 'no data') when nothing is populated yet."""
+    cells, n_cert, n_desc = _axis_strip_cells(cmap, order, label_fn)
+    if n_desc == 0:
+        body = (f'<div class="st-empty">No {_esc(unit)} populated for this entity yet — '
+               'not hidden, just not computed/covered.</div>')
+    else:
+        body = (f'<div class="st-strip--desc">{ifx.heat_ribbon(cells, w=w, h=h, title_at=title_at)}</div>'
+               f'<div class="st-cap">{n_cert} of {len(order)} {_esc(unit)} certified '
+               '· descriptive shape, never a signal.</div>')
+    return (f'<div class="st-panel"><div class="st-h">{_esc(title)} <small>{_esc(small)}</small></div>'
+           + ifx.plain(plain) + body + '</div>')
+
+
+def _consensus_panel(d: dict, order: list) -> str:
+    """The Consensus-script panel body: certified months only, via the shared ribbon reader. Zero
+    certified renders an honest st-empty (never heat_ribbon's literal 'no data' — an empty script
+    IS the finding here, not a missing-data artefact)."""
+    ribbon_cells = _consensus_ribbon_cells(d, order)
+    n_cert = sum(1 for c in d["cmap"].values() if c.get("colored"))
+    if n_cert == 0:
+        panel_body = (
+            '<div class="st-empty">No month survives certification — empty by design. Every '
+            'apparent calendar pattern here failed at least one gate (a placebo null, family-wide '
+            'FDR, the 15-year minimum, out-of-sample sign-stability, or a pledged mechanism). '
+            '<b>An empty script is the honest finding, not missing data.</b></div>')
+    else:
+        panel_body = ifx.heat_ribbon(ribbon_cells, w=1060, h=42, vmax=1.0)
+    return (
+        '<div class="st-panel"><div class="st-h">Consensus script '
+        '<small>— hue = direction, paleness = uncertainty; only certified months are drawn</small></div>'
+        + ifx.plain('The clubbed read across all years. <b>Green</b> = reliably hot, <b>red</b> = '
+                    'reliably cold; the <b>paler</b> the bar, the less certain. A gap = that month did '
+                    'not survive certification (most months don\'t).')
+        + panel_body + '</div>')
+
+
+def _dict_from_inmemory(payload: dict) -> dict:
+    """Convert compute_stock_inmemory()'s raw payload (cells/stack/outlook lists spanning all THREE
+    axes) into the SAME {years,smap,cmap,omap,wcmap,dcmap} shape _compute() returns from the
+    persisted snapshot — so every render helper below works identically whether the entity is
+    persisted or computed on-demand (FIX-2: this never touches hermes.db)."""
+    cells = payload.get("cells", [])
+    stack = payload.get("stack", [])
+    outlook = payload.get("outlook", [])
+    cmap = {c["cell"]: c for c in cells if c.get("axis") == "month"}
+    wcmap = {c["cell"]: c for c in cells if c.get("axis") == "iso_week"}
+    dcmap = {c["cell"]: c for c in cells if c.get("axis") == "weekday"}
+    smap = {(cell, year): mz for (_sc, ax, cell, year, mz, _n) in stack if ax == "month"}
+    years = sorted({year for (_sc, ax, _cell, year, _mz, _n) in stack if ax == "month"})
+    omap = {c: {"k": k, "n": n, "ci_lo": lo, "ci_hi": hi, "base_rate": br, "edge": ed,
+                "fail_avg": fa, "fail_worst": fw, "light": lt, "mechanism": mech}
+            for (_sc, _asof, _ax, c, _hz, k, n, lo, hi, br, ed, fa, fw, lt, mech) in outlook}
+    return {"years": years, "smap": smap, "cmap": cmap, "wcmap": wcmap, "dcmap": dcmap, "omap": omap}
+
+
+def _stock_search_box(entity: str, cal: str, ents: tuple) -> str:
+    """Free-typed symbol search (GET form, read-only) — the ~500+ symbol universe is never chip-
+    listed; this replaces the old dead single-chip block that silently defaulted to ents[0]."""
+    opts = "".join(f'<option value="{_esc(e)}"></option>' for e in ents)
+    cur = f' value="{_esc(entity)}"' if entity else ''
+    return (
+        '<form class="st-search" method="get" action="/dash/seasonal-tape">'
+        '<input type="hidden" name="scope" value="stock">'
+        f'<input type="hidden" name="cal" value="{_esc(cal)}">'
+        '<input class="st-in" list="st-syms" name="entity" autocomplete="off" '
+        'placeholder="Search any NSE EQ symbol — e.g. RELIANCE" '
+        f'oninput="this.value=this.value.toUpperCase()"{cur}>'
+        f'<datalist id="st-syms">{opts}</datalist>'
+        '<button type="submit">Load</button>'
+        f'<span class="st-chip">{len(ents)} stocks covered — full EQ list, not a Nifty-500 cap</span>'
+        '</form>')
 
 
 _CARD_CSS = (
@@ -193,11 +315,18 @@ def seasonal_card(scope: str, entity: str, *, db_path: str | None = None, headin
     if scope == 'stock':
         caveats += '<li>Current-membership universe — survivor-conditional.</li>'
     link = f'/dash/seasonal-tape?scope={scope}&entity={quote(resolved)}'
+    week_cells, _wk_cert, wk_desc = _axis_strip_cells(
+        d.get("wcmap", {}), list(range(1, 54)), lambda c: f"W{c}")
+    weekly_html = (
+        '<div class="sc-note" style="margin-top:6px">Weekly shape (ISO week 1–53, descriptive):</div>'
+        + ifx.heat_ribbon(week_cells, w=560, h=26)
+    ) if wk_desc else ''
     return (
         _CARD_CSS
         + '<div class="sc-card">' + heading_html
         + f'<div class="sc-bl">{bl}</div>'
         + ifx.heat_ribbon(_consensus_ribbon_cells(d, _FISCAL_ORDER), w=560, h=34)
+        + weekly_html
         + f'<div class="sc-note">{len(certified)} of 12 months certified; the rest '
           'indistinguishable from chance.</div>'
         + f'<div class="sc-fence"><ul>{caveats}</ul><b>Descriptive calendar context, never a signal.</b></div>'
@@ -248,15 +377,60 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
     body = [_CSS, ifx.readability_css()]
     try:
         ents = _entities(scope, _DB_PATH)
-        if not ents:
+        if not ents and scope != "stock":
             raise LookupError("no snapshot")
+
+        def _stock_early_return(msg_html: str, q_val: str) -> HTMLResponse:
+            eb = ['<h2 style="margin:0 0 2px">Seasonal tape '
+                 '<small style="color:var(--ink-3);font-size:12px;font-weight:400">stock — search</small>'
+                 '</h2>', _stock_search_box(q_val, cal, ents), f'<div class="st-prompt">{msg_html}</div>']
+            return HTMLResponse(_shell("Seasonal tape · patearn", "".join(body + eb), "seasonal-tape", "",
+                                       wide=True))
+
+        d = None
         if scope == "stock":
-            # ~500-symbol universe — case-insensitive resolve (deep-links from the stock card use
-            # the upper-cased symbol already, but never trust the caller's casing).
-            entity = {e.upper(): e for e in ents}.get((entity or "").strip().upper()) or ents[0]
-        elif entity not in ents:
-            entity = ents[0]
-        d = _compute(scope, entity, _DB_PATH)
+            # ~500+ symbol universe — case-insensitive resolve. FIX-1: NEVER default to ents[0]
+            # (silent alphabetical-first) when the query doesn't resolve — an honest search prompt
+            # instead. FIX-2: an unrecognized query is resolved + computed READ-ONLY in memory
+            # (never written to hermes.db) via the seasonal_tape engine's on-demand bridge.
+            q = (entity or "").strip().upper()
+            resolved = {e.upper(): e for e in ents}.get(q)
+            resolved_sym, inmem = None, None
+            if not resolved and q:
+                try:
+                    from src.automation import seasonal_tape as _ST
+                    _rc = _ST._ro(_DB_PATH)
+                    try:
+                        resolved_sym = _ST.resolve_stock_symbol(_rc, q)
+                        if resolved_sym:
+                            inmem = _ST.compute_stock_inmemory(_rc, resolved_sym)
+                    finally:
+                        _rc.close()
+                except Exception:  # noqa: BLE001 — guarded engine import, must never break the page
+                    resolved_sym, inmem = None, None
+            if resolved:
+                entity = resolved
+                d = _compute(scope, entity, _DB_PATH)
+                if not d:
+                    return _stock_early_return(
+                        f'Resolved to <b>{_esc(entity)}</b> but it computed nothing — insufficient '
+                        'history for a stable script. Not hidden, just empty.', entity)
+            elif inmem:
+                entity = inmem.get("entity", resolved_sym or q)
+                d = _dict_from_inmemory(inmem)
+            elif q:
+                reason = (f'no usable history for <b>{_esc(resolved_sym)}</b> yet (needs a full '
+                         'year of trading)' if resolved_sym else
+                         f'<b>{_esc(q)}</b> does not resolve to a tradeable NSE EQ symbol')
+                return _stock_early_return(f'Searched <b>{_esc(q)}</b> — computed nothing: {reason}. '
+                                          'Not hidden, just empty.', q)
+            else:
+                return _stock_early_return(
+                    'Search a symbol above… coverage is the full EQ list, not a Nifty-500 cap.', "")
+        else:
+            if entity not in ents:
+                entity = ents[0]
+            d = _compute(scope, entity, _DB_PATH)
         if not d:
             raise LookupError("no coverage")
 
@@ -281,12 +455,9 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             f'<a class="{"on" if scope==s else ""}" href="/dash/seasonal-tape?scope={s}">{lbl}</a>'
             for s, lbl in (("index", "Index"), ("sector", "Sector"), ("stock", "Stock")))
         if scope == "stock":
-            # ~500-symbol universe — never render the full chip row; show only the current entity
-            # (reached via a deep-link from the stock's own seasonal card) + a count note.
-            ent_chips = (f'<a class="on" href="/dash/seasonal-tape?scope=stock&entity={_esc(entity)}'
-                        f'&cal={cal}">{_esc(entity)}</a>'
-                        f'<span class="st-chip" style="margin-left:8px">{len(ents)} stocks covered — '
-                        'reach one from its own /dash/stock page (Seasonal tab)</span>')
+            # ~500+ symbol universe — a free-typed search box, never a chip row (FIX-1: no
+            # ranked/default leaderboard, no silent ents[0] pick).
+            ent_chips = _stock_search_box(entity, cal, ents)
         else:
             ent_chips = "".join(
                 f'<a class="{"on" if e==entity else ""}" href="/dash/seasonal-tape?scope={scope}&entity={_esc(e)}&cal={cal}">{_esc(e)}</a>'
@@ -315,16 +486,31 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                                                     f'&cal={cal}&drill={order[j]}#drill'))
             + '</div>')
 
+        # events lens (descriptive-factual, TIME-only): guarded import, honest-empty on no snapshot
+        try:
+            from src.web.seasonal_events_view import render_events_section
+            ev_section = render_events_section(scope, entity, cal, db_path=_DB_PATH)
+            if ev_section:
+                body.append(ev_section)
+        except Exception:  # noqa: BLE001 — the events lens must never break this page
+            pass
+
+        # weekly + weekday strips (descriptive shape, secondary axes of the SAME certification bar)
+        body.append(_strip_panel(
+            "Weekly", "— ISO week 1–53, same certification bar as months",
+            "Same idea as the month stack, sliced by ISO calendar week instead — most weeks will "
+            "show nothing; a populated bar is this week\'s descriptive average residual, not a "
+            "certified signal unless separately gated.",
+            d.get("wcmap", {}), list(range(1, 54)), lambda c: str(c), w=1060, h=40, unit="weeks"))
+        body.append(_strip_panel(
+            "Weekday", "— Monday–Friday, same certification bar as months",
+            "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
+            "show nothing.",
+            d.get("dcmap", {}), [0, 1, 2, 3, 4], lambda c: _WEEKDAY_ABBR[c],
+            w=1060, h=40, unit="weekdays"))
+
         # consensus ribbon: t = sign(script_z)*conf, colored cells only (paleness = 1-emp_p)
-        ribbon_cells = _consensus_ribbon_cells(d, order)
-        body.append(
-            '<div class="st-panel"><div class="st-h">Consensus script '
-            '<small>— hue = direction, paleness = uncertainty; only certified months are drawn</small></div>'
-            + ifx.plain('The clubbed read across all years. <b>Green</b> = reliably hot, <b>red</b> = '
-                        'reliably cold; the <b>paler</b> the bar, the less certain. A gap = that month did '
-                        'not survive certification (most months don\'t).')
-            + ifx.heat_ribbon(ribbon_cells, w=1060, h=42, vmax=1.0)
-            + '</div>')
+        body.append(_consensus_panel(d, order))
 
         # forward outlook strip
         if d["omap"]:
@@ -453,6 +639,7 @@ def _selftest() -> int:
         assert r.status_code == 200 and "Seasonal tape" in r.text, r.status_code
         assert "25-year stack" in r.text and "Consensus script" in r.text, "panels missing"
         assert "Forward outlook" in r.text, "outlook missing"
+        assert "Weekly" in r.text and "Weekday" in r.text, "weekly/weekday strips missing"
         r2 = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&drill=10")
         assert r2.status_code == 200 and "Behind the script" in r2.text, "drill missing"
         r3 = c.get("/dash/seasonal-tape?scope=index&entity=Nifty 500&cal=cy")
@@ -460,9 +647,44 @@ def _selftest() -> int:
         # honest-empty path (unknown scope-entity still 200)
         r4 = c.get("/dash/seasonal-tape?scope=index&entity=DoesNotExist")
         assert r4.status_code == 200
-        # scope=stock is now whitelisted (no snapshot in this tmp DB -> honest empty-state page)
-        r5 = c.get("/dash/seasonal-tape?scope=stock&entity=DOESNOTEXIST")
+        # scope=stock, no snapshot + no entity at all -> the search prompt, never ents[0]/3MINDIA
+        r5 = c.get("/dash/seasonal-tape?scope=stock")
         assert r5.status_code == 200
+        assert "st-search" in r5.text and "Search a symbol above" in r5.text, "no-entity search prompt missing"
+        # scope=stock, an unresolvable query (no bhavcopy_rows table in this tmp DB -> the guarded
+        # resolve raises internally and is caught) -> honest 'computed nothing', not a silent default
+        r5b = c.get("/dash/seasonal-tape?scope=stock&entity=DOESNOTEXIST")
+        assert r5b.status_code == 200
+        assert "computed nothing" in r5b.text, "unresolvable stock query must show the honest prompt"
+        assert "25-year stack" not in r5b.text, "must never silently render some other entity's data"
+
+        # FIX-1 regression: with a (fake) persisted stock entity present, an unrelated unknown query
+        # must still show the prompt, never silently fall back to that entity (the old ents[0] bug).
+        con2 = sqlite3.connect(tmp)
+        con2.execute(
+            "INSERT OR REPLACE INTO seasonal_cells (scope,entity,axis,cell,script_z,n_years,hit_rate,"
+            "conf,colored,signed,emp_p_block,emp_p_phase,null_p95,sign_stable,fdr_pass,mechanism,"
+            "pledged_sign,gate_flags) VALUES ('stock','AAA','month',1,0.1,20,0.5,0.1,0,0,0.5,0.5,0.5,"
+            "0,0,NULL,NULL,'OK')")
+        con2.commit(); con2.close()
+        _entities.cache_clear(); _compute.cache_clear()
+        r5c = c.get("/dash/seasonal-tape?scope=stock&entity=ZZZNOPE")
+        assert r5c.status_code == 200
+        assert "computed nothing" in r5c.text
+        assert "25-year stack" not in r5c.text, "unknown query must not silently default to AAA (ents[0])"
+        # AAA itself: resolves (chip match) but has no seasonal_stack rows -> the specific
+        # 'resolved but computed nothing' honest message, not a 500 and not a fabricated chart.
+        r5d = c.get("/dash/seasonal-tape?scope=stock&entity=AAA")
+        assert r5d.status_code == 200 and "st-search" in r5d.text
+        assert "computed nothing" in r5d.text, "resolved-but-empty stock must say so honestly"
+
+        # direct unit test of the 0-certified consensus path: st-empty, never heat_ribbon's 'no data'
+        zero_cert_html = _consensus_panel({"cmap": {1: {"colored": False, "script_z": 0.1}}}, [1])
+        assert "st-empty" in zero_cert_html and "honest finding" in zero_cert_html
+        assert "no data" not in zero_cert_html, "0-certified consensus must never say literal 'no data'"
+        one_cert_html = _consensus_panel(
+            {"cmap": {1: {"colored": True, "script_z": 0.5, "conf": 0.8}}}, [1])
+        assert "<svg" in one_cert_html and "st-empty" not in one_cert_html
 
         # seasonal_card: the reusable embed — non-empty for a covered sector, with the deep-link
         # + a ribbon (SVG); case-insensitive entity resolution.
@@ -477,9 +699,13 @@ def _selftest() -> int:
         # DESCRIPTIVE-ONLY FENCE: the card must never leak the forward-outlook / traffic-light read
         for token in ("1M", "🟢", "🟡", "⚪", "Forward outlook"):
             assert token not in card, f"seasonal_card leaked a forward-outlook token: {token!r}"
+        # the new Weekly strip is additive to the card and must not reintroduce the fenced tokens
+        assert "Weekly shape" in card, "seasonal_card should carry the new descriptive Weekly strip"
 
-        print("seasonal_view selftest OK — stack + consensus + outlook + drill render; stock scope "
-              "wired; seasonal_card embeds + honest-empties + fences the forward outlook")
+        print("seasonal_view selftest OK — stack + consensus + outlook + drill + weekly/weekday "
+              "strips + events section render; stock search box + FIX-1 no-default-entity + FIX-2 "
+              "in-memory on-demand resolve wired; 0-certified consensus st-empties honestly; "
+              "seasonal_card embeds + honest-empties + fences the forward outlook")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
