@@ -291,6 +291,7 @@ def _summary(d, wi, sym, idx):
 def wolfe_scan(universe: str = Query("nifty500", max_length=24),
                fresh: int = Query(15, ge=1, le=180),
                asof: str = Query("", max_length=12),
+               sort: str = Query("", max_length=8),
                refresh: int = Query(0, ge=0, le=1)):
     """The winner-profile SCANNER — the OOS-validated reachable-EPA edge across the universe.
     Each row is clickable → /dash/wolfe?sym=…&pick=winner (draws that stock's winner wave).
@@ -309,6 +310,12 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             cands = wolfe.winner_scan(conn, universe=uni, fresh=fresh, asof=(asof or None))
             eff_fresh = fresh
     nin = sum(1 for c in cands if c["in_zone"])
+    if sort == "q":       # strongest structure first
+        cands = sorted(cands, key=lambda c: -(c.get("Q") or 0))
+    elif sort == "age":   # most recent call first
+        cands = sorted(cands, key=lambda c: c.get("age", 1 << 30))
+    elif sort == "up":    # biggest room to the EPA target
+        cands = sorted(cands, key=lambda c: -(c.get("up") or 0))
     trs = []
     for c in cands:
         col = _UP_VAR if c["dir"] == "BULL" else _DN_VAR
@@ -318,6 +325,9 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         t1s = _fmt(c["t1"]) if c["t1"] else "—"
         status = ('<span style="color:var(--up);font-weight:700">● IN</span>' if c["in_zone"]
                   else '<span style="color:var(--ink-3)">watch</span>')
+        cd = c.get("comp") or {}
+        cc = "".join(f'<td style="text-align:center;color:var(--ink-2)">{cd.get(k, "")}</td>'
+                     for k in ("p1", "B", "C", "F", "G", "H", "I", "D"))
         trs.append(
             # CL-VIEW-09: the symbol sits in a single-quoted JS string inside a double-
             # quoted attribute. SAFETY INVARIANT: _q (urllib quote_plus) percent-encodes,
@@ -332,12 +342,14 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             f'<td>{_fmt(c["cmp"])}</td><td>{_fmt(c["zlo"])}–{_fmt(c["zhi"])}</td>'
             f'<td style="color:var(--down)">{_fmt(c["sl"])}</td>'
             f'<td>{t1s}</td><td style="color:var(--up)">{_fmt(c["epa"])}</td>'
-            f'<td>{c["up"]:.0f}%</td></tr>')
+            f'<td>{c["up"]:.0f}%</td>{cc}'
+            f'<td style="text-align:center"><b style="color:{col}">{c.get("Q","")}</b></td></tr>')
     if not cands:
-        trs = ['<tr><td colspan="10" style="padding:14px;color:var(--ink-2)">No fresh winner-profile setups right now — '
+        trs = ['<tr><td colspan="19" style="padding:14px;color:var(--ink-2)">No fresh winner-profile setups right now — '
                'try <a href="/dash/wolfe/scan?fresh=30" style="color:#58a6ff">fresh 30</a> or '
                '<a href="/dash/wolfe/scan?universe=inclusive" style="color:#58a6ff">the wider universe</a>.</td></tr>']
-    head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up')
+    head = ('symbol', 'dir', 'status', 'age', 'CMP', 'entry zone', 'stop', 'T1', 'EPA', 'up',
+            'A', 'B', 'C', 'F', 'G', 'H', 'I', 'D', 'Q')
     body = (
         '<h2>Wolfe scanner <span style="color:var(--ink-2);font-size:15px;font-weight:400">— winner-profile, read by side</span></h2>'
         '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
@@ -349,6 +361,15 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
         'mainly when the broad tape is already weak, not on its own. The edge is in the <b>selection</b>, not the '
         'stop/target. <b>Click a row</b> to see its wave on the chart. '
         '<span style="color:var(--up)">● IN</span> = price in the entry zone now. <i>Descriptive — not a buy/sell signal.</i></div>'
+        '<div class="sub" style="margin-bottom:6px;font-size:12px"><b>Sort:</b> '
+        f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;sort=q" style="color:#58a6ff">strongest (Q)</a> · '
+        f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;sort=age" style="color:#58a6ff">most recent</a> · '
+        f'<a href="/dash/wolfe/scan?universe={_q(uni)}&amp;sort=up" style="color:#58a6ff">biggest move</a> · '
+        f'<a href="/dash/wolfe/scan?universe={_q(uni)}" style="color:#58a6ff">actionable (default)</a>'
+        f' &nbsp;|&nbsp; <b>§B (max {wolfe._QUALITY_MAX}):</b> A=pt-1 fractal · B=pts 2/3/4 fractal · '
+        'C=point-5 placement · F=zone narrowness · G=extension depth · H=EPA touch-not-cut · '
+        'I=RSI divergence · D=upside. <i>Q = structural strength; the ★edge winner-profile is the '
+        'tradeable filter — they differ on purpose.</i></div>'
         f'<div style="color:var(--ink-2);font-size:13px;margin-bottom:10px">{_esc(universe)} · '
         + (f'as-of <b>{_esc(cached["scan_date"] or "—")}</b> '
            f'<span style="color:var(--ink-3)">(nightly snapshot{(" · computed " + _esc(cached["computed_at"][:16])) if cached.get("computed_at") else ""})</span> · '

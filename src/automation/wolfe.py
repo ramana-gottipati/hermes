@@ -1014,6 +1014,7 @@ def winner_scan(conn, universe="nifty500", fresh=15, asof=None):
                 "zlo": round(z["low"], 1), "zhi": round(z["high"], 1), "zprice": round(z["price"], 1),
                 "sl": round(sl, 1), "t1": (round(t1, 1) if t1 else None), "epa": round(epa, 1),
                 "up": round(up, 1), "age": age, "Q": w.score["total"],
+                "comp": {k: w.score.get(k, 0) for k in ("p1", "B", "C", "F", "G", "H", "I", "D")},
                 "in_zone": bool(z["low"] * 0.995 <= cmp_ <= z["high"] * 1.005),
                 "p5date": dates[w.p5.idx], "p4date": dates[w.p[3].idx]})
     out.sort(key=lambda r: (not r["in_zone"], r["age"]))
@@ -1058,8 +1059,13 @@ def _ensure_scan_table(conn):
             p4date       TEXT,
             fresh        INTEGER,
             scan_date    TEXT,
-            computed_at  TEXT
+            computed_at  TEXT,
+            comp         TEXT
         )""")
+    try:   # 2026-07-12: the 8 §B components as JSON so the scanner can show+sort them (idempotent)
+        conn.execute("ALTER TABLE wolfe_signals ADD COLUMN comp TEXT")
+    except Exception:
+        pass
     conn.execute("CREATE INDEX IF NOT EXISTS idx_wolfe_universe "
                  "ON wolfe_signals(universe, in_zone DESC, age ASC)")
 
@@ -1086,15 +1092,16 @@ def persist_scan(conn, universe="nifty500", fresh=15, computed_at=None):
     rows = winner_scan(conn, universe=universe, fresh=fresh)
     scan_date = _scan_as_of(conn)
     conn.execute("DELETE FROM wolfe_signals WHERE universe=?", (universe,))
+    import json as _json
     conn.executemany(
         "INSERT INTO wolfe_signals "
         "(universe,sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
-        " p5date,p4date,fresh,scan_date,computed_at) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " p5date,p4date,fresh,scan_date,computed_at,comp) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [(universe, r["sym"], r["dir"], r["cmp"], r["zlo"], r["zhi"], r["zprice"],
           r["sl"], r["t1"], r["epa"], r["up"], r["age"], r["Q"],
           1 if r["in_zone"] else 0, r["p5date"], r["p4date"], fresh,
-          scan_date, computed_at) for r in rows])
+          scan_date, computed_at, _json.dumps(r.get("comp") or {})) for r in rows])
     # CL-SCO-12: do NOT commit here. `conn` is always passed in by the caller (the
     # CLI uses `with get_conn()`, which commits on success / rolls back on error), so
     # an internal `try: conn.commit() except: pass` (a) committed a foreign connection
@@ -1111,7 +1118,7 @@ def latest_scan(conn, universe="nifty500"):
     try:
         cur = conn.execute(
             "SELECT sym,dir,cmp,zlo,zhi,zprice,sl,t1,epa,up,age,q,in_zone,"
-            "p5date,p4date,fresh,scan_date,computed_at "
+            "p5date,p4date,fresh,scan_date,computed_at,comp "
             "FROM wolfe_signals WHERE universe=? "
             "ORDER BY in_zone DESC, age ASC", (universe,))
         recs = cur.fetchall()
@@ -1119,10 +1126,16 @@ def latest_scan(conn, universe="nifty500"):
         return None
     if not recs:
         return None
+    import json as _json
+    def _pc(v):
+        try:
+            return _json.loads(v) if v else {}
+        except Exception:
+            return {}
     rows = [{"sym": r[0], "dir": r[1], "cmp": r[2], "zlo": r[3], "zhi": r[4],
              "zprice": r[5], "sl": r[6], "t1": r[7], "epa": r[8], "up": r[9],
              "age": r[10], "Q": r[11], "in_zone": bool(r[12]),
-             "p5date": r[13], "p4date": r[14]} for r in recs]
+             "p5date": r[13], "p4date": r[14], "comp": _pc(r[18])} for r in recs]
     return {"rows": rows, "scan_date": recs[0][16], "computed_at": recs[0][17],
             "fresh": recs[0][15]}
 
