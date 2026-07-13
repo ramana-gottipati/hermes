@@ -490,6 +490,13 @@ def readability_css() -> str:
         ".rd-htr{margin:-4px 0 14px;font-size:12px;}"
         ".rd-htr a{color:var(--accent-cy);text-decoration:none;border-bottom:1px dotted var(--accent-cy);}"
         ".rd-htr a:hover{border-bottom-style:solid;}"
+        ".rd-fence{display:flex;gap:9px;align-items:baseline;margin:8px 0 12px;padding:8px 12px;"
+        "background:var(--bg-2);border:1px solid var(--line-2);border-left:2px solid var(--ink-3);"
+        "border-radius:0 8px 8px 0;max-width:1080px;}"
+        ".rd-fence .rd-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;"
+        "color:var(--ink-3);font-weight:700;white-space:nowrap;flex:none;padding-top:2px;}"
+        ".rd-fence .rd-txt{font-size:12px;line-height:1.5;color:var(--ink-2);}"
+        ".rd-fence .rd-txt a{color:var(--accent-cy);text-decoration:none;}"
         "</style>")
 
 
@@ -512,16 +519,73 @@ def plain(text_html: str) -> str:
 def demo_framing() -> str:
     """The falsification-forward framing sentence (UX audit S-A, Codex R2): shown wherever
     failed or uncertified studies are published, so the honesty posture reads as a moat —
-    never as "nothing here works". One wording, shared (S-C migrates it into fence())."""
+    never as "nothing here works". One wording, shared. Complements fence() below: fence()
+    single-sources the short "not advice / not a signal" boundary CLAUSE; this is the longer
+    "why we publish failures" framing block."""
     return ('<div class="rd-plain" style="margin-top:4px"><span class="rd-lbl">Why we publish this</span>'
             '<span class="rd-txt">We publish failures and uncertified reads so descriptive context is '
             'never mistaken for alpha — the honest boundary IS the product.</span></div>')
+
+
+# ── the descriptive-only fence — ONE sanctioned vocabulary (S-C, replaces the ≥9 accidental
+#    hand-written phrasings that had drifted across ~24 rendered sites). Every user-facing lens
+#    carries a boundary telling the reader what the page is NOT (advice / a signal / a pick). This
+#    dict is the single source of that wording. Add a KIND here — never hand-write a fence again.
+_FENCE_COPY = {
+    "not_advice":   "descriptive, not advice",              # disclosures / filings (insider, SAST, SHP, ratings)
+    "arithmetic":   "arithmetic, not advice",               # calculators (buyback)
+    "not_signal":   "descriptive, not a signal",            # state reads (move-anatomy; internals keeps its bespoke 'point-in-time' line)
+    "context":      "context, not a signal",                # short inline positioning/headline notes (participants, MEP headlines)
+    "not_reco":     "descriptive, not a recommendation",    # screens / rankings (launchpad, screen+, seasonal-screen)
+    "not_buy":      "descriptive, not a buy call",          # directional verdict, bullish side (strategist)
+    "not_sell":     "descriptive, not a sell call",         # directional verdict, bearish side (strategist)
+    "not_buy_sell": "descriptive, not a buy/sell signal",   # chart overlays (harmonic, MACD, compare)
+    "not_tradeable": "descriptive calendar context — never a signal",  # seasonal (net-of-cost caveat)
+}
+
+
+def fence(kind: str, detail: str = "", *, sep: str = " · ", cap: bool = False) -> str:
+    """The canonical descriptive-only boundary CLAUSE for a lens — single source of the fence
+    wording (S-C; migrated the ≥9 hand-written variants here). Returns just the phrase text so it
+    drops into ANY existing markup byte-preservingly: an <h2> <small> subtitle tail, a note <div>,
+    an <li> lead, a title= tooltip. `detail` is an optional page-specific lead-in
+    (e.g. "broadcast-date anchored") kept verbatim BEFORE the boundary (nothing-discarded).
+    `cap` upper-cases the first letter for sentence-initial use ("Descriptive, not advice").
+    `kind` MUST be a sanctioned key — an unknown key raises KeyError by design, so a new page
+    can't quietly invent a 10th phrasing (add a kind to _FENCE_COPY instead)."""
+    phrase = _FENCE_COPY[kind]
+    out = f"{detail}{sep}{phrase}" if detail else phrase
+    return (out[:1].upper() + out[1:]) if cap else out
+
+
+def fence_note(kind: str, detail: str = "", extra_html: str = "") -> str:
+    """A standard rendered 'honest boundary' note — the SHARED VISUAL for pages that want the
+    fence as its own element (rather than a clause inside other markup). `extra_html` appends a
+    trailing link etc. Uses the .rd-fence style from readability_css(). New pages should prefer
+    this; the pre-sprint pages embed fence() as a clause and are left visually unchanged."""
+    body = fence(kind, detail, cap=True)
+    return (f'<div class="rd-fence"><span class="rd-lbl">Honest boundary</span>'
+            f'<span class="rd-txt">{body}.{(" " + extra_html) if extra_html else ""}</span></div>')
 
 
 def _selftest() -> int:
     import re
     assert readability_css().startswith("<style>") and "rd-bottom" in readability_css()
     assert 'class="rd-bottom"' in bottom_line("x") and 'class="rd-plain"' in plain("y")
+    # fence: every sanctioned kind renders; detail is kept verbatim before the boundary; the
+    # rendered note wraps the clause; an unknown kind is a hard error (can't invent a 10th phrasing).
+    assert "rd-fence" in readability_css()
+    for _k in _FENCE_COPY:
+        assert fence(_k) == _FENCE_COPY[_k]
+        assert fence(_k, "anchored here").startswith("anchored here · ")
+        assert fence(_k, cap=True)[:1].isupper()
+        assert 'class="rd-fence"' in fence_note(_k)
+    assert fence("not_advice") == "descriptive, not advice"
+    assert fence("arithmetic", cap=True) == "Arithmetic, not advice"
+    try:
+        fence("bogus_kind"); raise AssertionError("unknown fence kind must raise")
+    except KeyError:
+        pass
     seq = [signed_fill(-1), signed_fill(0), signed_fill(1), seq_fill(0), seq_fill(.5), seq_fill(1)]
     assert all(c for c in seq)
     charts = {

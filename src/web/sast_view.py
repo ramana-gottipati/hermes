@@ -26,6 +26,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold + fence() vocabulary (S-C)
 from src.automation import sast_events as SE
 
 router = APIRouter()
@@ -282,7 +283,7 @@ def dash_sast(window: int = 90, feed: str = "", sym: str = "") -> HTMLResponse:
             body.append(
                 '<h2 style="margin:0 0 2px">Stake &amp; pledge confluence <small style="color:var(--ink-3);'
                 f'font-size:12px;font-weight:400">SAST Reg 29 + Reg 31/32 · as of {_esc(str(as_of) if as_of else "—")} '
-                '· broadcast-date anchored · descriptive, not advice</small></h2>'
+                f'· {ifx.fence("not_advice", "broadcast-date anchored")}</small></h2>'
                 '<div class="sp-note">Substantial-holder stake moves crossed with promoter pledge FLOW — the '
                 'board shows names where <b>both fired inside 90 days</b>, labelled by SHAPE: '
                 '<b>constructive</b> (stake added while encumbrance falls/holds) · <b>distress</b> '

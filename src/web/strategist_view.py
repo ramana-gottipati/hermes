@@ -34,6 +34,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web import ui_kit as K
+from src.web import infographics as ifx  # shared readability scaffold + fence() vocabulary (S-C)
 
 log = logging.getLogger("hermes.strategist")
 router = APIRouter()
@@ -548,7 +549,7 @@ def _alerts_strip(conn) -> str:
     if dropped and not a.get("first_run"):
         extra += (f'<div class="sec" style="margin-top:6px;color:var(--ink-2);font-size:12px">'
                   f'▽ <b>{len(dropped)}</b> dropped out since the last check '
-                  f'(no longer credible ∩ accumulated — descriptive, not a sell call): '
+                  f'(no longer credible ∩ accumulated — {ifx.fence("not_sell")}): '
                   f'{_chips(dropped[:12], bg="var(--bg-2)")}</div>')
     try:
         from src.pat import alerts as _A
@@ -564,7 +565,7 @@ def _alerts_strip(conn) -> str:
     return (
         '<div class="wb-alerts wb-alerts-sec">'
         f'<div class="ah">{badge}<b>Confluence alerts</b>'
-        f'<span class="mut" style="font-size:11px">as of {K.esc(str(asof)[:10] if asof else "—")} · descriptive, not a buy call</span>'
+        f'<span class="mut" style="font-size:11px">as of {K.esc(str(asof)[:10] if asof else "—")} · {ifx.fence("not_buy")}</span>'
         '<button class="wb-seen" onclick="wbMarkSeen(this)">↻ mark seen</button></div>'
         f'<div class="sec">{body}</div>'
         f'{new_chips}'

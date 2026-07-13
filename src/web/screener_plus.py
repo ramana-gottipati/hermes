@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse
 from src.core.db import get_conn
 from src.web import ui_kit as K
 from src.web import glossary as G  # `?` hover-help — wire the existing (inert) glossary
+from src.web import infographics as ifx  # shared readability scaffold + fence() vocabulary (S-C)
 
 log = logging.getLogger("hermes.screen2")
 router = APIRouter()
@@ -550,7 +551,7 @@ def _parity_view() -> str:
         'carries deeper per-family ladders (full p1–p12 DVPT power, b1–b24 RS slopes) '
         'that Screen+ deliberately summarises to stay readable; both read the SAME '
         'precomputed tables. Promotability = every family present + a superset of lenses. '
-        'Descriptive-only; the §C falsification stands (no buy/sell ranking).</div>')
+        f'{ifx.fence("not_reco", cap=True)}; the §C falsification stands (no buy/sell ranking).</div>')
     # the exact promotion checklist (the nav-slot flip is the orchestrator's, via
     # lens_registry — this enumerates what is DONE so the flip is a clean swap).
     checklist = [

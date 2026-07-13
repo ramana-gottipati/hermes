@@ -27,6 +27,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold + fence() vocabulary (S-C)
 from src.automation import shareholding_xbrl as SX
 
 router = APIRouter()
@@ -223,7 +224,7 @@ def dash_shp(sym: str = "") -> HTMLResponse:
         body.append(
             '<h2 style="margin:0 0 2px">Holdings · quarter-over-quarter <small style="color:var(--ink-3);'
             f'font-size:12px;font-weight:400">shareholding pattern deltas · latest period '
-            f'{_esc(str(as_of)[:10] if as_of else "—")} · descriptive, not advice</small></h2>'
+            f'{_esc(str(as_of)[:10] if as_of else "—")} · {ifx.fence("not_advice")}</small></h2>'
             '<div class="hq-note">Who added and who trimmed, quarter over quarter — promoter / FII / DII / '
             'public / pledge, in <b>percentage points of equity</b>. Deltas pair a symbol\'s two latest '
             'quarters; only ADJACENT quarters can flag (◌ = reporting gap, shown but never counted). '

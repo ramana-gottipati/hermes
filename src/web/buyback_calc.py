@@ -34,6 +34,8 @@ import sqlite3
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from src.web import infographics as ifx  # shared readability scaffold + fence() vocabulary (S-C)
+
 HERMES_DB = "/opt/hermes/data/hermes.db"
 router = APIRouter()
 
@@ -197,7 +199,7 @@ def buyback_calc():
             'are not in our data, so we refuse to fabricate a prior (the sensitivity table exists '
             'instead). Eligibility is measured <b>on the record date</b> — a rally can push a '
             '₹2L position over the category line, so size with a buffer. Simple annualization, '
-            'stated as such. Arithmetic, not advice.</div>',
+            f'stated as such. {ifx.fence("arithmetic", cap=True)}.</div>',
             '<div class="calc"><div class="grid">',
             '<div><label>Buyback price ₹</label><input id="bb_px" type="number" value="1000"></div>',
             '<div><label>Current price (your cost) ₹</label><input id="bb_cmp" type="number" value="850"></div>',

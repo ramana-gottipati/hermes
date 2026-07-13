@@ -230,7 +230,7 @@ def dash_move_anatomy() -> HTMLResponse:
         body.append(
             '<div class="ma-fence"><b>How to read this honestly — the caveats are the point:</b>'
             '<ul>'
-            '<li><b>Descriptive, not a signal.</b> Events are chosen <i>because</i> a move fired — this is '
+            f'<li><b>{ifx.fence("not_signal", cap=True)}.</b> Events are chosen <i>because</i> a move fired — this is '
             'what pre-move days looked like in hindsight, a post-selection base-rate, never "buy when X."</li>'
             '<li><b>Survivorship.</b> The universe is today\'s listings; delisted losers are absent, so every '
             'forward number is biased upward.</li>'

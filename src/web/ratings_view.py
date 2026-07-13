@@ -29,6 +29,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold + fence() vocabulary (S-C)
 from src.automation import credit_ratings as CR
 
 router = APIRouter()
@@ -252,8 +253,7 @@ def dash_ratings(window: int = 180, cls: str = "", sym: str = "") -> HTMLRespons
             body.append(
                 '<h2 style="margin:0 0 2px">Credit-rating transitions <small style="color:var(--ink-3);'
                 f'font-size:12px;font-weight:400">NSE rating-disclosure register · as of '
-                f'{_esc(str(as_of)[:10] if as_of else "—")} · broadcast-date anchored · descriptive, '
-                'not advice</small></h2>'
+                f'{_esc(str(as_of)[:10] if as_of else "—")} · {ifx.fence("not_advice", "broadcast-date anchored")}</small></h2>'
                 '<div class="rv-note">The headline counts <b>company-level actions</b>, never raw rows — '
                 'one issuer\'s multi-ISIN debt re-rated across programs collapses to ONE action per '
                 'direction per day (the E-02 study measured raw rows at ~6× pseudo-replication). '

@@ -205,7 +205,7 @@ def dash_launchpad_track(drill: str = "") -> HTMLResponse:
                 'survivorship-exposed (delisted losers are absent, so returns are biased up). The ledger '
                 'is explicit — the launchpad is a <b>validated screen with no fundable edge net of cost</b> '
                 '(no profit once real costs are paid); this page quantifies the screen\'s character, it is '
-                'not a recommendation. <a href="/dash/launchpad">← today\'s scan</a></div>')
+                f'{ifx.fence("not_reco")}. <a href="/dash/launchpad">← today\'s scan</a></div>')
 
             # tiles
             def tile(n, c, l, s):

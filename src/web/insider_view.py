@@ -25,6 +25,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold + fence() vocabulary (S-C)
 from src.automation import insider_events as IE
 
 router = APIRouter()
@@ -242,7 +243,7 @@ def dash_insider(window: int = 90, cls: str = "", sym: str = "",
             body_parts.append(
                 '<h2 style="margin:0 0 2px">Insider activity <small style="color:var(--ink-3);'
                 f'font-size:12px;font-weight:400">SEBI PIT disclosures · as of {_esc(str(as_of)[:10] if as_of else "—")} '
-                '· disclosure-date anchored (what was knowable when) · descriptive, not advice</small></h2>'
+                f'· {ifx.fence("not_advice", "disclosure-date anchored (what was knowable when)")}</small></h2>'
                 '<div class="iv-note">Principals = promoters / directors / KMP acting with their own money. '
                 'The headline reads only <b>open-market</b> buys and sells — ESOPs, gifts, inter-se transfers and '
                 'other plumbing are classified out (visible in the tape below). Revised filings supersede their '

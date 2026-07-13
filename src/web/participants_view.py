@@ -171,7 +171,7 @@ def render_positioning_tape(conn) -> str:
         + ifx.spark_area(cli_n, h=84, signed=True, baseline=0)
         + '<div class="sub mut" style="margin-top:6px;font-size:11px">A near-perfect mirror: as FII '
           'shorts deepen, retail longs swell in lockstep — retail is the counterparty. "CLIENT" is '
-          'retail + HNI + residual, not pure retail. Positioning context, not a signal.</div>'
+          'retail + HNI + residual, not pure retail. Positioning ' + ifx.fence("context") + '.</div>'
         '</div>')
     return tape
 
