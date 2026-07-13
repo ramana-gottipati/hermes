@@ -15,7 +15,8 @@ engine is where all PIT/leak discipline lives; this view only renders the snapsh
 ⚠ HONESTY (on-page): (1) NOTHING here is tradeable net of STT/impact (expectancy ~= 0) — never a
 signal; (2) point-in-time residuals (no look-ahead), frozen family sha256-hashed before compute;
 (3) a white outlook light = the CI touches the 50% baseline = explicitly noise. Descriptive
-calendar context, never a ranking or a trade. Route: /dash/seasonal-tape [?scope=index|sector&entity=..&cal=fy|cy&drill=<cell>].
+calendar context, never a ranking or a trade. Route: /dash/seasonal-tape
+[?scope=index|sector&entity=..&cal=fy|cy&drill=<month>|wdrill=<iso_week>].
 """
 from __future__ import annotations
 
@@ -224,19 +225,28 @@ def _axis_strip_cells(cmap: dict, order: list, label_fn) -> tuple:
 
 def _strip_panel(title: str, small: str, plain: str, cmap: dict, order: list, label_fn, *,
                  w: int, h: int, unit: str, title_at: list | None = None,
-                 vmax: float | None = None) -> str:
+                 vmax: float | None = None, link_fn=None) -> str:
     """A DESCRIPTIVE (dimmed) heat-ribbon strip for a secondary axis (month/weekly/weekday) — shows
     the raw script_z shape for every populated cell (NOT certified-only, unlike the strict
     certification gate). st-empty (never heat_ribbon's literal 'no data') when nothing is populated
     yet. `vmax` tightens the signed scale (default None = heat_ribbon's own max|value| autoscale) —
     consolidation strips summarize small residuals (~±0.3σ) that a wide ±2.5σ stack scale would wash
-    out, so callers pass a tighter vmax (e.g. 0.5) to keep the green/red gradient visible."""
+    out, so callers pass a tighter vmax (e.g. 0.5) to keep the green/red gradient visible.
+
+    `link_fn(cell)->href`, when given, makes every POPULATED bar a click-through (heat_ribbon's own
+    cell_link seam). heat_ribbon indexes AFTER dropping None cells, so the i-th surviving bar is the
+    i-th entry of `order` whose value is not None — `populated` below replicates that exact filter
+    so the index lines up; do not pass link_fn if that filter ever diverges from heat_ribbon's."""
     cells, n_cert, n_desc = _axis_strip_cells(cmap, order, label_fn)
     if n_desc == 0:
         body = (f'<div class="st-empty">No {_esc(unit)} populated for this entity yet — '
                'not hidden, just not computed/covered.</div>')
     else:
-        body = (f'<div class="st-strip--desc">{ifx.heat_ribbon(cells, w=w, h=h, vmax=vmax, title_at=title_at)}</div>'
+        cell_link = None
+        if link_fn:
+            populated = [c for c, (_lab, v) in zip(order, cells) if v is not None]
+            cell_link = lambda i: link_fn(populated[i])  # noqa: E731
+        body = (f'<div class="st-strip--desc">{ifx.heat_ribbon(cells, w=w, h=h, vmax=vmax, title_at=title_at, cell_link=cell_link)}</div>'
                f'<div class="st-cap">{n_cert} of {len(order)} {_esc(unit)} certified '
                '· descriptive shape, never a signal.</div>')
     return (f'<div class="st-panel"><div class="st-h">{_esc(title)} <small>{_esc(small)}</small></div>'
@@ -372,12 +382,25 @@ def seasonal_card(scope: str, entity: str, *, db_path: str | None = None, headin
         + '</div>')
 
 
-def _drill_panel(scope: str, entity: str, d: dict, month: int, order: list) -> str:
-    """Server-rendered breakdown for one month cell: the per-year z values behind the script."""
-    label = _MONTH_ABBR.get(month, str(month))
-    yrs = d["years"]
-    vals = [(y, d["smap"].get((month, y))) for y in yrs if d["smap"].get((month, y)) is not None]
-    cell = d["cmap"].get(month, {})
+def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
+                 axis: str = "month") -> str:
+    """Server-rendered breakdown for one calendar cell: the per-year z values behind the script.
+    axis="month" (default) is the ORIGINAL per-month breakdown, unchanged byte-for-byte. axis=
+    "iso_week" mirrors it for the 52-week stack (d["wsmap"]/d["wcmap"]/d["wsyears"]) — same panel
+    shell, same st-drill styling, same "No {label} history" honest-empty branch; only the source
+    maps and the cell label differ."""
+    if axis == "iso_week":
+        stackmap = d.get("wsmap", {})
+        cellinfo = d.get("wcmap", {})
+        label = f"Week {cell}"
+        yrs = d.get("wsyears", d["years"])
+    else:
+        stackmap = d["smap"]
+        cellinfo = d["cmap"]
+        label = _MONTH_ABBR.get(cell, str(cell))
+        yrs = d["years"]
+    vals = [(y, stackmap.get((cell, y))) for y in yrs if stackmap.get((cell, y)) is not None]
+    cellrow = cellinfo.get(cell, {})
     back = f'/dash/seasonal-tape?scope={_esc(scope)}&entity={_esc(entity)}'
     if not vals:
         return (f'<div class="st-panel st-drill"><div class="st-h">No {label} history</div>'
@@ -391,12 +414,13 @@ def _drill_panel(scope: str, entity: str, d: dict, month: int, order: list) -> s
         rows += (f'<div class="st-drow"><span class="k">{y}</span>'
                  f'<span class="st-dbar"><i style="left:{left:.0f}%;width:{w:.0f}%;background:{col}"></i></span>'
                  f'<span class="v">{v:+.2f}σ</span></div>')
-    sz = cell.get("script_z")
-    verdict = "certified" if cell.get("colored") else "reported, not gated"
-    mech = cell.get("mechanism") or "—"
-    flags = cell.get("gate_flags") or ""
-    hd = (f'{_esc(entity)} · {label} <small>— script {sz:+.2f}σ over {len(vals)} years, '
-          f'{verdict}</small>') if sz is not None else f'{_esc(entity)} · {label}'
+    sz = cellrow.get("script_z")
+    verdict = "certified" if cellrow.get("colored") else "reported, not gated"
+    mech = cellrow.get("mechanism") or "—"
+    flags = cellrow.get("gate_flags") or ""
+    head_label = f"{label} — year by year" if axis == "iso_week" else label
+    hd = (f'{_esc(entity)} · {head_label} <small>— script {sz:+.2f}σ over {len(vals)} years, '
+          f'{verdict}</small>') if sz is not None else f'{_esc(entity)} · {head_label}'
     return (
         '<div class="st-panel st-drill" id="drill">'
         f'<div class="st-h">Behind the script · {hd}</div>'
@@ -409,7 +433,8 @@ def _drill_panel(scope: str, entity: str, d: dict, month: int, order: list) -> s
 
 
 @router.get("/dash/seasonal-tape", response_class=HTMLResponse)
-def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill: str = "") -> HTMLResponse:
+def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill: str = "",
+                  wdrill: str = "") -> HTMLResponse:
     scope = scope if scope in ("index", "sector", "stock") else "index"
     order = _CAL_ORDER if cal == "cy" else _FISCAL_ORDER
     body = [_CSS, ifx.readability_css()]
@@ -552,7 +577,9 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             "Every month with enough history gets a bar here, whether or not it separately survives "
             "full certification — a populated bar is descriptive, not a claim. See the bottom-line "
             "summary above for exactly which month(s), if any, clear the full gate.",
-            d["cmap"], order, lambda m: _MONTH_ABBR[m], w=1060, h=44, unit="months", vmax=0.5))
+            d["cmap"], order, lambda m: _MONTH_ABBR[m], w=1060, h=44, unit="months", vmax=0.5,
+            link_fn=lambda m: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
+                               f'&cal={cal}&drill={m}#drill')))
 
         # 52-week stack: the per-year ISO-week mirror of the month stack above (symmetry: weeks get a
         # full stack too, not just a thin strip).
@@ -564,11 +591,15 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             week_matrix = [[d.get("wsmap", {}).get((w, y)) for w in week_cols] for y in wsyears_desc]
             week_grid = ifx.heat_grid([str(y) for y in wsyears_desc], week_col_labels, week_matrix,
                                       w=week_w, cell_h=20, row_w=50, signed=True, fmt=1, unit="σ",
-                                      vmin=-2.5, vmax=2.5)
+                                      vmin=-2.5, vmax=2.5,
+                                      cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}'
+                                                              f'&entity={_esc(entity)}&cal={cal}'
+                                                              f'&wdrill={week_cols[j]}#drill'))
             week_stack_body = f'<div style="overflow-x:auto"><div style="width:{week_w}px">{week_grid}</div></div>'
         else:
             week_stack_body = ('<div class="st-empty">No 52-week stack populated for this entity yet — '
                                'not hidden, just not computed/covered.</div>')
+        body.append('<div class="st-hint">💡 Click any week cell to break it down year-by-year.</div>')
         body.append(
             '<div class="st-panel"><div class="st-h">52-week stack '
             '<small>— each cell = that year\'s residual for that ISO week, in σ</small></div>'
@@ -584,7 +615,9 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             "Same idea as the 52-week stack above, clubbed into one gradient — a populated bar is "
             "this week\'s descriptive average residual, not a certified signal unless separately gated.",
             d.get("wcmap", {}), list(range(1, 54)), lambda c: str(c), w=1060, h=40, unit="weeks",
-            vmax=0.5))
+            vmax=0.5,
+            link_fn=lambda wk: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
+                                f'&cal={cal}&wdrill={wk}#drill')))
         body.append(_strip_panel(
             "Weekday", "— Monday–Friday, same certification bar as months",
             "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
@@ -634,6 +667,13 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                 m = int(drill)
                 if m in _CAL_ORDER:
                     body.append(f'<div id="drill"></div>{_drill_panel(scope, entity, d, m, order)}')
+            except ValueError:
+                pass
+        if wdrill:
+            try:
+                w = int(wdrill)
+                if 1 <= w <= 53:
+                    body.append(f'<div id="drill"></div>{_drill_panel(scope, entity, d, w, list(range(1, 54)), axis="iso_week")}')
             except ValueError:
                 pass
 
@@ -735,6 +775,11 @@ def _selftest() -> int:
         assert "Forward outlook" in r.text, "outlook missing"
         r2 = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&drill=10")
         assert r2.status_code == 200 and "Behind the script" in r2.text, "drill missing"
+        # ISO-week drill (D123): the 52-week stack's cell_link + the sibling wdrill= query param
+        r2w = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&wdrill=23")
+        assert r2w.status_code == 200 and "Week 23" in r2w.text, "week drill missing"
+        assert "wdrill=" in r.text, "52-week stack missing wdrill= cell links"
+        assert "Click any week cell to break it down" in r.text, "week drill hint missing"
         r3 = c.get("/dash/seasonal-tape?scope=index&entity=Nifty 500&cal=cy")
         assert r3.status_code == 200, "index scope failed"
         # honest-empty path (unknown scope-entity still 200)
@@ -813,7 +858,8 @@ def _selftest() -> int:
               "strips + events section render; stock search box + FIX-1 no-default-entity + FIX-2 "
               "in-memory on-demand resolve wired; 0-certified consensus st-empties honestly; "
               "seasonal_card embeds + honest-empties + fences the forward outlook; sub-nav trio + "
-              "drill hint + index/sector->constituent-scan CTA + stock scan-all link wired")
+              "drill hint + index/sector->constituent-scan CTA + stock scan-all link wired; "
+              "ISO-week cell drill-down (wdrill=) + 52-week stack cell_link wired (D123)")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
