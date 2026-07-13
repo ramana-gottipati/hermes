@@ -40,7 +40,10 @@ import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 
+import requests
+
 from src.core.db import get_conn
+from src.automation.fetch_retry import RetryableFetchError, raise_if_retryable  # AUD-14
 
 log = logging.getLogger("hermes.corp_actions")
 
@@ -343,9 +346,16 @@ def _nse_session():
     return s, h
 
 
-def fetch_window(from_iso: str, to_iso: str, *, session=None, headers=None) -> Optional[list]:
+def fetch_window(from_iso: str, to_iso: str, *, session=None, headers=None,
+                 retries: int = 3) -> Optional[list]:
     """Raw API rows for [from_iso, to_iso]. None = FETCH FAILURE (feeds the breaker);
-    [] = a genuine 200-but-empty window."""
+    [] = a genuine 200-but-empty window.
+
+    AUD-14: a THROTTLE/block (403/429/5xx/network) is transient, not a genuine failure —
+    retry it with exponential backoff before returning None (which would otherwise trip the
+    breaker on what is really rate-limiting). The old blanket `except Exception: return None`
+    would have swallowed the retryable signal, so the retry is done in this function.
+    """
     if session is None:
         session, headers = _nse_session()
 
@@ -355,17 +365,32 @@ def fetch_window(from_iso: str, to_iso: str, *, session=None, headers=None) -> O
 
     url = "%s?index=equities&from_date=%s&to_date=%s" % (
         _NSE_API, ddmmyyyy(from_iso), ddmmyyyy(to_iso))
-    try:
-        r = session.get(url, headers=headers, timeout=45)
-        if r.status_code != 200:
-            log.warning("corp-actions window %s..%s HTTP %s", from_iso, to_iso, r.status_code)
+    last_block = None
+    for attempt in range(retries):
+        try:
+            r = session.get(url, headers=headers, timeout=45)
+            raise_if_retryable(r.status_code, url)       # 403/429/5xx → throttle, RETRY
+            if r.status_code != 200:
+                log.warning("corp-actions window %s..%s HTTP %s", from_iso, to_iso, r.status_code)
+                return None                              # a genuine non-200 (e.g. 404) = failure
+            data = r.json()
+            rows = data.get("data") if isinstance(data, dict) else data
+            return rows if isinstance(rows, list) else []
+        except RetryableFetchError as e:
+            last_block = e
+        except requests.RequestException as e:           # network = transient → retry
+            last_block = RetryableFetchError(f"network error: {e}")
+        except Exception as e:  # noqa: BLE001 — a genuine non-transient error (bad JSON etc.)
+            log.warning("corp-actions window %s..%s failed: %s", from_iso, to_iso, e)
             return None
-        data = r.json()
-        rows = data.get("data") if isinstance(data, dict) else data
-        return rows if isinstance(rows, list) else []
-    except Exception as e:  # noqa: BLE001
-        log.warning("corp-actions window %s..%s failed: %s", from_iso, to_iso, e)
-        return None
+        if attempt < retries - 1:
+            wait = 2 ** (attempt + 1)                     # 2s, 4s
+            log.warning("corp-actions window %s..%s blocked (%s) — retry %d/%d in %ds",
+                        from_iso, to_iso, last_block, attempt + 1, retries, wait)
+            time.sleep(wait)
+    log.warning("corp-actions window %s..%s FAILED after %d retries: %s — breaker will count it",
+                from_iso, to_iso, retries, last_block)
+    return None
 
 
 def ingest_range(from_iso: str, to_iso: str) -> dict:
