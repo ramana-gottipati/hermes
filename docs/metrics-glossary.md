@@ -324,6 +324,19 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **as_of vs detected (bus PIT).** `as_of` = the trading/period day the change is computed **for** (the batch key); `detected_at` = when the bus observed it. Replaying `?as_of=` serves the **last computed batch on-or-before** the requested day (the `/v1/attention` resolver — a weekend/holiday miss must not read as an empty tape). The bus went live 2026-07-10 and never fabricates earlier events. *Source:* `signal_events.as_of`, `.detected_at`.
 - **Since you last looked (the brief).** The strip at the top of `/dash/attention` (live view only): every event **detected since your last visit**, newest first, across batches — distinct from the impact-ranked *current-batch* queue below it. "Last visit" is a browser cookie holding a `detected_at` timestamp (no server-side per-user state); a first visit shows a gentle intro, not a fake "0 new". *Source:* `signal_events.events_since` keyed on the `patearn_bus_seen` cookie.
 
+## Seasonality — the seasonal tape (calendar residual, D115)
+
+> For each index and sector: when does it historically run hot or cold on the calendar, **after** the market move is stripped out (so what remains is its own idiosyncratic tendency, not beta)? Three re-bins of one residual series (month / ISO-week / weekday), each cell coloured only if it survives a strict certification stack; most grey out. `src/automation/seasonal_tape.py` → the bounded `seasonal_cells` / `seasonal_stack` / `seasonal_outlook` snapshot; `/dash/seasonal-tape`. Descriptive-only, never a signal.
+
+- **Idiosyncratic residual.** A name/sector's return with the market (Nifty 500) move regressed out, so only its own tendency remains. Index entities strip nothing (their own level is the baseline); sectors strip the market; stocks strip market + orthogonalised-sector. *Source:* `seasonal_tape.pit_residuals`.
+- **z_pit (point-in-time z).** The day's residual expressed in standard deviations of the entity's **own prior-years** residual distribution (expanding window, so no future leaks in). *Source:* `seasonal_tape.pit_z`.
+- **Script.** The cross-year average z for one calendar cell — a positive script = that month/week ran systematically hot after market-adjustment. *Source:* `seasonal_cells.script_z`.
+- **Break.** The latest year's cell-z versus the script — how far this year departed from the historical calendar tendency. *Source:* `seasonal_breaks`.
+- **Certified vs reported-not-gated.** A cell is coloured (**certified**) only if it clears two placebo nulls (block-bootstrap + cyclic-rotation), family-wide FDR, ≥15 years, out-of-sample sign-stability, **and** a pledged India mechanism. Otherwise it is greyed — reported but not gated. *Source:* `seasonal_cells.colored`, `.gate_flags`.
+- **Placebo null (banned: year-label shuffle).** The observed cell mean must sit outside the 95th percentile of a null that keeps the calendar labels fixed and resamples/rotates the residual values. A *year-label* shuffle is banned — it is a zero-width (permutation-invariant) null that would pass everything. *Source:* `seasonal_cells.emp_p_block`, `.emp_p_phase`.
+- **Pledged mechanism.** A named India calendar cause (FY-end window-dressing, Budget run-up, monsoon, festival demand) registered *before* any number was computed; a cell may carry a signed read only if a mechanism backs it. Flow/timing anchors (expiry, SIP) license variance-only reads, never a sign. *Source:* `seasonal_cells.mechanism`, `.pledged_sign`.
+- **Outlook light.** 🟢 = reliably positive with a mechanism, 🟡 = leans one way, **⚪ = the 95% CI includes a coin-flip → treat as noise**. Base-rate history, not a forecast; nothing here is tradeable net of costs (PEAD, the closest cousin, net-failed 0.10 Sharpe vs 0.85 buy-and-hold). *Source:* `seasonal_outlook.light`, `.ci_lo`, `.ci_hi`.
+
 ---
 
 ### Status
