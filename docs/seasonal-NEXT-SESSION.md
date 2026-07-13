@@ -25,8 +25,9 @@ product** (rigorous calendar seasonality is not a tradeable edge net of the plac
 9. `557a209` — **nightly writer-safe TIMERS** (open-item #2): `hermes-seasonal-stock` (22:30 UTC, index+sector+all-EQ full recompute) + `hermes-seasonal-events` (23:00 UTC, all-EQ cadence). AUD-95-safe (`Unit=` binding, NO `Requires=`). `seasonal_events.py --backfill-all` derives the universe internally.
 10. `266b8a2` — **bound `seasonal_events` to one asof** (space guard for the nightly): PK is `(symbol,event_type,asof)` so runs were accreting a full ~19k-row snapshot/day (33,924 live rows = 2 asofs). Per-symbol delete-then-insert (`_write` house pattern) + `--backfill-all` finalizer sweep of `asof < MAX(asof)`.
 11. `c463390` — **D124**: in-place year-by-year cell drill on the stock/index EMBED (open-item #5). `seasonal_full_panel` cells now reveal a pre-rendered `:target` `_drill_panel` in place (`#sdrill-m<M>` / `#sdrill-w<W>`, class `st-dtgt`) instead of navigating to the lens. Pure CSS `:target` (no JS; the dossier tab JS reads `location.hash` only on load, no `hashchange` listener → can't be hijacked). **Zero `dashboard.py`/hot-file change** — all in single-owner `seasonal_view.py`. Lens keeps its server-rendered reload drill byte-for-byte.
+12. `6764975` — **D125**: weekday STACK (5-col Mon–Fri × N-year) + per-weekday drill (open-item #6). Engine already persists `axis='weekday'` to `seasonal_stack` → **view-only**: `_compute` + `_dict_from_inmemory` now load `dsmap`/`dsyears` (and the on-demand path finally carries the iso_week + weekday stacks too — a latent gap), `_drill_panel` gains an `axis="weekday"` branch, the lens gains a `ddrill=` handler, the embed pre-renders `#sdrill-d<W>` `:target` panels. Browser-walked (70 `st-dtgt` = 12 mo + 53 wk + 5 wd; Thu drill none→block). Engine + frozen families untouched.
 
-> ⚠ commits 8–11 are on `main` but **NOT pushed** — `origin/main` is at `76f5724`; local is 4 ahead. Push once codex settles (it may also be committing).
+> ⚠ commits 8–12 are on `main` but **NOT pushed** — `origin/main` is at `76f5724`; local is 5 ahead. Push once codex settles (it may also be committing).
 
 ## Frozen families (`research.db.prereg_registry`) — INTEGRITY CRITICAL
 | module | sha256 (short) | scope | note |
@@ -73,7 +74,7 @@ product** (rigorous calendar seasonality is not a tradeable edge net of the plac
 3. **Sector/size index history** stays 2012-capped (back-calc declined). Sector tapes shallower than broad. Decide if a curated sector deepening is worth it.
 4. **Gates 7 (full earnings-cadence mask) + 9 (residual diagnostics)** are conservatively stubbed for stock scope (mask-decert covers the critical case). Full impl changes no current output (nothing certifies) — clean next increment.
 5. ~~**Week-drill on the embedded stock-page card**~~ — ✅ **DONE** (`c463390` / **D124**, deployed + browser-walked 2026-07-13). The /dash/stock (+ /dash/index) embed now drills month AND week IN PLACE via pre-rendered `:target` panels — no navigation to the lens. Browser-verified live: cell click → panel `none→block`, seasonal tab undisturbed, one-open-at-a-time, `← close` returns to top.
-6. **Weekday stack** — weekday is a strip only; a 5-col × 25-yr grid was offered, pending Ramana's call.
+6. ~~**Weekday stack**~~ — ✅ **DONE** (`6764975` / **D125**, deployed + browser-walked 2026-07-13). The 5-col Mon–Fri × N-year weekday stack now renders on the lens + embed with a per-weekday year-by-year drill (in-place on the embed via `#sdrill-d<W>`, `ddrill=` on the lens). View-only — engine + frozen hashes untouched.
 7. **cockpit.py multi-session** — codex is live-editing it; my event-card embed is committed, its edits uncommitted → watch for conflicts on next deploy/commit.
 
 ## Deploy / ops recipe (verified this session)
