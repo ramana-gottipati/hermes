@@ -337,6 +337,15 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Pledged mechanism.** A named India calendar cause (FY-end window-dressing, Budget run-up, monsoon, festival demand) registered *before* any number was computed; a cell may carry a signed read only if a mechanism backs it. Flow/timing anchors (expiry, SIP) license variance-only reads, never a sign. *Source:* `seasonal_cells.mechanism`, `.pledged_sign`.
 - **Outlook light.** 🟢 = reliably positive with a mechanism, 🟡 = leans one way, **⚪ = the 95% CI includes a coin-flip → treat as noise**. Base-rate history, not a forecast; nothing here is tradeable net of costs (PEAD, the closest cousin, net-failed 0.10 Sharpe vs 0.85 buy-and-hold). *Source:* `seasonal_outlook.light`, `.ci_lo`, `.ci_hi`.
 
+## Event cadence — corporate-event timing (D128)
+
+> When is a company **due** for its next event (results, dividend, bonus, split, AGM) by its OWN historical spacing, and which are **overdue** — past that window with nothing filed? TIME-only (weeks), never a price prediction. `src/automation/seasonal_events.py` → the bounded `seasonal_events` snapshot; cross-entity lens `/dash/event-cadence`. Distinct from the ANNOUNCED calendars (`/dash/actions` ex-dates, `/dash/results-reactions` board meetings): this is the *expected / overdue-vs-own-rhythm* cut those can't show.
+
+- **Event cadence.** A company's own historical spacing between occurrences of an event type — the rhythm from which the next window is projected (PAST-ONLY, leak-free). *Source:* `seasonal_events.anchor`, `.lo`, `.hi`.
+- **Overdue (vs own cadence).** The expected window has passed with nothing filed — the name is past *its own* typical timing. A rhythm flag, **not** a confirmed delay (schedules legitimately shift); bounded to ≤~1 year on the lens (longer = "stopped", not late, and hidden). *Source:* `seasonal_events.status`, `.variance_weeks`.
+- **Expected-by-cadence (projection).** The next occurrence a name is due by its own spacing — an **estimate from rhythm, not an announcement**. `anchor_basis='declared'` (a real exchange board-meeting intimation) is the confirmed variant, surfaced on Results reactions, not here. *Source:* `seasonal_events.anchor_basis`.
+- **Times seen (n_history).** How many prior occurrences the cadence is built from — higher = a more established rhythm. *Source:* `seasonal_events.n_history`.
+
 ---
 
 ### Status
