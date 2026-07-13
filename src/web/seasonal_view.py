@@ -88,6 +88,22 @@ _CSS = """
 .st-pbl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-3);margin:3px 1px 0;}
 .st-pb{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-top:8px;}
 .st-pb b{color:var(--ink);}
+/* first-run narrative strip on the lens landing (dismissible, localStorage-persistent) */
+.st-intro{border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;
+  padding:12px 15px;margin:10px 0 14px;background:var(--bg-1);max-width:1120px;}
+.st-intro-h{font-size:12.5px;color:var(--ink-2);margin-bottom:10px;position:relative;padding-right:52px;}
+.st-intro-h b{color:var(--ink);}
+.st-intro-x{position:absolute;right:0;top:0;font-size:11px;color:var(--ink-3);text-decoration:none;}
+.st-intro-x:hover{color:var(--ink);}
+.st-insteps{display:flex;gap:16px;flex-wrap:wrap;}
+.st-instep{display:flex;gap:9px;align-items:flex-start;flex:1;min-width:220px;}
+.st-instep .n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;
+  font-size:11px;font-weight:700;line-height:20px;text-align:center;margin-top:1px;}
+.st-instep .t{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:2px;}
+.st-instep .d{font-size:11.5px;color:var(--ink-2);line-height:1.5;}
+.st-intro-tab{margin:8px 0 12px;}
+.st-intro-tab a{font-size:12px;color:var(--ink-3);text-decoration:none;}
+.st-intro-tab a:hover{color:var(--accent);}
 .st-search{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0;}
 .st-search .st-in{padding:5px 10px;border:1px solid var(--line-2);border-radius:8px;
   background:var(--bg-2);color:var(--ink);font-size:13px;min-width:240px;}
@@ -1029,6 +1045,49 @@ def seasonal_full_panel(scope: str, entity: str, *, db_path: str | None = None,
         + '</div>')
 
 
+def _first_run_strip() -> str:
+    """First-run narrative on the lens landing: a compact 4-beat story so a NEWCOMER grasps the tool
+    before the data — and, critically, reads the all-grey tape as THE FINDING, not an empty/broken
+    page (the #1 misread this estate risks). Dismissible + persistent via localStorage (client-only,
+    no server state — the D110 pattern): "Hide" collapses to a one-line re-opener, and a visitor who
+    dismissed it before starts collapsed. Descriptive-only voice; no data faked."""
+    steps = [
+        ("1", "What it measures",
+         "Does this name run hot or cold on the calendar <b>after the market is stripped out</b> — "
+         "its own rhythm, not beta?"),
+        ("2", "The gauntlet",
+         "Every apparent pattern must beat a random-calendar <b>placebo</b>, a family-wide "
+         "<b>false-discovery</b> correction, and a <b>15-year</b> minimum."),
+        ("3", "Why it&rsquo;s mostly grey",
+         "Almost nothing survives — and <b>that is the finding</b>: rigorous calendar seasonality in "
+         "India is not a tradeable edge. Grey = the answer, not a bug."),
+        ("4", "How to read it",
+         "Green/red = above/below the name&rsquo;s own baseline · ● = a rare certified cell · "
+         "<b>click any cell</b> for every year + <i>why it&rsquo;s grey</i> · context, <b>never a trade</b>."),
+    ]
+    cards = "".join(
+        f'<div class="st-instep"><span class="n">{n}</span>'
+        f'<div><div class="t">{t}</div><div class="d">{d}</div></div></div>'
+        for n, t, d in steps)
+    return (
+        '<div id="stx-intro" class="st-intro">'
+        '<div class="st-intro-h"><b>New here?</b> How to read the seasonal tape — the 10-second version'
+        '<a class="st-intro-x" href="#" onclick="stxIntroHide();return false">Hide ✕</a></div>'
+        f'<div class="st-insteps">{cards}</div></div>'
+        '<div id="stx-intro-tab" class="st-intro-tab" style="display:none">'
+        '<a href="#" onclick="stxIntroShow();return false">▸ New here? How to read the seasonal tape</a></div>'
+        '<script>'
+        'function stxIntroHide(){try{localStorage.setItem("stxIntroHidden","1")}catch(e){}'
+        'var a=document.getElementById("stx-intro"),b=document.getElementById("stx-intro-tab");'
+        'if(a)a.style.display="none";if(b)b.style.display="";}'
+        'function stxIntroShow(){var a=document.getElementById("stx-intro"),'
+        'b=document.getElementById("stx-intro-tab");if(a)a.style.display="";if(b)b.style.display="none";}'
+        '(function(){try{if(localStorage.getItem("stxIntroHidden")==="1"){'
+        'var a=document.getElementById("stx-intro"),b=document.getElementById("stx-intro-tab");'
+        'if(a)a.style.display="none";if(b)b.style.display="";}}catch(e){}})();'
+        '</script>')
+
+
 @router.get("/dash/seasonal-tape", response_class=HTMLResponse)
 def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill: str = "",
                   wdrill: str = "", ddrill: str = "") -> HTMLResponse:
@@ -1044,7 +1103,7 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             cur_month = date.today().month
             eb = ['<h2 style="margin:0 0 2px">Seasonal tape '
                  '<small style="color:var(--ink-3);font-size:12px;font-weight:400">stock — search</small>'
-                 '</h2>', _subnav("tape"), _stock_search_box(q_val, cal, ents),
+                 '</h2>', _subnav("tape"), _first_run_strip(), _stock_search_box(q_val, cal, ents),
                  f'<div class="st-scanall"><a href="/dash/seasonal-screen?scope=stock&month={cur_month}">'
                  '…or scan every stock for this month →</a></div>',
                  f'<div class="st-prompt">{msg_html}</div>']
@@ -1102,6 +1161,7 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                     '<small style="color:var(--ink-3);font-size:12px;font-weight:400">25-year calendar '
                     'seasonality of idiosyncratic residuals</small></h2>')
         body.append(_subnav("tape"))
+        body.append(_first_run_strip())
         # bottom line: name the certified months if any
         certified = [c for c in d["cmap"].values() if c.get("colored")]
         if certified:
@@ -1376,6 +1436,12 @@ def _selftest() -> int:
         for panel in ("25-year stack", "Monthly consolidation", "52-week stack",
                       "Weekday stack", "Weekday"):
             assert panel in rr.text, f"route regression: '{panel}' missing after _panels_html extraction"
+        # D127 first-run narrative strip on the lens landing — the 4-beat "grey IS the finding" story
+        # + a dismissible/localStorage-persistent re-opener (client-only, D110 pattern).
+        assert "New here?" in rr.text and "that is the finding" in rr.text and "never a trade" in rr.text, \
+            "lens must carry the first-run narrative (incl. the 'grey IS the finding' beat)"
+        assert "stxIntroHide" in rr.text and 'id="stx-intro-tab"' in rr.text, \
+            "first-run strip must be dismissible with a persistent re-opener"
         # weekday drill (ddrill=) — the lens renders the server-rendered year-by-year weekday panel
         rd = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&ddrill=3")
         assert "Behind the script" in rd.text and "year by year" in rd.text, \
@@ -1410,7 +1476,8 @@ def _selftest() -> int:
               "in-place embed cell drill via :target #sdrill-* panels, lens keeps reload drill (D124); "
               "weekday stack (5-col x N-year) + weekday drill (ddrill=/#sdrill-d) wired (D125); "
               "placebo 'why grey' teaching block in every drill — single-calendar placebo + "
-              "multiple-cell FDR, the strong-in-isolation-vs-survives-looking delta (D126)")
+              "multiple-cell FDR, the strong-in-isolation-vs-survives-looking delta (D126); "
+              "first-run narrative strip on the lens landing (grey-IS-the-finding, dismissible) (D127)")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
