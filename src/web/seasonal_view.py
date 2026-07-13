@@ -121,6 +121,13 @@ def _compute(scope: str, entity: str, db_path: str):
         stack = con.execute(
             "SELECT cell, year, mean_z FROM seasonal_stack "
             "WHERE scope=? AND entity=? AND axis='month' ORDER BY year, cell", (scope, entity)).fetchall()
+        try:
+            wstack = con.execute(
+                "SELECT cell, year, mean_z FROM seasonal_stack "
+                "WHERE scope=? AND entity=? AND axis='iso_week' ORDER BY year, cell",
+                (scope, entity)).fetchall()
+        except Exception:  # noqa: BLE001 — older snapshot without this axis populated -> []
+            wstack = []
         cells = con.execute(
             "SELECT cell, script_z, n_years, hit_rate, conf, colored, signed, mechanism, "
             "pledged_sign, gate_flags, emp_p_block, emp_p_phase FROM seasonal_cells "
@@ -147,11 +154,14 @@ def _compute(scope: str, entity: str, db_path: str):
         return None
     years = sorted({r["year"] for r in stack})
     smap = {(r["cell"], r["year"]): r["mean_z"] for r in stack}
+    wsmap = {(r["cell"], r["year"]): r["mean_z"] for r in wstack}
+    wsyears = sorted({r["year"] for r in wstack})
     cmap = {r["cell"]: dict(r) for r in cells}
     omap = {r["cell"]: dict(r) for r in outlook}
     wcmap = {r["cell"]: dict(r) for r in wk_rows}
     dcmap = {r["cell"]: dict(r) for r in wd_rows}
-    return {"years": years, "smap": smap, "cmap": cmap, "omap": omap, "wcmap": wcmap, "dcmap": dcmap}
+    return {"years": years, "smap": smap, "cmap": cmap, "omap": omap, "wcmap": wcmap, "dcmap": dcmap,
+            "wsmap": wsmap, "wsyears": wsyears}
 
 
 def _consensus_ribbon_cells(d: dict, order: list) -> list:
@@ -189,16 +199,20 @@ def _axis_strip_cells(cmap: dict, order: list, label_fn) -> tuple:
 
 
 def _strip_panel(title: str, small: str, plain: str, cmap: dict, order: list, label_fn, *,
-                 w: int, h: int, unit: str, title_at: list | None = None) -> str:
-    """A DESCRIPTIVE (dimmed) heat-ribbon strip for a secondary axis (weekly/weekday) — shows the
-    raw script_z shape for every populated cell (NOT certified-only, unlike the Consensus panel).
-    st-empty (never heat_ribbon's literal 'no data') when nothing is populated yet."""
+                 w: int, h: int, unit: str, title_at: list | None = None,
+                 vmax: float | None = None) -> str:
+    """A DESCRIPTIVE (dimmed) heat-ribbon strip for a secondary axis (month/weekly/weekday) — shows
+    the raw script_z shape for every populated cell (NOT certified-only, unlike the strict
+    certification gate). st-empty (never heat_ribbon's literal 'no data') when nothing is populated
+    yet. `vmax` tightens the signed scale (default None = heat_ribbon's own max|value| autoscale) —
+    consolidation strips summarize small residuals (~±0.3σ) that a wide ±2.5σ stack scale would wash
+    out, so callers pass a tighter vmax (e.g. 0.5) to keep the green/red gradient visible."""
     cells, n_cert, n_desc = _axis_strip_cells(cmap, order, label_fn)
     if n_desc == 0:
         body = (f'<div class="st-empty">No {_esc(unit)} populated for this entity yet — '
                'not hidden, just not computed/covered.</div>')
     else:
-        body = (f'<div class="st-strip--desc">{ifx.heat_ribbon(cells, w=w, h=h, title_at=title_at)}</div>'
+        body = (f'<div class="st-strip--desc">{ifx.heat_ribbon(cells, w=w, h=h, vmax=vmax, title_at=title_at)}</div>'
                f'<div class="st-cap">{n_cert} of {len(order)} {_esc(unit)} certified '
                '· descriptive shape, never a signal.</div>')
     return (f'<div class="st-panel"><div class="st-h">{_esc(title)} <small>{_esc(small)}</small></div>'
@@ -486,6 +500,55 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                                                     f'&cal={cal}&drill={order[j]}#drill'))
             + '</div>')
 
+        # month consolidation: the descriptive gradient companion to the stack above — EVERY month
+        # with enough history gets a bar (not certified-only), the symmetric twin of the week/weekday
+        # consolidation strips below (Ramana D122: months + weeks both get stack-then-gradient).
+        body.append(_strip_panel(
+            "Monthly consolidation", "— the 25-year clubbed gradient: each month's average residual "
+            "(green above baseline, red below; paler = less certain)",
+            "Every month with enough history gets a bar here, whether or not it separately survives "
+            "full certification — a populated bar is descriptive, not a claim. See the bottom-line "
+            "summary above for exactly which month(s), if any, clear the full gate.",
+            d["cmap"], order, lambda m: _MONTH_ABBR[m], w=1060, h=44, unit="months", vmax=0.5))
+
+        # 52-week stack: the per-year ISO-week mirror of the month stack above (symmetry: weeks get a
+        # full stack too, not just a thin strip).
+        wsyears_desc = sorted(d.get("wsyears", []), reverse=True)
+        week_cols = list(range(1, 54))
+        week_w = 50 + len(week_cols) * 20
+        if wsyears_desc:
+            week_col_labels = [f"W{w}" if w % 4 == 1 else "" for w in week_cols]
+            week_matrix = [[d.get("wsmap", {}).get((w, y)) for w in week_cols] for y in wsyears_desc]
+            week_grid = ifx.heat_grid([str(y) for y in wsyears_desc], week_col_labels, week_matrix,
+                                      w=week_w, cell_h=20, row_w=50, signed=True, fmt=1, unit="σ",
+                                      vmin=-2.5, vmax=2.5)
+            week_stack_body = f'<div style="overflow-x:auto"><div style="width:{week_w}px">{week_grid}</div></div>'
+        else:
+            week_stack_body = ('<div class="st-empty">No 52-week stack populated for this entity yet — '
+                               'not hidden, just not computed/covered.</div>')
+        body.append(
+            '<div class="st-panel"><div class="st-h">52-week stack '
+            '<small>— each cell = that year\'s residual for that ISO week, in σ</small></div>'
+            + ifx.plain('Same idea as the month stack, one column per ISO calendar week. Wide — '
+                        'scroll sideways. Read down a column to judge a real weekly tendency vs a '
+                        'couple of loud years.')
+            + week_stack_body + '</div>')
+
+        # weekly + weekday consolidation strips (descriptive shape, secondary axes of the SAME
+        # certification bar as months)
+        body.append(_strip_panel(
+            "Weekly consolidation", "— the 25-year clubbed gradient across ISO weeks 1–53",
+            "Same idea as the 52-week stack above, clubbed into one gradient — a populated bar is "
+            "this week\'s descriptive average residual, not a certified signal unless separately gated.",
+            d.get("wcmap", {}), list(range(1, 54)), lambda c: str(c), w=1060, h=40, unit="weeks",
+            vmax=0.5))
+        body.append(_strip_panel(
+            "Weekday", "— Monday–Friday, same certification bar as months",
+            "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
+            "show nothing.",
+            d.get("dcmap", {}), [0, 1, 2, 3, 4], lambda c: _WEEKDAY_ABBR[c],
+            w=1060, h=40, unit="weekdays", vmax=0.5))
+
         # events lens (descriptive-factual, TIME-only): guarded import, honest-empty on no snapshot
         try:
             from src.web.seasonal_events_view import render_events_section
@@ -494,23 +557,6 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                 body.append(ev_section)
         except Exception:  # noqa: BLE001 — the events lens must never break this page
             pass
-
-        # weekly + weekday strips (descriptive shape, secondary axes of the SAME certification bar)
-        body.append(_strip_panel(
-            "Weekly", "— ISO week 1–53, same certification bar as months",
-            "Same idea as the month stack, sliced by ISO calendar week instead — most weeks will "
-            "show nothing; a populated bar is this week\'s descriptive average residual, not a "
-            "certified signal unless separately gated.",
-            d.get("wcmap", {}), list(range(1, 54)), lambda c: str(c), w=1060, h=40, unit="weeks"))
-        body.append(_strip_panel(
-            "Weekday", "— Monday–Friday, same certification bar as months",
-            "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
-            "show nothing.",
-            d.get("dcmap", {}), [0, 1, 2, 3, 4], lambda c: _WEEKDAY_ABBR[c],
-            w=1060, h=40, unit="weekdays"))
-
-        # consensus ribbon: t = sign(script_z)*conf, colored cells only (paleness = 1-emp_p)
-        body.append(_consensus_panel(d, order))
 
         # forward outlook strip
         if d["omap"]:
@@ -637,9 +683,12 @@ def _selftest() -> int:
         app = FastAPI(); app.include_router(router); c = TestClient(app)
         r = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto")
         assert r.status_code == 200 and "Seasonal tape" in r.text, r.status_code
-        assert "25-year stack" in r.text and "Consensus script" in r.text, "panels missing"
+        assert "25-year stack" in r.text, "month stack missing"
+        assert "Monthly consolidation" in r.text, "month consolidation strip missing"
+        assert "52-week stack" in r.text, "52-week stack missing"
+        assert "Weekly consolidation" in r.text, "weekly consolidation strip missing"
+        assert "Weekday" in r.text, "weekday strip missing"
         assert "Forward outlook" in r.text, "outlook missing"
-        assert "Weekly" in r.text and "Weekday" in r.text, "weekly/weekday strips missing"
         r2 = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&drill=10")
         assert r2.status_code == 200 and "Behind the script" in r2.text, "drill missing"
         r3 = c.get("/dash/seasonal-tape?scope=index&entity=Nifty 500&cal=cy")
