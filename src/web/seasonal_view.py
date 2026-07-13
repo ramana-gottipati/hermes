@@ -159,6 +159,13 @@ def _compute(scope: str, entity: str, db_path: str):
                 (scope, entity)).fetchall()
         except Exception:  # noqa: BLE001 — older snapshot without this axis populated -> []
             wstack = []
+        try:
+            dstack = con.execute(
+                "SELECT cell, year, mean_z FROM seasonal_stack "
+                "WHERE scope=? AND entity=? AND axis='weekday' ORDER BY year, cell",
+                (scope, entity)).fetchall()
+        except Exception:  # noqa: BLE001 — older snapshot without this axis populated -> []
+            dstack = []
         cells = con.execute(
             "SELECT cell, script_z, n_years, hit_rate, conf, colored, signed, mechanism, "
             "pledged_sign, gate_flags, emp_p_block, emp_p_phase FROM seasonal_cells "
@@ -187,12 +194,14 @@ def _compute(scope: str, entity: str, db_path: str):
     smap = {(r["cell"], r["year"]): r["mean_z"] for r in stack}
     wsmap = {(r["cell"], r["year"]): r["mean_z"] for r in wstack}
     wsyears = sorted({r["year"] for r in wstack})
+    dsmap = {(r["cell"], r["year"]): r["mean_z"] for r in dstack}
+    dsyears = sorted({r["year"] for r in dstack})
     cmap = {r["cell"]: dict(r) for r in cells}
     omap = {r["cell"]: dict(r) for r in outlook}
     wcmap = {r["cell"]: dict(r) for r in wk_rows}
     dcmap = {r["cell"]: dict(r) for r in wd_rows}
     return {"years": years, "smap": smap, "cmap": cmap, "omap": omap, "wcmap": wcmap, "dcmap": dcmap,
-            "wsmap": wsmap, "wsyears": wsyears}
+            "wsmap": wsmap, "wsyears": wsyears, "dsmap": dsmap, "dsyears": dsyears}
 
 
 def _consensus_ribbon_cells(d: dict, order: list) -> list:
@@ -295,10 +304,18 @@ def _dict_from_inmemory(payload: dict) -> dict:
     dcmap = {c["cell"]: c for c in cells if c.get("axis") == "weekday"}
     smap = {(cell, year): mz for (_sc, ax, cell, year, mz, _n) in stack if ax == "month"}
     years = sorted({year for (_sc, ax, _cell, year, _mz, _n) in stack if ax == "month"})
+    # iso_week + weekday per-year stacks are in the payload too (compute_entity spans all THREE
+    # axes) — carry them so the on-demand path renders the 52-week + weekday stacks and their
+    # drills identically to the persisted _compute path (previously month-only, a latent gap).
+    wsmap = {(cell, year): mz for (_sc, ax, cell, year, mz, _n) in stack if ax == "iso_week"}
+    wsyears = sorted({year for (_sc, ax, _cell, year, _mz, _n) in stack if ax == "iso_week"})
+    dsmap = {(cell, year): mz for (_sc, ax, cell, year, mz, _n) in stack if ax == "weekday"}
+    dsyears = sorted({year for (_sc, ax, _cell, year, _mz, _n) in stack if ax == "weekday"})
     omap = {c: {"k": k, "n": n, "ci_lo": lo, "ci_hi": hi, "base_rate": br, "edge": ed,
                 "fail_avg": fa, "fail_worst": fw, "light": lt, "mechanism": mech}
             for (_sc, _asof, _ax, c, _hz, k, n, lo, hi, br, ed, fa, fw, lt, mech) in outlook}
-    return {"years": years, "smap": smap, "cmap": cmap, "wcmap": wcmap, "dcmap": dcmap, "omap": omap}
+    return {"years": years, "smap": smap, "cmap": cmap, "wcmap": wcmap, "dcmap": dcmap, "omap": omap,
+            "wsmap": wsmap, "wsyears": wsyears, "dsmap": dsmap, "dsyears": dsyears}
 
 
 def _stock_search_box(entity: str, cal: str, ents: tuple) -> str:
@@ -611,6 +628,11 @@ def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
         cellinfo = d.get("wcmap", {})
         label = f"Week {cell}"
         yrs = d.get("wsyears", d["years"])
+    elif axis == "weekday":
+        stackmap = d.get("dsmap", {})
+        cellinfo = d.get("dcmap", {})
+        label = _WEEKDAY_ABBR.get(cell, str(cell))
+        yrs = d.get("dsyears", d["years"])
     else:
         stackmap = d["smap"]
         cellinfo = d["cmap"]
@@ -637,7 +659,7 @@ def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
     verdict = "certified" if cellrow.get("colored") else "reported, not gated"
     mech = cellrow.get("mechanism") or "—"
     flags = cellrow.get("gate_flags") or ""
-    head_label = f"{label} — year by year" if axis == "iso_week" else label
+    head_label = f"{label} — year by year" if axis in ("iso_week", "weekday") else label
     hd = (f'{_esc(entity)} · {head_label} <small>— script {sz:+.2f}σ over {len(vals)} years, '
           f'{verdict}</small>') if sz is not None else f'{_esc(entity)} · {head_label}'
     return (
@@ -672,6 +694,10 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str, *,
     def _wlink(wk):
         return (f'#sdrill-w{wk}' if inline_drill else
                 f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}&cal={cal}&wdrill={wk}#drill')
+
+    def _dlink(wd):
+        return (f'#sdrill-d{wd}' if inline_drill else
+                f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}&cal={cal}&ddrill={wd}#drill')
 
     col_labels = [_MONTH_ABBR[m] for m in order]
     yrs_desc = sorted(d["years"], reverse=True)
@@ -742,6 +768,26 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str, *,
         + _week_strip(d.get("wcmap", {}), w=1060, h=60, vmax=0.5, mark_best=True, week_ticks=True,
                       link_fn=_wlink)
         + '</div></div>')
+    # weekday stack: the per-year Mon–Fri mirror of the month / 52-week stacks — same read (down a
+    # column = a real day-of-week tendency vs a few loud years) + per-weekday year-by-year drill.
+    dsyears_desc = sorted(d.get("dsyears", []), reverse=True)
+    wd_cols = [0, 1, 2, 3, 4]
+    if dsyears_desc:
+        wd_col_labels = [_WEEKDAY_ABBR[c] for c in wd_cols]
+        wd_matrix = [[d.get("dsmap", {}).get((c, y)) for c in wd_cols] for y in dsyears_desc]
+        wd_grid = ifx.heat_grid([str(y) for y in dsyears_desc], wd_col_labels, wd_matrix,
+                                w=440, cell_h=20, row_w=50, signed=True, fmt=1, unit="σ",
+                                vmin=-2.5, vmax=2.5, cell_link=lambda i, j: _dlink(wd_cols[j]))
+        parts.append('<div class="st-hint">💡 Click any weekday cell to break it down year-by-year.</div>')
+        parts.append(
+            '<div class="st-panel"><div class="st-h">Weekday stack '
+            '<small>— each cell = that year\'s residual for that weekday, in σ</small></div>'
+            + ifx.plain('The Mon–Fri mirror of the month and 52-week stacks: each <b>row</b> is a '
+                        'year, each <b>column</b> a weekday. Read <b>down a column</b> to judge '
+                        'whether a day-of-week tilt (a Monday effect, an expiry-Thursday one) is a '
+                        'real tendency or just a couple of loud years. <b>Click a cell</b> for the '
+                        'year-by-year breakdown. Descriptive, never a signal.')
+            + f'<div style="overflow-x:auto"><div style="width:440px">{wd_grid}</div></div></div>')
     parts.append(_strip_panel(
         "Weekday", "— Monday–Friday, same certification bar as months",
         "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
@@ -800,6 +846,12 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str, *,
             if wk in weeks_with_data:
                 panels.append(_drill_panel(scope, entity, d, wk, week_order, axis="iso_week",
                                            panel_id=f"sdrill-w{wk}", inline=True, back="#stx-top"))
+        wd_order = [0, 1, 2, 3, 4]
+        weekdays_with_data = {k[0] for k in d.get("dsmap", {})}
+        for wd in wd_order:
+            if wd in weekdays_with_data:
+                panels.append(_drill_panel(scope, entity, d, wd, wd_order, axis="weekday",
+                                           panel_id=f"sdrill-d{wd}", inline=True, back="#stx-top"))
         if panels:
             parts.append('<div class="st-drillwrap">' + "".join(panels) + '</div>')
     return "".join(parts)
@@ -892,7 +944,7 @@ def seasonal_full_panel(scope: str, entity: str, *, db_path: str | None = None,
 
 @router.get("/dash/seasonal-tape", response_class=HTMLResponse)
 def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill: str = "",
-                  wdrill: str = "") -> HTMLResponse:
+                  wdrill: str = "", ddrill: str = "") -> HTMLResponse:
     scope = scope if scope in ("index", "sector", "stock") else "index"
     order = _CAL_ORDER if cal == "cy" else _FISCAL_ORDER
     body = [_CSS, ifx.readability_css()]
@@ -1022,6 +1074,13 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                 w = int(wdrill)
                 if 1 <= w <= 53:
                     body.append(f'<div id="drill"></div>{_drill_panel(scope, entity, d, w, list(range(1, 54)), axis="iso_week")}')
+            except ValueError:
+                pass
+        if ddrill:
+            try:
+                wd = int(ddrill)
+                if 0 <= wd <= 4:
+                    body.append(f'<div id="drill"></div>{_drill_panel(scope, entity, d, wd, [0, 1, 2, 3, 4], axis="weekday")}')
             except ValueError:
                 pass
 
@@ -1199,7 +1258,7 @@ def _selftest() -> int:
         fp = seasonal_full_panel("sector", "nifty auto", db_path=tmp)
         assert fp, "seasonal_full_panel should render for a covered sector"
         for panel in ("25-year stack", "Monthly consolidation", "52-week stack",
-                      "Weekly consolidation", "Weekday", "Forward outlook"):
+                      "Weekly consolidation", "Weekday stack", "Weekday", "Forward outlook"):
             assert panel in fp, f"full panel missing the '{panel}' perspective"
         assert "Read this honestly" in fp, "full panel must carry the honesty fence"
         assert "Open the full seasonal tape" in fp and "/dash/seasonal-tape?scope=sector" in fp, \
@@ -1207,10 +1266,11 @@ def _selftest() -> int:
         # D124 in-place drill: embed cells reveal a PRE-RENDERED :target panel instead of navigating
         # to the lens. Assert the anchors + hidden panels are present, the close-link targets the
         # embed top, and the reused _drill_panel body ("Behind the script") is inlined.
-        assert 'href="#sdrill-w' in fp and 'href="#sdrill-m' in fp, \
-            "embed must link cells to in-place #sdrill-* drill anchors"
-        assert 'class="st-panel st-drill st-dtgt"' in fp and 'id="sdrill-w' in fp, \
-            "embed must pre-render hidden :target week-drill panels"
+        assert 'href="#sdrill-w' in fp and 'href="#sdrill-m' in fp and 'href="#sdrill-d' in fp, \
+            "embed must link month/week/WEEKDAY cells to in-place #sdrill-* drill anchors"
+        assert 'class="st-panel st-drill st-dtgt"' in fp and 'id="sdrill-w' in fp \
+            and 'id="sdrill-d' in fp, \
+            "embed must pre-render hidden :target week + weekday drill panels"
         assert 'id="stx-top"' in fp and 'href="#stx-top"' in fp, \
             "embed drill panels must offer a close link back to the embed top"
         assert "Behind the script" in fp, "embed drill must reuse the _drill_panel body verbatim"
@@ -1226,8 +1286,13 @@ def _selftest() -> int:
             "seasonal_full_panel should honest-empty for an uncovered entity"
         # the route (dash_seasonal) still renders the same panels via the shared _panels_html
         rr = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto")
-        for panel in ("25-year stack", "Monthly consolidation", "52-week stack", "Weekday"):
+        for panel in ("25-year stack", "Monthly consolidation", "52-week stack",
+                      "Weekday stack", "Weekday"):
             assert panel in rr.text, f"route regression: '{panel}' missing after _panels_html extraction"
+        # weekday drill (ddrill=) — the lens renders the server-rendered year-by-year weekday panel
+        rd = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&ddrill=3")
+        assert "Behind the script" in rd.text and "year by year" in rd.text, \
+            "ddrill= must render the weekday year-by-year drill on the lens"
 
         print("seasonal_view selftest OK — stack + consensus + outlook + drill + weekly/weekday "
               "strips + events section render; stock search box + FIX-1 no-default-entity + FIX-2 "
@@ -1235,7 +1300,8 @@ def _selftest() -> int:
               "seasonal_card embeds + honest-empties + fences the forward outlook; sub-nav trio + "
               "drill hint + index/sector->constituent-scan CTA + stock scan-all link wired; "
               "ISO-week cell drill-down (wdrill=) + 52-week stack cell_link wired (D123); "
-              "in-place embed cell drill via :target #sdrill-* panels, lens keeps reload drill (D124)")
+              "in-place embed cell drill via :target #sdrill-* panels, lens keeps reload drill (D124); "
+              "weekday stack (5-col x N-year) + weekday drill (ddrill=/#sdrill-d) wired (D125)")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
