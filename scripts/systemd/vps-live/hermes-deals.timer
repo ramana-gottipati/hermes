@@ -5,6 +5,10 @@ Requires=hermes-deals.service
 [Timer]
 # 8:00 PM IST = 14:30 UTC, Mon-Fri (after bhavcopy 14:00; bulk.csv publishes post-close)
 OnCalendar=Mon..Fri *-*-* 14:30:00
+# AUD-53: a SECOND late-evening attempt (10:00 PM IST = 16:30 UTC, still the same IST day so
+# bulk.csv still holds today's deals). If the 14:30 run was blocked for all its in-code retries,
+# this re-fetches — the deals INSERT is idempotent (UNIQUE), so it dedups when the first run got it.
+OnCalendar=Mon..Fri *-*-* 16:30:00
 Persistent=true
 Unit=hermes-deals.service
 

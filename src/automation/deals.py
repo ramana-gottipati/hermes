@@ -23,15 +23,20 @@ import csv
 import io
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Optional
 
 import requests
 
 from src.core.db import get_conn
+from src.automation.fetch_retry import RetryableFetchError, raise_if_retryable  # AUD-53/AUD-14
 
 log = logging.getLogger("hermes.deals")
 USER_AGENT = "Mozilla/5.0 (Hermes Personal Agent)"
+
+_NSE_HOME = "https://www.nseindia.com/"
+_FETCH_RETRIES = 3        # AUD-53: retry a throttle/block this many times before giving up
 
 BULK_URL = "https://nsearchives.nseindia.com/content/equities/bulk.csv"
 BLOCK_URL = "https://nsearchives.nseindia.com/content/equities/block.csv"
@@ -83,18 +88,50 @@ def _num(s, cast):
         return None
 
 
-def _fetch(url: str, json_=False):
+def _warm_session() -> requests.Session:
+    """AUD-53: a cookie-warmed NSE session. The bulk/block CDN + the bot-walled /api endpoint
+    403 a COLD client under load; priming the homepage seeds the anti-bot cookies (the same
+    trick insider_events._nse_session uses). Never raises — a failed warm-up just runs cold."""
+    s = requests.Session()
     try:
-        r = requests.get(url, headers={"User-Agent": USER_AGENT,
-                                       "Accept": "application/json,text/csv,*/*",
-                                       "Referer": "https://www.nseindia.com/"}, timeout=30)
+        s.get(_NSE_HOME, headers={"User-Agent": USER_AGENT,
+                                  "Accept": "text/html,application/json,*/*",
+                                  "Accept-Language": "en-US,en;q=0.9"}, timeout=20)
     except requests.RequestException as e:
-        log.warning("fetch %s failed: %s", url, e)
-        return None
-    if r.status_code != 200 or len(r.content) < 20:
-        log.warning("fetch %s HTTP %s len=%s", url, r.status_code, len(r.content))
-        return None
-    return r.json() if json_ else r.text
+        log.warning("NSE session warm-up failed (continuing cold): %s", e)
+    return s
+
+
+def _fetch(url: str, *, json_: bool = False, session=None, retries: int = _FETCH_RETRIES):
+    """AUD-53: fetch with resilience — a (warmed) session + up to `retries` exponential-backoff
+    retries on a throttle/block (403/429/5xx/network). Returns the parsed body, or None on a
+    GENUINE no-data response OR after every retry is exhausted (a real, now-VISIBLE failure —
+    `bulk_block_deals` is in the data_quality feed_freshness check, so a lost day surfaces)."""
+    getter = session or requests
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json,text/csv,*/*",
+               "Referer": _NSE_HOME}
+    last_block = None
+    for attempt in range(retries):
+        try:
+            r = getter.get(url, headers=headers, timeout=30)
+            raise_if_retryable(r.status_code, url)     # 403/429/5xx → RetryableFetchError
+        except requests.RequestException as e:
+            last_block = RetryableFetchError(f"network error fetching {url}: {e}")
+        except RetryableFetchError as e:
+            last_block = e
+        else:
+            if r.status_code != 200 or len(r.content) < 20:
+                log.warning("fetch %s HTTP %s len=%s — no data", url, r.status_code, len(r.content))
+                return None                            # genuine no-data (not a block) → no retry
+            return r.json() if json_ else r.text
+        if attempt < retries - 1:
+            wait = 2 ** (attempt + 1)                  # 2s, 4s, ...
+            log.warning("fetch %s blocked (%s) — retry %d/%d in %ds",
+                        url, last_block, attempt + 1, retries, wait)
+            time.sleep(wait)
+    log.error("fetch %s FAILED after %d retries: %s — today's deals may be lost (feed_freshness "
+              "will flag the gap; the late-evening timer re-attempts)", url, retries, last_block)
+    return None
 
 
 def parse_deals(text: str, deal_type: str) -> list[dict]:
@@ -164,12 +201,13 @@ def store_fiidii(rows: list[dict]) -> int:
     return n
 
 
-def fetch_all() -> dict:
+def fetch_all(session=None) -> dict:
+    s = session or _warm_session()      # AUD-53: ONE warmed session shared across all 3 sources
     res = {}
     for url, dt in ((BULK_URL, "bulk"), (BLOCK_URL, "block")):
-        txt = _fetch(url)
+        txt = _fetch(url, session=s)
         res[dt] = store_deals(parse_deals(txt, dt)) if txt else 0
-    fd = _fetch(FIIDII_URL, json_=True)
+    fd = _fetch(FIIDII_URL, json_=True, session=s)
     res["fiidii"] = store_fiidii(parse_fiidii(fd)) if fd else 0
     return res
 
