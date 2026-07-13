@@ -397,13 +397,29 @@ def _month_strip(cmap: dict, order: list, *, w: int = 560, h: int = 50, vmax: fl
     return "".join(parts)
 
 
-def _week_strip(wcmap: dict, *, w: int = 560, h: int = 44, vmax: float = 0.5) -> str:
+def _week_strip(wcmap: dict, *, w: int = 560, h: int = 44, vmax: float = 0.5,
+                link_fn=None, mark_best: bool = False, week_ticks: bool = False) -> str:
     """53 FIXED ISO-week slots (gaps drawn faint, positions preserved so weeks map to a stable x),
     with month tick-labels beneath at each month's first week — so a hot patch reads as 'that's
-    July', not 'week 27 of what?'. Hover on any cell = 'W27 ≈ Jun 30–Jul 06 · +0.31σ'."""
+    July', not 'week 27 of what?'. Hover on any cell = 'W27 ≈ Jun 30–Jul 06 · +0.31σ'.
+
+    Full-page options: `week_ticks` prints week numbers (W1, W5, …) along the TOP so you never have
+    to hover to place a bar; `mark_best` puts a ★ over the strongest positive week; `link_fn(wk)`
+    makes each populated bar a click-through to the year-by-year drill."""
     weeks = list(range(1, 54))
     bw = w / len(weeks)
-    top, band = 3, h - 18
+    top = 14 if week_ticks else 3
+    bottom_pad = 16 if week_ticks else 15
+    band = h - top - bottom_pad
+    best_wk = None
+    if mark_best:
+        pop = [(wk, (wcmap.get(wk) or {}).get("script_z")) for wk in weeks
+               if (wcmap.get(wk) or {}).get("script_z") is not None
+               and ((wcmap.get(wk) or {}).get("n_years") or 0) >= 15]
+        if pop:
+            cand_wk, cand_sz = max(pop, key=lambda t: t[1])
+            if cand_sz > 0:
+                best_wk = cand_wk
     parts = [_svg_open(w, h)]
     for i, wk in enumerate(weeks):
         x = i * bw
@@ -417,9 +433,19 @@ def _week_strip(wcmap: dict, *, w: int = 560, h: int = 44, vmax: float = 0.5) ->
         else:
             fill = "var(--bg-3)"
             tip = f"W{wk} ≈ {rng} · no 15-year history"
-        parts.append(
-            f'<rect x="{x:.2f}" y="{top}" width="{bw + 0.4:.2f}" height="{band}" '
-            f'fill="{fill}"><title>{_esc(tip)}</title></rect>')
+        rect = (f'<rect x="{x:.2f}" y="{top}" width="{bw + 0.4:.2f}" height="{band}" '
+                f'fill="{fill}"><title>{_esc(tip)}</title></rect>')
+        if link_fn and sz is not None and ny >= 15:
+            rect = f'<a href="{_esc(link_fn(wk))}">{rect}</a>'
+        parts.append(rect)
+        if wk == best_wk:
+            parts.append(f'<text x="{x + bw / 2:.1f}" y="{top - 3:.1f}" text-anchor="middle" '
+                         'fill="var(--warn)" font-size="10">★</text>')
+    if week_ticks:
+        for i, wk in enumerate(weeks):
+            if wk % 4 == 1:
+                parts.append(f'<text x="{i * bw + 1:.1f}" y="9" fill="var(--ink-3)" '
+                             f'font-size="8">W{wk}</text>')
     seen = set()
     for i, wk in enumerate(weeks):
         mo = _WK_MONTH.get(wk)
@@ -428,8 +454,76 @@ def _week_strip(wcmap: dict, *, w: int = 560, h: int = 44, vmax: float = 0.5) ->
             x = i * bw
             parts.append(f'<line x1="{x:.1f}" y1="{top}" x2="{x:.1f}" y2="{top + band}" '
                          'stroke="var(--bg-1)" stroke-width="1"/>')
-            parts.append(f'<text x="{x + 1.5:.1f}" y="{h - 5}" fill="var(--ink-3)" '
+            parts.append(f'<text x="{x + 1.5:.1f}" y="{h - 5}" fill="var(--ink-2)" '
                          f'font-size="8.5">{_MONTH_ABBR[mo]}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _month_bars(cmap: dict, order: list, *, w: int = 1060, vmax: float = 0.5, link_fn=None) -> str:
+    """Diverging BAR chart of each month's 25-year average residual — bar HEIGHT = magnitude, so the
+    strongest month is unmistakably the tallest (not a green shade you must decode). Green bars rise
+    above the baseline, red fall below; the value (σ) is printed on each bar; every month is named
+    beneath with its <b>#rank</b> (residual, hottest→coldest); <b>★</b> marks the single strongest
+    month; a certified month's name is drawn in accent. Populated bars click through to the drill."""
+    n = len(order)
+    bw = w / n
+    h, mid, maxbar = 140, 58, 38
+    pop = []
+    for mth in order:
+        c = cmap.get(mth) or {}
+        sz = c.get("script_z")
+        if sz is not None and (c.get("n_years") or 0) >= 15:
+            pop.append((mth, sz))
+    rankmap = {mth: r for r, (mth, _s) in enumerate(sorted(pop, key=lambda t: t[1], reverse=True), 1)}
+    best = max(pop, key=lambda t: t[1])[0] if pop else None
+    best_pos = bool(pop) and dict(pop)[best] > 0
+    parts = [_svg_open(w, h)]
+    parts.append(f'<line x1="0" y1="{mid}" x2="{w}" y2="{mid}" stroke="var(--line-2)" stroke-width="1"/>')
+    for i, mth in enumerate(order):
+        cx = i * bw + bw / 2
+        c = cmap.get(mth) or {}
+        sz = c.get("script_z")
+        ny = c.get("n_years") or 0
+        cert = bool(c.get("colored"))
+        nm = _MONTH_ABBR[mth]
+        if sz is not None and ny >= 15:
+            t = max(-1.0, min(1.0, sz / vmax))
+            bh = max(1.0, abs(t) * maxbar)
+            col = "var(--up)" if sz >= 0 else "var(--down)"
+            if sz >= 0:
+                ry, vy = mid - bh, mid - bh - 3
+            else:
+                ry, vy = mid, mid + bh + 9
+            bwid = bw * 0.6
+            hr = c.get("hit_rate")
+            up = f" · {round(hr * ny)}/{ny} up" if (hr is not None and ny) else ""
+            rk = rankmap.get(mth)
+            tip = (f"{nm} · {sz:+.2f}σ{up} · rank {rk} of {len(pop)} · "
+                   f"{'certified' if cert else 'descriptive'}")
+            rect = (f'<rect x="{cx - bwid / 2:.1f}" y="{ry:.1f}" width="{bwid:.1f}" '
+                    f'height="{bh:.1f}" rx="2" fill="{col}" opacity="0.82">'
+                    f'<title>{_esc(tip)}</title></rect>')
+            if link_fn:
+                rect = f'<a href="{_esc(link_fn(mth))}">{rect}</a>'
+            parts.append(rect)
+            parts.append(f'<text x="{cx:.1f}" y="{vy:.1f}" text-anchor="middle" fill="var(--ink)" '
+                         f'font-size="9.5" font-weight="600">{sz:+.1f}</text>')
+            if mth == best and best_pos:
+                parts.append(f'<text x="{cx:.1f}" y="{max(9.0, ry - 12):.1f}" text-anchor="middle" '
+                             'fill="var(--warn)" font-size="12">★</text>')
+            rk_col = "var(--warn)" if (mth == best and best_pos) else "var(--ink-3)"
+            rk_txt = f"#{rk}" + (" best" if (mth == best and best_pos) else "")
+            parts.append(f'<text x="{cx:.1f}" y="{h - 3}" text-anchor="middle" fill="{rk_col}" '
+                         f'font-size="8.5">{_esc(rk_txt)}</text>')
+        else:
+            parts.append(f'<rect x="{cx - 2:.1f}" y="{mid - 1:.1f}" width="4" height="2" '
+                         f'fill="var(--bg-3)"><title>{_esc(nm)} · no 15-year history</title></rect>')
+            parts.append(f'<text x="{cx:.1f}" y="{h - 3}" text-anchor="middle" fill="var(--ink-4)" '
+                         'font-size="8">—</text>')
+        parts.append(f'<text x="{cx:.1f}" y="{h - 14}" text-anchor="middle" '
+                     f'fill="{"var(--accent-cy)" if cert else "var(--ink-2)"}" '
+                     f'font-size="10">{nm}</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -566,17 +660,24 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str
                         cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
                                                 f'&cal={cal}&drill={order[j]}#drill'))
         + '</div>')
-    # month consolidation: the descriptive gradient companion to the stack above — EVERY month with
-    # enough history gets a bar (not certified-only), the symmetric twin of the week/weekday strips.
-    parts.append(_strip_panel(
-        "Monthly consolidation", "— the 25-year clubbed gradient: each month's average residual "
-        "(green above baseline, red below; paler = less certain)",
-        "Every month with enough history gets a bar here, whether or not it separately survives "
-        "full certification — a populated bar is descriptive, not a claim. See the bottom-line "
-        "summary above for exactly which month(s), if any, clear the full gate.",
-        d["cmap"], order, lambda m: _MONTH_ABBR[m], w=1060, h=44, unit="months", vmax=0.5,
-        link_fn=lambda m: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                           f'&cal={cal}&drill={m}#drill')))
+    # month consolidation — a diverging BAR chart (height = magnitude), every month named + ranked,
+    # ★ on the strongest, value printed on each bar (so the reader never has to decode a shade).
+    n_month_cert = sum(1 for c in d["cmap"].values() if c.get("colored"))
+    parts.append(
+        '<div class="st-panel"><div class="st-h">Monthly consolidation '
+        '<small>— every month named &amp; ranked by its 25-year average residual; ★ = strongest '
+        'month</small></div>'
+        + ifx.plain('One bar per month. <b>Bar height = the size of the move</b> (σ), green above '
+                    'this entity\'s own baseline, red below — so the strongest month is simply the '
+                    'tallest, no shade to decode. The number on each bar is that value; the '
+                    '<b>#rank</b> under each name orders the months hottest→coldest, and <b>★</b> '
+                    'marks the single strongest. Click a bar to break the month down year-by-year. '
+                    'Descriptive shape, never a signal.')
+        + _month_bars(d["cmap"], order, w=1060, vmax=0.5,
+                      link_fn=lambda m: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
+                                         f'&cal={cal}&drill={m}#drill'))
+        + f'<div class="st-cap">{n_month_cert} of 12 months certified · descriptive shape, '
+          'never a signal.</div></div>')
     # 52-week stack: the per-year ISO-week mirror of the month stack above.
     wsyears_desc = sorted(d.get("wsyears", []), reverse=True)
     week_cols = list(range(1, 54))
@@ -602,15 +703,21 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str
                     'scroll sideways. Read down a column to judge a real weekly tendency vs a '
                     'couple of loud years.')
         + week_stack_body + '</div>')
-    # weekly + weekday consolidation strips
-    parts.append(_strip_panel(
-        "Weekly consolidation", "— the 25-year clubbed gradient across ISO weeks 1–53",
-        "Same idea as the 52-week stack above, clubbed into one gradient — a populated bar is "
-        "this week\'s descriptive average residual, not a certified signal unless separately gated.",
-        d.get("wcmap", {}), list(range(1, 54)), lambda c: str(c), w=1060, h=40, unit="weeks",
-        vmax=0.5,
-        link_fn=lambda wk: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                            f'&cal={cal}&wdrill={wk}#drill')))
+    # weekly consolidation — month-anchored: week numbers along the top, month labels beneath, so a
+    # bar is placeable without hovering; ★ on the strongest week; click-through to the week drill.
+    parts.append(
+        '<div class="st-panel"><div class="st-h">Weekly consolidation '
+        '<small>— ISO weeks 1–53, month-anchored; week numbers on top, months beneath; ★ = '
+        'strongest week</small></div>'
+        + ifx.plain('Same idea across ISO weeks. <b>Week numbers</b> (W1, W5, …) run along the top '
+                    'and <b>month labels</b> beneath, so you can place any bar without hovering — '
+                    'the hover still gives the exact value and week date-span. <b>★</b> marks the '
+                    'strongest week; click any bar to break it down year-by-year. Descriptive.')
+        + '<div style="overflow-x:auto">'
+        + _week_strip(d.get("wcmap", {}), w=1060, h=60, vmax=0.5, mark_best=True, week_ticks=True,
+                      link_fn=lambda wk: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
+                                          f'&cal={cal}&wdrill={wk}#drill'))
+        + '</div></div>')
     parts.append(_strip_panel(
         "Weekday", "— Monday–Friday, same certification bar as months",
         "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
@@ -947,6 +1054,12 @@ def _selftest() -> int:
         assert "Weekly consolidation" in r.text, "weekly consolidation strip missing"
         assert "Weekday" in r.text, "weekday strip missing"
         assert "Forward outlook" in r.text, "outlook missing"
+        # monthly consolidation is now a ranked BAR chart: every month named + #rank + a best ★,
+        # and value labels (so the reader never decodes a shade). Weekly carries week-number ticks.
+        assert "★" in r.text, "best-month/week marker (★) missing from the consolidation panels"
+        assert "#1 best" in r.text, "monthly consolidation missing the ranked #1-best label"
+        assert "Bar height = the size of the move" in r.text, "month bars explainer missing"
+        assert "W5" in r.text and "Week numbers" in r.text, "weekly consolidation week-number ticks missing"
         r2 = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&drill=10")
         assert r2.status_code == 200 and "Behind the script" in r2.text, "drill missing"
         # ISO-week drill (D123): the 52-week stack's cell_link + the sibling wdrill= query param
