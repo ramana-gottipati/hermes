@@ -25,7 +25,7 @@ Every question Pat receives falls into exactly one band. The whole catalog is or
 
 | Band | Meaning | Pat's job |
 |---|---|---|
-| **✅ LIVE** | A current flow serves it (movers · rs · index · accumulation · fundamentals · explain) | Answer, lead with the asked-for metric ("right not more") |
+| **✅ LIVE** | A current flow serves it (movers · rs · index · accumulation · fundamentals · seasonal · explain) | Answer, lead with the asked-for metric ("right not more") |
 | **❓ CLARIFY** | Genuinely ambiguous (intent or timeframe) | Ask ONE question + suggested-answer chips (₹0, no guess) |
 | **🟡 PARTIAL** | The data is **already in `hermes.db`** but no flow/chip reaches it | **The cheap wins.** A flow/chip away, no new ingestion |
 | **🔴 GAP** | The data is **not in Pat at all** | Honest "I don't track that" + nearest real capability |
@@ -296,6 +296,12 @@ Pat has two assets: the **39-term glossary** (live, answers "what is X") and the
 ---
 
 ## PART 11 — Event / seasonal / macro triggers (mostly redirect)
+
+> ✅ **UPDATE (S127) — seasonal calendar base-rates are now LIVE**, not a redirect. Ask *"top /
+> historically-bearish stocks for this|next month|week"* and Pat returns a confidence-adjusted
+> ranked report over the seasonal `hit_rate` base-rates (flow `seasonal`, `src/pat/seasonal_flow.py`).
+> Descriptive-only / SEBI-safe. Worked demo with live outputs: **[pat-seasonal-demo.md](pat-seasonal-demo.md)**.
+> The templates below still cover the rest of the calendar/event long-tail (results, budget, F&O, IPO…).
 
 Pat sees no events/calendar/news/macro — but it sees the **footprint** in price & delivery. Two reusable redirect templates cover ~80%:
 
