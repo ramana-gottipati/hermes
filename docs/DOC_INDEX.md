@@ -26,7 +26,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 ---
 
-## A. CANONICAL (9)
+## A. CANONICAL (10)
 
 | Doc | Why |
 |---|---|
@@ -35,6 +35,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `AGENTS.md` | Codex orientation twin. |
 | `README.md` | Repo readme. |
 | `docs/strategy-ledger.md` | Benchmark ledger ("nothing discarded"). |
+| `docs/SURFACE-PLAYBOOK.md` | BINDING playbook for adding any user-facing screen/page/tab — sister-data check, lens registry, education/fence/Pat/CSV landing checklist (twins: CLAUDE.md #9 / AGENTS.md #7). |
 | `docs/strategies/` (index: `README.md`) | Canonical strategy reference layer (S109) — one page per strategy (definition · status · terminology). Links to design docs; never duplicates ledger/weights. |
 | `docs/metrics-glossary.md` | Metric definitions source. |
 | `docs/product-strategy-2026.md` | Product / PO strategy reference. |

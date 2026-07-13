@@ -80,6 +80,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 6. **Pre-compute over recompute.** Anything stored can be re-derived from raw data; don't normalise away the bhav copy archive.
 7. **At session wrap, append to `PROJECT_STATE.md` § Session log** with what shipped + commit hashes. The doc is the running source of truth — keep it current.
 8. **Data sourcing — PRIMARY SOURCES ONLY (copyright).** Any NEW data feed must come from an authentic/primary source — **NSE, BSE, SEBI, XBRL filings, or genuine official open data.** **Never add a vendor or Screener.in dependency** (Ramana 2026-07-02: copyright risk; he may enable vendors later, not now). Current known exception being remediated: `screener.py`→`fundamentals`/`fundamentals_history` (powers C capital-allocation + patearn scoring) — migrate to BSE/NSE XBRL; do not extend it, and disclose it where shown. Prefer the BSE-announcements pattern (`concall_bse.py`) for anything new.
+9. **New user-facing surfaces follow `docs/SURFACE-PLAYBOOK.md` (BINDING, 2026-07-13).** Before adding ANY page/board/tab/embed: run its sister-data check (extend, don't duplicate), register in `lens_registry.py` or as a declared child (never an orphan URL), and land the full checklist (education scaffold + glossary + fence + Pat registration + server CSV + `sym` links + home-exposure decision) in the SAME session. Nav labels: plain English first, no internal jargon (session/decision IDs, "Ramana") in rendered HTML.
 
 ---
 
@@ -97,6 +98,8 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 | Topic | File |
 |---|---|
 | Current state, decisions, open items, session log | **`PROJECT_STATE.md`** |
+| **Adding ANY new screen/page/tab (binding playbook)** | **`docs/SURFACE-PLAYBOOK.md`** — decision tree + landing checklist; twin of Guardrail #9 |
+| UX / user-journey audit + remediation session plan | `docs/ux-journey-audit-2026-07-13.md` (joint Claude+Codex, S-A…S-H program) |
 | **Strategy definitions, status & terminology (canonical)** | **`docs/strategies/`** (start at `docs/strategies/README.md`) — **continuously maintained**: every new/changed strategy updates its page in the SAME commit (served at `/dash/strategy-ref`); machine backstop = `tests/test_strategy_docs_coverage.py` |
 | Bhav copy + DVPT signals architecture (Word) | `docs/hermes-bhavcopy-architecture.docx` |
 | patearn methodology (source skill) | `resources/patearn/SKILL.md` + sibling files |

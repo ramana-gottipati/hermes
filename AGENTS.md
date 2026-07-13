@@ -99,12 +99,17 @@ Claude Code and Codex (and sometimes parallel sessions of each) operate on
    Known exception being remediated: `screener.py` fundamentals (C capital-alloc +
    patearn) → migrate to BSE/NSE XBRL; don't extend it. Prefer the BSE-announcements
    pattern (`concall_bse.py`) for anything new. (Twin: `CLAUDE.md` Guardrail #8.)
+7. **New user-facing surfaces follow `docs/SURFACE-PLAYBOOK.md` (BINDING).** Sister-data
+   check first (extend, don't duplicate); register in `lens_registry.py` or as a declared
+   child — never an orphan URL; land the education/fence/Pat/CSV checklist in the same
+   session. (Twin: `CLAUDE.md` Guardrail #9.)
 
 ## Where to find detail
 
 | Topic | File |
 |---|---|
 | Current state, decisions, open items, session log | **`PROJECT_STATE.md`** |
+| **Adding ANY new screen/page/tab (binding playbook)** | **`docs/SURFACE-PLAYBOOK.md`** |
 | Claude Code's twin of this file | `CLAUDE.md` |
 | Map of every doc (classified, living) | `docs/DOC_INDEX.md` |
 | Codex ⇄ Claude collaboration channel | `codex-bridge/README.md` |
