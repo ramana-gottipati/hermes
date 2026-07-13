@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS signal_alert_state (
     note         TEXT,
     event_id     INTEGER,                -- the signal_events.id it was promoted from (provenance)
     first_fired  TEXT NOT NULL DEFAULT (datetime('now')),
+    acknowledged_at TEXT,                -- NULL = active on the rail; set = dismissed by the analyst
     -- edge-triggered / fire-once: one alert per (symbol, lens, type, day), exactly the
     -- uniqueness signal_events itself guarantees, so promote() is INSERT OR IGNORE.
     UNIQUE(symbol, lens, event_type, as_of)
@@ -105,6 +106,12 @@ _RS_SCALE = {"BREAKDOWN_DN": -2, "TOUCH_SUP": -1, "INSIDE": 0, "TOUCH_RES": 1, "
 
 def ensure_schema(conn) -> None:
     conn.executescript(_SCHEMA)
+    # Idempotent migration for tables created before the acknowledge feature (SQLite has no
+    # ADD COLUMN IF NOT EXISTS): try to add it, swallow the "duplicate column" on re-run.
+    try:
+        conn.execute("ALTER TABLE signal_alert_state ADD COLUMN acknowledged_at TEXT")
+    except Exception:  # noqa: BLE001 — column already present
+        pass
 
 
 # --- severity classification (pure; the editorial heart) ---------------------
@@ -293,8 +300,8 @@ def active_alerts(conn, *, within_days: int = 7, limit: int = 40,
     # recency (as_of/id DESC); the STABLE Python sort then lifts critical-first + priority
     # while PRESERVING that recency within ties — one ranking, no double-sort divergence.
     rows = [dict(r) for r in conn.execute(
-        "SELECT * FROM signal_alert_state WHERE as_of <= ? AND as_of >= date(?, ?) "
-        "ORDER BY as_of DESC, id DESC",
+        "SELECT * FROM signal_alert_state WHERE acknowledged_at IS NULL "
+        "AND as_of <= ? AND as_of >= date(?, ?) ORDER BY as_of DESC, id DESC",
         (anchor, anchor, f"-{max(0, int(within_days) - 1)} days")).fetchall()]
     rows.sort(key=lambda r: (r.get("severity") != "critical",
                              -_priority(r.get("lens") or "", r.get("magnitude"))))
@@ -312,9 +319,39 @@ def active_count(conn, *, within_days: int = 7, as_of: Optional[str] = None) -> 
         return {"total": 0, "by_severity": {}}
     by = {r["severity"]: r["c"] for r in conn.execute(
         "SELECT severity, COUNT(*) c FROM signal_alert_state "
-        "WHERE as_of <= ? AND as_of >= date(?, ?) GROUP BY severity",
+        "WHERE acknowledged_at IS NULL AND as_of <= ? AND as_of >= date(?, ?) "
+        "GROUP BY severity",
         (anchor, anchor, f"-{max(0, int(within_days) - 1)} days")).fetchall()}
     return {"total": sum(by.values()), "by_severity": by}
+
+
+def acknowledge(conn, alert_id: int) -> int:
+    """Dismiss one alert by id (analyst reviewed it). Returns rows updated (0 if already
+    dismissed / unknown id). Only the web ack endpoint + the CLI write here."""
+    ensure_schema(conn)
+    cur = conn.execute(
+        "UPDATE signal_alert_state SET acknowledged_at = datetime('now') "
+        "WHERE id = ? AND acknowledged_at IS NULL", (int(alert_id),))
+    conn.commit()
+    return cur.rowcount or 0
+
+
+def acknowledge_all(conn, *, within_days: int = 7, as_of: Optional[str] = None) -> int:
+    """Dismiss every active alert in the current rail window (the 'dismiss all' action).
+    Scoped to the same window the rail shows so a replay/older tail is never silently cleared."""
+    ensure_schema(conn)
+    anchor = str(as_of).strip()[:10] if as_of else None
+    if not anchor:
+        row = conn.execute("SELECT MAX(as_of) FROM signal_alert_state").fetchone()
+        anchor = row[0] if row and row[0] else None
+    if not anchor:
+        return 0
+    cur = conn.execute(
+        "UPDATE signal_alert_state SET acknowledged_at = datetime('now') "
+        "WHERE acknowledged_at IS NULL AND as_of <= ? AND as_of >= date(?, ?)",
+        (anchor, anchor, f"-{max(0, int(within_days) - 1)} days"))
+    conn.commit()
+    return cur.rowcount or 0
 
 
 def backfill(conn, *, batches: int = 10) -> dict:
@@ -352,6 +389,8 @@ def main() -> None:
     g.add_argument("--backfill", action="store_true", help="seed the rail from the last N batches")
     g.add_argument("--list", action="store_true", help="print the active rail")
     g.add_argument("--stats", action="store_true", help="rail coverage summary")
+    g.add_argument("--ack", type=int, metavar="ID", help="dismiss one alert by id")
+    g.add_argument("--ack-all", action="store_true", help="dismiss every active alert in the window")
     ap.add_argument("--asof", default=None)
     ap.add_argument("--batches", type=int, default=10, help="--backfill: how many recent batches")
     ap.add_argument("--within", type=int, default=7)
@@ -367,6 +406,11 @@ def main() -> None:
         elif args.stats:
             import json
             print(json.dumps(stats(conn), indent=2))
+        elif args.ack is not None:
+            log.info("dismissed %d alert(s)", acknowledge(conn, args.ack))
+        elif args.ack_all:
+            log.info("dismissed %d alert(s)", acknowledge_all(conn, within_days=args.within,
+                                                              as_of=args.asof))
         else:
             for a in active_alerts(conn, within_days=args.within, limit=args.limit):
                 print(f"  {a['as_of']}  {a['severity']:8} {a['valence'] or '-':11} "

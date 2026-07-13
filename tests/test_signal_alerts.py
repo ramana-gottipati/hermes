@@ -195,6 +195,50 @@ def test_promote_empty_bus_is_safe(conn):
     assert sa.active_count(conn) == {"total": 0, "by_severity": {}}
 
 
+def test_acknowledge_removes_from_the_rail(conn):
+    _emit(conn, "KEEP", "mep", "phase_flip", "2026-07-10", direction="flip",
+          from_state="NEUTRAL", to_state="DISTRIB", magnitude=1.0)
+    _emit(conn, "DROP", "deal", "deal_print", "2026-07-10", direction="up",
+          to_state="₹99cr", magnitude=0.99)
+    sa.promote(conn, as_of="2026-07-10")
+    drop_id = next(a["id"] for a in sa.active_alerts(conn) if a["symbol"] == "DROP")
+    assert sa.acknowledge(conn, drop_id) == 1
+    assert sa.acknowledge(conn, drop_id) == 0                       # already dismissed → no-op
+    syms = {a["symbol"] for a in sa.active_alerts(conn)}
+    assert syms == {"KEEP"}                                          # DROP left the rail
+    assert sa.active_count(conn)["total"] == 1                       # count excludes dismissed
+
+
+def test_acknowledge_all_clears_the_window(conn):
+    for i in range(4):
+        _emit(conn, f"M{i}", "mep", "phase_flip", "2026-07-10", direction="flip",
+              from_state="NEUTRAL", to_state="DISTRIB", magnitude=1.0)
+    _emit(conn, "OLD", "mep", "phase_flip", "2026-06-01", direction="flip",
+          from_state="NEUTRAL", to_state="DISTRIB", magnitude=1.0)   # outside the window
+    sa.promote(conn, as_of="2026-07-10")
+    sa.promote(conn, as_of="2026-06-01")
+    cleared = sa.acknowledge_all(conn, within_days=7, as_of="2026-07-10")
+    assert cleared == 4                                              # only the in-window ones
+    assert sa.active_alerts(conn, within_days=7, as_of="2026-07-10") == []
+    # the out-of-window alert is untouched (a later window/replay still sees it)
+    assert any(a["symbol"] == "OLD" for a in sa.active_alerts(conn, within_days=400, as_of="2026-07-10"))
+
+
+def test_ack_migration_on_preexisting_table(conn):
+    # a table created BEFORE the acknowledge feature must gain the column idempotently
+    conn.execute("DROP TABLE signal_alert_state")
+    conn.execute("CREATE TABLE signal_alert_state (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                 "symbol TEXT, lens TEXT, event_type TEXT, direction TEXT, from_state TEXT, "
+                 "to_state TEXT, magnitude REAL, severity TEXT NOT NULL, valence TEXT, "
+                 "as_of TEXT NOT NULL, note TEXT, event_id INTEGER, first_fired TEXT, "
+                 "UNIQUE(symbol, lens, event_type, as_of))")
+    conn.commit()
+    sa.ensure_schema(conn)                                           # should ALTER-add acknowledged_at
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(signal_alert_state)")}
+    assert "acknowledged_at" in cols
+    sa.ensure_schema(conn)                                           # second call is a no-op, not an error
+
+
 def test_backfill_seeds_multiple_batches_idempotently(conn):
     _emit(conn, "A", "mep", "phase_flip", "2026-07-08", direction="flip",
           from_state="NEUTRAL", to_state="DISTRIB", magnitude=1.0)

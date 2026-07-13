@@ -35,7 +35,7 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
@@ -115,6 +115,11 @@ table.at tr:hover td{background:#11161d;}
 .at-val{white-space:nowrap;font-size:11.5px;}
 .at-rail-more{margin-top:6px;color:var(--ink-3);font-size:11.5px;}
 .at-rail-empty{color:var(--ink-2);font-size:12.5px;}
+.at-dismiss{color:var(--ink-3);text-decoration:none;font-weight:700;padding:0 4px;}
+.at-dismiss:hover{color:#f85149;}
+.at-dismiss-all{margin-left:auto;font-size:11px;font-weight:700;color:var(--ink-3);
+  text-decoration:none;border:1px solid var(--line-2);border-radius:9px;padding:2px 9px;}
+.at-dismiss-all:hover{color:var(--ink);border-color:var(--ink-3);}
 </style>
 """
 
@@ -219,12 +224,14 @@ _VAL_GLYPH = {
 
 
 def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
-                      anchor: str | None, limit: int = 24, promoted_ever: bool = True) -> str:
+                      anchor: str | None, limit: int = 24, promoted_ever: bool = True,
+                      interactive: bool = True) -> str:
     """The alert rail — the bus's 4th face: the curated, multi-day, severity-graded set of
     the highest-impact state-changes, edge-triggered (each fires once). Distinct from the
     single-batch queue below and the per-viewer 'since you last looked' brief above it.
     Pure over its inputs (hermetically testable). '' is never returned — an empty rail is
-    stated honestly (a quiet rail is a quiet rail)."""
+    stated honestly (a quiet rail is a quiet rail). `interactive` (LIVE view only, never a
+    replay) adds the dismiss controls — server-side ack turns the rail into a triage inbox."""
     total = int(count.get("total") or 0)
     by = count.get("by_severity") or {}
     crit, high = int(by.get("critical") or 0), int(by.get("high") or 0)
@@ -233,9 +240,11 @@ def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
         badges.append(f'<span class="at-badge crit">{crit} critical</span>')
     if high:
         badges.append(f'<span class="at-badge high">{high} high</span>')
+    dismiss_all = ('<a class="at-dismiss-all" href="/dash/attention/ack?all=1">✓ dismiss all</a>'
+                   if interactive and total else "")
     head = ('<div class="at-rail-h">🔔 Alert rail '
             + (f'<span class="at-badge">{total} active</span>' if total else "")
-            + "".join(badges) + '</div>')
+            + "".join(badges) + dismiss_all + '</div>')
     sub = (f'<div class="at-rail-sub">The highest-impact state-changes over the last '
            f'{window_days} days, each surfaced once — kept as they roll past today’s '
            f'batch. A <b>state-change, never a recommendation</b>; the <i>valence</i> tag '
@@ -256,6 +265,9 @@ def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
                   f'<span class="at-arrow">→</span> '
                   f'<span class="at-state">{_esc(str(to))}</span>'
                   if fr is not None else f'<span class="at-state">{_esc(str(to or "—"))}</span>')
+        dismiss = (f'<td class="num"><a class="at-dismiss" title="dismiss" '
+                   f'href="/dash/attention/ack?id={int(a.get("id") or 0)}">✕</a></td>'
+                   if interactive else "")
         rows.append(
             f'<tr><td><span class="at-sev at-sev-{_esc(sev)}">{_esc(sev.upper())}</span></td>'
             f'<td>{val}</td>'
@@ -264,11 +276,12 @@ def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
             f'<td class="at-noteline">{_esc(a.get("note") or "")}</td>'
             f'<td>{change}</td>'
             f'<td class="num" style="color:var(--ink-3);white-space:nowrap">'
-            f'{_esc(str(a.get("as_of") or ""))}</td></tr>')
+            f'{_esc(str(a.get("as_of") or ""))}</td>{dismiss}</tr>')
+    dcol = '<th></th>' if interactive else ""
     head_row = ('<tr><th>Severity</th><th>Read</th><th>Symbol</th><th>Lens</th>'
-                '<th>Note</th><th>From → To</th><th style="text-align:right">as_of</th></tr>')
-    more = (f'<div class="at-rail-more">+ {total - limit} more active — narrow by lens '
-            f'below, or see the full tape</div>' if total > limit else "")
+                f'<th>Note</th><th>From → To</th><th style="text-align:right">as_of</th>{dcol}</tr>')
+    more = (f'<div class="at-rail-more">+ {total - limit} more active — dismiss some, or '
+            f'see the full tape below</div>' if total > limit else "")
     return ('<div class="at-rail">' + head + sub
             + f'<table class="at">{head_row}{"".join(rows)}</table>' + more + '</div>')
 
@@ -344,7 +357,8 @@ def attention_page(request: Request, as_of: str = "", lens: str = "") -> HTMLRes
                 rail_count = SA.active_count(conn, within_days=7, as_of=served)
                 ever = (SA.stats(conn).get("alerts") or 0) > 0    # table populated at all?
                 body.append(render_alert_rail(rail_alerts, rail_count, window_days=7,
-                                              anchor=served, limit=24, promoted_ever=ever))
+                                              anchor=served, limit=24, promoted_ever=ever,
+                                              interactive=not requested))  # no dismiss on a replay
             # --- "since you last looked" brief (LIVE view only; a replay is a historical
             # read, not a visit) — reuses the bus's events_since feed, keyed on a client
             # cookie. Compute against the OLD cookie, then stamp the cookie to now. ---
@@ -411,6 +425,26 @@ def attention_page(request: Request, as_of: str = "", lens: str = "") -> HTMLRes
         resp.set_cookie(_SEEN_COOKIE, seen_stamp, max_age=31_536_000,
                         samesite="lax", path="/dash")
     return resp
+
+
+@router.get("/dash/attention/ack")
+def attention_ack(request: Request) -> RedirectResponse:
+    """Dismiss one alert (?id=N) or every active alert in the current window (?all=1). The
+    ONLY web-layer write in this face — a single quick UPDATE on an explicit analyst click
+    (server-side / global, since there is one analyst). Turns the rail into a triage inbox:
+    dismissed alerts leave the rail (they remain in signal_events + the queue). 303 back to
+    the rail. Defensive — a failed ack degrades to a plain redirect, never a 500."""
+    try:
+        with get_conn() as conn:
+            if request.query_params.get("all"):
+                SA.acknowledge_all(conn, within_days=7)
+            else:
+                aid = (request.query_params.get("id") or "").strip()
+                if aid.isdigit():
+                    SA.acknowledge(conn, int(aid))
+    except Exception:  # noqa: BLE001
+        pass
+    return RedirectResponse("/dash/attention", status_code=303)
 
 
 def attention_home_inner(limit: int = 6) -> str:

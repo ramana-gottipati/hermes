@@ -209,6 +209,28 @@ def test_alert_rail_on_page(patched, conn):
     assert r2.status_code == 200
 
 
+def test_alert_rail_ack_route_dismisses(patched, conn):
+    # The dismiss endpoint UPDATEs the alert and 303s back; the alert then leaves the rail.
+    from src.automation import signal_alerts as SA
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    SA.promote(conn, as_of="2026-07-09")
+    app = FastAPI()
+    app.include_router(av.router)
+    c = TestClient(app)
+    before = SA.active_alerts(conn)
+    assert before                                                   # something to dismiss
+    aid = before[0]["id"]
+    r = c.get(f"/dash/attention/ack?id={aid}", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/dash/attention"
+    assert all(a["id"] != aid for a in SA.active_alerts(conn))      # gone from the rail
+    # dismiss-all clears the rest; a bogus id is a safe no-op (303, never 500)
+    c.get("/dash/attention/ack?all=1")
+    assert SA.active_alerts(conn) == []
+    assert c.get("/dash/attention/ack?id=notanumber",
+                 follow_redirects=False).status_code == 303
+
+
 def test_home_inner_capped_and_safe(patched, conn):
     html = av.attention_home_inner(limit=6)
     assert "RELIANCE" in html or "VEDL" in html
