@@ -187,10 +187,17 @@ def _shell(title: str, body: str):
 
 
 async def _dispatch(request, call_next):
+    # Route the request FIRST, outside any try: a non-gated path must pass through with
+    # its downstream exceptions untouched (an earlier version wrapped call_next in the
+    # fail-closed try, which dressed EVERY app error site-wide as the demo page).
+    try:
+        gated = _gated(request.url.path)
+    except Exception:  # noqa: BLE001
+        gated = True
+    if not gated:
+        return await call_next(request)
     try:
         path = request.url.path
-        if not _gated(path):
-            return await call_next(request)
 
         if path == "/dash/tracker/owner":
             from fastapi.responses import RedirectResponse
@@ -211,12 +218,13 @@ async def _dispatch(request, call_next):
             return _shell("Tracker · owner", _owner_form(bad="bad" in request.query_params))
 
         if _is_owner(request):
-            return await call_next(request)
-        if request.method == "GET" and path in _DEMO_PAGES:
-            return _shell("Tracker · demo book", _demo_body())
-        # non-owner mutation / export / personal detail -> the demo front door
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse("/dash/tracker/dashboard", status_code=303)
+            owner = True
+        else:
+            if request.method == "GET" and path in _DEMO_PAGES:
+                return _shell("Tracker · demo book", _demo_body())
+            # non-owner mutation / export / personal detail -> the demo front door
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse("/dash/tracker/dashboard", status_code=303)
     except Exception as e:  # noqa: BLE001 — a privacy gate fails CLOSED, never open
         log.warning("tracker_gate error on %s: %s", request.url.path, e)
         from fastapi.responses import HTMLResponse, RedirectResponse
@@ -226,6 +234,9 @@ async def _dispatch(request, call_next):
             except Exception:  # noqa: BLE001
                 return HTMLResponse("Tracker temporarily unavailable.", status_code=503)
         return RedirectResponse("/dash/tracker/dashboard", status_code=303)
+    # owner on a gated path: run the real handler OUTSIDE the gate's try, so a
+    # downstream error surfaces as itself, never as the demo page
+    return await call_next(request)
 
 
 def install(app) -> bool:
