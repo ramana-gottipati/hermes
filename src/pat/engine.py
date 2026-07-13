@@ -51,6 +51,8 @@ _VALID: dict[str, dict] = {
     "compare":      {"syms": "free"},   # A-vs-B side-by-side
     "why":          {"sym": "free", "metric": "free"},  # explain the evidence behind a read
     "trend":        {"sym": "free"},    # credibility time-series for one name
+    "seasonal":     {"period": {"this-month", "next-month", "this-week", "next-week"},
+                     "direction": {"bullish", "bearish"}},  # calendar base-rate ranking
     "explain":      {"explain": "slug"},
 }
 
@@ -285,6 +287,20 @@ def route(query: str, conn=None) -> dict | None:
     hit, cached = _cache_get(q)
     if hit:
         return cached
+
+    # (a-1) Seasonal ranking — "top-ranked / historically-bearish stocks for this|next
+    #       month|week" — recognized FIRST (before the prediction guardrail): a calendar
+    #       BASE-RATE is descriptive history, not a forecast, and the flow carries its own
+    #       "never a forecast" fence. Deterministic ₹0; conservative — yields (None) to the
+    #       movers flow / the guardrail when there's no ranking+period seasonal signal.
+    try:
+        from src.pat.seasonal_flow import parse_seasonal as _parse_seasonal
+        seas = _parse_seasonal(query)
+    except Exception:
+        seas = None
+    if seas:
+        _cache_put(q, seas)
+        return seas
 
     from src.pat.understand import validate_intent, parse_fallback
 

@@ -877,6 +877,82 @@ def _movers_flow(conn, direction, liq, window: str = "") -> str:
     return "".join(out)
 
 
+# ── seasonal flow (This-month calendar base-rate ranking; descriptive, SEBI-safe) ──
+# "top-ranked stocks for this|next month|week" and the historically-bearish reverse.
+# Ranks the SAME per-entity base-rates the This-month screen ranks (confidence-adjusted
+# Wilson bound, ties on move size — see src/pat/seasonal_flow.py) and deep-links to it.
+
+def _seasonal_q(period: str, direction: str) -> str:
+    # refinement chips route back through free-text so parse_seasonal handles them.
+    verb = "bearish" if direction == "bearish" else "top"
+    unit = "week" if period.endswith("week") else "month"
+    when = "next" if period.startswith("next") else "this"
+    return "/dash/pat?q=" + _u(f"{verb} ranked stocks for {when} {unit}")
+
+
+def _seasonal_flow(conn, period: str, direction: str = "bullish") -> str:
+    from src.pat.seasonal_flow import cell_for_period, period_label, rank
+    period = period if period in ("this-month", "next-month", "this-week", "next-week") else "this-month"
+    direction = "bearish" if direction == "bearish" else "bullish"
+    axis, cell = cell_for_period(period)
+    plabel = period_label(period)
+    dlabel = "historically weakest" if direction == "bearish" else "historically strongest"
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble(f"{dlabel.capitalize()} stocks for {plabel} — ranked by their historical "
+                  "calendar base-rate (confidence-adjusted). Descriptive context, NOT a "
+                  "recommendation or forecast."),
+        '<div class="ghdr">Period</div><div class="patChips">',
+    ]
+    for pk, pl in (("this-month", "This month"), ("next-month", "Next month"),
+                   ("this-week", "This week"), ("next-week", "Next week")):
+        out.append(_chip_sel(_seasonal_q(pk, direction), pl, pk == period))
+    out.append('</div><div class="ghdr">Lean</div><div class="patChips">')
+    for dk, dl in (("bullish", "▲ Strongest"), ("bearish", "▼ Weakest")):
+        out.append(_chip_sel(_seasonal_q(period, dk), dl, dk == direction))
+    out.append('</div>')
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    recs = rank(conn, axis, cell, direction, top_n=12)
+    out.append(f'<div class="ghdr">{_esc(dlabel)} · {_esc(plabel)} ({len(recs)})</div>')
+    if not recs:
+        sign = "negative" if direction == "bearish" else "positive"
+        out.append('<div class="empty">No stock clears the ≥15-year history floor with a '
+                   f'{sign} lean for {_esc(plabel)}.</div>')
+    else:
+        head = ('<div class="patTable"><table class="dt"><thead><tr>'
+                '<th>#</th><th>Symbol</th><th>Hit-rate k/n (P%)</th><th>95% CI lo–hi%</th>'
+                '<th>Mean residual</th><th>Years</th></tr></thead><tbody>')
+        rws = []
+        for i, d in enumerate(recs, 1):
+            rws.append(
+                '<tr>'
+                f'<td>{i}</td>'
+                f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(d["entity"])}#seasonal">'
+                f'{_esc(d["entity"])}</a></td>'
+                f'<td>{d["k"]}/{d["years"]} ({d["hit"] * 100:.0f}%)</td>'
+                f'<td>{d["lo"] * 100:.0f}–{d["hi"] * 100:.0f}%</td>'
+                f'<td>{d["z"]:+.2f}σ</td>'
+                f'<td>{d["years"]}</td>'
+                '</tr>')
+        out.append(head + "".join(rws) + '</tbody></table></div>')
+    if axis == "month":
+        lean = "cold" if direction == "bearish" else "hot"
+        dirp = "asc" if direction == "bearish" else "desc"
+        href = f"/dash/markets/seasonal-screen?scope=stock&month={cell}&lean={lean}&sort=hit&dir={dirp}"
+        more = "Open the full sortable This-month screen (all columns · history floor · filters) →"
+    else:
+        href = "/dash/markets/seasonal-tape?scope=stock"
+        more = "Open the Seasonal tape (weekly detail, per stock) →"
+    out.append(f'<div style="margin-top:10px"><a class="row" href="{_esc(href)}">{_esc(more)}</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Historical calendar base-rates over ≥15 years, net-of-cost expectancy ≈ 0 — '
+               'descriptive context, never a signal, ranking, or trade. When the 95% CI straddles '
+               '50%, the lean is noise.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2214,7 +2290,8 @@ def _convo_tail(flow: str, q: str = "", ctx: str = "", params: dict | None = Non
 
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
-               "index": "Index performance", "distribution": "Distribution (strong hand exiting)",
+               "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
+               "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
                "stock": "Stock snapshot",
@@ -2386,6 +2463,8 @@ def _free_text(conn, q: str):
             body = _compare_flow(conn, p.get("syms", ""))
         elif f == "why":
             body = _why_flow(conn, p.get("sym", ""), p.get("metric", "credibility"))
+        elif f == "seasonal":
+            body = _seasonal_flow(conn, p.get("period", ""), p.get("direction", "bullish"))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
