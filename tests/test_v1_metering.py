@@ -64,6 +64,37 @@ def test_500_is_metered_and_stamped(client_key):
         conn.execute("DELETE FROM v1_usage WHERE request_id=?", (rid,))  # scoped cleanup
 
 
+def test_quota_check_unlimited_by_default_no_db():
+    # both quotas NULL → unlimited, early-return with no DB read (zero cost for current tenants)
+    assert metering.quota_check("some-tenant") == (True, None, None)
+    assert metering.quota_check("t", daily_quota=None, monthly_quota=None) == (True, None, None)
+    assert metering.quota_check(None, daily_quota=5) == (True, None, None)   # no tenant → unlimited
+
+
+def test_quota_check_fail_open(monkeypatch, caplog):
+    monkeypatch.setattr(metering, "get_conn", lambda: (_ for _ in ()).throw(RuntimeError("locked")))
+    with caplog.at_level(logging.WARNING, logger="hermes.v1.metering"):
+        assert metering.quota_check("t", daily_quota=1) == (True, None, None)   # fail-OPEN
+    assert any("quota_check failed" in r.getMessage() for r in caplog.records)
+
+
+def test_daily_quota_enforced_end_to_end(client_key):
+    c, key = client_key
+    with get_conn() as conn:
+        conn.execute("UPDATE v1_tenants SET daily_quota=1 WHERE tenant_id='dev'")
+        conn.commit()
+    r1 = c.get("/coverage", headers={"X-API-Key": key})
+    assert r1.status_code == 200                        # first served request is within quota
+    r2 = c.get("/coverage", headers={"X-API-Key": key})
+    assert r2.status_code == 429                        # quota=1 → the second is blocked
+    assert "daily quota" in r2.text.lower()             # a clear, quota-specific message
+    # the 429 itself (status>=400) does NOT count against the quota (only served requests do)
+    with get_conn() as conn:
+        served = conn.execute("SELECT COUNT(*) c FROM v1_usage WHERE tenant_id='dev' "
+                              "AND status < 400").fetchone()["c"]
+    assert served == 1
+
+
 def test_record_usage_logs_a_drop_never_silent(monkeypatch, caplog):
     # a failing INSERT must be logged (audit-grade), retried once on a lock, and never raise.
     calls = {"n": 0}

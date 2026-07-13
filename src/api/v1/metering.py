@@ -50,6 +50,35 @@ def rate_check(key_id: str, limit_per_min: int) -> tuple[bool, int]:
     return (n <= limit_per_min, n)
 
 
+def quota_check(tenant_id, *, daily_quota=None, monthly_quota=None) -> tuple[bool, int | None, int | None]:
+    """Enforce per-tenant daily/monthly quotas beside the per-minute rate limit (AUD-37 follow-on
+    — the entitlement substrate for tiered data plans). Returns (within_quota, used_today,
+    used_month) over the append-only usage log, counting only SERVED requests (status < 400 —
+    4xx/5xx are not billable data). A NULL quota is unlimited → early-returns with NO db read, so
+    tenants without a quota set pay zero cost and keep exactly their current behaviour. FAIL-OPEN:
+    any error → allowed (a metering glitch must never block a paying tenant)."""
+    if not tenant_id or (daily_quota is None and monthly_quota is None):
+        return (True, None, None)
+    try:
+        now = datetime.now(timezone.utc)
+        day_start = now.strftime("%Y-%m-%d 00:00:00")     # sargable on idx_v1_usage_bill(tenant_id, ts)
+        month_start = now.strftime("%Y-%m-01 00:00:00")
+        with get_conn() as conn:
+            ensure_schema(conn)
+            used_today = conn.execute(
+                "SELECT COUNT(*) FROM v1_usage WHERE tenant_id=? AND ts >= ? AND status < 400",
+                (tenant_id, day_start)).fetchone()[0]
+            used_month = conn.execute(
+                "SELECT COUNT(*) FROM v1_usage WHERE tenant_id=? AND ts >= ? AND status < 400",
+                (tenant_id, month_start)).fetchone()[0]
+        within = not ((daily_quota is not None and used_today >= daily_quota)
+                      or (monthly_quota is not None and used_month >= monthly_quota))
+        return (within, used_today, used_month)
+    except Exception as exc:    # noqa: BLE001 — fail-open, but log so a silent glitch is visible
+        log.warning("v1 quota_check failed (fail-open) tenant=%s: %s", tenant_id, exc)
+        return (True, None, None)
+
+
 def record_usage(*, tenant_id, key_id, endpoint, path, status, bytes_out=None,
                  latency_ms=None, scope_used=None, request_id=None) -> None:
     """Append one usage event. Best-effort: metering must never break a response — but a

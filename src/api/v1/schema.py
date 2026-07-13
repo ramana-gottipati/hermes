@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS v1_tenants (
     name               TEXT NOT NULL,
     tier               TEXT NOT NULL DEFAULT 'research',
     rate_limit_per_min INTEGER NOT NULL DEFAULT 120,
+    daily_quota        INTEGER,                 -- served (2xx/3xx) requests/UTC-day; NULL = unlimited
+    monthly_quota      INTEGER,                 -- served requests/UTC-month;         NULL = unlimited
     active             INTEGER NOT NULL DEFAULT 1,
     created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -77,3 +79,11 @@ CREATE TABLE IF NOT EXISTS v1_ratelimit (
 
 def ensure_schema(conn) -> None:
     conn.executescript(_SCHEMA)
+    # Idempotent migration for tenant tables created before the quota columns (SQLite has no
+    # ADD COLUMN IF NOT EXISTS): try, swallow the "duplicate column" on re-run. NULL = unlimited,
+    # so existing tenants keep their current (rate-limit-only) behaviour until a quota is set.
+    for col in ("daily_quota INTEGER", "monthly_quota INTEGER"):
+        try:
+            conn.execute(f"ALTER TABLE v1_tenants ADD COLUMN {col}")
+        except Exception:  # noqa: BLE001 — column already present
+            pass

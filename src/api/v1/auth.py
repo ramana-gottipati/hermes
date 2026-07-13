@@ -19,7 +19,7 @@ from fastapi import Depends, Header, HTTPException, Request
 from src.core.db import get_conn
 from src.api.v1.schema import ensure_schema
 from src.api.v1.keys import hash_key
-from src.api.v1.metering import rate_check
+from src.api.v1.metering import rate_check, quota_check
 
 # the scope vocabulary (code, PR-reviewable — like provenance.PROVENANCE).
 # NOTE: there is NO "alpha" tier — the §C backtest FALSIFIED the credibility return edge
@@ -50,6 +50,8 @@ class Principal:
     tier: str
     scopes: frozenset
     rate_limit_per_min: int
+    daily_quota: int | None = None
+    monthly_quota: int | None = None
 
 
 def _extract_key(authorization: str | None, x_api_key: str | None, request: Request) -> str:
@@ -74,7 +76,8 @@ def require_key(request: Request,
     with get_conn() as conn:
         ensure_schema(conn)
         row = conn.execute(
-            "SELECT k.key_id, k.key_hash, k.tenant_id, t.tier, t.rate_limit_per_min "
+            "SELECT k.key_id, k.key_hash, k.tenant_id, t.tier, t.rate_limit_per_min, "
+            "       t.daily_quota, t.monthly_quota "
             "FROM v1_api_keys k JOIN v1_tenants t ON t.tenant_id = k.tenant_id "
             "WHERE k.key_hash = ? AND k.revoked = 0 AND t.active = 1", (h,)).fetchone()
         if row is None:
@@ -86,7 +89,8 @@ def require_key(request: Request,
         scopes = frozenset(r["scope"] for r in conn.execute(
             "SELECT scope FROM v1_api_scopes WHERE tenant_id = ?", (row["tenant_id"],)))
         conn.execute("UPDATE v1_api_keys SET last_used_at = datetime('now') WHERE key_id = ?", (row["key_id"],))
-    p = Principal(row["tenant_id"], row["key_id"], row["tier"], scopes, row["rate_limit_per_min"])
+    p = Principal(row["tenant_id"], row["key_id"], row["tier"], scopes,
+                  row["rate_limit_per_min"], row["daily_quota"], row["monthly_quota"])
     request.state.principal = p           # for the metering middleware
     return p
 
@@ -107,5 +111,15 @@ def require_scope(endpoint: str):
         request.state.scope_used = next((s for s in needed if s in p.scopes), None)
         if not ok:
             raise HTTPException(429, f"rate limit {p.rate_limit_per_min}/min exceeded")
+        # Per-tenant daily/monthly quota (beside the per-minute rate limit). No-op + zero cost
+        # when both are NULL (the default); fail-open on any metering error.
+        within, used_day, used_month = quota_check(
+            p.tenant_id, daily_quota=p.daily_quota, monthly_quota=p.monthly_quota)
+        if not within:
+            if p.daily_quota is not None and used_day is not None and used_day >= p.daily_quota:
+                raise HTTPException(429, f"daily quota {p.daily_quota} requests/day exceeded "
+                                         f"(used {used_day}) — resets 00:00 UTC")
+            raise HTTPException(429, f"monthly quota {p.monthly_quota} requests/month exceeded "
+                                     f"(used {used_month})")
         return p
     return dep

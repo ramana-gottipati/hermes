@@ -80,16 +80,32 @@ def seed_compliance_key() -> str:
                  rate=100000, fixed_secret=secret, key_id="pk_comp")
 
 
+def set_quota(tenant_id: str, *, daily: int | None = None, monthly: int | None = None) -> None:
+    """Set (or clear, passing None) a tenant's daily / monthly SERVED-request quota — the
+    entitlement knob for tiered data plans. NULL = unlimited (the default). Enforcement lives
+    in auth.require_scope (429 when exceeded); the count is over the append-only usage log."""
+    with get_conn() as conn:
+        ensure_schema(conn)
+        conn.execute("UPDATE v1_tenants SET daily_quota=?, monthly_quota=? WHERE tenant_id=?",
+                     (daily, monthly, tenant_id))
+
+
 def _main() -> None:
     ap = argparse.ArgumentParser(description="/v1 API-key admin")
     ap.add_argument("--seed-dev", action="store_true", help="seed the all-scopes dev key + print it once")
     ap.add_argument("--seed-compliance", action="store_true", help="seed the compliance-only demo key")
     ap.add_argument("--mint", metavar="TENANT", help="mint a fresh key for an existing tenant")
+    ap.add_argument("--set-quota", metavar="TENANT", help="set a tenant's daily/monthly quota")
+    ap.add_argument("--daily", type=int, default=None, help="--set-quota: served requests/day (omit = unlimited)")
+    ap.add_argument("--monthly", type=int, default=None, help="--set-quota: served requests/month (omit = unlimited)")
     args = ap.parse_args()
     if args.seed_dev:
         print("dev key (all scopes):", seed_dev_key())
     if args.seed_compliance:
         print("compliance-only key:", seed_compliance_key())
+    if args.set_quota:
+        set_quota(args.set_quota, daily=args.daily, monthly=args.monthly)
+        print(f"quota set for {args.set_quota}: daily={args.daily} monthly={args.monthly}")
     if args.mint:
         full, kid = new_key()
         with get_conn() as conn:
