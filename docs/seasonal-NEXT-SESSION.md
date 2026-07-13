@@ -21,6 +21,11 @@ product** (rigorous calendar seasonality is not a tradeable edge net of the plac
 5. `60242e7` — symmetric **stack + consolidation** layout (month & new 52-week stack); tight ±0.5σ gradient; removed the empty "Consensus script" panel.
 6. `ce424f3` — discoverability **journey**: sub-nav on all 3 surfaces, index→constituent scan (`?index=`), "Scan stocks in {entity}" CTA, drill hint, screen rows → `#seasonal`.
 7. `82060fa` — **ISO-week cell drill** (click a week on the 52-week stack → year-by-year) + clickable consolidation strips.
+8. `63957f7` — **D122+**: confidence-adjusted ranking on the this-month screen (Wilson lower/upper bound + residual-magnitude tie-break + "Strength t" col + per-name month-rank). Display-layer only, hashes unchanged.
+9. `557a209` — **nightly writer-safe TIMERS** (open-item #2): `hermes-seasonal-stock` (22:30 UTC, index+sector+all-EQ full recompute) + `hermes-seasonal-events` (23:00 UTC, all-EQ cadence). AUD-95-safe (`Unit=` binding, NO `Requires=`). `seasonal_events.py --backfill-all` derives the universe internally.
+10. `266b8a2` — **bound `seasonal_events` to one asof** (space guard for the nightly): PK is `(symbol,event_type,asof)` so runs were accreting a full ~19k-row snapshot/day (33,924 live rows = 2 asofs). Per-symbol delete-then-insert (`_write` house pattern) + `--backfill-all` finalizer sweep of `asof < MAX(asof)`.
+
+> ⚠ commits 8–10 are on `main` but **NOT pushed** — `origin/main` is at `76f5724`; local is 3 ahead. Push once codex settles (it may also be committing).
 
 ## Frozen families (`research.db.prereg_registry`) — INTEGRITY CRITICAL
 | module | sha256 (short) | scope | note |
@@ -63,7 +68,7 @@ product** (rigorous calendar seasonality is not a tradeable edge net of the plac
 
 ## OPEN ITEMS (carry-forward)
 1. **🔴 PROJECT_STATE.md reconciliation** — the entire arc (7 commits, D122, 3 families, new tables/files) is in commits but NOT yet in `PROJECT_STATE.md` (§ Session log / Decision log / Key file paths / Database schema / What's-NOT-built). Blocked by codex's uncommitted edits in that file. Do it once codex settles: add entries, retire `seasonal-tape-PLAN.md` + this file.
-2. **Timers / durability** — the **all-EQ stock backfill** and the **event snapshot** are MANUAL (no nightly timer). Wire nightly units (writer-safe, off-hours, never `systemctl start` mid-day — AUD-95) so coverage refreshes. Also: pre-2012 broad-index rows are manual (see niftyindices note).
+2. ~~**Timers / durability**~~ — ✅ **DONE** (`557a209` + `266b8a2`, deployed + verified 2026-07-13). Two nightly units live on the VPS: `hermes-seasonal-stock.timer` (22:30 UTC) recomputes index+sector+all-EQ; `hermes-seasonal-events.timer` (23:00 UTC) refreshes cadence. Both **enabled + armed** (`list-timers` shows future next-runs; both services verified `inactive` — nothing fired on enable). Events service **functionally test-run**: universe grew 2,427→**3,227** (newly-liquid EQ picked up), table now **bounded to one asof** (19,362 rows, 469 OVERDUE). Frozen hashes intact throughout. **Still manual:** pre-2012 broad-index rows (niftyindices note) — not pipeline-reproducible.
 3. **Sector/size index history** stays 2012-capped (back-calc declined). Sector tapes shallower than broad. Decide if a curated sector deepening is worth it.
 4. **Gates 7 (full earnings-cadence mask) + 9 (residual diagnostics)** are conservatively stubbed for stock scope (mask-decert covers the critical case). Full impl changes no current output (nothing certifies) — clean next increment.
 5. **Week-drill on the embedded stock-page card** — the month+week drill is on the lens; the /dash/stock Seasonal-tab card doesn't drill yet (Ramana offered a "yes" pending).
@@ -75,6 +80,8 @@ product** (rigorous calendar seasonality is not a tradeable edge net of the plac
 - Every push: `tr -d '\r'` (CRLF) → `py_compile` → `import` check → **then** `systemctl restart hermes-api` (writer-safe; NEVER hermes-telegram / setup-news.sh AUD-28 / timer-start AUD-95). Backups to `/tmp/bak.*`.
 - Backfills: off-hours, per-symbol commits, `nohup` background. Walk the public `hstgr.cloud` URL after.
 - Commits: stage EXPLICIT paths only (codex is live) + `state:skip` (PROJECT_STATE entangled).
+- **Timer install (verified 2026-07-13):** scp `.service`+`.timer` → `/etc/systemd/system/`; `sed -i 's/\r$//'` (CRLF); `systemctl daemon-reload`; `systemctl enable --now <timer>`. **AUD-95-safe ONLY because the timers have NO `Requires=`** (they bind via `Unit=` in `[Timer]`) — so `enable --now` arms the OnCalendar run WITHOUT firing the service. ALWAYS verify immediately: `systemctl is-active <service>` must return `inactive`, and `list-timers` must show a FUTURE next-run. **Never add `Requires=<service>` to a hermes timer's `[Unit]`** (that is the exact wolfe-scan shape the AUD-95 ban warns about). Seasonal units run under `/opt/hermes/.venv` (pure stdlib). No `hermes-api` restart needed — the CLI-only change doesn't touch the imported view surface, and the view reads `MAX(asof)` so a data refresh goes live on its own.
+- **`seasonal_events` is a SINGLE-asof snapshot** — its PK includes `asof`, so any backfill MUST delete the symbol's prior rows first (done in `backfill_events` + `--backfill-all` sweep). Don't reintroduce plain `INSERT OR REPLACE` without the delete, or the nightly timer leaks ~19k rows/night.
 
 ## CARRY-FORWARD PROMPT (paste into the next session)
 > Continue the Hermes **Seasonal Tape** work. It is BUILT + LIVE on the VPS across 7 commits
