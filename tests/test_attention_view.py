@@ -175,6 +175,40 @@ def test_since_last_looked_route_cookie_flow(patched):
     assert "since your last visit" not in r.text and "First visit" not in r.text
 
 
+def test_alert_rail_pure_branches():
+    # Empty rail is honest, never '' — a quiet rail is stated as such.
+    h = av.render_alert_rail([], {"total": 0, "by_severity": {}},
+                             window_days=7, anchor="2026-07-09")
+    assert "Alert rail" in h and "No high-impact alerts" in h
+    # Populated: severity badge + valence read + symbol + count badges.
+    alerts = [{"symbol": "VEDL", "lens": "deal", "severity": "critical",
+               "valence": "opportunity", "from_state": None, "to_state": "₹41cr",
+               "note": "VEDL: big print", "as_of": "2026-07-09"}]
+    h = av.render_alert_rail(alerts, {"total": 1, "by_severity": {"critical": 1}},
+                             window_days=7, anchor="2026-07-09")
+    assert "CRITICAL" in h and "opp" in h and "VEDL" in h and "1 critical" in h
+    # Descriptive fence rides along — never a recommendation.
+    assert "never a recommendation" in h
+
+
+def test_alert_rail_on_page(patched, conn):
+    # The 4th face surfaces on /dash/attention once the batch is promoted; the deal
+    # (0.97 percentile) + the mep→ACCUM flip are alert-worthy, the rs→ABOVE flip is not.
+    from src.automation import signal_alerts as SA
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    SA.promote(conn, as_of="2026-07-09")
+    app = FastAPI()
+    app.include_router(av.router)
+    r = TestClient(app).get("/dash/attention")
+    assert r.status_code == 200
+    assert "Alert rail" in r.text and "active" in r.text
+    assert "HIGH" in r.text                                  # the severity cell renders
+    # A pre-feed replay has no served batch → the rail is cleanly skipped (no crash).
+    r2 = TestClient(app).get("/dash/attention?as_of=2020-01-01")
+    assert r2.status_code == 200
+
+
 def test_home_inner_capped_and_safe(patched, conn):
     html = av.attention_home_inner(limit=6)
     assert "RELIANCE" in html or "VEDL" in html

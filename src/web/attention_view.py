@@ -19,6 +19,13 @@ cookie-keyed strip of everything DETECTED since the viewer's last visit (the bus
 own `events_since` feed), distinct from the impact-ranked current-batch queue below.
 Last-visit is a client cookie (a timestamp) — no per-user server state, no new table.
 
+This module also hosts the bus's FOURTH face — the **alert rail** (`signal_alerts.py`):
+the curated, multi-day, severity-graded set of only the highest-impact state-changes,
+edge-triggered so each fires once and is kept as it rolls past today's batch. It is a
+strict subset of the queue (a short notifications list, not the firehose), read-only
+here (promotion runs in the nightly bus --detect), and it carries the same fence: a
+state-change, never a recommendation.
+
 Isolation: brand-new module; reads ONLY through signal_events' public read APIs;
 degrades to an honest empty state, never a 500. Route: /dash/attention.
 Home face: `attention_home_inner()` — '' when the bus is empty (board omitted).
@@ -33,6 +40,7 @@ from fastapi.responses import HTMLResponse
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
 from src.automation import signal_events as SE
+from src.automation import signal_alerts as SA
 
 router = APIRouter()
 
@@ -91,6 +99,22 @@ table.at tr:hover td{background:#11161d;}
 .at-seen-new{background:rgba(88,166,255,.10);border-color:rgba(88,166,255,.35);color:var(--ink);}
 .at-seen-none{background:var(--bg-2);color:var(--ink-2);}
 .at-seen-more{margin-top:6px;color:var(--ink-3);font-size:11.5px;}
+.at-rail{border:1px solid var(--line-2);border-radius:10px;padding:10px 13px;margin:0 0 14px;
+  background:var(--bg-2);}
+.at-rail-h{font-size:13px;font-weight:700;color:var(--ink);margin:0 0 4px;display:flex;
+  align-items:center;gap:8px;flex-wrap:wrap;}
+.at-rail-sub{font-size:11.5px;color:var(--ink-3);margin:0 0 8px;line-height:1.5;}
+.at-badge{display:inline-block;padding:1px 8px;border-radius:9px;font-size:11px;font-weight:800;
+  border:1px solid var(--line-2);color:var(--ink-2);}
+.at-badge.crit{background:rgba(248,81,73,.16);color:#f85149;border-color:rgba(248,81,73,.42);}
+.at-badge.high{background:rgba(210,153,34,.14);color:#d29922;border-color:rgba(210,153,34,.4);}
+.at-sev{display:inline-block;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:800;
+  letter-spacing:.3px;white-space:nowrap;}
+.at-sev-critical{background:rgba(248,81,73,.16);color:#f85149;}
+.at-sev-high{background:rgba(210,153,34,.14);color:#d29922;}
+.at-val{white-space:nowrap;font-size:11.5px;}
+.at-rail-more{margin-top:6px;color:var(--ink-3);font-size:11.5px;}
+.at-rail-empty{color:var(--ink-2);font-size:12.5px;}
 </style>
 """
 
@@ -187,6 +211,68 @@ def _lens_filter_chips(active: str | None) -> str:
     return '<div class="at-chips">' + "".join(chips) + "</div>"
 
 
+_VAL_GLYPH = {
+    "risk":        '<span class="at-val" style="color:#f85149">▼ risk</span>',
+    "opportunity": '<span class="at-val" style="color:#3fb950">▲ opp</span>',
+    "neutral":     '<span class="at-val" style="color:var(--ink-3)">· —</span>',
+}
+
+
+def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
+                      anchor: str | None, limit: int = 24, promoted_ever: bool = True) -> str:
+    """The alert rail — the bus's 4th face: the curated, multi-day, severity-graded set of
+    the highest-impact state-changes, edge-triggered (each fires once). Distinct from the
+    single-batch queue below and the per-viewer 'since you last looked' brief above it.
+    Pure over its inputs (hermetically testable). '' is never returned — an empty rail is
+    stated honestly (a quiet rail is a quiet rail)."""
+    total = int(count.get("total") or 0)
+    by = count.get("by_severity") or {}
+    crit, high = int(by.get("critical") or 0), int(by.get("high") or 0)
+    badges = []
+    if crit:
+        badges.append(f'<span class="at-badge crit">{crit} critical</span>')
+    if high:
+        badges.append(f'<span class="at-badge high">{high} high</span>')
+    head = ('<div class="at-rail-h">🔔 Alert rail '
+            + (f'<span class="at-badge">{total} active</span>' if total else "")
+            + "".join(badges) + '</div>')
+    sub = (f'<div class="at-rail-sub">The highest-impact state-changes over the last '
+           f'{window_days} days, each surfaced once — kept as they roll past today’s '
+           f'batch. A <b>state-change, never a recommendation</b>; the <i>valence</i> tag '
+           f'(risk / opportunity) reads the direction of the change, not what to do.</div>')
+    if not alerts:
+        msg = ('✓ No high-impact alerts in the window (only genuinely notable changes are '
+               'promoted here — the full tape is the queue below).' if promoted_ever else
+               'The rail seeds on the nightly bus run (chain step 60) — no alerts have been '
+               'promoted on this host yet. The full tape is the queue below.')
+        return ('<div class="at-rail">' + head + sub
+                + f'<div class="at-rail-empty">{msg}</div></div>')
+    rows = []
+    for a in alerts[:limit]:
+        sev = a.get("severity") or "high"
+        val = _VAL_GLYPH.get(a.get("valence") or "neutral", _VAL_GLYPH["neutral"])
+        fr, to = a.get("from_state"), a.get("to_state")
+        change = (f'<span class="at-state">{_esc(str(fr))}</span> '
+                  f'<span class="at-arrow">→</span> '
+                  f'<span class="at-state">{_esc(str(to))}</span>'
+                  if fr is not None else f'<span class="at-state">{_esc(str(to or "—"))}</span>')
+        rows.append(
+            f'<tr><td><span class="at-sev at-sev-{_esc(sev)}">{_esc(sev.upper())}</span></td>'
+            f'<td>{val}</td>'
+            f'<td>{_sym_cell(a)}</td>'
+            f'<td>{_lens_chip(a.get("lens") or "")}</td>'
+            f'<td class="at-noteline">{_esc(a.get("note") or "")}</td>'
+            f'<td>{change}</td>'
+            f'<td class="num" style="color:var(--ink-3);white-space:nowrap">'
+            f'{_esc(str(a.get("as_of") or ""))}</td></tr>')
+    head_row = ('<tr><th>Severity</th><th>Read</th><th>Symbol</th><th>Lens</th>'
+                '<th>Note</th><th>From → To</th><th style="text-align:right">as_of</th></tr>')
+    more = (f'<div class="at-rail-more">+ {total - limit} more active — narrow by lens '
+            f'below, or see the full tape</div>' if total > limit else "")
+    return ('<div class="at-rail">' + head + sub
+            + f'<table class="at">{head_row}{"".join(rows)}</table>' + more + '</div>')
+
+
 def render_since_last_looked(new_events: list[dict], since_ts: str | None,
                              *, first_visit: bool, limit: int = 15) -> str:
     """The 'since you last looked' brief — events DETECTED after the viewer's last visit,
@@ -250,6 +336,15 @@ def attention_page(request: Request, as_of: str = "", lens: str = "") -> HTMLRes
                 'carries the date it is computed <i>for</i> (<code>as_of</code>, point-in-'
                 'time honest). An event is a <b>state-change, never a recommendation</b>. '
                 '<a href="/dash/glossary?q=attention">glossary →</a></div>')
+            # --- alert rail (the bus's 4th face): the curated, multi-day, severity-graded
+            # set of the highest-impact changes, anchored to the SERVED batch so a replay
+            # windows on that date. Rendered for live AND replay; empty state is honest. ---
+            if served and (st.get("events") or 0) > 0:
+                rail_alerts = SA.active_alerts(conn, within_days=7, limit=25, as_of=served)
+                rail_count = SA.active_count(conn, within_days=7, as_of=served)
+                ever = (SA.stats(conn).get("alerts") or 0) > 0    # table populated at all?
+                body.append(render_alert_rail(rail_alerts, rail_count, window_days=7,
+                                              anchor=served, limit=24, promoted_ever=ever))
             # --- "since you last looked" brief (LIVE view only; a replay is a historical
             # read, not a visit) — reuses the bus's events_since feed, keyed on a client
             # cookie. Compute against the OLD cookie, then stamp the cookie to now. ---

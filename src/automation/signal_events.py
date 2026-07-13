@@ -447,7 +447,21 @@ def main() -> None:
     syms = [s for s in args.symbols.split(",") if s.strip()] or None
     with get_conn() as conn:
         if args.detect:
-            log.info("done: %s", run_detection(conn, as_of=args.asof))
+            result = run_detection(conn, as_of=args.asof)
+            # Piggyback the alert-rail promotion (the bus's 4th face) onto the same nightly
+            # --detect step so no systemd unit changes. Isolated + non-fatal: a failure here
+            # never fails detection. run_detection stays pure (no alert coupling) for tests.
+            # Promote a WINDOW of recent batches, not just MAX(as_of): the five lenses set as_of
+            # from independent clocks (deal = last deal day, cci = filing day, mep/oi/rs = trade
+            # date), so on a night when one feed lags, its events sit in an earlier batch that a
+            # single-batch promote would skip forever. backfill is edge-triggered/idempotent.
+            try:
+                from src.automation.signal_alerts import backfill as _backfill_alerts
+                alerts = _backfill_alerts(conn, batches=8)
+            except Exception:  # noqa: BLE001
+                log.exception("signal_alerts backfill failed (non-fatal)")
+                alerts = {"promoted": "error"}
+            log.info("done: %s | alert-rail: %s", result, alerts)
         elif args.stats:
             import json
             print(json.dumps(stats(conn), indent=2))
