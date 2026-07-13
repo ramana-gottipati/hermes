@@ -279,6 +279,7 @@ D:\Hermes\                                          ← local working copy of re
 │       ├── score_batch.py                           ← bounded/prioritized batch pt14 scoring (B6/D46; honors D8 — surfaced names only)
 │       ├── mtf_signals.py                            ← HELD MTF engine (D52; weekly/monthly bars+signals) — authored, not run (memory: mtf-foundation-held-uncommitted)
 │       ├── cpr_signals.py                            ← CPR "Structure" pillar engine (D53): self-resampled D/W/M CPR geometry + U/∩ reversal + compression → cpr_signals
+│       ├── reversal_context.py                       ← DESCRIPTIVE reversal-context columns (S132): band state/stretch pctile + confirmed-fractal floor → isolated `reversal_context` snapshot (falsified as a signal — ledger 07-13/14/14b; Screen+ "rev" group reads it)
 │       ├── theme_tags.py                             ← THEME TAGS (D63): THEME_VOCAB + deterministic index-seeder + read helpers + approve/add + Phase-2 Haiku proposer → company_tags (screener.py also now harvests company_about)
 │       └── code_review.py                            ← D68 GLM-5.2 headless code reviewer (report-only; OWN isolated Z.ai client; nightly → Telegram DM + data/code_reviews/)
 │   └── pat\                                          ← "Pat" NL guided-search tab (D55) — Gemini-only, web not Telegram
@@ -1971,6 +1972,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 132 — 2026-07-13/14 — Reversal-pair research arc (3 pre-registered studies, ALL falsified) + the descriptive survivors shipped to Screen+ — SHIPPED
+Ramana's two reversal ideas (STREAM BAND 13-EMA HiLo band + 5-EMA HLC3 trigger · FRACTAL FLOOR 10-fractal floor + up-fractal breakout) taken through the full honest pipeline in one arc. Canonical record: `docs/strategy-ledger.md` §§ 2026-07-13 / 07-14 / **07-14b** + `docs/reversal-pair-PLAN.md` (arc CLOSED).
+- **Research (commits `d0ecda4` · `22785af` · `fe431f1`):** 3 hash-frozen pre-registered studies on the VPS research venv (prereg `streamband 92fc5cac` · `fractal_floor 939a33cc` · `fractal_fences bb22eff6`). STREAM BAND cross = **ANTI-signal** (n=35,519; both placebos beat it). FRACTAL FLOOR trigger = no event edge; trigger≈watch (confirmation INERT); the PROX10 book's apparent 1.04 was **GROSS — an accounting defect caught by the fences reconstruction gate** (true flat-cost 0.59); all 3 fences FAILED (cost ladder 0.19@₹1cr→−1.55@₹100cr · random-entry/same-exit ≈ real · lag+min-fill 0.30). **Zero tradeable survivors; reversal-family proposals must cite these entries first.**
+- **Product (this commit):** the two falsification-surviving DESCRIPTIVE columns shipped per Ramana's direction: NEW `src/automation/reversal_context.py` (pure-stdlib nightly compute → isolated bounded `reversal_context` table, one row/symbol; PIT fractal-confirmation lag enforced; own SCHEMA, no db.py edit) + Screen+ **"Reversal ctx" group** (4 cols: Band ⚠reclaim-as-CAUTION · Stretch% · own-3y stretch percentile · Floor gap/age/broken) via `_revctx_by_sym`/`_rev_cells` in `screener_plus.py` (additive; codex-lane hunks untouched) + 4 glossary entries (`docs/metrics-glossary.md` § Reversal context) + nightly ExecStart appended to the captured `10-signals.conf` (bhavcopy chain; no timer start) + `tests/test_reversal_context.py` (5 green).
+- **Honesty fence baked in:** the reclaim cross renders as a caution with the falsification in its tooltip + glossary; the group is excluded from confluence; never rank/alert on these columns.
 
 ### Session 131 — 2026-07-14 — Doc-governance audit + portable/continuous enforcement (D128) — SHIPPED
 Verified the documentation-governance framework against the real repo (see D128). Enforcement was real but not portable (state-doc hook lived only in gitignored `settings.local.json`; no CI/pre-commit) and `DOC_INDEX.md` had drifted (39 unindexed / 32 un-bannered). Removed two orphan artifacts (`PROJECT_STATE.md.orig` 906 KB + `.rej`) after byte-verifying their content was already folded into the live doc.

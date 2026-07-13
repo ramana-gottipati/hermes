@@ -46,7 +46,8 @@ _SECTORS = ["Nifty Bank", "Nifty Financial Services", "Nifty IT", "Nifty Auto",
 _GROUPS = [
     ("conf", "Confluence"), ("pos", "Positioning · DVPT"), ("mep", "Accumulation · MEP"),
     ("rs", "Relative strength"), ("cpr", "Structure · CPR"),
-    ("cci", "Credibility · CCI"), ("wol", "Wolfe"), ("qual", "Quality · pt14"),
+    ("cci", "Credibility · CCI"), ("wol", "Wolfe"), ("rev", "Reversal ctx"),
+    ("qual", "Quality · pt14"),
     ("ca", "Cap-alloc · C"), ("ctx", "Context"),
 ]
 
@@ -211,6 +212,62 @@ def _wolfe_by_sym(conn, syms):
     except Exception as e:  # noqa: BLE001
         log.warning("wolfe lookup failed: %s", e)
     return out
+
+
+def _revctx_by_sym(conn, syms):
+    """{sym: row} reversal_context (owned by reversal_context.py — READ-ONLY here).
+
+    DESCRIPTIVE ONLY — the whole reversal-pair research arc was falsified as a
+    trading signal (ledger §§ 2026-07-13 / 07-14 / 07-14b): the band reclaim-cross
+    ANTI-selects and the floor-breakout book died at true cost. What ships is the
+    surviving CONTEXT: band state (reclaim = caution, not entry), own-history
+    stretch percentile, and the confirmed-fractal floor as a risk/invalidation
+    level. Never rank, alert, or confluence-count on these columns."""
+    out = {}
+    if not syms:
+        return out
+    try:
+        if not conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='reversal_context'"
+        ).fetchone():
+            return out
+        ph = ",".join("?" for _ in syms)
+        for r in conn.execute(
+                f"SELECT * FROM reversal_context WHERE symbol IN ({ph})", syms).fetchall():
+            out[r["symbol"]] = dict(r)
+    except Exception as e:  # noqa: BLE001
+        log.warning("revctx lookup failed: %s", e)
+    return out
+
+
+_REV_STATE = {"RECLAIM": ("⚠ reclaim", "early band-reclaims after a downtrend have "
+                          "historically UNDERPERFORMED (falsified as an entry) — a caution flag"),
+              "SLIP": ("↓ slip", "trigger slipped below the upper bank"),
+              "ABOVE": ("above", "trigger above both banks"),
+              "INSIDE": ("in band", "trigger between the banks"),
+              "BELOW": ("below", "trigger below both banks")}
+
+
+def _rev_cells(rv) -> str:
+    """The 4 Reversal-ctx tds (band · stretch% · stretch pctile · floor). Descriptive."""
+    st = rv.get("band_state") or ""
+    label, tip = _REV_STATE.get(st, ("—", ""))
+    sp = rv.get("stretch_pct")
+    pc = rv.get("stretch_pctile")
+    pc_txt = f"p{pc:.0f}" if pc is not None else "—"
+    gap, age, deg = rv.get("floor_gap_pct"), rv.get("floor_age"), rv.get("floor_deg")
+    alive = rv.get("floor_alive")
+    if gap is None:
+        floor_txt, floor_v = "—", 999
+    elif not alive:
+        floor_txt, floor_v = f"✗ broken D{deg}", 999
+    else:
+        floor_txt, floor_v = f"+{gap:.1f}% · D{deg} · {age}d", gap
+    return (
+        f'<td class="l cg-rev" data-v="{K.esc(st)}" title="{K.esc(tip)}">{K.esc(label)}</td>'
+        f'<td class="num cg-rev" data-v="{sp if sp is not None else -999}">{_num(sp, 1)}</td>'
+        f'<td class="num cg-rev" data-v="{pc if pc is not None else -1}">{pc_txt}</td>'
+        f'<td class="l cg-rev mut" data-v="{floor_v}">{K.esc(floor_txt)}</td>')
 
 
 def _pt14_by_sym(conn, syms):
@@ -611,7 +668,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     is_watch = scope.lower() in ("watch", "watchlist")
     rows: list[dict] = []
     sig_date = None
-    cpr_d = cpr_w = cci = wolfe = pt14 = calloc = {}
+    cpr_d = cpr_w = cci = wolfe = pt14 = calloc = rev = {}
     n_members = None
 
     try:
@@ -670,6 +727,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                     wolfe = _wolfe_by_sym(conn, syms)
                     pt14 = _pt14_by_sym(conn, syms)
                     calloc = _calloc_by_sym(conn, syms)
+                    rev = _revctx_by_sym(conn, syms)
     except Exception as e:  # noqa: BLE001
         log.warning("screen2 query failed: %s", e)
 
@@ -683,6 +741,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         wf = wolfe.get(sym, {})
         pq = pt14.get(sym, {})
         ca = calloc.get(sym, {})
+        rv = rev.get(sym, {})
 
         # confluence pillars (each 0/1) — the unifying read. Now MEP×CCI×RS×CPR×Wolfe
         # (the 5 the brief names) PLUS the DVPT positioning pillar = a 0-6 confluence.
@@ -770,6 +829,8 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             # wolfe (geometry — descriptive selection, the brief's 5th pillar)
             f'<td class="l cg-wol" data-v="{K.esc(wf.get("dir") or "")}">{_wolfe_pill(wf)}</td>'
             f'<td class="num cg-wol" data-v="{wf.get("q") or -1}">{_num(wf.get("q"),0)}</td>'
+            # reversal ctx (descriptive-only; falsified as a signal — ledger 07-13/14/14b)
+            f'{_rev_cells(rv)}'
             # quality · pt14
             f'<td class="num cg-qual" data-v="{pq.get("ns_base") if pq.get("ns_base") is not None else -1}">{_num(pq.get("ns_base"),0)}</td>'
             f'<td class="l cg-qual" data-v="{K.esc(pq.get("tier") or "")}">{_qual_pill(pq)}</td>'
@@ -796,6 +857,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         '<th class="cg-cpr s2gh" colspan="3">structure · cpr</th>'
         '<th class="cg-cci s2gh" colspan="3">credibility · cci</th>'
         '<th class="cg-wol s2gh" colspan="2">wolfe</th>'
+        '<th class="cg-rev s2gh" colspan="4">reversal ctx</th>'
         '<th class="cg-qual s2gh" colspan="2">quality · pt14</th>'
         '<th class="cg-ca s2gh" colspan="2">cap-alloc · C</th>'
         '<th class="cg-ctx s2gh" colspan="5">context · character</th></tr>')
@@ -806,6 +868,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             'D', 'Cmpr', 'W',
             'CCI', 'Tier', 'Trend',
             'Wolfe', 'Q',
+            'Band', 'Stretch%', 'sPctl', 'Floor',
             'NS', 'pt14',
             'C', 'C tier',
             'Character', 'Surge', 'Ticket', '%52wH', 'Char']
@@ -816,6 +879,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                   'cg-cpr', 'cg-cpr', 'cg-cpr',
                   'cg-cci', 'cg-cci', 'cg-cci',
                   'cg-wol', 'cg-wol',
+                  'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev',
                   'cg-qual', 'cg-qual',
                   'cg-ca', 'cg-ca',
                   'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
@@ -831,6 +895,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                  'pattern', 'compression_pctile', 'pattern',          # cpr
                  'Credibility composite', 'Credibility composite', 'Credibility level',  # cci (now documented; NOT 'tier'→pt14)
                  '', '',                                              # wolfe (undocumented)
+                 'Band state', 'Stretch %', 'stretch_pctile', 'floor_gap_pct',  # reversal ctx
                  'ns_base', 'ns_base',                                # quality · pt14
                  'ca_score', 'ca_tier',                               # capital allocation · C
                  'accum_character', 'surge 1m', 'ticket_ratio_1m_6m',
@@ -983,7 +1048,7 @@ table.s2 td.inst{padding:3px 8px;text-align:left}
 .hstrip .hs-nd{background:var(--bg-3);color:var(--ink-3)}
 /* group hide classes (toggled on the wrapper) */
 .h-conf .cg-conf,.h-pos .cg-pos,.h-mep .cg-mep,.h-rs .cg-rs,
-.h-cpr .cg-cpr,.h-cci .cg-cci,.h-wol .cg-wol,.h-qual .cg-qual,.h-ca .cg-ca,.h-ctx .cg-ctx{display:none}
+.h-cpr .cg-cpr,.h-cci .cg-cci,.h-wol .cg-wol,.h-rev .cg-rev,.h-qual .cg-qual,.h-ca .cg-ca,.h-ctx .cg-ctx{display:none}
 </style>"""
 
 _JS = """<script>(function(){
@@ -993,7 +1058,7 @@ var KEY='s2_hidden_v1', SKEY='s2_screens_v1';
 function getHidden(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
 function setHidden(h){localStorage.setItem(KEY,JSON.stringify(h))}
 function applyHidden(){var h=getHidden();
-  ['conf','pos','mep','rs','cpr','cci','wol','qual','ctx'].forEach(function(g){
+  ['conf','pos','mep','rs','cpr','cci','wol','rev','qual','ctx'].forEach(function(g){
     wrap.classList.toggle('h-'+g, !!h['cg-'+g]);
     var b=document.querySelector('.gchip[data-g="cg-'+g+'"]'); if(b) b.classList.toggle('on', !h['cg-'+g]);
   });}

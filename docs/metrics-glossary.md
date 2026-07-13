@@ -346,6 +346,15 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Expected-by-cadence (projection).** The next occurrence a name is due by its own spacing — an **estimate from rhythm, not an announcement**. `anchor_basis='declared'` (a real exchange board-meeting intimation) is the confirmed variant, surfaced on Results reactions, not here. *Source:* `seasonal_events.anchor_basis`.
 - **Times seen (n_history).** How many prior occurrences the cadence is built from — higher = a more established rhythm. *Source:* `seasonal_events.n_history`.
 
+## Reversal context (descriptive — falsified as a signal)
+
+> The surviving *context* columns of the reversal-pair research arc (strategy-ledger §§ 2026-07-13 / 07-14 / 07-14b: the band reclaim-cross ANTI-selected and the floor-breakout book died at true cost). None of these is an entry signal, ranking input, or confluence pillar. `src/automation/reversal_context.py` → the bounded `reversal_context` snapshot; shown as the Screen+ "Reversal ctx" group.
+
+- **Band state** — where the 5-EMA typical-price *trigger* sits vs the 13-EMA high/low *banks*: above / in band / below, plus today's crosses. **⚠ reclaim** (trigger back above the lower bank after a spell below) is a **caution, not a buy**: tested 2012-26, those reclaims *underperformed* random days (22d median excess −1.25%). *Source:* `band_state`, `below_run` (table `reversal_context`).
+- **Stretch %** — signed % gap between the trigger and the bank it has violated (0 inside the band). Positive = extended above the upper bank; negative = stretched below the lower. *Source:* `stretch_pct` (table `reversal_context`).
+- **Stretch percentile** — today's stretch ranked against the SAME stock's own trailing ~3 years (per-stock, in percent, never an absolute threshold — small-caps naturally stretch wider than large-caps). p90+ = unusually extended for *this* name; p10− = unusually depressed. *Source:* `stretch_pctile` (table `reversal_context`).
+- **Floor gap** — distance above the latest CONFIRMED 10-bar (fallback 5-bar) down-fractal low, with the floor's age; "✗ broken" once a close prints below it. A degree-N fractal is only knowable N bars later — no look-ahead. Useful as a **risk / invalidation level** (how far above well-defined support you sit), not as a bounce predictor (the breakout entry tested inert). *Source:* `floor_gap_pct`, `floor_age`, `floor_alive` (table `reversal_context`).
+
 ---
 
 ### Status
