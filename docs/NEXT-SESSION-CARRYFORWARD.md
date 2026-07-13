@@ -10,6 +10,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-14 — S133: S-H no-orphan ROUTE-REGISTRY GATE SHIPPED (`181fd01`, on origin/main) — do NOT redo; kickstart-pick-verify
+- **`tests/test_dash_route_registry.py`** — the structural gate the audit §8 / `SURFACE-PLAYBOOK.md` §5 name. Every `/dash` route `src.main` serves must classify into ONE RouteKind (`lens`·`nested_child`·`dossier`·`api_or_action`·`compat_redirect`·`internal_dev`·`exempt`-with-owner+rationale). `lens`+`compat_redirect` DERIVED from `lens_registry`+`nested_nav` (no drift); the rest are machine-readable tables seeded from the §5 orphan inventory. Unregistered route → FAIL (2 synthetic-orphan proofs), SURFACE-PLAYBOOK checklist in the message. **158 paths classify clean; 7 pytest contracts green; full suite 149 passed.** Test-only/additive (no src/scripts, no deploy); **auto-run by `regression_sweep.sh` Gate 0** beside `nav_integrity_gate.py`.
+- **To satisfy it when adding a page:** register a `Lens` (or add the route to exactly one machine-readable table in the test WITH owner+rationale) — prose in a doc does NOT count (playbook §5). Complements, does not replace, `scripts/nav_integrity_gate.py` (rendered-reachability).
+- **Deferred (S-D):** ⌘K palette generated from `lens_registry` (kills the hand-maintained PAGES map) — a shared-`ui_kit.py` change, not parallel-safe. **Next UX pick: S-C education-everywhere.**
+
 ## 🔧 2026-07-13 — S123 P1 AUDIT-INTEGRITY SWEEP (a DISJOINT lane from S-A/UX) — do NOT redo; kickstart-pick-verify
 - **6 audit P1s resolved + the alert-rail triage surface — all deployed + live** (full record: PROJECT_STATE § Session 123, bullets S123/-b…-n; all commits **local/unpushed** — they ride the shared-main push):
   - **Alert rail** = the bus's 4th face, LIVE at `/dash/attention` (build → dismiss → filter): `8241bba` / `ea7451c` / `5ebee3c`. New reusable `src/automation/signal_alerts.py`.
@@ -24,7 +29,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** S-H route-registry gate (parallel-safe, cheap) → S-C education-everywhere → S-D search/entry. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route-registry gate~~ **✅ DONE S133 (`181fd01`)** → **S-C education-everywhere (NEXT)** → S-D search/entry. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.
