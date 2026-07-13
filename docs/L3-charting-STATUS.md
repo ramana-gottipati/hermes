@@ -1,5 +1,8 @@
 # Lane L3 — Charting site-wide — STATUS (2026-06-29)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the L3 charting lane closes. Registered in `docs/DOC_INDEX.md`.
+
+
 > Wrap note for Lane L3. Base HEAD was `05cdeae`. L3 commits: W1 `ccbd25e`+`1a9fe2c`,
 > W2 `6e3b22d`+`dc1da97`, W3 `7b49e4e`+`8b39551`, **W4 `76d465f`**. Both gates PASS. Full
 > inventory = `docs/L3-chart-inventory.md` (W2 §8–§11, W3 §12–§17, **W4 §18–§22**).

@@ -1,5 +1,8 @@
 # QA Round-2 Register — Patearn pitch-critical path (DEPTH)
 
+> **Lifecycle: PERMANENT.** keep-forever round-2 QA findings record; not retired. Registered in `docs/DOC_INDEX.md`.
+
+
 **Method:** Round 2 is a DEPTH pass on the 6-beat demo path (Coverage → Provenance → Replay → dossier → screener → Pat), driven in-browser as a skeptical PMS/AIF/family-office allocator over the live VPS (localhost:8000 via SSH tunnel), with computed-DOM probes, cross-surface number reconciliation, and back-end SQL spot-checks to confirm whether a suspicious value is a *display* bug or a *data/methodology* bug. Focus: not "does it render" (Round 1 closed that, 0 critical) but **does the data tell a coherent, honest, impressive story that survives a CFA's sniff test.**
 
 **Date:** 2026-06-29 · **Reviewer:** QA-ROUND2-DEEP agent · **Build under test:** HEAD `36ba337` (live VPS) · **Scope:** READ-ONLY on code; only this file committed.

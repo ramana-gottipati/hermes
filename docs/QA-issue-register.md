@@ -1,5 +1,8 @@
 # QA Issue Register — patearn live site
 
+> **Lifecycle: PERMANENT.** keep-forever round-1 QA findings record; not retired. Registered in `docs/DOC_INDEX.md`.
+
+
 **Method:** In-browser sweep of the live VPS app (localhost:8000 via SSH tunnel), driven with Claude-in-Chrome as a skeptical user. Every surface in `src/web/lens_registry.py` plus `/dash/stock?sym=RELIANCE` and `/dash/pat`. For each: computed-style probe (greens-in-use by exact RGB, table/row counts, overflow at the real CSS viewport, `NaN`/`None`/error-text scan), console read, and a screenshot. Findings are graded by what was **confirmed in the DOM/computed styles**, not by eyeballing a screenshot.
 
 **Date:** 2026-06-29 · **Reviewer:** QA-SWEEP agent · **Build under test:** HEAD `29cd9a3`

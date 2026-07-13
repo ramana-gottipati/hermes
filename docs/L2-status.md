@@ -1,5 +1,8 @@
 # Lane L2 — Native bodies & chrome polish — STATUS
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the L2 lane closes. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Closed 2026-06-29.** Sole builder: autonomous L2 session. Branch `main`, started at HEAD
 > `05cdeae`. All work in owned files only (`src/web/shell_skin.py` + new docs). Both gates PASS;
 > every change deployed to the live VPS and verified IN-BROWSER before commit.

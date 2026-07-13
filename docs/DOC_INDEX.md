@@ -16,6 +16,11 @@
 > doc count is climbing through the session (53 → 62 as lanes spawn status docs) — treat any
 > count here as a snapshot. The authoritative completeness check is the **disk-vs-index diff**
 > (compare `docs/*.md` on disk against the names referenced here), not this file's own tally.
+>
+> **Round-4 update (2026-07-14, S131/D128):** the `doc_hygiene_gate.py` ratchet now machine-checks
+> disk-vs-index. This pass closed the coverage gap — the 35 previously-unindexed docs are catalogued
+> below (A/B/C/D/E/F) and 32 transient docs carry `Lifecycle:` banners; lane docs (`L<N>-*`,
+> `parallel-sessions-*`, `CARRY-FORWARD-*`, `*-LANE-*`) stay covered by the by-rule clause.
 
 ## Classes
 `CANONICAL` keep indefinitely · `DESIGN(live)` design-of-record for shipped/in-build
@@ -26,7 +31,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 ---
 
-## A. CANONICAL (10)
+## A. CANONICAL (13)
 
 | Doc | Why |
 |---|---|
@@ -40,8 +45,11 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/metrics-glossary.md` | Metric definitions source. |
 | `docs/product-strategy-2026.md` | Product / PO strategy reference. |
 | `docs/ui-architecture-v2.md` | Canonical IA / schema doc. |
+| `docs/SESSION-PROTOCOL.md` | Binding per-session start/end checklist (CLAUDE.md boot references it). |
+| `docs/calculations-and-weights.md` | Canonical single-source explainer of every analytical weight + formula. |
+| `docs/patearn-charter.md` | CEO-mode operating doctrine + NOW roadmap (amended by the Decision log). |
 
-## B. DESIGN(live) — design-of-record, keep (18)
+## B. DESIGN(live) — design-of-record, keep (24)
 
 | Doc | Note |
 |---|---|
@@ -64,8 +72,14 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/pitch-demo-and-positioning-DECISIONS.md` | Decided positioning calls to fold into decision log. |
 | `docs/navigation-and-structure-review.md` | Review draft, not yet decided/built. |
 | `docs/nav-ia-DECISIONS-and-prompts.md` | Scope×Lens nav IA — Ramana-approved, LOCKS the IA. |
+| `docs/color-system-alignment.md` | Colour-token alignment design-of-record; Phases 0–4 shipped, tail open. |
+| `docs/fundamentals-xbrl-migration.md` | DoR for the Screener→NSE/BSE-XBRL fundamentals migration (Guardrail #8). |
+| `docs/momentum-engine-formalization.md` | Living spec: gross-momentum selection → production ranking lens. |
+| `docs/premium-visuals-brainstorm.md` | Living design program for the premium-visuals / infographics uplift. |
+| `docs/rs-momentum-divergence-roadmap.md` | Living master plan: RSI-of-RS + divergence + recovery ecosystem. |
+| `docs/ux-journey-audit-2026-07-13.md` | Joint Claude+Codex UX/IA audit of record + S-A…S-H program tracker. |
 
-## C. DESIGN(stale) — keep, trim superseded sections later (4)
+## C. DESIGN(stale) — keep, trim superseded sections later (6)
 
 | Doc | Note |
 |---|---|
@@ -73,6 +87,8 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/multi-timeframe-positioning-design.md` | Agreed but not built. |
 | `docs/dvpt-picking-strategy-design.md` | Thesis empirically revised; preserve reframe. |
 | `docs/explosive-move-research.md` | Working doc; thesis revised, launchpad not fully retired. |
+| `docs/reversal-pair-PLAN.md` | Pre-build design for two reversal strategies; both gate-failed (descriptive-only). |
+| `docs/screener-merge-plan.md` | Plan to give Screen+ the original Screen's pictorial instruments. |
 
 ## D. RUN-BOOK(active) — transient, retire-condition NOT fired, KEEP
 
@@ -88,7 +104,11 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 `docs/pat-f3-flagship-analyst.md` · `docs/CARRY-FORWARD-anchor-and-4-lanes.md` ·
 `docs/L2-body-migration-audit.md` · `docs/L2-status.md` · `docs/L3-chart-inventory.md` ·
 `docs/L3-charting-STATUS.md` · `docs/patearn-AUTONOMOUS-COMPLETION.md` · `docs/provenance-coverage-NEXT-SESSION.md` ·
-`docs/DOC_INDEX.md` (this file) · `research/cci/README.md`
+`docs/DOC_INDEX.md` (this file) · `research/cci/README.md` ·
+`docs/CORRECTION-ARC-HANDOFF.md` · `docs/CORRECTION-KICKSTART-PROMPT.md` · `docs/KICKSTART-NEXT-SESSION.md` ·
+`docs/KICKSTART-PATEARN-NEXT.md` · `docs/NEXT-SESSION-CARRYFORWARD.md` · `docs/POST-MERGE-DEPLOY-RUNBOOK.md` ·
+`docs/chrome-consistency-sweep.md` · `docs/strategic-review-2026-07-07.md` ·
+`docs/codex-review/00-CONTEXT-FOR-CODEX.md` · `docs/codex-review/FINDINGS-LEDGER.md`
 
 > **Lane-record rule (so this index stops chasing live lanes):** every `docs/lane-*.md`,
 > `docs/L<N>-*.md` (e.g. `L2-status.md`, `L3-charting-STATUS.md`, `L4-status.md`),
@@ -101,7 +121,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 `LOG.md`, and the `req-*` / `resp-*` / `PROPOSALS-*` artifacts. Process scaffolding;
 keep while the bridge is in use (gitignore-able).
 
-## E. REFERENCE — keep (9)
+## E. REFERENCE — keep (23)
 
 | Doc | Note |
 |---|---|
@@ -115,8 +135,21 @@ keep while the bridge is in use (gitignore-able).
 | `resources/patearn/patterns.md` | 14-pattern definitions. |
 | `resources/patearn/failures.md` | Failure case studies. |
 | `resources/patearn/exit-protocol.md` | Exit protocol. |
+| `docs/AUDIT-2026-07-02-institutional-review.md` | Multi-agent platform audit; 117 AUD findings (permanent record). |
+| `docs/bug-audit-2026-06.md` | 2026-06-30 full-codebase bug/improvement audit + verdicts. |
+| `docs/DATA-POSTMORTEM-2026-07-05.md` | Data-estate deep-dive; live counts + integrity-failure findings. |
+| `docs/DATASET-RESEARCH-BRIEF.md` | Living brief ranking/costing candidate datasets under PIT+cost gates. |
+| `docs/QA-issue-register.md` | Round-1 in-browser QA sweep — graded findings record. |
+| `docs/QA-round2-register.md` | Round-2 depth QA of the 6-beat pitch path — findings record. |
+| `docs/institutional-panel-assessment.md` | Four-reviewer institutional adversarial assessment synthesis. |
+| `docs/mvio-dataset-a.md` | Institutional proof-point: PIT insider/promoter/pledge event dataset. |
+| `docs/predictive-attributes-findings.md` | Findings record: momentum is beta, not selection alpha. |
+| `docs/validation-memo.md` | SR 11-7 model-validation memo (momentum lens + C/A/B layer). |
+| `docs/codex-review/UX-CODEX-INDEPENDENT.md` | Codex's independent UX/web-estate review findings. |
+| `docs/codex-review/UX-DIALOGUE-R1-CODEX.md` | Codex round-1 UX dialogue verdicts. |
+| `docs/codex-review/UX-DIALOGUE-R2-CODEX.md` | Codex round-2 UX final verification + drift check. |
 
-## F. ARCHIVE? — candidates, **DEFERRED** (do NOT act while lanes are live) (4)
+## F. ARCHIVE? — candidates, **DEFERRED** (do NOT act while lanes are live) (5)
 
 | Doc | Fold first? | When |
 |---|---|---|
@@ -124,6 +157,7 @@ keep while the bridge is in use (gitignore-able).
 | `docs/research-prompt-B-cost-realism.md` | No — implemented (`research/explosive_moves/cost_realism.py` + ledger records it). | Clean archive once tree is quiet. |
 | `docs/explosive-move-NEXT-SESSION.md` | **Yes** — fold named-flow A/B + future-frontier notes into PROJECT_STATE first. | After fold + quiet. |
 | `docs/next-session-kickstart.md` | **Yes** — fold residual perf/concurrency notes into current UI docs first. | After fold + quiet. |
+| `docs/PR-1-DESCRIPTION.md` | No — PR #1 already merged (`58e68fa`); body lives in git + PROJECT_STATE. | Clean archive once tree is quiet. |
 
 When the lanes quiesce: regenerate this map, run the four-gate check (`AGENTS.md` #7),
 fold durable content into `PROJECT_STATE.md`, then `git mv` into `docs/archive/`.

@@ -1,5 +1,8 @@
 # Lane L4 — Pat copilot + research wedge — STATUS
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the L4 lane closes. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Session 2026-06-29.** Sole autonomous builder of Lane L4 (Pat copilot + the research/provenance
 > wedge). HEAD at boot `05cdeae`. Both gates (`regression_sweep.sh` + `chrome_gate.py`) PASS.
 > Owned: `src/pat/*`, `src/web/{strategist_view,screener_plus,provenance}.py`, `src/automation/cci_*`,

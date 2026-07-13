@@ -1,5 +1,8 @@
 # CORRECTION ARC — HANDOFF / KICKSTART (boot from this)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once all deferred correction/bug-audit items land + are folded into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created 2026-06-30.** If you are a fresh session continuing the correction + bug-audit arc, **boot from this file** (plus `PROJECT_STATE.md`, `CLAUDE.md`, `AGENTS.md`). It is the running kickstart — keep it current as you work. Companion sources: `docs/bug-audit-2026-06.md` (the 170-finding audit), `docs/QA-issue-register.md` + `docs/QA-round2-register.md` (UI/demo QA), `PROJECT_STATE.md` Sessions 54–57.
 
 ## 0. WRAP STATE — 2026-07-01 (latest; READ FIRST)

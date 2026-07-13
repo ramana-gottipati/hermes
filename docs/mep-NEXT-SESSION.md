@@ -1,5 +1,8 @@
 # MEP — NEXT-SESSION handoff & self-prompt (2026-06-22)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the MEP follow-ups ship + fold. Registered in `docs/DOC_INDEX.md`.
+
+
 > **TRANSIENT run-book** (per [[transient-doc-lifecycle]]). Retire when the OPEN ITEMS below are closed.
 > Canonical design + per-step verification: **`docs/mep-strategy-design.md`**. Memory: **[[mep-strategy-built-deployed]]**.
 > Terminology (Ramana's shorthand, not in code): **DDPK = DVPT**; **MEP = signed accumulation/distribution**.

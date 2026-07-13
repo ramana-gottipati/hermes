@@ -1,5 +1,8 @@
 # Kick-start — next session (paste this to continue)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the colour-migration thread is folded into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > Written 2026-07-01 at the end of the UI/colour session. Boot from this, then delete/replace it
 > once the next session's work is folded into `PROJECT_STATE.md`.
 

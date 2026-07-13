@@ -41,6 +41,9 @@ AGENTS_MD = ROOT / "AGENTS.md"
 # the strategy pages, which have their own coverage gate: test_strategy_docs_coverage).
 INDEX_EXEMPT_SUFFIXES = ("DOC_INDEX.md",)
 INDEX_EXEMPT_DIRS = ("strategies",)  # governed by tests/test_strategy_docs_coverage.py
+# Lane run-books are RUN-BOOK(active) "by rule" per DOC_INDEX.md's Lane-record clause — the index
+# deliberately does NOT list each one individually, so they are covered without their own entry.
+INDEX_EXEMPT_LANE = re.compile(r"(^|/)(lane-|L\d+-|parallel-sessions-|CARRY-FORWARD-)|-LANE-", re.IGNORECASE)
 
 TRANSIENT_NAME = re.compile(
     r"(PLAN|HANDOFF|NEXT-SESSION|KICKSTART|CARRY-?FORWARD|EXECUTE|ROUND\d|"
@@ -62,38 +65,11 @@ TWIN_INVARIANTS = {
 }
 
 # ───────────────────────── RATCHET FLOORS (only ever shrink) ─────────────────────────
-# Seeded 2026-07-14 from this gate's own matching. Remove a name the moment its doc is
-# indexed / bannered. A name here == "known debt, do not regress"; a NEW offender fails.
-GRANDFATHERED_UNINDEXED: set[str] = {  # 39 as of 2026-07-14 — add each to DOC_INDEX.md, then delete here
-    "AUDIT-2026-07-02-institutional-review.md", "CORRECTION-ARC-HANDOFF.md",
-    "CORRECTION-KICKSTART-PROMPT.md", "DATA-POSTMORTEM-2026-07-05.md", "DATASET-RESEARCH-BRIEF.md",
-    "KICKSTART-NEXT-SESSION.md", "KICKSTART-PATEARN-NEXT.md", "L2-fullsite-sweep.md",
-    "L2-mobile-audit.md", "L2-pitch-qa.md", "L4-demo-readiness.md", "NEXT-SESSION-CARRYFORWARD.md",
-    "POST-MERGE-DEPLOY-RUNBOOK.md", "PR-1-DESCRIPTION.md", "QA-issue-register.md",
-    "QA-round2-register.md", "SESSION-PROTOCOL.md", "bug-audit-2026-06.md",
-    "calculations-and-weights.md", "chrome-consistency-sweep.md",
-    "codex-review/00-CONTEXT-FOR-CODEX.md", "codex-review/FINDINGS-LEDGER.md",
-    "codex-review/UX-CODEX-INDEPENDENT.md", "codex-review/UX-DIALOGUE-R1-CODEX.md",
-    "codex-review/UX-DIALOGUE-R2-CODEX.md", "color-system-alignment.md",
-    "fundamentals-xbrl-migration.md", "institutional-panel-assessment.md",
-    "momentum-engine-formalization.md", "mvio-dataset-a.md", "patearn-charter.md",
-    "predictive-attributes-findings.md", "premium-visuals-brainstorm.md", "reversal-pair-PLAN.md",
-    "rs-momentum-divergence-roadmap.md", "screener-merge-plan.md", "strategic-review-2026-07-07.md",
-    "ux-journey-audit-2026-07-13.md", "validation-memo.md",
-}
-GRANDFATHERED_UNBANNERED: set[str] = {  # 32 as of 2026-07-14 — add a Lifecycle banner, then delete here
-    "CARRY-FORWARD-anchor-and-4-lanes.md", "CORRECTION-ARC-HANDOFF.md",
-    "CORRECTION-KICKSTART-PROMPT.md", "DATA-POSTMORTEM-2026-07-05.md", "KICKSTART-NEXT-SESSION.md",
-    "KICKSTART-PATEARN-NEXT.md", "L2-body-migration-audit.md", "L2-fullsite-sweep.md",
-    "L2-mobile-audit.md", "L2-pitch-qa.md", "L2-status.md", "L3-charting-STATUS.md",
-    "L4-demo-readiness.md", "L4-status.md", "NEXT-SESSION-CARRYFORWARD.md", "QA-issue-register.md",
-    "QA-round2-register.md", "bug-audit-2026-06.md", "chrome-consistency-sweep.md",
-    "concall-intelligence-NEXT-SESSION.md", "dashboard-deepen-NEXT-SESSION.md",
-    "explosive-move-NEXT-SESSION.md", "mep-NEXT-SESSION.md", "parallel-sessions-PLAN.md",
-    "parallel-sessions-ROUND3.md", "provenance-coverage-NEXT-SESSION.md",
-    "rrg-rotation-NEXT-SESSION.md", "screener-merge-plan.md", "ui-cockpit-NEXT-SESSION.md",
-    "ui-redesign-EXECUTE.md", "ux-journey-audit-2026-07-13.md", "wolfe-NEXT-SESSION.md",
-}
+# CLEARED 2026-07-14 (S131/D128): the whole backlog was triaged — every doc indexed in DOC_INDEX.md,
+# every transient doc bannered — so both floors are EMPTY and the gate enforces 100%. Keep them empty;
+# a name here would mean "known debt, do not regress", and a NEW offender must fail the gate.
+GRANDFATHERED_UNINDEXED: set[str] = set()   # empty — full DOC_INDEX coverage (2026-07-14)
+GRANDFATHERED_UNBANNERED: set[str] = set()  # empty — all transient docs carry a Lifecycle banner (2026-07-14)
 # ─────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -136,6 +112,8 @@ def _find_unindexed() -> list[str]:
             continue
         if p.relative_to(DOCS).parts[:1] and p.relative_to(DOCS).parts[0] in INDEX_EXEMPT_DIRS:
             continue
+        if INDEX_EXEMPT_LANE.search(rel):
+            continue  # RUN-BOOK "by rule" (DOC_INDEX Lane-record clause)
         if not _is_indexed(p, idx):
             out.append(rel)
     return sorted(out)

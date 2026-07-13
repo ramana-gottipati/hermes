@@ -1,5 +1,8 @@
 # L2 Wave 4 — Full-site consistency + a11y sweep (beyond the demo path)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the L2 full-site sweep items are resolved + folded. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Lane L2 Wave 4.** Created 2026-06-29. Extended the demo-path rigor (W1-W3) to all ~31 nav
 > surfaces. Verified IN-BROWSER on the live VPS in a dedicated tab (the shared tab gets hijacked by
 > L3/L4 nav). The authoritative method is the **live computed-style scan** — a static `grep` of the

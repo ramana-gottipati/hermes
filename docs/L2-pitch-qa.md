@@ -1,5 +1,8 @@
 # L2 Wave 3 — Pitch-demo visual QA + Trust front-door + WCAG-AA
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the pitch-path QA items are resolved + folded. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Lane L2 Wave 3.** Created 2026-06-29. Walked the linear 6-beat pitch demo IN-BROWSER on the
 > live VPS in a DEDICATED tab (the shared tab gets hijacked by L3/L4 navigation). Verification is
 > computed-style + stylesheet-rule inspection (not markup), per the non-negotiables.

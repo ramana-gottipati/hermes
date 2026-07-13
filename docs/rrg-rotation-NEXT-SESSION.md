@@ -1,5 +1,8 @@
 # RRG Rotation Map + RS-Depth + Drill-down — wrap & NEXT-SESSION run-book
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the RRG / rotation follow-ups ship + fold. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Status (2026-06-22):** core SHIPPED & DEPLOYED LIVE. This doc captures the full
 > set of asks, the methodology, the **exact placement of each item**, what's live,
 > what remains, the deploy run-book, and a **paste-ready autonomous self-prompt**.

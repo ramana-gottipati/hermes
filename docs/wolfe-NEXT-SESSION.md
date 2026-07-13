@@ -1,5 +1,8 @@
 # Wolfe Wave — session wrap-up + AUTONOMOUS run-book (2026-06-23)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the Wolfe follow-ups ship + fold into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Read order for a fresh session:** CLAUDE.md → PROJECT_STATE.md (§Decision log D96–D103) →
 > `docs/wolfe-wave-design.md` → **the ★ FRACTAL-FOCUS block directly below** → memory
 > `[[wolfe-wave-strategy]]`. The rest of this file (from "0c" down) is 2026-06 archaeology.

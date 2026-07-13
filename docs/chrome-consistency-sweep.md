@@ -1,5 +1,8 @@
 # Chrome consistency sweep — native vs legacy two-shell seam (2026-06-30)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the two-shell chrome seams are fixed + folded into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > Owner ask: *"inconsistent behaviours across all screens."* Patearn renders chrome two ways —
 > **native** `ui_kit.shell` pages (coverage, screen2, strategist, `_ui`) and **legacy** `dashboard._shell`
 > pages reskinned at runtime by `shell_skin` (markets, stock, every strategy lens). This sweep walked a

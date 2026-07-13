@@ -1,5 +1,8 @@
 # Patearn — next session kickstart (colour/UI + premium-visuals thread)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the colour / premium-visuals thread is folded into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 **Mode: fully autonomous. Access: full folder + tools, already granted — do not ask for access
 or per-step confirmation, and do not repeatedly re-request it.** Execute the agreed plan
 end-to-end. Proceed freely on reversible in-repo work (new modules, tests, docs, local commits

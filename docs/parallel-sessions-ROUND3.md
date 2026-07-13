@@ -1,5 +1,8 @@
 # Parallel-Sessions ROUND 3 — large autonomous missions (2026-06-28)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the round-3 lane program completes. Registered in `docs/DOC_INDEX.md`.
+
+
 > Companion to `docs/parallel-sessions-PLAN.md`. Round 1+2 are done; this is the next wave — **large,
 > self-driving missions** (no small wins), each session **auto-prompts itself** through a backlog, with a
 > mechanical do-no-harm guard so none of Ramana's existing processes/charts/work are hampered.

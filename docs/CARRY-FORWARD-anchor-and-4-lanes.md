@@ -1,5 +1,8 @@
 # CARRY-FORWARD ANCHOR — nav/chrome arc takeover + the next 4 parallel lanes
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the 4-lane arc it tracks is fully shipped + folded into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created 2026-06-29.** This is the **anchor** for the next phase: it (a) documents everything the
 > nav/chrome arc changed, (b) gives the takeover + takeaway, (c) classifies every open item by UI-vs-not,
 > and (d) defines **four disjoint parallel lanes** so the next phase runs as 4 sessions, not one.

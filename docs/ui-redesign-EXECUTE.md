@@ -1,5 +1,8 @@
 # Autonomous execution brief — patearn UI/UX redesign
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the UI-redesign execution sequence is fully shipped + folded. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Self-prompt. Operating autonomously (no user inputs; use subagents for research/decisions/parallel work).** Authorized 2026-06-23.
 > **Companion spec:** `docs/ui-redesign-2026-06.md` (the audit, IA, no-loss census, phasing, decision log).
 

@@ -1,5 +1,8 @@
 # Phase 0 — Provenance + Coverage & Settlement ledger (TRANSIENT run-book)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the provenance-coverage follow-ups ship + fold. Registered in `docs/DOC_INDEX.md`.
+
+
 > TRANSIENT working doc (per [[transient-doc-lifecycle]]). Fold the durable parts into
 > `docs/product-strategy-2026.md` §10 + memory when this lands, then `git rm`.
 > Owner: the PO/sole-builder session (Patearn). Created 2026-06-26.

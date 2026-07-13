@@ -1,5 +1,8 @@
 # Dashboard-deepen — AUTONOMOUS NEXT-SESSION RUN-BOOK
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the dashboard-deepen follow-ups ship + fold. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created** session 30 (2026-06-22) as a planned, agent-researched run-book. **TRANSIENT** (transient-doc-lifecycle):
 > fold the durable bits into `PROJECT_STATE.md` once shipped, then `git rm`. **Written so an AUTONOMOUS model
 > continues one workstream at a time, no further acceptances.** Companion plan with the same content:

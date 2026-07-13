@@ -1,5 +1,8 @@
 # Lane L4 — Demo Readiness & Edge-Case Hardening (pre-pitch)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the demo / pitch milestone passes. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Session 2026-06-29 (L4 FINAL wave).** A skeptical-prospect walkthrough of every L4 surface +
 > an adversarial edge-case probe. Verdict: **the L4 surface is demo-ready** — every path 200s,
 > no 500s, the wedge (provenance + Pat-as-analyst) is airtight and descriptive. Two demo rough

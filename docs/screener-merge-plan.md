@@ -1,5 +1,8 @@
 # Screener consolidation — merge plan (Screen → Screen+)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the Screen+ merge ships + the dedup lands. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created 2026-06-29.** SCREENER-CONSOLIDATION lane. Owner directive: make **Screen+**
 > (`/dash/screen2`) the canonical screener — keep its cleaner confluence layout + saved-screens
 > + CSV + group toggles, but give it the **pictorial richness** of the original **Screen**

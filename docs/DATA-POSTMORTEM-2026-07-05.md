@@ -1,5 +1,8 @@
 # Data-estate postmortem — 2026-07-05 (analyst-team deep dive)
 
+> **Lifecycle: PERMANENT.** keep-forever data-estate findings record (integrity failures, live counts); not retired. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Provenance.** This document is the consolidated output of a one-day adversarial deep-dive on the live Hermes/Patearn data estate. An advisor set the program; **eleven domain specialists** (market-microstructure & delivery; PIT-fundamentals & XBRL; ownership & flow; derivatives & positioning; corporate-events & credit; concall-corpus & text; index/breadth/regime; data-dynamics cross-DB; data-quality/survivorship/storage; research-lab panels; client-value/B2B) each ran read-only SQL against the live VPS (`/opt/hermes/data/hermes.db` + `research.db`) and read the repo read-only; a **3-lens risk panel** (PIT-leak / cost-realism / failure-ledger) issued a verdict on every candidate dynamic; an **architect** grouped survivors into 16 build units; and a **UI/UX pass** decided which of ~60 dynamics earn a surface. Nothing on the VPS or in the repo was modified. Every number below is from a live count on 2026-07-05 unless flagged otherwise. Where a specialist number contradicts project doctrine, doctrine wins and the discrepancy is logged in §11.
 
 ---

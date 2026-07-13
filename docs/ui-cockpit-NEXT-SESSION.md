@@ -1,5 +1,8 @@
 # Next-session run-book — UI cockpit rebuild (autonomous)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the cockpit follow-ups ship + fold. Registered in `docs/DOC_INDEX.md`.
+
+
 > **What this is.** A self-prompting, self-contained run-book to continue the Patearn UI rebuild **autonomously**. The design is decided (agent-panel approved); this is a BUILD. Decide, build, verify, deploy, report — pause only at the checkpoints below.
 >
 > **TRANSIENT doc** — fold the durable bits into `PROJECT_STATE.md` once the parallel sessions quiesce, then `git rm` this. Until then, **this is the UI work-stream's source of truth** (PROJECT_STATE.md is owned/edited by the parallel Pat/concall/deals sessions — do NOT fight them on it).

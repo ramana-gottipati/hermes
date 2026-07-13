@@ -1,5 +1,8 @@
 # CCI — AUTONOMOUS SESSION-TAKEOVER KICKSTART
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the concall-intelligence follow-ups ship + fold into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created** session 28 (2026-06-21/22). **TRANSIENT** run-book (per the transient-doc-lifecycle rule):
 > the durable record is `docs/concall-intelligence-design.md` + `docs/concall-intelligence-debate.md` +
 > PROJECT_STATE. **Retire when** P1–P8 below are shipped and folded into PROJECT_STATE.

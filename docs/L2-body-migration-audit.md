@@ -1,5 +1,8 @@
 # L2 — Native body migration audit + bleed-through inventory
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the L2 body-migration lane closes + folds into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Lane L2 — Native bodies & chrome polish.** Created 2026-06-29. Live-render audit of the
 > demo path (Coverage → Markets → RS → Screener → Stock) done IN-BROWSER against the live VPS
 > (`https://srv1704897.hstgr.cloud/dash/...`), not from served markup — the local checkout DB is

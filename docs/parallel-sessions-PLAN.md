@@ -1,5 +1,8 @@
 # Parallel-Sessions PLAN — decoupled big wins (3 + 1 lanes)
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the parallel-lanes program completes (RUN-BOOK-by-rule until then). Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created 2026-06-28.** Ramana: plan the big wins across ≥3 parallel sessions, decoupled so the work
 > isn't interdependent; streamline the process + the screeners; give pasteable per-session prompts.
 > **Companion to** `docs/ui-restore-and-migration-TRACKER.md` (the what) — this is the HOW (who owns

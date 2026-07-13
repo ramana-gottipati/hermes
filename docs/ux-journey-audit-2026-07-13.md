@@ -1,5 +1,8 @@
 # User-Journey & UX Audit — 2026-07-13 (joint Claude + Codex)
 
+> **Lifecycle: LIVING.** the UX/IA audit of record + S-A…S-H remediation program tracker — retire once that program completes. Registered in `docs/DOC_INDEX.md`.
+
+
 **Lifecycle: DESIGN(live) — audit of record + remediation program.** Retire condition: all sessions
 S-A…S-H below are shipped and their outcomes folded into PROJECT_STATE; the findings tables then
 become history. The binding day-to-day rules extracted from this audit live in

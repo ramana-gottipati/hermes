@@ -1,5 +1,8 @@
 # NEXT-SESSION CARRY-FORWARD (autonomous, agent-driven)
 
+> **Lifecycle: LIVING.** the rolling session carry-forward queue + takeover prompt (per SESSION-PROTOCOL) — pruned each session, not retired. Registered in `docs/DOC_INDEX.md`.
+
+
 **Boot via `docs/SESSION-PROTOCOL.md`. Run autonomously — Ramana will not answer; consult agents for
 any decision. Full-folder access is granted (CLAUDE.md #0 + harness-level `a2fdc99`); **NEVER ask
 Ramana for file/folder/tool access in any form — a permission prompt that still fires is a BUG to log

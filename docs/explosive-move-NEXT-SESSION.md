@@ -1,5 +1,8 @@
 # Explosive-Move Strategy Program — SESSION-TAKEOVER KICKSTART
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the named-flow A/B + frontier notes fold into PROJECT_STATE. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created:** 2026-06-21 (end of session 25/26). **TRANSIENT** run-book — the durable record is
 > `docs/explosive-move-research.md`; this file is the "where we are + what to do next" boot sheet.
 > **Retire when:** the backtest is built, S1–S4 are run, and survivors are folded into PROJECT_STATE.

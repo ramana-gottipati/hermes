@@ -1,5 +1,8 @@
 # Full-codebase bug & improvement audit — 2026-06-30
 
+> **Lifecycle: PERMANENT.** keep-forever 2026-06 bug-audit findings record; not retired. Registered in `docs/DOC_INDEX.md`.
+
+
 **Scope:** every `*.py` under `src/` (146 files / ~59.5K LOC), `research/` (~9.2K LOC), `scripts/` (~1.4K LOC).
 **Method:** 12 parallel deep-readers (Claude), one per subsystem, each reading every line of its files against the project doctrines (PIT/no-look-ahead · rupees-not-shares · descriptive-only · cheap-LLM-in-timers · secrets-in-`.env` · additive-not-replace). High-impact and all security findings spot-verified by hand (see ✓/✗ flags).
 **Cross-check:** Codex (`gpt-5.5`, read-only) runs the same audit and rates these findings — see `codex-bridge/DISCUSSION-bug-audit.md` + `codex-bridge/req-10-full-codebase-bug-hunt.md`. Nothing here is implemented until Ramana approves (bridge doctrine).

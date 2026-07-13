@@ -1,5 +1,8 @@
 # CORRECTION + BUG-AUDIT — autonomous next-session kickstart PROMPT
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the correction arc closes (PR #1 already merged + live). Registered in `docs/DOC_INDEX.md`.
+
+
 > Paste the block below verbatim as the first message of the next session to launch it **fully autonomous**. It boots from `docs/CORRECTION-ARC-HANDOFF.md` and runs the bug-audit to completion, resolving doubts via the respective agents (not Ramana). (Created 2026-06-30 at wrap. NOTE: `docs/NEXT-SESSION-kickstart.md` is a STALE Session-22 UI doc — ignore it; THIS is the current one.)
 
 ---

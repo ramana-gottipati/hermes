@@ -1,5 +1,8 @@
 # L2 Wave 2 — Mobile audit (≤640px / 380px) + perf + state
 
+> **Lifecycle: TRANSIENT.** Retire (`git rm`) once the L2 mobile issues are resolved + folded. Registered in `docs/DOC_INDEX.md`.
+
+
 > **Created 2026-06-29.** Lane L2 Wave 2. Demo path (Coverage → Markets → RS → Screener → Stock) +
 > high-traffic lenses (Sectors, Conviction) examined on the live VPS.
 
