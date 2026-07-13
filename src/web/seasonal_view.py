@@ -65,6 +65,12 @@ _CSS = """
   padding:11px 15px;margin:14px 0 2px;font-size:12.5px;color:var(--ink-2);line-height:1.55;max-width:1120px;}
 .st-fence b{color:var(--ink);} .st-fence ul{margin:6px 0 0;padding-left:18px;} .st-fence li{margin:3px 0;}
 .st-drill{border-left:3px solid var(--accent);}
+/* in-place cell drill (embed only): each week/month panel is a :target block, hidden until its
+   cell anchor (#sdrill-w23 / #sdrill-m4) is clicked. The tab JS has no hashchange listener, so
+   the hash change reveals the panel without disturbing the dossier's tabs. */
+.st-dtgt{display:none;scroll-margin-top:120px;}
+.st-dtgt:target{display:block;}
+.st-drillwrap{margin-top:2px;}
 .st-dlist{display:flex;flex-direction:column;gap:5px;margin-top:6px;max-width:560px;}
 .st-drow{display:flex;align-items:center;gap:10px;font-size:12.5px;}
 .st-drow .k{width:56px;color:var(--accent);font-weight:600;}
@@ -587,12 +593,19 @@ def seasonal_card(scope: str, entity: str, *, db_path: str | None = None, headin
 
 
 def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
-                 axis: str = "month") -> str:
+                 axis: str = "month", panel_id: str = "drill", back: str | None = None,
+                 inline: bool = False) -> str:
     """Server-rendered breakdown for one calendar cell: the per-year z values behind the script.
     axis="month" (default) is the ORIGINAL per-month breakdown, unchanged byte-for-byte. axis=
     "iso_week" mirrors it for the 52-week stack (d["wsmap"]/d["wcmap"]/d["wsyears"]) — same panel
     shell, same st-drill styling, same "No {label} history" honest-empty branch; only the source
-    maps and the cell label differ."""
+    maps and the cell label differ.
+
+    Embed reuse (inline=True): the SAME panel becomes a hidden :target block (class st-dtgt,
+    unique panel_id like 'sdrill-w23') so a detail page reveals it IN PLACE on a cell click,
+    instead of navigating to the lens. `back` overrides the footer link (→ '#stx-top' to close);
+    defaults (inline=False, panel_id='drill', back=None) keep the /dash/seasonal-tape output
+    byte-for-byte identical."""
     if axis == "iso_week":
         stackmap = d.get("wsmap", {})
         cellinfo = d.get("wcmap", {})
@@ -605,10 +618,12 @@ def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
         yrs = d["years"]
     vals = [(y, stackmap.get((cell, y))) for y in yrs if stackmap.get((cell, y)) is not None]
     cellrow = cellinfo.get(cell, {})
-    back = f'/dash/seasonal-tape?scope={_esc(scope)}&entity={_esc(entity)}'
+    back = back or f'/dash/seasonal-tape?scope={_esc(scope)}&entity={_esc(entity)}'
+    back_label = "← close" if inline else "← back to the tape"
+    tgt = " st-dtgt" if inline else ""
     if not vals:
-        return (f'<div class="st-panel st-drill"><div class="st-h">No {label} history</div>'
-                f'<div><a href="{back}">← back to the tape</a></div></div>')
+        return (f'<div class="st-panel st-drill{tgt}" id="{panel_id}"><div class="st-h">No {label} history</div>'
+                f'<div><a href="{back}">{back_label}</a></div></div>')
     vmax = max(abs(v) for _y, v in vals) or 1.0
     rows = ""
     for y, v in sorted(vals, key=lambda t: t[0], reverse=True):
@@ -626,23 +641,38 @@ def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
     hd = (f'{_esc(entity)} · {head_label} <small>— script {sz:+.2f}σ over {len(vals)} years, '
           f'{verdict}</small>') if sz is not None else f'{_esc(entity)} · {head_label}'
     return (
-        '<div class="st-panel st-drill" id="drill">'
+        f'<div class="st-panel st-drill{tgt}" id="{panel_id}">'
         f'<div class="st-h">Behind the script · {hd}</div>'
         + ifx.plain('The consensus shows the <b>average</b> year. Here is <b>every</b> year\'s ' + label
                     + ' residual, newest first — the dispersion the single number hides. A run of '
                     'similar bars = a real tendency; one or two outliers carrying it = not one.')
         + f'<div class="st-dlist">{rows}</div>'
         + f'<div class="st-chip" style="margin-top:8px">mechanism: {_esc(mech)} · gates: {_esc(flags)}</div>'
-        + f'<div style="margin-top:8px"><a href="{back}">← back to the tape</a></div></div>')
+        + f'<div style="margin-top:8px"><a href="{back}">{back_label}</a></div></div>')
 
 
-def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str:
+def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str, *,
+                 inline_drill: bool = False) -> str:
     """The FULL seasonal analysis panels for one entity — EVERY perspective, shared verbatim by the
     /dash/seasonal-tape route AND the inline detail-page embed (seasonal_full_panel): the 25-year
     month stack, the monthly consolidation gradient, the 52-week stack, the weekly + weekday
-    consolidations, the event-cadence lens, and the forward outlook. Cell clicks deep-link to the
-    full page's year-by-year drill. Extracted so the embed is the SAME analysis, never a reduced one."""
+    consolidations, the event-cadence lens, and the forward outlook.
+
+    Cell clicks drill year-by-year. On the lens (inline_drill=False) a click deep-links to the full
+    page's server-rendered drill (byte-for-byte unchanged). In an embed (inline_drill=True) the
+    click instead reveals a PRE-RENDERED :target panel in place (see _mlink/_wlink → '#sdrill-*'
+    and the appended st-dtgt blocks) — the identical _drill_panel body, no page navigation, no
+    dependence on the host page's tab JS."""
     parts = []
+
+    def _mlink(m):
+        return (f'#sdrill-m{m}' if inline_drill else
+                f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}&cal={cal}&drill={m}#drill')
+
+    def _wlink(wk):
+        return (f'#sdrill-w{wk}' if inline_drill else
+                f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}&cal={cal}&wdrill={wk}#drill')
+
     col_labels = [_MONTH_ABBR[m] for m in order]
     yrs_desc = sorted(d["years"], reverse=True)
     matrix = [[d["smap"].get((m, y)) for m in order] for y in yrs_desc]
@@ -657,8 +687,7 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str
                     '<b>Click a column\'s cell</b> to break the month down year-by-year.')
         + ifx.heat_grid([str(y) for y in yrs_desc], col_labels, matrix, w=1060, cell_h=22,
                         row_w=64, signed=True, fmt=1, unit="σ", vmin=-2.5, vmax=2.5,
-                        cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                                                f'&cal={cal}&drill={order[j]}#drill'))
+                        cell_link=lambda i, j: _mlink(order[j]))
         + '</div>')
     # month consolidation — a diverging BAR chart (height = magnitude), every month named + ranked,
     # ★ on the strongest, value printed on each bar (so the reader never has to decode a shade).
@@ -673,9 +702,7 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str
                     '<b>#rank</b> under each name orders the months hottest→coldest, and <b>★</b> '
                     'marks the single strongest. Click a bar to break the month down year-by-year. '
                     'Descriptive shape, never a signal.')
-        + _month_bars(d["cmap"], order, w=1060, vmax=0.5,
-                      link_fn=lambda m: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                                         f'&cal={cal}&drill={m}#drill'))
+        + _month_bars(d["cmap"], order, w=1060, vmax=0.5, link_fn=_mlink)
         + f'<div class="st-cap">{n_month_cert} of 12 months certified · descriptive shape, '
           'never a signal.</div></div>')
     # 52-week stack: the per-year ISO-week mirror of the month stack above.
@@ -688,9 +715,7 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str
         week_grid = ifx.heat_grid([str(y) for y in wsyears_desc], week_col_labels, week_matrix,
                                   w=week_w, cell_h=20, row_w=50, signed=True, fmt=1, unit="σ",
                                   vmin=-2.5, vmax=2.5,
-                                  cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}'
-                                                          f'&entity={_esc(entity)}&cal={cal}'
-                                                          f'&wdrill={week_cols[j]}#drill'))
+                                  cell_link=lambda i, j: _wlink(week_cols[j]))
         week_stack_body = f'<div style="overflow-x:auto"><div style="width:{week_w}px">{week_grid}</div></div>'
     else:
         week_stack_body = ('<div class="st-empty">No 52-week stack populated for this entity yet — '
@@ -715,8 +740,7 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str
                     'strongest week; click any bar to break it down year-by-year. Descriptive.')
         + '<div style="overflow-x:auto">'
         + _week_strip(d.get("wcmap", {}), w=1060, h=60, vmax=0.5, mark_best=True, week_ticks=True,
-                      link_fn=lambda wk: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                                          f'&cal={cal}&wdrill={wk}#drill'))
+                      link_fn=_wlink)
         + '</div></div>')
     parts.append(_strip_panel(
         "Weekday", "— Monday–Friday, same certification bar as months",
@@ -759,6 +783,25 @@ def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str
                         'includes a coin-flip, so treat it as noise</b>. This is history\'s base rate, '
                         '<b>not</b> a forecast or a trade.')
             + f'<div class="st-ol">{cards}</div></div>')
+    # in-place cell drill (embed only): pre-render the year-by-year panel for every POPULATED month
+    # and ISO week as a hidden :target block (heat_grid links only populated cells, so this covers
+    # exactly the clickable set — no dead anchors). Reuses _drill_panel verbatim, so the embed drill
+    # is byte-identical to the lens drill; only the reveal (a #sdrill-* hash) differs.
+    if inline_drill:
+        panels = []
+        months_with_data = {k[0] for k in d.get("smap", {})}
+        for m in order:
+            if m in months_with_data:
+                panels.append(_drill_panel(scope, entity, d, m, order,
+                                           panel_id=f"sdrill-m{m}", inline=True, back="#stx-top"))
+        week_order = list(range(1, 54))
+        weeks_with_data = {k[0] for k in d.get("wsmap", {})}
+        for wk in week_order:
+            if wk in weeks_with_data:
+                panels.append(_drill_panel(scope, entity, d, wk, week_order, axis="iso_week",
+                                           panel_id=f"sdrill-w{wk}", inline=True, back="#stx-top"))
+        if panels:
+            parts.append('<div class="st-drillwrap">' + "".join(panels) + '</div>')
     return "".join(parts)
 
 
@@ -837,12 +880,12 @@ def seasonal_full_panel(scope: str, entity: str, *, db_path: str | None = None,
     link = f'/dash/seasonal-tape?scope={scope}&entity={quote(resolved)}'
     return (
         _CSS + ifx.readability_css()
-        + '<div class="st-embed">'
+        + '<div class="st-embed" id="stx-top">'
         + ifx.bottom_line(bl + ' This is descriptive calendar context, <b>never</b> a signal.')
         + ifx.how_to_read_link()
         + f'<div style="margin:2px 0 10px"><a class="st-cta" href="{_esc(link)}">Open the full '
           'seasonal tape — calendar/scope controls + year-by-year drill-downs →</a></div>'
-        + _panels_html(d, scope, resolved, order, cal)
+        + _panels_html(d, scope, resolved, order, cal, inline_drill=True)
         + _honesty_fence()
         + '</div>')
 
@@ -1161,6 +1204,21 @@ def _selftest() -> int:
         assert "Read this honestly" in fp, "full panel must carry the honesty fence"
         assert "Open the full seasonal tape" in fp and "/dash/seasonal-tape?scope=sector" in fp, \
             "full panel must deep-link to the full page for drill-downs/controls"
+        # D124 in-place drill: embed cells reveal a PRE-RENDERED :target panel instead of navigating
+        # to the lens. Assert the anchors + hidden panels are present, the close-link targets the
+        # embed top, and the reused _drill_panel body ("Behind the script") is inlined.
+        assert 'href="#sdrill-w' in fp and 'href="#sdrill-m' in fp, \
+            "embed must link cells to in-place #sdrill-* drill anchors"
+        assert 'class="st-panel st-drill st-dtgt"' in fp and 'id="sdrill-w' in fp, \
+            "embed must pre-render hidden :target week-drill panels"
+        assert 'id="stx-top"' in fp and 'href="#stx-top"' in fp, \
+            "embed drill panels must offer a close link back to the embed top"
+        assert "Behind the script" in fp, "embed drill must reuse the _drill_panel body verbatim"
+        # the LENS keeps its server-rendered reload drill — it must NOT emit the inline anchors
+        # (the CSS comment mentions #sdrill for docs, so assert on the actual <a href> only).
+        assert 'href="#sdrill-' not in c.get(
+            "/dash/seasonal-tape?scope=sector&entity=Nifty Auto").text, \
+            "lens must keep the server-rendered drill (no inline #sdrill anchors)"
         # it is strictly RICHER than the compact card (which has no 25-year stack / weekday axis)
         assert "25-year stack" not in card and "Weekday" not in card, \
             "the compact card must stay compact (the full panel is the rich one)"
@@ -1176,7 +1234,8 @@ def _selftest() -> int:
               "in-memory on-demand resolve wired; 0-certified consensus st-empties honestly; "
               "seasonal_card embeds + honest-empties + fences the forward outlook; sub-nav trio + "
               "drill hint + index/sector->constituent-scan CTA + stock scan-all link wired; "
-              "ISO-week cell drill-down (wdrill=) + 52-week stack cell_link wired (D123)")
+              "ISO-week cell drill-down (wdrill=) + 52-week stack cell_link wired (D123); "
+              "in-place embed cell drill via :target #sdrill-* panels, lens keeps reload drill (D124)")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
