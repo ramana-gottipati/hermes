@@ -40,9 +40,11 @@ Answer IN ORDER; stop at the first hit:
    `lens_registry.py` with workspace + rail group + plain-English label (see §4 naming).
 4. **Is it a child view of an existing lens?** → mount under the parent's route
    (`/dash/<parent>/<child>`), reachable from a visible control on the parent (tab/toggle/link).
-   Undeclared children are orphans.
+   Undeclared children are orphans. Record the child in the route-gate metadata (owner + parent +
+   rationale) in the SAME commit — "linked from somewhere" is not registration.
 5. **Is it a tool/calculator, an API, an overlay, or an action endpoint?** → overlay/JSON/action
-   routes are exempt from nav but must be reached from a chart/page control; document the caller.
+   routes are exempt from nav but must be reached from a chart/page control; record the exemption
+   (owner + caller + rationale) in the route-gate metadata in the same commit, not just prose.
 6. **None of the above** → it probably shouldn't exist as a page. Ask what job it does.
 
 ## 3. The landing checklist (every new page, same session — none optional)
@@ -52,11 +54,12 @@ Answer IN ORDER; stop at the first hit:
 | 1 | Registry entry | `lens_registry.py` Lens (or declared child of one) — this feeds nav, breadcrumbs, lateral rails, and the command palette |
 | 2 | Durable mount | anchored insert in `v2_surfaces._ROUTER_SPECS` |
 | 3 | Education minimum | `infographics.bottom_line()` near the top · `plain()` under each non-obvious chart/table · `how_to_read_link()` · `gloss()` (or `?q=` glossary link) on every custom metric column. Prose scaffold AND glossary wiring — not one or the other |
-| 4 | Honesty fence | the shared fence primitive (once built — until then copy the exact wording from `insider_view.py`'s "descriptive, not advice" idiom); NEVER action verbs (buy/sell/add/avoid/ride/fade) |
-| 5 | Glossary keys | new metrics get entries in `src/web/glossary.py` (and surface in Pat's explain corpus) |
+| 4 | Honesty fence | the shared fence primitive (once built — until then copy the exact wording from `insider_view.py`'s "descriptive, not advice" idiom); never investment-action verbs as ANALYTICAL VERDICT labels (buy/sell/add/avoid/ride/fade) — ordinary CRUD buttons ("Add filter", "Add to tracker") are fine when clearly logistical |
+| 5 | Glossary keys | new metrics get entries in **`docs/metrics-glossary.md`** (the source — `src/web/glossary.py` parses it) and surface through the popovers AND Pat's explain corpus |
 | 6 | Pat registration | at minimum a **nav-answer** (Pat can name + link the page for a matching question); data flow if the page is a table/screen |
 | 7 | Strategy doc | if it's a strategy surface: its `docs/strategies/` page updates in the SAME commit (existing rule, `tests/test_strategy_docs_coverage.py`) — and remember `/opt/hermes/docs/strategies/` re-scp |
-| 8 | Export | tables ship server-side `format=csv` (the `wolfe_trades_view.py` pattern), not client-side DOM blobs |
+| 8 | Export | major data / analyst-facing tables ship server-side `format=csv` (the `wolfe_trades_view.py` pattern), not client-side DOM blobs; small static explanatory tables may be exempted with rationale |
+| 8b | URL state | filters, sorts, tabs and column selections that change a table's meaning are URL-addressable query params, and CSV/export honors the same params; cookies or client-only state may ENHANCE, never be the only state (a shared URL must reproduce the view) |
 | 9 | Symbol links | every symbol cell links `/dash/stock?sym=` (param is `sym`, never `symbol`) |
 | 10 | Home exposure decision | explicitly decide: home tile/board, flagship band, or deliberately not — record why in the commit message |
 | 11 | Writes are POST | never a state-mutating GET (`ack`/`track`/`clear` are legacy debt, not precedent) |
@@ -72,21 +75,31 @@ Answer IN ORDER; stop at the first hit:
   in rendered HTML.
 - One regime vocabulary site-wide (the Market-mood strip's words are canonical). Do not invent a
   new state word (RISK-OFF / UP-BIASED / Cautious all saying the same thing was a defect).
+- Demo framing for honesty surfaces: any public page showing failed or uncertified studies
+  (testing, spec-sheets, seasonal 0-certified) carries the framing sentence — failures are
+  published to preserve the descriptive fence, not because the product lacks value — so the
+  falsification-forward posture reads as a moat, never as "nothing works".
 
 ## 5. The no-orphan gate
 
 `tests/test_dash_route_registry.py` (build tracked in the UX audit's session S-H) enumerates every
 GET-HTML `/dash` route from `src.main.app` and fails unless the route is one of: registered lens ·
 declared nested child · dossier · api/action/overlay · compat redirect · explicitly exempted with
-owner+rationale. Until that test lands, THIS checklist is the gate — reviewer = whoever wraps the
-session. Known pre-existing orphans and their dispositions are inventoried in the UX audit; do not
-add to that list.
+owner+rationale. Children/overlays/exemptions must be MACHINE-READABLE (entries in the test's
+metadata table, added in the same commit as the route) — prose documentation alone does not count
+as registration. Until the test lands, THIS checklist is the gate — reviewer = whoever wraps the
+session, and new children/exemptions are recorded in the audit doc §5 table as the interim
+registry. Known pre-existing orphans and their dispositions are inventoried in the UX audit; do
+not add to that list.
 
 ## 6. Where families live today (sister-data index)
 
 - **RS / rotation / momentum**: rs-hub (launcher) · rrg · rotation · rsband · cycle-clock ·
   divergence · early-signals · sector-momentum · capture-map · momentum-scan · leaders. Anything
-  RS-shaped extends one of these (consolidation program: audit §S-B).
+  RS-shaped extends one of these (consolidation program: audit §S-B). ⚠ Known duplication debt:
+  rsband EMBEDS Lanes/Clock/RRG as tabs while cycle-clock and rrg also exist standalone —
+  embedded tabs and standalone pages must have ONE canonical parent or a deliberate
+  child/redirect disposition; don't add a third rendering of the same view.
 - **Seasonality**: seasonal-tape · seasonal-screen · seasonal-divergence (+ dossier/seasonal embed,
   event-cadence embed). Extend via the shared `_subnav()`.
 - **Fundamentals / management**: growth · concalls(CCI) · credibility fingerprint · sector-economics

@@ -11,7 +11,8 @@ and an expert-PM-persona walk of the live VPS site (GET-only) + three code audit
 Pat+Telegram; redundancy+education); (2) **Codex** (gpt-5.5) — independent code+live review, report
 preserved at `docs/codex-review/UX-CODEX-INDEPENDENT.md`, dialogue at
 `docs/codex-review/UX-DIALOGUE-R1-CODEX.md`. The dialogue converged in one round: all 14
-Claude-only findings CONFIRMED by Codex with file:line/live evidence, all 3 Claude pushbacks on the
+Claude-only findings CONFIRMED by Codex with file:line/live evidence (with narrowings on B8/B9/B11
+— see the dialogue doc — folded into the numbers below), all 3 Claude pushbacks on the
 Codex report conceded or adopted, and a joint Top-12 agreed (§8-bis). Personas: a first-time retail
 beginner and a buy-side PM at a JP-Morgan-caliber firm — the two ends of the audience Ramana wants
 the product to serve simultaneously. This audit is UX/IA-scoped; the parallel `docs/codex-review/FINDINGS-LEDGER.md`
@@ -32,10 +33,11 @@ blind, converged on the same diagnosis:
    invisible from home. *The platform's rarest data is its least advertised.*
 2. **The beginner has no ramp; the expert has no shortcuts.** Excellent education assets exist
    (reading-guide, glossary, Pat, mood strip) but are hidden under an opaque "Trust" label and
-   unlinked from the pages that need them. Meanwhile the expert gets exactly one server-side CSV
-   estate-wide, multi-MB pages, and no name-search.
+   unlinked from the pages that need them. Meanwhile the expert gets server-side CSV on only ~3
+   tables estate-wide (screen2's "export" is a client-side DOM blob with no URL-addressable filter
+   state), multi-MB pages, and no name-search.
 3. **Education is two disjoint half-systems.** The prose scaffold (bottom_line/plain) covers ~20%
-   of pages (the deep-data cohort); glossary popovers cover a different ~20%; zero pages have both;
+   of pages (the deep-data cohort); glossary popovers cover a different ~20%; only 3 modules carry both;
    the densest-jargon pages have neither. The honesty fence — the product's core promise — is
    hand-written in ≥7 different phrasings with no shared primitive. And there are TWO glossary
    systems (web ~245 keys vs Pat's 52) that don't feed each other.
@@ -72,7 +74,7 @@ Self-serve (the real bar for "show JP Morgan") needs sessions S-A + S-C + S-D at
 | Glossary wiring | different ~20%; **zero overlap** with scaffold cohort; densest pages have neither | §6 |
 | Honesty-fence phrasings | ≥7 distinct wordings/treatments, no shared primitive | §6 |
 | Pat coverage | 9/62 full · 9 partial · 44 invisible (≈15% full / 29% any) | `src/pat/web.py:2543-2672` map |
-| Server-side CSV exports | 1 (wolfe/trades) estate-wide | expert walk |
+| Server-side CSV exports | ~3 (wolfe/trades · strategist · tracker); screen2's is a client-side DOM blob, no URL filter state | expert walk + Codex R1/R2 |
 | Page weights | screen2 2.3MB · stock 2.7MB · evidence-pack 3.7s | expert walk |
 
 ---
@@ -85,7 +87,7 @@ Self-serve (the real bar for "show JP Morgan") needs sessions S-A + S-C + S-D at
 | P0-1 | **Home Attention board links are dead**: `?symbol=` vs the route's `sym` — every alert click renders the empty shell | `attention_view.py:144` emits `?symbol=`; live `/dash/stock?symbol=ACL` = 72KB shell vs 612KB real page (Codex-verified) | S-A |
 | P0-2 | **No orientation**: home has no identity line, no start-here, help unlinked (glossary/reading-guide appear on home only inside the search-box JS) | beginner walk §1 | S-A |
 | P0-3 | **Three regime vocabularies same day**: home "RISK-OFF" · mood strip "Cautious" · header "UP-BIASED"; mood "why?" links to coverage which doesn't explain it | live walk | S-A |
-| P0-4 | **Action verbs on descriptive surfaces**: RS Band board on HOME prints Avoid/Ride/Fade (also `rsband_view` verbs — already ADJUDICATED in the code-integrity ledger as D2-F4; coordinate, don't double-fix) | home board; `FINDINGS-LEDGER.md` D2-F4 | codex-lane fix + S-A wording |
+| P0-4 | **Action verbs on descriptive surfaces**: RS Band board on HOME prints Avoid/Ride/Fade; verbs confirmed STILL live at HEAD (`rsband_view.py:145,347-352`) after the code-integrity lane's fence sweep `5c6720f` — that lane is now CLOSED, so **S-A owns this fix outright**, consulting the D2-F4 adjudication in `FINDINGS-LEDGER.md` for the agreed wording | home board; `FINDINGS-LEDGER.md` D2-F4 | S-A |
 | P0-5 | **`/dash/strategy-ref` leaks internal doctrine to the public**: "Class: CANONICAL (permanent — do not archive)", "Reconciled: 2026-07-11 (S111)", "future sessions (and Ramana)" | live page | S-C |
 | P0-6 | **Tracker exposes the owner's live portfolio** (books, open MTM, gainers) to any anonymous visitor | live `/dash/tracker/dashboard` | Ramana decision (S-A item 8) |
 
@@ -223,9 +225,14 @@ sits in Events & flow), the Ownership & filings cohort (market-wide filing feeds
 > spec-sheets · validation · /v1); (5) plain-English subtitle on every count-tile (visible, not
 > hover-only) + humanize board event strings; (6) a News board (wire headlines); (7) surface the
 > "every count is a live lens" affordance at the top; (8) Ramana DECISION: tracker privacy
-> (auth-gate vs demo-book on the public URL); (9) move the Avoid/Ride/Fade wording fix in concert
-> with the codex-lane D2-F4 fix (don't double-edit `rsband_view.py`/`cockpit.py` — fork-check first).
-> **Files:** `cockpit.py` (hot in codex lane — fork-check), `dq_banner.py`, home board renderers.
+> (auth-gate vs demo-book on the public URL); (9) the Avoid/Ride/Fade verdict-label fix — S-A owns it
+> (the code-integrity lane closed without removing the verbs; use the D2-F4 adjudicated wording;
+> fork-check `rsband_view.py`/`cockpit.py` at session start); (10) falsification-forward DEMO
+> FRAMING (Codex R2): one sentence on home/Trust, echoed on `/dash/testing`, spec-sheets and the
+> seasonal 0-certified states — “We publish failures and uncertified reads so descriptive
+> context is not mistaken for alpha” — the honesty posture must read as a moat, not as
+> “nothing works” (S-C then standardizes the reusable wording).
+> **Files:** `cockpit.py` (fork-check at start), `dq_banner.py`, home board renderers.
 > **Done:** beginner-persona re-walk passes items 1-4 + 9-11 of the friction list; no dead links on home.
 
 ### S-H — FUTURE-PROOF GATE (P1, cheap — run in PARALLEL with S-A)
@@ -307,12 +314,17 @@ sits in Events & flow), the Ownership & filings cohort (market-wide filing feeds
 > structural. **Done:** end-to-end walk: a seeded draft DMs Ramana, approve posts to a test channel
 > exactly once, reject never posts, duplicates suppressed.
 
-### S-G — EXPERT AFFORDANCES (P2)
-> **Scope:** server-side `format=csv` on every major table (wolfe_trades pattern: attention,
-> concalls, internals, leaders, screen2, wire); "reproduce via /v1 curl" affordance on tables the
-> API can serve; paginate/virtualize screen2 + stock dossier (2.3-2.7MB today); POST-ify
-> state-mutating GETs (ack/track/clear) with 303s; sticky-filter cookies on more tables
-> (wolfe pattern). **Done:** expert re-walk: every table exports; money pages < 1MB.
+### S-G — EXPERT AFFORDANCES (P2, except the first subtask which is P1)
+> **Scope, in order:** (1 — P1, FIRST) **screen2 URL-addressable state**: server-side query params
+> for filters/sort/columns + `format=csv` honoring the same params + a copy-URL/repro affordance —
+> a 2.3MB all-rows page with client-only filters cannot be shared, reproduced, bookmarked, or
+> reviewed in an investment meeting (Codex R2); (2) server-side `format=csv` on every major table
+> (wolfe_trades pattern: attention, concalls, internals, leaders, wire); (3) "reproduce via /v1
+> curl" affordance on tables the API can serve; (4) paginate/virtualize screen2 + stock dossier
+> (2.3-2.7MB today); (5) sticky-filter cookies on more tables (wolfe pattern; never the ONLY
+> state — URL params first). POST-ifying state-mutating GETs lives in S-B2.
+> **Done:** expert re-walk: every table exports; a filtered screen2 view round-trips through its
+> URL; money pages < 1MB.
 
 ---
 
@@ -327,15 +339,17 @@ sits in Events & flow), the Ownership & filings cohort (market-wide filing feeds
 7. **P1** Consolidate IA (Markets task groups · RS/rotation family merge+cross-links · classify every orphan).
 8. **P1** Redirect `/dash/news` → `/dash/wire`; symbol news lives in the dossier only.
 9. **P1** Standardize honesty+education primitives (shared `fence()` · bridge the two glossaries · scaffold+glossary on dense pages).
-10. **P1** Expand Pat from glossary bot to estate navigator (registry-generated nav-answers, then data flows for attention/news/participants/ownership/seasonal/internals).
-11. **P1** Route/nav/palette guardrails (registry test · palette from registry · orphan classification enforced).
-12. **P2** Expert affordances (server CSV + /v1 repro on dense tables · payload pagination · unified change-feed memory · POST-only state changes).
+10. **P1** Expert table affordances, led by screen2 URL-addressable state + server CSV + reproducible links (re-ranked up in R2: for a professional self-serve demo this is more immediately user-impacting than Pat coverage).
+11. **P1** Expand Pat from glossary bot to estate navigator (registry-generated nav-answers, then data flows for attention/news/participants/ownership/seasonal/internals).
+12. **P1** Route/nav/palette guardrails (registry test · palette from registry · orphan classification enforced — still ships early because it's cheap; ranked here by user impact).
 
 ## 9. Coordination fences (multi-lane safety)
 
-- The codex code-integrity lane owns `rsband_view.py`, `cockpit.py`, `signals.py` etc. right now —
-  S-A/S-B MUST fork-check and re-pick against main at session start (multi-session-safety).
-- D2-F4 (RS-band action verbs) is adjudicated in FINDINGS-LEDGER; S-A only aligns the home board
-  wording with whatever that fix ships — one owner per file per session.
+- The codex code-integrity lane CLOSED 2026-07-13 (`5c6720f` + follow-ons, pushed) — but S-A/S-B
+  MUST still fork-check and re-pick against main at session start (multi-session-safety; other
+  lanes stay active).
+- D2-F4 (RS-band action verbs) is adjudicated in FINDINGS-LEDGER but the verbs were NOT removed by
+  that lane's sweep (confirmed at HEAD post-`5c6720f`) — S-A owns the fix, using the adjudicated
+  wording.
 - Anything touching the forked-nav trio deploys by anchored insert only; never full-file scp.
 - Every session ends with a live persona re-walk of its "Done" bar (walk-the-journey).
