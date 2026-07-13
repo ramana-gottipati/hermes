@@ -107,6 +107,7 @@ keep while the bridge is in use (gitignore-able).
 |---|---|
 | `docs/concall-intelligence-debate.md` | Adversarial debate / unique improvement record. |
 | `docs/pat-question-catalog.md` | Master question catalog. |
+| `docs/pat-seasonal-demo.md` | Pat seasonal ranking flow — live query→report demo (S127). |
 | `docs/themes-perplexity-validation.md` | External validation prompt/workflow. |
 | `docs/research-prompt-A-deep-settlement.md` | Active research prompt (no output artifact yet). |
 | `docs/research-prompt-C-exit-lever.md` | Still-unbuilt research prompt. |
