@@ -34,6 +34,7 @@ from datetime import datetime
 import requests
 
 from src.core.db import get_conn
+from src.automation.fetch_retry import RetryableFetchError, raise_if_retryable  # AUD-14
 
 log = logging.getLogger("hermes.equity_list")
 
@@ -64,8 +65,14 @@ def fetch_equities() -> list[dict]:
     """Return [{symbol, name, isin, listing}], or [] on any failure."""
     try:
         r = requests.get(URL, headers=HEADERS, timeout=25)
+        raise_if_retryable(r.status_code, URL)   # AUD-14: label a 403/429/5xx as a throttle
+    except RetryableFetchError as e:
+        # A throttle/block is transient — keep the existing universe (run() does not wipe on []).
+        # Log it DISTINCTLY so a persistently-stale allowlist is diagnosable as rate-limiting.
+        log.warning("EQUITY_L BLOCKED/throttled — keeping existing list, retry next run: %s", e)
+        return []
     except requests.RequestException as e:
-        log.warning("EQUITY_L fetch error: %s", e)
+        log.warning("EQUITY_L network error — keeping existing list, retry next run: %s", e)
         return []
     if r.status_code != 200 or "SYMBOL" not in r.text[:200]:
         log.warning("EQUITY_L bad response: status=%s", r.status_code)
@@ -97,6 +104,7 @@ def fetch_etfs() -> list:
         s.get("https://www.nseindia.com", headers=h, timeout=20)
         s.get(_ETF_REF, headers=h, timeout=20)
         r = s.get(_ETF_API, headers=h, timeout=45)
+        raise_if_retryable(r.status_code, _ETF_API)  # AUD-14: label a 403/429/5xx as a throttle
         if r.status_code != 200:
             log.warning("ETF list bad response: status=%s", r.status_code)
             return []
@@ -112,6 +120,9 @@ def fetch_etfs() -> list:
                             "name": (meta.get("companyName") or "").strip() or None,
                             "assets": (x.get("assets") or "").strip() or None})
         return out
+    except RetryableFetchError as e:                 # AUD-14: a throttle → keep existing (run_etfs)
+        log.warning("ETF list BLOCKED/throttled — keeping existing list, retry next run: %s", e)
+        return []
     except Exception as e:  # noqa: BLE001 — the ETF leg must never break the equity refresh
         log.warning("ETF list fetch error: %s", e)
         return []
