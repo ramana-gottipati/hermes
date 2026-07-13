@@ -127,7 +127,13 @@ def compute_entry_features(ss: SymbolSeries) -> dict:
     vm22, vm66 = _roll_mean(v, 22), _roll_mean(v, 66)
     with np.errstate(invalid="ignore", divide="ignore"):
         f["vol_ratio_22_66"] = np.where(vm66 > 0, vm22 / vm66, np.nan)
-    # delivery-qty trend (M1-reverse term)
+    # delivery-qty trend (M1-reverse term).
+    # ⚠ Codex D5-F6 (Track C, verified — split-sensitivity, deferred fix): this trends RAW delivered
+    # SHARE COUNT (dm22/dm66 of dq), so a split inside the 66d window inflates the ratio. The clean
+    # fix is a delivered-VALUE trend = dq * ss.close (RAW close → split-invariant; NOT adj_close,
+    # which would re-introduce the D1-F1 raw-qty×adjusted-price trap). Deferred because this feature
+    # feeds the LIVE nightly momentum_scan → the change wants a momentum_scan re-verify + deploy.
+    # Verified minor: ~0.09 Sharpe to QUAL_MOM, ~0 to DELIV_MOM (TRACK-C-RESULTS.md §D5-F6).
     dm22, dm66 = _roll_mean(dq, 22), _roll_mean(dq, 66)
     with np.errstate(invalid="ignore", divide="ignore"):
         f["deliv_qty_trend"] = np.where(dm66 > 0, dm22 / dm66, np.nan)

@@ -147,6 +147,12 @@ def build_series(conn, symbol: str) -> int:
         # window. The old window mis-timed irregular cadence: a >1-quarter filing gap collapsed
         # (a promise resolved two periods back re-counted as new) and a sub-quarter cadence could
         # miss the boundary (res == prev_ym excluded by the strict `>`). (CL-CCI-06)
+        # ⚠ Codex D6-F2 (Track C, verified — LEAK, deferred fix): `p["res"]` is the resolved
+        # PERIOD-END (e.g. FY2024 → 2024-03), but the actual only becomes public when results are
+        # REPORTED (~1-2 months later). So `p["res"] <= tym` (below) counts a promise as knowable
+        # ~1-2 months too early. NO live conclusion moves (CCI is falsified as a factor, used
+        # descriptive-only). PROPER FIX: store a report/knowable date on settlement (concall_settle)
+        # and gate on THAT, not the period end. (docs/codex-review/TRACK-C-RESULTS.md §D6-F2)
         met = missed = partial = 0
         new_met = new_missed = 0
         for p in promises:

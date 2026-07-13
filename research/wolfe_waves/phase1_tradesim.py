@@ -190,8 +190,9 @@ def nifty500(conn):
     # CL-RES-14: SURVIVORSHIP-BIASED universe. This is the CURRENT Nifty-500 membership
     # (MAX(snapshot_date)) applied to all history, so names that were in the index during
     # the backtest but later dropped out (the losers/delistings) are excluded — backtest
-    # results on this universe are optimistically biased. Prefer `inclusive` (point-in-time
-    # liquid universe). Kept for comparison only; runs print a SURVIVORSHIP-BIASED banner.
+    # results on this universe are optimistically biased. Prefer `inclusive` (full-history-liquid
+    # top-300; survivorship-AWARE — delisted retained — though NOT strictly PIT, see its docstring /
+    # Codex D4-F2). Kept for comparison only; runs print a SURVIVORSHIP-BIASED banner.
     return [r[0] for r in conn.execute(
         """SELECT symbol FROM stock_index_membership WHERE index_name='Nifty 500'
            AND snapshot_date=(SELECT MAX(snapshot_date) FROM stock_index_membership WHERE index_name='Nifty 500')
@@ -199,13 +200,21 @@ def nifty500(conn):
 
 
 def inclusive(conn, topn=300):
+    """Top-`topn` symbols by LIFETIME-AVERAGE traded value over the full history (delisted/
+    suspended RETAINED → survivorship-AWARE). ⚠ Codex D4-F2: this is NOT strictly point-in-time —
+    the top-N SELECTION uses full-history AVG(value), so a name that became liquid only later can
+    enter the universe used to score EARLIER waves (mild future-information). VERIFIED not
+    result-changing (BULL +4.18% vs +4.69% on nifty500; identical IN-SAMPLE-ONLY verdict —
+    docs/codex-review/TRACK-C-RESULTS.md §D4-F2). A per-date trailing-value universe is the clean
+    upgrade; any 'point-in-time' label elsewhere is retained-as-historical but INACCURATE."""
     return [r[0] for r in conn.execute(
         """SELECT symbol FROM bhavcopy_rows WHERE series='EQ' AND (segment='CM' OR segment IS NULL) AND value>0
            GROUP BY symbol HAVING COUNT(*)>=500 ORDER BY AVG(value) DESC LIMIT ?""", (topn,)).fetchall()]
 
 
 def run(universe_name="inclusive", debug=None):
-    # CL-RES-14: default is now the point-in-time liquid `inclusive` universe. The
+    # CL-RES-14: default is the full-history-liquid top-300 `inclusive` universe (survivorship-
+    # aware; NOT strictly point-in-time — Codex D4-F2, verified not result-changing). The
     # `nifty500` option is survivorship-biased (current membership applied to history)
     # and is opt-in only.
     with get_conn() as conn:
@@ -409,7 +418,7 @@ def oos_report(rows):
 
 
 if __name__ == "__main__":
-    uni = "inclusive"          # CL-RES-14: default to the PIT-liquid universe (nifty500 is opt-in, biased)
+    uni = "inclusive"          # CL-RES-14: default = full-history-liquid inclusive (survivorship-aware, NOT strictly PIT — D4-F2; nifty500 opt-in, biased)
     dbg = None
     args = sys.argv[1:]
     for i, a in enumerate(args):

@@ -79,7 +79,14 @@ def build_tables(cache, cal, rebal_idx, floor):
             if i0 is None or i0 < 130 or not (mt[i0] >= floor):
                 continue
             i1 = d2i.get(d1, min(i0 + REBAL, len(ac) - 1))
-            if not (ac[i0] > 0 and ac[i1] > 0):
+            # Codex D5-F1 (Track C, verified): features are computed FROM i0's close, so the
+            # selection can only ACT the next session — enter at i0+1, exit at i1+1 (1-day
+            # execution lag). Transacting at ac[i0] (the same close the signal reads) was a
+            # same-bar peek (~0.04 Sharpe optimism; RISKADJ 1.13→1.09 — docs/codex-review/
+            # TRACK-C-RESULTS.md §D5-F1). Features below stay at i0 (knowable at that close).
+            e0 = i0 + 1
+            e1 = min(i1 + 1, len(ac) - 1)
+            if e0 >= len(ac) or e1 <= e0 or not (ac[i0] > 0 and ac[e0] > 0 and ac[e1] > 0):
                 continue
             syms.append(s)
             mom6.append(ac[i0] / ac[i0 - 126] - 1 if i0 >= 126 else np.nan)
@@ -88,7 +95,7 @@ def build_tables(cache, cal, rebal_idx, floor):
             r22.append(F["ret_22d"][i0]); disthigh.append(F["dist_high_22"][i0])
             above200.append(1.0 if F["close_vs_sma200"][i0] > 0 else 0.0)
             ext5y.append(ac[i0] / ac[i0 - 1250] - 1 if i0 >= 1250 else np.nan)
-            fwd.append(ac[i1] / ac[i0] - 1)
+            fwd.append(ac[e1] / ac[e0] - 1)
         # delivery proxy: use deliv_per_22 if present in feats else volume-based; here use feats key
         tables.append({"d0": d0, "syms": syms,
                        "mom6": np.array(mom6), "mom12": np.array(mom12), "vol": np.array(vol),
