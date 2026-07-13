@@ -115,6 +115,19 @@ if [ "${SKIP_CHROME:-0}" != "1" ]; then
   fi
 fi
 
+# -- Gate 1d: doc-hygiene ratchet (DOC_INDEX coverage / transient Lifecycle banners /
+# CLAUDE<->AGENTS twin-sync). Pure stdlib, git-tracked docs only — no app import, runs without the venv. --
+if [ "${SKIP_DOCS:-0}" != "1" ]; then
+  echo "== doc-hygiene gate (clean-checkout — index coverage / transient banners / twin-sync) =="
+  DPY="$PY"; if [ -z "$DPY" ]; then for c in python python3; do command -v "$c" >/dev/null 2>&1 && { DPY="$c"; break; }; done; fi
+  if [ -z "$DPY" ]; then
+    echo "  ~~ SKIPPED: no python found"
+  elif "$DPY" "$_ROOT/scripts/doc_hygiene_gate.py"; then :; else
+    echo "  !! doc-hygiene gate FAILED — an orphaned/un-bannered doc, or CLAUDE/AGENTS twins drifted"
+    fail=$((fail+1))
+  fi
+fi
+
 echo "== health =="
 h=$(if [ "${HOST:-vps}" = "local" ]; then echo "n/a"; else ssh -o BatchMode=yes hermes 'systemctl is-active hermes-api'; fi)
 echo "  hermes-api: $h"; [ "$h" = "failed" ] && fail=$((fail+1))

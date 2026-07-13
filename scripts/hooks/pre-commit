@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# scripts/hooks/pre-commit — portable, COMMITTED git pre-commit hook for Hermes.
+#
+# Install once per clone/worktree (it is not auto-active just by existing):
+#     git config core.hooksPath scripts/hooks
+#
+# Gives HUMAN, Codex, and CLI commits the same doc-governance guarantees the Claude
+# Code PreToolUse hook (scripts/state-doc-gate.cjs) already gives Claude's commits —
+# closing the S128 gap where enforcement lived only in a gitignored settings.local.json:
+#   1. state-doc rule (D97): staging src/ or scripts/ requires staging PROJECT_STATE.md too.
+#   2. doc-hygiene ratchet: DOC_INDEX coverage + transient Lifecycle banners + twin-sync.
+# Fast — pure text/file checks, no app import. Fail-open on any infra error (never wedge commits).
+set -u
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 0
+fail=0
+
+# 1) state-doc rule (mirror of scripts/state-doc-gate.cjs, for non-Claude commits).
+if [ "${HERMES_SKIP_STATE_GATE:-0}" != "1" ]; then
+  staged="$(git diff --cached --name-only)"
+  if printf '%s\n' "$staged" | grep -qE '^(src|scripts)/' \
+     && ! printf '%s\n' "$staged" | grep -qiE '^PROJECT_STATE\.md$'; then
+    echo "pre-commit: state-doc-gate — src/ or scripts/ staged without PROJECT_STATE.md." >&2
+    echo "  Update PROJECT_STATE.md in the SAME commit (Decision log / Key file paths / Session log)," >&2
+    echo "  or set HERMES_SKIP_STATE_GATE=1 for a deliberate exception." >&2
+    fail=1
+  fi
+fi
+
+# 2) doc-hygiene ratchet.
+PY=""
+for c in python python3 "$ROOT/.venv/bin/python"; do
+  command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }
+done
+if [ -n "$PY" ] && [ -f scripts/doc_hygiene_gate.py ]; then
+  "$PY" scripts/doc_hygiene_gate.py || fail=1
+fi
+
+[ "$fail" -eq 0 ] || { echo "pre-commit: BLOCKED — fix the above, or use the documented escape." >&2; exit 1; }
+exit 0

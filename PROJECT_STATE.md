@@ -190,6 +190,10 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 ### Key file paths
 
+**Doc-governance enforcement (S131/D128) — new:**
+- `scripts/doc_hygiene_gate.py` — NEW pure-stdlib **ratchet** gate (git-tracked docs only): DOC_INDEX coverage + transient `Lifecycle:` banner + CLAUDE/AGENTS twin-sync (floors 39/32; run `python scripts/doc_hygiene_gate.py`; re-seed floors via `DOC_HYGIENE_SEED=1`). Wired as `regression_sweep.sh` Gate 1d.
+- `scripts/hooks/pre-commit` — NEW portable git pre-commit (state-doc rule + doc-hygiene) for human/Codex/CLI commits; activate with `git config core.hooksPath scripts/hooks`.
+
 **Deep-data value sprint (S110/D112) — new/changed modules:**
 - `src/web/infographics.py` — NEW leaf module: 8 tested theme-aware inline-SVG primitives (heat_ribbon · spark_area · stream · heat_grid · diverging_bars · floating_bars · pct_gauge + signed/sequential colour honoring the value contract). Zero `src` imports; safe to import from any view. The shared "diverse charts" vocabulary.
 - `src/web/market_internals_view.py` — NEW: `/dash/market-internals` (22y market-health flagship; reads `market_internals_daily`).
@@ -518,6 +522,9 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D128 — Documentation-governance enforcement made portable + continuous (2026-07-14, S131)
+The S131 doc-governance audit found the enforcement was real but **not portable**: the `state-doc-gate.cjs` PreToolUse hook was wired only in the **gitignored `.claude/settings.local.json`** (hardcoded `D:/Hermes` path) — the committed `.claude/settings.json` had no `hooks` block, so fresh clones + `.claude/worktrees/` trees commit `src/` with NO gate; and there was **no CI / no pre-commit**, so the nav/chrome/color/coverage gates ran only when someone invoked `regression_sweep.sh`. `docs/DOC_INDEX.md` (the manual doc registry) had drifted — **39 tracked docs unindexed, 32 transient-named docs without a `Lifecycle:` banner** — and nothing guarded the orphan-*file* class or CLAUDE.md⇄AGENTS.md twin-drift. **Shipped:** `scripts/doc_hygiene_gate.py` — a pure-stdlib **ratchet** (git-tracked docs only, like `color_gate`) with three checks: (A) DOC_INDEX coverage (floor 39), (B) transient `Lifecycle:` banner (floor 32), (C) CLAUDE/AGENTS twin-sync (7 canonical rules, clean) — wired as `regression_sweep.sh` **Gate 1d** (live immediately); plus `scripts/hooks/pre-commit` giving human/Codex/CLI commits the same state-doc + hygiene guarantees (activate: `git config core.hooksPath scripts/hooks`). Floors only shrink; a new orphan/un-bannered doc or twin-drift fails the gate. **Deliberately left as operator switches (not auto-applied):** the committed `settings.json` `hooks` block (§0-bis — only Ramana edits that file; uses `$CLAUDE_PROJECT_DIR`) and flipping `core.hooksPath` (would gate parallel sessions' commits). The orphan `PROJECT_STATE.md.orig`/`.rej` (byte-verified as already folded into the live doc) were removed in the same audit.
 
 ### D114 — patearn `scoring.py` ↔ `patterns.md` reconciled: patterns 6–14 are a DELIBERATE computable adaptation; mapping made EXPLICIT, scoring behaviour UNCHANGED (2026-07-11, S113)
 The divergence flagged during the S111 strategy-doc build is reconciled **as documentation, not a behaviour change** (Ramana's call: "document the mapping, no behaviour change"). Findings: patterns **1–5 (the Quality Gate — ROCE·OpLev·Tailwind·Valuation·BalanceSheet, W9/9/8/8/8) match `patterns.md` EXACTLY**; patterns **6–14 were deliberately re-organized in the code to what is computable from the fundamentals feed** (per `scoring.py`'s own docstring), so the code numbering/labels/weights do NOT line up 1:1 with the methodology's 6–14 — e.g. code#6 Promoter Conviction = methodology#8, code#8 Institutional Neglect = methodology#10, code#9/#10 Earnings Momentum / Margin Expansion are computable adjuncts with no distinct methodology pattern, and methodology#7 (Capex completion) / #13 (Mgmt quality) / #14 (RS & stage) are Phase-4-only and not in the scorer. **Shipped (docs only, NS output byte-identical):** the authoritative code↔methodology mapping table now lives in `resources/patearn/patterns.md` § "Implementation mapping (scoring.py)"; `scoring.py`'s misleading `# Pattern weights from patterns.md` comment is corrected with per-line methodology annotations (the `WEIGHTS` dict values are unchanged); `docs/strategies/patearn.md` §9 flipped to ✅ reconciled. **Deliberately NOT done (needs sign-off):** actually re-numbering/re-weighting the live scorer to the canonical methodology — that moves every stock's NS and touches `pattern_scores.detail_json` + the `/dash` surfaces + AUD-15, so it stays a separate signed decision. IP guardrail held — no weights/thresholds leaked; the math still lives only in code + `patterns.md`.
@@ -1866,6 +1873,10 @@ Ramana wants to stop spot-fixing and run two focused sessions, each opening with
 
 ### Other open items (queued, in priority order)
 
+**🟡 Doc-governance backlog (S131/D128) — shrink the ratchet floors:**
+- Index the 39 tracked docs into `docs/DOC_INDEX.md` and add `Lifecycle:` banners to the 32 transient-named docs (the floors in `scripts/doc_hygiene_gate.py`); delete each from its floor as it's fixed — this IS the deferred transient-doc triage.
+- Activate the two D128 operator switches: paste the `hooks` block into committed `.claude/settings.json` (Ramana-only per §0-bis), and run `git config core.hooksPath scripts/hooks`.
+
 **✅ Session-72 block — CLOSED (annotated S83d hygiene pass; do NOT re-execute):**
 - ~~Deploy-deferred glossary trio~~ **all three LIVE since S75** (`136f9af` captured VPS state; main equivalents `0fe5a1a`+`163cd29`; the `0ce09a9`/`ca223c4` hashes are dangling — their content shipped under different hashes).
 - ~~Consistent table controls~~ **SHIPPED** — `/dash/stocks` (`8c8367a`), stealth (S83c). Residual = cockpit tables + classic screener extension (AUD-71 sweep, post-season).
@@ -1961,6 +1972,11 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 131 — 2026-07-14 — Doc-governance audit + portable/continuous enforcement (D128) — SHIPPED
+Verified the documentation-governance framework against the real repo (see D128). Enforcement was real but not portable (state-doc hook lived only in gitignored `settings.local.json`; no CI/pre-commit) and `DOC_INDEX.md` had drifted (39 unindexed / 32 un-bannered). Removed two orphan artifacts (`PROJECT_STATE.md.orig` 906 KB + `.rej`) after byte-verifying their content was already folded into the live doc.
+- **Shipped:** `scripts/doc_hygiene_gate.py` (ratchet: index-coverage + transient-banner + twin-sync; git-tracked docs only; ASCII-only output; verified green + provably fails on new drift) + `scripts/hooks/pre-commit` + `regression_sweep.sh` Gate 1d. Staged only these 4 paths + this doc (contested tree — sibling Sessions 128–130 committing concurrently; verified `PROJECT_STATE.md` diff was mine-only before staging).
+- **Left as operator switches (NOT auto-applied):** committed `.claude/settings.json` `hooks` block (§0-bis — Ramana-only; `$CLAUDE_PROJECT_DIR`) + `git config core.hooksPath scripts/hooks` (would gate parallel sessions). Backlog to shrink: index 39→0, banners 32→0 (deferred transient-doc triage).
 
 ### Session 130 — 2026-07-13/14 — Seasonal Tape: durability (nightly timers) + in-place drills (D124/D125) + placebo "why-grey" teaching (D126) + curated sector deepening — SHIPPED + LIVE + PUSHED
 Continuation of the Seasonal Tape estate (S120 P0/P1 build · S122-126 UI + D122 this-month ranking + D123 ISO-week drill · S127 Pat flow). Closed **every** remaining open item in `docs/seasonal-NEXT-SESSION.md` bar this reconciliation. Ran concurrently with the S127-129 UX lane + a Codex lane — staged ONLY seasonal files on every commit (explicit paths + `state:skip`); frozen families **2882ccbc / cb32d1b9 / e566904c** verified byte-unchanged before/after every engine-adjacent step; **0-certified holds throughout — the finding, not a bug.**
