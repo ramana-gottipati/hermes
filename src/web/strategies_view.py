@@ -204,9 +204,89 @@ def _rail(active_slug: str | None) -> str:
     return "<nav class='sr-rail'>" + " · ".join(links) + "</nav>"
 
 
+# ── public sanitizer (UX audit S-A / P0-5) ───────────────────────────────────
+# docs/strategies/*.md are the INTERNAL canonical layer and carry governance
+# metadata (Class / Status / Governing-decisions / Reconciled, session + decision
+# IDs, commit hashes, "Ramana"). The public /dash/strategy-ref must never leak it.
+# Stripped at RENDER time only — the source docs stay intact (Guardrail #9: no
+# session/decision IDs or "Ramana" in rendered HTML).
+_GOV_HDR = re.compile(r"\*\*(Class|Status|Governing decision|Reconciled)", re.I)
+_META_LINE = re.compile(r"^\s*[-*]?\s*\*\*(Running state|Governing decision|Reconciled|Class|Status)\b", re.I)
+
+
+def _drop_gov_col(lines: list[str]) -> list[str]:
+    """Remove any table column whose header names an internal-governance field
+    (Governing decision(s) / Reconciled / Class) — keeps the rest of the table."""
+    out: list[str] = []
+    i, n = 0, len(lines)
+    while i < n:
+        ln = lines[i]
+        if ("|" in ln and i + 1 < n
+                and re.match(r"^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$", lines[i + 1])):
+            hdr = _cells(ln)
+            drop = [k for k, c in enumerate(hdr)
+                    if re.search(r"governing decision|reconciled|^class$", c, re.I)]
+            if drop:
+                rebuild = lambda cs: "| " + " | ".join(
+                    c for k, c in enumerate(cs) if k not in drop) + " |"
+                out.append(rebuild(hdr)); out.append(rebuild(_cells(lines[i + 1]))); i += 2
+                while i < n and "|" in lines[i] and lines[i].strip():
+                    out.append(rebuild(_cells(lines[i]))); i += 1
+                continue
+        out.append(ln); i += 1
+    return out
+
+
+def _public(text: str) -> str:
+    kept: list[str] = []
+    lines = text.split("\n")
+    i, n = 0, len(lines)
+    while i < n:
+        ln = lines[i]
+        # 1) drop the leading governance blockquote (the Class/Status/Reconciled header)
+        if ln.lstrip().startswith(">") and _GOV_HDR.search(ln):
+            while i < n and lines[i].lstrip().startswith(">"):
+                i += 1
+            continue
+        # 2) drop internal-pointer / doc-maintenance metadata lines
+        if _META_LINE.match(ln) or re.search(r"do not archive", ln, re.I):
+            i += 1
+            continue
+        # 3) drop the internal "Shared template (copy for any new strategy page)" section:
+        #    the heading + its fenced block (the fence holds heading-like lines, so skip the
+        #    fence itself, not "to the next heading").
+        if re.match(r"^\s*#+\s*Shared template\b", ln, re.I):
+            i += 1
+            while i < n and not lines[i].strip():
+                i += 1
+            if i < n and lines[i].lstrip().startswith("```"):
+                i += 1
+                while i < n and not lines[i].lstrip().startswith("```"):
+                    i += 1
+                i += 1                                                # past the closing ```
+            continue
+        kept.append(ln)
+        i += 1
+    lines2 = _drop_gov_col(kept)                                       # 4) strip governance table columns
+    text = "\n".join(lines2)
+    # 5) phrase + token cleanup on the remaining prose
+    text = re.sub(r"\s*\(permanent[^)]*\)", "", text, flags=re.I)          # (permanent — do not archive)
+    text = re.sub(r"\s*\(and Ramana\)", "", text, flags=re.I)
+    text = re.sub(r"future sessions", "readers", text, flags=re.I)
+    text = re.sub(r"\bRamana(?:'s)?\b", "the desk", text)
+    text = re.sub(r"\breconciled:[^\n.]*", "", text, flags=re.I)           # residual "Reconciled: …"
+    text = re.sub(r"`[0-9a-f]{7,40}`", "", text)                          # commit hashes
+    text = re.sub(r"\(\s*(?:[SD]\d{1,3}[a-z]?[\s,/·]*)+\)", "", text)      # "(D111, S109)" refs
+    text = re.sub(r"\b[SD]\d{1,3}[a-z]?\b", "", text)                     # residual bare S###/D### ids
+    text = re.sub(r"[ \t]{2,}", " ", text)                               # collapse double spaces
+    text = re.sub(r" *\(\s*\) *", " ", text)                             # empty parens
+    text = re.sub(r" +([,.;·)])", r"\1", text)                           # space before punctuation
+    return text
+
+
 def _read(fn: str) -> str | None:
     try:
-        return (_DIR / fn).read_text(encoding="utf-8")
+        return _public((_DIR / fn).read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         return None
 
@@ -298,6 +378,12 @@ def _selftest() -> int:
     assert f"{_ROUTE}?p=mep" in dv, "sibling link not rewritten"
     assert "](" not in dv, "raw markdown link leaked (unconverted)"
     assert 'href="mep.md"' not in dv, "un-rewritten sibling href leaked"
+    # P0-5 (UX audit S-A): the PUBLIC reference must not leak internal governance/jargon
+    for _b in [render_index()] + [render_page(s) for s in _PAGES]:
+        for _bad in ("do not archive", "Reconciled:", "Governing decision", "future sessions"):
+            assert _bad not in _b, f"P0-5 leak: {_bad!r}"
+        assert "Ramana" not in _b, "P0-5 leak: 'Ramana'"
+        assert not re.search(r"\b[SD]\d{2,3}[a-z]?\b", _b), "P0-5 leak: a session/decision id"
     r404 = c.get(f"{_ROUTE}?p=nope")
     assert r404.status_code == 404, r404.status_code
     print(f"strategies_view selftest OK — index + {len(_PAGES)} pages 200, tables+callouts render, links rewritten")
