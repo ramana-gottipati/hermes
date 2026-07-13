@@ -10,13 +10,20 @@
    plus a rank column and lean arrow. Every row shows the Wilson 95% confidence interval
    prominently, so most rows visibly read "indistinguishable from chance" even while ranked —
    the point of the whole page. Frozen z-family hashes are unaffected (this file never touches
-   _canon_spec/GATES/frozen_family_hash*).
+   _canon_spec/GATES/frozen_family_hash*). Optional `index=<Name>` (scope=stock only) filters the
+   screen to that index's current constituents (`stock_index_membership`, latest snapshot) — the
+   index -> constituent-stocks drill reachable from an index/sector tape page's scan-CTA; guarded
+   table-exists, silently ignored if the table or the named index isn't there.
 
 2. /dash/seasonal-divergence — do two indices move together on the calendar, and where do they
    diverge? Reads seasonal_cells (scope='index', the cross-year SCRIPT) and seasonal_stack
    (scope='index', the current elapsed year) — both already-persisted bounded snapshots.
    0 certified cells is rendered as "descriptive / grey", NEVER as "no data" — certification and
    data-coverage are different things.
+
+Both pages (plus /dash/seasonal-tape) share a top-of-page sub-nav strip (`_subnav()`, duplicated
+per-module by design — no cross-module import) so the scan/tape/divergence trio is discoverable
+from any one of the three.
 
 FIX-2 (no web-process DB writes): both routes are READ-ONLY at request time — they only SELECT
 from the bounded snapshot tables the nightly backfill already wrote; neither route ever computes
@@ -82,8 +89,25 @@ table.ssc-t td.status{color:var(--ink-3);font-size:11.5px;}
 table.ssc-t tr:hover td{background:var(--bg-2);}
 .ssc-note{color:var(--ink-3);font-size:11.5px;margin-top:8px;}
 .ssc-empty{color:var(--ink-2);font-size:13px;line-height:1.6;}
+.ssc-subnav{margin:2px 0 12px;}
 </style>
 """
+
+
+def _subnav(active: str) -> str:
+    """Shared sub-nav strip for the three seasonal surfaces (tape / this-month screen / index
+    divergence) — rendered at the top of each page so the trio is discoverable from any one of
+    them. Deliberately duplicated from seasonal_view.py's identical helper (no cross-module
+    import, avoids an import cycle)."""
+    links = (
+        ("screen", "🔍 Scan this month", "/dash/seasonal-screen"),
+        ("tape", "📅 Seasonal tape", "/dash/seasonal-tape"),
+        ("divergence", "⚖ Index divergence", "/dash/seasonal-divergence"),
+    )
+    chips = "".join(
+        f'<a class="{"on" if key == active else ""}" href="{href}">{lbl}</a>'
+        for key, lbl, href in links)
+    return f'<div class="ssc-ctrl ssc-subnav">{chips}</div>'
 
 
 def _ro(path: str) -> sqlite3.Connection:
@@ -95,6 +119,23 @@ def _ro(path: str) -> sqlite3.Connection:
 def _has_table(con: sqlite3.Connection, name: str) -> bool:
     return bool(con.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone())
+
+
+def _index_members(index_name: str, con: sqlite3.Connection):
+    """Current members (upper-cased symbols) + the canonical stored `index_name` spelling for a
+    case-insensitive match against `stock_index_membership` at its latest snapshot_date — the
+    index -> constituent-stocks drill from the tape page. Returns (None, None) when the table is
+    absent or the index has no membership rows: an honest guard, the caller then ignores the
+    filter entirely rather than fabricating an empty screen."""
+    if not _has_table(con, "stock_index_membership"):
+        return None, None
+    rows = con.execute(
+        "SELECT symbol, index_name FROM stock_index_membership WHERE UPPER(index_name)=UPPER(?) "
+        "AND snapshot_date=(SELECT MAX(snapshot_date) FROM stock_index_membership "
+        "WHERE UPPER(index_name)=UPPER(?))", (index_name, index_name)).fetchall()
+    if not rows:
+        return None, None
+    return {r["symbol"].upper() for r in rows}, rows[0]["index_name"]
 
 
 def _pearson(xs: list, ys: list) -> float | None:
@@ -117,13 +158,14 @@ def _pearson(xs: list, ys: list) -> float | None:
 @router.get("/dash/seasonal-screen", response_class=HTMLResponse)
 def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit",
                           dir: str = "desc", min_years: int = 15, q: str = "",
-                          lean: str = "hot") -> HTMLResponse:
+                          lean: str = "hot", index: str = "") -> HTMLResponse:
     scope = scope if scope in ("index", "sector", "stock") else "stock"
     sort = sort if sort in ("sym", "hit", "z", "years") else "sym"
     dir = dir if dir in ("asc", "desc") else "asc"
     lean = lean if lean in ("all", "hot", "cold") else "all"
     m = month if month in _CAL_ORDER else date.today().month
     min_years = max(0, min_years or 0)
+    index = (index or "").strip()
     body = [_CSS, ifx.readability_css()]
     try:
         con = _ro(_DB_PATH)
@@ -133,6 +175,11 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
             rows = con.execute(
                 "SELECT entity, script_z, n_years, hit_rate, colored FROM seasonal_cells "
                 "WHERE scope=? AND axis='month' AND cell=?", (scope, m)).fetchall()
+            # index -> constituent-stocks drill (D-seasonal-nav): only meaningful for scope=stock;
+            # guarded table-exists — an absent table or an unmatched index silently no-ops the
+            # filter rather than raising or emptying the whole screen.
+            members, index_canon = (
+                _index_members(index, con) if (index and scope == "stock") else (None, None))
         finally:
             con.close()
         if not rows:
@@ -142,6 +189,8 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
         recs = []
         for r in rows:
             ent = r["entity"]
+            if members is not None and ent.upper() not in members:
+                continue
             if qlow and qlow not in ent.upper():
                 continue
             ny = r["n_years"] or 0
@@ -169,30 +218,44 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
         shown = recs[:_CAP]
 
         month_name = _MONTH_ABBR.get(m, str(m))
-        body.append('<h2 style="margin:0 0 2px">This-month screen '
-                    f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">ranked '
-                    f'{month_name} base-rates, {scope}-level, over history</small></h2>')
+        if members is not None:
+            body.append(f'<h2 style="margin:0 0 2px">Stocks in {_esc(index_canon)} '
+                        f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">ranked '
+                        f'{_esc(month_name)} base-rates</small></h2>')
+        else:
+            body.append('<h2 style="margin:0 0 2px">This-month screen '
+                        f'<small style="color:var(--ink-3);font-size:12px;font-weight:400">ranked '
+                        f'{month_name} base-rates, {scope}-level, over history</small></h2>')
+        body.append(_subnav("screen"))
 
         # D122 (2026-07-13, Ramana-authorized): ranked display-layer amendment — still honest,
         # still not certified/not tradeable, CI kept prominent.
+        if members is not None:
+            covered_syms = {r["entity"].upper() for r in rows if r["entity"].upper() in members}
+            member_note = f' {len(covered_syms)} of {len(members)} {_esc(index_canon)} members covered.'
+        else:
+            member_note = ''
         body.append(
             '<div class="ssc-banner"><b>Ranked by historical BASE-RATE for this month — the '
             'descriptive ordering you asked for (D122), NOT a certified signal and NOT '
             'tradeable. Check the 95% CI: when it straddles 50% the lean is noise, and most rows '
             'do. Ordering ≠ recommendation.</b>'
             f'<span class="n">{total} {scope} entities covered for {_esc(month_name)}'
-            f'{" (min " + str(min_years) + "y history)" if min_years else ""}.</span></div>')
+            f'{" (min " + str(min_years) + "y history)" if min_years else ""}.{member_note}</span></div>')
         body.append(ifx.how_to_read_link())
 
         def _qs(**over) -> str:
             cur = {"month": m, "scope": scope, "sort": sort, "dir": dir,
-                   "min_years": min_years, "q": q, "lean": lean}
+                   "min_years": min_years, "q": q, "lean": lean, "index": index}
             cur.update(over)
             return "/dash/seasonal-screen?" + urlencode(cur)
 
         scope_tabs = "".join(
             f'<a class="{"on" if scope==s else ""}" href="{_qs(scope=s)}">{lbl}</a>'
             for s, lbl in (("stock", "Stock"), ("index", "Index"), ("sector", "Sector")))
+        if index:
+            clear_label = index_canon if members is not None else index
+            scope_tabs += f'<a href="{_qs(index="")}">✕ clear index filter ({_esc(clear_label)})</a>'
         month_tabs = "".join(
             f'<a class="{"on" if mm==m else ""}" href="{_qs(month=mm)}">{_MONTH_ABBR[mm]}</a>'
             for mm in _CAL_ORDER)
@@ -227,7 +290,7 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
 
         rows_html = ""
         for i, d in enumerate(shown, 1):
-            link = (f'/dash/stock?sym={_esc(d["entity"])}' if scope == "stock"
+            link = (f'/dash/stock?sym={_esc(d["entity"])}#seasonal' if scope == "stock"
                     else f'/dash/seasonal-tape?scope={scope}&entity={quote(d["entity"])}')
             if d["k"] is not None and d["years"]:
                 hit_txt = f'{d["k"]}/{d["years"]} ({100.0*d["hit"]:.0f}%)'
@@ -279,7 +342,8 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
                         f'{_esc(month_name)}.</div>')
     except Exception:  # noqa: BLE001 — honest empty state, never 500
         body.append(
-            '<h2>This-month screen</h2><div class="ssc-empty">The seasonal snapshot '
+            '<h2>This-month screen</h2>' + _subnav("screen") +
+            '<div class="ssc-empty">The seasonal snapshot '
             '(<code>seasonal_cells</code>) is not populated for this scope on this host. '
             'Run the seasonal tape backfill on the box. This surface is read-only and never '
             'fabricates data.</div>')
@@ -360,6 +424,7 @@ def dash_seasonal_divergence(a: str = "Nifty 200", b: str = "Nifty 50", cal: str
         body.append('<h2 style="margin:0 0 2px">Index divergence '
                     '<small style="color:var(--ink-3);font-size:12px;font-weight:400">do two '
                     'indices move together on the calendar, and where do they diverge?</small></h2>')
+        body.append(_subnav("divergence"))
         body.append(ifx.bottom_line(
             f'Comparing <b>{_esc(a_r)}</b> vs <b>{_esc(b_r)}</b> across the calendar. This is '
             'descriptive co-movement history, <b>never</b> a signal or a trade.'))
@@ -442,7 +507,8 @@ def dash_seasonal_divergence(a: str = "Nifty 200", b: str = "Nifty 50", cal: str
         body.append(f'<div class="ssc-note">{cert_note}</div>')
     except Exception:  # noqa: BLE001 — honest empty state, never 500
         body.append(
-            '<h2>Index divergence</h2><div class="ssc-empty">The seasonal snapshot '
+            '<h2>Index divergence</h2>' + _subnav("divergence") +
+            '<div class="ssc-empty">The seasonal snapshot '
             '(<code>seasonal_cells</code> / <code>seasonal_stack</code>, scope=index) is not '
             'populated on this host. This surface is read-only and never fabricates data.</div>')
     return HTMLResponse(_shell("Index divergence · patearn", "".join(body), "seasonal-divergence", "", wide=True))
@@ -533,6 +599,49 @@ def _selftest() -> int:
         r4 = c.get("/dash/seasonal-screen?scope=stock")
         assert r4.status_code == 200, "honest-empty path must still 200"
 
+        # -- screen: index -> constituent-stocks drill (D-seasonal-nav) — plant 3 stock-scope
+        # seasonal_cells rows (month=6) + a stock_index_membership table binding 2 of them to
+        # "Nifty 50"; ZIDXC carries the HIGHEST hit-rate but is NOT a member, so its exclusion
+        # (not its ranking) proves the filter actually filters. Symbols are deliberately unique
+        # (not "MEMA"/"OUTC" etc.) to avoid an accidental substring collision with unrelated page
+        # chrome text (e.g. "MEMB" inside "REMEMBER").
+        con3 = sqlite3.connect(tmp)
+        con3.executescript(
+            "CREATE TABLE IF NOT EXISTS stock_index_membership("
+            "symbol TEXT, index_name TEXT, snapshot_date TEXT, weight_pct REAL);")
+        for sym, z, hr in (("ZIDXA", 0.5, 0.7), ("ZIDXB", 0.3, 0.5), ("ZIDXC", 0.4, 0.9)):
+            con3.execute(
+                "INSERT OR REPLACE INTO seasonal_cells (scope,entity,axis,cell,script_z,n_years,"
+                "hit_rate,conf,colored,signed,emp_p_block,emp_p_phase,null_p95,sign_stable,"
+                "fdr_pass,mechanism,pledged_sign,gate_flags) VALUES "
+                "('stock',?,'month',6,?,20,?,0.1,0,0,0.5,0.5,0.5,0,0,NULL,NULL,'OK')", (sym, z, hr))
+        con3.executemany(
+            "INSERT INTO stock_index_membership (symbol, index_name, snapshot_date, weight_pct) "
+            "VALUES (?,?,?,?)",
+            [("ZIDXA", "Nifty 50", "2026-01-01", None), ("ZIDXB", "Nifty 50", "2026-01-01", None),
+             ("ZIDXC", "Nifty Next 50", "2026-01-01", None)])
+        con3.commit(); con3.close()
+
+        r7 = c.get("/dash/seasonal-screen?scope=stock&month=6&index=Nifty 50")
+        assert r7.status_code == 200, r7.status_code
+        assert "Stocks in Nifty 50" in r7.text, "index-named header missing"
+        assert "ZIDXA" in r7.text and "ZIDXB" in r7.text, "index members missing from the screen"
+        assert "ZIDXC" not in r7.text, "non-member must be excluded by the index filter"
+        assert "2 of 2 Nifty 50 members covered" in r7.text, "member-coverage count missing"
+        assert "clear index filter" in r7.text, "clear-filter chip missing"
+        # still the D122 ranked default (sort=hit desc) even WITH the index filter applied — no
+        # explicit sort/lean/dir passed in this request.
+        im_a, im_b = r7.text.find("ZIDXA"), r7.text.find("ZIDXB")
+        assert im_a != -1 and im_b != -1 and im_a < im_b, \
+            "index-filtered screen must still default to ranked-by-hit-rate (ZIDXA 70% before ZIDXB 50%)"
+
+        # an index that isn't in stock_index_membership -> guarded, filter silently ignored
+        # (never a 500, never an empty screen for a typo'd/unknown index name)
+        r8 = c.get("/dash/seasonal-screen?scope=stock&month=6&index=NoSuchIndex")
+        assert r8.status_code == 200 and "ZIDXC" in r8.text, \
+            "unmatched index must silently ignore the filter, not empty the screen"
+        assert "This-month screen" in r8.text, "ignored-filter screen keeps the plain header"
+
         # -- divergence: two populated broad indices -------------------------------------
         r5 = c.get("/dash/seasonal-divergence?a=Nifty 500&b=Nifty 200")
         assert r5.status_code == 200 and "Index divergence" in r5.text, r5.status_code
@@ -549,9 +658,14 @@ def _selftest() -> int:
         os.remove(_DB_PATH)
         _DB_PATH = saved2
 
+        # -- D-seasonal-nav: sub-nav trio (all 3 links) renders on the screen AND divergence pages
+        for text in (r1.text, r7.text, r5.text):
+            assert ("🔍 Scan this month" in text and "📅 Seasonal tape" in text
+                    and "⚖ Index divergence" in text), "seasonal sub-nav trio missing"
+
         # -- DESCRIPTIVE-ONLY FENCE: no forward-return / expected-move / horizon-pill /
-        # traffic-light leaks on EITHER route.
-        for text in (r1.text, r2.text, r3.text, r5.text):
+        # traffic-light leaks on ANY route/state, including the new index-filtered ones.
+        for text in (r1.text, r2.text, r3.text, r5.text, r7.text, r8.text):
             low = text.lower()
             for token in ("expected move", "forward return"):
                 assert token not in low, f"leaked forbidden token {token!r}"
@@ -560,7 +674,8 @@ def _selftest() -> int:
 
         print("seasonal_screen_view selftest OK — screen defaults to RANKED base-rate view "
               "(D122: sort=hit desc, lean=hot) with honest banner + Wilson CI, both routes 200 "
-              "+ honest-empty, no forward-return/expected-move/1M/traffic-light leaks")
+              "+ honest-empty, no forward-return/expected-move/1M/traffic-light leaks; sub-nav "
+              "trio + index->constituent-stocks drill (filter/header/coverage/clear-chip) wired")
     finally:
         _DB_PATH = saved
         if os.path.exists(tmp):

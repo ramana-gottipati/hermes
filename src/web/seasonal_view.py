@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import sqlite3
 import statistics
+from datetime import date
 from functools import lru_cache
 from urllib.parse import quote
 
@@ -81,8 +82,31 @@ _CSS = """
 .st-strip--desc{opacity:.55;}
 .st-cap{color:var(--ink-3);font-size:11px;margin-top:4px;}
 .st-prompt{color:var(--ink-2);font-size:13px;margin:10px 0;max-width:900px;}
+.st-subnav{margin:2px 0 12px;}
+.st-hint{color:var(--ink-3);font-size:12px;margin:2px 0 8px;}
+.st-cta{display:inline-block;margin:4px 0 12px;padding:7px 14px;border-radius:9px;
+  background:var(--accent);color:#fff;font-size:13px;font-weight:600;text-decoration:none;}
+.st-cta:hover{opacity:.9;}
+.st-scanall{font-size:12.5px;margin:2px 0 8px;}
+.st-scanall a{color:var(--accent-cy);}
 </style>
 """
+
+
+def _subnav(active: str) -> str:
+    """Shared sub-nav strip for the three seasonal surfaces (tape / this-month screen / index
+    divergence) — rendered at the top of each page so the trio is discoverable from any one of
+    them. Deliberately duplicated in seasonal_screen_view.py (no cross-module import, avoids an
+    import cycle) rather than factored into a shared module."""
+    links = (
+        ("screen", "🔍 Scan this month", "/dash/seasonal-screen"),
+        ("tape", "📅 Seasonal tape", "/dash/seasonal-tape"),
+        ("divergence", "⚖ Index divergence", "/dash/seasonal-divergence"),
+    )
+    chips = "".join(
+        f'<a class="{"on" if key == active else ""}" href="{href}">{lbl}</a>'
+        for key, lbl, href in links)
+    return f'<div class="st-ctrl st-subnav">{chips}</div>'
 
 
 def _ro(path: str) -> sqlite3.Connection:
@@ -395,9 +419,13 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             raise LookupError("no snapshot")
 
         def _stock_early_return(msg_html: str, q_val: str) -> HTMLResponse:
+            cur_month = date.today().month
             eb = ['<h2 style="margin:0 0 2px">Seasonal tape '
                  '<small style="color:var(--ink-3);font-size:12px;font-weight:400">stock — search</small>'
-                 '</h2>', _stock_search_box(q_val, cal, ents), f'<div class="st-prompt">{msg_html}</div>']
+                 '</h2>', _subnav("tape"), _stock_search_box(q_val, cal, ents),
+                 f'<div class="st-scanall"><a href="/dash/seasonal-screen?scope=stock&month={cur_month}">'
+                 '…or scan every stock for this month →</a></div>',
+                 f'<div class="st-prompt">{msg_html}</div>']
             return HTMLResponse(_shell("Seasonal tape · patearn", "".join(body + eb), "seasonal-tape", "",
                                        wide=True))
 
@@ -451,6 +479,7 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
         body.append('<h2 style="margin:0 0 2px">Seasonal tape '
                     '<small style="color:var(--ink-3);font-size:12px;font-weight:400">25-year calendar '
                     'seasonality of idiosyncratic residuals</small></h2>')
+        body.append(_subnav("tape"))
         # bottom line: name the certified months if any
         certified = [c for c in d["cmap"].values() if c.get("colored")]
         if certified:
@@ -483,9 +512,23 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
         body.append(f'<div class="st-ctrl"><span class="lbl">entity</span>{ent_chips}</div>')
         body.append(f'<div class="st-ctrl"><span class="lbl">calendar</span>{cal_tabs}</div>')
 
+        cur_month = date.today().month
+        if scope in ("index", "sector"):
+            # the index/sector -> constituent-stocks drill (D-seasonal-nav): scan this month's
+            # ranked base-rates restricted to THIS entity's current members.
+            body.append(
+                f'<a class="st-cta" href="/dash/seasonal-screen?scope=stock&index={quote(entity)}'
+                f'&month={cur_month}">🔍 Scan the stocks in {_esc(entity)} for '
+                f'{_esc(_MONTH_ABBR[cur_month])} →</a>')
+        elif scope == "stock":
+            body.append(
+                f'<div class="st-scanall"><a href="/dash/seasonal-screen?scope=stock&month={cur_month}">'
+                '…or scan every stock for this month →</a></div>')
+
         col_labels = [_MONTH_ABBR[m] for m in order]
         yrs_desc = sorted(d["years"], reverse=True)
         matrix = [[d["smap"].get((m, y)) for m in order] for y in yrs_desc]
+        body.append('<div class="st-hint">💡 Click any month cell below to break it down year-by-year.</div>')
         body.append(
             '<div class="st-panel"><div class="st-h">25-year stack '
             '<small>— each cell = that year\'s residual for that month, in σ</small></div>'
@@ -621,7 +664,8 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             '</ul></div>')
     except Exception:  # noqa: BLE001 — honest empty state, never 500
         body.append(
-            '<h2>Seasonal tape</h2><div class="st-note">The seasonal snapshot '
+            '<h2>Seasonal tape</h2>' + _subnav("tape") +
+            '<div class="st-note">The seasonal snapshot '
             '(<code>seasonal_cells</code> / <code>seasonal_stack</code>) is not populated on this host. '
             'Run <code>python -m src.automation.seasonal_tape --backfill --scope index</code> on the box. '
             'This surface is read-only and never fabricates data.</div>')
@@ -700,6 +744,20 @@ def _selftest() -> int:
         r5 = c.get("/dash/seasonal-tape?scope=stock")
         assert r5.status_code == 200
         assert "st-search" in r5.text and "Search a symbol above" in r5.text, "no-entity search prompt missing"
+
+        # D-seasonal-nav: sub-nav trio (all 3 links) renders on the tape page, in every scope
+        for text in (r.text, r3.text, r5.text):
+            assert ("🔍 Scan this month" in text and "📅 Seasonal tape" in text
+                    and "⚖ Index divergence" in text), "seasonal sub-nav trio missing"
+        # drill hint above the 25-year stack
+        assert "Click any month cell below to break it down" in r.text, "drill hint missing"
+        # index/sector -> constituent-scan CTA (the index->stocks drill)
+        assert "Scan the stocks in Nifty Auto" in r.text and "scope=stock&index=Nifty" in r.text, \
+            "sector -> constituent-scan CTA missing"
+        assert "Scan the stocks in Nifty 500" in r3.text and "scope=stock&index=Nifty" in r3.text, \
+            "index -> constituent-scan CTA missing"
+        # stock-scope: the "...or scan every stock" discoverability link on the search prompt
+        assert "…or scan every stock for this month" in r5.text, "stock-scope scan-all link missing"
         # scope=stock, an unresolvable query (no bhavcopy_rows table in this tmp DB -> the guarded
         # resolve raises internally and is caught) -> honest 'computed nothing', not a silent default
         r5b = c.get("/dash/seasonal-tape?scope=stock&entity=DOESNOTEXIST")
@@ -754,7 +812,8 @@ def _selftest() -> int:
         print("seasonal_view selftest OK — stack + consensus + outlook + drill + weekly/weekday "
               "strips + events section render; stock search box + FIX-1 no-default-entity + FIX-2 "
               "in-memory on-demand resolve wired; 0-certified consensus st-empties honestly; "
-              "seasonal_card embeds + honest-empties + fences the forward outlook")
+              "seasonal_card embeds + honest-empties + fences the forward outlook; sub-nav trio + "
+              "drill hint + index/sector->constituent-scan CTA + stock scan-all link wired")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
