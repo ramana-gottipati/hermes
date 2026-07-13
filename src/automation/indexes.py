@@ -26,6 +26,7 @@ from typing import Optional
 import requests
 
 from src.core.db import DB_PATH, get_conn
+from src.automation.fetch_retry import RetryableFetchError, raise_if_retryable  # AUD-14
 
 log = logging.getLogger("hermes.indexes")
 
@@ -60,8 +61,8 @@ def _try_fetch(url: str, *, timeout: int = 30) -> Optional[bytes]:
             timeout=timeout,
         )
     except requests.RequestException as e:
-        log.debug("fetch error %s: %s", url, e)
-        return None
+        raise RetryableFetchError(f"network error fetching {url}: {e}") from e   # AUD-14
+    raise_if_retryable(r.status_code, url)   # AUD-14: 403/429/5xx = throttle/block, not no-data
     if r.status_code != 200 or len(r.content) < 100:
         return None
     return r.content
@@ -204,7 +205,12 @@ def fetch_and_store(d: datetime) -> tuple[bool, str, int]:
         return True, "already ingested", 0
 
     url = _ind_close_url(d)
-    raw = _try_fetch(url)
+    try:
+        raw = _try_fetch(url)
+    except RetryableFetchError as e:
+        # AUD-14: a block/throttle is NOT a holiday — leave the date un-marked (never _mark_date
+        # here) so run_today / run_backfill re-attempt it instead of a silent index-feed hole.
+        return False, f"{trade_date} BLOCKED/throttled — left for retry: {e}", 0
     if not raw:
         return False, f"fetch failed for {trade_date}", 0
 

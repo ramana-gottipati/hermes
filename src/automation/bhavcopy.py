@@ -32,12 +32,17 @@ from typing import Optional
 import requests
 
 from src.core.db import DB_PATH, get_conn
+from src.automation.fetch_retry import RetryableFetchError, raise_if_retryable  # AUD-14
 
 log = logging.getLogger("hermes.bhavcopy")
 
 USER_AGENT = "Mozilla/5.0 (Hermes Personal Agent)"
 ARCHIVE_DIR = DB_PATH.parent / "bhavcopy"
 REQUEST_PAUSE_SECONDS = 1.5
+# AUD-14: only sentinel a genuinely-no-data weekday as a holiday (row_count=0) once it is old
+# enough that "no data" cannot mean "not posted yet" — NSE posts EOD same-day, so 3 days is a
+# safe margin. A recent no-data day is left un-marked so a later run still ingests it when posted.
+_HOLIDAY_SENTINEL_AGE_DAYS = 3
 
 
 # --- URL builders -----------------------------------------------------------
@@ -96,10 +101,11 @@ def _try_fetch(url: str, *, timeout: int = 30) -> Optional[bytes]:
             timeout=timeout,
         )
     except requests.RequestException as e:
-        log.debug("fetch error %s: %s", url, e)
-        return None
+        # AUD-14: a network-level failure is transient, NOT a holiday — surface it as retryable.
+        raise RetryableFetchError(f"network error fetching {url}: {e}") from e
+    raise_if_retryable(r.status_code, url)   # AUD-14: 403/429/5xx = throttle/block, not no-data
     if r.status_code != 200 or len(r.content) < 100:
-        return None
+        return None                          # genuine no-data (404 / tiny body) = holiday/not-posted
     return r.content
 
 
@@ -468,9 +474,22 @@ def ingest_date(d: datetime) -> tuple[bool, str, int]:
     if date_already_done(iso_date):
         return True, f"{iso_date} already ingested", 0
 
-    fetched = fetch_for_date(d)
+    try:
+        fetched = fetch_for_date(d)
+    except RetryableFetchError as e:
+        # AUD-14: a block/throttle is NOT a holiday — leave the date UN-marked so run_recent /
+        # the backfill re-attempt it (never a silent 1-day hole below the freshness alarm).
+        return False, f"{iso_date} BLOCKED/throttled — left for retry: {e}", 0
     if not fetched:
-        return False, f"{iso_date} no data (holiday/weekend/not-published)", 0
+        # Genuine no-data. AUD-14: once the day is old enough that "no data" can't mean
+        # "not posted yet", record a row_count=0 HOLIDAY SENTINEL so it is a VISIBLE done-with-0
+        # (a missing bhavcopy_dates row now means only "throttled/pending" — a real gap) and is
+        # not re-fetched every run. A recent no-data day stays un-marked (data may still post).
+        age_days = (datetime.now(timezone.utc).astimezone() - d).days
+        if age_days >= _HOLIDAY_SENTINEL_AGE_DAYS:
+            mark_date_done(iso_date, "holiday", 0, False)
+            return True, f"{iso_date} no data — recorded holiday sentinel (row_count=0)", 0
+        return False, f"{iso_date} no data (holiday/weekend/not-published) — pending, may post later", 0
 
     content, filename, fmt, has_delivery = fetched
     save_raw(d, filename, content)
@@ -492,7 +511,11 @@ def ingest_date(d: datetime) -> tuple[bool, str, int]:
     # deliv_qty/deliv_per on the already-parsed rows. The 2020+ delivery path is
     # untouched: it already has has_delivery=True and skips this block.
     if rows and not has_delivery:
-        mto_raw = _try_fetch(_mto_url(d))
+        try:
+            mto_raw = _try_fetch(_mto_url(d))
+        except RetryableFetchError:
+            mto_raw = None      # AUD-14: MTO delivery enrichment is optional — a throttle here
+                                # must not fail a date whose main rows already parsed.
         if mto_raw:
             save_raw(d, f"MTO_{d.strftime('%d%m%Y')}.DAT", mto_raw)
             merged, mismatch = _merge_mto(
@@ -521,16 +544,27 @@ def ingest_date(d: datetime) -> tuple[bool, str, int]:
 # --- Modes -----------------------------------------------------------------
 
 def run_recent() -> tuple[bool, str]:
+    # AUD-14: scan the FULL 7-day lookback for any not-yet-done weekday instead of early-returning
+    # on the first success — otherwise a day D that was throttled/missed is NEVER re-attempted once
+    # a later day D+1 lands (a permanent 1-day hole below the >4d freshness alarm). date_already_done
+    # short-circuits completed days (incl. holiday sentinels), so a normal night still fetches ~1 day.
     today = datetime.now(timezone.utc).astimezone()
+    got, msgs = [], []
     for offset in range(0, 7):
         d = today - timedelta(days=offset)
         if d.weekday() >= 5:
             continue
+        if date_already_done(d.strftime("%Y-%m-%d")):
+            continue                       # done (data or holiday sentinel) → no re-fetch
         ok, msg, inserted = ingest_date(d)
         log.info(msg)
         if ok and inserted > 0:
-            return True, msg
-    return False, "no recent bhav copy found"
+            got.append(d.strftime("%Y-%m-%d"))
+            msgs.append(msg)
+        time.sleep(REQUEST_PAUSE_SECONDS)  # gentle between real fetches (don't self-throttle)
+    if got:
+        return True, f"ingested {len(got)} day(s): " + "; ".join(msgs)
+    return False, "no new bhav copy in the last 7 weekdays"
 
 
 def run_backfill(days: int) -> tuple[int, int]:

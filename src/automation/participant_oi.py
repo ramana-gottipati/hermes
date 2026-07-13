@@ -34,6 +34,7 @@ from typing import Optional
 import requests
 
 from src.core.db import get_conn
+from src.automation.fetch_retry import RetryableFetchError, raise_if_retryable  # AUD-14
 
 log = logging.getLogger("hermes.participant_oi")
 
@@ -90,8 +91,8 @@ def _try_fetch(url: str, *, timeout: int = 30) -> Optional[bytes]:
             "Accept-Language": "en-US,en;q=0.9", "Connection": "keep-alive",
         }, timeout=timeout)
     except requests.RequestException as e:
-        log.debug("fetch error %s: %s", url, e)
-        return None
+        raise RetryableFetchError(f"network error fetching {url}: {e}") from e   # AUD-14
+    raise_if_retryable(r.status_code, url)   # AUD-14: 403/429/5xx = throttle/block, not no-data
     if r.status_code != 200 or len(r.content) < 200:
         return None
     return r.content
@@ -163,7 +164,10 @@ def run_today() -> tuple[bool, str]:
         row = conn.execute("SELECT MAX(trade_date) d FROM bhavcopy_rows").fetchone()
     if not row or not row["d"]:
         return False, "no cash bhav found"
-    n = compute_for_date(row["d"])
+    try:
+        n = compute_for_date(row["d"])
+    except RetryableFetchError as e:        # AUD-14: report a block as a FAILURE, not a 0-row holiday
+        return False, f"participant-OI blocked/throttled for {row['d']}: {e}"
     return True, f"participant-OI: {n} rows for {row['d']}"
 
 
