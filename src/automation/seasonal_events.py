@@ -492,6 +492,11 @@ def backfill_events(read_path: str, write_path: str, symbols: list, asof: str | 
                              None, None, ev.get("n_history"), ev.get("n_history"), ev.get("modeled", 0)))
                 if ev.get("status") == "OVERDUE":
                     counts["overdue"] += 1
+            # Bound the table to ONE asof per symbol (space mandate): drop this symbol's prior-asof
+            # rows before writing the current run, exactly as _write() does for the stock snapshot.
+            # The view reads MAX(asof) WHERE symbol=? so nothing consumes the older asofs anyway;
+            # without this a nightly timer would accrete ~1 full snapshot (~19k rows) per night.
+            wconn.execute("DELETE FROM seasonal_events WHERE symbol=?", (payload["symbol"],))
             wconn.executemany(
                 "INSERT OR REPLACE INTO seasonal_events (symbol,event_type,asof,status,"
                 "variance_weeks,anchor,anchor_basis,lo,hi,mu_date,sigma_days,k,n,n_history,modeled) "
@@ -588,7 +593,18 @@ def main() -> None:
             syms = stock_universe_all(rc)
         finally:
             rc.close()
-        print({"universe": len(syms), **backfill_events(str(DB_PATH), str(DB_PATH), syms, asof=a.asof)})
+        result = backfill_events(str(DB_PATH), str(DB_PATH), syms, asof=a.asof)
+        # Finalizer: the all-EQ pass just wrote today's asof for the FULL current universe, so any
+        # row left at an older asof belongs to a symbol that has since dropped out of the liquid set.
+        # Sweep them -> the table holds exactly one snapshot (the view reads MAX(asof) regardless).
+        wc = sqlite3.connect(str(DB_PATH), timeout=60)
+        try:
+            swept = wc.execute(
+                "DELETE FROM seasonal_events WHERE asof < (SELECT MAX(asof) FROM seasonal_events)").rowcount
+            wc.commit()
+        finally:
+            wc.close()
+        print({"universe": len(syms), "swept_stale": swept, **result})
     elif a.backfill:
         from src.core.db import DB_PATH
         print(backfill_events(str(DB_PATH), str(DB_PATH), a.backfill, asof=a.asof))
