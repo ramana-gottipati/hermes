@@ -329,6 +329,111 @@ _CARD_CSS = (
 )
 
 
+def _iso_week_month(ref_year: int = 2026) -> dict:
+    """{ISO week 1..53 -> calendar month of that week's Thursday}. 2026 is a 53-week ISO year so
+    week 53 resolves; the guard keeps any short-year edge safe. Approximate by design (weeks don't
+    nest in months) — hence the '≈' on every week label the strip renders."""
+    out = {}
+    for wk in range(1, 54):
+        try:
+            out[wk] = date.fromisocalendar(ref_year, wk, 4).month
+        except ValueError:
+            out[wk] = 12
+    return out
+
+
+_WK_MONTH = _iso_week_month()
+
+
+def _week_daterange(wk: int, ref_year: int = 2026) -> str:
+    """Approx 'Jun 30–Jul 06' span of an ISO week (reference year) for the hover tooltip."""
+    try:
+        mon = date.fromisocalendar(ref_year, wk, 1)
+        sun = date.fromisocalendar(ref_year, wk, 7)
+    except ValueError:
+        return "year-end"
+    if mon.month == sun.month:
+        return f"{_MONTH_ABBR[mon.month]} {mon.day}–{sun.day}"
+    return f"{_MONTH_ABBR[mon.month]} {mon.day} – {_MONTH_ABBR[sun.month]} {sun.day}"
+
+
+def _svg_open(w: int, h: int) -> str:
+    return (f'<svg viewBox="0 0 {w} {h}" class="ifx" role="img" '
+            'preserveAspectRatio="xMidYMid meet" style="max-width:100%;height:auto">')
+
+
+def _month_strip(cmap: dict, order: list, *, w: int = 560, h: int = 50, vmax: float = 0.5) -> str:
+    """12 LABELLED month cells (each month named beneath it), coloured by its average residual; a
+    dot marks a certified month; hover carries the value + up-years. Every month is present and
+    labelled, so the card leads with the picture a reader thinks in — never an empty 'no data'."""
+    n = len(order)
+    bw = w / n
+    top, band = 3, h - 24
+    parts = [_svg_open(w, h)]
+    for i, mth in enumerate(order):
+        x = i * bw
+        c = cmap.get(mth) or {}
+        sz = c.get("script_z")
+        ny = c.get("n_years") or 0
+        cert = bool(c.get("colored"))
+        if sz is not None and ny >= 15:
+            hr = c.get("hit_rate")
+            up = f" · {round(hr * ny)}/{ny} up" if (hr is not None and ny) else ""
+            fill = ifx.signed_fill(sz / vmax)
+            tip = f"{_MONTH_ABBR[mth]} · {sz:+.2f}σ{up} · {'certified' if cert else 'descriptive'}"
+        else:
+            fill = "var(--bg-3)"
+            tip = f"{_MONTH_ABBR[mth]} · no 15-year history"
+        parts.append(
+            f'<rect x="{x:.2f}" y="{top}" width="{bw - 1.4:.2f}" height="{band}" rx="2" '
+            f'fill="{fill}"><title>{_esc(tip)}</title></rect>')
+        if cert:
+            parts.append(f'<circle cx="{x + bw / 2:.1f}" cy="{top + 4:.1f}" r="2.1" '
+                         'fill="var(--accent-cy)"/>')
+        parts.append(
+            f'<text x="{x + bw / 2:.1f}" y="{h - 6}" text-anchor="middle" '
+            f'fill="var(--ink-3)" font-size="9.5">{_MONTH_ABBR[mth]}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _week_strip(wcmap: dict, *, w: int = 560, h: int = 44, vmax: float = 0.5) -> str:
+    """53 FIXED ISO-week slots (gaps drawn faint, positions preserved so weeks map to a stable x),
+    with month tick-labels beneath at each month's first week — so a hot patch reads as 'that's
+    July', not 'week 27 of what?'. Hover on any cell = 'W27 ≈ Jun 30–Jul 06 · +0.31σ'."""
+    weeks = list(range(1, 54))
+    bw = w / len(weeks)
+    top, band = 3, h - 18
+    parts = [_svg_open(w, h)]
+    for i, wk in enumerate(weeks):
+        x = i * bw
+        c = wcmap.get(wk) or {}
+        sz = c.get("script_z")
+        ny = c.get("n_years") or 0
+        rng = _week_daterange(wk)
+        if sz is not None and ny >= 15:
+            fill = ifx.signed_fill(sz / vmax)
+            tip = f"W{wk} ≈ {rng} · {sz:+.2f}σ"
+        else:
+            fill = "var(--bg-3)"
+            tip = f"W{wk} ≈ {rng} · no 15-year history"
+        parts.append(
+            f'<rect x="{x:.2f}" y="{top}" width="{bw + 0.4:.2f}" height="{band}" '
+            f'fill="{fill}"><title>{_esc(tip)}</title></rect>')
+    seen = set()
+    for i, wk in enumerate(weeks):
+        mo = _WK_MONTH.get(wk)
+        if mo and mo not in seen:
+            seen.add(mo)
+            x = i * bw
+            parts.append(f'<line x1="{x:.1f}" y1="{top}" x2="{x:.1f}" y2="{top + band}" '
+                         'stroke="var(--bg-1)" stroke-width="1"/>')
+            parts.append(f'<text x="{x + 1.5:.1f}" y="{h - 5}" fill="var(--ink-3)" '
+                         f'font-size="8.5">{_MONTH_ABBR[mo]}</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 def seasonal_card(scope: str, entity: str, *, db_path: str | None = None, heading: bool = True) -> str:
     """Reusable COMPACT seasonal card for embedding in another lens (the stock detail page's
     Seasonal tab, the index/sector detail page). Resolves `entity` case-insensitively against the
@@ -363,17 +468,22 @@ def seasonal_card(scope: str, entity: str, *, db_path: str | None = None, headin
     if scope == 'stock':
         caveats += '<li>Current-membership universe — survivor-conditional.</li>'
     link = f'/dash/seasonal-tape?scope={scope}&entity={quote(resolved)}'
-    week_cells, _wk_cert, wk_desc = _axis_strip_cells(
-        d.get("wcmap", {}), list(range(1, 54)), lambda c: f"W{c}")
+    # finer weekly strip only when this entity has ANY populated ISO-week cell (>=15y)
+    wk_desc = any((c.get("script_z") is not None and (c.get("n_years") or 0) >= 15)
+                  for c in d.get("wcmap", {}).values())
     weekly_html = (
-        '<div class="sc-note" style="margin-top:6px">Weekly shape (ISO week 1–53, descriptive):</div>'
-        + ifx.heat_ribbon(week_cells, w=560, h=26)
+        '<div class="sc-note" style="margin-top:8px">Weekly detail '
+        '<span style="color:var(--ink-4)">— ISO weeks, month-anchored; hover any cell</span></div>'
+        + _week_strip(d.get("wcmap", {}))
     ) if wk_desc else ''
     return (
         _CARD_CSS
         + '<div class="sc-card">' + heading_html
         + f'<div class="sc-bl">{bl}</div>'
-        + ifx.heat_ribbon(_consensus_ribbon_cells(d, _FISCAL_ORDER), w=560, h=34)
+        + '<div class="sc-note" style="margin-top:2px">Monthly rhythm '
+          '<span style="color:var(--ink-4)">— Jan→Dec, avg residual (● = certified); hover for '
+          'the number</span></div>'
+        + _month_strip(d["cmap"], _CAL_ORDER)
         + weekly_html
         + f'<div class="sc-note">{len(certified)} of 12 months certified; the rest '
           'indistinguishable from chance.</div>'
@@ -844,15 +954,25 @@ def _selftest() -> int:
         assert card, "seasonal_card should render for a covered sector (case-insensitive)"
         assert "/dash/seasonal-tape?scope=sector" in card and "entity=Nifty%20Auto" in card, \
             "card missing the seasonal-tape deep-link"
-        assert "<svg" in card, "card missing the consensus ribbon"
+        assert "<svg" in card, "card missing the month/week strips"
         # honest-empty: no stock snapshot at all in this tmp DB
         assert seasonal_card("stock", "DOESNOTEXIST", db_path=tmp) == "", \
             "seasonal_card should honest-empty for an uncovered stock"
         # DESCRIPTIVE-ONLY FENCE: the card must never leak the forward-outlook / traffic-light read
         for token in ("1M", "🟢", "🟡", "⚪", "Forward outlook"):
             assert token not in card, f"seasonal_card leaked a forward-outlook token: {token!r}"
-        # the new Weekly strip is additive to the card and must not reintroduce the fenced tokens
-        assert "Weekly shape" in card, "seasonal_card should carry the new descriptive Weekly strip"
+        # NEW month-anchored journey: the card leads with a LABELLED monthly strip (every month
+        # named) + a month-anchored weekly strip whose cells carry an approximate month/date hover.
+        assert "Monthly rhythm" in card, "card should lead with the labelled Monthly rhythm strip"
+        assert "Weekly detail" in card and "month-anchored" in card, \
+            "card should carry the month-anchored Weekly detail strip"
+        assert "Jan" in card and "Jul" in card and "Dec" in card, \
+            "every calendar month must be labelled on the monthly strip"
+        assert "≈" in card, "week cells must carry the approximate week->month hover mapping"
+        # the week->month map + date range must actually resolve (July sits around ISO week 27)
+        assert _WK_MONTH[27] == 7, f"ISO week 27 should map to July, got {_WK_MONTH[27]}"
+        assert "Jun" in _week_daterange(27) or "Jul" in _week_daterange(27), \
+            "week-27 date range should straddle late Jun / early Jul"
 
         print("seasonal_view selftest OK — stack + consensus + outlook + drill + weekly/weekday "
               "strips + events section render; stock search box + FIX-1 no-default-entity + FIX-2 "
