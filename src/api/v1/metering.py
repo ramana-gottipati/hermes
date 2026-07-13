@@ -11,10 +11,13 @@ middleware in all cases — never a mutable counter that couldn't survive a bill
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from src.core.db import get_conn
 from src.api.v1.schema import ensure_schema
+
+log = logging.getLogger("hermes.v1.metering")
 
 # Keep only the last few minute-windows — only the current window is ever read, so older
 # rows are dead weight; without this the table grows one row per (key, minute) forever.
@@ -49,13 +52,22 @@ def rate_check(key_id: str, limit_per_min: int) -> tuple[bool, int]:
 
 def record_usage(*, tenant_id, key_id, endpoint, path, status, bytes_out=None,
                  latency_ms=None, scope_used=None, request_id=None) -> None:
-    """Append one usage event. Best-effort: metering must never break a response."""
-    try:
-        with get_conn() as conn:
-            ensure_schema(conn)
-            conn.execute(
-                "INSERT INTO v1_usage(tenant_id,key_id,endpoint,path,status,bytes_out,latency_ms,scope_used,request_id) "
-                "VALUES(?,?,?,?,?,?,?,?,?)",
-                (tenant_id, key_id, endpoint, path, status, bytes_out, latency_ms, scope_used, request_id))
-    except Exception:               # noqa: BLE001 — never let metering fail the request
-        pass
+    """Append one usage event. Best-effort: metering must never break a response — but a
+    DROPPED row is now LOGGED, never silent (AUD-37). A transient write-lock (the documented
+    lock class) gets ONE retry before the row is recorded as dropped, so a billing dispute
+    can at least see it happened."""
+    for attempt in range(2):
+        try:
+            with get_conn() as conn:
+                ensure_schema(conn)
+                conn.execute(
+                    "INSERT INTO v1_usage(tenant_id,key_id,endpoint,path,status,bytes_out,latency_ms,scope_used,request_id) "
+                    "VALUES(?,?,?,?,?,?,?,?,?)",
+                    (tenant_id, key_id, endpoint, path, status, bytes_out, latency_ms, scope_used, request_id))
+            return
+        except Exception as exc:    # noqa: BLE001 — never let metering fail the request
+            if attempt == 0 and "lock" in str(exc).lower():
+                continue            # one quick retry on a transient lock
+            log.warning("v1 metering DROPPED a usage row (request_id=%s endpoint=%s status=%s): %s",
+                        request_id, endpoint, status, exc)
+            return
