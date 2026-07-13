@@ -90,8 +90,10 @@ _CSS = """
 table.ssc-t{border-collapse:collapse;width:100%;font-size:12.5px;}
 table.ssc-t th{text-align:left;color:var(--ink-3);font-weight:600;font-size:11px;padding:6px 10px;
   border-bottom:1px solid var(--line-2);white-space:nowrap;}
-table.ssc-t th a{color:var(--ink-3);text-decoration:none;border-bottom:1px dotted var(--line-3);}
-table.ssc-t th a:hover{color:var(--ink);}
+table.ssc-t th a{color:var(--ink-3);text-decoration:none;border-bottom:1px dotted var(--line-3);cursor:pointer;}
+table.ssc-t th a:hover{color:var(--ink);border-bottom-color:var(--ink-3);}
+table.ssc-t th a.on{color:var(--accent-cy);border-bottom:1px solid var(--accent-cy);font-weight:700;}
+table.ssc-t th .srt{opacity:.35;font-size:10px;}
 table.ssc-t td{padding:6px 10px;border-bottom:1px solid var(--line-3);color:var(--ink);vertical-align:top;}
 table.ssc-t td.sym a{color:var(--accent-cy);text-decoration:none;font-weight:600;}
 table.ssc-t td.ci{color:var(--ink-2);font-variant-numeric:tabular-nums;font-size:11.5px;}
@@ -171,7 +173,7 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
                           dir: str = "desc", min_years: int = 15, q: str = "",
                           lean: str = "hot", index: str = "") -> HTMLResponse:
     scope = scope if scope in ("index", "sector", "stock") else "stock"
-    sort = sort if sort in ("sym", "hit", "z", "years", "strength") else "sym"
+    sort = sort if sort in ("sym", "hit", "z", "years", "strength", "mrank") else "sym"
     dir = dir if dir in ("asc", "desc") else "asc"
     lean = lean if lean in ("all", "hot", "cold") else "all"
     m = month if month in _CAL_ORDER else date.today().month
@@ -274,6 +276,12 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
                 if st is None:
                     st = -_big if dir == "desc" else _big
                 return (st, z)
+            if sort == "mrank":
+                # rank of THIS month among the entity's own 12 (1 = its hottest). Ascending shows
+                # the names for which this month IS their best month first; bigger move breaks ties.
+                mr = d["mrank"]
+                r = mr[0] if mr else 999
+                return (r, -z)
             # sort == "hit": confidence-adjusted reliability, direction-aware magnitude tie-break
             return (lo, z) if dir == "desc" else (hi, z)
         recs.sort(key=_key, reverse=(dir == "desc"))
@@ -307,6 +315,17 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
             f'{" (min " + str(min_years) + "y history)" if min_years else ""}.{member_note}</span></div>')
         body.append(ifx.how_to_read_link())
 
+        # Q1 coverage explainer — index/sector are thin because of DATA DEPTH, not a hidden cap.
+        if scope != "stock":
+            body.append(
+                '<div class="ssc-note" style="margin:2px 0 8px;max-width:1120px;line-height:1.55">'
+                '<b>Why so few?</b> Index/sector seasonal history in this dataset starts ~2012, so '
+                'only the four broad indices (Nifty 50/100/200/500) reach the <b>15-year floor</b> '
+                'that certification needs; sectors cap at ~11–12y and the mid/small/micro-cap indices '
+                'are younger still. Relax the <b>history</b> chips below to include them (descriptive, '
+                'still not certified). Note <b>Bullish</b> also hides non-positive-month names — try '
+                '<b>Bearish</b> or <b>Lookup</b> to see the rest.</div>')
+
         def _qs(**over) -> str:
             cur = {"month": m, "scope": scope, "sort": sort, "dir": dir,
                    "min_years": min_years, "q": q, "lean": lean, "index": index}
@@ -333,9 +352,15 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
             f'<a class="{"on" if (lean, sort, dir) == (lv, sr, dr) else ""}" '
             f'href="{_qs(lean=lv, sort=sr, dir=dr)}">{lbl}</a>'
             for lv, sr, dr, lbl in _modes)
+        # history floor chips — expose the min_years filter (was a hidden URL param). Lets the
+        # reader relax the 15y certification floor to surface shallow-history index/sector entities.
+        yr_tabs = "".join(
+            f'<a class="{"on" if min_years==yv else ""}" href="{_qs(min_years=yv)}">{lbl}</a>'
+            for yv, lbl in ((15, "≥15y"), (10, "≥10y"), (5, "≥5y"), (0, "any")))
         body.append(f'<div class="ssc-ctrl"><span class="lbl">scope</span>{scope_tabs}</div>')
         body.append(f'<div class="ssc-ctrl"><span class="lbl">month</span>{month_tabs}</div>')
         body.append(f'<div class="ssc-ctrl"><span class="lbl">view</span>{mode_tabs}</div>')
+        body.append(f'<div class="ssc-ctrl"><span class="lbl">history</span>{yr_tabs}</div>')
         body.append(
             f'<form class="ssc-search" method="get" action="/dash/seasonal-screen">'
             f'<input type="hidden" name="month" value="{m}"/>'
@@ -349,7 +374,13 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
 
         def _hdr(col: str, label: str) -> str:
             nd = "desc" if (sort == col and dir == "asc") else "asc"
-            return f'<a href="{_qs(sort=col, dir=nd)}">{label}</a>'
+            if sort == col:
+                cue = f'<span class="srt">{"▾" if dir == "desc" else "▴"}</span>'
+                cls = ' class="on"'
+            else:
+                cue = '<span class="srt">⇅</span>'
+                cls = ''
+            return f'<a{cls} href="{_qs(sort=col, dir=nd)}" title="click to sort">{label} {cue}</a>'
 
         rows_html = ""
         for i, d in enumerate(shown, 1):
@@ -411,7 +442,7 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
                 '<th>95% CI lo–hi%</th>'
                 f'<th>{_hdr("z", "Mean residual")}</th>'
                 f'<th>{_hdr("strength", "Strength t")}</th>'
-                f'<th>{_esc(month_name)} rank</th>'
+                f'<th>{_hdr("mrank", _esc(month_name) + " rank")}</th>'
                 f'<th>{_hdr("years", "Years")}</th>'
                 '<th>Status</th>'
                 '</tr></thead><tbody>' + rows_html + '</tbody></table></div>'
@@ -419,8 +450,22 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
                   f'{" (narrow with the search box to see more)" if total > len(shown) else ""}.</div>'
                 + '</div>')
         else:
-            body.append('<div class="ssc-panel ssc-empty">No entity matches these filters for '
-                        f'{_esc(month_name)}.</div>')
+            avail = [r for r in rows
+                     if (members is None or r["entity"].upper() in members)
+                     and (not qlow or qlow in r["entity"].upper())]
+            max_ny = max((r["n_years"] or 0 for r in avail), default=0)
+            lean_note = f' with the “{lean}” lean' if lean in ("hot", "cold") else ''
+            depth = ('' if scope == "stock" else
+                     f' {scope.capitalize()}-level seasonal history here begins ~2012, so most cap at '
+                     f'~11–12 years (deepest: {max_ny}y) — only the four broad indices were backfilled '
+                     'to 2004.')
+            body.append(
+                '<div class="ssc-panel ssc-empty">'
+                f'<b>0 of {len(avail)} {_esc(scope)} entities</b> clear the '
+                f'{("≥" + str(min_years) + "-year") if min_years else "history"} floor for '
+                f'{_esc(month_name)}{lean_note}.{depth} Relax the <b>history</b> chips above '
+                '(e.g. ≥10y or “any”) to include them — descriptive, still not certified — or switch '
+                'the <b>view</b> to Bearish / Lookup.</div>')
     except Exception:  # noqa: BLE001 — honest empty state, never 500
         body.append(
             '<h2>This-month screen</h2>' + _subnav("screen") +
@@ -674,6 +719,20 @@ def _selftest() -> int:
             "confidence-adjusted (Wilson lower-bound) ranking not disclosed on the page"
         r1s = c.get("/dash/seasonal-screen?scope=index&month=6&sort=strength&dir=desc&lean=hot")
         assert r1s.status_code == 200 and "Strength t" in r1s.text, "sort=strength failed"
+        # -- sortable affordance + the exposed history-floor filter + the month-rank sort ------
+        assert "⇅" in r1.text, "sortable-header cue (⇅) missing — sorting must be visible"
+        assert '<span class="lbl">history</span>' in r1.text and "≥10y" in r1.text and "any" in r1.text, \
+            "history (min_years) filter chips missing"
+        assert "Why so few?" in r1.text, "index/sector coverage explainer missing"
+        r1m = c.get("/dash/seasonal-screen?scope=index&month=6&sort=mrank&dir=asc&lean=hot")
+        assert r1m.status_code == 200 and "rank <span class=\"srt\">▴" in r1m.text, \
+            "sort=mrank failed / month-rank header not shown as the active ascending sort"
+        # relaxing the history floor to 'any' must surface entities the 15y floor hid
+        r1a15 = c.get("/dash/seasonal-screen?scope=index&month=6&lean=all&min_years=15")
+        r1a0 = c.get("/dash/seasonal-screen?scope=index&month=6&lean=all&min_years=0")
+        n15 = r1a15.text.count('td class="sym"')
+        n0 = r1a0.text.count('td class="sym"')
+        assert n0 >= n15, f"min_years=any ({n0}) must show >= min_years=15 ({n15})"
 
         # -- screen: sector scope + current-month default (month=0); lean=all so the assertion
         # below is not itself coupled to the sign of Nifty Auto's script_z on any given run day --
