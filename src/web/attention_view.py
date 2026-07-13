@@ -141,7 +141,7 @@ def _sym_cell(ev: dict) -> str:
     sym = ev.get("symbol") or ""
     if ev.get("lens") == "rs":
         return (f'<a class="at-sym" href="/dash/rsband">{_esc(sym)}</a>')
-    return (f'<a class="at-sym" href="/dash/stock?symbol={_esc(sym)}">{_esc(sym)}</a>')
+    return (f'<a class="at-sym" href="/dash/stock?sym={_esc(sym)}">{_esc(sym)}</a>')
 
 
 def render_queue_table(events: list[dict]) -> str:

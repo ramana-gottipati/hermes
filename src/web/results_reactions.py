@@ -287,7 +287,7 @@ def _render_upcoming(rows):
             syms = bydate.get(d.isoformat(), [])
             n = len(syms)
             alpha = (0.05 + 0.30 * (n / peak)) if n else 0.0
-            chips = " ".join(f'<a class="ups" href="/dash/stock?symbol={_esc(s)}">{_esc(s)}</a>'
+            chips = " ".join(f'<a class="ups" href="/dash/stock?sym={_esc(s)}">{_esc(s)}</a>'
                              for s in syms[:6])
             more = f' <span class="more">+{n - 6}</span>' if n > 6 else ""
             cells.append(
@@ -311,7 +311,7 @@ def _render_upcoming(rows):
                 lbl = _dt.date.fromisoformat(md).strftime("%a %d %b")
             except ValueError:
                 lbl = md
-            chips = " ".join(f'<a class="ups" href="/dash/stock?symbol={_esc(s)}">{_esc(s)}</a>'
+            chips = " ".join(f'<a class="ups" href="/dash/stock?sym={_esc(s)}">{_esc(s)}</a>'
                              for s in syms[:16])
             more = f' <span class="more">+{len(syms)-16} more</span>' if len(syms) > 16 else ""
             out.append(f'<div class="uprow"><span class="upd">{lbl}</span><span>{chips}{more}</span></div>')
@@ -350,7 +350,7 @@ def results_reactions(view: str = Query("all")):
         lbl, col, br = _cell(beat, shi, dhi)
         dot = '<span class="dot s" title="settled: full 60d elapsed">●</span>' if settled else \
               '<span class="dot" title="fresh — drift still accruing">◔</span>'
-        durl = f"/dash/stock?symbol={_esc(sym)}"
+        durl = f"/dash/stock?sym={_esc(sym)}"
         tr.append(
             f'<tr><td class="l">{_esc(t0)}</td>'
             f'<td class="l sym"><a href="{durl}" style="color:var(--ink);text-decoration:none">{_esc(sym)}</a></td>'

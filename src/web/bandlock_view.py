@@ -84,7 +84,7 @@ def _board(streaks: list) -> str:
         move = f'{s["move_pct"]:+.1f}%' if s["move_pct"] is not None else "—"
         mcol = "var(--up)" if (s["move_pct"] or 0) >= 0 else "var(--down)"
         rows.append(
-            f'<tr><td class="l"><a class="bl-sym" href="/dash/stock?symbol={_esc(s["symbol"])}">'
+            f'<tr><td class="l"><a class="bl-sym" href="/dash/stock?sym={_esc(s["symbol"])}">'
             f'{_esc(s["symbol"])}</a>{flag}</td>'
             f'<td class="l">{chip}</td>'
             f'<td><b>{s["days"]}</b></td>'
