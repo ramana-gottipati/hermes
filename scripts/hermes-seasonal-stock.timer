@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes Seasonal Tape snapshot refresh Timer (nightly, after the EOD chain)
+# NOTE: deliberately NO `Requires=` here -- an armed timer with Requires=<service> fires the heavy
+# job the instant it is `systemctl start`-ed mid-day (AUD-95 scar). `Unit=` in [Timer] is the safe
+# binding: enabling only schedules the OnCalendar run, it never triggers the service now.
+
+[Timer]
+# 22:30 UTC = 04:00 IST -- AFTER the full EOD + scan chain (bhavcopy 14:00, pt14batch 15:31,
+# wolfe 16:00, harmonic 16:12, momentum 21:33 UTC) so the snapshot reflects the day's adjusted
+# closes. Full recompute is ~7-10 min; per-entity commits keep it writer-safe. Persistent catches
+# a run missed during downtime (idempotent INSERT OR REPLACE per entity).
+OnCalendar=*-*-* 22:30:00
+Persistent=true
+Unit=hermes-seasonal-stock.service
+
+[Install]
+WantedBy=timers.target

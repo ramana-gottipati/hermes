@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes - Seasonal event-cadence refresh (all-EQ RESULTS/DIVIDEND/BONUS/SPLIT/AGM overdue read)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Refresh seasonal_events for the ENTIRE all-EQ universe (stock_universe_all): re-derives each
+# entity's own event cadence + on-time/OVERDUE read from the freshly-ingested concalls /
+# corporate_actions / board_meetings / security_events tables. Descriptive-factual, TIME-only
+# (weeks) -- OUTSIDE the frozen seasonal_tape z-families, no prereg, no forward-return. Read-only on
+# the source tables; per-symbol commit keeps the write-lock short (writer-safe). --backfill-all
+# derives the ~2,400-symbol cohort internally, so no giant argv.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.seasonal_events --backfill-all
+StandardOutput=append:/var/log/hermes-seasonal-events.log
+StandardError=append:/var/log/hermes-seasonal-events.log

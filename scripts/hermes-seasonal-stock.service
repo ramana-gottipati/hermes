@@ -1,0 +1,18 @@
+[Unit]
+Description=Hermes - Seasonal Tape snapshot refresh (index + sector + all-EQ stock; descriptive-only)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# Recompute the bounded seasonal snapshot (seasonal_cells/stack/outlook/breaks/meta) from the bhav
+# archive so fresh bars AND newly-liquid EQ symbols get picked up. Pure stdlib (no LLM, no numpy),
+# read-only on the archive, per-entity commits keep the write-lock <1s (writer-safe, matches the
+# seasonal_tape house pattern). Two passes: (1) broad index + sector, (2) the ~2,400 all-EQ cohort.
+# Descriptive-only calendar seasonality on the PIT idiosyncratic residual -- 0 cells certify by
+# design; NEVER a signal. Frozen families (2882ccbc / cb32d1b9 / e566904c) are UNAFFECTED: this
+# rewrites DATA rows, never the pre-registered SPEC that is hashed.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.seasonal_tape --backfill --scope all
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.seasonal_tape --backfill --scope stock-all
+StandardOutput=append:/var/log/hermes-seasonal-stock.log
+StandardError=append:/var/log/hermes-seasonal-stock.log

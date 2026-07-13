@@ -572,10 +572,24 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--backfill", nargs="+", metavar="SYMBOL")
+    ap.add_argument("--backfill-all", action="store_true",
+                    help="refresh the event cadence for the ENTIRE all-EQ universe "
+                         "(stock_universe_all — the seasonal_tape_stock_all cohort); the nightly path")
     ap.add_argument("--asof")
     ap.add_argument("--stats", action="store_true")
     a = ap.parse_args()
-    if a.backfill:
+    if a.backfill_all:
+        # Derive the universe internally so the systemd ExecStart never has to pass ~2,400 argv
+        # (matches the seasonal_tape_stock_all cohort exactly — same read-only liquidity rank).
+        from src.core.db import DB_PATH
+        from src.automation.seasonal_tape import stock_universe_all
+        rc = _ro(str(DB_PATH))
+        try:
+            syms = stock_universe_all(rc)
+        finally:
+            rc.close()
+        print({"universe": len(syms), **backfill_events(str(DB_PATH), str(DB_PATH), syms, asof=a.asof)})
+    elif a.backfill:
         from src.core.db import DB_PATH
         print(backfill_events(str(DB_PATH), str(DB_PATH), a.backfill, asof=a.asof))
     elif a.stats:

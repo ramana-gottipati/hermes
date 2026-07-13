@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes Seasonal event-cadence refresh Timer (nightly, after the ingest + snapshot)
+# NO `Requires=` by design (AUD-95): `Unit=` binding schedules the run without firing it on enable.
+
+[Timer]
+# 23:00 UTC = 04:30 IST -- after today's corp-actions (02:26) + concalls (07:02) ingests AND after
+# the seasonal snapshot job (22:30) so any newly-liquid symbol already has its cadence read.
+# Overdue flags shift as new RESULTS/DIVIDEND filings land, so this runs daily. Cheap (source-table
+# reads + a summary write); Persistent catches a missed run; per-symbol commit is writer-safe.
+OnCalendar=*-*-* 23:00:00
+Persistent=true
+Unit=hermes-seasonal-events.service
+
+[Install]
+WantedBy=timers.target
