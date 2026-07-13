@@ -6672,8 +6672,8 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     # `from src.web.dashboard import _shell, _esc`, so importing it at module scope here would
     # be circular. Defensive: '' (honest-empty) for any symbol without a P2 backfill yet.
     try:
-        from src.web.seasonal_view import seasonal_card as _seasonal_card
-        season_html = _seasonal_card('stock', sym, heading=False)
+        from src.web.seasonal_view import seasonal_full_panel as _seasonal_full_panel
+        season_html = _seasonal_full_panel('stock', sym)
     except Exception:                        # noqa: BLE001
         season_html = ''
 

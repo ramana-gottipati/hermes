@@ -542,6 +542,204 @@ def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
         + f'<div style="margin-top:8px"><a href="{back}">← back to the tape</a></div></div>')
 
 
+def _panels_html(d: dict, scope: str, entity: str, order: list, cal: str) -> str:
+    """The FULL seasonal analysis panels for one entity — EVERY perspective, shared verbatim by the
+    /dash/seasonal-tape route AND the inline detail-page embed (seasonal_full_panel): the 25-year
+    month stack, the monthly consolidation gradient, the 52-week stack, the weekly + weekday
+    consolidations, the event-cadence lens, and the forward outlook. Cell clicks deep-link to the
+    full page's year-by-year drill. Extracted so the embed is the SAME analysis, never a reduced one."""
+    parts = []
+    col_labels = [_MONTH_ABBR[m] for m in order]
+    yrs_desc = sorted(d["years"], reverse=True)
+    matrix = [[d["smap"].get((m, y)) for m in order] for y in yrs_desc]
+    parts.append('<div class="st-hint">💡 Click any month cell below to break it down year-by-year.</div>')
+    parts.append(
+        '<div class="st-panel"><div class="st-h">25-year stack '
+        '<small>— each cell = that year\'s residual for that month, in σ</small></div>'
+        + ifx.plain('Each <b>row</b> is a year (newest on top), each <b>column</b> a month. '
+                    '<b>Green</b> = the month ran <b>above</b> this entity\'s own baseline that year, '
+                    '<b>red</b> below; a <b>blank</b> cell = too few observations. Read <b>down a '
+                    'column</b> to judge whether a month is a real tendency or just 2–3 loud years. '
+                    '<b>Click a column\'s cell</b> to break the month down year-by-year.')
+        + ifx.heat_grid([str(y) for y in yrs_desc], col_labels, matrix, w=1060, cell_h=22,
+                        row_w=64, signed=True, fmt=1, unit="σ", vmin=-2.5, vmax=2.5,
+                        cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
+                                                f'&cal={cal}&drill={order[j]}#drill'))
+        + '</div>')
+    # month consolidation: the descriptive gradient companion to the stack above — EVERY month with
+    # enough history gets a bar (not certified-only), the symmetric twin of the week/weekday strips.
+    parts.append(_strip_panel(
+        "Monthly consolidation", "— the 25-year clubbed gradient: each month's average residual "
+        "(green above baseline, red below; paler = less certain)",
+        "Every month with enough history gets a bar here, whether or not it separately survives "
+        "full certification — a populated bar is descriptive, not a claim. See the bottom-line "
+        "summary above for exactly which month(s), if any, clear the full gate.",
+        d["cmap"], order, lambda m: _MONTH_ABBR[m], w=1060, h=44, unit="months", vmax=0.5,
+        link_fn=lambda m: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
+                           f'&cal={cal}&drill={m}#drill')))
+    # 52-week stack: the per-year ISO-week mirror of the month stack above.
+    wsyears_desc = sorted(d.get("wsyears", []), reverse=True)
+    week_cols = list(range(1, 54))
+    week_w = 50 + len(week_cols) * 20
+    if wsyears_desc:
+        week_col_labels = [f"W{w}" if w % 4 == 1 else "" for w in week_cols]
+        week_matrix = [[d.get("wsmap", {}).get((w, y)) for w in week_cols] for y in wsyears_desc]
+        week_grid = ifx.heat_grid([str(y) for y in wsyears_desc], week_col_labels, week_matrix,
+                                  w=week_w, cell_h=20, row_w=50, signed=True, fmt=1, unit="σ",
+                                  vmin=-2.5, vmax=2.5,
+                                  cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}'
+                                                          f'&entity={_esc(entity)}&cal={cal}'
+                                                          f'&wdrill={week_cols[j]}#drill'))
+        week_stack_body = f'<div style="overflow-x:auto"><div style="width:{week_w}px">{week_grid}</div></div>'
+    else:
+        week_stack_body = ('<div class="st-empty">No 52-week stack populated for this entity yet — '
+                           'not hidden, just not computed/covered.</div>')
+    parts.append('<div class="st-hint">💡 Click any week cell to break it down year-by-year.</div>')
+    parts.append(
+        '<div class="st-panel"><div class="st-h">52-week stack '
+        '<small>— each cell = that year\'s residual for that ISO week, in σ</small></div>'
+        + ifx.plain('Same idea as the month stack, one column per ISO calendar week. Wide — '
+                    'scroll sideways. Read down a column to judge a real weekly tendency vs a '
+                    'couple of loud years.')
+        + week_stack_body + '</div>')
+    # weekly + weekday consolidation strips
+    parts.append(_strip_panel(
+        "Weekly consolidation", "— the 25-year clubbed gradient across ISO weeks 1–53",
+        "Same idea as the 52-week stack above, clubbed into one gradient — a populated bar is "
+        "this week\'s descriptive average residual, not a certified signal unless separately gated.",
+        d.get("wcmap", {}), list(range(1, 54)), lambda c: str(c), w=1060, h=40, unit="weeks",
+        vmax=0.5,
+        link_fn=lambda wk: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
+                            f'&cal={cal}&wdrill={wk}#drill')))
+    parts.append(_strip_panel(
+        "Weekday", "— Monday–Friday, same certification bar as months",
+        "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
+        "show nothing.",
+        d.get("dcmap", {}), [0, 1, 2, 3, 4], lambda c: _WEEKDAY_ABBR[c],
+        w=1060, h=40, unit="weekdays", vmax=0.5))
+    # events lens (descriptive-factual, TIME-only): guarded import, honest-empty on no snapshot
+    try:
+        from src.web.seasonal_events_view import render_events_section
+        ev_section = render_events_section(scope, entity, cal, db_path=_DB_PATH)
+        if ev_section:
+            parts.append(ev_section)
+    except Exception:  # noqa: BLE001 — the events lens must never break the page
+        pass
+    # forward outlook strip
+    if d["omap"]:
+        cards = ""
+        for m in order:
+            o = d["omap"].get(m)
+            if not o:
+                continue
+            lo, hi = o["ci_lo"] * 100, o["ci_hi"] * 100
+            rate = 100.0 * o["k"] / o["n"] if o["n"] else 0.0
+            light = _LIGHT.get(o["light"], "⚪")
+            mech = o.get("mechanism") or ""
+            mech_html = f'<div class="st-mech">{_esc(mech)}</div>' if mech else ""
+            edge = o["edge"] * 100
+            cards += (
+                f'<div class="st-olc"><div class="m">{light} {_MONTH_ABBR[m]}</div>'
+                f'<div class="d">up {o["k"]}/{o["n"]} yrs ({rate:.0f}%)<br>'
+                f'95% CI {lo:.0f}–{hi:.0f}% · edge {edge:+.0f}pp<br>'
+                f'down years avg {o["fail_avg"]:+.2f}σ, worst {o["fail_worst"]:+.2f}σ</div>'
+                f'{mech_html}</div>')
+        parts.append(
+            '<div class="st-panel"><div class="st-h">Forward outlook '
+            '<small>— base-rate only; a ⚪ light means the interval touches 50% = noise</small></div>'
+            + ifx.plain('For each month: how often it has been positive, with a 95% confidence band. '
+                        '🟢 = reliably positive with a mechanism, 🟡 = leans one way, <b>⚪ = the band '
+                        'includes a coin-flip, so treat it as noise</b>. This is history\'s base rate, '
+                        '<b>not</b> a forecast or a trade.')
+            + f'<div class="st-ol">{cards}</div></div>')
+    return "".join(parts)
+
+
+def _honesty_fence() -> str:
+    """The shared 'read this honestly' fence (frozen-family hash + the 4 discipline bullets) — used
+    by both the full page and the inline embed so the honesty framing travels with the analysis."""
+    h = ""
+    try:
+        con = _ro(_DB_PATH)
+        try:
+            r = con.execute("SELECT v FROM seasonal_meta WHERE k='frozen_family_sha256'").fetchone()
+            h = (r[0][:12] if r else "")
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001
+        h = ""
+    return (
+        '<div class="st-fence"><b>Read this honestly:</b>'
+        '<ul>'
+        '<li><b>Not a signal.</b> Nothing here is tradeable net of STT + market impact — expectancy '
+        '≈ 0 (PEAD, the closest cousin, net-failed 0.10 Sharpe vs 0.85 buy-and-hold). Descriptive '
+        'calendar context, never a ranking or an entry.</li>'
+        '<li><b>Point-in-time.</b> Every residual and z is computed only from data knowable that year '
+        '(annual expanding fit); the frozen hypothesis family was sha256-hashed <i>before</i> any '
+        f'number was computed{f" ({_esc(h)}…)" if h else ""}.</li>'
+        '<li><b>Certification is strict.</b> A month is coloured only if it clears two placebo nulls, '
+        'family-wide FDR, ≥15 years, out-of-sample sign-stability, AND a pledged India mechanism. Most '
+        'cells grey out — that winnowing is the point.</li>'
+        '<li><b>Sector residuals</b> strip the Nifty 500 move; the index itself is its own baseline. '
+        'Membership for sub-drills is current-tag (survivorship) where it applies.</li>'
+        '</ul></div>')
+
+
+def seasonal_full_panel(scope: str, entity: str, *, db_path: str | None = None,
+                        cal: str = "cy") -> str:
+    """The COMPLETE seasonal analysis for one entity, for INLINE embedding in a detail page's
+    Seasonal tab (the stock dossier, the index/sector page) — the SAME body the full
+    /dash/seasonal-tape page renders (bottom line + every perspective panel + honesty fence), NOT
+    the reduced compact card. Cell clicks deep-link to the full page's year-by-year drill; a header
+    link opens the full page with its calendar/scope controls. '' (honest-empty) when uncovered.
+
+    Resolves `entity` case-insensitively; for a stock not in the persisted snapshot it falls back to
+    the engine's READ-ONLY on-demand in-memory compute (never writes hermes.db), same as the route."""
+    path = db_path or _DB_PATH
+    ents = _entities(scope, path)
+    resolved = {e.upper(): e for e in ents}.get((entity or "").strip().upper()) if ents else None
+    d = _compute(scope, resolved, path) if resolved else None
+    if d is None and scope == "stock":
+        q = (entity or "").strip().upper()
+        try:
+            from src.automation import seasonal_tape as _ST
+            _rc = _ST._ro(path)
+            try:
+                sym = _ST.resolve_stock_symbol(_rc, q)
+                if sym:
+                    inmem = _ST.compute_stock_inmemory(_rc, sym)
+                    if inmem:
+                        resolved = inmem.get("entity", sym)
+                        d = _dict_from_inmemory(inmem)
+            finally:
+                _rc.close()
+        except Exception:  # noqa: BLE001 — guarded engine import, must never break the caller
+            d = None
+    if not d:
+        return ''
+    order = _CAL_ORDER if cal == "cy" else _FISCAL_ORDER
+    certified = [c for c in d["cmap"].values() if c.get("colored")]
+    if certified:
+        names = ", ".join(sorted(_MONTH_ABBR[c["cell"]] for c in certified))
+        bl = (f'For <b>{_esc(resolved)}</b>, the calendar cell(s) that survive the full test are '
+              f'<b>{_esc(names)}</b> — historically hot/cold after stripping the market, with a named '
+              'mechanism behind each. Everything else is greyed: indistinguishable from chance.')
+    else:
+        bl = (f'For <b>{_esc(resolved)}</b>, <b>no</b> calendar cell survives the certification stack — '
+              'every apparent pattern is indistinguishable from a placebo. The greying IS the finding.')
+    link = f'/dash/seasonal-tape?scope={scope}&entity={quote(resolved)}'
+    return (
+        _CSS + ifx.readability_css()
+        + '<div class="st-embed">'
+        + ifx.bottom_line(bl + ' This is descriptive calendar context, <b>never</b> a signal.')
+        + ifx.how_to_read_link()
+        + f'<div style="margin:2px 0 10px"><a class="st-cta" href="{_esc(link)}">Open the full '
+          'seasonal tape — calendar/scope controls + year-by-year drill-downs →</a></div>'
+        + _panels_html(d, scope, resolved, order, cal)
+        + _honesty_fence()
+        + '</div>')
+
+
 @router.get("/dash/seasonal-tape", response_class=HTMLResponse)
 def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill: str = "",
                   wdrill: str = "") -> HTMLResponse:
@@ -660,117 +858,7 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                 f'<div class="st-scanall"><a href="/dash/seasonal-screen?scope=stock&month={cur_month}">'
                 '…or scan every stock for this month →</a></div>')
 
-        col_labels = [_MONTH_ABBR[m] for m in order]
-        yrs_desc = sorted(d["years"], reverse=True)
-        matrix = [[d["smap"].get((m, y)) for m in order] for y in yrs_desc]
-        body.append('<div class="st-hint">💡 Click any month cell below to break it down year-by-year.</div>')
-        body.append(
-            '<div class="st-panel"><div class="st-h">25-year stack '
-            '<small>— each cell = that year\'s residual for that month, in σ</small></div>'
-            + ifx.plain('Each <b>row</b> is a year (newest on top), each <b>column</b> a month. '
-                        '<b>Green</b> = the month ran <b>above</b> this entity\'s own baseline that year, '
-                        '<b>red</b> below; a <b>blank</b> cell = too few observations. Read <b>down a '
-                        'column</b> to judge whether a month is a real tendency or just 2–3 loud years. '
-                        '<b>Click a column\'s cell</b> to break the month down year-by-year.')
-            + ifx.heat_grid([str(y) for y in yrs_desc], col_labels, matrix, w=1060, cell_h=22,
-                            row_w=64, signed=True, fmt=1, unit="σ", vmin=-2.5, vmax=2.5,
-                            cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                                                    f'&cal={cal}&drill={order[j]}#drill'))
-            + '</div>')
-
-        # month consolidation: the descriptive gradient companion to the stack above — EVERY month
-        # with enough history gets a bar (not certified-only), the symmetric twin of the week/weekday
-        # consolidation strips below (Ramana D122: months + weeks both get stack-then-gradient).
-        body.append(_strip_panel(
-            "Monthly consolidation", "— the 25-year clubbed gradient: each month's average residual "
-            "(green above baseline, red below; paler = less certain)",
-            "Every month with enough history gets a bar here, whether or not it separately survives "
-            "full certification — a populated bar is descriptive, not a claim. See the bottom-line "
-            "summary above for exactly which month(s), if any, clear the full gate.",
-            d["cmap"], order, lambda m: _MONTH_ABBR[m], w=1060, h=44, unit="months", vmax=0.5,
-            link_fn=lambda m: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                               f'&cal={cal}&drill={m}#drill')))
-
-        # 52-week stack: the per-year ISO-week mirror of the month stack above (symmetry: weeks get a
-        # full stack too, not just a thin strip).
-        wsyears_desc = sorted(d.get("wsyears", []), reverse=True)
-        week_cols = list(range(1, 54))
-        week_w = 50 + len(week_cols) * 20
-        if wsyears_desc:
-            week_col_labels = [f"W{w}" if w % 4 == 1 else "" for w in week_cols]
-            week_matrix = [[d.get("wsmap", {}).get((w, y)) for w in week_cols] for y in wsyears_desc]
-            week_grid = ifx.heat_grid([str(y) for y in wsyears_desc], week_col_labels, week_matrix,
-                                      w=week_w, cell_h=20, row_w=50, signed=True, fmt=1, unit="σ",
-                                      vmin=-2.5, vmax=2.5,
-                                      cell_link=lambda i, j: (f'/dash/seasonal-tape?scope={scope}'
-                                                              f'&entity={_esc(entity)}&cal={cal}'
-                                                              f'&wdrill={week_cols[j]}#drill'))
-            week_stack_body = f'<div style="overflow-x:auto"><div style="width:{week_w}px">{week_grid}</div></div>'
-        else:
-            week_stack_body = ('<div class="st-empty">No 52-week stack populated for this entity yet — '
-                               'not hidden, just not computed/covered.</div>')
-        body.append('<div class="st-hint">💡 Click any week cell to break it down year-by-year.</div>')
-        body.append(
-            '<div class="st-panel"><div class="st-h">52-week stack '
-            '<small>— each cell = that year\'s residual for that ISO week, in σ</small></div>'
-            + ifx.plain('Same idea as the month stack, one column per ISO calendar week. Wide — '
-                        'scroll sideways. Read down a column to judge a real weekly tendency vs a '
-                        'couple of loud years.')
-            + week_stack_body + '</div>')
-
-        # weekly + weekday consolidation strips (descriptive shape, secondary axes of the SAME
-        # certification bar as months)
-        body.append(_strip_panel(
-            "Weekly consolidation", "— the 25-year clubbed gradient across ISO weeks 1–53",
-            "Same idea as the 52-week stack above, clubbed into one gradient — a populated bar is "
-            "this week\'s descriptive average residual, not a certified signal unless separately gated.",
-            d.get("wcmap", {}), list(range(1, 54)), lambda c: str(c), w=1060, h=40, unit="weeks",
-            vmax=0.5,
-            link_fn=lambda wk: (f'/dash/seasonal-tape?scope={scope}&entity={_esc(entity)}'
-                                f'&cal={cal}&wdrill={wk}#drill')))
-        body.append(_strip_panel(
-            "Weekday", "— Monday–Friday, same certification bar as months",
-            "Day-of-week tendency (e.g. a Monday effect), shown descriptively — most days will "
-            "show nothing.",
-            d.get("dcmap", {}), [0, 1, 2, 3, 4], lambda c: _WEEKDAY_ABBR[c],
-            w=1060, h=40, unit="weekdays", vmax=0.5))
-
-        # events lens (descriptive-factual, TIME-only): guarded import, honest-empty on no snapshot
-        try:
-            from src.web.seasonal_events_view import render_events_section
-            ev_section = render_events_section(scope, entity, cal, db_path=_DB_PATH)
-            if ev_section:
-                body.append(ev_section)
-        except Exception:  # noqa: BLE001 — the events lens must never break this page
-            pass
-
-        # forward outlook strip
-        if d["omap"]:
-            cards = ""
-            for m in order:
-                o = d["omap"].get(m)
-                if not o:
-                    continue
-                lo, hi = o["ci_lo"] * 100, o["ci_hi"] * 100
-                rate = 100.0 * o["k"] / o["n"] if o["n"] else 0.0
-                light = _LIGHT.get(o["light"], "⚪")
-                mech = o.get("mechanism") or ""
-                mech_html = f'<div class="st-mech">{_esc(mech)}</div>' if mech else ""
-                edge = o["edge"] * 100
-                cards += (
-                    f'<div class="st-olc"><div class="m">{light} {_MONTH_ABBR[m]}</div>'
-                    f'<div class="d">up {o["k"]}/{o["n"]} yrs ({rate:.0f}%)<br>'
-                    f'95% CI {lo:.0f}–{hi:.0f}% · edge {edge:+.0f}pp<br>'
-                    f'down years avg {o["fail_avg"]:+.2f}σ, worst {o["fail_worst"]:+.2f}σ</div>'
-                    f'{mech_html}</div>')
-            body.append(
-                '<div class="st-panel"><div class="st-h">Forward outlook '
-                '<small>— base-rate only; a ⚪ light means the interval touches 50% = noise</small></div>'
-                + ifx.plain('For each month: how often it has been positive, with a 95% confidence band. '
-                            '🟢 = reliably positive with a mechanism, 🟡 = leans one way, <b>⚪ = the band '
-                            'includes a coin-flip, so treat it as noise</b>. This is history\'s base rate, '
-                            '<b>not</b> a forecast or a trade.')
-                + f'<div class="st-ol">{cards}</div></div>')
+        body.append(_panels_html(d, scope, entity, order, cal))
 
         if drill:
             try:
@@ -787,31 +875,7 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
             except ValueError:
                 pass
 
-        h = ""
-        try:
-            con = _ro(_DB_PATH)
-            try:
-                r = con.execute("SELECT v FROM seasonal_meta WHERE k='frozen_family_sha256'").fetchone()
-                h = (r[0][:12] if r else "")
-            finally:
-                con.close()
-        except Exception:  # noqa: BLE001
-            h = ""
-        body.append(
-            '<div class="st-fence"><b>Read this honestly:</b>'
-            '<ul>'
-            '<li><b>Not a signal.</b> Nothing here is tradeable net of STT + market impact — expectancy '
-            '≈ 0 (PEAD, the closest cousin, net-failed 0.10 Sharpe vs 0.85 buy-and-hold). Descriptive '
-            'calendar context, never a ranking or an entry.</li>'
-            '<li><b>Point-in-time.</b> Every residual and z is computed only from data knowable that year '
-            '(annual expanding fit); the frozen hypothesis family was sha256-hashed <i>before</i> any '
-            f'number was computed{f" ({_esc(h)}…)" if h else ""}.</li>'
-            '<li><b>Certification is strict.</b> A month is coloured only if it clears two placebo nulls, '
-            'family-wide FDR, ≥15 years, out-of-sample sign-stability, AND a pledged India mechanism. Most '
-            'cells grey out — that winnowing is the point.</li>'
-            '<li><b>Sector residuals</b> strip the Nifty 500 move; the index itself is its own baseline. '
-            'Membership for sub-drills is current-tag (survivorship) where it applies.</li>'
-            '</ul></div>')
+        body.append(_honesty_fence())
     except Exception:  # noqa: BLE001 — honest empty state, never 500
         body.append(
             '<h2>Seasonal tape</h2>' + _subnav("tape") +
@@ -973,6 +1037,26 @@ def _selftest() -> int:
         assert _WK_MONTH[27] == 7, f"ISO week 27 should map to July, got {_WK_MONTH[27]}"
         assert "Jun" in _week_daterange(27) or "Jul" in _week_daterange(27), \
             "week-27 date range should straddle late Jun / early Jul"
+
+        # seasonal_full_panel: the INLINE embed must carry the COMPLETE analysis — every perspective
+        # the full /dash/seasonal-tape page renders, not the reduced card. Assert each panel + fence.
+        fp = seasonal_full_panel("sector", "nifty auto", db_path=tmp)
+        assert fp, "seasonal_full_panel should render for a covered sector"
+        for panel in ("25-year stack", "Monthly consolidation", "52-week stack",
+                      "Weekly consolidation", "Weekday", "Forward outlook"):
+            assert panel in fp, f"full panel missing the '{panel}' perspective"
+        assert "Read this honestly" in fp, "full panel must carry the honesty fence"
+        assert "Open the full seasonal tape" in fp and "/dash/seasonal-tape?scope=sector" in fp, \
+            "full panel must deep-link to the full page for drill-downs/controls"
+        # it is strictly RICHER than the compact card (which has no 25-year stack / weekday axis)
+        assert "25-year stack" not in card and "Weekday" not in card, \
+            "the compact card must stay compact (the full panel is the rich one)"
+        assert seasonal_full_panel("stock", "DOESNOTEXIST", db_path=tmp) == "", \
+            "seasonal_full_panel should honest-empty for an uncovered entity"
+        # the route (dash_seasonal) still renders the same panels via the shared _panels_html
+        rr = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto")
+        for panel in ("25-year stack", "Monthly consolidation", "52-week stack", "Weekday"):
+            assert panel in rr.text, f"route regression: '{panel}' missing after _panels_html extraction"
 
         print("seasonal_view selftest OK — stack + consensus + outlook + drill + weekly/weekday "
               "strips + events section render; stock search box + FIX-1 no-default-entity + FIX-2 "
