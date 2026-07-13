@@ -306,16 +306,29 @@ def chk_regime_guard(c) -> dict:
     if not _table_exists(c, "index_rows"):
         return _check("killswitch.regime", SEV_OK, 0, "table absent")
     rows = c.execute(
-        "SELECT close_value FROM index_rows WHERE index_name='Nifty 50' "
+        "SELECT trade_date, close_value FROM index_rows WHERE index_name='Nifty 50' "
         "ORDER BY trade_date DESC LIMIT 200").fetchall()
     if len(rows) < 200:
         return _check("killswitch.regime", SEV_OK, 0, f"only {len(rows)} Nifty rows (warmup)")
-    closes = [float(r[0]) for r in rows if r[0] is not None]
+    # AUD-25: guard against a FROZEN index feed. Without a date check the 200DMA + last close are
+    # computed on whatever 200 rows exist — a dead index feed then yields a plausible-but-stale
+    # regime verdict presented as current. If the newest Nifty row is stale, say so, don't verdict.
+    newest = str(rows[0][0])[:10]
+    try:
+        age = (date.today() - date.fromisoformat(newest)).days
+    except (ValueError, TypeError):
+        age = 0
+    if age > 5:
+        return _check("killswitch.regime", SEV_WARN, 1,
+                      f"regime UNKNOWN — Nifty 50 index feed stale (last {newest}, {age}d ago); "
+                      f"the 200DMA verdict would run on frozen data")
+    closes = [float(r[1]) for r in rows if r[1] is not None]
     last, ma200 = closes[0], sum(closes) / len(closes)
     if last < ma200:
         return _check("killswitch.regime", SEV_WARN, 1,
-                      f"Nifty 50 {last:.0f} < 200DMA {ma200:.0f} — momentum regime OFF")
-    return _check("killswitch.regime", SEV_OK, 0, f"Nifty 50 {last:.0f} >= 200DMA {ma200:.0f}")
+                      f"Nifty 50 {last:.0f} < 200DMA {ma200:.0f} — momentum regime OFF (as of {newest})")
+    return _check("killswitch.regime", SEV_OK, 0,
+                  f"Nifty 50 {last:.0f} >= 200DMA {ma200:.0f} (as of {newest})")
 
 
 def chk_universe_drift(c) -> dict:
@@ -370,8 +383,14 @@ def chk_restatement_spike(r) -> dict:
 
 def chk_feed_freshness(c) -> dict:
     """Event-feed liveness — the check that would have caught the Mar-2026 corporates-pit
-    endpoint death within a week (dataset A silently ingested 0 rows for 4 months).
-    Insider disclosures arrive near-daily market-wide; ratings within a month."""
+    endpoint death within a week (dataset A silently ingested 0 rows for 4 months). Covers 10
+    hermes.db feeds per its own cadence: near-daily (insider · bulk/block · FII-DII · participant
+    OI · F&O OI · news), monthly (ratings · SAST reg-29/pledge), quarterly-clustered (concalls).
+    (AUD-25.) Research.db feeds fundamentals_history / shareholding_history are DELIBERATELY not
+    recency-checked here: both carry forward-dated `report_date`s (estimated filing dates), so a
+    naive MAX(report_date) reads perpetually "fresh" and would hide a real death — their integrity
+    is covered by chk_fundamentals_dates + chk_leak_and_demodel; a true arrival-recency check needs
+    an `ingested_at` column, tracked as a residual."""
     problems, notes = 0, []
     for table, col, max_age, label in (
             ("insider_events", "disclosure_dt", 7, "insider disclosures"),
@@ -381,7 +400,13 @@ def chk_feed_freshness(c) -> dict:
             ("bulk_block_deals", "trade_date", 5, "bulk/block deals"),
             ("fii_dii_flows", "trade_date", 5, "FII/DII flows"),
             ("participant_oi", "trade_date", 5, "participant OI"),
-            ("fno_oi_signals", "trade_date", 5, "F&O OI")):
+            ("fno_oi_signals", "trade_date", 5, "F&O OI"),
+            # AUD-25 coverage: the news intelligence feed (near-daily; sent_at tracks PROCESSING,
+            # not Telegram delivery, so it stays fresh while Telegram is blocked in India) and the
+            # concall filings feed (quarterly-clustered → a loose 120d catches a dead endpoint —
+            # the Mar-2026 corporates-pit silent-death class — without off-season false alarms).
+            ("sent_news", "sent_at", 7, "news feed"),
+            ("concalls", "result_filing_dt", 120, "concall filings")):
         if not _table_exists(c, table):
             continue
         mx = c.execute(f"SELECT MAX({col}) FROM {table}").fetchone()[0]
