@@ -7,6 +7,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🆕 2026-07-13 — S123: the signal-event bus's FOURTH face (alert rail) SHIPPED + DEPLOYED + LIVE (do NOT redo — kickstart-pick-verify)
+- **Alert rail = the 4th "bus face" (the `signal_events.py` header names all four: /v1 · Attention Queue · since-you-last-looked · **alert rail**).** Three were built (S103/S108); this built the 4th. LIVE at the TOP of **`/dash/attention`** (→ `/dash/markets/attention`): a curated, edge-triggered (fire-once), multi-day, severity-graded feed of only the highest-impact state-changes — a STRICT SUBSET of the queue below. **Commit `8241bba`** (⚠ **committed locally but NOT pushed** — origin/main=`76f5724`; the 4 commits before mine are the seasonal lane's unpushed work, so mine rides their next shared-main push; do NOT force). **DEPLOYED + walked** (40 seed alerts: 3 crit/37 high; mep 18·oi 12·cci 6·deal 4; rs 0 = no rs events yet).
+- **NEW `src/automation/signal_alerts.py`** (owns isolated `signal_alert_state`; no db.py edit) + additive edits to `src/web/attention_view.py` (`render_alert_rail`, inside the already-mounted route → **zero forked-nav edits**) + `src/automation/signal_events.py` (+`backfill(8)` piggyback on the `--detect` step-60 → **no systemd unit change**). Rule-based `classify()` (deal top-decile percentile / cci numeric-delta deterioration / mep+rs **ordinal band moves** / oi quadrants), each tagged a descriptive valence; same D106 honesty fence.
+- **An adversarial-review agent caught + fixed 6 defects PRE-SHIP** (tests had matched code, not data): rs lens was DEAD (real vocab `INSIDE/TOUCH_SUP/TOUCH_RES`, not `SUPPORT/RESIST`) · mep valence inverted on intra-family moves (fixed via ordinal from→to) · deal "critical" degenerate · cci null-forced-down · multi-clock feed lag (promote windowed) · window off-by-one. **20 tests on LIVE vocabularies; full bus suite 50 pass.** Disjoint from the codex + seasonal lanes (touched only bus-owned files, no forked file). **The LAST unbuilt bus face is now the SSE live stream.** Full record: PROJECT_STATE § Session 123.
+
 ## 🆕 2026-07-12 — S120 + S121 landed (both on origin/main; do NOT redo — kickstart-pick-verify)
 - **S121 / D120 — Wolfe "Open trades — remaining ROI" view SHIPPED + LIVE (`7c4fd74`).** The ONE
   designed-not-built feature is done. **`/dash/wolfe/trades`** — every OPEN winner-profile trade
@@ -252,9 +257,12 @@ force-pushes + deletions, enforce_admins:true, no required PR/checks."
 2. **Product:** **X-04 overnight/intraday split + pump-flag** (top remaining charter X-item) ·
    X-06 Amihud migration delta (half-built, `mep_signals.py:286`) · X-07 volume-at-price
    shelves · D-06 announcement taxonomy → E-07 auditor-resignation red-flag.
-3. **Bus follow-ups (natural after D106):** ~~since-you-last-looked brief~~ **✅ DONE S108/D110**
-   → remaining: the **alert rail** (push a firing event via `tracker_alerts`-style dedup) · the
-   **SSE stream** (live tape) · dvpt lens design (needs a banded state first).
+3. **Bus follow-ups (natural after D106):** ~~since-you-last-looked brief~~ **✅ DONE S108/D110** ·
+   ~~alert rail~~ **✅ DONE S123 (`8241bba`, LIVE)** → remaining: the **SSE stream** (live tape —
+   the LAST unbuilt bus face) · dvpt lens design (needs a banded state first). Natural S123
+   follow-ons: a Telegram push of critical alerts (reuse `digest._send` + the `signal_alert_state`
+   substrate) · a Home "⚠ Alerts" badge · an acknowledge/dismiss action (server-side, unlike the
+   per-viewer cookie).
 4. **Quant-integrity:** AUD-14 (morning window) · AUD-22 · AUD-37 (design-first).
 5. **P-05 follow-through:** the demo is LIVE with a provisioned key — next is Ramana-facing
    (pitch/demo assets), not build.
@@ -308,8 +316,9 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 > remaining = point-4-strength (his chart) / D95 tape-wiring / §C PIT backtest**; seasonal lane →
 > pre-2012 SECTOR-index history (still 2012-capped → sector tapes grey) + a durable niftyindices
 > fetcher in `indexes.py`; product lane → X-04
-> overnight/intraday split + pump-flag; bus lane → the **alert rail / SSE** (the
-> since-you-last-looked brief shipped S108/D110); quant lane → AUD-14 (morning window only).
+> overnight/intraday split + pump-flag; bus lane → the **SSE live stream** (the last unbuilt
+> bus face; the alert rail shipped S123 `8241bba` + the since-you-last-looked brief S108/D110);
+> quant lane → AUD-14 (morning window only).
 > E-studies are armed + self-gating (E-02 Jul-22 · E-14 Jul-25 · E-04 Aug-01) — do NOT run early.
 > (3) Standing fences: descriptive-only estate + honesty fences; D106 — the attention face
 > carries NO gate, never promote it to a strategy without its own study; forked-nav files =
