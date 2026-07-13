@@ -629,7 +629,9 @@ def report_scan(results, horizon: int) -> None:
     if results and results[0][3] > 0:
         top = results[0]
         print(f"  TOP: '{top[0]}' (+{top[3]*100:.2f}% vs concalls without it) — the strongest concall-content")
-        print("  signal. Pursue the leaders as event / intensity factors; credibility is NOT among them.")
+        print("  read in THIS cross-sectional scan. NOTE (Codex D6-F3): the growth-intent 'tilt' was")
+        print("  PLACEBO-KILLED on real dates (2026-07-08 — covered-universe drift, not a content edge).")
+        print("  DESCRIPTIVE only; do NOT trade it as a factor. Credibility likewise is NOT a factor.")
     else:
         print("  No statement_type shows a positive forward tilt at this horizon.")
     print("=" * 78)

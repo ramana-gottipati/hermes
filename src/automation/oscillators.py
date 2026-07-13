@@ -59,7 +59,12 @@ def _rsi(closes, period: int = 14):
         avg_gain = (avg_gain * (period - 1) + gains[i]) / period
         avg_loss = (avg_loss * (period - 1) + losses[i]) / period
     if avg_loss == 0:
-        return 100.0
+        # Codex D7-F5: a FLAT run (no losses AND no gains — a suspended or
+        # unchanged series) is neutral/undefined, not "max overbought". Returning
+        # 100 here made such names read RSI>70 and surface on the overbought screen.
+        # Only a pure-gain run (avg_gain>0, avg_loss==0) is a true 100. The mirror
+        # symmetric case (avg_gain==0, avg_loss>0) already yields rs=0 → RSI=0 below.
+        return 50.0 if avg_gain == 0 else 100.0
     rs = avg_gain / avg_loss
     return 100.0 - 100.0 / (1.0 + rs)
 
@@ -111,9 +116,11 @@ def _recent_closes(conn, lookback: int = _LOOKBACK):
         "ORDER BY symbol, trade_date", (floor,)
     ).fetchall()
     series: dict = {}
+    last_dt: dict = {}
     for r in rows:
         series.setdefault(r["symbol"], []).append(r["close"])
-    return series
+        last_dt[r["symbol"]] = r["trade_date"]   # rows are date-ascending → last wins
+    return series, last_dt
 
 
 def compute_and_store(conn=None) -> int:
@@ -125,8 +132,11 @@ def compute_and_store(conn=None) -> int:
         conn = cm.__enter__()
     try:
         conn.executescript(_SCHEMA)
-        latest = conn.execute("SELECT MAX(trade_date) AS d FROM bhavcopy_rows").fetchone()["d"]
-        series = _recent_closes(conn)
+        # Codex D7-F6: stamp each row with the SYMBOL's own last trade_date, not the
+        # global latest session — a name that did not trade today must not surface a
+        # stale RSI/MACD as if it were current (readers can compare to the global
+        # latest to flag/badge staleness).
+        series, last_dt = _recent_closes(conn)
         n = 0
         for sym, closes in series.items():
             if len(closes) < _MIN_CLOSES:
@@ -144,7 +154,7 @@ def compute_and_store(conn=None) -> int:
                 "rsi_14=excluded.rsi_14, macd=excluded.macd, macd_signal=excluded.macd_signal, "
                 "macd_hist=excluded.macd_hist, macd_hist_prev=excluded.macd_hist_prev, "
                 "computed_at=excluded.computed_at",
-                (sym, latest, rsi, m, sg, h, hp),
+                (sym, last_dt[sym], rsi, m, sg, h, hp),
             )
             n += 1
         if own:

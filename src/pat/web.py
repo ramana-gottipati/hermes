@@ -1028,8 +1028,10 @@ def _pt14_table(rows) -> str:
 def _pt14_flow(conn, tier: str = "") -> str:
     out = [
         '<a class="patBack" href="/dash/pat">← back</a>',
-        _q_bubble("pt14 quality — the 14-pattern business-quality score (0-100), highest "
-                  "first, with hard-disqualified names excluded. Filter by tier:"),
+        _q_bubble("pt14 quality — the 14-pattern business-quality score (0-100). A QUALITY-RISK "
+                  "order (best-quality first), NOT a return ranking — pt14 is a business-quality "
+                  "filter / veto-context lens, not a buy list (D66; NS long-short ≈ 0). "
+                  "Hard-disqualified names excluded. Filter by tier:"),
         '<div class="ghdr">Tier</div><div class="patChips">',
     ]
     for key, (lbl, _t) in PT14_TIER.items():
@@ -1137,9 +1139,10 @@ def _cci_table(rows, avoid: bool = False) -> str:
 
 def _credibility_flow(conn, top_n=None) -> str:
     out = ['<a class="patBack" href="/dash/pat">← back</a>',
-           _q_bubble("Credibility leaders — managements ranked by the MEASURABLE concall signal "
-                     "(D61): kept-promise accuracy + how falsifiable their guidance is, "
-                     "veto-excluded. The behaviour reads inform but never rank. Pilot:")]
+           _q_bubble("CCI track record — veto-excluded promise-keeping evidence, coverage-first "
+                     "(#settled); NOT a ranked long list (D6-F1: CCI is falsified as a return "
+                     "factor). Kept-promise accuracy + how falsifiable their guidance is; the "
+                     "behaviour reads inform, never rank. Pilot:")]
     if conn is None:
         out.append('<div class="empty">Connect to data to see matches.</div>')
         return "".join(out)
@@ -1149,7 +1152,7 @@ def _credibility_flow(conn, top_n=None) -> str:
     except Exception:
         rows = []
     cap = f"top {int(top_n)} " if top_n else ""
-    out.append(f'<div class="ghdr">Credibility leaders — {cap}({len(rows)})</div>')
+    out.append(f'<div class="ghdr">CCI track record — coverage-first {cap}({len(rows)})</div>')
     out.append(_cci_table(rows) if rows
                else '<div class="empty">No scored concalls yet — the pilot is still extracting.</div>')
     out.append('<div class="patChips">'
@@ -1175,7 +1178,7 @@ def _deterioration_flow(conn) -> str:
     out.append(_cci_table(rows, avoid=True) if rows
                else '<div class="empty">No deterioration flags or vetoes yet (pilot still extracting).</div>')
     out.append('<div class="patChips">'
-               + _chip("/dash/pat?flow=credibility", "★ credibility leaders")
+               + _chip("/dash/pat?flow=credibility", "CCI track record")
                + _chip("/dash/concalls", "full CCI board →") + "</div>")
     return "".join(out)
 
@@ -1238,7 +1241,7 @@ def _confluence_flow(conn) -> str:
                f'<span>accumulation as-of: {_esc(asof_acc or "—")}</span>'
                '<span>both lenses must agree · descriptive, not a signal</span></div>')
     out.append('<div class="patChips">'
-               + _chip("/dash/pat?flow=credibility", "★ credibility leaders")
+               + _chip("/dash/pat?flow=credibility", "CCI track record")
                + _chip("/dash/pat?flow=accumulation", "↗ accumulation setups")
                + _chip("/dash/concalls", "full CCI board →") + "</div>")
     return "".join(out)
@@ -1529,8 +1532,7 @@ def _why_credibility(conn, sym: str) -> str:
     # F3-4: drill into the UNDERLYING promise-vs-delivery rows (the receipts under the score)
     body += _why_credibility_evidence(conn, sym)
     return body + _prov(f"credibility as-of: {r['as_of_period'] or '—'}",
-                        f"rank {_int(r['rank'])} of the pilot · {_int(r['n_concalls'])} concalls scored"
-                        if ("rank" in r.keys()) else None,
+                        f"pilot record · {_int(r['n_concalls'])} concalls scored",   # Codex D6-F1: no ordinal rank
                         "source: concall track-record (CCI pilot)")
 
 
@@ -1738,7 +1740,7 @@ def _trend_flow(conn, sym: str) -> str:
             f'No credibility series for {_esc(sym)} yet — the concall pilot covers a few '
             'hundred names, not the whole market.'))
         out.append('<div class="patChips">'
-                   + _chip("/dash/pat?flow=credibility", "credibility leaders →")
+                   + _chip("/dash/pat?flow=credibility", "CCI track record →")
                    + _chip(f"/dash/stock?sym={_u(sym)}", f"{sym} dossier →") + "</div>")
         return "".join(out)
     latest, oldest = rows[0], rows[-1]
@@ -2219,7 +2221,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                # canonical contract aliases (route_extra/eval_set names → same views)
                "disqualified": "The kill-list (disqualified)", "card": "Stock snapshot",
                "oscillators": "Momentum (RSI / MACD)",
-               "credibility": "Credibility leaders (CCI)",
+               "credibility": "CCI track record",
                "deterioration": "Deterioration / avoid tape (CCI)",
                "confluence": "Credibility × accumulation",
                "confluence_plan": "Multi-condition confluence",

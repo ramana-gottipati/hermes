@@ -387,7 +387,7 @@ def route_extra(query: str) -> dict | None:
                                             detect_why, detect_trend,
                                             detect_single_credibility, detect_top_n)
             # an explicit "top N" rides the ₹0 credibility/leaders returns below so a
-            # one-shot "top 5 credible managements" caps the list (ranking unchanged).
+            # one-shot "top 5 credible managements" caps the list length (coverage-first ordering unchanged; not a ranking — D6-F1).
             _topn = detect_top_n(query)
             _tr = detect_trend(query)            # "credibility trend for X" → time-series
             if _tr:

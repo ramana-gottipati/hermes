@@ -2,10 +2,11 @@
 
 Surfaces `concall_signals` (src/automation/concall_signals.py): every capex / expansion /
 debt-reduction / new-product / volume statement managements made on earnings calls, ₹-amounts
-NORMALIZED. The Phase-3 backtest content-scan showed THIS carries a real forward-return tilt
-(debt_reduction +2.8% / volume +2.3% / new_product +1.8% / capex +1.5% at 3m, de-marketed) —
-unlike 'credibility', which falsified. Isolated view (own router); reuses dashboard._shell so it
-renders natively inside the app shell + nav.
+NORMALIZED. A DESCRIPTIVE PROPOSAL LEDGER — what management SAID it will do, sortable by ₹-size.
+⚠ Codex D6-F3: the early month-granular "growth-intent forward tilt" (debt_reduction +2.8% etc.) was
+PLACEBO-KILLED on real dates (2026-07-08 — random windows of the same covered names drift MORE:
+covered-universe beta, NOT a content edge; strategy-ledger.md § Studies 2026-07-08). No return edge
+ships. Isolated view (own router); reuses dashboard._shell so it renders natively inside the shell + nav.
 
 View options: per-type tabs · instant text filter · click-to-sort columns · symbol / min-₹ / since
 server filters.
@@ -31,8 +32,8 @@ def _q(s) -> str:
 
 router = APIRouter()
 
-_TABS = [("", "All growth"), ("debt_reduction", "Debt ↓ +2.8%"), ("volume", "Volume +2.3%"),
-         ("new_product", "New product +1.8%"), ("capex", "Capex +1.5%"), ("expansion", "Expansion +0.9%")]
+_TABS = [("", "All growth"), ("debt_reduction", "Debt ↓"), ("volume", "Volume"),
+         ("new_product", "New product"), ("capex", "Capex"), ("expansion", "Expansion")]
 
 _CSS = """
 <style>
@@ -170,8 +171,9 @@ def growth(type: str = "", since: int = 0, min_cr: float = 0, pullback: int = 0,
 
     head = ('<h2>Growth-intent <span class="sub" style="margin:0">concall forward-looking proposals</span></h2>'
             '<div class="gw-note">What managements say they will <b>do</b> — capex, capacity, new products, '
-            'deleveraging — from earnings calls, ₹-amounts normalized. The Phase-3 backtest found this content '
-            'carries a real 3-month forward tilt (per tab), unlike the <i>credibility</i> score (falsified). '
+            'deleveraging — from earnings calls, ₹-amounts normalized. A <b>descriptive proposal ledger</b>: the '
+            'early per-type "forward tilt" was <b>placebo-killed</b> on real dates (covered-universe drift, not a '
+            'content edge — strategy-ledger § 2026-07-08); order reflects commitment size, not expected return. '
             'Click a column to sort · type to filter · tap a symbol for its dossier. '
             '<span class="gw-mut">Descriptive research signal — not investment advice.</span></div>')
     if not n_total:

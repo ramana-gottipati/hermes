@@ -59,6 +59,8 @@ The full mechanism lives in [SKILL.md](../../resources/patearn/SKILL.md) (proces
 
 **What the code can and cannot see:** `scoring.py` runs the *quantitative* Phase-3 score over numeric fundamentals. The patterns that need narrative/segment/technical inputs (tailwind, export mix, VCP, volume) it scores conservatively as **Partial-Estimated** and hands off to Phase 4 in claude.ai. Where a real point-in-time trend key is available (ROCE trend, OPM trend, interest coverage, profit acceleration, debtor days, cash-conversion cycle, promoter-rising — D66), the corresponding signals switch from proxy to **verified**; the live Telegram snapshot path (no trend keys) is byte-for-byte unchanged (regression-safe).
 
+> **⚠ Proxy fidelity (Codex D3-F3, converged).** The top-5 Quality-Gate patterns are computed via numeric **proxies**, not the exact multi-year rules in [patterns.md](../../resources/patearn/patterns.md): e.g. Pattern 1 credits endpoint / 3Y-avg ROCE rising (not three *consecutive* annual rises or sector-relative improvement); Pattern 2 uses profit-vs-sales growth + OPM level/trend (not EPS CAGR + EBITDA higher-highs + PAT-margin expansion); Pattern 5 uses D/E level + interest-coverage level (not D/E *falling* + coverage >5x *and rising* + FCF positive 2-of-3y). The proxies are directionally sound and deliberately conservative, but they are proxies; read a Quality-Gate pass as "broadly clears the fundamental core", not "satisfies every exact criterion". Implementing the exact rules is a queued enhancement.
+
 ## 4. Status, validation & honesty fence
 
 - **Deployed** and running (Telegram `/pt14`, nightly batch scoring, web dossier + screener). See §5.

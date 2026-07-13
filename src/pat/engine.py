@@ -43,7 +43,7 @@ _VALID: dict[str, dict] = {
                      "window": set(MOVERS_WINDOW)},
     "index":        {"window": set(INDEX_WINDOW), "direction": set(INDEX_DIRECTION),
                      "turning": set(INDEX_TURNING)},
-    "credibility":  {"top_n": "int"},   # CCI credibility leaders (descriptive) — honours an explicit top-N
+    "credibility":  {"top_n": "int"},   # CCI track record (descriptive, coverage-first) — honours an explicit top-N cap
     "deterioration": {},  # CCI deterioration / avoid tape — parameterless
     "confluence":   {},   # CCI x MEP confluence (credible AND accumulated) — parameterless
     "confluence_plan": {"pillars": "free", "sector": "free", "capband": "free"},  # N-pillar planner

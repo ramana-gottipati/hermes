@@ -164,6 +164,8 @@ only as a Ramana-signed re-apply (PROJECT_STATE D108).
 
 **Logic:** everything is judged against the stock's **own** history — no market-wide rupee threshold (the "no rupee-constant thresholds" rule), so a thin small-cap and a large-cap are each measured against themselves. Top-N grows with the window (4→30) so a "power day" means the same thing at every horizon: an outlier vs that window's own peak days.
 
+**Ignition intensity ranking (`src/automation/ignition.py`) — the one absolute floor.** DVPT itself uses no rupee constant (above). The *ignition* layer that ranks today's SS/S crossers by intensity applies ONE absolute filter — `LIQ_FLOOR = Rs 25 lakh` delivered-value/day (drop count logged) — to keep un-actionable micro-junk out of the ranked list. It is a **liquidity/tradability filter applied AFTER intensity is computed** (`intensity = dvpt / mean(P-baselines)`), NOT part of the intensity definition, and is endorsed by the ledger gate study ("keep an absolute tradability requirement — you must be able to fill"). ⚠ It is a hard rupee constant and therefore *rots* with inflation / market-cap drift (against the no-rupee-constant rule for SELECTION); a queued improvement is to relativize it to a percentile / own-trailing-value gate. (Codex D1-F2, converged.)
+
 ## 5f. MEP — signed accumulation/distribution (the price-tape read)
 **Canonical source:** `src/automation/mep_signals.py`. Daily score = the **within-stock z-average of four SIGNED directional terms** (+ = accumulation, − = distribution), **equal-weighted (¼ each) on z-scores** so unlike units combine honestly. DESCRIPTOR-ONLY (D62 — failed the walk-forward + Deflated-Sharpe gate; `docs/strategies/mep.md`).
 

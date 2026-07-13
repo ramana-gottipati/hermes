@@ -196,12 +196,12 @@ def _wilder_rsi(vals, period: int):
         g += max(d, 0.0)
         l += max(-d, 0.0)
     ag, al = g / period, l / period
-    out[period] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+    out[period] = (50.0 if ag == 0 else 100.0) if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
     for i in range(period + 1, len(vals)):
         d = vals[i] - vals[i - 1]
         ag = (ag * (period - 1) + max(d, 0.0)) / period
         al = (al * (period - 1) + max(-d, 0.0)) / period
-        out[i] = 100.0 if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
+        out[i] = (50.0 if ag == 0 else 100.0) if al == 0 else 100.0 - 100.0 / (1.0 + ag / al)
     return out
 
 

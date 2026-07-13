@@ -10,10 +10,10 @@ RS ratio = rebased outperformance vs the benchmark, base 100 at the window start
 
     rs[i] = (stock[i] / stock[0]) / (bench[i] / bench[0]) * 100
 
-Rising = the stock is outpacing the benchmark; flat = moving with it. Uses raw
-``bhavcopy_rows`` / ``index_rows`` closes (a relative lens; the primary candles on
-the chart are the split-adjusted ones). Benchmark defaults to Nifty 500 (the broad
-market), overridable via ?bench=.
+Rising = the stock is outpacing the benchmark; flat = moving with it. The stock leg
+uses SPLIT/BONUS-ADJUSTED closes (Codex D2-F3 — a raw-close ratio would fake a ~50%
+RS collapse at a bonus/split); the index leg (``index_rows``) is already a continuous
+series. Benchmark defaults to Nifty 500 (the broad market), overridable via ?bench=.
 """
 from __future__ import annotations
 
@@ -34,13 +34,25 @@ def rs_overlay(sym: str = Query("", max_length=24), bench: str = Query("Nifty 50
         return JSONResponse(None)
     with get_conn() as conn:
         srows = conn.execute(
-            "SELECT trade_date, close FROM bhavcopy_rows "
+            "SELECT trade_date, close, prev_close FROM bhavcopy_rows "
             "WHERE symbol=? AND series='EQ' AND (segment='CM' OR segment IS NULL) "
             "AND close IS NOT NULL ORDER BY trade_date",
             (sym,),
         ).fetchall()
         if len(srows) < 2:
             return JSONResponse(None)
+        # Codex D2-F3: an RS RATIO must be built on SPLIT/BONUS-ADJUSTED stock closes —
+        # a raw-close ratio injects a fake ~50% RS collapse at a bonus/split (the price
+        # discontinuity is a corporate action, not real relative performance).
+        try:
+            from src.automation.adjust import adjusted_closes
+            from src.automation.corp_actions import price_ratios
+            adj = adjusted_closes(
+                [{"trade_date": r[0], "close": r[1], "prev_close": r[2]} for r in srows],
+                price_ratios(conn, sym),
+            )
+        except Exception:
+            adj = [r[1] for r in srows]          # never fail the overlay — fall back to raw
         d_lo, d_hi = srows[0][0], srows[-1][0]
         brows = conn.execute(
             "SELECT trade_date, close_value FROM index_rows "
@@ -52,8 +64,11 @@ def rs_overlay(sym: str = Query("", max_length=24), bench: str = Query("Nifty 50
         return JSONResponse(None)
 
     bench_by = {r[0]: r[1] for r in brows}
-    # align on shared trading dates, then rebase both legs to their first shared point
-    pairs = [(r[0], r[1], bench_by[r[0]]) for r in srows if r[0] in bench_by and bench_by[r[0]]]
+    # align on shared trading dates, then rebase both legs to their first shared point.
+    # Stock leg = adjusted close (adj[i], aligned to srows); index leg = raw index value.
+    pairs = [(srows[i][0], adj[i], bench_by[srows[i][0]])
+             for i in range(len(srows))
+             if adj[i] is not None and srows[i][0] in bench_by and bench_by[srows[i][0]]]
     if len(pairs) < 2:
         return JSONResponse(None)
     s0, b0 = pairs[0][1], pairs[0][2]

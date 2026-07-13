@@ -223,7 +223,7 @@ def _fallback_summary(conn) -> list[dict]:
            FROM concall_scores s
            JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x
              ON x.symbol=s.symbol AND x.m=s.last_updated
-           ORDER BY COALESCE(s.composite_score,0) DESC LIMIT 600""")
+           ORDER BY (s.n_promises_resolved IS NULL), s.n_promises_resolved DESC, s.symbol LIMIT 600""")   # Codex D6-F1: coverage-first, not a credibility ranking
     if r is not None:
         top_tier = [x for x in r if (x["tier"] or "") in ("A+", "A")]
         out.append({
@@ -680,7 +680,7 @@ def _cci_tile(conn) -> str:
         'survivorship-limited)</span></div>'
         f'{grid}'
         '<div class="sec" style="margin-top:8px;font-size:12px">'
-        '<a class="st-open" href="/dash/pat?flow=credibility">credibility leaders →</a> &nbsp; '
+        '<a class="st-open" href="/dash/pat?flow=credibility">CCI track record →</a> &nbsp; '
         '<a class="st-open" href="/dash/pat?flow=deterioration">deterioration tape →</a> &nbsp; '
         '<a class="st-open" href="/dash/coverage">methodology · coverage →</a>'
         '</div></div></div>')

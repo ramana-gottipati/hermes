@@ -420,7 +420,7 @@ STRATEGY_REGISTRY = [
      "thesis": "Is the business worth owning — the patearn 14-pattern durability score.",
      "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM pattern_scores").fetchone()["c"]},
     {"key": "CCI", "label": "Mgmt Credibility", "accent": "#39c5cf", "href": "/dash/concalls",
-     "cta": "concall credibility",
+     "cta": "veto / deterioration watch",
      "thesis": "Do managements keep their promises? Measurable guidance-accuracy + a deterioration / ⛔veto avoid-tape, from earnings concalls. (Pilot — backfill accruing.)",
      "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM concall_scores").fetchone()["c"]},
     {"key": "LAUNCH", "label": "Launchpad", "accent": "#f0883e", "href": "/dash/launchpad",
@@ -868,10 +868,10 @@ def render_home(sig_date, idx_date) -> str:
                     f'{phv:+.2f}</td></tr>')
         return f'<table class="ck-t"><tbody>{out}</tbody></table>'
     if mep_accum:
-        boards.append(_board('<span class="em">📈</span> Net accumulation', 'signed pressure · MEP (descriptor)',
+        boards.append(_board('<span class="em">📈</span> Net accumulation', 'signed pressure · MEP (descriptor · DSR-failed)',
                              mep_rows(mep_accum), "/dash/mep?dir=accum", "Open the MEP screen", "#db61a2"))
     if mep_distrib:
-        boards.append(_board('<span class="em">📉</span> Distribution watch', 'net selling pressure · MEP',
+        boards.append(_board('<span class="em">📉</span> Distribution watch', 'net selling pressure · MEP (descriptor · DSR-failed)',
                              mep_rows(mep_distrib), "/dash/mep?dir=distrib", "Open the MEP screen", "#db61a2"))
 
     # RS Band (the level lens) — cheapest / richest sectors vs their own history.
@@ -1564,7 +1564,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                 if mdistrib:
                     mr += ('<tr><td colspan="4" class="mut" style="padding-top:8px;font-size:11px">'
                            'DISTRIBUTING</td></tr>' + "".join(_mrow(x) for x in mdistrib))
-                mep_board = _board('📊 Intra-index MEP', 'accumulation &amp; distribution · signed',
+                mep_board = _board('📊 Intra-index MEP', 'signed accum/distrib STATE · descriptor (DSR-failed)',
                                    f'<table class="ck-t"><tbody>{mr}</tbody></table>',
                                    "/dash/mep", "Open the MEP screen", "#db61a2")
         boards = "".join(b for b in (lead_board, lag_board, dvpt_board, mep_board) if b)
@@ -1909,10 +1909,15 @@ def render_strategies(sig_date, idx_date) -> str:
             "ON x.symbol=p.symbol AND x.m=p.scored_at WHERE p.ns_base IS NOT NULL "
             "ORDER BY p.ns_base DESC LIMIT 6").fetchall()]
         cci = [dict(r) for r in conn.execute(
-            "SELECT s.symbol, s.composite_score v, s.tier, s.forward_direction fd FROM concall_scores s "
+            # Codex D6-F1 (A2, converged): a veto/deterioration WATCH board, NOT a "best
+            # credibility" ranking — CCI is falsified as a return factor, so this hub tile
+            # surfaces risk states (veto / deterioration) only, never a top-composite list.
+            "SELECT s.symbol, s.composite_score v, s.tier, s.forward_direction fd, "
+            "s.veto_active va, s.deterioration_score ds FROM concall_scores s "
             "JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x "
-            "ON x.symbol=s.symbol AND x.m=s.last_updated WHERE COALESCE(s.veto_active,0)=0 "
-            "AND s.composite_score IS NOT NULL ORDER BY s.composite_score DESC LIMIT 6").fetchall()]
+            "ON x.symbol=s.symbol AND x.m=s.last_updated "
+            "WHERE COALESCE(s.veto_active,0)=1 OR COALESCE(s.deterioration_score,0)>0 "
+            "ORDER BY COALESCE(s.veto_active,0) DESC, COALESCE(s.deterioration_score,0) DESC, s.symbol LIMIT 6").fetchall()]
 
     reg = {e["key"]: e for e in STRATEGY_REGISTRY}
 
@@ -1951,12 +1956,12 @@ def render_strategies(sig_date, idx_date) -> str:
                    "v": (s.get("conv") or {}).get("tier")} for s in cpr_top],
           lambda r: esc(r.get("v") or "")),
         b("QUAL", qual, lambda r: f'{r["v"]:.0f}' if r.get("v") is not None else "—"),
-        b("CCI", cci, lambda r: (f'{D._cci_num(r.get("v"))} {D._cci_fwd(r.get("fd"))}')),
+        b("CCI", cci, lambda r: ('⛔ veto' if r.get("va") else (f'deterior {int(r.get("ds"))}' if r.get("ds") else '—'))),
     ]
     hub = '<div class="ckpt">' + "".join(boards) + '</div>'
 
     head = ('<h2 style="margin-top:2px">Strategies '
-            '<span class="sub" style="margin:0">one lens per pillar · today\'s best names</span></h2>'
+            '<span class="sub" style="margin:0">one lens per pillar · live states to inspect</span></h2>'
             '<div class="sub" style="margin-top:2px">Each tile is a live count — open it to screen. '
             'A new strategy added to the registry appears here automatically.</div>')
     return _CKPT_CSS + head + strip + hub
@@ -1976,7 +1981,7 @@ def render_concalls(view: str) -> str:
     ranked', D61). Replaces the old narrow _shell page."""
     from src.web import dashboard as D
     esc = D._esc
-    view = "leaders" if view == "leaders" else "avoid"
+    view = "track" if view in ("track", "leaders") else "avoid"   # 'leaders' = compat alias (Codex D6-F1)
 
     with D.get_conn() as conn:
         sc = [dict(r) for r in conn.execute(
@@ -1996,9 +2001,12 @@ def render_concalls(view: str) -> str:
     n_veto = sum(1 for r in sc if r.get("veto_active"))
     n_proven = sum(1 for r in sc if (r.get("n_promises_resolved") or 0) >= 1)
 
-    if view == "leaders":
+    if view == "track":
+        # Codex D6-F1 (converged): a NEUTRAL coverage-first RECORD, not a credibility
+        # ranking — sort by #settled promises then symbol. CCI is falsified as a return
+        # factor, so it must never surface a "best credibility on top" ordered list.
         rows = [r for r in sc if not r.get("veto_active")]
-        rows.sort(key=lambda r: (r.get("composite_score") or 0), reverse=True)
+        rows.sort(key=lambda r: (-(r.get("n_promises_resolved") or 0), r.get("symbol") or ""))
     else:
         rows = sorted(sc, key=lambda r: ((r.get("deterioration_score") or 0)
                                          + (60 if r.get("veto_active") else 0)), reverse=True)
@@ -2046,7 +2054,7 @@ def render_concalls(view: str) -> str:
                 f'<div class="ck-l">{label}</div><div class="ck-c">{cta}</div></{tag}>')
     strip = ('<div class="ck-tiles">'
              + tile(n_proven, "Proven names", "var(--up)", "≥1 promise settled vs actuals")
-             + tile(n_leaders, "Credibility leaders", "var(--up)", "veto-excluded, ranked")
+             + tile(n_leaders, "Tracked (veto-excluded)", "var(--up)", "coverage-first, not ranked")
              + tile(n_avoid, "Avoid tape", "var(--down)", "veto / deterioration")
              + tile(n_veto, "⛔ Vetoed", "var(--down)", "pledge / auditor / pt14")
              + tile(n_unproven, "Unproven", "var(--ink-2)", "no settled promises yet")
@@ -2058,14 +2066,14 @@ def render_concalls(view: str) -> str:
         return f'<a class="fbtn{on}" href="/dash/concalls?view={key}">{label}</a>'
 
     note = ("Avoid tape — worst-first (veto + deterioration)." if view == "avoid"
-            else "Credibility leaders — veto-excluded, best measurable composite on top.")
+            else "Track record — coverage-first (#settled desc), not a credibility ranking.")
     head_html = (
         '<h2 style="margin-top:2px">Management Credibility '
         '<span class="sub" style="margin:0">CCI · concall intelligence</span></h2>'
-        f'<div class="fbar" style="margin:6px 0">{tab("avoid", "⚠ Avoid tape")}{tab("leaders", "★ Credibility leaders")}'
+        f'<div class="fbar" style="margin:6px 0">{tab("avoid", "⚠ Avoid tape")}{tab("track", "Track record")}'
         '<a class="fbtn" href="/dash/credibility" title="Promise-vs-delivery fingerprint — every settled '
         'promise plotted over time (flagship A)">◔ Fingerprint</a></div>'
-        f'<div class="sub" style="margin-top:0"><b>{note}</b> Ranking uses <b>measurable items only</b> '
+        f'<div class="sub" style="margin-top:0"><b>{note}</b> <b style="color:var(--ink-2)">CCI is a promise-keeping + deterioration-veto record — falsified as a return factor, not a ranked long list.</b> Record uses <b>measurable items only</b> '
         '(D61): guidance accuracy, quantification %, the ⛔ veto, and deterministic deterioration. '
         'The last three <b>·AI</b> columns are a model read shown <b>for context — NOT ranked</b>. '
         'A name is <b>unproven</b> until its promises resolve. <b>Pilot</b> — the historical backfill '
@@ -2196,8 +2204,8 @@ def render_mep(sig_date=None, focus="") -> str:
             'judged vs each stock\'s OWN history (the side DVPT is blind to). The headline '
             '<b>Phase</b> is a smoothed, hysteresis-banded regime that HOLDS for weeks '
             '(accumulation → consolidation → distribution); <b>Today</b> is the raw daily '
-            'score underneath. Top 150 each end by phase; every raw signed term beside the '
-            'verdict. Descriptor / confirmation, not a picker. Sort · filter · ⬇ export.</div>')
+            'score underneath. The 150 most extreme state reads each side by phase; every raw signed term beside the '
+            'verdict. <b>Descriptor / confirmation only — DSR-failed as a return signal (D62); never a picker.</b> Sort · filter · ⬇ export.</div>')
     return G.css() + _CKPT_CSS + head + strip + table + js
 
 

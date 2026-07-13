@@ -864,7 +864,7 @@ def detect_why(query: str):
 # "how credible is X", "X credibility", "confluence on X". Routes to the `why`
 # flow (the single-name evidence-backed credibility read) — the right answer for
 # a one-name trust question. STOP words guard against catching a bare metric ask
-# ("most credible managements" — no single subject → stays the leaders board).
+# ("most credible managements" — no single subject → stays the CCI track-record board).
 _SINGLE_CRED_RE = [
     re.compile(r"\bis\s+([a-z0-9&.\-]{2,18})(?:'s)?\s+(?:a\s+)?(?:credible|trustworthy)\b", re.I),
     re.compile(r"\bhow\s+credible\s+is\s+([a-z0-9&.\-]{2,18})\b", re.I),

@@ -233,7 +233,7 @@ def dash_launchpad_track(drill: str = "") -> HTMLResponse:
             fb_chars = [k for k, _ in _fbo]
             body.append(
                 '<div class="lt-panel"><div class="lt-h">Gain vs pain, by signal type '
-                '<small>— the typical dip (red) vs best rise (green) over the next 6 months</small></div>'
+                '<small>— the typical dip (red) vs best rise (green) over the full tracked journey (up to ~24 months, or until the setup breaks)</small></div>'
                 + ifx.plain('Each bar is the typical <b>journey</b> after a signal: the <b>dip you\'d sit '
                             'through</b> (red, left) and the <b>best rise you\'d see</b> (green, right). The '
                             '“accumulation” type had the best rise-for-dip — but <b>every</b> type dips first. '

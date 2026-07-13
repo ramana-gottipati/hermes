@@ -2,9 +2,10 @@
 
 `concall_guidance` holds every forward-looking statement management made, by statement_type
 (capex, expansion, debt_reduction, volume, new_product, demand_outlook, ...). The cross-sectional
-backtest (`cci_backtest --mode scan`) showed the GROWTH-INTENT content carries a real forward-return
-tilt (debt_reduction +2.8% / volume +2.3% / new_product +1.8% / capex +1.5% at 3m) — unlike
-'credibility', which falsified. This module materializes those statements into a clean, indexed
+backtest (`cci_backtest --mode scan`) once suggested a growth-intent forward tilt, but it was
+PLACEBO-KILLED on real dates (2026-07-08 — random windows of the same covered names drift MORE:
+covered-universe beta, NOT a content edge; strategy-ledger.md § Studies 2026-07-08). This is a
+DESCRIPTIVE PROPOSAL LEDGER, not a return factor. This module materializes those statements into a clean, indexed
 `concall_signals` table you can scan/screen, with the ₹-amounts NORMALIZED: the raw
 `quantified_target` had unit bugs ('$50 billion' / 'INR 10.4 billion' / 'Rs 10 Billion' were stored
 as raw-rupee integers mislabeled `Rs_cr`), so the headline amount is re-parsed from the claim text
@@ -30,7 +31,8 @@ from src.core.db import get_conn
 
 log = logging.getLogger("hermes.concall_signals")
 
-# statement_types with a positive forward tilt in the scan (the "growth / deleveraging intent")
+# statement_types grouped as "growth / deleveraging intent" (a DESCRIPTIVE proposal grouping — the
+# early forward-tilt read was placebo-killed 2026-07-08; NOT a return factor)
 GROWTH_TYPES = ("debt_reduction", "volume", "new_product", "capex", "expansion")
 
 # fx -> INR (approximate, for normalising the rare $/€/£ headline numbers to one currency)

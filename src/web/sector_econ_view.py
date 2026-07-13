@@ -124,11 +124,15 @@ def _compute(metric_key: str, research_db: str):
     keep.sort(key=lambda s: -(latest.get(s, -999)))
     mat = [matrix[s] for s in keep]
     # notable trajectories: biggest swing (max-min over populated cells)
+    # Codex D8-F6: carry the ACTUAL first/last populated fiscal years so thin sectors
+    # (with blank endpoints) are not mislabeled as a FY15→FY26 decade story.
     movers = []
     for s in keep:
-        pv = [v for v in matrix[s] if v is not None]
-        if len(pv) >= 3:
-            movers.append((s, pv[0], pv[-1], max(pv), min(pv), max(pv) - min(pv)))
+        idxs = [i for i, v in enumerate(matrix[s]) if v is not None]
+        if len(idxs) >= 3:
+            pv = [matrix[s][i] for i in idxs]
+            movers.append((s, pv[0], pv[-1], max(pv), min(pv), max(pv) - min(pv),
+                           years[idxs[0]], years[idxs[-1]]))
     movers.sort(key=lambda t: -t[5])
     return {"years": years, "sectors": keep, "matrix": mat, "movers": movers[:4],
             "n_syms": len(tags)}
@@ -250,10 +254,10 @@ def dash_sector_economics(metric: str = "roce", drill: str = "") -> HTMLResponse
 
         if d["movers"]:
             cards = ""
-            for s, first, last, hi, lo, swing in d["movers"]:
+            for s, first, last, hi, lo, swing, y0, y1 in d["movers"]:
                 dcls = "se-up" if last >= first else "se-dn"
                 cards += (f'<div class="se-mvc"><div class="s">{_esc(s)}</div>'
-                          f'<div class="d">FY{_Y0 % 100} <b>{first:.1f}</b> → FY{_Y1 % 100} '
+                          f'<div class="d">FY{y0[2:]} <b>{first:.1f}</b> → FY{y1[2:]} '
                           f'<b class="{dcls}">{last:.1f}</b>{munit} '
                           f'<span style="color:var(--ink-3)">· peak {hi:.1f} / trough {lo:.1f}, '
                           f'a {swing:.1f}-point swing</span></div></div>')

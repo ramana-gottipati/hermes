@@ -175,8 +175,8 @@ SNIPPET = """<script>
     function emaSeries(vals,n){ var k=2/(n+1),out=[],e=null; for(var i=0;i<vals.length;i++){ e=(e==null)?vals[i]:(vals[i]*k+e*(1-k)); out.push(e); } return out; }
     function rsiFrom(R,n){ n=n||14; if(R.length<n+1) return []; var g=0,l=0,out=[];
       for(var i=1;i<R.length;i++){ var ch=R[i].close-R[i-1].close, up=ch>0?ch:0, dn=ch<0?-ch:0;
-        if(i<=n){ g+=up; l+=dn; if(i===n){ g/=n; l/=n; var rs=l===0?100:g/l; out.push({time:R[i].time,value:l===0?100:(100-100/(1+rs))}); } }
-        else { g=(g*(n-1)+up)/n; l=(l*(n-1)+dn)/n; var rs2=l===0?100:g/l; out.push({time:R[i].time,value:l===0?100:(100-100/(1+rs2))}); } }
+        if(i<=n){ g+=up; l+=dn; if(i===n){ g/=n; l/=n; var rs=l===0?100:g/l; out.push({time:R[i].time,value:l===0?(g===0?50:100):(100-100/(1+rs))}); } }  /* Codex D7-F5: flat run (g==0 && l==0) is neutral 50, not overbought 100 */
+        else { g=(g*(n-1)+up)/n; l=(l*(n-1)+dn)/n; var rs2=l===0?100:g/l; out.push({time:R[i].time,value:l===0?(g===0?50:100):(100-100/(1+rs2))}); } }
       return out; }
     function macdFrom(R){ if(R.length<35) return {macd:[],sig:[],hist:[]}; var cl=R.map(function(d){return d.close;});
       var e12=emaSeries(cl,12), e26=emaSeries(cl,26); var md=[]; for(var i=0;i<cl.length;i++) md.push(e12[i]-e26[i]);

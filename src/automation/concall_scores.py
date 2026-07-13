@@ -1,4 +1,4 @@
-"""Concall Intelligence (CCI) — score + rank (MEASURABLE-ONLY, no LLM, no price).
+"""Concall Intelligence (CCI) — measurable-only score, no LLM, no price. (Ordinal RANK is no longer written — D6-F1: CCI is falsified as a return factor; surfaced as a coverage-first record + deterioration/veto tape only.)
 
 DOCTRINE (Ramana, session 28): rank and compare on **measurable items only**.
 Interpretive/LLM content (tone, "credibility feel", concealment opinions) is
@@ -212,22 +212,19 @@ def run(symbol: Optional[str] = None, rank_all: bool = True) -> int:
         finally:
             if research_conn is not None:
                 research_conn.close()
-        if rank_all and not symbol:
-            live = sorted([s for s in scored if not s["veto_active"]],
-                          key=lambda d: d["composite_score"], reverse=True)
-            rankof = {s["symbol"]: i for i, s in enumerate(live, 1)}
-            for s in scored:
-                _write(conn, s, rankof.get(s["symbol"]))
-        else:
-            for s in scored:
-                _write(conn, s, None)
-        log.info("scored %d symbols%s (measurable-only)", len(scored),
-                 " + ranked" if (rank_all and not symbol) else "")
+        # Codex D6-F1 (C, converged): CCI is FALSIFIED as a return factor — cease writing an
+        # ordinal rank (it was surfaced as a "credibility leaders" list). Always write NULL;
+        # the nullable `rank` column stays (no migration). Names surface only as a
+        # coverage-first record + the deterioration/veto tape, never a ranked list. The
+        # `rank_all` arg is retained for call-site compatibility but no longer ranks.
+        for s in scored:
+            _write(conn, s, None)
+        log.info("scored %d symbols (measurable-only; ordinal rank NOT written — D6-F1)", len(scored))
         return len(scored)
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="CCI score + rank (measurable-only, no LLM, no price)")
+    ap = argparse.ArgumentParser(description="CCI measurable-only score (no LLM, no price; ordinal rank not written — D6-F1)")
     ap.add_argument("--symbol")
     ap.add_argument("--backfill", action="store_true")
     ap.add_argument("--rerank", action="store_true")

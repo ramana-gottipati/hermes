@@ -150,9 +150,11 @@ def _project_forming(X, A, B, C):
         cands.append((name, d_ad, d_cd))
     if not cands:
         return []
-    # cluster by the AD-projected D (the structural anchor); group within 3%
+    # Codex D7-F4: the PRZ is the CONFLUENCE of BOTH projections — the defining XA/AD
+    # ratio AND the BC/CD extension. Building it from d_ad (c[1]) alone discarded the CD
+    # leg (c[2]) and rendered a too-narrow zone that hid the real two-projection spread.
     cands.sort(key=lambda c: c[1])
-    levels = [c[1] for c in cands]
+    levels = [c[1] for c in cands] + [c[2] for c in cands]   # AD- and CD-projected D levels
     lo, hi = min(levels), max(levels)
     mid = (lo + hi) / 2.0
     return [Harmonic(

@@ -179,21 +179,31 @@ def accum_character_read(label, p_score, trade_count_ratio_1m_6m,
         return ""
     if label == "ACCUMULATION":
         if f["price_up"] and f["up_skew"]:
-            return "markup / advance — price rising, delivery skewed to up-days"
-        if f["price_flat"] and f["concentrated"] and f["off_high"]:
-            return "absorption — supply soaked up quietly in a base, few large hands"
-        if f["price_flat"] and f["concentrated"]:
-            return "quiet accumulation — concentrated delivery, price holding firm"
-        return "accumulation — strong hands on the tape, price constructive"
-    if label == "DISTRIBUTION":
+            s = "markup / advance — price rising, delivery skewed to up-days"
+        elif f["price_flat"] and f["concentrated"] and f["off_high"]:
+            s = "absorption — supply soaked up quietly in a base, few large hands"
+        elif f["price_flat"] and f["concentrated"]:
+            s = "quiet accumulation — concentrated delivery, price holding firm"
+        else:
+            s = "accumulation — strong hands on the tape, price constructive"
+    elif label == "DISTRIBUTION":
         if f["broadening"] and f["near_high"]:
-            return "possible distribution — retail crowding in near highs while price stalls"
-        if f["price_down"]:
-            return "distribution — heavy delivery on down-days, price rolling over"
-        return "distribution risk — broadening crowd / down-day delivery skew"
-    if label == "CONSOLIDATION":
-        return "consolidation — no strong-hand activity, price range-bound"
-    return "neutral — no clear accumulation or distribution signature"
+            s = "possible distribution — retail crowding in near highs while price stalls"
+        elif f["price_down"]:
+            s = "distribution — heavy delivery on down-days, price rolling over"
+        else:
+            s = "distribution risk — broadening crowd / down-day delivery skew"
+    elif label == "CONSOLIDATION":
+        s = "consolidation — no strong-hand activity, price range-bound"
+    else:
+        s = "neutral — no clear accumulation or distribution signature"
+    # Codex D1-F5 (convergence): the delivery-VALUE trend flag (deliv_rising) was
+    # computed in _char_flags but consumed NOWHERE. Make it load-bearing so the stored
+    # WHO-axis numeric actually informs the plain read (the label itself deliberately
+    # keys only on p_score + concentration + price + skew — documented in D43).
+    if f["deliv_rising"]:
+        s += " · delivery ₹ rising vs its 6-month base"
+    return s
 
 
 def _ret_signs(adj: list) -> list:
@@ -318,16 +328,23 @@ def _character_arrays(asc_rows: list, events: dict = None) -> tuple:
     adj = adjusted_closes([{"trade_date": r["trade_date"], "close": r["close"],
                             "prev_close": r["prev_close"]}
                            for r in asc_rows], events)
-    # CL-MDC-01: delivery VALUE must be split-invariant over the 1m/6m ratio
-    # window — use the ADJUSTED close (same basis as accum_price_drift), NOT the
-    # raw close. A split inside the ≤180d window would otherwise put deliv_qty
-    # and close on different scales and distort deliv_value_ratio_1m_6m / the
-    # up-down skew. (The stored same-day rupee figures delivery_value_today /
-    # _per_trade keep using raw close — they are true single-day turnover.)
+    # CL-MDC-01 (REVISED — Codex D1-F1): delivered VALUE = deliv_qty × close is
+    # ALREADY split-invariant (a split multiplies qty by S and divides price by S,
+    # so the product is unchanged), so use the RAW same-day close — the true
+    # economic rupees delivered that day. The prior code multiplied RAW qty by the
+    # ADJUSTED close, applying the split factor to ONLY the price side; that shrank
+    # pre-split delivered values and biased deliv_value_ratio_1m_6m and the up/down
+    # skew (hence accum_character) on any name with a split/bonus in the trailing
+    # ≤180d window. Price-DIRECTION metrics below (accum_price_drift, 52w-high,
+    # _ret_signs) correctly keep using the ADJUSTED closes (`adj`). The stored
+    # same-day delivery_value_today / _per_trade already use raw close (true
+    # single-day turnover) — this makes the ratio path consistent with them.
+    # NOTE: changes stored nightly output → run `signals --relabel-character` (or a
+    # trigger backfill) on the VPS to correct historical rows.
     deliv_value = [
-        (r["deliv_qty"] * adj[k])
-        if (r["deliv_qty"] is not None and adj[k] is not None) else None
-        for k, r in enumerate(asc_rows)
+        (r["deliv_qty"] * r["close"])
+        if (r["deliv_qty"] is not None and r["close"] is not None) else None
+        for r in asc_rows
     ]
     num_trades = [r["num_trades"] for r in asc_rows]
     deliv_per = [r["deliv_per"] for r in asc_rows]

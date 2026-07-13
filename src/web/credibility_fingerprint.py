@@ -184,10 +184,17 @@ def _svg(pts: list) -> str:
                f'style="fill:none;stroke:var(--line-2);stroke-width:1.5"/>')
     step = max(1, -(-n // 8))               # label ~8 x-ticks max
     for i, p in enumerate(pts):
-        x, y = X(i), Y(p["var"])
+        raw = p["var"]
+        x, y = X(i), Y(raw)
         col = _SCOLOR.get(p["status"], "var(--ink-2)")
         out.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="5" '
                    f'style="fill:{col};stroke:var(--bg-1);stroke-width:2"/>')
+        # Codex D8-F2: the axis caps at ±vmax; a beat/miss beyond it would otherwise
+        # pin silently to the rail, making +90% / +300% / +800% look identical. Print
+        # the TRUE magnitude on any clipped point so the delivery gap stays visible.
+        if abs(raw) > vmax:
+            out.append(_txt(x, (y + 14) if raw < 0 else (y - 9), f'{raw:+.0f}%',
+                            size=9, ink=col, anchor="middle"))
         if i % step == 0 or i == n - 1:
             out.append(_txt(x, BASE + span + 22, p["period"], size=11, ink="var(--ink-3)"))
 

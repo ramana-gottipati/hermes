@@ -100,7 +100,7 @@ def _empty(key, label, route):
 # per-strategy readers — each returns one summary row, never raises             #
 # --------------------------------------------------------------------------- #
 def _mep(conn):
-    key, label, route = "mep", "Accumulation (MEP)", "/dash/mep"
+    key, label, route = "mep", "MEP accum-state (descriptor)", "/dash/mep"
     if not _table_exists(conn, "mep_signals"):
         return _empty(key, label, route)
     as_of = _max_date(conn, "mep_signals", "trade_date")
@@ -230,7 +230,7 @@ def _cci(conn):
         "FROM concall_scores s "
         "JOIN (SELECT symbol, MAX(last_updated) m FROM concall_scores GROUP BY symbol) x "
         "  ON x.symbol=s.symbol AND x.m=s.last_updated "
-        "ORDER BY s.composite_score DESC")
+        "ORDER BY (s.n_promises_resolved IS NULL), s.n_promises_resolved DESC, s.symbol")   # Codex D6-F1: coverage-first, not a credibility ranking (CCI falsified as a factor)
     # CL-SCO-15: rows can exist while both date columns are NULL/unhelpful, leaving
     # as_of None even though we have scores — which would mislabel the card "empty".
     # Fall back to the max non-null date carried on the rows so a populated card

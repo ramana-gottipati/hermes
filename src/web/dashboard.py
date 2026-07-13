@@ -2716,7 +2716,7 @@ def _cci_stock_panel(sym: str) -> str:
         items = []
         for f in rf:
             is_det = (f.get("model_version") == "cci-diff-v1") or (f["flag_type"] in _CCI_DETERMINISTIC_FLAGS)
-            mark = '<span class="neg" title="deterministic — drives the rank">★</span> ' if is_det else ''
+            mark = '<span class="neg" title="deterministic — drives the score">★</span> ' if is_det else ''
             sev = f.get("severity")
             prior = f' <span class="mut">(vs {_esc(f["prior_period"])})</span>' if f.get("prior_period") else ""
             items.append(
@@ -2724,7 +2724,7 @@ def _cci_stock_panel(sym: str) -> str:
                 f'{mark}<b>{_esc(f["flag_type"] or "")}</b>{(" · sev %d" % sev) if sev else ""}{prior}'
                 f'<br><span class="mut" style="font-size:12px">{_esc((f["evidence"] or "")[:160])}</span></li>')
         flagh = ('<div style="font-weight:600;margin:10px 0 4px">Deterioration &amp; red-flag timeline '
-                 '<span class="mut" style="font-weight:400">— ★ = deterministic (ranked); others = AI read (context)</span></div>'
+                 '<span class="mut" style="font-weight:400">— ★ = deterministic (drives the score); others = AI read (context)</span></div>'
                  '<ul style="margin:0;padding-left:16px;list-style:square">' + "".join(items) + "</ul>")
 
     # --- expectation vs actual (in-line / understated / overstated / CONCEALED) ---
@@ -2770,9 +2770,9 @@ def _cci_stock_panel(sym: str) -> str:
                 '<span class="mut" style="font-weight:400">— an <b>AI read for context, NOT a ranking input</b> (D61)</span></div>'
                 + bars + (f'<div class="mut" style="font-size:11px;margin-top:4px">“{ev}”</div>' if ev else ""))
 
-    foot = ('<div class="mut" style="font-size:11px;margin-top:10px">Ranking uses <b>measurable items only</b> '
+    foot = ('<div class="mut" style="font-size:11px;margin-top:10px">The score uses <b>measurable items only</b> '
             '(D61): guidance accuracy, quantification %, the ⛔ veto, and deterministic deterioration (★). '
-            'Behaviour / expectation reads inform but do not rank. <b>Pilot</b> — carried until the falsification '
+            'Behaviour / expectation reads inform but do not feed the score. <b>Pilot</b> — carried until the falsification '
             'gates clear. Corpus provenance (guardrail-#8): ~98.6% of transcripts were <b>discovered</b> via '
             'Screener.in links (legacy path, frozen; BSE-primary migration in progress) — extraction and '
             'settlement run on the primary documents. '

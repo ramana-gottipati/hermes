@@ -182,8 +182,24 @@ def spark_area(values: list, w: int = 1100, h: int = 150, color: str = "var(--ch
 
     base = baseline if baseline is not None else 0.0
     yb = _clamp(Y(base), mt, mt + ph)
-    pts = [(X(i), Y(v)) for i, v in enumerate(vals) if v is not None]
-    line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+    # Codex D8-F4: split into CONTIGUOUS non-None runs so a None renders as a REAL
+    # gap, not a straight line bridging across dates that had no data. Each run gets
+    # its own polyline; each area closes to the baseline independently.
+    segs, cur = [], []
+    for i, v in enumerate(vals):
+        if v is None:
+            if cur:
+                segs.append(cur)
+            cur = []
+        else:
+            cur.append((X(i), Y(v)))
+    if cur:
+        segs.append(cur)
+    line_segs = [s for s in segs if len(s) >= 2]
+
+    def _pstr(seg):
+        return " ".join(f"{x:.1f},{y:.1f}" for x, y in seg)
+
     out = [_open(w, h)]
     # optional envelope band
     if band:
@@ -195,21 +211,24 @@ def spark_area(values: list, w: int = 1100, h: int = 150, color: str = "var(--ch
                        f'fill="{color}" opacity="0.10"/>')
     if signed:
         # two clip halves so the area is green above / red below the baseline
-        area = f"{ml},{yb:.1f} " + line + f" {ml+pw},{yb:.1f}"
         out.append(f'<defs><clipPath id="_ca_up"><rect x="0" y="{mt}" width="{w}" '
                    f'height="{yb-mt:.1f}"/></clipPath><clipPath id="_ca_dn"><rect x="0" '
                    f'y="{yb:.1f}" width="{w}" height="{mt+ph-yb:.1f}"/></clipPath></defs>')
-        out.append(f'<polygon points="{area}" fill="rgba(var(--up-rgb),0.16)" clip-path="url(#_ca_up)"/>')
-        out.append(f'<polygon points="{area}" fill="rgba(var(--down-rgb),0.16)" clip-path="url(#_ca_dn)"/>')
+        for seg in line_segs:
+            area = f"{seg[0][0]:.1f},{yb:.1f} " + _pstr(seg) + f" {seg[-1][0]:.1f},{yb:.1f}"
+            out.append(f'<polygon points="{area}" fill="rgba(var(--up-rgb),0.16)" clip-path="url(#_ca_up)"/>')
+            out.append(f'<polygon points="{area}" fill="rgba(var(--down-rgb),0.16)" clip-path="url(#_ca_dn)"/>')
         out.append(f'<line x1="{ml}" y1="{yb:.1f}" x2="{ml+pw}" y2="{yb:.1f}" '
                    f'stroke="var(--ink-4)" stroke-width="0.75" stroke-dasharray="3 3"/>')
-        out.append(f'<polyline points="{line}" fill="none" stroke="var(--ink-2)" stroke-width="1.1"/>')
+        for seg in line_segs:
+            out.append(f'<polyline points="{_pstr(seg)}" fill="none" stroke="var(--ink-2)" stroke-width="1.1"/>')
     else:
-        out.append(f'<polygon points="{ml},{mt+ph} {line} {ml+pw},{mt+ph}" '
-                   f'fill="{color}" opacity="0.14"/>')
-        out.append(f'<polyline points="{line}" fill="none" stroke="{color}" stroke-width="1.4"/>')
-    if last_dot and pts:
-        lx, ly = pts[-1]
+        for seg in line_segs:
+            out.append(f'<polygon points="{seg[0][0]:.1f},{mt+ph} {_pstr(seg)} {seg[-1][0]:.1f},{mt+ph}" '
+                       f'fill="{color}" opacity="0.14"/>')
+            out.append(f'<polyline points="{_pstr(seg)}" fill="none" stroke="{color}" stroke-width="1.4"/>')
+    if last_dot and line_segs:
+        lx, ly = line_segs[-1][-1]
         out.append(f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="2.6" fill="{color}"/>')
     if labels:
         for frac, txt in labels:

@@ -502,9 +502,10 @@ _LATEST_PATTERN_JOIN = (
 
 
 def build_pt14_query(tier: str = "") -> tuple[str, list]:
-    """Latest pt14 score per stock, ranked by ns_base (the 0-100 headline), excluding
-    hard-disqualified names. `tier` optionally narrows to one tier — the value comes
-    only from PT14_TIER; ns_base ranking is fixed; bound throughout."""
+    """Latest pt14 score per stock, ordered by ns_base (the 0-100 headline) as a QUALITY-RISK
+    triage — NOT a return rank (D66; pt14 is a filter/veto-context lens, NS long-short ≈ 0) —
+    excluding hard-disqualified names. `tier` optionally narrows to one tier — the value comes
+    only from PT14_TIER; ns_base ordering is fixed; bound throughout."""
     tval = PT14_TIER.get(tier, PT14_TIER[""])[1]
     where = ["(ps.hard_disqualified IS NULL OR ps.hard_disqualified = 0)"]
     params: list = []
@@ -552,12 +553,13 @@ _CCI_COLS = ("s.symbol, s.tier, s.composite_score, s.guidance_accuracy_score, "
 
 
 def build_credibility_query(top_n=None) -> tuple[str, list]:
-    """Credibility LEADERS — veto-excluded, ranked by the measurable composite (D61).
-    Latest score per symbol. Read-only, no user input. ``top_n`` caps the list to an
-    explicit 'top N' ask (still ranked by composite — the N strongest)."""
+    """CCI TRACK RECORD — veto-excluded, coverage-first; NOT a ranked credibility list
+    (D6-F1: CCI is falsified as a return factor). Latest score per symbol, ordered by
+    #settled promises (coverage), never the composite. Read-only, no user input.
+    ``top_n`` caps the list length (still coverage-ordered, not a 'top N strongest')."""
     sql = ("SELECT " + _CCI_COLS + _CCI_LATEST +
            "WHERE COALESCE(s.veto_active, 0) = 0 "
-           "ORDER BY (s.composite_score IS NULL), s.composite_score DESC, s.symbol "
+           "ORDER BY COALESCE(s.n_promises_resolved, 0) DESC, s.symbol "
            "LIMIT " + str(_eff_limit(CCI_LIMIT, top_n)))
     return sql, []
 
@@ -603,7 +605,7 @@ def build_confluence_query() -> tuple[str, list]:
         "  AND COALESCE(c.veto_active, 0) = 0 "
         "  AND COALESCE(c.n_promises_resolved, 0) >= 3 "
         "  AND c.composite_score IS NOT NULL "
-        "ORDER BY c.composite_score DESC, s.p_score DESC, s.symbol "
+        "ORDER BY s.p_score DESC, COALESCE(c.n_promises_resolved, 0) DESC, s.symbol "
         "LIMIT 60"
     )
     return sql, []
@@ -698,7 +700,7 @@ def build_confluence_plan_query(pillars, sector: str = "", capband: str = "") ->
         "LEFT JOIN fundamentals f ON f.symbol = s.symbol "
         "WHERE " + " AND ".join(where) + " "
         "ORDER BY (s.rs_rank IS NULL), s.rs_rank DESC, s.p_score DESC, "
-        "         (c.composite_score IS NULL), c.composite_score DESC, s.symbol "
+        "         COALESCE(c.n_promises_resolved, 0) DESC, s.symbol "
         "LIMIT " + str(PLAN_LIMIT)
     )
     return sql, params

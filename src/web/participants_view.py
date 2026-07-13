@@ -123,6 +123,22 @@ def render_positioning_tape(conn) -> str:
     else:
         extreme = f'{ifx._ord(pct)} percentile of {len(dist)} days'
 
+    # Codex D8-F3: the beginner "read" must track the computed percentile + stance,
+    # not a hardcoded "near the bottom / bearish" sentence (which printed even when
+    # the ratio sat mid-range or net-long). The 0.9-1.1 ratio band reads as balanced.
+    if pct <= 12:
+        stance_read = ('It is sitting near the <b>bottom</b> of its 2.5-year range — an unusually '
+                       '<b>bearish (net-short)</b> stance.')
+    elif pct >= 88:
+        stance_read = ('It is sitting near the <b>top</b> of its 2.5-year range — an unusually '
+                       '<b>bullish (net-long)</b> stance.')
+    elif latest is not None and latest >= 1.0:
+        stance_read = (f'It is around the <b>{ifx._ord(pct)}</b> of its 2.5-year range — a '
+                       f'<b>balanced, slightly-long</b> stance.')
+    else:
+        stance_read = (f'It is around the <b>{ifx._ord(pct)}</b> of its 2.5-year range — a '
+                       f'<b>balanced, slightly-short</b> stance.')
+
     tape = (
         '<div class="sub" style="margin:16px 0 4px">📼 The positioning tape '
         '<span class="mut">— the FII stance across its FULL 2.5-year history, not the last 40 days</span></div>'
@@ -134,7 +150,7 @@ def render_positioning_tape(conn) -> str:
         'LONG:SHORT RATIO — green = net long (&gt;1), red = net short (&lt;1)</div>'
         + ifx.plain('This line is foreigners’ <b>“up” bets divided by “down” bets</b> on the whole '
                     'market. <b>Above</b> the dotted line = betting the market rises; <b>below</b> = betting it '
-                    'falls. It’s sitting near the bottom of its 2½-year range — an unusually bearish stance.')
+                    'falls. ' + stance_read)
         + ifx.spark_area(ratio, h=120, signed=True, baseline=1.0)
         + '<div style="max-width:520px;margin-top:8px">'
         + ifx.pct_gauge(latest, dist, label="today", vfmt=2) + '</div>'

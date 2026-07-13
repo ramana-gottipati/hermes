@@ -89,7 +89,7 @@ def _lane_data(den: str, conn) -> list[dict]:
             lane = None
         if not lane or lane.get("rs_band_pct") is None:
             continue
-        v, why = rsband.band_verdict(
+        v, why, vlabel = rsband.band_verdict(
             lane["rs_band_pct"], lane["rs_regime"], lane["slope_3m_pct"],
             lane["rs_band_state"], falls_less=falls.get(nm),
             trend_drift=lane["rs_trend_drift"])
@@ -103,6 +103,7 @@ def _lane_data(den: str, conn) -> list[dict]:
             "state": lane["rs_band_state"],
             "tr2": lane["rs_trend_r2"],
             "verdict": v,
+            "verdict_label": vlabel,
             "why": why,
             "href": f"/dash/rsband?idx={quote_plus(nm)}",
             "asof": lane.get("trade_date"),
@@ -166,7 +167,7 @@ function laneStr(s,i,head,trail){
   if(ks.length>1){var pts='';ks.forEach(function(kk){pts+=xOf(kk[1]).toFixed(1)+','+y+' ';});str+='<polyline points="'+pts+'" fill="none" stroke="'+c+'" stroke-width="2" stroke-opacity="0.6"/>';var st=ks[ks.length-1];str+='<circle cx="'+xOf(st[1]).toFixed(1)+'" cy="'+y+'" r="4.2" fill="'+P.hollow+'" stroke="'+P.ghost+'" stroke-width="1.4"/>';}
   if(now!=null)str+='<circle cx="'+xOf(now).toFixed(1)+'" cy="'+y+'" r="6" fill="'+c+'" stroke="'+P.ink+'" stroke-width="1.2"/>';
   str+='<text x="540" y="'+(y+4)+'" fill="'+zc(now==null?50:now)+'" font-size="11" text-anchor="end">'+(now==null?'—':Math.round(now))+'</text>';
-  str+='<text x="558" y="'+(y+4)+'" fill="'+vcol(s.verdict)+'" font-size="11">'+s.verdict+'</text>';
+  str+='<text x="558" y="'+(y+4)+'" fill="'+vcol(s.verdict)+'" font-size="11">'+s.verdict_label+'</text>';
  }
  str+='</g>';return str;}
 var ORD=SEC.map(function(s,i){return i;}).sort(function(a,b){var pa=SEC[a].path[0],pb=SEC[b].path[0];return (pa==null?999:pa)-(pb==null?999:pb);});
@@ -178,7 +179,7 @@ function wire(){Array.prototype.forEach.call(svg.querySelectorAll('.rblane'),fun
   var h='<b>'+s.n+'</b><br>'+(now==null?'n/a':Math.round(now)+'/100')+' · '+lab+' · '+(s.regime=='TRENDING'?'trending':'mean-reverting');
   if(net!=null)h+='<br>'+H+'m: '+Math.round(start)+' &rarr; '+Math.round(now)+' ('+(net>=0?'+':'')+Math.round(net)+')';
   if(s.poc!=null)h+='<br>magnet '+Math.round(s.poc);
-  h+='<br><span style="color:'+vcol(s.verdict)+'">'+s.verdict+'</span> — '+s.why;
+  h+='<br><span style="color:'+vcol(s.verdict)+'">'+s.verdict_label+'</span> — '+s.why;
   tip.innerHTML=h;tip.style.display='block';
   var w=document.getElementById('rbwrap').getBoundingClientRect(),gb=g.getBoundingClientRect();
   tip.style.left=Math.min(gb.left-w.left+40,w.width-250)+'px';var ty=gb.top-w.top-tip.offsetHeight-6;tip.style.top=(ty<0?gb.top-w.top+gb.height+6:ty)+'px';});
@@ -365,9 +366,11 @@ def _table(data: list[dict], den: str, link_fn=None) -> str:
             f'<td>{_n(d["tr2"], 2)}</td>'
             f'<td class="sub" style="margin:0">{_esc(d["state"])}</td>'
             f'<td><span style="background:{bg};color:{col};padding:2px 9px;border-radius:10px;'
-            f'font-size:12px;font-weight:500">{_esc(d["verdict"])}</span> '
+            f'font-size:12px;font-weight:500">{_esc(d.get("verdict_label") or d["verdict"])}</span> '
             f'<span class="sub" style="margin:0">{_esc(d["why"])}</span></td></tr>')
-    return f'<table class="dt">{head}<tbody>{"".join(body)}</tbody></table>'
+    return (f'<table class="dt">{head}<tbody>{"".join(body)}</tbody></table>'
+            '<div class="sub" style="margin:6px 0 0;font-size:11px;color:var(--ink-3)">RS-band is a '
+            'descriptive relative-level lens, not a buy/sell/trim instruction.</div>')
 
 
 # Per-view one-liner under the page title (the TAB BAR is the primary switch now).
@@ -646,7 +649,7 @@ def _mc(label: str, value: str, color: str = "var(--ink)") -> str:
             f'<div style="font-size:18px;color:{color}">{value}</div></div>')
 
 
-def _channel_readout(m: dict, verdict: str, why: str, to_res, to_sup) -> str:
+def _channel_readout(m: dict, verdict: str, why: str, to_res, to_sup, state_label: str = None) -> str:
     bp = m["rs_band_pct"]
     lab = ("at RS support" if bp <= 15 else "lower band" if bp < 35 else "mid-band"
            if bp < 65 else "upper band" if bp < 85 else "at RS resistance")
@@ -663,8 +666,10 @@ def _channel_readout(m: dict, verdict: str, why: str, to_res, to_sup) -> str:
         + _mc("state", _esc(m["rs_band_state"]))
     )
     return ('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin-top:12px">' + cards + '</div>'
-            f'<div style="margin-top:10px;font-size:15px"><span style="color:{vc};font-weight:500">{_esc(verdict)}</span> '
-            f'<span class="sub" style="margin:0">— {_esc(why)}</span></div>')
+            f'<div style="margin-top:10px;font-size:15px"><span style="color:{vc};font-weight:500">{_esc(state_label or verdict)}</span> '
+            f'<span class="sub" style="margin:0">— {_esc(why)}</span></div>'
+            '<div class="sub" style="margin:8px 0 0;font-size:11px;color:var(--ink-3)">RS-band is a '
+            'descriptive relative-level lens, not a buy/sell/trim instruction.</div>')
 
 
 def _channel_page(label_html: str, den: str, series, m, fl, back_href: str,
@@ -674,8 +679,8 @@ def _channel_page(label_html: str, den: str, series, m, fl, back_href: str,
     if not m or m.get("rs_band_pct") is None or len(series) < 60:
         return (head + f'<h2 style="margin-top:6px">{label_html} — RS band</h2>'
                 '<div class="card"><div class="sub">Not enough RS history for a band chart yet.</div></div>')
-    v, why = rsband.band_verdict(m["rs_band_pct"], m["rs_regime"], m["slope_3m_pct"],
-                                 m["rs_band_state"], falls_less=fl, trend_drift=m["rs_trend_drift"])
+    v, why, vlabel = rsband.band_verdict(m["rs_band_pct"], m["rs_regime"], m["slope_3m_pct"],
+                                         m["rs_band_state"], falls_less=fl, trend_drift=m["rs_trend_drift"])
     last = series[-1][1]
     res, sup = m["rs_band_high"], m["rs_band_low"]
     to_res = ((res - last) / last * 100.0) if (res and last) else None
@@ -692,7 +697,7 @@ def _channel_page(label_html: str, den: str, series, m, fl, back_href: str,
               f'<span class="sub" style="margin:0">vs {_esc(den)} · where it sits in its own history</span></h2>'
             + '<div class="card" style="padding:10px 12px">' + _channel_svg(series, m) + '</div>'
             + rot
-            + _channel_readout(m, v, why, to_res, to_sup))
+            + _channel_readout(m, v, why, to_res, to_sup, vlabel))
 
 
 def render_band_channel(num: str, den: str = "Nifty 500", conn=None) -> str:
@@ -785,8 +790,8 @@ def band_section(num: str = "", sym: str = "", den: str = "Nifty 500", conn=None
                 pass
     if not m or m.get("rs_band_pct") is None or len(series) < 60:
         return ""
-    v, why = rsband.band_verdict(m["rs_band_pct"], m["rs_regime"], m["slope_3m_pct"],
-                                 m["rs_band_state"], falls_less=fl, trend_drift=m["rs_trend_drift"])
+    v, why, vlabel = rsband.band_verdict(m["rs_band_pct"], m["rs_regime"], m["slope_3m_pct"],
+                                         m["rs_band_state"], falls_less=fl, trend_drift=m["rs_trend_drift"])
     last = series[-1][1]
     res, sup = m["rs_band_high"], m["rs_band_low"]
     to_res = ((res - last) / last * 100.0) if (res and last) else None
@@ -795,7 +800,7 @@ def band_section(num: str = "", sym: str = "", den: str = "Nifty 500", conn=None
             f'<span class="sub" style="margin:0">where {_esc(label)} sits in its own band vs {_esc(den)} · '
             f'<a class="row" style="display:inline" href="{full}">open full →</a></span></h2>'
             '<div class="card" style="padding:10px 12px">' + _channel_svg(series, m) + '</div>'
-            + _channel_readout(m, v, why, to_res, to_sup))
+            + _channel_readout(m, v, why, to_res, to_sup, vlabel))
 
 
 def band_home_inner(den: str = "Nifty 500", conn=None) -> str:
@@ -818,12 +823,12 @@ def band_home_inner(den: str = "Nifty 500", conn=None) -> str:
     for r in rows:
         if (keep is not None and r["numerator"] not in keep) or r["rs_band_pct"] is None:
             continue
-        v, _why = rsband.band_verdict(r["rs_band_pct"], r["rs_regime"], r["slope_3m_pct"],
-                                      r["rs_band_state"], falls_less=falls.get(r["numerator"]),
-                                      trend_drift=r["rs_trend_drift"])
+        v, _why, vlabel = rsband.band_verdict(r["rs_band_pct"], r["rs_regime"], r["slope_3m_pct"],
+                                              r["rs_band_state"], falls_less=falls.get(r["numerator"]),
+                                              trend_drift=r["rs_trend_drift"])
         data.append({"k": r["numerator"].replace("Nifty ", "").replace(" Index", ""),
                      "n": r["numerator"], "band": r["rs_band_pct"], "verdict": v,
-                     "state": r["rs_band_state"]})
+                     "verdict_label": vlabel, "state": r["rs_band_state"]})
     if not data:
         return ""
     data.sort(key=lambda d: d["band"])
@@ -836,7 +841,7 @@ def band_home_inner(den: str = "Nifty 500", conn=None) -> str:
         return (f'<tr><td class="l"><a class="row" href="/dash/rsband?idx={quote_plus(d["n"])}">'
                 f'<span class="sym">{_esc(d["k"])}</span></a></td>'
                 f'<td class="r" style="color:{bcol}">{_n(d["band"])}</td>'
-                f'<td class="r"><span style="color:{c};font-size:11px">{_esc(d["verdict"])}</span></td></tr>')
+                f'<td class="r"><span style="color:{c};font-size:11px">{_esc(d.get("verdict_label") or d["verdict"])}</span></td></tr>')
 
     breaks = [d for d in data if d["state"] in ("BREAKOUT_UP", "BREAKDOWN_DN")
               or d["band"] > 100 or d["band"] < 0]
@@ -896,11 +901,11 @@ def _constituent_data(index_name: str, conn, vs: str = "broad") -> list[dict]:
         lane = rsband.lane_from_series(rs, last)
         if not lane or lane.get("rs_band_pct") is None:
             continue
-        v, why = rsband.band_verdict(lane["rs_band_pct"], lane["rs_regime"], lane["slope_3m_pct"],
-                                     lane["rs_band_state"], trend_drift=lane["rs_trend_drift"])
+        v, why, vlabel = rsband.band_verdict(lane["rs_band_pct"], lane["rs_regime"], lane["slope_3m_pct"],
+                                             lane["rs_band_state"], trend_drift=lane["rs_trend_drift"])
         out.append({"k": sym, "n": sym, "band": lane["rs_band_pct"], "path": lane["band_path"],
                     "poc": lane["rs_poc_pct"], "regime": lane["rs_regime"], "state": lane["rs_band_state"],
-                    "tr2": lane["rs_trend_r2"], "verdict": v, "why": why,
+                    "tr2": lane["rs_trend_r2"], "verdict": v, "verdict_label": vlabel, "why": why,
                     "href": f"/dash/rsband?sym={quote_plus(sym)}&idx={quote_plus(index_name)}"})
     out.sort(key=lambda d: d["band"] if d["band"] is not None else 1e9)
     return out

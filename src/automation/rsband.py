@@ -279,42 +279,48 @@ def slope_dir(slope_3m_pct: Optional[float]) -> str:
 def band_verdict(band_pct: Optional[float], regime: str, slope_3m_pct: Optional[float],
                  band_state: Optional[str] = None,
                  falls_less: Optional[bool] = None,
-                 trend_drift: Optional[float] = None) -> tuple[str, str]:
+                 trend_drift: Optional[float] = None) -> tuple[str, str, str]:
     """The fused, rule-based verdict (design doc §3). band-position is NEVER a
     standalone trigger — it is crossed with regime, direction, and (optionally)
-    the down-capture 'falls-less' veto. Returns (verdict, one-line reason)."""
+    the down-capture 'falls-less' veto. Returns (verdict_key, reason, state_label).
+
+    Codex D2-F4 convergence: `verdict_key` is the STABLE machine key (color maps /
+    highlight logic / selftests — unchanged); `state_label` is the descriptive,
+    context-correct, NON-instructional string to SHOW the user. RS-band is a
+    descriptive relative-level lens, not a buy/sell/trim instruction — never render
+    the key. (Verbs like Accumulate/Add/Ride/Fade/Trim survive only as internal keys.)"""
     if band_state == "BREAKOUT_UP":
-        return "Ride", "broke its ceiling — structural re-rating, ride it"
+        return "Ride", "broke its ceiling — structural re-rating, ride it", "Broke ceiling · re-rating"
     if band_state == "BREAKDOWN_DN":
-        return "Avoid", "broke its floor — de-rating, cheapness is a trap"
+        return "Avoid", "broke its floor — de-rating, cheapness is a trap", "Broke floor · de-rating"
     if band_pct is None:
-        return "n/a", "insufficient history for a band read"
+        return "n/a", "insufficient history for a band read", "Insufficient history"
     if regime == "TRENDING":
         # direction is the MULTI-YEAR drift (the structural trend), not the 3m wiggle —
         # a de-rater bouncing short-term is still a de-rater. Fall back to slope if drift unknown.
         td = trend_drift if trend_drift is not None else (slope_3m_pct or 0.0) / 100.0
         if td > 0:
-            return "Ride", "structural uptrend (re-rating) — ride it, don't fade the band"
+            return "Ride", "structural uptrend (re-rating) — ride it, don't fade the band", "Re-rating (uptrend)"
         if td < 0:
-            return "Avoid", "structural downtrend (de-rating) — its 'cheap' is a trap"
-        return "Trend", "trending — band read secondary; follow the trend"
+            return "Avoid", "structural downtrend (de-rating) — its 'cheap' is a trap", "De-rating (downtrend)"
+        return "Trend", "trending — band read secondary; follow the trend", "Trending · band secondary"
     d = slope_dir(slope_3m_pct)
     if band_pct <= 20:
         if d == "down":
-            return "Avoid", "cheap but still falling — value trap"
+            return "Avoid", "cheap but still falling — value trap", "Low band · still falling"
         if d == "up":
-            return ("Accumulate", "cheap, turning up, falls less than market") if falls_less \
-                else ("Add", "cheap and turning, but no defensive edge yet")
-        return "Watch", "cheap but no turn yet — arm an alert"
+            return ("Accumulate", "cheap, turning up, falls less than market", "Low band · turning (defensive)") if falls_less \
+                else ("Add", "cheap and turning, but no defensive edge yet", "Low band · turning")
+        return "Watch", "cheap but no turn yet — arm an alert", "Low band · no turn yet"
     if band_pct >= 80:
         if d == "down":
-            return "Fade", "rich and rolling over — exhaustion"
+            return "Fade", "rich and rolling over — exhaustion", "Upper band · rolling over"
         if d == "up":
-            return "Ride", "rich but still pushing — trail it"
-        return "Trim", "pinned at resistance"
-    return ("Add", "mid-band, rising") if d == "up" \
-        else ("Trim", "mid-band, fading") if d == "down" \
-        else ("Hold", "fairly valued vs its own history")
+            return "Ride", "rich but still pushing — trail it", "Upper band · still pushing"
+        return "Trim", "pinned at resistance", "At resistance"
+    return ("Add", "mid-band, rising", "Mid-band · rising") if d == "up" \
+        else ("Trim", "mid-band, fading", "Mid-band · fading") if d == "down" \
+        else ("Hold", "fairly valued vs its own history", "Mid-band")
 
 
 # ── storage (owns its own table) ──────────────────────────────────────────────
@@ -472,10 +478,10 @@ def band_one(numerator: str, denominator: str, conn=None) -> Optional[dict]:
             return None
         res["numerator"], res["denominator"] = numerator, denominator
         res["trade_date"] = dates[-1] if dates else None
-        v, why = band_verdict(res["rs_band_pct"], res["rs_regime"],
-                              res["slope_3m_pct"], res["rs_band_state"],
-                              trend_drift=res["rs_trend_drift"])
-        res["verdict"], res["verdict_why"] = v, why
+        v, why, vlabel = band_verdict(res["rs_band_pct"], res["rs_regime"],
+                                      res["slope_3m_pct"], res["rs_band_state"],
+                                      trend_drift=res["rs_trend_drift"])
+        res["verdict"], res["verdict_why"], res["verdict_label"] = v, why, vlabel
         return res
     finally:
         if own:
