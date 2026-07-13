@@ -223,6 +223,34 @@ _SHEETS = [
                  "under the same fence.",
         "source": "docs/strategy-ledger.md Tier-2/§C · docs/wolfe-rules.md · src/automation/wolfe.py",
     },
+    {
+        "title": "Rigorous calendar seasonality on the PIT idiosyncratic residual",
+        "verdict": ("descriptive estate LIVE", "v-desc", "tradeable calendar edge FALSIFIED", "v-fail"),
+        "pre_reg": "2026-07-12 — 3 hypothesis families sha256-hashed BEFORE any compute "
+                   "(2882ccbc · cb32d1b9 · e566904c), frozen in research.db.prereg_registry; the "
+                   "engine docstring is part of the hash, so the gate cannot move.",
+        "hypothesis": "Do Indian indices / sectors / stocks run systematically hot or cold on the "
+                      "calendar (month · ISO-week · weekday) AFTER the market move is stripped out — "
+                      "a tradeable idiosyncratic-residual seasonality?",
+        "gate": "A cell CERTIFIES only if it clears BOTH placebo nulls (circular-block + cyclic-"
+                "rotation, p&lt;0.05), family-wide BH-Yekutieli FDR, ≥15 scored years, out-of-sample "
+                "sign-stability, AND a pre-pledged India mechanism — the year-label shuffle is banned "
+                "(zero-width). Nothing is graded on the same data it was found in.",
+        "result": "<b class='num'>0</b> cells certified — across index + sector, all "
+                  "~<b class='num'>2,427</b> EQ stocks, and the broad Nifty 50/100/200/500 deepened "
+                  "to 2004 (~20 scored years, N-gate PASSES). The single strongest broad cell "
+                  "(Nifty 500 February) clears one placebo (p=<b class='num'>0.0498</b>) but dies "
+                  "under FDR. Individual names look overwhelming — MARUTI September up "
+                  "<b class='num'>89%</b> of 18 years — yet clear the single-calendar placebo only "
+                  "to die under the multiple-months correction. Deeper data did not rescue it: the "
+                  "greying is on merits, not thin history.",
+        "ships": "The Seasonal Tape estate — /dash/seasonal-tape + screen + divergence + the "
+                 "event-cadence lens + the /dash/stock embed — kept strictly DESCRIPTIVE. Every "
+                 "drilled cell shows its year-by-year dispersion and a placebo &lsquo;why-grey&rsquo; "
+                 "read; nothing is ranked, triggered, or tradeable. The greying IS the finding.",
+        "source": "PROJECT_STATE §Session 120/130 · docs/strategies/ · src/automation/seasonal_tape.py "
+                  "(frozen families in research.db.prereg_registry)",
+    },
 ]
 
 
