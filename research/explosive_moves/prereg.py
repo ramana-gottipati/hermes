@@ -31,7 +31,7 @@ RDB = "/opt/hermes/data/research.db"
 STUDIES = ["pead", "footprint", "insider_drift", "filing_latency", "concall_intent",
            "dividend_drift", "rebrand_pump", "campaign_arcs", "rating_drift",
            "shp_combos", "hedge_density", "evlib", "hedge_density_v2", "streamband",
-           "fractal_floor"]
+           "fractal_floor", "fractal_fences"]
 RETRO = {"pead", "footprint", "insider_drift", "filing_latency", "concall_intent", "evlib"}
 
 _DDL = """CREATE TABLE IF NOT EXISTS prereg_registry(

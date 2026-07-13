@@ -8,11 +8,14 @@
 > remain candidates.
 >
 > **STATUS 2026-07-14: FRACTAL FLOOR tested (prereg `939a33cc`) → event gate FAIL-null**
-> (trigger ≈ watch ≈ placebo at fixed horizons; STRONG hurts) — **BUT the PROX≤10% structural-stop
-> book cleared 0.89 flat-cost in BOTH halves (1.04; 0.92/1.15; MaxDD −28.5%) — the first
-> reversal-family cell ever to do so.** Flat-cost-only + one-of-five-cells; three fences queued
-> before any promotion (participation recut · random-entry/same-exit control · stop-fill realism).
-> Ledger § "Study 2026-07-14 — FRACTAL FLOOR" is canonical.
+> (trigger ≈ watch ≈ placebo at fixed horizons; STRONG hurts). The PROX10 book's apparent 1.04 was
+> **GROSS — an accounting defect caught by the fences reconstruction gate; true flat-cost = 0.59.**
+>
+> **STATUS 2026-07-14b: ALL THREE FENCES FAILED (prereg `bb22eff6`)** — cost ladder 0.19@₹1cr →
+> −1.55@₹100cr; random-entry/same-exit controls ≈ the real book (entry ~inert, margin +0.047);
+> fill realism 0.30. **ARC CLOSED: zero tradeable survivors in the reversal pair.** Only §3's
+> descriptive columns (band state, stretch percentile, floor + invalidation level as risk-geometry
+> context) remain candidates for product. Ledger §§ 07-13 / 07-14 / 07-14b are canonical.
 
 > **Lifecycle: TRANSIENT** — this is the pre-build design doc for the two reversal strategies
 > Ramana specified on 2026-07-13 (voice-note session). **Retire condition:** when built, fold the

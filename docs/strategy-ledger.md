@@ -309,7 +309,14 @@ Universe 3,491 EQ symbols, signals 2012-06→2026-07, n=35,519 BUY events (de-ov
 
 ---
 
-## Study 2026-07-14 — FRACTAL FLOOR (10-fractal floor + 2°-up-fractal breakout trigger) (DONE — event gate FAIL-null; but the PROX≤10% structural-stop BOOK is the FIRST reversal-family cell to clear 0.89 flat-cost in BOTH halves — flat-cost-only, UNCONFIRMED)
+## Study 2026-07-14 — FRACTAL FLOOR (10-fractal floor + 2°-up-fractal breakout trigger) (DONE — event gate FAIL-null; ⚠ the PROX10 "1.04" claim below is SUPERSEDED by § Study 2026-07-14b)
+
+> **⚠ SUPERSEDED 2026-07-14b (fences reconstruction):** the PROX10 book Sharpe **1.04 was GROSS-of-cost
+> — an implementation defect**: `fractal_floor.build()` documented 0.3%/side but never charged it in the
+> book accumulation (only in the per-trade `net` column). The fences study's reconstruction gate caught
+> the mismatch and VOIDed itself as pre-registered. **True flat-cost PROX10 = Sharpe 0.59 (halves
+> 0.46/0.69) — BELOW the 0.89 hurdle; the "first reversal-family cell to clear the bar" claim is
+> WITHDRAWN.** Every fence also failed on its own frozen bar. Full record: § Study 2026-07-14b.
 
 Ramana's fractal spec (docs/reversal-pair-PLAN.md §1): floor = confirmed degree-10 down-fractal low
 (knowable only 10 bars later — enforced); WATCH = close within +15% of a live floor; TRIGGER = close
@@ -346,6 +353,40 @@ same harness/controls/gates as STREAM BAND; long side only (bear mirror deferred
 - **Fine-tuning grid:** degree D5/D2 ≈ D10 (no degree edge); prox≤5% median −0.24 (best median, n=1,257);
   TREND mean +0.62 vs ANTITREND −0.40 (trend filter again); vol-hi tercile worst median −1.42; >₹25cr
   least-bad −0.62 — the cap/vol-stdev intuition confirmed a third time. HLC/OHLC moot here.
+
+---
+
+## Study 2026-07-14b — FRACTAL FENCES: the three confirmation checks on PROX10 (DONE — VOID-then-REJECT; the reconstruction gate exposed the 1.04 as GROSS; every fence fails; the reversal-pair program closes with ZERO tradeable survivors)
+
+Pre-registered + hash-frozen BEFORE run (prereg `fractal_fences` `bb22eff6`); module
+`research/explosive_moves/fractal_fences.py`; JSON `out/fractal_fences.json`; 10,523 reconstructed
+cell trades. The module re-derives the PROX10 book from prices and requires it to match the frozen
+1.04 within ±0.03 before scoring fences — it came out **0.59 (0.46/0.69, MaxDD −39.7%)** → VOID as
+pre-registered. Root cause (A/B-exact): `fractal_floor.build()` never charged the documented
+0.3%/side in the book (gross ≈1.04 − ~0.6% RT over ~23-bar holds ≈ −7.8%/yr drag → 0.59 ✓).
+
+- **Corrected baseline: PROX10 flat-cost = 0.59 — below the 0.89 hurdle. The candidate was never
+  alive.** The 2026-07-14 "first cell to clear the bar" claim is WITHDRAWN (supersede note added).
+- **FENCE 1 (participation cost): catastrophic scale decay** — ₹1cr **0.19** · ₹5cr 0.10 · ₹10cr
+  **−0.09** · ₹25cr −0.54 · ₹50cr −0.99 · ₹100cr −1.55. A 10.5k-trade, ~23-day-hold, small-cap-tailed
+  book has no capacity at ANY AUM (worse than C-BLEND's decay). FAIL.
+- **FENCE 2 (random-entry / same-exit): the entry is ~inert.** Random same-symbol entries with the
+  SAME stop distance + SAME trailing-2°-fractal exit + same costs = **0.543** mean (seeds 0.52-0.58)
+  vs real **0.59** — margin **+0.047 < +0.15**. Nearly the entire book was the EXIT geometry (cut at
+  structure, trail the skew), not the fractal floor entry. Year-matched controls 0.380 (real +0.21 —
+  the floor's only residual value is avoiding the worst in-year timing, h2_ok both families). FAIL.
+- **FENCE 3 (fill realism): entry-lag+1 + no-bounce-credit stop fills → 0.30** (0.19/0.39); 1.5× flat
+  cost → 0.37. The close-based stop fills were flattering it. FAIL.
+- **Disposition (closes the reversal-pair arc, 3 pre-registered studies, tamper-clean):** STREAM BAND
+  cross = anti-signal; FRACTAL FLOOR trigger = no event edge, confirmation inert, book dead at true
+  cost at every scale. **NO tradeable form survives anywhere in the reversal pair. What survives is
+  descriptive only:** band-state + own-history stretch percentile columns; confirmed-floor proximity +
+  invalidation level as RISK-GEOMETRY context (the one idea with residual, non-tradeable merit — a
+  well-defined cheap place to be wrong); and the thrice-confirmed cap/vol asymmetry. Any future
+  reversal proposal must cite THIS entry + 07-13 + 07-14 first.
+- **Harness note (win for the discipline):** the reconstruction gate caught OUR OWN accounting defect
+  before a wrong number could compound into product or capital decisions. `fractal_floor.py` is kept
+  AS-RUN (its JSON is the committed evidence); the defect is flagged by comment in the module.
 
 ---
 

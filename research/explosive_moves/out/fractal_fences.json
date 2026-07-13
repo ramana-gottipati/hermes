@@ -1,0 +1,324 @@
+{
+ "run_at": "2026-07-13 20:25Z",
+ "cell_trades": 10523,
+ "reconstruction": {
+  "real_flat": {
+   "full": {
+    "sharpe": 0.59,
+    "cagr%": 8.5,
+    "maxdd%": -39.7,
+    "months": 170
+   },
+   "h1": {
+    "sharpe": 0.46,
+    "cagr%": 6.2,
+    "maxdd%": -29.4,
+    "months": 79
+   },
+   "h2": {
+    "sharpe": 0.69,
+    "cagr%": 10.5,
+    "maxdd%": -20.0,
+    "months": 91
+   }
+  },
+  "frozen_full": 1.04,
+  "tolerance": 0.03,
+  "OK": false
+ },
+ "FENCE1_participation": {
+  "ladder": {
+   "1cr": {
+    "full": {
+     "sharpe": 0.19,
+     "cagr%": 1.8,
+     "maxdd%": -54.0,
+     "months": 170
+    },
+    "h1": {
+     "sharpe": 0.02,
+     "cagr%": -1.0,
+     "maxdd%": -38.8,
+     "months": 79
+    },
+    "h2": {
+     "sharpe": 0.34,
+     "cagr%": 4.3,
+     "maxdd%": -27.5,
+     "months": 91
+    },
+    "both_halves_gt_0.89": false
+   },
+   "5cr": {
+    "full": {
+     "sharpe": 0.1,
+     "cagr%": 0.3,
+     "maxdd%": -58.0,
+     "months": 170
+    },
+    "h1": {
+     "sharpe": -0.08,
+     "cagr%": -2.5,
+     "maxdd%": -42.7,
+     "months": 79
+    },
+    "h2": {
+     "sharpe": 0.25,
+     "cagr%": 2.8,
+     "maxdd%": -29.5,
+     "months": 91
+    },
+    "both_halves_gt_0.89": false
+   },
+   "10cr": {
+    "full": {
+     "sharpe": -0.09,
+     "cagr%": -2.9,
+     "maxdd%": -66.0,
+     "months": 170
+    },
+    "h1": {
+     "sharpe": -0.29,
+     "cagr%": -5.9,
+     "maxdd%": -51.0,
+     "months": 79
+    },
+    "h2": {
+     "sharpe": 0.08,
+     "cagr%": -0.1,
+     "maxdd%": -32.8,
+     "months": 91
+    },
+    "both_halves_gt_0.89": false
+   },
+   "25cr": {
+    "full": {
+     "sharpe": -0.54,
+     "cagr%": -10.1,
+     "maxdd%": -81.7,
+     "months": 170
+    },
+    "h1": {
+     "sharpe": -0.76,
+     "cagr%": -13.4,
+     "maxdd%": -65.8,
+     "months": 79
+    },
+    "h2": {
+     "sharpe": -0.35,
+     "cagr%": -7.0,
+     "maxdd%": -46.3,
+     "months": 91
+    },
+    "both_halves_gt_0.89": false
+   },
+   "50cr": {
+    "full": {
+     "sharpe": -0.99,
+     "cagr%": -17.2,
+     "maxdd%": -93.7,
+     "months": 170
+    },
+    "h1": {
+     "sharpe": -1.22,
+     "cagr%": -20.3,
+     "maxdd%": -78.4,
+     "months": 79
+    },
+    "h2": {
+     "sharpe": -0.8,
+     "cagr%": -14.4,
+     "maxdd%": -68.3,
+     "months": 91
+    },
+    "both_halves_gt_0.89": false
+   },
+   "100cr": {
+    "full": {
+     "sharpe": -1.55,
+     "cagr%": -25.8,
+     "maxdd%": -98.6,
+     "months": 170
+    },
+    "h1": {
+     "sharpe": -1.77,
+     "cagr%": -28.6,
+     "maxdd%": -89.0,
+     "months": 79
+    },
+    "h2": {
+     "sharpe": -1.37,
+     "cagr%": -23.2,
+     "maxdd%": -85.4,
+     "months": 91
+    },
+    "both_halves_gt_0.89": false
+   }
+  },
+  "PASS": false,
+  "bar": "both halves > 0.89 at >= Rs 10cr"
+ },
+ "FENCE2_random_entry_same_exit": {
+  "real_full": {
+   "sharpe": 0.59,
+   "cagr%": 8.5,
+   "maxdd%": -39.7,
+   "months": 170
+  },
+  "real_h2": {
+   "sharpe": 0.69,
+   "cagr%": 10.5,
+   "maxdd%": -20.0,
+   "months": 91
+  },
+  "family_A": {
+   "mean_full": 0.543,
+   "mean_h2": 0.483,
+   "seeds": {
+    "42": {
+     "full": {
+      "sharpe": 0.53,
+      "cagr%": 8.2,
+      "maxdd%": -45.5,
+      "months": 170
+     },
+     "h2": {
+      "sharpe": 0.52,
+      "cagr%": 8.2,
+      "maxdd%": -29.6,
+      "months": 91
+     }
+    },
+    "43": {
+     "full": {
+      "sharpe": 0.58,
+      "cagr%": 9.0,
+      "maxdd%": -40.7,
+      "months": 170
+     },
+     "h2": {
+      "sharpe": 0.49,
+      "cagr%": 7.7,
+      "maxdd%": -29.2,
+      "months": 91
+     }
+    },
+    "44": {
+     "full": {
+      "sharpe": 0.52,
+      "cagr%": 8.3,
+      "maxdd%": -53.0,
+      "months": 170
+     },
+     "h2": {
+      "sharpe": 0.44,
+      "cagr%": 7.1,
+      "maxdd%": -34.8,
+      "months": 91
+     }
+    }
+   },
+   "margin_full": 0.047,
+   "full_ok": false,
+   "h2_ok": true
+  },
+  "family_B": {
+   "mean_full": 0.38,
+   "mean_h2": 0.403,
+   "seeds": {
+    "42": {
+     "full": {
+      "sharpe": 0.3,
+      "cagr%": 3.6,
+      "maxdd%": -52.5,
+      "months": 170
+     },
+     "h2": {
+      "sharpe": 0.31,
+      "cagr%": 3.9,
+      "maxdd%": -28.4,
+      "months": 91
+     }
+    },
+    "43": {
+     "full": {
+      "sharpe": 0.5,
+      "cagr%": 7.3,
+      "maxdd%": -35.6,
+      "months": 170
+     },
+     "h2": {
+      "sharpe": 0.53,
+      "cagr%": 8.2,
+      "maxdd%": -28.4,
+      "months": 91
+     }
+    },
+    "44": {
+     "full": {
+      "sharpe": 0.34,
+      "cagr%": 4.4,
+      "maxdd%": -47.3,
+      "months": 170
+     },
+     "h2": {
+      "sharpe": 0.37,
+      "cagr%": 5.3,
+      "maxdd%": -33.9,
+      "months": 91
+     }
+    }
+   },
+   "margin_full": 0.21,
+   "full_ok": true,
+   "h2_ok": true
+  },
+  "PASS": false,
+  "bar": "real full >= control-mean + 0.15 AND real h2 > control h2, both families"
+ },
+ "FENCE3_fill_realism": {
+  "lag1_minfill": {
+   "full": {
+    "sharpe": 0.3,
+    "cagr%": 3.5,
+    "maxdd%": -47.3,
+    "months": 170
+   },
+   "h1": {
+    "sharpe": 0.19,
+    "cagr%": 1.7,
+    "maxdd%": -33.6,
+    "months": 79
+   },
+   "h2": {
+    "sharpe": 0.39,
+    "cagr%": 5.1,
+    "maxdd%": -25.4,
+    "months": 91
+   }
+  },
+  "PASS": false,
+  "bar": "both halves > 0.89 under entry-lag+1 AND min-fill stops",
+  "sensitivity_cost_1.5x": {
+   "full": {
+    "sharpe": 0.37,
+    "cagr%": 4.7,
+    "maxdd%": -44.7,
+    "months": 170
+   },
+   "h1": {
+    "sharpe": 0.24,
+    "cagr%": 2.6,
+    "maxdd%": -32.6,
+    "months": 79
+   },
+   "h2": {
+    "sharpe": 0.48,
+    "cagr%": 6.6,
+    "maxdd%": -24.4,
+    "months": 91
+   }
+  }
+ },
+ "VERDICT": "VOID (reconstruction mismatch)"
+}

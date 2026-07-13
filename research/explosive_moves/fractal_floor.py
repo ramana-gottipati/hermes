@@ -283,6 +283,10 @@ def build():
                                         gross - 2 * COST_SIDE, censored, exit_kind,
                                         round(float(prox), 5), i - fb, strong, trend,
                                         float(S.med_turn[i])))
+                        # ⚠ DEFECT (recorded, ledger § Study 2026-07-14b): this book never
+                        # charges the documented 0.3%/side — its Sharpes are GROSS. Kept
+                        # as-run (the committed JSON is evidence); fractal_fences.py is the
+                        # corrected accounting (flat-cost PROX10 = 0.59, not 1.04).
                         keys = ["ALL"]
                         if strong:
                             keys.append("STRONG")
