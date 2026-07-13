@@ -78,6 +78,16 @@ _CSS = """
 .st-dbar i{display:block;height:100%;opacity:.78;position:absolute;top:0;}
 .st-drow .v{width:64px;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums;}
 .st-chip{font-size:11px;color:var(--ink-3);}
+/* placebo / "why grey" teaching block inside a drill — the delta between looks-strong and survives */
+.st-placebo{margin-top:12px;padding:11px 13px;border-radius:10px;background:var(--bg-2,rgba(127,127,127,.06));
+  border:1px solid var(--line);max-width:560px;}
+.st-h2{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:7px;}
+.st-pbar{position:relative;height:16px;background:var(--bg-3);border-radius:8px;overflow:hidden;}
+.st-pzone{position:absolute;left:0;top:0;height:100%;background:var(--ink-4,rgba(127,127,127,.35));opacity:.5;}
+.st-pbar i{position:absolute;top:-2px;width:3px;height:20px;border-radius:2px;}
+.st-pbl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-3);margin:3px 1px 0;}
+.st-pb{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-top:8px;}
+.st-pb b{color:var(--ink);}
 .st-search{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0;}
 .st-search .st-in{padding:5px 10px;border:1px solid var(--line-2);border-radius:8px;
   background:var(--bg-2);color:var(--ink);font-size:13px;min-width:240px;}
@@ -168,7 +178,7 @@ def _compute(scope: str, entity: str, db_path: str):
             dstack = []
         cells = con.execute(
             "SELECT cell, script_z, n_years, hit_rate, conf, colored, signed, mechanism, "
-            "pledged_sign, gate_flags, emp_p_block, emp_p_phase FROM seasonal_cells "
+            "pledged_sign, gate_flags, emp_p_block, emp_p_phase, null_p95, fdr_pass FROM seasonal_cells "
             "WHERE scope=? AND entity=? AND axis='month'", (scope, entity)).fetchall()
         outlook = con.execute(
             "SELECT cell, k, n, ci_lo, ci_hi, base_rate, edge, fail_avg, fail_worst, light, mechanism "
@@ -176,13 +186,15 @@ def _compute(scope: str, entity: str, db_path: str):
             (scope, entity)).fetchall()
         try:
             wk_rows = con.execute(
-                "SELECT cell, script_z, n_years, conf, colored, mechanism, gate_flags FROM seasonal_cells "
+                "SELECT cell, script_z, n_years, conf, colored, mechanism, gate_flags, "
+                "emp_p_block, emp_p_phase, null_p95, fdr_pass FROM seasonal_cells "
                 "WHERE scope=? AND entity=? AND axis='iso_week'", (scope, entity)).fetchall()
         except Exception:  # noqa: BLE001 — older snapshot without this axis populated -> {}
             wk_rows = []
         try:
             wd_rows = con.execute(
-                "SELECT cell, script_z, n_years, conf, colored, mechanism, gate_flags FROM seasonal_cells "
+                "SELECT cell, script_z, n_years, conf, colored, mechanism, gate_flags, "
+                "emp_p_block, emp_p_phase, null_p95, fdr_pass FROM seasonal_cells "
                 "WHERE scope=? AND entity=? AND axis='weekday'", (scope, entity)).fetchall()
         except Exception:  # noqa: BLE001
             wd_rows = []
@@ -279,7 +291,8 @@ def _consensus_panel(d: dict, order: list) -> str:
             '<div class="st-empty">No month survives certification — empty by design. Every '
             'apparent calendar pattern here failed at least one gate (a placebo null, family-wide '
             'FDR, the 15-year minimum, out-of-sample sign-stability, or a pledged mechanism). '
-            '<b>An empty script is the honest finding, not missing data.</b></div>')
+            '<b>An empty script is the honest finding, not missing data.</b></div>'
+            + ifx.demo_framing())
     else:
         panel_body = ifx.heat_ribbon(ribbon_cells, w=1060, h=42, vmax=1.0)
     return (
@@ -609,6 +622,77 @@ def seasonal_card(scope: str, entity: str, *, db_path: str | None = None, headin
         + '</div>')
 
 
+def _placebo_block(cellrow: dict, axis: str, entity: str, label: str) -> str:
+    """The teaching artifact inside every drill: turn the seductive hit-rate into the TWO honest
+    gates it must clear, so a reader learns the delta between 'looks strong' and 'survives looking'.
+    Data-driven from the per-cell placebo stats (emp_p_block/emp_p_phase/null_p95/fdr_pass):
+      gate 1 = single-calendar placebo (does it beat a random reshuffle of the entity's own calendar?)
+      gate 2 = multiple-cell correction (BH-Yekutieli across the axis' 12 months / 53 weeks / 5 weekdays)
+    The canonical lesson (MARUTI Sep, 89% up, still grey): a cell can CLEAR gate 1 yet die at gate 2 —
+    strong in isolation is not the same as surviving the look-elsewhere across the whole calendar."""
+    z = cellrow.get("script_z")
+    pb, pr = cellrow.get("emp_p_block"), cellrow.get("emp_p_phase")
+    if z is None or pb is None or pr is None:
+        return ''  # older snapshot without placebo stats -> skip quietly, never fabricate
+    p95 = cellrow.get("null_p95")
+    n_years = cellrow.get("n_years") or 0
+    hit = cellrow.get("hit_rate")
+    colored = bool(cellrow.get("colored"))
+    fdr = bool(cellrow.get("fdr_pass"))
+    flags = cellrow.get("gate_flags") or ""
+    m, noun = {"month": (12, "months"), "iso_week": (53, "weeks"),
+               "weekday": (5, "weekdays")}.get(axis, (12, "cells"))
+    p_pct = max(pb, pr) * 100.0          # must clear BOTH nulls -> the harder one is the honest headline
+    g_null = pb < 0.05 and pr < 0.05
+    hit_pct = f"{hit*100:.0f}%" if hit is not None else "—"
+    hotcold = "hot" if (z or 0) >= 0 else "cold"
+
+    bar = ''
+    if p95 is not None and p95 > 0:
+        az = abs(z); scale = (max(az, p95) * 1.2) or 1.0
+        zone = min(100.0, p95 / scale * 100.0); mk = min(100.0, az / scale * 100.0)
+        inside = az <= p95
+        mcol = "var(--down)" if inside else "var(--up)"
+        bar = (f'<div class="st-pbar" title="the shaded band is the strongest a random calendar '
+               f'reshuffle produces 95% of the time; the tick is this cell">'
+               f'<div class="st-pzone" style="width:{zone:.0f}%"></div>'
+               f'<i style="left:{mk:.0f}%;background:{mcol}"></i></div>'
+               f'<div class="st-pbl"><span>chance’s 95% reach</span>'
+               f'<span>this {_esc(label)}: {z:+.2f}σ</span></div>')
+
+    if colored:
+        head = "Why this reads <b>certified</b>"
+        body = (f"It clears the single-calendar placebo (a random reshuffle of {_esc(entity)}’s own "
+                f"calendar beats it only <b>{p_pct:.1f}%</b> of the time) <i>and</i> survives the correction "
+                f"for testing all {m} {noun} — the rare cell that certifies. Still descriptive: a base rate "
+                "with a named mechanism, never a standalone trade.")
+    elif "N<" in flags or n_years < 15:
+        head = "Why this reads <b>grey</b>"
+        body = (f"Only <b>{n_years}</b> years of history — too few to test a stable seasonal read "
+                "(needs ≥15). Shown for completeness, not assessed.")
+    elif not g_null:
+        head = "Why this reads <b>grey</b>"
+        body = (f"Reshuffle {_esc(entity)}’s own calendar at random and a {_esc(label)} at least this "
+                f"{hotcold} turns up <b>{p_pct:.1f}%</b> of the time — so the {hit_pct} you see sits "
+                "<b>inside what pure chance produces</b>. That is the whole reason it stays grey.")
+    elif not fdr:
+        head = "Why this reads <b>grey</b> — the subtle one"
+        body = (f"On its own this looks strong: a random reshuffle beats it only <b>{p_pct:.1f}%</b> of the "
+                f"time. But it is <b>1 of {m} {noun}</b> tested for {_esc(entity)}; correct for looking at all "
+                f"{m} (dependency-safe Benjamini–Hochberg–Yekutieli) and it no longer stands. "
+                f"<b>Strong in isolation ≠ surviving the look across the whole calendar</b> — {hit_pct} up, "
+                "still grey.")
+    else:
+        head = "Why this reads <b>grey</b>"
+        reason = ("its sign flips across sub-periods" if "sign" in flags else
+                  "it collapses inside the earnings window (PEAD guard)" if "mask" in flags else
+                  "a certification gate did not clear")
+        body = f"It clears the placebo but {reason} — so it is reported, not certified."
+
+    return (f'<div class="st-placebo"><div class="st-h2">{head}</div>{bar}'
+            f'<div class="st-pb">{body}</div></div>')
+
+
 def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
                  axis: str = "month", panel_id: str = "drill", back: str | None = None,
                  inline: bool = False) -> str:
@@ -669,6 +753,7 @@ def _drill_panel(scope: str, entity: str, d: dict, cell: int, order: list, *,
                     + ' residual, newest first — the dispersion the single number hides. A run of '
                     'similar bars = a real tendency; one or two outliers carrying it = not one.')
         + f'<div class="st-dlist">{rows}</div>'
+        + _placebo_block(cellrow, axis, entity, label)
         + f'<div class="st-chip" style="margin-top:8px">mechanism: {_esc(mech)} · gates: {_esc(flags)}</div>'
         + f'<div style="margin-top:8px"><a href="{back}">{back_label}</a></div></div>')
 
@@ -1293,6 +1378,26 @@ def _selftest() -> int:
         rd = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&ddrill=3")
         assert "Behind the script" in rd.text and "year by year" in rd.text, \
             "ddrill= must render the weekday year-by-year drill on the lens"
+        # D126 placebo teaching block — the two-gate delta, tested DIRECTLY on _placebo_block so it is
+        # deterministic (independent of the tiny synthetic temp DB). The canonical case is MARUTI Sep:
+        # 89% up, clears the single-calendar placebo (p=0.5%), yet grey because it dies at the FDR.
+        pb_fdr = _placebo_block({"script_z": 0.214, "emp_p_block": 0.005, "emp_p_phase": 0.005,
+                                 "null_p95": 0.162, "n_years": 18, "hit_rate": 0.89, "colored": 0,
+                                 "fdr_pass": 0, "gate_flags": "fdr-fail,no-mechanism"},
+                                "month", "MARUTI", "Sep")
+        assert "Why this reads" in pb_fdr and "1 of 12 months" in pb_fdr and "still grey" in pb_fdr, \
+            "an FDR-fail cell must teach 'strong in isolation is not surviving the look-elsewhere'"
+        pb_noise = _placebo_block({"script_z": 0.05, "emp_p_block": 0.42, "emp_p_phase": 0.38,
+                                   "null_p95": 0.20, "n_years": 18, "hit_rate": 0.55, "colored": 0,
+                                   "fdr_pass": 0, "gate_flags": "null-inside-band"}, "month", "ACME", "Feb")
+        assert "inside what pure chance" in pb_noise, "an inside-chance cell must say so plainly"
+        pb_cert = _placebo_block({"script_z": 0.6, "emp_p_block": 0.001, "emp_p_phase": 0.002,
+                                  "null_p95": 0.30, "n_years": 20, "hit_rate": 0.85, "colored": 1,
+                                  "fdr_pass": 1, "gate_flags": ""}, "month", "ACME", "Mar")
+        assert "certified" in pb_cert and "never a standalone trade" in pb_cert, \
+            "a certified cell must still carry the descriptive fence"
+        assert _placebo_block({"script_z": 0.2, "emp_p_block": None, "emp_p_phase": None},
+                              "month", "X", "Jan") == "", "no placebo stats -> render nothing, never fabricate"
 
         print("seasonal_view selftest OK — stack + consensus + outlook + drill + weekly/weekday "
               "strips + events section render; stock search box + FIX-1 no-default-entity + FIX-2 "
@@ -1301,7 +1406,9 @@ def _selftest() -> int:
               "drill hint + index/sector->constituent-scan CTA + stock scan-all link wired; "
               "ISO-week cell drill-down (wdrill=) + 52-week stack cell_link wired (D123); "
               "in-place embed cell drill via :target #sdrill-* panels, lens keeps reload drill (D124); "
-              "weekday stack (5-col x N-year) + weekday drill (ddrill=/#sdrill-d) wired (D125)")
+              "weekday stack (5-col x N-year) + weekday drill (ddrill=/#sdrill-d) wired (D125); "
+              "placebo 'why grey' teaching block in every drill — single-calendar placebo + "
+              "multiple-cell FDR, the strong-in-isolation-vs-survives-looking delta (D126)")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
