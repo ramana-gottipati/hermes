@@ -212,8 +212,9 @@ def compute_symbol(rows, events=None):
 
 
 def compute_all(conn=None, limit=None) -> int:
-    own = conn is None
-    conn = conn or get_conn()
+    if conn is None:
+        with get_conn() as c:   # src.core.db.get_conn is a @contextmanager
+            return compute_all(c, limit)
     conn.executescript(SCHEMA)
     try:
         from src.automation.corp_actions import price_ratios
@@ -250,8 +251,6 @@ def compute_all(conn=None, limit=None) -> int:
         except Exception as e:  # noqa: BLE001 - one bad symbol never kills the sweep
             print(f"  skip {sym}: {e}")
     conn.commit()
-    if own:
-        conn.close()
     return n
 
 
