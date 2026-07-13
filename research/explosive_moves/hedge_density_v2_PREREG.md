@@ -91,3 +91,17 @@ return study. The register split is a *mild* encouragement that net-tone/registe
 only genuinely-untested angle is the **realized-VOLATILITY** outcome, which this cheap return pulse-check does
 NOT exercise. Recommendation: keep this spec frozen; build the full (vol-outcome) v2 ONLY on an explicit
 decision to test volatility, weighed against the failure-ledger (event-wrappers net-fail).
+
+## BUILT + RUN (2026-07-13, Ramana greenlit) → NULL. Pre-registered (hash `632bd149`, registered BEFORE the run; module git `62ea68b`; `--verify` tamper-clean).
+Implemented in `hedge_density_v2.py` exactly as specced (net-tone scorer with negation + bigram-consumption +
+weak-modals-zeroed + "may"-dropped; within-name × within-calendar-quarter double-difference; forward-60-session
+idio excess-return realized-vol uplift = `ln(fwd_vol/prior_vol)`). Q&A segmentation deferred (documented). Corpus:
+15,831 scored / 1,573 symbols; net mean −0.29 sd 1.79. Double-difference (≥2 prior same-quarter calls) → **7,390
+deltas**, spike/drop terciles 2,463 each; usable-vol **spike 1,612 / drop 1,582, spike symbols 518**.
+**RESULT — FAILED gate leg 1:** SPIKE mean vol-uplift **−0.0084** (t_cohort **−0.43**, n_cohorts 31, hit 47%); DROP
+−0.0191 (t_cohort +0.05); halves at 2024-05-24 **both negative** (h1 −0.0127 / h2 −0.0042, opposite t-signs); Cliff
+δ **+0.0012**. Placebo not reached. **Verdict `FAIL-null-published`.** The realized-vol hypothesis does NOT certify:
+high-uncertainty-language calls do not precede higher forward vol (spike uplift is negative). The only echo — SPIKE
+marginally above DROP (+0.011 log-vol, predicted direction, and larger than v1's modal register managed) — is a
+whisper (Cliff≈0, insignificant, both absolutely negative, unstable across halves), not a signal. Recorded to the
+strategy ledger; consistent with the failure-ledger. No further tone-factor mining is warranted.

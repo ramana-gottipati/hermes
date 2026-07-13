@@ -256,6 +256,22 @@ still failed the return gate.** Honest-reporting corrections (none change the ve
 realized-VOLATILITY outcome not return, quarter-adjusted double-difference), NEVER an edit to this frozen null; v2
 must cite this ledger (every prior event-wrapper net-failed 0.02-0.10 vs 0.85; `concall_intent` placebo-killed).**
 
+**HEDGE-DENSITY V2 — net-uncertainty → forward realized-VOLATILITY (2026-07-13) → NULL; pre-registered (hash `632bd149`, registered BEFORE the run; git `62ea68b`/`8ce1f0e`; `--verify` tamper-clean).**
+The v1 successor (Ramana-greenlit). Fixes every v1 defect: register-split **net-tone** score (uncertainty − confidence
+per 1k tokens; weak modals ZERO-weighted, "may" dropped; bigram-first span consumption; negation suppression),
+**within-name × within-CALENDAR-QUARTER double-difference** (removes v1's Q2 seasonal confound → 7,390 deltas, spike
+symbols 518), and the outcome CHANGED to **forward-60-session idiosyncratic (excess-return) realized-vol uplift**
+(`ln(fwd_vol/prior_vol)`) — the more plausible "management uncertainty → outcome uncertainty" target. **FAILED at gate
+leg 1:** SPIKE mean vol-uplift **−0.0084** (needed >0), cohort-t **−0.43** (needed ≥ +2); DROP −0.0191; **both halves
+negative** (h1 −0.013 / h2 −0.004, opposite t-signs); Cliff δ(spike,drop) **+0.001** (no distributional separation).
+Placebo not reached (failed leg 1). ⚠ The ONLY echo of the construct: SPIKE sits marginally ABOVE DROP (+0.011 log-vol,
+the predicted direction, absent in v1's modal register) — but both cohorts see forward vol DECAY (post-earnings
+mean-reversion vs the pre-call window), the spike is absolutely negative, and Cliff≈0, so it is a whisper, not a signal.
+**Do NOT re-mine concall tone (return OR volatility) as a factor** — deterministic lexical tone carries no certifiable
+forward signal at 60d on either outcome, exactly as the failure-ledger predicted (event-wrappers net-fail). Verdict
+`FAIL-null-published`. Reproduce: `python -m explosive_moves.hedge_density_v2 --build && ... --run`; feature
+`research.db.concall_lexical_v2`; gate frozen in the module `__doc__` (registered `632bd149`).
+
 ---
 
 ## Experiment 2026-06-24 — relative gate + PIT quality overlay (DONE)
