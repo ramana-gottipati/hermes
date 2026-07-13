@@ -509,6 +509,15 @@ def plain(text_html: str) -> str:
     return f'<div class="rd-plain"><span class="rd-lbl">In plain English</span><span class="rd-txt">{text_html}</span></div>'
 
 
+def demo_framing() -> str:
+    """The falsification-forward framing sentence (UX audit S-A, Codex R2): shown wherever
+    failed or uncertified studies are published, so the honesty posture reads as a moat —
+    never as "nothing here works". One wording, shared (S-C migrates it into fence())."""
+    return ('<div class="rd-plain" style="margin-top:4px"><span class="rd-lbl">Why we publish this</span>'
+            '<span class="rd-txt">We publish failures and uncertified reads so descriptive context is '
+            'never mistaken for alpha — the honest boundary IS the product.</span></div>')
+
+
 def _selftest() -> int:
     import re
     assert readability_css().startswith("<style>") and "rd-bottom" in readability_css()

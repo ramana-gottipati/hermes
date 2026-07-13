@@ -5910,7 +5910,15 @@ def dash_stock(sym: str = Query("", max_length=20),
             company_name = ""
 
     if not latest or not rows:
-        body = search + f'<div class="empty">No data for <b>{_esc(sym)}</b>. Check the ticker.</div>'
+        # UX audit S-A: the miss state must route onward, never dead-end — beginners type
+        # company names ("TATA CONSULTANCY"), not NSE codes. Full name-search is S-D.
+        _q = quote_plus(sym)
+        body = search + (
+            f'<div class="empty">No data for <b>{_esc(sym)}</b> — that may not be its NSE ticker. '
+            f'<div style="margin-top:8px;font-size:13px">'
+            f'Try <a href="/dash/pat?q={_q}">asking Pat about “{_esc(sym)}”</a> in plain English, '
+            f'or look the company up on the <a href="/dash/screener/screen2">screener</a> '
+            f'(its ticker is in the first column).</div></div>')
         return HTMLResponse(_shell("Stock · patearn", body, "stock"))
 
     L = dict(latest)

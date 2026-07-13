@@ -281,7 +281,10 @@ def cmdk_overlay() -> str:
         'glossary:"/dash/glossary",methodology:"/dash/glossary",terms:"/dash/glossary"};'
         'function route(q){var k=q.toLowerCase().replace(/[^a-z0-9 ]/g,"").trim();'
         'if(PAGES[k])return PAGES[k];'
-        'if(/^[A-Za-z0-9&.\\-]{1,12}$/.test(q)&&q===q.toUpperCase())return "/dash/stock?sym="+encodeURIComponent(q);'
+        # UX audit S-A (Codex-confirmed): tickers are case-insensitive here — "tcs" must
+        # reach TCS, not dead-end at Pat. Any single ticker-shaped token is uppercased and
+        # tried; the stock page's miss state links onward to Pat, so nothing dead-ends.
+        'if(/^[A-Za-z0-9&.\\-]{1,12}$/.test(q))return "/dash/stock?sym="+encodeURIComponent(q.toUpperCase());'
         'return "/dash/pat?q="+encodeURIComponent(q);}'
         'document.addEventListener("keydown",function(e){'
         'if((e.key==="k"||e.key==="K")&&(e.metaKey||e.ctrlKey)){e.preventDefault();op();}'

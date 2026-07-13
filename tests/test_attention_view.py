@@ -50,10 +50,13 @@ def patched(conn, monkeypatch):
 def test_queue_table_data_first(conn):
     events = SE.attention_queue(conn, as_of="2026-07-09", limit=50)
     html = av.render_queue_table(events)
-    assert '/dash/stock?symbol=RELIANCE' in html
+    # UX audit S-A P0-1: the dossier param is `sym` — the old `?symbol=` rendered the
+    # empty "Enter a ticker" shell on every front-door alert click. Assert the FIX.
+    assert '/dash/stock?sym=RELIANCE' in html
+    assert '?symbol=' not in html                          # the bug can never return
     assert "DISTRIB" in html and "ACCUM" in html          # raw before → after kept
     assert '/dash/rsband' in html                          # rs lens: index name, no dossier
-    assert '/dash/stock?symbol=Nifty' not in html
+    assert '/dash/stock?sym=Nifty' not in html
     assert "0.97" in html                                  # deal percentile magnitude shown
 
 

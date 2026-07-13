@@ -393,38 +393,46 @@ const IXD = __DATA__;
 STRATEGY_REGISTRY = [
     {"key": "CONV", "label": "Conviction", "accent": "#d2a8ff", "href": "/dash/conviction",
      "cta": "all-pillars aligned",
+     "plain": "Stocks where every independent signal agrees at once",
      "thesis": "Every pillar aligned — an RS leader institutions are accumulating now, with the entry.",
      "count": lambda conn, d, D: (len(conviction_shortlist(limit=300)) if conviction_shortlist else 0)},
     {"key": "POS", "label": "Positioning", "accent": "#58a6ff", "href": "/dash/stocks",
      "cta": "SS/S triggers today",
+     "plain": "Where big money bought unusually hard today",
      "thesis": "Where institutional delivery money is positioning now — DVPT vs its own peak-day baselines.",
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM stock_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
          "WHERE s.trade_date=? AND s.trigger_rank IN ('SS','S') " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
     {"key": "MEP", "label": "Accum/Distrib", "accent": "#db61a2", "href": "/dash/mep",
      "cta": "signed — accum & distrib",
+     "plain": "Quiet buying vs quiet selling, read from delivery data",
      "thesis": "Signed accumulation vs distribution (descriptor) — who is being absorbed. SIGNED where DVPT is side-blind; a character/confirmation lens, not a picker (D62 — predictive role failed its DSR gate).",
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM mep_signals s JOIN bhavcopy_rows b USING(symbol,trade_date) "
          "WHERE s.trade_date=? AND s.mep_state_smooth='STRONG_ACCUM' " + D._SCAN_FILTERS, (d,)).fetchone()["c"]},
     {"key": "RS", "label": "Relative Strength", "accent": "var(--up)", "href": "/dash/leaders",
      "cta": "strong-in-strong leaders",
+     "plain": "Stocks beating the market, inside sectors beating the market",
      "thesis": "Beating the broad market and leading its own sector.",
      "count": lambda conn, d, D: (len(leaders_laggards("leaders", limit=400)) if leaders_laggards else 0)},
     {"key": "CPR", "label": "Structure · CPR", "accent": "#bc8cff", "href": "/dash/cpr",
      "cta": "fresh reversals",
+     "plain": "Price structures that have just turned up or down",
      "thesis": "Multi-timeframe CPR — has price just turned (U / ∩) and is it coiled? Amplified when higher TFs agree.",
      "count": lambda conn, d, D: len(D._cpr_setups(conn, fresh_only=True, limit=200))},
     {"key": "QUAL", "label": "Quality · pt14", "accent": "#d29922", "href": "/dash/screener",
      "cta": "names scored",
+     "plain": "Business quality, scored on 14 durability patterns",
      "thesis": "Is the business worth owning — the patearn 14-pattern durability score.",
      "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM pattern_scores").fetchone()["c"]},
     {"key": "CCI", "label": "Mgmt Credibility", "accent": "#39c5cf", "href": "/dash/concalls",
      "cta": "veto / deterioration watch",
+     "plain": "Do managements deliver what they promise on earnings calls?",
      "thesis": "Do managements keep their promises? Measurable guidance-accuracy + a deterioration / ⛔veto avoid-tape, from earnings concalls. (Pilot — backfill accruing.)",
      "count": lambda conn, d, D: conn.execute("SELECT COUNT(DISTINCT symbol) c FROM concall_scores").fetchone()["c"]},
     {"key": "LAUNCH", "label": "Launchpad", "accent": "#f0883e", "href": "/dash/launchpad",
      "cta": "fresh triggers today",
+     "plain": "Setups that historically preceded big moves",
      "thesis": "Validated explosive-move precursors (momentum-continuation ∪ coiled ∪ pullback) from the nightly launchpad_signals snapshot. D56 research — net-of-costs, walk-forward-positive momentum core; a setup screen, not advice.",
      # was hardcoded None ("—" on the front page) because the live scan cost ~9s;
      # the S84 nightly snapshot removed that excuse — count the FRESH rising edge.
@@ -432,40 +440,48 @@ STRATEGY_REGISTRY = [
          "SELECT COUNT(*) c FROM launchpad_signals WHERE age<=2").fetchone()["c"]},
     {"key": "INSIDER", "label": "Insider activity", "accent": "#f778ba", "href": "/dash/insider",
      "cta": "fresh promoter buying",
+     "plain": "Promoters buying their own stock with their own money",
      "thesis": "Skin in the game — principals (promoters/directors/KMP) net-buying on the open market with their own money, bought within the last 30 days. SEBI PIT filings, plumbing classified out. Descriptive.",
      "count": lambda conn, d, D: (len(_insider_flagged(conn)[0])
                                   if _insider_flagged else None)},
     {"key": "RATINGS", "label": "Rating moves", "accent": "#79c0ff", "href": "/dash/ratings",
      "cta": "transitions · 90d",
+     "plain": "Credit-rating upgrades and downgrades",
      "thesis": "Agency upgrades/downgrades on listed issuers, deduped to COMPANY-level actions (multi-ISIN debt re-ratings collapse; raw rows overstate ~6× — E-02). Quality migration, descriptive — no return edge claimed.",
      "count": lambda conn, d, D: (len(_ratings_flagged(conn)[0])
                                   if _ratings_flagged else None)},
     {"key": "SAST", "label": "Stake · Pledge", "accent": "#e85aad", "href": "/dash/sast",
      "cta": "confluence · 90d",
+     "plain": "Big stake moves crossed with promoter share pledges",
      "thesis": "Substantial-holder stake moves (Reg-29) crossed with promoter pledge FLOW (Reg-31/32) — names where both fired in 90 days, shaped constructive/distress/mixed. Post-disclosure, % of equity, descriptive (footprint front-detection FAILED its gate; E-04/E-05 pending).",
      "count": lambda conn, d, D: (len(_sast_flagged(conn)[0])
                                   if _sast_flagged else None)},
     {"key": "SHP", "label": "Holdings · QoQ", "accent": "#9e86ff", "href": "/dash/shp",
      "cta": "material shifts, latest Q",
+     "plain": "Who owned more, who owned less, last quarter",
      "thesis": "Who added, who trimmed, quarter over quarter — promoter/FII/DII/public/pledge in percentage points of equity. Frozen archive + NSE-XBRL takeover, provenance marked. Descriptive.",
      "count": lambda conn, d, D: (len(_shp_flagged()[0]) if _shp_flagged else None)},
     {"key": "ACTIONS", "label": "Corp actions", "accent": "#f5a97f", "href": "/dash/actions",
      "cta": "going ex · next 14d",
+     "plain": "Dividends, bonuses, splits and buybacks coming up",
      "thesis": "Dividends, bonuses, splits, rights and buybacks with an ex-date ahead — the events that re-base the adjusted-price engine. Logistics, not signal (dividend-drift NULL vs placebo; rebrand-pump dead — failure ledger).",
      "count": lambda conn, d, D: (len(_actions_flagged(conn)[0])
                                   if _actions_flagged else None)},
     {"key": "SURVEIL", "label": "Surveillance Δ", "accent": "#e0823d", "href": "/dash/surveillance",
      "cta": "restriction moves · 30d",
+     "plain": "Stocks entering or leaving exchange watchlists",
      "thesis": "Names whose exchange-restriction state MOVED — ASM/GSM entry/exit/stage, price-band tightenings. Forced-flow context (100% margins, T2T), never a gate; no study exists on this feed either way.",
      "count": lambda conn, d, D: (len(_surveil_flagged(conn)[0])
                                   if _surveil_flagged else None)},
     {"key": "BANDLOCK", "label": "Band locks", "accent": "#58a6ff", "href": "/dash/band-locks",
      "cta": "pinned at the band · streaks",
+     "plain": "Stocks frozen at their daily price limit",
      "thesis": "Names that closed AT their daily price band — the auction could not clear the permitted range — and for how many straight sessions. Queue-imbalance tell on as-traded prices; the window opens at the band feed's birth (2026-07-07). Descriptive, never a gate.",
      "count": lambda conn, d, D: (len(_bandlock_flagged(conn)[0])
                                   if _bandlock_flagged else None)},
     {"key": "GROWTH", "label": "Growth-intent", "accent": "#7ee787", "href": "/dash/growth",
      "cta": "companies committing",
+     "plain": "Companies publicly committing money to grow",
      "thesis": "Forward growth PROPOSALS from concalls — capex, expansion, debt-cut, new products — ₹-normalised. Companies with a growth-polarity commitment in the last 12 months.",
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(DISTINCT symbol) c FROM concall_signals WHERE is_growth_intent=1 "
@@ -474,12 +490,14 @@ STRATEGY_REGISTRY = [
      ).fetchone()["c"]},
     {"key": "MOM", "label": "Momentum", "accent": "#ffa657", "href": "/dash/markets/momentum-scan",
      "cta": "top-decile ensemble",
+     "plain": "The market's strongest risers, adjusted for risk",
      "thesis": "Equal-weight momentum ensemble (12m · 52w-high · risk-adj · low-vol), top decile. Attribution says this is momentum BETA, not selection — a tilt you ride knowingly, never a buy list.",
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM momentum_scan WHERE as_of=(SELECT MAX(as_of) FROM momentum_scan) "
          "AND ensemble_pctile>=90").fetchone()["c"]},
     {"key": "WOLFE", "label": "Wolfe", "accent": "#8b949e", "href": "/dash/wolfe/scan",
      "cta": "winner-profile setups",
+     "plain": "A classic reversal chart pattern, auto-detected",
      "thesis": "Winner-profile wave scan from the nightly wolfe_signals snapshot — read by SIDE (bulls carried the edge in testing; bears are tail-only). Descriptive overlay.",
      "count": lambda conn, d, D: conn.execute(
          "SELECT COUNT(*) c FROM wolfe_signals WHERE universe='nifty500'").fetchone()["c"]},
@@ -496,6 +514,19 @@ _CKPT_CSS = """
 .ck-tile .ck-n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
 .ck-tile .ck-l{font-size:12px;font-weight:700;margin-top:5px;color:var(--ink);}
 .ck-tile .ck-c{font-size:10.5px;color:var(--ink-2);margin-top:2px;}
+.ck-tile .ck-p{font-size:11.5px;color:var(--ink-2);margin-top:3px;line-height:1.35;}
+.ck-hero{font-size:14px;color:var(--ink);margin:2px 0 8px;line-height:1.5;}
+.ck-hero .ck-hero-l{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px;}
+.ck-hero a{color:var(--accent,#58a6ff);text-decoration:none;}
+.ck-hero a:hover{text-decoration:underline;}
+.ck-start{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;font-size:12.5px;
+  color:var(--ink-2);margin:6px 0 10px;padding:7px 12px;border:1px dashed var(--line-2);border-radius:8px;}
+.ck-start b{color:var(--ink);font-size:12px;letter-spacing:.04em;text-transform:uppercase;}
+.ck-start a{color:var(--accent,#58a6ff);text-decoration:none;}
+.ck-start a:hover{text-decoration:underline;}
+.fl-tiles{grid-template-columns:repeat(auto-fit,minmax(210px,1fr));}
+.fl-tile .ck-n{font-weight:700;}
+.fl-trust{border-color:var(--up);}
 .ckpt{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:12px;align-items:start;margin-bottom:14px;}
 .ck-board{margin:0;padding:12px 14px;}
 .ck-h{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:700;margin-bottom:8px;}
@@ -729,21 +760,15 @@ def render_home(sig_date, idx_date) -> str:
                 counts[e["key"]] = e["count"](conn, sig_date, D)
             except Exception:
                 counts[e["key"]] = None
+        news_html = _news_card(conn, esc, limit=6)   # UX audit S-A: news on the front door
 
     conv_rows = conviction_shortlist(limit=60) if conviction_shortlist else []
     lead_rows = leaders_laggards("leaders", limit=300) if leaders_laggards else []
 
-    # --- regime banner ---
+    # --- canonical mood banner (ONE regime vocabulary site-wide — UX audit S-A/P0-3) ---
+    from src.web.market_mood import market_mood, mood_banner
     a200 = nifty.get("a200")
-    nifty_up = a200 is not None and a200 > 0
-    if breadth is None:
-        bcls, blabel = "b-neu", "NO DATA"
-    elif breadth >= 60 and nifty_up:
-        bcls, blabel = "b-on", "RISK-ON"
-    elif breadth < 40 or not nifty_up:
-        bcls, blabel = "b-off", "RISK-OFF"
-    else:
-        bcls, blabel = "b-neu", "NEUTRAL"
+    nifty_up = None if a200 is None else a200 > 0
     lead_txt = {"Nifty 50": "Large-caps leading", "Nifty Midcap 150": "Mid-caps leading",
                 "Nifty Smallcap 250": "Small-caps leading"}.get(lead, lead or "—")
     breadth_txt = f"{breadth:.0f}%" if breadth is not None else "—"
@@ -751,20 +776,42 @@ def render_home(sig_date, idx_date) -> str:
     search = ('<form class="search" action="/dash/stock" method="get" autocomplete="off">'
               '<input name="sym" placeholder="Enter NSE ticker — e.g. RELIANCE" '
               'autocapitalize="characters"/><button type="submit">Go</button></form>')
-    banner = (f'<div class="banner {bcls}" style="font-size:15px">{blabel}'
-              f'<small>· Nifty 50 {pct(nifty.get("r1d"))} today · {breadth_txt} of indices &gt; 200-DMA '
-              f'· {esc(lead_txt)}</small></div>')
+    mood = market_mood(breadth, nifty_up)
+    banner = mood_banner(mood,
+                         f'Nifty 50 {pct(nifty.get("r1d"))} today · {breadth_txt} of indices '
+                         f'&gt; 200-DMA · {esc(lead_txt)}')
+
+    # --- orientation layer (UX audit S-A — the beginner walk: "I could not tell what
+    # this site is"). One identity line + a numbered start-here strip; layered-additive,
+    # nothing removed, expert density untouched below. ---
+    hero = ('<div class="ck-hero">Patearn — a research cockpit for Indian equities. '
+            'Every number below is a live, explainable lens over primary exchange data — '
+            'descriptive evidence, never advice.'
+            '<span class="ck-hero-l">New here? <a href="/dash/reading-guide">the 2-minute chart guide</a> · '
+            '<a href="/dash/glossary">plain-word glossary</a> · '
+            '<a href="/dash/pat">ask Pat in plain English</a></span></div>')
+    start = ('<div class="ck-start"><b>Start here</b>'
+             '<span>1 · Check the market mood (banner above)</span>'
+             '<span>2 · <a href="/dash/attention">See what changed</a></span>'
+             '<span>3 · Type a stock in the box</span>'
+             '<span>4 · <a href="/dash/reading-guide">Learn to read the charts</a></span></div>')
 
     # --- registry-driven count strip ---
     tiles = []
     for e in STRATEGY_REGISTRY:
         c = counts.get(e["key"])
         cval = "—" if c is None else str(c)
+        plain = e.get("plain") or ""
         tiles.append(
             f'<a class="ck-tile" href="{e["href"]}" style="border-top:3px solid {e["accent"]}" '
             f'title="{esc(e["thesis"])}"><div class="ck-n" style="color:{e["accent"]}">{cval}</div>'
-            f'<div class="ck-l">{esc(e["label"])}</div><div class="ck-c">{esc(e["cta"])}</div></a>')
-    count_strip = '<div class="ck-tiles">' + "".join(tiles) + '</div>'
+            f'<div class="ck-l">{esc(e["label"])}</div>'
+            + (f'<div class="ck-p">{esc(plain)}</div>' if plain else '')
+            + f'<div class="ck-c">{esc(e["cta"])}</div></a>')
+    count_strip = ('<div class="ghdr" style="margin-top:8px">Live lens counters '
+                   '<span class="sub" style="margin:0;font-weight:400">every tile is a live screen — '
+                   'tap a number to open it</span></div>'
+                   '<div class="ck-tiles">' + "".join(tiles) + '</div>')
 
     # --- boards (instrument language) ---
     def trig_rows(rows, score_cell=None):
@@ -894,13 +941,43 @@ def render_home(sig_date, idx_date) -> str:
                              'what changed · all lenses · the signal bus', _att_inner,
                              "/dash/attention", "Open the queue", "#58a6ff"))
 
+    if news_html:
+        boards.append(news_html)
+
     cockpit = '<div class="ckpt">' + "".join(boards) + '</div>'
+
+    # --- flagship band (UX audit S-A: "the platform's rarest data is its least
+    # advertised" — the moat, above the boards, with the prove-it trust card) ---
+    def _flag(href, em, title, line):
+        return (f'<a class="ck-tile fl-tile" href="{href}">'
+                f'<div class="ck-n" style="font-size:17px;padding-top:4px">{em} {esc(title)}</div>'
+                f'<div class="ck-p">{esc(line)}</div></a>')
+    flag = ('<div class="ghdr" style="margin-top:12px">Why this is different '
+            '<span class="sub" style="margin:0;font-weight:400">the proof, not the pitch</span></div>'
+            '<div class="ck-tiles fl-tiles">'
+            + _flag("/dash/replay-any-date", "⏪", "Replay any date",
+                    "Rewind the whole platform to any past day — zero look-ahead, on the live API")
+            + _flag("/dash/attention", "🔔", "The signal bus",
+                    "Every state-change across every lens, one severity-graded triage queue")
+            + _flag("/dash/market-internals", "🫀", "22-year internals",
+                    "Market breadth, effort and mood back to 2004 — click any day to drill in")
+            + _flag("/dash/seasonal-tape", "🌗", "Seasonal tape",
+                    "Calendar patterns with statistical certification — uncertified reads shown grey, not hidden")
+            + _flag("/dash/concalls", "🎙", "Promise ledger",
+                    "Managements graded on whether their concall promises actually settled")
+            + ('<a class="ck-tile fl-tile fl-trust" href="/dash/coverage">'
+               '<div class="ck-n" style="font-size:17px;padding-top:4px">🛡 Prove it</div>'
+               '<div class="ck-p">Coverage &amp; limits · pre-registered spec-sheets · the validation '
+               'record with the failures kept in · a point-in-time API</div>'
+               '<div class="ck-c">We publish failures and uncertified reads so descriptive context '
+               'is never mistaken for alpha.</div></a>')
+            + '</div>')
 
     fresh = (f'<div class="sub" style="margin-top:6px">Stock signals <b>{sig_date or "—"}</b> · '
              f'Index signals <b>{idx_date or "—"}</b> · updated nightly 7:30 PM IST. '
              f'Every count above is a live lens — open it to screen.</div>')
 
-    return _CKPT_CSS + search + banner + count_strip + cockpit + fresh
+    return _CKPT_CSS + hero + search + banner + start + count_strip + flag + cockpit + fresh
 
 
 def _row_trends(v):
@@ -974,12 +1051,17 @@ def render_markets(idx_date) -> str:
             best, lead_idx = v["r3m"], s
     lead_txt = {"Nifty 50": "Large-caps leading", "Nifty Midcap 150": "Mid-caps leading",
                 "Nifty Smallcap 250": "Small-caps leading"}.get(lead_idx, lead_idx or "—")
-    bcls = "b-on" if n_sc >= 2 else ("b-off" if n_sc == 0 else "b-neu")
     breadth_txt = f"{breadth:.0f}%" if breadth is not None else "—"
     sect_txt = f"{sect_rs_pct:.0f}%" if sect_rs_pct is not None else "—"
-    banner = (f'<div class="banner {bcls}" style="font-size:15px">Nifty 50 · {esc(n_abs)}'
-              f'<small>· 1d {pct(nifty1d)} · {breadth_txt} of indices &gt; 200-DMA '
-              f'· {sect_txt} of sectors in RS uptrend · {esc(lead_txt)}</small></div>')
+    # canonical mood leads; the Nifty's OWN trend verdict stays but behind an explicit
+    # "trend:" prefix — one vocabulary site-wide (UX audit S-A/P0-3)
+    from src.web.market_mood import market_mood, mood_banner
+    _a200 = nifty.get("a200")
+    mood = market_mood(breadth, None if _a200 is None else _a200 > 0)
+    banner = mood_banner(mood,
+                         f'Nifty 50 trend: {esc(n_abs)} · 1d {pct(nifty1d)} · '
+                         f'{breadth_txt} of indices &gt; 200-DMA · '
+                         f'{sect_txt} of sectors in RS uptrend · {esc(lead_txt)}')
 
     hdr = ('<div class="ck-tiles" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">'
            f'<div class="ck-tile" style="border-top:3px solid #58a6ff"><div class="ck-n">{pct(nifty1d)}</div>'

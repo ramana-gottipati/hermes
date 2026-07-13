@@ -121,8 +121,13 @@ _CSS = """<style>
 .dqb-crit{color:var(--down,#ff6a7a);border-color:var(--down,#ff6a7a);
   background:rgba(var(--down-rgb,255,106,122),.14);}
 .dqb .dqb-k{font-weight:600;white-space:nowrap;}
-.dqb .dqb-why{color:inherit;opacity:.7;text-decoration:underline;text-underline-offset:2px;font-size:11px;white-space:nowrap;}
-.dqb .dqb-why:hover{opacity:1;}
+.dqb .dqb-why{display:inline;font-size:11px;}
+.dqb .dqb-why summary{cursor:pointer;color:inherit;opacity:.7;text-decoration:underline;
+  text-underline-offset:2px;white-space:nowrap;list-style:none;display:inline;}
+.dqb .dqb-why summary::-webkit-details-marker{display:none;}
+.dqb .dqb-why[open] summary{opacity:1;}
+.dqb .dqb-det{display:block;margin-top:3px;opacity:.85;font-size:11px;}
+.dqb .dqb-det a{color:inherit;}
 .dqb .dqb-at{margin-left:auto;font-size:11px;opacity:.7;white-space:nowrap;}
 </style>"""
 
@@ -146,10 +151,15 @@ def _strip_html(active: str) -> str:
         icon = "&#9888;" if sev == "critical" else "&#9650;"
         label, plain = _plain(check, msg)
         tip = html.escape(f"{check}: {msg}")          # full technical detail on hover
+        # UX audit S-A: "why?" answers INLINE (the old /dash/coverage link answered a
+        # different question); the full technical check text expands in place, with the
+        # ledger link inside for anyone who wants the source.
         lines.append(
             f'<div class="dqb {cls}" title="{tip}">{icon} '
             f'<span class="dqb-k">{html.escape(label)}</span> {html.escape(plain)} '
-            f'<a class="dqb-why" href="/dash/coverage">why?</a>'
+            f'<details class="dqb-why"><summary>why?</summary>'
+            f'<span class="dqb-det">{tip} · full ledger → '
+            f'<a href="/dash/coverage">Coverage &amp; limits</a></span></details>'
             f'<span class="dqb-at">as of {html.escape(str(run_at or "")[:10])}</span></div>')
     if len(hits) > _MAX_LINES:
         lines.append(f'<div class="dqb dqb-warn">+{len(hits) - _MAX_LINES} more — see /dash/coverage</div>')

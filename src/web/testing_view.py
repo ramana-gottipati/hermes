@@ -166,9 +166,10 @@ def testing_page():
     else:
         cards += "<div class='lead'>No holdings stored yet — run <code>strategy_menu.py</code>.</div>"
 
+    from src.web.infographics import demo_framing, readability_css
     body = (
-        "<div class='tlab'>" + _CSS +
-        "<h2>Strategy validation</h2>"
+        "<div class='tlab'>" + _CSS + readability_css() +
+        "<h2>Strategy validation</h2>" + demo_framing() +
         "<div class='lead'>A Trust-altitude rigor record, not a strategy lens: every strategy we have "
         "backtested, its results net of cost, and the current holdings of the deployable candidates — "
         "published so the failures are as visible as the wins. Saved in <code>research.db</code> "

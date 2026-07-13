@@ -295,3 +295,15 @@ except Exception as _nav_glue_err:  # noqa: BLE001
     import logging as _nav_glue_logging
     _nav_glue_logging.getLogger("hermes.v2").warning("nav glue hook skipped: %s", _nav_glue_err)
 # === end nav glue hook ===
+
+# Tracker privacy gate (UX audit S-A / P0-6, Ramana 2026-07-14: DEMO-BOOK): anonymous
+# visitors get a synthetic demo book on every tracker surface; all tracker writes are
+# owner-only (unlock: POST /dash/tracker/owner with chat_shared_secret). Isolated
+# middleware module — no dashboard.py handler edited; delete this block to revert.
+try:
+    from src.web import tracker_gate as _tracker_gate
+    _tracker_gate.install(app)
+except Exception as _tg_err:  # noqa: BLE001
+    import logging as _tg_logging
+    _tg_logging.getLogger("hermes.v2").warning("tracker gate skipped: %s", _tg_err)
+# === end tracker gate ===
