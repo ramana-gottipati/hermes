@@ -99,6 +99,11 @@ LENSES: tuple[Lens, ...] = (
     # Corporate-actions calendar — forward ex-dates, day by day (D94 #5, S91).
     Lens("actions", "Corp actions", "market", "markets", "/dash/actions",
          group="Events & flow", aliases=("corp-actions", "ex-dates", "dividends", "corporate-actions")),
+    # Event cadence (D128) — the ADDITIVE cut vs the two announced calendars above: which LIVE names
+    # are OVERDUE vs their OWN rhythm + what each is next EXPECTED by cadence (from seasonal_events).
+    Lens("event-cadence", "Event cadence", "market", "markets", "/dash/event-cadence",
+         group="Events & flow", aliases=("overdue", "overdue-events", "cadence", "event-timing",
+                                         "expected-results", "due-events")),
     # E-10 buyback tender-quota calculator (S85g) — the personal-scale capacity-moat tool
     # (charter §2.4); companion to the corp-actions calendar it sits beside.
     Lens("buyback-calc", "Buyback calc", "market", "markets", "/dash/buyback-calc",

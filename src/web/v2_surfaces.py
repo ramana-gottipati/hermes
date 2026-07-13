@@ -100,6 +100,9 @@ _ROUTER_SPECS = [
     # two read-only companions to the seasonal tape, same module.
     ("seasonal-screen", "src.web.seasonal_screen_view", "/dash/seasonal-screen"),
     ("seasonal-divergence", "src.web.seasonal_screen_view", "/dash/seasonal-divergence"),
+    # Event cadence (D128) — cross-entity OVERDUE-vs-own-rhythm + expected-by-cadence, from the
+    # seasonal_events snapshot; the additive companion to /dash/actions + /dash/results-reactions.
+    ("event-cadence", "src.web.seasonal_events_view", "/dash/event-cadence"),
     # How to read the charts (deep-data value sprint) — beginner's visual guide to the site's
     # chart shapes + plain-word ideas; linked from every deep-data lens header + Coverage.
     ("reading-guide", "src.web.reading_guide_view", "/dash/reading-guide"),

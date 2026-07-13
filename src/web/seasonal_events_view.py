@@ -16,10 +16,17 @@ from __future__ import annotations
 
 import calendar
 import sqlite3
+from datetime import date
+from urllib.parse import quote
+
+from fastapi import APIRouter
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from src.core.db import DB_PATH
 from src.web.dashboard import _esc
 from src.web import infographics as ifx
+
+router = APIRouter()
 
 try:
     from src.automation.seasonal_events import EVENT_TYPES
@@ -50,6 +57,23 @@ _EVT_CSS = """
   border-radius:0 10px 10px 0;padding:9px 13px;margin:8px 0 0;font-size:11.5px;
   color:var(--ink-2);line-height:1.5;max-width:1080px;}
 .sev-fence b{color:var(--ink);}
+/* cross-entity event-cadence page */
+.evc-sum{display:flex;gap:22px;flex-wrap:wrap;margin:8px 0 4px;font-size:12.5px;color:var(--ink-2);}
+.evc-sum b{color:var(--ink);font-size:15px;font-variant-numeric:tabular-nums;}
+.evc-ctrl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0;}
+.evc-ctrl .lbl{font-size:11px;color:var(--ink-3);margin-right:2px;}
+.evc-ctrl a{font-size:12px;padding:3px 9px;border:1px solid var(--line);border-radius:20px;
+  color:var(--ink-2);text-decoration:none;}
+.evc-ctrl a.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+.evc-h2{font-size:13px;font-weight:700;color:var(--ink);margin:16px 0 6px;}
+.evc-tbl{border-collapse:collapse;width:100%;max-width:1120px;font-size:12.5px;}
+.evc-tbl th{text-align:left;color:var(--ink-3);font-weight:600;font-size:11px;
+  border-bottom:1px solid var(--line);padding:5px 10px 5px 0;}
+.evc-tbl td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line-2,rgba(127,127,127,.12));
+  color:var(--ink-2);font-variant-numeric:tabular-nums;}
+.evc-tbl td.sym a{color:var(--accent);text-decoration:none;font-weight:600;}
+.evc-tbl td.ov{color:var(--down);font-weight:700;}
+.evc-empty{font-size:12.5px;color:var(--ink-3);padding:8px 0;}
 </style>
 """
 
@@ -249,6 +273,184 @@ def render_events_section(scope: str, entity: str, cal: str, *, db_path: str | N
         + '</div>')
 
 
+# ── cross-entity EVENT-CADENCE lens: /dash/event-cadence ─────────────────────────────────────────
+# The ADDITIVE cut the two ANNOUNCED calendars structurally cannot show: which LIVE names are OVERDUE
+# vs their OWN historical rhythm (expected-but-silent), and what each is next EXPECTED by cadence.
+# Reads ONLY the bounded seasonal_events snapshot; TIME-only; anchor_basis='projection' ONLY — so
+# declared/announced events (served by /dash/actions ex-dates + /dash/results-reactions board
+# meetings) are NEVER duplicated here (sister-data check, SURFACE-PLAYBOOK §2).
+_IDX_MAP = {"all": None, "n50": "Nifty 50", "n100": "Nifty 100", "n500": "Nifty 500"}
+_IDX_LABEL = [("all", "All liquid"), ("n50", "Nifty 50"), ("n100", "Nifty 100"), ("n500", "Nifty 500")]
+_EVT_KEYS = ["all", "RESULTS", "DIVIDEND", "BONUS", "SPLIT", "AGM", "OTHER_CA"]
+
+
+def _latest_members(con: sqlite3.Connection, idx_name: str) -> set | None:
+    """Current constituents of `idx_name` (latest snapshot) — None on any error (→ no filter)."""
+    try:
+        row = con.execute("SELECT MAX(snapshot_date) FROM stock_index_membership WHERE index_name=?",
+                          (idx_name,)).fetchone()
+        if not row or not row[0]:
+            return None
+        return {r[0] for r in con.execute(
+            "SELECT symbol FROM stock_index_membership WHERE index_name=? AND snapshot_date=?",
+            (idx_name, row[0]))}
+    except sqlite3.Error:
+        return None
+
+
+def _evc_rows(con: sqlite3.Connection, *, overdue: bool, evt: str, members: set | None,
+              cap: int, horizon: int, today: str) -> list:
+    """OVERDUE (bounded to `cap` weeks — beyond is 'stopped', not late) or EXPECTED-by-cadence
+    (projection window overlapping [today, today+horizon]). projection basis ONLY (no announced)."""
+    where = ["asof=(SELECT MAX(asof) FROM seasonal_events)", "anchor_basis='projection'"]
+    args: list = []
+    if overdue:
+        where += ["status='OVERDUE'", "variance_weeks >= ?"]; args.append(-abs(cap))
+    else:
+        where += ["status='PENDING'", "hi >= ?", "lo <= date(?, ?)"]
+        args += [today, today, f"+{int(horizon)} days"]
+    if evt != "all":
+        where.append("event_type=?"); args.append(evt)
+    order = "variance_weeks ASC" if overdue else "anchor ASC, symbol ASC"
+    rows = [dict(r) for r in con.execute(
+        "SELECT symbol, event_type, variance_weeks, anchor, lo, hi, n_history "
+        f"FROM seasonal_events WHERE {' AND '.join(where)} ORDER BY {order} LIMIT 400", args)]
+    return [r for r in rows if members is None or r["symbol"] in members]
+
+
+def render_event_cadence(evt: str = "all", idx: str = "all", cap: int = 52, horizon: int = 60,
+                         fmt: str = "html", db_path: str | None = None):
+    """The cross-entity event-cadence lens (HTMLResponse for fmt='html', CSV str for fmt='csv').
+    Honest-empty everywhere the snapshot is absent — never fabricates, never raises."""
+    path = db_path or _DB_PATH
+    evt = evt if evt in _EVT_KEYS else "all"
+    idx = idx if idx in _IDX_MAP else "all"
+    try:
+        cap = max(1, min(260, int(cap)))
+    except (TypeError, ValueError):
+        cap = 52
+    try:
+        horizon = max(7, min(180, int(horizon)))
+    except (TypeError, ValueError):
+        horizon = 60
+    today = date.today().isoformat()
+    over, exp, dormant = [], [], 0
+    try:
+        con = _ro(path)
+    except sqlite3.OperationalError:
+        con = None
+    if con is not None:
+        try:
+            if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                           "AND name='seasonal_events'").fetchone():
+                idx_name = _IDX_MAP.get(idx)
+                members = _latest_members(con, idx_name) if idx_name else None
+                over = _evc_rows(con, overdue=True, evt=evt, members=members, cap=cap,
+                                 horizon=horizon, today=today)
+                exp = _evc_rows(con, overdue=False, evt=evt, members=members, cap=cap,
+                                horizon=horizon, today=today)
+                d = con.execute(
+                    "SELECT COUNT(*) FROM seasonal_events WHERE asof=(SELECT MAX(asof) FROM "
+                    "seasonal_events) AND status='OVERDUE' AND anchor_basis='projection' "
+                    "AND variance_weeks < ?", (-abs(cap),)).fetchone()
+                dormant = d[0] if d else 0
+        except sqlite3.Error:
+            pass
+        finally:
+            con.close()
+
+    if fmt == "csv":  # CSV honors the same filters (playbook §8b)
+        out = ["section,symbol,event,weeks_overdue,expected_anchor,window_lo,window_hi,times_seen"]
+        for r in over:
+            out.append(f"overdue,{r['symbol']},{_EVT_LABEL.get(r['event_type'], r['event_type'])},"
+                       f"{abs(r['variance_weeks'] or 0):.1f},,{r['lo'] or ''},{r['hi'] or ''},"
+                       f"{r['n_history'] or 0}")
+        for r in exp:
+            out.append(f"expected,{r['symbol']},{_EVT_LABEL.get(r['event_type'], r['event_type'])},"
+                       f",{r['anchor'] or ''},{r['lo'] or ''},{r['hi'] or ''},{r['n_history'] or 0}")
+        return "\n".join(out) + "\n"
+
+    def _u(evt2=evt, idx2=idx, cap2=cap, hz2=horizon):
+        return f"/dash/event-cadence?evt={evt2}&idx={idx2}&cap={cap2}&horizon={hz2}"
+
+    evt_chips = "".join(
+        f'<a class="{"on" if evt == k else ""}" href="{_u(evt2=k)}">'
+        f'{"All" if k == "all" else _EVT_LABEL.get(k, k)}</a>' for k in _EVT_KEYS)
+    idx_chips = "".join(
+        f'<a class="{"on" if idx == k else ""}" href="{_u(idx2=k)}">{lbl}</a>' for k, lbl in _IDX_LABEL)
+
+    def _row(r, kind):
+        sym = f'<td class="sym"><a href="/dash/stock?sym={quote(r["symbol"])}">{_esc(r["symbol"])}</a></td>'
+        evtc = f'<td>{_EVT_LABEL.get(r["event_type"], r["event_type"])}</td>'
+        seen = f'<td>{r["n_history"] or 0}</td>'
+        win = f'<td>{_esc(r["lo"] or "—")} → {_esc(r["hi"] or "—")}</td>'
+        if kind == "over":
+            return (f'<tr>{sym}{evtc}<td class="ov">{abs(r["variance_weeks"] or 0):.0f} wk</td>'
+                    f'{win}{seen}</tr>')
+        return f'<tr>{sym}{evtc}<td>{_esc(r["anchor"] or "—")}</td>{win}{seen}</tr>'
+
+    def _table(rows, kind, cols, empty):
+        if not rows:
+            return f'<div class="evc-empty">{empty}</div>'
+        head = "".join(f"<th>{c}</th>" for c in cols)
+        return (f'<div style="overflow-x:auto"><table class="evc-tbl"><thead><tr>{head}</tr></thead>'
+                f'<tbody>{"".join(_row(r, kind) for r in rows)}</tbody></table></div>')
+
+    from src.web.dashboard import _shell  # lazy — seasonal_events_view is imported by dashboard
+    bl = (f"Which liquid companies are <b>past their own typical window</b> for an event with nothing "
+          f"filed yet (<b>{len(over)}</b> overdue ≤{cap} wk), and what each is next <b>expected</b> by "
+          f"its historical rhythm (<b>{len(exp)}</b> due within {horizon} days). Event TIMING vs a "
+          "company's OWN cadence — <b>never a price call</b>, and NOT a confirmed date.")
+    body = [
+        _EVT_CSS,
+        '<h2 style="margin:0 0 2px">Event cadence <small style="color:var(--ink-3);font-size:12px;'
+        'font-weight:400">who&rsquo;s overdue or due for results / dividends — vs each company&rsquo;s '
+        'own rhythm</small></h2>',
+        ifx.bottom_line(bl),
+        ifx.how_to_read_link(),
+        f'<div class="evc-ctrl"><span class="lbl">event</span>{evt_chips}</div>',
+        f'<div class="evc-ctrl"><span class="lbl">universe</span>{idx_chips}</div>',
+        '<div class="evc-sum">'
+        f'<span><b>{len(over)}</b> overdue</span><span><b>{len(exp)}</b> expected soon</span>'
+        + (f'<span style="color:var(--ink-4)">+{dormant} long-dormant hidden (&gt;{cap} wk = stopped)</span>'
+           if dormant else '')
+        + f'<span style="margin-left:auto"><a href="{_u()}&format=csv" style="color:var(--accent);'
+          'text-decoration:none">Download CSV ↓</a></span></div>',
+        '<div class="evc-h2">⚠ Overdue vs its own rhythm</div>',
+        ifx.plain('Each name is <b>past the window it usually files this event in</b> (its own history) '
+                  f'and nothing is filed yet. Bounded to ≤{cap} weeks — anything longer is treated as '
+                  '<b>stopped</b>, not late, and hidden. A rhythm flag, <b>not</b> a confirmed delay — '
+                  'schedules legitimately shift.'),
+        _table(over, "over", ("Symbol", "Event", "Overdue by", "Its usual window", "Times seen"),
+               "No liquid name is recently overdue in this filter — nothing off its own rhythm."),
+        '<div class="evc-h2">Expected next (by cadence)</div>',
+        ifx.plain('The next occurrence each name is <b>due</b> based on its own spacing — an '
+                  '<b>estimate from rhythm, not an announcement</b>. For CONFIRMED upcoming dates see '
+                  '<a href="/dash/actions">Corp actions</a> (ex-dates) + '
+                  '<a href="/dash/results-reactions">Results reactions</a> (declared board meetings).'),
+        _table(exp, "exp", ("Symbol", "Event", "Expected around", "Window", "Times seen"),
+               "Nothing projected in this window for this filter."),
+        '<div class="sev-fence"><b>Read this honestly:</b> Event <b>TIMING</b> vs each company&rsquo;s '
+        '<b>own</b> cadence — <b>factual, NOT a price prediction</b>, and <b>NOT a confirmed date</b> '
+        '(a cadence estimate; many events legitimately shift). Declared/announced events are '
+        'deliberately excluded here — they live on Corp actions + Results reactions.</div>',
+    ]
+    return HTMLResponse(_shell("Event cadence · patearn", "".join(body), "event-cadence", "", wide=True))
+
+
+@router.get("/dash/event-cadence", response_class=HTMLResponse)
+def dash_event_cadence(evt: str = "all", idx: str = "all", cap: int = 52, horizon: int = 60,
+                       format: str = "html"):
+    """Cross-entity event-cadence lens: OVERDUE vs own rhythm + EXPECTED-by-cadence. `format=csv`
+    streams the same (filtered) rows as a download (playbook §8 server-side export)."""
+    if format == "csv":
+        return PlainTextResponse(
+            render_event_cadence(evt=evt, idx=idx, cap=cap, horizon=horizon, fmt="csv"),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=event-cadence.csv"})
+    return render_event_cadence(evt=evt, idx=idx, cap=cap, horizon=horizon, fmt="html")
+
+
 def _selftest() -> int:
     """Offline: honest-empty on a missing/empty table; a populated synthetic snapshot renders the
     lane/card/section with the OVERDUE/ON_TIME/PENDING/no-history encodings all present."""
@@ -313,10 +515,27 @@ def _selftest() -> int:
     assert event_cadence_card("index", "Nifty 500", db_path=tmp) == '', "events are stock-scope only"
     assert event_cadence_card("stock", "NOSUCHSYM", db_path=tmp) == '', "uncovered symbol honest-empties"
 
+    # cross-entity Event-Cadence lens (/dash/event-cadence). CSV path (no shell) exercises the queries:
+    # RESULTS OVERDUE -3.2w (projection, within the 52w cap) -> overdue section; AGM PENDING/projection
+    # with an in-window future window -> expected section; the DIVIDEND row is anchor_basis='declared'
+    # so it must be EXCLUDED from BOTH (announced events live on /dash/actions + results-reactions).
+    csv = render_event_cadence(db_path=tmp, fmt="csv")
+    assert csv.startswith("section,symbol,event"), "CSV header missing"
+    assert "overdue,TESTSYM,Results" in csv, "OVERDUE projection within cap must appear"
+    assert "expected,TESTSYM,AGM" in csv, "PENDING+projection in-window must appear as expected"
+    assert "TESTSYM,Dividend" not in csv, "declared/announced rows must NOT be duplicated here"
+    ec = render_event_cadence(db_path=tmp)  # HTMLResponse — exercises _shell + sym-links + fence
+    ectxt = ec.body.decode("utf-8")
+    assert "Event cadence" in ectxt and "Overdue vs its own rhythm" in ectxt
+    assert "/dash/stock?sym=TESTSYM" in ectxt, "every symbol cell must sym-link (playbook §9)"
+    assert "NOT a price prediction" in ectxt and "/dash/actions" in ectxt, \
+        "honesty fence + cross-links to the announced calendars required"
+
     os.remove(tmp)
     print("seasonal_events_view selftest OK — honest-empty on missing table/entity; lane/card/section "
           "render OVERDUE(+week count)/ON_TIME/PENDING(+band)/no-history correctly; descriptive-only "
-          "TIME-only fence text present; stock-scope-only enforced")
+          "TIME-only fence text present; stock-scope-only enforced; cross-entity /dash/event-cadence "
+          "overdue+expected sections + CSV + sym-links + declared-excluded + fence wired")
     return 0
 
 
