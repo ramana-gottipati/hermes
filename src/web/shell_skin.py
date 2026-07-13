@@ -75,7 +75,7 @@ body.uk-skin header{
 }
 body.uk-skin .hback{border:1px solid var(--line-2);color:var(--ink-2);border-radius:8px}
 body.uk-skin .hback:hover{border-color:var(--accent);background:var(--bg-2)}
-/* M1 FOLLOW-UP (Ramana caught it): two legacy base rules leaked onto the new unified
+/* M1 FOLLOW-UP (caught in review): two legacy base rules leaked onto the new unified
    topbar's <nav class="uk-nav">, because they target the bare `nav`/`nav a` elements:
      nav   { position:fixed; bottom:0; left:0; right:0 }   (the old mobile bottom-bar)
      nav a { flex:1 1 0; text-align:center }                (the old justified tab row)
