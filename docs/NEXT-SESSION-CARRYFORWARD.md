@@ -282,7 +282,7 @@ force-pushes + deletions, enforce_admins:true, no required PR/checks."
    follow-ons: a Telegram push of critical alerts (reuse `digest._send` + the `signal_alert_state`
    substrate) · a Home "⚠ Alerts" badge · an acknowledge/dismiss action (server-side, unlike the
    per-viewer cookie).
-4. **Quant-integrity:** AUD-14 (morning window) · AUD-22 · ~~AUD-37~~ **✅ DONE S123 (`9e53aae`) + per-tenant quotas (`76694e1`)**.
+4. **Quant-integrity:** ~~AUD-14~~ **✅ MOSTLY-CLOSED S123 (`b1328c0`: bhavcopy+indexes+participant_oi; deals/corp_actions/equity_list deferred)** · ~~AUD-22~~ **✅ S123 (`891a50f`, PIT re-validated, t=1.99→1.80)** · ~~AUD-37~~ **✅ DONE S123 (`9e53aae`) + per-tenant quotas (`76694e1`)** · ~~AUD-25~~ **✅ MOSTLY-CLOSED S123 (`c1405dd`)**.
 5. **P-05 follow-through:** the demo is LIVE with a provisioned key — next is Ramana-facing
    (pitch/demo assets), not build.
 
