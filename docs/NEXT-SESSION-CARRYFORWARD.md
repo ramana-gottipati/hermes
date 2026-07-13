@@ -233,9 +233,11 @@ to merge at the branch level. The only uncommitted work, and its verdict:
 **P1 VERIFIED-OPEN (ranked):** ~~AUD-06/07~~ **✅ S104** · ~~AUD-11~~ **✅ S104** ·
 **AUD-14** throttle→"holiday" class sweep (5 fetchers; `RetryableFetchError` lives only in
 `fno_oi.py`; deploy-window-unsafe near 14:00 UTC — pick a morning) · **AUD-22** research
-replication bypasses the PIT layer (route through `fundamentals_asof.py`) · **AUD-25**
-feed-liveness covers 4/12 feeds · **AUD-28** setup-news.sh heredoc regression (do with AUD-27
-remainder) · **AUD-37** /v1 metering under-records (design-first: 500s unlogged, bytes_out=0)
+replication bypasses the PIT layer (route through `fundamentals_asof.py`) · ~~**AUD-25**
+feed-liveness covers 4/12 feeds~~ **✅ MOSTLY CLOSED S123 (`c1405dd`): regime date-guard +
+news/concalls → 10 feeds; fundamentals/shareholding recency + bhavcopy-gap DEFERRED (reasons in
+audit doc)** · **AUD-28** setup-news.sh heredoc regression (do with AUD-27
+remainder) · ~~**AUD-37** /v1 metering under-records~~ **✅ DONE S123 (`9e53aae`) + quotas (`76694e1`)**
 · **AUD-12** rs_rank survivorship (finder-only — verify first). **P2/P3:** AUD-45..117 batch
 list unchanged (AUD-101 UNBLOCKED). **BLOCKED (external/Ramana):** AUD-42/58/59/62 ·
 Wolfe point-4-strength (needs his worked chart) · E-08/E-09 (D-07 depth) · D-09/D-10
