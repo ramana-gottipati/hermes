@@ -155,8 +155,6 @@ input,button { font-family:inherit; }
 .empty { color:var(--ink-2); text-align:center; padding:48px 16px; }
 a.row { color:inherit; text-decoration:none; display:block; }
 .hsearch { margin-left:auto; flex:none; }
-.hnew{flex:none;font-size:11px;color:var(--ink-2);text-decoration:none;white-space:nowrap;border:1px solid var(--line-2);border-radius:999px;padding:3px 10px;}
-.hnew:hover{color:var(--accent-cy);border-color:var(--accent-cy);}
 .hsearch input { background:var(--bg-1); border:1px solid var(--line-2); color:var(--ink);
                  padding:6px 10px; border-radius:7px; font-size:13px; width:110px; }
 .banner { border-radius:10px; padding:12px 14px; margin-bottom:12px; font-weight:700;
@@ -505,7 +503,6 @@ def _shell(title: str, body: str, active: str, latest_date: str = "", wide: bool
     <form class="hsearch" action="/dash/stock" method="get" autocomplete="off">
       <input name="sym" placeholder="search ticker…" autocapitalize="characters"/>
     </form>
-    <a class="hnew" href="/dash/reading-guide" title="New here? How to read these screens">New here?</a>
   </div>
   <div class="hrow2">{_nav(active)}</div>
   {subrow}

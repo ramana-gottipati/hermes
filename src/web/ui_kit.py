@@ -322,7 +322,13 @@ def topbar(active: str = "", nav_html: str = "") -> str:
             for k, lbl in _NAV)
     return (f'<div class="uk-top"><a class="uk-logo" href="/dash" aria-label="patearn home">'
             f'<span class="dot"></span>patearn</a>'
-            f'<nav class="uk-nav" aria-label="Primary">{nav_html}</nav>{cmdk_hint()}</div>')
+            f'<nav class="uk-nav" aria-label="Primary">{nav_html}</nav>{cmdk_hint()}'
+            # S-C item 7: the site-wide "New here?" on-ramp — every page (native + reskinned
+            # legacy, both flow through topbar) links to the reading guide. Inline-styled so it
+            # needs no new .uk CSS rule; flex:none keeps it a fixed chip at the bar's right edge.
+            f'<a class="uk-newhere" href="/dash/reading-guide" title="How to read these screens" '
+            f'style="flex:none;font-size:11px;color:var(--ink-2);text-decoration:none;white-space:nowrap;'
+            f'border:1px solid var(--line);border-radius:999px;padding:4px 11px">New here?</a></div>')
 
 
 def subnav(items: list[tuple[str, str, bool]]) -> str:
