@@ -10,7 +10,17 @@
    plus a rank column and lean arrow. Every row shows the Wilson 95% confidence interval
    prominently, so most rows visibly read "indistinguishable from chance" even while ranked —
    the point of the whole page. Frozen z-family hashes are unaffected (this file never touches
-   _canon_spec/GATES/frozen_family_hash*). Optional `index=<Name>` (scope=stock only) filters the
+   _canon_spec/GATES/frozen_family_hash*).
+
+   D122+ (2026-07-13) — ranking made confidence-aware instead of raw-percent (why: a raw hit-%
+   rewards tiny samples — a lucky 3/3 outranks a proven 30/32 — and ties fell back to arbitrary
+   DB row order). The default "hit" sort now ranks by the Wilson LOWER bound (bullish) / UPPER
+   bound (bearish) of the hit-rate, with the mean residual (magnitude) as the tie-break; two new
+   sortable dimensions accompany it: "Strength t" (the residual t-stat = mean/(sd/sqrt(n)), fusing
+   size + consistency + sample from the per-year seasonal_stack) and a per-name month-rank column
+   (where THIS month sits among the entity's own 12 by mean residual — #1 = its hottest month, so
+   the reader can tell a name that is genuinely July-special from one that just drifts up all year).
+   Still DISPLAY-only + descriptive; nothing here becomes a signal. Optional `index=<Name>` (scope=stock only) filters the
    screen to that index's current constituents (`stock_index_membership`, latest snapshot) — the
    index -> constituent-stocks drill reachable from an index/sector tape page's scan-CTA; guarded
    table-exists, silently ignored if the table or the named index isn't there.
@@ -37,6 +47,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
+import statistics
 from datetime import date
 from urllib.parse import quote, urlencode
 
@@ -160,7 +171,7 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
                           dir: str = "desc", min_years: int = 15, q: str = "",
                           lean: str = "hot", index: str = "") -> HTMLResponse:
     scope = scope if scope in ("index", "sector", "stock") else "stock"
-    sort = sort if sort in ("sym", "hit", "z", "years") else "sym"
+    sort = sort if sort in ("sym", "hit", "z", "years", "strength") else "sym"
     dir = dir if dir in ("asc", "desc") else "asc"
     lean = lean if lean in ("all", "hot", "cold") else "all"
     m = month if month in _CAL_ORDER else date.today().month
@@ -180,10 +191,42 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
             # filter rather than raising or emptying the whole screen.
             members, index_canon = (
                 _index_members(index, con) if (index and scope == "stock") else (None, None))
+            # month-rank context: where does THIS month sit among each entity's own 12 months by
+            # mean residual? (answers "is this month even special for this name, or up all year")
+            allm = con.execute(
+                "SELECT entity, cell, script_z FROM seasonal_cells "
+                "WHERE scope=? AND axis='month' AND script_z IS NOT NULL", (scope,)).fetchall()
+            # strength = t-stat that the mean residual clears zero — needs the per-year stack for m
+            stk = con.execute(
+                "SELECT entity, mean_z FROM seasonal_stack "
+                "WHERE scope=? AND axis='month' AND cell=?", (scope, m)).fetchall()
         finally:
             con.close()
         if not rows:
             raise LookupError("no coverage")
+
+        # per-entity rank of month m among its own populated months (1 = this name's hottest month)
+        by_ent: dict = {}
+        for r in allm:
+            by_ent.setdefault(r["entity"], []).append((r["cell"], r["script_z"]))
+        mrank: dict = {}
+        for ent, pairs in by_ent.items():
+            tgt = next((sz for c, sz in pairs if c == m), None)
+            if tgt is not None:
+                rank = 1 + sum(1 for _c, sz in pairs if sz > tgt)
+                mrank[ent] = (rank, len(pairs))
+
+        # per-entity strength t = mean / (sd / sqrt(n)) over the per-year residuals (>=2 years, sd>0)
+        st_vals: dict = {}
+        for r in stk:
+            if r["mean_z"] is not None:
+                st_vals.setdefault(r["entity"], []).append(r["mean_z"])
+        stt: dict = {}
+        for ent, vv in st_vals.items():
+            if len(vv) >= 2:
+                sd = statistics.stdev(vv)
+                if sd > 0:
+                    stt[ent] = statistics.fmean(vv) / (sd / math.sqrt(len(vv)))
 
         qlow = (q or "").strip().upper()
         recs = []
@@ -205,16 +248,35 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
             k = round((hr or 0.0) * ny) if (hr is not None and ny) else None
             lo, hi = wilson_ci(k, ny) if (k is not None and ny) else (None, None)
             recs.append({"entity": ent, "z": sz, "years": ny, "hit": hr, "k": k,
-                         "lo": lo, "hi": hi, "colored": bool(r["colored"])})
+                         "lo": lo, "hi": hi, "colored": bool(r["colored"]),
+                         "strength": stt.get(ent), "mrank": mrank.get(ent)})
 
         total = len(recs)
-        keymap = {
-            "sym": lambda d: d["entity"].upper(),
-            "hit": lambda d: d["hit"] if d["hit"] is not None else -1.0,
-            "z": lambda d: d["z"] if d["z"] is not None else 0.0,
-            "years": lambda d: d["years"],
-        }
-        recs.sort(key=keymap[sort], reverse=(dir == "desc"))
+        # D122+ (2026-07-13): confidence-adjusted ranking. The headline "hit" sort ranks by the
+        # Wilson LOWER bound (bullish, dir=desc) / UPPER bound (bearish, dir=asc) of the hit-rate —
+        # so many years of a steady rate outrank a lucky 3/3 — with the mean residual (magnitude) as
+        # the tie-break (answers "two names both 19/19, which is stronger?" -> the bigger mover).
+        # "z" ranks by magnitude first (reliability as tie-break); "strength" by the residual t-stat.
+        _big = float("inf")
+
+        def _key(d):
+            z = d["z"] if d["z"] is not None else 0.0
+            lo = d["lo"] if d["lo"] is not None else 0.0
+            hi = d["hi"] if d["hi"] is not None else 1.0
+            if sort == "sym":
+                return (d["entity"].upper(),)
+            if sort == "years":
+                return (d["years"], lo)
+            if sort == "z":
+                return (z, lo if dir == "desc" else hi)
+            if sort == "strength":
+                st = d["strength"]
+                if st is None:
+                    st = -_big if dir == "desc" else _big
+                return (st, z)
+            # sort == "hit": confidence-adjusted reliability, direction-aware magnitude tie-break
+            return (lo, z) if dir == "desc" else (hi, z)
+        recs.sort(key=_key, reverse=(dir == "desc"))
         shown = recs[:_CAP]
 
         month_name = _MONTH_ABBR.get(m, str(m))
@@ -236,7 +298,8 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
         else:
             member_note = ''
         body.append(
-            '<div class="ssc-banner"><b>Ranked by historical BASE-RATE for this month — the '
+            '<div class="ssc-banner"><b>Ranked by historical BASE-RATE for this month '
+            '(confidence-adjusted — Wilson lower bound, ties on the size of the move), the '
             'descriptive ordering you asked for (D122), NOT a certified signal and NOT '
             'tradeable. Check the 95% CI: when it straddles 50% the lean is noise, and most rows '
             'do. Ordering ≠ recommendation.</b>'
@@ -299,6 +362,15 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
             ci_txt = f'{d["lo"]*100:.0f}–{d["hi"]*100:.0f}%' if d["lo"] is not None else "—"
             z_txt = f'{d["z"]:+.2f}σ' if d["z"] is not None else "—"
             status = "certified" if d["colored"] else "grey / not gated"
+            st = d["strength"]
+            st_txt = f'{st:+.1f}' if st is not None else "—"
+            mr = d["mrank"]
+            if mr:
+                mr_txt = f'#{mr[0]}/{mr[1]}'
+                mr_style = ('color:var(--pos);font-weight:600' if mr[0] == 1
+                            else 'color:var(--ink-2)')
+            else:
+                mr_txt, mr_style = "—", 'color:var(--ink-3)'
             z = d["z"]
             if z is not None and z > 0:
                 lean_arrow = '<span style="color:var(--pos)">▲</span>'
@@ -313,6 +385,8 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
                 f'<td>{_esc(hit_txt)}</td>'
                 f'<td class="ci">{_esc(ci_txt)}</td>'
                 f'<td class="z">{_esc(z_txt)}</td>'
+                f'<td class="z">{_esc(st_txt)}</td>'
+                f'<td class="z" style="{mr_style}">{_esc(mr_txt)}</td>'
                 f'<td>{d["years"]}</td>'
                 f'<td class="status">{_esc(status)}</td>'
                 '</tr>')
@@ -320,17 +394,24 @@ def dash_seasonal_screen(month: int = 0, scope: str = "stock", sort: str = "hit"
         if rows_html:
             body.append(
                 '<div class="ssc-panel"><div class="ssc-h">Base rates for '
-                f'{_esc(month_name)} <small>— ranked by this-month hit-rate; column headers '
-                're-sort, not a recommendation</small></div>'
+                f'{_esc(month_name)} <small>— ranked by confidence-adjusted hit-rate (Wilson lower '
+                'bound), ties on move size; column headers re-sort, not a recommendation</small></div>'
                 + ifx.plain('Every row is a per-entity historical base-rate for this one calendar '
-                            'month, with its 95% confidence interval. When that interval straddles '
-                            '50%, the apparent lean is noise — most rows do.')
+                            'month. Ranked by the <b>lower bound</b> of the 95% interval, not the raw '
+                            '%, so many steady years outrank a lucky 3/3; ties break on the <b>mean '
+                            'residual</b> (how big the move is). <b>Strength t</b> fuses size, '
+                            'consistency and sample into one number (t &gt; 2 ≈ hard to call luck). '
+                            'The <b>rank</b> column is where this month sits among the name’s own 12 '
+                            '— #1 = its hottest month, not just hot in isolation. When the interval '
+                            'straddles 50%, the lean is noise — most rows do.')
                 + '<div style="overflow-x:auto"><table class="ssc-t"><thead><tr>'
                 '<th>#</th>'
                 f'<th>{_hdr("sym", "Symbol")}</th>'
                 f'<th>{_hdr("hit", "Hist hit-rate k/n (P%)")}</th>'
                 '<th>95% CI lo–hi%</th>'
                 f'<th>{_hdr("z", "Mean residual")}</th>'
+                f'<th>{_hdr("strength", "Strength t")}</th>'
+                f'<th>{_esc(month_name)} rank</th>'
                 f'<th>{_hdr("years", "Years")}</th>'
                 '<th>Status</th>'
                 '</tr></thead><tbody>' + rows_html + '</tbody></table></div>'
@@ -586,6 +667,14 @@ def _selftest() -> int:
             "default screen order must now be RANKED by hit-rate desc (D122): Nifty 500 " \
             "(68% hit) before Nifty 200 (50% hit), never alphabetical-only"
 
+        # -- D122+ confidence-adjusted ranking + the two new dimensions -------------------
+        assert "Strength t" in r1.text, "Strength (t-stat) column missing"
+        assert "Jun rank" in r1.text, "per-name month-rank column missing (month=6 -> Jun)"
+        assert "confidence-adjusted" in r1.text and "lower bound" in r1.text.lower(), \
+            "confidence-adjusted (Wilson lower-bound) ranking not disclosed on the page"
+        r1s = c.get("/dash/seasonal-screen?scope=index&month=6&sort=strength&dir=desc&lean=hot")
+        assert r1s.status_code == 200 and "Strength t" in r1s.text, "sort=strength failed"
+
         # -- screen: sector scope + current-month default (month=0); lean=all so the assertion
         # below is not itself coupled to the sign of Nifty Auto's script_z on any given run day --
         r2 = c.get("/dash/seasonal-screen?scope=sector&lean=all")
@@ -642,6 +731,24 @@ def _selftest() -> int:
             "unmatched index must silently ignore the filter, not empty the screen"
         assert "This-month screen" in r8.text, "ignored-filter screen keeps the plain header"
 
+        # -- D122+ tie-break: at the SAME hit-rate, the bigger mean residual (mover) must win —
+        # the user's exact "two names both 18/19, which is stronger?" case. ZTIEA/ZTIEB are both
+        # 18/19 (identical Wilson bounds) but ZTIEB moves +0.5σ vs ZTIEA +0.2σ, so ZTIEB ranks up.
+        con4 = sqlite3.connect(tmp)
+        for sym, z, hr in (("ZTIEA", 0.2, 0.95), ("ZTIEB", 0.5, 0.95)):
+            con4.execute(
+                "INSERT OR REPLACE INTO seasonal_cells (scope,entity,axis,cell,script_z,n_years,"
+                "hit_rate,conf,colored,signed,emp_p_block,emp_p_phase,null_p95,sign_stable,"
+                "fdr_pass,mechanism,pledged_sign,gate_flags) VALUES "
+                "('stock',?,'month',6,?,19,?,0.1,0,0,0.5,0.5,0.5,0,0,NULL,NULL,'OK')", (sym, z, hr))
+        con4.commit(); con4.close()
+        r9 = c.get("/dash/seasonal-screen?scope=stock&month=6&sort=hit&dir=desc&lean=hot&q=ZTIE")
+        assert r9.status_code == 200
+        t_b, t_a = r9.text.find("ZTIEB"), r9.text.find("ZTIEA")
+        assert t_b != -1 and t_a != -1 and t_b < t_a, \
+            "tie-break failed: at equal hit-rate (both 18/19) the bigger mean residual " \
+            "(ZTIEB +0.5σ) must rank above the smaller (ZTIEA +0.2σ)"
+
         # -- divergence: two populated broad indices -------------------------------------
         r5 = c.get("/dash/seasonal-divergence?a=Nifty 500&b=Nifty 200")
         assert r5.status_code == 200 and "Index divergence" in r5.text, r5.status_code
@@ -665,17 +772,19 @@ def _selftest() -> int:
 
         # -- DESCRIPTIVE-ONLY FENCE: no forward-return / expected-move / horizon-pill /
         # traffic-light leaks on ANY route/state, including the new index-filtered ones.
-        for text in (r1.text, r2.text, r3.text, r5.text, r7.text, r8.text):
+        for text in (r1.text, r1s.text, r2.text, r3.text, r5.text, r7.text, r8.text, r9.text):
             low = text.lower()
             for token in ("expected move", "forward return"):
                 assert token not in low, f"leaked forbidden token {token!r}"
             for token in ("1M", "\U0001F7E2", "\U0001F7E1", "⚪"):
                 assert token not in text, f"leaked forbidden token {token!r}"
 
-        print("seasonal_screen_view selftest OK — screen defaults to RANKED base-rate view "
-              "(D122: sort=hit desc, lean=hot) with honest banner + Wilson CI, both routes 200 "
-              "+ honest-empty, no forward-return/expected-move/1M/traffic-light leaks; sub-nav "
-              "trio + index->constituent-stocks drill (filter/header/coverage/clear-chip) wired")
+        print("seasonal_screen_view selftest OK — screen defaults to CONFIDENCE-ADJUSTED ranked "
+              "base-rate view (D122+: Wilson lower-bound, ties on mean residual) with Strength-t "
+              "sort + per-name month-rank columns; equal-hit-rate tie-break resolves by mover size; "
+              "honest banner + Wilson CI, both routes 200 + honest-empty, no forward-return/"
+              "expected-move/1M/traffic-light leaks; sub-nav trio + index->constituent-stocks drill "
+              "(filter/header/coverage/clear-chip) wired")
     finally:
         _DB_PATH = saved
         if os.path.exists(tmp):
