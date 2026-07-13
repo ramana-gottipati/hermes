@@ -10,6 +10,14 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-14 — S134: S-C EDUCATION (items 1 + 7) SHIPPED + DEPLOYED + LIVE-WALKED — do NOT redo; kickstart-pick-verify
+- **Item 1 — shared `infographics.fence(kind, detail="", *, cap=False)` (`41a5b81`).** Single source of the descriptive-only boundary wording (the audit's "≥9 phrasings across ~24 sites"). `_FENCE_COPY` = the sanctioned vocabulary; unknown kind = hard `KeyError` (selftest-asserted); `detail` keeps page-specific leads verbatim; `fence_note()`+`.rd-fence` for new pages. **11 sites migrated BYTE-EQUIVALENTLY** (insider/sast/shp/ratings=not_advice · participants=context · move-anatomy=not_signal · launchpad/screen+=not_reco · strategist=not_buy/not_sell · buyback=arithmetic). **Deferred, NOT drift:** forked cockpit/seasonal, JS chart-chip `title=` tooltips, bespoke bandlock M-04 banner, prose tails (market_internals:389/results_reactions:408).
+- **Item 7 — site-wide "New here?" on-ramp in `ui_kit.topbar()` (`4c6df9a`).** First tried `dashboard._shell` → **never rendered** (`shell_skin.reskin()` replaces dashboard's `<header>` with the ui_kit topbar at runtime). Correct home = `topbar()` (both native `K.shell` + reskinned legacy flow through it) → one inline link on **every** `/dash` page (live-verified home/insider/coverage/screen2/reading-guide). **LESSON: the live chrome is `ui_kit.topbar` / `shell_skin`, NOT `dashboard._shell` — the skin owns the header. Any future chrome edit goes there.**
+- **Loose item CLOSED — "Ramana" stripped from chrome (`cca86d4`).** Two CSS comments shipped to every page's `<style>` (dashboard `_BASE_CSS` + shell_skin skin CSS) → `curl` grepped 2× "Ramana"; neutralised to "the desk". Live re-walk = **0** rendered "Ramana" site-wide. (The S-C inventory agent wrongly called it comment-only — verify chrome leaks with a live `curl | grep`, not a source read.)
+- **Deploy craft that held (multi-lane, 3 sibling lanes active):** deploy `git show HEAD:` NOT the working tree (a parallel lane's uncommitted reversal-context contaminated `screener_plus.py`; my committed fence was preserved by their own deploy). CR-strip BOTH sides in fork-checks (`core.autocrlf=true` → git blobs are CRLF; one-sided strip false-flagged all 12). When HEAD moves past your commit mid-session, `HEAD~1` becomes YOUR commit → re-anchor fork-checks on the explicit base SHA. Anchored in-place replace (assert count==1 + rollback) for D80-forked `dashboard.py` + pre-S128-drifted files; clean scp for base-matched isolated modules.
+- **⚠ Observed drift (not mine to fix): the S128 Codex fence-sweep (`5c6720f`) is UNDEPLOYED on the box for `participants_view`/`launchpad_track_view`/`strategist_view`** (VPS shows pre-S128 stance_read / "6 months" label / composite-score ORDER BY). I deployed ONLY my fence hunk there (surgical), leaving their drift for the S128/Codex lane to complete.
+- **Remaining S-C queue (next education session, in order):** **item 2** — back-fit `bottom_line`/`plain`/`how_to_read_link` to the 14 pre-sprint priority pages (momentum·growth·credibility·rrg·rsband·rotation·insider·ratings·sast·shp·screen2·wire·wolfe-scan·stock-dossier top strip) + fold `wolfe_trades._bottom_line` into the shared helper (each page needs `ifx.readability_css()` injected too). **item 3** — wire `gloss()`/`?q=` into every "neither" page. **item 4** — unify Pat's 52-term dict onto the 405-key web glossary (`docs/metrics-glossary.md` via `glossary.lookup/terms`); genuine schema mismatch + Pat's `engine.py`/`web.py` are forked by a parallel Pat lane → **its own session; S-E depends on it.** **item 5** — de-metaphor nav labels (Weather/Clock/Band/All-weather/Launchpad) — needs a `subtitle` field on the `Lens` dataclass threaded through the FORKED nav files.
+
 ## ✅ 2026-07-14 — S133: S-H no-orphan ROUTE-REGISTRY GATE SHIPPED (`181fd01`, on origin/main) — do NOT redo; kickstart-pick-verify
 - **`tests/test_dash_route_registry.py`** — the structural gate the audit §8 / `SURFACE-PLAYBOOK.md` §5 name. Every `/dash` route `src.main` serves must classify into ONE RouteKind (`lens`·`nested_child`·`dossier`·`api_or_action`·`compat_redirect`·`internal_dev`·`exempt`-with-owner+rationale). `lens`+`compat_redirect` DERIVED from `lens_registry`+`nested_nav` (no drift); the rest are machine-readable tables seeded from the §5 orphan inventory. Unregistered route → FAIL (2 synthetic-orphan proofs), SURFACE-PLAYBOOK checklist in the message. **158 paths classify clean; 7 pytest contracts green; full suite 149 passed.** Test-only/additive (no src/scripts, no deploy); **auto-run by `regression_sweep.sh` Gate 0** beside `nav_integrity_gate.py`.
 - **To satisfy it when adding a page:** register a `Lens` (or add the route to exactly one machine-readable table in the test WITH owner+rationale) — prose in a doc does NOT count (playbook §5). Complements, does not replace, `scripts/nav_integrity_gate.py` (rendered-reachability).
@@ -29,7 +37,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** ~~S-H route-registry gate~~ **✅ DONE S133 (`181fd01`)** → **S-C education-everywhere (NEXT)** → S-D search/entry. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route-registry gate~~ **✅ DONE S133** → ~~S-C education items 1+7~~ **✅ DONE S134** → **S-C remainder (item 2 scaffold back-fit — NEXT) + items 3/4/5** → S-D search/entry. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.
@@ -349,25 +357,36 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`
 > (§ AT SESSION START), then execute `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom —
-> read the 🆕 S120 + S121 block FIRST (Seasonal Tape + the Wolfe "Open trades — remaining ROI"
-> view both landed 2026-07-12 + on origin/main; do NOT redo either — kickstart-pick-verify).
-> (1) Run the remaining watches: results-reactions (Jul-10 18:01 UTC) + board-health (22:01
-> UTC, silent = green) results in the journals; **first-ever season-digest DM Sat 02:45 UTC —
-> missing = real bug, page it, never `systemctl start` mid-day (AUD-95)**; Sat 21:00
-> provenance is on its own scheduled task, skip.
-> (2) Pick per § NEXT PICKS: wolfe lane → **the "Open trades" view shipped S121/D120 (`7c4fd74`);
-> remaining = point-4-strength (his chart) / D95 tape-wiring / §C PIT backtest**; seasonal lane →
-> pre-2012 SECTOR-index history (still 2012-capped → sector tapes grey) + a durable niftyindices
-> fetcher in `indexes.py`; product lane → X-04
-> overnight/intraday split + pump-flag; bus lane → the **SSE live stream** (the last unbuilt
-> bus face; the alert rail shipped S123 `8241bba` + the since-you-last-looked brief S108/D110);
-> quant lane → AUD-14 (morning window only).
-> E-studies are armed + self-gating (E-02 Jul-22 · E-14 Jul-25 · E-04 Aug-01) — do NOT run early.
-> (3) Standing fences: descriptive-only estate + honesty fences; D106 — the attention face
-> carries NO gate, never promote it to a strategy without its own study; forked-nav files =
-> pull-patch-push or anchored inserts, NEVER full-file scp; `tr` not sed; explicit-path
-> staging; fork-check VPS live files + grep origin for session-number claims BEFORE building.
-> Access is harness-enforced — never ask for access or per-step confirmation; get guidance
-> from the agents, not from me; I won't answer. Keep every guardrail (esp. #8
-> primary-sources-only). Perimeter: curl via the Caddy hostname or ssh-localhost, never raw
-> :8000. Wrap per § AT SESSION END and hand off the next prompt.
+> read the ✅ S134 + S133 + S-A blocks FIRST (all on origin/main; do NOT redo — kickstart-pick-verify).
+> **THE QUEUE = the S127 UX-remediation program** (`docs/ux-journey-audit-2026-07-13.md` §8).
+> Done: S-A front door · S-H route gate · **S-C education items 1 (`fence()` vocabulary) + 7
+> ("New here?" on-ramp)** + the "Ramana" chrome strip. **NEXT pick = S-C remainder, in order:**
+> (1) **item 2** — back-fit the readability scaffold (`infographics.bottom_line`/`plain`/
+> `how_to_read_link` + inject `readability_css()`) to the 14 pre-sprint priority pages
+> (momentum·growth·credibility·rrg·rsband·rotation·insider·ratings·sast·shp·screen2·wire·
+> wolfe-scan·stock-dossier top strip) + fold `wolfe_trades._bottom_line` into the shared helper;
+> (2) **item 3** — wire `gloss()`/`?q=` into every "neither" page; (3) **item 4** — unify Pat's
+> 52-term dict onto the 405-key web glossary (its own session — Pat files forked, schema mismatch,
+> S-E depends on it); (4) **item 5** — de-metaphor nav labels (add a `subtitle` field to the `Lens`
+> dataclass). Then **S-D** search/entry. Ramana may paste a per-session problem statement; if none,
+> take the audit §8 brief autonomously.
+> **Reuse, don't rebuild:** `infographics.fence(kind, detail=, cap=)` for ANY new descriptive fence
+> (add a kind to `_FENCE_COPY`, never hand-write); `infographics.readability_css/bottom_line/plain/
+> how_to_read_link` for the scaffold; **the live chrome is `ui_kit.topbar`/`shell_skin`, NOT
+> `dashboard._shell` (the skin replaces the header at runtime) — any chrome edit goes there.**
+> **Multi-lane hygiene (this tree runs 4+ lanes):** verify HEAD + fork-check the VPS BEFORE editing/
+> deploying any shared file; deploy `git show HEAD:` NOT the working tree (sibling lanes leave
+> uncommitted edits in it); CR-strip BOTH sides in md5 fork-checks (`core.autocrlf=true`); when HEAD
+> moves past your commit, re-anchor fork-checks on the explicit base SHA; `git diff --cached
+> --name-only` before EVERY commit; explicit-path staging; `state:skip` when PROJECT_STATE is hot;
+> grep origin for the newest session number before claiming yours (131-134 taken).
+> **Deploy:** anchored in-place replace (assert count==1 + rollback) for D80-forked
+> `dashboard.py`/`v2_surfaces.py`/`lens_registry.py`; clean scp only for base-matched isolated
+> modules; remote IMPORT test (not just py_compile) + writer-safe `hermes-api` restart (fuser-clean,
+> never `systemctl start` a timer mid-day, AUD-95); curl via the Caddy hostname or ssh-localhost,
+> never raw :8000; live-walk every shipped item. **⚠ The S128 Codex fence-sweep (`5c6720f`) is
+> undeployed on the box for participants/launchpad/strategist** — the S128/Codex lane's deploy to
+> complete, not yours.
+> Access is harness-enforced — never ask for access or per-step confirmation; get guidance from the
+> agents, not from me; I won't answer. Keep every guardrail (esp. #8 primary-sources, #9
+> SURFACE-PLAYBOOK for any new screen). Wrap per § AT SESSION END and hand off the next prompt.
