@@ -309,6 +309,46 @@ Universe 3,491 EQ symbols, signals 2012-06→2026-07, n=35,519 BUY events (de-ov
 
 ---
 
+## Study 2026-07-14 — FRACTAL FLOOR (10-fractal floor + 2°-up-fractal breakout trigger) (DONE — event gate FAIL-null; but the PROX≤10% structural-stop BOOK is the FIRST reversal-family cell to clear 0.89 flat-cost in BOTH halves — flat-cost-only, UNCONFIRMED)
+
+Ramana's fractal spec (docs/reversal-pair-PLAN.md §1): floor = confirmed degree-10 down-fractal low
+(knowable only 10 bars later — enforced); WATCH = close within +15% of a live floor; TRIGGER = close
+crosses the most recent confirmed 2°-up-fractal high (T1); STRONG = also above the higher of the last
+two (T2); floor dies on a close below it. Pre-registered + hash-frozen BEFORE run (prereg
+`fractal_floor` `939a33cc`, `--verify` clean); module `research/explosive_moves/fractal_floor.py`; JSON
+`out/fractal_floor.json`. 3,491 symbols 2012-06→2026-07; n=23,287 D10 triggers + 54,140 watch events;
+same harness/controls/gates as STREAM BAND; long side only (bear mirror deferred, disclosed).
+
+- **Event verdict: FAIL-null (G2/G3/G4).** 22d excess mean **+0.27%** / median **−0.79%** / 45.5% pos;
+  both placebos still better (means +0.39/+0.42, δ **−0.012/−0.016**); halves −0.87/−0.75. Fixed-horizon
+  timing edge: none.
+- **The pre-registered trigger-vs-watch contrast: δ +0.004 ≈ ZERO — the up-fractal breakout confirmation
+  adds NOTHING over mere floor proximity at fixed horizons.** And **STRONG (beats-first-two-up-frac) is
+  WORSE** (mean −0.01 vs +0.41 not-strong) at event level. The floor is the information; the breakout
+  craft is not.
+- **Book cells (flat 0.3%/side): ALL 0.62 (0.79/0.54, DD −66%) FAIL · TREND 0.77 (0.80/0.77) FAIL-close ·
+  STRONG 0.73 · LIQ5 0.54 · but PROX10 (entry within 10% of the floor) = Sharpe 1.04 FULL, halves
+  0.92 / 1.15 — BOTH above the 0.89 hurdle — CAGR 16.3%, MaxDD −28.5%, ~69 avg positions, hit 37.2%,
+  median trade −2.34% / mean +0.94%, 88% of exits = trailing 2°-fractal structure stops.** First
+  reversal-family book EVER to clear the bar (PULLBACK 0.56–0.72 · S3 −0.5% · STREAM BAND 0.37 never
+  did). Mechanical story: the edge, if real, is **risk GEOMETRY not entry timing** — a hard structural
+  stop ≤10% below entry × trail-exit skew harvesting (66d event mean +0.66 vs med −1.82 = heavy right
+  skew), i.e. Ramana's floor concept working as position-risk design.
+- **⚠ NOT a validated strategy — three fences BEFORE any promotion (each pre-registered fresh):**
+  (1) **participation-cost recut** — the 1.04 is FLAT-COST-ONLY and the C-BLEND lesson (1.32→0.52@₹25cr)
+  says this is where such numbers die; ~monthly effective turnover + a 1-5cr liquidity tail make it
+  vulnerable; (2) **random-entry / same-exit control** — the Wolfe lesson inverted: does the trail-stop
+  exit rule alone, on random eligible entries, reproduce ~1.04? If yes the fractal entry is inert and
+  this is a generic trend-trail artifact; (3) **stop-fill realism** (+1-bar entry lag; gap-through-stop
+  stress) — close-based structural stops flatter fills. Also disclosed: PROX10 is ONE of FIVE
+  pre-registered book cells (selection-effect deflation applies). **Until all three pass: descriptive-
+  only, flat-cost-only; do NOT cite 1.04 as fundable.**
+- **Fine-tuning grid:** degree D5/D2 ≈ D10 (no degree edge); prox≤5% median −0.24 (best median, n=1,257);
+  TREND mean +0.62 vs ANTITREND −0.40 (trend filter again); vol-hi tercile worst median −1.42; >₹25cr
+  least-bad −0.62 — the cap/vol-stdev intuition confirmed a third time. HLC/OHLC moot here.
+
+---
+
 ## Experiment 2026-06-24 — relative gate + PIT quality overlay (DONE)
 
 Ran `research/explosive_moves/overlay_experiment.py` (top-25 monthly, walk-forward, no look-ahead;

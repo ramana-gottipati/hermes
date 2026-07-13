@@ -1,0 +1,353 @@
+{
+ "registered_gate": "see module docstring (prereg registry: fractal_floor)",
+ "run_at": "2026-07-13 19:56Z",
+ "FORM1_primary_D10_trigger": {
+  "cell": {
+   "n": 23287,
+   "mean22": 0.274,
+   "med22": -0.791,
+   "pos%": 45.5
+  },
+  "horizons": {
+   "5d": {
+    "n": 23662,
+    "mean%": -0.032,
+    "med%": -0.474,
+    "pos%": 44.5
+   },
+   "10d": {
+    "n": 23584,
+    "mean%": 0.035,
+    "med%": -0.592,
+    "pos%": 45.3
+   },
+   "22d": {
+    "n": 23287,
+    "mean%": 0.274,
+    "med%": -0.791,
+    "pos%": 45.5
+   },
+   "66d": {
+    "n": 22751,
+    "mean%": 0.657,
+    "med%": -1.817,
+    "pos%": 44.9
+   }
+  },
+  "watch_cohort": {
+   "n": 54140,
+   "mean22": 0.294,
+   "med22": -0.866,
+   "pos%": 45.8
+  },
+  "placebo_sym": {
+   "n": 71187,
+   "mean22": 0.392,
+   "med22": -0.591,
+   "pos%": 46.9
+  },
+  "placebo_shift": {
+   "n": 21574,
+   "mean22": 0.423,
+   "med22": -0.546,
+   "pos%": 47.2
+  },
+  "cliffs_vs_sym": -0.0115,
+  "cliffs_vs_shift": -0.016,
+  "cliffs_trigger_vs_watch": 0.0036,
+  "half1_med22%": -0.87,
+  "half2_med22%": -0.753,
+  "gates": {
+   "G1_n300": true,
+   "G2_mean_med_pos": false,
+   "G3_cliffs_.05_both": false,
+   "G4_both_halves": false
+  },
+  "VERDICT": "FAIL-null"
+ },
+ "variants": {
+  "D5_trigger": {
+   "n": 31774,
+   "mean22": 0.306,
+   "med22": -0.811,
+   "pos%": 45.6
+  },
+  "D2_trigger": {
+   "n": 19912,
+   "mean22": 0.361,
+   "med22": -0.815,
+   "pos%": 45.7
+  },
+  "D5_watch": {
+   "n": 77447,
+   "mean22": 0.325,
+   "med22": -0.887,
+   "pos%": 45.7
+  },
+  "D2_watch": {
+   "n": 98801,
+   "mean22": 0.451,
+   "med22": -0.862,
+   "pos%": 45.9
+  },
+  "STRONG": {
+   "n": 7515,
+   "mean22": -0.007,
+   "med22": -0.994,
+   "pos%": 44.4
+  },
+  "not_STRONG": {
+   "n": 15772,
+   "mean22": 0.408,
+   "med22": -0.698,
+   "pos%": 46.1
+  },
+  "prox<=10%": {
+   "n": 10990,
+   "mean22": 0.306,
+   "med22": -0.535,
+   "pos%": 46.5
+  },
+  "prox<=5%": {
+   "n": 1257,
+   "mean22": 0.078,
+   "med22": -0.237,
+   "pos%": 47.7
+  },
+  "TREND": {
+   "n": 15362,
+   "mean22": 0.624,
+   "med22": -0.568,
+   "pos%": 46.9
+  },
+  "ANTITREND": {
+   "n": 7925,
+   "mean22": -0.403,
+   "med22": -1.208,
+   "pos%": 42.9
+  },
+  "LIQ_5cr": {
+   "n": 14821,
+   "mean22": 0.192,
+   "med22": -0.658,
+   "pos%": 46.4
+  }
+ },
+ "buckets": {
+  "turnover_lo": {
+   "n": 7761,
+   "mean22": 0.431,
+   "med22": -1.008,
+   "pos%": 44.2
+  },
+  "turnover_mid": {
+   "n": 7770,
+   "mean22": 0.326,
+   "med22": -0.77,
+   "pos%": 45.8
+  },
+  "turnover_hi": {
+   "n": 7756,
+   "mean22": 0.065,
+   "med22": -0.613,
+   "pos%": 46.6
+  },
+  "vol66_lo": {
+   "n": 7810,
+   "mean22": 0.391,
+   "med22": -0.312,
+   "pos%": 47.4
+  },
+  "vol66_mid": {
+   "n": 7784,
+   "mean22": 0.205,
+   "med22": -0.957,
+   "pos%": 44.9
+  },
+  "vol66_hi": {
+   "n": 7693,
+   "mean22": 0.225,
+   "med22": -1.419,
+   "pos%": 44.2
+  },
+  "price_lo": {
+   "n": 7764,
+   "mean22": 0.473,
+   "med22": -0.991,
+   "pos%": 44.9
+  },
+  "price_mid": {
+   "n": 7783,
+   "mean22": -0.008,
+   "med22": -1.015,
+   "pos%": 44.3
+  },
+  "price_hi": {
+   "n": 7740,
+   "mean22": 0.359,
+   "med22": -0.433,
+   "pos%": 47.4
+  },
+  "floor_age_lo": {
+   "n": 9254,
+   "mean22": 0.352,
+   "med22": -0.675,
+   "pos%": 46.2
+  },
+  "floor_age_mid": {
+   "n": 6867,
+   "mean22": 0.125,
+   "med22": -0.898,
+   "pos%": 44.9
+  },
+  "floor_age_hi": {
+   "n": 7166,
+   "mean22": 0.317,
+   "med22": -0.816,
+   "pos%": 45.4
+  },
+  "band_1-5cr": {
+   "n": 8466,
+   "mean22": 0.419,
+   "med22": -1.018,
+   "pos%": 44.1
+  },
+  "band_5-25cr": {
+   "n": 6632,
+   "mean22": 0.359,
+   "med22": -0.711,
+   "pos%": 46.2
+  },
+  "band_>25cr": {
+   "n": 8189,
+   "mean22": 0.056,
+   "med22": -0.621,
+   "pos%": 46.5
+  }
+ },
+ "FORM2_trades": {
+  "n": 22404,
+  "hit%": 37.2,
+  "mean_net%": 0.94,
+  "med_net%": -2.34,
+  "avg_hold": 23.1,
+  "censored": 347,
+  "exit_mix": {
+   "floor_stop": 2250,
+   "trail_stop": 19807,
+   "censored": 347
+  }
+ },
+ "FORM2_book": {
+  "ALL": {
+   "full": {
+    "sharpe": 0.62,
+    "cagr%": 11.1,
+    "maxdd%": -66.4,
+    "months": 170
+   },
+   "h1_2012_18": {
+    "sharpe": 0.79,
+    "cagr%": 12.5,
+    "maxdd%": -26.6,
+    "months": 79
+   },
+   "h2_2019_26": {
+    "sharpe": 0.54,
+    "cagr%": 9.9,
+    "maxdd%": -55.4,
+    "months": 91
+   },
+   "avg_pos": 148.5,
+   "FUNDABLE_vs_0.89": false
+  },
+  "STRONG": {
+   "full": {
+    "sharpe": 0.73,
+    "cagr%": 12.1,
+    "maxdd%": -38.7,
+    "months": 169
+   },
+   "h1_2012_18": {
+    "sharpe": 0.52,
+    "cagr%": 7.5,
+    "maxdd%": -27.6,
+    "months": 79
+   },
+   "h2_2019_26": {
+    "sharpe": 0.91,
+    "cagr%": 16.3,
+    "maxdd%": -20.3,
+    "months": 90
+   },
+   "avg_pos": 48.4,
+   "FUNDABLE_vs_0.89": false
+  },
+  "TREND": {
+   "full": {
+    "sharpe": 0.77,
+    "cagr%": 14.1,
+    "maxdd%": -55.5,
+    "months": 169
+   },
+   "h1_2012_18": {
+    "sharpe": 0.8,
+    "cagr%": 12.4,
+    "maxdd%": -21.6,
+    "months": 79
+   },
+   "h2_2019_26": {
+    "sharpe": 0.77,
+    "cagr%": 15.6,
+    "maxdd%": -46.9,
+    "months": 90
+   },
+   "avg_pos": 98.5,
+   "FUNDABLE_vs_0.89": false
+  },
+  "PROX10": {
+   "full": {
+    "sharpe": 1.04,
+    "cagr%": 16.3,
+    "maxdd%": -28.5,
+    "months": 170
+   },
+   "h1_2012_18": {
+    "sharpe": 0.92,
+    "cagr%": 13.9,
+    "maxdd%": -22.6,
+    "months": 79
+   },
+   "h2_2019_26": {
+    "sharpe": 1.15,
+    "cagr%": 18.5,
+    "maxdd%": -17.2,
+    "months": 91
+   },
+   "avg_pos": 69.2,
+   "FUNDABLE_vs_0.89": true
+  },
+  "LIQ5": {
+   "full": {
+    "sharpe": 0.54,
+    "cagr%": 9.2,
+    "maxdd%": -65.8,
+    "months": 170
+   },
+   "h1_2012_18": {
+    "sharpe": 0.63,
+    "cagr%": 9.7,
+    "maxdd%": -23.4,
+    "months": 79
+   },
+   "h2_2019_26": {
+    "sharpe": 0.5,
+    "cagr%": 8.7,
+    "maxdd%": -57.5,
+    "months": 91
+   },
+   "avg_pos": 92.9,
+   "FUNDABLE_vs_0.89": false
+  }
+ }
+}

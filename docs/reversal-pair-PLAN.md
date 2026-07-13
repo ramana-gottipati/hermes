@@ -5,7 +5,14 @@
 > both placebos beat it; book Sharpe 0.37 vs 0.89 hurdle; best cell TREND 0.58 = PULLBACK-class).
 > Full record: `docs/strategy-ledger.md` § "Study 2026-07-13 — STREAM BAND". Consequence: §2's
 > cross NEVER ships as an entry/alert; only the descriptive state + stretch-percentile columns
-> remain candidates. FRACTAL FLOOR (§1) untested — its study must cite the ledger entry first.
+> remain candidates.
+>
+> **STATUS 2026-07-14: FRACTAL FLOOR tested (prereg `939a33cc`) → event gate FAIL-null**
+> (trigger ≈ watch ≈ placebo at fixed horizons; STRONG hurts) — **BUT the PROX≤10% structural-stop
+> book cleared 0.89 flat-cost in BOTH halves (1.04; 0.92/1.15; MaxDD −28.5%) — the first
+> reversal-family cell ever to do so.** Flat-cost-only + one-of-five-cells; three fences queued
+> before any promotion (participation recut · random-entry/same-exit control · stop-fill realism).
+> Ledger § "Study 2026-07-14 — FRACTAL FLOOR" is canonical.
 
 > **Lifecycle: TRANSIENT** — this is the pre-build design doc for the two reversal strategies
 > Ramana specified on 2026-07-13 (voice-note session). **Retire condition:** when built, fold the
