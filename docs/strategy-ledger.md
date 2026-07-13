@@ -274,6 +274,41 @@ forward signal at 60d on either outcome, exactly as the failure-ledger predicted
 
 ---
 
+## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
+
+Ramana's band spec (docs/reversal-pair-PLAN.md): EMA13(adj-high)/EMA13(adj-low) banks + EMA5(HLC3)
+trigger; BUY-cross = trigger reclaims the lower bank after ≥3 bars below. Pre-registered + hash-frozen
+BEFORE first run (prereg `streamband` `92fc5cac`, `--verify` tamper-clean); module
+`research/explosive_moves/streamband.py`; full JSON `research/explosive_moves/out/streamband.json`.
+Universe 3,491 EQ symbols, signals 2012-06→2026-07, n=35,519 BUY events (de-overlap 22 bars, med_turn
+≥₹1cr, close ≥20); PIT entry = next close; outcomes = excess vs Nifty-500 over identical spans; controls
+= same-symbol random-bar placebo ×3 + same-event +63-bar shift placebo.
+
+- **Verdict: FAIL-null — G2/G3/G4 all fail, and the cross is an ANTI-signal at entry.** 22d excess
+  mean **−0.22%** / median **−1.25%** / 44.1% positive; **BOTH placebos beat the signal** (same-symbol
+  random mean **+0.32%**, shifted **+0.31%**); Cliff's δ **−0.019 / −0.027**; halves **−1.62% / −1.10%**
+  (negative in both). Uniform across horizons (5d −0.68 · 10d −0.89 · 22d −1.25 · 66d −2.73 median).
+  An early band-reclaim after a real downtrend is a falling knife more often than a reversal.
+- **Book (for the record): Sharpe 0.37** full (halves **0.16 / 0.53**), MaxDD **−56%**, hit 41%, median
+  trade **−2.08% net**, avg hold 15 bars — nowhere near the 0.89 hurdle. Best variant = TREND-filtered
+  (close>SMA200) **0.58 (0.40/0.72)** — the SAME sub-index zone as the ledger's PULLBACK row (0.56–0.72):
+  two independent constructions of "buy the dip in an uptrend" converge below buy-and-hold. ANTITREND
+  (pure bottom-catch) worst: **0.21, MaxDD −59.6%**.
+- **Fine-tuning grid (exploratory): every lever moves the right way, none reaches zero.** STRETCH≥p10
+  precondition mean −0.185 vs −0.274 without (the per-stock stretch-percentile idea = directionally real,
+  far too small); liquid/large least bad (>₹25cr med −0.73 vs 1-5cr −1.64; vol-hi tercile worst −1.88) —
+  the cap/vol-stdev intuition is CONFIRMED descriptively. **HLC3 vs OHLC4: identical** (−1.25 vs −1.29
+  med) — the trigger-construct choice is a non-issue.
+- **Hypothesis-generating only (fresh prereg required):** 66d mean ≈0 with median −2.7% = heavy right
+  skew — a minority of crosses do launch; the open question is WHICH NAMES (selection, the Wolfe lesson),
+  not WHEN. SELL-side mean **+0.72%** (median −0.81%) — not a short signal either.
+- **Disposition: the cross is NOT an entry signal — never rank or alert on it. If STREAM BAND surfaces
+  in product it is a DESCRIPTIVE state/stretch lens** (band position + own-history stretch percentile as
+  context columns). The untested sibling = FRACTAL FLOOR's ARMED→TRIGGERED breakout confirmation — its
+  study needs its own pre-registration and must cite THIS entry first.
+
+---
+
 ## Experiment 2026-06-24 — relative gate + PIT quality overlay (DONE)
 
 Ran `research/explosive_moves/overlay_experiment.py` (top-25 monthly, walk-forward, no look-ahead;
