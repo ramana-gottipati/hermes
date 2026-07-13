@@ -17,8 +17,9 @@ Needs statsmodels in the research venv:
     /opt/hermes/.venv-research/bin/python -m research.cci.gate_residual_alpha
 
 Read-only. Price/size/momentum/PEAD controls are point-in-time from the bhav
-archive; ROCE/debt are POINT-IN-TIME from fundamentals_history (report_date <= the
-anchor — the `latest_known` pattern, fixing CL-RES-02). The credibility regressor is
+archive; ROCE/debt are POINT-IN-TIME from fundamentals_history via the provenance
+EFFECTIVE-date map (fundamentals_asof; real BSE filing date, else the calibrated lag —
+no-leak, AUD-22; the `latest_known` pattern, fixing CL-RES-02). The credibility regressor is
 the leak-free per-period AS-OF composite from the precomputed `credibility_series`
 (cci_series.py: composite restricted to promises resolved on/before each anchor, no
 look-ahead). If that series is unbuilt the gate renders UNSCORED (CL-RES-01) rather
@@ -40,8 +41,9 @@ from research.explosive_moves.common import RESEARCH_DB
 # --- PIT fundamentals (CL-RES-02) ------------------------------------------
 # ROCE / debt-to-equity must be known AS OF the anchor, not the latest snapshot, or
 # a 2021 forward return gets orthogonalised against 2026 quality → the credibility
-# coefficient is biased by look-ahead. Read fundamentals_history with report_date <=
-# anchor (the same `latest_known` join factor_zoo uses). debt/equity is derived from
+# coefficient is biased by look-ahead. Read fundamentals_history via the effective-date
+# map (fundamentals_asof, AUD-22 — real BSE filing date / calibrated lag <= anchor; the same
+# `latest_known` join + PIT source factor_zoo now uses). debt/equity is derived from
 # Borrowings / (Equity Capital + Reserves) exactly as factor_zoo.fundamentals does.
 #
 # NOTE: fundamentals_history lives in research.db (NOT the production hermes.db that
@@ -75,25 +77,28 @@ def _fund_con() -> sqlite3.Connection | None:
 
 def _load_fund_frame(sym) -> dict:
     """All PIT fundamentals rows for one symbol: {(period_type, metric): [(period_end,
-    report_date, value), ...]}. Empty dict if research.db / the table is absent."""
-    con = _fund_con()
-    if con is None:
+    EFFECTIVE_knowable_date, value), ...]}. Empty dict if research.db / the table is absent.
+
+    AUD-22 remainder: this used to read fundamentals_history directly and gate on the stored
+    +90/+50 modeled `report_date` (which the house PIT layer documents leaks ~12% for late
+    filers) — the same leak fixed in attribution/factor_zoo/gate_study. It now routes through
+    `fundamentals_asof.load_symbol_history` (the provenance EFFECTIVE-date map: real BSE filing
+    date, else the conservative calibrated lag; also rename-safe), so `_latest_known()`'s
+    `rd <= asof` gate is no-leak. `_fund_con()` is kept as the availability PROBE so the gate
+    still reports research.db/table absence (and omits PIT controls) rather than a silent []."""
+    if _fund_con() is None:              # probe → sets _FUND_UNAVAILABLE for the report
         return {}
-    fr: dict = {}
     try:
-        for r in con.execute(
-                "SELECT period_type, metric, period_end, report_date, value "
-                "FROM fundamentals_history WHERE symbol=? AND value IS NOT NULL", (sym,)):
-            fr.setdefault((r["period_type"], r["metric"]), []).append(
-                (r["period_end"], r["report_date"], r["value"]))
+        from src.automation.fundamentals_asof import load_symbol_history
+        return load_symbol_history(sym)  # (period_type, metric) → [(period_end, EFFECTIVE_date, value)]
     except Exception:
         return {}
-    return fr
 
 
 def _latest_known(fr, pt, names, asof):
-    """Most-recent value (by period_end) among rows whose report_date <= asof — the
-    point-in-time `latest_known` pattern (identical to factor_zoo.latest)."""
+    """Most-recent value (by period_end) among rows whose EFFECTIVE knowable date <= asof — the
+    point-in-time `latest_known` pattern (identical to factor_zoo.latest). AUD-22: the middle
+    element `rd` is the provenance effective date (real BSE filing date / calibrated lag), no-leak."""
     for nm in (names if isinstance(names, tuple) else (names,)):
         vals = [(pe, v) for (pe, rd, v) in fr.get((pt, nm), []) if rd and rd <= asof]
         if vals:
@@ -132,7 +137,7 @@ def _controls(con, o, series_cache, fund_cache) -> dict | None:
     pead = (p_now / p_21 - 1.0) if (p_21 and p_now and p_21 > 0) else np.nan
     if sym not in fund_cache:
         fund_cache[sym] = _load_fund_frame(sym)
-    f = _pit_fundamentals(fund_cache[sym], o["anchor"])    # report_date <= anchor
+    f = _pit_fundamentals(fund_cache[sym], o["anchor"])    # effective knowable date <= anchor
     return {"size": size, "momentum": mom, "pead": pead, "roce": f["roce"], "de": f["de"]}
 
 
@@ -172,7 +177,8 @@ def main() -> None:
             print("  ⚠ PIT controls: research.db/fundamentals_history unavailable — ROCE/debt OMITTED")
             print("    (the gate does NOT substitute a non-point-in-time snapshot; CL-RES-02).")
         else:
-            print(f"  PIT controls: ROCE knowable as-of-anchor on {n_roce}/{n} obs (report_date <= anchor).")
+            print(f"  PIT controls: ROCE knowable as-of-anchor on {n_roce}/{n} obs "
+                  f"(effective knowable date <= anchor — fundamentals_asof map, AUD-22).")
     if n < MIN_OBS:
         unscored_credibility(len(obs), n)
         print("=" * 72)
@@ -215,8 +221,9 @@ def main() -> None:
     passed = (cred_p < 0.05) and (model.params[ci] > 0)
     print("  " + "-" * 50)
     print(f"  VERDICT: {'PASS — credibility carries INCREMENTAL alpha after controls -> a standalone book is defensible.' if passed else 'FAIL — no incremental alpha after quality+momentum+PEAD -> MERGE CCI into pt14, do NOT ship a standalone book (debate decision rule).'}")
-    print("  NOTE: ROCE/debt are POINT-IN-TIME (fundamentals_history, report_date <= anchor;")
-    print("  CL-RES-02). credibility is a leak-free per-period AS-OF score (CL-RES-01).")
+    print("  NOTE: ROCE/debt are POINT-IN-TIME (fundamentals_history via the fundamentals_asof")
+    print("  effective-date map — no-leak, AUD-22; CL-RES-02). credibility is a leak-free per-period")
+    print("  AS-OF score (CL-RES-01).")
     print("=" * 72)
 
 
