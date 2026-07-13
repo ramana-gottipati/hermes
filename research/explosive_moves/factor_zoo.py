@@ -9,8 +9,13 @@ Factors: MOM6, MOM12, RISKADJ(mom/vol), LOWVOL, LOWBETA(BAB), RESID_MOM(idiosync
 HI52(52-wk-high), EARN_YIELD(E/P), BOOK_YIELD(B/P), QUALITY, and blends QUAL_MOM, VAL_MOM,
 DEFENSIVE(lowvol+quality), QMV(quality+mom+value), LOWVOL_MOM.
 
-Market cap / earnings / book are point-in-time (report_date<=date). Writes out/factor_zoo.csv.
-Read-only.
+Market cap / earnings / book are point-in-time via the provenance EFFECTIVE-date map
+(fundamentals_asof: real BSE filing date, else the conservative calibrated lag) — NOT the leaky
++90/+50 modeled report_date (AUD-22). Writes out/factor_zoo.csv. Read-only.
+
+Reproduce:
+  cd /opt/hermes && PYTHONPATH=/opt/hermes:/opt/hermes/research \
+    /opt/hermes/.venv-research/bin/python -m explosive_moves.factor_zoo
 """
 from __future__ import annotations
 import csv
@@ -19,9 +24,11 @@ import sqlite3
 import numpy as np
 import sys
 sys.path.insert(0, "/opt/hermes/research")
+sys.path.insert(0, "/opt/hermes")                              # AUD-22: reach src.automation.*
 from explosive_moves.embase import load_symbol_cache
 from explosive_moves.metrics import index_series
 from explosive_moves.factory import eqstats, pctrank, COST_PS
+from src.automation.fundamentals_asof import load_symbol_history  # AUD-22 PIT effective-date map
 
 RDB = "/opt/hermes/data/research.db"; HDB = "/opt/hermes/data/hermes.db"
 REBAL, TOPN, GATE_PCTL, W = 22, 25, 0.60, 252
@@ -30,12 +37,10 @@ _BORROW = ("Borrowings", "Borrowing")
 
 
 def load_frame(con, s):
-    fr = {}
-    for pt, m, pe, rd, v in con.execute(
-        "SELECT period_type,metric,period_end,report_date,value FROM fundamentals_history "
-        "WHERE symbol=? AND value IS NOT NULL", (s,)):
-        fr.setdefault((pt, m), []).append((pe, rd, v))
-    return fr
+    # AUD-22: PIT via the provenance effective-date map — the frame's middle element is the
+    # EFFECTIVE knowable date (real BSE filing date, else the conservative calibrated lag), not
+    # the leaky +90/+50 modeled report_date, so latest()'s `rd <= asof` gate is now no-leak.
+    return load_symbol_history(s)
 
 
 def latest(fr, pt, names, asof):

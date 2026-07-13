@@ -2,12 +2,18 @@
 
 > **⚠ READ FIRST — the honest headline (updated 2026-07-02 with attribution + participation-cost results).**
 > Every Sharpe/alpha below is **GROSS, flat-cost**. Two rigor passes settle what it really is:
-> 1. **It's momentum-BETA, not selection alpha — PROVEN** (`research/explosive_moves/attribution.py`,
->    7-factor Newey-West). Controlling for the generic momentum factor (WML)+market, RISKADJ's residual
->    α falls to **+7.3%, HAC t=1.99 → fails the t≥3 selection bar; WML eats 51% of the raw α.** It is
->    0.95×market + 0.61×a generic momentum premium + a short-low-vol tilt. The momentum premium itself is
->    real (Fama-MacBeth λ t=3.36, Deflated-Sharpe 0.966, PBO 0.34) but **un-proprietary**. Survivorship is
->    second-order (delisting-return booking moves Sharpe +0.02).
+> 1. **It's momentum-BETA, not selection alpha — PROVEN, and RE-VALIDATED under no-leak PIT (AUD-22, 2026-07-13).**
+>    (`research/explosive_moves/attribution.py`, 7-factor Newey-West.) Controlling for the generic momentum
+>    factor (WML)+market, RISKADJ's residual α falls to **+6.69%/yr, HAC t=1.80 → fails the t≥3 selection
+>    bar; WML now eats 58% of the raw α.** It is 0.98×market + 0.66×a generic momentum premium + a
+>    short-low-vol tilt (BAB −0.53). The momentum premium itself is real (Fama-MacBeth λ t=3.30,
+>    Deflated-Sharpe 0.963, PBO 0.357) but **un-proprietary**. Survivorship second-order (Sharpe +0.00).
+>    **AUD-22 note:** the original numbers (**+7.3%, t=1.99**, WML 51%) were computed on the leaky +90/+50
+>    modeled `report_date` (the house's own PIT layer documents it leaks ~12% for late filers). Re-running
+>    the attribution through the provenance **effective-date map** (`fundamentals_asof`; real BSE filing
+>    date, else the conservative calibrated lag) LOWERED the residual-α t (1.99 → 1.80) and RAISED WML's
+>    share (51% → 58%) — i.e. **correcting the leak strengthened, not weakened, the "beta not skill"
+>    verdict.** The conclusion is robust to the fix.
 > 2. **Net of realistic cost it's small-capacity, not scalable** (`cost_participation.py`): quarterly
 >    large-cap LOWVOL_MOM nets Sharpe **1.02 at ₹50cr (beats Nifty-500), ~breaks even ₹100-150cr, 0.61 at
 >    ₹500cr** — a ₹50-100cr DEFENSIVE tilt, not a large-scale edge. (This corrected the earlier AUM-blind

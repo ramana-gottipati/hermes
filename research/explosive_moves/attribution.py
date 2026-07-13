@@ -6,7 +6,10 @@ SELECTION, or mostly levered small/mid-cap beta + exposure to the (non-proprieta
 momentum factor itself, in a rising 2012-26 tape?
 
 Runs, on the SAME rebalance grid / gated universe / PIT fundamentals as factor_zoo.py
-(reuses embase cache + shared helpers; READ-ONLY on the DBs; no shared file modified):
+(reuses embase cache + shared helpers; READ-ONLY on the DBs; no shared file modified).
+PIT fundamentals go through the provenance EFFECTIVE-date map (fundamentals_asof; real BSE
+filing date, else the conservative calibrated lag) — NOT the leaky +90/+50 modeled
+report_date the old load gated on (AUD-22):
 
   1. 7-factor time-series (Jensen) regression, factors built on the strategy's OWN gated
      universe (tercile long-short spreads), risk-free-subtracted, Newey-West HAC (lag 6):
@@ -26,7 +29,7 @@ the beta estimates.
 
 Reproduce:
   ssh hermes
-  cd /opt/hermes && PYTHONPATH=/opt/hermes/research \
+  cd /opt/hermes && PYTHONPATH=/opt/hermes:/opt/hermes/research \
     /opt/hermes/.venv-research/bin/python -m explosive_moves.attribution
 """
 from __future__ import annotations
@@ -35,9 +38,11 @@ import sys
 import numpy as np
 
 sys.path.insert(0, "/opt/hermes/research")
+sys.path.insert(0, "/opt/hermes")                              # AUD-22: reach src.automation.*
 from explosive_moves.embase import load_symbol_cache            # noqa: E402
 from explosive_moves.metrics import index_series                # noqa: E402
 from explosive_moves.factory import pctrank, COST_PS            # noqa: E402
+from src.automation.fundamentals_asof import load_symbol_history  # noqa: E402 (AUD-22 PIT map)
 
 import statsmodels.api as sm                                    # noqa: E402
 from scipy import stats as sstats                               # noqa: E402
@@ -56,12 +61,13 @@ _BORROW = ("Borrowings", "Borrowing")
 
 # ------------------------- fundamentals (identical to factor_zoo) -------------------------
 def load_frame(con, s):
-    fr = {}
-    for pt, m, pe, rd, v in con.execute(
-        "SELECT period_type,metric,period_end,report_date,value FROM fundamentals_history "
-        "WHERE symbol=? AND value IS NOT NULL", (s,)):
-        fr.setdefault((pt, m), []).append((pe, rd, v))
-    return fr
+    # AUD-22: route through the provenance effective-date map — the frame's middle element is
+    # now the EFFECTIVE knowable date (real BSE filing date, else the conservative calibrated
+    # lag), NOT the stored +90/+50 modeled report_date that leaked ~12% for late filers. So the
+    # `rd <= asof` gate in latest() below is now no-leak (this is the fix `attribution.py:8`
+    # claimed but bypassed). `con` is kept for call-site compatibility (load_symbol_history opens
+    # its own RO handles); degrades to the stored report_date only if provenance is unavailable.
+    return load_symbol_history(s)
 
 
 def latest(fr, pt, names, asof):

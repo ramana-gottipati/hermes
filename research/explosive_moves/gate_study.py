@@ -5,8 +5,9 @@ Validates two claims, with data:
   (1) "top-X%-by-traded-VALUE" is a large-cap filter (excludes quality midcaps like PIXTRANS).
   (2) a turnover/MARKET-CAP velocity gate is size-neutral and includes them.
 
-Market cap is point-in-time: shares = NetProfit/EPS (latest annual known, report_date<=date;
-sign-robust since EPS=NP/shares) x RAW close that day. Turnover = value (Rs), never share count.
+Market cap is point-in-time: shares = NetProfit/EPS (latest annual known by the provenance
+EFFECTIVE knowable date, not the leaky +90/+50 modeled report_date — AUD-22; sign-robust since
+EPS=NP/shares) x RAW close that day. Turnover = value (Rs), never share count.
 
 Strategy held constant = variant D (RISKADJ + 50/50 PIT-quality blend, top-25 monthly) so only the
 GATE changes. Walk-forward, net cost, no look-ahead. Writes out/gate_study.csv. Read-only.
@@ -18,9 +19,11 @@ import sqlite3
 import numpy as np
 import sys
 sys.path.insert(0, "/opt/hermes/research")
+sys.path.insert(0, "/opt/hermes")                              # AUD-22: reach src.automation.*
 from explosive_moves.embase import load_symbol_cache
 from explosive_moves.metrics import index_series
 from explosive_moves.factory import eqstats, pctrank, COST_PS, CR
+from src.automation.fundamentals_asof import load_symbol_history  # AUD-22 PIT effective-date map
 
 RDB = "/opt/hermes/data/research.db"
 HDB = "/opt/hermes/data/hermes.db"
@@ -30,12 +33,10 @@ _BORROW = ("Borrowings", "Borrowing")
 
 
 def load_frame(con, s):
-    fr = {}
-    for pt, m, pe, rd, v in con.execute(
-        "SELECT period_type,metric,period_end,report_date,value FROM fundamentals_history "
-        "WHERE symbol=? AND value IS NOT NULL", (s,)):
-        fr.setdefault((pt, m), []).append((pe, rd, v))
-    return fr
+    # AUD-22: PIT via the provenance effective-date map — the frame's middle element is the
+    # EFFECTIVE knowable date (real BSE filing date, else the conservative calibrated lag), not
+    # the leaky +90/+50 modeled report_date, so latest()'s `rd <= asof` gate is now no-leak.
+    return load_symbol_history(s)
 
 
 def latest(fr, pt, names, asof):
