@@ -58,7 +58,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 | Goal | Command |
 |---|---|
 | SSH to VPS | `ssh root@187.127.173.149` |
-| Update VPS from latest GitHub | 🔴 **BANNED — never run `setup-news.sh` on the VPS** (AUD-28: its heredoc reverts live units) **and never `systemctl start` a hermes timer mid-day** (AUD-95: `Requires=` fires the job). Deploy = scp + writer-safe restart (`vps-deploy-reality` memory / PROJECT_STATE recipe). |
+| Update VPS from latest GitHub | 🔴 **Deploy = scp + writer-safe restart** (`vps-deploy-reality` memory / PROJECT_STATE recipe). Do NOT use `setup-news.sh` to update a live box — it is a FRESH-BOOTSTRAP script only (pip-install + unit-overwrite). Its AUD-28 hazards (stale heredocs that REVERTED live units + a mid-day `systemctl start`) were **FIXED S123** — it now delegates unit install to `scripts/install-systemd.sh` (canonical captured units) and never enables/starts. **Never `systemctl start` a hermes timer mid-day** (AUD-95: `Requires=` fires the job). |
 | Run 5y bhav copy backfill (background) | `nohup bash /opt/hermes/scripts/full-backfill.sh > /var/log/hermes-backfill.log 2>&1 &` |
 | Pull all VPS data to laptop | Double-click `D:\Hermes\scripts\download-from-vps.bat` |
 | Bot status | `systemctl status hermes-telegram` |
