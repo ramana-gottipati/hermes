@@ -120,6 +120,8 @@ table.at tr:hover td{background:#11161d;}
 .at-dismiss-all{margin-left:auto;font-size:11px;font-weight:700;color:var(--ink-3);
   text-decoration:none;border:1px solid var(--line-2);border-radius:9px;padding:2px 9px;}
 .at-dismiss-all:hover{color:var(--ink);border-color:var(--ink-3);}
+.at-chips-lbl{font-size:10.5px;color:var(--ink-3);margin-right:6px;text-transform:uppercase;
+  letter-spacing:.4px;}
 </style>
 """
 
@@ -225,16 +227,21 @@ _VAL_GLYPH = {
 
 def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
                       anchor: str | None, limit: int = 24, promoted_ever: bool = True,
-                      interactive: bool = True) -> str:
+                      interactive: bool = True, active_sev: str | None = None,
+                      active_val: str | None = None, as_of_param: str = "") -> str:
     """The alert rail — the bus's 4th face: the curated, multi-day, severity-graded set of
     the highest-impact state-changes, edge-triggered (each fires once). Distinct from the
     single-batch queue below and the per-viewer 'since you last looked' brief above it.
     Pure over its inputs (hermetically testable). '' is never returned — an empty rail is
     stated honestly (a quiet rail is a quiet rail). `interactive` (LIVE view only, never a
-    replay) adds the dismiss controls — server-side ack turns the rail into a triage inbox."""
-    total = int(count.get("total") or 0)
+    replay) adds the dismiss controls — server-side ack turns the rail into a triage inbox.
+    `active_sev`/`active_val` are the current triage filters; `alerts` is already filtered."""
+    total = int(count.get("total") or 0)                        # UNFILTERED window total
     by = count.get("by_severity") or {}
+    byv = count.get("by_valence") or {}
     crit, high = int(by.get("critical") or 0), int(by.get("high") or 0)
+    risk_n, opp_n = int(byv.get("risk") or 0), int(byv.get("opportunity") or 0)
+    filtered = bool(active_sev or active_val)
     badges = []
     if crit:
         badges.append(f'<span class="at-badge crit">{crit} critical</span>')
@@ -249,12 +256,48 @@ def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
            f'{window_days} days, each surfaced once — kept as they roll past today’s '
            f'batch. A <b>state-change, never a recommendation</b>; the <i>valence</i> tag '
            f'(risk / opportunity) reads the direction of the change, not what to do.</div>')
+
+    def _qs(sev, val):
+        parts = []
+        if as_of_param:
+            parts.append(f"as_of={_esc(str(as_of_param))}")
+        if sev:
+            parts.append(f"asev={sev}")
+        if val:
+            parts.append(f"aval={val}")
+        return "/dash/attention" + ("?" + "&".join(parts) if parts else "")
+
+    def _chip(label, href, on):
+        return f'<a class="at-chip{" on" if on else ""}" href="{href}">{label}</a>'
+
+    chips = ""
+    if total:   # only offer filters when the (unfiltered) rail has alerts to narrow
+        sev_c = (_chip("All", _qs(None, active_val), not active_sev)
+                 + _chip(f"Critical{f' {crit}' if crit else ''}", _qs("critical", active_val),
+                         active_sev == "critical")
+                 + _chip(f"High{f' {high}' if high else ''}", _qs("high", active_val),
+                         active_sev == "high"))
+        val_c = (_chip("All", _qs(active_sev, None), not active_val)
+                 + _chip(f"▼ Risk{f' {risk_n}' if risk_n else ''}", _qs(active_sev, "risk"),
+                         active_val == "risk")
+                 + _chip(f"▲ Opp{f' {opp_n}' if opp_n else ''}", _qs(active_sev, "opportunity"),
+                         active_val == "opportunity"))
+        chips = ('<div class="at-chips" style="margin-top:2px">'
+                 '<span class="at-chips-lbl">severity</span>' + sev_c
+                 + '<span class="at-chips-lbl" style="margin-left:12px">read</span>' + val_c
+                 + '</div>')
+
     if not alerts:
-        msg = ('✓ No high-impact alerts in the window (only genuinely notable changes are '
-               'promoted here — the full tape is the queue below).' if promoted_ever else
-               'The rail seeds on the nightly bus run (chain step 60) — no alerts have been '
-               'promoted on this host yet. The full tape is the queue below.')
-        return ('<div class="at-rail">' + head + sub
+        if filtered:
+            flabel = " ".join(x for x in (active_sev, active_val) if x)
+            msg = (f'No <b>{_esc(flabel)}</b> alerts in the window — clear the filter above, '
+                   f'or see the full tape below.')
+        else:
+            msg = ('✓ No high-impact alerts in the window (only genuinely notable changes are '
+                   'promoted here — the full tape is the queue below).' if promoted_ever else
+                   'The rail seeds on the nightly bus run (chain step 60) — no alerts have been '
+                   'promoted on this host yet. The full tape is the queue below.')
+        return ('<div class="at-rail">' + head + sub + chips
                 + f'<div class="at-rail-empty">{msg}</div></div>')
     rows = []
     for a in alerts[:limit]:
@@ -280,10 +323,14 @@ def render_alert_rail(alerts: list[dict], count: dict, *, window_days: int,
     dcol = '<th></th>' if interactive else ""
     head_row = ('<tr><th>Severity</th><th>Read</th><th>Symbol</th><th>Lens</th>'
                 f'<th>Note</th><th>From → To</th><th style="text-align:right">as_of</th>{dcol}</tr>')
-    more = (f'<div class="at-rail-more">+ {total - limit} more active — dismiss some, or '
-            f'see the full tape below</div>' if total > limit else "")
-    return ('<div class="at-rail">' + head + sub
-            + f'<table class="at">{head_row}{"".join(rows)}</table>' + more + '</div>')
+    shown = min(len(alerts), limit)
+    show_note = (f'<div class="at-rail-more">Showing {shown} of {len(alerts)} '
+                 + (f'<b>{_esc(" ".join(x for x in (active_sev, active_val) if x))}</b> ' if filtered else "")
+                 + f'alert(s){f" (of {total} active)" if filtered else ""}'
+                 + (' — dismiss some, or narrow with the filters above' if len(alerts) > limit
+                    else '') + '</div>') if (len(alerts) > limit or filtered) else ""
+    return ('<div class="at-rail">' + head + sub + chips
+            + f'<table class="at">{head_row}{"".join(rows)}</table>' + show_note + '</div>')
 
 
 def render_since_last_looked(new_events: list[dict], since_ts: str | None,
@@ -317,7 +364,8 @@ def render_since_last_looked(new_events: list[dict], since_ts: str | None,
 
 
 @router.get("/dash/attention", response_class=HTMLResponse)
-def attention_page(request: Request, as_of: str = "", lens: str = "") -> HTMLResponse:
+def attention_page(request: Request, as_of: str = "", lens: str = "",
+                   asev: str = "", aval: str = "") -> HTMLResponse:
     body = [_CSS]
     served: str | None = None
     seen_stamp: str | None = None      # write-back cookie value = the latest detected_at
@@ -353,12 +401,18 @@ def attention_page(request: Request, as_of: str = "", lens: str = "") -> HTMLRes
             # set of the highest-impact changes, anchored to the SERVED batch so a replay
             # windows on that date. Rendered for live AND replay; empty state is honest. ---
             if served and (st.get("events") or 0) > 0:
-                rail_alerts = SA.active_alerts(conn, within_days=7, limit=25, as_of=served)
-                rail_count = SA.active_count(conn, within_days=7, as_of=served)
+                a_sev = asev.strip().lower() if asev.strip().lower() in SA.SEVERITIES else None
+                a_val = aval.strip().lower() if aval.strip().lower() in SA.VALENCES else None
+                # full filtered set (window ≤ few hundred) — render caps the display + counts "+more"
+                rail_alerts = SA.active_alerts(conn, within_days=7, limit=1000, as_of=served,
+                                               sev=a_sev, val=a_val)
+                rail_count = SA.active_count(conn, within_days=7, as_of=served)   # UNFILTERED badge
                 ever = (SA.stats(conn).get("alerts") or 0) > 0    # table populated at all?
                 body.append(render_alert_rail(rail_alerts, rail_count, window_days=7,
                                               anchor=served, limit=24, promoted_ever=ever,
-                                              interactive=not requested))  # no dismiss on a replay
+                                              interactive=not requested,  # no dismiss on a replay
+                                              active_sev=a_sev, active_val=a_val,
+                                              as_of_param=(requested or "")))
             # --- "since you last looked" brief (LIVE view only; a replay is a historical
             # read, not a visit) — reuses the bus's events_since feed, keyed on a client
             # cookie. Compute against the OLD cookie, then stamp the cookie to now. ---

@@ -192,7 +192,29 @@ def test_promote_empty_bus_is_safe(conn):
     out = sa.promote(conn)
     assert out["promoted"] == 0 and out["batch"] is None
     assert sa.active_alerts(conn) == []
-    assert sa.active_count(conn) == {"total": 0, "by_severity": {}}
+    assert sa.active_count(conn) == {"total": 0, "by_severity": {}, "by_valence": {}}
+
+
+def test_active_alerts_filter_by_severity_and_valence(conn):
+    _emit(conn, "CRIT", "cci", "credibility_step", "2026-07-10", direction="down",
+          from_state="55", to_state="25", magnitude=0.6)                # critical, risk
+    _emit(conn, "RISKHI", "mep", "phase_flip", "2026-07-10", direction="flip",
+          from_state="NEUTRAL", to_state="DISTRIB", magnitude=1.0)      # high, risk
+    _emit(conn, "OPPHI", "mep", "phase_flip", "2026-07-10", direction="flip",
+          from_state="NEUTRAL", to_state="ACCUM", magnitude=1.0)        # high, opportunity
+    sa.promote(conn, as_of="2026-07-10")
+    all_syms = {a["symbol"] for a in sa.active_alerts(conn)}
+    assert all_syms == {"CRIT", "RISKHI", "OPPHI"}
+    assert {a["symbol"] for a in sa.active_alerts(conn, sev="critical")} == {"CRIT"}
+    assert {a["symbol"] for a in sa.active_alerts(conn, sev="high")} == {"RISKHI", "OPPHI"}
+    assert {a["symbol"] for a in sa.active_alerts(conn, val="risk")} == {"CRIT", "RISKHI"}
+    assert {a["symbol"] for a in sa.active_alerts(conn, val="opportunity")} == {"OPPHI"}
+    assert {a["symbol"] for a in sa.active_alerts(conn, sev="high", val="risk")} == {"RISKHI"}
+    # active_count carries the UNFILTERED by-valence breakdown (for the chip counts)
+    cnt = sa.active_count(conn)
+    assert cnt["by_valence"] == {"risk": 2, "opportunity": 1}
+    # a bogus filter value is ignored (not a crash / not an empty rail)
+    assert {a["symbol"] for a in sa.active_alerts(conn, sev="bogus")} == all_syms
 
 
 def test_acknowledge_removes_from_the_rail(conn):

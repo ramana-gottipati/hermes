@@ -209,6 +209,37 @@ def test_alert_rail_on_page(patched, conn):
     assert r2.status_code == 200
 
 
+def test_alert_rail_filter_pure_branches():
+    # chips render with counts; a filter that matches nothing shows a clear-filter message.
+    alerts = [{"symbol": "VEDL", "lens": "deal", "severity": "high", "valence": "opportunity",
+               "from_state": None, "to_state": "₹9cr", "note": "n", "as_of": "2026-07-09"}]
+    cnt = {"total": 3, "by_severity": {"critical": 1, "high": 2},
+           "by_valence": {"risk": 2, "opportunity": 1}}
+    h = av.render_alert_rail(alerts, cnt, window_days=7, anchor="2026-07-09",
+                             active_val="opportunity", as_of_param="")
+    assert "asev=critical" in h and "aval=risk" in h            # both chip groups render
+    assert "▲ Opp 1" in h and "▼ Risk 2" in h and "Critical 1" in h
+    assert "at-chip on" in h                                     # the active valence chip is lit
+    # filtered to empty → a clear-filter message, not the generic empty text
+    e = av.render_alert_rail([], cnt, window_days=7, anchor="2026-07-09",
+                             active_sev="critical", active_val="risk")
+    assert "clear the filter" in e and "critical risk" in e
+
+
+def test_alert_rail_filter_on_page(patched, conn):
+    from src.automation import signal_alerts as SA
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    SA.promote(conn, as_of="2026-07-09")                        # RELIANCE(opp) + VEDL(opp) are high
+    app = FastAPI()
+    app.include_router(av.router)
+    c = TestClient(app)
+    r = c.get("/dash/attention?aval=risk")                      # no risk alerts in the fixture
+    assert r.status_code == 200 and "clear the filter" in r.text
+    r = c.get("/dash/attention?aval=opportunity")
+    assert r.status_code == 200 and ("RELIANCE" in r.text or "VEDL" in r.text)
+
+
 def test_alert_rail_ack_route_dismisses(patched, conn):
     # The dismiss endpoint UPDATEs the alert and 303s back; the alert then leaves the rail.
     from src.automation import signal_alerts as SA

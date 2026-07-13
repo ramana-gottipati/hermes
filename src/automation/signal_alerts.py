@@ -277,9 +277,11 @@ def promote(conn, as_of: Optional[str] = None) -> dict:
 # --- read API (the web face reads through this; never writes) ----------------
 
 def active_alerts(conn, *, within_days: int = 7, limit: int = 40,
-                  as_of: Optional[str] = None) -> list[dict]:
+                  as_of: Optional[str] = None, sev: Optional[str] = None,
+                  val: Optional[str] = None) -> list[dict]:
     """The rail: alerts whose as_of is within `within_days` of the newest batch (or of
-    `as_of` when replaying), severity-critical first then priority then recency.
+    `as_of` when replaying), severity-critical first then priority then recency. Optional
+    `sev` (severity) / `val` (valence) narrow the rail for triage.
 
     Windowed on the BATCH clock (as_of), not wall-clock, so a replay is coherent and a
     quiet stretch never drops a still-recent alert on a real-world gap.
@@ -303,26 +305,34 @@ def active_alerts(conn, *, within_days: int = 7, limit: int = 40,
         "SELECT * FROM signal_alert_state WHERE acknowledged_at IS NULL "
         "AND as_of <= ? AND as_of >= date(?, ?) ORDER BY as_of DESC, id DESC",
         (anchor, anchor, f"-{max(0, int(within_days) - 1)} days")).fetchall()]
+    if sev in SEVERITIES:
+        rows = [r for r in rows if r.get("severity") == sev]
+    if val in VALENCES:
+        rows = [r for r in rows if r.get("valence") == val]
     rows.sort(key=lambda r: (r.get("severity") != "critical",
                              -_priority(r.get("lens") or "", r.get("magnitude"))))
     return rows[:int(limit)]
 
 
 def active_count(conn, *, within_days: int = 7, as_of: Optional[str] = None) -> dict:
-    """Total active alerts + a per-severity breakdown for the same window (for the badge)."""
+    """Active-alert totals for the window (the UNFILTERED picture, for the badge + filter
+    chip counts): total + per-severity + per-valence breakdowns."""
     ensure_schema(conn)
     anchor = str(as_of).strip()[:10] if as_of else None
     if not anchor:
         row = conn.execute("SELECT MAX(as_of) FROM signal_alert_state").fetchone()
         anchor = row[0] if row and row[0] else None
     if not anchor:
-        return {"total": 0, "by_severity": {}}
+        return {"total": 0, "by_severity": {}, "by_valence": {}}
+    where = ("WHERE acknowledged_at IS NULL AND as_of <= ? AND as_of >= date(?, ?)")
+    params = (anchor, anchor, f"-{max(0, int(within_days) - 1)} days")
     by = {r["severity"]: r["c"] for r in conn.execute(
-        "SELECT severity, COUNT(*) c FROM signal_alert_state "
-        "WHERE acknowledged_at IS NULL AND as_of <= ? AND as_of >= date(?, ?) "
-        "GROUP BY severity",
-        (anchor, anchor, f"-{max(0, int(within_days) - 1)} days")).fetchall()}
-    return {"total": sum(by.values()), "by_severity": by}
+        f"SELECT severity, COUNT(*) c FROM signal_alert_state {where} GROUP BY severity",
+        params).fetchall()}
+    byv = {r["valence"]: r["c"] for r in conn.execute(
+        f"SELECT valence, COUNT(*) c FROM signal_alert_state {where} GROUP BY valence",
+        params).fetchall()}
+    return {"total": sum(by.values()), "by_severity": by, "by_valence": byv}
 
 
 def acknowledge(conn, alert_id: int) -> int:
