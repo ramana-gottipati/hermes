@@ -292,7 +292,9 @@ def _consensus_panel(d: dict, order: list) -> str:
             'apparent calendar pattern here failed at least one gate (a placebo null, family-wide '
             'FDR, the 15-year minimum, out-of-sample sign-stability, or a pledged mechanism). '
             '<b>An empty script is the honest finding, not missing data.</b></div>'
-            + ifx.demo_framing())
+            # NOTE: demo_framing() lives in a parallel session's UNCOMMITTED infographics.py; guard
+            # so this live 0-cert path never 500s on a host whose infographics.py lacks it yet.
+            + getattr(ifx, "demo_framing", lambda: "")())
     else:
         panel_body = ifx.heat_ribbon(ribbon_cells, w=1060, h=42, vmax=1.0)
     return (
