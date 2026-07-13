@@ -104,6 +104,16 @@ _CSS = """
 .st-intro-tab{margin:8px 0 12px;}
 .st-intro-tab a{font-size:12px;color:var(--ink-3);text-decoration:none;}
 .st-intro-tab a:hover{color:var(--accent);}
+/* the two "delta" lines — the two most-common misreads, always visible (the education Q5) */
+.st-deltas{border-left:3px solid var(--warn);background:rgba(var(--warn-rgb),.05);border-radius:0 10px 10px 0;
+  padding:9px 14px;margin:6px 0 12px;max-width:1120px;}
+.st-dh{font-size:12px;color:var(--ink-2);margin-bottom:6px;}
+.st-dh b{color:var(--ink);}
+.st-drow2{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ink-2);
+  line-height:1.5;margin-top:5px;}
+.st-drow2 .x{flex:none;width:17px;height:17px;border-radius:50%;background:var(--warn);color:#fff;
+  font-size:10.5px;font-weight:700;line-height:17px;text-align:center;margin-top:1px;}
+.st-drow2 b{color:var(--ink);}
 .st-search{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0;}
 .st-search .st-in{padding:5px 10px;border:1px solid var(--line-2);border-radius:8px;
   background:var(--bg-2);color:var(--ink);font-size:13px;min-width:240px;}
@@ -1038,6 +1048,7 @@ def seasonal_full_panel(scope: str, entity: str, *, db_path: str | None = None,
         + '<div class="st-embed" id="stx-top">'
         + ifx.bottom_line(bl + ' This is descriptive calendar context, <b>never</b> a signal.')
         + ifx.how_to_read_link()
+        + _read_deltas()
         + f'<div style="margin:2px 0 10px"><a class="st-cta" href="{_esc(link)}">Open the full '
           'seasonal tape — calendar/scope controls + year-by-year drill-downs →</a></div>'
         + _panels_html(d, scope, resolved, order, cal, inline_drill=True)
@@ -1086,6 +1097,23 @@ def _first_run_strip() -> str:
         'var a=document.getElementById("stx-intro"),b=document.getElementById("stx-intro-tab");'
         'if(a)a.style.display="none";if(b)b.style.display="";}}catch(e){}})();'
         '</script>')
+
+
+def _read_deltas() -> str:
+    """The two most-common misreads, stated crisply + concretely at the point of first read — the
+    'delta' education (Q5). ALWAYS visible (unlike the dismissible first-run strip), and lighter than
+    it: complements the in-drill placebo teaching (D126) with the one thing D126 doesn't cover
+    (green = residual, market-stripped, ≠ price rose) plus the plain hit-rate ≠ edge line."""
+    return (
+        '<div class="st-deltas"><div class="st-dh">Read it right — two things this is <b>not</b>:</div>'
+        '<div class="st-drow2"><span class="x">1</span><div><b>Green ≠ &ldquo;the price rose.&rdquo;</b> '
+        'Green = it ran <b>above its own baseline</b> that period — for a stock or sector, <b>after the '
+        'market is stripped out</b>. Market +10%, stock +12% is a green month even though the market did '
+        'the lifting. A relative tendency, not a price forecast.</div></div>'
+        '<div class="st-drow2"><span class="x">2</span><div><b>A high hit-rate ≠ an edge.</b> '
+        '&ldquo;89% up&rdquo; is a <b>base rate</b>, not a tradeable signal — reshuffle the calendar at '
+        'random and streaks that good still appear, which is why almost every cell stays grey (and '
+        'nothing here is tradeable net of costs).</div></div></div>')
 
 
 @router.get("/dash/seasonal-tape", response_class=HTMLResponse)
@@ -1174,6 +1202,7 @@ def dash_seasonal(scope: str = "index", entity: str = "", cal: str = "fy", drill
                   'every apparent pattern is indistinguishable from a placebo. The greying IS the finding.')
         body.append(ifx.bottom_line(bl + ' This is descriptive calendar context, <b>never</b> a signal.'))
         body.append(ifx.how_to_read_link())
+        body.append(_read_deltas())
 
         # controls: scope + entity + calendar
         scope_tabs = "".join(
@@ -1442,6 +1471,10 @@ def _selftest() -> int:
             "lens must carry the first-run narrative (incl. the 'grey IS the finding' beat)"
         assert "stxIntroHide" in rr.text and 'id="stx-intro-tab"' in rr.text, \
             "first-run strip must be dismissible with a persistent re-opener"
+        # D129 the two always-visible "delta" lines — green≠price-rose (residual) + hit-rate≠edge
+        assert "Read it right" in rr.text and "the price rose" in rr.text and "base rate" in rr.text, \
+            "lens must carry the two 'delta' lines (residual-not-price + high-hit-rate-not-edge)"
+        assert "Read it right" in fp, "the embed must carry the delta lines too"
         # weekday drill (ddrill=) — the lens renders the server-rendered year-by-year weekday panel
         rd = c.get("/dash/seasonal-tape?scope=sector&entity=Nifty Auto&ddrill=3")
         assert "Behind the script" in rd.text and "year by year" in rd.text, \
@@ -1477,7 +1510,8 @@ def _selftest() -> int:
               "weekday stack (5-col x N-year) + weekday drill (ddrill=/#sdrill-d) wired (D125); "
               "placebo 'why grey' teaching block in every drill — single-calendar placebo + "
               "multiple-cell FDR, the strong-in-isolation-vs-survives-looking delta (D126); "
-              "first-run narrative strip on the lens landing (grey-IS-the-finding, dismissible) (D127)")
+              "first-run narrative strip on the lens landing (grey-IS-the-finding, dismissible) (D127); "
+              "two always-visible 'delta' lines on lens + embed (green-not-price-rose, hit-rate-not-edge) (D129)")
     finally:
         _DB_PATH = saved
         _entities.cache_clear(); _compute.cache_clear()
