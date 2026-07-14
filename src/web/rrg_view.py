@@ -858,6 +858,7 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
                     'where money is rotating — <b>descriptive, not a signal</b>.')
                 + ifx.how_to_read_link()
                 + '<div class="rd-htr"><a href="/dash/glossary?q=rs-ratio">Glossary — RS terms →</a></div>'
+                + '<div class="rd-htr"><a href="/dash/strategy-ref?p=relative-strength">Methodology →</a></div>'
                 + _controls(den)
                 + _sectors_rrg_block(rows, caps, tails, den, months,
                                      tail_base="/dash/rrg", tail_view="", dot_link=True)

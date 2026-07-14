@@ -960,6 +960,7 @@ def rsband_page(den: str = Query("Nifty 500", max_length=40),
                     'it is <b>de-rating</b>. Read it as position within a channel, not a verdict — '
                     '<b>descriptive, not a signal</b>.')
                 + ifx.how_to_read_link()
-                + '<div class="rd-htr"><a href="/dash/glossary?q=mansfield">Glossary — RS terms →</a></div>')
+                + '<div class="rd-htr"><a href="/dash/glossary?q=mansfield">Glossary — RS terms →</a></div>'
+                + '<div class="rd-htr"><a href="/dash/strategy-ref?p=relative-strength">Methodology →</a></div>')
     return HTMLResponse(_shell("RS support & resistance", G.css() + scaffold + render_band_lanes(den, view, tail=tail),
                                active="rsband", wide=True))
