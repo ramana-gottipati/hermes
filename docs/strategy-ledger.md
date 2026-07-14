@@ -276,7 +276,7 @@ forward signal at 60d on either outcome, exactly as the failure-ledger predicted
 
 ## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
 
-Ramana's band spec (docs/reversal-pair-PLAN.md): EMA13(adj-high)/EMA13(adj-low) banks + EMA5(HLC3)
+Ramana's band spec (docs/strategies/reversal-context.md; the spec source was reversal-pair-PLAN.md, retired S147): EMA13(adj-high)/EMA13(adj-low) banks + EMA5(HLC3)
 trigger; BUY-cross = trigger reclaims the lower bank after ≥3 bars below. Pre-registered + hash-frozen
 BEFORE first run (prereg `streamband` `92fc5cac`, `--verify` tamper-clean); module
 `research/explosive_moves/streamband.py`; full JSON `research/explosive_moves/out/streamband.json`.
@@ -318,7 +318,7 @@ Universe 3,491 EQ symbols, signals 2012-06→2026-07, n=35,519 BUY events (de-ov
 > 0.46/0.69) — BELOW the 0.89 hurdle; the "first reversal-family cell to clear the bar" claim is
 > WITHDRAWN.** Every fence also failed on its own frozen bar. Full record: § Study 2026-07-14b.
 
-Ramana's fractal spec (docs/reversal-pair-PLAN.md §1): floor = confirmed degree-10 down-fractal low
+Ramana's fractal spec (docs/strategies/reversal-context.md; the spec source was reversal-pair-PLAN.md §1, retired S147): floor = confirmed degree-10 down-fractal low
 (knowable only 10 bars later — enforced); WATCH = close within +15% of a live floor; TRIGGER = close
 crosses the most recent confirmed 2°-up-fractal high (T1); STRONG = also above the higher of the last
 two (T2); floor dies on a close below it. Pre-registered + hash-frozen BEFORE run (prereg

@@ -36,6 +36,7 @@ _PAGES: dict[str, tuple[str, str]] = {
     "wolfe-wave":        ("wolfe-wave.md",        "Wolfe Wave"),
     "relative-strength": ("relative-strength.md", "Relative Strength"),
     "cpr":               ("cpr.md",               "CPR"),
+    "reversal-context":  ("reversal-context.md",  "Reversal Context"),
     "cci":               ("cci.md",               "CCI"),
     "harmonic":          ("harmonic.md",          "Harmonic"),
     "momentum-riskadj":  ("momentum-riskadj.md",  "Momentum / RISKADJ"),

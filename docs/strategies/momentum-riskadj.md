@@ -2,6 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** BENCHMARK engine · gross selection lens (NOT fundable net of cost, except qtr large-cap LOWVOL_MOM) · **Governing decision(s):** D66 + the ledger benchmarks · **Reconciled:** 2026-07-11 (S111).
+> **Origin:** 📚 CLASSIC (Jegadeesh-Titman 12-month momentum · vol-adjusted-momentum school) + 🏠 HOUSE measurement (RISKADJ = 6-mo return ÷ 3-mo vol, ranked on our data). See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference for the momentum engine. Full result tables + failure ledger: [strategy-ledger.md](../strategy-ledger.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page summarizes + links — it never re-pastes the result tables (they live in the ledger, single source).
 
 **One-line definition:** a monthly cross-sectional **ranked-rotation backtest** that sorts every liquid NSE name by **RISKADJ** (6-month return ÷ 3-month volatility), holds the top-25 equal-weight, and scores it net of cost, walk-forward on both halves, against a Nifty 500 buy-&-hold Sharpe-**0.89** hurdle — the project's internal **benchmark** and a **gross selection lens**, not a fundable net-of-cost alpha.

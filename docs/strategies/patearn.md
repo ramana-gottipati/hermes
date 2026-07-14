@@ -2,6 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** DEPLOYED analytical lens (PIT quality score; not run as standalone alpha) · **Governing decision(s):** D66 (PIT score = risk-filter, not alpha) · D76 (capital-allocation "C" lens) · supporting D7 (rule-based Stage-1, not LLM) · D8 (no bulk pre-scrape) · D24 (financial-sector adaptation) · D46 (bounded batch scoring) · D78/D82 (primary-source XBRL migration) · **Reconciled:** 2026-07-11 (S111).
+> **Origin:** 🏠 HOUSE (the 14-pattern PIT fundamental-quality methodology — proprietary IP). See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference for patearn. Methodology of record: [resources/patearn/SKILL.md](../../resources/patearn/SKILL.md) + [patterns.md](../../resources/patearn/patterns.md). Numbers/weights live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page never restates pattern math — it links (proprietary IP).
 
 **One-line definition:** patearn is Hermes/Patearn's rule-based, point-in-time **14-pattern fundamental-quality score** for Indian equities — the pure-Python **Stage-1 selection lens** that reads capital efficiency, operating leverage, balance-sheet strength, valuation asymmetry and ten further quality patterns, gates out governance/leverage blow-ups via five **hard disqualifiers**, and surfaces the handful of names worth a human deep-dive.

@@ -49,6 +49,7 @@ strategy without its own pre-registered, leak-free study that beats the recorded
 | **Wolfe Wave** | 5-point reversal geometry (Patearn variation) | **DESCRIPTIVE-ONLY** · §B scoring **ratified D111** (max = `_QUALITY_MAX`, now 27) | D96 · D108 · D109 · D111 · D113 | [wolfe-wave.md](wolfe-wave.md) |
 | **Relative Strength** | RS suite (RRG · RS-band · rotation · Mansfield · capture · size-index) | **DESCRIPTIVE** lens suite (deployed) | D39 · D40 · D64 · D67 | [relative-strength.md](relative-strength.md) |
 | **CPR** | Central Pivot Range ("CPR Spine") | **LIVE** — descriptive charting lens | D53 · D71 | [cpr.md](cpr.md) |
+| **Reversal Context** | STREAM BAND + FRACTAL FLOOR/CEILING (band-state · stretch · floor geometry) | **DESCRIPTIVE-ONLY** — every tradeable form falsified; context columns live | ledger §§ 07-13/07-14/07-14b/07-14c · S132b/c | [reversal-context.md](reversal-context.md) |
 | **CCI** | **Concall Credibility Index** (≠ Commodity Channel Index) | **FAILED-AS-FACTOR → DESCRIPTIVE / VETO-ONLY** | D60 · D61 · 2026-06-25 falsification · Gate B fail | [cci.md](cci.md) |
 | **Harmonic** | XABCD / PRZ patterns | **LIVE** (descriptive) · backtest-GATED | D72 · D71 | [harmonic.md](harmonic.md) |
 | **Momentum / RISKADJ** | ranked-rotation factor engine (the benchmark) | **BENCHMARK** · gross selection, **not fundable net of cost** | D66 + ledger benchmarks | [momentum-riskadj.md](momentum-riskadj.md) |
@@ -68,6 +69,8 @@ The whole reason this folder exists. Use the **canonical** column; retire the **
 | **Momentum (factor)** | RISKADJ ranked-rotation = 6-mo return ÷ 3-mo vol, top-25 monthly | RS-Momentum (descriptive) · "momentum is fundable" (it is **not**, net of cost) |
 | **CCI** | **Concall Credibility Index** (the scored core of the "Concall Intelligence" program) | **Commodity Channel Index** (an unrelated price oscillator) |
 | **CPR** | **Central Pivot Range** (Pivot + BC/TC), the "CPR Spine" charting lens | generic support/resistance · RS-band |
+| **STREAM BAND** | a 13-EMA high/low band + 5-EMA HLC/3 trigger; **RECLAIM** = the buy-cross (a *caution*, an anti-signal — not an entry) | CPR (pivot band) · RS-band (relative strength) |
+| **FRACTAL FLOOR / CEILING** | the latest *confirmed* Williams down/up-fractal as a support/invalidation **risk-geometry** level | Wolfe fractal *gate* (same primitive, different use) · a breakout *trigger* (falsified) |
 | **Wolfe: "strength"** | the §B score — eight components (max = `_QUALITY_MAX`, now 27), ratified D111 (spring-and-reclaim C, §A9); **freshness is NOT strength** | recency/freshness · the removed D98–D102 STR/LND vocabulary · "D111 = the draw tool" (D111 is the §B rescore; the draw tool is **D113**) |
 | **"C" (capital allocation)** | the modern quality composite (ROIIC, ROCE, dilution, debt-funding, growth efficiency) | the older 4-metric quality lens it **subsumes** (D66) |
 | **Classic Screens** | the famous NAMED strategies run as rosters (`/dash/classics`) | **Factor League** (the raw factor *families*, `/dash/factor-league`) — related but different granularity |

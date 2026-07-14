@@ -2,6 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** LIVE (descriptive charting lens) · **Governing decision(s):** D53 (CPR "STRUCTURE" pillar / engine) · D71 (the "CPR Spine" charting overlay) · **Reconciled:** 2026-07-11 (S111).
+> **Origin:** 📚 CLASSIC base (floor-trader pivot-range school) + 🏠 HOUSE multi-degree amplification (the "CPR Spine" ladder · compression-percentile · confluence). See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference for CPR. Deep design: [cpr-strategy-design.md](../cpr-strategy-design.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a formula's constants — it links.
 
 **One-line definition:** CPR (Central Pivot Range) is a three-line band — a central **Pivot** wrapped by a **BC/TC** envelope — projected from a period's *prior* High/Low/Close and read at several degrees (Daily / Weekly / Monthly / Half-yearly); Patearn renders it as the amber **"CPR Spine"** behind price and screens on its width/shape as **descriptive structure and context**, never as a ranked or fundable return signal.

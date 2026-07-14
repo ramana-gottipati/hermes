@@ -88,7 +88,6 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/multi-timeframe-positioning-design.md` | Agreed but not built. |
 | `docs/dvpt-picking-strategy-design.md` | Thesis empirically revised; preserve reframe. |
 | `docs/explosive-move-research.md` | Working doc; thesis revised, launchpad not fully retired. |
-| `docs/reversal-pair-PLAN.md` | Pre-build design for two reversal strategies; both gate-failed (descriptive-only). |
 | `docs/screener-merge-plan.md` | Plan to give Screen+ the original Screen's pictorial instruments. |
 
 ## D. RUN-BOOK(active) — transient, retire-condition NOT fired, KEEP
