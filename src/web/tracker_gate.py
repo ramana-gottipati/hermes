@@ -27,10 +27,11 @@ import logging
 log = logging.getLogger("hermes.tracker_gate")
 
 _COOKIE = "pt_owner"
-_DEMO_PAGES = {"/dash/tracker/dashboard", "/dash/tracker/portfolios",
-               "/dash/tracker/watchlists", "/dash/tracker/performance",
-               "/dash/tracker/import"}
-_OPEN = ("/dash/track/quote",)          # market data, not personal
+# The five tracker sub-tabs each get their OWN demo view (see _DEMO_VIEW below) so the
+# tabs are RESPONSIVE and the active one highlights — a single shared body made every tab
+# repaint the identical page (looked like dead/unresponsive tabs). Keys live in _DEMO_VIEW.
+_OPEN = ("/dash/track/quote",                 # market data, not personal
+         "/dash/import/template.csv")         # the CSV format template — non-personal
 
 # A deliberately synthetic book (well-known large caps, fixed entries/dates) — real CMPs
 # are read live so the page demonstrates the tool honestly, but nothing here is, or ever
@@ -117,7 +118,21 @@ table.tg-t td.r,table.tg-t th.r{text-align:right;font-variant-numeric:tabular-nu
 </style>"""
 
 
-def _demo_body() -> str:
+# ── shared demo pieces (reused across the five sub-tab views) ─────────────────────────
+def _note(extra: str = "") -> str:
+    """The yellow 'this is synthetic' banner every demo page carries."""
+    return ('<div class="tg-note">🧪 <b>Demo book — sample positions.</b> The tracker is a '
+            'private workspace, so a public visitor sees how it works, never anyone\'s real '
+            'portfolio. Prices are live; the positions are invented.'
+            + ((" " + extra) if extra else "") + '</div>')
+
+
+def _foot(msg: str = "Owner? Unlock your books →") -> str:
+    return f'<div class="tg-foot"><a href="/dash/tracker/owner">{msg}</a></div>'
+
+
+def _positions_view():
+    """(rows_html, invested, current_value, total_pl_pct) for the demo book — live CMPs."""
     cmps = _cmp_for([p[0] for p in _DEMO_POSITIONS])
     rows, inv, cur = [], 0.0, 0.0
     for sym, qty, entry, since in _DEMO_POSITIONS:
@@ -132,31 +147,117 @@ def _demo_body() -> str:
                     f'<td class="r">{qty}</td><td class="r">₹{entry:,.1f}</td>'
                     f'<td class="r">{cmp_txt}</td><td class="r">{pl_txt}</td><td>{since}</td></tr>')
     tot_pl = ((cur - inv) / inv * 100.0) if inv else None
+    return "".join(rows), inv, cur, tot_pl
+
+
+def _positions_table(rows_html: str) -> str:
+    return ('<table class="tg-t"><thead><tr><th>Symbol</th><th class="r">Qty</th>'
+            '<th class="r">Entry</th><th class="r">CMP</th><th class="r">P&amp;L</th><th>Since</th>'
+            '</tr></thead><tbody>' + rows_html + '</tbody></table>')
+
+
+def _kpi(n: str, label: str) -> str:
+    return f'<div class="tg-box"><div class="n">{n}</div><div class="l">{label}</div></div>'
+
+
+def _pl_kpi(tot_pl, label="P&amp;L") -> str:
+    return _kpi(f'{tot_pl:+.1f}%' if tot_pl is not None else "—", label)
+
+
+# ── the five sub-tab views — each DISTINCT so the tabs are responsive + highlight ─────
+def _demo_dashboard() -> str:
+    rows, inv, cur, tot_pl = _positions_view()
     watch = " · ".join(f'<a href="/dash/stock?sym={s}" style="color:inherit">{s}</a>'
                        for s in _DEMO_WATCH)
     return (_DEMO_CSS
         + '<h2>Tracker <span class="sub" style="margin:0">demo book</span></h2>'
-        + '<div class="tg-note">🧪 <b>This is a demo book with sample positions</b> — the tracker '
-          'is a private workspace, so a public visitor sees how it works, never anyone\'s real '
-          'portfolio. Prices are live; the positions are invented. Build your own view by opening '
-          'any stock and reading its lenses — the tracker adds books, alerts, P&amp;L and an '
-          'import pipeline on top.</div>'
+        + _note('The tracker adds books, alerts, P&amp;L and a CSV import on top.')
         + '<div class="tg-kpi">'
-        + f'<div class="tg-box"><div class="n">1</div><div class="l">book (demo)</div></div>'
-        + f'<div class="tg-box"><div class="n">{len(_DEMO_POSITIONS)}</div><div class="l">open positions</div></div>'
-        + f'<div class="tg-box"><div class="n">₹{inv:,.0f}</div><div class="l">invested</div></div>'
-        + f'<div class="tg-box"><div class="n">₹{cur:,.0f}</div><div class="l">value (live)</div></div>'
-        + ('<div class="tg-box"><div class="n">'
-           + (f'{tot_pl:+.1f}%' if tot_pl is not None else "—")
-           + '</div><div class="l">P&amp;L</div></div>')
-        + f'<div class="tg-box"><div class="n">{len(_DEMO_WATCH)}</div><div class="l">watchlist ideas</div></div>'
+        + _kpi("1", "book (demo)") + _kpi(str(len(_DEMO_POSITIONS)), "open positions")
+        + _kpi(f'₹{inv:,.0f}', "invested") + _kpi(f'₹{cur:,.0f}', "value (live)")
+        + _pl_kpi(tot_pl) + _kpi(str(len(_DEMO_WATCH)), "watchlist ideas")
         + '</div>'
-        + '<table class="tg-t"><thead><tr><th>Symbol</th><th class="r">Qty</th><th class="r">Entry</th>'
-          '<th class="r">CMP</th><th class="r">P&amp;L</th><th>Since</th></tr></thead>'
-        + f'<tbody>{"".join(rows)}</tbody></table>'
+        + _positions_table(rows)
         + f'<div style="margin-top:10px;font-size:13px"><b>Watchlist:</b> {watch}</div>'
         + '<div class="tg-foot">Every symbol links to its full research dossier. '
           '<a href="/dash/tracker/owner">Owner? Unlock your books →</a></div>')
+
+
+def _demo_portfolios() -> str:
+    rows, inv, cur, tot_pl = _positions_view()
+    return (_DEMO_CSS
+        + '<h2>Portfolios <span class="sub" style="margin:0">demo book</span></h2>'
+        + _note('<b>Portfolios</b> are positions you\'ve committed money to — a frozen entry, '
+                'live P&amp;L, target/stop distance and a live thesis-health read.')
+        + '<div class="tg-kpi">'
+        + _kpi(f'₹{inv:,.0f}', "invested") + _kpi(f'₹{cur:,.0f}', "value (live)")
+        + _pl_kpi(tot_pl) + _kpi(str(len(_DEMO_POSITIONS)), "positions")
+        + '</div>'
+        + _positions_table(rows)
+        + _foot('Unlock to keep your own books, entries and targets →'))
+
+
+def _demo_watchlists() -> str:
+    cmps = _cmp_for(_DEMO_WATCH)
+    rows = []
+    for s in _DEMO_WATCH:
+        c = cmps.get(s)
+        cmp_txt = f"₹{c:,.1f}" if c else "—"
+        rows.append(f'<tr><td><a href="/dash/stock?sym={s}" style="color:inherit">{s}</a></td>'
+                    f'<td class="r">{cmp_txt}</td>'
+                    f'<td><a href="/dash/stock?sym={s}" style="color:inherit">open dossier →</a></td></tr>')
+    return (_DEMO_CSS
+        + '<h2>Watchlists <span class="sub" style="margin:0">demo book</span></h2>'
+        + _note('A <b>watchlist</b> is ideas you\'re only watching — no money in yet. '
+                'Promote one to a portfolio the day you commit.')
+        + '<table class="tg-t"><thead><tr><th>Symbol</th><th class="r">CMP</th><th></th></tr></thead>'
+        + f'<tbody>{"".join(rows)}</tbody></table>'
+        + _foot('Unlock to keep your own watchlists →'))
+
+
+def _demo_performance() -> str:
+    _rows, inv, cur, tot_pl = _positions_view()
+    pl_abs = cur - inv
+    return (_DEMO_CSS
+        + '<h2>Performance <span class="sub" style="margin:0">demo book</span></h2>'
+        + _note('<b>Performance</b> is the over-time scoreboard — XIRR, equity curve and '
+                'drawdown across your books. It grows out of your real entries and holding history.')
+        + '<div class="tg-kpi">'
+        + _pl_kpi(tot_pl, "unrealised P&amp;L") + _kpi(f'₹{pl_abs:,.0f}', "gain (live)")
+        + _kpi(f'₹{inv:,.0f}', "invested")
+        + '</div>'
+        + '<div class="tg-note" style="border-color:var(--line-2,#30363d);background:transparent">'
+          'The full scoreboard (XIRR · equity curve · drawdown · per-book contribution) needs a '
+          'real trade history — unlock your books to build it.</div>'
+        + _foot('Unlock to see your performance →'))
+
+
+def _demo_import() -> str:
+    return (_DEMO_CSS
+        + '<h2>Import <span class="sub" style="margin:0">demo book</span></h2>'
+        + _note('<b>Import</b> bulk-loads a book from a CSV (symbol, qty, entry, date). '
+                'It writes to your private books, so it\'s owner-only.')
+        + '<div class="tg-note" style="border-color:var(--line-2,#30363d);background:transparent">'
+          'Importing is disabled in the public demo. Grab the '
+          '<a href="/dash/import/template.csv">CSV template</a> to see the format, then unlock to '
+          'load your holdings.</div>'
+        + _foot('Unlock to import your holdings →'))
+
+
+# path → (nav-active key, page title, body builder). The keys ARE the tracker lens keys
+# (lens_registry) so the reskin's sub-nav highlights the active tab. Single source of truth
+# for which tracker paths are demo-served (see _DEMO_PAGES).
+_DEMO_VIEW = {
+    "/dash/tracker/dashboard":   ("dashboard",   "Tracker · demo book",     _demo_dashboard),
+    "/dash/tracker/portfolios":  ("portfolios",  "Portfolios · demo book",  _demo_portfolios),
+    "/dash/tracker/watchlists":  ("watchlists",  "Watchlists · demo book",  _demo_watchlists),
+    "/dash/tracker/performance": ("performance", "Performance · demo book", _demo_performance),
+    "/dash/tracker/import":      ("import",      "Import · demo book",      _demo_import),
+}
+_DEMO_PAGES = frozenset(_DEMO_VIEW)
+
+# Back-compat alias: _demo_body is the dashboard overview (older callers / the error fallback).
+_demo_body = _demo_dashboard
 
 
 def _owner_form(bad: bool = False) -> str:
@@ -177,11 +278,13 @@ def _owner_form(bad: bool = False) -> str:
         + '<div class="tg-foot"><a href="/dash/tracker/dashboard">← back to the demo book</a></div>')
 
 
-def _shell(title: str, body: str):
+def _shell(title: str, body: str, active: str = "dashboard"):
     from fastapi.responses import HTMLResponse
     try:
         from src.web import dashboard as D
-        return HTMLResponse(D._shell(title, body, "tracker"))
+        # `active` is the tracker lens key (dashboard/portfolios/…) so the reskin's sub-nav
+        # highlights the tab actually being viewed — the fix for the dead-tab symptom.
+        return HTMLResponse(D._shell(title, body, active))
     except Exception:  # noqa: BLE001 — shell must never take the gate down
         return HTMLResponse(body)
 
@@ -217,11 +320,10 @@ async def _dispatch(request, call_next):
                 return RedirectResponse("/dash/tracker/owner?bad=1", status_code=303)
             return _shell("Tracker · owner", _owner_form(bad="bad" in request.query_params))
 
-        if _is_owner(request):
-            owner = True
-        else:
-            if request.method == "GET" and path in _DEMO_PAGES:
-                return _shell("Tracker · demo book", _demo_body())
+        if not _is_owner(request):
+            if request.method == "GET" and path in _DEMO_VIEW:
+                active, title, build = _DEMO_VIEW[path]
+                return _shell(title, build(), active)
             # non-owner mutation / export / personal detail -> the demo front door
             from fastapi.responses import RedirectResponse
             return RedirectResponse("/dash/tracker/dashboard", status_code=303)
@@ -257,12 +359,24 @@ def install(app) -> bool:
 def _selftest() -> int:
     assert _gated("/dash/tracker/dashboard") and _gated("/dash/track") and _gated("/dash/import")
     assert not _gated("/dash/track/quote") and not _gated("/dash/markets")
+    assert not _gated("/dash/import/template.csv"), "the CSV format template must stay open"
     assert _token("x") != _token("y") and len(_token("s")) == 64
     b = _demo_body()
     assert "demo book" in b and "RELIANCE" in b and "tg-note" in b
+    # the dead-tab fix: every sub-tab renders a DISTINCT body + carries the demo banner, and
+    # its active key is the matching tracker lens key (so the reskin highlights the tab).
+    bodies = {p: build() for p, (_a, _t, build) in _DEMO_VIEW.items()}
+    assert len(set(bodies.values())) == len(_DEMO_VIEW), "demo sub-tabs must be distinct (not one shared page)"
+    assert all("tg-note" in v for v in bodies.values()), "every demo tab keeps the synthetic-book banner"
+    assert "Qty" in bodies["/dash/tracker/portfolios"], "Portfolios shows the positions table"
+    assert "watchlist" in bodies["/dash/tracker/watchlists"].lower(), "Watchlists is watchlist-specific"
+    assert "XIRR" in bodies["/dash/tracker/performance"], "Performance explains the scoreboard"
+    assert "template.csv" in bodies["/dash/tracker/import"], "Import links the CSV template"
+    for p, (active, _t, _b) in _DEMO_VIEW.items():
+        assert active in p, f"active key {active!r} should match its path {p}"
     f = _owner_form(bad=True)
     assert 'method="post"' in f and "didn" in f
-    print("tracker_gate selftest OK")
+    print("tracker_gate selftest OK — 5 distinct demo tabs, active-key highlight, template open")
     return 0
 
 
