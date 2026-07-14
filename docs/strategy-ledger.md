@@ -113,6 +113,8 @@ Source: `research/explosive_moves/factory.py`.
 - **Edge is stronger in the 5cr universe than 25cr** (RISKADJ 1.13 → 0.96): alpha lives in mid/small-caps,
   but so does slippage/capacity risk.
 
+**⚠️ D5-F1 (Codex review, VPS-verified 2026-07-14) — same-close execution optimism.** The recorded flat-cost RISKADJ **1.13** also carries a ~0.04 same-bar-execution peek (selection features are read on the rebalance close *and* the forward return enters at that same close). The honest 1-day-lag number is **1.09** (QUAL_MOM 1.08→1.04, LOWVOL_MOM 1.00→0.97 similarly). **Minor / not result-changing** — the participation-cost model already collapses these to <0.2, so the fundability verdict is unchanged; only the flat-cost gross Sharpes are ~0.04 optimistic. Code fix = enter `i0+1` in `factory.py` / `overlay_experiment.py` / the cost recuts. Full verification: `docs/codex-review/TRACK-C-RESULTS.md` §D5-F1.
+
 **⚠️ Honest caveat — do not crown RISKADJ yet.** The 1.13 Sharpe uses a *naive* cost model
 (flat 0.3% × turnover, no slippage/impact/capacity) and the **static ₹5 cr liquidity floor we reject**.
 The more rigorous swing analysis (Tier 2) showed momentum edges erode under realistic costs. RISKADJ
