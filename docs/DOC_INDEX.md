@@ -109,7 +109,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 `docs/KICKSTART-PATEARN-NEXT.md` · `docs/NEXT-SESSION-CARRYFORWARD.md` · `docs/POST-MERGE-DEPLOY-RUNBOOK.md` ·
 `docs/chrome-consistency-sweep.md` · `docs/strategic-review-2026-07-07.md` ·
 `docs/codex-review/00-CONTEXT-FOR-CODEX.md` · `docs/codex-review/FINDINGS-LEDGER.md` ·
-`docs/codex-review/TRACK-C-RESULTS.md` · `docs/codex-review/TRACK-D-DATA-PLAN.md` · `docs/codex-review/TRACK-D-DATA-PLAN.md` · `docs/codex-review/CARRYFORWARD.md`
+`docs/codex-review/TRACK-C-RESULTS.md` · `docs/codex-review/TRACK-D-DATA-PLAN.md` · `docs/codex-review/CARRYFORWARD.md`
 
 > **Lane-record rule (so this index stops chasing live lanes):** every `docs/lane-*.md`,
 > `docs/L<N>-*.md` (e.g. `L2-status.md`, `L3-charting-STATUS.md`, `L4-status.md`),
