@@ -528,6 +528,14 @@ def _ensure_source_column(con: sqlite3.Connection) -> None:
 _GATE_METRICS = ("Sales", "Net Profit", "Operating Profit",      # non-bank rupee core
                  "Revenue", "Financing Profit")                   # bank rupee core
 _GATE_TOL = 0.02
+# Screener rounds small-cap rupee figures to whole crores, so the flat 2% RELATIVE gate
+# spuriously rejects tiny values (a ₹5cr line ±0.5cr rounding = 10% rel). An ABSOLUTE band
+# floors that: a row passes if within 2% rel OR within ₹0.5cr abs. Correctness fix, not a
+# loosening — on the S137/Phase-3 audit cohort it clears the rounding fails
+# (VIKASECO/AHLEAST/NUVOCO/UMIYA-MRO/EIMCOELECO, |Δ|≤0.45cr) while genuine definitional
+# breaks stay failed (ITC/HDFCBANK/LTF/ANANDRATHI, |Δ|≥28cr). Every _GATE_METRICS entry is a
+# ₹-crore magnitude, so a flat crore floor is dimensionally sound.
+_GATE_ABS_FLOOR_CR = 0.5
 
 
 def _continuity_gate(con: sqlite3.Connection, sym: str, xbrl_rows: list) -> bool:
@@ -548,11 +556,13 @@ def _continuity_gate(con: sqlite3.Connection, sym: str, xbrl_rows: list) -> bool
         if prior is None or prior[0] is None:
             continue
         checked += 1
-        rel = abs(value - float(prior[0])) / max(abs(float(prior[0])), 1e-9)
-        ok = rel <= _GATE_TOL
+        adiff = abs(value - float(prior[0]))
+        rel = adiff / max(abs(float(prior[0])), 1e-9)
+        ok = rel <= _GATE_TOL or adiff <= _GATE_ABS_FLOOR_CR   # rel OR abs-floor (small-cap rounding)
         matched += ok
         if not ok:
-            details.append(f"{metric}@{ptype}/{pend}: xbrl={value} screener={prior[0]} rel={rel:.1%}")
+            details.append(f"{metric}@{ptype}/{pend}: xbrl={value} screener={prior[0]} "
+                           f"rel={rel:.1%} abs={adiff:.2f}cr")
     if checked == 0:
         verdict = True                      # no overlap -> nothing to contradict
         detail = "no Screener overlap (auto-pass)"
@@ -567,13 +577,15 @@ def _continuity_gate(con: sqlite3.Connection, sym: str, xbrl_rows: list) -> bool
 
 
 def write_rows(filing: dict, metrics: dict, *, research_db: str = RESEARCH_DB,
-               overwrite_screener: bool = False) -> int:
+               overwrite_screener: bool = False, min_period_end: Optional[str] = None) -> int:
     """Upsert one filing's metric rows + observe real PIT. Returns rows written.
 
     Forward-only default: a Screener-era row (source IS NULL) is left untouched; only
     absent keys and prior XBRL rows (restatements — last filed wins) are written.
     A restatement (an XBRL-era value changing, or a listing-flagged Revised filing) is
     journaled into fundamentals_restatements for the kill-switch-#4 spike check.
+    ``min_period_end`` (Phase-3 backfill) is a hard floor: a filing whose period_end is
+    before it is skipped entirely, so the pre-window Screener tail is never touched.
     """
     ptype = "A" if filing["period"] == "Annual" else "Q"
     pend = filing["to_date"]
@@ -582,6 +594,8 @@ def write_rows(filing: dict, metrics: dict, *, research_db: str = RESEARCH_DB,
     rdate = (filing["broadcast"] or "")[:10] or None
     if not metrics or not rdate:
         return 0
+    if min_period_end and pend < min_period_end:
+        return 0     # Phase-3 backfill period floor — pre-window periods stay frozen Screener
     con = sqlite3.connect(research_db)
     _ensure_source_column(con)
     n = 0
@@ -630,8 +644,13 @@ def _prefer_consolidated(filings: list) -> list:
 
 
 def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] = None,
-           research_db: str = RESEARCH_DB, overwrite_screener: bool = False) -> dict:
-    """Forward ingest: NSE result filings broadcast in [since, until] -> fundamentals_history."""
+           research_db: str = RESEARCH_DB, overwrite_screener: bool = False,
+           min_period_end: Optional[str] = None) -> dict:
+    """Forward ingest: NSE result filings broadcast in [since, until] -> fundamentals_history.
+
+    ``min_period_end`` floors writes at a period_end (Phase-3 backfill: keep the pre-window
+    Screener tail frozen); None (the forward default) writes every in-window period.
+    """
     until = until or date.today().isoformat()
     session, headers = _nse_session()
     filings: list = []
@@ -741,7 +760,8 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             continue
         stats["parsed"] += 1
         stats["rows"] += write_rows(f, metrics, research_db=research_db,
-                                    overwrite_screener=overwrite_screener)
+                                    overwrite_screener=overwrite_screener,
+                                    min_period_end=min_period_end)
         mark_seen(f["xbrl_url"])
 
     # ── Integrated-Filing era (broadcast Apr-2025 →): parse-first-classify ──────
@@ -808,7 +828,8 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
     for cand in candidates.values():
         stats["parsed"] += 1
         stats["rows"] += write_rows(cand, cand["metrics"], research_db=research_db,
-                                    overwrite_screener=overwrite_screener)
+                                    overwrite_screener=overwrite_screener,
+                                    min_period_end=min_period_end)
     for url in if_parsed_urls:      # flush done — now cheap-skip these next run
         mark_seen(url)
     gcon.close()
@@ -849,6 +870,148 @@ def _gate_symbol(con: sqlite3.Connection, sym: str, *, session, headers) -> bool
     verdict = _continuity_gate(con, sym, evidence)
     con.commit()
     return verdict
+
+
+# ── historical backfill (Phase 3) ─────────────────────────────────────────────
+# Orchestrator for docs/fundamentals-xbrl-phase3-backfill.md: walk the universe
+# symbol-by-symbol, replacing Screener-era rows (source IS NULL) in the >= window_start
+# window with primary-source XBRL — for gate-PASSING symbols only. Reuses ingest() per
+# symbol, so it inherits the per-symbol continuity gate (fail = skipped, never
+# overwritten), the throttle circuit-breaker, and the url-keyed seen-table (restart is
+# cheap). A per-symbol progress ledger makes the whole run resumable across the bounded
+# nightly windows the cadence calls for. The pre-window tail (< window_start) stays FROZEN
+# Screener via the write_rows period floor — machine-enforcing the "no NSE XBRL that far
+# back" decision (Ramana, 2026-07-14).
+BACKFILL_WINDOW_START = os.environ.get("HERMES_XBRL_BACKFILL_WINDOW", "2018-01-01")
+BACKFILL_SINCE = os.environ.get("HERMES_XBRL_BACKFILL_SINCE", BACKFILL_WINDOW_START)
+_BACKFILL_TERMINAL = ("done", "gate_fail")
+
+
+def _ensure_backfill_ledger(con: sqlite3.Connection) -> None:
+    con.execute("""CREATE TABLE IF NOT EXISTS fundamentals_xbrl_backfill_progress(
+        symbol TEXT PRIMARY KEY, status TEXT NOT NULL, tier INTEGER,
+        rows_written INTEGER DEFAULT 0, gate_pass INTEGER,
+        last_run TEXT NOT NULL DEFAULT (datetime('now')), detail TEXT)""")
+
+
+def _backfill_worklist(con: sqlite3.Connection, *, window_start: str, hermes_db: str) -> list:
+    """Ordered (symbol, tier) over the addressable window. Tier 1 = NSE-indexed (what the
+    site / scoring / Pat surface) first, then Tier 2, alphabetical within tier."""
+    addr = [r[0] for r in con.execute(
+        "SELECT DISTINCT symbol FROM fundamentals_history "
+        "WHERE source IS NULL AND period_end>=? ORDER BY symbol", (window_start,))]
+    universe: set = set()
+    try:
+        h = sqlite3.connect(f"file:{hermes_db}?mode=ro", uri=True)
+        universe = {r[0] for r in h.execute("SELECT DISTINCT symbol FROM stock_index_membership")}
+        h.close()
+    except sqlite3.Error as e:      # universe is an ordering nicety, not a hard dependency
+        log.warning("backfill worklist: universe read failed (%s) — treating all as tier 2", e)
+    tiered = [(s, 1 if s in universe else 2) for s in addr]
+    tiered.sort(key=lambda x: (x[1], x[0]))
+    return tiered
+
+
+def _record_backfill(con: sqlite3.Connection, sym: str, status: str, tier: int,
+                     rows: int, gate_pass: Optional[int], detail: str) -> None:
+    con.execute(
+        "INSERT INTO fundamentals_xbrl_backfill_progress"
+        "(symbol,status,tier,rows_written,gate_pass,last_run,detail) "
+        "VALUES (?,?,?,?,?,datetime('now'),?) "
+        "ON CONFLICT(symbol) DO UPDATE SET status=excluded.status, tier=excluded.tier, "
+        "rows_written=fundamentals_xbrl_backfill_progress.rows_written+excluded.rows_written, "
+        "gate_pass=excluded.gate_pass, last_run=datetime('now'), detail=excluded.detail",
+        (sym, status, tier, rows, gate_pass, detail))
+    con.commit()
+
+
+def backfill(*, limit: Optional[int] = None, tier: Optional[int] = None,
+             research_db: str = RESEARCH_DB, hermes_db: str = HERMES_DB,
+             since: str = BACKFILL_SINCE, window_start: str = BACKFILL_WINDOW_START) -> dict:
+    """One bounded, resumable backfill pass. Processes up to `limit` not-yet-terminal
+    addressable symbols (Tier 1 first), gate-guarded overwrite via ingest(), with the
+    pre-window period floor. Stops cleanly the moment NSE throttles; resume = run again
+    (the seen-table + ledger converge). Terminal statuses (done / gate_fail) are not
+    re-attempted; partial / error are retried next pass."""
+    con = sqlite3.connect(research_db)
+    _ensure_source_column(con)
+    _ensure_backfill_ledger(con)
+    con.commit()
+    status_of = {r[0]: r[1] for r in con.execute(
+        "SELECT symbol, status FROM fundamentals_xbrl_backfill_progress")}
+    worklist = _backfill_worklist(con, window_start=window_start, hermes_db=hermes_db)
+    pending = [(s, t) for (s, t) in worklist
+               if (not tier or t == tier) and status_of.get(s) not in _BACKFILL_TERMINAL]
+    if limit:
+        pending = pending[:limit]
+
+    stats = {"attempted": 0, "done": 0, "gate_fail": 0, "partial": 0, "error": 0,
+             "rows": 0, "aborted_throttled": False}
+    for sym, t in pending:
+        stats["attempted"] += 1
+        try:
+            r = ingest(symbols=[sym], since=since, until=None, overwrite_screener=True,
+                       research_db=research_db, min_period_end=window_start)
+        except Exception as e:            # noqa: BLE001 — one symbol must never abort the batch
+            log.warning("backfill %s errored: %s", sym, e)
+            _record_backfill(con, sym, "error", t, 0, None, str(e)[:180])
+            stats["error"] += 1
+            continue
+        rows = int(r.get("rows", 0))
+        stats["rows"] += rows
+        g = con.execute("SELECT pass FROM fundamentals_xbrl_gate WHERE symbol=?", (sym,)).fetchone()
+        gate_pass = None if g is None else int(g[0])
+        if r.get("aborted_throttled"):
+            _record_backfill(con, sym, "partial", t, rows, gate_pass,
+                             "throttled mid-symbol — resume next window")
+            stats["partial"] += 1
+            stats["aborted_throttled"] = True
+            log.warning("backfill: NSE throttled on %s — stopping pass cleanly (resume next run)", sym)
+            break
+        if gate_pass == 0:
+            _record_backfill(con, sym, "gate_fail", t, rows, gate_pass,
+                             "continuity gate FAIL — stays on frozen Screener series")
+            stats["gate_fail"] += 1
+        else:
+            _record_backfill(con, sym, "done", t, rows, gate_pass, "ok")
+            stats["done"] += 1
+
+    final = {r[0]: r[1] for r in con.execute(
+        "SELECT symbol, status FROM fundamentals_xbrl_backfill_progress")}
+    stats["queue_remaining"] = sum(
+        1 for s, t in worklist
+        if (not tier or t == tier) and final.get(s) not in _BACKFILL_TERMINAL)
+    con.close()
+    log.info("backfill pass: %s", stats)
+    return stats
+
+
+def backfill_status(*, research_db: str = RESEARCH_DB, window_start: str = BACKFILL_WINDOW_START,
+                    hermes_db: str = HERMES_DB) -> dict:
+    """Read-only progress report over the backfill ledger + the addressable universe."""
+    from collections import Counter
+    con = sqlite3.connect(f"file:{research_db}?mode=ro", uri=True)
+    addr = [r[0] for r in con.execute(
+        "SELECT DISTINCT symbol FROM fundamentals_history WHERE source IS NULL AND period_end>=?",
+        (window_start,))]
+    has_ledger = con.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='fundamentals_xbrl_backfill_progress'").fetchone() is not None
+    ledger, rows_migrated = {}, 0
+    if has_ledger:
+        for r in con.execute(
+                "SELECT symbol,status,rows_written FROM fundamentals_xbrl_backfill_progress"):
+            ledger[r[0]] = r[1]
+            rows_migrated += (r[2] or 0)
+    con.close()
+    allsyms = set(addr) | set(ledger)          # count 'done' symbols even after they drop from addr
+    counts = Counter(ledger.get(s, "pending") for s in allsyms)
+    print(f"\n=== Phase-3 backfill status (window >= {window_start}) ===")
+    print(f"addressable + migrated symbols: {len(allsyms)}")
+    for k in ("done", "gate_fail", "partial", "error", "pending"):
+        print(f"  {k:10s}: {counts.get(k, 0)}")
+    print(f"rows migrated (ledger tally) : {rows_migrated}")
+    return dict(counts)
 
 
 # ── reconciliation (the §4 validation-gate evidence; read-only) ───────────────
@@ -1017,8 +1180,34 @@ def _selftest() -> int:
         tcon.close()
         assert ev == [("2026-05-05T10:00:00", 1, 1)], f"ledger wrong: {ev}"
 
+    # Phase-3 backfill period floor: min_period_end skips pre-window periods (frozen tail)
+    # and writes in-window ones — the machine guard behind the "pre-2018 stays Screener" call.
+    with tempfile.TemporaryDirectory() as td:
+        rdb = os.path.join(td, "research.db")
+        tcon = sqlite3.connect(rdb)
+        tcon.execute("CREATE TABLE fundamentals_history(symbol TEXT, period_type TEXT, "
+                     "period_end TEXT, report_date TEXT, metric TEXT, value REAL, "
+                     "PRIMARY KEY(symbol,period_type,period_end,metric))")
+        tcon.commit()
+        tcon.close()
+        _observe = provenance.observe
+        provenance.observe = lambda *a, **k: None
+        try:
+            pre = {"symbol": "T", "period": "Quarterly", "to_date": "2017-12-31",
+                   "consolidated": True, "broadcast": "2018-02-10T18:00:00"}
+            inw = {"symbol": "T", "period": "Quarterly", "to_date": "2018-03-31",
+                   "consolidated": True, "broadcast": "2018-05-10T18:00:00"}
+            assert write_rows(pre, {"Sales": 10.0}, research_db=rdb, min_period_end="2018-01-01") == 0
+            assert write_rows(inw, {"Sales": 11.0}, research_db=rdb, min_period_end="2018-01-01") == 1
+        finally:
+            provenance.observe = _observe
+        tcon = sqlite3.connect(rdb)
+        got = tcon.execute("SELECT period_end, value FROM fundamentals_history").fetchall()
+        tcon.close()
+        assert got == [("2018-03-31", 11.0)], f"period floor wrong: {got}"
+
     print("selftest OK  bank mapper (HDFCBANK 2026-03-31 identity + quirk guard) "
-          "+ dispatch + non-bank + zero-guard + revision ledger")
+          "+ dispatch + non-bank + zero-guard + revision ledger + backfill period floor")
     return 0
 
 
@@ -1039,6 +1228,17 @@ def main() -> None:
     ap.add_argument("--regate", action="store_true",
                     help="drop cached continuity-gate verdicts for --symbols and re-arbitrate "
                          "now (use after a mapper change; e.g. banks gated pre-bank-mapper)")
+    ap.add_argument("--backfill", action="store_true",
+                    help="Phase-3 historical backfill: one bounded, resumable pass (gate-guarded "
+                         "overwrite of Screener rows in the >= --window-start window)")
+    ap.add_argument("--backfill-status", action="store_true",
+                    help="print Phase-3 backfill ledger progress (read-only)")
+    ap.add_argument("--limit", type=int, default=None, help="max symbols per --backfill pass")
+    ap.add_argument("--tier", type=int, default=None, choices=(1, 2),
+                    help="restrict --backfill to tier 1 (NSE-indexed) or tier 2 (the rest)")
+    ap.add_argument("--window-start", default=BACKFILL_WINDOW_START,
+                    help="backfill period-end floor; periods before it stay frozen Screener")
+    ap.add_argument("--hermes-db", default=HERMES_DB, help="hermes.db path (universe for tiering)")
     ap.add_argument("--selftest", action="store_true",
                     help="synthetic bank-mapper + dispatch checks (no DB, no network)")
     args = ap.parse_args()
@@ -1082,6 +1282,11 @@ def main() -> None:
         if not syms:
             ap.error("--reconcile needs --symbols")
         reconcile(syms, research_db=args.db, periods=args.periods)
+    elif args.backfill_status:
+        backfill_status(research_db=args.db, window_start=args.window_start, hermes_db=args.hermes_db)
+    elif args.backfill:
+        backfill(limit=args.limit, tier=args.tier, research_db=args.db, hermes_db=args.hermes_db,
+                 window_start=args.window_start, since=args.window_start)
     elif args.ingest:
         ingest(since=args.since, until=args.until, symbols=syms,
                research_db=args.db, overwrite_screener=args.overwrite_screener)

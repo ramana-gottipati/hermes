@@ -75,6 +75,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/nav-ia-DECISIONS-and-prompts.md` | Scope×Lens nav IA — Ramana-approved, LOCKS the IA. |
 | `docs/color-system-alignment.md` | Colour-token alignment design-of-record; Phases 0–4 shipped, tail open. |
 | `docs/fundamentals-xbrl-migration.md` | DoR for the Screener→NSE/BSE-XBRL fundamentals migration (Guardrail #8). |
+| `docs/fundamentals-xbrl-phase3-backfill.md` | Phase-3 build/decision plan: XBRL historical backfill + Screener retirement (Guardrail #8). |
 | `docs/momentum-engine-formalization.md` | Living spec: gross-momentum selection → production ranking lens. |
 | `docs/premium-visuals-brainstorm.md` | Living design program for the premium-visuals / infographics uplift. |
 | `docs/rs-momentum-divergence-roadmap.md` | Living master plan: RSI-of-RS + divergence + recovery ecosystem. |
