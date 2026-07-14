@@ -129,6 +129,9 @@ _ROUTER_SPECS = [
     # Risk-adjusted momentum SCANNER (candidate shortlister + inline C/A/B veto) — distinct from
     # the RS momentum_pane above; reads the nightly `momentum_scan` table. Durably mounted here.
     ("momentum-scan", "src.web.momentum_view", "/dash/momentum-scan"),
+    # Factor League (S132g): classic families ranked by OUR measured numbers +
+    # rosters + STEADY-25 auto-portfolio + churn. Reads factor_league/slow_rotation.
+    ("factor-league", "src.web.factor_league_view", "/dash/factor-league"),
     # RS band lens — its siblings rsband.py/rrg_view.py are committed but the view was
     # left untracked; now committed + durably mounted here (was only the uncommitted
     # main.py import) so /dash/rsband survives a main.py clobber and a clean checkout.

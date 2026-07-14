@@ -127,6 +127,18 @@ bounded `slow_rotation` table). View: `src/web/slow_rotation_view.py` (live rank
 read; CSV; descriptive fence). Ledger anchors: §§ 2026-06-24 cost-realism · 2026-07-02 corrected
 participation model · 2026-07-05c C-BLEND recut.
 
+## Factor league — the classic families, ranked by our numbers (S132g)
+
+**`/dash/factor-league`** (Strategies lens): the famous "premium" strategy families ranked by the
+Sharpe/alpha measured in OUR 14y walk-forward — not textbook claims. League order (flat-cost, ₹5cr
+universe, labeled): PACER-25/RISKADJ 1.13 · QUAL_MOM 1.10 · **STEADY-25/LOWVOL_MOM 1.10 flat → NET
+1.02 @₹50cr = the only net survivor and the AUTO-PORTFOLIO** · SPRINTER-25/MOM12 1.06 · then the
+failures shown with their numbers (DELIV_MOM 0.85 · QUALITY 0.76 α≈0 · EARN_YIELD 0.70 · BOOK_YIELD
+0.62 α<0 REJECTED) vs the 0.89 Nifty-500 hurdle. Live rosters (top-25) + daily churn feed:
+`src/automation/factor_league.py` → `factor_league`/`factor_league_churn`; view
+`src/web/factor_league_view.py`. Every number restates the frozen ledger; the page may not soften
+them.
+
 ## Maintenance
 
 - **When to update:** a new signal or overlay lands · a cost model or gate changes · a new backtest re-cuts a headline number · the C/quality role (D66) is revised · the ensemble roadmap advances a step · the Screener→XBRL migration closes.
