@@ -36,5 +36,29 @@
       "C:\\Users\\gotti\\.claude",
       "C:\\Users\\gotti\\AppData\\Local\\Temp\\claude"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/state-doc-gate.cjs\"",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/state-doc-gate.cjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
   }
 }

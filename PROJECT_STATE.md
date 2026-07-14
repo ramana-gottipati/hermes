@@ -1876,7 +1876,7 @@ Ramana wants to stop spot-fixing and run two focused sessions, each opening with
 ### Other open items (queued, in priority order)
 
 **✅ Doc-governance backlog (S131/D128) — floors CLEARED:** indexed all 39 unindexed docs in `docs/DOC_INDEX.md` (35 catalogued into classes A–F + 4 lane docs now exempt via the gate honoring the index's Lane-record rule) and added `Lifecycle:` banners to all 32 transient docs (26 TRANSIENT / 4 PERMANENT / 2 LIVING). `scripts/doc_hygiene_gate.py` floors are now EMPTY → the gate enforces 100% (any new orphan/un-bannered doc fails). Banner style matches `ui-perf-handoff.md`; DOC_INDEX carries a round-4 note.
-**🟡 Still owed (operator switches, Ramana-only):** paste the `hooks` block into committed `.claude/settings.json` (§0-bis) + `git config core.hooksPath scripts/hooks`.
+**✅ Operator switches FLIPPED (2026-07-14, S131, Ramana-directed):** committed `.claude/settings.json` now carries the `hooks` block (portable `node "$CLAUDE_PROJECT_DIR/scripts/state-doc-gate.cjs"`, Bash+PowerShell matchers) and the gitignored `settings.local.json` duplicate was removed (no double-fire). `git config core.hooksPath scripts/hooks` activated the portable pre-commit (state-doc rule + doc-hygiene ratchet for human/Codex/CLI commits) — run once per clone/worktree. Doc-governance enforcement is now portable (in the committed tree) AND fires on every commit, not just Claude's.
 
 **✅ Session-72 block — CLOSED (annotated S83d hygiene pass; do NOT re-execute):**
 - ~~Deploy-deferred glossary trio~~ **all three LIVE since S75** (`136f9af` captured VPS state; main equivalents `0fe5a1a`+`163cd29`; the `0ce09a9`/`ca223c4` hashes are dangling — their content shipped under different hashes).
