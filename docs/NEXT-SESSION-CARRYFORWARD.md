@@ -10,6 +10,20 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 2026-07-14 late — S-E PHASE 2 slice B (Pat DATA flows): CLAIMED + IN-FLIGHT (S146 lane) — do NOT parallel
+- Continues S142/S144. This slice = the next two audit Phase-2 priorities as inline data answers:
+  **participants/FII** ("are FIIs buying / FII positioning / who's positioned" → market FII net stance +
+  percentile from `participant_oi`, reusing `participants_view.render_positioning_tape`'s computation) and
+  **rotation-state per-symbol** ("what phase is TCS in / rotation state of X / is INFY leading" →
+  `stock_signals.rs_phase` + `rs_rank` + `rs_vs_broad_trend_state`). Both = NEW Pat files + self-limiting
+  ₹0 pre-passes at engine.route (after news/whatchanged; FII needs an FII/participant cue, rotation needs a
+  phase/rotation cue + a symbol — so nav's "where's rotation" page-find still wins). **Collision surface =
+  Pat-owned files only**; the forked nav trio + the hot S-B1 (`left_rail` task-groups) + XBRL lanes UNTOUCHED.
+  Descriptive/SEBI-safe: positioning (D62) + rotation are read-states, never buy/sell.
+- **Remaining Phase 2 after this: insider/ratings/SAST/holdings (per-symbol ownership) · seasonal base
+  rates · internals breadth · Wolfe open-trades. Phase 3 = education on the unified glossary + docs/strategies.**
+- **Retire this block when slice B lands** (replace with ✅). Claim-first per the S140 lesson.
+
 ## ✅ 2026-07-14 — S144: S-E PHASE 2 slice A — Pat DATA flows (news + what-changed) SHIPPED — do NOT redo; kickstart-pick-verify
 - **NEW `src/pat/news_flow.py`** — "TCS news / latest headlines / news on RELIANCE" → inline headlines
   (reuse `news_tagging.news_for_symbol` + `news_view._recent_market_news`; ticker validated vs
