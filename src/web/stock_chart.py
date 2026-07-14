@@ -294,6 +294,7 @@ SNIPPET = """<script>
 
     // ---- compare state (rebased multi-symbol overlay) — built into cmpBar below
     var cmpReg={ items:[] };   // [{sym, series:[lwc points], line}]
+    var cmpPeers=null;         // cached same-sector "related companies" (fetched once)
     var CMP_COLORS=[_t('--series-1','#39c5cf'),_t('--series-2','#f0883e'),_t('--series-3','#a371f7'),_t('--series-4','#56d364'),_t('--series-5','#db61a2')];
 
     // ---- lower pane: recompute the active sub-indicators + manage pane height -
@@ -735,8 +736,22 @@ SNIPPET = """<script>
       // Registered AFTER __symTA so its preventDefault (arrow-pick) suppresses this — no double-add.
       inp.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.defaultPrevented){ addCompare(inp.value); inp.value=''; sug.style.display='none'; } });
       cmpReg.items.forEach(function(c,i){ var ch=E('span',chipCss(true,c.col),dot(c.col)+c.sym+' \\u00d7');
-        ch.title='Remove '+c.sym; ch.style.cursor='pointer'; ch.onclick=function(){ removeCompare(i); }; cmpBar.appendChild(ch); }); }
-    renderCmpBar();   // initial: just the input + add
+        ch.title='Remove '+c.sym; ch.style.cursor='pointer'; ch.onclick=function(){ removeCompare(i); }; cmpBar.appendChild(ch); });
+      // "Related companies" quick-add — same-sector peers not already on the chart (S143-e).
+      if(cmpPeers&&cmpPeers.length){
+        var have={}; cmpReg.items.forEach(function(c){ have[c.sym.toUpperCase()]=1; });
+        var show=cmpPeers.filter(function(p){ return !have[(p.symbol||'').toUpperCase()]; }).slice(0,6);
+        if(show.length){
+          cmpBar.appendChild(E('span','font-size:10.5px;color:var(--ink-3);margin-left:6px','Related:'));
+          show.forEach(function(p){ var ch=E('span','cursor:pointer;font-size:11px;color:var(--ink-2);border:1px dashed var(--line-2);border-radius:6px;padding:2px 7px;margin-left:3px',p.symbol);
+            ch.title=(p.name||p.symbol)+' \\u2014 add to compare'; ch.onclick=function(){ addCompare(p.symbol); }; cmpBar.appendChild(ch); });
+        }
+      } }
+    renderCmpBar();   // initial: input + add (+ Related chips once peers load)
+    // fetch same-sector peers ONCE → "Related companies" quick-add (re-render on arrival)
+    (function(){ var cur=new URLSearchParams(location.search).get('sym')||''; if(!cur) return;
+      fetch('/dash/api/peers?sym='+encodeURIComponent(cur)).then(function(r){return r.json();}).then(function(j){
+        cmpPeers=(j&&j.peers)||[]; if(cmpPeers.length) renderCmpBar(); }).catch(function(){}); })();
     // expose a hook so the UI builder (below, after rail mount) can attach
     window.__cmpAdd=addCompare; window.__cmpRemove=removeCompare;
   }

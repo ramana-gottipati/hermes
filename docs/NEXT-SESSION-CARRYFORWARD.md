@@ -27,7 +27,8 @@ PROJECT_STATE entries are enough.**
   `onPick`/`indices` options (⌘K/home unchanged); `stock_chart.py` (forked; 2-hunk `git apply` over the box's older-RSI
   D7-F5 drift) price-tab compare box now has a company+index typeahead dropdown (pick→add) + a name-resolution fallback.
   Browser-driven walk: "tata"→companies, "nifty"→indices, pick Nifty 50→added, "infosys"+add→resolved+added.
-- **Remaining chart polish (a good small next pick):** (1) surface "related companies" (peers) on the PRICE tab too
+- **DONE (S143-f):** all 3 chart-compare follow-ups shipped + live — (1) related-companies peer chips now on the PRICE tab; (2) index-chart Compare link is now a prominent button; (3) ranking prefers the current listing (INFY over the old INFOSYSTCH). No chart-compare work remains.
+- **(historical list, now done):** (1) surface "related companies" (peers) on the PRICE tab too
   (today the peer chips are RS-tab only); (2) make the index chart's "Compare indices" link more prominent;
   (3) optional `symbol_search._rank` tweak so "infosys" prefers the current listing (INFY) over an old ticker
   (INFOSYSTCH) in the add-without-picking fallback.

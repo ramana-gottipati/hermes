@@ -80,6 +80,11 @@ def _rank(q: str, row: dict) -> tuple:
         quality = 3          # word-boundary hit in the name ("consultancy")
     else:
         quality = 4          # plain substring
+    # Demote DELISTED rows a full tier so a current listing wins even when a delisted ticker
+    # prefix-matches (typing "infosys" → INFY, not the delisted INFOSYSTCH whose ticker starts
+    # with it). A delisted exact-ticker hit still surfaces — just under a live alternative.
+    if not row.get("listed"):
+        quality += 2
     return (quality, -int(row.get("listed") or 0), -int(row.get("depth") or 0), sym)
 
 
@@ -167,6 +172,35 @@ def symbol_search_api(q: str = "", indices: str = "") -> JSONResponse:
         results += [{"symbol": r["symbol"], "name": "", "status": "index"}
                     for r in search_indices(q)]
     return JSONResponse({"q": (q or "").strip()[:_MAX_Q], "results": results})
+
+
+@router.get("/dash/api/peers")
+def peers_api(sym: str = "") -> JSONResponse:
+    """Same-sector peer tickers for the stock-chart "related companies" quick-add:
+    {sym, peers:[{symbol,name}]}. Always 200; [] on any error / no sector. The compare box
+    adds a peer via /dash/compare/series, so this only needs symbol+name."""
+    sym = (sym or "").strip().upper()[:24]
+    if not sym:
+        return JSONResponse({"sym": "", "peers": []})
+    peers: list[dict] = []
+    try:
+        # lazy import → avoids the dashboard↔symbol_search import cycle (dashboard is loaded by
+        # request time). Reuses the SAME sector logic the RS-tab peer rail uses.
+        from src.web.dashboard import _narrow_sector, _sector_symbols
+        with get_conn() as c:
+            sec = _narrow_sector(c, sym)
+            syms = [s for s in _sector_symbols(c, sec) if s and s != sym][:10] if sec else []
+            names: dict = {}
+            if syms:
+                ph = ",".join("?" * len(syms))
+                for r in c.execute(
+                        "SELECT symbol, COALESCE(company_name,'') FROM security_master "
+                        "WHERE symbol IN (%s)" % ph, syms).fetchall():
+                    names[r[0]] = r[1]
+            peers = [{"symbol": s, "name": names.get(s, "")} for s in syms]
+    except Exception:
+        peers = []
+    return JSONResponse({"sym": sym, "peers": peers})
 
 
 def did_you_mean_html(sym: str, limit: int = 5, conn=None) -> str:
@@ -264,6 +298,11 @@ def _selftest() -> None:  # pragma: no cover — quick local sanity: python -m s
     assert all(r["kind"] == "index" for r in idx)
     assert search_indices("bank", conn=c)[0]["symbol"] == "Nifty Bank"
     assert search_indices("", conn=c) == []
+    # delisted demotion: a LIVE name-match beats a DELISTED ticker-prefix hit (INFY over INFOSYSTCH).
+    c.execute("INSERT INTO security_master VALUES ('INFY','Infosys Limited',1,3700)")
+    c.execute("INSERT INTO security_master VALUES ('INFOSYSTCH',NULL,0,1700)")
+    inf = search("infosys", conn=c)
+    assert inf and inf[0]["symbol"] == "INFY", inf
     print("symbol_search selftest OK")
 
 
