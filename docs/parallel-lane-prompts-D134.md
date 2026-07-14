@@ -39,11 +39,11 @@
 
 | Lane | Component (plan §4) | META (Imp·Crit·Timing·Cost) | Status |
 |---|---|---|---|
-| B | Cost-ledger + estate heartbeat | 7 · **8** · NOW · ₹0 | dispatched S149 (wave 1) |
-| C | Licence-class registry + feed/signal manifests | 8 · **8** · next · ₹0 | dispatched S149 (wave 1) |
-| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | dispatched S149 (wave 1) |
-| F | Time-machine capability audit | **8** · 5 · mid · ₹0 | dispatched S149 (wave 1, read-only) |
-| R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | waiting on wave 1 |
+| B | Cost-ledger + estate heartbeat | 7 · **8** · NOW · ₹0 | ✅ BUILT `lane-b-d134`@`d667240` (22/22) — unmerged |
+| C | Licence-class registry + feed/signal manifests | 8 · **8** · next · ₹0 | ✅ BUILT `lane-c-d134`@`7d5cb27` (12/12; 21 feeds · 11 signals; 6 vendor-ToS UNCLASSIFIED → Ramana decision) — unmerged |
+| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ BUILT `lane-d-d134`@`b642334` (18/18) — unmerged |
+| F | Time-machine capability audit | **8** · 5 · mid · ₹0 | ✅ AUDIT DONE — `docs/time-machine-audit.md` (5 yes / 34 partial / 28 no; cockpit flagship-tile overclaim found) |
+| R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | **READY — run next** (branch refs above; merge order B→C→D) |
 | E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | prompt ready (§E) |
 | G | Entity graph v1 | **8** · 4 · mid · ₹0 | prompt ready (§G) |
 | H | Rule-lab design | **8** · 4 · later · ₹0 | prompt ready (§H) |
@@ -265,7 +265,9 @@ Tests ≥8 hermetic.
 
 | Lane | Mode | Isolation | Result |
 |---|---|---|---|
-| B | background agent | worktree | pending |
-| C | background agent | worktree | pending |
-| D | background agent | worktree | pending |
-| F | background agent | read-only, main tree (doc only) | pending |
+| B | background agent | worktree `lane-b-d134` (manual — harness worktree mkdir raced EEXIST; pinned base `63705e6`) | `d667240` · 5 files · pytest 22/22 · sample line "estate GREEN · board OK · … · ₹17.60/2,500 MTD (1%) OK" · RATES ₹/Mtok editable · 8 open Qs → §LANE-R |
+| C | background agent | worktree `lane-c-d134` (manual, base `63705e6`) | `7d5cb27` · 21 FEEDS (18 public-archive · 3 derived · 0 restricted) + 11 SIGNALS w/ ledger-verbatim fences · pytest 12/12 incl. synthetic-feed teeth · **6 UNCLASSIFIED vendor-ToS feeds** (screener · fundamentals_history · shareholding_history · concalls-discovery · news_feed · enrich) → Ramana enum decision |
+| D | background agent | worktree `lane-d-d134` (manual, base `63705e6`) | `b642334` · 2 files · pytest 18/18 · first-producer rec = tags-review · 5 integration Qs → §LANE-R |
+| F | background agent | read-only, main tree (doc only) | `docs/time-machine-audit.md` written (orchestrator committed) · 67 lenses: 5 yes / 34 partial / 28 no (14 real blockers) · top upgrade = momentum-scan `?asof=` (one query) · honesty: cockpit ~975 "Rewind the whole platform" overclaims the 1-symbol replay |
+
+**Worktree gotcha for future lanes:** the state-doc pre-commit fires inside worktrees — commits need BOTH the `state:skip` message convention AND `HERMES_SKIP_STATE_GATE=1`.
