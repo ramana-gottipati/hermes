@@ -2,6 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** FAILED-AS-FACTOR → DESCRIPTIVE / VETO-ONLY · **Governing decision(s):** D60 (build + debate inversion, 2026-06-21/22) · D61 (measurable-only doctrine, 2026-06-22) · the **2026-06-25 factor falsification** (`cci_backtest.py`) · the **2026-06-30 Gate B FAIL** (residual-alpha, leak-free, `65f3a32`) · **Reconciled:** 2026-07-11 (S111).
+> **Origin:** 🏠 HOUSE (the Concall Credibility Index — guidance-vs-delivery scoring, built inside patearn). See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference for CCI. Deep design + panel review: [cci-backtest-methodology-and-review.md](../cci-backtest-methodology-and-review.md). Falsification record: [strategy-ledger.md](../strategy-ledger.md). Numbers live in code + [calculations-and-weights.md §5g](../calculations-and-weights.md); this page never restates a formula's constants — it links.
 
 **One-line definition:** CCI is a **point-in-time management-credibility time-series** built from Indian earnings-**concall** transcripts — every management promise is captured, graded against what actually landed in the next result, and compounded into an as-of `credibility_series(symbol, date, level, momentum)` per company. **CCI here = Concall Credibility Index (the in-repo program name is "Concall Intelligence"), NOT the Commodity Channel Index** — it has nothing to do with Lambert's price/volatility oscillator.

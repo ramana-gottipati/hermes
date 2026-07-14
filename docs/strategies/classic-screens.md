@@ -3,6 +3,7 @@
 > **Class:** CANONICAL · **Status:** DESCRIPTIVE-ONLY — public strategies run faithfully on our PIT
 > data; proxies labeled, value shown with its recorded failure numbers · **Governing decision(s):**
 > D133 · D66 (factor doctrine) · Guardrail #8 (primary sources) · **Reconciled:** 2026-07-14 (S145) ·
+> **Origin:** 📚 CLASSIC (famous public strategies — Magic Formula · CANSLIM · Piotroski · Coffee Can · GARP · Graham · Quality · Low-Vol — re-proven on our PIT data). See [origins.md](origins.md).
 > **Charter:** [strategy-ledger.md](../strategy-ledger.md) · [factor-league sibling](momentum-riskadj.md)
 >
 > **One-line definition:** The famous, name-brand equity strategies (Magic Formula, CANSLIM,

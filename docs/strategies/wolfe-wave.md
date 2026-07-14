@@ -2,6 +2,7 @@
 
 > **Class:** CANONICAL reference (permanent — do not archive).
 > **Status:** DESCRIPTIVE-ONLY · **Governing decision(s):** D96 / D108 / D109 / D111 / D113 · **Reconciled:** 2026-07-11 (S113).
+> **Origin:** 📚 CLASSIC base (Bill Wolfe's 5-point reversal geometry) + 🧑 RAMANA layer (the mandatory 2/3/4 fractal gate D108, the §B strength rebalance D111 & spring-and-reclaim §A9). See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference for Wolfe Wave. Deep design: [wolfe-wave-design.md](../wolfe-wave-design.md) + [wolfe-rules.md](../wolfe-rules.md) (rules of record, now incl. §A9 spring-and-reclaim + §B3 ratified scoring); re-apply run-book: [wolfe-NEXT-SESSION.md](../wolfe-NEXT-SESSION.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page never restates a formula's constants — it links.
 
 **One-line definition:** a Wolfe Wave is a **5-pivot reversal structure** — points 1·2·3·4 define a converging channel, point **5** overshoots the extended **1-3 line** and reverses toward the **EPA (1-4) target line** — surfaced in patearn as a **DESCRIPTIVE-ONLY** lens in which **the machine detects and validates points 1·2·3·4 (fractal-gated) and Ramana's Fibonacci-confluence method owns point 5**, and whose only validated edge is **selection** (which name / direction / when), never trade-craft.

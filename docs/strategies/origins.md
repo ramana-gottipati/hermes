@@ -23,6 +23,8 @@
 | **MEP** (signed accumulation/distribution) | 🧑 RAMANA doctrine + 🏠 model | /dash/mep | live; descriptor-only (D62) |
 | **Wolfe waves** | 📚 CLASSIC base (Bill Wolfe) + 🧑 RAMANA §B strength rebalance & fractal gate | /dash/wolfe/scan + trades | live; BULL selection edge OOS-validated; book rejected |
 | **CPR structure pillar** | 📚 CLASSIC base (pivot-range school) + 🏠 multi-TF amplification | /dash/cpr | live, descriptive |
+| **Relative Strength suite** (RRG · RS-band · rotation · Mansfield · capture · size-index) | 📚 CLASSIC families (RRG — de Kempenaer · Mansfield/Weinstein RS · rotation) + 🏠 measurement | /dash/rrg · rotation · rsband · capture-map | live, descriptive |
+| **Harmonic** (XABCD / PRZ) | 📚 CLASSIC (Gartley/Carney) + 🏠 PIT detector | /dash/harmonic | live, descriptive · backtest-gated |
 | **STREAM BAND** (13-EMA banks + 5-EMA trigger) | 🧑 RAMANA | Screen+ "rev" group (band state · stretch pctile) | falsified as signal (ledger 07-13); live as context |
 | **FRACTAL FLOOR / CEILING** | 🧑 RAMANA | Screen+ "rev" group + reclaim/slip pills | falsified as entry (07-14…14c); live as risk-geometry context |
 | **Buyback tender quota play** | 🧑 RAMANA (charter §2.4) | /dash/buyback-calc | live, personal-scale |
@@ -37,6 +39,7 @@
 | **PACER-25** (RISKADJ) | 📚 CLASSIC (vol-adjusted momentum school) | /dash/model-portfolios | model portfolio since 2012 |
 | **CRAFTSMAN-25** (QUAL_MOM) | 📚 CLASSIC blend, 🏠 delivery-leg formulation | /dash/model-portfolios | model portfolio since 2012 |
 | **STEADY-25** (LOWVOL_MOM quarterly) | 📚 CLASSIC (low-vol + momentum, "conservative formula") | /dash/model-portfolios + /dash/momentum-scan/slow | model portfolio; NET champion |
+| **Momentum / RISKADJ engine** (the benchmark ranker) | 📚 CLASSIC (Jegadeesh-Titman · vol-adjusted momentum) + 🏠 measurement | /dash/momentum-scan | live; gross benchmark, not fundable net of cost |
 | **Factor league** (families ranked incl. failures) | 📚 CLASSIC content, 🏠 measurement | /dash/factor-league | live |
 | **Value / deep value / quality-standalone / deliv-mom rows** | 📚 CLASSIC | factor league (verdict rows) | FAILED/REJECTED on our data — shown with numbers |
 | **Classic screens catalog** (in flight, sibling lane) | 📚 CLASSIC | /dash/classics (when it lands) | building |
