@@ -57,6 +57,53 @@ QG_THRESHOLD = 0.60 * QG_MAX  # 151.2
 
 UNVERIFIED_MULTIPLIER = 0.70
 
+# --- Financial-sector detector + label (Codex D3-F1, Track D) --------------
+# pt14's generic ROCE / OPM / D-E thresholds are STRUCTURALLY WRONG for lenders
+# (leverage IS the business; Screener reports ROCE ~1-7% for banks — nonsense),
+# so every bank/NBFC/HFC is mis-rated bottom-tier (HDFCBANK/ICICIBANK → T4).
+# Until the sector-adapted Doctrine-D model ships (GNPA/CAR/RoA from NSE XBRL —
+# Track-D data plan), we LABEL the score for financials so no reader mistakes the
+# generic tier for a real quality verdict. Detector = NSE financial-index
+# membership (primary-source, guardrail-#8-clean; company_tags source='index').
+_FINANCIAL_INDEX_TAGS = ("Financial Services", "Banks", "PSU Banks", "Private Banks")
+_FIN_PENDING_NOTE = (
+    "Financial-sector company — this rule-based pt14 uses generic ROCE / OPM / D-E "
+    "thresholds that are structurally wrong for lenders (leverage IS the business). "
+    "A sector-adapted Doctrine-D model (GNPA / CAR / RoA from NSE XBRL) is pending — "
+    "treat the tier / NS below as NOT applicable for this name."
+)
+
+
+def is_financial_symbol(symbol: str, conn=None) -> bool:
+    """True iff `symbol` is an NSE financial-sector index constituent (bank/NBFC/HFC).
+
+    Primary-source detector via `company_tags` (source='index'): 'Financial Services'
+    is the union tag that catches banks + NBFCs + HFCs. Guardrail-#8-clean (NSE index
+    constituents, already stored — no Screener/vendor call). Fails closed (False) on
+    any error so scoring never breaks. Coverage caveat: a lender OUTSIDE the NSE
+    financial indices is not caught — acceptable for the interim label; the full
+    Doctrine-D build detects lenders directly via the XBRL InterestEarned tag.
+    """
+    if not symbol:
+        return False
+    q = ("SELECT 1 FROM company_tags WHERE symbol=? AND source='index' AND approved=1 "
+         "AND tag IN (%s) LIMIT 1" % ",".join("?" * len(_FINANCIAL_INDEX_TAGS)))
+    args = (symbol.upper(), *_FINANCIAL_INDEX_TAGS)
+
+    def _check(c) -> bool:
+        try:
+            return c.execute(q, args).fetchone() is not None
+        except Exception:  # noqa: BLE001 — detection must never break scoring
+            return False
+
+    if conn is not None:
+        return _check(conn)
+    try:
+        with get_conn() as c:
+            return _check(c)
+    except Exception:  # noqa: BLE001
+        return False
+
 
 # --- Hard Disqualifiers ----------------------------------------------------
 
@@ -137,11 +184,18 @@ def _pattern_block(pattern_id: int, signals: list[tuple[int, bool]],
     }
 
 
-def score_fundamentals(f: dict) -> dict:
+def score_fundamentals(f: dict, *, is_financial: bool = False) -> dict:
     """Apply rule-based 14-pattern scoring to a fundamentals dict.
 
     Returns a structured score with sensitivity band, PAC, QG, tier, and
     per-pattern detail.
+
+    `is_financial` (Codex D3-F1, Track D): when the name is a bank/NBFC/HFC, the
+    generic ROCE / OPM / D-E patterns are structurally wrong, so we attach a
+    `sector_model_pending` flag + `sector_note` label so surfaces can disclose that
+    the tier / NS is NOT a real quality verdict for lenders. The computed numbers are
+    left unchanged (non-suppressing label) — full suppression + the Doctrine-D model
+    are a separate, decision-gated build.
     """
     if not f:
         return {"error": "no fundamentals"}
@@ -331,6 +385,10 @@ def score_fundamentals(f: dict) -> dict:
         "disqualifier_reasons": disq_reasons,
         "tier": tier,
         "patterns": patterns,
+        # Codex D3-F1 / Track D: label (don't yet suppress) financials so no reader
+        # mistakes the generic tier for a real quality verdict on a lender.
+        "sector_model_pending": bool(is_financial),
+        "sector_note": _FIN_PENDING_NOTE if is_financial else None,
     }
 
 
@@ -392,7 +450,7 @@ def score_symbol(symbol: str, *, force_refresh: bool = False) -> dict:
     f = screener.fetch_company(symbol, use_cache=not force_refresh)
     if not f:
         return {"error": f"could not fetch fundamentals for {symbol}", "symbol": symbol}
-    score = score_fundamentals(f)
+    score = score_fundamentals(f, is_financial=is_financial_symbol(symbol))
     save_score(score)
     return score
 
@@ -412,7 +470,13 @@ def format_score_for_telegram(score: dict, *, fundamentals: dict | None = None) 
 
     tier_emoji = {"T1": "🟢", "T2": "🟡", "T3": "🟠", "T4": "⚪", "DISQUALIFIED": "🔴"}.get(tier, "")
 
-    lines = [
+    lines = []
+    # Codex D3-F1 / Track D: financials carry a structural mis-rating on generic pt14 —
+    # lead with the label so the tier below is not read as a real quality verdict.
+    if score.get("sector_model_pending"):
+        lines.append(f"⚠️ <b>{score.get('sector_note') or _FIN_PENDING_NOTE}</b>")
+        lines.append("")
+    lines += [
         f"<b>{sym}</b>  {tier_emoji}<b>{tier}</b>",
         f"NS: <b>{ns_b:.1f}%</b>  (range {ns_p:.1f}–{ns_o:.1f})",
         f"PAC: {pac}/14   Quality Gate: <b>{qg}</b>",

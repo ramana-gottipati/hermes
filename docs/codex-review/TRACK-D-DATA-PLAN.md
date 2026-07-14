@@ -128,8 +128,22 @@ Pattern-5 proxy) and defer true ALM extraction.
    so no wrong number shows while the data lands? *(Recommend the interim suppress-label immediately +
    data in parallel — stops the live mis-rating today.)* **STILL AWAITS RAMANA.**
 
-## Interim suppress-label — SPEC'd + READY (S136); ship gated on multi-session + scope decision
-The interim (decision #4) is fully designed and de-risked — mechanical to ship once unblocked:
+## Interim label — ✅ LABEL half LANDED (S136); SUPPRESS half + surfaces deferred
+**✅ LANDED (engine + Telegram), 2026-07-14 S136.** The non-suppressing LABEL half shipped in
+`scoring.py` (not hot) — this is Codex's own D3-F1 remediation ("label pt14 for financials until built"),
+so it's converged and needs no scope decision:
+- `is_financial_symbol(symbol)` — primary-source detector (NSE financial-index membership via
+  `company_tags` source='index'; fails closed).
+- `score_fundamentals(f, is_financial=…)` now attaches `sector_model_pending` + `sector_note` (the
+  computed tier/NS are left UNCHANGED — non-suppressing label).
+- `score_symbol()` wires the detector; `format_score_for_telegram()` LEADS with the advisory so no
+  reader mistakes a lender's generic T4 for a real quality verdict.
+- Pinned by `tests/test_scoring_financial_label.py` (detector + flag + Telegram advisory; 9 scoring
+  tests still green).
+**Still DEFERRED (decision-gated / multi-session):** (a) the SUPPRESS half (hide/replace the misleading
+tier on surfaces) — that's Ramana's scope decision #4; (b) web/Pat/Screen+ adoption of the flag
+(`dashboard.py`/`screener_plus.py`/`pat/*` are hot); (c) persisting the flag on `pattern_scores` + a VPS
+re-score. Original spec (still valid for those):
 - **Detect:** `is_financial_symbol(symbol)` → True iff `company_tags` (source='index') carries any of
   `{'Financial Services','Banks','PSU Banks','Private Banks'}` (see detector section above).
 - **Suppress:** in `score_fundamentals`, when financial, return `sector_model_pending=True` +
