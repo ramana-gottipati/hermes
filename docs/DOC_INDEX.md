@@ -31,7 +31,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 ---
 
-## A. CANONICAL (14)
+## A. CANONICAL (15)
 
 | Doc | Why |
 |---|---|
