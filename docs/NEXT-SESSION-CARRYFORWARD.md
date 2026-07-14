@@ -10,6 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 2026-07-14 evening — S-D SEARCH & ENTRY: CLAIMED + IN-FLIGHT (S140 lane) — do NOT start S-D in parallel
+- **Mutual-yield incident tonight:** two sessions started S-D within minutes of each other; each saw the
+  other's in-flight files and BOTH yielded per the S137 doctrine (one had `find_view.py`, a /dash/find
+  universal resolver — withdrawn by its own lane; the other `symbol_search.py`, the typeahead stack —
+  preserved to its scratchpad). Result: S-D was left claimed by NOBODY. This pushed block is the
+  visible re-claim (the "grep origin before claiming" convention) — S140 is landing S-D now.
+- **Scope being landed:** `src/web/symbol_search.py` (`/dash/api/symbol-search` JSON feed + ranked
+  `search()` + `did_you_mean_html()` + shared `TYPEAHEAD_JS`) · registry-generated ⌘K palette ·
+  typeahead on the ⌘K bar + home box · stock-miss "Did you mean" · Pat nav entry (Trust) + gate rows.
+- **If the /dash/find lane resumes:** that resolver design is COMPLEMENTARY (302 ticker→lens→name→Pat,
+  pick-list page) — build it ON TOP of `symbol_search.search()`; one lookup in the codebase, never two.
+- **Retire this block when S-D lands** (replace with the ✅ result block).
+
 ## ✅ 2026-07-14 — S138: signal-bus OWNER-DM PAGER — BUILT + DEPLOYED + ARMED + VERIFIED (Ramana-directed) — do NOT redo; kickstart-pick-verify
 - **NEW `src/automation/signal_alert_telegram.py`** — the bus's 5th face: a private owner-DM pager that DMs Ramana the newest **CRITICAL** alerts (the alert rail S123 built the surface; this is the delivery). Reuses `signal_alerts.active_alerts()` + `digest._send`; owns a `signal_alert_delivery` fire-once ledger (no `db.py` edit). 10/10 hermetic tests; full bus suite 37 pass. **DISJOINT** (bus-owned files only). Full record: PROJECT_STATE § Session 138.
 - **✅ DEPLOYED + ARMED + VERIFIED (2026-07-14):** both files shipped (fork-check PASS, LF, backup); armed by **`Environment=HERMES_ALERT_DM=1` on the git-owned `60-signal-events.conf` drop-in** (commit `c23b6d5`) via `install-systemd.sh` daemon-reload (no start — AUD-95-safe). **⚠ ARMING GOTCHA:** NO hermes service loads `/opt/hermes/.env` into the process env → an `os.environ` flag in `.env` is INVISIBLE; the flag MUST live in the unit/drop-in (this is why it's in `60-signal-events.conf`, not `.env`). **Functional verify (real send):** manual `--push` DM'd the 2 pending criticals to the owner (`sent:2`), ledger recorded 2, second `--push` = 0 (`nothing new`) → fire-once confirmed. Next nightly bhavcopy `--detect` auto-DMs NEW criticals. Disarm = drop the `Environment=` line + re-install. PRIVATE owner DM (like season-digest), NOT the public channel (S-F). NO `hermes-api` restart was needed (pager runs only in the nightly `--detect` fresh process).
