@@ -73,14 +73,32 @@ BROAD = "Nifty 500"
 
 log = logging.getLogger("hermes.stock_rs")
 
-# The liquid-universe filter — IDENTICAL to the dashboard's _SCAN_FILTERS and
-# the screen signals use: real EQ, traded value > ₹1cr, price > ₹20, excluding
+# The liquid-universe filter: real EQ, traded value > ₹1cr, price > ₹20, excluding
 # ETFs / commodity trackers / index proxies. Used only for the percentile rank
 # (the per-stock RS series itself is computed for every symbol with bhav data).
+#
+# D2-F1 (Codex / AUD-12) — SURVIVORSHIP FIX: the equity-type gate was
+# `s.symbol IN nse_equity_list`, a CURRENT snapshot of live equities. Applied to a
+# HISTORICAL trade_date it dropped every name that has since delisted, so past
+# percentile ranks were computed over survivors ONLY (survivorship bias — e.g. the
+# 2016-06-01 rank universe was 419 names instead of the true 547). Fixed by keying
+# on the point-in-time survivorship spine `security_master` (first_date ≤ D ≤
+# last_date, delisted names KEPT; instrument_class='FUND' excludes ETFs/MF units) as
+# of the trade date, with `nse_equity_list` retained only as an OR-fallback for the
+# handful of live names not yet in the master (so TODAY's universe is byte-identical
+# — verified 1336→1336 — and only historical dates gain their delisted contemporaries).
+# Activation = a VPS `--backfill` rank re-run (rewrites rs_rank across history);
+# the nightly per-date path is unchanged (today's set is identical).
 _LIQUID_FILTER = """
       b.series = 'EQ' AND (b.segment = 'CM' OR b.segment IS NULL)
       AND b.value > 10000000 AND b.close > 20
-      AND s.symbol IN (SELECT symbol FROM nse_equity_list)
+      AND (
+        EXISTS (SELECT 1 FROM security_master sm
+                 WHERE sm.symbol = s.symbol
+                   AND sm.first_date <= b.trade_date AND sm.last_date >= b.trade_date
+                   AND COALESCE(sm.instrument_class, '') != 'FUND')
+        OR s.symbol IN (SELECT symbol FROM nse_equity_list)
+      )
 """
 
 
@@ -311,6 +329,15 @@ def primary_sector_map() -> dict[str, str]:
     resolved by the alphabetical tiebreak. Returns {symbol: index_name}; symbols
     in no sectoral index are absent (→ NULL primary_sector → broad RS only).
     Only the latest snapshot_date per index is used.
+
+    ⚠ D2-F1 (Codex) — KNOWN LIMITATION, not a fixable leak: this is a CURRENT-snapshot
+    sector assignment applied across a stock's full history, so historical `rs_vs_sector`
+    rows use today's sector index as the denominator. A point-in-time correction is NOT
+    possible — `stock_index_membership` only began snapshotting in 2026-06 (19 snapshots,
+    all within one month; no pre-2026 membership exists), so there is no historical
+    sector map to key on. Unlike the rank-universe survivorship (fixed above via
+    `security_master`), the DATA to make sector RS point-in-time does not exist yet;
+    this is disclosed, not silently correct. (docs/codex-review/FINDINGS-LEDGER.md D2-F1)
     """
     with get_conn() as conn:
         rows = conn.execute(
