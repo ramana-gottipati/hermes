@@ -56,6 +56,8 @@ _VALID: dict[str, dict] = {
     "navigate":     {"topic": "free"},  # "where do I see X" — page-finder over lens_registry (S-E)
     "news":         {"symbol": "free"},  # "TCS news / latest headlines" — inline headlines (S-E Ph2)
     "whatchanged":  {"symbol": "free"},  # "what changed today / for X" — the bus rail inline (S-E Ph2)
+    "participants": {},                   # "are FIIs buying" — FII net stance inline (S-E Ph2)
+    "rotation":     {"symbol": "free"},  # "what phase is X in" — per-symbol RS rotation (S-E Ph2)
     "explain":      {"explain": "slug"},
 }
 
@@ -356,6 +358,31 @@ def route(query: str, conn=None) -> dict | None:
     if wc:
         _cache_put(q, wc)
         return wc
+
+    # (a-1f) Participants — "are FIIs buying / FII flows / who's positioned" — the FII
+    #        index-futures net stance inline (S-E Phase 2). ₹0; needs an FII/participant
+    #        cue, runs after nav so "where do I see FII flows" stays a navigate.
+    try:
+        from src.pat.participants_flow import parse_participants as _parse_part
+        part = _parse_part(query)
+    except Exception:
+        part = None
+    if part:
+        _cache_put(q, part)
+        return part
+
+    # (a-1g) Rotation — "what phase is TCS in / rotation state of X / is INFY leading" —
+    #        a stock's RS-rotation state inline (S-E Phase 2). ₹0; symbol-anchored (needs a
+    #        rotation cue AND a symbol), so market-wide "rotation" stays a navigate and the
+    #        RS-leaders board is never stolen.
+    try:
+        from src.pat.rotation_flow import parse_rotation as _parse_rot
+        rot = _parse_rot(query)
+    except Exception:
+        rot = None
+    if rot:
+        _cache_put(q, rot)
+        return rot
 
     from src.pat.understand import validate_intent, parse_fallback
 

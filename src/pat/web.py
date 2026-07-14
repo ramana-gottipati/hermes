@@ -1170,6 +1170,80 @@ def _whatchanged_flow(conn, symbol: str = "") -> str:
     return "".join(out)
 
 
+# ── participants flow (FII index-futures net stance, inline) ──────────────────
+# "are FIIs buying / FII flows / who's positioned" (S-E Phase 2). The FII net long-short
+# + where it sits in its 2.5y range — descriptive positioning (D62), never a buy/sell.
+
+def _participants_flow(conn) -> str:
+    from src.pat import participants_flow as _PF
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    st = _PF.fii_stance(conn)
+    if not st:
+        out.append(_q_bubble("I can't read the FII positioning tape right now."))
+        out.append('<div class="empty">No participant open-interest data available yet. '
+                   'The full tape is at <a class="row" href="/dash/participants">Participants</a>.</div>')
+        return "".join(out)
+    out.append(_q_bubble("Where foreign institutions (FIIs) are positioned in index futures — "
+                         "their net long-short vs their own 2.5-year range. A stance read, not a call."))
+    net = st.get("net_lots")
+    net_txt = (f'{net:+,.0f} lots' if isinstance(net, (int, float)) else "—")
+    ratio = st.get("ratio")
+    ratio_txt = (f'{ratio:.2f}× long:short' if isinstance(ratio, (int, float)) else "—")
+    out.append(f'<div class="ghdr">FII index-futures stance · as of {_esc(str(st.get("as_of") or ""))}</div>')
+    out.append('<div class="card" style="line-height:1.7">'
+               f'<div style="font-size:15px"><b>{_esc(st.get("stance") or "")}</b></div>'
+               f'<div style="color:var(--ink-3);font-size:13px;margin-top:4px">'
+               f'Net {_esc(net_txt)} · {_esc(ratio_txt)} · '
+               f'{int(round(st.get("pct", 50)))}th percentile of {int(st.get("n_days") or 0)} days</div>'
+               '</div>')
+    out.append('<div style="margin-top:10px"><a class="row" href="/dash/participants">'
+               'Open the full Participants tape (FII vs retail mirror, history) →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'FII index-futures net positioning (long − short), and where today sits in its own '
+               '~2.5-year range. Descriptive market positioning (D62) — never a buy/sell signal.</div>')
+    return "".join(out)
+
+
+# ── rotation flow (a stock's RS-rotation phase, inline) ───────────────────────
+# "what phase is TCS in / rotation state of X / is INFY leading" (S-E Phase 2). The
+# stock's RS-weather phase + rank + trend — descriptive, rule-based.
+
+def _rotation_flow(conn, symbol: str = "") -> str:
+    from src.pat import rotation_flow as _RF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    p = _RF.phase_for(conn, sym) if (sym and _RF.is_symbol(conn, sym)) else None
+    if not p:
+        if sym and _RF.is_symbol(conn, sym):
+            out.append(_q_bubble(f"I don't have a current rotation phase for {_esc(sym)} yet."))
+            out.append('<div class="empty">No RS-rotation snapshot for '
+                       f'{_esc(sym)} — the weather board is at '
+                       '<a class="row" href="/dash/rotation">Rotation</a>.</div>')
+        else:
+            out.append(_q_bubble(f"I don't recognise {_esc(sym) or 'that'} as a ticker."))
+            out.append('<div class="empty">Name a stock by its NSE symbol, or open the '
+                       '<a class="row" href="/dash/rotation">Rotation weather board</a>.</div>')
+        return "".join(out)
+    rk = p.get("rank")
+    rank_txt = (f'RS rank {int(rk)}/99' if isinstance(rk, (int, float)) else "RS rank —")
+    out.append(_q_bubble(f"Where {_esc(sym)} sits in the relative-strength rotation — its "
+                         "weather phase, rank and trend. A read of position, not a call."))
+    out.append(f'<div class="ghdr">Rotation · {_esc(sym)} · as of {_esc(str(p.get("as_of") or ""))}</div>')
+    out.append('<div class="card" style="line-height:1.7">'
+               f'<div style="font-size:15px"><b>{_esc(p.get("phase_label") or "")}</b></div>'
+               f'<div style="font-size:13px;margin-top:3px">{_esc(p.get("read") or "")}</div>'
+               f'<div style="color:var(--ink-3);font-size:12.5px;margin-top:4px">'
+               f'{_esc(rank_txt)} · RS trend {_esc(p.get("trend") or "—")}</div>'
+               '</div>')
+    out.append(f'<div style="margin-top:10px"><a class="row" href="/dash/stock?sym={_u(sym)}">'
+               f'Open {_esc(sym)}\'s dossier →</a> &nbsp; '
+               '<a class="row" href="/dash/rotation">the full Rotation board →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'The RS-weather phase from the stock\'s relative-strength slopes vs Nifty 500 — '
+               'a descriptive rotation read (rule-based, no LLM), never a buy/sell.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2510,6 +2584,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
                "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
                "news": "Headlines", "whatchanged": "What changed",
+               "participants": "FII positioning", "rotation": "RS rotation state",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2692,6 +2767,10 @@ def _free_text(conn, q: str):
             body = _news_flow(conn, p.get("symbol", ""))
         elif f == "whatchanged":
             body = _whatchanged_flow(conn, p.get("symbol", ""))
+        elif f == "participants":
+            body = _participants_flow(conn)
+        elif f == "rotation":
+            body = _rotation_flow(conn, p.get("symbol", ""))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -2985,6 +3064,12 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "whatchanged":
         body = _whatchanged_flow(conn, sym or q)          # bus rail; symbol rides `sym` (else `q`)
         fb_ctx = {"query": q, "flow": "whatchanged", "params": {"symbol": sym or q}, "source": "flow"}
+    elif flow == "participants":
+        body = _participants_flow(conn)                   # FII net stance (S-E Ph2)
+        fb_ctx = {"query": q, "flow": "participants", "params": {}, "source": "flow"}
+    elif flow == "rotation":
+        body = _rotation_flow(conn, sym or q)             # per-symbol RS phase; rides `sym` (else `q`)
+        fb_ctx = {"query": q, "flow": "rotation", "params": {"symbol": sym or q}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after
