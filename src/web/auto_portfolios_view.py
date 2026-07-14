@@ -357,6 +357,7 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
         "<th>Since rebal</th></tr></thead><tbody>" + tr + "</tbody></table>"
         + "<h3>Churn — automatic, every rebalance</h3>" + churn_html
         + _STORY
+        + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — all four runners are public, bookish families (provenance map: <code>docs/strategies/origins.md</code>); none is proprietary. Ramana-original and house-proprietary strategies live on <a href='/dash/strategist'>Strategist</a>.</div>"
         + "<div class='honesty'>NAV is <b>flat-cost</b> (0.3%/side on the churned fraction, "
         "labeled) and marked at rebalance dates. STEADY-25 is the only family that also "
         "survives PARTICIPATION-cost reality (net ~1.02 @₹50cr); PACER-25 and SPRINTER-25 "

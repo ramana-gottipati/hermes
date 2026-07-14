@@ -249,6 +249,7 @@ def factor_league_page(family: str = "", fmt: str = ""):
         + "<div class='rd-htr'><a href='/dash/strategy-ref?p=momentum-riskadj'>Methodology →</a>"
         + " · <a href='/dash/testing'>How we validate →</a></div>"
         + steady
+        + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — public, bookish families measured on OUR data. Your own (🧑) and proprietary (🏠) strategies live on <a href='/dash/strategist'>Strategist</a>; the full provenance map is <code>docs/strategies/origins.md</code>.</div>"
         + f"<div class='bar'>rosters as-of <b>{_esc(as_of) or '—'}</b> · Sharpe/CAGR/DD = the "
         "RECORDED 2012-26 walk-forward (top-25 monthly, ₹5cr universe, FLAT costs — labeled; "
         "net reality is in the Status column) · excess = CAGR minus Nifty 500's 15.3%</div>"

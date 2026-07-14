@@ -41,6 +41,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `README.md` | Repo readme. |
 | `docs/strategy-ledger.md` | Benchmark ledger ("nothing discarded"). |
 | `docs/SURFACE-PLAYBOOK.md` | BINDING playbook for adding any user-facing screen/page/tab — sister-data check, lens registry, education/fence/Pat/CSV landing checklist (twins: CLAUDE.md #9 / AGENTS.md #7). |
+| `docs/strategies/origins.md` | Canonical provenance map (S132j): every strategy labeled RAMANA / HOUSE / CLASSIC + the binding origin-labeling rule + the external-sources policy + the documentation loop. |
 | `docs/strategies/` (index: `README.md`) | Canonical strategy reference layer (S109) — one page per strategy (definition · status · terminology). Links to design docs; never duplicates ledger/weights. |
 | `docs/metrics-glossary.md` | Metric definitions source. |
 | `docs/product-strategy-2026.md` | Product / PO strategy reference. |
