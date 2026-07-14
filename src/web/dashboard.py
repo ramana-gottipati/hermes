@@ -1151,6 +1151,15 @@ def dash_home() -> HTMLResponse:
                                render_home(sig_date, idx_date), "dash", sig_date or "", wide=True))
 
 
+def _edu(bl_html: str) -> str:
+    """S-C education scaffold prefix for the dashboard-served lenses: the shared
+    readability CSS + a page-specific bottom-line band + the reading-guide link
+    (SURFACE-PLAYBOOK §3 item 3). Prepended to the body handed to _shell so the
+    cockpit renderers stay untouched (they are co-edited by other lanes)."""
+    from src.web import infographics as ifx
+    return ifx.readability_css() + ifx.bottom_line(bl_html) + ifx.how_to_read_link()
+
+
 @router.get("/dash/mep", response_class=HTMLResponse)
 def dash_mep(dir: str = Query("")) -> HTMLResponse:
     """MEP — SIGNED accumulation AND distribution (descriptor, D62). The real
@@ -1160,7 +1169,11 @@ def dash_mep(dir: str = Query("")) -> HTMLResponse:
     from src.web.cockpit import render_mep
     sig_date, _ = _latest_dates()
     return HTMLResponse(_shell("Accumulation & Distribution · MEP · patearn",
-                               render_mep(focus=dir), "mep", sig_date or "", wide=True))
+                               _edu('Which names are being <b>systematically bought or sold</b> — the '
+                                    'signed footprint of persistent accumulation vs distribution in '
+                                    'delivered value. A <b>description of behaviour</b> (its predictive '
+                                    'version failed the gate), never a rank or a signal.')
+                               + render_mep(focus=dir), "mep", sig_date or "", wide=True))
 
 
 @router.get("/dash/conviction", response_class=HTMLResponse)
@@ -1171,7 +1184,11 @@ def dash_conviction(limit: int = Query(60, ge=10, le=200)) -> HTMLResponse:
     Full-bleed cockpit render (cockpit.render_conviction); legacy body kept dead."""
     from src.web.cockpit import render_conviction
     sig_date, _ = _latest_dates()
-    return HTMLResponse(_shell("Conviction · patearn", render_conviction(limit),
+    return HTMLResponse(_shell("Conviction · patearn",
+                               _edu('The <b>cross-pillar shortlist</b>: market-beating strength + '
+                                    'institutions accumulating now + an entry read, with quality as '
+                                    'confirmation. A <b>synthesis to study first</b>, not a buy list.')
+                               + render_conviction(limit),
                                "conviction", sig_date or "", wide=True))
 
 
@@ -1205,7 +1222,11 @@ def dash_pat(request: Request, flow: str = Query(""), explain: str = Query(""), 
 def dash_markets() -> HTMLResponse:
     _, idx_date = _latest_dates()
     from src.web.cockpit import render_markets
-    return HTMLResponse(_shell("Markets · patearn", render_markets(idx_date),
+    return HTMLResponse(_shell("Markets · patearn",
+                               _edu('One screen of <b>market weather</b>: the major indices\' trend, '
+                                    'breadth and the day\'s tape — the context to read <b>before</b> any '
+                                    'single stock. Descriptive, not a market call.')
+                               + render_markets(idx_date),
                                "markets", idx_date or "", wide=True))
 
 
@@ -1214,7 +1235,11 @@ def dash_sectors() -> HTMLResponse:
     """Full-bleed cockpit render (cockpit.render_sectors); legacy body kept dead."""
     from src.web.cockpit import render_sectors
     _, idx_date = _latest_dates()
-    return HTMLResponse(_shell("Sectors · patearn", render_sectors(), "sectors", idx_date or "", wide=True))
+    return HTMLResponse(_shell("Sectors · patearn",
+                               _edu('Every <b>sector\'s health on one board</b> — trend, strength versus '
+                                    'the market, and the breadth of its members. A weather map for '
+                                    'context, not a sector call.')
+                               + render_sectors(), "sectors", idx_date or "", wide=True))
 
 
 @router.get("/dash/rs", response_class=HTMLResponse)
@@ -1233,7 +1258,11 @@ def dash_leaders() -> HTMLResponse:
     Full-bleed cockpit render (cockpit.render_leaders); legacy body kept dead."""
     from src.web.cockpit import render_leaders
     sig_date, _ = _latest_dates()
-    return HTMLResponse(_shell("Leaders · patearn", render_leaders(), "leaders", sig_date or "", wide=True))
+    return HTMLResponse(_shell("Leaders · patearn",
+                               _edu('Stocks aligned <b>three ways</b>: strong versus their sector, strong '
+                                    'versus the market, in a sector itself beating the market — and the '
+                                    'triple-weak mirror. An <b>alignment screen</b>, not a buy/sell list.')
+                               + render_leaders(), "leaders", sig_date or "", wide=True))
 
 
 @router.get("/dash/scan", response_class=HTMLResponse)
@@ -1585,7 +1614,13 @@ def dash_stocks(sector: str = Query(""), limit: int = Query(40, ge=10, le=120),
     # legacy /dash/stocks?view=stealth. Otherwise this is the Stocks list (lens "stocks").
     _active = "stealth" if view == "stealth" else "stocks"
     _title = "Stealth accumulation · patearn" if view == "stealth" else "Stocks · patearn"
-    return HTMLResponse(_shell(_title, body, _active, sig_date or "", wide=True))
+    _bl = (('Names showing <b>quiet, persistent buying in delivered value</b> without a price '
+            'move yet — the stealth cut of the accumulation read. A <b>watch-idea list</b> to '
+            'investigate, never a buy list.') if view == "stealth" else
+           ('Where <b>delivered-value positioning</b> is building today — the DVPT trigger '
+            'screen, layered by strength, with weekly/monthly character views. <b>Descriptive '
+            'positioning</b>, not a signal.'))
+    return HTMLResponse(_shell(_title, _edu(_bl) + body, _active, sig_date or "", wide=True))
 
 
 @router.get("/dash/stealth", response_class=HTMLResponse)
@@ -1682,7 +1717,11 @@ def dash_workbench(limit: int = Query(200, ge=20, le=1000)) -> HTMLResponse:
             '<b>⬇ Export</b> to CSV/Excel. 🟢 gap cell = in the launch band (−1%…+5% of the value-weighted '
             'key price). <a class="row" style="display:inline" href="/dash/stocks">← back to screen</a></div>'
             + table)
-    return HTMLResponse(_shell("Workbench · patearn", body, "workbench", sig_date or "", wide=True))
+    return HTMLResponse(_shell("Workbench · patearn",
+                               _edu('Every positioning / key-price / character / activity signal for the '
+                                    'latest day in <b>one sortable, exportable table</b>. Raw material '
+                                    'for your own cuts, not a recommendation.')
+                               + body, "workbench", sig_date or "", wide=True))
 
 
 @router.get("/dash/screener", response_class=HTMLResponse)
@@ -1956,7 +1995,10 @@ def dash_screener(scope: str = Query("Nifty 500"),
         '<b>RS spark</b> — with every raw value kept beside it. Hide a group to scan just its instruments.</div>')
     view_bar = '<div class="fbar" id="vbar" style="align-items:center;margin-bottom:8px"></div>'
     from src.web.cockpit import SCREENER_VIRT_JS
-    body = intro + scope_bar + view_bar + grid + _SCREENER_JS + SCREENER_VIRT_JS
+    body = (_edu('Every strategy\'s <b>raw values beside its verdict</b> for a principled, '
+                 'scope-selectable universe — one wide frozen-pane grid ranked by cross-pillar '
+                 'conviction. A <b>study table</b> to sort, filter and export, not a buy list.')
+            + intro + scope_bar + view_bar + grid + _SCREENER_JS + SCREENER_VIRT_JS)
     return HTMLResponse(_shell("Screener · patearn", body, "screener", sig_date or "", wide=True))
 
 
@@ -2801,7 +2843,12 @@ def dash_concalls(view: str = Query("avoid")) -> HTMLResponse:
     (cockpit.render_concalls); the legacy inline body below is kept as dead code."""
     from src.web.cockpit import render_concalls
     sig_date, _ = _latest_dates()
-    return HTMLResponse(_shell("Management Credibility · patearn", render_concalls(view),
+    return HTMLResponse(_shell("Management Credibility · patearn",
+                               _edu('Management credibility read from <b>their own concalls</b>: who '
+                                    'walked back guidance, who concealed, who delivered — the '
+                                    'deterioration tape and the leaders view. <b>Behavioural context</b> '
+                                    '(its predictive edge was falsified), never a rank.')
+                               + render_concalls(view),
                                "concalls", sig_date or "", wide=True))
 
 
@@ -3005,7 +3052,10 @@ def dash_cpr(tab: str = Query("reversals"), tf: str = Query(""),
     }[tab]
     head = (f'<h2>CPR · Structure <span class="sub" style="margin:0">where price is, has it turned, is it coiled</span></h2>'
             f'<div class="sub">{intro}</div>')
-    body = head + tabbar + fbars + content
+    body = (_edu('Price <b>structure</b> across timeframes: has it turned (U / ∩ reversals), is it '
+                 'coiled (unusually-narrow ranges), and what fired this period — daily, weekly, '
+                 'monthly. <b>Structure reads to investigate</b>, not trade calls.')
+            + head + tabbar + fbars + content)
     return HTMLResponse(_shell("CPR · patearn", body, "cpr",
                                latest.get("D") or latest.get("W") or "", wide=True))
 
@@ -7038,7 +7088,11 @@ def dash_launchpad() -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
     from src.web.cockpit import render_launchpad
     return HTMLResponse(_shell("Launchpad · patearn",
-                               render_launchpad(sig_date, idx_date),
+                               _edu('Stocks matching the <b>validated precursor profile</b> of past '
+                                    'explosive moves, over today\'s liquid universe. A <b>candidate '
+                                    'screen only</b> — the validated edge is in selection, with no '
+                                    'tradeable edge net of cost — never a recommendation.')
+                               + render_launchpad(sig_date, idx_date),
                                "launchpad", sig_date or "", wide=True))
 
 
@@ -7061,7 +7115,11 @@ def dash_themes() -> HTMLResponse:
     a lens beside Markets/Sectors. Data = company_tags + src.automation.theme_tags."""
     _, idx_date = _latest_dates()
     from src.web.cockpit import render_themes
-    return HTMLResponse(_shell("Themes · patearn", render_themes(idx_date),
+    return HTMLResponse(_shell("Themes · patearn",
+                               _edu('Companies grouped by <b>what they actually do</b> — freely '
+                                    'multi-label themes you can browse and drill into. A map of the '
+                                    'market\'s stories, not a ranking.')
+                               + render_themes(idx_date),
                                "themes", idx_date or "", wide=True))
 
 
@@ -7083,7 +7141,10 @@ def dash_tags_review(added: str = Query("", max_length=60),
     _, idx_date = _latest_dates()
     from src.web.cockpit import render_tags_review
     return HTMLResponse(_shell("Review tags · patearn",
-                               render_tags_review(added, err, sym),
+                               _edu('The theme layer\'s <b>quality desk</b>: approve AI-proposed tags, '
+                                    'hand-add or remove them. Housekeeping that keeps Themes honest — '
+                                    'nothing here scores or signals.')
+                               + render_tags_review(added, err, sym),
                                "tags-review", idx_date or "", wide=True))
 
 
@@ -8008,7 +8069,10 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
     if not sel:
         body = (
             f'<style>{chart_css}</style>'
-            '<h2>Compare ⇄</h2>'
+            + _edu('Any stocks and indices <b>overlaid on one chart</b>, each rebased to the '
+                   'same start (or divided by a benchmark in Ratio mode), so <b>who '
+                   'outperformed</b> is visible at a glance. A comparison canvas, not a signal.')
+            + '<h2>Compare ⇄</h2>'
             '<div class="sub">Overlay any stocks and indices, each rebased to a common '
             'start, to read who outperformed. Use <b>+ Add</b> to begin.</div>'
             + preset_html
@@ -8087,6 +8151,9 @@ button.cmp-sugg { cursor:pointer; font-family:inherit; }
         '<div class="cmp-vals" id="cmpVals"></div>'
         + chart_js
         + _COMPARE_PICKER_JS.replace("__ITEMS__", cmp_items_json).replace("__MAX__", str(_COMPARE_MAX)))
+    body = _edu('Any stocks and indices <b>overlaid on one chart</b>, each rebased to the same '
+                'start (or divided by a benchmark in Ratio mode), so <b>who outperformed</b> is '
+                'visible at a glance. A comparison canvas, not a signal.') + body
     return HTMLResponse(_shell("Compare · patearn", body, "compare", idx_date or "", wide=True))
 
 

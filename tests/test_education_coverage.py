@@ -86,33 +86,20 @@ EXEMPT: dict[str, tuple[str, str]] = {
 #    when its page lands the scaffold (the __main__ report flags covered-but-still-listed).
 #    Seeded from the HEAD (committed) coverage state — see the module docstring on why.
 PENDING: set[str] = {
-    # ── Markets ──  (momentum-scan·rotation·rrg·rsband·wire·wolfe-scan landed the scaffold
-    #    in S-C item 2, a38a122 — they now read COVERED and are off this list)
-    "/dash/markets",                    # Overview hub
-    "/dash/markets/compare",
-    "/dash/markets/leaders",
-    "/dash/markets/sectors",
-    # ── Strategies ──  (growth·insider·ratings·sast·shp landed in S-C item 2, a38a122)
-    "/dash/strategies/concalls",
-    "/dash/strategies/conviction",
-    "/dash/strategies/cpr",
-    "/dash/strategies/launchpad",
-    "/dash/strategies/mep",
-    "/dash/strategies/stealth",
-    "/dash/strategies/stocks",
-    # ── Screener ──  (screen2 landed the scaffold in S137, b315e4a follow-on)
-    "/dash/screener",
-    "/dash/screener/tags-review",
-    "/dash/screener/themes",
-    "/dash/screener/workbench",
     # ── Tracker (demo-book workspace — owned by the tracker lane) ──
+    # ⚠ These 5 read "COVERED" by the coarse module-scan (dashboard.py now carries the
+    # scaffold for its OTHER 15 lenses via _edu()), but the tracker pages themselves —
+    # both the owner path and tracker_gate's non-owner demo views — do NOT render it yet.
+    # Keep them listed until the tracker lane lands the scaffold for real; do not trust
+    # the runtime COVERED read for dashboard-served lenses (module docstring).
     "/dash/tracker/dashboard",
     "/dash/tracker/import",
     "/dash/tracker/performance",
     "/dash/tracker/portfolios",
     "/dash/tracker/watchlists",
-    # ── Trust / meta ──  (coverage·evidence-pack·replay-any-date·spec-sheets·testing landed
-    #    the scaffold in S137 batch 4)
+    # ── everything else: DONE ──  (S-C item 2 a38a122 · S137 gate-arc b315e4a → 3788a4f →
+    #    ed442f4 → e3e2550 → 2db52bd → the dashboard.py cluster: all 15 dashboard-served
+    #    lenses scaffolded via the _edu() handler wrap, cockpit renderers untouched)
 }
 
 
