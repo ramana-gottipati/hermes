@@ -85,22 +85,13 @@ EXEMPT: dict[str, tuple[str, str]] = {
 #    lens that should get bottom_line()+how_to_read_link() but hasn't yet. Trim an entry
 #    when its page lands the scaffold (the __main__ report flags covered-but-still-listed).
 #    Seeded from the HEAD (committed) coverage state — see the module docstring on why.
-PENDING: set[str] = {
-    # ── Tracker (demo-book workspace — owned by the tracker lane) ──
-    # ⚠ These 5 read "COVERED" by the coarse module-scan (dashboard.py now carries the
-    # scaffold for its OTHER 15 lenses via _edu()), but the tracker pages themselves —
-    # both the owner path and tracker_gate's non-owner demo views — do NOT render it yet.
-    # Keep them listed until the tracker lane lands the scaffold for real; do not trust
-    # the runtime COVERED read for dashboard-served lenses (module docstring).
-    "/dash/tracker/dashboard",
-    "/dash/tracker/import",
-    "/dash/tracker/performance",
-    "/dash/tracker/portfolios",
-    "/dash/tracker/watchlists",
-    # ── everything else: DONE ──  (S-C item 2 a38a122 · S137 gate-arc b315e4a → 3788a4f →
-    #    ed442f4 → e3e2550 → 2db52bd → the dashboard.py cluster: all 15 dashboard-served
-    #    lenses scaffolded via the _edu() handler wrap, cockpit renderers untouched)
-}
+# EMPTY — the back-fit is COMPLETE (S-C item 2 a38a122 · the S137 gate-arc b315e4a →
+# 3788a4f → ed442f4 → e3e2550 → 2db52bd → the 15-lens dashboard.py cluster via the
+# _edu() handler wrap → finally the 5 tracker pages: owner handlers via
+# dashboard._TRACKER_BL + _edu(), non-owner demo views via tracker_gate._edu_demo()
+# reusing the SAME texts, fail-open). Every routed lens is now COVERED or EXEMPT.
+# A NEW page goes here only as documented, temporary debt — with the scaffold landing soon.
+PENDING: set[str] = set()
 
 
 # ── the SURFACE-PLAYBOOK line, embedded in the failure message ────────────────────

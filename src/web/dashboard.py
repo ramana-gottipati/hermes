@@ -4472,6 +4472,23 @@ async def dash_track_alerts_save(request: Request) -> RedirectResponse:
     return RedirectResponse(dest, status_code=303)
 
 
+# S-C education bottom-lines for the 5 tracker tabs — shared by every return path of the
+# owner handlers below (the non-owner demo views carry the same texts via tracker_gate).
+_TRACKER_BL = {
+    "dashboard":   ('Your <b>whole book at a glance</b> — value, P&amp;L, the red flags that need '
+                    'attention, movers, allocation and news for the names you hold. A private '
+                    'cockpit with live prices; a record, not advice.'),
+    "portfolios":  ('Every holding, by book — entry, current value, P&amp;L — with inline add/edit. '
+                    '<b>Your record-keeping</b>, not a recommendation of what to hold.'),
+    "watchlists":  ('Names you\'re tracking <b>before committing</b>, with the desk\'s live reads '
+                    'beside each. A parking lot for ideas, not a queue of signals.'),
+    "performance": ('Realized and open <b>performance over time</b> — what worked and what didn\'t, '
+                    'per book and strategy. An honest mirror, not a scorecard to chase.'),
+    "import":      ('Bring holdings in from <b>any CSV or Excel</b> — columns auto-detected, tickers '
+                    'matched to the NSE list, preview before commit. Housekeeping; nothing here trades.'),
+}
+
+
 @router.get("/dash/tracker/portfolios", response_class=HTMLResponse)
 def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Query("")) -> HTMLResponse:
     sel_book = book.strip()
@@ -4511,7 +4528,8 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
         empty = ('<div class="empty">No open positions'
                  + (f' in <b>{_esc(sel_book)}</b>' if sel_book else '')
                  + ' yet. Add one above, or open any stock and hit <b>+ Track</b> → <b>Portfolio</b>.</div>')
-        body = _TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips + empty
+        body = (_edu(_TRACKER_BL["portfolios"]) + _TRACK_CSS + _track_subnav("portfolios")
+                + intro + flash + addbox + chips + empty)
         return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios", wide=True))
     # ---- header KPIs over the displayed rows ----
     inv = cur = 0.0
@@ -4632,8 +4650,8 @@ def dash_portfolios(added: str = Query(""), err: str = Query(""), book: str = Qu
             alloc = ('<details style="margin-top:16px"><summary class="ghdr" style="cursor:pointer">'
                      '▸ Allocation &amp; concentration</summary>'
                      '<div style="margin-top:8px">' + sec_b + cap_b + conc_html + '</div></details>')
-    body = (_TRACK_CSS + _track_subnav("portfolios") + intro + flash + addbox + chips
-            + hdr + exp + table + alloc)
+    body = (_edu(_TRACKER_BL["portfolios"]) + _TRACK_CSS + _track_subnav("portfolios")
+            + intro + flash + addbox + chips + hdr + exp + table + alloc)
     return HTMLResponse(_shell("Portfolios · patearn", body, "portfolios", wide=True))
 
 
@@ -4679,7 +4697,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
         empty = ('<div class="empty">No watchlist items'
                  + (f' in <b>{_esc(sel_book)}</b>' if sel_book else '')
                  + ' yet. Add one above, or on any stock page hit <b>+ Track</b> → <b>Watchlist</b>.</div>')
-        body = _TRACK_CSS + _track_subnav("watchlists") + intro + flash + addbox + chips + empty
+        body = (_edu(_TRACKER_BL["watchlists"]) + _TRACK_CSS + _track_subnav("watchlists")
+                + intro + flash + addbox + chips + empty)
         return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists", wide=True))
     # "ready to act" banner — the watch items now firing a strong setup
     ready_syms = [r["symbol"] for r in rows if alerts.get(r["id"], ([], None))[1]]
@@ -4728,7 +4747,8 @@ def dash_watchlists(added: str = Query(""), err: str = Query(""), book: str = Qu
     bq = f"&book={_q(sel_book)}" if sel_book else ""
     exp = ('<div style="display:flex;justify-content:flex-end;margin:0 0 8px">'
            f'<a class="tbtn" href="/dash/track/export?status=watch{bq}" style="text-decoration:none">⬇ Export CSV</a></div>')
-    body = (_TRACK_CSS + _track_subnav("watchlists") + intro + flash + ready_banner + addbox + chips
+    body = (_edu(_TRACKER_BL["watchlists"]) + _TRACK_CSS + _track_subnav("watchlists")
+            + intro + flash + ready_banner + addbox + chips
             + exp + head + "".join(trs) + "</tbody></table>")
     return HTMLResponse(_shell("Watchlists · patearn", body, "watchlists", wide=True))
 
@@ -4936,6 +4956,7 @@ def dash_performance(just_closed: str = Query("", alias="closed"),
                if just_closed == "1" else '')
             + intro + cards + curve_html
             + hits_html + attrib + clog)
+    body = _edu(_TRACKER_BL["performance"]) + body
     return HTMLResponse(_shell("Performance · patearn", body, "performance", wide=True))
 
 
@@ -5242,7 +5263,8 @@ def dash_dashboard() -> HTMLResponse:
                  '<a href="/dash/portfolios" style="color:#58a6ff;text-decoration:none">Portfolios</a> '
                  'or an idea in '
                  '<a href="/dash/watchlists" style="color:#58a6ff;text-decoration:none">Watchlists</a>.</div>')
-    body = (_TRACK_CSS + _track_subnav("dashboard") + intro + cards + attention + alerts_html
+    body = (_edu(_TRACKER_BL["dashboard"]) + _TRACK_CSS + _track_subnav("dashboard")
+            + intro + cards + attention + alerts_html
             + movers + alloc + news_html + corp_html + table)
     return HTMLResponse(_shell("Dashboard · patearn", body, "dashboard", wide=True))
 
@@ -5411,7 +5433,8 @@ def dash_import() -> HTMLResponse:
         '<button class="tbtn tbtn-go" type="submit" style="padding:9px 18px">Upload &amp; preview</button>'
         '<a class="tbtn" href="/dash/portfolios" style="text-decoration:none;margin-left:8px">Cancel</a>'
         '</form>')
-    body = _TRACK_CSS + _track_subnav("import") + '<h2>Import</h2>' + form
+    body = (_edu(_TRACKER_BL["import"]) + _TRACK_CSS + _track_subnav("import")
+            + '<h2>Import</h2>' + form)
     return HTMLResponse(_shell("Import · patearn", body, "portfolios"))
 
 

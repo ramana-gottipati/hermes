@@ -278,6 +278,20 @@ def _owner_form(bad: bool = False) -> str:
         + '<div class="tg-foot"><a href="/dash/tracker/dashboard">← back to the demo book</a></div>')
 
 
+def _edu_demo(active: str) -> str:
+    """S-C education scaffold for the demo views — the SAME per-tab bottom-line texts as
+    the owner pages (dashboard._TRACKER_BL, single source) + the reading-guide link.
+    Fail-open: any import/render hiccup returns '' — the privacy gate never breaks over
+    an education band."""
+    try:
+        from src.web import infographics as ifx
+        from src.web.dashboard import _TRACKER_BL
+        return (ifx.readability_css() + ifx.bottom_line(_TRACKER_BL[active])
+                + ifx.how_to_read_link())
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _shell(title: str, body: str, active: str = "dashboard"):
     from fastapi.responses import HTMLResponse
     try:
@@ -323,7 +337,7 @@ async def _dispatch(request, call_next):
         if not _is_owner(request):
             if request.method == "GET" and path in _DEMO_VIEW:
                 active, title, build = _DEMO_VIEW[path]
-                return _shell(title, build(), active)
+                return _shell(title, _edu_demo(active) + build(), active)
             # non-owner mutation / export / personal detail -> the demo front door
             from fastapi.responses import RedirectResponse
             return RedirectResponse("/dash/tracker/dashboard", status_code=303)
