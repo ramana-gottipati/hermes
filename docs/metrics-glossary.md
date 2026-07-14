@@ -378,6 +378,30 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Floor gap** — distance above the latest CONFIRMED 10-bar (fallback 5-bar) down-fractal low, with the floor's age; "✗ broken" once a close prints below it. A degree-N fractal is only knowable N bars later — no look-ahead. Useful as a **risk / invalidation level** (how far above well-defined support you sit), not as a bounce predictor (the breakout entry tested inert). *Source:* `floor_gap_pct`, `floor_age`, `floor_alive` (table `reversal_context`).
 - **Ceiling gap** — the bearish mirror: distance below the latest CONFIRMED 10-bar (fallback 5-bar) up-fractal high (negative = under it), with its age; "↑ cleared" once a close prints above it. Same confirmation lag, same role: a **known overhead-resistance level** for context, never a short signal. *Source:* `ceil_gap_pct`, `ceil_age`, `ceil_alive` (table `reversal_context`).
 
+## Classic Screens — public strategies (D133)
+
+The famous name-brand strategies run as live rosters on our PIT data at `/dash/classics` (descriptive, not advice — the value strategies are shown next to their recorded failure numbers). Sibling of the Factor League (raw factor families).
+
+- **Magic Formula — Greenblatt's ranking.** Combines high return-on-capital with high earnings yield. Our run uses ROCE for ROC and E/P for earnings yield (the true EBIT/EV yield needs point-in-time enterprise value — phase 2). *Source:* `classic_roster`.
+- **CANSLIM — O'Neil's growth-leader screen.** Strong earnings acceleration + price near a 52-week high + relative-strength leadership. *Source:* `classic_roster`.
+- **Coffee Can — Mukherjea's compounders.** ROCE ≥15% and revenue growth ≥10%, held for years; our run uses 3-yr-avg ROCE ≥15 and 5-yr sales CAGR ≥10. *Source:* `classic_roster`.
+- **GARP — Growth at a Reasonable Price (Lynch).** Buy growth only when it is cheap: lowest PEG among quality names. *Source:* `classic_roster`.
+- **Graham — deep-value screen (low P/E, low P/B).** Benjamin Graham's classic low-multiple caps. Deep value is HARD-REJECTED on our data — shown as a caution, never a buy list. *Source:* `classic_roster`.
+- **Quality (QMJ) — quality-minus-junk.** Profitable, stable, low-leverage names: high ROCE + high margin + low D/E. A filter, not a standalone ranker. *Source:* `classic_roster`.
+- **Low-Volatility — min-variance screen.** The lowest realised-volatility liquid names; buys smoothness, not return. *Source:* `classic_roster`.
+- **Acquirer's Multiple — Carlisle's EV/EBIT screen.** Ranks the cheapest enterprise-value-to-EBIT; reference-only until point-in-time enterprise value lands (phase 2). *Source:* `classic_roster`.
+- **ROCE — Return on Capital Employed.** Operating profit as a % of the capital (equity + debt) deployed to earn it; a core quality/efficiency gauge. Higher and steadier = better capital allocation. *Source:* `roce`.
+- **OPM — Operating Profit Margin.** Operating profit as a % of sales; how much of each rupee of revenue survives to operating profit. *Source:* `opm_latest`.
+- **D/E — Debt to Equity.** Total borrowings ÷ net worth; balance-sheet leverage. Lower = safer. *Source:* `debt_to_equity`.
+- **P/E — Price to Earnings.** Price ÷ trailing earnings per share; rupees paid per rupee of annual profit. *Source:* `pe`.
+- **P/B — Price to Book.** Price ÷ book value per share; rupees paid per rupee of net worth. *Source:* `pb`.
+- **PEG — Price/Earnings-to-Growth.** P/E ÷ the earnings-growth rate; lower = cheaper for the growth you are buying (Lynch's GARP metric). *Source:* `peg`.
+- **Earnings yield — E/P.** Earnings per share ÷ price (the inverse of P/E); the value leg of our Magic Formula proxy. *Source:* `ey`.
+- **F-Score — Piotroski financial-strength score.** A 0–9 count of fundamental-health signals; we compute 5 of the 9 (F5: ΔNet-profit, ROCE>0, ΔROCE, Δmargin, leverage-safe) — the cash-flow trio needs the XBRL cash-flow feed. *Source:* `f5`.
+- **Sales growth — revenue CAGR.** Compound annual growth of sales over the window (e.g. 5-yr); a demand/scale gauge. *Source:* `sales_growth_5y`.
+- **Profit growth — earnings CAGR.** Compound annual growth of net profit over the window (3-yr or TTM). *Source:* `profit_growth_3y`.
+- **Volatility (66-day) — realised risk.** Standard deviation of ~3 months of daily returns; the Low-Volatility screen ranks the calmest names. *Source:* `vol_66`.
+
 ## How to read Patearn (concepts)
 
 - **The four pillars.** Patearn reads a stock through four independent lenses — POSITIONING (DVPT: is a strong hand active?), RELATIVE STRENGTH (is the market voting for it?), QUALITY (pt14: is the business any good?) and STRUCTURE (CPR: is the chart set up?). No single pillar is a verdict; conviction is several lining up on the same name. *Concept slug:* `pillars`.

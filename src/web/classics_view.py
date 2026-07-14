@@ -22,6 +22,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from src.web.momentum_view import HDB, _esc, _ro, _shell
+from src.web import glossary as G
 
 try:
     from src.web import infographics as ifx
@@ -67,20 +68,24 @@ _CSS = """<style>
 
 _STATUS_TXT = {"full": "runs on our data", "proxy": "runs — proxy noted", "none": "reference only"}
 
-# Per-strategy roster columns: (detail_key, header, kind) — kind ∈ pct|num|x1|bool
+# Per-strategy roster columns: (detail_key, header, kind, gloss_term) — kind ∈ pct|num|x1|bool
+# gloss_term matches a docs/metrics-glossary.md key ("" = no popover; degrades to plain label).
 _COLS = {
-    "lowvol":    [("vol", "Vol 66d", "pct"), ("mom12", "12m", "pct"), ("range52", "52w pos", "pct")],
-    "quality":   [("roce_avg", "ROCE 3y", "num"), ("opm", "OPM", "num"), ("de", "D/E", "x1")],
-    "coffeecan": [("roce", "ROCE", "num"), ("roce_avg", "ROCE 3y", "num"),
-                  ("sales_g5y", "Sales 5y", "num"), ("rising", "Rising", "bool")],
-    "canslim":   [("pg_ttm", "Profit TTM", "num"), ("pg_3y", "Profit 3y", "num"),
-                  ("range52", "52w pos", "pct"), ("fii_up", "FII↑", "bool")],
-    "garp":      [("peg", "PEG", "x1"), ("pe", "P/E", "x1"), ("pg_3y", "Growth 3y", "num"),
-                  ("roce", "ROCE", "num")],
-    "magic":     [("roce", "ROC (ROCE)", "num"), ("ey", "Earn yield", "num"), ("pe", "P/E", "x1")],
-    "piotroski": [("f5", "F-Score /5", "x1"), ("roce", "ROCE", "num"),
-                  ("pg_ttm", "Profit TTM", "num")],
-    "graham":    [("pe", "P/E", "x1"), ("pb", "P/B", "x1")],
+    "lowvol":    [("vol", "Vol 66d", "pct", "Volatility"), ("mom12", "12m", "pct", ""),
+                  ("range52", "52w pos", "pct", "pct_from_52w_high")],
+    "quality":   [("roce_avg", "ROCE 3y", "num", "ROCE"), ("opm", "OPM", "num", "OPM"),
+                  ("de", "D/E", "x1", "D/E")],
+    "coffeecan": [("roce", "ROCE", "num", "ROCE"), ("roce_avg", "ROCE 3y", "num", "ROCE"),
+                  ("sales_g5y", "Sales 5y", "num", "Sales growth"), ("rising", "Rising", "bool", "")],
+    "canslim":   [("pg_ttm", "Profit TTM", "num", "Profit growth"), ("pg_3y", "Profit 3y", "num", "Profit growth"),
+                  ("range52", "52w pos", "pct", "pct_from_52w_high"), ("fii_up", "FII↑", "bool", "")],
+    "garp":      [("peg", "PEG", "x1", "PEG"), ("pe", "P/E", "x1", "P/E"),
+                  ("pg_3y", "Growth 3y", "num", "Profit growth"), ("roce", "ROCE", "num", "ROCE")],
+    "magic":     [("roce", "ROC (ROCE)", "num", "ROCE"), ("ey", "Earn yield", "num", "Earnings yield"),
+                  ("pe", "P/E", "x1", "P/E")],
+    "piotroski": [("f5", "F-Score /5", "x1", "F-Score"), ("roce", "ROCE", "num", "ROCE"),
+                  ("pg_ttm", "Profit TTM", "num", "Profit growth")],
+    "graham":    [("pe", "P/E", "x1", "P/E"), ("pb", "P/B", "x1", "P/B")],
 }
 
 # The proxy / caution note shown on each card (single-sourced honesty).
@@ -128,7 +133,7 @@ def _roster_rows(con, strat):
 def _roster_html(strat, rows):
     name = STRATEGIES.get(strat, (strat,))[0]
     cols = _COLS.get(strat, [])
-    head = "".join(f"<th>{_esc(h)}</th>" for _k, h, _t in cols)
+    head = "".join(f"<th>{G.gloss(gt, h) if gt else _esc(h)}</th>" for _k, h, _t, gt in cols)
     body = ""
     for r in rows:
         det = {}
@@ -136,7 +141,7 @@ def _roster_html(strat, rows):
             det = json.loads(r["detail_json"]) if r["detail_json"] else {}
         except (ValueError, TypeError):
             det = {}
-        cells = "".join(f"<td>{_fmt(t, det.get(k))}</td>" for k, _h, t in cols)
+        cells = "".join(f"<td>{_fmt(t, det.get(k))}</td>" for k, _h, t, _gt in cols)
         body += ("<tr>"
                  f"<td>{r['rank']}</td>"
                  f"<td class='l'><a href='/dash/stock?sym={_esc(r['symbol'])}'>"
@@ -175,14 +180,14 @@ def classics_page(s: str = "", fmt: str = ""):
 
     if fmt == "csv" and strat:
         cols = _COLS.get(strat, [])
-        header = ["rank", "symbol"] + [k for k, _h, _t in cols]
+        header = ["rank", "symbol"] + [k for k, _h, _t, _gt in cols]
         lines = [",".join(header)]
         for r in roster:
             try:
                 det = json.loads(r["detail_json"]) if r["detail_json"] else {}
             except (ValueError, TypeError):
                 det = {}
-            vals = [str(r["rank"]), r["symbol"]] + [str(det.get(k, "")) for k, _h, _t in cols]
+            vals = [str(r["rank"]), r["symbol"]] + [str(det.get(k, "")) for k, _h, _t, _gt in cols]
             lines.append(",".join(vals))
         return PlainTextResponse("\n".join(lines), media_type="text/csv")
 
@@ -203,7 +208,7 @@ def classics_page(s: str = "", fmt: str = ""):
         if strat else "")
 
     body = (
-        "<div class='cls'>" + _CSS + ifx.readability_css()
+        "<div class='cls'>" + _CSS + ifx.readability_css() + G.css()
         + "<h2>Classic screens — the famous strategies, run on our data</h2>"
         + ifx.bottom_line(
             "The name-brand equity strategies — <b>Magic Formula, CANSLIM, Piotroski, Coffee Can, "
