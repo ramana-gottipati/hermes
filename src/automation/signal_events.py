@@ -462,6 +462,18 @@ def main() -> None:
                 log.exception("signal_alerts backfill failed (non-fatal)")
                 alerts = {"promoted": "error"}
             log.info("done: %s | alert-rail: %s", result, alerts)
+            # Optional OWNER-DM of NEW critical alerts. Ships DORMANT — only fires when
+            # HERMES_ALERT_DM=1 is set on the box, so deploying the code never sends until it
+            # is deliberately enabled. Isolated + non-fatal + fire-once (its own delivery
+            # ledger); never fails detection. A PRIVATE owner DM (like the season / board-health
+            # pagers), NOT the public approval-gated channel (that is S-F).
+            import os as _os
+            if _os.environ.get("HERMES_ALERT_DM") == "1":
+                try:
+                    from src.automation.signal_alert_telegram import push as _push_alerts
+                    log.info("alert-DM: %s", _push_alerts(conn, as_of=args.asof))
+                except Exception:  # noqa: BLE001
+                    log.exception("alert DM push failed (non-fatal)")
         elif args.stats:
             import json
             print(json.dumps(stats(conn), indent=2))
