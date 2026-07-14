@@ -10,18 +10,21 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## 🔒 2026-07-14 late — S-E PHASE 2 slice A (Pat DATA flows): CLAIMED + IN-FLIGHT (S144 lane) — do NOT parallel
-- Continuation of S142's nav-answer (Phase 1). **Phase 2 = Pat answers with DATA inline, not just a link.**
-  This slice = the audit's two explicit done-bar examples: **"TCS news / today's headlines"** (a `news`
-  flow reusing `news_view._recent_market_news` + `render_stock_timeline`) and, as a same-session stretch,
-  **"what changed today / for SYMBOL"** (a `whatchanged` flow reusing `signal_alerts.active_alerts`).
-  Follows the `nav_flow.py`/`overdue_flow.py` pattern: NEW Pat file(s) + a ₹0 self-limiting pre-pass at
-  engine.route + a web render + eval/pytest guards. **Collision surface = Pat-owned files only** (new flow
-  file + small anchored additions to engine/web); the forked nav trio + the S-B1 strategies churn are
-  UNTOUCHED. Descriptive/SEBI-safe: headlines attributed+linked, alerts are state-changes never advice.
-- **Remaining Phase 2 (next slice): participants/FII · insider/ratings/SAST/holdings · rotation states ·
-  seasonal base rates · internals breadth · Wolfe open-trades. Phase 3 = education on the unified glossary.**
-- **Retire this block when slice A lands** (replace with the ✅ result block). Claim-first per the S140 lesson.
+## ✅ 2026-07-14 — S144: S-E PHASE 2 slice A — Pat DATA flows (news + what-changed) SHIPPED — do NOT redo; kickstart-pick-verify
+- **NEW `src/pat/news_flow.py`** — "TCS news / latest headlines / news on RELIANCE" → inline headlines
+  (reuse `news_tagging.news_for_symbol` + `news_view._recent_market_news`; ticker validated vs
+  security_master → unknown falls back to market; copyright-safe title+source+link). **NEW
+  `src/pat/whatchanged_flow.py`** — "what changed today / for TCS / any alerts" → the bus rail inline
+  (reuse `signal_alerts.active_alerts`, critical-first; **FIXES the old "what changed today"→movers
+  mis-route**). Both = self-limiting ₹0 pre-passes at engine.route (nav `a-1c` → news `a-1d` → whatchanged
+  `a-1e`); a page-find stays `navigate`, and neither steals a screen ask.
+- **Regression-clean:** Pat eval battery UNCHANGED; NEW `tests/test_pat_news_flow.py` (36 contracts) +
+  suite 297; zero forked-nav-trio edits. ⚠ multi-lane: the classics lane had its whole feature STAGED in
+  the shared index at commit time — state-doc gate caught it; reset out + `git commit -- <paths>`.
+- **NEXT S-E slice = the rest of Phase 2** (participants/FII · insider/ratings/SAST/holdings · rotation
+  states · seasonal base rates · internals breadth · Wolfe open-trades) **then Phase 3** (education:
+  ground explain-flows on the unified glossary + docs/strategies so "explain the Wolfe methodology" works).
+  Follow the `news_flow.py`/`nav_flow.py` pattern (new Pat file + ₹0 pre-pass + web render + eval/pytest).
 
 ## ✅ 2026-07-14 — S143: UX S-B1 (cross-links) — "Related lenses" connective tissue SHIPPED + DEPLOYED — do NOT redo; kickstart-pick-verify
 - **NEW `infographics.related_strip(key, note="")` + `.rd-related` CSS in `readability_css()`** — a curated
@@ -140,7 +143,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → ~~item 4~~ **✅ S141 (D132 — the glossary is ONE vocabulary; S-E UNBLOCKED)** → ~~S-E Phase 1 (nav-answer)~~ **✅ S142 (`nav_flow.py` — "where do I see X" from lens_registry)** → **NEXT free pick: S-E Phase 2+3 (Pat DATA flows + education — the rest of S-E)** or **S-B1 IA labels/grouping/cross-links**. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → ~~item 4~~ **✅ S141 (D132 — the glossary is ONE vocabulary; S-E UNBLOCKED)** → ~~S-E Phase 1 (nav-answer)~~ **✅ S142 (`nav_flow.py`)** → ~~S-E Phase 2 slice A (news + what-changed)~~ **✅ S144 (`news_flow.py` + `whatchanged_flow.py`)** → **NEXT free pick: S-E Phase 2 remainder (participants/FII · insider/ratings/SAST/holdings · rotation states · seasonal · internals · Wolfe) + Phase 3 (education on the unified glossary)** or **S-B1 remainder** (rail task-groups · RRG⇄Rotation merge · orphan sweep · registry one-liners — coordinate, that lane is hot). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.

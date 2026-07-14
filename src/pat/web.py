@@ -1057,6 +1057,119 @@ def _navigate_flow(conn, topic: str = "") -> str:
     return "".join(out)
 
 
+# ── news flow (headlines inline, from the market feed) ────────────────────────
+# "TCS news / latest headlines / news on RELIANCE" (S-E Phase 2). Title + source + a
+# link out — the /dash/wire treatment; descriptive, no article text, no advice.
+
+def _news_row(r: dict) -> str:
+    from src.web.news_view import _safe_url
+    title = _esc((r.get("title") or "").strip() or "(untitled)")
+    src = _esc((r.get("source") or "").strip())
+    when = _esc((str(r.get("sent_at") or "")[:10]))
+    url = _safe_url(r.get("url") or "")
+    head = (f'<a href="{_esc(url)}" target="_blank" rel="noopener nofollow">{title}</a>'
+            if url else title)
+    meta = " · ".join(x for x in (src, when) if x)
+    return ('<div style="padding:8px 0;border-bottom:1px solid var(--bg-3)">'
+            f'<div style="font-size:13.5px;line-height:1.4">{head}</div>'
+            + (f'<div style="color:var(--ink-3);font-size:11.5px;margin-top:2px">{meta}</div>'
+               if meta else "")
+            + '</div>')
+
+
+def _news_flow(conn, symbol: str = "") -> str:
+    from src.pat import news_flow as _NF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    valid = _NF.is_symbol(conn, sym) if sym else False
+    rows = _NF.symbol_news(conn, sym, limit=12) if valid else _NF.market_news(conn, limit=12)
+    if valid:
+        out.append(_q_bubble(f"Latest headlines tagged to {_esc(sym)} — newest first, from the "
+                             "market news feed. Facts + links, not a view."))
+        out.append(f'<div class="ghdr">News · {_esc(sym)} ({len(rows)})</div>')
+    else:
+        if sym:
+            out.append(_q_bubble(f"I don't have {_esc(sym)} as a ticker — here's the recent market "
+                                 "feed instead. Name a stock by its NSE symbol for its own news."))
+        else:
+            out.append(_q_bubble("Recent market headlines — newest first, from the news feed. "
+                                 "Facts + links, not a view."))
+        out.append(f'<div class="ghdr">Latest market news ({len(rows)})</div>')
+    if not rows:
+        out.append('<div class="empty">No headlines yet in the feed'
+                   + (f' for {_esc(sym)}' if valid else '')
+                   + '. News is tagged as it arrives.</div>')
+    else:
+        out.append('<div class="patTable">' + "".join(_news_row(r) for r in rows) + '</div>')
+    dest = f'/dash/stock?sym={_u(sym)}#news' if valid else '/dash/wire'
+    lbl = f'the full {sym} news timeline' if valid else 'the full news wire'
+    out.append(f'<div style="margin-top:10px"><a class="row" href="{dest}">Open {_esc(lbl)} →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Headlines from public sources, linked to the original — a descriptive feed, '
+               'never a recommendation. Company news under a brand name differing from the legal '
+               'name may not be symbol-linked.</div>')
+    return "".join(out)
+
+
+# ── what-changed flow (the signal-event bus rail, inline) ─────────────────────
+# "what changed today / what's new with TCS / any alerts" (S-E Phase 2). Edge-triggered
+# state-changes — a recorded fact (A → B on a date), never a buy/sell call (D106).
+
+_WC_VAL = {"risk": "▲ risk", "opportunity": "△ opp", "neutral": "· ctx"}
+
+
+def _wc_row(a: dict) -> str:
+    sev = (a.get("severity") or "high").upper()
+    val = _WC_VAL.get(a.get("valence") or "neutral", "· ctx")
+    fr, to = a.get("from_state"), a.get("to_state")
+    change = (f'{_esc(str(fr))} → {_esc(str(to))}' if fr is not None
+              else _esc(str(to or "—")))
+    sym = _esc(a.get("symbol") or "")
+    lens = _esc(a.get("lens") or "")
+    when = _esc(str(a.get("as_of") or "")[:10])
+    return (f'<tr><td><span class="pill p-{"SS" if sev=="CRITICAL" else "A"}">{_esc(sev)}</span></td>'
+            f'<td class="l"><a class="row" href="/dash/stock?sym={_u(a.get("symbol") or "")}">'
+            f'<span class="sym">{sym}</span></a></td>'
+            f'<td class="l">{lens}</td><td class="l">{change}</td>'
+            f'<td class="l" style="color:var(--ink-3)">{val}</td>'
+            f'<td class="l" style="color:var(--ink-3);white-space:nowrap">{when}</td></tr>')
+
+
+def _whatchanged_flow(conn, symbol: str = "") -> str:
+    from src.pat import whatchanged_flow as _WC
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    valid = _WC.is_symbol(conn, sym) if sym else False
+    rows = _WC.changes(conn, sym if valid else "", within_days=7, limit=15)
+    if valid:
+        out.append(_q_bubble(f"Recent state-changes recorded for {_esc(sym)} — the highest-impact "
+                             "moves across the lenses, newest first. Facts, not calls."))
+        out.append(f'<div class="ghdr">What changed · {_esc(sym)} ({len(rows)})</div>')
+    else:
+        if sym:
+            out.append(_q_bubble(f"I don't have {_esc(sym)} as a ticker — here's the market-wide "
+                                 "rail instead. Name a stock by its NSE symbol for its own changes."))
+        else:
+            out.append(_q_bubble("What changed across the market — the highest-impact state-changes "
+                                 "from the last week, critical first. Facts, not calls."))
+        out.append(f'<div class="ghdr">What changed · market ({len(rows)})</div>')
+    if not rows:
+        out.append('<div class="empty">Nothing critical or high on the rail'
+                   + (f' for {_esc(sym)}' if valid else '') + ' in the last week.</div>')
+    else:
+        head = ('<div class="patTable"><table class="dt"><thead><tr>'
+                '<th>Severity</th><th>Symbol</th><th>Lens</th><th>From → To</th>'
+                '<th>Read</th><th>as of</th></tr></thead><tbody>')
+        out.append(head + "".join(_wc_row(a) for a in rows) + '</tbody></table></div>')
+    dest = '/dash/attention'
+    out.append(f'<div style="margin-top:10px"><a class="row" href="{dest}">'
+               'Open the full Attention rail (filters, dismiss, replay) →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Each row is an edge-triggered state-change the bus recorded — descriptive '
+               'context, not a buy/sell instruction. Critical &amp; high severity only.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2396,6 +2509,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
                "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
                "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
+               "news": "Headlines", "whatchanged": "What changed",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2574,6 +2688,10 @@ def _free_text(conn, q: str):
             body = _overdue_flow(conn, p.get("event", ""))
         elif f == "navigate":
             body = _navigate_flow(conn, p.get("topic", ""))
+        elif f == "news":
+            body = _news_flow(conn, p.get("symbol", ""))
+        elif f == "whatchanged":
+            body = _whatchanged_flow(conn, p.get("symbol", ""))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -2861,6 +2979,12 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "navigate":
         body = _navigate_flow(conn, q)                    # page-finder; topic rides `q` (S-E)
         fb_ctx = {"query": q, "flow": "navigate", "params": {"topic": q}, "source": "flow"}
+    elif flow == "news":
+        body = _news_flow(conn, sym or q)                 # headlines; symbol rides `sym` (else `q`)
+        fb_ctx = {"query": q, "flow": "news", "params": {"symbol": sym or q}, "source": "flow"}
+    elif flow == "whatchanged":
+        body = _whatchanged_flow(conn, sym or q)          # bus rail; symbol rides `sym` (else `q`)
+        fb_ctx = {"query": q, "flow": "whatchanged", "params": {"symbol": sym or q}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

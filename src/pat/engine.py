@@ -54,6 +54,8 @@ _VALID: dict[str, dict] = {
     "seasonal":     {"period": {"this-month", "next-month", "this-week", "next-week"},
                      "direction": {"bullish", "bearish"}},  # calendar base-rate ranking
     "navigate":     {"topic": "free"},  # "where do I see X" — page-finder over lens_registry (S-E)
+    "news":         {"symbol": "free"},  # "TCS news / latest headlines" — inline headlines (S-E Ph2)
+    "whatchanged":  {"symbol": "free"},  # "what changed today / for X" — the bus rail inline (S-E Ph2)
     "explain":      {"explain": "slug"},
 }
 
@@ -329,6 +331,31 @@ def route(query: str, conn=None) -> dict | None:
     if nav:
         _cache_put(q, nav)
         return nav
+
+    # (a-1d) News — "TCS news / latest headlines / news on RELIANCE" — inline headlines
+    #        (S-E Phase 2). ₹0; needs a news word, so it never steals a screen ask. AFTER
+    #        nav so a page-find ("where do I see the news") stays a navigate.
+    try:
+        from src.pat.news_flow import parse_news as _parse_news
+        news = _parse_news(query)
+    except Exception:
+        news = None
+    if news:
+        _cache_put(q, news)
+        return news
+
+    # (a-1e) What changed — "what changed today / what's new with TCS / any alerts" — the
+    #        signal-event bus rail inline (S-E Phase 2). ₹0; needs a change cue, runs after
+    #        news ("TCS news" stays news) and BEFORE the parse (so it beats the movers
+    #        mis-read of "what changed today").
+    try:
+        from src.pat.whatchanged_flow import parse_whatchanged as _parse_wc
+        wc = _parse_wc(query)
+    except Exception:
+        wc = None
+    if wc:
+        _cache_put(q, wc)
+        return wc
 
     from src.pat.understand import validate_intent, parse_fallback
 
