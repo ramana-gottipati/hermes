@@ -29,6 +29,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from src.automation import adjust, capture, rrg
+from src.web import infographics as ifx  # shared readability scaffold (S-C)
 from src.core.db import get_conn
 from src.web.dashboard import _shell   # chrome + CSS (import-safe; see investigation)
 from src.web import glossary as G       # `?` hover-help on the RS-depth column headers
@@ -849,7 +850,14 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
     if not rows:
         body = _empty()
     else:
-        body = (G.css() + _controls(den)
+        body = (G.css() + ifx.readability_css()
+                + ifx.bottom_line(
+                    'Relative Rotation Graph — each sector plotted by how strong it is <b>vs the '
+                    'market</b> (across) and whether that strength is <b>rising or fading</b> (up). '
+                    'Names sweep clockwise: Leading → Weakening → Lagging → Improving. A map of '
+                    'where money is rotating — <b>descriptive, not a signal</b>.')
+                + ifx.how_to_read_link()
+                + _controls(den)
                 + _sectors_rrg_block(rows, caps, tails, den, months,
                                      tail_base="/dash/rrg", tail_view="", dot_link=True)
                 + _table(rows, caps, den))

@@ -214,7 +214,7 @@ def _series(sym: str) -> str:
 
 @router.get("/dash/shp", response_class=HTMLResponse)
 def dash_shp(sym: str = "") -> HTMLResponse:
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = None
     try:
         rows, census, as_of = SX.universe_deltas()
@@ -233,6 +233,11 @@ def dash_shp(sym: str = "") -> HTMLResponse:
             'board organically — ⓧ marks a pair that mixes the two (continuity-gated to ≤1pp agreement '
             'at overlap). Quarterly cadence: the June-2026 filing flood lands through ~Jul-21. '
             '<a href="/dash/glossary?q=holdings">glossary →</a></div>')
+        body.append(ifx.bottom_line(
+            'Who <b>added</b> and who <b>trimmed</b>, quarter over quarter — promoters, FIIs, DIIs, '
+            'public and pledge, in percentage points of equity. Rising promoter/FII with falling '
+            'pledge is the constructive mix — <b>descriptive, not advice</b>.'))
+        body.append(ifx.how_to_read_link())
         body.append(_tiles(rows, flags, census))
         if sym:
             body.append(_series(sym))

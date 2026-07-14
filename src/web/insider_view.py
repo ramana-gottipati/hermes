@@ -230,7 +230,7 @@ def _cls_tabs(active: str, window: int) -> str:
 def dash_insider(window: int = 90, cls: str = "", sym: str = "",
                  min_cr: float = 0.0) -> HTMLResponse:
     window = window if window in (30, 90, 180) else 90
-    body_parts = [_CSS]
+    body_parts = [_CSS, ifx.readability_css()]
     as_of = None
     try:
         with get_conn() as conn:
@@ -252,6 +252,11 @@ def dash_insider(window: int = 90, cls: str = "", sym: str = "",
                 'instance document — every tape row links (⇗) to the filed document on the NSE '
                 'archive; nothing here is scraped from a third-party site. '
                 '<a href="/dash/glossary?q=insider">glossary →</a></div>')
+            body_parts.append(ifx.bottom_line(
+                'Where insiders — promoters, directors, KMP — put <b>their own money</b>: net '
+                'open-market buying vs selling (in rupees) over 30/90 days. Clustered buying is a '
+                'conviction tell, clustered selling a caution — <b>context, not a trade</b>.'))
+            body_parts.append(ifx.how_to_read_link())
             body_parts.append(_tiles(aggs, flagged, as_of or ""))
             body_parts.append('<div class="iv-h">By symbol <small>— PIT roll-up, 30/90-day windows, '
                               'supersede-collapsed; sorted by fresh buying</small></div>')

@@ -17,6 +17,8 @@ from __future__ import annotations
 import html
 import sqlite3
 
+from src.web import infographics as ifx  # shared readability scaffold (S-C)
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
@@ -185,8 +187,14 @@ def momentum_scan_page(sort: str = "riskadj"):
            f"<a class='{'on' if sort=='cblend' else ''}' href='/dash/momentum-scan?sort=cblend'>C-blend 50/50</a>"
            f"<a class='{'on' if sort=='ens' else ''}' href='/dash/momentum-scan?sort=ens'>Equal-weight ensemble</a></div>")
     body = (
-        "<div class='msc'>" + _CSS +
+        "<div class='msc'>" + _CSS + ifx.readability_css() +
         "<h2>Risk-adjusted momentum — candidate scanner</h2>"
+        + ifx.bottom_line(
+            "Ranks the liquid universe by <b>risk-adjusted momentum</b> (6-mo return ÷ 3-mo "
+            "volatility), with the credit/insider veto inlined so you research the survivors, not "
+            "the whole market. A gross <b>selection</b> lens — momentum here is a known beta, not "
+            "skill; <b>not a buy list</b>.")
+        + ifx.how_to_read_link() +
         "<div class='lead'>Ranks the liquid equity universe by <b>RISKADJ</b> (6-mo return ÷ 3-mo "
         "volatility) and the equal-weight ensemble, with the <b>C/A/B veto</b> inlined so you research "
         "the survivors, not the whole market. <b>This is a gross SELECTION lens, not alpha</b> — "

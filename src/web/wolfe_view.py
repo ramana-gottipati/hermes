@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from src.core.db import get_conn
 from src.automation import wolfe
+from src.web import infographics as ifx  # shared readability scaffold (S-C)
 
 try:
     from src.web.dashboard import _shell, _esc, _q
@@ -356,8 +357,14 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
     except Exception:  # pragma: no cover — never let the toggle break the scanner
         _toggle_html = ""
     body = (
+        ifx.readability_css() +
         '<h2>Wolfe <span style="color:var(--ink-2);font-size:15px;font-weight:400">— winner-profile scanner, read by side</span></h2>'
-        + _toggle_html +
+        + _toggle_html
+        + ifx.bottom_line(
+            'Stocks matching the <b>winner-profile</b> Wolfe setup that held up true out-of-sample '
+            '(fit 2004-14 / tested untouched 2015-26) plus a regime control. The edge is in the '
+            '<b>selection</b>, not the stop or target — <b>descriptive, not a buy/sell signal</b>.')
+        + ifx.how_to_read_link() +
         '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
         'zone</b> — that survived <b>true out-of-sample</b> (fit 2004-14 / tested untouched 2015-26, survivorship-aware) '
         'plus a beta/regime control. <b>Read by side:</b> '

@@ -29,6 +29,7 @@ from fastapi.responses import HTMLResponse
 
 from src.automation import adjust, capture, rsband
 from src.core.db import get_conn
+from src.web import infographics as ifx  # shared readability scaffold (S-C)
 from src.web.dashboard import _shell
 from src.web import glossary as G       # `?` hover-help on the RS-band column headers
 
@@ -952,5 +953,12 @@ def rsband_page(den: str = Query("Nifty 500", max_length=40),
             body = render_band_channel(idx, den, conn=conn) + render_constituents(idx, conn, vs)
         return HTMLResponse(_shell(f"{idx} — RS band", body, active="rsband", wide=True))
     view = view if view in ("lanes", "clock", "rrg") else "lanes"
-    return HTMLResponse(_shell("RS support & resistance", G.css() + render_band_lanes(den, view, tail=tail),
+    scaffold = (ifx.readability_css()
+                + ifx.bottom_line(
+                    'Where each name\'s <b>relative strength</b> sits inside its own historical band '
+                    '(0-100): near the top the market keeps <b>re-rating</b> it up, near the bottom '
+                    'it is <b>de-rating</b>. Read it as position within a channel, not a verdict — '
+                    '<b>descriptive, not a signal</b>.')
+                + ifx.how_to_read_link())
+    return HTMLResponse(_shell("RS support & resistance", G.css() + scaffold + render_band_lanes(den, view, tail=tail),
                                active="rsband", wide=True))

@@ -271,7 +271,7 @@ def _feed_tabs(active: str, window: int) -> str:
 @router.get("/dash/sast", response_class=HTMLResponse)
 def dash_sast(window: int = 90, feed: str = "", sym: str = "") -> HTMLResponse:
     window = window if window in (30, 90, 180) else 90
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = None
     try:
         with get_conn() as conn:
@@ -294,6 +294,12 @@ def dash_sast(window: int = 90, feed: str = "", sym: str = "") -> HTMLResponse:
                 'so nothing here predicts. <b>Source:</b> NSE\'s SAST disclosure feeds; every tape row '
                 'links (⇗) to the filed document on the NSE archive. '
                 '<a href="/dash/glossary?q=pledge">glossary →</a></div>')
+            body.append(ifx.bottom_line(
+                'Names where a big shareholder\'s stake move and a promoter-pledge change <b>both '
+                'fired inside 90 days</b> — labelled <b>constructive</b> (stake up while pledge '
+                'falls) or <b>distress</b> (selling into rising pledge). A crossing that already '
+                'happened — <b>descriptive, not advice</b>.'))
+            body.append(ifx.how_to_read_link())
             body.append(_tiles(aggs, census))
             body.append('<div class="sp-h">Confluence board <small>— both feeds, same name, 90 days; '
                         'sorted by combined magnitude</small></div>')

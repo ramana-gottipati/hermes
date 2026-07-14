@@ -238,7 +238,7 @@ def _cls_tabs(active: str, window: int) -> str:
 @router.get("/dash/ratings", response_class=HTMLResponse)
 def dash_ratings(window: int = 180, cls: str = "", sym: str = "") -> HTMLResponse:
     window = window if window in (90, 180, 365) else 180
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = None
     try:
         with get_conn() as conn:
@@ -263,6 +263,11 @@ def dash_ratings(window: int = 180, cls: str = "", sym: str = "") -> HTMLRespons
                 'is scraped from a third-party site. The pre-registered E-02 drift study is ARMED and '
                 'self-gating — <b>no return edge is claimed</b>, in either direction. '
                 '<a href="/dash/glossary?q=rating">glossary →</a></div>')
+            body.append(ifx.bottom_line(
+                'Which companies just had their credit rating <b>upgraded or downgraded</b> by the '
+                'agencies (deduped to one action per issuer per day). A downgrade cluster is a '
+                'balance-sheet warning worth a look — <b>descriptive, not advice</b>.'))
+            body.append(ifx.how_to_read_link())
             body.append(_tiles(events, census, watch_90))
             body.append('<div class="rv-h">Transitions <small>— deduped company-level actions, '
                         '90 days, newest first</small></div>')

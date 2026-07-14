@@ -30,6 +30,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from src.web.dashboard import _shell, _esc, _q  # stable chrome + helpers (import-safe)
+from src.web import infographics as ifx  # shared readability scaffold (S-C)
 from src.core.db import get_conn
 
 router = APIRouter()
@@ -210,4 +211,10 @@ def wire_page() -> HTMLResponse:
     # active="wire" (the Wire lens key) → the Markets-altitude tab AND the "News / Wire"
     # sub-nav item both highlight. "markets" lit the Overview sub-item instead (its key
     # collides with the altitude name); the registry resolves "wire" → the Markets altitude.
-    return HTMLResponse(_shell("Market wire · patearn", render_market_wire(), active="wire", wide=True))
+    intro = (ifx.readability_css()
+             + ifx.bottom_line(
+                 'The market news wire — company announcements and headlines from the feed, newest '
+                 'first, each tagged to the stocks it moves. Skim what is driving names today; tap a '
+                 'ticker for its full news timeline.')
+             + ifx.how_to_read_link())
+    return HTMLResponse(_shell("Market wire · patearn", intro + render_market_wire(), active="wire", wide=True))

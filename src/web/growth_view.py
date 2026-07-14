@@ -22,6 +22,7 @@ from urllib.parse import quote
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold (S-C)
 from src.automation.concall_signals import ensure_schema, scan
 
 
@@ -179,7 +180,14 @@ def growth(type: str = "", since: int = 0, min_cr: float = 0, pullback: int = 0,
     if not n_total:
         body = head + '<div class="gw-note">The signal table is empty — run <code>concall_signals --rebuild</code>.</div>'
     else:
-        body = (_CSS + head + _tabs(stype, is_pull)
+        body = (_CSS + ifx.readability_css() + head
+                + ifx.bottom_line(
+                    "What managements say they will <b>do</b> next — capex, new capacity, products, "
+                    "deleveraging — pulled from earnings calls and normalized to rupees. A proposal "
+                    "ledger ordered by commitment size; the forward 'tilt' was placebo-killed, so "
+                    "<b>not a return signal</b>.")
+                + ifx.how_to_read_link()
+                + _tabs(stype, is_pull)
                 + _controls(stype, since, (int(min_cr) if min_cr else 0), symbol, is_pull, len(rows))
                 + _table(rows) + _JS)
     return HTMLResponse(_shell("Growth-intent · patearn", body, "growth", wide=True))

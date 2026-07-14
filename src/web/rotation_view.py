@@ -28,6 +28,7 @@ from fastapi.responses import HTMLResponse
 from src.automation import stock_rs
 from src.core.db import get_conn
 from src.web.dashboard import _shell   # chrome + CSS (import-safe; see rrg_view)
+from src.web import infographics as ifx  # shared readability scaffold (S-C)
 from src.web import glossary as G       # `?` hover-help on the phase headings + RS columns
 
 try:
@@ -294,6 +295,12 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
             '<div class="sub" style="margin-top:2px">Clockwise: 🌅 Recovery → 🌤 Tailwind → '
             '⛅ Rolling-over → 🌧 Headwind. Grid = the strict diagonal (stock <b>and</b> its sector '
             'share the phase). Table below = every member of the selected phase, full RS term structure.</div>')
-    body = ('<div class="rwrap">' + head + banner + grid + movers
+    bl = (ifx.bottom_line(
+              'Every stock — and its sector — placed in one of four <b>weather phases</b> by its '
+              'relative-strength term structure: 🌅 Recovery → 🌤 Tailwind → ⛅ Rolling-over → '
+              '🌧 Headwind. The strict diagonal = stock <b>and</b> sector agree. '
+              '<b>Descriptive, not a signal</b>.')
+          + ifx.how_to_read_link())
+    body = ('<div class="rwrap">' + head + bl + banner + grid + movers
             + _pills(phase) + _table(phase) + '</div>')
-    return HTMLResponse(_shell("RS rotation · patearn", _CSS + G.css() + body, active="rotation", wide=True))
+    return HTMLResponse(_shell("RS rotation · patearn", _CSS + ifx.readability_css() + G.css() + body, active="rotation", wide=True))

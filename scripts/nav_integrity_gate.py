@@ -92,6 +92,15 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
     "/dash/ratio":      "sacred ratio page — reached from the index/markets bodies (cockpit ratio links)",
     "/dash/rs":         "full RS ranking — reached from the cockpit 'Full RS ranking' body link",
     "/dash/replay":     "Replay-the-Tape — reached from the Trust/Coverage page body (the S55 trail)",
+    # Wolfe open-trades view (D120/S121): a declared NESTED CHILD of the Patterns·Wolfe lens,
+    # reached via the on-page Fresh setups ⇄ Open trades toggle (emits active="wolfe"), not a tab.
+    # (tests/test_dash_route_registry.py classifies it 'nested_child'; this keeps the sister gate green.)
+    "/dash/wolfe/trades": "Wolfe open-trades remaining-ROI view — reached from the on-page "
+                          "Fresh ⇄ Open toggle on the Wolfe scanner, not a top-nav tab (D120)",
+    # Alert-rail dismiss action (D106/S123): a GET mutation endpoint, not a navigable page
+    # (POST-ification tracked as S-B2 debt). Sibling gate classifies it 'api_or_action'.
+    "/dash/attention/ack": "alert-rail dismiss action — a GET mutation endpoint (303 back), not a "
+                           "navigable page; reached from the ✕ controls on /dash/attention",
 }
 
 # ── surfaces to render to discover what is reachable ──────────────────────────
