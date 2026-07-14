@@ -193,6 +193,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 **Doc-governance enforcement (S131/D128) — new:**
 - `scripts/doc_hygiene_gate.py` — NEW pure-stdlib **ratchet** gate (git-tracked docs only): DOC_INDEX coverage + transient `Lifecycle:` banner + CLAUDE/AGENTS twin-sync (floors 39/32; run `python scripts/doc_hygiene_gate.py`; re-seed floors via `DOC_HYGIENE_SEED=1`). Wired as `regression_sweep.sh` Gate 1d.
 - `scripts/hooks/pre-commit` — NEW portable git pre-commit (state-doc rule + doc-hygiene) for human/Codex/CLI commits; activate with `git config core.hooksPath scripts/hooks`.
+- `tests/test_doc_hygiene.py` — NEW: the doc-hygiene gate as pytest (thin wrapper that REUSES `doc_hygiene_gate` — no logic duplicated) so index-coverage / transient-banner / twin-sync run in the pytest suite too (`regression_sweep` Gate 0 · CI · VPS nightly), not only as the standalone script + Gate 1d.
 
 **Deep-data value sprint (S110/D112) — new/changed modules:**
 - `src/web/infographics.py` — NEW leaf module: 8 tested theme-aware inline-SVG primitives (heat_ribbon · spark_area · stream · heat_grid · diverging_bars · floating_bars · pct_gauge + signed/sequential colour honoring the value contract). Zero `src` imports; safe to import from any view. The shared "diverse charts" vocabulary.
