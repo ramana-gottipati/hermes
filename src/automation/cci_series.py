@@ -106,11 +106,14 @@ def _bounded(year: int, month: int):
 def build_series(conn, symbol: str) -> int:
     """(Re)compute the full PIT credibility series for one symbol. Returns #points."""
     ensure_schema(conn)
+    from src.core.db import _ensure_column
+    _ensure_column(conn, "concall_guidance", "resolved_knowable_date", "TEXT")   # D6-F2 (idempotent)
     order = _order_map(conn, symbol)                       # period_label -> (year, month)
     if not order:
         return 0
     guid = conn.execute(
-        "SELECT source_period, status, resolved_period, claim_text FROM concall_guidance WHERE symbol=?",
+        "SELECT source_period, status, resolved_period, resolved_knowable_date, claim_text "
+        "FROM concall_guidance WHERE symbol=?",
         (symbol,)).fetchall()
     flags = conn.execute(
         "SELECT period_label, flag_type FROM concall_redflags WHERE symbol=? AND flag_type IN (%s)"
@@ -121,7 +124,9 @@ def build_series(conn, symbol: str) -> int:
     for g in guid:
         promises.append({
             "made": order.get(g["source_period"]),
-            "res": _ym(g["resolved_period"]) if g["status"] in _RESOLVED else None,
+            # D6-F2: gate on the actual's PUBLIC/knowable date when we have it (deep-actuals path);
+            # else fall back to the period-end (legacy, Screener concall_results path).
+            "res": _ym(g["resolved_knowable_date"] or g["resolved_period"]) if g["status"] in _RESOLVED else None,
             "status": g["status"],
             "quant": classify_commitment(g["claim_text"]) in ("HARD", "SOFT"),
         })
@@ -147,12 +152,14 @@ def build_series(conn, symbol: str) -> int:
         # window. The old window mis-timed irregular cadence: a >1-quarter filing gap collapsed
         # (a promise resolved two periods back re-counted as new) and a sub-quarter cadence could
         # miss the boundary (res == prev_ym excluded by the strict `>`). (CL-CCI-06)
-        # ⚠ Codex D6-F2 (Track C, verified — LEAK, deferred fix): `p["res"]` is the resolved
-        # PERIOD-END (e.g. FY2024 → 2024-03), but the actual only becomes public when results are
-        # REPORTED (~1-2 months later). So `p["res"] <= tym` (below) counts a promise as knowable
-        # ~1-2 months too early. NO live conclusion moves (CCI is falsified as a factor, used
-        # descriptive-only). PROPER FIX: store a report/knowable date on settlement (concall_settle)
-        # and gate on THAT, not the period end. (docs/codex-review/TRACK-C-RESULTS.md §D6-F2)
+        # D6-F2 (Track C) FIXED: `p["res"]` now derives from the resolving actual's PUBLIC/knowable
+        # date (`resolved_knowable_date`, set on settlement from fundamentals_history.report_date)
+        # when available, so `p["res"] <= tym` gates on WHEN the actual became public — not the
+        # period-end (which was ~1-2 months too early). Where the knowable date is absent (the
+        # Screener concall_results path has no report date), it falls back to the period-end
+        # (legacy). Activation needs a VPS re-settle + credibility_series rebuild to populate the
+        # new column on already-settled rows. No live conclusion moves (CCI is descriptive-only /
+        # falsified). (docs/codex-review/TRACK-C-RESULTS.md §D6-F2)
         met = missed = partial = 0
         new_met = new_missed = 0
         for p in promises:

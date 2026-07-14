@@ -105,6 +105,11 @@ def _resolve(rq_fy: int, rq_q: int, horizon: Optional[str]):
 
 
 def settle_symbol(conn, symbol: str) -> dict:
+    from src.core.db import _ensure_column
+    # D6-F2: the resolving actual's public/knowable date (report_date) is stored on
+    # settlement so credibility_series can gate on WHEN the actual became public, not
+    # on the period-end. Idempotent (no-op once the column exists).
+    _ensure_column(conn, "concall_guidance", "resolved_knowable_date", "TEXT")
     cmap = {r["period_label"]: (r["fy"], r["quarter"])
             for r in conn.execute("SELECT period_label, fy, quarter FROM concalls WHERE symbol=?", (symbol,)).fetchall()}
     results = {(r["fy"], r["quarter"]): dict(r) for r in conn.execute(
@@ -198,8 +203,12 @@ def settle_symbol(conn, symbol: str) -> dict:
                          "variance_pct=NULL, updated_at=datetime('now') WHERE id=?", (g["id"],))
             out["unsettleable"] = out.get("unsettleable", 0) + 1
         elif status:
-            conn.execute("UPDATE concall_guidance SET status=?, resolved_period=?, variance_pct=?, "
-                         "updated_at=datetime('now') WHERE id=?", (status, res["period_label"], var, g["id"]))
+            # D6-F2: also record the resolving actual's public/knowable date. It is present
+            # only on the deep-actuals (fundamentals_history) path; the Screener concall_results
+            # path has no report date → NULL, and credibility_series falls back to the period-end.
+            conn.execute("UPDATE concall_guidance SET status=?, resolved_period=?, "
+                         "resolved_knowable_date=?, variance_pct=?, updated_at=datetime('now') WHERE id=?",
+                         (status, res["period_label"], res.get("report_date"), var, g["id"]))
             out["settled"] += 1
             out[status.lower()] = out.get(status.lower(), 0) + 1
     if out["settled"] or out["ongoing"] or out.get("unsettleable"):

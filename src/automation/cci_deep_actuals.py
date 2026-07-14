@@ -99,7 +99,7 @@ def deep_actuals(symbol: str, *, as_of: Optional[str] = None,
         con.row_factory = sqlite3.Row
         ph = ",".join("?" * len(_WANTED))
         rows = con.execute(
-            "SELECT period_type, period_end, metric, value FROM fundamentals_history "
+            "SELECT period_type, period_end, metric, value, report_date FROM fundamentals_history "
             "WHERE symbol=? AND period_type IN ('Q','A') AND value IS NOT NULL "
             f"AND report_date<=? AND metric IN ({ph})",
             (symbol.upper(), cutoff, *_WANTED)).fetchall()
@@ -113,6 +113,11 @@ def deep_actuals(symbol: str, *, as_of: Optional[str] = None,
     for r in rows:
         d = by_type[r["period_type"]].setdefault(r["period_end"], {})
         m, v = r["metric"], r["value"]
+        # D6-F2: the PUBLIC/knowable date of this period's actual. A period is fully
+        # knowable only once its LAST component is reported → keep the MAX report_date.
+        rd = r["report_date"]
+        if rd and rd > d.get("_rdate", ""):
+            d["_rdate"] = rd
         if m in _REVENUE:
             d.setdefault("revenue", v)          # first listed name wins (Sales before Revenue)
         elif m in _MARGIN:
@@ -142,6 +147,7 @@ def deep_actuals(symbol: str, *, as_of: Optional[str] = None,
                                    if d.get("ebitda_margin") is not None
                                    and prev.get("ebitda_margin") is not None else None),
                 "period_label": period_end,      # ISO date doubles as a deep-source marker
+                "report_date": d.get("_rdate") or None,   # D6-F2: knowable date (max report_date of the period's actuals)
                 "source": "fundamentals_history",
                 "period_type": period_type,      # 'Q' (quarterly) | 'A' (annual full-year)
             }

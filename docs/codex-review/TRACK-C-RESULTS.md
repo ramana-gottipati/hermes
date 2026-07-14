@@ -91,6 +91,21 @@ rescue or invert CCI's status. **No live conclusion changes.** Proper fix = stor
 `resolved_knowable_date` on settlement and key `credibility_series` on it (correctness for any future
 PIT use); folded as a code TODO, not a ledger restatement.
 
+**✅ FIXED IN CODE (2026-07-14, S136).** The report-date plumbing landed:
+- `cci_deep_actuals.deep_actuals()` now also SELECTs `report_date` and emits `report_date` = the MAX
+  report_date across a period's actuals (the date the period became fully public).
+- New nullable column `concall_guidance.resolved_knowable_date` (idempotent `_ensure_column` migration).
+- `concall_settle.settle_symbol()` writes it on settlement from `res.get("report_date")` — present on the
+  deep-actuals (fundamentals_history) path; NULL on the Screener `concall_results` path (no report date).
+- `cci_series.build_series()` now gates on `_ym(resolved_knowable_date or resolved_period)` — the
+  knowable date when present, else the period-end (legacy fallback). Unit-pinned by
+  `tests/test_cci_knowable_date.py` (both branches).
+- **Empirically confirmed** on the VPS that banks/all filers carry `fundamentals_history.report_date`
+  (it already backs deep_actuals' `report_date<=?` PIT filter).
+- ⚠ **Activation is queued (VPS):** the fix bites only after a re-settle (`concall_settle`) repopulates
+  `resolved_knowable_date` on already-settled rows + a `credibility_series` rebuild. Until then the
+  fallback (period-end) preserves current behavior. No conclusion moves either way.
+
 ## D5-F6 — `deliv_qty_trend` raw-quantity → value — VERIFIED · MINOR (2026-07-14, VPS)
 
 **The leak:** `deliv_qty_trend` (in `embase` feats, used by DELIV_MOM 0.5w + QUAL_MOM 0.3w) is a trend of

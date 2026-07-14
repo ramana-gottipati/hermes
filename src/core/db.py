@@ -792,6 +792,7 @@ CREATE TABLE IF NOT EXISTS concall_guidance (
     confidence_language TEXT,             -- verbatim hedge/conviction phrase
     status              TEXT NOT NULL DEFAULT 'OPEN', -- OPEN|MET|MISSED|PARTIAL|ABANDONED|RESTATED|ONGOING
     resolved_period     TEXT,
+    resolved_knowable_date TEXT,          -- D6-F2: ISO date the resolving actual became PUBLIC (report/publish date). The PIT-correct "knowable-by" gate for credibility_series. NULL → series falls back to the period-end (legacy).
     variance_pct        REAL,             -- actual vs target at resolution
     evidence            TEXT,
     model_version       TEXT,             -- extractor model+prompt version (drift audit)
