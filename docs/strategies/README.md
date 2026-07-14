@@ -16,6 +16,7 @@ it **links** to the deeper sources rather than duplicating them:
 | Layer | Owner file(s) | This layer's relationship |
 |---|---|---|
 | **Canonical definition + status + terminology** | `docs/strategies/*.md` (**here**) | the anchor — start here |
+| **Origin / provenance of each strategy** | [`origins.md`](origins.md) (**here**) | who created what — the 🧑 RAMANA / 🏠 HOUSE / 📚 CLASSIC map |
 | Deep design-of-record | `docs/<strategy>-*-design.md` | linked from each page §10 |
 | Fundability / benchmarks / **falsification ledger** | [`docs/strategy-ledger.md`](../strategy-ledger.md) | the single source for result tables — **never duplicated here** |
 | Formula constants / weights | code + [`docs/calculations-and-weights.md`](../calculations-and-weights.md) | linked, never restated |

@@ -2005,6 +2005,13 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 147 — 2026-07-14 — Fix: wire `origins.md` into the served strategy-reference (closes the S144/S145/S146 owed loop) — SHIPPED
+The strategy-docs coverage gate `tests/test_strategy_docs_coverage.py::test_every_doc_is_served` was RED on origin/main: `docs/strategies/origins.md` (the canonical 🧑 RAMANA / 🏠 HOUSE / 📚 CLASSIC provenance map, landed by S132j `7e5745d`) was present on disk but never added to `strategies_view._PAGES`, so it was neither served nor matrix-listed. S145 wired its sibling `classic-screens` but left `origins` unregistered; S144/S145/S146 all logged this as the lone in-flight red.
+- **`src/web/strategies_view.py`** — added `"origins": ("origins.md", "Origins")` to `_PAGES` (appended after `classic-screens`; renders at `/dash/strategy-ref?p=origins`, appears in the rail).
+- **`docs/strategies/README.md`** — added an `[`origins.md`](origins.md)` row to the reference-layer table (satisfies `test_every_served_page_listed_in_readme_matrix`) so readers get a coherent pointer to the provenance map.
+- **Verify:** `test_strategy_docs_coverage.py` **3 passed** (was 1 failed); `strategies_view` selftest OK — index + **11** pages 200, no P0-5 leak (the `_public()` sanitizer drops origins' governance blockquote + `(D62)`-style IDs; the all-caps `RAMANA` origin-class label is intended canon and survives — mixed-case `"Ramana"` does not).
+- **Deploy:** scp `strategies_view.py` + `origins.md` + `README.md` to `/opt/hermes/` + writer-safe `hermes-api` restart (docs are read at request time; the `_PAGES` change needs the process reload).
+
 ### Session 146 — 2026-07-14 — UX remediation S-E Phase 2 slice B — Pat answers FII positioning + a stock's rotation state inline — SHIPPED
 Continues S142/S144 (Phase 1 nav-answer + Phase 2 slice A news/what-changed). This slice = the next two audit Phase-2 priorities as inline data answers. Claim-first per the S140 lesson (`6ac4ca1`). Chose S-E (Pat-owned, cold) over the hot S-B1 rail-task-groups + XBRL lanes.
 - **NEW `src/pat/participants_flow.py`** (see § Key file paths): "are FIIs buying / FII flows / who's positioned" → the FII index-futures net stance (net long-short + 2.5y percentile + plain read), reusing the `participant_oi` computation behind `/dash/participants`. D62 descriptive-positioning fence.
