@@ -94,7 +94,8 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 ## D. RUN-BOOK(active) — transient, retire-condition NOT fired, KEEP
 
-**Docs (28):** `docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
+**Docs (29):** `docs/parallel-lane-prompts-D134.md` (paste-ready lane prompts + relay protocol
+for the analytics-company plan; retire when all lanes LANDED) · `docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
 · `docs/mep-NEXT-SESSION.md` · `docs/next-session-handoff.md` ·
 `docs/dashboard-deepen-NEXT-SESSION.md` · `docs/rrg-rotation-NEXT-SESSION.md` ·
 `docs/ui-redesign-EXECUTE.md` · `docs/ui-cockpit-NEXT-SESSION.md` ·
