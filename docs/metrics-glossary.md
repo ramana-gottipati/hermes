@@ -218,6 +218,7 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 
 > The nightly `momentum_scan`: 12-month momentum · 52-week-high proximity · risk-adjusted momentum · low-vol momentum, equal-weighted into one percentile. **Attribution proved this is momentum BETA, not stock-selection skill** (residual α failed t≥3; see the strategy ledger) — a *tilt* you ride knowingly, never a buy list.
 
+- **RISKADJ (risk-adjusted momentum).** Split-adjusted 6-month price return ÷ 66-day (≈3-month) return volatility — reward per unit of recent choppiness, anchor-invariant to corporate actions. The **hero column of the momentum scanner**; higher = a bigger move for the risk taken. Equity-only (ETFs/liquid funds excluded). Momentum here is a known risk-premium **beta, not stock-selection skill** (residual α failed t≥3) — a shortlister, **never a buy list**. *Source:* `stock_signals` (computed on read).
 - **Ensemble %ile (1–99).** The equal-weight blend of the four momentum sleeves, ranked cross-sectionally. ≥90 = top decile. *Source:* `momentum_scan.ensemble_pctile`.
 - **C-blend.** 50/50 mean of risk-adjusted-momentum percentile and the capital-allocation (C) percentile — the best *paper* overlay in the 2026-07 backtest (flat-cost only; **not fundable at AUM**, hence a descriptive column). *Computed on read.*
 

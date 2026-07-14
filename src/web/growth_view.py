@@ -187,6 +187,7 @@ def growth(type: str = "", since: int = 0, min_cr: float = 0, pullback: int = 0,
                     "ledger ordered by commitment size; the forward 'tilt' was placebo-killed, so "
                     "<b>not a return signal</b>.")
                 + ifx.how_to_read_link()
+                + '<div class="rd-htr"><a href="/dash/glossary?q=statement%20type">Glossary — what the columns mean →</a></div>'
                 + _tabs(stype, is_pull)
                 + _controls(stype, since, (int(min_cr) if min_cr else 0), symbol, is_pull, len(rows))
                 + _table(rows) + _JS)
