@@ -203,7 +203,7 @@ LENSES: tuple[Lens, ...] = (
     Lens("factor-league", "Factor league", "stock", "strategies", "/dash/factor-league",
          aliases=("factors", "premia", "league")),
     # Model portfolios (S132h) — the automated, engine-managed portfolios reconstructed
-    # since 2019-01-01 (STEADY/PACER/SPRINTER); time-travel constituents; no manual edits.
+    # since 2012-06 (STEADY/PACER/SPRINTER/CRAFTSMAN); time-travel constituents; no manual edits.
     Lens("model-portfolios", "Model portfolios", "stock", "strategies", "/dash/model-portfolios",
          aliases=("portfolios-auto", "auto-portfolios", "models")),
     # Classic Screens (S145) — the famous NAMED strategies (Magic Formula, CANSLIM, Piotroski,

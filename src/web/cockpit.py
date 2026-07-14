@@ -973,7 +973,7 @@ def render_home(sig_date, idx_date) -> str:
             '<span class="sub" style="margin:0;font-weight:400">the proof, not the pitch</span></div>'
             '<div class="ck-tiles fl-tiles">'
             + _flag("/dash/replay-any-date", "⏪", "Replay any date",
-                    "Rewind the whole platform to any past day — zero look-ahead, on the live API")
+                    "Replay any stock's knowable record on any date — zero look-ahead, on the live API")
             + _flag("/dash/attention", "🔔", "The signal bus",
                     "Every state-change across every lens, one severity-graded triage queue")
             + _flag("/dash/market-internals", "🫀", "22-year internals",

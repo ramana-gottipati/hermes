@@ -23,7 +23,7 @@ import logging
 from anthropic import APIError
 
 from src.assistant import conversations
-from src.core.llm import client, first_text
+from src.core.llm import client, first_text, meter
 from src.core.settings import settings
 
 log = logging.getLogger("hermes.chat")
@@ -184,6 +184,7 @@ def handle(message: str, *, conversation_id: int | None = None, fast: bool = Fal
             "usage": {},
         }
 
+    meter("assistant-chat", model, response)
     reply_text = first_text(
         response,
         default="(no text reply — the model returned a non-text stop)",

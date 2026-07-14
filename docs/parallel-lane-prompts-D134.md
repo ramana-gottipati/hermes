@@ -39,12 +39,12 @@
 
 | Lane | Component (plan §4) | META (Imp·Crit·Timing·Cost) | Status |
 |---|---|---|---|
-| B | Cost-ledger + estate heartbeat | 7 · **8** · NOW · ₹0 | ✅ BUILT `lane-b-d134`@`d667240` (22/22) — unmerged |
-| C | Licence-class registry + feed/signal manifests | 8 · **8** · next · ₹0 | ✅ BUILT `lane-c-d134`@`7d5cb27` (12/12; 21 feeds · 11 signals; 6 vendor-ToS UNCLASSIFIED → Ramana decision) — unmerged |
-| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ BUILT `lane-d-d134`@`b642334` (18/18) — unmerged |
-| F | Time-machine capability audit | **8** · 5 · mid · ₹0 | ✅ AUDIT DONE — `docs/time-machine-audit.md` (5 yes / 34 partial / 28 no; cockpit flagship-tile overclaim found) |
-| R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | **READY — run next** (branch refs above; merge order B→C→D) |
-| E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | prompt ready (§E) |
+| B | Cost-ledger + estate heartbeat | 7 · **8** · NOW · ₹0 | ✅ **LANDED S150** (LANE-R merge; producers instrumented — `llm.meter()` into core/router/chat/patearn) |
+| C | Licence-class registry + feed/signal manifests | 8 · **8** · next · ₹0 | ✅ **LANDED S151** (LANE-R merge; licence gate in suite; 6 vendor-ToS UNCLASSIFIED → plan §7.7 Ramana) |
+| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ **LANDED S152** (LANE-R merge; first producer tags-review queued) |
+| F | Time-machine capability audit | **8** · 5 · mid · ₹0 | ✅ AUDIT DONE — `docs/time-machine-audit.md` (5 yes / 34 partial / 28 no; cockpit tile overclaim FIXED by LANE-R) |
+| R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | 🔄 THIS SESSION — reconcile pushed (`2fc1248`), B→C→D merged (suite 428), deploy in flight |
+| E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | prompt ready (§E) — **next pick** with §I |
 | G | Entity graph v1 | **8** · 4 · mid · ₹0 | prompt ready (§G) |
 | H | Rule-lab design | **8** · 4 · later · ₹0 | prompt ready (§H) |
 | I | Real-time seam interface | 7 · **6** · design next · ₹0 (opt ₹500/mo) | prompt ready (§I) |
