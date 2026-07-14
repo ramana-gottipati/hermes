@@ -26,9 +26,11 @@ from the repo root (the read-only sandbox can't spawn a shell on this Windows bo
   split, RSI flat-series ×3, oscillator staleness, harmonic PRZ) + visual/scaffold honesty ×5.
 - **`71fbffb`** — Track C: D5-F1 entry-lag fix (`factory.py`) + D4-F2 label corrections
   (`phase1_tradesim.py`) + D6-F2/D5-F6 leak markers.
+- **`3e1426d`** — Track D data plan (`docs/codex-review/TRACK-D-DATA-PLAN.md`).
 - **`5d55ac7`** — PROJECT_STATE § Session 128 (carried by the parallel session's state-commit).
-- **Track C headline:** all 4 P0 integrity leaks are REAL but MINOR — none overturns a recorded
-  conclusion (RISKADJ flat-cost 1.13→1.09; Wolfe still IN-SAMPLE-ONLY; CCI still descriptive-only).
+- **Track C — DONE + verified on the VPS:** all 4 P0 integrity leaks are REAL but MINOR — none
+  overturns a recorded conclusion (RISKADJ flat-cost 1.13→1.09; Wolfe still IN-SAMPLE-ONLY; CCI still
+  descriptive-only). Full numbers in `TRACK-C-RESULTS.md`.
 
 ## OPEN queue (priority order)
 1. **Track C code-fix remainder** (both verified-minor, deferred deliberately):
@@ -39,9 +41,19 @@ from the repo root (the read-only sandbox can't spawn a shell on this Windows bo
      momentum_scan → do it with a `momentum_scan` re-verify + deploy. Marker at `embase.py`.
 2. **Ledger annotation** — fold RISKADJ flat-cost **1.13→1.09** into `docs/strategy-ledger.md`
    (recorded in TRACK-C-RESULTS.md; **coordinate — strategy-ledger.md is sibling-hot**).
-3. **Track D (needs RAMANA's decision first)** — the Doctrine-D financials scorer (D3-F1): pt14 applies
-   generic ROCE/D-E to banks/NBFCs/HFCs. Ramana chose **BUILD it**, but it needs a **primary-source
-   data plan** (GNPA/CAR/ALM from NSE/BSE/XBRL, not a vendor — guardrail #8). Bring the data plan first.
+3. **Track D — Doctrine-D financials scorer (D3-F1). DATA PLAN DELIVERED** (`TRACK-D-DATA-PLAN.md`,
+   `3e1426d`): extend the LIVE `fundamentals_xbrl.py` bank extractor (primary NSE XBRL, **no vendor**)
+   for GNPA%/NNPA%/CAR/cost-to-income; reuse the existing `capital_allocation` `model='financial'`
+   (RoE/RoA); route financials in `scoring.py` + emit the "sector-adapted thresholds (Doctrine D)" note;
+   disable the D/E hard-disqualifier for lenders. **AWAITING RAMANA's 3 decisions** (scope order ·
+   sub-type bank/NBFC/HFC thresholds · ALM proxy-vs-build) — Claude's recommendation: **interim
+   suppress-label now + sub-type-aware + proxy-ALM-via-CRAR+GNPA**. **Build sequence once decided:**
+   (a) interim suppress-label pt14 for financials (stops the live mis-rating today — HDFCBANK shows
+   nonsense `roce=1.57/roe=7.04`); (b) **tag-inventory spike** on 3-5 lenders' RAW XBRL to confirm
+   GNPA/CAR are tagged (feasibility gate; ⚠ use the `/api/corporates-financial-results` row's `xbrl`
+   field → `fetch_instance()`, NOT `list_filings()` metadata — my quick attempt got a stub via the
+   wrong path); (c) extend `extract_bank_for()` + add nullable columns to `fundamentals`; (d) route +
+   note. Untagged metric → defer to Phase 2 (annual/Basel III), NEVER a vendor.
 4. **Ignition warm-up guard (D1-F4)** — P-tier baselines form on 1-day history → spurious `SS`. Changes
    scoring + needs a VPS `--relabel`/trigger backfill; **converge on the exact min-coverage rule first.**
 5. **Deferred behind the parallel Wolfe/seasonal lane** (their hot files — do NOT touch until they land):
