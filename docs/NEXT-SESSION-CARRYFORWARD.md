@@ -10,6 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 2026-07-14 late — S-E PHASE 1 (Pat NAV-ANSWER coverage): CLAIMED + IN-FLIGHT (S142 lane) — do NOT parallel
+- The audit's biggest-lever pick, unblocked by S141/D132. **Phase 1 only** (nav-answer flows): a NEW
+  Pat-owned `src/pat/nav_flow.py` recognizes "where do I see X / which page shows Y / how do I find Z"
+  and resolves against `lens_registry` (66 routed lenses) → a link + one-line blurb, so a new lens is
+  auto-covered. Wired into `engine.route()` as a ₹0 first-pass (the overdue/seasonal_flow pattern),
+  render in `web.py`, `navigate` added to engine `_VALID`. Collision surface = Pat-owned files only
+  (new `nav_flow.py` + small anchored additions to engine/web/disambiguate); the FORKED nav trio is
+  UNTOUCHED (that's S-B1/item-11's job — one-liners belong in `lens_registry` later; Phase-1 blurbs
+  live in `nav_flow.py` with a label fallback). Claim-first per the S140 livelock lesson.
+- **Phases 2 (data flows: attention/news/participants/insider/rotation/seasonal/internals/Wolfe) and
+  3 (education on the unified glossary + docs/strategies) are the NEXT S-E session — NOT this one.**
+- **Retire this block when Phase 1 lands** (replace with the ✅ result block).
+
 ## ✅ 2026-07-14 — S141: S-C ITEM 4 — Pat↔web GLOSSARY UNIFIED (D132) — do NOT redo; kickstart-pick-verify
 - **ONE vocabulary now:** `docs/metrics-glossary.md` stays canonical; Pat's curated 52 stay the rich
   override layer; a defensive import-time adapter (`src/pat/glossary.py _merge_web()`) folds every
