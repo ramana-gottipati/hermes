@@ -10,6 +10,12 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🆕 2026-07-15 — S149: D134 ANALYTICS-COMPANY PLAN + COMPLIANCE GATE SHIPPED — do NOT redo; kickstart-pick-verify
+- **`docs/patearn-analytics-company-plan.md` is the company-level canon** (CANONICAL/LIVING, D134): analytics-company posture (VALIDATED — descriptive analytics needs no RA/IA registration; gray zone = single-stock house scores; trigger contract = legal opinion before monetizing them publicly), the 9 adaptable layers L0–L8 with plug-in contracts, the rated+costed component roadmap A–N, the structured cost model. Charter v1.1 §NOW is fully shipped — plan §6 is the proposed charter-v2.0 queue (Ramana ratifies).
+- **The 5th gate is live:** `tests/test_compliance_language_gate.py` (solicitation/recommendation language in src/web+src/pat fails the suite; Pat's advisory-REFUSAL detector phrases are the reasoned allowlist).
+- **NEXT per plan §6 (in order):** S150 **cost-ledger + estate heartbeat** (compose board_health + feed-liveness + timer results + alert-rail criticals into ONE positive morning owner-DM line, plus a `cost_ledger` ₹-meter every LLM job writes; budget law = plan §5.4) → S151 **licence-class registry + feed/signal manifests** → S152 **Review Inbox + judgment corpus** (generalize tags-review/ack; the human-verification layer) → S153 **auto-analyst event briefs** (capped, inbox-gated, results-events first) → S154 **time-machine contract** (`asof_capable` flags in lens_registry). Parallel lanes unchanged: XBRL Phase-3 pilot (S148 lane) · UX S-B1 remainder · armed studies.
+- **⚠ DIVERGENCE FLAG (owning lanes to reconcile — do NOT force, do NOT redo):** local main vs origin/main diverged; local-only = `216db7b`/`a781669`/`0b637ed`/`bce01cb` (S147-docs · S-B1-item-2 · XBRL-Phase-3 · ledger D1-F1); `a781669` is a patch-twin of origin `29e4169` (auto-drops on rebase); two lanes both used "S148". The XBRL lane reconciles at its next push; S149's commit rides that stack.
+
 ## ✅ 2026-07-15 — S143-e: CHART COMPARE fixed (Ramana-directed) — do NOT redo; kickstart-pick-verify
 - Ramana reported "index comparison removed" + "stock chart won't let me add stocks/related-companies/indices."
   **Neither was removed or broken** (Explore agent + live curl + backups verified): index-compare lives at `/dash/compare`

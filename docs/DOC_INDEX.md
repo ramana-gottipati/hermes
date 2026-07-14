@@ -31,7 +31,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 ---
 
-## A. CANONICAL (13)
+## A. CANONICAL (14)
 
 | Doc | Why |
 |---|---|
@@ -49,6 +49,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/SESSION-PROTOCOL.md` | Binding per-session start/end checklist (CLAUDE.md boot references it). |
 | `docs/calculations-and-weights.md` | Canonical single-source explainer of every analytical weight + formula. |
 | `docs/patearn-charter.md` | CEO-mode operating doctrine + NOW roadmap (amended by the Decision log). |
+| `docs/patearn-analytics-company-plan.md` | Company-level plan (D134): analytics-company posture + validated regulatory boundaries + adaptable layers L0–L8 + structured cost model + the rated component roadmap. |
 
 ## B. DESIGN(live) — design-of-record, keep (24)
 
