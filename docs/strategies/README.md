@@ -39,7 +39,7 @@ Because of this doctrine, most pages carry a **DESCRIPTIVE-ONLY** honesty fence.
 it is the recorded, evidence-backed status. Do not "promote" any descriptive lens to a ranked/traded
 strategy without its own pre-registered, leak-free study that beats the recorded numbers.
 
-## Status matrix (the nine canonical strategies)
+## Status matrix (the canonical strategies)
 
 | Strategy | Canonical name | Status | Governing decision(s) | Page |
 |---|---|---|---|---|
@@ -52,6 +52,7 @@ strategy without its own pre-registered, leak-free study that beats the recorded
 | **Harmonic** | XABCD / PRZ patterns | **LIVE** (descriptive) · backtest-GATED | D72 · D71 | [harmonic.md](harmonic.md) |
 | **Momentum / RISKADJ** | ranked-rotation factor engine (the benchmark) | **BENCHMARK** · gross selection, **not fundable net of cost** | D66 + ledger benchmarks | [momentum-riskadj.md](momentum-riskadj.md) |
 | **patearn** | 14-pattern PIT fundamental-quality methodology | **DEPLOYED** analytical lens (not run as standalone alpha) | D66 · D76 · D7/D8/D24 | [patearn.md](patearn.md) |
+| **Classic Screens** | famous public strategies (Magic Formula · CANSLIM · Piotroski · Coffee Can · GARP · Graham · Quality · Low-Vol) run as live rosters on our PIT data | **DESCRIPTIVE-ONLY** — 5 full + 3 proxy; value shown with its recorded failure numbers | D133 · D66 · Guardrail #8 | [classic-screens.md](classic-screens.md) |
 
 ## Terminology canon (the master anti-drift table)
 
@@ -68,6 +69,8 @@ The whole reason this folder exists. Use the **canonical** column; retire the **
 | **CPR** | **Central Pivot Range** (Pivot + BC/TC), the "CPR Spine" charting lens | generic support/resistance · RS-band |
 | **Wolfe: "strength"** | the §B score — eight components (max = `_QUALITY_MAX`, now 27), ratified D111 (spring-and-reclaim C, §A9); **freshness is NOT strength** | recency/freshness · the removed D98–D102 STR/LND vocabulary · "D111 = the draw tool" (D111 is the §B rescore; the draw tool is **D113**) |
 | **"C" (capital allocation)** | the modern quality composite (ROIIC, ROCE, dilution, debt-funding, growth efficiency) | the older 4-metric quality lens it **subsumes** (D66) |
+| **Classic Screens** | the famous NAMED strategies run as rosters (`/dash/classics`) | **Factor League** (the raw factor *families*, `/dash/factor-league`) — related but different granularity |
+| **Magic Formula (our run)** | ROC (=ROCE) + earnings yield (E/P proxy) | the true Greenblatt EBIT/EV yield (not yet computable PIT) |
 
 ## The rest of the estate (catalogued — design doc is the current reference)
 

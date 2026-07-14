@@ -40,6 +40,7 @@ _PAGES: dict[str, tuple[str, str]] = {
     "harmonic":          ("harmonic.md",          "Harmonic"),
     "momentum-riskadj":  ("momentum-riskadj.md",  "Momentum / RISKADJ"),
     "patearn":           ("patearn.md",           "patearn"),
+    "classic-screens":   ("classic-screens.md",   "Classic Screens"),
 }
 _FILE_TO_SLUG = {fn: slug for slug, (fn, _lbl) in _PAGES.items()}
 

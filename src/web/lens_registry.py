@@ -206,6 +206,13 @@ LENSES: tuple[Lens, ...] = (
     # since 2019-01-01 (STEADY/PACER/SPRINTER); time-travel constituents; no manual edits.
     Lens("model-portfolios", "Model portfolios", "stock", "strategies", "/dash/model-portfolios",
          aliases=("portfolios-auto", "auto-portfolios", "models")),
+    # Classic Screens (S145) — the famous NAMED strategies (Magic Formula, CANSLIM, Piotroski,
+    # Coffee Can, GARP, Graham, Quality, Low-Vol) run as live rosters on OUR PIT data. Sibling of
+    # factor-league (raw families). Proxies labeled; value shown with its recorded failure numbers.
+    Lens("classics", "Classic screens", "stock", "strategies", "/dash/classics",
+         aliases=("classic-screens", "screens", "magic-formula", "canslim", "piotroski",
+                  "coffee-can", "garp", "graham", "quality-screen", "low-vol", "greenblatt",
+                  "oneil", "lynch")),
     Lens("conviction", "Conviction", "stock", "strategies", "/dash/conviction",
          dossier_tab="verdict", group="Conviction & structure"),
     # Positioning + MEP GROUP under one "Accumulation" heading (two views, both kept).

@@ -133,6 +133,9 @@ _ROUTER_SPECS = [
     # rosters + STEADY-25 auto-portfolio + churn. Reads factor_league/slow_rotation.
     ("factor-league", "src.web.factor_league_view", "/dash/factor-league"),
     ("model-portfolios", "src.web.auto_portfolios_view", "/dash/model-portfolios"),
+    # Classic Screens (S145): the famous NAMED strategies run as live rosters on OUR PIT data.
+    # Reads classic_roster (famous_strategies.py, nightly). Sibling of factor-league.
+    ("classics", "src.web.classics_view", "/dash/classics"),
     # RS band lens — its siblings rsband.py/rrg_view.py are committed but the view was
     # left untracked; now committed + durably mounted here (was only the uncommitted
     # main.py import) so /dash/rsband survives a main.py clobber and a clean checkout.
