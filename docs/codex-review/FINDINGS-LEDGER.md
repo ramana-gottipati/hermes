@@ -325,8 +325,14 @@ remediation), state:skip on the src commits (PROJECT_STATE.md sibling-hot):
   `nse_equity_list` gate → PIT `security_master` membership (first_date≤D≤last_date, delisted KEPT;
   instrument_class='FUND' excludes ETFs), OR-fallback to nse_equity_list for live names not yet in the
   master. VPS-quantified: the leak restored **+128 delisted names to the 2016-06-01 universe (419→547)**,
-  **today unchanged (1336→1336)**. `tests/test_stock_rs_survivorship.py`. ⚠ Activation = VPS
-  `stock_rs --backfill` rank re-run (rewrites rs_rank across history; nightly per-date path unchanged).
+  **today unchanged (1336→1336)**. `tests/test_stock_rs_survivorship.py`. ✅ **ACTIVATED ON VPS
+  2026-07-14** — deployed the fixed `stock_rs.py` (backup `.bak-d2f1-20260714-132154`, md5-verified,
+  py_compile OK) + ran `--rank-only` (the surgical pass; my fix only touches the rank universe, so a
+  full `--backfill` broad+sector recompute was unnecessary): 2m20s, re-ranked 2,693,668 rows (was
+  2,449,095 — the +244k = delisted names now correctly in historical universes). Verified live:
+  2016-06-01 ranked 419→**547**, 2020 527→**599**, today **1336** (unchanged); delisted names
+  (ABIRLANUVO/ESSAROIL/RUCHISOYA/…) now carry historical ranks. No hermes-api restart needed (rank read
+  from `stock_signals`); ran at 13:22 UTC, safely clear of the 14:01 nightly chain.
   **Sector half = DISCLOSED, not fixed** — `stock_index_membership` has no pre-2026-06 snapshots (19
   total, all within 1 month), so historical sector RS cannot be made PIT; the limitation is now
   documented in `primary_sector_map`.
