@@ -1015,6 +1015,48 @@ def _overdue_flow(conn, event: str = "") -> str:
     return "".join(out)
 
 
+# ── navigate flow (page-finder over lens_registry) ───────────────────────────
+# "where do I see breadth / which page shows the news / how do I find seasonality" —
+# points at the right lens with a link + one-liner (S-E Phase 1). No data, no ranking.
+
+def _navigate_flow(conn, topic: str = "") -> str:
+    from src.pat import nav_flow as _NAV
+    topic = (topic or "").strip()
+    hits = _NAV.resolve(topic, limit=5) if topic else []
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble('Here\'s where that lives on the site. I point at the page — open it for the '
+                  'live numbers.'),
+    ]
+    if not hits:
+        out.append('<div class="empty">I couldn\'t match that to a page. Try a topic like '
+                   '<b>breadth</b>, <b>news</b>, <b>seasonality</b>, <b>credibility</b> or '
+                   '<b>what changed today</b> — or browse everything from '
+                   '<a class="row" href="/dash/markets">the market overview</a>.</div>')
+        return "".join(out)
+    best = hits[0]
+    out.append(f'<div class="ghdr">Where to see “{_esc(topic)}”</div>')
+    out.append(
+        '<a class="row" href="%s" style="display:block;padding:11px 13px;border:1px solid '
+        'var(--line-2);border-radius:10px;margin-bottom:8px">'
+        '<b>%s</b>%s<div style="color:var(--ink-3);font-size:12.5px;margin-top:2px">%s</div>'
+        '<div style="color:var(--accent,#58a6ff);font-size:12px;margin-top:4px">Open %s →</div></a>'
+        % (_esc(best["route"]), _esc(best["label"]),
+           f' <span style="color:var(--ink-3);font-size:11.5px">· {_esc(best["group"])}</span>'
+           if best["group"] else "",
+           _esc(best["blurb"]), _esc(best["route"])))
+    others = hits[1:]
+    if others:
+        out.append('<div class="ghdr">Related pages</div><div class="patChips">')
+        for h in others:
+            out.append(f'<a class="patChip" href="{_esc(h["route"])}">{_esc(h["label"])}</a>')
+        out.append('</div>')
+    out.append('<div style="margin-top:10px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'I read the site\'s own lens registry, so I stay current as pages are added. '
+               'Ask “what does X mean” to define a metric, or name a stock for its dossier.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2353,7 +2395,7 @@ def _convo_tail(flow: str, q: str = "", ctx: str = "", params: dict | None = Non
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
                "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
-               "overdue": "Overdue vs own cadence",
+               "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2530,6 +2572,8 @@ def _free_text(conn, q: str):
             body = _seasonal_flow(conn, p.get("period", ""), p.get("direction", "bullish"))
         elif f == "overdue":
             body = _overdue_flow(conn, p.get("event", ""))
+        elif f == "navigate":
+            body = _navigate_flow(conn, p.get("topic", ""))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -2814,6 +2858,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "trend":
         body = _trend_flow(conn, sym)                     # credibility series; sym rides `sym`
         fb_ctx = {"query": "", "flow": "trend", "params": {"sym": sym}, "source": "flow"}
+    elif flow == "navigate":
+        body = _navigate_flow(conn, q)                    # page-finder; topic rides `q` (S-E)
+        fb_ctx = {"query": q, "flow": "navigate", "params": {"topic": q}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

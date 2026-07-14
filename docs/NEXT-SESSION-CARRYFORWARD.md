@@ -10,18 +10,22 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## 🔒 2026-07-14 late — S-E PHASE 1 (Pat NAV-ANSWER coverage): CLAIMED + IN-FLIGHT (S142 lane) — do NOT parallel
-- The audit's biggest-lever pick, unblocked by S141/D132. **Phase 1 only** (nav-answer flows): a NEW
-  Pat-owned `src/pat/nav_flow.py` recognizes "where do I see X / which page shows Y / how do I find Z"
-  and resolves against `lens_registry` (66 routed lenses) → a link + one-line blurb, so a new lens is
-  auto-covered. Wired into `engine.route()` as a ₹0 first-pass (the overdue/seasonal_flow pattern),
-  render in `web.py`, `navigate` added to engine `_VALID`. Collision surface = Pat-owned files only
-  (new `nav_flow.py` + small anchored additions to engine/web/disambiguate); the FORKED nav trio is
-  UNTOUCHED (that's S-B1/item-11's job — one-liners belong in `lens_registry` later; Phase-1 blurbs
-  live in `nav_flow.py` with a label fallback). Claim-first per the S140 livelock lesson.
-- **Phases 2 (data flows: attention/news/participants/insider/rotation/seasonal/internals/Wolfe) and
-  3 (education on the unified glossary + docs/strategies) are the NEXT S-E session — NOT this one.**
-- **Retire this block when Phase 1 lands** (replace with the ✅ result block).
+## ✅ 2026-07-14 — S142: S-E PHASE 1 — Pat NAV-ANSWER coverage SHIPPED — do NOT redo; kickstart-pick-verify
+- **NEW `src/pat/nav_flow.py`** — Pat now answers "where do I see X" from `lens_registry`: recognizes a
+  locational ask, resolves the topic against the 66 routed lenses → link + one-line blurb (registry-
+  generated, so a new lens is auto-covered; curated blurbs + label fallback + NL hooks in the Pat file).
+  Wired at engine.route `(a-1c)` (self-limiting: yields unless a nav cue + a real lens match), render in
+  `web.py:_navigate_flow`, `navigate` in `_VALID` + both dispatch paths. **Zero forked-nav-trio edits.**
+- **Regression-clean:** the full Pat eval battery is UNCHANGED (navigate steals nothing); NEW
+  `tests/test_pat_nav_flow.py` (41 contracts) + suite 262 pass; live-walked (breadth→internals,
+  seasonality→seasonal-tape, rotation→family+chips; "which stocks are accumulating" NOT stolen).
+- **NEXT S-E session = Phase 2 (data flows: attention "what changed today / for SYMBOL" · news/wire ·
+  participants/FII · insider/ratings/SAST/holdings · rotation states · seasonal base rates · internals
+  breadth · Wolfe open-trades) + Phase 3 (education: ground explain-flows on the unified glossary +
+  docs/strategies so "explain the Wolfe methodology" works). KEEP closed-vocab deterministic templates.**
+  Audit done-bar for S-E: coverage table ≥90% any-coverage; "what changed today", "TCS news",
+  "explain Wolfe methodology" all answer.
+- Claim-first convention held again (`1042445` pushed before touching Pat files).
 
 ## ✅ 2026-07-14 — S141: S-C ITEM 4 — Pat↔web GLOSSARY UNIFIED (D132) — do NOT redo; kickstart-pick-verify
 - **ONE vocabulary now:** `docs/metrics-glossary.md` stays canonical; Pat's curated 52 stay the rich
@@ -96,7 +100,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → ~~item 4~~ **✅ S141 (D132 — the glossary is ONE vocabulary; S-E UNBLOCKED)** → **NEXT free pick: S-E Pat total coverage (2 sessions, the audit's biggest lever — its prerequisite just landed)** or **S-B1 IA labels/grouping/cross-links**. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → ~~item 4~~ **✅ S141 (D132 — the glossary is ONE vocabulary; S-E UNBLOCKED)** → ~~S-E Phase 1 (nav-answer)~~ **✅ S142 (`nav_flow.py` — "where do I see X" from lens_registry)** → **NEXT free pick: S-E Phase 2+3 (Pat DATA flows + education — the rest of S-E)** or **S-B1 IA labels/grouping/cross-links**. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.
@@ -422,12 +426,15 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 > Done: S-A front door · S-H route gate · **S-C COMPLETE** (items 1+7 S134 · scaffold S136 ·
 > glossary links + nav subtitles S138 · **the education-coverage gate + the full 63/63 sweep
 > S137** · **item 4 glossary-unify S141/D132 — ONE vocabulary, Pat=199 entries**) ·
-> S-D search/entry S140.
-> **NEXT free pick: S-E Pat total coverage** (2 sessions, the audit's biggest lever — its
-> prerequisite D132 just landed; Pat can now EXPLAIN every term, S-E makes it REACH every lens's
-> data) **or S-B1 IA labels/grouping/cross-links** (else S-B2 route deprecation + POST-ify GETs,
-> or S-G expert affordances). Ramana may paste a problem statement; if none, take the audit
-> §8 brief autonomously.
+> S-D search/entry S140 · **S-E PHASE 1 nav-answer S142** (`src/pat/nav_flow.py` — Pat answers
+> "where do I see X" from lens_registry).
+> **NEXT free pick: S-E PHASE 2+3** — Pat DATA flows (attention "what changed today / for SYMBOL",
+> news/wire, participants/FII, insider/ratings/SAST/holdings, rotation states, seasonal base rates,
+> internals breadth, Wolfe open-trades) + education (ground explain-flows on the unified glossary +
+> docs/strategies). Follow the `nav_flow.py`/`overdue_flow.py` pattern (new Pat file + a ₹0
+> engine.route pre-pass + a web render + eval/pytest guards); KEEP closed-vocab deterministic SQL
+> templates. **Or S-B1 IA labels/grouping/cross-links** (else S-B2 route deprecation, or S-G expert
+> affordances). Ramana may paste a problem statement; if none, take the audit §8 brief autonomously.
 > **Reuse, don't rebuild:** `infographics.fence(kind)` for any fence (add a kind, never hand-write);
 > `readability_css/bottom_line/plain/how_to_read_link` for education (dashboard-served pages go
 > through `dashboard._edu()`; tracker demo via `tracker_gate._edu_demo`); **NEW lens pages must

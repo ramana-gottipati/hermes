@@ -53,6 +53,7 @@ _VALID: dict[str, dict] = {
     "trend":        {"sym": "free"},    # credibility time-series for one name
     "seasonal":     {"period": {"this-month", "next-month", "this-week", "next-week"},
                      "direction": {"bullish", "bearish"}},  # calendar base-rate ranking
+    "navigate":     {"topic": "free"},  # "where do I see X" — page-finder over lens_registry (S-E)
     "explain":      {"explain": "slug"},
 }
 
@@ -314,6 +315,20 @@ def route(query: str, conn=None) -> dict | None:
     if ovd:
         _cache_put(q, ovd)
         return ovd
+
+    # (a-1c) Navigate — "where do I see breadth / which page shows the news / how do I
+    #        find seasonality" — a page-finder over lens_registry (S-E Phase 1). ₹0 and
+    #        SELF-LIMITING: only claims on a locational cue whose topic actually resolves
+    #        to a lens, so a data ask ("which stocks are accumulating") falls through.
+    #        After overdue/seasonal so those event asks win a tie.
+    try:
+        from src.pat.nav_flow import parse_navigate as _parse_navigate
+        nav = _parse_navigate(query)
+    except Exception:
+        nav = None
+    if nav:
+        _cache_put(q, nav)
+        return nav
 
     from src.pat.understand import validate_intent, parse_fallback
 
