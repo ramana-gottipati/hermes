@@ -1,6 +1,6 @@
 """strategies_view.py — the browsable Strategy Reference (/dash/strategy-ref).
 
-Serves the canonical `docs/strategies/` layer (the README index + 9 strategy pages)
+Serves the canonical `docs/strategies/` layer (the README index + every page in `_PAGES`)
 as readable /dash pages, the SAME way glossary_view serves metrics-glossary.md — so the
 strategy playbook is browsable in-app, not only in the repo. Descriptive reference only
 (never the proprietary formulas; those stay in code + calculations-and-weights.md).
