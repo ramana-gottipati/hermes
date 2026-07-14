@@ -41,11 +41,12 @@ PROJECT_STATE entries are enough.**
 - **✅ DEPLOYED + ARMED + VERIFIED (2026-07-14):** both files shipped (fork-check PASS, LF, backup); armed by **`Environment=HERMES_ALERT_DM=1` on the git-owned `60-signal-events.conf` drop-in** (commit `c23b6d5`) via `install-systemd.sh` daemon-reload (no start — AUD-95-safe). **⚠ ARMING GOTCHA:** NO hermes service loads `/opt/hermes/.env` into the process env → an `os.environ` flag in `.env` is INVISIBLE; the flag MUST live in the unit/drop-in (this is why it's in `60-signal-events.conf`, not `.env`). **Functional verify (real send):** manual `--push` DM'd the 2 pending criticals to the owner (`sent:2`), ledger recorded 2, second `--push` = 0 (`nothing new`) → fire-once confirmed. Next nightly bhavcopy `--detect` auto-DMs NEW criticals. Disarm = drop the `Environment=` line + re-install. PRIVATE owner DM (like season-digest), NOT the public channel (S-F). NO `hermes-api` restart was needed (pager runs only in the nightly `--detect` fresh process).
 - ⚠ **Pre-existing drift surfaced (not mine):** `install-systemd.sh --check` flags 3 UNCAPTURED live-only seasonal units (`hermes-seasonal-stock.service`, `hermes-seasonal-events.{service,timer}`) — the seasonal lane owes capturing them into `scripts/systemd/vps-live/`.
 
-## ✅ 2026-07-14 — S137: S-C EDUCATION-COVERAGE GATE SHIPPED (`tests/test_education_coverage.py`) — do NOT redo; kickstart-pick-verify
-- **The education twin of S133's route gate.** Enforces SURFACE-PLAYBOOK §3 item 3 ("Education minimum"): every routed lens must be **COVERED** (handler module calls `bottom_line()`+`how_to_read_link()` — derived at runtime from the app route table via endpoint `__module__`, never hand-listed), **EXEMPT** (glossary·reading-guide·strategy-ref, owner+rationale), or **PENDING** (documented backlog, trim as pages land). New un-scaffolded lens → FAIL. **20/63 covered · 3 exempt · 40 pending · 0 offenders; 6 contracts green.** Test-only/additive — **no `src`/`scripts`, no deploy** — auto-runs in `regression_sweep.sh` Gate 0 (`pytest tests/`). Commit `__PENDING__`.
-- **Why a gate, not more pages:** I booted to do item 2 but S136 was **live-executing it** (swept 11/14 pages under me — a recon agent independently caught the collision). Yielded to avoid double-work + chose a **zero-collision, no-deploy** deliverable (4+ lanes were deploying — my own deploy would risk a flip). `send_message` needs user confirmation → unavailable autonomously, so de-conflicted unilaterally (respect siblings' uncommitted files; stage explicit paths).
-- **When you scaffold item-2's tail (screen2 / dossier-strip / concalls) or item 3:** **trim the page from `PENDING` in `tests/test_education_coverage.py`** (the __main__ report prints "covered but still PENDING — trim" hints). Consider extending the gate to also require `gloss()` once item 3 lands (§3 item 3 names it too). `PENDING` is seeded from **committed HEAD** coverage on purpose — don't reseed it from a working tree carrying a sibling's uncommitted scaffold.
-- **⚠ Pre-existing red (NOT S136/S137):** `test_doc_hygiene::test_every_doc_is_indexed` fails — `docs/codex-review/TRACK-D-DATA-PLAN.md` is referenced on `DOC_INDEX.md` line 112 but **twice (duplicated) in an inline `·`-list the hygiene gate doesn't recognize** (wants the table-row format of lines 149-151). Doc-gov lane's contested file → not touched; chip `task_1f9ba3f3` filed. The education-coverage gate itself is green + independent.
+## ✅ 2026-07-14 — S137: EDUCATION-COVERAGE GATE + THE FULL SWEEP — **63/63 COMPLETE, ALL DEPLOYED + LIVE** — do NOT redo; kickstart-pick-verify
+- **The gate (`tests/test_education_coverage.py`, `b315e4a`)** — education twin of S133's route gate; enforces SURFACE-PLAYBOOK §3 item 3. Every routed lens must be **COVERED** (handler module calls `bottom_line()`+`how_to_read_link()` — derived at runtime from the app route table, never hand-listed), **EXEMPT** (glossary·reading-guide·strategy-ref, owner+rationale), or **PENDING** (documented debt). New un-scaffolded lens → FAIL. Auto-runs in `regression_sweep.sh` Gate 0.
+- **Then 6 batches drove coverage 9 → 60 covered + 3 exempt = 63/63 · 0 pending · 0 offenders** — every batch deployed + live-walked same-session: screen2 (`3788a4f`) · harmonic/cycle-clock/sector-momentum (`ed442f4`) · divergence/early-signals/rs-hub/capture-map/band-locks/results-reactions (`e3e2550`) · 10 isolated Trust/meta incl. an anchored insert on box-forked `strategist_view` (`2db52bd`) · **the 15-lens `dashboard.py` cluster via ONE `_edu(bl)` helper + one-line `_shell` wraps, co-edited `cockpit.py` untouched** (`9c4602e`, deployed by on-box `git apply`, post-apply md5 == HEAD) · **tracker×5 on BOTH render paths** (`6b9ce46`: owner `_TRACKER_BL`+`_edu`; demo `tracker_gate._edu_demo`, SAME texts, fail-open) · **`wolfe_trades._bottom_line` folded into the shared band** (`532265e`, guards+tests intact 22/22). Bottom-lines written FROM module docstrings (two were wrong from lens labels — corrected pre-commit); every ledgered fence honored (MEP/CCI falsified→"never a rank", launchpad "no edge net of cost", etc.).
+- **⚠ Deploy-craft lessons (recorded in PROJECT_STATE §S137):** a `&&`-chained `fuser` check PRINTS but does NOT block — make it a real `if`-gate (done in the last deploy); **never restart hermes-api ~13:55–14:15 UTC** (bhavcopy fires 14:01; one restart landed at 14:00:5x — seconds early, no harm). **Pre-existing, NOT S137** (verified at committed HEAD in an isolated worktree): the local harness venv's TestClient crashes (`'str' not callable`) when the OUTERMOST BaseHTTPMiddleware short-circuits (tracker demo/owner-form) — a starlette-version artifact; **the box serves the same paths fine** — verify demo paths at unit level + live curl.
+- **The VPS `dashboard.py` is NO LONGER forked** — byte-identical to HEAD (the D80 fork was reconciled by recent lanes). The full-scp ban's premise is gone but the doctrine stands: **fork-check md5 decides** (scp / anchored-insert / on-box git-apply), and dashboard.py deploys stay patch-based (a race fails cleanly instead of silently reverting).
+- **Only education residue: the stock-DOSSIER top strip** (`/dash/stock` — a dossier, not a lens; outside the gate's scope) has no scaffold. Optional polish, not gate debt.
 
 ## ✅ 2026-07-14 — S134: S-C EDUCATION (items 1 + 7) SHIPPED + DEPLOYED + LIVE-WALKED — do NOT redo; kickstart-pick-verify
 - **Item 1 — shared `infographics.fence(kind, detail="", *, cap=False)` (`41a5b81`).** Single source of the descriptive-only boundary wording (the audit's "≥9 phrasings across ~24 sites"). `_FENCE_COPY` = the sanctioned vocabulary; unknown kind = hard `KeyError` (selftest-asserted); `detail` keeps page-specific leads verbatim; `fence_note()`+`.rd-fence` for new pages. **11 sites migrated BYTE-EQUIVALENTLY** (insider/sast/shp/ratings=not_advice · participants=context · move-anatomy=not_signal · launchpad/screen+=not_reco · strategist=not_buy/not_sell · buyback=arithmetic). **Deferred, NOT drift:** forked cockpit/seasonal, JS chart-chip `title=` tooltips, bespoke bandlock M-04 banner, prose tails (market_internals:389/results_reactions:408).
@@ -74,7 +75,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** (scaffold on 11 pages · glossary links+terms · methodology links · 7 metaphor nav subtitles — all LIVE) → ~~S-D search/entry~~ **✅ S140 (D131)** → **NEXT: S-C item 4** (Pat↔web glossary unify — its own session; S-E depends on it) or **S-B1 IA labels/grouping/cross-links**. Item-2 tail (screen2 was deployed by the education lane; dashboard-forked concalls/stock-strip + `wolfe_trades._bottom_line` fold remain). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → **item 4 is CLAIMED IN-FLIGHT (S141 lane — do NOT parallel it)** → **NEXT free pick: S-B1 IA labels/grouping/cross-links** (or S-B2 route deprecation, or S-G expert affordances). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.
@@ -394,37 +395,39 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`
 > (§ AT SESSION START), then execute `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom —
-> read the ✅ S137 + S136 + S134 + S133 + S-A blocks FIRST (all on origin/main; do NOT redo — kickstart-pick-verify).
-> **THE QUEUE = the S127 UX-remediation program** (`docs/ux-journey-audit-2026-07-13.md` §8).
-> Done: S-A front door · S-H route gate · **S-C education items 1 (`fence()`) + 7 ("New here?")**
-> + the "Ramana" chrome strip · **item 2 scaffold (11/14 dense pages, S136)** · **the education-
-> coverage GATE (`tests/test_education_coverage.py`, S137 — trim its `PENDING` as you scaffold pages).**
-> **NEXT pick = S-C remainder, in order:** (1) **item-2 tail** — the 3 forked/hot targets S136 left:
-> `screen2` (`screener_plus.py`) + stock-dossier TOP strip & `concalls` (both in D80-forked
-> `dashboard.py`) + fold `wolfe_trades._bottom_line` into `ifx.bottom_line`; (2) **item 3** — wire
-> `gloss()`/`?q=` into every "neither" page (the 11 S136-scaffolded pages STILL lack glossary; and
-> consider extending the education gate to require `gloss()` too); (3) **item 4** — unify Pat's
-> 52-term dict onto the 405-key web glossary (its own session — Pat files forked, schema mismatch,
-> S-E depends on it); (4) **item 5** — de-metaphor nav labels (add a `subtitle` field to the `Lens`
-> dataclass). Then **S-D** search/entry. Ramana may paste a per-session problem statement; if none,
-> take the audit §8 brief autonomously.
-> **Reuse, don't rebuild:** `infographics.fence(kind, detail=, cap=)` for ANY new descriptive fence
-> (add a kind to `_FENCE_COPY`, never hand-write); `infographics.readability_css/bottom_line/plain/
-> how_to_read_link` for the scaffold; **the live chrome is `ui_kit.topbar`/`shell_skin`, NOT
-> `dashboard._shell` (the skin replaces the header at runtime) — any chrome edit goes there.**
-> **Multi-lane hygiene (this tree runs 4+ lanes):** verify HEAD + fork-check the VPS BEFORE editing/
-> deploying any shared file; deploy `git show HEAD:` NOT the working tree (sibling lanes leave
-> uncommitted edits in it); CR-strip BOTH sides in md5 fork-checks (`core.autocrlf=true`); when HEAD
-> moves past your commit, re-anchor fork-checks on the explicit base SHA; `git diff --cached
-> --name-only` before EVERY commit; explicit-path staging; `state:skip` when PROJECT_STATE is hot;
-> grep origin for the newest session number before claiming yours (131-137 taken).
-> **Deploy:** anchored in-place replace (assert count==1 + rollback) for D80-forked
-> `dashboard.py`/`v2_surfaces.py`/`lens_registry.py`; clean scp only for base-matched isolated
-> modules; remote IMPORT test (not just py_compile) + writer-safe `hermes-api` restart (fuser-clean,
-> never `systemctl start` a timer mid-day, AUD-95); curl via the Caddy hostname or ssh-localhost,
-> never raw :8000; live-walk every shipped item. **⚠ The S128 Codex fence-sweep (`5c6720f`) is
-> undeployed on the box for participants/launchpad/strategist** — the S128/Codex lane's deploy to
-> complete, not yours.
+> read the 🔒 S141-claim + ✅ S140 + S138 + S137 + S136 blocks FIRST (all on origin/main; do NOT
+> redo — kickstart-pick-verify). **THE QUEUE = the S127 UX-remediation program**
+> (`docs/ux-journey-audit-2026-07-13.md` §8).
+> Done: S-A front door · S-H route gate · **S-C COMPLETE except item 4** (items 1+7 S134 · scaffold
+> S136 · glossary links + nav subtitles S138 · **the education-coverage gate + the full 63/63 sweep
+> S137 — every routed lens scaffolded, deployed, live**) · S-D search/entry S140.
+> **item 4 (Pat↔web glossary unify) is CLAIMED IN-FLIGHT by the S141 lane — do NOT start it in
+> parallel** (verify its block at the top of this file; if it shipped, strike it).
+> **NEXT free pick: S-B1 IA labels/grouping/cross-links** (else S-B2 route deprecation + POST-ify
+> GETs, or S-G expert affordances). Ramana may paste a problem statement; if none, take the audit
+> §8 brief autonomously.
+> **Reuse, don't rebuild:** `infographics.fence(kind)` for any fence (add a kind, never hand-write);
+> `readability_css/bottom_line/plain/how_to_read_link` for education (dashboard-served pages go
+> through `dashboard._edu()`; tracker demo via `tracker_gate._edu_demo`); **NEW lens pages must
+> satisfy BOTH gates** (`test_dash_route_registry.py` + `test_education_coverage.py` — PENDING there
+> is temporary documented debt only); the live chrome is `ui_kit.topbar`/`shell_skin`, NOT
+> `dashboard._shell`.
+> **Multi-lane hygiene (4+ lanes):** `git status` before AND during work; `list_sessions` to see the
+> lanes; yield if a sibling owns your pick (claim-first via a pushed marker per the S140 livelock
+> lesson); explicit-path staging + `git diff --cached --name-only` before EVERY commit; a sibling's
+> files mid-staging → commit via temp `GIT_INDEX_FILE` + `commit-tree` + CAS `update-ref`;
+> PROJECT_STATE hot → partial-stage ONLY your hunk (`git apply --cached`) or `state:skip`; grep
+> origin for the newest session number (131–141 taken).
+> **Deploy: fork-check md5 (CR-strip BOTH sides) DECIDES the method** — box==base → clean scp;
+> forked → anchored insert of only your hunks (assert count==1 + rollback); `dashboard.py` → on-box
+> `git apply` of your commit patch (post-apply md5 must == HEAD; it is currently NOT forked but
+> patch-deploy stays the rule). Remote IMPORT test, not just py_compile. **Writer-safe restart =
+> a BLOCKING `if fuser…exit` gate (an `&&`-chain only prints!) + never restart ~13:55–14:15 UTC**
+> (bhavcopy fires 14:01) + never `systemctl start` a timer mid-day (AUD-95). Curl via the Caddy
+> hostname or ssh-localhost; live-walk every shipped item. ⚠ Local harness TestClient crashes on
+> outermost-middleware short-circuits (tracker demo/owner-form) — pre-existing starlette artifact;
+> verify those at unit level + live curl, the box is fine. ⚠ The S128 fence-sweep (`5c6720f`) may
+> still be partially undeployed for participants/launchpad — that lane's to complete, not yours.
 > Access is harness-enforced — never ask for access or per-step confirmation; get guidance from the
 > agents, not from me; I won't answer. Keep every guardrail (esp. #8 primary-sources, #9
 > SURFACE-PLAYBOOK for any new screen). Wrap per § AT SESSION END and hand off the next prompt.
