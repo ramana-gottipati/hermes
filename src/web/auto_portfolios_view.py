@@ -47,6 +47,50 @@ _NOTES = {"STEADY-25": "quarterly · large-cap · NET-cost survivor (the champio
           "PACER-25": "monthly · risk-adjusted momentum · gross lens",
           "SPRINTER-25": "monthly · classic 12-mo momentum · gross lens"}
 
+# The inspiration story (Ramana, S132h-b): the lineage behind the three runners,
+# told plainly — century-old effects, honest names, admitted only after re-proving
+# themselves on OUR data. Collapsible so the working screen stays clean.
+_STORY = (
+    "<details style='margin:14px 0'><summary style='cursor:pointer;font-size:14px;"
+    "font-weight:600'>Where these portfolios come from — the inspiration</summary>"
+    "<div class='honesty' style='margin-top:8px'>"
+    "<p><b>The mother idea — momentum — is the most replicated finding in finance.</b> "
+    "Academically it dates to Jegadeesh &amp; Titman (1993): last year's leaders keep "
+    "leading, on average, for months. It has been verified across two centuries, dozens "
+    "of countries and every major asset class — and practitioners (Livermore, Darvas, "
+    "Driehaus, O'Neil) traded it decades before the professors named it. When we ran our "
+    "own 32-signal test over 14 years of NSE data, the same verdict emerged unprompted: "
+    "price strength was the only gross forward-return engine we could find.</p>"
+    "<p><b>Why it exists:</b> people are slow, then social. Good news seeps into prices "
+    "gradually (anchoring, staged institutional buying), then herding extends the move. "
+    "It survives being famous because it is uncomfortable to hold — it crashes hard and "
+    "looks like reckless chasing. The discomfort is the moat. Which is also the honest "
+    "caveat: this is a risk premium you <i>harvest</i>, not stock-picking genius — beta, "
+    "not skill.</p>"
+    "<p><b>One squad, three runners, three temperaments:</b></p>"
+    "<p>🏃 <b>SPRINTER-25</b> — momentum in its rawest academic form: rank by plain "
+    "12-month return. Explosive over short stretches (our highest CAGR) and it collapses "
+    "when the race turns — the literature's 'momentum crashes' are our measured −43% "
+    "drawdowns. A sprinter is magnificent and cannot run a marathon.</p>"
+    "<p>⏱ <b>PACER-25</b> — the first great refinement: divide the run by the shaking "
+    "(return ÷ volatility). Smooth rises predict better than jumpy ones (the "
+    "'frog-in-the-pan' effect; volatility-managed momentum). A pacer isn't the fastest "
+    "runner — he holds the strongest <i>sustainable</i> rhythm. Best flat-cost Sharpe of "
+    "everything we tested (1.13).</p>"
+    "<p>🧘 <b>STEADY-25</b> — momentum married to the second-oldest anomaly: the "
+    "low-volatility effect (boring stocks beat exciting ones per unit of risk, because "
+    "crowds overpay for lottery-like thrills). Half strength, half calmness, held "
+    "quarterly — essentially the classic 'conservative formula'. The name is the thesis: "
+    "steady is what survives — the only runner still standing after real trading costs.</p>"
+    "<p><b>The part that's ours:</b> the literature gave the ideas; it didn't earn them "
+    "this page. Each family re-proved itself on our own point-in-time NSE record — "
+    "walk-forward across both halves of 14 years, against the 0.89 buy-and-hold hurdle, "
+    "then through a realistic market-impact cost model. The famous value strategies took "
+    "the same exam and <b>failed it here</b> (negative alpha) — that is why there is no "
+    "'Marathoner' portfolio. Century-old truths, plain names that state their temperament, "
+    "admitted on evidence — and run by an engine no human hand can override.</p>"
+    "</div></details>")
+
 _CSS = """<style>
 .mpf table{border-collapse:collapse;width:100%;font-size:13px}
 .mpf th,.mpf td{padding:5px 8px;border-bottom:1px solid var(--line-2,#333);text-align:right}
@@ -284,6 +328,7 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = ""):
         "<th title='drifted weight at the latest close'>W now</th>"
         "<th>Since rebal</th></tr></thead><tbody>" + tr + "</tbody></table>"
         + "<h3>Churn — automatic, every rebalance</h3>" + churn_html
+        + _STORY
         + "<div class='honesty'>NAV is <b>flat-cost</b> (0.3%/side on the churned fraction, "
         "labeled) and marked at rebalance dates. STEADY-25 is the only family that also "
         "survives PARTICIPATION-cost reality (net ~1.02 @₹50cr); PACER-25 and SPRINTER-25 "
