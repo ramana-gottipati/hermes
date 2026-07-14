@@ -315,7 +315,15 @@ remediation), state:skip on the src commits (PROJECT_STATE.md sibling-hot):
   re-verify + deploy queued.
 - **D6-F2 CCI knowable-date gate** (`faf1704`) — `resolved_knowable_date` plumbed through
   deep_actuals → concall_settle → credibility_series (gate on report date; period-end fallback).
-  `tests/test_cci_knowable_date.py`. ⚠ VPS re-settle + credibility_series rebuild queued to activate.
+  `tests/test_cci_knowable_date.py`. ✅ **ACTIVATED ON VPS 2026-07-14** — deployed the 3 files
+  (backups `.bak-d6f2-20260714-135613`, md5-verified). NOTE: `settle_symbol` only touches `status='OPEN'`,
+  so a literal re-settle would NOT fill the column on the already-settled corpus → activated instead via a
+  NON-DESTRUCTIVE backfill (derive report_date from `deep_actuals` keyed by resolved_period; never re-grade)
+  then `cci_series --all`. Ran in the clear window AFTER the 14:01 nightly chain (a box-side job waited for
+  bhavcopy+deals idle → fired 14:10). Result: **4,070 settled rows got resolved_knowable_date** (1,185
+  concall_results-path stay NULL → period-end fallback, by design); credibility_series rebuilt (19,837 pts /
+  829 syms, fresh); **settled count 5,255 unchanged** (non-destructive proof). Going forward the nightly
+  concalls settle writes the column automatically. No hermes-api restart needed (series read from DB).
 - **Track D Step-1 XBRL spike DONE** (`c022ceb`) — banks Phase-1 tractable (GNPA%/NNPA%/RoA/CET1 tagged
   in the STANDALONE instance); NBFC/HFC P&L-only → Phase-2/proxy. Answers decision-Q#3. Detector =
   NSE financial-index membership. Live mis-rating confirmed (HDFCBANK/ICICIBANK/BAJFINANCE all T4).
