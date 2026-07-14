@@ -66,10 +66,33 @@ _CLASS_RE = re.compile(r'(\bclass\s*=\s*)(["\'])(.*?)\2', re.S)
 # rail group DISPLAY order per altitude (registry defines membership; this orders the
 # accordion). Groups not listed here fall to the end in first-seen registry order.
 _GROUP_ORDER = {
-    "markets": ["Big picture", "Strength & momentum", "Rotation", "Sectors",
-                "Patterns", "Events & flow"],
+    "markets": ["Today", "Market state", "Strength & momentum", "Rotation",
+                "Sectors", "Patterns", "Seasonality", "Events & surveillance"],
     "strategies": ["Conviction & structure", "Fundamentals", "Accumulation",
                    "Ownership & filings", "Launchpad"],
+}
+
+# Markets rail → TASK groups (UX audit S-B1 item 1). The registry files each Markets lens
+# under an ANALYTICAL category (Big picture / Events & flow / …). A first-time user thinks in
+# TASKS ("what's happening now", "how's the market", "the calendar") not categories, so the
+# rail re-buckets them here — a DISPLAY concern, single-sourced in this nav module exactly like
+# _SUBTITLES, so the forked `lens_registry` is never touched (the registry `group=` field keeps
+# its analytical meaning for any other consumer). Keyed by lens key → task group; a lens with no
+# entry keeps its registry group (Strength & momentum / Rotation / Sectors / Patterns are kept
+# verbatim). Applied only for the Markets altitude in _rail().
+_GROUP_REMAP = {
+    # Today — what changed / is happening right now.
+    "attention": "Today", "wire": "Today", "results-reactions": "Today",
+    "actions": "Today", "event-cadence": "Today",
+    # Market state — the current health / regime read of the whole market.
+    "market-internals": "Market state", "move-anatomy": "Market state",
+    "participants": "Market state",
+    # Seasonality — the calendar trio (split out of the old "Big picture").
+    "seasonal-tape": "Seasonality", "seasonal-screen": "Seasonality",
+    "seasonal-divergence": "Seasonality",
+    # Events & surveillance — corporate-event tools + circuit/surveillance (rest of "Events & flow").
+    "buyback-calc": "Events & surveillance", "band-locks": "Events & surveillance",
+    "surveillance": "Events & surveillance",
 }
 
 
@@ -163,6 +186,8 @@ def _rail(alt: str, on_href) -> str:
     gmap: dict[str, list[tuple[str, str, str]]] = {}
     seen: list[str] = []
     for _k, h, l, g in items:
+        if alt == "markets":                       # S-B1 item 1: analytical → task groups
+            g = _GROUP_REMAP.get(_k, g)
         if not g:
             pinned.append((_k, h, l))
         else:
@@ -193,11 +218,17 @@ def _rail(alt: str, on_href) -> str:
     for g in ordered:
         its = gmap[g]
         gon = (g == default_open) or any(_on(h) for _kk, h, _l in its)
+        # a11y (S-B1 item 1): a proper disclosure — the header button controls its body by id,
+        # carries aria-expanded (state) + an explicit aria-label so a screen reader announces
+        # "<group>, N lenses, collapsed/expanded" rather than a bare glyph.
+        bid = "rg-" + (re.sub(r"[^a-z0-9]+", "-", g.lower()).strip("-") or "group")
         P.append('<div class="uk-rg" data-g="%s">' % _esc(g))
-        P.append('<button class="uk-rg-h" type="button" aria-expanded="%s">'
+        P.append('<button class="uk-rg-h" type="button" aria-expanded="%s" aria-controls="%s" '
+                 'aria-label="%s, %d lenses">'
                  '<span class="cr">&#9656;</span><span class="lb">%s</span></button>'
-                 % ("true" if gon else "false", _esc(g)))
-        P.append('<div class="uk-rg-b%s">' % (" show" if gon else ""))
+                 % ("true" if gon else "false", bid, _esc(g), len(its), _esc(g)))
+        P.append('<div class="uk-rg-b%s" id="%s" role="group" aria-label="%s">'
+                 % (" show" if gon else "", bid, _esc(g)))
         for k, h, l in its:
             P.append(_rl_link(k, h, l, _on(h)))
         P.append("</div></div>")
@@ -457,7 +488,15 @@ def _selftest() -> int:
     out = reshape_html(native)
     assert _RAIL_MARKER in out, "rail css marker not injected"
     assert 'class="uk-rail"' in out and 'class="uk-rg"' in out, "grouped rail not built"
-    assert ">Big picture<" in out or ">Rotation<" in out, "no group headings in rail"
+    # S-B1 item 1: the Markets rail shows TASK groups, not the old analytical categories, and the
+    # old "Big picture" / "Events & flow" buckets have been fully remapped away.
+    assert ">Today<" in out and ">Market state<" in out and ">Seasonality<" in out, \
+        "markets task-groups not rendered"
+    assert ">Big picture<" not in out and ">Events &amp; flow<" not in out, \
+        "old analytical group survived the remap"
+    # a11y: the header is a real disclosure (controls its body by id, groups its lenses).
+    assert 'aria-controls="rg-today"' in out and 'id="rg-today"' in out and 'role="group"' in out, \
+        "group disclosure a11y (aria-controls / id / role) missing"
     # S-C item 5: metaphor lenses (Weather/Clock/Band/Map/All-weather/Launchpad) carry a plain
     # sub-line; a non-metaphor lens (Sectors) does not gain one.
     assert 'class="rl-sub"' in out and "which of four phases" in out, \
