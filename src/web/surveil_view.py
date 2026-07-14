@@ -23,6 +23,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 from src.automation import surveillance as SV
 
 router = APIRouter()
@@ -133,7 +134,7 @@ def _current(cur: dict) -> str:
 
 @router.get("/dash/surveillance", response_class=HTMLResponse)
 def dash_surveillance(sym: str = "") -> HTMLResponse:
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = None
     try:
         with get_conn() as conn:
@@ -147,7 +148,13 @@ def dash_surveillance(sym: str = "") -> HTMLResponse:
                 '<h2 style="margin:0 0 2px">Surveillance transitions <small style="color:var(--ink-3);'
                 f'font-size:12px;font-weight:400">NSE ASM / GSM / price-band lists · as of '
                 f'{_esc(str(as_of or "—"))} · context, never a gate</small></h2>'
-                '<div class="sv-note">Exchange-imposed restriction MOVES: names entering or leaving '
+                + ifx.bottom_line(
+                    'Stocks the exchange just put under (or released from) <b>heightened '
+                    'surveillance</b>, and whose <b>daily price bands</b> tightened or relaxed — '
+                    'the moves, not the standing lists. <b>Tradability context</b> (restrictions '
+                    'change how a name can move), never a gate or a signal.')
+                + ifx.how_to_read_link()
+                + '<div class="sv-note">Exchange-imposed restriction MOVES: names entering or leaving '
                 'ASM/GSM, stage shifts, and price-band changes (a tightening band and close-at-band '
                 'streaks are queue-imbalance context). A name entering ASM often sees mechanically '
                 'FORCED flows — leveraged positions unwinding under 100% margins or T2T settlement — '

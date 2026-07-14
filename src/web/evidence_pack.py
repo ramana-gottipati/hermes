@@ -33,6 +33,7 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
 from src.web import spec_sheets as SS
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 
 router = APIRouter()
 
@@ -160,7 +161,7 @@ def evidence_pack():
         f'<tr><td><a href="{r}">{r}</a></td><td>{d}</td></tr>' for r, d in _VERIFY_ROUTES)
 
     body = [
-        SS._CSS, _CSS, '<div class="sp ep">',
+        SS._CSS, _CSS, ifx.readability_css(), '<div class="sp ep">',
 
         # ── cover ──
         '<div class="ep-bar"><button onclick="window.print()">🖨 Print / save as PDF</button>'
@@ -169,6 +170,11 @@ def evidence_pack():
         'are stamped automatically). Assembled live at request time; nothing is '
         'hand-curated for export.</span></div>',
         '<h2>patearn — Evidence Pack</h2>',
+        ifx.bottom_line(
+            'The trust surfaces assembled into <b>one print-ready document</b>: the '
+            'pre-registered studies (failures published on purpose), every dataset\'s stated '
+            'boundary, and the live service record. <b>Evidence for diligence</b>, not a pitch.'),
+        ifx.how_to_read_link(),
         f'<div class="ep-meta">generated <b class="num">{_esc(gen)}</b> · scope: NSE-listed '
         'Indian equities (EQ/BE/BZ; SME excluded) · descriptive evidence, point-in-time · '
         'not investment advice</div>',

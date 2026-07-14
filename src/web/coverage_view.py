@@ -35,6 +35,7 @@ from fastapi.responses import HTMLResponse
 
 from src.web import ui_kit as K
 from src.web import ui_tokens as T
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 from src.automation import provenance as P
 
 router = APIRouter()
@@ -540,7 +541,12 @@ def render_coverage(conn=None) -> str:
         '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
         f'<h1 class="uk-h1">Coverage &amp; Settlement ledger</h1>'
         f'{K.badge("the limits, stated in writing")}</div>'
-        '<div class="sec" style="margin-bottom:6px"><a class="row" style="display:inline" '
+        + ifx.bottom_line(
+            'The <b>limits of every dataset, stated in writing</b> — what is covered, since when, '
+            'how fresh, and where the boundary sits — so any number you trust here is trusted '
+            '<b>with its boundary attached</b>. Counts and dates only; no characterisation.')
+        + ifx.how_to_read_link()
+        + '<div class="sec" style="margin-bottom:6px"><a class="row" style="display:inline" '
         'href="/dash/glossary">📖 Glossary &amp; methodology →</a> — every custom metric on this site, defined. '
         '&nbsp;<a class="row" style="display:inline" href="/dash/spec-sheets">🧪 Detection spec-sheets →</a> '
         '— every pre-registered study, failures included.</div>'
@@ -615,7 +621,7 @@ def render_coverage(conn=None) -> str:
         f'<div class="cov-pane{" on" if i == 0 else ""}" id="covpane-{tid}">'
         + "".join(_safe(*spec) for spec in fns) + '</div>'
         for i, (tid, _lbl, fns) in enumerate(_tabs))
-    body = (_COV_CSS + _COV_TAB_CSS + header
+    body = (_COV_CSS + _COV_TAB_CSS + ifx.readability_css() + header
             + _safe(_section_glance, snap)      # the lead trust band
             + tabbar + panes + _COV_TAB_JS)
     return body

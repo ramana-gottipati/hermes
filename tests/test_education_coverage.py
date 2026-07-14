@@ -89,13 +89,9 @@ PENDING: set[str] = {
     # ── Markets ──  (momentum-scan·rotation·rrg·rsband·wire·wolfe-scan landed the scaffold
     #    in S-C item 2, a38a122 — they now read COVERED and are off this list)
     "/dash/markets",                    # Overview hub
-    "/dash/markets/actions",
-    "/dash/markets/attention",
-    "/dash/markets/buyback-calc",
     "/dash/markets/compare",
     "/dash/markets/leaders",
     "/dash/markets/sectors",
-    "/dash/markets/surveillance",
     # ── Strategies ──  (growth·insider·ratings·sast·shp landed in S-C item 2, a38a122)
     "/dash/strategies/concalls",
     "/dash/strategies/conviction",
@@ -104,7 +100,6 @@ PENDING: set[str] = {
     "/dash/strategies/mep",
     "/dash/strategies/stealth",
     "/dash/strategies/stocks",
-    "/dash/strategies/strategist",
     # ── Screener ──  (screen2 landed the scaffold in S137, b315e4a follow-on)
     "/dash/screener",
     "/dash/screener/tags-review",
@@ -116,12 +111,8 @@ PENDING: set[str] = {
     "/dash/tracker/performance",
     "/dash/tracker/portfolios",
     "/dash/tracker/watchlists",
-    # ── Trust / meta ──
-    "/dash/coverage",
-    "/dash/evidence-pack",
-    "/dash/replay-any-date",
-    "/dash/spec-sheets",
-    "/dash/testing",
+    # ── Trust / meta ──  (coverage·evidence-pack·replay-any-date·spec-sheets·testing landed
+    #    the scaffold in S137 batch 4)
 }
 
 

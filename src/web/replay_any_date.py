@@ -39,6 +39,8 @@ import re
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
+
 router = APIRouter()
 
 _DEF_SYMBOL = "ICICIPRULI"          # the worked EVENT-clock case (called 2019-01-22)
@@ -294,7 +296,13 @@ def replay_any_date(symbol: str = _DEF_SYMBOL, as_of: str = _DEF_AS_OF):
     validation IS the product being demonstrated."""
     symbol = (symbol or _DEF_SYMBOL).strip().upper()[:20]
     as_of = (as_of or _DEF_AS_OF).strip()[:10]
-    body = [_CSS, '<div class="rad">']
+    body = [_CSS, ifx.readability_css(), '<div class="rad">']
+    body.append(
+        ifx.bottom_line(
+            'Pick <b>any stock and any date</b> — the page replays exactly what was <b>publicly '
+            'knowable on that date</b>, through the same audited API a client uses. Proof of '
+            'zero look-ahead you can drive yourself; a demonstration, not a recommendation.')
+        + ifx.how_to_read_link())
     body.append(
         '<div class="intro"><b>Replay any date.</b> The worked one-pager '
         '(<a href="/dash/replay">Replay the Tape</a>) demonstrates zero look-ahead on two '

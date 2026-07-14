@@ -39,6 +39,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 from src.automation import signal_events as SE
 from src.automation import signal_alerts as SA
 
@@ -366,7 +367,7 @@ def render_since_last_looked(new_events: list[dict], since_ts: str | None,
 @router.get("/dash/attention", response_class=HTMLResponse)
 def attention_page(request: Request, as_of: str = "", lens: str = "",
                    asev: str = "", aval: str = "") -> HTMLResponse:
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     served: str | None = None
     seen_stamp: str | None = None      # write-back cookie value = the latest detected_at
     try:
@@ -389,7 +390,13 @@ def attention_page(request: Request, as_of: str = "", lens: str = "",
 
             body.append(
                 '<h2>Attention queue</h2>'
-                '<div class="at-note">The signal-event bus in one tape: every lens emits a '
+                + ifx.bottom_line(
+                    '<b>What changed that deserves a look</b>: every lens\'s state-changes in one '
+                    'tape, ranked by <b>size of the move, then how fresh it is</b> — with the raw '
+                    'before → after kept beside each verdict. A <b>triage queue</b>, never a to-do '
+                    'list or a signal.')
+                + ifx.how_to_read_link()
+                + '<div class="at-note">The signal-event bus in one tape: every lens emits a '
                 'TYPED state-change — MEP phase flips, credibility steps, F&amp;O quadrant '
                 'flips, index RS-band flips, bulk/block prints — and this queue ranks the '
                 'current batch by <b>impact (magnitude), then recency</b>. Every row keeps '

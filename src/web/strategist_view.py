@@ -802,7 +802,12 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
         '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
         '<h1 class="uk-h1">Strategist · Workbench</h1>'
         + K.badge("every strategy + your boards + alerts · precomputed") + '</div>'
-        '<div class="sec" style="margin-bottom:14px">Your configurable board — every '
+        + ifx.bottom_line(
+            'Every strategy\'s <b>current read on one board</b> — counts, freshness, the names '
+            'that newly aligned, and the queries you\'ve pinned. The <b>where-do-I-look-first '
+            'console</b>; descriptive, never a buy or sell call.')
+        + ifx.how_to_read_link()
+        + '<div class="sec" style="margin-bottom:14px">Your configurable board — every '
         'strategy\'s current read, the names that newly aligned, and the queries you\'ve '
         'pinned. Click any card to open its deep page. Descriptive, never a buy call.</div>')
 
@@ -820,7 +825,7 @@ def dash_strategist(fmt: str = "") -> HTMLResponse:
                           '<div class="wb-sec-lbl">Strategies</div>'
                           f'<div class="st-grid">{cards}</div></div>')
 
-    body = (_PAGE_CSS + head + strip + toolbar
+    body = (_PAGE_CSS + ifx.readability_css() + head + strip + toolbar
             + f'<div id="wbWrap">{alerts_html}{changed_html}{cci_html}{strategies_section}{boards_html}</div>'
             + _WB_JS)
     return HTMLResponse(K.shell("Strategist · patearn", body,

@@ -187,8 +187,14 @@ def buyback_calc():
                   f'<td>{px}</td>'
                   f'<td style="text-align:left;color:var(--ink-2);white-space:normal">'
                   f'{_esc(b["details"][:110])}</td></tr>')
-    body = [_CSS, '<div class="bb">',
+    body = [_CSS, ifx.readability_css(), '<div class="bb">',
             '<h2>Buyback tender-quota calculator</h2>',
+            ifx.bottom_line(
+                'If you hold <b>≤ ₹2 lakh</b> of a stock on the record date, a tender buyback '
+                'reserves <b>15% of the offer for your category</b> — a structural advantage no '
+                'institution can crowd into. This page does that <b>acceptance-ratio arithmetic</b> '
+                'for a personal-scale holding. Arithmetic, not advice.'),
+            ifx.how_to_read_link(),
             '<div class="lead">Tender-offer buybacks reserve <b>15% for the small-shareholder '
             'category</b> (holdings ≤ ₹2,00,000 by market value on the record date — SEBI Buyback '
             'Regulations). That cap is the moat: the acceptance ratio in the small category is '

@@ -22,6 +22,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 from src.automation import corp_actions as CA
 
 router = APIRouter()
@@ -152,7 +153,7 @@ def _recent(conn) -> str:
 @router.get("/dash/actions", response_class=HTMLResponse)
 def dash_actions(window: int = 60, sym: str = "") -> HTMLResponse:
     window = window if window in (30, 60, 120) else 60
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = None
     try:
         with get_conn() as conn:
@@ -165,7 +166,13 @@ def dash_actions(window: int = 60, sym: str = "") -> HTMLResponse:
                 '<h2 style="margin:0 0 2px">Corporate-actions calendar <small style="color:var(--ink-3);'
                 f'font-size:12px;font-weight:400">NSE corporate-actions feed · ingested {_esc(str(as_of or "—"))} '
                 '· descriptive / logistical</small></h2>'
-                '<div class="ca-note">Every dividend, bonus, split, rights issue and buyback with an ex-date '
+                + ifx.bottom_line(
+                    '<b>What goes ex, when</b>: every dividend, bonus, split, rights issue and '
+                    'buyback with an ex-date ahead, grouped by day — plus the recent past. '
+                    '<b>Logistics for holders</b> (when to own, what re-bases the price), '
+                    'not a signal.')
+                + ifx.how_to_read_link()
+                + '<div class="ca-note">Every dividend, bonus, split, rights issue and buyback with an ex-date '
                 'AHEAD, grouped by day — beside the <a href="/dash/markets/results-reactions">results '
                 'calendar</a>. Bonus/split events here are exactly what re-bases the site\'s adjusted-price '
                 'engine (value, not quantity). <b>This page is logistics, not signal:</b> the dividend-drift '

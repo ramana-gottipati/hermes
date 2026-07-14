@@ -382,9 +382,15 @@ def _sheet_html(s, hashes=None):
 
 @router.get("/dash/spec-sheets", response_class=HTMLResponse)
 def spec_sheets():
-    from src.web.infographics import demo_framing, readability_css
+    from src.web.infographics import bottom_line, demo_framing, how_to_read_link, readability_css
     body = [_CSS, readability_css(), '<div class="sp">',
-            '<h2>Detection spec-sheets</h2>', demo_framing(),
+            '<h2>Detection spec-sheets</h2>',
+            bottom_line(
+                'Every completed study on one page: the hypothesis, the <b>pass/fail gate written '
+                'before the run</b>, the recorded numbers, and the verdict — <b>failures published '
+                'on purpose</b>. The evidence machine, not a highlight reel.'),
+            how_to_read_link(),
+            demo_framing(),
             '<div class="lead">Every claim on this site enters through a <b>pre-registered '
             'gate</b>: the hypothesis and its pass/fail threshold are written before the run, '
             'and the result goes to the ledger — win or lose. These are the completed studies, '
