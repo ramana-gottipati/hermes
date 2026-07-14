@@ -19,6 +19,10 @@ PROJECT_STATE entries are enough.**
   names (typeahead, plain-form fallback); stock-miss page shows "Did you mean: …" (defensive, never
   500s). **"Ask Pat" = a Trust nav lens now (D131)** — plain rail subtitle; the old "⌘K-summon-only"
   exempt/allowlist rows are retired. Walk-verified locally (name→dossier in 2 actions); suite 199 pass.
+- **✅ DEPLOYED + LIVE (2026-07-14 ~14:50 UTC):** dashboard/cockpit now BASE-MATCHED on the box (clean
+  scp); lens_registry/v2_surfaces/nav_integrity_gate still forked (live-only mounts) → anchored
+  inserts, backups `.bak-s140-*`. Live: "tata consultancy"→TCS · miss-page "Did you mean: TCS" ·
+  Ask Pat in the rail · box palette = 207 registry-derived entries (auto-includes live-only lenses).
 - **⚠ Mutual-yield lesson (S137 doctrine's livelock case):** two lanes started S-D together and BOTH
   yielded on seeing each other → S-D briefly claimed by nobody. Fix that held: a PUSHED claim marker
   (`04d51ae`) before re-touching shared files. Claim FIRST, then build, when re-picking a
