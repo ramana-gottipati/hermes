@@ -257,6 +257,7 @@ def dash_insider(window: int = 90, cls: str = "", sym: str = "",
                 'open-market buying vs selling (in rupees) over 30/90 days. Clustered buying is a '
                 'conviction tell, clustered selling a caution — <b>context, not a trade</b>.'))
             body_parts.append(ifx.how_to_read_link())
+            body_parts.append(ifx.related_strip("insider"))
             body_parts.append(_tiles(aggs, flagged, as_of or ""))
             body_parts.append('<div class="iv-h">By symbol <small>— PIT roll-up, 30/90-day windows, '
                               'supersede-collapsed; sorted by fresh buying</small></div>')

@@ -268,6 +268,7 @@ def dash_ratings(window: int = 180, cls: str = "", sym: str = "") -> HTMLRespons
                 'agencies (deduped to one action per issuer per day). A downgrade cluster is a '
                 'balance-sheet warning worth a look — <b>descriptive, not advice</b>.'))
             body.append(ifx.how_to_read_link())
+            body.append(ifx.related_strip("ratings"))
             body.append(_tiles(events, census, watch_90))
             body.append('<div class="rv-h">Transitions <small>— deduped company-level actions, '
                         '90 days, newest first</small></div>')

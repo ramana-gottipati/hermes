@@ -163,6 +163,7 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
             'carry a modest, real edge; bear ones only when the tape is weak. <b>A place to look, '
             'not a buy/sell signal.</b>')
         + ifx.how_to_read_link()
+        + ifx.related_strip("harmonic-scan")
         + '<div class="sub" style="margin-bottom:6px">Auto-detected harmonic patterns '
         '(Gartley · Bat · Butterfly · Crab · Deep Crab) on daily bars — <b>CONFIRMED</b> '
         '(point D printed → reversal candidate) and <b>FORMING</b> (X-A-B-C printed, D '

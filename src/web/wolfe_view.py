@@ -365,6 +365,7 @@ def wolfe_scan(universe: str = Query("nifty500", max_length=24),
             '(fit 2004-14 / tested untouched 2015-26) plus a regime control. The edge is in the '
             '<b>selection</b>, not the stop or target — <b>descriptive, not a buy/sell signal</b>.')
         + ifx.how_to_read_link()
+        + ifx.related_strip("wolfe-scan")
         + '<div class="rd-htr"><a href="/dash/strategy-ref?p=wolfe-wave">Methodology — the full Wolfe method →</a></div>' +
         '<div class="sub" style="margin-bottom:6px">Selection — <b>reachable EPA + strong point-1 + not-narrowest '
         'zone</b> — that survived <b>true out-of-sample</b> (fit 2004-14 / tested untouched 2015-26, survivorship-aware) '

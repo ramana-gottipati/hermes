@@ -300,6 +300,7 @@ def dash_sast(window: int = 90, feed: str = "", sym: str = "") -> HTMLResponse:
                 'falls) or <b>distress</b> (selling into rising pledge). A crossing that already '
                 'happened — <b>descriptive, not advice</b>.'))
             body.append(ifx.how_to_read_link())
+            body.append(ifx.related_strip("sast"))
             body.append(_tiles(aggs, census))
             body.append('<div class="sp-h">Confluence board <small>— both feeds, same name, 90 days; '
                         'sorted by combined magnitude</small></div>')

@@ -238,6 +238,7 @@ def dash_shp(sym: str = "") -> HTMLResponse:
             'public and pledge, in percentage points of equity. Rising promoter/FII with falling '
             'pledge is the constructive mix — <b>descriptive, not advice</b>.'))
         body.append(ifx.how_to_read_link())
+        body.append(ifx.related_strip("shp"))
         body.append(_tiles(rows, flags, census))
         if sym:
             body.append(_series(sym))

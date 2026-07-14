@@ -596,6 +596,14 @@ _RELATED: dict[str, tuple[str, ...]] = {
     # sector strength (share prices) ⇄ sector economics (business quality) — two sides of one coin.
     "sector-economics": ("sectors", "sector-momentum"),
     "sectors":      ("sector-economics", "sector-momentum"),
+    # Ownership & filings — the SEBI disclosure feeds, one family (read one, the others are next door).
+    "insider":      ("ratings", "sast", "shp"),
+    "ratings":      ("insider", "sast", "shp"),
+    "sast":         ("insider", "ratings", "shp"),
+    "shp":          ("insider", "ratings", "sast"),
+    # Patterns — the two chart-pattern scanners.
+    "harmonic-scan": ("wolfe-scan",),
+    "wolfe-scan":    ("harmonic-scan",),
 }
 
 
