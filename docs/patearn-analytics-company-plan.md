@@ -167,12 +167,12 @@ Scores /10; **bold** = the driving axis. "₹0" = runs on the existing box with 
 
 | ID | Component | Layer | Imp | Crit | Timing | Cost | Status |
 |---|---|---|---|---|---|---|---|
-| A | Compliance-language gate | L8 | 9 | **10** | NOW | ₹0 | **started S149** |
-| B | Cost-ledger + estate heartbeat (one morning line: health + ₹ spend) | L0/L8 | 7 | **8** | NOW | ₹0 | queued |
-| C | Licence-class registry + feed/signal manifests | L1/L3/L8 | 8 | **8** | next | ₹0 | queued |
-| D | Review Inbox + judgment corpus (the human-verification layer) | L5 | **9** | 7 | next | ₹0 | queued |
+| A | Compliance-language gate | L8 | 9 | **10** | NOW | ₹0 | **LANDED S149** (`de16db6`, in the suite) |
+| B | Cost-ledger + estate heartbeat (one morning line: health + ₹ spend) | L0/L8 | 7 | **8** | NOW | ₹0 | built S149 wave-1 (`lane-b-d134`@`d667240`, 22/22) — LANE-R integrates |
+| C | Licence-class registry + feed/signal manifests | L1/L3/L8 | 8 | **8** | next | ₹0 | built S149 wave-1 (`lane-c-d134`@`7d5cb27`, 12/12; +6 vendor-ToS UNCLASSIFIED → §7.7) — LANE-R integrates |
+| D | Review Inbox + judgment corpus (the human-verification layer) | L5 | **9** | 7 | next | ₹0 | built S149 wave-1 (`lane-d-d134`@`b642334`, 18/18) — LANE-R integrates |
 | E | Auto-analyst event briefs (AI-drafted, inbox-reviewed) | L6 | **9** | 6 | after D | ₹100–300/mo capped | queued |
-| F | Time-machine contract (site-wide `?asof=` capability audit + flags) | L3/L7 | **8** | 5 | mid | ₹0 | partial (portfolios, attention) |
+| F | Time-machine contract (site-wide `?asof=` capability audit + flags) | L3/L7 | **8** | 5 | mid | ₹0 | audited S149 (`docs/time-machine-audit.md`: 5 yes / 34 partial / 28 no · top-5 upgrades ranked · cockpit tile overclaim → LANE-R) |
 | G | Entity graph (promoter/auditor/group/counterparty network from filings) | L2 | **8** | 4 | mid | ₹0 | new |
 | H | Rule-lab (user-defined rule → the evidence factory runs the gates → honest verdict) | L4/L7 | **8** | 4 | later | ₹0 | new |
 | I | Real-time seam (adapter interface now; Kite personal feed optional; public real-time DEFERRED) | L1 | 7 | **6** | design next | ₹0 now / ₹500/mo optional | new |
@@ -297,6 +297,7 @@ line reports month-to-date vs cap. Exceeding cap = degrade to templates, never s
 4. Trademark spend now vs later.
 5. Acknowledge the §3.5 trigger contract: no public monetization of single-stock scores before the legal opinion.
 6. The S148 numbering/duplicate-commit reconcile (two lanes both used "S148"; S-B1 item-2 exists as patch-twins `a781669`/`29e4169`) — owning lanes to reconcile at next push.
+7. **Vendor-ToS enum for the 6 legacy feeds LANE-C could not honestly classify** (screener · fundamentals_history · shareholding_history · concalls-discovery-index · news_feed · enrich — all Guardrail-#8 remediation targets): add a fifth licence class `vendor-tos-remediating` (gated off public surfaces like the restricted classes) vs. keep them out of FEEDS until the XBRL/BSE migrations retire them.
 
 ## Maintenance
 
