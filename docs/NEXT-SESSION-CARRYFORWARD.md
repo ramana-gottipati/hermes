@@ -44,6 +44,16 @@ PROJECT_STATE entries are enough.**
   all 7 strips render on real data, capture-map chips (Rotation·Map / Rotation·Band / Relative strength)
   resolve live, momentum→dossier confirmed. Full suite **247 pass** (the lone fail = S142's untracked
   `test_pat_nav_flow.py`, independent of my 8 files). Commit **`1cb0e89`** (clean FF push).
+- **✅ S143-b (same session) — cross-links EXTENDED to 2 more families + DEPLOYED + LIVE-WALKED (~16:45 UTC),
+  commit `56550c4`:** the **Ownership & filings** family (insider ↔ ratings ↔ sast ↔ shp) and the **Patterns**
+  pair (harmonic ↔ wolfe-scan) — same `related_strip()` mechanism, `_RELATED` + 1 line per base-matched
+  `*_view.py` (the route handlers are in forked `cockpit.py` but the page BODIES are in the base-matched view
+  modules → clean scp). Suite **262 pass** (0 fail); all 6 chips resolve live via Caddy. **⚠ Restart-discipline
+  real case:** the blocking writer-guard ABORTED on an active `signals --backfill-triggers`; I verified it uses
+  **per-symbol commits** (the [[db-write-lock-backfill-outage]] FIX pattern) writing an UNRELATED table →
+  WAL-safe reader-restart, so I restarted past it with an other-writer re-check (startup 200). **LESSON: when
+  the writer-guard fires, verify the writer's commit-granularity + target table before deciding — a
+  per-symbol-commit writer on a table your pages don't read is safe to restart past.**
 - **Remaining S-B1 (OPEN — a natural next pick):** item **1** Markets rail → task groups (touches forked
   `lens_registry.group=` + `left_rail._GROUP_ORDER`) · item **2** merge RRG-Map + Rotation-Weather (Map⇄Weather
   toggle, the Wolfe-toggle precedent) · item **3** fold cycle-clock/sector-momentum/early-signals into the
