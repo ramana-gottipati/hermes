@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes Phase-3 XBRL backfill (off-peak, bounded nightly windows)
+
+[Timer]
+# Off-peak firings (UTC) — clear of bhavcopy(14:01)/pt14(15:30)/xbrl(16:30)/shp(16:45)/
+# capital-alloc(17:18)/provenance(Sat 21:00). Persistent=false: NEVER catch-up-fires on a
+# (re)start mid-day (AUD-95) — only the next scheduled occurrence runs the job.
+OnCalendar=*-*-* 19,23,03:30:00
+Persistent=false
+Unit=hermes-fundamentals-backfill.service
+
+[Install]
+WantedBy=timers.target
