@@ -68,8 +68,19 @@ PROJECT_STATE entries are enough.**
   WAL-safe reader-restart, so I restarted past it with an other-writer re-check (startup 200). **LESSON: when
   the writer-guard fires, verify the writer's commit-granularity + target table before deciding — a
   per-symbol-commit writer on a table your pages don't read is safe to restart past.**
-- **Remaining S-B1 (OPEN — a natural next pick):** item **1** Markets rail → task groups (touches forked
-  `lens_registry.group=` + `left_rail._GROUP_ORDER`) · item **2** merge RRG-Map + Rotation-Weather (Map⇄Weather
+- **✅ S143-c (same session) — S-B1 ITEM 1 DONE + DEPLOYED + LIVE-WALKED (~17:57 UTC), commit `bbee543`:**
+  the Markets rail re-bucketed from 6 analytical categories into **8 TASK groups** — Today (attention · wire ·
+  results-reactions · actions · event-cadence) · Market state (internals · move-anatomy · participants) ·
+  Strength & momentum · Rotation · Sectors · Patterns · Seasonality (the calendar trio) · Events & surveillance
+  (buyback · band-locks · surveillance). **DISPLAY-ONLY in the single-owner `left_rail.py`** — a `_GROUP_REMAP`
+  (lens-key→task-group) + reordered `_GROUP_ORDER["markets"]`, applied only for the Markets altitude; the forked
+  `lens_registry.group=` is UNTOUCHED (the S138 `_SUBTITLES` precedent — nav DISPLAY in the single-owner module,
+  NEVER the forked trio; so NO anchored-insert was needed, clean scp). **+ a11y:** group headers are now real
+  WAI-ARIA disclosures (`aria-controls`→body `id`, `aria-label="<group>, N lenses"`, `role="group"`). Active-lens
+  auto-expand intact. **⚠ pre-existing sibling RED (NOT mine, flagged):** `test_strategy_docs_coverage::test_every_doc_is_served`
+  fails on origin — `docs/strategies/origins.md` (landed by S132j `7e5745d`) isn't in `strategies_view._PAGES`;
+  it's a 1-line fix in a strategies-lane forked file, left for that lane.
+- **Remaining S-B1 (OPEN — a natural next pick):** item **2** merge RRG-Map + Rotation-Weather (Map⇄Weather
   toggle, the Wolfe-toggle precedent) · item **3** fold cycle-clock/sector-momentum/early-signals into the
   Rotation cluster · item **5** credibility-fingerprint → Credibility child · item **6** Ownership&filings
   placement · item **7** orphan sweep (§5 dispositions) · item **10** unify the 3 change-feeds on the bus ·
