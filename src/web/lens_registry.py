@@ -202,6 +202,10 @@ LENSES: tuple[Lens, ...] = (
     # auto-portfolio (net champion) and a churn feed. Failures shown with numbers.
     Lens("factor-league", "Factor league", "stock", "strategies", "/dash/factor-league",
          aliases=("factors", "premia", "league")),
+    # Model portfolios (S132h) — the automated, engine-managed portfolios reconstructed
+    # since 2019-01-01 (STEADY/PACER/SPRINTER); time-travel constituents; no manual edits.
+    Lens("model-portfolios", "Model portfolios", "stock", "strategies", "/dash/model-portfolios",
+         aliases=("portfolios-auto", "auto-portfolios", "models")),
     Lens("conviction", "Conviction", "stock", "strategies", "/dash/conviction",
          dossier_tab="verdict", group="Conviction & structure"),
     # Positioning + MEP GROUP under one "Accumulation" heading (two views, both kept).
