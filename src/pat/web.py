@@ -953,6 +953,67 @@ def _seasonal_flow(conn, period: str, direction: str = "bullish") -> str:
     return "".join(out)
 
 
+# ── overdue-cadence flow (live, read-only over seasonal_events) ───────────────
+# "which stocks are overdue for results / late on dividends / off-cadence" — the additive
+# /dash/event-cadence signal (past a name's OWN rhythm, nothing filed). TIME-only, descriptive.
+
+def _overdue_q(event: str = "") -> str:
+    qs = ["flow=overdue"]
+    if event:
+        qs.append("event=" + _u(event))
+    return "/dash/pat?" + "&".join(qs)
+
+
+def _overdue_flow(conn, event: str = "") -> str:
+    from src.pat.overdue_flow import overdue_rows, _EVT_LABEL
+    event = event if event in _EVT_LABEL else ""
+    out = [
+        '<a class="patBack" href="/dash/pat">← back</a>',
+        _q_bubble("Which liquid names are past their OWN typical window for an event with nothing "
+                  "filed yet — a cadence flag (off their own rhythm), TIME-only, never a delay claim "
+                  "or a trade. Confirmed upcoming dates live on Corp actions + Results reactions."),
+        '<div class="ghdr">Event</div><div class="patChips">',
+    ]
+    for ek, el in (("", "All"), ("RESULTS", "Results"), ("DIVIDEND", "Dividend"),
+                   ("BONUS", "Bonus"), ("SPLIT", "Split"), ("AGM", "AGM")):
+        out.append(_chip_sel(_overdue_q(ek), el, ek == event))
+    out.append('</div>')
+    if conn is None:
+        out.append('<div class="empty">Connect to data to see matches.</div>')
+        return "".join(out)
+    recs = overdue_rows(conn, event, cap_weeks=52, top_n=15)
+    lbl = _EVT_LABEL.get(event, "any event") if event else "any event"
+    out.append(f'<div class="ghdr">Overdue vs own rhythm · {_esc(lbl)} ({len(recs)})</div>')
+    if not recs:
+        out.append('<div class="empty">No liquid name is recently overdue for '
+                   f'{_esc(lbl)} — nothing off its own rhythm (within ~1 year).</div>')
+    else:
+        head = ('<div class="patTable"><table class="dt"><thead><tr>'
+                '<th>#</th><th>Symbol</th><th>Event</th><th>Overdue by</th>'
+                '<th>Its usual window</th><th>Times seen</th></tr></thead><tbody>')
+        rws = []
+        for i, d in enumerate(recs, 1):
+            wk = f'{d["weeks_over"]:.0f} wk' if d["weeks_over"] is not None else "—"
+            rws.append(
+                '<tr>'
+                f'<td>{i}</td>'
+                f'<td class="sym"><a class="row" href="/dash/stock?sym={_u(d["symbol"])}#seasonal">'
+                f'{_esc(d["symbol"])}</a></td>'
+                f'<td>{_esc(_EVT_LABEL.get(d["event_type"], d["event_type"]))}</td>'
+                f'<td>{wk}</td>'
+                f'<td>{_esc(d["lo"] or "—")} → {_esc(d["hi"] or "—")}</td>'
+                f'<td>{d["n_history"]}</td>'
+                '</tr>')
+        out.append(head + "".join(rws) + '</tbody></table></div>')
+    out.append('<div style="margin-top:10px"><a class="row" href="/dash/markets/event-cadence">'
+               'Open the full Event cadence lens (overdue + expected, filters, CSV) →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               "OVERDUE = past this name's OWN typical window for the event with nothing filed — a "
+               'rhythm flag, <b>not</b> a confirmed delay (schedules legitimately shift). Bounded to '
+               '~1 year (longer = stopped, not late). TIME-only; never a price call or a trade.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2291,6 +2352,7 @@ def _convo_tail(flow: str, q: str = "", ctx: str = "", params: dict | None = Non
 _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
                "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
+               "overdue": "Overdue vs own cadence",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2465,6 +2527,8 @@ def _free_text(conn, q: str):
             body = _why_flow(conn, p.get("sym", ""), p.get("metric", "credibility"))
         elif f == "seasonal":
             body = _seasonal_flow(conn, p.get("period", ""), p.get("direction", "bullish"))
+        elif f == "overdue":
+            body = _overdue_flow(conn, p.get("event", ""))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name

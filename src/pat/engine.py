@@ -302,6 +302,19 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, seas)
         return seas
 
+    # (a-1b) Overdue cadence — "which stocks are overdue for results / late on dividends /
+    #        off-cadence names" — the /dash/event-cadence signal (TIME-only, descriptive: past a
+    #        name's OWN rhythm, never a delay claim or trade). Deterministic ₹0; conservative,
+    #        yields (None) on a miss. After seasonal so a ranking ask wins the tie.
+    try:
+        from src.pat.overdue_flow import parse_overdue as _parse_overdue
+        ovd = _parse_overdue(query)
+    except Exception:
+        ovd = None
+    if ovd:
+        _cache_put(q, ovd)
+        return ovd
+
     from src.pat.understand import validate_intent, parse_fallback
 
     # (a0) Advisory / out-of-domain guardrail FIRST — an advice/predict/alert/wrong-
