@@ -958,10 +958,11 @@ def _seasonal_flow(conn, period: str, direction: str = "bullish") -> str:
 # /dash/event-cadence signal (past a name's OWN rhythm, nothing filed). TIME-only, descriptive.
 
 def _overdue_q(event: str = "") -> str:
-    qs = ["flow=overdue"]
-    if event:
-        qs.append("event=" + _u(event))
-    return "/dash/pat?" + "&".join(qs)
+    # refinement chips route back through free-text so parse_overdue handles them (like _seasonal_q).
+    noun = {"RESULTS": "results", "DIVIDEND": "dividends", "BONUS": "bonus",
+            "SPLIT": "split", "AGM": "AGM"}.get(event, "")
+    q = f"which stocks are overdue for {noun}" if noun else "which stocks are overdue"
+    return "/dash/pat?q=" + _u(q)
 
 
 def _overdue_flow(conn, event: str = "") -> str:
