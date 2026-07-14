@@ -114,9 +114,8 @@ PENDING: set[str] = {
     "/dash/strategies/stealth",
     "/dash/strategies/stocks",
     "/dash/strategies/strategist",
-    # ── Screener ──
+    # ── Screener ──  (screen2 landed the scaffold in S137, b315e4a follow-on)
     "/dash/screener",
-    "/dash/screener/screen2",           # S-C item 2 target (Screen+)
     "/dash/screener/tags-review",
     "/dash/screener/themes",
     "/dash/screener/workbench",

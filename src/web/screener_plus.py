@@ -979,7 +979,13 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         '<h1 class="uk-h1">Screen+</h1>'
         + K.badge(f"as of {str(sig_date)[:10] if sig_date else '—'} · precomputed")
         + '</div>'
-        f'<div class="sec" style="margin-bottom:14px">{sub_lbl} · '
+        + ifx.bottom_line(
+            'A <b>confluence screen</b>: liquid stocks ranked by how many independent pillars '
+            '— momentum, accumulation, relative strength, structure — line up <b>right now</b>, '
+            'each turned into a shape beside its raw numbers. A <b>shortlist to study</b>, not a '
+            'buy list — sort any column, filter, and save your own screen.')
+        + ifx.how_to_read_link()
+        + f'<div class="sec" style="margin-bottom:14px">{sub_lbl} · '
         'confluence = pillars aligned now (DVPT · MEP · RS · CPR · CCI · Wolfe). '
         'Each group leads with an <b>instrument</b> — the <b>DVPT-vs-power ladder</b>, the '
         '<b>accum/distrib bar</b>, the <b>RS spark</b> and the <b>multi-TF heat strip</b> — '
@@ -1012,7 +1018,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         table = ('<div class="uk-card">No rows for this scope on the latest date. '
                  'Try a broader scope, or this host may not have signals computed yet.</div>')
 
-    body = _CSS + G.css() + head + controls + table + _JS
+    body = _CSS + ifx.readability_css() + G.css() + head + controls + table + _JS
     return HTMLResponse(K.shell("Screen+ · patearn", body,
                                 active="screener", sub=_sub(), nav_html=_nav_html("screener")))
 
