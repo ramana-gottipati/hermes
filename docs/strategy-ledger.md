@@ -276,6 +276,41 @@ forward signal at 60d on either outcome, exactly as the failure-ledger predicted
 
 ---
 
+## Study 2026-07-15 — SECTOR-ROTATION (relative-strength, sector-INDEX level) — CONDITIONAL: low-turnover quarterly long-only BEATS passive (+2.8% alpha, cost-surviving) but not the strict 0.89-both-halves bar; short/F&O leg REJECTED
+
+Ramana-directed sector-rotation RS strategy: long every NSE sectoral index beating Nifty 500 on
+trailing RS, weighted strongest→weakest; RSI-green entry gate; short the underperformers (F&O);
+hold while momentum persists. Tested at the SECTOR-INDEX level (V1 — isolates the rotation edge
+before the ≤40-stock constituent build) on `index_rows` (16 NSE sectoral indices, 11 live from
+2012-02, monthly marks 2012–2026, n=173). Module `research/explosive_moves/sector_rotation.py`
+(reproduce read-only on the VPS: `.venv/bin/python research/explosive_moves/sector_rotation.py data/hermes.db`).
+⚠ Benchmark = a CONSISTENT price-index Nifty 500 (this method: **Sharpe 0.78 / CAGR 12.1%** on
+`index_rows`); the ledger's 0.89 / +14.6% is the **TOTAL-RETURN** Nifty 500 and `index_rows` are
+PRICE indices, so judge the strategy like-for-like vs **0.78**, not 0.89.
+
+- **CHAMPION — long-only, QUARTERLY, 6mo-RS, RSI-green gate, hysteresis band 8%, cap 30%, cost 0.15%/side:
+  Sharpe 0.83 (H1 0.78 / H2 0.87), CAGR 14.1%, MaxDD −35.7%, beta 0.95, ALPHA +2.80%/yr, turnover 17.5%/mo.**
+  BEATS passive Nifty 500 like-for-like (+0.05 Sharpe, +2.0% CAGR, +2.8% cost-surviving alpha) — the
+  strongest RS-rotation construct recorded — but does NOT clear the strict **0.89-TR-both-halves**
+  survival bar (H1 0.78). Verdict class: a legitimate LOW-TURNOVER SMART-BETA / enhanced-beta tilt
+  (same family as LOWVOL_MOM), NOT decisive standalone alpha.
+- **The knobs that mattered (his design intuitions, validated):** (1) CADENCE — quarterly (17.5%/mo
+  turnover) Sharpe **0.83** vs naive MONTHLY (76.6%/mo) **0.66**: the momentum-net-of-cost wall bites at
+  high churn, exactly the ledger's 1.29→0.09 pattern; (2) HYSTERESIS (hold-band 8%) cuts turnover
+  25.7%→17.5%/mo and lifts alpha; (3) the RSI-GREEN entry gate is additive (alpha −0.30% vs no-gate
+  −2.08%; beta 0.83 vs 1.03).
+- **SHORT / F&O leg REJECTED:** a +30% short book on underperformers DROPS Sharpe to **0.49** (alpha
+  −1.02%); +50% worse. Confirms the recorded wall — shorts fight market drift (cf. BEAR-mirror −1.53;
+  STREAM-BAND SELL "not a short signal"). Sector rotation is a LONG-ONLY tilt.
+- **Capacity note (structural advantage vs stock momentum):** sector legs trade via liquid ETFs/futures,
+  so ~0.15%/side is realistic — NOT the small-cap slippage that killed stock momentum (1.29→0.09) and
+  C-BLEND (1.32→0.52@₹25cr). The sector level is inherently more capacity-/cost-friendly.
+- **Verdict: CONDITIONAL — long-only + quarterly + RSI-gate + hysteresis beats passive at low turnover
+  with +2.8% cost-surviving alpha; short leg REJECTED; short of the strict survival bar (price-vs-TR
+  caveat).** Next rigor: (a) formal alpha t-stat + participation-cost recut; (b) V2 = ≤40-stock
+  constituent expression (top-RS stocks inside the champion sectors) for a tradeable book + model-portfolio
+  integration. Supersedes nothing; strongest entry in the RS-rotation family.
+
 ## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
 
 Ramana's band spec (docs/strategies/reversal-context.md; the spec source was reversal-pair-PLAN.md, retired S147): EMA13(adj-high)/EMA13(adj-low) banks + EMA5(HLC3)
