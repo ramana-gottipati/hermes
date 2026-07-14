@@ -26,6 +26,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from src.web.dashboard import _shell, _esc, _q  # chrome + helpers (import-safe)
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 
 router = APIRouter()
 
@@ -218,5 +219,12 @@ def render_rs_hub(den: str = "Nifty 500") -> str:
 
 @router.get("/dash/rs-hub", response_class=HTMLResponse)
 def rs_hub(den: str = Query("Nifty 500")) -> HTMLResponse:
-    return HTMLResponse(_shell("Relative strength · patearn",
-                               render_rs_hub(den), active="rs-hub", wide=True))
+    body = (ifx.readability_css()
+            + ifx.bottom_line(
+                'Four ways to read one question — <b>is it beating the market?</b> Rank (who '
+                'leads), momentum (is the lead growing), level (where it sits in its own range) '
+                'and phase (which quarter of the cycle) — all versus the benchmark you pick. '
+                '<b>A hub of context lenses</b>; open any card for the full view.')
+            + ifx.how_to_read_link()
+            + render_rs_hub(den))
+    return HTMLResponse(_shell("Relative strength · patearn", body, active="rs-hub", wide=True))

@@ -25,6 +25,8 @@ import sqlite3
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
+
 RESEARCH_DB = "/opt/hermes/data/research.db"
 HERMES_DB = "/opt/hermes/data/hermes.db"
 router = APIRouter()
@@ -366,8 +368,15 @@ def results_reactions(view: str = Query("all")):
 
     gen = _esc(meta.get("generated_at", "—"))
     sue_hi = meta.get("sue_hi", "?"); dlv_hi = meta.get("dlv_hi", "?")
-    body = [_CSS, '<div class="rr">',
+    body = [_CSS, ifx.readability_css(), '<div class="rr">',
             '<h2>Results-Reaction Scanner</h2>',
+            ifx.bottom_line(
+                'Who just <b>reported earnings</b>, whether the surprise was backed by <b>real '
+                'delivered buying</b> (not intraday churn), and what actually happened to the '
+                'price in the weeks after. Historically, big beats confirmed by heavy delivery '
+                'drifted higher; unconfirmed ones mostly didn\'t. <b>Realized history, not a '
+                'forecast or a buy list.</b>'),
+            ifx.how_to_read_link(),
             '<div class="lead">Who just reported, whether the earnings surprise was <b>confirmed by '
             'delivered value</b> (the strong hand showing up, not intraday churn), and — once ~60 '
             'sessions elapse — the realized abnormal drift vs Nifty&nbsp;500. Descriptive realized '

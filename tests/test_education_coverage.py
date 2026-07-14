@@ -91,15 +91,9 @@ PENDING: set[str] = {
     "/dash/markets",                    # Overview hub
     "/dash/markets/actions",
     "/dash/markets/attention",
-    "/dash/markets/band-locks",
     "/dash/markets/buyback-calc",
-    "/dash/markets/capture-map",
     "/dash/markets/compare",
-    "/dash/markets/divergence",
-    "/dash/markets/early-signals",
     "/dash/markets/leaders",
-    "/dash/markets/results-reactions",
-    "/dash/markets/rs-hub",
     "/dash/markets/sectors",
     "/dash/markets/surveillance",
     # ── Strategies ──  (growth·insider·ratings·sast·shp landed in S-C item 2, a38a122)

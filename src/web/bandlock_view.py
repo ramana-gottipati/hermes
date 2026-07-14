@@ -23,6 +23,7 @@ from fastapi.responses import HTMLResponse
 
 from src.core.db import get_conn
 from src.web.dashboard import _shell, _esc
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 from src.automation import band_lock as BL
 
 router = APIRouter()
@@ -99,7 +100,7 @@ def _board(streaks: list) -> str:
 
 @router.get("/dash/band-locks", response_class=HTMLResponse)
 def band_locks_page() -> HTMLResponse:
-    body = [_CSS]
+    body = [_CSS, ifx.readability_css()]
     as_of = None
     try:
         with get_conn() as conn:
@@ -108,7 +109,13 @@ def band_locks_page() -> HTMLResponse:
             ndays = len(BL.trading_dates(conn, BL.FEED_BIRTH))
             body.append(
                 '<h2>Band-lock streaks</h2>'
-                '<div class="bl-note">Names that closed <b>pinned at their daily price band</b> '
+                + ifx.bottom_line(
+                    'Stocks <b>pinned at their daily price limit</b> — the exchange\'s band capped '
+                    'the move and the queue never cleared — and for how many straight sessions. '
+                    'A long streak = one-sided demand or supply the auction cannot absorb: a '
+                    '<b>queue-imbalance tell to investigate</b>, never a gate or a signal.')
+                + ifx.how_to_read_link()
+                + '<div class="bl-note">Names that closed <b>pinned at their daily price band</b> '
                 '— close == high == the +band% limit (▲ upper lock: the buy queue outran the '
                 'band) or close == low == the −band% floor (▼ lower lock) — and for how many '
                 'consecutive sessions. A lock means the auction could not clear at the '

@@ -18,6 +18,8 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
+
 router = APIRouter()
 
 _PHCOL = {"RECOVERY": "#7fdcae", "TAILWIND": "var(--up)", "ROLLING-OVER": "var(--warn)",
@@ -135,6 +137,14 @@ def _open():
 def early_signals_page():
     with _open() as conn:
         body = feed_html(conn) if conn is not None else feed_html(None)
+    body = (ifx.readability_css()
+            + ifx.bottom_line(
+                'What is <b>turning up today</b>: stocks that just flipped into a recovering / '
+                'leading strength phase, and sectors flashing a fresh <b>bullish divergence</b> — '
+                'the earliest, freshest turn-ups from already-computed signals. An <b>early-warning '
+                'watch feed</b>, never a buy list.')
+            + ifx.how_to_read_link()
+            + body)
     try:
         from src.web.dashboard import _shell
         return HTMLResponse(_shell("Early signals", body, active="early-signals", wide=True))

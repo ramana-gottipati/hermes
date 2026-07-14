@@ -23,6 +23,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from src.web import glossary as G   # `?` hover-help on the capture terms
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 
 router = APIRouter()
 
@@ -207,6 +208,15 @@ def _open():
 def capture_map_page(den: str = Query("Nifty 500", max_length=40),
                      h: str = Query("63", max_length=4)):
     body = map_html(None, den, h)
+    body = (ifx.readability_css()
+            + ifx.bottom_line(
+                'How each index behaves in <b>rallies vs falls</b>: one dot per index — how much '
+                'of the market\'s up-moves it captures against how much of the down-moves it '
+                'suffers. The prize corner <b>rides rallies AND defends falls</b>; a dot that takes '
+                'more of both is just high-beta, not strong. A <b>behaviour track record</b>, never '
+                'a ranking.')
+            + ifx.how_to_read_link()
+            + body)
     try:
         from src.web.dashboard import _shell
         return HTMLResponse(_shell("All-weather capture map", body,

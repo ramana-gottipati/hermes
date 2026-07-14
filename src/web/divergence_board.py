@@ -22,6 +22,8 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
+
 router = APIRouter()
 
 _BENCH = "Nifty 500"
@@ -167,6 +169,14 @@ def divergence_page():
     cm = _open()
     with cm as conn:
         body = board_html(conn) if conn is not None else board_html(None)
+    body = (ifx.readability_css()
+            + ifx.bottom_line(
+                'Sectors where the trend of <b>market-beating strength</b> and its <b>momentum '
+                'disagree</b>: strength still falling while momentum quietly firms = an early '
+                '<b>recovery cue</b> (bullish); strength still rising while momentum fades = early '
+                '<b>rolling-over</b> (bearish). An early-warning watch board, not a signal.')
+            + ifx.how_to_read_link()
+            + body)
     try:
         from src.web.dashboard import _shell
         return HTMLResponse(_shell("RS/RSI divergence", body, active="divergence", wide=True))
