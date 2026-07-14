@@ -113,6 +113,20 @@ Full failure-models table (BOOK_YIELD, EARN_YIELD, QUALITY-standalone, momentum-
 - **Memory:** `strategy-ledger-and-benchmarks` · `predictive-attributes-finding` · `failure-models-ledger` · `dataset-roadmap-c-a-b`.
 - **PROJECT_STATE.md:** § Decision log (D66), § Session log (Sessions 37, 71, and the 2026-07-03/-05c experiments), § Key file paths (`capital_allocation.py`, `scoring.py`, `fundamentals_asof.py`).
 
+## Slow rotation — the quarterly LOWVOL_MOM anchor (S132f)
+
+The one form of this family that survived the participation-cost recut is now a live surface:
+**`/dash/momentum-scan/slow`** (declared child of the scanner). Rule as validated: **large-cap gate**
+(top turnover quintile, self-scaling) · **LOWVOL_MOM** = 0.5·pctrank(6-mo momentum) +
+0.5·pctrank(−66-day vol) · **top-25** equal-notional · **quarterly clock** · **hold band ≤35**
+(members stay while ranked ≤35; refill from the top — the turnover discipline IS the strategy).
+Numbers on record: family flat-cost ~1.10 → **net ~1.02 @₹50cr** under the Almgren participation
+model; beats the index net up to **~₹100–150cr** capacity; defensive **beta**, not selection skill.
+Engine: `src/automation/slow_rotation.py` (nightly `--refresh`, rebalances only on quarter turn;
+bounded `slow_rotation` table). View: `src/web/slow_rotation_view.py` (live rank drift computed on
+read; CSV; descriptive fence). Ledger anchors: §§ 2026-06-24 cost-realism · 2026-07-02 corrected
+participation model · 2026-07-05c C-BLEND recut.
+
 ## Maintenance
 
 - **When to update:** a new signal or overlay lands · a cost model or gate changes · a new backtest re-cuts a headline number · the C/quality role (D66) is revised · the ensemble roadmap advances a step · the Screener→XBRL migration closes.

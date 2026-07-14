@@ -92,6 +92,10 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
     "/dash/ratio":      "sacred ratio page — reached from the index/markets bodies (cockpit ratio links)",
     "/dash/rs":         "full RS ranking — reached from the cockpit 'Full RS ranking' body link",
     "/dash/replay":     "Replay-the-Tape — reached from the Trust/Coverage page body (the S55 trail)",
+    # Slow-rotation quarterly anchor (S132f): a declared NESTED CHILD of the momentum scanner
+    # (D80 nesting), reached from the on-page "⇄ Slow rotation (quarterly)" seg link.
+    "/dash/momentum-scan/slow": "quarterly large-cap LOWVOL_MOM anchor — reached from the "
+                                "scanner's on-page seg toggle, not a top-nav tab (S132f)",
     # Wolfe open-trades view (D120/S121): a declared NESTED CHILD of the Patterns·Wolfe lens,
     # reached via the on-page Fresh setups ⇄ Open trades toggle (emits active="wolfe"), not a tab.
     # (tests/test_dash_route_registry.py classifies it 'nested_child'; this keeps the sister gate green.)

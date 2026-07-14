@@ -185,7 +185,9 @@ def momentum_scan_page(sort: str = "riskadj"):
     seg = ("<div class='seg'>"
            f"<a class='{'on' if sort=='riskadj' else ''}' href='/dash/momentum-scan?sort=riskadj'>Risk-adjusted momentum</a>"
            f"<a class='{'on' if sort=='cblend' else ''}' href='/dash/momentum-scan?sort=cblend'>C-blend 50/50</a>"
-           f"<a class='{'on' if sort=='ens' else ''}' href='/dash/momentum-scan?sort=ens'>Equal-weight ensemble</a></div>")
+           f"<a class='{'on' if sort=='ens' else ''}' href='/dash/momentum-scan?sort=ens'>Equal-weight ensemble</a>"
+           "<a href='/dash/momentum-scan/slow' title='the quarterly large-cap LOWVOL_MOM anchor — "
+           "the one momentum form that survived real costs'>⇄ Slow rotation (quarterly)</a></div>")
     body = (
         "<div class='msc'>" + _CSS + ifx.readability_css() +
         "<h2>Risk-adjusted momentum — candidate scanner</h2>"
@@ -224,3 +226,8 @@ def momentum_scan_page(sort: str = "riskadj"):
         "BSE/NSE XBRL per the primary-source-only policy</b> (CLAUDE.md §8); treat the C column as "
         "provisional until then.</div></div>")
     return HTMLResponse(_shell("Risk-adjusted momentum", body, active="momentum-scan", wide=True))
+
+
+# Declared child (D80 nesting): /dash/momentum-scan/slow registers its route on THIS
+# router at import time, so it rides the same durable v2_surfaces mount. Append-only.
+from src.web import slow_rotation_view  # noqa: E402,F401  (import-for-side-effect)
