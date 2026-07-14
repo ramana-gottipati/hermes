@@ -356,8 +356,7 @@ remediation), state:skip on the src commits (PROJECT_STATE.md sibling-hot):
 - **Track C VPS activation** — the D6-F2 re-settle + credibility_series rebuild, the D5-F6 momentum_scan
   re-verify, and the D1-F1 `signals --relabel-character` are all **live-pipeline WRITE ops** (beyond the
   read-only research sanctioned this session) → a dedicated deploy/VPS session.
-- **Ledger annotation (RISKADJ 1.13→1.09)** — target `docs/strategy-ledger.md` is **sibling-hot** →
-  coordinate; still owed.
+- ~~**Ledger annotation (RISKADJ 1.13→1.09)**~~ ✅ **DONE 2026-07-14** — folded the D5-F1 restatement into `docs/strategy-ledger.md` (§ RISKADJ Honest-caveat: flat-cost 1.13 carries ~0.04 same-close optimism → honest lag-1 = 1.09; fundability unchanged). Landed via isolated plumbing (shared worktree hot).
 - **Track D full build** — Doctrine-D financials scorer (extend `extract_bank_for` for GNPA%/NNPA%/RoA/
   CET1 from the SA XBRL + columns + `scoring.py` routing) + the interim SUPPRESS half + web/Pat/Screen+
   adoption — gated on Ramana's 3 decisions (scope order · thresholds · ALM) + those surfaces freeing up.
