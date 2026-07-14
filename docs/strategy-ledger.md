@@ -311,6 +311,26 @@ PRICE indices, so judge the strategy like-for-like vs **0.78**, not 0.89.
   constituent expression (top-RS stocks inside the champion sectors) for a tradeable book + model-portfolio
   integration. Supersedes nothing; strongest entry in the RS-rotation family.
 
+### 2026-07-15b — INCREMENTAL ablation (Champion FROZEN base + Ramana's levers, one at a time, OLDEST data 2005–2026, n=258)
+Harness `research/explosive_moves/sector_rotation_exp.py`; holdings sheet `research/explosive_moves/out/sector_rotation_sheet.csv`.
+Longer window (incl. the 2008 GFC) → tougher: benchmark Nifty500(price) **Sharpe 0.64, CAGR 12.5%, MaxDD −62%**; Champion base **0.62, alpha +1.7%, MaxDD −40.7%**.
+Each lever added individually vs base (Sharpe / alpha / MaxDD):
+- **WINNERS (add alpha AND cut drawdown — Ramana's "offload the burnt-out leader" thesis, CONFIRMED):**
+  BAL balanced/equal-weight **0.64 / +1.8% / −39.5%** · RSPK taper-at-own-RS-peak **0.64 / +1.9% / −39.8%** ·
+  STR taper-when-stretched **0.65 / +2.1% / −40.2%** · RSIRS RSI-of-RS-overbought-exit **0.64 / +2.3% / −40.3%**.
+- **NO-LIFT (honest negatives):** VOL volume-confirm **0.62** (sector-index volume carries no signal — it's a
+  constituent/DVPT lever, not index-level) · NEW fixed newcomer-boost **0.62** (BAL captures the "don't over-weight
+  the leader" goal better) · STDV excess-stdev-taper **0.62** alone (helps only inside the cluster).
+- **★ WINNER COMBO (V8 = BAL+RSPK+STR+RSIRS): Sharpe 0.70 (H1 0.78 / H2 0.64), Δ +0.07 vs bench, ALPHA +3.2%/yr,
+  MaxDD −36.2%** — best Sharpe AND lowest drawdown; lifts base 0.62→0.70 and repairs the recent-half (H2 0.51→0.64).
+  Tapers-only cluster (RSPK+STDV+STR+RSIRS) = 0.67 / +2.8% / −38.1%.
+- **The −36% MaxDD is the 2008 GFC** (a −62% market) — for LONG-ONLY equity that is unavoidable; ex-2008 drawdowns
+  are modest and the tapers nearly HALVED the crash. Diagnostic noted: the 30%-cap + narrow-breadth periods (e.g.
+  2024 = PSU-Bank only) leave the book UNDER-invested (residual → cash) — next lever to test = fill residual with the index.
+- **Verdict: the taper/balance levers materially improve the Champion (0.62→0.70, +3.2% alpha, −36% DD).** V8 is the
+  new working config on top of the frozen base; still a smart-beta tilt (short of the strict TR bar), now with better
+  drawdown control. Levers are additive + individually recorded so the estate can keep refining.
+
 ## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
 
 Ramana's band spec (docs/strategies/reversal-context.md; the spec source was reversal-pair-PLAN.md, retired S147): EMA13(adj-high)/EMA13(adj-low) banks + EMA5(HLC3)
