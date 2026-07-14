@@ -307,9 +307,31 @@ Implemented the full consult-4 spec across **8 files**; `pytest -k "pat/cci/conc
 
 **Session tally: 29 files** — all verified/compiled, tests green, all Codex-agreed/converged, uncommitted, none in hot zone.
 
-## 🏁 All locally-completable work is DONE. Remaining needs a specific resource:
-- **Track C** (VPS) — verify + restate the P0 backtest-bias items (same-close rebalance, Wolfe OOS universe, CCI period-vs-report date) **+ D5 `deliv_qty_trend` value fix** (both change recorded ledger numbers → re-run on the full archive).
-- **Track D** — Doctrine-D financials scorer (needs a primary GNPA/CAR/ALM data decision first).
-- **Ignition warm-up guard (D1-F4)** — changes scoring + needs a VPS `--relabel` backfill; converge on the min-coverage rule first.
-- **D5 research-harness** — flat-cost parity assertion, PEAD placebo statistic, prereg append-only (prereg is sibling-hot).
+## 🏁 S136 (2026-07-14) — Track C code markers LANDED + Track D spike + interim label
+All four shipped to origin/main, tested, converged with Codex (each finding was AGREE-FIX / Codex's own
+remediation), state:skip on the src commits (PROJECT_STATE.md sibling-hot):
+- **D5-F6 delivered-VALUE trend** (`0ab5313`) — embase `deliv_qty_trend` now trends dq × RAW close
+  (split-invariant); key kept for compat. `tests/test_embase_deliv_value.py`. ⚠ VPS momentum_scan
+  re-verify + deploy queued.
+- **D6-F2 CCI knowable-date gate** (`faf1704`) — `resolved_knowable_date` plumbed through
+  deep_actuals → concall_settle → credibility_series (gate on report date; period-end fallback).
+  `tests/test_cci_knowable_date.py`. ⚠ VPS re-settle + credibility_series rebuild queued to activate.
+- **Track D Step-1 XBRL spike DONE** (`c022ceb`) — banks Phase-1 tractable (GNPA%/NNPA%/RoA/CET1 tagged
+  in the STANDALONE instance); NBFC/HFC P&L-only → Phase-2/proxy. Answers decision-Q#3. Detector =
+  NSE financial-index membership. Live mis-rating confirmed (HDFCBANK/ICICIBANK/BAJFINANCE all T4).
+- **D3-F1 interim LABEL** (`3dcf73f`) — `scoring.py` now flags financials (`sector_model_pending` +
+  Telegram advisory) via the primary-source detector; non-suppressing. `tests/test_scoring_financial_label.py`.
+
+## Remaining (needs a specific resource / decision — none locally-shippable this session):
+- **Track C VPS activation** — the D6-F2 re-settle + credibility_series rebuild, the D5-F6 momentum_scan
+  re-verify, and the D1-F1 `signals --relabel-character` are all **live-pipeline WRITE ops** (beyond the
+  read-only research sanctioned this session) → a dedicated deploy/VPS session.
+- **Ledger annotation (RISKADJ 1.13→1.09)** — target `docs/strategy-ledger.md` is **sibling-hot** →
+  coordinate; still owed.
+- **Track D full build** — Doctrine-D financials scorer (extend `extract_bank_for` for GNPA%/NNPA%/RoA/
+  CET1 from the SA XBRL + columns + `scoring.py` routing) + the interim SUPPRESS half + web/Pat/Screen+
+  adoption — gated on Ramana's 3 decisions (scope order · thresholds · ALM) + those surfaces freeing up.
+- **Ignition warm-up guard (D1-F4)** — scoring change + VPS `--relabel` backfill; converge on the
+  min-coverage rule first.
+- **D5 research-harness** — flat-cost parity assertion, PEAD placebo statistic, prereg append-only (prereg sibling-hot).
 - **Deferred (sibling hot zone):** Wolfe (D4), harmonic-zigzag (D7-F1), prereg (D5-F5), metrics-glossary/strategy-ledger doc-drift, seasonal.
