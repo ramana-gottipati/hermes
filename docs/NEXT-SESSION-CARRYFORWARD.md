@@ -10,6 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 2026-07-14 late — S-E PHASE 2 slice C (Pat market-INTERNALS flow): CLAIMED + IN-FLIGHT (S148 lane, WORKTREE) — do NOT parallel
+- Continues S142/S144/S146. This slice = the audit's Phase-2 "internals (breadth now)" item: a `internals`
+  flow answering "how's the breadth / market internals / advance-decline / how many stocks up" from the
+  bounded `market_internals_daily` snapshot (latest pct_adv + adv/dec + MEP effort tape + 22y percentile
+  reads, mirroring `market_internals_view`). NEW Pat file + a self-limiting ₹0 pre-pass at engine.route
+  (after rotation; needs a breadth/internals cue, so nav's "where do I see breadth" page-find still wins).
+- **⚙ BUILT IN AN ISOLATED GIT WORKTREE** (`s148-se` off origin/main) because the main tree was extremely
+  hot at pick time — PROJECT_STATE + 4 files staged by the S-B1 rail lane, ~13 docs/strategies mid-flight,
+  local main behind origin. Worktree = clean base, clean FF push, ZERO interaction with the churn.
+- **Remaining Phase 2 after this: insider/ratings/SAST/holdings (per-symbol ownership, needs NEW reads) ·
+  seasonal per-symbol base rates · Wolfe open-trades. Phase 3 = education on the unified glossary.**
+- **Retire this block when slice C lands** (replace with ✅). Claim-first per the S140 lesson.
+
 ## ✅ 2026-07-14 — S146: S-E PHASE 2 slice B — Pat DATA flows (FII positioning + rotation state) SHIPPED — do NOT redo; kickstart-pick-verify
 - **NEW `src/pat/participants_flow.py`** — "are FIIs buying / FII flows / who's positioned" → FII net
   index-futures stance (net long-short + 2.5y percentile) from `participant_oi` (D62 fence). **NEW
