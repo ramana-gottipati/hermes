@@ -249,8 +249,9 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
     bt = _stats([(d, b) for d, _v, b, _c in mynav])
     stats = ""
     if st and bt:
+        lbl = since or "2012"
         stats = ("<div class='stats'>"
-                 f"<span>Since 2019: <b>{st['x']:.2f}×</b></span>"
+                 f"<span>Since {lbl}: <b>{st['x']:.2f}×</b></span>"
                  f"<span>CAGR <b>{st['cagr']:.1f}%</b> (N500 {bt['cagr']:.1f}%)</span>"
                  f"<span>Sharpe <b>{st['sharpe']:.2f}</b> (N500 {bt['sharpe']:.2f})</span>"
                  f"<span>MaxDD <b>{st['dd']:.0f}%</b> (N500 {bt['dd']:.0f}%)</span></div>")
