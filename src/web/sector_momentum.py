@@ -19,6 +19,8 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
+
 router = APIRouter()
 
 _PHCOL = {"RECOVERY": "#7fdcae", "TAILWIND": "var(--up)", "ROLLING-OVER": "var(--warn)",
@@ -178,6 +180,13 @@ def sector_momentum_page(idx: str = Query("")):
             # landing = picker + the largest sector's drill, so it opens on real content
             dflt = _default_sector(conn)
             body = _picker(conn) + (drill_html(dflt, conn) if dflt else "")
+    body = (ifx.readability_css()
+            + ifx.bottom_line(
+                'Which <b>sectors</b> are leading or lagging on relative strength right now — click '
+                'one to see the <b>stocks driving it</b> and their breadth. A <b>drill-down for '
+                'context</b>, not a buy list.')
+            + ifx.how_to_read_link()
+            + body)
     try:
         from src.web.dashboard import _shell
         title = f"{_short(idx)} — sector momentum" if idx else "Sector momentum"

@@ -22,6 +22,8 @@ from urllib.parse import quote_plus
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
+
 router = APIRouter()
 
 _BENCH = "Nifty 500"
@@ -148,6 +150,14 @@ def _open():
 def cycle_clock_page():
     with _open() as conn:
         body = clock_html(conn) if conn is not None else clock_html(None)
+    body = (ifx.readability_css()
+            + ifx.bottom_line(
+                'Where each <b>sector</b> sits on the rotation loop versus the market — and which '
+                'way it is travelling (arrow &#8733; momentum): Recovery &#8594; Tailwind &#8594; '
+                'Rolling-over &#8594; Headwind, clockwise. A <b>map of sector weather</b>, read as a '
+                'description — not a trade list.')
+            + ifx.how_to_read_link()
+            + body)
     try:
         from src.web.dashboard import _shell
         return HTMLResponse(_shell("Rotation lifecycle clock", body, active="cycle-clock", wide=True))

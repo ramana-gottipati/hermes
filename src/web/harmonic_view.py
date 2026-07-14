@@ -21,6 +21,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from src.core.db import get_conn
 from src.automation import harmonic_patterns as HP
 from src.automation import harmonic_signals as HS
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 
 try:
     from src.web.dashboard import _shell, _esc, _q
@@ -154,8 +155,15 @@ def harmonic_page(universe: str = Query("nifty500", max_length=24),
         + ('background:#1f6feb;color:#fff' if t == tf else 'color:var(--ink-2);border:1px solid var(--line-2)') + f'">{lbl}</a>'
         for (t, lbl) in (("d", "Daily"), ("w", "Weekly"), ("m", "Monthly")))
     body = (
-        '<h2>Harmonic scanner <span style="color:var(--ink-2);font-size:15px;font-weight:400">— XABCD, read by side</span></h2>'
-        '<div class="sub" style="margin-bottom:6px">Auto-detected harmonic patterns '
+        ifx.readability_css()
+        + '<h2>Harmonic scanner <span style="color:var(--ink-2);font-size:15px;font-weight:400">— XABCD, read by side</span></h2>'
+        + ifx.bottom_line(
+            'Auto-found <b>harmonic patterns</b> (Gartley · Bat · Butterfly · Crab) — where a '
+            'five-point price shape completes at a <b>reversal zone</b>. Read by side: bull setups '
+            'carry a modest, real edge; bear ones only when the tape is weak. <b>A place to look, '
+            'not a buy/sell signal.</b>')
+        + ifx.how_to_read_link()
+        + '<div class="sub" style="margin-bottom:6px">Auto-detected harmonic patterns '
         '(Gartley · Bat · Butterfly · Crab · Deep Crab) on daily bars — <b>CONFIRMED</b> '
         '(point D printed → reversal candidate) and <b>FORMING</b> (X-A-B-C printed, D '
         'projected into a PRZ — caught down the stream). <b>Read by side</b> '
