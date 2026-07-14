@@ -59,6 +59,7 @@ _VALID: dict[str, dict] = {
     "participants": {},                   # "are FIIs buying" — FII net stance inline (S-E Ph2)
     "rotation":     {"symbol": "free"},  # "what phase is X in" — per-symbol RS rotation (S-E Ph2)
     "internals":    {},                   # "how's the breadth" — market internals inline (S-E Ph2)
+    "filings":      {"symbol": "free", "focus": "free"},  # "filings for X" — insider/ratings/SAST/holdings (S150)
     "explain":      {"explain": "slug"},
 }
 
@@ -360,7 +361,21 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, wc)
         return wc
 
-    # (a-1f) Participants — "are FIIs buying / FII flows / who's positioned" — the FII
+    # (a-1f) Filings — "filings for TCS / insider activity in RELIANCE / pledge on INFY /
+    #        credit rating of X / shareholding of Y" — the four Ownership & filings lenses
+    #        bundled per-symbol (S150). ₹0; needs a filings cue AND a symbol, and runs BEFORE
+    #        participants so a per-symbol "FII holding in TCS" is not stolen by the market-wide
+    #        FII stance; a market-wide "insider activity" (no symbol) yields to the parse.
+    try:
+        from src.pat.filings_flow import parse_filings as _parse_filings
+        fil = _parse_filings(query)
+    except Exception:
+        fil = None
+    if fil:
+        _cache_put(q, fil)
+        return fil
+
+    # (a-1g) Participants — "are FIIs buying / FII flows / who's positioned" — the FII
     #        index-futures net stance inline (S-E Phase 2). ₹0; needs an FII/participant
     #        cue, runs after nav so "where do I see FII flows" stays a navigate.
     try:
@@ -372,7 +387,7 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, part)
         return part
 
-    # (a-1g) Rotation — "what phase is TCS in / rotation state of X / is INFY leading" —
+    # (a-1h) Rotation — "what phase is TCS in / rotation state of X / is INFY leading" —
     #        a stock's RS-rotation state inline (S-E Phase 2). ₹0; symbol-anchored (needs a
     #        rotation cue AND a symbol), so market-wide "rotation" stays a navigate and the
     #        RS-leaders board is never stolen.
@@ -385,7 +400,7 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, rot)
         return rot
 
-    # (a-1h) Internals — "how's the breadth / market internals / how many stocks up" —
+    # (a-1i) Internals — "how's the breadth / market internals / how many stocks up" —
     #        the market-breadth snapshot inline (S-E Phase 2). ₹0; needs a breadth cue,
     #        runs after nav so "where do I see breadth" stays a navigate, and yields on an
     #        entity-ranking ask ("which stocks are advancing").

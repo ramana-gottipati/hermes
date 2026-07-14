@@ -1286,6 +1286,124 @@ def _internals_flow(conn) -> str:
     return "".join(out)
 
 
+# ── filings flow (per-symbol ownership & filings, inline) ─────────────────────
+# "filings for TCS / insider activity in RELIANCE / pledge on INFY / credit rating of X /
+# shareholding of Y" (S150). Bundles the four Ownership & filings lenses for ONE symbol —
+# insider (PIT) · credit ratings · SAST stake/pledge · shareholding QoQ — descriptive,
+# recorded regulatory disclosures, never advice.
+
+def _filings_flow(conn, symbol: str = "", focus: str = "all") -> str:
+    from src.pat import filings_flow as _FF
+    from src.pat import rotation_flow as _RF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym or not _RF.is_symbol(conn, sym):
+        out.append(_q_bubble(f"I don't recognise {_esc(sym) or 'that'} as a ticker."))
+        out.append('<div class="empty">Name a stock by its NSE symbol (e.g. "filings for TCS"), '
+                   'or open <a class="row" href="/dash/insider">Insider</a> · '
+                   '<a class="row" href="/dash/ratings">Ratings</a> · '
+                   '<a class="row" href="/dash/sast">Stake · Pledge</a> · '
+                   '<a class="row" href="/dash/shp">Holdings</a>.</div>')
+        return "".join(out)
+    b = _FF.filings_for(conn, sym)
+    out.append(_q_bubble(f"Recorded regulatory filings for {_esc(sym)} — SEBI insider (PIT) "
+                         "disclosures, credit-rating actions, stake/pledge (SAST) moves and the "
+                         "shareholding mix. A record of what was filed, never a buy/sell call."))
+    out.append(f'<div class="ghdr">Filings · {_esc(sym)}</div>')
+    if not _FF.has_any(b):
+        out.append('<div class="empty">No insider, rating, SAST or shareholding disclosures on '
+                   f'record for {_esc(sym)} yet. The market-wide boards are at '
+                   '<a class="row" href="/dash/insider">Insider</a> · '
+                   '<a class="row" href="/dash/ratings">Ratings</a> · '
+                   '<a class="row" href="/dash/sast">Stake · Pledge</a> · '
+                   '<a class="row" href="/dash/shp">Holdings</a>.</div>')
+        return "".join(out)
+
+    def _money(v):
+        try:
+            return f"₹{float(v) / 1e7:,.2f} cr"
+        except (TypeError, ValueError):
+            return "—"
+
+    def _sec_insider():
+        rows = b.get("insider") or []
+        if not rows:
+            return ""
+        li = []
+        for r in rows:
+            val = f" · {_money(r['value_rs'])}" if r.get("value_rs") else ""
+            li.append(f'<div style="font-size:12.5px;margin-top:2px">{_esc(str(r.get("dt") or ""))} · '
+                      f'{_esc(str(r.get("category") or ""))} · <b>{_esc(str(r.get("txn_class") or ""))}</b>'
+                      f' <span style="color:var(--ink-3)">[{_esc(str(r.get("signal") or ""))}]</span>{val}</div>')
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Insider (PIT) '
+                'disclosures</div>' + "".join(li)
+                + '<div style="margin-top:4px"><a class="row" href="/dash/insider">the Insider board →</a></div></div>')
+
+    def _sec_ratings():
+        rows = b.get("ratings") or []
+        if not rows:
+            return ""
+        li = []
+        for r in rows:
+            move = (f'{_esc(str(r.get("prior") or "?"))} → {_esc(str(r.get("rating") or "?"))}')
+            ol = f' · {_esc(str(r.get("outlook")))}' if r.get("outlook") else ""
+            li.append(f'<div style="font-size:12.5px;margin-top:2px">{_esc(str(r.get("dt") or ""))} · '
+                      f'{_esc(str(r.get("agency") or ""))} · <b>{_esc(str(r.get("action") or ""))}</b> · '
+                      f'{move}{ol}</div>')
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Credit-rating '
+                'actions</div>' + "".join(li)
+                + '<div style="margin-top:4px"><a class="row" href="/dash/ratings">the Ratings board →</a></div></div>')
+
+    def _sec_sast():
+        s = b.get("sast")
+        if not s:
+            return ""
+        net = s.get("net_pledge_flow_90d")
+        enc = s.get("latest_encumbered_pct")
+        parts = [f'pledge flow (90d) <b>{net:+.2f}pp</b>' if isinstance(net, (int, float)) else ""]
+        if isinstance(enc, (int, float)):
+            parts.append(f'encumbered <b>{enc:.1f}%</b>')
+        if s.get("stake_acquired_pct_90d") or s.get("stake_sold_pct_90d"):
+            parts.append(f'stake +{s.get("stake_acquired_pct_90d", 0):.2f} / '
+                         f'−{s.get("stake_sold_pct_90d", 0):.2f}pp')
+        if s.get("pledge_invocations_90d"):
+            parts.append(f'<b>{s["pledge_invocations_90d"]} invocation(s)</b>')
+        body = " · ".join(p for p in parts if p)
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Stake · pledge '
+                f'(SAST) — <span style="color:var(--ink-3)">{_esc(str(s.get("sast_signal") or "neutral"))}</span></div>'
+                f'<div style="font-size:12.5px;margin-top:2px">{body}</div>'
+                '<div style="margin-top:4px"><a class="row" href="/dash/sast">the Stake · Pledge board →</a></div></div>')
+
+    def _sec_holdings():
+        h = b.get("holdings")
+        if not h:
+            return ""
+        li = []
+        for r in h.get("rows", []):
+            d = r.get("delta")
+            dtxt = (f' <b>({d:+.2f}pp)</b>' if isinstance(d, (int, float)) else "")
+            li.append(f'<div style="font-size:12.5px;margin-top:2px">{_esc(str(r.get("metric")))}: '
+                      f'{r.get("value"):.2f}%{dtxt}</div>')
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Shareholding mix '
+                f'· as of {_esc(str(h.get("as_of") or ""))}</div>' + "".join(li)
+                + '<div style="margin-top:4px"><a class="row" href="/dash/shp">the Holdings board →</a></div></div>')
+
+    order = {"insider": [_sec_insider, _sec_ratings, _sec_sast, _sec_holdings],
+             "ratings": [_sec_ratings, _sec_insider, _sec_sast, _sec_holdings],
+             "sast": [_sec_sast, _sec_holdings, _sec_insider, _sec_ratings],
+             "shp": [_sec_holdings, _sec_sast, _sec_insider, _sec_ratings]}.get(
+                 focus, [_sec_insider, _sec_ratings, _sec_sast, _sec_holdings])
+    for fn in order:
+        out.append(fn())
+    out.append(f'<div style="margin-top:10px"><a class="row" href="/dash/stock?sym={_u(sym)}">'
+               f'Open {_esc(sym)}\'s full dossier →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'SEBI PIT insider disclosures, agency credit-rating actions, SAST Reg-29/31 stake · '
+               'pledge moves and quarterly shareholding — recorded regulatory filings, descriptive '
+               'only, never a buy/sell signal.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2627,7 +2745,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
-               "internals": "Market breadth",
+               "internals": "Market breadth", "filings": "Filings for a stock",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2816,6 +2934,8 @@ def _free_text(conn, q: str):
             body = _rotation_flow(conn, p.get("symbol", ""))
         elif f == "internals":
             body = _internals_flow(conn)
+        elif f == "filings":
+            body = _filings_flow(conn, p.get("symbol", ""), p.get("focus", "all"))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3118,6 +3238,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "internals":
         body = _internals_flow(conn)                      # market breadth (S-E Ph2)
         fb_ctx = {"query": q, "flow": "internals", "params": {}, "source": "flow"}
+    elif flow == "filings":
+        body = _filings_flow(conn, sym or q, strength or "all")  # per-symbol filings (S150); focus rides `strength`
+        fb_ctx = {"query": q, "flow": "filings", "params": {"symbol": sym or q, "focus": strength or "all"},
+                  "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

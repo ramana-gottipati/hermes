@@ -104,9 +104,13 @@ PAT_DATA: dict[str, str] = {
     "screen2":          "fundamentals",  # Screen+ — the fundamentals screen
     "screener":         "fundamentals",  # the classic fundamentals screen
     "stocks":           "accumulation",  # the DVPT positioning / accumulation-setups board
-    # NOTE: insider/ratings/sast/shp (→filings), wolfe-scan (→wolfe) and strategy-ref
-    # (→methodology) start in NAV_ONLY below and MOVE here the moment their S150 inline flow
-    # lands — the self-maintaining upgrade path this gate exists to make routine.
+    # ── S150 Part 2: per-symbol Ownership & filings — one bundled `filings` flow ──
+    "insider":          "filings",       # per-symbol SEBI PIT / insider deals (S150)
+    "ratings":          "filings",       # per-symbol credit-rating actions (S150)
+    "sast":             "filings",       # per-symbol SAST stake/pledge disclosures (S150)
+    "shp":              "filings",       # per-symbol shareholding QoQ deltas (S150)
+    # NOTE: wolfe-scan (→wolfe) and strategy-ref (→methodology) still sit in NAV_ONLY below
+    # and MOVE here as their S150 flows land — the self-maintaining upgrade path.
 }
 
 
@@ -161,14 +165,6 @@ NAV_ONLY: dict[str, tuple[str, str]] = {
                                       "candidate future open-setups flow (sibling of wolfe)"),
     "wolfe-scan":         ("markets", "Wolfe winner-profile scanner — descriptive-only; S150 binds "
                                       "the open-trades inline flow, which will move this to PAT_DATA"),
-    "insider":            ("strategies", "SEBI PIT insider disclosures — S150 binds a per-symbol "
-                                         "filings flow, which will move this to PAT_DATA"),
-    "ratings":            ("strategies", "credit-rating transitions — S150 binds a per-symbol filings "
-                                         "flow, which will move this to PAT_DATA"),
-    "sast":               ("strategies", "SAST stake/pledge disclosures — S150 binds a per-symbol "
-                                         "filings flow, which will move this to PAT_DATA"),
-    "shp":                ("strategies", "shareholding QoQ deltas — S150 binds a per-symbol filings "
-                                         "flow, which will move this to PAT_DATA"),
     "strategy-ref":       ("trust", "the methodology write-ups — S150 binds a plain-language "
                                     "methodology explain flow, which will move this to PAT_DATA"),
     "themes":             ("screener", "tagged baskets of names — a grouping surface, not a metric; "
