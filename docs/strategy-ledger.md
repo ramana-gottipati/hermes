@@ -390,6 +390,30 @@ pre-registered. Root cause (A/B-exact): `fractal_floor.build()` never charged th
 
 ---
 
+## Study 2026-07-14e — EXIT LAB: ten exit engines on the same reclaim entry (DONE — NO-BETTER-EXIT; the exit law is now measured and monotonic)
+
+Pre-registered `exit_lab` `fd1bdac7` (fit-pick on 2012-18 with an avg-hold≥8 churn guard; OOS
+headline = the picked engine's untouched 2019-26; all ten published). 346,757 legs. Full table in
+`out/exit_lab.json`; module `research/explosive_moves/exit_lab.py`.
+
+- **Winner by fit half: E10 (8% initial stop + 5°-fractal trail) → OOS 0.63.** Fails G-BETTER
+  (needed ≥0.79) and the 0.89 bar. **NO exit engine turns this entry into a book.**
+- **THE LAW (monotonic in looseness):** slow/wide exits cluster at the top — band-only 0.49 full
+  (payoff 3.26, hold 32d) · pct8+trail5 0.49 (11.3% legs >+20%, hold 38d) · frac+trail5 0.47 —
+  while every tightening degrades in order: chand3 0.38 > arm-after-profit 0.24 > tight 2°-trail
+  0.16 > chand2 0.09 > five-candle −0.08 (and 07-14d's two-candle −0.50 extends the sequence).
+- **PROFIT-TAKERS ARE THE WORST IDEA OF ALL:** sell-at-upper-bank = 48.6% hit rate but payoff 1.01
+  → Sharpe −0.06; stretch-p90 take 0.17. All P&L in this family is a thin tail of +20% runners —
+  any rule that trims winners amputates the only paying part. High hit-rate ≠ money.
+- **Note:** E1 here (band-exit ONLY, 0.49) beats the 07-13 naive book (0.37) which ALSO exited on
+  an upper-band slip — removing even that second exit helped. Same law.
+- **Practical recipe recorded (descriptive, for discretionary use — NOT a book):** initial SL = 8%
+  or the nearest 2°-fractal low; thereafter trail ONLY under 5°-fractal (major swing) lows or exit
+  when the stream fails; NEVER sell into strength; never trail on minor structure. Ceiling stands:
+  best exit ≈ 0.63-0.65 OOS < 0.89 buy-and-hold — exits shape losses, they cannot mint edge.
+
+---
+
 ## Study 2026-07-14d — STREAM BAND MANAGED: Ramana's Case-A stop/re-entry stack vs the naive book (DONE — NOT-IMPROVED; the two-candle exit is the killer)
 
 Ramana's dictated trade management (S133): three simultaneous exits (stream stop terminal · fixed
