@@ -10,11 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## 🔒 2026-07-14 late — S-C ITEM 4 (Pat↔web glossary unify): CLAIMED + IN-FLIGHT (S141 lane) — do NOT start it in parallel
-- The dedicated-session pick the S-C queue reserved. Verified open at claim time: `src/pat/glossary.py`
-  still a separate curated dict; web glossary (`src/web/glossary.py` over `docs/metrics-glossary.md`)
-  now **435 terms**; no unification commits on main; Pat files cold (no live lane). Claim-first per the
-  S140 mutual-yield lesson. **Retire this block when item 4 lands** (replace with the ✅ result block).
+## ✅ 2026-07-14 — S141: S-C ITEM 4 — Pat↔web GLOSSARY UNIFIED (D132) — do NOT redo; kickstart-pick-verify
+- **ONE vocabulary now:** `docs/metrics-glossary.md` stays canonical; Pat's curated 52 stay the rich
+  override layer; a defensive import-time adapter (`src/pat/glossary.py _merge_web()`) folds every
+  uncovered md entry into Pat's schema → **199 entries / 29 families** (was 52/8). Adding a term to
+  the md now automatically teaches Pat. Also: 19 genuinely-missing Pat terms back-filled INTO the md
+  (+ a "How to read Patearn (concepts)" section) → web glossary 188→209 entries.
+- **The AUD-40 explain eval is REFLEXIVE and scales with the merge** (390→1251 generated cases) — it
+  forged the adapter's safety rules: speakable-lead terms · sane-alias probes · forbidden-word guard
+  (no adapted slug may equal a word inside a curated probe phrase) · one-explainer-per-phrase.
+  **Final: 1251/1251, battery PASS at baseline parity** (baseline re-run at HEAD in a worktree to
+  attribute every failure first). 8 new contracts in `tests/test_pat_glossary_unify.py`; suite 210.
+- Zero engine/web.py edits — the merge rides get/find/family. **S-E (Pat total coverage) is UNBLOCKED.**
+- The claim-marker convention WORKED: claim pushed first (`20e1d4e`), sibling wraps routed around it.
 
 ## ✅ 2026-07-14 — S140: UX S-D SEARCH & ENTRY SHIPPED (D131) — do NOT redo; kickstart-pick-verify
 - **NEW `src/web/symbol_search.py`** — the ONE name→ticker lookup: ranked `search()` over
@@ -75,7 +83,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → **item 4 is CLAIMED IN-FLIGHT (S141 lane — do NOT parallel it)** → **NEXT free pick: S-B1 IA labels/grouping/cross-links** (or S-B2 route deprecation, or S-G expert affordances). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → ~~item 4~~ **✅ S141 (D132 — the glossary is ONE vocabulary; S-E UNBLOCKED)** → **NEXT free pick: S-E Pat total coverage (2 sessions, the audit's biggest lever — its prerequisite just landed)** or **S-B1 IA labels/grouping/cross-links**. `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.
@@ -395,16 +403,17 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`
 > (§ AT SESSION START), then execute `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom —
-> read the 🔒 S141-claim + ✅ S140 + S138 + S137 + S136 blocks FIRST (all on origin/main; do NOT
+> read the ✅ S141 + S140 + S138 + S137 + S136 blocks FIRST (all on origin/main; do NOT
 > redo — kickstart-pick-verify). **THE QUEUE = the S127 UX-remediation program**
 > (`docs/ux-journey-audit-2026-07-13.md` §8).
-> Done: S-A front door · S-H route gate · **S-C COMPLETE except item 4** (items 1+7 S134 · scaffold
-> S136 · glossary links + nav subtitles S138 · **the education-coverage gate + the full 63/63 sweep
-> S137 — every routed lens scaffolded, deployed, live**) · S-D search/entry S140.
-> **item 4 (Pat↔web glossary unify) is CLAIMED IN-FLIGHT by the S141 lane — do NOT start it in
-> parallel** (verify its block at the top of this file; if it shipped, strike it).
-> **NEXT free pick: S-B1 IA labels/grouping/cross-links** (else S-B2 route deprecation + POST-ify
-> GETs, or S-G expert affordances). Ramana may paste a problem statement; if none, take the audit
+> Done: S-A front door · S-H route gate · **S-C COMPLETE** (items 1+7 S134 · scaffold S136 ·
+> glossary links + nav subtitles S138 · **the education-coverage gate + the full 63/63 sweep
+> S137** · **item 4 glossary-unify S141/D132 — ONE vocabulary, Pat=199 entries**) ·
+> S-D search/entry S140.
+> **NEXT free pick: S-E Pat total coverage** (2 sessions, the audit's biggest lever — its
+> prerequisite D132 just landed; Pat can now EXPLAIN every term, S-E makes it REACH every lens's
+> data) **or S-B1 IA labels/grouping/cross-links** (else S-B2 route deprecation + POST-ify GETs,
+> or S-G expert affordances). Ramana may paste a problem statement; if none, take the audit
 > §8 brief autonomously.
 > **Reuse, don't rebuild:** `infographics.fence(kind)` for any fence (add a kind, never hand-write);
 > `readability_css/bottom_line/plain/how_to_read_link` for education (dashboard-served pages go

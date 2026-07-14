@@ -956,8 +956,11 @@ def find(query: str, limit: int = 5) -> list[tuple[str, dict]]:
     words = [w for w in q.replace("?", " ").split() if w]
     scored: list[tuple[int, str, dict]] = []
     for slug, e in GLOSSARY.items():
+        # the family LABEL is part of the haystack so a lens/section word alone
+        # ("wolfe", "seasonality") surfaces that section's terms (S-C item 4).
         hay = " ".join(
-            [slug, e["term"], e["plain"], e["detail"], " ".join(e.get("aliases", []))]
+            [slug, e["term"], e["plain"], e["detail"], " ".join(e.get("aliases", [])),
+             FAMILIES.get(e["family"], "")]
         ).lower()
         score = 0
         if q in hay:
@@ -977,3 +980,151 @@ def find(query: str, limit: int = 5) -> list[tuple[str, dict]]:
             scored.append((score, slug, e))
     scored.sort(key=lambda t: t[0], reverse=True)
     return [(slug, e) for _, slug, e in scored[:limit]]
+
+
+# ── S-C item 4 (UX audit §8): ONE vocabulary — the site glossary folded in ─────────
+# docs/metrics-glossary.md (served at /dash/glossary, parsed by src.web.glossary) is
+# the CANONICAL definition source. Every md entry that no curated entry above already
+# covers is ADAPTED into Pat's schema at import, so the explain flow, find() and the
+# family tab cover the whole estate (the ~52 curated + ~160 adapted). Rules:
+#   · curated entries always WIN — the adapter never overwrites a slug, and an adapted
+#     alias never shadows an existing slug/alias hook (first definition wins);
+#   · md sections that correspond to a curated family fold into it (_WEB_FAMILY_MAP);
+#     genuinely new territory (Tracking, F&O OI, Insider, Seasonality…) becomes a new
+#     family appended to FAMILIES, labelled with the md section heading;
+#   · defensive — if the md / parser is unavailable, Pat degrades to the curated set.
+# Engine safety: glossary term/alias matching is engine.py's LAST-RESORT branch, so
+# screen/flow queries still win over any newly-adapted alias (AUD-40 battery guards it).
+
+_WEB_FAMILY_MAP: list[tuple[str, str]] = [   # md section PREFIX -> curated family
+    ("Positioning", "positioning"),
+    ("MEP", "character"),
+    ("Relative Strength", "rs"),
+    ("RS depth", "rs"),
+    ("RS Band", "rs"),
+    ("RS Rotation", "rs"),
+    ("Quality", "quality"),
+    ("Capital allocation", "quality"),
+    ("CPR", "structure"),
+    ("CCI", "credibility"),
+    ("Growth-intent", "credibility"),
+    ("Price / context", "basics"),
+    ("How to read Patearn", "concepts"),
+]
+
+
+def _web_family(section: str) -> str:
+    """Map an md section heading onto a curated family, else mint a new family key
+    (appended to FAMILIES with the heading as its label)."""
+    for prefix, fam in _WEB_FAMILY_MAP:
+        if section.startswith(prefix):
+            return fam
+    import re as _re
+    key = _re.sub(r"[^a-z0-9]+", "_", section.lower()).strip("_")[:40] or "site"
+    if key not in FAMILIES:
+        FAMILIES[key] = section
+    return key
+
+
+def _merge_web() -> int:
+    """Fold the site glossary into GLOSSARY (idempotent; returns entries added)."""
+    try:
+        from src.web import glossary as _WG
+        _WG._load()
+        entries, index = _WG._ENTRIES, _WG._INDEX
+    except Exception:
+        return 0                                   # md absent → curated-only Pat
+    if not entries:
+        return 0
+
+    import re as _re
+
+    def _n(s: str) -> str:                         # the web parser's normalization
+        return _re.sub(r"\s+", " ", str(s)).strip().strip(".·").strip().lower()
+
+    # every hook the curated layer already answers to
+    taken: set[str] = set()
+    for slug, e in GLOSSARY.items():
+        taken.add(_n(slug))
+        taken.add(_n(e["term"]))
+        taken.add(_n(_re.sub(r"\([^)]*\)", "", e["term"])))
+        for a in e.get("aliases", []):
+            taken.add(_n(a))
+
+    # invert the web index: entry idx -> all its lookup keys
+    keys_of: dict[int, list[str]] = {}
+    for k, idx in index.items():
+        keys_of.setdefault(idx, []).append(k)
+
+    # a probe-able alias: something a person would actually type (the AUD-40 explain
+    # eval probes each entry's paren-stripped term + first aliases — exotic md keys
+    # and parenthetical variants must not leak into the probe set)
+    def _sane(a: str) -> bool:
+        return bool(a) and len(a) <= 40 and not any(c in a for c in "/—–·*()+")
+
+    # every single WORD a curated probe phrase contains — an adapted slug/alias must
+    # never equal one, or engine.py's word-candidate scan would hijack the curated
+    # probe ("ratio" as an adapted slug stole mep_compression's "… ATR ratio").
+    forbidden: set[str] = set()
+    for slug, e in GLOSSARY.items():
+        phrases = [e["term"]] + list(e.get("aliases", []))
+        for p in phrases:
+            for w in _re.sub(r"[^a-z0-9 ]", " ", _n(_re.sub(r"\([^)]*\)", " ", p))).split():
+                forbidden.add(w)
+
+    added = 0
+    for idx, entry in enumerate(entries):
+        if len(entry["body"]) < 20:
+            continue                               # a structural lead-in ("Honest caveats:"),
+                                                   # not a definition — nothing to explain
+        keys = keys_of.get(idx, [])
+        if any(k in taken for k in keys):
+            continue                               # a curated entry covers this one
+        # the speakable LEAD of the name: drop parentheticals/symbols, cut any dash/
+        # slash/plus tail ("C tier — Excellent / Good / …" → "C tier") — md names carry
+        # enumeration tails nobody would ever type at Pat.
+        lead = _re.sub(r"\([^)]*\)", " ", entry["name"])
+        lead = _re.split(r"\s*[—–+/]\s*|\s-\s", lead)[0]
+        lead = _re.sub(r"[^\w %×Δ&-]", " ", lead)
+        lead = _re.sub(r"\s+", " ", lead).strip().strip(".-")
+        if len(lead) < 3:
+            # a pure-symbol name ("★ (triple-confirm flag)") — the speakable term
+            # is the parenthetical itself
+            m = _re.search(r"\(([^)]{3,})\)", entry["name"])
+            lead = _re.sub(r"\s+", " ", m.group(1)).strip().strip(".-") if m else ""
+        probe = _n(lead)
+        slug = _re.sub(r"[^a-z0-9]+", "_", probe)[:60].strip("_")
+        if len(slug) < 3 or slug in GLOSSARY or slug in taken or probe in taken:
+            continue                               # a curated entry (or an earlier md
+                                                   # bullet) already answers to this term —
+                                                   # ONE explainer per phrase, skip the twin
+        if "_" not in slug and slug in forbidden:
+            continue                               # a bare word a curated probe contains —
+                                                   # adopting it would hijack that probe
+        body = entry["body"]
+        first = body.split(". ", 1)[0].rstrip(".") + "."
+        srcs = entry.get("sources") or []
+        aliases = [k for k in keys
+                   if _sane(k) and k != slug and k not in taken
+                   and (" " in k or k not in forbidden)]
+        GLOSSARY[slug] = {
+            "term": lead,
+            "family": _web_family(entry["family"]),
+            "unit": "—",
+            "source": ", ".join(srcs) if srcs else "docs/metrics-glossary.md (/dash/glossary)",
+            "plain": first if len(first) <= 220 else first[:217] + "…",
+            "detail": body,
+            "aliases": aliases[:8],
+            "related": [],
+        }
+        taken.add(slug)
+        taken.add(probe)
+        taken.update(keys)
+        added += 1
+    return added
+
+
+try:                                               # never let the merge break Pat
+    _MERGED_FROM_WEB = _merge_web()
+except Exception:                                  # pragma: no cover
+    _MERGED_FROM_WEB = 0

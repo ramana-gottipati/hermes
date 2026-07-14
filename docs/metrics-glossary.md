@@ -26,12 +26,19 @@
 - **Price band.** The exchange-set daily move limit (±2/5/10/20%, or none for F&O names). Band CHANGES are recorded as events — a tightening band is itself surveillance context, and close-at-band streaks ("band-locks") are a queue-imbalance tell. *Source:* `price_bands_current`, `price_band_events`.
 - **Acceptance ratio (buyback tender).** Shares a company accepts ÷ shares you tendered, published by the company with the offer results. In the **small-shareholder category** it is structurally higher because SEBI reserves **15% of every tender buyback** for holders ≤ ₹2,00,000 by record-date value. On the calculator this ratio is **your assumption** — realized ratios are not in our data and we refuse to fabricate a prior. *Source:* user input on `/dash/buyback-calc`.
 - **Small-shareholder category (₹2L cap).** The SEBI buyback reservation class: holdings ≤ ₹2,00,000 by market value **on the record date**. The cap is the moat — no large pocket can crowd the reservation, which is why the anomaly persists (charter §2.4, personal-scale only). *Source:* SEBI Buyback Regulations; `/dash/buyback-calc`.
+- **All-time-high DVPT (⚡).** A flag: today's delivery-value-per-trade beats every day in the stock's entire recorded history — its loudest to-keep footprint ever. The top sort key on the scan, because an ATH-DVPT day is often the day a new strong hand declares itself. *Source:* `is_ath_dvpt`.
+- **Near-break pointer (next P-wall / gap).** The smallest power baseline today did NOT clear, and how far under it the day sat (negative = below). Within about −10% of the wall with `r_score` already ≥4 = "kissing the wall" — the breakout-imminent read. *Source:* `next_p_above`, `gap_to_next_p_pct`.
+- **Institutional price zones.** For every R and P baseline, the average CLOSE on the days that fed it — not just how intense the activity was but at what price it sat, a 1m→12m ladder of zones. Companion to Key price (which is value-weighted, power-days-only). *Source:* `avg_close_r*`, `avg_close_p*`.
+- **Today's ticket (avg qty per trade).** How chunky today's trades were: average shares per trade, and average DELIVERED shares per trade. Rising alongside rising delivery value = fewer, bigger buyers stepping in. (Distinct from the 1m-vs-6m **Ticket ratio** above.) *Source:* `avg_trade_qty`, `avg_deliv_qty_per_trade`.
+- **WHICH-WAY (delivery direction skew).** Delivery is side-blind, so this is the closest it gets to a side: the value-weighted skew of delivery toward up-days vs down-days (on adjusted closes) plus the price drift over the same window. More on up-days = absorbed on strength (leans accumulation). One of the Character axes. *Source:* `deliv_updown_ratio_3m`, `accum_price_drift_3m`.
 
 ## Relative Strength
 
 - **RS rank (1–99).** The stock's relative-strength percentile vs the broad universe; higher = stronger. *Source:* `rs_rank`.
 - **RS vs broad / sector.** Price ratio of the stock vs **Nifty 500** (broad) and vs its **sector index**, each with a trend-state + slope per 1/3/6/12m. *Source:* `rs_vs_broad_*`, `rs_vs_sector_*`.
 - **RS heat strip.** 4 cells (1m/3m/6m/12m) of the RS slope — ▲ outperforming · ▬ flat · ▼ lagging.
+- **Primary sector.** The narrowest NSE sectoral index the stock belongs to (smallest membership; size/broad indices excluded) — its tightest real peer group; null when it sits in none. What sector-RS and the leaders/laggards boards group by. *Source:* `primary_sector`.
+- **Leaders & laggards (strong-in-strong).** A synthesis, not a column: leaders rank high on BOTH market and sector RS while their sector itself trends up; laggards are the mirror. The "where is the market actually putting its money" board. *Computed on read* from `rs_rank` + sector trend + RS trend-state.
 
 ## Quality — pt14 (the 14-pattern durability screen, rule-based, no LLM)
 
@@ -43,6 +50,7 @@
   - **T2** = ns_base ≥ 55 · **T3** = ns_base ≥ 40 · **T4** = ns_base < 40 (weakest)
   - **DISQUALIFIED** = hard-fail (e.g. red-flag pattern).
   - So **"Tier 4" = a weak score (<40/100)** on the durability screen. *Source:* `tier`.
+- **Fundamentals snapshot.** The cached fundamental set behind pt14 and the fundamentals screens: valuation (PE/PB/dividend yield), returns (ROCE/ROE + 3y averages), growth (sales/profit 5y/3y/TTM), margins (OPM), balance sheet (D/E, cash, interest cover) and ownership (promoter holding & pledge, FII/DII). A Screener-era legacy feed being migrated to primary NSE/BSE XBRL filings — valuation ratios can lag the latest results until XBRL covers them. *Source:* `fundamentals` table.
 
 ## Capital allocation — C (what management did with incremental capital)
 
@@ -64,6 +72,12 @@
 - **CMP · Δ%D · Deliv%** — current price · day change % · delivery %.
 - **52w%** — % below the 52-week high (`pct_from_52w_high`); near 0 = near highs.
 - **Δhot%** — close vs the hot-day average price (`price_vs_hot_avg_pct`); negative = discount to where the action happened.
+- **Close (raw vs adjusted).** The session's last traded price as printed — NOT split/bonus-adjusted. Every cross-time comparison on this site uses the ADJUSTED close instead, so a 1:1 bonus doesn't read as a 50% crash. *Source:* `close` (raw), `adj_close` (adjusted).
+- **Average price (VWAP).** NSE's daily volume-weighted average price — the honest "where it actually changed hands", weighting every trade by size instead of taking the last tick. Feeds the value-weighted cost lines. *Source:* `avg_price`.
+- **Delivery quantity.** Of all shares traded, the number taken to demat (bought to keep) rather than squared off intraday — the footprint of buying for keeps. Cross-time reads always use delivery VALUE, not this raw count (see "Value, not quantity" under Concepts). *Source:* `deliv_qty`.
+- **Delivery %.** Delivered quantity as a share of traded quantity — the day's conviction. A move on high delivery % carries more weight than the same move on intraday churn. *Source:* `deliv_per`.
+- **Traded value (turnover).** Total rupees that changed hands — every trade, delivered or not. Distinct from delivery value (the part that stuck). *Source:* `value`.
+- **Number of trades.** How many separate trades printed — the "how many hands" read, and the denominator of DVPT. The same delivery value across many small trades (broadening retail) reads very differently from a few large ones (concentrated). *Source:* `num_trades`.
 
 ## CPR — Structure (the 4th pillar, D53)
 
@@ -176,6 +190,8 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Credibility composite (0–100) + tier (A+/A/B/C/D).** The blended measurable score (track record + quantification, penalised for recent disclosure deterioration; capped without a settled track record or when a forensic veto is active). Bands: **A+ ≥80 · A ≥70 · B ≥55 · C ≥40 · D <40.** *Source:* `composite_score`, `tier`.
 - **Credibility level / momentum (point-in-time).** The composite recomputed *as of each past concall using only what was knowable then*, plus its change vs the prior period. **Rising = trust being earned; falling = eroding.** *Source:* `level`, `momentum`.
 - **Credibility tape — EARNING_TRUST / DETERIORATION.** A flagged series event: **EARNING_TRUST** when promises are met / the level jumps; **DETERIORATION** when disclosure flags appear or the level drops. *Source:* `tape`.
+- **Credibility deterioration (avoid tape).** Objective story-decay flags from a deterministic diff of consecutive transcripts: a quantified target LOWERED (a guidance walk-back), a prior promise not reaffirmed (quietly dropped), or a metric that vanished (stopped disclosing). These CAN move the rank — unlike the soft LLM red-flags, which only inform. *Source:* `deterioration_score` (from `concall_redflags`).
+- **Forensic veto (⛔).** An integrity gate IN FRONT of credibility: promoter pledge ≥20%, an auditor resignation/qualification, or a pt14 hard disqualifier forces tier D no matter how good the call sounded — glib frauds run smooth, confident calls right up to collapse. Cash-flow/leverage vetoes are suppressed for lenders and heavy-capex cyclicals (structural, not fraud). *Source:* `veto_active`.
 
 ## Capital allocation — ROIIC quality (Dataset C)
 
@@ -360,6 +376,12 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Stretch percentile** — today's stretch ranked against the SAME stock's own trailing ~3 years (per-stock, in percent, never an absolute threshold — small-caps naturally stretch wider than large-caps). p90+ = unusually extended for *this* name; p10− = unusually depressed. *Source:* `stretch_pctile` (table `reversal_context`).
 - **Floor gap** — distance above the latest CONFIRMED 10-bar (fallback 5-bar) down-fractal low, with the floor's age; "✗ broken" once a close prints below it. A degree-N fractal is only knowable N bars later — no look-ahead. Useful as a **risk / invalidation level** (how far above well-defined support you sit), not as a bounce predictor (the breakout entry tested inert). *Source:* `floor_gap_pct`, `floor_age`, `floor_alive` (table `reversal_context`).
 - **Ceiling gap** — the bearish mirror: distance below the latest CONFIRMED 10-bar (fallback 5-bar) up-fractal high (negative = under it), with its age; "↑ cleared" once a close prints above it. Same confirmation lag, same role: a **known overhead-resistance level** for context, never a short signal. *Source:* `ceil_gap_pct`, `ceil_age`, `ceil_alive` (table `reversal_context`).
+
+## How to read Patearn (concepts)
+
+- **The four pillars.** Patearn reads a stock through four independent lenses — POSITIONING (DVPT: is a strong hand active?), RELATIVE STRENGTH (is the market voting for it?), QUALITY (pt14: is the business any good?) and STRUCTURE (CPR: is the chart set up?). No single pillar is a verdict; conviction is several lining up on the same name. *Concept slug:* `pillars`.
+- **Value, not quantity.** Share counts break across corporate actions (a 1:1 bonus doubles quantity overnight with no new money in), so every cross-time metric here is in RUPEES — delivery value, not share count. It makes the numbers corporate-action-invariant: a "record delivery day" is record MONEY, not a split artefact. *Concept slug:* `value_not_quantity`.
+- **Financials & the pt14 score.** The automated pt14 score applies the same non-financial thresholds to banks/NBFCs, so their scores read misleadingly LOW (leverage is 6–8× by design there; D/E >2 even trips a hard disqualifier). Reading ROE/ROA, NII growth, GNPA, CAR instead is a MANUAL Phase-4 judgement — treat a financial's pt14 tier as a weak signal and lean on credibility (CCI) + fundamentals + human judgement. *Concept slug:* `financials_adaptation`.
 
 ---
 
