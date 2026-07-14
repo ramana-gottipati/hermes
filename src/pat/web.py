@@ -1463,6 +1463,55 @@ def _wolfe_flow(conn, symbol: str = "") -> str:
     return "".join(out)
 
 
+# ── seasonal per-symbol flow (calendar base rate for one name, inline) ────────
+# "is TCS usually up in July / does INFY tend to rise in March" (S150). The name's own
+# calendar-month base rate from seasonal_cells (scope='stock') — descriptive history,
+# never a forecast (expectancy ~ 0 net of costs).
+
+def _seasonal_stock_flow(conn, symbol: str = "", month: int = 0) -> str:
+    from src.pat import seasonal_flow as _SF
+    from src.pat import rotation_flow as _RF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym or not _RF.is_symbol(conn, sym):
+        out.append(_q_bubble(f"I don't recognise {_esc(sym) or 'that'} as a ticker."))
+        out.append('<div class="empty">Name a stock (e.g. "is TCS usually up in July"), or open '
+                   'the <a class="row" href="/dash/seasonal-tape">Seasonal tape</a>.</div>')
+        return "".join(out)
+    try:
+        m = int(month)
+    except (TypeError, ValueError):
+        m = 0
+    cell = _SF.stock_month(conn, sym, m)
+    if not cell:
+        out.append(_q_bubble(f"I don't have a certified monthly base rate for {_esc(sym)} yet."))
+        out.append('<div class="empty">Not every name clears the seasonal coverage bar. See the '
+                   f'<a class="row" href="/dash/seasonal-tape">Seasonal tape</a> for {_esc(sym)}, or '
+                   'the <a class="row" href="/dash/seasonal-screen">This-month screen</a>.</div>')
+        return "".join(out)
+    hr = cell["hit_rate"]
+    ny = cell["n_years"]
+    k = cell["k"]
+    lean = "up" if (isinstance(cell.get("z"), (int, float)) and cell["z"] > 0) else "down"
+    out.append(_q_bubble(f"How {_esc(sym)} has behaved in {_esc(cell['month_label'])} across the "
+                         "years — a descriptive calendar base rate, never a forecast."))
+    out.append(f'<div class="ghdr">Seasonal base rate · {_esc(sym)} · {_esc(cell["month_label"])}</div>')
+    out.append('<div class="card" style="line-height:1.7">'
+               f'<div style="font-size:15px"><b>{_esc(sym)} finished {_esc(cell["month_label"])} '
+               f'higher in {int(k)} of {int(ny)} years</b> — a {hr * 100:.0f}% hit rate</div>'
+               f'<div style="color:var(--ink-3);font-size:12.5px;margin-top:3px">'
+               f'Historical lean: {lean} · {int(ny)} years of history</div>'
+               '</div>')
+    out.append(f'<div style="margin-top:10px"><a class="row" href="/dash/seasonal-tape">'
+               f'Open the Seasonal tape for {_esc(sym)} →</a> &nbsp; '
+               '<a class="row" href="/dash/seasonal-screen">the This-month screen →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'The share of past years this name finished the calendar month higher — a descriptive '
+               'base rate (idiosyncratic residual, PIT), never a forecast or a trade; expectancy is '
+               '~0 net of costs.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2805,7 +2854,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
                "internals": "Market breadth", "filings": "Filings for a stock",
-               "wolfe": "Open Wolfe setups",
+               "wolfe": "Open Wolfe setups", "seasonal_stock": "Seasonal base rate (one name)",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2998,6 +3047,8 @@ def _free_text(conn, q: str):
             body = _filings_flow(conn, p.get("symbol", ""), p.get("focus", "all"))
         elif f == "wolfe":
             body = _wolfe_flow(conn, p.get("symbol", ""))
+        elif f == "seasonal_stock":
+            body = _seasonal_stock_flow(conn, p.get("symbol", ""), p.get("month", 0))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3307,6 +3358,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "wolfe":
         body = _wolfe_flow(conn, sym)                     # open Wolfe setups (S150); optional symbol rides `sym`
         fb_ctx = {"query": q, "flow": "wolfe", "params": {"symbol": sym}, "source": "flow"}
+    elif flow == "seasonal_stock":
+        body = _seasonal_stock_flow(conn, sym or q, entry)  # per-symbol seasonal (S150); month rides `entry`
+        fb_ctx = {"query": q, "flow": "seasonal_stock", "params": {"symbol": sym or q, "month": entry},
+                  "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

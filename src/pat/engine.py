@@ -53,6 +53,7 @@ _VALID: dict[str, dict] = {
     "trend":        {"sym": "free"},    # credibility time-series for one name
     "seasonal":     {"period": {"this-month", "next-month", "this-week", "next-week"},
                      "direction": {"bullish", "bearish"}},  # calendar base-rate ranking
+    "seasonal_stock": {"symbol": "free", "month": "int"},  # "is TCS usually up in July" — per-symbol base rate (S150)
     "navigate":     {"topic": "free"},  # "where do I see X" — page-finder over lens_registry (S-E)
     "news":         {"symbol": "free"},  # "TCS news / latest headlines" — inline headlines (S-E Ph2)
     "whatchanged":  {"symbol": "free"},  # "what changed today / for X" — the bus rail inline (S-E Ph2)
@@ -295,6 +296,19 @@ def route(query: str, conn=None) -> dict | None:
     hit, cached = _cache_get(q)
     if hit:
         return cached
+
+    # (a-0) Seasonal per-symbol base rate — "is TCS usually up in July / does INFY tend to rise
+    #       in March / TCS seasonality this month" (S150). Symbol-anchored, so it runs BEFORE the
+    #       market-wide ranking (a name'd ask must not be read as a leaderboard). Descriptive
+    #       calendar base-rate, never a forecast. Deterministic ₹0; yields when no symbol.
+    try:
+        from src.pat.seasonal_flow import parse_seasonal_symbol as _parse_seas_sym
+        seas_sym = _parse_seas_sym(query)
+    except Exception:
+        seas_sym = None
+    if seas_sym:
+        _cache_put(q, seas_sym)
+        return seas_sym
 
     # (a-1) Seasonal ranking — "top-ranked / historically-bearish stocks for this|next
     #       month|week" — recognized FIRST (before the prediction guardrail): a calendar

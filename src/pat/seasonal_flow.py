@@ -63,6 +63,87 @@ def parse_seasonal(query: str) -> dict | None:
     return {"flow": "seasonal", "params": {"period": period, "direction": direction}}
 
 
+# ── per-symbol seasonal base rate (S150): "is TCS usually up in July" ──────────────────
+_MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "jul": 7,
+           "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+_MONTH_NAME_RE = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b")
+_SEAS_SYM_RE = re.compile(r"\b(season|seasonal|seasonality|usually|typically|historically|"
+                          r"tend to|tends to|on average|base[- ]?rate|most years|every year)\b")
+_UPDOWN_RE = re.compile(r"\b(up|down|rise|rises?|fall|falls?|gain|gains?|green|red|positive|"
+                        r"negative|strong|weak|higher|lower)\b")
+_S_ON_RE = re.compile(r"\b(?:is|for|of|does|do|has|how does)\s+([A-Za-z][A-Za-z0-9&.\-]{1,14})\b")
+_S_CAPS_RE = re.compile(r"\b([A-Z][A-Z0-9&.\-]{1,14})\b")
+_S_NOT_TICKER = {"WHAT", "ANY", "THE", "IS", "IN", "ON", "OF", "DOES", "DO", "HAS", "HOW",
+                 "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT",
+                 "NOV", "DEC", "USUALLY", "SEASONAL", "SEASONALITY"}
+
+
+def _seas_symbol(query: str) -> str:
+    q = re.sub(r"\s+", " ", (query or "").strip())
+    m = _S_ON_RE.search(q)
+    if m and m.group(1).upper() not in _S_NOT_TICKER:
+        return m.group(1).upper()
+    caps = [t for t in _S_CAPS_RE.findall(q) if t.upper() not in _S_NOT_TICKER]
+    return caps[0].upper() if len(caps) == 1 else ""
+
+
+def parse_seasonal_symbol(query: str) -> dict | None:
+    """"is TCS usually up in July / does INFY tend to rise in March / TCS seasonality this month"
+    -> {flow:"seasonal_stock", params:{symbol, month}} | None. Symbol-anchored + needs a seasonal
+    cue (or up/down + a month). month = 1..12 (named/this/next), 0 = "this month" resolved at read.
+    Runs BEFORE the market-wide ranking so a symbol'd ask is not read as a leaderboard."""
+    q = (query or "").strip()
+    if not q:
+        return None
+    ql = q.lower()
+    mname = _MONTH_NAME_RE.search(ql)
+    this_next = re.search(r"\b(this|next|current)\s+month\b", ql)
+    has_month = bool(mname or this_next)
+    seasonal_cue = bool(_SEAS_SYM_RE.search(ql))
+    # fire on: a seasonal cue, OR an up/down word WITH an explicit month (a base-rate ask)
+    if not (seasonal_cue or (has_month and _UPDOWN_RE.search(ql))):
+        return None
+    sym = _seas_symbol(q)
+    if not sym:
+        return None
+    if mname:
+        month = _MONTHS[mname.group(1)]
+    elif this_next and this_next.group(1) == "next":
+        month = -1                                    # "next month" → resolved at read
+    else:
+        month = 0                                     # "this month" / unspecified → resolved at read
+    return {"flow": "seasonal_stock", "params": {"symbol": sym, "month": month}}
+
+
+def stock_month(conn, symbol: str, month: int, today: date | None = None) -> dict | None:
+    """One symbol's calendar-month base rate from seasonal_cells (scope='stock', axis='month').
+    Returns {symbol, month, month_label, hit_rate, n_years, z, k} or None on a gap. Read-only."""
+    if conn is None or not symbol:
+        return None
+    today = today or date.today()
+    if month in (0, None):
+        month = today.month
+    elif month == -1:
+        month = today.month % 12 + 1
+    try:
+        r = conn.execute(
+            "SELECT script_z, n_years, hit_rate FROM seasonal_cells "
+            "WHERE scope='stock' AND axis='month' AND cell=? AND entity=?",
+            (int(month), symbol.strip().upper())).fetchone()
+    except Exception:
+        return None
+    if not r:
+        return None
+    z = r["script_z"] if hasattr(r, "keys") else r[0]
+    ny = (r["n_years"] if hasattr(r, "keys") else r[1]) or 0
+    hr = r["hit_rate"] if hasattr(r, "keys") else r[2]
+    if hr is None or ny < 1:
+        return None
+    return {"symbol": symbol.strip().upper(), "month": month,
+            "month_label": _MONTH_ABBR.get(month, str(month)),
+            "hit_rate": hr, "n_years": ny, "z": z, "k": round(hr * ny)}
+
+
 def cell_for_period(period: str, today: date | None = None) -> tuple[str, int]:
     """(axis, cell) for a period label — computed at render time (never cached) so
     "this month" is always the live month. Week uses the ISO week number."""
@@ -163,6 +244,18 @@ def _selftest() -> int:
     assert [r["entity"] for r in bull] == ["AAA", "BBB"], [r["entity"] for r in bull]
     bear = rank(con, "month", 7, "bearish", top_n=5)
     assert set(r["entity"] for r in bear) == {"CCC", "EEE"}, [r["entity"] for r in bear]
+    # ── per-symbol base rate (S150) ──
+    assert parse_seasonal_symbol("is TCS usually up in July")["params"] == {"symbol": "TCS", "month": 7}
+    assert parse_seasonal_symbol("does INFY tend to rise in March")["params"]["month"] == 3
+    assert parse_seasonal_symbol("TCS seasonality this month")["params"]["month"] == 0
+    assert parse_seasonal_symbol("is WIPRO usually down next month")["params"]["month"] == -1
+    assert parse_seasonal_symbol("top stocks this month") is None, "no symbol → market-wide ranking"
+    assert parse_seasonal_symbol("is TCS up today") is None, "no month/seasonal cue"
+    assert parse_seasonal_symbol("TCS news") is None
+    sc = stock_month(con, "AAA", 7)
+    assert sc and sc["hit_rate"] == 1.0 and sc["n_years"] == 19 and sc["month_label"] == "Jul", sc
+    assert stock_month(con, "AAA", 0, today=date(2026, 7, 1))["month"] == 7   # "this month"
+    assert stock_month(con, "NOSUCH", 7) is None and stock_month(None, "AAA", 7) is None
     con.close()
     os.remove(tmp)
     print("seasonal_flow selftest OK — recognition (period/direction/movers-yield) + cell math "
