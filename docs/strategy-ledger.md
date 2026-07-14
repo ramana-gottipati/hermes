@@ -390,6 +390,35 @@ pre-registered. Root cause (A/B-exact): `fractal_floor.build()` never charged th
 
 ---
 
+## Study 2026-07-14c — RECLAIM SELECTION: can validated factors pick the launchers? (DONE — true-OOS FAIL-null; the reversal arc is now closed at the SELECTION level too)
+
+The last open thread of the reversal-pair arc (the 66d right-skew). Pre-registered + hash-frozen
+BEFORE run (prereg `reclaim_selection` `38c6e615`); module `research/explosive_moves/
+reclaim_selection.py`; JSON `out/reclaim_selection.json`. Events = the LIVE Screen+ pill applied
+historically: floor-intact BUY-reclaims, n=**16,093** (5,301 fit / 10,792 OOS). Protocol = Wolfe-style
+fit→freeze→test: rule derived ONLY on 2012-18 (8 candidate features, tercile gaps, sub-period
+sign-consistency), numeric cutoffs frozen, tested untouched on 2019-26.
+
+- **Frozen rule (top-2 by fit gap):** vol66 BOTTOM tercile (daily vol ≤ 0.0211) AND deliv_rel TOP
+  tercile (delivery% > 1.043× own 252d median) — i.e. "calm + genuinely delivered" reclaims. Fit
+  table published in the JSON; notable stable fits: HIGH prior momentum into a reclaim is WORSE
+  (mom6 top-tercile med −2.05% vs bottom −0.68%) and HIGH vol worst (−2.44 vs −0.63) — falling-knife
+  anatomy; delivery-above-norm the only consistently favorable tell (+1.57% gap, both sub-periods).
+- **OOS verdict: FAIL-null (G2/G3/G4).** Selected n=1,483: med 22d excess **−0.46%** (still negative)
+  vs unselected **−1.36%** and baseline −1.17%; δ(sel, unsel) **+0.050** (needed +0.10);
+  **δ(sel, placebo) +0.004 ≈ ZERO** — the selected subset merely matches random same-stock days
+  (placebo med −0.52). The overlay STOPS the bleeding; it never creates edge. Best cut >₹25cr:
+  med −0.13%, pos 49.3% — a coin flip, not a signal. 66d selected med −1.54% (skew NOT captured).
+- **ARC CONCLUSION (final): the reversal family is falsified at EVERY level — timing (07-13),
+  confirmation craft (07-14), risk-geometry book at true cost (07-14b), and now ex-ante SELECTION
+  (07-14c). The right tail exists but is not identifiable in advance from price/volume features.**
+  Surviving product = the descriptive context columns + the two watch pills, as shipped. The one
+  reusable descriptive nugget: among knife-bounces, LOW-vol + above-own-norm-DELIVERY names are
+  consistently *less bad* (in-sample and directionally OOS) — context for triage, never a rank.
+  Any future reversal proposal must cite 07-13/14/14b/**14c** — all four.
+
+---
+
 ## Experiment 2026-06-24 — relative gate + PIT quality overlay (DONE)
 
 Ran `research/explosive_moves/overlay_experiment.py` (top-25 monthly, walk-forward, no look-ahead;

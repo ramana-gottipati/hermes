@@ -321,6 +321,15 @@ remediation), state:skip on the src commits (PROJECT_STATE.md sibling-hot):
   NSE financial-index membership. Live mis-rating confirmed (HDFCBANK/ICICIBANK/BAJFINANCE all T4).
 - **D3-F1 interim LABEL** (`3dcf73f`) — `scoring.py` now flags financials (`sector_model_pending` +
   Telegram advisory) via the primary-source detector; non-suppressing. `tests/test_scoring_financial_label.py`.
+- **D2-F1 rank survivorship (= AUD-12)** — `stock_rs.py` `_LIQUID_FILTER`: the current-snapshot
+  `nse_equity_list` gate → PIT `security_master` membership (first_date≤D≤last_date, delisted KEPT;
+  instrument_class='FUND' excludes ETFs), OR-fallback to nse_equity_list for live names not yet in the
+  master. VPS-quantified: the leak restored **+128 delisted names to the 2016-06-01 universe (419→547)**,
+  **today unchanged (1336→1336)**. `tests/test_stock_rs_survivorship.py`. ⚠ Activation = VPS
+  `stock_rs --backfill` rank re-run (rewrites rs_rank across history; nightly per-date path unchanged).
+  **Sector half = DISCLOSED, not fixed** — `stock_index_membership` has no pre-2026-06 snapshots (19
+  total, all within 1 month), so historical sector RS cannot be made PIT; the limitation is now
+  documented in `primary_sector_map`.
 
 ## Remaining (needs a specific resource / decision — none locally-shippable this session):
 - **Track C VPS activation** — the D6-F2 re-settle + credibility_series rebuild, the D5-F6 momentum_scan

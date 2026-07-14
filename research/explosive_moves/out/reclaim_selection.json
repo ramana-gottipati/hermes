@@ -1,0 +1,192 @@
+{
+ "run_at": "2026-07-14 13:02Z",
+ "n_events": 16093,
+ "n_fit": 5301,
+ "n_oos": 10792,
+ "fit_table": {
+  "mom6": {
+   "n": 5293,
+   "q33": -0.0367,
+   "q67": 0.2016,
+   "med22_top%": -2.052,
+   "med22_bot%": -0.68,
+   "gap%": -1.372,
+   "sub_gaps%": [
+    -1.19,
+    -1.605
+   ],
+   "eligible": true,
+   "favorable": "bottom"
+  },
+  "mom12": {
+   "n": 5293,
+   "q33": 0.0026,
+   "q67": 0.4084,
+   "med22_top%": -1.993,
+   "med22_bot%": -1.009,
+   "gap%": -0.984,
+   "sub_gaps%": [
+    -0.996,
+    -0.996
+   ],
+   "eligible": true,
+   "favorable": "bottom"
+  },
+  "riskadj": {
+   "n": 5293,
+   "q33": -1.5982,
+   "q67": 8.3345,
+   "med22_top%": -1.884,
+   "med22_bot%": -0.68,
+   "gap%": -1.204,
+   "sub_gaps%": [
+    -0.88,
+    -1.533
+   ],
+   "eligible": true,
+   "favorable": "bottom"
+  },
+  "vol66": {
+   "n": 5293,
+   "q33": 0.0211,
+   "q67": 0.0296,
+   "med22_top%": -2.441,
+   "med22_bot%": -0.633,
+   "gap%": -1.808,
+   "sub_gaps%": [
+    -1.49,
+    -2.262
+   ],
+   "eligible": true,
+   "favorable": "bottom"
+  },
+  "deliv_rel": {
+   "n": 5293,
+   "q33": 0.8032,
+   "q67": 1.0428,
+   "med22_top%": -0.589,
+   "med22_bot%": -2.157,
+   "gap%": 1.569,
+   "sub_gaps%": [
+    1.751,
+    1.414
+   ],
+   "eligible": true,
+   "favorable": "top"
+  },
+  "surge": {
+   "n": 5293,
+   "q33": 0.8199,
+   "q67": 1.4796,
+   "med22_top%": -1.558,
+   "med22_bot%": -1.348,
+   "gap%": -0.21,
+   "sub_gaps%": [
+    -0.922,
+    0.259
+   ],
+   "eligible": false,
+   "favorable": "bottom"
+  },
+  "dist52": {
+   "n": 5293,
+   "q33": -0.2401,
+   "q67": -0.1326,
+   "med22_top%": -0.932,
+   "med22_bot%": -1.333,
+   "gap%": 0.401,
+   "sub_gaps%": [
+    0.646,
+    0.095
+   ],
+   "eligible": true,
+   "favorable": "top"
+  },
+  "smin5": {
+   "n": 5293,
+   "q33": -1.2683,
+   "q67": -0.6431,
+   "med22_top%": -0.886,
+   "med22_bot%": -2.032,
+   "gap%": 1.146,
+   "sub_gaps%": [
+    1.137,
+    1.186
+   ],
+   "eligible": true,
+   "favorable": "top"
+  }
+ },
+ "frozen_rule": [
+  {
+   "feature": "vol66",
+   "cut_lo": 0.0211,
+   "cut_hi": 0.0296,
+   "favorable": "bottom"
+  },
+  {
+   "feature": "deliv_rel",
+   "cut_lo": 0.8032,
+   "cut_hi": 1.0428,
+   "favorable": "top"
+  }
+ ],
+ "OOS": {
+  "baseline_all": {
+   "n": 10607,
+   "mean22%": 0.243,
+   "med22%": -1.167,
+   "pos%": 44.5
+  },
+  "selected": {
+   "n": 1483,
+   "mean22%": 0.293,
+   "med22%": -0.456,
+   "pos%": 47.3
+  },
+  "unselected": {
+   "n": 9124,
+   "mean22%": 0.234,
+   "med22%": -1.361,
+   "pos%": 44.1
+  },
+  "selected_66d": {
+   "n": 1450,
+   "mean%": 0.289,
+   "med%": -1.544
+  },
+  "placebo_of_selected": {
+   "n": 45944,
+   "med22%": -0.519
+  },
+  "cliffs_sel_vs_unsel": 0.0503,
+  "cliffs_sel_vs_placebo": 0.0043,
+  "gates": {
+   "G1_n150": true,
+   "G2_mean_med_pos": false,
+   "G3_delta_unsel_0.1": false,
+   "G4_delta_plc_0.05": false
+  }
+ },
+ "selected_liquidity": {
+  "1-5cr": {
+   "n": 436,
+   "mean22%": 0.059,
+   "med22%": -0.747,
+   "pos%": 44.3
+  },
+  "5-25cr": {
+   "n": 382,
+   "mean22%": 0.336,
+   "med22%": -0.56,
+   "pos%": 47.4
+  },
+  ">25cr": {
+   "n": 665,
+   "mean22%": 0.421,
+   "med22%": -0.13,
+   "pos%": 49.3
+  }
+ },
+ "VERDICT": "FAIL-null"
+}
