@@ -298,7 +298,20 @@ def _shell(title: str, body: str, active: str = "dashboard"):
         from src.web import dashboard as D
         # `active` is the tracker lens key (dashboard/portfolios/…) so the reskin's sub-nav
         # highlights the tab actually being viewed — the fix for the dead-tab symptom.
-        return HTMLResponse(D._shell(title, body, active))
+        html = D._shell(title, body, active)
+        # The gate SHORT-CIRCUITS its own responses (demo pages + owner-unlock form), so they
+        # never reach the left_rail HTTP middleware that every non-gated page flows through —
+        # leaving the PUBLIC Tracker on the old horizontal sub-nav strip while Markets /
+        # Strategies / etc. show the modern collapsible left rail (a visible inconsistency on
+        # the first page an unauthenticated visitor lands on). Reshape here so the whole site
+        # reads as one product. reshape_html is idempotent (its own head marker) + defensive
+        # (returns its input on any miss), so this can never double-rail or take the gate down.
+        try:
+            from src.web import left_rail
+            html = left_rail.reshape_html(html)
+        except Exception:  # noqa: BLE001 — the rail is chrome; never let it break the gate
+            pass
+        return HTMLResponse(html)
     except Exception:  # noqa: BLE001 — shell must never take the gate down
         return HTMLResponse(body)
 
