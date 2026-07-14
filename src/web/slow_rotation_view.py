@@ -82,6 +82,7 @@ def slow_rotation_page(fmt: str = ""):
     con = _ro(HDB)
     anchor, as_of, live, n_gated = ([], "", {}, 0)
     if con is not None:
+        con.row_factory = sqlite3.Row      # _ro() returns tuples; _load needs dict(row)
         try:
             anchor, as_of, live, n_gated = _load(con)
         except sqlite3.OperationalError:
