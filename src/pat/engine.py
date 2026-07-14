@@ -58,6 +58,7 @@ _VALID: dict[str, dict] = {
     "whatchanged":  {"symbol": "free"},  # "what changed today / for X" — the bus rail inline (S-E Ph2)
     "participants": {},                   # "are FIIs buying" — FII net stance inline (S-E Ph2)
     "rotation":     {"symbol": "free"},  # "what phase is X in" — per-symbol RS rotation (S-E Ph2)
+    "internals":    {},                   # "how's the breadth" — market internals inline (S-E Ph2)
     "explain":      {"explain": "slug"},
 }
 
@@ -383,6 +384,19 @@ def route(query: str, conn=None) -> dict | None:
     if rot:
         _cache_put(q, rot)
         return rot
+
+    # (a-1h) Internals — "how's the breadth / market internals / how many stocks up" —
+    #        the market-breadth snapshot inline (S-E Phase 2). ₹0; needs a breadth cue,
+    #        runs after nav so "where do I see breadth" stays a navigate, and yields on an
+    #        entity-ranking ask ("which stocks are advancing").
+    try:
+        from src.pat.internals_flow import parse_internals as _parse_int
+        internals = _parse_int(query)
+    except Exception:
+        internals = None
+    if internals:
+        _cache_put(q, internals)
+        return internals
 
     from src.pat.understand import validate_intent, parse_fallback
 

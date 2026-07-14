@@ -1244,6 +1244,48 @@ def _rotation_flow(conn, symbol: str = "") -> str:
     return "".join(out)
 
 
+# ── internals flow (market breadth + the effort tape, inline) ─────────────────
+# "how's the breadth / market internals / how many stocks are up" (S-E Phase 2). The
+# % advancing + adv/dec + the MEP effort tape + 22y percentiles — descriptive market
+# state, never a buy/sell.
+
+def _internals_flow(conn) -> str:
+    from src.pat import internals_flow as _IF
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    b = _IF.breadth_now(conn)
+    if not b:
+        out.append(_q_bubble("I can't read the market-internals snapshot right now."))
+        out.append('<div class="empty">No market-internals data yet. The full surface is at '
+                   '<a class="row" href="/dash/market-internals">Market internals</a>.</div>')
+        return "".join(out)
+    out.append(_q_bubble("How broad the market is right now — the share of stocks advancing and "
+                         "the delivery-weighted effort tape, vs their 22-year range. Market state, "
+                         "not a call."))
+    pa = b.get("pct_adv")
+    pa_txt = (f'{pa:.0f}%' if isinstance(pa, (int, float)) else "—")
+    pa_read = _IF.read_word(b.get("pct_adv_pctile"), "narrow", "broad")
+    mep = b.get("mep_net")
+    mep_txt = (f'{mep:+.0f}' if isinstance(mep, (int, float)) else "—")
+    mep_read = _IF.read_word(b.get("mep_pctile"), "distribution-heavy", "accumulation-heavy")
+    out.append(f'<div class="ghdr">Market internals · as of {_esc(str(b.get("as_of") or ""))}</div>')
+    out.append('<div class="card" style="line-height:1.7">'
+               f'<div style="font-size:15px"><b>{_esc(pa_txt)} of {int(b.get("n_eq") or 0):,} stocks '
+               f'advancing</b> — {_esc(pa_read)}</div>'
+               f'<div style="color:var(--ink-3);font-size:12.5px;margin-top:2px">'
+               f'{int(b.get("adv") or 0):,} up · {int(b.get("dec") or 0):,} down · '
+               f'{int(b.get("unch") or 0):,} flat</div>'
+               f'<div style="font-size:13.5px;margin-top:8px">Effort tape (MEP net): '
+               f'<b>{_esc(mep_txt)}</b> — {_esc(mep_read)}</div>'
+               '</div>')
+    out.append('<div style="margin-top:10px"><a class="row" href="/dash/market-internals">'
+               'Open the full Market internals surface (22y breadth, tape, dispersion, coil) →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Breadth = the share of the cash universe advancing; the effort tape (MEP net) is the '
+               'delivery-weighted accumulation-vs-distribution balance. Both shown vs their own 22-year '
+               'range — descriptive market state, never a buy/sell signal.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2585,6 +2627,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
+               "internals": "Market breadth",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2771,6 +2814,8 @@ def _free_text(conn, q: str):
             body = _participants_flow(conn)
         elif f == "rotation":
             body = _rotation_flow(conn, p.get("symbol", ""))
+        elif f == "internals":
+            body = _internals_flow(conn)
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3070,6 +3115,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "rotation":
         body = _rotation_flow(conn, sym or q)             # per-symbol RS phase; rides `sym` (else `q`)
         fb_ctx = {"query": q, "flow": "rotation", "params": {"symbol": sym or q}, "source": "flow"}
+    elif flow == "internals":
+        body = _internals_flow(conn)                      # market breadth (S-E Ph2)
+        fb_ctx = {"query": q, "flow": "internals", "params": {}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after
