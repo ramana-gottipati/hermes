@@ -390,6 +390,29 @@ pre-registered. Root cause (A/B-exact): `fractal_floor.build()` never charged th
 
 ---
 
+## Study 2026-07-14d — STREAM BAND MANAGED: Ramana's Case-A stop/re-entry stack vs the naive book (DONE — NOT-IMPROVED; the two-candle exit is the killer)
+
+Ramana's dictated trade management (S133): three simultaneous exits (stream stop terminal · fixed
+2°-fractal close-below · TWO-CANDLE-low close-below) + re-entry on reclaiming the broken level (≤3
+cycles/setup), both sides. Pre-registered `streamband_managed` `f1da6898`; module + JSON in
+research/explosive_moves/. 35,890 bull setups → **78,297 legs** (42,407 re-entries fired as designed).
+
+- **Verdict: NOT-IMPROVED — the managed bull book = Sharpe −0.50 (−0.70/−0.35), MaxDD −90%** vs the
+  naive band-stop book **0.37** (0.16/0.53) and the fences trail book 0.59. 1.5× cost → −0.95.
+  BEAR mirror (measurement-only, non-shortable): −1.53 — shorts also fight market drift.
+- **Root cause is ONE rule: the two-candle-low exit = 84% of all exits (66,041/78,297)**, crushing
+  avg hold 15.3→**7.1 bars** and hit 41%→33%. Per-leg mean GROSS is +0.41% (the management is not
+  directionally wrong) but 0.6% round-trip cost every ~7 bars ≈ −21%/yr churn drag → net −0.19%/leg.
+  On DAILY bars the 2-candle rule is inside normal noise — it sells every wiggle and re-buys higher.
+- **Empirical exit ordering across the arc (all same entries): trail-on-2°-structure 0.59 >
+  band-stop-only 0.37 > full Case-A stack with 2-candle −0.50.** The fractal stop + stream stop are
+  benign; the re-entry logic works mechanically but each cycle pays fresh costs for re-buying higher.
+- **Disposition:** the Case-A stack as dictated is REJECTED on daily bars (recorded; do not re-run
+  unchanged). The one candidate refinement (fresh prereg required): drop/loosen the two-candle rule
+  (e.g. 5-candle, or only-after-profit) — which converges back to the already-measured trail book.
+
+---
+
 ## Study 2026-07-14c — RECLAIM SELECTION: can validated factors pick the launchers? (DONE — true-OOS FAIL-null; the reversal arc is now closed at the SELECTION level too)
 
 The last open thread of the reversal-pair arc (the 66d right-skew). Pre-registered + hash-frozen

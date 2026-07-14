@@ -1,0 +1,109 @@
+{
+ "run_at": "2026-07-14 13:52Z",
+ "naive_baseline_07_13": {
+  "sharpe_full": 0.37,
+  "h1": 0.16,
+  "h2": 0.53,
+  "hit%": 41.0,
+  "med_net%": -2.08,
+  "avg_hold": 15.3
+ },
+ "BULL_managed": {
+  "trades": {
+   "legs": 78297,
+   "setups_first_legs": 35890,
+   "reentry_legs": 42407,
+   "hit%": 33.3,
+   "mean_net%": -0.19,
+   "med_net%": -1.75,
+   "avg_hold": 7.1,
+   "exit_mix": {
+    "stream": 4241,
+    "fractal": 7757,
+    "2cand": 66041,
+    "censored": 258
+   }
+  },
+  "book": {
+   "full": {
+    "sharpe": -0.5,
+    "cagr%": -13.6,
+    "maxdd%": -90.4,
+    "months": 170
+   },
+   "h1": {
+    "sharpe": -0.7,
+    "cagr%": -16.6,
+    "maxdd%": -72.9,
+    "months": 79
+   },
+   "h2": {
+    "sharpe": -0.35,
+    "cagr%": -11.0,
+    "maxdd%": -63.9,
+    "months": 91
+   },
+   "avg_pos": 161.3
+  },
+  "book_cost_1.5x": {
+   "full": {
+    "sharpe": -0.95,
+    "cagr%": -22.7,
+    "maxdd%": -97.9,
+    "months": 170
+   },
+   "h1": {
+    "sharpe": -1.16,
+    "cagr%": -25.3,
+    "maxdd%": -86.7,
+    "months": 79
+   },
+   "h2": {
+    "sharpe": -0.78,
+    "cagr%": -20.4,
+    "maxdd%": -83.6,
+    "months": 91
+   },
+   "avg_pos": 161.3
+  }
+ },
+ "BEAR_managed_measurement_only": {
+  "trades": {
+   "legs": 91942,
+   "setups_first_legs": 42937,
+   "reentry_legs": 49005,
+   "hit%": 32.9,
+   "mean_net%": -1.28,
+   "med_net%": -1.97,
+   "avg_hold": 8.6,
+   "exit_mix": {
+    "stream": 5968,
+    "fractal": 11796,
+    "2cand": 73746,
+    "censored": 432
+   }
+  },
+  "book": {
+   "full": {
+    "sharpe": -1.53,
+    "cagr%": -35.0,
+    "maxdd%": -99.8,
+    "months": 170
+   },
+   "h1": {
+    "sharpe": -1.68,
+    "cagr%": -33.1,
+    "maxdd%": -93.2,
+    "months": 79
+   },
+   "h2": {
+    "sharpe": -1.45,
+    "cagr%": -36.7,
+    "maxdd%": -97.6,
+    "months": 91
+   },
+   "avg_pos": 228.3
+  }
+ },
+ "VERDICT": "NOT-IMPROVED (not fundable vs 0.89)"
+}
