@@ -10,6 +10,33 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-14 — S143: UX S-B1 (cross-links) — "Related lenses" connective tissue SHIPPED + DEPLOYED — do NOT redo; kickstart-pick-verify
+- **NEW `infographics.related_strip(key, note="")` + `.rd-related` CSS in `readability_css()`** — a curated
+  CROSS-GROUP "Related" chip row the left rail CAN'T express (capture-map ↔ rrg ↔ rsband are one
+  relative-strength dataset spanning two rail groups). Labels/routes resolve from `lens_registry.BY_KEY` →
+  never drifts; skip-safe on any bad/routeless key; **single-owner helper = ZERO forked-registry edit** (the
+  S138 `_SUBTITLES` precedent — nav DISPLAY belongs in a single-owner module, never the forked trio).
+  Delivers audit §8 items **4** (capture cross-links) · **9** (RS-family `_subnav` pattern, generalized) · **½ 8**.
+- **Wired 1 line after `how_to_read_link()` into 7 views** (rrg · rotation · rsband · cycle-clock · capture-map ·
+  sector-economics · momentum-scan). **momentum symbol cells now link to the dossier** (`/dash/stock?sym=…`;
+  `data-v` preserved so the sort/CSV toolbar is unaffected) = the other **½ of item 8**.
+- **✅ DEPLOYED + LIVE-WALKED (~16:13 UTC):** fork-check (md5, CR-strip both sides) = 7 base-matched → clean
+  scp + on-box CR-strip (post-md5 == working tree); **`sector_econ_view.py` was FORKED-BEHIND on the box**
+  (missing the Codex D8-F6 fiscal-year fix — that lane's undeployed drift) → ANCHORED INSERT of my one line
+  only (count==1 asserted), leaving their drift intact (S134 surgical-hunk precedent). Remote import+app OK;
+  writer-safe restart (blocking `ps` guard; wolfe-scan finished; 16:13 UTC clear of 14:01 bhavcopy). Caddy 200;
+  all 7 strips render on real data, capture-map chips (Rotation·Map / Rotation·Band / Relative strength)
+  resolve live, momentum→dossier confirmed. Full suite **247 pass** (the lone fail = S142's untracked
+  `test_pat_nav_flow.py`, independent of my 8 files). Commit **`1cb0e89`** (clean FF push).
+- **Remaining S-B1 (OPEN — a natural next pick):** item **1** Markets rail → task groups (touches forked
+  `lens_registry.group=` + `left_rail._GROUP_ORDER`) · item **2** merge RRG-Map + Rotation-Weather (Map⇄Weather
+  toggle, the Wolfe-toggle precedent) · item **3** fold cycle-clock/sector-momentum/early-signals into the
+  Rotation cluster · item **5** credibility-fingerprint → Credibility child · item **6** Ownership&filings
+  placement · item **7** orphan sweep (§5 dispositions) · item **10** unify the 3 change-feeds on the bus ·
+  item **11** single-source strategy one-liners in `lens_registry` · the reverse `/dash/sectors → sector-economics`
+  link (lives in forked `cockpit.render_sectors` — owed). Then **S-B2** (route deprecation + POST-ify mutating
+  GETs), **S-G** expert affordances, **S-E Phase 2+3** (Pat data flows).
+
 ## ✅ 2026-07-14 — S142: S-E PHASE 1 — Pat NAV-ANSWER coverage SHIPPED — do NOT redo; kickstart-pick-verify
 - **NEW `src/pat/nav_flow.py`** — Pat now answers "where do I see X" from `lens_registry`: recognizes a
   locational ask, resolves the topic against the 66 routed lenses → link + one-line blurb (registry-
@@ -420,21 +447,25 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`
 > (§ AT SESSION START), then execute `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom —
-> read the ✅ S141 + S140 + S138 + S137 + S136 blocks FIRST (all on origin/main; do NOT
+> read the ✅ S143 + S142 + S141 + S140 + S137 blocks FIRST (all on origin/main; do NOT
 > redo — kickstart-pick-verify). **THE QUEUE = the S127 UX-remediation program**
 > (`docs/ux-journey-audit-2026-07-13.md` §8).
 > Done: S-A front door · S-H route gate · **S-C COMPLETE** (items 1+7 S134 · scaffold S136 ·
 > glossary links + nav subtitles S138 · **the education-coverage gate + the full 63/63 sweep
 > S137** · **item 4 glossary-unify S141/D132 — ONE vocabulary, Pat=199 entries**) ·
-> S-D search/entry S140 · **S-E PHASE 1 nav-answer S142** (`src/pat/nav_flow.py` — Pat answers
-> "where do I see X" from lens_registry).
-> **NEXT free pick: S-E PHASE 2+3** — Pat DATA flows (attention "what changed today / for SYMBOL",
-> news/wire, participants/FII, insider/ratings/SAST/holdings, rotation states, seasonal base rates,
-> internals breadth, Wolfe open-trades) + education (ground explain-flows on the unified glossary +
-> docs/strategies). Follow the `nav_flow.py`/`overdue_flow.py` pattern (new Pat file + a ₹0
-> engine.route pre-pass + a web render + eval/pytest guards); KEEP closed-vocab deterministic SQL
-> templates. **Or S-B1 IA labels/grouping/cross-links** (else S-B2 route deprecation, or S-G expert
-> affordances). Ramana may paste a problem statement; if none, take the audit §8 brief autonomously.
+> S-D search/entry S140 · **S-E PHASE 1 nav-answer S142** (`src/pat/nav_flow.py`) ·
+> **S-B1 STARTED — cross-links S143** (`infographics.related_strip()` on the 7 RS/rotation views +
+> momentum→dossier; items 4·9·½8).
+> **NEXT free pick — two good options:** (a) **S-B1 REMAINDER** — item 1 Markets rail → task groups
+> (forked `lens_registry.group=` + `left_rail._GROUP_ORDER`) · item 2 merge RRG-Map + Rotation-Weather
+> (Map⇄Weather toggle, the Wolfe-toggle precedent) · item 3 fold cycle-clock/sector-momentum/early-signals
+> into Rotation · items 5/6/7/10/11 + the reverse `/dash/sectors→sector-economics` link (forked
+> `cockpit.render_sectors`). (b) **S-E PHASE 2+3** — Pat DATA flows (attention "what changed today / for
+> SYMBOL", news/wire, participants/FII, insider/ratings/SAST/holdings, rotation states, seasonal base
+> rates, internals breadth, Wolfe open-trades) + education, following the `nav_flow.py`/`overdue_flow.py`
+> pattern (new Pat file + ₹0 engine.route pre-pass + web render + eval/pytest guards); KEEP closed-vocab
+> deterministic SQL. Else **S-B2** (route deprecation + POST-ify GETs) or **S-G** expert affordances.
+> Ramana may paste a problem statement; if none, take the audit §8 brief autonomously.
 > **Reuse, don't rebuild:** `infographics.fence(kind)` for any fence (add a kind, never hand-write);
 > `readability_css/bottom_line/plain/how_to_read_link` for education (dashboard-served pages go
 > through `dashboard._edu()`; tracker demo via `tracker_gate._edu_demo`); **NEW lens pages must
@@ -446,7 +477,9 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 > lesson); explicit-path staging + `git diff --cached --name-only` before EVERY commit; a sibling's
 > files mid-staging → commit via temp `GIT_INDEX_FILE` + `commit-tree` + CAS `update-ref`;
 > PROJECT_STATE hot → partial-stage ONLY your hunk (`git apply --cached`) or `state:skip`; grep
-> origin for the newest session number (131–141 taken).
+> origin for the newest session number (131–143 taken). ⚠ S143 saw HEAD move under it repeatedly as
+> siblings committed to shared local `main` — re-`git diff HEAD` a hot doc right before editing, and an
+> isolated worktree (`EnterWorktree`) for deploy staging avoids fork-checks reading a sibling's mid-edit.
 > **Deploy: fork-check md5 (CR-strip BOTH sides) DECIDES the method** — box==base → clean scp;
 > forked → anchored insert of only your hunks (assert count==1 + rollback); `dashboard.py` → on-box
 > `git apply` of your commit patch (post-apply md5 must == HEAD; it is currently NOT forked but
