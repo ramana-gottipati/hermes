@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes patearn — estate heartbeat (one positive morning line: health + Rs spend)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+# Composes board-health verdict + key-table freshness (bhav/signals/fund/events)
+# + alert-rail critical count + cost-ledger MTD-vs-cap into ONE morning DM line
+# (D134 plan §4-B; budget law §5.4). Fire-once-per-day guard lives in the DB
+# (heartbeat_sent), so a manual re-run never double-pages. Rule-based, NO LLM
+# (Rs0). Exit 2 only when the DM transport itself failed (visible in the log).
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.estate_heartbeat --dm
+StandardOutput=append:/var/log/hermes-heartbeat.log
+StandardError=append:/var/log/hermes-heartbeat.log

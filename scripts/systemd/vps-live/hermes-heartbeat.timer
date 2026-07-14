@@ -1,0 +1,17 @@
+[Unit]
+Description=Hermes estate-heartbeat Timer (daily 03:30 UTC = 09:00 IST morning line)
+# Deliberately NO Requires= (AUD-95): enabling/starting this timer mid-day must
+# only SCHEDULE the job, never fire it — the backup-timer pattern.
+
+[Timer]
+# 03:30 UTC daily = 09:00 IST — the positive morning line lands BEFORE the market
+# opens (09:15 IST) and long after the previous nightly chain finished (22:00 UTC).
+# Daily, not Mon-Fri: the estate's health matters on weekends too.
+# Persistent=false (plan §LANE-B): a missed morning is skipped, never catch-up
+# fired at a random hour; the DB fire-once guard (heartbeat_sent) backstops anyway.
+OnCalendar=*-*-* 03:30:00
+Persistent=false
+Unit=hermes-heartbeat.service
+
+[Install]
+WantedBy=timers.target
