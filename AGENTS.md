@@ -102,7 +102,10 @@ Claude Code and Codex (and sometimes parallel sessions of each) operate on
 7. **New user-facing surfaces follow `docs/SURFACE-PLAYBOOK.md` (BINDING).** Sister-data
    check first (extend, don't duplicate); register in `lens_registry.py` or as a declared
    child — never an orphan URL; land the education/fence/Pat/CSV checklist in the same
-   session. (Twin: `CLAUDE.md` Guardrail #9.)
+   session. **Pat registration is machine-enforced (`tests/test_pat_coverage.py`) per the
+   binding `docs/pat-knowledge-contract.md`** — every routed lens declares Pat coverage
+   (DATA/EXPLAIN/NAV) and every metric has a glossary entry, or the build fails. (Twin:
+   `CLAUDE.md` Guardrail #9.)
 
 ## Where to find detail
 

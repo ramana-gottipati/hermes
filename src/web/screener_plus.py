@@ -51,6 +51,54 @@ _GROUPS = [
     ("ca", "Cap-alloc · C"), ("ctx", "Context"),
 ]
 
+# ── Screen+ column catalog (module scope so tests/test_pat_coverage.py can enforce it) ──
+# The header labels, their CSS group classes, and the glossary key per column — three
+# positionally-aligned lists zipped in the render (`_row_band`). Promoted OUT of the render
+# function (S150) so the Pat-coverage gate can assert the SURFACE-PLAYBOOK item-5 rule
+# machine-ready: every SURFACED metric column carries a glossary key (so its meaning is
+# taught to Pat + the ? popovers) OR an explicit '' opt-out. A new column with an
+# undocumented key now FAILS tests/test_pat_coverage.py::test_screener_columns_are_glossary_backed.
+SCREEN2_COLS = ['Symbol', 'Sector', 'CMP', 'Confl',
+                'DVPT vs power', 'Rank', 'P', 'R', '×1m', 'Dlv%',
+                'Accum', 'Phase', 'State',
+                'RS trend', 'Heat', 'RS#', 'Trend', '1m', '3m', '6m', '12m',
+                'D', 'Cmpr', 'W',
+                'CCI', 'Tier', 'Trend',
+                'Wolfe', 'Q',
+                'Band', 'Stretch%', 'sPctl', 'Floor', 'Ceil',
+                'NS', 'pt14',
+                'C', 'C tier',
+                'Character', 'Surge', 'Ticket', '%52wH', 'Char']
+SCREEN2_COL_GROUPS = ['', '', '', 'cg-conf',
+                      'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos',
+                      'cg-mep', 'cg-mep', 'cg-mep',
+                      'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs',
+                      'cg-cpr', 'cg-cpr', 'cg-cpr',
+                      'cg-cci', 'cg-cci', 'cg-cci',
+                      'cg-wol', 'cg-wol',
+                      'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev',
+                      'cg-qual', 'cg-qual',
+                      'cg-ca', 'cg-ca',
+                      'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
+# glossary key per column (aligned to SCREEN2_COLS) — `?` hover-help via the wired glossary.
+# Verified against docs/metrics-glossary.md: only terms that resolve to the CORRECT
+# definition are wired; '' = plain label (undocumented OR would mis-resolve, e.g. the
+# CCI 'Tier'/'Trend' columns would wrongly match the pt14 'Tier' entry). gloss() itself
+# degrades any unknown key to the plain label, so this list is safe by construction.
+SCREEN2_COL_TERMS = ['', '', 'cmp · δ%d · deliv%', '',                    # identity + confluence
+                     'DVPT', 'trigger_rank', 'p_score', 'r_score', '×power', '',   # positioning · dvpt
+                     'MEP phase', 'MEP phase', 'MEP daily state',         # mep (now documented)
+                     'RS vs broad', 'RS heat strip', 'rs_rank', 'RS vs broad', '', '', '', '',  # rs
+                     'pattern', 'compression_pctile', 'pattern',          # cpr
+                     'Credibility composite', 'Credibility composite', 'Credibility level',  # cci (now documented; NOT 'tier'→pt14)
+                     '', '',                                              # wolfe (undocumented)
+                     'Band state', 'Stretch %', 'stretch_pctile', 'floor_gap_pct',
+                     'ceil_gap_pct',                                      # reversal ctx
+                     'ns_base', 'ns_base',                                # quality · pt14
+                     'ca_score', 'ca_tier',                               # capital allocation · C
+                     'accum_character', 'surge 1m', 'ticket_ratio_1m_6m',
+                     'pct_from_52w_high', 'accum_character']  # context
+
 # CL-VIEW-15: liquidity gate WITHOUT static rupee thresholds (no-static-threshold
 # doctrine). The old gate hard-coded `value > 1e7 AND close > 20` — fixed rupee numbers
 # that drift with the index level and penalise low-priced-but-liquid names. Replaced by a
@@ -884,46 +932,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         '<th class="cg-qual s2gh" colspan="2">quality · pt14</th>'
         '<th class="cg-ca s2gh" colspan="2">cap-alloc · C</th>'
         '<th class="cg-ctx s2gh" colspan="5">context · character</th></tr>')
-    cols = ['Symbol', 'Sector', 'CMP', 'Confl',
-            'DVPT vs power', 'Rank', 'P', 'R', '×1m', 'Dlv%',
-            'Accum', 'Phase', 'State',
-            'RS trend', 'Heat', 'RS#', 'Trend', '1m', '3m', '6m', '12m',
-            'D', 'Cmpr', 'W',
-            'CCI', 'Tier', 'Trend',
-            'Wolfe', 'Q',
-            'Band', 'Stretch%', 'sPctl', 'Floor', 'Ceil',
-            'NS', 'pt14',
-            'C', 'C tier',
-            'Character', 'Surge', 'Ticket', '%52wH', 'Char']
-    col_groups = ['', '', '', 'cg-conf',
-                  'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos', 'cg-pos',
-                  'cg-mep', 'cg-mep', 'cg-mep',
-                  'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs', 'cg-rs',
-                  'cg-cpr', 'cg-cpr', 'cg-cpr',
-                  'cg-cci', 'cg-cci', 'cg-cci',
-                  'cg-wol', 'cg-wol',
-                  'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev',
-                  'cg-qual', 'cg-qual',
-                  'cg-ca', 'cg-ca',
-                  'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
-    # glossary key per column (aligned to `cols`) — `?` hover-help via the wired glossary.
-    # Verified against docs/metrics-glossary.md: only terms that resolve to the CORRECT
-    # definition are wired; '' = plain label (undocumented OR would mis-resolve, e.g. the
-    # CCI 'Tier'/'Trend' columns would wrongly match the pt14 'Tier' entry). gloss() itself
-    # degrades any unknown key to the plain label, so this list is safe by construction.
-    col_terms = ['', '', 'cmp · δ%d · deliv%', '',                    # identity + confluence
-                 'DVPT', 'trigger_rank', 'p_score', 'r_score', '×power', '',   # positioning · dvpt
-                 'MEP phase', 'MEP phase', 'MEP daily state',         # mep (now documented)
-                 'RS vs broad', 'RS heat strip', 'rs_rank', 'RS vs broad', '', '', '', '',  # rs
-                 'pattern', 'compression_pctile', 'pattern',          # cpr
-                 'Credibility composite', 'Credibility composite', 'Credibility level',  # cci (now documented; NOT 'tier'→pt14)
-                 '', '',                                              # wolfe (undocumented)
-                 'Band state', 'Stretch %', 'stretch_pctile', 'floor_gap_pct',
-                 'ceil_gap_pct',                                      # reversal ctx
-                 'ns_base', 'ns_base',                                # quality · pt14
-                 'ca_score', 'ca_tier',                               # capital allocation · C
-                 'accum_character', 'surge 1m', 'ticket_ratio_1m_6m',
-                 'pct_from_52w_high', 'accum_character']  # context
+    cols, col_groups, col_terms = SCREEN2_COLS, SCREEN2_COL_GROUPS, SCREEN2_COL_TERMS
     col_band = '<tr class="col">' + "".join(
         f'<th class="{("sym" if i==0 else "")} {g}" data-c="{i}" data-label="{K.esc(c)}">'
         f'{G.gloss(t, c) if t else K.esc(c)}</th>'

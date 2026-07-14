@@ -44,6 +44,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/strategies/origins.md` | Canonical provenance map (S132j): every strategy labeled RAMANA / HOUSE / CLASSIC + the binding origin-labeling rule + the external-sources policy + the documentation loop. |
 | `docs/strategies/` (index: `README.md`) | Canonical strategy reference layer (S109) — one page per strategy (definition · status · terminology). Links to design docs; never duplicates ledger/weights. |
 | `docs/metrics-glossary.md` | Metric definitions source. |
+| `docs/pat-knowledge-contract.md` | BINDING contract — Pat's three self-feeding knowledge sources (glossary auto-fold · registry auto-fold · inline flows) + the same-commit rule, machine-enforced by `tests/test_pat_coverage.py` (twins: SURFACE-PLAYBOOK items 5+6 / CLAUDE.md #9 / AGENTS.md #7). |
 | `docs/product-strategy-2026.md` | Product / PO strategy reference. |
 | `docs/ui-architecture-v2.md` | Canonical IA / schema doc. |
 | `docs/SESSION-PROTOCOL.md` | Binding per-session start/end checklist (CLAUDE.md boot references it). |
