@@ -10,6 +10,12 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 2026-07-14 late — S-C ITEM 4 (Pat↔web glossary unify): CLAIMED + IN-FLIGHT (S141 lane) — do NOT start it in parallel
+- The dedicated-session pick the S-C queue reserved. Verified open at claim time: `src/pat/glossary.py`
+  still a separate curated dict; web glossary (`src/web/glossary.py` over `docs/metrics-glossary.md`)
+  now **435 terms**; no unification commits on main; Pat files cold (no live lane). Claim-first per the
+  S140 mutual-yield lesson. **Retire this block when item 4 lands** (replace with the ✅ result block).
+
 ## ✅ 2026-07-14 — S140: UX S-D SEARCH & ENTRY SHIPPED (D131) — do NOT redo; kickstart-pick-verify
 - **NEW `src/web/symbol_search.py`** — the ONE name→ticker lookup: ranked `search()` over
   `security_master` (+`nse_equity_list` fallback) · `GET /dash/api/symbol-search` (durable
