@@ -194,7 +194,8 @@ def momentum_scan_page(sort: str = "riskadj"):
             "volatility), with the credit/insider veto inlined so you research the survivors, not "
             "the whole market. A gross <b>selection</b> lens — momentum here is a known beta, not "
             "skill; <b>not a buy list</b>.")
-        + ifx.how_to_read_link() +
+        + ifx.how_to_read_link()
+        + "<div class='rd-htr'><a href='/dash/glossary?q=momentum'>Glossary — key terms →</a></div>" +
         "<div class='lead'>Ranks the liquid equity universe by <b>RISKADJ</b> (6-mo return ÷ 3-mo "
         "volatility) and the equal-weight ensemble, with the <b>C/A/B veto</b> inlined so you research "
         "the survivors, not the whole market. <b>This is a gross SELECTION lens, not alpha</b> — "
