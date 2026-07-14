@@ -10,6 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 2026-07-14 late — S-E PHASE 2 slice A (Pat DATA flows): CLAIMED + IN-FLIGHT (S144 lane) — do NOT parallel
+- Continuation of S142's nav-answer (Phase 1). **Phase 2 = Pat answers with DATA inline, not just a link.**
+  This slice = the audit's two explicit done-bar examples: **"TCS news / today's headlines"** (a `news`
+  flow reusing `news_view._recent_market_news` + `render_stock_timeline`) and, as a same-session stretch,
+  **"what changed today / for SYMBOL"** (a `whatchanged` flow reusing `signal_alerts.active_alerts`).
+  Follows the `nav_flow.py`/`overdue_flow.py` pattern: NEW Pat file(s) + a ₹0 self-limiting pre-pass at
+  engine.route + a web render + eval/pytest guards. **Collision surface = Pat-owned files only** (new flow
+  file + small anchored additions to engine/web); the forked nav trio + the S-B1 strategies churn are
+  UNTOUCHED. Descriptive/SEBI-safe: headlines attributed+linked, alerts are state-changes never advice.
+- **Remaining Phase 2 (next slice): participants/FII · insider/ratings/SAST/holdings · rotation states ·
+  seasonal base rates · internals breadth · Wolfe open-trades. Phase 3 = education on the unified glossary.**
+- **Retire this block when slice A lands** (replace with the ✅ result block). Claim-first per the S140 lesson.
+
 ## ✅ 2026-07-14 — S143: UX S-B1 (cross-links) — "Related lenses" connective tissue SHIPPED + DEPLOYED — do NOT redo; kickstart-pick-verify
 - **NEW `infographics.related_strip(key, note="")` + `.rd-related` CSS in `readability_css()`** — a curated
   CROSS-GROUP "Related" chip row the left rail CAN'T express (capture-map ↔ rrg ↔ rsband are one
