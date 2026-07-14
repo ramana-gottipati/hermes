@@ -1404,6 +1404,65 @@ def _filings_flow(conn, symbol: str = "", focus: str = "all") -> str:
     return "".join(out)
 
 
+# ── wolfe flow (currently-open Wolfe setups, inline) ──────────────────────────
+# "any wolfe setups / open wolfe trades / show me the wolfe waves" (S150). The nightly
+# open-scan snapshot — descriptive-only (edge = SELECTION, never trade-craft): FRESH <=15d
+# winner-profile entries carry the validated edge (★ edge); older open trades are badged
+# "open · judge the run".
+
+def _wolfe_flow(conn, symbol: str = "") -> str:
+    from src.pat import wolfe_flow as _WF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    snap = _WF.open_trades(conn, symbol=sym)
+    if not snap or not snap.get("rows"):
+        who = f" for {_esc(sym)}" if sym else ""
+        out.append(_q_bubble(f"No open Wolfe setups{who} in the latest scan."))
+        out.append('<div class="empty">The nightly Wolfe snapshot has no open trades'
+                   f'{who} right now. The full board is at '
+                   '<a class="row" href="/dash/wolfe/trades">Wolfe · Open trades</a> '
+                   '(and fresh setups at <a class="row" href="/dash/wolfe/scan">Wolfe · Scan</a>).</div>')
+        return "".join(out)
+    lead = (f"Open Wolfe setups for {_esc(sym)}" if sym else "The currently-open Wolfe setups")
+    out.append(_q_bubble(f"{lead} — point-5 printed, EPA target not yet reached. Wolfe carries no "
+                         "buy/sell signal; its only validated edge is SELECTION on FRESH ≤15-day "
+                         "entries (★ edge). Older open trades have run left but no validated "
+                         "entry-edge (open · judge the run). Descriptive, never advice."))
+    out.append(f'<div class="ghdr">Wolfe · open trades · as of {_esc(str(snap.get("as_of") or ""))} '
+               f'· {int(snap.get("n_total") or 0)} open</div>')
+
+    def _n(v, fmt="{:.1f}"):
+        try:
+            return fmt.format(float(v))
+        except (TypeError, ValueError):
+            return "—"
+
+    head = ('<tr><th>Sym</th><th>Dir</th><th>CMP</th><th>Entry zone</th><th>Stop</th>'
+            '<th>T1</th><th>Run%</th><th>R:R</th><th>Q</th><th></th></tr>')
+    body = []
+    for r in snap["rows"]:
+        rsym = _esc(str(r.get("sym") or ""))
+        direction = _esc(str(r.get("dir") or ""))
+        zone = f'{_n(r.get("zlo"))}–{_n(r.get("zhi"))}'
+        qv = r.get("Q", r.get("q"))
+        badge = ('<span style="color:var(--pos,#0a7a3f)">★ edge</span>' if _WF.is_fresh(r)
+                 else '<span style="color:var(--ink-3)">open · judge the run</span>')
+        body.append(
+            f'<tr><td><a href="/dash/stock?sym={_u(str(r.get("sym") or ""))}">{rsym}</a></td>'
+            f'<td>{direction}</td><td>{_n(r.get("cmp"), "{:.2f}")}</td><td>{zone}</td>'
+            f'<td>{_n(r.get("sl"), "{:.2f}")}</td><td>{_n(r.get("t1"), "{:.2f}")}</td>'
+            f'<td>{_n(r.get("run"))}</td><td>{_n(r.get("rr"), "{:.2f}")}</td>'
+            f'<td>{_n(qv, "{:.0f}")}</td><td>{badge}</td></tr>')
+    out.append('<table class="patTable" style="font-size:12px">' + head + "".join(body) + '</table>')
+    out.append('<div style="margin-top:10px"><a class="row" href="/dash/wolfe/trades">'
+               'Open the full Wolfe open-trades board (remaining-ROI, filters) →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Wolfe waves — a 5-pivot reversal geometry. Descriptive only: the validated edge is '
+               'SELECTION (which name / direction / when) on FRESH ≤15-day winner-profile entries, '
+               'never the stop or target and never a buy/sell signal.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2746,6 +2805,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
                "internals": "Market breadth", "filings": "Filings for a stock",
+               "wolfe": "Open Wolfe setups",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2936,6 +2996,8 @@ def _free_text(conn, q: str):
             body = _internals_flow(conn)
         elif f == "filings":
             body = _filings_flow(conn, p.get("symbol", ""), p.get("focus", "all"))
+        elif f == "wolfe":
+            body = _wolfe_flow(conn, p.get("symbol", ""))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3242,6 +3304,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _filings_flow(conn, sym or q, strength or "all")  # per-symbol filings (S150); focus rides `strength`
         fb_ctx = {"query": q, "flow": "filings", "params": {"symbol": sym or q, "focus": strength or "all"},
                   "source": "flow"}
+    elif flow == "wolfe":
+        body = _wolfe_flow(conn, sym)                     # open Wolfe setups (S150); optional symbol rides `sym`
+        fb_ctx = {"query": q, "flow": "wolfe", "params": {"symbol": sym}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

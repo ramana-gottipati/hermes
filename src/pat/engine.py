@@ -60,6 +60,7 @@ _VALID: dict[str, dict] = {
     "rotation":     {"symbol": "free"},  # "what phase is X in" — per-symbol RS rotation (S-E Ph2)
     "internals":    {},                   # "how's the breadth" — market internals inline (S-E Ph2)
     "filings":      {"symbol": "free", "focus": "free"},  # "filings for X" — insider/ratings/SAST/holdings (S150)
+    "wolfe":        {"symbol": "free"},  # "any wolfe setups / open trades" — open Wolfe waves (S150)
     "explain":      {"explain": "slug"},
 }
 
@@ -412,6 +413,19 @@ def route(query: str, conn=None) -> dict | None:
     if internals:
         _cache_put(q, internals)
         return internals
+
+    # (a-1j) Wolfe open trades — "any wolfe setups / open wolfe trades / show me the wolfe waves" —
+    #        the currently-open Wolfe waves from the nightly snapshot (S150). ₹0; needs a wolfe cue
+    #        AND an open/setup/trade cue, runs after nav so "where's the wolfe scanner" stays a
+    #        navigate. Descriptive-only (edge = selection, never trade-craft). A miss yields.
+    try:
+        from src.pat.wolfe_flow import parse_wolfe as _parse_wolfe
+        wolf = _parse_wolfe(query)
+    except Exception:
+        wolf = None
+    if wolf:
+        _cache_put(q, wolf)
+        return wolf
 
     from src.pat.understand import validate_intent, parse_fallback
 

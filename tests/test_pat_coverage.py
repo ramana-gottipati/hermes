@@ -109,8 +109,9 @@ PAT_DATA: dict[str, str] = {
     "ratings":          "filings",       # per-symbol credit-rating actions (S150)
     "sast":             "filings",       # per-symbol SAST stake/pledge disclosures (S150)
     "shp":              "filings",       # per-symbol shareholding QoQ deltas (S150)
-    # NOTE: wolfe-scan (→wolfe) and strategy-ref (→methodology) still sit in NAV_ONLY below
-    # and MOVE here as their S150 flows land — the self-maintaining upgrade path.
+    "wolfe-scan":       "wolfe",         # currently-open Wolfe setups inline (S150)
+    # NOTE: strategy-ref (→methodology) still sits in NAV_ONLY below and MOVES here as its
+    # S150 methodology flow lands — the self-maintaining upgrade path.
 }
 
 
@@ -163,8 +164,6 @@ NAV_ONLY: dict[str, tuple[str, str]] = {
                                       "is right"),
     "harmonic-scan":      ("markets", "harmonic XABCD/PRZ scanner — descriptive-only pattern board; "
                                       "candidate future open-setups flow (sibling of wolfe)"),
-    "wolfe-scan":         ("markets", "Wolfe winner-profile scanner — descriptive-only; S150 binds "
-                                      "the open-trades inline flow, which will move this to PAT_DATA"),
     "strategy-ref":       ("trust", "the methodology write-ups — S150 binds a plain-language "
                                     "methodology explain flow, which will move this to PAT_DATA"),
     "themes":             ("screener", "tagged baskets of names — a grouping surface, not a metric; "
