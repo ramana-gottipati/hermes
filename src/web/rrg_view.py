@@ -851,6 +851,7 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
         body = _empty()
     else:
         body = (G.css() + ifx.readability_css()
+                + ifx.rotation_toggle("map")
                 + ifx.bottom_line(
                     'Relative Rotation Graph — each sector plotted by how strong it is <b>vs the '
                     'market</b> (across) and whether that strength is <b>rising or fading</b> (up). '
