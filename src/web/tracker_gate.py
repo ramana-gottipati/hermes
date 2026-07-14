@@ -86,22 +86,6 @@ def _gated(path: str) -> bool:
             or path.startswith("/dash/import"))
 
 
-def _cmp_for(symbols: list[str]) -> dict:
-    """Live CMPs for the demo book — defensive, {} on any failure."""
-    out = {}
-    try:
-        from src.web import dashboard as D
-        with D.get_conn() as conn:
-            for s in symbols:
-                try:
-                    out[s] = D._capture_snapshot(conn, s)[0]
-                except Exception:  # noqa: BLE001
-                    out[s] = None
-    except Exception:  # noqa: BLE001
-        pass
-    return out
-
-
 _DEMO_CSS = """<style>
 .tg-note{border:1px solid var(--warn,#f6b73c);background:rgba(246,183,60,.10);border-radius:10px;
   padding:10px 14px;font-size:13px;line-height:1.55;margin:4px 0 12px;}
@@ -123,7 +107,8 @@ def _note(extra: str = "") -> str:
     """The yellow 'this is synthetic' banner every demo page carries."""
     return ('<div class="tg-note">🧪 <b>Demo book — sample positions.</b> The tracker is a '
             'private workspace, so a public visitor sees how it works, never anyone\'s real '
-            'portfolio. Prices are live; the positions are invented.'
+            'portfolio. The positions are invented; <b>prices, sector, and the character · RS '
+            'reads are all live</b>.'
             + ((" " + extra) if extra else "") + '</div>')
 
 
@@ -131,29 +116,74 @@ def _foot(msg: str = "Owner? Unlock your books →") -> str:
     return f'<div class="tg-foot"><a href="/dash/tracker/owner">{msg}</a></div>'
 
 
-def _positions_view():
-    """(rows_html, invested, current_value, total_pl_pct) for the demo book — live CMPs."""
-    cmps = _cmp_for([p[0] for p in _DEMO_POSITIONS])
+def _demo_signals(symbols) -> dict:
+    """Live enrichment for the demo symbols — CMP · sector · cap tier + the thesis-health
+    cell (character · RS rank · conviction), REUSING the owner-page helpers (`dashboard._enrich`
+    / `_health_cell` / `_capture_snapshot`) so the PUBLIC demo demonstrates the real analytics,
+    not a bare P&L table. Honest: the positions/entries are invented, but the sector/character/RS
+    reads are LIVE (same as CMP). Defensive → {} on any failure; each key degrades to None so the
+    table still renders on a thin DB. One DB pass for the whole page."""
+    out = {}
+    try:
+        from src.web import dashboard as D
+        with D.get_conn() as conn:
+            enr = D._enrich(conn, list(symbols))
+            for s in symbols:
+                e = enr.get(s, {}) or {}
+                sig = e.get("sig") or {}
+                try:
+                    cmp_ = D._capture_snapshot(conn, s)[0]
+                except Exception:  # noqa: BLE001
+                    cmp_ = None
+                out[s] = {
+                    "cmp": cmp_,
+                    "sector": D._sector_short(e.get("sector")),
+                    "tier": e.get("tier"),
+                    "rs": sig.get("rs_rank"),
+                    "char": sig.get("accum_character"),
+                    # thn=None: no frozen entry snapshot in the demo, so no then→now drift —
+                    # the cell shows the live character · RS · conviction read (honest).
+                    "health": D._health_cell(None, sig, cmp_, None),
+                }
+    except Exception:  # noqa: BLE001 — enrichment is a demo garnish; never break the gate
+        pass
+    return out
+
+
+def _sec_cell(d: dict) -> str:
+    sec = d.get("sector") or "—"
+    tier = d.get("tier")
+    return sec + (f' · <span class="mut">{tier}</span>' if tier else "")
+
+
+def _positions_view(sigs: dict):
+    """(rows_html, invested, current_value, total_pl_pct) for the demo book. `sigs` =
+    _demo_signals() (live CMP + sector/tier + the thesis-health cell)."""
     rows, inv, cur = [], 0.0, 0.0
     for sym, qty, entry, since in _DEMO_POSITIONS:
-        c = cmps.get(sym)
+        d = sigs.get(sym) or {}
+        c = d.get("cmp")
         inv += qty * entry
         cur += qty * (c or entry)
         pl = ((c - entry) / entry * 100.0) if c else None
         pl_txt = (f'<span style="color:var(--{ "up" if pl >= 0 else "down" })">{pl:+.1f}%</span>'
                   if pl is not None else "—")
         cmp_txt = f"₹{c:,.1f}" if c else "—"
+        health = d.get("health") or '<span class="mut">—</span>'
         rows.append(f'<tr><td><a href="/dash/stock?sym={sym}" style="color:inherit">{sym}</a></td>'
+                    f'<td>{_sec_cell(d)}</td>'
                     f'<td class="r">{qty}</td><td class="r">₹{entry:,.1f}</td>'
-                    f'<td class="r">{cmp_txt}</td><td class="r">{pl_txt}</td><td>{since}</td></tr>')
+                    f'<td class="r">{cmp_txt}</td><td class="r">{pl_txt}</td>'
+                    f'<td>{health}</td><td>{since}</td></tr>')
     tot_pl = ((cur - inv) / inv * 100.0) if inv else None
     return "".join(rows), inv, cur, tot_pl
 
 
 def _positions_table(rows_html: str) -> str:
-    return ('<table class="tg-t"><thead><tr><th>Symbol</th><th class="r">Qty</th>'
-            '<th class="r">Entry</th><th class="r">CMP</th><th class="r">P&amp;L</th><th>Since</th>'
-            '</tr></thead><tbody>' + rows_html + '</tbody></table>')
+    return ('<table class="tg-t"><thead><tr><th>Symbol</th><th>Sector · Cap</th>'
+            '<th class="r">Qty</th><th class="r">Entry</th><th class="r">CMP</th>'
+            '<th class="r">P&amp;L</th><th>Thesis-health <span class="mut">(live)</span></th>'
+            '<th>Since</th></tr></thead><tbody>' + rows_html + '</tbody></table>')
 
 
 def _kpi(n: str, label: str) -> str:
@@ -166,7 +196,8 @@ def _pl_kpi(tot_pl, label="P&amp;L") -> str:
 
 # ── the five sub-tab views — each DISTINCT so the tabs are responsive + highlight ─────
 def _demo_dashboard() -> str:
-    rows, inv, cur, tot_pl = _positions_view()
+    sigs = _demo_signals([p[0] for p in _DEMO_POSITIONS])
+    rows, inv, cur, tot_pl = _positions_view(sigs)
     watch = " · ".join(f'<a href="/dash/stock?sym={s}" style="color:inherit">{s}</a>'
                        for s in _DEMO_WATCH)
     return (_DEMO_CSS
@@ -184,11 +215,13 @@ def _demo_dashboard() -> str:
 
 
 def _demo_portfolios() -> str:
-    rows, inv, cur, tot_pl = _positions_view()
+    sigs = _demo_signals([p[0] for p in _DEMO_POSITIONS])
+    rows, inv, cur, tot_pl = _positions_view(sigs)
     return (_DEMO_CSS
         + '<h2>Portfolios <span class="sub" style="margin:0">demo book</span></h2>'
         + _note('<b>Portfolios</b> are positions you\'ve committed money to — a frozen entry, '
-                'live P&amp;L, target/stop distance and a live thesis-health read.')
+                'live P&amp;L, target/stop distance and a live <b>thesis-health</b> read (is the '
+                'strong hand still accumulating; is relative strength holding).')
         + '<div class="tg-kpi">'
         + _kpi(f'₹{inv:,.0f}', "invested") + _kpi(f'₹{cur:,.0f}', "value (live)")
         + _pl_kpi(tot_pl) + _kpi(str(len(_DEMO_POSITIONS)), "positions")
@@ -198,25 +231,29 @@ def _demo_portfolios() -> str:
 
 
 def _demo_watchlists() -> str:
-    cmps = _cmp_for(_DEMO_WATCH)
+    sigs = _demo_signals(_DEMO_WATCH)
     rows = []
     for s in _DEMO_WATCH:
-        c = cmps.get(s)
+        d = sigs.get(s) or {}
+        c = d.get("cmp")
         cmp_txt = f"₹{c:,.1f}" if c else "—"
+        health = d.get("health") or '<span class="mut">—</span>'
         rows.append(f'<tr><td><a href="/dash/stock?sym={s}" style="color:inherit">{s}</a></td>'
-                    f'<td class="r">{cmp_txt}</td>'
+                    f'<td>{_sec_cell(d)}</td><td class="r">{cmp_txt}</td>'
+                    f'<td>{health}</td>'
                     f'<td><a href="/dash/stock?sym={s}" style="color:inherit">open dossier →</a></td></tr>')
     return (_DEMO_CSS
         + '<h2>Watchlists <span class="sub" style="margin:0">demo book</span></h2>'
-        + _note('A <b>watchlist</b> is ideas you\'re only watching — no money in yet. '
-                'Promote one to a portfolio the day you commit.')
-        + '<table class="tg-t"><thead><tr><th>Symbol</th><th class="r">CMP</th><th></th></tr></thead>'
+        + _note('A <b>watchlist</b> is ideas you\'re only watching — no money in yet. The live '
+                '<b>character · RS</b> read tells you which are actually setting up vs just drifting.')
+        + '<table class="tg-t"><thead><tr><th>Symbol</th><th>Sector · Cap</th><th class="r">CMP</th>'
+          '<th>Character · RS <span class="mut">(live)</span></th><th></th></tr></thead>'
         + f'<tbody>{"".join(rows)}</tbody></table>'
         + _foot('Unlock to keep your own watchlists →'))
 
 
 def _demo_performance() -> str:
-    _rows, inv, cur, tot_pl = _positions_view()
+    _rows, inv, cur, tot_pl = _positions_view(_demo_signals([p[0] for p in _DEMO_POSITIONS]))
     pl_abs = cur - inv
     return (_DEMO_CSS
         + '<h2>Performance <span class="sub" style="margin:0">demo book</span></h2>'
@@ -399,11 +436,18 @@ def _selftest() -> int:
     assert "watchlist" in bodies["/dash/tracker/watchlists"].lower(), "Watchlists is watchlist-specific"
     assert "XIRR" in bodies["/dash/tracker/performance"], "Performance explains the scoreboard"
     assert "template.csv" in bodies["/dash/tracker/import"], "Import links the CSV template"
+    # the richer demo: positions + watchlist now carry the sector + live thesis-health/RS reads
+    # (structure asserted here; the live reads populate on the full-DB box, degrade to — on a thin
+    # DB — so assert the COLUMNS, not the data, to keep the selftest DB-independent).
+    assert "Thesis-health" in bodies["/dash/tracker/portfolios"], "Portfolios shows the thesis-health column"
+    assert "Sector" in bodies["/dash/tracker/portfolios"], "Portfolios shows the sector column"
+    assert "Character · RS" in bodies["/dash/tracker/watchlists"], "Watchlists shows the character·RS read"
     for p, (active, _t, _b) in _DEMO_VIEW.items():
         assert active in p, f"active key {active!r} should match its path {p}"
     f = _owner_form(bad=True)
     assert 'method="post"' in f and "didn" in f
-    print("tracker_gate selftest OK — 5 distinct demo tabs, active-key highlight, template open")
+    print("tracker_gate selftest OK — 5 distinct demo tabs, active-key highlight, "
+          "template open, thesis-health/RS reads")
     return 0
 
 
