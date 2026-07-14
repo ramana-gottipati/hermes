@@ -127,16 +127,19 @@ def compute_entry_features(ss: SymbolSeries) -> dict:
     vm22, vm66 = _roll_mean(v, 22), _roll_mean(v, 66)
     with np.errstate(invalid="ignore", divide="ignore"):
         f["vol_ratio_22_66"] = np.where(vm66 > 0, vm22 / vm66, np.nan)
-    # delivery-qty trend (M1-reverse term).
-    # ⚠ Codex D5-F6 (Track C, verified — split-sensitivity, deferred fix): this trends RAW delivered
-    # SHARE COUNT (dm22/dm66 of dq), so a split inside the 66d window inflates the ratio. The clean
-    # fix is a delivered-VALUE trend = dq * ss.close (RAW close → split-invariant; NOT adj_close,
-    # which would re-introduce the D1-F1 raw-qty×adjusted-price trap). Deferred because this feature
-    # feeds the LIVE nightly momentum_scan → the change wants a momentum_scan re-verify + deploy.
-    # Verified minor: ~0.09 Sharpe to QUAL_MOM, ~0 to DELIV_MOM (TRACK-C-RESULTS.md §D5-F6).
-    dm22, dm66 = _roll_mean(dq, 22), _roll_mean(dq, 66)
+    # delivery-VALUE trend (M1-reverse term).
+    # D5-F6 (Track C, VERIFIED + FIXED): this formerly trended RAW delivered SHARE COUNT
+    # (dm22/dm66 of dq), so a split inside the 66d window inflated the ratio with no economic
+    # change. It now trends delivered VALUE = dq × RAW close — split-invariant. RAW close, NOT
+    # adj_close (adj_close would re-introduce the D1-F1 raw-qty×adjusted-price trap). The dict KEY
+    # stays `deliv_qty_trend` deliberately: it is referenced by factory/features/overlay + frozen
+    # OOS rule strings across research/explosive_moves; renaming would break those artifacts.
+    # Verified impact: ~+0.09 Sharpe to QUAL_MOM, ~0 to DELIV_MOM (TRACK-C-RESULTS.md §D5-F6).
+    # Live path = nightly momentum_scan → re-verify + deploy after this lands.
+    dv = dq * ss.close                       # raw delivered value per day (split-invariant)
+    dvm22, dvm66 = _roll_mean(dv, 22), _roll_mean(dv, 66)
     with np.errstate(invalid="ignore", divide="ignore"):
-        f["deliv_qty_trend"] = np.where(dm66 > 0, dm22 / dm66, np.nan)
+        f["deliv_qty_trend"] = np.where(dvm66 > 0, dvm22 / dvm66, np.nan)
     # base tightness on closes
     rmax, rmin, rmean = _roll_max(ac, 22), _roll_min(ac, 22), _roll_mean(ac, 22)
     with np.errstate(invalid="ignore", divide="ignore"):
