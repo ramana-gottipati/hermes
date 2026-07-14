@@ -79,6 +79,33 @@ def _V():
     return V
 
 
+# Plain-English subtitles for the METAPHOR-only nav labels (UX audit S-C item 5 /
+# SURFACE-PLAYBOOK §4: "a first-time user cannot decode Weather/Clock/Band/All-weather from
+# the nav — pair every metaphor with a plain subtitle"). Keyed by lens key. Only these ~7
+# opaque labels get a sub-line; every other lens stays a single clean row. Lives HERE (the
+# nav renderer) — a display concern — so it needs NO edit to the forked lens_registry.
+_SUBTITLES = {
+    "rrg":         "sectors on the strength × momentum grid",
+    "rotation":    "which of four phases each stock is in",
+    "rsband":      "where a stock sits in its own RS range",
+    "cycle-clock": "sectors on the rotation loop vs the market",
+    "capture-map": "behaviour on up days vs down days",
+    "launchpad":   "stocks showing pre-breakout traits",
+    "band-locks":  "names stuck at their daily price limit",
+}
+
+
+def _rl_link(k, h, l, on_cls) -> str:
+    """One rail link. A metaphor lens (`k` in _SUBTITLES) renders label + a dim plain
+    sub-line; every other lens renders the label alone (byte-identical to before)."""
+    sub = _SUBTITLES.get(k)
+    if sub:
+        return ('<a class="uk-rl uk-rl-2%s" href="%s"><span class="rl-l">%s</span>'
+                '<span class="rl-sub">%s</span></a>'
+                % (on_cls, _esc(h), _esc(l), _esc(sub)))
+    return '<a class="uk-rl%s" href="%s">%s</a>' % (on_cls, _esc(h), _esc(l))
+
+
 def _esc(s) -> str:
     try:
         from src.web.ui_kit import esc as _e
@@ -130,17 +157,17 @@ def _rail(alt: str, on_href) -> str:
     def _on(h):
         return " on" if (on_href and h == on_href) else ""
 
-    pinned: list[tuple[str, str]] = []
-    gmap: dict[str, list[tuple[str, str]]] = {}
+    pinned: list[tuple[str, str, str]] = []
+    gmap: dict[str, list[tuple[str, str, str]]] = {}
     seen: list[str] = []
     for _k, h, l, g in items:
         if not g:
-            pinned.append((h, l))
+            pinned.append((_k, h, l))
         else:
             if g not in gmap:
                 gmap[g] = []
                 seen.append(g)
-            gmap[g].append((h, l))
+            gmap[g].append((_k, h, l))
     pref = _GROUP_ORDER.get(alt, [])
     ordered = [g for g in pref if g in gmap] + [g for g in seen if g not in pref]
 
@@ -149,7 +176,7 @@ def _rail(alt: str, on_href) -> str:
     # wall of collapsed headers. (The client remembers the user's own toggles thereafter.)
     default_open = None
     for g in ordered:
-        if any(_on(h) for h, _l in gmap[g]):
+        if any(_on(h) for _kk, h, _l in gmap[g]):
             default_open = g
             break
     if default_open is None and ordered:
@@ -159,18 +186,18 @@ def _rail(alt: str, on_href) -> str:
     P.append('<div class="uk-rail-hd"><span class="ttl">%s</span>'
              '<button class="uk-rail-tg" type="button" aria-label="Collapse menu" '
              'title="Collapse menu">&#171;</button></div>' % _esc(label))
-    for h, l in pinned:
-        P.append('<a class="uk-rl%s" href="%s">%s</a>' % (_on(h), _esc(h), _esc(l)))
+    for k, h, l in pinned:
+        P.append(_rl_link(k, h, l, _on(h)))
     for g in ordered:
         its = gmap[g]
-        gon = (g == default_open) or any(_on(h) for h, _l in its)
+        gon = (g == default_open) or any(_on(h) for _kk, h, _l in its)
         P.append('<div class="uk-rg" data-g="%s">' % _esc(g))
         P.append('<button class="uk-rg-h" type="button" aria-expanded="%s">'
                  '<span class="cr">&#9656;</span><span class="lb">%s</span></button>'
                  % ("true" if gon else "false", _esc(g)))
         P.append('<div class="uk-rg-b%s">' % (" show" if gon else ""))
-        for h, l in its:
-            P.append('<a class="uk-rl%s" href="%s">%s</a>' % (_on(h), _esc(h), _esc(l)))
+        for k, h, l in its:
+            P.append(_rl_link(k, h, l, _on(h)))
         P.append("</div></div>")
     P.append("</aside>")
     # reopen affordance (fixed; shown only when the rail is collapsed — see CSS).
@@ -258,6 +285,10 @@ body.rail-collapsed .uk-rail{width:0;padding:0;border-right:0;overflow:hidden}
   text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:var(--t)}
 .uk-rail .uk-rl:hover{color:var(--ink-2);background:var(--bg-2)}
 .uk-rail .uk-rl.on{color:var(--ink);background:var(--bg-3);box-shadow:var(--glass)}
+.uk-rail .uk-rl-2{white-space:normal;line-height:1.2;padding-top:5px;padding-bottom:6px}
+.uk-rail .uk-rl-2 .rl-l{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uk-rail .uk-rl-2 .rl-sub{display:block;font-size:9.5px;color:var(--ink-3);margin-top:1px;letter-spacing:.1px}
+.uk-rail .uk-rl-2:hover .rl-sub,.uk-rail .uk-rl-2.on .rl-sub{color:var(--ink-2)}
 .uk-rg{margin-top:1px}
 .uk-rg-h{display:flex;align-items:center;gap:7px;width:100%;background:none;border:0;cursor:pointer;
   color:var(--ink-3);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;padding:9px 8px 5px;text-align:left}
@@ -425,6 +456,10 @@ def _selftest() -> int:
     assert _RAIL_MARKER in out, "rail css marker not injected"
     assert 'class="uk-rail"' in out and 'class="uk-rg"' in out, "grouped rail not built"
     assert ">Big picture<" in out or ">Rotation<" in out, "no group headings in rail"
+    # S-C item 5: metaphor lenses (Weather/Clock/Band/Map/All-weather/Launchpad) carry a plain
+    # sub-line; a non-metaphor lens (Sectors) does not gain one.
+    assert 'class="rl-sub"' in out and "which of four phases" in out, \
+        "metaphor-lens subtitle not rendered in the rail (S-C item 5)"
     assert "has-rail" in out and 'data-alt="markets"' in out, "body not marked"
     assert "BODY-DATA" in out, "body content lost (NOT no-loss)"
     assert 'class="uk-sub"' not in out, "old horizontal strip still present"
