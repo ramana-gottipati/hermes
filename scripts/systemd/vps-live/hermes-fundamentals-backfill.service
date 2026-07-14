@@ -1,0 +1,14 @@
+[Unit]
+Description=Hermes - Phase-3 XBRL historical backfill: one bounded, throttle-safe, resumable batch (Guardrail #8)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/hermes
+Environment=PYTHONPATH=/opt/hermes
+# One bounded batch: migrate up to N gate-passing addressable symbols (Tier-1/NSE-indexed
+# first, pre-2018 periods frozen) from Screener to primary NSE-XBRL. Resumable via the
+# seen-table + fundamentals_xbrl_backfill_progress ledger; stops cleanly on NSE throttle.
+# Scheduled OFF-PEAK to avoid the 16:30 forward-ingest / 17:18 capital-allocation writers.
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.fundamentals_xbrl --backfill --limit 50
+StandardOutput=append:/var/log/hermes-fundamentals-backfill.log
+StandardError=append:/var/log/hermes-fundamentals-backfill.log

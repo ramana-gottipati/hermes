@@ -4,7 +4,7 @@
 > migration (Guardrail #8). Retire once the backfill has run, the residual live scrapers are removed,
 > and [fundamentals-xbrl-migration.md](fundamentals-xbrl-migration.md) § Phasing marks Phase 3 DONE.
 
-**Status:** DRAFT — awaiting Ramana's decisions (§10). Read-only coverage audit run 2026-07-14 (₹0, no writes).
+**Status:** IN EXECUTION (2026-07-15) — decisions taken (§10), engine deployed (`0b637ed`), pilot passed, universe backfill running. See § Pilot results.
 **Predecessor:** Phases 1–2 LIVE (forward-only gated ingest + bank mapper + shareholding). See the migration doc.
 **Module reused:** `src/automation/fundamentals_xbrl.py` (no new extractor — Phase 3 is an orchestrator on top).
 
@@ -109,6 +109,36 @@ fix**, not a loosening — it does not touch the ITC/HDFCBANK/LTF-class residue.
 | **3.2** | **Pilot backfill** ~25–50 Tier-1 gate-pass symbols with `overwrite_screener=True`; reconcile + verify C-score and patearn CAGRs unchanged across the source boundary | writes, reversible; go/no-go gate |
 | **3.3** | Universe backfill over bounded windows, Tier 1 → Tier 2 | writes, resumable |
 | **3.4** | Consumer swap → delete live scrapers → close Guardrail #8 in migration doc + PROJECT_STATE | code + docs |
+
+## Pilot results & root-cause (2026-07-15)
+
+**Deployed** `0b637ed` (gate floor + orchestrator), md5-verified on the box, VPS selftest green.
+**Regate of the 9** on live data: the floor recovered 4 pure-rounding fails (VIKASECO / AHLEAST /
+NUVOCO / EIMCOELECO) and correctly held UMIYA-MRO once fuller evidence exposed a real 37% Sales gap.
+
+**Pilot** (`--backfill --tier 1 --limit 30`): **19 migrated (2,719 rows) / 11 gate-held / 0 partial /
+0 error / no throttle.** Safety verified: **0 pre-2018 rows touched** (period floor holds); migrated
+rows carry real values, broadcast `report_date`s, and `NSE-XBRL-SA/CONSO` tags.
+
+Two findings, both root-caused to **accept + label** (no code fix — consistent with §10):
+
+1. **~37% Tier-1 gate-held is mostly financials + definitional, not a bug.** The financial cluster
+   (ABCAPITAL / AAVAS / AADHARHFC) trips the bank detector (`InterestEarned` present), so the bank
+   mapper sets `Revenue = InterestEarned` — which for a diversified financial (lending + AMC +
+   insurance) under-reports vs Screener's *total* income (ABCAPITAL 4,374 vs 9,381). This is the
+   **Track-D financial-sector mapping** complexity (financials are already a labeled special case),
+   **not** a conso/SA selection bug — the extractor *did* pick consolidated. They stay Screener-
+   labeled. The rest are excise (ABDL, ITC-class), demerger (ABREL / ABFRL), or near-misses
+   (360ONE / ADANIPORTS, just over the 2% gate).
+2. **Extraction reaches back only to ~2022-06.** Older filings expose a stripped `_WEB.xml` (2 non-
+   standard contexts), not the full instance. Per §10.1 the pre-window tail stays frozen Screener, so
+   the effective primary-source window is **~2022→present** (not 2018); 2018–2022 stays labeled-legacy.
+
+**Net:** engine proven + safe; the migration proceeds as-is for the gate-passing, ~2022+ cohort, and
+everything held (financials, definitional, pre-2022) remains honestly `source`-labeled. Universe run
+is driven by `scripts/fundamentals_backfill_loop.sh` (manual completion push, this session) +
+`hermes-fundamentals-backfill.timer` (recurring, off-peak, installed+enabled — armed on next
+reboot / a deliberate start, per the no-mid-day-timer-start ban).
 
 ## 7. Operational safety
 
