@@ -10,6 +10,20 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-15 — S143-e: CHART COMPARE fixed (Ramana-directed) — do NOT redo; kickstart-pick-verify
+- Ramana reported "index comparison removed" + "stock chart won't let me add stocks/related-companies/indices."
+  **Neither was removed or broken** (Explore agent + live curl + backups verified): index-compare lives at `/dash/compare`
+  (the index chart LINKS to it, never inline); the stock price-chart's compare box was a bare EXACT-MATCH input that
+  silently rejected NAMES / wrong-case indices → "No series" → read as broken. **FIXED + LIVE-WALKED on the box:**
+  `symbol_search.py` (base-matched) gained `search_indices()` + a `?indices=1` endpoint flag + `TYPEAHEAD_JS`
+  `onPick`/`indices` options (⌘K/home unchanged); `stock_chart.py` (forked; 2-hunk `git apply` over the box's older-RSI
+  D7-F5 drift) price-tab compare box now has a company+index typeahead dropdown (pick→add) + a name-resolution fallback.
+  Browser-driven walk: "tata"→companies, "nifty"→indices, pick Nifty 50→added, "infosys"+add→resolved+added.
+- **Remaining chart polish (a good small next pick):** (1) surface "related companies" (peers) on the PRICE tab too
+  (today the peer chips are RS-tab only); (2) make the index chart's "Compare indices" link more prominent;
+  (3) optional `symbol_search._rank` tweak so "infosys" prefers the current listing (INFY) over an old ticker
+  (INFOSYSTCH) in the add-without-picking fallback.
+
 ## ✅ 2026-07-14 — S148: S-E PHASE 2 slice C — Pat market-INTERNALS flow SHIPPED — do NOT redo; kickstart-pick-verify
 - **NEW `src/pat/internals_flow.py`** — "how's the breadth / market internals / how many stocks up" →
   the latest `market_internals_daily` snapshot (% advancing + adv/dec + MEP effort tape + 22y percentile
