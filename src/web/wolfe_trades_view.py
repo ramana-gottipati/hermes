@@ -27,6 +27,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from src.core.db import get_conn
+from src.web import infographics as ifx  # shared readability scaffold (S-C education)
 from src.automation import wolfe
 
 # STICKY FILTERS (Ramana 2026-07-13): "I dive into a result, do a study, and return —
@@ -409,8 +410,8 @@ def _bottom_line(rows, total_open, held_out=0):
              'of the ranked view — their 1-4 target extrapolates too far past formation to '
              'compare to today\'s price; still detected + drawn on each stock\'s chart)</span>') if held_out else ''
     if not n:
-        return ('<div class="wtbl"><b>Bottom line:</b> no open trades match these filters '
-                f'— of {total_open} ranked open, none pass. Loosen a dropdown.{hnote}</div>')
+        return ifx.bottom_line('No open trades match these filters '
+                               f'— of {total_open} ranked open, none pass. Loosen a dropdown.{hnote}')
     n_act = sum(1 for r in rows if r.get("in_zone") and not r.get("invalid"))
     n_edge = sum(1 for r in rows if (r.get("age") is not None and r["age"] <= 15))
     n_blown = sum(1 for r in rows if r.get("invalid"))
@@ -425,7 +426,7 @@ def _bottom_line(rows, total_open, held_out=0):
         col = _UP if r["dir"] == "BULL" else _DN
         return (f'<a href="/dash/wolfe?sym={_q(r["sym"])}&p5={_q(r.get("p5date") or "")}&p4={_q(r.get("p4date") or "")}" '
                 f'style="color:{col};font-weight:600;text-decoration:none">{_esc(r["sym"])}</a> {extra}')
-    parts = [f'<b>Bottom line:</b> <b>{n}</b> ranked open trade{"s" if n != 1 else ""} '
+    parts = [f'<b>{n}</b> ranked open trade{"s" if n != 1 else ""} '
              f'{"match these filters" if n != total_open else "in view"} — '
              f'<b style="color:var(--up)">{n_act}</b> actionable now, {n_edge} fresh (★edge)'
              + (f', {n_blown} below stop (shown last)' if n_blown else '') + '.']
@@ -435,7 +436,8 @@ def _bottom_line(rows, total_open, held_out=0):
     if most_room and (not best_rr or most_room["sym"] != best_rr["sym"]):
         parts.append('Most room left: ' + _name(most_room,
                      f'<span style="color:var(--ink-2)">{most_room["run"]:+.0f}%, R:R {_rr_disp(most_room.get("rr"))}</span>') + '.')
-    return '<div class="wtbl">' + " ".join(parts) + hnote + '</div>'
+    # folded into the shared readability band (S-C): same computed takeaway, one site-wide visual
+    return ifx.bottom_line(" ".join(parts) + hnote)
 
 
 @router.get("/dash/wolfe/trades", response_class=HTMLResponse)
@@ -625,6 +627,7 @@ def wolfe_trades(request: Request,
     ca = _esc((snap.get("computed_at") or "")[:16])
     body = (
         _CSS
+        + ifx.readability_css()
         + '<h2>Wolfe <span style="color:var(--ink-2);font-size:15px;font-weight:400">— open trades, remaining ROI</span></h2>'
         + wolfe_view_toggle("open")
         + _staleness_banner(snap.get("scan_date"), latest_data)
@@ -640,6 +643,7 @@ def wolfe_trades(request: Request,
         f'<div class="sub" style="margin-bottom:8px;font-size:12px">{sortbar}</div>'
         + fbar
         + _bottom_line(rows, total_open, snap.get("held_out", 0))
+        + ifx.how_to_read_link()
         + _breadth(rows)
         + f'<div style="color:var(--ink-2);font-size:13px;margin:8px 0 10px">{_esc(uni)} · '
           f'as-of <b>{sd}</b> <span style="color:var(--ink-3)">(nightly snapshot'
