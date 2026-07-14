@@ -392,9 +392,9 @@ The famous name-brand strategies run as live rosters on our PIT data at `/dash/c
 - **Acquirer's Multiple — Carlisle's EV/EBIT screen.** Ranks the cheapest enterprise-value-to-EBIT; reference-only until point-in-time enterprise value lands (phase 2). *Source:* `classic_roster`.
 - **ROCE — Return on Capital Employed.** Operating profit as a % of the capital (equity + debt) deployed to earn it; a core quality/efficiency gauge. Higher and steadier = better capital allocation. *Source:* `roce`.
 - **OPM — Operating Profit Margin.** Operating profit as a % of sales; how much of each rupee of revenue survives to operating profit. *Source:* `opm_latest`.
-- **D/E — Debt to Equity.** Total borrowings ÷ net worth; balance-sheet leverage. Lower = safer. *Source:* `debt_to_equity`.
+- **Debt to Equity (D/E).** Total borrowings ÷ net worth; balance-sheet leverage. Lower = safer. *Source:* `debt_to_equity`.
 - **P/E — Price to Earnings.** Price ÷ trailing earnings per share; rupees paid per rupee of annual profit. *Source:* `pe`.
-- **P/B — Price to Book.** Price ÷ book value per share; rupees paid per rupee of net worth. *Source:* `pb`.
+- **Price to Book (P/B).** Price ÷ book value per share; rupees paid per rupee of net worth. *Source:* `pb`.
 - **PEG — Price/Earnings-to-Growth.** P/E ÷ the earnings-growth rate; lower = cheaper for the growth you are buying (Lynch's GARP metric). *Source:* `peg`.
 - **Earnings yield — E/P.** Earnings per share ÷ price (the inverse of P/E); the value leg of our Magic Formula proxy. *Source:* `ey`.
 - **F-Score — Piotroski financial-strength score.** A 0–9 count of fundamental-health signals; we compute 5 of the 9 (F5: ΔNet-profit, ROCE>0, ΔROCE, Δmargin, leverage-safe) — the cash-flow trio needs the XBRL cash-flow feed. *Source:* `f5`.
