@@ -507,6 +507,15 @@ def readability_css() -> str:
         "transition:color .12s,border-color .12s,background .12s;}"
         ".rd-related a:hover{color:var(--ink);border-color:var(--accent);background:var(--bg-3);}"
         ".rd-related .rd-rel-note{font-size:11px;color:var(--ink-3);}"
+        # .rd-toggle — the view-switch strip that makes two routes read as ONE lens (S-B1 merges).
+        ".rd-toggle{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px;}"
+        ".rd-toggle .rd-tg-l{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;"
+        "text-transform:uppercase;color:var(--ink-3);font-weight:700;margin-right:2px;}"
+        ".rd-toggle .rd-tg{font-size:12px;color:var(--ink-2);text-decoration:none;background:var(--bg-2);"
+        "border:1px solid var(--line-2);border-radius:8px;padding:5px 12px;"
+        "transition:color .12s,border-color .12s,background .12s;}"
+        ".rd-toggle .rd-tg:hover{color:var(--ink);border-color:var(--accent);}"
+        ".rd-toggle .rd-tg-on{color:var(--ink);background:var(--bg-3);border-color:var(--accent);font-weight:600;}"
         "</style>")
 
 
@@ -587,8 +596,10 @@ def fence_note(kind: str, detail: str = "", extra_html: str = "") -> str:
 # the seasonal trio's `_subnav` strip to the RS/rotation family (item 9).
 _RELATED: dict[str, tuple[str, ...]] = {
     # RS / rotation / strength cluster — different views of the same relative-strength data.
-    "rrg":          ("rotation", "rsband", "cycle-clock", "capture-map"),
-    "rotation":     ("rrg", "rsband", "cycle-clock"),
+    # (rrg⇄rotation is NOT cross-linked here — they are ONE merged lens reached via the on-page
+    #  Map⇄Weather toggle, S-B1 item 2; a "Related" chip to your own toggle-sibling would be noise.)
+    "rrg":          ("rsband", "cycle-clock", "capture-map"),
+    "rotation":     ("rsband", "cycle-clock"),
     "rsband":       ("rrg", "rotation", "cycle-clock", "capture-map"),
     "cycle-clock":  ("rrg", "rotation", "rsband"),
     "capture-map":  ("rrg", "rsband", "rs-hub"),
@@ -634,11 +645,46 @@ def related_strip(key: str, note: str = "") -> str:
             + "".join(chips) + lead + "</div>")
 
 
+# ── view toggle — make two+ routes read as ONE lens (UX audit S-B1 item 2 merges) ─────────
+# The Wolfe "Fresh setups ⇄ Open trades" toggle (D120), generalised: a merged lens is TWO live
+# routes presented as one surface with an on-page switch. The rail shows a single entry (folded
+# in left_rail); this strip lets the reader flip views without going back to the nav.
+def view_toggle(active: str, options, *, label: str = "") -> str:
+    """A segmented view-switch strip. `options` = [(key, label, href), …]; the option whose key
+    == `active` is marked current (aria-current). `label` is an optional leading caption. Uses
+    the .rd-toggle style from readability_css()."""
+    segs = []
+    for k, lbl, href in options:
+        cls = "rd-tg rd-tg-on" if k == active else "rd-tg"
+        cur = ' aria-current="page"' if k == active else ""
+        segs.append('<a class="%s" href="%s"%s>%s</a>' % (cls, href, cur, lbl))
+    cap = ('<span class="rd-tg-l">%s</span>' % label) if label else ""
+    return '<div class="rd-toggle" role="tablist">' + cap + "".join(segs) + "</div>"
+
+
+# The Rotation lens is ONE surface with a Map ⇄ Weather toggle (S-B1 item 2). Single-sourced here
+# so rrg_view (Map) and rotation_view (Weather) can't drift on the label/href pair.
+_ROTATION_VIEWS = (("map", "◱ Map (RRG)", "/dash/rrg"),
+                   ("weather", "🌤 Weather (phases)", "/dash/rotation"))
+
+
+def rotation_toggle(active: str) -> str:
+    """The Map ⇄ Weather switch shared by /dash/rrg and /dash/rotation — `active` is 'map' or
+    'weather'. Renders the two rotation views as one lens (S-B1 item 2)."""
+    return view_toggle(active, _ROTATION_VIEWS, label="Rotation view:")
+
+
 def _selftest() -> int:
     import re
     assert readability_css().startswith("<style>") and "rd-bottom" in readability_css()
     # .rd-related is single-sourced in the scaffold CSS (every family page already loads it).
     assert "rd-related" in readability_css()
+    # view/rotation toggle: the active option is marked current; both routes are linked.
+    assert "rd-toggle" in readability_css()
+    _rt = rotation_toggle("map")
+    assert 'href="/dash/rrg"' in _rt and 'href="/dash/rotation"' in _rt
+    assert 'rd-tg-on' in _rt and 'aria-current="page"' in _rt
+    assert rotation_toggle("weather").count('rd-tg-on') == 1
     # related_strip: resolves labels/routes from the registry, carries the optional note, and
     # is skip-safe for an unknown key. Every _RELATED target must be a real, routed lens.
     from src.web import lens_registry as _LR

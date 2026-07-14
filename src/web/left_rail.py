@@ -108,7 +108,7 @@ def _V():
 # opaque labels get a sub-line; every other lens stays a single clean row. Lives HERE (the
 # nav renderer) — a display concern — so it needs NO edit to the forked lens_registry.
 _SUBTITLES = {
-    "rrg":         "sectors on the strength × momentum grid",
+    "rrg":         "map & weather views of sector rotation",   # merged Rotation lens (S-B1 item 2)
     "rotation":    "which of four phases each stock is in",
     "rsband":      "where a stock sits in its own RS range",
     "cycle-clock": "sectors on the rotation loop vs the market",
@@ -118,6 +118,18 @@ _SUBTITLES = {
     # "Pat" is a name, not a function — decode it for first-timers (S-D nav entry).
     "pat":         "ask questions in plain English",
 }
+
+
+# Merged-lens rail display (S-B1 item 2). The RRG "Map" and the four-phase "Weather" are ONE
+# Rotation surface reached via an on-page Map⇄Weather toggle (infographics.rotation_toggle), so
+# the rail shows a SINGLE "Rotation" entry: the /dash/rrg Map is the landing, /dash/rotation is
+# FOLDED into it (its route stays a live registry lens — build-additive — it's just not a second
+# rail row, and it lights the merged entry when visited). DISPLAY-only, single-owner, like
+# _SUBTITLES / _GROUP_REMAP — the forked lens_registry is untouched.
+_RAIL_HIDE = {"rotation"}                          # folded into the "rrg" (Rotation) entry
+_RAIL_RELABEL = {"rrg": "Rotation"}                # the merged entry reads plainly
+_RAIL_MERGE_HL = {"rotation": "rrg"}               # folded lens KEY → the merged entry's KEY
+                                                   # (key-based → immune to flat vs nested hrefs)
 
 
 def _rl_link(k, h, l, on_cls) -> str:
@@ -179,14 +191,22 @@ def _rail(alt: str, on_href) -> str:
         return ""
     label = V._ALT_LABELS.get(alt, (alt or "").title())
 
-    def _on(h):
-        return " on" if (on_href and h == on_href) else ""
+    # resolve the lit href to a lens KEY once; the merge-aware highlight then works on keys, so
+    # it is immune to whether on_href is the flat (/dash/rotation) or nested (/dash/markets/…) form.
+    on_key = next((_k for _k, h, _l, _g in items if h == on_href), None)
+
+    def _on(k):
+        # S-B1 item 2: a folded lens key (e.g. "rotation") lights its merged entry ("rrg").
+        return " on" if (on_key and (k == on_key or _RAIL_MERGE_HL.get(on_key) == k)) else ""
 
     pinned: list[tuple[str, str, str]] = []
     gmap: dict[str, list[tuple[str, str, str]]] = {}
     seen: list[str] = []
     for _k, h, l, g in items:
-        if alt == "markets":                       # S-B1 item 1: analytical → task groups
+        if _k in _RAIL_HIDE:                        # S-B1 item 2: folded into a merged entry
+            continue
+        l = _RAIL_RELABEL.get(_k, l)                # merged/plain rail label
+        if alt == "markets":                        # S-B1 item 1: analytical → task groups
             g = _GROUP_REMAP.get(_k, g)
         if not g:
             pinned.append((_k, h, l))
@@ -203,7 +223,7 @@ def _rail(alt: str, on_href) -> str:
     # wall of collapsed headers. (The client remembers the user's own toggles thereafter.)
     default_open = None
     for g in ordered:
-        if any(_on(h) for _kk, h, _l in gmap[g]):
+        if any(_on(_kk) for _kk, _h, _l in gmap[g]):
             default_open = g
             break
     if default_open is None and ordered:
@@ -214,10 +234,10 @@ def _rail(alt: str, on_href) -> str:
              '<button class="uk-rail-tg" type="button" aria-label="Collapse menu" '
              'title="Collapse menu">&#171;</button></div>' % _esc(label))
     for k, h, l in pinned:
-        P.append(_rl_link(k, h, l, _on(h)))
+        P.append(_rl_link(k, h, l, _on(k)))
     for g in ordered:
         its = gmap[g]
-        gon = (g == default_open) or any(_on(h) for _kk, h, _l in its)
+        gon = (g == default_open) or any(_on(_kk) for _kk, _h, _l in its)
         # a11y (S-B1 item 1): a proper disclosure — the header button controls its body by id,
         # carries aria-expanded (state) + an explicit aria-label so a screen reader announces
         # "<group>, N lenses, collapsed/expanded" rather than a bare glyph.
@@ -230,7 +250,7 @@ def _rail(alt: str, on_href) -> str:
         P.append('<div class="uk-rg-b%s" id="%s" role="group" aria-label="%s">'
                  % (" show" if gon else "", bid, _esc(g)))
         for k, h, l in its:
-            P.append(_rl_link(k, h, l, _on(h)))
+            P.append(_rl_link(k, h, l, _on(k)))
         P.append("</div></div>")
     P.append("</aside>")
     # reopen affordance (fixed; shown only when the rail is collapsed — see CSS).
@@ -497,14 +517,34 @@ def _selftest() -> int:
     # a11y: the header is a real disclosure (controls its body by id, groups its lenses).
     assert 'aria-controls="rg-today"' in out and 'id="rg-today"' in out and 'role="group"' in out, \
         "group disclosure a11y (aria-controls / id / role) missing"
-    # S-C item 5: metaphor lenses (Weather/Clock/Band/Map/All-weather/Launchpad) carry a plain
-    # sub-line; a non-metaphor lens (Sectors) does not gain one.
-    assert 'class="rl-sub"' in out and "which of four phases" in out, \
+    # S-C item 5: metaphor lenses (Band/Clock/All-weather/Launchpad) carry a plain sub-line; a
+    # non-metaphor lens (Sectors) does not gain one. (Rotation·Weather is now folded — item 2 — so
+    # test a still-visible metaphor lens.)
+    assert 'class="rl-sub"' in out and "where a stock sits in its own RS range" in out, \
         "metaphor-lens subtitle not rendered in the rail (S-C item 5)"
+    # S-B1 item 2: the RRG "Map" + four-phase "Weather" are ONE "Rotation" rail entry (the /dash/rrg
+    # Map is the landing); the folded /dash/rotation row + the old split labels are gone.
+    assert '<span class="rl-l">Rotation</span>' in out, "merged Rotation entry not relabeled"
+    assert "Rotation · Weather" not in out and "Rotation · Map" not in out, \
+        "old rrg/rotation split labels still in the rail"
     assert "has-rail" in out and 'data-alt="markets"' in out, "body not marked"
     assert "BODY-DATA" in out, "body content lost (NOT no-loss)"
     assert 'class="uk-sub"' not in out, "old horizontal strip still present"
     assert reshape_html(out) == out, "reshape not idempotent on its own output"
+
+    # S-B1 item 2 merge-highlight: visiting the folded Rotation·Weather route lights the merged
+    # "Rotation" entry (the Map/rrg row), even though it is not itself a rail row. The lit href in a
+    # real flat strip is the registry (nested) href, so use it here.
+    _rot_href = next((h for _k, h, _l, _g in V._IA_SUB["markets"] if _k == "rotation"), "/dash/rotation")
+    _rrg_href = next((h for _k, h, _l, _g in V._IA_SUB["markets"] if _k == "rrg"), "/dash/rrg")
+    rot = ('<!doctype html><html><head></head><body class="uk-skin">'
+           '<div class="uk-top"><a class="on" href="/dash/markets" aria-current="page">Markets</a></div>'
+           '<div class="uk-sub" role="navigation" aria-label="Section">'
+           '<a class="on" href="%s">Rotation</a></div>'
+           '<div id="uk-main" class="wrap">B</div></body></html>' % _rot_href)
+    rout = reshape_html(rot)
+    assert ('on" href="%s"' % _rrg_href) in rout, "folded Rotation·Weather did not light the merged Rotation entry"
+    assert ('href="%s"' % _rot_href) not in rout, "folded Rotation·Weather must not be its own rail row"
 
     # A legacy dashboard._shell page (as reskinned): the uk-sub + #uk-main.wrap anchors.
     legacy = ('<!doctype html><html><head></head><body class="uk-skin">'
