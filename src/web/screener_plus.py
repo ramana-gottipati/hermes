@@ -651,7 +651,7 @@ def _parity_view() -> str:
 # ── the page ─────────────────────────────────────────────────────────────────
 @router.get("/dash/screen2", response_class=HTMLResponse)
 def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
-                 limit: str = Query("600")) -> HTMLResponse:
+                 limit: str = Query("600"), rev: str = Query("")) -> HTMLResponse:
     if str(parity or "").strip() in ("1", "true", "yes"):
         return HTMLResponse(K.shell("Screen+ parity · patearn", _parity_view(),
                                     active="screener", sub=_sub(),
@@ -664,6 +664,10 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     except (TypeError, ValueError):
         limit = 600
     scope = (scope or "Nifty 500").strip()
+    # `rev=ri` = the "⚠ Reclaim · floor intact" server-side cut (Ramana, S132b):
+    # band_state RECLAIM whose confirmed fractal floor is UNBROKEN. Descriptive
+    # watch filter — the reclaim cross itself is a falsified signal (ledger 07-13).
+    rev_f = "ri" if str(rev or "").strip().lower() in ("ri", "reclaim", "1") else ""
     is_all = scope.lower() == "all"
     is_watch = scope.lower() in ("watch", "watchlist")
     rows: list[dict] = []
@@ -692,6 +696,11 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                     use = scope_syms or ["\x00"]
                     clause = " AND s.symbol IN (" + ",".join("?" for _ in use) + ")"
                     params += use
+                if rev_f and conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' "
+                        "AND name='reversal_context'").fetchone():
+                    clause += (" AND s.symbol IN (SELECT symbol FROM reversal_context"
+                               " WHERE band_state='RECLAIM' AND floor_alive=1)")
                 params.append(limit)
 
                 conv = "(0.55*COALESCE(s.p_score,0)/5.0*100.0 + 0.45*COALESCE(s.rs_rank,0))"
@@ -910,9 +919,17 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     # ── controls: scope chips + group toggles + saved screens + filter ──
     def _schip(name, label=None):
         on = " on" if scope.lower() == name.lower() else ""
+        keep = "&rev=ri" if rev_f else ""              # scope switches keep the reclaim cut
         return (f'<a class="uk-pill {"acc" if on else "neutral"}" '
-                f'href="/dash/screen2?scope={_q(name)}">{K.esc(label or name)}</a>')
-    chips = "".join(_schip(n) for n in _BROAD) + _schip("all", "All") + _schip("watch", "★ Watch")
+                f'href="/dash/screen2?scope={_q(name)}{keep}">{K.esc(label or name)}</a>')
+    rev_pill = (f'<a class="uk-pill {"acc" if rev_f else "neutral"}" '
+                f'href="/dash/screen2?scope={_q(scope)}{"" if rev_f else "&rev=ri"}" '
+                f'title="Only band-reclaims whose confirmed fractal floor is UNBROKEN — a '
+                f'descriptive watch cut (the reclaim cross itself tested as an anti-signal, '
+                f'ledger 2026-07-13); price came off the lows WITHOUT breaking known support.">'
+                f'⚠ Reclaim · floor intact</a>')
+    chips = ("".join(_schip(n) for n in _BROAD) + _schip("all", "All")
+             + _schip("watch", "★ Watch") + rev_pill)
     sec_opts = "".join(
         f'<option value="{K.esc(s)}"{" selected" if scope.lower()==s.lower() else ""}>{K.esc(s)}</option>'
         for s in _SECTORS)
@@ -931,6 +948,8 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     else:
         mem = f'{n_members} members · ' if n_members else ''
         sub_lbl = f'<b>{K.esc(scope)}</b> · {mem}<b>{shown}</b> shown (liquid)'
+    if rev_f:
+        sub_lbl += ' · <b>⚠ reclaim · floor intact</b> cut (descriptive — not a signal)'
 
     head = (
         '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
