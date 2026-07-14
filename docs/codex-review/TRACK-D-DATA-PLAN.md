@@ -9,6 +9,14 @@
 `fundamentals` row reads `roce=1.57`, `roe=7.04`, `debt_to_equity=(empty)` — nonsense for a bank. The
 score currently mis-rates every lender.
 
+**VERIFIED LIVE (2026-07-14, S136 read-only VPS query).** Confirmed the mis-rating on the box:
+HDFCBANK `roce=7.04, roe=13.8, debt_to_equity=NULL` → **NS 29.2% / tier T4**; ICICIBANK `roce=7.2` →
+T4 (NS 31%); BAJFINANCE `roce=10.8` → T4 (NS 28.9%). None hard-disqualified (D/E is NULL for lenders,
+so the D/E>2 gate never fires — the failure is the LOW score, not a bogus DQ). Three of India's
+highest-quality franchises rendered bottom-tier because ROCE/OPM/D-E thresholds are structurally wrong
+for lenders. (The earlier `roce=1.57` reading was an older snapshot; the point stands — ROCE is
+nonsense-low for a bank either way.)
+
 ## What already exists (REUSE — do not rebuild)
 1. **Primary XBRL pipeline is LIVE** — `fundamentals_xbrl.py` + nightly `hermes-fundamentals-xbrl.timer`
    fetches SEBI-mandated results XBRL from NSE (`in-bse-fin` taxonomy; true PIT via broadcast timestamp;
@@ -41,6 +49,56 @@ The bank **regulatory** metrics are NOT extracted or stored (no columns in `fund
   correct path is the raw `/api/corporates-financial-results` row's `xbrl` field → `fetch_instance()`;
   wire that first. **This step decides Phase-1 scope** (tagged → parse directly; untagged → the metric
   moves to Phase 2 / notes-parsing).
+
+### ✅ Step-1 spike DONE (2026-07-14, S136) — the feasibility gate is CLEARED for banks
+Read-only spike on live NSE XBRL (HDFCBANK/AXISBANK/SBIN banks · BAJFINANCE NBFC · LICHSGFIN HFC),
+Q3FY25 (period-end 2024-12-31). Correct path used: `list_filings(symbol=…)` → `xbrl_url` →
+`fetch_instance()` → element-tag inventory. **Result — the tags Doctrine-D Pattern 5 needs ARE tagged
+for banks, in the STANDALONE instance:**
+
+| Metric | Tag local-name | HDFCBANK (SA) | SBIN (SA) | AXISBANK (conso) |
+|---|---|--:|--:|--:|
+| Gross NPA % | `PercentageOfGrossNpa` | 1.42% | 2.07% | 1.46% |
+| Net NPA % | `PercentageOfNpa` | 0.46% | 0.53% | 0.35% |
+| Gross NPA (₹abs) | `GrossNonPerformingAssets` | 36,018cr | 84,360cr | 15,850cr |
+| Net NPA (₹abs) | `NonPerformingAssets` | 11,587cr | 21,377cr | 3,775cr |
+| RoA (quarterly) | `ReturnOnAssets` | 0.47% | 1.04% | 1.64% |
+| CET1 ratio | `CET1Ratio` | 19.97% | 9.52% | — |
+| Add'l Tier-1 | `AdditionalTier1Ratio` | 0.00% | 1.33% | 0.39% |
+| Interest earned | `InterestEarned` | ✓ | ✓ | ✓ |
+| Interest expended | `InterestExpended` | ✓ | ✓ | ✓ |
+
+**Three decisive nuances (implementation-binding):**
+1. **Read the STANDALONE (SA) instance, not consolidated.** HDFCBANK's CONSOLIDATED instance reports
+   `PercentageOfGrossNpa`/`ReturnOnAssets`/`GrossNonPerformingAssets` = **0.00** (prudential ratios are
+   a standalone-bank concept; the conso group folds in non-bank subs). AXISBANK's conso happened to carry
+   them, but HDFC's did not → **always prefer `SOURCE_SA`** for the regulatory metrics. The pipeline
+   already distinguishes `SOURCE_SA`/`SOURCE_CONSO`.
+2. **No total-CRAR tag in the quarterly XBRL — use CET1.** There is NO `CapitalAdequacyRatio`/`CRAR`
+   total tag; only `CET1Ratio` (+ `AdditionalTier1Ratio`) are tagged. CET1 is the binding regulatory
+   buffer, so **use CET1Ratio as the capital-strength metric** (optionally CET1+AT1 as a CRAR proxy).
+   True total-CRAR stays a Phase-2 item (annual / Basel-III Pillar-3) if ever needed.
+3. **NBFC/HFC quarterly XBRL carries P&L ONLY.** BAJFINANCE + LICHSGFIN (NBFC_INDAS taxonomy) tag
+   `InterestEarned` and the Ind-AS P&L, but **NO GNPA / NNPA / CAR / RoA** at all → those move to
+   **Phase 2 / proxy** for non-banks. Their Phase-1 model must lean on the P&L structure (NII, growth,
+   and RoA only if total assets are tagged — a follow-up probe not yet run).
+
+**Bottom line: Phase-1 is fully tractable for BANKS** (GNPA%, NNPA%, RoA, CET1 all tagged in SA) and
+**P&L-only for NBFC/HFC** (regulatory ratios deferred to Phase-2/proxy). This ANSWERS decision-question
+#3 empirically — no vendor needed. Spike scripts: session scratchpad `xbrl_tag_spike.py` /
+`xbrl_sa_probe.py` (read-only, ₹0).
+
+### The financial DETECTOR for scoring.py (decided by the spike)
+The pt14 scorer consumes the flat `fundamentals` dict (no XBRL frame), so `capital_allocation._is_financial`
+(which reads a Screener frame) is not directly reusable there. **Detector = NSE financial-index
+membership** via `company_tags` (`source='index'`): a symbol is a lender/financial iff it carries any of
+`{'Financial Services', 'Banks', 'PSU Banks', 'Private Banks'}`. Verified on the box: `'Financial
+Services'` is the union tag that catches banks + NBFCs + HFCs (HDFCBANK, BAJFINANCE, LICHSGFIN all carry
+it; counts: Banks 23 · Financial Services 20 · PSU Banks 12 · Private Banks 10). **Primary-source
+(NSE index constituents), guardrail-#8-clean, already stored** — no fragile numeric heuristic.
+*Caveat:* a lender OUTSIDE the NSE financial indices (a micro-NBFC) wouldn't be caught — acceptable for
+the interim suppress-label; the full Doctrine-D build detects lenders directly via the XBRL `InterestEarned`
+bank-taxonomy tag (the `extract_bank_for` path), which is complete.
 - **Step 2 — extend `extract_bank_for()`** to pull the confirmed tags: GNPA%, NNPA%, CAR/CRAR%, RoA,
   cost-to-income, Advances, Deposits (NII already there).
 - **Step 3 — add columns** to `fundamentals` / `fundamentals_history` (`gnpa_pct`, `nnpa_pct`, `crar`,
@@ -61,13 +119,32 @@ Pattern-5 proxy) and defer true ALM extraction.
    small table, materially better fidelity.)*
 2. **ALM** — proxy via CRAR+GNPA in Phase 1 and defer true ALM to Phase 2, or block on ALM now?
    *(Recommend proxy + defer.)*
-3. **GNPA/CAR availability** — approve the Step-1 tag-inventory spike as the gate; if a metric proves
-   untagged in the quarterly XBRL, it moves to Phase 2 rather than pulling in a vendor. *(Guardrail #8:
-   never Screener/vendor to fill a gap — defer instead.)*
+3. ~~**GNPA/CAR availability**~~ **✅ RESOLVED by the Step-1 spike (2026-07-14).** GNPA%, NNPA%, RoA,
+   CET1 are all TAGGED in the banks' STANDALONE quarterly XBRL (no vendor needed). Total-CRAR is not
+   tagged → use CET1. NBFC/HFC regulatory ratios are NOT in quarterly XBRL → Phase 2 / proxy. No decision
+   left here except to accept "banks Phase-1, NBFC/HFC P&L-only-Phase-1".
 4. **Scope order** — build the **data (Steps 1–3) first, scorer (Step 4) second**, or land a Step-4
    *interim* now that simply **suppresses + labels** pt14 for financials ("sector-adapted model pending")
    so no wrong number shows while the data lands? *(Recommend the interim suppress-label immediately +
-   data in parallel — stops the live mis-rating today.)*
+   data in parallel — stops the live mis-rating today.)* **STILL AWAITS RAMANA.**
+
+## Interim suppress-label — SPEC'd + READY (S136); ship gated on multi-session + scope decision
+The interim (decision #4) is fully designed and de-risked — mechanical to ship once unblocked:
+- **Detect:** `is_financial_symbol(symbol)` → True iff `company_tags` (source='index') carries any of
+  `{'Financial Services','Banks','PSU Banks','Private Banks'}` (see detector section above).
+- **Suppress:** in `score_fundamentals`, when financial, return `sector_model_pending=True` +
+  `sector_note` and DO NOT present the generic NS%/tier as a quality verdict (the ROCE/OPM/D-E patterns
+  are structurally wrong for lenders). Emit the required **"sector-adapted thresholds (Doctrine D)
+  pending"** note.
+- **Surfaces:** the note must reach Telegram (`format_score_for_telegram`, in scoring.py — SAFE) + the
+  stock card (`dashboard.py`) + Pat (`pat/flows.py`/`pat/web.py`) + Screen+ (`screener_plus.py`).
+- ⚠ **MULTI-SESSION BLOCK (2026-07-14):** the web/Pat consumer surfaces (`dashboard.py` D80-forked,
+  `screener_plus.py` reversal-lane-hot, `pat/*` Pat-lane-hot) are in active parallel sessions' hot
+  zones — editing them now would collide. Only the `scoring.py` ENGINE layer (detector + flag + note +
+  the in-file Telegram formatter) is safe to land this session; the web/Pat/Screen+ adoption + the VPS
+  re-score defer to a coordinated session. And whether to land the interim at all vs. wait for the full
+  build is decision #4 (awaits Ramana). Recommendation stands: land the engine-level interim now, adopt
+  on surfaces when they free up.
 
 ## Guardrails honored
 Primary sources only (NSE SEBI XBRL — no vendor/Screener to fill gaps; defer instead). PIT via broadcast
