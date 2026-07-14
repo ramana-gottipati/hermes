@@ -302,7 +302,8 @@ def rotation_page(phase: str = Query("RECOVERY", max_length=20)) -> HTMLResponse
               '<b>Descriptive, not a signal</b>.')
           + ifx.how_to_read_link()
           + '<div class="rd-htr"><a href="/dash/glossary?q=rs-ratio">Glossary — RS terms →</a></div>'
-          + '<div class="rd-htr"><a href="/dash/strategy-ref?p=relative-strength">Methodology →</a></div>')
+          + '<div class="rd-htr"><a href="/dash/strategy-ref?p=relative-strength">Methodology →</a></div>'
+          + ifx.related_strip("rotation"))
     body = ('<div class="rwrap">' + head + bl + banner + grid + movers
             + _pills(phase) + _table(phase) + '</div>')
     return HTMLResponse(_shell("RS rotation · patearn", _CSS + ifx.readability_css() + G.css() + body, active="rotation", wide=True))

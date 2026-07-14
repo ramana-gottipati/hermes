@@ -216,6 +216,7 @@ def capture_map_page(den: str = Query("Nifty 500", max_length=40),
                 'more of both is just high-beta, not strong. A <b>behaviour track record</b>, never '
                 'a ranking.')
             + ifx.how_to_read_link()
+            + ifx.related_strip("capture-map", note="shares the relative-strength columns of RRG &amp; RS-Band")
             + body)
     try:
         from src.web.dashboard import _shell

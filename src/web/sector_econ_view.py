@@ -225,6 +225,7 @@ def dash_sector_economics(metric: str = "roce", drill: str = "") -> HTMLResponse
             f'<b>{_esc(top)}</b>' + (f', while <b>{_esc(mv)}</b> swings the most with global cycles' if mv else '')
             + '. This is about the <b>businesses</b> underneath — how good they are — not their share prices.'))
         body.append(ifx.how_to_read_link())
+        body.append(ifx.related_strip("sector-economics", note="the share-price side of the same sectors"))
 
         tabs = "".join(f'<a class="{"on" if metric==k else ""}" href="/dash/sector-economics?metric={k}">'
                        f'{_esc(v[1])}</a>' for k, v in _METRICS.items())

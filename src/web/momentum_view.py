@@ -61,6 +61,7 @@ _CSS = """
 .msc th:first-child,.msc td:first-child,.msc th.l,.msc td.l{text-align:left}
 .msc td{padding:6px 9px;border-bottom:1px solid #1b212b;font-family:monospace;text-align:right}
 .msc td.nm{font-family:inherit;color:#e8ecf1;font-weight:600}
+.msc td.nm a{color:inherit;text-decoration:none}.msc td.nm a:hover{color:var(--accent-cy);text-decoration:underline}
 .msc .pos{color:var(--up)}.msc .neg{color:var(--down)}
 .msc .tier-EXCELLENT{color:var(--up);font-weight:600}.msc .tier-GOOD{color:#7bd88f}
 .msc .tier-AVERAGE{color:#8b97a7}.msc .tier-WEAK{color:var(--warn)}.msc .tier-POOR{color:var(--down)}
@@ -161,7 +162,8 @@ def momentum_scan_page(sort: str = "riskadj"):
         m6c = "pos" if (m6 or 0) >= 0 else "neg"
         m12c = "pos" if (m12 or 0) >= 0 else "neg"
         tr += ("<tr>"
-               f"<td data-v='{i}'>{i}</td><td class='nm l' data-v='{_esc(s)}'>{_esc(s)}</td>"
+               f"<td data-v='{i}'>{i}</td><td class='nm l' data-v='{_esc(s)}'>"
+               f"<a href='/dash/stock?sym={_esc(s)}'>{_esc(s)}</a></td>"
                f"<td class='{m6c}' data-v='{m6*100:.1f}'>{m6*100:+.0f}%</td>"
                f"<td class='{m12c}' data-v='{m12*100:.1f}'>{m12*100:+.0f}%</td>"
                f"<td data-v='{vol*100:.2f}'>{vol*100:.1f}%</td>"
@@ -197,6 +199,7 @@ def momentum_scan_page(sort: str = "riskadj"):
             "the whole market. A gross <b>selection</b> lens — momentum here is a known beta, not "
             "skill; <b>not a buy list</b>.")
         + ifx.how_to_read_link()
+        + ifx.related_strip("momentum-scan")
         + "<div class='rd-htr'><a href='/dash/glossary?q=momentum'>Glossary — key terms →</a></div>"
         + "<div class='rd-htr'><a href='/dash/strategy-ref?p=momentum-riskadj'>Methodology →</a></div>" +
         "<div class='lead'>Ranks the liquid equity universe by <b>RISKADJ</b> (6-mo return ÷ 3-mo "

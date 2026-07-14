@@ -157,6 +157,7 @@ def cycle_clock_page():
                 'Rolling-over &#8594; Headwind, clockwise. A <b>map of sector weather</b>, read as a '
                 'description — not a trade list.')
             + ifx.how_to_read_link()
+            + ifx.related_strip("cycle-clock")
             + body)
     try:
         from src.web.dashboard import _shell

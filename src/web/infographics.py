@@ -497,6 +497,16 @@ def readability_css() -> str:
         "color:var(--ink-3);font-weight:700;white-space:nowrap;flex:none;padding-top:2px;}"
         ".rd-fence .rd-txt{font-size:12px;line-height:1.5;color:var(--ink-2);}"
         ".rd-fence .rd-txt a{color:var(--accent-cy);text-decoration:none;}"
+        # .rd-related — the sibling-lens cross-link chip row (S-B1). A pill strip that reads as
+        # secondary chrome (muted until hover), sits just under the how-to-read link.
+        ".rd-related{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:-2px 0 14px;max-width:1120px;}"
+        ".rd-related .rd-lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;"
+        "color:var(--ink-3);font-weight:700;white-space:nowrap;}"
+        ".rd-related a{font-size:11.5px;color:var(--ink-2);text-decoration:none;background:var(--bg-2);"
+        "border:1px solid var(--line-2);border-radius:999px;padding:3px 10px;"
+        "transition:color .12s,border-color .12s,background .12s;}"
+        ".rd-related a:hover{color:var(--ink);border-color:var(--accent);background:var(--bg-3);}"
+        ".rd-related .rd-rel-note{font-size:11px;color:var(--ink-3);}"
         "</style>")
 
 
@@ -568,9 +578,70 @@ def fence_note(kind: str, detail: str = "", extra_html: str = "") -> str:
             f'<span class="rd-txt">{body}.{(" " + extra_html) if extra_html else ""}</span></div>')
 
 
+# ── "Related lenses" cross-reference (UX audit S-B1, items 4 / 8 / 9) ─────────────────
+# The left rail already GROUPS siblings; this adds the CROSS-GROUP connective tissue the rail
+# cannot express — e.g. the All-weather map (a "Strength & momentum" lens) shares its columns
+# with RRG and RS-Band (a "Rotation" lens). Curated adjacency (NOT group-derived) so it can
+# carry those cross-group relations; labels + routes resolve from lens_registry so the strip can
+# never drift from the nav. Rendered once near the top of a family page — the generalisation of
+# the seasonal trio's `_subnav` strip to the RS/rotation family (item 9).
+_RELATED: dict[str, tuple[str, ...]] = {
+    # RS / rotation / strength cluster — different views of the same relative-strength data.
+    "rrg":          ("rotation", "rsband", "cycle-clock", "capture-map"),
+    "rotation":     ("rrg", "rsband", "cycle-clock"),
+    "rsband":       ("rrg", "rotation", "cycle-clock", "capture-map"),
+    "cycle-clock":  ("rrg", "rotation", "rsband"),
+    "capture-map":  ("rrg", "rsband", "rs-hub"),
+    "momentum-scan": ("leaders", "divergence", "rs-hub"),
+    # sector strength (share prices) ⇄ sector economics (business quality) — two sides of one coin.
+    "sector-economics": ("sectors", "sector-momentum"),
+    "sectors":      ("sector-economics", "sector-momentum"),
+}
+
+
+def related_strip(key: str, note: str = "") -> str:
+    """A compact 'Related' chip row linking a page to its curated sibling lenses (S-B1).
+    Labels + routes come from lens_registry so it never drifts; an unknown key, a stale
+    reference, or a missing registry is skipped SILENTLY (never a dead link, never a 500),
+    so any page can call it unconditionally. `note` is an optional one-line context lead
+    (e.g. "different views of the same relative-strength data"). Uses the .rd-related style
+    from readability_css(). Returns '' when the key has no adjacency."""
+    keys = _RELATED.get(key)
+    if not keys:
+        return ""
+    try:
+        from src.web import lens_registry as _LR
+    except Exception:  # noqa: BLE001 — registry unavailable → no strip, never fatal
+        return ""
+    chips = []
+    for k in keys:
+        ln = _LR.BY_KEY.get(k)
+        if not ln or not ln.route:
+            continue
+        chips.append('<a href="%s">%s</a>' % (ln.route, ln.label))
+    if not chips:
+        return ""
+    lead = ('<span class="rd-rel-note">%s</span>' % note) if note else ""
+    return ('<div class="rd-related"><span class="rd-lbl">Related</span>'
+            + "".join(chips) + lead + "</div>")
+
+
 def _selftest() -> int:
     import re
     assert readability_css().startswith("<style>") and "rd-bottom" in readability_css()
+    # .rd-related is single-sourced in the scaffold CSS (every family page already loads it).
+    assert "rd-related" in readability_css()
+    # related_strip: resolves labels/routes from the registry, carries the optional note, and
+    # is skip-safe for an unknown key. Every _RELATED target must be a real, routed lens.
+    from src.web import lens_registry as _LR
+    for _k, _targets in _RELATED.items():
+        assert _LR.BY_KEY.get(_k), "related-strip source key not a lens: %s" % _k
+        for _t in _targets:
+            _ln = _LR.BY_KEY.get(_t)
+            assert _ln and _ln.route, "related-strip target not a routed lens: %s->%s" % (_k, _t)
+    _rs = related_strip("capture-map", note="one dataset")
+    assert 'class="rd-related"' in _rs and "/dash/rrg" in _rs and "one dataset" in _rs
+    assert related_strip("no-such-lens") == "", "unknown key must render nothing"
     assert 'class="rd-bottom"' in bottom_line("x") and 'class="rd-plain"' in plain("y")
     # fence: every sanctioned kind renders; detail is kept verbatim before the boundary; the
     # rendered note wraps the clause; an unknown kind is a hard error (can't invent a 10th phrasing).

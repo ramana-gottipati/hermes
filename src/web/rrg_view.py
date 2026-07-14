@@ -859,6 +859,7 @@ def rrg_page(den: str = Query("Nifty 500", max_length=40),
                 + ifx.how_to_read_link()
                 + '<div class="rd-htr"><a href="/dash/glossary?q=rs-ratio">Glossary — RS terms →</a></div>'
                 + '<div class="rd-htr"><a href="/dash/strategy-ref?p=relative-strength">Methodology →</a></div>'
+                + ifx.related_strip("rrg", note="different views of the same relative-strength data")
                 + _controls(den)
                 + _sectors_rrg_block(rows, caps, tails, den, months,
                                      tail_base="/dash/rrg", tail_view="", dot_link=True)
