@@ -82,6 +82,11 @@ NESTED_CHILDREN: dict[str, tuple[str, str]] = {
     "/dash/wolfe/trades": ("wolfe", "Open-trades remaining-ROI view — child of the Patterns·Wolfe "
                                     "lens, reached via the on-page Fresh setups ⇄ Open trades toggle; "
                                     "emits active=\"wolfe\" so it highlights that one lens (D120)"),
+    # transcribed from the slow-rotation lane's own declaration (S132f, momentum_view.py
+    # "Declared child (D80 nesting)") — the lane landed the route without this row.
+    "/dash/momentum-scan/slow": ("momentum", "quarterly large-cap LOWVOL_MOM anchor (Slow rotation) — "
+                                             "child of the momentum-scan lens, reached from its "
+                                             "on-page link; emits active=\"momentum-scan\""),
 }
 
 # dev-only / infrastructure surfaces, deliberately unlinked.
@@ -105,7 +110,9 @@ REDIRECT_ALIASES: dict[str, tuple[str, str]] = {
 # structural specials. A NEW entry here is a deliberate, reviewed decision.
 EXEMPT: dict[str, tuple[str, str]] = {
     "/dash":            ("core", "root — redirects into the app shell / home landing"),
-    "/dash/pat":        ("ia", "Pat is the global ⌘-K summon, NOT a nav tab (IA decision)"),
+    # /dash/pat moved OUT of this table (S-D): Pat is now a registered Trust lens
+    # ("Ask Pat", lens_registry) per audit §8 — the ⌘K summon stays, the nav entry adds
+    # discoverability. The old "NOT a nav tab" IA note is amended by that audit decision.
     "/dash/ratio":      ("sacred", "RS-ratio analyst tool — SACRED build-additive deep-link "
                                    "(never reroute/remove, memory build-additive-never-replace); "
                                    "§5: declare exempted dossier-tool + palette entry (S-D)"),
@@ -141,6 +148,8 @@ def _is_api_or_action(path: str, methods: set[str]) -> bool:
         return True
     if path == "/dash/tags" or path == "/dash/drawings":    # bare action endpoints
         return True
+    if path.startswith("/dash/api/"):                       # JSON data feeds, never nav pages
+        return True                                         # (S-D: /dash/api/symbol-search)
     if path.endswith(_ACTION_SUFFIXES) or path.endswith("template.csv"):
         return True
     return False

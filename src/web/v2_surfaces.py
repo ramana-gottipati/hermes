@@ -158,6 +158,9 @@ _ROUTER_SPECS = [
     # RE-ADDED S93b: the S92 lane's commit carried an older file state and dropped this
     # line minutes after it landed — cross-lane git clobber, see PROJECT_STATE S93.
     ("buyback-calc", "src.web.buyback_calc", "/dash/buyback-calc"),
+    # S-D search & entry (UX audit §8): the name→ticker typeahead feed behind the ⌘K
+    # palette, the home search box, and the stock-miss "Did you mean" strip. JSON-only.
+    ("symbol-search", "src.web.symbol_search", "/dash/api/symbol-search"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

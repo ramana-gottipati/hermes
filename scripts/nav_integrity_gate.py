@@ -65,7 +65,10 @@ INTENTIONAL_NON_NAV: dict[str, str] = {
     "/dash/index":      "home/landing surface (entered via the logo / root), not a lens tab",
     "/dash/_ui":        "ui_kit design-system showcase — dev-only, deliberately unlinked",
     "/dash/offline":    "PWA offline fallback page — served by the service worker, never a tab",
-    "/dash/pat":        "Pat is the global Cmd-K summon, NOT a nav tab (IA decision)",
+    # /dash/pat left this allowlist (S-D): "Ask Pat" is now a registered Trust lens —
+    # reachable from the rendered nav, so the old "Cmd-K summon only" IA note is amended.
+    "/dash/api/symbol-search": "name→ticker JSON typeahead feed (S-D) — consumed by the Cmd-K bar, "
+                               "the home search box and the stock-miss page; an API, never a page",
     "/dash/stock":      "per-stock dossier — a DESTINATION reached by clicking a stock, claims no altitude",
     "/dash/theme":      "per-theme detail — a DESTINATION reached from the Themes list",
     "/dash/tracker":    "alias landing of /dash/dashboard (registry alias) — Tracker tab lands on dashboard",

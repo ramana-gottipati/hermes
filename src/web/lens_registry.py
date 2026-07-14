@@ -267,6 +267,13 @@ LENSES: tuple[Lens, ...] = (
     # beginner's guide to the site's chart shapes + plain-word ideas. Linked from every lens header.
     Lens("reading-guide", "How to read", "trust", "trust", "/dash/reading-guide",
          aliases=("how-to-read", "chart-guide", "reading")),
+    # Ask Pat (UX audit S-D) — the NL copilot gets a nav home so it's reachable without
+    # typing a sentence (audit §8: "Pat gets a nav entry — Trust group or header"). This
+    # AMENDS the earlier "⌘K summon only" IA note in the route gate's exempt table: the
+    # ⌘K bar stays the primary summon; this is the discoverable front door beside the
+    # other help/education surfaces. Closed-vocab, descriptive-only — Pat never ranks.
+    Lens("pat", "Ask Pat", "trust", "trust", "/dash/pat",
+         aliases=("copilot", "ask", "assistant", "ask-pat")),
     Lens("spec-sheets", "Spec sheets", "trust", "trust", "/dash/spec-sheets",
          aliases=("pre-registration", "studies")),
     # Evidence pack (charter P-04, S96) — the print-ready procurement assembly of

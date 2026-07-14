@@ -245,14 +245,75 @@ def cmdk_hint() -> str:
             'aria-keyshortcuts="Meta+K Control+K">Search or ask Pat <kbd>⌘K</kbd></button>')
 
 
+# ── S-D (UX audit §8): the ⌘K palette map — GENERATED from lens_registry ─────────
+# Fixes "palette hard-coded, omits half the estate": every lens key, label and alias
+# resolves, derived from the single registry at first render. The static base below is
+# BOTH the offline fallback (the standalone style guide has no registry) AND the keeper
+# of speak-able legacy aliases that aren't lens fields (trust, methodology, screen
+# classic, ratio…). Static entries WIN on key collisions — zero behavior regression;
+# the registry only ADDS. Keys are normalized exactly like the JS route(): lowercase,
+# strip non-[a-z0-9 ], collapse spaces.
+_PAGES_STATIC = {
+    "markets": "/dash/markets", "screener": "/dash/screen2", "screen2": "/dash/screen2",
+    "screen classic": "/dash/screener", "strategies": "/dash/strategist",
+    "tracker": "/dash/dashboard", "coverage": "/dash/coverage", "trust": "/dash/coverage",
+    "news": "/dash/wire", "wire": "/dash/wire", "relative strength": "/dash/rs-hub",
+    "rs": "/dash/rs-hub", "growth": "/dash/growth", "wolfe": "/dash/wolfe/scan",
+    "rotation": "/dash/rrg", "sectors": "/dash/sectors", "conviction": "/dash/conviction",
+    "accumulation": "/dash/mep", "mep": "/dash/mep", "stocks": "/dash/stocks",
+    "positioning": "/dash/stocks", "stealth": "/dash/strategies/stealth",
+    "credibility": "/dash/concalls", "concalls": "/dash/concalls", "screen": "/dash/screen2",
+    "ratio": "/dash/ratio", "watchlists": "/dash/watchlists", "portfolios": "/dash/portfolios",
+    "launchpad": "/dash/launchpad", "participants": "/dash/participants",
+    "glossary": "/dash/glossary", "methodology": "/dash/glossary", "terms": "/dash/glossary",
+}
+
+_PALETTE_JSON = None   # memo — the registry is static per process
+
+
+def _palette_pages_json() -> str:
+    """The ⌘K PAGES map as a JS object literal (registry-derived; see _PAGES_STATIC)."""
+    global _PALETTE_JSON
+    if _PALETTE_JSON is None:
+        import json
+        import re as _re
+        pages = dict(_PAGES_STATIC)
+        try:
+            from src.web import lens_registry as _LRg
+            from src.web import nested_nav as _NNav
+            for ln in _LRg.LENSES:
+                try:
+                    path = _NNav.nested_path(ln) or ln.route
+                except Exception:
+                    path = ln.route
+                if not path:
+                    continue
+                for k in (ln.label, ln.key) + tuple(ln.aliases):
+                    kk = _re.sub(r" +", " ",
+                                 _re.sub(r"[^a-z0-9 ]", "", (k or "").lower())).strip()
+                    if kk:
+                        pages.setdefault(kk, path)
+        except Exception:
+            pass    # standalone style guide — fallback map still routes
+        _PALETTE_JSON = json.dumps(pages, sort_keys=True)
+    return _PALETTE_JSON
+
+
 def cmdk_overlay() -> str:
     """The global 'Ask Pat' command bar — Cmd/Ctrl+K (or a click on any ⌘K hint) opens
     it; Enter routes the question to the analytics copilot (/dash/pat). Self-contained
     (explicit hex, no CSS-var deps) so it works under BOTH the v2 (ui_kit) chrome and the
     legacy dashboard _shell. Idempotent (window.__cmdk guard) — safe to include >1x per
     page. Pat parses intent -> deterministic compute, so it cannot invent numbers; this
-    bar is just the summon surface ("a layer you summon, not a place you go")."""
+    bar is just the summon surface ("a layer you summon, not a place you go").
+    S-D: the PAGES map is registry-generated (_palette_pages_json) and the bar carries a
+    live name→ticker typeahead (symbol_search.TYPEAHEAD_JS; degrades to none if absent)."""
+    try:
+        from src.web.symbol_search import TYPEAHEAD_JS as _ta_js
+    except Exception:
+        _ta_js = ""     # missing module → palette still routes, just no suggestions
     return (
+        _ta_js +
         '<div id="cmdk-ov" style="display:none;position:fixed;inset:0;z-index:9998;'
         'background:rgba(3,6,12,.62);backdrop-filter:blur(3px)">'
         '<div style="max-width:620px;margin:11vh auto 0;background:#0f1620;border:1px solid #27384a;'
@@ -261,6 +322,9 @@ def cmdk_overlay() -> str:
         'placeholder="Jump to a ticker or page · or ask Pat — e.g. RELIANCE · Markets · most credible managements" '
         'style="width:100%;box-sizing:border-box;border:0;background:transparent;color:#eaf1f9;'
         'font-size:16px;padding:17px 19px;outline:none"/>'
+        # S-D: live suggestions (pages + name→ticker) render here as you type
+        '<div id="cmdk-sug" style="display:none;max-height:300px;overflow:auto;'
+        'border-top:1px solid #1c2937"></div>'
         '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 19px 12px;'
         'color:#7e90a8;font-size:11.5px;border-top:1px solid #1c2937">'
         '<span>Enter to jump or ask · Esc to close</span>'
@@ -269,17 +333,13 @@ def cmdk_overlay() -> str:
         '<script>(function(){if(window.__cmdk)return;window.__cmdk=1;'
         'function ov(){return document.getElementById("cmdk-ov");}'
         'function op(){var o=ov();if(!o)return;o.style.display="block";'
+        'var s=document.getElementById("cmdk-sug");if(s){s.innerHTML="";s.style.display="none";}'
         'var i=document.getElementById("cmdk-in");if(i){i.value="";i.focus();}}'
         'function cl(){var o=ov();if(o)o.style.display="none";}'
-        'var PAGES={markets:"/dash/markets",screener:"/dash/screen2",screen2:"/dash/screen2","screen classic":"/dash/screener",strategies:"/dash/strategist",'
-        'tracker:"/dash/dashboard",coverage:"/dash/coverage",trust:"/dash/coverage",news:"/dash/wire",'
-        'wire:"/dash/wire","relative strength":"/dash/rs-hub",rs:"/dash/rs-hub",growth:"/dash/growth",'
-        'wolfe:"/dash/wolfe/scan",rotation:"/dash/rrg",sectors:"/dash/sectors",conviction:"/dash/conviction",'
-        'accumulation:"/dash/mep",mep:"/dash/mep",stocks:"/dash/stocks",positioning:"/dash/stocks",stealth:"/dash/strategies/stealth",credibility:"/dash/concalls",concalls:"/dash/concalls",'
-        'screen:"/dash/screen2",ratio:"/dash/ratio",watchlists:"/dash/watchlists",portfolios:"/dash/portfolios",'
-        'launchpad:"/dash/launchpad",participants:"/dash/participants",'
-        'glossary:"/dash/glossary",methodology:"/dash/glossary",terms:"/dash/glossary"};'
-        'function route(q){var k=q.toLowerCase().replace(/[^a-z0-9 ]/g,"").trim();'
+        # S-D: PAGES is generated from lens_registry (every lens key/label/alias) with the
+        # old hand map as fallback+alias base — see _palette_pages_json above.
+        'var PAGES=' + _palette_pages_json() + ';'
+        'function route(q){var k=q.toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/ +/g," ").trim();'
         'if(PAGES[k])return PAGES[k];'
         # UX audit S-A (Codex-confirmed): tickers are case-insensitive here — "tcs" must
         # reach TCS, not dead-end at Pat. Any single ticker-shaped token is uppercased and
@@ -294,6 +354,9 @@ def cmdk_overlay() -> str:
         'document.addEventListener("click",function(e){var t=e.target;'
         'if(t&&t.id==="cmdk-ov"){cl();return;}'
         'if(t&&t.closest&&(t.closest(".uk-cmdk")||t.closest("[data-cmdk]"))){e.preventDefault();op();}});'
+        # S-D: attach the shared typeahead (pages + live name→ticker) — no-op if absent
+        'var _ti=document.getElementById("cmdk-in"),_ts=document.getElementById("cmdk-sug");'
+        'if(window.__symTA&&_ti&&_ts)window.__symTA(_ti,_ts,{pages:PAGES});'
         '})();</script>'
     )
 

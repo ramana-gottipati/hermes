@@ -92,6 +92,8 @@ _SUBTITLES = {
     "capture-map": "behaviour on up days vs down days",
     "launchpad":   "stocks showing pre-breakout traits",
     "band-locks":  "names stuck at their daily price limit",
+    # "Pat" is a name, not a function — decode it for first-timers (S-D nav entry).
+    "pat":         "ask questions in plain English",
 }
 
 

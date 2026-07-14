@@ -5984,10 +5984,18 @@ def dash_stock(sym: str = Query("", max_length=20),
 
     if not latest or not rows:
         # UX audit S-A: the miss state must route onward, never dead-end — beginners type
-        # company names ("TATA CONSULTANCY"), not NSE codes. Full name-search is S-D.
+        # company names ("TATA CONSULTANCY"), not NSE codes. S-D lands the name-search jump:
+        # a "Did you mean" strip via the shared symbol_search primitive (defensive — the
+        # helper returns '' on any error, so this branch can never 500).
         _patq = quote_plus(sym)      # NOT `_q` — that shadows the module-level _q helper
+        try:
+            from src.web.symbol_search import did_you_mean_html as _dym_html
+            _dym = _dym_html(sym)
+        except Exception:
+            _dym = ""
         body = search + (
             f'<div class="empty">No data for <b>{_esc(sym)}</b> — that may not be its NSE ticker. '
+            f'{_dym}'
             f'<div style="margin-top:8px;font-size:13px">'
             f'Try <a href="/dash/pat?q={_patq}">asking Pat about “{_esc(sym)}”</a> in plain English, '
             f'or look the company up on the <a href="/dash/screener/screen2">screener</a> '

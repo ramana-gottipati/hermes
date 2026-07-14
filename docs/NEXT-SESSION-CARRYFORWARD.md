@@ -10,18 +10,21 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## 🔒 2026-07-14 evening — S-D SEARCH & ENTRY: CLAIMED + IN-FLIGHT (S140 lane) — do NOT start S-D in parallel
-- **Mutual-yield incident tonight:** two sessions started S-D within minutes of each other; each saw the
-  other's in-flight files and BOTH yielded per the S137 doctrine (one had `find_view.py`, a /dash/find
-  universal resolver — withdrawn by its own lane; the other `symbol_search.py`, the typeahead stack —
-  preserved to its scratchpad). Result: S-D was left claimed by NOBODY. This pushed block is the
-  visible re-claim (the "grep origin before claiming" convention) — S140 is landing S-D now.
-- **Scope being landed:** `src/web/symbol_search.py` (`/dash/api/symbol-search` JSON feed + ranked
-  `search()` + `did_you_mean_html()` + shared `TYPEAHEAD_JS`) · registry-generated ⌘K palette ·
-  typeahead on the ⌘K bar + home box · stock-miss "Did you mean" · Pat nav entry (Trust) + gate rows.
-- **If the /dash/find lane resumes:** that resolver design is COMPLEMENTARY (302 ticker→lens→name→Pat,
-  pick-list page) — build it ON TOP of `symbol_search.search()`; one lookup in the codebase, never two.
-- **Retire this block when S-D lands** (replace with the ✅ result block).
+## ✅ 2026-07-14 — S140: UX S-D SEARCH & ENTRY SHIPPED (D131) — do NOT redo; kickstart-pick-verify
+- **NEW `src/web/symbol_search.py`** — the ONE name→ticker lookup: ranked `search()` over
+  `security_master` (+`nse_equity_list` fallback) · `GET /dash/api/symbol-search` (durable
+  `_ROUTER_SPECS` mount, always-200) · `did_you_mean_html()` · shared `TYPEAHEAD_JS`. 17 tests.
+- **Wired everywhere:** ⌘K palette now REGISTRY-DERIVED (`ui_kit._palette_pages_json()`, 201 keys,
+  every lens + legacy aliases, gate-enforced) with a live suggestion pane; home box takes company
+  names (typeahead, plain-form fallback); stock-miss page shows "Did you mean: …" (defensive, never
+  500s). **"Ask Pat" = a Trust nav lens now (D131)** — plain rail subtitle; the old "⌘K-summon-only"
+  exempt/allowlist rows are retired. Walk-verified locally (name→dossier in 2 actions); suite 199 pass.
+- **⚠ Mutual-yield lesson (S137 doctrine's livelock case):** two lanes started S-D together and BOTH
+  yielded on seeing each other → S-D briefly claimed by nobody. Fix that held: a PUSHED claim marker
+  (`04d51ae`) before re-touching shared files. Claim FIRST, then build, when re-picking a
+  yielded/contested item.
+- **If the withdrawn /dash/find resolver (sibling design: 302 ticker→lens→name→Pat + pick-list page)
+  is ever revived: build it ON `symbol_search.search()` — one lookup in the codebase, never two.**
 
 ## ✅ 2026-07-14 — S138: signal-bus OWNER-DM PAGER — BUILT + DEPLOYED + ARMED + VERIFIED (Ramana-directed) — do NOT redo; kickstart-pick-verify
 - **NEW `src/automation/signal_alert_telegram.py`** — the bus's 5th face: a private owner-DM pager that DMs Ramana the newest **CRITICAL** alerts (the alert rail S123 built the surface; this is the delivery). Reuses `signal_alerts.active_alerts()` + `digest._send`; owns a `signal_alert_delivery` fire-once ledger (no `db.py` edit). 10/10 hermetic tests; full bus suite 37 pass. **DISJOINT** (bus-owned files only). Full record: PROJECT_STATE § Session 138.
@@ -61,7 +64,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** (scaffold on 11 pages · glossary links+terms · methodology links · 7 metaphor nav subtitles — all LIVE) → **NEXT: S-D search/entry** (name→ticker typeahead + palette-from-registry) or **S-C item 4** (Pat↔web glossary unify — its own session). Item-2 tail (screen2 was deployed by the education lane; dashboard-forked concalls/stock-strip + `wolfe_trades._bottom_line` fold remain). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** (scaffold on 11 pages · glossary links+terms · methodology links · 7 metaphor nav subtitles — all LIVE) → ~~S-D search/entry~~ **✅ S140 (D131)** → **NEXT: S-C item 4** (Pat↔web glossary unify — its own session; S-E depends on it) or **S-B1 IA labels/grouping/cross-links**. Item-2 tail (screen2 was deployed by the education lane; dashboard-forked concalls/stock-strip + `wolfe_trades._bottom_line` fold remain). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.

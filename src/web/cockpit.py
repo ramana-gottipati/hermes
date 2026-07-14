@@ -773,9 +773,26 @@ def render_home(sig_date, idx_date) -> str:
                 "Nifty Smallcap 250": "Small-caps leading"}.get(lead, lead or "—")
     breadth_txt = f"{breadth:.0f}%" if breadth is not None else "—"
 
-    search = ('<form class="search" action="/dash/stock" method="get" autocomplete="off">'
-              '<input name="sym" placeholder="Enter NSE ticker — e.g. RELIANCE" '
-              'autocapitalize="characters"/><button type="submit">Go</button></form>')
+    # S-D (UX audit §8): the home box takes company NAMES too — live name→ticker
+    # typeahead via the shared symbol_search primitive. Degrades to the plain form
+    # (ticker-only, as before) if the module is ever absent.
+    try:
+        from src.web.symbol_search import TYPEAHEAD_JS as _ta_js
+    except Exception:
+        _ta_js = ""
+    search = ('<form class="search" action="/dash/stock" method="get" autocomplete="off" '
+              'style="position:relative">'
+              '<input id="ck-sym" name="sym" '
+              'placeholder="Stock name or NSE ticker — e.g. Tata Consultancy · RELIANCE" '
+              'autocapitalize="characters"/><button type="submit">Go</button>'
+              '<div id="ck-sug" style="display:none;position:absolute;top:100%;left:0;right:0;'
+              'z-index:60;background:#0f1620;border:1px solid #27384a;border-radius:0 0 10px 10px;'
+              'max-height:260px;overflow:auto;text-align:left"></div>'
+              '</form>'
+              + _ta_js +
+              '<script>(function(){var i=document.getElementById("ck-sym"),'
+              's=document.getElementById("ck-sug");'
+              'if(window.__symTA&&i&&s)window.__symTA(i,s,{});})();</script>')
     mood = market_mood(breadth, nifty_up)
     banner = mood_banner(mood,
                          f'Nifty 50 {pct(nifty.get("r1d"))} today · {breadth_txt} of indices '
