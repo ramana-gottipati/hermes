@@ -354,6 +354,7 @@ The Central Pivot Range: a 3-line range projected from a period's **prior** High
 - **Stretch %** — signed % gap between the trigger and the bank it has violated (0 inside the band). Positive = extended above the upper bank; negative = stretched below the lower. *Source:* `stretch_pct` (table `reversal_context`).
 - **Stretch percentile** — today's stretch ranked against the SAME stock's own trailing ~3 years (per-stock, in percent, never an absolute threshold — small-caps naturally stretch wider than large-caps). p90+ = unusually extended for *this* name; p10− = unusually depressed. *Source:* `stretch_pctile` (table `reversal_context`).
 - **Floor gap** — distance above the latest CONFIRMED 10-bar (fallback 5-bar) down-fractal low, with the floor's age; "✗ broken" once a close prints below it. A degree-N fractal is only knowable N bars later — no look-ahead. Useful as a **risk / invalidation level** (how far above well-defined support you sit), not as a bounce predictor (the breakout entry tested inert). *Source:* `floor_gap_pct`, `floor_age`, `floor_alive` (table `reversal_context`).
+- **Ceiling gap** — the bearish mirror: distance below the latest CONFIRMED 10-bar (fallback 5-bar) up-fractal high (negative = under it), with its age; "↑ cleared" once a close prints above it. Same confirmation lag, same role: a **known overhead-resistance level** for context, never a short signal. *Source:* `ceil_gap_pct`, `ceil_age`, `ceil_alive` (table `reversal_context`).
 
 ---
 

@@ -80,7 +80,9 @@ def test_compute_symbol_round_trip():
     pre = 400
     rows = []
     for i in range(pre):
-        c = 100.0
+        # flat 100 with one triangle peak at i=365 (a confirmable up-fractal —
+        # ties never qualify, so the flat stretch alone carries no ceiling)
+        c = 100.0 + max(0, 15 - abs(365 - i))
         rows.append({"trade_date": f"2023-{(i//28)%12+1:02d}-{i%28+1:02d}",
                      "high": c + 2, "low": c - 2, "close": c, "prev_close": c})
     for i, c in enumerate(closes):
@@ -92,6 +94,9 @@ def test_compute_symbol_round_trip():
     assert out["floor_deg"] in (10, 5)
     assert out["floor_alive"] in (0, 1)
     assert out["floor_gap_pct"] is not None
+    assert out["ceil_deg"] in (10, 5)
+    assert out["ceil_alive"] in (0, 1)
+    assert out["ceil_gap_pct"] is not None
 
 
 if __name__ == "__main__":

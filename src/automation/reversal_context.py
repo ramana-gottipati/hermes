@@ -59,10 +59,28 @@ CREATE TABLE IF NOT EXISTS reversal_context (
     floor_age      INTEGER,  -- bars since the fractal bar
     floor_gap_pct  REAL,     -- close vs floor, %
     floor_alive    INTEGER,  -- 1 = no close below the floor since it formed
-    computed_at    TEXT
+    computed_at    TEXT,
+    ceil_deg       INTEGER,  -- bearish mirror (S132c): degree of the confirmed up-fractal
+    ceil_price     REAL,     -- the fractal high, current terms
+    ceil_date      TEXT,
+    ceil_age       INTEGER,
+    ceil_gap_pct   REAL,     -- close vs ceiling, % (negative below it)
+    ceil_alive     INTEGER   -- 1 = no close above the ceiling since it formed
 );
 CREATE INDEX IF NOT EXISTS idx_revctx_state ON reversal_context(band_state);
 """
+
+# idempotent column migration for tables created before S132c (bear mirror).
+_MIGRATE = ["ceil_deg INTEGER", "ceil_price REAL", "ceil_date TEXT",
+            "ceil_age INTEGER", "ceil_gap_pct REAL", "ceil_alive INTEGER"]
+
+
+def _migrate(conn) -> None:
+    for col in _MIGRATE:
+        try:
+            conn.execute(f"ALTER TABLE reversal_context ADD COLUMN {col}")
+        except Exception:  # noqa: BLE001 - duplicate column = already migrated
+            pass
 
 
 # ── pure helpers (unit-tested; no DB) ────────────────────────────────────────
@@ -132,28 +150,37 @@ def stretch_pctile(series, m):
     return round(100.0 * (lo + 0.5 * (hi - lo)) / len(window), 1)
 
 
-def latest_floor(lows, closes, N, lookback=FLOOR_LOOKBACK):
-    """Latest CONFIRMED degree-N down-fractal within `lookback` bars of the end.
+def _latest_extreme(xs, closes, N, kind, lookback=FLOOR_LOOKBACK):
+    """Latest CONFIRMED degree-N fractal within `lookback` bars of the end.
 
-    Returns (f_idx, floor_val, alive) or None. Confirmed = N bars have printed
-    after f (PIT). Strict extreme: lows[f] < every low N bars each side.
-    alive = no close below the floor after the fractal bar."""
-    m = len(lows) - 1
+    kind='low'  -> floor  on lows  (strict min; alive = no close BELOW since)
+    kind='high' -> ceiling on highs (strict max; alive = no close ABOVE since)
+    Returns (f_idx, value, alive) or None. Confirmed = N bars printed after f (PIT)."""
+    lower = kind == "low"
+    m = len(xs) - 1
     for f in range(m - N, max(N - 1, m - lookback) - 1, -1):
-        v = lows[f]
+        v = xs[f]
         if v is None:
             continue
-        neigh = lows[f - N:f] + lows[f + 1:f + N + 1]
+        neigh = xs[f - N:f] + xs[f + 1:f + N + 1]
         if len(neigh) < 2 * N or any(x is None for x in neigh):
             continue
-        if all(v < x for x in neigh):
+        if all((v < x) if lower else (v > x) for x in neigh):
             alive = 1
             for c in closes[f + 1:]:
-                if c is not None and c < v:
+                if c is not None and ((c < v) if lower else (c > v)):
                     alive = 0
                     break
             return f, v, alive
     return None
+
+
+def latest_floor(lows, closes, N, lookback=FLOOR_LOOKBACK):
+    return _latest_extreme(lows, closes, N, "low", lookback)
+
+
+def latest_ceiling(highs, closes, N, lookback=FLOOR_LOOKBACK):
+    return _latest_extreme(highs, closes, N, "high", lookback)
 
 
 # ── compute ──────────────────────────────────────────────────────────────────
@@ -197,7 +224,9 @@ def compute_symbol(rows, events=None):
            "stretch_pct": round(st[m], 2) if st[m] is not None else None,
            "stretch_pctile": stretch_pctile(st, m),
            "floor_deg": None, "floor_price": None, "floor_date": None,
-           "floor_age": None, "floor_gap_pct": None, "floor_alive": None}
+           "floor_age": None, "floor_gap_pct": None, "floor_alive": None,
+           "ceil_deg": None, "ceil_price": None, "ceil_date": None,
+           "ceil_age": None, "ceil_gap_pct": None, "ceil_alive": None}
     for N in DEGREES:
         hit = latest_floor(al, ac, N)
         if hit:
@@ -208,6 +237,16 @@ def compute_symbol(rows, events=None):
                         if ac[m] else None,
                         "floor_alive": alive})
             break
+    for N in DEGREES:                                   # bearish mirror (S132c)
+        hit = latest_ceiling(ah, ac, N)
+        if hit:
+            f, v, alive = hit
+            out.update({"ceil_deg": N, "ceil_price": round(v, 2),
+                        "ceil_date": rows[f]["trade_date"], "ceil_age": m - f,
+                        "ceil_gap_pct": round((ac[m] / v - 1.0) * 100.0, 2)
+                        if ac[m] else None,
+                        "ceil_alive": alive})
+            break
     return out
 
 
@@ -216,6 +255,7 @@ def compute_all(conn=None, limit=None) -> int:
         with get_conn() as c:   # src.core.db.get_conn is a @contextmanager
             return compute_all(c, limit)
     conn.executescript(SCHEMA)
+    _migrate(conn)          # pre-S132c tables gain the ceiling columns idempotently
     try:
         from src.automation.corp_actions import price_ratios
     except Exception:  # noqa: BLE001
@@ -238,13 +278,21 @@ def compute_all(conn=None, limit=None) -> int:
             out = compute_symbol(rows, events)
             if out is None:
                 continue
+            # explicit column list: fresh-create vs ALTER-migrated tables order
+            # the ceiling columns differently, so positional VALUES would skew.
             conn.execute(
-                "INSERT OR REPLACE INTO reversal_context VALUES "
-                "(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO reversal_context "
+                "(symbol, trade_date, band_state, below_run, stretch_pct, "
+                " stretch_pctile, floor_deg, floor_price, floor_date, floor_age, "
+                " floor_gap_pct, floor_alive, computed_at, ceil_deg, ceil_price, "
+                " ceil_date, ceil_age, ceil_gap_pct, ceil_alive) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (sym, out["trade_date"], out["band_state"], out["below_run"],
                  out["stretch_pct"], out["stretch_pctile"], out["floor_deg"],
                  out["floor_price"], out["floor_date"], out["floor_age"],
-                 out["floor_gap_pct"], out["floor_alive"], now))
+                 out["floor_gap_pct"], out["floor_alive"], now,
+                 out["ceil_deg"], out["ceil_price"], out["ceil_date"],
+                 out["ceil_age"], out["ceil_gap_pct"], out["ceil_alive"]))
             n += 1
             if n % 500 == 0:
                 conn.commit()
@@ -285,6 +333,18 @@ def selftest():
     closes2[-1] = v - 1.0
     _f2, _v2, alive2 = latest_floor(lows, closes2, 10)
     assert alive2 == 0
+
+    # ceiling mirror: the peak of an inverted V is a confirmed up-fractal;
+    # a close above it flips ceil_alive
+    peak_closes = [100.0 + 1.5 * i for i in range(30)] + [143.0 - 2.0 * i for i in range(25)]
+    peak_highs = [c + 2.0 for c in peak_closes]
+    hitc = latest_ceiling(peak_highs, peak_closes, 10)
+    assert hitc is not None
+    fc, vc, alivec = hitc
+    assert fc == 29 and alivec == 1 and abs(vc - (peak_closes[29] + 2.0)) < 1e-9
+    pc2 = list(peak_closes)
+    pc2[-1] = vc + 1.0
+    assert latest_ceiling(peak_highs, pc2, 10)[2] == 0
 
     # pctile causality: needs 250 prior values, ranks against the past only
     series = [float(i % 50) for i in range(400)]

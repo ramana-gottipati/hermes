@@ -263,11 +263,20 @@ def _rev_cells(rv) -> str:
         floor_txt, floor_v = f"✗ broken D{deg}", 999
     else:
         floor_txt, floor_v = f"+{gap:.1f}% · D{deg} · {age}d", gap
+    cg, ca_, cd = rv.get("ceil_gap_pct"), rv.get("ceil_age"), rv.get("ceil_deg")
+    calive = rv.get("ceil_alive")
+    if cg is None:
+        ceil_txt, ceil_v = "—", 999
+    elif not calive:
+        ceil_txt, ceil_v = f"↑ cleared D{cd}", 999
+    else:
+        ceil_txt, ceil_v = f"{cg:.1f}% · D{cd} · {ca_}d", cg
     return (
         f'<td class="l cg-rev" data-v="{K.esc(st)}" title="{K.esc(tip)}">{K.esc(label)}</td>'
         f'<td class="num cg-rev" data-v="{sp if sp is not None else -999}">{_num(sp, 1)}</td>'
         f'<td class="num cg-rev" data-v="{pc if pc is not None else -1}">{pc_txt}</td>'
-        f'<td class="l cg-rev mut" data-v="{floor_v}">{K.esc(floor_txt)}</td>')
+        f'<td class="l cg-rev mut" data-v="{floor_v}">{K.esc(floor_txt)}</td>'
+        f'<td class="l cg-rev mut" data-v="{ceil_v}">{K.esc(ceil_txt)}</td>')
 
 
 def _pt14_by_sym(conn, syms):
@@ -664,10 +673,13 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     except (TypeError, ValueError):
         limit = 600
     scope = (scope or "Nifty 500").strip()
-    # `rev=ri` = the "⚠ Reclaim · floor intact" server-side cut (Ramana, S132b):
-    # band_state RECLAIM whose confirmed fractal floor is UNBROKEN. Descriptive
-    # watch filter — the reclaim cross itself is a falsified signal (ledger 07-13).
-    rev_f = "ri" if str(rev or "").strip().lower() in ("ri", "reclaim", "1") else ""
+    # `rev=ri` = "⚠ Reclaim · floor intact" (S132b) · `rev=si` = the bearish mirror
+    # "⚠ Slip · ceiling intact" (S132c): band SLIP with the confirmed up-fractal
+    # ceiling UNBROKEN. Descriptive watch cuts — both crosses are falsified as
+    # signals (ledger 07-13); these isolate the structurally clean situations.
+    _rv = str(rev or "").strip().lower()
+    rev_f = ("ri" if _rv in ("ri", "reclaim", "1")
+             else "si" if _rv in ("si", "slip") else "")
     is_all = scope.lower() == "all"
     is_watch = scope.lower() in ("watch", "watchlist")
     rows: list[dict] = []
@@ -699,8 +711,10 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                 if rev_f and conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' "
                         "AND name='reversal_context'").fetchone():
+                    rc_where = ("band_state='RECLAIM' AND floor_alive=1" if rev_f == "ri"
+                                else "band_state='SLIP' AND ceil_alive=1")
                     clause += (" AND s.symbol IN (SELECT symbol FROM reversal_context"
-                               " WHERE band_state='RECLAIM' AND floor_alive=1)")
+                               f" WHERE {rc_where})")
                 params.append(limit)
 
                 conv = "(0.55*COALESCE(s.p_score,0)/5.0*100.0 + 0.45*COALESCE(s.rs_rank,0))"
@@ -866,7 +880,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
         '<th class="cg-cpr s2gh" colspan="3">structure · cpr</th>'
         '<th class="cg-cci s2gh" colspan="3">credibility · cci</th>'
         '<th class="cg-wol s2gh" colspan="2">wolfe</th>'
-        '<th class="cg-rev s2gh" colspan="4">reversal ctx</th>'
+        '<th class="cg-rev s2gh" colspan="5">reversal ctx</th>'
         '<th class="cg-qual s2gh" colspan="2">quality · pt14</th>'
         '<th class="cg-ca s2gh" colspan="2">cap-alloc · C</th>'
         '<th class="cg-ctx s2gh" colspan="5">context · character</th></tr>')
@@ -877,7 +891,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
             'D', 'Cmpr', 'W',
             'CCI', 'Tier', 'Trend',
             'Wolfe', 'Q',
-            'Band', 'Stretch%', 'sPctl', 'Floor',
+            'Band', 'Stretch%', 'sPctl', 'Floor', 'Ceil',
             'NS', 'pt14',
             'C', 'C tier',
             'Character', 'Surge', 'Ticket', '%52wH', 'Char']
@@ -888,7 +902,7 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                   'cg-cpr', 'cg-cpr', 'cg-cpr',
                   'cg-cci', 'cg-cci', 'cg-cci',
                   'cg-wol', 'cg-wol',
-                  'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev',
+                  'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev', 'cg-rev',
                   'cg-qual', 'cg-qual',
                   'cg-ca', 'cg-ca',
                   'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx', 'cg-ctx']
@@ -904,7 +918,8 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
                  'pattern', 'compression_pctile', 'pattern',          # cpr
                  'Credibility composite', 'Credibility composite', 'Credibility level',  # cci (now documented; NOT 'tier'→pt14)
                  '', '',                                              # wolfe (undocumented)
-                 'Band state', 'Stretch %', 'stretch_pctile', 'floor_gap_pct',  # reversal ctx
+                 'Band state', 'Stretch %', 'stretch_pctile', 'floor_gap_pct',
+                 'ceil_gap_pct',                                      # reversal ctx
                  'ns_base', 'ns_base',                                # quality · pt14
                  'ca_score', 'ca_tier',                               # capital allocation · C
                  'accum_character', 'surge 1m', 'ticket_ratio_1m_6m',
@@ -919,17 +934,23 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     # ── controls: scope chips + group toggles + saved screens + filter ──
     def _schip(name, label=None):
         on = " on" if scope.lower() == name.lower() else ""
-        keep = "&rev=ri" if rev_f else ""              # scope switches keep the reclaim cut
+        keep = f"&rev={rev_f}" if rev_f else ""        # scope switches keep the active cut
         return (f'<a class="uk-pill {"acc" if on else "neutral"}" '
                 f'href="/dash/screen2?scope={_q(name)}{keep}">{K.esc(label or name)}</a>')
-    rev_pill = (f'<a class="uk-pill {"acc" if rev_f else "neutral"}" '
-                f'href="/dash/screen2?scope={_q(scope)}{"" if rev_f else "&rev=ri"}" '
-                f'title="Only band-reclaims whose confirmed fractal floor is UNBROKEN — a '
-                f'descriptive watch cut (the reclaim cross itself tested as an anti-signal, '
-                f'ledger 2026-07-13); price came off the lows WITHOUT breaking known support.">'
-                f'⚠ Reclaim · floor intact</a>')
+    ri_pill = (f'<a class="uk-pill {"acc" if rev_f == "ri" else "neutral"}" '
+               f'href="/dash/screen2?scope={_q(scope)}{"" if rev_f == "ri" else "&rev=ri"}" '
+               f'title="Only band-reclaims whose confirmed fractal floor is UNBROKEN — a '
+               f'descriptive watch cut (the reclaim cross itself tested as an anti-signal, '
+               f'ledger 2026-07-13); price came off the lows WITHOUT breaking known support.">'
+               f'⚠ Reclaim · floor intact</a>')
+    si_pill = (f'<a class="uk-pill {"acc" if rev_f == "si" else "neutral"}" '
+               f'href="/dash/screen2?scope={_q(scope)}{"" if rev_f == "si" else "&rev=si"}" '
+               f'title="The bearish mirror: trigger slipped below the upper bank while the '
+               f'confirmed up-fractal ceiling is UNBROKEN — cooling off WITHOUT clearing known '
+               f'resistance. Descriptive watch cut, not a short signal (ledger 2026-07-13).">'
+               f'⚠ Slip · ceiling intact</a>')
     chips = ("".join(_schip(n) for n in _BROAD) + _schip("all", "All")
-             + _schip("watch", "★ Watch") + rev_pill)
+             + _schip("watch", "★ Watch") + ri_pill + si_pill)
     sec_opts = "".join(
         f'<option value="{K.esc(s)}"{" selected" if scope.lower()==s.lower() else ""}>{K.esc(s)}</option>'
         for s in _SECTORS)
@@ -948,8 +969,10 @@ def dash_screen2(scope: str = Query("Nifty 500"), parity: str = Query(""),
     else:
         mem = f'{n_members} members · ' if n_members else ''
         sub_lbl = f'<b>{K.esc(scope)}</b> · {mem}<b>{shown}</b> shown (liquid)'
-    if rev_f:
+    if rev_f == "ri":
         sub_lbl += ' · <b>⚠ reclaim · floor intact</b> cut (descriptive — not a signal)'
+    elif rev_f == "si":
+        sub_lbl += ' · <b>⚠ slip · ceiling intact</b> cut (descriptive — not a signal)'
 
     head = (
         '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px">'
