@@ -311,8 +311,15 @@ Implemented the full consult-4 spec across **8 files**; `pytest -k "pat/cci/conc
 All four shipped to origin/main, tested, converged with Codex (each finding was AGREE-FIX / Codex's own
 remediation), state:skip on the src commits (PROJECT_STATE.md sibling-hot):
 - **D5-F6 delivered-VALUE trend** (`0ab5313`) — embase `deliv_qty_trend` now trends dq × RAW close
-  (split-invariant); key kept for compat. `tests/test_embase_deliv_value.py`. ⚠ VPS momentum_scan
-  re-verify + deploy queued.
+  (split-invariant); key kept for compat. `tests/test_embase_deliv_value.py`. ✅ **ACTIVATED + RE-VERIFIED
+  ON VPS 2026-07-14** — deployed `embase.py` (backup `.bak-d5f6-*`, md5-verified), then re-ran
+  `explosive_moves.momentum_scan` (rebuilt em_cache.pkl 3,525 syms/1.2GB/92s; scan refreshed to as_of
+  2026-07-14, 701 names, sane RISKADJ/ensemble). Direct proof on the deployed code: `deliv_qty_trend`
+  across a synthetic 2:1 split = **1.0000 (split-invariant)** vs the old raw-qty bug's 1.3750. **NOTE
+  (accurate framing): the live `/dash/momentum-scan` does NOT consume `deliv_qty_trend`** (it ranks on
+  RISKADJ + MOM12/HI52/LOWVOL_MOM — all price/vol) — so the fix is NEUTRAL to that surface; its real
+  effect is correcting the shared `em_cache.pkl` feature that the research backtests (factory/v2_backtest)
+  read. The "re-verify" confirmed the nightly scan still runs clean + unchanged in character.
 - **D6-F2 CCI knowable-date gate** (`faf1704`) — `resolved_knowable_date` plumbed through
   deep_actuals → concall_settle → credibility_series (gate on report date; period-end fallback).
   `tests/test_cci_knowable_date.py`. ✅ **ACTIVATED ON VPS 2026-07-14** — deployed the 3 files
