@@ -95,8 +95,11 @@ PROJECT_STATE entries are enough.**
   auto-expand intact. **⚠ pre-existing sibling RED (NOT mine, flagged):** `test_strategy_docs_coverage::test_every_doc_is_served`
   fails on origin — `docs/strategies/origins.md` (landed by S132j `7e5745d`) isn't in `strategies_view._PAGES`;
   it's a 1-line fix in a strategies-lane forked file, left for that lane.
-- **Remaining S-B1 (OPEN — a natural next pick):** item **2** merge RRG-Map + Rotation-Weather (Map⇄Weather
-  toggle, the Wolfe-toggle precedent) · item **3** fold cycle-clock/sector-momentum/early-signals into the
+- **✅ S143-d (same session) — S-B1 ITEM 2 DONE + DEPLOYED + LIVE:** RRG-Map + Rotation-Weather merged into ONE
+  "Rotation" lens with a Map⇄Weather toggle (commit `216ade4`; `infographics.rotation_toggle` + `left_rail`
+  `_RAIL_HIDE`/`_RAIL_MERGE_HL` — display-only, forked registry untouched, both routes stay live). Live: rail
+  shows one "Rotation" entry, toggle flips Map⇄Weather, `/dash/rotation` lights the merged entry.
+- **Remaining S-B1 (OPEN — a natural next pick):** item **3** fold cycle-clock/sector-momentum/early-signals into the
   Rotation cluster · item **5** credibility-fingerprint → Credibility child · item **6** Ownership&filings
   placement · item **7** orphan sweep (§5 dispositions) · item **10** unify the 3 change-feeds on the bus ·
   item **11** single-source strategy one-liners in `lens_registry` · the reverse `/dash/sectors → sector-economics`
