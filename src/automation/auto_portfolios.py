@@ -1,17 +1,18 @@
-"""Auto portfolios — system-managed model portfolios with FULL history since 2019-01-01.
+"""Auto portfolios — system-managed model portfolios with FULL history since 2012-06-01.
 
 Ramana's spec (S132h): each eligible strategy runs as a NAMED, fully AUTOMATED model
 portfolio — churned by its own rule continuously, no manual adds/removes possible
 (there is no write UI; this module is the only writer) — created now but RECONSTRUCTED
-from 2019-01-01 by running the identical rule through history, so each carries a real
+from 2012-06-01 (the validated walk-forward window start) by running the identical rule through history, so each carries a real
 track record and any past composition can be inspected ("as of Jan 2020").
 
 ELIGIBILITY (his rule): only families with superior measured Sharpe that beat the
-NIFTY hurdle on our 14y record (ledger Tier-1). Three qualify and run:
+NIFTY hurdle on our 14y record (ledger Tier-1). Four qualify and run:
 
   STEADY-25   LOWVOL_MOM · QUARTERLY clock · top-turnover-QUINTILE gate   (net champion)
   PACER-25    RISKADJ    · MONTHLY clock   · ₹5cr median-turnover gate    (gross lens)
   SPRINTER-25 MOM12      · MONTHLY clock   · ₹5cr median-turnover gate    (gross lens)
+  CRAFTSMAN-25 QUAL_MOM  · MONTHLY clock   · ₹5cr gate (riskadj+deliv+lowvol) (gross lens)
 
 MECHANICS (identical to the recorded backtests): at each clock date rank the gated
 universe by the family score; keep existing members while ranked ≤ BAND(35); refill to
@@ -27,7 +28,7 @@ Churn is DERIVED on read from consecutive snapshots (compute-on-read rule).
 Prices are corporate-action adjusted via the production adjuster. Pure stdlib.
 
 CLI:
-  python -m src.automation.auto_portfolios --backfill   # full 2019->today rebuild
+  python -m src.automation.auto_portfolios --backfill   # full 2012->today rebuild
   python -m src.automation.auto_portfolios --refresh    # extend if a clock turned
   python -m src.automation.auto_portfolios --selftest
 """
@@ -45,16 +46,19 @@ except Exception:  # pragma: no cover - import-path fallback
     from automation import adjust as _adjust  # type: ignore
     from automation.slow_rotation import pctrank  # type: ignore
 
-START = "2019-01-01"
-HISTORY_FROM = "2017-06-01"          # warmup runway for 252-bar features at START
+START = "2012-06-01"          # the VALIDATED walk-forward window start (S132i)
+HISTORY_FROM = "2010-06-01"          # warmup runway for 252-bar features at START
 TOPN, BAND = 25, 35
 COST_SIDE = 0.003
 CR = 1e7
 
 SPECS = {
-    "STEADY-25":   {"score": "lowvol",  "clock": "Q", "gate": "quintile"},
-    "PACER-25":    {"score": "riskadj", "clock": "M", "gate": "cr5"},
-    "SPRINTER-25": {"score": "mom12",   "clock": "M", "gate": "cr5"},
+    "STEADY-25":    {"score": "lowvol",  "clock": "Q", "gate": "quintile"},
+    "PACER-25":     {"score": "riskadj", "clock": "M", "gate": "cr5"},
+    "SPRINTER-25":  {"score": "mom12",   "clock": "M", "gate": "cr5"},
+    # QUAL_MOM (S132i): 0.4 pr(riskadj) + 0.3 pr(deliv_qty_trend) + 0.3 pr(-vol) —
+    # the recorded 1.10-Sharpe blend with the gentlest fast-clock drawdowns (-26.7%).
+    "CRAFTSMAN-25": {"score": "qualmom", "clock": "M", "gate": "cr5"},
 }
 
 SCHEMA = """
@@ -113,7 +117,7 @@ def build_panel(conn, rebal_all):
     n_done = 0
     for sym in syms:
         rows = conn.execute(
-            "SELECT trade_date, close, prev_close, value FROM bhavcopy_rows "
+            "SELECT trade_date, close, prev_close, value, deliv_qty FROM bhavcopy_rows "
             "WHERE symbol=? AND series='EQ' AND (segment='CM' OR segment IS NULL) "
             "AND trade_date>=? ORDER BY trade_date", (sym, HISTORY_FROM)).fetchall()
         if len(rows) < 300:
@@ -134,6 +138,7 @@ def build_panel(conn, rebal_all):
         ac = [float(r["close"]) * f if r["close"] else None
               for r, f in zip(rows, fac)]
         val = [float(r["value"]) if r["value"] else 0.0 for r in rows]
+        dq = [float(r["deliv_qty"]) if r["deliv_qty"] else None for r in rows]
         rets = [None] * len(rows)
         for i in range(1, len(rows)):
             if ac[i] and ac[i - 1]:
@@ -154,8 +159,13 @@ def build_panel(conn, rebal_all):
                 continue
             turn = sorted(val[max(0, i - 22):i])
             med_turn = turn[len(turn) // 2] if turn else 0.0
+            # deliv_qty_trend, embase-exact: mean(dq[i-21..i]) / mean(dq[i-65..i])
+            d22 = [x for x in dq[max(0, i - 21):i + 1] if x is not None]
+            d66 = [x for x in dq[max(0, i - 65):i + 1] if x is not None]
+            dtr = ((sum(d22) / len(d22)) / (sum(d66) / len(d66))
+                   if d22 and d66 and sum(d66) > 0 else None)
             panel[d][sym] = (ac[i] / ac[i - 126] - 1.0, ac[i] / ac[i - 252] - 1.0,
-                             vol, med_turn, ac[i])
+                             vol, med_turn, ac[i], dtr)
             px_at[d][sym] = ac[i]
         n_done += 1
         if n_done % 400 == 0:
@@ -180,6 +190,15 @@ def rank_family(feats, spec):
         scored = [(s, pool[s][0] / (pool[s][2] + 1e-6)) for s in syms]
     elif spec["score"] == "mom12":
         scored = [(s, pool[s][1]) for s in syms]
+    elif spec["score"] == "qualmom":        # 0.4 riskadj + 0.3 deliv-trend + 0.3 lowvol
+        syms = [s for s in syms if pool[s][5] is not None]
+        if len(syms) < TOPN + 5:
+            return []
+        pr_ra = pctrank([pool[s][0] / (pool[s][2] + 1e-6) for s in syms])
+        pr_dl = pctrank([pool[s][5] for s in syms])
+        pr_lv = pctrank([-pool[s][2] for s in syms])
+        scored = [(s, 0.4 * a + 0.3 * b + 0.3 * c)
+                  for s, a, b, c in zip(syms, pr_ra, pr_dl, pr_lv)]
     else:                                   # lowvol
         pm = pctrank([pool[s][0] for s in syms])
         pv = pctrank([-pool[s][2] for s in syms])
@@ -298,12 +317,14 @@ def selftest():
     assert "S30" in mem and "S2" in mem and "S40" not in mem and len(mem) == TOPN
     assert mem[0] in ("S2", "S30") and "S1" in mem       # refill from the top
 
-    feats = {f"S{i}": (0.01 * i, 0.02 * i, 0.02, 10 * CR, 100.0) for i in range(1, 40)}
-    feats["ILLIQ"] = (9, 9, 0.01, 1 * CR, 100.0)
+    feats = {f"S{i}": (0.01 * i, 0.02 * i, 0.02, 10 * CR, 100.0, 1.0 + 0.01 * i) for i in range(1, 40)}
+    feats["ILLIQ"] = (9, 9, 0.01, 1 * CR, 100.0, 2.0)
     rk = rank_family(feats, SPECS["PACER-25"])
     assert rk and rk[0][0] == "S39" and all(s != "ILLIQ" for s, _x in rk)
     rk2 = rank_family(feats, SPECS["SPRINTER-25"])
     assert rk2[0][0] == "S39"
+    rk4 = rank_family(feats, SPECS["CRAFTSMAN-25"])
+    assert rk4 and rk4[0][0] == "S39" and all(s != "ILLIQ" for s, _x in rk4)
     print("AUTO_PORTFOLIOS selftest OK")
 
 

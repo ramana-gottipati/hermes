@@ -71,9 +71,9 @@ _LEAGUE = [
     ("PACER-25", "Risk-adjusted momentum (RISKADJ = 6-mo return ÷ 3-mo vol)",
      1.13, 28.6, -33.1, "best flat-cost Sharpe of all 32 signals; NET fails at scale "
      "on its monthly clock — a gross selection lens", "gross", "pacer"),
-    ("QUAL-MOM", "Quality + momentum blend",
-     1.10, 20.1, -26.7, "gentler drawdowns; roster needs the research feature set — "
-     "leaderboard row only", "gross", None),
+    ("CRAFTSMAN-25", "Quality + momentum blend (QUAL_MOM)",
+     1.10, 20.1, -26.7, "gentlest fast-clock drawdowns; runs as a model portfolio "
+     "since 2012", "gross", "craftsman"),
     ("SPRINTER-25", "Classic 12-month momentum (MOM12)",
      1.06, 30.0, -43.0, "highest CAGR, brutal drawdowns; gross lens", "gross", "sprinter"),
     ("—", "Delivery momentum (DELIV_MOM)",
@@ -193,6 +193,8 @@ def factor_league_page(family: str = "", fmt: str = ""):
         link = ""
         if rkey == "steady":
             link = "<a href='/dash/momentum-scan/slow'>portfolio →</a>"
+        elif rkey == "craftsman":
+            link = "<a href='/dash/model-portfolios?p=CRAFTSMAN-25'>portfolio →</a>"
         elif rkey:
             link = f"<a href='/dash/factor-league?family={rkey}'>25 names →</a>"
         lg += ("<tr>"

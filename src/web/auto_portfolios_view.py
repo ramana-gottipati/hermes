@@ -40,10 +40,11 @@ except Exception:  # pragma: no cover
             return ""
 
 router = APIRouter()
-PORTS = ("STEADY-25", "PACER-25", "SPRINTER-25")
-COLORS = {"STEADY-25": "#3fb950", "PACER-25": "#58a6ff", "SPRINTER-25": "#d29922",
-          "N500": "#8b97a7"}
+PORTS = ("STEADY-25", "CRAFTSMAN-25", "PACER-25", "SPRINTER-25")
+COLORS = {"STEADY-25": "#3fb950", "CRAFTSMAN-25": "#b19cf7", "PACER-25": "#58a6ff",
+          "SPRINTER-25": "#d29922", "N500": "#8b97a7"}
 _NOTES = {"STEADY-25": "quarterly · large-cap · NET-cost survivor (the champion)",
+          "CRAFTSMAN-25": "monthly · quality-momentum blend (strength + delivery + calm) · gross lens",
           "PACER-25": "monthly · risk-adjusted momentum · gross lens",
           "SPRINTER-25": "monthly · classic 12-mo momentum · gross lens"}
 
@@ -77,6 +78,10 @@ _STORY = (
     "'frog-in-the-pan' effect; volatility-managed momentum). A pacer isn't the fastest "
     "runner — he holds the strongest <i>sustainable</i> rhythm. Best flat-cost Sharpe of "
     "everything we tested (1.13).</p>"
+    "<p>🛠 <b>CRAFTSMAN-25</b> — the blend our factor zoo scored gentlest of the "
+    "fast runners: 40% risk-adjusted strength, 30% REAL delivery (are strong hands "
+    "actually taking the stock home?), 30% calmness. Strength that is being "
+    "genuinely accumulated, not just quoted higher.</p>"
     "<p>🧘 <b>STEADY-25</b> — momentum married to the second-oldest anomaly: the "
     "low-volatility effect (boring stocks beat exciting ones per unit of risk, because "
     "crowds overpay for lottery-like thrills). Half strength, half calmness, held "
@@ -166,9 +171,11 @@ def _stats(navs):
 
 
 @router.get("/dash/model-portfolios", response_class=HTMLResponse)
-def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = ""):
+def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
+                          since: str = ""):
     pname = p if p in PORTS else "STEADY-25"
     asof = (asof or "").strip()[:10]
+    since = since if since in ("2019", "2022") else ""      # default = full 2012 history
     con = _ro(HDB)
     nav, holds, snaps, latest_px = {}, [], [], {}
     snap_date = ""
@@ -215,6 +222,19 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = ""):
         return HTMLResponse(_shell("Model portfolios", body, active="model-portfolios",
                                    wide=True))
 
+    if since:
+        cut = since + "-01-01"
+        reb = {}
+        for q, rows_ in nav.items():
+            rows_ = [r for r in rows_ if r[0] >= cut]
+            if rows_:
+                n0 = rows_[0][1] or 1.0
+                b0_ = rows_[0][2] or None
+                reb[q] = [(d, round(v / n0, 4) if v else None,
+                           round(b / b0_, 4) if (b and b0_) else None, c)
+                          for d, v, b, c in rows_]
+        nav = reb
+
     mynav = nav.get(pname, [])
     prim = _svg_lines([
         (pname, COLORS[pname], [(d, v) for d, v, _b, _c in mynav]),
@@ -235,6 +255,12 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = ""):
                  f"<span>Sharpe <b>{st['sharpe']:.2f}</b> (N500 {bt['sharpe']:.2f})</span>"
                  f"<span>MaxDD <b>{st['dd']:.0f}%</b> (N500 {bt['dd']:.0f}%)</span></div>")
 
+    since_chips = " · ".join(
+        ("<b>" if (since or "2012") == (y or "2012") else "")
+        + f"<a href='/dash/model-portfolios?p={pname}"
+        + (f"&since={y}" if y else "") + f"'>{y or '2012'}</a>"
+        + ("</b>" if (since or "2012") == (y or "2012") else "")
+        for y in ("", "2019", "2022"))
     segs = "".join(
         f"<a class='{'on' if q == pname else ''}' "
         f"href='/dash/model-portfolios?p={q}{'&asof=' + asof if asof else ''}'>{q}</a>"
@@ -305,16 +331,17 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = ""):
 
     body = (
         "<div class='mpf'>" + _CSS + ifx.readability_css()
-        + "<h2>Model portfolios — automated, since January 2019</h2>"
+        + "<h2>Model portfolios — automated, since June 2012</h2>"
         + ifx.bottom_line(
             "Three named portfolios, each churned continuously by its own validated rule "
-            "since <b>1 Jan 2019</b> — fully system-managed: no one (including us) can add "
+            "since <b>June 2012</b> — the start of the VALIDATED walk-forward window — fully system-managed: no one (including us) can add "
             "or remove a stock by hand; the engine is the only writer. Eligibility for a "
             "model portfolio: superior measured Sharpe AND beats the NIFTY on our 14-year "
             "record. Descriptive, not advice.")
         + ifx.how_to_read_link()
         + "<div class='rd-htr'><a href='/dash/factor-league'>The league behind these →</a></div>"
         + f"<div class='seg'>{segs}</div>"
+        + f"<div class='bar'>View since: {since_chips} (curves rebased to 1× at the chosen start)</div>"
         + f"<div class='bar'><b>{pname}</b> — {_NOTES[pname]} · equal-weight 1/25 re-set at "
         "every rebalance (engine-controlled) · entries = top 25, holdings persist to rank 35 "
         "(the churn dampener)</div>"
