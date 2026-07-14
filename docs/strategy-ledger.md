@@ -330,6 +330,43 @@ Each lever added individually vs base (Sharpe / alpha / MaxDD):
 - **Verdict: the taper/balance levers materially improve the Champion (0.62→0.70, +3.2% alpha, −36% DD).** V8 is the
   new working config on top of the frozen base; still a smart-beta tilt (short of the strict TR bar), now with better
   drawdown control. Levers are additive + individually recorded so the estate can keep refining.
+- **⚠ CORRECTION (2026-07-15c, dated stats):** the "−36% MaxDD is the 2008 GFC" line above is WRONG — V8's max
+  drawdown is **COVID** (peak 2019-06 → trough 2020-04 −36.2% → recovered 2021-01), where V8 fell MORE than the
+  bench (−36.2% vs −31.9%; the quarterly clock froze the Jan-2020 book through a one-month crash). In the GFC V8
+  fell −32% vs bench −62% (calendar-2008: −23.3% vs −58.8%). Full dated stats + t-stats:
+  `research/explosive_moves/sector_rotation_stats.py` (alpha t 1.45 NOT significant · IR −0.20 · hit 44.6% ·
+  up/down-capture 0.71/0.64 · avg exposure 74.9% — the wealth gap ₹9.13 vs ₹12.60 Cr is CASH DRAG, missing the
+  recovery years: 2009 +44% vs +106% · 2014 +24% vs +44% · 2024 +6% vs +26%).
+
+### 2026-07-15c — Round 2: attack the RETURN gap (kill-switch · asym cadence · residual fill · monthly cadence), V8 base frozen, 2005–2026 n=257
+
+Module `research/explosive_moves/sector_rotation_exp2.py` (one lever at a time, then combos; bench like-for-like
+price-index Nifty 500 = Sharpe 0.64, halves 0.58/0.78, ₹1 Cr → ₹12.60 Cr, MaxDD −62.0%):
+
+| V8 + lever | Sharpe (H1/H2) | CAGR | MaxDD | β | α/yr | ₹1 Cr → | verdict |
+|---|---|---|---|---|---|---|---|
+| — (V8 frozen) | 0.70 (0.78/0.64) | 10.8% | −36.2% | 0.60 | +3.2% | 9.13 | baseline |
+| V9a 200DMA kill ×0.5 (book) | 0.72 (0.89/0.55) | 8.5% | −33.1% | 0.40 | +3.2% | 5.72 | REJECT — wealth collapses; regime-timing decays in H2 |
+| V9b 200DMA kill → full cash | 0.58 | 6.1% | −29.0% | 0.25 | +2.9% | 3.54 | REJECT |
+| V10 ASYM (entries qtrly, risk monthly, taper→cash) | 0.59 | 6.6% | −30.7% | 0.40 | +1.4% | 3.96 | REJECT — monthly risk pass sells into noise + cash drag |
+| V11 FILL residual→index | 0.71 (0.71/0.71) | 13.9% | −55.8% | 0.91 | +2.4% | 16.38 | beats index on wealth; gives back the DD protection |
+| V12 MONTHLY entries | 0.62 (0.55/0.68) | 10.0% | −47.6% | 0.68 | +1.5% | 7.74 | REJECT — churn 35.7%/mo (third confirmation of the cadence law) |
+| V13–V16 combos (ASYM/KILL/MONTH × FILL) | 0.66–0.67 | 12.8–13.1% | −56…−59% | ~0.9 | +0.7…+1.8% | 13.2–14.0 | all strictly below V11/V17 |
+| **★ V17 DEFENSIVE FILL** — residual→index only while bench ≥ 200DMA, else residual→CASH; sector book untouched | **0.79 (0.86/0.70)** | **14.7%** | **−39.2%** | 0.77 | **+4.7%** | **19.04** | **champion-candidate** |
+
+- **V17 beats the index on all three at once** (like-for-like): wealth **₹19.04 Cr vs ₹12.60 Cr (+51%)**, Sharpe
+  **0.79 vs 0.64**, MaxDD **−39.2% vs −62.0%**; turnover unchanged 12.4%/mo (the fill-sleeve's 200DMA switches are
+  rare — cost immaterial). The 200DMA that FAILS as a book-level kill (V9) WORKS as a fill-sleeve guard: whipsaw
+  there costs only index-vs-cash on the residual, while sidestepping crashes with the whole sleeve. V17b uniformity
+  check (empty-book residual also defensive) = identical numbers.
+- **Honest caveats (do not drop):** (1) H2 Sharpe 0.70 vs bench H2 0.78 — the risk-adjusted edge is H1-heavy
+  (contains 2008, where any 200DMA overlay shines); H2 wealth is still ahead. (2) V17 is the 11th variant of the
+  round — selection deflation applies; treat 0.79/+4.7% as tuned-in-sample until a TR-benchmark re-cut or fresh
+  period confirms. (3) price-index bench understates Nifty TR by ~1.2–1.5%/yr dividends; both sides understate
+  (sector ETFs pay dividends too), so the like-for-like delta stands but absolute CAGRs are conservative.
+- **Verdict: CONDITIONAL — V17 is the champion-CANDIDATE, pending Ramana's ratification (the frozen champion
+  formally remains V8 per his standing instruction).** Next rigor if ratified: TR-benchmark re-cut · V17 alpha
+  t-stat · the V2 ≤40-stock constituent expression.
 
 ## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
 
