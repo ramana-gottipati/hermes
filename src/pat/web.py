@@ -1512,6 +1512,32 @@ def _seasonal_stock_flow(conn, symbol: str = "", month: int = 0) -> str:
     return "".join(out)
 
 
+# ── methodology flow (plain-language strategy explainers, inline) ─────────────
+# "explain the Wolfe methodology / how does CPR work / what's the DVPT idea" (S150 Ph3).
+# The plain-language One-line definition from the canonical docs/strategies page (sanitized
+# via strategies_view._public — no governance/ID/"Ramana" leak) + a link to the full page.
+
+def _methodology_flow(conn, slug: str = "") -> str:
+    from src.pat import methodology_flow as _MF
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    s = _MF.summary((slug or "").strip())
+    if not s:
+        out.append(_q_bubble("I don't have a plain-language write-up for that strategy."))
+        out.append('<div class="empty">Browse the methodology write-ups at '
+                   '<a class="row" href="/dash/strategy-ref">Strategy reference</a>.</div>')
+        return "".join(out)
+    out.append(_q_bubble(f"How the {_esc(s['label'])} methodology works — in plain words."))
+    out.append(f'<div class="ghdr">{_esc(s["label"])} — methodology</div>')
+    out.append(f'<div class="card" style="line-height:1.7;font-size:13.5px">{_esc(s["plain"])}</div>')
+    out.append(f'<div style="margin-top:10px"><a class="row" href="{_esc(s["link"])}">'
+               f'Read the full {_esc(s["label"])} reference (definition · variation · methodology · status) →</a>'
+               ' &nbsp; <a class="row" href="/dash/strategy-ref">all strategy references →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'A plain-language summary of the desk\'s own methodology write-up. Descriptive '
+               'reference — see the full page for the current status, variation and any fence.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2855,6 +2881,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "participants": "FII positioning", "rotation": "RS rotation state",
                "internals": "Market breadth", "filings": "Filings for a stock",
                "wolfe": "Open Wolfe setups", "seasonal_stock": "Seasonal base rate (one name)",
+               "methodology": "How a strategy works",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -3049,6 +3076,8 @@ def _free_text(conn, q: str):
             body = _wolfe_flow(conn, p.get("symbol", ""))
         elif f == "seasonal_stock":
             body = _seasonal_stock_flow(conn, p.get("symbol", ""), p.get("month", 0))
+        elif f == "methodology":
+            body = _methodology_flow(conn, p.get("slug", ""))
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3362,6 +3391,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
         body = _seasonal_stock_flow(conn, sym or q, entry)  # per-symbol seasonal (S150); month rides `entry`
         fb_ctx = {"query": q, "flow": "seasonal_stock", "params": {"symbol": sym or q, "month": entry},
                   "source": "flow"}
+    elif flow == "methodology":
+        body = _methodology_flow(conn, strength or q)     # strategy explainer (S150); slug rides `strength`
+        fb_ctx = {"query": q, "flow": "methodology", "params": {"slug": strength or q}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

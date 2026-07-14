@@ -62,6 +62,7 @@ _VALID: dict[str, dict] = {
     "internals":    {},                   # "how's the breadth" — market internals inline (S-E Ph2)
     "filings":      {"symbol": "free", "focus": "free"},  # "filings for X" — insider/ratings/SAST/holdings (S150)
     "wolfe":        {"symbol": "free"},  # "any wolfe setups / open trades" — open Wolfe waves (S150)
+    "methodology":  {"slug": "free"},   # "explain the Wolfe methodology" — strategy explainers (S150 Ph3)
     "explain":      {"explain": "slug"},
 }
 
@@ -428,10 +429,24 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, internals)
         return internals
 
-    # (a-1j) Wolfe open trades — "any wolfe setups / open wolfe trades / show me the wolfe waves" —
+    # (a-1j) Methodology — "explain the Wolfe methodology / how does CPR work / what's the DVPT
+    #        idea" — a plain-language strategy explainer from docs/strategies (S150 Phase 3). ₹0;
+    #        needs a methodology cue AND a strategy name, and runs BEFORE the wolfe data flow so
+    #        "how does the wolfe WAVE work" is an explainer, not an open-trades list; a bare "what
+    #        is DVPT" (no cue) stays a glossary explain. Sanitized (no governance/ID leak).
+    try:
+        from src.pat.methodology_flow import parse_methodology as _parse_meth
+        meth = _parse_meth(query)
+    except Exception:
+        meth = None
+    if meth:
+        _cache_put(q, meth)
+        return meth
+
+    # (a-1k) Wolfe open trades — "any wolfe setups / open wolfe trades / show me the wolfe waves" —
     #        the currently-open Wolfe waves from the nightly snapshot (S150). ₹0; needs a wolfe cue
-    #        AND an open/setup/trade cue, runs after nav so "where's the wolfe scanner" stays a
-    #        navigate. Descriptive-only (edge = selection, never trade-craft). A miss yields.
+    #        AND an open/setup/trade cue, runs after nav/methodology so "where's the wolfe scanner"
+    #        stays a navigate and "how does the wolfe wave work" is an explainer. A miss yields.
     try:
         from src.pat.wolfe_flow import parse_wolfe as _parse_wolfe
         wolf = _parse_wolfe(query)
