@@ -214,10 +214,22 @@ def sector_rotation_page(asof: str = Query(""), fmt: str = Query("")):
 .srp-tbl td,.srp-tbl th{{border:1px solid var(--line-2);padding:4px 10px;text-align:right}}
 .srp-tbl td:first-child,.srp-tbl th:first-child{{text-align:left}}
 .srp-diff{{font-size:12.5px;background:var(--bg-1);border:1px solid var(--line-2);border-radius:8px;padding:8px 12px;margin:10px 0}}
+.srp-scope{{font-size:12.5px;line-height:1.5;background:var(--bg-1);border:1px solid var(--line-2);
+ border-left:3px solid var(--warn,#c2410c);border-radius:8px;padding:9px 12px;margin:2px 0 12px}}
+.srp-scope b{{color:var(--ink-1)}}
 </style>
+<div class='srp-scope'>
+  <b>What this book holds: sector INDICES — not individual stocks.</b> Each row below is an index
+  (Nifty Auto, Nifty IT&hellip;), not a company. This page shows the <b>sector-selection half</b> of the
+  strategy; the stock-selection half — picking the strongest stocks <i>inside</i> the qualifying sectors —
+  is <b>not built and not measured</b>. Read every number here as an <b>upper bound on a paper portfolio</b>,
+  not a tradeable result: several sectors shown (Media, Realty, Consumer Durables, Infrastructure, Oil &amp; Gas)
+  have <b>no liquid index ETF or futures</b>, yet all legs are costed as if they did.
+  <a href='/dash/strategy-ref?p=sector-rotation'>Full scope note + methodology</a>.
+</div>
 <div class='srp-head'>
   <h2>Sector rotation — the V17 book</h2>
-  <span style='font-size:12px;color:var(--ink-3)'>{ifx.fence('not_reco', 'research-stage (CONDITIONAL); ledger-verdict linked below')}</span>
+  <span style='font-size:12px;color:var(--ink-3)'>{ifx.fence('not_reco', 'research-stage (CONDITIONAL); sector layer only — no stock selection; ledger-verdict linked below')}</span>
 </div>
 <div class='srp-head'>
   {_lnk(prev_d, '◀ previous rebalance')}

@@ -419,6 +419,51 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15h — 🔴 SCOPE FLAW (Ramana-caught): the entire V8→V32 ladder selects SECTORS, never STOCKS — half the brief was never built, and the index expression may not be tradeable
+
+**Ramana, 2026-07-15:** *"I have noticed major flaws… you are identifying that this will drive the stock. What
+you are currently identifying is that you will take the index itself… I haven't seen a single stock listed…
+you are not picking the stocks. Please confirm."* **CONFIRMED. He is correct.**
+
+**The finding (verified in code, not from memory):** the V24 engine
+(`research/explosive_moves/sector_rotation_v24_final.py`) reads exactly ONE table — `index_rows` — and contains
+**zero stock symbols**. Reproduce: `grep -ciE "stock_signals|bhav|symbol|stock_rows" <that file>` → **0**. Every
+quarter's "holdings" in the 86-rebalance book are **index names** (Nifty Auto, Nifty IT…), not companies. The
+book never held a stock; it rotates between indices.
+
+**What this invalidates — precisely.** Nothing in the ladder's *arithmetic* is wrong; the numbers reproduce.
+What was wrong is **what they were claimed to measure**. Sharpe 0.91 / α +7.1%/yr / ₹1 Cr → ₹30.35 Cr describes
+**the sector-selection half of an unfinished strategy**, priced on instruments that in ~⅜ of cases don't exist.
+It was presented as a finished result.
+
+**Root cause = a FRAMING failure, not a missing feature.** The limitation WAS recorded — as one bullet
+("V2 constituent expression… where the stock-selection edge gets tested") buried in the canonical page's §9
+open items, while the page's status header led with a Sharpe ratio. Burying the scope caveat under the headline
+number made a half-strategy read as a whole one. **Standing lesson: when a build covers part of a brief, the
+scope gap goes ABOVE the headline stat, not in the open-items list.** The canonical page now carries a
+blocking SCOPE banner as its first element (`docs/strategies/sector-rotation.md`).
+
+**A second, compounding flaw surfaced by the same audit — instrument reality (canonical §6-bis).** §3-F prices
+the sector legs as "liquid sector ETFs/index futures @ 0.15%/side". **That was asserted, never verified.**
+Roughly **6 of 16 sectors — Media · Realty · Consumer Durables · Infrastructure · Oil & Gas · Metal (thin) —
+have no liquid Indian index instrument.** So (a) the headline stats are optimistic by an **unquantified**
+amount, and (b) **the priority inverts**: for those sectors, buying the constituent stocks is not phase two,
+it is **the only executable expression**. The constituent build is now the execution path for a large minority
+of the book, not an enhancement to a working one.
+
+**Verdict: the ladder is DEMOTED to "sector-selection layer, paper, upper-bound".** Not rejected — the
+sector-selection logic still measures what it measures, and V24 remains the best config of it (Ramana designated
+V24 as the layer to carry forward, 2026-07-15h — a designation of *what the stock build sits on*, NOT a
+promotion; `/dash/sector-rotation` stays on V21). **No number from this ladder may be presented, quoted, or
+promoted as a complete strategy result.**
+
+**Owed, in order:** ① **the ≤40-stock constituent build** (top-RS stocks inside V24's qualifying sectors,
+sector-RS × stock-RS weights, per-sector stops) — the untested half of the brief. **Pre-register its bar before
+running it:** stock-level momentum is recorded in this ledger as **BETA not skill (t=1.99)**, with only
+LOWVOL_MOM qtr large-cap fundable (1.02 @ ₹50cr), and stock legs cost more than index legs — **matching the
+index book counts as a REJECTION, not a result.** ② the instrument/ADV audit + per-leg cost re-cut. ③ the TR
+re-cut + significance pass (still owed, four selection rounds deep).
+
 ### 2026-07-15g — NAMING: "V24" is the official shorthand for the FULL V21+V24 combination + a consolidated 3-index cross-check (Nifty 50 · Nifty 100 · Nifty 500)
 
 Ramana: "if V24 consists solely of V21+V24, refer to the entire combination as V24." **Binding from here on: "V24"

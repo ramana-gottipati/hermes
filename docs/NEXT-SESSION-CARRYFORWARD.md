@@ -49,7 +49,33 @@ PROJECT_STATE entries are enough.**
 - **Gotchas for your deploy steps:** `install-systemd.sh` DEFAULTS to `--check` — the copy needs the explicit `--install` flag (this bit me; also now in the deploy memory). Worktree commits need BOTH `HERMES_SKIP_STATE_GATE=1` and `state:skip`.
 - **✅ Suite debt FIXED (same orchestrator, npfix-suite):** `test_embase_deliv_value.py` now `pytest.importorskip("numpy")` (the test_rule_lab_executor pattern) and `combo_test.py` (a research SCRIPT that only matched pytest's `*_test.py` glob) is collect-ignored via a new `research/explosive_moves/conftest.py` — full suite collects clean in numpy-less worktrees (539 passed / 0 errors at the S158-era base). Semantics untouched; the script still runs via `python -m`.
 
-## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136): V8→V17→V21→★V24/★V32 candidates, portfolio surface LIVE, naming CANONIZED — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
+## 🔴 2026-07-15h — SECTOR-ROTATION: READ THIS FIRST — the ladder below is HALF the strategy. It picks SECTORS, not STOCKS. The ≤40-stock build is the #1 open item.
+
+**Ramana caught this on 2026-07-15 and he is right.** Every V-number below (V8…V32) and every stat
+(Sharpe 0.91 · α +7.1% · ₹30.35 Cr) measures the **sector-selection layer ONLY** — a paper book that holds
+*sector indices themselves*. The engine reads one table (`index_rows`) and has **zero stock symbols**
+(`grep -ciE "stock_signals|bhav|symbol" research/explosive_moves/sector_rotation_v24_final.py` → **0**).
+**Half ② of his brief — pick the top-RS STOCKS driving the qualifying sectors, ≤40 names, sector-RS ×
+stock-RS weights, per-sector stops — was NEVER BUILT and never measured.**
+
+**⚠ Compounding flaw: ~6 of 16 sectors (Media · Realty · Consumer Durables · Infrastructure · Oil & Gas ·
+Metal-thin) have NO liquid Indian index ETF/futures**, yet the backtest prices every leg as a liquid ETF at
+0.15%/side (asserted, never verified). So the stats are optimistic by an unquantified amount, **and the
+constituent build is the ONLY executable path for a large minority of the book** — not a phase-2 nicety.
+
+**Root cause was a FRAMING failure** (the caveat existed, buried in open-items, while the headline led with a
+Sharpe). **Standing lesson: a scope gap goes ABOVE the headline stat, never in the open-items list.**
+
+**Do NOT quote any number below as a complete strategy result.** Canon: `docs/strategies/sector-rotation.md`
+SCOPE banner + §6-bis · ledger **§2026-07-15h** (the full flaw record + the pre-registered bar for the stock
+build: stock momentum is **BETA not skill, t=1.99** — merely matching the index book = **REJECTION**).
+
+**V24 = Ramana's designated sector layer** (2026-07-15h) — i.e. *what the stock build sits on*, NOT a
+promotion. `/dash/sector-rotation` stays on V21. Nothing graduates while the stock half is unbuilt.
+
+---
+
+## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136) — ⚠ SECTOR LAYER ONLY, see the 15h block ABOVE before using any of it: V8→V17→V21→★V24/★V32 candidates, portfolio surface LIVE, naming CANONIZED — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
 **The ladder (never re-derive — cite these numbers):** all on 2005–2026 price-index data (TR re-cut still owed),
 16 NSE sectors, quarterly rebalance. V8 = FROZEN base (Sharpe 0.70/DD−36.2%/₹9.13Cr, Ramana-ratified, never
 edited — refinements are new V-numbers beside it). **V17** = V8 + defensive residual fill (0.79/−39.2%/₹19.04,

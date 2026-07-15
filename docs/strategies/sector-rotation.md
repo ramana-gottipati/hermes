@@ -1,11 +1,38 @@
 # Sector Rotation (RS-weighted) — Canonical Reference
 
+> ## 🔴 SCOPE — READ BEFORE ANY NUMBER ON THIS PAGE
+>
+> **This strategy is HALF-BUILT. It selects SECTORS. It does NOT pick STOCKS.**
+>
+> Every V-number (V8…V32) and every headline stat (Sharpe 0.91 · α +7.1%/yr · ₹1 Cr → ₹30.35 Cr) measures
+> the **sector-selection layer ONLY** — a book that holds *sector indices themselves* (Nifty Auto, Nifty IT, …),
+> weighted by RS. The engine reads exactly one table, `index_rows`. It contains **zero stock symbols** — no
+> `stock_signals`, no bhav copy, no symbol column. Verify in 5 seconds:
+> `grep -ciE "stock_signals|bhav|symbol" research/explosive_moves/sector_rotation_v24_final.py` → **0**.
+>
+> **Ramana's brief was two halves** (2026-07-15): ① find every sector beating the benchmark, ② **pick the
+> top-RS STOCKS driving those sectors** (≤40 names, sector-RS × stock-RS weights, per-sector stops). **Only
+> half ① exists.** Half ② — the V2 constituent expression, §9 — is **NOT BUILT**, and is where the actual
+> stock-selection edge would be tested. It has never been measured.
+>
+> **⚠ The index expression may not even be tradeable** (see §6 *Instrument reality*): §3-F assumes the sector
+> legs are bought as "liquid sector ETFs/index futures", but that was **asserted, never verified**. Several of
+> the 16 sectors (Media, Realty, Consumer Durables, Infrastructure, Oil & Gas) have **no liquid ETF or futures
+> instrument in India**. An unknown share of the 0.91 Sharpe may be **unbuyable in index form**. This inverts
+> the priority: the constituent build is not a phase-2 nicety — for much of the book, **buying the underlying
+> stocks is the only executable expression**, and pricing it as an ETF book understates its real cost.
+>
+> **Do NOT present, quote, or promote any number on this page as a complete strategy result.** It is the
+> sector-selection half of an unfinished strategy, priced on instruments that may not exist.
+> *(Recorded 2026-07-15h after Ramana caught the gap — the flaw was a FRAMING failure: the limitation was
+> buried in §9's open items while the page led with a Sharpe ratio, so it read as finished. Ledger §2026-07-15h.)*
+
 > **Class:** CANONICAL reference (permanent — do not archive).
-> **Status:** **RESEARCH — CONDITIONAL.** The candidate ladder: **V8** = the FROZEN base (Ramana-ratified; smart-beta tilt) → **V17** = defensive residual fill (recorded candidate) → **V21** = + Next-50 sleeve + recovery-accelerator + inverse-vol (LIVE default on `/dash/sector-rotation`) → **V24** (official shorthand for **V21 + own-percentile RSI-of-RS**, Ramana's naming, 2026-07-15g) = the most-balanced leading candidate (Sharpe 0.91, MaxDD −37.7%, ₹1 Cr → ₹30.35 Cr vs Nifty 500's ₹12.60 Cr / Nifty 100's ₹11.93 Cr / Nifty 50's ₹11.35 Cr) → **V32** (V24 + adaptive hysteresis band) = the wealth-favoring sibling. Long-only; short/F&O leg REJECTED. **The portfolio surface is LIVE** — `/dash/sector-rotation` with `?asof=` time-travel + per-rebalance diffs; still runs V21 pending ratification of V24/V32. · **Governing record:** [strategy-ledger.md](../strategy-ledger.md) §§ 2026-07-15 → 2026-07-15g · D136.
+> **Status:** **RESEARCH — CONDITIONAL · SECTOR-LAYER ONLY (see SCOPE above).** The candidate ladder: **V8** = the FROZEN base (Ramana-ratified; smart-beta tilt) → **V17** = defensive residual fill (recorded candidate) → **V21** = + Next-50 sleeve + recovery-accelerator + inverse-vol (LIVE default on `/dash/sector-rotation`) → **V24** (official shorthand for **V21 + own-percentile RSI-of-RS**, Ramana's naming, 2026-07-15g) = the most-balanced leading candidate (Sharpe 0.91, MaxDD −37.7%, ₹1 Cr → ₹30.35 Cr vs Nifty 500's ₹12.60 Cr / Nifty 100's ₹11.93 Cr / Nifty 50's ₹11.35 Cr) → **V32** (V24 + adaptive hysteresis band) = the wealth-favoring sibling. Long-only; short/F&O leg REJECTED. **The portfolio surface is LIVE** — `/dash/sector-rotation` with `?asof=` time-travel + per-rebalance diffs; still runs V21 pending ratification of V24/V32. · **Governing record:** [strategy-ledger.md](../strategy-ledger.md) §§ 2026-07-15 → 2026-07-15g · D136.
 > **Origin:** 🧑 RAMANA (the strategy concept and every lever: RS-weighted multi-sector longs, balanced newcomers, own-peak-RS taper, stretch/σ taper, RSI-of-RS overbought exit, reduce-and-wait cash discipline) + 🏠 HOUSE implementation & falsification harness. See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference. Result numbers live ONLY in [strategy-ledger.md](../strategy-ledger.md); code + exact constants live in `research/explosive_moves/sector_rotation.py` (V1 round) · `sector_rotation_exp.py` (V2–V8 ablation) · `sector_rotation_exp2.py` (V9–V17 round + the V17 reference implementation) · `sector_rotation_stats.py` (dated stats/t-stats). This page states the RULESET (definitional) and links the rest.
 
-**One-line definition:** a long-only, low-churn sector-rotation strategy — every NSE sectoral index beating Nifty 500 on trailing relative strength is held (equal-weighted, capped), entries gated on an RSI-green recovery, weights tapered off as a sector approaches its OWN historical RS peak / stretch / RS-overbought, and (V17) the un-invested residual parked in a Nifty index ETF while the index is healthy, in cash when it is not.
+**One-line definition:** a long-only, low-churn sector-rotation strategy that **holds the sector INDICES themselves — it does not select stocks** (see SCOPE above; the ≤40-stock constituent layer is unbuilt). Every NSE sectoral index beating Nifty 500 on trailing relative strength is held (equal-weighted, capped), entries gated on an RSI-green recovery, weights tapered off as a sector approaches its OWN historical RS peak / stretch / RS-overbought, and (V17) the un-invested residual parked in a Nifty index ETF while the index is healthy, in cash when it is not.
 
 ---
 
@@ -64,6 +91,33 @@ Three sleeves: the **sector book**, the **residual sleeve**, **cash**. Decisions
 
 NSE index closes (`index_rows`, 205 indices 2004→present; primary source, Guardrail #8-clean). Point-in-time honest: every signal at date *d* uses closes ≤ *d*; entries earn the NEXT month's return; sectors join the universe only once their own history supports the signal (no backfilled hindsight membership). Price indices, not total-return — disclosed wherever numbers are shown.
 
+**Index closes are the ONLY input.** No stock-level data enters this strategy at any point — see the SCOPE
+banner. The book's holdings are index names, not symbols.
+
+### 6-bis. Instrument reality — ⚠ UNVERIFIED, and it is load-bearing
+
+§3-F prices the sector legs as **"liquid sector ETFs/index futures" at 0.15%/side**. That instrument claim was
+**asserted, never checked against actual Indian market instruments** — it is the weakest assumption in the whole
+construct, and every V-number inherits it:
+
+- **Plausibly tradeable as an index:** Nifty Bank, Nifty IT, Nifty Pharma, Nifty PSU Bank, Nifty Auto,
+  Nifty Financial Services, Nifty Private Bank, Nifty Healthcare *(ETF/futures exist — liquidity still unverified,
+  and 0.15%/side may be optimistic for the thinner ones)*.
+- **No liquid index instrument known:** **Nifty Media · Nifty Realty · Nifty Consumer Durables ·
+  Nifty Infrastructure · Nifty Oil & Gas · Nifty Metal (thin)** — roughly **6 of 16 sectors**.
+
+**Consequence:** an unknown fraction of the reported edge sits in legs that **cannot be bought as an index at
+the modelled cost, or at all**. Two live implications, both unmeasured:
+1. **The headline stats are optimistic by an unquantified amount** — real slippage on thin/absent instruments
+   is not in the 0.15%.
+2. **It re-prioritises the constituent build.** If a qualifying sector has no ETF, the only way to express it is
+   **buying its constituent stocks** — so §9's "V2 constituent expression" is not an enhancement to a working
+   strategy, it is **the execution path for ~⅜ of the book**.
+
+**Owed work (blocking any claim of tradeability):** enumerate the actual NSE/BSE ETF + futures instruments per
+sector with real ADV, re-cut costs per-leg from measured spreads instead of one flat 0.15%, and re-run the
+ladder. Until then, treat every number as an **upper bound on a paper portfolio**.
+
 ## 7. Terminology canon
 
 - **V8** — the FROZEN champion: quarterly RS rotation + RSI-green entry + hysteresis + 30% cap + BAL equal-weights + the three tapers (RSPK·STR·RSIRS); residual in cash.
@@ -96,13 +150,36 @@ NSE index closes (`index_rows`, 205 indices 2004→present; primary source, Guar
 - **A real negative-interaction lesson (2026-07-15f):** V26 (persistence) is a clean win ALONE but HURTS when
   combined with V24 — its "wait 2 quarters" delays V24's faster reaction. Individually-validated levers do not
   always combine additively; every combination needs its own test.
-- **Ramana's ratification** of the candidate ladder: V8 (frozen base) → V17 (recorded) → V21 (leading, live) →
-  V21+V24 or V32 (new leading candidates).
-- **TR-benchmark re-cut + significance pass — now the HIGHEST-priority rigor item**, more load-bearing than ever
-  (FOUR rounds of selection on one window; no TRI series in `index_rows` — needs an NSE Total-Returns ingest).
-- **V2 constituent expression** — the ≤40-stock version (top-RS stocks inside qualifying sectors, sector-RS ×
-  stock-RS weights, per-sector stops) — where the stock-selection edge gets tested; then `/dash/model-portfolios`
-  integration if it survives.
+### 🔴 #1 — THE CONSTITUENT BUILD (the missing half of the brief; was mis-filed as a nicety until 2026-07-15h)
+
+**Status: NOT BUILT. Never measured. This is the strategy Ramana actually asked for.** The sector ladder
+(V8…V32) answers only "WHICH SECTORS" — a paper book of index legs, ~⅜ of which have no buyable instrument
+(§6-bis). The stock layer answers "WHICH STOCKS", and is both the untested edge **and** the execution path.
+
+**Spec (Ramana's original brief, 2026-07-15):** take **V24's qualifying sectors** as the sector layer
+(Ramana's designation, 2026-07-15h) → inside each, rank constituents by **stock-level RS** → hold the top
+names up to a **≤40-stock book** → weight by **sector-RS × stock-RS** → **per-sector stops** →
+carry the same RSI-green entry gate + hysteresis + own-percentile tapers down to the stock leg.
+Reuse the existing `stock_signals` RS columns (built; do not rebuild). Then `/dash/model-portfolios`
+integration **only if it survives** its own falsification round.
+
+**The honest prior — this may fail, and the ledger says so:** [momentum-riskadj.md](momentum-riskadj.md) +
+ledger's momentum-net-of-cost wall record that **stock-level momentum selection is BETA, not skill (t=1.99)**,
+and only **LOWVOL_MOM quarterly large-cap** cleared the fundable bar (1.02 @ ₹50cr). Stock legs cost far more
+than index legs. **A constituent build that merely matches the index book is a REJECTION**, not a result —
+it must beat the sector ladder *net of realistic stock-level costs* to earn anything. Pre-register that bar
+before running it, per the standing failure-ledger discipline.
+
+### #2 — the rigor items on the sector layer (do not skip because #1 is more exciting)
+
+- **Instrument/tradeability audit (§6-bis)** — enumerate real ETF/futures per sector with ADV, per-leg costs
+  from measured spreads, re-cut the ladder. **Blocks any tradeability claim.** Partially subsumed by #1: sectors
+  with no instrument simply *become* stock legs.
+- **TR-benchmark re-cut + significance pass — the HIGHEST-priority rigor item** (FOUR rounds of selection on one
+  window; no TRI series in `index_rows` — needs an NSE Total-Returns ingest).
+- **V24 designated** by Ramana (2026-07-15h) as the sector layer to carry forward. Note this is a designation of
+  *which config the constituent build sits on*, **not** a promotion to a tradeable book — the live
+  `/dash/sector-rotation` stays on V21, and no config graduates while #1 and the rigor items are open.
 - **Rejected, with numbers (2026-07-15f): longer RSI window, dual-benchmark confirmation, the 55/45 regime-band
   (confirms the single-sector Defence diagnostic), direction-of-trend entry/exit, and book-level vol-targeting
   (worst drawdown blowup in the batch — CAGR up but MaxDD to −50.8%/−53.6%, fails the "keep drawdown in check"
