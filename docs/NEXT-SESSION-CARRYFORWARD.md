@@ -10,6 +10,9 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 CLAIM 2026-07-15 — LANE-G + LANE-H taken (D134 continuation session)
+Building `src/automation/entity_graph.py` (G, new file) + `docs/rule-lab-design.md` (H, new doc) in worktree `lane-gh-d134`. **Disjoint from the codex campaign below** — I touch NEITHER `fundamentals_xbrl.py` NOR `scoring.py`; the START-HERE queue (Pattern-5 SA extraction · Doctrine-D scorer) is untouched and remains that lane's. Retire this block to a results block at wrap.
+
 ## 🔴 START HERE — CODEX-REVIEW CAMPAIGN: decisions LOCKED, build queue ready (2026-07-15)
 
 **Boot:** `docs/codex-review/FINDINGS-LEDGER.md` + `TRACK-C-RESULTS.md` + `TRACK-D-DATA-PLAN.md` (esp. its
