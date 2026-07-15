@@ -136,6 +136,9 @@ _ROUTER_SPECS = [
     # Classic Screens (S145): the famous NAMED strategies run as live rosters on OUR PIT data.
     # Reads classic_roster (famous_strategies.py, nightly). Sibling of factor-league.
     ("classics", "src.web.classics_view", "/dash/classics"),
+    # Model books (S146): every engine portfolio displayed in the TRACKER + the Adopt bridge
+    # (seeds a named stocks_in_play book from today's holdings; POST-only write).
+    ("model-books", "src.web.model_books_view", "/dash/tracker/model-books"),
     # RS band lens — its siblings rsband.py/rrg_view.py are committed but the view was
     # left untracked; now committed + durably mounted here (was only the uncommitted
     # main.py import) so /dash/rsband survives a main.py clobber and a clean checkout.
