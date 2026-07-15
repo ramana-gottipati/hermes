@@ -51,6 +51,9 @@ _ROUTER_SPECS = [
     # Replay ANY date (charter P-05, S102) — the live demo over the entitled /v1 API:
     # pick symbol + date, get what was knowable then (D104 clocks), curl included.
     ("replay-any-date", "src.web.replay_any_date", "/dash/replay-any-date"),
+    # Review inbox (D134 L5, S158) — the judgment queue + its public methodology half.
+    # Durably mounted here so the owner's decide path survives a main.py clobber.
+    ("inbox", "src.web.review_inbox_view", "/dash/inbox"),
     ("rs-hub", "src.web.rs_section", "/dash/rs-hub"),
     ("news", "src.web.news_view", "/dash/wire"),
     # Lane B surfaces — durably mounted here so they no longer depend on the

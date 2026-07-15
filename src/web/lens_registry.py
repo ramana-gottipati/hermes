@@ -305,6 +305,14 @@ LENSES: tuple[Lens, ...] = (
     # any symbol, any date, knowable clock stamped (D104), curl included.
     Lens("replay-any-date", "Replay any date", "trust", "trust", "/dash/replay-any-date",
          aliases=("replay-api", "pit-replay")),
+    # Review inbox (D134 L5, S158) — the human-verification layer: everything the machine
+    # proposes waits here for a person's verdict, and every verdict is kept as the judgment
+    # corpus. Trust altitude because the PUBLIC half is the methodology statement ("nothing
+    # counts until it's checked") with the honest agreement rates beside the honesty estate
+    # (coverage / validation / spec-sheets); the QUEUE itself is owner-gated — it carries
+    # unreviewed AI brief drafts, which must never render publicly.
+    Lens("inbox", "Review inbox", "trust", "trust", "/dash/inbox",
+         aliases=("review", "review-inbox", "judgment", "judgement")),
 
     # ── Overlay-only (NOT nav lenses) — Wolfe / Harmonic. §3-C: chart overlays,
     # reachable from the chart control, no sub-nav entry. Routes stay live (no 404);

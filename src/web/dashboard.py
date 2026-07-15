@@ -7184,16 +7184,23 @@ def dash_tags_act(action: str = Form(...), symbol: str = Form(""),
                   tag: str = Form(""), nxt: str = Form("/dash/tags-review")) -> RedirectResponse:
     """Approve / reject an AI proposal, or add / remove a manual theme tag.
     Index-seeded facts are immutable here (remove targets source='ramana' only)."""
+    from src.automation import inbox_adapters as IA
     from src.automation import theme_tags as TT
     symbol = (symbol or "").upper().strip()
     tag = (tag or "").strip()
     ok = True
     try:
         with get_conn() as conn:
+            # A verdict on a machine PROPOSAL routes through the Review Inbox (D134 L5,
+            # S158) so the judgment corpus records it — one decision path shared with
+            # /dash/inbox. theme_tags still does the company_tags write underneath, and
+            # the _safe wrapper falls back to it directly if the inbox path ever fails,
+            # so these buttons cannot break. add / remove / unreject stay direct: they
+            # are AUTHORING, not judging a proposal (rationale: inbox_adapters docstring).
             if action == "approve" and symbol and tag:
-                TT.approve(conn, symbol, tag)
+                IA.decide_by_ref_safe(conn, symbol, tag, "approved")
             elif action == "reject" and symbol and tag:
-                TT.reject(conn, symbol, tag)
+                IA.decide_by_ref_safe(conn, symbol, tag, "rejected")
             elif action == "unreject" and symbol and tag:
                 TT.unreject(conn, symbol, tag)
             elif action == "add" and symbol and tag and TT.vocab_entry(tag) is not None:
@@ -7203,9 +7210,9 @@ def dash_tags_act(action: str = Form(...), symbol: str = Form(""),
                              (symbol, tag))
                 conn.commit()
             elif action == "approve_theme" and tag:           # bulk: all pending for a theme
-                TT.approve_all_for_theme(conn, tag)
+                IA.decide_bulk(conn, tag=tag)
             elif action == "approve_symbol" and symbol:       # bulk: all pending for a company
-                TT.approve_all_for_symbol(conn, symbol)
+                IA.decide_bulk(conn, symbol=symbol)
             else:
                 ok = False
     except Exception:

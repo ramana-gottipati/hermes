@@ -129,6 +129,7 @@ PAT_EXPLAIN: dict[str, str] = {
     "capture-map":      "up_capture",       # up/down-capture behaviour
     "rsband":           "rs_band",          # the relative-strength band (support/resistance)
     "rrg":              "rs_ratio",         # the RRG map plots RS-Ratio × RS-Momentum
+    "inbox":            "review_inbox",     # the human-verification queue + judgment corpus
 }
 
 

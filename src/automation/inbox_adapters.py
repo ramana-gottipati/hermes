@@ -9,21 +9,33 @@ Every tag decision now lands in the judgment corpus (`review_inbox.corpus`),
 and `agreement_stats('tags')` starts measuring which proposer families
 (keyword vs llm) earn trust.
 
-SINGLE-WRITER DOCTRINE — the recorded interim (LANE-D open question Q1):
-    From this module's landing onward the Review Inbox is the CANONICAL
-    decision path for tag proposals. The legacy /dash/tags-review surface
-    (cockpit.py — forked-file territory this module must not touch) remains
-    fully functional: its buttons still call theme_tags.approve/reject
-    directly, but those writes BYPASS the judgment corpus. Bridging or
-    retiring the legacy writes happens at the inbox-surface session
-    (SURFACE-PLAYBOOK; LANE-R territory). Until then:
-      • a legacy-side decision leaves its twin inbox item pending —
-        tags_sync() REPORTS these as stale (stale_decided_on_legacy) and
-        never auto-decides: a machine must not fabricate a human verdict;
-      • if both surfaces decide the same (symbol, tag), the last applied
-        write wins in company_tags-land (theme_tags helpers are
-        INSERT OR REPLACE by construction) — with tags_apply typically
-        running last on the weekly timer, the inbox verdict prevails.
+SINGLE-WRITER DOCTRINE — Q1, CLOSED S158 (the legacy surface is BRIDGED):
+    There is now ONE decision path. Both surfaces converge on decide_by_ref():
+      • the inbox lens (/dash/inbox) decides → apply;
+      • the legacy /dash/tags-review buttons POST /dash/tags, whose handler
+        calls decide_by_ref_safe() instead of theme_tags.approve/reject — so
+        a decision made there is corpus-recorded too, and its bulk buttons +
+        per-company ergonomics survive unchanged (additive-never-replace: the
+        page Ramana actually uses is bridged, NOT deleted or made read-only).
+    theme_tags' helpers remain the only writers of company_tags rows — this
+    module never reimplements the ramana-promotion / tombstone semantics; it
+    decides which verdict to hand them and records the judgment.
+
+    Deliberately NOT bridged (the boundary, and why): 'add', 'remove' and
+    'unreject' on the legacy page are AUTHORING, not judging — there is no
+    machine proposal to judge, so routing them through the corpus would count
+    Ramana's own tags as machine wins and inflate agreement_stats. They keep
+    writing directly. (The pre-inbox BACKFILL cannot draw this line: the
+    legacy schema stores an approved proposal and a hand-added tag as the
+    same source='ramana' row — the distinction is genuinely unrecoverable, so
+    imported history over-states the proposers' hit-rate and the inbox lens
+    reports lived and imported rates SEPARATELY rather than one flattering
+    number. payload imported=true is the discriminator.)
+
+    tags_sync()'s stale_decided_on_legacy census is kept as a REGRESSION
+    DETECTOR: with the bridge live it should stay empty, so a non-empty census
+    now means a write path escaped the bridge (or a decide_by_ref_safe
+    fallback fired) — worth a look, not a normal state.
 
 KIND REGISTRY (LANE-D open question Q2): KINDS below is the canonical
 closed set. 'tags' (this adapter) and 'brief' (auto_analyst, live since
@@ -70,11 +82,13 @@ re-submit is idempotent-ignored (first write wins on (kind, ref)) and
 apply's reject() deletes the transient re-proposal while writing the
 tombstone. NO unit edits ship in this commit.
 
-KNOWN LIMIT (by review_inbox contract, recorded): refs are 'SYMBOL|TAG',
-so one verdict per (symbol, tag) lives in the corpus. A re-proposal after
-unreject() (a rare, deliberate manual act on the legacy surface) will not
-re-enter the inbox under the same ref — handle at the inbox-surface
-session if it ever matters in practice.
+RE-JUDGMENT (the S157 known limit, FIXED S158): refs were 'SYMBOL|TAG', so a
+pair could be judged exactly once — but unreject() exists precisely so a
+dismissed pair can be re-proposed, and the bridge turns "restore → re-approve"
+into a live path that would have hit decide()'s double-decide guard.
+_next_ref() now versions a re-judgment ('SYMBOL|TAG#2', …) per review_inbox's
+own contract (a new version of an artifact = a new ref), so BOTH judgments
+persist and a changed mind is recorded as history instead of overwritten.
 
 CLI:
     python -m src.automation.inbox_adapters --sync       # proposals -> inbox
@@ -89,6 +103,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sqlite3
 import warnings
 from datetime import datetime, timezone
@@ -104,7 +119,8 @@ log = logging.getLogger("hermes.inbox_adapters")
 KINDS: frozenset = frozenset({"tags", "alert-ack", "brief", "rebalance", "anomaly"})
 KIND_TAGS = "tags"
 
-EVIDENCE_URL_FMT = "/dash/tags-review?sym={sym}"  # legacy per-company editor
+EVIDENCE_URL_FMT = "/dash/tags-review?sym={sym}"  # the per-company tag editor (the drill)
+_VERSION_RE = re.compile(r"#\d+$")               # _next_ref's re-judgment suffix
 
 # --- owned table (isolation: db.py untouched) ---------------------------------
 _SCHEMA = """
@@ -153,8 +169,40 @@ def _sym_tag(payload, ref) -> Tuple[str, str]:
     if (not sym or not tag) and ref and "|" in ref:
         s, t = str(ref).split("|", 1)
         sym = sym or s.strip().upper()
-        tag = tag or t.strip()
+        # strip _next_ref's '#N' re-judgment suffix; no vocab label ends in '#<digits>'
+        tag = tag or _VERSION_RE.sub("", t.strip())
     return sym, tag
+
+
+def _base_ref(sym: str, tag: str) -> str:
+    return f"{sym}|{tag}"
+
+
+def _next_ref(conn, sym: str, tag: str) -> str:
+    """The ref a NEW judgment of (sym, tag) must use — base, or '#N'-versioned.
+
+    review_inbox's contract is first-write-wins on (kind, ref) and decide() is FINAL,
+    so a pair that was already judged CANNOT reuse its ref: the re-submit would be
+    ignored and the re-decide would raise. That is not hypothetical — `unreject()`
+    exists precisely so a dismissed pair can be proposed again, and the legacy
+    "restore → re-approve" path would then hit the double-decide guard (the S157
+    docstring recorded this as a known limit; the bridge makes it reachable, so it
+    is fixed here rather than documented again).
+
+    Versioning is the contract's OWN answer ("a genuinely new version of an artifact
+    = a NEW ref"), and it is the honest one: the corpus keeps BOTH judgments, so a
+    changed mind is recorded as history instead of overwritten.
+    """
+    base = _base_ref(sym, tag)
+    ref, n = base, 1
+    while True:
+        row = conn.execute(
+            "SELECT status FROM review_items WHERE kind=? AND ref=?",
+            (KIND_TAGS, ref)).fetchone()
+        if row is None or row[0] == "pending":
+            return ref          # free, or still awaiting this very judgment
+        n += 1
+        ref = f"{base}#{n}"
 
 
 def check_kinds(conn) -> dict:
@@ -246,7 +294,7 @@ def tags_sync(conn) -> dict:
             continue
         live_pairs.add((sym, tag))
         res = review_inbox.submit(
-            conn, KIND_TAGS, f"{sym}|{tag}",
+            conn, KIND_TAGS, _next_ref(conn, sym, tag),
             f"Proposed tag: {tag} for {sym}",
             payload={"symbol": sym, "tag": tag,
                      "source": p.get("source"),
@@ -290,28 +338,150 @@ def tags_apply(conn) -> dict:
         (KIND_TAGS,)).fetchall()
     out = {"applied_approved": 0, "applied_rejected": 0, "skipped_unparseable": 0}
     for item_id, ref, status, payload_json in rows:
-        sym, tag = _sym_tag(payload_json, ref)
-        if not sym or not tag:
-            conn.execute(
-                "INSERT OR IGNORE INTO inbox_apply_log"
-                "(item_id, kind, ref, action, applied_at) VALUES (?,?,?,?,?)",
-                (item_id, KIND_TAGS, ref, "skipped-unparseable", _utcnow()))
-            conn.commit()
+        action = _apply_one(conn, item_id, ref, status, payload_json)
+        if action == "skipped-unparseable":
             out["skipped_unparseable"] += 1
-            log.warning("tags_apply: item %s ref %r has no parseable "
-                        "(symbol, tag) — logged and skipped", item_id, ref)
-            continue
+        else:
+            out["applied_" + status] += 1
+    return out
+
+
+def _apply_one(conn, item_id: int, ref: str, status: str, payload) -> str:
+    """Apply ONE decided item to company_tags; returns the logged action.
+
+    The apply-log row goes in UNCOMMITTED, then theme_tags' helper commits — so the
+    log and the tag mutation land in one transaction (exactly-once by construction;
+    the PK is the double-apply guard). Shared by tags_apply (the batch drain) and
+    decide_by_ref (the live bridge) so both can never diverge.
+    """
+    sym, tag = _sym_tag(payload, ref)
+    if not sym or not tag:
         conn.execute(
             "INSERT OR IGNORE INTO inbox_apply_log"
             "(item_id, kind, ref, action, applied_at) VALUES (?,?,?,?,?)",
-            (item_id, KIND_TAGS, ref, f"applied-{status}", _utcnow()))
-        if status == "approved":
-            theme_tags.approve(conn, sym, tag)   # commits log row + ramana row
-            out["applied_approved"] += 1
+            (item_id, KIND_TAGS, ref, "skipped-unparseable", _utcnow()))
+        conn.commit()
+        log.warning("apply: item %s ref %r has no parseable (symbol, tag) — "
+                    "logged and skipped", item_id, ref)
+        return "skipped-unparseable"
+    conn.execute(
+        "INSERT OR IGNORE INTO inbox_apply_log"
+        "(item_id, kind, ref, action, applied_at) VALUES (?,?,?,?,?)",
+        (item_id, KIND_TAGS, ref, f"applied-{status}", _utcnow()))
+    if status == "approved":
+        theme_tags.approve(conn, sym, tag)   # commits log row + ramana row
+    else:
+        theme_tags.reject(conn, sym, tag)    # commits log row + tombstone
+    return f"applied-{status}"
+
+
+# --- the bridge: the LEGACY surface's decisions flow through the inbox (Q1) ------
+
+def decide_by_ref(conn, symbol: str, tag: str, verdict: str,
+                  note: Optional[str] = None,
+                  source: str = "tags-review surface") -> dict:
+    """Judge one (symbol, tag) THROUGH the inbox — submit → decide → apply.
+
+    This is Q1's endgame. Before it, the legacy /dash/tags-review buttons wrote
+    straight to company_tags and the judgment corpus never saw them (a second,
+    disagreeing writer). Now that surface calls HERE, so there is ONE decision path
+    and every verdict is corpus-recorded — while the surface, its bulk buttons and
+    its ergonomics survive untouched (additive-never-replace: the page Ramana uses
+    is bridged, not deleted).
+
+    The pair need not have a pending inbox item: a decision straight off the legacy
+    page submits its own item first (payload carries the live proposal's provenance
+    when there is one, else source='manual'). Re-judgments get a '#N' ref (_next_ref).
+    """
+    sym = (symbol or "").strip().upper()
+    tag = (tag or "").strip()
+    if not sym or not tag:
+        raise ValueError("decide_by_ref: symbol and tag are both required")
+    review_inbox.ensure_schema(conn)
+    ensure_schema(conn)
+    prop = None
+    if _has_table(conn, "company_tags"):
+        prop = conn.execute(
+            "SELECT source, confidence, as_of, note FROM company_tags "
+            "WHERE symbol=? AND tag=? AND approved=0 AND source!='rejected'",
+            (sym, tag)).fetchone()
+    payload = {"symbol": sym, "tag": tag, "decided_via": source,
+               "source": prop[0] if prop else "manual"}
+    if prop:
+        payload.update({"confidence": prop[1], "proposed_as_of": prop[2],
+                        "note": prop[3]})
+    ref = _next_ref(conn, sym, tag)
+    res = review_inbox.submit(conn, KIND_TAGS, ref,
+                              f"Proposed tag: {tag} for {sym}", payload=payload,
+                              evidence_url=EVIDENCE_URL_FMT.format(sym=sym))
+    conn.commit()
+    item = review_inbox.decide(conn, res["id"], verdict, note=note)
+    action = _apply_one(conn, res["id"], ref, item["status"], payload)
+    conn.commit()
+    return {"id": res["id"], "ref": ref, "status": item["status"], "action": action}
+
+
+def decide_by_ref_safe(conn, symbol: str, tag: str, verdict: str,
+                       note: Optional[str] = None,
+                       source: str = "tags-review surface") -> dict:
+    """decide_by_ref with a fail-open fallback — for the LIVE legacy handler.
+
+    Bookkeeping must never break Ramana's one-click approve: if anything on the
+    inbox path fails, we log it loudly and fall back to theme_tags' direct write, so
+    the tag still applies. The cost of a fallback is one missing corpus row (which
+    tags_sync's stale census then reports), never a broken button.
+    """
+    try:
+        return decide_by_ref(conn, symbol, tag, verdict, note=note, source=source)
+    except Exception:  # noqa: BLE001 — deliberate fail-open, see docstring
+        log.exception("decide_by_ref failed for %s|%s — falling back to the direct "
+                      "theme_tags write (corpus loses this row)", symbol, tag)
+        v = review_inbox._VERDICTS.get(str(verdict or "").strip().lower())
+        sym, tag = (symbol or "").strip().upper(), (tag or "").strip()
+        if v == "approved":
+            theme_tags.approve(conn, sym, tag)
+        elif v == "rejected":
+            theme_tags.reject(conn, sym, tag)
         else:
-            theme_tags.reject(conn, sym, tag)    # commits log row + tombstone
-            out["applied_rejected"] += 1
-    return out
+            raise
+        return {"id": None, "ref": _base_ref(sym, tag), "status": v,
+                "action": "fallback-direct"}
+
+
+def _pending_pairs(conn, *, tag: Optional[str] = None,
+                   symbol: Optional[str] = None) -> list:
+    """The pending (symbol, tag) proposals for one theme or one company.
+
+    Mirrors theme_tags.approve_all_for_{theme,symbol}'s own selection so the bulk
+    buttons bridge with identical semantics — read-only here; theme_tags is untouched.
+    """
+    if not _has_table(conn, "company_tags"):
+        return []
+    sql = ("SELECT DISTINCT symbol, tag FROM company_tags "
+           "WHERE approved=0 AND source!='rejected'")
+    args: list = []
+    if tag:
+        sql += " AND tag=?"
+        args.append(tag)
+    if symbol:
+        sql += " AND symbol=?"
+        args.append(symbol.strip().upper())
+    return [(r[0], r[1]) for r in conn.execute(sql, args).fetchall()]
+
+
+def decide_bulk(conn, *, tag: Optional[str] = None, symbol: Optional[str] = None,
+                verdict: str = "approved", note: Optional[str] = None) -> int:
+    """Bridge for the legacy BULK buttons (approve-all for a theme / a company).
+
+    Each pair goes through decide_by_ref_safe, so a bulk approve produces one corpus
+    row per pair (the same data a one-by-one review would) and one bad pair cannot
+    abort the batch.
+    """
+    via = ("tags-review bulk (theme)" if tag else "tags-review bulk (company)")
+    pairs = _pending_pairs(conn, tag=tag, symbol=symbol)
+    for sym, tg in pairs:
+        decide_by_ref_safe(conn, sym, tg, verdict, note=note, source=via)
+    return len(pairs)
 
 
 # --- corpus backfill (Q4) ------------------------------------------------------
@@ -472,8 +642,44 @@ def _selftest() -> int:
         kc = check_kinds(conn)
         assert kc["unregistered"] == {} and set(kc["registered"]) == {KIND_TAGS}
         print(f"ok: agreement_stats tags = {st}")
+
+        # --- the bridge (Q1): a legacy-surface decision lands in the corpus -----
+        conn.execute("INSERT INTO company_about(symbol, about) VALUES "
+                     "('BRIDGECO','Operates ports and logistics parks.')")
+        conn.commit()
+        theme_tags.propose_from_keywords(conn=conn)
+        br = decide_by_ref(conn, "BRIDGECO", "Transport / Logistics", "approved")
+        assert br["status"] == "approved" and br["action"] == "applied-approved"
+        assert conn.execute(
+            "SELECT COUNT(*) FROM company_tags WHERE symbol='BRIDGECO' "
+            "AND source='ramana' AND approved=1").fetchone()[0] == 1
+        got = next(r for r in review_inbox.corpus(conn, kind=KIND_TAGS)
+                   if r["ref"].startswith("BRIDGECO|"))
+        assert got["payload"]["decided_via"] == "tags-review surface"
+        assert got["payload"]["source"] == "keyword", "proposal provenance carried"
+        print(f"ok: bridge decide_by_ref -> corpus row + tag applied ({br['ref']})")
+
+        # --- re-judgment: restore a dismissal, re-propose, change your mind ----
+        theme_tags.unreject(conn, "PORTCO", "Transport / Logistics")
+        rj = decide_by_ref(conn, "PORTCO", "Transport / Logistics", "approved",
+                           note="on reflection it is a logistics co")
+        assert rj["ref"].endswith("#2"), f"re-judgment must version the ref: {rj['ref']}"
+        assert rj["status"] == "approved"
+        hist = [r for r in review_inbox.corpus(conn, kind=KIND_TAGS)
+                if r["ref"].startswith("PORTCO|Transport")]
+        assert len(hist) == 2 and {h["status"] for h in hist} == {"rejected", "approved"}
+        assert conn.execute(
+            "SELECT COUNT(*) FROM company_tags WHERE symbol='PORTCO' "
+            "AND source='ramana' AND approved=1").fetchone()[0] == 1
+        print("ok: re-judgment versions the ref (#2) — BOTH verdicts kept as history")
+
+        # --- the fail-open bridge never breaks the button ---------------------
+        fb = decide_by_ref_safe(conn, "PORTCO", "Aviation", "rejected")
+        assert fb["status"] == "rejected"
+        print("ok: decide_by_ref_safe applies (and would fall back rather than raise)")
+
         print("selftest: ALL PASS (propose -> backfill -> sync -> decide -> "
-              "apply -> durable tombstone -> stats)")
+              "apply -> durable tombstone -> stats -> BRIDGE -> re-judgment)")
         return 0
     finally:
         conn.close()
