@@ -139,7 +139,7 @@ def _selftest() -> int:
     from src.automation.rule_lab import compile_rule, build_verdict
     conn = sqlite3.connect(":memory:")
     spec = compile_rule("SELECT liquid500 WHERE not_extended RANK BY mom12 TAKE 25 HOLD quarterly")
-    nums = {"net_sharpe": 0.61, "gross_sharpe": 1.0, "half1": 0.55, "half2": 0.66,
+    nums = {"net_retvol": 0.61, "gross_retvol": 1.0, "half1": 0.55, "half2": 0.66,
             "placebo_p95": 0.40, "observed": 0.61, "emp_p": 0.02, "bench_net": 0.89,
             "capacity_inr": None, "maxdd": -0.41, "ann_cost_pct": 6.0}
     v = build_verdict(spec, nums, prereg_ref="selftest", provenance={"env": "selftest"})

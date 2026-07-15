@@ -41,7 +41,7 @@ def answer(conn) -> dict:
     """The latest verdict as a small dict for the web renderer. Empty-DB grace: found=False.
 
     Keys: found, status (pending|approved|rejected), title, verdict, qualifier, rule_text,
-    net_sharpe, bench_net, link. Numbers pass through as stored; nothing is recomputed."""
+    net_retvol, bench_net, link. Numbers pass through as stored; nothing is recomputed."""
     from src.automation.rule_lab_inbox import latest_verdict
     item = latest_verdict(conn)
     if not item:
@@ -57,7 +57,7 @@ def answer(conn) -> dict:
         "qualifier": v.get("qualifier"),
         "rule_text": v.get("rule_text", ""),
         "rule_hash": v.get("rule_hash", ""),
-        "net_sharpe": nums.get("net_sharpe"),
+        "net_retvol": nums.get("net_retvol"),
         "bench_net": nums.get("bench_net"),
         "placebo_p95": nums.get("placebo_p95"),
         "capacity_inr": nums.get("capacity_inr"),
@@ -81,7 +81,7 @@ def _selftest() -> int:
     from src.automation.rule_lab import compile_rule, build_verdict
     from src.automation.rule_lab_inbox import submit_verdict
     spec = compile_rule("SELECT largecap RANK BY lowvolmom TAKE 25 HOLD quarterly")
-    nums = {"net_sharpe": 1.02, "half1": 0.95, "half2": 1.10, "placebo_p95": 0.4,
+    nums = {"net_retvol": 1.02, "half1": 0.95, "half2": 1.10, "placebo_p95": 0.4,
             "observed": 1.02, "bench_net": 0.89, "capacity_inr": 50e7}
     submit_verdict(conn, build_verdict(spec, nums, "selftest", {"env": "selftest"}))
     out = answer(conn)

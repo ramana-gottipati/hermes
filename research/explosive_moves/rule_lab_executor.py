@@ -247,7 +247,7 @@ def run_book(tables, sigfn, topn, val_guard, cost_mode="real", aum=None, rng=Non
     return np.array(rets), dates, roster, costs, turns
 
 
-def _sharpe(rets, ppy) -> float:
+def _retvol(rets, ppy) -> float:
     r = np.asarray(rets, float)
     if len(r) < 3 or r.std() == 0:
         return float("nan")
@@ -270,7 +270,7 @@ def run_gauntlet(spec: RuleSpec, tables=None, bench_rets=None, db_path: str | No
 
     sigfn = _SIG_FN.get(spec.signal)
     if sigfn is None:                                              # value/quality family: v1-unbound
-        numbers.update({k: None for k in ("net_sharpe", "half1", "half2",
+        numbers.update({k: None for k in ("net_retvol", "half1", "half2",
                                           "placebo_p95", "observed")})
         provenance["unbound_signal"] = SIGNALS[spec.signal].get(
             "executor_v1", "unbound in executor v1")
@@ -286,27 +286,27 @@ def run_gauntlet(spec: RuleSpec, tables=None, bench_rets=None, db_path: str | No
     if len(tables) >= 8:
         # stage 3 — flat leg via factory.run_strat itself (reuse, not a copy)
         flat_rets, _ = factory.run_strat(tables, sigfn, spec.take, val_guard)
-        numbers["flat_sharpe"] = _sharpe(flat_rets, ppy)
+        numbers["flat_retvol"] = _retvol(flat_rets, ppy)
         # stage 5 — cost-real leg (net FIRST)
         rets, dates, roster, costs, turns = run_book(tables, sigfn, spec.take, val_guard, "real")
         gross_rets, _, _, _, _ = run_book(tables, sigfn, spec.take, val_guard, "gross")
         st = factory.eqstats(rets)
-        numbers["net_sharpe"] = st["sharpe"] if st else None
+        numbers["net_retvol"] = st["retvol"] if st else None
         numbers["maxdd"] = st["maxdd"] if st else None
-        numbers["gross_sharpe"] = _sharpe(gross_rets, ppy)
+        numbers["gross_retvol"] = _retvol(gross_rets, ppy)
         numbers["ann_cost_pct"] = float(np.mean(costs)) * ppy * 100
         numbers["turnover"] = float(np.mean(turns))
         h1 = factory.slice_stats(rets, dates, "2012", "2018")
         h2 = factory.slice_stats(rets, dates, "2019", "2026")
-        numbers["half1"] = h1["sharpe"] if h1 else None
-        numbers["half2"] = h2["sharpe"] if h2 else None
-        numbers["observed"] = numbers["net_sharpe"]
+        numbers["half1"] = h1["retvol"] if h1 else None
+        numbers["half2"] = h2["retvol"] if h2 else None
+        numbers["observed"] = numbers["net_retvol"]
         # stage 4 — placebo (random-selection null, real cost, same tables)
         rng = np.random.default_rng(seed)
         nulls = []
         for _ in range(n_shuffles):
             nr, _, _, _, _ = run_book(tables, sigfn, spec.take, val_guard, "real", rng=rng)
-            s = _sharpe(nr, ppy)
+            s = _retvol(nr, ppy)
             if s == s:
                 nulls.append(s)
         if nulls and numbers["observed"] is not None:
@@ -320,12 +320,12 @@ def run_gauntlet(spec: RuleSpec, tables=None, bench_rets=None, db_path: str | No
         if bench_rets is None and env == "em_cache":
             try:
                 from explosive_moves.cost_realism import bench_buyhold
-                numbers["bench_net"] = bench_buyhold(tables, ppy)["sharpe"]
+                numbers["bench_net"] = bench_buyhold(tables, ppy)["retvol"]
             except Exception as e:                                  # noqa: BLE001
                 provenance["bench_error"] = f"{type(e).__name__}: {e}"
         elif bench_rets is not None:
             b = np.asarray(bench_rets, float)[:len(rets)]
-            numbers["bench_net"] = _sharpe(b, ppy)
+            numbers["bench_net"] = _retvol(b, ppy)
             if len(b) == len(rets) and b.std() > 0:
                 beta = float(np.cov(rets, b)[0, 1] / b.var())
                 numbers["beta"] = beta
@@ -336,13 +336,13 @@ def run_gauntlet(spec: RuleSpec, tables=None, bench_rets=None, db_path: str | No
             for cr_aum in AUM_GRID_CR:
                 pr, _, _, _, _ = run_book(tables, sigfn, spec.take, val_guard,
                                           "participation", aum=cr_aum * CR)
-                if _sharpe(pr, ppy) > numbers["bench_net"]:
+                if _retvol(pr, ppy) > numbers["bench_net"]:
                     last_ok = cr_aum * CR
                 else:
                     break
             numbers["capacity_inr"] = last_ok if last_ok > 0 else None
     else:
-        numbers.update({k: None for k in ("net_sharpe", "half1", "half2",
+        numbers.update({k: None for k in ("net_retvol", "half1", "half2",
                                           "placebo_p95", "observed")})
         provenance["thin_data"] = f"only {len(tables)} rebalances — refusing to rule"
 
@@ -438,7 +438,7 @@ def _abridged(v: RuleVerdict) -> str:
                    else f"{float(n[k]):.2f}")
     return ("verdict=%s qualifier=%s net=%s halves=%s/%s placebo_p95=%s bench=%s "
             "capacity=%s cites=%d prereg=%s" % (
-                v.verdict, v.qualifier, f("net_sharpe"), f("half1"), f("half2"),
+                v.verdict, v.qualifier, f("net_retvol"), f("half1"), f("half2"),
                 f("placebo_p95"), f("bench_net"),
                 ("None" if n.get("capacity_inr") in (None,) else
                  f"Rs{float(n['capacity_inr']) / CR:.0f}cr"),
@@ -451,7 +451,7 @@ def _selftest() -> int:
     tables, bench = synthetic_tables(spec)
     v = run_gauntlet(spec, tables=tables, bench_rets=bench, n_shuffles=40, env="synthetic")
     assert not v.verdict.startswith("NO-VERDICT"), v.verdict
-    for k in ("net_sharpe", "half1", "half2", "placebo_p95", "observed", "bench_net"):
+    for k in ("net_retvol", "half1", "half2", "placebo_p95", "observed", "bench_net"):
         assert v.numbers.get(k) is not None, f"stage number missing: {k}"
     assert v.roster and len(v.roster) <= spec.take
     print("demo rule:", _abridged(v))

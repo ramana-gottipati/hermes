@@ -198,7 +198,7 @@ LENSES: tuple[Lens, ...] = (
     Lens("strategist", "Strategist", "stock", "strategies", "/dash/strategist",
          aliases=("strategies",)),
     # Factor League (S132g) — the classic strategy families ranked by OUR measured
-    # Sharpe/alpha (ledger Tier-1 + cost realism), live rosters, the STEADY-25
+    # return/vol + alpha (ledger Tier-1 + cost realism), live rosters, the STEADY-25
     # auto-portfolio (net champion) and a churn feed. Failures shown with numbers.
     Lens("factor-league", "Factor league", "stock", "strategies", "/dash/factor-league",
          aliases=("factors", "premia", "league")),

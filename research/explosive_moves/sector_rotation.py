@@ -10,7 +10,11 @@ Ramana's spec, made testable (2026-07-15):
   * turnover-cost ladder (sector rotation is LOW turnover — the crux vs stock momentum).
 
 Isolates whether SECTOR rotation has any edge before the <=40-stock constituent build (V2).
-Pure stdlib; read-only against index_rows. Benchmark = Nifty 500 (ledger hurdle Sharpe 0.89).
+Pure stdlib; read-only against index_rows. Benchmark = Nifty 500 (ledger hurdle return/vol 0.89).
+
+METRIC BASIS (D142): every ratio here is mean/sd annualised with NO risk-free rate subtracted — a
+return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe. The 0.89 hurdle is computed
+on the SAME basis, so the verdict is unaffected.
 """
 import sqlite3, math, sys
 from collections import defaultdict
@@ -211,14 +215,14 @@ def _stats(rs):
     m = sum(rs) / n
     var = sum((x - m) ** 2 for x in rs) / (n - 1)
     sd = math.sqrt(var)
-    sharpe = (m / sd) * math.sqrt(12) if sd > 0 else 0.0
+    retvol = (m / sd) * math.sqrt(12) if sd > 0 else 0.0
     nav = 1.0
     peak = 1.0; mdd = 0.0
     for x in rs:
         nav *= (1 + x); peak = max(peak, nav); mdd = min(mdd, nav / peak - 1)
     yrs = n / 12.0
     cagr = nav ** (1 / yrs) - 1 if yrs > 0 else 0.0
-    return dict(n=n, sharpe=sharpe, cagr=cagr, mdd=mdd, mean=m, sd=sd)
+    return dict(n=n, retvol=retvol, cagr=cagr, mdd=mdd, mean=m, sd=sd)
 
 
 def _alpha_beta(rp, rb):
@@ -243,11 +247,11 @@ def report(label, monthly):
     avg_turn = sum(turns) / len(turns)
     print(f"\n=== {label} ===")
     print(f"  months {full['n']}  |  avg 1-way turnover/mo {avg_turn:.1%}")
-    print(f"  Sharpe FULL {full['sharpe']:.2f}   (H1 {h1['sharpe']:.2f} / H2 {h2['sharpe']:.2f})")
+    print(f"  ret/vol FULL {full['retvol']:.2f}   (H1 {h1['retvol']:.2f} / H2 {h2['retvol']:.2f})")
     print(f"  CAGR {full['cagr']:.1%}   MaxDD {full['mdd']:.1%}   beta {beta:.2f}")
     print(f"  ALPHA vs Nifty500 (ann.) {alpha:+.2%}")
-    print(f"  Sharpe DELTA vs 0.89 hurdle: {full['sharpe']-0.89:+.2f}   "
-          f"beats both halves? {'YES' if h1['sharpe']>0.89 and h2['sharpe']>0.89 else 'NO'}")
+    print(f"  ret/vol DELTA vs 0.89 hurdle: {full['retvol']-0.89:+.2f}   "
+          f"beats both halves? {'YES' if h1['retvol']>0.89 and h2['retvol']>0.89 else 'NO'}")
 
 
 # benchmark self-check (must land ~0.89 to validate the method vs the ledger)
@@ -255,7 +259,7 @@ bench_monthly = [(rebal[k + 1], ret(BENCH, rebal[k], rebal[k + 1]) or 0.0,
                   ret(BENCH, rebal[k], rebal[k + 1]) or 0.0, 0.0) for k in range(len(rebal) - 1)]
 n50_monthly = [(rebal[k + 1], ret(NIFTY50, rebal[k], rebal[k + 1]) or 0.0,
                 ret(BENCH, rebal[k], rebal[k + 1]) or 0.0, 0.0) for k in range(len(rebal) - 1)]
-print("### METHOD VALIDATION (should match ledger: Nifty500 Sharpe ~0.89) ###")
+print("### METHOD VALIDATION (should match ledger: Nifty500 return/vol ~0.89) ###")
 report("Nifty 500 buy&hold (self-check)", bench_monthly)
 report("Nifty 50 buy&hold", n50_monthly)
 

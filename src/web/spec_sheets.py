@@ -84,12 +84,12 @@ _SHEETS = [
         "hypothesis": "A high Net-Profit surprise (SUE, no analysts) CONFIRMED by abnormal "
                       "delivered value drifts upward over the next ~60 sessions — on REAL "
                       "announcement dates (provenance_knowable), zero look-ahead.",
-        "gate": "Descriptive: cohort t ≥ ~2 on leak-free dates. Book: net Sharpe > 0.89 "
+        "gate": "Descriptive: cohort t ≥ ~2 on leak-free dates. Book: net return/vol > 0.89 "
                 "(Nifty-500 B&H) in BOTH walk-forward halves under tiered+ATR costs.",
         "result": "Descriptive: SUE-Q5 × DELIV-T3 mean CAR60 <b class='num'>+7.62%</b> "
                   "(n=235, t_cohort 1.92); same surprise on thin delivery only +3.7% "
                   "(n=200); population +3.5%. Bad news did not drift. "
-                  "Book: EVERY wrapper failed — trailing net Sharpe <b class='num'>0.10</b> · "
+                  "Book: EVERY wrapper failed — trailing net return/vol <b class='num'>0.10</b> · "
                   "no-delivery 0.02 · 1.5× cost −0.32 · hedged <b class='num'>−0.58</b> · "
                   "within-season (the pre-registered last cell) <b class='num'>0.06</b> — "
                   "vs benchmark 0.85.",
@@ -352,6 +352,9 @@ NOTE_HTML = (
     'failures prove: price strength is the only gross forward-return engine we have '
     'found, value/quality/credibility/accumulation are context layers not rankers, '
     'and no factor here is a fundable net-of-cost alpha vs the index at AUM. '
+    'Every return/vol on this page is mean return ÷ volatility, annualised — NOT a '
+    'Sharpe ratio: no risk-free rate is subtracted, so it reads higher than a textbook '
+    'Sharpe would. '
     'Descriptive research record, not investment advice.</div>')
 
 

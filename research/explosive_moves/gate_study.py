@@ -10,7 +10,13 @@ EFFECTIVE knowable date, not the leaky +90/+50 modeled report_date — AUD-22; s
 EPS=NP/shares) x RAW close that day. Turnover = value (Rs), never share count.
 
 Strategy held constant = variant D (RISKADJ + 50/50 PIT-quality blend, top-25 monthly) so only the
-GATE changes. Walk-forward, net cost, no look-ahead. Writes out/gate_study.csv. Read-only.
+GATE changes. Walk-forward, net cost, no look-ahead.
+
+Ratios are mean/sd annualised with NO risk-free rate subtracted — return/vol, not Sharpe, so they
+read high vs a textbook Sharpe; every gate is measured on the SAME basis, so the gate-to-gate
+comparison holds (D142).
+
+Writes out/gate_study.csv. Read-only.
 """
 from __future__ import annotations
 import csv
@@ -202,18 +208,18 @@ def main():
         large_pct = 100 * (bk.get("large(>50k cr)", 0)) / tot
         midsmall_pct = 100 * (bk.get("mid(10-50k)", 0) + bk.get("small(1-10k)", 0) + bk.get("micro(<1k)", 0)) / tot
         print(f"=== GATE: {gname} ===")
-        print(f"  strategy(D): CAGR {full['cagr']*100:5.1f}%  MaxDD {full['maxdd']*100:6.1f}%  Sharpe {full['sharpe']:.2f}  "
-              f"Calmar {full['calmar']:.2f}  ({full['totx']:.1f}x)  H1 {a['sharpe']:.2f} / H2 {b['sharpe']:.2f}")
+        print(f"  strategy(D): CAGR {full['cagr']*100:5.1f}%  MaxDD {full['maxdd']*100:6.1f}%  ret/vol {full['retvol']:.2f}  "
+              f"Calmar {full['calmar']:.2f}  ({full['totx']:.1f}x)  H1 {a['retvol']:.2f} / H2 {b['retvol']:.2f}")
         print(f"  picks size mix: large {large_pct:.0f}% | mid+small+micro {midsmall_pct:.0f}% | median pick mcap Rs {med_mcap:,.0f} cr")
         print(f"  bucket counts: {bk}")
         print(f"  PIXTRANS appeared in {pix} / {len(tables)} rebalances\n")
-        out_rows.append([gname, round(full["cagr"]*100,1), round(full["maxdd"]*100,1), round(full["sharpe"],2),
-                         round(full["calmar"],2), round(full["totx"],1), round(a["sharpe"],2), round(b["sharpe"],2),
+        out_rows.append([gname, round(full["cagr"]*100,1), round(full["maxdd"]*100,1), round(full["retvol"],2),
+                         round(full["calmar"],2), round(full["totx"],1), round(a["retvol"],2), round(b["retvol"],2),
                          round(large_pct,0), round(midsmall_pct,0), round(med_mcap,0), pix])
 
     with open(os.path.join(os.path.dirname(__file__), "out", "gate_study.csv"), "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["gate", "cagr_pct", "maxdd_pct", "sharpe", "calmar", "total_x", "h1_sharpe", "h2_sharpe",
+        w.writerow(["gate", "cagr_pct", "maxdd_pct", "retvol", "calmar", "total_x", "h1_retvol", "h2_retvol",
                     "picks_large_pct", "picks_mid_small_micro_pct", "median_pick_mcap_cr", "pixtrans_rebalances"])
         w.writerows(out_rows)
     print("saved -> out/gate_study.csv")

@@ -20,7 +20,7 @@ The L6 grounding contract (plan §2):
     template;
   * every brief carries "AI-drafted, human-reviewed", the generation date and the
     descriptive fence ("context, not a signal"), and cites the PEAD falsification
-    (ledger 2026-07-05: net Sharpe 0.10 vs 0.85 benchmark) so a reader can never
+    (ledger 2026-07-05: net return/vol 0.10 vs 0.85 benchmark) so a reader can never
     mistake drift history for a tradeable edge.
 
 Compliance: this module lives in src/automation (outside the language gate's
@@ -53,7 +53,7 @@ KIND = "brief"
 _LABEL = "AI-drafted, human-reviewed"
 _FENCE = "context, not a signal"  # infographics._FENCE_COPY["context"] wording (single vocabulary)
 _PEAD_NOTE = ("the tradeable PEAD book was falsified on our data "
-              "(net Sharpe 0.10 vs 0.85 benchmark) — this is recorded history, "
+              "(net return/vol 0.10 vs 0.85 benchmark) — this is recorded history, "
               "never a trade prompt")
 
 

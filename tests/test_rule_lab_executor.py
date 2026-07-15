@@ -40,16 +40,16 @@ def test_gauntlet_populates_every_stage(demo_run):
     _spec, tables, _bench, v = demo_run
     assert not v.verdict.startswith("NO-VERDICT")
     n = v.numbers
-    for k in ("net_sharpe", "gross_sharpe", "flat_sharpe", "half1", "half2",
+    for k in ("net_retvol", "gross_retvol", "flat_retvol", "half1", "half2",
               "placebo_p95", "observed", "emp_p", "bench_net", "ann_cost_pct"):
         assert n.get(k) is not None and n[k] == n[k], f"stage number missing: {k}"
-    assert n["observed"] == n["net_sharpe"]              # the placebo comparand is NET
+    assert n["observed"] == n["net_retvol"]              # the placebo comparand is NET
     assert v.provenance["n_rebal"] == len(tables)
     assert ".." in v.provenance["window"]
 
 
 def test_net_is_below_gross_costs_are_real(demo_run):
-    """Stage 5 contract: real per-name costs strictly drag the MEAN return (Sharpe may
+    """Stage 5 contract: real per-name costs strictly drag the MEAN return (return/vol may
     move either way — cost drag also dampens variance — so mean is the honest check)."""
     spec, tables, _b, v = demo_run
     net, _, _, costs, _ = rle.run_book(tables, factory.sig_mom12, spec.take, True, "real")
@@ -125,11 +125,11 @@ def test_placebo_null_is_real_and_seeded(demo_run):
 
 
 def test_flat_leg_is_factorys_own_run_strat(demo_run):
-    """Stage 3 reuse: the flat Sharpe must equal a direct factory.run_strat call."""
+    """Stage 3 reuse: the flat return/vol must equal a direct factory.run_strat call."""
     spec, tables, _b, v = demo_run
     rets, _ = factory.run_strat(tables, factory.sig_mom12, spec.take, True)
     ppy = rle.PPY[spec.hold]
-    assert abs(v.numbers["flat_sharpe"] - rle._sharpe(rets, ppy)) < 1e-12
+    assert abs(v.numbers["flat_retvol"] - rle._retvol(rets, ppy)) < 1e-12
 
 
 def test_build_tables_applies_the_d5f1_execution_lag():

@@ -3,13 +3,13 @@
 WHY
 ---
 The recorded internal champion is C-BLEND 50/50 (0.5*RISKADJ-pctile +
-0.5*C(capital-allocation)-pctile) with net Sharpe 1.32 / MaxDD -28.2% /
+0.5*C(capital-allocation)-pctile) with net return/vol 1.32 / MaxDD -28.2% /
 Calmar 1.15 (strategy-ledger "Experiment 2026-07-03"). BUT that number was
 computed under a FLAT cost model (overlay_experiment.run: COST_PS=0.3% per unit
 of turnover, + a 1.5x stress proxy). It was NEVER run through the
 participation-rate (Almgren sqrt-law) impact model in cost_participation.py, so
 its FUNDABLE status is UNPROVEN. Separately cost_participation.py already showed
-the quarterly large-cap LOWVOL_MOM corner nets ~1.02 Sharpe @ Rs50cr (beats
+the quarterly large-cap LOWVOL_MOM corner nets ~1.02 return/vol @ Rs50cr (beats
 Nifty-500 B&H 0.89) and decays with AUM.
 
 WHAT THIS DOES (and does NOT do)
@@ -24,7 +24,7 @@ THREE BOOKS, each on its OWN native construction (NOT homogenised):
   (a) C-BLEND  = overlay_experiment.build_tables() + c_overlay.sel_c_blend (+ attach_c)   [MONTHLY]
   (b) RISKADJ  = overlay_experiment.build_tables() + c_overlay._ra core (sel_riskadj_rel) [MONTHLY]
   (c) LOWVOL_MOM = cost_participation.build()/run() — the KNOWN quarterly large-cap result [QUARTERLY]
-      used AS A VALIDATION CROSS-CHECK (must reproduce ~1.02 Sharpe @ Rs50cr).
+      used AS A VALIDATION CROSS-CHECK (must reproduce ~1.02 return/vol @ Rs50cr).
 
 COST SWAP (the only thing that changes for books a/b)
 -----------------------------------------------------
@@ -38,11 +38,16 @@ build_tables already carries; sigma_daily = x["vol"] = vol_66 (66d daily-return
 stdev), the SAME sigma cost_participation uses.
 
 METRICS reuse factory.eqstats (TD_Y=12, monthly annualization) — identical to how
-the champion's recorded 1.32 Sharpe was computed — so any delta is the cost model
+the champion's recorded 1.32 return/vol was computed — so any delta is the cost model
 ALONE, not an annualization change. LOWVOL_MOM uses cost_participation's own PPY=4
 run() (quarterly), reported as its native cross-check.
 
-HALVES: net Sharpe for C-BLEND @Rs50cr and @Rs100cr on H1 (2012-06..2018-12) and
+RATIO BASIS (D142): every ratio here — the 1.32, the ~1.02, the 0.89 hurdle — is
+mean/sd annualised with NO risk-free rate subtracted, i.e. a return/vol ratio not a
+Sharpe (reads high vs a textbook Sharpe), and all of them sit on the SAME basis, so
+the re-cut's comparisons and verdicts hold.
+
+HALVES: net return/vol for C-BLEND @Rs50cr and @Rs100cr on H1 (2012-06..2018-12) and
 H2 (2019-01..2026) separately. The champion must survive BOTH halves.
 
 CAVEATS (printed): C coverage RAMPS (~3% early -> ~89% late), so the honest window
@@ -75,7 +80,7 @@ PPY_M = 12                                              # books a/b are MONTHLY
 AUM_LIST_CR = [25, 50, 100, 200, 500]
 
 # Nifty-500 buy-&-hold hurdle (from the ledger; CP uses the same)
-BENCH_SHARPE = CP.BENCH_SHARPE                          # 0.89
+BENCH_RETVOL = CP.BENCH_RETVOL                          # 0.89
 BENCH_CAGR = CP.BENCH_CAGR                              # 0.153
 
 H1_END = "2018-12-31"
@@ -157,21 +162,21 @@ def _metrics_row(tag, aum_cr, rets, dates, diag):
     """Assemble the reporting dict for one (monthly book, AUM)."""
     full = eqstats(rets)
     cap_med_cr, med_part = _cap_and_part(diag)
-    sh = full["sharpe"] if full else 0.0
+    sh = full["retvol"] if full else 0.0
     cg = full["cagr"] if full else 0.0
     return {
         "strategy": tag, "aum_cr": aum_cr,
-        "sharpe": sh, "cagr": cg,
+        "retvol": sh, "cagr": cg,
         "maxdd": full["maxdd"] if full else 0.0,
         "calmar": full["calmar"] if full else 0.0,
         "ann_cost_pct": diag["ann_cost_pct"], "turn": diag["turn"],
         "med_part_pct": med_part, "med_days_fill": diag["med_days_fill"],
         "cap_med_cr": cap_med_cr,
-        "beats_index": bool(sh > BENCH_SHARPE and cg > BENCH_CAGR),
+        "beats_index": bool(sh > BENCH_RETVOL and cg > BENCH_CAGR),
     }
 
 
-def _half_sharpe(rets, dates, lo=None, hi=None):
+def _half_retvol(rets, dates, lo=None, hi=None):
     rets = np.asarray(rets, float)
     if lo is not None:
         m = np.array([d >= lo for d in dates])
@@ -179,7 +184,7 @@ def _half_sharpe(rets, dates, lo=None, hi=None):
         m = np.array([d <= hi for d in dates])
     sub = rets[m]
     st = eqstats(sub)
-    return (st["sharpe"] if st else None), int(m.sum())
+    return (st["retvol"] if st else None), int(m.sum())
 
 
 # --------------------------------------------------------------------------- #
@@ -189,7 +194,7 @@ def _lowvol_row(cp_tables, aum_cr):
     s = CP.run(cp_tables, aum_cr * CR)                   # PPY=4 inside
     return {
         "strategy": "LOWVOL_MOM(qtr,largecap)", "aum_cr": aum_cr,
-        "sharpe": s["sharpe"], "cagr": s["cagr"], "maxdd": s["maxdd"],
+        "retvol": s["retvol"], "cagr": s["cagr"], "maxdd": s["maxdd"],
         "calmar": (s["cagr"] / abs(s["maxdd"])) if s["maxdd"] < 0 else 0.0,
         "ann_cost_pct": s["ann_cost_pct"], "turn": s["turn"],
         "med_part_pct": s["med_part_pct"], "med_days_fill": s["med_days_fill"],
@@ -203,7 +208,7 @@ def main():
     print("COST-REALITY RE-CUT of the C-BLEND champion (participation-impact cost)")
     print(f"  k={CP.K_IMPACT} POV_CAP={CP.POV_CAP:.0%} delay_k={CP.DELAY_K}  "
           f"impact=k*sigma*sqrt(order/ADV), cap {CP.POV_CAP:.0%} ADV/day")
-    print(f"  hurdle = Nifty-500 B&H: Sharpe {BENCH_SHARPE}, CAGR {BENCH_CAGR*100:.1f}%")
+    print(f"  hurdle = Nifty-500 B&H: return/vol {BENCH_RETVOL}, CAGR {BENCH_CAGR*100:.1f}%")
     print("=" * 78, flush=True)
 
     # --- (1) build the champion tables ONCE (monthly, rel-gate) + attach PIT C ---
@@ -250,7 +255,7 @@ def main():
     bench = CP.bench_buyhold(cp_tables)
 
     # ------------------------------------------------------------------ print AUM table
-    hdr = (f"{'strategy':22}{'AUM':>7}{'netShrp':>9}{'netCAGR':>9}{'maxDD':>8}"
+    hdr = (f"{'strategy':22}{'AUM':>7}{'netRetVol':>9}{'netCAGR':>9}{'maxDD':>8}"
            f"{'Clmr':>6}{'aCost%':>8}{'turn':>6}{'medPt%':>8}{'fill(d)':>8}"
            f"{'capCr':>8}{'>idx?':>7}")
     print("=" * len(hdr))
@@ -263,7 +268,7 @@ def main():
         cap_s = "inf" if cap == float("inf") else f"{cap:.0f}"
         part = r["med_part_pct"]
         part_s = "inf" if part == float("inf") else f"{part:.1f}"
-        print(f"{r['strategy']:22}{r['aum_cr']:>6}c{r['sharpe']:>9.2f}"
+        print(f"{r['strategy']:22}{r['aum_cr']:>6}c{r['retvol']:>9.2f}"
               f"{r['cagr']*100:>8.1f}%{r['maxdd']*100:>7.1f}%{r['calmar']:>6.2f}"
               f"{r['ann_cost_pct']:>7.1f}%{r['turn']:>6.2f}{part_s:>8}"
               f"{r['med_days_fill']:>8.1f}{cap_s:>8}"
@@ -276,26 +281,26 @@ def main():
         _prow(r)
         last_strat = r["strategy"]
     print("-" * len(hdr))
-    print(f"{'Nifty500 B&H':22}{'-':>7}{bench['sharpe']:>9.2f}{bench['cagr']*100:>8.1f}%"
+    print(f"{'Nifty500 B&H':22}{'-':>7}{bench['retvol']:>9.2f}{bench['cagr']*100:>8.1f}%"
           f"{bench['maxdd']*100:>7.1f}%{(bench['cagr']/abs(bench['maxdd'])):>6.2f}"
           f"{0.0:>7.1f}%{0.0:>6.2f}{'-':>8}{'-':>8}{'inf':>8}{'-':>7}")
 
     # ------------------------------------------------------------------ HALVES table
     print("\n" + "=" * 60)
-    print("C-BLEND HALVES — net Sharpe by half (must survive BOTH)")
+    print("C-BLEND HALVES — net return/vol by half (must survive BOTH)")
     print("=" * 60)
     print(f"{'AUM':>7}{'H1 2012-18':>13}{'H2 2019-26':>13}{'full':>9}")
     halves_rows = []
     for aum_cr in (50, 100):
         rets, dates = cblend_rets[aum_cr]
-        h1, n1 = _half_sharpe(rets, dates, hi=H1_END)
-        h2, n2 = _half_sharpe(rets, dates, lo=H2_START)
+        h1, n1 = _half_retvol(rets, dates, hi=H1_END)
+        h2, n2 = _half_retvol(rets, dates, lo=H2_START)
         full = eqstats(rets)
-        fs = full["sharpe"] if full else float("nan")
+        fs = full["retvol"] if full else float("nan")
         print(f"{aum_cr:>6}c{(h1 if h1 is not None else float('nan')):>13.2f}"
               f"{(h2 if h2 is not None else float('nan')):>13.2f}{fs:>9.2f}")
-        halves_rows.append({"aum_cr": aum_cr, "h1_sharpe": h1, "h2_sharpe": h2,
-                            "full_sharpe": fs, "h1_n": n1, "h2_n": n2})
+        halves_rows.append({"aum_cr": aum_cr, "h1_retvol": h1, "h2_retvol": h2,
+                            "full_retvol": fs, "h1_n": n1, "h2_n": n2})
     print(f"\n  C coverage: H1 mean {h1_cov.mean():.0%} (min {h1_cov.min():.0%}) | "
           f"H2 mean {h2_cov.mean():.0%} (min {h2_cov.min():.0%})")
     print("  -> honest window is H2; in H1 the C leg often defaults to 0.5 "
@@ -306,13 +311,13 @@ def main():
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["strategy", "aum_cr", "net_sharpe", "net_cagr_pct", "maxdd_pct",
+        w.writerow(["strategy", "aum_cr", "net_retvol", "net_cagr_pct", "maxdd_pct",
                     "calmar", "ann_cost_pct", "avg_turnover", "med_participation_pct",
                     "med_days_to_fill", "cap_median_cr", "beats_index"])
         for r in rows:
             cap = r["cap_med_cr"]
             part = r["med_part_pct"]
-            w.writerow([r["strategy"], r["aum_cr"], round(r["sharpe"], 2),
+            w.writerow([r["strategy"], r["aum_cr"], round(r["retvol"], 2),
                         round(r["cagr"] * 100, 1), round(r["maxdd"] * 100, 1),
                         round(r["calmar"], 2), round(r["ann_cost_pct"], 1),
                         round(r["turn"], 2),
@@ -320,19 +325,19 @@ def main():
                         round(r["med_days_fill"], 1),
                         ("inf" if cap == float("inf") else round(cap, 0)),
                         r["beats_index"]])
-        w.writerow(["Nifty500_BH", "-", round(bench["sharpe"], 2),
+        w.writerow(["Nifty500_BH", "-", round(bench["retvol"], 2),
                     round(bench["cagr"] * 100, 1), round(bench["maxdd"] * 100, 1),
                     round(bench["cagr"] / abs(bench["maxdd"]), 2),
                     0.0, 0.0, 0.0, 0.0, "inf", ""])
         # halves block
         w.writerow([])
-        w.writerow(["C-BLEND halves", "aum_cr", "h1_2012_18_sharpe",
-                    "h2_2019_26_sharpe", "full_sharpe", "h1_n", "h2_n"])
+        w.writerow(["C-BLEND halves", "aum_cr", "h1_2012_18_retvol",
+                    "h2_2019_26_retvol", "full_retvol", "h1_n", "h2_n"])
         for h in halves_rows:
             w.writerow(["", h["aum_cr"],
-                        (round(h["h1_sharpe"], 2) if h["h1_sharpe"] is not None else ""),
-                        (round(h["h2_sharpe"], 2) if h["h2_sharpe"] is not None else ""),
-                        round(h["full_sharpe"], 2), h["h1_n"], h["h2_n"]])
+                        (round(h["h1_retvol"], 2) if h["h1_retvol"] is not None else ""),
+                        (round(h["h2_retvol"], 2) if h["h2_retvol"] is not None else ""),
+                        round(h["full_retvol"], 2), h["h1_n"], h["h2_n"]])
         w.writerow([])
         w.writerow(["C_coverage", "H1_mean", round(float(h1_cov.mean()), 3),
                     "H1_min", round(float(h1_cov.min()), 3),

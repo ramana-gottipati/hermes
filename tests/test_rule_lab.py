@@ -35,7 +35,7 @@ from src.pat import rulelab_flow as rlf
 
 DEMO = "SELECT liquid500 WHERE not_extended RANK BY mom12 TAKE 25 HOLD quarterly"
 
-GOOD_NUMBERS = {"net_sharpe": 1.00, "gross_sharpe": 1.4, "half1": 0.95, "half2": 1.05,
+GOOD_NUMBERS = {"net_retvol": 1.00, "gross_retvol": 1.4, "half1": 0.95, "half2": 1.05,
                 "placebo_p95": 0.50, "observed": 1.00, "emp_p": 0.01, "bench_net": 0.89,
                 "capacity_inr": 50e7, "maxdd": -0.30, "ann_cost_pct": 4.0}
 
@@ -232,14 +232,14 @@ def test_judge_law_every_branch():
     assert j({**GOOD_NUMBERS, "half1": 0.5})[0] == "CONDITIONAL(H2-only)"
     assert j({**GOOD_NUMBERS, "half1": 0.5, "half2": 0.5})[0] == "CONDITIONAL(full-window-only)"
     assert j({**GOOD_NUMBERS, "placebo_p95": 2.0})[0] == "REJECTED"     # control wins
-    assert j({**GOOD_NUMBERS, "net_sharpe": -0.2, "observed": -0.2,
+    assert j({**GOOD_NUMBERS, "net_retvol": -0.2, "observed": -0.2,
               "half1": -0.2, "half2": -0.2})[0] == "REJECTED"
-    weak = {**GOOD_NUMBERS, "net_sharpe": 0.6, "observed": 0.6, "half1": 0.5, "half2": 0.6}
+    weak = {**GOOD_NUMBERS, "net_retvol": 0.6, "observed": 0.6, "half1": 0.5, "half2": 0.6}
     assert j(weak) == ("WEAKER-THAN-BENCHMARK", "descriptive-only", "")
 
 
 def test_missing_stage_is_a_refusal_never_a_partial_verdict():
-    for k in ("net_sharpe", "half1", "half2", "placebo_p95", "observed", "bench_net"):
+    for k in ("net_retvol", "half1", "half2", "placebo_p95", "observed", "bench_net"):
         verdict, qualifier, why = rl.judge({**GOOD_NUMBERS, k: None})
         assert verdict.startswith("NO-VERDICT(missing:") and k in verdict
         assert qualifier is None and "refusal" in why
@@ -324,7 +324,7 @@ def test_csv_export_and_url_state_round_trip():
     v = rl.build_verdict(spec, GOOD_NUMBERS, "p", {}, roster=["TCS"]).to_dict()
     name, text = rlv.render_csv(v)
     assert name == f"rule-lab-{spec.rule_hash[:12]}.csv"
-    assert "net Sharpe" in text and "TCS" in text and "blocking_citation" not in text
+    assert "net return/vol" in text and "TCS" in text and "blocking_citation" not in text
     dead = rl.compile_rule("SELECT liquid500 RANK BY bookyield TAKE 25 HOLD monthly")
     dv = rl.build_verdict(dead, {}, "p", {}).to_dict()
     _, dtext = rlv.render_csv(dv)

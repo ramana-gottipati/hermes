@@ -1,14 +1,15 @@
 """Factor League — the classic strategy families as tracked portfolios (descriptive).
 
 Ramana's ask (S132g): the "hugely considered, constantly successful" equity strategy
-families, made concrete IN OUR SYSTEM — ranked by the Sharpe/alpha WE measured on 14y
-of NSE data (docs/strategy-ledger.md § Tier-1 factor zoo + cost-realism), with each
-family's CURRENT participants visible, an automatic portfolio for the champion, and a
-constant churn feed. The ranking numbers themselves live in the ledger (frozen results);
+families, made concrete IN OUR SYSTEM — ranked by the return/vol ratio + alpha WE
+measured on 14y of NSE data (docs/strategy-ledger.md § Tier-1 factor zoo +
+cost-realism), with each family's CURRENT participants visible, an automatic
+portfolio for the champion, and a constant churn feed. The ranking numbers
+themselves live in the ledger (frozen results);
 this module maintains the LIVE ROSTERS + CHURN for the families whose exact formulas
 are computable from the nightly `momentum_scan` snapshot:
 
-  PACER-25    = RISKADJ   (6-mo return ÷ 3-mo vol)          — top flat-cost Sharpe 1.13
+  PACER-25    = RISKADJ   (6-mo return ÷ 3-mo vol)          — top flat-cost return/vol 1.13
   SPRINTER-25 = MOM12     (raw 12-mo momentum)              — highest CAGR, brutal DD
   STEADY-25   = LOWVOL_MOM — the NET champion; its CANONICAL roster is the QUARTERLY
                 anchor owned by slow_rotation.py (not duplicated here; the league page
@@ -19,7 +20,10 @@ Universe for rosters: latest momentum_scan with turnover ≥ ₹5cr (the recorde
 leaderboard's universe). Rosters are top-25 by family score; churn = day-over-day
 roster diffs appended to `factor_league_churn` (pruned at 120 days — bounded).
 DESCRIPTIVE-ONLY: gross selection lenses, not net-of-cost claims, not advice —
-the flat-cost Sharpes are labeled as such wherever shown (C-BLEND lesson).
+the flat-cost return/vol ratios are labeled as such wherever shown (C-BLEND lesson).
+Every ratio here is mean/sd annualised with NO risk-free rate subtracted: a return/vol
+ratio, not a Sharpe, so it reads high against a textbook Sharpe. The hurdle each family
+is compared against is on the same basis, so the verdicts are unaffected (D142).
 
 Owns isolated tables `factor_league` + `factor_league_churn` (no db.py edit).
 Pure stdlib. CLI:

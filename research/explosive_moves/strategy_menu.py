@@ -4,6 +4,10 @@ Universe = current Nifty 500 constituents (real, listed equities — no delisted
 no liquid/ETF funds) that are still trading as of the cache's latest date. For each
 surviving candidate, print its current top-25 holdings so a human can choose from real
 portfolios. Honest metrics live in docs/strategy-ledger.md. Read-only.
+
+METRIC BASIS (D142): every ratio quoted here is mean/sd annualised with NO risk-free rate
+subtracted — a return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe. The
+Nifty 500 0.89 bar is on the SAME basis, so the "none beats the index" verdict is unaffected.
 """
 import sqlite3
 import sys
@@ -59,11 +63,11 @@ def main():
     print(f"Universe = Nifty 500 (snapshot {snap}), still-trading: {len(g)} names | as of {max(x['date'] for x in g)}\n")
     menu = [
         ("A. DEFENSIVE — Low-Vol + Momentum (best cost survivor)", "lowvolmom",
-         "Sharpe 0.79 / CAGR 13.3% / MaxDD -25% / cost 8.3% / cap Rs190cr"),
+         "return/vol 0.79 / CAGR 13.3% / MaxDD -25% / cost 8.3% / cap Rs190cr"),
         ("B. SMOOTHEST — pure Low-Vol", "lowvol_sc",
-         "Sharpe 0.78 / CAGR 9.6% / MaxDD -23% / cost 5.4% / cap Rs168cr"),
+         "return/vol 0.78 / CAGR 9.6% / MaxDD -23% / cost 5.4% / cap Rs168cr"),
         ("C. HIGHEST-MOMENTUM — Risk-Adjusted (aggressive, higher cost)", "riskadj_sc",
-         "Sharpe 0.51 / CAGR 10.2% / MaxDD -43% / cost 15.1% / cap Rs97cr"),
+         "return/vol 0.51 / CAGR 10.2% / MaxDD -43% / cost 15.1% / cap Rs97cr"),
     ]
     board = []
     for name, key, metrics in menu:
@@ -75,7 +79,7 @@ def main():
         print()
         board.append({"name": name, "metrics": metrics, "holdings": names})
     print("=" * 92)
-    print("BASELINE the above must beat: Nifty 500 buy & hold = Sharpe 0.89 / CAGR 15.3% / MaxDD -29%")
+    print("BASELINE the above must beat: Nifty 500 buy & hold = return/vol 0.89 / CAGR 15.3% / MaxDD -29%")
     asof = max(x["date"] for x in g)
     write_html(board, snap, asof, len(g))
     # persist holdings into the registry so they stop hiding in a static file
@@ -116,7 +120,7 @@ h1{{font-size:13px;letter-spacing:.3em;color:#5ec8ff;margin:0 0 4px}}
 </style></head><body>
 <h1>HERMES · STRATEGY BOARD</h1>
 <div class="sub">Best-available strategies — current top-25 holdings · universe Nifty 500 (snapshot {snap}, {n} live names) · as of {asof}</div>
-<div class="bar">⚖️ <b>The bar these must beat:</b> <span class="idx">Nifty 500 buy &amp; hold — Sharpe 0.89 / CAGR 15.3% / MaxDD −29%</span>. None below beats it on Sharpe — so this is a <b>risk-profile choice, not alpha</b>. Human decides.</div>
+<div class="bar">⚖️ <b>The bar these must beat:</b> <span class="idx">Nifty 500 buy &amp; hold — return/vol 0.89 / CAGR 15.3% / MaxDD −29%</span>. None below beats it on return/vol — so this is a <b>risk-profile choice, not alpha</b>. Human decides.</div>
 {cards}
 <div class="note"><b>Honest notes.</b> Metrics are net of realistic per-name cost (tier spread + 0.5×ATR slippage), walk-forward 2012–26. Holdings regenerate from <code>strategy_menu.py</code>. Universe filtered to live Nifty 500 constituents (no delisted tickers, no liquid/cash ETFs). This is a research artifact, not investment advice.</div>
 </body></html>"""

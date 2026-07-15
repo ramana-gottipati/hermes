@@ -1035,7 +1035,7 @@ def _rulelab_flow(conn) -> str:
     return (
         f"<p><b>{_esc(a.get('verdict', ''))}</b>{qual} — "
         f"<code>{_esc(a.get('rule_text', ''))}</code></p>"
-        f"<p>net Sharpe {f2(a.get('net_sharpe'))} vs benchmark {f2(a.get('bench_net'))} · "
+        f"<p>net return/vol {f2(a.get('net_retvol'))} vs benchmark {f2(a.get('bench_net'))} · "
         f"placebo p95 {f2(a.get('placebo_p95'))} · capacity {_esc(cap_txt)} · "
         f"inbox status: {_esc(a.get('status', ''))}</p>"
         f"<p><small>The verdict is gauntlet arithmetic on the composed rule — a statistical "

@@ -120,7 +120,7 @@ def momentum_scan_page(sort: str = "riskadj"):
             if as_of:
                 order = {"ens": "ensemble_pctile", "cblend": "cblend"}.get(sort, "riskadj")
                 # C-BLEND 50/50 = mean(RISKADJ pctile, capital-allocation C pctile) — the S77b
-                # backtest's new-best overlay (Sharpe 1.32 / Calmar 1.15 / MaxDD -28.2%,
+                # backtest's new-best overlay (return/vol 1.32 / Calmar 1.15 / MaxDD -28.2%,
                 # docs/strategy-ledger.md § Experiment 2026-07-03). Missing C -> neutral 50th
                 # pctile, exactly as the backtest neutral-filled. A DESCRIPTIVE tilt, not a buy list.
                 rows = con.execute(
@@ -181,7 +181,7 @@ def momentum_scan_page(sort: str = "riskadj"):
             "<th data-k data-num=1>6m</th><th data-k data-num=1>12m</th><th data-k data-num=1>Vol</th>"
             "<th data-k data-num=1>RISKADJ</th><th data-k data-num=1>HI52</th><th data-k data-num=1>Turn₹cr</th>"
             "<th data-k data-num=1>ENSpct</th>"
-            "<th data-k data-num=1 title='C-BLEND 50/50 = mean(RISKADJ pctile, capital-allocation C pctile); S77b best overlay (flat-cost Sharpe 1.32; NOT fundable net of participation cost)'>C-blend</th>"
+            "<th data-k data-num=1 title='C-BLEND 50/50 = mean(RISKADJ pctile, capital-allocation C pctile); S77b best overlay (flat-cost return/vol 1.32; NOT fundable net of participation cost)'>C-blend</th>"
             "<th class='l' data-k title='derived from Screener.in fundamentals — migrating to BSE/NSE XBRL (primary-source policy)'>Cap-alloc (C)*</th>"
             "<th class='l' data-k>Insider (A)</th><th class='l' data-k>Credit (B)</th><th class='l' data-k>Flag</th></tr>")
     seg = ("<div class='seg'>"
@@ -217,10 +217,10 @@ def momentum_scan_page(sort: str = "riskadj"):
         "net-of-cost claim — see <a href='/dash/testing' style='color:#58a6ff'>Strategy validation</a>. "
         "Weights: <code>docs/calculations-and-weights.md</code>.<br>"
         "<b>C-blend 50/50</b> ranks by the mean of the RISKADJ and capital-allocation (C) percentiles — "
-        "the S77b backtest's best risk-adjusted overlay (Sharpe 1.32, Calmar 1.15, MaxDD −28.2% vs "
+        "the S77b backtest's best risk-adjusted overlay (return/vol 1.32, Calmar 1.15, MaxDD −28.2% vs "
         "RISKADJ's −41.9%, <code>docs/strategy-ledger.md</code> § Experiment 2026-07-03). "
         "⚠ FLAT-COST ONLY — under the participation-cost model the C-blend is NOT fundable "
-        "(net Sharpe 0.52 @₹25cr / 0.17 @₹50cr / −0.30 @₹100cr; beats the index at NO AUM); only "
+        "(net return/vol 0.52 @₹25cr / 0.17 @₹50cr / −0.30 @₹100cr; beats the index at NO AUM); only "
         "quarterly large-cap LOWVOL_MOM cleared (§ Experiment 2026-07-05c). It is a DESCRIPTIVE tilt — "
         "NOT a hard veto, NOT a standalone ranker, NOT a buy list; a missing C fills to the neutral "
         "50th percentile (~91% live coverage).<br>"

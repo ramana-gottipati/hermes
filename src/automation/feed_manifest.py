@@ -467,7 +467,7 @@ SIGNALS: dict = {
         inputs=("bhavcopy_rows",),
         validation_status="descriptive-only",
         fence="positioning descriptor (delivery-value per trade, R-tier windows); DELIV_MOM "
-        "standalone recorded Sharpe 0.76-0.85 / MaxDD -45% with no standalone edge - never a "
+        "standalone recorded return/vol 0.76-0.85 / MaxDD -45% with no standalone edge - never a "
         "standalone ranker",
         ledger_ref="docs/strategy-ledger.md s'BLOCKING FAILURE MODELS' (ACCEL/PULLBACK/DELIV_MOM "
         "row) + s'Tier 3' (MEP/DVPT: confirmation, not prediction)",
@@ -548,7 +548,7 @@ SIGNALS: dict = {
         "src/automation/auto_portfolios.py",
         inputs=("bhavcopy_rows", "momentum_scan"),
         validation_status="benchmark-gross-only",
-        fence="RISKADJ flat-cost Sharpe 1.13 is 'indicative, not validated' (naive 0.3%/turnover "
+        fence="RISKADJ flat-cost return/vol 1.13 is 'indicative, not validated' (naive 0.3%/turnover "
         "cost, static Rs5cr floor); momentum NET ~0.09 vs bench 0.85-0.89 under realistic cost; "
         "C-BLEND 1.32 is flat-cost-only and beats the index at NO AUM - internal benchmark, "
         "never sold as fundable",
@@ -572,7 +572,7 @@ SIGNALS: dict = {
         inputs=("fundamentals", "fundamentals_history"),
         validation_status="not-return-tested-as-standalone-alpha",
         fence="rule-based 14-pattern quality score; quality is a veto/filter layer, not a ranker "
-        "(QUALITY standalone: Sharpe 0.76, alpha ~0.0 - ledger); C/A/B stay veto-only (D66)",
+        "(QUALITY standalone: return/vol 0.76, alpha ~0.0 - ledger); C/A/B stay veto-only (D66)",
         ledger_ref="docs/strategy-ledger.md s'Tier 3' (patearn: PIT-backtestable but not run as "
         "alpha) + s'BLOCKING FAILURE MODELS' (QUALITY standalone row) + D66",
     ),

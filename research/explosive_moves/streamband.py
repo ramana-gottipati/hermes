@@ -7,12 +7,16 @@ the mirror against the upper bank. STRETCH = signed % gap between the trigger an
 bank, ranked against the stock's OWN trailing 756-bar distribution (the standard-deviation idea
 done per-stock, in percent, never absolute).
 
-LEDGER PRIOR (cited, blocking): PULLBACK Sharpe 0.56-0.72 MaxDD -44%; S3 shakeout reversion CAGR
+LEDGER PRIOR (cited, blocking): PULLBACK return/vol 0.56-0.72 MaxDD -44%; S3 shakeout reversion CAGR
 -0.5% FAILED; raw-Wolfe book median -2.1% net, placebo-negative; momentum gross 1.29 -> net ~0.09.
 Reversal BOOKS have always failed here; the only surviving form is SELECTION (Wolfe BULL +4.4%
 medNet). This study tests the SELECTION claim as primary; the book form is measured for the record
-against the Nifty-500 Sharpe 0.89 hurdle and is EXPECTED to fail. DESCRIPTIVE-ONLY output either
+against the Nifty-500 return/vol 0.89 hurdle and is EXPECTED to fail. DESCRIPTIVE-ONLY output either
 way: no ranking, no buy/sell advice, SEBI-safe.
+
+METRIC BASIS (D142): every ratio reported here is mean/sd annualised with NO risk-free rate
+subtracted — a return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe. The
+Nifty-500 0.89 hurdle is computed on the SAME basis, so the verdict is unaffected.
 
 DESIGN (locked before first run; global seed 42; symbols processed in sorted order). Universe =
 every EQ/CM symbol in bhavcopy_rows (2004->today). Primary window: signal dates >= 2012-06-01.
@@ -37,8 +41,8 @@ FORM-1 GATE (selection; PASS requires ALL FOUR, else FAIL-null is published to t
 FORM-2 BOOK (for the record; fundable bar): long at entry close; exit at the close AFTER the first
 of (T < L stop-out) or (T crosses below U from at-or-above); one open trade per symbol; cost 0.3%
 per side (0.6% round trip); the book is daily-equal-weighted across open trades on adjusted closes
-(implicit daily rebalance, disclosed), compounded monthly. FUNDABLE requires monthly Sharpe > 0.89
-in BOTH halves 2012-18 / 2019-26.
+(implicit daily rebalance, disclosed), compounded monthly. FUNDABLE requires monthly return/vol
+> 0.89 in BOTH halves 2012-18 / 2019-26.
 
 VARIANTS (exploratory only - no gate promotion without fresh pre-registration; each reported with
 n): OHLC4 trigger instead of HLC3; STRETCH precondition (min signed stretch over the 5 bars ending
@@ -416,7 +420,7 @@ def _stats_monthly(mr):
     peak = np.maximum.accumulate(eq)
     dd = float((eq / peak - 1).min())
     sd = mr.std()
-    return {"sharpe": round(float(mr.mean() / sd * np.sqrt(12)), 2) if sd > 0 else 0.0,
+    return {"retvol": round(float(mr.mean() / sd * np.sqrt(12)), 2) if sd > 0 else 0.0,
             "cagr%": round((float(eq[-1]) ** (12 / len(mr)) - 1) * 100, 1),
             "maxdd%": round(dd * 100, 1), "months": int(len(mr))}
 
@@ -526,7 +530,7 @@ def run():
         st_h1 = _stats_monthly([r["mret"] for r in rows if r["month"] < "2019"])
         st_h2 = _stats_monthly([r["mret"] for r in rows if r["month"] >= "2019"])
         if st_full:
-            fundable = bool(st_h1 and st_h2 and st_h1["sharpe"] > 0.89 and st_h2["sharpe"] > 0.89)
+            fundable = bool(st_h1 and st_h2 and st_h1["retvol"] > 0.89 and st_h2["retvol"] > 0.89)
             books[key] = {"full": st_full, "h1_2012_18": st_h1, "h2_2019_26": st_h2,
                           "avg_pos": round(float(np.mean([r["avg_pos"] for r in rows])), 1),
                           "FUNDABLE_vs_0.89": fundable}

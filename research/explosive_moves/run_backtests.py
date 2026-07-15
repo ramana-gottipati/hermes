@@ -10,6 +10,11 @@ Order (kickstart sec.9):
   4. S3 decorrelation vs the momentum book.
 Writes a text report to out/backtest_report.txt and a JSON dump to out/backtest_results.json.
 ACCEPT ONLY NET OF COSTS.
+
+The risk-adjusted number reported here (metrics.equity_stats, `retvol`) is mean/sd annualised
+with NO risk-free rate subtracted — a return/vol ratio, not a Sharpe, and it reads high
+against a textbook one. A true Sharpe needs a primary-source rf ingest (Guardrail #8), queued
+with the TR-benchmark re-cut. (D142)
 """
 from __future__ import annotations
 
@@ -122,7 +127,7 @@ def portfolio_line(cache, strat, regime, window, tag):
     ab = alpha_beta(port["dates"], port["port_ret"], "Nifty 50") if port["dates"] else {}
     out(f"    {tag:14s} taken={port['n_taken']:5d} CAGR={es.get('cagr',0)*100:+6.1f}% "
         f"MaxDD={es.get('maxdd',0)*100:6.1f}% Calmar={es.get('calmar',0):5.2f} "
-        f"Sharpe={es.get('sharpe',0):5.2f} expR={ts['exp_ret']*100:+.2f}% PF={ts['pf']:.2f} "
+        f"ret/vol={es.get('retvol',0):5.2f} expR={ts['exp_ret']*100:+.2f}% PF={ts['pf']:.2f} "
         f"hit={ts['hit']*100:.0f}% beta={ab.get('beta',float('nan')):.2f}")
     return {"tag": tag, **es, **ts, **{f"ab_{k}": v for k, v in ab.items()},
             "n_taken": port["n_taken"], "port": port}
@@ -148,7 +153,7 @@ def main():
         bh = buy_hold(idx, *FULL)
         if bh:
             out(f"    {idx:16s} CAGR={bh['cagr']*100:+.1f}% MaxDD={bh['maxdd']*100:.1f}% "
-                f"Calmar={bh['calmar']:.2f} Sharpe={bh['sharpe']:.2f}")
+                f"Calmar={bh['calmar']:.2f} ret/vol={bh['retvol']:.2f}")
             results.setdefault("baselines", {})[idx] = bh
 
     # ---- 1. S4 GATES FIRST ----

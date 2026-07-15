@@ -9,6 +9,10 @@ zero-cost gross, Nifty-500 buy&hold on the same rebalance dates) for charting.
 The period loop is copied from cost_participation.run verbatim with curve capture;
 any divergence from the recorded summary stats is a red flag, so both are printed.
 
+METRIC BASIS (D142): the `retvol` reported here (strategy and benchmark alike) is
+mean/sd annualised with NO risk-free rate subtracted — a return/vol ratio, not a
+Sharpe; it reads high against a textbook Sharpe.
+
 Run on VPS (research venv):
   PYTHONPATH=/opt/hermes:/opt/hermes/research /opt/hermes/.venv-research/bin/python \\
       -m explosive_moves.slowrot_curve      # -> out/slowrot_curve.json
@@ -58,7 +62,7 @@ def run_curve(tables, aum):
 def stats(rets):
     eq = np.cumprod(1 + rets)
     dd = eq / np.maximum.accumulate(eq) - 1
-    return {"sharpe": round(float(rets.mean() / rets.std() * np.sqrt(cp.PPY)), 2),
+    return {"retvol": round(float(rets.mean() / rets.std() * np.sqrt(cp.PPY)), 2),
             "cagr%": round((float(eq[-1]) ** (cp.PPY / len(rets)) - 1) * 100, 1),
             "maxdd%": round(float(dd.min()) * 100, 1),
             "total_x": round(float(eq[-1]), 2)}
@@ -87,10 +91,10 @@ def main():
         "eq_gross": [round(float(x), 4) for x in np.cumprod(1 + gross)],
         "eq_n500": [round(x, 4) if x else None for x in eq_b],
         "stats_net50": stats(net), "stats_gross": stats(gross),
-        "stats_n500": {"sharpe": round(bench["sharpe"], 2),
+        "stats_n500": {"retvol": round(bench["retvol"], 2),
                        "cagr%": round(bench["cagr"] * 100, 1),
                        "maxdd%": round(bench["maxdd"] * 100, 1)},
-        "crosscheck_recorded_run": {"sharpe": round(recorded["sharpe"], 2),
+        "crosscheck_recorded_run": {"retvol": round(recorded["retvol"], 2),
                                     "cagr%": round(recorded["cagr"] * 100, 1),
                                     "ann_cost%": round(recorded["ann_cost_pct"], 1)},
     }

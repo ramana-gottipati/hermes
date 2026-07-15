@@ -7,11 +7,11 @@ hash the RAW string, never ast.get_docstring, which dedents):
   rupee constants, no entry/exit micro-language, no single-stock verdicts) and judged by the
   existing evidence-factory gauntlet. The deterministic verdict law over the measured numbers:
 
-    required = net_sharpe, half1, half2, placebo_p95, observed, bench_net
+    required = net_retvol, half1, half2, placebo_p95, observed, bench_net
     0. any required number missing/NaN                  -> NO-VERDICT(missing:<names>)
        (a missing stage is a refusal to rule, never a partial verdict)
     1. observed <= placebo_p95                          -> REJECTED            [descriptive-only]
-    2. net_sharpe <= 0                                  -> REJECTED            [descriptive-only]
+    2. net_retvol <= 0                                  -> REJECTED            [descriptive-only]
     3. half1 > bench AND half2 > bench AND net > bench:
          capacity_inr stated (> 0)                      -> NEW-BENCHMARK       [fundable]
          capacity unstated                              -> CONDITIONAL(capacity-unstated)
@@ -28,8 +28,8 @@ hash the RAW string, never ast.get_docstring, which dedents):
   refusal NO-VERDICT(<why>). The qualifier (descriptive-only | paper-only | flat-cost-only |
   fundable) travels with the verdict forever — never a droppable footnote.
 
-  Placebo control (pre-registered here): observed = the rule's full-window NET Sharpe; the
-  null = the distribution of net Sharpes of N random-selection books of the same size, on the
+  Placebo control (pre-registered here): observed = the rule's full-window NET return/vol; the
+  null = the distribution of net return/vols of N random-selection books of the same size, on the
   SAME tables / universe / TAKE / HOLD. Observed must beat the null p95 — not merely beat zero.
 
 BLOCKING wall (binding): when a compiled rule matches a known-dead shape, the matching
@@ -139,6 +139,10 @@ _VETO_RANK_REFUSALS = {
 # ASCII-escaped JSON so the bytes survive any editor/locale; json.loads restores the exact
 # Unicode of the ledger rows. tests/test_rule_lab.py re-reads the ledger and byte-compares —
 # if the ledger changes, the suite fails until this block is re-synced (the ledger wins).
+# D142 CARVE-OUT: the "Sharpe" in these rows is a return/vol ratio like every other in the
+# estate, but these are QUOTES and are byte-compared — they are NOT relabelled here. Editing
+# one side desyncs the pair, and the ledger is the record of what was found and said at the
+# time. Relabelling the ledger itself is a separate, deliberate act (see D142).
 _BLOCKING_JSON = r"""
 {
  "corollary": "The corollary (the doctrine these failures prove): **price strength is the only gross forward-return\nengine; value/quality/credibility/accumulation are veto/filter/context layers, not rankers; and no\nfactor here is a fundable net-of-cost alpha vs the index.** The asset is PIT rigor + under-covered data\n+ the analytical selection lens \u2014 not a backtested alpha strategy.",
@@ -172,7 +176,7 @@ SURVIVOR_NOTE = ("RECORDED SURVIVOR (not a blocker): quarterly large-cap LOWVOL_
 VERDICTS = ("REJECTED", "WEAKER-THAN-BENCHMARK", "CONDITIONAL", "NEW-BENCHMARK", "NO-VERDICT")
 QUALIFIERS = ("descriptive-only", "paper-only", "flat-cost-only", "fundable")
 
-_REQUIRED_NUMBERS = ("net_sharpe", "half1", "half2", "placebo_p95", "observed", "bench_net")
+_REQUIRED_NUMBERS = ("net_retvol", "half1", "half2", "placebo_p95", "observed", "bench_net")
 
 
 class RuleError(ValueError):
@@ -342,7 +346,7 @@ def judge(numbers: dict) -> tuple:
         return ("NO-VERDICT(missing:%s)" % ",".join(missing), None,
                 "a missing stage is a refusal to rule, never a partial verdict "
                 "(docs/rule-lab-design.md §4 invariant 3)")
-    net = _num(numbers, "net_sharpe"); h1 = _num(numbers, "half1"); h2 = _num(numbers, "half2")
+    net = _num(numbers, "net_retvol"); h1 = _num(numbers, "half1"); h2 = _num(numbers, "half2")
     p95 = _num(numbers, "placebo_p95"); obs = _num(numbers, "observed")
     bench = _num(numbers, "bench_net")
     cap = _num(numbers, "capacity_inr")
@@ -448,7 +452,7 @@ def ledger_entry(v: RuleVerdict, decided_on: str) -> str:
         f"## Rule-lab run {decided_on} — `{v.rule_text}` ({v.verdict})",
         "",
         f"Prereg: `{v.rule_hash[:16]}…` ({v.prereg_ref}) · qualifier **{v.qualifier or 'none'}**",
-        f"NET Sharpe {fmt('net_sharpe')} (gross {fmt('gross_sharpe')}) vs bench "
+        f"NET return/vol {fmt('net_retvol')} (gross {fmt('gross_retvol')}) vs bench "
         f"{fmt('bench_net')} · halves {fmt('half1')}/{fmt('half2')} · "
         f"placebo p95 {fmt('placebo_p95')} (observed {fmt('observed')}, "
         f"emp-p {fmt('emp_p')}) · MaxDD {fmt('maxdd')} · ann cost {fmt('ann_cost_pct')}%",
@@ -488,13 +492,13 @@ def _selftest() -> int:
     except RuleError as e:
         assert e.citations and e.citations[0] == BLOCKING_ROWS["MEP_AS_ALPHA"]
     # the verdict law
-    base = {"net_sharpe": 1.0, "half1": 1.0, "half2": 1.0, "placebo_p95": 0.5,
+    base = {"net_retvol": 1.0, "half1": 1.0, "half2": 1.0, "placebo_p95": 0.5,
             "observed": 1.0, "bench_net": 0.89, "capacity_inr": 50e7}
     assert judge(base)[0] == "NEW-BENCHMARK"
     assert judge({**base, "capacity_inr": None})[0] == "CONDITIONAL(capacity-unstated)"
     assert judge({**base, "half2": 0.5})[0] == "CONDITIONAL(H1-only)"
     assert judge({**base, "placebo_p95": 1.5})[0] == "REJECTED"
-    assert judge({**base, "net_sharpe": None})[0].startswith("NO-VERDICT")
+    assert judge({**base, "net_retvol": None})[0].startswith("NO-VERDICT")
     # the object enforces invariant 1
     try:
         RuleVerdict(rule_text=a.text, rule_hash=a.rule_hash, prereg_ref="x", numbers={},

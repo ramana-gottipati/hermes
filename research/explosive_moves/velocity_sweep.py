@@ -7,6 +7,11 @@ top-25 monthly). Reports, per level: how many names qualify, the strategy metric
 of picks, and how often PIXTRANS gets in. CHECK ONLY — prints numbers, draws no conclusion.
 
 Market cap = (NetProfit/EPS) shares x raw close that day (report_date<=date, no look-ahead).
+
+Ratios are mean/sd annualised with NO risk-free rate subtracted — return/vol, not Sharpe, so they
+read high vs a textbook Sharpe; every level and the REF row sit on the SAME basis, so the
+level-to-level comparison holds (D142).
+
 Writes out/velocity_sweep.csv. Read-only.
 """
 from __future__ import annotations
@@ -167,8 +172,8 @@ def main():
         large = 100 * bk.get("large", 0) / tot
         midsm = 100 * (bk.get("mid", 0) + bk.get("small", 0) + bk.get("micro", 0)) / tot
         return {"gate": gate_label, "avg_universe": np.mean(ns),
-                "sharpe": full["sharpe"], "maxdd": full["maxdd"], "cagr": full["cagr"], "calmar": full["calmar"],
-                "h1": a["sharpe"] if a else 0, "h2": b["sharpe"] if b else 0, "totx": full["totx"],
+                "retvol": full["retvol"], "maxdd": full["maxdd"], "cagr": full["cagr"], "calmar": full["calmar"],
+                "h1": a["retvol"] if a else 0, "h2": b["retvol"] if b else 0, "totx": full["totx"],
                 "large": large, "midsm": midsm, "med_mcap": float(np.median(mp)) if mp else float("nan"), "pix": pix}
 
     rows = []
@@ -178,19 +183,19 @@ def main():
     rows.append(run("self-rel: vel>=1.5x own 12m-median",
                     lambda ti, rec: [x for x in rec if np.isfinite(x["vel"]) and (ti, x["s"]) in trailing and x["vel"] >= 1.5 * trailing[(ti, x["s"])]]))
 
-    hdr = f"{'gate':34}{'univ':>6}{'Sharpe':>7}{'MaxDD':>8}{'CAGR':>7}{'Calmar':>7}{'H1':>5}{'H2':>5}{'lg%':>5}{'ms%':>5}{'medMcap':>10}{'PIX':>5}"
+    hdr = f"{'gate':34}{'univ':>6}{'ret/vol':>7}{'MaxDD':>8}{'CAGR':>7}{'Calmar':>7}{'H1':>5}{'H2':>5}{'lg%':>5}{'ms%':>5}{'medMcap':>10}{'PIX':>5}"
     print("=" * len(hdr)); print("VELOCITY-LEVEL SWEEP (strategy = variant D held constant). CHECK ONLY.")
     print("=" * len(hdr)); print(hdr)
     for r in rows:
-        print(f"{r['gate']:34}{r['avg_universe']:>6.0f}{r['sharpe']:>7.2f}{r['maxdd']*100:>7.1f}%{r['cagr']*100:>6.1f}%"
+        print(f"{r['gate']:34}{r['avg_universe']:>6.0f}{r['retvol']:>7.2f}{r['maxdd']*100:>7.1f}%{r['cagr']*100:>6.1f}%"
               f"{r['calmar']:>7.2f}{r['h1']:>5.2f}{r['h2']:>5.2f}{r['large']:>5.0f}{r['midsm']:>5.0f}{r['med_mcap']:>10,.0f}{r['pix']:>5}")
 
     with open(os.path.join(os.path.dirname(__file__), "out", "velocity_sweep.csv"), "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["gate", "avg_universe", "sharpe", "maxdd_pct", "cagr_pct", "calmar", "h1_sharpe", "h2_sharpe",
+        w.writerow(["gate", "avg_universe", "retvol", "maxdd_pct", "cagr_pct", "calmar", "h1_retvol", "h2_retvol",
                     "total_x", "picks_large_pct", "picks_mid_small_pct", "median_pick_mcap_cr", "pixtrans_rebalances"])
         for r in rows:
-            w.writerow([r["gate"], round(r["avg_universe"], 0), round(r["sharpe"], 2), round(r["maxdd"] * 100, 1),
+            w.writerow([r["gate"], round(r["avg_universe"], 0), round(r["retvol"], 2), round(r["maxdd"] * 100, 1),
                         round(r["cagr"] * 100, 1), round(r["calmar"], 2), round(r["h1"], 2), round(r["h2"], 2),
                         round(r["totx"], 1), round(r["large"], 0), round(r["midsm"], 0), round(r["med_mcap"], 0), r["pix"]])
     print("\nsaved -> out/velocity_sweep.csv")

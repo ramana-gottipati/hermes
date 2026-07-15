@@ -70,7 +70,7 @@ def test_csv_export_serves_text_csv(client, anon):
     r = client.get("/dash/rule-lab?format=csv")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/csv")
-    assert "rule_hash" in r.text and "net Sharpe" in r.text
+    assert "rule_hash" in r.text and "net return/vol" in r.text
 
 
 def test_anonymous_post_is_refused_and_never_enqueues(client, tmp_db, anon):
@@ -171,7 +171,7 @@ def test_work_drains_the_queue_into_the_inbox(tmp_path, monkeypatch):
     enqueue(con, spec)
     con.close()
 
-    nums = {"net_sharpe": 0.5, "half1": 0.4, "half2": 0.6, "placebo_p95": 0.3,
+    nums = {"net_retvol": 0.5, "half1": 0.4, "half2": 0.6, "placebo_p95": 0.3,
             "observed": 0.5, "bench_net": 0.89}
     monkeypatch.setattr(rle, "run_gauntlet",
                         lambda s, **kw: build_verdict(s, nums, "worktest", {"env": "worktest"}))
@@ -207,7 +207,7 @@ def test_work_marks_errors_and_keeps_draining(tmp_path, monkeypatch):
         if spec.rule_hash == s1.rule_hash:
             raise RuntimeError("synthetic gauntlet failure")
         from src.automation.rule_lab import build_verdict
-        return build_verdict(spec, {"net_sharpe": 0.5, "half1": 0.4, "half2": 0.6,
+        return build_verdict(spec, {"net_retvol": 0.5, "half1": 0.4, "half2": 0.6,
                                     "placebo_p95": 0.3, "observed": 0.5,
                                     "bench_net": 0.89}, "worktest", {"env": "worktest"})
 

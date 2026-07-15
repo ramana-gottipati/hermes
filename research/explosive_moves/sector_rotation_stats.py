@@ -1,5 +1,9 @@
 """V8 vs Nifty500 — full statistical dump (JSON). Reuses the frozen Champion + V8 levers
-(BAL+RSPK+STR+RSIRS) from sector_rotation_exp.py. Oldest data 2005-2026."""
+(BAL+RSPK+STR+RSIRS) from sector_rotation_exp.py. Oldest data 2005-2026.
+
+METRIC BASIS (D142): the `retvol` emitted here (V8 and benchmark alike) is mean/sd annualised with
+NO risk-free rate subtracted — a return/vol ratio, not a Sharpe; it reads high against a textbook
+Sharpe."""
 import sqlite3, math, sys, json
 from collections import defaultdict
 
@@ -175,7 +179,7 @@ def stats(rs_):
     nav = 1.0
     for x in rs_: nav *= 1+x
     yrs = len(rs_)/12
-    return dict(sharpe=round(sh,3), cagr=round(nav**(1/yrs)-1,4), vol=round(sd*math.sqrt(12),4), nav=round(nav,3))
+    return dict(retvol=round(sh,3), cagr=round(nav**(1/yrs)-1,4), vol=round(sd*math.sqrt(12),4), nav=round(nav,3))
 
 # alpha regression + t-stats
 mp, mb = sum(rp)/n, sum(rb)/n

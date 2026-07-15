@@ -3,7 +3,7 @@
 The war-room board for results season: who just reported, what was the Net-Profit surprise (SUE, no
 analysts), did the strong hand confirm it on the tape (delivered value), and — for older events — the
 realized abnormal drift. It is the DESCRIPTIVE product of the 2026-07-05 PEAD study, whose tradeable
-book was falsified (ledger § Experiment 2026-07-05: net Sharpe 0.10 vs bench 0.85). So this is a
+book was falsified (ledger § Experiment 2026-07-05: net return/vol 0.10 vs bench 0.85). So this is a
 scanner in the exact shape of our other descriptive lenses (rotation / rsband / momentum-scan) —
 NOT a signal, NOT a buy list. Every number is realized history or an explicitly labelled base-rate.
 
@@ -282,7 +282,7 @@ def _car_fan_svg(meta, fresh_rows):
         f'<text x="{L}" y="{H-12}" fill="#7e90a8" font-size="10.5">'
         f'▉ top-beat·deliv✓ mean+IQR (n={conf["n"]}) · ▬ thin-delivery · ▬ miss · ▬ all · '
         f'● fresh reporters at +22d — realized history, not a forecast. '
-        f'The tradeable book on this drift FAILED (net Sharpe 0.10 vs index 0.85, hedged −0.58).'
+        f'The tradeable book on this drift FAILED (net return/vol 0.10 vs index 0.85, hedged −0.58).'
         f'</text></svg>')
     return ('<div class="up"><div class="uph">📈 What historically followed — abnormal return '
             'vs Nifty 500, day-by-day after results (14y settled population)</div>'
@@ -452,7 +452,7 @@ def results_reactions(view: str = Query("all")):
             f'sessions</b> (n=235); the same surprise on thin delivery only +3.7%; bad news did not '
             f'drift. Cuts this run: SUE&nbsp;p80={_esc(sue_hi)}, Deliv&nbsp;p67={_esc(dlv_hi)}. These '
             f'are historical averages attached to a cell — <b>never a prediction for any single name</b>. '
-            f'The tradeable version was tested and failed (net Sharpe 0.10 vs index 0.85); this board '
+            f'The tradeable version was tested and failed (net return/vol 0.10 vs index 0.85); this board '
             f'is the honest descriptive residue.</div>',
             '<div class="kpis">'
             f'<div class="kpi"><div class="n">{n_all}</div><div class="l">recent events</div></div>'

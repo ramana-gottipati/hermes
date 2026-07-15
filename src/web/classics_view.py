@@ -4,7 +4,7 @@ Ramana's ask (S145): the name-brand strategies every serious desk respects — M
 CANSLIM, Piotroski, Coffee Can, GARP, Graham, Quality, Low-Vol — catalogued honestly and made
 RUNNABLE as screens over the NSE universe, each with a live top-25 roster the analyst inspects.
 
-Sibling of /dash/factor-league (which ranks the raw factor FAMILIES on OUR measured Sharpe).
+Sibling of /dash/factor-league (which ranks the raw factor FAMILIES on OUR measured return/vol).
 This page is the named, multi-signal STRATEGIES. Rosters come from famous_strategies.py (nightly,
 isolated table classic_roster). Every strategy card states the public rule, the way WE express it,
 and its computability on our point-in-time data — proxies (Magic Formula's E/P; Piotroski's 5-of-9)

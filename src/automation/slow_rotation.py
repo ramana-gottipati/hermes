@@ -2,9 +2,12 @@
 
 THE ONE VALIDATED CORNER of the momentum family (strategy-ledger §§ Tier-1 + cost-realism
 2026-07-02/05c): quarterly-clock, LARGE-CAP-gated (top-quintile turnover), wide hold-band
-LOWVOL_MOM — flat-cost family Sharpe ~1.10, participation-NET ~1.02 @ ₹50cr, beats the
+LOWVOL_MOM — flat-cost family return/vol ~1.10, participation-NET ~1.02 @ ₹50cr, beats the
 index net up to ~₹100-150cr capacity. Every faster / smaller / tighter variant failed net
-of costs. This module maintains the CURRENT quarterly portfolio ANCHOR as data:
+of costs. Those ratios are mean/sd annualised with NO risk-free rate subtracted: return/vol
+ratios, not Sharpes, so they read high against a textbook Sharpe — but the hurdle they are
+compared against is on the same basis, so the verdict is unaffected (D142).
+This module maintains the CURRENT quarterly portfolio ANCHOR as data:
 
   * Universe: latest `momentum_scan` snapshot (nightly, research lane) gated to the top
     turnover QUINTILE of that day (self-scaling; no static rupee threshold).

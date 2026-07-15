@@ -11,6 +11,17 @@ Seeds itself from the committed out/*.csv (factor_zoo, cost_realism) so the whol
 session's testing lands in the DB. Going forward, any backtest calls record_run() and
 the board / a future dashboard READ from here. Run on VPS (.venv-research).
 
+METRIC CONSTRAINT (D142): the `sharpe` / `h1_sharpe` / `h2_sharpe` COLUMNS hold
+mean/sd annualised with NO risk-free rate subtracted — return/vol ratios, not Sharpe
+ratios, so they read high against a textbook Sharpe. The column NAMES are kept as-is
+deliberately: this schema is created with CREATE TABLE IF NOT EXISTS against a live
+research.db, so renaming the DDL would NOT migrate the existing rows — it would
+silently mismatch them. Everything read and rendered says "return/vol"; only the
+on-disk column names remain legacy. A true Sharpe needs a primary-source rf ingest
+(Guardrail #8) and is queued with the TR-benchmark re-cut, which moves the same
+figures. Seeding accepts either header (retvol = current writers, sharpe = the
+committed pre-D142 artifacts).
+
 CLI:  python -m explosive_moves.strategy_store --seed --report
 """
 from __future__ import annotations
@@ -54,10 +65,11 @@ def register(con, name, category, universe, rebalance, status, description):
 
 
 def record_run(con, name, cost_model, m, source, notes=""):
+    # legacy column names hold return/vol ratios — see the module docstring (D142)
     con.execute("""INSERT INTO strategy_runs(name,run_ts,cost_model,sharpe,sortino,cagr_pct,maxdd_pct,
         calmar,ann_cost_pct,capacity_cr,h1_sharpe,h2_sharpe,survives,source,notes)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (name, _now(), cost_model, m.get("sharpe"), m.get("sortino"), m.get("cagr"), m.get("maxdd"),
+        (name, _now(), cost_model, m.get("retvol"), m.get("sortino"), m.get("cagr"), m.get("maxdd"),
          m.get("calmar"), m.get("ann_cost"), m.get("capacity"), m.get("h1"), m.get("h2"),
          m.get("survives"), source, notes))
 
@@ -75,6 +87,18 @@ def _f(v):
         return None
 
 
+def _ratio(r, stem):
+    """Read a return/vol column, tolerating the pre-D142 header name.
+
+    Current writers emit `retvol`/`h1_retvol`/`h2_retvol`; the committed out/*.csv
+    artifacts predate the relabel and carry `sharpe`/`h1_sharpe`/`h2_sharpe`. Same
+    number either way — the rename was vocabulary-only — so accept both rather than
+    silently seeding NULLs from a historical file.
+    """
+    v = r.get(stem.replace("sharpe", "retvol"))
+    return _f(v if v is not None else r.get(stem))
+
+
 def seed(con):
     # --- public factors (flat-cost factor zoo) ---
     fz = os.path.join(OUT, "factor_zoo.csv")
@@ -85,10 +109,10 @@ def seed(con):
                      "survives" if r.get("survives_both_halves") == "YES" else "did-not-survive",
                      "Public factor, flat-cost factor-zoo tearsheet")
             record_run(con, nm, "flat-0.3%/turnover",
-                       {"sharpe": _f(r.get("sharpe")), "sortino": _f(r.get("sortino")),
+                       {"retvol": _ratio(r, "sharpe"), "sortino": _f(r.get("sortino")),
                         "cagr": _f(r.get("cagr_pct")), "maxdd": _f(r.get("maxdd_pct")),
-                        "calmar": _f(r.get("calmar")), "h1": _f(r.get("h1_sharpe")),
-                        "h2": _f(r.get("h2_sharpe")), "survives": r.get("survives_both_halves")},
+                        "calmar": _f(r.get("calmar")), "h1": _ratio(r, "h1_sharpe"),
+                        "h2": _ratio(r, "h2_sharpe"), "survives": r.get("survives_both_halves")},
                        "out/factor_zoo.csv")
     # --- cost-realism configs (the honest tests) ---
     cr = os.path.join(OUT, "cost_realism.csv")
@@ -103,16 +127,16 @@ def seed(con):
                      "benchmark" if isbench else "tested",
                      "Realistic-cost stress / capacity test")
             record_run(con, nm, cm,
-                       {"sharpe": _f(r.get("sharpe")), "cagr": _f(r.get("cagr_pct")),
+                       {"retvol": _ratio(r, "sharpe"), "cagr": _f(r.get("cagr_pct")),
                         "maxdd": _f(r.get("maxdd_pct")), "calmar": _f(r.get("calmar")),
                         "ann_cost": _f(r.get("ann_cost_pct")), "capacity": _f(r.get("cap_med_cr")),
-                        "h1": _f(r.get("h1_sharpe")), "h2": _f(r.get("h2_sharpe"))},
+                        "h1": _ratio(r, "h1_sharpe"), "h2": _ratio(r, "h2_sharpe")},
                        "out/cost_realism.csv")
     con.commit()
 
 
 def report(con):
-    print("=== strategy_registry (latest run per strategy, by Sharpe) ===")
+    print("=== strategy_registry (latest run per strategy, by return/vol) ===")
     rows = con.execute("""
         SELECT g.name, g.category, g.status,
                (SELECT sharpe FROM strategy_runs r WHERE r.name=g.name ORDER BY run_ts DESC LIMIT 1) sh,

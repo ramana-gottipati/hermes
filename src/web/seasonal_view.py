@@ -987,7 +987,7 @@ def _honesty_fence() -> str:
         '<div class="st-fence"><b>Read this honestly:</b>'
         '<ul>'
         '<li><b>Not a signal.</b> Nothing here is tradeable net of STT + market impact — expectancy '
-        '≈ 0 (PEAD, the closest cousin, net-failed 0.10 Sharpe vs 0.85 buy-and-hold). Descriptive '
+        '≈ 0 (PEAD, the closest cousin, net-failed 0.10 return/vol vs 0.85 buy-and-hold). Descriptive '
         'calendar context, never a ranking or an entry.</li>'
         '<li><b>Point-in-time.</b> Every residual and z is computed only from data knowable that year '
         '(annual expanding fit); the frozen hypothesis family was sha256-hashed <i>before</i> any '

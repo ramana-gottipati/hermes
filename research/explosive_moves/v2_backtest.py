@@ -4,7 +4,7 @@ Unified daily engine (25 slots, stop-loss, 0.5%/side cost). Flags:
   score   : 'riskadj' (6m/vol) | 'multi' (0.4 riskadj + 0.3 low-vol + 0.3 delivery)
   exit_top: sell only when a name falls below this rank (buffer; 25=none, 40=buffer)
   vtarget : volatility target (scale exposure down in turbulence) | None
-Reports CAGR / MaxDD / Calmar / Sharpe / 2022 & 2025 (the crash years) / turnover.
+Reports CAGR / MaxDD / Calmar / return-vol / 2022 & 2025 (the crash years) / turnover.
 
 NOTE (CX-02, 2026-06-30): entries are LOOK-AHEAD-CORRECTED. Ranks are computed on the
 rebalance-day close, but new positions now fill at the NEXT bar's open (s+1 open),
@@ -12,6 +12,10 @@ matching the rest of the harness (embase/backtest). Previously they filled at th
 same-day close they were ranked on — a 1-bar look-ahead. Any metrics printed below are
 on the corrected, no-look-ahead basis and are NOT comparable to pre-fix runs; treat
 older v2_backtest numbers as look-ahead-inflated.
+
+The risk-adjusted column is mean/sd annualised with NO risk-free rate subtracted — a
+return/vol ratio, not a Sharpe, and it reads high against a textbook one. A true Sharpe
+needs a primary-source rf ingest (Guardrail #8), queued with the TR-benchmark re-cut. (D142)
 """
 import numpy as np
 from collections import deque
@@ -130,7 +134,7 @@ def run(score="riskadj", exit_top=25, vtarget=None, use_sl=True, dd_brake=None, 
         yr.setdefault(cal[di][:4], []).append(daily[i])
     y22 = np.prod([1 + x for x in yr.get("2022", [0])]) - 1
     y25 = np.prod([1 + x for x in yr.get("2025", [0])]) - 1
-    return {"cagr": cagr, "maxdd": dd, "calmar": cagr / abs(dd), "sharpe": sh,
+    return {"cagr": cagr, "maxdd": dd, "calmar": cagr / abs(dd), "retvol": sh,
             "totx": eq[-1], "y22": y22, "y25": y25, "trades": buys + sells,
             "daily": np.array(daily), "dates": [cal[di] for di in range(start_i, len(cal))]}
 
@@ -145,12 +149,12 @@ configs = [
     ("--- SMOOTH (multi-factor) for contrast ---", None),
     ("multi+buffer + VT0.20", dict(score="multi", exit_top=40, vtarget=0.20, use_sl=False)),
 ]
-print(f"{'config':34}{'CAGR':>7}{'MaxDD':>8}{'Calmar':>7}{'Sharpe':>7}{'2022':>7}{'2025':>7}{'trades':>7}")
+print(f"{'config':34}{'CAGR':>7}{'MaxDD':>8}{'Calmar':>7}{'ret/vol':>7}{'2022':>7}{'2025':>7}{'trades':>7}")
 for name, kw in configs:
     if kw is None:
         print(name); continue
     r = run(**kw)
-    print(f"{name:34}{r['cagr']*100:>6.1f}%{r['maxdd']*100:>7.1f}%{r['calmar']:>7.2f}{r['sharpe']:>7.2f}"
+    print(f"{name:34}{r['cagr']*100:>6.1f}%{r['maxdd']*100:>7.1f}%{r['calmar']:>7.2f}{r['retvol']:>7.2f}"
           f"{r['y22']*100:>6.0f}%{r['y25']*100:>6.0f}%{r['trades']:>7}")
 
 di, ci = index_series("Nifty Midcap 50"); mp = {d: ci[i] for i, d in enumerate(di)}

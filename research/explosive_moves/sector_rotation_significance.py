@@ -60,7 +60,7 @@ LEVERS_R4 = ["V22", "V23", "V24", "V25", "V26", "V27", "V28", "V29", "V30"]
 
 
 # ---- stats primitives ----------------------------------------------------------------
-def sharpe_m(x):
+def retvol_m(x):
     """PER-PERIOD return/vol ratio. The JK/Memmel statistic is defined on per-period ratios;
     feeding it annualised ones inflates z ~3.5x (z=4.56 vs 1.747 for V24-V21) and manufactures
     significance. The DIFFERENCE is annualised for display only, after the test."""
@@ -82,17 +82,17 @@ def norm_cdf(z):
 
 def jk_theta(a, b):
     """Jobson-Korkie (1981) variance of the Sharpe difference, Memmel (2003) correction."""
-    s1, s2, rho = sharpe_m(a), sharpe_m(b), corr(a, b)
+    s1, s2, rho = retvol_m(a), retvol_m(b), corr(a, b)
     return (1.0 / len(a)) * (2 * (1 - rho) + 0.5 * (s1 ** 2 + s2 ** 2 - 2 * s1 * s2 * rho ** 2))
 
 
 def jk_test(a, b):
     th = jk_theta(a, b)
-    d_ann = (sharpe_m(a) - sharpe_m(b)) * math.sqrt(12)
+    d_ann = (retvol_m(a) - retvol_m(b)) * math.sqrt(12)
     if th <= 0:
         return d_ann, corr(a, b), float("nan"), float("nan"), float("nan")
     se_ann = math.sqrt(th) * math.sqrt(12)
-    z = (sharpe_m(a) - sharpe_m(b)) / math.sqrt(th)
+    z = (retvol_m(a) - retvol_m(b)) / math.sqrt(th)
     return d_ann, corr(a, b), se_ann, z, 2 * (1 - norm_cdf(abs(z)))
 
 
@@ -103,7 +103,7 @@ def block_boot(a, b, draws=N_DRAWS, mean_block=MEAN_BLOCK, seed=SEED):
     rng = random.Random(seed)
     n = len(a)
     p = 1.0 / mean_block
-    d_hat = (sharpe_m(a) - sharpe_m(b)) * math.sqrt(12)
+    d_hat = (retvol_m(a) - retvol_m(b)) * math.sqrt(12)
     ds, ts = [], []
     for _ in range(draws):
         ia, ib = [], []
@@ -114,7 +114,7 @@ def block_boot(a, b, draws=N_DRAWS, mean_block=MEAN_BLOCK, seed=SEED):
                 if len(ia) >= n or rng.random() < p:
                     break
                 i = (i + 1) % n
-        d = (sharpe_m(ia) - sharpe_m(ib)) * math.sqrt(12)
+        d = (retvol_m(ia) - retvol_m(ib)) * math.sqrt(12)
         ds.append(d)
         th = jk_theta(ia, ib)
         if th > 0:

@@ -27,12 +27,16 @@ Exit precedence within a bar: stop/trail first, then structural exit (band/5cand
 profit-take, then time. Censored at series end.
 
 ANTI-OVERFIT PROTOCOL: all ten run everywhere; the WINNER is chosen ONLY on the 2012-18 half
-(highest h1 book Sharpe among engines with h1 avg hold >= 8 bars — the churn guard that would
+(highest h1 book return/vol among engines with h1 avg hold >= 8 bars — the churn guard that would
 have rejected the 2-candle rule a priori); the headline result is that winner's UNTOUCHED
-2019-26 Sharpe. Ten-engine selection is disclosed; the full table is published either way.
+2019-26 return/vol. Ten-engine selection is disclosed; the full table is published either way.
+
+METRIC BASIS (D142): every ratio here is mean/sd annualised with NO risk-free rate subtracted — a
+return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe. The 0.79 and 0.89 bars are
+on the SAME basis, so the verdict is unaffected.
 
 PRE-REGISTERED BARS:
-  G-BETTER  = winner's 2019-26 Sharpe >= 0.79 (the known-best exit's h2, fences trail 0.69, +0.10)
+  G-BETTER  = winner's 2019-26 return/vol >= 0.79 (known-best exit's h2, fences trail 0.69, +0.10)
   G-FUNDABLE= winner > 0.89 in BOTH halves (standing index bar; expected FAIL — the entry has no
               edge to protect; exits can only shape the loss). Published to the ledger either way.
 
@@ -282,13 +286,13 @@ def run():
     cands = [(nm, t) for nm, t in table.items()
              if t["book"]["h1"] and t["h1_avg_hold"] and t["h1_avg_hold"] >= HOLD_GUARD]
     if cands:
-        wnm, wt = max(cands, key=lambda x: x[1]["book"]["h1"]["sharpe"])
-        h2s = wt["book"]["h2"]["sharpe"] if wt["book"]["h2"] else None
+        wnm, wt = max(cands, key=lambda x: x[1]["book"]["h1"]["retvol"])
+        h2s = wt["book"]["h2"]["retvol"] if wt["book"]["h2"] else None
         g_better = bool(h2s is not None and h2s >= 0.79)
         g_fund = bool(wt["book"]["h1"] and wt["book"]["h2"]
-                      and wt["book"]["h1"]["sharpe"] > 0.89 and wt["book"]["h2"]["sharpe"] > 0.89)
-        out["WINNER"] = {"engine": wnm, "chosen_on": "h1 Sharpe (hold>=8 guard)",
-                         "h1_sharpe": wt["book"]["h1"]["sharpe"], "oos_h2_sharpe": h2s,
+                      and wt["book"]["h1"]["retvol"] > 0.89 and wt["book"]["h2"]["retvol"] > 0.89)
+        out["WINNER"] = {"engine": wnm, "chosen_on": "h1 return/vol (hold>=8 guard)",
+                         "h1_retvol": wt["book"]["h1"]["retvol"], "oos_h2_retvol": h2s,
                          "G_BETTER_vs_0.79": g_better, "G_FUNDABLE_0.89": g_fund}
         out["VERDICT"] = ("BETTER-EXIT-FOUND" if g_better else "NO-BETTER-EXIT") + \
                          (" + FUNDABLE" if g_fund else " (not fundable)")

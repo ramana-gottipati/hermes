@@ -7,7 +7,13 @@ a real track record. One stable screen: primary chart (picked portfolio vs Nifty
 + comparative chart (all three + benchmark) + stats + current constituents with
 engine-controlled weights + churn feed — and TIME TRAVEL: `?asof=2020-01-15` shows
 the portfolio exactly as it stood then. Eligibility for a model portfolio = superior
-measured Sharpe AND beats the NIFTY hurdle (ledger Tier-1); only these three qualify.
+measured RETURN/VOL AND beats the NIFTY hurdle (ledger Tier-1); only these three qualify.
+
+The criterion says return/vol, not Sharpe, because that is what was measured (D142): the
+research figure it gates on is mean/sd annualised with no risk-free rate subtracted. The
+RULE is unchanged and no book's eligibility moves — the NIFTY hurdle it is compared against
+is computed on the same no-rf basis, so both sides shift together and the verdict is
+identical. Only the name was wrong.
 
 Honesty: NAV is flat-cost (0.3%/side on churn, labeled); STEADY-25 is the only family
 that also survives PARTICIPATION costs — PACER/SPRINTER are gross lenses and say so.
@@ -77,7 +83,7 @@ _STORY = (
     "<p>⏱ <b>PACER-25</b> — the first great refinement: divide the run by the shaking "
     "(return ÷ volatility). Smooth rises predict better than jumpy ones (the "
     "'frog-in-the-pan' effect; volatility-managed momentum). A pacer isn't the fastest "
-    "runner — he holds the strongest <i>sustainable</i> rhythm. Best flat-cost Sharpe of "
+    "runner — he holds the strongest <i>sustainable</i> rhythm. Best flat-cost return/vol of "
     "everything we tested (1.13).</p>"
     "<p>🛠 <b>CRAFTSMAN-25</b> — the blend our factor zoo scored gentlest of the "
     "fast runners: 40% risk-adjusted strength, 30% REAL delivery (are strong hands "
@@ -371,7 +377,7 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
             "Three named portfolios, each churned continuously by its own validated rule "
             "since <b>June 2012</b> — the start of the VALIDATED walk-forward window — fully system-managed: no one (including us) can add "
             "or remove a stock by hand; the engine is the only writer. Eligibility for a "
-            "model portfolio: superior measured Sharpe AND beats the NIFTY on our 14-year "
+            "model portfolio: superior measured return/vol AND beats the NIFTY on our 14-year "
             "record. Descriptive, not advice.")
         + ifx.how_to_read_link()
         + "<div class='rd-htr'><a href='/dash/factor-league'>The league behind these →</a></div>"

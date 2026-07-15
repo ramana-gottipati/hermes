@@ -2,16 +2,19 @@
 
 The recorded 2026-06-24 experiment (strategy-ledger "Experiment 2026-06-24",
 out/overlay_experiment.csv) proved a 4-metric PIT quality lens works as a
-DRAWDOWN CONTROLLER (blend 50/50: MaxDD -42% -> -28.7%, Sharpe 1.18) and left
+DRAWDOWN CONTROLLER (blend 50/50: MaxDD -42% -> -28.7%, return/vol 1.18) and left
 "the fuller lenses" untested. This tests the richer capital-allocation
 composite (ROIIC, ROCE level+trend, dilution drag, debt-funding share, growth
 efficiency — the production src.automation.capital_allocation scorer, on
 CALIBRATED PIT knowable-dates via fundamentals_asof) in the SAME harness:
 identical top-25 monthly construction, relative liquidity gate, net-of-cost,
-walk-forward halves, Nifty500 Sharpe-0.89 survival hurdle — results are
+walk-forward halves, Nifty500 return/vol-0.89 survival hurdle — results are
 directly comparable to the recorded table. D66: C is a veto/filter/overlay
 candidate, never a ranker — variants cover veto, filter, blend, and the
 quality+C stack, head-to-head against the prior quality-blend winner.
+Ratios are mean/sd annualised with NO risk-free rate subtracted — return/vol, not
+Sharpe, so they read high vs a textbook Sharpe; the 0.89 hurdle is on the SAME
+basis, so the survival verdicts hold (D142).
 Read-only (never writes production tables); writes out/c_overlay.csv.
 
 Run (VPS):
@@ -153,27 +156,27 @@ def main():
         stats_row(tables, "H. F (stack) @1.5x cost", sel_stack, cost_mult=1.5),
     ]
 
-    hdr = (f"{'variant':40}{'CAGR':>7}{'MaxDD':>8}{'Shrp':>6}{'Clmr':>6}{'tot':>6}"
-           f"{'H1sh':>6}{'H2sh':>6}{'N':>5}  surv")
+    hdr = (f"{'variant':40}{'CAGR':>7}{'MaxDD':>8}{'retvol':>6}{'Clmr':>6}{'tot':>6}"
+           f"{'H1rv':>6}{'H2rv':>6}{'N':>5}  surv")
     print("\n" + "=" * len(hdr))
-    print("C-OVERLAY RESULTS (top-25 monthly, net cost; hurdle Nifty500 Sharpe 0.89 both halves)")
+    print("C-OVERLAY RESULTS (top-25 monthly, net cost; hurdle Nifty500 return/vol 0.89 both halves)")
     print("=" * len(hdr))
     print(hdr)
     for r in rows:
-        print(f"{r['name']:40}{r['cagr'] * 100:>6.1f}%{r['maxdd'] * 100:>7.1f}%{r['sharpe']:>6.2f}"
-              f"{r['calmar']:>6.2f}{r['totx']:>5.1f}x{(r['h1_sharpe'] or 0):>6.2f}"
-              f"{(r['h2_sharpe'] or 0):>6.2f}{r['avg_n']:>5.0f}  {'YES' if r['surv'] else ''}")
+        print(f"{r['name']:40}{r['cagr'] * 100:>6.1f}%{r['maxdd'] * 100:>7.1f}%{r['retvol']:>6.2f}"
+              f"{r['calmar']:>6.2f}{r['totx']:>5.1f}x{(r['h1_retvol'] or 0):>6.2f}"
+              f"{(r['h2_retvol'] or 0):>6.2f}{r['avg_n']:>5.0f}  {'YES' if r['surv'] else ''}")
 
     out = os.path.join(os.path.dirname(__file__), "out", "c_overlay.csv")
     with open(out, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["variant", "cagr_pct", "maxdd_pct", "sharpe", "calmar", "total_x",
-                    "h1_2012_18_sharpe", "h2_2019_26_sharpe", "h2_cagr_pct",
+        w.writerow(["variant", "cagr_pct", "maxdd_pct", "retvol", "calmar", "total_x",
+                    "h1_2012_18_retvol", "h2_2019_26_retvol", "h2_cagr_pct",
                     "avg_positions", "cost_mult", "survives"])
         for r in rows:
             w.writerow([r["name"], round(r["cagr"] * 100, 1), round(r["maxdd"] * 100, 1),
-                        round(r["sharpe"], 2), round(r["calmar"], 2), round(r["totx"], 1),
-                        round(r["h1_sharpe"] or 0, 2), round(r["h2_sharpe"] or 0, 2),
+                        round(r["retvol"], 2), round(r["calmar"], 2), round(r["totx"], 1),
+                        round(r["h1_retvol"] or 0, 2), round(r["h2_retvol"] or 0, 2),
                         round((r["h2_cagr"] or 0) * 100, 1), round(r["avg_n"], 0),
                         r["cost_mult"], "YES" if r["surv"] else "NO"])
     print("\nsaved -> out/c_overlay.csv")

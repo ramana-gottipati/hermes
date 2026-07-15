@@ -134,7 +134,7 @@ def compute_entry_features(ss: SymbolSeries) -> dict:
     # adj_close (adj_close would re-introduce the D1-F1 raw-qty×adjusted-price trap). The dict KEY
     # stays `deliv_qty_trend` deliberately: it is referenced by factory/features/overlay + frozen
     # OOS rule strings across research/explosive_moves; renaming would break those artifacts.
-    # Verified impact: ~+0.09 Sharpe to QUAL_MOM, ~0 to DELIV_MOM (TRACK-C-RESULTS.md §D5-F6).
+    # Verified impact: ~+0.09 return/vol to QUAL_MOM, ~0 to DELIV_MOM (TRACK-C-RESULTS.md §D5-F6).
     # Live path = nightly momentum_scan → re-verify + deploy after this lands.
     dv = dq * ss.close                       # raw delivered value per day (split-invariant)
     dvm22, dvm66 = _roll_mean(dv, 22), _roll_mean(dv, 66)

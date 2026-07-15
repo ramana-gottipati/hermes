@@ -43,7 +43,7 @@ Glossary paste-block for docs/metrics-glossary.md (words-first names - the S153 
     times with RANDOM picks (same universe, same size, same costs). A rule must beat this,
     not merely beat zero - luck has a high bar. *Source:* evlib placebo machinery.
   - **Capacity breakpoint.** The AUM (Rs cr) at which participation-cost impact kills the
-    edge - the largest AUM whose net Sharpe still beats the benchmark. A rule with no stated
+    edge - the largest AUM whose net return/vol still beats the benchmark. A rule with no stated
     capacity is not a result. *Source:* cost_participation grid scan.
   - **Both halves.** Walk-forward split 2012-18 vs 2019-26: a rule must beat the benchmark in
     BOTH halves or it is noise. *Source:* factory.slice_stats.
@@ -72,8 +72,8 @@ BOTTOM_LINE = ("Write a rule; we run it through the same gauntlet as our own stu
                "and tell you honestly if it works.")
 
 _NUM_ORDER = (  # net FIRST — gross is a footnote (design §3 stage 5)
-    ("net_sharpe", "net Sharpe"), ("gross_sharpe", "gross Sharpe"),
-    ("flat_sharpe", "flat-cost Sharpe"), ("alpha", "alpha (ann.)"), ("beta", "beta"),
+    ("net_retvol", "net return/vol"), ("gross_retvol", "gross return/vol"),
+    ("flat_retvol", "flat-cost return/vol"), ("alpha", "alpha (ann.)"), ("beta", "beta"),
     ("maxdd", "max drawdown"), ("half1", "half 1 (2012-18)"), ("half2", "half 2 (2019-26)"),
     ("placebo_p95", "placebo p95"), ("observed", "observed"), ("emp_p", "empirical p"),
     ("ann_cost_pct", "annual cost %"), ("turnover", "turnover/rebalance"),
@@ -324,7 +324,7 @@ def _demo_verdict() -> dict:
     """Deterministic synthetic demo (never quoted as evidence; provenance says so)."""
     from src.automation.rule_lab import build_verdict
     spec = compile_rule("SELECT liquid500 WHERE not_extended RANK BY mom12 TAKE 25 HOLD quarterly")
-    nums = {"net_sharpe": 0.61, "gross_sharpe": 1.02, "flat_sharpe": 0.84,
+    nums = {"net_retvol": 0.61, "gross_retvol": 1.02, "flat_retvol": 0.84,
             "half1": 0.55, "half2": 0.66, "placebo_p95": 0.40, "observed": 0.61,
             "emp_p": 0.02, "bench_net": 0.89, "capacity_inr": None,
             "maxdd": -0.41, "ann_cost_pct": 6.0, "turnover": 0.38}
@@ -426,7 +426,7 @@ def _selftest() -> int:
     spec = compile_rule("SELECT liquid500 WHERE not_extended RANK BY mom12 TAKE 25 HOLD quarterly")
     q = query_from_spec(spec)
     assert spec_from_query(q) == spec                     # URL round-trip (row 8b)
-    nums = {"net_sharpe": 0.61, "gross_sharpe": 1.02, "half1": 0.55, "half2": 0.66,
+    nums = {"net_retvol": 0.61, "gross_retvol": 1.02, "half1": 0.55, "half2": 0.66,
             "placebo_p95": 0.40, "observed": 0.61, "emp_p": 0.02, "bench_net": 0.89,
             "capacity_inr": None, "maxdd": -0.41, "ann_cost_pct": 6.0}
     v = build_verdict(spec, nums, "selftest", {"env": "selftest"},
@@ -438,7 +438,7 @@ def _selftest() -> int:
     assert 'method="post"' in page                        # writes are POST (row 11)
     assert "WEAKER-THAN-BENCHMARK" in page
     name, text = render_csv(v)
-    assert name.startswith("rule-lab-") and "net Sharpe" in text and "AAA" in text
+    assert name.startswith("rule-lab-") and "net return/vol" in text and "AAA" in text
     # dead-shape page carries the verbatim wall
     dead = compile_rule("SELECT liquid500 RANK BY bookyield TAKE 25 HOLD monthly")
     dv = build_verdict(dead, {}, "selftest", {"env": "selftest"}).to_dict()

@@ -230,7 +230,7 @@ def portfolio(trades, regime_on, strat: Strategy, start_equity=1.0) -> dict:
     # by the taken book, NOT only the days a position happened to be open. The old code
     # used `sorted({d for tr,_ in taken for d in tr["_dates"]})`, which silently dropped
     # every idle (flat, fully-in-cash) day from the series. Compounding then treated a
-    # 3-day idle gap as a single step, which (a) overstates annualized Sharpe/Sortino
+    # 3-day idle gap as a single step, which (a) overstates annualized return/vol and Sortino
     # (std is taken over active days only, fewer near-zero observations), (b) inflates
     # CAGR vs the calendar-time `_years()` denominator, and (c) compresses drawdown
     # DURATION (recovery days off-book vanish). Idle days are real zero-return days and

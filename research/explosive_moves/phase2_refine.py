@@ -1,6 +1,10 @@
 """Phase 2 — refine around the winner (mom12 top-10 5cr, 48% CAGR / -36% DD).
 Add volatility-targeting (cut the drawdown), a mom12+riskadj blend, a valuation filter,
-and finer concentration. Caches the rebalance tables to disk for fast overnight reuse."""
+and finer concentration. Caches the rebalance tables to disk for fast overnight reuse.
+
+The risk-adjusted column is mean/sd annualised with NO risk-free rate subtracted — a
+return/vol ratio, not a Sharpe, and it reads high against a textbook one. A true Sharpe
+needs a primary-source rf ingest (Guardrail #8), queued with the TR-benchmark re-cut. (D142)"""
 import os, pickle
 import numpy as np
 from collections import deque
@@ -104,7 +108,7 @@ configs = [
     ("mom12 top10 +valuation", dict(sig="mom12", topn=10, valfilt=True)),
     ("mom12 top10 +val +VT0.25", dict(sig="mom12", topn=10, vt=0.25, valfilt=True)),
 ]
-print(f"{'config':28}{'CAGR19':>8}{'MaxDD19':>9}{'Sharpe':>7}{'CAGR12-18':>10}")
+print(f"{'config':28}{'CAGR19':>8}{'MaxDD19':>9}{'ret/vol':>7}{'CAGR12-18':>10}")
 for name, kw in configs:
     c19, dd19, sh = bt(floor=5 * CR, lo="2019-01-01", hi="2026-12-31", **kw)
     c12, _, _ = bt(floor=5 * CR, lo="2012-06-01", hi="2018-12-31", **kw)
