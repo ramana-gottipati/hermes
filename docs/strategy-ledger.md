@@ -463,6 +463,85 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15R - CODEX EXTERNAL REVIEW (Ramana-directed): **"today's evidence says HOLD NIFTY NEXT 50."** Confirms the sleeve reading, REJECTS the D6 finding as unproven, finds the 7th error.
+
+**Ramana:** *"relay this information to Codex and ask it to confirm which logic would be most effective."*
+Full-day brief (every config, every number, every bug) -> `codex exec`. Brief archived at
+`docs/codex-review/rs-strategy-brief-2026-07-15.md`. This is an INDEPENDENT verdict (different model
+family, different blind spots) - the point of using Codex over another Claude, which shares mine.
+
+## THE VERDICT
+
+> **"Today's evidence says hold Nifty Next 50. The only experiment still worth funding is not sector
+> rotation. It is stock-level own-sector RS, avoiding the extreme top decile, with low-vol/cost
+> controls, after corporate actions are actually fixed."**
+
+**Q1 - does anything beat Next 50 (13.8%/16.00x)?** **"No."** But scoped precisely: *"Not 'probably
+fails forever.' Just: **not proven, and the current proof points the other way.**"*
+
+**Q2 - is V24's 17.3% the Next-50 sleeve + defensive overlay, not sector selection?** *"More likely
+right than wrong."* **🔴 BUT IT CAUGHT A HOLE IN OUR REASONING: V8-alone is NOT a valid
+marginal-contribution test** - V24 combines assets dynamically. Proving it needs real **ATTRIBUTION**:
+sleeve alone / overlay alone / timing alone / **interaction term**. **We do not have that.** The
+conclusion was asserted without the decomposition that would establish it. **OWED.**
+
+**Q3 - is 15P's "decile 6 dominates decile 10" real?** **"INSUFFICIENT EVIDENCE."** Economically
+plausible, but *"the decile curve is not clean"* - D8/D9/D10 barely differ, everything above D1 is
+flat; could be noise, corporate-action residue, liquidity contamination, or one-window selection.
+**The ONE finding still believed at the end of the session is UNPROVEN.** Falsification test it
+specified: pre-registered decile bands (D1-D10 + bands D5-D7 / D6-D8 / D8-D10 / D10-only), EW and
+inv-vol separately, walk-forward **2005-2011 / 2012-2017 / 2018-2026** - **D6 is real only if the
+middle-high band beats D10 out-of-sample on GEOMETRIC return AND drawdown in >=2 of 3 windows.**
+
+**Q4 - does the 50DMA-cross tie with NO-GATE kill the sector step?** It kills the **tested**
+formulations (+8% RS · RS>50DMA · RS-crossed-50DMA · sign-flip recovery) - *"sector first, then pick
+stocks, has not earned its place"* - **but NOT all.** Four NOT ruled out: **(a) sector as a RISK
+CONTROL** (lowers DD/vol without cutting CAGR) · **(b) BREADTH CONFIRMATION** (sector counts only when
+multiple stocks inside confirm) · **(c) STOCK-FIRST AGGREGATION** (rank by own-sector RS; sector used
+only as a breadth/liquidity sanity check) · **(d) SLOPE/INFLECTION, not state** (RS-level with rising
+slope · RS drawdown recovery · RS crossing its own trend) - **(d) is Ramana's recovery idea in the
+form 15Q never tested.**
+
+## 🔴 Q6 - THE SEVENTH ERROR (we asked it to find one; it did)
+
+**"Treating adjusted stock backtests as 'nearly fixed' while corporate-action incompleteness is still
+large enough to dominate conclusions."** Its list of what the false -50%/-90% cliffs poison is LONGER
+than ours: **RS ranking · volatility estimates · inverse-vol weights · stops · drawdown ·
+SECTOR CORRELATION CLASSIFICATION · death/crash logic.**
+
+**🔴 "sector correlation classification" = 15O's 85.1% assignment validation is ALSO contaminated.**
+Fake split cliffs corrupt the excess-return correlations that assign stocks to sectors. **That 85.1%
+was presented as solid ground; it is not.**
+
+**Two more it named:** (2) the benchmark should ultimately be an **investable TOTAL-RETURN proxy net
+of costs** - *"price-vs-price is acceptable for early diagnosis, not final proof"* (the owed TR re-cut,
+again). (3) **"The V24 result is probably OVERFIT. Four rounds deep, one window, multiple overlays,
+and statistically indistinguishable variants. Treat 17.3% as a research LEAD, not evidence."**
+**We never said that plainly. Ledger D139 already found V24-vs-V32 indistinguishable (p=0.745).**
+
+## Q5 - THE ONE EXPERIMENT IT ENDORSES (gated on the NSE corporate-action ingest FIRST)
+
+**Stock-first. Sector used for CLASSIFICATION, not GATING.** Universe EQ+BE+BZ, **prior-month/quarter
+ADV only** (no same-month), stale-price names excluded. PIT sector by trailing-500d excess-return
+correlation. Each quarter: stock RS vs its **inferred own sector** (6m or 12m) -> rank **within** the
+sector -> select the **UPPER-MIDDLE band (D5-8 / D6-8), NOT the top decile** -> **inverse-vol weights,
+capped per stock AND per sector** -> **<=40 names** -> costs >=0.15%/side **plus an ADV-tied slippage
+model** -> **no sector gate initially**.
+**Compare against:** Nifty Next 50 · Nifty 500 · the top-decile version · the no-RS equal-weight
+liquid universe · a low-vol-only universe.
+**PRE-REGISTERED PASS/FAIL:** must **beat Nifty Next 50 CAGR after costs** · **not by beta alone** ·
+**beat top-decile on GEOMETRIC return** · **survive 3 walk-forward windows** · lower drawdown or
+materially higher return than Next 50.
+*"This directly tests the only surviving hypothesis: RS has some edge, but the extreme winners pay too
+much volatility tax, so 'good plus low-vol' may be better than 'best.'"*
+
+## STANDING
+
+**Ramana's architecture survives in exactly ONE form: stocks first, sector as a LABEL not a gate, the
+GOOD band not the best, sized by volatility - and it must clear 13.8% net.** Everything else in the
+day's work is either falsified or unproven. **Nothing may be run on the stock layer until
+`corporate_actions` is completed from NSE (primary source, Guardrail #8-clean).**
+
 ### 2026-07-15Q - ❌ THE RS TURN carries NO forward information (Ramana's recovery idea, as formulated). All four cells within ONE standard error.
 
 **Ramana, 2026-07-15:** *"if you keep going behind the first rank, it is already first rank. You will not be
