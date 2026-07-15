@@ -213,7 +213,9 @@ def llm_rewrite(brief: dict, *, llm_fn=None, hermes_db: str = HERMES_DB,
     fact_block = "\n".join(brief["lines"][:-3])  # facts only; tail re-appended below
     system = ("You rewrite factual finance notes in plain, calm English. Keep EVERY "
               "number exactly as given, add NO new numbers, no advice, no verbs that "
-              "urge action. Return 4 to 6 short lines, one sentence each.")
+              "urge action. The surprise figure is measured against the company's OWN "
+              "history (no analysts) — never say 'expectations'; say 'vs its own history'. "
+              "Return 4 to 6 short lines, one sentence each.")
     try:
         rewritten = (llm_fn(system, fact_block) or "").strip()
     except Exception:
