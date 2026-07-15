@@ -463,6 +463,97 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15O - 🔴🔴 CORPORATE-ACTION BUG: raw bhavcopy prices are UNADJUSTED. **RETRACTS 15j / 15k / 15L / 15M in full.** Worth ~16pp of CAGR. Guardrail #5 was violated all session.
+
+**THE BUG.** `bhavcopy_rows.close` is the RAW traded price - **NOT adjusted for splits or bonuses.**
+A 1:2 bonus reads as **-50%**; a 10:1 face-value split reads as **-90%**. **`index_rows.close_value` IS
+adjusted** (indices handle corporate actions), so **every stock-vs-index comparison made this session was
+rigged against the stock.** Every stock script filtered on price -> all of them inherited it.
+
+**The project's OWN standing rule warned about exactly this and was violated in every stock script today:
+CLAUDE.md Guardrail #5 - "Value > quantity. All cross-time-period stock metrics use rupees, not share count.
+**Eliminates corporate-action adjustment bugs.**"**
+
+**EVIDENCE (measured, not argued):**
+
+| check | count |
+|---|---|
+| `corporate_actions` rows / symbols (2004-2026) | **26,891 / 2,546** |
+| action mix | DIVIDEND 22,622 · OTHER 1,948 · **BONUS 716** · **SPLIT 669** · RIGHTS 368 · BUYBACK 345 |
+| EQ one-day drops worse than **-40%** | **1,489** |
+| ...of those, **within 3 days of a corporate action** | **973 = 65%** |
+
+**THE FIX + ITS VALIDATION** (`research/explosive_moves/adjust.py`, `adjust_validate.py`). Conventions verified
+against the data: **SPLIT** `ratio_from=10, ratio_to=1` = "Face Value Split Rs10->Rs1" -> factor
+`ratio_from/ratio_to`; **BONUS** `ratio_from=5, ratio_to=1` = "Bonus 5:1" (5 new per 1 held, shares x6) ->
+factor `(ratio_from+ratio_to)/ratio_to`. Prices before an ex_date are divided by the cumulative product of all
+later factors. **832 symbols / 1,224 events adjusted.**
+
+| EQ series | drops < -40% | drops < -60% | of the -40% ones, near a corporate action |
+|---|---|---|---|
+| UNADJUSTED | 2,238 | 980 | **978** |
+| **ADJUSTED** | 1,408 | 553 | **202** |
+
+**79% of corporate-action artefacts removed (978 -> 202); the surviving 1,408 deep drops are genuine crashes.**
+Residual, disclosed: the **157 SPLIT rows lacking ratios** (512/669 usable; BONUS 712/716) and **RIGHTS (368)
+are NOT handled**. **DIVIDENDS deliberately NOT adjusted** - the benchmark is a PRICE index (Nifty 500 price,
+not TRI), so omitting dividends from both sides keeps it like-for-like.
+
+## 🔴 RETRACTED IN FULL - do NOT cite any of these
+
+| entry | claim now VOID | why |
+|---|---|---|
+| **15j** | "naive RS book loses, alpha -0.5%/yr; family beta-not-skill confirmed" | price-based returns |
+| **15k** | "exits fix RISK not return; alpha dies at 2% slippage" | **worst-hit: a split looks like -90% and FIRES EVERY STOP** - the exit test was structurally corrupted |
+| **15L** | "selection +1.73%/qtr", "the pond loses -4.9%/yr", "Nifty 500 self-culls" | forward returns price-based |
+| **15M** | **"REJECT the unconditioned RS stock family - ~30 variants, ZERO beat Nifty 500"** | **the family was never honestly tested** |
+
+**The magnitude is not marginal: on Ramana's own sector-conditioned book the fix moved CAGR from -9.5% to
++7.1% - ~16 percentage points.** And it lands HARDEST on momentum names: **a stock that just beat its sector
+by 30% is precisely the one that then announces a bonus**, so the bug attacked the treatment group. Any
+verdict on a momentum/RS book built from raw prices is worthless. **15N (the SECTOR ladder) is UNAFFECTED** -
+it uses `index_rows` only, which is adjusted.
+
+## FIRST HONEST RUN OF RAMANA'S ACTUAL DESIGN (`sector_stock_book_adj.py`) - INCONCLUSIVE, not a verdict
+
+**Design (his words, 2026-07-15):** *"When you identify a sector, you should select a stock only from that
+sector... consider both the minor index and the broader index together, and identify a reasonable percentage."*
+Built as: sector gate (>+8% RS vs Nifty 500) -> stocks assigned to sectors by **PIT correlation** -> stock must
+beat **BOTH** its own sector index AND Nifty 500 -> equal-weight, quarterly, adjusted prices, EQ+BE+BZ.
+
+**✅ THE 15i BLOCKER IS DISSOLVED - membership is NOT needed.** `sector_assign_validate.py`: assigning a stock
+to the sector index its EXCESS returns correlate with most (trailing 500d) reproduces **NSE's own labels at
+85.1% top-1 / 93.1% top-3** (random = 6.2%), on 202 symbols with real labels. **Excess-vs-excess is the trick**
+(raw correlation just measures shared market beta). **Every weak sector is an OVERLAPPING one** - Bank 1/3,
+Private Bank 3/5, Financial Services 11/6, Infrastructure 4/8 - i.e. the method picking an equally-correct
+sibling index, so true accuracy is higher. **This works for DEAD companies too** (they have returns to their
+last day) -> the full 21 years are testable with **NO classification job** (15i's ~1,973-name job is MOOT).
+
+**Result, 2006-2026 (bench CAGR 11.7% / retvol 0.55 / 8.97x on this later start):**
+
+| config | CAGR | retvol | MaxDD | beta | alpha | Rs1Cr -> |
+|---|---|---|---|---|---|---|
+| sector+10% / broad+0% | 7.1% | 0.38 | -81.0% | 0.90 | -0.5% | 3.88 |
+| sector+30% / broad+0% | 6.5% | 0.36 | -87.7% | 0.88 | +0.7% | 3.49 |
+| top60 cap10/sector | **8.1%** | 0.42 | -80.2% | 0.84 | **+0.8%** | 4.63 |
+
+**⚠ THIS IS NOT A FAIR TEST OF THE DESIGN AND MUST NOT BE RECORDED AS ONE.** The harness has the sector gate
+and the stock picker but **NONE of V24's risk machinery**: no 30% per-sector cap, **no residual sleeve**, no
+RS-peak/stretch/RSI-of-RS tapers, no hysteresis. With **only ~2.6 sectors qualifying on average**, the book is
+~14 stocks from 2-3 sectors, **100% invested, equal-weighted** - the -81% drawdown is that omission, not the
+idea. **Broad-index threshold is inert** (+0% to +30% changes nothing) because the sector gate already implies
+it - expected, not a bug.
+
+**OWED NEXT (the actually-fair test):** give the stock book **V24's full structure** (30% cap, sleeve,
+tapers, hysteresis, and 15N's ★trail-20% cull) and re-run. Only then is Ramana's design measured.
+
+**METHOD SCOREBOARD - 6 unchecked assumptions, 6 retractions, one session:** 15h ETF legs · 15i survivorship ·
+15j hysteresis transfer · 15k fill quality · 15L the `series` filter · **15O corporate actions (the deepest -
+it sat in the DATA LAYER under every model, and the repo's own Guardrail #5 named it in advance).**
+**RULE: before ANY stock-level study - (a) `select action_type, count(*) from corporate_actions group by 1`,
+(b) `select series, count(*) from bhavcopy_rows group by 1`, (c) re-read Guardrail #5.** Ramana caught the
+symptom by asking the one question never asked: *"Why are you looking at the whole universe?"*
+
 ### 2026-07-15N - TARGET RESET (Ramana: 12.8% -> 17.3% -> aim 20-22%). Wider pond FAILS. The CULL works on sectors too - but pays in RISK, not return. ★V24+TRAIL-20% = same CAGR, MaxDD -37.7%->-30.2%, halves 0.99/0.99.
 
 **Context - the arithmetic correction that reset the target.** Ramana proposed 60-70% CAGR, reasoning
@@ -557,6 +648,8 @@ defines its job precisely: **fix the pond, do not pick better.**
 
 ### 2026-07-15M - ❌ FINAL: the CULL is real (+6.1pp alpha, Ramana's idea, the biggest lever of the day) but does NOT close the pond gap. The unconditioned RS stock family is REJECTED.
 
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
+
 **Module:** `research/explosive_moves/stock_rs_exits_fix.py` (the 15k harness on 15L's **corrected EQ+BE+BZ**
 universe). Ramana authorised the re-run: *"Go ahead and run it."* This is the settled verdict for the family.
 
@@ -632,6 +725,8 @@ are the missing mechanism · a strategy must handle names that collapse). **Audi
 BEFORE the strategy; treat every first-pass number as provisional until its friction test runs.**
 
 ### 2026-07-15L - 🔴 DATA BUG (`series='EQ'`) INVALIDATED 15j/15k + the decomposition that answers "why do index-beating stocks make an index-losing book?"
+
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
 
 **Ramana, 2026-07-15:** *"We are identifying the stocks that outperform Nifty. In that case, what
 happened? Have you checked it? Have you done your analysis?"* **The right question, never asked.** 15j/15k
@@ -723,6 +818,8 @@ strategy: `select series, count(*) from bhavcopy_rows group by series` would hav
 
 ### 2026-07-15k - EXITS (Ramana-directed): they FIX THE RISK but NOT the return - the +3.5% alpha was a frictionless-fill artifact. Fill quality is now THE deciding variable.
 
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
+
 **Module:** `research/explosive_moves/stock_rs_exits.py` (read-only). Same PIT-clean, survivorship-free
 bhavcopy universe as 15j (dead companies included). Stops checked against each month's **LOW** (min of daily
 lows), so a stop fires when price actually reached it intramonth.
@@ -800,6 +897,8 @@ until its friction test runs.**
 book already delivering **beta 0.78 / MaxDD -50.6% net of 2% slip**, not just the raw index.
 
 ### 2026-07-15j - FIRST HONEST STOCK BOOK: PIT-clean stock RS **LOSES to Nifty 500 at every setting** (~20 variants, 21y, zero survivorship). Naive alpha -0.5%/yr; hysteresis makes it WORSE.
+
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
 
 **Module:** `research/explosive_moves/stock_rs_pit2.py` (read-only; `.venv/bin/python ... data/hermes.db`).
 **Built because Ramana asked "what alpha have we generated?" and the honest answer was "none - nothing exists".**
