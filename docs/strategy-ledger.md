@@ -643,6 +643,90 @@ assumed worst-decile) and report the RANGE. An honest error bar beats a fake poi
 (t=1.99)**; only LOWVOL_MOM qtr large-cap fundable (1.02 @₹50cr); stock legs cost more than index legs.
 **A constituent build that merely MATCHES the sector-index book is a REJECTION, not a result.**
 
+### 2026-07-15j — THE STOCK LAYER, FIRST SIMULATION (Ramana's two-step method, run end-to-end): REJECTED under the pre-registered bar — worse risk-adjusted, worse drawdown, and the gross uplift is a cost illusion
+
+**What ran.** Ramana's exact design, built and simulated: **Step 1 (sector selection) = V24, UNTOUCHED** — the
+validated engine's own `build()`/`kill_on()`/quarterly clock, called directly, never re-derived. **Step 2 (stock
+selection, NEW)** — inside each qualifying sector, rank its stock universe by **RS-excess vs that stock's OWN
+sector composite** (trailing 6m stock return minus the trailing 6m equal-weighted sector-universe return) — his
+own discriminator, verbatim: *"if a stock is performing well within its NARROW index, we will target it."* Top
+~4–8 names/sector selected, weight = sector-weight × RS-rank, 12%/name cap, **whole portfolio capped at 33
+names** (his instruction: "a ceiling of 30 to 35 stocks… about a crore"). Module:
+`research/explosive_moves/sector_stock_layer.py` — self-contained, reproducible, run **read-only against the
+real production DB** (not a scratch extract).
+
+**The universe — genuine primary source, one disclosed limitation.** Each of V24's 16 sectors' OWN current
+(2026-07-15) official NSE constituent list, fetched live from `niftyindices.com/IndexConstituent/<slug>.csv`
+(the SAME access pattern already approved and used by `src/automation/membership.py`) — UNION'd with the
+Nifty-500's current "Industry" tag wherever the match is unambiguous (Auto 15→39, IT 10→27, FMCG 15→28, Metal
+15→20, etc.; Bank/PSU Bank/Private Bank/Financial Services/Infrastructure/Media/Healthcare/Pharma deliberately
+left un-widened — their broad Industry tags overlap ambiguously). **268 distinct symbols, 16 sectors**,
+committed as a dated snapshot `research/explosive_moves/nse_sector_classification_2026-07-15/` (91 KB, 17
+CSVs) so the module is reproducible without re-fetching. Zero Screener dependency (Guardrail #8 clean).
+
+**🔴 DISCLOSED LIMITATION (read before quoting any number, per the 15h standing rule — above the stat, not
+buried):** this universe is **CURRENT-DAY classification applied statically across 2005–2026**. This is **NOT**
+the survivorship trap 15h/15i already banned (today's narrow INDEX MEMBERSHIP standing in for 2011's, which
+structurally selects names that EARNED their way in by outperforming) — industry/sector classification is not a
+performance filter, so the bias is structurally much smaller — but it is real: a stock that changed industry, or
+that delisted before 2026-07-15, is mis-handled. **It fails CONSERVATIVE, the opposite direction from the banned
+mistake: delisted names are EXCLUDED from the universe entirely, never fabricated a performance.** This is a
+first, honestly-scoped, genuinely primary-sourced simulation on **268 live names** — not yet the canon's
+ultimate ~1,973-symbol PIT-safe build (§15i) with its ~280 dead names and two-sided bias bound. That remains
+owed; this is real, useful evidence in the meantime, not a substitute for it.
+
+**Results — n=258 months (21.5y), reproduced against production `data/hermes.db`, three cost scenarios to
+separate the COST story from the SELECTION story (stock legs cost more than index legs, per the pre-registered
+bar — the flat index-ETF assumption of 0.15%/side is NOT realistic for individual mid/small-caps):**
+
+| | ret/vol | H1/H2 | CAGR | MaxDD | ₹1Cr → | vs V24 (index-only, §15g) |
+|---|---|---|---|---|---|---|
+| Gross (0.15%/side, same as index — a floor, not a claim) | 0.817 | 0.86/0.77 | 17.82% | −42.8% | ₹33.99 | CAGR/wealth BEATS V24; ret/vol and MaxDD do not |
+| **Realistic (0.40%/side — the disclosed assumption)** | **0.775** | **0.83/0.71** | **16.66%** | **−43.2%** | **₹27.47** | **loses on ret/vol, MaxDD, CAGR, wealth** |
+| Stress (0.70%/side) | 0.723 | 0.79/0.65 | 15.28% | −43.8% | ₹21.25 | loses on everything, by more |
+| **V24 (index-only, for reference)** | **0.911** | **0.92/0.91** | **17.2%** | **−37.7%** | **₹30.35** | — |
+| Nifty 500 buy-and-hold (same window) | 0.637 | 0.58/0.78 | 12.51% | −62.0% | ₹12.60 | both stock-layer and V24 clear this easily |
+
+**Verdict: REJECTED under the pre-registered bar, at the disclosed realistic cost.** At 0.40%/side the stock
+layer does not beat V24 on return/vol (0.775 vs 0.911), MaxDD (−43.2% vs −37.7%), CAGR (16.7% vs 17.2%), or
+terminal wealth (₹27.47 vs ₹30.35) — it roughly re-derives V21's numbers (0.875/₹27.02) with a WORSE risk profile.
+This is not a coin-flip miss; it fails on every axis simultaneously.
+
+**The honest, non-obvious part — the shortfall is BOTH a cost story AND a concentration story, and the second
+one is NOT a cost artifact.** Gross of realistic cost (the 0.15% row), the two-step method DOES show real
+excess wealth and CAGR over V24 (₹33.99 vs ₹30.35; 17.8% vs 17.2%) — picking top-RS-within-sector stocks carries
+a genuine gross signal, consistent with momentum being real-but-costly everywhere else in this ledger. **But the
+drawdown is WORSE than V24 at EVERY cost level tested, including gross** (−42.8% to −43.8% vs V24's −37.7%) —
+concentrating ~20–29 individual names inside a hot sector is inherently riskier than holding the whole
+diversified sector index, and this is a **structural, not a cost-driven**, effect: idiosyncratic single-stock
+risk is not compensated on a risk-adjusted basis here (ret/vol never reaches V24's 0.911 at any cost tested).
+Realistic transaction costs then erode most of the gross wealth edge on top of that (₹33.99→₹27.47→₹21.25 across
+the three scenarios) — the SAME "no fundable equity-factor edge beats holding the index net of cost" finding this
+whole ledger has recorded repeatedly, now confirmed at the within-sector stock-selection layer too.
+
+**Sanity checks run before trusting the number (a naive engine bug was the live risk, not a fluke result):**
+holdings inspected for 3 recent quarters — real, sector-consistent, recognizable Indian names (FORTIS/LAURUSLABS/
+BPCL/SBIN/AXISBANK/RELIANCE/ONGC/COALINDIA…), never garbage; portfolio weights always sum to ≤1 (residual to
+sleeve); per-name cap (12%) and total cap (33) both respected in every quarter (max observed 32); **3/86 quarters
+had zero picks** (pure cash/sleeve, matching V24's own occasional all-cash quarters — not an artifact); **median
+22 stocks/quarter** when invested (below the 30–35 ceiling because selection genuinely REQUIRES positive
+RS-excess vs the sector's own composite — the engine does not force-fill to hit a quota, a real economic
+constraint, not underbuilding).
+
+**Owed before this can be called final (do not re-run hoping for a different number without these):** ① the
+canon's ~1,973-symbol PIT-safe classification with the two-sided dead-name bias bound (§15i) — this 268-name
+live-only cut is a first pass, not that build; ② a real per-name ADV/impact cost model replacing the flat
+0.40%/side proxy (same rigor item as the sector layer's own owed instrument audit, §6-bis); ③ a significance
+pass on THIS result (same JK/bootstrap/MDE discipline as §15i) before treating even the REJECTION as more than
+directionally solid — n=258 with a 6/16-sector-average book has real estimation noise too.
+
+**Sample current holdings (2026-04-01, the latest quarter, at the disclosed 0.40%/side cost) — for illustration,
+not a live recommendation (this ladder is DESCRIPTIVE, per §15h; the bar above says REJECT):** 29 names, led by
+BHARATFORG 8.8%, MRPL 7.6%, SHRIRAMFIN 7.2%, ONGC 6.6%, BSE 6.4%, CHENNPETRO 6.1%, SBIN 5.9% — drawn from the
+7 sectors that qualified that quarter (Financial Services 23%, Oil & Gas 24%, Auto 17%, Healthcare 11%,
+Infrastructure 10%, PSU Bank 9%, Metal 6% of the invested book). Full 86-quarter holdings history in
+`research/explosive_moves/out/sector_stock_layer_result.json`.
+
 ### 2026-07-15h — 🔴 SCOPE FLAW (Ramana-caught): the entire V8→V32 ladder selects SECTORS, never STOCKS — half the brief was never built, and the index expression may not be tradeable
 
 **Ramana, 2026-07-15:** *"I have noticed major flaws… you are identifying that this will drive the stock. What

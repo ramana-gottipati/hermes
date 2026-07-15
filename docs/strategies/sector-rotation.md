@@ -82,7 +82,7 @@
 > constituent build, not more tuning of a layer that may be unbuyable in ~⅜ of sectors.)*
 
 > **Class:** CANONICAL reference (permanent — do not archive).
-> **Status:** **RESEARCH — CONDITIONAL · SECTOR-LAYER ONLY (see SCOPE above).** The candidate ladder: **V8** = the FROZEN base (Ramana-ratified; smart-beta tilt) → **V17** = defensive residual fill (recorded candidate) → **V21** = + Next-50 sleeve + recovery-accelerator + inverse-vol (**LIVE default on `/dash/sector-rotation`, and it stays there**) → **V24** (official shorthand for **V21 + own-percentile RSI-of-RS**, Ramana's naming, 2026-07-15g) = **the designated carry-forward layer — on MECHANISM grounds, not evidence** (return/vol 0.91, MaxDD −37.7%, ₹1 Cr → ₹30.35 Cr vs Nifty 500's ₹12.60 Cr / Nifty 100's ₹11.93 Cr / Nifty 50's ₹11.35 Cr; its edge over V21 is **not statistically established** — §15i). **V32** (V24 + adaptive hysteresis band) = **RETIRED as a distinct candidate** (§15i: provably indistinguishable from V24 — 0.013 gap vs a 0.148 noise floor — and strictly more complex). Long-only; short/F&O leg REJECTED. **The portfolio surface is LIVE** — `/dash/sector-rotation` with `?asof=` time-travel + per-rebalance diffs; **runs V21, and nothing is promoted to it** (§15h: the V24 designation is *what the stock build sits on*, not a promotion). · **Governing record:** [strategy-ledger.md](../strategy-ledger.md) §§ 2026-07-15 → 2026-07-15i · D136.
+> **Status:** **RESEARCH — CONDITIONAL · SECTOR-LAYER ONLY (see SCOPE above).** The candidate ladder: **V8** = the FROZEN base (Ramana-ratified; smart-beta tilt) → **V17** = defensive residual fill (recorded candidate) → **V21** = + Next-50 sleeve + recovery-accelerator + inverse-vol (**LIVE default on `/dash/sector-rotation`, and it stays there**) → **V24** (official shorthand for **V21 + own-percentile RSI-of-RS**, Ramana's naming, 2026-07-15g) = **the designated carry-forward layer — on MECHANISM grounds, not evidence** (return/vol 0.91, MaxDD −37.7%, ₹1 Cr → ₹30.35 Cr vs Nifty 500's ₹12.60 Cr / Nifty 100's ₹11.93 Cr / Nifty 50's ₹11.35 Cr; its edge over V21 is **not statistically established** — §15i). **V32** (V24 + adaptive hysteresis band) = **RETIRED as a distinct candidate** (§15i: provably indistinguishable from V24 — 0.013 gap vs a 0.148 noise floor — and strictly more complex). Long-only; short/F&O leg REJECTED. **The portfolio surface is LIVE** — `/dash/sector-rotation` with `?asof=` time-travel + per-rebalance diffs; **runs V21, and nothing is promoted to it** (§15h: the V24 designation is *what the stock build sits on*, not a promotion). **The stock layer (§9 #1) has now been SIMULATED once — REJECTED under the pre-registered bar at realistic cost** (worse return/vol, MaxDD, CAGR and wealth than V24; §2026-07-15j); the ~1,973-symbol PIT-safe build remains the target for a fuller test. · **Governing record:** [strategy-ledger.md](../strategy-ledger.md) §§ 2026-07-15 → 2026-07-15j · D136 · D141.
 > **Origin:** 🧑 RAMANA (the strategy concept and every lever: RS-weighted multi-sector longs, balanced newcomers, own-peak-RS taper, stretch/σ taper, RSI-of-RS overbought exit, reduce-and-wait cash discipline) + 🏠 HOUSE implementation & falsification harness. See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference. Result numbers live ONLY in [strategy-ledger.md](../strategy-ledger.md); code + exact constants live in `research/explosive_moves/sector_rotation.py` (V1 round) · `sector_rotation_exp.py` (V2–V8 ablation) · `sector_rotation_exp2.py` (V9–V17 round + the V17 reference implementation) · `sector_rotation_stats.py` (dated stats/t-stats). This page states the RULESET (definitional) and links the rest.
 
@@ -204,7 +204,37 @@ ladder. Until then, treat every number as an **upper bound on a paper portfolio*
 - **A real negative-interaction lesson (2026-07-15f):** V26 (persistence) is a clean win ALONE but HURTS when
   combined with V24 — its "wait 2 quarters" delays V24's faster reaction. Individually-validated levers do not
   always combine additively; every combination needs its own test.
-### 🔴 #1 — THE STOCK BUILD (the missing half; SCOPED 2026-07-15i — feasible, gated on ONE dataset)
+### 🔴 #1 — THE STOCK BUILD — FIRST SIMULATION RUN (2026-07-15j): REJECTED under the pre-registered bar
+
+**Ramana's two-step method has now been BUILT and SIMULATED end-to-end** — Step 1 (sector selection) = V24,
+untouched; Step 2 (stock selection, new) = rank each qualifying sector's stock universe by RS-excess vs its OWN
+sector composite, top 4–8/sector, portfolio capped at **33 names** (his instruction: "30 to 35 stocks… about a
+crore"). Module: `research/explosive_moves/sector_stock_layer.py`, reproducible, run read-only against the real
+production DB. Universe: 268 real symbols across the 16 sectors, from genuine current NSE/niftyindices.com
+classification (Guardrail #8-clean) — **narrower than the ~1,973-symbol PIT-safe build below (still owed), and
+current-day classification applied statically backward (disclosed; fails CONSERVATIVE — dead names excluded,
+not fabricated a performance)** — a first, honest pass, not the final build.
+
+**Verdict: REJECTED, at the realistic disclosed cost (0.40%/side).** Return/vol **0.775** vs V24's **0.911**;
+MaxDD **−43.2%** vs V24's **−37.7%**; CAGR **16.7%** vs **17.2%**; ₹1 Cr → **₹27.47 Cr** vs **₹30.35 Cr**. Loses
+on every axis. **The honest nuance:** gross of realistic cost, the method DOES show real excess wealth/CAGR over
+V24 (₹33.99 Cr / 17.8%) — genuine gross signal from picking top-RS-within-sector names — but **drawdown is worse
+than V24 at every cost level tested, including gross** (a structural concentration effect, not a cost artifact:
+~20-29 individual names are inherently riskier than the whole diversified sector index). Realistic transaction
+costs then erode most of the gross wealth edge (₹33.99→₹27.47→₹21.25 as the assumed cost rises 0.15%→0.40%→0.70%)
+— the SAME "no fundable edge beats the index net of cost" finding recorded everywhere else in this ledger, now
+confirmed at the within-sector stock-selection layer too. Sample current book (2026-04-01, 29 names, real
+holdings incl. BHARATFORG/MRPL/SHRIRAMFIN/ONGC/BSE/SBIN) and the full number set: **ledger §2026-07-15j.**
+
+**Still owed before this is the final word (do not re-run hoping for a different number without these):** the
+~1,973-symbol PIT-safe classification below (this run used 268 live-only names); a real per-name ADV/impact cost
+model (this run used a flat 0.40%/side proxy); a significance pass on this result (same JK/bootstrap discipline
+as §15i). **The data-feasibility spec below is UNCHANGED and remains the target build** — this first pass ran
+the SIMPLER, immediately-available version of it, not a substitute for it.
+
+---
+
+#### The original spec (SCOPED 2026-07-15i — feasible, gated on ONE dataset; the target for the next iteration)
 
 **Ramana's design (his words, 2026-07-15 — this is the spec, do not paraphrase it away):** invest **directly in
 stocks**, because *"for media, realty, consumer durables we cannot invest directly; we must invest through the

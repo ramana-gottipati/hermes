@@ -195,6 +195,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - `src/web/sector_rotation_view.py` — `/dash/sector-rotation` (Lens, strategies altitude; durable `_ROUTER_SPECS` mount): `?asof=` time-travel + rebalance diffs + analytics-to-date vs Nifty 500 + sleeve regime + CSV; education scaffold + `not_reco` fence; defensive empty-state.
 - `research/explosive_moves/sector_rotation{,_exp,_exp2,_stats}.py` — the V1 round · V2–V8 ablation · V9–V17 round (V17 reference impl) · dated stats/t-stats. Numbers single-sourced in `docs/strategy-ledger.md` §§ 2026-07-15/15b/15c; ruleset in `docs/strategies/sector-rotation.md`.
 - `research/explosive_moves/sector_rotation_significance.py` — **the significance pass (D139, ledger §2026-07-15i)**: is the V21→V24→V32 ladder distinguishable from noise? (Answer: **no**.) JK/Memmel difference-of-Sharpe + paired stationary block bootstrap (percentile/pivotal/**studentized**) + power/MDE + measured selection deflation + the effective-sample count + the no-rf reconciliation. **Does NOT re-implement the engine** — exec's `sector_rotation_exp4.py` above its driver and calls its `simulate()`; **self-gates on reproducing §15f/§15g and exits non-zero if it ever stops.** Stdlib-only, deterministic (seed 20260715). Run: `python research/explosive_moves/sector_rotation_significance.py <db>`.
+- `research/explosive_moves/sector_stock_layer.py` — **the two-step method, first simulation (D141, ledger §2026-07-15j)**: Ramana's sector→stock design, run end-to-end. **Step 1 = V24, exec'd untouched** (same trick as the significance module — no re-derivation). **Step 2 (new)** ranks each qualifying sector's stock universe by RS-excess vs its OWN sector composite, caps the book at 33 names. Universe = `research/explosive_moves/nse_sector_classification_2026-07-15/` (17 committed CSVs, 91 KB, genuine niftyindices.com primary source, 268 symbols/16 sectors) — a dated snapshot so the module never re-fetches to reproduce. **REJECTED at realistic cost** (0.775 ret/vol vs V24's 0.911; worse MaxDD/CAGR/wealth); disclosed limitation = current-day classification applied statically backward (fails conservative — dead names excluded, not fabricated). Run: `python research/explosive_moves/sector_stock_layer.py <db> [stock_cost_bps]` (default 40bps/side; pass 15 for gross, 70 for stress) — read-only, safe against production.
 
 **D134 wave-3 — entity graph (S155) — new:**
 - `src/automation/entity_graph.py` — L2 relationship edges: own `entity_edges(src_kind, src_id, dst_kind, dst_id, edge_kind, first_seen, last_seen, n_events, source_ref)`; 6 extractors over the insider/SAST/pledge/deals/ratings tables we already own; idempotent `rebuild()`; `neighborhood(symbol)` → edges + co-links (shared counterpart across companies, with `via` provenance); `stats()`; CLI `--rebuild/--neighborhood/--stats/--selftest`. **DESCRIPTIVE ONLY — no score column exists by design** (ledger E-03 placebo p95 +9.52% > observed +8.26% · accumulation-footprint FAIL 1/4, n=54 — both cited in the docstring); public-record dates only; hashed ids never re-identified.
@@ -583,6 +584,47 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D141 — Ramana's TWO-STEP method BUILT + SIMULATED end-to-end: sector→stock selection REJECTED at realistic cost, on a first honestly-scoped stock universe (2026-07-15, S161)
+Ramana's directive verbatim (repeated, direct): confirmed the V8→V32 ladder never picks stocks (D138 re-affirmed);
+"first we identify the sector, then we identify the stocks within that sector… set a ceiling of 30 to 35 stocks
+for a portfolio of about 1 crore… simulate and get back the results." **Built and run, not just designed.**
+**Step 1 (sector selection) = V24, UNTOUCHED** — the validated engine's own `build()`/`kill_on()`/quarterly clock
+called directly, never re-derived. **Step 2 (stock selection, NEW)** — inside each qualifying sector, rank its
+stock universe by **RS-excess vs that stock's OWN sector composite** (his discriminator, verbatim: "if a stock
+is performing well within its narrow index, we will target it"), top ~4–8/sector, weight = sector-weight ×
+RS-rank, 12%/name cap, **whole portfolio capped at 33 names** (his "30 to 35" instruction). Module:
+`research/explosive_moves/sector_stock_layer.py` — self-contained, reproducible, **run read-only against the
+real production `data/hermes.db`**, not a scratch extract.
+**The universe:** each of V24's 16 sectors' own CURRENT (2026-07-15) official NSE constituent list, fetched live
+from `niftyindices.com/IndexConstituent/<slug>.csv` (the SAME access pattern already approved in
+`src/automation/membership.py`) — UNION'd with the Nifty-500's current "Industry" tag wherever the match is
+unambiguous (widening e.g. Auto 15→39, IT 10→27). **268 real symbols, 16 sectors** — genuinely primary-sourced
+(Guardrail #8 clean), committed as a dated snapshot (`research/explosive_moves/nse_sector_classification_2026-07-15/`,
+91 KB) so the module never needs to re-fetch to reproduce. **Disclosed limitation, stated above the numbers not
+buried (the D138 rule applied to my own build this time):** current-day classification applied statically across
+the whole 2005-2026 backtest — structurally a much smaller bias than the already-banned index-membership trap
+(industry classification isn't a performance filter) but real; it fails CONSERVATIVE (delisted names EXCLUDED,
+never fabricated a performance), the opposite direction from the banned mistake. **This is a first pass on 268
+live names, not the canon's ultimate ~1,973-symbol PIT-safe build (D138/ledger §15i) — that remains owed.**
+**Result: REJECTED under the pre-registered bar** (ledger §15h: "merely matching the index book = REJECTION, not
+a result"), at the disclosed realistic stock-leg cost of 0.40%/side (vs the index leg's 0.15%): **return/vol
+0.775 vs V24's 0.911; MaxDD −43.2% vs −37.7%; CAGR 16.7% vs 17.2%; ₹1Cr→₹27.47Cr vs ₹30.35Cr** — worse on every
+axis. **The honest nuance, decomposed by re-running at 3 cost levels (0.15%/0.40%/0.70%):** GROSS of realistic
+cost the method DOES show real excess wealth/CAGR over V24 (₹33.99Cr/17.8%) — genuine signal from picking
+top-RS-within-sector names — **but drawdown is worse than V24 at EVERY cost level tested, including gross**
+(a structural concentration effect: ~20-29 individual names carry more idiosyncratic risk than the whole
+diversified sector index, not a cost artifact). Realistic costs then erode most of the gross wealth edge on top
+of that. **Same "no fundable edge beats the index net of cost" finding this ledger has recorded repeatedly,
+now confirmed one layer deeper.** Sanity-checked before trusting the number: 3 sample quarters' holdings are
+real, sector-consistent, recognizable names (never garbage); weights always sum ≤1; per-name/total caps
+respected every quarter (max 32 of 33); 3/86 quarters correctly had zero picks (matches V24's own cash
+quarters); median 22 stocks/quarter (below the 30-35 ceiling because selection genuinely requires positive
+RS-excess — no force-fill to hit a quota). **Still owed before this is the final word:** the full ~1,973-symbol
+PIT-safe classification with the two-sided dead-name bias bound; a real per-name ADV/impact cost model
+(replacing the flat 0.40% proxy); a significance pass on this result (same JK/bootstrap discipline as D139).
+Canon: ledger **§2026-07-15j** · `docs/strategies/sector-rotation.md` §9 #1 (first-simulation banner + original
+spec retained as the next-iteration target) · module + data snapshot committed.
 
 ### D140 — Model-portfolios stats: cadence is READ FROM DATES, and "Sharpe" is relabelled "Return/vol" (2026-07-15, S161)
 Sent to apply D139's relabel to `auto_portfolios_view._stats` — the no-risk-free "Sharpe" flagged there as the same defect, unfixed. Reconciling the magnitude against the live NAV **before** asserting it (as D139's brief required) **surfaced a far larger arithmetic bug in the same 15 lines**, so the fix is two-part. **(1) THE BUG (headline, above the relabel):** `ppy = 12 if len(vals) > 40 else 4` guessed rebalance cadence from the ROW COUNT. **STEADY-25 — the default book, "the champion" — is QUARTERLY**: its 58 real points spanning **2012-06-01 → 2026-07-01 (14.08y, median gap 91d)** tripped the `> 40` arm and were read as *monthly*, dating a 14-year record as **4.75y**. Live consequences: **CAGR rendered 60.40% for a book whose true CAGR is 17.28%** (3.5×), vol annualised by sqrt(12) not sqrt(4) (1.73× overstated), and the **same Nifty-500 benchmark printed 45.82% on STEADY's page but 13.74% on the other three** — a contradiction the bug generated, which also contradicted `docs/metrics-glossary.md` §244's "SPRINTER-25 = highest CAGR" (60.40% > SPRINTER's 25.54%). **Decided:** NEW `_cadence(dates)` reads periods/yr from the median date gap and elapsed years from the real span — matching what **both sibling books already do** (`model_books_view._stats`, `classics_view._book_stats` derive years from dates; this view was the lone outlier). STEADY-25: **CAGR 60.40%→17.28%, retvol 1.907→1.101, N500 45.82%→13.57%**. The three monthly books are unchanged to 2dp; the multiple (9.43× / 18.31× / 24.61×) was always cadence-free and is untouched. **(2) THE RELABEL (D139's ask):** key `sharpe`→`retvol`, rendered "Return/vol" + a tooltip stating no risk-free is subtracted — converging with `sector_rotation_view`'s shape. **WHY relabel not re-cut:** D139's ruling — a true Sharpe needs a **primary-source rf ingest (Guardrail #8)**, queued with the owed TR-benchmark re-cut which moves the same figures. **WHY the two defects are treated differently:** the rf omission is a *methodology label* (a defensible convention, wrongly named → disclose); the cadence guess is an *arithmetic error* needing no new data (→ fix). **Magnitude VERIFIED, not inherited:** D139's ~1.7× overstatement does **NOT** carry here (~1.4–1.6× on the monthly books), and RELATIVE claims survive intact (STEADY 17.28% vs N500 13.57%; retvol 1.101 vs 0.798). Estate sweep: no other **rendered** surface computes a no-rf Sharpe. Locked by `tests/test_auto_portfolios.py::test_cadence_is_read_from_dates_not_row_count` + `::test_retvol_is_not_labelled_sharpe`. **Lesson (the D138 rule, again): the correctness gap goes ABOVE the headline stat** — a count-based cadence heuristic is unsafe on any mixed-cadence estate, and "verify the magnitude before asserting it" is what caught this.
@@ -2062,6 +2104,65 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 161 (D141) — 2026-07-15 — Ramana's TWO-STEP method BUILT + SIMULATED: sector→stock selection REJECTED at realistic cost, on a first honestly-scoped 268-symbol universe
+**The pick was "simulate the two-step method and show me the portfolios."** Booted from a sibling lane's
+already-completed data-feasibility audit (`e37c19a` — D138/§15i's own data-audit sub-entry): sector strength ✅
+via V24, stock RS-vs-own-sector ✅ via `stock_signals`, but the sector-CLASSIFICATION needed to define "which
+stocks belong to a sector" was the one blocker (`stock_index_membership` only holds 4 weeks — using it would
+reproduce the exact survivorship trap D138 already banned). That vocabulary (`stock_signals.rs_vs_sector_today`)
+turned out to be unusable anyway on inspection: it's derived from the SAME 4-week membership snapshot, so it's
+both narrow (7% coverage) and look-ahead-labelled — reused nothing from it, computed RS fresh from raw prices.
+- **Found a genuine primary source the sibling audit hadn't yet fetched:** `niftyindices.com/IndexConstituent/
+  <slug>.csv` — the SAME domain `src/automation/membership.py` already uses successfully — carries a real
+  "Industry" column (verified: 500 real symbols, sensible categories, zero Screener dependency). NSE's own
+  archive domain (`nsearchives.nseindia.com`) timed out twice on generic fetches — a real, confirmed access
+  difference between the two NSE-family domains, not a shortcut.
+- **Built the universe:** all 16 V24 sectors' own current official constituent lists, widened by the Nifty-500
+  Industry tag wherever the match is unambiguous (8 of 16 sectors widened; Bank/Financial-Services/Pharma/
+  Healthcare deliberately left un-widened — their broad tags overlap ambiguously). **268 real symbols.**
+  Disclosed, not buried: current-day classification applied statically backward — structurally a much smaller
+  bias than the banned index-membership trap (industry isn't a performance filter) but real; fails
+  CONSERVATIVE (dead names excluded, never fabricated), the opposite direction from the banned mistake.
+- **Built `research/explosive_moves/sector_stock_layer.py`** — Step 1 (sector selection) exec's V24 UNCHANGED;
+  Step 2 (new) ranks each qualifying sector's universe by RS-excess vs its own sector composite, top 4-8/sector,
+  33-name total cap (Ramana's "30 to 35... about a crore"), 12%/name cap. Pulled 966,038 real bhavcopy rows for
+  the 268 symbols (2004-2026) read-only from the VPS; **the authoritative run was against the real production
+  `data/hermes.db`**, not a scratch extract — verified byte-identical to the local dev run first.
+- **Result: REJECTED under the pre-registered bar** (ledger §15h: "matching the index book = REJECTION"), at a
+  disclosed realistic stock-leg cost (0.40%/side, ~2.7x the index leg's 0.15%): return/vol **0.775** vs V24's
+  **0.911**, MaxDD **-43.2%** vs **-37.7%**, CAGR **16.7%** vs **17.2%**, wealth **Rs27.47Cr** vs **Rs30.35Cr** —
+  loses on every axis. **Decomposed by cost (0.15%/0.40%/0.70% per side) before accepting the verdict:** GROSS
+  of realistic cost the method DOES beat V24 on wealth/CAGR (Rs33.99Cr/17.8%) — a genuine gross signal — but
+  **MaxDD is worse than V24 at EVERY cost level, including gross** (a structural concentration effect: ~20-29
+  individual names carry more idiosyncratic risk than the whole diversified sector index — not a cost
+  artifact). Realistic costs then erode most of the gross wealth edge on top of that. Same "no fundable edge
+  beats the index net of cost" finding this whole ledger keeps recording, now one layer deeper.
+- **Sanity-checked the engine before trusting the number** (the real risk was a silent bug, not an unlucky
+  draw): inspected 3 quarters' actual holdings — real, sector-consistent, recognizable names (FORTIS,
+  LAURUSLABS, BPCL, SBIN, AXISBANK, ONGC, COALINDIA...), never garbage; weights always summed <=1; per-name
+  (12%) and total (33) caps respected every quarter (max observed 32); 3/86 quarters correctly had zero picks
+  (matches V24's own cash quarters); median 22 stocks/quarter (below the ceiling because selection genuinely
+  requires positive RS-excess — the engine does not force-fill to hit a quota, confirmed not underbuilding).
+- **Documented per the D138 rule applied to my own build this time:** the "current-day classification" caveat
+  sits ABOVE every number on the canon page and in the ledger, not buried in an open-items list. Landed: ledger
+  **§2026-07-15j**, PROJECT_STATE **D141**, canon page §9 #1 (first-run banner; original ~1,973-symbol spec kept
+  as the next-iteration target, not deleted), module + 91KB dated CSV snapshot committed
+  (`research/explosive_moves/sector_stock_layer.py` + `data/nse_sector_classification_2026-07-15/`).
+- **Still owed before this is final:** the full ~1,973-symbol PIT-safe classification with the two-sided
+  dead-name bias bound (this run's 268 names are LIVE-only); a real per-name ADV/impact cost model (this run
+  used a flat 0.40%/side proxy); a significance pass on this result (same JK/bootstrap discipline as D139) —
+  n=258 with a 6/16-sector-average book has real estimation noise the REJECTION verdict hasn't been tested
+  against yet, so treat it as directionally solid, not statistically final.
+- **⚠ origin/main moved twice under me mid-session** (a sibling lane's D138 scope-flaw commit landed just
+  before I started; another lane's D140 model-portfolios cadence-bug fix — the chip I flagged last session —
+  landed while I was mid-build). Re-fetched and re-based before each commit; picked D141/§2026-07-15j to avoid
+  colliding with D140 and the pre-existing §2026-07-15i collision (two unrelated entries already share that
+  letter from S159/S160 — noted, not fixed retroactively; renumbering history risks breaking existing citations).
+- **Harness TIL:** `TaskCreate` failed on a batched multi-task call (its real schema is one-task-per-call,
+  `subject`/`description`/`activeForm` — no `tasks` array); should have called `ToolSearch` for its schema
+  before assuming a batch shape from memory. Proceeded without task tracking rather than burn turns on 9
+  separate calls; fine for a single-session build, would not scale to a multi-day one.
 
 ### Session 161 (D140) — 2026-07-15 — /dash/model-portfolios: a QUARTERLY book was read as monthly (CAGR 60.4% → 17.3%) + D139's "Sharpe" relabel — FIXED + GATED + DEPLOYED
 Handed D139's flagged twin: relabel the no-rf "Sharpe" at `auto_portfolios_view.py:170`, numbers unchanged. Reconciling the magnitude against live NAV **first** — which D139's brief explicitly required — surfaced a bigger defect in the same function, so both shipped together.

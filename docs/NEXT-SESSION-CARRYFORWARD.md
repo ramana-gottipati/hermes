@@ -107,7 +107,7 @@ promotion. `/dash/sector-rotation` stays on V21. Nothing graduates while the sto
 
 ---
 
-## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136) — ⚠ SECTOR LAYER ONLY (D138) + ⚠ RUNGS NOT DISTINGUISHABLE & "Sharpe"=RETURN/VOL (D139/S160): ratification SETTLED, V32 RETIRED, V21 stays live — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
+## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136) — ⚠ SECTOR LAYER ONLY (D138) + ⚠ RUNGS NOT DISTINGUISHABLE & "Sharpe"=RETURN/VOL (D139/S160) + 🆕 STOCK LAYER SIMULATED & REJECTED (D141/S161): ratification SETTLED, V32 RETIRED, V21 stays live, stock-layer first-pass REJECTED — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
 > ### 🔴 S160/D139 SETTLED THE RATIFICATION — do NOT re-open it as a numbers question
 > **The significance pass has RUN and came back NULL** (ledger §2026-07-15i · D139 ·
 > `research/explosive_moves/sector_rotation_significance.py`). Two things every future session must carry:
@@ -173,23 +173,41 @@ diagnostic (regime-band idea, tested before the full V28 batch) is `research/exp
 
 **Canon (single source of truth, don't re-derive from this bullet):** [`docs/strategies/sector-rotation.md`](docs/strategies/sector-rotation.md)
 (the ruleset + terminology, incl. the V8/V17/V21/V24/V32 ladder) · [`docs/strategy-ledger.md`](docs/strategy-ledger.md)
-§§ 2026-07-15 → 2026-07-15i (every number, every rejection; **15h = scope flaw, 15i = the significance null + the label fix**) · PROJECT_STATE.md Decision log **D136 + D138 + D139**.
+§§ 2026-07-15 → 2026-07-15j (every number, every rejection; **15h = scope flaw, 15i = the significance null + the label fix, 15j = the stock-layer first-simulation REJECTION**) · PROJECT_STATE.md Decision log **D136 + D138 + D139 + D141**.
 
-**NEXT (rotation lane, in order — RE-ORDERED by D138+D139):**
+> ### 🔴 S161/D141 — THE STOCK LAYER HAS BEEN SIMULATED (once) — REJECTED at realistic cost
+> Ramana's two-step method (sector→stock) was **built and run end-to-end**, not just designed:
+> `research/explosive_moves/sector_stock_layer.py` — Step 1 = V24 exec'd untouched, Step 2 = rank each
+> qualifying sector's stock universe (268 real symbols, 16 sectors, genuine niftyindices.com primary source,
+> committed snapshot) by RS-excess vs its OWN sector composite, 33-name cap. **Result: REJECTED under the
+> pre-registered bar at 0.40%/side realistic stock cost** — return/vol 0.775 vs V24's 0.911, MaxDD −43.2% vs
+> −37.7%, CAGR 16.7% vs 17.2%, wealth ₹27.47Cr vs ₹30.35Cr. **Nuance: GROSS of cost it beats V24 on wealth/CAGR
+> (₹33.99Cr/17.8%) — real signal — but MaxDD is worse than V24 at EVERY cost level, including gross** (a
+> structural concentration effect, not a cost artifact). **Disclosed limitation:** the 268-symbol universe is
+> CURRENT-day classification applied statically backward (a much smaller bias than the banned index-membership
+> trap, but real; fails conservative — dead names excluded, not fabricated) — **this is a first pass, NOT the
+> ~1,973-symbol PIT-safe build below, which remains the target.** Ledger **§2026-07-15j** · PROJECT_STATE
+> **D141**. **Do NOT re-run hoping for a different verdict without: the full classification + dead-name bias
+> bound, a real per-name ADV/impact cost model, and a significance pass on this result** (n=258 with a
+> 6/16-sector-average book has real estimation noise — the rejection is directionally solid, not yet
+> statistically final).
+
+**NEXT (rotation lane, in order — RE-ORDERED by D138+D139+D141):**
 ① ~~Ramana's ratification of V24 vs V32~~ **✅ SETTLED (D139, see the box above)** — V32 retired; V24 is the
 designated carry-forward layer on MECHANISM grounds; V21 stays live. Not re-openable as a numbers question.
 ② ~~significance pass~~ **✅ DONE (D139) — NULL.** **STILL OWED: the TR-benchmark re-cut + the true-Sharpe rf
 re-cut — ONE data lane** (neither exists in `index_rows`; both need a primary-source NSE TRI / G-sec ingest per
 Guardrail #8, and both move the same headline figures). Small, well-defined, do them together.
-③ **🔴 THE PRIORITY, per D138 — the ≤40-stock constituent build** (top-RS stocks inside V24's qualifying
-sectors, sector-RS × stock-RS weights, per-sector stops; reuse `stock_signals` RS columns). It is **half ② of
-Ramana's original brief and was never built**, AND it is the **only executable expression** for the ~6/16
-sectors with no liquid index instrument — not a phase-2 nicety. **Pre-register its bar BEFORE running it**
-(ledger §15h): stock momentum is recorded as **BETA not skill (t=1.99)**, only LOWVOL_MOM qtr large-cap
-fundable (1.02 @ ₹50cr), and stock legs cost more than index legs → **matching the index book counts as a
-REJECTION, not a result.**
-④ the instrument/ADV audit + per-leg cost re-cut (§6-bis) — partially subsumed by ③ (a sector with no
-instrument simply *becomes* stock legs).
+③ ~~the stock-selection layer~~ **✅ FIRST SIMULATION DONE (D141) — REJECTED, see the box above.** **NEXT
+iteration, in order:** (a) the full ~1,973-symbol PIT-safe sector classification with the two-sided dead-name
+bias bound (this run's 268 names are LIVE-only, current-day, static) — the canon's original spec at §9 #1 is
+UNCHANGED and is the target; (b) a real per-name ADV/impact cost model replacing the flat 0.40%/side proxy;
+(c) a significance pass on the D141 result (same JK/bootstrap/MDE discipline as D139) before treating the
+REJECTION as more than directional. **Pre-register the bar again before any re-run** (ledger §15h/j, unchanged):
+stock momentum is BETA not skill (t=1.99); matching or barely beating V24 net of realistic cost is still not
+a result on its own — the bar is BEAT it convincingly, ideally significance-tested.
+④ the instrument/ADV audit + per-leg cost re-cut (§6-bis) — the SAME per-name cost model item as ③(b) above;
+do them together, not twice.
 ⑤ **Do NOT** promote the live engine, and **do NOT** run a Round 5 of lever selection on the 2005-2026 window
 — D139 measured that the window cannot resolve differences of this size on any method. A **fresh window / true
 OOS** is the only thing that would move V24-vs-V21.
