@@ -172,6 +172,7 @@ _CSS = """<style>
 .cls .full{color:#3fb950;font-weight:600}.cls .proxy{color:#d29922}
 .cls .none{color:var(--ink-2,#999);font-style:italic}
 .cls .thin{color:#d29922}
+.cls .prov{border-left:2px solid var(--line-2,#333);padding-left:10px}
 .cls h4{margin:14px 0 4px;font-size:14px}
 .cls .card td.l small{color:var(--ink-2,#999)}
 .cls .honesty{border:1px solid var(--line-2,#333);border-radius:8px;padding:10px 12px;
@@ -180,6 +181,20 @@ _CSS = """<style>
 </style>"""
 
 _STATUS_TXT = {"full": "runs on our data", "proxy": "runs — proxy noted", "none": "reference only"}
+
+# Guardrail #8 requires the Screener.in dependency be DISCLOSED wherever it is shown. Every
+# non-price number on this page (ROCE · P/E · P/B · margins · growth) is read from
+# fundamentals_history, which measured 90.9% Screener-sourced vs 9.1% NSE-XBRL (2026-07-15,
+# 789,838 rows). Dated on purpose — the split shifts as the XBRL migration lands, and an
+# undated "91%" would itself go stale into a untruth. Price/universe/benchmark are 100% NSE.
+_PROVENANCE = (
+    "<div class='cls-note prov'><b>Where these numbers come from.</b> Price, momentum, "
+    "volatility, the tradeable universe and the Nifty-500 benchmark are <b>100% primary NSE</b> "
+    "(bhav copy, EQUITY_L, index feed). The <b>fundamentals</b> (ROCE · P/E · P/B · margins · "
+    "growth) are today read mostly from a <b>third-party archive (Screener.in)</b> — ≈91% of rows "
+    "as of 2026-07 — with NSE XBRL primary filings at ≈9% and growing as the migration lands. "
+    "Point-in-time dates come from real BSE/NSE filings where captured, else a conservative "
+    "calibrated lag. We say this plainly because the source matters as much as the number.</div>")
 
 # Per-strategy roster columns: (detail_key, header, kind, gloss_term) — kind ∈ pct|num|x1|bool
 # gloss_term matches a docs/metrics-glossary.md key ("" = no popover; degrades to plain label).
@@ -434,6 +449,7 @@ def classics_page(s: str = "", fmt: str = "", asof: str = ""):
         + f" · <a href='{_STRATEGY_REF}?p=classic-screens'>Methodology &amp; honesty →</a></div>"
         + f"<div class='cls-note'>rosters as-of <b>{_esc(as_of) or '—'}</b> · universe = liquid NSE "
         "names (turnover ≥ ₹5cr) · every metric is point-in-time (no look-ahead)</div>"
+        + _PROVENANCE
         + "<table><thead><tr><th class='l'>Strategy</th><th class='l'>How we run it</th>"
         "<th class='l' title='first rebalance the data supports'>Since</th><th>CAGR</th>"
         "<th title='CAGR minus Nifty 500 over the same window'>vs Nifty 500</th>"
