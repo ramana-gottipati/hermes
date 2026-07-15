@@ -49,12 +49,26 @@ GNPA proxy** (defer true ALM) · **suppress-half folds into the scorer**. **Patt
    **⚠ `ReturnOnAssets` is context-dependent — OneD (discrete qtr) 0.47% vs FourD (YTD) 1.43%** — read the
    discrete-quarter ids or you silently store the YTD number. **`_is_bank_instance` can NOT gate the SA fetch**
    (NBFCs tag `InterestEarned` too) — `_has_prudential_tags` (declared-even-if-zero) is the discriminator.
-   **▶ RESIDUAL (bounded, deliberate):** rows populate for filings ingested **from now on** (nightly
+   **▶ RESIDUAL (bounded, deliberate):** XBRL rows populate for filings ingested **from now on** (nightly
    `hermes-fundamentals-xbrl` 16:33 UTC). Already-ingested bank periods sit in `fundamentals_xbrl_seen` and
-   will NOT be re-parsed → **historical prudential needs a targeted re-ingest** (clear those urls from the
-   seen-table for bank symbols, or route via the Phase-3 backfill). Gate it past the scan clusters.
-   ⚠ The Doctrine-D scorer (item 2) therefore has **no historical Pattern-5 data yet** — build it
-   NULL-tolerant (absent ratio ⇒ that leg abstains, never a false pass/fail).
+   will NOT be re-parsed → a **targeted re-ingest** (clear those urls for bank symbols, or route via the
+   Phase-3 backfill) is needed for XBRL-sourced history. Gate it past the scan clusters.
+   **🔑 CORRECTED 2026-07-15 (measured, supersedes the earlier "no historical Pattern-5 data" claim):**
+   `fundamentals_history` ALREADY holds **`Gross NPA %` (289 rows) + `Net NPA %` (286 rows), 2020-03-31 →
+   2026-06-30, from the SCREENER archive** (`source IS NULL`). **`Return on Assets %` and `CET1 %` do NOT
+   exist at all** (0 rows) — those are genuinely net-new and forward-only. So the scorer's Pattern-5 legs
+   split: GNPA/NNPA have deep history (vendor-sourced), CET1/RoA start empty and fill forward.
+   My emitted names MATCH the Screener names exactly for the two overlapping metrics → ONE vocabulary, no
+   variant to reconcile. ⚠ **Guardrail #8:** that GNPA/NNPA history is **Screener (vendor) data** — the very
+   thing the XBRL migration replaces; `write_rows(overwrite_screener=False)` (the default) leaves Screener
+   rows untouched, so XBRL supersedes them only on a deliberate `--overwrite-screener` pass.
+   ⚠ **Build the scorer NULL-tolerant regardless** (absent ratio ⇒ that leg abstains, never a false
+   pass/fail) — CET1/RoA will be absent for most names for months.
+   ⚠ **KNOWN PROVENANCE WRINKLE (mine, unfixed):** `write_rows` stamps ONE `source` per filing
+   (`SOURCE_CONSO if filing["consolidated"] else SOURCE_SA`), so prudential ratios pulled from the SA
+   sibling are written stamped **SOURCE_CONSO**. Guardrail-#8 (vendor-vs-primary) is unaffected — both are
+   NSE-XBRL — but a `WHERE source=SOURCE_SA` query will not find them. Fixing it needs a per-metric source
+   override in `write_rows` (sibling-owned; coordinate).
 2. **Doctrine-D financials scorer (Step 4)** in `scoring.py` — Pattern 1 = RoE/RoA vs sub-type thresholds;
    **Pattern 2 = NII growth + cost-to-income — ALREADY derivable from stored conso metrics (no ingest work)**;
    Pattern 5 = GNPA<1.5% ∧ strong CET1 (+ALM proxy). **Disable the generic D/E hard-disqualifier for lenders.**
