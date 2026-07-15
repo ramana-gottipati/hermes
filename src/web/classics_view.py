@@ -52,6 +52,23 @@ except Exception:  # pragma: no cover - keep the page alive on a slim host
 
 router = APIRouter()
 
+
+def _canon(key: str, fallback: str) -> str:
+    """The canonical NESTED path of a lens (D80: `/dash/<workspace>/<page>`), DERIVED from the
+    registry — so every in-page link matches the nav and can never drift back to a bare
+    `/dash/<page>` orphan URL. Falls back to the flat route only if the registry is unavailable."""
+    try:
+        from src.web import lens_registry as LR
+        from src.web import nested_nav as NN
+        return NN.nested_path(LR.BY_KEY[key]) or fallback
+    except Exception:  # pragma: no cover - registry always present in the app
+        return fallback
+
+
+_SELF = _canon("classics", "/dash/classics")                  # /dash/strategies/classics
+_FACTOR_LEAGUE = _canon("factor-league", "/dash/factor-league")
+_STRATEGY_REF = _canon("strategy-ref", "/dash/strategy-ref")
+
 _CSS = """<style>
 .cls table{border-collapse:collapse;width:100%;font-size:13px}
 .cls th,.cls td{padding:6px 8px;border-bottom:1px solid var(--line-2,#333);text-align:right}
@@ -154,7 +171,7 @@ def _roster_html(strat, rows):
         + note_html
         + "<div class='bar'>A research shortlist that re-ranks every night — "
         + ifx.fence("not_reco", cap=True)
-        + f". <a href='/dash/classics?s={_esc(strat)}&fmt=csv'>Download CSV</a></div>"
+        + f". <a href='{_SELF}?s={_esc(strat)}&amp;fmt=csv'>Download CSV</a></div>"
         + "<table><thead><tr><th>#</th><th class='l'>Symbol</th>"
         + head + "</tr></thead><tbody>" + body + "</tbody></table>")
 
@@ -194,7 +211,7 @@ def classics_page(s: str = "", fmt: str = ""):
     # the catalog
     cat = ""
     for key, (name, author, rule, comp) in STRATEGIES.items():
-        link = (f"<a class='run' href='/dash/classics?s={key}'>roster →</a>"
+        link = (f"<a class='run' href='{_SELF}?s={key}'>roster →</a>"
                 if comp != "none" else "<span class='none'>phase 2</span>")
         cat += ("<tr class='card'>"
                 f"<td class='l'><b>{_esc(name)}</b><br><small>{_esc(author)}</small></td>"
@@ -217,8 +234,8 @@ def classics_page(s: str = "", fmt: str = ""):
             "can't yet match the textbook rule exactly) and show the value strategies next to what "
             "they ACTUALLY delivered here. " + ifx.fence("not_reco", cap=True) + ".")
         + ifx.how_to_read_link()
-        + "<div class='rd-htr'><a href='/dash/factor-league'>Factor league (the raw families) →</a>"
-        + " · <a href='/dash/strategy-ref?p=classic-screens'>Methodology & honesty →</a></div>"
+        + f"<div class='rd-htr'><a href='{_FACTOR_LEAGUE}'>Factor league (the raw families) →</a>"
+        + f" · <a href='{_STRATEGY_REF}?p=classic-screens'>Methodology &amp; honesty →</a></div>"
         + f"<div class='bar'>rosters as-of <b>{_esc(as_of) or '—'}</b> · universe = liquid NSE "
         "names (turnover ≥ ₹5cr) · every metric is point-in-time (no look-ahead)</div>"
         + "<table><thead><tr><th class='l'>Strategy</th><th class='l'>How we run it</th>"

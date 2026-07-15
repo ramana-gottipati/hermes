@@ -50,6 +50,25 @@ def test_empty_universe_is_safe():
     assert all(v == [] for v in ros.values())
 
 
+def test_in_page_links_use_the_canonical_nested_path():
+    """D80 (BINDING): sub-pages live at /dash/<workspace>/<page>. Every link the Classic
+    Screens page renders must use the canonical NESTED path derived from lens_registry
+    (/dash/strategies/classics) — never a bare /dash/classics orphan URL, which throws the
+    reader out of the Strategies workspace and breaks nav highlight/breadcrumbs.
+    Regression gate: the first build shipped hardcoded flat links (Ramana caught it)."""
+    import re
+
+    from src.web import classics_view as cv
+
+    assert cv._SELF == "/dash/strategies/classics", cv._SELF
+    assert cv._FACTOR_LEAGUE == "/dash/strategies/factor-league", cv._FACTOR_LEAGUE
+    html = cv.classics_page().body.decode() + cv.classics_page(s="coffeecan").body.decode()
+    flat = sorted(set(re.findall(r"href=['\"](/dash/classics[^'\"]*)", html)))
+    assert not flat, f"flat orphan link(s) — must be {cv._SELF}: {flat}"
+    flat_fl = sorted(set(re.findall(r"href=['\"](/dash/factor-league[^'\"]*)", html)))
+    assert not flat_fl, f"flat factor-league link(s) — must be {cv._FACTOR_LEAGUE}: {flat_fl}"
+
+
 def test_none_fields_never_raise():
     # a universe where fundamentals came back None (laptop / missing archive) must degrade,
     # not crash — only the momentum-only strategy (lowvol) should still populate.
