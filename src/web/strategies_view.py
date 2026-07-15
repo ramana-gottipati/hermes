@@ -42,6 +42,7 @@ _PAGES: dict[str, tuple[str, str]] = {
     "momentum-riskadj":  ("momentum-riskadj.md",  "Momentum / RISKADJ"),
     "patearn":           ("patearn.md",           "patearn"),
     "classic-screens":   ("classic-screens.md",   "Classic Screens"),
+    "sector-rotation":   ("sector-rotation.md",   "Sector Rotation"),
     "origins":           ("origins.md",           "Origins"),
 }
 _FILE_TO_SLUG = {fn: slug for slug, (fn, _lbl) in _PAGES.items()}

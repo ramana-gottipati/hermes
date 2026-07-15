@@ -35,6 +35,7 @@
 | **Launchpad** (momentum + contracting vol screen) | 🏠 HOUSE | /dash/launchpad | validated screen; no fundable edge net |
 | **Seasonal tape** (certification-gated calendar residuals) | 🏠 HOUSE (framework) | /dash/seasonal-tape | live; 0-certified IS the finding |
 | **Reversal context columns** (implementation) | 🧑 RAMANA concepts + 🏠 honesty fences | Screen+ | live, descriptive |
+| **Sector Rotation** (V8 champion · V17 defensive-fill candidate) | 🧑 RAMANA (concept + every lever) + 🏠 implementation/harness | research modules (`sector_rotation*`); page [sector-rotation.md](sector-rotation.md) | research, CONDITIONAL; long-only |
 | **SPRINTER-25** (MOM12) | 📚 CLASSIC (Jegadeesh-Titman 12-mo momentum) | /dash/model-portfolios | model portfolio since 2012 |
 | **PACER-25** (RISKADJ) | 📚 CLASSIC (vol-adjusted momentum school) | /dash/model-portfolios | model portfolio since 2012 |
 | **CRAFTSMAN-25** (QUAL_MOM) | 📚 CLASSIC blend, 🏠 delivery-leg formulation | /dash/model-portfolios | model portfolio since 2012 |

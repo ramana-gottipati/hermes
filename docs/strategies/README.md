@@ -50,6 +50,7 @@ strategy without its own pre-registered, leak-free study that beats the recorded
 | **Relative Strength** | RS suite (RRG · RS-band · rotation · Mansfield · capture · size-index) | **DESCRIPTIVE** lens suite (deployed) | D39 · D40 · D64 · D67 | [relative-strength.md](relative-strength.md) |
 | **CPR** | Central Pivot Range ("CPR Spine") | **LIVE** — descriptive charting lens | D53 · D71 | [cpr.md](cpr.md) |
 | **Reversal Context** | STREAM BAND + FRACTAL FLOOR/CEILING (band-state · stretch · floor geometry) | **DESCRIPTIVE-ONLY** — every tradeable form falsified; context columns live | ledger §§ 07-13/07-14/07-14b/07-14c · S132b/c | [reversal-context.md](reversal-context.md) |
+| **Sector Rotation** | RS-weighted multi-sector rotation (V8 frozen champion · V17 defensive-fill candidate) | **RESEARCH — CONDITIONAL** — long-only beats passive; short leg + monthly cadence REJECTED | ledger §§ 2026-07-15/15b/15c | [sector-rotation.md](sector-rotation.md) |
 | **CCI** | **Concall Credibility Index** (≠ Commodity Channel Index) | **FAILED-AS-FACTOR → DESCRIPTIVE / VETO-ONLY** | D60 · D61 · 2026-06-25 falsification · Gate B fail | [cci.md](cci.md) |
 | **Harmonic** | XABCD / PRZ patterns | **LIVE** (descriptive) · backtest-GATED | D72 · D71 | [harmonic.md](harmonic.md) |
 | **Momentum / RISKADJ** | ranked-rotation factor engine (the benchmark) | **BENCHMARK** · gross selection, **not fundable net of cost** | D66 + ledger benchmarks | [momentum-riskadj.md](momentum-riskadj.md) |
