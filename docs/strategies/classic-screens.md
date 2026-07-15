@@ -86,6 +86,25 @@ pre-registered, leak-free study recorded in the ledger (skill `failure-ledger`).
 
 ## 6. Data & provenance
 
+**🔴 Source disclosure (Guardrail #8 — "disclose it where shown").** Split the claim in two, because
+they are not the same:
+
+| Layer | Source | Status |
+|---|---|---|
+| Price · momentum · volatility · turnover · universe · Nifty-500 benchmark | **NSE** (bhav copy 2004→, EQUITY_L, index feed) | **100% primary** |
+| **Fundamentals** — ROCE · P/E · P/B · margins · growth (i.e. every non-price number on the page) | **Screener.in ≈90.9%** / NSE-XBRL ≈9.1% | **the remediating vendor exception** |
+
+Measured 2026-07-15: 789,838 rows in `fundamentals_history` — 717,895 Screener-sourced (`source IS
+NULL`), 66,686 `NSE-XBRL-CONSO`, 5,257 `NSE-XBRL-SA`. This estate **adds no new Screener dependency**
+(it reads the existing archive; it never calls `screener.py`), but it does *rest* on one, and saying
+"read point-in-time through `fundamentals_asof` (real BSE/NSE filing date…)" describes only the
+**timing** gate — it must not be allowed to imply a primary **origin**. The `/dash/classics` page
+carries the same disclosure (`_PROVENANCE`), dated on purpose: the split shifts as XBRL lands, and an
+undated "91%" would itself go stale into an untruth.
+
+**This makes phase 2 a remediation, not just a feature:** the annual-XBRL tags below are the route
+*off* the 91% vendor dependency (forward from 2026-04), not merely the unlock for Acquirer's Multiple.
+
 All fundamentals are read point-in-time through `fundamentals_asof` (real BSE/NSE filing date where
 captured, else a conservative calibrated lag — no look-ahead). Price is the latest NSE bhav close
 (primary). **Two known data gaps (Guardrail #8-clean to close via XBRL, not Screener):**
