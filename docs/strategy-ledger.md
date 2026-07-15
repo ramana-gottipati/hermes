@@ -437,6 +437,66 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15j - FIRST HONEST STOCK BOOK: PIT-clean stock RS **LOSES to Nifty 500 at every setting** (~20 variants, 21y, zero survivorship). Naive alpha -0.5%/yr; hysteresis makes it WORSE.
+
+**Module:** `research/explosive_moves/stock_rs_pit2.py` (read-only; `.venv/bin/python ... data/hermes.db`).
+**Built because Ramana asked "what alpha have we generated?" and the honest answer was "none - nothing exists".**
+
+**Why it is SURVIVORSHIP-FREE (the whole point - contrast 15i's trap):** the universe at each rebalance comes
+from the **bhavcopy itself** - every EQ stock actually trading that month with ADV >= Rs 5cr **that month**.
+Companies that later delisted ARE present on the dates they were tradeable (46% of the 2011 universe is dead;
+all of them are in). **No index membership, no sector labels** -> nothing is selected for having survived, and
+the 4-week membership blocker is bypassed entirely. Signal = 6-month RS excess vs Nifty 500 (same horizon as
+the sector engine's 126d). Quarterly, equal-weight. `value` unit-checked (RELIANCE 2017-01-02
+value/close x volume = 1.001 => rupees).
+
+**A. Concentration sweep - from 2005-01, 21.4y, 0.15%/side. Bench: return/vol 0.66, MaxDD -60.9%, 13.12x.**
+
+| book | return/vol | CAGR | MaxDD | beta | alpha/yr | Rs1Cr -> | verdict |
+|---|---|---|---|---|---|---|---|
+| top10 | 0.49 | 11.7% | -75.6% | 1.24 | -0.0% | 10.79 | loses |
+| top20 | 0.58 | 14.5% | -70.3% | 1.20 | +1.6% | **18.11** | **most wealth - but -70% DD => leverage, not skill** |
+| top40 | 0.54 | 12.6% | -68.1% | 1.18 | -0.5% | 12.68 | loses |
+| top80 | 0.53 | 12.0% | -70.2% | 1.18 | -1.6% | 11.28 | loses |
+
+**B. Hysteresis (the sector engine's single biggest lever, 15b/15c) - from 2005, top40. IT BACKFIRES.**
+
+| band | return/vol | CAGR | MaxDD | alpha/yr | turnover | Rs1Cr -> |
+|---|---|---|---|---|---|---|
+| none (naive) | 0.54 | 12.6% | -68.1% | -0.5% | ~330%/yr | 12.68 |
+| -5% | ~0.50 | - | - | -1.8% | ~220%/yr | 9.43 |
+| -10% | 0.53 | 11.6% | -71.3% | -1.2% | ~202%/yr | 10.49 |
+| -20% | 0.47 | 9.6% | -73.3% | -3.1% | ~168%/yr | 7.17 |
+| -35% | 0.35 | 6.2% | -75.9% | **-7.3%** | ~120%/yr | 3.63 |
+
+**KEY TRANSFERABLE LESSON: churn falls exactly as designed (330% -> 120%/yr) and performance falls FASTER.
+The medicine that MADE the sector book (hysteresis) POISONS the stock book.** A lever validated on 16 sector
+indices does **not** transfer to a 40-stock book. **Never assume a sector-layer constant carries to the stock
+layer - re-fit or re-reject every one.** (Cf. 15f's negative-interaction lesson: individually-validated levers
+do not compose. Same disease, new layer.)
+
+**C. Window sensitivity - the tell that there is no stable edge.** alpha by start date (top40): 2005 **-0.5%**
+2011 **+3.5%** / 2017 **+1.4%**. Best hysteresis (-20%) @0.30%/side: 2011 alpha +2.3% (0.72 vs 0.74) / 2017
+alpha +2.0% (0.73 vs 0.77) - **still loses on return/vol in BOTH, with MaxDD -45.7%/-44.1% vs the bench's
+-30.0%.** beta sits at **1.13-1.25 everywhere** => the book is structurally a leveraged market bet. An "edge"
+whose sign depends on the start date is not an edge.
+
+**AND THE NUMBERS ARE GENEROUS:** when a held name delisted mid-quarter it was carried **flat at 0%** (68-129
+stock-months per run) rather than the loss it usually was. True results are somewhat WORSE.
+
+**VERDICT: REJECT the unconditioned stock-RS family.** ~20 variants (4 sizes x 4 bands x 2 cost levels x
+3 windows) - **every one loses to Nifty 500 on return/vol.** Directly CONFIRMS this ledger's standing prior
+(momentum = **BETA not skill, t=1.99**) on a fully PIT-clean, survivorship-free universe. **Do not re-attempt
+naive "buy the strongest stocks" without beating 0.66 / -60.9% / 13.12x net of cost.**
+
+**WHAT IT MEANS FOR RAMANA'S DESIGN (it does NOT falsify it):** this book has **no sector step** - it buys the
+strongest stocks in the whole market. Ramana's design buys strong stocks **inside strong sectors**, and
+specifically stocks beating **their own sector** (`rs_vs_sector`, 15i). Different filter, untested. **But the
+stakes are now measured: the sector conditioning is not polish on a working book - it must rescue a LOSING
+one, creating the entire edge from alpha -0.5%.** Worth knowing BEFORE spending days classifying the 280 dead
+names (15i). **The 15h/15i pre-registered bar is unchanged and now has a concrete floor: beat return/vol 0.66
+and MaxDD -60.9% net of realistic stock costs, or it is a REJECTION.**
+
 ### 2026-07-15i — 🔴 DATA AUDIT before the stock build: PIT sector membership is the ONE blocker, and it is BOUNDED (~1,973 names, 280 of them dead)
 
 **Ramana's directive (2026-07-15):** build the strategy on STOCKS, not indices. *"For media, realty, consumer
