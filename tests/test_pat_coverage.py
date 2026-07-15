@@ -110,6 +110,7 @@ PAT_DATA: dict[str, str] = {
     "sast":             "filings",       # per-symbol SAST stake/pledge disclosures (S150)
     "shp":              "filings",       # per-symbol shareholding QoQ deltas (S150)
     "wolfe-scan":       "wolfe",         # currently-open Wolfe setups inline (S150)
+    "rule-lab":         "rulelab",       # latest rule-lab gauntlet verdict inline (S157-b)
     "strategy-ref":     "methodology",   # plain-language strategy explainers (S150 Phase 3)
 }
 

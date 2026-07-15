@@ -43,6 +43,7 @@ _PAGES: dict[str, tuple[str, str]] = {
     "patearn":           ("patearn.md",           "patearn"),
     "classic-screens":   ("classic-screens.md",   "Classic Screens"),
     "sector-rotation":   ("sector-rotation.md",   "Sector Rotation"),
+    "rule-lab":          ("rule-lab.md",          "Rule Lab"),
     "origins":           ("origins.md",           "Origins"),
 }
 _FILE_TO_SLUG = {fn: slug for slug, (fn, _lbl) in _PAGES.items()}
@@ -65,6 +66,7 @@ _SURFACE: dict[str, tuple[str, str]] = {
     "patearn":           ("/dash/screener",                  "Open the Screener"),
     "classic-screens":   ("/dash/classics",                  "Open the Classic Screens rosters"),
     "sector-rotation":   ("/dash/sector-rotation",           "Open the V17 portfolio (time-travel)"),
+    "rule-lab":          ("/dash/rule-lab",                  "Open the Rule lab"),
 }
 
 

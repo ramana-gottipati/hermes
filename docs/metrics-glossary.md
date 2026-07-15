@@ -403,6 +403,14 @@ The famous name-brand strategies run as live rosters on our PIT data at `/dash/c
 - **Profit growth — earnings CAGR.** Compound annual growth of net profit over the window (3-yr or TTM). *Source:* `profit_growth_3y`.
 - **Volatility (66-day) — realised risk.** Standard deviation of ~3 months of daily returns; the Low-Volatility screen ranks the calmest names. *Source:* `vol_66`.
 
+## Rule lab — the gauntlet vocabulary (D137)
+
+- **Placebo p95.** The 95th percentile of the null distribution: the same book rebuilt N times with RANDOM picks (same universe, same size, same costs). A rule must beat this, not merely beat zero — luck has a high bar. *Source:* evlib placebo machinery via `rule_lab_executor`.
+- **Capacity breakpoint.** The AUM (₹ cr) at which participation-cost impact kills the edge — the largest AUM whose net Sharpe still beats the benchmark. A rule with no stated capacity is not a result. *Source:* `cost_participation` grid scan.
+- **Both halves.** Walk-forward split 2012-18 vs 2019-26: a rule must beat the benchmark in BOTH halves or it is noise. *Source:* `factory.slice_stats`.
+- **Prereg gate hash.** sha256 of the frozen rule text, recorded BEFORE the run; first registration wins. Tamper-evident: re-deriving the hash must match. *Source:* prereg discipline (`rule_lab_prereg`).
+- **Flat cost only.** A qualifier warning that a result survives only under flat per-trade cost assumptions, not participation-real impact (the C-BLEND lesson: 1.32 flat became 0.17 at ₹50cr). Travels with the verdict forever. *Source:* `rule_lab` verdict law.
+
 ## How to read Patearn (concepts)
 
 - **The four pillars.** Patearn reads a stock through four independent lenses — POSITIONING (DVPT: is a strong hand active?), RELATIVE STRENGTH (is the market voting for it?), QUALITY (pt14: is the business any good?) and STRUCTURE (CPR: is the chart set up?). No single pillar is a verdict; conviction is several lining up on the same name. *Concept slug:* `pillars`.

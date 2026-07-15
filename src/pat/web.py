@@ -1015,6 +1015,33 @@ def _overdue_flow(conn, event: str = "") -> str:
     return "".join(out)
 
 
+# ── rule-lab flow (the latest gauntlet verdict, read-only) ───────────────────
+# "did my rule work / rule lab verdict / test my rule" — the newest
+# review_items(kind='rule_verdict') payload, in the ledger's own vocabulary. Composing/
+# running a NEW rule stays the page's owner-gated POST — Pat only ever READS (SEBI line).
+
+def _rulelab_flow(conn) -> str:
+    from src.pat.rulelab_flow import answer as _rl_answer
+    a = _rl_answer(conn)
+    link = a.get("link", "/dash/rule-lab")
+    if not a.get("found"):
+        return (f"<p>No rule has been run yet — compose one on the "
+                f"<a href='{_esc(link)}'>Rule lab</a>. <small>{_esc(a.get('note', ''))}"
+                f"</small></p>")
+    f2 = lambda v: "—" if v is None else f"{float(v):.2f}"
+    qual = f" <b>[{_esc(a['qualifier'])}]</b>" if a.get("qualifier") else ""
+    cap = a.get("capacity_inr")
+    cap_txt = "unstated" if not cap else f"₹{float(cap) / 1e7:.0f}cr"
+    return (
+        f"<p><b>{_esc(a.get('verdict', ''))}</b>{qual} — "
+        f"<code>{_esc(a.get('rule_text', ''))}</code></p>"
+        f"<p>net Sharpe {f2(a.get('net_sharpe'))} vs benchmark {f2(a.get('bench_net'))} · "
+        f"placebo p95 {f2(a.get('placebo_p95'))} · capacity {_esc(cap_txt)} · "
+        f"inbox status: {_esc(a.get('status', ''))}</p>"
+        f"<p><small>The verdict is gauntlet arithmetic on the composed rule — a statistical "
+        f"summary, not advice. <a href='{_esc(link)}'>Open the Rule lab</a></small></p>")
+
+
 # ── navigate flow (page-finder over lens_registry) ───────────────────────────
 # "where do I see breadth / which page shows the news / how do I find seasonality" —
 # points at the right lens with a link + one-liner (S-E Phase 1). No data, no ranking.
@@ -2877,6 +2904,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
                "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
                "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
+               "rulelab": "Rule-lab verdict",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
                "internals": "Market breadth", "filings": "Filings for a stock",
@@ -3078,6 +3106,8 @@ def _free_text(conn, q: str):
             body = _seasonal_stock_flow(conn, p.get("symbol", ""), p.get("month", 0))
         elif f == "methodology":
             body = _methodology_flow(conn, p.get("slug", ""))
+        elif f == "rulelab":
+            body = _rulelab_flow(conn)
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3394,6 +3424,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "methodology":
         body = _methodology_flow(conn, strength or q)     # strategy explainer (S150); slug rides `strength`
         fb_ctx = {"query": q, "flow": "methodology", "params": {"slug": strength or q}, "source": "flow"}
+    elif flow == "rulelab":
+        body = _rulelab_flow(conn)                        # latest rule-lab verdict (S157-b); read-only
+        fb_ctx = {"query": q, "flow": "rulelab", "params": {}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

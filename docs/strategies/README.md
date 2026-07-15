@@ -56,6 +56,7 @@ strategy without its own pre-registered, leak-free study that beats the recorded
 | **Momentum / RISKADJ** | ranked-rotation factor engine (the benchmark) | **BENCHMARK** · gross selection, **not fundable net of cost** | D66 + ledger benchmarks | [momentum-riskadj.md](momentum-riskadj.md) |
 | **patearn** | 14-pattern PIT fundamental-quality methodology | **DEPLOYED** analytical lens (not run as standalone alpha) | D66 · D76 · D7/D8/D24 | [patearn.md](patearn.md) |
 | **Classic Screens** | famous public strategies (Magic Formula · CANSLIM · Piotroski · Coffee Can · GARP · Graham · Quality · Low-Vol) run as live rosters on our PIT data | **DESCRIPTIVE-ONLY** — 5 full + 3 proxy; value shown with its recorded failure numbers | D133 · D66 · Guardrail #8 | [classic-screens.md](classic-screens.md) |
+| **Rule Lab** | closed-vocab user rules → the evidence-factory gauntlet → ledger-vocabulary verdicts | **LIVE TOOL** (an evidence instrument, not a strategy) — owner-gated composer; BLOCKING wall auto-cites | D137 · D134 §4-H · D66 | [rule-lab.md](rule-lab.md) |
 
 ## Terminology canon (the master anti-drift table)
 

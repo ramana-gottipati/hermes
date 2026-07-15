@@ -70,6 +70,70 @@ def latest_verdict(conn, status: str | None = None) -> dict | None:
             "ledger_block": payload.get("ledger_block", "")}
 
 
+# --------------------------------------------------------------------------- run queue
+# The design §7 run-cost note: a full gauntlet is a heavy compute pass, not a page render —
+# POST /dash/rule-lab/run only QUEUES. This table is the queue; the drain is the research-venv
+# CLI (`python -m explosive_moves.rule_lab_executor --work`), run by the owner (personal-first
+# v1 — NO timer, AUD-95). The runner is a human-invoked CLI, not a job daemon, exactly so the
+# L5 inbox stays the only machine→human seam. Owned here (module-owned DDL, never db.py —
+# the S138 signal_alert_delivery precedent).
+
+_QUEUE_DDL = """CREATE TABLE IF NOT EXISTS rule_lab_queue(
+    rule_hash    TEXT PRIMARY KEY,
+    spec_text    TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'queued',   -- queued | done | error
+    note         TEXT,
+    requested_by TEXT,
+    requested_at TEXT NOT NULL,
+    updated_at   TEXT)"""
+
+
+def _q_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+
+
+def enqueue(conn, spec, requested_by: str = "owner") -> dict:
+    """Queue a compiled RuleSpec for the next drain. Idempotent on rule_hash (first request
+    wins — same frozen text, same hash, same run). COMMITS per item (S153 discipline).
+    Returns {"created": bool, "status": str}."""
+    conn.execute(_QUEUE_DDL)
+    cur = conn.execute(
+        "INSERT OR IGNORE INTO rule_lab_queue "
+        "(rule_hash, spec_text, status, requested_by, requested_at) VALUES (?,?,?,?,?)",
+        (spec.rule_hash, spec.text, "queued", requested_by, _q_now()))
+    created = cur.rowcount == 1
+    status = conn.execute("SELECT status FROM rule_lab_queue WHERE rule_hash=?",
+                          (spec.rule_hash,)).fetchone()[0]
+    conn.commit()
+    return {"created": created, "status": status}
+
+
+def queue_pending(conn) -> list:
+    """Queued rows oldest-first: [{rule_hash, spec_text, requested_at}, ...]."""
+    conn.execute(_QUEUE_DDL)
+    return [{"rule_hash": r[0], "spec_text": r[1], "requested_at": r[2]}
+            for r in conn.execute(
+                "SELECT rule_hash, spec_text, requested_at FROM rule_lab_queue "
+                "WHERE status='queued' ORDER BY requested_at, rule_hash")]
+
+
+def queue_mark(conn, rule_hash: str, status: str, note: str = "") -> None:
+    """done|error (queued only re-arms via a fresh enqueue of a NEW hash). COMMITS."""
+    if status not in ("done", "error", "queued"):
+        raise ValueError(f"queue_mark: bad status {status!r}")
+    conn.execute("UPDATE rule_lab_queue SET status=?, note=?, updated_at=? WHERE rule_hash=?",
+                 (status, note[:500], _q_now(), rule_hash))
+    conn.commit()
+
+
+def queue_status(conn, rule_hash: str) -> str | None:
+    """'queued'|'done'|'error'|None — the page's queued-badge read."""
+    conn.execute(_QUEUE_DDL)
+    row = conn.execute("SELECT status FROM rule_lab_queue WHERE rule_hash=?",
+                       (rule_hash,)).fetchone()
+    return row[0] if row else None
+
+
 def _selftest() -> int:
     import sqlite3
     from src.automation.rule_lab import compile_rule, build_verdict
@@ -87,6 +151,14 @@ def _selftest() -> int:
     assert got and got["verdict"]["rule_hash"] == v.rule_hash
     assert "Rule-lab run" in got["ledger_block"]
     assert latest_verdict(conn, status="approved") is None
+    # queue: idempotent enqueue -> pending -> mark done -> status reads
+    q1 = enqueue(conn, spec)
+    q2 = enqueue(conn, spec)
+    assert q1["created"] is True and q2["created"] is False and q2["status"] == "queued"
+    pend = queue_pending(conn)
+    assert len(pend) == 1 and pend[0]["rule_hash"] == spec.rule_hash
+    queue_mark(conn, spec.rule_hash, "done", note="selftest drain")
+    assert queue_pending(conn) == [] and queue_status(conn, spec.rule_hash) == "done"
     conn.close()
     print("RULE_LAB_INBOX selftest OK")
     return 0

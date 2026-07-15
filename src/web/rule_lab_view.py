@@ -295,6 +295,131 @@ def render_page(verdict: dict | None = None, params: dict | None = None,
     return "".join(p for p in parts if p)
 
 
+# ------------------------------------------------------------------ router (integration)
+# Mounted via v2_surfaces._ROUTER_SPECS (the sector_rotation_view pattern: the view owns its
+# APIRouter so the education gate attributes /dash/rule-lab to THIS module's scaffold calls).
+# Owner-gate: tracker_gate's pt_owner cookie (fail-CLOSED — an import/check failure means
+# anonymous). Anonymous = a read-only DEMO verdict on synthetic numbers (the tracker
+# demo-book precedent, D-P0-6); the composer POST is owner-only and only ever QUEUES
+# (design §7 run-cost note — the gauntlet runs via the executor CLI, never in a web worker).
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+
+router = APIRouter()
+
+_DEMO_NOTE = ("Read-only demo — synthetic numbers that show the verdict FORMAT, not a real "
+              "run (the demo rule was judged WEAKER-THAN-BENCHMARK on purpose: the lab's "
+              "job is honest refusal). The owner composes and queues real rules here.")
+
+
+def _owner_ok(request) -> bool:
+    try:
+        from src.web.tracker_gate import _is_owner
+        return bool(_is_owner(request))
+    except Exception:
+        return False
+
+
+def _demo_verdict() -> dict:
+    """Deterministic synthetic demo (never quoted as evidence; provenance says so)."""
+    from src.automation.rule_lab import build_verdict
+    spec = compile_rule("SELECT liquid500 WHERE not_extended RANK BY mom12 TAKE 25 HOLD quarterly")
+    nums = {"net_sharpe": 0.61, "gross_sharpe": 1.02, "flat_sharpe": 0.84,
+            "half1": 0.55, "half2": 0.66, "placebo_p95": 0.40, "observed": 0.61,
+            "emp_p": 0.02, "bench_net": 0.89, "capacity_inr": None,
+            "maxdd": -0.41, "ann_cost_pct": 6.0, "turnover": 0.38}
+    return build_verdict(spec, nums, prereg_ref="demo — synthetic numbers, not a real run",
+                         provenance={"env": "demo-synthetic"}).to_dict()
+
+
+def _shell_wrap(body: str) -> HTMLResponse:
+    from src.web.momentum_view import _shell
+    return HTMLResponse(_shell("Rule lab", ifx.readability_css() + body, active="rule-lab"))
+
+
+def _current_verdict(request) -> tuple:
+    """(verdict_dict|None, demo_note) — owner sees the latest REAL verdict, anon the demo."""
+    if _owner_ok(request):
+        from src.core.db import get_conn
+        with get_conn() as conn:
+            from src.automation.rule_lab_inbox import latest_verdict
+            item = latest_verdict(conn)
+        if item and item.get("verdict"):
+            note = f"latest run · inbox status: {item.get('status', '')}"
+            return item["verdict"], note
+        return None, "no rule has been run yet — compose one below"
+    return _demo_verdict(), _DEMO_NOTE
+
+
+@router.get("/dash/rule-lab", response_class=HTMLResponse)
+def rule_lab_page(request: Request):
+    params = {k: request.query_params.get(k, "") for k in ("u", "rank", "n", "hold",
+                                                           "where", "veto")}
+    params = {k: v for k, v in params.items() if v}
+    verdict, note = _current_verdict(request)
+    if request.query_params.get("format") == "csv":
+        name, text = render_csv(verdict or {})
+        return PlainTextResponse(text, media_type="text/csv",
+                                 headers={"Content-Disposition":
+                                          f'attachment; filename="{name}"'})
+    if request.query_params.get("queued"):
+        note = ("rule queued — the gauntlet runs off the web worker (executor --work); "
+                "the verdict lands here and in the Review Inbox when done. " + note)
+    err = request.query_params.get("err", "")
+    body = render_page(verdict, params or None, demo_note=note)
+    # The §5 wall speaks BEFORE any run: when the URL carries a composed rule whose shape
+    # matches a known-dead row, cite it right here at queue/compose time, verbatim.
+    if params:
+        try:
+            from src.automation.rule_lab import trigger_citations, survivor_note
+            _spec = spec_from_query(params)
+            _pre = _citations_block(trigger_citations(_spec), survivor_note(_spec))
+            if _pre:
+                body = ("<p><b>Known-dead shape — cited before the run</b> "
+                        "<small>(the rule may still run; it can never run silently)</small></p>"
+                        + _pre + body)
+        except RuleError:
+            pass
+    if err:
+        body = (f"<p class='rl-err' style='border-left:3px solid #f85149;padding:6px 10px'>"
+                f"<b>not compiled:</b> {_esc(err[:400])}</p>") + body
+    return _shell_wrap(body)
+
+
+@router.post("/dash/rule-lab/run")
+async def rule_lab_run(request: Request):
+    """Compile -> pre-cite -> ENQUEUE (writes are POST, row 11). Owner-only: the demo book
+    never runs compute. Refusals (closed-vocab violations, veto-as-ranker) re-render with
+    the compile error + any BLOCKING citation inline — the wall speaks BEFORE any run."""
+    if not _owner_ok(request):
+        return _shell_wrap(
+            "<p><b>Owner-only.</b> Running a rule queues real compute; the public page "
+            "shows a read-only demo verdict instead. "
+            "<a href='/dash/rule-lab'>Back to the Rule lab</a></p>")
+    form = await request.form()
+    try:
+        spec = spec_from_params(
+            universe=form.get("u", ""), signal=form.get("rank", ""),
+            take=form.get("n", ""), hold=form.get("hold", ""),
+            filters=form.getlist("where"), vetoes=form.getlist("veto"))
+    except RuleError as e:
+        cites = "".join(f"<pre style='white-space:pre-wrap'>{_esc(c)}</pre>"
+                        for c in getattr(e, "citations", []))
+        verdict, note = _current_verdict(request)
+        body = (f"<p class='rl-err' style='border-left:3px solid #f85149;padding:6px 10px'>"
+                f"<b>not compiled:</b> {_esc(str(e))}</p>{cites}"
+                + render_page(verdict, {k: form.get(k, "") for k in ("u", "rank", "n", "hold")},
+                              demo_note=note))
+        return _shell_wrap(body)
+    from src.core.db import get_conn
+    from src.automation.rule_lab_inbox import enqueue
+    with get_conn() as conn:
+        enqueue(conn, spec, requested_by="owner")
+    from urllib.parse import urlencode
+    return RedirectResponse("/dash/rule-lab?" + urlencode({**query_from_spec(spec),
+                                                           "queued": "1"}), status_code=303)
+
+
 # ------------------------------------------------------------------ selftest
 def _selftest() -> int:
     from src.automation.rule_lab import build_verdict

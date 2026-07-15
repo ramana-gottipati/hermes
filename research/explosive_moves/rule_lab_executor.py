@@ -39,7 +39,9 @@ prereg.gate_hash.
 Run (VPS):  PYTHONPATH=/opt/hermes:/opt/hermes/research \
             /opt/hermes/.venv-research/bin/python -m explosive_moves.rule_lab_executor \
             --run "SELECT liquid500 WHERE not_extended RANK BY mom12 TAKE 25 HOLD quarterly"
-CLI:        --selftest (synthetic, hermetic) | --run "RULE" [--shuffles N] | --grammar
+CLI:        --selftest (synthetic, hermetic) | --run "RULE" [--shuffles N]
+            | --work [--db /opt/hermes/data/hermes.db] [--shuffles N]   (drain the POST queue)
+            | --verify
 """
 from __future__ import annotations
 
@@ -347,6 +349,41 @@ def run_gauntlet(spec: RuleSpec, tables=None, bench_rets=None, db_path: str | No
     return build_verdict(spec, numbers, prereg_ref, provenance, roster=roster)  # stage 8 via inbox
 
 
+# ------------------------------------------------------------------ queue drain (--work)
+def work(hermes_db: str, research_db: str = RDB, n_shuffles: int = 120) -> dict:
+    """Drain the rule_lab_queue (POST /dash/rule-lab/run writes it; personal-first v1 —
+    the OWNER invokes this, there is deliberately no timer/daemon, AUD-95). Per rule:
+    run the full gauntlet -> submit the verdict to the Review Inbox -> mark the row.
+    Failures mark 'error' and NEVER block the rest of the queue. Commit per item
+    throughout (the S153 lesson rides the called helpers)."""
+    import sqlite3
+    from src.automation.rule_lab_inbox import queue_pending, queue_mark, submit_verdict
+    conn = sqlite3.connect(hermes_db, timeout=30)
+    out = {"ran": 0, "errors": 0, "skipped": 0}
+    try:
+        for row in queue_pending(conn):
+            try:
+                spec = compile_rule(row["spec_text"])
+                if spec.rule_hash != row["rule_hash"]:        # tampered queue row: refuse
+                    queue_mark(conn, row["rule_hash"], "error",
+                               "spec_text does not hash to rule_hash — refused")
+                    out["skipped"] += 1
+                    continue
+                v = run_gauntlet(spec, db_path=research_db, n_shuffles=n_shuffles)
+                submit_verdict(conn, v, evidence_url="/dash/rule-lab")
+                queue_mark(conn, row["rule_hash"], "done", v.verdict)
+                print("done:", _abridged(v))
+                out["ran"] += 1
+            except Exception as e:                            # noqa: BLE001 — queue must drain
+                queue_mark(conn, row["rule_hash"], "error", f"{type(e).__name__}: {e}")
+                print(f"error on {row['rule_hash'][:12]}...: {type(e).__name__}: {e}")
+                out["errors"] += 1
+    finally:
+        conn.close()
+    print(f"work: ran={out['ran']} errors={out['errors']} skipped={out['skipped']}")
+    return out
+
+
 # ------------------------------------------------------------------ synthetic fixture
 def synthetic_tables(spec: RuleSpec, n_syms: int = 90, seed: int = 7,
                      start_year: int = 2012, end_year: int = 2026):
@@ -447,6 +484,12 @@ if __name__ == "__main__":
             print("BLOCKING:", c.encode("ascii", "backslashreplace").decode())
         if v.survivor_note:
             print(v.survivor_note.encode("ascii", "backslashreplace").decode())
+    elif "--work" in sys.argv:
+        hdb = (sys.argv[sys.argv.index("--db") + 1] if "--db" in sys.argv
+               else "/opt/hermes/data/hermes.db")
+        sh = int(sys.argv[sys.argv.index("--shuffles") + 1]) if "--shuffles" in sys.argv else 120
+        r = work(hdb, n_shuffles=sh)
+        sys.exit(1 if r["errors"] else 0)
     elif "--verify" in sys.argv:
         sys.exit(1 if verify_rule() else 0)
     else:

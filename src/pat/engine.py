@@ -63,6 +63,7 @@ _VALID: dict[str, dict] = {
     "filings":      {"symbol": "free", "focus": "free"},  # "filings for X" — insider/ratings/SAST/holdings (S150)
     "wolfe":        {"symbol": "free"},  # "any wolfe setups / open trades" — open Wolfe waves (S150)
     "methodology":  {"slug": "free"},   # "explain the Wolfe methodology" — strategy explainers (S150 Ph3)
+    "rulelab":      {},                  # "did my rule work" — latest rule-lab verdict, read-only (S157-b)
     "explain":      {"explain": "slug"},
 }
 
@@ -455,6 +456,20 @@ def route(query: str, conn=None) -> dict | None:
     if wolf:
         _cache_put(q, wolf)
         return wolf
+
+    # (a-1l) Rule-lab — "did my rule work / rule lab verdict / test my rule" — the latest
+    #        gauntlet verdict from the Review Inbox, read-only (running a rule stays the
+    #        page's owner-gated POST). ₹0; conservative: needs a rule-lab cue AND an ask
+    #        cue, and the parser excludes wolfe/screener/glossary/exit-law rule vocabulary
+    #        so those lenses keep their own asks. A miss yields to the normal parse.
+    try:
+        from src.pat.rulelab_flow import parse_rulelab as _parse_rulelab
+        rlb = _parse_rulelab(query)
+    except Exception:
+        rlb = None
+    if rlb:
+        _cache_put(q, rlb)
+        return rlb
 
     from src.pat.understand import validate_intent, parse_fallback
 

@@ -137,6 +137,9 @@ _ROUTER_SPECS = [
     ("factor-league", "src.web.factor_league_view", "/dash/factor-league"),
     ("model-portfolios", "src.web.auto_portfolios_view", "/dash/model-portfolios"),
     ("sector-rotation", "src.web.sector_rotation_view", "/dash/sector-rotation"),
+    # Rule lab (D134 §4-H, S157-b): closed-vocab user rules → the evidence-factory gauntlet →
+    # honest ledger-vocabulary verdicts. Owner-gated composer; anonymous = demo verdict.
+    ("rule-lab", "src.web.rule_lab_view", "/dash/rule-lab"),
     # Classic Screens (S145): the famous NAMED strategies run as live rosters on OUR PIT data.
     # Reads classic_roster (famous_strategies.py, nightly). Sibling of factor-league.
     ("classics", "src.web.classics_view", "/dash/classics"),

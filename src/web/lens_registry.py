@@ -297,6 +297,11 @@ LENSES: tuple[Lens, ...] = (
          aliases=("copilot", "ask", "assistant", "ask-pat")),
     Lens("spec-sheets", "Spec sheets", "trust", "trust", "/dash/spec-sheets",
          aliases=("pre-registration", "studies")),
+    # Rule lab (D134 §4-H, S157-b) — "write a rule; the evidence factory judges it honestly":
+    # closed-vocab composer → prereg → gauntlet (halves/placebo/cost/capacity) → a
+    # ledger-vocabulary verdict. An evidence surface, so Trust altitude (design §7 row 1).
+    Lens("rule-lab", "Rule lab", "trust", "trust", "/dash/rule-lab",
+         aliases=("rulelab", "rule-laboratory", "my-rule")),
     # Evidence pack (charter P-04, S96) — the print-ready procurement assembly of
     # spec-sheets + coverage boundary + season SLA + replay pointer.
     Lens("evidence-pack", "Evidence pack", "trust", "trust", "/dash/evidence-pack",
