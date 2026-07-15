@@ -385,10 +385,19 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
 | V29 size-segment satellites (+CNX Midcap, +Midcap 50) | 0.87 (flat) | +0.1pt CAGR / flat DD / 27.62 | 0.79 (flat) | Marginal — turnover ↑ roughly offsets the gain |
 | V25 longer RSI-of-RS window (n=50/90d vs n=14/40d) | 0.85 | 16.4% / −43.9% / 26.04 | 0.77 | REJECT — smoother = slower = worse DD, both bases |
 | V27 dual-benchmark (must clear vs Nifty 50 AND Nifty 500) | 0.85 | 16.1% / −45.0% / 24.80 | 0.76 | REJECT — the AND-condition under-protects, both bases |
-| V28 regime-band (ride ≥45 after crossing 55, exit <45) | 0.82 | 15.8% / −43.9% / 23.46 | 0.74 | REJECT — **confirms the single-sector Defence diagnostic at full-portfolio scale** |
+| V28 regime-band (ride ≥45 after crossing 55, exit <45) | 0.82 | 15.8% / −43.9% / 23.46 | 0.74 | REJECT — **confirms the single-sector Defence diagnostic** (below) **at full-portfolio scale** |
 | V23 direction-of-trend entry/exit (2-qtr deceleration/acceleration as an extra trigger) | 0.79 | 15.1% / −44.0% / 20.40, turn 18.0% | 0.79, turn 17.1% | REJECT — turnover +3–5pt with no offsetting return, worse DD both bases |
 | V30 book-level vol-targeting (scale exposure to a 15% vol target) | 0.78 | 17.9% / **−50.8%** / 34.61 | 0.67 / **−53.6%** | **REJECT — worst drawdown blowup in the batch** (higher CAGR, but levers up right before vol spikes; fails "keep drawdown in check") |
 
+- **The V28 preliminary signal, reproducibly:** before this batch, a standalone single-sector diagnostic
+  (`research/explosive_moves/defence_rsirs_diagnostic.py`, read-only, isolates the RSI-of-RS mechanism on
+  Nifty India Defence — the strongest real-world sustained-trend example, 2022-01→2026-07, 18 quarterly
+  checkpoints) showed the SAME regime-band idea (ride ≥45 after crossing 55, exit <45) capturing only
+  **51% of the buy-and-hold ceiling (3.56× vs 6.92×)**, vs the current fixed-70/80 rule's **98.8% (6.84×)**
+  — because Defence's RSI-of-RS never once crossed 80 in that window (max 76.9), so the existing rule barely
+  fired, while the regime-band got whipsawed out right before the single largest quarterly move (+29.2% RS-
+  excess in 2022-Q3). The full-portfolio V28 result above CONFIRMS this diagnostic held at scale, not just
+  on one sector.
 - **Combining the winners — a genuine NEGATIVE interaction found:** V24+V26 (0.89, DD back to −40.8%, ₹29.75) is
   WORSE than V24 alone (0.91, DD −37.7%, ₹30.35) — V26's "wait 2 quarters" delays exactly the faster reaction that
   makes V24 work; the two mechanisms fight each other. **V24+V22+V26 confirms it** (0.88, DD −41.3%) — V26 hurts
@@ -426,6 +435,14 @@ CAGR 12.22%, MaxDD **−58.6%**, ₹1 Cr → ₹11.93 Cr — sits between Nifty 
 monotonically 50→100→500). **V24 beats all three simultaneously** — Sharpe +0.27 to +0.28 over any of them, MaxDD
 18–24 points shallower, wealth 2.4–2.7× — on the same like-for-like price-index basis (dividends excluded on all
 four, so the delta is fair, absolute levels conservative).
+
+**The full quarterly holdings history is reproducible, not just the summary stats.** The same
+`sector_rotation_v24_final.py` module's `simulate_v24(record_book=True)` mode walks all 86 quarterly
+rebalances and returns, per quarter: the exact holdings + weights, the sleeve regime, and the diff vs
+the previous quarter (entered/exited/re-weighted) — the data behind the interactive portfolio ledger
+shown to Ramana (2005→2026, year-grouped, searchable by sector, filterable to churn-only or cash-only
+quarters). Sample fact from that walk: the book briefly held its widest-ever spread on 2022-04-01 (10
+positions, none above 16.2%) after the recovery-accelerator fired coming out of the 2022 correction.
 
 ### 2026-07-15c — Round 2: attack the RETURN gap (kill-switch · asym cadence · residual fill · monthly cadence), V8 base frozen, 2005–2026 n=257
 

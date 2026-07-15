@@ -168,18 +168,30 @@ def sleeve_ret(asset, d, dn):
     r = ret(asset, d, dn)
     return r if r is not None else (ret(BENCH, d, dn) or 0.0)
 
-def simulate_v24():
-    prev = {}; rows = []
+def simulate_v24(record_book=False):
+    prev = {}; rows = []; book = []
     for k in range(len(rebal)-1):
         d, dn = rebal[k], rebal[k+1]
         is_q = (k % 3 == 0)
         if is_q:
             eb = None
-            if not kill_on(d):
+            on_index_d = not kill_on(d)
+            if on_index_d:
                 lookback = [rebal[k-j] for j in (1, 2, 3) if k-j >= 0]
                 if any(kill_on(x) for x in lookback):
                     eb = 0.0
             w = build(d, set(prev), eb)
+            if record_book:
+                inv = sum(w.values())
+                turn = sum(abs(w.get(s,0)-prev.get(s,0)) for s in (set(w)|set(prev)))
+                entered = sorted(set(w) - set(prev))
+                exited = sorted(set(prev) - set(w))
+                moved = [(s, prev[s], w[s]) for s in sorted(set(w) & set(prev)) if abs(w[s]-prev[s]) > 0.005]
+                qret = ret(BENCH, d, dn) or 0.0
+                book.append(dict(date=d, holdings=[(s, round(x,4)) for s,x in sorted(w.items(), key=lambda kv:-kv[1])],
+                    sleeve_w=round(max(0.0,1-inv),4), regime="INDEX" if on_index_d else "CASH",
+                    entered=entered, exited=exited,
+                    moved=[(s,round(a,4),round(b,4)) for s,a,b in moved], turnover=round(turn,4)))
         else:
             w = dict(prev)
         rb = ret(BENCH, d, dn) or 0.0
@@ -196,6 +208,8 @@ def simulate_v24():
             t = sum(abs(w.get(s,0)-prev.get(s,0)) for s in allk)
             rp -= t*COST
         rows.append((dn, rp, rb)); prev = w
+    if record_book:
+        return rows, book
     return rows
 
 def stats(rows_or_rets, is_pairs=True):
@@ -217,7 +231,7 @@ def stats(rows_or_rets, is_pairs=True):
     return dict(sh=round(sh,3), h1=round(sh_(rp[:half]),3), h2=round(sh_(rp[half:]),3),
                 cagr=round(nav**(1/yrs)-1,4), mdd=round(mdd,4), cr=round(nav,3))
 
-v24_rows = simulate_v24()
+v24_rows, v24_book = simulate_v24(record_book=True)
 dts = [r[0] for r in v24_rows]
 def navdd(rets):
     nav=1.0; pk=1.0; out=[]; dd=[]
@@ -262,4 +276,5 @@ out["DV24"] = [round(dd_v24[i]*100,1) for i in keep]
 out["DN50"] = [round(dd_50[i]*100,1) for i in keep]
 out["DN100"] = [round(dd_100[i]*100,1) for i in keep]
 out["DN500"] = [round(dd_500[i]*100,1) for i in keep]
+out["book"] = v24_book
 print(json.dumps(out))

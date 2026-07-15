@@ -49,10 +49,54 @@ PROJECT_STATE entries are enough.**
 - **Gotchas for your deploy steps:** `install-systemd.sh` DEFAULTS to `--check` — the copy needs the explicit `--install` flag (this bit me; also now in the deploy memory). Worktree commits need BOTH `HERMES_SKIP_STATE_GATE=1` and `state:skip`.
 - **✅ Suite debt FIXED (same orchestrator, npfix-suite):** `test_embase_deliv_value.py` now `pytest.importorskip("numpy")` (the test_rule_lab_executor pattern) and `combo_test.py` (a research SCRIPT that only matched pytest's `*_test.py` glob) is collect-ignored via a new `research/explosive_moves/conftest.py` — full suite collects clean in numpy-less worktrees (539 passed / 0 errors at the S158-era base). Semantics untouched; the script still runs via `python -m`.
 
-## ✅ 2026-07-15 — S-rotation-e: SECTOR-ROTATION PORTFOLIO SURFACE — BUILT + DEPLOYED + LIVE-WALKED — do NOT redo; kickstart-pick-verify
-- **`/dash/sector-rotation` LIVE** (→ nested `/dash/strategies/sector-rotation`; public Caddy 200): the V17 book with **`?asof=` time-travel** (◀/▶ steppers + year strip; walked 2008/2013/2020/2024/latest), **per-quarter rebalance diff** (entered/exited/re-weighted + sleeve regime + turnover), analytics-to-date vs Nifty 500, dual NAV sparkline, CSV. **Engine `src/automation/sector_book.py`** → bounded `sector_rotation_book`+`sector_rotation_nav` (83 rebalances/258 months; **on-box build NAV 19.04 == the research number** — engine cross-validated); clock-gated `--refresh` in `10-signals.conf` (installed, no start). **Every strategy-ref page now hands off to its live surface** (`strategies_view._SURFACE`, 12 slugs — Ramana's "details → portfolio" directive). Lens registered (anchored inserts on box-forked `lens_registry`/`v2_surfaces`; glossary term anchored into hot `metrics-glossary.md`; backups `.bak-secport-*`). Gates: strategy-docs 13/13 · route · education · pat-coverage · suite 502 pass (pre-existing `test_embase_deliv_value.py` collection error = XBRL lane's, reproduces at origin, flagged). Commit `7887c78`.
-- **⚠ Live fact worth knowing:** the residual sleeve's regime is **CASH right now** (Nifty 500 below its 200DMA post the Apr-2026 fall) — the defensive rule is actively engaged; it flips back to INDEX automatically when the index reclaims the average.
-- **NEXT (rotation lane):** Ramana's V17 ratification · TR-benchmark re-cut + V17 significance pass · V2 ≤40-stock constituent build (stock RS inside qualifying sectors — reuse `stock_signals` RS columns).
+## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136): V8→V17→V21→★V24/★V32 candidates, portfolio surface LIVE, naming CANONIZED — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
+**The ladder (never re-derive — cite these numbers):** all on 2005–2026 price-index data (TR re-cut still owed),
+16 NSE sectors, quarterly rebalance. V8 = FROZEN base (Sharpe 0.70/DD−36.2%/₹9.13Cr, Ramana-ratified, never
+edited — refinements are new V-numbers beside it). **V17** = V8 + defensive residual fill (0.79/−39.2%/₹19.04,
+recorded candidate). **V21** = V17 + Next-50 sleeve + recovery-accelerator + inverse-vol (**0.87/−40.8%/₹27.02 —
+the LIVE default on `/dash/sector-rotation` today**). **★V24** = V21 + own-percentile RSI-of-RS exit (85th
+trims/95th exits, that sector's own trailing-756d history replacing the fixed 70/80) — **Sharpe 0.91 (0.92/0.91,
+the most half-balanced result in the whole project), MaxDD −37.7% (best), α+7.1%/yr (best), ₹1Cr→₹30.35Cr**.
+**★V32** = V24 + adaptive hysteresis band (±band sized to a sector's own RS-line vol, replacing fixed ±8%) —
+Sharpe 0.90 (0.95/0.84), ₹1Cr→₹31.15Cr (best wealth). **V24 vs V32 is a genuine unresolved trade-off**
+(robustness vs wealth), not a numbers call — **both pending Ramana's ratification; V21 stays live meanwhile.**
+"V24" is the BINDING name for the FULL V21+lever combo (Ramana, 2026-07-15g) — never the bare lever alone.
+
+**REJECTED with numbers, do not re-attempt without beating these (ledger §§ 07-15b/c/d/f):** short/F&O leg
+(0.49 vs 0.87 — shorts fight drift) · monthly cadence (3× confirmed, churn kills it) · book-level 200DMA kill
+(wealth collapses on whipsaws — the SAME signal only works on the residual sleeve) · longer RSI-of-RS window
+(smoother=slower=worse DD) · dual-benchmark AND-confirmation (under-protects) · 55/45 regime-band exit
+(REJECTED twice — first a single-sector Defence diagnostic, then confirmed at full-portfolio scale as V28) ·
+direction-of-trend entry/exit (turnover +3-5pt, worse DD, no payoff) · book-level vol-targeting (**worst
+drawdown blowup recorded: MaxDD to −50.8%/−53.6% despite higher CAGR** — fails "keep drawdown in check").
+**A real negative-interaction lesson:** V26 (persistence) is a clean win ALONE but HURTS combined with V24 —
+delays its faster reaction. Combining individually-validated levers is NOT always additive; test every combo.
+
+**What's LIVE today:** `/dash/sector-rotation` (→ nested `/dash/strategies/sector-rotation`; public Caddy 200)
+runs **V21** (not V24/V32 — those await ratification) with `?asof=` time-travel (◀/▶ steppers + year strip),
+per-quarter rebalance diffs, analytics-to-date vs Nifty 500, dual NAV sparkline, CSV. Engine
+`src/automation/sector_book.py` → `sector_rotation_book`+`sector_rotation_nav` tables, clock-gated `--refresh`
+in `10-signals.conf`. Every strategy-ref page hands off to its live surface (`strategies_view._SURFACE`).
+**Sleeve regime was CASH as of Apr-2026** (Nifty 500 below its 200DMA) — check current state before assuming.
+
+**Full quarterly holdings (all 86 rebalances, 2005→2026) are reproducible**, not just summary stats:
+`research/explosive_moves/sector_rotation_v24_final.py`, function `simulate_v24(record_book=True)` — returns
+every quarter's exact holdings+weights, sleeve regime, and the diff vs the prior quarter. This is what powered
+the interactive ledger shown to Ramana (year-grouped, searchable, filterable). The single-sector Defence
+diagnostic (regime-band idea, tested before the full V28 batch) is `research/explosive_moves/defence_rsirs_diagnostic.py`
+— read-only, standalone, reproduces the 51%-vs-98.8%-captured finding.
+
+**Canon (single source of truth, don't re-derive from this bullet):** [`docs/strategies/sector-rotation.md`](docs/strategies/sector-rotation.md)
+(the ruleset + terminology, incl. the V8/V17/V21/V24/V32 ladder) · [`docs/strategy-ledger.md`](docs/strategy-ledger.md)
+§§ 2026-07-15 → 2026-07-15g (every number, every rejection) · PROJECT_STATE.md Decision log **D136**.
+
+**NEXT (rotation lane, in order):** ① Ramana's ratification of V24 vs V32 (or hold both, or keep V21) — a
+decision, not a build task. ② TR-benchmark re-cut (no total-return index in `index_rows` yet — needs a primary-
+source NSE TRI ingest, a small data lane) + a formal significance/t-stat pass on whichever candidate ratifies —
+four rounds of selection on one window makes this the highest-priority rigor item. ③ Once ratified: promote the
+live `/dash/sector-rotation` engine + page to the ratified config (currently intentionally still V21). ④ **V2 —
+the ≤40-stock constituent build** (top-RS stocks inside qualifying sectors, sector-RS × stock-RS weights,
+per-sector stops; reuse `stock_signals` RS columns) — the natural next phase once the sector-level ladder settles.
 
 ## 🆕 2026-07-15 — S155/S156 (D134 LANE-G + LANE-H): ENTITY GRAPH live + RULE-LAB design — do NOT redo; kickstart-pick-verify
 - **LANE-G `src/automation/entity_graph.py` — DEPLOYED + REAL-DATA VERIFIED.** 6 extractors over filing tables we already own → **7,813 edges in 130ms** (insider 3,643 · sast 2,256 · deal 1,033 · pledge_lender 441 · pledge 317 · rating 123); re-run identical, **0 dupes** (idempotent on live data). `neighborhood(symbol)` → edges + **co-links** (the other companies a shared counterpart touches, with `via` provenance). Walked live: MAHABANK 74 co-links · SASKEN 0 (correct — SASKEN-only filers).
