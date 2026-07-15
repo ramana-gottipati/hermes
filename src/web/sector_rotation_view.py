@@ -9,8 +9,8 @@ champion-candidate (docs/strategies/sector-rotation.md):
   * `?asof=YYYY-MM-DD` — the book at any past rebalance (default: the latest), with
     ◀ prev / next ▶ steppers and a year strip;
   * the REBALANCE DIFF vs the previous quarter (entered · exited · re-weighted);
-  * analytics-to-date (NAV multiple, CAGR, Sharpe, MaxDD — strategy vs Nifty 500 to that
-    same date) + a dual NAV sparkline with the as-of marker;
+  * analytics-to-date (NAV multiple, CAGR, return/vol ratio, MaxDD — strategy vs Nifty 500
+    to that same date) + a dual NAV sparkline with the as-of marker;
   * the residual sleeve's regime at that date (INDEX above the 200DMA / CASH below);
   * `?fmt=csv` — the holdings at the as-of date (server-side, playbook item).
 
@@ -59,7 +59,12 @@ def _load():
 
 
 def _stats(navs):
-    """CAGR / Sharpe / MaxDD from a NAV path (monthly marks, base 1.0 prepended)."""
+    """CAGR / return-vol ratio / MaxDD from a NAV path (monthly marks, base 1.0 prepended).
+
+    `retvol` is mean/sd*sqrt(12) with NO risk-free subtracted -- a return/vol ratio, NOT a
+    Sharpe ratio. Labelled accordingly everywhere it is rendered (ledger 2026-07-15i). The
+    benchmark row is computed on the identical basis, so the comparison is like-for-like.
+    """
     if len(navs) < 6:
         return None
     path = [1.0] + navs
@@ -72,7 +77,7 @@ def _stats(navs):
         mdd = min(mdd, v / pk - 1)
     yrs = len(rets) / 12.0
     return dict(mult=navs[-1], cagr=navs[-1] ** (1 / yrs) - 1 if yrs > 0 else 0.0,
-                sharpe=(m / sd * math.sqrt(12)) if sd > 0 else 0.0, mdd=mdd)
+                retvol=(m / sd * math.sqrt(12)) if sd > 0 else 0.0, mdd=mdd)
 
 
 def _spark(nav, upto_i):
@@ -194,7 +199,7 @@ def sector_rotation_page(asof: str = Query(""), fmt: str = Query("")):
         if not s_:
             return f"<td>{tag}</td><td colspan='4'>—</td>"
         return (f"<td>{tag}</td><td>{s_['mult']:.2f}×</td><td>{_pct(s_['cagr'])}</td>"
-                f"<td>{s_['sharpe']:.2f}</td><td>{_pct(s_['mdd'])}</td>")
+                f"<td>{s_['retvol']:.2f}</td><td>{_pct(s_['mdd'])}</td>")
 
     body = f"""
 <style>
@@ -245,7 +250,7 @@ def sector_rotation_page(asof: str = Query(""), fmt: str = Query("")):
  · sleeve regime at month-start: <b>{regime}</b> · turnover paid: {_pct(nav[upto_i]['turn'], 1)}</div>
 {_spark(nav, upto_i)}
 <table class='srp-tbl'>
-<tr><th></th><th>NAV ×</th><th>CAGR</th><th>Sharpe</th><th>MaxDD</th></tr>
+<tr><th></th><th>NAV ×</th><th>CAGR</th><th title='mean/sd — no risk-free subtracted, so this is a return/vol ratio, not a Sharpe ratio'>Return/vol</th><th>MaxDD</th></tr>
 <tr>{_stat_cells('V17 to ' + nav[upto_i]['d'], st)}</tr>
 <tr>{_stat_cells('Nifty 500 to same date', sb)}</tr>
 <tr>{_stat_cells('V17 full period', st_full)}</tr>

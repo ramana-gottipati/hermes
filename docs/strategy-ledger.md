@@ -278,6 +278,24 @@ forward signal at 60d on either outcome, exactly as the failure-ledger predicted
 
 ## Study 2026-07-15 — SECTOR-ROTATION (relative-strength, sector-INDEX level) — CONDITIONAL: low-turnover quarterly long-only BEATS passive (+2.8% alpha, cost-surviving) but not the strict 0.89-both-halves bar; short/F&O leg REJECTED
 
+> ### 🔴 READ BEFORE ANY NUMBER IN §§ 2026-07-15 … 2026-07-15h
+>
+> **1. SCOPE (§15h).** This ladder selects **SECTORS, never STOCKS.** Every stat below measures the
+> sector-selection half of an unfinished brief, priced on instruments that in ~6 of 16 sectors do not
+> exist. **No number here may be presented, quoted, or promoted as a complete strategy result.**
+>
+> **2. "Sharpe" IS THE WRONG WORD (§15i).** Every figure labelled *Sharpe* in §§15…15h — and on the live
+> page — is a **RETURN/VOL RATIO**: the engine computes `mean/sd × √12` and subtracts **no risk-free
+> rate**. Verified by reconciliation (V21 = 16.57% CAGR ÷ 19.92% ann vol = 0.875). True excess-of-6.5%
+> Sharpes are **~0.51 / 0.54 / 0.54**, not 0.875 / 0.911 / 0.898. **Benchmarks use the identical basis, so
+> every RELATIVE claim below holds exactly as written; the ABSOLUTE levels are overstated ~1.7× by the
+> label alone.** Ramana 2026-07-15i: **relabel, numbers unchanged.** The dated sub-entries below are left
+> as the historical record rather than rewritten — read every "Sharpe" in them as "return/vol ratio".
+>
+> **3. THE RUNGS ARE NOT DISTINGUISHABLE (§15i).** V24-vs-V32 is **unmeasurable** on this window (gap
+> 0.013 vs a 0.148 noise floor); V24-vs-V21 is method-dependent and dies under a measured-fair k=9
+> selection correction. Ramana's V24 designation stands on **mechanism** grounds, not evidence.
+
 Ramana-directed sector-rotation RS strategy: long every NSE sectoral index beating Nifty 500 on
 trailing RS, weighted strongest→weakest; RSI-green entry gate; short the underperformers (F&O);
 hold while momentum persists. Tested at the SECTOR-INDEX level (V1 — isolates the rotation edge
@@ -531,6 +549,107 @@ running it:** stock-level momentum is recorded in this ledger as **BETA not skil
 LOWVOL_MOM qtr large-cap fundable (1.02 @ ₹50cr), and stock legs cost more than index legs — **matching the
 index book counts as a REJECTION, not a result.** ② the instrument/ADV audit + per-leg cost re-cut. ③ the TR
 re-cut + significance pass (still owed, four selection rounds deep).
+
+### 2026-07-15i — SIGNIFICANCE PASS (closes the §15h owed item ③, significance half): the V21→V24→V32 ladder's final rungs are NOT STATISTICALLY DISTINGUISHABLE — and the "Sharpe" label is wrong
+
+**What this settles.** §15h left three items owed; this closes the significance half of ③. The ladder's
+*arithmetic* was never in question (§15h: "the numbers reproduce"). What was never asked is whether the
+**differences between the rungs are distinguishable from noise**. They are not. Ramana's V24 designation
+(§15h) is therefore correctly a **mechanism call** — it has no evidential basis, and **none was available
+on this window**. That is a finding about the evidence, not a criticism of the choice.
+
+**Reproduction gate FIRST (no test is trusted until the engine reproduces the record).** The harness
+`research/explosive_moves/sector_rotation_significance.py` does not re-implement anything — it exec's the
+validated Round-4 engine (`sector_rotation_exp4.py`) above its driver line and calls its own `simulate()`.
+Reproduced vs ledger: **V21 0.875/₹27.02 · V24 0.911/₹30.35 · V32 0.898/₹31.15 — all MATCH** (§15f/§15g
+exactly). n = **258 monthly observations / 21.5 years**.
+
+**Test 1 — Jobson-Korkie difference-of-Sharpe, Memmel (2003) correction** (the standard analytic test for two
+*correlated* ratios; run on per-period Sharpes, difference annualised only for display — feeding annualised
+Sharpes into the statistic is the classic error and would have manufactured z=4.56):
+
+| pair | ΔSharpe/yr | corr | z | p | verdict |
+|---|---|---|---|---|---|
+| V24 − V32 | +0.013 | 0.9719 | +0.244 | **0.807** | NOT distinguishable |
+| V24 − V21 | +0.036 | 0.9957 | +1.747 | **0.081** | NOT distinguishable |
+| V32 − V21 | +0.023 | 0.9749 | +0.463 | **0.643** | NOT distinguishable |
+
+**Test 2 — paired stationary block bootstrap** (Politis-Romano, geometric blocks mean 6m, wrap-around, 20k
+draws, the two books' months resampled JOINTLY so cross- and auto-correlation survive). **The method matters
+and the headline number is method-dependent — that IS the result:**
+
+| pair | percentile p | basic/pivotal CI | studentized p | studentized CI |
+|---|---|---|---|---|
+| V24 − V32 | 0.733 | [−0.0675, +0.0923] spans 0 | **0.745** | [−0.0652, +0.0920] spans 0 |
+| V24 − V21 | 0.038 | **[−0.0095, +0.0707] SPANS 0** | **0.127** | [+0.0013, +0.0999] |
+| V32 − V21 | 0.564 | [−0.0560, +0.1021] spans 0 | **0.555** | [−0.0508, +0.1046] spans 0 |
+
+The lone sub-0.05 figure in this whole study — V24−V21 percentile p=0.038 — **does not survive method
+choice**: the pivotal CI spans zero and the studentized p is 0.127. An adversarial review predicted this was
+a mis-centred bootstrap; **that diagnosis was checked directly and is WRONG** — the draw distribution is
+properly centred (mean +0.0358 vs d̂ +0.0360, offset −0.0002). The percentile/pivotal divergence is **skew,
+not bias**. Right conclusion, wrong mechanism — recorded because the mechanism matters for reuse.
+
+**Power — the number that makes the nulls meaningful** (non-significance is uninterpretable without it):
+
+| pair | corr | SE(ΔSharpe)/yr | min detectable @80% power | observed |
+|---|---|---|---|---|
+| V24 vs V32 | 0.9719 | 0.0527 | **0.148** | **0.013** ← 11× below the noise floor |
+| V24 vs V21 | 0.9957 | 0.0206 | **0.058** | 0.036 ← under-powered, not "absent" |
+
+**V24 vs V32 is not a close call — it is UNMEASURABLE on this window.** To resolve a 0.013 gap we would need
+~0.15. §15f's framing of V24-vs-V32 as *"a genuine trade-off… a preference call, not a numbers call"* is
+**too generous**: it is not a trade-off, it is three noise draws. The tie-breakers §15f leaned on are noisier
+than the Sharpe itself — a single half-sample Sharpe carries **SE ≈ 0.31** (n=129), so V32's 0.95/0.84
+"imbalance" is 0.25 SE (paired diff-in-diff vs V24's balance: **z = −0.95, p = 0.34**), and ₹31.15-vs-₹30.35
+terminal wealth is a monotone function of mean log return — **more** noise-dominated than Sharpe, not less.
+
+**Selection deflation — and the check that made it fair.** V24 was the WINNER of the Round-4 batch (V22..V30,
+k=9); reporting a winner's raw p as a pre-registered p is the winner's-curse error. Bonferroni assumes
+independence and would be unfairly harsh if the levers were redundant — **so it was measured, not assumed.**
+Pairwise correlations of the levers' excess-over-V21 series: **off-diagonal mean +0.126, median +0.051**
+(min −0.313, max +0.815). **The levers are genuinely distinct tests → a k≈9 burden is real and Bonferroni is
+roughly right.** (V24 correlates **−0.31** with V22 — independently corroborating §15f's measured negative
+interaction.) Applying it: V24−V21 percentile p 0.038 → **Bonferroni 0.345 / Šidák 0.296**; JK p 0.081 →
+0.726/0.531; the defensible studentized p 0.127 → 1.000/0.706. **Nothing survives on any method.** k=9 is the
+FLOOR — selection is four rounds deep on the SAME 2005-2026 window. *(Measured k=8: V29 came back ≡ V21
+because the satellite indices are absent from the extract; the module reports and excludes it. Does not move
+the conclusion.)*
+
+**Effective sample size — the strongest argument against V24, which no prior round made.** V24 and V21 are
+**identical in 206 of 258 months (80%)**; only ~52 months carry any information ≈ **~9 informative blocks** at
+mean block 6. Both the JK normal approximation and the percentile bootstrap have poor coverage at n_eff ≈ 10.
+**The window cannot support the claim regardless of which test is used.**
+
+**🔴 A SEPARATE DEFECT — "Sharpe" is the wrong word, estate-wide.** The engine computes `m/sd*√12` with **no
+risk-free subtracted**. Verified by reconciliation: **V21 = 16.57% CAGR on 19.92% ann vol = 0.875** — a raw
+**return/vol ratio**. (The tell: 0.875 as a true Sharpe implies ~11.5% vol, irreconcilable with a −37.7%
+MaxDD; at raw return/vol the implied 18.9% vol reconciles.) Against ~6.5% rf the true excess-return Sharpes
+are **V21 ≈ 0.51 · V24 ≈ 0.54 · V32 ≈ 0.54** — ordinary, not exceptional. **Benchmarks are computed on the
+identical basis, so every RELATIVE claim in §§15..15h holds unchanged; the ABSOLUTE levels were overstated by
+a factor of ~1.7 by the label alone.** Ramana's ruling (2026-07-15i): **relabel to "return/vol ratio",
+numbers unchanged** — the cheapest honest fix. A true-Sharpe re-cut needs a primary-source rf ingest
+(Guardrail #8) and is queued with the owed TR re-cut, which moves the same figures.
+
+**Verdict: CONDITIONAL — unchanged, and now for a stated reason.** No candidate has an evidence-backed claim
+to displace V21, and **none can be manufactured from this window**. Ramana's decision (2026-07-15i), taken
+with the null in hand: **V24 stands as the designated carry-forward layer on MECHANISM grounds** — its
+own-percentile exit adapts to each sector's own history, replacing a fixed 70/80 threshold that was never
+justified, and its direction of travel (best MaxDD −37.7%, most balanced halves 0.92/0.91) is consistent even
+though not significant. **This is a priors call, correctly labelled as one, NOT an evidence result.**
+Per §15h it remains a designation of *what the stock build sits on* — **`/dash/sector-rotation` stays on
+V21; nothing is promoted to the live engine.** **V32 is retired as a distinct candidate** — strictly more
+complex than V24 and provably indistinguishable from it; keeping it as a "wealth-favoring sibling" implies a
+choice the data cannot support.
+
+**Honest limits of this pass (do not over-read the nulls).** Non-significance ≠ no effect. The design is
+low-power *by construction*: nested books correlated 0.97–0.996 with ~9 informative blocks. This pass proves
+the ladder's final rungs **cannot be told apart on 2005-2026** — it does NOT prove V24 is no better than V21.
+Only a **fresh window / true OOS** can settle that, and per §15h the honest priority is the **constituent
+build**, not further tuning of a layer whose index expression may be unbuyable in ~⅜ of sectors.
+
+**Reproduce:** `python research/explosive_moves/sector_rotation_significance.py <db>` — self-gating (exits
+non-zero if the engine stops reproducing §15f/§15g), stdlib-only, deterministic (seed 20260715).
 
 ### 2026-07-15g — NAMING: "V24" is the official shorthand for the FULL V21+V24 combination + a consolidated 3-index cross-check (Nifty 50 · Nifty 100 · Nifty 500)
 
