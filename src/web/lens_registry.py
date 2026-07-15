@@ -271,6 +271,11 @@ LENSES: tuple[Lens, ...] = (
     Lens("dashboard", "Dashboard", "stock", "tracker", "/dash/tracker/dashboard",
          aliases=("tracker", "track")),
     Lens("portfolios", "Portfolios", "stock", "tracker", "/dash/tracker/portfolios"),
+    # Model books (S146) — every ENGINE portfolio (admitted + classic public rules) displayed
+    # read-only in the Tracker beside the user's own books, with Adopt: seeds a named book in
+    # stocks_in_play from today's holdings, entry TODAY (never the backtest's history).
+    Lens("model-books", "Model books", "stock", "tracker", "/dash/tracker/model-books",
+         aliases=("adopt", "model-portfolios-tracker", "follow-a-model", "modelbooks")),
     Lens("watchlists", "Watchlists", "stock", "tracker", "/dash/tracker/watchlists"),
     Lens("performance", "Performance", "stock", "tracker", "/dash/tracker/performance"),
     Lens("import", "Import", "stock", "tracker", "/dash/tracker/import"),
