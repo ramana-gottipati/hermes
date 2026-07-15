@@ -44,7 +44,7 @@ Exact constants — the term list and z-window, the daily bands, the 15-row wind
 
 Any predictive/ranking/position-sizing role was **gated** on a purged walk-forward + **Deflated-Sharpe** test, **which FAILED** (2026-06-22, [mep-strategy-design.md](../mep-strategy-design.md) §8):
 
-| Config | OOS Sharpe | DSR | CAGR |
+| Config | OOS return/vol | DSR | CAGR |
 |---|---|---|---|
 | Baseline panel | 0.76 | 0.45 | 23.0% |
 | + MEP price-tape features | **0.68** | **0.36** | 18.7% |

@@ -5,7 +5,19 @@
 > **Origin:** 📚 CLASSIC (Jegadeesh-Titman 12-month momentum · vol-adjusted-momentum school) + 🏠 HOUSE measurement (RISKADJ = 6-mo return ÷ 3-mo vol, ranked on our data). See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference for the momentum engine. Full result tables + failure ledger: [strategy-ledger.md](../strategy-ledger.md). Numbers live in code + [calculations-and-weights.md](../calculations-and-weights.md); this page summarizes + links — it never re-pastes the result tables (they live in the ledger, single source).
 
-**One-line definition:** a monthly cross-sectional **ranked-rotation backtest** that sorts every liquid NSE name by **RISKADJ** (6-month return ÷ 3-month volatility), holds the top-25 equal-weight, and scores it net of cost, walk-forward on both halves, against a Nifty 500 buy-&-hold Sharpe-**0.89** hurdle — the project's internal **benchmark** and a **gross selection lens**, not a fundable net-of-cost alpha.
+> ## 🔴 EVERY "SHARPE" ON THIS PAGE WAS A RETURN/VOL RATIO — RELABELLED (D142)
+>
+> Every ratio on this page (RISKADJ 1.13/1.29 · C-BLEND 1.32 · LOWVOL_MOM 1.02 · the 0.89 hurdle) is
+> computed as `mean/sd × √periods` with **no risk-free rate subtracted**. That is a **return/vol ratio,
+> not a Sharpe** — read as a textbook Sharpe it reads high, and the absolute levels were overstated by
+> the label alone. **But the Nifty 500 buy-&-hold hurdle (0.89) is computed on the IDENTICAL basis**, as
+> is every signal measured against it — so **every relative claim, every walk-forward verdict, and every
+> gross-vs-net call on this page holds exactly as written.** Nothing is re-cut and no number moves:
+> Ramana's ruling (D142) is **relabel the vocabulary, change no numbers.** A true-Sharpe re-cut needs a
+> primary-source rf ingest (Guardrail #8) and is queued with the owed TR-benchmark re-cut.
+> **Read every ratio below as a return/vol ratio.**
+
+**One-line definition:** a monthly cross-sectional **ranked-rotation backtest** that sorts every liquid NSE name by **RISKADJ** (6-month return ÷ 3-month volatility), holds the top-25 equal-weight, and scores it net of cost, walk-forward on both halves, against a Nifty 500 buy-&-hold return/vol-**0.89** hurdle — the project's internal **benchmark** and a **gross selection lens**, not a fundable net-of-cost alpha.
 
 ---
 
@@ -18,7 +30,7 @@ The machine (one construction family):
 1. At each **monthly** rebalance (22 trading days), rank every liquid name cross-sectionally by a **selection signal** (RISKADJ is the flagship; 8 signals are wired).
 2. Take the **top-25**, hold **equal-weight** for the month.
 3. Charge **cost**, mark monthly, and compound.
-4. Split the 2012→2026 history into **two walk-forward halves** (2012-18 vs 2019-26); a signal "survives" only if it beats **Nifty 500 Sharpe 0.89 in BOTH halves** with positive CAGR in each.
+4. Split the 2012→2026 history into **two walk-forward halves** (2012-18 vs 2019-26); a signal "survives" only if it beats **Nifty 500 return/vol 0.89 in BOTH halves** with positive CAGR in each.
 
 RISKADJ is **the best of 32 tested signals** and is kept as the **internal benchmark to beat** — every new strategy is measured against it. It is *not* productized as a client "buy this basket" claim; it is an analytical **ranking lens** that surfaces names for research. Benchmarks (Nifty 50 / **Nifty 500, the 0.89 hurdle** / Nifty Midcap 50) and the full 32-row leaderboard live in the ledger — see [strategy-ledger.md § Benchmarks + Tier 1](../strategy-ledger.md).
 
@@ -26,11 +38,11 @@ RISKADJ is **the best of 32 tested signals** and is kept as the **internal bench
 
 Classic cross-sectional momentum ranks on raw 12-month return. What is ours here:
 
-- **RISKADJ = 6-mo return ÷ 3-mo volatility** (not raw MOM6/MOM12). Risk-adjusting both *raises* Sharpe and *cuts* drawdown vs raw momentum — raw MOM12's β≈1.33 / MaxDD≈−50% is a leveraged-beta liability, so the production form is deliberately the risk-adjusted / low-vol variant, never raw momentum as the sole ranker.
-- **Relative percentile liquidity gate, not a static ₹5cr floor.** Names compete on a cross-sectional turnover percentile (top-40%/60% by median traded value) — the standing "no absolute-rupee thresholds" rule (percentages / ranks only). This alone lifted RISKADJ from Sharpe 1.13 → 1.29.
+- **RISKADJ = 6-mo return ÷ 3-mo volatility** (not raw MOM6/MOM12). Risk-adjusting both *raises* return/vol and *cuts* drawdown vs raw momentum — raw MOM12's β≈1.33 / MaxDD≈−50% is a leveraged-beta liability, so the production form is deliberately the risk-adjusted / low-vol variant, never raw momentum as the sole ranker.
+- **Relative percentile liquidity gate, not a static ₹5cr floor.** Names compete on a cross-sectional turnover percentile (top-40%/60% by median traded value) — the standing "no absolute-rupee thresholds" rule (percentages / ranks only). This alone lifted RISKADJ from return/vol 1.13 → 1.29.
 - **The C-BLEND tilt** — a 50/50 rank blend of RISKADJ-percentile with the proprietary **capital-allocation ("C")** percentile (§4, §7), a *descriptive* re-sort, not a veto or standalone ranker.
 - **Value-in-rupees rule** — all liquidity / size math uses median **turnover (₹)**, never share count, so corporate actions can't distort the gate.
-- A first-class **valuation guard** (`not_extended`: optionally exclude names up >200% in ~5y) kept as a *tested variable* — the data says it slightly *reduces* Sharpe in a momentum frame (winners keep winning), recorded as an honest tension, not applied by default.
+- A first-class **valuation guard** (`not_extended`: optionally exclude names up >200% in ~5y) kept as a *tested variable* — the data says it slightly *reduces* return/vol in a momentum frame (winners keep winning), recorded as an honest tension, not applied by default.
 
 What is **not** proprietary: the momentum premium itself (Fama-MacBeth λ t=3.36) is a real but generic factor. Public yardsticks (MOM12, HI52, RESID_MOM, …) are kept in a **separate non-proprietary registry** ([strategy-ledger.md § Known/public factor strategies](../strategy-ledger.md)) — the proprietary claim is only what *beats* those yardsticks (so far: the PIT-quality / C blend cutting drawdown on top of RISKADJ).
 
@@ -49,13 +61,13 @@ Full parameterization + every internal weight: [calculations-and-weights.md](../
 
 **THE headline — gross vs. net (binding, must travel with every number):**
 
-- **GROSS / flat-cost — the selection edge is REAL.** RISKADJ ranks **best of 32** at gross/flat-cost Sharpe **~1.13** (static-floor baseline) to **~1.29** (relative gate), α ~+16%, and survives both walk-forward halves. It is the **internal benchmark**.
+- **GROSS / flat-cost — the selection edge is REAL.** RISKADJ ranks **best of 32** at gross/flat-cost return/vol **~1.13** (static-floor baseline) to **~1.29** (relative gate), α ~+16%, and survives both walk-forward halves. It is the **internal benchmark**.
 - **NET of realistic cost — the alpha DOES NOT EXIST here.** Under a participation/slippage model (~0.5×ATR, ~100%/mo turnover → ~36%/yr cost), that 1.29 **collapses to ~0.09, CAGR negative, MaxDD ≈ −69%** — momentum *sold as a fundable strategy* is a **BLOCKING failure model**. Nothing beats Nifty 500 buy-&-hold (0.89) net of realistic cost.
-- **C-BLEND 50/50 (Sharpe 1.32) is FLAT-COST-ONLY and NOT fundable.** The recorded "champion" (flat-cost Sharpe 1.32 / MaxDD −28.2% / Calmar 1.15) nets **0.52 @₹25cr · 0.17 @₹50cr · −0.30 @₹100cr** under participation cost — it beats the index at **no AUM**. It stays a **descriptive/paper overlay** (the D66 fence), never a book.
-- **The ONLY participation-fundable corner is quarterly large-cap LOWVOL_MOM** — net Sharpe **1.02 @₹50cr** (CAGR 18.1%, MaxDD −21.4%), ~breaks even ₹100–150cr, 0.61 @₹500cr → a **~₹50–100cr defensive tilt**, not a scalable edge.
-- **It's momentum-BETA, not selection alpha (proven).** Controlling for the generic momentum factor (WML) + market, RISKADJ's residual α falls to **+7.3%, HAC t=1.99 → fails the t≥3 bar**; WML eats 51% of the raw α. The premium is real but **un-proprietary**. Survivorship is second-order (+0.02 Sharpe).
+- **C-BLEND 50/50 (return/vol 1.32) is FLAT-COST-ONLY and NOT fundable.** The recorded "champion" (flat-cost return/vol 1.32 / MaxDD −28.2% / Calmar 1.15) nets **0.52 @₹25cr · 0.17 @₹50cr · −0.30 @₹100cr** under participation cost — it beats the index at **no AUM**. It stays a **descriptive/paper overlay** (the D66 fence), never a book.
+- **The ONLY participation-fundable corner is quarterly large-cap LOWVOL_MOM** — net return/vol **1.02 @₹50cr** (CAGR 18.1%, MaxDD −21.4%), ~breaks even ₹100–150cr, 0.61 @₹500cr → a **~₹50–100cr defensive tilt**, not a scalable edge.
+- **It's momentum-BETA, not selection alpha (proven).** Controlling for the generic momentum factor (WML) + market, RISKADJ's residual α falls to **+7.3%, HAC t=1.99 → fails the t≥3 bar**; WML eats 51% of the raw α. The premium is real but **un-proprietary**. Survivorship is second-order (+0.02 return/vol).
 
-**The doctrine (the project's core thesis — state it plainly):** *price strength is the only gross forward-return engine; value / quality / credibility / accumulation are veto / filter / context layers, not rankers; and no factor here is a fundable net-of-cost alpha vs the index (Nifty 500 B&H Sharpe 0.89). The asset is PIT rigor + under-covered data + the analytical selection lens — not a backtested alpha strategy.*
+**The doctrine (the project's core thesis — state it plainly):** *price strength is the only gross forward-return engine; value / quality / credibility / accumulation are veto / filter / context layers, not rankers; and no factor here is a fundable net-of-cost alpha vs the index (Nifty 500 B&H return/vol 0.89). The asset is PIT rigor + under-covered data + the analytical selection lens — not a backtested alpha strategy.*
 
 **D66 (governing):** capital-allocation **"C" is a RISK FILTER, not a return ranker** — it works as a **50/50 rank blend / descriptive tilt**, NOT a hard veto and NOT a standalone ranker; head-to-head it **subsumes the 4-metric quality lens** (ROCE/D-E/OPM/interest-cover). Standalone value and standalone quality do **not** beat the index here (QUALITY α≈0, BOOK_YIELD α −1.8% / MaxDD −82%).
 
@@ -73,26 +85,26 @@ Full failure-models table (BOOK_YIELD, EARN_YIELD, QUALITY-standalone, momentum-
 
 - **Price / momentum / volatility / liquidity:** NSE **bhav copy** (primary source) → `adj_close`, `med_turn`, the `vol_66` / delivery / SMA feature cache (`embase`). This is the whole gross-momentum engine and is on fully primary data.
 - **Quality / capital-allocation (C):** PIT fundamentals from `research.db.fundamentals_history` (1,983 syms × ~24y, point-in-time by `report_date`), read as-of via `fundamentals_asof`. **Provenance caveat (guardrail #8):** `fundamentals_history` is currently **Screener-derived** and under active **XBRL migration remediation** — see [fundamentals-xbrl-migration.md](../fundamentals-xbrl-migration.md); do not extend the Screener dependency, and disclose it where C is shown (the live surfaces carry the Screener→XBRL disclosure).
-- **Survivorship:** the ~3,515-symbol cache is survivor-tilted; the PIT panel books a delisted name's return-to-last-price rather than dropping it, and delisting-return booking moves Sharpe only **+0.02** (second-order). Fundamentals coverage is narrower (~1,700 names) → value/quality reads lean on a smaller universe. True net-of-cost numbers, if anything, sit *lower* than recorded.
+- **Survivorship:** the ~3,515-symbol cache is survivor-tilted; the PIT panel books a delisted name's return-to-last-price rather than dropping it, and delisting-return booking moves return/vol only **+0.02** (second-order). Fundamentals coverage is narrower (~1,700 names) → value/quality reads lean on a smaller universe. True net-of-cost numbers, if anything, sit *lower* than recorded.
 
 ## 7. Terminology canon
 
 - **RISKADJ** — 6-mo return ÷ 3-mo volatility (`mom6/(vol+ε)`). The flagship signal and internal benchmark.
-- **QUAL_MOM** — risk-adj + delivery + low-vol blend; best Calmar of the high-Sharpe set (defensive).
+- **QUAL_MOM** — risk-adj + delivery + low-vol blend; best Calmar of the high-return/vol set (defensive).
 - **LOWVOL_MOM** — `0.5·rank(mom6)+0.5·rank(−vol)`; β≈0.82, shallowest drawdown. The **only participation-fundable corner** (quarterly, large-cap, wide hold-band).
 - **MOM12** — raw 12-month momentum; highest gross return, brutal drawdown; a *public* yardstick, kept in the non-proprietary registry.
 - **C-BLEND** — `0.5·RISKADJ-pctile + 0.5·C-pctile`; a descriptive tilt (flat-cost champion 1.32; not fundable).
 - **"C" (capital allocation)** — Dataset-C quality: ROIIC, ROCE level+trend, dilution drag, debt-funding share, growth efficiency (`capital_allocation.py`). A veto/filter/context layer per D66, consumed as a blend.
 - **Gross vs net** — flat-cost (0.3%/turnover) vs participation/Almgren cost sized by AUM. The gap *is* the honesty fence.
-- **The 0.89 hurdle** — Nifty 500 buy-&-hold Sharpe; the survival bar in both halves.
+- **The 0.89 hurdle** — Nifty 500 buy-&-hold return/vol; the survival bar in both halves.
 - **⚠ Disambiguation:** the **momentum FACTOR** here (a cross-sectional monthly *ranker* on price return ÷ vol) is distinct from **RS-momentum** (relative strength vs an index — JdK RS-Ratio/RS-Momentum, RRG, Mansfield). See [relative-strength.md](relative-strength.md). The patearn 14-pattern fundamental lens is [patearn.md](patearn.md) — a quality/veto context, never a standalone ranker.
 
 ## 8. Decision & session history
 
 - **D66 (2026-06-23):** PIT fundamentals → backtestable patearn score; the score is a **RISK FILTER**, returns come from accumulation/RS. Origin of "C/quality = veto/filter, not ranker."
-- **2026-06-24 overlay experiment:** relative gate beat the static ₹5cr floor (Sharpe 1.13 → **1.29**); a PIT 50/50 quality blend cut MaxDD −42% → **−29%** at Sharpe 1.18 — first hard proof a proprietary lens improves the risk-adjusted outcome with zero look-ahead.
+- **2026-06-24 overlay experiment:** relative gate beat the static ₹5cr floor (return/vol 1.13 → **1.29**); a PIT 50/50 quality blend cut MaxDD −42% → **−29%** at return/vol 1.18 — first hard proof a proprietary lens improves the risk-adjusted outcome with zero look-ahead.
 - **2026-07-02 attribution + institutional panel:** momentum = **beta, not selection — proven** (`attribution.py`); "sell DATA, not signals." Headline of [predictive-attributes-findings.md](../predictive-attributes-findings.md) rewritten.
-- **2026-07-03 C-overlay (S77b):** C-BLEND 50/50 = flat-cost champion (Sharpe **1.32**, MaxDD −28.2%, Calmar 1.15); **D66 refined** — C's working shape is a **rank blend**, not a hard veto; C **subsumes** the 4-metric quality lens.
+- **2026-07-03 C-overlay (S77b):** C-BLEND 50/50 = flat-cost champion (return/vol **1.32**, MaxDD −28.2%, Calmar 1.15); **D66 refined** — C's working shape is a **rank blend**, not a hard veto; C **subsumes** the 4-metric quality lens.
 - **2026-07-05c cost re-cut:** the 1.32 is **flat-cost-only**; under participation cost C-BLEND is **NOT fundable** (0.17 @₹50cr). Fundable claim withdrawn; LOWVOL_MOM (1.02 @₹50cr) confirmed as the only corner.
 
 ## 9. Open items / frozen work
@@ -131,7 +143,7 @@ participation model · 2026-07-05c C-BLEND recut.
 ## Factor league — the classic families, ranked by our numbers (S132g)
 
 **`/dash/factor-league`** (Strategies lens): the famous "premium" strategy families ranked by the
-Sharpe/alpha measured in OUR 14y walk-forward — not textbook claims. League order (flat-cost, ₹5cr
+return/vol + alpha measured in OUR 14y walk-forward — not textbook claims. League order (flat-cost, ₹5cr
 universe, labeled): PACER-25/RISKADJ 1.13 · QUAL_MOM 1.10 · **STEADY-25/LOWVOL_MOM 1.10 flat → NET
 1.02 @₹50cr = the only net survivor and the AUTO-PORTFOLIO** · SPRINTER-25/MOM12 1.06 · then the
 failures shown with their numbers (DELIV_MOM 0.85 · QUALITY 0.76 α≈0 · EARN_YIELD 0.70 · BOOK_YIELD

@@ -4,7 +4,7 @@
 >
 > **This strategy is HALF-BUILT. It selects SECTORS. It does NOT pick STOCKS.**
 >
-> Every V-number (V8…V32) and every headline stat (Sharpe 0.91 · α +7.1%/yr · ₹1 Cr → ₹30.35 Cr) measures
+> Every V-number (V8…V32) and every headline stat (return/vol 0.91 · α +7.1%/yr · ₹1 Cr → ₹30.35 Cr) measures
 > the **sector-selection layer ONLY** — a book that holds *sector indices themselves* (Nifty Auto, Nifty IT, …),
 > weighted by RS. The engine reads exactly one table, `index_rows`. It contains **zero stock symbols** — no
 > `stock_signals`, no bhav copy, no symbol column. Verify in 5 seconds:
@@ -18,7 +18,7 @@
 > **⚠ The index expression may not even be tradeable** (see §6 *Instrument reality*): §3-F assumes the sector
 > legs are bought as "liquid sector ETFs/index futures", but that was **asserted, never verified**. Several of
 > the 16 sectors (Media, Realty, Consumer Durables, Infrastructure, Oil & Gas) have **no liquid ETF or futures
-> instrument in India**. An unknown share of the 0.91 Sharpe may be **unbuyable in index form**. This inverts
+> instrument in India**. An unknown share of the 0.91 return/vol may be **unbuyable in index form**. This inverts
 > the priority: the constituent build is not a phase-2 nicety — for much of the book, **buying the underlying
 > stocks is the only executable expression**, and pricing it as an ETF book understates its real cost.
 >

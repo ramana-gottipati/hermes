@@ -1,5 +1,31 @@
 # Strategy Ledger — what we've tried, what it scored, what we decided
 
+> ## 🔴 READ BEFORE QUOTING ANY NUMBER ON THIS PAGE — every "Sharpe" here is a RETURN/VOL RATIO (D142, 2026-07-15)
+>
+> **The estate-wide audit is settled and unanimous: this project has never computed a Sharpe ratio.**
+> Every figure labelled *Sharpe* in this ledger — RISKADJ **1.13**, the C-BLEND **1.32**, LOWVOL_MOM
+> **0.79/1.02**, PEAD **0.10**, the Nifty-500 **0.89** hurdle, all 32 leaderboard rows — is
+> `mean/sd × √periods` with **no risk-free rate subtracted**. That is a return/vol ratio, and it reads
+> **high** against a textbook Sharpe (~1.7× on the rotation books, where it was reconciled exactly).
+>
+> **This changes no verdict and invalidates nothing below.** Every hurdle is computed on the identical
+> basis — the 0.89 bar included — so both sides of every comparison carry the same omission and **every
+> RELATIVE claim holds exactly as written**. Only the ABSOLUTE levels were overstated, and only a number
+> quoted against an OUTSIDE Sharpe would mislead. Ramana's ruling (D139, extended estate-wide by D142):
+> **relabel, numbers unchanged.** The dated entries below are left as the historical record rather than
+> rewritten — **read every "Sharpe" in them as "return/vol ratio".**
+>
+> Two things worth carrying: **①** every **Deflated-Sharpe** result recorded here (MEP's DSR 0.45→0.36,
+> the momentum gates) is an **UPPER BOUND on the evidence** — the DSR's null is rf-free by construction,
+> but the observed ratio fed to it is inflated, so the test asks *"does it beat ZERO"*, not *"does it beat
+> cash"*: a PASS is weaker than it looks, a **FAIL is real** (so the recorded failures stand, if anything
+> more firmly). **②** The true-Sharpe re-cut needs a primary-source rf ingest (Guardrail #8) and is
+> **queued with the owed TR-benchmark re-cut, which moves the same figures** — `attribution.py` is the one
+> place already unblocked (it has a primary-source rf and simply doesn't feed it to its ratio).
+>
+> *(D139 disclosed this for §§15…15h only; D142 read every compute site in `research/` and found it
+> universal. New prose may not call these "Sharpe" — enforced by `tests/test_retvol_label_gate.py`.)*
+
 **Purpose.** A permanent, honest registry of every strategy/signal we have tested, *including
 failures*. A failure is a recorded data point, not junk — we keep it so we never re-walk a dead
 road, and so every new idea has a **benchmark to beat**. Nothing is deleted; things are *parked*

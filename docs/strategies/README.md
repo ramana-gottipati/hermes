@@ -30,7 +30,7 @@ need the number, follow the link. This keeps the canon single-sourced (memory `c
 
 > **Price strength is the only gross forward-return engine.** Value, quality, credibility, delivery,
 > and accumulation reads are **veto / filter / context layers — never rankers**, and **no factor here
-> is a fundable net-of-cost alpha vs the index** (Nifty 500 buy-&-hold, Sharpe 0.89). The one
+> is a fundable net-of-cost alpha vs the index** (Nifty 500 buy-&-hold, return/vol 0.89). The one
 > participation-fundable corner is quarterly large-cap **LOWVOL_MOM** (~1.02 @₹50cr, ~₹100cr ceiling).
 > **The asset is PIT rigor + under-covered primary data + the analytical selection lens — not a
 > backtested alpha strategy.** (Source: [strategy-ledger.md](../strategy-ledger.md) "BLOCKING FAILURE
