@@ -49,6 +49,38 @@ PROJECT_STATE entries are enough.**
 - **Gotchas for your deploy steps:** `install-systemd.sh` DEFAULTS to `--check` — the copy needs the explicit `--install` flag (this bit me; also now in the deploy memory). Worktree commits need BOTH `HERMES_SKIP_STATE_GATE=1` and `state:skip`.
 - **✅ Suite debt FIXED (same orchestrator, npfix-suite):** `test_embase_deliv_value.py` now `pytest.importorskip("numpy")` (the test_rule_lab_executor pattern) and `combo_test.py` (a research SCRIPT that only matched pytest's `*_test.py` glob) is collect-ignored via a new `research/explosive_moves/conftest.py` — full suite collects clean in numpy-less worktrees (539 passed / 0 errors at the S158-era base). Semantics untouched; the script still runs via `python -m`.
 
+## 🟢 2026-07-15i — THE STOCK BUILD IS SCOPED AND FEASIBLE — gated on ONE dataset. Start here.
+
+**Ramana's directive:** build on **STOCKS**, not indices. *"Identify the top-performing stocks within the
+strongest sectors"* · *"a portfolio that outperforms — can't rely entirely on one stock, nor diversify
+excessively"* · **the discriminator: *"if a stock is performing well within its NARROW index, we target it"*
+= stock RS vs its OWN sector, not the broad benchmark.**
+
+**Audit is DONE — do NOT re-derive (ledger §2026-07-15i has every number):** sector strength ✅ · stock
+RS-vs-own-sector vocabulary ✅ (`stock_signals.rs_vs_sector_today`+slopes+`rsi_of_rs`+`rs_phase`, 2011→2026,
+5.97M rows) · prices incl. dead names ✅ (bhavcopy 2004→2026, 9.39M rows).
+**❌ ONE BLOCKER: `stock_index_membership` = 4 WEEKS ONLY** (2026-06-17→07-14). **46% of the 2011 universe is
+dead; ZERO dead names carry a sector label.** ⚠ **Backtesting with today's member list = a survivorship FAKE
+(plausibly Sharpe 1.5–2.0) — do NOT build it.**
+
+**✅ BOUNDED:** at a **₹5cr ADV** floor the universe that ever mattered = **1,973 syms (1,693 live + 280 dead)**;
+₹25cr → only **113 dead**. Live = NSE industry classification (primary, G#8-clean, automatable). Dead 280 = the
+real work, but tractable.
+
+**DECIDED design — OWN sector composites, not index membership:** a sector = every liquid stock classified in
+that industry at date d; we build the composite. Investable by construction (kills the untradeable-leg flaw) ·
+wider pond (Nifty Auto ≈15 vs Auto industry ≈60) · far less survivorship bias (industry is NOT performance-earned,
+index membership partly is) · **membership history becomes unnecessary.**
+
+**Build order:** ① PIT sector-classification table (~1,973 syms, `knowable_at`-stamped) = **the unlock** →
+② own composites (liquidity-floored, PIT) → ③ sector layer = **V24's logic on our composites** → ④ stock pick:
+sector beats broad **AND** stock beats its own sector, ~4–8/sector, weight = sector × stock-RS rank, per-stock
+cap, **≤40 total**, per-sector stops → ⑤ **bias bound**: run twice (dead = average, then worst-decile), report
+the RANGE. **BAR PRE-REGISTERED: stock momentum = BETA not skill (t=1.99); merely matching the sector-index book
+= REJECTION.** Canon: `docs/strategies/sector-rotation.md` §9 #1 · ledger §§15h+15i.
+
+---
+
 ## 🔴 2026-07-15h — SECTOR-ROTATION: READ THIS FIRST — the ladder below is HALF the strategy. It picks SECTORS, not STOCKS. The ≤40-stock build is the #1 open item.
 
 **Ramana caught this on 2026-07-15 and he is right.** Every V-number below (V8…V32) and every stat

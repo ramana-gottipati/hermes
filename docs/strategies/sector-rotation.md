@@ -150,7 +150,46 @@ ladder. Until then, treat every number as an **upper bound on a paper portfolio*
 - **A real negative-interaction lesson (2026-07-15f):** V26 (persistence) is a clean win ALONE but HURTS when
   combined with V24 — its "wait 2 quarters" delays V24's faster reaction. Individually-validated levers do not
   always combine additively; every combination needs its own test.
-### 🔴 #1 — THE CONSTITUENT BUILD (the missing half of the brief; was mis-filed as a nicety until 2026-07-15h)
+### 🔴 #1 — THE STOCK BUILD (the missing half; SCOPED 2026-07-15i — feasible, gated on ONE dataset)
+
+**Ramana's design (his words, 2026-07-15 — this is the spec, do not paraphrase it away):** invest **directly in
+stocks**, because *"for media, realty, consumer durables we cannot invest directly; we must invest through the
+stocks."* Identify **the top-performing stocks within the strongest sectors**. **Not** one recently-hot name —
+*"we need a portfolio that outperforms… we can't rely entirely on one stock, nor can we diversify excessively."*
+**The discriminator:** *"if a stock is performing well within its **NARROW index**, we will target it"* — i.e.
+**stock RS measured against its OWN sector, not the broad benchmark.** A stock beating its own hot sector is a
+different and harder test than a stock merely carried by its sector. Same question applies when choosing among
+Nifty 50/100/200 — the size-index call also has to resolve down to underlying stocks (incl. V21's Next-50 sleeve).
+
+**Data audit (ledger §2026-07-15i — measured, do NOT re-derive):** sector strength ✅ (`index_rows` 2005→2026) ·
+stock RS-vs-own-sector vocabulary ✅ (`stock_signals.rs_vs_sector_today` + slopes/`rsi_of_rs`/`rs_phase`,
+2011→2026, 5.97M rows) · stock prices incl. dead names ✅ (`bhavcopy_rows` 2004→2026, 9.39M rows).
+**❌ THE ONE BLOCKER: `stock_index_membership` holds 4 WEEKS** (2026-06-17→07-14). Today's members only.
+**46% of the 2011 universe is dead; ZERO dead names carry any sector label.** Backtesting with today's member
+list = **survivorship fake, plausibly Sharpe 1.5–2.0 and worthless.** Do not build it.
+
+**✅ Bounded:** at a **₹5cr ADV** floor the whole universe that ever mattered = **1,973 symbols (1,693 live +
+280 dead)**; at ₹25cr only **113 dead**. Live side = NSE industry classification (primary source, Guardrail
+#8-clean, automatable). Dead side = the genuine work, but it is 280 names, not 1,500 shells.
+
+**DECIDED design — build our OWN sector composites, not index membership** (ledger 15i): a sector = *every
+liquid stock classified in that industry at date d*; we build the composite. **Investable by construction**
+(the sector IS a stock basket → kills the §6-bis untradeable-leg flaw) · **wider pond** (Nifty Auto ≈15 names,
+the Auto *industry* ≈60) · **far less survivorship bias** (a company doesn't EARN its way into "Auto" by
+outperforming; it earns its way into *Nifty* Auto — industry is not a performance filter) · **membership history
+becomes unnecessary — the gap dissolves rather than needing a backfill.**
+
+**Build order:** ① PIT sector classification table for ~1,973 symbols, `knowable_at`-stamped (the unlock) →
+② own sector composites, liquidity-floored, PIT → ③ sector layer = **V24's logic on our composites** →
+④ stock selection: sector qualifies vs broad **AND** stock beats its own sector (double confirmation), ~4–8
+names/sector, weight = sector weight × stock-RS rank, per-stock cap, **≤40 total**, per-sector stops →
+⑤ **bias bound**: run it twice (dead names average-performing, then worst-decile) and report the RANGE.
+
+**PRE-REGISTERED BAR (set BEFORE running — failure-ledger discipline):** stock momentum is ledger-recorded as
+**BETA not skill (t=1.99)**; only LOWVOL_MOM qtr large-cap cleared fundable (1.02 @₹50cr); stock legs cost more
+than index legs. **Merely MATCHING the sector-index book = REJECTION, not a result.**
+
+### #1-bis — historical note (how #1 came to be mis-filed until 2026-07-15h)
 
 **Status: NOT BUILT. Never measured. This is the strategy Ramana actually asked for.** The sector ladder
 (V8…V32) answers only "WHICH SECTORS" — a paper book of index legs, ~⅜ of which have no buyable instrument

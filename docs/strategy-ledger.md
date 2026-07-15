@@ -419,6 +419,74 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15i — 🔴 DATA AUDIT before the stock build: PIT sector membership is the ONE blocker, and it is BOUNDED (~1,973 names, 280 of them dead)
+
+**Ramana's directive (2026-07-15):** build the strategy on STOCKS, not indices. *"For media, realty, consumer
+durables we cannot invest directly; we must invest through the stocks."* + *"identify the top-performing stocks
+within the strongest sectors"* + *"we can't rely entirely on one stock, nor can we diversify excessively"* +
+**the sharp point: *"if a stock is performing well within its NARROW index, we will target it"*** — i.e. stock RS
+measured **against its own sector**, not against the broad benchmark. A stock beating its own hot sector is a
+different and harder test than a stock carried by its sector.
+
+**AUDIT RUN FIRST (VPS read-only, 2026-07-15) — do NOT re-derive, these are measured:**
+
+| Need at date *d* | Status |
+|---|---|
+| Which sectors are strong | ✅ `index_rows` 2005→2026, PIT-clean, needs no membership. **The V24 ladder is reusable as the sector layer.** |
+| Each stock's RS vs its OWN sector | ✅ vocabulary EXISTS: `stock_signals.rs_vs_sector_today` + slopes 1/3/6/12/18/24m, `rs_vs_broad_*`, `rsi_of_rs`, `rs_phase`, `rs_rank` — **2011-06-22→2026-07-14, 3,714 dates, 5.97M rows** |
+| Stock prices incl. dead names | ✅ `bhavcopy_rows` **2004-07-23→2026-07-14, 9.39M rows** — delisted names ARE present up to their last trading day |
+| **Which stocks belonged to that sector at date *d*** | ❌ **THE BLOCKER — see below** |
+
+**🔴 THE BLOCKER — `stock_index_membership` holds FOUR WEEKS (2026-06-17→2026-07-14, 20 snapshots, 32 indices).**
+We know today's constituents. We do NOT know who was in Nifty Auto in 2011/2015/2025. `stock_signals.primary_sector`
+is DERIVED from that snapshot → it covers only **246 of 3,558** trading symbols (7%), i.e. essentially the current
+index members = the winners' club.
+
+**🔴 WHY THIS IS A TRAP, NOT AN INCONVENIENCE — the universe churns brutally:**
+- 2011: **1,650** symbols traded → only **895 still trade in 2026**. **46% of the 2011 universe is GONE.**
+- 2016: 1,812 traded → 1,178 alive. 35% gone. · 2026: 3,558 trade.
+- **`company_tags` labels 384 symbols; `company_about` 593; and of the 755 names that died since 2011, EXACTLY
+  ZERO carry any label.** The hole is total, not partial.
+
+**Backtesting "top RS stocks in Nifty Auto" over 2011→2026 with TODAY's member list would select from companies
+that survived 15 years AND earned promotion into the index. It would print a spectacular fake number (plausibly
+Sharpe 1.5–2.0) and be worthless.** Recorded so no future session builds it by accident.
+
+**✅ BUT THE JOB IS BOUNDED — survivorship only bites for names the strategy could actually have BOUGHT.**
+A real book needs a liquidity floor. Scoped at an ADV bar over ALL years (measured):
+
+| Liquidity bar (avg daily traded value) | ever-liquid & NOW DEAD | ever-liquid & alive | total to classify |
+|---|---|---|---|
+| **≥ ₹5 cr ADV** | **280** | 1,693 | **1,973** |
+| ≥ ₹25 cr ADV | **113** | — | — |
+
+Cross-check: `research.db.fundamentals_history` independently covers **1,998** symbols — the same ~2,000-name
+"universe that ever mattered". (It has NO sector field — `symbol/period_type/period_end/report_date/metric/value/
+source` — and is screener-sourced, so **Guardrail #8 forbids extending it**. Not the classification route.)
+
+**Snapshot of the bias magnitude at the ₹5cr bar in 2011: 179 survivors vs 85 dead ⇒ the dead are ~32% of that
+year's investable universe.** Excluding them is not a rounding error; it is a third of the book.
+
+**VERDICT: the stock build is FEASIBLE and gated on ONE deliverable — a PIT-safe sector classification for
+~1,973 symbols** (1,693 live: NSE industry classification = primary source, Guardrail #8-clean, automatable ·
+**280 dead: the genuine work**, but 280 is tractable — and only 113 at a ₹25cr bar). Not 1,500 shells. Bounded.
+
+**RECOMMENDED DESIGN — own sector COMPOSITES, not index membership** (decided; solves three problems at once):
+define a sector as *every liquid stock classified in that industry at date d* and build the composite ourselves.
+(a) **Investable by construction** — the sector IS a stock basket, so Media/Realty/Consumer Durables stop being
+untradeable (kills the §6-bis instrument flaw, ledger 15h); (b) **wider pond** — Nifty Auto ≈ 15 names, the Auto
+*industry* ≈ 60, and stock-picking needs selection; (c) **far less survivorship bias** — a company does not EARN
+its way into "Auto" by outperforming; it earns its way into *Nifty* Auto. Industry ≠ a performance filter.
+(d) membership history is no longer needed — the gap is dissolved, not backfilled.
+
+**Honest residual + the mitigation:** NSE classification covers LISTED names, so the 280 dead still need labels.
+**Bound the bias rather than hand-wave it** — run the study twice (dead names assumed average-performing, then
+assumed worst-decile) and report the RANGE. An honest error bar beats a fake point estimate.
+
+**THE BAR STAYS PRE-REGISTERED (from 15h, unchanged):** stock momentum is ledger-recorded **BETA not skill
+(t=1.99)**; only LOWVOL_MOM qtr large-cap fundable (1.02 @₹50cr); stock legs cost more than index legs.
+**A constituent build that merely MATCHES the sector-index book is a REJECTION, not a result.**
+
 ### 2026-07-15h — 🔴 SCOPE FLAW (Ramana-caught): the entire V8→V32 ladder selects SECTORS, never STOCKS — half the brief was never built, and the index expression may not be tradeable
 
 **Ramana, 2026-07-15:** *"I have noticed major flaws… you are identifying that this will drive the stock. What
