@@ -164,7 +164,7 @@ per-quarter rebalance diffs, analytics-to-date vs Nifty 500, dual NAV sparkline,
 in `10-signals.conf`. Every strategy-ref page hands off to its live surface (`strategies_view._SURFACE`).
 **Sleeve regime was CASH as of Apr-2026** (Nifty 500 below its 200DMA) — check current state before assuming.
 
-**Full quarterly holdings (all 86 rebalances, 2005→2026) are reproducible**, not just summary stats:
+**Full quarterly holdings (all **86 quarterly rebalance DATES** — 21.5y × 4 quarters/yr; **86 is a COUNT, never a percent** — 2005→2026) are reproducible**, not just summary stats:
 `research/explosive_moves/sector_rotation_v24_final.py`, function `simulate_v24(record_book=True)` — returns
 every quarter's exact holdings+weights, sleeve regime, and the diff vs the prior quarter. This is what powered
 the interactive ledger shown to Ramana (year-grouped, searchable, filterable). The single-sector Defence

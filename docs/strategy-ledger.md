@@ -514,7 +514,7 @@ you are not picking the stocks. Please confirm."* **CONFIRMED. He is correct.**
 **The finding (verified in code, not from memory):** the V24 engine
 (`research/explosive_moves/sector_rotation_v24_final.py`) reads exactly ONE table — `index_rows` — and contains
 **zero stock symbols**. Reproduce: `grep -ciE "stock_signals|bhav|symbol|stock_rows" <that file>` → **0**. Every
-quarter's "holdings" in the 86-rebalance book are **index names** (Nifty Auto, Nifty IT…), not companies. The
+quarter's "holdings" in the **86-quarterly-rebalance** book (**86 = a COUNT of quarter-start decision dates, 21.5y × 4/yr — NOT a percentage; Ramana has twice read it as "86%"**) are **index names** (Nifty Auto, Nifty IT…), not companies. The
 book never held a stock; it rotates between indices.
 
 **What this invalidates — precisely.** Nothing in the ladder's *arithmetic* is wrong; the numbers reproduce.
@@ -669,7 +669,7 @@ monotonically 50→100→500). **V24 beats all three simultaneously** — Sharpe
 four, so the delta is fair, absolute levels conservative).
 
 **The full quarterly holdings history is reproducible, not just the summary stats.** The same
-`sector_rotation_v24_final.py` module's `simulate_v24(record_book=True)` mode walks all 86 quarterly
+`sector_rotation_v24_final.py` module's `simulate_v24(record_book=True)` mode walks all **86 quarterly rebalance dates** (a COUNT, not a percent) — the quarterly
 rebalances and returns, per quarter: the exact holdings + weights, the sleeve regime, and the diff vs
 the previous quarter (entered/exited/re-weighted) — the data behind the interactive portfolio ledger
 shown to Ramana (2005→2026, year-grouped, searchable by sector, filterable to churn-only or cash-only

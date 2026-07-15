@@ -27,6 +27,32 @@
 > *(Recorded 2026-07-15h after Ramana caught the gap — the flaw was a FRAMING failure: the limitation was
 > buried in §9's open items while the page led with a Sharpe ratio, so it read as finished. Ledger §2026-07-15h.)*
 
+> ## ❓ RAMANA'S THREE QUESTIONS, ANSWERED PLAINLY (2026-07-15i — asked twice; answer here, not in prose below)
+>
+> **Q1. "You are not picking the stocks. Please confirm."**
+> **CONFIRMED. You are right.** This strategy has never held a single stock. The engine reads exactly one
+> table — `index_rows` — and contains **zero stock symbols**. Verify in 5 seconds:
+> `grep -ciE "stock_signals|bhav|symbol" research/explosive_moves/sector_rotation_v24_final.py` → **0**.
+>
+> **Q2. "Does that mean we are switching to a better index?"**
+> **YES — that is exactly, and only, what it does.** Every quarter it asks *"which NSE sector indices are
+> beating the Nifty 500 on relative strength?"* and holds **those indices themselves** (Nifty Auto, Nifty IT,
+> Nifty Pharma…). It rotates capital **between indices**. Nothing more.
+>
+> **Q3. "Does it imply we have already changed the company?"**
+> **NO. There is no company in it, and there never was.** A quarter's "holdings" are **index NAMES**, not
+> businesses. The book cannot have "changed a company" because it has never held one.
+>
+> **⚠ THE "86" IS NOT A PERCENTAGE — it is a COUNT.** You read "86" as *"an 86% chance"*. It is not a chance,
+> a probability, a hit-rate or a confidence. **86 = the number of quarterly rebalance dates between 2005 and
+> 2026** (21.5 years × 4 quarters/yr = 86). "All 86 rebalances" means "all 86 quarter-start decision dates".
+> **There is no 86% anywhere in this strategy, and no percentage of any kind equals 86.** *(This is the second
+> time the bare "86" has been misread — every doc now writes "86 quarterly rebalance dates", never a bare 86.)*
+>
+> **So where the two halves stand:** half ① (pick the sectors) = **built**, and every number on this page
+> measures only it. Half ② (**pick the top-RS stocks inside those sectors**) = **not built, never measured** —
+> that is the part that would hold companies, and it is now open-item #1.
+
 > ## 🔴 TWO MORE CORRECTIONS — READ WITH THE SCOPE BANNER (ledger §2026-07-15i)
 >
 > **① "Sharpe" on this page is really a RETURN/VOL RATIO.** The engine computes `mean/sd × √12` and
