@@ -159,11 +159,12 @@ def sleeve_ret(asset, d, dn):
     r = ret(asset, d, dn)
     return r if r is not None else (ret(BENCH, d, dn) or 0.0)
 
-def simulate(sleeve=BENCH, recovery=False, invvol=False):
+def simulate(sleeve=BENCH, recovery=False, invvol=False, lag=0):
     prev = {}; rows = []; turn_sum = 0.0
     for k in range(len(rebal)-1):
         d, dn = rebal[k], rebal[k+1]
-        if k % 3 == 0:
+        is_q = (k % 3 == 0)
+        if is_q:
             eb = BAND
             if recovery and not kill_on(d):
                 lookback = [rebal[k-j] for j in (1, 2, 3) if k-j >= 0]
@@ -175,13 +176,27 @@ def simulate(sleeve=BENCH, recovery=False, invvol=False):
         rb = ret(BENCH, d, dn) or 0.0
         on_index = not kill_on(d)
         inv = sum(w.values())
+        d1 = cal[min(idx[d]+lag, len(cal)-1)] if lag and is_q else d
         if not w:
             rp = sleeve_ret(sleeve, d, dn) if on_index else 0.0
         else:
-            rp = sum(x*(ret(s, d, dn) or 0.0) for s, x in w.items())
-            if inv < 1.0 and on_index:
-                rp += (1.0-inv)*sleeve_ret(sleeve, d, dn)
-        if k % 3 == 0:
+            if lag and is_q and d1 != d:
+                # T+1 realism: the OLD book (and old sleeve state) rides d->d1; trades fill at d1 close
+                inv_p = sum(prev.values())
+                rp_pre = sum(x*(ret(s, d, d1) or 0.0) for s, x in prev.items())
+                if prev and inv_p < 1.0 and on_index:
+                    rp_pre += (1.0-inv_p)*sleeve_ret(sleeve, d, d1)
+                if not prev:
+                    rp_pre = sleeve_ret(sleeve, d, d1) if on_index else 0.0
+                rp_post = sum(x*(ret(s, d1, dn) or 0.0) for s, x in w.items())
+                if inv < 1.0 and on_index:
+                    rp_post += (1.0-inv)*sleeve_ret(sleeve, d1, dn)
+                rp = (1+rp_pre)*(1+rp_post)-1
+            else:
+                rp = sum(x*(ret(s, d, dn) or 0.0) for s, x in w.items())
+                if inv < 1.0 and on_index:
+                    rp += (1.0-inv)*sleeve_ret(sleeve, d, dn)
+        if is_q:
             allk = set(w)|set(prev)
             t = sum(abs(w.get(s,0)-prev.get(s,0)) for s in allk)
             rp -= t*COST; turn_sum += t
@@ -215,6 +230,8 @@ variants = [
     ("V20 inverse-vol weights",         dict(invvol=True)),
     ("V18a+V19",                        dict(sleeve=NEXT50, recovery=True)),
     ("V18a+V19+V20",                    dict(sleeve=NEXT50, recovery=True, invvol=True)),
+    ("V17 T+1 execution lag",           dict(lag=1)),
+    ("V21 T+1 execution lag",           dict(sleeve=NEXT50, recovery=True, invvol=True, lag=1)),
 ]
 print(f"{'variant':<30} {'Sharpe':>6} {'H1/H2':>11} {'CAGR':>6} {'MaxDD':>6} {'beta':>5} {'alpha':>6} {'Rs1Cr':>6} {'turn':>5}")
 for label, kw in variants:

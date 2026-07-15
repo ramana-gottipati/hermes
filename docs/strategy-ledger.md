@@ -361,6 +361,9 @@ indices only from 2012/2015 — **Nifty Next 50 is the one aggressive asset with
   the recorded diagnosis and individually positive before combining (not a grid point).
 - **Reference rows (the engine beats its own ingredients):** Next 50 B&H 0.62 / −69.9% / ₹15.99 · Midcap 50 B&H
   0.65 / −62.0% — both far below V21; the discipline, not the aggressive asset, carries the result.
+- **T+1 EXECUTION-LAG recut (the practical fence, run 2026-07-15e):** signals at close, fills at the NEXT day's
+  close — V17 0.79→0.78 / ₹18.56 · **V21 0.87→0.87 / ₹26.00** (−3.8% of terminal wealth over 21y; DD −39.7%).
+  **The edge survives next-day execution essentially intact** — it lives in month-scale rotation, not in the close.
 - **Caveats unchanged and compounding:** price-index (TR re-cut OWED — no TRI in `index_rows`); three rounds of
   selection on one window → the fresh-window / TR confirmation is now the HIGHEST-priority rigor item before any
   stronger claim. **Status: V21 = leading champion-candidate, pending Ramana's ratification; V17 remains the
