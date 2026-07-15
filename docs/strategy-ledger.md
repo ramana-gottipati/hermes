@@ -437,6 +437,82 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15M - ❌ FINAL: the CULL is real (+6.1pp alpha, Ramana's idea, the biggest lever of the day) but does NOT close the pond gap. The unconditioned RS stock family is REJECTED.
+
+**Module:** `research/explosive_moves/stock_rs_exits_fix.py` (the 15k harness on 15L's **corrected EQ+BE+BZ**
+universe). Ramana authorised the re-run: *"Go ahead and run it."* This is the settled verdict for the family.
+
+**A. Does a cull rule close 15L's -1.24%/qtr pond gap? From 2005-01, 21.4y, top40, 0.15%/side, dead=-100%.
+Bench: return/vol 0.66 / CAGR 12.8% / MaxDD -60.9% / 13.12x.**
+
+| exit rule | return/vol | CAGR | MaxDD | beta | alpha/yr | Rs1Cr -> | stops fired |
+|---|---|---|---|---|---|---|---|
+| **NO EXIT (the pond, unculled)** | 0.39 | 7.6% | -71.3% | 1.18 | **-5.0%** | 4.80 | - |
+| **hard -15% cull** | 0.53 | 10.3% | -48.8% | **0.77** | **+1.1%** | 8.18 | 1,424 |
+| trail -20% cull | 0.54 | 10.9% | -52.5% | 0.82 | +1.3% | 9.15 | 1,521 |
+| trail -15% cull | 0.52 | 9.6% | **-37.5%** | **0.67** | +1.5% | 7.16 | 2,095 |
+
+**THE CULL IS REAL: +6.1pp of alpha (-5.0% -> +1.1%) — the single largest effect measured in the whole
+session, and it was Ramana's idea, not the model's.** Note the corrected universe makes the UNCULLED book far
+worse than 15k showed (alpha -5.0% vs -0.7%): with BE included we now HOLD names through their surveillance
+period and eat the real crater, where the EQ-only bug let them "vanish" at 0%. **So BE-flagged names really do
+collapse — that part of the interim story survives; it just is not death.** Real deaths fell 129 -> 23-30.
+
+**BUT IT IS NOT ENOUGH: every variant still LOSES on return/vol (0.52-0.54 vs 0.66) and on wealth
+(7.2-9.2x vs 13.12x).**
+
+**B. The two numbers nobody has measured — and the strategy's life depends on BOTH:**
+
+| what a REAL delisting is worth (hard -15%) | alpha/yr | Rs1Cr -> |
+|---|---|---|
+| dead = 0% | **+3.7%** | 14.44 |
+| dead = -50% | +2.4% | 10.88 |
+| dead = -100% | +1.1% | 8.18 |
+
+| gap slippage (hard -15%, dead=-100%, @0.30%/side) | alpha/yr | Rs1Cr -> |
+|---|---|---|
+| 0% (impossible) | +0.6% | 7.34 |
+| 1% | **-0.9%** | 5.35 |
+| 2% | **-2.5%** | 3.90 |
+
+**At any honest combination (e.g. dead=-50%, slip=1%, real costs) alpha lands at ~ZERO.** A strategy whose
+sign depends on two unmeasurable assumptions is not a strategy. **Even the most flattering cell in the entire
+grid (dead=0%, no slippage) is return/vol 0.65 vs the bench's 0.66 — it never wins.**
+
+## ❌ VERDICT: REJECT the UNCONDITIONED RS stock family. FAMILY CLOSED.
+
+**~30 variants across the session** — 4 book sizes x 4 hysteresis bands x 4 exit rules x 3 delisting
+assumptions x 4 slippage levels x 3 windows x 2 liquidity bars. **ZERO beat Nifty 500 on return/vol.**
+**Do not reopen without beating 0.66 / -60.9% / 13.12x net of realistic cost AND slippage.**
+
+## WHAT IS TRUE AND WORTH KEEPING (all measured, all reusable)
+
+1. **SELECTION WORKS** - RS is worth **+1.73%/qtr (~+7%/yr) over random** picking from the same pond
+   (15L; stable across dead-name treatments). Never the problem.
+2. **THE CULL WORKS** - **+6.1pp of alpha**, and it is slippage-robust on the RISK axis: beta 1.18 -> 0.67-0.82
+   and MaxDD -71.3% -> -37.5%/-48.8% at every setting. **Ramana's instrument, the biggest lever found.**
+3. **THE POND LOSES** - equal-weight liquid Indian stocks bleed **-4.9%/yr** to Nifty 500 before any pick.
+4. **WHY (the lesson): NIFTY 500 IS NOT A PASSIVE BENCHMARK.** It is a rules-based, self-culling,
+   cap-weighted basket that continuously drops names falling out of the top 500 by cap/liquidity — and it is
+   GOOD. Selection (+7%) + cull (+6.1pp) together recover most of the hole and still do not out-run it.
+   **Treat "beat Nifty 500" as beating a well-designed strategy, not a passive index.**
+5. **A defensive artefact DOES exist** (not alpha, but real): trail -15% => beta 0.67, MaxDD -37.5% vs the
+   bench's -60.9%, CAGR 9.6% vs 12.8%. ~75% of the return for ~61% of the drawdown. Descriptive-only.
+
+## WHAT REMAINS UNTESTED — and exactly what it must do
+
+**Ramana's ACTUAL design (strong stocks INSIDE strong sectors, beating their OWN sector — 15h/15i) is still
+untested.** Today defines its job precisely: **it must NOT pick better (selection already works at +7%/yr) —
+it must FIX THE POND.** The sector filter has to yield a universe that does not structurally bleed -4.9%/yr.
+Plausible (the sector layer showed alpha at index level, 15f) but **a HYPOTHESIS, not a finding** — and still
+gated on the ~1,973-name classification job (15i). **Do not sell it as likely; five assumptions failed today.**
+
+**Session scoreboard for method (the durable output):** 15h ETF legs · 15i survivorship · 15j hysteresis
+transfer · 15k fill quality · 15L the `series` filter — **five headline numbers, five unchecked assumptions,
+five retractions.** Ramana was right on the three calls that mattered (the ask was STOCKS not sectors · exits
+are the missing mechanism · a strategy must handle names that collapse). **Audit the universe definition
+BEFORE the strategy; treat every first-pass number as provisional until its friction test runs.**
+
 ### 2026-07-15L - 🔴 DATA BUG (`series='EQ'`) INVALIDATED 15j/15k + the decomposition that answers "why do index-beating stocks make an index-losing book?"
 
 **Ramana, 2026-07-15:** *"We are identifying the stocks that outperform Nifty. In that case, what
