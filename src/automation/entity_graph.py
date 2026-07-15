@@ -259,6 +259,17 @@ def neighborhood(symbol: str, *, conn: Optional[sqlite3.Connection] = None,
         reader can trace WHY the two names are adjacent.
     A co-link asserts CO-OCCURRENCE IN THE PUBLIC RECORD, nothing more: no
     ownership, control, collusion or intent is claimed or implied.
+
+    ⚠ HUB COUNTERPARTS ARE NOT INSIGHT (measured on live data, 2026-07-15): a
+    handful of counterparts touch nearly everything — 7 rating agencies cover 63+
+    companies, so an agency co-link is structurally guaranteed and says NOTHING
+    about the two companies. The informative co-links are the sparse ones: a
+    shared INSIDER (67 filers touch >1 company), lender (46), acquirer (111) or
+    deal counterparty (97). Any surface built on this MUST rank by scarcity of
+    the counterpart and must never render a raw co-link COUNT as a headline
+    ("connected to 74 companies!" is an artefact of CARE Ratings existing).
+    Degree is not importance — and a degree that became a score would need its
+    own pre-registration (see the fence above).
     """
     own = conn is None
     c = conn if conn is not None else sqlite3.connect(db_path, timeout=30)
