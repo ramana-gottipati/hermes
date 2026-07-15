@@ -437,6 +437,84 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15k - EXITS (Ramana-directed): they FIX THE RISK but NOT the return - the +3.5% alpha was a frictionless-fill artifact. Fill quality is now THE deciding variable.
+
+**Module:** `research/explosive_moves/stock_rs_exits.py` (read-only). Same PIT-clean, survivorship-free
+bhavcopy universe as 15j (dead companies included). Stops checked against each month's **LOW** (min of daily
+lows), so a stop fires when price actually reached it intramonth.
+
+**Ramana, 2026-07-15:** *"even if the companies actually died in 2011 or earlier, it doesn't really matter
+because the strategy should address all of those problems. If we selected something that then fell
+dramatically, we need to understand that we must have proper exit strategies written."* **He was right, and he
+exposed a real hole:** 15j's book had **NO EXIT RULE** - the only way out was dropping off the top-40 at the
+NEXT QUARTERLY rebalance, so a name could collapse 50% in month 1 and be held for 3 months. **The -68.1% MaxDD
+was the harness's negligence, not the strategy's verdict.** (Ramana asked for stop-losses in his ORIGINAL
+brief; they were never built. Second scope-gap of the day.)
+
+**Note on authority:** the sector engine REJECTED a monthly risk pass (V10 ASYM, 0.59 vs 0.70, ledger 15c).
+Per 15j, sector-layer results do **not** transfer to the stock layer, so that rejection did **not** bind here.
+Correctly re-tested. (The re-test agreed anyway - see the RS-exit row - but for a different reason.)
+
+**A. Exits, from 2005-01, top40, 0.15%/side, NO slippage. Bench: 0.66 / -60.9% / 13.12x.**
+
+| exit rule | return/vol | CAGR | MaxDD | beta | alpha/yr | Rs1Cr -> |
+|---|---|---|---|---|---|---|
+| **none (15j baseline)** | 0.54 | 12.6% | **-68.1%** | **1.18** | **-0.5%** | 12.68 |
+| hard stop -10% | ~0.65 | - | - | - | ~+3.5% | - |
+| **hard stop -15%** | **0.65** | **13.1%** | **-47.4%** | **0.78** | **+3.5%** | **13.99** |
+| hard stop -20% | 0.62 | 13.5% | -56.3% | 0.89 | +2.8% | 15.05 |
+| hard stop -30% | 0.60 | 13.7% | -62.7% | 1.02 | +1.8% | 15.70 |
+| **trail -15%** | 0.64 | 12.2% | **-35.1%** | **0.68** | **+3.7%** | 11.76 |
+| trail -20% | 0.64 | 13.4% | -50.8% | 0.82 | +3.3% | 14.72 |
+| trail -30% | 0.60 | 13.5% | -61.8% | 0.98 | +2.0% | 15.00 |
+| **monthly RS exit** | 0.54 | 12.3% | -64.8% | 1.11 | **-0.3%** | 11.90 |
+
+**Finding 1: the DUMB price stop beat the SMART signal exit.** The monthly RS-excess exit did essentially
+nothing (alpha -0.3%, beta 1.11, DD -64.8%); the mechanical price stop transformed the book. Ramana's instinct
+beat the model-based rule.
+
+**B. THE KILL - gap slippage. Hard -15% from 2005, varying the assumed fill vs the stop price:**
+
+| slippage on fill | return/vol | CAGR | MaxDD | alpha/yr | Rs1Cr -> |
+|---|---|---|---|---|---|
+| 0% (what A assumed - impossible) | 0.65 | 13.1% | -47.4% | **+3.5%** | 13.99 |
+| 1% | 0.58 | 11.5% | -49.0% | +1.9% | 10.24 |
+| 2% | 0.51 | 9.9% | -50.6% | **+0.4%** | 7.49 |
+| 4% | 0.38 | 6.7% | -53.6% | **-2.7%** | 3.99 |
+
+**With slip 2% + realistic 0.30%/side, alpha is GONE in every window: 2005 -0.1% (6.71x vs 13.12x) /
+2011 -0.2% (2.92x vs 5.24x) / 2017 -0.4% (2.10x vs 3.14x).**
+
+**MECHANISM: 1,407 stop fills over 21.4y = ~66 forced sales/year on a 40-stock book.** Every one sells into
+weakness and pays the gap. The signal is not the problem; **the bill is.**
+
+**C. WHAT SURVIVES (real, and slippage-ROBUST):** exits fix the **RISK**, not the return.
+**beta 1.18 -> 0.78-0.80 at EVERY slippage level**; MaxDD -68.1% -> -47.4%, and still **-50.6% at 2% slip**
+vs the bench's -60.9%. Drawdown barely moves as slippage rises (-47.4% -> -50.6%) while alpha collapses
+(+3.5% -> +0.4%). **=> The protection is robust; only the profit is fragile.** Honest verdict: exits turn a
+leveraged wreck into a genuinely **DEFENSIVE** book - survives crashes far better than the index, makes less
+money than it. Real, but not alpha.
+
+**VERDICT: CONDITIONAL - blocked on ONE unmeasured number.** Viability hinges entirely on **real fill
+quality**, which was **assumed, not measured** (the same disease as 15h's ETF-tradeability assumption - third
+occurrence today). At ~0.5% slip it is viable; at 2% it is dead. The truth is a **distribution**: most stops
+trigger on gentle drift and fill near the stop, a few gap hard on news. **A flat 2% on all 1,407 fills is
+pessimistic; 0% is impossible.**
+
+**OWED NEXT (cheap, high-leverage, hours not a data lane): MEASURE the actual gap distribution** from our own
+22y of daily bhavcopy - for these exact names at these exact trigger points, what did a down-gap through a
+stop actually cost? Replaces the assumption with a measurement. **This pays for itself repeatedly: EVERY
+future strategy using a stop inherits this same number.**
+
+**Standing caution:** the +3.5% headline survived ~10 minutes before the robustness check killed it. Fourth
+time in one session that a promising number was an assumption wearing a result's clothes (15h ETF legs /
+15i survivorship / 15j hysteresis transfer / 15k fill quality). **Treat every first-pass number as provisional
+until its friction test runs.**
+
+**Ramana's actual design remains UNTESTED** - everything here is the UNCONDITIONED book (no sector step).
+15h/15i's bar is unchanged, and now has a harder floor: the sector-conditioned build must beat a defensive
+book already delivering **beta 0.78 / MaxDD -50.6% net of 2% slip**, not just the raw index.
+
 ### 2026-07-15j - FIRST HONEST STOCK BOOK: PIT-clean stock RS **LOSES to Nifty 500 at every setting** (~20 variants, 21y, zero survivorship). Naive alpha -0.5%/yr; hysteresis makes it WORSE.
 
 **Module:** `research/explosive_moves/stock_rs_pit2.py` (read-only; `.venv/bin/python ... data/hermes.db`).
