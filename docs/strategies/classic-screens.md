@@ -99,6 +99,26 @@ Closing both is the **phase-2** task: add cash-flow + enterprise-value + current
 `fundamentals_xbrl.extract_for` and backfill — then Magic Formula, Piotroski, Graham and Acquirer's
 Multiple upgrade to full fidelity. This must NOT be done by extending `screener.py` (Guardrail #8).
 
+**✅ Feasibility SETTLED by a live probe (S146) — the ANNUAL NSE XBRL filing carries all of it.**
+A quarterly instance is P&L-only (65 tags; SEBI LODR requires the balance sheet + cash-flow
+statement **annually**, not quarterly). An annual instance has **232 tags** including
+`CashAndCashEquivalents` (→ enterprise value → true EBIT/EV **and** Acquirer's Multiple),
+`CashFlowsFromUsedInOperatingActivities` (→ Piotroski's missing CFO trio → the full 9), and
+`CurrentAssets`/`CurrentLiabilities` (→ Graham's current-ratio leg). Annual is the correct cadence —
+Greenblatt, Piotroski and Graham are all annual rules. **Caveat:** XBRL is forward-only (2026-04→),
+so this unblocks the RULES going forward; it does **not** deepen history (see §2 note on the ~2015
+breadth cliff, which is a separate, unsolved data problem).
+
+### Reconstructed portfolios (S146)
+Each rule also runs as a NAMED, BACKDATABLE model portfolio via
+[`classic_portfolios.py`](../../src/automation/classic_portfolios.py) — an additive sibling of the
+`auto_portfolios` engine (reusing its clock/gate/band/cost/NAV math verbatim; the classics are NOT
+admitted into that estate because they do not clear its "superior Sharpe + beats Nifty" bar). The
+missing piece it adds is a **point-in-time fundamentals panel**. Books are charted only with **5+
+years** of history (gate on YEARS, never rebalance count — 20 rebalances is 5y quarterly but 1.7y
+monthly). Adoptable from `/dash/tracker/model-books` with **today** as entry — a reconstruction is
+never written into a real book.
+
 ## 7. Terminology canon
 
 | Say this | Means | Do NOT confuse with |
