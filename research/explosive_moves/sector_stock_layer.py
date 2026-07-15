@@ -1,7 +1,7 @@
 """THE TWO-STEP ENGINE (Ramana's design, verbatim, 2026-07-15): sector selection -> stock
 selection. First-pass simulation of the canon's open-item #1 (docs/strategies/sector-rotation.md
 Sec.9 #1; ledger Sec.2026-07-15h/i/j; D138/D139/D141). NOT the final ~1,973-symbol PIT-safe build
--- a genuinely primary-sourced, honestly-scoped first cut. Read Sec.2026-07-15j before quoting
+-- a genuinely primary-sourced, honestly-scoped first cut. Read Sec.2026-07-15l before quoting
 any number this prints.
 
 STEP 1 (sector selection) is REUSED UNTOUCHED from the validated V24 engine

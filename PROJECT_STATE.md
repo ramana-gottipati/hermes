@@ -195,7 +195,7 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - `src/web/sector_rotation_view.py` — `/dash/sector-rotation` (Lens, strategies altitude; durable `_ROUTER_SPECS` mount): `?asof=` time-travel + rebalance diffs + analytics-to-date vs Nifty 500 + sleeve regime + CSV; education scaffold + `not_reco` fence; defensive empty-state.
 - `research/explosive_moves/sector_rotation{,_exp,_exp2,_stats}.py` — the V1 round · V2–V8 ablation · V9–V17 round (V17 reference impl) · dated stats/t-stats. Numbers single-sourced in `docs/strategy-ledger.md` §§ 2026-07-15/15b/15c; ruleset in `docs/strategies/sector-rotation.md`.
 - `research/explosive_moves/sector_rotation_significance.py` — **the significance pass (D139, ledger §2026-07-15i)**: is the V21→V24→V32 ladder distinguishable from noise? (Answer: **no**.) JK/Memmel difference-of-Sharpe + paired stationary block bootstrap (percentile/pivotal/**studentized**) + power/MDE + measured selection deflation + the effective-sample count + the no-rf reconciliation. **Does NOT re-implement the engine** — exec's `sector_rotation_exp4.py` above its driver and calls its `simulate()`; **self-gates on reproducing §15f/§15g and exits non-zero if it ever stops.** Stdlib-only, deterministic (seed 20260715). Run: `python research/explosive_moves/sector_rotation_significance.py <db>`.
-- `research/explosive_moves/sector_stock_layer.py` — **the two-step method, first simulation (D141, ledger §2026-07-15j)**: Ramana's sector→stock design, run end-to-end. **Step 1 = V24, exec'd untouched** (same trick as the significance module — no re-derivation). **Step 2 (new)** ranks each qualifying sector's stock universe by RS-excess vs its OWN sector composite, caps the book at 33 names. Universe = `research/explosive_moves/nse_sector_classification_2026-07-15/` (17 committed CSVs, 91 KB, genuine niftyindices.com primary source, 268 symbols/16 sectors) — a dated snapshot so the module never re-fetches to reproduce. **REJECTED at realistic cost** (0.775 ret/vol vs V24's 0.911; worse MaxDD/CAGR/wealth); disclosed limitation = current-day classification applied statically backward (fails conservative — dead names excluded, not fabricated). Run: `python research/explosive_moves/sector_stock_layer.py <db> [stock_cost_bps]` (default 40bps/side; pass 15 for gross, 70 for stress) — read-only, safe against production.
+- `research/explosive_moves/sector_stock_layer.py` — **the two-step method, first simulation (D141, ledger §2026-07-15l)**: Ramana's sector→stock design, run end-to-end. **Step 1 = V24, exec'd untouched** (same trick as the significance module — no re-derivation). **Step 2 (new)** ranks each qualifying sector's stock universe by RS-excess vs its OWN sector composite, caps the book at 33 names. Universe = `research/explosive_moves/nse_sector_classification_2026-07-15/` (17 committed CSVs, 91 KB, genuine niftyindices.com primary source, 268 symbols/16 sectors) — a dated snapshot so the module never re-fetches to reproduce. **REJECTED at realistic cost** (0.775 ret/vol vs V24's 0.911; worse MaxDD/CAGR/wealth); disclosed limitation = current-day classification applied statically backward (fails conservative — dead names excluded, not fabricated). Run: `python research/explosive_moves/sector_stock_layer.py <db> [stock_cost_bps]` (default 40bps/side; pass 15 for gross, 70 for stress) — read-only, safe against production.
 
 **D134 wave-3 — entity graph (S155) — new:**
 - `src/automation/entity_graph.py` — L2 relationship edges: own `entity_edges(src_kind, src_id, dst_kind, dst_id, edge_kind, first_seen, last_seen, n_events, source_ref)`; 6 extractors over the insider/SAST/pledge/deals/ratings tables we already own; idempotent `rebuild()`; `neighborhood(symbol)` → edges + co-links (shared counterpart across companies, with `via` provenance); `stats()`; CLI `--rebuild/--neighborhood/--stats/--selftest`. **DESCRIPTIVE ONLY — no score column exists by design** (ledger E-03 placebo p95 +9.52% > observed +8.26% · accumulation-footprint FAIL 1/4, n=54 — both cited in the docstring); public-record dates only; hashed ids never re-identified.
@@ -623,7 +623,7 @@ quarters); median 22 stocks/quarter (below the 30-35 ceiling because selection g
 RS-excess — no force-fill to hit a quota). **Still owed before this is the final word:** the full ~1,973-symbol
 PIT-safe classification with the two-sided dead-name bias bound; a real per-name ADV/impact cost model
 (replacing the flat 0.40% proxy); a significance pass on this result (same JK/bootstrap discipline as D139).
-Canon: ledger **§2026-07-15j** · `docs/strategies/sector-rotation.md` §9 #1 (first-simulation banner + original
+Canon: ledger **§2026-07-15l** · `docs/strategies/sector-rotation.md` §9 #1 (first-simulation banner + original
 spec retained as the next-iteration target) · module + data snapshot committed.
 
 ### D140 — Model-portfolios stats: cadence is READ FROM DATES, and "Sharpe" is relabelled "Return/vol" (2026-07-15, S161)
@@ -2146,7 +2146,7 @@ both narrow (7% coverage) and look-ahead-labelled — reused nothing from it, co
   requires positive RS-excess — the engine does not force-fill to hit a quota, confirmed not underbuilding).
 - **Documented per the D138 rule applied to my own build this time:** the "current-day classification" caveat
   sits ABOVE every number on the canon page and in the ledger, not buried in an open-items list. Landed: ledger
-  **§2026-07-15j**, PROJECT_STATE **D141**, canon page §9 #1 (first-run banner; original ~1,973-symbol spec kept
+  **§2026-07-15l**, PROJECT_STATE **D141**, canon page §9 #1 (first-run banner; original ~1,973-symbol spec kept
   as the next-iteration target, not deleted), module + 91KB dated CSV snapshot committed
   (`research/explosive_moves/sector_stock_layer.py` + `data/nse_sector_classification_2026-07-15/`).
 - **Still owed before this is final:** the full ~1,973-symbol PIT-safe classification with the two-sided
@@ -2156,7 +2156,7 @@ both narrow (7% coverage) and look-ahead-labelled — reused nothing from it, co
   against yet, so treat it as directionally solid, not statistically final.
 - **⚠ origin/main moved twice under me mid-session** (a sibling lane's D138 scope-flaw commit landed just
   before I started; another lane's D140 model-portfolios cadence-bug fix — the chip I flagged last session —
-  landed while I was mid-build). Re-fetched and re-based before each commit; picked D141/§2026-07-15j to avoid
+  landed while I was mid-build). Re-fetched and re-based before each commit; picked D141/§2026-07-15l to avoid
   colliding with D140 and the pre-existing §2026-07-15i collision (two unrelated entries already share that
   letter from S159/S160 — noted, not fixed retroactively; renumbering history risks breaking existing citations).
 - **Harness TIL:** `TaskCreate` failed on a batched multi-task call (its real schema is one-task-per-call,

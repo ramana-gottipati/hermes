@@ -173,7 +173,7 @@ diagnostic (regime-band idea, tested before the full V28 batch) is `research/exp
 
 **Canon (single source of truth, don't re-derive from this bullet):** [`docs/strategies/sector-rotation.md`](docs/strategies/sector-rotation.md)
 (the ruleset + terminology, incl. the V8/V17/V21/V24/V32 ladder) · [`docs/strategy-ledger.md`](docs/strategy-ledger.md)
-§§ 2026-07-15 → 2026-07-15j (every number, every rejection; **15h = scope flaw, 15i = the significance null + the label fix, 15j = the stock-layer first-simulation REJECTION**) · PROJECT_STATE.md Decision log **D136 + D138 + D139 + D141**.
+§§ 2026-07-15 → 2026-07-15l (every number, every rejection; **15h = scope flaw, 15i = the significance null + the label fix, 15j = the stock-layer first-simulation REJECTION**) · PROJECT_STATE.md Decision log **D136 + D138 + D139 + D141**.
 
 > ### 🔴 S161/D141 — THE STOCK LAYER HAS BEEN SIMULATED (once) — REJECTED at realistic cost
 > Ramana's two-step method (sector→stock) was **built and run end-to-end**, not just designed:
@@ -186,7 +186,7 @@ diagnostic (regime-band idea, tested before the full V28 batch) is `research/exp
 > structural concentration effect, not a cost artifact). **Disclosed limitation:** the 268-symbol universe is
 > CURRENT-day classification applied statically backward (a much smaller bias than the banned index-membership
 > trap, but real; fails conservative — dead names excluded, not fabricated) — **this is a first pass, NOT the
-> ~1,973-symbol PIT-safe build below, which remains the target.** Ledger **§2026-07-15j** · PROJECT_STATE
+> ~1,973-symbol PIT-safe build below, which remains the target.** Ledger **§2026-07-15l** · PROJECT_STATE
 > **D141**. **Do NOT re-run hoping for a different verdict without: the full classification + dead-name bias
 > bound, a real per-name ADV/impact cost model, and a significance pass on this result** (n=258 with a
 > 6/16-sector-average book has real estimation noise — the rejection is directionally solid, not yet

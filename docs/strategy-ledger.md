@@ -643,7 +643,27 @@ assumed worst-decile) and report the RANGE. An honest error bar beats a fake poi
 (t=1.99)**; only LOWVOL_MOM qtr large-cap fundable (1.02 @₹50cr); stock legs cost more than index legs.
 **A constituent build that merely MATCHES the sector-index book is a REJECTION, not a result.**
 
-### 2026-07-15j — THE STOCK LAYER, FIRST SIMULATION (Ramana's two-step method, run end-to-end): REJECTED under the pre-registered bar — worse risk-adjusted, worse drawdown, and the gross uplift is a cost illusion
+### 2026-07-15l — THE STOCK LAYER, FIRST SIMULATION (Ramana's two-step method, run end-to-end): REJECTED under the pre-registered bar — worse risk-adjusted, worse drawdown, and the gross uplift is a cost illusion
+
+**⚠ Read alongside §§2026-07-15j/k (a PARALLEL, independent lane, same day) before treating this as the last
+word on stock selection.** That lane tested the **UNCONDITIONED** question — does picking top-RS stocks from the
+WHOLE market (no sector filter at all) beat Nifty 500? — on a genuinely **survivorship-free** universe
+(bhavcopy itself as the universe each month, so delisted names are correctly present on the dates they were
+tradeable — stronger data hygiene than this entry's current-day-classification approach). **Their answer: NO,
+at every one of ~20 variants tested** (naive alpha −0.5%/yr; return/vol never clears the 0.66 bench). **This
+entry answers a DIFFERENT, narrower question** — does picking top-RS stocks WITHIN sectors V24 already flagged
+as strong beat V24's OWN index-sector book? — also **REJECTED**, independently, by a different method, on a
+different universe-construction. Two honest rejections of two different constructions converging is a stronger
+signal than either alone. **Their most transferable finding applies directly to this entry's own weak point:**
+they found sector-layer levers do not transfer to the stock layer (hysteresis, the sector layer's biggest
+winner, backfires on stocks) — analogous to this entry's own concentration-risk finding (idiosyncratic single-
+stock risk isn't compensated the way diversified sector risk is). **And Ramana separately told that lane
+"we must have proper exit strategies written" — a gap THIS engine has too:** `sector_stock_layer.py` has no
+intra-quarter stock-level stop; a name held here can only exit at the next quarterly rebalance, exactly the
+negligence their exit study (§15k) diagnosed and partially fixed (hard stop −15% cut MaxDD −68%→−47% at
+beta 1.18→0.78, though the alpha it bought is slippage-fragile — gone entirely past ~2% realistic slip). **This
+entry's own worse-than-V24 drawdown may be PARTLY a missing-exit-rule artifact, not purely a stock-picking-risk
+finding** — added to the owed list below, informed by their measurement rather than re-deriving it.
 
 **What ran.** Ramana's exact design, built and simulated: **Step 1 (sector selection) = V24, UNTOUCHED** — the
 validated engine's own `build()`/`kill_on()`/quarterly clock, called directly, never re-derived. **Step 2 (stock
@@ -718,7 +738,10 @@ canon's ~1,973-symbol PIT-safe classification with the two-sided dead-name bias 
 live-only cut is a first pass, not that build; ② a real per-name ADV/impact cost model replacing the flat
 0.40%/side proxy (same rigor item as the sector layer's own owed instrument audit, §6-bis); ③ a significance
 pass on THIS result (same JK/bootstrap/MDE discipline as §15i) before treating even the REJECTION as more than
-directionally solid — n=258 with a 6/16-sector-average book has real estimation noise too.
+directionally solid — n=258 with a 6/16-sector-average book has real estimation noise too; ④ **an intra-quarter
+stock-level exit rule (Ramana's ask, surfaced by §15k)** — this engine currently has none; §15k's own measured
+number (hard stop −15% cuts MaxDD −68%→−47% at beta 1.18→0.78, but the alpha it buys needs real fill-quality
+data, not an assumption) is the concrete starting point, not a fresh design.
 
 **Sample current holdings (2026-04-01, the latest quarter, at the disclosed 0.40%/side cost) — for illustration,
 not a live recommendation (this ladder is DESCRIPTIVE, per §15h; the bar above says REJECT):** 29 names, led by
