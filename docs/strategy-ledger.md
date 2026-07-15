@@ -338,6 +338,34 @@ Each lever added individually vs base (Sharpe / alpha / MaxDD):
   up/down-capture 0.71/0.64 · avg exposure 74.9% — the wealth gap ₹9.13 vs ₹12.60 Cr is CASH DRAG, missing the
   recovery years: 2009 +44% vs +106% · 2014 +24% vs +44% · 2024 +6% vs +26%).
 
+### 2026-07-15d — Round 3: the V18/V19/V20 batch vs the frozen V17 benchmark → ★V21 (all three levers) — the FIRST construct to beat the bench in BOTH halves
+
+Ramana greenlit the ranked batch ("go"). Module `research/explosive_moves/sector_rotation_exp3.py`; V17 frozen as the
+family benchmark (0.79 / 14.7% / −39.2% / ₹19.04); every lever tested ALONE first, then the winners combined. Data
+finding first: our archive has NO total-return indices (TR re-cut still OWED — needs an NSE TRI ingest) and mid-cap
+indices only from 2012/2015 — **Nifty Next 50 is the one aggressive asset with full 2004+ history**.
+
+| V17 + lever | Sharpe (H1/H2) | CAGR | MaxDD | α/yr | ₹1 Cr → | read |
+|---|---|---|---|---|---|---|
+| — (V17 baseline) | 0.79 (0.86/0.70) | 14.7% | −39.2% | +4.7% | 19.04 | benchmark |
+| V18a sleeve→Next 50 | 0.79 (0.88/0.69) | 15.2% | −40.8% | +5.1% | 20.95 | +₹1.9 Cr for −1.6pt DD; mild win |
+| V18b sleeve→Midcap 50 (2012+) | 0.79 (0.83/0.74) | 14.9% | −39.2% | +4.8% | 19.70 | mild |
+| **V19 recovery-accelerator** (bench reclaims 200DMA during the quarter → that build's NEW-entry band 8%→0; RSI-green kept) | **0.85 (0.86/0.83)** | 15.9% | −39.2% | +5.7% | 23.73 | **the star single lever — FIXES the H2 weakness** (0.70→0.83) by catching the V-recoveries it was built to catch; turnover 12.4→15.4%/mo |
+| V20 inverse-vol weights | 0.80 (0.87/0.71) | 14.9% | −39.2% | +4.9% | 19.77 | small clean win |
+| V18a+V19 | 0.85 (0.88/0.82) | 16.2% | −40.8% | +5.9% | 25.18 | additive |
+| **★ V21 = V18a+V19+V20** | **0.87 (0.89/0.86)** | **16.6%** | **−40.8%** | **+6.3%** | **27.02** | **new leading candidate** |
+
+- **V21 beats the like-for-like bench in BOTH halves decisively** (0.89/0.86 vs the bench's 0.58/0.78) — the first
+  sector-rotation construct to clear the both-halves bar on this window — at ₹1 Cr → **27.02 vs 12.60 (2.1×
+  the index's wealth)**, MaxDD −40.8% vs −62.0%, turnover 14.6%/mo. Each lever was individually pre-specified from
+  the recorded diagnosis and individually positive before combining (not a grid point).
+- **Reference rows (the engine beats its own ingredients):** Next 50 B&H 0.62 / −69.9% / ₹15.99 · Midcap 50 B&H
+  0.65 / −62.0% — both far below V21; the discipline, not the aggressive asset, carries the result.
+- **Caveats unchanged and compounding:** price-index (TR re-cut OWED — no TRI in `index_rows`); three rounds of
+  selection on one window → the fresh-window / TR confirmation is now the HIGHEST-priority rigor item before any
+  stronger claim. **Status: V21 = leading champion-candidate, pending Ramana's ratification; V17 remains the
+  recorded prior candidate; V8 remains the frozen base.**
+
 ### 2026-07-15c — Round 2: attack the RETURN gap (kill-switch · asym cadence · residual fill · monthly cadence), V8 base frozen, 2005–2026 n=257
 
 Module `research/explosive_moves/sector_rotation_exp2.py` (one lever at a time, then combos; bench like-for-like

@@ -82,10 +82,19 @@ NSE index closes (`index_rows`, 205 indices 2004→present; primary source, Guar
 
 ## 9. Open items / frozen work
 
-- **Ramana's ratification of V17** as champion (V8 stays the frozen base either way).
-- **TR-benchmark re-cut + V17 significance pass** — the price-vs-TR caveat is the biggest open honesty item.
-- **V2 constituent expression** — the ≤40-stock version (top-RS stocks inside qualifying sectors, sector-RS × stock-RS weights, per-sector stops) — where the stock-selection edge gets tested; then `/dash/model-portfolios` integration if it survives.
-- **Fresh-period / walk-forward confirmation** of the V17 lever specifically (selection-deflation guard).
+- **★ V21 = V17 + Next-50 sleeve + recovery-accelerator + inverse-vol weights (ledger 2026-07-15d) — the LEADING
+  champion-candidate**: Sharpe 0.87 (0.89/0.86 — beats the bench in BOTH halves), CAGR 16.6%, MaxDD −40.8%,
+  α +6.3%/yr, ₹1 Cr → 27.02 vs 12.60. The recovery-accelerator (reclaim quarter → entry band 8%→0, RSI-green kept)
+  is the star single lever — it fixes the measured H2/recovery-years weakness. **Pending Ramana's ratification**;
+  the live `/dash/sector-rotation` engine intentionally still runs V17 until he ratifies.
+- **Ramana's ratification** of the candidate ladder (V8 frozen base · V17 recorded candidate · V21 leading candidate).
+- **TR-benchmark re-cut + significance pass — now the HIGHEST-priority rigor item** (no TRI series in `index_rows`;
+  needs an NSE Total-Returns ingest, primary-source). Three rounds of selection on one window make the fresh-window
+  confirmation load-bearing.
+- **V2 constituent expression** — the ≤40-stock version (top-RS stocks inside qualifying sectors, sector-RS ×
+  stock-RS weights, per-sector stops) — where the stock-selection edge gets tested; then `/dash/model-portfolios`
+  integration if it survives.
+- **Rejected this round (mild, not walls):** Midcap-50 sleeve ≈ Next-50 but shorter history; nothing new falsified.
 
 ## 10. Sources of truth
 
