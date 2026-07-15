@@ -10,6 +10,9 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔒 CLAIM 2026-07-15 ~21:3x UTC — LANE-E + LANE-I taken by the continuing LANE-R session (S149-d)
+Building `src/automation/auto_analyst.py` (E) + `src/automation/intraday_adapter.py` (+1 feed_manifest row) (I) in worktree `lane-ei-d134`. Siblings: do NOT start these two; everything else in the queue is free. Retire this block to the results block at wrap.
+
 ## 🆕 2026-07-15 — S149-c (D134 LANE-R): WAVE 1 INTEGRATED + DEPLOYED + HEARTBEAT ARMED — do NOT redo; kickstart-pick-verify
 - **The divergence is GONE:** local-main's 9 commits rebased onto origin in an isolated scratchpad worktree — `a781669`/`bce01cb` auto-dropped (patch-twins), `216db7b` dropped as SUBSUMED (origin `0e2ca21` is its evolved reconcile — verified: reversal-pair-PLAN deleted, reversal-context served, backstop present), 6 unique commits carried; duplicate "S148" disambiguated (`### Session 148 (XBRL lane)`). Reconcile pushed `2fc1248`; integration pushed `edffb86` (one mid-flight re-rebase over the Pat lane's push — expected race, resolved keep-both).
 - **B/C/D merged serially** (`cherry-pick -x` — NOT `git merge`: the lane branches sit on the pre-rebase lineage, a merge would re-fight every twin conflict) with the FULL suite between: 398 → 410 → 428 → **460 green** post-race. One real red found+fixed en route: carrying S145's classics glossary onto the S141 Pat-adapter broke `test_every_web_entry_accounted_for` (names starting with a slashed symbol produce no speakable lead) → `Debt to Equity (D/E)` / `Price to Book (P/B)` words-first rename (`89f5436`).
