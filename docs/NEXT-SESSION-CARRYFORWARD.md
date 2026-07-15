@@ -34,13 +34,23 @@ GNPA proxy** (defer true ALM) · **suppress-half folds into the scorer**. **Patt
 (isolated worktree; coordinate with the sibling-active XBRL lane). *"Do the other parked items too, where feasible."*
 
 **▶ QUEUE:**
-1. **Pattern-5 SA-instance extraction.** GNPA%/NNPA%/RoA/CET1 are populated ONLY in the **STANDALONE**
-   instance (conso = 0.00) but the ingest's `_prefer_consolidated()` keeps one filing/period with **conso
-   preferred** → SA is never parsed, so adding the `put()`s alone is **INERT**. Add an SA pass on the
-   bank-filing path (`_is_bank_instance`). Tags verified: `PercentageOfGrossNpa` · `PercentageOfNpa` ·
-   `ReturnOnAssets` · `CET1Ratio` (+`AdditionalTier1Ratio`), ×100 → percent, non-zero-gated.
-   **Storage is metric-keyed → NO schema change / no new columns.** ⚠ `fundamentals_xbrl.py` is
-   **sibling-active** (Phase-3 backfill engine) → isolated worktree + coordinate; do NOT fork a parallel fetch.
+1. ~~**Pattern-5 SA-instance extraction.**~~ **✅ DONE + DEPLOYED + LIVE-VERIFIED (S154, `62fb1b6`) — do NOT redo.**
+   NEW `extract_bank_prudential()` + `_has_prudential_tags()` + `augment_prudential()` in
+   `fundamentals_xbrl.py`, wired into BOTH ingest paths (legacy listing pulls the dropped SA sibling only
+   when a bank block is zeroed; integrated-filing costs ZERO extra fetch — it already parses both natures).
+   Metric-keyed → no schema change. Live proof: HDFCBANK → 1 SA fetch → `{GNPA 1.42, NNPA 0.46, RoA 0.47,
+   CET1 19.97}`, P&L intact; BAJFINANCE (NBFC) → 0 fetches, `{}`. 10 tests + suite 487.
+   **🔑 THREE FACTS NOW SETTLED EMPIRICALLY (don't re-derive):** raw tags are **fractions** (×100 = percent);
+   a bank's **conso reports 0.00 for all five** (SA-only is real, non-zero gate = the conso guard);
+   **⚠ `ReturnOnAssets` is context-dependent — OneD (discrete qtr) 0.47% vs FourD (YTD) 1.43%** — read the
+   discrete-quarter ids or you silently store the YTD number. **`_is_bank_instance` can NOT gate the SA fetch**
+   (NBFCs tag `InterestEarned` too) — `_has_prudential_tags` (declared-even-if-zero) is the discriminator.
+   **▶ RESIDUAL (bounded, deliberate):** rows populate for filings ingested **from now on** (nightly
+   `hermes-fundamentals-xbrl` 16:33 UTC). Already-ingested bank periods sit in `fundamentals_xbrl_seen` and
+   will NOT be re-parsed → **historical prudential needs a targeted re-ingest** (clear those urls from the
+   seen-table for bank symbols, or route via the Phase-3 backfill). Gate it past the scan clusters.
+   ⚠ The Doctrine-D scorer (item 2) therefore has **no historical Pattern-5 data yet** — build it
+   NULL-tolerant (absent ratio ⇒ that leg abstains, never a false pass/fail).
 2. **Doctrine-D financials scorer (Step 4)** in `scoring.py` — Pattern 1 = RoE/RoA vs sub-type thresholds;
    **Pattern 2 = NII growth + cost-to-income — ALREADY derivable from stored conso metrics (no ingest work)**;
    Pattern 5 = GNPA<1.5% ∧ strong CET1 (+ALM proxy). **Disable the generic D/E hard-disqualifier for lenders.**
@@ -48,8 +58,11 @@ GNPA proxy** (defer true ALM) · **suppress-half folds into the scorer**. **Patt
 3. **Parked — do if feasible:** PROJECT_STATE + this carry-forward **reconcile** (OWED) · **D1-F4** ignition
    warm-up guard (converge with Codex first, then scoring + VPS `--relabel`) · Wolfe D4 / harmonic-zigzag
    D7-F1 / prereg D5-F5 (sibling-hot).
-4. **Verify the 14:01 nightly chain** ran clean on the newly-deployed `signals.py`/`stock_rs.py` (first
-   incremental-path run; backfills already exercised the core fns 0-fail).
+4. **Verify the 14:01 nightly chain** — **PARTIAL (S154):** the chain is ONE unit (`hermes-bhavcopy.service`
+   with chained `ExecStart`s: bhavcopy→signals→…→stock_rs→cpr→reversal). **`stock_rs.py`** (deployed Tue
+   13:21 UTC) DID run in Tue's 14:01 chain → `Result=success`, exit 0, clean journal ✅. **`signals.py` was
+   deployed Tue 16:00 — AFTER that run**, so its incremental path is STILL unexercised; **first run = the
+   next 14:01 UTC chain.** Re-check `journalctl -u hermes-bhavcopy --since "14:00"` + exit 0 after it fires.
 
 **⚠ STANDING CONSTRAINTS:** **SHARED-WORKTREE HAZARD** — multiple sessions on ONE `D:\Hermes` tree on `main`
 → diverged + churning. **Docs edits = plumbing-on-origin** (`git show origin/main:f` → edit → `hash-object -w`
