@@ -73,7 +73,9 @@ _CSS = """<style>
 .cls table{border-collapse:collapse;width:100%;font-size:13px}
 .cls th,.cls td{padding:6px 8px;border-bottom:1px solid var(--line-2,#333);text-align:right}
 .cls th.l,.cls td.l{text-align:left}
-.cls .lead,.cls .bar{color:var(--ink-2,#999);font-size:12.5px;margin:8px 0}
+/* NB: never name a class `bar` — the design system owns `.bar` as a 7px METER
+   (height:7px;overflow:hidden), which guillotines any text placed in it. Namespaced. */
+.cls .lead,.cls .cls-note{color:var(--ink-2,#999);font-size:12.5px;margin:8px 0;line-height:1.5}
 .cls .pos{color:#3fb950}.cls .neg{color:#f85149}
 .cls .full{color:#3fb950;font-weight:600}.cls .proxy{color:#d29922}
 .cls .none{color:var(--ink-2,#999);font-style:italic}
@@ -165,11 +167,11 @@ def _roster_html(strat, rows):
                  f"{_esc(r['symbol'])}</a></td>"
                  f"{cells}</tr>")
     note = _NOTE.get(strat, "")
-    note_html = f"<div class='bar'>{_esc(note)}</div>" if note else ""
+    note_html = f"<div class='cls-note'>{_esc(note)}</div>" if note else ""
     return (
         f"<h3>{_esc(name)} — current top-{len(rows)} roster</h3>"
         + note_html
-        + "<div class='bar'>A research shortlist that re-ranks every night — "
+        + "<div class='cls-note'>A research shortlist that re-ranks every night — "
         + ifx.fence("not_reco", cap=True)
         + f". <a href='{_SELF}?s={_esc(strat)}&amp;fmt=csv'>Download CSV</a></div>"
         + "<table><thead><tr><th>#</th><th class='l'>Symbol</th>"
@@ -220,7 +222,7 @@ def classics_page(s: str = "", fmt: str = ""):
                 f"<td class='l'>{link}</td></tr>")
 
     roster_html = _roster_html(strat, roster) if (strat and roster) else (
-        f"<div class='bar'>No roster stored for <b>{_esc(strat)}</b> yet — the nightly "
+        f"<div class='cls-note'>No roster stored for <b>{_esc(strat)}</b> yet — the nightly "
         "<code>famous_strategies</code> refresh populates it on the live box.</div>"
         if strat else "")
 
@@ -236,7 +238,7 @@ def classics_page(s: str = "", fmt: str = ""):
         + ifx.how_to_read_link()
         + f"<div class='rd-htr'><a href='{_FACTOR_LEAGUE}'>Factor league (the raw families) →</a>"
         + f" · <a href='{_STRATEGY_REF}?p=classic-screens'>Methodology &amp; honesty →</a></div>"
-        + f"<div class='bar'>rosters as-of <b>{_esc(as_of) or '—'}</b> · universe = liquid NSE "
+        + f"<div class='cls-note'>rosters as-of <b>{_esc(as_of) or '—'}</b> · universe = liquid NSE "
         "names (turnover ≥ ₹5cr) · every metric is point-in-time (no look-ahead)</div>"
         + "<table><thead><tr><th class='l'>Strategy</th><th class='l'>How we run it</th>"
         "<th class='l'>Status</th><th class='l'></th></tr></thead><tbody>" + cat + "</tbody></table>"
