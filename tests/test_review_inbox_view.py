@@ -115,7 +115,9 @@ def test_owner_sees_queue_with_evidence_and_buttons(client, db):
     c, owner = client
     owner["v"] = True
     body = c.get("/dash/inbox").text
-    assert "SOLARCO|Power / Renewables" in body
+    # the ref renders with its ticker linked (item 9), so assert on the parts, not
+    # on a contiguous "SYM|TAG" string — that literal no longer exists in the markup
+    assert "/dash/stock?sym=SOLARCO" in body and "Power / Renewables" in body
     assert "proposed by: keyword" in body and "matched: solar" in body
     assert "/dash/tags-review?sym=SOLARCO" in body
     assert "Approve" in body and "Reject" in body
@@ -310,6 +312,47 @@ def test_rule_verdict_items_render_with_their_producer(db, client):
     assert "Rule-lab verdicts" in body, "the kind needs its human label"
     assert "proposed by: rule_lab" in body
     assert "signs the result into the ledger" in body
+
+
+# ── 5. playbook item 9 — a company on screen is one click from its dossier ───────
+
+def test_symbol_of_reads_each_producers_own_shape():
+    """Each producer states the symbol differently and none should change for the lens."""
+    assert V._symbol_of("tags", "DIXON|Transport / Logistics",
+                        {"symbol": "DIXON"}) == "DIXON"
+    assert V._symbol_of("tags", "DIXON|Transport / Logistics", None) == "DIXON"
+    assert V._symbol_of("tags", "DIXON|PSU#2", None) == "DIXON", "versioned ref"
+    assert V._symbol_of("brief", "results:HCLTECH:2026-06-30", {}) == "HCLTECH"
+    # a rule verdict is about a RULE, not a company — no link, by design
+    assert V._symbol_of("rule_verdict", "31d4fe11940ebad69e7e06b1915970c8", {}) == ""
+    # junk can never emit a dossier link
+    assert V._symbol_of("tags", "not a ticker|X", None) == ""
+    assert V._symbol_of("brief", "results:", {}) == ""
+
+
+def test_queue_links_symbols_to_the_dossier(client, db):
+    _, conn = db
+    ri.submit(conn, "tags", "DIXON|Transport / Logistics", "Proposed tag",
+              payload={"symbol": "DIXON", "tag": "Transport / Logistics"})
+    ri.submit(conn, "brief", "results:HCLTECH:2026-06-30", "Results brief: HCLTECH")
+    ri.submit(conn, "rule_verdict", "abc123", "Rule-lab: NEW-BENCHMARK",
+              payload={"producer": "rule_lab"})
+    conn.commit()
+    c, owner = client
+    owner["v"] = True
+    body = c.get("/dash/inbox").text
+    assert "/dash/stock?sym=DIXON" in body
+    assert "/dash/stock?sym=HCLTECH" in body, "a brief's symbol lives in its ref"
+    assert "/dash/stock?sym=abc123" not in body, "a rule verdict has no company"
+    assert "sym=" in body and "symbol=" not in body.replace("?symbol", ""), \
+        "the param is sym, never symbol (playbook item 9)"
+
+
+def test_ref_stays_readable_when_its_symbol_is_linked():
+    out = V._ref_html("DIXON|Transport / Logistics", "DIXON")
+    assert out.startswith("<a href='/dash/stock?sym=DIXON'>DIXON</a>")
+    assert "Transport / Logistics" in out
+    assert V._ref_html("abc123", "") == "abc123", "no symbol -> plain ref"
 
 
 def test_selftest_is_green():

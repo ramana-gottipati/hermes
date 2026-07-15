@@ -37,6 +37,8 @@ v2_surfaces._ROUTER_SPECS; reads/writes only via review_inbox + inbox_adapters.
 """
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 
@@ -83,6 +85,40 @@ _CSS = """
                       text-align:left;font-size:13px}
 </style>
 """
+
+
+_TICKER_RE = re.compile(r"^[A-Z][A-Z0-9&_-]{1,19}$")
+
+
+def _symbol_of(kind: str, ref: str, payload) -> str:
+    """The ticker an item is about, or '' (playbook item 9 — a company on screen is
+    one click from its dossier).
+
+    Each producer states it differently, and none should have to change for this:
+    a tag proposal carries `symbol` in its payload; a brief encodes it in the ref
+    ('results:SYM:period'); a rule verdict is about a RULE, not a company, so it
+    correctly yields nothing. Validated against a ticker shape so a malformed ref
+    can never emit a junk dossier link.
+    """
+    sym = str((payload or {}).get("symbol") or "").strip().upper()
+    if not sym and ref:
+        r = str(ref)
+        if r.startswith("results:"):
+            parts = r.split(":")
+            sym = parts[1].strip().upper() if len(parts) > 2 else ""
+        elif "|" in r:
+            sym = r.split("|", 1)[0].strip().upper()
+    return sym if _TICKER_RE.match(sym or "") else ""
+
+
+def _ref_html(ref: str, sym: str) -> str:
+    """The ref with its leading ticker linked — keeps the ref readable as an
+    identifier while making the company reachable (item 9)."""
+    out = _esc(ref)
+    if not sym:
+        return out
+    return out.replace(_esc(sym),
+                       "<a href='/dash/stock?sym=%s'>%s</a>" % (_esc(sym), _esc(sym)), 1)
 
 
 def _is_owner(request) -> bool:
@@ -138,15 +174,18 @@ def _stats_table(split: dict, pend: dict) -> str:
         "<th>Imported rate</th></tr></thead><tbody>" + rows + "</tbody></table>")
 
 
-_IMPORTED_CAVEAT = (
-    "<p class='ib-why'><b>Why two rates, not one.</b> "
-    "&ldquo;Decided here&rdquo; counts verdicts given since the inbox went live &mdash; that is "
-    "the clean measure of how often a proposer is right. &ldquo;Imported&rdquo; is the "
-    "history that existed before it: the old storage recorded an approved proposal and a "
-    "hand-added tag as the same row, so those two acts cannot be told apart and the "
-    "imported rate flatters the proposers. They are shown side by side rather than "
-    "blended into one number. <a href='/dash/glossary?q=agreement rate'>Agreement rate "
-    "&rarr;</a></p>")
+def _imported_caveat() -> str:
+    """The honesty note under the stats table — the design-system 'in plain English'
+    primitive (playbook item 3), not bespoke markup."""
+    return ifx.plain(
+        "<b>Why two rates, not one.</b> "
+        "&ldquo;Decided here&rdquo; counts verdicts given since the inbox went live &mdash; "
+        "that is the clean measure of how often a proposer is right. &ldquo;Imported&rdquo; "
+        "is the history that existed before it: the old storage recorded an approved "
+        "proposal and a hand-added tag as the same row, so those two acts cannot be told "
+        "apart and the imported rate flatters the proposers. They are shown side by side "
+        "rather than blended into one number. "
+        "<a href='/dash/glossary?q=agreement rate'>Agreement rate &rarr;</a>")
 
 
 def _explainer() -> str:
@@ -178,6 +217,7 @@ def _item_html(it: dict) -> str:
     if it.get("evidence_url"):
         ev = ("<a class='ib-ref' href='%s' style='margin-left:auto'>evidence &rarr;</a>"
               % _esc(it["evidence_url"]))
+    sym = _symbol_of(it["kind"], it["ref"], p)
     return (
         "<div class='ib-item'>"
         "<div class='ib-h'><span class='ib-t'>%s</span>"
@@ -190,7 +230,7 @@ def _item_html(it: dict) -> str:
         "<button class='ib-btn no' type='submit' name='verdict' value='rejected'>"
         "&#10005; Reject</button>"
         "</form></div>" % (
-            _esc(it["title"]), _esc(it["ref"]), ev,
+            _esc(it["title"]), _ref_html(it["ref"], sym), ev,
             ("<p class='ib-why'>" + why + "</p>") if why else "",
             _ROUTE, int(it["id"])))
 
@@ -265,7 +305,7 @@ def inbox_page(request: Request, fmt: str = Query(""), msg: str = Query("")):
                 "which is what turns &ldquo;a human checks it&rdquo; into a number you can audit."),
             kpis,
             "<h3 style='margin:16px 0 4px'>How often the machine is right</h3>",
-            _stats_table(split, pend_by_kind), _IMPORTED_CAVEAT]
+            _stats_table(split, pend_by_kind), _imported_caveat()]
 
     if owner:
         body.append("<h3 style='margin:20px 0 6px'>Your queue</h3>")
@@ -362,7 +402,10 @@ def _selftest() -> int:
 
         pub = c.get(_ROUTE).text
         assert "Review inbox" in pub and "decisions recorded" in pub
-        assert "TESTCO|Defence" not in pub, "PUBLIC page must not leak item refs"
+        # probe the bare TICKER, not "SYM|TAG": the ref renders with its symbol
+        # wrapped in a dossier link (item 9), so a literal-ref probe would pass
+        # even on a leak.
+        assert "TESTCO" not in pub, "PUBLIC page must not leak item refs/symbols"
         assert "Approve" not in pub, "PUBLIC page must not offer decide buttons"
         assert "Results brief" not in pub, "PUBLIC page must not leak brief titles"
         assert c.get(_ROUTE + "?fmt=csv").status_code == 403
@@ -370,7 +413,8 @@ def _selftest() -> int:
 
         owner_flag["v"] = True
         own = c.get(_ROUTE).text
-        assert "TESTCO|Defence" in own and "Approve" in own
+        assert "Defence" in own and "Approve" in own
+        assert "/dash/stock?sym=TESTCO" in own, "a company must reach its dossier"
         assert "proposed by: keyword" in own, "evidence must show the proposer"
         csv = c.get(_ROUTE + "?fmt=csv")
         assert csv.status_code == 200 and "kind,ref,status" in csv.text
