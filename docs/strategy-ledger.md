@@ -463,6 +463,81 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15P - ⭐ THE ANSWER: "best of the best" is DOMINATED by "good". Selection WORKS (+1.97%/qtr) - VOLATILITY DRAG eats it. Decile 6 beats decile 10 on BOTH axes.
+
+**Ramana, 2026-07-15:** *"we are taking the best of best of best stocks and still struggling? why?"* - the
+question that produced the session's most useful finding. **Module:** `research/explosive_moves/
+why_best_struggles.py` (corporate-action ADJUSTED prices per 15O, EQ+BE+BZ, PIT, stocks INSIDE qualifying
+sectors, 8,646 stock-quarters).
+
+**The paradox it started from:** V24 holding sector INDICES compounds to 17.3% CAGR; picking the best STOCKS
+inside those same qualifying sectors compounds to 7.1%. Buying the whole sector beats cherry-picking its
+champions by ~10pp. That is impossible if selection works.
+
+## ❌ HYPOTHESIS REFUTED FIRST (recorded so it is not re-tried)
+
+**"'Beat your own sector index by X%' is a SMALL-CAP filter in disguise"** (reasoning: a dominant constituent
+cannot beat the index it dominates). **FALSE.** `corr(ADV percentile within sector, excess-vs-own-sector) =
+**+0.122** (POSITIVE, n=8,646). Largest 20% by ADV: mean excess-vs-sector **+6.77%**; smallest 20%: **-9.00%**.
+The filter selects **BIG** winners, not small ones. **Do not re-attempt the size-artefact explanation.**
+
+## ✅ THE SELECTION IS REAL - it was never the problem
+
+**Forward 3m excess vs Nifty 500, by excess-vs-own-sector decile, WITHIN qualifying sectors:**
+D1 **-0.53%** · D2 +1.93% · D3 +1.38% · D4 +1.19% · D5 +1.56% · **D6 +2.38%** · D7 +2.29% · D8 +1.88% ·
+D9 +1.57% · **D10 +1.97%** *(what the book buys)*. **All positive except D1 - and FLAT above it.**
+
+| yardstick (forward 3m excess vs Nifty 500) | mean/qtr |
+|---|---|
+| ALL stocks in qualifying sectors, equal-weight | **+1.54%** |
+| **TOP DECILE (the stock book buys here)** | **+1.97%** |
+| **the SECTOR INDEX itself (what V24 buys)** | **-0.67%** |
+
+**The stocks BEAT their own sector index by +2.63%/quarter.** Selection works. It always worked.
+
+## ⭐ THE ANSWER: VOLATILITY DRAG. The mean is not what compounds (geo ~ mean - sd²/2).
+
+| | mean/qtr | **sd/qtr** | drag | **GEOMETRIC/qtr** | ->/yr |
+|---|---|---|---|---|---|
+| SECTOR INDEX (V24 buys) | -0.67% | **10.31%** | 0.53% | **-1.20%** | -4.8% |
+| stock pool, equal-weight | +1.54% | 23.77% | 2.83% | -1.28% | -5.1% |
+| **TOP DECILE (the stock book)** | **+1.97%** | **26.63%** | **3.55%** | **-1.58%** | **-6.3%** |
+| **mid DECILE 6 ("merely good")** | **+2.38%** | **22.75%** | 2.59% | **-0.21%** | **-0.8%** |
+
+**THE RANKING FLIPS.** By MEAN: D10 > pool > index. By GEOMETRIC: index > pool > **D10 LAST**.
+**A 3.55%/qtr variance toll to collect a 1.97%/qtr edge. You win every average and lose every compound.**
+
+**🔑 THE FINDING, stated plainly: DECILE 6 DOMINATES DECILE 10 ON BOTH AXES SIMULTANEOUSLY** - higher mean
+(**+2.38% vs +1.97%**) AND lower vol (**22.75% vs 26.63%**). **"Best of the best of the best" is not the best;
+it is strictly dominated by "good".** The extreme tail buys 2.6x the index's volatility while paying LESS edge
+than the merely-strong names. **The extremity of the filter IS the defect** - not the sectors, not the stocks.
+
+**This retro-explains signals mis-read as noise ALL SESSION** (every one pushed DEEPER into the tail, the
+wrong direction): top10 worse than top20 (15j) · sector+30% worse than sector+10% (15O) · top40-cap4 worse
+than top40-cap8 (15O) · hard stops worse than trailing (15N). **Same effect, four sightings, all dismissed.**
+
+**AND it retro-explains the ledger's own standing result:** **LOWVOL_MOM was the ONLY momentum variant ever to
+clear the fundable bar (1.02 @Rs50cr)** - recorded for months with no mechanism attached. **This is the
+mechanism: momentum supplies the edge, low-vol removes the toll.** Consistent with V20/V21's inverse-vol win
+at the SECTOR layer - which was **never applied to the stock leg.**
+
+## WHAT THE STRATEGY BECOMES (the design change this mandates)
+
+**Not "find the strongest." "Find the strong-but-CALM, and size by volatility."**
+1. **Target the MIDDLE-UPPER of the sector's strength distribution (~D6-D8), NOT the peak.** Directly measured.
+2. **INVERSE-VOL weight the stock leg** - V21 already does this at the sector level and it was a win; it has
+   never been applied to stocks.
+3. **Diversify wider** - portfolio sigma is the toll; every added name cuts it.
+
+**⚠ HONEST GAP (do NOT record this as settled): the per-asset drag figures above do NOT fully reconcile the
+17.3%-vs-7.1% BOOK gap** - portfolio diversification changes the arithmetic (portfolio sigma != mean asset
+sigma), and the 15O stock harness still lacks V24's cap/sleeve/tapers. **D6 > D10 is measured directly and is
+solid. The full reconciliation is OWED.**
+
+**OWED NEXT:** rebuild the stock book as **V24 structure + D6-D8 targeting + inverse-vol stock weights +
+15N's trail-20% cull**, and reconcile the book gap. That is the first configuration that would test Ramana's
+design as designed.
+
 ### 2026-07-15O - 🔴🔴 CORPORATE-ACTION BUG: raw bhavcopy prices are UNADJUSTED. **RETRACTS 15j / 15k / 15L / 15M in full.** Worth ~16pp of CAGR. Guardrail #5 was violated all session.
 
 **THE BUG.** `bhavcopy_rows.close` is the RAW traded price - **NOT adjusted for splits or bonuses.**
