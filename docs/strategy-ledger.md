@@ -410,6 +410,23 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15g — NAMING: "V24" is the official shorthand for the FULL V21+V24 combination + a consolidated 3-index cross-check (Nifty 50 · Nifty 100 · Nifty 500)
+
+Ramana: "if V24 consists solely of V21+V24, refer to the entire combination as V24." **Binding from here on: "V24"
+means V21 (Next-50 sleeve + recovery-accelerator + inverse-vol) with the own-percentile RSI-of-RS exit swapped in
+— never the bare lever tested in isolation** (which was never separately backtestable — V24 in Round 4 was always
+V21-plus-the-lever, per the "test on both bases" discipline). Module
+`research/explosive_moves/sector_rotation_v24_final.py` — re-derives V24 from scratch (same math, independently
+re-implemented, not a re-run of exp4.py) and cross-checks: **Sharpe 0.911 / H1 0.92 / H2 0.905 / CAGR 17.2% /
+MaxDD −37.72% / α +7.11%/yr / β 0.75 / ₹1 Cr → ₹30.349 Cr — matches the 2026-07-15f record exactly** (0.91/−37.7%/30.35).
+
+**NEW data point — Nifty 100 added as a third benchmark** (2004+ full history, `index_rows`): Sharpe **0.638**,
+CAGR 12.22%, MaxDD **−58.6%**, ₹1 Cr → ₹11.93 Cr — sits between Nifty 50 (0.636/−56.5%/11.35) and Nifty 500
+(0.637/−62.0%/12.60), confirming the expected pattern (breadth adds a little return and a little more drawdown,
+monotonically 50→100→500). **V24 beats all three simultaneously** — Sharpe +0.27 to +0.28 over any of them, MaxDD
+18–24 points shallower, wealth 2.4–2.7× — on the same like-for-like price-index basis (dividends excluded on all
+four, so the delta is fair, absolute levels conservative).
+
 ### 2026-07-15c — Round 2: attack the RETURN gap (kill-switch · asym cadence · residual fill · monthly cadence), V8 base frozen, 2005–2026 n=257
 
 Module `research/explosive_moves/sector_rotation_exp2.py` (one lever at a time, then combos; bench like-for-like

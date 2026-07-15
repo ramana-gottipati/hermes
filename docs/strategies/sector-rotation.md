@@ -1,7 +1,7 @@
 # Sector Rotation (RS-weighted) — Canonical Reference
 
 > **Class:** CANONICAL reference (permanent — do not archive).
-> **Status:** **RESEARCH — CONDITIONAL.** Two recorded configurations: **V8** = the FROZEN champion (Ramana-ratified base; smart-beta tilt, beats passive on Sharpe/drawdown, trails on wealth) and **V17** = the champion-CANDIDATE (V8 + defensive residual fill; beats the like-for-like Nifty 500 on wealth AND Sharpe AND drawdown; pending ratification + a total-return re-cut). Long-only; the short/F&O leg is REJECTED (ledger). **The portfolio surface is LIVE** — `/dash/sector-rotation` with `?asof=` time-travel + per-rebalance diffs (S-rotation-e). · **Governing record:** [strategy-ledger.md](../strategy-ledger.md) §§ Study 2026-07-15 / 2026-07-15b / 2026-07-15c · D136.
+> **Status:** **RESEARCH — CONDITIONAL.** The candidate ladder: **V8** = the FROZEN base (Ramana-ratified; smart-beta tilt) → **V17** = defensive residual fill (recorded candidate) → **V21** = + Next-50 sleeve + recovery-accelerator + inverse-vol (LIVE default on `/dash/sector-rotation`) → **V24** (official shorthand for **V21 + own-percentile RSI-of-RS**, Ramana's naming, 2026-07-15g) = the most-balanced leading candidate (Sharpe 0.91, MaxDD −37.7%, ₹1 Cr → ₹30.35 Cr vs Nifty 500's ₹12.60 Cr / Nifty 100's ₹11.93 Cr / Nifty 50's ₹11.35 Cr) → **V32** (V24 + adaptive hysteresis band) = the wealth-favoring sibling. Long-only; short/F&O leg REJECTED. **The portfolio surface is LIVE** — `/dash/sector-rotation` with `?asof=` time-travel + per-rebalance diffs; still runs V21 pending ratification of V24/V32. · **Governing record:** [strategy-ledger.md](../strategy-ledger.md) §§ 2026-07-15 → 2026-07-15g · D136.
 > **Origin:** 🧑 RAMANA (the strategy concept and every lever: RS-weighted multi-sector longs, balanced newcomers, own-peak-RS taper, stretch/σ taper, RSI-of-RS overbought exit, reduce-and-wait cash discipline) + 🏠 HOUSE implementation & falsification harness. See [origins.md](origins.md).
 > **Charter:** the single canonical definition + current-state reference. Result numbers live ONLY in [strategy-ledger.md](../strategy-ledger.md); code + exact constants live in `research/explosive_moves/sector_rotation.py` (V1 round) · `sector_rotation_exp.py` (V2–V8 ablation) · `sector_rotation_exp2.py` (V9–V17 round + the V17 reference implementation) · `sector_rotation_stats.py` (dated stats/t-stats). This page states the RULESET (definitional) and links the rest.
 
@@ -67,11 +67,14 @@ NSE index closes (`index_rows`, 205 indices 2004→present; primary source, Guar
 ## 7. Terminology canon
 
 - **V8** — the FROZEN champion: quarterly RS rotation + RSI-green entry + hysteresis + 30% cap + BAL equal-weights + the three tapers (RSPK·STR·RSIRS); residual in cash.
-- **V17** — V8 + the **defensive residual fill** (residual→index ETF above the 200DMA, →cash below). The champion-candidate.
+- **V17** — V8 + the **defensive residual fill** (residual→index ETF above the 200DMA, →cash below). The recorded candidate.
+- **V21** — V17 + Next-50 sleeve + recovery-accelerator (reclaim quarter → entry band 8%→0) + inverse-vol weights. **The LIVE default on `/dash/sector-rotation` today.**
+- **V24** — **official shorthand (Ramana, 2026-07-15g) for the FULL combination V21 + own-percentile RSI-of-RS** (that sector's own trailing-756d distribution, 85th trims/95th exits, replacing the fixed 70/80 — not the bare lever in isolation). Sharpe 0.91 (0.92/0.91 — the most half-balanced construct recorded), MaxDD −37.7%, ₹1 Cr → ₹30.35 Cr. The leading candidate by robustness.
+- **V32** — V24 + the **adaptive hysteresis band** (±band sized to that sector's own trailing RS-line volatility, replacing the fixed ±8%). Sharpe 0.90 (0.95/0.84), ₹1 Cr → ₹31.15 Cr. The leading candidate by wealth/CAGR — trades a little half-consistency for it.
 - **RSI-green** — RSI(14) ≥ 50 and not falling vs ~1 month ago; an ENTRY gate only, never an exit.
-- **Hysteresis band (±8%)** — enter above +8% RS, hold until −8%; the churn governor.
-- **RS-peak taper / stretch taper / RSI-of-RS** — the three exhaustion levers (own-history percentile, own-σ stretch, RS-line RSI 70/80). Distinguish **RSI of price** (entry gate) from **RSI of the RS line** (exhaustion exit).
-- **Residual sleeve** — the un-invested fraction created by the 30% cap under narrow breadth; V17's productive-but-defensive parking.
+- **Hysteresis band (±8%)** — enter above +8% RS, hold until −8%; the churn governor. (V32 replaces the fixed number with a per-sector adaptive one — see above.)
+- **RS-peak taper / stretch taper / RSI-of-RS** — the three exhaustion levers (own-history percentile, own-σ stretch, RS-line RSI). V8/V17/V21 use RSI-of-RS with the fixed 70/80 line; **V24/V32 use that sector's own trailing percentile instead** (85th/95th). Distinguish **RSI of price** (entry gate, always fixed 50) from **RSI of the RS line** (exhaustion exit, fixed in V8-V21 / own-percentile in V24-V32).
+- **Residual sleeve** — the un-invested fraction created by the 30% cap under narrow breadth; the productive-but-defensive parking every V17+ config uses.
 - Do NOT confuse this strategy with the descriptive **RS suite** ([relative-strength.md](relative-strength.md) — RRG/rotation lenses, no portfolio) or the **Momentum/RISKADJ** stock engine ([momentum-riskadj.md](momentum-riskadj.md)).
 
 ## 8. Decision & session history
