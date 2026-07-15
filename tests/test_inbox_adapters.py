@@ -66,8 +66,12 @@ def _seed_proposal(conn, sym="SOLARCO", tag="Power / Renewables",
 # --- kind registry (Q2) ---------------------------------------------------------
 
 def test_kinds_registry_is_the_canonical_closed_set():
+    # 'rule_verdict' joined in S158: rule_lab_inbox's producer shipped while this
+    # registry was being written, so a real queued item was un-registered until the
+    # live census flagged it (test_review_inbox_view::test_every_producer_kind_is_
+    # registered now fails the build rather than only warning at runtime).
     assert ia.KINDS == frozenset(
-        {"tags", "alert-ack", "brief", "rebalance", "anomaly"})
+        {"tags", "alert-ack", "brief", "rebalance", "anomaly", "rule_verdict"})
     assert isinstance(ia.KINDS, frozenset)  # closed: extend only in-code
     assert ia.KIND_TAGS in ia.KINDS
 

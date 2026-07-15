@@ -38,12 +38,20 @@ SINGLE-WRITER DOCTRINE — Q1, CLOSED S158 (the legacy surface is BRIDGED):
     fallback fired) — worth a look, not a normal state.
 
 KIND REGISTRY (LANE-D open question Q2): KINDS below is the canonical
-closed set. 'tags' (this adapter) and 'brief' (auto_analyst, live since
-S153) are producing today; 'alert-ack', 'rebalance', 'anomaly' are declared
-extension points from review_inbox's design docstring. Extending the set =
-add the kind HERE in the same commit as its producer. check_kinds() is the
-census: unregistered kinds in review_items WARN (legacy tolerance) but the
-canonical set is what tests pin.
+closed set. Producing today: 'tags' (this adapter), 'brief' (auto_analyst,
+S153) and 'rule_verdict' (rule_lab_inbox, S157-b); 'alert-ack', 'rebalance'
+and 'anomaly' are declared extension points from review_inbox's design
+docstring. Extending the set = add the kind HERE in the same commit as its
+producer. check_kinds() is the census: unregistered kinds in review_items
+WARN (legacy tolerance) but the canonical set is what tests pin.
+
+  This is not theoretical: 'rule_verdict' was added in S158 precisely BECAUSE
+  the census caught it live — the rule-lab lane's producer landed while this
+  registry was still being written, so a real queued item was un-registered
+  (census warned; the lens rendered a raw slug with no explanation). The
+  registry works by catching exactly that, and
+  tests/test_review_inbox_view.py::test_every_producer_kind_is_registered
+  now fails the build instead of merely warning.
 
 CORPUS BACKFILL (LANE-D open question Q4): tags_backfill() imports the
 pre-inbox history — every source='ramana' approved tag and every durable
@@ -116,7 +124,8 @@ log = logging.getLogger("hermes.inbox_adapters")
 # --- canonical kind registry (Q2) --------------------------------------------
 # Closed set; extend HERE in the same commit as a new producer. 'tags' and
 # 'brief' produce today; the rest are review_inbox's declared adapters.
-KINDS: frozenset = frozenset({"tags", "alert-ack", "brief", "rebalance", "anomaly"})
+KINDS: frozenset = frozenset({"tags", "alert-ack", "brief", "rebalance", "anomaly",
+                              "rule_verdict"})
 KIND_TAGS = "tags"
 
 EVIDENCE_URL_FMT = "/dash/tags-review?sym={sym}"  # the per-company tag editor (the drill)

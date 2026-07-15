@@ -53,6 +53,10 @@ _KIND_COPY: dict[str, tuple[str, str]] = {
                            "the weekly pass never proposes it again."),
     "brief": ("Event briefs", "An AI-drafted, source-linked summary of a results event. "
                               "Nothing publishes until it is approved here."),
+    "rule_verdict": ("Rule-lab verdicts",
+                     "A rule the lab put through the full evidence gauntlet. Approving it "
+                     "signs the result into the ledger — canon carries a human signature, "
+                     "so nothing appends itself."),
     "alert-ack": ("Alert acknowledgements", "A change the alert rail raised for a decision."),
     "rebalance": ("Rebalance diffs", "A model book's proposed change of holdings."),
     "anomaly": ("Data anomalies", "A data-quality or fence flag raised for a human call."),
@@ -162,8 +166,9 @@ def _explainer() -> str:
 def _item_html(it: dict) -> str:
     p = it.get("payload") or {}
     bits = []
-    if p.get("source"):
-        bits.append("proposed by: " + _esc(p["source"]))
+    if p.get("source") or p.get("producer"):
+        # 'source' = a tag proposer; 'producer' = a generator module (rule_lab, …)
+        bits.append("proposed by: " + _esc(p.get("source") or p.get("producer")))
     if p.get("confidence") is not None:
         bits.append("confidence " + _esc(p["confidence"]))
     if p.get("note"):

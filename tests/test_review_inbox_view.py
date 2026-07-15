@@ -263,5 +263,54 @@ def test_authoring_actions_stay_out_of_the_corpus(db):
     assert ri.corpus(conn, kind="tags") == []
 
 
+# ── 4. the kind registry is a real gate, not decoration ──────────────────────────
+
+def test_every_producer_kind_is_registered():
+    """A producer that invents a kind MUST register it in KINDS in the same commit
+    (inbox_adapters' docstring rule). This is not theoretical: rule_lab_inbox's
+    'rule_verdict' shipped un-registered while the registry was being written — the
+    live census warned and the lens rendered a raw slug. Source-scanned, so a NEW
+    producer module is covered without anyone remembering to list it here.
+    """
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parents[1] / "src" / "automation"
+    offenders = []
+    for py in sorted(root.glob("*.py")):
+        src = py.read_text(encoding="utf-8", errors="ignore")
+        if "review_inbox" not in src or py.name == "inbox_adapters.py":
+            continue
+        for m in re.finditer(r'^KIND(?:_[A-Z]+)?\s*=\s*["\']([^"\']+)["\']', src, re.M):
+            if m.group(1) not in ia.KINDS:
+                offenders.append("%s declares KIND=%r" % (py.name, m.group(1)))
+    assert not offenders, (
+        "\nProducer kinds missing from inbox_adapters.KINDS (add them there in the "
+        "SAME commit as the producer):\n  " + "\n  ".join(offenders))
+
+
+def test_the_lens_can_render_every_registered_kind():
+    """Every canonical kind needs display copy, or the queue shows a raw slug with no
+    explanation to the one person who has to judge it."""
+    missing = sorted(k for k in ia.KINDS if k not in V._KIND_COPY)
+    assert not missing, "kinds with no _KIND_COPY row: %s" % missing
+
+
+def test_rule_verdict_items_render_with_their_producer(db, client):
+    """The rule-lab payload says 'producer', the tag payload says 'source' — the
+    evidence line must survive both."""
+    _, conn = db
+    ri.submit(conn, "rule_verdict", "abc123hash",
+              "Rule-lab: NEW-BENCHMARK [fundable] - SELECT largecap ...",
+              payload={"producer": "rule_lab", "ledger_block": "| RULE | ... |"},
+              evidence_url="/dash/rule-lab")
+    conn.commit()
+    c, owner = client
+    owner["v"] = True
+    body = c.get("/dash/inbox").text
+    assert "Rule-lab verdicts" in body, "the kind needs its human label"
+    assert "proposed by: rule_lab" in body
+    assert "signs the result into the ledger" in body
+
+
 def test_selftest_is_green():
     assert V._selftest() == 0
