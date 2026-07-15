@@ -40,6 +40,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `AGENTS.md` | Codex orientation twin. |
 | `README.md` | Repo readme. |
 | `docs/strategy-ledger.md` | Benchmark ledger ("nothing discarded"). |
+| `docs/codex-stock-selection-brief.md` | TRANSIENT hand-off brief: the two-step sector→stock strategy's full state (§15h…§15Q, D141/D142) synthesized into one problem statement for an external solver. Retire once its build lands and folds into strategy-ledger.md/sector-rotation.md/PROJECT_STATE.md. |
 | `docs/SURFACE-PLAYBOOK.md` | BINDING playbook for adding any user-facing screen/page/tab — sister-data check, lens registry, education/fence/Pat/CSV landing checklist (twins: CLAUDE.md #9 / AGENTS.md #7). |
 | `docs/strategies/origins.md` | Canonical provenance map (S132j): every strategy labeled RAMANA / HOUSE / CLASSIC + the binding origin-labeling rule + the external-sources policy + the documentation loop. |
 | `docs/strategies/` (index: `README.md`) | Canonical strategy reference layer (S109) — one page per strategy (definition · status · terminology). Links to design docs; never duplicates ledger/weights. |
