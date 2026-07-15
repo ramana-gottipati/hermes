@@ -6,8 +6,13 @@ feature can never silently regress to the split-sensitive raw-quantity trend.
 """
 from types import SimpleNamespace
 
-import numpy as np
 import pytest
+
+# research-venv dependency — skip cleanly where numpy is absent (the VPS main venv
+# and fresh worktrees), instead of failing COLLECTION for the whole suite. Same
+# pattern as tests/test_rule_lab_executor.py. Must run BEFORE the embase import
+# below (embase imports numpy at module level).
+np = pytest.importorskip("numpy")
 
 from research.explosive_moves import embase
 
