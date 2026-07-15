@@ -463,6 +463,98 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15N - TARGET RESET (Ramana: 12.8% -> 17.3% -> aim 20-22%). Wider pond FAILS. The CULL works on sectors too - but pays in RISK, not return. ★V24+TRAIL-20% = same CAGR, MaxDD -37.7%->-30.2%, halves 0.99/0.99.
+
+**Context - the arithmetic correction that reset the target.** Ramana proposed 60-70% CAGR, reasoning
+"Nifty 12% -> sectors ~30% -> stocks should be 60%". **BOTH figures were artifacts:**
+1. **"sectors delivered ~30% CAGR" = the 30.35x MULTIPLE misread as a CAGR.** True: **30.35x over 21.4y =
+   17.3% CAGR** vs Nifty 500's 13.12x = 12.8%. The gain is **+4.5pp, NOT 2.5x.** The "12 -> 30" step never
+   happened, so the "-> 60" chain has no first rung.
+2. **The 60% was a LIVE BUG on his own dashboard** - see **D140** (fixed same day, S161): `auto_portfolios_view`
+   guessed cadence from row count (`ppy = 12 if len(vals) > 40 else 4`) and read the **quarterly** STEADY-25
+   book as monthly, dating 14.08y as 4.75y and **rendering CAGR 60.40% for a book whose true CAGR is 17.28%.**
+   Ramana did not invent 60% - he read it off `/dash/model-portfolios`.
+3. **Scale check:** 60%/yr for 21.4y turns Rs 1 Cr into **Rs 23,344 Cr** (70% -> Rs 85,429 Cr). Capacity binds
+   long before skill; Medallion ran ~39% net and **closed to outside capital**. Not a target - an impossibility.
+
+**Ramana's reset (accepted, and the right one): floor 17.3%, aim 20.2-22%.** This entry is the first attempt.
+
+## LEVER 2 - WIDER POND: ❌ FAILS
+
+**Motivation:** 15M's insight - sector indices beat stocks because they are **self-culling maintained baskets**
+(Nifty Auto drops failing auto names), so the stock book's -4.9%/yr pond drag never touches them. Hypothesis:
+more culled baskets = more selection.
+
+**⚠ STRUCTURAL FACT FOUND (important, previously unrecorded): the sector pond was STARVED for a third of the
+backtest.** Index start dates: **Bank/Energy/FMCG/IT/Pharma = 2004** (only **5 sectors**) · Auto/Infrastructure/
+Media/Metal/PSU-Bank/Realty = **2012-02-21** (-> 11) · FinServices/PrivateBank/ConsumerDurables/Healthcare/
+Oil&Gas = **2015-11 -> 2016-07** (-> 16). **So 2005-2012 - 7 of the 21.4 years - ran on a FIVE-sector pond
+under a 30% cap.** Pond width overall: **12 indices in 2004 AND 2011 -> 51 by 2015 -> 164 by 2019** (only ~21
+of the 2015 set are still alive in 2026).
+
+**Test (`v24_pond.py`): +Nifty MNC +Nifty PSE (both available from 2004!) +Nifty Commodities +Nifty Midcap 50.**
+
+| pond | return/vol | CAGR | MaxDD | Rs1Cr -> |
+|---|---|---|---|---|
+| 16 sectors (baseline) | 0.911 | **17.2%** | -37.7% | **30.35** |
+| 20 baskets (+MNC/PSE/Commodities/Midcap50) | 0.883 | **16.6%** | -36.9% | 26.97 |
+
+**REJECT.** Widening LOWERED CAGR. **Why: MNC/PSE/Midcap50 are BLENDS that overlap the sectors already held -
+they dilute, they do not diversify.** A wider pond only helps if the additions are *distinct* baskets.
+**Do not re-attempt with broad/thematic overlays.**
+
+## LEVER 1 - THE CULL ON SECTORS (Ramana's instrument, ported from 15M): ✅ REAL, but RISK-only
+
+**Motivation:** the sector book has RS-based exits (hysteresis + 3 tapers) but **NO PRICE STOP**. On stocks the
+RS-based exit did nothing (-0.3%) while the price stop did everything (+6.1pp) - test whether that asymmetry
+repeats. **Not assumed to transfer** (15j's lesson, applied in the correct direction this time).
+
+**Module `research/explosive_moves/v24_cull.py`** (`.venv/bin/python v24_cull.py data/hermes.db <stop> <trail>`).
+**CONTROL VERIFIED: stop=0 trail=0 reproduces the baseline EXACTLY** (sh 0.911, cagr 0.172, cr 30.349,
+mdd -0.3772, CULLED 0) - the harness itself changes nothing. Stops are checked on **DAILY closes** within each
+month (index_rows has no low; disclosed), exit assumed AT the stop level.
+
+| cull rule | return/vol (H1/H2) | CAGR | MaxDD | Rs1Cr -> | culls |
+|---|---|---|---|---|---|
+| none (V24 baseline) | 0.911 (0.92/0.905) | 17.2% | -37.7% | 30.35 | 0 |
+| hard -8% | 0.913 | 15.7% | -33.0% | 22.84 | 38 |
+| hard -12% | 0.897 | 15.7% | -33.3% | 23.01 | 27 |
+| hard -15% | 0.907 | 16.1% | -34.6% | 24.87 | 20 |
+| hard -20% | 0.908 | 16.4% | -36.6% | 26.11 | 14 |
+| hard -25% | 0.916 | 16.9% | -38.9% | 28.48 | 12 |
+| trail -8% | 0.874 | 14.0% | -28.1% | 16.72 | 96 |
+| trail -12% | 0.878 | 14.4% | -30.3% | 17.97 | 77 |
+| trail -15% | 0.869 | 14.6% | -27.9% | 18.76 | 63 |
+| **★ trail -20%** | **0.987 (0.993/0.999)** | **17.28%** | **-30.2%** | **30.78** | **36** |
+| trail -25% | 0.955 (0.932/1.003) | 17.17% | -35.1% | 30.19 | 26 |
+
+**FINDING: ★V24+TRAIL-20% - same CAGR (17.28% vs 17.2%), MaxDD -37.7% -> -30.2%, return/vol 0.911 -> 0.987,
+and BOTH HALVES to 0.993/0.999 - the most half-balanced construct the project has recorded.**
+
+**MECHANISM (why -20%, and why trailing beats hard):** sector indices carry ~15-20% ordinary drawdowns, so any
+trail tighter than -20% fires on NOISE (96 culls at -8% -> CAGR collapses to 14.0%); at -20% only genuine
+breaks trigger (36 culls in 21.4y). **Hard stops ALL fail** (15.7-16.9%, every one below baseline) because a
+stopped-out sector **cannot participate in its own recovery** - a trailing stop rides it up first. Economic
+mechanism, not a curve fit - but see the caution.
+
+## ❌ THE 20-22% TARGET WAS NOT REACHED
+
+**CAGR 17.28% vs 17.2% - unchanged.** Two levers tested; **neither raises RETURN.** Recorded plainly:
+**better selection does not get from 17.3% to 20-22% on this book** - that is now measured, not asserted.
+
+**The only honest route left on this construct is ARITHMETIC, not research: the cull BOUGHT 7.5pp of drawdown
+(-37.7% -> -30.2%); that risk can be SPENT.** ~1.25x on the trail-20% book lands near **19-20% net of Indian
+margin cost (~9%/yr)** at roughly V24's *existing* drawdown; ~1.5x passes 21% at MaxDD ~-45%. **This is a
+risk-appetite decision on borrowed money - Ramana's to make, NOT a research finding, and NOT advice.**
+
+**⚠ CAUTIONS ON ★TRAIL-20%: (a) it is 1 of 10 variants selected on ONE window** - the exact trap that produced
+15h's fake; needs an out-of-sample/fresh-window check before it is acted on. **(b) the 17.3% still rests on a
+PRICE-index benchmark** - the owed TR re-cut moves both sides. **(c) not promoted:** `/dash/sector-rotation`
+stays on V21; nothing graduates on one window.
+
+**STILL UNTESTED: the stock layer** (15h/15i/15M) - gated on the ~1,973-name classification job, and 15M
+defines its job precisely: **fix the pond, do not pick better.**
+
 ### 2026-07-15M - ❌ FINAL: the CULL is real (+6.1pp alpha, Ramana's idea, the biggest lever of the day) but does NOT close the pond gap. The unconditioned RS stock family is REJECTED.
 
 **Module:** `research/explosive_moves/stock_rs_exits_fix.py` (the 15k harness on 15L's **corrected EQ+BE+BZ**
