@@ -227,11 +227,22 @@ def _lender_patterns(f: dict, sub: dict) -> dict:
     return out
 
 
+# LENDER-SPECIFIC evidence only. RoE is deliberately EXCLUDED: every company has an RoE, so it
+# proves nothing about lender-ness — it is a cross-check leg, never the trigger.
+# ⚠ WHY THIS MATTERS (found by classifying the live 38-name financial universe): the NSE
+# 'Financial Services' index also carries INSURERS (HDFCLIFE / ICICIGI / MFSL), an EXCHANGE (BSE)
+# and holdcos (BAJAJFINSV). They are NOT lenders — no NII, no GNPA, no CET1 — so asserting an
+# "NBFC, profitability read on RoA" verdict over them would repeat the exact D3-F1 category error
+# in a new place. Requiring lender-specific evidence routes them to SUPPRESSED (no tier) instead,
+# which is the honest answer for a name neither the generic nor the lender model fits.
+_LENDER_EVIDENCE_KEYS = ("roa_pct", "gnpa_pct", "cet1_pct", "nnpa_pct", "nii_growth_5y")
+
+
 def _has_doctrine_d_evidence(f: dict) -> bool:
-    """Any measured lender evidence at all? Drives the SUPPRESS half (Ramana-locked): with none
-    of it, a lender gets NO tier rather than the structurally-wrong generic one (D3-F1)."""
-    return any(f.get(k) is not None for k in
-               ("roa_pct", "roe", "gnpa_pct", "cet1_pct", "nnpa_pct", "nii_growth_5y"))
+    """Any measured LENDER evidence? Drives the SUPPRESS half (Ramana-locked): with none of it,
+    a financial gets NO tier rather than the structurally-wrong generic one (D3-F1) — or a
+    lender verdict it never earned (an insurer / exchange)."""
+    return any(f.get(k) is not None for k in _LENDER_EVIDENCE_KEYS)
 
 
 def is_financial_symbol(symbol: str, conn=None) -> bool:

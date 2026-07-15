@@ -110,6 +110,20 @@ def test_absent_prudential_ratios_abstain_rather_than_fail():
     assert dd["sector_model"] == "doctrine-d"                          # GNPA alone is evidence
 
 
+def test_an_insurer_or_exchange_never_gets_a_lender_verdict():
+    """The NSE 'Financial Services' index also carries INSURERS (HDFCLIFE/ICICIGI/MFSL), an
+    EXCHANGE (BSE) and holdcos (BAJAJFINSV) — found by classifying the live 38-name universe.
+    They have RoE but no NII/GNPA/CET1, so RoE must NOT trigger a lender verdict, or we repeat
+    the D3-F1 category error in a new place. They suppress instead."""
+    insurer = {"symbol": "HDFCLIFE", "roe": 17.5, "roce": 12.0, "pe": 80.0, "pb": 9.0}
+    s = score_fundamentals(insurer, is_financial=True, subtype="nbfc")
+    assert s["sector_suppressed"] is True and s["tier"] == "NA"
+    assert s["sector_model"] == "suppressed", "RoE alone must never mean 'lender'"
+    # but ONE lender-specific metric flips it to a real Doctrine-D read
+    lender = dict(insurer, gnpa_pct=2.0)
+    assert score_fundamentals(lender, is_financial=True, subtype="nbfc")["sector_model"] == "doctrine-d"
+
+
 def test_financial_with_no_evidence_is_suppressed_not_mis_tiered():
     """The suppress-half (locked): no measurable lender evidence -> NO tier, not a wrong one."""
     blind = score_fundamentals({"symbol": "XYZFIN", "roce": 5.0, "debt_to_equity": 6.0, "pe": 12.0},

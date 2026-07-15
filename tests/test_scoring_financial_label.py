@@ -48,7 +48,9 @@ def test_detector_flags_lenders_only():
 # The assertions are rewritten to the new contract rather than deleted, so the disclosure
 # guarantee (a reader is never handed a lender tier with no sector context) stays enforced.
 def test_measurable_financial_is_scored_on_the_doctrine_d_model():
-    f = {"symbol": "HDFCBANK", "roce": 7.0, "roe": 13.8, "pe": 16.8, "pb": 2.2}   # RoE = evidence
+    # a real bank: RoE alone is NOT lender evidence (every company has one) — GNPA/CET1 are.
+    f = {"symbol": "HDFCBANK", "roce": 7.0, "roe": 13.8, "pe": 16.8, "pb": 2.2,
+         "gnpa_pct": 1.42, "cet1_pct": 19.97}
     fin = scoring.score_fundamentals(f, is_financial=True, subtype="bank")
     assert fin["sector_model"] == "doctrine-d"
     assert fin["sector_model_pending"] is False and fin["sector_suppressed"] is False
@@ -68,7 +70,8 @@ def test_unmeasurable_financial_is_suppressed_and_still_labelled():
 
 
 def test_telegram_leads_with_the_sector_disclosure_for_financials():
-    f = {"symbol": "HDFCBANK", "roce": 7.0, "roe": 13.8, "pe": 16.8, "pb": 2.2}
+    f = {"symbol": "HDFCBANK", "roce": 7.0, "roe": 13.8, "pe": 16.8, "pb": 2.2,
+         "gnpa_pct": 1.42, "cet1_pct": 19.97}
     fin = scoring.score_fundamentals(f, is_financial=True, subtype="bank")
     txt = scoring.format_score_for_telegram(fin)
     assert "Doctrine D" in txt
