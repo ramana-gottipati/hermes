@@ -74,10 +74,27 @@ GNPA proxy** (defer true ALM) · **suppress-half folds into the scorer**. **Patt
    sibling are written stamped **SOURCE_CONSO**. Guardrail-#8 (vendor-vs-primary) is unaffected — both are
    NSE-XBRL — but a `WHERE source=SOURCE_SA` query will not find them. Fixing it needs a per-metric source
    override in `write_rows` (sibling-owned; coordinate).
-2. **Doctrine-D financials scorer (Step 4)** in `scoring.py` — Pattern 1 = RoE/RoA vs sub-type thresholds;
-   **Pattern 2 = NII growth + cost-to-income — ALREADY derivable from stored conso metrics (no ingest work)**;
-   Pattern 5 = GNPA<1.5% ∧ strong CET1 (+ALM proxy). **Disable the generic D/E hard-disqualifier for lenders.**
-   Emit the "sector-adapted thresholds (Doctrine D)" note + the SUPPRESS half on web/Pat/Screen+ (hot → fork-check).
+2. ~~**Doctrine-D financials scorer (Step 4)**~~ **✅ DONE + DEPLOYED + LIVE-VERIFIED (S155, `70853a1`) — do NOT redo.**
+   Patterns 1/2/5 replaced for lenders BEFORE the aggregate (profitability on the sub-type's ratios ·
+   operating leverage on **NII** · asset quality+capital GNPA≤1.5/CET1≥13/NNPA≤0.5) · generic **D/E
+   disqualifier DISABLED** for lenders · **suppress-half in the scorer** (no lender evidence → tier `NA`).
+   `fundamentals_asof` surfaces the lender keys DERIVED from stored metrics (no ingest work).
+   Live proof: HDFCBANK generic→**DISQUALIFIED 29.8** vs Doctrine-D→**T3 45.8, P5 48/48**; live universe
+   classifies **bank 23 · hfc 1 · nbfc 14**; HDFCLIFE/BSE → **suppressed** (not lenders); TCS unchanged.
+   **🔑 FOUR TRAPS NOW PINNED (don't re-derive):** (a) `roa_pct` is the **discrete quarter** — annualise ×4
+   before the ANNUAL "~1%" bar or every good bank FAILS; (b) each leg needs its **own** bar (RoE judged on
+   the RoA bar = meaningless pass); (c) `security_master.**company_name**` (NOT `name`) — the fail-closed
+   except silently degraded every HFC to NBFC, and the test fixture had invented the column; (d) **'Financial
+   Services' also carries INSURERS/EXCHANGE/holdcos** — `roe` must NEVER be lender evidence (every company
+   has one) or they get an "NBFC read on RoA" verdict = the D3-F1 error in a new place.
+   **▶ RESIDUAL / NEXT for this lane:** banks are **PROVISIONAL** — most score T4 on 1/5 lender inputs
+   (NII growth alone) because RoA/CET1 have **0 rows** until the S154 XBRL SA pass fills forward. The score
+   now discloses this (`sector_evidence` + "Read on 1/5 lender inputs … provisional"). **To make the model
+   real, do the S154 residual: a targeted re-ingest of bank filings** (clear their urls from
+   `fundamentals_xbrl_seen`, or route via the Phase-3 backfill; gate past the scan clusters) → then
+   re-check that RoA/CET1 populate and the tiers firm up. Also unfixed: SA-sourced prudential rows are
+   stamped `SOURCE_CONSO` (per-metric source override in `write_rows` — sibling-owned).
+
 3. **Parked — do if feasible:** PROJECT_STATE + this carry-forward **reconcile** (OWED) · **D1-F4** ignition
    warm-up guard (converge with Codex first, then scoring + VPS `--relabel`) · Wolfe D4 / harmonic-zigzag
    D7-F1 / prereg D5-F5 (sibling-hot).
