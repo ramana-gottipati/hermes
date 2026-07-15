@@ -95,9 +95,12 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 ## D. RUN-BOOK(active) — transient, retire-condition NOT fired, KEEP
 
-**Docs (30):** `docs/parallel-lane-prompts-D134.md` (paste-ready lane prompts + relay protocol
+**Docs (31):** `docs/parallel-lane-prompts-D134.md` (paste-ready lane prompts + relay protocol
 for the analytics-company plan; retire when all lanes LANDED) · `docs/time-machine-audit.md`
-(LANE-F as-of capability audit, 67 lenses; retire → fold into plan §4-F) · `docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
+(LANE-F as-of capability audit, 67 lenses; retire → fold into plan §4-F) ·
+`docs/rule-lab-design.md` (LANE-H design: closed-vocab rule grammar → the evidence factory →
+an honest ledger-vocabulary verdict, with the BLOCKING table as an auto-cite wall; retire when
+the build session lands the module + surface) · `docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
 · `docs/mep-NEXT-SESSION.md` · `docs/next-session-handoff.md` ·
 `docs/dashboard-deepen-NEXT-SESSION.md` · `docs/rrg-rotation-NEXT-SESSION.md` ·
 `docs/ui-redesign-EXECUTE.md` · `docs/ui-cockpit-NEXT-SESSION.md` ·
