@@ -15,6 +15,7 @@ code only handles the quantitative scoring.
 
 import json
 import logging
+import re
 from typing import Optional
 
 from src.core.db import get_conn
@@ -73,6 +74,165 @@ _FIN_PENDING_NOTE = (
     "treat the tier / NS below as NOT applicable for this name."
 )
 
+# --- Doctrine-D: the sector-adapted model for lenders (D134, Track D Step 4) ------
+# Supersedes the D3-F1 interim LABEL above for names we can actually measure. Ramana's
+# defaults, LOCKED 2026-07-15: sub-type-aware thresholds (bank RoA ~1% · NBFC 2-4% ·
+# HFC RoE 12-15%) · ALM = CET1/CRAR + GNPA proxy (true maturity-gap ALM deferred) · the
+# SUPPRESS half folds in HERE (the scorer decides), not at the surfaces.
+#
+# ⚠ MEASURED 2026-07-15 (primary source, `company_tags` source='index'): NSE exposes
+# Banks / PSU Banks / Private Banks + the union 'Financial Services' — there is **NO
+# housing/NBFC index tag**. So BANK is primary-source detectable, but NBFC-vs-HFC is not.
+# The HFC leg is therefore a NARROW, LABELED name heuristic over our own security_master
+# name (a CLASSIFICATION heuristic, not a data feed — guardrail #8 is untouched); anything
+# unmatched falls back to NBFC thresholds, which is the conservative default for a lender.
+_BANK_INDEX_TAGS = ("Banks", "PSU Banks", "Private Banks")
+# Checked against the LIVE company_name values: "LIC Housing Finance" / "PNB Housing Finance"
+# (housing) · "Can Fin Homes" (fin homes — note the reversed order the first draft missed) ·
+# "Bajaj Finance" / "Muthoot Finance" / "Cholamandalam …Finance" must NOT match. Safe to key on a
+# bare "housing" because this branch only runs for NSE financial-INDEX members, where housing ⇒ HFC
+# (a real-estate developer is not in the financial index). Banks never reach here — the primary-source
+# bank tag returns first.
+_HFC_NAME_RE = re.compile(r"(housing|hsg\s*fin|home\s*fin|fin\s*homes?|\bhfc\b)", re.I)
+
+# ⚠ UNITS ARE LOAD-BEARING. `roa_pct` is the **discrete-quarter** RoA the XBRL SA pass stores
+# (HDFCBANK Q3FY25 = 0.47% — see extract_bank_prudential's context note), whereas Ramana's locked
+# "bank RoA ~1%" is the ANNUAL figure (HDFCBANK ≈1.9%/yr, SBIN ≈1.0%/yr). So the quarterly value is
+# annualised (×4) before it meets an annual threshold — comparing 0.47 against 1.0 raw would score
+# every good bank a FAIL. `roe` comes from the ANNUAL "ROE %" archive and is already annual.
+# Each leg therefore carries its OWN (yes, partial) — RoA and RoE are on different scales and one
+# must never be judged by the other's bar.
+_Q_TO_ANNUAL = 4.0
+
+_FIN_SUBTYPES = {
+    # legs: (key, display, yes, partial, annualise?) — leg[0] is the sub-type's headline ratio
+    "bank": {"label": "Bank", "legs": (("roa_pct", "RoA", 1.0, 0.75, True),
+                                       ("roe", "RoE", 15.0, 12.0, False))},
+    "nbfc": {"label": "NBFC", "legs": (("roa_pct", "RoA", 3.0, 2.0, True),
+                                       ("roe", "RoE", 15.0, 12.0, False))},
+    "hfc":  {"label": "HFC",  "legs": (("roe", "RoE", 15.0, 12.0, False),
+                                       ("roa_pct", "RoA", 2.0, 1.5, True))},
+}
+
+_DOCTRINE_D_NOTE = (
+    "Sector-adapted thresholds (Doctrine D): this is a {label}, so profitability is read on "
+    "{profit_name} (not ROCE), the top line is net interest income (not sales), balance-sheet "
+    "quality is asset quality + capital (GNPA / Net NPA / CET1), and the generic Debt/Equity "
+    "hard-disqualifier is disabled — leverage IS a lender's business. True maturity-gap ALM is "
+    "deferred; CET1 + GNPA stand in as the balance-sheet-strength proxy."
+)
+_FIN_SUPPRESSED_NOTE = (
+    "Financial-sector company with no Doctrine-D evidence yet (no RoA / RoE / GNPA / CET1 "
+    "known as of this date) — the generic ROCE / OPM / D-E tier is structurally wrong for a "
+    "lender, so NO quality tier is asserted for this name rather than a misleading one."
+)
+
+
+def financial_subtype(symbol: str, conn=None, *, company_name: Optional[str] = None) -> Optional[str]:
+    """'bank' | 'hfc' | 'nbfc' | None — the Doctrine-D sub-type for a financial name.
+
+    BANK is primary-source (NSE Banks/PSU/Private index tags, guardrail-#8-clean). HFC has NO
+    primary-source discriminator (measured — NSE publishes no housing index tag here), so it is a
+    narrow, labeled name heuristic; every other financial-index name is NBFC (the conservative
+    default). Returns None for a non-financial. Fails closed on any error — detection must never
+    break scoring.
+    """
+    if not symbol:
+        return None
+
+    def _tags(c) -> set:
+        try:
+            rows = c.execute("SELECT tag FROM company_tags WHERE symbol=? AND source='index' "
+                             "AND approved=1", (symbol.upper(),)).fetchall()
+            return {r[0] for r in rows}
+        except Exception:  # noqa: BLE001 — never break scoring
+            return set()
+
+    def _name(c) -> str:
+        # NB the column is `company_name` (verified against the live schema) — a wrong name here
+        # would throw, be swallowed by the fail-closed except, and silently degrade EVERY HFC to
+        # the NBFC default. The test fixture mirrors the real schema for exactly that reason.
+        if company_name:
+            return company_name
+        try:
+            row = c.execute("SELECT company_name FROM security_master WHERE symbol=? LIMIT 1",
+                            (symbol.upper(),)).fetchone()
+            return (row[0] or "") if row else ""
+        except Exception:  # noqa: BLE001
+            return ""
+
+    def _resolve(c) -> Optional[str]:
+        tags = _tags(c)
+        if not tags & set(_FINANCIAL_INDEX_TAGS):
+            return None                                   # not a financial at all
+        if tags & set(_BANK_INDEX_TAGS):
+            return "bank"                                 # primary-source
+        blob = f"{symbol} {_name(c)}"
+        return "hfc" if _HFC_NAME_RE.search(blob) else "nbfc"
+
+    if conn is not None:
+        return _resolve(conn)
+    try:
+        with get_conn() as c:
+            return _resolve(c)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _lender_patterns(f: dict, sub: dict) -> dict:
+    """Doctrine-D replacements for patterns 1 / 2 / 5 on a lender. Every leg is NULL-tolerant:
+    an absent ratio scores -1, which `_pattern_block` renders as a conservative unverified
+    Partial — never a false pass or a false fail. (RoA/CET1 are XBRL-only and start empty, so
+    abstention is the COMMON case for months — it must be the safe one.)"""
+    out = {}
+
+    # --- Pattern 1: profitability on the sub-type's ratios (ROCE is meaningless for a lender) ---
+    # Each leg is judged on its OWN bar, and a quarterly ratio is annualised first (see _Q_TO_ANNUAL).
+    legs = []
+    for key, _disp, yes, partial, annualise in sub["legs"]:
+        v = f.get(key)
+        if v is not None and annualise:
+            v = v * _Q_TO_ANNUAL
+        legs.append((_score(v, yes, partial), v is not None))
+    legs.append((-1, False))      # multi-year lender-ratio trend not stored yet -> abstain
+    head = sub["legs"][0]
+    out[1] = _pattern_block(1, legs, note=(
+        f"Doctrine D: {sub['label']} profitability on {head[1]} (yes ≥{head[2]}% / partial "
+        f"≥{head[3]}%, annualised from the discrete quarter), cross-checked on "
+        f"{sub['legs'][1][1]} on its own bar; multi-year trend not yet stored → abstains"))
+
+    # --- Pattern 2: operating leverage on NET INTEREST INCOME (a lender's top line) ---
+    nii_g = f.get("nii_growth_5y")
+    profit_g = f.get("profit_growth_5y")
+    lev = (profit_g / nii_g) if (profit_g is not None and nii_g is not None and nii_g > 0) else None
+    cti = f.get("cost_to_income")
+    out[2] = _pattern_block(2, [
+        (_score(nii_g, 15.0, 10.0), nii_g is not None),
+        (_score(cti, 45.0, 55.0, reverse=True), cti is not None),
+        (_score(lev, 2.0, 1.5), lev is not None),
+    ], note="Doctrine D: NII growth (Revenue−Interest) · cost-to-income (opex ÷ NII+other income; "
+            "abstains until Provisions is stored, ~Jul-2026) · operating leverage = profit growth "
+            "÷ NII growth")
+
+    # --- Pattern 5: asset quality + capital (the CET1+GNPA proxy for balance-sheet strength) ---
+    gnpa = f.get("gnpa_pct")
+    cet1 = f.get("cet1_pct")
+    nnpa = f.get("nnpa_pct")
+    out[5] = _pattern_block(5, [
+        (_score(gnpa, 1.5, 3.0, reverse=True), gnpa is not None),
+        (_score(cet1, 13.0, 11.0), cet1 is not None),
+        (_score(nnpa, 0.5, 1.0, reverse=True), nnpa is not None),
+    ], note="Doctrine D: Gross NPA (yes ≤1.5%) · CET1 (yes ≥13%) · Net NPA (yes ≤0.5%). True "
+            "maturity-gap ALM is deferred — CET1 + GNPA are the locked balance-sheet proxy")
+    return out
+
+
+def _has_doctrine_d_evidence(f: dict) -> bool:
+    """Any measured lender evidence at all? Drives the SUPPRESS half (Ramana-locked): with none
+    of it, a lender gets NO tier rather than the structurally-wrong generic one (D3-F1)."""
+    return any(f.get(k) is not None for k in
+               ("roa_pct", "roe", "gnpa_pct", "cet1_pct", "nnpa_pct", "nii_growth_5y"))
+
 
 def is_financial_symbol(symbol: str, conn=None) -> bool:
     """True iff `symbol` is an NSE financial-sector index constituent (bank/NBFC/HFC).
@@ -107,12 +267,18 @@ def is_financial_symbol(symbol: str, conn=None) -> bool:
 
 # --- Hard Disqualifiers ----------------------------------------------------
 
-def check_hard_disqualifiers(f: dict) -> tuple[bool, list[str]]:
+def check_hard_disqualifiers(f: dict, *, is_financial: bool = False) -> tuple[bool, list[str]]:
     """Return (disqualified, list_of_reasons). Per SKILL.md, 5 conditions.
 
     Some are not checkable without quarterly time series (CFO trend, auditor)
     so we conservatively check what's available and surface the rest as
     'manual_check_required' rather than auto-disqualifying.
+
+    `is_financial` (Doctrine D, D134): the generic Debt/Equity > 2.0x rule is DISABLED for
+    lenders — a bank/NBFC/HFC funds its book with deposits/borrowings, so leverage IS the
+    business and D/E > 2 is normal, not a red flag. It auto-disqualified every lender
+    (the D3-F1 finding). Asset quality + capital carry that judgement instead (pattern 5:
+    GNPA / Net NPA / CET1). The pledge rule still applies to everyone.
     """
     reasons = []
     pledge = f.get("promoter_pledge")
@@ -120,7 +286,7 @@ def check_hard_disqualifiers(f: dict) -> tuple[bool, list[str]]:
         reasons.append(f"Promoter pledge {pledge:.1f}% > 20%")
 
     de = f.get("debt_to_equity")
-    if de is not None and de > 2:
+    if de is not None and de > 2 and not is_financial:
         reasons.append(f"Debt/Equity {de:.2f} > 2.0x")
 
     # CFO 2-year negative — needs time series. Flag as manual.
@@ -184,21 +350,32 @@ def _pattern_block(pattern_id: int, signals: list[tuple[int, bool]],
     }
 
 
-def score_fundamentals(f: dict, *, is_financial: bool = False) -> dict:
+def score_fundamentals(f: dict, *, is_financial: bool = False,
+                       subtype: Optional[str] = None) -> dict:
     """Apply rule-based 14-pattern scoring to a fundamentals dict.
 
     Returns a structured score with sensitivity band, PAC, QG, tier, and
     per-pattern detail.
 
-    `is_financial` (Codex D3-F1, Track D): when the name is a bank/NBFC/HFC, the
-    generic ROCE / OPM / D-E patterns are structurally wrong, so we attach a
-    `sector_model_pending` flag + `sector_note` label so surfaces can disclose that
-    the tier / NS is NOT a real quality verdict for lenders. The computed numbers are
-    left unchanged (non-suppressing label) — full suppression + the Doctrine-D model
-    are a separate, decision-gated build.
+    `is_financial` + `subtype` (**Doctrine D**, D134 — supersedes the D3-F1 interim label):
+    for a bank/NBFC/HFC the generic ROCE / OPM / D-E patterns are structurally wrong, so
+    patterns 1 / 2 / 5 are REPLACED with sector-adapted ones (profitability on RoA/RoE vs
+    sub-type thresholds · operating leverage on net interest income · asset quality + capital),
+    and the generic D/E hard-disqualifier is disabled. `subtype` ∈ {'bank','nbfc','hfc'}
+    (see `financial_subtype`); it defaults to 'nbfc' — the conservative lender default — when
+    a name is financial but the sub-type is unknown.
+
+    The **suppress half** (Ramana-locked) lives here, not at the surfaces: a lender with NO
+    Doctrine-D evidence at all gets `sector_suppressed=True` and tier 'NA' rather than the
+    structurally-wrong generic tier D3-F1 warned about. RoA/CET1 are XBRL-only and fill
+    forward, so abstention is common and must stay the safe path.
     """
     if not f:
         return {"error": "no fundamentals"}
+
+    sub_key = (subtype or "nbfc") if is_financial else None
+    sub = _FIN_SUBTYPES.get(sub_key) if sub_key else None
+    doctrine_d = bool(sub) and _has_doctrine_d_evidence(f)
 
     patterns = {}
 
@@ -350,6 +527,13 @@ def score_fundamentals(f: dict, *, is_financial: bool = False) -> dict:
         (1, False), (1, False), (1, False)
     ], note="volume breakouts require bhav copy + technical scan")
 
+    # --- Doctrine D (D134): sector-adapted patterns 1/2/5 REPLACE the generic ones for a
+    # lender — BEFORE the aggregate, so NS / QG / PAC are all computed on the lender model.
+    # The other patterns (3/4/6…14 — valuation, promoter conviction, institutional neglect,
+    # momentum, volume) are sector-neutral and deliberately left as-is.
+    if doctrine_d:
+        patterns.update(_lender_patterns(f, sub))
+
     # --- Aggregate ---
     pws = sum(p["score"] for p in patterns.values())
     ns_base = pws / MAX_CWS * 100
@@ -364,9 +548,15 @@ def score_fundamentals(f: dict, *, is_financial: bool = False) -> dict:
     qg_pass = qg_score >= QG_THRESHOLD
 
     # Hard Disqualifiers
-    disqualified, disq_reasons = check_hard_disqualifiers(f)
+    disqualified, disq_reasons = check_hard_disqualifiers(f, is_financial=is_financial)
 
     tier = _classify_tier(ns_base, qg_pass, disqualified)
+
+    # The SUPPRESS half (Ramana-locked, D134): a lender we cannot measure at all gets NO tier
+    # rather than the structurally-wrong generic one. Doctrine-D-scored lenders keep their tier.
+    suppressed = bool(is_financial) and not doctrine_d
+    if suppressed:
+        tier = "NA"
 
     return {
         "symbol": f.get("symbol"),
@@ -385,10 +575,16 @@ def score_fundamentals(f: dict, *, is_financial: bool = False) -> dict:
         "disqualifier_reasons": disq_reasons,
         "tier": tier,
         "patterns": patterns,
-        # Codex D3-F1 / Track D: label (don't yet suppress) financials so no reader
-        # mistakes the generic tier for a real quality verdict on a lender.
-        "sector_model_pending": bool(is_financial),
-        "sector_note": _FIN_PENDING_NOTE if is_financial else None,
+        # --- Doctrine D (D134) — supersedes the D3-F1 interim label for measurable lenders ---
+        "sector_model": ("doctrine-d" if doctrine_d else ("suppressed" if suppressed else None)),
+        "sector_subtype": (sub["label"] if sub else None),
+        # kept for surfaces still reading the D3-F1 flag: pending == a financial we can't yet score
+        "sector_model_pending": suppressed,
+        "sector_suppressed": suppressed,
+        "sector_note": (
+            _DOCTRINE_D_NOTE.format(label=sub["label"], profit_name=sub["legs"][0][1])
+            if doctrine_d else (_FIN_SUPPRESSED_NOTE if suppressed else None)
+        ),
     }
 
 
@@ -450,7 +646,10 @@ def score_symbol(symbol: str, *, force_refresh: bool = False) -> dict:
     f = screener.fetch_company(symbol, use_cache=not force_refresh)
     if not f:
         return {"error": f"could not fetch fundamentals for {symbol}", "symbol": symbol}
-    score = score_fundamentals(f, is_financial=is_financial_symbol(symbol))
+    # Doctrine D (D134): resolve the sub-type too — without it every lender would fall back to
+    # the NBFC bar (RoA 3%), so a BANK would be judged on an NBFC's threshold.
+    sub = financial_subtype(symbol)
+    score = score_fundamentals(f, is_financial=sub is not None, subtype=sub)
     save_score(score)
     return score
 
@@ -471,10 +670,14 @@ def format_score_for_telegram(score: dict, *, fundamentals: dict | None = None) 
     tier_emoji = {"T1": "🟢", "T2": "🟡", "T3": "🟠", "T4": "⚪", "DISQUALIFIED": "🔴"}.get(tier, "")
 
     lines = []
-    # Codex D3-F1 / Track D: financials carry a structural mis-rating on generic pt14 —
-    # lead with the label so the tier below is not read as a real quality verdict.
-    if score.get("sector_model_pending"):
-        lines.append(f"⚠️ <b>{score.get('sector_note') or _FIN_PENDING_NOTE}</b>")
+    # Doctrine D (D134): lead with the sector disclosure whenever there is one — either the
+    # "sector-adapted thresholds" note (we scored this lender on its own model) or the
+    # SUPPRESSED note (⚠️ no tier asserted). Gating on `sector_model_pending` alone would have
+    # hidden the Doctrine-D note entirely once a lender became scoreable.
+    _note = score.get("sector_note")
+    if _note:
+        _mark = "⚠️ " if score.get("sector_suppressed") else "ℹ️ "
+        lines.append(f"{_mark}<b>{_note}</b>")
         lines.append("")
     lines += [
         f"<b>{sym}</b>  {tier_emoji}<b>{tier}</b>",
