@@ -10,6 +10,55 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔴 START HERE — CODEX-REVIEW CAMPAIGN: decisions LOCKED, build queue ready (2026-07-15)
+
+**Boot:** `docs/codex-review/FINDINGS-LEDGER.md` + `TRACK-C-RESULTS.md` + `TRACK-D-DATA-PLAN.md` (esp. its
+"Step-2/3 investigation" block) + memory [[codex-review-campaign]]. Governance (BINDING): **ship only on
+Codex↔Claude agreement.** Guardrail #8 = primary sources only.
+
+**✅ DONE — do NOT redo (kickstart-pick-verify; all on origin + live-verified):** **ALL 4 VPS activations** —
+**D2-F1** PIT rank universe via `security_master` (2016 rank universe 419→**547**; today unchanged 1336) ·
+**D6-F2** knowable-date backfill (4,070 rows) + `credibility_series` rebuild (19,837 pts; settled 5,255
+**unchanged** = non-destructive) · **D5-F6** momentum_scan/em_cache rebuilt (split-invariance proven 1.0000
+vs old 1.3750) · **D1-F1** `signals --backfill-triggers` (3,805 syms / **5,968,171 rows** / 0 fail; 650
+latest-date rows changed, 16 char-label flips). Plus **Track C RISKADJ 1.13→1.09** annotation into
+`docs/strategy-ledger.md`, **D3-F1 interim LABEL** (`scoring.py`), **Track D Step-1 XBRL spike**.
+**Full-surface health check PASSED** (services active · nightly chain exit 0 · every consumer page 200 / 0 tracebacks).
+
+**🔑 RAMANA'S DECISIONS — LOCKED 2026-07-15 (execute; do NOT re-ask):** Doctrine-D scorer **defaults
+approved** — sub-type-aware thresholds (bank RoA ~1% · NBFC 2–4% · HFC RoE 12–15%) · **ALM = CET1/CRAR +
+GNPA proxy** (defer true ALM) · **suppress-half folds into the scorer**. **Pattern-5 SA-extraction: BUILD it**
+(isolated worktree; coordinate with the sibling-active XBRL lane). *"Do the other parked items too, where feasible."*
+
+**▶ QUEUE:**
+1. **Pattern-5 SA-instance extraction.** GNPA%/NNPA%/RoA/CET1 are populated ONLY in the **STANDALONE**
+   instance (conso = 0.00) but the ingest's `_prefer_consolidated()` keeps one filing/period with **conso
+   preferred** → SA is never parsed, so adding the `put()`s alone is **INERT**. Add an SA pass on the
+   bank-filing path (`_is_bank_instance`). Tags verified: `PercentageOfGrossNpa` · `PercentageOfNpa` ·
+   `ReturnOnAssets` · `CET1Ratio` (+`AdditionalTier1Ratio`), ×100 → percent, non-zero-gated.
+   **Storage is metric-keyed → NO schema change / no new columns.** ⚠ `fundamentals_xbrl.py` is
+   **sibling-active** (Phase-3 backfill engine) → isolated worktree + coordinate; do NOT fork a parallel fetch.
+2. **Doctrine-D financials scorer (Step 4)** in `scoring.py` — Pattern 1 = RoE/RoA vs sub-type thresholds;
+   **Pattern 2 = NII growth + cost-to-income — ALREADY derivable from stored conso metrics (no ingest work)**;
+   Pattern 5 = GNPA<1.5% ∧ strong CET1 (+ALM proxy). **Disable the generic D/E hard-disqualifier for lenders.**
+   Emit the "sector-adapted thresholds (Doctrine D)" note + the SUPPRESS half on web/Pat/Screen+ (hot → fork-check).
+3. **Parked — do if feasible:** PROJECT_STATE + this carry-forward **reconcile** (OWED) · **D1-F4** ignition
+   warm-up guard (converge with Codex first, then scoring + VPS `--relabel`) · Wolfe D4 / harmonic-zigzag
+   D7-F1 / prereg D5-F5 (sibling-hot).
+4. **Verify the 14:01 nightly chain** ran clean on the newly-deployed `signals.py`/`stock_rs.py` (first
+   incremental-path run; backfills already exercised the core fns 0-fail).
+
+**⚠ STANDING CONSTRAINTS:** **SHARED-WORKTREE HAZARD** — multiple sessions on ONE `D:\Hermes` tree on `main`
+→ diverged + churning. **Docs edits = plumbing-on-origin** (`git show origin/main:f` → edit → `hash-object -w`
+→ temp-index `read-tree`/`update-index`/`write-tree` → `commit-tree -p origin/main` → `push <sha>:main`,
+FF-checked) — this lands cleanly while siblings churn. **Code = isolated worktree.** Never `git add -A`;
+explicit paths only. **CONTINUOUS whole-surface verification after ANY deploy/backfill/push** (Ramana
+directive): services + nightly chain + the live pages consuming the change — not just the changed thing.
+Gate backfills **past the scan clusters** (14:01 bhavcopy · 16:00–16:30 wolfe/harmonic/launchpad); never
+restart 13:55–14:15 UTC. XBRL/network needs the **main venv** `/opt/hermes/.venv/bin/python` (not
+`.venv-research`). Box rollback backups: `*.bak-d1f1/d2f1/d5f6/d6f2-*`. `--relabel-character` is
+**INSUFFICIENT** for D1-F1 — the correct tool is `--backfill-triggers`.
+
 ## 🆕 2026-07-15 — S153/S153-b (D134 LANE-E + LANE-I): AUTO-ANALYST v1 + REAL-TIME SEAM — BUILT + DEPLOYED + DONE-BAR MET — do NOT redo; kickstart-pick-verify
 - **LANE-E (`src/automation/auto_analyst.py`):** freshest `results_reactions` → 6–10 line descriptive brief → Review Inbox (`kind='brief'`, period-stable refs, first-write-wins). Template ₹0 default; `--llm` opt-in triple-guarded (per-job cap ₹200 §7.2-proposal degrades BEFORE calling · cheap router `job="auto-analyst"` self-meters · digit-subset guard kills invented numbers; label/fence/PEAD-falsification tail VERBATIM on every path). Compliance lexicon runs over module + rendered briefs in `tests/test_auto_analyst.py`.
 - **✅ DONE-BAR met on box:** 2 REAL briefs queued (HCLTECH SUE +2.01 · ANANDRATHI SUE +18.97), path=llm (Gemini Flash Lite), **₹0.01 logged under `auto-analyst`**; a scheduled `classifier` call had already self-metered ₹1.05 organically — the LANE-R ₹-meter is proven in prod. MTD ₹1.06/2,500. **Ramana: two briefs await your verdict — `review_inbox --pending` / `--decide ID --verdict approved|rejected` (the judgment corpus starts here).**
