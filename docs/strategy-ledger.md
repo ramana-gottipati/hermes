@@ -463,6 +463,57 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15Q - ❌ THE RS TURN carries NO forward information (Ramana's recovery idea, as formulated). All four cells within ONE standard error.
+
+**Ramana, 2026-07-15:** *"if you keep going behind the first rank, it is already first rank. You will not be
+able to participate in the run, so we need to focus on recovery... identify the stocks or sectors BEFORE they
+have moved significantly. We need to determine when the reversal began."* Motivated by **15P**: the top decile
+buys the END of a move at PEAK volatility (26.63%/qtr, 3.55% toll vs a 1.97% edge). A name that has not run
+yet has not built that volatility - so if the turn carries a similar edge at lower vol, its GEOMETRIC return
+should win. **It does not.**
+
+**LEDGER BLOCK CITED (discipline, before proposing):** the **REVERSAL FAMILY is falsified at EVERY level** -
+07-13 (timing) and **07-14b FRACTAL FENCES** (*"every fence fails; the reversal-pair program closes with ZERO
+tradeable survivors"*). **Distinction that justified a fresh test:** those tested **PRICE bouncing off a
+support band** (mean reversion). This tests a **RELATIVE-STRENGTH turn** - was lagging its sector, now
+leading. Precedent that SUCCEEDED: **V19 the recovery-accelerator, live inside V21.** The distinction was
+legitimate; the result is still negative.
+
+**Module:** `research/explosive_moves/recovery_onset.py` (adjusted prices per 15O, EQ+BE+BZ, PIT, quarterly).
+2x2 on PRIOR (excess months 6->3 ago) x RECENT (excess last 3m), measured vs the stock's OWN sector.
+
+**STOCKS inside qualifying sectors - forward 3m excess vs Nifty 500:**
+
+| cell | n | mean/qtr | sd/qtr | GEO/qtr |
+|---|---|---|---|---|
+| **TURN (was behind, now ahead)** - Ramana's idea | 2,072 | **+1.17%** | 23.89% | **-1.69%** |
+| ESTABLISHED LEADER (what the book buys) | 1,527 | +1.71% | 24.17% | -1.21% |
+| FADING (was ahead, now behind) | 2,262 | +1.55% | 23.25% | -1.16% |
+| LAGGARD (behind, still behind) | 2,845 | +1.59% | 23.63% | -1.20% |
+
+**SECTORS:** TURN -0.25% (sd 8.85%) / LEADER -0.27% (8.22%) / FADING +0.32% (9.76%) / LAGGARD +0.30% (10.02%).
+
+## ❌ VERDICT: NO SIGNAL. Not a ranking - a flat panel.
+
+**Standard error on the stock means = 23.9%/sqrt(2072) = 0.53%. The ENTIRE best-to-worst spread is 0.54% =
+ONE SE.** Sectors: SE = 8.9%/sqrt(230) = 0.59%; spread 0.59% = **one SE**. **Every cell is indistinguishable
+from every other.** **"FADING is best" is NOISE and must NOT be recorded as a finding** - that is the exact
+trap 15P caught four times over (top10<top20, sector+30%<+10%, cap4<cap8, hard<trailing).
+
+**What IS established: RS DIRECTION (as a sign-flip) carries no forward information at a 3-month horizon, for
+stocks OR sectors.** Also note: the TURN does not win, but neither does the ESTABLISHED LEADER - which further
+undercuts buying the leader, consistent with 15P.
+
+**⚠ SCOPE - this kills the FORMULATION, not necessarily the IDEA.** "The turn" was coded as a crude sign flip
+(prior<=0, recent>0). Ramana's *"determine when the reversal began"* may mean something more precise and
+UNTESTED: RS at a depressed **level** with an inflecting **slope** · RS crossing its own trend/MA · recovery
+from a measured RS **drawdown/percentile**. **None of those are ruled out by this entry.** Do not cite 15Q as
+"recovery is dead" - cite it as "the sign-flip formulation is dead."
+
+**⚠ KNOWN LIMITATION (same as 15P): every per-asset GEO here is negative while V24 compounds at 17.3%.**
+Per-asset drag != PORTFOLIO drag - a book of 3 sectors has far lower sigma than any single sector, plus V24
+has the sleeve. The per-asset framing ranks cells honestly but cannot be read as a book return.
+
 ### 2026-07-15P - ⭐ THE ANSWER: "best of the best" is DOMINATED by "good". Selection WORKS (+1.97%/qtr) - VOLATILITY DRAG eats it. Decile 6 beats decile 10 on BOTH axes.
 
 **Ramana, 2026-07-15:** *"we are taking the best of best of best stocks and still struggling? why?"* - the
