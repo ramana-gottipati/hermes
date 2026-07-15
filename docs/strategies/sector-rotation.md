@@ -82,19 +82,28 @@ NSE index closes (`index_rows`, 205 indices 2004→present; primary source, Guar
 
 ## 9. Open items / frozen work
 
-- **★ V21 = V17 + Next-50 sleeve + recovery-accelerator + inverse-vol weights (ledger 2026-07-15d) — the LEADING
-  champion-candidate**: Sharpe 0.87 (0.89/0.86 — beats the bench in BOTH halves), CAGR 16.6%, MaxDD −40.8%,
-  α +6.3%/yr, ₹1 Cr → 27.02 vs 12.60. The recovery-accelerator (reclaim quarter → entry band 8%→0, RSI-green kept)
-  is the star single lever — it fixes the measured H2/recovery-years weakness. **Pending Ramana's ratification**;
-  the live `/dash/sector-rotation` engine intentionally still runs V17 until he ratifies.
-- **Ramana's ratification** of the candidate ladder (V8 frozen base · V17 recorded candidate · V21 leading candidate).
-- **TR-benchmark re-cut + significance pass — now the HIGHEST-priority rigor item** (no TRI series in `index_rows`;
-  needs an NSE Total-Returns ingest, primary-source). Three rounds of selection on one window make the fresh-window
-  confirmation load-bearing.
+- **★★ Two new leading candidates (ledger 2026-07-15f), both on top of V21 — pending Ramana's ratification:**
+  - **V21+V24 (own-percentile RSI-of-RS)**: Sharpe 0.91 (0.92/0.91 — the most half-consistent construct in the
+    whole project), MaxDD −37.7% (best recorded), α +7.1%/yr (best recorded), ₹1 Cr → 30.35.
+  - **V32 = V21+V24+V22 (own-percentile RSIRS + adaptive hysteresis band)**: Sharpe 0.90 (0.95/0.84), MaxDD −37.9%,
+    α +6.5%/yr, ₹1 Cr → 31.15 (best recorded wealth/CAGR).
+  - These are a genuine trade-off, not a strict ranking — V24-alone is more robust/balanced, V32 trades a little
+    half-consistency for more wealth. **The live `/dash/sector-rotation` engine intentionally still runs V21**
+    until one is ratified.
+- **A real negative-interaction lesson (2026-07-15f):** V26 (persistence) is a clean win ALONE but HURTS when
+  combined with V24 — its "wait 2 quarters" delays V24's faster reaction. Individually-validated levers do not
+  always combine additively; every combination needs its own test.
+- **Ramana's ratification** of the candidate ladder: V8 (frozen base) → V17 (recorded) → V21 (leading, live) →
+  V21+V24 or V32 (new leading candidates).
+- **TR-benchmark re-cut + significance pass — now the HIGHEST-priority rigor item**, more load-bearing than ever
+  (FOUR rounds of selection on one window; no TRI series in `index_rows` — needs an NSE Total-Returns ingest).
 - **V2 constituent expression** — the ≤40-stock version (top-RS stocks inside qualifying sectors, sector-RS ×
   stock-RS weights, per-sector stops) — where the stock-selection edge gets tested; then `/dash/model-portfolios`
   integration if it survives.
-- **Rejected this round (mild, not walls):** Midcap-50 sleeve ≈ Next-50 but shorter history; nothing new falsified.
+- **Rejected, with numbers (2026-07-15f): longer RSI window, dual-benchmark confirmation, the 55/45 regime-band
+  (confirms the single-sector Defence diagnostic), direction-of-trend entry/exit, and book-level vol-targeting
+  (worst drawdown blowup in the batch — CAGR up but MaxDD to −50.8%/−53.6%, fails the "keep drawdown in check"
+  bar). Size-segment satellites = marginal, turnover roughly offsets the gain.**
 
 ## 10. Sources of truth
 

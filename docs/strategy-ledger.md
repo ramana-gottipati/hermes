@@ -369,6 +369,47 @@ indices only from 2012/2015 — **Nifty Next 50 is the one aggressive asset with
   stronger claim. **Status: V21 = leading champion-candidate, pending Ramana's ratification; V17 remains the
   recorded prior candidate; V8 remains the frozen base.**
 
+### 2026-07-15f — Round 4: the V22..V30 batch (Ramana's own catalog) vs BOTH V21 and V17 as bases → ★V32 = V21+own-percentile-RSIRS+adaptive-band, the new leading candidate
+
+Ramana's naming-collision cleanup + full catalog from the RSI-of-RS design discussion, tested one lever at a time
+against V21 (primary base) AND V17 (secondary — confirms an improvement is general, not narrowly synergizing with
+V21's specific mix), then winners combined. Module `research/explosive_moves/sector_rotation_exp4.py`
+(sanity-checked FIRST to reproduce V21 0.87/₹27.02 and V17 0.79/₹19.04 exactly before trusting any new number).
+
+| V21/V17 + lever | V21 Sharpe (H1/H2) | V21 CAGR/MaxDD/₹1Cr | V17 Sharpe (H1/H2) | Verdict |
+|---|---|---|---|---|
+| — (bases) | 0.87 (0.89/0.86) | 16.6% / −40.8% / 27.02 | 0.79 (0.86/0.70) | — |
+| **V24 own-percentile RSI-of-RS** (85th trims/95th exits, that sector's OWN trailing-756d history, replacing fixed 70/80) | **0.91 (0.92/0.91)** | 17.2% / **−37.7%** / 30.35 | **0.82 (0.89/0.74)** | **★ Strong win — best single lever; most balanced halves of the whole batch** |
+| V26 persistence (2 consecutive quarters before acting) | 0.88 (0.91/0.85) | 16.9% / −40.8% / 28.75 | 0.79 (0.87/0.71) | Small clean win ALONE; turnover ↓ |
+| V22 adaptive hysteresis band (±band = 1×own trailing RS-line vol, replacing fixed ±8%) | 0.87 (0.92/0.83) | 17.0% / −41.3% / 29.43 | **0.83 (0.93/0.72)** | Positive, esp. on V17 (closes much of the V17→V21 gap on its own) |
+| V29 size-segment satellites (+CNX Midcap, +Midcap 50) | 0.87 (flat) | +0.1pt CAGR / flat DD / 27.62 | 0.79 (flat) | Marginal — turnover ↑ roughly offsets the gain |
+| V25 longer RSI-of-RS window (n=50/90d vs n=14/40d) | 0.85 | 16.4% / −43.9% / 26.04 | 0.77 | REJECT — smoother = slower = worse DD, both bases |
+| V27 dual-benchmark (must clear vs Nifty 50 AND Nifty 500) | 0.85 | 16.1% / −45.0% / 24.80 | 0.76 | REJECT — the AND-condition under-protects, both bases |
+| V28 regime-band (ride ≥45 after crossing 55, exit <45) | 0.82 | 15.8% / −43.9% / 23.46 | 0.74 | REJECT — **confirms the single-sector Defence diagnostic at full-portfolio scale** |
+| V23 direction-of-trend entry/exit (2-qtr deceleration/acceleration as an extra trigger) | 0.79 | 15.1% / −44.0% / 20.40, turn 18.0% | 0.79, turn 17.1% | REJECT — turnover +3–5pt with no offsetting return, worse DD both bases |
+| V30 book-level vol-targeting (scale exposure to a 15% vol target) | 0.78 | 17.9% / **−50.8%** / 34.61 | 0.67 / **−53.6%** | **REJECT — worst drawdown blowup in the batch** (higher CAGR, but levers up right before vol spikes; fails "keep drawdown in check") |
+
+- **Combining the winners — a genuine NEGATIVE interaction found:** V24+V26 (0.89, DD back to −40.8%, ₹29.75) is
+  WORSE than V24 alone (0.91, DD −37.7%, ₹30.35) — V26's "wait 2 quarters" delays exactly the faster reaction that
+  makes V24 work; the two mechanisms fight each other. **V24+V22+V26 confirms it** (0.88, DD −41.3%) — V26 hurts
+  regardless of what else is in the mix. **Lesson recorded: individually-validated levers do not always combine
+  additively; test every combination, not just assume winners stack (the same discipline that built V21 already
+  implied this, now proven with a concrete counter-example).**
+- **★ V32 = V21 + V24 + V22 (own-percentile RSIRS + adaptive band, V26 excluded): Sharpe 0.90 (0.95/0.84), CAGR
+  17.3%, MaxDD −37.9%, alpha +6.5%/yr, ₹1 Cr → 31.15 — the new leading candidate by wealth and CAGR.** On V17 alone
+  the same two levers lift it to 0.86 (0.96/0.75), ₹25.99 — nearly matching plain V21's own performance.
+- **Honest trade-off, NOT resolved by the numbers alone — V24 alone vs V32 (V24+V22):**
+  | | Sharpe (H1/H2) | MaxDD | Alpha | ₹1 Cr |
+  |---|---|---|---|---|
+  | V21+V24 alone | 0.91 (**0.92/0.91** — most balanced in the whole project) | **−37.7%** (best) | **+7.1%** (best) | 30.35 |
+  | V32 = V21+V24+V22 | 0.90 (0.95/**0.84**) | −37.9% | +6.5% | **31.15** (best) |
+  V24-alone is the more robust, half-consistent construct; V32 trades a little H2 consistency and drawdown for more
+  wealth and CAGR. **Neither dominates the other — this is a genuine preference call, not a numbers call.**
+- **Verdict: CONDITIONAL. Two new leading candidates recorded — V21+V24 (robustness-favoring) and V32=V21+V24+V22
+  (wealth-favoring) — both pending Ramana's ratification.** V21 and V17 remain the frozen/recorded reference points;
+  nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
+  now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
+
 ### 2026-07-15c — Round 2: attack the RETURN gap (kill-switch · asym cadence · residual fill · monthly cadence), V8 base frozen, 2005–2026 n=257
 
 Module `research/explosive_moves/sector_rotation_exp2.py` (one lever at a time, then combos; bench like-for-like
