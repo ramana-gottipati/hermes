@@ -437,6 +437,96 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15L - 🔴 DATA BUG (`series='EQ'`) INVALIDATED 15j/15k + the decomposition that answers "why do index-beating stocks make an index-losing book?"
+
+**Ramana, 2026-07-15:** *"We are identifying the stocks that outperform Nifty. In that case, what
+happened? Have you checked it? Have you done your analysis?"* **The right question, never asked.** 15j/15k
+reported P&L and never decomposed it. This entry does, and finds a bug that voids both.
+
+**Modules:** `research/explosive_moves/rs_decompose.py` (buggy, EQ-only) -> `rs_decompose_fix.py`
+(EQ+BE+BZ, correct) · `rs_bar.py` (liquidity sweep, ADV bar from argv[2]) · `vanish_audit.py` (the bug proof).
+
+## 🔴 THE BUG: `series='EQ'` reads NSE surveillance moves as DEATHS
+
+NSE moves stocks under surveillance to the **BE (trade-to-trade)** series. Our own data holds **656,007 BE
+rows / 2,554 symbols, 2004-2026** (8% of bhavcopy). An EQ-only filter makes a BE-migrated stock **VANISH
+while it is still trading normally**. Worse: **BE placement is triggered by exactly the sharp run-up that puts
+a stock in the TOP RS DECILE** - so the bug attacks the treatment group specifically.
+
+**`vanish_audit.py` (9,604 EQ-vanish events, the things 15j/15k called deaths):**
+
+| what the "death" really was | count | share |
+|---|---|---|
+| still trading in ANOTHER series next month | 8,110 | **84.4%** |
+| RETURNS to EQ within 12 months (never died) | 7,594 | **79.1%** |
+| genuinely gone for good | 1,170 | **12.2%** |
+
+**84% of the "deaths" were fake.** Fixing the filter halves the measured death rate (**0.99% -> 0.47% of the
+universe per quarter**). **RETRACTED:** an interim claim that "high-RS stocks die ~3x more often" - they do not
+die more, they get **flagged for surveillance** more. Different thing entirely.
+
+**⚠ 15j AND 15k ARE BOTH CONTAMINATED** - both filter `series='EQ'`. 15k's dead=0% treatment (criticised at
+the time as too generous) is in fact the **least wrong** of the options, because 84% of the time the stock
+really was still there. **Any re-run marking these vanishes at -50%/-100% is nonsense.** Re-run on EQ+BE
+before citing either.
+
+## THE DECOMPOSITION (corrected, EQ+BE+BZ, 86 quarterly snapshots, avg universe 437)
+
+Forward-3m excess vs Nifty 500 for: **CONTROL** = every liquid stock equal-weight (no selection at all) ·
+**D10** = top RS decile (what we buy) · **D1** = worst decile.
+
+| dead-name treatment | CONTROL | D10 | **selection effect (D10-CONTROL)** | D10-D1 spread |
+|---|---|---|---|---|
+| dead = -100% | -1.24% (t=-2.21) | +0.48% | **+1.73%** | +4.09% |
+| dead = excluded | -0.75% | +1.25% | **+2.01%** | +4.38% |
+
+**The treatments now CONVERGE (+1.73% vs +2.01%)** where the buggy EQ-only version diverged wildly
+(+0.13% vs +2.12%). Convergence across assumptions is the signature of a real result.
+
+**FINDING 1 - THE SELECTION IS FINE. RS is worth ~+1.73%/quarter (~+7%/yr) over picking AT RANDOM from the
+same pond**, D10-D1 spread +4.09%. **The signal was never the problem.**
+
+**FINDING 2 - THE POND IS THE PROBLEM. CONTROL = -1.24%/quarter (-4.9%/yr), t=-2.21**: an equal-weight basket
+of liquid Indian stocks **structurally loses to Nifty 500 before a single stock is picked.** RS then claws
+back +1.73%; net D10 = +0.48%/qtr (t=+0.44, NOT significant), and turnover ~330%/yr + beta 1.18 finish it.
+**=> Index-beating stocks make an index-losing book because the POND sinks, not because the picking fails.**
+
+**FINDING 3 - WHY the pond sinks (the reframe): NIFTY 500 IS NOT A PASSIVE BENCHMARK.** It is a rules-based
+basket that **continuously culls its own losers** - every review drops names that fall out of the top 500 by
+cap/liquidity. Our universe culls nobody; it holds everything that trades, including names heading to zero.
+**The index has a survival filter built in. We do not. That gap IS the -1.24%.**
+
+**FINDING 4 - "just buy bigger stocks" is DEAD** (`rs_bar.py`, dead=-100%, harshest treatment):
+
+| ADV bar | universe | CONTROL | D10 | selection effect |
+|---|---|---|---|---|
+| Rs 5 cr/day | 437 | -1.24% | +0.48% | **+1.73%** |
+| Rs 25 cr/day | 212 | **-1.52%** | **-1.32%** | **+0.20%** |
+
+Raising the bar makes it **worse on both axes**: the pond still sinks AND **RS selection collapses
+(+1.73% -> +0.20%)**. Momentum is a **small/mid-cap phenomenon**; in liquid large-caps it is arbitraged away.
+Consistent with this ledger's standing record that only **LOWVOL_MOM qtr large-cap** ever cleared the fundable
+bar (1.02 @Rs50cr) - a LOW-VOL tilt, not raw momentum. **Do not re-attempt "raise the liquidity bar" without
+beating these.**
+
+## WHAT IT MEANS
+
+**Ramana's exit instinct (15k) was pointing at the right mechanism all along.** The missing piece is not a
+better selector - selection already adds +7%/yr. It is **the CULL**: the survival filter the index has and we
+lack. That is precisely what a stop-loss / exit rule is.
+
+**OWED NEXT (the one question that matters, now cheaply testable):** re-run the exit test on the corrected
+**EQ+BE** universe. Does a cull rule close the -1.24% pond gap? 15k's verdict ("exits fix risk not return,
+alpha dies at 2% slippage") was measured on the contaminated universe and **must not be cited until re-run.**
+
+**Also owed:** the real recovery value of the 1,170 genuine delistings (buyouts pay, frauds do not) - only
+0.47%/qtr of the universe now, so it matters far less than 15L's buggy version implied.
+
+**METHOD LESSON (5th of the session): every prior number came from an assumption that was never checked -
+15h ETF legs / 15i survivorship / 15j hysteresis transfer / 15k fill quality / 15L the `series` filter itself.
+The bug was in the DATA LAYER, beneath every model built on it. Audit the universe definition BEFORE the
+strategy: `select series, count(*) from bhavcopy_rows group by series` would have caught this on day one.**
+
 ### 2026-07-15k - EXITS (Ramana-directed): they FIX THE RISK but NOT the return - the +3.5% alpha was a frictionless-fill artifact. Fill quality is now THE deciding variable.
 
 **Module:** `research/explosive_moves/stock_rs_exits.py` (read-only). Same PIT-clean, survivorship-free
