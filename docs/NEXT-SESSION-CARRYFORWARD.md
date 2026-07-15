@@ -107,17 +107,44 @@ promotion. `/dash/sector-rotation` stays on V21. Nothing graduates while the sto
 
 ---
 
-## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136) — ⚠ SECTOR LAYER ONLY, see the 15h block ABOVE before using any of it: V8→V17→V21→★V24/★V32 candidates, portfolio surface LIVE, naming CANONIZED — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
-**The ladder (never re-derive — cite these numbers):** all on 2005–2026 price-index data (TR re-cut still owed),
-16 NSE sectors, quarterly rebalance. V8 = FROZEN base (Sharpe 0.70/DD−36.2%/₹9.13Cr, Ramana-ratified, never
+## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136) — ⚠ SECTOR LAYER ONLY (D138) + ⚠ RUNGS NOT DISTINGUISHABLE & "Sharpe"=RETURN/VOL (D139/S160): ratification SETTLED, V32 RETIRED, V21 stays live — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
+> ### 🔴 S160/D139 SETTLED THE RATIFICATION — do NOT re-open it as a numbers question
+> **The significance pass has RUN and came back NULL** (ledger §2026-07-15i · D139 ·
+> `research/explosive_moves/sector_rotation_significance.py`). Two things every future session must carry:
+> **① The ladder's top rungs are NOT statistically distinguishable.** **V24 vs V32 is UNMEASURABLE** — a
+> 0.013 gap against a **0.148** minimum-detectable-effect at 80% power (11× below the noise floor; studentized
+> p **0.745**) → **V32 is RETIRED as a distinct candidate**, and the old "genuine trade-off / robustness vs
+> wealth" framing below **was reading noise — ignore it.** **V24 vs V21 is NOT established** either
+> (percentile 0.038 / analytic 0.081 / **studentized 0.127**; pivotal CI spans zero) and **dies under a
+> measured-fair k=9 selection correction** (the nine Round-4 levers' difference-series correlate at median
+> **+0.051** → genuinely distinct tests → Bonferroni appropriate → 0.345/0.726/1.000). V24≡V21 in **80% of
+> months** → ~9 informative blocks: **the window cannot resolve these differences on ANY method.**
+> **⇒ Do NOT run a Round 5 on this window hoping for a winner.** **Ramana's call (2026-07-15i, with the null
+> in hand): V24 stands as the designated carry-forward layer on MECHANISM grounds** (own-percentile adapts per
+> sector, replacing an unjustified fixed 70/80) — **a priors call, NOT an evidence result.** Per D138 nothing
+> is promoted: **`/dash/sector-rotation` stays on V21.**
+> **② Every "Sharpe" below is really a RETURN/VOL RATIO** — the engine computes `mean/sd×√12` with **no
+> risk-free subtracted** (V21 = 16.57% CAGR ÷ 19.92% vol = 0.875). True excess-of-6.5% Sharpes ≈
+> **0.51/0.54/0.54**. Benchmarks share the basis → **relative claims hold; absolute levels were overstated
+> ~1.7× by the word alone.** Ramana: **relabel, numbers unchanged** — done on the canon page, the ledger
+> (correction banner; dated entries left as historical record) and the LIVE page (deployed + walked S160).
+> *Honest limit: non-significance ≠ no effect — low power BY CONSTRUCTION (nested books correlated
+> 0.97–0.996). Only a fresh window / true OOS settles V24-vs-V21, and per D138 the honest priority is the
+> **constituent build**, not more tuning of a layer that may be unbuyable in ~⅜ of sectors.*
+
+**The ladder (never re-derive — cite these numbers; read every "Sharpe" here as "return/vol ratio", and see
+the S160/D139 box ABOVE before treating any gap between rungs as real):** all on 2005–2026 price-index data
+(TR re-cut still owed),
+16 NSE sectors, quarterly rebalance. V8 = FROZEN base (0.70/DD−36.2%/₹9.13Cr, Ramana-ratified, never
 edited — refinements are new V-numbers beside it). **V17** = V8 + defensive residual fill (0.79/−39.2%/₹19.04,
 recorded candidate). **V21** = V17 + Next-50 sleeve + recovery-accelerator + inverse-vol (**0.87/−40.8%/₹27.02 —
-the LIVE default on `/dash/sector-rotation` today**). **★V24** = V21 + own-percentile RSI-of-RS exit (85th
-trims/95th exits, that sector's own trailing-756d history replacing the fixed 70/80) — **Sharpe 0.91 (0.92/0.91,
-the most half-balanced result in the whole project), MaxDD −37.7% (best), α+7.1%/yr (best), ₹1Cr→₹30.35Cr**.
-**★V32** = V24 + adaptive hysteresis band (±band sized to a sector's own RS-line vol, replacing fixed ±8%) —
-Sharpe 0.90 (0.95/0.84), ₹1Cr→₹31.15Cr (best wealth). **V24 vs V32 is a genuine unresolved trade-off**
-(robustness vs wealth), not a numbers call — **both pending Ramana's ratification; V21 stays live meanwhile.**
+the LIVE default on `/dash/sector-rotation`, and it STAYS there**). **★V24** = V21 + own-percentile RSI-of-RS exit (85th
+trims/95th exits, that sector's own trailing-756d history replacing the fixed 70/80) — **0.91 (0.92/0.91,
+the most half-balanced result in the whole project), MaxDD −37.7% (best), α+7.1%/yr (best), ₹1Cr→₹30.35Cr**;
+**the designated carry-forward layer — on MECHANISM, not evidence (D139).**
+**~~★V32~~ RETIRED (D139)** = V24 + adaptive hysteresis band — 0.90 (0.95/0.84), ₹1Cr→₹31.15Cr; its apparent
+wealth edge is the metric most inflated by selection, and it is **provably indistinguishable from V24** while
+carrying one more lever.
 "V24" is the BINDING name for the FULL V21+lever combo (Ramana, 2026-07-15g) — never the bare lever alone.
 
 **REJECTED with numbers, do not re-attempt without beating these (ledger §§ 07-15b/c/d/f):** short/F&O leg
@@ -146,15 +173,26 @@ diagnostic (regime-band idea, tested before the full V28 batch) is `research/exp
 
 **Canon (single source of truth, don't re-derive from this bullet):** [`docs/strategies/sector-rotation.md`](docs/strategies/sector-rotation.md)
 (the ruleset + terminology, incl. the V8/V17/V21/V24/V32 ladder) · [`docs/strategy-ledger.md`](docs/strategy-ledger.md)
-§§ 2026-07-15 → 2026-07-15g (every number, every rejection) · PROJECT_STATE.md Decision log **D136**.
+§§ 2026-07-15 → 2026-07-15i (every number, every rejection; **15h = scope flaw, 15i = the significance null + the label fix**) · PROJECT_STATE.md Decision log **D136 + D138 + D139**.
 
-**NEXT (rotation lane, in order):** ① Ramana's ratification of V24 vs V32 (or hold both, or keep V21) — a
-decision, not a build task. ② TR-benchmark re-cut (no total-return index in `index_rows` yet — needs a primary-
-source NSE TRI ingest, a small data lane) + a formal significance/t-stat pass on whichever candidate ratifies —
-four rounds of selection on one window makes this the highest-priority rigor item. ③ Once ratified: promote the
-live `/dash/sector-rotation` engine + page to the ratified config (currently intentionally still V21). ④ **V2 —
-the ≤40-stock constituent build** (top-RS stocks inside qualifying sectors, sector-RS × stock-RS weights,
-per-sector stops; reuse `stock_signals` RS columns) — the natural next phase once the sector-level ladder settles.
+**NEXT (rotation lane, in order — RE-ORDERED by D138+D139):**
+① ~~Ramana's ratification of V24 vs V32~~ **✅ SETTLED (D139, see the box above)** — V32 retired; V24 is the
+designated carry-forward layer on MECHANISM grounds; V21 stays live. Not re-openable as a numbers question.
+② ~~significance pass~~ **✅ DONE (D139) — NULL.** **STILL OWED: the TR-benchmark re-cut + the true-Sharpe rf
+re-cut — ONE data lane** (neither exists in `index_rows`; both need a primary-source NSE TRI / G-sec ingest per
+Guardrail #8, and both move the same headline figures). Small, well-defined, do them together.
+③ **🔴 THE PRIORITY, per D138 — the ≤40-stock constituent build** (top-RS stocks inside V24's qualifying
+sectors, sector-RS × stock-RS weights, per-sector stops; reuse `stock_signals` RS columns). It is **half ② of
+Ramana's original brief and was never built**, AND it is the **only executable expression** for the ~6/16
+sectors with no liquid index instrument — not a phase-2 nicety. **Pre-register its bar BEFORE running it**
+(ledger §15h): stock momentum is recorded as **BETA not skill (t=1.99)**, only LOWVOL_MOM qtr large-cap
+fundable (1.02 @ ₹50cr), and stock legs cost more than index legs → **matching the index book counts as a
+REJECTION, not a result.**
+④ the instrument/ADV audit + per-leg cost re-cut (§6-bis) — partially subsumed by ③ (a sector with no
+instrument simply *becomes* stock legs).
+⑤ **Do NOT** promote the live engine, and **do NOT** run a Round 5 of lever selection on the 2005-2026 window
+— D139 measured that the window cannot resolve differences of this size on any method. A **fresh window / true
+OOS** is the only thing that would move V24-vs-V21.
 
 ## 🆕 2026-07-15 — S155/S156 (D134 LANE-G + LANE-H): ENTITY GRAPH live + RULE-LAB design — do NOT redo; kickstart-pick-verify
 - **LANE-G `src/automation/entity_graph.py` — DEPLOYED + REAL-DATA VERIFIED.** 6 extractors over filing tables we already own → **7,813 edges in 130ms** (insider 3,643 · sast 2,256 · deal 1,033 · pledge_lender 441 · pledge 317 · rating 123); re-run identical, **0 dupes** (idempotent on live data). `neighborhood(symbol)` → edges + **co-links** (the other companies a shared counterpart touches, with `via` provenance). Walked live: MAHABANK 74 co-links · SASKEN 0 (correct — SASKEN-only filers).
