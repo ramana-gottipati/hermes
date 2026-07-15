@@ -404,12 +404,27 @@ FEEDS: dict = {
         notes="The derivation is OWNED IP; the upstream sent_news headlines carry the "
         "news_feed per-source-ToS caveat (see UNCLASSIFIED_FEEDS).",
     ),
+    # ---------------- personal-broker: the real-time seam (INTERFACE ONLY) ----------------
+    "intraday_seam": Feed(
+        key="intraday_seam",
+        module="src/automation/intraday_adapter.py",
+        source_org="(none wired) — personal broker feed optional; Kite key = Ramana's paid decision",
+        cadence="opt-in intraday snapshots; NullSource (empty) until an entitlement is wired",
+        licence_class="personal-broker",
+        knowable_rule="a tick is knowable at its own ts_utc; the window is a bounded buffer, "
+        "never a durable tape (EOD bhavcopy stays the archive)",
+        fence_status="OFF every public surface BY CONSTRUCTION - the licence gate forbids any "
+        "src/web reference to a personal-broker module (D134 LANE-I)",
+        tables=("intraday_window",),
+        notes="v1 = interface + bounded window store + NullSource + T0LiteSource STUB (NSE EOD-"
+        "preliminary files, ~15:45-16:15 IST, Rs0, public-archive when wired). No Kite wiring.",
+    ),
 }
 
-#: Ratchet floor: the number of feeds catalogued at build time (D134 LANE-C, 2026-07-15).
-#: tests/test_feed_manifest.py asserts len(FEEDS) >= MIN_FEEDS - removing a feed row without
-#: consciously lowering this constant fails the suite.
-MIN_FEEDS: int = 21
+#: Ratchet floor: the number of feeds catalogued at build time (D134 LANE-C, 2026-07-15;
+#: +1 intraday_seam, D134 LANE-I). tests/test_feed_manifest.py asserts len(FEEDS) >= MIN_FEEDS -
+#: removing a feed row without consciously lowering this constant fails the suite.
+MIN_FEEDS: int = 22
 
 # --------------------------------------------------------------------------------------
 # UNCLASSIFIED feeds - catalogued but deliberately NOT in FEEDS (no honest enum fit).

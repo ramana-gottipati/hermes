@@ -44,10 +44,10 @@
 | D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ **LANDED S152** (LANE-R merge; first producer tags-review queued) |
 | F | Time-machine capability audit | **8** · 5 · mid · ₹0 | ✅ AUDIT DONE — `docs/time-machine-audit.md` (5 yes / 34 partial / 28 no; cockpit tile overclaim FIXED by LANE-R) |
 | R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | ✅ **DONE S149-c** — reconcile `2fc1248` + integration `edffb86` pushed; suite 460; deployed byte==HEAD; heartbeat timer ARMED (first DM Wed 03:30 UTC) |
-| E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | prompt ready (§E) — **next pick** with §I |
+| E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | ✅ **LANDED S153** (results v1 → inbox; cap-gated LLM opt-in) |
 | G | Entity graph v1 | **8** · 4 · mid · ₹0 | prompt ready (§G) |
 | H | Rule-lab design | **8** · 4 · later · ₹0 | prompt ready (§H) |
-| I | Real-time seam interface | 7 · **6** · design next · ₹0 (opt ₹500/mo) | prompt ready (§I) |
+| I | Real-time seam interface | 7 · **6** · design next · ₹0 (opt ₹500/mo) | ✅ **LANDED S153-b** (interface + manifest row; licence-fenced) |
 
 ---
 

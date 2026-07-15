@@ -171,11 +171,11 @@ Scores /10; **bold** = the driving axis. "₹0" = runs on the existing box with 
 | B | Cost-ledger + estate heartbeat (one morning line: health + ₹ spend) | L0/L8 | 7 | **8** | NOW | ₹0 | **LANDED S150** (LANE-R merge; producers instrumented via `llm.meter()` — core/router/chat/patearn; unit install + arm = LANE-R deploy, §Session 150) |
 | C | Licence-class registry + feed/signal manifests | L1/L3/L8 | 8 | **8** | next | ₹0 | **LANDED S151** (LANE-R merge; licence gate in the suite; 6 vendor-ToS feeds UNCLASSIFIED → §7.7 Ramana) |
 | D | Review Inbox + judgment corpus (the human-verification layer) | L5 | **9** | 7 | next | ₹0 | **LANDED S152** (LANE-R merge; first producer = tags-review, queued; surface per SURFACE-PLAYBOOK later) |
-| E | Auto-analyst event briefs (AI-drafted, inbox-reviewed) | L6 | **9** | 6 | after D | ₹100–300/mo capped | queued |
+| E | Auto-analyst event briefs (AI-drafted, inbox-reviewed) | L6 | **9** | 6 | after D | ₹100–300/mo capped | **LANDED S153** (results family v1; template ₹0 default, LLM opt-in cap-gated ₹200 §7.2; briefs land in the Review Inbox — wire publisher later) |
 | F | Time-machine contract (site-wide `?asof=` capability audit + flags) | L3/L7 | **8** | 5 | mid | ₹0 | audited S149 (`docs/time-machine-audit.md`: 5 yes / 34 partial / 28 no · top-5 upgrades ranked · cockpit tile overclaim **FIXED by LANE-R** — symbol-scoped wording; `asof_capable` flags still to land) |
 | G | Entity graph (promoter/auditor/group/counterparty network from filings) | L2 | **8** | 4 | mid | ₹0 | new |
 | H | Rule-lab (user-defined rule → the evidence factory runs the gates → honest verdict) | L4/L7 | **8** | 4 | later | ₹0 | new |
-| I | Real-time seam (adapter interface now; Kite personal feed optional; public real-time DEFERRED) | L1 | 7 | **6** | design next | ₹0 now / ₹500/mo optional | new |
+| I | Real-time seam (adapter interface now; Kite personal feed optional; public real-time DEFERRED) | L1 | 7 | **6** | design next | ₹0 now / ₹500/mo optional | **LANDED S153-b** (interface + bounded window + Null/T0Lite stub; personal-broker manifest row → licence-gate fenced; no Kite wiring) |
 | J | XBRL Phase-3 completion (backfill pilot → universe → retire residual scrape) | L1/L2 | 10 | **10** | NOW | ₹0 | in-flight (S148 lane) |
 | K | UX S-program continuation (S-B1 rest → S-B2 → S-E rest → S-F → S-G) | L7 | **7** | 5 | rolling | ₹0 | in-flight |
 | L | Evidence factory completion (M-03 wiring; armed studies E-02/E-14/E-04 self-fire) | L4 | **8** | 5 | self-gating | ₹0 | armed |
