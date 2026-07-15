@@ -209,3 +209,26 @@ def test_non_financial_has_no_subtype():
     assert financial_subtype("TCS", c) is None
     assert financial_subtype("", c) is None
     c.close()
+
+
+def test_evidence_thinness_is_disclosed_not_hidden():
+    """A lender tier resting on 1-of-5 inputs means "not yet known", not "poor" — RoA/CET1 are
+    XBRL-only and fill forward, so today most banks qualify on NII growth alone and every other
+    leg abstains. The surface must say so or a thin T4 reads as a quality verdict."""
+    thin = {"symbol": "HDFCBANK", "nii_growth_5y": 16.0, "roce": 6.0, "debt_to_equity": 7.5}
+    s = score_fundamentals(thin, is_financial=True, subtype="bank")
+    assert s["sector_model"] == "doctrine-d"
+    assert s["sector_evidence"] == ["nii_growth_5y"] and s["sector_evidence_max"] == 5
+    from src.automation.scoring import format_score_for_telegram
+    txt = format_score_for_telegram(s)
+    assert "1/5 lender inputs" in txt and "provisional" in txt
+
+    rich = dict(thin, roa_pct=0.47, gnpa_pct=1.42, cet1_pct=19.97, nnpa_pct=0.46)
+    r = score_fundamentals(rich, is_financial=True, subtype="bank")
+    assert len(r["sector_evidence"]) == 5
+    assert "provisional" not in format_score_for_telegram(r)
+
+
+def test_non_financials_carry_no_evidence_block():
+    s = score_fundamentals({"symbol": "TCS", "roce": 45.0})
+    assert s["sector_evidence"] == [] and s["sector_evidence_max"] == 0

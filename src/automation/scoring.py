@@ -589,6 +589,13 @@ def score_fundamentals(f: dict, *, is_financial: bool = False,
         # --- Doctrine D (D134) — supersedes the D3-F1 interim label for measurable lenders ---
         "sector_model": ("doctrine-d" if doctrine_d else ("suppressed" if suppressed else None)),
         "sector_subtype": (sub["label"] if sub else None),
+        # WHICH lender inputs actually backed this read. RoA/CET1 are XBRL-only and fill forward,
+        # so today most banks qualify on NII growth alone and every other leg ABSTAINS — the tier
+        # is then built mostly from conservative Partials and means "not yet known", NOT "poor".
+        # Surfaces must show this so a thin T4 is never read as a quality verdict.
+        "sector_evidence": ([k for k in _LENDER_EVIDENCE_KEYS if f.get(k) is not None]
+                            if is_financial else []),
+        "sector_evidence_max": (len(_LENDER_EVIDENCE_KEYS) if is_financial else 0),
         # kept for surfaces still reading the D3-F1 flag: pending == a financial we can't yet score
         "sector_model_pending": suppressed,
         "sector_suppressed": suppressed,
@@ -689,6 +696,14 @@ def format_score_for_telegram(score: dict, *, fundamentals: dict | None = None) 
     if _note:
         _mark = "⚠️ " if score.get("sector_suppressed") else "ℹ️ "
         lines.append(f"{_mark}<b>{_note}</b>")
+        _ev = score.get("sector_evidence") or []
+        _evmax = score.get("sector_evidence_max") or 0
+        if _evmax and not score.get("sector_suppressed"):
+            # a tier resting on 1-of-5 inputs means "not yet known", not "poor" — say so
+            _thin = " — most lender inputs are not yet known, so this tier is provisional" \
+                if len(_ev) <= 2 else ""
+            lines.append(f"<i>Read on {len(_ev)}/{_evmax} lender inputs "
+                         f"({', '.join(_ev) or 'none'}){_thin}.</i>")
         lines.append("")
     lines += [
         f"<b>{sym}</b>  {tier_emoji}<b>{tier}</b>",
