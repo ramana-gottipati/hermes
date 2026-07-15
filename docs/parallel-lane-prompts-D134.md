@@ -41,7 +41,7 @@
 |---|---|---|---|
 | B | Cost-ledger + estate heartbeat | 7 · **8** · NOW · ₹0 | ✅ **LANDED S150** (LANE-R merge; producers instrumented — `llm.meter()` into core/router/chat/patearn) |
 | C | Licence-class registry + feed/signal manifests | 8 · **8** · next · ₹0 | ✅ **LANDED S151** (LANE-R merge; licence gate in suite; 6 vendor-ToS UNCLASSIFIED → plan §7.7 Ramana) |
-| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ **LANDED S152** (LANE-R merge; first producer tags-review queued) |
+| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ **LANDED S152**; first producer **WIRED+LIVE S157** (`inbox_adapters.py`: sync/apply/backfill + `KINDS` registry; corpus backfilled 295 @ 94% approve; weekly `--sync --apply` on the theme-seed oneshot; Q1 single-writer interim doctrine in the module docstring) |
 | F | Time-machine capability audit | **8** · 5 · mid · ₹0 | ✅ AUDIT DONE — `docs/time-machine-audit.md` (5 yes / 34 partial / 28 no; cockpit tile overclaim FIXED by LANE-R) |
 | R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | ✅ **DONE S149-c** — reconcile `2fc1248` + integration `edffb86` pushed; suite 460; deployed byte==HEAD; heartbeat timer ARMED (first DM Wed 03:30 UTC) |
 | E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | ✅ **LANDED S153** (results v1 → inbox; cap-gated LLM opt-in) |
