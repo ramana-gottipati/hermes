@@ -56,7 +56,9 @@ Three sleeves: the **sector book**, the **residual sleeve**, **cash**. Decisions
 
 ## 5. Where it lives (code · routes · DB · timers)
 
-Research-stage: `research/explosive_moves/sector_rotation.py` · `sector_rotation_exp.py` · `sector_rotation_exp2.py` (reference implementation, V8+V17) · `sector_rotation_stats.py` (dated stats: NAV/₹1 Cr/t-stats/drawdown anatomy/yearly table). Reproduce read-only on the VPS: `cd /opt/hermes && .venv/bin/python research/explosive_moves/sector_rotation_exp2.py data/hermes.db`. Reads `index_rows` only; no live route, table, or timer yet (a `/dash/model-portfolios` book is the intended landing if ratified — V2 constituent build first).
+- **Portfolio surface (LIVE, S-rotation-e):** `/dash/sector-rotation` (`src/web/sector_rotation_view.py`) — the V17 book with **`?asof=` time-travel** (◀/▶ rebalance steppers + year strip), the **rebalance diff** (entered · exited · re-weighted) per quarter, analytics-to-date (NAV× · CAGR · Sharpe · MaxDD vs Nifty 500 to the same date), the residual-sleeve regime (INDEX/CASH), a dual NAV sparkline, and server-side CSV (`?fmt=csv`). Registered as a Strategies lens; every strategy-ref page now carries a "live surface" hand-off strip (`strategies_view._SURFACE`).
+- **Engine:** `src/automation/sector_book.py` — materialises the frozen V17 config into the bounded tables **`sector_rotation_book`** (quarterly weights) + **`sector_rotation_nav`** (monthly NAV/regime/turnover); own schema, `db.py` untouched. CLI `--build` / clock-gated `--refresh` (nightly line in the bhavcopy `10-signals.conf` chain; rebuilds only when a new quarter month appears) / `--selftest`.
+- **Research modules (the spec-of-record + falsification record):** `research/explosive_moves/sector_rotation.py` · `sector_rotation_exp.py` (V2–V8 ablation) · `sector_rotation_exp2.py` (V9–V17; the DFILL mode = V17 reference) · `sector_rotation_stats.py` (dated stats/t-stats). Reproduce read-only: `cd /opt/hermes && .venv/bin/python research/explosive_moves/sector_rotation_exp2.py data/hermes.db`.
 
 ## 6. Data & provenance
 

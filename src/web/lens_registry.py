@@ -206,6 +206,11 @@ LENSES: tuple[Lens, ...] = (
     # since 2012-06 (STEADY/PACER/SPRINTER/CRAFTSMAN); time-travel constituents; no manual edits.
     Lens("model-portfolios", "Model portfolios", "stock", "strategies", "/dash/model-portfolios",
          aliases=("portfolios-auto", "auto-portfolios", "models")),
+    # Sector rotation (S-rotation, 2026-07-15) — the V17 champion-candidate book with ?asof=
+    # time-travel + rebalance diffs. RESEARCH-CONDITIONAL; ledger §§ 2026-07-15..15c; the
+    # strategy page (/dash/strategy-ref?p=sector-rotation) links here as its live surface.
+    Lens("sector-rotation", "Sector rotation", "stock", "strategies", "/dash/sector-rotation",
+         aliases=("sector-rot", "rotation-book", "v17")),
     # Classic Screens (S145) — the famous NAMED strategies (Magic Formula, CANSLIM, Piotroski,
     # Coffee Can, GARP, Graham, Quality, Low-Vol) run as live rosters on OUR PIT data. Sibling of
     # factor-league (raw families). Proxies labeled; value shown with its recorded failure numbers.

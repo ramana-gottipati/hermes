@@ -133,6 +133,7 @@ _ROUTER_SPECS = [
     # rosters + STEADY-25 auto-portfolio + churn. Reads factor_league/slow_rotation.
     ("factor-league", "src.web.factor_league_view", "/dash/factor-league"),
     ("model-portfolios", "src.web.auto_portfolios_view", "/dash/model-portfolios"),
+    ("sector-rotation", "src.web.sector_rotation_view", "/dash/sector-rotation"),
     # Classic Screens (S145): the famous NAMED strategies run as live rosters on OUR PIT data.
     # Reads classic_roster (famous_strategies.py, nightly). Sibling of factor-league.
     ("classics", "src.web.classics_view", "/dash/classics"),

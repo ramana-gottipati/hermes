@@ -124,6 +124,7 @@ PAT_EXPLAIN: dict[str, str] = {
     "momentum-scan":    "riskadj",          # the risk-adjusted momentum metric
     "factor-league":    "factor_league",    # classic factor families, ranked by our numbers
     "model-portfolios": "model_portfolios",  # engine-managed model books
+    "sector-rotation":  "sector_rotation",   # the V17 RS sector-rotation book (time-travel)
     "surveillance":     "asm",              # ASM/GSM surveillance states
     "capture-map":      "up_capture",       # up/down-capture behaviour
     "rsband":           "rs_band",          # the relative-strength band (support/resistance)
