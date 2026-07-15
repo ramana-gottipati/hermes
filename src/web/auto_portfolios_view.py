@@ -17,6 +17,7 @@ Descriptive, not advice. Reads auto_portfolio_holdings / auto_portfolio_nav
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -152,22 +153,52 @@ def _svg_lines(series, w=940, h=250, pad=42):
     return "".join(out)
 
 
+def _cadence(dates):
+    """(elapsed years, rebalances/yr) read from the actual dates — never guessed.
+
+    A row-count heuristic cannot tell a 14-year QUARTERLY book from a 5-year monthly
+    one: STEADY-25 rebalances quarterly, so its 58 real points spanning 2012-06..2026-07
+    were read as 58 monthly points = 4.8 years, trebling its CAGR and annualising its
+    vol by sqrt(12) instead of sqrt(4). Both sibling books derive years from dates
+    (model_books_view._stats, classics_view._book_stats); this matches them.
+    """
+    try:
+        d0, d1 = date.fromisoformat(dates[0]), date.fromisoformat(dates[-1])
+        gaps = sorted((date.fromisoformat(dates[i]) - date.fromisoformat(dates[i - 1])).days
+                      for i in range(1, len(dates)))
+    except (ValueError, TypeError, IndexError):
+        return None, None
+    yrs = (d1 - d0).days / 365.25
+    med = gaps[len(gaps) // 2] if gaps else 0
+    if yrs <= 0 or med <= 0:
+        return None, None
+    return yrs, max(round(365.25 / med), 1)
+
+
 def _stats(navs):
-    vals = [v for _d, v in navs if v is not None]
-    if len(vals) < 8:
+    """{multiple, CAGR%, return/vol, maxDD%} for a (date, nav) series, or None.
+
+    `retvol` is mean/sd annualised — NOT a Sharpe ratio: no risk-free rate is
+    subtracted, so it reads high against a textbook Sharpe. A true Sharpe needs a
+    primary-source rf ingest (Guardrail #8) and is queued with the TR-benchmark
+    re-cut, which moves the same figures. Render it as "Return/vol", never "Sharpe".
+    """
+    pts = [(d, v) for d, v in navs if v is not None]
+    if len(pts) < 8:
         return None
+    yrs, ppy = _cadence([d for d, _v in pts])
+    if not yrs:
+        return None
+    vals = [v for _d, v in pts]
     rets = [vals[i] / vals[i - 1] - 1 for i in range(1, len(vals))]
     mu = sum(rets) / len(rets)
-    var = sum((x - mu) ** 2 for x in rets) / len(rets)
-    ppy = 12 if len(vals) > 40 else 4
-    sd = var ** 0.5
+    sd = (sum((x - mu) ** 2 for x in rets) / len(rets)) ** 0.5
     peak, dd = vals[0], 0.0
     for v in vals:
         peak = max(peak, v)
         dd = min(dd, v / peak - 1)
-    yrs = len(rets) / ppy
-    return {"x": vals[-1], "cagr": (vals[-1] ** (1 / max(yrs, 1e-9)) - 1) * 100,
-            "sharpe": (mu / sd * ppy ** 0.5) if sd > 0 else 0, "dd": dd * 100}
+    return {"x": vals[-1], "cagr": (vals[-1] ** (1 / yrs) - 1) * 100,
+            "retvol": (mu / sd * ppy ** 0.5) if sd > 0 else 0, "dd": dd * 100}
 
 
 @router.get("/dash/model-portfolios", response_class=HTMLResponse)
@@ -253,7 +284,10 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
         stats = ("<div class='stats'>"
                  f"<span>Since {lbl}: <b>{st['x']:.2f}×</b></span>"
                  f"<span>CAGR <b>{st['cagr']:.1f}%</b> (N500 {bt['cagr']:.1f}%)</span>"
-                 f"<span>Sharpe <b>{st['sharpe']:.2f}</b> (N500 {bt['sharpe']:.2f})</span>"
+                 f"<span title='Mean return ÷ volatility, annualised. NOT a Sharpe "
+                 f"ratio — no risk-free rate is subtracted, so it reads higher than "
+                 f"a textbook Sharpe would.'>Return/vol <b>{st['retvol']:.2f}</b> "
+                 f"(N500 {bt['retvol']:.2f})</span>"
                  f"<span>MaxDD <b>{st['dd']:.0f}%</b> (N500 {bt['dd']:.0f}%)</span></div>")
 
     since_chips = " · ".join(
