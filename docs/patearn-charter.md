@@ -95,7 +95,7 @@ number (M-05) · PEAD within-season-so-far variant (pre-register first; ledger 2
 MCP server on the VPS (P-06, open item L).
 
 **CLOSED (evidence, not deferral):** PEAD within-season-so-far variant — ran pre-registered
-2026-07-05b, net Sharpe 0.06, FAILED the gate; no fundable PEAD construction remains. The event lens
+2026-07-05b, net return/vol 0.06, FAILED the gate; no fundable PEAD construction remains. The event lens
 ships descriptively (`pead_surface.py`), never as a book.
 
 **E-14 ARMED S85f (2026-07-10):** gate frozen + hashed (`c005e2a2289d…`, M-04) — three ΔQoQ combos

@@ -14,11 +14,11 @@ THE GATE (pre-registered; hash the RAW docstring — prereg.gate_hash discipline
     3 run           factory.run_strat (flat leg) + this module's cost-real leg; walk-forward
                     halves 2012-18 vs 2019-26 via factory.slice_stats — BOTH or it is noise.
     4 placebo       N random-selection books, same tables/TAKE/HOLD/filters, real cost;
-                    evlib.placebo_stats(observed=net full-window Sharpe, null=their Sharpes).
+                    evlib.placebo_stats(observed=net full-window return/vol, null=theirs).
                     Observed must beat null p95 — not merely beat zero.
     5 cost          cost_realism.side_cost per name-side (net reported FIRST; gross a footnote).
     6 capacity      cost_participation.side_costs at an AUM measurement grid (the existing
-                    capacity_breakpoint grid); capacity = last AUM whose net Sharpe still
+                    capacity_breakpoint grid); capacity = last AUM whose net return/vol still
                     beats the bench. No stated capacity => not a result.
     7 benchmark     cost_realism.bench_buyhold (Nifty-500 buy-and-hold, net) on the SAME
                     rebalance dates; synthetic runs must inject bench_rets or the stage is
