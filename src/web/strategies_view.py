@@ -246,7 +246,21 @@ def _rail(active_slug: str | None) -> str:
 # Stripped at RENDER time only — the source docs stay intact (Guardrail #9: no
 # session/decision IDs or "Ramana" in rendered HTML).
 _GOV_HDR = re.compile(r"\*\*(Class|Status|Governing decision|Reconciled)", re.I)
-_META_LINE = re.compile(r"^\s*[-*]?\s*\*\*(Running state|Governing decision|Reconciled|Class|Status)\b", re.I)
+_META_LINE = re.compile(r"^\s*[-*]?\s*\*\*(Running state|Governing decision|Reconciled|Class|Status|Binding rule)\b", re.I)
+# Whole sections that are writer-instructions, never viewer content: the shared page
+# template, the README's maintenance protocol, and every page's "## Maintenance" tail.
+_DROP_SECTION = re.compile(r"^\s*(#+)\s*(Shared template|Maintenance(?:\s+protocol)?)\b", re.I)
+
+
+def _sub_ramana(m: re.Match) -> str:
+    """Case-matched anonymization: 'Ramana'→'the desk', 'RAMANA'→'THE DESK' (+possessive).
+    The 🧑 RAMANA origin-taxonomy label is UPPERCASE in the docs — a case-sensitive sub
+    misses it (the original P0-5 escape)."""
+    tok = m.group(0)
+    poss = tok.lower().endswith(("'s", "’s"))
+    if tok.isupper():
+        return "THE DESK'S" if poss else "THE DESK"
+    return "the desk's" if poss else "the desk"
 
 
 def _drop_gov_col(lines: list[str]) -> list[str]:
@@ -283,22 +297,31 @@ def _public(text: str) -> str:
             while i < n and lines[i].lstrip().startswith(">"):
                 i += 1
             continue
-        # 2) drop internal-pointer / doc-maintenance metadata lines
+        # 2) drop internal-pointer / doc-maintenance metadata lines — INCLUDING their
+        #    paragraph continuation lines (a "**Binding rule:** …" paragraph wraps; keeping
+        #    the tail would render an orphaned fragment).
         if _META_LINE.match(ln) or re.search(r"do not archive", ln, re.I):
             i += 1
+            while i < n and lines[i].strip() and not _is_block(lines[i]):
+                i += 1
             continue
-        # 3) drop the internal "Shared template (copy for any new strategy page)" section:
-        #    the heading + its fenced block (the fence holds heading-like lines, so skip the
-        #    fence itself, not "to the next heading").
-        if re.match(r"^\s*#+\s*Shared template\b", ln, re.I):
+        # 3) drop writer-instruction sections whole (template · maintenance): from the
+        #    heading to the next heading of the SAME or HIGHER level, fence-aware — the
+        #    template's code fence holds heading-like lines that must not end the skip.
+        m_sec = _DROP_SECTION.match(ln)
+        if m_sec:
+            lvl = len(m_sec.group(1))
             i += 1
-            while i < n and not lines[i].strip():
+            in_fence = False
+            while i < n:
+                s = lines[i].lstrip()
+                if s.startswith("```"):
+                    in_fence = not in_fence
+                elif not in_fence:
+                    m2 = re.match(r"^(#+)\s", lines[i])
+                    if m2 and len(m2.group(1)) <= lvl:
+                        break
                 i += 1
-            if i < n and lines[i].lstrip().startswith("```"):
-                i += 1
-                while i < n and not lines[i].lstrip().startswith("```"):
-                    i += 1
-                i += 1                                                # past the closing ```
             continue
         kept.append(ln)
         i += 1
@@ -308,11 +331,18 @@ def _public(text: str) -> str:
     text = re.sub(r"\s*\(permanent[^)]*\)", "", text, flags=re.I)          # (permanent — do not archive)
     text = re.sub(r"\s*\(and Ramana\)", "", text, flags=re.I)
     text = re.sub(r"future sessions", "readers", text, flags=re.I)
-    text = re.sub(r"\bRamana(?:'s)?\b", "the desk", text)
+    text = re.sub(r",?\s*dictated by him\b", "", text, flags=re.I)         # origins.md phrasing
+    text = re.sub(r"\bRamana(?:['’]s)?\b", _sub_ramana, text, flags=re.I)  # case-matched (catches 🧑 RAMANA)
+    text = re.sub(r"\bthis folder\b", "this reference", text, flags=re.I)  # repo-speak → reader-speak
+    text = re.sub(r"retire the \*\*deprecated\*\* column",
+                  "avoid the **deprecated** names", text, flags=re.I)
+    text = re.sub(r"\s*\(\s*(?:see\s+)?(?:memory|skill)\s+`[^`]+`\s*\)", "", text, flags=re.I)
+    text = re.sub(r"(?:see\s+|;\s*)?\b(?:memory|skill)\s+`[^`]+`", "", text, flags=re.I)
     text = re.sub(r"\breconciled:[^\n.]*", "", text, flags=re.I)           # residual "Reconciled: …"
     text = re.sub(r"`[0-9a-f]{7,40}`", "", text)                          # commit hashes
     text = re.sub(r"\(\s*(?:[SD]\d{1,3}[a-z]?[\s,/·]*)+\)", "", text)      # "(D111, S109)" refs
     text = re.sub(r"\b[SD]\d{1,3}[a-z]?\b", "", text)                     # residual bare S###/D### ids
+    text = re.sub(r"\b(20\d{2}-\d{2}-\d{2})[a-z]\b", r"\1", text)          # ledger ids "2026-07-15i" → date
     text = re.sub(r"[ \t]{2,}", " ", text)                               # collapse double spaces
     text = re.sub(r" *\(\s*\) *", " ", text)                             # empty parens
     text = re.sub(r" +([,.;·)])", r"\1", text)                           # space before punctuation
@@ -416,12 +446,17 @@ def _selftest() -> int:
     assert f"{_ROUTE}?p=mep" in dv, "sibling link not rewritten"
     assert "](" not in dv, "raw markdown link leaked (unconverted)"
     assert 'href="mep.md"' not in dv, "un-rewritten sibling href leaked"
-    # P0-5 (UX audit S-A): the PUBLIC reference must not leak internal governance/jargon
-    for _b in [render_index()] + [render_page(s) for s in _PAGES]:
-        for _bad in ("do not archive", "Reconciled:", "Governing decision", "future sessions"):
-            assert _bad not in _b, f"P0-5 leak: {_bad!r}"
-        assert "Ramana" not in _b, "P0-5 leak: 'Ramana'"
-        assert not re.search(r"\b[SD]\d{2,3}[a-z]?\b", _b), "P0-5 leak: a session/decision id"
+    # P0-5 (UX audit S-A): the PUBLIC reference must not leak internal governance/jargon.
+    # Checks are CASE-INSENSITIVE — the original leak was all-caps "RAMANA" sailing past
+    # a case-sensitive assert.
+    for _slug, _b in [("index", render_index())] + [(s, render_page(s)) for s in _PAGES]:
+        _low = _b.lower()
+        for _bad in ("do not archive", "reconciled:", "governing decision", "future sessions",
+                     "this folder", "binding rule", "maintenance protocol",
+                     "same commit", "memory `", "skill `"):
+            assert _bad not in _low, f"P0-5 leak on {_slug}: {_bad!r}"
+        assert not re.search(r"(?i)\bramana\b", _b), f"P0-5 leak on {_slug}: 'Ramana'"
+        assert not re.search(r"\b[SD]\d{2,3}[a-z]?\b", _b), f"P0-5 leak on {_slug}: a session/decision id"
     r404 = c.get(f"{_ROUTE}?p=nope")
     assert r404.status_code == 404, r404.status_code
     print(f"strategies_view selftest OK — index + {len(_PAGES)} pages 200, tables+callouts render, links rewritten")

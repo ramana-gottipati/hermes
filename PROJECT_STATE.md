@@ -2125,6 +2125,19 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 177 — 2026-07-17 — UI-revamp arc P0: /dash/strategy-ref governance leak CLOSED (P0-5, the last open audit P0)
+The site-revamp program (4 phases ratified by Ramana: all four, light-first default; spec = the session's UX-spec artifact,
+grounded in the S127 audit + live curls). **P0 shipped:** `strategies_view._public()` had three sanitizer gaps observed live
+(on-box curl): all-caps "🧑 RAMANA" escaped the case-SENSITIVE `\bRamana\b` sub (and the selftest's equally case-sensitive
+assert — the test hid the bug it was written to catch); README maintainer prose ("this folder", "Binding rule:", "Maintenance
+protocol") rendered publicly; 13 pages' `## Maintenance` writer-instruction tails + `memory \`…\`` refs served. Fix (render-time
+only, source docs untouched — the 🧑/🏠/📚 origin taxonomy stays BINDING in docs): case-matched `_sub_ramana` (RAMANA→THE DESK),
+`Binding rule` added to `_META_LINE` + paragraph-continuation consumption, fence-aware `_DROP_SECTION` (Shared template ·
+Maintenance ·  Maintenance protocol → dropped to next same-level heading), repo-speak subs (this folder→this reference,
+memory/skill backtick refs, ledger date-suffix ids). Selftest hardened to case-insensitive + 5 new banned phrases across all
+16 renders. `test_strategy_docs_coverage` 4/4. Next: P1 mock + token reskin (light-first) · P2 home tiers · P3 dossier
+lazy-tabs + rail folds · P4 public front-door prep (patearn.in currently parks at a forwarder — DNS flip is Ramana's).
+
 ### Session 169 (cont.) — 2026-07-16 — §7.7 Option-B guards (a)+(b) SHIPPED (import gate + retirement paths)
 Executing the §7.7 B follow-ons Ramana ratified; both authored in isolated lane worktrees (the S169 convention).
 - **(a) vendor-ToS IMPORT gate** (`53e7762`, `tests/test_feed_manifest.py`): AST assertion that no `src/web/*.py` imports any of the 6 `UNCLASSIFIED_FEEDS` fetchers (screener · fundamentals_history · shareholding_history · concalls · news_feed · enrich). Key/table substring scans are useless here — the keys name legit routes (/dash/screener), the CCI lens, an unrelated `_enrich` helper, and primary-sourced table displays — so it is import-based. Passes today; teeth test; proven to bite on a real injected import (`dq_banner.py`), reverted byte-exact.
