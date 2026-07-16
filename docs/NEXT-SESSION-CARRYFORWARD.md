@@ -22,6 +22,13 @@ PROJECT_STATE entries are enough.**
   measurement estate. The forward-test day runs ALL SIX ladder rows.
 - **Four seals now stand:** union `a9a14058…` · β14 `08b46199…` · C40RA `0715a0d9…` · **COMPOSITE-30
   `07ef2ef9…`**. Multiplicity at four disclosed in the newest registration; adjudication picks ≤1 graduate.
+- **Feed-lane probe (time-boxed, 3 attempts, recorded):** niftyindices history endpoints ARE reachable from
+  the box (curl reached the .NET layer: `getHistoricaldatatabletoString` returned a processing-error JSON,
+  not a block page), but the headless urllib session draws a WAF HTML page and the exact `cinfo` payload
+  shape is uncracked. **Next-step lead for the feed session:** lift the exact request from the site's own JS
+  bundle (`historical-data` page), or reuse whatever recipe the S120 seasonal session used to source the
+  2004-12 index history (that recipe was never committed as a tool — the real gap). Probe script:
+  `/tmp/nifty_hist_probe.py` on the box. TRI + long G-sec + rate histories all ride this one unlock.
 
 ## 🟢 2026-07-16 — S172 (Ramana: "Raise the CAGR target to 30... Let us make it"): COMPOSITE-30 lands at 26.4% PR / 27.3% TR (worst-honest 24.4) — all three new axes passed; ML-v2 REJECTED on its sealed bar (the hand rule beat the machine again); the modern-era slice already prints >30 — do NOT redo; kickstart-pick-verify
 - **Wins (ledger 16AF):** on the A2-composite base — **top-30** re-proven on the widened universe (2006-11

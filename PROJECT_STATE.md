@@ -2134,8 +2134,10 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
   to `_INDEX_DOCS` (reference-index class; serving rides the owed strategy-ref deploy).
 - Wiring: DOC_INDEX rows (prereg + ladder) · union.md §4 lead/fallback + §9 four-way + §10 ladder link ·
   carry-forward S173 block + resolved decision item.
-- **Next research (same session, time-boxed): the feed lane** — niftyindices TRI/G-sec history fetch to
-  research-side files (no prod write); outcome recorded either way.
+- **Feed-lane probe outcome (time-boxed, 3 attempts):** endpoints reachable from the box (curl got a .NET
+  processing-error JSON — not IP-blocked), headless urllib draws the WAF page; exact `cinfo` shape uncracked.
+  Lead recorded in the carry-forward: lift the request from the site's JS bundle or recover the S120 recipe
+  (never committed as a tool). No prod writes; probe script left at `/tmp/nifty_hist_probe.py` on the box.
 
 ### Session 172 (RS/Union lane, Ramana-directed: "Raise the CAGR target to 30... Let us make it") — 2026-07-16 — COMPOSITE-30 = 26.4% PR / 27.3% TR (worst-honest 24.4); all three new axes passed; ML-v2 REJECTED on its sealed bar; the modern-era slice prints >30 on existing machinery
 
