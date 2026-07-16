@@ -292,13 +292,13 @@ line reports month-to-date vs cap. Exceeding cap = degrade to templates, never s
 ## 7. Decisions reserved for Ramana
 
 1. Ratify this plan as the charter v2.0 base (or amend by D-log).
-2. E's monthly token cap value (default proposal: ₹200).
+2. E's monthly token cap value (default proposal: ₹200). → **RATIFIED ₹200/mo (Ramana, 2026-07-16).** `AUTO_ANALYST_CAP_INR` is already `200.0`; guard: route cost_ledger AMBER/RED to the owner inbox, revisit only after two months of actuals.
 3. I's personal activation timing (₹500/mo Kite data — not needed until an intraday question matters).
 4. Trademark spend now vs later.
 5. Acknowledge the §3.5 trigger contract: no public monetization of single-stock scores before the legal opinion.
 6. The S148 numbering/duplicate-commit reconcile (two lanes both used "S148"; S-B1 item-2 exists as patch-twins `a781669`/`29e4169`) — owning lanes to reconcile at next push.
-7. **Vendor-ToS enum for the 6 legacy feeds LANE-C could not honestly classify** (screener · fundamentals_history · shareholding_history · concalls-discovery-index · news_feed · enrich — all Guardrail-#8 remediation targets): add a fifth licence class `vendor-tos-remediating` (gated off public surfaces like the restricted classes) vs. keep them out of FEEDS until the XBRL/BSE migrations retire them.
-8. **Rule-lab ledger append (from the retired design doc's open question):** should a `NEW-BENCHMARK` verdict auto-append to `docs/strategy-ledger.md`, or land in the Review Inbox for approval first? **S157-b implemented the proposed default — inbox-first (canon carries a human signature; `rule_lab_inbox` ships the paste-ready block in the payload, nothing auto-appends).** Ratify or reverse.
+7. **Vendor-ToS enum for the 6 legacy feeds LANE-C could not honestly classify** (screener · fundamentals_history · shareholding_history · concalls-discovery-index · news_feed · enrich — all Guardrail-#8 remediation targets): add a fifth licence class `vendor-tos-remediating` (gated off public surfaces like the restricted classes) vs. keep them out of FEEDS until the XBRL/BSE migrations retire them. → **RATIFIED: Option B — keep them OUT of FEEDS; do NOT add a 5th licence class (Ramana, 2026-07-16).** Follow-on guards queued (see carry-forward): (a) a positive CI assertion that no `UNCLASSIFIED_FEEDS` key is referenced by any public `src/web` surface, (b) per-feed retirement dates in the manifest notes (+ resolve the now-decided `feed_manifest.py` `TODO(D134 LANE-R + Ramana)` comment), (c) bring the primary XBRL/BSE replacements into `FEEDS` with full DQ.
+8. **Rule-lab ledger append (from the retired design doc's open question):** should a `NEW-BENCHMARK` verdict auto-append to `docs/strategy-ledger.md`, or land in the Review Inbox for approval first? **S157-b implemented the proposed default — inbox-first (canon carries a human signature; `rule_lab_inbox` ships the paste-ready block in the payload, nothing auto-appends).** Ratify or reverse. → **RATIFIED: inbox-first stands as standing policy (Ramana, 2026-07-16).** Guard: a review-inbox staleness SLA so an unreviewed verdict is flagged, never silently backlogged.
 
 ## Maintenance
 
