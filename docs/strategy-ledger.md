@@ -2930,3 +2930,70 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   pick-ADV print in the forward runner · Aug-1 churn row-gain check (estate-wide, other lane) · the 2026-10-03
   forward-test day runs all six ladder rows.
 - **Provenance:** decisions in-chat 2026-07-16; registration + compendium land with this entry's commit.
+
+### 2026-07-16AI — S174 (Ramana: "crack the niftyindices payload and get the TRI data"): CRACKED. The committed fetcher lands (the S120-recipe gap closes), full 2005→2026 TRI histories for BOTH benchmarks are on disk, pipeline VERIFIED to the paisa against index_rows. Long G-sec history secured (2011+).
+
+- **Verdict: DATA MILESTONE (measurement estate; no strategy claim).**
+- **THE CRACK (found by reading the site's own live code through the in-app browser):** the modern site
+  serves history from **`/BackPage/getHistoricaldatatabletoString`** (PR OHLC) and
+  **`/BackPage/getTotalReturnIndexString`** (TR) — NOT the legacy `Backpage.aspx/...` every prior probe hit.
+  The payload is a JSON body whose `cinfo` value is a STRING of SINGLE-QUOTED JS-style JSON
+  (`"{'name':'NIFTY 500','startDate':'01-Jan-2025','endDate':'15-Jan-2025','indexName':'Nifty 500'}"`),
+  `name` = the UPPERCASED Trading_Index_Name from `IndexMapping.json` (253 indices), ranges capped ~1 year.
+  Confirmed working BOTH in-browser and HEADLESS FROM THE BOX (the earlier "WAF block" was purely payload
+  shape). Source of truth: the uncommented ajax in `IISLComponet.js`.
+- **THE TOOL (the durable artifact):** `research/explosive_moves/niftyindices_hist.py` — chunked yearly,
+  3 retries, 1s politeness, "-" NTR values handled, CSVs `date,value[,ntr]`. Primary source, G#8-clean.
+  **This closes the standing gap "the S120 recipe was never committed as a tool."**
+- **THE DATA (research-side `research/data/niftyindices/`, prod tables untouched — the feed lane owns
+  ingestion):** **Nifty 500 TR: 5,341 rows 2005-01-03→2026-07-16** · **Nifty Next 50 TR: 5,341 rows, same
+  range (FULL backtest coverage)** · Nifty GS 10Yr: 3,936 rows 2011-01-03→ (the long G-sec series) ·
+  Nifty Composite G-sec: 2,114 rows 2018+ (starts too late; 10Yr is primary) · Nifty 500 PR 2024
+  cross-check: 249 rows.
+- **VERIFICATION:** the PR cross-check matches `index_rows` EXACTLY on all spot dates (2024-01-15
+  19885.55 · 2024-06-14 22214.3 · 2024-12-30 22357.15 — byte-identical) → the pipeline is validated
+  end-to-end; the TR series ride the same pipeline. TRI sanity: N500 TRI 34,055 vs PR 21,551 on
+  2025-01-15 (×1.58 — two decades of dividends, coherent).
+- **Unlocked immediately:** the TRI benchmark recut (16AJ, same session) · the B2 G-sec bear-sleeve cells
+  (2011+ native, rf fallback before) · a future 1D-rate backfill via the same tool. The prod `index_rows`
+  ingestion (manifest + licence gate + timer) remains the feed lane's build, now trivial.
+- **Provenance:** fetch log `/tmp/nifty_backfill.log` on the box; tool + this entry land together; browser
+  session evidence in-chat (S174).
+
+### 2026-07-16AJ — S174: THE TRI RECUT (the measurement estate completes). The honest hurdle is Next-50 TRI 14.6%/yr; every ladder alpha compresses ~1.0-1.6pp and EVERY family member survives; COMPOSITE-30's honest pairing = book-TR 27.3% vs TRI, alpha +14.8, beta 0.81. B2 G-sec bear-sleeve: INERT on the lead and DATA-BOUNDED on the union.
+
+- **Verdict: MEASUREMENT RECORDED (no pass/fail; the sealed specs' criteria remain PR-vs-PR as frozen —
+  this recut reports the honest hurdle beside them for every future judgment).**
+- **THE HONEST HURDLE (Nifty Next 50 TRI buy-and-hold, 2006–2026): 14.6%/yr** (windows 11.3 / 25.1 / 11.5)
+  vs the PR bar's 13.3% (10.0 / 23.4 / 10.5) — the dividend differential is +1.3pp/yr on the benchmark side.
+- **The recut table (book PR CAGRs unchanged — engine reproduced to the digit; α/β re-regressed vs
+  Nifty 500 TRI):**
+
+| config | CAGR (PR) | αPR/βPR | **αTRI/βTRI** | 12-17 αTRI |
+|---|---|---|---|---|
+| union (sealed) | 17.5% | +6.8/0.87 | **+5.8/0.87** | −6.3 |
+| β14 (sealed) | 18.1% | +8.4/0.74 | **+7.5/0.74** | +2.2 |
+| C40RA (sealed) | 21.0% | +10.3/0.81 | **+9.4/0.81** | +3.0 |
+| A1-composite | 25.6% | +14.5/0.82 | **+13.5/0.81** | +3.5 |
+| A2-composite | 25.5% | +14.2/0.82 | **+13.3/0.82** | +3.8 |
+| **COMPOSITE-30 (lead)** | **26.4%** | +15.1/0.82 | **+14.2/0.81** | +4.2 |
+| **COMPOSITE-30 book-TR (the honest pairing)** | **27.3%** | +15.8/0.82 | **+14.8/0.81** (windows +14.0/+5.0/+18.0) | |
+
+  Betas are unchanged under TRI (PR and TRI returns are near-perfectly correlated) — the compression is
+  purely the dividend drip times beta, ~0.9-1.7pp by window. **Every member's full-period αTRI stays
+  decisively positive; the lead clears the honest hurdle by +12.7pp CAGR (27.3 vs 14.6).** The union's
+  known weak window deepens honestly (12-17 αTRI −6.3) — already fixed downstream by the β-cap generation.
+- **B2 G-sec bear-sleeve (the 16AE lever, unblocked by 16AI data): two cells, both decided:**
+  (a) **On COMPOSITE-30: INERT exactly as pre-stated** — idle ≈1% of book-time at inv 99%; the G-sec row is
+  IDENTICAL to base (26.4/26.4). (b) **On the sealed union (idle 18%): DATA-BOUNDED-UNTESTABLE** — the G-sec
+  row equals the rf twin to 1dp (18.0 both) because THE bear that matters (2008-09) predates the G-sec
+  series (2011+); post-2011 bear-state quarters are too few to separate the sleeves. The lever stays a
+  DESIGN option for future bears with no backtest evidence; NOT adopted. Incidentally recorded: the rf-cash
+  measurement applied to the union book = 17.5 → 18.0 (+0.5pp; candidate-class beside the seal, spec
+  untouched).
+- **Defect disclosed (caught before recording):** the first recut printed αTRI ≈ +19-30 at βTRI ≈ 0 — a
+  leg-alignment off-by-one in the external-series regression (`stat_vs` covered leg 0, the book series
+  cannot). Fixed, rerun; the corrected column is the one recorded here. The bench-CAGR bars and all PR
+  numbers were unaffected.
+- **Provenance:** `research/explosive_moves/union_lab6.py` (conventions + both B2 cells + the recut) ·
+  TRI/G-sec CSVs per 16AI · DB to 2026-07-15 · box read-only.

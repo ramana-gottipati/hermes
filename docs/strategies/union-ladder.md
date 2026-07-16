@@ -147,10 +147,20 @@ monthly cadence (4× confirmed) · cross-family LOWVOL_MOM blend, corr 0.83 (16A
 inverse-vol sizing (16X — narrowed by 16AF to VOL-based sizing only) · AND-intersection (16V) ·
 BE/fundamentals vetoes (16T).
 
-## 8. Open measurement estate
+## 8. Measurement estate — TRI RECUT COMPLETE (S174, ledger 16AI/16AJ)
 
-TRI benchmark + long G-sec history: the feed lane (unblocks bench-TRI recut + the B2 bear-sleeve
-lever). rf convention frozen (1D-Rate + 6.5% proxy). Dividend accrual = lower bound. Median
-pick-ADV print owed in the forward runner. Forward-test day (2026-10-03) runs ALL SIX configs
-above for the record; the FOUR sealed members are judged against their own criteria; family
-adjudication picks at most one graduate (highest forward alpha among passers).
+**The honest hurdle: Nifty Next 50 TRI = 14.6%/yr full-period** (11.3 / 25.1 / 11.5 by window),
++1.3pp over the PR bar. Data: `niftyindices_hist.py` (the committed fetch tool; pipeline verified
+to the paisa vs `index_rows`) → `research/data/niftyindices/` on the box: N500 TRI + NN50 TRI full
+2005→2026, GS-10Yr 2011+, GS-Composite 2018+. **α vs Nifty 500 TRI (betas unchanged):** union
++5.8 · β14 +7.5 · C40RA +9.4 · A1c +13.5 · A2c +13.3 · **COMPOSITE-30 +14.2 (book-TR pairing
++14.8, windows +14.0/+5.0/+18.0)** — every member survives the honest recut; full table in ledger
+16AJ. **B2 G-sec bear-sleeve: INERT on the lead (idle ~1%) and DATA-BOUNDED on the union (the
+2008-09 bear predates the 2011+ G-sec series)** — a design option for future bears, no backtest
+evidence, not adopted. rf convention frozen (1D-Rate + 6.5% proxy). Dividend accrual = lower
+bound. Median pick-ADV print owed in the forward runner. Sealed criteria stay PR-vs-PR as frozen;
+the TRI columns are reported beside every future judgment. Forward-test day (2026-10-03) runs ALL
+SIX configs above; the FOUR sealed members are judged against their own criteria; family
+adjudication picks at most one graduate (highest forward alpha among passers). Prod `index_rows`
+ingestion of the TRI/G-sec series = the feed lane's build (manifest + licence gate + timer), now
+trivial with the tool committed.

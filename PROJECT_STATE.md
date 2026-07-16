@@ -2140,6 +2140,26 @@ After this session's repeated cross-absorption + index-reset failures (a sibling
 - Guardrail unchanged: lanes still push to origin/main + rebase on conflict; the isolation is at the working-tree/index level, which is the actual root cause of this session's failures.
 - Follow-up fix (dogfooded via `new-lane.sh fix-retire-msg`): `retire-lane.sh` now prints the ACTUAL `git worktree remove` failure and treats an out-of-band-removed dir as "already gone" (prune + still clean the branch) instead of always claiming "not clean" — the misleading path hit when a parallel session yanked the authoring worktree mid-retire.
 
+### Session 174 (RS/Union lane, Ramana-directed: "crack the niftyindices payload and get the TRI data") — 2026-07-16 — CRACKED (committed fetcher) + full TRI backfill (verified to the paisa) + THE TRI RECUT: honest hurdle 14.6%, every family member survives; B2 G-sec sleeve decided
+
+- **Crack (16AI):** `/BackPage/*` endpoints + single-quoted `cinfo` payload, lifted from the site's own
+  live JS via the in-app browser; works headless from the box. Tool committed:
+  `research/explosive_moves/niftyindices_hist.py` (closes the S120-recipe gap). Data research-side:
+  N500+NN50 TRI full 2005→2026 (5,341 rows each), GS-10Yr 2011+, GS-Composite 2018+; PR cross-check ==
+  index_rows exactly.
+- **Recut (16AJ, measurement):** N50-TRI hurdle 14.6%/yr (11.3/25.1/11.5); αTRI compress ~1.0-1.6pp, betas
+  unchanged; COMPOSITE-30 honest pairing = book-TR 27.3% / αTRI +14.8 / β0.81, all windows positive.
+  Sealed criteria stay PR-vs-PR; TRI reported beside. Defect (stat_vs leg off-by-one → βTRI≈0) caught
+  before recording, fixed, rerun.
+- **B2 decided (16AJ):** inert on the lead; data-bounded on the union (2008-09 predates G-sec history);
+  not adopted. union+rf twin +0.5pp recorded (candidate-class). Sleeve/measurement lever space now FULLY
+  explored.
+- **Artifacts:** `niftyindices_hist.py` · `union_lab6.py` · ledger 16AI/16AJ · union-ladder.md §8 recut
+  section · carry-forward S174 block. Box research-side files only; prod untouched.
+- **Harness TIL:** the in-app browser's javascript_tool (same-origin fetch + reading the site's own JS)
+  cracked in ~15 minutes what three headless probe rounds could not — reach for the browser FIRST on any
+  web-API reverse-engineering.
+
 ### Session 173 (RS/Union lane, Ramana decisions) — 2026-07-16 — COMPOSITE-30 CONFIRMED + family REOPENED + REGISTERED as the 4th sealed sibling; the full-record COMPENDIUM lands (union-ladder.md)
 
 - **Owner decisions executed (ledger 16AH, quoted verbatim there):** COMPOSITE-30 confirmed as the lead with

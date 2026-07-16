@@ -10,6 +10,29 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-16 — S174 (Ramana: "crack the niftyindices payload and get the TRI data.. keep researching"): CRACKED + BACKFILLED + RECUT — the honest hurdle is Next-50 TRI 14.6%; every ladder member survives (lead αTRI +14.2, book-TR pairing +14.8); B2 G-sec sleeve decided (inert/data-bounded) — do NOT redo; kickstart-pick-verify
+- **The crack (ledger 16AI):** modern endpoints are `/BackPage/getHistoricaldatatabletoString` (PR) and
+  `/BackPage/getTotalReturnIndexString` (TR) — NOT `Backpage.aspx/...`; payload = JSON whose `cinfo` is a
+  SINGLE-QUOTED JS-style string; `name` = UPPERCASED Trading_Index_Name from IndexMapping.json; ≤1y chunks.
+  Works headless from the box (the "WAF" was payload shape). **The committed tool:
+  `research/explosive_moves/niftyindices_hist.py`** — the S120-recipe gap is CLOSED.
+- **The data (research-side `research/data/niftyindices/`, prod untouched):** N500 TRI + NN50 TRI **full
+  2005-01-03→2026-07-16 (5,341 rows each)** · GS-10Yr 2011+ (3,936) · GS-Composite 2018+ · PR cross-check
+  matches `index_rows` TO THE PAISA (pipeline verified).
+- **The recut (ledger 16AJ, measurement):** honest hurdle **N50-TRI 14.6%/yr** (11.3/25.1/11.5). αTRI:
+  union +5.8 · β14 +7.5 · C40RA +9.4 · A2c +13.3 · **COMPOSITE-30 +14.2, book-TR pairing 27.3%/α+14.8/β0.81
+  (windows +14.0/+5.0/+18.0)** — alphas compress ~1.0-1.6pp (dividend drip × β), betas unchanged, EVERY
+  member survives. Sealed criteria stay PR-vs-PR as frozen; TRI reported beside every future judgment.
+  ⚠ Defect caught pre-record: stat_vs leg-alignment off-by-one printed βTRI≈0 garbage on the first run —
+  fixed, rerun, corrected column recorded.
+- **B2 G-sec bear-sleeve DECIDED (16AJ):** inert on the lead (idle ~1%; rows identical) · data-bounded on
+  the union (the 2008-09 bear predates 2011+ G-sec history; G-sec == rf twin to 1dp). A design option for
+  FUTURE bears, no backtest evidence, NOT adopted. Incidental: union+rf-cash twin = 17.5→18.0 (+0.5pp,
+  candidate-class beside the seal). **The sleeve/measurement lever space is now FULLY explored.**
+- **Feed lane residue (small, now trivial):** prod `index_rows` ingestion of TRI/G-sec/rate series via the
+  committed tool (manifest + licence gate + timer — the estate's feed protocol). The RESEARCH need is met
+  from files.
+
 ## 🧭 2026-07-16 — S169 WRAP (boot digest): telegram seam CLOSED · plan §7 RATIFIED · worktree convention SHIPPED — do NOT redo; kickstart-pick-verify
 - **Shipped (all on origin):** Telegram `/inbox` test-seam fix `34407d4` (13/13, fixture-only) · plan **§7.2/§7.7/§7.8 RATIFIED** by Ramana + folded into plan §7 (transient brief retired) · **worktree convention** `15386b7` + `retire-lane.sh` fix `a4cd49c`.
 - **➡ USE THE WORKTREE CONVENTION from here (now binding, SESSION-PROTOCOL § HOW THE SESSION RUNS):** each concurrent lane runs `scripts/new-lane.sh <slug>` (its own working tree + index) → work + `git push origin HEAD:main` → `scripts/retire-lane.sh <slug>`. The shared `D:\Hermes` checkout is a fetch/read anchor only. This ends the cross-absorption / index-reset failures that plagued 2026-07-16. Doctrine + gotchas: `docs/worktree-convention.md`.
