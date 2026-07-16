@@ -10,6 +10,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔗 2026-07-16 — COORDINATION (parallel to the union CAGR lane): the union-ladder SIGNIFICANCE/DEFLATION pass is SEALED as a prereg but NOT YET RUN — it is the still-owed twin of §15i (which drove D139) — RUN it before any COMPOSITE-30 graduation; kickstart-pick-verify
+- **Sealed protocol `docs/prereg/union-ladder-validation-prereg.md` (sha256 `37c28824e96973…b47832b56`, on origin `e21163c`):** three FROZEN checks on the EXISTING ladder — **C1** D139 paired block-bootstrap significance of each increment · **C2** interim ≤2018-frozen / 2019-26-held OOS · **C3** selection-deflated forward-CAGR (CL-RES-07). NOT a strategy registration, NOT a 5th sibling; changes NO sealed spec. (Coordination session, not a numbered work lane.)
+- **Why it's still owed (S174 did NOT do it):** the estate already ran this exact pass on the SECTOR ladder (`research/explosive_moves/sector_rotation_significance.py`, ledger §15i) → it drove **D139** (V24↔V32 indistinguishable p=0.807 → keep the simpler V21). The UNION ladder — more selection rounds deep — has never had it. S174's TRI recut is benchmark-FAIRNESS, not sibling-DISTINGUISHABILITY.
+- **Frozen decision rule:** if the **C40→COMPOSITE-30** 95% CI includes 0, D139 says graduate the simpler, higher-capacity book (C40/A2), NOT the higher in-sample CAGR. Reuse §15i's paired Politis-Romano block bootstrap — cheap. Companion stress (not in the frozen bars): dead-name haircut −70/−90% on era-floor picks + let-winners-run contribution by window.
+
 ## ✅ 2026-07-16 — S174 (Ramana: "crack the niftyindices payload and get the TRI data.. keep researching"): CRACKED + BACKFILLED + RECUT — the honest hurdle is Next-50 TRI 14.6%; every ladder member survives (lead αTRI +14.2, book-TR pairing +14.8); B2 G-sec sleeve decided (inert/data-bounded) — do NOT redo; kickstart-pick-verify
 - **The crack (ledger 16AI):** modern endpoints are `/BackPage/getHistoricaldatatabletoString` (PR) and
   `/BackPage/getTotalReturnIndexString` (TR) — NOT `Backpage.aspx/...`; payload = JSON whose `cinfo` is a
