@@ -10,6 +10,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-16 — S162 (Ramana-directed): D142 payload fix — pre-relabel rule-lab verdict renders its number — LIVE — do NOT redo
+- **Ramana:** *"chase the D142 payload fix so the number renders."* DONE. The live NEW-BENCHMARK verdict was stored pre-D142 with `net_sharpe`; renderers read `net_retvol` → "—". Fix (`rule_lab_inbox.py`): `normalize_numbers()` maps legacy keys on read in `latest_verdict()` (one place → Pat + the page); `backfill_legacy_payloads()` (+`--backfill`) made the stored row honest + regenerated its ledger_block. Backfilled live; the page now shows "net return/vol 1.19 vs benchmark 0.89". Suite 679/0. Record: PROJECT_STATE §Session 162.
+- **The rule-lab verdict is now fully judgeable** — its number renders and its ledger_block is on the honest vocabulary, so approving it on `/dash/inbox` is safe (no bare "Sharpe" into canon). **3 waiting** now: this verdict + the 2 results briefs (ANANDRATHI, HCLTECH), all left for Ramana to review on the page.
+- **➡ NEXT PICKS:** ① Ramana's 3 pending queue judgments ② plan decisions §7.2/§7.7/§7.8 ③ Aug-1 churn row-gain. The D142 payload-migration flag from S160 is now CLOSED.
+
 ## ✅ 2026-07-16 — S161 (Ramana-directed): the Telegram `/inbox` COMMAND — LIVE — do NOT redo; kickstart-pick-verify
 - **Ramana:** *"do the telegram /inbox command too."* DONE + LIVE. `/inbox` reports the review queue on demand; `/inbox <kind>` filters (briefs|rule|tags|alerts). Owner-gated, READ-ONLY, in the `/` menu (`getMyCommands` confirms). Renders through the SAME `inbox_flow.format_telegram_reply()` as S160-b's free-text pre-pass, the morning DM and `/dash/pat` — one queue, four channels, cannot disagree. Suite 676/0; 12 contracts. Full record: PROJECT_STATE §Session 161.
 - **The queue now reaches EVERY channel:** the `/dash/inbox` lens (S158) · Pat web-chat (S160) · the morning DM nudge (S160) · Telegram free-text (S160-b) · **Telegram `/inbox` (S161)**. Ramana's "communication belongs in the chat" is fully answered.
