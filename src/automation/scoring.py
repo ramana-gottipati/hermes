@@ -1,12 +1,16 @@
 """Rule-based patearn 14-pattern scorer (no LLM).
 
-Reads fundamentals from the `fundamentals` table (populated by screener.py),
-applies the explicit Yes/Partial/No criteria from resources/patearn/patterns.md,
-and returns a structured score.
+Reads fundamentals from the PRIMARY-SOURCE archive via `fundamentals_asof`
+(research.db.fundamentals_history — NSE-XBRL where migrated, labeled Screener-era
+legacy for pre-~2022 / gate-held rows — plus shareholding_history, and the bhav copy
+for price), applies the explicit Yes/Partial/No criteria from
+resources/patearn/patterns.md, and returns a structured score.
+S148/3.4: this REPLACED the live screener.py scrape — the scoring path makes no
+network call and no Screener request (Guardrail #8). See score_symbol().
 
-Patterns that need data we don't reliably have from Screener.in (sector tailwinds,
-export mix, concall narrative) are marked Estimated and contribute at 70% weight
-per the methodology, OR are scored conservatively as Partial.
+Patterns that need data no filing carries (sector tailwinds, export mix, concall
+narrative) are marked Estimated and contribute at 70% weight per the methodology,
+OR are scored conservatively as Partial.
 
 This file is the operational implementation of patearn Phase 3. Phase 4 (the
 qualitative deep dive) still happens in claude.ai with the patearn skill — this
@@ -15,6 +19,7 @@ code only handles the quantitative scoring.
 
 import json
 import logging
+from datetime import date
 from typing import Optional
 
 from src.core.db import get_conn
@@ -444,12 +449,38 @@ def save_score(score: dict) -> int:
 
 # --- Convenience entry points ---------------------------------------------
 
+def _latest_close(symbol: str) -> Optional[float]:
+    """Latest bhav-copy close — the price PE/PB need. Primary-source, local, no network."""
+    try:
+        with get_conn() as conn:
+            row = conn.execute(
+                "SELECT close FROM bhavcopy_rows WHERE symbol = ? "
+                "ORDER BY trade_date DESC LIMIT 1", (symbol,)).fetchone()
+        return row["close"] if row else None
+    except Exception:  # noqa: BLE001 — price is optional (PE/PB simply stay None)
+        return None
+
+
 def score_symbol(symbol: str, *, force_refresh: bool = False) -> dict:
-    """Fetch fundamentals (cache or fresh) then score. Returns full score dict."""
-    from src.automation import screener
-    f = screener.fetch_company(symbol, use_cache=not force_refresh)
+    """Score a symbol from the PRIMARY-SOURCE archive — no Screener, no network (Guardrail #8).
+
+    Reads `research.db.fundamentals_history` (NSE-XBRL where migrated; labeled Screener-era
+    legacy for pre-~2022 / gate-held rows) + `shareholding_history`, point-in-time via
+    `fundamentals_asof`, with the PE/PB price from the bhav copy. This REPLACED the live
+    `screener.fetch_company` scrape (S148/3.4): the archive supplies every key
+    score_fundamentals reads, PLUS the time-series keys Screener never did (roce_3y_avg,
+    roce_rising_3y, opm_trend_3y, interest_coverage, profit_accel_ttm, …) — measured worth
+    ~+5.1 NS points of real signal the scorer used to fall back to estimates for. Coverage
+    also goes ~107 -> ~2,000 symbols (the old scrape cache only ever held the surfaced few).
+
+    `force_refresh` is retained for call-site compatibility and is now a NO-OP — there is no
+    scrape cache to refresh; every call reads the archive as of today.
+    """
+    from src.automation import fundamentals_asof
+    f = fundamentals_asof.as_of_fundamentals(
+        symbol, date.today().isoformat(), price=_latest_close(symbol))
     if not f:
-        return {"error": f"could not fetch fundamentals for {symbol}", "symbol": symbol}
+        return {"error": f"no fundamentals in the archive for {symbol}", "symbol": symbol}
     score = score_fundamentals(f, is_financial=is_financial_symbol(symbol))
     save_score(score)
     return score
