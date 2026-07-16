@@ -46,6 +46,23 @@ def test_worklist_tier1_first():
         assert wl == [("AAA", 1), ("ZZZ", 1), ("MMM", 2)]
 
 
+def test_worklist_includes_indexed_symbols_absent_from_the_archive():
+    """S148/3.4 regression guard: an NSE-indexed symbol with NO fundamentals_history rows at
+    all (a newer listing that never existed in the Screener era) MUST still be worklisted.
+    A worklist derived only from fundamentals_history skipped these forever — harmless while
+    scoring could fall back to a live scrape, fatal once the scorer reads only the archive
+    (61 indexed names went unscoreable the moment the scrape was switched off)."""
+    with tempfile.TemporaryDirectory() as td:
+        rdb, hdb = os.path.join(td, "r.db"), os.path.join(td, "h.db")
+        _research_db(rdb, [("OLDCO", "2024-03-31")])       # only OLDCO has archive rows
+        _hermes_db(hdb, ["OLDCO", "NEWLISTING"])           # NEWLISTING indexed, never archived
+        con = sqlite3.connect(rdb)
+        wl = fx._backfill_worklist(con, window_start="2018-01-01", hermes_db=hdb)
+        con.close()
+        assert ("NEWLISTING", 1) in wl, f"indexed-but-unarchived symbol skipped: {wl}"
+        assert ("OLDCO", 1) in wl
+
+
 def test_period_floor_freezes_pre_window():
     """write_rows must skip a pre-window period and write an in-window one — the machine
     guard behind 'pre-2018 stays Screener'."""
