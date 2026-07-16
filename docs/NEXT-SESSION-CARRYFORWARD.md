@@ -10,6 +10,47 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-17 — S180: the PORTFOLIO-CONSTRUCTION LAYER design doc is SHIPPED (queue-① DONE) · ② banked box-gated · ③ time-gated — do NOT redo; kickstart-pick-verify
+- **① DONE — `docs/portfolio-layer-design.md` is ON ORIGIN** (design-of-record; DOC_INDEX §B 24→25; Lifecycle
+  banner; doc-hygiene + retvol-label + strategy-docs-coverage GREEN). The 16AN program's DoR, one level above
+  the equity book: **§4** weights policy on the MEASURED book+G-sec dial (each +10% G-sec ≈ −1.7pp CAGR /
+  −1.5pp MaxDD native / −3.5pp full; ret/vol 1.11→1.23 monotone; corr ≈ 0.00), named policy points
+  (Max-Compounding 100/0 · **Balanced default 80/20** · Survivability-tilted 70/30) + a monotone
+  drawdown-target-as-POLICY decision rule (highest-equity mix whose ex-ante MaxDD ≤ the holder's budget —
+  **Ramana's risk appetite picks the point**); **§5** the load-bearing POLICY-not-SIGNAL line (reactive
+  de-risk = the 16W throttle wall, FORBIDDEN); **§6** ±5pp rebalance band on the existing quarterly cadence
+  (measurement OWED — calendar quarterly is the reported policy until then); **§7** gold leg PENDING
+  primary-source data (G#8: NSE gold-ETF/SGB via the feed protocol, **corr-first gate** before any three-asset
+  grid — NO gold number until data lands); **§8** the hard bar — **no dynamic/timed/regime weights, no new
+  asset legs w/o primary data, no registration/surface — without a FRESH prereg + full falsification battery**;
+  **§9** fold the chosen point into the 2026-10-03 forward reporting (judges the book, shows it at the owner's
+  risk point). Descriptive; in-sample mix CAGRs flagged selection-inflated (read vs deflated bands K30≈21.6 /
+  A2≈21.0, 16AL) — the DIAL is the transferable object, not the levels. No numbers moved, no code, no deploy.
+- **📣 Absorption disclosure (S164-class, 6th recorded case) — do NOT redo or restore:** an initial slip edited
+  the SHARED `D:\Hermes` tree — Read/Write/Edit used bare `D:\Hermes\...` paths while this session's worktree is
+  `zen-diffie-ffb2e7`, so the edits hit the shared checkout, not the worktree. Before I consolidated into the
+  worktree, a sibling's `git add -A` swept my 3 doc files + the S180 PROJECT_STATE entry + the DOC_INDEX edit
+  into commit **`3617893` "docs(portfolio-layer): land the S180 portfolio-construction design doc [S180]"** and
+  pushed. **Verified on origin: `portfolio-layer-design.md` == my authored version BYTE-IDENTICAL, DOC_INDEX
+  count 25, the full 5-bullet S180 entry present — content mine + correct + complete; only the commit
+  attribution is off.** My duplicate worktree commit `73544a3` was dropped (reset to origin/main). **Durable
+  lesson:** in a worktree session, Read/Write/Edit on bare `D:\Hermes\...` paths hit the SHARED tree — use the
+  worktree path (`D:\Hermes\.claude\worktrees\<slug>\...`) for every edit, or the shared-tree work gets absorbed.
+- **② BOX-GATED (paste-ready) — median pick-ADV + A2-clean-TR in the forward runner `union_lab6.py`:** local
+  `data/hermes.db` = **0-row empty shell** → cannot run/verify locally; the module feeds the sealed 2026-10-03
+  forward test, so **NO blind edit** (§0.3/§4). Exact change: (a) `run5` (line 454) lacks `medadv` — init
+  `medadv=[]` in its locals, inside the quarterly loop after `sel` is set (line 471) add
+  `pm=pym(d); advs=sorted(adv.get(s,{}).get(pm,0) for s in sel); ` + `if advs: medadv.append(advs[len(advs)//2])`,
+  add `medadv=medadv` to run5's return dict, and in `row6` (line 632) add a `medADV %4.1fcr` column mirroring
+  `battery`'s line 442-443; (b) add `row6("a2-composite TR (book dividends)", fmode="pf1", topn=40, rf_cash=True, tr=True)`
+  after line 658 (mirrors the COMPOSITE-30 TR line 660). **VERIFY on the box:** the six PR CAGRs must be
+  UNCHANGED (print-only), medADV plausible (A2 rows ~₹7.7-11.3cr per 16AE), a2-TR CAGR ≥ 25.5. Run under the
+  VPS `.venv-research` + full `research.db`; box read-only, no deploy.
+- **③ 2026-10-03 forward-test day: TIME-GATED + fully specified** (union-ladder.md §8; all six ladder rows +
+  TRI columns + book-TR pairings + the ② prints; judge the 4 seals vs their registrations; adjudication picks
+  ≤1; era-floor window-fit flag rides in). The portfolio-layer §9 fold is now on record. Nothing to ship until
+  the day; **② is its one open completeness item.**
+
 ## ✅ 2026-07-16 — S175 (Ramana): TRI DATA IN PROD + STRATEGY PAGES LIVE — the two standing debts are CLOSED — do NOT redo; kickstart-pick-verify
 - **Ingestion (ledger 16AK):** 'Nifty 500 TRI' / 'Nifty Next 50 TRI' (5,341 rows each, 2005→2026) +
   'Nifty GS 10Yr' (2011+) + 'Nifty GS Compsite' (2018+) = **16,732 rows in prod `index_rows`** via
@@ -1476,25 +1517,18 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`
 > (§ AT SESSION START), then execute `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom —
-> read the ✅ S143 + S142 + S141 + S140 + S137 blocks FIRST (all on origin/main; do NOT
-> redo — kickstart-pick-verify). **THE QUEUE = the S127 UX-remediation program**
-> (`docs/ux-journey-audit-2026-07-13.md` §8).
-> Done: S-A front door · S-H route gate · **S-C COMPLETE** (items 1+7 S134 · scaffold S136 ·
-> glossary links + nav subtitles S138 · **the education-coverage gate + the full 63/63 sweep
-> S137** · **item 4 glossary-unify S141/D132 — ONE vocabulary, Pat=199 entries**) ·
-> S-D search/entry S140 · **S-E PHASE 1 nav-answer S142** (`src/pat/nav_flow.py`) ·
-> **S-B1 STARTED — cross-links S143** (`infographics.related_strip()` on the 7 RS/rotation views +
-> momentum→dossier; items 4·9·½8).
-> **NEXT free pick — two good options:** (a) **S-B1 REMAINDER** — item 1 Markets rail → task groups
-> (forked `lens_registry.group=` + `left_rail._GROUP_ORDER`) · item 2 merge RRG-Map + Rotation-Weather
-> (Map⇄Weather toggle, the Wolfe-toggle precedent) · item 3 fold cycle-clock/sector-momentum/early-signals
-> into Rotation · items 5/6/7/10/11 + the reverse `/dash/sectors→sector-economics` link (forked
-> `cockpit.render_sectors`). (b) **S-E PHASE 2+3** — Pat DATA flows (attention "what changed today / for
-> SYMBOL", news/wire, participants/FII, insider/ratings/SAST/holdings, rotation states, seasonal base
-> rates, internals breadth, Wolfe open-trades) + education, following the `nav_flow.py`/`overdue_flow.py`
-> pattern (new Pat file + ₹0 engine.route pre-pass + web render + eval/pytest guards); KEEP closed-vocab
-> deterministic SQL. Else **S-B2** (route deprecation + POST-ify GETs) or **S-G** expert affordances.
-> Ramana may paste a problem statement; if none, take the audit §8 brief autonomously.
+> read the ✅ S180 + 🟢 S179+ARC blocks FIRST (all on origin/main; the union arc S165→S179 is
+> COMPLETE and the portfolio-layer design doc shipped S180 — do NOT redo, kickstart-pick-verify).
+> **THE QUEUE:** ① the PORTFOLIO-LAYER program's next steps per `docs/portfolio-layer-design.md` §10 —
+> the ±5pp rebalance-band measurement (§6) + the gold-leg primary-source data (§7: NSE gold-ETF/SGB via
+> the feed protocol, **corr-first gate**) — BOTH box-gated (need the VPS `.venv-research` + full
+> `research.db`; local `data/hermes.db` is a 0-row shell); ② the box-gated forward-runner completeness
+> (median pick-ADV + A2-clean-TR in `union_lab6.py` — **paste-ready exact spec in the S180 block above**);
+> ③ the 2026-10-03 forward-test day (union-ladder.md §8; fold in the portfolio-layer §9 policy point).
+> **HARD BAR (§8):** no dynamic/timed/regime weights + no new asset legs without primary data — without a
+> FRESH prereg + full falsification battery. Cite the failure-ledger catalog §§A–G before any RS/portfolio
+> proposal. Ramana may paste a problem statement; if none, take the box-gated queue when the research env
+> is available, else surface a STRONG-tier pick.
 > **Reuse, don't rebuild:** `infographics.fence(kind)` for any fence (add a kind, never hand-write);
 > `readability_css/bottom_line/plain/how_to_read_link` for education (dashboard-served pages go
 > through `dashboard._edu()`; tracker demo via `tracker_gate._edu_demo`); **NEW lens pages must
