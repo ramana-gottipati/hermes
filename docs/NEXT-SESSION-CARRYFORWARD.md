@@ -10,6 +10,24 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-17 — S181: `union_forward.py` BOX-VERIFIED — the 2026-10-03 forward-test day is ONE COMMAND and every S179-queue item is CLOSED (ledger 16AO) — do NOT redo; kickstart-pick-verify
+- **The run (2026-07-17, read-only, log `/tmp/union_forward_s181.log`): repro gate 6/6 TO THE DIGIT** —
+  U 17.5/26.04 · B14 18.1/28.84 · C40 21.0/47.29 · **A1 25.6/100.43 (first cross-lineage repro of the
+  lab4 row through the val engine)** · A2 25.5/99.03 · K30 26.4/115.69. Criteria/dial sections
+  self-suppress at 0 completed forward quarters (observed — honest interim behavior).
+- **The owed prints are MEASURED (16AO):** **A2 CLEAN-TR 26.3% / 113.65× / DD −27.2%** (K30 same-code-path
+  anchor 27.3/131.80 OK; union-ladder §5 updated) · **median pick-ADV** U 24.4/31.7 · B14 23.4/45.4 ·
+  C40 27.0/58.7 · A1 8.7/52.1 · A2 11.3/52.1 · K30 12.7/57.7 ₹cr (full/recent-4) — **the era-floor
+  small-cap character is EARLY/MID-ERA; current selections are ₹52–58cr liquid.**
+- **The boundary is DERIVED, not assumed:** engine legs 2026-04-01 → **2026-07-01 (boundary)** → next
+  ≈ 2026-10-01; the 2026-10-03 date lands 2 days after the first forward leg completes — **validated,
+  leave the scheduler task alone.** On the day: refresh TRI/G-sec CSVs (`niftyindices_hist.py`), then
+  `python3 union_forward.py /opt/hermes/data/hermes.db --asof 2026-10-03` (box copy == HEAD, md5-verified).
+- **The union/RS estate now has ZERO open items that are not time-gated or Ramana-gated:** the 2026-10-03
+  checkpoint (mechanical) · the ≥8-quarter judgment (~2028-07+) · Ramana's portfolio policy point (design
+  default 80/20; `<< POLICY` marker = 1-line runner change) · the §6 rebalance-band + §7 gold-leg
+  measurements (design-doc §10, data-gated).
+
 ## ✅ 2026-07-17 — S180: the PORTFOLIO-CONSTRUCTION LAYER design doc is SHIPPED (queue-① DONE) · ② BUILT by sibling S181 (`union_forward.py`) · ③ time-gated — do NOT redo; kickstart-pick-verify
 - **① DONE — `docs/portfolio-layer-design.md` is ON ORIGIN** (design-of-record; DOC_INDEX §B 24→25; Lifecycle
   banner; doc-hygiene + retvol-label + strategy-docs-coverage GREEN). The 16AN program's DoR, one level above
@@ -49,6 +67,7 @@ PROJECT_STATE entries are enough.**
   box (`union_forward.py <db> [--asof 2026-10-03]`, stdlib-only) and confirm the repro gate passes to the digit.
   S181 also refined `docs/portfolio-layer-design.md` §9/§10.3 (marked BUILT) + `union-ladder.md` — the design doc
   on origin is no longer byte-identical to the S180-authored version (improved, not regressed).
+  **→ RESOLVED same day: S181 ran it on the box — repro 6/6, owed prints measured (16AO; the S181 block above). The "box-gated" state is CLOSED.**
 - **③ 2026-10-03 forward-test day: TIME-GATED + fully specified** (union-ladder.md §8; all six ladder rows +
   TRI columns + book-TR pairings + the ② prints; judge the 4 seals vs their registrations; adjudication picks
   ≤1; era-floor window-fit flag rides in). The portfolio-layer §9 fold is now on record AND built (S181). The
@@ -1522,15 +1541,17 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 ## KICKOFF PROMPT (paste to start the next session)
 > Continue the Hermes/Patearn work autonomously. Boot per `docs/SESSION-PROTOCOL.md`
 > (§ AT SESSION START), then execute `docs/NEXT-SESSION-CARRYFORWARD.md` top-to-bottom —
-> read the ✅ S180 + 🟢 S179+ARC blocks FIRST (all on origin/main; the union arc S165→S179 is
-> COMPLETE and the portfolio-layer design doc shipped S180 — do NOT redo, kickstart-pick-verify).
-> **THE QUEUE:** ① the PORTFOLIO-LAYER program's next steps per `docs/portfolio-layer-design.md` §10 —
-> the ±5pp rebalance-band measurement (§6) + the gold-leg primary-source data (§7: NSE gold-ETF/SGB via
-> the feed protocol, **corr-first gate**) — BOTH box-gated (need the VPS `.venv-research` + full
-> `research.db`; local `data/hermes.db` is a 0-row shell); ② ✅ the forward-runner completeness (median
-> pick-ADV + A2-clean-TR) is **BUILT by S181 in `union_forward.py`** — do NOT edit `union_lab6.py`; the only
-> open step is running `union_forward.py` on the box (kickstart-pick-verify); ③ the 2026-10-03 forward-test
-> day (union-ladder.md §8; `union_forward.py` makes it one command; fold in the portfolio-layer §9 policy point).
+> read the ✅ S181 + ✅ S180 + 🟢 S179+ARC blocks FIRST (all on origin/main; the union arc S165→S179 is
+> COMPLETE, the portfolio-layer design doc shipped S180, and the forward runner is BUILT + BOX-VERIFIED
+> S181 with the owed prints measured, ledger 16AO — do NOT redo any of it, kickstart-pick-verify).
+> **THE QUEUE:** ① the PORTFOLIO-LAYER program's remaining measurements per
+> `docs/portfolio-layer-design.md` §10 — the ±5pp rebalance-band cell (§6, on `portfolio_mix.py`'s grid)
+> + the gold-leg primary-source data (§7: NSE gold-ETF/SGB via the feed protocol, **corr-first gate**) —
+> box-gated (VPS research env); ② the 2026-10-03 forward-test day — TIME-GATED and now ONE COMMAND
+> (`union_forward.py`; refresh TRI/G-sec CSVs first; the S181 block has the exact invocation); ③
+> Ramana-gated: the portfolio policy point (design default 80/20; `<< POLICY` marker = 1-line change).
+> If the box research env is unavailable and nothing else qualifies, take a STRONG-tier pick from the
+> older queue blocks below (kickstart-pick-verify each).
 > **HARD BAR (§8):** no dynamic/timed/regime weights + no new asset legs without primary data — without a
 > FRESH prereg + full falsification battery. Cite the failure-ledger catalog §§A–G before any RS/portfolio
 > proposal. Ramana may paste a problem statement; if none, take the box-gated queue when the research env
