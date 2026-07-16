@@ -10,6 +10,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🧭 2026-07-16 — S169 WRAP (boot digest): telegram seam CLOSED · plan §7 RATIFIED · worktree convention SHIPPED — do NOT redo; kickstart-pick-verify
+- **Shipped (all on origin):** Telegram `/inbox` test-seam fix `34407d4` (13/13, fixture-only) · plan **§7.2/§7.7/§7.8 RATIFIED** by Ramana + folded into plan §7 (transient brief retired) · **worktree convention** `15386b7` + `retire-lane.sh` fix `a4cd49c`.
+- **➡ USE THE WORKTREE CONVENTION from here (now binding, SESSION-PROTOCOL § HOW THE SESSION RUNS):** each concurrent lane runs `scripts/new-lane.sh <slug>` (its own working tree + index) → work + `git push origin HEAD:main` → `scripts/retire-lane.sh <slug>`. The shared `D:\Hermes` checkout is a fetch/read anchor only. This ends the cross-absorption / index-reset failures that plagued 2026-07-16. Doctrine + gotchas: `docs/worktree-convention.md`.
+- **➡ QUEUED from §7.7 B (additive, kickstart-pick-verify EACH):** (a) positive CI assertion that no `UNCLASSIFIED_FEEDS` key is referenced by any public `src/web` surface · (b) per-feed retirement dates in `feed_manifest.py` + resolve its now-decided `TODO(D134 LANE-R + Ramana)` comment (= B) · (c) primary XBRL/BSE replacements into `FEEDS` with DQ · (d) tiny: `auto_analyst.py:16` comment PROPOSAL→RATIFIED. Standing non-§7: the rf re-cut (S170 plan — run when the union lane quiets) + time-gated Aug-1 churn / Oct-3 union forward test.
+
 ## ✅ 2026-07-16 — S173 (Ramana decisions): COMPOSITE-30 CONFIRMED as the lead + the family REOPENED + REGISTERED as the 4th sealed sibling (`07ef2ef9…`); the FULL-RECORD COMPENDIUM lands (`docs/strategies/union-ladder.md` — every config complete, specs + all numbers) — do NOT redo; kickstart-pick-verify
 - **Owner decisions executed (verbatim in ledger 16AH):** COMPOSITE-30 over A2-composite with the deeper DD
   explicitly accepted · family-closed clause SUPERSEDED by owner authority (sealed files untouched) ·
