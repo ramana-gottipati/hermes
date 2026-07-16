@@ -35,8 +35,10 @@ _DIR = Path(__file__).resolve().parents[1] / "docs" / "strategies"
 # entry), so it is exempt from the "every doc is served" rule. origins.md IS served
 # (S147) so it is NOT here — but it is exempt from the per-page Origin-label rule below.
 # union-ladder.md (S173) is the union-family full-spec/results COMPENDIUM (a reference
-# index in the origins.md class, not a strategy page); its serving rides the owed
-# strategy-ref deploy lane — until then it is index-class, not a _PAGES entry.
+# index in the origins.md class, not a strategy page). It IS served at its own URL
+# (added to _PAGES 2026-07-17 — the owed strategy-ref deploy) but stays INDEX-CLASS:
+# a compendium is not a strategy, so it is exempt from the per-strategy README-matrix
+# and **Origin:** rules below. README.md is the index route, never a _PAGES entry.
 _INDEX_DOCS = {"README.md", "union-ladder.md"}
 
 # Served docs that are governance/provenance INDEXES, not a single strategy — exempt
@@ -66,7 +68,8 @@ def test_every_served_page_has_a_file() -> None:
 
 def test_every_served_page_listed_in_readme_matrix() -> None:
     readme = (_DIR / "README.md").read_text(encoding="utf-8")
-    unlisted = [fn for fn, _lbl in sv._PAGES.values() if f"]({fn})" not in readme]
+    unlisted = [fn for fn, _lbl in sv._PAGES.values()
+                if fn not in _INDEX_DOCS and f"]({fn})" not in readme]
     assert not unlisted, f"served page(s) NOT linked in the README status matrix: {unlisted}"
 
 
@@ -75,7 +78,7 @@ def test_every_served_page_declares_origin() -> None:
     in its header (🧑 RAMANA / 🏠 HOUSE / 📚 CLASSIC). A new strategy may not ship
     without the label — this is the machine backstop behind origins.md."""
     missing = [fn for fn, _lbl in sv._PAGES.values()
-               if fn not in _ORIGIN_LABEL_EXEMPT
+               if fn not in _ORIGIN_LABEL_EXEMPT and fn not in _INDEX_DOCS
                and not _ORIGIN_RE.search((_DIR / fn).read_text(encoding="utf-8"))]
     assert not missing, (
         f"served strategy page(s) missing the binding **Origin:** header "
