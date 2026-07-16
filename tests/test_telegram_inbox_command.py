@@ -52,17 +52,39 @@ class _Ctx:
 
 
 @pytest.fixture()
-def db(monkeypatch):
-    """An in-memory queue wired into the bot's get_conn + an authorized owner."""
-    conn = sqlite3.connect(":memory:")
-    review_inbox.ensure_schema(conn)
+def db(monkeypatch, tmp_path):
+    """A real on-disk queue wired into the bot's get_conn + an authorized owner.
+
+    NOT :memory:, and not a shared connection. on_inbox reads the queue inside
+    loop.run_in_executor(None, ...) — a WORKER thread — whereas the fixture runs
+    on the test thread. A single sqlite connection cannot cross threads (the
+    check_same_thread guard raises ProgrammingError), and waiting() swallows that
+    into an empty queue — so a shared-:memory:-connection fixture silently seeds
+    nothing the handler can see (the queue reads back as "nothing is waiting on
+    you" and every content assertion fails). Bind get_conn to a FILE PATH and
+    open a fresh connection per call — exactly what production get_conn does — so
+    each thread gets its own connection to the same database (the S163-b "capture
+    the path string, not the connection object" lesson)."""
+    db_path = str(tmp_path / "review_inbox.db")
 
     @contextmanager
     def _fake_get_conn():
-        yield conn
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
 
     monkeypatch.setattr(TB, "get_conn", _fake_get_conn)
     monkeypatch.setattr(TB, "_is_authorized", lambda uid: uid == 42)
+
+    # The test-thread handle used by _fill() and the direct-query assertions.
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    review_inbox.ensure_schema(conn)
+    conn.commit()
     yield conn
     conn.close()
 
