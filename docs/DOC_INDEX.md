@@ -103,6 +103,7 @@ for the analytics-company plan; retire when all lanes LANDED) · `docs/time-mach
 `docs/d142-rf-recut-plan.md` (S170 — the executable pre-registered plan for D142's deferred
 rf re-cut: site inventory + the rf/σ first-order result + verdict watch-list; retire when the
 re-cut LANDS and folds into strategy-ledger.md + strategies/*) ·
+`docs/s7-owner-decisions-brief-2026-07-16.md` (S169 — panel-consulted, decision-ready briefs for plan §7 items 2/7/8; retire when all three are ratified + folded into plan §7 + the D-log) ·
 `docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
 · `docs/mep-NEXT-SESSION.md` · `docs/next-session-handoff.md` ·
 `docs/dashboard-deepen-NEXT-SESSION.md` · `docs/rrg-rotation-NEXT-SESSION.md` ·

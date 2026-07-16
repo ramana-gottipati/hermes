@@ -10,6 +10,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 📋 2026-07-16 — S169 (cont.): plan §7 owner-decisions are now DECISION-READY — brief at `docs/s7-owner-decisions-brief-2026-07-16.md` (answers S172's "surface the §7 decisions to Ramana") — awaiting Ramana's ratify
+- Panel-consulted (risk-governance + data-product lenses, per `docs/institutional-panel-assessment.md`) briefs for §7.2 / §7.7 / §7.8. **No code changed — a machine must not ratify these; the brief only makes them decision-ready.**
+- **Recommendations:** **§7.2 → ₹200/mo** (both lenses agree; guard: route cost_ledger AMBER/RED to the owner inbox, revisit after 2 months of actuals) · **§7.7 → Option B** (keep the 6 vendor-ToS feeds OUT of FEEDS — clean-by-construction provenance) **strengthened with 3 guards** (positive CI assertion that no `UNCLASSIFIED_FEEDS` key hits a public surface + per-feed retirement dates + bring the primary XBRL/BSE replacements into FEEDS with DQ) — the **one genuine SPLIT** (risk-gov preferred A = a gated 5th `vendor-tos-remediating` class; the brief lays out both fairly) · **§7.8 → ratify inbox-first** (both agree; already implemented + exercised S163; guard: a review-inbox staleness SLA).
+- **⇒ Ramana:** one line ratifies each (e.g. *"ratify ₹200 · §7.7 B · ratify §7.8"*); a follow-up session then folds the calls into plan §7 + the D-log and retires the TRANSIENT brief. The §7 items in the pick-lists below stay open until then.
+
 ## 🔎 2026-07-16 — S172: kickstart-pick-verify SWEEP of the non-research queue — the safe autonomous picks are DONE or BLOCKED (state record, no code) — do NOT re-hunt these
 Worked the "next queue item" after S170; verified (not assumed) the candidates outside the hot `research/explosive_moves` lane. Findings, so no future session re-hunts:
 - **S-E Pat coverage is COMPLETE by contract** — `tests/test_pat_coverage.py` 12/12 (the machine-enforced pat-knowledge-contract). 14 flows exist; the enumerated "Phase 2 remainder" (insider/ratings/SAST/holdings per-symbol) is **already built as `src/pat/filings_flow.py`** (bundles all four Ownership & filings lenses); seasonal + wolfe flows exist too. **Do NOT rebuild.**
