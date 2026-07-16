@@ -1755,6 +1755,81 @@ _MENU_TRIGGERS_TEXT = "<b>⚡ Layered triggers</b> — pick a strictness."
 _MENU_WATCHLIST_TEXT = "<b>⭐ Watchlist</b>"
 
 
+async def on_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/inbox — what is waiting on YOUR judgment, asked any time (S161, Ramana-directed).
+
+    The completion of "communication belongs in the chat": S160 gave Pat the answer and the
+    morning DM the count, but the bot — the surface he actually types into — still could not
+    say what was waiting. Now it can, on demand rather than once a day.
+
+    Reuses src.pat.inbox_flow verbatim (waiting / summary_phrase), so the bot, Pat and the
+    heartbeat DM can never describe the same queue differently. READ-ONLY, like both
+    siblings: this REPORTS the queue; approving or rejecting stays a deliberate act on the
+    owner-gated lens, never a chat side effect (canon carries a human signature).
+
+    /inbox          -> the summary + the newest items
+    /inbox briefs   -> filter to one kind (briefs | rule | tags | alerts | ...)
+    """
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return                      # the queue is owner-private; the ID gate IS the guard
+
+    want = (context.args[0].lower().strip() if context.args else "")
+
+    def _read():
+        from src.pat.inbox_flow import waiting, summary_phrase
+        with get_conn() as conn:
+            w = waiting(conn)
+        return w, summary_phrase(w)
+
+    loop = asyncio.get_running_loop()
+    try:
+        w, phrase = await loop.run_in_executor(None, _read)
+    except Exception:                                   # a chat reply must never crash
+        log.exception("/inbox read failed")
+        await update.message.reply_text(
+            "Couldn't read the review queue just now — try again in a moment.")
+        return
+
+    if not w["total"]:
+        await update.message.reply_text(
+            "✅ <b>Nothing is waiting on you.</b>\n"
+            "When the desk drafts something that needs your sign-off — an event brief, a "
+            "rule-lab verdict, a tag proposal — it lands here and I'll say so.",
+            parse_mode="HTML")
+        return
+
+    items = w["items"]
+    if want:
+        alias = {"brief": "brief", "briefs": "brief", "rule": "rule_verdict",
+                 "rules": "rule_verdict", "verdict": "rule_verdict",
+                 "verdicts": "rule_verdict", "tag": "tags", "tags": "tags",
+                 "alert": "alert-ack", "alerts": "alert-ack",
+                 "rebalance": "rebalance", "anomaly": "anomaly"}.get(want, want)
+        items = [i for i in items if i.get("kind") == alias]
+        if not items:
+            await update.message.reply_text(
+                f"Nothing waiting under <code>{_html.escape(want)}</code>. "
+                f"{_html.escape(phrase.capitalize())}.", parse_mode="HTML")
+            return
+
+    from src.automation.digest import PUBLIC_BASE_URL   # reuse the ONE base url
+    lines = [f"📋 <b>{_html.escape(phrase.capitalize())}.</b>", ""]
+    for i in items:
+        lines.append(f"• {_html.escape(i['title'])}")
+        when = (i.get("created_at") or "")[:10]
+        if when:
+            lines.append(f"  <i>{_html.escape(when)}</i>")
+    if w["total"] > len(items) and not want:
+        lines.append("")
+        lines.append(f"<i>…and {w['total'] - len(items)} more.</i>")
+    lines.append("")
+    lines.append(f"Approve or reject: {PUBLIC_BASE_URL}/dash/inbox")
+    lines.append("<i>Nothing here counts until you sign it — I report the queue, "
+                 "I never decide it.</i>")
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+
 async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Open the inline-keyboard menu at root."""
     user_id = update.effective_user.id
@@ -2176,6 +2251,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(on_menu_callback))
     app.add_handler(CommandHandler("provider", on_provider))
     app.add_handler(CommandHandler("whoami", on_whoami))
+    app.add_handler(CommandHandler("inbox", on_inbox))
     app.add_handler(CommandHandler("reset", on_reset))
     app.add_handler(CommandHandler("pt14", on_pt14))
     app.add_handler(CommandHandler("dvpt", on_dvpt))
