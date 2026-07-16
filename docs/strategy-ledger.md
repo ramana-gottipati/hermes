@@ -3098,7 +3098,7 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **Provenance:** `research/explosive_moves/union_pbo.py` (matrix + bands in the docstring; lands with this
   commit) · DB to 2026-07-15 · box read-only.
 
-### 2026-07-17 — COORDINATION cross-check of 16AL/S176: C1 independently REPRODUCED by a second harness (no shared engine code) — every verdict identical, not an implementation artifact
+### 2026-07-17 — COORDINATION cross-check of 16AL/S176: C1/C2/C3 independently REPRODUCED by a second harness (no shared engine code) — every verdict identical, not an implementation artifact
 - A separate coordination-session runner **`research/explosive_moves/union_ladder_c1.py`** re-ran C1
   independently of S176's `union_ladder_val.py`. The two share NO engine code: this one **exec-loads
   `union_lab5.py`'s engine byte-for-byte** (everything above its print battery) and adds only `sel_union`
@@ -3111,3 +3111,13 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **This CONFIRMS 16AL and adds no new verdict** — the C40→K30 gate PASS and the A2→K30 / β-cap nulls all
   reproduce independently; the graduation input in 16AL stands, now with second-implementation backing.
   Nothing re-tuned; no seal touched; box read-only. Runner committed for reproducibility.
+- **C2 also reproduced** (`research/explosive_moves/union_ladder_c23.py`): C2a rolling-3y stability EXACT —
+  U 4/7 · B14 7/7 · C40 6/7 · A2 7/7 · K30 7/7 (== 16AL); C2b era-floor period-sensitivity EXACT —
+  P_full 0.450 → **P_train(2018) 0.268** (== 16AL), and the as-sealed 2019+ slices reproduce to the digit
+  (U 24.2/α12.0 · B14 23.8/11.7 · C40 30.4/17.2 · A2 34.1/21.2 · K30 34.6/22.0). Independently confirms the
+  era-floor is the highest window-fit-risk rung.
+- **C3 also reproduced**: Deflated Sharpe (Bailey-LdP, `attribution.py:314`, N=69) =
+  0.898/0.938/0.980/0.998/0.998 vs 16AL's 0.897/.938/.980/.998/.998 — match to 3dp, robust to N=50/100
+  (K30 stays 0.997–0.999). Confirms the family clears 69-trial deflation. **SCOPE:** reproduces C2b's
+  DETERMINISTIC anchors (P_train + the 2019+ slices) and C3's DSR statistic — not S176's full TRAIN-replay
+  "survival 1.01" (replay lever-selection choices) nor the φ→CAGR band mapping; those stand as recorded in 16AL.
