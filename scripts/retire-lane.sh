@@ -18,11 +18,21 @@ if ! git -C "$ROOT" worktree list --porcelain | grep -qF "$DEST"; then
   git -C "$ROOT" worktree prune; exit 0
 fi
 
-if ! git -C "$ROOT" worktree remove "$DEST" 2>/dev/null; then
-  echo "worktree not clean (uncommitted/untracked changes present at $DEST)." >&2
-  echo "  Inspect it, then either commit/push or force-remove:" >&2
-  echo "    git -C \"$ROOT\" worktree remove --force \"$DEST\"" >&2
-  exit 1
+# Remove the worktree; on failure report the ACTUAL reason (not a guess), and
+# distinguish "already gone" (stale registration → prune + still clean the branch)
+# from a genuinely dirty/locked worktree (needs your attention).
+if ! rm_err="$(git -C "$ROOT" worktree remove "$DEST" 2>&1)"; then
+  if [ ! -d "$DEST" ]; then
+    echo "worktree dir already gone at $DEST (removed out-of-band) — pruning stale registration." >&2
+    git -C "$ROOT" worktree prune
+    # fall through to branch cleanup below
+  else
+    echo "could not remove worktree at $DEST — git said:" >&2
+    printf '  %s\n' "$rm_err" >&2
+    echo "  If it holds only uncommitted/untracked work you don't need, force it:" >&2
+    echo "    git -C \"$ROOT\" worktree remove --force \"$DEST\"" >&2
+    exit 1
+  fi
 fi
 
 git -C "$ROOT" fetch --quiet origin
