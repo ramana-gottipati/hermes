@@ -218,3 +218,66 @@ def test_work_marks_errors_and_keeps_draining(tmp_path, monkeypatch):
     assert queue_status(con, s1.rule_hash) == "error"
     assert queue_status(con, s2.rule_hash) == "done"
     con.close()
+
+
+# ── D142 legacy-payload rendering (S162, Ramana-directed) ─────────────────────────────
+# D142 renamed *_sharpe -> *_retvol estate-wide, but the ONE live NEW-BENCHMARK verdict was
+# stored pre-rename (S157-b) with net_sharpe. The post-D142 renderers read net_retvol, so
+# the number rendered as "—". These pin the fix: normalize on read + a one-time backfill.
+def _legacy_verdict_dict():
+    from src.automation.rule_lab import compile_rule, build_verdict
+    spec = compile_rule("SELECT largecap RANK BY lowvolmom TAKE 25 HOLD quarterly")
+    v = build_verdict(spec, {"net_retvol": 1.19, "gross_retvol": 1.4, "flat_retvol": 1.5,
+                             "half1": 1.2, "half2": 1.42, "placebo_p95": 0.35,
+                             "observed": 1.19, "bench_net": 0.89, "capacity_inr": 75e7,
+                             "maxdd": -0.3, "ann_cost_pct": 8.0}, "s", {"env": "s"})
+    vd = v.to_dict()
+    ren = {"net_retvol": "net_sharpe", "gross_retvol": "gross_sharpe", "flat_retvol": "flat_sharpe"}
+    vd["numbers"] = {ren.get(k, k): val for k, val in vd["numbers"].items()}
+    return v, vd
+
+
+def test_normalize_numbers_maps_legacy_keys():
+    from src.automation.rule_lab_inbox import normalize_numbers
+    out = normalize_numbers({"net_sharpe": 1.19, "gross_sharpe": 1.4, "half1": 1.2})
+    assert out["net_retvol"] == 1.19 and out["gross_retvol"] == 1.4
+    assert "net_sharpe" not in out and "gross_sharpe" not in out
+    assert out["half1"] == 1.2                     # untouched keys survive
+    # the honest key wins if both are somehow present
+    assert normalize_numbers({"net_sharpe": 9.9, "net_retvol": 1.19})["net_retvol"] == 1.19
+
+
+def test_a_pre_d142_verdict_still_renders_its_number(tmp_path):
+    import sqlite3
+    from src.automation import review_inbox, rule_lab_inbox as RLI
+    from src.pat import rulelab_flow, web as PW
+    c = sqlite3.connect(":memory:"); review_inbox.ensure_schema(c)
+    v, vd = _legacy_verdict_dict()
+    review_inbox.submit(c, "rule_verdict", v.rule_hash, RLI._title(v),
+                        {"verdict": vd, "ledger_block": "NET Sharpe 1.19", "produced_at": "2026-07-15"})
+    c.commit()
+    # Pat's answer path (what pat/web reads) — the number, not None
+    assert rulelab_flow.answer(c)["net_retvol"] == 1.19
+    # the /dash/rule-lab inline flow renders the digits, not "—"
+    assert "1.19" in PW._rulelab_flow(c)
+    c.close()
+
+
+def test_backfill_makes_the_stored_payload_honest_and_idempotent(tmp_path):
+    import json, sqlite3
+    from src.automation import review_inbox, rule_lab_inbox as RLI
+    c = sqlite3.connect(":memory:"); review_inbox.ensure_schema(c)
+    v, vd = _legacy_verdict_dict()
+    r = review_inbox.submit(c, "rule_verdict", v.rule_hash, RLI._title(v),
+                            {"verdict": vd, "ledger_block": "NET Sharpe 1.19 vs bench 0.89",
+                             "produced_at": "2026-07-15"})
+    c.commit()
+    out = RLI.backfill_legacy_payloads(c)
+    assert out["migrated"] == 1
+    raw = json.loads(c.execute("SELECT payload_json FROM review_items WHERE id=?",
+                               (r["id"],)).fetchone()[0])
+    assert "net_retvol" in raw["verdict"]["numbers"] and "net_sharpe" not in raw["verdict"]["numbers"]
+    # the regenerated block is on the honest vocabulary — no bare "Sharpe" into canon
+    assert "Sharpe" not in raw["ledger_block"] and "return/vol" in raw["ledger_block"].lower()
+    assert RLI.backfill_legacy_payloads(c)["migrated"] == 0     # idempotent
+    c.close()
