@@ -2177,6 +2177,18 @@ After this session's repeated cross-absorption + index-reset failures (a sibling
 - Guardrail unchanged: lanes still push to origin/main + rebase on conflict; the isolation is at the working-tree/index level, which is the actual root cause of this session's failures.
 - Follow-up fix (dogfooded via `new-lane.sh fix-retire-msg`): `retire-lane.sh` now prints the ACTUAL `git worktree remove` failure and treats an out-of-band-removed dir as "already gone" (prune + still clean the branch) instead of always claiming "not clean" — the misleading path hit when a parallel session yanked the authoring worktree mid-retire.
 
+### Session 179 + ARC RECORD (RS/Union lane) — 2026-07-17 — the union arc S165→S179 COMPLETE (one driving conversation): the ladder 17.5→26.4/27.3 TR with 4 seals + the full validation suite + infra; the PORTFOLIO LAYER opens (16AN: book+G-sec corr ≈ 0, the CAGR↔survivability dial measured)
+
+- **S179 (16AN):** fixed-mix K30/A2 + G-sec 10Yr — the estate's first ~zero-corr diversifier; native-era
+  return/vol 1.11→1.23 across 100/0→70/30; each 10% G-sec ≈ −1.7pp CAGR / −1.5pp MaxDD. Descriptive
+  study; policy point = Ramana's risk appetite; design doc queued.
+- **Arc ledger span 16Y→16AN** (wins, kills, measurements, governance, validation, infra, portfolio
+  layer); compendium docs/strategies/union-ladder.md; four seals verified throughout; the 2026-10-03
+  forward-test day is the remaining judge. Full arc digest: the carry-forward S179 block.
+- **Session-filing:** the arc ran from a Group-Reporting-launched session (cwd accident; zero leakage,
+  verified); future Hermes sessions launch from D:\Hermes; continuation chip handed off with the correct
+  cwd; pointer memory left in the SAP workspace.
+
 ### Session 178 (RS/Union lane, Ramana-directed: "run the PBO/CSCV check as well") — 2026-07-17 — PBO/CSCV = 0.043, LOW overfit risk (ledger 16AM); K30 OOS-robust in all 70 splits; the robustness suite on the union family is COMPLETE
 
 - 31-config searched matrix × 81 quarters, s=8 CSCV (attribution.py:336 mirrored, deterministic), repro

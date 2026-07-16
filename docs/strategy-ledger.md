@@ -3111,6 +3111,42 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **This CONFIRMS 16AL and adds no new verdict** — the C40→K30 gate PASS and the A2→K30 / β-cap nulls all
   reproduce independently; the graduation input in 16AL stands, now with second-implementation backing.
   Nothing re-tuned; no seal touched; box read-only. Runner committed for reproducibility.
+
+### 2026-07-16AN — S179 (Ramana: "build the strategies that can build the strongest portfolios"): THE PORTFOLIO LAYER OPENS. Fixed-mix book + long-G-sec is the estate's FIRST genuine diversifier — corr ≈ 0.00, return/vol rises monotonically with the G-sec weight. A clean CAGR↔survivability dial, quantified.
+
+- **Verdict: DESCRIPTIVE ALLOCATION STUDY (declared; no registration, no candidate bar). Opens the
+  PORTFOLIO CONSTRUCTION LAYER program — one level above the book.**
+- **Catalog check honored:** 16AC walls momentum×momentum blends and explicitly left this door open ("only
+  a genuinely low/negative-corr sleeve could diversify"); 16AJ's B2 was the bear-STATE-gated sleeve (inert/
+  data-bounded) — a FIXED, unconditional mix is neither, and is not the 16W timing wall (no market signal).
+- **THE NUMBER THAT OPENS THE DOOR: corr(K30, G-sec 10Yr) = −0.04 native / −0.03 hybrid; corr(A2, G-sec) =
+  −0.00** — after every equity-family blend failed at corr 0.79–0.83, the estate finally has a ~zero-corr
+  asset with 15 years of native history (G-sec 10Yr: 6.5% CAGR at 4.3% vol, 2011+).
+- **The decision-grade table (2011–2026, native G-sec; quarterly-rebalanced fixed weights):**
+
+| mix | K30 CAGR | K30 ret/vol | K30 MaxDD | A2 CAGR | A2 ret/vol | A2 MaxDD |
+|---|---|---|---|---|---|---|
+| 100/0 | 24.9% | 1.11 | −18.1% | 24.3% | 1.10 | −17.9% |
+| 90/10 | 23.2% | 1.14 | −16.7% | 22.6% | 1.13 | −16.5% |
+| 80/20 | 21.5% | 1.18 | −15.3% | 21.0% | 1.17 | −15.1% |
+| 70/30 | 19.8% | **1.23** | **−13.8%** | 19.3% | 1.22 | −13.6% |
+
+  (Full-period hybrid rows — G-sec = rf-proxy pre-2011, labelled — in the module output; same shape,
+  MaxDD −31.7% → −21.2% across the K30 mixes.) **Unlike 16AC's momentum blend (which fell BELOW both
+  components), every mix's return/vol RISES: the dial is real.** Each 10% G-sec ≈ −1.7pp CAGR for
+  ≈ −1.5pp MaxDD (native) / −3.5pp (full incl. 2008). The "strongest portfolio" answer is a POLICY point
+  on this measured curve: 100/0 for maximum compounding (the sealed family), ~80/20 for balanced
+  survivability — Ramana's risk appetite picks the point; the curve is now on record.
+- **Disclosures:** the mix grid drops the first quarter for G-sec alignment, so its 100/0 rows (25.3/24.5
+  full) sit slightly below the headline stats — within-table deltas are the meaningful read; repro gate on
+  the underlying books passed first. G-sec side is index (paper) — no fund/execution cost modelled on that
+  leg yet. Not advice; descriptive.
+- **The program's next steps (recorded, not run):** a portfolio-layer design doc (weights policy, rebalance
+  band, the gold leg when primary data exists, drawdown-targeting AS POLICY not signal) · fold the chosen
+  policy point into the forward-test day's reporting.
+- **Provenance:** `research/explosive_moves/portfolio_mix.py` (design + disclosures in docstring; lands with
+  this commit) · G-sec/rf series per 16AI/16AK · box read-only.
+
 - **C2 also reproduced** (`research/explosive_moves/union_ladder_c23.py`): C2a rolling-3y stability EXACT —
   U 4/7 · B14 7/7 · C40 6/7 · A2 7/7 · K30 7/7 (== 16AL); C2b era-floor period-sensitivity EXACT —
   P_full 0.450 → **P_train(2018) 0.268** (== 16AL), and the as-sealed 2019+ slices reproduce to the digit

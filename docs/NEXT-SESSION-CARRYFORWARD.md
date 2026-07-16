@@ -23,6 +23,36 @@ PROJECT_STATE entries are enough.**
 - **The RS/union estate now has NO open operational debt** — remaining: median pick-ADV print in the
   forward runner · A2-composite clean-TR (forward runner prints it) · 2026-10-03 forward-test day.
 
+## 🟢 2026-07-17 — S179 + THE ARC RECORD (S165→S179, one driving conversation, Ramana at the wheel) — the union arc is COMPLETE and the PORTFOLIO LAYER opens — do NOT redo any of it; kickstart-pick-verify
+- **S179 (ledger 16AN): the portfolio layer v0** — fixed-mix book+G-sec is the estate's FIRST ~zero-corr
+  diversifier (corr −0.04/−0.00); return/vol rises monotonically with the G-sec weight (native 1.11→1.23);
+  each 10% G-sec ≈ −1.7pp CAGR for −1.5pp MaxDD. The CAGR↔survivability dial is measured; Ramana's risk
+  appetite picks the policy point. NEXT for the program: the portfolio-layer design doc · the gold leg when
+  primary data exists · fold the chosen point into the forward-day reporting. NO dynamic/timed weights
+  (16W-adjacent) without a fresh prereg.
+- **THE ARC (2026-07-16→17; the RS/Union lane's sessions S165 · S168 · S171 · S172 · S173 · S174 · S175 ·
+  S176 · S178 · S179 — 5 number collisions with parallel lanes, all renumber-resolved):**
+  ① THE LADDER: union 17.5% (sealed a9a14058…) → β14 18.1 (16Y, 08b46199…) → C40RA 21.0 (16AB,
+  0715a0d9…) → A2-composite 25.5 (16AE) → **COMPOSITE-30 26.4 PR / 27.3 TR (16AF) — Ramana-confirmed
+  lead, family reopened, sealed 07ef2ef9… (16AH)**; A1/A2 recorded in full (union-ladder.md).
+  ② THE KILLS: ~40 configs walled with numbers (16Z/16AC + both pre-registered ML generations 16AA/16AG —
+  beta was the #1 learned feature all 3 runs).
+  ③ THE MEASUREMENTS: dividends +0.6pp lower-bound (16AD) · TRI hurdle 14.6% + recut, every member
+  survives (16AJ) · rf convention adopted (16AE).
+  ④ THE VALIDATION SUITE — COMPLETE: sealed protocol run (16AL: C40→K30 real p=0.014; survival 1.01;
+  era-floor = window-fit flag; deflated bands published, K30 ≈ 21.6%) · PBO/CSCV 0.043 LOW (16AM) ·
+  independent 2nd-harness reproduction (ef8929e, sibling lane).
+  ⑤ THE INFRA: niftyindices cracked + committed fetcher (16AI) · 16,732 TRI/G-sec rows in prod +
+  indexes_tri manifest (16AK) · strategy pages LIVE with sanitizer verified (16AK) · the union-ladder
+  compendium (16AH).
+  ⑥ WHAT REMAINS: **the 2026-10-03 forward-test day** (all six ladder rows + TRI columns + the A2-clean-TR
+  + median-pick-ADV prints; four sealed specs on frozen criteria; adjudication picks ≤1; era-floor flag
+  rides in) · the portfolio-layer program (16AN) · ML only under fresh prereg with genuinely new inputs.
+- **⚠ SESSION-FILING NOTE (Ramana directive executed):** this arc ran from a session launched in
+  `D:\SAP Products\Group Reporting` (cwd accident) — zero content leaked there (verified; the repo docs
+  hold everything). **Launch all Hermes sessions from `D:\Hermes`**; a continuation chip with
+  cwd=D:\Hermes was handed to Ramana at the arc wrap. A pointer memory records this in the SAP workspace.
+
 ## ✅ 2026-07-17 — S178 (Ramana: "run the PBO/CSCV check as well"): PBO = 0.043 — LOW overfit risk (ledger 16AM); K30 OOS rank mean 0.938/min 0.767 across all 70 splits; the ROBUSTNESS SUITE IS COMPLETE — do NOT redo; kickstart-pick-verify
 - 31-config × 81-quarter matrix (every signal-invariant book config searched; exclusions disclosed), s=8
   CSCV, attribution.py:336 logic mirrored deterministically; repro gate 5/5. λ quartiles +1.87/+2.64/+13.82.
