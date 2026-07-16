@@ -109,6 +109,10 @@ wealth — the standing V8→V17 lesson.)*
 
 ## 4. Status & candidate ladder
 
+> 📋 **The complete family record** — every configuration in full (rulesets + all recorded numbers),
+> the sealed validation (C1/C2/C3 significance · interim OOS · deflation · PBO), and the deflated
+> forward expectations — lives in the **[Union Ladder compendium](union-ladder.md)**.
+
 - **The UNION** — the sealed lead. In-sample 2006–2026: the best full-period result of the RS arc. *(Numbers
   live in the ledger, §16V, never restated here.)*
 - **UNION-β14 — the pre-registered SIBLING lead (2026-07-16, ledger 16Y):** the union plus exactly one rule —
