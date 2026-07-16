@@ -449,7 +449,9 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 | — | TOTAL-RETURN accrual (measurement, not a candidate) | 📏 +0.6pp lower-bound on every book (union 18.1 · β14 18.7 · composite 21.8 TR); bench stays PR until TRI ingestion | 16AD |
 | ⭐⭐⭐ **era-relative ADV floor** (S171) | monthly pctile floor, P=0.450 declared; A1 raw / **A2 = max(Rs1cr, floor)** | ✅ **the biggest single lever of the arc: A2-composite 25.5% PR / −27.2% / 99x / α+14.2; worst-honest 23.9; A2 DOMINATES A1 (equal CAGR, DD −27.2 vs −32.0, tail ADV 2x) → DEFERRED LEAD, not registered (family closed; Ramana ②)** — do NOT re-sweep P or the clamp | 16AE |
 | — | B1 rf-earning bear-cash (1D-Rate/6.5% proxy, attribution.py convention) | 📏 measurement-adopted: +0.4pp, every window up; deferred-lead reporting ONLY (sealed specs keep 0% cash) | 16AE |
-| — | B2 G-sec/gold bear sleeve | ⛔ DATA-BLOCKED (no long G-sec/gold history in index_rows; no fetch tool) — queued on the TRI/rf feed lane; lever OPEN, not dead | 16AE |
+| — | B2 G-sec/gold bear sleeve | ❌ **DECIDED S174: INERT on the lead (idle ~1%, rows identical) + DATA-BOUNDED on the union (the 2008-09 bear predates the 2011+ G-sec series; G-sec == rf twin to 1dp) — NOT adopted; a design option for future bears with no backtest evidence** | 16AE→16AJ |
+| — | TRI benchmark recut (measurement) | 📏 **DONE S174: honest hurdle N50-TRI 14.6%/yr (11.3/25.1/11.5); alphas compress ~1.0-1.6pp vs N500-TRI, betas unchanged, every member survives (lead book-TR 27.3%/αTRI+14.8); sealed criteria stay PR-vs-PR** — do not re-run, extend via the committed fetcher | 16AJ |
+| — | union + rf-earning cash (candidate beside the seal) | 📏 17.5→18.0% (+0.5pp); recorded, spec untouched | 16AJ |
 | ⭐ top-30 on the WIDENED universe (S172) | concentration re-test, changed-premise rule | ✅ 25.9/α+14.6; 2006-11 α+13.5 > control — old failure was starvation; top-25/20 still fail (DD/toll) — boundary moved 40→30, do NOT go below | 16AF |
 | ⭐ LET-WINNERS-RUN drift, cap 5% (S172) | stop the quarterly winner-trim | ✅ 26.5/α+15.1 at UNCHANGED DD −27.3 — every window better | 16AF |
 | ⭐ rank-proportional weights (S172) | linear 2:1 by RISKADJ rank | ✅ 26.3/α+15.1/β0.79 — 16X wall narrows to VOL-based sizing only | 16AF |
@@ -464,11 +466,12 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
    (`07ef2ef9…`); A2-composite recorded in full as the lower-DD alternative (registration-ready on his word).
    **Nothing is deployable — four sealed specs await the 2026-10-03 forward verdict; adjudication picks ≤1.**
 2. **Forward evidence day (2026-10-03):** the scheduled task runs the sealed union — UNTOUCHED. The same
-   session also runs `union_lab.py::s_beta_cap_1.4`, `union_lab3.py::COMPOSITE`, and (for the record, no
+   session also runs `union_lab.py::s_beta_cap_1.4`, `union_lab3.py::COMPOSITE`, `union_lab6.py` (ALL six
+   ladder rows WITH the TRI columns + book-TR pairings — the honest hurdle per 16AJ), and (for the record, no
    registration implied) `union_lab4.py`'s A2-composite row + its clean TR; judge the three SEALED specs
    against their own registrations (`a9a14058…` · `08b46199…` · `0715a0d9…`, three-way rule in the C40RA
    file). Append a forward-test ledger entry; touch NO spec.
-3. **THE FEED LANE (one primary-source ingestion, G#8-clean, now carrying THREE dependents):** niftyindices
+3. **THE FEED LANE — research need MET S174 (ledger 16AI: committed fetcher + verified TRI/G-sec files); the residue is PROD ingestion only** (index_rows + manifest + licence gate + timer, the estate's feed protocol — now trivial). Original scope for reference: niftyindices
    histories → `index_rows`: **Nifty 500 TRI + Next 50 TRI** (completes 16AD both-sides) · **long G-sec
    index** (unblocks the B2 bear-sleeve lever, 16AE) · rate indices as needed (the rf convention's proxy era
    shrinks). Additive, its own session.

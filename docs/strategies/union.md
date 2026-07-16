@@ -171,7 +171,7 @@ then), at materially lower beta.
 
 NSE bhavcopy (primary source; corporate-action table VERIFIED complete vs NSE, ledger 15S) + NSE index closes
 (`index_rows`, adjusted). PIT throughout. **Price-index benchmark** (Nifty Next 50 price, not total-return) —
-disclosed wherever numbers are shown; the TRI re-cut is owed and moves both sides. The `fundamentals_history`
+disclosed wherever numbers are shown; **the TRI re-cut is DONE (S174, ledger 16AJ): the honest hurdle is Nifty Next 50 TRI 14.6%/yr and every family member's alpha survives it** — TRI columns are reported beside every future judgment ([union-ladder.md](union-ladder.md) §8); the sealed criteria stay PR-vs-PR as frozen. The `fundamentals_history`
 veto experiment (16T) touched the Screener-sourced table read-only (Guardrail #8 disclosure) and is not part
 of the live ruleset.
 
@@ -208,7 +208,8 @@ of the live ruleset.
   2026-10-03 task runs the union's engine; the same session runs ALL SIX ladder rows
   ([union-ladder.md](union-ladder.md) §8): the four sealed siblings judged on their own criteria, the two
   recorded composites for the record.
-- **TR-benchmark re-cut** (owed across the whole RS estate).
+- ~~TR-benchmark re-cut~~ **✅ DONE S174 (ledger 16AI/16AJ)** — data + tool committed; the residue is
+  the prod `index_rows` ingestion (feed-lane protocol), research needs are met from files.
 - ~~The 2012–17 selection question~~ — **answered in-sample 2026-07-16 (ledger 16Y, the beta cap) and moved
   into the sibling registration above.** The remaining open questions are the forward evidence itself and the
   TR re-cut; the non-ML candidate space around this signal family is otherwise SPENT (16Z catalogues the
