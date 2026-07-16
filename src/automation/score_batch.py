@@ -5,40 +5,39 @@ system actually SURFACES — the Conviction shortlist, RS leaders, the watchlist
 and recent news-driven screen_candidates — so /dash/conviction, the stock page's
 pt14 card, and the Strategies-hub quality count stop showing "unscored".
 
-⚠ HONORS D8 ("build fundamentals over time, not bulk — don't pre-scrape Screener
-for 5,000 stocks"). This is NOT a bulk scraper:
+🔴 NO NETWORK, NO SCREENER (S148 / Guardrail #8). This used to scrape Screener for
+each stale symbol; since 3.4 it scores entirely from the PRIMARY-SOURCE archive via
+`scoring.score_symbol` → `fundamentals_asof` (research.db.fundamentals_history —
+NSE-XBRL where migrated, labeled Screener-era legacy before ~2022 — plus
+shareholding_history, and the bhav copy for the PE/PB price). The scrape budget,
+the polite throttle and the 7-day scrape cache are all GONE with the network call.
+
+Still HONORS D8 ("build fundamentals over time, not bulk"):
   - PRIORITIZED — only the surfaced universe (a few hundred names at most), not
     the whole ~2,400-symbol equity list.
-  - INCREMENTAL — skips names already scored within the TTL; each run only does
-    the work still outstanding, so coverage grows over days and then just
-    refreshes on the 7-day cache. "Natural incremental growth" (D8's words).
-  - BOUNDED — at most `limit` real Screener scrapes per run (the network-expensive
-    part); the rest wait for the next run.
-  - THROTTLED — a polite sleep after every real scrape (anti-rate-limit).
-A symbol with fresh cached fundamentals is re-scored locally (no network).
+  - INCREMENTAL — skips names already scored within the TTL; each run does only
+    the outstanding work.
+  - BOUNDED — at most `limit` symbols scored per run (now a pure runtime bound).
 
-No LLM — the scorer is pure rule-based Python (scoring.score_fundamentals) and
-the fetch is HTML parsing (screener). ₹0 marginal.
+No LLM, no HTTP — the scorer is rule-based Python over local SQLite. ₹0 marginal.
 
 Usage:
-    python -m src.automation.score_batch                 # default: <=40 scrapes
-    python -m src.automation.score_batch --limit 60      # raise the scrape cap
-    python -m src.automation.score_batch --throttle 3.0  # seconds between scrapes
+    python -m src.automation.score_batch                 # default: <=40 symbols
+    python -m src.automation.score_batch --limit 60      # raise the per-run cap
     python -m src.automation.score_batch --dry-run       # print the plan, do nothing
 """
 
 import argparse
 import logging
-import time
 from datetime import datetime, timedelta
 
-from src.automation import scoring, screener
+from src.automation import scoring
 from src.core.db import get_conn
 
 log = logging.getLogger("hermes.score_batch")
 
-_DEFAULT_LIMIT = 40       # max real Screener scrapes per run
-_DEFAULT_THROTTLE = 2.5   # seconds to sleep after each real scrape
+_DEFAULT_LIMIT = 40       # max symbols scored per run (runtime bound — no network any more)
+_DEFAULT_TTL_DAYS = 7     # re-score window (was screener.SCREENER_CACHE_DAYS)
 _MAX_TARGETS = 300        # hard ceiling on the prioritized set (D8 guardrail)
 
 
@@ -78,21 +77,6 @@ def _prioritized_symbols(max_total: int = _MAX_TARGETS) -> list[str]:
     return syms[:max_total]
 
 
-def _is_fundamentals_fresh(conn, symbol: str, ttl_days: int) -> bool:
-    """True if cached fundamentals exist and are within the TTL (so scoring this
-    symbol needs NO network). Mirrors screener._read_cache's freshness check."""
-    row = conn.execute(
-        "SELECT fetched_at FROM fundamentals WHERE symbol = ?", (symbol,)
-    ).fetchone()
-    if not row or not row["fetched_at"]:
-        return False
-    try:
-        fetched = datetime.fromisoformat(str(row["fetched_at"]).replace(" ", "T"))
-    except ValueError:
-        return False
-    return (datetime.utcnow() - fetched) <= timedelta(days=ttl_days)
-
-
 def _recently_scored(conn, symbol: str, ttl_days: int) -> bool:
     """True if there's a pattern_scores row for the symbol within the TTL — i.e.
     the Quality pillar is already lit for it, so this run can skip it."""
@@ -109,69 +93,58 @@ def _recently_scored(conn, symbol: str, ttl_days: int) -> bool:
     return (datetime.utcnow() - scored) <= timedelta(days=ttl_days)
 
 
-def run_batch(limit: int = _DEFAULT_LIMIT, throttle: float = _DEFAULT_THROTTLE,
-              ttl_days: int | None = None, dry_run: bool = False) -> dict:
-    """Score the outstanding surfaced names. Returns a summary dict."""
-    ttl_days = ttl_days if ttl_days is not None else screener.SCREENER_CACHE_DAYS
+def run_batch(limit: int = _DEFAULT_LIMIT, ttl_days: int | None = None,
+              dry_run: bool = False) -> dict:
+    """Score the outstanding surfaced names from the archive (no network). Summary dict."""
+    ttl_days = ttl_days if ttl_days is not None else _DEFAULT_TTL_DAYS
     symbols = _prioritized_symbols()
 
     with get_conn() as conn:
         todo = [s for s in symbols if not _recently_scored(conn, s, ttl_days)]
-        fresh = {s: _is_fundamentals_fresh(conn, s, ttl_days) for s in todo}
 
-    n_fresh = sum(1 for s in todo if fresh[s])
-    n_stale = len(todo) - n_fresh
     log.info("batch: %d surfaced · %d already scored (skip) · %d outstanding "
-             "(%d cached/no-network, %d need scrape; cap %d this run)",
-             len(symbols), len(symbols) - len(todo), len(todo), n_fresh, n_stale, limit)
+             "(archive-only, no network; cap %d this run)",
+             len(symbols), len(symbols) - len(todo), len(todo), limit)
 
     if dry_run:
         return {"surfaced": len(symbols), "outstanding": len(todo),
-                "cached": n_fresh, "need_scrape": n_stale, "scraped": 0,
                 "scored": 0, "dry_run": True}
 
-    scraped = scored = failed = 0
-    for sym in todo:
-        if not fresh[sym] and scraped >= limit:
-            break  # scrape budget spent — remaining stale names wait for next run
+    scored = failed = 0
+    for sym in todo[:limit]:
         try:
-            score = scoring.score_symbol(sym, force_refresh=not fresh[sym])
-        except Exception as e:
+            score = scoring.score_symbol(sym)
+        except Exception as e:  # noqa: BLE001 — one bad symbol must not abort the batch
             log.warning("batch score failed for %s: %s", sym, e)
             score = {"error": str(e)}
-        if not fresh[sym]:
-            scraped += 1
-            time.sleep(throttle)  # polite gap after a real Screener hit
         if score.get("error"):
             failed += 1
         else:
             scored += 1
 
-    log.info("batch complete: %d scored (%d scraped, %d cached-rescored, %d failed)",
-             scored, scraped, scored - max(0, scraped - failed), failed)
+    log.info("batch complete: %d scored, %d failed (archive-only, zero Screener hits)",
+             scored, failed)
     return {"surfaced": len(symbols), "outstanding": len(todo),
-            "cached": n_fresh, "need_scrape": n_stale,
-            "scraped": scraped, "scored": scored, "failed": failed, "dry_run": False}
+            "scored": scored, "failed": failed, "dry_run": False}
 
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--limit", type=int, default=_DEFAULT_LIMIT,
-                   help=f"max real Screener scrapes this run (default {_DEFAULT_LIMIT})")
-    p.add_argument("--throttle", type=float, default=_DEFAULT_THROTTLE,
-                   help=f"seconds to sleep after each scrape (default {_DEFAULT_THROTTLE})")
+                   help=f"max symbols scored this run (default {_DEFAULT_LIMIT})")
+    p.add_argument("--throttle", type=float, default=0.0,
+                   help="DEPRECATED no-op (kept for call-site compat; the scrape is gone)")
     p.add_argument("--ttl-days", type=int, default=None,
-                   help="freshness window; default = screener.SCREENER_CACHE_DAYS (7)")
+                   help=f"re-score window in days (default {_DEFAULT_TTL_DAYS})")
     p.add_argument("--dry-run", action="store_true",
-                   help="print the plan (counts) without scraping or scoring")
+                   help="print the plan (counts) without scoring")
     args = p.parse_args()
 
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-    summary = run_batch(limit=args.limit, throttle=args.throttle,
-                        ttl_days=args.ttl_days, dry_run=args.dry_run)
+    summary = run_batch(limit=args.limit, ttl_days=args.ttl_days, dry_run=args.dry_run)
     log.info("summary: %s", summary)
 
 
