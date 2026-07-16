@@ -392,7 +392,7 @@ The famous name-brand strategies run as live rosters on our PIT data at `/dash/c
 - **Quality (QMJ) — quality-minus-junk.** Profitable, stable, low-leverage names: high ROCE + high margin + low D/E. A filter, not a standalone ranker. *Source:* `classic_roster`.
 - **Low-Volatility — min-variance screen.** The lowest realised-volatility liquid names; buys smoothness, not return. *Source:* `classic_roster`.
 - **Acquirer's Multiple — Carlisle's EV/EBIT screen.** Ranks the cheapest enterprise-value-to-EBIT; reference-only until point-in-time enterprise value lands (phase 2). *Source:* `classic_roster`.
-- **ROCE — Return on Capital Employed.** Operating profit as a % of the capital (equity + debt) deployed to earn it; a core quality/efficiency gauge. Higher and steadier = better capital allocation. *Source:* `roce`.
+- **Return on Capital Employed (ROCE).** Operating profit as a % of the capital (equity + debt) deployed to earn it; a core quality/efficiency gauge. Higher and steadier = better capital allocation. *Source:* `roce`.
 - **OPM — Operating Profit Margin.** Operating profit as a % of sales; how much of each rupee of revenue survives to operating profit. *Source:* `opm_latest`.
 - **Debt to Equity (D/E).** Total borrowings ÷ net worth; balance-sheet leverage. Lower = safer. *Source:* `debt_to_equity`.
 - **Price to Earnings (P/E).** Price ÷ trailing earnings per share; rupees paid per rupee of annual profit. *Source:* `pe`.
