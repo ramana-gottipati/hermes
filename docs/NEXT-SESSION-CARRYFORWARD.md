@@ -10,6 +10,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-16 — S163 (Ramana-directed): first rule-lab verdict SIGNED INTO THE LEDGER — do NOT redo
+- **Ramana:** *"approve the rule-lab verdict into the ledger."* DONE. Item #602 (LOWVOL_MOM largecap quarterly NEW-BENCHMARK, net return/vol 1.19 @₹75cr) → block appended verbatim at EOF of `docs/strategy-ledger.md` (commit `00ac49c`, byte-compared wall untouched) + decided approved on the box (note cites the commit). Confirms the recorded survivor, does not open a new corner. The D137 loop is closed end-to-end. Record: PROJECT_STATE §Session 163.
+- **Queue now 2** — the ANANDRATHI + HCLTECH results briefs, left for Ramana to review on `/dash/inbox` (approving a brief publishes it to the results-reactions board with the AI label, via `brief_publisher --publish`).
+- **➡ NEXT PICKS:** ① the 2 pending briefs (Ramana's call) ② plan decisions §7.2/§7.7 (§7.8 now exercised — ratify inbox-first as standing, or revisit) ③ Aug-1 churn row-gain.
+
 ## ✅ 2026-07-16 — S162 (Ramana-directed): D142 payload fix — pre-relabel rule-lab verdict renders its number — LIVE — do NOT redo
 - **Ramana:** *"chase the D142 payload fix so the number renders."* DONE. The live NEW-BENCHMARK verdict was stored pre-D142 with `net_sharpe`; renderers read `net_retvol` → "—". Fix (`rule_lab_inbox.py`): `normalize_numbers()` maps legacy keys on read in `latest_verdict()` (one place → Pat + the page); `backfill_legacy_payloads()` (+`--backfill`) made the stored row honest + regenerated its ledger_block. Backfilled live; the page now shows "net return/vol 1.19 vs benchmark 0.89". Suite 679/0. Record: PROJECT_STATE §Session 162.
 - **The rule-lab verdict is now fully judgeable** — its number renders and its ledger_block is on the honest vocabulary, so approving it on `/dash/inbox` is safe (no bare "Sharpe" into canon). **3 waiting** now: this verdict + the 2 results briefs (ANANDRATHI, HCLTECH), all left for Ramana to review on the page.
