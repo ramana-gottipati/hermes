@@ -10,6 +10,26 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🟢 2026-07-16 — S172 (Ramana: "Raise the CAGR target to 30... Let us make it"): COMPOSITE-30 lands at 26.4% PR / 27.3% TR (worst-honest 24.4) — all three new axes passed; ML-v2 REJECTED on its sealed bar (the hand rule beat the machine again); the modern-era slice already prints >30 — do NOT redo; kickstart-pick-verify
+- **Wins (ledger 16AF):** on the A2-composite base — **top-30** re-proven on the widened universe (2006-11
+  α+13.5 > control; the old top-20 failure was starvation, now proven) · **LET-WINNERS-RUN drift** (+1.0pp at
+  ZERO DD cost — the family had been selling its winners every quarter) · **rank-proportional weights** pass
+  (⚠ doctrine revision: the 16X wall narrows to VOL-based sizing; SCORE-proportional adds). **COMPOSITE-30
+  (top-30 × drift): 26.4/−31.7/115.7x/β0.82/α+15.1 · TR 27.3 (131.8x) · stress 24.8/23.2/25.2 · worst-honest
+  24.4 — clears the declared 23.9 bar.** DD cost disclosed (−27.2→−31.7). SECOND deferred lead (gen-5
+  selection stated); family stays closed.
+- **ML-v2 (ledger 16AG): REJECTED 4-of-5 on the sealed bar** (prereg `bf74a7a5…` pushed `a18a2d5` pre-run;
+  2,910 train rows). 2017+: GBM 21.1/α+8.9 vs **RISKADJ-rank 30.1/α+16.4** and control 25.5 — the hand rule
+  crushes the machine; **beta #1 feature for the 3rd time (0.181)**. Same-shape tabular-ranker ML is now
+  double-rejected pre-registered (16AA+16AG) — the door needs genuinely different inputs, not a re-run.
+- **The 30-target statement:** full-period TR 27.3 (gap 2.7pp); 2012-17 TR window 30.5; 2018-26 TR 28.9; the
+  A2-composite 2017+ slice = **30.1% PR**. The full-period gap is entirely the 2006-11 low-benchmark era
+  (α there already +14.9 TR). Remaining measured upside = the feed lane (TRI/G-sec, +~0.5-1pp est.). The
+  single-axis config space is now CLOSED on this base too — no further sweeps.
+- **⚖ RAMANA MENU (supersedes S171's ①):** deferred-lead ladder = A2-composite (25.5/−27.2) vs COMPOSITE-30
+  (26.4/−31.7, TR 27.3) — risk-return choice; plus ② reopen-family vs wait-for-Oct-3. Modules
+  `union_lab5.py` / `union_ml2.py`. Catalog §G extended below.
+
 ## 📋 2026-07-16 — S169 (cont.): plan §7 owner-decisions are now DECISION-READY — brief at `docs/s7-owner-decisions-brief-2026-07-16.md` (answers S172's "surface the §7 decisions to Ramana") — awaiting Ramana's ratify
 - Panel-consulted (risk-governance + data-product lenses, per `docs/institutional-panel-assessment.md`) briefs for §7.2 / §7.7 / §7.8. **No code changed — a machine must not ratify these; the brief only makes them decision-ready.**
 - **Recommendations:** **§7.2 → ₹200/mo** (both lenses agree; guard: route cost_ledger AMBER/RED to the owner inbox, revisit after 2 months of actuals) · **§7.7 → Option B** (keep the 6 vendor-ToS feeds OUT of FEEDS — clean-by-construction provenance) **strengthened with 3 guards** (positive CI assertion that no `UNCLASSIFIED_FEEDS` key hits a public surface + per-feed retirement dates + bring the primary XBRL/BSE replacements into FEEDS with DQ) — the **one genuine SPLIT** (risk-gov preferred A = a gated 5th `vendor-tos-remediating` class; the brief lays out both fairly) · **§7.8 → ratify inbox-first** (both agree; already implemented + exercised S163; guard: a review-inbox staleness SLA).
@@ -380,16 +400,21 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 | ⭐⭐⭐ **era-relative ADV floor** (S171) | monthly pctile floor, P=0.450 declared; A1 raw / **A2 = max(Rs1cr, floor)** | ✅ **the biggest single lever of the arc: A2-composite 25.5% PR / −27.2% / 99x / α+14.2; worst-honest 23.9; A2 DOMINATES A1 (equal CAGR, DD −27.2 vs −32.0, tail ADV 2x) → DEFERRED LEAD, not registered (family closed; Ramana ②)** — do NOT re-sweep P or the clamp | 16AE |
 | — | B1 rf-earning bear-cash (1D-Rate/6.5% proxy, attribution.py convention) | 📏 measurement-adopted: +0.4pp, every window up; deferred-lead reporting ONLY (sealed specs keep 0% cash) | 16AE |
 | — | B2 G-sec/gold bear sleeve | ⛔ DATA-BLOCKED (no long G-sec/gold history in index_rows; no fetch tool) — queued on the TRI/rf feed lane; lever OPEN, not dead | 16AE |
+| ⭐ top-30 on the WIDENED universe (S172) | concentration re-test, changed-premise rule | ✅ 25.9/α+14.6; 2006-11 α+13.5 > control — old failure was starvation; top-25/20 still fail (DD/toll) — boundary moved 40→30, do NOT go below | 16AF |
+| ⭐ LET-WINNERS-RUN drift, cap 5% (S172) | stop the quarterly winner-trim | ✅ 26.5/α+15.1 at UNCHANGED DD −27.3 — every window better | 16AF |
+| ⭐ rank-proportional weights (S172) | linear 2:1 by RISKADJ rank | ✅ 26.3/α+15.1/β0.79 — 16X wall narrows to VOL-based sizing only | 16AF |
+| ⭐⭐ **COMPOSITE-30** (top-30 × drift) (S172) | the second deferred lead | ✅ **26.4 PR / 27.3 TR / β0.82 / α+15.1; worst-honest 24.4; DD −31.7 disclosed — gen-5 selection, NOT registered** | 16AF |
+| — | **ML-v2 GBM** (prereg `bf74a7a5…` pre-run) | ❌ **REJECTED 4/5** — 2017+: GBM 21.1/α+8.9 vs RISKADJ-rank 30.1/α+16.4; beta #1 feature 3rd time; same-shape tabular ML now double-rejected (16AA+16AG) | 16AG |
 
 ---
 
-### 🎯 NEXT SESSION — the UNION estate after S171 (the 25% bar is hit in-sample by a DEFERRED lead; governance now leads the queue):
+### 🎯 NEXT SESSION — the UNION estate after S172 (26.4 PR / 27.3 TR recorded; modern slice >30; the config space is CLOSED — governance and the feed lane lead the queue):
 
-1. **⚖ RAMANA'S TWO DECISIONS (blocking the lead's status):** ① confirm **A2** (dominant: equal CAGR,
-   strictly better DD, 2x tail ADV) over A1 as the deferred lead; ② **reopen the sibling family for a 4th
-   registration NOW vs hold the family-closed rule** (register only after the 2026-10-03 forward verdict).
-   Until ②, the A2-composite (25.5% PR in-sample, ledger 16AE) is a recorded lead — not registered, not
-   deployable.
+1. **⚖ RAMANA'S TWO DECISIONS (blocking the leads' status):** ① pick from the deferred-lead MENU —
+   **A2-composite (25.5% PR / DD −27.2)** vs **COMPOSITE-30 (26.4% PR / 27.3% TR / DD −31.7)** — a pure
+   risk-return call (16AF supersedes the old A1-vs-A2 form of this question); ② **reopen the sibling family
+   for a 4th registration NOW vs hold the family-closed rule** (register only after the 2026-10-03 forward
+   verdict). Until ②, both are recorded leads — not registered, not deployable.
 2. **Forward evidence day (2026-10-03):** the scheduled task runs the sealed union — UNTOUCHED. The same
    session also runs `union_lab.py::s_beta_cap_1.4`, `union_lab3.py::COMPOSITE`, and (for the record, no
    registration implied) `union_lab4.py`'s A2-composite row + its clean TR; judge the three SEALED specs

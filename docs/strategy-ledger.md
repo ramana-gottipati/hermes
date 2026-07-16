@@ -2847,3 +2847,56 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   the 2026-10-03 forward verdict). Until ②: the A2-composite is a recorded lead, nothing more.
 - **Provenance:** `research/explosive_moves/union_lab4.py` (diagnosis print + battery + declared bars/rules)
   · `union_lab4b.py` (stress) · DB to 2026-07-15 · window 2006-01→2026-07 · box read-only, no deploy.
+
+### 2026-07-16AF — S172 (Ramana: "Raise the CAGR target to 30... Let us make it"): ALL THREE new axes pass on the A2-composite base — concentration re-proves at top-30 on the WIDENED universe, LET-WINNERS-RUN adds +1.0pp at ZERO drawdown cost, and score-proportional weights break the old "sizing never adds" prior. COMPOSITE-30 = 26.4% PR / 27.3% TR, worst-honest 24.4%.
+
+- **Verdict: CONDITIONAL — a SECOND deferred lead beside 16AE's (5th-generation in-sample selection, stated
+  plainly; family stays closed; the two-lead risk-return menu goes to Ramana).**
+- **L1 — concentration RE-TESTED on the widened universe (changed-premise rule; 16AB prior cited):** top-30 =
+  25.9%/α+14.6 with **2006-11 α+13.5 — BETTER than the top-40 control (+12.8)**: the old top-20 failure was
+  mostly STARVATION, now proven (top-20-new still fails but at 2006-11 α+8.5 vs the old +3.2; top-25 fails on
+  DD −34.1). The variance-toll boundary moved 40 → 30 with the wider pool. Coherent 15P physics, both universes.
+- **L2 — LET-WINNERS-RUN (weight drift, 5% per-name cap, entrants at 1/40): 26.5%/α+15.1, MaxDD −27.3
+  (UNCHANGED vs control), every window better** (+14.8/+6.1/+17.5). The family's quarterly EW-retrim had been
+  selling its winners every quarter; drift stops that at zero measured risk cost. Untried before this session.
+- **L3 — rank-proportional weights (linear 2:1): 26.3%/α+15.1/β0.79 — PASSES. ⚠ DOCTRINE REVISION recorded:
+  the 16X "sizing levers never add" wall narrows to VOL-BASED sizing; SCORE-proportional weighting adds.**
+- **COMPOSITE-30 (declared precedence: top-30 × drift):** **26.4% / MaxDD −31.7% / Rs1Cr→115.7x / β0.82 /
+  α+15.1**, windows α +14.6/+5.8/+18.2; **TR 27.3% (Rs1Cr→131.8x)**, 2012-17 TR window 30.5%. Stress ladder:
+  @2% 24.8 · @3% 23.2 · next-day 25.2 · **worst-honest (lagged+2%+TR) 24.4/α+13.5 — clears the declared 23.9
+  bar.** Cost disclosed: MaxDD deepens −27.2 → −31.7 (−36.3 worst-honest) — the 30-push buys return with
+  drawdown now; beta holds 0.82.
+- **The 30-target statement (honest):** full-period TR 27.3 vs the 30 target — gap 2.7pp; the 2012-17 window
+  is AT target (30.5 TR), 2018-26 prints 28.9 TR, and the A2-composite's 2017+ slice (16AG table) prints
+  30.1% PR. Without leverage, closing the FULL-PERIOD gap needs the 2006-11 era (bench 8.3%/yr) out-earned by
+  ~22pp — α there is already +14.9 TR. Remaining measured upside: the TRI/G-sec feed completions (+~0.5-1pp
+  est., unmeasured until ingested). No further config levers proposed — this battery closed the single-axis
+  space on the new base too.
+- **Gap disclosed:** this battery did not print median pick-ADV (the 16AE character guard) — the pool is
+  identical to A2's so 16AE's disclosures carry; the print is owed in the forward runner.
+- **⚖ The Ramana menu (supersedes 16AE's decision ①):** the deferred-lead ladder is now A2-composite
+  (25.5%/−27.2 DD) vs COMPOSITE-30 (26.4%/−31.7 DD; TR 27.3) — a pure risk-return choice, his call, along
+  with decision ② (reopen the family vs wait for 2026-10-03).
+- **Provenance:** `research/explosive_moves/union_lab5.py` (declared bars + compose + stress in the
+  docstring; controls reproduced to the digit) · DB to 2026-07-15 · box read-only.
+
+### 2026-07-16AG — PRE-REGISTERED ML v2 (GBM over the era-floor capped pool): REJECTED on 4 of its 5 frozen criteria — the hand rule crushes the machine AGAIN, and beta is the #1 feature for the THIRD consecutive time.
+
+- **Verdict: REJECTED (no re-run, no variant shopping; the 16AA/16AG pair now bounds the same-shape ML door
+  CLOSED — any future attempt needs genuinely different inputs, not another tabular ranker on these features).**
+- **Registration:** `docs/prereg/union-ml2-prereg.md`, SHA-256
+  `bf74a7a5dd79b69826f01e359245cb3c8e22b2e3442d87166f592d73e0aa3c0e`, committed + pushed (`a18a2d5`) BEFORE
+  training, per the 16AA succession clause (GBM primary). Train = 2,910 rows / 43 dates (46% more than 16AA,
+  the era-floor pool); test = 38 dates, 2017-01→2026.
+- **TEST WINDOW 2017+ (same engine, top-40, rf-cash):** control (engine order) 25.5%/−29.3/β0.99/α+11.2 ·
+  **A2-composite (RISKADJ-rank) 30.1%/−17.9/β0.85/α+16.4** · **M1 GBM 21.1%/−22.1/β0.86/α+8.9 — LOSES to
+  BOTH** · M2 Ridge (exploratory) 23.9%/α+11.4 · @2% slip: A2 28.5 vs GBM 20.0.
+- **Bar:** 1 beat-A2 FAIL · 2 beat-control FAIL · 3 β≤1 pass · 4 DD-within-3pp FAIL · 5 slip-2 FAIL.
+- **The one durable output, third confirmation:** GBM importances rank **beta #1 (0.181)** (consist 0.110,
+  rsdd 0.109 next) — the machine keeps rediscovering the levers already coded by hand (β-cap, consistency).
+  Momentum-is-beta (t=1.99) holds; the learned-ranking families are now double-rejected pre-registered.
+- **Incidental record:** the A2-composite's 2017+ slice prints 30.1% PR — the modern era exceeds Ramana's 30
+  target on the existing machinery; the full-period gap is entirely the 2006-11 era's low-benchmark regime.
+- **Provenance:** `research/explosive_moves/union_ml2.py` (prereg design verbatim; two head-slice porting
+  defects — missing rf_q/stat — fixed before any result was read, run integrity unaffected) · sklearn 1.7.2 ·
+  DB to 2026-07-15.

@@ -2122,6 +2122,29 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 172 (RS/Union lane, Ramana-directed: "Raise the CAGR target to 30... Let us make it") — 2026-07-16 — COMPOSITE-30 = 26.4% PR / 27.3% TR (worst-honest 24.4); all three new axes passed; ML-v2 REJECTED on its sealed bar; the modern-era slice prints >30 on existing machinery
+
+- **Wins (ledger 16AF):** top-30 re-proven on the widened universe (2006-11 α+13.5 > control — the old
+  concentration failure was starvation, changed-premise rule applied honestly) · LET-WINNERS-RUN drift
+  (+1.0pp at UNCHANGED DD — the family had been force-trimming winners quarterly) · rank-proportional
+  weights (⚠ doctrine revision: 16X's wall narrows to VOL-based sizing). **COMPOSITE-30 (top-30 × drift):
+  26.4/−31.7/115.7x/β0.82/α+15.1 · TR 27.3 · worst-honest 24.4 — clears the declared 23.9 stress bar.**
+  Second deferred lead (gen-5 selection stated); family stays closed; risk-return menu to Ramana
+  (A2-composite 25.5/−27.2 vs COMPOSITE-30 26.4/−31.7).
+- **ML-v2 (ledger 16AG): REJECTED 4-of-5** on the sealed prereg (`bf74a7a5…`, pushed `a18a2d5` pre-run;
+  2,910 train rows over the era-floor pool). 2017+: GBM 21.1/α+8.9 vs RISKADJ-rank **30.1/α+16.4** and
+  control 25.5. Beta = #1 learned feature for the 3rd consecutive run. Same-shape tabular ML now
+  double-rejected pre-registered (16AA + 16AG).
+- **The 30-target position:** full-period TR 27.3 (gap 2.7pp); 2012-17 TR 30.5; 2018-26 TR 28.9; A2-composite
+  2017+ slice 30.1 PR. The gap is entirely the 2006-11 low-benchmark era; measured upside left = the feed
+  lane (TRI/G-sec). Config space CLOSED on this base — no further sweeps.
+- **Artifacts:** `union_lab5.py` (declared bars/compose/stress) · `union_ml2.py` (prereg verbatim; two
+  porting defects fixed pre-read) · ledger 16AF/16AG · carry-forward S172 block + §G rows + menu-first
+  NEXT-SESSION · union.md ladder + walls. Box read-only throughout.
+- **Harness TIL:** generator-derived modules (head-slice + tail) bit twice today (missing rf_q/stat) — a
+  shared `union_lab_core.py` import module would end the porting class; queued as a refactor candidate for
+  a quiet session (research-code only, no seal impact).
+
 ### Session 171 (RS/Union lane, Ramana-directed: "continue with the remaining levers.. keep improving") — 2026-07-16 — THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE (A2-composite 25.5% PR / worst-honest 23.9%) — recorded as a DEFERRED LEAD; rf-cash measurement-adopted; G-sec sleeve data-blocked
 
 - **The diagnosis first (new fact):** the absolute ₹5cr ADV floor admits 389 names in 2006 / 344-424 in

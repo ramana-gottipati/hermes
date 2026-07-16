@@ -133,13 +133,22 @@ wealth — the standing V8→V17 lesson.)*
   roughly a third of C40RA's; personal-scale execution only). The sibling family is closed at three, so
   this is recorded and HELD: registration awaits the 2026-10-03 forward verdict or Ramana's explicit
   reopening (both queued decisions in the ledger entry).
+- **COMPOSITE-30 — the SECOND deferred lead (2026-07-16 S172, ledger 16AF):** the A2-composite plus
+  concentration at top-30 (re-proven viable on the widened universe) and let-winners-run weight drift
+  (retained names keep market-drifted weight, capped at 2× a base slot). In-sample the family's best on
+  return; its deeper drawdown is disclosed, its stress floor still clears the previous lead. Fifth-generation
+  in-sample selection — recorded and HELD beside the A2-composite as a risk-return menu for Ramana; not
+  registered (family closed at three).
 - **Signal A alone** and **Signal B alone** — each beats the Next-50 bar in-sample but by less; the union
   beats both. Recorded reference points, not separate strategies.
 - **Rejected candidates** (do not re-run): throttle (16W), inverse-vol (16X), the AND-intersection (16V),
   the twelve-candidate battery of 16Z (sector caps · RSI ranks · beta-rank-asc · 6b variants · 6b∪6f ·
-  weekly/MTF · quality tilt), the pre-registered ML ranker (16AA), and the S168 kills (16AC): trail widths
-  other than 20 · sleeve-index swaps · cap-floor refill · vs-bench consistency · **monthly cadence (4th
-  confirmation of the cadence law)** · the cross-family LOWVOL_MOM blend (return-corr 0.83 — dilution).
+  weekly/MTF · quality tilt), the pre-registered ML rankers **BOTH generations** (16AA Ridge-primary ·
+  16AG GBM-primary over the era-floor pool — the hand rule beat the machine both times; beta was the #1
+  learned feature all three runs), and the S168 kills (16AC): trail widths other than 20 · sleeve-index
+  swaps · cap-floor refill · vs-bench consistency · **monthly cadence (4th confirmation of the cadence
+  law)** · the cross-family LOWVOL_MOM blend (return-corr 0.83 — dilution). Concentration below top-30 and
+  vol-based sizing stay dead (16AF narrowed the 16X sizing wall to vol-based only).
 
 ## 5. Known weakness (disclosed, not hidden)
 
