@@ -114,6 +114,108 @@ forward beta reported (a higher CAGR purely from beta>1.1 = FAIL) · ③ MaxDD n
 single quarter > 60% of the excess. **Miss ①–③ → DESCRIPTIVE-ONLY, never deployed.** **NEXT ACTION when a new
 quarter closes: run the forward test against the sealed criteria — do NOT touch the spec.**
 
+**🗓 SCHEDULER STATE (2026-07-16):** the Union forward test is a LIVE one-time task `union-forward-test-q3-2026`
+— **fires 2026-10-03 09:00 IST** (`fireAt 2026-10-03T03:30:00Z`, enabled), verifies the seal, refuses stale
+data, runs `cash_blend.py` on the VPS, appends a forward-test ledger entry, does NOT touch the spec. Toolchain
+rehearsed + confirmed ready (seal intact · VPS reachable · engine present · pipeline live to 2026-07-15). Five
+completed/disabled tasks were deleted (`cirqle-forecast-chart-followup` · `cf-tax-80d-section-80d-tracker` ·
+`check-rs-backfill` · `verify-provenance-timeout-fix` · `patearn-tracker-autobuild`) — SKILL.md files left on
+disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-daily`) untouched.
+
+---
+
+### 🔴 COMPLETE EXPERIMENT CATALOG — "WE ALREADY TRIED THIS" GUARD (Ramana, 2026-07-16: cite this before proposing ANY RS experiment; if a new idea matches a row, say "Hey — we already tried this" and quote the number). Full detail = the ledger entry named in each row. This is the anti-repeat spine; do NOT re-run a ❌ without BEATING its number.
+
+**A. SECTOR-INDEX LAYER (V-ladder · index_rows · never touched by the CA bug · ledger 15b→15g, 15N):**
+| # | what | verdict | ledger |
+|---|---|---|---|
+| V1 | quarterly 16-sector RS rotation + hysteresis + RSI gate | beats passive, not the strict bar | 15 |
+| — | SHORT / F&O leg | ❌ REJECT 0.49 vs 0.87 (shorts fight drift) | 15 |
+| V8 | frozen champion (BAL+RSPK+STR+RSIRS, cash residual) | ⚠ **9.13× — LOSES to buy-and-hold Nifty 500 (12.68×)** | 15b |
+| V9 | book-level 200DMA kill-switch | ❌ wealth collapses on whipsaws | 15c |
+| V10 | asym cadence (monthly risk pass) | ❌ 0.59, sells into noise | 15c |
+| V12 | monthly cadence | ❌ churn 35.7%/mo (3rd confirmation of the cadence law) | 15c |
+| V17 | defensive residual fill (idle→index ETF ≥200DMA else cash) | ✅ recorded candidate 0.79 / 19.04× | 15c |
+| V21 | V17 + Next50 sleeve + recovery-accel + inverse-vol | ✅ 0.87 / 27.02×, first to beat both halves | 15d |
+| V24 | V21 + own-pctile RSI-of-RS | ✅ 0.91 / 30.35× (LIVE-candidate) | 15f/g |
+| V32 | V24 + adaptive hysteresis band | ⚠ 0.90 / 31.15× — **statistically indistinguishable from V24 (p=0.745); RETIRED** | 15f, 15i-sig |
+| — | V24 + trail-20% cull | ✅ 17.28%, MaxDD −37.7%→−30.2%, halves 0.99/0.99 | 15N |
+| — | WIDER POND (+MNC/PSE/Commodities/Midcap50) | ❌ 17.2%→16.6% (overlap dilutes) | 15N |
+| — | sector gate +8% RS | ❌ **WORST of 5 gates, worse than no gate** (−0.70%/qtr fwd) | 15N/Q, rs_50dma |
+| — | sector gate RS>50DMA (state) / RS-crossed-50DMA (event) | RS-cross best of the 5 but **not significant** (+0.28% ±0.57) | 15Q |
+| — | sector gate 50-EMA-cross entry + 8%-stop exit | ✅ best sector-gate mechanic (11.1%, α+1.8%, β0.75) | rs_ema_stop |
+| **KEY** | — | **the V24 30.35× is the NEXT-50 SLEEVE + risk overlays, NOT sector selection; V8-alone loses to passive. Codex: V24 probably OVERFIT, treat 17.3% as a lead.** | 15R |
+
+**B. THE DATA BUGS (all FIXED — any pre-fix number is VOID; ledger 15L/15O/15S):**
+| bug | effect | status |
+|---|---|---|
+| `series='EQ'` filter | read NSE BE-surveillance moves as DEATHS (84% fake) | ✅ FIXED → EQ+BE+BZ |
+| raw prices UNADJUSTED | 1:2 bonus read as −50%; worth ~16pp CAGR | ✅ FIXED → `adjust.py` |
+| "corporate_actions ~30% incomplete" | **FALSE** — DB matches NSE exactly (2011: 47/47; TATAMOTORS 0/0) | ✅ retracted 15S, nothing to fund |
+| stale-price vol · dead-name 0% · ADV look-ahead | inflated inverse-vol / hid losses / leaked | ✅ all FIXED |
+| **8 retractions total** | 15h ETF-legs · 15i survivorship · 15j hysteresis-transfer · 15k fill-quality · 15L series · 15O CA · 15R premise · 15S incompleteness | **every one = asserted then tested against my own assertion** |
+
+**C. STOCK LAYER — SELECTION & SIZING (adjusted prices; ledger 15j→15Q, 16T):**
+| what | verdict | ledger |
+|---|---|---|
+| ⭐ **15P THE ANSWER** | selection WORKS (+1.97–2.98%/qtr) but **volatility drag eats it**; D6 dominates D10 on BOTH axes; "best-of-best" is dominated by "good". *Codex: D6>D10 "insufficient evidence" — a lead.* | 15P/16T |
+| naive stock RS (top-N, EW) | ❌ LOSES to Nifty 500 at every size/window | 15j |
+| hysteresis on the STOCK book | ❌ BACKFIRES (α −0.5%→−7.3% as band widens); a sector lever that does NOT transfer to stocks | 15j |
+| exits (hard stop / trailing) | ✅ fix RISK not return; the +3.5% α was a frictionless-fill artifact, **dies at 2% slippage**; trail-20% halves DD | 15k |
+| the "pond" (unconditioned universe) | ❌ loses −4.9%/yr to Nifty 500 because the index self-culls and we don't | 15L |
+| the CULL (stop) on the pond | ✅ +6.1pp α (Ramana's idea) but does NOT close the pond gap → **unconditioned stock family REJECTED** | 15M |
+| sector-gate → stocks (V24 gate) | ❌ 6.1–8.1%, loses | 15O/N |
+| RS TURN (sign-flip: was behind→now ahead) | ❌ **NO forward signal — flat panel, all cells within 1 SE** | 15Q |
+| BE-surveillance VETO | ❌ FALSIFIED (sd falls, return falls MORE, geo backwards) | 16T |
+| fundamentals red-flag VETO | ❌ INERT (removes 8%, moves geo −0.01pp) | 16T |
+| inverse-vol sizing (stock leg) | ❌ WASH, net slightly worse than EW | 16X |
+| beta control (cap max-invested 50/75/100%) | ✅ beta becomes a DIAL (0.40/0.58/0.72) at a linear return cost | 16W-cash |
+| money-mode: cash / sleeve / **sleeve200** | sleeve200 (idle→Next50 ≥200DMA else cash) = BEST (15.6%, β0.82, α+5.7%); dead-cash drags | 16W |
+
+**D. RSI BATTERY (stock-level; ledger 16-RSI-battery, `rsi_battery.py`):**
+| what | verdict |
+|---|---|
+| RSI(9/14/21) × SMA/EMA × state/event as a SELECTOR | ❌ all 3.8–5.7% (lose); **SMA > EMA, state > event** |
+| strength index (volume · sector · peer · BREADTH) — zavg/andfilter/rankblend/breadth | ❌ all WORSE than the raw signal; **breadth (Codex's idea) = 1.8%, dead** |
+| architecture 2a (gate-first) vs 2b (RSI-first, sector=score) | tied, both lose |
+| ✅ **consistency ≥70%** (beat own sector on ≥70% of the quarter's days) | **the single biggest stock-level lever: 4.5%→12.1%; PEAKS at 70% (80% is worse)** |
+| RSI + consist70 + trail-20% stack | ✅ 14.1–14.5% |
+
+**E. DIMENSION 6 — ALL 8 REVERSAL-ON-RS INDICATORS (ledger 16U, `dim6.py`/`dim6g.py`):**
+| id | indicator | verdict |
+|---|---|---|
+| 6a | slope inflection (RS below avg, slope turns up) | ❌ dead (−1.1% as a book; ns as selector) |
+| **6b** | **RSI-of-RS oversold recovery (<30 → ≥30)** | ✅ **THE ONLY WINNER — +1.36% vs base, GEO +0.33% (first positive-geometric selector of the whole session)** |
+| 6c | RS Bollinger reclaim (2σ band, adjacent to dead price-band family) | ❌ ns |
+| 6d | dual-MA crossover on RS (20d>50d) | ❌ ns (worse) |
+| 6e | MACD-of-RS signal crossover | ❌ ns |
+| 6f | RS drawdown recovery (−15% then within 5% of high) | ❌ ns (but +0.37%, the least-dead of the losers) |
+| 6g | cross-sectional RANK CLIMB (bottom→top of sector) | ❌ dead (ns; the move is too RARE — ~5 events/20y at tight thresholds) |
+| 6h | price/RS divergence (price new low, RS not) | ❌ **significantly HARMFUL −1.74%** (textbook bullish divergence LOSES here) |
+
+**F. THE UNION & its failed fixes (ledger 16V/W/X):**
+| what | verdict |
+|---|---|
+| ✅ **THE UNION** (6b OR RSI+consist70; top60; sleeve200; trail-20% @1% slip) | **17.5% / MaxDD −30.5% / ₹26.04Cr / β0.87 / α+6.8% — best of the session, SEALED** |
+| intersection (6b AND trend) | ❌ 8.6%, only 9% invested — **the two signals are MUTUALLY EXCLUSIVE (11% overlap); union only, never AND** |
+| diagnostics | selection-complementary (11% overlap) but **return-correlated 0.79** (both long-only momentum on the same sectors) |
+| walk-forward | 2006-11 α**+8.7%** · **2012-17 α−5.5% (FAIL, β1.56)** · 2018-26 α**+6.5%** |
+| market-stretch THROTTLE (linear/step/hard) | ❌ FAILED — made EVERY metric worse; barely moved 2012-17 beta (1.42→1.35) |
+| inverse-vol on the union | ❌ WASH (16X) |
+| **KEY** | **2012-17 is UNREACHABLE by any SIZING/exposure lever (throttle AND inverse-vol both failed) → the weakness is SELECTION (which stocks in a mid-cycle bull), a harder open question. Do NOT re-attempt sizing fixes for it.** |
+
+---
+
+### 🎯 NEXT SESSION — improve the UNION (Ramana's NON-NEGOTIABLE: push CAGR higher; "in the AI era, manual-only makes no sense" → ML/ensemble is explicitly on the table). GENUINELY-UNTRIED directions ONLY (everything above is spent):
+
+1. **The 2012-17 SELECTION fix (the ONE real open question).** NOT sizing (dead). Change WHICH stocks in a mid-cycle bull: (a) sector-NEUTRAL construction (cap names per sector so the book can't pile into one hot sector); (b) a per-name **beta cap** at selection time (≠ 16W's book-level throttle — that was exposure, this is selection); (c) a valuation/quality tilt applied at SELECTION (not as the veto that failed in 16T).
+2. **Reversal-family combos never tested:** 6b **+ 6f** (drawdown-recovery, the least-dead loser) as a union; 6b at thresholds other than <30→30 (e.g. <25 / <35); 6b on a WEEKLY RS line (we have `weekly_signals`) for a slower, higher-conviction turn.
+3. **Multi-timeframe confirmation:** require the turn/trend on BOTH daily and weekly RS (untested; `weekly_signals`/`monthly_signals` exist).
+4. **ML / ensemble (Ramana's AI ask) — with the honest prior stated up front:** a model over the SURVIVING signals (6b state · consistency · RS-vs-sector · turn-age) risks overfitting the SAME 2005-26 window (Codex 15R), and the ledger's standing result is momentum=BETA-not-skill (t=1.99). Do it as a PRE-REGISTERED, walk-forward-only build (train ≤2016, test 2017+), never in-sample-scored. This is the one place "more compute" is legitimately new.
+5. **TR-benchmark re-cut** (owed across the whole estate; moves every price-index number here).
+
+**⚠ BINDING for next session:** the Union is SEALED (`a9a14058…`). New experiments are CANDIDATES beside it — do NOT edit the sealed spec; if a candidate wins cleanly on walk-forward, amend the spec ONCE with a fresh seal BEFORE any forward data. Every candidate must beat the Union's **17.5% / β0.87 / α+6.8%** net, on walk-forward (not one window). Cite section C/D/E/F above before proposing — if it's there, it's already tried.
+
 **Canon (single source of truth — do not re-derive from this block):** the ruleset + terminology + the rejected-candidate list (throttle 16W · inverse-vol 16X · AND-intersection · both vetoes) live on **[`docs/strategies/union.md`](strategies/union.md)** (served at `/dash/strategy-ref?p=union`; **no `/dash` surface by design** — a live page would imply tradeability the sealed lead lacks). Result numbers: ledger §§ 2026-07-16U→X only. Frozen spec + criteria + seal: [`docs/prereg/union-prereg.md`](prereg/union-prereg.md).
 
 **Still owed (both blocks):** TRI-benchmark re-cut (all numbers are price-index vs price-index). The ONE
