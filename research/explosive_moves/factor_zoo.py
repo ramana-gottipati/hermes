@@ -271,6 +271,8 @@ def main():
            f"{'MFE%':>6}{'Cap%':>6}{'WCap%':>7}{'MAE%':>7}{'Beta':>6}{'Alpha':>7}  surv")
     print("=" * len(hdr))
     print("FACTOR ZOO — institutional tearsheet (top-25 monthly, value-gate, net cost, walk-forward).")
+    print("RetVol/Sort/Alpha are on a NO-risk-free basis (D142): RetVol=mean/sd·√252 and Sort=mean/downside-sd·√252 are")
+    print("return/vol & return/downside-vol RATIOS, NOT a Sharpe/Sortino (they read high vs the textbook ones); Alpha omits the rf(1-beta) term.")
     print("Win%=positive months | PF=profit factor | PosHit=% winning positions | MFE%=avg peak move available while held |")
     print("Cap%=realised ÷ peak (aggregate) | WCap%=winners' capture of own peak | MAE%=avg worst dip | Alpha=ann vs Nifty500")
     print("=" * len(hdr)); print(hdr)
