@@ -463,6 +463,54 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-16U - DIMENSION 6 COMPLETE (all 8 reversal-on-RS indicators). ONE winner: 6b RSI-of-RS oversold recovery - the FIRST positive-geometric selector of the session. 6g dead (honestly). 6h significantly HARMFUL.
+
+**Ramana, 2026-07-16:** "finish dimension 6 properly" then "fix 6g's threshold first." Done - all eight
+run as SELECTORS (forward 3m excess vs Nifty 500), each vs a no-selection baseline, SIG = beyond 2 SE of
+the difference. **Modules:** `research/explosive_moves/dim6.py` (7 indicators) + `dim6g.py` (6g clean).
+Foundation: CA-adjusted, 156 quarantined, prior-month ADV, PIT. Baseline: n=27,614, mean +1.63%,
+sd 26.05%, **GEO -1.77%** (the pool's own variance toll - the thing every selector must beat).
+
+**LEDGER BLOCKS CITED:** price-band mean reversion falsified at every level (07-13, 07-14b "ZERO tradeable
+survivors"); RS sign-flip falsified (15Q flat panel); 6a slope inflection falsified (RSI battery, CAGR
+-1.1%). These do NOT block 6b/d/e/f/g/h (different constructs). 6c is the one genuine adjacency (band +
+mean-reversion mechanism, on RS not price) - flagged, and it FAILED (ns), consistent with the family.
+
+| indicator | n | mean/qtr | sd/qtr | **GEO/qtr** | vs base | sig |
+|---|---|---|---|---|---|---|
+| (no selection) | 27,614 | 1.63% | 26.05% | -1.77% | - | - |
+| **6b RSI-of-RS oversold recovery (<30 -> >30)** | 2,790 | **2.98%** | **23.03%** | **+0.33%** | **+1.36%** | **SIG** |
+| 6f RS drawdown recovery (-15% -> within 5%) | 5,108 | 2.00% | 24.42% | -0.98% | +0.37% | ns |
+| 6c RS Bollinger reclaim [adjacent-to-dead] | 2,493 | 1.93% | 22.50% | -0.61% | +0.30% | ns |
+| 6a slope inflection (control) | 2,311 | 1.63% | 23.01% | -1.02% | +0.00% | ns |
+| 6e MACD-of-RS crossover | 1,508 | 1.61% | 22.04% | -0.82% | -0.02% | ns |
+| 6d dual-MA crossover on RS (20/50) | 1,520 | 0.86% | 21.36% | -1.42% | -0.77% | ns |
+| **6h price/RS divergence** | 635 | -0.12% | 16.13% | -1.42% | **-1.74%** | **SIG (NEGATIVE)** |
+| **6g cross-sectional rank climb** | 371 | 1.58% | 22.39% | -0.93% | -0.07% | ns |
+
+**6b IS THE FIRST POSITIVE-GEOMETRIC SELECTOR IN THE ENTIRE SESSION.** Every prior construct had the
+15P disease: positive mean, negative geometric, variance toll eats the edge. 6b clears its own toll
+(GEO +0.33%): higher mean (2.98 vs 1.63) AND lower vol (23.03 vs 26.05). It is Ramana's recovery thesis
+applied to MOMENTUM-OF-MOMENTUM (RSI of the RS line), not price. Six sibling turn-constructs failed; this
+one did not. **NOT YET A STRATEGY** - it is a selector on forward returns (same decomposition 15P used,
+which Codex later ruled "insufficient evidence", 15R). Owed: full book test (survives cost/turnover?),
+walk-forward x3, and stacking with consistency>=70% + trail-20%.
+
+**6h price/RS divergence is significantly HARMFUL (-1.74%, SIG).** The textbook bullish-divergence setup
+(price new low, RS not) ACTIVELY loses here. Recorded so it is never added as a "sensible" overlay.
+
+**6g cross-sectional RANK CLIMB - DEAD, and now HONESTLY dead.** First two attempts emitted ~0 picks
+(a crossed g_res/g_multi accumulator bug, NOT the signal). Fixed + swept in dim6g.py. The one variant
+with enough data (bottom-half->top-half, n=371) beats baseline by -0.07% (ns, slightly negative).
+Tighter thresholds are UNTESTABLE by nature: a stock going bottom-third -> top-half of its sector in 21
+trading days happens ~5 times in 20 years - too rare to book even if it worked. **The indicator I ranked
+2nd-highest prior carries no forward information. Do not re-attempt.**
+
+**FAMILY VERDICT: of 8 reversal-on-RS constructs + the earlier sign-flip (15Q) + slope (6a), only 6b
+survives. "Catch the turn" is almost entirely a dead family - the ONE exception is the oversold-RSI-of-RS
+recovery, and only pending its book test. The prior stated before the run ("expect these to fail; a
+family that keeps failing is evidence about the family") held for 7 of 8.**
+
 ### 2026-07-16T - BOTH VETOES FAIL: BE-surveillance FALSIFIED (sd falls, return falls MORE), fundamentals INERT. + an incidental CORRECTION to 15P's baseline.
 
 **Ramana approved both, 2026-07-16**, with a condition that shaped the test: *"I also want to track the
