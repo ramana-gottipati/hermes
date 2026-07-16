@@ -539,13 +539,6 @@ def wire(app):
     _install_skin()
     _install_table_controls()
     _install_dq_banner()
-    # P2 (S177): re-tier the home page (Today band first, counters demoted) — wraps
-    # cockpit.render_home at the proven seam; additive, defensive, reversible.
-    try:
-        from src.web import home_tiers as _HT
-        _HT.install()
-    except Exception as e:  # noqa: BLE001 — the re-tier is additive; never break wiring
-        log.warning("home_tiers install skipped: %s", e)
     _install_left_rail(app)   # LAST: post-processes the assembled page into the left rail
     return app
 

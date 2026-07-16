@@ -266,9 +266,6 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - `src/web/participants_view.py` — UPGRADED: the full-history FII positioning tape + percentile gauge + retail mirror (additive above the existing gauge/matrix).
 - `src/web/lens_registry.py`, `src/web/v2_surfaces.py` — +2 lens records / +2 `_ROUTER_SPECS` mounts (market-internals, launchpad-track).
 
-**UI revamp P2 (S177) — new/changed:**
-- `src/web/home_tiers.py` — NEW leaf module: wraps `cockpit.render_home` at install (the shell_skin pattern; forked cockpit.py untouched) and re-tiers the home output — TODAY band (Attention · RS Band · headlines) promoted under the mood banner, funnel boards second, flagship third, counter tiles demoted to the tail. Defensive (anchor miss → original), idempotent (`<!-- home-tiers v1 -->`), no-loss; thin-data pages (no Today board) deliberately no-op. Wired via one anchored line in `v2_surfaces.wire()`.
-
 **Left-rail nav (S122) — new/changed:**
 - `src/web/left_rail.py` — NEW leaf module: the guarded HTTP middleware (registered LAST in `v2_surfaces.wire`) that turns the horizontal `.uk-sub` lens strip into a collapsible GROUPED left rail on EVERY page (legacy + native); reads `lens_registry` `group=`; decompress→reshape→recompress (sits outside GZip); `left_rail._GROUP_ORDER` sets group display order.
 - `src/web/lens_registry.py` — +`group=` on the ~26 previously-ungrouped Markets + Strategies lenses (drives the rail grouping); `src/web/v2_surfaces.py` — +`_install_left_rail(app)` (the one-line wire hook, called last).
@@ -2156,12 +2153,8 @@ Skin overlay extended for light-critical frozen-body holdouts observed in the li
 active #1f6feb · gl-q/ck-links #58a6ff · gl-pop shadow · `body.uk-skin a`). Verified: 3 selftests green; chrome_gate
 regression set BYTE-IDENTICAL to HEAD (10 pre-existing local-env failures, zero added — also fail on clean HEAD);
 local uvicorn walk (home/markets/screener/coverage 200, toggle in DOM, light tokens served).
-**P2 shipped — home re-tiered:** NEW `src/web/home_tiers.py` (see § Key file paths) wraps `cockpit.render_home` at the
-proven seam — Today band (Attention · RS Band · headlines) promoted to the top, funnel boards second, flagship third,
-counter tiles demoted. Selftest green (order + no-loss + idempotent + thin-data no-op); real-app TestClient verified the
-wrap installs (stub home no-ops by design — zero Today boards on the 4-symbol stub; fires on real data).
-Next: P3 dossier lazy-tabs + rail folds + verdict humanization · P4 public front-door prep (patearn.in parks at a
-forwarder — DNS flip is Ramana's).
+Next: P2 home tiers · P3 dossier lazy-tabs + rail folds · P4 public front-door prep (patearn.in parks at a forwarder —
+DNS flip is Ramana's).
 
 ### Session 169 (cont.) — 2026-07-16 — §7.7 Option-B guards (c)+(d) SHIPPED — §7.7 fully executed
 The last two §7.7 B follow-ons (a)-(d) now all done; authored in an isolated lane worktree (the S169 convention).
