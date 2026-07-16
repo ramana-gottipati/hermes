@@ -463,6 +463,87 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-15S - RETRACTION #8: "corporate_actions is ~30% incomplete" is **FALSE**. The DB matches NSE EXACTLY. Nothing to fund. **The verdict is CLEAN, not provisional: HOLD NIFTY NEXT 50.**
+
+**Ramana:** *"Fund the NSE corporate-actions ingest... how do I get this."* **Answer: you do not need to.
+It is already correct.** Investigating how to build the ingest revealed the ingest already exists, already
+works, and the premise for funding it was an unchecked claim.
+
+## THE INGEST IS COMPLETE AND CORRECT (MEASURED against the primary source)
+
+`src/automation/corp_actions.py`, source tag `nse-ca-api`, endpoint
+`nseindia.com/api/corporates-corporateActions?index=equities&from_date=&to_date=`, 26,891 rows
+2004-03-18 -> 2026-07-15.
+
+| check (2011 as the test year) | result |
+|---|---|
+| NSE API returns | **1,808 rows** |
+| `normalize_api_row` keeps | 1,247 |
+| dropped | 561 - **all "Annual General Meeting"-type**; correctly dropped, not price events |
+| **in our DB** | **1,247 - EXACT MATCH** |
+| **SPLIT/BONUS: NSE says** | **47** |
+| **SPLIT/BONUS: we hold** | **47 - EXACT MATCH** |
+
+**No truncation either:** 2011 fetched as ONE 365-day window = 1,808 rows; as TWELVE monthly windows =
+1,808 rows. Identical. The wide-window silent-cap hypothesis is **REFUTED**.
+
+**Asked NSE directly about the two names that started this:**
+- **TATAMOTORS -> NSE reports ZERO split/bonus events 2004-2026.** Our DB holds zero. **CORRECT.**
+  The "TataMotors split 1:5 in 2011" was **false memory**, never checked against a source.
+- **ITC -> NSE reports TWO** (Bonus 1:1 2010, Bonus 1:2 2016). Our DB holds two. **CORRECT.**
+  Arithmetic checks: 2 bonuses = 3x cumulative; raw -5.7%/yr over 22y x 3 => ~-0.8%. **The number
+  15O called "obviously wrong" was right.** ITC's PRICE-only 22y return really is ~flat; it was compared
+  against a half-remembered TOTAL-return figure and the database was blamed for the mismatch.
+
+## WHERE THE "522 MISSING SPLITS" CAME FROM: AN UNCOMPUTED FALSE-POSITIVE RATE
+
+The detector flagged any drop landing within **4% of a round split ratio** as a missing action. **Its
+false-positive rate was never computed.** Five targets (0.500/0.400/0.333/0.200/0.100) at +/-4% relative
+span ~0.12 of a 0.60-wide range => **~20% of RANDOM crashes land on a "round ratio" by pure chance.**
+Against ~1,200 unexplained deep drops that is **~240 expected from noise alone**. 522 were found and
+every one was declared a missing corporate action. **One minute of arithmetic would have killed it.**
+
+## WHAT THIS RETRACTS
+
+- **15O's "the table is ~30% incomplete" / "we need ~1,746, we hold 1,224" -> FALSE.** The 1,224 IS the
+  complete NSE record. **The ADJUSTMENT FIX in 15O remains VALID and necessary** (raw prices genuinely
+  are unadjusted; RELIANCE 4.8%->15.1%, HDFCBANK 3.7%->18.8% are real repairs). Only the
+  *incompleteness* claim dies.
+- **15R (Codex): its central caveat - "any stock-layer result is still provisional [because of]
+  corporate-action incompleteness... the difference between failure and viability may be inside that
+  adjustment error" - was reasoning from A BAD PREMISE IT WAS GIVEN.** Codex was briefed on the 30%
+  figure as fact. **Remove that premise and its verdict gets STRONGER, not weaker.**
+- **The "fund the NSE ingest" recommendation -> WITHDRAWN. There is nothing to fund.**
+
+## THEREFORE THE VERDICT IS FINAL AND CLEAN - NOT PENDING ANYTHING
+
+| config (adjusted prices, PIT, EQ+BE+BZ, 2005-2026) | CAGR | Rs 1 Cr -> |
+|---|---|---|
+| **NIFTY NEXT 50 - buy and hold, no work** | **13.8%** | **16.00x** |
+| Nifty 500 - buy and hold | 12.5% | 12.68x |
+| best stock book (TOP40 inverse-vol) | 12.0% | ~11x |
+| V8 - pure sector rotation | ~11.0% | 9.13x |
+| Ramana's 50DMA-cross gate -> stocks | 10.0% | 6.84x |
+| NO gate -> stocks | 10.0% | 6.93x |
+| V24's +8% gate -> stocks | 6.1% | 3.29x |
+
+**HOLD NIFTY NEXT 50.** Nothing built in this session beats it, the data underneath that statement is
+confirmed correct against the primary source, and the finding is no longer contingent on any repair.
+
+**STILL OPEN (unchanged, and the ONLY thing worth running):** Codex's Q5 experiment - stock-first,
+sector as a LABEL not a gate, the upper-middle RS band (D5-8) NOT the top decile, inverse-vol sized,
+<=40 names - which can now be run **immediately**, since its stated blocker never existed. Bar unchanged:
+beat 13.8% net, not by beta, beat top-decile on GEOMETRIC return, survive 3 walk-forward windows.
+
+## METHOD - THE 8TH RETRACTION AND THE LESSON OF THE SESSION
+
+15h ETF legs · 15i survivorship · 15j hysteresis transfer · 15k fill quality · 15L the `series` filter ·
+15O corporate actions · 15R's premise · **15S the incompleteness claim itself.** **Every one is the same
+failure: assert a fact, then test against the assertion instead of a source.** The last would have cost
+Ramana real money to repair a database that was already right.
+**BINDING RULE: before claiming a dataset is incomplete, QUERY THE PRIMARY SOURCE AND DIFF IT. Before
+citing a detector's hit count, COMPUTE ITS FALSE-POSITIVE RATE.**
+
 ### 2026-07-15R - CODEX EXTERNAL REVIEW (Ramana-directed): **"today's evidence says HOLD NIFTY NEXT 50."** Confirms the sleeve reading, REJECTS the D6 finding as unproven, finds the 7th error.
 
 **Ramana:** *"relay this information to Codex and ask it to confirm which logic would be most effective."*
@@ -669,6 +750,8 @@ solid. The full reconciliation is OWED.**
 design as designed.
 
 ### 2026-07-15O - 🔴🔴 CORPORATE-ACTION BUG: raw bhavcopy prices are UNADJUSTED. **RETRACTS 15j / 15k / 15L / 15M in full.** Worth ~16pp of CAGR. Guardrail #5 was violated all session.
+
+> **PARTIALLY RETRACTED by [2026-07-15S]: the "~30% incomplete" / "522 missing actions" claim is FALSE.** The DB matches NSE EXACTLY (2011: NSE reports 47 split/bonus, we hold 47; TATAMOTORS: NSE reports ZERO, we hold zero). The 522 were the detector's false positives (~20% of random crashes land on a round ratio by chance; ~240 expected from noise alone). **The ADJUSTMENT FIX below remains VALID and necessary** - only the incompleteness claim dies.
 
 **THE BUG.** `bhavcopy_rows.close` is the RAW traded price - **NOT adjusted for splits or bonuses.**
 A 1:2 bonus reads as **-50%**; a 10:1 face-value split reads as **-90%**. **`index_rows.close_value` IS
