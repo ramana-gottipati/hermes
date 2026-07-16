@@ -59,6 +59,75 @@ PROJECT_STATE entries are enough.**
 - **Gotchas for your deploy steps:** `install-systemd.sh` DEFAULTS to `--check` — the copy needs the explicit `--install` flag (this bit me; also now in the deploy memory). Worktree commits need BOTH `HERMES_SKIP_STATE_GATE=1` and `state:skip`.
 - **✅ Suite debt FIXED (same orchestrator, npfix-suite):** `test_embase_deliv_value.py` now `pytest.importorskip("numpy")` (the test_rule_lab_executor pattern) and `combo_test.py` (a research SCRIPT that only matched pytest's `*_test.py` glob) is collect-ignored via a new `research/explosive_moves/conftest.py` — full suite collects clean in numpy-less worktrees (539 passed / 0 errors at the S158-era base). Semantics untouched; the script still runs via `python -m`.
 
+## 🔴🔴 2026-07-15/16 — RS STRATEGY: **THE VERDICT IS "HOLD NIFTY NEXT 50."** Read this before ANY rotation/RS work. 8 retractions. Do NOT re-open the ladder.
+
+**THE ANSWER (final, on clean data, contingent on nothing):**
+
+| config (adjusted prices, PIT, EQ+BE+BZ, 2005→2026, 21.5y) | CAGR | ₹1 Cr → |
+|---|---|---|
+| **NIFTY NEXT 50 — buy and hold, no work at all** | **13.8%** | **16.00×** |
+| Nifty 500 — buy and hold | 12.5% | 12.68× |
+| best stock book (TOP40 inverse-vol) | 12.0% | ~11× |
+| **V8 — pure sector rotation, sleeve removed** | **~11.0%** | **9.13×** |
+| Ramana's 50DMA-cross gate → stocks | 10.0% | 6.84× |
+| NO gate → stocks | 10.0% | 6.93× |
+| V24's live +8% gate → stocks | 6.1% | 3.29× |
+
+**NOTHING BUILT BEATS BUY-AND-HOLD.** Confirmed independently by **Codex** (ledger 15R): *"Today's
+evidence says hold Nifty Next 50."*
+
+**🔴 V24's 30.35× / 17.3% IS THE SLEEVE, NOT SECTOR SELECTION.** V8 (sectors only) = **9.13× vs
+buy-and-hold's 12.68×** — pure sector rotation LOSES to doing nothing. All outperformance appears when
+the **Nifty Next 50 sleeve** is added, and Next-50 alone is 16.00×. Codex: *"V24 is probably OVERFIT —
+four rounds deep, one window, statistically indistinguishable variants. Treat 17.3% as a research LEAD,
+not evidence."* (D139 already found V24-vs-V32 indistinguishable, p=0.745.) ⚠ **Attribution was never
+done** (sleeve alone / overlay alone / timing / interaction) — that is the honest gap in this claim.
+
+**FALSIFIED WITH NUMBERS — do not re-attempt (ledger §§ 2026-07-15h…15S):**
+sector RS gates: V24's **+8% is the WORST of five gates, worse than NO gate** (−0.70% vs −0.02%/qtr fwd) ·
+50DMA-cross **ties with no gate** (10.0% vs 10.0%) → **the sector step is INERT** · the TURN/recovery
+(sign-flip) = **flat panel, all 4 cells within ONE standard error** · hysteresis on stocks **backfires**
+(α −0.5% → −7.3% as the band widens) · exits fix **risk not return** (α dies at 2% slippage) · wider pond
+(MNC/PSE/Commodities/Midcap50) **17.2%→16.6%** · raise the liquidity bar → pond sinks MORE **and**
+selection collapses (+1.73%→+0.20%).
+
+**✅ THE ONLY SURVIVING LEAD — Codex's Q5, UNBLOCKED, never run:** **stock-first; sector as a LABEL not a
+gate**; own-sector RS; the **UPPER-MIDDLE band (D5–8), NOT the top decile**; **inverse-vol** weights capped
+per stock+sector; ≤40 names; costs ≥0.15%/side + ADV-tied slippage. Compare vs Next-50 / Nifty 500 /
+top-decile / no-RS EW universe / low-vol-only. **PRE-REGISTERED BAR: beat 13.8% net · NOT by beta · beat
+top-decile on GEOMETRIC return · survive 3 walk-forward windows (2005-11 / 2012-17 / 2018-26).**
+Rationale = 15P: D10 mean +1.97%/qtr but **sd 26.63% → 3.55% variance toll → geo −1.58%**, while **D6 has
+HIGHER mean (+2.38%) AND LOWER vol (22.75%) → geo −0.21%. "Best of the best" is dominated by "good."**
+⚠ Codex ruled 15P itself **"INSUFFICIENT EVIDENCE"** — the decile curve is not clean. It is a LEAD.
+
+**🔴 8 RETRACTIONS — every one the same failure: assert a fact, then test against the assertion, not a
+source.** 15h ETF legs (~6/16 sectors have NO liquid instrument) · 15i survivorship · 15j hysteresis
+transfer · 15k fill quality · **15L `series='EQ'` read BE surveillance moves as DEATHS (84% of "deaths"
+were fake)** · **15O corporate actions ARE unadjusted — the fix is REAL and necessary** (RELIANCE
+4.8%→15.1%, HDFCBANK 3.7%→18.8%; use `research/explosive_moves/adjust.py`) · 15R Codex's premise ·
+**15S: "corporate_actions is ~30% incomplete" was FALSE — the DB matches NSE EXACTLY** (2011: NSE 47
+split/bonus, we hold 47; TATAMOTORS: NSE reports ZERO, we hold zero). **THERE IS NOTHING TO FUND.**
+
+**BINDING RULES ADDED:** before ANY stock study → (a) `select series,count(*) from bhavcopy_rows group by
+1`, (b) `select action_type,count(*) from corporate_actions group by 1`, (c) re-read **Guardrail #5**
+(which named the corporate-action bug in advance and was violated all session). **Before claiming a
+dataset is incomplete: QUERY THE PRIMARY SOURCE AND DIFF IT. Before citing a detector's hit count:
+COMPUTE ITS FALSE-POSITIVE RATE.** Run the CONTROL (no-selection) before reporting ANY book number —
+it caught a ₹121 Cr fake within minutes.
+
+**✅ NOT a blocker (15O/15S):** stock→sector membership needs **no** classification job. PIT correlation of
+**excess** returns vs each sector index (trailing 500d) reproduces NSE's labels at **85.1% top-1 / 93.1%
+top-3** (random 6.2%); every weak case is an overlapping index. ⚠ Codex notes this validation is itself
+touched by CA residue — re-verify on adjusted prices.
+
+**Canon:** `docs/strategy-ledger.md` §§ **2026-07-15h → 2026-07-15S** (every number, every retraction) ·
+`docs/codex-review/rs-strategy-brief-2026-07-15.md` (the full brief Codex reviewed) ·
+`research/explosive_moves/`: `adjust.py` · `why_best_struggles.py` · `rs_50dma.py` · `ramana_book.py` ·
+`clean_numbers.py` · `recovery_onset.py` · `sector_assign_validate.py`.
+**Live `/dash/sector-rotation` still runs V21 — unchanged, and its scope banner is honest.**
+
+---
+
 ## 🟢 2026-07-15i — THE STOCK BUILD IS SCOPED AND FEASIBLE — gated on ONE dataset. Start here.
 
 **Ramana's directive:** build on **STOCKS**, not indices. *"Identify the top-performing stocks within the
