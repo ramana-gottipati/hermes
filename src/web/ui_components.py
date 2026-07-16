@@ -31,7 +31,7 @@ _COMPONENTS_CSS = """<style>""" + COMPONENTS_MARKER + """
   border-radius:var(--r-sm);padding:9px 14px;transition:var(--t);white-space:nowrap;text-decoration:none}
 .uk-btn:hover{border-color:var(--line-3);color:var(--ink);background:var(--bg-3)}
 .uk-btn:active{transform:translateY(.5px)}
-.uk-btn.primary{background:var(--accent);border-color:var(--accent);color:#06121f}
+.uk-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .uk-btn.primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
 .uk-btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2)}
 .uk-btn.ghost:hover{background:var(--bg-2);color:var(--ink)}

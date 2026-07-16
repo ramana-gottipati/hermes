@@ -54,14 +54,17 @@ _SKIN_MARKER = "/* uk-skin v1 */"
 _SKIN_CSS = """<style>""" + _SKIN_MARKER + """
 /* ── palette anchor: the instrument background + ink ── */
 body.uk-skin{
-  background:
-    radial-gradient(1100px 560px at 82% -12%, rgba(77,157,255,.07), transparent 60%),
-    radial-gradient(860px 480px at -8% 8%, rgba(52,224,214,.05), transparent 55%),
-    var(--bg-1) !important;
+  /* P1 light-first: aurora + ground are THEME TOKENS (ui_tokens) — no baked-in darkness. */
+  background-image:var(--aurora) !important;
+  background-color:var(--bg-1) !important;
   color:var(--ink);
   -webkit-font-smoothing:antialiased;
   font-feature-settings:'tnum' 1,'cv01' 1;
 }
+/* legacy bare-anchor colour (#58a6ff in _BASE_CSS) — invisible drift on dark, 2.9:1 on a
+   light ground → retint to the theme accent. Class-styled anchors (higher specificity or
+   later sheets) keep their own colour. */
+body.uk-skin a{color:var(--accent)}
 /* ── header / chrome ──
    Lane M1: the legacy two-row <header> (hrow1/hrow2/hrow3, the .v2bar nav, the brand
    logo, .hback, .uk-trustlink) is REPLACED at runtime by the native single-row ui_kit
@@ -70,7 +73,7 @@ body.uk-skin{
    the few defensive remnants below only matter if the header swap fell back to legacy
    (a <header> still present): keep the chrome dark + the back chip on-brand. */
 body.uk-skin header{
-  background:linear-gradient(180deg,rgba(17,24,36,.92),rgba(11,15,23,.66));
+  background:var(--topbar-grad);
   border-bottom:1px solid var(--line);backdrop-filter:blur(12px);
 }
 body.uk-skin .hback{border:1px solid var(--line-2);color:var(--ink-2);border-radius:8px}
@@ -147,9 +150,9 @@ body.uk-skin button:not(.fbtn):not(.uk-cmdk):not([data-density-toggle]){
   background:var(--bg-2);border-color:var(--line-2);color:var(--ink-2)}
 body.uk-skin .fbtn{background:var(--bg-2);border:1px solid var(--line);color:var(--ink-2);border-radius:14px}
 body.uk-skin .fbtn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-/* ── theme chips ── */
-body.uk-skin .tchip{background:#102234;color:#7fc0ff;border:1px solid #1d3a55}
-body.uk-skin .tchip:hover{background:#1d3a55;color:#cfe8ff}
+/* ── theme chips (P1: token-ized — were #102234/#7fc0ff/#1d3a55 dark literals) ── */
+body.uk-skin .tchip{background:var(--accent-dim);color:var(--accent);border:1px solid var(--line-2)}
+body.uk-skin .tchip:hover{background:var(--bg-3);color:var(--accent-2)}
 /* ── banners (STATUS role, D-COL #5) — via tokens, matching dashboard._BASE_CSS's .b-on/.b-off
    token form (colour identical; the border literals #1f6f3a/#8f1f1f/#5a4a1f had no exact token
    → expressed as the value-RGB tint, same as the body). ── */
@@ -165,12 +168,12 @@ body.uk-skin .tabbar a{color:var(--ink-2)}
 body.uk-skin .tabbar a.on{color:var(--ink);border-bottom-color:var(--cred)}
 /* ── the frozen-pane data grid — COLOUR ONLY (sticky/z-index left exactly as-is) ── */
 body.uk-skin .scrwrap{background:var(--bg-1);border:1px solid var(--line);border-radius:12px}
-body.uk-skin table.scr th,body.uk-skin table.scr td{border-bottom:1px solid #161f2b}
+body.uk-skin table.scr th,body.uk-skin table.scr td{border-bottom:1px solid var(--grid-line)}
 body.uk-skin table.scr thead tr.sgrp th{background:var(--bg-3);color:var(--ink-3);border-bottom:1px solid var(--line-2);border-left:1px solid var(--line)}/* AA */
 body.uk-skin table.scr thead tr.scol th{background:var(--bg-2);color:var(--ink-2);border-bottom:1px solid var(--line-2)}
 body.uk-skin table.scr .fz{background:var(--bg-1);border-right:1px solid var(--line)}
 body.uk-skin table.scr thead tr.scol th.fz,body.uk-skin table.scr thead tr.sgrp th.fz{background:var(--bg-3)}
-body.uk-skin table.scr tbody tr:nth-child(even) td.fz{background:#0e1620}
+body.uk-skin table.scr tbody tr:nth-child(even) td.fz{background:var(--fz-zebra)}
 body.uk-skin table.scr tbody tr:hover td{background:var(--bg-3) !important}
 /* density — the frozen data grid's vertical row padding follows --grid-pad (6px comfortable
    == current, 3px compact). Only the big data grid is density-driven; small tables stay put. */
@@ -261,6 +264,19 @@ body.uk-skin .gw-sort:hover{color:var(--ink)}
 /* News/Wire empty-state box (news_view.py .nv-empty): grey #6e7681 (AA 4.0) + dashed
    #30363d border → map to --ink-3 (AA) + --line; the last class-based holdout (on /dash/wire). */
 body.uk-skin .nv-empty{color:var(--ink-3);border-color:var(--line);border-radius:var(--r)}
+/* ── P1 LIGHT-CRITICAL HOLDOUTS (observed in the live sheet dump, 2026-07-17): class-based
+   dark literals in the FROZEN bodies (cockpit home boards · stock-chart controls · glossary
+   popovers) that pass unseen on dark but break on a light ground. Same overlay discipline:
+   colour only, never layout; the frozen sources stay untouched. ── */
+body.uk-skin table.ck-t td{border-bottom-color:var(--line)}                 /* was #1c2128 */
+body.uk-skin .ck-tile:hover,body.uk-skin a.ck-tile:hover{border-color:var(--accent)}  /* was #484f58 */
+body.uk-skin .ck-board a.more,body.uk-skin .ck-hero a,body.uk-skin .ck-start a{color:var(--accent)}  /* was #58a6ff */
+body.uk-skin .rangebar button{background:var(--bg-3);color:var(--ink);border:1px solid var(--line-2)}
+body.uk-skin .rangebar button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}  /* was #1f6feb */
+body.uk-skin button.cmp-sugg.cmp-on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}  /* was #1f6feb */
+body.uk-skin .cmp-x:hover{color:var(--down)}                                /* was #f85149 */
+body.uk-skin .gl-q{color:var(--accent)}                                     /* was #58a6ff */
+body.uk-skin .gl-pop{box-shadow:var(--e-3)}                                 /* was rgba(0,0,0,.55) */
 /* ── responsive: legacy page body on a phone ── */
 @media (max-width:640px){
   body.uk-skin .wrap{padding-left:var(--gutter);padding-right:var(--gutter)}
@@ -403,6 +419,16 @@ def _density_js() -> str:
         return ""
 
 
+def _theme_js() -> str:
+    """The global light/dark switch (P1 — defined in ui_kit so both shells share one).
+    Defensive: a missing ui_kit degrades to light-only, never breaks the page."""
+    try:
+        from src.web import ui_kit as K
+        return K.theme_js()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 # The opening <body …> tag: capture its whole attribute string (everything between `body`
 # and the closing `>`) so we can merge a class without disturbing any other attribute.
 _BODY_TAG_RE = re.compile(r'<body\b(?P<attrs>[^>]*)>', re.S)
@@ -479,7 +505,7 @@ def reskin(html: str, active=None) -> str:
         # inject the reskin css (body retint) + the native chrome css (header styling) +
         # the global density switch LAST in <head> (after _BASE_CSS). The chrome css comes
         # AFTER the skin css so the native `.uk-*` header rules win the source-order tie.
-        head_add = skin_css() + _chrome_css() + _density_js()
+        head_add = skin_css() + _chrome_css() + _density_js() + _theme_js()
         if "</head>" in out:
             out = out.replace("</head>", head_add + "</head>", 1)
         else:
