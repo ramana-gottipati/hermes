@@ -49,6 +49,8 @@ CALIB_STALE_DAYS = 30        # synthetic-lag calibration older than this → war
 RESTATE_WARN_PCT = 5.0       # kill-switch #4 (validation memo §5): >5% of gate-passed
                              # symbols revised within 30d → pause auto-ingest
 RESTATE_MIN_UNIVERSE = 20    # below this many gate-passed symbols the % is noise (warmup)
+SHAREHOLDING_XBRL_STALE_DAYS = 150  # §7.7(c): no NEW SEBI Reg-31 XBRL shareholding broadcast in
+                             # ~1.5 quarters (filings land ~45d post-quarter) → the feed may be dead
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS data_quality_runs (
@@ -577,6 +579,31 @@ def chk_t2t_universe(c) -> dict:
                   f"{yr[0]} symbol-days / {yr[1]} names last 365d (X-02 honesty number)")
 
 
+def chk_shareholding_xbrl_freshness(r) -> dict:
+    """§7.7(c): true arrival-recency for the shareholding_xbrl feed (SEBI Reg-31 XBRL). Closes the
+    residual chk_feed_freshness flagged: the Screener-era rows carry forward-dated report_dates
+    (perpetually 'fresh'), but the XBRL rows (source IS NOT NULL) stamp report_date with the real
+    broadcastDate, so MAX over ONLY those is a genuine liveness signal. Quarterly SEBI Reg-31
+    filings (~45d post-quarter windows) → a loose SHAREHOLDING_XBRL_STALE_DAYS catches a dead
+    endpoint without off-season false alarms. research.db absent / no XBRL rows yet → OK
+    (Guardrail-#8 migration still pending)."""
+    if r is None or not _table_exists(r, "shareholding_history"):
+        return _check("shareholding_xbrl.freshness", SEV_OK, 0, "research.db absent")
+    mx = r.execute(
+        "SELECT MAX(report_date) FROM shareholding_history "
+        "WHERE source IS NOT NULL AND report_date IS NOT NULL").fetchone()[0]
+    if not mx:
+        return _check("shareholding_xbrl.freshness", SEV_OK, 0,
+                      "no XBRL-sourced shareholding rows yet (Guardrail-#8 migration pending)")
+    age = (date.today() - date.fromisoformat(str(mx)[:10])).days
+    if age > SHAREHOLDING_XBRL_STALE_DAYS:
+        return _check("shareholding_xbrl.freshness", SEV_WARN, 1,
+                      f"newest XBRL shareholding broadcast {mx} ({age}d ago > "
+                      f"{SHAREHOLDING_XBRL_STALE_DAYS}d) — the SEBI Reg-31 XBRL feed may be dead")
+    return _check("shareholding_xbrl.freshness", SEV_OK, 0,
+                  f"newest XBRL shareholding broadcast {mx} ok ({age}d ago)")
+
+
 # ── run all ───────────────────────────────────────────────────────────────────
 def run(conn=None, *, persist: bool = True) -> dict:
     """Run the full battery. Returns {status, n_critical, n_warn, checks:[...]}.
@@ -607,6 +634,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_t2t_universe, (c,)), (chk_fund_leak, (c,)),
             (chk_table_census, (c,)), (chk_action_tape_agreement, (c,)),
             (chk_restatement_spike, (r,)),
+            (chk_shareholding_xbrl_freshness, (r,)),
         ]
         for fn, fargs in plan:
             try:

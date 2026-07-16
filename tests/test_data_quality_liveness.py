@@ -67,3 +67,34 @@ def test_feed_freshness_fresh_news_is_clean():
     c.execute("INSERT INTO sent_news VALUES (?)", (date.today().isoformat() + " 12:00:00",))
     c.commit()
     assert dq.chk_feed_freshness(c)["severity"] == dq.SEV_OK   # fresh + others absent → OK
+
+
+def _shp(rows):
+    """A research.db-shaped shareholding_history seeded with (report_date, source) rows."""
+    c = _conn()
+    c.execute("CREATE TABLE shareholding_history (symbol TEXT, period_end TEXT, report_date TEXT, "
+              "metric TEXT, value REAL, source TEXT)")
+    c.executemany("INSERT INTO shareholding_history (report_date, source) VALUES (?, ?)", rows)
+    c.commit()
+    return c
+
+
+def test_shareholding_xbrl_freshness_warns_on_a_dead_xbrl_feed():
+    old = (date.today() - timedelta(days=200)).isoformat()          # >150d since the last XBRL broadcast
+    res = dq.chk_shareholding_xbrl_freshness(_shp([(old, "NSE SHP XBRL")]))
+    assert res["severity"] == dq.SEV_WARN and "may be dead" in res["message"]
+
+
+def test_shareholding_xbrl_freshness_ignores_forward_dated_screener_rows():
+    # a Screener-era row (source NULL) with a far-FUTURE report_date must NOT read as 'fresh' — the
+    # source filter is the whole point (the perpetually-fresh trap chk_feed_freshness documents).
+    future = (date.today() + timedelta(days=400)).isoformat()
+    res = dq.chk_shareholding_xbrl_freshness(_shp([(future, None)]))
+    assert res["severity"] == dq.SEV_OK and "no XBRL-sourced" in res["message"]
+
+
+def test_shareholding_xbrl_freshness_clean_when_recent_and_safe_when_absent():
+    fresh = (date.today() - timedelta(days=20)).isoformat()
+    assert dq.chk_shareholding_xbrl_freshness(_shp([(fresh, "NSE SHP XBRL")]))["severity"] == dq.SEV_OK
+    assert dq.chk_shareholding_xbrl_freshness(None)["severity"] == dq.SEV_OK        # research.db absent → OK
+    assert dq.chk_shareholding_xbrl_freshness(_conn())["severity"] == dq.SEV_OK     # table absent → OK

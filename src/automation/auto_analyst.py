@@ -14,7 +14,7 @@ The L6 grounding contract (plan §2):
     cost ledger (LANE-R instrumentation);
   * budget law §5.4: per-job month-to-date spend >= AUTO_ANALYST_CAP_INR degrades
     the LLM path to the template — never a silent overrun (cap default = the plan
-    §7.2 PROPOSAL of ₹200/mo; Ramana ratifies the final number);
+    §7.2 RATIFIED ₹200/mo (Ramana, 2026-07-16));
   * a rewrite may not INVENT numbers: the digit-subset guard rejects any LLM text
     whose numeric tokens are not a subset of the fact block's, falling back to the
     template;
