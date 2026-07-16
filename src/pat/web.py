@@ -1591,6 +1591,89 @@ def _methodology_flow(conn, slug: str = "") -> str:
     return "".join(out)
 
 
+# ── quality flow (a SYMBOL's own fundamentals + quality read, inline) ─────────
+# "what's HDFCBANK's CET1 / is HDFCBANK a good bank / what's TCS's ROCE / risks in X" (S155-c).
+# Pat could already EXPLAIN these metrics but not show a NAME's values — the Doctrine-D model
+# shipped unreachable by a human question. Descriptive evidence, never a buy/sell call; it carries
+# Doctrine-D's own honesty (an unmeasurable lender shows NO tier; a thin one is PROVISIONAL).
+
+def _quality_flow(conn, symbol: str = "", focus: str = "all") -> str:
+    from src.pat import quality_flow as _QF
+    from src.pat import rotation_flow as _RF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym or not _RF.is_symbol(conn, sym):
+        out.append(_q_bubble(f"I don't recognise {_esc(sym) or 'that'} as a ticker."))
+        out.append('<div class="empty">Name a stock by its NSE symbol (e.g. "what\'s HDFCBANK\'s '
+                   'CET1"), or screen the whole market from '
+                   '<a class="row" href="/dash/screen2">Screen+</a>.</div>')
+        return "".join(out)
+    b = _QF.quality_for(sym)
+    if not b:
+        out.append(_q_bubble(f"I don't have fundamentals on record for {_esc(sym)} yet."))
+        out.append(f'<div class="empty">Nothing known for {_esc(sym)} as of today. Its dossier is at '
+                   f'<a class="row" href="/dash/stock?sym={_u(sym)}">{_esc(sym)}</a>.</div>')
+        return "".join(out)
+    s = b["score"]
+    tier = str(s.get("tier") or "—")
+    sub = s.get("sector_subtype")
+    lead = (f"How {_esc(sym)} reads on the numbers"
+            + (f" — scored as a {_esc(sub)} on its own model" if sub else "")
+            + ". Evidence, not a buy or sell call.")
+    out.append(_q_bubble(lead))
+    out.append(f'<div class="ghdr">{_esc(sym)} · quality · as of {_esc(str(b.get("as_of") or ""))}</div>')
+
+    # the verdict card — Doctrine-D's honesty is carried verbatim, never smoothed over
+    if s.get("sector_suppressed"):
+        verdict = ('<div style="font-size:15px"><b>No quality tier asserted</b></div>'
+                   '<div style="color:var(--ink-3);font-size:12.5px;margin-top:3px">'
+                   'None of the lender inputs (RoA / RoE / GNPA / CET1) is known for this name yet — '
+                   'the generic tier would be structurally wrong for a lender, so none is given.</div>')
+    else:
+        ns = s.get("ns_base")
+        ns_txt = (f'{ns:.1f}%' if isinstance(ns, (int, float)) else "—")
+        ev = s.get("sector_evidence") or []
+        evmax = s.get("sector_evidence_max") or 0
+        prov = ""
+        if evmax and len(ev) <= 2:
+            prov = ('<div style="color:var(--warn,#b26a00);font-size:12px;margin-top:3px">'
+                    f'Provisional — read on {len(ev)}/{evmax} lender inputs; the prudential ratios '
+                    'fill in as filings are ingested.</div>')
+        disq = ""
+        if s.get("hard_disqualified"):
+            disq = ('<div style="color:var(--neg,#b00020);font-size:12.5px;margin-top:3px">'
+                    'Hard-disqualified: ' + _esc("; ".join(s.get("disqualifier_reasons") or [])) + '</div>')
+        verdict = (f'<div style="font-size:15px"><b>Tier {_esc(tier)}</b> · NS {_esc(ns_txt)}'
+                   f' · quality gate {"PASS" if s.get("qg_pass") else "FAIL"}</div>' + prov + disq)
+    out.append(f'<div class="card" style="line-height:1.7">{verdict}</div>')
+
+    rows = _QF.rows_for(b, focus)
+    if rows:
+        cells = "".join(
+            f'<tr><td style="color:var(--ink-3)">{_esc(lbl)}</td>'
+            f'<td style="text-align:right"><b>{v:,.2f}{_esc(unit)}</b></td></tr>'
+            for lbl, v, unit in rows)
+        out.append('<table class="patTable" style="font-size:12.5px;margin-top:8px">'
+                   + cells + '</table>')
+    else:
+        out.append('<div style="font-size:12.5px;color:var(--ink-3);margin-top:8px">'
+                   'None of those figures is on record for this name yet — an absent ratio means '
+                   '"not known", never zero.</div>')
+
+    note = s.get("sector_note")
+    if note:
+        out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+                   + _esc(note) + '</div>')
+    out.append(f'<div style="margin-top:10px"><a class="row" href="/dash/stock?sym={_u(sym)}">'
+               f'Open {_esc(sym)}\'s full dossier →</a> &nbsp; '
+               '<a class="row" href="/dash/glossary">what these terms mean →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Point-in-time fundamentals scored by the rule-based patearn model (lenders on the '
+               'sector-adapted Doctrine-D model). A quality read is evidence for your own judgement — '
+               'descriptive only, never a buy/sell recommendation.</div>')
+    return "".join(out)
+
+
 # ── index flow (live, read-only over index_signals) ──────────────────────────
 # The index universe Pat was missing — sectoral + thematic NSE indices, best or
 # WORST over a window, with a "turning up" reversal lens. Built after a real miss
@@ -2934,6 +3017,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
                "internals": "Market breadth", "filings": "Filings for a stock",
+               "quality": "Quality & fundamentals (one stock)",
                "wolfe": "Open Wolfe setups", "seasonal_stock": "Seasonal base rate (one name)",
                "methodology": "How a strategy works",
                "distribution": "Distribution (strong hand exiting)",
@@ -3126,6 +3210,8 @@ def _free_text(conn, q: str):
             body = _internals_flow(conn)
         elif f == "filings":
             body = _filings_flow(conn, p.get("symbol", ""), p.get("focus", "all"))
+        elif f == "quality":
+            body = _quality_flow(conn, p.get("symbol", ""), p.get("focus", "all"))
         elif f == "wolfe":
             body = _wolfe_flow(conn, p.get("symbol", ""))
         elif f == "seasonal_stock":
@@ -3438,6 +3524,10 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "internals":
         body = _internals_flow(conn)                      # market breadth (S-E Ph2)
         fb_ctx = {"query": q, "flow": "internals", "params": {}, "source": "flow"}
+    elif flow == "quality":
+        body = _quality_flow(conn, sym or q, strength or "all")  # per-symbol quality (S155-c); focus rides `strength`
+        fb_ctx = {"query": q, "flow": "quality", "params": {"symbol": sym or q, "focus": strength or "all"},
+                  "source": "flow"}
     elif flow == "filings":
         body = _filings_flow(conn, sym or q, strength or "all")  # per-symbol filings (S150); focus rides `strength`
         fb_ctx = {"query": q, "flow": "filings", "params": {"symbol": sym or q, "focus": strength or "all"},

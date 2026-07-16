@@ -61,6 +61,7 @@ _VALID: dict[str, dict] = {
     "rotation":     {"symbol": "free"},  # "what phase is X in" — per-symbol RS rotation (S-E Ph2)
     "internals":    {},                   # "how's the breadth" — market internals inline (S-E Ph2)
     "filings":      {"symbol": "free", "focus": "free"},  # "filings for X" — insider/ratings/SAST/holdings (S150)
+    "quality":      {"symbol": "free", "focus": "free"},  # "what's X's CET1 / is X a good bank" — per-symbol fundamentals (S155-c)
     "wolfe":        {"symbol": "free"},  # "any wolfe setups / open trades" — open Wolfe waves (S150)
     "methodology":  {"slug": "free"},   # "explain the Wolfe methodology" — strategy explainers (S150 Ph3)
     "rulelab":      {},                  # "did my rule work" — latest rule-lab verdict, read-only (S157-b)
@@ -392,6 +393,20 @@ def route(query: str, conn=None) -> dict | None:
     if fil:
         _cache_put(q, fil)
         return fil
+
+    # (a-1f2) Quality — "what's HDFCBANK's CET1 / is HDFCBANK a good bank / what's TCS's ROCE /
+    #         risks in X" — the SYMBOL's own fundamentals + its scored quality read, incl. the
+    #         Doctrine-D lender model (S155-c). ₹0; needs a fundamentals cue AND a symbol, and runs
+    #         AFTER filings so a pledge/rating/insider disclosure ask stays a filing. Without this a
+    #         per-symbol fundamental returned the generic DEFINITION, nothing, or a market-wide screen.
+    try:
+        from src.pat.quality_flow import parse_quality as _parse_quality
+        qual = _parse_quality(query)
+    except Exception:
+        qual = None
+    if qual:
+        _cache_put(q, qual)
+        return qual
 
     # (a-1g) Participants — "are FIIs buying / FII flows / who's positioned" — the FII
     #        index-futures net stance inline (S-E Phase 2). ₹0; needs an FII/participant
