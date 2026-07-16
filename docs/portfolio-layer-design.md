@@ -190,29 +190,59 @@ band** is a refinement to cut turnover cost, proposed here as policy and **flagg
 
 ---
 
-## §7 The gold leg — pending primary-source data (Guardrail #8)
+## §7 The gold leg — data validated + preliminarily measured (ledger `16AP`, S180)
 
 Gold is the natural *second* diversifier candidate: historically low equity correlation, a different
-macro driver. But **the estate has no primary-source gold series in the DB**, and Guardrail #8 forbids
-adding a vendor/Screener gold feed. The gold leg is therefore a **specified design placeholder, not a
-measured result** — no gold number will appear in this program until primary data exists.
+macro driver. Guardrail #8 forbids a vendor/Screener gold feed — but the estate already ingests an
+authentic exchange gold series it hadn't yet used: **NSE-listed gold ETFs flow through the equity
+bhavcopy.** S180 validated the data and ran a **preliminary** measurement. Below: what was required,
+what was found, and the honest fences on the numbers.
 
-**The data requirement (must be met before any gold-leg backtest):**
-- A **primary-source, total-return-capable gold series** with enough history to cover the book's window.
-  The leading primary candidate is an **NSE-listed gold ETF** (e.g. GOLDBEES) whose adjusted price
-  history already flows through the equity **bhavcopy** the estate ingests — an authentic exchange feed,
-  Guardrail-#8-clean. Before use it must be validated for (a) history depth vs the 2006/2011 book start,
-  (b) tracking quality / NAV-premium behaviour, and (c) the corporate-action / adjustment path (ETF
-  splits, if any). Sovereign Gold Bonds (SGB, NSE-listed) and any official gold price benchmark are
-  secondary primary candidates if ETF history is too shallow.
-- Ingest via the estate's **feed protocol** (manifest entry + licence/DQ gate + pull-on-demand freshness),
-  exactly as the TRI/G-sec series were (`16AK`).
-- Only then: measure **corr(book, gold)** first (the §2 gating discipline — if it is not meaningfully
-  below the momentum-blend 0.83, gold adds nothing and stops there), and if it clears, extend the mix
-  grid to a **three-asset** book/G-sec/gold allocation.
+**§7a — data feasibility: CONFIRMED.** **GOLDBEES** (NSE bhavcopy, series EQ; primary-source,
+Guardrail-#8-clean) has **4,771 trading days, 2007-03-19 → 2026-07-16** — fully covers the 2011+ native
+decision window (pre-2007 would need the hybrid treatment, same as G-sec). It is the deepest and most
+liquid of 11 gold ETFs in the archive (~15M units/day), so it is the leading candidate; SGB / an
+official gold benchmark remain secondary fallbacks.
 
-Until that data lands, the gold leg is **out of scope for any number** and in scope only as this
-specification.
+**§7c — 🔴 a real DATA-QUALITY blocker (the adjustment concern, now realised).** GOLDBEES underwent a
+**100:1 unit subdivision on 2019-12-19** (raw close 3359.6 → 33.55, ratio 0.01) that is **NOT in
+`corporate_actions`**, so `adjust.py` — built for equity splits/bonuses — silently left it unadjusted.
+The uncorrected series prints **native CAGR −16.9%, vol 29.5%** (one fake −99% quarter; impossible for
+gold at INR ~+9-10%/yr). A manual back-adjust (pre-split ×0.01, the announced factor) restores a sane
+**+11.9% CAGR / 14.1% vol** native. **This must be fixed properly before any formal gold work** — add
+the split to `corporate_actions` and audit the peer gold ETFs (KOTAKGOLD/AXISGOLD/…) for the same gap;
+it affects *any* consumer of adjusted GOLDBEES prices, not just this study. (Spawned as a separate DQ
+task, S180.)
+
+**§7 — the go/no-go correlation (split-adjusted, native 2011+):** corr(K30, gold) **−0.18** ·
+corr(A2, gold) **−0.21** — mildly negative, far below the 0.83 momentum-blend wall → **gold clears the
+diversification gate.** corr(gold, G-sec) **−0.12** → the two legs also diversify each other, so a
+three-asset grid would add value. **Noise honesty:** n ≈ 62 quarters → corr SE ≈ 0.13, so −0.18 ± ~0.13;
+the robust claim is "~uncorrelated / not a dilutant" (exactly as G-sec's −0.04 is within noise of zero),
+not a precise −0.18.
+
+**Preliminary two-asset book+gold dial (K30, native 2011+; descriptive; return/vol is a ratio, not a
+Sharpe):**
+
+| mix (equity/gold) | K30 CAGR | K30 ret/vol | K30 MaxDD |
+|---|---|---|---|
+| 100 / 0 | 24.9% | 1.11 | −18.1% |
+| 90 / 10 | 24.0% | 1.18 | −15.8% |
+| 80 / 20 | 22.9% | 1.27 | −13.5% |
+| 70 / 30 | 21.8% | **1.36** | **−11.1%** |
+
+On this window gold **dominates** the §2 G-sec dial (80/20: 22.9/1.27/−13.5 vs G-sec 21.5/1.18/−15.3):
+each +10% gold ≈ −1.0pp CAGR (vs G-sec −1.7pp) for a larger ret/vol + drawdown gain. **⚠ But this
+dominance is NOT a forward claim:** gold's edge is driven almost entirely by its **regime-specific
++11.9% native return** (flat 2013-19, then the 2020-26 surge) — not forecastable; G-sec's 6.5% is
+structural, gold's is not, and the correlation advantage is within noise. **Robust synthesis: gold and
+G-sec are BOTH ~uncorrelated diversifiers worth combining; gold's weight should be modest and its return
+never extrapolated from this window.**
+
+**Next (per the §2 gating discipline):** fix the split DQ → ingest GOLDBEES via the estate's **feed
+protocol** (manifest + licence/DQ gate + pull-on-demand freshness, exactly as the TRI/G-sec series were,
+`16AK`) → then a proper **three-asset** book/G-sec/gold grid (the legs are mutually independent at −0.12).
+Provenance: `research/explosive_moves/portfolio_mix.py` (unchanged) + the S180 gold probe; box read-only.
 
 ---
 
@@ -261,8 +291,13 @@ the forward test judges the *book*; the portfolio layer just shows the book at t
 
 1. **Rebalance-band measurement** (§6) — turnover + risk deltas vs calendar quarterly, on
    `portfolio_mix.py`'s grid, on the box. Until then calendar quarterly is the reported policy.
-2. **Gold-leg data** (§7) — source + validate + ingest an NSE gold-ETF (or SGB) primary series via the
-   feed protocol; measure corr(book, gold) *first*; three-asset grid only if it clears the 0.83 bar.
+2. **Gold-leg** (§7) — ✅ data validated + preliminary corr measured (S180, `16AP`): GOLDBEES 2007+,
+   corr(book, gold) −0.18/−0.21 native → clears the 0.83 bar. **Remaining:** (a) 🔴 fix the GOLDBEES
+   100:1 (2019-12-19) split DQ — it is missing from `corporate_actions` so `adjust.py` silently
+   corrupts it; audit peer gold ETFs for the same gap (spawned as a separate DQ task); (b) formalise
+   GOLDBEES via the feed protocol; (c) then a proper **three-asset** book/G-sec/gold grid (legs
+   mutually independent at −0.12). The prelim dial is regime-loaded (gold's +11.9% native return is not
+   forecastable) — do not quote it as a forward result.
 3. ~~**Fold the policy point into forward reporting** (§9)~~ — ✅ DONE S181 (`union_forward.py` §4
    prints the dial each checkpoint; only the `<< POLICY` marker awaits Ramana's pick).
 4. **(Optional ratchet)** add this doc to `tests/test_retvol_label_gate.py`'s scanned set so the honest
