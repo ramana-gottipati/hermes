@@ -242,13 +242,14 @@ forward test — that is the whole allowed surface of this design until a new pr
 ## §9 Reporting integration — fold the chosen point into the forward-test day
 
 The portfolio layer's product is not a new backtest to babysit; it is a **column on the 2026-10-03
-forward-test report.** The next step for the program (recorded, low-effort, owed to that day):
+forward-test report.** ✅ **BUILT (S181): `research/explosive_moves/union_forward.py`** — the
+one-command forward-test-day runner — prints the dial at every checkpoint:
 
-- When the forward runner (`union_lab6.py` and the val runner) prints the graduating book's forward
-  numbers, **also print the chosen policy-point mix** (default 80/20, and the 100/0 and 70/30 bookends)
-  so the owner sees the same forward quarter through the compounding-vs-survivability dial, not only at
-  100% equity. The G-sec quarterly returns are already on the same grid in `portfolio_mix.py`.
-- Keep the labels honest there too: the mix rows are descriptive, G-sec is paper, return/vol is not a
+- Its §4 block prints the **forward-window mix rows for K30 and A2 at 100/0 · 90/10 · 80/20 · 70/30**
+  (cum, MaxDD; annualized + ret/vol once ≥ 4 forward quarters exist), G-sec leg via the same `gsec_q`
+  grid. When Ramana picks the policy point, that row gets a `<< POLICY` marker (one-line change);
+  until then the print names 80/20 as the design default and the sealed specs stay 100/0.
+- Labels are kept honest there: the mix rows are descriptive, G-sec is paper, return/vol is not a
   Sharpe ratio.
 
 This is a print-level addition to the forward reporting, not a decision the forward test adjudicates —
@@ -262,8 +263,8 @@ the forward test judges the *book*; the portfolio layer just shows the book at t
    `portfolio_mix.py`'s grid, on the box. Until then calendar quarterly is the reported policy.
 2. **Gold-leg data** (§7) — source + validate + ingest an NSE gold-ETF (or SGB) primary series via the
    feed protocol; measure corr(book, gold) *first*; three-asset grid only if it clears the 0.83 bar.
-3. **Fold the policy point into forward reporting** (§9) — a print addition to the forward runners for
-   2026-10-03.
+3. ~~**Fold the policy point into forward reporting** (§9)~~ — ✅ DONE S181 (`union_forward.py` §4
+   prints the dial each checkpoint; only the `<< POLICY` marker awaits Ramana's pick).
 4. **(Optional ratchet)** add this doc to `tests/test_retvol_label_gate.py`'s scanned set so the honest
    labels are machine-enforced (tightening only; not done now to avoid touching the gate's deliberate
    scope mid-program).

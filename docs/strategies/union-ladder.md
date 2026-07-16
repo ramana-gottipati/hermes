@@ -158,10 +158,14 @@ to the paisa vs `index_rows`) → `research/data/niftyindices/` on the box: N500
 16AJ. **B2 G-sec bear-sleeve: INERT on the lead (idle ~1%) and DATA-BOUNDED on the union (the
 2008-09 bear predates the 2011+ G-sec series)** — a design option for future bears, no backtest
 evidence, not adopted. rf convention frozen (1D-Rate + 6.5% proxy). Dividend accrual = lower
-bound. Median pick-ADV print owed in the forward runner. Sealed criteria stay PR-vs-PR as frozen;
-the TRI columns are reported beside every future judgment. Forward-test day (2026-10-03) runs ALL
-SIX configs above; the FOUR sealed members are judged against their own criteria; family
-adjudication picks at most one graduate (highest forward alpha among passers). Prod `index_rows` ingestion: **DONE S175 (ledger 16AK)** — 'Nifty 500 TRI' / 'Nifty Next 50 TRI' /
+bound. Sealed criteria stay PR-vs-PR as frozen; the TRI columns are reported beside every future
+judgment. **Forward-test day (2026-10-03+) is ONE COMMAND — `union_forward.py` (S181):**
+reproduction gate on all SIX configs (the five 16AL-gated rows hard-STOP on any miss; A1
+soft-flagged), then the forward window per the preregs' own boundary ("every NEW quarter from
+2026-07"; strict post-seal cut printed beside), the four frozen criteria per sealed member
+(INTERIM until ≥ 8 quarters, then mechanical family adjudication — highest forward alpha among
+passers), the once-owed median-pick-ADV + A2-clean-TR prints, and the 16AN portfolio dial
+(`docs/portfolio-layer-design.md` §9). Prod `index_rows` ingestion: **DONE S175 (ledger 16AK)** — 'Nifty 500 TRI' / 'Nifty Next 50 TRI' /
 'Nifty GS 10Yr' / 'Nifty GS Compsite' live in prod, manifest entry `indexes_tri`, pull-on-demand
 freshness via the committed tool.
 
