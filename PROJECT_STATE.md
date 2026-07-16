@@ -2146,6 +2146,17 @@ After this session's repeated cross-absorption + index-reset failures (a sibling
 - Guardrail unchanged: lanes still push to origin/main + rebase on conflict; the isolation is at the working-tree/index level, which is the actual root cause of this session's failures.
 - Follow-up fix (dogfooded via `new-lane.sh fix-retire-msg`): `retire-lane.sh` now prints the ACTUAL `git worktree remove` failure and treats an out-of-band-removed dir as "already gone" (prune + still clean the branch) instead of always claiming "not clean" — the misleading path hit when a parallel session yanked the authoring worktree mid-retire.
 
+### Session 176 (RS/Union lane, Ramana-directed: "run the validation prereg before graduation") — 2026-07-16 — THE SEALED LADDER VALIDATION RUN (ledger 16AL): frozen D139 gate PASS (C40→K30 real, p=0.014), survival 1.01, stress clean; era-floor rung = highest window-fit risk; deflated forward bands published (K30 ≈ 21.6%)
+
+- Protocol `37c28824…` executed exactly as frozen (coordination-lane authorship honored); repro gate 5/5;
+  runner `union_ladder_val.py` reuses the §15i paired-bootstrap machinery + the attribution.py deflation
+  formula at quarterly units. All six pairwise increment CIs recorded; C2a/C2b/C3/C4/C5 complete.
+- Key findings: the climb is real in aggregate (U→K30 +8.87pp, p=0.002) and at the frozen gate; the
+  era-floor rung fails a ≤2018 re-derivation (window-fit-risk flag, forward-suspect #1); the TRAIN-derived
+  no-floor book still prints 31.8%/α+18.3 on 2019+; deflated expectations now accompany every headline.
+- Graduation decision input complete; nothing graduates before 2026-10-03. No seal touched, no book
+  re-tuned. Box read-only.
+
 ### Session 175 (RS/Union lane, Ramana-directed: "ingest the TRI data into prod and deploy the strategy pages") — 2026-07-16 — BOTH DONE + LIVE (ledger 16AK): 16,732 TRI/G-sec rows in prod index_rows (manifest `indexes_tri`, gate 12/12) + the union-family pages live on /dash/strategy-ref (sanitizer verified; the S165-era deploy debt closed)
 
 - Ingestion: idempotent `--ingest` mode on the committed fetcher (INSERT-where-not-exists, BEGIN IMMEDIATE,

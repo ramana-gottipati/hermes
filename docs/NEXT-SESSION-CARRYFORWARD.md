@@ -23,6 +23,19 @@ PROJECT_STATE entries are enough.**
 - **The RS/union estate now has NO open operational debt** — remaining: median pick-ADV print in the
   forward runner · A2-composite clean-TR (forward runner prints it) · 2026-10-03 forward-test day.
 
+## ✅ 2026-07-16 — S176 (Ramana: "run the validation prereg before graduation"): THE SEALED VALIDATION IS RUN (ledger 16AL) — C40→K30 increment REAL (p=0.014, frozen rule PASS), survival 1.01, dead-name stress clean; ERA-FLOOR rung flagged highest window-fit risk (failed ≤2018 re-derivation); DEFLATED forward expectations published (K30 ≈ 21.6%) — the coordination item below is CLOSED — do NOT redo; kickstart-pick-verify
+- Repro gate 5/5 to the digit; 81 common quarters; all six pairwise CIs recorded (β-cap and A2→K30 rungs
+  individually ns — the middle rungs carry the significance). C2a: α>0 in 7/7 3y windows for B14/A2/K30.
+- C2b: TRAIN(≤2018) replay adopts β-cap, rank+top40, top30+drift but REJECTS the era floor (P_train=0.268);
+  the TRAIN-derived book prints 31.8%/α+18.3 on untouched 2019+ → survival 1.01 = "supports the seals".
+  As-sealed on 2019+: K30 34.6%/α+22.0. ⚠ If forward data disappoints for A2/K30, the floor is suspect #1.
+- C3 (N=69 itemized): deflated forward bands U 15.7 · β14 16.6 · C40 18.1 · A2 21.0 · **K30 21.6** —
+  now mandatory beside every headline (ladder §9, union.md updated). C4 drift not regime-bound. C5 haircut
+  −90% costs ≤1.8pp.
+- **Graduation input COMPLETE: frozen-rule PASS + stress PASS + caveats recorded. Nothing graduates before
+  the 2026-10-03 forward test; the family adjudication then picks ≤1 among passers.** Runner:
+  `research/explosive_moves/union_ladder_val.py`.
+
 ## 🔗 2026-07-16 — COORDINATION (parallel to the union CAGR lane): the union-ladder SIGNIFICANCE/DEFLATION pass is SEALED as a prereg but NOT YET RUN — it is the still-owed twin of §15i (which drove D139) — RUN it before any COMPOSITE-30 graduation; kickstart-pick-verify
 - **Sealed protocol `docs/prereg/union-ladder-validation-prereg.md` (sha256 `37c28824e96973…b47832b56`, on origin `e21163c`):** three FROZEN checks on the EXISTING ladder — **C1** D139 paired block-bootstrap significance of each increment · **C2** interim ≤2018-frozen / 2019-26-held OOS · **C3** selection-deflated forward-CAGR (CL-RES-07). NOT a strategy registration, NOT a 5th sibling; changes NO sealed spec. (Coordination session, not a numbered work lane.)
 - **Why it's still owed (S174 did NOT do it):** the estate already ran this exact pass on the SECTOR ladder (`research/explosive_moves/sector_rotation_significance.py`, ledger §15i) → it drove **D139** (V24↔V32 indistinguishable p=0.807 → keep the simpler V21). The UNION ladder — more selection rounds deep — has never had it. S174's TRI recut is benchmark-FAIRNESS, not sibling-DISTINGUISHABILITY.

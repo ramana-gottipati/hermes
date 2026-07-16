@@ -140,6 +140,10 @@ wealth — the standing V8→V17 lesson.)*
   family was REOPENED by owner decision and this spec is SEALED
   ([`union-composite30-prereg.md`](../prereg/union-composite30-prereg.md), SHA-256 `07ef2ef9…`) with a
   four-way family adjudication. Fifth-generation in-sample selection, stated in the registration.
+  **Validated (S176, ledger 16AL):** the sealed ladder-validation protocol passed its frozen D139 gate
+  (the C40→COMPOSITE-30 increment is statistically real, p=0.014), survival 1.01 on the 2019+ interim
+  hold-out, dead-name stress clean — with the era-floor rung flagged as the highest window-fit risk and
+  the honest forward expectation deflated to ≈21.6% ([union-ladder.md](union-ladder.md) §9).
 - **A2-COMPOSITE — the lower-drawdown alternative, recorded IN FULL** ([union-ladder.md](union-ladder.md)
   §5), unregistered, registration-ready on Ramana's word.
 - **Signal A alone** and **Signal B alone** — each beats the Next-50 bar in-sample but by less; the union

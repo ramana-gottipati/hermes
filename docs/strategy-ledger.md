@@ -3020,3 +3020,54 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   (unserved index-class; ready for future serving).
 - **Provenance:** backups on box (`.bak-s175-*`); this entry + the `--ingest` mode + the manifest entry land
   together; live-walk transcript in-chat (S175).
+
+### 2026-07-16AL — S176 (Ramana: "run the validation prereg before graduation"): THE SEALED LADDER VALIDATION (37c28824…) IS RUN. C1: the C40→K30 increment is REAL (CI [+0.54,+9.90], p=0.014) — COMPOSITE-30's graduation candidacy STANDS per the frozen D139 rule. C2b survival 1.01 supports the seals — but the ERA-FLOOR rung fails a ≤2018 re-derivation (the highest window-fit-risk rung). C3: quote 21.6% deflated forward expectation beside the 26.4% headline.
+
+- **Verdict: VALIDATION RECORDED (the sealed protocol's frozen rules applied verbatim; no book re-tuned,
+  no seal touched). Runner `research/explosive_moves/union_ladder_val.py`; reproduction gate 5/5 to the
+  digit (U 17.5/26.04 · B14 18.1/28.84 · C40 21.0/47.29 · A2 25.5/99.03 · K30 26.4/115.69); common grid
+  81 quarters.**
+- **C1 — paired significance (joint stationary block bootstrap, mean block 4, 10k draws, seed 42; NW-t
+  lag-4; JK/Memmel per-period return/vol z; the §15i machinery):**
+
+| increment | CAGR gap | 95% CI | p(≤0) | NW-t | corr |
+|---|---|---|---|---|---|
+| U→B14 | +0.70pp | [−2.84, +3.77] | 0.332 | −0.07 | 0.950 |
+| B14→C40 | +2.90pp | [+0.25, +6.00] | 0.014 | +1.99 | 0.954 |
+| C40→A2 | +4.47pp | [+0.69, +8.24] | 0.010 | +2.18 | 0.941 |
+| A2→K30 | +0.80pp | [−1.11, +2.82] | 0.214 | +1.01 | 0.986 |
+| **C40→K30 (the frozen gate)** | **+5.27pp** | **[+0.54, +9.90]** | **0.014** | +2.22 | 0.908 |
+| U→K30 | +8.87pp | [+3.03, +14.07] | 0.002 | +3.04 | 0.855 |
+
+  **FROZEN RULE OUTCOME: CI excludes 0 AND p ≤ 0.05 → the top-of-ladder increment is statistically real;
+  COMPOSITE-30 remains the graduation candidate** (it must still clear its own forward criteria on
+  2026-10-03). Honest footnotes required by the protocol: the β-cap rung ALONE and the A2→K30 rung ALONE
+  are within noise (their value was risk-shape/window-fix, not full-period CAGR) — the middle rungs carry
+  the significance. Unlike the sector ladder's V24→V32 (p=0.745 → retired), this ladder's climb survives
+  its D139 test in aggregate and at the decisive gate.
+- **C2a — stability:** α>0 in 7/7 rolling 3y windows for B14, A2 AND K30 (C40 6/7, U 4/7) — stability
+  rises up the ladder.
+- **C2b — interim OOS (TRAIN ≤2018, TEST 2019+ once):** P_train = 0.268 (2018's eligible fraction — the
+  era-floor calibration is period-sensitive). Generational replay on TRAIN: β-cap ADOPTED · rank+top40
+  ADOPTED · **era-floor REJECTED (its TRAIN gate fails — the rung leans on modern liquidity data; the
+  highest window-fitting-risk rung of the family, stated plainly)** · top30+drift ADOPTED. The
+  TRAIN-derived book (no floor) on untouched 2019+: **31.8% / α+18.3 / β0.80 → survival = 1.01 vs the
+  as-sealed K30's 2018-26 α (+18.2) — the declared "supports the seals" band** (2.32 vs its own TRAIN α;
+  2019+ was a strong era family-wide: as-sealed on 2019+ = U 24.2/α12.0 · B14 23.8/11.7 · C40 30.4/17.2 ·
+  A2 34.1/21.2 · K30 34.6/22.0).
+- **C3 — deflated return/vol (Bailey-LdP at quarterly units, attribution.py:314 formula), N_trials = 69
+  itemized from 16U–16AH in the runner:** DSR 0.897/0.938/0.980/0.998/0.998 up the ladder (even after
+  69-trial deflation the family is far above the null max — not a pure selection artifact); φ = 0.35 → 0.55.
+  **Deflated forward-CAGR expectations, now the mandatory companion to every headline: U 15.7% · B14 16.6%
+  · C40 18.1% · A2 21.0% · K30 21.6%.** Published in union-ladder.md §9 per the protocol's reporting
+  standard.
+- **C4 — drift contribution by window: +1.2 / −0.2 / +0.6pp** — NOT concentrated in 2018-26; no
+  regime-dependence label required. **C5 — dead-name haircut: A2 −0.8/−1.6pp and K30 −0.9/−1.8pp at
+  −70%/−90% (27/23 dead events)** — the era-floor climb is NOT a haircut artifact; the "+4pp artifact"
+  hypothesis is dead.
+- **What this changes:** ① every public/compendium headline now carries the deflated band; ② the era-floor
+  rung carries a permanent window-fit-risk flag (C2b) — if the 2026-10-03 forward window shows the A2/K30
+  books underperforming C40-class books, the floor is the first suspect; ③ the graduation decision input is
+  complete: frozen-rule PASS + stress PASS + caveats recorded. Nothing graduates before the forward test.
+- **Provenance:** sealed protocol `docs/prereg/union-ladder-validation-prereg.md` (37c28824…, coordination
+  session; run exactly as frozen) · runner lands with this commit · DB to 2026-07-15 · box read-only.

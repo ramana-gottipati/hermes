@@ -164,3 +164,19 @@ SIX configs above; the FOUR sealed members are judged against their own criteria
 adjudication picks at most one graduate (highest forward alpha among passers). Prod `index_rows` ingestion: **DONE S175 (ledger 16AK)** — 'Nifty 500 TRI' / 'Nifty Next 50 TRI' /
 'Nifty GS 10Yr' / 'Nifty GS Compsite' live in prod, manifest entry `indexes_tri`, pull-on-demand
 freshness via the committed tool.
+
+## 9. THE SEALED VALIDATION (S176, ledger 16AL; protocol `37c28824…` run as frozen)
+
+**Reproduction gate 5/5 to the digit. C1 (paired block bootstrap, 81 quarters):** the decisive
+C40→K30 increment is REAL (+5.27pp, 95% CI [+0.54, +9.90], p=0.014); the full U→K30 climb +8.87pp
+(p=0.002); the β-cap and A2→K30 rungs are individually within noise (recorded). **C2a:** α>0 in 7/7
+rolling 3y windows for B14/A2/K30. **C2b (TRAIN ≤2018 → TEST 2019+ once):** survival 1.01 —
+supports the seals — but **the ERA-FLOOR rung fails the ≤2018 re-derivation (P_train=0.268): the
+family's highest window-fit-risk rung**, first suspect if forward data disappoints. **C4:** drift
+contribution not regime-concentrated (+1.2/−0.2/+0.6). **C5:** dead-name haircut to −90% costs only
+−1.6/−1.8pp — no artifact.
+
+**DEFLATED FORWARD-CAGR EXPECTATIONS (Bailey-LdP, N_trials=69 — quote these beside every
+headline):** U **15.7%** · β14 **16.6%** · C40RA **18.1%** · A2-composite **21.0%** ·
+**COMPOSITE-30 21.6%**. The in-sample headlines above are selection-inflated by construction; these
+bands are the honest forward expectation until 2026-10-03 speaks.
