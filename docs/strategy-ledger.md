@@ -3071,3 +3071,17 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   complete: frozen-rule PASS + stress PASS + caveats recorded. Nothing graduates before the forward test.
 - **Provenance:** sealed protocol `docs/prereg/union-ladder-validation-prereg.md` (37c28824…, coordination
   session; run exactly as frozen) · runner lands with this commit · DB to 2026-07-15 · box read-only.
+
+### 2026-07-17 — COORDINATION cross-check of 16AL/S176: C1 independently REPRODUCED by a second harness (no shared engine code) — every verdict identical, not an implementation artifact
+- A separate coordination-session runner **`research/explosive_moves/union_ladder_c1.py`** re-ran C1
+  independently of S176's `union_ladder_val.py`. The two share NO engine code: this one **exec-loads
+  `union_lab5.py`'s engine byte-for-byte** (everything above its print battery) and adds only `sel_union`
+  + the reproduction gate + the paired bootstrap — so agreement is a genuine cross-check, not a shared bug.
+- **Reproduction gate 5/5 to the digit** (U 17.5/26.04 · B14 18.1/28.84 · C40 21.0/47.29 · A2 25.5/99.03 ·
+  K30 26.4/115.69), common grid 81 quarters. **All six paired increments match 16AL to ~2dp:** U→B14 +0.7
+  [−2.9,+4.0] p0.35 · B14→C40 +2.9 [−0.1,+6.5] p0.03 · C40→A2 +4.5 [+0.5,+8.7] p0.01 · A2→K30 +0.8
+  [−1.2,+2.9] p0.22 · C40→K30 +5.3 [+0.4,+10.4] p0.02 · U→K30 +8.9 [+3.2,+14.5] p0.00. A second
+  block-bootstrap variant (Politis-Romano mean-2q, 20k) agrees with the fixed-L=4q variant on every verdict.
+- **This CONFIRMS 16AL and adds no new verdict** — the C40→K30 gate PASS and the A2→K30 / β-cap nulls all
+  reproduce independently; the graduation input in 16AL stands, now with second-implementation backing.
+  Nothing re-tuned; no seal touched; box read-only. Runner committed for reproducibility.
