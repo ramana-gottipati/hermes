@@ -10,7 +10,7 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## ✅ 2026-07-17 — S180: the PORTFOLIO-CONSTRUCTION LAYER design doc is SHIPPED (queue-① DONE) · ② banked box-gated · ③ time-gated — do NOT redo; kickstart-pick-verify
+## ✅ 2026-07-17 — S180: the PORTFOLIO-CONSTRUCTION LAYER design doc is SHIPPED (queue-① DONE) · ② BUILT by sibling S181 (`union_forward.py`) · ③ time-gated — do NOT redo; kickstart-pick-verify
 - **① DONE — `docs/portfolio-layer-design.md` is ON ORIGIN** (design-of-record; DOC_INDEX §B 24→25; Lifecycle
   banner; doc-hygiene + retvol-label + strategy-docs-coverage GREEN). The 16AN program's DoR, one level above
   the equity book: **§4** weights policy on the MEASURED book+G-sec dial (each +10% G-sec ≈ −1.7pp CAGR /
@@ -36,20 +36,25 @@ PROJECT_STATE entries are enough.**
   attribution is off.** My duplicate worktree commit `73544a3` was dropped (reset to origin/main). **Durable
   lesson:** in a worktree session, Read/Write/Edit on bare `D:\Hermes\...` paths hit the SHARED tree — use the
   worktree path (`D:\Hermes\.claude\worktrees\<slug>\...`) for every edit, or the shared-tree work gets absorbed.
-- **② BOX-GATED (paste-ready) — median pick-ADV + A2-clean-TR in the forward runner `union_lab6.py`:** local
-  `data/hermes.db` = **0-row empty shell** → cannot run/verify locally; the module feeds the sealed 2026-10-03
-  forward test, so **NO blind edit** (§0.3/§4). Exact change: (a) `run5` (line 454) lacks `medadv` — init
-  `medadv=[]` in its locals, inside the quarterly loop after `sel` is set (line 471) add
-  `pm=pym(d); advs=sorted(adv.get(s,{}).get(pm,0) for s in sel); ` + `if advs: medadv.append(advs[len(advs)//2])`,
-  add `medadv=medadv` to run5's return dict, and in `row6` (line 632) add a `medADV %4.1fcr` column mirroring
-  `battery`'s line 442-443; (b) add `row6("a2-composite TR (book dividends)", fmode="pf1", topn=40, rf_cash=True, tr=True)`
-  after line 658 (mirrors the COMPOSITE-30 TR line 660). **VERIFY on the box:** the six PR CAGRs must be
-  UNCHANGED (print-only), medADV plausible (A2 rows ~₹7.7-11.3cr per 16AE), a2-TR CAGR ≥ 25.5. Run under the
-  VPS `.venv-research` + full `research.db`; box read-only, no deploy.
+- **② ✅ BUILT by S181 (`union_forward.py`, commit `8655cea`) — kickstart-pick-verify, do NOT edit `union_lab6.py`:**
+  a sibling landed the ONE-COMMAND forward-test-day runner `research/explosive_moves/union_forward.py` that
+  supersedes my proposed `union_lab6.py` edit. It exec-loads the sealed `union_ladder_val.py` engine
+  byte-for-byte (16AL repro gate 5/5) + adds ONLY reporting: a reproduction gate on all six ladder rows, the
+  four frozen criteria per sealed prereg + mechanical adjudication, AND the two owed prints — **median pick-ADV
+  per forward rebalance + overall** (recomputed from the same QUAL/hook/topn line, since `run5` never computed
+  it) and the **A2-composite clean-TR** (full-period `tr=True`; K30's `tr=True` reproduces 27.3%/16AF as a
+  same-code-path cross-check) — plus the **16AN portfolio-dial fold** (K30/A2 mix rows at 100/0·90/10·80/20·70/30
+  each checkpoint), closing design-doc **§9 + §10.3**. **Still box-gated to RUN** (needs the VPS `.venv-research`
+  + full `research.db`; local `data/hermes.db` = 0-row shell) — the CODE is built; verification = run it on the
+  box (`union_forward.py <db> [--asof 2026-10-03]`, stdlib-only) and confirm the repro gate passes to the digit.
+  S181 also refined `docs/portfolio-layer-design.md` §9/§10.3 (marked BUILT) + `union-ladder.md` — the design doc
+  on origin is no longer byte-identical to the S180-authored version (improved, not regressed).
 - **③ 2026-10-03 forward-test day: TIME-GATED + fully specified** (union-ladder.md §8; all six ladder rows +
   TRI columns + book-TR pairings + the ② prints; judge the 4 seals vs their registrations; adjudication picks
-  ≤1; era-floor window-fit flag rides in). The portfolio-layer §9 fold is now on record. Nothing to ship until
-  the day; **② is its one open completeness item.**
+  ≤1; era-floor window-fit flag rides in). The portfolio-layer §9 fold is now on record AND built (S181). The
+  runner `union_forward.py` makes the day mechanical (repro gate → forward window → four frozen criteria →
+  adjudication → the 16AN dial). **Its ONE open item = run it on the box** (refresh the TRI/G-sec CSVs first via
+  `niftyindices_hist.py`); nothing else to ship until the day.
 
 ## ✅ 2026-07-16 — S175 (Ramana): TRI DATA IN PROD + STRATEGY PAGES LIVE — the two standing debts are CLOSED — do NOT redo; kickstart-pick-verify
 - **Ingestion (ledger 16AK):** 'Nifty 500 TRI' / 'Nifty Next 50 TRI' (5,341 rows each, 2005→2026) +
@@ -1522,9 +1527,10 @@ integrity:** TAPE_SUSPECT 77→6 (S97/S98 heals DONE — treat D103's consequenc
 > **THE QUEUE:** ① the PORTFOLIO-LAYER program's next steps per `docs/portfolio-layer-design.md` §10 —
 > the ±5pp rebalance-band measurement (§6) + the gold-leg primary-source data (§7: NSE gold-ETF/SGB via
 > the feed protocol, **corr-first gate**) — BOTH box-gated (need the VPS `.venv-research` + full
-> `research.db`; local `data/hermes.db` is a 0-row shell); ② the box-gated forward-runner completeness
-> (median pick-ADV + A2-clean-TR in `union_lab6.py` — **paste-ready exact spec in the S180 block above**);
-> ③ the 2026-10-03 forward-test day (union-ladder.md §8; fold in the portfolio-layer §9 policy point).
+> `research.db`; local `data/hermes.db` is a 0-row shell); ② ✅ the forward-runner completeness (median
+> pick-ADV + A2-clean-TR) is **BUILT by S181 in `union_forward.py`** — do NOT edit `union_lab6.py`; the only
+> open step is running `union_forward.py` on the box (kickstart-pick-verify); ③ the 2026-10-03 forward-test
+> day (union-ladder.md §8; `union_forward.py` makes it one command; fold in the portfolio-layer §9 policy point).
 > **HARD BAR (§8):** no dynamic/timed/regime weights + no new asset legs without primary data — without a
 > FRESH prereg + full falsification battery. Cite the failure-ledger catalog §§A–G before any RS/portfolio
 > proposal. Ramana may paste a problem statement; if none, take the box-gated queue when the research env
