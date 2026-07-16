@@ -185,3 +185,9 @@ bands are the honest forward expectation until 2026-10-03 speaks.
 matrix (70 combinatorial splits); K30's OOS rank mean 0.938 / min 0.767. With this, the robustness
 suite is complete: paired significance ✓ · interim OOS ✓ · deflation ✓ · stress ✓ · PBO ✓ — one
 recorded soft spot (the era-floor rung's ≤2018 re-derivation failure).
+
+**Independent cross-check (2026-07-17, ledger cross-check of 16AL):** C1/C2/C3 were re-run by a
+SECOND harness that shares no engine code with the S176 runner (`union_ladder_c1.py` +
+`union_ladder_c23.py`, which exec-load the sealed engine byte-for-byte). Every result reproduced to
+the digit/3dp — the C40→K30 gate PASS, the A2→K30 and β-cap nulls, P_train=0.268, the 2019+ slices,
+and the Deflated-Sharpe values (0.898…0.998). The validation is not an implementation artifact.
