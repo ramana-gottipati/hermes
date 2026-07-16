@@ -73,7 +73,44 @@ PROJECT_STATE entries are enough.**
 - **Gotchas for your deploy steps:** `install-systemd.sh` DEFAULTS to `--check` — the copy needs the explicit `--install` flag (this bit me; also now in the deploy memory). Worktree commits need BOTH `HERMES_SKIP_STATE_GATE=1` and `state:skip`.
 - **✅ Suite debt FIXED (same orchestrator, npfix-suite):** `test_embase_deliv_value.py` now `pytest.importorskip("numpy")` (the test_rule_lab_executor pattern) and `combo_test.py` (a research SCRIPT that only matched pytest's `*_test.py` glob) is collect-ignored via a new `research/explosive_moves/conftest.py` — full suite collects clean in numpy-less worktrees (539 passed / 0 errors at the S158-era base). Semantics untouched; the script still runs via `python -m`.
 
-## 🔴🔴 2026-07-15/16 — RS STRATEGY: **THE VERDICT IS "HOLD NIFTY NEXT 50."** Read this before ANY rotation/RS work. 8 retractions. Do NOT re-open the ladder.
+## 🟢 2026-07-16 — RS STRATEGY, PART 2: the UNION signal is the ONE surviving LEAD (in-sample 17.5%/+6.8% alpha) — PRE-REGISTERED + sealed, awaiting forward evidence. Read WITH the "HOLD NIFTY NEXT 50" block below (that was PART 1 — the SECTOR-INDEX layer; this is the STOCK layer that came after).
+
+**What changed since Part 1:** Part 1 killed the sector-INDEX ladder (nothing beat Next-50). Part 2 built the
+STOCK layer properly — corporate-action ADJUSTED prices (the `series='EQ'`/CA bugs are FIXED, `adjust.py`;
+`corporate_actions` VERIFIED complete vs NSE, ledger 15S), a runtime split-ratio quarantine, PIT sector
+assignment by 500d excess-correlation (no membership table needed), and a battery across RSI construction,
+strength-index, reversal-on-RS (all 8 of Dim 6), vetoes, cash-out sizing, and walk-forward.
+
+**THE ONE SURVIVOR — the UNION** (ledger §§ 2026-07-16U/V/W · repro `research/explosive_moves/cash_blend.py`):
+a stock qualifies if EITHER fires — **(1) RSI(14)>its 50-SMA AND beat its own sector on ≥70% of last quarter's
+days** (trend), OR **(2) 6b: RSI(14) of the RS-line was <30 and crossed back ≥30** (oversold turn). Equal-weight
+**top 60**; idle capital → **Nifty Next 50 while Nifty 500 ≥ 200DMA, else cash** (V17 sleeve); **trailing stop
+−20% @1% slip**. In-sample 2006–2026: **CAGR 17.5% · MaxDD −30.5% · ₹1Cr→₹26.04Cr · beta 0.87 · alpha +6.8%**
+vs the Next-50 bar's 13.3%/₹12.98Cr. **The best full-period result of the whole arc, built entirely from
+Ramana's theses** (the RS turn + persistence + cash-out) on the trailing-stop/sleeve machinery.
+
+**🔴 IT IS A LEAD, NOT A STRATEGY — do NOT deploy, do NOT re-optimize.** Selected AFTER seeing 2005–2026 across
+~30 configs → in-sample (Codex 15R). **Walk-forward: +8-10% alpha in 2006–11 AND 2018–26, but −4.6% in 2012–17**
+(a mid-cycle bull where a lower-beta momentum book lags a raging index). **The 2012–17 weakness is SELECTION,
+not sizing — PROVEN: a throttle cutting exposure 75% in extended markets barely moved beta (1.42→1.35) and
+made every metric WORSE (16W). Do NOT re-attempt exposure-throttling.** Two survivor signals (6b turn,
+RSI+consistency trend) are **mutually exclusive by construction** (intersection = 9% invested) — you cannot
+stack them, only union them.
+
+**✅ PRE-REGISTERED + SEALED (the honest path forward):** frozen spec + 4 pass/fail criteria in
+[`docs/prereg/union-prereg.md`](prereg/union-prereg.md), **SHA-256 = `a9a14058f2140e22639b9504ab6d4af9c60fc76144de0f9f5e47f21b1b98d21c`** recorded in ledger 16W so any edit voids it.
+**PASS requires, over ≥8 forward quarters from 2026-07:** ① CAGR > Next-50 net of costs · ② alpha > 0 with
+forward beta reported (a higher CAGR purely from beta>1.1 = FAIL) · ③ MaxDD not worse than Next-50 · ④ no
+single quarter > 60% of the excess. **Miss ①–③ → DESCRIPTIVE-ONLY, never deployed.** **NEXT ACTION when a new
+quarter closes: run the forward test against the sealed criteria — do NOT touch the spec.**
+
+**Still owed (both blocks):** TRI-benchmark re-cut (all numbers are price-index vs price-index). The ONE
+genuine open research question (not a build): can the 2012–17 stock SELECTION be improved? — harder than
+sizing, and NOT to be pursued by re-optimizing on the same window.
+
+---
+
+## 🟡 2026-07-15/16 — RS STRATEGY PART 1 (the SECTOR-INDEX layer): "HOLD NIFTY NEXT 50" at the index level. 8 retractions. Do NOT re-open the sector ladder. (Part 2 above built the STOCK layer.) Read this before ANY rotation/RS work. 8 retractions. Do NOT re-open the ladder.
 
 **THE ANSWER (final, on clean data, contingent on nothing):**
 
