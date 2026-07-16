@@ -28,6 +28,7 @@
 | **STREAM BAND** (13-EMA banks + 5-EMA trigger) | 🧑 RAMANA | Screen+ "rev" group (band state · stretch pctile) | falsified as signal (ledger 07-13); live as context |
 | **FRACTAL FLOOR / CEILING** | 🧑 RAMANA | Screen+ "rev" group + reclaim/slip pills | falsified as entry (07-14…14c); live as risk-geometry context |
 | **Buyback tender quota play** | 🧑 RAMANA (charter §2.4) | /dash/buyback-calc | live, personal-scale |
+| **The Union** (RS turn ∪ RS trend, stock-level) | 🧑 RAMANA (both signal theses — oversold-RS turn + persistent RS; cash-out sizing) + 🏠 HOUSE (union construction, PIT harness, falsification + pre-registration) | `docs/strategies/union.md` (no live surface by design) | RESEARCH — pre-registered lead, SEALED, not deployed |
 | **pt14 quality** (14-pattern durability) | 🏠 HOUSE | /dash/stocks · screener "qual" | live; filter/veto, not a ranker |
 | **CCI credibility** (concall guidance-accuracy) | 🏠 HOUSE | /dash/concalls · screener "cci" | live; factor falsified → descriptive/veto |
 | **C capital-allocation** | 🏠 HOUSE | screener "ca" · /dash/momentum-scan C-blend | live; blend/veto (D66), never a ranker |

@@ -43,6 +43,7 @@ _PAGES: dict[str, tuple[str, str]] = {
     "patearn":           ("patearn.md",           "patearn"),
     "classic-screens":   ("classic-screens.md",   "Classic Screens"),
     "sector-rotation":   ("sector-rotation.md",   "Sector Rotation"),
+    "union":             ("union.md",             "The Union"),
     "rule-lab":          ("rule-lab.md",          "Rule Lab"),
     "origins":           ("origins.md",           "Origins"),
 }
