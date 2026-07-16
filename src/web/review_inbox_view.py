@@ -34,6 +34,15 @@ helpers, so this page and the legacy /dash/tags-review surface share ONE decisio
 
 Isolated module (the glossary_view pattern): own APIRouter, durably mounted via
 v2_surfaces._ROUTER_SPECS; reads/writes only via review_inbox + inbox_adapters.
+
+HOME BANNER (Ramana-directed, 2026-07-16): "if this needs to be part of the system,
+add it to the application itself" — a nav entry a tab deep was not enough; he had no
+reason to know Trust -> Review inbox existed. `home_banner_html()` is a small,
+ALWAYS-PRESENT, owner-only fixture on `/dash` itself (wired from dashboard.dash_home,
+NOT a new route/lens — playbook §2 item 1, extend an existing page with existing
+data). Fail-CLOSED like the rest of this module: dash_home must render nothing for
+anyone who isn't the verified owner. Count + link only, reusing inbox_flow so the
+number can never disagree with the DM/Pat/Telegram.
 """
 from __future__ import annotations
 
@@ -129,6 +138,44 @@ def _is_owner(request) -> bool:
         return bool(tracker_gate._is_owner(request))
     except Exception:  # noqa: BLE001
         return False
+
+
+_HOME_BANNER_CSS = """
+<style>
+.ib-home{display:flex;align-items:center;gap:8px;padding:9px 14px;margin:0 0 12px;
+         border:1px solid var(--line);border-radius:8px;background:var(--bg-2);
+         font-size:13px}
+.ib-home a{font-weight:600}
+.ib-home .ib-dot{width:7px;height:7px;border-radius:50%;flex:none}
+.ib-home .ib-dot.on{background:var(--up)}
+.ib-home .ib-dot.off{background:var(--ink-3);opacity:.5}
+</style>
+"""
+
+
+def home_banner_html(request) -> str:
+    """The owner-only Home fixture (2026-07-16, Ramana-directed).
+
+    ALWAYS present in the SAME spot for the owner — whether 0 or 12 are waiting —
+    so the inbox is a known, permanent part of the app rather than something to
+    remember to click into. Empty for anyone who isn't the verified owner: `''`
+    renders as nothing, so a stray call site can never leak so much as the count.
+    """
+    if not _is_owner(request):
+        return ""
+    from src.pat import inbox_flow as IF
+    try:
+        with _conn() as conn:
+            w = IF.waiting(conn)
+    except Exception:  # noqa: BLE001 — Home must never break over this
+        return ""
+    if w.get("total"):
+        dot, text = "on", IF.summary_phrase(w).capitalize()
+    else:
+        dot, text = "off", "Nothing is waiting on you"
+    return (_HOME_BANNER_CSS +
+            f"<div class='ib-home'><span class='ib-dot {dot}'></span>"
+            f"<a href='{_ROUTE}'>Review inbox</a> &middot; {_esc(text)}</div>")
 
 
 def _conn():
@@ -424,6 +471,17 @@ def _selftest() -> int:
         # the honesty split: lived and imported never merge into one rate
         assert "Imported rate" in own and "Why two rates, not one" in own
         print("ok: stats table reports lived vs imported separately")
+
+        # the Home fixture (2026-07-16): fail-closed for anonymous, always-on for owner
+        req = object()
+        owner_flag["v"] = False
+        assert home_banner_html(req) == "", "PUBLIC must see no trace, not even a count"
+        owner_flag["v"] = True
+        banner = home_banner_html(req)
+        assert "Review inbox" in banner and "/dash/inbox" in banner
+        assert "waiting on you" in banner or "Nothing is waiting" in banner
+        print("ok: Home fixture — owner-only, always present, never crashes")
+
         print("review_inbox_view selftest OK — gate holds, queue renders, split honest")
         return 0
     finally:

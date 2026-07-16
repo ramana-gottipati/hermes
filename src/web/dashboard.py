@@ -1144,11 +1144,21 @@ def _pos_cells(r) -> str:
 
 
 @router.get("/dash", response_class=HTMLResponse)
-def dash_home() -> HTMLResponse:
+def dash_home(request: Request) -> HTMLResponse:
     sig_date, idx_date = _latest_dates()
     from src.web.cockpit import render_home
+    # Owner-only "Review inbox" fixture (2026-07-16, Ramana-directed): a tab-deep nav
+    # entry was not enough — he had no reason to know it existed. This is NOT a new
+    # page (playbook §2 item 1, extend Home with existing data); '' for anyone who
+    # isn't the verified owner, so a public visitor sees nothing added.
+    banner = ""
+    try:
+        from src.web import review_inbox_view as _RIV
+        banner = _RIV.home_banner_html(request)
+    except Exception:  # noqa: BLE001 — Home must never break over this
+        banner = ""
     return HTMLResponse(_shell("patearn — Indian-equity strategy cockpit",
-                               render_home(sig_date, idx_date), "dash", sig_date or "", wide=True))
+                               banner + render_home(sig_date, idx_date), "dash", sig_date or "", wide=True))
 
 
 def _edu(bl_html: str) -> str:

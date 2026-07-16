@@ -355,5 +355,115 @@ def test_ref_stays_readable_when_its_symbol_is_linked():
     assert V._ref_html("abc123", "") == "abc123", "no symbol -> plain ref"
 
 
+# ── 6. the Home fixture (2026-07-16, Ramana-directed) ────────────────────────────
+
+def test_home_banner_is_empty_for_anonymous(db):
+    """Not even the COUNT may leak to a non-owner — '' means nothing is added to the
+    page at all, distinct from an owner seeing 'nothing waiting' (a real, rendered
+    state)."""
+    _, conn = db
+    ri.submit(conn, "tags", "DIXON|Defence", "Proposed tag", {})
+    conn.commit()
+    req = type("R", (), {})()
+    real_owner = V._is_owner
+    V._is_owner = lambda request: False
+    try:
+        assert V.home_banner_html(req) == ""
+    finally:
+        V._is_owner = real_owner
+
+
+def test_home_banner_shows_the_real_queue_to_the_owner(db):
+    _, conn = db
+    ri.submit(conn, "tags", "DIXON|Defence", "Proposed tag: Defence for DIXON", {})
+    ri.submit(conn, "brief", "results:TCS:2026-06-30", "Results brief — TCS", {})
+    conn.commit()
+    req = type("R", (), {})()
+    real_owner, real_conn = V._is_owner, V._conn
+    V._is_owner = lambda request: True
+    V._conn = lambda: __import__("sqlite3").connect(_path_of(conn))
+    try:
+        html = V.home_banner_html(req)
+        assert "2 waiting on you" in html
+        assert "/dash/inbox" in html
+        assert "ib-dot on" in html
+    finally:
+        V._is_owner, V._conn = real_owner, real_conn
+
+
+def test_home_banner_is_always_present_for_the_owner_even_when_empty():
+    """The whole point: a STABLE fixture, not something that only appears when
+    there's something to see — an empty queue still renders (and still links)."""
+    req = type("R", (), {})()
+    real_owner, real_conn = V._is_owner, V._conn
+    V._is_owner = lambda request: True
+    V._conn = lambda: __import__("sqlite3").connect(":memory:")
+    try:
+        html = V.home_banner_html(req)
+        assert html and "Nothing is waiting on you" in html and "/dash/inbox" in html
+        assert "ib-dot off" in html
+    finally:
+        V._is_owner, V._conn = real_owner, real_conn
+
+
+def test_home_banner_never_crashes_home_on_a_db_failure():
+    req = type("R", (), {})()
+    real_owner, real_conn = V._is_owner, V._conn
+    V._is_owner = lambda request: True
+
+    def _boom():
+        raise RuntimeError("db unreachable")
+    V._conn = _boom
+    try:
+        assert V.home_banner_html(req) == ""
+    finally:
+        V._is_owner, V._conn = real_owner, real_conn
+
+
+def test_home_banner_count_is_single_sourced_with_the_dm_and_telegram(db):
+    _, conn = db
+    ri.submit(conn, "tags", "DIXON|Defence", "t", {})
+    ri.submit(conn, "rule_verdict", "abc", "Rule-lab: X", {})
+    conn.commit()
+    from src.pat import inbox_flow as IF
+    req = type("R", (), {})()
+    real_owner, real_conn = V._is_owner, V._conn
+    V._is_owner = lambda request: True
+    V._conn = lambda: __import__("sqlite3").connect(_path_of(conn))
+    try:
+        html = V.home_banner_html(req)
+        want = IF.summary_phrase(IF.waiting(conn)).capitalize()
+        assert want in html
+    finally:
+        V._is_owner, V._conn = real_owner, real_conn
+
+
+def test_dash_home_shows_the_banner_only_to_the_owner(db, monkeypatch):
+    """The end-to-end wire: dash_home() itself, through the real route, adds nothing
+    for a stranger and the real fixture for the owner."""
+    path, conn = db
+    ri.submit(conn, "tags", "DIXON|Defence", "Proposed tag: Defence for DIXON", {})
+    conn.commit()
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    import src.web.dashboard as D
+
+    # TestClient serves each request on a WORKER THREAD, so the lambda below must
+    # open its OWN sqlite3 connection from the captured PATH STRING — never touch
+    # the test's own `conn` object across threads (sqlite3 forbids it; this bit the
+    # first draft with a real `sqlite3.ProgrammingError`, caught before it shipped).
+    monkeypatch.setattr(V, "_conn", lambda: __import__("sqlite3").connect(path))
+    app = FastAPI()
+    app.include_router(D.router)
+
+    monkeypatch.setattr(V, "_is_owner", lambda request: False)
+    anon = TestClient(app).get("/dash").text
+    assert "Review inbox" not in anon, "a stranger must see no trace of the fixture"
+
+    monkeypatch.setattr(V, "_is_owner", lambda request: True)
+    own = TestClient(app).get("/dash").text
+    assert "Review inbox" in own and "1 waiting on you" in own and "/dash/inbox" in own
+
+
 def test_selftest_is_green():
     assert V._selftest() == 0
