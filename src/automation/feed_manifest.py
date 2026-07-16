@@ -166,6 +166,19 @@ FEEDS: dict = {
         tables=("index_rows", "index_dates"),
         notes="Daily OHLC + valuation per index (D32).",
     ),
+    "indexes_tri": Feed(
+        key="indexes_tri",
+        module="research/explosive_moves/niftyindices_hist.py",
+        source_org="NSE (niftyindices.com)",
+        cadence="pull-on-demand (backfill tool; the union forward-test runner refreshes before judging)",
+        licence_class="public-archive",
+        knowable_rule="official TRI/G-sec history endpoints; values published EOD",
+        fence_status="raw-archive",
+        tables=("index_rows",),
+        notes="TRI + long G-sec histories (S174/S175, ledger 16AI/16AK): 'Nifty 500 TRI', "
+              "'Nifty Next 50 TRI', 'Nifty GS 10Yr', 'Nifty GS Compsite' [sic, official trading name]. "
+              "Backfill verified to the paisa vs the daily indexes feed (PR cross-check).",
+    ),
     "deals": Feed(
         key="deals",
         module="src/automation/deals.py",

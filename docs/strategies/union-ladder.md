@@ -161,6 +161,6 @@ evidence, not adopted. rf convention frozen (1D-Rate + 6.5% proxy). Dividend acc
 bound. Median pick-ADV print owed in the forward runner. Sealed criteria stay PR-vs-PR as frozen;
 the TRI columns are reported beside every future judgment. Forward-test day (2026-10-03) runs ALL
 SIX configs above; the FOUR sealed members are judged against their own criteria; family
-adjudication picks at most one graduate (highest forward alpha among passers). Prod `index_rows`
-ingestion of the TRI/G-sec series = the feed lane's build (manifest + licence gate + timer), now
-trivial with the tool committed.
+adjudication picks at most one graduate (highest forward alpha among passers). Prod `index_rows` ingestion: **DONE S175 (ledger 16AK)** — 'Nifty 500 TRI' / 'Nifty Next 50 TRI' /
+'Nifty GS 10Yr' / 'Nifty GS Compsite' live in prod, manifest entry `indexes_tri`, pull-on-demand
+freshness via the committed tool.

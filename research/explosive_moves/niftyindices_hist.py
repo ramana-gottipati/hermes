@@ -99,6 +99,36 @@ def backfill(kind, name, long_name, d_from, d_to, sleep=1.0):
         time.sleep(sleep)
     return rows
 
+def ingest(db_path, index_name, csv_path):
+    """One-shot ADDITIVE ingestion of a fetched CSV into prod index_rows (S175, ledger 16AK).
+    Only close_value is populated (the TRI/G-sec endpoints publish closes); rows whose
+    (index_name, trade_date) already exist are left untouched — re-runs are idempotent.
+    Guarded: refuses to run while another writer holds the DB (busy_timeout + immediate tx)."""
+    import sqlite3
+    rows = []
+    with open(csv_path) as f:
+        rd = csv.reader(f); next(rd, None)
+        for r in rd:
+            try:
+                rows.append((index_name, r[0], float(r[1])))
+            except (ValueError, IndexError):
+                continue
+    conn = sqlite3.connect(db_path, timeout=30)
+    conn.execute("PRAGMA busy_timeout=30000")
+    cur = conn.cursor()
+    cur.execute("BEGIN IMMEDIATE")
+    before = cur.execute("SELECT count(*) FROM index_rows WHERE index_name=?", (index_name,)).fetchone()[0]
+    cur.executemany(
+        "INSERT INTO index_rows(index_name, trade_date, close_value) "
+        "SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM index_rows WHERE index_name=?1 AND trade_date=?2)",
+        rows)
+    conn.commit()
+    after = cur.execute("SELECT count(*) FROM index_rows WHERE index_name=?", (index_name,)).fetchone()[0]
+    lo, hi = cur.execute("SELECT min(trade_date), max(trade_date) FROM index_rows WHERE index_name=?",
+                         (index_name,)).fetchone()
+    conn.close()
+    print(f"INGESTED '{index_name}': +{after-before} rows (had {before}, now {after}; {lo}..{hi})", flush=True)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True, help="Trading_Index_Name (IndexMapping.json)")
@@ -107,6 +137,8 @@ def main():
     ap.add_argument("--from", dest="dfrom", required=True)
     ap.add_argument("--to", dest="dto", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--ingest-db", help="ALSO ingest the written CSV into this DB's index_rows")
+    ap.add_argument("--ingest-name", help="index_name for ingestion")
     a = ap.parse_args()
     d0 = dt.date.fromisoformat(a.dfrom); d1 = dt.date.fromisoformat(a.dto)
     rows = backfill(a.kind, a.name, a.long, d0, d1)
@@ -120,6 +152,8 @@ def main():
             w.writerow([d, v, ntr] if a.kind == "tr" else [d, v])
     print(f"WROTE {a.out}: {len(rows)} rows "
           f"({min(rows) if rows else '-'} .. {max(rows) if rows else '-'})", flush=True)
+    if a.ingest_db and a.ingest_name:
+        ingest(a.ingest_db, a.ingest_name, a.out)
 
 if __name__ == "__main__":
     main()

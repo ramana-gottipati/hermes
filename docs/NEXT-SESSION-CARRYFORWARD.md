@@ -10,6 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-16 — S175 (Ramana): TRI DATA IN PROD + STRATEGY PAGES LIVE — the two standing debts are CLOSED — do NOT redo; kickstart-pick-verify
+- **Ingestion (ledger 16AK):** 'Nifty 500 TRI' / 'Nifty Next 50 TRI' (5,341 rows each, 2005→2026) +
+  'Nifty GS 10Yr' (2011+) + 'Nifty GS Compsite' (2018+) = **16,732 rows in prod `index_rows`** via
+  `niftyindices_hist.py --ingest` (idempotent, writer-guarded); spot == the 16AI fetch; manifest entry
+  `indexes_tri` (public-archive; pull-on-demand — the forward runner refreshes); gate 12/12. The four names
+  now appear in index pickers (deliberate; freshness = pull-on-demand via the committed tool).
+- **Deploy (the S165-era debt):** box `strategies_view.py` was clean-past (== `e9d4d95`; delta to HEAD = the
+  ONE union _PAGES line) → clean scp + all 17 strategy docs (backups `.bak-s175-*`); writer-gated restart
+  17:52 UTC; **LIVE: `?p=union` renders via Caddy, sanitizer holds ("Ramana" 0, governance 0; the seal hash
+  renders by design as public tamper-evidence), rule-lab/wolfe regressions 200.**
+- **The RS/union estate now has NO open operational debt** — remaining: median pick-ADV print in the
+  forward runner · A2-composite clean-TR (forward runner prints it) · 2026-10-03 forward-test day.
+
 ## 🔗 2026-07-16 — COORDINATION (parallel to the union CAGR lane): the union-ladder SIGNIFICANCE/DEFLATION pass is SEALED as a prereg but NOT YET RUN — it is the still-owed twin of §15i (which drove D139) — RUN it before any COMPOSITE-30 graduation; kickstart-pick-verify
 - **Sealed protocol `docs/prereg/union-ladder-validation-prereg.md` (sha256 `37c28824e96973…b47832b56`, on origin `e21163c`):** three FROZEN checks on the EXISTING ladder — **C1** D139 paired block-bootstrap significance of each increment · **C2** interim ≤2018-frozen / 2019-26-held OOS · **C3** selection-deflated forward-CAGR (CL-RES-07). NOT a strategy registration, NOT a 5th sibling; changes NO sealed spec. (Coordination session, not a numbered work lane.)
 - **Why it's still owed (S174 did NOT do it):** the estate already ran this exact pass on the SECTOR ladder (`research/explosive_moves/sector_rotation_significance.py`, ledger §15i) → it drove **D139** (V24↔V32 indistinguishable p=0.807 → keep the simpler V21). The UNION ladder — more selection rounds deep — has never had it. S174's TRI recut is benchmark-FAIRNESS, not sibling-DISTINGUISHABILITY.
@@ -476,7 +489,7 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
    registration implied) `union_lab4.py`'s A2-composite row + its clean TR; judge the three SEALED specs
    against their own registrations (`a9a14058…` · `08b46199…` · `0715a0d9…`, three-way rule in the C40RA
    file). Append a forward-test ledger entry; touch NO spec.
-3. **THE FEED LANE — research need MET S174 (ledger 16AI: committed fetcher + verified TRI/G-sec files); the residue is PROD ingestion only** (index_rows + manifest + licence gate + timer, the estate's feed protocol — now trivial). Original scope for reference: niftyindices
+3. ~~THE FEED LANE~~ **✅ FULLY CLOSED S175 (ledger 16AK):** research files (S174) + prod ingestion + manifest entry `indexes_tri` all done; freshness = pull-on-demand via `niftyindices_hist.py`. Original scope for reference: niftyindices
    histories → `index_rows`: **Nifty 500 TRI + Next 50 TRI** (completes 16AD both-sides) · **long G-sec
    index** (unblocks the B2 bear-sleeve lever, 16AE) · rate indices as needed (the rf convention's proxy era
    shrinks). Additive, its own session.

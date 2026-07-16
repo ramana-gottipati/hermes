@@ -2997,3 +2997,26 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   numbers were unaffected.
 - **Provenance:** `research/explosive_moves/union_lab6.py` (conventions + both B2 cells + the recut) ·
   TRI/G-sec CSVs per 16AI · DB to 2026-07-15 · box read-only.
+
+### 2026-07-16AK — S175 (Ramana: "ingest the TRI data into prod and deploy the strategy pages"): BOTH DONE + LIVE-VERIFIED. Four TRI/G-sec series (16,732 rows) are in prod `index_rows`; the union family's pages are live on `/dash/strategy-ref` with the sanitizer holding.
+
+- **Verdict: OPERATIONS RECORD (prod data-estate + deploy; no strategy claim).**
+- **Ingestion (17:5x UTC, zero active writers, off the 14:01 window):** `niftyindices_hist.py --ingest`
+  (idempotent: INSERT-where-not-exists on (index_name, trade_date); BEGIN IMMEDIATE + busy_timeout guard) →
+  **'Nifty 500 TRI' +5,341 (2005-01-03→2026-07-16) · 'Nifty Next 50 TRI' +5,341 (same) · 'Nifty GS 10Yr'
+  +3,936 (2011+) · 'Nifty GS Compsite' +2,114 (2018+)**. Spot verified (N500 TRI 2025-01-15 = 34055.47 ==
+  the 16AI fetch). Feed registered: `feed_manifest.FEEDS["indexes_tri"]` (public-archive, pull-on-demand,
+  the forward-test runner refreshes) — `test_feed_manifest.py` 12/12. ⚠ Known consequence, deliberate: the
+  four names appear in index pickers (e.g. /dash/compare) with pull-on-demand freshness — refresh via the
+  committed tool; the feed-lane residue is CLOSED.
+- **Strategy-pages deploy (the debt open since S165):** fork-check found the box's `strategies_view.py`
+  EXACTLY equal to git `e9d4d95` (clean past version, not forked; the whole delta to HEAD = ONE line, the
+  union _PAGES entry) → clean scp, plus all 17 `docs/strategies/*.md` (backups `.bak-s175-*` / dir copy).
+  Remote import OK (15 pages). Writer-gated restart at 17:52 UTC (blocking ps check; active; local 200).
+- **LIVE WALK (Caddy hostname):** index lists union · `?p=union` 200 and renders · **sanitizer verified:
+  "Ramana" 0 · CANONICAL/do-not-archive/governance 0 · the SEAL HASH renders once BY DESIGN** (the public
+  tamper-evidence sentence: "SEALED for forward testing (union-prereg.md, SHA-256 a9a14058…)") ·
+  regressions clean (`?p=rule-lab` 200, `?p=wolfe-wave` 200). `union-ladder.md` shipped to the box
+  (unserved index-class; ready for future serving).
+- **Provenance:** backups on box (`.bak-s175-*`); this entry + the `--ingest` mode + the manifest entry land
+  together; live-walk transcript in-chat (S175).

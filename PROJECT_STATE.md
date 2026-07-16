@@ -2140,6 +2140,18 @@ After this session's repeated cross-absorption + index-reset failures (a sibling
 - Guardrail unchanged: lanes still push to origin/main + rebase on conflict; the isolation is at the working-tree/index level, which is the actual root cause of this session's failures.
 - Follow-up fix (dogfooded via `new-lane.sh fix-retire-msg`): `retire-lane.sh` now prints the ACTUAL `git worktree remove` failure and treats an out-of-band-removed dir as "already gone" (prune + still clean the branch) instead of always claiming "not clean" — the misleading path hit when a parallel session yanked the authoring worktree mid-retire.
 
+### Session 175 (RS/Union lane, Ramana-directed: "ingest the TRI data into prod and deploy the strategy pages") — 2026-07-16 — BOTH DONE + LIVE (ledger 16AK): 16,732 TRI/G-sec rows in prod index_rows (manifest `indexes_tri`, gate 12/12) + the union-family pages live on /dash/strategy-ref (sanitizer verified; the S165-era deploy debt closed)
+
+- Ingestion: idempotent `--ingest` mode on the committed fetcher (INSERT-where-not-exists, BEGIN IMMEDIATE,
+  writer-check first, off the 14:01 window); names: 'Nifty 500 TRI'/'Nifty Next 50 TRI'/'Nifty GS 10Yr'/
+  'Nifty GS Compsite'; spot values == the 16AI fetch. Pickers gain the four names (deliberate;
+  pull-on-demand freshness).
+- Deploy: fork-check == `e9d4d95` (clean past, ONE-line delta) → clean scp view + 17 docs (backups
+  `.bak-s175-*`), remote import OK (15 pages), writer-gated restart 17:52 UTC, live walk via Caddy:
+  `?p=union` 200 + rendered, "Ramana"/governance 0 leaks (seal hash renders BY DESIGN), rule-lab/wolfe 200.
+- **The RS/union estate has NO remaining operational debt.** Next: the 2026-10-03 forward-test day (all six
+  ladder rows + TRI columns; four sealed specs judged on frozen criteria).
+
 ### Session 174 (RS/Union lane, Ramana-directed: "crack the niftyindices payload and get the TRI data") — 2026-07-16 — CRACKED (committed fetcher) + full TRI backfill (verified to the paisa) + THE TRI RECUT: honest hurdle 14.6%, every family member survives; B2 G-sec sleeve decided
 
 - **Crack (16AI):** `/BackPage/*` endpoints + single-quoted `cinfo` payload, lifted from the site's own
