@@ -2613,3 +2613,16 @@ not an alpha claim. Holdings are regenerable any time via `strategy_menu.py`.
    capacity costs, and adding MEP-accumulation + concall-credibility to the overlay.
 4. **Standing rule:** no absolute-rupee thresholds anywhere (see the gate fix). Percentages and
    cross-sectional ranks only.
+
+---
+
+## Rule-lab run 2026-07-15 — `SELECT largecap WHERE not_extended RANK BY lowvolmom TAKE 25 HOLD quarterly` (NEW-BENCHMARK)
+
+Prereg: `31d4fe11940ebad6…` (rule_lab_prereg:31d4fe11940e@2026-07-15 09:35:41Z(first)) · qualifier **fundable**
+NET return/vol 1.19 (gross 1.19) vs bench 0.89 · halves 1.20/1.42 · placebo p95 0.09 (observed 1.19, emp-p 0.00) · MaxDD -0.27 · ann cost 8.80%
+Capacity: ₹75cr
+RECORDED SURVIVOR (not a blocker): quarterly large-cap LOWVOL_MOM — participation-fundable at 1.02 @₹50cr, ceiling ~₹100cr (docs/strategy-ledger.md, C-BLEND re-cut 2026-07-05c).
+
+Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, n_shuffles=120, pit_membership=n/a (filter not requested), seed=42, window=2012-06-01..2026-02-11
+
+**Approved into the ledger by Ramana, 2026-07-16** (via the Review Inbox, item #602). This rule-lab run reproduced the recorded LOWVOL_MOM survivor under the full gauntlet (pre-registered, walk-forward both halves, random-selection placebo, participation cost, capacity) — it CONFIRMS the one participation-fundable corner the evidence permits, it does not open a new one. First rule-lab verdict signed into canon (D137; the plan-§7.8 inbox-first default, exercised).
