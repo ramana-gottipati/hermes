@@ -2122,6 +2122,29 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 170 (RS/Union lane, Ramana-directed: "continue with the remaining levers.. keep improving") — 2026-07-16 — THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE (A2-composite 25.5% PR / worst-honest 23.9%) — recorded as a DEFERRED LEAD; rf-cash measurement-adopted; G-sec sleeve data-blocked
+
+- **The diagnosis first (new fact):** the absolute ₹5cr ADV floor admits 389 names in 2006 / 344-424 in
+  2011-13 vs ~1,550 today — nominal filter vs ~10x traded-value growth = a ~4x over-tightened early
+  universe, the root of every union book's pre-2014 starvation. **Fix calibrated by a declared rule**
+  (P=0.450, last-12-months eligible fraction; monthly percentile floor; A2 clamps at ₹1cr).
+- **Result (ledger 16AE):** A2-composite (C40RA + era-floor-A2 + rf-earning bear-cash) = **25.5% / −27.2% /
+  ₹1Cr→99.0x / β0.82 / α+14.2**, windows α +12.8/+5.4/+17.1; stress @2% 23.9 · @3% 22.4 · next-day 24.6 ·
+  worst-honest 23.9/α+12.9; TR ≥ 25.5 by construction (A1-twin TR 26.4 measured). **A2 dominates A1**
+  (equal CAGR, DD −27.2 vs −32.0, tail ADV 2x, 2012-17 β 1.29 vs 1.49). Controls reproduced to the digit.
+- **Character change disclosed:** early/mid windows become small/mid-cap (median pick-ADV ₹7.7-11.3cr vs
+  ₹27cr); realized 2012-17 β 1.29 despite the per-name cap; personal-scale execution only; institutional
+  capacity presumed poor, untested. The clamp + 3%-slip stress exist because of this.
+- **Governance held:** family closed at three → NO registration; the lead is RECORDED + HELD. ⚖ Two Ramana
+  decisions queued (① A2-over-A1 confirm · ② reopen family now vs wait for the 2026-10-03 forward verdict).
+  B1 rf-cash (attribution.py convention verbatim) measurement-adopted for lead reporting only — sealed specs
+  keep 0% cash. B2 G-sec/gold bear sleeve DATA-BLOCKED → queued on the TRI/rf feed lane (3 dependents now).
+- **Artifacts:** `research/explosive_moves/union_lab4.py` (diagnosis + declared bars + battery) ·
+  `union_lab4b.py` (stress) · ledger 16AE · carry-forward S170 block + catalog §G rows + NEXT-SESSION
+  rewrite (governance-first queue) · union.md §4 deferred-lead + §9 forward-runner note. Box read-only.
+- **Harness TIL:** the `until ssh grep` + `run_in_background` completion-watch pattern (adopted last
+  session) carried the whole session — zero manual polling across three remote runs.
+
 ### Session 169 — 2026-07-16 — the S166-flagged Telegram `/inbox` test-seam CLOSED: 5/13 → 13/13 with python-telegram-bot installed — SHIPPED (commit `34407d4`)
 Closed S166's carry-forward pick ④ (the telegram test-seam the S167 lane flagged as "running in a separate session"). kickstart-pick-verify FIRST: still open — no fix had touched the file on origin, and a live laptop-`.venv` run reproduced 5 failed / 8 passed.
 - **Root cause (test-seam, NOT live):** `on_inbox` reads the queue inside `loop.run_in_executor(None, _read)` — a WORKER thread. The `db` fixture shared ONE `:memory:` connection created on the test thread; sqlite's `check_same_thread` guard raises `ProgrammingError` when the worker touches it, and `inbox_flow.waiting()` swallows every exception into an empty queue → the handler rendered "nothing is waiting on you" against `_fill()`'s seeded 4-item queue. The 8 "passing" tests only passed because they don't depend on queue contents (auth · empty-queue · db-failure) or the public link renders regardless of queue state. Reproduced the exact swallowed error out-of-band: `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`.

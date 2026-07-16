@@ -10,6 +10,33 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🟢 2026-07-16 — S170 (Ramana: "continue with the remaining levers"): THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE — A2-composite 25.5% PR (Rs1Cr→99x), worst-honest 23.9% — recorded as a DEFERRED LEAD (family closed; ⚖ 2 Ramana decisions queued); rf-cash adopted as measurement; G-sec sleeve DATA-BLOCKED — do NOT redo; kickstart-pick-verify
+- **The diagnosis:** the absolute Rs5cr ADV floor admits 389 names in 2006 / 344-424 in 2011-13 vs ~1,550 today —
+  nominal filter, ~10x traded-value growth → the early universe was ~4x over-tightened (why every union book
+  starved pre-2014). **The fix (rule declared pre-run, P=0.450 from the last 12 months):** monthly percentile
+  floor; era floors 2006 Rs1.18cr · 2013 Rs0.37cr · 2026 Rs4.39cr. **A2 = max(Rs1cr, floor) dust-clamp.**
+- **A2-COMPOSITE (C40RA machinery + era-floor-A2 + rf-earning bear-cash): 25.5% / −27.2% / 99.0x / β0.82 /
+  α+14.2, windows α +12.8/+5.4/+17.1.** Stress: @2% 23.9 · @3% 22.4 · next-day 24.6 · **worst-honest (lagged
+  +2% TR) 23.9/α+12.9/DD −31.5** — every stress case beats C40RA's unstressed 21.0. TR ≥ 25.5 by construction
+  (A1-twin TR measured 26.4). **A2 DOMINATES A1** (equal CAGR, DD −27.2 vs −32.0, tail ADV 2x, 2012-17 β 1.29
+  vs 1.49) — A1 recorded beside it (the declared compose-precedence had picked A1; dominance flagged, not
+  silently swapped). Full record: ledger **2026-07-16AE**.
+- **THE CHARACTER CHANGE (read before quoting the number):** the floor makes the early/mid book SMALL/MID-CAP
+  (median pick-ADV Rs7.7-11.3cr vs C40RA's Rs27cr; 2012-17 realized β1.29 — per-name trailing betas pass the
+  cap, realized co-movement exceeds it). Personal-scale execution plausible; the cost model at the unclamped
+  tail is NOT (hence the clamp + 3% stress); institutional capacity presumed poor, untested. This is the
+  ledger's "alpha lives in mid/small-caps" corner, harvested honestly.
+- **B1 rf-earning cash: measurement-adopted** (+0.4pp full, every window up; `attribution.py` rf convention
+  verbatim: 1D-Rate index 2016-06+ / flat 6.5% before). Applies to DEFERRED-LEAD reporting only — the three
+  sealed siblings' forward tests stay exactly per their specs (0% cash). **B2 G-sec/gold bear sleeve:
+  DATA-BLOCKED** (only dead 2014-15 GSEC fragments in index_rows; no history fetcher) → queued onto the
+  TRI/rf feed lane; the lever stays OPEN.
+- **⚖ RAMANA DECISIONS QUEUED:** ① confirm A2 (dominant) over A1 as the deferred lead; ② REOPEN the sibling
+  family for a 4th registration now, or hold the family-closed rule (register only after the 2026-10-03
+  forward verdict). Until ②, the A2-composite is a recorded lead — NOT registered, NOT deployable.
+- Modules `union_lab4.py` (diagnosis + declared bars + battery) / `union_lab4b.py` (stress). Controls
+  reproduced to the digit before any read. Box read-only; no deploy, no service touch. Catalog §G extended.
+
 ## ✅ 2026-07-16 — S169: the S166-flagged Telegram `/inbox` TEST-SEAM is CLOSED — 5/13 → 13/13 with python-telegram-bot installed — do NOT redo; kickstart-pick-verify
 - **Closed the S166 pick ④** (the telegram test-seam the S167 lane noted was "running in a separate session"). kickstart-pick-verify FIRST: still open — no fix had touched the file on origin; a live `.venv` run reproduced 5 failed / 8 passed. Fix committed **`34407d4`** (test-only; no `src/`, no deploy, live bot + VPS untouched).
 - **The seam (test-only — live was always fine):** `on_inbox` reads the queue inside `loop.run_in_executor(None, ...)` — a WORKER thread — but the `db` fixture shared ONE `:memory:` connection created on the test thread. sqlite's `check_same_thread` guard raises `ProgrammingError` across that boundary, and `inbox_flow.waiting()` swallows every exception into an empty queue → the handler rendered "nothing is waiting on you" against a seeded 4-item queue. Production `get_conn` opens a fresh FILE connection per call, so each thread gets its own — nothing in the shipped path was broken (S166's diagnosis, now exact + reproduced out-of-band).
@@ -339,35 +366,39 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 | — | MONTHLY cadence, churn-controlled (hold-unless-lost-2) | ❌ 14.8%, MaxDD −41.1% — **cadence law 4th confirmation; quarterly SETTLED** | 16AC |
 | — | cross-family blend β14 ⊕ LOWVOL_MOM 50/50 (union grid) | ❌ corr 0.83; blend 13.5% < β14 19.3%, DD worse — dilution; **no union ⊕ momentum-family blends ever** | 16AC |
 | — | TOTAL-RETURN accrual (measurement, not a candidate) | 📏 +0.6pp lower-bound on every book (union 18.1 · β14 18.7 · composite 21.8 TR); bench stays PR until TRI ingestion | 16AD |
+| ⭐⭐⭐ **era-relative ADV floor** (S170) | monthly pctile floor, P=0.450 declared; A1 raw / **A2 = max(Rs1cr, floor)** | ✅ **the biggest single lever of the arc: A2-composite 25.5% PR / −27.2% / 99x / α+14.2; worst-honest 23.9; A2 DOMINATES A1 (equal CAGR, DD −27.2 vs −32.0, tail ADV 2x) → DEFERRED LEAD, not registered (family closed; Ramana ②)** — do NOT re-sweep P or the clamp | 16AE |
+| — | B1 rf-earning bear-cash (1D-Rate/6.5% proxy, attribution.py convention) | 📏 measurement-adopted: +0.4pp, every window up; deferred-lead reporting ONLY (sealed specs keep 0% cash) | 16AE |
+| — | B2 G-sec/gold bear sleeve | ⛔ DATA-BLOCKED (no long G-sec/gold history in index_rows; no fetch tool) — queued on the TRI/rf feed lane; lever OPEN, not dead | 16AE |
 
 ---
 
-### 🎯 NEXT SESSION — the UNION estate after S168 (single-axis space now GENUINELY spent; the family is CLOSED at three registrations):
+### 🎯 NEXT SESSION — the UNION estate after S170 (the 25% bar is hit in-sample by a DEFERRED lead; governance now leads the queue):
 
-1. **Forward evidence is the only thing that matters now.** The 2026-10-03 scheduled task runs the sealed
-   union (`cash_blend.py`) — UNTOUCHED. **The same session must also run `union_lab.py`'s `s_beta_cap_1.4`
-   row AND `union_lab3.py`'s composite row**, judging EACH against its own registration (`a9a14058…` ·
-   `08b46199…` · `0715a0d9…`; three-way adjudication frozen in the C40RA file). Append a forward-test ledger
-   entry; touch NO spec. **No fourth registration without a forward result.**
-2. **TRI INGESTION (the new named data task, G#8-clean):** pull niftyindices TOTAL-RETURN index series
-   (Nifty 500 TRI + Nifty Next 50 TRI) into `index_rows` → completes the 16AD measurement both-sides
-   (book-TR vs bench-TRI), moves every alpha honestly. Primary source; additive; the one remaining
-   measurement build.
-3. **Toward 25% honestly, the remaining REAL levers (each its own session, each pre-registered BEFORE run):**
-   (a) the 2006-11 drag is now the binding constraint (composite α+9.2 there but CAGR 17.9 vs 21+ elsewhere;
-   its dividend parse coverage is also worst) — investigate WHY qualifiers are scarce there (universe breadth?
-   ADV floor era-relative instead of absolute ₹5cr? — a PIT-safe percentile-ADV floor is the one untried
-   universe lever, cite 15N's wider-pond failure first); (b) a genuinely LOW-CORR sleeve for the idle fraction
-   (gold/G-sec index if primary data exists — NOT another equity-momentum book, 16AC wall); (c) ML under a
-   fresh prereg (M2-shaped GBM start, 16AA discipline).
-4. **Do NOT:** re-sweep the beta cap / top-N / trail / cadence / sleeve-index (all settled with numbers),
-   re-try anything in catalog §§A–G, blend with any momentum family (16AC), add a `/dash` surface for any
-   sibling, or edit any sealed prereg.
+1. **⚖ RAMANA'S TWO DECISIONS (blocking the lead's status):** ① confirm **A2** (dominant: equal CAGR,
+   strictly better DD, 2x tail ADV) over A1 as the deferred lead; ② **reopen the sibling family for a 4th
+   registration NOW vs hold the family-closed rule** (register only after the 2026-10-03 forward verdict).
+   Until ②, the A2-composite (25.5% PR in-sample, ledger 16AE) is a recorded lead — not registered, not
+   deployable.
+2. **Forward evidence day (2026-10-03):** the scheduled task runs the sealed union — UNTOUCHED. The same
+   session also runs `union_lab.py::s_beta_cap_1.4`, `union_lab3.py::COMPOSITE`, and (for the record, no
+   registration implied) `union_lab4.py`'s A2-composite row + its clean TR; judge the three SEALED specs
+   against their own registrations (`a9a14058…` · `08b46199…` · `0715a0d9…`, three-way rule in the C40RA
+   file). Append a forward-test ledger entry; touch NO spec.
+3. **THE FEED LANE (one primary-source ingestion, G#8-clean, now carrying THREE dependents):** niftyindices
+   histories → `index_rows`: **Nifty 500 TRI + Next 50 TRI** (completes 16AD both-sides) · **long G-sec
+   index** (unblocks the B2 bear-sleeve lever, 16AE) · rate indices as needed (the rf convention's proxy era
+   shrinks). Additive, its own session.
+4. **ML under a fresh prereg** (M2-shaped GBM start, 16AA discipline) — over the ERA-FLOOR qualifier pool if
+   decision ① lands on A2 (a bigger training set is the one new ingredient since 16AA).
+5. **Do NOT:** re-sweep P / the clamp / the beta cap / top-N / trail / cadence / sleeve-index (all settled
+   with numbers), re-try anything in catalog §§A–G, blend with any momentum family (16AC), add a `/dash`
+   surface for any sibling or lead, or edit any sealed prereg.
 
-**⚠ BINDING:** three seals now stand — union `a9a14058…` · β14 `08b46199…` · C40RA `0715a0d9…` — CANDIDATES
-beside them only. Every new candidate must beat **21.0% PR / β0.81 / α+10.3%** (the C40RA in-sample line) on
-walk-forward, not one window, and survive the honesty passes (slip-2 + next-day execution). Cite catalog
-§§C/D/E/F/**G** before proposing — if it's there, it's already tried.
+**⚠ BINDING:** three seals stand — union `a9a14058…` · β14 `08b46199…` · C40RA `0715a0d9…` — plus ONE
+deferred lead (the A2-composite, ledger 16AE). Every new candidate must beat the **A2-composite's 25.5% PR /
+β0.82 / α+14.2%** on walk-forward, not one window, survive slip-2 AND slip-3 AND next-day execution, and
+print its median pick-ADV (the character guard). Cite catalog §§C/D/E/F/**G** before proposing — if it's
+there, it's already tried.
 
 **Canon (single source of truth — do not re-derive from this block):** the ruleset + terminology + the
 rejected-candidate list live on **[`docs/strategies/union.md`](strategies/union.md)** (served at

@@ -125,6 +125,14 @@ wealth — the standing V8→V17 lesson.)*
   still clears every sibling. Third-generation in-sample selection — sealed
   ([`union-c40ra-prereg.md`](../prereg/union-c40ra-prereg.md), SHA-256 `0715a0d9…`) with the multiplicity
   risk disclosed inside and a frozen three-way adjudication. **The family stops at three registrations.**
+- **A2-COMPOSITE — a DEFERRED LEAD, not a registration (2026-07-16 S170, ledger 16AE):** the C40RA
+  machinery with an ERA-RELATIVE liquidity floor (monthly ADV percentile calibrated to today's ₹5cr
+  equivalent, clamped at ₹1cr) and the bear-state idle earning the documented risk-free rate. In-sample it
+  is the first union-family book to clear Ramana's 25% bar, surviving 2%/3%-slip and next-day-execution
+  stress — but it CHANGES THE BOOK'S CHARACTER (small/mid-cap tilt in the early windows; median pick-ADV
+  roughly a third of C40RA's; personal-scale execution only). The sibling family is closed at three, so
+  this is recorded and HELD: registration awaits the 2026-10-03 forward verdict or Ramana's explicit
+  reopening (both queued decisions in the ledger entry).
 - **Signal A alone** and **Signal B alone** — each beats the Next-50 bar in-sample but by less; the union
   beats both. Recorded reference points, not separate strategies.
 - **Rejected candidates** (do not re-run): throttle (16W), inverse-vol (16X), the AND-intersection (16V),
@@ -185,8 +193,9 @@ of the live ruleset.
   ([`union-c40ra-prereg.md`](../prereg/union-c40ra-prereg.md)) — **touch no spec.** Each is judged on its
   own frozen criteria; among passers, highest forward alpha graduates (the three-way rule is frozen in the
   C40RA registration). The scheduled 2026-10-03 task runs the union's engine; run `union_lab.py`'s
-  `s_beta_cap_1.4` row and `union_lab3.py`'s composite row beside it the same day. **No fourth registration
-  without a forward result.**
+  `s_beta_cap_1.4` row, `union_lab3.py`'s composite row, and — for the record only — `union_lab4.py`'s
+  A2-composite row (+ its clean TR) beside it the same day. **No fourth registration without a forward
+  result** (the A2-composite deferred lead waits on exactly that, or on Ramana reopening the family).
 - **TR-benchmark re-cut** (owed across the whole RS estate).
 - ~~The 2012–17 selection question~~ — **answered in-sample 2026-07-16 (ledger 16Y, the beta cap) and moved
   into the sibling registration above.** The remaining open questions are the forward evidence itself and the

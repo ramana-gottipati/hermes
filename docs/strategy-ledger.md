@@ -2789,3 +2789,61 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   printed together, and the sealed forward criteria stay PR-vs-PR. **The TRI ingestion (niftyindices TR series)
   is now a named, valuable data task: it completes this measurement estate-wide.**
 - **Provenance:** `union_lab3.py` TR rows (dividend census printed at run start), DB to 2026-07-15.
+
+### 2026-07-16AE — S170 (Ramana: "continue with the remaining levers — era-relative ADV floor and low-corr sleeve"): THE ERA-RELATIVE FLOOR IS THE BIGGEST SINGLE LEVER OF THE WHOLE ARC. A2-composite = 25.5% PR full-period (Rs1Cr→99x), worst-honest 23.9% — the 25% bar is HIT in-sample. Recorded as a DEFERRED LEAD (family closed at three; no registration without the Oct-3 forward result). rf-earning cash adopted as measurement. G-sec sleeve DATA-BLOCKED.
+
+- **Verdict: CONDITIONAL — DEFERRED LEAD (4th-generation in-sample selection; registration deferred per the
+  family-closed rule in `union-c40ra-prereg.md`; two Ramana decisions queued below).**
+- **The diagnosis (measured first):** the sealed ABSOLUTE Rs5cr ADV floor admits **389 names in 2006 and
+  344–424 in 2011–13 vs ~1,500–1,600 in 2024–26** — the filter is nominal while the market's traded value
+  grew ~10x, so the early-era universe was ~4x over-tightened, exactly where every union book starved
+  (C40RA 2006-11: n 29/40, inv 73%). **Priors cited:** 15N's "wider pond" wall (sector-INDEX count — different
+  lever) and 15h's "raise the bar → sinks more" (this LOWERS the early bar; the modern bar is ~unchanged by
+  construction). 15L's self-culling-pond wall doesn't bind: the signals + beta cap + RISKADJ rank still pick
+  40 names.
+- **The fix, calibrated by a rule declared BEFORE the run (no sweeping):** monthly percentile floor at the
+  (1−P)-quantile of each month's ADV cross-section, **P = 0.450** = the mean eligible-fraction at Rs5cr over
+  the last 12 complete months. Era floors this produces: 2006-01 Rs1.18cr · 2010-01 Rs1.70cr · 2013-01
+  Rs0.37cr · 2020-01 Rs0.95cr · 2026-01 Rs4.39cr. **A1** = raw percentile floor; **A2** = max(Rs1cr, floor)
+  dust-clamp (both variants declared up front).
+- **Results on the C40RA base (controls reproduced to the digit first — b14 18.1, c40ra 21.0):**
+
+| config (PR, 2006-2026) | CAGR | MaxDD | Rs1Cr→ | beta | alpha | 06-11 α | 12-17 α | 18-26 α |
+|---|---|---|---|---|---|---|---|---|
+| c40ra control | 21.0% | −28.4% | 47.3x | 0.81 | +10.3% | +9.2 | +4.3 | +14.3 |
+| **A1 pct-floor** | 25.5% | −32.4% | 99.7x | 0.82 | +14.4% | +11.2 | +5.2 | +17.5 |
+| **A2 clamped ≥Rs1cr** | 25.3% | −28.1% | 96.9x | 0.82 | +14.1% | +12.5 | +5.3 | +17.1 |
+| B1 rf-cash (bear-state idle @ 1D-Rate/6.5% proxy) | 21.4% | −27.8% | 50.8x | 0.81 | +10.7% | +9.8 | +4.6 | +14.4 |
+| **A2-COMPOSITE (A2 + rf-cash)** | **25.5%** | **−27.2%** | **99.0x** | 0.82 | **+14.2%** | +12.8 | +5.4 | +17.1 |
+| A1-composite (per the declared A1-first compose rule) | 25.6% | −32.0% | 100.4x | 0.82 | +14.5% | +11.3 | +5.2 | +17.5 |
+
+- **Stress battery (both composites; the small-ADV tail demanded harsher slips than the family standard):**
+  A2-composite @2% slip **23.9%/α+12.8** · @3% slip **22.4%/α+11.5** · D5-F1 next-day **24.6%/α+13.6** ·
+  **worst-honest (lagged + 2% slip, TR) 23.9% / α+12.9 / MaxDD −31.5** — every stress case beats C40RA's
+  unstressed 21.0%. A1's twins are equal on CAGR at every stress level but 3–6pp WORSE on MaxDD.
+  **A2 DOMINATES A1: equal return, strictly better drawdown (−27.2 vs −32.0), double the tail ADV (median
+  Rs7.7–11.3cr vs Rs5.5–8.7cr), 2012-17 realized beta 1.29 vs 1.49.** A2 is the named deferred lead; A1
+  recorded beside it (the declared compose-precedence had picked A1 — the dominance finding supersedes it
+  for the LEAD designation, flagged rather than silently swapped).
+- **TR:** A1-composite TR measured **26.4%** (Rs1Cr→114.9x); A2-composite clean TR not separately run this
+  session — **bounded ≥ its 25.5% PR by construction** (accrual is non-negative); worst-honest TR 23.9%.
+  The Oct-3 forward runner should print it.
+- **THE CHARACTER CHANGE, stated plainly (why this is not a free lunch):** the floor converts the early/mid
+  windows into a SMALL/MID-CAP book — median pick-ADV falls from Rs27cr (C40RA) to Rs7.7–11.3cr (A2),
+  2012-17 realized book beta 1.29 (per-name trailing betas pass the 1.4 cap; realized small-cap co-movement
+  exceeds it). This is the ledger's known "alpha lives in mid/small-caps" corner (RISKADJ 5cr>25cr;
+  participation-cost kills it at AUM). **At personal scale (1/40 slots vs Rs5cr+ ADV) execution is
+  plausible; the 0.15%+slip model at the unclamped Rs0.4cr tail is NOT — hence the clamp and the 3% stress.
+  Institutional capacity: presumed poor, untested, out of scope.**
+- **B1 (rf-earning cash): PASSED its measurement bar** (+0.4pp full, every window up; convention =
+  `attribution.py` rf_monthly verbatim: Nifty 1D Rate Index 2016-06+ in `index_rows`, flat 6.5%/yr proxy
+  before, attribution.py:76). Adopted into DEFERRED-LEAD REPORTING only — the three sealed siblings'
+  forward tests stay exactly per their specs (0% cash).
+- **B2 (G-sec/gold bear sleeve): DATA-BLOCKED, not attempted** — `index_rows` holds only dead 2014-15 GSEC
+  fragments; no long G-sec/gold history, no history-fetch tool in the repo. Queued onto the TRI/rf feed
+  lane (one primary-source ingestion brings TRI + G-sec + rate histories; G#8-clean). The lever stays OPEN.
+- **⚖ RAMANA DECISIONS QUEUED:** ① confirm **A2** (dominant) over A1 as the deferred lead; ② **reopen the
+  sibling family for a 4th registration now, or hold to the family-closed rule** (registration only after
+  the 2026-10-03 forward verdict). Until ②: the A2-composite is a recorded lead, nothing more.
+- **Provenance:** `research/explosive_moves/union_lab4.py` (diagnosis print + battery + declared bars/rules)
+  · `union_lab4b.py` (stress) · DB to 2026-07-15 · window 2006-01→2026-07 · box read-only, no deploy.
