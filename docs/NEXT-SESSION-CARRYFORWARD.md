@@ -10,6 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-16 — S173 (Ramana decisions): COMPOSITE-30 CONFIRMED as the lead + the family REOPENED + REGISTERED as the 4th sealed sibling (`07ef2ef9…`); the FULL-RECORD COMPENDIUM lands (`docs/strategies/union-ladder.md` — every config complete, specs + all numbers) — do NOT redo; kickstart-pick-verify
+- **Owner decisions executed (verbatim in ledger 16AH):** COMPOSITE-30 over A2-composite with the deeper DD
+  explicitly accepted · family-closed clause SUPERSEDED by owner authority (sealed files untouched) ·
+  registration `docs/prereg/union-composite30-prereg.md` sha256 `07ef2ef9cf11bf65b6f43d0677228e4ba87adedd3854f6bac9bf9f7e2e77c82a`
+  — full self-contained spec (era-floor P=0.450 frozen + ₹1cr clamp · β≤1.4 · RISKADJ-rank · top-30 ·
+  let-winners-run cap-5% · sleeve200+rf-cash · trail-20@1%), 4 absolute criteria, FOUR-way adjudication.
+- **The compendium answers "record each item in full":** `union-ladder.md` (LIVING; DOC_INDEX'd; test
+  `_INDEX_DOCS` class; serving rides the owed strategy-ref deploy) — 4 sealed members + A1/A2 composites
+  recorded in full (A2 = the lower-DD alternative, registration-ready on Ramana's word) + walls + open
+  measurement estate. The forward-test day runs ALL SIX ladder rows.
+- **Four seals now stand:** union `a9a14058…` · β14 `08b46199…` · C40RA `0715a0d9…` · **COMPOSITE-30
+  `07ef2ef9…`**. Multiplicity at four disclosed in the newest registration; adjudication picks ≤1 graduate.
+
 ## 🟢 2026-07-16 — S172 (Ramana: "Raise the CAGR target to 30... Let us make it"): COMPOSITE-30 lands at 26.4% PR / 27.3% TR (worst-honest 24.4) — all three new axes passed; ML-v2 REJECTED on its sealed bar (the hand rule beat the machine again); the modern-era slice already prints >30 — do NOT redo; kickstart-pick-verify
 - **Wins (ledger 16AF):** on the A2-composite base — **top-30** re-proven on the widened universe (2006-11
   α+13.5 > control; the old top-20 failure was starvation, now proven) · **LET-WINNERS-RUN drift** (+1.0pp at
@@ -412,11 +425,9 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 
 ### 🎯 NEXT SESSION — the UNION estate after S172 (26.4 PR / 27.3 TR recorded; modern slice >30; the config space is CLOSED — governance and the feed lane lead the queue):
 
-1. **⚖ RAMANA'S TWO DECISIONS (blocking the leads' status):** ① pick from the deferred-lead MENU —
-   **A2-composite (25.5% PR / DD −27.2)** vs **COMPOSITE-30 (26.4% PR / 27.3% TR / DD −31.7)** — a pure
-   risk-return call (16AF supersedes the old A1-vs-A2 form of this question); ② **reopen the sibling family
-   for a 4th registration NOW vs hold the family-closed rule** (register only after the 2026-10-03 forward
-   verdict). Until ②, both are recorded leads — not registered, not deployable.
+1. ~~⚖ RAMANA'S TWO DECISIONS~~ **✅ RESOLVED S173:** COMPOSITE-30 confirmed + family reopened + registered
+   (`07ef2ef9…`); A2-composite recorded in full as the lower-DD alternative (registration-ready on his word).
+   **Nothing is deployable — four sealed specs await the 2026-10-03 forward verdict; adjudication picks ≤1.**
 2. **Forward evidence day (2026-10-03):** the scheduled task runs the sealed union — UNTOUCHED. The same
    session also runs `union_lab.py::s_beta_cap_1.4`, `union_lab3.py::COMPOSITE`, and (for the record, no
    registration implied) `union_lab4.py`'s A2-composite row + its clean TR; judge the three SEALED specs

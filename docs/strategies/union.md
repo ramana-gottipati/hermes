@@ -133,12 +133,15 @@ wealth — the standing V8→V17 lesson.)*
   roughly a third of C40RA's; personal-scale execution only). The sibling family is closed at three, so
   this is recorded and HELD: registration awaits the 2026-10-03 forward verdict or Ramana's explicit
   reopening (both queued decisions in the ledger entry).
-- **COMPOSITE-30 — the SECOND deferred lead (2026-07-16 S172, ledger 16AF):** the A2-composite plus
-  concentration at top-30 (re-proven viable on the widened universe) and let-winners-run weight drift
-  (retained names keep market-drifted weight, capped at 2× a base slot). In-sample the family's best on
-  return; its deeper drawdown is disclosed, its stress floor still clears the previous lead. Fifth-generation
-  in-sample selection — recorded and HELD beside the A2-composite as a risk-return menu for Ramana; not
-  registered (family closed at three).
+- **COMPOSITE-30 — THE CONFIRMED LEAD, the FOURTH sealed sibling (Ramana 2026-07-16; ledger 16AF/16AH):**
+  the A2-composite plus concentration at top-30 (re-proven viable on the widened universe) and
+  let-winners-run weight drift (retained names keep market-drifted weight, hard cap 5%). In-sample the
+  family's best on return; the deeper drawdown was explicitly on the table when Ramana confirmed it. The
+  family was REOPENED by owner decision and this spec is SEALED
+  ([`union-composite30-prereg.md`](../prereg/union-composite30-prereg.md), SHA-256 `07ef2ef9…`) with a
+  four-way family adjudication. Fifth-generation in-sample selection, stated in the registration.
+- **A2-COMPOSITE — the lower-drawdown alternative, recorded IN FULL** ([union-ladder.md](union-ladder.md)
+  §5), unregistered, registration-ready on Ramana's word.
 - **Signal A alone** and **Signal B alone** — each beats the Next-50 bar in-sample but by less; the union
   beats both. Recorded reference points, not separate strategies.
 - **Rejected candidates** (do not re-run): throttle (16W), inverse-vol (16X), the AND-intersection (16V),
@@ -200,11 +203,11 @@ of the live ruleset.
   When a new quarter closes, run the Union ([`union-prereg.md`](../prereg/union-prereg.md)), union-β14
   ([`union-beta14-prereg.md`](../prereg/union-beta14-prereg.md)) and union-C40RA
   ([`union-c40ra-prereg.md`](../prereg/union-c40ra-prereg.md)) — **touch no spec.** Each is judged on its
-  own frozen criteria; among passers, highest forward alpha graduates (the three-way rule is frozen in the
-  C40RA registration). The scheduled 2026-10-03 task runs the union's engine; run `union_lab.py`'s
-  `s_beta_cap_1.4` row, `union_lab3.py`'s composite row, and — for the record only — `union_lab4.py`'s
-  A2-composite row (+ its clean TR) beside it the same day. **No fourth registration without a forward
-  result** (the A2-composite deferred lead waits on exactly that, or on Ramana reopening the family).
+  own frozen criteria; among passers, highest forward alpha graduates (the FOUR-way rule is frozen in the
+  COMPOSITE-30 registration, which also records Ramana's explicit reopening of the family). The scheduled
+  2026-10-03 task runs the union's engine; the same session runs ALL SIX ladder rows
+  ([union-ladder.md](union-ladder.md) §8): the four sealed siblings judged on their own criteria, the two
+  recorded composites for the record.
 - **TR-benchmark re-cut** (owed across the whole RS estate).
 - ~~The 2012–17 selection question~~ — **answered in-sample 2026-07-16 (ledger 16Y, the beta cap) and moved
   into the sibling registration above.** The remaining open questions are the forward evidence itself and the
@@ -213,7 +216,9 @@ of the live ruleset.
 
 ## 10. Sources of truth
 
-Ruleset + terminology: **this page**. Every result number: [strategy-ledger.md](../strategy-ledger.md)
+Ruleset + terminology: **this page**. **Every family configuration IN FULL (specs + all numbers,
+incl. the unregistered composites): [union-ladder.md](union-ladder.md).** Every result number:
+[strategy-ledger.md](../strategy-ledger.md)
 §§ 2026-07-16U → 2026-07-16X (the union arc), §§ 2026-07-16Y/Z/AA (the S165 battery, the β14 sibling, the
 ML verdict) and §§ 2026-07-16AB/AC/AD (the S168 battery, the C40RA sibling, the kills, the total-return
 measurement). Frozen specs + seals: [`../prereg/union-prereg.md`](../prereg/union-prereg.md) ·

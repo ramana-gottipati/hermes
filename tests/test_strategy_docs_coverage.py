@@ -34,7 +34,10 @@ _DIR = Path(__file__).resolve().parents[1] / "docs" / "strategies"
 # README is the /dash/strategy-ref index (rendered by render_index, never a _PAGES
 # entry), so it is exempt from the "every doc is served" rule. origins.md IS served
 # (S147) so it is NOT here — but it is exempt from the per-page Origin-label rule below.
-_INDEX_DOCS = {"README.md"}
+# union-ladder.md (S173) is the union-family full-spec/results COMPENDIUM (a reference
+# index in the origins.md class, not a strategy page); its serving rides the owed
+# strategy-ref deploy lane — until then it is index-class, not a _PAGES entry.
+_INDEX_DOCS = {"README.md", "union-ladder.md"}
 
 # Served docs that are governance/provenance INDEXES, not a single strategy — exempt
 # from the **Origin:** label rule (origins.md IS the map: it lists every origin).

@@ -2900,3 +2900,33 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **Provenance:** `research/explosive_moves/union_ml2.py` (prereg design verbatim; two head-slice porting
   defects — missing rf_q/stat — fixed before any result was read, run integrity unaffected) · sklearn 1.7.2 ·
   DB to 2026-07-15.
+
+### 2026-07-16AH — S173 (Ramana): COMPOSITE-30 CONFIRMED as the lead; the sibling FAMILY REOPENED by owner decision; COMPOSITE-30 REGISTERED as the FOURTH sealed sibling; the full-record COMPENDIUM lands so every configuration stands complete.
+
+- **Verdict: GOVERNANCE + registration record (no new experiment).**
+- **Owner decisions (2026-07-16, verbatim):** *"Confirm COMPOSITE-30 as the lead and reopen the family..
+  register it... I'd also like to have the other composites. Record each item in full rather than only as you
+  add it, so that all data are in place. We can calculate the results later; for now, let's keep moving
+  forward with our research."* This resolves 16AF's menu (COMPOSITE-30 over the A2-composite, with its deeper
+  MaxDD −31.7/−36.3-worst explicitly on the table) and **supersedes, by owner authority, the family-closed
+  clause frozen in `union-c40ra-prereg.md`** (that sealed file is untouched; the supersession is recorded here
+  and inside the new registration).
+- **REGISTERED:** `docs/prereg/union-composite30-prereg.md`, **SHA-256 =
+  `07ef2ef9cf11bf65b6f43d0677228e4ba87adedd3854f6bac9bf9f7e2e77c82a`** — a COMPLETE self-contained spec
+  (era-floor P=0.450 frozen + ₹1cr clamp · β≤1.4 cap · RISKADJ-rank · top-30 · let-winners-run weights cap 5% ·
+  sleeve200 + rf-earning bear-cash · trail-20@1% · 0.15%/side · quarterly), the same 4 absolute forward
+  criteria, and the FOUR-WAY family adjudication (highest forward alpha among passers graduates). Multiplicity
+  at four registered specs disclosed inside.
+- **THE COMPENDIUM (Ramana's record-in-full directive):** `docs/strategies/union-ladder.md` — every family
+  configuration stands COMPLETE (full ruleset + every recorded number incl. stress ladders): the four sealed
+  members (union · β14 · C40RA · COMPOSITE-30), the two recorded-unregistered composites (**A1-composite** ·
+  **A2-composite — the lower-drawdown alternative, registration-ready on Ramana's word**), the walls, and the
+  open measurement estate. Classed LIVING; a reference index (test `_INDEX_DOCS`); serving via strategy-ref
+  rides the owed deploy lane. All data are in place for the forward-test day to compute every row.
+- **Accounting sweep (everything in flight, one list):** 4 sealed specs (`a9a14058` · `08b46199` · `0715a0d9` ·
+  `07ef2ef9`) · 2 recorded composites (A1, A2) · walls complete in catalog §§A–G · measurements recorded (TR
+  lower-bound 16AD, rf convention 16AE) · OPEN: the feed lane (TRI + long G-sec + rate histories; unblocks
+  bench-TRI recut + B2 bear-sleeve) · the strategy-ref deploy (union pages not live on the box) · median
+  pick-ADV print in the forward runner · Aug-1 churn row-gain check (estate-wide, other lane) · the 2026-10-03
+  forward-test day runs all six ladder rows.
+- **Provenance:** decisions in-chat 2026-07-16; registration + compendium land with this entry's commit.

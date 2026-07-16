@@ -161,6 +161,8 @@ keep while the bridge is in use (gitignore-able).
 | `docs/prereg/union-beta14-prereg.md` | Pre-registered SIBLING forward-test spec: union + per-name beta≤1.4 at selection (frozen rules + criteria + sibling adjudication, SHA-256 sealed); ledger 2026-07-16Y. |
 | `docs/prereg/union-c40ra-prereg.md` | Pre-registered THIRD sibling: β14 + top-40 + RISKADJ-rank (frozen rules + criteria + 3-way family adjudication + multiplicity disclosure, SHA-256 sealed; family closed at three); ledger 2026-07-16AB. |
 | `docs/prereg/union-ml2-prereg.md` | Pre-registered walk-forward ML ranker v2 over the ERA-FLOOR capped qualifiers (GBM primary per 16AA's declared succession; frozen 5-criterion bar incl. slip-2 stress; SHA-256 sealed BEFORE the run). |
+| `docs/prereg/union-composite30-prereg.md` | Pre-registered FOURTH sibling: COMPOSITE-30, the Ramana-confirmed lead (family reopened by owner decision 2026-07-16; full self-contained spec + 4-way adjudication; SHA-256 sealed); ledger 2026-07-16AH. |
+| `docs/strategies/union-ladder.md` | LIVING compendium: every union-family configuration IN FULL (complete specs + all recorded numbers incl. stress ladders) — sealed, recorded, and walled members; Ramana's record-in-full directive (S173). |
 | `docs/codex-review/rs-strategy-brief-2026-07-15.md` | The full-day RS-strategy brief sent to Codex for independent review (every config, number and bug); its verdict is ledger 2026-07-15R. |
 | `docs/codex-review/UX-CODEX-INDEPENDENT.md` | Codex's independent UX/web-estate review findings. |
 | `docs/codex-review/UX-DIALOGUE-R1-CODEX.md` | Codex round-1 UX dialogue verdicts. |

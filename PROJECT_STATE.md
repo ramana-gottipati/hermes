@@ -2122,6 +2122,21 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 173 (RS/Union lane, Ramana decisions) — 2026-07-16 — COMPOSITE-30 CONFIRMED + family REOPENED + REGISTERED as the 4th sealed sibling; the full-record COMPENDIUM lands (union-ladder.md)
+
+- **Owner decisions executed (ledger 16AH, quoted verbatim there):** COMPOSITE-30 confirmed as the lead with
+  its deeper DD explicitly on the table; the family-closed clause superseded by owner authority (sealed files
+  untouched); registration `docs/prereg/union-composite30-prereg.md` sha256 `07ef2ef9…` — full self-contained
+  spec + 4 absolute criteria + FOUR-way family adjudication + multiplicity disclosure.
+- **`docs/strategies/union-ladder.md` (LIVING):** every family configuration IN FULL — 4 sealed members,
+  A1/A2 composites recorded complete (A2 = lower-DD alternative, registration-ready), walls, measurement
+  estate. Answers the record-in-full directive; the forward-test day computes all six rows. Test-gate: added
+  to `_INDEX_DOCS` (reference-index class; serving rides the owed strategy-ref deploy).
+- Wiring: DOC_INDEX rows (prereg + ladder) · union.md §4 lead/fallback + §9 four-way + §10 ladder link ·
+  carry-forward S173 block + resolved decision item.
+- **Next research (same session, time-boxed): the feed lane** — niftyindices TRI/G-sec history fetch to
+  research-side files (no prod write); outcome recorded either way.
+
 ### Session 172 (RS/Union lane, Ramana-directed: "Raise the CAGR target to 30... Let us make it") — 2026-07-16 — COMPOSITE-30 = 26.4% PR / 27.3% TR (worst-honest 24.4); all three new axes passed; ML-v2 REJECTED on its sealed bar; the modern-era slice prints >30 on existing machinery
 
 - **Wins (ledger 16AF):** top-30 re-proven on the widened universe (2006-11 α+13.5 > control — the old
