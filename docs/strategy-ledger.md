@@ -463,6 +463,60 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-16V - THE UNION (6b OR RSI-stack): BEST full-period result of the session (17.5%/+6.8% alpha) but NOT complementary where it counts - both fail the SAME 2012-17 bull regime.
+
+**Ramana, 2026-07-16:** "test whether 6b and the RSI stack are complementary." Built the blend PLUS the
+diagnostics that separate real complementarity from mere diversification (a blend can score well just from
+averaging even when redundant). **Module:** `research/explosive_moves/cash_blend.py`. sleeve200 money-mode
+(idle -> Next50 while Nifty500 >= 200DMA), CA-adjusted, quarantined, PIT, trail-20% @1% slip.
+
+**DIAGNOSTICS - the split verdict:**
+- **Selection overlap: 11%.** Per quarter ~54.9 RSI-eligible names, ~32.0 6b-eligible, only ~3.5 in BOTH.
+  They pick DIFFERENT stocks (6b is a TURN signal, fires early; RSI+consist70 is a TREND signal, needs the
+  move underway - mutually exclusive by construction, confirmed: the INTERSECTION collapses to 9% invested,
+  CAGR 8.6%).
+- **Return correlation: 0.79.** BUT their books MOVE TOGETHER - both are long-only momentum riding the same
+  strong sectors via the same sleeve. Complementary in SELECTION, NOT in RISK. This 0.79 is the number that
+  caps the whole result.
+
+**THE BOOKS (sleeve200, vs Nifty Next 50 bar 13.3% / Rs12.98x):**
+
+| config | CAGR | MaxDD | Rs1Cr-> | beta | alpha | avg inv |
+|---|---|---|---|---|---|---|
+| RSI+consist70 alone | 15.6% | -29.9% | 18.91x | 0.82 | +5.7% | 78% |
+| 6b alone | 15.4% | -38.4% | 18.11x | 0.81 | +5.8% | 60% |
+| **UNION top60 (either fires)** | **17.5%** | **-30.5%** | **26.04x** | **0.87** | **+6.8%** | 82% |
+| INTERSECTION (both fire) | 8.6% | -37.5% | 5.35x | 0.62 | +1.6% | 9% |
+
+**The UNION is the best full-period number of the entire session** - beats both standalone books and the bar
+decisively. The intersection collapse (9% invested) is positive evidence the union is NOT redundant dilution:
+the signals genuinely fire at different times.
+
+**BUT THE WALK-FORWARD KILLS THE COMPLEMENTARITY THESIS:**
+
+| window | UNION alpha | note |
+|---|---|---|
+| 2006-2011 | **+8.7%** | strong |
+| **2012-2017** | **-5.5%** | **WORSE than either component** (RSI alone -3.5%, 6b alone +2.4%); beta blew to **1.56** |
+| 2018-2026 | **+6.5%** | strong |
+
+**The hoped-for cancellation did NOT happen.** RSI failed 2012-17, 6b failed 2018-26 - the union should have
+survived both; instead it is -5.5% in 2012-17, worse than either alone. **Cause (named): at beta 1.56 and 92%
+invested, the union was near-fully loaded at high beta in an EXPENSIVE BULL market and simply rode it while
+lagging.** The union's breadth (82-92% invested vs components' 60-78%) is a LIABILITY exactly when the market
+is extended. Blending two long-only momentum signals does not protect against momentum's one bad regime.
+
+**VERDICT: a real LEAD, the strongest of the session, NOT a finished strategy.** Full-period 17.5%/+6.8%
+alpha/beta 0.87, and the failure mode is now NAMED (over-investment in expensive bull markets) - which points
+at the fix being tested next: a valuation/breadth THROTTLE on the invested fraction in that regime. Still one
+20-year window, signals selected after seeing today's results (Codex's standing 15R caution: in-sample,
+needs forward validation). **Do not deploy; pre-register and forward-test.**
+
+**Selectors ranked (full period, sleeve200): UNION 17.5% > RSI-stack 15.6% ~ 6b 15.4% >> everything earlier.**
+All three clear the 13.3% Next-50 bar in-sample; all fail >=1 walk-forward window. The session's two survivors
+(6b oversold-recovery, RSI(price)>50MA+consistency70) are genuinely different engines landing near the same
+place, and the trailing-stop + sleeve200 machinery is what makes any of them beat the bar.
+
 ### 2026-07-16U - DIMENSION 6 COMPLETE (all 8 reversal-on-RS indicators). ONE winner: 6b RSI-of-RS oversold recovery - the FIRST positive-geometric selector of the session. 6g dead (honestly). 6h significantly HARMFUL.
 
 **Ramana, 2026-07-16:** "finish dimension 6 properly" then "fix 6g's threshold first." Done - all eight
