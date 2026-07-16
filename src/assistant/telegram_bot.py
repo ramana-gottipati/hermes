@@ -1789,12 +1789,14 @@ async def on_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     morning DM the count, but the bot — the surface he actually types into — still could not
     say what was waiting. Now it can, on demand rather than once a day.
 
-    Reuses src.pat.inbox_flow verbatim (waiting / summary_phrase), so the bot, Pat and the
-    heartbeat DM can never describe the same queue differently. READ-ONLY, like both
-    siblings: this REPORTS the queue; approving or rejecting stays a deliberate act on the
-    owner-gated lens, never a chat side effect (canon carries a human signature).
+    The explicit-command sibling of S160-b's natural-language pre-pass (_handle_inbox_ask):
+    that catches "what's waiting on me?" typed as plain text; this is the discoverable
+    slash command (it shows in the / list) and adds a kind filter. BOTH render through the
+    SAME inbox_flow.format_telegram_reply(), so the command, the free-text ask, the DM and
+    the /dash/pat web form describe one queue and can never disagree. READ-ONLY: it REPORTS
+    the queue; approving/rejecting stays a deliberate act on the owner-gated lens.
 
-    /inbox          -> the summary + the newest items
+    /inbox          -> the whole queue (identical to the free-text answer)
     /inbox briefs   -> filter to one kind (briefs | rule | tags | alerts | ...)
     """
     user_id = update.effective_user.id
@@ -1804,62 +1806,42 @@ async def on_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     want = (context.args[0].lower().strip() if context.args else "")
 
     def _read():
-        from src.pat.inbox_flow import waiting, summary_phrase
+        from src.pat.inbox_flow import waiting
         with get_conn() as conn:
-            w = waiting(conn)
-        return w, summary_phrase(w)
+            return waiting(conn)
 
     loop = asyncio.get_running_loop()
     try:
-        w, phrase = await loop.run_in_executor(None, _read)
+        w = await loop.run_in_executor(None, _read)
     except Exception:                                   # a chat reply must never crash
         log.exception("/inbox read failed")
         await update.message.reply_text(
             "Couldn't read the review queue just now — try again in a moment.")
         return
 
-    if not w["total"]:
-        await update.message.reply_text(
-            "✅ <b>Nothing is waiting on you.</b>\n"
-            "When the desk drafts something that needs your sign-off — an event brief, a "
-            "rule-lab verdict, a tag proposal — it lands here and I'll say so.",
-            parse_mode="HTML")
-        return
-
-    items = w["items"]
+    from src.pat import inbox_flow as IF
     if want:
+        # /inbox <kind> — narrow to one kind, but keep a COHERENT w (its own total +
+        # by_kind) so the shared formatter's header/counts stay honest, then render
+        # through the exact same path as the unfiltered answer (single source).
         alias = {"brief": "brief", "briefs": "brief", "rule": "rule_verdict",
                  "rules": "rule_verdict", "verdict": "rule_verdict",
                  "verdicts": "rule_verdict", "tag": "tags", "tags": "tags",
                  "alert": "alert-ack", "alerts": "alert-ack",
                  "rebalance": "rebalance", "anomaly": "anomaly"}.get(want, want)
-        items = [i for i in items if i.get("kind") == alias]
-        if not items:
+        n = next((b["n"] for b in w["by_kind"] if b["kind"] == alias), 0)
+        if not n:
             await update.message.reply_text(
-                f"Nothing waiting under <code>{_html.escape(want)}</code>. "
-                f"{_html.escape(phrase.capitalize())}.", parse_mode="HTML")
+                f'Nothing waiting under <code>{_html.escape(want)}</code>. '
+                f'<b>{_html.escape(IF.summary_phrase(w).capitalize())}.</b>',
+                parse_mode="HTML", disable_web_page_preview=True)
             return
+        w = {"total": n, "link": w["link"],
+             "by_kind": [b for b in w["by_kind"] if b["kind"] == alias],
+             "items": [i for i in w["items"] if i.get("kind") == alias]}
 
-    # NOT digest.PUBLIC_BASE_URL: that resolves to the raw IP:8000, which the S77b
-    # perimeter closure took OFF the public internet (ufw allows only 22/80/443/9443) —
-    # confirmed dead just now (a bare curl to it from outside hangs with no response,
-    # vs. an instant 200 on the real domain below). A dead link in the one place this
-    # command tells Ramana to go approve something defeats its whole purpose. Matches
-    # signal_alert_telegram.py's already-proven-live convention (the S138 owner pager).
-    lines = [f"📋 <b>{_html.escape(phrase.capitalize())}.</b>", ""]
-    for i in items:
-        lines.append(f"• {_html.escape(i['title'])}")
-        when = (i.get("created_at") or "")[:10]
-        if when:
-            lines.append(f"  <i>{_html.escape(when)}</i>")
-    if w["total"] > len(items) and not want:
-        lines.append("")
-        lines.append(f"<i>…and {w['total'] - len(items)} more.</i>")
-    lines.append("")
-    lines.append("Approve or reject: https://srv1704897.hstgr.cloud/dash/inbox")
-    lines.append("<i>Nothing here counts until you sign it — I report the queue, "
-                 "I never decide it.</i>")
-    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+    await update.message.reply_text(
+        IF.format_telegram_reply(w), parse_mode="HTML", disable_web_page_preview=True)
 
 
 async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

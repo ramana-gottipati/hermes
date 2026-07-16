@@ -96,12 +96,12 @@ def test_it_reports_the_queue_with_the_same_words_pat_uses(db):
     from src.pat.inbox_flow import waiting, summary_phrase
     _fill(db)
     out = _run(_Update(), _Ctx())
-    expected = summary_phrase(waiting(db))          # single-sourced -> cannot drift
-    assert expected.capitalize() in out
-    assert "4 waiting on you" in out.lower() or "4 waiting on you" in expected
+    from src.pat.inbox_flow import format_telegram_reply
+    expected = format_telegram_reply(waiting(db))    # single-sourced -> byte-identical
+    assert out == expected, "the /inbox command must render through the shared formatter"
+    assert "4 waiting on you" in out
     assert "Results brief — TCS Q 2026-06-30" in out
-    assert "/dash/inbox" in out                      # the full surface is one tap away
-    assert "I never decide it" in out
+    assert "srv1704897.hstgr.cloud/dash/inbox" in out   # the LIVE public link, not raw IP:8000
 
 
 def test_no_internal_slug_reaches_the_chat(db):
@@ -144,7 +144,7 @@ def test_an_unknown_filter_word_does_not_crash(db):
 # ── 5. grace ──────────────────────────────────────────────────────────────────────────
 def test_an_empty_queue_says_so_plainly(db):
     out = _run(_Update(), _Ctx())
-    assert "Nothing is waiting on you" in out
+    assert "nothing is waiting on you" in out.lower()
 
 
 def test_a_db_failure_apologises_instead_of_crashing(db, monkeypatch):
@@ -159,6 +159,15 @@ def test_a_db_failure_apologises_instead_of_crashing(db, monkeypatch):
 
 
 # ── registration ──────────────────────────────────────────────────────────────────────
+def test_the_link_is_the_live_public_domain_not_the_dead_raw_ip(db):
+    """S77b closed :8000 to the outside — a raw-IP link would be dead on the phone, in the
+    one place the command sends Ramana to go approve something."""
+    _fill(db)
+    out = _run(_Update(), _Ctx())
+    assert "srv1704897.hstgr.cloud" in out
+    assert ":8000" not in out and "187.127.173.149" not in out
+
+
 def test_the_command_is_registered_on_the_app():
     src = open(os.path.join(_ROOT, "src", "assistant", "telegram_bot.py"),
                encoding="utf-8").read()
