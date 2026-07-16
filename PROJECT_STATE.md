@@ -2141,20 +2141,8 @@ only, source docs untouched — the 🧑/🏠/📚 origin taxonomy stays BINDING
 `Binding rule` added to `_META_LINE` + paragraph-continuation consumption, fence-aware `_DROP_SECTION` (Shared template ·
 Maintenance ·  Maintenance protocol → dropped to next same-level heading), repo-speak subs (this folder→this reference,
 memory/skill backtick refs, ledger date-suffix ids). Selftest hardened to case-insensitive + 5 new banned phrases across all
-16 renders. `test_strategy_docs_coverage` 4/4.
-**P1 shipped — LIGHT-FIRST reskin, token-level (Ramana ratified light default):** `ui_tokens.py` `:root` now carries a
-light palette (AA-checked; teal accent #0e7490, white cards, calibrated series/chart ramps) and the ENTIRE legacy dark
-palette moved VALUE-EXACT to `:root[data-theme="dark"]` behind a new ☾/☀ toggle (`ui_kit.theme_js()`, densityjs-pattern:
-pre-paint localStorage stamp + self-injected button in `.uk-top`/`.v2util`; reload-on-switch so canvas charts re-seed
-from `getComputedStyle(:root)`). New theme-chrome tokens (`--topbar-grad·--subnav-bg·--chartexp-bg·--aurora·--grid-line·
---fz-zebra`) replace every baked-in dark literal in `ui_kit._CSS`/`shell_skin._SKIN_CSS`; print override hardened
-(`:root,:root[data-theme="dark"]` — printing from dark stays light); `ui_components` `.uk-btn.primary`→`--on-accent`.
-Skin overlay extended for light-critical frozen-body holdouts observed in the live sheet (ck-t borders · rangebar/cmp
-active #1f6feb · gl-q/ck-links #58a6ff · gl-pop shadow · `body.uk-skin a`). Verified: 3 selftests green; chrome_gate
-regression set BYTE-IDENTICAL to HEAD (10 pre-existing local-env failures, zero added — also fail on clean HEAD);
-local uvicorn walk (home/markets/screener/coverage 200, toggle in DOM, light tokens served).
-Next: P2 home tiers · P3 dossier lazy-tabs + rail folds · P4 public front-door prep (patearn.in parks at a forwarder —
-DNS flip is Ramana's).
+16 renders. `test_strategy_docs_coverage` 4/4. Next: P1 mock + token reskin (light-first) · P2 home tiers · P3 dossier
+lazy-tabs + rail folds · P4 public front-door prep (patearn.in currently parks at a forwarder — DNS flip is Ramana's).
 
 ### Session 169 (cont.) — 2026-07-16 — §7.7 Option-B guards (c)+(d) SHIPPED — §7.7 fully executed
 The last two §7.7 B follow-ons (a)-(d) now all done; authored in an isolated lane worktree (the S169 convention).

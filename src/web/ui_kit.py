@@ -74,35 +74,6 @@ def density_js() -> str:
             '})();</script>')
 
 
-def theme_js() -> str:
-    """The global light/dark switch (P1 light-first — Ramana 2026-07-17). Mirrors the
-    density_js pattern exactly: restores the saved theme onto <html> IMMEDIATELY (pre-paint,
-    so no flash), then self-injects a ☾/☀ toggle into the chrome (`.uk-top` native /
-    `.v2util` legacy) and persists to localStorage. Light is the default (no attribute);
-    "dark" stamps data-theme="dark", selecting the value-exact legacy palette in ui_tokens.
-    The toggle RELOADS on change — canvas charts seed their colours from
-    getComputedStyle(:root) at render time, so a pure attribute flip would leave stale
-    chart colours. Idempotent (window guard); safe once per page in <head>."""
-    return ('<script>(function(){'
-            'try{if(localStorage.getItem("uk-theme")==="dark")'
-            'document.documentElement.setAttribute("data-theme","dark");}catch(e){}'
-            'if(window.__ukTheme)return;window.__ukTheme=1;'
-            'function cur(){return document.documentElement.getAttribute("data-theme")==="dark";}'
-            'function set(d){try{localStorage.setItem("uk-theme",d?"dark":"light");}catch(e){}'
-            'location.reload();}'
-            'function mk(){var b=document.createElement("button");b.type="button";'
-            'b.setAttribute("data-theme-toggle","");b.className="uk-themetoggle";'
-            'b.title="Theme \\u2014 light / dark";b.setAttribute("aria-label","Toggle light or dark theme");'
-            'b.textContent=cur()?"\\u2600\\uFE0E":"\\u263E";'
-            'b.addEventListener("click",function(){set(!cur());});return b;}'
-            'function inj(){var u=document.querySelector(".v2util");'
-            'if(u&&!u.querySelector("[data-theme-toggle]")){u.insertBefore(mk(),u.firstChild);}'
-            'var t=document.querySelector(".uk-top");'
-            'if(t&&!t.querySelector("[data-theme-toggle]")){t.appendChild(mk());}}'
-            'if(document.readyState!=="loading"){inj();}else{document.addEventListener("DOMContentLoaded",inj);}'
-            '})();</script>')
-
-
 # --- design tokens + base + components (the whole system in one stylesheet) ---
 _CSS = """<style>
 .uk, .uk *{box-sizing:border-box}
@@ -116,10 +87,10 @@ _CSS = """<style>
      the inherited tokens. */
   font-family:var(--font); color:var(--ink); font-size:14px; line-height:1.5;
   -webkit-font-smoothing:antialiased; font-feature-settings:'tnum' 1, 'cv01' 1;
-  /* P1 light-first: the aurora + ground are THEME TOKENS now (ui_tokens) — light gets a
-     faint teal wash, dark keeps the exact legacy radial pair. Zero baked-in darkness. */
-  background-image:var(--aurora);
-  background-color:var(--bg-1);
+  background:
+    radial-gradient(1100px 560px at 82% -12%, rgba(77,157,255,.07), transparent 60%),
+    radial-gradient(860px 480px at -8% 8%, rgba(52,224,214,.05), transparent 55%),
+    var(--bg-1);
   min-height:100%;
 }
 .uk .num{font-variant-numeric:tabular-nums; font-family:var(--mono)}
@@ -129,7 +100,7 @@ _CSS = """<style>
 
 /* topbar */
 .uk-top{display:flex;align-items:center;gap:18px;padding:11px 20px;position:sticky;top:0;z-index:30;
-  background:var(--topbar-grad);
+  background:linear-gradient(180deg, rgba(17,24,36,.92), rgba(11,15,23,.66));
   border-bottom:1px solid var(--line); backdrop-filter:blur(12px);}
 .uk-logo{font-weight:600;letter-spacing:.4px;font-size:15px;display:flex;align-items:center;gap:9px;color:var(--ink);text-decoration:none;cursor:pointer}
 .uk-logo:hover{color:var(--ink)}
@@ -145,7 +116,7 @@ _CSS = """<style>
 .uk-cmdk kbd{font-family:var(--mono);background:var(--bg-3);border:1px solid var(--line-2);border-radius:5px;padding:1px 6px;font-size:11px;color:var(--ink-2)}
 
 /* sub-nav (one paradigm everywhere) */
-.uk-sub{display:flex;gap:3px;padding:9px 20px;border-bottom:1px solid var(--line);background:var(--subnav-bg);overflow-x:auto}
+.uk-sub{display:flex;gap:3px;padding:9px 20px;border-bottom:1px solid var(--line);background:rgba(11,15,23,.5);overflow-x:auto}
 .uk-sub a{padding:5px 11px;border-radius:8px;font-size:12.5px;color:var(--ink-3);white-space:nowrap;transition:var(--t)}
 .uk-sub a:hover{color:var(--ink-2);background:var(--bg-2)}
 .uk-sub a.on{color:var(--ink);background:var(--bg-3);box-shadow:var(--glass)}
@@ -174,7 +145,7 @@ _CSS = """<style>
 .uk-pill.down{background:var(--down-dim);color:var(--down)}
 .uk-pill.acc{background:var(--accent-dim);color:var(--accent)}
 .uk-pill.cred{background:var(--cred-dim);color:var(--cred)}
-.uk-pill.warn{background:var(--warn-dim);color:var(--warn)}
+.uk-pill.warn{background:rgba(246,183,60,.14);color:var(--warn)}
 .uk-pill.neutral{background:var(--bg-3);color:var(--ink-2)}
 
 /* segmented toggle (the ONE toggle) */
@@ -200,7 +171,7 @@ table.uk-t{width:100%;border-collapse:collapse;font-size:13px}
 .uk-chart{position:relative;width:100%;max-width:1200px;height:clamp(420px,62vh,760px);
   border:1px solid var(--line);border-radius:var(--r);background:var(--bg-2);overflow:hidden}
 .uk-chart .exp{position:absolute;top:10px;right:10px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--line-2);border-radius:7px;background:var(--chartexp-bg);color:var(--ink-2);cursor:pointer;font-size:13px;z-index:5;transition:var(--t)}
+  border:1px solid var(--line-2);border-radius:7px;background:rgba(11,15,23,.7);color:var(--ink-2);cursor:pointer;font-size:13px;z-index:5;transition:var(--t)}
 .uk-chart .exp:hover{border-color:var(--accent);color:var(--accent)}
 
 /* provenance / PIT badge (trust signature) */
@@ -445,7 +416,7 @@ def subnav(items: list[tuple[str, str, bool]]) -> str:
 def shell(title: str, body: str, *, active: str = "", sub: str = "", nav_html: str = "") -> str:
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>{esc(title)}</title>{theme_js()}{_CSS}{_foundation()}{density_js()}</head>'
+            f'<title>{esc(title)}</title>{_CSS}{_foundation()}{density_js()}</head>'
             f'<body style="margin:0;background:var(--bg-1);color:var(--ink);font-family:var(--font)">'
             f'<a class="uk-skip" href="#uk-main">Skip to content</a>'
             f'<div class="uk">{topbar(active, nav_html)}{sub}'
