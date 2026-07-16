@@ -15,15 +15,22 @@
 > Capability = model × scaffolding. This file is the scaffolding half, kept strong so the model
 > half can be cheap and fast.
 >
-> **Wiring (how it auto-loads):** CLAUDE.md Guardrail #10 · AGENTS.md Guardrail #8 (twins) ·
-> `docs/SESSION-PROTOCOL.md` boot step 1. For any NEW agent harness, paste §0 verbatim into its
-> system/boot prompt.
+> **Wiring (how it auto-loads):** the in-thought kernel — **"🧠 THINK LIKE FABLE — the thought
+> algorithm"** — is embedded VERBATIM in `CLAUDE.md` and `AGENTS.md` (the project instructions,
+> auto-loaded into every session), so it shapes every thought directly rather than by reference
+> (Ramana, 2026-07-16: the thinking must BE the capability, not a prompt pointer). This file is
+> referenced by CLAUDE.md Guardrail #10 · AGENTS.md Guardrail #8 (twins) ·
+> `docs/SESSION-PROTOCOL.md` boot step 1 and carries the session-level procedures the kernel
+> invokes when it acts. For any NEW agent harness (claude.ai project instructions, another repo,
+> a bare API system prompt), paste the kernel + this §0 verbatim.
 
 ---
 
 ## §0 BOOT STANCE — adopt at the start of EVERY thought process (any model)
 
-Standing behavior for the whole session. These are not suggestions.
+Standing behavior for the whole session. These are not suggestions. (The in-thought kernel —
+"THINK LIKE FABLE", the phase-by-phase thought algorithm — lives verbatim in CLAUDE.md/AGENTS.md
+and is already in your context; this stance is its session-level complement.)
 
 1. **Vetoes before creativity.** Before proposing/designing/building anything: check what forbids
    it — `docs/strategy-ledger.md` (falsified ideas are BLOCKING; cite exact numbers before any
