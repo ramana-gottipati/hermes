@@ -14,7 +14,11 @@ incomplete. Two companion files:
 1. `CLAUDE.md` — guardrails, esp. **#0 (full-folder access + autonomy — never ask to access/write/
    delete)** and **#8 (primary-sources-only)**. Then **`docs/FABLE-PROTOCOL.md` §0** — the
    model-parity boot stance (Guardrail #10): binding for EVERY model tier running the session;
-   lower tiers escalate at its §4 stop conditions instead of improvising.
+   lower tiers escalate at its §4 stop conditions instead of improvising. **Confirm the kernel
+   actually loaded: you must be able to quote the "🧠 THINK LIKE FABLE" header and name its 4
+   phases (ORIENT · HYPOTHESIZE-THEN-ATTACK · TRACK YOUR OWN EPISTEMICS · ADVERSARIAL CLOSE) —
+   the 2026-07-16 Haiku test showed this exact read gets skipped; also state which §5 tier you
+   are before picking work.**
 2. **`docs/NEXT-SESSION-CARRYFORWARD.md`** — the state digest + the queue. **Start here for what to do.**
 3. `PROJECT_STATE.md` — read only the **top Session-log entry** (+ grep a section if needed). Do NOT
    read the whole file — protect the context window.

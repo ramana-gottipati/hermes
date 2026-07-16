@@ -154,6 +154,13 @@ statement (what · why · data · attempts). Never bypass a gate; never guess pa
 Scope: interactive/agent SESSIONS. Scheduled jobs are unchanged law — timers run Haiku / Gemini
 Flash Lite ONLY (Guardrail #3); never a big model on a timer. The Stage-1 screen stays rule-based.
 
+**Tier self-identification is the FIRST move of any session** (harvested from the 2026-07-16 Haiku
+live test): state at boot which tier YOU are. If the queue's top pick routes above your tier in the
+table below (e.g. a LANE-R-class multi-lane reconcile on a FAST session), **escalating the PICK is
+itself the correct §4 move** — bank it as a paste-ready hand-off and select tier-appropriate work
+instead. The live test showed a FAST session otherwise adopts a STRONG-tier pick and stops only at
+explicit bounds — right outcome, wrong reasoning path.
+
 | Tier | Today's examples | Runs | Must NOT do |
 |---|---|---|---|
 | **FAST** | Haiku 4.5 · Flash Lite | Mechanical work with a closed recipe: gate runs, probes, scripted backfills, checklist verification, doc chores, closed-vocab flows (the Pat pattern), worker roles in fan-outs | Anything in §4 · open-ended design · deploy decisions beyond the recipe table |
@@ -165,6 +172,9 @@ Flash Lite ONLY (Guardrail #3); never a big model on a timer. The Stage-1 screen
   owned files, done-bar, forbidden actions, verification recipe (the
   `docs/parallel-lane-prompts-D134.md` template) — with structured-output schemas; FAST/MID workers
   execute; independent verifiers adversarially check. A finding survives only verification.
+  **Subagents do NOT inherit CLAUDE.md automatically** (proven in the 2026-07-16 test — the worker
+  never saw the kernel): every worker prompt must PASTE the kernel, or mandate "read CLAUDE.md and
+  quote the 🧠 kernel header + its 4 phase names" as a verifiable first step.
 - **Fast-session + escalation ledger.** A FAST/MID session runs the loop at full speed and BANKS
   every §4 trigger into `## ⛔ ESCALATE` instead of solving it. A periodic STRONG session drains
   the ledger. Net effect: strong-model judgment at fast-model latency and cost, applied in batch.
