@@ -6,7 +6,7 @@ The running source of truth for this project is **`D:\Hermes\PROJECT_STATE.md`**
 
 ### Boot procedure (every session, no exceptions)
 
-0. **Follow `docs/SESSION-PROTOCOL.md`** — the binding start/end checklist — and start work from **`docs/NEXT-SESSION-CARRYFORWARD.md`** (the current queue + takeover prompt). Sessions run **autonomously** (Guardrail #0); get guidance from the agents, not per-step confirmation.
+0. **Follow `docs/SESSION-PROTOCOL.md`** — the binding start/end checklist — and start work from **`docs/NEXT-SESSION-CARRYFORWARD.md`** (the current queue + takeover prompt). Sessions run **autonomously** (Guardrail #0); get guidance from the agents, not per-step confirmation. **Boot the `docs/FABLE-PROTOCOL.md` §0 stance first (Guardrail #10) — binding for whatever model tier is running this session.**
 1. Read the **top Session-log entry** of `PROJECT_STATE.md` (+ grep sections as needed). **Do NOT read the whole file** — protect the context window; lazy-load.
 2. Skim recent commits: `git log --oneline -20`; `git fetch` + verify the tip; **kickstart-pick-verify** before redoing any "open" item.
 3. Only then start making changes.
@@ -82,6 +82,8 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 8. **Data sourcing — PRIMARY SOURCES ONLY (copyright).** Any NEW data feed must come from an authentic/primary source — **NSE, BSE, SEBI, XBRL filings, or genuine official open data.** **Never add a vendor or Screener.in dependency** (Ramana 2026-07-02: copyright risk; he may enable vendors later, not now). Current known exception being remediated: `screener.py`→`fundamentals`/`fundamentals_history` (powers C capital-allocation + patearn scoring) — migrate to BSE/NSE XBRL; do not extend it, and disclose it where shown. Prefer the BSE-announcements pattern (`concall_bse.py`) for anything new.
 9. **New user-facing surfaces follow `docs/SURFACE-PLAYBOOK.md` (BINDING, 2026-07-13).** Before adding ANY page/board/tab/embed: run its sister-data check (extend, don't duplicate), register in `lens_registry.py` or as a declared child (never an orphan URL), and land the full checklist (education scaffold + glossary + fence + Pat registration + server CSV + `sym` links + home-exposure decision) in the SAME session. Nav labels: plain English first, no internal jargon (session/decision IDs, "Ramana") in rendered HTML.
 
+10. **Model-parity protocol — `docs/FABLE-PROTOCOL.md` (BINDING, 2026-07-16).** Every session, regardless of the model running it (Fable/Opus/Sonnet/Haiku/Codex/any future model), boots that file's §0 stance and runs its session loop, falsification battery, closed decision tables, and STOP-CONDITION escalations. Capability lives in the scaffolding, not only the model: a lower-tier model follows the protocol mechanically and **escalates at the §4 stop conditions instead of improvising** (bank triggers under `## ⛔ ESCALATE` in the carryforward for a STRONG-tier session to drain). Tier routing + hybrid patterns = FABLE-PROTOCOL §5; timers stay on cheap models per Guardrail #3 — the protocol governs sessions, not scheduled jobs. (Twin: `AGENTS.md` Guardrail #8.)
+
 ---
 
 ## Useful built-in Claude Code skills
@@ -98,6 +100,7 @@ Personal AI agent for Ramana (a financial analyst in Vizag, India). Runs 24/7 on
 | Topic | File |
 |---|---|
 | Current state, decisions, open items, session log | **`PROJECT_STATE.md`** |
+| **Model-parity operating doctrine (any model tier behaves like Fable)** | **`docs/FABLE-PROTOCOL.md`** — boot stance §0 + session loop + falsification battery + stop conditions + tier routing; twin of Guardrail #10 |
 | **Adding ANY new screen/page/tab (binding playbook)** | **`docs/SURFACE-PLAYBOOK.md`** — decision tree + landing checklist; twin of Guardrail #9 |
 | UX / user-journey audit + remediation session plan | `docs/ux-journey-audit-2026-07-13.md` (joint Claude+Codex, S-A…S-H program) |
 | **Strategy definitions, status & terminology (canonical)** | **`docs/strategies/`** (start at `docs/strategies/README.md`) — **continuously maintained**: every new/changed strategy updates its page in the SAME commit (served at `/dash/strategy-ref`); machine backstop = `tests/test_strategy_docs_coverage.py` |

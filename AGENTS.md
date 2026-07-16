@@ -103,12 +103,21 @@ Claude Code and Codex (and sometimes parallel sessions of each) operate on
    check first (extend, don't duplicate); register in `lens_registry.py` or as a declared
    child — never an orphan URL; land the education/fence/Pat/CSV checklist in the same
    session. (Twin: `CLAUDE.md` Guardrail #9.)
+8. **Model-parity protocol — `docs/FABLE-PROTOCOL.md` (BINDING, 2026-07-16).** Every
+   session — Codex included, and any model tier — boots that file's §0 stance and runs its
+   session loop, falsification battery, closed decision tables, and STOP-CONDITION
+   escalations (§4): compute, don't ratify; never loosen a gate; bank escalation triggers
+   under `## ⛔ ESCALATE` in the carryforward for a STRONG-tier session to drain. Tier
+   routing + hybrid patterns = FABLE-PROTOCOL §5; timers stay on cheap models per
+   Guardrail #2 — the protocol governs sessions, not scheduled jobs. (Twin: `CLAUDE.md`
+   Guardrail #10.)
 
 ## Where to find detail
 
 | Topic | File |
 |---|---|
 | Current state, decisions, open items, session log | **`PROJECT_STATE.md`** |
+| **Model-parity operating doctrine (any model tier)** | **`docs/FABLE-PROTOCOL.md`** |
 | **Adding ANY new screen/page/tab (binding playbook)** | **`docs/SURFACE-PLAYBOOK.md`** |
 | Claude Code's twin of this file | `CLAUDE.md` |
 | Map of every doc (classified, living) | `docs/DOC_INDEX.md` |

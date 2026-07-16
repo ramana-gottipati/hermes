@@ -12,7 +12,9 @@ incomplete. Two companion files:
 
 ## ▶️ AT SESSION START — reference these, in this order (do NOT read full history)
 1. `CLAUDE.md` — guardrails, esp. **#0 (full-folder access + autonomy — never ask to access/write/
-   delete)** and **#8 (primary-sources-only)**.
+   delete)** and **#8 (primary-sources-only)**. Then **`docs/FABLE-PROTOCOL.md` §0** — the
+   model-parity boot stance (Guardrail #10): binding for EVERY model tier running the session;
+   lower tiers escalate at its §4 stop conditions instead of improvising.
 2. **`docs/NEXT-SESSION-CARRYFORWARD.md`** — the state digest + the queue. **Start here for what to do.**
 3. `PROJECT_STATE.md` — read only the **top Session-log entry** (+ grep a section if needed). Do NOT
    read the whole file — protect the context window.

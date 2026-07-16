@@ -10,6 +10,12 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🆕 2026-07-16 — LANE-FABLE: FABLE-PROTOCOL (model-parity doctrine) SHIPPED + BOOT-WIRED — do NOT redo; kickstart-pick-verify
+- **`docs/FABLE-PROTOCOL.md` is now BINDING for every model tier running a session** (wired: CLAUDE.md boot step 0 + Guardrail #10 · AGENTS.md Guardrail #8 · SESSION-PROTOCOL boot step 1 · DOC_INDEX class A). Boot its **§0 stance at the start of every thought process**; run the loop (§1) + falsification battery (§2); use the closed decision tables (§3).
+- **Lower-tier sessions (Haiku/Sonnet/Codex): compute, don't ratify.** At any §4 STOP CONDITION (new stat method needed · verdict-flipping number · doctrine conflict/premise doubt · gate-loosening "fix" · surface-first list · sibling-file collision · no-doctrine novelty · unverifiable assertion): stop, bank the trigger under a `## ⛔ ESCALATE` heading in THIS file with a paste-ready problem statement, and continue other work. A STRONG-tier session drains that ledger. Never loosen a gate; a crisp hand-off IS a deliverable.
+- Hybrid patterns (§5): strong-orchestrator/fast-workers · fast-session+escalation-ledger · escalate-on-contact. Timers unchanged (cheap models only, Guardrail #3).
+- Numbering: lane label per the S149 divergence-flag convention; real S/D numbers assigned at the main↔origin reconcile. Docs-only; rides the local stack unpushed.
+
 ## 🆕 2026-07-15 — S149: D134 ANALYTICS-COMPANY PLAN + COMPLIANCE GATE SHIPPED — do NOT redo; kickstart-pick-verify
 - **`docs/patearn-analytics-company-plan.md` is the company-level canon** (CANONICAL/LIVING, D134): analytics-company posture (VALIDATED — descriptive analytics needs no RA/IA registration; gray zone = single-stock house scores; trigger contract = legal opinion before monetizing them publicly), the 9 adaptable layers L0–L8 with plug-in contracts, the rated+costed component roadmap A–N, the structured cost model. Charter v1.1 §NOW is fully shipped — plan §6 is the proposed charter-v2.0 queue (Ramana ratifies).
 - **The 5th gate is live:** `tests/test_compliance_language_gate.py` (solicitation/recommendation language in src/web+src/pat fails the suite; Pat's advisory-REFUSAL detector phrases are the reasoned allowlist).
