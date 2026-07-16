@@ -2141,7 +2141,15 @@ only, source docs untouched — the 🧑/🏠/📚 origin taxonomy stays BINDING
 `Binding rule` added to `_META_LINE` + paragraph-continuation consumption, fence-aware `_DROP_SECTION` (Shared template ·
 Maintenance ·  Maintenance protocol → dropped to next same-level heading), repo-speak subs (this folder→this reference,
 memory/skill backtick refs, ledger date-suffix ids). Selftest hardened to case-insensitive + 5 new banned phrases across all
-16 renders. `test_strategy_docs_coverage` 4/4. Next: P1 mock + token reskin (light-first) · P2 home tiers · P3 dossier
+16 renders. `test_strategy_docs_coverage` 4/4.
+**⛔ P1+P2 REVERTED same session (Ramana's correction — BINDING for every future UI session):** the light-first reskin
+edited existing files (`ui_tokens`/`ui_kit`/`shell_skin`/`ui_components`) and changed the live default look — both are
+banned ("I don't want you to alter the existing components"), regardless of plan-level ratification. Reverts pushed
+(`ae6a84f` + parent); box restored BYTE-EXACT (md5-verified vs pre-session hashes; home back to 146,979B dark default).
+The P0 strategy-ref scrub (`080cc8f`) was deliberately KEPT — reverting would re-print Ramana's name on a public page;
+disclosed for his call. Corrected architecture for the redo: every change = a NEW unpluggable module at a runtime seam;
+the new look is OPT-IN behind a preview toggle; cut-over only on Ramana's explicit ratification after seeing it.
+Memory sharpened: `build-additive-never-replace`. Next: P1 mock + token reskin (light-first) · P2 home tiers · P3 dossier
 lazy-tabs + rail folds · P4 public front-door prep (patearn.in currently parks at a forwarder — DNS flip is Ramana's).
 
 ### Session 169 (cont.) — 2026-07-16 — §7.7 Option-B guards (c)+(d) SHIPPED — §7.7 fully executed
