@@ -340,12 +340,13 @@ print("### 5. TOTAL-RETURN prints (16AD accrual, lower bound; full period)")
 o = run5(tr=True, **BOOKS["K30"])
 s = stat(o["navs"], o["bnavs"])
 anchor_ok = abs(s["cagr"] * 100 - 27.3) < 0.1
-print("  K30 TR %5.1f%% (Rs1Cr->%7.2fx, div %d)  [16AF anchor 27.3%% -> %s]"
-      % (s["cagr"] * 100, s["mult"], o["ndiv"], "OK" if anchor_ok else "MISMATCH — investigate before trusting the A2 line"), flush=True)
+print("  K30 TR %5.1f%% (Rs1Cr->%7.2fx, div %d, MaxDD %5.1f%%, aPR %+5.1f/bPR %4.2f)  [16AF anchor 27.3%% -> %s]"
+      % (s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100, s["alpha"] * 100, s["beta"],
+         "OK" if anchor_ok else "MISMATCH — investigate before trusting the A2 line"), flush=True)
 o = run5(tr=True, **BOOKS["A2"])
 s = stat(o["navs"], o["bnavs"])
-print("  A2 CLEAN-TR %5.1f%% (Rs1Cr->%7.2fx, div %d, MaxDD %5.1f%%)  << the owed print: union-ladder.md §5 'FULL TR' row"
-      % (s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100), flush=True)
+print("  A2 CLEAN-TR %5.1f%% (Rs1Cr->%7.2fx, div %d, MaxDD %5.1f%%, aPR %+5.1f/bPR %4.2f)  << the owed print: union-ladder.md §5 'FULL TR' row"
+      % (s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100, s["alpha"] * 100, s["beta"]), flush=True)
 
 # ---- 6. full-period median pick-ADV (the other owed print; per book, all rebalances) ----
 print("")

@@ -101,7 +101,7 @@ Top-40 EW, rf-earning bear-cash.
 | window | CAGR | MaxDD | ₹1Cr→ | β | α | inv |
 |---|---|---|---|---|---|---|
 | FULL PR | 25.5% | −27.2% | 99.03× | 0.82 | +14.2% | 97% |
-| FULL TR | not separately run; bounded ≥ 25.5% (accrual non-negative; A1 twin +0.8pp) | | | | | |
+| FULL TR | 26.3% (S181 measured, 16AO) | −27.2% | 113.65× | | | |
 | 2006-11 | 22.2% | −27.2% | 3.01× | 0.73 | +12.8% | 93% |
 | 2012-17 | 28.6% | −13.7% | 4.00× | 1.29 | +5.4% | 97% |
 | 2018-26 | 27.4% | −17.9% | 7.37× | 0.82 | +17.1% | 100% |
@@ -158,8 +158,13 @@ to the paisa vs `index_rows`) → `research/data/niftyindices/` on the box: N500
 16AJ. **B2 G-sec bear-sleeve: INERT on the lead (idle ~1%) and DATA-BOUNDED on the union (the
 2008-09 bear predates the 2011+ G-sec series)** — a design option for future bears, no backtest
 evidence, not adopted. rf convention frozen (1D-Rate + 6.5% proxy). Dividend accrual = lower
-bound. Sealed criteria stay PR-vs-PR as frozen; the TRI columns are reported beside every future
-judgment. **Forward-test day (2026-10-03+) is ONE COMMAND — `union_forward.py` (S181):**
+bound. **Median pick-ADV (S181/16AO, full-period / recent-4-rebalances, ₹cr): U 24.4/31.7 · B14
+23.4/45.4 · C40 27.0/58.7 · A1 8.7/52.1 · A2 11.3/52.1 · K30 12.7/57.7 — the era-floor books'
+small/mid-cap tilt is an EARLY/MID-ERA phenomenon; current selections are ₹52–58cr liquid.** A2's
+clean-TR is measured: 26.3% (§5 table). Sealed criteria stay PR-vs-PR as frozen; the TRI columns
+are reported beside every future judgment. **Forward-test day (2026-10-03+) is ONE COMMAND —
+`union_forward.py` (S181, box-verified 2026-07-17: repro 6/6 to the digit; boundary leg
+2026-07-01→~2026-10-01 derived from data; criteria sections self-suppress at 0 forward quarters):**
 reproduction gate on all SIX configs (the five 16AL-gated rows hard-STOP on any miss; A1
 soft-flagged), then the forward window per the preregs' own boundary ("every NEW quarter from
 2026-07"; strict post-seal cut printed beside), the four frozen criteria per sealed member

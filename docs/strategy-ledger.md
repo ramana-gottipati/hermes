@@ -3157,3 +3157,33 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   (K30 stays 0.997–0.999). Confirms the family clears 69-trial deflation. **SCOPE:** reproduces C2b's
   DETERMINISTIC anchors (P_train + the 2019+ slices) and C3's DSR statistic — not S176's full TRAIN-replay
   "survival 1.01" (replay lever-selection choices) nor the φ→CAGR band mapping; those stand as recorded in 16AL.
+
+### 2026-07-16AO — S181: THE FORWARD-TEST DAY IS ONE COMMAND. `union_forward.py` built + box-verified (repro gate 6/6 to the digit, A1 now cross-lineage-reproduced); the two owed prints land — A2-composite CLEAN-TR 26.3% and the median-pick-ADV table (the small-cap character is EARLY/MID-ERA: recent selections are ₹52–58cr liquid)
+
+- **Verdict: INFRA + MEASUREMENT (no new strategy, no pass/fail moved, no spec touched).** Closes the
+  estate's last two owed prints (16AJ/16AD residue) and makes 2026-10-03 mechanical.
+- **The runner:** `research/explosive_moves/union_forward.py` (S181) exec-loads `union_ladder_val.py`'s
+  engine byte-for-byte (the 16AL harness) and adds ONLY reporting: repro gate on all SIX ladder rows →
+  forward window (PREREG cut = legs from the last rebalance ≤ 2026-07-16, per the preregs' own "every NEW
+  quarter from 2026-07"; STRICT post-seal cut printed beside) → the four frozen criteria per sealed member
+  (INTERIM until ≥ 8 quarters, then the mechanical family adjudication) → median-pick-ADV + clean-TR
+  prints → the 16AN portfolio dial (design-doc §9 fold, §10.3 closed). Box run 2026-07-17, read-only.
+- **Repro gate 6/6 to the digit** — U 17.5/26.04 · B14 18.1/28.84 · C40 21.0/47.29 · **A1 25.6/100.43
+  (first reproduction of the lab4-recorded row through the val engine — the two harness lineages agree)** ·
+  A2 25.5/99.03 · K30 26.4/115.69.
+- **A2-COMPOSITE CLEAN-TR (the owed print): 26.3% / ₹1Cr→113.65× / MaxDD −27.2% / div 591** — replaces
+  union-ladder.md §5's "not separately run; bounded ≥ 25.5%" (the A1-twin +0.8pp inference verified:
+  25.5 → 26.3). Cross-check anchor on the same code path: **K30 TR reproduced 27.3% / 131.80× (16AF) to
+  the digit.** Accrual remains a LOWER bound (16AD: ~34% pre-2012 dividend parse).
+- **MEDIAN PICK-ADV (full-period / recent-4-rebalances, ₹cr):** U 24.4/31.7 · B14 23.4/45.4 · C40
+  27.0/58.7 · A1 8.7/52.1 · A2 11.3/52.1 · K30 12.7/57.7. **New fact: the era-floor books' small/mid-cap
+  tilt (16AE's character disclosure) is an EARLY/MID-ERA phenomenon — the CURRENT selections are ₹52–58cr
+  liquid,** i.e. personal-scale execution today is comfortable; the historical tail is where the cost
+  model strains (unchanged: the ₹1cr clamp + 3% stress cover it).
+- **The boundary, derived from data (not assumed):** engine rebalances 2026-04-01 → **2026-07-01
+  (= the boundary leg)** → next ≈ 2026-10-01. At run time: 11 of ~63 trading days elapsed, **0 completed
+  forward quarters — criteria/dial sections correctly self-suppress.** The 2026-10-03 scheduler date
+  lands 2 days after the first forward leg completes: validated, leave it.
+- **Provenance:** commit `8655cea` (+ the α/β print refinement in the wrap commit); box log
+  `/tmp/union_forward_s181.log`; converged with sibling S180's design doc (theirs kept; §9/§10.3
+  trued-up). Box read-only; no deploy of services, no timer, no spec edit.
