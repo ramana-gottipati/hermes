@@ -74,6 +74,9 @@ _CSS = """
 
 
 def _registry(con):
+    # NB: `sharpe` is the legacy COLUMN name in research.db (strategy_store.py keeps it —
+    # CREATE TABLE IF NOT EXISTS cannot migrate existing rows). The VALUE is a return/vol
+    # ratio (mean/sd annualised, no risk-free subtracted) and is rendered as such (D142).
     return con.execute("""
         SELECT g.name, g.category, g.status,
           (SELECT sharpe       FROM strategy_runs r WHERE r.name=g.name ORDER BY run_ts DESC LIMIT 1),
@@ -150,7 +153,8 @@ def testing_page():
                  f"<td>{_n(sh)}</td><td class='{cgcls}'>{_n(cg,1,'%')}</td><td class='neg'>{_n(dd,1,'%')}</td>"
                  f"<td>{_n(cost,1,'%') if cost is not None else '—'}</td>"
                  f"<td>{('Rs'+_n(cap,0)+'cr') if cap is not None else '—'}</td></tr>")
-    table = ("<table><thead><tr><th>Strategy</th><th>Category</th><th>Cost basis</th><th>Sharpe</th>"
+    table = ("<table><thead><tr><th>Strategy</th><th>Category</th><th>Cost basis</th>"
+             "<th title='Mean return &#247; volatility, annualised. NOT a Sharpe ratio — no risk-free rate is subtracted, so it reads higher than a textbook Sharpe would.'>Return/vol</th>"
              "<th>CAGR</th><th>MaxDD</th><th>Ann cost</th><th>Capacity</th></tr></thead><tbody>"
              + rows + "</tbody></table>"
              "<div class='legend'>○ flat-cost (illustrative) · ● realistic cost (tier spread + slippage) · "
@@ -182,13 +186,13 @@ def testing_page():
         f"({len(reg)} strategies · {nruns} backtest runs); refine a signal, re-run, and a new "
         "timestamped result appears here. <b>Honest verdict (re-cut 2026-07-05): nothing is FUNDABLE "
         "net of realistic participation cost at AUM.</b> The best flat-cost champion (C-BLEND 50/50, "
-        "Sharpe 1.32) fails at scale — net 0.52 @₹25cr, 0.17 @₹50cr, −0.30 @₹100cr vs the 0.89 index "
+        "return/vol 1.32) fails at scale — net 0.52 @₹25cr, 0.17 @₹50cr, −0.30 @₹100cr vs the 0.89 index "
         "bar; every PEAD event-book wrapper died (net 0.10, hedged −0.58); the one participation-"
         "fundable corner is quarterly large-cap LOWVOL_MOM (1.02 @₹50cr, ceiling ~₹150cr — defensive, "
         "not alpha). We publish those failures rather than bury them; the full pre-registered record "
         "is on <a href='/dash/spec-sheets' style='color:var(--accent)'>Spec sheets</a>.</div>"
         "<div class='bar'>⚖️ <b>The bar every active strategy must clear:</b> <span class='g'>Nifty 500 "
-        "buy &amp; hold — Sharpe 0.89 / CAGR 15.3% / MaxDD −29%</span>. The choice among the rest is a "
+        "buy &amp; hold — return/vol 0.89 / CAGR 15.3% / MaxDD −29%</span>. The choice among the rest is a "
         "risk-profile call, not alpha.</div>"
         + table + cards +
         "<div class='note'>Realistic metrics are net of per-name cost (tier spread + 0.5×ATR slippage), "

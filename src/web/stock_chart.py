@@ -294,6 +294,7 @@ SNIPPET = """<script>
 
     // ---- compare state (rebased multi-symbol overlay) — built into cmpBar below
     var cmpReg={ items:[] };   // [{sym, series:[lwc points], line}]
+    var cmpPeers=null;         // cached same-sector "related companies" (fetched once)
     var CMP_COLORS=[_t('--series-1','#39c5cf'),_t('--series-2','#f0883e'),_t('--series-3','#a371f7'),_t('--series-4','#56d364'),_t('--series-5','#db61a2')];
 
     // ---- lower pane: recompute the active sub-indicators + manage pane height -
@@ -695,7 +696,13 @@ SNIPPET = """<script>
       if(cmpReg.items.some(function(c){return c.sym.toUpperCase()===name.toUpperCase();})) return;
       cmpMsg('loading '+name+'\\u2026');
       fetch('/dash/compare/series?sym='+encodeURIComponent(name)).then(function(r){return r.json();}).then(function(d){
-        if(!d||!d.series||d.series.length<2){ cmpMsg('No series for "'+name+'"'); return; }
+        if(!d||!d.series||d.series.length<2){
+          /* not an exact ticker/index — resolve the typed text as a company/index NAME + retry */
+          fetch('/dash/api/symbol-search?q='+encodeURIComponent(name)+'&indices=1').then(function(r){return r.json();}).then(function(j){
+            var top=(j.results||[])[0];
+            if(top&&top.symbol&&top.symbol.toUpperCase()!==name.toUpperCase()){ addCompare(top.symbol); }
+            else{ cmpMsg('No match for "'+name+'"'); } }).catch(function(){ cmpMsg('No series for "'+name+'"'); });
+          return; }
         cmpMsg('');
         ensureCmpScale(); drawFocusCmp(true);
         var col=CMP_COLORS[cmpReg.items.length%CMP_COLORS.length];
@@ -711,17 +718,40 @@ SNIPPET = """<script>
       renderCmpBar(); refreshLegend(); reflowCmp(); }
     function reflowCmp(){ /* keep candles readable: when compare is on, the cmp scale shares the right gutter */ }
     // ---- the Compare family UI (input + add + per-symbol chips) -------------
-    function renderCmpBar(){ if(!cmpBar) return; cmpBar.innerHTML='';
-      var inp=document.createElement('input'); inp.type='text'; inp.placeholder='+ symbol / index';
-      inp.title='Add a symbol or index to compare (rebased to 100 at the window start)';
-      inp.style.cssText='background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);border-radius:6px;font-size:12px;padding:3px 7px;width:120px';
-      inp.onkeydown=function(e){ if(e.key==='Enter'){ addCompare(inp.value); inp.value=''; } };
+    function renderCmpBar(){ if(!cmpBar) return; cmpBar.innerHTML=''; cmpBar.style.position='relative';
+      var wrap=E('span','position:relative;display:inline-block');
+      var inp=document.createElement('input'); inp.type='text'; inp.placeholder='+ company or index';
+      inp.title='Type a company name, ticker, or index to compare (rebased to 100 at the window start)';
+      inp.style.cssText='background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);border-radius:6px;font-size:12px;padding:3px 7px;width:150px';
+      // typeahead suggestion drawer (companies + indices, by name) — attached below.
+      var sug=E('div','position:absolute;left:0;top:27px;z-index:60;min-width:230px;max-height:260px;overflow:auto;background:#0d1520;border:1px solid var(--line-2);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.5);display:none');
+      wrap.appendChild(inp); wrap.appendChild(sug);
       var addb=E('span','cursor:pointer;font-size:12px;color:var(--ink-2);border:1px solid var(--line-2);border-radius:6px;padding:3px 8px','add');
-      addb.onclick=function(){ addCompare(inp.value); inp.value=''; };
-      cmpBar.appendChild(inp); cmpBar.appendChild(addb);
+      addb.onclick=function(){ addCompare(inp.value); inp.value=''; sug.style.display='none'; };
+      cmpBar.appendChild(wrap); cmpBar.appendChild(addb);
+      // name→series: the shared symbol typeahead (S-D), reused with onPick so a pick ADDS to the
+      // chart instead of navigating; indices:true so a user can add "Nifty Bank" by name.
+      try{ if(window.__symTA){ window.__symTA(inp,sug,{indices:true,onPick:function(it){ addCompare(it.t); inp.value=''; sug.style.display='none'; }}); } }catch(e){}
+      // Enter with no highlighted suggestion → add the typed text (addCompare resolves names).
+      // Registered AFTER __symTA so its preventDefault (arrow-pick) suppresses this — no double-add.
+      inp.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.defaultPrevented){ addCompare(inp.value); inp.value=''; sug.style.display='none'; } });
       cmpReg.items.forEach(function(c,i){ var ch=E('span',chipCss(true,c.col),dot(c.col)+c.sym+' \\u00d7');
-        ch.title='Remove '+c.sym; ch.style.cursor='pointer'; ch.onclick=function(){ removeCompare(i); }; cmpBar.appendChild(ch); }); }
-    renderCmpBar();   // initial: just the input + add
+        ch.title='Remove '+c.sym; ch.style.cursor='pointer'; ch.onclick=function(){ removeCompare(i); }; cmpBar.appendChild(ch); });
+      // "Related companies" quick-add — same-sector peers not already on the chart (S143-e).
+      if(cmpPeers&&cmpPeers.length){
+        var have={}; cmpReg.items.forEach(function(c){ have[c.sym.toUpperCase()]=1; });
+        var show=cmpPeers.filter(function(p){ return !have[(p.symbol||'').toUpperCase()]; }).slice(0,6);
+        if(show.length){
+          cmpBar.appendChild(E('span','font-size:10.5px;color:var(--ink-3);margin-left:6px','Related:'));
+          show.forEach(function(p){ var ch=E('span','cursor:pointer;font-size:11px;color:var(--ink-2);border:1px dashed var(--line-2);border-radius:6px;padding:2px 7px;margin-left:3px',p.symbol);
+            ch.title=(p.name||p.symbol)+' \\u2014 add to compare'; ch.onclick=function(){ addCompare(p.symbol); }; cmpBar.appendChild(ch); });
+        }
+      } }
+    renderCmpBar();   // initial: input + add (+ Related chips once peers load)
+    // fetch same-sector peers ONCE → "Related companies" quick-add (re-render on arrival)
+    (function(){ var cur=new URLSearchParams(location.search).get('sym')||''; if(!cur) return;
+      fetch('/dash/api/peers?sym='+encodeURIComponent(cur)).then(function(r){return r.json();}).then(function(j){
+        cmpPeers=(j&&j.peers)||[]; if(cmpPeers.length) renderCmpBar(); }).catch(function(){}); })();
     // expose a hook so the UI builder (below, after rail mount) can attach
     window.__cmpAdd=addCompare; window.__cmpRemove=removeCompare;
   }

@@ -19,13 +19,34 @@ report_date the old load gated on (AUD-22):
   3. Fama-MacBeth cross-sectional momentum lambda + Newey-West t AFTER all controls.
   4. Deflated Sharpe Ratio (Bailey/Lopez de Prado, N=15 trials, T~=156, using RISKADJ's
      own monthly skew/kurtosis) and a PBO estimate via CSCV.
-  5. Survivorship delta: RISKADJ Sharpe/alpha on survivor-only vs all-symbols-ever universe
-     (booking a terminal delisting return where a name's price series ends mid-sample).
+  5. Survivorship delta: RISKADJ return/vol + alpha on survivor-only vs all-symbols-ever
+     universe (booking a terminal delisting return where a name's price series ends mid-sample).
 
 Risk-free: monthly return of the Nifty 1D Rate Index (overnight TR index) where available
 (2016-06+); a flat 6.5%/yr proxy fills the 2012-06..2016-06 gap (documented; India overnight
 rates averaged ~6.5-8% then). RF enters only the intercept, so the gap-proxy cannot distort
 the beta estimates.
+
+RATIO BASIS (D142) — read this before quoting any ratio out of this file. The ALPHA
+regressions above are genuinely risk-free-subtracted (they consume `strat_ex = strat - rf`).
+The RATIOS are not: retvol_ann() and deflated_sharpe() are both handed RAW `strat`, so what
+they report is mean/sd annualised with NO rf removed — a return/vol ratio, not a Sharpe. It
+reads high against a textbook Sharpe.
+
+This file is therefore the ONE place in the estate where the true-Sharpe re-cut needs NO new
+data: rf is already computed at line ~431 from a primary source (Guardrail #8-clean), and
+`strat_ex` is already in scope at the call sites — the ratio renders simply never use it.
+Everywhere else the re-cut is blocked on an rf ingest. Not done here either, deliberately:
+it MOVES NUMBERS, and it is queued to land with the TR-benchmark re-cut, which moves the
+same figures. Relabel now, re-cut once, together.
+
+Consequence for (4): the Deflated Sharpe's null (sr0) is rf-free BY CONSTRUCTION — it is a
+pure multiple-testing threshold built from n_trials and a cross-trial dispersion prior, with
+no returns data in it — but the observed `sr` it is compared against is inflated by the
+omitted rf. Subtracting a constant rf shifts the mean and leaves sd untouched, so the true
+SR is strictly LOWER and the test as run is LENIENT: it asks "is return/vol > the null",
+i.e. does the book beat ZERO, not "does it beat cash". Read the reported DSR as an upper
+bound on the evidence.
 
 Reproduce:
   ssh hermes
@@ -50,7 +71,7 @@ from scipy import stats as sstats                               # noqa: E402
 RDB = "/opt/hermes/data/research.db"
 HDB = "/opt/hermes/data/hermes.db"
 REBAL, TOPN, GATE_PCTL, W = 22, 25, 0.60, 252
-N_TRIALS = 15                 # factor_zoo ranked 15 factors by Sharpe -> multiple-testing N
+N_TRIALS = 15                 # factor_zoo ranked 15 factors by return/vol -> multiple-testing N
 HAC_LAG = 6
 RF_PROXY_ANN = 0.065          # pre-2016 overnight-rate proxy (documented)
 SQ = np.sqrt(12.0)
@@ -297,14 +318,14 @@ def deflated_sharpe(rets, n_trials=N_TRIALS):
     selecting the best of n_trials. Returns (DSR, SR0_annualised, SR_hat_annualised)."""
     r = rets[np.isfinite(rets)]
     T = len(r)
-    sr = r.mean() / r.std(ddof=1)                    # per-period Sharpe
+    sr = r.mean() / r.std(ddof=1)                    # per-period ratio (NO rf removed - D142)
     g3 = sstats.skew(r); g4 = sstats.kurtosis(r, fisher=False)  # fisher=False -> normal=3
-    # expected max Sharpe under the null of n_trials i.i.d. candidates (per-period units)
+    # expected max ratio under the null of n_trials i.i.d. candidates (per-period units)
     emc = 0.5772156649
     z1 = sstats.norm.ppf(1 - 1.0 / n_trials)
     z2 = sstats.norm.ppf(1 - 1.0 / (n_trials * np.e))
     sr0 = (1 - emc) * z1 + emc * z2                  # E[max SR] scaled by cross-trial std
-    # cross-trial std of Sharpe under the null ~ 1/sqrt(T-1) if candidate SRs ~ N; use estimate
+    # cross-trial std of the ratio under the null ~ 1/sqrt(T-1) if candidate SRs ~ N; use estimate
     var_sr = (1 - g3 * sr + (g4 - 1) / 4.0 * sr ** 2) / (T - 1)
     sr_std = np.sqrt(max(var_sr, 1e-12))
     sr0_scaled = sr0 * sr_std
@@ -344,7 +365,7 @@ def _sr(r):
     return r.mean() / r.std(ddof=1) if (len(r) > 2 and r.std(ddof=1) > 0) else np.nan
 
 
-def sharpe_ann(r):
+def retvol_ann(r):
     r = r[np.isfinite(r)]
     return (r.mean() / r.std(ddof=1) * SQ) if (len(r) > 2 and r.std(ddof=1) > 0) else np.nan
 
@@ -442,9 +463,9 @@ def main():
     print("=" * 92)
     bench_ex = mkt  # already excess
     for n in strat:
-        s_ann = sharpe_ann(strat[n])
+        s_ann = retvol_ann(strat[n])
         a1, b1 = simple_alpha(strat[n], mkt + rf)  # single-factor vs Nifty500 total (factor_zoo style)
-        print(f"  {n:8} Sharpe(ann)={s_ann:5.2f}  single-factor alpha_vs_Nifty500={a1*100:+6.1f}% "
+        print(f"  {n:8} ret/vol(ann)={s_ann:5.2f}  single-factor alpha_vs_Nifty500={a1*100:+6.1f}% "
               f"beta={b1:4.2f}  n={np.isfinite(strat[n]).sum()}")
     print("  factor legs (ann mean of tercile long-short, own gated universe):")
     for k in ("SMB", "HML", "QMJ", "BAB", "LIQ", "WML"):
@@ -484,10 +505,11 @@ def main():
     print("=" * 92)
     dsr, sr0_ann, srhat_ann, sr0_pp = deflated_sharpe(strat["RISKADJ"])
     r = strat["RISKADJ"][np.isfinite(strat["RISKADJ"])]
-    print(f"  RISKADJ  observed Sharpe(ann) = {srhat_ann:5.2f}   T = {len(r)}   "
+    print(f"  RISKADJ  observed ret/vol(ann) = {srhat_ann:5.2f}   T = {len(r)}   "
           f"skew = {sstats.skew(r):+.2f}  kurt = {sstats.kurtosis(r, fisher=False):.2f}")
-    print(f"  expected max-Sharpe under null(N=15), annualised SR0 = {sr0_ann:5.2f}")
-    print(f"  DEFLATED SHARPE (prob true SR>0 after MT haircut) = {dsr:.3f}")
+    print(f"  expected max-ratio under null(N=15), annualised SR0 = {sr0_ann:5.2f}")
+    print("  DEFLATED SHARPE on a return/vol input -> LENIENT, an upper bound (D142)")
+    print(f"  DSR (prob ratio>0 after MT haircut) = {dsr:.3f}")
     # PBO over the 15-factor family (the actual multiple-testing set)
     zoo = {
         "MOM6": lambda x: x["mom6"], "MOM12": lambda x: x["mom12"], "RISKADJ": lambda x: x["riskadj"],
@@ -518,12 +540,12 @@ def main():
     tables_bt, _ = build_panel(cache, book_terminal=True)
     rf2 = rf_monthly(tables_bt)
     strat_bt = strategy_returns(tables_bt, lambda x: x["riskadj"])
-    s_surv = sharpe_ann(strat["RISKADJ"]); a_surv, b_surv = simple_alpha(strat["RISKADJ"], mkt + rf)
-    s_bt = sharpe_ann(strat_bt)
+    s_surv = retvol_ann(strat["RISKADJ"]); a_surv, b_surv = simple_alpha(strat["RISKADJ"], mkt + rf)
+    s_bt = retvol_ann(strat_bt)
     a_bt, b_bt = simple_alpha(strat_bt, (mkt_excess(tables_bt, rf2) + rf2))
-    print(f"  SURVIVOR-only (factor_zoo): RISKADJ Sharpe={s_surv:5.2f}  alpha_vs_Nifty500={a_surv*100:+6.1f}%  beta={b_surv:4.2f}")
-    print(f"  TERMINAL-booked          : RISKADJ Sharpe={s_bt:5.2f}  alpha_vs_Nifty500={a_bt*100:+6.1f}%  beta={b_bt:4.2f}")
-    print(f"  --> survivorship delta   : Sharpe {s_bt - s_surv:+5.2f}   alpha {(a_bt - a_surv)*100:+5.1f}%")
+    print(f"  SURVIVOR-only (factor_zoo): RISKADJ ret/vol={s_surv:5.2f}  alpha_vs_Nifty500={a_surv*100:+6.1f}%  beta={b_surv:4.2f}")
+    print(f"  TERMINAL-booked          : RISKADJ ret/vol={s_bt:5.2f}  alpha_vs_Nifty500={a_bt*100:+6.1f}%  beta={b_bt:4.2f}")
+    print(f"  --> survivorship delta   : ret/vol {s_bt - s_surv:+5.2f}   alpha {(a_bt - a_surv)*100:+5.1f}%")
     print("  NOTE: this books terminal returns only for names ALREADY in the cache whose price")
     print("  series ends mid-sample; names never ingested (pre-2012 delistings, sub-liquidity)")
     print("  remain absent -> the true survivorship haircut is a LOWER BOUND on the bias.")

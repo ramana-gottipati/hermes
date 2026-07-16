@@ -160,6 +160,39 @@ re-score. Original spec (still valid for those):
   build is decision #4 (awaits Ramana). Recommendation stands: land the engine-level interim now, adopt
   on surfaces when they free up.
 
+## Step-2/3 investigation (2026-07-14) — refined findings (do this WITH the XBRL lane)
+
+Traced the `extract_bank_for` + storage path on the live code. Three concrete corrections to Steps 2-3:
+
+1. **NO new columns — storage is metric-keyed.** `fundamentals_xbrl` is
+   `(symbol, period_type, period_end, report_date, metric, value, source)` and `extract_for` returns a
+   `{metric: value}` dict (mirrors `fundamentals_history`). So **Step 3 is NOT a schema migration** — the
+   four bank metrics are just additive `put(...)` rows (`Gross NPA %`, `Net NPA %`, `Return on Assets %`,
+   `CET1 %`). Drop the `gnpa_pct/nnpa_pct/crar/roa/...` column plan.
+
+2. **Pattern 2 (operating leverage) is ALREADY available — no code needed.** `extract_bank_for` already
+   stores Revenue (`InterestEarned`), Interest (`InterestExpended`), Expenses, Provisions, Financing
+   Profit/Margin. So **NII = Revenue − Interest**, **cost-to-income = Expenses/(NII + Other Income)**, and
+   **credit-cost = Provisions/Revenue** are all derivable from the existing CONSO metrics. Doctrine-D
+   Pattern 2 needs only the scorer to compute these ratios (Step 4), not any ingest change.
+
+3. **Pattern 5 (GNPA%/NNPA%/RoA/CET1) needs a STRUCTURAL SA-instance pass — the real integration point.**
+   The spike confirmed these are populated ONLY in the **standalone** instance (conso = 0.00 for HDFCBANK).
+   But the ingest's `_prefer_consolidated()` keeps ONE filing per (symbol, period) with **consolidated
+   preferred** → for banks the SA instance is never parsed, so adding the four `put()`s alone is **INERT**.
+   Getting them requires the ingest to ALSO process the bank SA filing (a per-metric source split: P&L from
+   conso, prudential ratios from SA). That is a change to `fundamentals_xbrl.py`'s ingest loop, which a
+   parallel session is **actively developing** (Phase-3 backfill engine landed recently). **→ COORDINATE
+   with the XBRL lane** — do NOT fork a duplicative parallel fetch (double-hits NSE; guardrail-#8 spirit).
+   The extraction itself is ready + verified: `_fact(parsed,'PercentageOfGrossNpa',ids)`, `'PercentageOfNpa'`,
+   `'ReturnOnAssets'`, `'CET1Ratio'` (+`'AdditionalTier1Ratio'`), each ×100 → percent, gated on non-zero
+   (the conso-0.00 guard). Slot it where a bank filing is detected (`_is_bank_instance`), pulling the SA
+   sibling filing for the same (symbol, period).
+
+**Net:** Steps 2-3 shrink to (a) *nothing* for Pattern-2 data (already stored), and (b) a small
+SA-instance extraction that belongs IN the XBRL lane's ingest, not a parallel edit. Step 4 (the scorer +
+your 3 threshold/ALM/scope decisions) remains the gating work.
+
 ## Guardrails honored
 Primary sources only (NSE SEBI XBRL — no vendor/Screener to fill gaps; defer instead). PIT via broadcast
 timestamp. Reuse `fundamentals_xbrl` + the existing financial `capital_allocation` model. Cheap/₹0 (no LLM,

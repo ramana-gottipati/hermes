@@ -1,7 +1,7 @@
 """FRACTAL FENCES — the three pre-registered confirmation checks on the PROX10 cell (2026-07-14).
 
 WHAT IS BEING TESTED. Ledger § Study 2026-07-14 (FRACTAL FLOOR): the event gate was FAIL-null, but the
-PROX≤10% structural-stop BOOK cleared the flat-cost bar in both halves (Sharpe 1.04; 0.92/1.15;
+PROX≤10% structural-stop BOOK cleared the flat-cost bar in both halves (return/vol 1.04; 0.92/1.15;
 MaxDD −28.5%; ~69 avg positions) — the only reversal-family cell ever to do so, recorded FLAT-COST-ONLY
 and 1-of-5-cells. THIS study runs the three fences that entry declared, with pass bars frozen here
 BEFORE the run. If ANY fence fails, the 1.04 stays a descriptive artifact; if all three pass it becomes
@@ -13,7 +13,7 @@ THE CELL (reconstructed EXACTLY as frozen in fractal_floor.build): D10 triggers,
 de-overlap 22 bars, one open trade per symbol across ALL prox<=0.15 trades; the CELL keeps daily marks
 only for trades with prox <= 0.10. Entry close i+1; trail = max(floor, every 2-degree down-fractal low
 confirmed after the signal bar, ratchet up only); exit close j+1 after the first close < trail; flat
-0.3%/side. Reconstruction is verified against the frozen JSON (full Sharpe within +/-0.03 of 1.04)
+0.3%/side. Reconstruction is verified against the frozen JSON (full return/vol within +/-0.03 of 1.04)
 before any fence is scored.
 
 FENCE 1 — PARTICIPATION COST (the C-BLEND killer). Cost model = cost_participation.side_costs VERBATIM
@@ -21,25 +21,29 @@ FENCE 1 — PARTICIPATION COST (the C-BLEND killer). Cost model = cost_participa
 order_value = AUM / 69 (the cell's frozen avg position count); sigma = trailing-66d daily vol at
 signal; per-trade entry+exit costs charged on their actual entry/exit days in the daily book.
 AUM frontier reported: 1 / 5 / 10 / 25 / 50 / 100 cr.
-  PASS-1 = net Sharpe > 0.89 in BOTH halves (2012-18 / 2019-26) at AUM >= Rs 10cr.
+  PASS-1 = net return/vol > 0.89 in BOTH halves (2012-18 / 2019-26) at AUM >= Rs 10cr.
 
 FENCE 2 — RANDOM-ENTRY / SAME-EXIT CONTROL (is the entry inert?). For every real cell trade, control
 trades with IDENTICAL risk geometry: same symbol, synthetic floor = signal close / (1 + real prox),
 same trail engine, same flat cost — only the WHERE/WHEN of entry is randomized. Family A = uniform
 random eligible bar (>=2012-06); family B = uniform random eligible bar in the SAME CALENDAR YEAR as
 the real trade (regime-matched). Seeds 42/43/44 per family (3 independent books each).
-  PASS-2 = real flat-cost FULL Sharpe >= family-mean + 0.15 for BOTH families, AND real h2 Sharpe
-  > each family's mean h2. (If a random entry with the same stop geometry reproduces the book, the
-  fractal floor carries no entry information — the Wolfe craft lesson, inverted.)
+  PASS-2 = real flat-cost FULL return/vol >= family-mean + 0.15 for BOTH families, AND real h2
+  return/vol > each family's mean h2. (If a random entry with the same stop geometry reproduces the
+  book, the fractal floor carries no entry information — the Wolfe craft lesson, inverted.)
 
 FENCE 3 — FILL REALISM. Re-run the real cell with BOTH: entry lagged one extra bar (close i+2) AND
 pessimistic stop fills (when stopped, exit value = min(next close, trail level) — no favorable
 bounce-back credit), flat 0.3%/side.
-  PASS-3 = net Sharpe > 0.89 in BOTH halves under the combined stress.
+  PASS-3 = net return/vol > 0.89 in BOTH halves under the combined stress.
   (Sensitivity reported, not gated: 1.5x flat cost on the base engine.)
 
 OVERALL: PROMOTABLE-to-paper-tracking requires PASS on ALL THREE; otherwise BLOCKED (ledger gets the
 numbers either way). Universe/history identical to fractal_floor; seed-fixed; DESCRIPTIVE-ONLY output.
+
+METRIC BASIS (D142): every ratio here — the frozen 1.04 included — is mean/sd annualised with NO
+risk-free rate subtracted: a return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe.
+The 0.89 bar and the control means are on the SAME basis, so the fence verdicts are unaffected.
 
 Run on VPS (research venv):
   PYTHONPATH=/opt/hermes:/opt/hermes/research /opt/hermes/.venv-research/bin/python \\
@@ -244,7 +248,7 @@ def run():
     st = {k: b.stats() for k, b in books.items() if b.days}
 
     real = st["REAL"]
-    recon_ok = (real["full"] and abs(real["full"]["sharpe"] - FROZEN_FULL) <= RECON_TOL)
+    recon_ok = (real["full"] and abs(real["full"]["retvol"] - FROZEN_FULL) <= RECON_TOL)
     out["reconstruction"] = {"real_flat": real, "frozen_full": FROZEN_FULL,
                              "tolerance": RECON_TOL, "OK": bool(recon_ok)}
 
@@ -255,7 +259,7 @@ def run():
         s = st.get(f"AUM_{a}cr")
         if not s or not s["full"]:
             continue
-        ok = bool(s["h1"] and s["h2"] and s["h1"]["sharpe"] > 0.89 and s["h2"]["sharpe"] > 0.89)
+        ok = bool(s["h1"] and s["h2"] and s["h1"]["retvol"] > 0.89 and s["h2"]["retvol"] > 0.89)
         ladder[f"{a}cr"] = {**s, "both_halves_gt_0.89": ok}
         if a >= PASS_AUM and ok:
             p1 = True
@@ -270,17 +274,17 @@ def run():
         for sd in SEEDS:
             s = st.get(f"CTRL_{fam}_{sd}")
             if s and s["full"]:
-                fulls.append(s["full"]["sharpe"])
-                h2s.append(s["h2"]["sharpe"] if s["h2"] else np.nan)
+                fulls.append(s["full"]["retvol"])
+                h2s.append(s["h2"]["retvol"] if s["h2"] else np.nan)
                 per[str(sd)] = {"full": s["full"], "h2": s["h2"]}
         mf = float(np.mean(fulls)) if fulls else float("nan")
         mh = float(np.nanmean(h2s)) if h2s else float("nan")
         okf = bool(real["full"] and not np.isnan(mf)
-                   and real["full"]["sharpe"] >= mf + MARGIN)
-        okh = bool(real["h2"] and not np.isnan(mh) and real["h2"]["sharpe"] > mh)
+                   and real["full"]["retvol"] >= mf + MARGIN)
+        okh = bool(real["h2"] and not np.isnan(mh) and real["h2"]["retvol"] > mh)
         f2[f"family_{fam}"] = {"mean_full": round(mf, 3), "mean_h2": round(mh, 3),
                                "seeds": per,
-                               "margin_full": round(real["full"]["sharpe"] - mf, 3)
+                               "margin_full": round(real["full"]["retvol"] - mf, 3)
                                if real["full"] and not np.isnan(mf) else None,
                                "full_ok": okf, "h2_ok": okh}
         p2 = p2 and okf and okh
@@ -291,7 +295,7 @@ def run():
     # fence 3
     lm = st.get("LAG_MINFILL")
     p3 = bool(lm and lm["h1"] and lm["h2"]
-              and lm["h1"]["sharpe"] > 0.89 and lm["h2"]["sharpe"] > 0.89)
+              and lm["h1"]["retvol"] > 0.89 and lm["h2"]["retvol"] > 0.89)
     out["FENCE3_fill_realism"] = {"lag1_minfill": lm, "PASS": p3,
                                   "bar": "both halves > 0.89 under entry-lag+1 AND min-fill stops",
                                   "sensitivity_cost_1.5x": st.get("COST15")}

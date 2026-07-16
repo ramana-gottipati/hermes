@@ -1641,6 +1641,33 @@ def _format_triggers_message(rows: list[dict], kind: str, label: str) -> str:
     return "\n".join(lines)
 
 
+async def _handle_inbox_ask(update: Update, text: str) -> bool:
+    """"what's waiting on me?" etc, answered directly on the phone (S160-b).
+
+    Pat's /dash/pat web form already had this (S160); Telegram did not, because plain
+    text falls through the paid SCORE/FLOW/BOTH/SCAN classifier straight to the general
+    assistant, which has no idea what the review inbox is. parse_inbox() is a regex — no
+    LLM, no cost — so every message can be checked here for free before that classifier
+    ever runs. READ-ONLY: this reports the queue, it never decides anything (judging
+    stays on the owner-gated /dash/inbox lens). Single-sourced with the DM and the web
+    form via inbox_flow.waiting()/format_telegram_reply(), so no channel can disagree.
+    Returns True if it answered (caller must return without falling through further).
+    """
+    from src.pat import inbox_flow as IF
+    if IF.parse_inbox(text) is None:
+        return False
+    loop = asyncio.get_running_loop()
+
+    def _read():
+        with get_conn() as conn:
+            return IF.waiting(conn)
+
+    w = await loop.run_in_executor(None, _read)
+    await update.message.reply_text(
+        IF.format_telegram_reply(w), parse_mode="HTML", disable_web_page_preview=True)
+    return True
+
+
 async def _handle_stock_intent(update: Update, cls: dict) -> None:
     """Execute SCORE/FLOW/BOTH intent against the existing rule-based pipelines.
 
@@ -1753,6 +1780,68 @@ _MENU_ROOT_TEXT = (
 _MENU_SCAN_TEXT     = "<b>🔎 Market scan</b> — how many top stocks?"
 _MENU_TRIGGERS_TEXT = "<b>⚡ Layered triggers</b> — pick a strictness."
 _MENU_WATCHLIST_TEXT = "<b>⭐ Watchlist</b>"
+
+
+async def on_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/inbox — what is waiting on YOUR judgment, asked any time (S161, Ramana-directed).
+
+    The completion of "communication belongs in the chat": S160 gave Pat the answer and the
+    morning DM the count, but the bot — the surface he actually types into — still could not
+    say what was waiting. Now it can, on demand rather than once a day.
+
+    The explicit-command sibling of S160-b's natural-language pre-pass (_handle_inbox_ask):
+    that catches "what's waiting on me?" typed as plain text; this is the discoverable
+    slash command (it shows in the / list) and adds a kind filter. BOTH render through the
+    SAME inbox_flow.format_telegram_reply(), so the command, the free-text ask, the DM and
+    the /dash/pat web form describe one queue and can never disagree. READ-ONLY: it REPORTS
+    the queue; approving/rejecting stays a deliberate act on the owner-gated lens.
+
+    /inbox          -> the whole queue (identical to the free-text answer)
+    /inbox briefs   -> filter to one kind (briefs | rule | tags | alerts | ...)
+    """
+    user_id = update.effective_user.id
+    if not _is_authorized(user_id):
+        return                      # the queue is owner-private; the ID gate IS the guard
+
+    want = (context.args[0].lower().strip() if context.args else "")
+
+    def _read():
+        from src.pat.inbox_flow import waiting
+        with get_conn() as conn:
+            return waiting(conn)
+
+    loop = asyncio.get_running_loop()
+    try:
+        w = await loop.run_in_executor(None, _read)
+    except Exception:                                   # a chat reply must never crash
+        log.exception("/inbox read failed")
+        await update.message.reply_text(
+            "Couldn't read the review queue just now — try again in a moment.")
+        return
+
+    from src.pat import inbox_flow as IF
+    if want:
+        # /inbox <kind> — narrow to one kind, but keep a COHERENT w (its own total +
+        # by_kind) so the shared formatter's header/counts stay honest, then render
+        # through the exact same path as the unfiltered answer (single source).
+        alias = {"brief": "brief", "briefs": "brief", "rule": "rule_verdict",
+                 "rules": "rule_verdict", "verdict": "rule_verdict",
+                 "verdicts": "rule_verdict", "tag": "tags", "tags": "tags",
+                 "alert": "alert-ack", "alerts": "alert-ack",
+                 "rebalance": "rebalance", "anomaly": "anomaly"}.get(want, want)
+        n = next((b["n"] for b in w["by_kind"] if b["kind"] == alias), 0)
+        if not n:
+            await update.message.reply_text(
+                f'Nothing waiting under <code>{_html.escape(want)}</code>. '
+                f'<b>{_html.escape(IF.summary_phrase(w).capitalize())}.</b>',
+                parse_mode="HTML", disable_web_page_preview=True)
+            return
+        w = {"total": n, "link": w["link"],
+             "by_kind": [b for b in w["by_kind"] if b["kind"] == alias],
+             "items": [i for i in w["items"] if i.get("kind") == alias]}
+
+    await update.message.reply_text(
+        IF.format_telegram_reply(w), parse_mode="HTML", disable_web_page_preview=True)
 
 
 async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -2065,6 +2154,16 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await _menu_handle_pending(update, context, pending, text)
         return
 
+    # --- "what's waiting on me?" (S160-b) — a free, deterministic pre-pass, same shape
+    # as the menu-pending short-circuit above. MUST run before _intent.classify(): that
+    # classifier only recognizes stock lookups (SCORE/FLOW/BOTH/SCAN), so an inbox ask
+    # fell through to the general assistant below, which has no idea what the review
+    # inbox is (verified live — a generic "I don't have access to your calendar" reply).
+    # parse_inbox() is a regex, not an LLM call, so this costs nothing to check on every
+    # message and never delays a real stock question.
+    if await _handle_inbox_ask(update, text):
+        return
+
     # --- Natural-language intent routing ---
     # Plain English maps to /pt14, /dvpt or both without the user typing slashes.
     from src.assistant import intent as _intent
@@ -2147,6 +2246,7 @@ BOT_COMMANDS = [
     BotCommand("news_stop",     "Stop posting news to this chat"),
     BotCommand("reset",         "Start a fresh conversation (forget context)"),
     BotCommand("provider",      "Show which LLM provider is active for classifier tasks"),
+    BotCommand("inbox",         "What's waiting on your judgment — briefs, verdicts, tags (owner-only; /inbox briefs to filter)"),
     BotCommand("whoami",        "Show my Telegram user ID"),
     BotCommand("start",         "Show help"),
 ]
@@ -2176,6 +2276,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(on_menu_callback))
     app.add_handler(CommandHandler("provider", on_provider))
     app.add_handler(CommandHandler("whoami", on_whoami))
+    app.add_handler(CommandHandler("inbox", on_inbox))
     app.add_handler(CommandHandler("reset", on_reset))
     app.add_handler(CommandHandler("pt14", on_pt14))
     app.add_handler(CommandHandler("dvpt", on_dvpt))

@@ -33,27 +33,30 @@ def call_classifier(
     system: str,
     user_msg: str,
     max_tokens: int = 200,
+    job: str = "classifier",
 ) -> tuple[str, str]:
     """Single-shot text-in, text-out call for classification.
 
     Returns (response_text, provider_used) where provider_used is "gemini" or
     "anthropic". Caller handles JSON parsing or other downstream processing.
+    `job` labels the call in the cost ledger (D134 §5.4) — pass a specific one
+    (e.g. "news-classify") so --report attributes spend per producer.
     """
     if settings.gemini_api_key:
         try:
-            text = _call_gemini(system, user_msg, max_tokens)
+            text = _call_gemini(system, user_msg, max_tokens, job=job)
             return text, "gemini"
         except Exception as e:
             log.warning(
                 "gemini classifier call failed, falling back to anthropic: %s", e
             )
 
-    text = _call_anthropic_haiku(system, user_msg, max_tokens)
+    text = _call_anthropic_haiku(system, user_msg, max_tokens, job=job)
     return text, "anthropic"
 
 
 def _call_gemini(system: str, user_msg: str, max_tokens: int, timeout: float = 6.0,
-                 json_mode: bool = False) -> str:
+                 json_mode: bool = False, job: str = "classifier") -> str:
     """Use Gemini Flash via its OpenAI-compatible endpoint.
 
     timeout defaults to 6s for the tiny classifier path; the extractor passes a
@@ -85,12 +88,15 @@ def _call_gemini(system: str, user_msg: str, max_tokens: int, timeout: float = 6
         getattr(response.usage, "prompt_tokens", None),
         getattr(response.usage, "completion_tokens", None),
     )
+    from src.core.llm import meter
+    meter(job, settings.gemini_classifier_model, response, note="gemini")
     return text
 
 
-def _call_anthropic_haiku(system: str, user_msg: str, max_tokens: int) -> str:
+def _call_anthropic_haiku(system: str, user_msg: str, max_tokens: int,
+                          job: str = "classifier") -> str:
     """Fallback to Anthropic Haiku."""
-    from src.core.llm import client
+    from src.core.llm import client, meter
 
     response = client().messages.create(
         model=settings.fast_model,
@@ -103,6 +109,7 @@ def _call_anthropic_haiku(system: str, user_msg: str, max_tokens: int) -> str:
         response.usage.input_tokens,
         response.usage.output_tokens,
     )
+    meter(job, settings.fast_model, response, note="anthropic")
     return response.content[0].text
 
 
@@ -114,6 +121,7 @@ def call_extractor(
     timeout: float = 90.0,
     allow_anthropic_fallback: bool = False,
     json_mode: bool = True,
+    job: str = "extractor",
 ) -> tuple[Optional[str], str]:
     """Large structured-extraction call (e.g. a whole concall transcript -> JSON).
 
@@ -129,7 +137,7 @@ def call_extractor(
     """
     if settings.gemini_api_key:
         try:
-            return _call_gemini(system, user_msg, max_tokens, timeout=timeout, json_mode=json_mode), "gemini"
+            return _call_gemini(system, user_msg, max_tokens, timeout=timeout, json_mode=json_mode, job=job), "gemini"
         except Exception as e:  # noqa: BLE001
             log.warning("gemini extractor call failed: %s", e)
             if not allow_anthropic_fallback:
@@ -146,7 +154,7 @@ def call_extractor(
                         "→ no-LLM skip (set GEMINI_API_KEY or pass allow_anthropic_fallback=True)")
         return None, "failed"
     try:
-        return _call_anthropic_haiku(system, user_msg, max_tokens), "anthropic"
+        return _call_anthropic_haiku(system, user_msg, max_tokens, job=job), "anthropic"
     except Exception as e:  # noqa: BLE001
         log.warning("anthropic extractor fallback failed: %s", e)
         return None, "failed"

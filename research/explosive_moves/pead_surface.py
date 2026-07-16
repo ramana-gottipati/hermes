@@ -1,6 +1,6 @@
 """Results-Reaction Ledger — the DESCRIPTIVE product of the 2026-07-05 PEAD study.
 
-The PEAD *book* failed its gate (ledger § Experiment 2026-07-05: net Sharpe 0.10 vs bench 0.85), so
+The PEAD *book* failed its gate (ledger § Experiment 2026-07-05: net return/vol 0.10 vs bench 0.85), so
 nothing tradeable ships. What DID validate is a descriptive event lens: on real BSE result dates, a
 high earnings surprise CONFIRMED BY DELIVERED VALUE drifts materially over the next ~60 sessions
 (SUE-Q5 × DELIV-T3 CAR60 +7.6%, t_cohort 1.9). This module turns that into an honest, point-in-time

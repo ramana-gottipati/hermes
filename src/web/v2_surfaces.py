@@ -51,6 +51,9 @@ _ROUTER_SPECS = [
     # Replay ANY date (charter P-05, S102) — the live demo over the entitled /v1 API:
     # pick symbol + date, get what was knowable then (D104 clocks), curl included.
     ("replay-any-date", "src.web.replay_any_date", "/dash/replay-any-date"),
+    # Review inbox (D134 L5, S158) — the judgment queue + its public methodology half.
+    # Durably mounted here so the owner's decide path survives a main.py clobber.
+    ("inbox", "src.web.review_inbox_view", "/dash/inbox"),
     ("rs-hub", "src.web.rs_section", "/dash/rs-hub"),
     ("news", "src.web.news_view", "/dash/wire"),
     # Lane B surfaces — durably mounted here so they no longer depend on the
@@ -133,6 +136,10 @@ _ROUTER_SPECS = [
     # rosters + STEADY-25 auto-portfolio + churn. Reads factor_league/slow_rotation.
     ("factor-league", "src.web.factor_league_view", "/dash/factor-league"),
     ("model-portfolios", "src.web.auto_portfolios_view", "/dash/model-portfolios"),
+    ("sector-rotation", "src.web.sector_rotation_view", "/dash/sector-rotation"),
+    # Rule lab (D134 §4-H, S157-b): closed-vocab user rules → the evidence-factory gauntlet →
+    # honest ledger-vocabulary verdicts. Owner-gated composer; anonymous = demo verdict.
+    ("rule-lab", "src.web.rule_lab_view", "/dash/rule-lab"),
     # Classic Screens (S145): the famous NAMED strategies run as live rosters on OUR PIT data.
     # Reads classic_roster (famous_strategies.py, nightly). Sibling of factor-league.
     ("classics", "src.web.classics_view", "/dash/classics"),

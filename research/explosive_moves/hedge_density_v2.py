@@ -6,7 +6,7 @@ conviction; its SPIKE tercile was 50-59% Q2 FY-end-guidance calls (a seasonal co
 differencing did not remove). A cheap return pulse-check (uncertainty-only Δ) confirmed the RETURN angle
 dead. v2 changes the OUTCOME to the more plausible target and fixes construct validity. Frozen design:
 research/explosive_moves/hedge_density_v2_PREREG.md (git 8ce1f0e). Cites the failure-ledger: every prior
-event-return wrapper net-failed 0.02-0.10 Sharpe vs 0.85; concall_intent placebo-killed; v1 return-null.
+event-return wrapper net-failed 0.02-0.10 return/vol vs 0.85; concall_intent placebo-killed; v1 return-null.
 DESCRIPTIVE-ONLY, SEBI-safe: no book, no ranking, no buy/sell.
 
 HYPOTHESIS. A within-name, quarter-adjusted RISE in *net-uncertainty language* precedes HIGHER forward

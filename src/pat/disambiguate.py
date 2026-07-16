@@ -304,6 +304,37 @@ _RSLAG = ["weakest stock", "weak stock", "laggard stock", "rs laggard", "weakest
           "weak name", "losing momentum", "weak relative strength", "stocks lagging",
           "lagging stock", "underperforming stock", "weakest in", "biggest laggard",
           "weakest shares"]
+# S150 — plain fundamentals-SCREEN vocabulary the ₹0 parse used to miss (catalog-floor lift).
+# Each routes to the fundamentals screen (the catalog checks the FLOW, not the params); the
+# params are a sensible default. Checked LATE in route_extra so a more-specific branch
+# (overvalued, kill-list, rslag, oscillators, credibility) always wins first. Kept precise
+# (multi-word anchors) so they never steal another band's ask.
+_FUND_VALUE_X = ["deep value", "deeply undervalued", "value trap", "value traps",
+                 "growth at a reasonable price", "reasonably priced growth", "garp"]
+_FUND_GROWTH_X = ["hyper-growth", "hyper growth", "high growth", "fast growing", "fast-growing",
+                  "ttm growth", "strong ttm", "recent growth", "clean-sheet growth",
+                  "clean sheet growth", "profit growth", "earnings growth", "growing profits",
+                  "negative profit growth", "negative-profit-growth", "profit decline",
+                  "earnings decelerating", "decelerating earnings", "decelerating",
+                  "shrinking profits", "growth names"]
+_FUND_LEVERAGE_X = ["debt-free", "debt free", "zero debt", "no debt", "karza-mukt", "karza mukt",
+                    "low debt", "low leverage", "high debt", "highly leveraged", "high leverage",
+                    "over-leveraged", "overleveraged", "heavily indebted", "risky debt",
+                    "high-debt", "leveraged companies", "leveraged names"]
+_FUND_PLEDGE_X = ["no-pledge", "no pledge", "clean pledge", "unpledged", "pledge-free",
+                  "zero pledge", "without pledge", "low pledge", "clean promoter"]
+_FUND_QUALITY_X = ["elite roce", "high roce", "elite quality", "high-quality compounder",
+                   "clean books", "high return on capital"]
+# S150 — plain relative-strength vocabulary the ₹0 parse used to miss. Routes to the rs flow.
+# Precise multi-word anchors (never bare "strong"/"outperforming") so a single-stock or index
+# ask isn't stolen.
+_RS_EXTRA = ["elite rs", "high rs", "strong rs", "top rs", "best rs", "strongest rs",
+             "above the market", "above the broad market", "beating the market",
+             "beating the index", "outperforming the market", "outperforming the index",
+             "beating their sector", "beating their own sector", "beating its sector",
+             "beating its own sector", "strong stocks in strong sectors", "leaders in leaders",
+             "new rs high", "new rs highs", "making new rs highs", "rs breakout", "rs breakouts",
+             "rs new high", "new relative strength high"]
 # CCI — Management Credibility (concall intelligence, P5). Distinctive concall/
 # credibility vocabulary → the credibility-leaders or the deterioration/avoid tape.
 # Checked before the generic fundamentals/quality route so "management credibility"
@@ -506,6 +537,27 @@ def route_extra(query: str) -> dict | None:
             if _has_any(qn, ["positive", "above signal", "above the signal", "above its signal"]):
                 return {"flow": "oscillators", "params": {"screen": "macd_positive"}}
             return {"flow": "oscillators", "params": {"screen": "macd_bull"}}
+
+        # S150 — plain fundamentals-SCREEN vocabulary (deep value / hyper-growth / debt-free /
+        # no-pledge / elite ROCE …) the ₹0 parse used to miss. Routes to the fundamentals screen.
+        # LATE + precise so the specific branches above (overvalued, kill-list, rslag, oscillators,
+        # credibility) always win first; catch order = value → pledge → leverage → growth → quality.
+        if _has_any(qn, _FUND_VALUE_X):
+            return {"flow": "fundamentals", "params": {"val": "deep"}}
+        if _has_any(qn, _FUND_PLEDGE_X):
+            return {"flow": "fundamentals", "params": {"own": "clean"}}
+        if _has_any(qn, _FUND_LEVERAGE_X):
+            return {"flow": "fundamentals", "params": {"bs": "fortress"}}
+        if _has_any(qn, _FUND_GROWTH_X):
+            return {"flow": "fundamentals", "params": {"grow": "recent"}}
+        if _has_any(qn, _FUND_QUALITY_X):
+            return {"flow": "fundamentals", "params": {"qual": "elite"}}
+
+        # S150 — plain relative-strength vocabulary (elite RS / above the market / beating their
+        # own sector / new RS highs). Routes to the rs flow. AFTER rslag so a "weak/laggard" ask
+        # still wins the laggards mirror.
+        if _has_any(qn, _RS_EXTRA):
+            return {"flow": "rs", "params": {}}
 
         # index-performance asks ("worst performing sector this year", "indices
         # recovering") → the deterministic index router (CL-PAT-03: was implemented

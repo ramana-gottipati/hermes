@@ -3,13 +3,18 @@
 Answers three questions, walk-forward (2012-18 & 2019-26), net of cost, NO look-ahead:
   1. Does replacing the static Rs5cr floor with a RELATIVE percentile gate change the edge?
   2. Does layering our point-in-time FUNDAMENTAL QUALITY (research.db, report_date<=as_of)
-     onto the momentum rank lift Sharpe or cut the -33% drawdown?
+     onto the momentum rank lift return/vol or cut the -33% drawdown?
   3. Does it survive a 1.5x cost stress?
 
 Construction matches factory.py (top-25, monthly, equal-weight, enter at d0 close -> next
 rebalance, COST_PS per turnover) so results are directly comparable to the recorded benchmark.
-Quality is built ONLY from filings known on/before the rebalance date. Writes
-out/overlay_experiment.csv. Read-only (never writes production tables).
+Quality is built ONLY from filings known on/before the rebalance date.
+
+Ratios are mean/sd annualised with NO risk-free rate subtracted — return/vol, not Sharpe, so
+they read high vs a textbook Sharpe; the Nifty500 0.89 survival hurdle is on the SAME basis,
+so the comparisons and verdicts hold (D142).
+
+Writes out/overlay_experiment.csv. Read-only (never writes production tables).
 """
 from __future__ import annotations
 import csv
@@ -191,10 +196,10 @@ def stats_row(tables, name, selector, cost_mult=1.0):
     m1 = np.array([d <= "2018-12-31" for d in dates]); m2 = np.array([d >= "2019-01-01" for d in dates])
     a = eqstats(rets[m1]); b = eqstats(rets[m2])
     avg_n = np.mean([len(selector(t)) for t in tables])
-    surv = bool(a and b and a["sharpe"] > 0.89 and b["sharpe"] > 0.89 and a["cagr"] > 0 and b["cagr"] > 0)
-    return {"name": name, "cagr": full["cagr"], "maxdd": full["maxdd"], "sharpe": full["sharpe"],
-            "calmar": full["calmar"], "totx": full["totx"], "h1_sharpe": a["sharpe"] if a else None,
-            "h2_sharpe": b["sharpe"] if b else None, "h2_cagr": b["cagr"] if b else None,
+    surv = bool(a and b and a["retvol"] > 0.89 and b["retvol"] > 0.89 and a["cagr"] > 0 and b["cagr"] > 0)
+    return {"name": name, "cagr": full["cagr"], "maxdd": full["maxdd"], "retvol": full["retvol"],
+            "calmar": full["calmar"], "totx": full["totx"], "h1_retvol": a["retvol"] if a else None,
+            "h2_retvol": b["retvol"] if b else None, "h2_cagr": b["cagr"] if b else None,
             "avg_n": avg_n, "surv": surv, "cost_mult": cost_mult}
 
 
@@ -213,24 +218,24 @@ def main():
     rows.append(stats_row(tables, "F. D (blend) @ 1.5x cost stress", sel_riskadj_qblend, cost_mult=1.5))
     rows.append(stats_row(tables, "G. B (riskadj-rel) @ 1.5x cost stress", sel_riskadj_rel, cost_mult=1.5))
 
-    hdr = f"{'variant':40}{'CAGR':>7}{'MaxDD':>8}{'Shrp':>6}{'Clmr':>6}{'tot':>6}{'H1sh':>6}{'H2sh':>6}{'N':>5}  surv"
-    print("\n" + "=" * len(hdr)); print("EXPERIMENT RESULTS (top-25 monthly, net cost; hurdle Nifty500 Sharpe 0.89)")
+    hdr = f"{'variant':40}{'CAGR':>7}{'MaxDD':>8}{'retvol':>6}{'Clmr':>6}{'tot':>6}{'H1rv':>6}{'H2rv':>6}{'N':>5}  surv"
+    print("\n" + "=" * len(hdr)); print("EXPERIMENT RESULTS (top-25 monthly, net cost; hurdle Nifty500 return/vol 0.89)")
     print("=" * len(hdr)); print(hdr)
     for r in rows:
-        print(f"{r['name']:40}{r['cagr']*100:>6.1f}%{r['maxdd']*100:>7.1f}%{r['sharpe']:>6.2f}"
-              f"{r['calmar']:>6.2f}{r['totx']:>5.1f}x{(r['h1_sharpe'] or 0):>6.2f}{(r['h2_sharpe'] or 0):>6.2f}"
+        print(f"{r['name']:40}{r['cagr']*100:>6.1f}%{r['maxdd']*100:>7.1f}%{r['retvol']:>6.2f}"
+              f"{r['calmar']:>6.2f}{r['totx']:>5.1f}x{(r['h1_retvol'] or 0):>6.2f}{(r['h2_retvol'] or 0):>6.2f}"
               f"{r['avg_n']:>5.0f}  {'YES' if r['surv'] else ''}")
 
     out = os.path.join(os.path.dirname(__file__), "out", "overlay_experiment.csv")
     with open(out, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["variant", "cagr_pct", "maxdd_pct", "sharpe", "calmar", "total_x",
-                    "h1_2012_18_sharpe", "h2_2019_26_sharpe", "h2_cagr_pct", "avg_positions",
+        w.writerow(["variant", "cagr_pct", "maxdd_pct", "retvol", "calmar", "total_x",
+                    "h1_2012_18_retvol", "h2_2019_26_retvol", "h2_cagr_pct", "avg_positions",
                     "cost_mult", "survives"])
         for r in rows:
             w.writerow([r["name"], round(r["cagr"] * 100, 1), round(r["maxdd"] * 100, 1),
-                        round(r["sharpe"], 2), round(r["calmar"], 2), round(r["totx"], 1),
-                        round(r["h1_sharpe"] or 0, 2), round(r["h2_sharpe"] or 0, 2),
+                        round(r["retvol"], 2), round(r["calmar"], 2), round(r["totx"], 1),
+                        round(r["h1_retvol"] or 0, 2), round(r["h2_retvol"] or 0, 2),
                         round((r["h2_cagr"] or 0) * 100, 1), round(r["avg_n"], 0),
                         r["cost_mult"], "YES" if r["surv"] else "NO"])
     print(f"\nsaved -> out/overlay_experiment.csv")

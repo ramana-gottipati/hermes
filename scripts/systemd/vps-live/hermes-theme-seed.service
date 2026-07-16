@@ -8,5 +8,8 @@ WorkingDirectory=/opt/hermes
 # cross-cutting proposals from company_about (₹0, no LLM, no rate limits). Both
 # idempotent. The opt-in Gemini-only --llm-propose is NOT scheduled (spend call).
 ExecStart=/opt/hermes/.venv/bin/python -m src.automation.theme_tags --seed --keyword-propose
+# D134 L5: mirror fresh proposals into the Review Inbox + apply decided items back
+# (idempotent, per-item commits; single-writer doctrine in inbox_adapters.py docstring)
+ExecStart=/opt/hermes/.venv/bin/python -m src.automation.inbox_adapters --sync --apply
 StandardOutput=append:/var/log/hermes-theme-seed.log
 StandardError=append:/var/log/hermes-theme-seed.log

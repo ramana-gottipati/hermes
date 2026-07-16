@@ -1,9 +1,15 @@
 """Backtest metrics + baselines.
 
-Primary acceptance metric is Calmar/MAR (CAGR / |MaxDD|). We also report Sharpe,
+Primary acceptance metric is Calmar/MAR (CAGR / |MaxDD|). We also report return/vol,
 Sortino, profit factor, realized hit rate, expectancy-in-R (from the fill-level sim,
 NOT arithmetic on MFE/MAE means), MFE-capture efficiency, by-year P&L, and — for the
 alpha-vs-beta gate — the strategy's beta/alpha vs Nifty plus buy-and-hold baselines.
+
+equity_stats() emits mean/sd annualised under the `retvol` key with NO risk-free rate
+subtracted — a return/vol ratio, not a Sharpe, and it reads high against a textbook one;
+`sortino` carries the same defect (no rf/MAR subtracted). Every consumer of these keys
+inherits the caveat. A true Sharpe needs a primary-source rf ingest (Guardrail #8), queued
+with the TR-benchmark re-cut. (D142)
 """
 from __future__ import annotations
 
@@ -22,7 +28,7 @@ def _years(d0: str, d1: str) -> float:
 
 def equity_stats(dates, equity) -> dict:
     if len(equity) < 2:
-        return {"cagr": 0, "maxdd": 0, "calmar": 0, "sharpe": 0, "sortino": 0,
+        return {"cagr": 0, "maxdd": 0, "calmar": 0, "retvol": 0, "sortino": 0,
                 "total_ret": 0, "ndays": len(equity)}
     eq = np.asarray(equity, float)
     ret = eq[1:] / eq[:-1] - 1.0
@@ -35,10 +41,10 @@ def equity_stats(dates, equity) -> dict:
     sd = float(ret.std())
     dn = ret[ret < 0]
     dsd = float(dn.std()) if len(dn) else np.nan
-    sharpe = float(ret.mean() / sd * np.sqrt(TD)) if sd > 0 else 0.0
+    retvol = float(ret.mean() / sd * np.sqrt(TD)) if sd > 0 else 0.0
     sortino = float(ret.mean() / dsd * np.sqrt(TD)) if dsd and dsd > 0 else 0.0
     return {"cagr": cagr, "maxdd": maxdd, "calmar": cagr / abs(maxdd) if maxdd < 0 else 0.0,
-            "sharpe": sharpe, "sortino": sortino, "total_ret": total, "ndays": len(eq),
+            "retvol": retvol, "sortino": sortino, "total_ret": total, "ndays": len(eq),
             "years": yrs}
 
 

@@ -4,8 +4,9 @@ Ramana's ask (S146): "once you select the model, I can access the strategies and
 model portfolios, allowing me to choose it… can you display it under the tracker?"
 
 THE DESIGN (agreed with Ramana, and the reason this is a DISPLAY + a bridge, not a copy):
-  * the ENGINE OWNS the books — `auto_portfolios` (the 4 ADMITTED: superior measured Sharpe AND
-    beats the Nifty hurdle) and `classic_portfolios` (the famous public rules, most of which do
+  * the ENGINE OWNS the books — `auto_portfolios` (the 4 ADMITTED: superior measured RETURN/VOL
+    AND beats the Nifty hurdle — D142: return/vol, not Sharpe, because that is what was measured;
+    no risk-free rate is subtracted. The RULE is unchanged, only the name was wrong) and `classic_portfolios` (the famous public rules, most of which do
     NOT clear that bar). Both are reconstructed, no-manual-edit by construction — his lock.
   * the TRACKER DISPLAYS them read-only beside his own books, so "my book vs the models" is one
     screen. Display-only keeps the engine lock intact.
@@ -80,7 +81,7 @@ _PORTFOLIOS = _canon("portfolios", "/dash/tracker/portfolios")
 # (estate label, nav table, holdings table, what it means)
 _ESTATES = [
     ("Engine-admitted books", "auto_portfolio_nav", "auto_portfolio_holdings",
-     "Admitted on evidence: superior measured Sharpe AND beats the Nifty-500 hurdle."),
+     "Admitted on evidence: superior measured return/vol AND beats the Nifty-500 hurdle."),
     ("Classic public strategies", "classic_portfolio_nav", "classic_portfolio_holdings",
      "The famous public rules on the same engine. Most do NOT clear the admission bar — "
      "that is the finding, not a defect."),

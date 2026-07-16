@@ -1,0 +1,9817 @@
+{
+ "stats": {
+  "ret_vol": 0.775,
+  "h1": 0.83,
+  "h2": 0.713,
+  "cagr": 0.1666,
+  "mdd": -0.4324,
+  "cr": 27.467
+ },
+ "stock_cost": 0.004,
+ "book": [
+  {
+   "date": "2005-01-03",
+   "sectors": {},
+   "holdings": [],
+   "sleeve_w": 1,
+   "regime": "INDEX",
+   "entered": [],
+   "exited": [],
+   "n_stocks": 0
+  },
+  {
+   "date": "2005-04-01",
+   "sectors": {},
+   "holdings": [],
+   "sleeve_w": 1,
+   "regime": "INDEX",
+   "entered": [],
+   "exited": [],
+   "n_stocks": 0
+  },
+  {
+   "date": "2005-07-01",
+   "sectors": {},
+   "holdings": [],
+   "sleeve_w": 1,
+   "regime": "INDEX",
+   "entered": [],
+   "exited": [],
+   "n_stocks": 0
+  },
+  {
+   "date": "2005-10-03",
+   "sectors": {
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "BBTC",
+     0.12
+    ],
+    [
+     "RADICO",
+     0.0836
+    ],
+    [
+     "CCL",
+     0.0649
+    ],
+    [
+     "DABUR",
+     0.0133
+    ],
+    [
+     "BRITANNIA",
+     0.01
+    ],
+    [
+     "GODREJCP",
+     0.0082
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "BBTC",
+    "BRITANNIA",
+    "CCL",
+    "DABUR",
+    "GODREJCP",
+    "RADICO"
+   ],
+   "exited": [],
+   "n_stocks": 6
+  },
+  {
+   "date": "2006-01-02",
+   "sectors": {
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "CCL",
+     0.12
+    ],
+    [
+     "BALRAMCHIN",
+     0.0554
+    ],
+    [
+     "EIDPARRY",
+     0.0391
+    ],
+    [
+     "GODFRYPHLP",
+     0.0379
+    ],
+    [
+     "RADICO",
+     0.0334
+    ],
+    [
+     "DABUR",
+     0.0116
+    ],
+    [
+     "GODREJCP",
+     0.0027
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "BALRAMCHIN",
+    "EIDPARRY",
+    "GODFRYPHLP"
+   ],
+   "exited": [
+    "BBTC",
+    "BRITANNIA"
+   ],
+   "n_stocks": 7
+  },
+  {
+   "date": "2006-04-03",
+   "sectors": {
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "BALRAMCHIN",
+     0.1131
+    ],
+    [
+     "MARICO",
+     0.08
+    ],
+    [
+     "GODREJCP",
+     0.0398
+    ],
+    [
+     "EIDPARRY",
+     0.0291
+    ],
+    [
+     "BRITANNIA",
+     0.0268
+    ],
+    [
+     "GODFRYPHLP",
+     0.0058
+    ],
+    [
+     "ITC",
+     0.0055
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "BRITANNIA",
+    "ITC",
+    "MARICO"
+   ],
+   "exited": [
+    "CCL",
+    "DABUR",
+    "RADICO"
+   ],
+   "n_stocks": 7
+  },
+  {
+   "date": "2006-07-03",
+   "sectors": {
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "BBTC",
+     0.0907
+    ],
+    [
+     "ITC",
+     0.0712
+    ],
+    [
+     "MARICO",
+     0.0673
+    ],
+    [
+     "GODREJCP",
+     0.0514
+    ],
+    [
+     "BALRAMCHIN",
+     0.0194
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "BBTC"
+   ],
+   "exited": [
+    "BRITANNIA",
+    "EIDPARRY",
+    "GODFRYPHLP"
+   ],
+   "n_stocks": 5
+  },
+  {
+   "date": "2006-10-03",
+   "sectors": {
+    "Nifty Bank": 0.3
+   },
+   "holdings": [
+    [
+     "BANKBARODA",
+     0.1088
+    ],
+    [
+     "HDFCBANK",
+     0.0707
+    ],
+    [
+     "ICICIBANK",
+     0.0679
+    ],
+    [
+     "KOTAKBANK",
+     0.0367
+    ],
+    [
+     "PNB",
+     0.0114
+    ],
+    [
+     "UNIONBANK",
+     0.0046
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "BANKBARODA",
+    "HDFCBANK",
+    "ICICIBANK",
+    "KOTAKBANK",
+    "PNB",
+    "UNIONBANK"
+   ],
+   "exited": [
+    "BALRAMCHIN",
+    "BBTC",
+    "GODREJCP",
+    "ITC",
+    "MARICO"
+   ],
+   "n_stocks": 6
+  },
+  {
+   "date": "2007-01-02",
+   "sectors": {
+    "Nifty Bank": 0.3
+   },
+   "holdings": [
+    [
+     "ICICIBANK",
+     0.0967
+    ],
+    [
+     "YESBANK",
+     0.0858
+    ],
+    [
+     "SBIN",
+     0.0621
+    ],
+    [
+     "KOTAKBANK",
+     0.038
+    ],
+    [
+     "PNB",
+     0.0174
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "SBIN",
+    "YESBANK"
+   ],
+   "exited": [
+    "BANKBARODA",
+    "HDFCBANK",
+    "UNIONBANK"
+   ],
+   "n_stocks": 5
+  },
+  {
+   "date": "2007-04-02",
+   "sectors": {
+    "Nifty Bank": 0.3
+   },
+   "holdings": [
+    [
+     "YESBANK",
+     0.12
+    ],
+    [
+     "KOTAKBANK",
+     0.12
+    ],
+    [
+     "ICICIBANK",
+     0.0566
+    ],
+    [
+     "HDFCBANK",
+     0.0034
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "HDFCBANK"
+   ],
+   "exited": [
+    "PNB",
+    "SBIN"
+   ],
+   "n_stocks": 4
+  },
+  {
+   "date": "2007-07-02",
+   "sectors": {
+    "Nifty Bank": 0.3
+   },
+   "holdings": [
+    [
+     "KOTAKBANK",
+     0.12
+    ],
+    [
+     "FEDERALBNK",
+     0.0967
+    ],
+    [
+     "YESBANK",
+     0.061
+    ],
+    [
+     "INDUSINDBK",
+     0.0178
+    ],
+    [
+     "SBIN",
+     0.0045
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "FEDERALBNK",
+    "INDUSINDBK",
+    "SBIN"
+   ],
+   "exited": [
+    "HDFCBANK",
+    "ICICIBANK"
+   ],
+   "n_stocks": 5
+  },
+  {
+   "date": "2007-10-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty Energy": 0.3
+   },
+   "holdings": [
+    [
+     "KOTAKBANK",
+     0.087
+    ],
+    [
+     "SBIN",
+     0.0812
+    ],
+    [
+     "MRPL",
+     0.0782
+    ],
+    [
+     "INDUSINDBK",
+     0.0613
+    ],
+    [
+     "PETRONET",
+     0.0566
+    ],
+    [
+     "THERMAX",
+     0.0532
+    ],
+    [
+     "FEDERALBNK",
+     0.0425
+    ],
+    [
+     "TATAPOWER",
+     0.0396
+    ],
+    [
+     "RELIANCE",
+     0.0301
+    ],
+    [
+     "UNIONBANK",
+     0.028
+    ],
+    [
+     "TORNTPOWER",
+     0.024
+    ],
+    [
+     "SUZLON",
+     0.0093
+    ],
+    [
+     "CHENNPETRO",
+     0.0091
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "CHENNPETRO",
+    "MRPL",
+    "PETRONET",
+    "RELIANCE",
+    "SUZLON",
+    "TATAPOWER",
+    "THERMAX",
+    "TORNTPOWER",
+    "UNIONBANK"
+   ],
+   "exited": [
+    "YESBANK"
+   ],
+   "n_stocks": 13
+  },
+  {
+   "date": "2008-01-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty Energy": 0.3
+   },
+   "holdings": [
+    [
+     "INDUSINDBK",
+     0.12
+    ],
+    [
+     "MRPL",
+     0.12
+    ],
+    [
+     "TORNTPOWER",
+     0.1118
+    ],
+    [
+     "KOTAKBANK",
+     0.0986
+    ],
+    [
+     "TATAPOWER",
+     0.0651
+    ],
+    [
+     "BANKBARODA",
+     0.0491
+    ],
+    [
+     "UNIONBANK",
+     0.0213
+    ],
+    [
+     "PETRONET",
+     0.0141
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "BANKBARODA"
+   ],
+   "exited": [
+    "CHENNPETRO",
+    "FEDERALBNK",
+    "RELIANCE",
+    "SBIN",
+    "SUZLON",
+    "THERMAX"
+   ],
+   "n_stocks": 8
+  },
+  {
+   "date": "2008-04-01",
+   "sectors": {
+    "Nifty Energy": 0.0,
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "EMAMILTD",
+     0.0747
+    ],
+    [
+     "MARICO",
+     0.0453
+    ],
+    [
+     "EIDPARRY",
+     0.0412
+    ],
+    [
+     "ITC",
+     0.0394
+    ],
+    [
+     "BALRAMCHIN",
+     0.0332
+    ],
+    [
+     "HINDUNILVR",
+     0.0328
+    ],
+    [
+     "GILLETTE",
+     0.0174
+    ],
+    [
+     "DABUR",
+     0.0159
+    ],
+    [
+     "TATAPOWER",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "CASH",
+   "entered": [
+    "BALRAMCHIN",
+    "DABUR",
+    "EIDPARRY",
+    "EMAMILTD",
+    "GILLETTE",
+    "HINDUNILVR",
+    "ITC",
+    "MARICO"
+   ],
+   "exited": [
+    "BANKBARODA",
+    "INDUSINDBK",
+    "KOTAKBANK",
+    "MRPL",
+    "PETRONET",
+    "TORNTPOWER",
+    "UNIONBANK"
+   ],
+   "n_stocks": 9
+  },
+  {
+   "date": "2008-07-01",
+   "sectors": {
+    "Nifty Energy": 0.0,
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "GODREJCP",
+     0.0621
+    ],
+    [
+     "EIDPARRY",
+     0.0549
+    ],
+    [
+     "BRITANNIA",
+     0.0528
+    ],
+    [
+     "HINDUNILVR",
+     0.0376
+    ],
+    [
+     "ITC",
+     0.0341
+    ],
+    [
+     "COLPAL",
+     0.0254
+    ],
+    [
+     "GODFRYPHLP",
+     0.023
+    ],
+    [
+     "EMAMILTD",
+     0.01
+    ],
+    [
+     "TATAPOWER",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "CASH",
+   "entered": [
+    "BRITANNIA",
+    "COLPAL",
+    "GODFRYPHLP",
+    "GODREJCP"
+   ],
+   "exited": [
+    "BALRAMCHIN",
+    "DABUR",
+    "GILLETTE",
+    "MARICO"
+   ],
+   "n_stocks": 9
+  },
+  {
+   "date": "2008-10-01",
+   "sectors": {
+    "Nifty Energy": 0.0,
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "EIDPARRY",
+     0.0739
+    ],
+    [
+     "HINDUNILVR",
+     0.0621
+    ],
+    [
+     "GODFRYPHLP",
+     0.0449
+    ],
+    [
+     "COLPAL",
+     0.0375
+    ],
+    [
+     "EMAMILTD",
+     0.0291
+    ],
+    [
+     "BRITANNIA",
+     0.0274
+    ],
+    [
+     "BALRAMCHIN",
+     0.02
+    ],
+    [
+     "ITC",
+     0.0051
+    ],
+    [
+     "ONGC",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "CASH",
+   "entered": [
+    "BALRAMCHIN",
+    "ONGC"
+   ],
+   "exited": [
+    "GODREJCP",
+    "TATAPOWER"
+   ],
+   "n_stocks": 9
+  },
+  {
+   "date": "2009-01-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty Energy": 0.3,
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "UNIONBANK",
+     0.1045
+    ],
+    [
+     "BANKBARODA",
+     0.0827
+    ],
+    [
+     "HINDUNILVR",
+     0.0761
+    ],
+    [
+     "HINDPETRO",
+     0.0683
+    ],
+    [
+     "BPCL",
+     0.0676
+    ],
+    [
+     "COLPAL",
+     0.0652
+    ],
+    [
+     "PNB",
+     0.0634
+    ],
+    [
+     "IOC",
+     0.0525
+    ],
+    [
+     "GODREJCP",
+     0.0524
+    ],
+    [
+     "NTPC",
+     0.0481
+    ],
+    [
+     "MARICO",
+     0.0346
+    ],
+    [
+     "DABUR",
+     0.0296
+    ],
+    [
+     "POWERGRID",
+     0.0269
+    ],
+    [
+     "SBIN",
+     0.0264
+    ],
+    [
+     "BHEL",
+     0.0237
+    ],
+    [
+     "CANBK",
+     0.0217
+    ],
+    [
+     "BRITANNIA",
+     0.0198
+    ],
+    [
+     "ITC",
+     0.0153
+    ],
+    [
+     "IGL",
+     0.0106
+    ],
+    [
+     "EMAMILTD",
+     0.007
+    ],
+    [
+     "RPOWER",
+     0.0023
+    ],
+    [
+     "HDFCBANK",
+     0.0012
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "CASH",
+   "entered": [
+    "BANKBARODA",
+    "BHEL",
+    "BPCL",
+    "CANBK",
+    "DABUR",
+    "GODREJCP",
+    "HDFCBANK",
+    "HINDPETRO",
+    "IGL",
+    "IOC",
+    "MARICO",
+    "NTPC",
+    "PNB",
+    "POWERGRID",
+    "RPOWER",
+    "SBIN",
+    "UNIONBANK"
+   ],
+   "exited": [
+    "BALRAMCHIN",
+    "EIDPARRY",
+    "GODFRYPHLP",
+    "ONGC"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2009-04-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty Energy": 0.3,
+    "Nifty FMCG": 0.3
+   },
+   "holdings": [
+    [
+     "UNIONBANK",
+     0.12
+    ],
+    [
+     "COLPAL",
+     0.0671
+    ],
+    [
+     "HINDPETRO",
+     0.0657
+    ],
+    [
+     "BPCL",
+     0.0544
+    ],
+    [
+     "PNB",
+     0.0514
+    ],
+    [
+     "HDFCBANK",
+     0.049
+    ],
+    [
+     "DABUR",
+     0.0459
+    ],
+    [
+     "GODREJCP",
+     0.0449
+    ],
+    [
+     "IOC",
+     0.0433
+    ],
+    [
+     "NTPC",
+     0.0408
+    ],
+    [
+     "POWERGRID",
+     0.0406
+    ],
+    [
+     "RADICO",
+     0.0371
+    ],
+    [
+     "IGL",
+     0.0336
+    ],
+    [
+     "MARICO",
+     0.0329
+    ],
+    [
+     "BRITANNIA",
+     0.0318
+    ],
+    [
+     "CANBK",
+     0.0281
+    ],
+    [
+     "BANKBARODA",
+     0.0267
+    ],
+    [
+     "ITC",
+     0.023
+    ],
+    [
+     "HINDUNILVR",
+     0.0229
+    ],
+    [
+     "BHEL",
+     0.021
+    ],
+    [
+     "SBIN",
+     0.0137
+    ],
+    [
+     "TATAPOWER",
+     0.0062
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "CASH",
+   "entered": [
+    "RADICO",
+    "TATAPOWER"
+   ],
+   "exited": [
+    "EMAMILTD",
+    "RPOWER"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2009-07-01",
+   "sectors": {
+    "Nifty Bank": 0.3
+   },
+   "holdings": [
+    [
+     "INDUSINDBK",
+     0.12
+    ],
+    [
+     "YESBANK",
+     0.0875
+    ],
+    [
+     "KOTAKBANK",
+     0.0389
+    ],
+    [
+     "FEDERALBNK",
+     0.0367
+    ],
+    [
+     "BANKBARODA",
+     0.0169
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "FEDERALBNK",
+    "INDUSINDBK",
+    "KOTAKBANK",
+    "YESBANK"
+   ],
+   "exited": [
+    "BHEL",
+    "BPCL",
+    "BRITANNIA",
+    "CANBK",
+    "COLPAL",
+    "DABUR",
+    "GODREJCP",
+    "HDFCBANK",
+    "HINDPETRO",
+    "HINDUNILVR",
+    "IGL",
+    "IOC",
+    "ITC",
+    "MARICO",
+    "NTPC",
+    "PNB",
+    "POWERGRID",
+    "RADICO",
+    "SBIN",
+    "TATAPOWER",
+    "UNIONBANK"
+   ],
+   "n_stocks": 5
+  },
+  {
+   "date": "2009-10-01",
+   "sectors": {
+    "Nifty Bank": 0.0,
+    "Nifty IT": 0.3
+   },
+   "holdings": [
+    [
+     "TECHM",
+     0.1026
+    ],
+    [
+     "MPHASIS",
+     0.0879
+    ],
+    [
+     "HCLTECH",
+     0.0748
+    ],
+    [
+     "ZENSARTECH",
+     0.0347
+    ],
+    [
+     "YESBANK",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "HCLTECH",
+    "MPHASIS",
+    "TECHM",
+    "ZENSARTECH"
+   ],
+   "exited": [
+    "BANKBARODA",
+    "FEDERALBNK",
+    "INDUSINDBK",
+    "KOTAKBANK"
+   ],
+   "n_stocks": 5
+  },
+  {
+   "date": "2010-01-04",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty IT": 0.3
+   },
+   "holdings": [
+    [
+     "YESBANK",
+     0.12
+    ],
+    [
+     "INDUSINDBK",
+     0.12
+    ],
+    [
+     "ZENSARTECH",
+     0.12
+    ],
+    [
+     "CANBK",
+     0.1052
+    ],
+    [
+     "PNB",
+     0.0457
+    ],
+    [
+     "TCS",
+     0.0386
+    ],
+    [
+     "HCLTECH",
+     0.0328
+    ],
+    [
+     "SBIN",
+     0.0124
+    ],
+    [
+     "MPHASIS",
+     0.0053
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "CANBK",
+    "INDUSINDBK",
+    "PNB",
+    "SBIN",
+    "TCS"
+   ],
+   "exited": [
+    "TECHM"
+   ],
+   "n_stocks": 9
+  },
+  {
+   "date": "2010-04-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty IT": 0.3
+   },
+   "holdings": [
+    [
+     "INDUSINDBK",
+     0.12
+    ],
+    [
+     "TATAELXSI",
+     0.12
+    ],
+    [
+     "SONATSOFTW",
+     0.1189
+    ],
+    [
+     "BANKBARODA",
+     0.0614
+    ],
+    [
+     "CANBK",
+     0.0399
+    ],
+    [
+     "PNB",
+     0.0389
+    ],
+    [
+     "TCS",
+     0.0385
+    ],
+    [
+     "YESBANK",
+     0.0322
+    ],
+    [
+     "AXISBANK",
+     0.0179
+    ],
+    [
+     "HDFCBANK",
+     0.012
+    ],
+    [
+     "OFSS",
+     0.0004
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "AXISBANK",
+    "BANKBARODA",
+    "HDFCBANK",
+    "OFSS",
+    "SONATSOFTW",
+    "TATAELXSI"
+   ],
+   "exited": [
+    "HCLTECH",
+    "MPHASIS",
+    "SBIN",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 11
+  },
+  {
+   "date": "2010-07-01",
+   "sectors": {
+    "Nifty Bank": 0.273,
+    "Nifty FMCG": 0.1427,
+    "Nifty IT": 0.2843,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "SONATSOFTW",
+     0.12
+    ],
+    [
+     "AJANTPHARM",
+     0.12
+    ],
+    [
+     "INDUSINDBK",
+     0.1107
+    ],
+    [
+     "BANKBARODA",
+     0.0847
+    ],
+    [
+     "ZYDUSWELL",
+     0.0784
+    ],
+    [
+     "JBCHEPHARM",
+     0.0756
+    ],
+    [
+     "TATAELXSI",
+     0.0565
+    ],
+    [
+     "FEDERALBNK",
+     0.0519
+    ],
+    [
+     "TORNTPHARM",
+     0.0462
+    ],
+    [
+     "ZENSARTECH",
+     0.0349
+    ],
+    [
+     "LUPIN",
+     0.0336
+    ],
+    [
+     "EMAMILTD",
+     0.0329
+    ],
+    [
+     "AXISBANK",
+     0.0319
+    ],
+    [
+     "OFSS",
+     0.0293
+    ],
+    [
+     "TCS",
+     0.0162
+    ],
+    [
+     "DRREDDY",
+     0.0148
+    ],
+    [
+     "GILLETTE",
+     0.0133
+    ],
+    [
+     "HCLTECH",
+     0.0132
+    ],
+    [
+     "UBL",
+     0.0122
+    ],
+    [
+     "GODREJCP",
+     0.0113
+    ],
+    [
+     "DIVISLAB",
+     0.0078
+    ],
+    [
+     "UNIONBANK",
+     0.0039
+    ],
+    [
+     "BIOCON",
+     0.0006
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "AJANTPHARM",
+    "BIOCON",
+    "DIVISLAB",
+    "DRREDDY",
+    "EMAMILTD",
+    "FEDERALBNK",
+    "GILLETTE",
+    "GODREJCP",
+    "HCLTECH",
+    "JBCHEPHARM",
+    "LUPIN",
+    "TORNTPHARM",
+    "UBL",
+    "UNIONBANK",
+    "ZENSARTECH",
+    "ZYDUSWELL"
+   ],
+   "exited": [
+    "CANBK",
+    "HDFCBANK",
+    "PNB",
+    "YESBANK"
+   ],
+   "n_stocks": 23
+  },
+  {
+   "date": "2010-10-01",
+   "sectors": {
+    "Nifty Bank": 0.102,
+    "Nifty FMCG": 0.3,
+    "Nifty IT": 0.298,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "UBL",
+     0.1157
+    ],
+    [
+     "HCLTECH",
+     0.1147
+    ],
+    [
+     "TCS",
+     0.1021
+    ],
+    [
+     "PERSISTENT",
+     0.0625
+    ],
+    [
+     "JBCHEPHARM",
+     0.0508
+    ],
+    [
+     "BBTC",
+     0.0505
+    ],
+    [
+     "SBIN",
+     0.0501
+    ],
+    [
+     "GODREJCP",
+     0.0384
+    ],
+    [
+     "INDUSINDBK",
+     0.0355
+    ],
+    [
+     "CCL",
+     0.0353
+    ],
+    [
+     "ZYDUSWELL",
+     0.031
+    ],
+    [
+     "FEDERALBNK",
+     0.0273
+    ],
+    [
+     "OFSS",
+     0.0273
+    ],
+    [
+     "ABBOTINDIA",
+     0.0256
+    ],
+    [
+     "RADICO",
+     0.0249
+    ],
+    [
+     "MPHASIS",
+     0.0231
+    ],
+    [
+     "HINDUNILVR",
+     0.0222
+    ],
+    [
+     "AJANTPHARM",
+     0.0193
+    ],
+    [
+     "COLPAL",
+     0.0139
+    ],
+    [
+     "BIOCON",
+     0.0087
+    ],
+    [
+     "DRREDDY",
+     0.0013
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ABBOTINDIA",
+    "BBTC",
+    "CCL",
+    "COLPAL",
+    "HINDUNILVR",
+    "MPHASIS",
+    "PERSISTENT",
+    "RADICO",
+    "SBIN",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "AXISBANK",
+    "BANKBARODA",
+    "DIVISLAB",
+    "EMAMILTD",
+    "GILLETTE",
+    "LUPIN",
+    "SONATSOFTW",
+    "TATAELXSI",
+    "TORNTPHARM",
+    "UNIONBANK",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2011-01-03",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty FMCG": 0.3,
+    "Nifty IT": 0.1,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "UBL",
+     0.12
+    ],
+    [
+     "CANBK",
+     0.1133
+    ],
+    [
+     "JBCHEPHARM",
+     0.0785
+    ],
+    [
+     "AUROPHARMA",
+     0.0711
+    ],
+    [
+     "ICICIBANK",
+     0.0685
+    ],
+    [
+     "TCS",
+     0.0572
+    ],
+    [
+     "BIOCON",
+     0.0521
+    ],
+    [
+     "BBTC",
+     0.0488
+    ],
+    [
+     "GLENMARK",
+     0.0478
+    ],
+    [
+     "INDUSINDBK",
+     0.0389
+    ],
+    [
+     "BANKBARODA",
+     0.0345
+    ],
+    [
+     "RADICO",
+     0.0312
+    ],
+    [
+     "CCL",
+     0.0271
+    ],
+    [
+     "HCLTECH",
+     0.0249
+    ],
+    [
+     "SBIN",
+     0.0231
+    ],
+    [
+     "HDFCBANK",
+     0.0219
+    ],
+    [
+     "NESTLEIND",
+     0.0206
+    ],
+    [
+     "IPCALAB",
+     0.0205
+    ],
+    [
+     "WIPRO",
+     0.0192
+    ],
+    [
+     "DRREDDY",
+     0.0176
+    ],
+    [
+     "ZYDUSWELL",
+     0.017
+    ],
+    [
+     "HINDUNILVR",
+     0.0131
+    ],
+    [
+     "GODFRYPHLP",
+     0.0129
+    ],
+    [
+     "CIPLA",
+     0.0112
+    ],
+    [
+     "ABBOTINDIA",
+     0.0054
+    ],
+    [
+     "FEDERALBNK",
+     0.0038
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "AUROPHARMA",
+    "BANKBARODA",
+    "CANBK",
+    "CIPLA",
+    "GLENMARK",
+    "GODFRYPHLP",
+    "HDFCBANK",
+    "ICICIBANK",
+    "IPCALAB",
+    "NESTLEIND",
+    "WIPRO"
+   ],
+   "exited": [
+    "AJANTPHARM",
+    "COLPAL",
+    "GODREJCP",
+    "MPHASIS",
+    "OFSS",
+    "PERSISTENT",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 26
+  },
+  {
+   "date": "2011-04-01",
+   "sectors": {
+    "Nifty Bank": 0.155,
+    "Nifty FMCG": 0.3,
+    "Nifty IT": 0.245,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "TCS",
+     0.12
+    ],
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "UBL",
+     0.0809
+    ],
+    [
+     "HCLTECH",
+     0.0688
+    ],
+    [
+     "NESTLEIND",
+     0.0602
+    ],
+    [
+     "GODFRYPHLP",
+     0.0558
+    ],
+    [
+     "CANBK",
+     0.0518
+    ],
+    [
+     "MARICO",
+     0.0517
+    ],
+    [
+     "BANKBARODA",
+     0.0489
+    ],
+    [
+     "JBCHEPHARM",
+     0.0472
+    ],
+    [
+     "FEDERALBNK",
+     0.0439
+    ],
+    [
+     "WIPRO",
+     0.0437
+    ],
+    [
+     "ITC",
+     0.0389
+    ],
+    [
+     "ABBOTINDIA",
+     0.0305
+    ],
+    [
+     "ZYDUSWELL",
+     0.0296
+    ],
+    [
+     "TATAELXSI",
+     0.025
+    ],
+    [
+     "INDUSINDBK",
+     0.0228
+    ],
+    [
+     "DRREDDY",
+     0.0136
+    ],
+    [
+     "GILLETTE",
+     0.0126
+    ],
+    [
+     "COLPAL",
+     0.0125
+    ],
+    [
+     "ICICIBANK",
+     0.0095
+    ],
+    [
+     "LUPIN",
+     0.0067
+    ],
+    [
+     "ZENSARTECH",
+     0.0054
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "COLPAL",
+    "GILLETTE",
+    "ITC",
+    "LUPIN",
+    "MARICO",
+    "TATAELXSI",
+    "WOCKPHARMA",
+    "ZENSARTECH"
+   ],
+   "exited": [
+    "AUROPHARMA",
+    "BBTC",
+    "BIOCON",
+    "CCL",
+    "CIPLA",
+    "GLENMARK",
+    "HDFCBANK",
+    "HINDUNILVR",
+    "IPCALAB",
+    "RADICO",
+    "SBIN"
+   ],
+   "n_stocks": 23
+  },
+  {
+   "date": "2011-07-01",
+   "sectors": {
+    "Nifty Bank": 0.146,
+    "Nifty FMCG": 0.254,
+    "Nifty IT": 0.3,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "AJANTPHARM",
+     0.1034
+    ],
+    [
+     "HCLTECH",
+     0.0891
+    ],
+    [
+     "GODFRYPHLP",
+     0.0777
+    ],
+    [
+     "WOCKPHARMA",
+     0.0627
+    ],
+    [
+     "TECHM",
+     0.0604
+    ],
+    [
+     "TCS",
+     0.0565
+    ],
+    [
+     "DIVISLAB",
+     0.0561
+    ],
+    [
+     "FEDERALBNK",
+     0.0511
+    ],
+    [
+     "OFSS",
+     0.0471
+    ],
+    [
+     "ZENSARTECH",
+     0.0469
+    ],
+    [
+     "MARICO",
+     0.0465
+    ],
+    [
+     "ABBOTINDIA",
+     0.0349
+    ],
+    [
+     "HDFCBANK",
+     0.0322
+    ],
+    [
+     "EMAMILTD",
+     0.03
+    ],
+    [
+     "BRITANNIA",
+     0.0276
+    ],
+    [
+     "TORNTPHARM",
+     0.027
+    ],
+    [
+     "KOTAKBANK",
+     0.0258
+    ],
+    [
+     "GILLETTE",
+     0.0212
+    ],
+    [
+     "INDUSINDBK",
+     0.0209
+    ],
+    [
+     "DABUR",
+     0.0186
+    ],
+    [
+     "COLPAL",
+     0.0166
+    ],
+    [
+     "YESBANK",
+     0.016
+    ],
+    [
+     "ITC",
+     0.0159
+    ],
+    [
+     "SUNPHARMA",
+     0.0111
+    ],
+    [
+     "IPCALAB",
+     0.0049
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "AJANTPHARM",
+    "BRITANNIA",
+    "DABUR",
+    "DIVISLAB",
+    "EMAMILTD",
+    "HDFCBANK",
+    "IPCALAB",
+    "KOTAKBANK",
+    "OFSS",
+    "SUNPHARMA",
+    "TECHM",
+    "TORNTPHARM",
+    "YESBANK"
+   ],
+   "exited": [
+    "BANKBARODA",
+    "CANBK",
+    "DRREDDY",
+    "ICICIBANK",
+    "JBCHEPHARM",
+    "LUPIN",
+    "NESTLEIND",
+    "TATAELXSI",
+    "UBL",
+    "WIPRO",
+    "ZYDUSWELL"
+   ],
+   "n_stocks": 25
+  },
+  {
+   "date": "2011-10-03",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty FMCG": 0.3,
+    "Nifty IT": 0.0,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "GODFRYPHLP",
+     0.12
+    ],
+    [
+     "AJANTPHARM",
+     0.12
+    ],
+    [
+     "KOTAKBANK",
+     0.1025
+    ],
+    [
+     "INDUSINDBK",
+     0.0818
+    ],
+    [
+     "WOCKPHARMA",
+     0.054
+    ],
+    [
+     "FEDERALBNK",
+     0.0523
+    ],
+    [
+     "BRITANNIA",
+     0.0429
+    ],
+    [
+     "LUPIN",
+     0.0394
+    ],
+    [
+     "YESBANK",
+     0.0342
+    ],
+    [
+     "GILLETTE",
+     0.0328
+    ],
+    [
+     "GLENMARK",
+     0.0325
+    ],
+    [
+     "HINDUNILVR",
+     0.0294
+    ],
+    [
+     "COLPAL",
+     0.0248
+    ],
+    [
+     "DIVISLAB",
+     0.0237
+    ],
+    [
+     "ABBOTINDIA",
+     0.0218
+    ],
+    [
+     "BANKBARODA",
+     0.0197
+    ],
+    [
+     "NESTLEIND",
+     0.0157
+    ],
+    [
+     "PNB",
+     0.0151
+    ],
+    [
+     "SUNPHARMA",
+     0.015
+    ],
+    [
+     "ICICIBANK",
+     0.0104
+    ],
+    [
+     "GODREJCP",
+     0.006
+    ],
+    [
+     "ITC",
+     0.0047
+    ],
+    [
+     "BIOCON",
+     0.0014
+    ],
+    [
+     "OFSS",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "CASH",
+   "entered": [
+    "BANKBARODA",
+    "BIOCON",
+    "GLENMARK",
+    "GODREJCP",
+    "HINDUNILVR",
+    "ICICIBANK",
+    "LUPIN",
+    "NESTLEIND",
+    "PNB"
+   ],
+   "exited": [
+    "DABUR",
+    "EMAMILTD",
+    "HCLTECH",
+    "HDFCBANK",
+    "IPCALAB",
+    "MARICO",
+    "TCS",
+    "TECHM",
+    "TORNTPHARM",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 24
+  },
+  {
+   "date": "2012-01-02",
+   "sectors": {
+    "Nifty FMCG": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "TCS",
+     0.12
+    ],
+    [
+     "HINDUNILVR",
+     0.0956
+    ],
+    [
+     "WIPRO",
+     0.0831
+    ],
+    [
+     "DRREDDY",
+     0.0535
+    ],
+    [
+     "DIVISLAB",
+     0.0485
+    ],
+    [
+     "COLPAL",
+     0.0479
+    ],
+    [
+     "ZENSARTECH",
+     0.0457
+    ],
+    [
+     "ABBOTINDIA",
+     0.0438
+    ],
+    [
+     "SUNPHARMA",
+     0.0424
+    ],
+    [
+     "AJANTPHARM",
+     0.0409
+    ],
+    [
+     "ITC",
+     0.0385
+    ],
+    [
+     "NESTLEIND",
+     0.0376
+    ],
+    [
+     "PERSISTENT",
+     0.0356
+    ],
+    [
+     "LUPIN",
+     0.0351
+    ],
+    [
+     "CIPLA",
+     0.0303
+    ],
+    [
+     "MARICO",
+     0.029
+    ],
+    [
+     "GILLETTE",
+     0.0224
+    ],
+    [
+     "BRITANNIA",
+     0.0206
+    ],
+    [
+     "GODFRYPHLP",
+     0.0124
+    ],
+    [
+     "GLENMARK",
+     0.0096
+    ],
+    [
+     "TECHM",
+     0.0054
+    ],
+    [
+     "OFSS",
+     0.0022
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "CASH",
+   "entered": [
+    "CIPLA",
+    "DRREDDY",
+    "MARICO",
+    "PERSISTENT",
+    "TCS",
+    "TECHM",
+    "WIPRO",
+    "ZENSARTECH"
+   ],
+   "exited": [
+    "BANKBARODA",
+    "BIOCON",
+    "FEDERALBNK",
+    "GODREJCP",
+    "ICICIBANK",
+    "INDUSINDBK",
+    "KOTAKBANK",
+    "PNB",
+    "WOCKPHARMA",
+    "YESBANK"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2012-04-02",
+   "sectors": {
+    "Nifty FMCG": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "AJANTPHARM",
+     0.1166
+    ],
+    [
+     "ZENSARTECH",
+     0.1138
+    ],
+    [
+     "WOCKPHARMA",
+     0.1059
+    ],
+    [
+     "OFSS",
+     0.0709
+    ],
+    [
+     "UBL",
+     0.0687
+    ],
+    [
+     "BBTC",
+     0.0549
+    ],
+    [
+     "HCLTECH",
+     0.0408
+    ],
+    [
+     "BRITANNIA",
+     0.0407
+    ],
+    [
+     "WIPRO",
+     0.0402
+    ],
+    [
+     "GILLETTE",
+     0.0383
+    ],
+    [
+     "GODREJCP",
+     0.0355
+    ],
+    [
+     "MPHASIS",
+     0.0281
+    ],
+    [
+     "SUNPHARMA",
+     0.0274
+    ],
+    [
+     "IPCALAB",
+     0.0268
+    ],
+    [
+     "HINDUNILVR",
+     0.0227
+    ],
+    [
+     "COLPAL",
+     0.021
+    ],
+    [
+     "BALRAMCHIN",
+     0.0182
+    ],
+    [
+     "DRREDDY",
+     0.0108
+    ],
+    [
+     "LUPIN",
+     0.0082
+    ],
+    [
+     "TECHM",
+     0.0045
+    ],
+    [
+     "TORNTPHARM",
+     0.0043
+    ],
+    [
+     "INFY",
+     0.0017
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "INDEX",
+   "entered": [
+    "BALRAMCHIN",
+    "BBTC",
+    "GODREJCP",
+    "HCLTECH",
+    "INFY",
+    "IPCALAB",
+    "MPHASIS",
+    "TORNTPHARM",
+    "UBL",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "ABBOTINDIA",
+    "CIPLA",
+    "DIVISLAB",
+    "GLENMARK",
+    "GODFRYPHLP",
+    "ITC",
+    "MARICO",
+    "NESTLEIND",
+    "PERSISTENT",
+    "TCS"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2012-07-02",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty FMCG": 0.3,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "CCL",
+     0.12
+    ],
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "AJANTPHARM",
+     0.1135
+    ],
+    [
+     "INDUSINDBK",
+     0.0986
+    ],
+    [
+     "YESBANK",
+     0.0874
+    ],
+    [
+     "BBTC",
+     0.0665
+    ],
+    [
+     "FEDERALBNK",
+     0.0459
+    ],
+    [
+     "BALRAMCHIN",
+     0.0436
+    ],
+    [
+     "KOTAKBANK",
+     0.0337
+    ],
+    [
+     "GODREJCP",
+     0.0333
+    ],
+    [
+     "SBIN",
+     0.0318
+    ],
+    [
+     "HDFCBANK",
+     0.0298
+    ],
+    [
+     "EMAMILTD",
+     0.028
+    ],
+    [
+     "UBL",
+     0.0222
+    ],
+    [
+     "GODFRYPHLP",
+     0.0138
+    ],
+    [
+     "ICICIBANK",
+     0.0119
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "INDEX",
+   "entered": [
+    "CCL",
+    "EMAMILTD",
+    "FEDERALBNK",
+    "GODFRYPHLP",
+    "HDFCBANK",
+    "ICICIBANK",
+    "INDUSINDBK",
+    "KOTAKBANK",
+    "SBIN",
+    "YESBANK"
+   ],
+   "exited": [
+    "BRITANNIA",
+    "COLPAL",
+    "DRREDDY",
+    "GILLETTE",
+    "HCLTECH",
+    "HINDUNILVR",
+    "INFY",
+    "IPCALAB",
+    "LUPIN",
+    "MPHASIS",
+    "OFSS",
+    "SUNPHARMA",
+    "TECHM",
+    "TORNTPHARM",
+    "WIPRO",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 16
+  },
+  {
+   "date": "2012-10-01",
+   "sectors": {
+    "Nifty Bank": 0.2575,
+    "Nifty FMCG": 0.3,
+    "Nifty Pharma": 0.3,
+    "Nifty Media": 0.1425
+   },
+   "holdings": [
+    [
+     "CCL",
+     0.12
+    ],
+    [
+     "DIVISLAB",
+     0.12
+    ],
+    [
+     "ZEEL",
+     0.0805
+    ],
+    [
+     "KOTAKBANK",
+     0.0734
+    ],
+    [
+     "ICICIBANK",
+     0.0724
+    ],
+    [
+     "IPCALAB",
+     0.0703
+    ],
+    [
+     "HDFCBANK",
+     0.0692
+    ],
+    [
+     "GLENMARK",
+     0.0657
+    ],
+    [
+     "HATHWAY",
+     0.0573
+    ],
+    [
+     "INDUSINDBK",
+     0.0505
+    ],
+    [
+     "GODREJCP",
+     0.048
+    ],
+    [
+     "HINDUNILVR",
+     0.0286
+    ],
+    [
+     "CIPLA",
+     0.0231
+    ],
+    [
+     "JBCHEPHARM",
+     0.0204
+    ],
+    [
+     "AUROPHARMA",
+     0.0165
+    ],
+    [
+     "PFOCUS",
+     0.0138
+    ],
+    [
+     "BALRAMCHIN",
+     0.0128
+    ],
+    [
+     "EMAMILTD",
+     0.0124
+    ],
+    [
+     "SBIN",
+     0.0116
+    ],
+    [
+     "BIOCON",
+     0.0113
+    ],
+    [
+     "YESBANK",
+     0.0055
+    ],
+    [
+     "SUNTV",
+     0.0049
+    ],
+    [
+     "ITC",
+     0.0048
+    ],
+    [
+     "DABUR",
+     0.0048
+    ],
+    [
+     "SUNPHARMA",
+     0.0012
+    ],
+    [
+     "EIDPARRY",
+     0.001
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "AUROPHARMA",
+    "BIOCON",
+    "CIPLA",
+    "DABUR",
+    "DIVISLAB",
+    "EIDPARRY",
+    "GLENMARK",
+    "HATHWAY",
+    "HINDUNILVR",
+    "IPCALAB",
+    "ITC",
+    "JBCHEPHARM",
+    "PFOCUS",
+    "SUNPHARMA",
+    "SUNTV",
+    "ZEEL"
+   ],
+   "exited": [
+    "AJANTPHARM",
+    "BBTC",
+    "FEDERALBNK",
+    "GODFRYPHLP",
+    "UBL",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 26
+  },
+  {
+   "date": "2013-01-01",
+   "sectors": {
+    "Nifty Bank": 0.1636,
+    "Nifty FMCG": 0.3,
+    "Nifty Pharma": 0.3,
+    "Nifty Media": 0.1715,
+    "Nifty Realty": 0.0649
+   },
+   "holdings": [
+    [
+     "AUROPHARMA",
+     0.1186
+    ],
+    [
+     "UBL",
+     0.1158
+    ],
+    [
+     "HATHWAY",
+     0.0826
+    ],
+    [
+     "ZEEL",
+     0.0585
+    ],
+    [
+     "JBCHEPHARM",
+     0.0567
+    ],
+    [
+     "YESBANK",
+     0.0564
+    ],
+    [
+     "IPCALAB",
+     0.0557
+    ],
+    [
+     "CCL",
+     0.0522
+    ],
+    [
+     "GLENMARK",
+     0.0475
+    ],
+    [
+     "COLPAL",
+     0.0362
+    ],
+    [
+     "AXISBANK",
+     0.0344
+    ],
+    [
+     "ANANTRAJ",
+     0.0338
+    ],
+    [
+     "ICICIBANK",
+     0.0335
+    ],
+    [
+     "UNIONBANK",
+     0.0323
+    ],
+    [
+     "ZYDUSWELL",
+     0.0322
+    ],
+    [
+     "BRIGADE",
+     0.031
+    ],
+    [
+     "SUNTV",
+     0.0304
+    ],
+    [
+     "GODREJCP",
+     0.0236
+    ],
+    [
+     "CIPLA",
+     0.0215
+    ],
+    [
+     "RADICO",
+     0.0163
+    ],
+    [
+     "EMAMILTD",
+     0.0146
+    ],
+    [
+     "MARICO",
+     0.0092
+    ],
+    [
+     "INDUSINDBK",
+     0.007
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ANANTRAJ",
+    "AXISBANK",
+    "BRIGADE",
+    "COLPAL",
+    "MARICO",
+    "RADICO",
+    "UBL",
+    "UNIONBANK",
+    "ZYDUSWELL"
+   ],
+   "exited": [
+    "BALRAMCHIN",
+    "BIOCON",
+    "DABUR",
+    "DIVISLAB",
+    "EIDPARRY",
+    "HDFCBANK",
+    "HINDUNILVR",
+    "ITC",
+    "KOTAKBANK",
+    "PFOCUS",
+    "SBIN",
+    "SUNPHARMA"
+   ],
+   "n_stocks": 23
+  },
+  {
+   "date": "2013-04-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty FMCG": 0.0,
+    "Nifty Pharma": 0.1651,
+    "Nifty Media": 0.3,
+    "Nifty Realty": 0.2349
+   },
+   "holdings": [
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "PHOENIXLTD",
+     0.12
+    ],
+    [
+     "HATHWAY",
+     0.1044
+    ],
+    [
+     "INDUSINDBK",
+     0.1013
+    ],
+    [
+     "DBCORP",
+     0.0816
+    ],
+    [
+     "AXISBANK",
+     0.0777
+    ],
+    [
+     "ZEEL",
+     0.0749
+    ],
+    [
+     "YESBANK",
+     0.0709
+    ],
+    [
+     "SUNTV",
+     0.0691
+    ],
+    [
+     "PRESTIGE",
+     0.0633
+    ],
+    [
+     "FEDERALBNK",
+     0.0462
+    ],
+    [
+     "UNIONBANK",
+     0.0339
+    ],
+    [
+     "AJANTPHARM",
+     0.0209
+    ],
+    [
+     "DLF",
+     0.0158
+    ],
+    [
+     "EMAMILTD",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "AJANTPHARM",
+    "DBCORP",
+    "DLF",
+    "FEDERALBNK",
+    "PHOENIXLTD",
+    "PRESTIGE",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "ANANTRAJ",
+    "AUROPHARMA",
+    "BRIGADE",
+    "CCL",
+    "CIPLA",
+    "COLPAL",
+    "GLENMARK",
+    "GODREJCP",
+    "ICICIBANK",
+    "IPCALAB",
+    "JBCHEPHARM",
+    "MARICO",
+    "RADICO",
+    "UBL",
+    "ZYDUSWELL"
+   ],
+   "n_stocks": 15
+  },
+  {
+   "date": "2013-07-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty FMCG": 0.2142,
+    "Nifty Pharma": 0.1858,
+    "Nifty Media": 0.3
+   },
+   "holdings": [
+    [
+     "AJANTPHARM",
+     0.12
+    ],
+    [
+     "ZEEL",
+     0.12
+    ],
+    [
+     "INDUSINDBK",
+     0.0945
+    ],
+    [
+     "DBCORP",
+     0.0871
+    ],
+    [
+     "KOTAKBANK",
+     0.0847
+    ],
+    [
+     "HATHWAY",
+     0.0783
+    ],
+    [
+     "BRITANNIA",
+     0.0605
+    ],
+    [
+     "ZYDUSWELL",
+     0.0472
+    ],
+    [
+     "YESBANK",
+     0.0466
+    ],
+    [
+     "AXISBANK",
+     0.0374
+    ],
+    [
+     "HDFCBANK",
+     0.0354
+    ],
+    [
+     "DABUR",
+     0.0338
+    ],
+    [
+     "GODREJCP",
+     0.0284
+    ],
+    [
+     "ITC",
+     0.0228
+    ],
+    [
+     "HINDUNILVR",
+     0.0226
+    ],
+    [
+     "SUNPHARMA",
+     0.0221
+    ],
+    [
+     "ICICIBANK",
+     0.0152
+    ],
+    [
+     "LUPIN",
+     0.0108
+    ],
+    [
+     "IPCALAB",
+     0.0108
+    ],
+    [
+     "NESTLEIND",
+     0.0086
+    ],
+    [
+     "DRREDDY",
+     0.0074
+    ],
+    [
+     "SUNTV",
+     0.0056
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "BRITANNIA",
+    "DABUR",
+    "DRREDDY",
+    "GODREJCP",
+    "HDFCBANK",
+    "HINDUNILVR",
+    "ICICIBANK",
+    "IPCALAB",
+    "ITC",
+    "KOTAKBANK",
+    "LUPIN",
+    "NESTLEIND",
+    "SUNPHARMA",
+    "ZYDUSWELL"
+   ],
+   "exited": [
+    "DLF",
+    "EMAMILTD",
+    "FEDERALBNK",
+    "PHOENIXLTD",
+    "PRESTIGE",
+    "UNIONBANK",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2013-10-01",
+   "sectors": {
+    "Nifty Auto": 0.2098,
+    "Nifty FMCG": 0.2458,
+    "Nifty Pharma": 0.2646,
+    "Nifty Media": 0.2799
+   },
+   "holdings": [
+    [
+     "ZEEL",
+     0.0996
+    ],
+    [
+     "BRITANNIA",
+     0.083
+    ],
+    [
+     "DBCORP",
+     0.0819
+    ],
+    [
+     "AUROPHARMA",
+     0.0584
+    ],
+    [
+     "EICHERMOT",
+     0.0512
+    ],
+    [
+     "HATHWAY",
+     0.051
+    ],
+    [
+     "IPCALAB",
+     0.0475
+    ],
+    [
+     "DRREDDY",
+     0.0473
+    ],
+    [
+     "SUNTV",
+     0.0473
+    ],
+    [
+     "LUPIN",
+     0.046
+    ],
+    [
+     "HINDUNILVR",
+     0.044
+    ],
+    [
+     "CEATLTD",
+     0.044
+    ],
+    [
+     "HEROMOTOCO",
+     0.0339
+    ],
+    [
+     "ZYDUSWELL",
+     0.031
+    ],
+    [
+     "DABUR",
+     0.0294
+    ],
+    [
+     "TVSMOTOR",
+     0.027
+    ],
+    [
+     "BHARATFORG",
+     0.0264
+    ],
+    [
+     "UBL",
+     0.0259
+    ],
+    [
+     "BIOCON",
+     0.0243
+    ],
+    [
+     "MRF",
+     0.0159
+    ],
+    [
+     "NESTLEIND",
+     0.0151
+    ],
+    [
+     "JBCHEPHARM",
+     0.0149
+    ],
+    [
+     "GLENMARK",
+     0.0148
+    ],
+    [
+     "ITC",
+     0.0118
+    ],
+    [
+     "BAJAJ-AUTO",
+     0.0114
+    ],
+    [
+     "AJANTPHARM",
+     0.0114
+    ],
+    [
+     "GODREJCP",
+     0.0056
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "AUROPHARMA",
+    "BAJAJ-AUTO",
+    "BHARATFORG",
+    "BIOCON",
+    "CEATLTD",
+    "EICHERMOT",
+    "GLENMARK",
+    "HEROMOTOCO",
+    "JBCHEPHARM",
+    "MRF",
+    "TVSMOTOR",
+    "UBL"
+   ],
+   "exited": [
+    "AXISBANK",
+    "HDFCBANK",
+    "ICICIBANK",
+    "INDUSINDBK",
+    "KOTAKBANK",
+    "SUNPHARMA",
+    "YESBANK"
+   ],
+   "n_stocks": 27
+  },
+  {
+   "date": "2014-01-01",
+   "sectors": {
+    "Nifty Auto": 0.2742,
+    "Nifty IT": 0.1511,
+    "Nifty Pharma": 0.3,
+    "Nifty Media": 0.2747
+   },
+   "holdings": [
+    [
+     "CEATLTD",
+     0.12
+    ],
+    [
+     "AUROPHARMA",
+     0.12
+    ],
+    [
+     "SAREGAMA",
+     0.12
+    ],
+    [
+     "TATAELXSI",
+     0.1066
+    ],
+    [
+     "JBCHEPHARM",
+     0.0914
+    ],
+    [
+     "BIOCON",
+     0.0816
+    ],
+    [
+     "DBCORP",
+     0.077
+    ],
+    [
+     "TVSMOTOR",
+     0.0767
+    ],
+    [
+     "PERSISTENT",
+     0.0512
+    ],
+    [
+     "APOLLOTYRE",
+     0.0354
+    ],
+    [
+     "ZEEL",
+     0.0344
+    ],
+    [
+     "BALKRISIND",
+     0.021
+    ],
+    [
+     "JKTYRE",
+     0.0198
+    ],
+    [
+     "DIVISLAB",
+     0.014
+    ],
+    [
+     "TECHM",
+     0.0132
+    ],
+    [
+     "MRF",
+     0.0051
+    ],
+    [
+     "SONATSOFTW",
+     0.005
+    ],
+    [
+     "LUPIN",
+     0.0028
+    ],
+    [
+     "EICHERMOT",
+     0.0026
+    ],
+    [
+     "DRREDDY",
+     0.001
+    ],
+    [
+     "BHARATFORG",
+     0.0008
+    ],
+    [
+     "ABBOTINDIA",
+     0.0006
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ABBOTINDIA",
+    "APOLLOTYRE",
+    "BALKRISIND",
+    "DIVISLAB",
+    "JKTYRE",
+    "PERSISTENT",
+    "SAREGAMA",
+    "SONATSOFTW",
+    "TATAELXSI",
+    "TECHM"
+   ],
+   "exited": [
+    "AJANTPHARM",
+    "BAJAJ-AUTO",
+    "BRITANNIA",
+    "DABUR",
+    "GLENMARK",
+    "GODREJCP",
+    "HATHWAY",
+    "HEROMOTOCO",
+    "HINDUNILVR",
+    "IPCALAB",
+    "ITC",
+    "NESTLEIND",
+    "SUNTV",
+    "UBL",
+    "ZYDUSWELL"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2014-04-01",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Media": 0.3
+   },
+   "holdings": [
+    [
+     "CEATLTD",
+     0.12
+    ],
+    [
+     "TATAELXSI",
+     0.12
+    ],
+    [
+     "NETWORK18",
+     0.12
+    ],
+    [
+     "DBCORP",
+     0.098
+    ],
+    [
+     "TVSMOTOR",
+     0.0779
+    ],
+    [
+     "ZEEL",
+     0.0584
+    ],
+    [
+     "JBMA",
+     0.0553
+    ],
+    [
+     "APOLLOTYRE",
+     0.052
+    ],
+    [
+     "PERSISTENT",
+     0.046
+    ],
+    [
+     "SONATSOFTW",
+     0.0457
+    ],
+    [
+     "ZENSARTECH",
+     0.0416
+    ],
+    [
+     "BALKRISIND",
+     0.0245
+    ],
+    [
+     "SAREGAMA",
+     0.0207
+    ],
+    [
+     "JKTYRE",
+     0.02
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "INDEX",
+   "entered": [
+    "JBMA",
+    "NETWORK18",
+    "ZENSARTECH"
+   ],
+   "exited": [
+    "ABBOTINDIA",
+    "AUROPHARMA",
+    "BHARATFORG",
+    "BIOCON",
+    "DIVISLAB",
+    "DRREDDY",
+    "EICHERMOT",
+    "JBCHEPHARM",
+    "LUPIN",
+    "MRF",
+    "TECHM"
+   ],
+   "n_stocks": 14
+  },
+  {
+   "date": "2014-07-01",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Media": 0.3
+   },
+   "holdings": [
+    [
+     "PFOCUS",
+     0.12
+    ],
+    [
+     "TVSMOTOR",
+     0.1116
+    ],
+    [
+     "CEATLTD",
+     0.0737
+    ],
+    [
+     "BALKRISIND",
+     0.0665
+    ],
+    [
+     "ASHOKLEY",
+     0.0605
+    ],
+    [
+     "APOLLOTYRE",
+     0.0496
+    ],
+    [
+     "JKTYRE",
+     0.0442
+    ],
+    [
+     "GABRIEL",
+     0.0416
+    ],
+    [
+     "BHARATFORG",
+     0.0322
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "ASHOKLEY",
+    "BHARATFORG",
+    "GABRIEL",
+    "PFOCUS"
+   ],
+   "exited": [
+    "DBCORP",
+    "JBMA",
+    "NETWORK18",
+    "PERSISTENT",
+    "SAREGAMA",
+    "SONATSOFTW",
+    "TATAELXSI",
+    "ZEEL",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 9
+  },
+  {
+   "date": "2014-10-01",
+   "sectors": {
+    "Nifty Auto": 0.3
+   },
+   "holdings": [
+    [
+     "JKTYRE",
+     0.0893
+    ],
+    [
+     "GABRIEL",
+     0.0858
+    ],
+    [
+     "TVSMOTOR",
+     0.0593
+    ],
+    [
+     "BHARATFORG",
+     0.0263
+    ],
+    [
+     "EICHERMOT",
+     0.0217
+    ],
+    [
+     "ASHOKLEY",
+     0.0136
+    ],
+    [
+     "ASAHIINDIA",
+     0.0039
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "ASAHIINDIA",
+    "EICHERMOT"
+   ],
+   "exited": [
+    "APOLLOTYRE",
+    "BALKRISIND",
+    "CEATLTD",
+    "PFOCUS"
+   ],
+   "n_stocks": 7
+  },
+  {
+   "date": "2015-01-01",
+   "sectors": {
+    "Nifty Auto": 0.3
+   },
+   "holdings": [
+    [
+     "RKFORGE",
+     0.12
+    ],
+    [
+     "EICHERMOT",
+     0.0649
+    ],
+    [
+     "TVSMOTOR",
+     0.0457
+    ],
+    [
+     "JBMA",
+     0.0276
+    ],
+    [
+     "GABRIEL",
+     0.0201
+    ],
+    [
+     "ASAHIINDIA",
+     0.0134
+    ],
+    [
+     "BOSCHLTD",
+     0.0052
+    ],
+    [
+     "BHARATFORG",
+     0.0031
+    ]
+   ],
+   "sleeve_w": 0.7,
+   "regime": "INDEX",
+   "entered": [
+    "BOSCHLTD",
+    "JBMA",
+    "RKFORGE"
+   ],
+   "exited": [
+    "ASHOKLEY",
+    "JKTYRE"
+   ],
+   "n_stocks": 8
+  },
+  {
+   "date": "2015-04-01",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "RKFORGE",
+     0.12
+    ],
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "LUPIN",
+     0.0823
+    ],
+    [
+     "AUROPHARMA",
+     0.0817
+    ],
+    [
+     "TORNTPHARM",
+     0.06
+    ],
+    [
+     "SUNPHARMA",
+     0.0465
+    ],
+    [
+     "ASHOKLEY",
+     0.0387
+    ],
+    [
+     "BOSCHLTD",
+     0.0275
+    ],
+    [
+     "BHARATFORG",
+     0.0133
+    ],
+    [
+     "ABBOTINDIA",
+     0.0101
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "ABBOTINDIA",
+    "ASHOKLEY",
+    "AUROPHARMA",
+    "LUPIN",
+    "SUNPHARMA",
+    "TORNTPHARM",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "ASAHIINDIA",
+    "EICHERMOT",
+    "GABRIEL",
+    "JBMA",
+    "TVSMOTOR"
+   ],
+   "n_stocks": 10
+  },
+  {
+   "date": "2015-07-01",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Pharma": 0.3
+   },
+   "holdings": [
+    [
+     "RKFORGE",
+     0.1149
+    ],
+    [
+     "WOCKPHARMA",
+     0.0914
+    ],
+    [
+     "AUROPHARMA",
+     0.0589
+    ],
+    [
+     "LUPIN",
+     0.0566
+    ],
+    [
+     "ASHOKLEY",
+     0.0513
+    ],
+    [
+     "GLENMARK",
+     0.0494
+    ],
+    [
+     "EICHERMOT",
+     0.034
+    ],
+    [
+     "ASAHIINDIA",
+     0.0274
+    ],
+    [
+     "TORNTPHARM",
+     0.022
+    ],
+    [
+     "JBCHEPHARM",
+     0.0218
+    ],
+    [
+     "BALKRISIND",
+     0.0209
+    ],
+    [
+     "BHARATFORG",
+     0.0187
+    ],
+    [
+     "MARUTI",
+     0.0176
+    ],
+    [
+     "BOSCHLTD",
+     0.0151
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "ASAHIINDIA",
+    "BALKRISIND",
+    "EICHERMOT",
+    "GLENMARK",
+    "JBCHEPHARM",
+    "MARUTI"
+   ],
+   "exited": [
+    "ABBOTINDIA",
+    "SUNPHARMA"
+   ],
+   "n_stocks": 14
+  },
+  {
+   "date": "2015-10-01",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Pharma": 0.3,
+    "Nifty Media": 0.3
+   },
+   "holdings": [
+    [
+     "CEATLTD",
+     0.12
+    ],
+    [
+     "SAREGAMA",
+     0.12
+    ],
+    [
+     "ABBOTINDIA",
+     0.0926
+    ],
+    [
+     "RKFORGE",
+     0.0891
+    ],
+    [
+     "JBCHEPHARM",
+     0.08
+    ],
+    [
+     "GLENMARK",
+     0.0599
+    ],
+    [
+     "ASHOKLEY",
+     0.057
+    ],
+    [
+     "TORNTPHARM",
+     0.0526
+    ],
+    [
+     "MARUTI",
+     0.046
+    ],
+    [
+     "AJANTPHARM",
+     0.0387
+    ],
+    [
+     "DRREDDY",
+     0.0349
+    ],
+    [
+     "EICHERMOT",
+     0.0251
+    ],
+    [
+     "BAJAJ-AUTO",
+     0.0248
+    ],
+    [
+     "IPCALAB",
+     0.0225
+    ],
+    [
+     "PFOCUS",
+     0.0196
+    ],
+    [
+     "APOLLOTYRE",
+     0.0095
+    ],
+    [
+     "MRF",
+     0.0076
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "CASH",
+   "entered": [
+    "ABBOTINDIA",
+    "AJANTPHARM",
+    "APOLLOTYRE",
+    "BAJAJ-AUTO",
+    "CEATLTD",
+    "DRREDDY",
+    "IPCALAB",
+    "MRF",
+    "PFOCUS",
+    "SAREGAMA"
+   ],
+   "exited": [
+    "ASAHIINDIA",
+    "AUROPHARMA",
+    "BALKRISIND",
+    "BHARATFORG",
+    "BOSCHLTD",
+    "LUPIN",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 17
+  },
+  {
+   "date": "2016-01-01",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Pharma": 0.3,
+    "Nifty Media": 0.0
+   },
+   "holdings": [
+    [
+     "ABBOTINDIA",
+     0.12
+    ],
+    [
+     "CEATLTD",
+     0.1069
+    ],
+    [
+     "JKTYRE",
+     0.0671
+    ],
+    [
+     "JBCHEPHARM",
+     0.0449
+    ],
+    [
+     "GABRIEL",
+     0.042
+    ],
+    [
+     "TORNTPHARM",
+     0.0347
+    ],
+    [
+     "WOCKPHARMA",
+     0.0337
+    ],
+    [
+     "BIOCON",
+     0.0332
+    ],
+    [
+     "ASHOKLEY",
+     0.0278
+    ],
+    [
+     "MRF",
+     0.0199
+    ],
+    [
+     "TVSMOTOR",
+     0.0179
+    ],
+    [
+     "CIPLA",
+     0.0166
+    ],
+    [
+     "MARUTI",
+     0.0136
+    ],
+    [
+     "IPCALAB",
+     0.0118
+    ],
+    [
+     "JBMA",
+     0.0099
+    ],
+    [
+     "SAREGAMA",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "CASH",
+   "entered": [
+    "BIOCON",
+    "CIPLA",
+    "GABRIEL",
+    "JBMA",
+    "JKTYRE",
+    "TVSMOTOR",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "AJANTPHARM",
+    "APOLLOTYRE",
+    "BAJAJ-AUTO",
+    "DRREDDY",
+    "EICHERMOT",
+    "GLENMARK",
+    "PFOCUS",
+    "RKFORGE"
+   ],
+   "n_stocks": 16
+  },
+  {
+   "date": "2016-04-01",
+   "sectors": {
+    "Nifty Auto": 0.1895,
+    "Nifty Energy": 0.3,
+    "Nifty Media": 0.2899,
+    "Nifty Metal": 0.2206
+   },
+   "holdings": [
+    [
+     "SUNTV",
+     0.0863
+    ],
+    [
+     "HATHWAY",
+     0.0688
+    ],
+    [
+     "MINDACORP",
+     0.0604
+    ],
+    [
+     "TATASTEEL",
+     0.0587
+    ],
+    [
+     "NHPC",
+     0.056
+    ],
+    [
+     "DBCORP",
+     0.0556
+    ],
+    [
+     "ZEEL",
+     0.0545
+    ],
+    [
+     "JSWSTEEL",
+     0.053
+    ],
+    [
+     "PETRONET",
+     0.0518
+    ],
+    [
+     "TVSMOTOR",
+     0.0492
+    ],
+    [
+     "ADANIPOWER",
+     0.0479
+    ],
+    [
+     "APLAPOLLO",
+     0.045
+    ],
+    [
+     "MRPL",
+     0.04
+    ],
+    [
+     "HINDZINC",
+     0.0337
+    ],
+    [
+     "HEROMOTOCO",
+     0.0314
+    ],
+    [
+     "TORNTPOWER",
+     0.0305
+    ],
+    [
+     "ASHOKLEY",
+     0.0276
+    ],
+    [
+     "RELIANCE",
+     0.0274
+    ],
+    [
+     "PFOCUS",
+     0.0247
+    ],
+    [
+     "RPOWER",
+     0.0238
+    ],
+    [
+     "HINDALCO",
+     0.0235
+    ],
+    [
+     "IGL",
+     0.0226
+    ],
+    [
+     "EICHERMOT",
+     0.0111
+    ],
+    [
+     "GABRIEL",
+     0.0098
+    ],
+    [
+     "NATIONALUM",
+     0.0036
+    ],
+    [
+     "JINDALSTEL",
+     0.0032
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "ADANIPOWER",
+    "APLAPOLLO",
+    "DBCORP",
+    "EICHERMOT",
+    "HATHWAY",
+    "HEROMOTOCO",
+    "HINDALCO",
+    "HINDZINC",
+    "IGL",
+    "JINDALSTEL",
+    "JSWSTEEL",
+    "MINDACORP",
+    "MRPL",
+    "NATIONALUM",
+    "NHPC",
+    "PETRONET",
+    "PFOCUS",
+    "RELIANCE",
+    "RPOWER",
+    "SUNTV",
+    "TATASTEEL",
+    "TORNTPOWER",
+    "ZEEL"
+   ],
+   "exited": [
+    "ABBOTINDIA",
+    "BIOCON",
+    "CEATLTD",
+    "CIPLA",
+    "IPCALAB",
+    "JBCHEPHARM",
+    "JBMA",
+    "JKTYRE",
+    "MARUTI",
+    "MRF",
+    "SAREGAMA",
+    "TORNTPHARM",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 26
+  },
+  {
+   "date": "2016-07-01",
+   "sectors": {
+    "Nifty Auto": 0.108,
+    "Nifty Energy": 0.2545,
+    "Nifty FMCG": 0.0685,
+    "Nifty Media": 0.2705,
+    "Nifty Metal": 0.1516,
+    "Nifty Realty": 0.1468
+   },
+   "holdings": [
+    [
+     "DBCORP",
+     0.12
+    ],
+    [
+     "ZEEL",
+     0.1183
+    ],
+    [
+     "DLF",
+     0.1081
+    ],
+    [
+     "BALRAMCHIN",
+     0.0526
+    ],
+    [
+     "ANANTRAJ",
+     0.0444
+    ],
+    [
+     "NHPC",
+     0.0441
+    ],
+    [
+     "HINDALCO",
+     0.0414
+    ],
+    [
+     "VEDL",
+     0.0407
+    ],
+    [
+     "MINDACORP",
+     0.0401
+    ],
+    [
+     "HINDPETRO",
+     0.0387
+    ],
+    [
+     "BPCL",
+     0.0385
+    ],
+    [
+     "PETRONET",
+     0.0371
+    ],
+    [
+     "JSWSTEEL",
+     0.0352
+    ],
+    [
+     "POWERGRID",
+     0.0309
+    ],
+    [
+     "CESC",
+     0.0305
+    ],
+    [
+     "BOSCHLTD",
+     0.0276
+    ],
+    [
+     "IGL",
+     0.027
+    ],
+    [
+     "EXIDEIND",
+     0.0244
+    ],
+    [
+     "TATASTEEL",
+     0.0229
+    ],
+    [
+     "HEROMOTOCO",
+     0.0203
+    ],
+    [
+     "EIDPARRY",
+     0.0187
+    ],
+    [
+     "TATAPOWER",
+     0.0183
+    ],
+    [
+     "APLAPOLLO",
+     0.0177
+    ],
+    [
+     "PFOCUS",
+     0.0024
+    ],
+    [
+     "GODREJPROP",
+     0.0004
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ANANTRAJ",
+    "BALRAMCHIN",
+    "BOSCHLTD",
+    "BPCL",
+    "CESC",
+    "DLF",
+    "EIDPARRY",
+    "EXIDEIND",
+    "GODREJPROP",
+    "HINDPETRO",
+    "POWERGRID",
+    "TATAPOWER",
+    "VEDL"
+   ],
+   "exited": [
+    "ADANIPOWER",
+    "ASHOKLEY",
+    "EICHERMOT",
+    "GABRIEL",
+    "HATHWAY",
+    "HINDZINC",
+    "JINDALSTEL",
+    "MRPL",
+    "NATIONALUM",
+    "RELIANCE",
+    "RPOWER",
+    "SUNTV",
+    "TORNTPOWER",
+    "TVSMOTOR"
+   ],
+   "n_stocks": 25
+  },
+  {
+   "date": "2016-10-03",
+   "sectors": {
+    "Nifty Auto": 0.1063,
+    "Nifty Energy": 0.1318,
+    "Nifty FMCG": 0.3,
+    "Nifty Media": 0.0,
+    "Nifty Metal": 0.2458,
+    "Nifty Realty": 0.2161
+   },
+   "holdings": [
+    [
+     "BBTC",
+     0.12
+    ],
+    [
+     "ANANTRAJ",
+     0.12
+    ],
+    [
+     "SARDAEN",
+     0.1129
+    ],
+    [
+     "VEDL",
+     0.0746
+    ],
+    [
+     "CCL",
+     0.0592
+    ],
+    [
+     "HINDALCO",
+     0.0498
+    ],
+    [
+     "JKTYRE",
+     0.0475
+    ],
+    [
+     "BRITANNIA",
+     0.045
+    ],
+    [
+     "IOC",
+     0.0407
+    ],
+    [
+     "CHENNPETRO",
+     0.039
+    ],
+    [
+     "IGL",
+     0.0331
+    ],
+    [
+     "BALKRISIND",
+     0.033
+    ],
+    [
+     "PETRONET",
+     0.0324
+    ],
+    [
+     "RADICO",
+     0.0309
+    ],
+    [
+     "EMAMILTD",
+     0.028
+    ],
+    [
+     "MARUTI",
+     0.0233
+    ],
+    [
+     "DLF",
+     0.022
+    ],
+    [
+     "JSL",
+     0.0144
+    ],
+    [
+     "ZYDUSWELL",
+     0.0141
+    ],
+    [
+     "JBMA",
+     0.0133
+    ],
+    [
+     "HINDZINC",
+     0.0128
+    ],
+    [
+     "NESTLEIND",
+     0.0119
+    ],
+    [
+     "COLPAL",
+     0.0095
+    ],
+    [
+     "PHOENIXLTD",
+     0.0064
+    ],
+    [
+     "JSWSTEEL",
+     0.0048
+    ],
+    [
+     "JINDALSTEL",
+     0.0015
+    ],
+    [
+     "ZEEL",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "BALKRISIND",
+    "BBTC",
+    "BRITANNIA",
+    "CCL",
+    "CHENNPETRO",
+    "COLPAL",
+    "EMAMILTD",
+    "HINDZINC",
+    "IOC",
+    "JBMA",
+    "JINDALSTEL",
+    "JKTYRE",
+    "JSL",
+    "MARUTI",
+    "NESTLEIND",
+    "PHOENIXLTD",
+    "RADICO",
+    "SARDAEN",
+    "ZYDUSWELL"
+   ],
+   "exited": [
+    "APLAPOLLO",
+    "BALRAMCHIN",
+    "BOSCHLTD",
+    "BPCL",
+    "CESC",
+    "DBCORP",
+    "EIDPARRY",
+    "EXIDEIND",
+    "GODREJPROP",
+    "HEROMOTOCO",
+    "HINDPETRO",
+    "MINDACORP",
+    "NHPC",
+    "PFOCUS",
+    "POWERGRID",
+    "TATAPOWER",
+    "TATASTEEL"
+   ],
+   "n_stocks": 27
+  },
+  {
+   "date": "2017-01-02",
+   "sectors": {
+    "Nifty Auto": 0.0781,
+    "Nifty Energy": 0.1776,
+    "Nifty FMCG": 0.3,
+    "Nifty Media": 0.2315,
+    "Nifty Metal": 0.2129
+   },
+   "holdings": [
+    [
+     "SUNTV",
+     0.115
+    ],
+    [
+     "PFOCUS",
+     0.1098
+    ],
+    [
+     "BBTC",
+     0.0936
+    ],
+    [
+     "JSL",
+     0.0743
+    ],
+    [
+     "RADICO",
+     0.0624
+    ],
+    [
+     "GRAVITA",
+     0.0597
+    ],
+    [
+     "MRPL",
+     0.04
+    ],
+    [
+     "IGL",
+     0.0389
+    ],
+    [
+     "CHENNPETRO",
+     0.0379
+    ],
+    [
+     "SARDAEN",
+     0.0366
+    ],
+    [
+     "GODFRYPHLP",
+     0.0358
+    ],
+    [
+     "JBMA",
+     0.0356
+    ],
+    [
+     "ZYDUSWELL",
+     0.0327
+    ],
+    [
+     "CCL",
+     0.0256
+    ],
+    [
+     "BALKRISIND",
+     0.0256
+    ],
+    [
+     "VEDL",
+     0.025
+    ],
+    [
+     "OIL",
+     0.0242
+    ],
+    [
+     "EIDPARRY",
+     0.0239
+    ],
+    [
+     "PETRONET",
+     0.0233
+    ],
+    [
+     "MRF",
+     0.0169
+    ],
+    [
+     "POWERGRID",
+     0.0133
+    ],
+    [
+     "UBL",
+     0.0133
+    ],
+    [
+     "BALRAMCHIN",
+     0.0129
+    ],
+    [
+     "NATIONALUM",
+     0.0119
+    ],
+    [
+     "HATHWAY",
+     0.0068
+    ],
+    [
+     "HINDZINC",
+     0.0054
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "BALRAMCHIN",
+    "EIDPARRY",
+    "GODFRYPHLP",
+    "GRAVITA",
+    "HATHWAY",
+    "MRF",
+    "MRPL",
+    "NATIONALUM",
+    "OIL",
+    "PFOCUS",
+    "POWERGRID",
+    "SUNTV",
+    "UBL"
+   ],
+   "exited": [
+    "ANANTRAJ",
+    "BRITANNIA",
+    "COLPAL",
+    "DLF",
+    "EMAMILTD",
+    "HINDALCO",
+    "IOC",
+    "JINDALSTEL",
+    "JKTYRE",
+    "JSWSTEEL",
+    "MARUTI",
+    "NESTLEIND",
+    "PHOENIXLTD",
+    "ZEEL"
+   ],
+   "n_stocks": 26
+  },
+  {
+   "date": "2017-04-03",
+   "sectors": {
+    "Nifty Energy": 0.1662,
+    "Nifty FMCG": 0.2403,
+    "Nifty Infrastructure": 0.1678,
+    "Nifty Media": 0.1013,
+    "Nifty Metal": 0.15,
+    "Nifty PSU Bank": 0.0914,
+    "Nifty Financial Services": 0.0828
+   },
+   "holdings": [
+    [
+     "JSL",
+     0.095
+    ],
+    [
+     "BBTC",
+     0.0779
+    ],
+    [
+     "BALRAMCHIN",
+     0.0681
+    ],
+    [
+     "SUNTV",
+     0.0523
+    ],
+    [
+     "CCL",
+     0.0481
+    ],
+    [
+     "RECLTD",
+     0.0462
+    ],
+    [
+     "ADANIPOWER",
+     0.0445
+    ],
+    [
+     "INDIANB",
+     0.0433
+    ],
+    [
+     "NLCINDIA",
+     0.0404
+    ],
+    [
+     "HATHWAY",
+     0.0383
+    ],
+    [
+     "ADANIPORTS",
+     0.0344
+    ],
+    [
+     "RELIANCE",
+     0.0342
+    ],
+    [
+     "SUZLON",
+     0.0323
+    ],
+    [
+     "CESC",
+     0.0315
+    ],
+    [
+     "MGL",
+     0.0281
+    ],
+    [
+     "EIDPARRY",
+     0.0278
+    ],
+    [
+     "HINDPETRO",
+     0.0276
+    ],
+    [
+     "BANKINDIA",
+     0.0249
+    ],
+    [
+     "SBIN",
+     0.0233
+    ],
+    [
+     "TATAPOWER",
+     0.0219
+    ],
+    [
+     "IGL",
+     0.0218
+    ],
+    [
+     "BAJAJFINSV",
+     0.02
+    ],
+    [
+     "ITC",
+     0.0183
+    ],
+    [
+     "LT",
+     0.0175
+    ],
+    [
+     "PFC",
+     0.0167
+    ],
+    [
+     "GRAVITA",
+     0.0152
+    ],
+    [
+     "NATIONALUM",
+     0.0152
+    ],
+    [
+     "ADANIENT",
+     0.0126
+    ],
+    [
+     "VEDL",
+     0.0119
+    ],
+    [
+     "PFOCUS",
+     0.0107
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ADANIENT",
+    "ADANIPORTS",
+    "ADANIPOWER",
+    "BAJAJFINSV",
+    "BANKINDIA",
+    "CESC",
+    "HINDPETRO",
+    "INDIANB",
+    "ITC",
+    "LT",
+    "MGL",
+    "NLCINDIA",
+    "PFC",
+    "RECLTD",
+    "RELIANCE",
+    "SBIN",
+    "SUZLON",
+    "TATAPOWER"
+   ],
+   "exited": [
+    "BALKRISIND",
+    "CHENNPETRO",
+    "GODFRYPHLP",
+    "HINDZINC",
+    "JBMA",
+    "MRF",
+    "MRPL",
+    "OIL",
+    "PETRONET",
+    "POWERGRID",
+    "RADICO",
+    "SARDAEN",
+    "UBL",
+    "ZYDUSWELL"
+   ],
+   "n_stocks": 30
+  },
+  {
+   "date": "2017-07-03",
+   "sectors": {
+    "Nifty Energy": 0.2077,
+    "Nifty FMCG": 0.0,
+    "Nifty Infrastructure": 0.2269,
+    "Nifty Media": 0.1766,
+    "Nifty Metal": 0.1411,
+    "Nifty Realty": 0.1049,
+    "Nifty Financial Services": 0.1428
+   },
+   "holdings": [
+    [
+     "DLF",
+     0.12
+    ],
+    [
+     "SUNTV",
+     0.0763
+    ],
+    [
+     "PFOCUS",
+     0.0556
+    ],
+    [
+     "SUZLON",
+     0.053
+    ],
+    [
+     "BAJFINANCE",
+     0.0503
+    ],
+    [
+     "GRASIM",
+     0.049
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0465
+    ],
+    [
+     "NETWORK18",
+     0.0449
+    ],
+    [
+     "RELIANCE",
+     0.0354
+    ],
+    [
+     "GRAVITA",
+     0.0353
+    ],
+    [
+     "BRIGADE",
+     0.0343
+    ],
+    [
+     "ABB",
+     0.0334
+    ],
+    [
+     "CESC",
+     0.0313
+    ],
+    [
+     "NLCINDIA",
+     0.0305
+    ],
+    [
+     "JPPOWER",
+     0.0297
+    ],
+    [
+     "GODREJPROP",
+     0.0295
+    ],
+    [
+     "JSL",
+     0.0293
+    ],
+    [
+     "INDIGO",
+     0.029
+    ],
+    [
+     "CHENNPETRO",
+     0.0287
+    ],
+    [
+     "ADANIENT",
+     0.0284
+    ],
+    [
+     "JINDALSTEL",
+     0.0268
+    ],
+    [
+     "APLAPOLLO",
+     0.0215
+    ],
+    [
+     "BAJAJFINSV",
+     0.0208
+    ],
+    [
+     "ADANIPORTS",
+     0.0199
+    ],
+    [
+     "INDHOTEL",
+     0.0153
+    ],
+    [
+     "RECLTD",
+     0.015
+    ],
+    [
+     "HDFCBANK",
+     0.0103
+    ],
+    [
+     "BBTC",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ABB",
+    "APLAPOLLO",
+    "BAJFINANCE",
+    "BRIGADE",
+    "CHENNPETRO",
+    "DLF",
+    "GODREJPROP",
+    "GRASIM",
+    "HDFCBANK",
+    "INDHOTEL",
+    "INDIGO",
+    "JINDALSTEL",
+    "JPPOWER",
+    "MUTHOOTFIN",
+    "NETWORK18"
+   ],
+   "exited": [
+    "ADANIPOWER",
+    "BALRAMCHIN",
+    "BANKINDIA",
+    "CCL",
+    "EIDPARRY",
+    "HATHWAY",
+    "HINDPETRO",
+    "IGL",
+    "INDIANB",
+    "ITC",
+    "LT",
+    "MGL",
+    "NATIONALUM",
+    "PFC",
+    "SBIN",
+    "TATAPOWER",
+    "VEDL"
+   ],
+   "n_stocks": 28
+  },
+  {
+   "date": "2017-10-03",
+   "sectors": {
+    "Nifty Energy": 0.1607,
+    "Nifty FMCG": 0.1741,
+    "Nifty Infrastructure": 0.2512,
+    "Nifty Metal": 0.1103,
+    "Nifty Realty": 0.1103,
+    "Nifty Financial Services": 0.1935
+   },
+   "holdings": [
+    [
+     "ASHOKLEY",
+     0.0841
+    ],
+    [
+     "BAJFINANCE",
+     0.0832
+    ],
+    [
+     "GODREJPROP",
+     0.0775
+    ],
+    [
+     "GRAVITA",
+     0.0604
+    ],
+    [
+     "BBTC",
+     0.0597
+    ],
+    [
+     "JPPOWER",
+     0.048
+    ],
+    [
+     "IGL",
+     0.0463
+    ],
+    [
+     "BAJAJFINSV",
+     0.0366
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0304
+    ],
+    [
+     "GAIL",
+     0.0295
+    ],
+    [
+     "GILLETTE",
+     0.0293
+    ],
+    [
+     "AMBUJACEM",
+     0.0291
+    ],
+    [
+     "VBL",
+     0.0285
+    ],
+    [
+     "ADANIPORTS",
+     0.0265
+    ],
+    [
+     "DLF",
+     0.025
+    ],
+    [
+     "HDFCBANK",
+     0.0231
+    ],
+    [
+     "MRPL",
+     0.023
+    ],
+    [
+     "SARDAEN",
+     0.0225
+    ],
+    [
+     "MGL",
+     0.0223
+    ],
+    [
+     "HINDUNILVR",
+     0.0219
+    ],
+    [
+     "JSWENERGY",
+     0.0212
+    ],
+    [
+     "PHOENIXLTD",
+     0.021
+    ],
+    [
+     "BHARTIARTL",
+     0.0205
+    ],
+    [
+     "BRITANNIA",
+     0.0204
+    ],
+    [
+     "GRASIM",
+     0.0188
+    ],
+    [
+     "IOC",
+     0.0178
+    ],
+    [
+     "RADICO",
+     0.0143
+    ],
+    [
+     "WELCORP",
+     0.0138
+    ],
+    [
+     "JSL",
+     0.0136
+    ],
+    [
+     "PRESTIGE",
+     0.0118
+    ],
+    [
+     "KOTAKBANK",
+     0.011
+    ],
+    [
+     "CHOLAFIN",
+     0.0093
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "AMBUJACEM",
+    "ASHOKLEY",
+    "BHARTIARTL",
+    "BRITANNIA",
+    "CHOLAFIN",
+    "GAIL",
+    "GILLETTE",
+    "HINDUNILVR",
+    "IGL",
+    "IOC",
+    "JSWENERGY",
+    "KOTAKBANK",
+    "MGL",
+    "MRPL",
+    "PHOENIXLTD",
+    "PRESTIGE",
+    "RADICO",
+    "SARDAEN",
+    "VBL",
+    "WELCORP"
+   ],
+   "exited": [
+    "ABB",
+    "ADANIENT",
+    "APLAPOLLO",
+    "BRIGADE",
+    "CESC",
+    "CHENNPETRO",
+    "INDHOTEL",
+    "INDIGO",
+    "JINDALSTEL",
+    "NETWORK18",
+    "NLCINDIA",
+    "PFOCUS",
+    "RECLTD",
+    "RELIANCE",
+    "SUNTV",
+    "SUZLON"
+   ],
+   "n_stocks": 32
+  },
+  {
+   "date": "2018-01-01",
+   "sectors": {
+    "Nifty Energy": 0.3,
+    "Nifty Infrastructure": 0.2895,
+    "Nifty Metal": 0.0829,
+    "Nifty Realty": 0.0276,
+    "Nifty Financial Services": 0.3
+   },
+   "holdings": [
+    [
+     "GAIL",
+     0.0855
+    ],
+    [
+     "BAJFINANCE",
+     0.083
+    ],
+    [
+     "BAJAJFINSV",
+     0.0826
+    ],
+    [
+     "BHARTIARTL",
+     0.057
+    ],
+    [
+     "JPPOWER",
+     0.0559
+    ],
+    [
+     "TORNTPOWER",
+     0.0521
+    ],
+    [
+     "DLF",
+     0.0501
+    ],
+    [
+     "CHOLAFIN",
+     0.0493
+    ],
+    [
+     "ASHOKLEY",
+     0.0374
+    ],
+    [
+     "SARDAEN",
+     0.037
+    ],
+    [
+     "OIL",
+     0.0358
+    ],
+    [
+     "ADANIPOWER",
+     0.0351
+    ],
+    [
+     "RPOWER",
+     0.0347
+    ],
+    [
+     "JSWENERGY",
+     0.0343
+    ],
+    [
+     "GRAVITA",
+     0.0312
+    ],
+    [
+     "ONGC",
+     0.031
+    ],
+    [
+     "HDFCBANK",
+     0.0295
+    ],
+    [
+     "SBIN",
+     0.0294
+    ],
+    [
+     "TATAPOWER",
+     0.0284
+    ],
+    [
+     "SOBHA",
+     0.0276
+    ],
+    [
+     "THERMAX",
+     0.022
+    ],
+    [
+     "AXISBANK",
+     0.0178
+    ],
+    [
+     "CGPOWER",
+     0.0167
+    ],
+    [
+     "JINDALSTEL",
+     0.0147
+    ],
+    [
+     "NTPC",
+     0.0136
+    ],
+    [
+     "ICICIBANK",
+     0.0084
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ADANIPOWER",
+    "AXISBANK",
+    "CGPOWER",
+    "ICICIBANK",
+    "JINDALSTEL",
+    "NTPC",
+    "OIL",
+    "ONGC",
+    "RPOWER",
+    "SBIN",
+    "SOBHA",
+    "TATAPOWER",
+    "THERMAX",
+    "TORNTPOWER"
+   ],
+   "exited": [
+    "ADANIPORTS",
+    "AMBUJACEM",
+    "BBTC",
+    "BRITANNIA",
+    "GILLETTE",
+    "GODREJPROP",
+    "GRASIM",
+    "HINDUNILVR",
+    "IGL",
+    "IOC",
+    "JSL",
+    "KOTAKBANK",
+    "MGL",
+    "MRPL",
+    "MUTHOOTFIN",
+    "PHOENIXLTD",
+    "PRESTIGE",
+    "RADICO",
+    "VBL",
+    "WELCORP"
+   ],
+   "n_stocks": 26
+  },
+  {
+   "date": "2018-04-02",
+   "sectors": {
+    "Nifty Energy": 0.2245,
+    "Nifty Infrastructure": 0.2294,
+    "Nifty Metal": 0.1567,
+    "Nifty Realty": 0.1408,
+    "Nifty Financial Services": 0.2486
+   },
+   "holdings": [
+    [
+     "CHOLAFIN",
+     0.1192
+    ],
+    [
+     "JINDALSTEL",
+     0.0635
+    ],
+    [
+     "THERMAX",
+     0.0605
+    ],
+    [
+     "SOBHA",
+     0.0595
+    ],
+    [
+     "RELIANCE",
+     0.05
+    ],
+    [
+     "ASHOKLEY",
+     0.0492
+    ],
+    [
+     "DLF",
+     0.0479
+    ],
+    [
+     "KOTAKBANK",
+     0.0448
+    ],
+    [
+     "INDIGO",
+     0.0448
+    ],
+    [
+     "ONGC",
+     0.0386
+    ],
+    [
+     "HDFCBANK",
+     0.0377
+    ],
+    [
+     "PHOENIXLTD",
+     0.0371
+    ],
+    [
+     "ADANIENT",
+     0.0322
+    ],
+    [
+     "TORNTPOWER",
+     0.0295
+    ],
+    [
+     "COALINDIA",
+     0.028
+    ],
+    [
+     "LT",
+     0.027
+    ],
+    [
+     "SJVN",
+     0.0262
+    ],
+    [
+     "INDHOTEL",
+     0.0262
+    ],
+    [
+     "SAIL",
+     0.0244
+    ],
+    [
+     "JSWENERGY",
+     0.0231
+    ],
+    [
+     "BAJAJFINSV",
+     0.0214
+    ],
+    [
+     "GRAVITA",
+     0.0198
+    ],
+    [
+     "APOLLOHOSP",
+     0.0181
+    ],
+    [
+     "OBEROIRLTY",
+     0.0169
+    ],
+    [
+     "JSWSTEEL",
+     0.0168
+    ],
+    [
+     "BAJFINANCE",
+     0.013
+    ],
+    [
+     "GODREJPROP",
+     0.012
+    ],
+    [
+     "AXISBANK",
+     0.0092
+    ],
+    [
+     "SBIN",
+     0.0032
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ADANIENT",
+    "APOLLOHOSP",
+    "COALINDIA",
+    "GODREJPROP",
+    "INDHOTEL",
+    "INDIGO",
+    "JSWSTEEL",
+    "KOTAKBANK",
+    "LT",
+    "OBEROIRLTY",
+    "PHOENIXLTD",
+    "RELIANCE",
+    "SAIL",
+    "SJVN"
+   ],
+   "exited": [
+    "ADANIPOWER",
+    "BHARTIARTL",
+    "CGPOWER",
+    "GAIL",
+    "ICICIBANK",
+    "JPPOWER",
+    "NTPC",
+    "OIL",
+    "RPOWER",
+    "SARDAEN",
+    "TATAPOWER"
+   ],
+   "n_stocks": 29
+  },
+  {
+   "date": "2018-07-02",
+   "sectors": {
+    "Nifty Energy": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Financial Services": 0.3
+   },
+   "holdings": [
+    [
+     "MPHASIS",
+     0.0821
+    ],
+    [
+     "KOTAKBANK",
+     0.0761
+    ],
+    [
+     "BAJFINANCE",
+     0.0717
+    ],
+    [
+     "ZENSARTECH",
+     0.0686
+    ],
+    [
+     "RELIANCE",
+     0.0642
+    ],
+    [
+     "TATAELXSI",
+     0.0592
+    ],
+    [
+     "COALINDIA",
+     0.0541
+    ],
+    [
+     "HDFCLIFE",
+     0.0519
+    ],
+    [
+     "CHOLAFIN",
+     0.0438
+    ],
+    [
+     "POWERGRID",
+     0.0416
+    ],
+    [
+     "TECHM",
+     0.0345
+    ],
+    [
+     "THERMAX",
+     0.03
+    ],
+    [
+     "HDFCBANK",
+     0.0297
+    ],
+    [
+     "NTPC",
+     0.0297
+    ],
+    [
+     "PETRONET",
+     0.0281
+    ],
+    [
+     "INFY",
+     0.0272
+    ],
+    [
+     "BAJAJFINSV",
+     0.0267
+    ],
+    [
+     "CESC",
+     0.0267
+    ],
+    [
+     "CYIENT",
+     0.0265
+    ],
+    [
+     "ABB",
+     0.0257
+    ],
+    [
+     "LTTS",
+     0.002
+    ],
+    [
+     "SBILIFE",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "CASH",
+   "entered": [
+    "ABB",
+    "CESC",
+    "CYIENT",
+    "HDFCLIFE",
+    "INFY",
+    "LTTS",
+    "MPHASIS",
+    "NTPC",
+    "PETRONET",
+    "POWERGRID",
+    "SBILIFE",
+    "TATAELXSI",
+    "TECHM",
+    "ZENSARTECH"
+   ],
+   "exited": [
+    "ADANIENT",
+    "APOLLOHOSP",
+    "ASHOKLEY",
+    "AXISBANK",
+    "DLF",
+    "GODREJPROP",
+    "GRAVITA",
+    "INDHOTEL",
+    "INDIGO",
+    "JINDALSTEL",
+    "JSWENERGY",
+    "JSWSTEEL",
+    "LT",
+    "OBEROIRLTY",
+    "ONGC",
+    "PHOENIXLTD",
+    "SAIL",
+    "SBIN",
+    "SJVN",
+    "SOBHA",
+    "TORNTPOWER"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2018-10-01",
+   "sectors": {
+    "Nifty Energy": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Financial Services": 0.3
+   },
+   "holdings": [
+    [
+     "RELIANCE",
+     0.0872
+    ],
+    [
+     "BAJFINANCE",
+     0.0728
+    ],
+    [
+     "LTTS",
+     0.0714
+    ],
+    [
+     "MPHASIS",
+     0.0692
+    ],
+    [
+     "AXISBANK",
+     0.0489
+    ],
+    [
+     "INTELLECT",
+     0.0486
+    ],
+    [
+     "GAIL",
+     0.0479
+    ],
+    [
+     "BAJAJFINSV",
+     0.042
+    ],
+    [
+     "ICICIBANK",
+     0.0394
+    ],
+    [
+     "ADANIPOWER",
+     0.0378
+    ],
+    [
+     "ABB",
+     0.0378
+    ],
+    [
+     "SBIN",
+     0.0306
+    ],
+    [
+     "TECHM",
+     0.0273
+    ],
+    [
+     "HDFCBANK",
+     0.026
+    ],
+    [
+     "TATAELXSI",
+     0.0252
+    ],
+    [
+     "OIL",
+     0.025
+    ],
+    [
+     "WIPRO",
+     0.0241
+    ],
+    [
+     "KOTAKBANK",
+     0.0237
+    ],
+    [
+     "ONGC",
+     0.0224
+    ],
+    [
+     "NTPC",
+     0.0212
+    ],
+    [
+     "POWERGRID",
+     0.0206
+    ],
+    [
+     "SONATSOFTW",
+     0.0187
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0167
+    ],
+    [
+     "HCLTECH",
+     0.0155
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "CASH",
+   "entered": [
+    "ADANIPOWER",
+    "AXISBANK",
+    "GAIL",
+    "HCLTECH",
+    "ICICIBANK",
+    "INTELLECT",
+    "MUTHOOTFIN",
+    "OIL",
+    "ONGC",
+    "SBIN",
+    "SONATSOFTW",
+    "WIPRO"
+   ],
+   "exited": [
+    "CESC",
+    "CHOLAFIN",
+    "COALINDIA",
+    "CYIENT",
+    "HDFCLIFE",
+    "INFY",
+    "PETRONET",
+    "SBILIFE",
+    "THERMAX",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 24
+  },
+  {
+   "date": "2019-01-01",
+   "sectors": {
+    "Nifty Energy": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty PSU Bank": 0.1864,
+    "Nifty Financial Services": 0.2136
+   },
+   "holdings": [
+    [
+     "ADANIPOWER",
+     0.12
+    ],
+    [
+     "LTTS",
+     0.0868
+    ],
+    [
+     "WIPRO",
+     0.0706
+    ],
+    [
+     "PFC",
+     0.0566
+    ],
+    [
+     "NEWGEN",
+     0.0559
+    ],
+    [
+     "INTELLECT",
+     0.0549
+    ],
+    [
+     "MAHABANK",
+     0.0519
+    ],
+    [
+     "UCOBANK",
+     0.0508
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0506
+    ],
+    [
+     "ICICIBANK",
+     0.0422
+    ],
+    [
+     "BANKINDIA",
+     0.0391
+    ],
+    [
+     "AXISBANK",
+     0.0336
+    ],
+    [
+     "ICICIGI",
+     0.0314
+    ],
+    [
+     "SBIN",
+     0.0297
+    ],
+    [
+     "CANBK",
+     0.0275
+    ],
+    [
+     "HCLTECH",
+     0.0252
+    ],
+    [
+     "TECHM",
+     0.0233
+    ],
+    [
+     "TCS",
+     0.0195
+    ],
+    [
+     "RELIANCE",
+     0.0178
+    ],
+    [
+     "TORNTPOWER",
+     0.017
+    ],
+    [
+     "BAJFINANCE",
+     0.0137
+    ],
+    [
+     "RECLTD",
+     0.0137
+    ],
+    [
+     "ABB",
+     0.0133
+    ],
+    [
+     "MGL",
+     0.0122
+    ],
+    [
+     "UNIONBANK",
+     0.0121
+    ],
+    [
+     "PETRONET",
+     0.0093
+    ],
+    [
+     "SIEMENS",
+     0.0092
+    ],
+    [
+     "THERMAX",
+     0.0087
+    ],
+    [
+     "SONATSOFTW",
+     0.0035
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "BANKINDIA",
+    "CANBK",
+    "ICICIGI",
+    "MAHABANK",
+    "MGL",
+    "NEWGEN",
+    "PETRONET",
+    "PFC",
+    "RECLTD",
+    "SIEMENS",
+    "TCS",
+    "THERMAX",
+    "TORNTPOWER",
+    "UCOBANK",
+    "UNIONBANK"
+   ],
+   "exited": [
+    "BAJAJFINSV",
+    "GAIL",
+    "HDFCBANK",
+    "KOTAKBANK",
+    "MPHASIS",
+    "NTPC",
+    "OIL",
+    "ONGC",
+    "POWERGRID",
+    "TATAELXSI"
+   ],
+   "n_stocks": 29
+  },
+  {
+   "date": "2019-04-01",
+   "sectors": {
+    "Nifty Bank": 0.04,
+    "Nifty Energy": 0.0998,
+    "Nifty IT": 0.3,
+    "Nifty Infrastructure": 0.3,
+    "Nifty PSU Bank": 0.0,
+    "Nifty Realty": 0.1811,
+    "Nifty Financial Services": 0.0391,
+    "Nifty Private Bank": 0.0401
+   },
+   "holdings": [
+    [
+     "NEWGEN",
+     0.12
+    ],
+    [
+     "INDIGO",
+     0.12
+    ],
+    [
+     "GODREJPROP",
+     0.078
+    ],
+    [
+     "ADANIPOWER",
+     0.0745
+    ],
+    [
+     "BRIGADE",
+     0.0535
+    ],
+    [
+     "OBEROIRLTY",
+     0.0474
+    ],
+    [
+     "INDHOTEL",
+     0.0465
+    ],
+    [
+     "INFY",
+     0.0447
+    ],
+    [
+     "FEDERALBNK",
+     0.0447
+    ],
+    [
+     "PNB",
+     0.0446
+    ],
+    [
+     "APOLLOHOSP",
+     0.0442
+    ],
+    [
+     "PFC",
+     0.0436
+    ],
+    [
+     "TECHM",
+     0.0436
+    ],
+    [
+     "HCLTECH",
+     0.0313
+    ],
+    [
+     "HINDPETRO",
+     0.0276
+    ],
+    [
+     "ADANIPORTS",
+     0.0246
+    ],
+    [
+     "SOBHA",
+     0.023
+    ],
+    [
+     "RELIANCE",
+     0.0202
+    ],
+    [
+     "MGL",
+     0.0201
+    ],
+    [
+     "SIEMENS",
+     0.0167
+    ],
+    [
+     "CUMMINSIND",
+     0.0131
+    ],
+    [
+     "SHREECEM",
+     0.0122
+    ],
+    [
+     "INTELLECT",
+     0.0031
+    ],
+    [
+     "TCS",
+     0.0027
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "BRIGADE",
+    "CUMMINSIND",
+    "FEDERALBNK",
+    "GODREJPROP",
+    "HINDPETRO",
+    "INDHOTEL",
+    "INDIGO",
+    "INFY",
+    "OBEROIRLTY",
+    "PNB",
+    "SHREECEM",
+    "SOBHA"
+   ],
+   "exited": [
+    "ABB",
+    "AXISBANK",
+    "BAJFINANCE",
+    "BANKINDIA",
+    "CANBK",
+    "ICICIBANK",
+    "ICICIGI",
+    "LTTS",
+    "MAHABANK",
+    "MUTHOOTFIN",
+    "PETRONET",
+    "RECLTD",
+    "SBIN",
+    "SONATSOFTW",
+    "THERMAX",
+    "TORNTPOWER",
+    "UCOBANK",
+    "UNIONBANK",
+    "WIPRO"
+   ],
+   "n_stocks": 24
+  },
+  {
+   "date": "2019-07-01",
+   "sectors": {
+    "Nifty Bank": 0.1423,
+    "Nifty Energy": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Infrastructure": 0.0,
+    "Nifty PSU Bank": 0.0,
+    "Nifty Realty": 0.0952,
+    "Nifty Financial Services": 0.0,
+    "Nifty Private Bank": 0.1625
+   },
+   "holdings": [
+    [
+     "AXISBANK",
+     0.1004
+    ],
+    [
+     "INTELLECT",
+     0.0693
+    ],
+    [
+     "ICICIBANK",
+     0.0667
+    ],
+    [
+     "TCS",
+     0.0647
+    ],
+    [
+     "SONATSOFTW",
+     0.0607
+    ],
+    [
+     "GODREJPROP",
+     0.06
+    ],
+    [
+     "SIEMENS",
+     0.0568
+    ],
+    [
+     "ABB",
+     0.0476
+    ],
+    [
+     "KOTAKBANK",
+     0.0454
+    ],
+    [
+     "INFY",
+     0.0436
+    ],
+    [
+     "FEDERALBNK",
+     0.0422
+    ],
+    [
+     "ADANIPOWER",
+     0.0379
+    ],
+    [
+     "CESC",
+     0.0361
+    ],
+    [
+     "HCLTECH",
+     0.034
+    ],
+    [
+     "IGL",
+     0.0332
+    ],
+    [
+     "RELIANCE",
+     0.032
+    ],
+    [
+     "SBIN",
+     0.0288
+    ],
+    [
+     "TORNTPOWER",
+     0.0283
+    ],
+    [
+     "HINDPETRO",
+     0.0282
+    ],
+    [
+     "ZENSARTECH",
+     0.0254
+    ],
+    [
+     "OBEROIRLTY",
+     0.0245
+    ],
+    [
+     "HDFCBANK",
+     0.0214
+    ],
+    [
+     "PRESTIGE",
+     0.0107
+    ],
+    [
+     "NEWGEN",
+     0.0024
+    ],
+    [
+     "INDIGO",
+     0.0
+    ],
+    [
+     "BAJFINANCE",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ABB",
+    "AXISBANK",
+    "BAJFINANCE",
+    "CESC",
+    "HDFCBANK",
+    "ICICIBANK",
+    "IGL",
+    "KOTAKBANK",
+    "PRESTIGE",
+    "SBIN",
+    "SONATSOFTW",
+    "TORNTPOWER",
+    "ZENSARTECH"
+   ],
+   "exited": [
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "BRIGADE",
+    "CUMMINSIND",
+    "INDHOTEL",
+    "MGL",
+    "PFC",
+    "PNB",
+    "SHREECEM",
+    "SOBHA",
+    "TECHM"
+   ],
+   "n_stocks": 26
+  },
+  {
+   "date": "2019-10-01",
+   "sectors": {
+    "Nifty Bank": 0.1297,
+    "Nifty Energy": 0.1283,
+    "Nifty IT": 0.2294,
+    "Nifty Infrastructure": 0.1708,
+    "Nifty Realty": 0.1231,
+    "Nifty Financial Services": 0.0737,
+    "Nifty Private Bank": 0.145
+   },
+   "holdings": [
+    [
+     "ADANIGREEN",
+     0.0993
+    ],
+    [
+     "KOTAKBANK",
+     0.0975
+    ],
+    [
+     "ICICIBANK",
+     0.0657
+    ],
+    [
+     "GODREJPROP",
+     0.058
+    ],
+    [
+     "BPCL",
+     0.0532
+    ],
+    [
+     "INFY",
+     0.0526
+    ],
+    [
+     "HDFCLIFE",
+     0.0461
+    ],
+    [
+     "LTTS",
+     0.0424
+    ],
+    [
+     "HCLTECH",
+     0.0409
+    ],
+    [
+     "FEDERALBNK",
+     0.0407
+    ],
+    [
+     "TCS",
+     0.04
+    ],
+    [
+     "AUBANK",
+     0.0373
+    ],
+    [
+     "SIEMENS",
+     0.0355
+    ],
+    [
+     "INDIGO",
+     0.0342
+    ],
+    [
+     "BAJFINANCE",
+     0.0276
+    ],
+    [
+     "PRESTIGE",
+     0.0264
+    ],
+    [
+     "ADANIPOWER",
+     0.0248
+    ],
+    [
+     "MPHASIS",
+     0.0241
+    ],
+    [
+     "APOLLOHOSP",
+     0.0213
+    ],
+    [
+     "BANDHANBNK",
+     0.0198
+    ],
+    [
+     "PHOENIXLTD",
+     0.0194
+    ],
+    [
+     "SOBHA",
+     0.0193
+    ],
+    [
+     "HINDPETRO",
+     0.0158
+    ],
+    [
+     "ADANIPORTS",
+     0.015
+    ],
+    [
+     "SONATSOFTW",
+     0.0147
+    ],
+    [
+     "AXISBANK",
+     0.0137
+    ],
+    [
+     "ZENSARTECH",
+     0.0113
+    ],
+    [
+     "OFSS",
+     0.0033
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "ADANIGREEN",
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "AUBANK",
+    "BANDHANBNK",
+    "BPCL",
+    "HDFCLIFE",
+    "LTTS",
+    "MPHASIS",
+    "OFSS",
+    "PHOENIXLTD",
+    "SOBHA"
+   ],
+   "exited": [
+    "ABB",
+    "CESC",
+    "HDFCBANK",
+    "IGL",
+    "INTELLECT",
+    "NEWGEN",
+    "OBEROIRLTY",
+    "RELIANCE",
+    "SBIN",
+    "TORNTPOWER"
+   ],
+   "n_stocks": 28
+  },
+  {
+   "date": "2020-01-01",
+   "sectors": {
+    "Nifty Auto": 0.0669,
+    "Nifty Bank": 0.076,
+    "Nifty Energy": 0.2068,
+    "Nifty IT": 0.2259,
+    "Nifty Infrastructure": 0.2141,
+    "Nifty Realty": 0.0488,
+    "Nifty Financial Services": 0.072,
+    "Nifty Private Bank": 0.0896
+   },
+   "holdings": [
+    [
+     "ADANIGREEN",
+     0.12
+    ],
+    [
+     "ICICIBANK",
+     0.0907
+    ],
+    [
+     "PERSISTENT",
+     0.0829
+    ],
+    [
+     "KOTAKBANK",
+     0.0626
+    ],
+    [
+     "TECHM",
+     0.0561
+    ],
+    [
+     "SBILIFE",
+     0.0476
+    ],
+    [
+     "DLF",
+     0.0463
+    ],
+    [
+     "BALKRISIND",
+     0.0453
+    ],
+    [
+     "HDFCLIFE",
+     0.0441
+    ],
+    [
+     "JBMA",
+     0.0399
+    ],
+    [
+     "INFY",
+     0.0376
+    ],
+    [
+     "PHOENIXLTD",
+     0.0321
+    ],
+    [
+     "TATAELXSI",
+     0.0321
+    ],
+    [
+     "TCS",
+     0.0296
+    ],
+    [
+     "MPHASIS",
+     0.0291
+    ],
+    [
+     "AUBANK",
+     0.029
+    ],
+    [
+     "IDFCFIRSTB",
+     0.0284
+    ],
+    [
+     "BPCL",
+     0.027
+    ],
+    [
+     "KPITTECH",
+     0.0203
+    ],
+    [
+     "IGL",
+     0.0196
+    ],
+    [
+     "BHARTIARTL",
+     0.0169
+    ],
+    [
+     "RELIANCE",
+     0.0164
+    ],
+    [
+     "MGL",
+     0.0158
+    ],
+    [
+     "ADANIPOWER",
+     0.0141
+    ],
+    [
+     "SIEMENS",
+     0.01
+    ],
+    [
+     "BHARATFORG",
+     0.0045
+    ],
+    [
+     "APOLLOHOSP",
+     0.0021
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "BALKRISIND",
+    "BHARATFORG",
+    "BHARTIARTL",
+    "DLF",
+    "IDFCFIRSTB",
+    "IGL",
+    "JBMA",
+    "KPITTECH",
+    "MGL",
+    "PERSISTENT",
+    "RELIANCE",
+    "SBILIFE",
+    "TATAELXSI",
+    "TECHM"
+   ],
+   "exited": [
+    "ADANIPORTS",
+    "AXISBANK",
+    "BAJFINANCE",
+    "BANDHANBNK",
+    "FEDERALBNK",
+    "GODREJPROP",
+    "HCLTECH",
+    "HINDPETRO",
+    "INDIGO",
+    "LTTS",
+    "OFSS",
+    "PRESTIGE",
+    "SOBHA",
+    "SONATSOFTW",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 27
+  },
+  {
+   "date": "2020-04-01",
+   "sectors": {
+    "Nifty Energy": 0.1514,
+    "Nifty FMCG": 0.0,
+    "Nifty IT": 0.1491,
+    "Nifty Pharma": 0.0,
+    "Nifty Infrastructure": 0.1562,
+    "Nifty Realty": 0.2841,
+    "Nifty Financial Services": 0.2592
+   },
+   "holdings": [
+    [
+     "ADANIGREEN",
+     0.12
+    ],
+    [
+     "DLF",
+     0.12
+    ],
+    [
+     "PHOENIXLTD",
+     0.0839
+    ],
+    [
+     "ICICIGI",
+     0.0678
+    ],
+    [
+     "MFSL",
+     0.0659
+    ],
+    [
+     "BRIGADE",
+     0.0641
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0564
+    ],
+    [
+     "PFC",
+     0.0558
+    ],
+    [
+     "PERSISTENT",
+     0.0486
+    ],
+    [
+     "TATAELXSI",
+     0.0381
+    ],
+    [
+     "BSOFT",
+     0.0327
+    ],
+    [
+     "BHARTIARTL",
+     0.0327
+    ],
+    [
+     "TCS",
+     0.0279
+    ],
+    [
+     "SBILIFE",
+     0.0249
+    ],
+    [
+     "WIPRO",
+     0.0249
+    ],
+    [
+     "IGL",
+     0.0247
+    ],
+    [
+     "HDFCLIFE",
+     0.0184
+    ],
+    [
+     "TORNTPOWER",
+     0.0164
+    ],
+    [
+     "OBEROIRLTY",
+     0.013
+    ],
+    [
+     "MGL",
+     0.0108
+    ],
+    [
+     "FORTIS",
+     0.0105
+    ],
+    [
+     "KOTAKBANK",
+     0.0101
+    ],
+    [
+     "SJVN",
+     0.0092
+    ],
+    [
+     "SHREECEM",
+     0.0085
+    ],
+    [
+     "PRESTIGE",
+     0.0074
+    ],
+    [
+     "RELIANCE",
+     0.0071
+    ],
+    [
+     "NESTLEIND",
+     0.0
+    ],
+    [
+     "IPCALAB",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "BRIGADE",
+    "BSOFT",
+    "FORTIS",
+    "ICICIGI",
+    "IPCALAB",
+    "MFSL",
+    "MUTHOOTFIN",
+    "NESTLEIND",
+    "OBEROIRLTY",
+    "PFC",
+    "PRESTIGE",
+    "SHREECEM",
+    "SJVN",
+    "TORNTPOWER",
+    "WIPRO"
+   ],
+   "exited": [
+    "ADANIPOWER",
+    "APOLLOHOSP",
+    "AUBANK",
+    "BALKRISIND",
+    "BHARATFORG",
+    "BPCL",
+    "ICICIBANK",
+    "IDFCFIRSTB",
+    "INFY",
+    "JBMA",
+    "KPITTECH",
+    "MPHASIS",
+    "SIEMENS",
+    "TECHM"
+   ],
+   "n_stocks": 28
+  },
+  {
+   "date": "2020-07-01",
+   "sectors": {
+    "Nifty Energy": 0.1594,
+    "Nifty FMCG": 0.1818,
+    "Nifty IT": 0.2353,
+    "Nifty Pharma": 0.1789,
+    "Nifty Infrastructure": 0.2446
+   },
+   "holdings": [
+    [
+     "SUZLON",
+     0.12
+    ],
+    [
+     "ADANIGREEN",
+     0.12
+    ],
+    [
+     "BSOFT",
+     0.0688
+    ],
+    [
+     "AUROPHARMA",
+     0.064
+    ],
+    [
+     "AFFLE",
+     0.0575
+    ],
+    [
+     "EIDPARRY",
+     0.0574
+    ],
+    [
+     "JBCHEPHARM",
+     0.0562
+    ],
+    [
+     "TATAELXSI",
+     0.0429
+    ],
+    [
+     "CCL",
+     0.038
+    ],
+    [
+     "JPPOWER",
+     0.0318
+    ],
+    [
+     "AJANTPHARM",
+     0.0301
+    ],
+    [
+     "RADICO",
+     0.0287
+    ],
+    [
+     "BRITANNIA",
+     0.0276
+    ],
+    [
+     "NESTLEIND",
+     0.0264
+    ],
+    [
+     "BHARTIARTL",
+     0.0221
+    ],
+    [
+     "OFSS",
+     0.0216
+    ],
+    [
+     "LAURUSLABS",
+     0.0211
+    ],
+    [
+     "INFY",
+     0.021
+    ],
+    [
+     "HINDUNILVR",
+     0.0208
+    ],
+    [
+     "MPHASIS",
+     0.0186
+    ],
+    [
+     "IPCALAB",
+     0.0181
+    ],
+    [
+     "HCLTECH",
+     0.0169
+    ],
+    [
+     "RPOWER",
+     0.0149
+    ],
+    [
+     "RELIANCE",
+     0.0144
+    ],
+    [
+     "SHREECEM",
+     0.012
+    ],
+    [
+     "PERSISTENT",
+     0.0103
+    ],
+    [
+     "INOXWIND",
+     0.0085
+    ],
+    [
+     "DRREDDY",
+     0.0064
+    ],
+    [
+     "AMBUJACEM",
+     0.0029
+    ],
+    [
+     "ULTRACEMCO",
+     0.0006
+    ],
+    [
+     "APOLLOHOSP",
+     0.0004
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "AFFLE",
+    "AJANTPHARM",
+    "AMBUJACEM",
+    "APOLLOHOSP",
+    "AUROPHARMA",
+    "BRITANNIA",
+    "CCL",
+    "DRREDDY",
+    "EIDPARRY",
+    "HCLTECH",
+    "HINDUNILVR",
+    "INFY",
+    "INOXWIND",
+    "JBCHEPHARM",
+    "JPPOWER",
+    "LAURUSLABS",
+    "MPHASIS",
+    "OFSS",
+    "RADICO",
+    "RPOWER",
+    "SUZLON",
+    "ULTRACEMCO"
+   ],
+   "exited": [
+    "BRIGADE",
+    "DLF",
+    "FORTIS",
+    "HDFCLIFE",
+    "ICICIGI",
+    "IGL",
+    "KOTAKBANK",
+    "MFSL",
+    "MGL",
+    "MUTHOOTFIN",
+    "OBEROIRLTY",
+    "PFC",
+    "PHOENIXLTD",
+    "PRESTIGE",
+    "SBILIFE",
+    "SJVN",
+    "TCS",
+    "TORNTPOWER",
+    "WIPRO"
+   ],
+   "n_stocks": 31
+  },
+  {
+   "date": "2020-10-01",
+   "sectors": {
+    "Nifty Energy": 0.3,
+    "Nifty IT": 0.1,
+    "Nifty Pharma": 0.3,
+    "Nifty Infrastructure": 0.3
+   },
+   "holdings": [
+    [
+     "ADANIGREEN",
+     0.12
+    ],
+    [
+     "CGPOWER",
+     0.12
+    ],
+    [
+     "GLENMARK",
+     0.12
+    ],
+    [
+     "AUROPHARMA",
+     0.0768
+    ],
+    [
+     "JBCHEPHARM",
+     0.0703
+    ],
+    [
+     "INTELLECT",
+     0.069
+    ],
+    [
+     "RELIANCE",
+     0.0543
+    ],
+    [
+     "CIPLA",
+     0.0476
+    ],
+    [
+     "KPITTECH",
+     0.0447
+    ],
+    [
+     "INOXWIND",
+     0.0373
+    ],
+    [
+     "RPOWER",
+     0.0366
+    ],
+    [
+     "BSOFT",
+     0.034
+    ],
+    [
+     "WOCKPHARMA",
+     0.0336
+    ],
+    [
+     "LUPIN",
+     0.0315
+    ],
+    [
+     "BHARATFORG",
+     0.0205
+    ],
+    [
+     "BIOCON",
+     0.0181
+    ],
+    [
+     "TATAPOWER",
+     0.0171
+    ],
+    [
+     "APOLLOHOSP",
+     0.0162
+    ],
+    [
+     "ASHOKLEY",
+     0.0125
+    ],
+    [
+     "DRREDDY",
+     0.0115
+    ],
+    [
+     "CESC",
+     0.0041
+    ],
+    [
+     "SUZLON",
+     0.0027
+    ],
+    [
+     "GRASIM",
+     0.0015
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ASHOKLEY",
+    "BHARATFORG",
+    "BIOCON",
+    "CESC",
+    "CGPOWER",
+    "CIPLA",
+    "GLENMARK",
+    "GRASIM",
+    "INTELLECT",
+    "KPITTECH",
+    "LUPIN",
+    "TATAPOWER",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "AFFLE",
+    "AJANTPHARM",
+    "AMBUJACEM",
+    "BHARTIARTL",
+    "BRITANNIA",
+    "CCL",
+    "EIDPARRY",
+    "HCLTECH",
+    "HINDUNILVR",
+    "INFY",
+    "IPCALAB",
+    "JPPOWER",
+    "LAURUSLABS",
+    "MPHASIS",
+    "NESTLEIND",
+    "OFSS",
+    "PERSISTENT",
+    "RADICO",
+    "SHREECEM",
+    "TATAELXSI",
+    "ULTRACEMCO"
+   ],
+   "n_stocks": 23
+  },
+  {
+   "date": "2021-01-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Pharma": 0.3,
+    "Nifty Consumer Durables": 0.0
+   },
+   "holdings": [
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "INDUSINDBK",
+     0.1134
+    ],
+    [
+     "DIVISLAB",
+     0.1037
+    ],
+    [
+     "INTELLECT",
+     0.0911
+    ],
+    [
+     "BSOFT",
+     0.0801
+    ],
+    [
+     "AFFLE",
+     0.0475
+    ],
+    [
+     "KPITTECH",
+     0.0419
+    ],
+    [
+     "SBIN",
+     0.0408
+    ],
+    [
+     "AUBANK",
+     0.0375
+    ],
+    [
+     "PERSISTENT",
+     0.0361
+    ],
+    [
+     "ICICIBANK",
+     0.0346
+    ],
+    [
+     "KOTAKBANK",
+     0.0346
+    ],
+    [
+     "JBCHEPHARM",
+     0.0339
+    ],
+    [
+     "AXISBANK",
+     0.0301
+    ],
+    [
+     "IDFCFIRSTB",
+     0.0164
+    ],
+    [
+     "DRREDDY",
+     0.0154
+    ],
+    [
+     "TATAELXSI",
+     0.0106
+    ],
+    [
+     "CIPLA",
+     0.0064
+    ],
+    [
+     "IPCALAB",
+     0.0057
+    ],
+    [
+     "PGEL",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "INDEX",
+   "entered": [
+    "AFFLE",
+    "AUBANK",
+    "AXISBANK",
+    "DIVISLAB",
+    "ICICIBANK",
+    "IDFCFIRSTB",
+    "INDUSINDBK",
+    "IPCALAB",
+    "KOTAKBANK",
+    "PERSISTENT",
+    "PGEL",
+    "SBIN",
+    "TATAELXSI"
+   ],
+   "exited": [
+    "ADANIGREEN",
+    "APOLLOHOSP",
+    "ASHOKLEY",
+    "AUROPHARMA",
+    "BHARATFORG",
+    "BIOCON",
+    "CESC",
+    "CGPOWER",
+    "GLENMARK",
+    "GRASIM",
+    "INOXWIND",
+    "LUPIN",
+    "RELIANCE",
+    "RPOWER",
+    "SUZLON",
+    "TATAPOWER"
+   ],
+   "n_stocks": 20
+  },
+  {
+   "date": "2021-04-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Consumer Durables": 0.3
+   },
+   "holdings": [
+    [
+     "INTELLECT",
+     0.12
+    ],
+    [
+     "KAJARIACER",
+     0.0944
+    ],
+    [
+     "SBIN",
+     0.0793
+    ],
+    [
+     "HAVELLS",
+     0.065
+    ],
+    [
+     "AUBANK",
+     0.0639
+    ],
+    [
+     "TATAELXSI",
+     0.0622
+    ],
+    [
+     "AMBER",
+     0.0603
+    ],
+    [
+     "IDFCFIRSTB",
+     0.0566
+    ],
+    [
+     "INDUSINDBK",
+     0.0466
+    ],
+    [
+     "BANKBARODA",
+     0.0414
+    ],
+    [
+     "VOLTAS",
+     0.0387
+    ],
+    [
+     "AFFLE",
+     0.0343
+    ],
+    [
+     "BLUESTARCO",
+     0.0287
+    ],
+    [
+     "CROMPTON",
+     0.0246
+    ],
+    [
+     "CANBK",
+     0.0241
+    ],
+    [
+     "CYIENT",
+     0.0127
+    ],
+    [
+     "LTTS",
+     0.0108
+    ],
+    [
+     "SONATSOFTW",
+     0.0102
+    ],
+    [
+     "TITAN",
+     0.008
+    ],
+    [
+     "AXISBANK",
+     0.0071
+    ],
+    [
+     "ICICIBANK",
+     0.0058
+    ],
+    [
+     "BERGEPAINT",
+     0.0053
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "INDEX",
+   "entered": [
+    "AMBER",
+    "BANKBARODA",
+    "BERGEPAINT",
+    "BLUESTARCO",
+    "CANBK",
+    "CROMPTON",
+    "CYIENT",
+    "HAVELLS",
+    "KAJARIACER",
+    "LTTS",
+    "SONATSOFTW",
+    "TITAN",
+    "VOLTAS"
+   ],
+   "exited": [
+    "BSOFT",
+    "CIPLA",
+    "DIVISLAB",
+    "DRREDDY",
+    "IPCALAB",
+    "JBCHEPHARM",
+    "KOTAKBANK",
+    "KPITTECH",
+    "PERSISTENT",
+    "PGEL",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2021-07-01",
+   "sectors": {
+    "Nifty Bank": 0.3,
+    "Nifty IT": 0.3,
+    "Nifty Consumer Durables": 0.3
+   },
+   "holdings": [
+    [
+     "SBIN",
+     0.12
+    ],
+    [
+     "PGEL",
+     0.12
+    ],
+    [
+     "IDFCFIRSTB",
+     0.1014
+    ],
+    [
+     "INTELLECT",
+     0.0894
+    ],
+    [
+     "TATAELXSI",
+     0.0813
+    ],
+    [
+     "NEWGEN",
+     0.0793
+    ],
+    [
+     "BANKBARODA",
+     0.067
+    ],
+    [
+     "KPITTECH",
+     0.0475
+    ],
+    [
+     "PERSISTENT",
+     0.0466
+    ],
+    [
+     "PNB",
+     0.0389
+    ],
+    [
+     "SONATSOFTW",
+     0.0339
+    ],
+    [
+     "FEDERALBNK",
+     0.0267
+    ],
+    [
+     "UNIONBANK",
+     0.024
+    ],
+    [
+     "CYIENT",
+     0.0121
+    ],
+    [
+     "CANBK",
+     0.0073
+    ],
+    [
+     "BSOFT",
+     0.0027
+    ],
+    [
+     "ICICIBANK",
+     0.0021
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "INDEX",
+   "entered": [
+    "BSOFT",
+    "FEDERALBNK",
+    "KPITTECH",
+    "NEWGEN",
+    "PERSISTENT",
+    "PGEL",
+    "PNB",
+    "UNIONBANK"
+   ],
+   "exited": [
+    "AFFLE",
+    "AMBER",
+    "AUBANK",
+    "AXISBANK",
+    "BERGEPAINT",
+    "BLUESTARCO",
+    "CROMPTON",
+    "HAVELLS",
+    "INDUSINDBK",
+    "KAJARIACER",
+    "LTTS",
+    "TITAN",
+    "VOLTAS"
+   ],
+   "n_stocks": 17
+  },
+  {
+   "date": "2021-10-01",
+   "sectors": {
+    "Nifty IT": 0.3,
+    "Nifty Media": 0.2859,
+    "Nifty Realty": 0.1141,
+    "Nifty Consumer Durables": 0.3
+   },
+   "holdings": [
+    [
+     "ANANTRAJ",
+     0.12
+    ],
+    [
+     "PGEL",
+     0.12
+    ],
+    [
+     "NETWORK18",
+     0.1046
+    ],
+    [
+     "TATAELXSI",
+     0.1031
+    ],
+    [
+     "ZEEL",
+     0.0945
+    ],
+    [
+     "NAZARA",
+     0.0891
+    ],
+    [
+     "PFOCUS",
+     0.0738
+    ],
+    [
+     "PERSISTENT",
+     0.058
+    ],
+    [
+     "KPITTECH",
+     0.0565
+    ],
+    [
+     "COFORGE",
+     0.0384
+    ],
+    [
+     "LTTS",
+     0.034
+    ],
+    [
+     "ZENSARTECH",
+     0.0336
+    ],
+    [
+     "SONATSOFTW",
+     0.0325
+    ],
+    [
+     "MPHASIS",
+     0.0238
+    ],
+    [
+     "TITAN",
+     0.0158
+    ],
+    [
+     "DIXON",
+     0.0023
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ANANTRAJ",
+    "COFORGE",
+    "DIXON",
+    "LTTS",
+    "MPHASIS",
+    "NAZARA",
+    "NETWORK18",
+    "PFOCUS",
+    "TITAN",
+    "ZEEL",
+    "ZENSARTECH"
+   ],
+   "exited": [
+    "BANKBARODA",
+    "BSOFT",
+    "CANBK",
+    "CYIENT",
+    "FEDERALBNK",
+    "ICICIBANK",
+    "IDFCFIRSTB",
+    "INTELLECT",
+    "NEWGEN",
+    "PNB",
+    "SBIN",
+    "UNIONBANK"
+   ],
+   "n_stocks": 16
+  },
+  {
+   "date": "2022-01-03",
+   "sectors": {
+    "Nifty IT": 0.2022,
+    "Nifty Media": 0.3,
+    "Nifty Realty": 0.3,
+    "Nifty Consumer Durables": 0.1978
+   },
+   "holdings": [
+    [
+     "NETWORK18",
+     0.12
+    ],
+    [
+     "ZEEL",
+     0.1119
+    ],
+    [
+     "PGEL",
+     0.1086
+    ],
+    [
+     "SOBHA",
+     0.1067
+    ],
+    [
+     "LODHA",
+     0.0845
+    ],
+    [
+     "BRIGADE",
+     0.0753
+    ],
+    [
+     "KPITTECH",
+     0.0677
+    ],
+    [
+     "NEWGEN",
+     0.047
+    ],
+    [
+     "LTTS",
+     0.0425
+    ],
+    [
+     "TITAN",
+     0.0394
+    ],
+    [
+     "ANANTRAJ",
+     0.0351
+    ],
+    [
+     "HAVELLS",
+     0.0348
+    ],
+    [
+     "PRESTIGE",
+     0.0275
+    ],
+    [
+     "KAJARIACER",
+     0.0201
+    ],
+    [
+     "PERSISTENT",
+     0.0176
+    ],
+    [
+     "TECHM",
+     0.0175
+    ],
+    [
+     "ZENSARTECH",
+     0.0173
+    ],
+    [
+     "MPHASIS",
+     0.0123
+    ],
+    [
+     "DIXON",
+     0.0072
+    ],
+    [
+     "BLUESTARCO",
+     0.0051
+    ],
+    [
+     "VOLTAS",
+     0.0019
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "BLUESTARCO",
+    "BRIGADE",
+    "HAVELLS",
+    "KAJARIACER",
+    "LODHA",
+    "NEWGEN",
+    "PRESTIGE",
+    "SOBHA",
+    "TECHM",
+    "VOLTAS"
+   ],
+   "exited": [
+    "COFORGE",
+    "NAZARA",
+    "PFOCUS",
+    "SONATSOFTW",
+    "TATAELXSI"
+   ],
+   "n_stocks": 21
+  },
+  {
+   "date": "2022-04-01",
+   "sectors": {
+    "Nifty Auto": 0.1254,
+    "Nifty Energy": 0.0603,
+    "Nifty IT": 0.0958,
+    "Nifty Infrastructure": 0.1623,
+    "Nifty Media": 0.053,
+    "Nifty Metal": 0.0166,
+    "Nifty PSU Bank": 0.0961,
+    "Nifty Realty": 0.0895,
+    "Nifty Oil & Gas": 0.1597,
+    "Nifty Consumer Durables": 0.1413
+   },
+   "holdings": [
+    [
+     "CGPOWER",
+     0.1174
+    ],
+    [
+     "OLECTRA",
+     0.0853
+    ],
+    [
+     "PGEL",
+     0.0816
+    ],
+    [
+     "ONGC",
+     0.0559
+    ],
+    [
+     "SAREGAMA",
+     0.053
+    ],
+    [
+     "KPITTECH",
+     0.0431
+    ],
+    [
+     "BRIGADE",
+     0.0408
+    ],
+    [
+     "CANBK",
+     0.0408
+    ],
+    [
+     "BANKBARODA",
+     0.04
+    ],
+    [
+     "ANANTRAJ",
+     0.0363
+    ],
+    [
+     "TATAELXSI",
+     0.0341
+    ],
+    [
+     "RPOWER",
+     0.0302
+    ],
+    [
+     "RELIANCE",
+     0.0297
+    ],
+    [
+     "CHENNPETRO",
+     0.0294
+    ],
+    [
+     "ADANIGREEN",
+     0.0275
+    ],
+    [
+     "GAIL",
+     0.0264
+    ],
+    [
+     "MINDACORP",
+     0.0241
+    ],
+    [
+     "TATAPOWER",
+     0.0233
+    ],
+    [
+     "BLUESTARCO",
+     0.0203
+    ],
+    [
+     "PERSISTENT",
+     0.0186
+    ],
+    [
+     "COALINDIA",
+     0.0183
+    ],
+    [
+     "GMDCLTD",
+     0.0166
+    ],
+    [
+     "SUZLON",
+     0.016
+    ],
+    [
+     "INDIANB",
+     0.0153
+    ],
+    [
+     "TITAN",
+     0.0147
+    ],
+    [
+     "AMBER",
+     0.0142
+    ],
+    [
+     "PHOENIXLTD",
+     0.0124
+    ],
+    [
+     "BATAINDIA",
+     0.0105
+    ],
+    [
+     "ASAHIINDIA",
+     0.0084
+    ],
+    [
+     "INDHOTEL",
+     0.0082
+    ],
+    [
+     "TIINDIA",
+     0.0076
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ADANIGREEN",
+    "AMBER",
+    "ASAHIINDIA",
+    "BANKBARODA",
+    "BATAINDIA",
+    "CANBK",
+    "CGPOWER",
+    "CHENNPETRO",
+    "COALINDIA",
+    "GAIL",
+    "GMDCLTD",
+    "INDHOTEL",
+    "INDIANB",
+    "MINDACORP",
+    "OLECTRA",
+    "ONGC",
+    "PHOENIXLTD",
+    "RELIANCE",
+    "RPOWER",
+    "SAREGAMA",
+    "SUZLON",
+    "TATAELXSI",
+    "TATAPOWER",
+    "TIINDIA"
+   ],
+   "exited": [
+    "DIXON",
+    "HAVELLS",
+    "KAJARIACER",
+    "LODHA",
+    "LTTS",
+    "MPHASIS",
+    "NETWORK18",
+    "NEWGEN",
+    "PRESTIGE",
+    "SOBHA",
+    "TECHM",
+    "VOLTAS",
+    "ZEEL",
+    "ZENSARTECH"
+   ],
+   "n_stocks": 31
+  },
+  {
+   "date": "2022-07-01",
+   "sectors": {
+    "Nifty Auto": 0.0391,
+    "Nifty Energy": 0.1297,
+    "Nifty Infrastructure": 0.222,
+    "Nifty Media": 0.1438,
+    "Nifty Metal": 0.1282,
+    "Nifty PSU Bank": 0.1458,
+    "Nifty Oil & Gas": 0.1914
+   },
+   "holdings": [
+    [
+     "CHENNPETRO",
+     0.12
+    ],
+    [
+     "CGPOWER",
+     0.1147
+    ],
+    [
+     "ATGL",
+     0.0935
+    ],
+    [
+     "BANKBARODA",
+     0.0698
+    ],
+    [
+     "GMDCLTD",
+     0.0562
+    ],
+    [
+     "PFOCUS",
+     0.0459
+    ],
+    [
+     "INDIANB",
+     0.0398
+    ],
+    [
+     "OLECTRA",
+     0.0396
+    ],
+    [
+     "ADANIGREEN",
+     0.0381
+    ],
+    [
+     "SUNTV",
+     0.036
+    ],
+    [
+     "MRPL",
+     0.0354
+    ],
+    [
+     "ADANIPOWER",
+     0.034
+    ],
+    [
+     "GRAVITA",
+     0.0327
+    ],
+    [
+     "DBCORP",
+     0.0298
+    ],
+    [
+     "SBIN",
+     0.0294
+    ],
+    [
+     "JSWENERGY",
+     0.028
+    ],
+    [
+     "ADANIENT",
+     0.024
+    ],
+    [
+     "INDHOTEL",
+     0.0233
+    ],
+    [
+     "ASHOKLEY",
+     0.0204
+    ],
+    [
+     "NETWORK18",
+     0.0182
+    ],
+    [
+     "WELCORP",
+     0.017
+    ],
+    [
+     "HATHWAY",
+     0.0159
+    ],
+    [
+     "NTPC",
+     0.0148
+    ],
+    [
+     "CUMMINSIND",
+     0.0105
+    ],
+    [
+     "CANBK",
+     0.0086
+    ],
+    [
+     "POWERGRID",
+     0.0032
+    ],
+    [
+     "COALINDIA",
+     0.0013
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "ADANIENT",
+    "ADANIPOWER",
+    "ASHOKLEY",
+    "ATGL",
+    "CUMMINSIND",
+    "DBCORP",
+    "GRAVITA",
+    "HATHWAY",
+    "JSWENERGY",
+    "MRPL",
+    "NETWORK18",
+    "NTPC",
+    "PFOCUS",
+    "POWERGRID",
+    "SBIN",
+    "SUNTV",
+    "WELCORP"
+   ],
+   "exited": [
+    "AMBER",
+    "ANANTRAJ",
+    "ASAHIINDIA",
+    "BATAINDIA",
+    "BLUESTARCO",
+    "BRIGADE",
+    "GAIL",
+    "KPITTECH",
+    "MINDACORP",
+    "ONGC",
+    "PERSISTENT",
+    "PGEL",
+    "PHOENIXLTD",
+    "RELIANCE",
+    "RPOWER",
+    "SAREGAMA",
+    "SUZLON",
+    "TATAELXSI",
+    "TATAPOWER",
+    "TIINDIA",
+    "TITAN"
+   ],
+   "n_stocks": 27
+  },
+  {
+   "date": "2022-10-03",
+   "sectors": {
+    "Nifty Auto": 0.1899,
+    "Nifty Energy": 0.1993,
+    "Nifty Infrastructure": 0.2552,
+    "Nifty PSU Bank": 0.1625,
+    "Nifty Oil & Gas": 0.1931
+   },
+   "holdings": [
+    [
+     "CHENNPETRO",
+     0.12
+    ],
+    [
+     "INDIANB",
+     0.084
+    ],
+    [
+     "AMBUJACEM",
+     0.0779
+    ],
+    [
+     "MRPL",
+     0.069
+    ],
+    [
+     "ATGL",
+     0.0682
+    ],
+    [
+     "INDHOTEL",
+     0.0512
+    ],
+    [
+     "JSWENERGY",
+     0.047
+    ],
+    [
+     "BANKBARODA",
+     0.0445
+    ],
+    [
+     "CEATLTD",
+     0.0391
+    ],
+    [
+     "TIINDIA",
+     0.0373
+    ],
+    [
+     "SCHAEFFLER",
+     0.0355
+    ],
+    [
+     "ASHOKLEY",
+     0.0354
+    ],
+    [
+     "TVSMOTOR",
+     0.0313
+    ],
+    [
+     "UNIONBANK",
+     0.0291
+    ],
+    [
+     "M&M",
+     0.0279
+    ],
+    [
+     "CGPOWER",
+     0.0269
+    ],
+    [
+     "MAXHEALTH",
+     0.0247
+    ],
+    [
+     "NTPC",
+     0.024
+    ],
+    [
+     "ASAHIINDIA",
+     0.0224
+    ],
+    [
+     "ABB",
+     0.0213
+    ],
+    [
+     "INOXWIND",
+     0.0163
+    ],
+    [
+     "COALINDIA",
+     0.0155
+    ],
+    [
+     "NHPC",
+     0.0134
+    ],
+    [
+     "ADANIGREEN",
+     0.0113
+    ],
+    [
+     "BHARTIARTL",
+     0.009
+    ],
+    [
+     "CASTROLIND",
+     0.0088
+    ],
+    [
+     "CENTRALBK",
+     0.0081
+    ],
+    [
+     "IGL",
+     0.0011
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ABB",
+    "AMBUJACEM",
+    "ASAHIINDIA",
+    "BHARTIARTL",
+    "CASTROLIND",
+    "CEATLTD",
+    "CENTRALBK",
+    "IGL",
+    "INOXWIND",
+    "M&M",
+    "MAXHEALTH",
+    "NHPC",
+    "SCHAEFFLER",
+    "TIINDIA",
+    "TVSMOTOR",
+    "UNIONBANK"
+   ],
+   "exited": [
+    "ADANIENT",
+    "ADANIPOWER",
+    "CANBK",
+    "CUMMINSIND",
+    "DBCORP",
+    "GMDCLTD",
+    "GRAVITA",
+    "HATHWAY",
+    "NETWORK18",
+    "OLECTRA",
+    "PFOCUS",
+    "POWERGRID",
+    "SBIN",
+    "SUNTV",
+    "WELCORP"
+   ],
+   "n_stocks": 28
+  },
+  {
+   "date": "2023-01-02",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Infrastructure": 0.3,
+    "Nifty PSU Bank": 0.1,
+    "Nifty Oil & Gas": 0.3
+   },
+   "holdings": [
+    [
+     "ATGL",
+     0.1099
+    ],
+    [
+     "SUZLON",
+     0.0633
+    ],
+    [
+     "UCOBANK",
+     0.0583
+    ],
+    [
+     "JKTYRE",
+     0.0557
+    ],
+    [
+     "APOLLOTYRE",
+     0.0507
+    ],
+    [
+     "CEATLTD",
+     0.0489
+    ],
+    [
+     "AMBUJACEM",
+     0.0456
+    ],
+    [
+     "CASTROLIND",
+     0.0455
+    ],
+    [
+     "COALINDIA",
+     0.0454
+    ],
+    [
+     "CGPOWER",
+     0.0395
+    ],
+    [
+     "INDHOTEL",
+     0.039
+    ],
+    [
+     "RKFORGE",
+     0.0384
+    ],
+    [
+     "IGL",
+     0.0375
+    ],
+    [
+     "CRAFTSMAN",
+     0.0344
+    ],
+    [
+     "BHARATFORG",
+     0.0307
+    ],
+    [
+     "CUMMINSIND",
+     0.0302
+    ],
+    [
+     "LT",
+     0.0282
+    ],
+    [
+     "TIINDIA",
+     0.0273
+    ],
+    [
+     "GABRIEL",
+     0.0241
+    ],
+    [
+     "UNIONBANK",
+     0.024
+    ],
+    [
+     "GRASIM",
+     0.0235
+    ],
+    [
+     "MGL",
+     0.0218
+    ],
+    [
+     "FORCEMOT",
+     0.0204
+    ],
+    [
+     "PSB",
+     0.0177
+    ],
+    [
+     "HINDPETRO",
+     0.0172
+    ],
+    [
+     "BPCL",
+     0.0151
+    ],
+    [
+     "IOC",
+     0.0075
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "APOLLOTYRE",
+    "BHARATFORG",
+    "BPCL",
+    "CRAFTSMAN",
+    "CUMMINSIND",
+    "FORCEMOT",
+    "GABRIEL",
+    "GRASIM",
+    "HINDPETRO",
+    "IOC",
+    "JKTYRE",
+    "LT",
+    "MGL",
+    "PSB",
+    "RKFORGE",
+    "SUZLON",
+    "UCOBANK"
+   ],
+   "exited": [
+    "ABB",
+    "ADANIGREEN",
+    "ASAHIINDIA",
+    "ASHOKLEY",
+    "BANKBARODA",
+    "BHARTIARTL",
+    "CENTRALBK",
+    "CHENNPETRO",
+    "INDIANB",
+    "INOXWIND",
+    "JSWENERGY",
+    "M&M",
+    "MAXHEALTH",
+    "MRPL",
+    "NHPC",
+    "NTPC",
+    "SCHAEFFLER",
+    "TVSMOTOR"
+   ],
+   "n_stocks": 27
+  },
+  {
+   "date": "2023-04-03",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Bank": 0.082,
+    "Nifty Infrastructure": 0.262,
+    "Nifty PSU Bank": 0.0959,
+    "Nifty Oil & Gas": 0.2601
+   },
+   "holdings": [
+    [
+     "JBMA",
+     0.1145
+    ],
+    [
+     "OIL",
+     0.1021
+    ],
+    [
+     "GAIL",
+     0.0741
+    ],
+    [
+     "ONGC",
+     0.0685
+    ],
+    [
+     "UCOBANK",
+     0.0658
+    ],
+    [
+     "RKFORGE",
+     0.0632
+    ],
+    [
+     "IOC",
+     0.0541
+    ],
+    [
+     "CUMMINSIND",
+     0.0511
+    ],
+    [
+     "UNIONBANK",
+     0.042
+    ],
+    [
+     "CGPOWER",
+     0.0354
+    ],
+    [
+     "ULTRACEMCO",
+     0.0328
+    ],
+    [
+     "SHREECEM",
+     0.0322
+    ],
+    [
+     "BOSCHLTD",
+     0.03
+    ],
+    [
+     "PETRONET",
+     0.0289
+    ],
+    [
+     "LT",
+     0.0265
+    ],
+    [
+     "APOLLOTYRE",
+     0.0234
+    ],
+    [
+     "PNB",
+     0.0212
+    ],
+    [
+     "PSB",
+     0.0207
+    ],
+    [
+     "EXIDEIND",
+     0.0199
+    ],
+    [
+     "CANBK",
+     0.0187
+    ],
+    [
+     "CRAFTSMAN",
+     0.0178
+    ],
+    [
+     "BAJAJ-AUTO",
+     0.0174
+    ],
+    [
+     "BHARATFORG",
+     0.0138
+    ],
+    [
+     "BPCL",
+     0.0095
+    ],
+    [
+     "BANKINDIA",
+     0.0093
+    ],
+    [
+     "CHENNPETRO",
+     0.0056
+    ],
+    [
+     "MGL",
+     0.0013
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "BAJAJ-AUTO",
+    "BANKINDIA",
+    "BOSCHLTD",
+    "CANBK",
+    "CHENNPETRO",
+    "EXIDEIND",
+    "GAIL",
+    "JBMA",
+    "OIL",
+    "ONGC",
+    "PETRONET",
+    "PNB",
+    "SHREECEM",
+    "ULTRACEMCO"
+   ],
+   "exited": [
+    "AMBUJACEM",
+    "ATGL",
+    "CASTROLIND",
+    "CEATLTD",
+    "COALINDIA",
+    "FORCEMOT",
+    "GABRIEL",
+    "GRASIM",
+    "HINDPETRO",
+    "IGL",
+    "INDHOTEL",
+    "JKTYRE",
+    "SUZLON",
+    "TIINDIA"
+   ],
+   "n_stocks": 27
+  },
+  {
+   "date": "2023-07-03",
+   "sectors": {
+    "Nifty Auto": 0.0512,
+    "Nifty Bank": 0.3,
+    "Nifty Pharma": 0.2674,
+    "Nifty Infrastructure": 0.0986,
+    "Nifty PSU Bank": 0.1411,
+    "Nifty Healthcare Index": 0.1417
+   },
+   "holdings": [
+    [
+     "IDFCFIRSTB",
+     0.12
+    ],
+    [
+     "AUROPHARMA",
+     0.12
+    ],
+    [
+     "GLENMARK",
+     0.1171
+    ],
+    [
+     "BANKBARODA",
+     0.0958
+    ],
+    [
+     "ZYDUSLIFE",
+     0.0685
+    ],
+    [
+     "SUZLON",
+     0.0519
+    ],
+    [
+     "MAXHEALTH",
+     0.0492
+    ],
+    [
+     "INDUSINDBK",
+     0.0466
+    ],
+    [
+     "AUBANK",
+     0.0456
+    ],
+    [
+     "JBMA",
+     0.0379
+    ],
+    [
+     "CANBK",
+     0.0314
+    ],
+    [
+     "CGPOWER",
+     0.0306
+    ],
+    [
+     "INDIANB",
+     0.0296
+    ],
+    [
+     "AJANTPHARM",
+     0.0257
+    ],
+    [
+     "JBCHEPHARM",
+     0.0183
+    ],
+    [
+     "FORCEMOT",
+     0.0181
+    ],
+    [
+     "SYNGENE",
+     0.0176
+    ],
+    [
+     "PSB",
+     0.0154
+    ],
+    [
+     "PNB",
+     0.0153
+    ],
+    [
+     "LUPIN",
+     0.0151
+    ],
+    [
+     "DRREDDY",
+     0.0144
+    ],
+    [
+     "TORNTPHARM",
+     0.0138
+    ],
+    [
+     "HDFCBANK",
+     0.0012
+    ],
+    [
+     "AXISBANK",
+     0.0008
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "AJANTPHARM",
+    "AUBANK",
+    "AUROPHARMA",
+    "AXISBANK",
+    "BANKBARODA",
+    "DRREDDY",
+    "FORCEMOT",
+    "GLENMARK",
+    "HDFCBANK",
+    "IDFCFIRSTB",
+    "INDIANB",
+    "INDUSINDBK",
+    "JBCHEPHARM",
+    "LUPIN",
+    "MAXHEALTH",
+    "SUZLON",
+    "SYNGENE",
+    "TORNTPHARM",
+    "ZYDUSLIFE"
+   ],
+   "exited": [
+    "APOLLOTYRE",
+    "BAJAJ-AUTO",
+    "BANKINDIA",
+    "BHARATFORG",
+    "BOSCHLTD",
+    "BPCL",
+    "CHENNPETRO",
+    "CRAFTSMAN",
+    "CUMMINSIND",
+    "EXIDEIND",
+    "GAIL",
+    "IOC",
+    "LT",
+    "MGL",
+    "OIL",
+    "ONGC",
+    "PETRONET",
+    "RKFORGE",
+    "SHREECEM",
+    "UCOBANK",
+    "ULTRACEMCO",
+    "UNIONBANK"
+   ],
+   "n_stocks": 24
+  },
+  {
+   "date": "2023-10-03",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Pharma": 0.3,
+    "Nifty Infrastructure": 0.0,
+    "Nifty PSU Bank": 0.0,
+    "Nifty Healthcare Index": 0.3
+   },
+   "holdings": [
+    [
+     "FORCEMOT",
+     0.12
+    ],
+    [
+     "GLENMARK",
+     0.12
+    ],
+    [
+     "LUPIN",
+     0.12
+    ],
+    [
+     "AUROPHARMA",
+     0.12
+    ],
+    [
+     "PPLPHARMA",
+     0.1012
+    ],
+    [
+     "GABRIEL",
+     0.0859
+    ],
+    [
+     "RKFORGE",
+     0.0671
+    ],
+    [
+     "WOCKPHARMA",
+     0.0443
+    ],
+    [
+     "OLECTRA",
+     0.0366
+    ],
+    [
+     "AJANTPHARM",
+     0.0355
+    ],
+    [
+     "JKTYRE",
+     0.0235
+    ],
+    [
+     "SYNGENE",
+     0.0103
+    ],
+    [
+     "MINDACORP",
+     0.0096
+    ],
+    [
+     "LAURUSLABS",
+     0.0044
+    ],
+    [
+     "ZFCVINDIA",
+     0.0008
+    ],
+    [
+     "CRAFTSMAN",
+     0.0006
+    ],
+    [
+     "SUZLON",
+     0.0
+    ],
+    [
+     "CENTRALBK",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.1,
+   "regime": "INDEX",
+   "entered": [
+    "CENTRALBK",
+    "CRAFTSMAN",
+    "GABRIEL",
+    "JKTYRE",
+    "LAURUSLABS",
+    "MINDACORP",
+    "OLECTRA",
+    "PPLPHARMA",
+    "RKFORGE",
+    "WOCKPHARMA",
+    "ZFCVINDIA"
+   ],
+   "exited": [
+    "AUBANK",
+    "AXISBANK",
+    "BANKBARODA",
+    "CANBK",
+    "CGPOWER",
+    "DRREDDY",
+    "HDFCBANK",
+    "IDFCFIRSTB",
+    "INDIANB",
+    "INDUSINDBK",
+    "JBCHEPHARM",
+    "JBMA",
+    "MAXHEALTH",
+    "PNB",
+    "PSB",
+    "TORNTPHARM",
+    "ZYDUSLIFE"
+   ],
+   "n_stocks": 18
+  },
+  {
+   "date": "2024-01-01",
+   "sectors": {
+    "Nifty Auto": 0.1615,
+    "Nifty Pharma": 0.3,
+    "Nifty Infrastructure": 0.1463,
+    "Nifty PSU Bank": 0.0923,
+    "Nifty Healthcare Index": 0.3
+   },
+   "holdings": [
+    [
+     "WOCKPHARMA",
+     0.091
+    ],
+    [
+     "PPLPHARMA",
+     0.0825
+    ],
+    [
+     "IPCALAB",
+     0.0781
+    ],
+    [
+     "ALKEM",
+     0.0738
+    ],
+    [
+     "AUROPHARMA",
+     0.0725
+    ],
+    [
+     "GLAND",
+     0.0724
+    ],
+    [
+     "JBMA",
+     0.0684
+    ],
+    [
+     "LUPIN",
+     0.0676
+    ],
+    [
+     "GABRIEL",
+     0.0431
+    ],
+    [
+     "PNB",
+     0.0414
+    ],
+    [
+     "FORTIS",
+     0.0376
+    ],
+    [
+     "ADANIGREEN",
+     0.037
+    ],
+    [
+     "NTPC",
+     0.0369
+    ],
+    [
+     "GAIL",
+     0.0296
+    ],
+    [
+     "IOB",
+     0.0286
+    ],
+    [
+     "JKTYRE",
+     0.0286
+    ],
+    [
+     "CENTRALBK",
+     0.0222
+    ],
+    [
+     "BHARATFORG",
+     0.0222
+    ],
+    [
+     "TATAPOWER",
+     0.0206
+    ],
+    [
+     "AJANTPHARM",
+     0.0149
+    ],
+    [
+     "TVSMOTOR",
+     0.0107
+    ],
+    [
+     "RKFORGE",
+     0.0107
+    ],
+    [
+     "GLENMARK",
+     0.0096
+    ],
+    [
+     "SUNPHARMA",
+     0.0002
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ADANIGREEN",
+    "ALKEM",
+    "BHARATFORG",
+    "FORTIS",
+    "GAIL",
+    "GLAND",
+    "IOB",
+    "IPCALAB",
+    "JBMA",
+    "NTPC",
+    "PNB",
+    "SUNPHARMA",
+    "TATAPOWER",
+    "TVSMOTOR"
+   ],
+   "exited": [
+    "CRAFTSMAN",
+    "FORCEMOT",
+    "LAURUSLABS",
+    "MINDACORP",
+    "OLECTRA",
+    "SUZLON",
+    "SYNGENE",
+    "ZFCVINDIA"
+   ],
+   "n_stocks": 24
+  },
+  {
+   "date": "2024-04-01",
+   "sectors": {
+    "Nifty Auto": 0.1165,
+    "Nifty Pharma": 0.3,
+    "Nifty Infrastructure": 0.1635,
+    "Nifty PSU Bank": 0.1201,
+    "Nifty Healthcare Index": 0.3
+   },
+   "holdings": [
+    [
+     "ZYDUSLIFE",
+     0.12
+    ],
+    [
+     "LUPIN",
+     0.0883
+    ],
+    [
+     "SUNPHARMA",
+     0.0822
+    ],
+    [
+     "TORNTPHARM",
+     0.0817
+    ],
+    [
+     "FORCEMOT",
+     0.0782
+    ],
+    [
+     "ALKEM",
+     0.0625
+    ],
+    [
+     "IPCALAB",
+     0.054
+    ],
+    [
+     "MAXHEALTH",
+     0.0436
+    ],
+    [
+     "ADANIGREEN",
+     0.0396
+    ],
+    [
+     "CANBK",
+     0.038
+    ],
+    [
+     "IOC",
+     0.0376
+    ],
+    [
+     "PNB",
+     0.0371
+    ],
+    [
+     "DLF",
+     0.0353
+    ],
+    [
+     "HINDPETRO",
+     0.0339
+    ],
+    [
+     "UNIONBANK",
+     0.031
+    ],
+    [
+     "PPLPHARMA",
+     0.0291
+    ],
+    [
+     "CUMMINSIND",
+     0.0272
+    ],
+    [
+     "IOB",
+     0.0214
+    ],
+    [
+     "BAJAJ-AUTO",
+     0.0188
+    ],
+    [
+     "JBMA",
+     0.0159
+    ],
+    [
+     "AJANTPHARM",
+     0.0136
+    ],
+    [
+     "BOSCHLTD",
+     0.0108
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "BAJAJ-AUTO",
+    "BOSCHLTD",
+    "CANBK",
+    "CUMMINSIND",
+    "DLF",
+    "FORCEMOT",
+    "HINDPETRO",
+    "IOC",
+    "MAXHEALTH",
+    "TORNTPHARM",
+    "UNIONBANK",
+    "ZYDUSLIFE"
+   ],
+   "exited": [
+    "AUROPHARMA",
+    "BHARATFORG",
+    "CENTRALBK",
+    "FORTIS",
+    "GABRIEL",
+    "GAIL",
+    "GLAND",
+    "GLENMARK",
+    "JKTYRE",
+    "NTPC",
+    "RKFORGE",
+    "TATAPOWER",
+    "TVSMOTOR",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2024-07-01",
+   "sectors": {
+    "Nifty Auto": 0.1007,
+    "Nifty Pharma": 0.262,
+    "Nifty Infrastructure": 0.1333,
+    "Nifty PSU Bank": 0.1051,
+    "Nifty Oil & Gas": 0.1344,
+    "Nifty Healthcare Index": 0.2646
+   },
+   "holdings": [
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "ZYDUSLIFE",
+     0.1188
+    ],
+    [
+     "GLENMARK",
+     0.0922
+    ],
+    [
+     "SUZLON",
+     0.0913
+    ],
+    [
+     "BIOCON",
+     0.0661
+    ],
+    [
+     "OIL",
+     0.0629
+    ],
+    [
+     "MAXHEALTH",
+     0.0515
+    ],
+    [
+     "FORCEMOT",
+     0.0496
+    ],
+    [
+     "IOB",
+     0.0486
+    ],
+    [
+     "MOTHERSON",
+     0.0465
+    ],
+    [
+     "MRPL",
+     0.0403
+    ],
+    [
+     "MAHABANK",
+     0.0367
+    ],
+    [
+     "ARE&M",
+     0.0351
+    ],
+    [
+     "UCOBANK",
+     0.0315
+    ],
+    [
+     "PETRONET",
+     0.0275
+    ],
+    [
+     "INDUSTOWER",
+     0.0209
+    ],
+    [
+     "MGL",
+     0.0187
+    ],
+    [
+     "CUMMINSIND",
+     0.0167
+    ],
+    [
+     "LUPIN",
+     0.0132
+    ],
+    [
+     "ABBOTINDIA",
+     0.0059
+    ],
+    [
+     "TORNTPHARM",
+     0.003
+    ],
+    [
+     "SUNPHARMA",
+     0.003
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ABBOTINDIA",
+    "ARE&M",
+    "BIOCON",
+    "GLENMARK",
+    "INDUSTOWER",
+    "MAHABANK",
+    "MGL",
+    "MOTHERSON",
+    "MRPL",
+    "OIL",
+    "PETRONET",
+    "SUZLON",
+    "UCOBANK",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "ADANIGREEN",
+    "AJANTPHARM",
+    "ALKEM",
+    "BAJAJ-AUTO",
+    "BOSCHLTD",
+    "CANBK",
+    "DLF",
+    "HINDPETRO",
+    "IOC",
+    "IPCALAB",
+    "JBMA",
+    "PNB",
+    "PPLPHARMA",
+    "UNIONBANK"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2024-10-01",
+   "sectors": {
+    "Nifty Auto": 0.0767,
+    "Nifty Pharma": 0.2347,
+    "Nifty Infrastructure": 0.2632,
+    "Nifty Oil & Gas": 0.2209,
+    "Nifty Healthcare Index": 0.2046
+   },
+   "holdings": [
+    [
+     "PPLPHARMA",
+     0.12
+    ],
+    [
+     "GLENMARK",
+     0.12
+    ],
+    [
+     "SUZLON",
+     0.12
+    ],
+    [
+     "DIVISLAB",
+     0.0845
+    ],
+    [
+     "MOTHERSON",
+     0.0746
+    ],
+    [
+     "MGL",
+     0.0578
+    ],
+    [
+     "GAIL",
+     0.0437
+    ],
+    [
+     "CASTROLIND",
+     0.0421
+    ],
+    [
+     "FORTIS",
+     0.0413
+    ],
+    [
+     "PETRONET",
+     0.0407
+    ],
+    [
+     "IGL",
+     0.0387
+    ],
+    [
+     "BIOCON",
+     0.0344
+    ],
+    [
+     "ARE&M",
+     0.0326
+    ],
+    [
+     "AJANTPHARM",
+     0.0272
+    ],
+    [
+     "EXIDEIND",
+     0.0221
+    ],
+    [
+     "LUPIN",
+     0.021
+    ],
+    [
+     "COALINDIA",
+     0.0166
+    ],
+    [
+     "ASHOKLEY",
+     0.0105
+    ],
+    [
+     "AUROPHARMA",
+     0.0104
+    ],
+    [
+     "CGPOWER",
+     0.0104
+    ],
+    [
+     "BHARTIARTL",
+     0.0098
+    ],
+    [
+     "INDIGO",
+     0.0098
+    ],
+    [
+     "BHARATFORG",
+     0.0075
+    ],
+    [
+     "TORNTPHARM",
+     0.0025
+    ],
+    [
+     "ONGC",
+     0.0021
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "AJANTPHARM",
+    "ASHOKLEY",
+    "AUROPHARMA",
+    "BHARATFORG",
+    "BHARTIARTL",
+    "CASTROLIND",
+    "CGPOWER",
+    "COALINDIA",
+    "DIVISLAB",
+    "EXIDEIND",
+    "FORTIS",
+    "GAIL",
+    "IGL",
+    "INDIGO",
+    "ONGC",
+    "PPLPHARMA"
+   ],
+   "exited": [
+    "ABBOTINDIA",
+    "CUMMINSIND",
+    "FORCEMOT",
+    "INDUSTOWER",
+    "IOB",
+    "MAHABANK",
+    "MAXHEALTH",
+    "MRPL",
+    "OIL",
+    "SUNPHARMA",
+    "UCOBANK",
+    "WOCKPHARMA",
+    "ZYDUSLIFE"
+   ],
+   "n_stocks": 25
+  },
+  {
+   "date": "2025-01-01",
+   "sectors": {
+    "Nifty Auto": 0.3,
+    "Nifty Pharma": 0.0,
+    "Nifty Infrastructure": 0.3,
+    "Nifty Healthcare Index": 0.0
+   },
+   "holdings": [
+    [
+     "FORTIS",
+     0.0709
+    ],
+    [
+     "INDHOTEL",
+     0.0602
+    ],
+    [
+     "CEATLTD",
+     0.0535
+    ],
+    [
+     "ASAHIINDIA",
+     0.0468
+    ],
+    [
+     "M&M",
+     0.0407
+    ],
+    [
+     "HINDPETRO",
+     0.0371
+    ],
+    [
+     "EICHERMOT",
+     0.0366
+    ],
+    [
+     "MINDACORP",
+     0.0358
+    ],
+    [
+     "SUZLON",
+     0.0358
+    ],
+    [
+     "GABRIEL",
+     0.0339
+    ],
+    [
+     "APOLLOHOSP",
+     0.0313
+    ],
+    [
+     "MAXHEALTH",
+     0.0303
+    ],
+    [
+     "TVSMOTOR",
+     0.0292
+    ],
+    [
+     "MRF",
+     0.0236
+    ],
+    [
+     "BHARTIARTL",
+     0.0178
+    ],
+    [
+     "INDIGO",
+     0.0167
+    ],
+    [
+     "WOCKPHARMA",
+     0.0
+    ],
+    [
+     "PPLPHARMA",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.4,
+   "regime": "INDEX",
+   "entered": [
+    "APOLLOHOSP",
+    "ASAHIINDIA",
+    "CEATLTD",
+    "EICHERMOT",
+    "GABRIEL",
+    "HINDPETRO",
+    "INDHOTEL",
+    "M&M",
+    "MAXHEALTH",
+    "MINDACORP",
+    "MRF",
+    "TVSMOTOR",
+    "WOCKPHARMA"
+   ],
+   "exited": [
+    "AJANTPHARM",
+    "ARE&M",
+    "ASHOKLEY",
+    "AUROPHARMA",
+    "BHARATFORG",
+    "BIOCON",
+    "CASTROLIND",
+    "CGPOWER",
+    "COALINDIA",
+    "DIVISLAB",
+    "EXIDEIND",
+    "GAIL",
+    "GLENMARK",
+    "IGL",
+    "LUPIN",
+    "MGL",
+    "MOTHERSON",
+    "ONGC",
+    "PETRONET",
+    "TORNTPHARM"
+   ],
+   "n_stocks": 18
+  },
+  {
+   "date": "2025-04-01",
+   "sectors": {
+    "Nifty Pharma": 0.2948,
+    "Nifty Infrastructure": 0.3,
+    "Nifty Financial Services": 0.1813,
+    "Nifty Healthcare Index": 0.2239
+   },
+   "holdings": [
+    [
+     "WOCKPHARMA",
+     0.12
+    ],
+    [
+     "LAURUSLABS",
+     0.12
+    ],
+    [
+     "FORTIS",
+     0.1007
+    ],
+    [
+     "MAXHEALTH",
+     0.0838
+    ],
+    [
+     "BSE",
+     0.0731
+    ],
+    [
+     "SHREECEM",
+     0.0609
+    ],
+    [
+     "INDHOTEL",
+     0.0564
+    ],
+    [
+     "ABBOTINDIA",
+     0.0548
+    ],
+    [
+     "DIVISLAB",
+     0.0518
+    ],
+    [
+     "PPLPHARMA",
+     0.037
+    ],
+    [
+     "INDIGO",
+     0.0365
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0304
+    ],
+    [
+     "KOTAKBANK",
+     0.0284
+    ],
+    [
+     "BAJFINANCE",
+     0.0273
+    ],
+    [
+     "SBICARD",
+     0.0251
+    ],
+    [
+     "BHARTIARTL",
+     0.025
+    ],
+    [
+     "GRASIM",
+     0.0211
+    ],
+    [
+     "ULTRACEMCO",
+     0.019
+    ],
+    [
+     "IPCALAB",
+     0.0133
+    ],
+    [
+     "ICICIBANK",
+     0.0098
+    ],
+    [
+     "TORNTPHARM",
+     0.0046
+    ],
+    [
+     "MANKIND",
+     0.0008
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "ABBOTINDIA",
+    "BAJFINANCE",
+    "BSE",
+    "DIVISLAB",
+    "GRASIM",
+    "ICICIBANK",
+    "IPCALAB",
+    "KOTAKBANK",
+    "LAURUSLABS",
+    "MANKIND",
+    "MUTHOOTFIN",
+    "SBICARD",
+    "SHREECEM",
+    "TORNTPHARM",
+    "ULTRACEMCO"
+   ],
+   "exited": [
+    "APOLLOHOSP",
+    "ASAHIINDIA",
+    "CEATLTD",
+    "EICHERMOT",
+    "GABRIEL",
+    "HINDPETRO",
+    "M&M",
+    "MINDACORP",
+    "MRF",
+    "SUZLON",
+    "TVSMOTOR"
+   ],
+   "n_stocks": 22
+  },
+  {
+   "date": "2025-07-01",
+   "sectors": {
+    "Nifty Infrastructure": 0.1457,
+    "Nifty Financial Services": 0.3,
+    "Nifty Oil & Gas": 0.2543,
+    "Nifty Healthcare Index": 0.3
+   },
+   "holdings": [
+    [
+     "RELIANCE",
+     0.103
+    ],
+    [
+     "LAURUSLABS",
+     0.0779
+    ],
+    [
+     "MFSL",
+     0.0569
+    ],
+    [
+     "MGL",
+     0.0562
+    ],
+    [
+     "ABBOTINDIA",
+     0.0539
+    ],
+    [
+     "SBICARD",
+     0.0425
+    ],
+    [
+     "DIVISLAB",
+     0.042
+    ],
+    [
+     "CHOLAFIN",
+     0.0391
+    ],
+    [
+     "FORTIS",
+     0.0389
+    ],
+    [
+     "CASTROLIND",
+     0.0376
+    ],
+    [
+     "SBILIFE",
+     0.0361
+    ],
+    [
+     "BAJAJFINSV",
+     0.0355
+    ],
+    [
+     "GLENMARK",
+     0.0353
+    ],
+    [
+     "HDFCLIFE",
+     0.0324
+    ],
+    [
+     "INDUSTOWER",
+     0.0322
+    ],
+    [
+     "BPCL",
+     0.0319
+    ],
+    [
+     "BHARTIARTL",
+     0.0318
+    ],
+    [
+     "INDIGO",
+     0.0318
+    ],
+    [
+     "CHENNPETRO",
+     0.0315
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0309
+    ],
+    [
+     "MAXHEALTH",
+     0.0275
+    ],
+    [
+     "KOTAKBANK",
+     0.0264
+    ],
+    [
+     "SHREECEM",
+     0.019
+    ],
+    [
+     "IOC",
+     0.015
+    ],
+    [
+     "ZYDUSLIFE",
+     0.0123
+    ],
+    [
+     "BIOCON",
+     0.0122
+    ],
+    [
+     "HINDPETRO",
+     0.0099
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "BAJAJFINSV",
+    "BIOCON",
+    "BPCL",
+    "CASTROLIND",
+    "CHENNPETRO",
+    "CHOLAFIN",
+    "GLENMARK",
+    "HDFCLIFE",
+    "HINDPETRO",
+    "INDUSTOWER",
+    "IOC",
+    "MFSL",
+    "MGL",
+    "RELIANCE",
+    "SBILIFE",
+    "ZYDUSLIFE"
+   ],
+   "exited": [
+    "BAJFINANCE",
+    "BSE",
+    "GRASIM",
+    "ICICIBANK",
+    "INDHOTEL",
+    "IPCALAB",
+    "MANKIND",
+    "PPLPHARMA",
+    "TORNTPHARM",
+    "ULTRACEMCO",
+    "WOCKPHARMA"
+   ],
+   "n_stocks": 27
+  },
+  {
+   "date": "2025-10-01",
+   "sectors": {
+    "Nifty Infrastructure": 0.3,
+    "Nifty PSU Bank": 0.0994,
+    "Nifty Financial Services": 0.159,
+    "Nifty Oil & Gas": 0.1416,
+    "Nifty Healthcare Index": 0.3
+   },
+   "holdings": [
+    [
+     "FORTIS",
+     0.12
+    ],
+    [
+     "LAURUSLABS",
+     0.0977
+    ],
+    [
+     "BPCL",
+     0.0791
+    ],
+    [
+     "HINDPETRO",
+     0.0722
+    ],
+    [
+     "GLENMARK",
+     0.0571
+    ],
+    [
+     "IOC",
+     0.0563
+    ],
+    [
+     "MFSL",
+     0.0508
+    ],
+    [
+     "CUMMINSIND",
+     0.0501
+    ],
+    [
+     "CANBK",
+     0.0462
+    ],
+    [
+     "CHENNPETRO",
+     0.0418
+    ],
+    [
+     "INDIANB",
+     0.0417
+    ],
+    [
+     "MUTHOOTFIN",
+     0.04
+    ],
+    [
+     "JIOFIN",
+     0.0399
+    ],
+    [
+     "ADANIPORTS",
+     0.0356
+    ],
+    [
+     "APOLLOHOSP",
+     0.0336
+    ],
+    [
+     "CGPOWER",
+     0.0246
+    ],
+    [
+     "SBILIFE",
+     0.0219
+    ],
+    [
+     "MAHABANK",
+     0.018
+    ],
+    [
+     "SBIN",
+     0.0169
+    ],
+    [
+     "ALKEM",
+     0.0157
+    ],
+    [
+     "ZYDUSLIFE",
+     0.0157
+    ],
+    [
+     "TORNTPHARM",
+     0.0121
+    ],
+    [
+     "DRREDDY",
+     0.0075
+    ],
+    [
+     "RELIANCE",
+     0.0055
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ADANIPORTS",
+    "ALKEM",
+    "APOLLOHOSP",
+    "CANBK",
+    "CGPOWER",
+    "CUMMINSIND",
+    "DRREDDY",
+    "INDIANB",
+    "JIOFIN",
+    "MAHABANK",
+    "SBIN",
+    "TORNTPHARM"
+   ],
+   "exited": [
+    "ABBOTINDIA",
+    "BAJAJFINSV",
+    "BHARTIARTL",
+    "BIOCON",
+    "CASTROLIND",
+    "CHOLAFIN",
+    "DIVISLAB",
+    "HDFCLIFE",
+    "INDIGO",
+    "INDUSTOWER",
+    "KOTAKBANK",
+    "MAXHEALTH",
+    "MGL",
+    "SBICARD",
+    "SHREECEM"
+   ],
+   "n_stocks": 24
+  },
+  {
+   "date": "2026-01-01",
+   "sectors": {
+    "Nifty Auto": 0.0694,
+    "Nifty Infrastructure": 0.2046,
+    "Nifty Metal": 0.0,
+    "Nifty PSU Bank": 0.0681,
+    "Nifty Financial Services": 0.3,
+    "Nifty Oil & Gas": 0.1168,
+    "Nifty Healthcare Index": 0.2412
+   },
+   "holdings": [
+    [
+     "LAURUSLABS",
+     0.1061
+    ],
+    [
+     "SHRIRAMFIN",
+     0.1
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0976
+    ],
+    [
+     "FORTIS",
+     0.0598
+    ],
+    [
+     "CUMMINSIND",
+     0.0558
+    ],
+    [
+     "BPCL",
+     0.053
+    ],
+    [
+     "HINDPETRO",
+     0.0473
+    ],
+    [
+     "IOC",
+     0.0457
+    ],
+    [
+     "ATHERENERG",
+     0.0438
+    ],
+    [
+     "CHENNPETRO",
+     0.0434
+    ],
+    [
+     "SBIN",
+     0.0422
+    ],
+    [
+     "CANBK",
+     0.0382
+    ],
+    [
+     "INDIANB",
+     0.0299
+    ],
+    [
+     "GLENMARK",
+     0.0297
+    ],
+    [
+     "BELRISE",
+     0.0256
+    ],
+    [
+     "BHARATFORG",
+     0.0248
+    ],
+    [
+     "ALKEM",
+     0.0233
+    ],
+    [
+     "TORNTPHARM",
+     0.0232
+    ],
+    [
+     "LT",
+     0.0231
+    ],
+    [
+     "SBILIFE",
+     0.0192
+    ],
+    [
+     "AXISBANK",
+     0.0172
+    ],
+    [
+     "CHOLAFIN",
+     0.0153
+    ],
+    [
+     "LUPIN",
+     0.0108
+    ],
+    [
+     "BIOCON",
+     0.0102
+    ],
+    [
+     "BAJFINANCE",
+     0.0068
+    ],
+    [
+     "AUROPHARMA",
+     0.0065
+    ],
+    [
+     "KOTAKBANK",
+     0.0017
+    ],
+    [
+     "HINDCOPPER",
+     0.0
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "INDEX",
+   "entered": [
+    "ATHERENERG",
+    "AUROPHARMA",
+    "AXISBANK",
+    "BAJFINANCE",
+    "BELRISE",
+    "BHARATFORG",
+    "BIOCON",
+    "CHOLAFIN",
+    "HINDCOPPER",
+    "KOTAKBANK",
+    "LT",
+    "LUPIN",
+    "SHRIRAMFIN"
+   ],
+   "exited": [
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "CGPOWER",
+    "DRREDDY",
+    "JIOFIN",
+    "MAHABANK",
+    "MFSL",
+    "RELIANCE",
+    "ZYDUSLIFE"
+   ],
+   "n_stocks": 28
+  },
+  {
+   "date": "2026-04-01",
+   "sectors": {
+    "Nifty Auto": 0.1749,
+    "Nifty Infrastructure": 0.0961,
+    "Nifty Metal": 0.0555,
+    "Nifty PSU Bank": 0.0858,
+    "Nifty Financial Services": 0.2328,
+    "Nifty Oil & Gas": 0.2433,
+    "Nifty Healthcare Index": 0.1116
+   },
+   "holdings": [
+    [
+     "BHARATFORG",
+     0.0883
+    ],
+    [
+     "MRPL",
+     0.0756
+    ],
+    [
+     "SHRIRAMFIN",
+     0.0721
+    ],
+    [
+     "ONGC",
+     0.0664
+    ],
+    [
+     "BSE",
+     0.0641
+    ],
+    [
+     "CHENNPETRO",
+     0.0612
+    ],
+    [
+     "SBIN",
+     0.0587
+    ],
+    [
+     "ATHERENERG",
+     0.0391
+    ],
+    [
+     "AUROPHARMA",
+     0.0367
+    ],
+    [
+     "NATIONALUM",
+     0.0346
+    ],
+    [
+     "INDIANB",
+     0.0332
+    ],
+    [
+     "OIL",
+     0.0324
+    ],
+    [
+     "UNIONBANK",
+     0.0303
+    ],
+    [
+     "COALINDIA",
+     0.0293
+    ],
+    [
+     "SONACOMS",
+     0.0264
+    ],
+    [
+     "LUPIN",
+     0.0252
+    ],
+    [
+     "LAURUSLABS",
+     0.0251
+    ],
+    [
+     "INDUSTOWER",
+     0.0248
+    ],
+    [
+     "TORNTPHARM",
+     0.0246
+    ],
+    [
+     "BELRISE",
+     0.0244
+    ],
+    [
+     "FORCEMOT",
+     0.0222
+    ],
+    [
+     "HINDCOPPER",
+     0.0209
+    ],
+    [
+     "MUTHOOTFIN",
+     0.0202
+    ],
+    [
+     "ZFCVINDIA",
+     0.0185
+    ],
+    [
+     "AXISBANK",
+     0.0168
+    ],
+    [
+     "SBILIFE",
+     0.0109
+    ],
+    [
+     "PFC",
+     0.0086
+    ],
+    [
+     "RELIANCE",
+     0.0056
+    ],
+    [
+     "MFSL",
+     0.0038
+    ]
+   ],
+   "sleeve_w": 0.0,
+   "regime": "CASH",
+   "entered": [
+    "BSE",
+    "COALINDIA",
+    "FORCEMOT",
+    "INDUSTOWER",
+    "MFSL",
+    "MRPL",
+    "NATIONALUM",
+    "OIL",
+    "ONGC",
+    "PFC",
+    "RELIANCE",
+    "SONACOMS",
+    "UNIONBANK",
+    "ZFCVINDIA"
+   ],
+   "exited": [
+    "ALKEM",
+    "BAJFINANCE",
+    "BIOCON",
+    "BPCL",
+    "CANBK",
+    "CHOLAFIN",
+    "CUMMINSIND",
+    "FORTIS",
+    "GLENMARK",
+    "HINDPETRO",
+    "IOC",
+    "KOTAKBANK",
+    "LT"
+   ],
+   "n_stocks": 29
+  }
+ ],
+ "universe_size": 268
+}

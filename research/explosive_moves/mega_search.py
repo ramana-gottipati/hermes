@@ -4,6 +4,10 @@ Sweeps signal x universe-floor x concentration (top-N), monthly rebalance, net o
 For EACH it also reports the 2012-2018 CAGR (out-of-sample robustness) and the drawdown,
 so we can tell a real edge from a bull-run/microcap curve-fit. Prints everything that
 clears 50% CAGR 2019-26 and flags whether it survived 2012-2018.
+
+The risk-adjusted column is mean/sd annualised with NO risk-free rate subtracted — a
+return/vol ratio, not a Sharpe, and it reads high against a textbook one. A true Sharpe
+needs a primary-source rf ingest (Guardrail #8), queued with the TR-benchmark re-cut. (D142)
 """
 import numpy as np
 from explosive_moves.embase import load_symbol_cache
@@ -120,7 +124,7 @@ results.sort(key=lambda r: -r[3])
 # ml_alpha.deflated_sharpe — rather than reading the rank-1 CAGR at face value.
 print(f"\nTOP 30 by 2019-2026 CAGR (net of cost) — IN-SAMPLE RANK of 144 configs, best-of "
       f"order statistic, NOT an OOS edge. robust = also positive 2012-2018 (the real test)\n")
-print(f"{'signal':11}{'univ':5}{'topN':>5}{'CAGR19':>8}{'MaxDD19':>9}{'Sharpe':>7}{'CAGR12-18':>10}{'DD12-18':>9}  flag")
+print(f"{'signal':11}{'univ':5}{'topN':>5}{'CAGR19':>8}{'MaxDD19':>9}{'ret/vol':>7}{'CAGR12-18':>10}{'DD12-18':>9}  flag")
 for sig, ft, n, c19, dd19, sh, c12, dd12 in results[:30]:
     flag = ""
     if c19 >= 0.50:

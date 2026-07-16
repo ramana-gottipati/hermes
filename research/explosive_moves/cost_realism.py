@@ -1,4 +1,4 @@
-"""B — cost-honest momentum engine. What Sharpe survives REAL frictions, and at what AUM?
+"""B — cost-honest momentum engine. What return/vol survives REAL frictions, and at what AUM?
 
 Replaces the flat COST_PS=0.3%/turnover with a per-NAME realistic cost:
   side_cost(name) = half catalog spread by liquidity tier  (COST_TIERS, strategies.py)
@@ -9,6 +9,11 @@ name's median daily turnover -> max deployable AUM) and a turnover-reduction lev
 (hold-band: keep a name until it falls out of the top-35, not the top-25).
 
 Pure price cache (no fundamentals / no raw-close) so it runs fast. Walk-forward, no look-ahead.
+
+Every ratio here is mean/sd annualised with NO risk-free rate subtracted — a return/vol ratio,
+not a Sharpe, so it reads high against a textbook Sharpe; the Nifty500 B&H row it is judged
+against is computed on the SAME basis, so the comparisons and verdicts hold (D142).
+
 Writes out/cost_realism.csv. Read-only. Run on VPS (.venv-research).
 """
 from __future__ import annotations
@@ -101,7 +106,7 @@ def bench_buyhold(tables, ppy):
     rets = np.array(rets)
     eq = np.cumprod(1 + rets); dd = eq / np.maximum.accumulate(eq) - 1
     cagr = eq[-1] ** (ppy / len(rets)) - 1
-    return {"sharpe": rets.mean() / rets.std() * np.sqrt(ppy) if rets.std() > 0 else 0,
+    return {"retvol": rets.mean() / rets.std() * np.sqrt(ppy) if rets.std() > 0 else 0,
             "cagr": cagr, "maxdd": float(dd.min()),
             "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0, "ann_cost_pct": 0.0,
             "turn": 0.0, "h1": 0, "h2": 0, "cap_p25_cr": float("inf"), "cap_med_cr": float("inf")}
@@ -140,7 +145,7 @@ def run(tables, scorekey, cost="real", band=False, ppy=12):
     dates = [t["d0"] for t in tables]
     h1 = np.array([d <= "2018-12-31" for d in dates]); h2 = np.array([d >= "2019-01-01" for d in dates])
     cap_arr = np.array(sorted(caps))
-    return {"sharpe": sh(rets), "cagr": cagr, "maxdd": float(dd.min()),
+    return {"retvol": sh(rets), "cagr": cagr, "maxdd": float(dd.min()),
             "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0,
             "ann_cost_pct": float(np.mean(costs)) * ppy * 100, "turn": float(np.mean(turns)),
             "h1": sh(rets[h1]), "h2": sh(rets[h2]),
@@ -169,20 +174,20 @@ def main():
             rows.append((name, bench_buyhold(tbl, ppy)))
         else:
             rows.append((name, run(tbl, k, c, b, ppy)))
-    hdr = f"{'config':46}{'Sharpe':>7}{'CAGR':>7}{'MaxDD':>8}{'Calmar':>7}{'annCost':>8}{'turn':>6}{'H1':>6}{'H2':>6}{'capMedCr':>9}"
+    hdr = f"{'config':46}{'ret/vol':>7}{'CAGR':>7}{'MaxDD':>8}{'Calmar':>7}{'annCost':>8}{'turn':>6}{'H1':>6}{'H2':>6}{'capMedCr':>9}"
     print("=" * len(hdr))
     print("COST REALISM — does ANY config survive real cost? capMedCr = max AUM (Rs cr) before median position > 10% of its ADV")
     print("=" * len(hdr)); print(hdr)
     for name, s in rows:
-        print(f"{name:38}{s['sharpe']:>7.2f}{s['cagr']*100:>6.1f}%{s['maxdd']*100:>7.1f}%{s['calmar']:>7.2f}"
+        print(f"{name:38}{s['retvol']:>7.2f}{s['cagr']*100:>6.1f}%{s['maxdd']*100:>7.1f}%{s['calmar']:>7.2f}"
               f"{s['ann_cost_pct']:>7.1f}%{s['turn']:>6.2f}{s['h1']:>6.2f}{s['h2']:>6.2f}{s['cap_med_cr']:>9.0f}")
     out = os.path.join(os.path.dirname(__file__), "out", "cost_realism.csv")
     with open(out, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["config", "sharpe", "cagr_pct", "maxdd_pct", "calmar", "ann_cost_pct", "avg_turnover",
-                    "h1_sharpe", "h2_sharpe", "cap_p25_cr", "cap_med_cr"])
+        w.writerow(["config", "retvol", "cagr_pct", "maxdd_pct", "calmar", "ann_cost_pct", "avg_turnover",
+                    "h1_retvol", "h2_retvol", "cap_p25_cr", "cap_med_cr"])
         for name, s in rows:
-            w.writerow([name, round(s["sharpe"], 2), round(s["cagr"]*100, 1), round(s["maxdd"]*100, 1),
+            w.writerow([name, round(s["retvol"], 2), round(s["cagr"]*100, 1), round(s["maxdd"]*100, 1),
                         round(s["calmar"], 2), round(s["ann_cost_pct"], 1), round(s["turn"], 2),
                         round(s["h1"], 2), round(s["h2"], 2), round(s["cap_p25_cr"], 0), round(s["cap_med_cr"], 0)])
     print("\nsaved -> out/cost_realism.csv")

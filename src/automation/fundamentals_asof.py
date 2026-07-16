@@ -242,6 +242,49 @@ def _ann_growth(series: list, n: int):
     return _cagr(series[-1 - n][1], series[-1][1], n)
 
 
+def _paired_diff(a: list, b: list) -> list:
+    """[(period_end, a-b)] over the period_ends present in BOTH series (sorted)."""
+    bd = dict(b)
+    return [(pend, val - bd[pend]) for pend, val in a if pend in bd]
+
+
+def _lender_aggregates(frame: dict, as_of: str) -> dict:
+    """Doctrine-D (D134) lender aggregates DERIVED from bank P&L metrics the XBRL ingest
+    already stores — no ingest work and no new feed (the Track-D Step-2/3 finding: Pattern 2
+    needs only the scorer, not an ingest change).
+
+        NII               = Revenue (InterestEarned) − Interest (InterestExpended)
+        operating leverage= profit growth ÷ NII growth   (the lender analogue of the generic
+                            profit÷sales ratio — a lender's top line IS net interest income)
+        cost-to-income    = operating expenses ÷ (NII + Other Income)
+        credit cost       = Provisions ÷ Revenue
+
+    ⚠ our bank `Expenses` = OperatingExpenses + Provisions (extract_bank_for's convention), so a
+    TRUE cost-to-income must back Provisions out. `Provisions` is only stored from ~Jul-2026
+    (fcbde0e), so older periods return None here and the scorer's leg ABSTAINS — deliberately,
+    rather than passing a provisions-inflated ratio off as cost-to-income.
+    """
+    out = {"nii_growth_5y": None, "nii_growth_3y": None,
+           "cost_to_income": None, "credit_cost_pct": None}
+    rev_a = _known(frame, "A", "Revenue", as_of)
+    nii_a = _paired_diff(rev_a, _known(frame, "A", "Interest", as_of))
+    if not nii_a:
+        return out
+    out["nii_growth_5y"] = _ann_growth(nii_a, 5)
+    out["nii_growth_3y"] = _ann_growth(nii_a, 3)
+    pend, nii = nii_a[-1]
+    exp = dict(_known(frame, "A", "Expenses", as_of)).get(pend)
+    prov = dict(_known(frame, "A", "Provisions", as_of)).get(pend)
+    oi = dict(_known(frame, "A", "Other Income", as_of)).get(pend)
+    rev = dict(rev_a).get(pend)
+    income = (nii + oi) if oi is not None else None
+    if exp is not None and prov is not None and income:
+        out["cost_to_income"] = round((exp - prov) / income * 100.0, 2)
+    if prov is not None and rev:
+        out["credit_cost_pct"] = round(prov / rev * 100.0, 2)
+    return out
+
+
 def _span_days(series: list) -> Optional[int]:
     """Days between the first and last period_end of `series` (None if unparseable)."""
     if len(series) < 2:
@@ -397,6 +440,15 @@ def as_of_from_frame(frame: dict, as_of: str, *, symbol: Optional[str] = None,
         "profit_accel_ttm": profit_accel,
         "net_worth_cr": net_worth,
         "borrowings_cr": borrow,
+        # --- Doctrine-D lender keys (D134) — consumed by scoring when is_financial ---
+        # Prudential ratios are QUARTERLY. Gross/Net NPA % have deep SCREENER-archive history
+        # (2020→, source IS NULL); RoA %/CET1 % are NSE-XBRL-only (SA instance, S154) and so
+        # start EMPTY and fill forward — every consumer must stay NULL-tolerant.
+        "gnpa_pct": _latest(frame, "Q", "Gross NPA %", as_of),
+        "nnpa_pct": _latest(frame, "Q", "Net NPA %", as_of),
+        "roa_pct": _latest(frame, "Q", "Return on Assets %", as_of),
+        "cet1_pct": _latest(frame, "Q", "CET1 %", as_of),
+        **_lender_aggregates(frame, as_of),
     }
 
 
@@ -422,11 +474,17 @@ def score_asof(symbol: str, as_of: str, *, price: Optional[float] = None,
 
     Does NOT persist (backtest-safe; never writes pattern_scores).
     """
-    from src.automation.scoring import score_fundamentals
+    from src.automation.scoring import financial_subtype, score_fundamentals
     f = as_of_fundamentals(symbol, as_of, price=price, db_path=db_path)
     if not f:
         return {"error": f"no fundamentals known for {symbol} as of {as_of}", "symbol": symbol}
-    return score_fundamentals(f)
+    # Doctrine D (D134): the PIT path must use the lender model too, else a backtest keeps
+    # scoring banks on generic ROCE/D-E and auto-disqualifying them (the D3-F1 defect).
+    # Sub-type detection reads company_tags (CURRENT membership) — a knowable-at nuance noted
+    # in the Track-D plan: sector classification is treated as slow-moving, like the index
+    # membership the rest of the PIT stack already uses.
+    sub = financial_subtype(symbol)
+    return score_fundamentals(f, is_financial=sub is not None, subtype=sub)
 
 
 if __name__ == "__main__":

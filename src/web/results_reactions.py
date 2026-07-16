@@ -3,7 +3,7 @@
 The war-room board for results season: who just reported, what was the Net-Profit surprise (SUE, no
 analysts), did the strong hand confirm it on the tape (delivered value), and — for older events — the
 realized abnormal drift. It is the DESCRIPTIVE product of the 2026-07-05 PEAD study, whose tradeable
-book was falsified (ledger § Experiment 2026-07-05: net Sharpe 0.10 vs bench 0.85). So this is a
+book was falsified (ledger § Experiment 2026-07-05: net return/vol 0.10 vs bench 0.85). So this is a
 scanner in the exact shape of our other descriptive lenses (rotation / rsband / momentum-scan) —
 NOT a signal, NOT a buy list. Every number is realized history or an explicitly labelled base-rate.
 
@@ -111,6 +111,20 @@ _CSS = """
 .rr .up .ups{font-size:11px;text-decoration:none;color:var(--ink);border:1px solid var(--line-2);
              border-radius:6px;padding:1px 6px;background:var(--bg-2)}
 .rr .up .more{color:var(--ink-3);font-size:11px}
+/* published event briefs (D134 §4-E last mile, S159) — AI-drafted, desk-approved */
+.rr .briefs{margin:12px 0;border:1px solid var(--line-2);border-radius:10px;
+            background:var(--bg-2);padding:10px 13px}
+.rr .briefs .bhdr{font-size:12px;color:var(--ink-2);margin-bottom:8px}
+.rr .briefs .bhdr b{color:var(--ink)}
+.rr .bcard{border-top:1px solid var(--line-2);padding:9px 0 3px}
+.rr .bcard:first-of-type{border-top:0}
+.rr .bcard .bhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:4px}
+.rr .bcard .bsym{font-weight:700;color:var(--ink);text-decoration:none}
+.rr .bcard .btitle{font-size:12px;color:var(--ink-2)}
+.rr .bcard .bai{font-size:10px;border:1px solid var(--line-2);border-radius:10px;
+                padding:1px 7px;color:var(--ink-2);background:var(--bg)}
+.rr .bcard .bwhen{font-size:10px;color:var(--ink-3);margin-left:auto}
+.rr .bcard p{margin:3px 0;font-size:13px;line-height:1.5}
 </style>"""
 
 
@@ -119,6 +133,56 @@ def _ro():
         return sqlite3.connect(f"file:{RESEARCH_DB}?mode=ro", uri=True, timeout=10)
     except sqlite3.Error:
         return None
+
+
+def _published_briefs(limit=3):
+    """APPROVED auto-analyst briefs for this board (D134 §4-E last mile, S159).
+
+    Reads hermes.db's `published_briefs` (brief_publisher owns it). Defensive on every
+    path — a missing table / absent DB / any sqlite error renders NO band rather than a
+    500: the board's own content must never depend on the L6 layer being present.
+    ONLY published rows exist here; an unapproved draft lives in the Review Inbox and
+    is structurally unreachable from this read (L6: only an approved brief publishes).
+    """
+    try:
+        con = sqlite3.connect(f"file:{HERMES_DB}?mode=ro", uri=True, timeout=10)
+    except sqlite3.Error:
+        return []
+    try:
+        if not con.execute("SELECT name FROM sqlite_master WHERE type='table' "
+                           "AND name='published_briefs'").fetchone():
+            return []
+        return con.execute(
+            "SELECT sym, title, text, label, approved_at FROM published_briefs "
+            "WHERE retracted_at IS NULL ORDER BY published_at DESC, item_id DESC "
+            "LIMIT ?", (int(limit),)).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        con.close()
+
+
+def _render_briefs(rows):
+    """The AI-labeled band. Empty rows -> no band at all (never an empty shell)."""
+    if not rows:
+        return ""
+    cards = []
+    for sym, title, text, label, approved_at in rows:
+        body = "".join(f"<p>{_esc(ln)}</p>" for ln in (text or "").split("\n") if ln.strip())
+        link = (f'<a href="/dash/stock?sym={_esc(sym)}" class="bsym">{_esc(sym)}</a>'
+                if sym else "")
+        cards.append(
+            f'<div class="bcard"><div class="bhead">{link}'
+            f'<span class="btitle">{_esc(title)}</span>'
+            f'<span class="bai" title="drafted by a cheap model from this board\'s own '
+            f'numbers, then read and approved by the desk before it appeared here">'
+            f'{_esc(label or "AI-drafted, human-reviewed")}</span>'
+            f'<span class="bwhen">approved {_esc((approved_at or "")[:10])}</span>'
+            f'</div>{body}</div>')
+    return ('<div class="briefs"><div class="bhdr">📝 <b>Event briefs</b> '
+            '<small>— written from the numbers on this board, then read and approved by '
+            'the desk before publishing. Nothing appears here unreviewed; every figure '
+            'traces to a row below.</small></div>' + "".join(cards) + '</div>')
 
 
 def _tape_lag(meta):
@@ -218,7 +282,7 @@ def _car_fan_svg(meta, fresh_rows):
         f'<text x="{L}" y="{H-12}" fill="#7e90a8" font-size="10.5">'
         f'▉ top-beat·deliv✓ mean+IQR (n={conf["n"]}) · ▬ thin-delivery · ▬ miss · ▬ all · '
         f'● fresh reporters at +22d — realized history, not a forecast. '
-        f'The tradeable book on this drift FAILED (net Sharpe 0.10 vs index 0.85, hedged −0.58).'
+        f'The tradeable book on this drift FAILED (net return/vol 0.10 vs index 0.85, hedged −0.58).'
         f'</text></svg>')
     return ('<div class="up"><div class="uph">📈 What historically followed — abnormal return '
             'vs Nifty 500, day-by-day after results (14y settled population)</div>'
@@ -388,7 +452,7 @@ def results_reactions(view: str = Query("all")):
             f'sessions</b> (n=235); the same surprise on thin delivery only +3.7%; bad news did not '
             f'drift. Cuts this run: SUE&nbsp;p80={_esc(sue_hi)}, Deliv&nbsp;p67={_esc(dlv_hi)}. These '
             f'are historical averages attached to a cell — <b>never a prediction for any single name</b>. '
-            f'The tradeable version was tested and failed (net Sharpe 0.10 vs index 0.85); this board '
+            f'The tradeable version was tested and failed (net return/vol 0.10 vs index 0.85); this board '
             f'is the honest descriptive residue.</div>',
             '<div class="kpis">'
             f'<div class="kpi"><div class="n">{n_all}</div><div class="l">recent events</div></div>'
@@ -397,6 +461,7 @@ def results_reactions(view: str = Query("all")):
             f'<div class="kpi"><div class="n">{n_settled}</div><div class="l">settled (60d elapsed)</div></div>'
             '</div>',
             _render_upcoming(_upcoming(14)),
+            _render_briefs(_published_briefs(3)),
             _car_fan_svg(meta, [{"sym": r[1], "car22": r[6], "settled": r[11]} for r in rows]),
             '<div class="tabs">'
             f'<a href="/dash/results-reactions" class="{"on" if not confirmed_only else ""}">All recent</a>'

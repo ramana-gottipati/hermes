@@ -1,13 +1,15 @@
 """/dash/factor-league — the classic strategy families, ranked by OUR measured numbers.
 
 Ramana's ask (S132g): the famous "premium" equity strategies (momentum, quality,
-low-vol, value…) as ONE ranked league — but ranked by the Sharpe/alpha measured on
+low-vol, value…) as ONE ranked league — but ranked by the return/vol + alpha measured on
 OUR 14 years of NSE data (docs/strategy-ledger.md § Tier-1 factor zoo + the 2026-07
 cost-realism experiments), never by textbook claims. Each live family shows its
 CURRENT top-25 participants; the NET champion (STEADY-25, the quarterly LOWVOL_MOM
 anchor) is the automatic portfolio; a churn feed shows every roster change.
 
-Honesty spine: flat-cost Sharpes are labeled flat-cost (the C-BLEND lesson); the
+Honesty spine: the ranking ratio is FLAT-COST and carries NO risk-free subtraction — two
+independent conventions, both disclosed on the star (D142; the ratio is return/vol, not a
+Sharpe, and reads high against one). The C-BLEND lesson is why cost is labeled; the
 failed families are shown WITH their failure numbers (that is the point of the
 league — the menu includes what does NOT work); momentum's alpha is a known
 risk-premium BETA, not selection skill. Descriptive-only, not advice, SEBI-safe.
@@ -62,14 +64,14 @@ _CSS = """<style>
 # The league table — FROZEN measured results, restated from docs/strategy-ledger.md
 # (§ Tier-1 leaderboard, § BLOCKING FAILURE MODELS, §§ 2026-07-02/05c cost realism).
 # Display copy only: the ledger is the single source; do not edit numbers here
-# without a ledger citation. (name, family, flat_sharpe, cagr%, maxdd%, alpha_note,
+# without a ledger citation. (name, family, flat_retvol, cagr%, maxdd%, alpha_note,
 # status, roster_key)  status: champion|gross|filter|fail|reject|bench
 _LEAGUE = [
     ("STEADY-25", "Low-volatility momentum · quarterly large-cap (LOWVOL_MOM)",
      1.10, 18.5, -26.0, "the ONLY family that beats the index NET of real costs: "
      "1.02 @₹50cr, capacity ~₹100-150cr", "champion", "steady"),
     ("PACER-25", "Risk-adjusted momentum (RISKADJ = 6-mo return ÷ 3-mo vol)",
-     1.13, 28.6, -33.1, "best flat-cost Sharpe of all 32 signals; NET fails at scale "
+     1.13, 28.6, -33.1, "best flat-cost return/vol of all 32 signals; NET fails at scale "
      "on its monthly clock — a gross selection lens", "gross", "pacer"),
     ("CRAFTSMAN-25", "Quality + momentum blend (QUAL_MOM)",
      1.10, 20.1, -26.7, "gentlest fast-clock drawdowns; runs as a model portfolio "
@@ -250,16 +252,20 @@ def factor_league_page(family: str = "", fmt: str = ""):
         + " · <a href='/dash/testing'>How we validate →</a></div>"
         + steady
         + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — public, bookish families measured on OUR data. Your own (🧑) and proprietary (🏠) strategies live on <a href='/dash/strategist'>Strategist</a>; the full provenance map is <code>docs/strategies/origins.md</code>.</div>"
-        + f"<div class='bar'>rosters as-of <b>{_esc(as_of) or '—'}</b> · Sharpe/CAGR/DD = the "
+        + f"<div class='bar'>rosters as-of <b>{_esc(as_of) or '—'}</b> · Return-vol/CAGR/DD = the "
         "RECORDED 2012-26 walk-forward (top-25 monthly, ₹5cr universe, FLAT costs — labeled; "
         "net reality is in the Status column) · excess = CAGR minus Nifty 500's 15.3%</div>"
         "<table><thead><tr><th class='l'>Portfolio</th><th class='l'>Strategy family</th>"
-        "<th title='flat-cost walk-forward Sharpe, 2012-26'>Sharpe*</th><th>CAGR</th>"
+        "<th title='flat-cost walk-forward return/vol, 2012-26. Mean return ÷ volatility, "
+        "annualised — NOT a Sharpe ratio: no risk-free rate is subtracted, so it reads "
+        "higher than a textbook Sharpe would.'>Return/vol*</th><th>CAGR</th>"
         "<th>Excess</th><th>MaxDD</th><th class='l'>Status</th><th class='l'>The verdict"
         "</th><th class='l'></th></tr></thead><tbody>" + lg + "</tbody></table>"
         + roster_html
         + "<h3>Churn — every roster change</h3>" + churn
-        + "<div class='honesty'><b>Read the star:</b> Sharpe* is FLAT-COST (0.3%/turnover) — "
+        + "<div class='honesty'><b>Read the star:</b> Return/vol* is FLAT-COST (0.3%/turnover) "
+        "AND has no risk-free rate subtracted — so it is not a Sharpe, and reads higher than "
+        "one. Both are conventions of the measurement, not results; it is still essentially "
         "the number most backtests quote. Under a realistic participation-cost model the fast "
         "monthly families do NOT keep their headline (that is why the table's only NET "
         "CHAMPION is the quarterly form). Momentum's edge here is a known risk-premium "

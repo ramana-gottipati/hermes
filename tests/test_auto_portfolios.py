@@ -40,6 +40,57 @@ def test_route_registered():
     assert "/dash/model-portfolios" in [r.path for r in auto_portfolios_view.router.routes]
 
 
+def _series(n, mult, gap_days):
+    """n points from 1.0 to exactly `mult`x, gap_days apart, wiggled so sd > 0.
+
+    Endpoints stay clean (the wiggle is interior-only) so the compounded multiple
+    is exactly `mult` and CAGR is checkable by hand.
+    """
+    from datetime import date, timedelta
+    d0 = date(2012, 6, 1)
+    out = []
+    for i in range(n):
+        base = mult ** (i / (n - 1))
+        wig = 1.0 if i in (0, n - 1) else (1.03 if i % 2 else 0.97)
+        out.append(((d0 + timedelta(days=round(i * gap_days))).isoformat(), base * wig))
+    return out
+
+
+def test_cadence_is_read_from_dates_not_row_count():
+    """A 14y QUARTERLY book must not be mistaken for a ~5y monthly one.
+
+    Regression: `ppy = 12 if len(vals) > 40 else 4` read STEADY-25's 58 quarterly
+    points (2012-06..2026-07) as monthly -> 4.8y instead of 14.1y, trebling the
+    rendered CAGR (60.4% vs the true 17.3%) and annualising vol by sqrt(12) not sqrt(4).
+    """
+    from src.web.auto_portfolios_view import _cadence, _stats
+
+    yrs, ppy = _cadence([d for d, _v in _series(58, 9.43, 91.31)])
+    assert ppy == 4 and 13.9 < yrs < 14.3, (yrs, ppy)          # quarterly, not monthly
+
+    st = _stats(_series(58, 9.43, 91.31))
+    assert 16.0 < st["cagr"] < 19.0, st["cagr"]                # ~17.3%, never ~60%
+    assert st["x"] == 9.43                                     # multiple is cadence-free
+
+    mo = _stats(_series(170, 18.0, 30.44))                     # monthly book unaffected
+    assert _cadence([d for d, _v in _series(170, 18.0, 30.44)])[1] == 12
+    assert 21.0 < mo["cagr"] < 24.0, mo["cagr"]
+
+
+def test_retvol_is_not_labelled_sharpe():
+    """No risk-free rate is subtracted, so the key and the UI must not say "Sharpe"."""
+    import inspect
+
+    from src.web import auto_portfolios_view as v
+
+    st = v._stats(_series(58, 9.43, 91.31))
+    assert "retvol" in st and "sharpe" not in st
+    page = inspect.getsource(v.model_portfolios_page)
+    assert "Return/vol <b>" in page                   # the rendered stat is relabelled
+    assert ">Sharpe <b>" not in page                  # ...and never claims a Sharpe
+    assert "NOT a Sharpe" in page                     # the tooltip says why
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):

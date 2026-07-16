@@ -4,7 +4,21 @@ Expanding walk-forward (train on all prior years with a 1-month embargo, predict
 year) -> a genuinely out-of-sample monthly track record. Build a top-20 equal-weight book
 from the model's predicted next-month return, net of cost. Compare to simple momentum and
 the index. Report the DEFLATED SHARPE RATIO (Bailey & Lopez de Prado), which haircuts the
-Sharpe for the ~150 strategy trials we've run — the honest test of 'is this real or luck'.
+ratio for the ~150 strategy trials we've run — the honest test of 'is this real or luck'.
+
+RATIO BASIS (D142): `stats()` returns mean/sd annualised with NO risk-free rate subtracted
+— a return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe. A true Sharpe
+needs a primary-source rf ingest (Guardrail #8) and is queued with the TR-benchmark re-cut,
+which moves the same figures; this file has no rf in scope today.
+
+That leaves the deflation below on a mismatched footing, worth stating plainly. The null
+`sr0` IS rf-free by construction — it is a pure multiple-testing threshold built from
+n_trials and the `trial_sr_std_ann` DISPERSION prior, containing no returns data, and a
+constant rf shifts a mean without touching a dispersion. But the observed `sr` it is
+compared against is inflated by the omitted rf, so the true SR is strictly LOWER and the
+test as run is LENIENT: it asks whether the book beats ZERO, not whether it beats cash.
+Read DSR here as an UPPER BOUND on the evidence — a PASS is weaker than it looks, a FAIL
+is real. Left unchanged deliberately: correcting the input moves numbers (see D142).
 """
 import sqlite3
 import numpy as np
@@ -73,11 +87,11 @@ def stats(r):
 
 
 def deflated_sharpe(r, n_trials=150, trial_sr_std_ann=0.30):
-    n = len(r); sr = r.mean() / r.std()  # monthly
+    n = len(r); sr = r.mean() / r.std()  # monthly ratio, NO rf removed -> DSR is lenient (D142)
     sk = float(st.skew(r)); ku = float(st.kurtosis(r, fisher=False))
     g = 0.5772156649
     emax = (1 - g) * st.norm.ppf(1 - 1 / n_trials) + g * st.norm.ppf(1 - 1 / (n_trials * np.e))
-    sr0 = (trial_sr_std_ann / np.sqrt(12)) * emax           # expected max Sharpe under null (monthly)
+    sr0 = (trial_sr_std_ann / np.sqrt(12)) * emax           # expected max ratio under null; rf-free by construction
     dsr = st.norm.cdf((sr - sr0) * np.sqrt(n - 1) / np.sqrt(1 - sk * sr + (ku - 1) / 4 * sr ** 2))
     return dsr, sr0 * np.sqrt(12)
 
@@ -85,16 +99,17 @@ def deflated_sharpe(r, n_trials=150, trial_sr_std_ann=0.30):
 print("OUT-OF-SAMPLE (2016-2026, walk-forward, net of cost), top-20 monthly:")
 for name, r in (("ML (full feature library)", ml_rets), ("Simple momentum (mom12)", mom_rets)):
     c, dd, sh, tx = stats(r)
-    print(f"  {name:28} CAGR {c*100:5.1f}%  MaxDD {dd*100:6.1f}%  Sharpe {sh:.2f}  ({tx:.1f}x)")
+    print(f"  {name:28} CAGR {c*100:5.1f}%  MaxDD {dd*100:6.1f}%  ret/vol {sh:.2f}  ({tx:.1f}x)")
 dsr, sr0 = deflated_sharpe(ml_rets)
-print(f"\n  Deflated Sharpe (ML, ~150 trials): DSR={dsr:.2f}  (deflation threshold Sharpe~{sr0:.2f})")
+print(f"\n  Deflated Sharpe (ML, ~150 trials): DSR={dsr:.2f}  (deflation threshold ~{sr0:.2f})")
+print("  NB: fed a return/vol ratio, not a Sharpe -> LENIENT, an upper bound (D142)")
 print(f"  -> {'PASSES (>0.95): edge is likely real' if dsr > 0.95 else 'FAILS (<0.95): not distinguishable from luck'}")
 
 di, ci2 = index_series("Nifty 500"); mp = {d: ci2[i] for i, d in enumerate(di)}
 md = sorted(set(dates[oos])); mb = [mp[d] for d in md if d in mp]
 mr = np.array(mb[1:]) / np.array(mb[:-1]) - 1
 c, dd, sh, tx = stats(mr)
-print(f"\n  Nifty 500 (same window):     CAGR {c*100:5.1f}%  MaxDD {dd*100:6.1f}%  Sharpe {sh:.2f}")
+print(f"\n  Nifty 500 (same window):     CAGR {c*100:5.1f}%  MaxDD {dd*100:6.1f}%  ret/vol {sh:.2f}")
 
 # does ML beat simple momentum? feature importance
 # CL-RES-15: permutation importance must be measured on rows the model did NOT train on.

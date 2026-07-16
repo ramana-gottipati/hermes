@@ -42,8 +42,12 @@ support "the up-fractal confirmation adds value over mere floor proximity".
 FORM-2 BOOK (for the record): long at entry close; trail = max(floor, every degree-2 down-fractal
 low confirmed after entry, ratchet up only); exit close of the bar AFTER the first close < trail
 (exit_kind floor_stop / trail_stop, censored at series end); one open trade per symbol; 0.3 pct per
-side; daily equal-weight across open trades, monthly compounding; FUNDABLE bar = Sharpe > 0.89 in
-BOTH halves 2012-18 / 2019-26.
+side; daily equal-weight across open trades, monthly compounding; FUNDABLE bar = return/vol > 0.89
+in BOTH halves 2012-18 / 2019-26.
+
+METRIC BASIS (D142): every ratio reported here is mean/sd annualised with NO risk-free rate
+subtracted — a return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe. The 0.89
+hurdle is computed on the SAME basis, so the verdict is unaffected.
 
 VARIANTS (exploratory, no gate promotion): degree N=5, N=2; STRONG subset (close > T2); proximity
 <= 0.10 and <= 0.05; TREND (close > SMA200) and ANTI-TREND; liquidity >= Rs 5cr. BUCKETS on the D10
@@ -284,9 +288,10 @@ def build():
                                         round(float(prox), 5), i - fb, strong, trend,
                                         float(S.med_turn[i])))
                         # ⚠ DEFECT (recorded, ledger § Study 2026-07-14b): this book never
-                        # charges the documented 0.3%/side — its Sharpes are GROSS. Kept
-                        # as-run (the committed JSON is evidence); fractal_fences.py is the
-                        # corrected accounting (flat-cost PROX10 = 0.59, not 1.04).
+                        # charges the documented 0.3%/side — its return/vol ratios are
+                        # GROSS. Kept as-run (the committed JSON is evidence);
+                        # fractal_fences.py is the corrected accounting (flat-cost
+                        # PROX10 = 0.59, not 1.04).
                         keys = ["ALL"]
                         if strong:
                             keys.append("STRONG")
@@ -455,8 +460,8 @@ def run():
         if st_full:
             books[key] = {"full": st_full, "h1_2012_18": st_h1, "h2_2019_26": st_h2,
                           "avg_pos": round(float(np.mean([r["avg_pos"] for r in rows])), 1),
-                          "FUNDABLE_vs_0.89": bool(st_h1 and st_h2 and st_h1["sharpe"] > 0.89
-                                                   and st_h2["sharpe"] > 0.89)}
+                          "FUNDABLE_vs_0.89": bool(st_h1 and st_h2 and st_h1["retvol"] > 0.89
+                                                   and st_h2["retvol"] > 0.89)}
     out["FORM2_book"] = books
 
     from .common import OUT_DIR  # noqa: PLC0415

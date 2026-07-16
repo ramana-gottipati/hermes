@@ -53,11 +53,19 @@ _VALID: dict[str, dict] = {
     "trend":        {"sym": "free"},    # credibility time-series for one name
     "seasonal":     {"period": {"this-month", "next-month", "this-week", "next-week"},
                      "direction": {"bullish", "bearish"}},  # calendar base-rate ranking
+    "seasonal_stock": {"symbol": "free", "month": "int"},  # "is TCS usually up in July" — per-symbol base rate (S150)
     "navigate":     {"topic": "free"},  # "where do I see X" — page-finder over lens_registry (S-E)
     "news":         {"symbol": "free"},  # "TCS news / latest headlines" — inline headlines (S-E Ph2)
     "whatchanged":  {"symbol": "free"},  # "what changed today / for X" — the bus rail inline (S-E Ph2)
     "participants": {},                   # "are FIIs buying" — FII net stance inline (S-E Ph2)
     "rotation":     {"symbol": "free"},  # "what phase is X in" — per-symbol RS rotation (S-E Ph2)
+    "internals":    {},                   # "how's the breadth" — market internals inline (S-E Ph2)
+    "filings":      {"symbol": "free", "focus": "free"},  # "filings for X" — insider/ratings/SAST/holdings (S150)
+    "quality":      {"symbol": "free", "focus": "free"},  # "what's X's CET1 / is X a good bank" — per-symbol fundamentals (S155-c)
+    "wolfe":        {"symbol": "free"},  # "any wolfe setups / open trades" — open Wolfe waves (S150)
+    "methodology":  {"slug": "free"},   # "explain the Wolfe methodology" — strategy explainers (S150 Ph3)
+    "rulelab":      {},                  # "did my rule work" — latest rule-lab verdict, read-only (S157-b)
+    "inbox":        {},                  # "what's waiting on me" — the judgment queue, read-only (S160)
     "explain":      {"explain": "slug"},
 }
 
@@ -293,6 +301,19 @@ def route(query: str, conn=None) -> dict | None:
     if hit:
         return cached
 
+    # (a-0) Seasonal per-symbol base rate — "is TCS usually up in July / does INFY tend to rise
+    #       in March / TCS seasonality this month" (S150). Symbol-anchored, so it runs BEFORE the
+    #       market-wide ranking (a name'd ask must not be read as a leaderboard). Descriptive
+    #       calendar base-rate, never a forecast. Deterministic ₹0; yields when no symbol.
+    try:
+        from src.pat.seasonal_flow import parse_seasonal_symbol as _parse_seas_sym
+        seas_sym = _parse_seas_sym(query)
+    except Exception:
+        seas_sym = None
+    if seas_sym:
+        _cache_put(q, seas_sym)
+        return seas_sym
+
     # (a-1) Seasonal ranking — "top-ranked / historically-bearish stocks for this|next
     #       month|week" — recognized FIRST (before the prediction guardrail): a calendar
     #       BASE-RATE is descriptive history, not a forecast, and the flow carries its own
@@ -359,7 +380,35 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, wc)
         return wc
 
-    # (a-1f) Participants — "are FIIs buying / FII flows / who's positioned" — the FII
+    # (a-1f) Filings — "filings for TCS / insider activity in RELIANCE / pledge on INFY /
+    #        credit rating of X / shareholding of Y" — the four Ownership & filings lenses
+    #        bundled per-symbol (S150). ₹0; needs a filings cue AND a symbol, and runs BEFORE
+    #        participants so a per-symbol "FII holding in TCS" is not stolen by the market-wide
+    #        FII stance; a market-wide "insider activity" (no symbol) yields to the parse.
+    try:
+        from src.pat.filings_flow import parse_filings as _parse_filings
+        fil = _parse_filings(query)
+    except Exception:
+        fil = None
+    if fil:
+        _cache_put(q, fil)
+        return fil
+
+    # (a-1f2) Quality — "what's HDFCBANK's CET1 / is HDFCBANK a good bank / what's TCS's ROCE /
+    #         risks in X" — the SYMBOL's own fundamentals + its scored quality read, incl. the
+    #         Doctrine-D lender model (S155-c). ₹0; needs a fundamentals cue AND a symbol, and runs
+    #         AFTER filings so a pledge/rating/insider disclosure ask stays a filing. Without this a
+    #         per-symbol fundamental returned the generic DEFINITION, nothing, or a market-wide screen.
+    try:
+        from src.pat.quality_flow import parse_quality as _parse_quality
+        qual = _parse_quality(query)
+    except Exception:
+        qual = None
+    if qual:
+        _cache_put(q, qual)
+        return qual
+
+    # (a-1g) Participants — "are FIIs buying / FII flows / who's positioned" — the FII
     #        index-futures net stance inline (S-E Phase 2). ₹0; needs an FII/participant
     #        cue, runs after nav so "where do I see FII flows" stays a navigate.
     try:
@@ -371,7 +420,7 @@ def route(query: str, conn=None) -> dict | None:
         _cache_put(q, part)
         return part
 
-    # (a-1g) Rotation — "what phase is TCS in / rotation state of X / is INFY leading" —
+    # (a-1h) Rotation — "what phase is TCS in / rotation state of X / is INFY leading" —
     #        a stock's RS-rotation state inline (S-E Phase 2). ₹0; symbol-anchored (needs a
     #        rotation cue AND a symbol), so market-wide "rotation" stays a navigate and the
     #        RS-leaders board is never stolen.
@@ -383,6 +432,73 @@ def route(query: str, conn=None) -> dict | None:
     if rot:
         _cache_put(q, rot)
         return rot
+
+    # (a-1i) Internals — "how's the breadth / market internals / how many stocks up" —
+    #        the market-breadth snapshot inline (S-E Phase 2). ₹0; needs a breadth cue,
+    #        runs after nav so "where do I see breadth" stays a navigate, and yields on an
+    #        entity-ranking ask ("which stocks are advancing").
+    try:
+        from src.pat.internals_flow import parse_internals as _parse_int
+        internals = _parse_int(query)
+    except Exception:
+        internals = None
+    if internals:
+        _cache_put(q, internals)
+        return internals
+
+    # (a-1j) Methodology — "explain the Wolfe methodology / how does CPR work / what's the DVPT
+    #        idea" — a plain-language strategy explainer from docs/strategies (S150 Phase 3). ₹0;
+    #        needs a methodology cue AND a strategy name, and runs BEFORE the wolfe data flow so
+    #        "how does the wolfe WAVE work" is an explainer, not an open-trades list; a bare "what
+    #        is DVPT" (no cue) stays a glossary explain. Sanitized (no governance/ID leak).
+    try:
+        from src.pat.methodology_flow import parse_methodology as _parse_meth
+        meth = _parse_meth(query)
+    except Exception:
+        meth = None
+    if meth:
+        _cache_put(q, meth)
+        return meth
+
+    # (a-1k) Wolfe open trades — "any wolfe setups / open wolfe trades / show me the wolfe waves" —
+    #        the currently-open Wolfe waves from the nightly snapshot (S150). ₹0; needs a wolfe cue
+    #        AND an open/setup/trade cue, runs after nav/methodology so "where's the wolfe scanner"
+    #        stays a navigate and "how does the wolfe wave work" is an explainer. A miss yields.
+    try:
+        from src.pat.wolfe_flow import parse_wolfe as _parse_wolfe
+        wolf = _parse_wolfe(query)
+    except Exception:
+        wolf = None
+    if wolf:
+        _cache_put(q, wolf)
+        return wolf
+
+    # (a-1l) Rule-lab — "did my rule work / rule lab verdict / test my rule" — the latest
+    #        gauntlet verdict from the Review Inbox, read-only (running a rule stays the
+    #        page's owner-gated POST). ₹0; conservative: needs a rule-lab cue AND an ask
+    #        cue, and the parser excludes wolfe/screener/glossary/exit-law rule vocabulary
+    #        so those lenses keep their own asks. A miss yields to the normal parse.
+    try:
+        from src.pat.rulelab_flow import parse_rulelab as _parse_rulelab
+        rlb = _parse_rulelab(query)
+    except Exception:
+        rlb = None
+    if rlb:
+        _cache_put(q, rlb)
+        return rlb
+
+    # (a-1m) Inbox — "what's waiting on me / anything needing my approval" — the judgment
+    #        queue reported IN THE CHAT (Ramana 2026-07-15: communication belongs here, not
+    #        at a URL to remember). ₹0; needs a waiting/approval cue AND an ask cue, so
+    #        "where is the review inbox" stays a navigate. Read-only — Pat never decides.
+    try:
+        from src.pat.inbox_flow import parse_inbox as _parse_inbox
+        inb = _parse_inbox(query)
+    except Exception:
+        inb = None
+    if inb:
+        _cache_put(q, inb)
+        return inb
 
     from src.pat.understand import validate_intent, parse_fallback
 

@@ -6,8 +6,14 @@ portfolio — churned by its own rule continuously, no manual adds/removes possi
 from 2012-06-01 (the validated walk-forward window start) by running the identical rule through history, so each carries a real
 track record and any past composition can be inspected ("as of Jan 2020").
 
-ELIGIBILITY (his rule): only families with superior measured Sharpe that beat the
+ELIGIBILITY (his rule): only families with superior measured RETURN/VOL that beat the
 NIFTY hurdle on our 14y record (ledger Tier-1). Four qualify and run:
+
+  (D142: the criterion reads return/vol, not Sharpe, because that is what was measured —
+  mean/sd annualised, no risk-free rate subtracted. The RULE is unchanged and no family's
+  eligibility moves: the NIFTY hurdle is on the same no-rf basis, so both sides of the
+  comparison shift together. A true Sharpe needs a primary-source rf ingest (Guardrail #8),
+  queued with the TR-benchmark re-cut, which moves the same figures.)
 
   STEADY-25   LOWVOL_MOM · QUARTERLY clock · top-turnover-QUINTILE gate   (net champion)
   PACER-25    RISKADJ    · MONTHLY clock   · ₹5cr median-turnover gate    (gross lens)
@@ -57,7 +63,7 @@ SPECS = {
     "PACER-25":     {"score": "riskadj", "clock": "M", "gate": "cr5"},
     "SPRINTER-25":  {"score": "mom12",   "clock": "M", "gate": "cr5"},
     # QUAL_MOM (S132i): 0.4 pr(riskadj) + 0.3 pr(deliv_qty_trend) + 0.3 pr(-vol) —
-    # the recorded 1.10-Sharpe blend with the gentlest fast-clock drawdowns (-26.7%).
+    # the recorded 1.10-return/vol blend with the gentlest fast-clock drawdowns (-26.7%).
     "CRAFTSMAN-25": {"score": "qualmom", "clock": "M", "gate": "cr5"},
 }
 

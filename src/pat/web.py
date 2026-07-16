@@ -1015,6 +1015,59 @@ def _overdue_flow(conn, event: str = "") -> str:
     return "".join(out)
 
 
+# ── inbox flow ("what's waiting on me" — the queue reports itself) ───────────
+# Ramana 2026-07-15: communication belongs in the chat, not parked at a URL he has to
+# remember. Pat REPORTS the queue; it never decides — judging stays a deliberate act on
+# the owner-gated lens (canon carries a human signature).
+
+def _inbox_flow(conn) -> str:
+    from src.pat.inbox_flow import waiting as _waiting, summary_phrase as _phrase
+    w = _waiting(conn)
+    link = _esc(w["link"])
+    if not w["total"]:
+        return (f"<p><b>Nothing is waiting on you.</b> When the machine drafts something that "
+                f"needs your sign-off — an event brief, a rule-lab verdict, a tag proposal — "
+                f"it lands in the <a href='{link}'>Review inbox</a> and I'll say so here.</p>")
+    rows = "".join(
+        f"<li>{_esc(i['title'])} <small>· {_esc(i['created_at'][:10])}</small>"
+        + (f" · <a href='{_esc(i['evidence_url'])}'>evidence</a>" if i.get("evidence_url") else "")
+        + "</li>"
+        for i in w["items"])
+    more = (f"<p><small>…and {w['total'] - len(w['items'])} more.</small></p>"
+            if w["total"] > len(w["items"]) else "")
+    return (f"<p><b>{_esc(_phrase(w))}.</b></p><ul>{rows}</ul>{more}"
+            f"<p><small>Nothing here counts until you sign it — approve or reject on the "
+            f"<a href='{link}'>Review inbox</a>. I can report the queue, but I never decide "
+            f"it.</small></p>")
+
+
+# ── rule-lab flow (the latest gauntlet verdict, read-only) ───────────────────
+# "did my rule work / rule lab verdict / test my rule" — the newest
+# review_items(kind='rule_verdict') payload, in the ledger's own vocabulary. Composing/
+# running a NEW rule stays the page's owner-gated POST — Pat only ever READS (SEBI line).
+
+def _rulelab_flow(conn) -> str:
+    from src.pat.rulelab_flow import answer as _rl_answer
+    a = _rl_answer(conn)
+    link = a.get("link", "/dash/rule-lab")
+    if not a.get("found"):
+        return (f"<p>No rule has been run yet — compose one on the "
+                f"<a href='{_esc(link)}'>Rule lab</a>. <small>{_esc(a.get('note', ''))}"
+                f"</small></p>")
+    f2 = lambda v: "—" if v is None else f"{float(v):.2f}"
+    qual = f" <b>[{_esc(a['qualifier'])}]</b>" if a.get("qualifier") else ""
+    cap = a.get("capacity_inr")
+    cap_txt = "unstated" if not cap else f"₹{float(cap) / 1e7:.0f}cr"
+    return (
+        f"<p><b>{_esc(a.get('verdict', ''))}</b>{qual} — "
+        f"<code>{_esc(a.get('rule_text', ''))}</code></p>"
+        f"<p>net return/vol {f2(a.get('net_retvol'))} vs benchmark {f2(a.get('bench_net'))} · "
+        f"placebo p95 {f2(a.get('placebo_p95'))} · capacity {_esc(cap_txt)} · "
+        f"inbox status: {_esc(a.get('status', ''))}</p>"
+        f"<p><small>The verdict is gauntlet arithmetic on the composed rule — a statistical "
+        f"summary, not advice. <a href='{_esc(link)}'>Open the Rule lab</a></small></p>")
+
+
 # ── navigate flow (page-finder over lens_registry) ───────────────────────────
 # "where do I see breadth / which page shows the news / how do I find seasonality" —
 # points at the right lens with a link + one-liner (S-E Phase 1). No data, no ranking.
@@ -1241,6 +1294,383 @@ def _rotation_flow(conn, symbol: str = "") -> str:
     out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
                'The RS-weather phase from the stock\'s relative-strength slopes vs Nifty 500 — '
                'a descriptive rotation read (rule-based, no LLM), never a buy/sell.</div>')
+    return "".join(out)
+
+
+# ── internals flow (market breadth + the effort tape, inline) ─────────────────
+# "how's the breadth / market internals / how many stocks are up" (S-E Phase 2). The
+# % advancing + adv/dec + the MEP effort tape + 22y percentiles — descriptive market
+# state, never a buy/sell.
+
+def _internals_flow(conn) -> str:
+    from src.pat import internals_flow as _IF
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    b = _IF.breadth_now(conn)
+    if not b:
+        out.append(_q_bubble("I can't read the market-internals snapshot right now."))
+        out.append('<div class="empty">No market-internals data yet. The full surface is at '
+                   '<a class="row" href="/dash/market-internals">Market internals</a>.</div>')
+        return "".join(out)
+    out.append(_q_bubble("How broad the market is right now — the share of stocks advancing and "
+                         "the delivery-weighted effort tape, vs their 22-year range. Market state, "
+                         "not a call."))
+    pa = b.get("pct_adv")
+    pa_txt = (f'{pa:.0f}%' if isinstance(pa, (int, float)) else "—")
+    pa_read = _IF.read_word(b.get("pct_adv_pctile"), "narrow", "broad")
+    mep = b.get("mep_net")
+    mep_txt = (f'{mep:+.0f}' if isinstance(mep, (int, float)) else "—")
+    mep_read = _IF.read_word(b.get("mep_pctile"), "distribution-heavy", "accumulation-heavy")
+    out.append(f'<div class="ghdr">Market internals · as of {_esc(str(b.get("as_of") or ""))}</div>')
+    out.append('<div class="card" style="line-height:1.7">'
+               f'<div style="font-size:15px"><b>{_esc(pa_txt)} of {int(b.get("n_eq") or 0):,} stocks '
+               f'advancing</b> — {_esc(pa_read)}</div>'
+               f'<div style="color:var(--ink-3);font-size:12.5px;margin-top:2px">'
+               f'{int(b.get("adv") or 0):,} up · {int(b.get("dec") or 0):,} down · '
+               f'{int(b.get("unch") or 0):,} flat</div>'
+               f'<div style="font-size:13.5px;margin-top:8px">Effort tape (MEP net): '
+               f'<b>{_esc(mep_txt)}</b> — {_esc(mep_read)}</div>'
+               '</div>')
+    out.append('<div style="margin-top:10px"><a class="row" href="/dash/market-internals">'
+               'Open the full Market internals surface (22y breadth, tape, dispersion, coil) →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Breadth = the share of the cash universe advancing; the effort tape (MEP net) is the '
+               'delivery-weighted accumulation-vs-distribution balance. Both shown vs their own 22-year '
+               'range — descriptive market state, never a buy/sell signal.</div>')
+    return "".join(out)
+
+
+# ── filings flow (per-symbol ownership & filings, inline) ─────────────────────
+# "filings for TCS / insider activity in RELIANCE / pledge on INFY / credit rating of X /
+# shareholding of Y" (S150). Bundles the four Ownership & filings lenses for ONE symbol —
+# insider (PIT) · credit ratings · SAST stake/pledge · shareholding QoQ — descriptive,
+# recorded regulatory disclosures, never advice.
+
+def _filings_flow(conn, symbol: str = "", focus: str = "all") -> str:
+    from src.pat import filings_flow as _FF
+    from src.pat import rotation_flow as _RF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym or not _RF.is_symbol(conn, sym):
+        out.append(_q_bubble(f"I don't recognise {_esc(sym) or 'that'} as a ticker."))
+        out.append('<div class="empty">Name a stock by its NSE symbol (e.g. "filings for TCS"), '
+                   'or open <a class="row" href="/dash/insider">Insider</a> · '
+                   '<a class="row" href="/dash/ratings">Ratings</a> · '
+                   '<a class="row" href="/dash/sast">Stake · Pledge</a> · '
+                   '<a class="row" href="/dash/shp">Holdings</a>.</div>')
+        return "".join(out)
+    b = _FF.filings_for(conn, sym)
+    out.append(_q_bubble(f"Recorded regulatory filings for {_esc(sym)} — SEBI insider (PIT) "
+                         "disclosures, credit-rating actions, stake/pledge (SAST) moves and the "
+                         "shareholding mix. A record of what was filed, never a buy/sell call."))
+    out.append(f'<div class="ghdr">Filings · {_esc(sym)}</div>')
+    if not _FF.has_any(b):
+        out.append('<div class="empty">No insider, rating, SAST or shareholding disclosures on '
+                   f'record for {_esc(sym)} yet. The market-wide boards are at '
+                   '<a class="row" href="/dash/insider">Insider</a> · '
+                   '<a class="row" href="/dash/ratings">Ratings</a> · '
+                   '<a class="row" href="/dash/sast">Stake · Pledge</a> · '
+                   '<a class="row" href="/dash/shp">Holdings</a>.</div>')
+        return "".join(out)
+
+    def _money(v):
+        try:
+            return f"₹{float(v) / 1e7:,.2f} cr"
+        except (TypeError, ValueError):
+            return "—"
+
+    def _sec_insider():
+        rows = b.get("insider") or []
+        if not rows:
+            return ""
+        li = []
+        for r in rows:
+            val = f" · {_money(r['value_rs'])}" if r.get("value_rs") else ""
+            li.append(f'<div style="font-size:12.5px;margin-top:2px">{_esc(str(r.get("dt") or ""))} · '
+                      f'{_esc(str(r.get("category") or ""))} · <b>{_esc(str(r.get("txn_class") or ""))}</b>'
+                      f' <span style="color:var(--ink-3)">[{_esc(str(r.get("signal") or ""))}]</span>{val}</div>')
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Insider (PIT) '
+                'disclosures</div>' + "".join(li)
+                + '<div style="margin-top:4px"><a class="row" href="/dash/insider">the Insider board →</a></div></div>')
+
+    def _sec_ratings():
+        rows = b.get("ratings") or []
+        if not rows:
+            return ""
+        li = []
+        for r in rows:
+            move = (f'{_esc(str(r.get("prior") or "?"))} → {_esc(str(r.get("rating") or "?"))}')
+            ol = f' · {_esc(str(r.get("outlook")))}' if r.get("outlook") else ""
+            li.append(f'<div style="font-size:12.5px;margin-top:2px">{_esc(str(r.get("dt") or ""))} · '
+                      f'{_esc(str(r.get("agency") or ""))} · <b>{_esc(str(r.get("action") or ""))}</b> · '
+                      f'{move}{ol}</div>')
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Credit-rating '
+                'actions</div>' + "".join(li)
+                + '<div style="margin-top:4px"><a class="row" href="/dash/ratings">the Ratings board →</a></div></div>')
+
+    def _sec_sast():
+        s = b.get("sast")
+        if not s:
+            return ""
+        net = s.get("net_pledge_flow_90d")
+        enc = s.get("latest_encumbered_pct")
+        parts = [f'pledge flow (90d) <b>{net:+.2f}pp</b>' if isinstance(net, (int, float)) else ""]
+        if isinstance(enc, (int, float)):
+            parts.append(f'encumbered <b>{enc:.1f}%</b>')
+        if s.get("stake_acquired_pct_90d") or s.get("stake_sold_pct_90d"):
+            parts.append(f'stake +{s.get("stake_acquired_pct_90d", 0):.2f} / '
+                         f'−{s.get("stake_sold_pct_90d", 0):.2f}pp')
+        if s.get("pledge_invocations_90d"):
+            parts.append(f'<b>{s["pledge_invocations_90d"]} invocation(s)</b>')
+        body = " · ".join(p for p in parts if p)
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Stake · pledge '
+                f'(SAST) — <span style="color:var(--ink-3)">{_esc(str(s.get("sast_signal") or "neutral"))}</span></div>'
+                f'<div style="font-size:12.5px;margin-top:2px">{body}</div>'
+                '<div style="margin-top:4px"><a class="row" href="/dash/sast">the Stake · Pledge board →</a></div></div>')
+
+    def _sec_holdings():
+        h = b.get("holdings")
+        if not h:
+            return ""
+        li = []
+        for r in h.get("rows", []):
+            d = r.get("delta")
+            dtxt = (f' <b>({d:+.2f}pp)</b>' if isinstance(d, (int, float)) else "")
+            li.append(f'<div style="font-size:12.5px;margin-top:2px">{_esc(str(r.get("metric")))}: '
+                      f'{r.get("value"):.2f}%{dtxt}</div>')
+        return ('<div class="card" style="margin-top:8px"><div style="font-weight:600">Shareholding mix '
+                f'· as of {_esc(str(h.get("as_of") or ""))}</div>' + "".join(li)
+                + '<div style="margin-top:4px"><a class="row" href="/dash/shp">the Holdings board →</a></div></div>')
+
+    order = {"insider": [_sec_insider, _sec_ratings, _sec_sast, _sec_holdings],
+             "ratings": [_sec_ratings, _sec_insider, _sec_sast, _sec_holdings],
+             "sast": [_sec_sast, _sec_holdings, _sec_insider, _sec_ratings],
+             "shp": [_sec_holdings, _sec_sast, _sec_insider, _sec_ratings]}.get(
+                 focus, [_sec_insider, _sec_ratings, _sec_sast, _sec_holdings])
+    for fn in order:
+        out.append(fn())
+    out.append(f'<div style="margin-top:10px"><a class="row" href="/dash/stock?sym={_u(sym)}">'
+               f'Open {_esc(sym)}\'s full dossier →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'SEBI PIT insider disclosures, agency credit-rating actions, SAST Reg-29/31 stake · '
+               'pledge moves and quarterly shareholding — recorded regulatory filings, descriptive '
+               'only, never a buy/sell signal.</div>')
+    return "".join(out)
+
+
+# ── wolfe flow (currently-open Wolfe setups, inline) ──────────────────────────
+# "any wolfe setups / open wolfe trades / show me the wolfe waves" (S150). The nightly
+# open-scan snapshot — descriptive-only (edge = SELECTION, never trade-craft): FRESH <=15d
+# winner-profile entries carry the validated edge (★ edge); older open trades are badged
+# "open · judge the run".
+
+def _wolfe_flow(conn, symbol: str = "") -> str:
+    from src.pat import wolfe_flow as _WF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    snap = _WF.open_trades(conn, symbol=sym)
+    if not snap or not snap.get("rows"):
+        who = f" for {_esc(sym)}" if sym else ""
+        out.append(_q_bubble(f"No open Wolfe setups{who} in the latest scan."))
+        out.append('<div class="empty">The nightly Wolfe snapshot has no open trades'
+                   f'{who} right now. The full board is at '
+                   '<a class="row" href="/dash/wolfe/trades">Wolfe · Open trades</a> '
+                   '(and fresh setups at <a class="row" href="/dash/wolfe/scan">Wolfe · Scan</a>).</div>')
+        return "".join(out)
+    lead = (f"Open Wolfe setups for {_esc(sym)}" if sym else "The currently-open Wolfe setups")
+    out.append(_q_bubble(f"{lead} — point-5 printed, EPA target not yet reached. Wolfe carries no "
+                         "buy/sell signal; its only validated edge is SELECTION on FRESH ≤15-day "
+                         "entries (★ edge). Older open trades have run left but no validated "
+                         "entry-edge (open · judge the run). Descriptive, never advice."))
+    out.append(f'<div class="ghdr">Wolfe · open trades · as of {_esc(str(snap.get("as_of") or ""))} '
+               f'· {int(snap.get("n_total") or 0)} open</div>')
+
+    def _n(v, fmt="{:.1f}"):
+        try:
+            return fmt.format(float(v))
+        except (TypeError, ValueError):
+            return "—"
+
+    head = ('<tr><th>Sym</th><th>Dir</th><th>CMP</th><th>Entry zone</th><th>Stop</th>'
+            '<th>T1</th><th>Run%</th><th>R:R</th><th>Q</th><th></th></tr>')
+    body = []
+    for r in snap["rows"]:
+        rsym = _esc(str(r.get("sym") or ""))
+        direction = _esc(str(r.get("dir") or ""))
+        zone = f'{_n(r.get("zlo"))}–{_n(r.get("zhi"))}'
+        qv = r.get("Q", r.get("q"))
+        badge = ('<span style="color:var(--pos,#0a7a3f)">★ edge</span>' if _WF.is_fresh(r)
+                 else '<span style="color:var(--ink-3)">open · judge the run</span>')
+        body.append(
+            f'<tr><td><a href="/dash/stock?sym={_u(str(r.get("sym") or ""))}">{rsym}</a></td>'
+            f'<td>{direction}</td><td>{_n(r.get("cmp"), "{:.2f}")}</td><td>{zone}</td>'
+            f'<td>{_n(r.get("sl"), "{:.2f}")}</td><td>{_n(r.get("t1"), "{:.2f}")}</td>'
+            f'<td>{_n(r.get("run"))}</td><td>{_n(r.get("rr"), "{:.2f}")}</td>'
+            f'<td>{_n(qv, "{:.0f}")}</td><td>{badge}</td></tr>')
+    out.append('<table class="patTable" style="font-size:12px">' + head + "".join(body) + '</table>')
+    out.append('<div style="margin-top:10px"><a class="row" href="/dash/wolfe/trades">'
+               'Open the full Wolfe open-trades board (remaining-ROI, filters) →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Wolfe waves — a 5-pivot reversal geometry. Descriptive only: the validated edge is '
+               'SELECTION (which name / direction / when) on FRESH ≤15-day winner-profile entries, '
+               'never the stop or target and never a buy/sell signal.</div>')
+    return "".join(out)
+
+
+# ── seasonal per-symbol flow (calendar base rate for one name, inline) ────────
+# "is TCS usually up in July / does INFY tend to rise in March" (S150). The name's own
+# calendar-month base rate from seasonal_cells (scope='stock') — descriptive history,
+# never a forecast (expectancy ~ 0 net of costs).
+
+def _seasonal_stock_flow(conn, symbol: str = "", month: int = 0) -> str:
+    from src.pat import seasonal_flow as _SF
+    from src.pat import rotation_flow as _RF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym or not _RF.is_symbol(conn, sym):
+        out.append(_q_bubble(f"I don't recognise {_esc(sym) or 'that'} as a ticker."))
+        out.append('<div class="empty">Name a stock (e.g. "is TCS usually up in July"), or open '
+                   'the <a class="row" href="/dash/seasonal-tape">Seasonal tape</a>.</div>')
+        return "".join(out)
+    try:
+        m = int(month)
+    except (TypeError, ValueError):
+        m = 0
+    cell = _SF.stock_month(conn, sym, m)
+    if not cell:
+        out.append(_q_bubble(f"I don't have a certified monthly base rate for {_esc(sym)} yet."))
+        out.append('<div class="empty">Not every name clears the seasonal coverage bar. See the '
+                   f'<a class="row" href="/dash/seasonal-tape">Seasonal tape</a> for {_esc(sym)}, or '
+                   'the <a class="row" href="/dash/seasonal-screen">This-month screen</a>.</div>')
+        return "".join(out)
+    hr = cell["hit_rate"]
+    ny = cell["n_years"]
+    k = cell["k"]
+    lean = "up" if (isinstance(cell.get("z"), (int, float)) and cell["z"] > 0) else "down"
+    out.append(_q_bubble(f"How {_esc(sym)} has behaved in {_esc(cell['month_label'])} across the "
+                         "years — a descriptive calendar base rate, never a forecast."))
+    out.append(f'<div class="ghdr">Seasonal base rate · {_esc(sym)} · {_esc(cell["month_label"])}</div>')
+    out.append('<div class="card" style="line-height:1.7">'
+               f'<div style="font-size:15px"><b>{_esc(sym)} finished {_esc(cell["month_label"])} '
+               f'higher in {int(k)} of {int(ny)} years</b> — a {hr * 100:.0f}% hit rate</div>'
+               f'<div style="color:var(--ink-3);font-size:12.5px;margin-top:3px">'
+               f'Historical lean: {lean} · {int(ny)} years of history</div>'
+               '</div>')
+    out.append(f'<div style="margin-top:10px"><a class="row" href="/dash/seasonal-tape">'
+               f'Open the Seasonal tape for {_esc(sym)} →</a> &nbsp; '
+               '<a class="row" href="/dash/seasonal-screen">the This-month screen →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'The share of past years this name finished the calendar month higher — a descriptive '
+               'base rate (idiosyncratic residual, PIT), never a forecast or a trade; expectancy is '
+               '~0 net of costs.</div>')
+    return "".join(out)
+
+
+# ── methodology flow (plain-language strategy explainers, inline) ─────────────
+# "explain the Wolfe methodology / how does CPR work / what's the DVPT idea" (S150 Ph3).
+# The plain-language One-line definition from the canonical docs/strategies page (sanitized
+# via strategies_view._public — no governance/ID/"Ramana" leak) + a link to the full page.
+
+def _methodology_flow(conn, slug: str = "") -> str:
+    from src.pat import methodology_flow as _MF
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    s = _MF.summary((slug or "").strip())
+    if not s:
+        out.append(_q_bubble("I don't have a plain-language write-up for that strategy."))
+        out.append('<div class="empty">Browse the methodology write-ups at '
+                   '<a class="row" href="/dash/strategy-ref">Strategy reference</a>.</div>')
+        return "".join(out)
+    out.append(_q_bubble(f"How the {_esc(s['label'])} methodology works — in plain words."))
+    out.append(f'<div class="ghdr">{_esc(s["label"])} — methodology</div>')
+    out.append(f'<div class="card" style="line-height:1.7;font-size:13.5px">{_esc(s["plain"])}</div>')
+    out.append(f'<div style="margin-top:10px"><a class="row" href="{_esc(s["link"])}">'
+               f'Read the full {_esc(s["label"])} reference (definition · variation · methodology · status) →</a>'
+               ' &nbsp; <a class="row" href="/dash/strategy-ref">all strategy references →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'A plain-language summary of the desk\'s own methodology write-up. Descriptive '
+               'reference — see the full page for the current status, variation and any fence.</div>')
+    return "".join(out)
+
+
+# ── quality flow (a SYMBOL's own fundamentals + quality read, inline) ─────────
+# "what's HDFCBANK's CET1 / is HDFCBANK a good bank / what's TCS's ROCE / risks in X" (S155-c).
+# Pat could already EXPLAIN these metrics but not show a NAME's values — the Doctrine-D model
+# shipped unreachable by a human question. Descriptive evidence, never a buy/sell call; it carries
+# Doctrine-D's own honesty (an unmeasurable lender shows NO tier; a thin one is PROVISIONAL).
+
+def _quality_flow(conn, symbol: str = "", focus: str = "all") -> str:
+    from src.pat import quality_flow as _QF
+    from src.pat import rotation_flow as _RF
+    sym = (symbol or "").strip().upper()
+    out = ['<a class="patBack" href="/dash/pat">← back</a>']
+    if not sym or not _RF.is_symbol(conn, sym):
+        out.append(_q_bubble(f"I don't recognise {_esc(sym) or 'that'} as a ticker."))
+        out.append('<div class="empty">Name a stock by its NSE symbol (e.g. "what\'s HDFCBANK\'s '
+                   'CET1"), or screen the whole market from '
+                   '<a class="row" href="/dash/screen2">Screen+</a>.</div>')
+        return "".join(out)
+    b = _QF.quality_for(sym)
+    if not b:
+        out.append(_q_bubble(f"I don't have fundamentals on record for {_esc(sym)} yet."))
+        out.append(f'<div class="empty">Nothing known for {_esc(sym)} as of today. Its dossier is at '
+                   f'<a class="row" href="/dash/stock?sym={_u(sym)}">{_esc(sym)}</a>.</div>')
+        return "".join(out)
+    s = b["score"]
+    tier = str(s.get("tier") or "—")
+    sub = s.get("sector_subtype")
+    lead = (f"How {_esc(sym)} reads on the numbers"
+            + (f" — scored as a {_esc(sub)} on its own model" if sub else "")
+            + ". Evidence, not a buy or sell call.")
+    out.append(_q_bubble(lead))
+    out.append(f'<div class="ghdr">{_esc(sym)} · quality · as of {_esc(str(b.get("as_of") or ""))}</div>')
+
+    # the verdict card — Doctrine-D's honesty is carried verbatim, never smoothed over
+    if s.get("sector_suppressed"):
+        verdict = ('<div style="font-size:15px"><b>No quality tier asserted</b></div>'
+                   '<div style="color:var(--ink-3);font-size:12.5px;margin-top:3px">'
+                   'None of the lender inputs (RoA / RoE / GNPA / CET1) is known for this name yet — '
+                   'the generic tier would be structurally wrong for a lender, so none is given.</div>')
+    else:
+        ns = s.get("ns_base")
+        ns_txt = (f'{ns:.1f}%' if isinstance(ns, (int, float)) else "—")
+        ev = s.get("sector_evidence") or []
+        evmax = s.get("sector_evidence_max") or 0
+        prov = ""
+        if evmax and len(ev) <= 2:
+            prov = ('<div style="color:var(--warn,#b26a00);font-size:12px;margin-top:3px">'
+                    f'Provisional — read on {len(ev)}/{evmax} lender inputs; the prudential ratios '
+                    'fill in as filings are ingested.</div>')
+        disq = ""
+        if s.get("hard_disqualified"):
+            disq = ('<div style="color:var(--neg,#b00020);font-size:12.5px;margin-top:3px">'
+                    'Hard-disqualified: ' + _esc("; ".join(s.get("disqualifier_reasons") or [])) + '</div>')
+        verdict = (f'<div style="font-size:15px"><b>Tier {_esc(tier)}</b> · NS {_esc(ns_txt)}'
+                   f' · quality gate {"PASS" if s.get("qg_pass") else "FAIL"}</div>' + prov + disq)
+    out.append(f'<div class="card" style="line-height:1.7">{verdict}</div>')
+
+    rows = _QF.rows_for(b, focus)
+    if rows:
+        cells = "".join(
+            f'<tr><td style="color:var(--ink-3)">{_esc(lbl)}</td>'
+            f'<td style="text-align:right"><b>{v:,.2f}{_esc(unit)}</b></td></tr>'
+            for lbl, v, unit in rows)
+        out.append('<table class="patTable" style="font-size:12.5px;margin-top:8px">'
+                   + cells + '</table>')
+    else:
+        out.append('<div style="font-size:12.5px;color:var(--ink-3);margin-top:8px">'
+                   'None of those figures is on record for this name yet — an absent ratio means '
+                   '"not known", never zero.</div>')
+
+    note = s.get("sector_note")
+    if note:
+        out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+                   + _esc(note) + '</div>')
+    out.append(f'<div style="margin-top:10px"><a class="row" href="/dash/stock?sym={_u(sym)}">'
+               f'Open {_esc(sym)}\'s full dossier →</a> &nbsp; '
+               '<a class="row" href="/dash/glossary">what these terms mean →</a></div>')
+    out.append('<div style="margin-top:8px;font-size:12px;color:var(--ink-3);line-height:1.5">'
+               'Point-in-time fundamentals scored by the rule-based patearn model (lenders on the '
+               'sector-adapted Doctrine-D model). A quality read is evidence for your own judgement — '
+               'descriptive only, never a buy/sell recommendation.</div>')
     return "".join(out)
 
 
@@ -2583,8 +3013,13 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
                "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
                "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
+               "rulelab": "Rule-lab verdict", "inbox": "Waiting on you",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
+               "internals": "Market breadth", "filings": "Filings for a stock",
+               "quality": "Quality & fundamentals (one stock)",
+               "wolfe": "Open Wolfe setups", "seasonal_stock": "Seasonal base rate (one name)",
+               "methodology": "How a strategy works",
                "distribution": "Distribution (strong hand exiting)",
                "consolidation": "Consolidation", "rslag": "Weak / laggard stocks",
                "pt14": "pt14 quality tiers", "redflags": "The kill-list (disqualified)",
@@ -2771,6 +3206,22 @@ def _free_text(conn, q: str):
             body = _participants_flow(conn)
         elif f == "rotation":
             body = _rotation_flow(conn, p.get("symbol", ""))
+        elif f == "internals":
+            body = _internals_flow(conn)
+        elif f == "filings":
+            body = _filings_flow(conn, p.get("symbol", ""), p.get("focus", "all"))
+        elif f == "quality":
+            body = _quality_flow(conn, p.get("symbol", ""), p.get("focus", "all"))
+        elif f == "wolfe":
+            body = _wolfe_flow(conn, p.get("symbol", ""))
+        elif f == "seasonal_stock":
+            body = _seasonal_stock_flow(conn, p.get("symbol", ""), p.get("month", 0))
+        elif f == "methodology":
+            body = _methodology_flow(conn, p.get("slug", ""))
+        elif f == "rulelab":
+            body = _rulelab_flow(conn)
+        elif f == "inbox":
+            body = _inbox_flow(conn)
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3070,6 +3521,33 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "rotation":
         body = _rotation_flow(conn, sym or q)             # per-symbol RS phase; rides `sym` (else `q`)
         fb_ctx = {"query": q, "flow": "rotation", "params": {"symbol": sym or q}, "source": "flow"}
+    elif flow == "internals":
+        body = _internals_flow(conn)                      # market breadth (S-E Ph2)
+        fb_ctx = {"query": q, "flow": "internals", "params": {}, "source": "flow"}
+    elif flow == "quality":
+        body = _quality_flow(conn, sym or q, strength or "all")  # per-symbol quality (S155-c); focus rides `strength`
+        fb_ctx = {"query": q, "flow": "quality", "params": {"symbol": sym or q, "focus": strength or "all"},
+                  "source": "flow"}
+    elif flow == "filings":
+        body = _filings_flow(conn, sym or q, strength or "all")  # per-symbol filings (S150); focus rides `strength`
+        fb_ctx = {"query": q, "flow": "filings", "params": {"symbol": sym or q, "focus": strength or "all"},
+                  "source": "flow"}
+    elif flow == "wolfe":
+        body = _wolfe_flow(conn, sym)                     # open Wolfe setups (S150); optional symbol rides `sym`
+        fb_ctx = {"query": q, "flow": "wolfe", "params": {"symbol": sym}, "source": "flow"}
+    elif flow == "seasonal_stock":
+        body = _seasonal_stock_flow(conn, sym or q, entry)  # per-symbol seasonal (S150); month rides `entry`
+        fb_ctx = {"query": q, "flow": "seasonal_stock", "params": {"symbol": sym or q, "month": entry},
+                  "source": "flow"}
+    elif flow == "methodology":
+        body = _methodology_flow(conn, strength or q)     # strategy explainer (S150); slug rides `strength`
+        fb_ctx = {"query": q, "flow": "methodology", "params": {"slug": strength or q}, "source": "flow"}
+    elif flow == "rulelab":
+        body = _rulelab_flow(conn)                        # latest rule-lab verdict (S157-b); read-only
+        fb_ctx = {"query": q, "flow": "rulelab", "params": {}, "source": "flow"}
+    elif flow == "inbox":
+        body = _inbox_flow(conn)                          # what's waiting on the human (S160); read-only
+        fb_ctx = {"query": q, "flow": "inbox", "params": {}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after

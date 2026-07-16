@@ -494,7 +494,9 @@ def _section_validation():
         '<div class="cov-banner"><span class="d" style="background:var(--down);box-shadow:0 0 7px var(--down)"></span>'
         '<div><b>Headline verdict:</b> across every strategy we have backtested, '
         '<b>none beats a Nifty&nbsp;500 buy-and-hold net of cost</b> '
-        '(the bar: Sharpe&nbsp;0.89 / CAGR&nbsp;15.3% / MaxDD&nbsp;&minus;29%). '
+        '(the bar: <span title="Mean return &#247; volatility, annualised. NOT a Sharpe ratio '
+        '— no risk-free rate is subtracted, so it reads higher than a textbook Sharpe would.">'
+        'return/vol</span>&nbsp;0.89 / CAGR&nbsp;15.3% / MaxDD&nbsp;&minus;29%). '
         'We report that rather than bury it.</div></div>')
     link = ('<div style="margin-top:14px"><a href="/dash/testing" '
             'style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);'

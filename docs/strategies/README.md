@@ -16,6 +16,7 @@ it **links** to the deeper sources rather than duplicating them:
 | Layer | Owner file(s) | This layer's relationship |
 |---|---|---|
 | **Canonical definition + status + terminology** | `docs/strategies/*.md` (**here**) | the anchor — start here |
+| **Origin / provenance of each strategy** | [`origins.md`](origins.md) (**here**) | who created what — the 🧑 RAMANA / 🏠 HOUSE / 📚 CLASSIC map |
 | Deep design-of-record | `docs/<strategy>-*-design.md` | linked from each page §10 |
 | Fundability / benchmarks / **falsification ledger** | [`docs/strategy-ledger.md`](../strategy-ledger.md) | the single source for result tables — **never duplicated here** |
 | Formula constants / weights | code + [`docs/calculations-and-weights.md`](../calculations-and-weights.md) | linked, never restated |
@@ -29,7 +30,7 @@ need the number, follow the link. This keeps the canon single-sourced (memory `c
 
 > **Price strength is the only gross forward-return engine.** Value, quality, credibility, delivery,
 > and accumulation reads are **veto / filter / context layers — never rankers**, and **no factor here
-> is a fundable net-of-cost alpha vs the index** (Nifty 500 buy-&-hold, Sharpe 0.89). The one
+> is a fundable net-of-cost alpha vs the index** (Nifty 500 buy-&-hold, return/vol 0.89). The one
 > participation-fundable corner is quarterly large-cap **LOWVOL_MOM** (~1.02 @₹50cr, ~₹100cr ceiling).
 > **The asset is PIT rigor + under-covered primary data + the analytical selection lens — not a
 > backtested alpha strategy.** (Source: [strategy-ledger.md](../strategy-ledger.md) "BLOCKING FAILURE
@@ -49,11 +50,14 @@ strategy without its own pre-registered, leak-free study that beats the recorded
 | **Relative Strength** | RS suite (RRG · RS-band · rotation · Mansfield · capture · size-index) | **DESCRIPTIVE** lens suite (deployed) | D39 · D40 · D64 · D67 | [relative-strength.md](relative-strength.md) |
 | **CPR** | Central Pivot Range ("CPR Spine") | **LIVE** — descriptive charting lens | D53 · D71 | [cpr.md](cpr.md) |
 | **Reversal Context** | STREAM BAND + FRACTAL FLOOR/CEILING (band-state · stretch · floor geometry) | **DESCRIPTIVE-ONLY** — every tradeable form falsified; context columns live | ledger §§ 07-13/07-14/07-14b/07-14c · S132b/c | [reversal-context.md](reversal-context.md) |
+| **Sector Rotation** | RS-weighted multi-sector rotation (V8 frozen champion · V17 defensive-fill candidate) | **RESEARCH — CONDITIONAL** — long-only beats passive; short leg + monthly cadence REJECTED | ledger §§ 2026-07-15/15b/15c | [sector-rotation.md](sector-rotation.md) |
+| **The Union** | RS turn (6b oversold-RS recovery) ∪ RS trend (RSI+persistence), STOCK-level, top-60 EW, index sleeve, −20% trail | **RESEARCH — PRE-REGISTERED LEAD** — best in-sample result of the RS arc (beats Next-50 on return+DD+beta); SEALED, not deployed | ledger §§ 2026-07-16U/V/W/X | [union.md](union.md) |
 | **CCI** | **Concall Credibility Index** (≠ Commodity Channel Index) | **FAILED-AS-FACTOR → DESCRIPTIVE / VETO-ONLY** | D60 · D61 · 2026-06-25 falsification · Gate B fail | [cci.md](cci.md) |
 | **Harmonic** | XABCD / PRZ patterns | **LIVE** (descriptive) · backtest-GATED | D72 · D71 | [harmonic.md](harmonic.md) |
 | **Momentum / RISKADJ** | ranked-rotation factor engine (the benchmark) | **BENCHMARK** · gross selection, **not fundable net of cost** | D66 + ledger benchmarks | [momentum-riskadj.md](momentum-riskadj.md) |
 | **patearn** | 14-pattern PIT fundamental-quality methodology | **DEPLOYED** analytical lens (not run as standalone alpha) | D66 · D76 · D7/D8/D24 | [patearn.md](patearn.md) |
 | **Classic Screens** | famous public strategies (Magic Formula · CANSLIM · Piotroski · Coffee Can · GARP · Graham · Quality · Low-Vol) run as live rosters on our PIT data | **DESCRIPTIVE-ONLY** — 5 full + 3 proxy; value shown with its recorded failure numbers | D133 · D66 · Guardrail #8 | [classic-screens.md](classic-screens.md) |
+| **Rule Lab** | closed-vocab user rules → the evidence-factory gauntlet → ledger-vocabulary verdicts | **LIVE TOOL** (an evidence instrument, not a strategy) — owner-gated composer; BLOCKING wall auto-cites | D137 · D134 §4-H · D66 | [rule-lab.md](rule-lab.md) |
 
 ## Terminology canon (the master anti-drift table)
 

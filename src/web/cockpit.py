@@ -973,7 +973,7 @@ def render_home(sig_date, idx_date) -> str:
             '<span class="sub" style="margin:0;font-weight:400">the proof, not the pitch</span></div>'
             '<div class="ck-tiles fl-tiles">'
             + _flag("/dash/replay-any-date", "⏪", "Replay any date",
-                    "Rewind the whole platform to any past day — zero look-ahead, on the live API")
+                    "Replay any stock's knowable record on any date — zero look-ahead, on the live API")
             + _flag("/dash/attention", "🔔", "The signal bus",
                     "Every state-change across every lens, one severity-graded triage queue")
             + _flag("/dash/market-internals", "🫀", "22-year internals",
@@ -1493,7 +1493,7 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
             f'<div class="sub" style="margin-bottom:6px">{rs_strip} &nbsp; '
             f'3m RS slope {pct(s3)} · trend <span class="pill p-{rcss or "C"}">{esc(rl or "—")}</span>. '
             f'<a class="row" style="display:inline" href="/dash/ratio?idx={q(idx)}">Standalone ratio page (also vs Nifty 50) &#8594;</a>'
-            f' &nbsp;·&nbsp; <a class="row" style="display:inline" href="/dash/compare?idx={q(idx)}&idx=Nifty+500">⇄ Compare (rebased) vs Nifty 500</a></div>'
+            f' &nbsp;·&nbsp; <a href="/dash/compare?idx={q(idx)}&idx=Nifty+500" style="display:inline-block;padding:3px 11px;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-weight:600;text-decoration:none">⇄ Compare with other indices</a></div>'
             + ratio_chart
             # 2-col: the (tall) rotation mini beside a STACK of momentum + depth so the
             # column heights balance — kills the dead space the old 3-equal-col grid left
@@ -1517,8 +1517,9 @@ def render_index_detail(idx, idx_date, sig_date) -> str:
                  '</tr></thead><tbody>'
                  + _rsrow("1m", "r1m") + _rsrow("3m", "r3m") + _rsrow("6m", "r6m") + _rsrow("12m", "r12m")
                  + '</tbody></table></div>')
-        links = (f'<a class="row" style="display:inline" href="/dash/compare?idx={q(idx)}&idx=Nifty+500">'
-                 '⇄ Compare (rebased) vs Nifty 500</a> &nbsp;·&nbsp; '
+        links = (f'<a href="/dash/compare?idx={q(idx)}&idx=Nifty+500" style="display:inline-block;'
+                 'padding:3px 11px;border:1px solid var(--accent);border-radius:8px;color:var(--accent);'
+                 'font-weight:600;text-decoration:none">⇄ Compare with other indices</a> &nbsp;·&nbsp; '
                  '<a class="row" style="display:inline" href="/dash/rrg">Full RRG &amp; rotation &#8594;</a>')
         rs_block = (
             '<h2>Relative strength <span class="sub" style="margin:0">vs Nifty 500</span></h2>'

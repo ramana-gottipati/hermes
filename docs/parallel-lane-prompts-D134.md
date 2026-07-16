@@ -39,15 +39,15 @@
 
 | Lane | Component (plan §4) | META (Imp·Crit·Timing·Cost) | Status |
 |---|---|---|---|
-| B | Cost-ledger + estate heartbeat | 7 · **8** · NOW · ₹0 | ✅ BUILT `lane-b-d134`@`d667240` (22/22) — unmerged |
-| C | Licence-class registry + feed/signal manifests | 8 · **8** · next · ₹0 | ✅ BUILT `lane-c-d134`@`7d5cb27` (12/12; 21 feeds · 11 signals; 6 vendor-ToS UNCLASSIFIED → Ramana decision) — unmerged |
-| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ BUILT `lane-d-d134`@`b642334` (18/18) — unmerged |
-| F | Time-machine capability audit | **8** · 5 · mid · ₹0 | ✅ AUDIT DONE — `docs/time-machine-audit.md` (5 yes / 34 partial / 28 no; cockpit flagship-tile overclaim found) |
-| R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | **READY — run next** (branch refs above; merge order B→C→D) |
-| E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | prompt ready (§E) |
-| G | Entity graph v1 | **8** · 4 · mid · ₹0 | prompt ready (§G) |
-| H | Rule-lab design | **8** · 4 · later · ₹0 | prompt ready (§H) |
-| I | Real-time seam interface | 7 · **6** · design next · ₹0 (opt ₹500/mo) | prompt ready (§I) |
+| B | Cost-ledger + estate heartbeat | 7 · **8** · NOW · ₹0 | ✅ **LANDED S150** (LANE-R merge; producers instrumented — `llm.meter()` into core/router/chat/patearn) |
+| C | Licence-class registry + feed/signal manifests | 8 · **8** · next · ₹0 | ✅ **LANDED S151** (LANE-R merge; licence gate in suite; 6 vendor-ToS UNCLASSIFIED → plan §7.7 Ramana) |
+| D | Review Inbox + judgment corpus | **9** · 7 · next · ₹0 | ✅ **COMPLETE S158** — primitive S152 · producer S157 · **lens `/dash/inbox` + Q1 CLOSED S158** (legacy surface bridged via `decide_by_ref_safe`, not deleted; owner-gated because pending briefs are unreviewed AI; re-judgment `#N` refs fix a latent double-decide crash; lived-vs-imported agreement split). **L6 unblocked** |
+| F | Time-machine capability audit | **8** · 5 · mid · ₹0 | ✅ AUDIT DONE — `docs/time-machine-audit.md` (5 yes / 34 partial / 28 no; cockpit tile overclaim FIXED by LANE-R) |
+| R | Reconcile + integrate + deploy wave 1 | inherits max of merged lanes | ✅ **DONE S149-c** — reconcile `2fc1248` + integration `edffb86` pushed; suite 460; deployed byte==HEAD; heartbeat timer ARMED (first DM Wed 03:30 UTC) |
+| E | Auto-analyst event briefs | **9** · 6 · after D+R · ₹100–300/mo capped | ✅ **LANDED S153** (results v1 → inbox; cap-gated LLM opt-in) |
+| G | Entity graph v1 | **8** · 4 · mid · ₹0 | ✅ **LANDED S155** (`entity_graph.py`, 15/15; descriptive-only, ledger-fenced) |
+| H | Rule-lab design | **8** · 4 · later · ₹0 | ✅ **DESIGN S156 → BUILD + INTEGRATION LANDED S157-b** (build `b67509d` by the sibling lane, integrated per the claim-marker protocol; `/dash/rule-lab` live in the registry; verdicts → inbox; design doc retired into plan §4-H + `docs/strategies/rule-lab.md`) |
+| I | Real-time seam interface | 7 · **6** · design next · ₹0 (opt ₹500/mo) | ✅ **LANDED S153-b** (interface + manifest row; licence-fenced) |
 
 ---
 

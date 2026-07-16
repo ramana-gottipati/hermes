@@ -198,14 +198,19 @@ LENSES: tuple[Lens, ...] = (
     Lens("strategist", "Strategist", "stock", "strategies", "/dash/strategist",
          aliases=("strategies",)),
     # Factor League (S132g) — the classic strategy families ranked by OUR measured
-    # Sharpe/alpha (ledger Tier-1 + cost realism), live rosters, the STEADY-25
+    # return/vol + alpha (ledger Tier-1 + cost realism), live rosters, the STEADY-25
     # auto-portfolio (net champion) and a churn feed. Failures shown with numbers.
     Lens("factor-league", "Factor league", "stock", "strategies", "/dash/factor-league",
          aliases=("factors", "premia", "league")),
     # Model portfolios (S132h) — the automated, engine-managed portfolios reconstructed
-    # since 2019-01-01 (STEADY/PACER/SPRINTER); time-travel constituents; no manual edits.
+    # since 2012-06 (STEADY/PACER/SPRINTER/CRAFTSMAN); time-travel constituents; no manual edits.
     Lens("model-portfolios", "Model portfolios", "stock", "strategies", "/dash/model-portfolios",
          aliases=("portfolios-auto", "auto-portfolios", "models")),
+    # Sector rotation (S-rotation, 2026-07-15) — the V17 champion-candidate book with ?asof=
+    # time-travel + rebalance diffs. RESEARCH-CONDITIONAL; ledger §§ 2026-07-15..15c; the
+    # strategy page (/dash/strategy-ref?p=sector-rotation) links here as its live surface.
+    Lens("sector-rotation", "Sector rotation", "stock", "strategies", "/dash/sector-rotation",
+         aliases=("sector-rot", "rotation-book", "v17")),
     # Classic Screens (S145) — the famous NAMED strategies (Magic Formula, CANSLIM, Piotroski,
     # Coffee Can, GARP, Graham, Quality, Low-Vol) run as live rosters on OUR PIT data. Sibling of
     # factor-league (raw families). Proxies labeled; value shown with its recorded failure numbers.
@@ -297,6 +302,11 @@ LENSES: tuple[Lens, ...] = (
          aliases=("copilot", "ask", "assistant", "ask-pat")),
     Lens("spec-sheets", "Spec sheets", "trust", "trust", "/dash/spec-sheets",
          aliases=("pre-registration", "studies")),
+    # Rule lab (D134 §4-H, S157-b) — "write a rule; the evidence factory judges it honestly":
+    # closed-vocab composer → prereg → gauntlet (halves/placebo/cost/capacity) → a
+    # ledger-vocabulary verdict. An evidence surface, so Trust altitude (design §7 row 1).
+    Lens("rule-lab", "Rule lab", "trust", "trust", "/dash/rule-lab",
+         aliases=("rulelab", "rule-laboratory", "my-rule")),
     # Evidence pack (charter P-04, S96) — the print-ready procurement assembly of
     # spec-sheets + coverage boundary + season SLA + replay pointer.
     Lens("evidence-pack", "Evidence pack", "trust", "trust", "/dash/evidence-pack",
@@ -305,6 +315,14 @@ LENSES: tuple[Lens, ...] = (
     # any symbol, any date, knowable clock stamped (D104), curl included.
     Lens("replay-any-date", "Replay any date", "trust", "trust", "/dash/replay-any-date",
          aliases=("replay-api", "pit-replay")),
+    # Review inbox (D134 L5, S158) — the human-verification layer: everything the machine
+    # proposes waits here for a person's verdict, and every verdict is kept as the judgment
+    # corpus. Trust altitude because the PUBLIC half is the methodology statement ("nothing
+    # counts until it's checked") with the honest agreement rates beside the honesty estate
+    # (coverage / validation / spec-sheets); the QUEUE itself is owner-gated — it carries
+    # unreviewed AI brief drafts, which must never render publicly.
+    Lens("inbox", "Review inbox", "trust", "trust", "/dash/inbox",
+         aliases=("review", "review-inbox", "judgment", "judgement")),
 
     # ── Overlay-only (NOT nav lenses) — Wolfe / Harmonic. §3-C: chart overlays,
     # reachable from the chart control, no sub-nav entry. Routes stay live (no 404);

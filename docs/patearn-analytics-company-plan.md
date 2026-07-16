@@ -168,14 +168,14 @@ Scores /10; **bold** = the driving axis. "₹0" = runs on the existing box with 
 | ID | Component | Layer | Imp | Crit | Timing | Cost | Status |
 |---|---|---|---|---|---|---|---|
 | A | Compliance-language gate | L8 | 9 | **10** | NOW | ₹0 | **LANDED S149** (`de16db6`, in the suite) |
-| B | Cost-ledger + estate heartbeat (one morning line: health + ₹ spend) | L0/L8 | 7 | **8** | NOW | ₹0 | built S149 wave-1 (`lane-b-d134`@`d667240`, 22/22) — LANE-R integrates |
-| C | Licence-class registry + feed/signal manifests | L1/L3/L8 | 8 | **8** | next | ₹0 | built S149 wave-1 (`lane-c-d134`@`7d5cb27`, 12/12; +6 vendor-ToS UNCLASSIFIED → §7.7) — LANE-R integrates |
-| D | Review Inbox + judgment corpus (the human-verification layer) | L5 | **9** | 7 | next | ₹0 | built S149 wave-1 (`lane-d-d134`@`b642334`, 18/18) — LANE-R integrates |
-| E | Auto-analyst event briefs (AI-drafted, inbox-reviewed) | L6 | **9** | 6 | after D | ₹100–300/mo capped | queued |
-| F | Time-machine contract (site-wide `?asof=` capability audit + flags) | L3/L7 | **8** | 5 | mid | ₹0 | audited S149 (`docs/time-machine-audit.md`: 5 yes / 34 partial / 28 no · top-5 upgrades ranked · cockpit tile overclaim → LANE-R) |
-| G | Entity graph (promoter/auditor/group/counterparty network from filings) | L2 | **8** | 4 | mid | ₹0 | new |
-| H | Rule-lab (user-defined rule → the evidence factory runs the gates → honest verdict) | L4/L7 | **8** | 4 | later | ₹0 | new |
-| I | Real-time seam (adapter interface now; Kite personal feed optional; public real-time DEFERRED) | L1 | 7 | **6** | design next | ₹0 now / ₹500/mo optional | new |
+| B | Cost-ledger + estate heartbeat (one morning line: health + ₹ spend) | L0/L8 | 7 | **8** | NOW | ₹0 | **LANDED S150** (LANE-R merge; producers instrumented via `llm.meter()` — core/router/chat/patearn; unit install + arm = LANE-R deploy, §Session 150) |
+| C | Licence-class registry + feed/signal manifests | L1/L3/L8 | 8 | **8** | next | ₹0 | **LANDED S151** (LANE-R merge; licence gate in the suite; 6 vendor-ToS feeds UNCLASSIFIED → §7.7 Ramana) |
+| D | Review Inbox + judgment corpus (the human-verification layer) | L5 | **9** | 7 | next | ₹0 | ✅ **COMPLETE S158** — primitive S152 · first producer S157 · **the LENS `/dash/inbox` + Q1's endgame S158** (owner-gated queue — pending briefs are unreviewed AI and must not render publicly; legacy tags surface BRIDGED through `decide_by_ref` = one decision path; lived vs imported agreement reported separately because the legacy schema can't tell an approved proposal from a hand-added tag). L6 is unblocked: an approved brief can now exist |
+| E | Auto-analyst event briefs (AI-drafted, inbox-reviewed) | L6 | **9** | 6 | after D | ₹100–300/mo capped | **LANDED S153; last mile LANDED S159** (results family v1 → inbox; `brief_publisher.py` publishes ONLY approved briefs to `published_briefs` → an AI-labeled band on /dash/results-reactions, exactly-once via the shared `inbox_apply_log`, with a retraction path; destination corrected off the vendor-ToS wire — see §4-E) |
+| F | Time-machine contract (site-wide `?asof=` capability audit + flags) | L3/L7 | **8** | 5 | mid | ₹0 | audited S149 (`docs/time-machine-audit.md`: 5 yes / 34 partial / 28 no · top-5 upgrades ranked · cockpit tile overclaim **FIXED by LANE-R** — symbol-scoped wording; `asof_capable` flags still to land) |
+| G | Entity graph (promoter/auditor/group/counterparty network from filings) | L2 | **8** | 4 | mid | ₹0 | **LANDED S155** (`entity_graph.py`: 6 edge kinds incl. pledge-lender; co-links via a shared counterpart; descriptive-only — no score column exists, ledger E-03/accumulation cited; surface deferred) |
+| H | Rule-lab (user-defined rule → the evidence factory runs the gates → honest verdict) | L4/L7 | **8** | 4 | later | ₹0 | **BUILT + INTEGRATED S157-b (D137)** — build `b67509d` (sibling lane) + integration: closed-vocab compiler (`rule_lab.py`, 21 tokens, percentile-band universes, veto-as-ranker = compile refusal) · gauntlet executor (`rule_lab_executor.py`: prereg-first `rule_lab_prereg` sibling table, D5-F1 lag, random-book placebo p95, net-first costs, AUM-grid capacity, bench on same dates) · verdict law machine-enforced (NEW-BENCHMARK impossible without both-halves+capacity+placebo; missing stage = NO-VERDICT) · BLOCKING wall byte-compared to the ledger in the suite · `/dash/rule-lab` lens (owner composer, anon demo, POST→`rule_lab_queue`→owner-run `--work` drain, NO timer) · Pat `rulelab` DATA flow · verdicts → Review Inbox `kind='rule_verdict'`, ledger append only after human approval. Design doc retired (folded here + `docs/strategies/rule-lab.md`) |
+| I | Real-time seam (adapter interface now; Kite personal feed optional; public real-time DEFERRED) | L1 | 7 | **6** | design next | ₹0 now / ₹500/mo optional | **LANDED S153-b** (interface + bounded window + Null/T0Lite stub; personal-broker manifest row → licence-gate fenced; no Kite wiring) |
 | J | XBRL Phase-3 completion (backfill pilot → universe → retire residual scrape) | L1/L2 | 10 | **10** | NOW | ₹0 | in-flight (S148 lane) |
 | K | UX S-program continuation (S-B1 rest → S-B2 → S-E rest → S-F → S-G) | L7 | **7** | 5 | rolling | ₹0 | in-flight |
 | L | Evidence factory completion (M-03 wiring; armed studies E-02/E-14/E-04 self-fire) | L4 | **8** | 5 | self-gating | ₹0 | armed |
@@ -210,7 +210,7 @@ that is literally purchasable by no competitor. This is the direct build-out of 
 **E — Auto-analyst event briefs.** Event-triggered (a result lands, a rating changes, a SAST
 filing, a band-lock, a rotation phase flip): a cheap-model drafts a 6–10 line descriptive brief
 grounded ONLY in our tables (with per-number source links), passes the compliance lexicon,
-lands in the Inbox; approved briefs publish to the wire/dossier with the AI label. Hard monthly
+lands in the Inbox; approved briefs publish with the AI label — **to `published_briefs` rendered on `/dash/results-reactions`, NOT the wire** (S159 correction: the wire renders `sent_news`, whose feed is an UNCLASSIFIED vendor-ToS source held out of `FEEDS` pending §7.7 — house AI text must not fuse with it; the board is also where every number in the brief already comes from). Hard monthly
 token cap; degrades to template-text at cap. This is the "AI-generated components" centerpiece
 — the AI associate whose work the analyst signs.
 
@@ -298,6 +298,7 @@ line reports month-to-date vs cap. Exceeding cap = degrade to templates, never s
 5. Acknowledge the §3.5 trigger contract: no public monetization of single-stock scores before the legal opinion.
 6. The S148 numbering/duplicate-commit reconcile (two lanes both used "S148"; S-B1 item-2 exists as patch-twins `a781669`/`29e4169`) — owning lanes to reconcile at next push.
 7. **Vendor-ToS enum for the 6 legacy feeds LANE-C could not honestly classify** (screener · fundamentals_history · shareholding_history · concalls-discovery-index · news_feed · enrich — all Guardrail-#8 remediation targets): add a fifth licence class `vendor-tos-remediating` (gated off public surfaces like the restricted classes) vs. keep them out of FEEDS until the XBRL/BSE migrations retire them.
+8. **Rule-lab ledger append (from the retired design doc's open question):** should a `NEW-BENCHMARK` verdict auto-append to `docs/strategy-ledger.md`, or land in the Review Inbox for approval first? **S157-b implemented the proposed default — inbox-first (canon carries a human signature; `rule_lab_inbox` ships the paste-ready block in the payload, nothing auto-appends).** Ratify or reverse.
 
 ## Maintenance
 

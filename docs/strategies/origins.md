@@ -28,6 +28,7 @@
 | **STREAM BAND** (13-EMA banks + 5-EMA trigger) | 🧑 RAMANA | Screen+ "rev" group (band state · stretch pctile) | falsified as signal (ledger 07-13); live as context |
 | **FRACTAL FLOOR / CEILING** | 🧑 RAMANA | Screen+ "rev" group + reclaim/slip pills | falsified as entry (07-14…14c); live as risk-geometry context |
 | **Buyback tender quota play** | 🧑 RAMANA (charter §2.4) | /dash/buyback-calc | live, personal-scale |
+| **The Union** (RS turn ∪ RS trend, stock-level) | 🧑 RAMANA (both signal theses — oversold-RS turn + persistent RS; cash-out sizing) + 🏠 HOUSE (union construction, PIT harness, falsification + pre-registration) | `docs/strategies/union.md` (no live surface by design) | RESEARCH — pre-registered lead, SEALED, not deployed |
 | **pt14 quality** (14-pattern durability) | 🏠 HOUSE | /dash/stocks · screener "qual" | live; filter/veto, not a ranker |
 | **CCI credibility** (concall guidance-accuracy) | 🏠 HOUSE | /dash/concalls · screener "cci" | live; factor falsified → descriptive/veto |
 | **C capital-allocation** | 🏠 HOUSE | screener "ca" · /dash/momentum-scan C-blend | live; blend/veto (D66), never a ranker |
@@ -35,6 +36,7 @@
 | **Launchpad** (momentum + contracting vol screen) | 🏠 HOUSE | /dash/launchpad | validated screen; no fundable edge net |
 | **Seasonal tape** (certification-gated calendar residuals) | 🏠 HOUSE (framework) | /dash/seasonal-tape | live; 0-certified IS the finding |
 | **Reversal context columns** (implementation) | 🧑 RAMANA concepts + 🏠 honesty fences | Screen+ | live, descriptive |
+| **Sector Rotation** (V8 champion · V17 defensive-fill candidate) | 🧑 RAMANA (concept + every lever) + 🏠 implementation/harness | research modules (`sector_rotation*`); page [sector-rotation.md](sector-rotation.md) | research, CONDITIONAL; long-only |
 | **SPRINTER-25** (MOM12) | 📚 CLASSIC (Jegadeesh-Titman 12-mo momentum) | /dash/model-portfolios | model portfolio since 2012 |
 | **PACER-25** (RISKADJ) | 📚 CLASSIC (vol-adjusted momentum school) | /dash/model-portfolios | model portfolio since 2012 |
 | **CRAFTSMAN-25** (QUAL_MOM) | 📚 CLASSIC blend, 🏠 delivery-leg formulation | /dash/model-portfolios | model portfolio since 2012 |

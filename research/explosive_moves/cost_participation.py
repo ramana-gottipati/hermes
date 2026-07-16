@@ -64,6 +64,11 @@ CAPACITY READ
   median_position_capacity(AUM) = the AUM at which the MEDIAN pick's equal-weight
   clip = 10% of its ADV = 10% * ADV_median * TOPN. Reported per config.
 
+RATIOS ARE RETURN/VOL, NOT SHARPE (D142)
+  Every ratio here — including the BENCH_RETVOL 0.89 index hurdle, computed on the
+  SAME basis — is mean/sd annualised with NO risk-free rate subtracted, so it reads
+  high against a textbook Sharpe while the beats-index verdicts stay valid.
+
 STRATEGY (as specified): QUARTERLY rebalance, LARGE-CAP (top-quintile liquidity
 gate, gate_pctl=0.80), WIDE hold-band (BAND=35), signal = LOWVOL_MOM
 (0.5*rank(mom6) + 0.5*rank(-vol)), long-only equal-weight top-25.
@@ -107,7 +112,7 @@ CR = 1e7
 AUM_SCENARIOS = [("Rs50cr", 50 * CR), ("Rs200cr", 200 * CR), ("Rs500cr", 500 * CR)]
 
 # --- benchmark (Nifty 500 buy & hold), from the ledger ---
-BENCH_SHARPE = 0.89
+BENCH_RETVOL = 0.89
 BENCH_CAGR = 0.153
 
 
@@ -242,7 +247,7 @@ def run(tables, aum, scorekey="lowvolmom_sc", band=True):
     eq = np.cumprod(1 + rets)
     dd_eq = eq / np.maximum.accumulate(eq) - 1
     cagr = eq[-1] ** (PPY / len(rets)) - 1 if len(rets) else 0.0
-    sharpe = rets.mean() / rets.std() * np.sqrt(PPY) if rets.std() > 0 else 0.0
+    retvol = rets.mean() / rets.std() * np.sqrt(PPY) if rets.std() > 0 else 0.0
 
     adv_med = float(np.median(adv_of_picks)) if adv_of_picks else 0.0
     # capacity: AUM at which the MEDIAN pick's clip = 10% of its ADV.
@@ -252,13 +257,13 @@ def run(tables, aum, scorekey="lowvolmom_sc", band=True):
     med_part = (order_value / adv_med) if adv_med > 0 else float("inf")
 
     return {
-        "sharpe": sharpe, "cagr": cagr, "maxdd": float(dd_eq.min()),
+        "retvol": retvol, "cagr": cagr, "maxdd": float(dd_eq.min()),
         "ann_cost_pct": float(np.mean(costs)) * PPY * 100,
         "turn": float(np.mean(turns)),
         "cap_med_cr": cap_med_cr,
         "med_part_pct": med_part * 100,
         "med_days_fill": float(np.median(days)) if days else 1.0,
-        "beats_index": bool(sharpe > BENCH_SHARPE and cagr > BENCH_CAGR),
+        "beats_index": bool(retvol > BENCH_RETVOL and cagr > BENCH_CAGR),
     }
 
 
@@ -279,7 +284,7 @@ def bench_buyhold(tables):
     eq = np.cumprod(1 + rets)
     dd = eq / np.maximum.accumulate(eq) - 1
     cagr = eq[-1] ** (PPY / len(rets)) - 1
-    return {"sharpe": rets.mean() / rets.std() * np.sqrt(PPY) if rets.std() > 0 else 0,
+    return {"retvol": rets.mean() / rets.std() * np.sqrt(PPY) if rets.std() > 0 else 0,
             "cagr": cagr, "maxdd": float(dd.min()), "ann_cost_pct": 0.0,
             "turn": 0.0, "cap_med_cr": float("inf"), "med_part_pct": 0.0,
             "med_days_fill": 0.0, "beats_index": None}
@@ -287,17 +292,17 @@ def bench_buyhold(tables):
 
 # ------------------------------------------------------------------ capacity scan
 def capacity_breakpoint(tables):
-    """Finest AUM (Rs cr) grid at which net Sharpe stops beating the index."""
+    """Finest AUM (Rs cr) grid at which net return/vol stops beating the index."""
     grid = [25, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000]
     last_ok = None
     first_fail = None
     for cr_aum in grid:
         s = run(tables, cr_aum * CR)
-        ok = s["sharpe"] > BENCH_SHARPE and s["cagr"] > BENCH_CAGR
+        ok = s["retvol"] > BENCH_RETVOL and s["cagr"] > BENCH_CAGR
         if ok:
-            last_ok = (cr_aum, s["sharpe"], s["cagr"])
+            last_ok = (cr_aum, s["retvol"], s["cagr"])
         elif first_fail is None:
-            first_fail = (cr_aum, s["sharpe"], s["cagr"])
+            first_fail = (cr_aum, s["retvol"], s["cagr"])
     return grid, last_ok, first_fail
 
 
@@ -315,36 +320,36 @@ def main():
     for tag, aum in AUM_SCENARIOS:
         rows.append((tag, run(tbl, aum)))
 
-    hdr = (f"{'AUM':>8}{'netSharpe':>11}{'netCAGR':>10}{'maxDD':>9}"
+    hdr = (f"{'AUM':>8}{'netRetVol':>11}{'netCAGR':>10}{'maxDD':>9}"
            f"{'annCost%':>10}{'turn':>7}{'medFill(d)':>11}{'medPart%':>10}"
            f"{'capMedCr':>10}{'>index?':>9}")
     print("=" * len(hdr))
-    print("AUM x METRICS  (index hurdle: Sharpe 0.89 / CAGR ~15.3%, Nifty500 B&H)")
+    print("AUM x METRICS  (index hurdle: return/vol 0.89 / CAGR ~15.3%, Nifty500 B&H)")
     print("=" * len(hdr))
     print(hdr)
     for tag, s in rows:
-        print(f"{tag:>8}{s['sharpe']:>11.2f}{s['cagr']*100:>9.1f}%{s['maxdd']*100:>8.1f}%"
+        print(f"{tag:>8}{s['retvol']:>11.2f}{s['cagr']*100:>9.1f}%{s['maxdd']*100:>8.1f}%"
               f"{s['ann_cost_pct']:>9.1f}%{s['turn']:>7.2f}{s['med_days_fill']:>11.1f}"
               f"{s['med_part_pct']:>9.1f}%{s['cap_med_cr']:>10.0f}"
               f"{('YES' if s['beats_index'] else 'no'):>9}")
-    print(f"{'Nifty500':>8}{bench['sharpe']:>11.2f}{bench['cagr']*100:>9.1f}%"
+    print(f"{'Nifty500':>8}{bench['retvol']:>11.2f}{bench['cagr']*100:>9.1f}%"
           f"{bench['maxdd']*100:>8.1f}%{0.0:>9.1f}%{0.0:>7.2f}{'-':>11}{'-':>10}{'inf':>10}{'-':>9}")
 
     # breakpoint scan
     grid, last_ok, first_fail = capacity_breakpoint(tbl)
-    print("\nCAPACITY BREAKPOINT SCAN (net Sharpe vs index across AUM):")
+    print("\nCAPACITY BREAKPOINT SCAN (net return/vol vs index across AUM):")
     for cr_aum in grid:
         s = run(tbl, cr_aum * CR)
         flag = "  <-- last beats index" if last_ok and cr_aum == last_ok[0] else (
                "  <-- first fails" if first_fail and cr_aum == first_fail[0] else "")
-        print(f"  Rs{cr_aum:>4}cr : Sharpe {s['sharpe']:>5.2f}  CAGR {s['cagr']*100:>5.1f}%"
+        print(f"  Rs{cr_aum:>4}cr : ret/vol {s['retvol']:>5.2f}  CAGR {s['cagr']*100:>5.1f}%"
               f"  cost {s['ann_cost_pct']:>4.1f}%{flag}")
     if last_ok:
         print(f"\n  Highest AUM still beating the index: ~Rs{last_ok[0]}cr "
-              f"(Sharpe {last_ok[1]:.2f}, CAGR {last_ok[2]*100:.1f}%)")
+              f"(return/vol {last_ok[1]:.2f}, CAGR {last_ok[2]*100:.1f}%)")
     if first_fail:
         print(f"  Breakpoint (stops beating index) at: ~Rs{first_fail[0]}cr "
-              f"(Sharpe {first_fail[1]:.2f}, CAGR {first_fail[2]*100:.1f}%)")
+              f"(return/vol {first_fail[1]:.2f}, CAGR {first_fail[2]*100:.1f}%)")
     if not last_ok:
         print("\n  Does NOT beat the index at ANY tested AUM (incl. Rs25cr).")
 
@@ -353,16 +358,16 @@ def main():
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["aum", "net_sharpe", "net_cagr_pct", "maxdd_pct", "ann_cost_pct",
+        w.writerow(["aum", "net_retvol", "net_cagr_pct", "maxdd_pct", "ann_cost_pct",
                     "avg_turnover", "med_days_to_fill", "med_participation_pct",
                     "cap_median_cr", "beats_index"])
         for tag, s in rows:
-            w.writerow([tag, round(s["sharpe"], 2), round(s["cagr"] * 100, 1),
+            w.writerow([tag, round(s["retvol"], 2), round(s["cagr"] * 100, 1),
                         round(s["maxdd"] * 100, 1), round(s["ann_cost_pct"], 1),
                         round(s["turn"], 2), round(s["med_days_fill"], 1),
                         round(s["med_part_pct"], 1), round(s["cap_med_cr"], 0),
                         s["beats_index"]])
-        w.writerow(["Nifty500_BH", round(bench["sharpe"], 2), round(bench["cagr"] * 100, 1),
+        w.writerow(["Nifty500_BH", round(bench["retvol"], 2), round(bench["cagr"] * 100, 1),
                     round(bench["maxdd"] * 100, 1), 0.0, 0.0, 0.0, 0.0, "inf", ""])
     print(f"\nsaved -> {out}")
 

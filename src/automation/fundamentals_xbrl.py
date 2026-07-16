@@ -417,6 +417,85 @@ def extract_bank_for(parsed: dict, *, kind: str, end: str) -> dict:
     return m
 
 
+# ── Doctrine-D Pattern 5: bank prudential ratios (STANDALONE instance) ───────
+# VERIFIED LIVE 2026-07-15 (read-only NSE probe, HDFCBANK Q3FY25, period-end 2024-12-31):
+#   SA    PercentageOfGrossNpa=0.0142 · PercentageOfNpa=0.0046 · ReturnOnAssets(OneD)=0.0047
+#         CET1Ratio=0.1997 · AdditionalTier1Ratio=0.00
+#   CONSO ALL FIVE = 0.00  ← prudential ratios are a STANDALONE-bank concept; the consolidated
+#         group folds in non-bank subs. This is exactly why `_prefer_consolidated()` (which keeps
+#         one filing per period, conso preferred) loses them — the four `put()`s alone are INERT
+#         without the SA pass below. (AXISBANK's conso happened to carry them; HDFCBANK's did not
+#         → always prefer SA, but accept a conso that genuinely discloses.)
+# Raw tags are FRACTIONS → ×100 = percent (0.0142 → 1.42%, matching the filed figure).
+# ⚠ CONTEXT IS LOAD-BEARING: ReturnOnAssets is context-dependent — OneD (discrete quarter) = 0.47%
+#   vs FourD (cumulative YTD) = 1.43%. We reuse extract_bank_for's discrete-quarter ids; a pooled or
+#   instant-inclusive search would silently store the YTD number as the quarterly RoA.
+_PRUDENTIAL: tuple = (
+    ("Gross NPA %",         "PercentageOfGrossNpa"),
+    ("Net NPA %",           "PercentageOfNpa"),
+    ("Return on Assets %",  "ReturnOnAssets"),
+    ("CET1 %",              "CET1Ratio"),
+    ("Additional Tier 1 %", "AdditionalTier1Ratio"),   # CET1+AT1 = the CRAR proxy (no total-CRAR tag exists)
+)
+_PRUDENTIAL_TAGS = frozenset(t for _n, t in _PRUDENTIAL)
+
+
+def _has_prudential_tags(parsed: dict) -> bool:
+    """True iff the instance DECLARES the prudential block — even all-zero, as a bank's
+    CONSOLIDATED instance does. NBFC/HFC (NBFC_INDAS taxonomy) tag none of them, so this cleanly
+    separates "a bank whose conso is zeroed" (worth fetching the SA sibling) from "an NBFC that
+    never reports these" (don't spend an NSE round-trip). Note `_is_bank_instance` alone can NOT
+    make that call — NBFCs also tag InterestEarned."""
+    return any(n in _PRUDENTIAL_TAGS for n, _c, _v in parsed["facts"])
+
+
+def extract_bank_prudential(parsed: dict, *, kind: str, end: str) -> dict:
+    """Doctrine-D Pattern-5 prudential ratios from a bank instance -> {metric: percent}.
+
+    QUARTERLY ONLY (mirrors `extract_bank_for`). NON-ZERO-GATED: a bank's consolidated instance
+    reports 0.00 for all of these, which is an artifact rather than a disclosure — an empty
+    return is the caller's signal to try the standalone sibling. Storage is metric-keyed, so
+    these are plain additive rows (NO schema change / no new columns).
+    """
+    if kind == "A":
+        return {}
+    ids = {"OneD"} if "OneD" in parsed["contexts"] else \
+        _ctx_ids(parsed, end=end, min_days=80, max_days=100)
+    if not ids:
+        return {}
+    out: dict = {}
+    for name, tag in _PRUDENTIAL:
+        v = _fact(parsed, tag, ids)
+        if v is None:
+            continue
+        pct = v * 100.0
+        if pct == 0.0:
+            continue                       # conso-zero artifact / genuinely nil -> absent
+        if not 0.0 < pct < 100.0:
+            log.warning("prudential %s = %.2f%% out of band (%s %s) — dropped, not stored",
+                        tag, pct, end, kind)
+            continue                       # a mis-scaled filer never enters the store
+        out[name] = round(pct, 2)
+    return out
+
+
+def augment_prudential(parsed: dict, *, kind: str, end: str, sa_lookup=None) -> dict:
+    """Prudential ratios for a bank instance, falling back to its STANDALONE sibling when this
+    instance declares the block but zeroes it (the consolidated case).
+
+    `sa_lookup` is a zero-arg callable returning the PARSED standalone sibling (or None) — the
+    caller owns the fetch, so this stays pure/testable and never spends an NSE round-trip on a
+    non-bank or on an instance that already disclosed.
+    """
+    prud = extract_bank_prudential(parsed, kind=kind, end=end)
+    if prud or sa_lookup is None or not _has_prudential_tags(parsed):
+        return prud                        # disclosed here, or not a bank block -> no SA fetch
+    sa = sa_lookup()
+    if not sa:
+        return {}
+    return extract_bank_prudential(sa, kind=kind, end=end)
+
+
 def extract_for(parsed: dict, *, kind: str, end: str) -> dict:
     """(metric_name -> value) for one period of one instance, in fundamentals_history
     conventions. kind 'Q' -> the discrete-quarter P&L set; 'A' -> the FY-span P&L set +
@@ -676,14 +755,27 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
     n_cum = sum(1 for f in filings if f["cumulative"] and f["period"] != "Annual")
     # banks are NOT filtered any more (Phase-2 bank mapper; detection is tag-based
     # inside extract_for — the listing's bank flag is unreliable: HDFCBANK carries "N")
-    work = _prefer_consolidated(
-        [f for f in filings if not (f["cumulative"] and f["period"] != "Annual")])
+    eligible = [f for f in filings if not (f["cumulative"] and f["period"] != "Annual")]
+    work = _prefer_consolidated(eligible)
+    # Doctrine-D Pattern 5: `_prefer_consolidated` keeps the CONSO filing, but a bank's prudential
+    # ratios live ONLY in its STANDALONE sibling (verified — see extract_bank_prudential). Index the
+    # SA filings it dropped so a bank conso can pull its sibling for those four metrics only.
+    sa_index: dict = {}
+    for f in eligible:
+        if f["consolidated"]:
+            continue
+        k = (f["symbol"], f["period"], f["to_date"])
+        cur = sa_index.get(k)
+        if cur is None or (f["broadcast"] or "") > (cur["broadcast"] or ""):
+            sa_index[k] = f
     log.info("ingest window %s..%s: %d filings (%d bank-flagged, now mapped), "
-             "%d cumulative skipped, %d to parse", since, until, len(filings), n_bank, n_cum, len(work))
+             "%d cumulative skipped, %d to parse (%d standalone siblings indexed)",
+             since, until, len(filings), n_bank, n_cum, len(work), len(sa_index))
 
     stats = {"filings": len(filings), "bank_flagged": n_bank, "cumulative_skipped": n_cum,
              "parsed": 0, "rows": 0, "fetch_fail": 0, "no_metrics": 0, "gate_fail_syms": 0,
-             "skipped_seen": 0, "gate_deferred": 0, "aborted_throttled": False}
+             "skipped_seen": 0, "gate_deferred": 0, "aborted_throttled": False,
+             "prudential_syms": 0, "sa_fetches": 0}
     gcon = sqlite3.connect(research_db)
     _ensure_source_column(gcon)
     gcon.commit()
@@ -758,6 +850,30 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
                         sym, f["period"], f["to_date"])
             mark_seen(f["xbrl_url"])          # deterministic outcome; refetch won't change it
             continue
+        # Doctrine-D Pattern 5 — additive prudential ratios (metric-keyed; no schema change).
+        # Only a BANK block that is zeroed here spends the extra SA round-trip (an NBFC declares
+        # none of the tags, a disclosing conso needs no sibling) — see augment_prudential.
+        if _is_bank_instance(parsed):
+            _kind = "A" if f["period"] == "Annual" else "Q"
+
+            def _sa_sibling(_f=f, _sym=sym):
+                sib = sa_index.get((_sym, _f["period"], _f["to_date"]))
+                if not sib or sib["xbrl_url"] == _f["xbrl_url"]:
+                    return None
+                stats["sa_fetches"] += 1
+                x = throttled_fetch(sib["xbrl_url"])
+                if x is None:
+                    return None
+                try:
+                    return parse_instance(x)
+                except ET.ParseError as e:
+                    log.warning("SA sibling parse failed %s %s: %s", _sym, _f["to_date"], e)
+                    return None
+
+            prud = augment_prudential(parsed, kind=_kind, end=f["to_date"], sa_lookup=_sa_sibling)
+            if prud:
+                metrics.update(prud)
+                stats["prudential_syms"] += 1
         stats["parsed"] += 1
         stats["rows"] += write_rows(f, metrics, research_db=research_db,
                                     overwrite_screener=overwrite_screener,
@@ -781,6 +897,10 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
 
     candidates: dict = {}          # (sym, ptype, pend) -> best (conso, broadcast) filing
     if_parsed_urls: list = []      # marked seen only AFTER the candidate flush writes
+    # Doctrine-D Pattern 5: this path already parses BOTH natures before picking the conso
+    # winner, so the bank prudential block costs ZERO extra fetch here — capture it off whichever
+    # instance discloses (SA always wins per the verified SA-only rule) and merge at the flush.
+    prud_by_key: dict = {}         # (sym, kind, pend) -> {metric: percent}
     for row in if_rows:
         if stats["aborted_throttled"]:
             break
@@ -813,19 +933,29 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             jobs.append(("A", end))    # the Q4 integrated filing carries the audited FY column
         for kind, pend in jobs:
             metrics = extract_for(parsed, kind=kind, end=pend)
+            key = (sym, kind, pend)
+            # capture the prudential block off THIS instance (a conso bank zeroes it -> empty);
+            # SA always wins over a disclosing conso (the verified standalone-only rule).
+            if _is_bank_instance(parsed):
+                prud = extract_bank_prudential(parsed, kind=kind, end=pend)
+                if prud and (key not in prud_by_key or not conso):
+                    prud_by_key[key] = prud
             if not metrics:
                 stats["no_metrics"] += 1
                 log.warning("no metrics extracted: %s IF/%s %s (bank/NBFC taxonomy or "
                             "nonstandard contexts — fail-loud)", sym, kind, pend)
                 continue
-            key = (sym, kind, pend)
             cand = {"symbol": sym, "period": "Annual" if kind == "A" else "Quarterly",
                     "to_date": pend, "consolidated": conso, "broadcast": row["broadcast"],
                     "revised": row["revised"], "metrics": metrics}
             cur = candidates.get(key)
             if cur is None or (conso, row["broadcast"] or "") > (cur["consolidated"], cur["broadcast"] or ""):
                 candidates[key] = cand
-    for cand in candidates.values():
+    for key, cand in candidates.items():
+        prud = prud_by_key.get(key)       # merged onto the conso winner (Pattern 5, no refetch)
+        if prud:
+            cand["metrics"].update(prud)
+            stats["prudential_syms"] += 1
         stats["parsed"] += 1
         stats["rows"] += write_rows(cand, cand["metrics"], research_db=research_db,
                                     overwrite_screener=overwrite_screener,

@@ -16,23 +16,640 @@ PROJECT_STATE entries are enough.**
 - Hybrid patterns (§5): strong-orchestrator/fast-workers · fast-session+escalation-ledger · escalate-on-contact. Timers unchanged (cheap models only, Guardrail #3).
 - **The in-thought KERNEL ("🧠 THINK LIKE FABLE — the thought algorithm", 14 moves / 4 phases) is embedded VERBATIM in CLAUDE.md + AGENTS.md** — it is in your context RIGHT NOW; run it inside every response. The protocol doc is the acting layer it invokes.
 - **LIVE-TESTED ON HAIKU (2026-07-16, isolated worktree, takeover prompt verbatim + test bounds):** safety + pick-verify + honest-escalation all held; two gaps found and ALREADY promoted to doctrine — (1) the session skipped the CLAUDE.md read → **at boot you MUST quote the kernel header + 4 phases** (SESSION-PROTOCOL step 1); (2) it adopted the STRONG-tier LANE-R pick → **state your §5 tier FIRST; a pick above your tier is itself a ⛔ ESCALATE**. Spawned workers never inherit CLAUDE.md — paste the kernel into every worker prompt (§5).
-- Numbering: lane label per the S149 divergence-flag convention; real S/D numbers assigned at the main↔origin reconcile. Docs-only; rides the local stack unpushed.
+- Numbering: lane label kept as HISTORICAL — the main↔origin reconcile happened (S164 merge, 2026-07-16): the doctrine files now live on origin/main; origin's S150–S163 numbers are the canonical line.
+## ✅ 2026-07-16 — S160–S163 ARC COMPLETE + the Review Inbox worked to ZERO — do NOT redo; kickstart-pick-verify
+- **The arc (all LIVE, all Ramana-directed):** the judgment queue now REACHES every channel — `/dash/inbox` lens (S158) + Home fixture (S163-b) · Pat web-chat (S160) · morning DM nudge (S160) · Telegram free-text (S160-b) · **Telegram `/inbox` command** (S161). "Registered ≠ reaches you" is now gated (`tests/test_inbox_reaches_the_human.py`). The **D142 payload fix** (S162) makes pre-relabel verdicts render their number (normalize-on-read + backfill). The **first rule-lab verdict is signed into canon** (S163, ledger `00ac49c`).
+- **Queue = EMPTY.** All 6 items judged this session (3 tags · 1 rule-verdict → ledger · 2 briefs, HCLTECH published to the public board / ANANDRATHI rejected). Nothing waiting.
+- **Operating the inbox conversationally (reuse this):** tags → `inbox_adapters.decide_by_ref(conn, sym, tag, "approve|reject")`; other kinds → `review_inbox.decide(conn, id, verdict, note)`; publish an approved brief → `brief_publisher --publish` (PUBLIC step — confirm separately; `--unpublish <id>` retracts). Always writer-safe (fuser guard, not 13:55–14:15 UTC); verify by content; `curl -L` on the public perimeter (results-reactions 307→nested).
+- **➡ NEXT PICKS (nothing forced):** Ramana's plan decisions **§7.2** (auto-analyst ₹200 cap ratify) · **§7.7** (6 vendor-ToS feeds enum — blocks the wire's licence story) · **§7.8** (ratify inbox-first ledger-append as standing — exercised S163). Time-gated: **Aug-1** monthly-churn row-gain check. Estate: heartbeat DM fires daily 03:30 UTC (now carries the inbox nudge).
+
+## ✅ 2026-07-16 — S163-b (Ramana-directed): the Review Inbox is now a Home fixture, owner-only — do NOT redo
+- **Ramana, frustrated:** *"I don't know where '/inbox' is... do not create random ad-hoc screens, whether one-time or recurring."* The lens WAS registered (Trust rail, orphan gate green) — didn't matter, he had no reason to click there. `dashboard.dash_home()` now prepends `review_inbox_view.home_banner_html(request)` — an ALWAYS-PRESENT owner-only line ("N waiting on you" / "Nothing is waiting on you", never absent so it's a stable landmark), single-sourced with the DM/Pat/Telegram via `inbox_flow`. Fail-closed for anyone who isn't the verified owner. Not a new page (playbook §2 item 1 — extend Home, reuse existing data).
+- **⚠ Two things caught before shipping, worth remembering:** (1) a bare local `TestClient(src.main.app)` run is NOT proof of an owner gate — `tracker_gate._is_owner`'s dev-mode fallback (`no secret configured -> owner`) makes every local request look like the owner; only a hermetic test with an explicit mock, or the real deployed box, actually tests this. (2) a genuine bug the hermetic test caught: opening a fake DB connection via a lambda that touches the fixture's own sqlite3 object from `TestClient`'s worker thread raises `sqlite3.ProgrammingError` — capture the path STRING at fixture setup, never the connection object, for any cross-thread `_conn` monkeypatch.
+- **✅ DEPLOYED + LIVE-VERIFIED (~12:10 UTC).** `dashboard.py` patched (anchored `git apply`, D80 doctrine); `review_inbox_view.py` clean scp; both byte-== HEAD. Writer-safe restart, 0 errors. **Live via the public perimeter:** anonymous `/dash` clean (zero trace of `ib-home`/"waiting on you"/"Nothing is waiting"); owner (`X-Hermes-Secret`) sees `<a href='/dash/inbox'>Review inbox</a> · 2 waiting on you: 2 ai-drafted event briefs` — matches the real live queue exactly (down from 3 after S163's rule-lab approval). Suite 685/1-skip.
+
+## ✅ 2026-07-16 — S163 (Ramana-directed): first rule-lab verdict SIGNED INTO THE LEDGER — do NOT redo
+- **Ramana:** *"approve the rule-lab verdict into the ledger."* DONE. Item #602 (LOWVOL_MOM largecap quarterly NEW-BENCHMARK, net return/vol 1.19 @₹75cr) → block appended verbatim at EOF of `docs/strategy-ledger.md` (commit `00ac49c`, byte-compared wall untouched) + decided approved on the box (note cites the commit). Confirms the recorded survivor, does not open a new corner. The D137 loop is closed end-to-end. Record: PROJECT_STATE §Session 163.
+- **Queue now 2** — the ANANDRATHI + HCLTECH results briefs, left for Ramana to review on `/dash/inbox` (approving a brief publishes it to the results-reactions board with the AI label, via `brief_publisher --publish`).
+- **➡ NEXT PICKS:** ① the 2 pending briefs (Ramana's call) ② plan decisions §7.2/§7.7 (§7.8 now exercised — ratify inbox-first as standing, or revisit) ③ Aug-1 churn row-gain.
+
+## ✅ 2026-07-16 — S162 (Ramana-directed): D142 payload fix — pre-relabel rule-lab verdict renders its number — LIVE — do NOT redo
+- **Ramana:** *"chase the D142 payload fix so the number renders."* DONE. The live NEW-BENCHMARK verdict was stored pre-D142 with `net_sharpe`; renderers read `net_retvol` → "—". Fix (`rule_lab_inbox.py`): `normalize_numbers()` maps legacy keys on read in `latest_verdict()` (one place → Pat + the page); `backfill_legacy_payloads()` (+`--backfill`) made the stored row honest + regenerated its ledger_block. Backfilled live; the page now shows "net return/vol 1.19 vs benchmark 0.89". Suite 679/0. Record: PROJECT_STATE §Session 162.
+- **The rule-lab verdict is now fully judgeable** — its number renders and its ledger_block is on the honest vocabulary, so approving it on `/dash/inbox` is safe (no bare "Sharpe" into canon). **3 waiting** now: this verdict + the 2 results briefs (ANANDRATHI, HCLTECH), all left for Ramana to review on the page.
+- **➡ NEXT PICKS:** ① Ramana's 3 pending queue judgments ② plan decisions §7.2/§7.7/§7.8 ③ Aug-1 churn row-gain. The D142 payload-migration flag from S160 is now CLOSED.
+
+## ✅ 2026-07-16 — S161 (Ramana-directed): the Telegram `/inbox` COMMAND — LIVE — do NOT redo; kickstart-pick-verify
+- **Ramana:** *"do the telegram /inbox command too."* DONE + LIVE. `/inbox` reports the review queue on demand; `/inbox <kind>` filters (briefs|rule|tags|alerts). Owner-gated, READ-ONLY, in the `/` menu (`getMyCommands` confirms). Renders through the SAME `inbox_flow.format_telegram_reply()` as S160-b's free-text pre-pass, the morning DM and `/dash/pat` — one queue, four channels, cannot disagree. Suite 676/0; 12 contracts. Full record: PROJECT_STATE §Session 161.
+- **The queue now reaches EVERY channel:** the `/dash/inbox` lens (S158) · Pat web-chat (S160) · the morning DM nudge (S160) · Telegram free-text (S160-b) · **Telegram `/inbox` (S161)**. Ramana's "communication belongs in the chat" is fully answered.
+- **⚠ LESSON — converge, don't fork, on a parallel collision:** S160-b and this both touched `telegram_bot.py`; the fix was to reuse THEIR `format_telegram_reply()`, not ship a second renderer. And the dead-link trap: `digest.PUBLIC_BASE_URL` is the raw `IP:8000` the S77b perimeter closed — Telegram/public links must use `https://srv1704897.hstgr.cloud` (the S138 pager convention).
+- **➡ NEXT PICKS (unchanged, kickstart-pick-verify EACH):** ① the 6 live queue items await HIS judgment on `/dash/inbox` (incl. the likely-wrong **PSU→MARUTI** tag) ② **⚠ the D142 `net_sharpe`→`net_retvol` payload-migration flag from S160** — stored `rule_verdict` payloads keep the old keys; on the D142 lane's deploy the live verdict's headline renders "—" (repro in the S160 block below) ③ Ramana's plan decisions §7.2/§7.7/§7.8 ④ Aug-1 churn row-gain.
+
+## ✅ 2026-07-16 — S160 (Ramana-directed): THE QUEUE NOW REACHES YOU — chat + daily DM — do NOT redo; kickstart-pick-verify
+- **Ramana's correction (binding):** *"I prefer to have communication take place here in the chat; if something isn't available, it should be linked to the full application itself."* The audit proved him right: `/dash/inbox` was a **registered** Trust lens — every gate passed — yet **nothing told him anything was waiting**. Pat had it as EXPLAIN (could define "review inbox", couldn't say what was in it); the daily DM never mentioned it; Telegram never mentioned it. **"Registered" != "reaches you" — no gate encoded that difference. Now `tests/test_inbox_reaches_the_human.py` (19 contracts) does.**
+- **LIVE:** ask Pat *"what's waiting on me"* -> the real queue inline (plain English, evidence links, lens one click away). The daily DM carries `N waiting on you` / `inbox clear` — verdict-neutral, single-sourced with Pat so they can't drift. Pat coverage `inbox`: EXPLAIN->**DATA**. **READ-ONLY: Pat reports, never decides.** Suite 657/0.
+- **🔴 THE DEPLOY LESSON — the caller-without-callee trap has a DATA-KEY twin.** The box's `pat/web.py` was a committed ANCESTOR with **D142's undeployed `net_sharpe`->`net_retvol` rename** ahead of it; a clean scp would have put D142's *reader* on the box's un-migrated *writer* -> a silent "—", passing py_compile + app-import + route-200. Fix: lift YOUR hunks onto the BOX's content and diff-prove zero foreign lines (32 added, all mine, 0 D142).
+- **⚠ FOR THE D142 LANE (exact repro, please pick up):** stored `rule_verdict` payloads hold `net_sharpe`/`gross_sharpe`/`flat_sharpe`. Your note says `CREATE TABLE IF NOT EXISTS` can't migrate existing rows — **JSON payloads have the same problem and aren't in the diff**. On your deploy, the live NEW-BENCHMARK verdict Ramana must judge shows its headline as "—". Repro: `sqlite3 -readonly data/hermes.db "SELECT json_extract(payload_json,'$.verdict.numbers') FROM review_items WHERE kind='rule_verdict'" ` -> old keys; HEAD `pat/web.py:1064` reads `net_retvol`. Needs a fallback read or a payload backfill.
+- **➡ NEXT PICKS:** ① **Telegram is still silent on the queue** — the bot has no inbox awareness; the DM nudge covers the daily line, but an ask-anytime `/inbox` command is the honest completion of Ramana's "communication in the chat" ② the queue's 6 live items await HIS judgment (see below) ③ Ramana's open decisions: plan **§7.7** (vendor-ToS enum), **§7.8** (rule-lab ledger append), **§7.2** (₹200 cap) ④ Aug-1 churn row-gain.
+- **🔎 An observation for Ramana, not a decision (Pat never decides):** among the 3 pending tag proposals is **"PSU" for MARUTI** — Maruti Suzuki is majority-held by Suzuki Motor Corp (Japan), so that reads like a proposer error worth rejecting. **"PSU" for RECLTD** looks right. Judge on `/dash/inbox`.
+
+## ✅ 2026-07-15 — S162 (D142): THE "SHARPE" AUDIT IS CLOSED — there was never a Sharpe; relabelled estate-wide + GATED — do NOT redo; kickstart-pick-verify
+- **The finding is unanimous and final** (commit **`7115338`**): 56 files grepped, every compute site read — **of ~40 ratios in `research/`, ZERO are true Sharpe ratios.** Every one is `mean/sd×√periods` with **no risk-free subtracted**. There was no mixed estate to sort; the word was simply wrong everywhere. Relabelled `research/` + **13 live surfaces** + glossary + strategy-ledger + the served `docs/strategies/` pages. **Numbers PROVEN untouched** — the multiset of every numeric literal across the whole diff is unchanged (machine-checked). Suite **638**, 4 prior gates green. Full record: PROJECT_STATE §D142 + §Session 162.
+- **🔴 QUOTE THIS BEFORE RE-OPENING IT: relabelling changed NO verdict, and that is not an opinion.** Every hurdle — the Nifty-500 **0.89** bar, C-BLEND **1.32**, streamband **0.37** — is on the **identical** no-rf basis, so both sides of every comparison carry the same omission. **Every RELATIVE claim in the ledger stands exactly as written.** Only ABSOLUTE levels read high (~1.7× on the rotation books; **do NOT inherit that multiplier** — it did not carry to the portfolios estate, ~1.4–1.6×, and was never measured on the momentum estate).
+- **🔴 THE ONE UNBLOCKED RE-CUT — `research/explosive_moves/attribution.py`.** It ALREADY computes a real rf (**Nifty 1D Rate Index**, overnight TR — primary-source, Guardrail #8-clean), already uses it correctly for the alpha regressions (`strat_ex = strat - rf`), then hands **RAW** `strat` to its ratio and its DSR — with `strat_ex` sitting in scope at the very call sites. **It needs no new data, only the variable one line up.** Everywhere else the re-cut is blocked on an rf ingest. **Deliberately not done: it MOVES NUMBERS and is queued to land with the owed TR-benchmark re-cut, which moves the same figures. Re-cut once, together — do not do it piecemeal.**
+- **🔴 EVERY Deflated-Sharpe in this project is an UPPER BOUND on the evidence.** Its null IS rf-free by construction (a dispersion-based multiple-testing threshold — a constant rf shifts a mean, not a dispersion), **but its observed input is inflated**, so the test asks *"does it beat ZERO"*, not *"does it beat cash"*. **A PASS is weaker than it looks; a FAIL is real** — so every DSR-recorded failure (MEP's 0.45→0.36, the momentum gates) stands, if anything more firmly. Don't re-read an old DSR pass as vindication.
+- **The word cannot come back: `tests/test_retvol_label_gate.py` is the SIXTH gate** (beside route / education / doc-hygiene / state-doc / compliance-language). Scans `src/web`+`src/pat`+`src/automation`; a line may say "Sharpe" only if it **disowns** the label, names the Bailey/López de Prado **Deflated Sharpe** (literature proper noun, kept), or carries a written `_ALLOW` reason (stale entries fail — the list can only shrink honestly). **Proven to bite** (injected violation caught at file:line, restored byte-exact) and it immediately caught a stale `1.10-Sharpe` that three agents + a manual sweep missed. **⚠ Known limit: it does NOT scan `docs/` or `research/`** — those were swept by hand this session; a doc-side extension is a cheap future pick.
+- **⚠ THREE CARVE-OUTS — do NOT "finish the job" by undoing these:** ① the `sharpe`/`h1_sharpe`/`h2_sharpe` **COLUMNS in research.db keep legacy names** — `strategy_store.py` uses `CREATE TABLE IF NOT EXISTS` against a live DB, so renaming the DDL would **not migrate existing rows, it would silently mismatch them**; values render as "Return/vol" (`testing_view`) and seeding accepts either header. ② `rule_lab.py`'s BLOCKING rows are **VERBATIM quotes byte-compared against `docs/strategy-ledger.md`** (`tests/test_rule_lab.py`) — relabelling one side desyncs the pair; **the ledger wins**, and it now carries an estate-wide banner instead. ③ `cost_participation.py:8` quotes the institutional panel verbatim — quoting people accurately outranks relabelling them.
+- **Lessons worth carrying:** ① **the suite caught my own breakage** — renaming the executor's keys silently broke the wider `rule_lab` contract (judge/inbox/Pat/view all keyed on `net_sharpe`); 8 tests failed at once. That is the S158 caller-without-callee hazard, defused **only because a contract test existed**. **Grep the consumers before renaming a key; treat on-disk names as a contract.** ② A rename is only free where nothing persists it: in-memory keys renamed freely, CSV headers got a **legacy-tolerant reader** (committed pre-D142 artifacts still seed), a live DB column left alone. ③ **A parallel lane took D141 + S161 mid-flight** — rebased onto it, kept both entries, renumbered mine to D142. Check `git show origin/main:PROJECT_STATE.md` for the next free D-number, never the local tree.
+- **➡ NEXT PICKS (kickstart-pick-verify EACH):** ① **the rf ingest + TR-benchmark re-cut as ONE lane** — primary-source only (**Nifty 1D Rate Index is already proven ingestible — `attribution.rf_monthly` does it today**; a flat 6.5% pre-2016 proxy is the documented gap-fill). It re-cuts every ratio + every hurdle **together**, which is the only way the comparisons stay coherent. ② **Sortino carries the IDENTICAL defect** (no rf/MAR subtracted — `metrics.py:39`, `factor_zoo.py`) — flagged in the docstrings, relabel not attempted (out of that brief); a small, obvious follow-on. ③ extend the label gate to `docs/` + `research/`. ④ `sector_rotation_exp4.py:314` has a **cadence bug** (`√4` vs `stats()`'s `√12` on the same rows) — **inert** (V30/VOLTARGET was rejected) but it is D140's "cadence guessed, not derived" pattern a third time.
+
+## ✅ 2026-07-15 — S159: L6's LAST MILE — only an APPROVED brief publishes — BUILT + DEPLOYED + LIVE — do NOT redo; kickstart-pick-verify
+- **`src/automation/brief_publisher.py` + an AI-labeled band on `/dash/results-reactions`** (commit `6bf17c8`): `publish_approved()` moves ONLY approved briefs into our own `published_briefs` (human's `decided_at` travels as the signature); exactly-once via the **shared kind-generic `inbox_apply_log`**; rejected/empty logged handled; `unpublish()` = retraction (drops the render, keeps the audit); `--dry-run`. **Suite 630/0.** Full record: PROJECT_STATE §Session 159.
+- **🔴 THE DESTINATION IS NOT THE WIRE — plan §4-E corrected, don't "fix" it back:** `/dash/wire` renders `sent_news`, whose feed is an **UNCLASSIFIED vendor-ToS** source held out of `feed_manifest.FEEDS` pending Ramana's **§7.7** decision (pinned by a test). House AI text must not fuse with it (Guardrail #8) → briefs render on the board that already sources their numbers. **Revert-probed** source-scan ban + a premise-check that fires if `news_feed` ever enters `FEEDS`.
+- **The live result is an honest NEGATIVE:** on real data **2 pending briefs (HCLTECH, ANANDRATHI) → published ZERO, no band renders.** That is the L6 contract working. **The first real publish is RAMANA's** — approve a brief on `/dash/inbox`, then run `python -m src.automation.brief_publisher --publish` (or `--dry-run` first). Retract with `--unpublish <item_id> --reason "..."`.
+- **⚠ Owned honestly:** my S157-b rule-lab producer shipped `kind='rule_verdict'` unregistered → S158-b's census caught it live (Ramana's real verdict was rendering as a raw slug) and built a gate for it. **A new producer kind is part of the producer's contract.**
+- **➡ NEXT PICKS (kickstart-pick-verify EACH):** ① **owner nudge in the heartbeat DM** ("N waiting on you") — `estate_heartbeat` already composes that line; 5 items now wait (2 briefs · 3 tags · 1 rule verdict) and the DM is the only thing Ramana reads daily — the deliberate alternative to a home tile · ② a **publish timer** is deliberately NOT built (approval is human-paced; `--publish` is an owner CLI, AUD-95) — revisit only if Ramana asks · ③ entity-graph SURFACE only when a reader question needs it (hub caveat) · ④ **Ramana's open decisions: plan §7.7 (vendor-ToS enum — now BLOCKING the wire's licence story), §7.8 (rule-lab ledger append), §7.2 (₹200 auto-analyst cap)** · ⑤ time-gated: Aug-1 churn row-gain.
+
+
+## ✅ 2026-07-15 — S158: THE REVIEW-INBOX LENS + Q1 CLOSED (legacy writer BRIDGED) — BUILT + DEPLOYED + LIVE-WALKED — do NOT redo; kickstart-pick-verify
+- **`/dash/inbox` LIVE** (Trust lens, `_ROUTER_SPECS` mount, commit **`2cc73b2`**): the judgment loop finally has a human interface (it was SSH-CLI-only). **Two audiences, one route:** anonymous → the methodology page + honest aggregates; **owner** (`tracker_gate._is_owner`, fail-CLOSED) → the queue, per-item evidence, POST approve/reject, corpus CSV. Live: 5 waiting · 295 recorded · **0 decided here**; every public leak probe clean; owner sees the 2 real briefs (HCLTECH/ANANDRATHI) the public cannot.
+- **🔴 THE OWNER GATE IS LOAD-BEARING — do not "simplify" it:** `kind='brief'` items are AI drafts **nobody has checked**, and L6's contract is that ONLY an approved brief publishes. A public inbox would publish exactly the unreviewed AI text that contract forbids. Tested against a real pending brief.
+- **🔑 HONESTY FINDING (don't re-derive, and don't quote the old number):** the imported corpus **cannot** distinguish "approved a proposal" from "typed the tag in himself" — `theme_tags.approve()` and `add_manual()` write the SAME `source='ramana'` row. So **S157's "94%" is imported history, NOT a proposer hit-rate.** The page reports lived vs imported rates in separate columns with the reason; the clean measure starts at 0 decided-here and grows as Ramana judges.
+- **Q1 CLOSED — bridged, not deleted:** `dashboard.dash_tags_act` → `inbox_adapters.decide_by_ref_safe` / `decide_bulk`, so legacy verdicts are corpus-recorded on the same path as the lens; theme_tags still does every `company_tags` write. **Fail-open** (inbox trouble → direct write; a button must never break). **`add`/`remove`/`unreject` stay direct = authoring, not judging** (counting them would inflate the rate) — pinned by a test. `_next_ref()` versions re-judgments (`SYM|TAG#2`), fixing a **latent crash**: unreject→re-approve would have hit decide()'s FINAL guard and silently not applied the tag.
+- **🔴 DEPLOY LESSON (cost me a live break, caught mid-walk): a patch deploy of a CALLER without its CALLEE is SILENT.** I shipped `dashboard.py` calling `IA.decide_by_ref_safe` but forgot `inbox_adapters.py` — `py_compile` OK, app imports OK, all routes 200, because the handler's import is **lazy** (defers AttributeError past every startup probe) and its bare `except` would have swallowed it. Only the **selftest's output signature** (box printed S157's last line, not S158's) revealed it. **RULES: verify a new cross-module callee by `hasattr` ON THE BOX, never by import success; give selftests a version-distinct final line.**
+- **The first real verdict is Ramana's** — the bridge was verified hermetically on-box (temp DB), deliberately NOT by approving a live proposal (a machine must not fabricate a human verdict). `tags_sync`'s `stale_decided_on_legacy` census is now the bridge's regression detector: it should stay **empty**.
+- **✅ S158-b — the kind registry paid for itself within the hour** (`a1ee185`, deployed): the moment the two D134 lanes met, the live census flagged an **unregistered kind** — rule-lab's `kind='rule_verdict'` producer landed while Q2's set was being written, so a REAL queued verdict (the NEW-BENCHMARK [fundable] LOWVOL_MOM rule) sat un-registered and rendered as a raw slug. Registered + display copy + the evidence line now reads `producer` as well as `source`; **the runtime warning is now a BUILD GATE** (`test_every_producer_kind_is_registered` source-scans `src/automation` for producer `KIND` constants — revert-probed, it flags `rule_lab_inbox.py` when unregistered). **Live queue = 3 kinds, census clean (`unregistered: {}`), suite 613.** Lesson for the next cross-lane seam: two *correct* lanes still drift when the contract lands after the producer — give the seam a machine owner.
+- **⚠ WORKTREE GOTCHA (cost me two failed pushes): `test -d .git/rebase-merge` NEVER fires in a worktree** — `.git` is a FILE there, so the real path is `D:/Hermes/.git/worktrees/<name>/rebase-merge`. Use **`git rev-parse --git-path rebase-merge`**. A stale one (Windows "could not remove … rebase-merge" after `rebase --continue`) silently BLOCKS every later rebase; clear it with `chmod -R u+w` then `rm -rf` — **only ever your own session's**.
+- **NEXT natural picks (kickstart-pick-verify EACH):** ① **the wire-publisher for APPROVED briefs** — now genuinely unblocked (approval is possible at last); pattern = `tags_apply` (exactly-once via an apply-log); ② an **owner nudge in the heartbeat DM** ("N waiting on you") — the deliberate alternative to a home tile, and `estate_heartbeat` already composes that line; ③ rulelab integration = cranky-khayyam's claim; ④ Ramana's plan-§7 decisions (vendor-ToS enum ×6 · auto-analyst ₹200 cap · charter v2.0 · NEW-BENCHMARK verdicts → inbox-first proposal). Time-gated: first heartbeat DM Wed 03:30 UTC · Aug-1 churn row-gain.
+
+## ✅ 2026-07-15 — S157-b (D134 LANE-H): RULE LAB — BUILT (sibling `b67509d`) + REVIEWED + INTEGRATED + LANDED — do NOT redo; kickstart-pick-verify
+- **The claim protocol WORKED end-to-end:** this lane (dispatched as the rule-lab BUILD session) found the sibling's build mid-flight, yielded, pushed the integration claim (`4ffd9c9`), reviewed the build vs the design (**CONFORMANT, 0 defects** — every claimed binding verified real), cherry-picked `b67509d` (authorship preserved) and landed the whole integration half. **Full suite 594/0** (baseline 526/0). Full record: PROJECT_STATE §Session 157-b + §D137.
+- **What's live in the repo:** `/dash/rule-lab` (Trust lens; owner composer POST→`rule_lab_queue`→303; anonymous = labeled synthetic demo; dead-shape URLs cite the ❌ BLOCKING rows BEFORE any run; CSV + URL-state) · Pat `rulelab` DATA flow (all four seams + coverage-gate row) · 5 glossary keys (§ Rule lab) · `docs/strategies/rule-lab.md` (🏠 HOUSE) + README matrix + `_SURFACE` hand-off · **design doc RETIRED** (folded into plan §4-H; DOC_INDEX cleaned) · plan **§7.8** = Ramana ratifies the implemented inbox-first default (NEW-BENCHMARK never auto-appends to the ledger).
+- **Operating the lab (owner):** compose + POST on the page → SSH → `PYTHONPATH=/opt/hermes:/opt/hermes/research /opt/hermes/.venv-research/bin/python -m explosive_moves.rule_lab_executor --work` → the verdict lands on the page + Review Inbox. Deliberately NO timer (AUD-95).
+- **✅ DEPLOYED + LIVE + REAL E2E VERIFIED (~09:35 UTC):** full journey walked on the box AND hstgr.cloud; the FIRST real verdict ran in 8.6s — survivor-shape rule → **NEW-BENCHMARK [fundable], net 1.19, halves 1.20/1.42, capacity ₹75cr** — now **PENDING in the Review Inbox** (kind=`rule_verdict`; judge it on `/dash/inbox`). Anon = demo only; owner gate real on the box.
+- **⚠ For the builder sibling (`69963ef7…`) if it resurfaces:** `b67509d` is landed on main via cherry-pick — `git cherry` shows patch-equivalence; drop your branch, do not re-wrap.
+- **➡ NEXT PICKS (unchanged from S156 baton, minus rule-lab):** the wire-publisher for APPROVED briefs · an entity-graph SURFACE only when a reader question needs it (respect the hub caveat) · Ramana's open decisions now **plan §7.7 (vendor-ToS enum) + §7.8 (rule-lab ledger append)** · time-gated: Aug-1 churn row-gain check · XBRL Phase-3 universe backfill continues in its own lane.
+
+## ✅ 2026-07-15 — S157: FIRST PRODUCER WIRED — tags-review ↔ Review Inbox — BUILT (inboxwire lane) + INTEGRATED + LIVE (frosty-darwin lane) — do NOT redo; kickstart-pick-verify
+- **The judgment loop is REAL:** `src/automation/inbox_adapters.py` (+17 hermetic tests) on main as **`17f9fb9`** (sibling's build `147c67d` cherry-picked, authorship preserved). Live on the box: **tags 276 approved / 19 rejected / 3 pending · 94% historical approve-rate seeded by the honest-timestamp backfill (`imported=true`, created_at=decided_at=original `as_of`) · briefs 2 pending · kinds census clean.** Weekly flow ARMED: theme-seed oneshot runs `inbox_adapters --sync --apply` as its 2nd ExecStart (Sun 17:30 UTC; unit converged git==box==etc md5 `0cfc15c3`, NeedDaemonReload=no, nothing started). Full suite **543 pass** + compliance gate at `17f9fb9`.
+- **Q1 SINGLE-WRITER (recorded in the module docstring):** inbox `decide()` + `tags_apply()` = the canonical write path to company_tags (via theme_tags' own helpers — ramana promotion + durable tombstone reused). The legacy `/dash/tags-review` surface (forked cockpit/dashboard) stays a direct writer IN THE INTERIM: out-of-band decisions are REPORTED (`stale_decided_on_legacy`), never auto-decided; **the inbox-LENS session must bridge-or-read-only it.** **Q2:** canonical `KINDS = {tags, alert-ack, brief, rebalance, anomaly}` in `inbox_adapters` — extend THERE in the same commit as a new producer. **New-producer gotcha (S153, honored):** `review_inbox.submit()` does NOT commit + `ensure_schema` DDL auto-commits mid-batch → commit-per-item.
+- **3-lane race resolved by pushed claim markers (S140 protocol HELD):** the builder deployed in parallel with this integration — the second run became a live idempotency proof (0 dupes on 295+3 re-submits); cranky-khayyam claimed the rulelab integration (`4ffd9c9`). **Craft: when a sibling deployed first, CONVERGE byte-exact (adopt the box wording into git); never re-deploy your variant.**
+- **NEXT natural picks (kickstart-pick-verify EACH — 3 lanes were mid-flight today):** ① **wire-publisher for APPROVED briefs** (LANE-E residue: approved `kind='brief'` → the wire; small; `tags_apply` is the pattern — exactly-once via an apply-log) · ② **the inbox LENS session** (SURFACE-PLAYBOOK; real data waiting: ~300 items / 2 kinds; MUST also settle the legacy-tags-surface bridge-or-read-only, Q1's endgame) · ③ rulelab build integration = cranky-khayyam's claim · ④ Ramana's open decisions (plan §7: vendor-ToS enum ×6 · auto-analyst ₹200 cap · charter v2.0 · NEW-BENCHMARK verdicts → inbox-first proposal) · time-gated: first heartbeat DM Wed 03:30 UTC · Aug-1 churn row-gain.
+
+## 📣 2026-07-15 — BUILDER-SIBLING DISCLOSURE (session 69963ef7, the D134 orchestrator) — BOX FACTS for the two claimant lanes above; claims honored, integration commits DROPPED on rebase as instructed
+- **I raced you unknowingly:** my integration worktree cherry-picked + DEPLOYED both builds ~14:3x IST, before your claims were fetchable. On seeing them, my integration/wrap commits were dropped (this docs-only note is my whole push); `rulelab-d134`@`b67509d` and `147c67d`'s landing remain YOURS. Suite evidence you can reuse: both picks green on `1ca99a5` — **563 passed / 0 failed** (excluding the pre-existing numpy collection debt below).
+- **⚠ IRREVERSIBLE BOX FACTS (done before the claims; all idempotent to re-run):** ① all 6 rule-lab/wiring files are ALREADY on the box (git-archive push, LF-pure; py_compile + 3 selftests green — `RULE_LAB selftest OK (21 tokens, 10 blocking rows)`); ② `inbox_adapters --backfill` RAN: **276 approved + 19 rejected imported** (honest stamps); `--sync` RAN: **3 pending proposals now in the inbox awaiting Ramana**; `--apply` 0 (nothing decided); ③ **the box's `/etc/systemd/system/hermes-theme-seed.service` ALREADY has the 2nd ExecStart** (`inbox_adapters --sync --apply`) installed via `install-systemd.sh --install` + daemon-reload, backup `.bak-s157lab`, timer schedule untouched (next Sun 17:31 UTC) — **frosty-darwin: your repo-side ExecStart append is still owed so capture matches the box (repo copy currently 1 line); do NOT double-add on the box.** ④ cranky-khayyam: your module-scp step is a no-op re-verify; the ENTIRE shared-file surface half + restart + on-box E2E remain untouched and yours.
+- **Gotchas for your deploy steps:** `install-systemd.sh` DEFAULTS to `--check` — the copy needs the explicit `--install` flag (this bit me; also now in the deploy memory). Worktree commits need BOTH `HERMES_SKIP_STATE_GATE=1` and `state:skip`.
+- **✅ Suite debt FIXED (same orchestrator, npfix-suite):** `test_embase_deliv_value.py` now `pytest.importorskip("numpy")` (the test_rule_lab_executor pattern) and `combo_test.py` (a research SCRIPT that only matched pytest's `*_test.py` glob) is collect-ignored via a new `research/explosive_moves/conftest.py` — full suite collects clean in numpy-less worktrees (539 passed / 0 errors at the S158-era base). Semantics untouched; the script still runs via `python -m`.
+
+## 🟢 2026-07-16 — RS STRATEGY, PART 2: the UNION signal is the ONE surviving LEAD (in-sample 17.5%/+6.8% alpha) — PRE-REGISTERED + sealed, awaiting forward evidence. Read WITH the "HOLD NIFTY NEXT 50" block below (that was PART 1 — the SECTOR-INDEX layer; this is the STOCK layer that came after).
+
+**What changed since Part 1:** Part 1 killed the sector-INDEX ladder (nothing beat Next-50). Part 2 built the
+STOCK layer properly — corporate-action ADJUSTED prices (the `series='EQ'`/CA bugs are FIXED, `adjust.py`;
+`corporate_actions` VERIFIED complete vs NSE, ledger 15S), a runtime split-ratio quarantine, PIT sector
+assignment by 500d excess-correlation (no membership table needed), and a battery across RSI construction,
+strength-index, reversal-on-RS (all 8 of Dim 6), vetoes, cash-out sizing, and walk-forward.
+
+**THE ONE SURVIVOR — the UNION** — **canonical page: [`docs/strategies/union.md`](strategies/union.md)** (the ruleset, terminology, rejected candidates) · ledger §§ 2026-07-16U→X · repro `research/explosive_moves/cash_blend.py`:
+a stock qualifies if EITHER fires — **(1) RSI(14)>its 50-SMA AND beat its own sector on ≥70% of last quarter's
+days** (trend), OR **(2) 6b: RSI(14) of the RS-line was <30 and crossed back ≥30** (oversold turn). Equal-weight
+**top 60**; idle capital → **Nifty Next 50 while Nifty 500 ≥ 200DMA, else cash** (V17 sleeve); **trailing stop
+−20% @1% slip**. In-sample 2006–2026: **CAGR 17.5% · MaxDD −30.5% · ₹1Cr→₹26.04Cr · beta 0.87 · alpha +6.8%**
+vs the Next-50 bar's 13.3%/₹12.98Cr. **The best full-period result of the whole arc, built entirely from
+Ramana's theses** (the RS turn + persistence + cash-out) on the trailing-stop/sleeve machinery.
+
+**🔴 IT IS A LEAD, NOT A STRATEGY — do NOT deploy, do NOT re-optimize.** Selected AFTER seeing 2005–2026 across
+~30 configs → in-sample (Codex 15R). **Walk-forward: +8-10% alpha in 2006–11 AND 2018–26, but −4.6% in 2012–17**
+(a mid-cycle bull where a lower-beta momentum book lags a raging index). **The 2012–17 weakness is SELECTION,
+not sizing — PROVEN: a throttle cutting exposure 75% in extended markets barely moved beta (1.42→1.35) and
+made every metric WORSE (16W). Do NOT re-attempt exposure-throttling.** Two survivor signals (6b turn,
+RSI+consistency trend) are **mutually exclusive by construction** (intersection = 9% invested) — you cannot
+stack them, only union them.
+
+**✅ PRE-REGISTERED + SEALED (the honest path forward):** frozen spec + 4 pass/fail criteria in
+[`docs/prereg/union-prereg.md`](prereg/union-prereg.md), **SHA-256 = `a9a14058f2140e22639b9504ab6d4af9c60fc76144de0f9f5e47f21b1b98d21c`** recorded in ledger 16W so any edit voids it.
+**PASS requires, over ≥8 forward quarters from 2026-07:** ① CAGR > Next-50 net of costs · ② alpha > 0 with
+forward beta reported (a higher CAGR purely from beta>1.1 = FAIL) · ③ MaxDD not worse than Next-50 · ④ no
+single quarter > 60% of the excess. **Miss ①–③ → DESCRIPTIVE-ONLY, never deployed.** **NEXT ACTION when a new
+quarter closes: run the forward test against the sealed criteria — do NOT touch the spec.**
+
+**🗓 SCHEDULER STATE (2026-07-16):** the Union forward test is a LIVE one-time task `union-forward-test-q3-2026`
+— **fires 2026-10-03 09:00 IST** (`fireAt 2026-10-03T03:30:00Z`, enabled), verifies the seal, refuses stale
+data, runs `cash_blend.py` on the VPS, appends a forward-test ledger entry, does NOT touch the spec. Toolchain
+rehearsed + confirmed ready (seal intact · VPS reachable · engine present · pipeline live to 2026-07-15). Five
+completed/disabled tasks were deleted (`cirqle-forecast-chart-followup` · `cf-tax-80d-section-80d-tracker` ·
+`check-rs-backfill` · `verify-provenance-timeout-fix` · `patearn-tracker-autobuild`) — SKILL.md files left on
+disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-daily`) untouched.
+
+---
+
+### 🔴 COMPLETE EXPERIMENT CATALOG — "WE ALREADY TRIED THIS" GUARD (Ramana, 2026-07-16: cite this before proposing ANY RS experiment; if a new idea matches a row, say "Hey — we already tried this" and quote the number). Full detail = the ledger entry named in each row. This is the anti-repeat spine; do NOT re-run a ❌ without BEATING its number.
+
+**A. SECTOR-INDEX LAYER (V-ladder · index_rows · never touched by the CA bug · ledger 15b→15g, 15N):**
+| # | what | verdict | ledger |
+|---|---|---|---|
+| V1 | quarterly 16-sector RS rotation + hysteresis + RSI gate | beats passive, not the strict bar | 15 |
+| — | SHORT / F&O leg | ❌ REJECT 0.49 vs 0.87 (shorts fight drift) | 15 |
+| V8 | frozen champion (BAL+RSPK+STR+RSIRS, cash residual) | ⚠ **9.13× — LOSES to buy-and-hold Nifty 500 (12.68×)** | 15b |
+| V9 | book-level 200DMA kill-switch | ❌ wealth collapses on whipsaws | 15c |
+| V10 | asym cadence (monthly risk pass) | ❌ 0.59, sells into noise | 15c |
+| V12 | monthly cadence | ❌ churn 35.7%/mo (3rd confirmation of the cadence law) | 15c |
+| V17 | defensive residual fill (idle→index ETF ≥200DMA else cash) | ✅ recorded candidate 0.79 / 19.04× | 15c |
+| V21 | V17 + Next50 sleeve + recovery-accel + inverse-vol | ✅ 0.87 / 27.02×, first to beat both halves | 15d |
+| V24 | V21 + own-pctile RSI-of-RS | ✅ 0.91 / 30.35× (LIVE-candidate) | 15f/g |
+| V32 | V24 + adaptive hysteresis band | ⚠ 0.90 / 31.15× — **statistically indistinguishable from V24 (p=0.745); RETIRED** | 15f, 15i-sig |
+| — | V24 + trail-20% cull | ✅ 17.28%, MaxDD −37.7%→−30.2%, halves 0.99/0.99 | 15N |
+| — | WIDER POND (+MNC/PSE/Commodities/Midcap50) | ❌ 17.2%→16.6% (overlap dilutes) | 15N |
+| — | sector gate +8% RS | ❌ **WORST of 5 gates, worse than no gate** (−0.70%/qtr fwd) | 15N/Q, rs_50dma |
+| — | sector gate RS>50DMA (state) / RS-crossed-50DMA (event) | RS-cross best of the 5 but **not significant** (+0.28% ±0.57) | 15Q |
+| — | sector gate 50-EMA-cross entry + 8%-stop exit | ✅ best sector-gate mechanic (11.1%, α+1.8%, β0.75) | rs_ema_stop |
+| **KEY** | — | **the V24 30.35× is the NEXT-50 SLEEVE + risk overlays, NOT sector selection; V8-alone loses to passive. Codex: V24 probably OVERFIT, treat 17.3% as a lead.** | 15R |
+
+**B. THE DATA BUGS (all FIXED — any pre-fix number is VOID; ledger 15L/15O/15S):**
+| bug | effect | status |
+|---|---|---|
+| `series='EQ'` filter | read NSE BE-surveillance moves as DEATHS (84% fake) | ✅ FIXED → EQ+BE+BZ |
+| raw prices UNADJUSTED | 1:2 bonus read as −50%; worth ~16pp CAGR | ✅ FIXED → `adjust.py` |
+| "corporate_actions ~30% incomplete" | **FALSE** — DB matches NSE exactly (2011: 47/47; TATAMOTORS 0/0) | ✅ retracted 15S, nothing to fund |
+| stale-price vol · dead-name 0% · ADV look-ahead | inflated inverse-vol / hid losses / leaked | ✅ all FIXED |
+| **8 retractions total** | 15h ETF-legs · 15i survivorship · 15j hysteresis-transfer · 15k fill-quality · 15L series · 15O CA · 15R premise · 15S incompleteness | **every one = asserted then tested against my own assertion** |
+
+**C. STOCK LAYER — SELECTION & SIZING (adjusted prices; ledger 15j→15Q, 16T):**
+| what | verdict | ledger |
+|---|---|---|
+| ⭐ **15P THE ANSWER** | selection WORKS (+1.97–2.98%/qtr) but **volatility drag eats it**; D6 dominates D10 on BOTH axes; "best-of-best" is dominated by "good". *Codex: D6>D10 "insufficient evidence" — a lead.* | 15P/16T |
+| naive stock RS (top-N, EW) | ❌ LOSES to Nifty 500 at every size/window | 15j |
+| hysteresis on the STOCK book | ❌ BACKFIRES (α −0.5%→−7.3% as band widens); a sector lever that does NOT transfer to stocks | 15j |
+| exits (hard stop / trailing) | ✅ fix RISK not return; the +3.5% α was a frictionless-fill artifact, **dies at 2% slippage**; trail-20% halves DD | 15k |
+| the "pond" (unconditioned universe) | ❌ loses −4.9%/yr to Nifty 500 because the index self-culls and we don't | 15L |
+| the CULL (stop) on the pond | ✅ +6.1pp α (Ramana's idea) but does NOT close the pond gap → **unconditioned stock family REJECTED** | 15M |
+| sector-gate → stocks (V24 gate) | ❌ 6.1–8.1%, loses | 15O/N |
+| RS TURN (sign-flip: was behind→now ahead) | ❌ **NO forward signal — flat panel, all cells within 1 SE** | 15Q |
+| BE-surveillance VETO | ❌ FALSIFIED (sd falls, return falls MORE, geo backwards) | 16T |
+| fundamentals red-flag VETO | ❌ INERT (removes 8%, moves geo −0.01pp) | 16T |
+| inverse-vol sizing (stock leg) | ❌ WASH, net slightly worse than EW | 16X |
+| beta control (cap max-invested 50/75/100%) | ✅ beta becomes a DIAL (0.40/0.58/0.72) at a linear return cost | 16W-cash |
+| money-mode: cash / sleeve / **sleeve200** | sleeve200 (idle→Next50 ≥200DMA else cash) = BEST (15.6%, β0.82, α+5.7%); dead-cash drags | 16W |
+
+**D. RSI BATTERY (stock-level; ledger 16-RSI-battery, `rsi_battery.py`):**
+| what | verdict |
+|---|---|
+| RSI(9/14/21) × SMA/EMA × state/event as a SELECTOR | ❌ all 3.8–5.7% (lose); **SMA > EMA, state > event** |
+| strength index (volume · sector · peer · BREADTH) — zavg/andfilter/rankblend/breadth | ❌ all WORSE than the raw signal; **breadth (Codex's idea) = 1.8%, dead** |
+| architecture 2a (gate-first) vs 2b (RSI-first, sector=score) | tied, both lose |
+| ✅ **consistency ≥70%** (beat own sector on ≥70% of the quarter's days) | **the single biggest stock-level lever: 4.5%→12.1%; PEAKS at 70% (80% is worse)** |
+| RSI + consist70 + trail-20% stack | ✅ 14.1–14.5% |
+
+**E. DIMENSION 6 — ALL 8 REVERSAL-ON-RS INDICATORS (ledger 16U, `dim6.py`/`dim6g.py`):**
+| id | indicator | verdict |
+|---|---|---|
+| 6a | slope inflection (RS below avg, slope turns up) | ❌ dead (−1.1% as a book; ns as selector) |
+| **6b** | **RSI-of-RS oversold recovery (<30 → ≥30)** | ✅ **THE ONLY WINNER — +1.36% vs base, GEO +0.33% (first positive-geometric selector of the whole session)** |
+| 6c | RS Bollinger reclaim (2σ band, adjacent to dead price-band family) | ❌ ns |
+| 6d | dual-MA crossover on RS (20d>50d) | ❌ ns (worse) |
+| 6e | MACD-of-RS signal crossover | ❌ ns |
+| 6f | RS drawdown recovery (−15% then within 5% of high) | ❌ ns (but +0.37%, the least-dead of the losers) |
+| 6g | cross-sectional RANK CLIMB (bottom→top of sector) | ❌ dead (ns; the move is too RARE — ~5 events/20y at tight thresholds) |
+| 6h | price/RS divergence (price new low, RS not) | ❌ **significantly HARMFUL −1.74%** (textbook bullish divergence LOSES here) |
+
+**F. THE UNION & its failed fixes (ledger 16V/W/X):**
+| what | verdict |
+|---|---|
+| ✅ **THE UNION** (6b OR RSI+consist70; top60; sleeve200; trail-20% @1% slip) | **17.5% / MaxDD −30.5% / ₹26.04Cr / β0.87 / α+6.8% — best of the session, SEALED** |
+| intersection (6b AND trend) | ❌ 8.6%, only 9% invested — **the two signals are MUTUALLY EXCLUSIVE (11% overlap); union only, never AND** |
+| diagnostics | selection-complementary (11% overlap) but **return-correlated 0.79** (both long-only momentum on the same sectors) |
+| walk-forward | 2006-11 α**+8.7%** · **2012-17 α−5.5% (FAIL, β1.56)** · 2018-26 α**+6.5%** |
+| market-stretch THROTTLE (linear/step/hard) | ❌ FAILED — made EVERY metric worse; barely moved 2012-17 beta (1.42→1.35) |
+| inverse-vol on the union | ❌ WASH (16X) |
+| **KEY** | **2012-17 is UNREACHABLE by any SIZING/exposure lever (throttle AND inverse-vol both failed) → the weakness is SELECTION (which stocks in a mid-cycle bull), a harder open question. Do NOT re-attempt sizing fixes for it.** |
+
+---
+
+### 🎯 NEXT SESSION — improve the UNION (Ramana's NON-NEGOTIABLE: push CAGR higher; "in the AI era, manual-only makes no sense" → ML/ensemble is explicitly on the table). GENUINELY-UNTRIED directions ONLY (everything above is spent):
+
+1. **The 2012-17 SELECTION fix (the ONE real open question).** NOT sizing (dead). Change WHICH stocks in a mid-cycle bull: (a) sector-NEUTRAL construction (cap names per sector so the book can't pile into one hot sector); (b) a per-name **beta cap** at selection time (≠ 16W's book-level throttle — that was exposure, this is selection); (c) a valuation/quality tilt applied at SELECTION (not as the veto that failed in 16T).
+2. **Reversal-family combos never tested:** 6b **+ 6f** (drawdown-recovery, the least-dead loser) as a union; 6b at thresholds other than <30→30 (e.g. <25 / <35); 6b on a WEEKLY RS line (we have `weekly_signals`) for a slower, higher-conviction turn.
+3. **Multi-timeframe confirmation:** require the turn/trend on BOTH daily and weekly RS (untested; `weekly_signals`/`monthly_signals` exist).
+4. **ML / ensemble (Ramana's AI ask) — with the honest prior stated up front:** a model over the SURVIVING signals (6b state · consistency · RS-vs-sector · turn-age) risks overfitting the SAME 2005-26 window (Codex 15R), and the ledger's standing result is momentum=BETA-not-skill (t=1.99). Do it as a PRE-REGISTERED, walk-forward-only build (train ≤2016, test 2017+), never in-sample-scored. This is the one place "more compute" is legitimately new.
+5. **TR-benchmark re-cut** (owed across the whole estate; moves every price-index number here).
+
+**⚠ BINDING for next session:** the Union is SEALED (`a9a14058…`). New experiments are CANDIDATES beside it — do NOT edit the sealed spec; if a candidate wins cleanly on walk-forward, amend the spec ONCE with a fresh seal BEFORE any forward data. Every candidate must beat the Union's **17.5% / β0.87 / α+6.8%** net, on walk-forward (not one window). Cite section C/D/E/F above before proposing — if it's there, it's already tried.
+
+**Canon (single source of truth — do not re-derive from this block):** the ruleset + terminology + the rejected-candidate list (throttle 16W · inverse-vol 16X · AND-intersection · both vetoes) live on **[`docs/strategies/union.md`](strategies/union.md)** (served at `/dash/strategy-ref?p=union`; **no `/dash` surface by design** — a live page would imply tradeability the sealed lead lacks). Result numbers: ledger §§ 2026-07-16U→X only. Frozen spec + criteria + seal: [`docs/prereg/union-prereg.md`](prereg/union-prereg.md).
+
+**Still owed (both blocks):** TRI-benchmark re-cut (all numbers are price-index vs price-index). The ONE
+genuine open research question (not a build): can the 2012–17 stock SELECTION be improved? — harder than
+sizing, and NOT to be pursued by re-optimizing on the same window.
+
+---
+
+## 🟡 2026-07-15/16 — RS STRATEGY PART 1 (the SECTOR-INDEX layer): "HOLD NIFTY NEXT 50" at the index level. 8 retractions. Do NOT re-open the sector ladder. (Part 2 above built the STOCK layer.) Read this before ANY rotation/RS work. 8 retractions. Do NOT re-open the ladder.
+
+**THE ANSWER (final, on clean data, contingent on nothing):**
+
+| config (adjusted prices, PIT, EQ+BE+BZ, 2005→2026, 21.5y) | CAGR | ₹1 Cr → |
+|---|---|---|
+| **NIFTY NEXT 50 — buy and hold, no work at all** | **13.8%** | **16.00×** |
+| Nifty 500 — buy and hold | 12.5% | 12.68× |
+| best stock book (TOP40 inverse-vol) | 12.0% | ~11× |
+| **V8 — pure sector rotation, sleeve removed** | **~11.0%** | **9.13×** |
+| Ramana's 50DMA-cross gate → stocks | 10.0% | 6.84× |
+| NO gate → stocks | 10.0% | 6.93× |
+| V24's live +8% gate → stocks | 6.1% | 3.29× |
+
+**NOTHING BUILT BEATS BUY-AND-HOLD.** Confirmed independently by **Codex** (ledger 15R): *"Today's
+evidence says hold Nifty Next 50."*
+
+**🔴 V24's 30.35× / 17.3% IS THE SLEEVE, NOT SECTOR SELECTION.** V8 (sectors only) = **9.13× vs
+buy-and-hold's 12.68×** — pure sector rotation LOSES to doing nothing. All outperformance appears when
+the **Nifty Next 50 sleeve** is added, and Next-50 alone is 16.00×. Codex: *"V24 is probably OVERFIT —
+four rounds deep, one window, statistically indistinguishable variants. Treat 17.3% as a research LEAD,
+not evidence."* (D139 already found V24-vs-V32 indistinguishable, p=0.745.) ⚠ **Attribution was never
+done** (sleeve alone / overlay alone / timing / interaction) — that is the honest gap in this claim.
+
+**FALSIFIED WITH NUMBERS — do not re-attempt (ledger §§ 2026-07-15h…15S):**
+sector RS gates: V24's **+8% is the WORST of five gates, worse than NO gate** (−0.70% vs −0.02%/qtr fwd) ·
+50DMA-cross **ties with no gate** (10.0% vs 10.0%) → **the sector step is INERT** · the TURN/recovery
+(sign-flip) = **flat panel, all 4 cells within ONE standard error** · hysteresis on stocks **backfires**
+(α −0.5% → −7.3% as the band widens) · exits fix **risk not return** (α dies at 2% slippage) · wider pond
+(MNC/PSE/Commodities/Midcap50) **17.2%→16.6%** · raise the liquidity bar → pond sinks MORE **and**
+selection collapses (+1.73%→+0.20%).
+
+**✅ THE ONLY SURVIVING LEAD — Codex's Q5, UNBLOCKED, never run:** **stock-first; sector as a LABEL not a
+gate**; own-sector RS; the **UPPER-MIDDLE band (D5–8), NOT the top decile**; **inverse-vol** weights capped
+per stock+sector; ≤40 names; costs ≥0.15%/side + ADV-tied slippage. Compare vs Next-50 / Nifty 500 /
+top-decile / no-RS EW universe / low-vol-only. **PRE-REGISTERED BAR: beat 13.8% net · NOT by beta · beat
+top-decile on GEOMETRIC return · survive 3 walk-forward windows (2005-11 / 2012-17 / 2018-26).**
+Rationale = 15P: D10 mean +1.97%/qtr but **sd 26.63% → 3.55% variance toll → geo −1.58%**, while **D6 has
+HIGHER mean (+2.38%) AND LOWER vol (22.75%) → geo −0.21%. "Best of the best" is dominated by "good."**
+⚠ Codex ruled 15P itself **"INSUFFICIENT EVIDENCE"** — the decile curve is not clean. It is a LEAD.
+
+**🔴 8 RETRACTIONS — every one the same failure: assert a fact, then test against the assertion, not a
+source.** 15h ETF legs (~6/16 sectors have NO liquid instrument) · 15i survivorship · 15j hysteresis
+transfer · 15k fill quality · **15L `series='EQ'` read BE surveillance moves as DEATHS (84% of "deaths"
+were fake)** · **15O corporate actions ARE unadjusted — the fix is REAL and necessary** (RELIANCE
+4.8%→15.1%, HDFCBANK 3.7%→18.8%; use `research/explosive_moves/adjust.py`) · 15R Codex's premise ·
+**15S: "corporate_actions is ~30% incomplete" was FALSE — the DB matches NSE EXACTLY** (2011: NSE 47
+split/bonus, we hold 47; TATAMOTORS: NSE reports ZERO, we hold zero). **THERE IS NOTHING TO FUND.**
+
+**BINDING RULES ADDED:** before ANY stock study → (a) `select series,count(*) from bhavcopy_rows group by
+1`, (b) `select action_type,count(*) from corporate_actions group by 1`, (c) re-read **Guardrail #5**
+(which named the corporate-action bug in advance and was violated all session). **Before claiming a
+dataset is incomplete: QUERY THE PRIMARY SOURCE AND DIFF IT. Before citing a detector's hit count:
+COMPUTE ITS FALSE-POSITIVE RATE.** Run the CONTROL (no-selection) before reporting ANY book number —
+it caught a ₹121 Cr fake within minutes.
+
+**✅ NOT a blocker (15O/15S):** stock→sector membership needs **no** classification job. PIT correlation of
+**excess** returns vs each sector index (trailing 500d) reproduces NSE's labels at **85.1% top-1 / 93.1%
+top-3** (random 6.2%); every weak case is an overlapping index. ⚠ Codex notes this validation is itself
+touched by CA residue — re-verify on adjusted prices.
+
+**Canon:** `docs/strategy-ledger.md` §§ **2026-07-15h → 2026-07-15S** (every number, every retraction) ·
+`docs/codex-review/rs-strategy-brief-2026-07-15.md` (the full brief Codex reviewed) ·
+`research/explosive_moves/`: `adjust.py` · `why_best_struggles.py` · `rs_50dma.py` · `ramana_book.py` ·
+`clean_numbers.py` · `recovery_onset.py` · `sector_assign_validate.py`.
+**Live `/dash/sector-rotation` still runs V21 — unchanged, and its scope banner is honest.**
+
+---
+
+## 🟢 2026-07-15i — THE STOCK BUILD IS SCOPED AND FEASIBLE — gated on ONE dataset. Start here.
+
+**Ramana's directive:** build on **STOCKS**, not indices. *"Identify the top-performing stocks within the
+strongest sectors"* · *"a portfolio that outperforms — can't rely entirely on one stock, nor diversify
+excessively"* · **the discriminator: *"if a stock is performing well within its NARROW index, we target it"*
+= stock RS vs its OWN sector, not the broad benchmark.**
+
+**Audit is DONE — do NOT re-derive (ledger §2026-07-15i has every number):** sector strength ✅ · stock
+RS-vs-own-sector vocabulary ✅ (`stock_signals.rs_vs_sector_today`+slopes+`rsi_of_rs`+`rs_phase`, 2011→2026,
+5.97M rows) · prices incl. dead names ✅ (bhavcopy 2004→2026, 9.39M rows).
+**❌ ONE BLOCKER: `stock_index_membership` = 4 WEEKS ONLY** (2026-06-17→07-14). **46% of the 2011 universe is
+dead; ZERO dead names carry a sector label.** ⚠ **Backtesting with today's member list = a survivorship FAKE
+(plausibly Sharpe 1.5–2.0) — do NOT build it.**
+
+**✅ BOUNDED:** at a **₹5cr ADV** floor the universe that ever mattered = **1,973 syms (1,693 live + 280 dead)**;
+₹25cr → only **113 dead**. Live = NSE industry classification (primary, G#8-clean, automatable). Dead 280 = the
+real work, but tractable.
+
+**DECIDED design — OWN sector composites, not index membership:** a sector = every liquid stock classified in
+that industry at date d; we build the composite. Investable by construction (kills the untradeable-leg flaw) ·
+wider pond (Nifty Auto ≈15 vs Auto industry ≈60) · far less survivorship bias (industry is NOT performance-earned,
+index membership partly is) · **membership history becomes unnecessary.**
+
+**Build order:** ① PIT sector-classification table (~1,973 syms, `knowable_at`-stamped) = **the unlock** →
+② own composites (liquidity-floored, PIT) → ③ sector layer = **V24's logic on our composites** → ④ stock pick:
+sector beats broad **AND** stock beats its own sector, ~4–8/sector, weight = sector × stock-RS rank, per-stock
+cap, **≤40 total**, per-sector stops → ⑤ **bias bound**: run twice (dead = average, then worst-decile), report
+the RANGE. **BAR PRE-REGISTERED: stock momentum = BETA not skill (t=1.99); merely matching the sector-index book
+= REJECTION.** Canon: `docs/strategies/sector-rotation.md` §9 #1 · ledger §§15h+15i.
+
+---
+
+## 🔴 2026-07-15h — SECTOR-ROTATION: READ THIS FIRST — the ladder below is HALF the strategy. It picks SECTORS, not STOCKS. The ≤40-stock build is the #1 open item.
+
+**Ramana caught this on 2026-07-15 and he is right.** Every V-number below (V8…V32) and every stat
+(Sharpe 0.91 · α +7.1% · ₹30.35 Cr) measures the **sector-selection layer ONLY** — a paper book that holds
+*sector indices themselves*. The engine reads one table (`index_rows`) and has **zero stock symbols**
+(`grep -ciE "stock_signals|bhav|symbol" research/explosive_moves/sector_rotation_v24_final.py` → **0**).
+**Half ② of his brief — pick the top-RS STOCKS driving the qualifying sectors, ≤40 names, sector-RS ×
+stock-RS weights, per-sector stops — was NEVER BUILT and never measured.**
+
+**⚠ Compounding flaw: ~6 of 16 sectors (Media · Realty · Consumer Durables · Infrastructure · Oil & Gas ·
+Metal-thin) have NO liquid Indian index ETF/futures**, yet the backtest prices every leg as a liquid ETF at
+0.15%/side (asserted, never verified). So the stats are optimistic by an unquantified amount, **and the
+constituent build is the ONLY executable path for a large minority of the book** — not a phase-2 nicety.
+
+**Root cause was a FRAMING failure** (the caveat existed, buried in open-items, while the headline led with a
+Sharpe). **Standing lesson: a scope gap goes ABOVE the headline stat, never in the open-items list.**
+
+**Do NOT quote any number below as a complete strategy result.** Canon: `docs/strategies/sector-rotation.md`
+SCOPE banner + §6-bis · ledger **§2026-07-15h** (the full flaw record + the pre-registered bar for the stock
+build: stock momentum is **BETA not skill, t=1.99** — merely matching the index book = **REJECTION**).
+
+**V24 = Ramana's designated sector layer** (2026-07-15h) — i.e. *what the stock build sits on*, NOT a
+promotion. `/dash/sector-rotation` stays on V21. Nothing graduates while the stock half is unbuilt.
+
+---
+
+## ✅ 2026-07-15 — SECTOR-ROTATION full arc (S-rotation-a…g, D136) — ⚠ SECTOR LAYER ONLY (D138) + ⚠ RUNGS NOT DISTINGUISHABLE & "Sharpe"=RETURN/VOL (D139/S160) + 🆕 STOCK LAYER SIMULATED & REJECTED (D141/S161): ratification SETTLED, V32 RETIRED, V21 stays live, stock-layer first-pass REJECTED — do NOT redo; kickstart-pick-verify; read this block in full before touching the strategy, it's self-contained
+> ### 🔴 S160/D139 SETTLED THE RATIFICATION — do NOT re-open it as a numbers question
+> **The significance pass has RUN and came back NULL** (ledger §2026-07-15i · D139 ·
+> `research/explosive_moves/sector_rotation_significance.py`). Two things every future session must carry:
+> **① The ladder's top rungs are NOT statistically distinguishable.** **V24 vs V32 is UNMEASURABLE** — a
+> 0.013 gap against a **0.148** minimum-detectable-effect at 80% power (11× below the noise floor; studentized
+> p **0.745**) → **V32 is RETIRED as a distinct candidate**, and the old "genuine trade-off / robustness vs
+> wealth" framing below **was reading noise — ignore it.** **V24 vs V21 is NOT established** either
+> (percentile 0.038 / analytic 0.081 / **studentized 0.127**; pivotal CI spans zero) and **dies under a
+> measured-fair k=9 selection correction** (the nine Round-4 levers' difference-series correlate at median
+> **+0.051** → genuinely distinct tests → Bonferroni appropriate → 0.345/0.726/1.000). V24≡V21 in **80% of
+> months** → ~9 informative blocks: **the window cannot resolve these differences on ANY method.**
+> **⇒ Do NOT run a Round 5 on this window hoping for a winner.** **Ramana's call (2026-07-15i, with the null
+> in hand): V24 stands as the designated carry-forward layer on MECHANISM grounds** (own-percentile adapts per
+> sector, replacing an unjustified fixed 70/80) — **a priors call, NOT an evidence result.** Per D138 nothing
+> is promoted: **`/dash/sector-rotation` stays on V21.**
+> **② Every "Sharpe" below is really a RETURN/VOL RATIO** — the engine computes `mean/sd×√12` with **no
+> risk-free subtracted** (V21 = 16.57% CAGR ÷ 19.92% vol = 0.875). True excess-of-6.5% Sharpes ≈
+> **0.51/0.54/0.54**. Benchmarks share the basis → **relative claims hold; absolute levels were overstated
+> ~1.7× by the word alone.** Ramana: **relabel, numbers unchanged** — done on the canon page, the ledger
+> (correction banner; dated entries left as historical record) and the LIVE page (deployed + walked S160).
+> *Honest limit: non-significance ≠ no effect — low power BY CONSTRUCTION (nested books correlated
+> 0.97–0.996). Only a fresh window / true OOS settles V24-vs-V21, and per D138 the honest priority is the
+> **constituent build**, not more tuning of a layer that may be unbuyable in ~⅜ of sectors.*
+
+**The ladder (never re-derive — cite these numbers; read every "Sharpe" here as "return/vol ratio", and see
+the S160/D139 box ABOVE before treating any gap between rungs as real):** all on 2005–2026 price-index data
+(TR re-cut still owed),
+16 NSE sectors, quarterly rebalance. V8 = FROZEN base (0.70/DD−36.2%/₹9.13Cr, Ramana-ratified, never
+edited — refinements are new V-numbers beside it). **V17** = V8 + defensive residual fill (0.79/−39.2%/₹19.04,
+recorded candidate). **V21** = V17 + Next-50 sleeve + recovery-accelerator + inverse-vol (**0.87/−40.8%/₹27.02 —
+the LIVE default on `/dash/sector-rotation`, and it STAYS there**). **★V24** = V21 + own-percentile RSI-of-RS exit (85th
+trims/95th exits, that sector's own trailing-756d history replacing the fixed 70/80) — **0.91 (0.92/0.91,
+the most half-balanced result in the whole project), MaxDD −37.7% (best), α+7.1%/yr (best), ₹1Cr→₹30.35Cr**;
+**the designated carry-forward layer — on MECHANISM, not evidence (D139).**
+**~~★V32~~ RETIRED (D139)** = V24 + adaptive hysteresis band — 0.90 (0.95/0.84), ₹1Cr→₹31.15Cr; its apparent
+wealth edge is the metric most inflated by selection, and it is **provably indistinguishable from V24** while
+carrying one more lever.
+"V24" is the BINDING name for the FULL V21+lever combo (Ramana, 2026-07-15g) — never the bare lever alone.
+
+**REJECTED with numbers, do not re-attempt without beating these (ledger §§ 07-15b/c/d/f):** short/F&O leg
+(0.49 vs 0.87 — shorts fight drift) · monthly cadence (3× confirmed, churn kills it) · book-level 200DMA kill
+(wealth collapses on whipsaws — the SAME signal only works on the residual sleeve) · longer RSI-of-RS window
+(smoother=slower=worse DD) · dual-benchmark AND-confirmation (under-protects) · 55/45 regime-band exit
+(REJECTED twice — first a single-sector Defence diagnostic, then confirmed at full-portfolio scale as V28) ·
+direction-of-trend entry/exit (turnover +3-5pt, worse DD, no payoff) · book-level vol-targeting (**worst
+drawdown blowup recorded: MaxDD to −50.8%/−53.6% despite higher CAGR** — fails "keep drawdown in check").
+**A real negative-interaction lesson:** V26 (persistence) is a clean win ALONE but HURTS combined with V24 —
+delays its faster reaction. Combining individually-validated levers is NOT always additive; test every combo.
+
+**What's LIVE today:** `/dash/sector-rotation` (→ nested `/dash/strategies/sector-rotation`; public Caddy 200)
+runs **V21** (not V24/V32 — those await ratification) with `?asof=` time-travel (◀/▶ steppers + year strip),
+per-quarter rebalance diffs, analytics-to-date vs Nifty 500, dual NAV sparkline, CSV. Engine
+`src/automation/sector_book.py` → `sector_rotation_book`+`sector_rotation_nav` tables, clock-gated `--refresh`
+in `10-signals.conf`. Every strategy-ref page hands off to its live surface (`strategies_view._SURFACE`).
+**Sleeve regime was CASH as of Apr-2026** (Nifty 500 below its 200DMA) — check current state before assuming.
+
+**Full quarterly holdings (all **86 quarterly rebalance DATES** — 21.5y × 4 quarters/yr; **86 is a COUNT, never a percent** — 2005→2026) are reproducible**, not just summary stats:
+`research/explosive_moves/sector_rotation_v24_final.py`, function `simulate_v24(record_book=True)` — returns
+every quarter's exact holdings+weights, sleeve regime, and the diff vs the prior quarter. This is what powered
+the interactive ledger shown to Ramana (year-grouped, searchable, filterable). The single-sector Defence
+diagnostic (regime-band idea, tested before the full V28 batch) is `research/explosive_moves/defence_rsirs_diagnostic.py`
+— read-only, standalone, reproduces the 51%-vs-98.8%-captured finding.
+
+**Canon (single source of truth, don't re-derive from this bullet):** [`docs/strategies/sector-rotation.md`](docs/strategies/sector-rotation.md)
+(the ruleset + terminology, incl. the V8/V17/V21/V24/V32 ladder) · [`docs/strategy-ledger.md`](docs/strategy-ledger.md)
+§§ 2026-07-15 → 2026-07-15l (every number, every rejection; **15h = scope flaw, 15i = the significance null + the label fix, 15j = the stock-layer first-simulation REJECTION**) · PROJECT_STATE.md Decision log **D136 + D138 + D139 + D141**.
+
+> ### 🔴 S161/D141 — THE STOCK LAYER HAS BEEN SIMULATED (once) — REJECTED at realistic cost
+> Ramana's two-step method (sector→stock) was **built and run end-to-end**, not just designed:
+> `research/explosive_moves/sector_stock_layer.py` — Step 1 = V24 exec'd untouched, Step 2 = rank each
+> qualifying sector's stock universe (268 real symbols, 16 sectors, genuine niftyindices.com primary source,
+> committed snapshot) by RS-excess vs its OWN sector composite, 33-name cap. **Result: REJECTED under the
+> pre-registered bar at 0.40%/side realistic stock cost** — return/vol 0.775 vs V24's 0.911, MaxDD −43.2% vs
+> −37.7%, CAGR 16.7% vs 17.2%, wealth ₹27.47Cr vs ₹30.35Cr. **Nuance: GROSS of cost it beats V24 on wealth/CAGR
+> (₹33.99Cr/17.8%) — real signal — but MaxDD is worse than V24 at EVERY cost level, including gross** (a
+> structural concentration effect, not a cost artifact). **Disclosed limitation:** the 268-symbol universe is
+> CURRENT-day classification applied statically backward (a much smaller bias than the banned index-membership
+> trap, but real; fails conservative — dead names excluded, not fabricated) — **this is a first pass, NOT the
+> ~1,973-symbol PIT-safe build below, which remains the target.** Ledger **§2026-07-15l** · PROJECT_STATE
+> **D141**. **Do NOT re-run hoping for a different verdict without: the full classification + dead-name bias
+> bound, a real per-name ADV/impact cost model, and a significance pass on this result** (n=258 with a
+> 6/16-sector-average book has real estimation noise — the rejection is directionally solid, not yet
+> statistically final).
+
+**NEXT (rotation lane, in order — RE-ORDERED by D138+D139+D141):**
+① ~~Ramana's ratification of V24 vs V32~~ **✅ SETTLED (D139, see the box above)** — V32 retired; V24 is the
+designated carry-forward layer on MECHANISM grounds; V21 stays live. Not re-openable as a numbers question.
+② ~~significance pass~~ **✅ DONE (D139) — NULL.** **STILL OWED: the TR-benchmark re-cut + the true-Sharpe rf
+re-cut — ONE data lane** (neither exists in `index_rows`; both need a primary-source NSE TRI / G-sec ingest per
+Guardrail #8, and both move the same headline figures). Small, well-defined, do them together.
+③ ~~the stock-selection layer~~ **✅ FIRST SIMULATION DONE (D141) — REJECTED, see the box above.** **NEXT
+iteration, in order:** (a) the full ~1,973-symbol PIT-safe sector classification with the two-sided dead-name
+bias bound (this run's 268 names are LIVE-only, current-day, static) — the canon's original spec at §9 #1 is
+UNCHANGED and is the target; (b) a real per-name ADV/impact cost model replacing the flat 0.40%/side proxy;
+(c) a significance pass on the D141 result (same JK/bootstrap/MDE discipline as D139) before treating the
+REJECTION as more than directional. **Pre-register the bar again before any re-run** (ledger §15h/j, unchanged):
+stock momentum is BETA not skill (t=1.99); matching or barely beating V24 net of realistic cost is still not
+a result on its own — the bar is BEAT it convincingly, ideally significance-tested.
+④ the instrument/ADV audit + per-leg cost re-cut (§6-bis) — the SAME per-name cost model item as ③(b) above;
+do them together, not twice.
+⑤ **Do NOT** promote the live engine, and **do NOT** run a Round 5 of lever selection on the 2005-2026 window
+— D139 measured that the window cannot resolve differences of this size on any method. A **fresh window / true
+OOS** is the only thing that would move V24-vs-V21.
+
+## 🆕 2026-07-15 — S155/S156 (D134 LANE-G + LANE-H): ENTITY GRAPH live + RULE-LAB design — do NOT redo; kickstart-pick-verify
+- **LANE-G `src/automation/entity_graph.py` — DEPLOYED + REAL-DATA VERIFIED.** 6 extractors over filing tables we already own → **7,813 edges in 130ms** (insider 3,643 · sast 2,256 · deal 1,033 · pledge_lender 441 · pledge 317 · rating 123); re-run identical, **0 dupes** (idempotent on live data). `neighborhood(symbol)` → edges + **co-links** (the other companies a shared counterpart touches, with `via` provenance). Walked live: MAHABANK 74 co-links · SASKEN 0 (correct — SASKEN-only filers).
+- **⚠ READ BEFORE BUILDING ITS SURFACE — hub counterparts are NOT insight:** 7 rating agencies cover 63+ companies each, so an agency co-link is structurally guaranteed; "connected to 74 companies!" is an artefact of CARE Ratings existing. Rank by counterpart SCARCITY (shared insider 67 · acquirer 111 · deal 97 · lender 46), never headline a raw degree. **Degree is not importance.** Fenced in the docstring.
+- **Ledger-fenced by construction:** NO score/weight column EXISTS (a test asserts it) — E-03 (placebo p95 **+9.52% > observed +8.26%**, emp-p 0.085) + accumulation-footprint v1 (FAIL 1/4, n=54) are cited in the docstring. Live insider edges span only 2025-11..2026-07 (~8 months), independently corroborating E-03's thin-feed premise. Any predictive claim needs its OWN prereg. **Surface deliberately NOT built** (playbook is a same-session contract — it earns a lens when a real reader question needs it).
+- **LANE-H `docs/rule-lab-design.md` — DESIGN ONLY (build = its own session).** Closed-vocab grammar (every token binds 1:1 to a tested `factory.*` callable; NO arithmetic composer / rupee constants / timing DSL / single-stock verdicts) → the EXISTING evidence factory as the gauntlet (prereg → walk-forward both halves → **placebo p95** → cost realism (**net FIRST**) → capacity breakpoint → bench 0.89) → a verdict in the **ledger's own vocabulary** with a travelling qualifier. The 10-row BLOCKING table is reproduced **verbatim** (mechanically diffed: 10/10, 0 altered) as an **auto-cite wall** + a token→row trigger map. SEBI per plan §3; playbook 12 rows pre-filled; verdicts land in the Review Inbox (reuses LANE-D, no new job runner).
+- **⏭ NEXT PICKS:** the D134 build lanes are now ALL landed (A–I). Natural next: **the rule-lab BUILD session** (spec is paste-ready, §8 build order) · **wire tags-review → review_inbox** (first non-brief producer) · **the wire-publisher for APPROVED briefs** · an entity-graph SURFACE (only if a reader question needs it — respect the hub caveat). **Ramana's open decisions** (plan §7): vendor-ToS enum ×6 · auto-analyst ₹200 cap ratify · charter v2.0 · should a NEW-BENCHMARK verdict auto-append to the ledger or go to the inbox first (proposal: inbox — canon should carry a human signature). **Time-gated:** first heartbeat DM Wed 03:30 UTC · Aug-1 churn row-gain. The codex START-HERE queue below is a DIFFERENT lane's — its item 1 (Pattern-5) landed as `62fb1b6`; item 2 (Doctrine-D scorer) is still open FOR THAT LANE.
+
+## ✅ 2026-07-16 — S155-c/d: per-symbol QUALITY flow + Doctrine-D×3.4 MERGE — SHIPPED + DEPLOYED + LIVE — do NOT redo
+
+- **Pat now answers a SYMBOL's fundamentals** (`src/pat/quality_flow.py`, S155-c): "what's HDFCBANK's CET1 / is HDFCBANK a good bank / what's TCS's ROCE / risks in X" → the name's own figures + its scored quality read (Doctrine-D for lenders), carrying the NA/PROVISIONAL honesty. Symbol-anchored (the market-wide screen is never stolen); reuses `as_of_fundamentals`→`financial_subtype`→`score_fundamentals` (guardrail-#8 clean, no vendor call). Battery UNCHANGED; 9 tests. Wired at engine `(a-1f2)` after filings.
+- **Also taught Pat the Doctrine-D METRICS** (S155-b): the glossary had ZERO coverage → Pat answered "what is CET1" with nothing and "return on assets" with `drift_22d`; the curated `financials_adaptation` even claimed Doctrine-D "is a MANUAL judgement, not automated". Fixed + a gate hole closed (`test_ingested_lender_metrics_are_glossary_backed`). ⚠ curated entries OVERRIDE the md; the md parser is line-based + caps bodies at 280 chars.
+- **MERGED Doctrine-D × the sibling's 3.4 Screener-off** (S155-d, Ramana-directed): cherry-picked `f7006d9` onto the Doctrine-D HEAD (authorship + provenance kept); resolved `score_symbol` = **their archive fetch × my sub-type resolution**. **LIVE-PROVEN both at once:** BAJFINANCE → T3 `doctrine-d` with real GNPA 1.01%/NNPA 0.41%; `fundamentals.MAX(fetched_at)` frozen (zero Screener scrape). All on origin/main (`8e6d3af`); box byte-matches HEAD; suite 647.
+- **✅ BANK BACKFILL DONE (S155-e, 2026-07-16) — Doctrine-D is now REAL for 18/23 banks.** The chain is PROVEN end-to-end on real data: AXISBANK/SBIN/ICICIBANK/KOTAKBANK… now score `doctrine-d` on **5/5 lender inputs** with live GNPA/Net-NPA/CET1/RoA, and the model DISCRIMINATES (SBIN P5 16/48 on GNPA 2.07%/CET1 9.52% vs KOTAK 48/48 on 1.45%/22.49%). Live via Caddy (`is SBIN a good bank` → real figures). 18 passing banks re-ingested (cleared their urls from `fundamentals_xbrl_seen`, re-ran `ingest(symbols=[b])` with the RESTORED SA-extraction — 53 symbol-periods; CET1 0→16 symbols, RoA 0→17). Data reads at request time → no restart needed; **`pattern_scores` board tiers still predate this, they update on the next nightly re-score** (Pat's quality flow already shows fresh).
+- **🔑 CORRECTED FINDING (supersedes the earlier 'just re-ingest' note):** the residual was NOT a simple re-ingest — **the continuity gate BLOCKS prudential ingest for the 5 gate-held/ungated banks** (HDFCBANK + CSBBANK/DCBBANK-type + 2 ungated). My S154 prudential `augment` sits BEHIND `if not gated(sym): continue`, so a gate-held bank never gets GNPA/CET1 even though those tags have NO Screener baseline to fail continuity against. **▶ THE REMAINING FIX (design, sibling-XBRL-lane coordination): move the prudential extraction to run for a bank filing REGARDLESS of the P&L continuity gate** (the prudential ratios are gate-orthogonal — new metrics with no Screener counterpart). Then HDFCBANK et al. populate too. Small, targeted; touches the sibling-hot `fundamentals_xbrl.py` ingest loop — coordinate.
+- **Also still open:** SA-sourced prudential rows are stamped SOURCE_CONSO (per-metric override in `write_rows`; only bites when the SA sibling is fetched — the conso-disclosing banks like AXISBANK are correctly NSE-XBRL-CONSO). Forward-only is now self-healing: NEW bank filings auto-get prudential (the code is restored + live).
+
+## 🔴 START HERE — CODEX-REVIEW CAMPAIGN: decisions LOCKED, build queue ready (2026-07-15)
+
+**Boot:** `docs/codex-review/FINDINGS-LEDGER.md` + `TRACK-C-RESULTS.md` + `TRACK-D-DATA-PLAN.md` (esp. its
+"Step-2/3 investigation" block) + memory [[codex-review-campaign]]. Governance (BINDING): **ship only on
+Codex↔Claude agreement.** Guardrail #8 = primary sources only.
+
+**✅ DONE — do NOT redo (kickstart-pick-verify; all on origin + live-verified):** **ALL 4 VPS activations** —
+**D2-F1** PIT rank universe via `security_master` (2016 rank universe 419→**547**; today unchanged 1336) ·
+**D6-F2** knowable-date backfill (4,070 rows) + `credibility_series` rebuild (19,837 pts; settled 5,255
+**unchanged** = non-destructive) · **D5-F6** momentum_scan/em_cache rebuilt (split-invariance proven 1.0000
+vs old 1.3750) · **D1-F1** `signals --backfill-triggers` (3,805 syms / **5,968,171 rows** / 0 fail; 650
+latest-date rows changed, 16 char-label flips). Plus **Track C RISKADJ 1.13→1.09** annotation into
+`docs/strategy-ledger.md`, **D3-F1 interim LABEL** (`scoring.py`), **Track D Step-1 XBRL spike**.
+**Full-surface health check PASSED** (services active · nightly chain exit 0 · every consumer page 200 / 0 tracebacks).
+
+**🔑 RAMANA'S DECISIONS — LOCKED 2026-07-15 (execute; do NOT re-ask):** Doctrine-D scorer **defaults
+approved** — sub-type-aware thresholds (bank RoA ~1% · NBFC 2–4% · HFC RoE 12–15%) · **ALM = CET1/CRAR +
+GNPA proxy** (defer true ALM) · **suppress-half folds into the scorer**. **Pattern-5 SA-extraction: BUILD it**
+(isolated worktree; coordinate with the sibling-active XBRL lane). *"Do the other parked items too, where feasible."*
+
+**▶ QUEUE:**
+1. ~~**Pattern-5 SA-instance extraction.**~~ **✅ DONE + DEPLOYED + LIVE-VERIFIED (S154, `62fb1b6`) — do NOT redo.**
+   NEW `extract_bank_prudential()` + `_has_prudential_tags()` + `augment_prudential()` in
+   `fundamentals_xbrl.py`, wired into BOTH ingest paths (legacy listing pulls the dropped SA sibling only
+   when a bank block is zeroed; integrated-filing costs ZERO extra fetch — it already parses both natures).
+   Metric-keyed → no schema change. Live proof: HDFCBANK → 1 SA fetch → `{GNPA 1.42, NNPA 0.46, RoA 0.47,
+   CET1 19.97}`, P&L intact; BAJFINANCE (NBFC) → 0 fetches, `{}`. 10 tests + suite 487.
+   **🔑 THREE FACTS NOW SETTLED EMPIRICALLY (don't re-derive):** raw tags are **fractions** (×100 = percent);
+   a bank's **conso reports 0.00 for all five** (SA-only is real, non-zero gate = the conso guard);
+   **⚠ `ReturnOnAssets` is context-dependent — OneD (discrete qtr) 0.47% vs FourD (YTD) 1.43%** — read the
+   discrete-quarter ids or you silently store the YTD number. **`_is_bank_instance` can NOT gate the SA fetch**
+   (NBFCs tag `InterestEarned` too) — `_has_prudential_tags` (declared-even-if-zero) is the discriminator.
+   **▶ RESIDUAL (bounded, deliberate):** XBRL rows populate for filings ingested **from now on** (nightly
+   `hermes-fundamentals-xbrl` 16:33 UTC). Already-ingested bank periods sit in `fundamentals_xbrl_seen` and
+   will NOT be re-parsed → a **targeted re-ingest** (clear those urls for bank symbols, or route via the
+   Phase-3 backfill) is needed for XBRL-sourced history. Gate it past the scan clusters.
+   **🔑 CORRECTED 2026-07-15 (measured, supersedes the earlier "no historical Pattern-5 data" claim):**
+   `fundamentals_history` ALREADY holds **`Gross NPA %` (289 rows) + `Net NPA %` (286 rows), 2020-03-31 →
+   2026-06-30, from the SCREENER archive** (`source IS NULL`). **`Return on Assets %` and `CET1 %` do NOT
+   exist at all** (0 rows) — those are genuinely net-new and forward-only. So the scorer's Pattern-5 legs
+   split: GNPA/NNPA have deep history (vendor-sourced), CET1/RoA start empty and fill forward.
+   My emitted names MATCH the Screener names exactly for the two overlapping metrics → ONE vocabulary, no
+   variant to reconcile. ⚠ **Guardrail #8:** that GNPA/NNPA history is **Screener (vendor) data** — the very
+   thing the XBRL migration replaces; `write_rows(overwrite_screener=False)` (the default) leaves Screener
+   rows untouched, so XBRL supersedes them only on a deliberate `--overwrite-screener` pass.
+   ⚠ **Build the scorer NULL-tolerant regardless** (absent ratio ⇒ that leg abstains, never a false
+   pass/fail) — CET1/RoA will be absent for most names for months.
+   ⚠ **KNOWN PROVENANCE WRINKLE (mine, unfixed):** `write_rows` stamps ONE `source` per filing
+   (`SOURCE_CONSO if filing["consolidated"] else SOURCE_SA`), so prudential ratios pulled from the SA
+   sibling are written stamped **SOURCE_CONSO**. Guardrail-#8 (vendor-vs-primary) is unaffected — both are
+   NSE-XBRL — but a `WHERE source=SOURCE_SA` query will not find them. Fixing it needs a per-metric source
+   override in `write_rows` (sibling-owned; coordinate).
+2. ~~**Doctrine-D financials scorer (Step 4)**~~ **✅ DONE + DEPLOYED + LIVE-VERIFIED (S155, `70853a1`) — do NOT redo.**
+   Patterns 1/2/5 replaced for lenders BEFORE the aggregate (profitability on the sub-type's ratios ·
+   operating leverage on **NII** · asset quality+capital GNPA≤1.5/CET1≥13/NNPA≤0.5) · generic **D/E
+   disqualifier DISABLED** for lenders · **suppress-half in the scorer** (no lender evidence → tier `NA`).
+   `fundamentals_asof` surfaces the lender keys DERIVED from stored metrics (no ingest work).
+   Live proof: HDFCBANK generic→**DISQUALIFIED 29.8** vs Doctrine-D→**T3 45.8, P5 48/48**; live universe
+   classifies **bank 23 · hfc 1 · nbfc 14**; HDFCLIFE/BSE → **suppressed** (not lenders); TCS unchanged.
+   **🔑 FOUR TRAPS NOW PINNED (don't re-derive):** (a) `roa_pct` is the **discrete quarter** — annualise ×4
+   before the ANNUAL "~1%" bar or every good bank FAILS; (b) each leg needs its **own** bar (RoE judged on
+   the RoA bar = meaningless pass); (c) `security_master.**company_name**` (NOT `name`) — the fail-closed
+   except silently degraded every HFC to NBFC, and the test fixture had invented the column; (d) **'Financial
+   Services' also carries INSURERS/EXCHANGE/holdcos** — `roe` must NEVER be lender evidence (every company
+   has one) or they get an "NBFC read on RoA" verdict = the D3-F1 error in a new place.
+   **▶ RESIDUAL / NEXT for this lane:** banks are **PROVISIONAL** — most score T4 on 1/5 lender inputs
+   (NII growth alone) because RoA/CET1 have **0 rows** until the S154 XBRL SA pass fills forward. The score
+   now discloses this (`sector_evidence` + "Read on 1/5 lender inputs … provisional"). **To make the model
+   real, do the S154 residual: a targeted re-ingest of bank filings** (clear their urls from
+   `fundamentals_xbrl_seen`, or route via the Phase-3 backfill; gate past the scan clusters) → then
+   re-check that RoA/CET1 populate and the tiers firm up. Also unfixed: SA-sourced prudential rows are
+   stamped `SOURCE_CONSO` (per-metric source override in `write_rows` — sibling-owned).
+
+3. **Parked — do if feasible:** PROJECT_STATE + this carry-forward **reconcile** (OWED) · **D1-F4** ignition
+   warm-up guard (converge with Codex first, then scoring + VPS `--relabel`) · Wolfe D4 / harmonic-zigzag
+   D7-F1 / prereg D5-F5 (sibling-hot).
+4. ~~**Verify the 14:01 nightly chain**~~ **✅ DONE (S155-b) — CLOSED.** The chain is ONE unit
+   (`hermes-bhavcopy.service`, chained ExecStarts bhavcopy→signals→…→stock_rs→cpr→reversal). Its first
+   incremental-path run on the newly-deployed `signals.py` fired **Wed 2026-07-15 14:01 → 14:11:12,
+   `Result=success` `ExecMainStatus=0`**, clean journal, no tracebacks. `stock_rs.py` was already proven
+   on the Tue run. **All 4 codex VPS activations are now verified through a real nightly cycle.**
+
+**⚠ STANDING CONSTRAINTS:** **SHARED-WORKTREE HAZARD** — multiple sessions on ONE `D:\Hermes` tree on `main`
+→ diverged + churning. **Docs edits = plumbing-on-origin** (`git show origin/main:f` → edit → `hash-object -w`
+→ temp-index `read-tree`/`update-index`/`write-tree` → `commit-tree -p origin/main` → `push <sha>:main`,
+FF-checked) — this lands cleanly while siblings churn. **Code = isolated worktree.** Never `git add -A`;
+explicit paths only. **CONTINUOUS whole-surface verification after ANY deploy/backfill/push** (Ramana
+directive): services + nightly chain + the live pages consuming the change — not just the changed thing.
+Gate backfills **past the scan clusters** (14:01 bhavcopy · 16:00–16:30 wolfe/harmonic/launchpad); never
+restart 13:55–14:15 UTC. XBRL/network needs the **main venv** `/opt/hermes/.venv/bin/python` (not
+`.venv-research`). Box rollback backups: `*.bak-d1f1/d2f1/d5f6/d6f2-*`. `--relabel-character` is
+**INSUFFICIENT** for D1-F1 — the correct tool is `--backfill-triggers`.
+
+## 🆕 2026-07-15 — S153/S153-b (D134 LANE-E + LANE-I): AUTO-ANALYST v1 + REAL-TIME SEAM — BUILT + DEPLOYED + DONE-BAR MET — do NOT redo; kickstart-pick-verify
+- **LANE-E (`src/automation/auto_analyst.py`):** freshest `results_reactions` → 6–10 line descriptive brief → Review Inbox (`kind='brief'`, period-stable refs, first-write-wins). Template ₹0 default; `--llm` opt-in triple-guarded (per-job cap ₹200 §7.2-proposal degrades BEFORE calling · cheap router `job="auto-analyst"` self-meters · digit-subset guard kills invented numbers; label/fence/PEAD-falsification tail VERBATIM on every path). Compliance lexicon runs over module + rendered briefs in `tests/test_auto_analyst.py`.
+- **✅ DONE-BAR met on box:** 2 REAL briefs queued (HCLTECH SUE +2.01 · ANANDRATHI SUE +18.97), path=llm (Gemini Flash Lite), **₹0.01 logged under `auto-analyst`**; a scheduled `classifier` call had already self-metered ₹1.05 organically — the LANE-R ₹-meter is proven in prod. MTD ₹1.06/2,500. **Ramana: two briefs await your verdict — `review_inbox --pending` / `--decide ID --verdict approved|rejected` (the judgment corpus starts here).**
+- **LANE-I (`src/automation/intraday_adapter.py`):** `QuoteSource` ABC + bounded age-pruned `intraday_window` + `NullSource` + `T0LiteSource` stub (₹0 EOD-prelim path, not wired). `feed_manifest.FEEDS["intraday_seam"]` = `personal-broker` (MIN_FEEDS 22) → the licence gate fences it OFF src/web BY CONSTRUCTION; no Kite wiring (tested). Kite activation stays Ramana's paid decision.
+- **⚠ For the next inbox producer (tags-review):** `review_inbox.submit(conn,…)` does NOT commit; DDL auto-commits mid-batch → commit-per-item after submit or the batch's LAST item silently rolls back (bit LANE-E; fixed consumer-side; LANE-D may want submit() to own the commit).
+- **⏭ NEXT PICKS:** **LANE-G** (entity graph v1) + **LANE-H** (rule-lab design doc) — prompts in `docs/parallel-lane-prompts-D134.md`. Also queued: wire tags-review → inbox · the wire-publisher for APPROVED briefs (small; SURFACE-PLAYBOOK) · Ramana decisions (plan §7: vendor-ToS enum ×6 · E's cap ratify · charter v2.0) · time-machine `asof_capable` flags · verify the first heartbeat DM (Wed 03:30 UTC) + Aug-1 churn row-gain.
+
+## 🆕 2026-07-15 — S149-c (D134 LANE-R): WAVE 1 INTEGRATED + DEPLOYED + HEARTBEAT ARMED — do NOT redo; kickstart-pick-verify
+- **The divergence is GONE:** local-main's 9 commits rebased onto origin in an isolated scratchpad worktree — `a781669`/`bce01cb` auto-dropped (patch-twins), `216db7b` dropped as SUBSUMED (origin `0e2ca21` is its evolved reconcile — verified: reversal-pair-PLAN deleted, reversal-context served, backstop present), 6 unique commits carried; duplicate "S148" disambiguated (`### Session 148 (XBRL lane)`). Reconcile pushed `2fc1248`; integration pushed `edffb86` (one mid-flight re-rebase over the Pat lane's push — expected race, resolved keep-both).
+- **B/C/D merged serially** (`cherry-pick -x` — NOT `git merge`: the lane branches sit on the pre-rebase lineage, a merge would re-fight every twin conflict) with the FULL suite between: 398 → 410 → 428 → **460 green** post-race. One real red found+fixed en route: carrying S145's classics glossary onto the S141 Pat-adapter broke `test_every_web_entry_accounted_for` (names starting with a slashed symbol produce no speakable lead) → `Debt to Equity (D/E)` / `Price to Book (P/B)` words-first rename (`89f5436`).
+- **₹-meter has PRODUCERS now (LANE-B's #1 open Q closed):** NEW `src/core/llm.py meter()` (never-raises; Anthropic+OpenAI usage shapes) → `cost_ledger.record`; wired into `ask()` · `llm_router` classifier/extractor BOTH providers (`job=` kwarg for per-producer labels) · assistant chat · patearn analyze/screen. Scheduled jobs meter immediately (fresh processes); bot/API activated by this session's restarts. enrich.py (paused) + code_review.py (dormant) left out, reasoned.
+- **✅ DEPLOYED + VERIFIED (~21:10 UTC):** 11 files placed byte==HEAD (fork-checks: ALL 5 shared files = committed ancestors; 3 "forked" flags were CRLF remnants — CR-strip both sides!). On-box: py_compile + imports + 4 selftests green; REAL heartbeat line: **"estate GREEN · board OK · bhav 2026-07-14 · signals 2026-07-14 · fund 2026-07-14 · events 2026-07-14 · crit 2 · ₹0/2,500 MTD (0%) OK"**. Units installed TARGETED (not blanket `--install` — see drift note below) + daemon-reload. **Heartbeat timer ENABLED+STARTED — provably schedule-only** (no Requires=, Persistent=false; `list-timers` NEXT = Wed 2026-07-15 03:30 UTC = 09:00 IST; service inactive, journal empty). **First real morning DM lands Wed ~09:00 IST — verify it fired + fire-once held (re-run `--dm` = "nothing new").** Disarm = `systemctl disable --now hermes-heartbeat.timer`. Writer-guard BLOCKED on `fundamentals_provenance --refresh` → verified frequent commits + writes only `fundamentals_history` (api startup doesn't read it) → justified restart-past; writer survived both restarts; api 200; cockpit tile honest wording live ("Rewind the whole platform" = 0 hits).
+- **Cheap open-Qs closed:** cockpit ~975 flagship-tile overclaim FIXED (audit §4 wording, deployed live) · lens_registry model-portfolios comment de-drifted (2012-06 + CRAFTSMAN; repo-only — comment invisible, box copy still forked) · plan §4 B/C/D→LANDED, §1 ledger flipped.
+- **⚠ Observations for owning lanes (NOT mine):** (1) `install-systemd.sh --check` shows **`hermes-deals.timer` DRIFT** (repo≠/etc) — whoever changed it owes the install decision; (2) the 4 UNCAPTURED seasonal units remain (S138 flag); (3) **the shared D:\Hermes tree still sits on the OLD pre-rebase main (`e534d1f`) — plain FF is IMPOSSIBLE by construction** (the reconcile rewrote that lineage; every old commit is carried in rewritten form). Recipe once its dirty files are resolved by their owners (`stock_chart.py`/`symbol_search.py` = the Pat lane's own content, committed as `b7553a6`; `cockpit.py` mod appeared mid-wrap, owner unknown): `git reset --keep origin/main` (or `--hard` once fully clean). Do NOT commit new work onto the old local main.
+- **⏭ NEXT PICKS (paste from `docs/parallel-lane-prompts-D134.md`): LANE-E** (S153 auto-analyst event briefs — review_inbox is LIVE on box, cost_ledger cap_status ready for its ₹100–300/mo hard cap) **and LANE-I** (real-time seam interface — extends feed_manifest via a manifest row; the licence gate keeps it off public surfaces by construction). Also queued: wire the FIRST review_inbox producer (tags-review) · Ramana's plan-§7.7 vendor-ToS enum decision (6 feeds) · time-machine `asof_capable` flags (audit's flag map is paste-ready).
+
+## 🆕 2026-07-15 — S150: PAT "DATA HERO" + the SELF-MAINTAINING KNOWLEDGE ARRANGEMENT — SHIPPED + DEPLOYED + LIVE — do NOT redo; kickstart-pick-verify
+- **THE ARRANGEMENT IS INSTALLED + ENFORCED (Ramana's core ask).** `tests/test_pat_coverage.py` (Gate 0) makes every routed lens declare Pat coverage — **DATA** (`PAT_DATA` lens→flow, verified vs `engine._VALID`/`web._FLOW_LABEL`) / **EXPLAIN** (`PAT_EXPLAIN` lens→glossary slug, auto-folds) / **NAV** (`NAV_ONLY` owner+rationale, navigate-verified) — or the build FAILS. A new lens moves NAV_ONLY→PAT_DATA the moment its flow lands. Glossary half too: `test_screener_columns_are_glossary_backed` (every Screen+ column key resolves or is `''`). Auto-fold PROVEN both ways (md term → explain, injected Lens → navigate, ZERO code). Canon = **`docs/pat-knowledge-contract.md`** (DOC_INDEX A; twin of SURFACE-PLAYBOOK 5+6 / CLAUDE.md #9 / AGENTS.md #7). **When adding ANY new lens/metric: register into Pat in the SAME commit or the build breaks — this is the point, do not weaken it.**
+- **4 NEW/EXTENDED Pat flows, all DEPLOYED + live-walked on real data:** `filings_flow.py` (per-symbol insider/ratings/SAST/holdings — "filings for TCS"), `wolfe_flow.py` (open Wolfe setups — "any wolfe setups", 71 open live), `methodology_flow.py` (Ph3 — "explain the Wolfe methodology" → plain words from docs/strategies, sanitized), `seasonal_flow.py` per-symbol ("is TCS usually up in July" → 11/19 yrs). Gate now **22 DATA / 9 EXPLAIN / 36 NAV**.
+- **Plain-language floor 141 → 159/202** (fundamentals 40/40, rs 27/30) via precise ₹0 recognizers in `disambiguate.route_extra`; Pat eval battery UNCHANGED (nothing stolen). Commits `a8cddf8`…`367d5d2` on origin/main (tip `ed6309d`); 8 src files on the box byte-match HEAD; controls (FII/DVPT) unaffected.
+- **NEXT Pat picks (all OPTIONAL — coverage is complete + enforced):** the 36 NAV-only lenses are honest link-only coverage — UPGRADE any to DATA by writing its `*_flow.py` (candidates the gate rationales flag: band-locks/harmonic-scan open-setups · conviction confluence · growth glossary-anchor → EXPLAIN). Card band (4/18) is placeholder-limited (X/<stock>), index band entangled with rs — leave unless a real per-symbol read appears. **Follows the established pattern: new `src/pat/<name>_flow.py` + ₹0 pre-pass + web render + `_VALID`/`_FLOW_LABEL` + eval/pytest + move the lens to PAT_DATA.**
 
 ## 🆕 2026-07-15 — S149: D134 ANALYTICS-COMPANY PLAN + COMPLIANCE GATE SHIPPED — do NOT redo; kickstart-pick-verify
 - **`docs/patearn-analytics-company-plan.md` is the company-level canon** (CANONICAL/LIVING, D134): analytics-company posture (VALIDATED — descriptive analytics needs no RA/IA registration; gray zone = single-stock house scores; trigger contract = legal opinion before monetizing them publicly), the 9 adaptable layers L0–L8 with plug-in contracts, the rated+costed component roadmap A–N, the structured cost model. Charter v1.1 §NOW is fully shipped — plan §6 is the proposed charter-v2.0 queue (Ramana ratifies).
 - **The 5th gate is live:** `tests/test_compliance_language_gate.py` (solicitation/recommendation language in src/web+src/pat fails the suite; Pat's advisory-REFUSAL detector phrases are the reasoned allowlist).
 - **NEXT per plan §6 (in order):** S150 **cost-ledger + estate heartbeat** (compose board_health + feed-liveness + timer results + alert-rail criticals into ONE positive morning owner-DM line, plus a `cost_ledger` ₹-meter every LLM job writes; budget law = plan §5.4) → S151 **licence-class registry + feed/signal manifests** → S152 **Review Inbox + judgment corpus** (generalize tags-review/ack; the human-verification layer) → S153 **auto-analyst event briefs** (capped, inbox-gated, results-events first) → S154 **time-machine contract** (`asof_capable` flags in lens_registry). Parallel lanes unchanged: XBRL Phase-3 pilot (S148 lane) · UX S-B1 remainder · armed studies.
-- **⚠ DIVERGENCE FLAG (owning lanes to reconcile — do NOT force, do NOT redo):** local main vs origin/main diverged; local-only = `216db7b`/`a781669`/`0b637ed`/`bce01cb` (S147-docs · S-B1-item-2 · XBRL-Phase-3 · ledger D1-F1); `a781669` is a patch-twin of origin `29e4169` (auto-drops on rebase); two lanes both used "S148" (and a live sibling worktree branch `s150-pat-autolearn` claims "S150" — lane commits therefore carry `D134 LANE-X` labels, not session numbers). The XBRL lane reconciles at its next push; S149's commits ride that stack.
+- ~~⚠ DIVERGENCE FLAG~~ **✅ RESOLVED by LANE-R (S149-c, 2026-07-15):** the local stack was rebased onto origin and pushed (`2fc1248`); twins dropped, "S148" disambiguated. No divergence remains.
 - **✅ S149-b (same session): WAVE 1 DISPATCHED + ALL 4 LANES LANDED (parallel background agents, worktree-isolated, base `63705e6`):** **B** `lane-b-d134`@`d667240` — cost_ledger + estate_heartbeat + hermes-heartbeat.{service,timer} + 22/22 tests (sample: "estate GREEN · board OK · … · ₹17.60/2,500 MTD (1%) OK"; zero producers instrumented yet) · **C** `lane-c-d134`@`7d5cb27` — feed_manifest (21 FEEDS · 11 SIGNALS, ledger-verbatim fences) + licence gate 12/12; **6 vendor-ToS feeds UNCLASSIFIED → NEW Ramana decision (plan §7.7)** · **D** `lane-d-d134`@`b642334` — review_inbox primitive 18/18 (first-producer rec: tags-review) · **F** `docs/time-machine-audit.md` (67 lenses: 5 yes / 34 partial / 28 no; top upgrade = momentum-scan `?asof=` one-query; HONESTY: cockpit ~975 flagship tile "Rewind the whole platform" overclaims the 1-symbol replay → fix in LANE-R). Full results + open questions: `docs/parallel-lane-prompts-D134.md` §1/§2.
-- **➡ NEXT = LANE-R** (`docs/parallel-lane-prompts-D134.md` §LANE-R, run as its own session): reconcile main↔origin FIRST → merge B→C→D serially (full suite between merges) → PROJECT_STATE entries for the three lanes (state:skip debts) → push FF → deploy new modules + install heartbeat unit (NO start; writer-guard; not 13:55–14:15 UTC) → arm heartbeat → relay to LANE-E/I. **Worktree gotcha:** the state-doc pre-commit fires inside worktrees — future lane commits need BOTH `state:skip` in the message AND `HERMES_SKIP_STATE_GATE=1`.
+- ~~➡ NEXT = LANE-R~~ **✅ LANE-R RAN (S149-c, top block): merged B→C→D, deployed, heartbeat armed. Next = LANE-E + LANE-I.** **Worktree gotcha stands:** the state-doc pre-commit fires inside worktrees — lane commits need BOTH `state:skip` in the message AND `HERMES_SKIP_STATE_GATE=1`.
 
-## ✅ 2026-07-14 — S147: REVIEW OF RAMANA'S OWN STRATEGIES + origins.md label closure SHIPPED (docs) — do NOT redo; kickstart-pick-verify
-- **Ramana-directed strategy review (DVPT→MEP→Wolfe§B→CPR→reversal-context): all 5 canonical pages verified ACCURATE vs live + the ledger — no overclaim, no fence needed softening.** The ONE binding gap was origins.md's `**Origin:**` header rule (S132j) being unmet by all 10 pages → CLOSED.
-- **Origin labels added to all 10 strategy pages** (distinct 🧑/🏠/📚 preserved — do NOT merge; Ramana's 🧑+🏠 collapse decision still PENDING) + **machine backstop** `test_every_served_page_declares_origin()` in `tests/test_strategy_docs_coverage.py` (a new strategy can't ship label-less). +3 origins.md map rows (RS · Harmonic · Momentum engine).
-- **NEW canonical page `docs/strategies/reversal-context.md`** (STREAM BAND + FRACTAL FLOOR; 🧑 RAMANA; DESCRIPTIVE-ONLY, falsified at all 4 levels — cite ledger §§ 07-13/14/14b/14c before ANY re-attempt) — served via `_PAGES` + README matrix + terminology. **Fixed the pre-existing RED `test_every_doc_is_served`** by exempting origins.md as a governance index (the `_public` sanitizer would mangle its 🧑 RAMANA taxonomy) — suite gate GREEN (11 strategies in sync).
+## ✅ 2026-07-15 — S143-e: CHART COMPARE fixed (Ramana-directed) — do NOT redo; kickstart-pick-verify
+- Ramana reported "index comparison removed" + "stock chart won't let me add stocks/related-companies/indices."
+  **Neither was removed or broken** (Explore agent + live curl + backups verified): index-compare lives at `/dash/compare`
+  (the index chart LINKS to it, never inline); the stock price-chart's compare box was a bare EXACT-MATCH input that
+  silently rejected NAMES / wrong-case indices → "No series" → read as broken. **FIXED + LIVE-WALKED on the box:**
+  `symbol_search.py` (base-matched) gained `search_indices()` + a `?indices=1` endpoint flag + `TYPEAHEAD_JS`
+  `onPick`/`indices` options (⌘K/home unchanged); `stock_chart.py` (forked; 2-hunk `git apply` over the box's older-RSI
+  D7-F5 drift) price-tab compare box now has a company+index typeahead dropdown (pick→add) + a name-resolution fallback.
+  Browser-driven walk: "tata"→companies, "nifty"→indices, pick Nifty 50→added, "infosys"+add→resolved+added.
+- **DONE (S143-f):** all 3 chart-compare follow-ups shipped + live — (1) related-companies peer chips now on the PRICE tab; (2) index-chart Compare link is now a prominent button; (3) ranking prefers the current listing (INFY over the old INFOSYSTCH). No chart-compare work remains.
+- **(historical list, now done):** (1) surface "related companies" (peers) on the PRICE tab too
+  (today the peer chips are RS-tab only); (2) make the index chart's "Compare indices" link more prominent;
+  (3) optional `symbol_search._rank` tweak so "infosys" prefers the current listing (INFY) over an old ticker
+  (INFOSYSTCH) in the add-without-picking fallback.
+
+## ✅ 2026-07-14 — S148: S-E PHASE 2 slice C — Pat market-INTERNALS flow SHIPPED — do NOT redo; kickstart-pick-verify
+- **NEW `src/pat/internals_flow.py`** — "how's the breadth / market internals / how many stocks up" →
+  the latest `market_internals_daily` snapshot (% advancing + adv/dec + MEP effort tape + 22y percentile
+  reads, mirroring `market_internals_view`). Self-limiting ₹0 pre-pass `(a-1h)` — page-find stays navigate,
+  entity-ranking asks yield. Battery UNCHANGED; NEW `tests/test_pat_internals_flow.py` (23) + suite 355.
+- **⚙ BUILT + SHIPPED FROM AN ISOLATED WORKTREE** (`s148-se`) because the main tree was too hot to
+  commit/deploy from safely. WORKED cleanly (clean FF push, green suite). ⚠ **worktree + state-doc-gate:**
+  the gate inspects the MAIN project dir's index, so worktree commits misfire → use `state:skip` (the
+  commits DO update PROJECT_STATE; the gate just can't see the worktree index).
+- **NEXT S-E slice = the rest of Phase 2** (insider/ratings/SAST/holdings — per-symbol ownership, needs
+  NEW per-symbol reads · seasonal per-symbol base rates · Wolfe open-trades) **then Phase 3** (education:
+  explain-flows on the unified glossary + docs/strategies). Follow the `internals_flow.py`/`participants_flow.py`
+  pattern (new Pat file + ₹0 pre-pass + web render + eval/pytest). Chain is now nav a-1c → news a-1d →
+  whatchanged a-1e → participants a-1f → rotation a-1g → internals a-1h.
+
+## ✅ 2026-07-15 — S147 (review lane): REVIEW OF RAMANA'S OWN STRATEGIES + origins.md label closure SHIPPED (docs) — do NOT redo; kickstart-pick-verify
+- **Ramana-directed strategy review (DVPT→MEP→Wolfe§B→CPR→reversal-context): all 5 canonical pages verified ACCURATE vs live + the ledger — no overclaim, no fence needed softening.** The ONE binding gap was origins.md's `**Origin:**` header rule (S132j) being unmet by all 10 pages → CLOSED. **Live-walk (read-only curl pass) confirmed every claimed surface serves (DVPT /dash/stocks·/dash/index · MEP /dash/mep·overlay · Wolfe /dash/wolfe/scan·trades · CPR /dash/cpr·overlay · reversal `/dash/screen2?rev=ri|si`) — and caught ONE stale route string: wolfe-wave.md §5 named `/dash/markets/wolfe` (404); real nested route is `/dash/markets/wolfe-scan` (200, flat `/dash/wolfe/scan` 307→it) → FIXED this commit.**
+- **Origin labels added to all 10 strategy pages** (distinct 🧑/🏠/📚 preserved — do NOT merge; Ramana's 🧑+🏠 collapse decision still PENDING) + **machine backstop** `test_every_served_page_declares_origin()` in `tests/test_strategy_docs_coverage.py` (a new strategy can't ship label-less; origins.md itself is EXEMPT — it IS the map). +3 origins.md map rows (RS · Harmonic · Momentum engine).
+- **NEW canonical page `docs/strategies/reversal-context.md`** (STREAM BAND + FRACTAL FLOOR; 🧑 RAMANA; DESCRIPTIVE-ONLY, falsified at all 4 levels — cite ledger §§ 07-13/14/14b/14c before ANY re-attempt) — served via `_PAGES` + README matrix + terminology. The pre-existing RED `test_every_doc_is_served` was fixed on origin/main by the PARALLEL S147 lane (which SERVED origins.md); this lane ADOPTED that serve (reconciled in an isolated worktree). Gate GREEN (12 strategies).
 - **`docs/reversal-pair-PLAN.md` RETIRED** (git rm; folded into reversal-context.md + ledger; DOC_INDEX/PROJECT_STATE/ledger refs redirected). ⚠ 3 hash-frozen prereg docstrings keep their `reversal-pair-PLAN.md` citation BY DESIGN (immutable `sha256(RAW __doc__)` — editing breaks `--verify`).
 - **Aug-1 monthly churn = ARMED, not yet fired (future date):** `auto_portfolios.refresh()` clock-gated + wired in `10-signals.conf:14`; will add 2026-08 `auto_portfolio_nav` rows once Aug's first trading day lands (STEADY quarterly = Oct-1). Re-check row-gain after Aug-1.
-- **Docs-only + test + 1 additive `_PAGES` line — no deploy** (strategy-ref renders md at request time). Staged explicit paths only (S-B1 rail lane + XBRL lane were hot — none absorbed).
+- **✅ DEPLOYED + LIVE-WALKED (~18:47 UTC):** scp'd `reversal-context.md` (new file, clean) + **anchored-insert** of the one `_PAGES` line after the `cpr` anchor (surgical — the box's `strategies_view.py` is co-edited; a full-scp risked reverting a sibling's undeployed docstring drift, which has since landed as `c120d04`). py_compile + import (12 pages) + selftest green; writer-safe restart (no foreign writer; startup read-only per S146/S147). Live 200 on localhost **and public Caddy** (`/dash/strategy-ref?p=reversal-context` renders STREAM BAND / FRACTAL FLOOR; rail lists it; 0 "Ramana" leak — the 7 `[SD]\d{2,3}` hits are shared-CHROME false positives, identical on dvpt/cpr, not my content). Origin labels needed NO deploy (`_public` strips them). Backup `.bak-s147rev-*`.
 
 ## ✅ 2026-07-14 — S146: S-E PHASE 2 slice B — Pat DATA flows (FII positioning + rotation state) SHIPPED — do NOT redo; kickstart-pick-verify
 - **NEW `src/pat/participants_flow.py`** — "are FIIs buying / FII flows / who's positioned" → FII net
@@ -104,8 +721,11 @@ PROJECT_STATE entries are enough.**
   auto-expand intact. **⚠ pre-existing sibling RED (NOT mine, flagged):** `test_strategy_docs_coverage::test_every_doc_is_served`
   fails on origin — `docs/strategies/origins.md` (landed by S132j `7e5745d`) isn't in `strategies_view._PAGES`;
   it's a 1-line fix in a strategies-lane forked file, left for that lane.
-- **Remaining S-B1 (OPEN — a natural next pick):** item **2** merge RRG-Map + Rotation-Weather (Map⇄Weather
-  toggle, the Wolfe-toggle precedent) · item **3** fold cycle-clock/sector-momentum/early-signals into the
+- **✅ S143-d (same session) — S-B1 ITEM 2 DONE + DEPLOYED + LIVE:** RRG-Map + Rotation-Weather merged into ONE
+  "Rotation" lens with a Map⇄Weather toggle (commit `216ade4`; `infographics.rotation_toggle` + `left_rail`
+  `_RAIL_HIDE`/`_RAIL_MERGE_HL` — display-only, forked registry untouched, both routes stay live). Live: rail
+  shows one "Rotation" entry, toggle flips Map⇄Weather, `/dash/rotation` lights the merged entry.
+- **Remaining S-B1 (OPEN — a natural next pick):** item **3** fold cycle-clock/sector-momentum/early-signals into the
   Rotation cluster · item **5** credibility-fingerprint → Credibility child · item **6** Ownership&filings
   placement · item **7** orphan sweep (§5 dispositions) · item **10** unify the 3 change-feeds on the bus ·
   item **11** single-source strategy one-liners in `lens_registry` · the reverse `/dash/sectors → sector-economics`
@@ -207,7 +827,7 @@ PROJECT_STATE entries are enough.**
 - **⚠ TWO shared-tree absorption incidents tonight (multi-session-safety lessons):** (1) my uncommitted `seasonal_view` demo_framing hunk was absorbed by the seasonal lane's commit → **prod incident** (helper missing on box) → they guarded (`ebf5fdb`), my commit later made the helper real; (2) my quick `a090fb1` swept the seasonal lane's STAGED wrap (their PROJECT_STATE S130 reconcile + 2 transient-doc deletions) — content complete+correct, attribution off; seasonal lane: your reconcile IS committed, don't redo. RULE REINFORCED: `git diff --cached --name-only` before EVERY commit, not just the big ones.
 - **S-A-c defect pair (fixed, `a090fb1`):** a local `_q` in dashboard's stock-miss branch shadowed the module-level `_q` helper (UnboundLocalError on every stock page) AND tracker_gate's fail-closed try wrapped `call_next` (dressed every app error as the demo page). Lesson for gates: call_next runs OUTSIDE the fail-closed try.
 - **PROJECT_STATE:** the seasonal S130 entry landed (via a090fb1); the S127 audit + S-A entries are still OWED to the next clean reconcile.
-- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → ~~item 4~~ **✅ S141 (D132 — the glossary is ONE vocabulary; S-E UNBLOCKED)** → ~~S-E Phase 1 (nav-answer)~~ **✅ S142 (`nav_flow.py`)** → ~~S-E Phase 2 slice A (news + what-changed)~~ **✅ S144** → ~~S-E Phase 2 slice B (FII positioning + rotation state)~~ **✅ S146 (`participants_flow.py` + `rotation_flow.py`)** → **NEXT free pick: S-E Phase 2 remainder (insider/ratings/SAST/holdings per-symbol ownership · seasonal base rates · internals breadth · Wolfe open-trades) + Phase 3 (education on the unified glossary)** or **S-B1 remainder** (rail task-groups · RRG⇄Rotation merge · orphan sweep · registry one-liners — coordinate, that lane is hot). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
+- **Next UX picks per the audit §8:** ~~S-H route gate~~ **✅ S133** → ~~S-C items 1+7~~ **✅ S134** → ~~S-C items 2/3/5~~ **✅ DONE + DEPLOYED S136/S138** → ~~S-D search/entry~~ **✅ S140 (D131)** → ~~item-2 tail~~ **✅ S137 full sweep (63/63 lenses covered — screen2·dashboard-cluster incl. concalls·tracker×5·wolfe_trades fold ALL scaffolded + LIVE; only the stock-DOSSIER top strip remains, a non-lens polish)** → ~~item 4~~ **✅ S141 (D132 — the glossary is ONE vocabulary; S-E UNBLOCKED)** → ~~S-E Phase 1 (nav-answer)~~ **✅ S142 (`nav_flow.py`)** → ~~S-E Phase 2 slice A (news + what-changed)~~ **✅ S144** → ~~S-E Phase 2 slice B (FII positioning + rotation state)~~ **✅ S146** → ~~S-E Phase 2 slice C (market internals breadth)~~ **✅ S148 (`internals_flow.py`)** → **NEXT free pick: S-E Phase 2 remainder (insider/ratings/SAST/holdings per-symbol ownership [needs NEW reads] · seasonal per-symbol base rates · Wolfe open-trades) + Phase 3 (education on the unified glossary)** or **S-B1 remainder** (rail task-groups · RRG⇄Rotation merge · orphan sweep · registry one-liners — coordinate, that lane is hot). `docs/ux-journey-audit-2026-07-13.md` §8 has the paste-ready statements.
 
 ## 🆕 2026-07-13 — S127: JOINT Claude+Codex USER-JOURNEY AUDIT + SURFACE-PLAYBOOK LANDED (`eecc577`) — the UX remediation program is now THE queue
 - **Ramana directive (verbatim intent):** full user-journey/UX deep-dive for beginner→expert personas, combined Claude+Codex analysis with autonomous dialogue, session-by-session problem breakdown, Pat total enrichment, approval-gated Telegram-channel publishing, news unburied, and future-proofing docs so nothing ever lands as an orphan again.

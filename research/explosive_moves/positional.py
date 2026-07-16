@@ -10,6 +10,11 @@ Selection variants:
   LAUNCH   : top-N liquid that are ALSO in a Launchpad setup, ranked by 6-month return
 Each run with regime overlay OFF (always invested) and ON (cash when Nifty<200DMA).
 Costs charged on monthly turnover. Survivorship-safe (universe from the raw archive each month).
+
+equity_stats_m() emits mean/sd annualised under the `retvol` key with NO risk-free rate
+subtracted — a return/vol ratio, not a Sharpe, and it reads high against a textbook one;
+every consumer inherits that. A true Sharpe needs a primary-source rf ingest (Guardrail #8),
+queued with the TR-benchmark re-cut. (D142)
 """
 from __future__ import annotations
 import numpy as np
@@ -35,7 +40,7 @@ def equity_stats_m(eq):
     sd = ret.std()
     return {"cagr": cagr, "maxdd": float(dd.min()),
             "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0,
-            "sharpe": float(ret.mean() / sd * np.sqrt(TD_Y)) if sd > 0 else 0,
+            "retvol": float(ret.mean() / sd * np.sqrt(TD_Y)) if sd > 0 else 0,
             "totx": eq[-1] / eq[0]}
 
 
@@ -121,7 +126,7 @@ def main():
         if len(eqb) > 2:
             s = equity_stats_m(np.array(eqb) / eqb[0])
             print(f"  {idx:16s} CAGR={s['cagr']*100:+6.1f}% MaxDD={s['maxdd']*100:6.1f}% "
-                  f"Calmar={s['calmar']:5.2f} Sharpe={s['sharpe']:5.2f} tot={s['totx']:.1f}x")
+                  f"Calmar={s['calmar']:5.2f} ret/vol={s['retvol']:5.2f} tot={s['totx']:.1f}x")
 
     print("\nSTRATEGIES:")
     for mode in ("MOM", "LAUNCH"):
@@ -132,7 +137,7 @@ def main():
                     s = equity_stats_m(eq)
                     rtag = "regime" if use_reg else "always"
                     print(f"  {mode:6s} {ftag:5s} N={topn} {rtag:6s}: CAGR={s['cagr']*100:+6.1f}% "
-                          f"MaxDD={s['maxdd']*100:6.1f}% Calmar={s['calmar']:5.2f} Sharpe={s['sharpe']:5.2f} "
+                          f"MaxDD={s['maxdd']*100:6.1f}% Calmar={s['calmar']:5.2f} ret/vol={s['retvol']:5.2f} "
                           f"tot={s['totx']:5.1f}x  invested={frac*100:.0f}%")
 
 

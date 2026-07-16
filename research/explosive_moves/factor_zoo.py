@@ -1,4 +1,4 @@
-"""FACTOR ZOO — backtest the well-known market factors on our data, ranked by Sharpe.
+"""FACTOR ZOO — backtest the well-known market factors on our data, ranked by return/vol.
 
 Decodes the public factor strategies a quant desk would know and tests each the SAME way:
 top-25 monthly, equal-weight, value-relative gate (top-40% turnover), net cost, walk-forward
@@ -12,6 +12,11 @@ DEFENSIVE(lowvol+quality), QMV(quality+mom+value), LOWVOL_MOM.
 Market cap / earnings / book are point-in-time via the provenance EFFECTIVE-date map
 (fundamentals_asof: real BSE filing date, else the conservative calibrated lag) — NOT the leaky
 +90/+50 modeled report_date (AUD-22). Writes out/factor_zoo.csv. Read-only.
+
+The ranking column is mean/sd annualised with NO risk-free rate subtracted — a return/vol
+ratio, not a Sharpe, and it reads high against a textbook one; `sortino` (no rf/MAR) and
+`alpha` (no rf(1-beta) term) share the defect. A true Sharpe needs a primary-source rf
+ingest (Guardrail #8), queued with the TR-benchmark re-cut. (D142)
 
 Reproduce:
   cd /opt/hermes && PYTHONPATH=/opt/hermes:/opt/hermes/research \
@@ -244,7 +249,7 @@ def main():
         wcapture = float(np.mean(np.clip(allpf[wm] / allmfe[wm], 0, 1))) if wm.any() else float("nan")
         edge = (avg_mfe / abs(avg_mae)) if (np.isfinite(avg_mae) and avg_mae < 0) else float("nan")
         return {
-            "sharpe": sh(rets), "sortino": (rets.mean() / dsd * SQ) if dsd > 0 else 0.0,
+            "retvol": sh(rets), "sortino": (rets.mean() / dsd * SQ) if dsd > 0 else 0.0,
             "cagr": cagr, "vol": sd * SQ, "maxdd": maxdd, "calmar": cagr / abs(maxdd) if maxdd < 0 else 0.0,
             "win": len(pos) / n, "pf": (pos.sum() / abs(neg.sum())) if neg.sum() != 0 else float("inf"),
             "payoff": (pos.mean() / abs(neg.mean())) if (len(pos) and len(neg)) else float("nan"),
@@ -260,9 +265,9 @@ def main():
     for name, fn in FACTORS.items():
         rets, turns, allpf, allmfe, allmae, dates = run(fn)
         rows.append((name, tearsheet(rets, turns, allpf, allmfe, allmae, dates)))
-    rows.sort(key=lambda r: -r[1]["sharpe"])
+    rows.sort(key=lambda r: -r[1]["retvol"])
 
-    hdr = (f"{'factor':24}{'Shrp':>6}{'Sort':>6}{'MaxDD':>8}{'Win%':>6}{'PF':>6}{'PosHit':>8}"
+    hdr = (f"{'factor':24}{'RetVol':>6}{'Sort':>6}{'MaxDD':>8}{'Win%':>6}{'PF':>6}{'PosHit':>8}"
            f"{'MFE%':>6}{'Cap%':>6}{'WCap%':>7}{'MAE%':>7}{'Beta':>6}{'Alpha':>7}  surv")
     print("=" * len(hdr))
     print("FACTOR ZOO — institutional tearsheet (top-25 monthly, value-gate, net cost, walk-forward).")
@@ -271,21 +276,21 @@ def main():
     print("=" * len(hdr)); print(hdr)
     for name, s in rows:
         pf = "inf" if s["pf"] == float("inf") else f"{s['pf']:.2f}"
-        print(f"{name:24}{s['sharpe']:>6.2f}{s['sortino']:>6.2f}{s['maxdd']*100:>7.1f}%"
+        print(f"{name:24}{s['retvol']:>6.2f}{s['sortino']:>6.2f}{s['maxdd']*100:>7.1f}%"
               f"{s['win']*100:>5.0f}%{pf:>6}{s['poshit']*100:>7.0f}%"
               f"{s['mfe']*100:>6.1f}{s['capture']*100:>6.0f}{s['wcapture']*100:>7.0f}{s['mae']*100:>7.1f}"
               f"{s['beta']:>6.2f}{s['alpha']*100:>6.1f}%   {'YES' if s['surv'] else ''}")
 
     with open(os.path.join(os.path.dirname(__file__), "out", "factor_zoo.csv"), "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["factor", "sharpe", "sortino", "cagr_pct", "vol_ann_pct", "maxdd_pct", "calmar",
+        w.writerow(["factor", "retvol", "sortino", "cagr_pct", "vol_ann_pct", "maxdd_pct", "calmar",
                     "win_rate_months_pct", "profit_factor", "payoff_win_over_loss", "position_hit_rate_pct",
                     "position_payoff", "avg_mfe_pct", "capture_pct_aggregate", "winner_capture_pct",
                     "avg_mae_pct", "edge_ratio_mfe_over_mae",
                     "beta_nifty500", "alpha_ann_pct", "best_month_pct", "worst_month_pct",
-                    "avg_turnover", "h1_sharpe", "h2_sharpe", "survives_both_halves"])
+                    "avg_turnover", "h1_retvol", "h2_retvol", "survives_both_halves"])
         for name, s in rows:
-            w.writerow([name, round(s["sharpe"], 2), round(s["sortino"], 2), round(s["cagr"] * 100, 1),
+            w.writerow([name, round(s["retvol"], 2), round(s["sortino"], 2), round(s["cagr"] * 100, 1),
                         round(s["vol"] * 100, 1), round(s["maxdd"] * 100, 1), round(s["calmar"], 2),
                         round(s["win"] * 100, 0), ("inf" if s["pf"] == float("inf") else round(s["pf"], 2)),
                         round(s["payoff"], 2), round(s["poshit"] * 100, 0), round(s["pos_payoff"], 2),

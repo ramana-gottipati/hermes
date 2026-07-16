@@ -18,7 +18,7 @@ arbitrary), and the **Canonical source** (the `file:symbol` that machine-owns th
 |---|---|---|---|
 | MOM6 | `ac[i0]/ac[i0-126] − 1` | — | 6-mo total return |
 | MOM12 | `ac[i0]/ac[i0-252] − 1` | — | 12-mo total return (classic) |
-| RISKADJ | `MOM6 ÷ vol_66` | — (ratio) | return per unit 3-mo vol — best Sharpe |
+| RISKADJ | `MOM6 ÷ vol_66` | — (ratio) | return per unit 3-mo vol — best return/vol |
 | RESID_MOM | `MOM6 − β·idx_MOM6` | — | market-stripped (idiosyncratic) momentum |
 | HI52 | `range_pos_252` | — | position in the 52-wk high-low band |
 | LOWVOL | `−vol_66` | — | ballast (weak alone) |
@@ -51,7 +51,7 @@ contribution," not equal raw-value contribution — the honest way to combine un
 3. Risk-awareness is **already inside** the members (RISKADJ = ÷vol; LOWVOL_MOM = low-vol tilt), so the blend leans risk-adjusted without an explicit, hand-chosen tilt.
 4. A tilt toward the risk-adjusted pair is a **recorded alternative to test against this baseline**, not the default — and only *after* the beta/size/sector-neutral attribution says the edge is real selection, not levered beta.
 
-**Do not** weight by past Sharpe (selection bias), and **do not** add value/quality as a member (they are veto/filter layers, not rankers — §4, and the BLOCKING FAILURE MODELS in `docs/strategy-ledger.md`).
+**Do not** weight by past return/vol (selection bias), and **do not** add value/quality as a member (they are veto/filter layers, not rankers — §4, and the BLOCKING FAILURE MODELS in `docs/strategy-ledger.md`).
 
 ---
 

@@ -9,8 +9,13 @@ not intraday churn). Delivery is the India-specific interaction no US PEAD study
 WHY THIS ISN'T ALREADY IN THE LEDGER: every prior strategy was calendar-time cross-sectional
 ranking (monthly rebalance, always invested). This is EVENT-time — episodic capital, measured
 per-event and as a Jegadeesh-Titman calendar-time portfolio of active events. DELIV_MOM's
-ledger failure (Sharpe 0.42-0.85) was a calendar-time LEVEL; day-0 delivery here is an
+ledger failure (return/vol 0.42-0.85) was a calendar-time LEVEL; day-0 delivery here is an
 event-day INTERACTION — an untested cell.
+
+METRIC BASIS (D142): every ratio here — reported as `ret/vol`, book and benchmark alike — is
+mean/sd annualised with NO risk-free rate subtracted: a return/vol ratio, not a Sharpe; it reads
+high against a textbook Sharpe. The Nifty-500 gate is computed on the SAME basis, so the verdict
+is unaffected.
 
 EVENT DATES — the honesty core: only events whose result-announcement date is the REAL BSE
 filing date captured in hermes.db.provenance_knowable (fundamentals_filing_dates.py backfill;
@@ -423,12 +428,12 @@ def _book(picks: list[dict], cal: list[str], label: str, out_lines: list[str],
     out_lines.append(f"  {label}: entries={len(picks)}  window={days[0]}..{days[-1]}  "
                      f"invested={invested/len(days)*100:.0f}% of days  book avg={np.mean(sizes):.1f} max={max(sizes)}")
     out_lines.append(f"    net  CAGR={st['cagr']*100:6.2f}%  MaxDD={st['maxdd']*100:6.1f}%  "
-                     f"Sharpe={st['sharpe']:5.2f}  Calmar={st['calmar']:5.2f}")
+                     f"ret/vol={st['retvol']:5.2f}  Calmar={st['calmar']:5.2f}")
     for tag, lo, hi in (("H1", days[0], H1_END), ("H2", H1_END, days[-1])):
         sub = [(d, c) for d, c in zip(days, curve) if lo <= d <= hi]
         if len(sub) > 250:
             s2 = equity_stats([d for d, _ in sub], [c for _, c in sub])
-            out_lines.append(f"    {tag} {sub[0][0]}..{sub[-1][0]}: Sharpe={s2['sharpe']:5.2f}  "
+            out_lines.append(f"    {tag} {sub[0][0]}..{sub[-1][0]}: ret/vol={s2['retvol']:5.2f}  "
                              f"CAGR={s2['cagr']*100:6.2f}%  MaxDD={s2['maxdd']*100:6.1f}%")
     return {"days": days, "curve": curve, "picks": picks, "stats": st}
 
@@ -468,7 +473,7 @@ def run_portfolio_season(events: list[dict], cal: list[str], label: str,
                          out_lines: list[str], cost_mult: float = 1.0) -> dict | None:
     """The ONE untested PEAD construction on the ledger (pre-registered 2026-07-05): rank
     within the same reporting season as it unfolds, not against a trailing-365d mixed-season
-    window. PRE-REGISTERED GATE: net Sharpe beats Nifty-500 (0.89) in BOTH halves -> a
+    window. PRE-REGISTERED GATE: net return/vol beats Nifty-500 (0.89) in BOTH halves -> a
     fundable strategy exists, build it; otherwise PEAD stays a descriptive lens (ledger)."""
     return _book(_season_select(events), cal, label, out_lines, cost_mult)
 
@@ -477,13 +482,13 @@ def bench_stats(hcon, d0: str, d1: str, out_lines: list[str]) -> None:
     dates, levels = index_levels(hcon)
     win = [(d, levels[d]) for d in dates if d0 <= d <= d1 and d in levels]
     st = equity_stats([d for d, _ in win], [v for _, v in win])
-    out_lines.append(f"  Nifty500 B&H same window: Sharpe={st['sharpe']:5.2f}  "
+    out_lines.append(f"  Nifty500 B&H same window: ret/vol={st['retvol']:5.2f}  "
                      f"CAGR={st['cagr']*100:6.2f}%  MaxDD={st['maxdd']*100:6.1f}%")
     for tag, lo, hi in (("H1", d0, H1_END), ("H2", H1_END, d1)):
         sub = [(d, v) for d, v in win if lo <= d <= hi]
         if len(sub) > 250:
             s2 = equity_stats([d for d, _ in sub], [v for _, v in sub])
-            out_lines.append(f"    bench {tag}: Sharpe={s2['sharpe']:5.2f}  CAGR={s2['cagr']*100:6.2f}%")
+            out_lines.append(f"    bench {tag}: ret/vol={s2['retvol']:5.2f}  CAGR={s2['cagr']*100:6.2f}%")
 
 
 # ---------- main ----------------------------------------------------------------

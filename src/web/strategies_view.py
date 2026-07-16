@@ -1,6 +1,6 @@
 """strategies_view.py — the browsable Strategy Reference (/dash/strategy-ref).
 
-Serves the canonical `docs/strategies/` layer (the README index + 9 strategy pages)
+Serves the canonical `docs/strategies/` layer (the README index + every page in `_PAGES`)
 as readable /dash pages, the SAME way glossary_view serves metrics-glossary.md — so the
 strategy playbook is browsable in-app, not only in the repo. Descriptive reference only
 (never the proprietary formulas; those stay in code + calculations-and-weights.md).
@@ -42,10 +42,43 @@ _PAGES: dict[str, tuple[str, str]] = {
     "momentum-riskadj":  ("momentum-riskadj.md",  "Momentum / RISKADJ"),
     "patearn":           ("patearn.md",           "patearn"),
     "classic-screens":   ("classic-screens.md",   "Classic Screens"),
+    "sector-rotation":   ("sector-rotation.md",   "Sector Rotation"),
+    "union":             ("union.md",             "The Union"),
+    "rule-lab":          ("rule-lab.md",          "Rule Lab"),
+    "origins":           ("origins.md",           "Origins"),
 }
 _FILE_TO_SLUG = {fn: slug for slug, (fn, _lbl) in _PAGES.items()}
 
 _ROUTE = "/dash/strategy-ref"
+
+# Where each strategy LIVES on the site (Ramana 2026-07-15: "after viewing the details the
+# interface should take me to the portfolio"). Rendered as a prominent hand-off strip at the
+# top of every strategy page. Keys = _PAGES slugs; values = (href, button label).
+_SURFACE: dict[str, tuple[str, str]] = {
+    "dvpt":              ("/dash/stocks",                    "Open the Positioning screener"),
+    "mep":               ("/dash/mep",                       "Open the Accum/Distrib board"),
+    "wolfe-wave":        ("/dash/markets/wolfe-scan",        "Open the Wolfe scanner"),
+    "relative-strength": ("/dash/markets/rrg",               "Open the Rotation map"),
+    "cpr":               ("/dash/cpr",                       "Open the CPR screen"),
+    "reversal-context":  ("/dash/screen2?rev=ri",            "Open Screen+ reversal context"),
+    "cci":               ("/dash/concalls",                  "Open the Credibility board"),
+    "harmonic":          ("/dash/harmonic",                  "Open the Harmonic scanner"),
+    "momentum-riskadj":  ("/dash/momentum-scan",             "Open the Momentum scan"),
+    "patearn":           ("/dash/screener",                  "Open the Screener"),
+    "classic-screens":   ("/dash/classics",                  "Open the Classic Screens rosters"),
+    "sector-rotation":   ("/dash/sector-rotation",           "Open the V17 portfolio (time-travel)"),
+    "rule-lab":          ("/dash/rule-lab",                  "Open the Rule lab"),
+}
+
+
+def _surface_strip(slug: str) -> str:
+    hit = _SURFACE.get(slug)
+    if not hit:
+        return ""
+    href, label = hit
+    return ("<div class='sr-surface'><a href='" + html.escape(href) + "'>" +
+            html.escape(label) + " →</a><span class='sr-surface-note'>the live surface "
+            "this page describes — data, filters and history</span></div>")
 
 
 # ── cross-link rewriting ─────────────────────────────────────────────────────
@@ -303,7 +336,7 @@ def render_page(slug: str) -> str:
     fn = _PAGES[slug][0]
     text = _read(fn)
     body = _md(text) if text is not None else "<p class='sr-p'>Page source not found.</p>"
-    return _CSS + _rail(slug) + f"<article class='sr-doc'>{body}</article>"
+    return _CSS + _rail(slug) + _surface_strip(slug) + f"<article class='sr-doc'>{body}</article>"
 
 
 _CSS = """<style>
@@ -311,6 +344,9 @@ _CSS = """<style>
 .sr-rail a{color:var(--ink-2);text-decoration:none;border-bottom:1px dotted var(--line-2);padding-bottom:1px}
 .sr-rail a:hover{color:var(--accent)}
 .sr-rail a.on{color:var(--accent);font-weight:600;border-bottom-color:var(--accent)}
+.sr-surface{display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--accent);border-radius:8px;padding:9px 14px;margin:0 0 14px;max-width:960px}
+.sr-surface a{color:var(--accent);font-weight:600;font-size:13.5px;text-decoration:none}
+.sr-surface-note{font-size:11.5px;color:var(--ink-3)}
 .sr-doc{max-width:960px;font-size:13px;color:var(--ink-2);line-height:1.6}
 .sr-h1{font-size:20px;color:var(--ink);margin:2px 0 10px}
 .sr-h2{font-size:16px;color:var(--ink);border-bottom:1px solid var(--line-2);padding-bottom:5px;margin:22px 0 10px}

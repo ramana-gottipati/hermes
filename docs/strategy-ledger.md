@@ -1,5 +1,31 @@
 # Strategy Ledger — what we've tried, what it scored, what we decided
 
+> ## 🔴 READ BEFORE QUOTING ANY NUMBER ON THIS PAGE — every "Sharpe" here is a RETURN/VOL RATIO (D142, 2026-07-15)
+>
+> **The estate-wide audit is settled and unanimous: this project has never computed a Sharpe ratio.**
+> Every figure labelled *Sharpe* in this ledger — RISKADJ **1.13**, the C-BLEND **1.32**, LOWVOL_MOM
+> **0.79/1.02**, PEAD **0.10**, the Nifty-500 **0.89** hurdle, all 32 leaderboard rows — is
+> `mean/sd × √periods` with **no risk-free rate subtracted**. That is a return/vol ratio, and it reads
+> **high** against a textbook Sharpe (~1.7× on the rotation books, where it was reconciled exactly).
+>
+> **This changes no verdict and invalidates nothing below.** Every hurdle is computed on the identical
+> basis — the 0.89 bar included — so both sides of every comparison carry the same omission and **every
+> RELATIVE claim holds exactly as written**. Only the ABSOLUTE levels were overstated, and only a number
+> quoted against an OUTSIDE Sharpe would mislead. Ramana's ruling (D139, extended estate-wide by D142):
+> **relabel, numbers unchanged.** The dated entries below are left as the historical record rather than
+> rewritten — **read every "Sharpe" in them as "return/vol ratio".**
+>
+> Two things worth carrying: **①** every **Deflated-Sharpe** result recorded here (MEP's DSR 0.45→0.36,
+> the momentum gates) is an **UPPER BOUND on the evidence** — the DSR's null is rf-free by construction,
+> but the observed ratio fed to it is inflated, so the test asks *"does it beat ZERO"*, not *"does it beat
+> cash"*: a PASS is weaker than it looks, a **FAIL is real** (so the recorded failures stand, if anything
+> more firmly). **②** The true-Sharpe re-cut needs a primary-source rf ingest (Guardrail #8) and is
+> **queued with the owed TR-benchmark re-cut, which moves the same figures** — `attribution.py` is the one
+> place already unblocked (it has a primary-source rf and simply doesn't feed it to its ratio).
+>
+> *(D139 disclosed this for §§15…15h only; D142 read every compute site in `research/` and found it
+> universal. New prose may not call these "Sharpe" — enforced by `tests/test_retvol_label_gate.py`.)*
+
 **Purpose.** A permanent, honest registry of every strategy/signal we have tested, *including
 failures*. A failure is a recorded data point, not junk — we keep it so we never re-walk a dead
 road, and so every new idea has a **benchmark to beat**. Nothing is deleted; things are *parked*
@@ -112,6 +138,8 @@ Source: `research/explosive_moves/factory.py`.
   In a momentum frame the data says winners keep winning; tension with "don't chase extended."
 - **Edge is stronger in the 5cr universe than 25cr** (RISKADJ 1.13 → 0.96): alpha lives in mid/small-caps,
   but so does slippage/capacity risk.
+
+**⚠️ D5-F1 (Codex review, VPS-verified 2026-07-14) — same-close execution optimism.** The recorded flat-cost RISKADJ **1.13** also carries a ~0.04 same-bar-execution peek (selection features are read on the rebalance close *and* the forward return enters at that same close). The honest 1-day-lag number is **1.09** (QUAL_MOM 1.08→1.04, LOWVOL_MOM 1.00→0.97 similarly). **Minor / not result-changing** — the participation-cost model already collapses these to <0.2, so the fundability verdict is unchanged; only the flat-cost gross Sharpes are ~0.04 optimistic. Code fix = enter `i0+1` in `factory.py` / `overlay_experiment.py` / the cost recuts. Full verification: `docs/codex-review/TRACK-C-RESULTS.md` §D5-F1.
 
 **⚠️ Honest caveat — do not crown RISKADJ yet.** The 1.13 Sharpe uses a *naive* cost model
 (flat 0.3% × turnover, no slippage/impact/capacity) and the **static ₹5 cr liquidity floor we reject**.
@@ -273,6 +301,1594 @@ forward signal at 60d on either outcome, exactly as the failure-ledger predicted
 `research.db.concall_lexical_v2`; gate frozen in the module `__doc__` (registered `632bd149`).
 
 ---
+
+## Study 2026-07-15 — SECTOR-ROTATION (relative-strength, sector-INDEX level) — CONDITIONAL: low-turnover quarterly long-only BEATS passive (+2.8% alpha, cost-surviving) but not the strict 0.89-both-halves bar; short/F&O leg REJECTED
+
+> ### 🔴 READ BEFORE ANY NUMBER IN §§ 2026-07-15 … 2026-07-15h
+>
+> **1. SCOPE (§15h).** This ladder selects **SECTORS, never STOCKS.** Every stat below measures the
+> sector-selection half of an unfinished brief, priced on instruments that in ~6 of 16 sectors do not
+> exist. **No number here may be presented, quoted, or promoted as a complete strategy result.**
+>
+> **2. "Sharpe" IS THE WRONG WORD (§15i).** Every figure labelled *Sharpe* in §§15…15h — and on the live
+> page — is a **RETURN/VOL RATIO**: the engine computes `mean/sd × √12` and subtracts **no risk-free
+> rate**. Verified by reconciliation (V21 = 16.57% CAGR ÷ 19.92% ann vol = 0.875). True excess-of-6.5%
+> Sharpes are **~0.51 / 0.54 / 0.54**, not 0.875 / 0.911 / 0.898. **Benchmarks use the identical basis, so
+> every RELATIVE claim below holds exactly as written; the ABSOLUTE levels are overstated ~1.7× by the
+> label alone.** Ramana 2026-07-15i: **relabel, numbers unchanged.** The dated sub-entries below are left
+> as the historical record rather than rewritten — read every "Sharpe" in them as "return/vol ratio".
+>
+> **3. THE RUNGS ARE NOT DISTINGUISHABLE (§15i).** V24-vs-V32 is **unmeasurable** on this window (gap
+> 0.013 vs a 0.148 noise floor); V24-vs-V21 is method-dependent and dies under a measured-fair k=9
+> selection correction. Ramana's V24 designation stands on **mechanism** grounds, not evidence.
+
+Ramana-directed sector-rotation RS strategy: long every NSE sectoral index beating Nifty 500 on
+trailing RS, weighted strongest→weakest; RSI-green entry gate; short the underperformers (F&O);
+hold while momentum persists. Tested at the SECTOR-INDEX level (V1 — isolates the rotation edge
+before the ≤40-stock constituent build) on `index_rows` (16 NSE sectoral indices, 11 live from
+2012-02, monthly marks 2012–2026, n=173). Module `research/explosive_moves/sector_rotation.py`
+(reproduce read-only on the VPS: `.venv/bin/python research/explosive_moves/sector_rotation.py data/hermes.db`).
+⚠ Benchmark = a CONSISTENT price-index Nifty 500 (this method: **Sharpe 0.78 / CAGR 12.1%** on
+`index_rows`); the ledger's 0.89 / +14.6% is the **TOTAL-RETURN** Nifty 500 and `index_rows` are
+PRICE indices, so judge the strategy like-for-like vs **0.78**, not 0.89.
+
+- **CHAMPION — long-only, QUARTERLY, 6mo-RS, RSI-green gate, hysteresis band 8%, cap 30%, cost 0.15%/side:
+  Sharpe 0.83 (H1 0.78 / H2 0.87), CAGR 14.1%, MaxDD −35.7%, beta 0.95, ALPHA +2.80%/yr, turnover 17.5%/mo.**
+  BEATS passive Nifty 500 like-for-like (+0.05 Sharpe, +2.0% CAGR, +2.8% cost-surviving alpha) — the
+  strongest RS-rotation construct recorded — but does NOT clear the strict **0.89-TR-both-halves**
+  survival bar (H1 0.78). Verdict class: a legitimate LOW-TURNOVER SMART-BETA / enhanced-beta tilt
+  (same family as LOWVOL_MOM), NOT decisive standalone alpha.
+- **The knobs that mattered (his design intuitions, validated):** (1) CADENCE — quarterly (17.5%/mo
+  turnover) Sharpe **0.83** vs naive MONTHLY (76.6%/mo) **0.66**: the momentum-net-of-cost wall bites at
+  high churn, exactly the ledger's 1.29→0.09 pattern; (2) HYSTERESIS (hold-band 8%) cuts turnover
+  25.7%→17.5%/mo and lifts alpha; (3) the RSI-GREEN entry gate is additive (alpha −0.30% vs no-gate
+  −2.08%; beta 0.83 vs 1.03).
+- **SHORT / F&O leg REJECTED:** a +30% short book on underperformers DROPS Sharpe to **0.49** (alpha
+  −1.02%); +50% worse. Confirms the recorded wall — shorts fight market drift (cf. BEAR-mirror −1.53;
+  STREAM-BAND SELL "not a short signal"). Sector rotation is a LONG-ONLY tilt.
+- **Capacity note (structural advantage vs stock momentum):** sector legs trade via liquid ETFs/futures,
+  so ~0.15%/side is realistic — NOT the small-cap slippage that killed stock momentum (1.29→0.09) and
+  C-BLEND (1.32→0.52@₹25cr). The sector level is inherently more capacity-/cost-friendly.
+- **Verdict: CONDITIONAL — long-only + quarterly + RSI-gate + hysteresis beats passive at low turnover
+  with +2.8% cost-surviving alpha; short leg REJECTED; short of the strict survival bar (price-vs-TR
+  caveat).** Next rigor: (a) formal alpha t-stat + participation-cost recut; (b) V2 = ≤40-stock
+  constituent expression (top-RS stocks inside the champion sectors) for a tradeable book + model-portfolio
+  integration. Supersedes nothing; strongest entry in the RS-rotation family.
+
+### 2026-07-15b — INCREMENTAL ablation (Champion FROZEN base + Ramana's levers, one at a time, OLDEST data 2005–2026, n=258)
+Harness `research/explosive_moves/sector_rotation_exp.py`; holdings sheet `research/explosive_moves/out/sector_rotation_sheet.csv`.
+Longer window (incl. the 2008 GFC) → tougher: benchmark Nifty500(price) **Sharpe 0.64, CAGR 12.5%, MaxDD −62%**; Champion base **0.62, alpha +1.7%, MaxDD −40.7%**.
+Each lever added individually vs base (Sharpe / alpha / MaxDD):
+- **WINNERS (add alpha AND cut drawdown — Ramana's "offload the burnt-out leader" thesis, CONFIRMED):**
+  BAL balanced/equal-weight **0.64 / +1.8% / −39.5%** · RSPK taper-at-own-RS-peak **0.64 / +1.9% / −39.8%** ·
+  STR taper-when-stretched **0.65 / +2.1% / −40.2%** · RSIRS RSI-of-RS-overbought-exit **0.64 / +2.3% / −40.3%**.
+- **NO-LIFT (honest negatives):** VOL volume-confirm **0.62** (sector-index volume carries no signal — it's a
+  constituent/DVPT lever, not index-level) · NEW fixed newcomer-boost **0.62** (BAL captures the "don't over-weight
+  the leader" goal better) · STDV excess-stdev-taper **0.62** alone (helps only inside the cluster).
+- **★ WINNER COMBO (V8 = BAL+RSPK+STR+RSIRS): Sharpe 0.70 (H1 0.78 / H2 0.64), Δ +0.07 vs bench, ALPHA +3.2%/yr,
+  MaxDD −36.2%** — best Sharpe AND lowest drawdown; lifts base 0.62→0.70 and repairs the recent-half (H2 0.51→0.64).
+  Tapers-only cluster (RSPK+STDV+STR+RSIRS) = 0.67 / +2.8% / −38.1%.
+- **The −36% MaxDD is the 2008 GFC** (a −62% market) — for LONG-ONLY equity that is unavoidable; ex-2008 drawdowns
+  are modest and the tapers nearly HALVED the crash. Diagnostic noted: the 30%-cap + narrow-breadth periods (e.g.
+  2024 = PSU-Bank only) leave the book UNDER-invested (residual → cash) — next lever to test = fill residual with the index.
+- **Verdict: the taper/balance levers materially improve the Champion (0.62→0.70, +3.2% alpha, −36% DD).** V8 is the
+  new working config on top of the frozen base; still a smart-beta tilt (short of the strict TR bar), now with better
+  drawdown control. Levers are additive + individually recorded so the estate can keep refining.
+- **⚠ CORRECTION (2026-07-15c, dated stats):** the "−36% MaxDD is the 2008 GFC" line above is WRONG — V8's max
+  drawdown is **COVID** (peak 2019-06 → trough 2020-04 −36.2% → recovered 2021-01), where V8 fell MORE than the
+  bench (−36.2% vs −31.9%; the quarterly clock froze the Jan-2020 book through a one-month crash). In the GFC V8
+  fell −32% vs bench −62% (calendar-2008: −23.3% vs −58.8%). Full dated stats + t-stats:
+  `research/explosive_moves/sector_rotation_stats.py` (alpha t 1.45 NOT significant · IR −0.20 · hit 44.6% ·
+  up/down-capture 0.71/0.64 · avg exposure 74.9% — the wealth gap ₹9.13 vs ₹12.60 Cr is CASH DRAG, missing the
+  recovery years: 2009 +44% vs +106% · 2014 +24% vs +44% · 2024 +6% vs +26%).
+
+### 2026-07-15d — Round 3: the V18/V19/V20 batch vs the frozen V17 benchmark → ★V21 (all three levers) — the FIRST construct to beat the bench in BOTH halves
+
+Ramana greenlit the ranked batch ("go"). Module `research/explosive_moves/sector_rotation_exp3.py`; V17 frozen as the
+family benchmark (0.79 / 14.7% / −39.2% / ₹19.04); every lever tested ALONE first, then the winners combined. Data
+finding first: our archive has NO total-return indices (TR re-cut still OWED — needs an NSE TRI ingest) and mid-cap
+indices only from 2012/2015 — **Nifty Next 50 is the one aggressive asset with full 2004+ history**.
+
+| V17 + lever | Sharpe (H1/H2) | CAGR | MaxDD | α/yr | ₹1 Cr → | read |
+|---|---|---|---|---|---|---|
+| — (V17 baseline) | 0.79 (0.86/0.70) | 14.7% | −39.2% | +4.7% | 19.04 | benchmark |
+| V18a sleeve→Next 50 | 0.79 (0.88/0.69) | 15.2% | −40.8% | +5.1% | 20.95 | +₹1.9 Cr for −1.6pt DD; mild win |
+| V18b sleeve→Midcap 50 (2012+) | 0.79 (0.83/0.74) | 14.9% | −39.2% | +4.8% | 19.70 | mild |
+| **V19 recovery-accelerator** (bench reclaims 200DMA during the quarter → that build's NEW-entry band 8%→0; RSI-green kept) | **0.85 (0.86/0.83)** | 15.9% | −39.2% | +5.7% | 23.73 | **the star single lever — FIXES the H2 weakness** (0.70→0.83) by catching the V-recoveries it was built to catch; turnover 12.4→15.4%/mo |
+| V20 inverse-vol weights | 0.80 (0.87/0.71) | 14.9% | −39.2% | +4.9% | 19.77 | small clean win |
+| V18a+V19 | 0.85 (0.88/0.82) | 16.2% | −40.8% | +5.9% | 25.18 | additive |
+| **★ V21 = V18a+V19+V20** | **0.87 (0.89/0.86)** | **16.6%** | **−40.8%** | **+6.3%** | **27.02** | **new leading candidate** |
+
+- **V21 beats the like-for-like bench in BOTH halves decisively** (0.89/0.86 vs the bench's 0.58/0.78) — the first
+  sector-rotation construct to clear the both-halves bar on this window — at ₹1 Cr → **27.02 vs 12.60 (2.1×
+  the index's wealth)**, MaxDD −40.8% vs −62.0%, turnover 14.6%/mo. Each lever was individually pre-specified from
+  the recorded diagnosis and individually positive before combining (not a grid point).
+- **Reference rows (the engine beats its own ingredients):** Next 50 B&H 0.62 / −69.9% / ₹15.99 · Midcap 50 B&H
+  0.65 / −62.0% — both far below V21; the discipline, not the aggressive asset, carries the result.
+- **T+1 EXECUTION-LAG recut (the practical fence, run 2026-07-15e):** signals at close, fills at the NEXT day's
+  close — V17 0.79→0.78 / ₹18.56 · **V21 0.87→0.87 / ₹26.00** (−3.8% of terminal wealth over 21y; DD −39.7%).
+  **The edge survives next-day execution essentially intact** — it lives in month-scale rotation, not in the close.
+- **Caveats unchanged and compounding:** price-index (TR re-cut OWED — no TRI in `index_rows`); three rounds of
+  selection on one window → the fresh-window / TR confirmation is now the HIGHEST-priority rigor item before any
+  stronger claim. **Status: V21 = leading champion-candidate, pending Ramana's ratification; V17 remains the
+  recorded prior candidate; V8 remains the frozen base.**
+
+### 2026-07-15f — Round 4: the V22..V30 batch (Ramana's own catalog) vs BOTH V21 and V17 as bases → ★V32 = V21+own-percentile-RSIRS+adaptive-band, the new leading candidate
+
+Ramana's naming-collision cleanup + full catalog from the RSI-of-RS design discussion, tested one lever at a time
+against V21 (primary base) AND V17 (secondary — confirms an improvement is general, not narrowly synergizing with
+V21's specific mix), then winners combined. Module `research/explosive_moves/sector_rotation_exp4.py`
+(sanity-checked FIRST to reproduce V21 0.87/₹27.02 and V17 0.79/₹19.04 exactly before trusting any new number).
+
+| V21/V17 + lever | V21 Sharpe (H1/H2) | V21 CAGR/MaxDD/₹1Cr | V17 Sharpe (H1/H2) | Verdict |
+|---|---|---|---|---|
+| — (bases) | 0.87 (0.89/0.86) | 16.6% / −40.8% / 27.02 | 0.79 (0.86/0.70) | — |
+| **V24 own-percentile RSI-of-RS** (85th trims/95th exits, that sector's OWN trailing-756d history, replacing fixed 70/80) | **0.91 (0.92/0.91)** | 17.2% / **−37.7%** / 30.35 | **0.82 (0.89/0.74)** | **★ Strong win — best single lever; most balanced halves of the whole batch** |
+| V26 persistence (2 consecutive quarters before acting) | 0.88 (0.91/0.85) | 16.9% / −40.8% / 28.75 | 0.79 (0.87/0.71) | Small clean win ALONE; turnover ↓ |
+| V22 adaptive hysteresis band (±band = 1×own trailing RS-line vol, replacing fixed ±8%) | 0.87 (0.92/0.83) | 17.0% / −41.3% / 29.43 | **0.83 (0.93/0.72)** | Positive, esp. on V17 (closes much of the V17→V21 gap on its own) |
+| V29 size-segment satellites (+CNX Midcap, +Midcap 50) | 0.87 (flat) | +0.1pt CAGR / flat DD / 27.62 | 0.79 (flat) | Marginal — turnover ↑ roughly offsets the gain |
+| V25 longer RSI-of-RS window (n=50/90d vs n=14/40d) | 0.85 | 16.4% / −43.9% / 26.04 | 0.77 | REJECT — smoother = slower = worse DD, both bases |
+| V27 dual-benchmark (must clear vs Nifty 50 AND Nifty 500) | 0.85 | 16.1% / −45.0% / 24.80 | 0.76 | REJECT — the AND-condition under-protects, both bases |
+| V28 regime-band (ride ≥45 after crossing 55, exit <45) | 0.82 | 15.8% / −43.9% / 23.46 | 0.74 | REJECT — **confirms the single-sector Defence diagnostic** (below) **at full-portfolio scale** |
+| V23 direction-of-trend entry/exit (2-qtr deceleration/acceleration as an extra trigger) | 0.79 | 15.1% / −44.0% / 20.40, turn 18.0% | 0.79, turn 17.1% | REJECT — turnover +3–5pt with no offsetting return, worse DD both bases |
+| V30 book-level vol-targeting (scale exposure to a 15% vol target) | 0.78 | 17.9% / **−50.8%** / 34.61 | 0.67 / **−53.6%** | **REJECT — worst drawdown blowup in the batch** (higher CAGR, but levers up right before vol spikes; fails "keep drawdown in check") |
+
+- **The V28 preliminary signal, reproducibly:** before this batch, a standalone single-sector diagnostic
+  (`research/explosive_moves/defence_rsirs_diagnostic.py`, read-only, isolates the RSI-of-RS mechanism on
+  Nifty India Defence — the strongest real-world sustained-trend example, 2022-01→2026-07, 18 quarterly
+  checkpoints) showed the SAME regime-band idea (ride ≥45 after crossing 55, exit <45) capturing only
+  **51% of the buy-and-hold ceiling (3.56× vs 6.92×)**, vs the current fixed-70/80 rule's **98.8% (6.84×)**
+  — because Defence's RSI-of-RS never once crossed 80 in that window (max 76.9), so the existing rule barely
+  fired, while the regime-band got whipsawed out right before the single largest quarterly move (+29.2% RS-
+  excess in 2022-Q3). The full-portfolio V28 result above CONFIRMS this diagnostic held at scale, not just
+  on one sector.
+- **Combining the winners — a genuine NEGATIVE interaction found:** V24+V26 (0.89, DD back to −40.8%, ₹29.75) is
+  WORSE than V24 alone (0.91, DD −37.7%, ₹30.35) — V26's "wait 2 quarters" delays exactly the faster reaction that
+  makes V24 work; the two mechanisms fight each other. **V24+V22+V26 confirms it** (0.88, DD −41.3%) — V26 hurts
+  regardless of what else is in the mix. **Lesson recorded: individually-validated levers do not always combine
+  additively; test every combination, not just assume winners stack (the same discipline that built V21 already
+  implied this, now proven with a concrete counter-example).**
+- **★ V32 = V21 + V24 + V22 (own-percentile RSIRS + adaptive band, V26 excluded): Sharpe 0.90 (0.95/0.84), CAGR
+  17.3%, MaxDD −37.9%, alpha +6.5%/yr, ₹1 Cr → 31.15 — the new leading candidate by wealth and CAGR.** On V17 alone
+  the same two levers lift it to 0.86 (0.96/0.75), ₹25.99 — nearly matching plain V21's own performance.
+- **Honest trade-off, NOT resolved by the numbers alone — V24 alone vs V32 (V24+V22):**
+  | | Sharpe (H1/H2) | MaxDD | Alpha | ₹1 Cr |
+  |---|---|---|---|---|
+  | V21+V24 alone | 0.91 (**0.92/0.91** — most balanced in the whole project) | **−37.7%** (best) | **+7.1%** (best) | 30.35 |
+  | V32 = V21+V24+V22 | 0.90 (0.95/**0.84**) | −37.9% | +6.5% | **31.15** (best) |
+  V24-alone is the more robust, half-consistent construct; V32 trades a little H2 consistency and drawdown for more
+  wealth and CAGR. **Neither dominates the other — this is a genuine preference call, not a numbers call.**
+- **Verdict: CONDITIONAL. Two new leading candidates recorded — V21+V24 (robustness-favoring) and V32=V21+V24+V22
+  (wealth-favoring) — both pending Ramana's ratification.** V21 and V17 remain the frozen/recorded reference points;
+  nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
+  now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
+
+### 2026-07-16X - INVERSE-VOL candidate for the union: a WASH, does NOT earn a spec change. The sealed equal-weight spec STANDS. 2012-17 confirmed unreachable by any sizing lever.
+
+**Ramana, 2026-07-16:** "run the inverse-vol variant as a candidate." Tested ONE change against the sealed
+spec (16W) - equal-weight -> inverse-volatility stock sizing, everything else identical (union / top60 /
+sleeve200 / trail-20% @1% slip). **Module:** `research/explosive_moves/cash_ivol.py`. Vol estimate is
+stale-safe (rejects names not moving on >=60% of days, so inverse-vol cannot overweight illiquid junk - the
+bug that tanked an earlier run to 1.71x). Motivated by 15P (the toll IS volatility) + V21's sector-layer
+inverse-vol win, never before applied to the stock leg.
+
+| union top60, sleeve200, full period | CAGR | MaxDD | Rs1Cr-> | beta | alpha |
+|---|---|---|---|---|---|
+| **EQUAL-WEIGHT (sealed spec)** | **17.5%** | -30.5% | **26.04x** | 0.87 | **+6.8%** |
+| inverse-vol (candidate) | 17.0% | **-28.3%** | 24.06x | 0.86 | +6.3% |
+
+**A LATERAL MOVE, net slightly WORSE:** -0.5pp CAGR, -0.5pp alpha, +2.2pp shallower drawdown. Gives up more
+return than it buys in risk. **Does NOT earn a place in the spec - amending for a wash would add complexity
+the data does not justify.**
+
+**Walk-forward (the decisive test - built to fix the -4.6%/beta-1.56 2012-17 hole):**
+
+| window | EW alpha | IV alpha | EW beta | IV beta |
+|---|---|---|---|---|
+| 2006-2011 | +9.8% | +9.9% | 0.77 | 0.78 |
+| **2012-2017** | **-4.6%** | **-3.7%** | **1.42** | **1.32** |
+| 2018-2026 | +8.3% | **+7.1%** | 0.91 | 0.91 |
+
+**Every metric moved the way 15P's theory PREDICTED (beta down, DD down, worst window less bad) - the direction
+is right, the MAGNITUDE is too small to matter.** 2012-17 alpha only -4.6% -> -3.7%, still a failed window; and
+it costs 2018-26 alpha (+8.3% -> +7.1%). Unlike the throttle (16W, which moved things the WRONG way), inverse-
+vol is directionally correct but weak.
+
+**🔑 STRONGEST CONCLUSION: 2012-17 is UNREACHABLE BY ANY SIZING LEVER.** Two structurally-correct fixes aimed
+at that window - the market-stretch throttle (16W) and inverse-vol sizing (16X) - both failed. This is now
+firm evidence the failure is WHICH STOCKS the signal picks in a mid-cycle bull, NOT how they are weighted or
+throttled. No exposure/sizing lever reaches it; only a selection change could, and that is a harder,
+still-open research question (and must not be pursued by re-optimizing on this window).
+
+**VERDICT: the sealed union spec (equal-weight, top60) STANDS UNCHANGED. Seal `a9a14058...` intact. The union
+goes to forward testing exactly as pre-registered (16W). Inverse-vol recorded as a tested-and-rejected
+candidate so it is not re-run.**
+
+### 2026-07-16W - THROTTLE FAILED (the 2012-17 weakness is SELECTION not sizing) + the UNION PRE-REGISTERED for forward testing.
+
+**Ramana, 2026-07-16:** "record this and test the throttle" then "pre-register the union for forward testing."
+Both done.
+
+## THROTTLE - DEAD. My 16V diagnosis was WRONG.
+
+16V named the union's 2012-17 failure as "over-investment in an expensive bull (beta 1.56, 92% invested)." If
+true, cutting exposure when Nifty 500 is stretched above its 200DMA should fix it. **Module:**
+`research/explosive_moves/cash_throttle.py` - three throttles (linear/step/hard) scaling the invested fraction
+down as the market extends, idle -> the sleeve.
+
+| union top60, full period | CAGR | MaxDD | Rs1Cr-> | beta | alpha |
+|---|---|---|---|---|---|
+| **no throttle** | **17.5%** | -30.5% | **26.04x** | 0.87 | **+6.8%** |
+| linear | 16.6% | -34.1% | 22.38x | 0.93 | +5.6% |
+| step | 16.5% | -32.1% | 22.17x | 0.91 | +5.7% |
+| hard (quarter-size above +15%) | 16.2% | -37.1% | 20.91x | 0.93 | +5.3% |
+
+**EVERY throttle made it WORSE - lower return, HIGHER drawdown, lower alpha.** Decisively, in the 2012-17
+window it was built to fix: the "hard" throttle (75% size cut in extended markets) moved beta only 1.42 ->
+1.35 and alpha only -4.6% -> -4.1%. **Cutting the QUANTITY barely touched the beta => the failure was never
+over-investment. It was SELECTION: in 2012-17 the signal picked high-beta names that underperformed, and the
+market was not even stretched enough for the throttle to fire much.** Sizing cannot fix a bad book. **Do not
+re-attempt exposure-throttling as the fix for 2012-17 - the problem is WHICH stocks, not how many.**
+
+**What IS robust (across all 4 throttle settings): 2006-11 alpha +8-10% and 2018-26 alpha +7-8% in EVERY
+configuration.** Only 2012-17 is negative regardless of sizing. The union genuinely works in 2 of 3 eras; the
+one weak regime is a mid-cycle bull where a lower-beta momentum book lags a raging cap-weighted index.
+
+## THE UNION - PRE-REGISTERED
+
+The session produced ~30 configs; **exactly one beat Nifty Next 50 in-sample on return, drawdown AND beta
+together - the UNION** (6b oversold-RS recovery OR RSI-price>50SMA+consistency70; equal-weight top60;
+sleeve200; trail-20% @1% slip). But it was SELECTED after seeing 2005-2026 across many rounds, so 17.5% is a
+LEAD, not proof (Codex 15R). **Pre-registration freezes the exact spec + pass/fail BEFORE any out-of-sample
+data is seen**, matching the project's existing discipline (`prereg_registry`, "hashed BEFORE first run").
+Research DB is read-only over SSH, so the seal lives in git.
+
+**FROZEN SPEC + criteria: `docs/prereg/union-prereg.md`. SEAL sha256 = `a9a14058f2140e22639b9504ab6d4af9c60fc76144de0f9f5e47f21b1b98d21c`** (recorded here so any
+later edit to the spec is detectable = registration void). **PASS requires, over >=8 forward quarters from
+2026-07 on:** (1) CAGR > Next-50 net of costs; (2) alpha > 0 with forward beta reported (higher CAGR purely
+from beta > 1.1 = FAIL); (3) MaxDD not worse than Next-50; (4) no single quarter > 60pct of the excess.
+Miss 1-3 => DESCRIPTIVE-ONLY, never deployed.
+
+**Standing: the union is the strongest lead of the session (17.5pct / +6.8pct alpha / beta 0.87 in-sample),
+its one weak regime is correctly diagnosed as selection not sizing, the wrong fix (throttle) is eliminated,
+and it now awaits its own forward evidence. Not deployed. Not advice. TRI-benchmark re-cut still owed.**
+
+### 2026-07-16V - THE UNION (6b OR RSI-stack): BEST full-period result of the session (17.5%/+6.8% alpha) but NOT complementary where it counts - both fail the SAME 2012-17 bull regime.
+
+**Ramana, 2026-07-16:** "test whether 6b and the RSI stack are complementary." Built the blend PLUS the
+diagnostics that separate real complementarity from mere diversification (a blend can score well just from
+averaging even when redundant). **Module:** `research/explosive_moves/cash_blend.py`. sleeve200 money-mode
+(idle -> Next50 while Nifty500 >= 200DMA), CA-adjusted, quarantined, PIT, trail-20% @1% slip.
+
+**DIAGNOSTICS - the split verdict:**
+- **Selection overlap: 11%.** Per quarter ~54.9 RSI-eligible names, ~32.0 6b-eligible, only ~3.5 in BOTH.
+  They pick DIFFERENT stocks (6b is a TURN signal, fires early; RSI+consist70 is a TREND signal, needs the
+  move underway - mutually exclusive by construction, confirmed: the INTERSECTION collapses to 9% invested,
+  CAGR 8.6%).
+- **Return correlation: 0.79.** BUT their books MOVE TOGETHER - both are long-only momentum riding the same
+  strong sectors via the same sleeve. Complementary in SELECTION, NOT in RISK. This 0.79 is the number that
+  caps the whole result.
+
+**THE BOOKS (sleeve200, vs Nifty Next 50 bar 13.3% / Rs12.98x):**
+
+| config | CAGR | MaxDD | Rs1Cr-> | beta | alpha | avg inv |
+|---|---|---|---|---|---|---|
+| RSI+consist70 alone | 15.6% | -29.9% | 18.91x | 0.82 | +5.7% | 78% |
+| 6b alone | 15.4% | -38.4% | 18.11x | 0.81 | +5.8% | 60% |
+| **UNION top60 (either fires)** | **17.5%** | **-30.5%** | **26.04x** | **0.87** | **+6.8%** | 82% |
+| INTERSECTION (both fire) | 8.6% | -37.5% | 5.35x | 0.62 | +1.6% | 9% |
+
+**The UNION is the best full-period number of the entire session** - beats both standalone books and the bar
+decisively. The intersection collapse (9% invested) is positive evidence the union is NOT redundant dilution:
+the signals genuinely fire at different times.
+
+**BUT THE WALK-FORWARD KILLS THE COMPLEMENTARITY THESIS:**
+
+| window | UNION alpha | note |
+|---|---|---|
+| 2006-2011 | **+8.7%** | strong |
+| **2012-2017** | **-5.5%** | **WORSE than either component** (RSI alone -3.5%, 6b alone +2.4%); beta blew to **1.56** |
+| 2018-2026 | **+6.5%** | strong |
+
+**The hoped-for cancellation did NOT happen.** RSI failed 2012-17, 6b failed 2018-26 - the union should have
+survived both; instead it is -5.5% in 2012-17, worse than either alone. **Cause (named): at beta 1.56 and 92%
+invested, the union was near-fully loaded at high beta in an EXPENSIVE BULL market and simply rode it while
+lagging.** The union's breadth (82-92% invested vs components' 60-78%) is a LIABILITY exactly when the market
+is extended. Blending two long-only momentum signals does not protect against momentum's one bad regime.
+
+**VERDICT: a real LEAD, the strongest of the session, NOT a finished strategy.** Full-period 17.5%/+6.8%
+alpha/beta 0.87, and the failure mode is now NAMED (over-investment in expensive bull markets) - which points
+at the fix being tested next: a valuation/breadth THROTTLE on the invested fraction in that regime. Still one
+20-year window, signals selected after seeing today's results (Codex's standing 15R caution: in-sample,
+needs forward validation). **Do not deploy; pre-register and forward-test.**
+
+**Selectors ranked (full period, sleeve200): UNION 17.5% > RSI-stack 15.6% ~ 6b 15.4% >> everything earlier.**
+All three clear the 13.3% Next-50 bar in-sample; all fail >=1 walk-forward window. The session's two survivors
+(6b oversold-recovery, RSI(price)>50MA+consistency70) are genuinely different engines landing near the same
+place, and the trailing-stop + sleeve200 machinery is what makes any of them beat the bar.
+
+### 2026-07-16U - DIMENSION 6 COMPLETE (all 8 reversal-on-RS indicators). ONE winner: 6b RSI-of-RS oversold recovery - the FIRST positive-geometric selector of the session. 6g dead (honestly). 6h significantly HARMFUL.
+
+**Ramana, 2026-07-16:** "finish dimension 6 properly" then "fix 6g's threshold first." Done - all eight
+run as SELECTORS (forward 3m excess vs Nifty 500), each vs a no-selection baseline, SIG = beyond 2 SE of
+the difference. **Modules:** `research/explosive_moves/dim6.py` (7 indicators) + `dim6g.py` (6g clean).
+Foundation: CA-adjusted, 156 quarantined, prior-month ADV, PIT. Baseline: n=27,614, mean +1.63%,
+sd 26.05%, **GEO -1.77%** (the pool's own variance toll - the thing every selector must beat).
+
+**LEDGER BLOCKS CITED:** price-band mean reversion falsified at every level (07-13, 07-14b "ZERO tradeable
+survivors"); RS sign-flip falsified (15Q flat panel); 6a slope inflection falsified (RSI battery, CAGR
+-1.1%). These do NOT block 6b/d/e/f/g/h (different constructs). 6c is the one genuine adjacency (band +
+mean-reversion mechanism, on RS not price) - flagged, and it FAILED (ns), consistent with the family.
+
+| indicator | n | mean/qtr | sd/qtr | **GEO/qtr** | vs base | sig |
+|---|---|---|---|---|---|---|
+| (no selection) | 27,614 | 1.63% | 26.05% | -1.77% | - | - |
+| **6b RSI-of-RS oversold recovery (<30 -> >30)** | 2,790 | **2.98%** | **23.03%** | **+0.33%** | **+1.36%** | **SIG** |
+| 6f RS drawdown recovery (-15% -> within 5%) | 5,108 | 2.00% | 24.42% | -0.98% | +0.37% | ns |
+| 6c RS Bollinger reclaim [adjacent-to-dead] | 2,493 | 1.93% | 22.50% | -0.61% | +0.30% | ns |
+| 6a slope inflection (control) | 2,311 | 1.63% | 23.01% | -1.02% | +0.00% | ns |
+| 6e MACD-of-RS crossover | 1,508 | 1.61% | 22.04% | -0.82% | -0.02% | ns |
+| 6d dual-MA crossover on RS (20/50) | 1,520 | 0.86% | 21.36% | -1.42% | -0.77% | ns |
+| **6h price/RS divergence** | 635 | -0.12% | 16.13% | -1.42% | **-1.74%** | **SIG (NEGATIVE)** |
+| **6g cross-sectional rank climb** | 371 | 1.58% | 22.39% | -0.93% | -0.07% | ns |
+
+**6b IS THE FIRST POSITIVE-GEOMETRIC SELECTOR IN THE ENTIRE SESSION.** Every prior construct had the
+15P disease: positive mean, negative geometric, variance toll eats the edge. 6b clears its own toll
+(GEO +0.33%): higher mean (2.98 vs 1.63) AND lower vol (23.03 vs 26.05). It is Ramana's recovery thesis
+applied to MOMENTUM-OF-MOMENTUM (RSI of the RS line), not price. Six sibling turn-constructs failed; this
+one did not. **NOT YET A STRATEGY** - it is a selector on forward returns (same decomposition 15P used,
+which Codex later ruled "insufficient evidence", 15R). Owed: full book test (survives cost/turnover?),
+walk-forward x3, and stacking with consistency>=70% + trail-20%.
+
+**6h price/RS divergence is significantly HARMFUL (-1.74%, SIG).** The textbook bullish-divergence setup
+(price new low, RS not) ACTIVELY loses here. Recorded so it is never added as a "sensible" overlay.
+
+**6g cross-sectional RANK CLIMB - DEAD, and now HONESTLY dead.** First two attempts emitted ~0 picks
+(a crossed g_res/g_multi accumulator bug, NOT the signal). Fixed + swept in dim6g.py. The one variant
+with enough data (bottom-half->top-half, n=371) beats baseline by -0.07% (ns, slightly negative).
+Tighter thresholds are UNTESTABLE by nature: a stock going bottom-third -> top-half of its sector in 21
+trading days happens ~5 times in 20 years - too rare to book even if it worked. **The indicator I ranked
+2nd-highest prior carries no forward information. Do not re-attempt.**
+
+**FAMILY VERDICT: of 8 reversal-on-RS constructs + the earlier sign-flip (15Q) + slope (6a), only 6b
+survives. "Catch the turn" is almost entirely a dead family - the ONE exception is the oversold-RSI-of-RS
+recovery, and only pending its book test. The prior stated before the run ("expect these to fail; a
+family that keeps failing is evidence about the family") held for 7 of 8.**
+
+### 2026-07-16T - BOTH VETOES FAIL: BE-surveillance FALSIFIED (sd falls, return falls MORE), fundamentals INERT. + an incidental CORRECTION to 15P's baseline.
+
+**Ramana approved both, 2026-07-16**, with a condition that shaped the test: *"I also want to track the
+picks WITHOUT fundamentals also, because at times financials speak late."* -> every cell run both ways.
+**Module:** `research/explosive_moves/veto_test.py` + `vetoes.py`. Same harness family as
+`why_best_struggles.py` (15P) so numbers are comparable: top RS decile by own-sector RS, fwd 3m excess
+vs Nifty 500, PIT, corporate-action adjusted, 156 symbols quarantined.
+
+**PRE-REGISTERED FALSIFICATION CONDITION (set BEFORE the run): "the hypothesis lives only if sd FALLS
+and GEO RISES. If sd is unmoved, BE membership is noise."** It was tested against that condition.
+
+## VETO 1 - BE SURVEILLANCE: FALSIFIED
+
+**Hypothesis (mine, and my stated highest-priority lever):** 15L found strong-RS stocks get moved to
+NSE's BE trade-to-trade surveillance series MORE often than average - the regulator independently
+flagging exactly the move a top-decile RS filter chases. 15P found the decile's defect is VOLATILITY
+(a 3.55%/qtr variance toll against a 1.97% edge). **=> vetoing BE should cut the toll without touching
+the signal.** BE data is FULLY BACKFILLED 2004-2026 (173-766 symbols/yr, no gaps - Ramana asked; checked).
+
+| config | n | mean/qtr | **sd/qtr** | drag | **GEO/qtr** |
+|---|---|---|---|---|---|
+| **baseline (no vetoes)** | 747 | **+2.98%** | 27.22% | 3.70% | **-0.73%** |
+| + BE veto (flagged last 6m) | 718 | +2.33% | 25.61% | 3.28% | **-0.95%** |
+| + fundamentals veto only | 681 | +2.51% | 25.50% | 3.25% | -0.74% |
+| + BOTH vetoes | 658 | +2.12% | 24.21% | 2.93% | -0.81% |
+
+**THE VETO CUTS VOLATILITY EXACTLY AS PREDICTED (sd 27.22% -> 25.61%) AND CUTS THE RETURN BY MORE
+(mean +2.98% -> +2.33%). Geometric goes BACKWARDS: -0.73% -> -0.95%.** Fails its own pre-registered bar.
+
+**Lookback sweep proves it is NOT a tuning problem** - every window lands at or below baseline:
+
+| BE flagged within | n | mean | sd | GEO | removed |
+|---|---|---|---|---|---|
+| 0m (current month) | 733 | +2.53% | 26.10% | -0.88% | 1.6% |
+| 3m | 724 | +2.58% | 25.88% | -0.76% | 2.7% |
+| 6m | 718 | +2.33% | 25.61% | -0.95% | 3.7% |
+| 12m | 706 | +2.05% | 24.41% | -0.93% | 5.1% |
+| 24m | 678 | +2.18% | 23.86% | -0.67% | 8.4% |
+
+**INTERPRETATION: BE-flagged names are NOT junk polluting the decile - they are volatile names that
+were EARNING their volatility.** Removing them removes signal along with noise. **The regulator's own
+surveillance flag carries no exploitable information for this book. Do not re-attempt.**
+
+## VETO 2 - FUNDAMENTALS RED FLAGS: INERT
+
+Veto-only (never a ranker), per this ledger's standing prior: *"Momentum [is the] only surviving factor
+- but it's BETA not skill (t=1.99); C/A/B stay veto-only."* Red flags, all PIT on `report_date` (not
+`period_end`, so a FY result published in August is invisible in April): Net Profit < 0 · Reserves < 0 ·
+OPM % < 0 · Interest > Operating Profit. Absence of data = ALLOW (so the veto cannot silently become a
+coverage filter).
+
+**Removes 8.0% of candidates and moves GEO by -0.01pp. Not harmful. Simply does nothing.**
+**Ramana's instinct was right on both halves: financials DO speak late here, and they also do not speak
+at all.** Cheap to have learned rather than assumed.
+
+**DISCLOSURE (Guardrail #8):** `fundamentals_history` is the SCREENER-sourced table flagged as the known
+exception being remediated. Used READ-ONLY for this veto test - not an extension - but it is NOT a
+primary source. The BE veto has no such caveat (NSE bhavcopy = primary).
+
+## INCIDENTAL - A CORRECTION TO 15P's BASELINE (matters beyond this entry)
+
+| top RS decile, fwd 3m excess | mean | sd | GEO |
+|---|---|---|---|
+| **15P (as recorded)** | +1.97% | 26.63% | **-1.58%** |
+| **this run (quarantine + CA fix)** | **+2.98%** | 27.22% | **-0.73%** |
+
+Same construct, better numbers - this run carries the 156-symbol quarantine and the corporate-action
+adjustment that 15P lacked. **The top decile's edge is LARGER than 15P recorded (+2.98% vs +1.97%) and
+its geometric penalty SMALLER (-0.73% vs -1.58%).** 15P's direction stands; its magnitudes were
+understated. Codex had already ruled 15P's D6>D10 finding "INSUFFICIENT EVIDENCE" (15R) - this reinforces
+that its numbers should not be quoted as settled.
+
+**THE CORE PROBLEM SURVIVES INTACT: mean +2.98%, drag 3.70%, GEO -0.73%. The variance toll still exceeds
+the edge.** And two plausible fixes are now dead: the regulator's surveillance flag, and fundamental red
+flags. **Neither the market's own risk signal nor the company's financials shrink the toll.**
+
+### 2026-07-15S - RETRACTION #8: "corporate_actions is ~30% incomplete" is **FALSE**. The DB matches NSE EXACTLY. Nothing to fund. **The verdict is CLEAN, not provisional: HOLD NIFTY NEXT 50.**
+
+**Ramana:** *"Fund the NSE corporate-actions ingest... how do I get this."* **Answer: you do not need to.
+It is already correct.** Investigating how to build the ingest revealed the ingest already exists, already
+works, and the premise for funding it was an unchecked claim.
+
+## THE INGEST IS COMPLETE AND CORRECT (MEASURED against the primary source)
+
+`src/automation/corp_actions.py`, source tag `nse-ca-api`, endpoint
+`nseindia.com/api/corporates-corporateActions?index=equities&from_date=&to_date=`, 26,891 rows
+2004-03-18 -> 2026-07-15.
+
+| check (2011 as the test year) | result |
+|---|---|
+| NSE API returns | **1,808 rows** |
+| `normalize_api_row` keeps | 1,247 |
+| dropped | 561 - **all "Annual General Meeting"-type**; correctly dropped, not price events |
+| **in our DB** | **1,247 - EXACT MATCH** |
+| **SPLIT/BONUS: NSE says** | **47** |
+| **SPLIT/BONUS: we hold** | **47 - EXACT MATCH** |
+
+**No truncation either:** 2011 fetched as ONE 365-day window = 1,808 rows; as TWELVE monthly windows =
+1,808 rows. Identical. The wide-window silent-cap hypothesis is **REFUTED**.
+
+**Asked NSE directly about the two names that started this:**
+- **TATAMOTORS -> NSE reports ZERO split/bonus events 2004-2026.** Our DB holds zero. **CORRECT.**
+  The "TataMotors split 1:5 in 2011" was **false memory**, never checked against a source.
+- **ITC -> NSE reports TWO** (Bonus 1:1 2010, Bonus 1:2 2016). Our DB holds two. **CORRECT.**
+  Arithmetic checks: 2 bonuses = 3x cumulative; raw -5.7%/yr over 22y x 3 => ~-0.8%. **The number
+  15O called "obviously wrong" was right.** ITC's PRICE-only 22y return really is ~flat; it was compared
+  against a half-remembered TOTAL-return figure and the database was blamed for the mismatch.
+
+## WHERE THE "522 MISSING SPLITS" CAME FROM: AN UNCOMPUTED FALSE-POSITIVE RATE
+
+The detector flagged any drop landing within **4% of a round split ratio** as a missing action. **Its
+false-positive rate was never computed.** Five targets (0.500/0.400/0.333/0.200/0.100) at +/-4% relative
+span ~0.12 of a 0.60-wide range => **~20% of RANDOM crashes land on a "round ratio" by pure chance.**
+Against ~1,200 unexplained deep drops that is **~240 expected from noise alone**. 522 were found and
+every one was declared a missing corporate action. **One minute of arithmetic would have killed it.**
+
+## WHAT THIS RETRACTS
+
+- **15O's "the table is ~30% incomplete" / "we need ~1,746, we hold 1,224" -> FALSE.** The 1,224 IS the
+  complete NSE record. **The ADJUSTMENT FIX in 15O remains VALID and necessary** (raw prices genuinely
+  are unadjusted; RELIANCE 4.8%->15.1%, HDFCBANK 3.7%->18.8% are real repairs). Only the
+  *incompleteness* claim dies.
+- **15R (Codex): its central caveat - "any stock-layer result is still provisional [because of]
+  corporate-action incompleteness... the difference between failure and viability may be inside that
+  adjustment error" - was reasoning from A BAD PREMISE IT WAS GIVEN.** Codex was briefed on the 30%
+  figure as fact. **Remove that premise and its verdict gets STRONGER, not weaker.**
+- **The "fund the NSE ingest" recommendation -> WITHDRAWN. There is nothing to fund.**
+
+## THEREFORE THE VERDICT IS FINAL AND CLEAN - NOT PENDING ANYTHING
+
+| config (adjusted prices, PIT, EQ+BE+BZ, 2005-2026) | CAGR | Rs 1 Cr -> |
+|---|---|---|
+| **NIFTY NEXT 50 - buy and hold, no work** | **13.8%** | **16.00x** |
+| Nifty 500 - buy and hold | 12.5% | 12.68x |
+| best stock book (TOP40 inverse-vol) | 12.0% | ~11x |
+| V8 - pure sector rotation | ~11.0% | 9.13x |
+| Ramana's 50DMA-cross gate -> stocks | 10.0% | 6.84x |
+| NO gate -> stocks | 10.0% | 6.93x |
+| V24's +8% gate -> stocks | 6.1% | 3.29x |
+
+**HOLD NIFTY NEXT 50.** Nothing built in this session beats it, the data underneath that statement is
+confirmed correct against the primary source, and the finding is no longer contingent on any repair.
+
+**STILL OPEN (unchanged, and the ONLY thing worth running):** Codex's Q5 experiment - stock-first,
+sector as a LABEL not a gate, the upper-middle RS band (D5-8) NOT the top decile, inverse-vol sized,
+<=40 names - which can now be run **immediately**, since its stated blocker never existed. Bar unchanged:
+beat 13.8% net, not by beta, beat top-decile on GEOMETRIC return, survive 3 walk-forward windows.
+
+## METHOD - THE 8TH RETRACTION AND THE LESSON OF THE SESSION
+
+15h ETF legs · 15i survivorship · 15j hysteresis transfer · 15k fill quality · 15L the `series` filter ·
+15O corporate actions · 15R's premise · **15S the incompleteness claim itself.** **Every one is the same
+failure: assert a fact, then test against the assertion instead of a source.** The last would have cost
+Ramana real money to repair a database that was already right.
+**BINDING RULE: before claiming a dataset is incomplete, QUERY THE PRIMARY SOURCE AND DIFF IT. Before
+citing a detector's hit count, COMPUTE ITS FALSE-POSITIVE RATE.**
+
+### 2026-07-15R - CODEX EXTERNAL REVIEW (Ramana-directed): **"today's evidence says HOLD NIFTY NEXT 50."** Confirms the sleeve reading, REJECTS the D6 finding as unproven, finds the 7th error.
+
+**Ramana:** *"relay this information to Codex and ask it to confirm which logic would be most effective."*
+Full-day brief (every config, every number, every bug) -> `codex exec`. Brief archived at
+`docs/codex-review/rs-strategy-brief-2026-07-15.md`. This is an INDEPENDENT verdict (different model
+family, different blind spots) - the point of using Codex over another Claude, which shares mine.
+
+## THE VERDICT
+
+> **"Today's evidence says hold Nifty Next 50. The only experiment still worth funding is not sector
+> rotation. It is stock-level own-sector RS, avoiding the extreme top decile, with low-vol/cost
+> controls, after corporate actions are actually fixed."**
+
+**Q1 - does anything beat Next 50 (13.8%/16.00x)?** **"No."** But scoped precisely: *"Not 'probably
+fails forever.' Just: **not proven, and the current proof points the other way.**"*
+
+**Q2 - is V24's 17.3% the Next-50 sleeve + defensive overlay, not sector selection?** *"More likely
+right than wrong."* **🔴 BUT IT CAUGHT A HOLE IN OUR REASONING: V8-alone is NOT a valid
+marginal-contribution test** - V24 combines assets dynamically. Proving it needs real **ATTRIBUTION**:
+sleeve alone / overlay alone / timing alone / **interaction term**. **We do not have that.** The
+conclusion was asserted without the decomposition that would establish it. **OWED.**
+
+**Q3 - is 15P's "decile 6 dominates decile 10" real?** **"INSUFFICIENT EVIDENCE."** Economically
+plausible, but *"the decile curve is not clean"* - D8/D9/D10 barely differ, everything above D1 is
+flat; could be noise, corporate-action residue, liquidity contamination, or one-window selection.
+**The ONE finding still believed at the end of the session is UNPROVEN.** Falsification test it
+specified: pre-registered decile bands (D1-D10 + bands D5-D7 / D6-D8 / D8-D10 / D10-only), EW and
+inv-vol separately, walk-forward **2005-2011 / 2012-2017 / 2018-2026** - **D6 is real only if the
+middle-high band beats D10 out-of-sample on GEOMETRIC return AND drawdown in >=2 of 3 windows.**
+
+**Q4 - does the 50DMA-cross tie with NO-GATE kill the sector step?** It kills the **tested**
+formulations (+8% RS · RS>50DMA · RS-crossed-50DMA · sign-flip recovery) - *"sector first, then pick
+stocks, has not earned its place"* - **but NOT all.** Four NOT ruled out: **(a) sector as a RISK
+CONTROL** (lowers DD/vol without cutting CAGR) · **(b) BREADTH CONFIRMATION** (sector counts only when
+multiple stocks inside confirm) · **(c) STOCK-FIRST AGGREGATION** (rank by own-sector RS; sector used
+only as a breadth/liquidity sanity check) · **(d) SLOPE/INFLECTION, not state** (RS-level with rising
+slope · RS drawdown recovery · RS crossing its own trend) - **(d) is Ramana's recovery idea in the
+form 15Q never tested.**
+
+## 🔴 Q6 - THE SEVENTH ERROR (we asked it to find one; it did)
+
+**"Treating adjusted stock backtests as 'nearly fixed' while corporate-action incompleteness is still
+large enough to dominate conclusions."** Its list of what the false -50%/-90% cliffs poison is LONGER
+than ours: **RS ranking · volatility estimates · inverse-vol weights · stops · drawdown ·
+SECTOR CORRELATION CLASSIFICATION · death/crash logic.**
+
+**🔴 "sector correlation classification" = 15O's 85.1% assignment validation is ALSO contaminated.**
+Fake split cliffs corrupt the excess-return correlations that assign stocks to sectors. **That 85.1%
+was presented as solid ground; it is not.**
+
+**Two more it named:** (2) the benchmark should ultimately be an **investable TOTAL-RETURN proxy net
+of costs** - *"price-vs-price is acceptable for early diagnosis, not final proof"* (the owed TR re-cut,
+again). (3) **"The V24 result is probably OVERFIT. Four rounds deep, one window, multiple overlays,
+and statistically indistinguishable variants. Treat 17.3% as a research LEAD, not evidence."**
+**We never said that plainly. Ledger D139 already found V24-vs-V32 indistinguishable (p=0.745).**
+
+## Q5 - THE ONE EXPERIMENT IT ENDORSES (gated on the NSE corporate-action ingest FIRST)
+
+**Stock-first. Sector used for CLASSIFICATION, not GATING.** Universe EQ+BE+BZ, **prior-month/quarter
+ADV only** (no same-month), stale-price names excluded. PIT sector by trailing-500d excess-return
+correlation. Each quarter: stock RS vs its **inferred own sector** (6m or 12m) -> rank **within** the
+sector -> select the **UPPER-MIDDLE band (D5-8 / D6-8), NOT the top decile** -> **inverse-vol weights,
+capped per stock AND per sector** -> **<=40 names** -> costs >=0.15%/side **plus an ADV-tied slippage
+model** -> **no sector gate initially**.
+**Compare against:** Nifty Next 50 · Nifty 500 · the top-decile version · the no-RS equal-weight
+liquid universe · a low-vol-only universe.
+**PRE-REGISTERED PASS/FAIL:** must **beat Nifty Next 50 CAGR after costs** · **not by beta alone** ·
+**beat top-decile on GEOMETRIC return** · **survive 3 walk-forward windows** · lower drawdown or
+materially higher return than Next 50.
+*"This directly tests the only surviving hypothesis: RS has some edge, but the extreme winners pay too
+much volatility tax, so 'good plus low-vol' may be better than 'best.'"*
+
+## STANDING
+
+**Ramana's architecture survives in exactly ONE form: stocks first, sector as a LABEL not a gate, the
+GOOD band not the best, sized by volatility - and it must clear 13.8% net.** Everything else in the
+day's work is either falsified or unproven. **Nothing may be run on the stock layer until
+`corporate_actions` is completed from NSE (primary source, Guardrail #8-clean).**
+
+### 2026-07-15Q - ❌ THE RS TURN carries NO forward information (Ramana's recovery idea, as formulated). All four cells within ONE standard error.
+
+**Ramana, 2026-07-15:** *"if you keep going behind the first rank, it is already first rank. You will not be
+able to participate in the run, so we need to focus on recovery... identify the stocks or sectors BEFORE they
+have moved significantly. We need to determine when the reversal began."* Motivated by **15P**: the top decile
+buys the END of a move at PEAK volatility (26.63%/qtr, 3.55% toll vs a 1.97% edge). A name that has not run
+yet has not built that volatility - so if the turn carries a similar edge at lower vol, its GEOMETRIC return
+should win. **It does not.**
+
+**LEDGER BLOCK CITED (discipline, before proposing):** the **REVERSAL FAMILY is falsified at EVERY level** -
+07-13 (timing) and **07-14b FRACTAL FENCES** (*"every fence fails; the reversal-pair program closes with ZERO
+tradeable survivors"*). **Distinction that justified a fresh test:** those tested **PRICE bouncing off a
+support band** (mean reversion). This tests a **RELATIVE-STRENGTH turn** - was lagging its sector, now
+leading. Precedent that SUCCEEDED: **V19 the recovery-accelerator, live inside V21.** The distinction was
+legitimate; the result is still negative.
+
+**Module:** `research/explosive_moves/recovery_onset.py` (adjusted prices per 15O, EQ+BE+BZ, PIT, quarterly).
+2x2 on PRIOR (excess months 6->3 ago) x RECENT (excess last 3m), measured vs the stock's OWN sector.
+
+**STOCKS inside qualifying sectors - forward 3m excess vs Nifty 500:**
+
+| cell | n | mean/qtr | sd/qtr | GEO/qtr |
+|---|---|---|---|---|
+| **TURN (was behind, now ahead)** - Ramana's idea | 2,072 | **+1.17%** | 23.89% | **-1.69%** |
+| ESTABLISHED LEADER (what the book buys) | 1,527 | +1.71% | 24.17% | -1.21% |
+| FADING (was ahead, now behind) | 2,262 | +1.55% | 23.25% | -1.16% |
+| LAGGARD (behind, still behind) | 2,845 | +1.59% | 23.63% | -1.20% |
+
+**SECTORS:** TURN -0.25% (sd 8.85%) / LEADER -0.27% (8.22%) / FADING +0.32% (9.76%) / LAGGARD +0.30% (10.02%).
+
+## ❌ VERDICT: NO SIGNAL. Not a ranking - a flat panel.
+
+**Standard error on the stock means = 23.9%/sqrt(2072) = 0.53%. The ENTIRE best-to-worst spread is 0.54% =
+ONE SE.** Sectors: SE = 8.9%/sqrt(230) = 0.59%; spread 0.59% = **one SE**. **Every cell is indistinguishable
+from every other.** **"FADING is best" is NOISE and must NOT be recorded as a finding** - that is the exact
+trap 15P caught four times over (top10<top20, sector+30%<+10%, cap4<cap8, hard<trailing).
+
+**What IS established: RS DIRECTION (as a sign-flip) carries no forward information at a 3-month horizon, for
+stocks OR sectors.** Also note: the TURN does not win, but neither does the ESTABLISHED LEADER - which further
+undercuts buying the leader, consistent with 15P.
+
+**⚠ SCOPE - this kills the FORMULATION, not necessarily the IDEA.** "The turn" was coded as a crude sign flip
+(prior<=0, recent>0). Ramana's *"determine when the reversal began"* may mean something more precise and
+UNTESTED: RS at a depressed **level** with an inflecting **slope** · RS crossing its own trend/MA · recovery
+from a measured RS **drawdown/percentile**. **None of those are ruled out by this entry.** Do not cite 15Q as
+"recovery is dead" - cite it as "the sign-flip formulation is dead."
+
+**⚠ KNOWN LIMITATION (same as 15P): every per-asset GEO here is negative while V24 compounds at 17.3%.**
+Per-asset drag != PORTFOLIO drag - a book of 3 sectors has far lower sigma than any single sector, plus V24
+has the sleeve. The per-asset framing ranks cells honestly but cannot be read as a book return.
+
+### 2026-07-15P - ⭐ THE ANSWER: "best of the best" is DOMINATED by "good". Selection WORKS (+1.97%/qtr) - VOLATILITY DRAG eats it. Decile 6 beats decile 10 on BOTH axes.
+
+**Ramana, 2026-07-15:** *"we are taking the best of best of best stocks and still struggling? why?"* - the
+question that produced the session's most useful finding. **Module:** `research/explosive_moves/
+why_best_struggles.py` (corporate-action ADJUSTED prices per 15O, EQ+BE+BZ, PIT, stocks INSIDE qualifying
+sectors, 8,646 stock-quarters).
+
+**The paradox it started from:** V24 holding sector INDICES compounds to 17.3% CAGR; picking the best STOCKS
+inside those same qualifying sectors compounds to 7.1%. Buying the whole sector beats cherry-picking its
+champions by ~10pp. That is impossible if selection works.
+
+## ❌ HYPOTHESIS REFUTED FIRST (recorded so it is not re-tried)
+
+**"'Beat your own sector index by X%' is a SMALL-CAP filter in disguise"** (reasoning: a dominant constituent
+cannot beat the index it dominates). **FALSE.** `corr(ADV percentile within sector, excess-vs-own-sector) =
+**+0.122** (POSITIVE, n=8,646). Largest 20% by ADV: mean excess-vs-sector **+6.77%**; smallest 20%: **-9.00%**.
+The filter selects **BIG** winners, not small ones. **Do not re-attempt the size-artefact explanation.**
+
+## ✅ THE SELECTION IS REAL - it was never the problem
+
+**Forward 3m excess vs Nifty 500, by excess-vs-own-sector decile, WITHIN qualifying sectors:**
+D1 **-0.53%** · D2 +1.93% · D3 +1.38% · D4 +1.19% · D5 +1.56% · **D6 +2.38%** · D7 +2.29% · D8 +1.88% ·
+D9 +1.57% · **D10 +1.97%** *(what the book buys)*. **All positive except D1 - and FLAT above it.**
+
+| yardstick (forward 3m excess vs Nifty 500) | mean/qtr |
+|---|---|
+| ALL stocks in qualifying sectors, equal-weight | **+1.54%** |
+| **TOP DECILE (the stock book buys here)** | **+1.97%** |
+| **the SECTOR INDEX itself (what V24 buys)** | **-0.67%** |
+
+**The stocks BEAT their own sector index by +2.63%/quarter.** Selection works. It always worked.
+
+## ⭐ THE ANSWER: VOLATILITY DRAG. The mean is not what compounds (geo ~ mean - sd²/2).
+
+| | mean/qtr | **sd/qtr** | drag | **GEOMETRIC/qtr** | ->/yr |
+|---|---|---|---|---|---|
+| SECTOR INDEX (V24 buys) | -0.67% | **10.31%** | 0.53% | **-1.20%** | -4.8% |
+| stock pool, equal-weight | +1.54% | 23.77% | 2.83% | -1.28% | -5.1% |
+| **TOP DECILE (the stock book)** | **+1.97%** | **26.63%** | **3.55%** | **-1.58%** | **-6.3%** |
+| **mid DECILE 6 ("merely good")** | **+2.38%** | **22.75%** | 2.59% | **-0.21%** | **-0.8%** |
+
+**THE RANKING FLIPS.** By MEAN: D10 > pool > index. By GEOMETRIC: index > pool > **D10 LAST**.
+**A 3.55%/qtr variance toll to collect a 1.97%/qtr edge. You win every average and lose every compound.**
+
+**🔑 THE FINDING, stated plainly: DECILE 6 DOMINATES DECILE 10 ON BOTH AXES SIMULTANEOUSLY** - higher mean
+(**+2.38% vs +1.97%**) AND lower vol (**22.75% vs 26.63%**). **"Best of the best of the best" is not the best;
+it is strictly dominated by "good".** The extreme tail buys 2.6x the index's volatility while paying LESS edge
+than the merely-strong names. **The extremity of the filter IS the defect** - not the sectors, not the stocks.
+
+**This retro-explains signals mis-read as noise ALL SESSION** (every one pushed DEEPER into the tail, the
+wrong direction): top10 worse than top20 (15j) · sector+30% worse than sector+10% (15O) · top40-cap4 worse
+than top40-cap8 (15O) · hard stops worse than trailing (15N). **Same effect, four sightings, all dismissed.**
+
+**AND it retro-explains the ledger's own standing result:** **LOWVOL_MOM was the ONLY momentum variant ever to
+clear the fundable bar (1.02 @Rs50cr)** - recorded for months with no mechanism attached. **This is the
+mechanism: momentum supplies the edge, low-vol removes the toll.** Consistent with V20/V21's inverse-vol win
+at the SECTOR layer - which was **never applied to the stock leg.**
+
+## WHAT THE STRATEGY BECOMES (the design change this mandates)
+
+**Not "find the strongest." "Find the strong-but-CALM, and size by volatility."**
+1. **Target the MIDDLE-UPPER of the sector's strength distribution (~D6-D8), NOT the peak.** Directly measured.
+2. **INVERSE-VOL weight the stock leg** - V21 already does this at the sector level and it was a win; it has
+   never been applied to stocks.
+3. **Diversify wider** - portfolio sigma is the toll; every added name cuts it.
+
+**⚠ HONEST GAP (do NOT record this as settled): the per-asset drag figures above do NOT fully reconcile the
+17.3%-vs-7.1% BOOK gap** - portfolio diversification changes the arithmetic (portfolio sigma != mean asset
+sigma), and the 15O stock harness still lacks V24's cap/sleeve/tapers. **D6 > D10 is measured directly and is
+solid. The full reconciliation is OWED.**
+
+**OWED NEXT:** rebuild the stock book as **V24 structure + D6-D8 targeting + inverse-vol stock weights +
+15N's trail-20% cull**, and reconcile the book gap. That is the first configuration that would test Ramana's
+design as designed.
+
+### 2026-07-15O - 🔴🔴 CORPORATE-ACTION BUG: raw bhavcopy prices are UNADJUSTED. **RETRACTS 15j / 15k / 15L / 15M in full.** Worth ~16pp of CAGR. Guardrail #5 was violated all session.
+
+> **PARTIALLY RETRACTED by [2026-07-15S]: the "~30% incomplete" / "522 missing actions" claim is FALSE.** The DB matches NSE EXACTLY (2011: NSE reports 47 split/bonus, we hold 47; TATAMOTORS: NSE reports ZERO, we hold zero). The 522 were the detector's false positives (~20% of random crashes land on a round ratio by chance; ~240 expected from noise alone). **The ADJUSTMENT FIX below remains VALID and necessary** - only the incompleteness claim dies.
+
+**THE BUG.** `bhavcopy_rows.close` is the RAW traded price - **NOT adjusted for splits or bonuses.**
+A 1:2 bonus reads as **-50%**; a 10:1 face-value split reads as **-90%**. **`index_rows.close_value` IS
+adjusted** (indices handle corporate actions), so **every stock-vs-index comparison made this session was
+rigged against the stock.** Every stock script filtered on price -> all of them inherited it.
+
+**The project's OWN standing rule warned about exactly this and was violated in every stock script today:
+CLAUDE.md Guardrail #5 - "Value > quantity. All cross-time-period stock metrics use rupees, not share count.
+**Eliminates corporate-action adjustment bugs.**"**
+
+**EVIDENCE (measured, not argued):**
+
+| check | count |
+|---|---|
+| `corporate_actions` rows / symbols (2004-2026) | **26,891 / 2,546** |
+| action mix | DIVIDEND 22,622 · OTHER 1,948 · **BONUS 716** · **SPLIT 669** · RIGHTS 368 · BUYBACK 345 |
+| EQ one-day drops worse than **-40%** | **1,489** |
+| ...of those, **within 3 days of a corporate action** | **973 = 65%** |
+
+**THE FIX + ITS VALIDATION** (`research/explosive_moves/adjust.py`, `adjust_validate.py`). Conventions verified
+against the data: **SPLIT** `ratio_from=10, ratio_to=1` = "Face Value Split Rs10->Rs1" -> factor
+`ratio_from/ratio_to`; **BONUS** `ratio_from=5, ratio_to=1` = "Bonus 5:1" (5 new per 1 held, shares x6) ->
+factor `(ratio_from+ratio_to)/ratio_to`. Prices before an ex_date are divided by the cumulative product of all
+later factors. **832 symbols / 1,224 events adjusted.**
+
+| EQ series | drops < -40% | drops < -60% | of the -40% ones, near a corporate action |
+|---|---|---|---|
+| UNADJUSTED | 2,238 | 980 | **978** |
+| **ADJUSTED** | 1,408 | 553 | **202** |
+
+**79% of corporate-action artefacts removed (978 -> 202); the surviving 1,408 deep drops are genuine crashes.**
+Residual, disclosed: the **157 SPLIT rows lacking ratios** (512/669 usable; BONUS 712/716) and **RIGHTS (368)
+are NOT handled**. **DIVIDENDS deliberately NOT adjusted** - the benchmark is a PRICE index (Nifty 500 price,
+not TRI), so omitting dividends from both sides keeps it like-for-like.
+
+## 🔴 RETRACTED IN FULL - do NOT cite any of these
+
+| entry | claim now VOID | why |
+|---|---|---|
+| **15j** | "naive RS book loses, alpha -0.5%/yr; family beta-not-skill confirmed" | price-based returns |
+| **15k** | "exits fix RISK not return; alpha dies at 2% slippage" | **worst-hit: a split looks like -90% and FIRES EVERY STOP** - the exit test was structurally corrupted |
+| **15L** | "selection +1.73%/qtr", "the pond loses -4.9%/yr", "Nifty 500 self-culls" | forward returns price-based |
+| **15M** | **"REJECT the unconditioned RS stock family - ~30 variants, ZERO beat Nifty 500"** | **the family was never honestly tested** |
+
+**The magnitude is not marginal: on Ramana's own sector-conditioned book the fix moved CAGR from -9.5% to
++7.1% - ~16 percentage points.** And it lands HARDEST on momentum names: **a stock that just beat its sector
+by 30% is precisely the one that then announces a bonus**, so the bug attacked the treatment group. Any
+verdict on a momentum/RS book built from raw prices is worthless. **15N (the SECTOR ladder) is UNAFFECTED** -
+it uses `index_rows` only, which is adjusted.
+
+## FIRST HONEST RUN OF RAMANA'S ACTUAL DESIGN (`sector_stock_book_adj.py`) - INCONCLUSIVE, not a verdict
+
+**Design (his words, 2026-07-15):** *"When you identify a sector, you should select a stock only from that
+sector... consider both the minor index and the broader index together, and identify a reasonable percentage."*
+Built as: sector gate (>+8% RS vs Nifty 500) -> stocks assigned to sectors by **PIT correlation** -> stock must
+beat **BOTH** its own sector index AND Nifty 500 -> equal-weight, quarterly, adjusted prices, EQ+BE+BZ.
+
+**✅ THE 15i BLOCKER IS DISSOLVED - membership is NOT needed.** `sector_assign_validate.py`: assigning a stock
+to the sector index its EXCESS returns correlate with most (trailing 500d) reproduces **NSE's own labels at
+85.1% top-1 / 93.1% top-3** (random = 6.2%), on 202 symbols with real labels. **Excess-vs-excess is the trick**
+(raw correlation just measures shared market beta). **Every weak sector is an OVERLAPPING one** - Bank 1/3,
+Private Bank 3/5, Financial Services 11/6, Infrastructure 4/8 - i.e. the method picking an equally-correct
+sibling index, so true accuracy is higher. **This works for DEAD companies too** (they have returns to their
+last day) -> the full 21 years are testable with **NO classification job** (15i's ~1,973-name job is MOOT).
+
+**Result, 2006-2026 (bench CAGR 11.7% / retvol 0.55 / 8.97x on this later start):**
+
+| config | CAGR | retvol | MaxDD | beta | alpha | Rs1Cr -> |
+|---|---|---|---|---|---|---|
+| sector+10% / broad+0% | 7.1% | 0.38 | -81.0% | 0.90 | -0.5% | 3.88 |
+| sector+30% / broad+0% | 6.5% | 0.36 | -87.7% | 0.88 | +0.7% | 3.49 |
+| top60 cap10/sector | **8.1%** | 0.42 | -80.2% | 0.84 | **+0.8%** | 4.63 |
+
+**⚠ THIS IS NOT A FAIR TEST OF THE DESIGN AND MUST NOT BE RECORDED AS ONE.** The harness has the sector gate
+and the stock picker but **NONE of V24's risk machinery**: no 30% per-sector cap, **no residual sleeve**, no
+RS-peak/stretch/RSI-of-RS tapers, no hysteresis. With **only ~2.6 sectors qualifying on average**, the book is
+~14 stocks from 2-3 sectors, **100% invested, equal-weighted** - the -81% drawdown is that omission, not the
+idea. **Broad-index threshold is inert** (+0% to +30% changes nothing) because the sector gate already implies
+it - expected, not a bug.
+
+**OWED NEXT (the actually-fair test):** give the stock book **V24's full structure** (30% cap, sleeve,
+tapers, hysteresis, and 15N's ★trail-20% cull) and re-run. Only then is Ramana's design measured.
+
+**METHOD SCOREBOARD - 6 unchecked assumptions, 6 retractions, one session:** 15h ETF legs · 15i survivorship ·
+15j hysteresis transfer · 15k fill quality · 15L the `series` filter · **15O corporate actions (the deepest -
+it sat in the DATA LAYER under every model, and the repo's own Guardrail #5 named it in advance).**
+**RULE: before ANY stock-level study - (a) `select action_type, count(*) from corporate_actions group by 1`,
+(b) `select series, count(*) from bhavcopy_rows group by 1`, (c) re-read Guardrail #5.** Ramana caught the
+symptom by asking the one question never asked: *"Why are you looking at the whole universe?"*
+
+### 2026-07-15N - TARGET RESET (Ramana: 12.8% -> 17.3% -> aim 20-22%). Wider pond FAILS. The CULL works on sectors too - but pays in RISK, not return. ★V24+TRAIL-20% = same CAGR, MaxDD -37.7%->-30.2%, halves 0.99/0.99.
+
+**Context - the arithmetic correction that reset the target.** Ramana proposed 60-70% CAGR, reasoning
+"Nifty 12% -> sectors ~30% -> stocks should be 60%". **BOTH figures were artifacts:**
+1. **"sectors delivered ~30% CAGR" = the 30.35x MULTIPLE misread as a CAGR.** True: **30.35x over 21.4y =
+   17.3% CAGR** vs Nifty 500's 13.12x = 12.8%. The gain is **+4.5pp, NOT 2.5x.** The "12 -> 30" step never
+   happened, so the "-> 60" chain has no first rung.
+2. **The 60% was a LIVE BUG on his own dashboard** - see **D140** (fixed same day, S161): `auto_portfolios_view`
+   guessed cadence from row count (`ppy = 12 if len(vals) > 40 else 4`) and read the **quarterly** STEADY-25
+   book as monthly, dating 14.08y as 4.75y and **rendering CAGR 60.40% for a book whose true CAGR is 17.28%.**
+   Ramana did not invent 60% - he read it off `/dash/model-portfolios`.
+3. **Scale check:** 60%/yr for 21.4y turns Rs 1 Cr into **Rs 23,344 Cr** (70% -> Rs 85,429 Cr). Capacity binds
+   long before skill; Medallion ran ~39% net and **closed to outside capital**. Not a target - an impossibility.
+
+**Ramana's reset (accepted, and the right one): floor 17.3%, aim 20.2-22%.** This entry is the first attempt.
+
+## LEVER 2 - WIDER POND: ❌ FAILS
+
+**Motivation:** 15M's insight - sector indices beat stocks because they are **self-culling maintained baskets**
+(Nifty Auto drops failing auto names), so the stock book's -4.9%/yr pond drag never touches them. Hypothesis:
+more culled baskets = more selection.
+
+**⚠ STRUCTURAL FACT FOUND (important, previously unrecorded): the sector pond was STARVED for a third of the
+backtest.** Index start dates: **Bank/Energy/FMCG/IT/Pharma = 2004** (only **5 sectors**) · Auto/Infrastructure/
+Media/Metal/PSU-Bank/Realty = **2012-02-21** (-> 11) · FinServices/PrivateBank/ConsumerDurables/Healthcare/
+Oil&Gas = **2015-11 -> 2016-07** (-> 16). **So 2005-2012 - 7 of the 21.4 years - ran on a FIVE-sector pond
+under a 30% cap.** Pond width overall: **12 indices in 2004 AND 2011 -> 51 by 2015 -> 164 by 2019** (only ~21
+of the 2015 set are still alive in 2026).
+
+**Test (`v24_pond.py`): +Nifty MNC +Nifty PSE (both available from 2004!) +Nifty Commodities +Nifty Midcap 50.**
+
+| pond | return/vol | CAGR | MaxDD | Rs1Cr -> |
+|---|---|---|---|---|
+| 16 sectors (baseline) | 0.911 | **17.2%** | -37.7% | **30.35** |
+| 20 baskets (+MNC/PSE/Commodities/Midcap50) | 0.883 | **16.6%** | -36.9% | 26.97 |
+
+**REJECT.** Widening LOWERED CAGR. **Why: MNC/PSE/Midcap50 are BLENDS that overlap the sectors already held -
+they dilute, they do not diversify.** A wider pond only helps if the additions are *distinct* baskets.
+**Do not re-attempt with broad/thematic overlays.**
+
+## LEVER 1 - THE CULL ON SECTORS (Ramana's instrument, ported from 15M): ✅ REAL, but RISK-only
+
+**Motivation:** the sector book has RS-based exits (hysteresis + 3 tapers) but **NO PRICE STOP**. On stocks the
+RS-based exit did nothing (-0.3%) while the price stop did everything (+6.1pp) - test whether that asymmetry
+repeats. **Not assumed to transfer** (15j's lesson, applied in the correct direction this time).
+
+**Module `research/explosive_moves/v24_cull.py`** (`.venv/bin/python v24_cull.py data/hermes.db <stop> <trail>`).
+**CONTROL VERIFIED: stop=0 trail=0 reproduces the baseline EXACTLY** (sh 0.911, cagr 0.172, cr 30.349,
+mdd -0.3772, CULLED 0) - the harness itself changes nothing. Stops are checked on **DAILY closes** within each
+month (index_rows has no low; disclosed), exit assumed AT the stop level.
+
+| cull rule | return/vol (H1/H2) | CAGR | MaxDD | Rs1Cr -> | culls |
+|---|---|---|---|---|---|
+| none (V24 baseline) | 0.911 (0.92/0.905) | 17.2% | -37.7% | 30.35 | 0 |
+| hard -8% | 0.913 | 15.7% | -33.0% | 22.84 | 38 |
+| hard -12% | 0.897 | 15.7% | -33.3% | 23.01 | 27 |
+| hard -15% | 0.907 | 16.1% | -34.6% | 24.87 | 20 |
+| hard -20% | 0.908 | 16.4% | -36.6% | 26.11 | 14 |
+| hard -25% | 0.916 | 16.9% | -38.9% | 28.48 | 12 |
+| trail -8% | 0.874 | 14.0% | -28.1% | 16.72 | 96 |
+| trail -12% | 0.878 | 14.4% | -30.3% | 17.97 | 77 |
+| trail -15% | 0.869 | 14.6% | -27.9% | 18.76 | 63 |
+| **★ trail -20%** | **0.987 (0.993/0.999)** | **17.28%** | **-30.2%** | **30.78** | **36** |
+| trail -25% | 0.955 (0.932/1.003) | 17.17% | -35.1% | 30.19 | 26 |
+
+**FINDING: ★V24+TRAIL-20% - same CAGR (17.28% vs 17.2%), MaxDD -37.7% -> -30.2%, return/vol 0.911 -> 0.987,
+and BOTH HALVES to 0.993/0.999 - the most half-balanced construct the project has recorded.**
+
+**MECHANISM (why -20%, and why trailing beats hard):** sector indices carry ~15-20% ordinary drawdowns, so any
+trail tighter than -20% fires on NOISE (96 culls at -8% -> CAGR collapses to 14.0%); at -20% only genuine
+breaks trigger (36 culls in 21.4y). **Hard stops ALL fail** (15.7-16.9%, every one below baseline) because a
+stopped-out sector **cannot participate in its own recovery** - a trailing stop rides it up first. Economic
+mechanism, not a curve fit - but see the caution.
+
+## ❌ THE 20-22% TARGET WAS NOT REACHED
+
+**CAGR 17.28% vs 17.2% - unchanged.** Two levers tested; **neither raises RETURN.** Recorded plainly:
+**better selection does not get from 17.3% to 20-22% on this book** - that is now measured, not asserted.
+
+**The only honest route left on this construct is ARITHMETIC, not research: the cull BOUGHT 7.5pp of drawdown
+(-37.7% -> -30.2%); that risk can be SPENT.** ~1.25x on the trail-20% book lands near **19-20% net of Indian
+margin cost (~9%/yr)** at roughly V24's *existing* drawdown; ~1.5x passes 21% at MaxDD ~-45%. **This is a
+risk-appetite decision on borrowed money - Ramana's to make, NOT a research finding, and NOT advice.**
+
+**⚠ CAUTIONS ON ★TRAIL-20%: (a) it is 1 of 10 variants selected on ONE window** - the exact trap that produced
+15h's fake; needs an out-of-sample/fresh-window check before it is acted on. **(b) the 17.3% still rests on a
+PRICE-index benchmark** - the owed TR re-cut moves both sides. **(c) not promoted:** `/dash/sector-rotation`
+stays on V21; nothing graduates on one window.
+
+**STILL UNTESTED: the stock layer** (15h/15i/15M) - gated on the ~1,973-name classification job, and 15M
+defines its job precisely: **fix the pond, do not pick better.**
+
+### 2026-07-15M - ❌ FINAL: the CULL is real (+6.1pp alpha, Ramana's idea, the biggest lever of the day) but does NOT close the pond gap. The unconditioned RS stock family is REJECTED.
+
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
+
+**Module:** `research/explosive_moves/stock_rs_exits_fix.py` (the 15k harness on 15L's **corrected EQ+BE+BZ**
+universe). Ramana authorised the re-run: *"Go ahead and run it."* This is the settled verdict for the family.
+
+**A. Does a cull rule close 15L's -1.24%/qtr pond gap? From 2005-01, 21.4y, top40, 0.15%/side, dead=-100%.
+Bench: return/vol 0.66 / CAGR 12.8% / MaxDD -60.9% / 13.12x.**
+
+| exit rule | return/vol | CAGR | MaxDD | beta | alpha/yr | Rs1Cr -> | stops fired |
+|---|---|---|---|---|---|---|---|
+| **NO EXIT (the pond, unculled)** | 0.39 | 7.6% | -71.3% | 1.18 | **-5.0%** | 4.80 | - |
+| **hard -15% cull** | 0.53 | 10.3% | -48.8% | **0.77** | **+1.1%** | 8.18 | 1,424 |
+| trail -20% cull | 0.54 | 10.9% | -52.5% | 0.82 | +1.3% | 9.15 | 1,521 |
+| trail -15% cull | 0.52 | 9.6% | **-37.5%** | **0.67** | +1.5% | 7.16 | 2,095 |
+
+**THE CULL IS REAL: +6.1pp of alpha (-5.0% -> +1.1%) — the single largest effect measured in the whole
+session, and it was Ramana's idea, not the model's.** Note the corrected universe makes the UNCULLED book far
+worse than 15k showed (alpha -5.0% vs -0.7%): with BE included we now HOLD names through their surveillance
+period and eat the real crater, where the EQ-only bug let them "vanish" at 0%. **So BE-flagged names really do
+collapse — that part of the interim story survives; it just is not death.** Real deaths fell 129 -> 23-30.
+
+**BUT IT IS NOT ENOUGH: every variant still LOSES on return/vol (0.52-0.54 vs 0.66) and on wealth
+(7.2-9.2x vs 13.12x).**
+
+**B. The two numbers nobody has measured — and the strategy's life depends on BOTH:**
+
+| what a REAL delisting is worth (hard -15%) | alpha/yr | Rs1Cr -> |
+|---|---|---|
+| dead = 0% | **+3.7%** | 14.44 |
+| dead = -50% | +2.4% | 10.88 |
+| dead = -100% | +1.1% | 8.18 |
+
+| gap slippage (hard -15%, dead=-100%, @0.30%/side) | alpha/yr | Rs1Cr -> |
+|---|---|---|
+| 0% (impossible) | +0.6% | 7.34 |
+| 1% | **-0.9%** | 5.35 |
+| 2% | **-2.5%** | 3.90 |
+
+**At any honest combination (e.g. dead=-50%, slip=1%, real costs) alpha lands at ~ZERO.** A strategy whose
+sign depends on two unmeasurable assumptions is not a strategy. **Even the most flattering cell in the entire
+grid (dead=0%, no slippage) is return/vol 0.65 vs the bench's 0.66 — it never wins.**
+
+## ❌ VERDICT: REJECT the UNCONDITIONED RS stock family. FAMILY CLOSED.
+
+**~30 variants across the session** — 4 book sizes x 4 hysteresis bands x 4 exit rules x 3 delisting
+assumptions x 4 slippage levels x 3 windows x 2 liquidity bars. **ZERO beat Nifty 500 on return/vol.**
+**Do not reopen without beating 0.66 / -60.9% / 13.12x net of realistic cost AND slippage.**
+
+## WHAT IS TRUE AND WORTH KEEPING (all measured, all reusable)
+
+1. **SELECTION WORKS** - RS is worth **+1.73%/qtr (~+7%/yr) over random** picking from the same pond
+   (15L; stable across dead-name treatments). Never the problem.
+2. **THE CULL WORKS** - **+6.1pp of alpha**, and it is slippage-robust on the RISK axis: beta 1.18 -> 0.67-0.82
+   and MaxDD -71.3% -> -37.5%/-48.8% at every setting. **Ramana's instrument, the biggest lever found.**
+3. **THE POND LOSES** - equal-weight liquid Indian stocks bleed **-4.9%/yr** to Nifty 500 before any pick.
+4. **WHY (the lesson): NIFTY 500 IS NOT A PASSIVE BENCHMARK.** It is a rules-based, self-culling,
+   cap-weighted basket that continuously drops names falling out of the top 500 by cap/liquidity — and it is
+   GOOD. Selection (+7%) + cull (+6.1pp) together recover most of the hole and still do not out-run it.
+   **Treat "beat Nifty 500" as beating a well-designed strategy, not a passive index.**
+5. **A defensive artefact DOES exist** (not alpha, but real): trail -15% => beta 0.67, MaxDD -37.5% vs the
+   bench's -60.9%, CAGR 9.6% vs 12.8%. ~75% of the return for ~61% of the drawdown. Descriptive-only.
+
+## WHAT REMAINS UNTESTED — and exactly what it must do
+
+**Ramana's ACTUAL design (strong stocks INSIDE strong sectors, beating their OWN sector — 15h/15i) is still
+untested.** Today defines its job precisely: **it must NOT pick better (selection already works at +7%/yr) —
+it must FIX THE POND.** The sector filter has to yield a universe that does not structurally bleed -4.9%/yr.
+Plausible (the sector layer showed alpha at index level, 15f) but **a HYPOTHESIS, not a finding** — and still
+gated on the ~1,973-name classification job (15i). **Do not sell it as likely; five assumptions failed today.**
+
+**Session scoreboard for method (the durable output):** 15h ETF legs · 15i survivorship · 15j hysteresis
+transfer · 15k fill quality · 15L the `series` filter — **five headline numbers, five unchecked assumptions,
+five retractions.** Ramana was right on the three calls that mattered (the ask was STOCKS not sectors · exits
+are the missing mechanism · a strategy must handle names that collapse). **Audit the universe definition
+BEFORE the strategy; treat every first-pass number as provisional until its friction test runs.**
+
+### 2026-07-15L - 🔴 DATA BUG (`series='EQ'`) INVALIDATED 15j/15k + the decomposition that answers "why do index-beating stocks make an index-losing book?"
+
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
+
+**Ramana, 2026-07-15:** *"We are identifying the stocks that outperform Nifty. In that case, what
+happened? Have you checked it? Have you done your analysis?"* **The right question, never asked.** 15j/15k
+reported P&L and never decomposed it. This entry does, and finds a bug that voids both.
+
+**Modules:** `research/explosive_moves/rs_decompose.py` (buggy, EQ-only) -> `rs_decompose_fix.py`
+(EQ+BE+BZ, correct) · `rs_bar.py` (liquidity sweep, ADV bar from argv[2]) · `vanish_audit.py` (the bug proof).
+
+## 🔴 THE BUG: `series='EQ'` reads NSE surveillance moves as DEATHS
+
+NSE moves stocks under surveillance to the **BE (trade-to-trade)** series. Our own data holds **656,007 BE
+rows / 2,554 symbols, 2004-2026** (8% of bhavcopy). An EQ-only filter makes a BE-migrated stock **VANISH
+while it is still trading normally**. Worse: **BE placement is triggered by exactly the sharp run-up that puts
+a stock in the TOP RS DECILE** - so the bug attacks the treatment group specifically.
+
+**`vanish_audit.py` (9,604 EQ-vanish events, the things 15j/15k called deaths):**
+
+| what the "death" really was | count | share |
+|---|---|---|
+| still trading in ANOTHER series next month | 8,110 | **84.4%** |
+| RETURNS to EQ within 12 months (never died) | 7,594 | **79.1%** |
+| genuinely gone for good | 1,170 | **12.2%** |
+
+**84% of the "deaths" were fake.** Fixing the filter halves the measured death rate (**0.99% -> 0.47% of the
+universe per quarter**). **RETRACTED:** an interim claim that "high-RS stocks die ~3x more often" - they do not
+die more, they get **flagged for surveillance** more. Different thing entirely.
+
+**⚠ 15j AND 15k ARE BOTH CONTAMINATED** - both filter `series='EQ'`. 15k's dead=0% treatment (criticised at
+the time as too generous) is in fact the **least wrong** of the options, because 84% of the time the stock
+really was still there. **Any re-run marking these vanishes at -50%/-100% is nonsense.** Re-run on EQ+BE
+before citing either.
+
+## THE DECOMPOSITION (corrected, EQ+BE+BZ, 86 quarterly snapshots, avg universe 437)
+
+Forward-3m excess vs Nifty 500 for: **CONTROL** = every liquid stock equal-weight (no selection at all) ·
+**D10** = top RS decile (what we buy) · **D1** = worst decile.
+
+| dead-name treatment | CONTROL | D10 | **selection effect (D10-CONTROL)** | D10-D1 spread |
+|---|---|---|---|---|
+| dead = -100% | -1.24% (t=-2.21) | +0.48% | **+1.73%** | +4.09% |
+| dead = excluded | -0.75% | +1.25% | **+2.01%** | +4.38% |
+
+**The treatments now CONVERGE (+1.73% vs +2.01%)** where the buggy EQ-only version diverged wildly
+(+0.13% vs +2.12%). Convergence across assumptions is the signature of a real result.
+
+**FINDING 1 - THE SELECTION IS FINE. RS is worth ~+1.73%/quarter (~+7%/yr) over picking AT RANDOM from the
+same pond**, D10-D1 spread +4.09%. **The signal was never the problem.**
+
+**FINDING 2 - THE POND IS THE PROBLEM. CONTROL = -1.24%/quarter (-4.9%/yr), t=-2.21**: an equal-weight basket
+of liquid Indian stocks **structurally loses to Nifty 500 before a single stock is picked.** RS then claws
+back +1.73%; net D10 = +0.48%/qtr (t=+0.44, NOT significant), and turnover ~330%/yr + beta 1.18 finish it.
+**=> Index-beating stocks make an index-losing book because the POND sinks, not because the picking fails.**
+
+**FINDING 3 - WHY the pond sinks (the reframe): NIFTY 500 IS NOT A PASSIVE BENCHMARK.** It is a rules-based
+basket that **continuously culls its own losers** - every review drops names that fall out of the top 500 by
+cap/liquidity. Our universe culls nobody; it holds everything that trades, including names heading to zero.
+**The index has a survival filter built in. We do not. That gap IS the -1.24%.**
+
+**FINDING 4 - "just buy bigger stocks" is DEAD** (`rs_bar.py`, dead=-100%, harshest treatment):
+
+| ADV bar | universe | CONTROL | D10 | selection effect |
+|---|---|---|---|---|
+| Rs 5 cr/day | 437 | -1.24% | +0.48% | **+1.73%** |
+| Rs 25 cr/day | 212 | **-1.52%** | **-1.32%** | **+0.20%** |
+
+Raising the bar makes it **worse on both axes**: the pond still sinks AND **RS selection collapses
+(+1.73% -> +0.20%)**. Momentum is a **small/mid-cap phenomenon**; in liquid large-caps it is arbitraged away.
+Consistent with this ledger's standing record that only **LOWVOL_MOM qtr large-cap** ever cleared the fundable
+bar (1.02 @Rs50cr) - a LOW-VOL tilt, not raw momentum. **Do not re-attempt "raise the liquidity bar" without
+beating these.**
+
+## WHAT IT MEANS
+
+**Ramana's exit instinct (15k) was pointing at the right mechanism all along.** The missing piece is not a
+better selector - selection already adds +7%/yr. It is **the CULL**: the survival filter the index has and we
+lack. That is precisely what a stop-loss / exit rule is.
+
+**OWED NEXT (the one question that matters, now cheaply testable):** re-run the exit test on the corrected
+**EQ+BE** universe. Does a cull rule close the -1.24% pond gap? 15k's verdict ("exits fix risk not return,
+alpha dies at 2% slippage") was measured on the contaminated universe and **must not be cited until re-run.**
+
+**Also owed:** the real recovery value of the 1,170 genuine delistings (buyouts pay, frauds do not) - only
+0.47%/qtr of the universe now, so it matters far less than 15L's buggy version implied.
+
+**METHOD LESSON (5th of the session): every prior number came from an assumption that was never checked -
+15h ETF legs / 15i survivorship / 15j hysteresis transfer / 15k fill quality / 15L the `series` filter itself.
+The bug was in the DATA LAYER, beneath every model built on it. Audit the universe definition BEFORE the
+strategy: `select series, count(*) from bhavcopy_rows group by series` would have caught this on day one.**
+
+### 2026-07-15k - EXITS (Ramana-directed): they FIX THE RISK but NOT the return - the +3.5% alpha was a frictionless-fill artifact. Fill quality is now THE deciding variable.
+
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
+
+**Module:** `research/explosive_moves/stock_rs_exits.py` (read-only). Same PIT-clean, survivorship-free
+bhavcopy universe as 15j (dead companies included). Stops checked against each month's **LOW** (min of daily
+lows), so a stop fires when price actually reached it intramonth.
+
+**Ramana, 2026-07-15:** *"even if the companies actually died in 2011 or earlier, it doesn't really matter
+because the strategy should address all of those problems. If we selected something that then fell
+dramatically, we need to understand that we must have proper exit strategies written."* **He was right, and he
+exposed a real hole:** 15j's book had **NO EXIT RULE** - the only way out was dropping off the top-40 at the
+NEXT QUARTERLY rebalance, so a name could collapse 50% in month 1 and be held for 3 months. **The -68.1% MaxDD
+was the harness's negligence, not the strategy's verdict.** (Ramana asked for stop-losses in his ORIGINAL
+brief; they were never built. Second scope-gap of the day.)
+
+**Note on authority:** the sector engine REJECTED a monthly risk pass (V10 ASYM, 0.59 vs 0.70, ledger 15c).
+Per 15j, sector-layer results do **not** transfer to the stock layer, so that rejection did **not** bind here.
+Correctly re-tested. (The re-test agreed anyway - see the RS-exit row - but for a different reason.)
+
+**A. Exits, from 2005-01, top40, 0.15%/side, NO slippage. Bench: 0.66 / -60.9% / 13.12x.**
+
+| exit rule | return/vol | CAGR | MaxDD | beta | alpha/yr | Rs1Cr -> |
+|---|---|---|---|---|---|---|
+| **none (15j baseline)** | 0.54 | 12.6% | **-68.1%** | **1.18** | **-0.5%** | 12.68 |
+| hard stop -10% | ~0.65 | - | - | - | ~+3.5% | - |
+| **hard stop -15%** | **0.65** | **13.1%** | **-47.4%** | **0.78** | **+3.5%** | **13.99** |
+| hard stop -20% | 0.62 | 13.5% | -56.3% | 0.89 | +2.8% | 15.05 |
+| hard stop -30% | 0.60 | 13.7% | -62.7% | 1.02 | +1.8% | 15.70 |
+| **trail -15%** | 0.64 | 12.2% | **-35.1%** | **0.68** | **+3.7%** | 11.76 |
+| trail -20% | 0.64 | 13.4% | -50.8% | 0.82 | +3.3% | 14.72 |
+| trail -30% | 0.60 | 13.5% | -61.8% | 0.98 | +2.0% | 15.00 |
+| **monthly RS exit** | 0.54 | 12.3% | -64.8% | 1.11 | **-0.3%** | 11.90 |
+
+**Finding 1: the DUMB price stop beat the SMART signal exit.** The monthly RS-excess exit did essentially
+nothing (alpha -0.3%, beta 1.11, DD -64.8%); the mechanical price stop transformed the book. Ramana's instinct
+beat the model-based rule.
+
+**B. THE KILL - gap slippage. Hard -15% from 2005, varying the assumed fill vs the stop price:**
+
+| slippage on fill | return/vol | CAGR | MaxDD | alpha/yr | Rs1Cr -> |
+|---|---|---|---|---|---|
+| 0% (what A assumed - impossible) | 0.65 | 13.1% | -47.4% | **+3.5%** | 13.99 |
+| 1% | 0.58 | 11.5% | -49.0% | +1.9% | 10.24 |
+| 2% | 0.51 | 9.9% | -50.6% | **+0.4%** | 7.49 |
+| 4% | 0.38 | 6.7% | -53.6% | **-2.7%** | 3.99 |
+
+**With slip 2% + realistic 0.30%/side, alpha is GONE in every window: 2005 -0.1% (6.71x vs 13.12x) /
+2011 -0.2% (2.92x vs 5.24x) / 2017 -0.4% (2.10x vs 3.14x).**
+
+**MECHANISM: 1,407 stop fills over 21.4y = ~66 forced sales/year on a 40-stock book.** Every one sells into
+weakness and pays the gap. The signal is not the problem; **the bill is.**
+
+**C. WHAT SURVIVES (real, and slippage-ROBUST):** exits fix the **RISK**, not the return.
+**beta 1.18 -> 0.78-0.80 at EVERY slippage level**; MaxDD -68.1% -> -47.4%, and still **-50.6% at 2% slip**
+vs the bench's -60.9%. Drawdown barely moves as slippage rises (-47.4% -> -50.6%) while alpha collapses
+(+3.5% -> +0.4%). **=> The protection is robust; only the profit is fragile.** Honest verdict: exits turn a
+leveraged wreck into a genuinely **DEFENSIVE** book - survives crashes far better than the index, makes less
+money than it. Real, but not alpha.
+
+**VERDICT: CONDITIONAL - blocked on ONE unmeasured number.** Viability hinges entirely on **real fill
+quality**, which was **assumed, not measured** (the same disease as 15h's ETF-tradeability assumption - third
+occurrence today). At ~0.5% slip it is viable; at 2% it is dead. The truth is a **distribution**: most stops
+trigger on gentle drift and fill near the stop, a few gap hard on news. **A flat 2% on all 1,407 fills is
+pessimistic; 0% is impossible.**
+
+**OWED NEXT (cheap, high-leverage, hours not a data lane): MEASURE the actual gap distribution** from our own
+22y of daily bhavcopy - for these exact names at these exact trigger points, what did a down-gap through a
+stop actually cost? Replaces the assumption with a measurement. **This pays for itself repeatedly: EVERY
+future strategy using a stop inherits this same number.**
+
+**Standing caution:** the +3.5% headline survived ~10 minutes before the robustness check killed it. Fourth
+time in one session that a promising number was an assumption wearing a result's clothes (15h ETF legs /
+15i survivorship / 15j hysteresis transfer / 15k fill quality). **Treat every first-pass number as provisional
+until its friction test runs.**
+
+**Ramana's actual design remains UNTESTED** - everything here is the UNCONDITIONED book (no sector step).
+15h/15i's bar is unchanged, and now has a harder floor: the sector-conditioned build must beat a defensive
+book already delivering **beta 0.78 / MaxDD -50.6% net of 2% slip**, not just the raw index.
+
+### 2026-07-15j - FIRST HONEST STOCK BOOK: PIT-clean stock RS **LOSES to Nifty 500 at every setting** (~20 variants, 21y, zero survivorship). Naive alpha -0.5%/yr; hysteresis makes it WORSE.
+
+> 🔴 **RETRACTED IN FULL by [2026-07-15O] — corporate-action bug.** Every number below was computed on RAW bhavcopy prices, which are NOT split/bonus adjusted (a 1:2 bonus reads as −50%), while `index_rows` IS adjusted. The fix moved CAGR by ~16pp and hits momentum names hardest. **Do not cite any figure in this entry.**
+
+**Module:** `research/explosive_moves/stock_rs_pit2.py` (read-only; `.venv/bin/python ... data/hermes.db`).
+**Built because Ramana asked "what alpha have we generated?" and the honest answer was "none - nothing exists".**
+
+**Why it is SURVIVORSHIP-FREE (the whole point - contrast 15i's trap):** the universe at each rebalance comes
+from the **bhavcopy itself** - every EQ stock actually trading that month with ADV >= Rs 5cr **that month**.
+Companies that later delisted ARE present on the dates they were tradeable (46% of the 2011 universe is dead;
+all of them are in). **No index membership, no sector labels** -> nothing is selected for having survived, and
+the 4-week membership blocker is bypassed entirely. Signal = 6-month RS excess vs Nifty 500 (same horizon as
+the sector engine's 126d). Quarterly, equal-weight. `value` unit-checked (RELIANCE 2017-01-02
+value/close x volume = 1.001 => rupees).
+
+**A. Concentration sweep - from 2005-01, 21.4y, 0.15%/side. Bench: return/vol 0.66, MaxDD -60.9%, 13.12x.**
+
+| book | return/vol | CAGR | MaxDD | beta | alpha/yr | Rs1Cr -> | verdict |
+|---|---|---|---|---|---|---|---|
+| top10 | 0.49 | 11.7% | -75.6% | 1.24 | -0.0% | 10.79 | loses |
+| top20 | 0.58 | 14.5% | -70.3% | 1.20 | +1.6% | **18.11** | **most wealth - but -70% DD => leverage, not skill** |
+| top40 | 0.54 | 12.6% | -68.1% | 1.18 | -0.5% | 12.68 | loses |
+| top80 | 0.53 | 12.0% | -70.2% | 1.18 | -1.6% | 11.28 | loses |
+
+**B. Hysteresis (the sector engine's single biggest lever, 15b/15c) - from 2005, top40. IT BACKFIRES.**
+
+| band | return/vol | CAGR | MaxDD | alpha/yr | turnover | Rs1Cr -> |
+|---|---|---|---|---|---|---|
+| none (naive) | 0.54 | 12.6% | -68.1% | -0.5% | ~330%/yr | 12.68 |
+| -5% | ~0.50 | - | - | -1.8% | ~220%/yr | 9.43 |
+| -10% | 0.53 | 11.6% | -71.3% | -1.2% | ~202%/yr | 10.49 |
+| -20% | 0.47 | 9.6% | -73.3% | -3.1% | ~168%/yr | 7.17 |
+| -35% | 0.35 | 6.2% | -75.9% | **-7.3%** | ~120%/yr | 3.63 |
+
+**KEY TRANSFERABLE LESSON: churn falls exactly as designed (330% -> 120%/yr) and performance falls FASTER.
+The medicine that MADE the sector book (hysteresis) POISONS the stock book.** A lever validated on 16 sector
+indices does **not** transfer to a 40-stock book. **Never assume a sector-layer constant carries to the stock
+layer - re-fit or re-reject every one.** (Cf. 15f's negative-interaction lesson: individually-validated levers
+do not compose. Same disease, new layer.)
+
+**C. Window sensitivity - the tell that there is no stable edge.** alpha by start date (top40): 2005 **-0.5%**
+2011 **+3.5%** / 2017 **+1.4%**. Best hysteresis (-20%) @0.30%/side: 2011 alpha +2.3% (0.72 vs 0.74) / 2017
+alpha +2.0% (0.73 vs 0.77) - **still loses on return/vol in BOTH, with MaxDD -45.7%/-44.1% vs the bench's
+-30.0%.** beta sits at **1.13-1.25 everywhere** => the book is structurally a leveraged market bet. An "edge"
+whose sign depends on the start date is not an edge.
+
+**AND THE NUMBERS ARE GENEROUS:** when a held name delisted mid-quarter it was carried **flat at 0%** (68-129
+stock-months per run) rather than the loss it usually was. True results are somewhat WORSE.
+
+**VERDICT: REJECT the unconditioned stock-RS family.** ~20 variants (4 sizes x 4 bands x 2 cost levels x
+3 windows) - **every one loses to Nifty 500 on return/vol.** Directly CONFIRMS this ledger's standing prior
+(momentum = **BETA not skill, t=1.99**) on a fully PIT-clean, survivorship-free universe. **Do not re-attempt
+naive "buy the strongest stocks" without beating 0.66 / -60.9% / 13.12x net of cost.**
+
+**WHAT IT MEANS FOR RAMANA'S DESIGN (it does NOT falsify it):** this book has **no sector step** - it buys the
+strongest stocks in the whole market. Ramana's design buys strong stocks **inside strong sectors**, and
+specifically stocks beating **their own sector** (`rs_vs_sector`, 15i). Different filter, untested. **But the
+stakes are now measured: the sector conditioning is not polish on a working book - it must rescue a LOSING
+one, creating the entire edge from alpha -0.5%.** Worth knowing BEFORE spending days classifying the 280 dead
+names (15i). **The 15h/15i pre-registered bar is unchanged and now has a concrete floor: beat return/vol 0.66
+and MaxDD -60.9% net of realistic stock costs, or it is a REJECTION.**
+
+### 2026-07-15i — 🔴 DATA AUDIT before the stock build: PIT sector membership is the ONE blocker, and it is BOUNDED (~1,973 names, 280 of them dead)
+
+**Ramana's directive (2026-07-15):** build the strategy on STOCKS, not indices. *"For media, realty, consumer
+durables we cannot invest directly; we must invest through the stocks."* + *"identify the top-performing stocks
+within the strongest sectors"* + *"we can't rely entirely on one stock, nor can we diversify excessively"* +
+**the sharp point: *"if a stock is performing well within its NARROW index, we will target it"*** — i.e. stock RS
+measured **against its own sector**, not against the broad benchmark. A stock beating its own hot sector is a
+different and harder test than a stock carried by its sector.
+
+**AUDIT RUN FIRST (VPS read-only, 2026-07-15) — do NOT re-derive, these are measured:**
+
+| Need at date *d* | Status |
+|---|---|
+| Which sectors are strong | ✅ `index_rows` 2005→2026, PIT-clean, needs no membership. **The V24 ladder is reusable as the sector layer.** |
+| Each stock's RS vs its OWN sector | ✅ vocabulary EXISTS: `stock_signals.rs_vs_sector_today` + slopes 1/3/6/12/18/24m, `rs_vs_broad_*`, `rsi_of_rs`, `rs_phase`, `rs_rank` — **2011-06-22→2026-07-14, 3,714 dates, 5.97M rows** |
+| Stock prices incl. dead names | ✅ `bhavcopy_rows` **2004-07-23→2026-07-14, 9.39M rows** — delisted names ARE present up to their last trading day |
+| **Which stocks belonged to that sector at date *d*** | ❌ **THE BLOCKER — see below** |
+
+**🔴 THE BLOCKER — `stock_index_membership` holds FOUR WEEKS (2026-06-17→2026-07-14, 20 snapshots, 32 indices).**
+We know today's constituents. We do NOT know who was in Nifty Auto in 2011/2015/2025. `stock_signals.primary_sector`
+is DERIVED from that snapshot → it covers only **246 of 3,558** trading symbols (7%), i.e. essentially the current
+index members = the winners' club.
+
+**🔴 WHY THIS IS A TRAP, NOT AN INCONVENIENCE — the universe churns brutally:**
+- 2011: **1,650** symbols traded → only **895 still trade in 2026**. **46% of the 2011 universe is GONE.**
+- 2016: 1,812 traded → 1,178 alive. 35% gone. · 2026: 3,558 trade.
+- **`company_tags` labels 384 symbols; `company_about` 593; and of the 755 names that died since 2011, EXACTLY
+  ZERO carry any label.** The hole is total, not partial.
+
+**Backtesting "top RS stocks in Nifty Auto" over 2011→2026 with TODAY's member list would select from companies
+that survived 15 years AND earned promotion into the index. It would print a spectacular fake number (plausibly
+Sharpe 1.5–2.0) and be worthless.** Recorded so no future session builds it by accident.
+
+**✅ BUT THE JOB IS BOUNDED — survivorship only bites for names the strategy could actually have BOUGHT.**
+A real book needs a liquidity floor. Scoped at an ADV bar over ALL years (measured):
+
+| Liquidity bar (avg daily traded value) | ever-liquid & NOW DEAD | ever-liquid & alive | total to classify |
+|---|---|---|---|
+| **≥ ₹5 cr ADV** | **280** | 1,693 | **1,973** |
+| ≥ ₹25 cr ADV | **113** | — | — |
+
+Cross-check: `research.db.fundamentals_history` independently covers **1,998** symbols — the same ~2,000-name
+"universe that ever mattered". (It has NO sector field — `symbol/period_type/period_end/report_date/metric/value/
+source` — and is screener-sourced, so **Guardrail #8 forbids extending it**. Not the classification route.)
+
+**Snapshot of the bias magnitude at the ₹5cr bar in 2011: 179 survivors vs 85 dead ⇒ the dead are ~32% of that
+year's investable universe.** Excluding them is not a rounding error; it is a third of the book.
+
+**VERDICT: the stock build is FEASIBLE and gated on ONE deliverable — a PIT-safe sector classification for
+~1,973 symbols** (1,693 live: NSE industry classification = primary source, Guardrail #8-clean, automatable ·
+**280 dead: the genuine work**, but 280 is tractable — and only 113 at a ₹25cr bar). Not 1,500 shells. Bounded.
+
+**RECOMMENDED DESIGN — own sector COMPOSITES, not index membership** (decided; solves three problems at once):
+define a sector as *every liquid stock classified in that industry at date d* and build the composite ourselves.
+(a) **Investable by construction** — the sector IS a stock basket, so Media/Realty/Consumer Durables stop being
+untradeable (kills the §6-bis instrument flaw, ledger 15h); (b) **wider pond** — Nifty Auto ≈ 15 names, the Auto
+*industry* ≈ 60, and stock-picking needs selection; (c) **far less survivorship bias** — a company does not EARN
+its way into "Auto" by outperforming; it earns its way into *Nifty* Auto. Industry ≠ a performance filter.
+(d) membership history is no longer needed — the gap is dissolved, not backfilled.
+
+**Honest residual + the mitigation:** NSE classification covers LISTED names, so the 280 dead still need labels.
+**Bound the bias rather than hand-wave it** — run the study twice (dead names assumed average-performing, then
+assumed worst-decile) and report the RANGE. An honest error bar beats a fake point estimate.
+
+**THE BAR STAYS PRE-REGISTERED (from 15h, unchanged):** stock momentum is ledger-recorded **BETA not skill
+(t=1.99)**; only LOWVOL_MOM qtr large-cap fundable (1.02 @₹50cr); stock legs cost more than index legs.
+**A constituent build that merely MATCHES the sector-index book is a REJECTION, not a result.**
+
+### 2026-07-15l — THE STOCK LAYER, FIRST SIMULATION (Ramana's two-step method, run end-to-end): REJECTED under the pre-registered bar — worse risk-adjusted, worse drawdown, and the gross uplift is a cost illusion
+
+**⚠ Read alongside §§2026-07-15j/k (a PARALLEL, independent lane, same day) before treating this as the last
+word on stock selection.** That lane tested the **UNCONDITIONED** question — does picking top-RS stocks from the
+WHOLE market (no sector filter at all) beat Nifty 500? — on a genuinely **survivorship-free** universe
+(bhavcopy itself as the universe each month, so delisted names are correctly present on the dates they were
+tradeable — stronger data hygiene than this entry's current-day-classification approach). **Their answer: NO,
+at every one of ~20 variants tested** (naive alpha −0.5%/yr; return/vol never clears the 0.66 bench). **This
+entry answers a DIFFERENT, narrower question** — does picking top-RS stocks WITHIN sectors V24 already flagged
+as strong beat V24's OWN index-sector book? — also **REJECTED**, independently, by a different method, on a
+different universe-construction. Two honest rejections of two different constructions converging is a stronger
+signal than either alone. **Their most transferable finding applies directly to this entry's own weak point:**
+they found sector-layer levers do not transfer to the stock layer (hysteresis, the sector layer's biggest
+winner, backfires on stocks) — analogous to this entry's own concentration-risk finding (idiosyncratic single-
+stock risk isn't compensated the way diversified sector risk is). **And Ramana separately told that lane
+"we must have proper exit strategies written" — a gap THIS engine has too:** `sector_stock_layer.py` has no
+intra-quarter stock-level stop; a name held here can only exit at the next quarterly rebalance, exactly the
+negligence their exit study (§15k) diagnosed and partially fixed (hard stop −15% cut MaxDD −68%→−47% at
+beta 1.18→0.78, though the alpha it bought is slippage-fragile — gone entirely past ~2% realistic slip). **This
+entry's own worse-than-V24 drawdown may be PARTLY a missing-exit-rule artifact, not purely a stock-picking-risk
+finding** — added to the owed list below, informed by their measurement rather than re-deriving it.
+
+**What ran.** Ramana's exact design, built and simulated: **Step 1 (sector selection) = V24, UNTOUCHED** — the
+validated engine's own `build()`/`kill_on()`/quarterly clock, called directly, never re-derived. **Step 2 (stock
+selection, NEW)** — inside each qualifying sector, rank its stock universe by **RS-excess vs that stock's OWN
+sector composite** (trailing 6m stock return minus the trailing 6m equal-weighted sector-universe return) — his
+own discriminator, verbatim: *"if a stock is performing well within its NARROW index, we will target it."* Top
+~4–8 names/sector selected, weight = sector-weight × RS-rank, 12%/name cap, **whole portfolio capped at 33
+names** (his instruction: "a ceiling of 30 to 35 stocks… about a crore"). Module:
+`research/explosive_moves/sector_stock_layer.py` — self-contained, reproducible, run **read-only against the
+real production DB** (not a scratch extract).
+
+**The universe — genuine primary source, one disclosed limitation.** Each of V24's 16 sectors' OWN current
+(2026-07-15) official NSE constituent list, fetched live from `niftyindices.com/IndexConstituent/<slug>.csv`
+(the SAME access pattern already approved and used by `src/automation/membership.py`) — UNION'd with the
+Nifty-500's current "Industry" tag wherever the match is unambiguous (Auto 15→39, IT 10→27, FMCG 15→28, Metal
+15→20, etc.; Bank/PSU Bank/Private Bank/Financial Services/Infrastructure/Media/Healthcare/Pharma deliberately
+left un-widened — their broad Industry tags overlap ambiguously). **268 distinct symbols, 16 sectors**,
+committed as a dated snapshot `research/explosive_moves/nse_sector_classification_2026-07-15/` (91 KB, 17
+CSVs) so the module is reproducible without re-fetching. Zero Screener dependency (Guardrail #8 clean).
+
+**🔴 DISCLOSED LIMITATION (read before quoting any number, per the 15h standing rule — above the stat, not
+buried):** this universe is **CURRENT-DAY classification applied statically across 2005–2026**. This is **NOT**
+the survivorship trap 15h/15i already banned (today's narrow INDEX MEMBERSHIP standing in for 2011's, which
+structurally selects names that EARNED their way in by outperforming) — industry/sector classification is not a
+performance filter, so the bias is structurally much smaller — but it is real: a stock that changed industry, or
+that delisted before 2026-07-15, is mis-handled. **It fails CONSERVATIVE, the opposite direction from the banned
+mistake: delisted names are EXCLUDED from the universe entirely, never fabricated a performance.** This is a
+first, honestly-scoped, genuinely primary-sourced simulation on **268 live names** — not yet the canon's
+ultimate ~1,973-symbol PIT-safe build (§15i) with its ~280 dead names and two-sided bias bound. That remains
+owed; this is real, useful evidence in the meantime, not a substitute for it.
+
+**Results — n=258 months (21.5y), reproduced against production `data/hermes.db`, three cost scenarios to
+separate the COST story from the SELECTION story (stock legs cost more than index legs, per the pre-registered
+bar — the flat index-ETF assumption of 0.15%/side is NOT realistic for individual mid/small-caps):**
+
+| | ret/vol | H1/H2 | CAGR | MaxDD | ₹1Cr → | vs V24 (index-only, §15g) |
+|---|---|---|---|---|---|---|
+| Gross (0.15%/side, same as index — a floor, not a claim) | 0.817 | 0.86/0.77 | 17.82% | −42.8% | ₹33.99 | CAGR/wealth BEATS V24; ret/vol and MaxDD do not |
+| **Realistic (0.40%/side — the disclosed assumption)** | **0.775** | **0.83/0.71** | **16.66%** | **−43.2%** | **₹27.47** | **loses on ret/vol, MaxDD, CAGR, wealth** |
+| Stress (0.70%/side) | 0.723 | 0.79/0.65 | 15.28% | −43.8% | ₹21.25 | loses on everything, by more |
+| **V24 (index-only, for reference)** | **0.911** | **0.92/0.91** | **17.2%** | **−37.7%** | **₹30.35** | — |
+| Nifty 500 buy-and-hold (same window) | 0.637 | 0.58/0.78 | 12.51% | −62.0% | ₹12.60 | both stock-layer and V24 clear this easily |
+
+**Verdict: REJECTED under the pre-registered bar, at the disclosed realistic cost.** At 0.40%/side the stock
+layer does not beat V24 on return/vol (0.775 vs 0.911), MaxDD (−43.2% vs −37.7%), CAGR (16.7% vs 17.2%), or
+terminal wealth (₹27.47 vs ₹30.35) — it roughly re-derives V21's numbers (0.875/₹27.02) with a WORSE risk profile.
+This is not a coin-flip miss; it fails on every axis simultaneously.
+
+**The honest, non-obvious part — the shortfall is BOTH a cost story AND a concentration story, and the second
+one is NOT a cost artifact.** Gross of realistic cost (the 0.15% row), the two-step method DOES show real
+excess wealth and CAGR over V24 (₹33.99 vs ₹30.35; 17.8% vs 17.2%) — picking top-RS-within-sector stocks carries
+a genuine gross signal, consistent with momentum being real-but-costly everywhere else in this ledger. **But the
+drawdown is WORSE than V24 at EVERY cost level tested, including gross** (−42.8% to −43.8% vs V24's −37.7%) —
+concentrating ~20–29 individual names inside a hot sector is inherently riskier than holding the whole
+diversified sector index, and this is a **structural, not a cost-driven**, effect: idiosyncratic single-stock
+risk is not compensated on a risk-adjusted basis here (ret/vol never reaches V24's 0.911 at any cost tested).
+Realistic transaction costs then erode most of the gross wealth edge on top of that (₹33.99→₹27.47→₹21.25 across
+the three scenarios) — the SAME "no fundable equity-factor edge beats holding the index net of cost" finding this
+whole ledger has recorded repeatedly, now confirmed at the within-sector stock-selection layer too.
+
+**Sanity checks run before trusting the number (a naive engine bug was the live risk, not a fluke result):**
+holdings inspected for 3 recent quarters — real, sector-consistent, recognizable Indian names (FORTIS/LAURUSLABS/
+BPCL/SBIN/AXISBANK/RELIANCE/ONGC/COALINDIA…), never garbage; portfolio weights always sum to ≤1 (residual to
+sleeve); per-name cap (12%) and total cap (33) both respected in every quarter (max observed 32); **3/86 quarters
+had zero picks** (pure cash/sleeve, matching V24's own occasional all-cash quarters — not an artifact); **median
+22 stocks/quarter** when invested (below the 30–35 ceiling because selection genuinely REQUIRES positive
+RS-excess vs the sector's own composite — the engine does not force-fill to hit a quota, a real economic
+constraint, not underbuilding).
+
+**Owed before this can be called final (do not re-run hoping for a different number without these):** ① the
+canon's ~1,973-symbol PIT-safe classification with the two-sided dead-name bias bound (§15i) — this 268-name
+live-only cut is a first pass, not that build; ② a real per-name ADV/impact cost model replacing the flat
+0.40%/side proxy (same rigor item as the sector layer's own owed instrument audit, §6-bis); ③ a significance
+pass on THIS result (same JK/bootstrap/MDE discipline as §15i) before treating even the REJECTION as more than
+directionally solid — n=258 with a 6/16-sector-average book has real estimation noise too; ④ **an intra-quarter
+stock-level exit rule (Ramana's ask, surfaced by §15k)** — this engine currently has none; §15k's own measured
+number (hard stop −15% cuts MaxDD −68%→−47% at beta 1.18→0.78, but the alpha it buys needs real fill-quality
+data, not an assumption) is the concrete starting point, not a fresh design.
+
+**Sample current holdings (2026-04-01, the latest quarter, at the disclosed 0.40%/side cost) — for illustration,
+not a live recommendation (this ladder is DESCRIPTIVE, per §15h; the bar above says REJECT):** 29 names, led by
+BHARATFORG 8.8%, MRPL 7.6%, SHRIRAMFIN 7.2%, ONGC 6.6%, BSE 6.4%, CHENNPETRO 6.1%, SBIN 5.9% — drawn from the
+7 sectors that qualified that quarter (Financial Services 23%, Oil & Gas 24%, Auto 17%, Healthcare 11%,
+Infrastructure 10%, PSU Bank 9%, Metal 6% of the invested book). Full 86-quarter holdings history in
+`research/explosive_moves/out/sector_stock_layer_result.json`.
+
+### 2026-07-15h — 🔴 SCOPE FLAW (Ramana-caught): the entire V8→V32 ladder selects SECTORS, never STOCKS — half the brief was never built, and the index expression may not be tradeable
+
+**Ramana, 2026-07-15:** *"I have noticed major flaws… you are identifying that this will drive the stock. What
+you are currently identifying is that you will take the index itself… I haven't seen a single stock listed…
+you are not picking the stocks. Please confirm."* **CONFIRMED. He is correct.**
+
+**The finding (verified in code, not from memory):** the V24 engine
+(`research/explosive_moves/sector_rotation_v24_final.py`) reads exactly ONE table — `index_rows` — and contains
+**zero stock symbols**. Reproduce: `grep -ciE "stock_signals|bhav|symbol|stock_rows" <that file>` → **0**. Every
+quarter's "holdings" in the **86-quarterly-rebalance** book (**86 = a COUNT of quarter-start decision dates, 21.5y × 4/yr — NOT a percentage; Ramana has twice read it as "86%"**) are **index names** (Nifty Auto, Nifty IT…), not companies. The
+book never held a stock; it rotates between indices.
+
+**What this invalidates — precisely.** Nothing in the ladder's *arithmetic* is wrong; the numbers reproduce.
+What was wrong is **what they were claimed to measure**. Sharpe 0.91 / α +7.1%/yr / ₹1 Cr → ₹30.35 Cr describes
+**the sector-selection half of an unfinished strategy**, priced on instruments that in ~⅜ of cases don't exist.
+It was presented as a finished result.
+
+**Root cause = a FRAMING failure, not a missing feature.** The limitation WAS recorded — as one bullet
+("V2 constituent expression… where the stock-selection edge gets tested") buried in the canonical page's §9
+open items, while the page's status header led with a Sharpe ratio. Burying the scope caveat under the headline
+number made a half-strategy read as a whole one. **Standing lesson: when a build covers part of a brief, the
+scope gap goes ABOVE the headline stat, not in the open-items list.** The canonical page now carries a
+blocking SCOPE banner as its first element (`docs/strategies/sector-rotation.md`).
+
+**A second, compounding flaw surfaced by the same audit — instrument reality (canonical §6-bis).** §3-F prices
+the sector legs as "liquid sector ETFs/index futures @ 0.15%/side". **That was asserted, never verified.**
+Roughly **6 of 16 sectors — Media · Realty · Consumer Durables · Infrastructure · Oil & Gas · Metal (thin) —
+have no liquid Indian index instrument.** So (a) the headline stats are optimistic by an **unquantified**
+amount, and (b) **the priority inverts**: for those sectors, buying the constituent stocks is not phase two,
+it is **the only executable expression**. The constituent build is now the execution path for a large minority
+of the book, not an enhancement to a working one.
+
+**Verdict: the ladder is DEMOTED to "sector-selection layer, paper, upper-bound".** Not rejected — the
+sector-selection logic still measures what it measures, and V24 remains the best config of it (Ramana designated
+V24 as the layer to carry forward, 2026-07-15h — a designation of *what the stock build sits on*, NOT a
+promotion; `/dash/sector-rotation` stays on V21). **No number from this ladder may be presented, quoted, or
+promoted as a complete strategy result.**
+
+**Owed, in order:** ① **the ≤40-stock constituent build** (top-RS stocks inside V24's qualifying sectors,
+sector-RS × stock-RS weights, per-sector stops) — the untested half of the brief. **Pre-register its bar before
+running it:** stock-level momentum is recorded in this ledger as **BETA not skill (t=1.99)**, with only
+LOWVOL_MOM qtr large-cap fundable (1.02 @ ₹50cr), and stock legs cost more than index legs — **matching the
+index book counts as a REJECTION, not a result.** ② the instrument/ADV audit + per-leg cost re-cut. ③ the TR
+re-cut + significance pass (still owed, four selection rounds deep).
+
+### 2026-07-15i — SIGNIFICANCE PASS (closes the §15h owed item ③, significance half): the V21→V24→V32 ladder's final rungs are NOT STATISTICALLY DISTINGUISHABLE — and the "Sharpe" label is wrong
+
+**What this settles.** §15h left three items owed; this closes the significance half of ③. The ladder's
+*arithmetic* was never in question (§15h: "the numbers reproduce"). What was never asked is whether the
+**differences between the rungs are distinguishable from noise**. They are not. Ramana's V24 designation
+(§15h) is therefore correctly a **mechanism call** — it has no evidential basis, and **none was available
+on this window**. That is a finding about the evidence, not a criticism of the choice.
+
+**Reproduction gate FIRST (no test is trusted until the engine reproduces the record).** The harness
+`research/explosive_moves/sector_rotation_significance.py` does not re-implement anything — it exec's the
+validated Round-4 engine (`sector_rotation_exp4.py`) above its driver line and calls its own `simulate()`.
+Reproduced vs ledger: **V21 0.875/₹27.02 · V24 0.911/₹30.35 · V32 0.898/₹31.15 — all MATCH** (§15f/§15g
+exactly). n = **258 monthly observations / 21.5 years**.
+
+**Test 1 — Jobson-Korkie difference-of-Sharpe, Memmel (2003) correction** (the standard analytic test for two
+*correlated* ratios; run on per-period Sharpes, difference annualised only for display — feeding annualised
+Sharpes into the statistic is the classic error and would have manufactured z=4.56):
+
+| pair | ΔSharpe/yr | corr | z | p | verdict |
+|---|---|---|---|---|---|
+| V24 − V32 | +0.013 | 0.9719 | +0.244 | **0.807** | NOT distinguishable |
+| V24 − V21 | +0.036 | 0.9957 | +1.747 | **0.081** | NOT distinguishable |
+| V32 − V21 | +0.023 | 0.9749 | +0.463 | **0.643** | NOT distinguishable |
+
+**Test 2 — paired stationary block bootstrap** (Politis-Romano, geometric blocks mean 6m, wrap-around, 20k
+draws, the two books' months resampled JOINTLY so cross- and auto-correlation survive). **The method matters
+and the headline number is method-dependent — that IS the result:**
+
+| pair | percentile p | basic/pivotal CI | studentized p | studentized CI |
+|---|---|---|---|---|
+| V24 − V32 | 0.733 | [−0.0675, +0.0923] spans 0 | **0.745** | [−0.0652, +0.0920] spans 0 |
+| V24 − V21 | 0.038 | **[−0.0095, +0.0707] SPANS 0** | **0.127** | [+0.0013, +0.0999] |
+| V32 − V21 | 0.564 | [−0.0560, +0.1021] spans 0 | **0.555** | [−0.0508, +0.1046] spans 0 |
+
+The lone sub-0.05 figure in this whole study — V24−V21 percentile p=0.038 — **does not survive method
+choice**: the pivotal CI spans zero and the studentized p is 0.127. An adversarial review predicted this was
+a mis-centred bootstrap; **that diagnosis was checked directly and is WRONG** — the draw distribution is
+properly centred (mean +0.0358 vs d̂ +0.0360, offset −0.0002). The percentile/pivotal divergence is **skew,
+not bias**. Right conclusion, wrong mechanism — recorded because the mechanism matters for reuse.
+
+**Power — the number that makes the nulls meaningful** (non-significance is uninterpretable without it):
+
+| pair | corr | SE(ΔSharpe)/yr | min detectable @80% power | observed |
+|---|---|---|---|---|
+| V24 vs V32 | 0.9719 | 0.0527 | **0.148** | **0.013** ← 11× below the noise floor |
+| V24 vs V21 | 0.9957 | 0.0206 | **0.058** | 0.036 ← under-powered, not "absent" |
+
+**V24 vs V32 is not a close call — it is UNMEASURABLE on this window.** To resolve a 0.013 gap we would need
+~0.15. §15f's framing of V24-vs-V32 as *"a genuine trade-off… a preference call, not a numbers call"* is
+**too generous**: it is not a trade-off, it is three noise draws. The tie-breakers §15f leaned on are noisier
+than the Sharpe itself — a single half-sample Sharpe carries **SE ≈ 0.31** (n=129), so V32's 0.95/0.84
+"imbalance" is 0.25 SE (paired diff-in-diff vs V24's balance: **z = −0.95, p = 0.34**), and ₹31.15-vs-₹30.35
+terminal wealth is a monotone function of mean log return — **more** noise-dominated than Sharpe, not less.
+
+**Selection deflation — and the check that made it fair.** V24 was the WINNER of the Round-4 batch (V22..V30,
+k=9); reporting a winner's raw p as a pre-registered p is the winner's-curse error. Bonferroni assumes
+independence and would be unfairly harsh if the levers were redundant — **so it was measured, not assumed.**
+Pairwise correlations of the levers' excess-over-V21 series: **off-diagonal mean +0.126, median +0.051**
+(min −0.313, max +0.815). **The levers are genuinely distinct tests → a k≈9 burden is real and Bonferroni is
+roughly right.** (V24 correlates **−0.31** with V22 — independently corroborating §15f's measured negative
+interaction.) Applying it: V24−V21 percentile p 0.038 → **Bonferroni 0.345 / Šidák 0.296**; JK p 0.081 →
+0.726/0.531; the defensible studentized p 0.127 → 1.000/0.706. **Nothing survives on any method.** k=9 is the
+FLOOR — selection is four rounds deep on the SAME 2005-2026 window. *(Measured k=8: V29 came back ≡ V21
+because the satellite indices are absent from the extract; the module reports and excludes it. Does not move
+the conclusion.)*
+
+**Effective sample size — the strongest argument against V24, which no prior round made.** V24 and V21 are
+**identical in 206 of 258 months (80%)**; only ~52 months carry any information ≈ **~9 informative blocks** at
+mean block 6. Both the JK normal approximation and the percentile bootstrap have poor coverage at n_eff ≈ 10.
+**The window cannot support the claim regardless of which test is used.**
+
+**🔴 A SEPARATE DEFECT — "Sharpe" is the wrong word, estate-wide.** The engine computes `m/sd*√12` with **no
+risk-free subtracted**. Verified by reconciliation: **V21 = 16.57% CAGR on 19.92% ann vol = 0.875** — a raw
+**return/vol ratio**. (The tell: 0.875 as a true Sharpe implies ~11.5% vol, irreconcilable with a −37.7%
+MaxDD; at raw return/vol the implied 18.9% vol reconciles.) Against ~6.5% rf the true excess-return Sharpes
+are **V21 ≈ 0.51 · V24 ≈ 0.54 · V32 ≈ 0.54** — ordinary, not exceptional. **Benchmarks are computed on the
+identical basis, so every RELATIVE claim in §§15..15h holds unchanged; the ABSOLUTE levels were overstated by
+a factor of ~1.7 by the label alone.** Ramana's ruling (2026-07-15i): **relabel to "return/vol ratio",
+numbers unchanged** — the cheapest honest fix. A true-Sharpe re-cut needs a primary-source rf ingest
+(Guardrail #8) and is queued with the owed TR re-cut, which moves the same figures.
+
+**Verdict: CONDITIONAL — unchanged, and now for a stated reason.** No candidate has an evidence-backed claim
+to displace V21, and **none can be manufactured from this window**. Ramana's decision (2026-07-15i), taken
+with the null in hand: **V24 stands as the designated carry-forward layer on MECHANISM grounds** — its
+own-percentile exit adapts to each sector's own history, replacing a fixed 70/80 threshold that was never
+justified, and its direction of travel (best MaxDD −37.7%, most balanced halves 0.92/0.91) is consistent even
+though not significant. **This is a priors call, correctly labelled as one, NOT an evidence result.**
+Per §15h it remains a designation of *what the stock build sits on* — **`/dash/sector-rotation` stays on
+V21; nothing is promoted to the live engine.** **V32 is retired as a distinct candidate** — strictly more
+complex than V24 and provably indistinguishable from it; keeping it as a "wealth-favoring sibling" implies a
+choice the data cannot support.
+
+**Honest limits of this pass (do not over-read the nulls).** Non-significance ≠ no effect. The design is
+low-power *by construction*: nested books correlated 0.97–0.996 with ~9 informative blocks. This pass proves
+the ladder's final rungs **cannot be told apart on 2005-2026** — it does NOT prove V24 is no better than V21.
+Only a **fresh window / true OOS** can settle that, and per §15h the honest priority is the **constituent
+build**, not further tuning of a layer whose index expression may be unbuyable in ~⅜ of sectors.
+
+**Reproduce:** `python research/explosive_moves/sector_rotation_significance.py <db>` — self-gating (exits
+non-zero if the engine stops reproducing §15f/§15g), stdlib-only, deterministic (seed 20260715).
+
+### 2026-07-15g — NAMING: "V24" is the official shorthand for the FULL V21+V24 combination + a consolidated 3-index cross-check (Nifty 50 · Nifty 100 · Nifty 500)
+
+Ramana: "if V24 consists solely of V21+V24, refer to the entire combination as V24." **Binding from here on: "V24"
+means V21 (Next-50 sleeve + recovery-accelerator + inverse-vol) with the own-percentile RSI-of-RS exit swapped in
+— never the bare lever tested in isolation** (which was never separately backtestable — V24 in Round 4 was always
+V21-plus-the-lever, per the "test on both bases" discipline). Module
+`research/explosive_moves/sector_rotation_v24_final.py` — re-derives V24 from scratch (same math, independently
+re-implemented, not a re-run of exp4.py) and cross-checks: **Sharpe 0.911 / H1 0.92 / H2 0.905 / CAGR 17.2% /
+MaxDD −37.72% / α +7.11%/yr / β 0.75 / ₹1 Cr → ₹30.349 Cr — matches the 2026-07-15f record exactly** (0.91/−37.7%/30.35).
+
+**NEW data point — Nifty 100 added as a third benchmark** (2004+ full history, `index_rows`): Sharpe **0.638**,
+CAGR 12.22%, MaxDD **−58.6%**, ₹1 Cr → ₹11.93 Cr — sits between Nifty 50 (0.636/−56.5%/11.35) and Nifty 500
+(0.637/−62.0%/12.60), confirming the expected pattern (breadth adds a little return and a little more drawdown,
+monotonically 50→100→500). **V24 beats all three simultaneously** — Sharpe +0.27 to +0.28 over any of them, MaxDD
+18–24 points shallower, wealth 2.4–2.7× — on the same like-for-like price-index basis (dividends excluded on all
+four, so the delta is fair, absolute levels conservative).
+
+**The full quarterly holdings history is reproducible, not just the summary stats.** The same
+`sector_rotation_v24_final.py` module's `simulate_v24(record_book=True)` mode walks all **86 quarterly rebalance dates** (a COUNT, not a percent) — the quarterly
+rebalances and returns, per quarter: the exact holdings + weights, the sleeve regime, and the diff vs
+the previous quarter (entered/exited/re-weighted) — the data behind the interactive portfolio ledger
+shown to Ramana (2005→2026, year-grouped, searchable by sector, filterable to churn-only or cash-only
+quarters). Sample fact from that walk: the book briefly held its widest-ever spread on 2022-04-01 (10
+positions, none above 16.2%) after the recovery-accelerator fired coming out of the 2022 correction.
+
+### 2026-07-15c — Round 2: attack the RETURN gap (kill-switch · asym cadence · residual fill · monthly cadence), V8 base frozen, 2005–2026 n=257
+
+Module `research/explosive_moves/sector_rotation_exp2.py` (one lever at a time, then combos; bench like-for-like
+price-index Nifty 500 = Sharpe 0.64, halves 0.58/0.78, ₹1 Cr → ₹12.60 Cr, MaxDD −62.0%):
+
+| V8 + lever | Sharpe (H1/H2) | CAGR | MaxDD | β | α/yr | ₹1 Cr → | verdict |
+|---|---|---|---|---|---|---|---|
+| — (V8 frozen) | 0.70 (0.78/0.64) | 10.8% | −36.2% | 0.60 | +3.2% | 9.13 | baseline |
+| V9a 200DMA kill ×0.5 (book) | 0.72 (0.89/0.55) | 8.5% | −33.1% | 0.40 | +3.2% | 5.72 | REJECT — wealth collapses; regime-timing decays in H2 |
+| V9b 200DMA kill → full cash | 0.58 | 6.1% | −29.0% | 0.25 | +2.9% | 3.54 | REJECT |
+| V10 ASYM (entries qtrly, risk monthly, taper→cash) | 0.59 | 6.6% | −30.7% | 0.40 | +1.4% | 3.96 | REJECT — monthly risk pass sells into noise + cash drag |
+| V11 FILL residual→index | 0.71 (0.71/0.71) | 13.9% | −55.8% | 0.91 | +2.4% | 16.38 | beats index on wealth; gives back the DD protection |
+| V12 MONTHLY entries | 0.62 (0.55/0.68) | 10.0% | −47.6% | 0.68 | +1.5% | 7.74 | REJECT — churn 35.7%/mo (third confirmation of the cadence law) |
+| V13–V16 combos (ASYM/KILL/MONTH × FILL) | 0.66–0.67 | 12.8–13.1% | −56…−59% | ~0.9 | +0.7…+1.8% | 13.2–14.0 | all strictly below V11/V17 |
+| **★ V17 DEFENSIVE FILL** — residual→index only while bench ≥ 200DMA, else residual→CASH; sector book untouched | **0.79 (0.86/0.70)** | **14.7%** | **−39.2%** | 0.77 | **+4.7%** | **19.04** | **champion-candidate** |
+
+- **V17 beats the index on all three at once** (like-for-like): wealth **₹19.04 Cr vs ₹12.60 Cr (+51%)**, Sharpe
+  **0.79 vs 0.64**, MaxDD **−39.2% vs −62.0%**; turnover unchanged 12.4%/mo (the fill-sleeve's 200DMA switches are
+  rare — cost immaterial). The 200DMA that FAILS as a book-level kill (V9) WORKS as a fill-sleeve guard: whipsaw
+  there costs only index-vs-cash on the residual, while sidestepping crashes with the whole sleeve. V17b uniformity
+  check (empty-book residual also defensive) = identical numbers.
+- **Honest caveats (do not drop):** (1) H2 Sharpe 0.70 vs bench H2 0.78 — the risk-adjusted edge is H1-heavy
+  (contains 2008, where any 200DMA overlay shines); H2 wealth is still ahead. (2) V17 is the 11th variant of the
+  round — selection deflation applies; treat 0.79/+4.7% as tuned-in-sample until a TR-benchmark re-cut or fresh
+  period confirms. (3) price-index bench understates Nifty TR by ~1.2–1.5%/yr dividends; both sides understate
+  (sector ETFs pay dividends too), so the like-for-like delta stands but absolute CAGRs are conservative.
+- **Verdict: CONDITIONAL — V17 is the champion-CANDIDATE, pending Ramana's ratification (the frozen champion
+  formally remains V8 per his standing instruction).** Next rigor if ratified: TR-benchmark re-cut · V17 alpha
+  t-stat · the V2 ≤40-stock constituent expression.
 
 ## Study 2026-07-13 — STREAM BAND (13-EMA HiLo band + 5-EMA HLC3 trigger) reversal cross (DONE — pre-registered FAIL-null; the BUY-cross *negatively* selects)
 
@@ -997,3 +2613,16 @@ not an alpha claim. Holdings are regenerable any time via `strategy_menu.py`.
    capacity costs, and adding MEP-accumulation + concall-credibility to the overlay.
 4. **Standing rule:** no absolute-rupee thresholds anywhere (see the gate fix). Percentages and
    cross-sectional ranks only.
+
+---
+
+## Rule-lab run 2026-07-15 — `SELECT largecap WHERE not_extended RANK BY lowvolmom TAKE 25 HOLD quarterly` (NEW-BENCHMARK)
+
+Prereg: `31d4fe11940ebad6…` (rule_lab_prereg:31d4fe11940e@2026-07-15 09:35:41Z(first)) · qualifier **fundable**
+NET return/vol 1.19 (gross 1.19) vs bench 0.89 · halves 1.20/1.42 · placebo p95 0.09 (observed 1.19, emp-p 0.00) · MaxDD -0.27 · ann cost 8.80%
+Capacity: ₹75cr
+RECORDED SURVIVOR (not a blocker): quarterly large-cap LOWVOL_MOM — participation-fundable at 1.02 @₹50cr, ceiling ~₹100cr (docs/strategy-ledger.md, C-BLEND re-cut 2026-07-05c).
+
+Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, n_shuffles=120, pit_membership=n/a (filter not requested), seed=42, window=2012-06-01..2026-02-11
+
+**Approved into the ledger by Ramana, 2026-07-16** (via the Review Inbox, item #602). This rule-lab run reproduced the recorded LOWVOL_MOM survivor under the full gauntlet (pre-registered, walk-forward both halves, random-selection placebo, participation cost, capacity) — it CONFIRMS the one participation-fundable corner the evidence permits, it does not open a new one. First rule-lab verdict signed into canon (D137; the plan-§7.8 inbox-first default, exercised).

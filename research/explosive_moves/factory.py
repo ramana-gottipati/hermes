@@ -8,6 +8,11 @@ net of turnover costs. We sweep many DIFFERENT selection signals x universes, wa
 Valuation/extension is a first-class variable (Ramana won't chase names already up
 500-600%): the *_VAL variants EXCLUDE stocks up >200% over ~5y, so the data tells us
 whether respecting valuation helps or hurts.
+
+The risk-adjusted number eqstats() emits under the `retvol` key is mean/sd annualised with
+NO risk-free rate subtracted — a return/vol ratio, not a Sharpe, and it reads high against
+a textbook one; every consumer of this module inherits that. A true Sharpe needs a
+primary-source rf ingest (Guardrail #8), queued with the TR-benchmark re-cut. (D142)
 """
 from __future__ import annotations
 import numpy as np
@@ -37,7 +42,7 @@ def eqstats(rets):
     yrs = len(eq) / TD_Y
     cagr = eq[-1] ** (1 / max(yrs, 1e-9)) - 1
     sd = rets.std()
-    return {"cagr": cagr, "maxdd": float(dd.min()), "sharpe": rets.mean() / sd * np.sqrt(TD_Y) if sd > 0 else 0,
+    return {"cagr": cagr, "maxdd": float(dd.min()), "retvol": rets.mean() / sd * np.sqrt(TD_Y) if sd > 0 else 0,
             "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0, "totx": float(eq[-1])}
 
 
@@ -82,7 +87,7 @@ def build_tables(cache, cal, rebal_idx, floor):
             # Codex D5-F1 (Track C, verified): features are computed FROM i0's close, so the
             # selection can only ACT the next session — enter at i0+1, exit at i1+1 (1-day
             # execution lag). Transacting at ac[i0] (the same close the signal reads) was a
-            # same-bar peek (~0.04 Sharpe optimism; RISKADJ 1.13→1.09 — docs/codex-review/
+            # same-bar peek (~0.04 return/vol optimism; RISKADJ 1.13→1.09 — docs/codex-review/
             # TRACK-C-RESULTS.md §D5-F1). Features below stay at i0 (knowable at that close).
             e0 = i0 + 1
             e1 = min(i1 + 1, len(ac) - 1)
@@ -144,8 +149,8 @@ def main():
         rb = np.array(eqb[1:]) / np.array(eqb[:-1]) - 1
         s = eqstats(rb); base[idx] = s
         print(f"  {idx:16s} full: CAGR={s['cagr']*100:+5.1f}% MaxDD={s['maxdd']*100:6.1f}% "
-              f"Sharpe={s['sharpe']:.2f} Calmar={s['calmar']:.2f} ({s['totx']:.1f}x)")
-    bench = base["Nifty 500"]["sharpe"]
+              f"ret/vol={s['retvol']:.2f} Calmar={s['calmar']:.2f} ({s['totx']:.1f}x)")
+    bench = base["Nifty 500"]["retvol"]
 
     rows = []
     for floor, ftag in ((5 * CR, "5cr"), (25 * CR, "25cr")):
@@ -157,15 +162,15 @@ def main():
                 a = slice_stats(rets, dates, "2012", "2018")
                 b = slice_stats(rets, dates, "2019", "2026")
                 if full and a and b:
-                    surv = (a["sharpe"] > bench and b["sharpe"] > bench and a["cagr"] > 0 and b["cagr"] > 0)
+                    surv = (a["retvol"] > bench and b["retvol"] > bench and a["cagr"] > 0 and b["cagr"] > 0)
                     rows.append((name + ("+VAL" if vg else ""), ftag, full, a, b, surv))
 
-    rows.sort(key=lambda r: -r[2]["sharpe"])
-    print(f"\nSTRATEGY SWEEP (top-25 names, monthly, net of cost). benchmark=Nifty500 Sharpe {bench:.2f}")
-    print(f"{'signal':16}{'univ':5}{'FULL cagr/dd/shrp/clmr':>30}{'  19-26 cagr/shrp':>20}  surv")
+    rows.sort(key=lambda r: -r[2]["retvol"])
+    print(f"\nSTRATEGY SWEEP (top-25 names, monthly, net of cost). benchmark=Nifty500 ret/vol {bench:.2f}")
+    print(f"{'signal':16}{'univ':5}{'FULL cagr/dd/retvol/clmr':>30}{'  19-26 cagr/retvol':>20}  surv")
     for name, ft, f, a, b, surv in rows:
-        print(f"{name:16}{ft:5}{f['cagr']*100:>7.1f}%{f['maxdd']*100:>7.1f}%{f['sharpe']:>7.2f}{f['calmar']:>7.2f}"
-              f"{b['cagr']*100:>11.1f}%{b['sharpe']:>8.2f}   {'YES' if surv else ''}")
+        print(f"{name:16}{ft:5}{f['cagr']*100:>7.1f}%{f['maxdd']*100:>7.1f}%{f['retvol']:>7.2f}{f['calmar']:>7.2f}"
+              f"{b['cagr']*100:>11.1f}%{b['retvol']:>8.2f}   {'YES' if surv else ''}")
 
 
 if __name__ == "__main__":

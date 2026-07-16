@@ -15,7 +15,7 @@
 A menu of the **public, citable stock-selection strategies** the professional world respects, each
 made concrete as a screen the analyst can actually run and inspect at **`/dash/classics`**. It is the
 sibling of the **Factor League** (`/dash/factor-league`): the Factor League ranks the raw factor
-*families* (momentum, value, quality, low-vol) by the Sharpe/alpha **we measured** on 14 years of NSE
+*families* (momentum, value, quality, low-vol) by the return/vol + alpha **we measured** on 14 years of NSE
 data; Classic Screens implements the named, multi-signal *strategies* built on those factors and
 surfaces their **current participants**.
 

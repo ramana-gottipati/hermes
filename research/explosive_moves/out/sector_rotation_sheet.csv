@@ -1,0 +1,252 @@
+rebalance_date,sector,weight
+2005-10-03,Nifty FMCG,0.3
+2006-01-02,Nifty FMCG,0.3
+2006-04-03,Nifty FMCG,0.3
+2006-07-03,Nifty FMCG,0.3
+2006-10-03,Nifty Bank,0.3
+2007-01-02,Nifty Bank,0.3
+2007-04-02,Nifty Bank,0.3
+2007-07-02,Nifty Bank,0.3
+2007-10-01,Nifty Energy,0.3
+2007-10-01,Nifty Bank,0.3
+2008-01-01,Nifty Bank,0.3
+2008-01-01,Nifty Energy,0.3
+2008-04-01,Nifty FMCG,0.3
+2008-04-01,Nifty Energy,0.3
+2008-07-01,Nifty Energy,0.3
+2008-07-01,Nifty FMCG,0.3
+2008-10-01,Nifty Energy,0.3
+2008-10-01,Nifty FMCG,0.3
+2009-01-01,Nifty Energy,0.3
+2009-01-01,Nifty Bank,0.3
+2009-01-01,Nifty FMCG,0.3
+2009-04-01,Nifty Bank,0.3
+2009-04-01,Nifty Energy,0.3
+2009-04-01,Nifty FMCG,0.3
+2009-07-01,Nifty Bank,0.3
+2009-10-01,Nifty Bank,0.3
+2009-10-01,Nifty IT,0.3
+2010-01-04,Nifty Bank,0.3
+2010-01-04,Nifty IT,0.3
+2010-04-01,Nifty Bank,0.3
+2010-04-01,Nifty IT,0.3
+2010-07-01,Nifty Pharma,0.3
+2010-07-01,Nifty FMCG,0.3
+2010-07-01,Nifty Bank,0.2667
+2010-07-01,Nifty IT,0.1333
+2010-10-01,Nifty Bank,0.3
+2010-10-01,Nifty FMCG,0.3
+2010-10-01,Nifty IT,0.2667
+2010-10-01,Nifty Pharma,0.1333
+2011-01-03,Nifty Bank,0.3
+2011-01-03,Nifty IT,0.3
+2011-01-03,Nifty Pharma,0.2667
+2011-01-03,Nifty FMCG,0.1333
+2011-04-01,Nifty Pharma,0.3
+2011-04-01,Nifty IT,0.3
+2011-04-01,Nifty FMCG,0.2667
+2011-04-01,Nifty Bank,0.1333
+2011-07-01,Nifty Bank,0.3
+2011-07-01,Nifty FMCG,0.3
+2011-07-01,Nifty Pharma,0.2667
+2011-07-01,Nifty IT,0.1333
+2011-10-03,Nifty Pharma,0.3
+2011-10-03,Nifty FMCG,0.3
+2011-10-03,Nifty IT,0.2667
+2011-10-03,Nifty Bank,0.1333
+2012-01-02,Nifty Pharma,0.3
+2012-01-02,Nifty IT,0.3
+2012-01-02,Nifty FMCG,0.3
+2012-04-02,Nifty Pharma,0.3
+2012-04-02,Nifty FMCG,0.3
+2012-04-02,Nifty IT,0.3
+2012-07-02,Nifty Pharma,0.3
+2012-07-02,Nifty FMCG,0.3
+2012-07-02,Nifty Bank,0.3
+2012-10-01,Nifty FMCG,0.3
+2012-10-01,Nifty Media,0.3
+2012-10-01,Nifty Bank,0.2667
+2012-10-01,Nifty Pharma,0.1333
+2013-01-01,Nifty Media,0.3
+2013-01-01,Nifty Realty,0.28
+2013-01-01,Nifty Bank,0.21
+2013-01-01,Nifty FMCG,0.14
+2013-01-01,Nifty Pharma,0.07
+2013-04-01,Nifty Media,0.3
+2013-04-01,Nifty FMCG,0.28
+2013-04-01,Nifty Pharma,0.21
+2013-04-01,Nifty Realty,0.14
+2013-04-01,Nifty Bank,0.07
+2013-07-01,Nifty FMCG,0.3
+2013-07-01,Nifty Pharma,0.3
+2013-07-01,Nifty Media,0.2667
+2013-07-01,Nifty Bank,0.1333
+2013-10-01,Nifty FMCG,0.3
+2013-10-01,Nifty Pharma,0.3
+2013-10-01,Nifty Auto,0.2667
+2013-10-01,Nifty Media,0.1333
+2014-01-01,Nifty Auto,0.3
+2014-01-01,Nifty IT,0.3
+2014-01-01,Nifty Pharma,0.2667
+2014-01-01,Nifty Media,0.1333
+2014-04-01,Nifty IT,0.3
+2014-04-01,Nifty Media,0.3
+2014-04-01,Nifty Auto,0.3
+2014-07-01,Nifty Media,0.3
+2014-07-01,Nifty Auto,0.3
+2014-10-01,Nifty Auto,0.3
+2015-01-01,Nifty Auto,0.3
+2015-04-01,Nifty Auto,0.3
+2015-04-01,Nifty Pharma,0.3
+2015-07-01,Nifty Auto,0.3
+2015-07-01,Nifty Pharma,0.3
+2015-10-01,Nifty Auto,0.3
+2015-10-01,Nifty Pharma,0.3
+2015-10-01,Nifty Media,0.3
+2016-01-01,Nifty Pharma,0.3
+2016-01-01,Nifty Auto,0.3
+2016-01-01,Nifty Media,0.3
+2016-04-01,Nifty Energy,0.3
+2016-04-01,Nifty Metal,0.3
+2016-04-01,Nifty Auto,0.2667
+2016-04-01,Nifty Media,0.1333
+2016-07-01,Nifty Metal,0.3
+2016-07-01,Nifty Realty,0.28
+2016-07-01,Nifty Auto,0.21
+2016-07-01,Nifty Media,0.14
+2016-07-01,Nifty Energy,0.07
+2016-10-03,Nifty Realty,0.3
+2016-10-03,Nifty Metal,0.28
+2016-10-03,Nifty Media,0.21
+2016-10-03,Nifty Auto,0.14
+2016-10-03,Nifty Energy,0.07
+2017-01-02,Nifty Energy,0.3
+2017-01-02,Nifty Metal,0.3
+2017-01-02,Nifty Auto,0.2667
+2017-01-02,Nifty Media,0.1333
+2017-04-03,Nifty Media,0.3
+2017-04-03,Nifty Energy,0.3
+2017-04-03,Nifty Metal,0.3
+2017-07-03,Nifty Realty,0.3
+2017-07-03,Nifty FMCG,0.28
+2017-07-03,Nifty Metal,0.21
+2017-07-03,Nifty Media,0.14
+2017-07-03,Nifty Energy,0.07
+2017-10-03,Nifty Metal,0.3
+2017-10-03,Nifty Realty,0.3
+2017-10-03,Nifty Energy,0.2667
+2017-10-03,Nifty FMCG,0.1333
+2018-01-01,Nifty Energy,0.3
+2018-01-01,Nifty Metal,0.3
+2018-01-01,Nifty Realty,0.3
+2018-04-02,Nifty Energy,0.3
+2018-04-02,Nifty Metal,0.3
+2018-04-02,Nifty Realty,0.3
+2018-07-02,Nifty Energy,0.3
+2018-07-02,Nifty IT,0.3
+2018-10-01,Nifty Energy,0.3
+2018-10-01,Nifty IT,0.3
+2019-01-01,Nifty IT,0.3
+2019-01-01,Nifty Energy,0.3
+2019-01-01,Nifty PSU Bank,0.3
+2019-04-01,Nifty PSU Bank,0.25
+2019-04-01,Nifty Private Bank,0.2143
+2019-04-01,Nifty Bank,0.1786
+2019-04-01,Nifty Financial Services,0.1429
+2019-04-01,Nifty Realty,0.1071
+2019-04-01,Nifty Energy,0.0714
+2019-04-01,Nifty IT,0.0357
+2019-07-01,Nifty Realty,0.25
+2019-07-01,Nifty Financial Services,0.2143
+2019-07-01,Nifty Bank,0.1786
+2019-07-01,Nifty Private Bank,0.1429
+2019-07-01,Nifty Energy,0.1071
+2019-07-01,Nifty IT,0.0714
+2019-07-01,Nifty PSU Bank,0.0357
+2019-10-01,Nifty Financial Services,0.2857
+2019-10-01,Nifty IT,0.2381
+2019-10-01,Nifty Private Bank,0.1905
+2019-10-01,Nifty Realty,0.1429
+2019-10-01,Nifty Energy,0.0952
+2019-10-01,Nifty Bank,0.0476
+2020-01-01,Nifty Realty,0.2857
+2020-01-01,Nifty Financial Services,0.2381
+2020-01-01,Nifty Bank,0.1905
+2020-01-01,Nifty Private Bank,0.1429
+2020-01-01,Nifty IT,0.0952
+2020-01-01,Nifty Energy,0.0476
+2020-04-01,Nifty Pharma,0.2857
+2020-04-01,Nifty FMCG,0.2381
+2020-04-01,Nifty IT,0.1905
+2020-04-01,Nifty Financial Services,0.1429
+2020-04-01,Nifty Realty,0.0952
+2020-04-01,Nifty Energy,0.0476
+2020-07-01,Nifty FMCG,0.3
+2020-07-01,Nifty Pharma,0.3
+2020-07-01,Nifty IT,0.2667
+2020-07-01,Nifty Energy,0.1333
+2020-10-01,Nifty Energy,0.3
+2020-10-01,Nifty IT,0.3
+2020-10-01,Nifty Pharma,0.3
+2021-01-01,Nifty Consumer Durables,0.3
+2021-01-01,Nifty IT,0.3
+2021-01-01,Nifty Bank,0.2667
+2021-01-01,Nifty Pharma,0.1333
+2021-04-01,Nifty IT,0.3
+2021-04-01,Nifty Consumer Durables,0.3
+2021-04-01,Nifty Bank,0.3
+2021-07-01,Nifty Bank,0.3
+2021-07-01,Nifty Consumer Durables,0.3
+2021-07-01,Nifty IT,0.3
+2021-10-01,Nifty Media,0.3
+2021-10-01,Nifty Realty,0.3
+2021-10-01,Nifty IT,0.2667
+2021-10-01,Nifty Consumer Durables,0.1333
+2022-01-03,Nifty IT,0.3
+2022-01-03,Nifty Realty,0.3
+2022-01-03,Nifty Consumer Durables,0.2667
+2022-01-03,Nifty Media,0.1333
+2022-04-01,Nifty Energy,0.25
+2022-04-01,Nifty PSU Bank,0.2143
+2022-04-01,Nifty Metal,0.1786
+2022-04-01,Nifty Media,0.1429
+2022-04-01,Nifty IT,0.1071
+2022-04-01,Nifty Consumer Durables,0.0714
+2022-04-01,Nifty Realty,0.0357
+2022-07-01,Nifty PSU Bank,0.3
+2022-07-01,Nifty Energy,0.3
+2022-07-01,Nifty Metal,0.2667
+2022-07-01,Nifty Media,0.1333
+2022-10-03,Nifty Energy,0.3
+2022-10-03,Nifty PSU Bank,0.3
+2023-01-02,Nifty PSU Bank,0.3
+2023-04-03,Nifty Bank,0.3
+2023-04-03,Nifty PSU Bank,0.3
+2023-07-03,Nifty Bank,0.3
+2023-07-03,Nifty PSU Bank,0.3
+2023-10-03,Nifty PSU Bank,0.3
+2024-01-01,Nifty PSU Bank,0.3
+2024-04-01,Nifty PSU Bank,0.3
+2024-07-01,Nifty PSU Bank,0.3
+2024-07-01,Nifty Oil & Gas,0.3
+2024-10-01,Nifty Oil & Gas,0.3
+2025-01-01,Nifty Pharma,0.3
+2025-01-01,Nifty Healthcare Index,0.3
+2025-04-01,Nifty Pharma,0.3
+2025-04-01,Nifty Healthcare Index,0.3
+2025-04-01,Nifty Financial Services,0.3
+2025-07-01,Nifty Healthcare Index,0.3
+2025-07-01,Nifty Financial Services,0.3
+2025-10-01,Nifty Financial Services,0.3
+2025-10-01,Nifty Healthcare Index,0.3
+2025-10-01,Nifty PSU Bank,0.3
+2026-01-01,Nifty Auto,0.3
+2026-01-01,Nifty PSU Bank,0.28
+2026-01-01,Nifty Metal,0.21
+2026-01-01,Nifty Financial Services,0.14
+2026-01-01,Nifty Healthcare Index,0.07
+2026-04-01,Nifty Metal,0.3
+2026-04-01,Nifty PSU Bank,0.28
+2026-04-01,Nifty Healthcare Index,0.21
+2026-04-01,Nifty Financial Services,0.14
+2026-04-01,Nifty Auto,0.07

@@ -15,7 +15,7 @@ book is replaced by RAMANA'S DICTATED MANAGEMENT (S133 spec, docs/reversal-pair-
   mirrored on 2-degree UP-fractals and two-candle HIGHS. The bear book is a MEASUREMENT ONLY
   (single-stock cash shorting is not practically holdable in India) — its use is exit discipline.
 
-LEDGER PRIOR (cited): the naive reclaim book = Sharpe 0.37 full (0.16/0.53 halves), hit 41%,
+LEDGER PRIOR (cited): the naive reclaim book = return/vol 0.37 full (0.16/0.53 halves), hit 41%,
 median trade -2.08% net (07-13). Fences (07-14b): the exit craft carried ~all P&L in this family
 (random entries + trail ~= real book). This study asks whether RAMANA'S richer exit/re-entry
 stack beats the naive book — a management test, NOT a revival of the falsified entry timing.
@@ -26,9 +26,13 @@ entries/exits at the NEXT bar's close after the signal/stop bar; one setup per s
 0.3%/side; legs skipped if no confirmed 2-degree fractal exists in the trailing 100 bars at leg
 entry; daily equal-weight book across open legs, monthly compounding; seed-free (deterministic).
 
+METRIC BASIS (D142): every ratio here — the naive baseline included — is mean/sd annualised with NO
+risk-free rate subtracted: a return/vol ratio, not a Sharpe; it reads high against a textbook Sharpe.
+The 0.89 index bar is on the SAME basis, so the verdicts are unaffected.
+
 PRE-REGISTERED VERDICT BARS (published either way):
-  IMPROVED   = BULL managed book full Sharpe >= 0.52 (naive 0.37 + 0.15) AND >= the naive book's
-               Sharpe in BOTH halves (0.16 / 0.53).
+  IMPROVED   = BULL managed book full return/vol >= 0.52 (naive 0.37 + 0.15) AND >= the naive
+               book's return/vol in BOTH halves (0.16 / 0.53).
   FUNDABLE   = > 0.89 in BOTH halves (the standing index bar; expected FAIL per ledger).
   Otherwise  = NOT-IMPROVED. Bear book: descriptive only, no bar (non-shortable), reported with
                the same statistics. Trade-level stats (hit, median net, expectancy, exit mix,
@@ -253,7 +257,7 @@ def run():
     bk = rc.execute("SELECT * FROM sbm_book ORDER BY key, month").fetchall()
     rc.close()
     out = {"run_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%MZ"),
-           "naive_baseline_07_13": {"sharpe_full": NAIVE["full"], "h1": NAIVE["h1"],
+           "naive_baseline_07_13": {"retvol_full": NAIVE["full"], "h1": NAIVE["h1"],
                                     "h2": NAIVE["h2"], "hit%": 41.0, "med_net%": -2.08,
                                     "avg_hold": 15.3}}
 
@@ -287,10 +291,10 @@ def run():
     out["BEAR_managed_measurement_only"] = {"trades": leg_stats("BEAR"),
                                             "book": book_stats("BEAR")}
     ok = (bull["full"] and bull["h1"] and bull["h2"]
-          and bull["full"]["sharpe"] >= NAIVE["full"] + IMPROVE_MARGIN
-          and bull["h1"]["sharpe"] >= NAIVE["h1"] and bull["h2"]["sharpe"] >= NAIVE["h2"])
+          and bull["full"]["retvol"] >= NAIVE["full"] + IMPROVE_MARGIN
+          and bull["h1"]["retvol"] >= NAIVE["h1"] and bull["h2"]["retvol"] >= NAIVE["h2"])
     fundable = (bull["h1"] and bull["h2"]
-                and bull["h1"]["sharpe"] > 0.89 and bull["h2"]["sharpe"] > 0.89)
+                and bull["h1"]["retvol"] > 0.89 and bull["h2"]["retvol"] > 0.89)
     out["VERDICT"] = ("IMPROVED" if ok else "NOT-IMPROVED") + \
                      (" + FUNDABLE" if fundable else " (not fundable vs 0.89)")
     from .common import OUT_DIR  # noqa: PLC0415

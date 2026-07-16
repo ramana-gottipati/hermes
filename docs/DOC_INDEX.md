@@ -40,10 +40,12 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `AGENTS.md` | Codex orientation twin. |
 | `README.md` | Repo readme. |
 | `docs/strategy-ledger.md` | Benchmark ledger ("nothing discarded"). |
+| `docs/codex-stock-selection-brief.md` | TRANSIENT hand-off brief: the two-step sector→stock strategy's full state (§15h…§15Q, D141/D142) synthesized into one problem statement for an external solver. Retire once its build lands and folds into strategy-ledger.md/sector-rotation.md/PROJECT_STATE.md. |
 | `docs/SURFACE-PLAYBOOK.md` | BINDING playbook for adding any user-facing screen/page/tab — sister-data check, lens registry, education/fence/Pat/CSV landing checklist (twins: CLAUDE.md #9 / AGENTS.md #7). |
 | `docs/strategies/origins.md` | Canonical provenance map (S132j): every strategy labeled RAMANA / HOUSE / CLASSIC + the binding origin-labeling rule + the external-sources policy + the documentation loop. |
 | `docs/strategies/` (index: `README.md`) | Canonical strategy reference layer (S109) — one page per strategy (definition · status · terminology). Links to design docs; never duplicates ledger/weights. |
 | `docs/metrics-glossary.md` | Metric definitions source. |
+| `docs/pat-knowledge-contract.md` | BINDING contract — Pat's three self-feeding knowledge sources (glossary auto-fold · registry auto-fold · inline flows) + the same-commit rule, machine-enforced by `tests/test_pat_coverage.py` (twins: SURFACE-PLAYBOOK items 5+6 / CLAUDE.md #9 / AGENTS.md #7). |
 | `docs/product-strategy-2026.md` | Product / PO strategy reference. |
 | `docs/ui-architecture-v2.md` | Canonical IA / schema doc. |
 | `docs/SESSION-PROTOCOL.md` | Binding per-session start/end checklist (CLAUDE.md boot references it). |
@@ -97,7 +99,8 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 **Docs (30):** `docs/parallel-lane-prompts-D134.md` (paste-ready lane prompts + relay protocol
 for the analytics-company plan; retire when all lanes LANDED) · `docs/time-machine-audit.md`
-(LANE-F as-of capability audit, 67 lenses; retire → fold into plan §4-F) · `docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
+(LANE-F as-of capability audit, 67 lenses; retire → fold into plan §4-F) ·
+`docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
 · `docs/mep-NEXT-SESSION.md` · `docs/next-session-handoff.md` ·
 `docs/dashboard-deepen-NEXT-SESSION.md` · `docs/rrg-rotation-NEXT-SESSION.md` ·
 `docs/ui-redesign-EXECUTE.md` · `docs/ui-cockpit-NEXT-SESSION.md` ·
@@ -151,6 +154,9 @@ keep while the bridge is in use (gitignore-able).
 | `docs/mvio-dataset-a.md` | Institutional proof-point: PIT insider/promoter/pledge event dataset. |
 | `docs/predictive-attributes-findings.md` | Findings record: momentum is beta, not selection alpha. |
 | `docs/validation-memo.md` | SR 11-7 model-validation memo (momentum lens + C/A/B layer). |
+| `docs/prereg/union-prereg.md` | Pre-registered forward-test spec for the UNION signal (frozen rules + pass/fail, SHA-256 sealed); ledger 2026-07-16W. |
+| `docs/prereg/union-ml-prereg.md` | Pre-registered walk-forward ML ranker over the union's qualifiers (train ≤2016, test 2017+, frozen models + pass bar, SHA-256 sealed BEFORE the run). |
+| `docs/codex-review/rs-strategy-brief-2026-07-15.md` | The full-day RS-strategy brief sent to Codex for independent review (every config, number and bug); its verdict is ledger 2026-07-15R. |
 | `docs/codex-review/UX-CODEX-INDEPENDENT.md` | Codex's independent UX/web-estate review findings. |
 | `docs/codex-review/UX-DIALOGUE-R1-CODEX.md` | Codex round-1 UX dialogue verdicts. |
 | `docs/codex-review/UX-DIALOGUE-R2-CODEX.md` | Codex round-2 UX final verification + drift check. |
