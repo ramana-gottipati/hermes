@@ -895,11 +895,24 @@ def _ensure_backfill_ledger(con: sqlite3.Connection) -> None:
 
 
 def _backfill_worklist(con: sqlite3.Connection, *, window_start: str, hermes_db: str) -> list:
-    """Ordered (symbol, tier) over the addressable window. Tier 1 = NSE-indexed (what the
-    site / scoring / Pat surface) first, then Tier 2, alphabetical within tier."""
+    """Ordered (symbol, tier) to migrate. Tier 1 = NSE-indexed (what the site / scoring /
+    Pat surface) first, then Tier 2, alphabetical within tier.
+
+    TWO sources, and the second is not optional (S148/3.4 regression fix):
+      (a) Screener-era symbols carrying rows in the addressable window — the migration set.
+      (b) NSE-INDEXED symbols with NO fundamentals_history rows AT ALL. These never existed
+          in the Screener era (newer listings / renames), so a worklist derived only from
+          fundamentals_history skips them FOREVER. That was invisible while scoring could
+          fall back to a live Screener scrape — but since 3.4 the scorer reads ONLY the
+          archive, so an un-ingested indexed symbol is permanently unscoreable. Found the
+          hard way: 61 indexed names (ABBOTINDIA / CANFINHOME / CUB / EQUITASBNK …) went
+          unscoreable the moment the scrape was switched off. Their continuity gate
+          auto-passes (no Screener overlap to contradict).
+    """
     addr = [r[0] for r in con.execute(
         "SELECT DISTINCT symbol FROM fundamentals_history "
         "WHERE source IS NULL AND period_end>=? ORDER BY symbol", (window_start,))]
+    archived = {r[0] for r in con.execute("SELECT DISTINCT symbol FROM fundamentals_history")}
     universe: set = set()
     try:
         h = sqlite3.connect(f"file:{hermes_db}?mode=ro", uri=True)
@@ -907,7 +920,8 @@ def _backfill_worklist(con: sqlite3.Connection, *, window_start: str, hermes_db:
         h.close()
     except sqlite3.Error as e:      # universe is an ordering nicety, not a hard dependency
         log.warning("backfill worklist: universe read failed (%s) — treating all as tier 2", e)
-    tiered = [(s, 1 if s in universe else 2) for s in addr]
+    cand = set(addr) | (universe - archived)          # (a) migrate  +  (b) never-archived indexed
+    tiered = [(s, 1 if s in universe else 2) for s in cand]
     tiered.sort(key=lambda x: (x[1], x[0]))
     return tiered
 
