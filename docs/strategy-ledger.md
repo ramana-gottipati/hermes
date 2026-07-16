@@ -463,6 +463,82 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-16T - BOTH VETOES FAIL: BE-surveillance FALSIFIED (sd falls, return falls MORE), fundamentals INERT. + an incidental CORRECTION to 15P's baseline.
+
+**Ramana approved both, 2026-07-16**, with a condition that shaped the test: *"I also want to track the
+picks WITHOUT fundamentals also, because at times financials speak late."* -> every cell run both ways.
+**Module:** `research/explosive_moves/veto_test.py` + `vetoes.py`. Same harness family as
+`why_best_struggles.py` (15P) so numbers are comparable: top RS decile by own-sector RS, fwd 3m excess
+vs Nifty 500, PIT, corporate-action adjusted, 156 symbols quarantined.
+
+**PRE-REGISTERED FALSIFICATION CONDITION (set BEFORE the run): "the hypothesis lives only if sd FALLS
+and GEO RISES. If sd is unmoved, BE membership is noise."** It was tested against that condition.
+
+## VETO 1 - BE SURVEILLANCE: FALSIFIED
+
+**Hypothesis (mine, and my stated highest-priority lever):** 15L found strong-RS stocks get moved to
+NSE's BE trade-to-trade surveillance series MORE often than average - the regulator independently
+flagging exactly the move a top-decile RS filter chases. 15P found the decile's defect is VOLATILITY
+(a 3.55%/qtr variance toll against a 1.97% edge). **=> vetoing BE should cut the toll without touching
+the signal.** BE data is FULLY BACKFILLED 2004-2026 (173-766 symbols/yr, no gaps - Ramana asked; checked).
+
+| config | n | mean/qtr | **sd/qtr** | drag | **GEO/qtr** |
+|---|---|---|---|---|---|
+| **baseline (no vetoes)** | 747 | **+2.98%** | 27.22% | 3.70% | **-0.73%** |
+| + BE veto (flagged last 6m) | 718 | +2.33% | 25.61% | 3.28% | **-0.95%** |
+| + fundamentals veto only | 681 | +2.51% | 25.50% | 3.25% | -0.74% |
+| + BOTH vetoes | 658 | +2.12% | 24.21% | 2.93% | -0.81% |
+
+**THE VETO CUTS VOLATILITY EXACTLY AS PREDICTED (sd 27.22% -> 25.61%) AND CUTS THE RETURN BY MORE
+(mean +2.98% -> +2.33%). Geometric goes BACKWARDS: -0.73% -> -0.95%.** Fails its own pre-registered bar.
+
+**Lookback sweep proves it is NOT a tuning problem** - every window lands at or below baseline:
+
+| BE flagged within | n | mean | sd | GEO | removed |
+|---|---|---|---|---|---|
+| 0m (current month) | 733 | +2.53% | 26.10% | -0.88% | 1.6% |
+| 3m | 724 | +2.58% | 25.88% | -0.76% | 2.7% |
+| 6m | 718 | +2.33% | 25.61% | -0.95% | 3.7% |
+| 12m | 706 | +2.05% | 24.41% | -0.93% | 5.1% |
+| 24m | 678 | +2.18% | 23.86% | -0.67% | 8.4% |
+
+**INTERPRETATION: BE-flagged names are NOT junk polluting the decile - they are volatile names that
+were EARNING their volatility.** Removing them removes signal along with noise. **The regulator's own
+surveillance flag carries no exploitable information for this book. Do not re-attempt.**
+
+## VETO 2 - FUNDAMENTALS RED FLAGS: INERT
+
+Veto-only (never a ranker), per this ledger's standing prior: *"Momentum [is the] only surviving factor
+- but it's BETA not skill (t=1.99); C/A/B stay veto-only."* Red flags, all PIT on `report_date` (not
+`period_end`, so a FY result published in August is invisible in April): Net Profit < 0 · Reserves < 0 ·
+OPM % < 0 · Interest > Operating Profit. Absence of data = ALLOW (so the veto cannot silently become a
+coverage filter).
+
+**Removes 8.0% of candidates and moves GEO by -0.01pp. Not harmful. Simply does nothing.**
+**Ramana's instinct was right on both halves: financials DO speak late here, and they also do not speak
+at all.** Cheap to have learned rather than assumed.
+
+**DISCLOSURE (Guardrail #8):** `fundamentals_history` is the SCREENER-sourced table flagged as the known
+exception being remediated. Used READ-ONLY for this veto test - not an extension - but it is NOT a
+primary source. The BE veto has no such caveat (NSE bhavcopy = primary).
+
+## INCIDENTAL - A CORRECTION TO 15P's BASELINE (matters beyond this entry)
+
+| top RS decile, fwd 3m excess | mean | sd | GEO |
+|---|---|---|---|
+| **15P (as recorded)** | +1.97% | 26.63% | **-1.58%** |
+| **this run (quarantine + CA fix)** | **+2.98%** | 27.22% | **-0.73%** |
+
+Same construct, better numbers - this run carries the 156-symbol quarantine and the corporate-action
+adjustment that 15P lacked. **The top decile's edge is LARGER than 15P recorded (+2.98% vs +1.97%) and
+its geometric penalty SMALLER (-0.73% vs -1.58%).** 15P's direction stands; its magnitudes were
+understated. Codex had already ruled 15P's D6>D10 finding "INSUFFICIENT EVIDENCE" (15R) - this reinforces
+that its numbers should not be quoted as settled.
+
+**THE CORE PROBLEM SURVIVES INTACT: mean +2.98%, drag 3.70%, GEO -0.73%. The variance toll still exceeds
+the edge.** And two plausible fixes are now dead: the regulator's surveillance flag, and fundamental red
+flags. **Neither the market's own risk signal nor the company's financials shrink the toll.**
+
 ### 2026-07-15S - RETRACTION #8: "corporate_actions is ~30% incomplete" is **FALSE**. The DB matches NSE EXACTLY. Nothing to fund. **The verdict is CLEAN, not provisional: HOLD NIFTY NEXT 50.**
 
 **Ramana:** *"Fund the NSE corporate-actions ingest... how do I get this."* **Answer: you do not need to.
