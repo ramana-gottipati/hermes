@@ -23,6 +23,16 @@ PROJECT_STATE entries are enough.**
 - **The RS/union estate now has NO open operational debt** — remaining: median pick-ADV print in the
   forward runner · A2-composite clean-TR (forward runner prints it) · 2026-10-03 forward-test day.
 
+## ✅ 2026-07-17 — S178 (Ramana: "run the PBO/CSCV check as well"): PBO = 0.043 — LOW overfit risk (ledger 16AM); K30 OOS rank mean 0.938/min 0.767 across all 70 splits; the ROBUSTNESS SUITE IS COMPLETE — do NOT redo; kickstart-pick-verify
+- 31-config × 81-quarter matrix (every signal-invariant book config searched; exclusions disclosed), s=8
+  CSCV, attribution.py:336 logic mirrored deterministically; repro gate 5/5. λ quartiles +1.87/+2.64/+13.82.
+  Honest note: rankw is IS-best more often than K30 (44 vs 16 of 70) — the drift/rankw choice is
+  ~equivalent by every test (matches 16AL's A2→K30 near-tie); the declared precedence stands.
+- **In-sample work on this family is DONE — every honest check has run.** The queue is now: the 2026-10-03
+  forward-test day (all six ladder rows + TRI columns; four sealed specs on frozen criteria; family
+  adjudication picks ≤1) · the era-floor window-fit flag rides into that judgment (16AL) · estate residue
+  (median pick-ADV print in the forward runner).
+
 ## ✅ 2026-07-16 — S176 (Ramana: "run the validation prereg before graduation"): THE SEALED VALIDATION IS RUN (ledger 16AL) — C40→K30 increment REAL (p=0.014, frozen rule PASS), survival 1.01, dead-name stress clean; ERA-FLOOR rung flagged highest window-fit risk (failed ≤2018 re-derivation); DEFLATED forward expectations published (K30 ≈ 21.6%) — the coordination item below is CLOSED — do NOT redo; kickstart-pick-verify
 - Repro gate 5/5 to the digit; 81 common quarters; all six pairwise CIs recorded (β-cap and A2→K30 rungs
   individually ns — the middle rungs carry the significance). C2a: α>0 in 7/7 3y windows for B14/A2/K30.

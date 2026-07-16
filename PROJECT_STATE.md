@@ -2159,6 +2159,12 @@ After this session's repeated cross-absorption + index-reset failures (a sibling
 - Guardrail unchanged: lanes still push to origin/main + rebase on conflict; the isolation is at the working-tree/index level, which is the actual root cause of this session's failures.
 - Follow-up fix (dogfooded via `new-lane.sh fix-retire-msg`): `retire-lane.sh` now prints the ACTUAL `git worktree remove` failure and treats an out-of-band-removed dir as "already gone" (prune + still clean the branch) instead of always claiming "not clean" — the misleading path hit when a parallel session yanked the authoring worktree mid-retire.
 
+### Session 178 (RS/Union lane, Ramana-directed: "run the PBO/CSCV check as well") — 2026-07-17 — PBO/CSCV = 0.043, LOW overfit risk (ledger 16AM); K30 OOS-robust in all 70 splits; the robustness suite on the union family is COMPLETE
+
+- 31-config searched matrix × 81 quarters, s=8 CSCV (attribution.py:336 mirrored, deterministic), repro
+  gate 5/5, declared bands. rankw-vs-drift near-equivalence recorded (matches 16AL C1). In-sample work on
+  the family is finished; the 2026-10-03 forward window is the only remaining judge.
+
 ### Session 176 (RS/Union lane, Ramana-directed: "run the validation prereg before graduation") — 2026-07-16 — THE SEALED LADDER VALIDATION RUN (ledger 16AL): frozen D139 gate PASS (C40→K30 real, p=0.014), survival 1.01, stress clean; era-floor rung = highest window-fit risk; deflated forward bands published (K30 ≈ 21.6%)
 
 - Protocol `37c28824…` executed exactly as frozen (coordination-lane authorship honored); repro gate 5/5;

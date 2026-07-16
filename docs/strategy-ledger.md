@@ -3072,6 +3072,32 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **Provenance:** sealed protocol `docs/prereg/union-ladder-validation-prereg.md` (37c28824…, coordination
   session; run exactly as frozen) · runner lands with this commit · DB to 2026-07-15 · box read-only.
 
+### 2026-07-16AM — S178 (Ramana: "run the PBO/CSCV check as well"): PBO = 0.043 — LOW overfit risk. The union program's config search survives combinatorially-symmetric cross-validation; the chosen lead ranks OOS-top-decile in every split. The robustness suite is COMPLETE.
+
+- **Verdict: VALIDATION RECORDED (companion to 16AL; declared bands applied, nothing re-tuned).**
+- **Method:** Bailey-Borwein-LdP-Zhu CSCV, the estate implementation (`attribution.pbo_cscv`, M-03) mirrored
+  verbatim in stdlib (deterministic — equivalence by construction; attribution.py:336 cited). Matrix
+  declared BEFORE the run: **T=81 quarters × N=31 signal-invariant book configs** — every S-family /
+  concentration / floor / weights / trail / sleeve config the program searched (itemized in the module),
+  exclusions disclosed (6 turn-signal variants, 2 quality-tilt configs, cadence, blend, 4 ML models —
+  different machinery, all gen-0 rejects). s=8 contiguous blocks → C(8,4)=70 IS/OOS splits; selection metric
+  = per-period return/vol (D142 vocabulary). Reproduction gate 5/5 to the digit before any read.
+- **RESULT: PBO = 0.043** (declared bands: <0.10 low · 0.10–0.50 moderate · >0.50 severe). λ quartiles
+  **+1.87 / +2.64 / +13.82** — the IS-best config lands ABOVE the OOS median in ~96% of splits.
+- **The chosen lead is split-robust:** K30's OOS relative rank across the 70 splits = **mean 0.938,
+  minimum 0.767** (1.0 = best of 31) — COMPOSITE-30 is top-decile out-of-sample in the average split and
+  never leaves the top quartile.
+- **Honest observation:** the IS-best tally is rankw 44 · K30 16 · A2 5 · others 5 — the rank-proportional-
+  weights variant is IS-best more often than the drift variant, consistent with 16AL's C1 (the A2→K30 rung
+  is a statistical near-tie) and 16AF (both passed; drift won by declared precedence). The choice between
+  them is ~equivalent by every test run; the precedence decision stands, its equivalence now on record.
+- **THE ROBUSTNESS SUITE IS COMPLETE:** D139 paired significance (16AL C1) ✓ · interim OOS survival 1.01
+  (C2b) ✓ · 69-trial deflation bands published (C3) ✓ · dead-name/slip/next-day stress (16AB/16AE/16AF/C5)
+  ✓ · **PBO/CSCV 0.043 (16AM)** ✓. The era-floor window-fit flag (16AL) remains the one recorded soft spot.
+  Nothing further is honestly testable in-sample; the 2026-10-03 forward window is the remaining judge.
+- **Provenance:** `research/explosive_moves/union_pbo.py` (matrix + bands in the docstring; lands with this
+  commit) · DB to 2026-07-15 · box read-only.
+
 ### 2026-07-17 — COORDINATION cross-check of 16AL/S176: C1 independently REPRODUCED by a second harness (no shared engine code) — every verdict identical, not an implementation artifact
 - A separate coordination-session runner **`research/explosive_moves/union_ladder_c1.py`** re-ran C1
   independently of S176's `union_ladder_val.py`. The two share NO engine code: this one **exec-loads

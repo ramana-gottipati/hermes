@@ -180,3 +180,8 @@ contribution not regime-concentrated (+1.2/−0.2/+0.6). **C5:** dead-name hairc
 headline):** U **15.7%** · β14 **16.6%** · C40RA **18.1%** · A2-composite **21.0%** ·
 **COMPOSITE-30 21.6%**. The in-sample headlines above are selection-inflated by construction; these
 bands are the honest forward expectation until 2026-10-03 speaks.
+
+**PBO/CSCV (S178, ledger 16AM): PBO = 0.043 — LOW overfit risk** over the full 31-config searched
+matrix (70 combinatorial splits); K30's OOS rank mean 0.938 / min 0.767. With this, the robustness
+suite is complete: paired significance ✓ · interim OOS ✓ · deflation ✓ · stress ✓ · PBO ✓ — one
+recorded soft spot (the era-floor rung's ≤2018 re-derivation failure).
