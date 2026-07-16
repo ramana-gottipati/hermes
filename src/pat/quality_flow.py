@@ -117,7 +117,7 @@ def quality_for(symbol: str, *, as_of: str | None = None) -> dict | None:
         return None
     try:
         from src.automation.fundamentals_asof import as_of_fundamentals
-        from src.automation.scoring import financial_subtype, score_fundamentals
+        from src.automation.scoring import score_fundamentals
     except Exception:
         return None
     try:
@@ -126,9 +126,22 @@ def quality_for(symbol: str, *, as_of: str | None = None) -> dict | None:
         f = None
     if not f:
         return None
+    # Doctrine D is resolved SEPARATELY and defensively: `financial_subtype` is newer than the rest
+    # of the scorer, and on a multi-lane estate this module can legitimately run against a box where
+    # a sibling's scoring.py deploy has not caught up yet (observed 2026-07-16). A hard import here
+    # made the whole flow answer "no fundamentals on record" for EVERY symbol — a lie, since the
+    # fundamentals were right there. So: no sub-type -> fall back to the generic read and still show
+    # the numbers; the lender model switches itself on the moment scoring.py carries it.
+    sub = None
     try:
+        from src.automation.scoring import financial_subtype
         sub = financial_subtype(sym)
+    except Exception:
+        sub = None
+    try:
         score = score_fundamentals(f, is_financial=sub is not None, subtype=sub)
+    except TypeError:
+        score = score_fundamentals(f)          # pre-Doctrine-D signature — still render the figures
     except Exception:
         return None
     return {"symbol": sym, "as_of": f.get("as_of_period_end") or f.get("as_of"),

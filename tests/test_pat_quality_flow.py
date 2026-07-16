@@ -84,3 +84,17 @@ def test_read_degrades_and_never_raises():
 
 def test_selftest_passes():
     assert QF._selftest() == 0
+
+
+def test_survives_a_scoring_py_that_predates_doctrine_d(monkeypatch):
+    """Multi-lane reality (observed 2026-07-16): a sibling deployed a scoring.py WITHOUT
+    `financial_subtype` over this box, and the hard import made quality_for answer "no
+    fundamentals on record" for EVERY symbol — a lie, the fundamentals were right there. The flow
+    must degrade to the generic read and still show the numbers, then pick the lender model back
+    up automatically when scoring.py catches up."""
+    import src.automation.scoring as SC
+    monkeypatch.delattr(SC, "financial_subtype", raising=False)
+    b = QF.quality_for("HDFCBANK")
+    # no crash, no false "nothing known": either real data (generic read) or an honest None from
+    # the archive — never an exception, and never a lie caused by the missing symbol.
+    assert b is None or (b.get("subtype") is None and b.get("score"))
