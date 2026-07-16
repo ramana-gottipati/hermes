@@ -125,7 +125,7 @@ wealth — the standing V8→V17 lesson.)*
   still clears every sibling. Third-generation in-sample selection — sealed
   ([`union-c40ra-prereg.md`](../prereg/union-c40ra-prereg.md), SHA-256 `0715a0d9…`) with the multiplicity
   risk disclosed inside and a frozen three-way adjudication. **The family stops at three registrations.**
-- **A2-COMPOSITE — a DEFERRED LEAD, not a registration (2026-07-16 S170, ledger 16AE):** the C40RA
+- **A2-COMPOSITE — a DEFERRED LEAD, not a registration (2026-07-16 S171, ledger 16AE):** the C40RA
   machinery with an ERA-RELATIVE liquidity floor (monthly ADV percentile calibrated to today's ₹5cr
   equivalent, clamped at ₹1cr) and the bear-state idle earning the documented risk-free rate. In-sample it
   is the first union-family book to clear Ramana's 25% bar, surviving 2%/3%-slip and next-day-execution

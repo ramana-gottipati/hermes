@@ -2122,7 +2122,7 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
-### Session 170 (RS/Union lane, Ramana-directed: "continue with the remaining levers.. keep improving") — 2026-07-16 — THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE (A2-composite 25.5% PR / worst-honest 23.9%) — recorded as a DEFERRED LEAD; rf-cash measurement-adopted; G-sec sleeve data-blocked
+### Session 171 (RS/Union lane, Ramana-directed: "continue with the remaining levers.. keep improving") — 2026-07-16 — THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE (A2-composite 25.5% PR / worst-honest 23.9%) — recorded as a DEFERRED LEAD; rf-cash measurement-adopted; G-sec sleeve data-blocked
 
 - **The diagnosis first (new fact):** the absolute ₹5cr ADV floor admits 389 names in 2006 / 344-424 in
   2011-13 vs ~1,550 today — nominal filter vs ~10x traded-value growth = a ~4x over-tightened early
@@ -2140,7 +2140,7 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
   B1 rf-cash (attribution.py convention verbatim) measurement-adopted for lead reporting only — sealed specs
   keep 0% cash. B2 G-sec/gold bear sleeve DATA-BLOCKED → queued on the TRI/rf feed lane (3 dependents now).
 - **Artifacts:** `research/explosive_moves/union_lab4.py` (diagnosis + declared bars + battery) ·
-  `union_lab4b.py` (stress) · ledger 16AE · carry-forward S170 block + catalog §G rows + NEXT-SESSION
+  `union_lab4b.py` (stress) · ledger 16AE · carry-forward S171 block + catalog §G rows + NEXT-SESSION
   rewrite (governance-first queue) · union.md §4 deferred-lead + §9 forward-runner note. Box read-only.
 - **Harness TIL:** the `until ssh grep` + `run_in_background` completion-watch pattern (adopted last
   session) carried the whole session — zero manual polling across three remote runs.

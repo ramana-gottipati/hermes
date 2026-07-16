@@ -10,7 +10,7 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## 🟢 2026-07-16 — S170 (Ramana: "continue with the remaining levers"): THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE — A2-composite 25.5% PR (Rs1Cr→99x), worst-honest 23.9% — recorded as a DEFERRED LEAD (family closed; ⚖ 2 Ramana decisions queued); rf-cash adopted as measurement; G-sec sleeve DATA-BLOCKED — do NOT redo; kickstart-pick-verify
+## 🟢 2026-07-16 — S171 (Ramana: "continue with the remaining levers"): THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE — A2-composite 25.5% PR (Rs1Cr→99x), worst-honest 23.9% — recorded as a DEFERRED LEAD (family closed; ⚖ 2 Ramana decisions queued); rf-cash adopted as measurement; G-sec sleeve DATA-BLOCKED — do NOT redo; kickstart-pick-verify
 - **The diagnosis:** the absolute Rs5cr ADV floor admits 389 names in 2006 / 344-424 in 2011-13 vs ~1,550 today —
   nominal filter, ~10x traded-value growth → the early universe was ~4x over-tightened (why every union book
   starved pre-2014). **The fix (rule declared pre-run, P=0.450 from the last 12 months):** monthly percentile
@@ -366,13 +366,13 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 | — | MONTHLY cadence, churn-controlled (hold-unless-lost-2) | ❌ 14.8%, MaxDD −41.1% — **cadence law 4th confirmation; quarterly SETTLED** | 16AC |
 | — | cross-family blend β14 ⊕ LOWVOL_MOM 50/50 (union grid) | ❌ corr 0.83; blend 13.5% < β14 19.3%, DD worse — dilution; **no union ⊕ momentum-family blends ever** | 16AC |
 | — | TOTAL-RETURN accrual (measurement, not a candidate) | 📏 +0.6pp lower-bound on every book (union 18.1 · β14 18.7 · composite 21.8 TR); bench stays PR until TRI ingestion | 16AD |
-| ⭐⭐⭐ **era-relative ADV floor** (S170) | monthly pctile floor, P=0.450 declared; A1 raw / **A2 = max(Rs1cr, floor)** | ✅ **the biggest single lever of the arc: A2-composite 25.5% PR / −27.2% / 99x / α+14.2; worst-honest 23.9; A2 DOMINATES A1 (equal CAGR, DD −27.2 vs −32.0, tail ADV 2x) → DEFERRED LEAD, not registered (family closed; Ramana ②)** — do NOT re-sweep P or the clamp | 16AE |
+| ⭐⭐⭐ **era-relative ADV floor** (S171) | monthly pctile floor, P=0.450 declared; A1 raw / **A2 = max(Rs1cr, floor)** | ✅ **the biggest single lever of the arc: A2-composite 25.5% PR / −27.2% / 99x / α+14.2; worst-honest 23.9; A2 DOMINATES A1 (equal CAGR, DD −27.2 vs −32.0, tail ADV 2x) → DEFERRED LEAD, not registered (family closed; Ramana ②)** — do NOT re-sweep P or the clamp | 16AE |
 | — | B1 rf-earning bear-cash (1D-Rate/6.5% proxy, attribution.py convention) | 📏 measurement-adopted: +0.4pp, every window up; deferred-lead reporting ONLY (sealed specs keep 0% cash) | 16AE |
 | — | B2 G-sec/gold bear sleeve | ⛔ DATA-BLOCKED (no long G-sec/gold history in index_rows; no fetch tool) — queued on the TRI/rf feed lane; lever OPEN, not dead | 16AE |
 
 ---
 
-### 🎯 NEXT SESSION — the UNION estate after S170 (the 25% bar is hit in-sample by a DEFERRED lead; governance now leads the queue):
+### 🎯 NEXT SESSION — the UNION estate after S171 (the 25% bar is hit in-sample by a DEFERRED lead; governance now leads the queue):
 
 1. **⚖ RAMANA'S TWO DECISIONS (blocking the lead's status):** ① confirm **A2** (dominant: equal CAGR,
    strictly better DD, 2x tail ADV) over A1 as the deferred lead; ② **reopen the sibling family for a 4th

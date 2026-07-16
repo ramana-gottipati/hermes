@@ -1,7 +1,7 @@
 """UNION LAB 4 — the two levers left standing: the ERA-RELATIVE ADV FLOOR and the RF-EARNING
 CASH LEG. Base = UNION-C40RA (the third sealed sibling, 21.0%/beta 0.81/alpha +10.3).
 
-S169-lane (2026-07-16, Ramana: "continue with the remaining levers.. era-relative ADV floor and
+S171-lane (2026-07-16, Ramana: "continue with the remaining levers.. era-relative ADV floor and
 low-corr sleeve. Keep finding.. keep improving").
 
 GOVERNANCE (binding, declared): the sibling family is CLOSED at three registrations ("no fourth

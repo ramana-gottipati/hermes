@@ -2790,7 +2790,7 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   is now a named, valuable data task: it completes this measurement estate-wide.**
 - **Provenance:** `union_lab3.py` TR rows (dividend census printed at run start), DB to 2026-07-15.
 
-### 2026-07-16AE — S170 (Ramana: "continue with the remaining levers — era-relative ADV floor and low-corr sleeve"): THE ERA-RELATIVE FLOOR IS THE BIGGEST SINGLE LEVER OF THE WHOLE ARC. A2-composite = 25.5% PR full-period (Rs1Cr→99x), worst-honest 23.9% — the 25% bar is HIT in-sample. Recorded as a DEFERRED LEAD (family closed at three; no registration without the Oct-3 forward result). rf-earning cash adopted as measurement. G-sec sleeve DATA-BLOCKED.
+### 2026-07-16AE — S171 (Ramana: "continue with the remaining levers — era-relative ADV floor and low-corr sleeve"): THE ERA-RELATIVE FLOOR IS THE BIGGEST SINGLE LEVER OF THE WHOLE ARC. A2-composite = 25.5% PR full-period (Rs1Cr→99x), worst-honest 23.9% — the 25% bar is HIT in-sample. Recorded as a DEFERRED LEAD (family closed at three; no registration without the Oct-3 forward result). rf-earning cash adopted as measurement. G-sec sleeve DATA-BLOCKED.
 
 - **Verdict: CONDITIONAL — DEFERRED LEAD (4th-generation in-sample selection; registration deferred per the
   family-closed rule in `union-c40ra-prereg.md`; two Ramana decisions queued below).**
