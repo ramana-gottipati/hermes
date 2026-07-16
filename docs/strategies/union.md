@@ -118,11 +118,20 @@ wealth — the standing V8→V17 lesson.)*
   **Same epistemic class as the union — an in-sample-selected lead** — so it is sealed beside it
   ([`union-beta14-prereg.md`](../prereg/union-beta14-prereg.md), SHA-256 `08b46199…`) with a frozen sibling-
   adjudication rule; the forward window judges both.
+- **UNION-C40RA — the THIRD pre-registered sibling (2026-07-16 S168, ledger 16AB):** β14 plus exactly two
+  rules — rank the capped qualifiers by RISKADJ (6-month return ÷ 3-month volatility, the estate's
+  best-of-32 factor) and hold the top 40. In-sample it is the family's best (all three windows
+  alpha-positive) and it survives the 2%-slip and next-day-execution honesty passes; the worst honest case
+  still clears every sibling. Third-generation in-sample selection — sealed
+  ([`union-c40ra-prereg.md`](../prereg/union-c40ra-prereg.md), SHA-256 `0715a0d9…`) with the multiplicity
+  risk disclosed inside and a frozen three-way adjudication. **The family stops at three registrations.**
 - **Signal A alone** and **Signal B alone** — each beats the Next-50 bar in-sample but by less; the union
   beats both. Recorded reference points, not separate strategies.
 - **Rejected candidates** (do not re-run): throttle (16W), inverse-vol (16X), the AND-intersection (16V),
   the twelve-candidate battery of 16Z (sector caps · RSI ranks · beta-rank-asc · 6b variants · 6b∪6f ·
-  weekly/MTF · quality tilt), the pre-registered ML ranker (16AA).
+  weekly/MTF · quality tilt), the pre-registered ML ranker (16AA), and the S168 kills (16AC): trail widths
+  other than 20 · sleeve-index swaps · cap-floor refill · vs-bench consistency · **monthly cadence (4th
+  confirmation of the cadence law)** · the cross-family LOWVOL_MOM blend (return-corr 0.83 — dilution).
 
 ## 5. Known weakness (disclosed, not hidden)
 
@@ -170,12 +179,14 @@ of the live ruleset.
 
 ## 9. Open items
 
-- **The forward test is the ONLY thing that matters next — and it now adjudicates a SIBLING PAIR.** When a
-  new quarter closes, run the Union against [`../prereg/union-prereg.md`](../prereg/union-prereg.md) AND
-  union-β14 against [`../prereg/union-beta14-prereg.md`](../prereg/union-beta14-prereg.md) — **touch neither
-  spec.** Each is judged on its own frozen criteria; if both pass, the higher forward alpha graduates (the
-  adjudication rule is frozen inside the β14 registration). The scheduled 2026-10-03 task runs the union's
-  engine; run `union_lab.py`'s `s_beta_cap_1.4` row beside it the same day.
+- **The forward test is the ONLY thing that matters next — and it now adjudicates a THREE-SIBLING FAMILY.**
+  When a new quarter closes, run the Union ([`union-prereg.md`](../prereg/union-prereg.md)), union-β14
+  ([`union-beta14-prereg.md`](../prereg/union-beta14-prereg.md)) and union-C40RA
+  ([`union-c40ra-prereg.md`](../prereg/union-c40ra-prereg.md)) — **touch no spec.** Each is judged on its
+  own frozen criteria; among passers, highest forward alpha graduates (the three-way rule is frozen in the
+  C40RA registration). The scheduled 2026-10-03 task runs the union's engine; run `union_lab.py`'s
+  `s_beta_cap_1.4` row and `union_lab3.py`'s composite row beside it the same day. **No fourth registration
+  without a forward result.**
 - **TR-benchmark re-cut** (owed across the whole RS estate).
 - ~~The 2012–17 selection question~~ — **answered in-sample 2026-07-16 (ledger 16Y, the beta cap) and moved
   into the sibling registration above.** The remaining open questions are the forward evidence itself and the
@@ -185,9 +196,11 @@ of the live ruleset.
 ## 10. Sources of truth
 
 Ruleset + terminology: **this page**. Every result number: [strategy-ledger.md](../strategy-ledger.md)
-§§ 2026-07-16U → 2026-07-16X (the union arc) and §§ 2026-07-16Y/Z/AA (the candidate battery, the sibling
-lead, the ML verdict). Frozen specs + seals: [`../prereg/union-prereg.md`](../prereg/union-prereg.md) ·
+§§ 2026-07-16U → 2026-07-16X (the union arc), §§ 2026-07-16Y/Z/AA (the S165 battery, the β14 sibling, the
+ML verdict) and §§ 2026-07-16AB/AC/AD (the S168 battery, the C40RA sibling, the kills, the total-return
+measurement). Frozen specs + seals: [`../prereg/union-prereg.md`](../prereg/union-prereg.md) ·
 [`../prereg/union-beta14-prereg.md`](../prereg/union-beta14-prereg.md) ·
+[`../prereg/union-c40ra-prereg.md`](../prereg/union-c40ra-prereg.md) ·
 [`../prereg/union-ml-prereg.md`](../prereg/union-ml-prereg.md). Code: `research/explosive_moves/cash_blend.py`,
 `cash_6b.py`, `dim6.py`, `dim6g.py`, `cash_throttle.py`, `cash_ivol.py`, `union_lab.py`, `union_lab2.py`,
-`union_ml.py`.
+`union_ml.py`, `union_lab3.py`, `union_lab3b.py`, `blend_u25.py`.

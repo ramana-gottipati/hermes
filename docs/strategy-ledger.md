@@ -2720,3 +2720,72 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   from it.
 - **Provenance:** `research/explosive_moves/union_ml.py` (lands with this commit), sklearn 1.7.2 on the box's
   .venv-research, DB to 2026-07-15.
+
+### 2026-07-16AB — S168 (Ramana: "target 25% CAGR... this is a lab"): TWO axes pass on the β14 base — top-40 concentration and RISKADJ-rank — and their pre-declared composite reaches 21.0% PR / 21.8% TR in-sample, surviving slip-2 AND next-day-execution honesty passes. PRE-REGISTERED as the THIRD sibling.
+
+- **Verdict: CONDITIONAL (pre-registered forward test; a third-generation in-sample-selected lead — 15R applies
+  with extra force). NOT 25%: the full-period worst-honest floor is 19.5%; only the 2018-26 window touches the
+  target (24.6% PR / 25.7% TR / 25.1% TR-lagged).**
+- **What ran:** `union_lab3.py` — single-axis sweeps on the β14 base under a bar declared BEFORE any run (win =
+  full CAGR > 18.1 AND alpha > +8.4 AND 2012-17 alpha ≥ +2.0 AND no window's alpha −1.5pp), auto-compose rule
+  declared (combine ONLY individually-passing axes, at most one composite). In-module controls reproduced the
+  union (17.5%/26.04x) and β14 (18.1%/28.84x) to the digit.
+- **Axis winners:** **top-40** on the capped set (19.5% / −27.1% / 37.04x / β0.82 / α+9.0; windows +8.4/+4.9/+10.9;
+  top-30 borderline, top-20 fails 2006-11 at α+3.2 — the 15P variance toll made visible) · **RISKADJ-rank** of the
+  capped qualifiers (6m return ÷ 3m vol, the estate's best-of-32): 18.9% / α+9.3, 2018-26 α+12.0 — notable because
+  plain RSI-rank FAILED both ways (16Z); risk-ADJUSTED momentum respects the toll.
+- **THE COMPOSITE (auto-composed, not hand-picked): union + β≤1.4 cap + RISKADJ-rank + top-40, sleeve200,
+  trail-20@1%:** **CAGR 21.0% · MaxDD −28.4% · Rs1Cr→47.29x · beta 0.81 · alpha +10.3%** — windows α +9.2 / +4.3 /
+  +14.3 (ALL positive). **Total-return (16AD accrual): 21.8%**, windows 18.3 / 22.1 / 25.7.
+- **Honesty passes (`union_lab3b.py`, run before registration):** @2% stop-slip **19.7% / α+9.2** · **D5-F1
+  next-day execution 20.0% / α+9.5 (TR 20.8%)** — neither slippage nor the same-close peek carries the edge ·
+  worst honest case (lagged + slip-2, TR) **19.5% / α+9.1 / −29.0% DD**, its 2018-26 window 23.7%.
+- **PRE-REGISTERED:** `docs/prereg/union-c40ra-prereg.md`, **SHA-256 =
+  `0715a0d9c26e5ea7772e957ad54a2c0fade313dc2038d98d005951986bd1c08f`** — same 4 absolute forward criteria, frozen
+  three-way family adjudication (highest forward alpha among passing specs graduates), multiplicity disclosed IN
+  the registration, **the family stops at three**. Union seal `a9a14058…` and β14 seal `08b46199…` untouched.
+- **Capacity honesty:** 40 names at ADV ≥ ₹5cr, turnover ~1.15/quarter — personal-scale only; the estate's
+  participation-cost precedent (C-BLEND recut) says institutional AUM would bite; untested here by design.
+- **Provenance:** `union_lab3.py` / `union_lab3b.py` (land with this commit), DB to 2026-07-15, window
+  2006-01→2026-07.
+
+### 2026-07-16AC — S168 kills, each with numbers (walls; do not re-run without beating them): trail sweep, sleeve swaps, cap-floor, vs-bench consistency, MONTHLY CADENCE (4th confirmation), and the cross-family LOWVOL_MOM blend (corr 0.83 — dilution, not diversification).
+
+- **Verdict: REJECTED (all seven).** Base for all: β14 (18.1% / β0.74 / α+8.4). Full tables reproducible via
+  `union_lab3.py` / `blend_u25.py`.
+- **Trail widths 15/25/30/none: 17.3 / 17.3 / 16.7 / 15.2%** (none: MaxDD −45.4%). The sealed trail-20 stands;
+  the 15k law ("exits fix RISK, not return") holds on this base too — tighter trail buys DD (−22.5%) at CAGR cost.
+- **Sleeve swaps:** Midcap50 **12.4%** (its index is structurally weak pre-2012) · Nifty100 17.0%. **The V17
+  Next-50 sleeve is vindicated again — do not re-tune the sleeve index.**
+- **Cap-floor-45** (refill scarce books from lowest-beta excluded): 18.5% full BUT **2012-17 alpha +3.4 → −0.2** —
+  the floor re-admits exactly the wrong names in exactly the wrong regime (it does help 2006-11: α+11.1). A
+  regime-gated floor would be throttle-adjacent conditioning (16W wall) — not pursued.
+- **Consistency vs BENCH instead of own sector: 16.8%, 2012-17 α+0.3.** Ramana's own-sector discriminator is
+  load-bearing; the reference-index choice is settled.
+- **MONTHLY cadence (churn-controlled, hold-unless-lost-2-evals): 14.8%, MaxDD −41.1%** despite turnover control
+  (0.78/month) — the grace-hold rides losers through crashes. **The cadence law's 4th confirmation (V10, V12,
+  C-BLEND participation, now this). Quarterly is settled — stop testing cadence.**
+- **Cross-family blend (`blend_u25.py`): union-β14 ⊕ LOWVOL_MOM largecap quarterly (the rule-lab NEW-BENCHMARK
+  #602), 50/50, on the union's own grid (REBAL_STEP patched to 1 → exact alignment), overlap 2012-07→2026-04
+  (56 qtrs):** correlation **0.83**; β14 alone 19.3% / −20.9% / α+7.3 · LOWVOL_MOM at real cost **7.7% / −29.5% /
+  α−1.6** · blend **13.5% / −25.2% / α+2.9** — strictly dominated by β14 alone; DD is WORSE, not better.
+  ⚠ Disclosed: the grid patch's fallback makes a suspended name's forward return ~1 day (downward bias on the
+  LOWVOL leg) — but even granting its native ~11-13%, a 0.83-corr 50/50 lands ~16% < 19.3%. **The 16V physics
+  (return-corr caps every long-only-momentum blend in this market) now has a cross-family confirmation. Wall:
+  do not propose union ⊕ <momentum-family> blends; only a genuinely negative/low-corr sleeve could diversify.**
+
+### 2026-07-16AD — TOTAL-RETURN measurement (dividend accrual, LOWER BOUND): every union-family book has been understating itself by ~+0.6pp CAGR. Measurement, not optimization; the TRI benchmark side is still owed.
+
+- **Verdict: MEASUREMENT RECORDED (no pass/fail).** Parser: `corporate_actions` DIVIDEND rows with explicit
+  per-share amounts ("Rs/Re X Per Share") — **19,094 of 22,630 rows parse (97.7% of 2012+ rows; only ~34% of
+  pre-2012 rows, which are %-of-face-value — SKIPPED, so every TR number is a LOWER BOUND, and 2006-11 windows
+  are the most understated).** Yield denominator = RAW unadjusted price of the era (adjusted-price denominators
+  would double-count around splits/bonuses — caught in review before the run). Credit rule: dividend accrues if
+  the position is open at ex-date (stop-date honored).
+- **Numbers (PR → TR):** union 17.5 → **18.1%** (696 credits) · β14 18.1 → **18.7%** (723 credits) · composite
+  21.0 → **21.8%** (592 credits). Alpha rises ~+0.6-0.7pp on each.
+- **⚠ Asymmetry disclosed:** the benchmark stays PRICE-index (no TRI series in `index_rows`) — so TR-book vs
+  PR-bench OVERSTATES relative alpha by roughly the index's dividend yield; both book-PR and book-TR are always
+  printed together, and the sealed forward criteria stay PR-vs-PR. **The TRI ingestion (niftyindices TR series)
+  is now a named, valuable data task: it completes this measurement estate-wide.**
+- **Provenance:** `union_lab3.py` TR rows (dividend census printed at run start), DB to 2026-07-15.

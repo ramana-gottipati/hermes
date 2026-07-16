@@ -2122,6 +2122,32 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 168 (RS/Union lane, Ramana-directed: "target 25% CAGR — this is a lab") — 2026-07-16 — UNION-C40RA pre-registered as the THIRD (and LAST) sibling at 21.0% PR / 21.8% TR; 7 kills incl. the cadence law's 4th confirmation + the cross-family blend; TOTAL-RETURN measurement (+0.6pp lower bound)
+
+- **Mandate:** push toward 25% CAGR with logical experiments; discipline unchanged (bar + auto-compose rule
+  declared pre-run, walk-forward on everything, honesty passes before registration, every result ledgered).
+- **Wins (ledger 16AB):** top-40 on the capped set (19.5%/α+9.0; top-20 fails 2006-11 — the 15P toll) ·
+  RISKADJ-rank of capped qualifiers (18.9%/α+9.3) · **their pre-declared composite = UNION-C40RA: 21.0% /
+  −28.4% / 47.29x / β0.81 / α+10.3, all windows positive (+9.2/+4.3/+14.3); TR 21.8%. Honesty passes HELD**
+  (slip-2 19.7 · D5-F1 next-day 20.0/α+9.5 · worst-honest 19.5/α+9.1). **PRE-REGISTERED
+  `docs/prereg/union-c40ra-prereg.md` sha256 `0715a0d9…` — 3-way family adjudication frozen, multiplicity
+  disclosed, family CLOSED at three.** 2018-26 window touches the target (24.6% PR / 25.7% TR); full-period
+  honestly does not (yet) — stated plainly in the registration.
+- **Kills (ledger 16AC):** trail 15/25/30/none · sleeve swaps (Midcap50 12.4%!) · cap-floor-45 (kills the
+  2012-17 fix) · consistency-vs-BENCH (own-sector is load-bearing) · **monthly cadence even churn-controlled
+  (14.8%, DD −41% — cadence law 4th confirmation, quarterly SETTLED)** · **cross-family blend β14 ⊕ LOWVOL_MOM
+  (corr 0.83, blend 13.5% < 19.3% with worse DD — wall: no union ⊕ momentum-family blends)**.
+- **Measurement (ledger 16AD):** dividend accrual (19,094/22,630 rows parse; raw-price denominators — the
+  adjusted-price double-count was caught in review): union 17.5→18.1% · β14 18.1→18.7% · composite 21.0→21.8%
+  TR, all LOWER BOUNDS (pre-2012 coverage 34%). Bench stays PR; **NEW NAMED TASK: niftyindices TRI ingestion
+  into `index_rows` (primary-source, additive) completes it both-sides.**
+- **Artifacts:** `research/explosive_moves/union_lab3.py` · `union_lab3b.py` · `blend_u25.py` (box-run,
+  read-only, no deploy/service/timer) · ledger 16AB/AC/AD · union.md §§4/3G/9/10 · carry-forward S168 block +
+  catalog §G rows + NEXT-SESSION rewrite · c40ra prereg + DOC_INDEX row. Land with this entry's commit.
+- **Harness TIL:** the remote-run wait pattern matured this session — Bash `run_in_background` with an
+  `until ssh grep` loop auto-notifies on completion (no manual polling); Monitor stays the tool for
+  multi-event watches.
+
 ### Session 167 — 2026-07-16 — D142 follow-on: the Sortino no-rf/MAR label disowned where a reader meets it (factor_zoo console) — SHIPPED
 Picked D142's queued item ① (the Sortino relabel), kickstart-pick-verified still open. **Tracing the mechanism REFINED the scope** — a blind relabel/rename would have been the wrong move; the honest fix is one reader-facing disown line.
 - **Mechanism (traced, not pattern-matched):** `metrics.equity_stats` (:45) and `factor_zoo.tearsheet` (:252) compute `sortino = mean(ret) / std(negative returns) × √252` — raw mean numerator, **no rf/MAR subtracted**, the IDENTICAL defect D142 fixed for the return/vol ("Sharpe") number. Both **module docstrings already disown it** (metrics.py:10, factor_zoo.py:17). The one place the number is shown to a human WITHOUT the disown was the `factor_zoo.py` console tearsheet: the legend explained every column except `RetVol`/`Sort`/`Alpha` (the three no-rf figures), and D142 had renamed the Sharpe console column to `RetVol` but left `Sort` bare.

@@ -157,6 +157,7 @@ keep while the bridge is in use (gitignore-able).
 | `docs/prereg/union-prereg.md` | Pre-registered forward-test spec for the UNION signal (frozen rules + pass/fail, SHA-256 sealed); ledger 2026-07-16W. |
 | `docs/prereg/union-ml-prereg.md` | Pre-registered walk-forward ML ranker over the union's qualifiers (train ≤2016, test 2017+, frozen models + pass bar, SHA-256 sealed BEFORE the run). |
 | `docs/prereg/union-beta14-prereg.md` | Pre-registered SIBLING forward-test spec: union + per-name beta≤1.4 at selection (frozen rules + criteria + sibling adjudication, SHA-256 sealed); ledger 2026-07-16Y. |
+| `docs/prereg/union-c40ra-prereg.md` | Pre-registered THIRD sibling: β14 + top-40 + RISKADJ-rank (frozen rules + criteria + 3-way family adjudication + multiplicity disclosure, SHA-256 sealed; family closed at three); ledger 2026-07-16AB. |
 | `docs/codex-review/rs-strategy-brief-2026-07-15.md` | The full-day RS-strategy brief sent to Codex for independent review (every config, number and bug); its verdict is ledger 2026-07-15R. |
 | `docs/codex-review/UX-CODEX-INDEPENDENT.md` | Codex's independent UX/web-estate review findings. |
 | `docs/codex-review/UX-DIALOGUE-R1-CODEX.md` | Codex round-1 UX dialogue verdicts. |

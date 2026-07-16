@@ -10,6 +10,35 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-16 — S168 (Ramana: "target 25% CAGR — this is a lab"): TWO more axes pass → UNION-C40RA pre-registered as the THIRD (and LAST) sibling at 21.0% PR / 21.8% TR in-sample; 7 more kills incl. the cadence law's 4th confirmation and the cross-family blend; TOTAL-RETURN measurement lands (+0.6pp, lower bound) — do NOT redo; kickstart-pick-verify
+- **The target, honestly framed:** 25% is treated as an in-sample engineering bar with walk-forward integrity —
+  NOT a forward promise. Best honest full-period number now: composite worst-honest-case **19.5%** → best TR
+  **21.8%**; only the 2018-26 window touches target (**24.6% PR / 25.7% TR**). The estate's only recorded 25%+
+  (RISKADJ 28.6%) is flat-cost paper that dies at participation cost — the union family is the honest-cost ladder.
+- **The win (ledger 16AB): the pre-declared auto-composite of the two passing axes** — **top-40** concentration
+  (19.5%/α+9.0; top-20 fails 2006-11 α+3.2 = the 15P toll made visible) × **RISKADJ-rank** of the capped
+  qualifiers (18.9%/α+9.3; plain RSI-rank had FAILED — risk-ADJUSTED momentum respects the toll). Composite =
+  **21.0% / −28.4% / 47.29x / β0.81 / α+10.3, windows +9.2/+4.3/+14.3 (all positive)**; TR 21.8%. **Honesty
+  passes held:** slip-2 19.7%/α+9.2 · D5-F1 next-day execution 20.0%/α+9.5 (TR 20.8) · worst-honest 19.5%/α+9.1.
+  **PRE-REGISTERED `docs/prereg/union-c40ra-prereg.md` SHA-256 `0715a0d9c26e5ea7772e957ad54a2c0fade313dc2038d98d005951986bd1c08f`**
+  — 4 absolute forward criteria + frozen 3-way family adjudication + multiplicity disclosed. **The family STOPS
+  at three registrations; no fourth without a forward result.** Union `a9a14058…` + β14 `08b46199…` untouched.
+- **Kills (ledger 16AC, all with numbers — walls):** trail 15/25/30/none (17.3/17.3/16.7/15.2 — trail-20 stands,
+  "exits fix risk not return" again) · sleeve swaps (Midcap50 12.4%! · N100 17.0 — V17's Next-50 sleeve vindicated,
+  stop re-tuning it) · cap-floor-45 (kills the 2012-17 fix: α+3.4→−0.2) · consistency-vs-BENCH (16.8%; own-sector
+  is load-bearing — Ramana's discriminator confirmed) · **MONTHLY cadence even churn-controlled (14.8%, DD −41% —
+  the cadence law's 4TH confirmation; quarterly is SETTLED, stop testing cadence)** · **cross-family blend β14 ⊕
+  LOWVOL_MOM: corr 0.83, blend 13.5% < β14's 19.3% with WORSE DD — dilution, not diversification; wall: no
+  union ⊕ momentum-family blends, only a genuinely low/negative-corr sleeve could ever diversify.**
+- **Total-return measurement (ledger 16AD):** dividend accrual from `corporate_actions` (19,094/22,630 rows parse;
+  97.7% of 2012+; ~34% pre-2012 → LOWER BOUND; raw-price denominators — adjusted would double-count at splits).
+  union 17.5→**18.1%** · β14 18.1→**18.7%** · composite 21.0→**21.8%**. ⚠ Bench stays PRICE-index (no TRI in DB);
+  sealed criteria stay PR-vs-PR. **NEW NAMED DATA TASK: ingest niftyindices TOTAL-RETURN series into `index_rows`**
+  — completes the measurement estate-wide (primary source, G#8-clean).
+- Modules: `union_lab3.py` (sweeps + TR + auto-compose) · `union_lab3b.py` (honesty passes) · `blend_u25.py`
+  (cross-family, REBAL_STEP-patch grid alignment; suspended-name fallback bias disclosed). All box-run read-only;
+  no deploy, no service touch. Catalog §G extended with the S168 rows below.
+
 ## ✅ 2026-07-16 — S165: THE UNION CANDIDATE BATTERY — the 2012-17 SELECTION FIX FOUND + pre-registered; 12 candidates + the pre-registered ML all REJECTED with numbers — do NOT redo; kickstart-pick-verify
 - **The win (ledger 16Y): per-name trailing-250d beta ≤ 1.4 at SELECTION** — beats the sealed union on every
   headline axis in-sample (18.1% / −24.7% / 28.84x / β0.74 / α+8.4% vs 17.5% / −30.5% / 26.04x / 0.87 / +6.8%)
@@ -289,27 +318,45 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 | — | quality RANK top-60 (fundamentals, G#8-disclosed) | ❌ 16.1%/α+5.7% (2018-26 collapses) — **16T veto-only doctrine now covers TILTS** | 16Z |
 | — | quality drop-worst-25% | ❌ wash 17.3%/α+6.8%, barely binds | 16Z |
 | — | **pre-registered ML ranker** (prereg `187c6aa4…` pushed pre-run; train ≤2016, test 2017+) | ❌ **M1 Ridge REJECTED on its frozen bar** (2017+: 20.4%/α+8.1% vs control 20.8%/+7.3% and cap 20.8%/+8.3%); M2 GBM 21.5%/+8.7% EXPLORATORY-ONLY; **convergent finding: beta = #1 feature in both models (GBM importance 0.208)** | 16AA |
+| ⭐ **b14_top40** (S168) | concentration on the CAPPED set | ✅ 19.5%/α+9.0, windows +8.4/+4.9/+10.9 — passes the declared bar; top-30 borderline, **top-20 FAILS 2006-11 (α+3.2, the 15P toll)** | 16AB |
+| ⭐ **b14_rank_riskadj** (S168) | rank capped qualifiers by 6m-ret/3m-vol (best-of-32) | ✅ 18.9%/α+9.3, 2018-26 α+12.0 — works where plain RSI-rank failed | 16AB |
+| ⭐⭐ **COMPOSITE = UNION-C40RA** (S168) | β14 + top-40 + RISKADJ-rank (auto-composed by the pre-declared rule) | ✅ **21.0% PR / 21.8% TR / β0.81 / α+10.3, all windows positive; honesty passes held (slip-2 19.7 · next-day 20.0 · worst-honest 19.5) → PRE-REGISTERED 3rd sibling `0715a0d9…`; family CLOSED at three** | 16AB |
+| — | trail widths 15/25/30/none on b14 | ❌ 17.3/17.3/16.7/15.2 (none: DD −45%) — trail-20 stands; exits fix risk not return | 16AC |
+| — | sleeve index swaps (Midcap50 / Nifty100) | ❌ 12.4% / 17.0% — the V17 Next-50 sleeve is settled, stop re-tuning | 16AC |
+| — | cap-floor-45 (refill scarce books, lowest-beta first) | ❌ kills the 2012-17 fix (α+3.4→−0.2); helps only 2006-11 — regime-gating it = throttle-adjacent, banned | 16AC |
+| — | consistency vs BENCH (not own sector) | ❌ 16.8%, 2012-17 α+0.3 — own-sector reference is load-bearing | 16AC |
+| — | MONTHLY cadence, churn-controlled (hold-unless-lost-2) | ❌ 14.8%, MaxDD −41.1% — **cadence law 4th confirmation; quarterly SETTLED** | 16AC |
+| — | cross-family blend β14 ⊕ LOWVOL_MOM 50/50 (union grid) | ❌ corr 0.83; blend 13.5% < β14 19.3%, DD worse — dilution; **no union ⊕ momentum-family blends ever** | 16AC |
+| — | TOTAL-RETURN accrual (measurement, not a candidate) | 📏 +0.6pp lower-bound on every book (union 18.1 · β14 18.7 · composite 21.8 TR); bench stays PR until TRI ingestion | 16AD |
 
 ---
 
-### 🎯 NEXT SESSION — the UNION estate after S165 (the candidate space is SPENT; do not config-farm):
+### 🎯 NEXT SESSION — the UNION estate after S168 (single-axis space now GENUINELY spent; the family is CLOSED at three registrations):
 
 1. **Forward evidence is the only thing that matters now.** The 2026-10-03 scheduled task runs the sealed
    union (`cash_blend.py`) — UNTOUCHED. **The same session must also run `union_lab.py`'s `s_beta_cap_1.4`
-   row** and judge EACH against its own registration (`union-prereg.md` `a9a14058…` · `union-beta14-prereg.md`
-   `08b46199…`; sibling adjudication rule frozen in the latter). Append a forward-test ledger entry; touch
-   neither spec.
-2. **TR-benchmark re-cut** (owed estate-wide; moves every price-index number on both sides — the one remaining
-   build that changes these tables).
-3. **ML re-attempts ONLY under a fresh pre-registration** (16AA precedent: hash pushed BEFORE training,
-   frozen conjunctive bar, one run). The declared starting shape is M2's shallow GBM. Never in-sample-scored,
-   never post-hoc promoted.
-4. **Do NOT:** re-sweep the beta cap (frozen 1.4/250d), re-try anything in catalog §§A–G, add a `/dash`
-   surface for either sibling (would imply tradeability), or edit either sealed prereg.
+   row AND `union_lab3.py`'s composite row**, judging EACH against its own registration (`a9a14058…` ·
+   `08b46199…` · `0715a0d9…`; three-way adjudication frozen in the C40RA file). Append a forward-test ledger
+   entry; touch NO spec. **No fourth registration without a forward result.**
+2. **TRI INGESTION (the new named data task, G#8-clean):** pull niftyindices TOTAL-RETURN index series
+   (Nifty 500 TRI + Nifty Next 50 TRI) into `index_rows` → completes the 16AD measurement both-sides
+   (book-TR vs bench-TRI), moves every alpha honestly. Primary source; additive; the one remaining
+   measurement build.
+3. **Toward 25% honestly, the remaining REAL levers (each its own session, each pre-registered BEFORE run):**
+   (a) the 2006-11 drag is now the binding constraint (composite α+9.2 there but CAGR 17.9 vs 21+ elsewhere;
+   its dividend parse coverage is also worst) — investigate WHY qualifiers are scarce there (universe breadth?
+   ADV floor era-relative instead of absolute ₹5cr? — a PIT-safe percentile-ADV floor is the one untried
+   universe lever, cite 15N's wider-pond failure first); (b) a genuinely LOW-CORR sleeve for the idle fraction
+   (gold/G-sec index if primary data exists — NOT another equity-momentum book, 16AC wall); (c) ML under a
+   fresh prereg (M2-shaped GBM start, 16AA discipline).
+4. **Do NOT:** re-sweep the beta cap / top-N / trail / cadence / sleeve-index (all settled with numbers),
+   re-try anything in catalog §§A–G, blend with any momentum family (16AC), add a `/dash` surface for any
+   sibling, or edit any sealed prereg.
 
-**⚠ BINDING:** the Union is SEALED (`a9a14058…`) and union-β14 is SEALED (`08b46199…`) — CANDIDATES beside
-them only. Every new candidate must beat **18.1% / β0.74 / α+8.4%** (the β14 in-sample line) on walk-forward,
-not one window. Cite catalog §§C/D/E/F/**G** before proposing — if it's there, it's already tried.
+**⚠ BINDING:** three seals now stand — union `a9a14058…` · β14 `08b46199…` · C40RA `0715a0d9…` — CANDIDATES
+beside them only. Every new candidate must beat **21.0% PR / β0.81 / α+10.3%** (the C40RA in-sample line) on
+walk-forward, not one window, and survive the honesty passes (slip-2 + next-day execution). Cite catalog
+§§C/D/E/F/**G** before proposing — if it's there, it's already tried.
 
 **Canon (single source of truth — do not re-derive from this block):** the ruleset + terminology + the
 rejected-candidate list live on **[`docs/strategies/union.md`](strategies/union.md)** (served at
