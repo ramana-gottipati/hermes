@@ -10,6 +10,12 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## 🔎 2026-07-16 — S172: kickstart-pick-verify SWEEP of the non-research queue — the safe autonomous picks are DONE or BLOCKED (state record, no code) — do NOT re-hunt these
+Worked the "next queue item" after S170; verified (not assumed) the candidates outside the hot `research/explosive_moves` lane. Findings, so no future session re-hunts:
+- **S-E Pat coverage is COMPLETE by contract** — `tests/test_pat_coverage.py` 12/12 (the machine-enforced pat-knowledge-contract). 14 flows exist; the enumerated "Phase 2 remainder" (insider/ratings/SAST/holdings per-symbol) is **already built as `src/pat/filings_flow.py`** (bundles all four Ownership & filings lenses); seasonal + wolfe flows exist too. **Do NOT rebuild.**
+- **S-B1 UX remainder = forked-file, low-value.** The one clearly-missing item (reverse sectors→sector-economics link) lives in **forked `cockpit.render_sectors`** (deploy-entangled); the forward link already exists (`sector_econ_view.py:216,228` + a `related_strip`). Item 11 (strategy one-liners) touches forked `lens_registry`. All are coordinate-carefully while lanes are active, for marginal gain — deprioritize.
+- **⇒ The genuinely-open work needs a gate this session couldn't clear:** the **rf re-cut** (S170 plan) needs tree-quiet (`research/` hot with the union lane) + the VPS research env; **Ramana's plan §7.2/§7.7/§7.8** are ratifications; the rest is time-gated (Aug-1, Oct-3) or Ramana-sign-off housekeeping. **No safe autonomous code pick remained — this is why S172 shipped verification, not a feature.** Next real lever: run the rf re-cut per `docs/d142-rf-recut-plan.md` once the union lane wraps, or surface the §7 decisions to Ramana.
+
 ## 🟢 2026-07-16 — S171 (Ramana: "continue with the remaining levers"): THE ERA-RELATIVE ADV FLOOR HITS THE 25% BAR IN-SAMPLE — A2-composite 25.5% PR (Rs1Cr→99x), worst-honest 23.9% — recorded as a DEFERRED LEAD (family closed; ⚖ 2 Ramana decisions queued); rf-cash adopted as measurement; G-sec sleeve DATA-BLOCKED — do NOT redo; kickstart-pick-verify
 - **The diagnosis:** the absolute Rs5cr ADV floor admits 389 names in 2006 / 344-424 in 2011-13 vs ~1,550 today —
   nominal filter, ~10x traded-value growth → the early universe was ~4x over-tightened (why every union book
