@@ -189,6 +189,8 @@ NAV_ONLY: dict[str, tuple[str, str]] = {
     "watchlists":         ("tracker", "watchlists — a personal surface; Pat links it"),
     "performance":        ("tracker", "tracked performance — a personal surface; Pat links it"),
     "import":             ("tracker", "portfolio/watchlist import — an action surface; Pat links it"),
+    "model-books":        ("tracker", "engine-admitted + classic model books shown read-only beside his own, with an Adopt action — a personal/bridge surface, and the books' own "
+                                      "numbers are already covered by the model_portfolios data flow; Pat links it"),
     "coverage":           ("trust", "the data-coverage / freshness front door — a meta surface; Pat "
                                     "links it (freshness also rides the flow footers)"),
     "testing":            ("trust", "strategy-validation evidence — a methodology surface; the "

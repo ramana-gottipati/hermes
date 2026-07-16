@@ -6,7 +6,7 @@ per-year track record so "which portfolio was outstanding, and when" is answerab
 
 WHY A SIBLING MODULE (not an edit to auto_portfolios.py): that file is the S132h/S132i lane's
 engine for the four ADMITTED books (STEADY/PACER/SPRINTER/CRAFTSMAN, eligibility = superior
-measured Sharpe AND beats the Nifty hurdle). The classics do NOT clear that bar — most FAIL it —
+measured RETURN/VOL AND beats the Nifty hurdle — D142: not a Sharpe, no risk-free is subtracted). The classics do NOT clear that bar — most FAIL it —
 so they must not be silently promoted into that estate. This module REUSES its engine helpers
 verbatim (identical clock, ₹5cr gate, band-35 churn, equal-weight 1/25, flat per-side cost, NAV
 vs Nifty-500 normalised at inception) and writes its OWN isolated tables, so the two estates stay
