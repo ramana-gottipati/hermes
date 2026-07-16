@@ -163,3 +163,15 @@ def test_the_command_is_registered_on_the_app():
     src = open(os.path.join(_ROOT, "src", "assistant", "telegram_bot.py"),
                encoding="utf-8").read()
     assert 'CommandHandler("inbox", on_inbox)' in src
+
+
+# ── 6. the link must actually be reachable (S160-b) ────────────────────────────────────
+# digest.PUBLIC_BASE_URL resolves to the raw IP:8000 the S77b perimeter closure took OFF
+# the public internet (ufw allows only 22/80/443/9443) — confirmed dead live (a bare curl
+# to it from outside hangs with no response). The one link this command gives Ramana to go
+# act on the queue must not be the one thing on the page that doesn't work on his phone.
+def test_the_approve_link_uses_the_real_public_domain_not_the_dead_raw_ip(db):
+    _fill(db)
+    out = _run(_Update(), _Ctx())
+    assert "hstgr.cloud/dash/inbox" in out
+    assert "187.127.173.149" not in out, "a raw-IP link is dead through the closed perimeter"

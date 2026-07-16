@@ -1840,7 +1840,12 @@ async def on_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 f"{_html.escape(phrase.capitalize())}.", parse_mode="HTML")
             return
 
-    from src.automation.digest import PUBLIC_BASE_URL   # reuse the ONE base url
+    # NOT digest.PUBLIC_BASE_URL: that resolves to the raw IP:8000, which the S77b
+    # perimeter closure took OFF the public internet (ufw allows only 22/80/443/9443) —
+    # confirmed dead just now (a bare curl to it from outside hangs with no response,
+    # vs. an instant 200 on the real domain below). A dead link in the one place this
+    # command tells Ramana to go approve something defeats its whole purpose. Matches
+    # signal_alert_telegram.py's already-proven-live convention (the S138 owner pager).
     lines = [f"📋 <b>{_html.escape(phrase.capitalize())}.</b>", ""]
     for i in items:
         lines.append(f"• {_html.escape(i['title'])}")
@@ -1851,7 +1856,7 @@ async def on_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         lines.append("")
         lines.append(f"<i>…and {w['total'] - len(items)} more.</i>")
     lines.append("")
-    lines.append(f"Approve or reject: {PUBLIC_BASE_URL}/dash/inbox")
+    lines.append("Approve or reject: https://srv1704897.hstgr.cloud/dash/inbox")
     lines.append("<i>Nothing here counts until you sign it — I report the queue, "
                  "I never decide it.</i>")
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
