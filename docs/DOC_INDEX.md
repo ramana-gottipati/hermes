@@ -153,6 +153,7 @@ keep while the bridge is in use (gitignore-able).
 | `docs/mvio-dataset-a.md` | Institutional proof-point: PIT insider/promoter/pledge event dataset. |
 | `docs/predictive-attributes-findings.md` | Findings record: momentum is beta, not selection alpha. |
 | `docs/validation-memo.md` | SR 11-7 model-validation memo (momentum lens + C/A/B layer). |
+| `docs/prereg/union-prereg.md` | Pre-registered forward-test spec for the UNION signal (frozen rules + pass/fail, SHA-256 sealed); ledger 2026-07-16W. |
 | `docs/codex-review/rs-strategy-brief-2026-07-15.md` | The full-day RS-strategy brief sent to Codex for independent review (every config, number and bug); its verdict is ledger 2026-07-15R. |
 | `docs/codex-review/UX-CODEX-INDEPENDENT.md` | Codex's independent UX/web-estate review findings. |
 | `docs/codex-review/UX-DIALOGUE-R1-CODEX.md` | Codex round-1 UX dialogue verdicts. |

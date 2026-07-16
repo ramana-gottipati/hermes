@@ -463,6 +463,55 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-16W - THROTTLE FAILED (the 2012-17 weakness is SELECTION not sizing) + the UNION PRE-REGISTERED for forward testing.
+
+**Ramana, 2026-07-16:** "record this and test the throttle" then "pre-register the union for forward testing."
+Both done.
+
+## THROTTLE - DEAD. My 16V diagnosis was WRONG.
+
+16V named the union's 2012-17 failure as "over-investment in an expensive bull (beta 1.56, 92% invested)." If
+true, cutting exposure when Nifty 500 is stretched above its 200DMA should fix it. **Module:**
+`research/explosive_moves/cash_throttle.py` - three throttles (linear/step/hard) scaling the invested fraction
+down as the market extends, idle -> the sleeve.
+
+| union top60, full period | CAGR | MaxDD | Rs1Cr-> | beta | alpha |
+|---|---|---|---|---|---|
+| **no throttle** | **17.5%** | -30.5% | **26.04x** | 0.87 | **+6.8%** |
+| linear | 16.6% | -34.1% | 22.38x | 0.93 | +5.6% |
+| step | 16.5% | -32.1% | 22.17x | 0.91 | +5.7% |
+| hard (quarter-size above +15%) | 16.2% | -37.1% | 20.91x | 0.93 | +5.3% |
+
+**EVERY throttle made it WORSE - lower return, HIGHER drawdown, lower alpha.** Decisively, in the 2012-17
+window it was built to fix: the "hard" throttle (75% size cut in extended markets) moved beta only 1.42 ->
+1.35 and alpha only -4.6% -> -4.1%. **Cutting the QUANTITY barely touched the beta => the failure was never
+over-investment. It was SELECTION: in 2012-17 the signal picked high-beta names that underperformed, and the
+market was not even stretched enough for the throttle to fire much.** Sizing cannot fix a bad book. **Do not
+re-attempt exposure-throttling as the fix for 2012-17 - the problem is WHICH stocks, not how many.**
+
+**What IS robust (across all 4 throttle settings): 2006-11 alpha +8-10% and 2018-26 alpha +7-8% in EVERY
+configuration.** Only 2012-17 is negative regardless of sizing. The union genuinely works in 2 of 3 eras; the
+one weak regime is a mid-cycle bull where a lower-beta momentum book lags a raging cap-weighted index.
+
+## THE UNION - PRE-REGISTERED
+
+The session produced ~30 configs; **exactly one beat Nifty Next 50 in-sample on return, drawdown AND beta
+together - the UNION** (6b oversold-RS recovery OR RSI-price>50SMA+consistency70; equal-weight top60;
+sleeve200; trail-20% @1% slip). But it was SELECTED after seeing 2005-2026 across many rounds, so 17.5% is a
+LEAD, not proof (Codex 15R). **Pre-registration freezes the exact spec + pass/fail BEFORE any out-of-sample
+data is seen**, matching the project's existing discipline (`prereg_registry`, "hashed BEFORE first run").
+Research DB is read-only over SSH, so the seal lives in git.
+
+**FROZEN SPEC + criteria: `docs/prereg/union-prereg.md`. SEAL sha256 = `a9a14058f2140e22639b9504ab6d4af9c60fc76144de0f9f5e47f21b1b98d21c`** (recorded here so any
+later edit to the spec is detectable = registration void). **PASS requires, over >=8 forward quarters from
+2026-07 on:** (1) CAGR > Next-50 net of costs; (2) alpha > 0 with forward beta reported (higher CAGR purely
+from beta > 1.1 = FAIL); (3) MaxDD not worse than Next-50; (4) no single quarter > 60pct of the excess.
+Miss 1-3 => DESCRIPTIVE-ONLY, never deployed.
+
+**Standing: the union is the strongest lead of the session (17.5pct / +6.8pct alpha / beta 0.87 in-sample),
+its one weak regime is correctly diagnosed as selection not sizing, the wrong fix (throttle) is eliminated,
+and it now awaits its own forward evidence. Not deployed. Not advice. TRI-benchmark re-cut still owed.**
+
 ### 2026-07-16V - THE UNION (6b OR RSI-stack): BEST full-period result of the session (17.5%/+6.8% alpha) but NOT complementary where it counts - both fail the SAME 2012-17 bull regime.
 
 **Ramana, 2026-07-16:** "test whether 6b and the RSI stack are complementary." Built the blend PLUS the
