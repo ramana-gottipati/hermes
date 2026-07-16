@@ -187,3 +187,90 @@ def test_the_dm_and_the_chat_cannot_describe_the_queue_differently(conn):
     from src.automation import estate_heartbeat as H
     _fill(conn)
     assert H.compose(conn, board="OK", today="2026-07-15")["waiting"] == IF.waiting(conn)["total"]
+
+
+# ── 5. S160-b — the PHONE chat, not just the web form ──────────────────────────────────
+# S160 wired /dash/pat (the web NL search box) and the DM. Live verification here found
+# a real gap: Ramana's actual daily chat is Telegram, and Telegram's plain-text handler
+# runs a paid intent classifier that recognizes only stock lookups — anything else falls
+# through to a SEPARATE, Pat-blind general assistant (confirmed by curling /chat directly:
+# a generic "I don't have access to your calendar" non-answer). This closes that channel.
+
+def test_telegram_reply_reports_the_real_queue_html_safe(conn):
+    _fill(conn)
+    tg = IF.format_telegram_reply(IF.waiting(conn))
+    assert "4 waiting on you" in tg
+    assert "TCS" in tg or "results:TCS" in tg          # real content, not a definition
+    assert "https://srv1704897.hstgr.cloud/dash/inbox" in tg   # the CLOSED-perimeter domain
+    assert "187.127.173.149" not in tg, "a raw-IP link is dead through the closed perimeter"
+
+
+def test_telegram_reply_never_uses_a_tag_telegram_html_rejects(conn):
+    """Telegram's parse_mode=HTML is a narrow subset — a <div>/<p>/<li> 400s the WHOLE
+    message. Only <b> and <a> may appear; a bullet is a plain character, not a tag."""
+    _fill(conn)
+    tg = IF.format_telegram_reply(IF.waiting(conn))
+    assert not IF._TG_SAFE_TAG.search(tg), tg
+
+
+def test_telegram_reply_says_clear_and_still_links_when_empty(conn):
+    tg = IF.format_telegram_reply(IF.waiting(conn))
+    assert "nothing is waiting on you" in tg.lower()
+    assert "/dash/inbox" in tg
+
+
+def test_telegram_reply_caps_the_item_list_and_says_how_many_more(conn):
+    for i in range(10):
+        review_inbox.submit(conn, "tags", f"SYM{i}|PSU", f"Tag proposal {i}", {})
+    conn.commit()
+    tg = IF.format_telegram_reply(IF.waiting(conn))
+    assert "10 waiting on you" in tg
+    assert "…and 4 more" in tg, "must not dump an unbounded list into one Telegram message"
+
+
+def test_telegram_reply_escapes_html_special_characters_in_a_title():
+    """A real ticker like M&M or a title with '<'/'>' must not corrupt the markup."""
+    w = {"total": 1, "by_kind": [{"kind": "tags", "n": 1, "phrase": "a tag proposal"}],
+         "link": IF.LENS_URL,
+         "items": [{"title": "Proposed tag: R&D <Focus> for M&M", "ref": "M&M|R&D"}]}
+    tg = IF.format_telegram_reply(w)
+    assert "&amp;" in tg and "&lt;Focus&gt;" in tg
+    assert not IF._TG_SAFE_TAG.search(tg)
+
+
+def test_telegram_reply_is_single_sourced_with_the_dm_and_the_web(conn):
+    """All three channels (web /dash/pat, the DM, Telegram) read the same waiting()
+    dict — they cannot describe a different queue by construction."""
+    from src.automation import estate_heartbeat as H
+    import src.pat.web as PW
+    _fill(conn)
+    w = IF.waiting(conn)
+    dm = H.compose(conn, board="OK", today="2026-07-15")
+    web_html = PW._inbox_flow(conn)
+    tg = IF.format_telegram_reply(w)
+    assert dm["waiting"] == w["total"]
+    assert IF.summary_phrase(w).split(":")[0] in web_html
+    assert IF.summary_phrase(w).split(":")[0] in tg
+
+
+def test_telegram_wiring_runs_before_the_paid_classifier_never_after():
+    """The actual defect: on_message classified "what's waiting on me" with the paid
+    LLM intent step and fell through to the general assistant. Source-scanned so the
+    fix can't quietly get reordered behind the classifier again — the CALL SITE
+    (`_handle_inbox_ask(`, not prose mentioning it) must precede the real
+    `_intent.classify(` call in on_message's body. Comments are stripped first so an
+    explanatory sentence that happens to name both, in either order, can't fool this."""
+    import re as _re
+    path = os.path.join(_ROOT, "src", "assistant", "telegram_bot.py")
+    src = open(path, encoding="utf-8").read()
+    body_start = src.index("async def on_message(")
+    m = _re.search(r"^(async )?def \w+\(", src[body_start + 10:], _re.MULTILINE)
+    assert m, "could not find on_message's end (next top-level def)"
+    body = src[body_start:body_start + 10 + m.start()]
+    code_only = _re.sub(r"#.*", "", body)   # drop comments — call sites only
+    inbox_pos = code_only.find("_handle_inbox_ask(")
+    classify_pos = code_only.find("_intent.classify(")
+    assert inbox_pos != -1, "on_message must call _handle_inbox_ask"
+    assert classify_pos != -1, "the paid classifier call must still exist"
+    assert inbox_pos < classify_pos, (
+        "the free deterministic inbox check must run BEFORE the paid LLM classifier")

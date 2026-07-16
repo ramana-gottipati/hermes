@@ -14,7 +14,8 @@ the full surface is one click away rather than a URL to remember.
 
 CONTRACT (mirrors participants_flow.py / rulelab_flow.py):
   * PURE logic here — `parse_inbox()` (a ₹0 pre-pass in engine.route) + `waiting()` (a bounded
-    read over review_items). Render = web.py:_inbox_flow.
+    read over review_items). Render = web.py:_inbox_flow (the /dash/pat web form) and
+    format_telegram_reply() below (the phone chat, S160-b).
   * READ-ONLY, always. Pat REPORTS what waits; it never approves, rejects or decides — a
     judgment is a deliberate act on the owner-gated lens, never a chat side effect. This is
     the same line rule_lab_inbox draws: canon carries a human signature.
@@ -22,10 +23,23 @@ CONTRACT (mirrors participants_flow.py / rulelab_flow.py):
     inbox" stays a navigate. A miss yields None.
   * Kind labels are PLAIN ENGLISH (Guardrail #9: no internal jargon in what a human reads) —
     'rule_verdict' is a slug; "a rule-lab verdict" is an answer. Single-sourced here and
-    reused by the heartbeat nudge, so the two channels can never drift apart.
+    reused by the heartbeat nudge AND the Telegram reply, so no channel can ever drift apart.
+
+S160-b CORRECTION: S160 wired the web form (/dash/pat) and the DM. Ramana's OWN words said
+"in the chat" — but his actual day-to-day chat is Telegram, and Telegram's plain-text handler
+runs a paid intent classifier that recognizes only stock lookups (SCORE/FLOW/BOTH/SCAN);
+anything else falls straight through to a SEPARATE, Pat-blind general assistant. So "what's
+waiting on me?" typed on the phone got a generic non-answer even after S160 shipped — verified
+live (curl'd /chat directly and got "I don't have access to your calendar..."). Confirmed via
+the REAL Pat endpoint (/dash/pat?q=...) that the underlying flow itself was correct all along;
+the gap was Telegram's routing, not this module. format_telegram_reply() below is the fix,
+wired as a free deterministic pre-pass in telegram_bot.on_message (mirrors the existing
+menu-pending short-circuit — runs BEFORE the paid classifier, at zero LLM cost, so a phone
+message never even reaches the general assistant when it's actually an inbox ask).
 """
 from __future__ import annotations
 
+import html
 import re
 
 # Plain-English names for the machine's kinds — the ONE place they are spelled for a human.
@@ -118,6 +132,36 @@ def summary_phrase(w: dict) -> str:
     return f"{w['total']} waiting on you: {body}"
 
 
+_TG_SAFE_TAG = re.compile(r"</?(?!b\b|/b\b|a\b|/a\b)[a-zA-Z][^>]*>")
+
+
+def format_telegram_reply(w: dict, *, site: str = "https://srv1704897.hstgr.cloud") -> str:
+    """Telegram parse_mode=HTML reply for "what's waiting on me?" (S160-b).
+
+    Telegram's HTML subset is much narrower than a web page's — no <div>/<p>/<ul>/<li>,
+    only inline tags (<b>, <a>, <i>, <code>, ...) or the API hard-rejects the whole
+    message (400 Bad Request). This stays inside <b>/<a> only; a bullet is a plain
+    Unicode "•", not a list tag.
+
+    `site` is the PUBLIC domain the perimeter actually serves (S77b closed :8000 to
+    the outside — a raw-IP link would be dead the moment Ramana taps it on his phone;
+    matches signal_alert_telegram's convention, the pager already proven live).
+
+    Single-sourced with the web form and the DM via waiting()/summary_phrase() — all
+    three channels describe the exact same queue, so they can never disagree.
+    """
+    esc = html.escape
+    lines = [f"<b>{esc(summary_phrase(w))}</b>"]
+    shown = w.get("items", [])[:6]
+    for it in shown:
+        lines.append(f"• {esc(it.get('title') or it.get('ref') or '')}")
+    rest = w.get("total", 0) - len(shown)
+    if rest > 0:
+        lines.append(f"…and {rest} more")
+    lines.append(f'<a href="{esc(site + w.get("link", LENS_URL))}">Open the review inbox →</a>')
+    return "\n".join(lines)
+
+
 def _selftest() -> int:
     import sqlite3
     from src.automation import review_inbox
@@ -161,6 +205,20 @@ def _selftest() -> int:
     review_inbox.decide(conn, 1, "approved")
     conn.commit()
     assert waiting(conn)["total"] == 2
+    conn.close()
+
+    # Telegram formatter (S160-b) — Telegram HTML-safe, single-sourced, links to the lens
+    conn = sqlite3.connect(":memory:")
+    review_inbox.ensure_schema(conn)
+    review_inbox.submit(conn, "brief", "results:TCS:2026-06-30", "Results brief — TCS", {})
+    review_inbox.submit(conn, "rule_verdict", "abc123", "Rule-lab: NEW-BENCHMARK", {})
+    conn.commit()
+    tg = format_telegram_reply(waiting(conn))
+    assert "2 waiting on you" in tg and "https://srv1704897.hstgr.cloud/dash/inbox" in tg
+    assert "Results brief" in tg and "NEW-BENCHMARK" in tg
+    assert not _TG_SAFE_TAG.search(tg), "only <b>/<a> may appear in a Telegram HTML reply"
+    empty_tg = format_telegram_reply(waiting(sqlite3.connect(":memory:")))
+    assert "nothing is waiting on you" in empty_tg.lower()
     conn.close()
     print("INBOX_FLOW selftest OK")
     return 0

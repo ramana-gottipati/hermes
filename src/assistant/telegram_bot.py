@@ -1641,6 +1641,33 @@ def _format_triggers_message(rows: list[dict], kind: str, label: str) -> str:
     return "\n".join(lines)
 
 
+async def _handle_inbox_ask(update: Update, text: str) -> bool:
+    """"what's waiting on me?" etc, answered directly on the phone (S160-b).
+
+    Pat's /dash/pat web form already had this (S160); Telegram did not, because plain
+    text falls through the paid SCORE/FLOW/BOTH/SCAN classifier straight to the general
+    assistant, which has no idea what the review inbox is. parse_inbox() is a regex — no
+    LLM, no cost — so every message can be checked here for free before that classifier
+    ever runs. READ-ONLY: this reports the queue, it never decides anything (judging
+    stays on the owner-gated /dash/inbox lens). Single-sourced with the DM and the web
+    form via inbox_flow.waiting()/format_telegram_reply(), so no channel can disagree.
+    Returns True if it answered (caller must return without falling through further).
+    """
+    from src.pat import inbox_flow as IF
+    if IF.parse_inbox(text) is None:
+        return False
+    loop = asyncio.get_running_loop()
+
+    def _read():
+        with get_conn() as conn:
+            return IF.waiting(conn)
+
+    w = await loop.run_in_executor(None, _read)
+    await update.message.reply_text(
+        IF.format_telegram_reply(w), parse_mode="HTML", disable_web_page_preview=True)
+    return True
+
+
 async def _handle_stock_intent(update: Update, cls: dict) -> None:
     """Execute SCORE/FLOW/BOTH intent against the existing rule-based pipelines.
 
@@ -2138,6 +2165,16 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     )
     if pending:
         await _menu_handle_pending(update, context, pending, text)
+        return
+
+    # --- "what's waiting on me?" (S160-b) — a free, deterministic pre-pass, same shape
+    # as the menu-pending short-circuit above. MUST run before _intent.classify(): that
+    # classifier only recognizes stock lookups (SCORE/FLOW/BOTH/SCAN), so an inbox ask
+    # fell through to the general assistant below, which has no idea what the review
+    # inbox is (verified live — a generic "I don't have access to your calendar" reply).
+    # parse_inbox() is a regex, not an LLM call, so this costs nothing to check on every
+    # message and never delays a real stock question.
+    if await _handle_inbox_ask(update, text):
         return
 
     # --- Natural-language intent routing ---
