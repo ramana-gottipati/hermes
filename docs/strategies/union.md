@@ -77,9 +77,13 @@ labels at ~85%). This is what lets both signals reference a stock's *own* sector
   quarter). Combined by **OR only** — the intersection (AND) collapses to ~9% invested and underperforms; do
   not use it.
 
-**D. Ranking & sizing.** Rank the qualifying names by RSI strength, keep the **top 60**, **equal-weight**
-(1/60 each). *Inverse-volatility sizing was tested (ledger 16X) and REJECTED as a wash — do not substitute
-it.*
+**D. Ranking & sizing.** Keep the first **60** qualifiers **in the engine's qualifier order** (symbol-load
+order — effectively an arbitrary, stable sample of the qualifying set), **equal-weight** (1/60 each).
+*Correction (2026-07-16, ledger 16Z): this page previously said "rank by RSI strength" — the engine never
+ranked, and when ranking was actually tested, BOTH RSI-descending and RSI-ascending truncation LOST to the
+arbitrary order (15P physics: the top of the strength band buys the variance toll). The engine's behaviour,
+which produced every recorded number and runs the forward test, is definitional.* *Inverse-volatility sizing
+was tested (ledger 16X) and REJECTED as a wash — do not substitute it.*
 
 **E. The residual sleeve (the V17 mechanic).** The un-invested fraction (fewer than 60 names qualify, or stops
 have fired) is held in **Nifty Next 50 while Nifty 500 ≥ its 200-day SMA**, else in **cash**. The stock book
@@ -94,22 +98,45 @@ wealth — the standing V8→V17 lesson.)*
 - **Market-stretch throttle** on the invested fraction — worsened every metric. 16W.
 - **Inverse-volatility stock sizing** — a wash, net slightly worse. 16X.
 - **BE-surveillance veto · fundamentals veto** — one falsified, one inert. 16T.
+- **Sector-neutral name caps** — starve the book; its sector concentration is load-bearing. 16Z.
+- **RSI-ranked truncation (either direction)** — loses to the engine order (see D). 16Z.
+- **6b threshold variants (25 / 35 / 25→30) · 6b∪6f · weekly-RS 6b · daily-AND-weekly confirmation** —
+  every one worse than the sealed rules. 16Z.
+- **Quality/valuation tilt at selection** (Screener-table, G#8-disclosed) — dead; the 16T "fundamentals
+  add nothing here" doctrine now covers tilts as well as vetoes. 16Z.
+- **ML re-ranking of the qualifiers** — the pre-registered primary model failed its frozen bar (16AA);
+  any new attempt requires a fresh pre-registration, never an in-sample score.
 
 ## 4. Status & candidate ladder
 
 - **The UNION** — the sealed lead. In-sample 2006–2026: the best full-period result of the RS arc. *(Numbers
   live in the ledger, §16V, never restated here.)*
+- **UNION-β14 — the pre-registered SIBLING lead (2026-07-16, ledger 16Y):** the union plus exactly one rule —
+  a qualifier whose trailing-250d beta vs Nifty 500 exceeds 1.4 is excluded at selection. In-sample it beats
+  the union on return, drawdown, beta AND alpha together and flips the 2012–17 window positive, surviving
+  four pre-declared kill checks (threshold plateau, beta-window, dead-cash decomposition, missing-data).
+  **Same epistemic class as the union — an in-sample-selected lead** — so it is sealed beside it
+  ([`union-beta14-prereg.md`](../prereg/union-beta14-prereg.md), SHA-256 `08b46199…`) with a frozen sibling-
+  adjudication rule; the forward window judges both.
 - **Signal A alone** and **Signal B alone** — each beats the Next-50 bar in-sample but by less; the union
   beats both. Recorded reference points, not separate strategies.
-- **Rejected candidates** (do not re-run): throttle (16W), inverse-vol (16X), the AND-intersection (16V).
+- **Rejected candidates** (do not re-run): throttle (16W), inverse-vol (16X), the AND-intersection (16V),
+  the twelve-candidate battery of 16Z (sector caps · RSI ranks · beta-rank-asc · 6b variants · 6b∪6f ·
+  weekly/MTF · quality tilt), the pre-registered ML ranker (16AA).
 
 ## 5. Known weakness (disclosed, not hidden)
 
 Walk-forward, the Union is strongly positive in 2006–2011 and 2018–2026 but **negative in 2012–2017** — a
-mid-cycle bull where a lower-beta book lags a raging cap-weighted index. **Two structurally-correct fixes
-(exposure throttle, inverse-vol) both failed to close it**, which establishes the weakness is *selection*
-(which stocks are picked in that regime), not sizing. That is a harder, still-open research question — and one
-that must NOT be pursued by re-optimising on the same window.
+mid-cycle bull in which the book ran hot (high beta, near-fully invested) and still lagged. **Two
+structurally-correct sizing fixes (exposure throttle 16W, inverse-vol 16X) both failed to close it**, which
+established the weakness is *selection* (which stocks are picked in that regime), not sizing.
+
+**2026-07-16 update (ledger 16Y): the selection fix was found in-sample.** A per-name trailing-beta cap at
+selection closes the window — and the effect survives a dead-cash decomposition, so it is the stock choice,
+not sleeve time. Because the fix was itself selected from a candidate battery on the same history, it earns
+only sibling pre-registration (see §4), not a claim. The forward window decides. The in-sample give-back is
+disclosed in the ledger: 2006–11 return is somewhat lower under the cap (fewer low-beta qualifiers existed
+then), at materially lower beta.
 
 ## 6. Data & provenance
 
@@ -143,17 +170,24 @@ of the live ruleset.
 
 ## 9. Open items
 
-- **The forward test is the ONLY thing that matters next.** When a new quarter closes, run the Union against
-  the sealed criteria in [`../prereg/union-prereg.md`](../prereg/union-prereg.md) — **do not touch the spec.**
-  PASS requires, over ≥8 forward quarters: CAGR > Next-50 net of cost · alpha > 0 (not just beta) · MaxDD not
-  worse · no single quarter > 60% of the excess. Miss → DESCRIPTIVE-ONLY, never deployed.
+- **The forward test is the ONLY thing that matters next — and it now adjudicates a SIBLING PAIR.** When a
+  new quarter closes, run the Union against [`../prereg/union-prereg.md`](../prereg/union-prereg.md) AND
+  union-β14 against [`../prereg/union-beta14-prereg.md`](../prereg/union-beta14-prereg.md) — **touch neither
+  spec.** Each is judged on its own frozen criteria; if both pass, the higher forward alpha graduates (the
+  adjudication rule is frozen inside the β14 registration). The scheduled 2026-10-03 task runs the union's
+  engine; run `union_lab.py`'s `s_beta_cap_1.4` row beside it the same day.
 - **TR-benchmark re-cut** (owed across the whole RS estate).
-- **The 2012–17 selection question** — the one genuine open research direction, and the hardest. Not to be
-  attacked by re-optimising on the in-sample window.
+- ~~The 2012–17 selection question~~ — **answered in-sample 2026-07-16 (ledger 16Y, the beta cap) and moved
+  into the sibling registration above.** The remaining open questions are the forward evidence itself and the
+  TR re-cut; the non-ML candidate space around this signal family is otherwise SPENT (16Z catalogues the
+  kills). ML re-attempts require a fresh pre-registration (16AA).
 
 ## 10. Sources of truth
 
 Ruleset + terminology: **this page**. Every result number: [strategy-ledger.md](../strategy-ledger.md)
-§§ 2026-07-16U → 2026-07-16X. Frozen spec + forward criteria + seal:
-[`../prereg/union-prereg.md`](../prereg/union-prereg.md). Code: `research/explosive_moves/cash_blend.py`,
-`cash_6b.py`, `dim6.py`, `dim6g.py`, `cash_throttle.py`, `cash_ivol.py`.
+§§ 2026-07-16U → 2026-07-16X (the union arc) and §§ 2026-07-16Y/Z/AA (the candidate battery, the sibling
+lead, the ML verdict). Frozen specs + seals: [`../prereg/union-prereg.md`](../prereg/union-prereg.md) ·
+[`../prereg/union-beta14-prereg.md`](../prereg/union-beta14-prereg.md) ·
+[`../prereg/union-ml-prereg.md`](../prereg/union-ml-prereg.md). Code: `research/explosive_moves/cash_blend.py`,
+`cash_6b.py`, `dim6.py`, `dim6g.py`, `cash_throttle.py`, `cash_ivol.py`, `union_lab.py`, `union_lab2.py`,
+`union_ml.py`.

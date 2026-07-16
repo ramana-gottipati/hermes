@@ -2626,3 +2626,97 @@ RECORDED SURVIVOR (not a blocker): quarterly large-cap LOWVOL_MOM — participat
 Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, n_shuffles=120, pit_membership=n/a (filter not requested), seed=42, window=2012-06-01..2026-02-11
 
 **Approved into the ledger by Ramana, 2026-07-16** (via the Review Inbox, item #602). This rule-lab run reproduced the recorded LOWVOL_MOM survivor under the full gauntlet (pre-registered, walk-forward both halves, random-selection placebo, participation cost, capacity) — it CONFIRMS the one participation-fundable corner the evidence permits, it does not open a new one. First rule-lab verdict signed into canon (D137; the plan-§7.8 inbox-first default, exercised).
+
+### 2026-07-16Y — THE 2012-17 SELECTION FIX FOUND: per-name beta ≤ 1.4 at selection. Beats the sealed union on every headline axis in-sample, flips the failed window positive, survives all four pre-declared kill checks. PRE-REGISTERED as a SIBLING lead — the union's seal is untouched.
+
+- **Verdict: CONDITIONAL (pre-registered forward test; in-sample-selected lead — Codex 15R applies in full).**
+- **What ran:** `research/explosive_moves/union_lab.py` — 14 candidates, each = the sealed union + ONE change,
+  each on the full period AND the three walk-forward windows, against an in-module control that reproduced the
+  sealed numbers EXACTLY (17.5% / −30.5% / 26.04x / beta 0.87 / alpha +6.8% / inv 82%; the cash_blend.py rerun
+  same day also reproduced to the digit). Then `union_lab2.py` — adversarial diagnostics with kill conditions
+  declared BEFORE the runs.
+- **Numbers (the survivor):** union + "exclude qualifiers with trailing-250d beta vs Nifty 500 > 1.4 (min 150
+  obs; missing = keep)" — **CAGR 18.1% · MaxDD −24.7% · Rs1Cr→28.84x · beta 0.74 · alpha +8.4% · inv 69%** vs
+  the union's 17.5% / −30.5% / 26.04x / 0.87 / +6.8% / 82%. Walk-forward alpha: 2006-11 **+9.3%** (union +9.8%,
+  CAGR give-back 17.4% vs 19.0% disclosed — fewer low-beta qualifiers then) · **2012-17 +3.4% vs −4.6%
+  (beta 1.42 → 1.03, MaxDD −16.2% → −8.3%)** · 2018-26 **+9.2%** vs +8.3%. The window both sizing levers
+  (throttle 16W, inverse-vol 16X) could not reach is closed by a SELECTION lever — exactly what 16X predicted.
+- **Kill checks (all passed, declared up front in `union_lab2.py`):** (a) threshold plateau — caps 1.3/1.4/1.5/1.6
+  give full-period alpha +8.2/+8.4/+8.8/+8.2 and 2012-17 alpha +4.2/+3.4/+1.9/+0.6: smooth, not a spike (candidate
+  stays 1.4 as FIRST-DECLARED; the sweep is stability evidence, not a re-pick — 1.5's higher CAGR is expressly NOT
+  adopted). (b) beta-window robust — look 125d/500d keep the result (2012-17 +2.9/+2.2, full +7.4/+8.1).
+  (c) **selection not sleeve — in DEAD-CASH money-mode 2012-17 is still −5.6% (union) → +1.7% (cap), beta
+  1.34 → 0.76**; the sleeve only adds the rest (+1.7 → +3.4). This is the decisive difference from the throttle's
+  failure mode. (d) not a data filter — 29.0% of 7,082 qualifier-quarters genuinely excluded; kept-for-missing-beta
+  0.38%.
+- **Convergent ML evidence (16AA):** both pre-registered models, trained ≤2016 without being told about the cap,
+  independently rank beta as the dominant qualifier feature (GBM importance 0.208 = #1; Ridge coef −0.064, with
+  sd63 −0.050 beside it).
+- **PRE-REGISTERED:** `docs/prereg/union-beta14-prereg.md`, **SHA-256 =
+  `08b46199f96da5414634093b5377e2b3f1f2ca1dccf4a5c9c4c1cfcbbf80bf0c`** — same 4 forward criteria as the union's
+  seal, same ≥8-quarter window from 2026-07, plus a frozen SIBLING ADJUDICATION rule (if both pass, higher forward
+  alpha graduates). **The union's own seal `a9a14058…` is untouched; the scheduled forward test
+  (2026-10-03) is untouched** — the forward session should run `union_lab.py`'s `s_beta_cap_1.4` row beside
+  `cash_blend.py` and judge each against its own registration.
+- **Provenance:** DB to 2026-07-15 (box, read-only), window 2006-01→2026-07, engine = cash_blend.py foundation
+  byte-copied; modules `union_lab.py` / `union_lab2.py` land with this entry's commit.
+
+### 2026-07-16Z — TWELVE candidates REJECTED with numbers (the rest of the battery). Sector caps starve the book; RSI-ranked truncation loses to the engine's arbitrary order BOTH ways (doc/code discrepancy resolved with data); every 6b threshold/combo/timeframe variant loses; the QUALITY TILT is dead — the 16T veto-only doctrine now holds for tilts too.
+
+- **Verdict: REJECTED (all twelve; each a wall — do not re-run without beating these numbers).**
+  Bar = the union's 17.5% / beta 0.87 / alpha +6.8% full-period + the three windows. All sleeve200/top60/
+  trail-20%@1% unless stated; full tables in `/tmp/union_lab.log` shape, reproducible via `union_lab.py`/`union_lab2.py`.
+- **s_sector_cap8 / cap6 (sector-neutral name caps): 14.2% / 14.0% CAGR, alpha +4.5% both.** The cap starves the
+  book (inv 72%/66%); 2012-17 improves only to −4.4/−3.7 while both good windows collapse. **The union's sector
+  concentration is load-bearing** — do not re-attempt sector-neutral construction on this signal family.
+- **s_rank_rsi_desc (the DOCUMENTED "top 60 by RSI strength"): 16.7%, alpha +6.2%. s_rank_rsi_asc: 15.9%, +5.4%.**
+  Finding: `cash_blend.py` never ranked — `candidates()[:topn]` truncates in symbol-load order, and that accident
+  BEATS both deliberate orderings (15P physics: top-RSI buys the variance toll; bottom-RSI buys the weakest
+  qualifiers). union.md §3.D prose corrected this session; the sealed prereg's "top 60 by RSI strength" line is a
+  MIS-DESCRIPTION of the engine — the engine (which produced every recorded number and runs the forward test) is
+  authoritative; registration prose defect disclosed here, spec file untouched.
+- **s_beta_rank_asc (lowest-beta 60): 16.3%, +6.1%.** Ranking the whole book by low beta distorts it; only CAPPING
+  the extreme tail works (16Y). 2012-17 −2.3% (better than base, far worse than the cap).
+- **t_6b_25 / t_6b_25to30 / t_6b_35 (threshold sweep): 16.6% / 16.4% / 16.4%.** Deeper oversold (25) trades breadth
+  for nothing net; looser (35) admits junk turns — 2012-17 alpha −6.4%, the worst row of the battery. The sealed
+  <30→≥30 stands.
+- **t_6b_or_6f (drawdown-recovery as a third OR-leg): 17.1%, alpha +6.1%, MaxDD −38.5%.** 6f adds high-beta breadth
+  exactly when it hurts (2012-17 −5.4%, inv 94%). The 16U ns-verdict on 6f extends to combination use.
+- **t_weekly_6b (weekly RS turn replacing daily): 14.2%, +4.3%.** Too slow — misses the fast turns that make 6b
+  work (2018-26 alpha +3.5% vs +8.3%).
+- **t_mtf_confirm (daily AND weekly agreement on both legs): 16.4%, +6.4%, beta 0.80, MaxDD −26.6%.** Directionally
+  right, DOMINATED by the beta cap on every axis (the cap gets more de-risking for less CAGR cost). Note: this AND
+  is across timeframes — the 16V two-signal AND stays separately dead (8.6%).
+- **q_rank_top60 (quality-ranked selection): 16.1%, +5.7%** (2018-26 collapses to +5.6%). **q_drop_worst25: 17.3%,
+  +6.8%** — a wash that barely binds (n 49.0 vs 49.4). Score = within-date percentile mean of OPM% / interest
+  coverage / profit-positivity from `fundamentals_history` (research.db, SCREENER-sourced — Guardrail #8: read-only,
+  disclosed, result inherits the caveat). **The 16T doctrine — fundamentals stay veto-only, and even the veto is
+  inert — now extends to TILTS: fundamentals add nothing to this signal family in any form tested.**
+- **Provenance:** same harness/data as 16Y (DB to 2026-07-15, in-module control reproduced the seal exactly).
+
+### 2026-07-16AA — PRE-REGISTERED ML RANKER over the union's qualifiers: PRIMARY MODEL REJECTED by its own frozen bar. The models' one durable output is CONVERGENT: beta is the dominant qualifier feature — the machine rediscovered the 16Y hand rule.
+
+- **Verdict: REJECTED (M1 primary, per the conjunctive bar frozen BEFORE the run). No re-run, no variant shopping.**
+- **Registration:** `docs/prereg/union-ml-prereg.md`, SHA-256
+  `187c6aa4963e9fe13247b85cce958a006be901d439cc25253356030a8c1d2266`, committed + pushed (`c252a21`) BEFORE
+  training. Design: 10 within-date midrank-percentile features over the union's qualifiers (leg, RSI, RSI-gap,
+  consistency, RSI-of-RS, turn-age, 250d beta, 63d sector-excess, 126d RS-drawdown, 63d vol), label = within-date
+  percentile of forward rebalance-window excess vs Nifty 500, ONE frozen fit, train = label windows closed
+  ≤ 2016-12-31 (1,988 rows / 43 dates), test = rebalances ≥ 2017-01-01 (38 dates), model only re-orders the
+  qualifier list, all book mechanics sealed-union.
+- **TEST WINDOW 2017-01 → 2026 (same engine, same slice):** control (union, engine order) **20.8% / MaxDD −30.5% /
+  beta 0.93 / alpha +7.3%** · beta_cap_1.4 **20.8% / −20.9% / 0.83 / +8.3%** · **M1 Ridge(alpha=1.0) 20.4% / −23.8%
+  / 0.80 / +8.1%** · M2 GBM(200,0.05,d2,sub0.8,seed42; exploratory) 21.5% / −28.0% / 0.86 / +8.7%.
+- **Bar:** (1) beat control on CAGR AND alpha → **FAIL** (alpha yes +8.1 vs +7.3, CAGR no 20.4 vs 20.8);
+  (2) beat beta_cap_1.4 on CAGR AND alpha → **FAIL** (both); (3) beta ≤ 1.0 → pass (0.80); (4) DD within 3pp of
+  control → pass (better). **REJECTED.**
+- **The durable finding:** Ridge coefficients rank rsrsi −0.093, beta −0.064, leg −0.056, sd63 −0.050 (negative =
+  prefer low) vs rsi +0.061, ex63 +0.056; GBM importances: **beta 0.208 (#1)**, ex63 0.126, sd63 0.110. Trained
+  ≤2016 with no knowledge of 16Y, both models converge on "avoid high-beta/high-vol qualifiers" — independent
+  confirmation of the beta-cap physics, and consistent with the estate's LOWVOL_MOM survivor (item #602).
+- **M2's 21.5%/+8.7% is recorded but earns NOTHING** — exploratory by frozen protocol. Any future ML attempt is a
+  NEW pre-registration (an M2-shaped shallow GBM is the declared starting point), never a post-hoc promotion.
+  Honest limit re-stated: 2012-17 is TRAINING data in this design; no OOS claim about the weak regime is possible
+  from it.
+- **Provenance:** `research/explosive_moves/union_ml.py` (lands with this commit), sklearn 1.7.2 on the box's
+  .venv-research, DB to 2026-07-15.

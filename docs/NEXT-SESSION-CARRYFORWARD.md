@@ -10,6 +10,37 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-16 — S165: THE UNION CANDIDATE BATTERY — the 2012-17 SELECTION FIX FOUND + pre-registered; 12 candidates + the pre-registered ML all REJECTED with numbers — do NOT redo; kickstart-pick-verify
+- **The win (ledger 16Y): per-name trailing-250d beta ≤ 1.4 at SELECTION** — beats the sealed union on every
+  headline axis in-sample (18.1% / −24.7% / 28.84x / β0.74 / α+8.4% vs 17.5% / −30.5% / 26.04x / 0.87 / +6.8%)
+  and **flips 2012-17 alpha −4.6% → +3.4% (β 1.42→1.03)** — the window 16W/16X proved unreachable by sizing.
+  Survived 4 pre-declared kill checks: cap plateau 1.3–1.6 all-positive · beta-window 125/500d robust ·
+  **selection-not-sleeve (dead-cash mode still flips: −5.6% → +1.7%)** · not-a-data-filter (29.0% genuinely
+  excluded, 0.38% kept-missing). **Same epistemic class as the union (in-sample-selected lead) → PRE-REGISTERED
+  as a SIBLING, `docs/prereg/union-beta14-prereg.md`, SHA-256 `08b46199f96da5414634093b5377e2b3f1f2ca1dccf4a5c9c4c1cfcbbf80bf0c`,**
+  frozen sibling-adjudication rule inside (both pass → higher forward alpha graduates). **Binding: the candidate
+  stays 1.4/250d as first-declared — the sweep was a stability check, adopting 1.5's higher CAGR would be
+  in-sample shopping. The union's seal `a9a14058…` + the 2026-10-03 scheduler task are UNTOUCHED** — the forward
+  session runs `union_lab.py`'s `s_beta_cap_1.4` row beside `cash_blend.py`, judges each against its own prereg.
+- **All other candidates REJECTED (ledger 16Z, full walls in catalog §G below):** sector caps (14.0–14.2% — the
+  union's sector concentration is LOAD-BEARING) · RSI-ranked truncation BOTH ways (16.7/15.9 — the engine's
+  arbitrary order wins; union.md §3.D prose corrected, the sealed prereg's "top 60 by RSI strength" line is a
+  disclosed mis-description, engine authoritative) · beta-rank-asc (16.3) · 6b thresholds 25/35/25→30
+  (16.6/16.4/16.4; 35 = junk turns, 2012-17 α−6.4%) · 6b∪6f (17.1, DD −38.5%) · weekly-6b (14.2, too slow) ·
+  MTF-confirm (16.4, dominated by the cap) · **quality tilt AND drop (16.1 / 17.3-wash) — the 16T "fundamentals
+  add nothing" doctrine now covers TILTS too** (G#8-disclosed, research.db read-only).
+- **Pre-registered ML (ledger 16AA): PRIMARY REJECTED by its own frozen bar** (prereg `187c6aa4…` committed
+  `c252a21` BEFORE training; train ≤2016 = 1,988 rows/43 dates, test 2017+ = 38 dates). 2017+ books: control
+  20.8%/α+7.3% · beta-cap 20.8%/α+8.3% · M1 Ridge 20.4%/α+8.1% (fails beat-control-CAGR AND beat-cap) · M2 GBM
+  21.5%/α+8.7% **exploratory-only, earns nothing** — any ML re-attempt = a FRESH prereg (M2-shaped shallow GBM
+  is the declared start). **Durable convergent finding: both models rank beta the #1 qualifier feature (GBM
+  importance 0.208) — the machine rediscovered the 16Y hand rule, consistent with the LOWVOL_MOM survivor
+  (#602).** In-module control reproduced the seal EXACTLY before every read (17.5/26.04x to the digit).
+- Docs: ledger 16Y/16Z/16AA appended · union.md §§3D/3G/4/5/9/10 updated · catalog §G added below · modules
+  `union_lab.py` / `union_lab2.py` / `union_ml.py` in `research/explosive_moves/`. All read-only on the box
+  (no deploy, no service touch, no timer).
+
+
 ## 🆕 2026-07-16 — LANE-FABLE: FABLE-PROTOCOL (model-parity doctrine) SHIPPED + BOOT-WIRED — do NOT redo; kickstart-pick-verify
 - **`docs/FABLE-PROTOCOL.md` is now BINDING for every model tier running a session** (wired: CLAUDE.md boot step 0 + Guardrail #10 · AGENTS.md Guardrail #8 · SESSION-PROTOCOL boot step 1 · DOC_INDEX class A). Boot its **§0 stance at the start of every thought process**; run the loop (§1) + falsification battery (§2); use the closed decision tables (§3).
 - **Lower-tier sessions (Haiku/Sonnet/Codex): compute, don't ratify.** At any §4 STOP CONDITION (new stat method needed · verdict-flipping number · doctrine conflict/premise doubt · gate-loosening "fix" · surface-first list · sibling-file collision · no-doctrine novelty · unverifiable assertion): stop, bank the trigger under a `## ⛔ ESCALATE` heading in THIS file with a paste-ready problem statement, and continue other work. A STRONG-tier session drains that ledger. Never loosen a gate; a crisp hand-off IS a deliverable.
@@ -220,25 +251,56 @@ disk, recoverable. All other tasks (cirqle advisors, daily briefs, `claude-til-d
 | walk-forward | 2006-11 α**+8.7%** · **2012-17 α−5.5% (FAIL, β1.56)** · 2018-26 α**+6.5%** |
 | market-stretch THROTTLE (linear/step/hard) | ❌ FAILED — made EVERY metric worse; barely moved 2012-17 beta (1.42→1.35) |
 | inverse-vol on the union | ❌ WASH (16X) |
-| **KEY** | **2012-17 is UNREACHABLE by any SIZING/exposure lever (throttle AND inverse-vol both failed) → the weakness is SELECTION (which stocks in a mid-cycle bull), a harder open question. Do NOT re-attempt sizing fixes for it.** |
+| **KEY** | **2012-17 is UNREACHABLE by any SIZING/exposure lever (throttle AND inverse-vol both failed) → the weakness is SELECTION (which stocks in a mid-cycle bull), a harder open question. Do NOT re-attempt sizing fixes for it.** *→ ANSWERED in-sample S165: the per-name beta cap (§G) — pre-registered sibling `08b46199…`.* |
+
+**G. THE S165 CANDIDATE BATTERY (2026-07-16, post-seal; ledger 16Y/16Z/16AA, modules `union_lab.py`/`union_lab2.py`/`union_ml.py`; every row = sealed union + ONE change, judged full-period + 3 windows vs 17.5%/β0.87/α+6.8%):**
+| # | what | verdict | ledger |
+|---|---|---|---|
+| ⭐ **beta_cap_1.4** | per-name trailing-250d beta ≤1.4 at selection | ✅ **18.1%/−24.7%/28.84x/β0.74/α+8.4%; 2012-17 α+3.4% (β1.03); survives plateau/beta-window/dead-cash/missing-data checks → PRE-REGISTERED SIBLING `08b46199…` — candidate FROZEN at 1.4/250d, do NOT re-sweep** | 16Y |
+| — | beta caps 1.2/1.3/1.5/1.6 + look 125d/500d | stability evidence for 1.4 (all plateau-positive: full-α +8.1/+8.2/+8.8/+8.2); **1.5's 19.0% CAGR is expressly NOT adopted (in-sample shopping)** | 16Y |
+| — | beta-RANK-asc (lowest-beta 60) | ❌ 16.3%/α+6.1% — rank distorts; only the tail-cap works | 16Z |
+| — | sector-neutral caps 8/6 per sector | ❌ 14.2%/14.0%, α+4.5% — **sector concentration is LOAD-BEARING**, never cap it | 16Z |
+| — | RSI-ranked top-60, DESC (the documented rule) | ❌ 16.7%/α+6.2% — loses to engine order | 16Z |
+| — | RSI-ranked ASC (least-extended) | ❌ 15.9%/α+5.4% | 16Z |
+| — | 6b thresholds <25 / <35 / <25→30 | ❌ 16.6/16.4/16.4%; 35 admits junk turns (2012-17 α−6.4%) — sealed <30→≥30 stands | 16Z |
+| — | 6b ∪ 6f (third OR-leg) | ❌ 17.1%, MaxDD −38.5%, 2012-17 α−5.4% — 6f adds high-beta breadth when it hurts | 16Z |
+| — | weekly-RS 6b (replaces daily turn) | ❌ 14.2%/α+4.3% — too slow, misses the 2018-26 turns (α+3.5 vs +8.3) | 16Z |
+| — | MTF confirm (daily AND weekly, both legs) | ❌ 16.4%/α+6.4%/β0.80 — directionally right, DOMINATED by the beta cap | 16Z |
+| — | quality RANK top-60 (fundamentals, G#8-disclosed) | ❌ 16.1%/α+5.7% (2018-26 collapses) — **16T veto-only doctrine now covers TILTS** | 16Z |
+| — | quality drop-worst-25% | ❌ wash 17.3%/α+6.8%, barely binds | 16Z |
+| — | **pre-registered ML ranker** (prereg `187c6aa4…` pushed pre-run; train ≤2016, test 2017+) | ❌ **M1 Ridge REJECTED on its frozen bar** (2017+: 20.4%/α+8.1% vs control 20.8%/+7.3% and cap 20.8%/+8.3%); M2 GBM 21.5%/+8.7% EXPLORATORY-ONLY; **convergent finding: beta = #1 feature in both models (GBM importance 0.208)** | 16AA |
 
 ---
 
-### 🎯 NEXT SESSION — improve the UNION (Ramana's NON-NEGOTIABLE: push CAGR higher; "in the AI era, manual-only makes no sense" → ML/ensemble is explicitly on the table). GENUINELY-UNTRIED directions ONLY (everything above is spent):
+### 🎯 NEXT SESSION — the UNION estate after S165 (the candidate space is SPENT; do not config-farm):
 
-1. **The 2012-17 SELECTION fix (the ONE real open question).** NOT sizing (dead). Change WHICH stocks in a mid-cycle bull: (a) sector-NEUTRAL construction (cap names per sector so the book can't pile into one hot sector); (b) a per-name **beta cap** at selection time (≠ 16W's book-level throttle — that was exposure, this is selection); (c) a valuation/quality tilt applied at SELECTION (not as the veto that failed in 16T).
-2. **Reversal-family combos never tested:** 6b **+ 6f** (drawdown-recovery, the least-dead loser) as a union; 6b at thresholds other than <30→30 (e.g. <25 / <35); 6b on a WEEKLY RS line (we have `weekly_signals`) for a slower, higher-conviction turn.
-3. **Multi-timeframe confirmation:** require the turn/trend on BOTH daily and weekly RS (untested; `weekly_signals`/`monthly_signals` exist).
-4. **ML / ensemble (Ramana's AI ask) — with the honest prior stated up front:** a model over the SURVIVING signals (6b state · consistency · RS-vs-sector · turn-age) risks overfitting the SAME 2005-26 window (Codex 15R), and the ledger's standing result is momentum=BETA-not-skill (t=1.99). Do it as a PRE-REGISTERED, walk-forward-only build (train ≤2016, test 2017+), never in-sample-scored. This is the one place "more compute" is legitimately new.
-5. **TR-benchmark re-cut** (owed across the whole estate; moves every price-index number here).
+1. **Forward evidence is the only thing that matters now.** The 2026-10-03 scheduled task runs the sealed
+   union (`cash_blend.py`) — UNTOUCHED. **The same session must also run `union_lab.py`'s `s_beta_cap_1.4`
+   row** and judge EACH against its own registration (`union-prereg.md` `a9a14058…` · `union-beta14-prereg.md`
+   `08b46199…`; sibling adjudication rule frozen in the latter). Append a forward-test ledger entry; touch
+   neither spec.
+2. **TR-benchmark re-cut** (owed estate-wide; moves every price-index number on both sides — the one remaining
+   build that changes these tables).
+3. **ML re-attempts ONLY under a fresh pre-registration** (16AA precedent: hash pushed BEFORE training,
+   frozen conjunctive bar, one run). The declared starting shape is M2's shallow GBM. Never in-sample-scored,
+   never post-hoc promoted.
+4. **Do NOT:** re-sweep the beta cap (frozen 1.4/250d), re-try anything in catalog §§A–G, add a `/dash`
+   surface for either sibling (would imply tradeability), or edit either sealed prereg.
 
-**⚠ BINDING for next session:** the Union is SEALED (`a9a14058…`). New experiments are CANDIDATES beside it — do NOT edit the sealed spec; if a candidate wins cleanly on walk-forward, amend the spec ONCE with a fresh seal BEFORE any forward data. Every candidate must beat the Union's **17.5% / β0.87 / α+6.8%** net, on walk-forward (not one window). Cite section C/D/E/F above before proposing — if it's there, it's already tried.
+**⚠ BINDING:** the Union is SEALED (`a9a14058…`) and union-β14 is SEALED (`08b46199…`) — CANDIDATES beside
+them only. Every new candidate must beat **18.1% / β0.74 / α+8.4%** (the β14 in-sample line) on walk-forward,
+not one window. Cite catalog §§C/D/E/F/**G** before proposing — if it's there, it's already tried.
 
-**Canon (single source of truth — do not re-derive from this block):** the ruleset + terminology + the rejected-candidate list (throttle 16W · inverse-vol 16X · AND-intersection · both vetoes) live on **[`docs/strategies/union.md`](strategies/union.md)** (served at `/dash/strategy-ref?p=union`; **no `/dash` surface by design** — a live page would imply tradeability the sealed lead lacks). Result numbers: ledger §§ 2026-07-16U→X only. Frozen spec + criteria + seal: [`docs/prereg/union-prereg.md`](prereg/union-prereg.md).
+**Canon (single source of truth — do not re-derive from this block):** the ruleset + terminology + the
+rejected-candidate list live on **[`docs/strategies/union.md`](strategies/union.md)** (served at
+`/dash/strategy-ref?p=union`; **no `/dash` surface by design**). Result numbers: ledger §§ 2026-07-16U→X +
+16Y/16Z/16AA only. Frozen specs + seals: [`docs/prereg/union-prereg.md`](prereg/union-prereg.md) ·
+[`docs/prereg/union-beta14-prereg.md`](prereg/union-beta14-prereg.md) ·
+[`docs/prereg/union-ml-prereg.md`](prereg/union-ml-prereg.md).
 
-**Still owed (both blocks):** TRI-benchmark re-cut (all numbers are price-index vs price-index). The ONE
-genuine open research question (not a build): can the 2012–17 stock SELECTION be improved? — harder than
-sizing, and NOT to be pursued by re-optimizing on the same window.
+**Still owed (both blocks):** TRI-benchmark re-cut (all numbers are price-index vs price-index). The 2012–17
+selection question is ANSWERED in-sample (16Y) and moved into the sibling registration — the forward window
+decides it.
 
 ---
 

@@ -2122,6 +2122,40 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 165 (RS/Union lane, takeover-prompt-directed) — 2026-07-16 — THE UNION CANDIDATE BATTERY: the 2012-17 selection fix FOUND + pre-registered as a SIBLING; 12 candidates + the pre-registered ML REJECTED with numbers
+
+- **Mandate:** push the union's CAGR higher; attack SELECTION (16W/16X proved sizing dead); catalog-guarded
+  (every candidate checked against §§A–F before running); every result — win or loss — ledgered.
+- **Baseline integrity first:** `cash_blend.py` re-run on the box reproduced the sealed union TO THE DIGIT
+  (17.5% / −30.5% / 26.04x / β0.87 / α+6.8%), and every lab module carries an in-module control row.
+- **THE WIN (ledger 16Y):** per-name trailing-250d **beta ≤ 1.4 at selection** → in-sample 18.1% / −24.7% /
+  28.84x / β0.74 / α+8.4%, **2012-17 α −4.6% → +3.4% (β 1.42 → 1.03)**, 2018-26 improves, 2006-11 CAGR
+  give-back disclosed. Survived 4 pre-declared kill checks (plateau · beta-window · **dead-cash decomposition
+  proves selection-not-sleeve** · not-a-data-filter). **Pre-registered SIBLING** `docs/prereg/union-beta14-prereg.md`
+  (sha256 `08b46199…`, sibling-adjudication rule frozen). Union seal `a9a14058…` + the 2026-10-03 scheduler
+  task UNTOUCHED.
+- **REJECTED with numbers (ledger 16Z):** sector caps 8/6 (14.2/14.0% — sector concentration is load-bearing) ·
+  RSI-ranked truncation desc/asc (16.7/15.9 — the engine's arbitrary order wins; union.md §3.D corrected, the
+  sealed prereg's ranking line disclosed as a mis-description, engine authoritative) · beta-rank-asc (16.3) ·
+  6b thresholds 25/35/25→30 (16.6/16.4/16.4) · 6b∪6f (17.1, DD −38.5%) · weekly-6b (14.2) · MTF-confirm (16.4,
+  dominated) · quality RANK/DROP (16.1 / 17.3-wash — the 16T fundamentals doctrine now covers tilts;
+  research.db read-only, G#8 disclosed).
+- **Pre-registered ML (ledger 16AA):** prereg `187c6aa4…` committed+pushed (`c252a21`) BEFORE training; train
+  ≤2016 (1,988 rows/43 dates), test 2017+ (38 dates). **M1 Ridge REJECTED on its frozen conjunctive bar**
+  (20.4%/α+8.1% vs control 20.8%/+7.3%, cap 20.8%/+8.3%); M2 GBM 21.5%/+8.7% exploratory-only. Convergent
+  finding: beta = #1 feature in both models — the machine rediscovered the hand rule.
+- **Artifacts:** `research/explosive_moves/union_lab.py` · `union_lab2.py` · `union_ml.py` (all box-run,
+  read-only DB, no deploy/service/timer touch) · ledger §§16Y/16Z/16AA · union.md §§3D/3G/4/5/9/10 ·
+  carry-forward S165 block + catalog §G + rewritten NEXT-SESSION · 2 new prereg docs + DOC_INDEX rows.
+  Prereg commit `c252a21`; the rest lands with this entry's commit.
+- **Harness TIL:** the three long VPS runs were fired via `ssh nohup` + manual log polling — the harness's
+  `run_in_background` Bash mode would have auto-notified on completion and saved the polling round-trips.
+- **⚠ For the forward-test session (2026-10-03):** run BOTH siblings (`cash_blend.py` for the union;
+  `union_lab.py` `s_beta_cap_1.4` row for β14), judge each against its OWN prereg, sibling rule decides a
+  graduate if both pass. Touch neither spec. ⚠ Main-tree note: 3 modified web files + stray `0.83`/`Sharpe`/
+  `surface` files in D:\Hermes belong to a parallel lane — untouched by this session (worktree-isolated).
+
+
 ### Session 164 — 2026-07-16 — main↔origin RECONCILED by merge (25 local ↔ 152 origin); FABLE-PROTOCOL doctrine lands on origin — takeover continuation of the Pat-autolearn session
 Takeover of session "Pat automatic-learning arrangement" (S150…S155-e arc, all verified already pushed + live). Its one named residual = the prudential continuity-gate fix (S155-e block, this session's next part). First: the owed main↔origin reconcile, blocking every lane.
 - **Reconciled by MERGE, not rebase** — deliberately, to preserve the 25 local commits' SHAs (PROJECT_STATE entries cite them) and avoid a third attribution incident. `git cherry` map: 10 locals = exact patch-twins (collapse silently) · 7 = message-twins whose ADAPTED content was verified upstream before take-origin resolution (the 3.4 scoring switch lives inside origin's Doctrine-D-converged `scoring.py` per S155-d; worklist fix = `b5a5fe2`; S147/S148/D134 doc twins evolved on origin) · **8 genuinely unique now reach origin: the FABLE-PROTOCOL quartet (`223c47c` `1802067` `e3a51a8` `e707dc8` — docs/FABLE-PROTOCOL.md + the CLAUDE.md/AGENTS.md kernel were laptop-only until this merge) · MAINT-WTPRUNE `b137d68` · MAINT-WTAUDIT `4b871f4` · 3.4-closed docs `34dea90` · S148-backfill-complete docs `36f3710`.**
