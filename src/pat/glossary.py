@@ -813,22 +813,30 @@ GLOSSARY: dict[str, dict] = {
         "related": ["delivery_value", "dvpt"],
     },
     "financials_adaptation": {
-        "term": "Financials & the pt14 score",
+        "term": "Financials & the pt14 score (Doctrine D)",
         "family": "concepts",
         "unit": "—",
-        "source": "analyst doctrine (manual Phase-4) — NOT the automated pt14 scorer",
-        "plain": "The automated pt14 score applies the SAME non-financial thresholds to banks and NBFCs, so their scores read misleadingly low — treat a financial's pt14 tier with caution.",
+        "source": "scoring.score_fundamentals (Doctrine-D lender model, D134) — automated",
+        "plain": "Banks/NBFCs/HFCs are scored on their OWN model (Doctrine D) — RoA/RoE, NII growth and GNPA/CET1 — not the generic thresholds, which mis-rate every lender.",
         "detail": (
-            "The 14 patterns were built for non-financial companies. Applied raw to a "
-            "bank / NBFC they mislead: leverage is 6–8× by design (and D/E > 2 even trips a "
-            "hard disqualifier), ROCE is structurally suppressed by leverage. The adaptation "
-            "— reading ROE/ROA, NII growth, GNPA, CAR and ALM discipline instead — is a "
-            "MANUAL Phase-4 judgement, not something the automated scorer does today, and "
-            "financial scores are NOT tagged as adapted. So read a financial's pt14 tier as a "
-            "weak signal; lean on the credibility (CCI) and fundamentals reads plus human "
-            "judgement for banks."
+            "The 14 patterns were built for non-financial companies. Applied raw to a bank / "
+            "NBFC they mislead: leverage is 6–8× by design (D/E > 2 used to trip a hard "
+            "disqualifier and auto-fail every lender) and ROCE is structurally suppressed by "
+            "leverage. Since D134 that is no longer how a financial is scored — DOCTRINE D "
+            "reads a lender on its own numbers, automatically: profitability on RoA/RoE against "
+            "sub-type bars (bank RoA ~1%/yr · NBFC 2-4% · HFC RoE 12-15%), operating leverage on "
+            "NET INTEREST INCOME instead of sales, balance-sheet quality as asset quality plus "
+            "capital (Gross NPA ≤1.5% · Net NPA ≤0.5% · CET1 ≥13%), and the generic Debt/Equity "
+            "disqualifier switched OFF. The score IS tagged as adapted (sector_model / "
+            "sector_subtype / a sector note). Two honest limits: where none of those lender "
+            "inputs is known, NO tier is asserted at all (you see 'NA', not a misleading grade); "
+            "where only one or two are known the tier is flagged PROVISIONAL — the prudential "
+            "ratios fill in as filings are ingested. True maturity-gap ALM is still not measured "
+            "— CET1 + GNPA stand in for it. Credibility (CCI) and human judgement remain the "
+            "complement, not the substitute."
         ),
-        "aliases": ["financials", "banks", "nbfc", "hfc", "sector adapted", "doctrine d"],
+        "aliases": ["financials", "banks", "nbfc", "hfc", "sector adapted", "doctrine d",
+                    "doctrine-d", "lender model", "bank scoring"],
         "related": ["pt14", "fundamentals", "cci_credibility"],
     },
 

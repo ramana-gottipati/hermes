@@ -350,6 +350,45 @@ def test_screener_columns_are_glossary_backed():
     )
 
 
+def test_ingested_lender_metrics_are_glossary_backed():
+    """SURFACE-PLAYBOOK item 5 for metrics the INGEST writes — the hole this gate had.
+
+    `test_screener_columns_are_glossary_backed` only covers Screen+ COLUMNS, so a metric written
+    straight into `fundamentals_history` bypassed the contract entirely. That is exactly how S154
+    shipped five prudential metrics (Gross NPA / Net NPA / RoA / CET1 / AT1) with ZERO glossary
+    coverage: Pat answered "what is CET1" with nothing, and "explain return on assets" with
+    `drift_22d` — a price-drift metric. Derived from the ingest's own `_PRUDENTIAL` table, so a
+    NEW prudential metric cannot ship undocumented either.
+    """
+    from src.web import glossary as WG
+    from src.automation.fundamentals_xbrl import _PRUDENTIAL
+    WG._load()
+    missing = [name for name, _tag in _PRUDENTIAL if not WG.has(name)]
+    assert not missing, (
+        "\nLender metrics the XBRL ingest WRITES but the glossary does not define — Pat cannot "
+        "explain them (and will fuzzy-match them to something wrong):\n"
+        + "\n".join(f"  !! {m}" for m in missing)
+        + "\n\nDefine each in docs/metrics-glossary.md (it auto-folds into Pat via "
+          "glossary._merge_web — zero code). See docs/pat-knowledge-contract.md."
+    )
+
+
+def test_doctrine_d_concept_is_explained_and_not_stale():
+    """The Doctrine-D lender model must be explainable, and its explainer must not still describe
+    the pre-Doctrine-D world. S155 shipped the model while Pat's CURATED entry still said reading
+    RoA/GNPA "is a MANUAL Phase-4 judgement, not something the automated scorer does today" —
+    Pat confidently contradicting the shipped system. Curated entries override the md, so fixing
+    the md alone would NOT have fixed Pat."""
+    from src.pat.glossary import get
+    e = get("financials_adaptation")
+    assert e, "the financials concept must exist"
+    blob = (e["plain"] + " " + e["detail"]).lower()
+    assert "doctrine d" in blob, "the financials explainer must name the model that scores lenders"
+    for stale in ("is a manual phase-4 judgement", "not something the automated scorer does",
+                  "not tagged as adapted"):
+        assert stale not in blob, f"stale pre-Doctrine-D claim still in Pat's answer: {stale!r}"
+
+
 def test_coverage_basis_is_non_degenerate():
     """Sanity: the derivation actually populated the buckets (catches a broken import that
     would make everything fall through)."""
