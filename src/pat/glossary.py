@@ -758,7 +758,10 @@ GLOSSARY: dict[str, dict] = {
             "legacy feed being migrated to primary NSE/BSE XBRL filings (broadcast-timestamped, "
             "point-in-time); valuation ratios can lag the latest results until XBRL covers them."
         ),
-        "aliases": ["fundamentals", "pe", "roce", "roe", "promoter holding", "valuation", "screener"],
+        # NB: "pe" is deliberately NOT an alias — this entry explains the SNAPSHOT, not the
+        # ratio, so it must not claim the metric's name at the adapter's keys check (which
+        # would block the md's own "Price to Earnings (P/E)" definition from adapting).
+        "aliases": ["fundamentals", "roce", "roe", "promoter holding", "valuation", "screener"],
         "related": ["pt14", "financials_adaptation"],
     },
 
