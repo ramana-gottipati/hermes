@@ -35,6 +35,7 @@ incomplete. Two companion files:
 - **Full-folder authorization is standing** (Guardrail #0). Never ask to read/write/delete anywhere in
   the repo; never treat a subfolder as needing fresh access. Deploy verified additive changes to the
   VPS without asking.
+- **One worktree per lane (working-tree isolation) — BINDING the moment a second actor may touch the tree.** Two sessions sharing the one `D:\Hermes` checkout share one working tree + index → a sibling's `git add -A` / `git reset` absorbs or wipes your staged/uncommitted work (recurred hard on 2026-07-16). Spin an isolated worktree: `scripts/new-lane.sh <slug>` → work + commit + `git push origin HEAD:main` there → `scripts/retire-lane.sh <slug>`. The shared checkout is a fetch/read anchor only. Full rule + gotchas: `docs/worktree-convention.md`.
 - **Protect the context window** — lazy-load, don't re-read full docs; delegate breadth to agents and
   keep only their conclusions.
 - **Keep the hard guardrails:** primary-sources-only (#8, no Screener/vendors for NEW feeds), cost

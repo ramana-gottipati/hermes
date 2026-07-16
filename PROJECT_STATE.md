@@ -190,6 +190,9 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 
 ### Key file paths
 
+**Tooling — worktree convention (S169):**
+- `scripts/new-lane.sh` / `scripts/retire-lane.sh` — create/remove an isolated per-lane worktree (branch `lane/<slug>` off origin/main, under the sibling dir `Hermes.worktrees/`, sets `core.hooksPath`). The working-tree isolation that stops cross-absorption + index-reset between concurrent sessions. Doctrine: `docs/worktree-convention.md`.
+
 **Sector-Rotation estate (D136, S-rotation-d/e) — new:**
 - `src/automation/sector_book.py` — the V17 portfolio engine: frozen config (spec-of-record = `research/explosive_moves/sector_rotation_exp2.py` DFILL) → bounded `sector_rotation_book` (quarterly weights) + `sector_rotation_nav` (monthly NAV/bench/invested/regime/turnover); own schema, atomic replace; CLI `--build` / clock-gated `--refresh` (nightly `10-signals.conf` leg) / `--selftest`.
 - `src/web/sector_rotation_view.py` — `/dash/sector-rotation` (Lens, strategies altitude; durable `_ROUTER_SPECS` mount): `?asof=` time-travel + rebalance diffs + analytics-to-date vs Nifty 500 + sleeve regime + CSV; education scaffold + `not_reco` fence; defensive empty-state.
@@ -2121,6 +2124,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 169 (cont.) — 2026-07-16 — worktree convention SHIPPED: one worktree per lane (working-tree isolation)
+After this session's repeated cross-absorption + index-reset failures (a sibling session's `git add -A` / `git reset` on the shared `D:\Hermes` checkout swept staged work into its commit and wiped uncommitted edits), shipped the isolation convention so concurrent lanes never share a working tree/index.
+- **New:** `scripts/new-lane.sh <slug>` (isolated worktree on `lane/<slug>` off origin/main, under sibling `Hermes.worktrees/`, sets core.hooksPath) · `scripts/retire-lane.sh <slug>` (remove worktree + delete branch iff merged into origin/main — kills the orphan-husk problem MAINT-WTAUDIT keeps flagging) · `docs/worktree-convention.md` (STANDING doctrine + consolidated gotchas: hooksPath inheritance, the kernel does not travel to a worktree, rebase-merge lives at `git rev-parse --git-path`, numbering collisions stay orthogonal).
+- **Wired:** SESSION-PROTOCOL § HOW THE SESSION RUNS now binds "one worktree per lane"; DOC_INDEX registers the convention (CANONICAL). **Dogfooded:** authored + committed + pushed FROM an isolated worktree — core.hooksPath confirmed inherited, the pre-commit doc gates fired in-worktree.
+- Guardrail unchanged: lanes still push to origin/main + rebase on conflict; the isolation is at the working-tree/index level, which is the actual root cause of this session's failures.
 
 ### Session 173 (RS/Union lane, Ramana decisions) — 2026-07-16 — COMPOSITE-30 CONFIRMED + family REOPENED + REGISTERED as the 4th sealed sibling; the full-record COMPENDIUM lands (union-ladder.md)
 
