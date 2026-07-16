@@ -463,6 +463,47 @@ V21's specific mix), then winners combined. Module `research/explosive_moves/sec
   nothing has been promoted to the live engine. Same standing caveats apply (TR benchmark owed; selection deflation
   now FOUR rounds deep — the fresh-window confirmation is more load-bearing than ever).
 
+### 2026-07-16X - INVERSE-VOL candidate for the union: a WASH, does NOT earn a spec change. The sealed equal-weight spec STANDS. 2012-17 confirmed unreachable by any sizing lever.
+
+**Ramana, 2026-07-16:** "run the inverse-vol variant as a candidate." Tested ONE change against the sealed
+spec (16W) - equal-weight -> inverse-volatility stock sizing, everything else identical (union / top60 /
+sleeve200 / trail-20% @1% slip). **Module:** `research/explosive_moves/cash_ivol.py`. Vol estimate is
+stale-safe (rejects names not moving on >=60% of days, so inverse-vol cannot overweight illiquid junk - the
+bug that tanked an earlier run to 1.71x). Motivated by 15P (the toll IS volatility) + V21's sector-layer
+inverse-vol win, never before applied to the stock leg.
+
+| union top60, sleeve200, full period | CAGR | MaxDD | Rs1Cr-> | beta | alpha |
+|---|---|---|---|---|---|
+| **EQUAL-WEIGHT (sealed spec)** | **17.5%** | -30.5% | **26.04x** | 0.87 | **+6.8%** |
+| inverse-vol (candidate) | 17.0% | **-28.3%** | 24.06x | 0.86 | +6.3% |
+
+**A LATERAL MOVE, net slightly WORSE:** -0.5pp CAGR, -0.5pp alpha, +2.2pp shallower drawdown. Gives up more
+return than it buys in risk. **Does NOT earn a place in the spec - amending for a wash would add complexity
+the data does not justify.**
+
+**Walk-forward (the decisive test - built to fix the -4.6%/beta-1.56 2012-17 hole):**
+
+| window | EW alpha | IV alpha | EW beta | IV beta |
+|---|---|---|---|---|
+| 2006-2011 | +9.8% | +9.9% | 0.77 | 0.78 |
+| **2012-2017** | **-4.6%** | **-3.7%** | **1.42** | **1.32** |
+| 2018-2026 | +8.3% | **+7.1%** | 0.91 | 0.91 |
+
+**Every metric moved the way 15P's theory PREDICTED (beta down, DD down, worst window less bad) - the direction
+is right, the MAGNITUDE is too small to matter.** 2012-17 alpha only -4.6% -> -3.7%, still a failed window; and
+it costs 2018-26 alpha (+8.3% -> +7.1%). Unlike the throttle (16W, which moved things the WRONG way), inverse-
+vol is directionally correct but weak.
+
+**🔑 STRONGEST CONCLUSION: 2012-17 is UNREACHABLE BY ANY SIZING LEVER.** Two structurally-correct fixes aimed
+at that window - the market-stretch throttle (16W) and inverse-vol sizing (16X) - both failed. This is now
+firm evidence the failure is WHICH STOCKS the signal picks in a mid-cycle bull, NOT how they are weighted or
+throttled. No exposure/sizing lever reaches it; only a selection change could, and that is a harder,
+still-open research question (and must not be pursued by re-optimizing on this window).
+
+**VERDICT: the sealed union spec (equal-weight, top60) STANDS UNCHANGED. Seal `a9a14058...` intact. The union
+goes to forward testing exactly as pre-registered (16W). Inverse-vol recorded as a tested-and-rejected
+candidate so it is not re-run.**
+
 ### 2026-07-16W - THROTTLE FAILED (the 2012-17 weakness is SELECTION not sizing) + the UNION PRE-REGISTERED for forward testing.
 
 **Ramana, 2026-07-16:** "record this and test the throttle" then "pre-register the union for forward testing."
