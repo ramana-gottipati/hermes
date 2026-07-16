@@ -81,7 +81,7 @@ STOCK layer properly — corporate-action ADJUSTED prices (the `series='EQ'`/CA 
 assignment by 500d excess-correlation (no membership table needed), and a battery across RSI construction,
 strength-index, reversal-on-RS (all 8 of Dim 6), vetoes, cash-out sizing, and walk-forward.
 
-**THE ONE SURVIVOR — the UNION** (ledger §§ 2026-07-16U/V/W · repro `research/explosive_moves/cash_blend.py`):
+**THE ONE SURVIVOR — the UNION** — **canonical page: [`docs/strategies/union.md`](strategies/union.md)** (the ruleset, terminology, rejected candidates) · ledger §§ 2026-07-16U→X · repro `research/explosive_moves/cash_blend.py`:
 a stock qualifies if EITHER fires — **(1) RSI(14)>its 50-SMA AND beat its own sector on ≥70% of last quarter's
 days** (trend), OR **(2) 6b: RSI(14) of the RS-line was <30 and crossed back ≥30** (oversold turn). Equal-weight
 **top 60**; idle capital → **Nifty Next 50 while Nifty 500 ≥ 200DMA, else cash** (V17 sleeve); **trailing stop
@@ -103,6 +103,8 @@ stack them, only union them.
 forward beta reported (a higher CAGR purely from beta>1.1 = FAIL) · ③ MaxDD not worse than Next-50 · ④ no
 single quarter > 60% of the excess. **Miss ①–③ → DESCRIPTIVE-ONLY, never deployed.** **NEXT ACTION when a new
 quarter closes: run the forward test against the sealed criteria — do NOT touch the spec.**
+
+**Canon (single source of truth — do not re-derive from this block):** the ruleset + terminology + the rejected-candidate list (throttle 16W · inverse-vol 16X · AND-intersection · both vetoes) live on **[`docs/strategies/union.md`](strategies/union.md)** (served at `/dash/strategy-ref?p=union`; **no `/dash` surface by design** — a live page would imply tradeability the sealed lead lacks). Result numbers: ledger §§ 2026-07-16U→X only. Frozen spec + criteria + seal: [`docs/prereg/union-prereg.md`](prereg/union-prereg.md).
 
 **Still owed (both blocks):** TRI-benchmark re-cut (all numbers are price-index vs price-index). The ONE
 genuine open research question (not a build): can the 2012–17 stock SELECTION be improved? — harder than
