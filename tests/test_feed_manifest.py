@@ -32,10 +32,17 @@ What this gate file enforces:
      itself has teeth, so the gate is live the day LANE-I registers the personal-broker
      intraday seam.
 
+  4b. §7.7(a) VENDOR-ToS IMPORT GATE (Ramana ratified §7.7 Option B, 2026-07-16) - no
+     src/web/*.py may IMPORT any of the 6 UNCLASSIFIED_FEEDS vendor fetchers; importing one
+     pulls a vendor-ToS scrape onto a public request. AST-based (imports only) because a
+     key/table substring scan is useless here - the keys name legit routes (/dash/screener),
+     the CCI lens, an unrelated helper, and primary-sourced table displays.
+
 Run: pytest tests/test_feed_manifest.py   (or bare: python tests/test_feed_manifest.py)
 """
 from __future__ import annotations
 
+import ast
 import re
 import sys
 from pathlib import Path
@@ -253,6 +260,76 @@ def test_licence_gate_scanner_has_teeth():
         "the licence-gate scanner failed to flag a feed whose table (stock_signals) is "
         "known to be read by src/web - the gate has gone blind"
     )
+
+
+# --------------------------------------------------------------------------------------
+# 4b. §7.7(a) — the VENDOR-ToS IMPORT GATE (Ramana ratified §7.7 Option B, 2026-07-16)
+#     The 6 UNCLASSIFIED_FEEDS (screener · fundamentals_history · shareholding_history ·
+#     concalls · news_feed · enrich) stay OUT of FEEDS; their KEYS are the fetcher module
+#     stems (pinned by the coverage ratchet above). A public surface importing one of these
+#     fetchers would pull a vendor-ToS scrape onto a live request - the leak Guardrail #8
+#     forbids. A key/table SUBSTRING scan cannot enforce this: 'screener' names the /dash/
+#     screener route, 'concalls' the CCI lens, 'enrich' an unrelated helper, and the
+#     fundamentals_history / shareholding_history TABLES are legitimately displayed (they are
+#     re-sourced via XBRL). So the gate is IMPORT-based, via the AST (imports only, never
+#     comments / strings / route literals).
+# --------------------------------------------------------------------------------------
+
+
+def _automation_module_imports(text: str) -> set:
+    """Fully-qualified `src.automation.<mod>` modules a file imports. Handles
+    `import src.automation.x`, `from src.automation import x [as y]`, and
+    `from src.automation.x import y`."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return set()
+    hit = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name.startswith("src.automation."):
+                    hit.add(".".join(a.name.split(".")[:3]))
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            if mod == "src.automation" or mod.endswith(".automation"):
+                for a in node.names:
+                    hit.add("src.automation." + a.name)
+            elif mod.startswith("src.automation."):
+                hit.add(".".join(mod.split(".")[:3]))
+    return hit
+
+
+def test_vendor_tos_fetchers_never_imported_by_public_surfaces():
+    """§7.7(a): no public src/web surface may import a vendor-ToS fetcher."""
+    vendor_mods = {"src.automation." + key for key in fm.UNCLASSIFIED_FEEDS}
+    violations = []
+    for name, text in sorted(_web_sources().items()):
+        leaked = sorted(vendor_mods & _automation_module_imports(text))
+        if leaked:
+            violations.append("src/web/%s imports %s" % (name, ", ".join(leaked)))
+    assert not violations, (
+        "§7.7(a) VENDOR-ToS GATE: a public surface imports a vendor-ToS fetcher - the 6 "
+        "UNCLASSIFIED_FEEDS must stay off src/web (Ramana ratified Option B, 2026-07-16). "
+        "If the data is genuinely needed, source it from the primary XBRL/BSE replacement, "
+        "never the vendor scrape:\n  " + "\n  ".join(violations)
+    )
+
+
+def test_vendor_tos_import_gate_has_teeth():
+    """Prove the §7.7(a) AST scan flags a real vendor-fetcher import (none exist today)."""
+    vendor_mods = {"src.automation." + k for k in fm.UNCLASSIFIED_FEEDS}
+    for snippet in (
+        "from src.automation import screener\n",
+        "from src.automation import scoring, news_feed as _n\n",
+        "import src.automation.enrich\n",
+        "from src.automation.shareholding_history import fetch\n",
+    ):
+        got = _automation_module_imports(snippet)
+        assert got & vendor_mods, (
+            "the §7.7(a) import scanner failed to flag a vendor-fetcher import: %r -> %r"
+            % (snippet, sorted(got))
+        )
 
 
 def test_selftest_green_and_prints_both_tables():
