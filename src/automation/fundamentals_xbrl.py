@@ -439,6 +439,16 @@ _PRUDENTIAL: tuple = (
 )
 _PRUDENTIAL_TAGS = frozenset(t for _n, t in _PRUDENTIAL)
 
+# GATE-ORTHOGONAL (S155-e residual fix): the prudential ratios have NO Screener-era
+# counterpart, so the P&L continuity gate cannot speak to them — a gate-HELD bank's
+# filing still yields its prudential block (HDFCBANK et al. were dark only because the
+# gate skipped the whole symbol). Such a prud-only pass must NEVER mark the real
+# xml_url seen (a later regate still owes the filing its P&L rows); it records its own
+# sentinel row instead, so the one-time fetch does not repeat. Budget-DEFERRED symbols
+# (verdict unknown, not failed) keep deferring entirely — the prud-only pass applies
+# only where a FAIL verdict is actually known.
+PRUD_ONLY_SENTINEL = "#prud-only"
+
 
 def _has_prudential_tags(parsed: dict) -> bool:
     """True iff the instance DECLARES the prudential block — even all-zero, as a bank's
@@ -775,12 +785,13 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
     stats = {"filings": len(filings), "bank_flagged": n_bank, "cumulative_skipped": n_cum,
              "parsed": 0, "rows": 0, "fetch_fail": 0, "no_metrics": 0, "gate_fail_syms": 0,
              "skipped_seen": 0, "gate_deferred": 0, "aborted_throttled": False,
-             "prudential_syms": 0, "sa_fetches": 0}
+             "prudential_syms": 0, "sa_fetches": 0, "prud_only_filings": 0}
     gcon = sqlite3.connect(research_db)
     _ensure_source_column(gcon)
     gcon.commit()
     gate_ok: dict = {}
     gate_budget = [GATE_BUDGET_PER_RUN]
+    gate_deferred_syms: set = set()
     consec_fail = [0]
 
     def gated(sym: str) -> bool:
@@ -794,6 +805,7 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
         if row is None:
             if gate_budget[0] <= 0:
                 stats["gate_deferred"] += 1
+                gate_deferred_syms.add(sym)   # unknown verdict ≠ failed — defer wholly
                 gate_ok[sym] = False          # this run only; nothing cached
                 return False
             gate_budget[0] -= 1
@@ -828,10 +840,20 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
         if stats["aborted_throttled"]:
             break
         sym = f["symbol"]
-        if not gated(sym):
-            continue
+        full = gated(sym)                     # P&L rows only ever land for gate-passing symbols
+        if not full and sym in gate_deferred_syms:
+            continue                          # verdict unknown (budget) — defer entirely
+        # Gate-orthogonal prudential pass (see PRUD_ONLY_SENTINEL): a gate-HELD symbol is
+        # still fetched ONCE to harvest a bank's prudential block; keyed by its own
+        # sentinel so the real url stays unseen (a later regate still owes the P&L rows).
+        seen_key = f["xbrl_url"] if full else f["xbrl_url"] + PRUD_ONLY_SENTINEL
         if gcon.execute("SELECT 1 FROM fundamentals_xbrl_seen WHERE xml_url=?",
-                        (f["xbrl_url"],)).fetchone():
+                        (seen_key,)).fetchone():
+            stats["skipped_seen"] += 1
+            continue
+        if not full and gcon.execute(         # fully ingested before a (manual) regate flip
+                "SELECT 1 FROM fundamentals_xbrl_seen WHERE xml_url=?",
+                (f["xbrl_url"],)).fetchone():
             stats["skipped_seen"] += 1
             continue
         xml = throttled_fetch(f["xbrl_url"])
@@ -839,12 +861,12 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             continue
         try:
             parsed = parse_instance(xml)
-            metrics = extract_metrics(parsed, f)
+            metrics = extract_metrics(parsed, f) if full else {}
         except ET.ParseError as e:
             log.warning("parse failed %s %s: %s", sym, f["to_date"], e)
             stats["no_metrics"] += 1
             continue
-        if not metrics:
+        if full and not metrics:
             stats["no_metrics"] += 1
             log.warning("no metrics extracted: %s %s %s (fail-loud, not zero-filled)",
                         sym, f["period"], f["to_date"])
@@ -874,6 +896,17 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             if prud:
                 metrics.update(prud)
                 stats["prudential_syms"] += 1
+        if not full:
+            if metrics:                       # the prudential block, gate-orthogonal
+                stats["parsed"] += 1
+                stats["prud_only_filings"] += 1
+                stats["rows"] += write_rows(f, metrics, research_db=research_db,
+                                            overwrite_screener=overwrite_screener,
+                                            min_period_end=min_period_end)
+            if not stats["aborted_throttled"]:   # an SA-fetch throttle mid-pass = transient;
+                # the prud block IS this pass's whole value — leave unmarked, retry next run
+                mark_seen(f["xbrl_url"] + PRUD_ONLY_SENTINEL)   # deterministic; NEVER the real url
+            continue
         stats["parsed"] += 1
         stats["rows"] += write_rows(f, metrics, research_db=research_db,
                                     overwrite_screener=overwrite_screener,
@@ -896,19 +929,28 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
     log.info("integrated-filing rows in window: %d", len(if_rows))
 
     candidates: dict = {}          # (sym, ptype, pend) -> best (conso, broadcast) filing
-    if_parsed_urls: list = []      # marked seen only AFTER the candidate flush writes
+    if_parsed_urls: list = []      # full ingests: marked seen only AFTER the candidate flush
+    if_prud_only_urls: list = []   # gate-held parses: sentinel-marked at the flush
     # Doctrine-D Pattern 5: this path already parses BOTH natures before picking the conso
     # winner, so the bank prudential block costs ZERO extra fetch here — capture it off whichever
     # instance discloses (SA always wins per the verified SA-only rule) and merge at the flush.
     prud_by_key: dict = {}         # (sym, kind, pend) -> {metric: percent}
+    prud_only_cands: dict = {}     # gate-held: (sym, kind, pend) -> minimal filing dict
     for row in if_rows:
         if stats["aborted_throttled"]:
             break
         sym = row["symbol"]
-        if not gated(sym):
-            continue
+        full = gated(sym)
+        if not full and sym in gate_deferred_syms:
+            continue                          # verdict unknown (budget) — defer entirely
+        seen_key = row["xbrl_url"] if full else row["xbrl_url"] + PRUD_ONLY_SENTINEL
         if gcon.execute("SELECT 1 FROM fundamentals_xbrl_seen WHERE xml_url=?",
-                        (row["xbrl_url"],)).fetchone():
+                        (seen_key,)).fetchone():
+            stats["skipped_seen"] += 1
+            continue
+        if not full and gcon.execute(         # fully ingested before a (manual) regate flip
+                "SELECT 1 FROM fundamentals_xbrl_seen WHERE xml_url=?",
+                (row["xbrl_url"],)).fetchone():
             stats["skipped_seen"] += 1
             continue
         xml = throttled_fetch(row["xbrl_url"])
@@ -920,7 +962,7 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
             log.warning("parse failed %s %s: %s", sym, row["qe_date"], e)
             stats["no_metrics"] += 1
             continue
-        if_parsed_urls.append(row["xbrl_url"])
+        (if_parsed_urls if full else if_prud_only_urls).append(row["xbrl_url"])
         meta = parsed["meta"]
         end = (meta.get("DateOfEndOfReportingPeriod") or row["qe_date"] or "")[:10]
         if not end:
@@ -932,7 +974,6 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
         if end == fy_end and "FourD" in parsed["contexts"]:
             jobs.append(("A", end))    # the Q4 integrated filing carries the audited FY column
         for kind, pend in jobs:
-            metrics = extract_for(parsed, kind=kind, end=pend)
             key = (sym, kind, pend)
             # capture the prudential block off THIS instance (a conso bank zeroes it -> empty);
             # SA always wins over a disclosing conso (the verified standalone-only rule).
@@ -940,6 +981,16 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
                 prud = extract_bank_prudential(parsed, kind=kind, end=pend)
                 if prud and (key not in prud_by_key or not conso):
                     prud_by_key[key] = prud
+                    if not full:
+                        # gate-orthogonal: the minimal filing dict the flush can write —
+                        # stamped with the DISCLOSING instance's nature (SA wins → SOURCE_SA)
+                        prud_only_cands[key] = {
+                            "symbol": sym, "period": "Annual" if kind == "A" else "Quarterly",
+                            "to_date": pend, "consolidated": conso,
+                            "broadcast": row["broadcast"], "revised": row["revised"]}
+            if not full:
+                continue                      # P&L candidates only for gate-passing symbols
+            metrics = extract_for(parsed, kind=kind, end=pend)
             if not metrics:
                 stats["no_metrics"] += 1
                 log.warning("no metrics extracted: %s IF/%s %s (bank/NBFC taxonomy or "
@@ -960,8 +1011,19 @@ def ingest(*, since: str, until: Optional[str] = None, symbols: Optional[list] =
         stats["rows"] += write_rows(cand, cand["metrics"], research_db=research_db,
                                     overwrite_screener=overwrite_screener,
                                     min_period_end=min_period_end)
+    for key, fdict in prud_only_cands.items():   # gate-orthogonal prudential writes
+        prud = prud_by_key.get(key)
+        if not prud:
+            continue
+        stats["parsed"] += 1
+        stats["prud_only_filings"] += 1
+        stats["rows"] += write_rows(fdict, prud, research_db=research_db,
+                                    overwrite_screener=overwrite_screener,
+                                    min_period_end=min_period_end)
     for url in if_parsed_urls:      # flush done — now cheap-skip these next run
         mark_seen(url)
+    for url in if_prud_only_urls:   # prud-only pass done — sentinel only, real url stays open
+        mark_seen(url + PRUD_ONLY_SENTINEL)
     gcon.close()
     log.info("ingest done: %s", stats)
     return stats
