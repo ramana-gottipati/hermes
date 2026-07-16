@@ -64,6 +64,7 @@ _VALID: dict[str, dict] = {
     "wolfe":        {"symbol": "free"},  # "any wolfe setups / open trades" — open Wolfe waves (S150)
     "methodology":  {"slug": "free"},   # "explain the Wolfe methodology" — strategy explainers (S150 Ph3)
     "rulelab":      {},                  # "did my rule work" — latest rule-lab verdict, read-only (S157-b)
+    "inbox":        {},                  # "what's waiting on me" — the judgment queue, read-only (S160)
     "explain":      {"explain": "slug"},
 }
 
@@ -470,6 +471,19 @@ def route(query: str, conn=None) -> dict | None:
     if rlb:
         _cache_put(q, rlb)
         return rlb
+
+    # (a-1m) Inbox — "what's waiting on me / anything needing my approval" — the judgment
+    #        queue reported IN THE CHAT (Ramana 2026-07-15: communication belongs here, not
+    #        at a URL to remember). ₹0; needs a waiting/approval cue AND an ask cue, so
+    #        "where is the review inbox" stays a navigate. Read-only — Pat never decides.
+    try:
+        from src.pat.inbox_flow import parse_inbox as _parse_inbox
+        inb = _parse_inbox(query)
+    except Exception:
+        inb = None
+    if inb:
+        _cache_put(q, inb)
+        return inb
 
     from src.pat.understand import validate_intent, parse_fallback
 

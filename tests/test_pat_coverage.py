@@ -111,6 +111,9 @@ PAT_DATA: dict[str, str] = {
     "shp":              "filings",       # per-symbol shareholding QoQ deltas (S150)
     "wolfe-scan":       "wolfe",         # currently-open Wolfe setups inline (S150)
     "rule-lab":         "rulelab",       # latest rule-lab gauntlet verdict inline (S157-b)
+    "inbox":            "inbox",         # what's waiting on the human, inline (S160 — was
+                                         # EXPLAIN-only: Pat could define "review inbox" but
+                                         # not say what sat in it, so nothing ever told him)
     "strategy-ref":     "methodology",   # plain-language strategy explainers (S150 Phase 3)
 }
 
@@ -130,7 +133,6 @@ PAT_EXPLAIN: dict[str, str] = {
     "capture-map":      "up_capture",       # up/down-capture behaviour
     "rsband":           "rs_band",          # the relative-strength band (support/resistance)
     "rrg":              "rs_ratio",         # the RRG map plots RS-Ratio × RS-Momentum
-    "inbox":            "review_inbox",     # the human-verification queue + judgment corpus
 }
 
 

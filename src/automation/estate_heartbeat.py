@@ -207,6 +207,27 @@ def compose(conn: Optional[sqlite3.Connection] = None, *,
         crit = _crit_count(c)
         crit_part = f"crit {crit}" if crit is not None else "crit n/a"
 
+        # The OWNER NUDGE (S160, Ramana-directed 2026-07-15: "I prefer to have communication
+        # take place here in the chat"). The Review Inbox had been accumulating asks for him —
+        # AI briefs, rule-lab verdicts, tag proposals — while NO channel said so: Pat could
+        # only define the term, the bot never mentioned it, and this DM (the one line he reads
+        # every morning) was silent. It is no longer. Deliberately a COUNT, not the content:
+        # the DM stays one line, and judging happens on the owner-gated lens. Wording is
+        # single-sourced from inbox_flow.KIND_WORDS so the DM and Pat can never disagree.
+        # NOT a flag: work waiting on a human is a normal state, never an estate fault.
+        waiting_n = None
+        try:
+            from src.automation import review_inbox as _RI
+            waiting_n = len(_RI.pending(c))
+        except Exception:
+            waiting_n = None
+        if waiting_n is None:
+            wait_part = "inbox n/a"
+        elif waiting_n == 0:
+            wait_part = "inbox clear"
+        else:
+            wait_part = f"{waiting_n} waiting on you"
+
         cap = float(cap_inr) if cap_inr is not None else CL.DEFAULT_CAP_INR
         try:
             cost = CL.cap_status(cap_inr=cap, conn=c)
@@ -223,10 +244,10 @@ def compose(conn: Optional[sqlite3.Connection] = None, *,
 
         verdict = _VERDICT[max(_FLAG_ORDER[f] for f in flags)]
         line = " · ".join([f"estate {verdict}", f"board {board}",
-                           *fresh_parts, crit_part, cost_part])
+                           *fresh_parts, crit_part, wait_part, cost_part])
         line = line.replace("\n", " ")  # belt-and-braces: the contract is ONE line
         return {"verdict": verdict, "line": line, "board": board, "freshness": fresh,
-                "crit": crit, "cost": cost, "today": today}
+                "crit": crit, "waiting": waiting_n, "cost": cost, "today": today}
     finally:
         if own:
             c.close()

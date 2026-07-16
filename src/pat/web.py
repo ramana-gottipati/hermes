@@ -1015,6 +1015,32 @@ def _overdue_flow(conn, event: str = "") -> str:
     return "".join(out)
 
 
+# ── inbox flow ("what's waiting on me" — the queue reports itself) ───────────
+# Ramana 2026-07-15: communication belongs in the chat, not parked at a URL he has to
+# remember. Pat REPORTS the queue; it never decides — judging stays a deliberate act on
+# the owner-gated lens (canon carries a human signature).
+
+def _inbox_flow(conn) -> str:
+    from src.pat.inbox_flow import waiting as _waiting, summary_phrase as _phrase
+    w = _waiting(conn)
+    link = _esc(w["link"])
+    if not w["total"]:
+        return (f"<p><b>Nothing is waiting on you.</b> When the machine drafts something that "
+                f"needs your sign-off — an event brief, a rule-lab verdict, a tag proposal — "
+                f"it lands in the <a href='{link}'>Review inbox</a> and I'll say so here.</p>")
+    rows = "".join(
+        f"<li>{_esc(i['title'])} <small>· {_esc(i['created_at'][:10])}</small>"
+        + (f" · <a href='{_esc(i['evidence_url'])}'>evidence</a>" if i.get("evidence_url") else "")
+        + "</li>"
+        for i in w["items"])
+    more = (f"<p><small>…and {w['total'] - len(w['items'])} more.</small></p>"
+            if w["total"] > len(w["items"]) else "")
+    return (f"<p><b>{_esc(_phrase(w))}.</b></p><ul>{rows}</ul>{more}"
+            f"<p><small>Nothing here counts until you sign it — approve or reject on the "
+            f"<a href='{link}'>Review inbox</a>. I can report the queue, but I never decide "
+            f"it.</small></p>")
+
+
 # ── rule-lab flow (the latest gauntlet verdict, read-only) ───────────────────
 # "did my rule work / rule lab verdict / test my rule" — the newest
 # review_items(kind='rule_verdict') payload, in the ledger's own vocabulary. Composing/
@@ -2904,7 +2930,7 @@ _FLOW_LABEL = {"accumulation": "Accumulation setups", "rs": "RS leaders",
                "fundamentals": "Screen by fundamentals", "movers": "Today's movers",
                "index": "Index performance", "seasonal": "Seasonal base-rate ranking",
                "overdue": "Overdue vs own cadence", "navigate": "Where to find it",
-               "rulelab": "Rule-lab verdict",
+               "rulelab": "Rule-lab verdict", "inbox": "Waiting on you",
                "news": "Headlines", "whatchanged": "What changed",
                "participants": "FII positioning", "rotation": "RS rotation state",
                "internals": "Market breadth", "filings": "Filings for a stock",
@@ -3108,6 +3134,8 @@ def _free_text(conn, q: str):
             body = _methodology_flow(conn, p.get("slug", ""))
         elif f == "rulelab":
             body = _rulelab_flow(conn)
+        elif f == "inbox":
+            body = _inbox_flow(conn)
         if body is not None:
             body = body + _freshness_bar(conn, f)   # §9.8 freshness + coverage footer
             # single-name flows get proactive 'ask next' lens chips on the same name
@@ -3427,6 +3455,9 @@ def render_pat(flow: str = "", explain: str = "", q: str = "",
     elif flow == "rulelab":
         body = _rulelab_flow(conn)                        # latest rule-lab verdict (S157-b); read-only
         fb_ctx = {"query": q, "flow": "rulelab", "params": {}, "source": "flow"}
+    elif flow == "inbox":
+        body = _inbox_flow(conn)                          # what's waiting on the human (S160); read-only
+        fb_ctx = {"query": q, "flow": "inbox", "params": {}, "source": "flow"}
     elif q:
         # in-thread follow-up resolution (inert for tid=""). TWO kinds, in priority:
         #   (1) CONJUNCTIVE refine of a prior LIST ("…with credible management" after
