@@ -165,6 +165,17 @@ def test_unclassified_discipline():
         assert why.strip(), "UNCLASSIFIED_FEEDS[%r] has no reason" % key
 
 
+def test_every_unclassified_feed_declares_a_retirement_path():
+    """§7.7(b): each vendor-ToS feed held out of FEEDS must name a RETIRE: condition tied to its
+    primary-source replacement, so remediation stays trackable (Ramana ratified Option B,
+    2026-07-16). A new UNCLASSIFIED feed cannot be added without declaring how/when it retires."""
+    missing = sorted(k for k, why in fm.UNCLASSIFIED_FEEDS.items() if "RETIRE:" not in why)
+    assert not missing, (
+        "UNCLASSIFIED_FEEDS entries with no RETIRE: condition: %s - every vendor-ToS feed held out "
+        "of FEEDS must declare its retirement path (or that it is a standing exclusion)" % missing
+    )
+
+
 # --------------------------------------------------------------------------------------
 # 3. Fence pins (never soften a ledger verdict)
 # --------------------------------------------------------------------------------------

@@ -2125,6 +2125,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 169 (cont.) — 2026-07-16 — §7.7 Option-B guards (a)+(b) SHIPPED (import gate + retirement paths)
+Executing the §7.7 B follow-ons Ramana ratified; both authored in isolated lane worktrees (the S169 convention).
+- **(a) vendor-ToS IMPORT gate** (`53e7762`, `tests/test_feed_manifest.py`): AST assertion that no `src/web/*.py` imports any of the 6 `UNCLASSIFIED_FEEDS` fetchers (screener · fundamentals_history · shareholding_history · concalls · news_feed · enrich). Key/table substring scans are useless here — the keys name legit routes (/dash/screener), the CCI lens, an unrelated `_enrich` helper, and primary-sourced table displays — so it is import-based. Passes today; teeth test; proven to bite on a real injected import (`dq_banner.py`), reverted byte-exact.
+- **(b) retirement paths + TODO resolved** (this commit): each `UNCLASSIFIED_FEEDS` entry now carries a `RETIRE:` condition tied to its primary-source replacement (fundamentals_xbrl · shareholding_xbrl · concall_bse.py; news_feed = a standing exclusion, no replacement exists; enrich rides screener); both `TODO(D134 LANE-R + Ramana)` comments resolved to record Option B (NO 5th class). New ratchet `test_every_unclassified_feed_declares_a_retirement_path` fails the suite if any entry lacks a RETIRE:. Notes/comments only — zero logic change.
+- Remaining §7.7 B: (c) bring the primary XBRL/BSE replacements into FEEDS with full DQ · (d) the tiny `auto_analyst.py:16` comment PROPOSAL→RATIFIED.
+
 ### Session 169 — WRAP (2026-07-16) — telegram test-seam · plan §7 ratified · worktree convention shipped
 One "continue here" arc, everything on origin. Four deliverables (full records in the Session 169 / 169-cont entries below):
 - **Telegram `/inbox` test-seam CLOSED** (`34407d4`): the `db` fixture shared one `:memory:` conn across the `run_in_executor` worker-thread boundary → `check_same_thread` raised, `waiting()` swallowed it into an empty queue → 5/13 protected nothing. Fixture now binds a `tmp_path` file, fresh conn per call. 13/13, no assertion weakened.

@@ -32,10 +32,11 @@ reason, instead of being defaulted to 'public-archive'. Today these are the Scre
 sources (VENDOR-TOS in docs/data-licensing-decision.md s3, under Guardrail-#8 remediation via
 the XBRL migration) and the RSS news feed ('per-source ToS' in the same doc).
 
-TODO(D134 LANE-R + Ramana): decide the enum treatment for VENDOR-TOS-class sources - either a
-fifth licence_class (e.g. 'vendor-tos-remediating', gated off public surfaces like the restricted
-classes) or keep them out of FEEDS until the XBRL/BSE migrations retire them. Do NOT silently
-move any UNCLASSIFIED key into FEEDS without that decision (a test pins them).
+DECIDED (Ramana, 2026-07-16, plan s7.7 Option B): keep VENDOR-TOS sources OUT of FEEDS until the
+XBRL/BSE migrations retire them - NO fifth licence_class is added. Each UNCLASSIFIED entry below
+carries a RETIRE: condition tied to its primary-source replacement (enforced by a test). Do NOT
+silently move any UNCLASSIFIED key into FEEDS (a test pins them); the §7.7(a) gate additionally
+blocks any src/web import of these fetchers.
 
 SIGNAL VALIDATION STATUSES (mirror docs/strategy-ledger.md verdicts VERBATIM - never soften)
 --------------------------------------------------------------------------------------------
@@ -441,25 +442,33 @@ MIN_FEEDS: int = 22
 
 # --------------------------------------------------------------------------------------
 # UNCLASSIFIED feeds - catalogued but deliberately NOT in FEEDS (no honest enum fit).
-# TODO(D134 LANE-R + Ramana): see the module docstring - decide a fifth class or retire.
+# DECIDED (Ramana, 2026-07-16, s7.7 Option B): NO fifth class - keep out of FEEDS until the
+# XBRL/BSE migrations retire them. Each entry carries a RETIRE: condition (test-enforced).
 # --------------------------------------------------------------------------------------
 
 UNCLASSIFIED_FEEDS: dict = {
     "screener": "Screener.in current-snapshot fundamentals scrape (fundamentals table). "
     "VENDOR-TOS in docs/data-licensing-decision.md s3; Guardrail-#8 remediation via "
-    "fundamentals_xbrl. Not public-archive (vendor compilation), not licensed (no licence held).",
+    "fundamentals_xbrl. Not public-archive (vendor compilation), not licensed (no licence held). "
+    "RETIRE: when fundamentals_xbrl sources the fundamentals table (Guardrail-#8 migration complete).",
     "fundamentals_history": "Screener.in historical financials scrape (research.db). Same "
-    "VENDOR-TOS class; being replaced by fundamentals_xbrl + the Phase-3 XBRL backfill.",
+    "VENDOR-TOS class; being replaced by fundamentals_xbrl + the Phase-3 XBRL backfill. "
+    "RETIRE: when the Phase-3 XBRL backfill + fundamentals_xbrl cover the research.db historicals.",
     "shareholding_history": "Screener.in shareholding-section scrape. VENDOR-TOS wrapper over "
-    "an underlying PUBLIC-RECORD filing; replaced going-forward by shareholding_xbrl.",
+    "an underlying PUBLIC-RECORD filing; replaced going-forward by shareholding_xbrl. "
+    "RETIRE: when shareholding_xbrl covers the shareholding history.",
     "concalls": "Concall CORPUS fetcher - transcript PDFs are BSE public record, but the "
     "DISCOVERY index comes via Screener.in (VENDOR-TOS per docs/data-licensing-decision.md); "
-    "concall_bse.py is the de-Screener discovery path.",
+    "concall_bse.py is the de-Screener discovery path. "
+    "RETIRE: when concall_bse.py fully replaces the Screener discovery index.",
     "news_feed": "Indian-market RSS headlines (sent_news). docs/data-licensing-decision.md s3 "
     "marks news_* 'per-source ToS' - NOT blessed as public-record; redistributed headlines "
-    "would need a licensed news API. No honest fit in the v1 enum.",
+    "would need a licensed news API. No honest fit in the v1 enum. "
+    "RETIRE: only on adoption of a LICENSED news API - no primary-source replacement exists, so "
+    "held out INDEFINITELY otherwise (a standing exclusion, not a migration).",
     "enrich": "Company-profile dossier (company_profile) - Gemini synthesis grounded on web "
-    "text fetched via screener.py (inherits the VENDOR-TOS caveat); paused at the Gemini cap.",
+    "text fetched via screener.py (inherits the VENDOR-TOS caveat); paused at the Gemini cap. "
+    "RETIRE: rides screener - drops when screener.py's web-text fetch is removed; PAUSED meanwhile.",
 }
 
 #: HTTP-using src/automation modules that are NOT acquisition feeds (the ratchet scan skips them).
