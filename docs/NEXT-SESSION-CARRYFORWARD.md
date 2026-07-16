@@ -382,11 +382,11 @@ GNPA proxy** (defer true ALM) · **suppress-half folds into the scorer**. **Patt
 3. **Parked — do if feasible:** PROJECT_STATE + this carry-forward **reconcile** (OWED) · **D1-F4** ignition
    warm-up guard (converge with Codex first, then scoring + VPS `--relabel`) · Wolfe D4 / harmonic-zigzag
    D7-F1 / prereg D5-F5 (sibling-hot).
-4. **Verify the 14:01 nightly chain** — **PARTIAL (S154):** the chain is ONE unit (`hermes-bhavcopy.service`
-   with chained `ExecStart`s: bhavcopy→signals→…→stock_rs→cpr→reversal). **`stock_rs.py`** (deployed Tue
-   13:21 UTC) DID run in Tue's 14:01 chain → `Result=success`, exit 0, clean journal ✅. **`signals.py` was
-   deployed Tue 16:00 — AFTER that run**, so its incremental path is STILL unexercised; **first run = the
-   next 14:01 UTC chain.** Re-check `journalctl -u hermes-bhavcopy --since "14:00"` + exit 0 after it fires.
+4. ~~**Verify the 14:01 nightly chain**~~ **✅ DONE (S155-b) — CLOSED.** The chain is ONE unit
+   (`hermes-bhavcopy.service`, chained ExecStarts bhavcopy→signals→…→stock_rs→cpr→reversal). Its first
+   incremental-path run on the newly-deployed `signals.py` fired **Wed 2026-07-15 14:01 → 14:11:12,
+   `Result=success` `ExecMainStatus=0`**, clean journal, no tracebacks. `stock_rs.py` was already proven
+   on the Tue run. **All 4 codex VPS activations are now verified through a real nightly cycle.**
 
 **⚠ STANDING CONSTRAINTS:** **SHARED-WORKTREE HAZARD** — multiple sessions on ONE `D:\Hermes` tree on `main`
 → diverged + churning. **Docs edits = plumbing-on-origin** (`git show origin/main:f` → edit → `hash-object -w`
