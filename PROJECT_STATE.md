@@ -2128,6 +2128,12 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 169 (cont.) — 2026-07-17 — rf re-cut: laptop PREP done (prereg sealed) — box run still GATED
+Ramana: "start the rf re-cut per the S170 plan." The plan's own gate ("do NOT start until both clear") is intact: (1) the union lane is still landing `research/` commits (winding down — robustness COMPLETE) and (2) this is the laptop — `data/research.db` is a 12 KB schema shell, so the §5 re-run is not reproducible here. So I did the laptop-safe half the plan supports (§5 step 1 + the §1 inventory re-verify), zero numbers moved, no shared research module touched:
+- **Pre-registered the predicted verdict-diff, hash-frozen:** `docs/prereg/d142-rf-recut-prereg.md`, SHA-256 `44fe16d85a5e2daa6e4a352700901cbc7b71711444a7f8862f20d7a2582c644a` (recorded in the plan doc + here so any edit voids it). Freezes plan §3's direction (the low-vol 0.89 hurdle absorbs a ~0.40 penalty → most higher-vol books' margins WIDEN; LOWVOL_MOM neutral so the S163 signed NEW-BENCHMARK canon is safe; QMV the one −0.03→+0.11 fail→pass crossing; no DSR pass↔fail) + explicit falsification criteria (any flip = Ramana-only escalation, plan §4 #2).
+- **Re-verified the §1 site inventory** against current code: all 8 files still compute raw return/vol with NO rf subtracted, D142 disowns present; minor line drift (attribution `deflated_sharpe` :321→:314, `retvol_ann`→:368; cost_realism :144→:148) recorded so the box run is mechanical. The shared `metrics.py`/`factory.py` sites are UNTOUCHED since S170 — the re-cut is genuinely still owed, NOT overtaken by the union lane's S174 TRI recut (TRI ≠ rf).
+- **Remaining (box-only, GATED):** re-cut all §1 sites in ONE commit + the hurdle + the S167 Sortino downside-deviation correction, on the VPS `.venv-research`; diff every ratio old→new; escalate the QMV flip to Ramana. Run when the union lane clears `research/`.
+
 ### Session 177 — 2026-07-17 — UI-revamp arc P0: /dash/strategy-ref governance leak CLOSED (P0-5, the last open audit P0)
 The site-revamp program (4 phases ratified by Ramana: all four, light-first default; spec = the session's UX-spec artifact,
 grounded in the S127 audit + live curls). **P0 shipped:** `strategies_view._public()` had three sanitizer gaps observed live

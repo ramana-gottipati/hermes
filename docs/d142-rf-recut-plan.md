@@ -21,6 +21,13 @@ backtests (FABLE §0.4 / §4 #6); (2) the re-run needs the VPS research environm
 (`.venv-research` + the full `research.db`/archive) — not reproducible on the laptop
 (local `research.db` is a 12 KB schema shell). **Do not start until both clear.**
 
+**PREP STATUS (2026-07-17, laptop, zero numbers moved):** the predicted verdict-diff is now
+PRE-REGISTERED + hash-frozen — `docs/prereg/d142-rf-recut-prereg.md`, **SHA-256
+`44fe16d85a5e2daa6e4a352700901cbc7b71711444a7f8862f20d7a2582c644a`** (any edit voids the seal). The §1
+inventory below was re-verified against current code (all sites still raw, no rf subtracted; minor line
+drift recorded in the prereg). Both preconditions above remain UNMET, so **the box run was NOT
+executed** — run per §5 against the sealed prereg when the tree quiets + on the VPS `.venv-research`.
+
 ## §1 — The re-cut sites (grep'd inventory, read-only)
 
 Every site computes `mean/sd × √periods` (or hands RAW returns to the Deflated-Sharpe) with **no rf
