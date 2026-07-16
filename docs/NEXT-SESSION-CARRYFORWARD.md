@@ -39,6 +39,12 @@ PROJECT_STATE entries are enough.**
 - Docs: ledger 16Y/16Z/16AA appended · union.md §§3D/3G/4/5/9/10 updated · catalog §G added below · modules
   `union_lab.py` / `union_lab2.py` / `union_ml.py` in `research/explosive_moves/`. All read-only on the box
   (no deploy, no service touch, no timer).
+- **⚠ OWED (found at wrap, box untouched): the strategy-ref deploy of the RS-arc pages.** The BOX's
+  `strategies_view.py` predates the union registration and `/opt/hermes/docs/strategies/` has NO `union.md`
+  — **`/dash/strategy-ref?p=union` is NOT live** (the "served at" line in the Canon paragraph below is repo
+  intent, not box fact). Next quiet window: fork-check `strategies_view.py` (md5, CR-strip both sides) →
+  deploy it + `union.md` (+ any other missing `docs/strategies/*.md` vs HEAD) → writer-safe restart (NOT
+  13:55–14:15 UTC) → live-walk `?p=union`.
 
 
 ## 🆕 2026-07-16 — LANE-FABLE: FABLE-PROTOCOL (model-parity doctrine) SHIPPED + BOOT-WIRED — do NOT redo; kickstart-pick-verify
