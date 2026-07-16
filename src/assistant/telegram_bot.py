@@ -2246,6 +2246,7 @@ BOT_COMMANDS = [
     BotCommand("news_stop",     "Stop posting news to this chat"),
     BotCommand("reset",         "Start a fresh conversation (forget context)"),
     BotCommand("provider",      "Show which LLM provider is active for classifier tasks"),
+    BotCommand("inbox",         "What's waiting on your judgment — briefs, verdicts, tags (owner-only; /inbox briefs to filter)"),
     BotCommand("whoami",        "Show my Telegram user ID"),
     BotCommand("start",         "Show help"),
 ]
