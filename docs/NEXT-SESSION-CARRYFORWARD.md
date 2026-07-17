@@ -10,6 +10,11 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-17 — S191 (verification lane): HEAD `b58ff24` is GATE-GREEN post the multi-lane day (715 passed / 1 skip) AND the 2026-07-10 P1 "VERIFIED-OPEN" block was STALE — AUD-14 / AUD-28 / AUD-12 fully shipped, AUD-22 substantially — reconciled below; do NOT re-chase
+- **Green baseline (proof):** `python -m pytest -q` at `b58ff24` = **715 passed, 1 skipped** (the documented starlette TestClient artifact) — the S188 chrome-gate + S189 mf-wire + S190 rf-recut + D143/D144 landings are mutually consistent; no regression from the 15-commit day.
+- **kickstart-pick-verify catch (queue ③ — ① is owner-gated + the active D143 lane, ② is time-gated Aug-1/Oct-3, both future):** the P1 triage carried ghost-open markers. Traced each to its closing commit — **AUD-14** all 6 fetchers now share `fetch_retry` (`66f7b16` "last sibling" + `b00bfa4` corp_actions + deals `742b12f`) · **AUD-28** setup-news.sh delegates units to `install-systemd.sh`, enable-not-start (S123) · **AUD-12** survivorship-correct rs_rank `0f71949` · **AUD-22** PIT re-validated `891a50f` (research/cci residual only). All carry passing gates. P1 block reconciled to reality.
+- **Genuinely-open + non-colliding + not owner/box-gated remainder** (for a future STRONG pick): Wolfe §C runnable-PIT backtest / D95 tape-wiring / G-scoring PIT (run-book `docs/wolfe-NEXT-SESSION.md`) · X-04 overnight-split+pump-flag · the SSE live-tape bus face. Owner/box/time-gated items unchanged.
+
 ## ⚠ 2026-07-17 — FLAG (S187, cross-lane): the LEDGER holds TWO live tag collisions — `16AX` ×2 (D143 STEADY-25-ballast @~3409 vs S189 mf-wire @~3417) and `16AY` ×2 (D143 dd-levers @~3446 vs S190 rf-recut @~3464) — plus one small observed S189 defect; S189's mf-wire itself is VERIFIED GOOD
 - **The collisions (both pairs already in `docs/strategy-ledger.md` on origin):** inbound citations make one side of each pair expensive to move — S190's `16AY` is cited by the label-gate's new basis-citation category (`c062299`) and S189's `16AX` is the arc-closer cited as 16AQ→…→16AX. **Recommend: renumber the two D143 entries** (STEADY-25 ballast + dd-levers → the next free tags) in ONE atomic commit that also fixes their inbound refs, then add a **tag-uniqueness assertion to `scripts/doc_hygiene_gate.py`** so a duplicate `### 2026-…` heading fails every commit — this is the tag-race's 2nd+3rd recorded firing after the 16AO precedent; the gate is the durable fix.
 - **S189 defect (small, observed on the box):** dateless mf redemption rows (feed `exDate '-'` → `ex_date` NULL) bypass the UNIQUE key (SQLite NULLs compare distinct) — 2 IDENTICAL `AXISBPSETF|OTHER` rows exist after ≤2 manual runs and every nightly mf pull will re-insert them. Harmless to factors (`load_factors` reads SPLIT/BONUS only) but junk accumulates nightly. Fix shape: skip or date-coalesce dateless OTHER rows in the mf class.
@@ -1563,14 +1568,13 @@ to merge at the branch level. The only uncommitted work, and its verdict:
 
 ## 📋 OPEN-ITEMS ASSESSMENT (2026-07-10 triage lane, updated post-S104)
 **P1 VERIFIED-OPEN (ranked):** ~~AUD-06/07~~ **✅ S104** · ~~AUD-11~~ **✅ S104** ·
-**AUD-14** throttle→"holiday" class sweep (5 fetchers; `RetryableFetchError` lives only in
-`fno_oi.py`; deploy-window-unsafe near 14:00 UTC — pick a morning) · **AUD-22** research
-replication bypasses the PIT layer (route through `fundamentals_asof.py`) · ~~**AUD-25**
+~~**AUD-14** throttle→"holiday" class sweep~~ **✅ CLOSED (verified S191): all 6 fetchers share `fetch_retry` — corp_actions `b00bfa4`, equity_list `66f7b16` ("last sibling"), deals via AUD-53 `742b12f`; `test_aud14_*`+`test_aud53_deals` green** · ~~**AUD-22** research
+replication bypasses the PIT layer~~ **✅ substantially CLOSED S123 (`891a50f`, PIT re-validated t=1.99→1.80; `test_v1_pit` green); only the research/cci deploy residual (`3c7e5a4`) remains** · ~~**AUD-25**
 feed-liveness covers 4/12 feeds~~ **✅ MOSTLY CLOSED S123 (`c1405dd`): regime date-guard +
 news/concalls → 10 feeds; fundamentals/shareholding recency + bhavcopy-gap DEFERRED (reasons in
-audit doc)** · **AUD-28** setup-news.sh heredoc regression (do with AUD-27
-remainder) · ~~**AUD-37** /v1 metering under-records~~ **✅ DONE S123 (`9e53aae`) + quotas (`76694e1`)**
-· **AUD-12** rs_rank survivorship (finder-only — verify first). **P2/P3:** AUD-45..117 batch
+audit doc)** · ~~**AUD-28** setup-news.sh heredoc regression~~ **✅ CLOSED S123: delegates units to `install-systemd.sh` (enable-not-start); both AUD-28+AUD-95 hazards removed (header-documented)**
+· ~~**AUD-37** /v1 metering under-records~~ **✅ DONE S123 (`9e53aae`) + quotas (`76694e1`)**
+· ~~**AUD-12** rs_rank survivorship~~ **✅ CLOSED (verified S191): `0f71949` survivorship-correct rs_rank via PIT security_master; `test_stock_rs_survivorship` green**. **P2/P3:** AUD-45..117 batch
 list unchanged (AUD-101 UNBLOCKED). **BLOCKED (external/Ramana):** AUD-42/58/59/62 ·
 Wolfe point-4-strength (needs his worked chart) · E-08/E-09 (D-07 depth) · D-09/D-10
 (endpoint discovery). **PROJECT_STATE §Open highlights:** charting D71/D72 Phases 3-5 ·
