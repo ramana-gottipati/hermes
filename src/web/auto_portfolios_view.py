@@ -50,10 +50,19 @@ router = APIRouter()
 PORTS = ("STEADY-25", "CRAFTSMAN-25", "PACER-25", "SPRINTER-25")
 COLORS = {"STEADY-25": "#3fb950", "CRAFTSMAN-25": "#b19cf7", "PACER-25": "#58a6ff",
           "SPRINTER-25": "#d29922", "N500": "#8b97a7"}
-_NOTES = {"STEADY-25": "quarterly · large-cap · NET-cost survivor (the champion)",
-          "CRAFTSMAN-25": "monthly · quality-momentum blend (strength + delivery + calm) · gross lens",
-          "PACER-25": "monthly · risk-adjusted momentum · gross lens",
-          "SPRINTER-25": "monthly · classic 12-mo momentum · gross lens"}
+_NOTES = {"STEADY-25": "quarterly · large-cap · the ONLY book fundable net of participation cost (the champion)",
+          "CRAFTSMAN-25": "monthly · quality-momentum blend (strength + delivery + calm) · ⚠ GROSS-LENS DEMONSTRATION — not fundable net of cost",
+          "PACER-25": "monthly · risk-adjusted momentum · ⚠ GROSS-LENS DEMONSTRATION — not fundable net of cost",
+          "SPRINTER-25": "monthly · classic 12-mo momentum · ⚠ GROSS-LENS DEMONSTRATION — not fundable net of cost"}
+
+# Tier D (D143 strategy-families framework): the three monthly runners are flat-cost GROSS lenses —
+# their headline CAGR collapses net of realistic participation cost. Shown for education, never funded.
+GROSS_LENS = {"PACER-25", "SPRINTER-25", "CRAFTSMAN-25"}
+_NET_NOTE = {
+    "PACER-25": "Its RISKADJ core: gross 35.6% CAGR → NET −1.4% at realistic participation cost (cost_realism.csv). Not fundable.",
+    "SPRINTER-25": "Flat-cost 12-mo-momentum lens; net of participation cost this family collapses like PACER (RISKADJ 35.6%→−1.4%). Not fundable.",
+    "CRAFTSMAN-25": "Flat-cost quality-momentum lens; net of participation cost this family collapses like PACER (RISKADJ 35.6%→−1.4%). Not fundable.",
+}
 
 # The inspiration story (Ramana, S132h-b): the lineage behind the three runners,
 # told plainly — century-old effects, honest names, admitted only after re-proving
@@ -295,6 +304,11 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
                  f"a textbook Sharpe would.'>Return/vol <b>{st['retvol']:.2f}</b> "
                  f"(N500 {bt['retvol']:.2f})</span>"
                  f"<span>MaxDD <b>{st['dd']:.0f}%</b> (N500 {bt['dd']:.0f}%)</span></div>")
+        if pname in GROSS_LENS:
+            stats += ("<div style='margin-top:6px;padding:6px 10px;border-left:3px solid #f85149;"
+                      "background:rgba(248,81,73,.08);color:#f85149;font-size:.85em;border-radius:4px'>"
+                      "⚠ <b>GROSS-LENS DEMONSTRATION</b> — the CAGR above is <b>flat-cost</b>; this book "
+                      "is <b>NOT fundable</b> net of participation cost. " + _NET_NOTE[pname] + "</div>")
 
     since_chips = " · ".join(
         ("<b>" if (since or "2012") == (y or "2012") else "")
@@ -399,10 +413,13 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
         + _STORY
         + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — all four runners are public, bookish families (provenance map: <code>docs/strategies/origins.md</code>); none is proprietary. Ramana-original and house-proprietary strategies live on <a href='/dash/strategist'>Strategist</a>.</div>"
         + "<div class='honesty'>NAV is <b>flat-cost</b> (0.3%/side on the churned fraction, "
-        "labeled) and marked at rebalance dates. STEADY-25 is the only family that also "
-        "survives PARTICIPATION-cost reality (net ~1.02 @₹50cr); PACER-25 and SPRINTER-25 "
-        "are gross selection lenses shown for comparison — their real-world size capacity is "
-        "small. History is a reconstruction: the SAME frozen rule applied point-in-time from "
-        "2019 — no hand edits, ever. Full doctrine: <code>docs/strategy-ledger.md</code>. "
+        "labeled) and marked at rebalance dates. <b>STEADY-25 is the ONLY book fundable net of "
+        "participation cost</b> (net ~1.02 @₹50cr, the S163-signed benchmark). <b>PACER-25, "
+        "SPRINTER-25 and CRAFTSMAN-25 are GROSS-LENS DEMONSTRATIONS — not fundable net of cost</b>: "
+        "their flat-cost headline collapses under realistic participation cost (e.g. the RISKADJ core "
+        "of PACER-25 goes 35.6% gross → −1.4% net; <code>cost_realism.csv</code>). They are shown for "
+        "education, never as investable portfolios. History is a reconstruction: the SAME frozen rule "
+        "applied point-in-time from 2019 — no hand edits, ever. Full doctrine: "
+        "<code>docs/strategy-ledger.md</code> · <code>docs/strategy-families-framework.md</code> (D143). "
         "Not investment advice.</div></div>")
     return HTMLResponse(_shell("Model portfolios", body, active="model-portfolios", wide=True))

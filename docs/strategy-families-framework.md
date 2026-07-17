@@ -215,9 +215,11 @@ owner-ratified step.
 
 ## §8 Phase 4 — the RE-ORGANIZED MODEL PORTFOLIO (DRAFT proposal, awaiting ratification)
 
-**Status: a DESIGN proposal built from the §3a inventory. It changes NOTHING live yet** — the model-book
-estate (`auto_portfolios.py`, `/dash/model-portfolios`) is untouched until Ramana ratifies; then a
-separate session implements it through `docs/SURFACE-PLAYBOOK.md`.
+**Status: TIER STRUCTURE RATIFIED by Ramana (2026-07-17). Action #1 (relabel Tier D) SHIPPED** — the
+three gross-lens books (PACER-25 · SPRINTER-25 · CRAFTSMAN-25) on the live `/dash/model-portfolios` now
+carry an explicit "GROSS-LENS DEMONSTRATION — not fundable net of participation cost" banner + the RISKADJ
+gross→net evidence (35.6%→−1.4%), and STEADY-25 is labelled the ONLY fundable book. Actions #2–#4 (pin
+STEADY net CAGR · wire Tier B ballast overlay · stage Tier C) remain, each owner-ratified before shipping.
 
 **The honest headline (say it first, above the structure):** the portfolio you can *actually run today* is
 **modest** — a defensive low-vol-momentum core (~16–18% net, capacity ~₹100cr) plus bond/gold ballast for
