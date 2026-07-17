@@ -3373,3 +3373,34 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   loosened threshold. Future mf-feed ingest MUST covered-check ±5d or it double-adjusts (manifest note).
 - **Provenance:** dry-run + apply + verification logs in-session (box) · commits this lane · box
   writes = the 46 idempotent CA inserts only (S182/S184/S185 precedent).
+
+### 2026-07-16AW — S186: BOTH REPRO INSTRUMENTS RE-ANCHORED on the fully-repaired archive (the 16AS loop's 3rd firing) — portfolio_mix's gate ported to the bounded policy; the two engine lineages CROSS-CHECK EQUAL; and the repaired archive lands K30's headline back at the seal (115.66× vs 115.69×)
+
+- **Verdict: INSTRUMENT MAINTENANCE (no verdict moved, no spec touched).** Sequenced deliberately AFTER
+  the S185 (16AU, 117 tape-CLEAN) and S187 (16AV, 44 official-archive) heals settled — the claim
+  markers held across three concurrent lanes (S187's entry: "the 16AS loop is deliberately not fired
+  by this lane; S186's pushed claim owns the post-heal").
+- **`portfolio_mix.py` gate PORTED to the 16AS-loop policy** (it was stale AND unbounded — the
+  pre-16AS defect class, flagged 16AU): hard gate = ₹1Cr MULT only over legs ≤ 2026-04-01 (±0.006);
+  seal-time full-period values (26.4/115.69 · 25.5/99.03) demoted to disclosed provenance;
+  `PM_DERIVE=1` = its recorded re-derivation loop. Study battery/grid unchanged.
+- **THE 16AW ANCHORS (post-16AV archive, legs ≤ 2026-04-01, mult):** U **19.62** · B14 **25.14** ·
+  C40 **39.75** · A1 **87.75** · A2 **86.59** · K30 **100.73** — embedded in `union_forward.py`
+  (anchor history now 16AS→16AU→16AW) and `portfolio_mix.py` (K30/A2).
+- **CROSS-CHECK EQUAL:** the two modules' independent engine copies produce IDENTICAL bounded mults
+  for K30 (100.73×) and A2 (86.59×) — the anchor set is not an implementation artifact.
+- **THE NEAR-CANCELLATION (measure before narrating):** headline slice ≤ seal date on the FULLY
+  repaired archive — U 25.35 · B14 27.87 · C40 45.57 · A1 100.57 · A2 99.24 · **K30 115.66× vs the
+  seal-time 115.69× (−0.03%)**; sealed-era TR K30 27.25/131.69 (record 27.3/131.80) · A2 26.35/114.03
+  (record 26.3/113.65). The 16AU drift (+2.9% K30, from un-quarantining the tape-CLEAN set) and the
+  16AV heals (big old-equity factors: ITC F=15, RUCHINFRA F=40) net out to ~zero on the sealed window —
+  the sealed records and the repaired archive now agree to rounding. Base books settle ~2–3% of
+  20y terminal wealth below their seal-time headlines (the widened universe's dilution), ladder order
+  unchanged throughout.
+- **Residue for the record:** 20 AMBIGUOUS remain archive-absent/conflicted (16AV's honest refusals,
+  incl. SATYAMCOMP by design) · the `?index=mf` official ETF-class CA archive (16AV discovery) is used
+  for resolution but NOT yet wired into the nightly `corp_actions.py` fetcher — the durable upstream
+  fix for the 16AQ hole; queued.
+- **Provenance:** derive logs `/tmp/pm_derive_s186.log` + `/tmp/uf_derive_s186.log` · full verification
+  runs `/tmp/uf_full_s186.log` + `/tmp/pm_full_s186.log` (same session) · commit `1042299`. Box
+  read-only throughout (no DB writes by this lane).

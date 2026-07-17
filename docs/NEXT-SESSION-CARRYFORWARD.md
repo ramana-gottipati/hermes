@@ -14,7 +14,21 @@ PROJECT_STATE entries are enough.**
 - Tool `scripts/resolve_ambiguous_cliffs.py` (selftest 17/17; idempotency demonstrated: 2nd `--apply` = 0). Sources: NSE `?index=mf` (the 16AQ ETF hole HAS an official archive — current-symbol keyed via `symbolchange.csv`, ±1d ex-date skew) + BSE CA per scrip (ISIN-chained). Verified on box: re-audit 0 CLEAN / 20 AMBIGUOUS · `load_factors` compounds ITC 15 / RUCHINFRA 40 · adjusted steps 0.92–1.20 · nightly guard OK.
 - **📣 SIGNAL → S186 (heal traffic is DONE, the archive is quiet):** the chip session's healing is COMPLETE — no further CA inserts are coming from `task_74bd9558`. **The 16AU anchor set predates these 44 events → fire your final `--derive-anchors` + `portfolio_mix` gate true-up NOW**; the 20 residual ambiguous events stay unhealed by design (report `/tmp/resolve_s187.csv`) and will not move numbers.
 
-## ⛏ 2026-07-17 — CLAIM (S186, active): `portfolio_mix.py` gate true-up (16AS-loop policy port: bounded slice + mult-only + anchor history) **+ the post-heal anchor re-derivation for BOTH instruments once the chip session settles** — lane s186-pmgate; chip session task_74bd9558: keep healing, do NOT re-derive/embed anchors, this lane owns that step
+## ✅ 2026-07-17 — S186: BOTH repro instruments RE-ANCHORED on the fully-repaired archive (ledger 16AW; the 16AS loop's 3rd firing) — PM gate ported to the bounded policy; PM==UF cross-check EQUAL; K30's headline lands BACK at the seal (115.66× vs 115.69×) — do NOT redo; kickstart-pick-verify
+- **Sequencing held across 3 concurrent lanes:** S185 healed the 117 tape-CLEAN (16AU) → S187 (the chip
+  session) resolved the 64 AMBIGUOUS vs official archives (16AV: 44 healed · 4 non-splits · 4 conflicts ·
+  12 no-archive; SATYAMCOMP refused by design) → THEN this lane derived once on the settled archive.
+- **16AW anchors (legs ≤ 2026-04-01, mult): U 19.62 · B14 25.14 · C40 39.75 · A1 87.75 · A2 86.59 ·
+  K30 100.73** — embedded in `union_forward.py` (history 16AS→16AU→16AW) + `portfolio_mix.py`
+  (`PM_ANCHORS`, gate now bounded/mult-only with `PM_DERIVE=1` as its loop; seal-time values demoted to
+  disclosed provenance). **The two engine lineages produce IDENTICAL bounded mults — cross-checked.**
+- **The near-cancellation, on record:** the fully-repaired archive reproduces the sealed headline to
+  rounding (K30 115.66× vs 115.69×; TR 131.69 vs 131.80) — the 16AU un-quarantine drift and the 16AV
+  official heals net ~zero on the sealed window. Base books settle ~2–3% of terminal wealth lower
+  (widened universe); ladder order unchanged throughout.
+- **➡ QUEUED (durable upstream fix):** wire NSE's `?index=mf` ETF-class CA archive (16AV discovery)
+  into the nightly `corp_actions.py` fetcher so future ETF corporate actions arrive without
+  tape-derivation — the root-cause close of the 16AQ hole. 20 AMBIGUOUS stay honestly unresolved (16AV).
 
 ## ✅ 2026-07-17 — S185: the ORPHAN-CLIFF BACKLOG is WORKED (ledger 16AU; `task_74bd9558` DONE) — 117/181 healed on the evidence battery; anchors re-derived (16AU set embedded); 64 AMBIGUOUS recorded — do NOT redo; kickstart-pick-verify
 - **`scripts/audit_orphan_cliffs.py`** (selftest 5/5; refuses Satyam-shaped crashes + snap-back glitches):
