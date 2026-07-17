@@ -172,7 +172,11 @@ FEEDS: dict = {
               "subdivisions were backfilled (scripts/backfill_etf_splits.py; proof "
               "scripts/verify_etf_splits.py); the nightly chk_split_cliffs guard watches for "
               "recurrence. Gold ETFs are also SELECTABLE by the sealed union universe "
-              "(16AR; owner task task_7a70ad77).",
+              "(16AR; owner task task_7a70ad77). S187/16AV: the ETF-class CA rows DO exist "
+              "officially — corporateActions ?index=mf (current-symbol keyed; ex-date can sit "
+              "±1d off the NSE tape) — any future mf ingest MUST covered-check ±5d against "
+              "existing corporate_actions rows or it double-adjusts "
+              "(resolver: scripts/resolve_ambiguous_cliffs.py).",
     ),
     "indexes": Feed(
         key="indexes",

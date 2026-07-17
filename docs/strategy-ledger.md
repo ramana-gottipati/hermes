@@ -3323,3 +3323,53 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   different discriminator (canonical fit alone is too weak at 2:1 vs a −50% crash).
 - **Provenance:** audit+heal logs in-session (box) · derive log `/tmp/union_forward_s185_derive.log` ·
   full-run verification same session · commits this lane. Box writes: the 117 idempotent CA inserts only.
+
+### 2026-07-16AV — S187: the 64 AMBIGUOUS orphan-cliffs RESOLVED PER-EVENT against the OFFICIAL ARCHIVES — 44 healed (46 CA rows) · 4 verified non-splits · 4 honest conflicts · 12 no-archive; the ETF-class CA archive DISCOVERED (`?index=mf` — the 16AQ hole has an official primary source after all)
+
+- **Verdict: DATA REPAIR (no strategy number moved by this lane). `task_74bd9558` heal work CLOSED**
+  (S184 spawn → S185/16AU healed the 117 tape-CLEAN → this lane resolved the 64 the tape alone could
+  not decide). Tool: `scripts/resolve_ambiguous_cliffs.py` (committed; offline selftest 17/17 incl.
+  Satyam-, Majesco-, stale-quote- and Shantigear-shaped refusals).
+- **Method — two official sources, never unioned (a dual-listed fund's split in both feeds would
+  double-count):** ① NSE `corporateActions ?index=mf` — the ETF instrument class the equities feed
+  structurally omits (the 16AQ root cause, now complemented): rows carry explicit FV-split text, are
+  keyed to CURRENT symbols (official `symbolchange.csv` maps event-era names forward — ICICINXT50→
+  NEXT50IETF, UTIBANKETF→BANKBETA, TATATEA→TATACONSUM…), ex-dates sit ±1d off the NSE tape. ② BSE
+  `DefaultData/w` CA per scrip (depth ≥2000; scrip chain = bse_scrip_map by event-era symbol → by
+  CURRENT symbol → by event-era bhavcopy ISIN → live BSE master ISIN join — never a name-text match).
+  OLD BSE split rows can carry a BLANK Purpose: the row still ATTESTS the event; the ratio is then
+  pinned by the ex-day tape step snapped to the LEGAL equity FV grid {2, 2.5, 5, 10} at ±9% (bands
+  disjoint). Every heal needs tape corroboration ±10% on T0 (=prev/close) or T5 (=prev/median-next-5;
+  rallies distort T5, stale quotes distort T0). A loose band [0.75,1.30] + illiquidity evidence existed
+  for stale-quote ETFs — **0 events needed it** (AXISNIFTY/UTISXN50/HNGSNGBEES all corroborate ≤10% on T5).
+- **The heal: 44 events → 46 rows (44 SPLIT + 2 BONUS), `corporate_actions` 27,091 → 27,137**, sources
+  `bse-ca-api-verified` 26 / `nse-mf-ca-api-verified` 20, inserts via the canonical `store_actions`
+  (frozen details; ex_date = the TAPE step date; the archive citation rides in details). Notables:
+  **ITC 2005-09-21 = BONUS 1:2 + FV-split 10:1 → F=15** (T0 0.918, the +9% ex-day pop is real) ·
+  **RUCHINFRA 2005-04-21 = BONUS 3:1 + split 10:1 → F=40 — the r=39.1 mystery solved** (T0 0.978) ·
+  TATATEA 2010 10:1 via the TATACONSUM rename (T0 0.983) · GUJGASLTD 2019 explicit "Rs.10→Rs.2" —
+  the relist suspicion FALSIFIED by the archive · AXISNIFTY 100→10 with the +20% adjusted ex-day
+  step disclosed (stale-quote catch-up to NAV — real, not an artifact).
+- **The refusals (the discipline holding):** VERIFIED-NON-SPLIT 4 — FRL + FRLDVR "Spin Off" ·
+  NXTDIGITAL "Spin Off" · **MAJESCO r=80.8 = the ₹974/share special dividend** (healing it as a split
+  would have been the worst corruption in the set). CONFLICT 4 (attested but uncorroborated, left
+  unhealed): SHANTIGEAR (bonus 1:1 attested; residual 8.3 fits no legal FV pair) · HOTELEELA (blank
+  row; T0 4.21 snaps to nothing) · ASTRAIDL (T0 4.545/5 = 0.909, misses the 9% snap boundary by
+  0.1pp) · VAKRANSOFT (archive factor 20 vs tape 17.5 = −12.6%). UNRESOLVED 12 (no archive row on
+  either exchange, incl. SATYAMCOMP — the crash, refused by absence exactly as designed).
+- **Verification (all on the box, same session):** post-heal re-audit **0 CLEAN / 20 AMBIGUOUS**
+  (= 64 − 44) · research `load_factors` compounds correctly (ITC 15 · RUCHINFRA 40 · 6/6 spot-checks)
+  · adjusted ex-day steps 0.92–1.20 (market-normal; the 1.20 is the disclosed AXISNIFTY catch-up) ·
+  nightly `chk_split_cliffs` OK (2,768 symbols) · **second `--apply` inserts 0** — idempotency
+  demonstrated at both walls (audit-level covered-check + frozen-details ON CONFLICT).
+- **⚠ THE 16AS LOOP IS DELIBERATELY NOT FIRED BY THIS LANE:** S186's pushed claim owns the post-heal
+  anchor re-derivation for BOTH instruments (`union_forward.py` + `portfolio_mix.py`) and instructed
+  this lane not to double-run it. **The 16AU anchor set predates this heal** (44 more events, several
+  in research-universe equities) — S186 must re-derive before any research read; settle signal handed
+  off in the carryforward.
+- **Residue (recorded):** the 12 UNRESOLVED + 4 CONFLICT stay quarantine-absorbed exactly as before
+  (per-event report: `/tmp/resolve_s187.csv`, regenerate via the tool). Next lever if ever needed:
+  BSE announcements text (archive floor 2006) for the ASTRAIDL/HOTELEELA-class blanks — NEVER a
+  loosened threshold. Future mf-feed ingest MUST covered-check ±5d or it double-adjusts (manifest note).
+- **Provenance:** dry-run + apply + verification logs in-session (box) · commits this lane · box
+  writes = the 46 idempotent CA inserts only (S182/S184/S185 precedent).
