@@ -95,7 +95,11 @@ def adjustment_factors(rows: list[dict], events: Optional[dict] = None) -> list[
         # TAPE layer (authoritative ex-date + exact ratio; tolerance-gated).
         if events:
             tape = events.get(rows[i].get("trade_date"))
-            if (tape and 0.02 < tape < 50 and prior_close and this_close
+            # floor 0.008 (not the fallback's 0.02): ETF unit subdivisions reach
+            # 100:1 (v=0.01) / 50:1 (v=0.02); the tape_agrees gate below is the
+            # real safety, so an authoritative tape ratio may be more extreme than
+            # an inferred one. The fallback layers keep 0.02 (crash protection).
+            if (tape and 0.008 < tape < 50 and prior_close and this_close
                     and prior_close > 0 and tape_agrees(this_close / prior_close, tape)):
                 ratio = tape
         # prev_close layer (measured never-firing on this archive — kept for safety).
@@ -189,6 +193,17 @@ def _selftest() -> int:
     check("None events == legacy", adjustment_factors(flat) == adjustment_factors(flat, events=None))
     check("adjusted_closes threads events",
           adjusted_closes(dead, events={"d3": 0.75})[0] == 75.0)
+
+    # ── ETF-scale subdivisions: a 100:1 tape ratio (0.01) now passes the widened
+    #    tape gate (was rejected by the old 0.02 floor); the fallback floor is intact.
+    etf = mk([("d1", 3300.0), ("d2", 3360.0), ("d3", 33.6), ("d4", 33.7)])  # 100:1 on d3
+    f_etf = adjustment_factors(etf, events={"d3": 0.01})
+    check("ETF 100:1 tape ratio applied (0.01 passes the widened tape gate)",
+          abs(f_etf[0] - 0.01) < 1e-9 and abs(f_etf[1] - 0.01) < 1e-9 and f_etf[2] == 1.0)
+    check("ETF-scale tape makes the ex-day continuous (no fake cliff)",
+          abs(adjusted_closes(etf, events={"d3": 0.01})[1] - 33.6) < 1e-6)
+    check("no-tape -99% day still NOT rescaled (fallback 0.02 floor kept — crash protection)",
+          adjustment_factors(etf, events={}) == [1.0] * 4)
 
     # ── AUD-11: the >30% fallback must not rescale genuine crashes ──────────
     crash = mk([("d1", 100.0), ("d2", 101.0), ("d3", 45.0), ("d4", 46.0)])  # −55% day

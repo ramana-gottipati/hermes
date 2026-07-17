@@ -266,7 +266,9 @@ def price_ratios(conn, symbol: str) -> dict:
         for leg in _group_price_legs(rows):
             v *= leg
         out[ex] = v
-    return {k: v for k, v in out.items() if 0.02 < v < 50 and abs(v - 1) >= 0.001}
+    # floor 0.008 (not 0.02): ETF unit subdivisions reach 100:1 (v=0.01) / 50:1
+    # (v=0.02) — dropped by the old 0.02 floor. adjust.tape_agrees gates application.
+    return {k: v for k, v in out.items() if 0.008 < v < 50 and abs(v - 1) >= 0.001}
 
 
 def reconcile(conn, since: Optional[str] = None) -> dict:
@@ -316,7 +318,7 @@ def reconcile(conn, since: Optional[str] = None) -> dict:
             bump("NO_BHAV")
             continue
         observed = rows[0][1] / rows[1][1]
-        caught = abs(observed - 1) > CC_THRESH and 0.02 < observed < 50
+        caught = abs(observed - 1) > CC_THRESH and 0.008 < observed < 50  # 0.008: ETF 100:1/50:1
         if not have_ratio:
             bump("NO_RATIO_CAUGHT" if caught else "NO_RATIO_UNCAUGHT")
             continue
@@ -546,6 +548,13 @@ def _selftest() -> int:
     # split 2→1 = ×0.5; bonus 1:2 (1 new per 2 held) = ×2/3 → compound exactly 1/3
     check("same-day split x bonus COMPOUND (0.5 x 2/3 = 1/3)", abs(pr2["2026-04-02"] - (1.0 / 3)) < 1e-9)
     check("dividend/demerger never in the ratio tape", price_ratios(con, "RELIANCE") == {})
+
+    # ETF unit subdivision: a 100:1 (v=0.01) now enters the tape (was dropped by the 0.02 floor)
+    store_actions([{"symbol": "ETFX", "action_type": "SPLIT", "ex_date": "2019-12-19",
+                    "record_date": None, "ratio_from": 100.0, "ratio_to": 1.0,
+                    "details": "ETF unit subdivision", "source": "test"}], conn=con)
+    check("ETF 100:1 subdivision enters the tape (v=0.01 passes widened floor)",
+          abs(price_ratios(con, "ETFX").get("2019-12-19", 0) - 0.01) < 1e-9)
 
     # reconcile: dead-zone vs caught vs suspect classification on synthetic bhav
     con.executemany("INSERT INTO bhavcopy_rows VALUES (?,?,?,?)", [

@@ -7862,11 +7862,24 @@ def _cmp_color(i: int) -> str:
     return f"hsl({int((i * 137.508) % 360)},70%,60%)"
 
 
+def _action_events(conn, symbol: str) -> dict:
+    """Corporate-action ratio tape for the tape-primary adjustment layer (D95;
+    same helper as rrg_view/rsband_view). {} when the tape is absent/unreadable —
+    inference-only, the legacy fallback behaviour; the tape must never fail a render."""
+    try:
+        from src.automation.corp_actions import price_ratios
+        return price_ratios(conn, symbol)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _stock_levels(conn, syms: list[str]) -> dict:
     """Split/bonus-adjusted close series per stock, for the compare overlay.
 
     Returns {symbol: [{"t": date, "v": adj_close}, ...]} oldest-first. Reuses
-    adjust.adjusted_closes (the same back-adjustment the stock chart + RS use) so
+    adjust.adjusted_closes (the same back-adjustment the stock chart + RS use),
+    tape-primary via _action_events (S182 — was the last pure-fallback call site,
+    so sub-30% dead-zone actions + ETF unit subdivisions now adjust here too), so
     a split never fakes a relative-strength cliff. One batched query for all syms.
     """
     out: dict = {}
@@ -7882,7 +7895,7 @@ def _stock_levels(conn, syms: list[str]) -> dict:
             ORDER BY symbol, trade_date""", syms).fetchall():
         grouped.setdefault(row["symbol"], []).append(dict(row))
     for s, rows in grouped.items():
-        adj = adjust.adjusted_closes(rows)
+        adj = adjust.adjusted_closes(rows, events=_action_events(conn, s))
         out[s] = [{"t": rw["trade_date"], "v": round(a, 2)}
                   for rw, a in zip(rows, adj) if a is not None]
     return out
