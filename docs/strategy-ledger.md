@@ -3406,7 +3406,7 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   runs `/tmp/uf_full_s186.log` + `/tmp/pm_full_s186.log` (same session) · commit `1042299`. Box
   read-only throughout (no DB writes by this lane).
 
-### 2026-07-16AX — S186+ (D143 Phase-4 action #3): the FUNDABLE CORE's ballast dial — STEADY-25 + G-sec/gold measured on ITS OWN grid (the 16AN/AR dials were the UNION book). Already-defensive STEADY still benefits: a modest sleeve ~HALVES the drawdown for ~1-2pp CAGR; every mix beats the index.
+### 2026-07-16AZ — S186+ (D143 Phase-4 action #3): the FUNDABLE CORE's ballast dial — STEADY-25 + G-sec/gold measured on ITS OWN grid (the 16AN/AR dials were the UNION book). Already-defensive STEADY still benefits: a modest sleeve ~HALVES the drawdown for ~1-2pp CAGR; every mix beats the index.
 
 - **Verdict: DESCRIPTIVE ballast dial for the FUNDABLE CORE (design-doc §8 Tier B; `/dash/model-portfolios` STEADY-25 overlay).** No registration, no engine change. Box read-only; `/tmp/steady_ballast.py` reads STEADY-25's quarterly NAV (`auto_portfolio_nav`, flat-cost; STEADY flat≈net, low turnover) + G-sec (`gs10yr.csv`) + GOLDBEES split-adjusted (`adjust.py`, the S182 16AQ split). Native 2012+, 57 quarters.
 - **Why a NEW measurement:** 16AN/16AP/16AR measured the dial on the UNION book (K30/A2 — Tier C, forward-pending). The model-portfolio's fundable core is STEADY-25, so the overlay had to be measured on STEADY's own returns.
@@ -3443,7 +3443,7 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   NO adjusted-price change; the 16AW anchors stand un-fired.** Deploy: box md5 == HEAD both files
   (.bak-s189 backups); box selftest OK; timers pick the mf class up on the next nightly.
 
-### 2026-07-16AY — D143 (Ramana "run F — measure the drawdown levers net of cost"): the CONTROLLED lever experiment. Same cadence/universe/cost/AUM; vary ONLY the score. Answer: you CANNOT keep the 35% flat CAGR (it's cost illusion, honest net ~17-18%), and the LOW-VOL BLEND is the lever that keeps the top net return at the shallowest drawdown.
+### 2026-07-16BA — D143 (Ramana "run F — measure the drawdown levers net of cost"): the CONTROLLED lever experiment. Same cadence/universe/cost/AUM; vary ONLY the score. Answer: you CANNOT keep the 35% flat CAGR (it's cost illusion, honest net ~17-18%), and the LOW-VOL BLEND is the lever that keeps the top net return at the shallowest drawdown.
 
 - **Verdict: DESCRIPTIVE controlled measurement.** Reuses `cost_participation.py`'s participation-impact engine verbatim (quarterly · large-cap top-quintile · Rs50cr fixed); `/tmp/dd_levers.py` adds score components (mom12/riskadj/mom6/lowvol) to the tables and pushes each through the SAME `run()`. Box read-only.
 - **THE TABLE (net of participation cost @Rs50cr; index Nifty500 15.3%/−29.2%):**
@@ -3458,7 +3458,7 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 
 - **Finding 1 — the flat-cost illusion, quantified:** MOM12 flat **37.6% → net 16.9%**; RISKADJ flat **35.4% → net 18.2%**. Over HALF the headline CAGR was cost + monthly-cadence + all-cap illusion. The honest net ceiling for this family is ~18%, not 35%.
 - **Finding 2 — the drawdown lever, isolated (only the score changes):** raw momentum **−50.7%** → risk-adjust (÷vol) **−30.8%** (nearly halves the crash, keeps the return) → pure low-vol **−21.3%** (shallowest but return falls below index) → **LOWVOL_MOM blend = the free-lunch corner: keeps the top net return (18.0%, ≈ RISKADJ's 18.2%) AT the shallow low-vol drawdown (−21.8%), best ret/vol 1.02.** THIS is why LOWVOL_MOM/STEADY-25 is the fundable core.
-- **Finding 3 — the full stack:** raw −51% → risk-adjust −31% → low-vol blend −22% → **+ Tier-B ballast (16AX) −9 to −13%**, all while holding ~18% net. Answer to "keep CAGR, cut DD": blend low-vol into momentum, then add ~zero-corr ballast. You can't keep the fictional 35%; you CAN keep a real ~18% at a −10% drawdown.
+- **Finding 3 — the full stack:** raw −51% → risk-adjust −31% → low-vol blend −22% → **+ Tier-B ballast (16AZ) −9 to −13%**, all while holding ~18% net. Answer to "keep CAGR, cut DD": blend low-vol into momentum, then add ~zero-corr ballast. You can't keep the fictional 35%; you CAN keep a real ~18% at a −10% drawdown.
 - **Note:** quality-overlay lever not in this price-only harness (its flat-cost DD-control −42→−28.7, `overlay_experiment.py`, was never re-measured net of participation — a remaining gap). return/vol ≠ Sharpe. Provenance: `/tmp/dd_levers.py`.
 
 ### 2026-07-16AY — S190: THE D142 RF RE-CUT IS LANDED — every research ratio/DSR is now a genuine excess-basis Sharpe; the hurdle re-measured 0.899 raw → 0.528 rf-adjusted; the sealed prereg (44fe16d8…) judged CONFIRMED on all four claims; ZERO signed or leaderboard verdicts move

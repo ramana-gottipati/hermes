@@ -223,7 +223,7 @@ promote STEADY-25) SHIPPED** — net CAGR PINNED (freshly re-verified 2026-07-17
 reproduces 16AE/#602 to the digit): capacity-tiered **19.2% @₹25cr · 18.1% @₹50cr · 16.5% @₹100cr (index
 15.3%), ceiling ~₹150cr** — the 13.3% crude-cost figure is dead. STEADY-25 now shows a green **FUNDABLE
 CORE** banner with that curve. **Action #3 (wire the Tier-B ballast overlay) SHIPPED** — STEADY-25's
-OWN ballast dial measured (ledger 16AX; the 16AN/AR dials were the union book): already-defensive STEADY
+OWN ballast dial measured (ledger 16AZ; the 16AN/AR dials were the union book): already-defensive STEADY
 still benefits — a modest G-sec/gold sleeve ~HALVES MaxDD (−19% → −9 to −13%) for ~1–2pp CAGR, every mix
 beats the index; the STEADY-25 page now carries a "🛟 Survivability overlay" dial (80/10/10 balanced
 default). **Action #4 (stage Tier C) SHIPPED** — the model-portfolios page now carries a "🎓 Graduating

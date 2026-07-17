@@ -398,7 +398,7 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
           + (f"&asof={asof}" if asof else "") + "'>CSV</a></div>")
 
     # Tier B (D143 §8 action #3): the survivability overlay — pair the FUNDABLE CORE with ~zero-corr
-    # ballast (G-sec / gold) to cut drawdown. Measured on STEADY-25's own quarterly NAV (ledger 16AX,
+    # ballast (G-sec / gold) to cut drawdown. Measured on STEADY-25's own quarterly NAV (ledger 16AZ,
     # steady_ballast.py); descriptive. Only shown on the core (it's the only fundable book).
     ballast_html = ""
     if pname == "STEADY-25":
@@ -409,7 +409,7 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
             "<p style='font-size:.85em;color:#8b97a7;margin:.3em 0 .6em'>STEADY-25 is already defensive, but "
             "pairing it with a ~zero-correlation sleeve — <b>G-sec bonds</b> (corr +0.08) or <b>gold</b> "
             "(corr −0.24) — roughly <b>halves the drawdown</b> for ~1–2pp of CAGR, and every mix still beats "
-            "the index (13.4% this window). Native 2012+, 57 quarters (ledger 16AX). Descriptive, primary-source; "
+            "the index (13.4% this window). Native 2012+, 57 quarters (ledger 16AZ). Descriptive, primary-source; "
             "return/vol is not a Sharpe; gold's return is regime-loaded (2012–26 bull) — not a forward promise. "
             "The dial is the design layer of <code>docs/portfolio-layer-design.md</code>; weights are the owner's "
             "risk-appetite choice, not an optimiser's.</p>"
