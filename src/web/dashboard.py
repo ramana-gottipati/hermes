@@ -6059,38 +6059,24 @@ def dash_stock(sym: str = Query("", max_length=20),
             "dval": round(dval, 2) if dval is not None else None,
         })
 
-    # --- Corporate-action back-adjustment (splits / bonuses) ---------------
-    # NSE sets prev_close to the ADJUSTED previous close on a split/bonus
-    # ex-date, so prev_close[i] / close[i-1] deviates from 1 ONLY on real
-    # action dates. Walk backward, accumulate the factor, scale older OHLC
-    # down so the chart is continuous (same method Zerodha uses). Dividends
-    # do NOT adjust prev_close, so they don't trigger this.
+    # --- Corporate-action back-adjustment (splits / bonuses) — UNIFIED (B5) --
+    # Was a hand-rolled copy of the D36 two-layer walk; now delegates to the
+    # canonical adjust.adjustment_factors (single source of truth) and is
+    # TAPE-PRIMARY: the corporate-actions tape names the exact ex-date + ratio
+    # (tolerance-gated), so sub-30% dead-zone actions AND ETF unit subdivisions
+    # (e.g. GOLDBEES 100:1) adjust too — not only >30% fallback jumps. Older OHLC
+    # is scaled by `factors` below so the chart stays continuous (Zerodha method).
+    # series carries the date as "time"; adjust reads "trade_date" — remap for it.
     n = len(series)
-    factors = [1.0] * n
-    cum = 1.0
-    PC_THRESH = 0.03   # prev_close flag: real splits/bonuses; normal days = 0%
-    CC_THRESH = 0.30   # close-jump fallback: >30% single-day move = action NSE
-                       # didn't adjust prev_close for (circuit limits make a real
-                       # 30%+ daily move impossible, so it's always a corp action)
-    for i in range(n - 1, 0, -1):
-        prior_close = series[i - 1]["close"]
-        this_close = series[i]["close"]
-        pc = series[i].get("prev_close")
-        ratio = None
-        # Primary: prev_close-based (precise, NSE-adjusted).
-        if pc and prior_close and prior_close > 0:
-            r_pc = pc / prior_close
-            if abs(r_pc - 1) > PC_THRESH and 0.02 < r_pc < 50:
-                ratio = r_pc
-        # Fallback: prev_close didn't flag but the close gapped hugely — an
-        # unadjusted corporate action (PARAS 2025-07-04 style).
-        if ratio is None and prior_close and prior_close > 0 and this_close:
-            r_cc = this_close / prior_close
-            if abs(r_cc - 1) > CC_THRESH and 0.02 < r_cc < 50:
-                ratio = r_cc
-        if ratio is not None:
-            cum *= ratio
-        factors[i - 1] = cum
+    adj_rows = [{"trade_date": s["time"], "close": s["close"], "prev_close": s["prev_close"]}
+                for s in series]
+    # The corp-action tape needs an OPEN connection. The earlier `with get_conn()`
+    # block that fetched `rows` has already closed by here (the old inline walk used
+    # only prev_close, never the DB), so open a short-lived one just for the tape —
+    # else _action_events silently swallows a closed-DB error and the split is missed.
+    with get_conn() as _tape_conn:
+        _events = _action_events(_tape_conn, sym)
+    factors = adjust.adjustment_factors(adj_rows, events=_events)
     for i in range(n):
         f = factors[i]
         s = series[i]
