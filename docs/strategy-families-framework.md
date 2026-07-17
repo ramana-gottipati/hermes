@@ -226,8 +226,15 @@ CORE** banner with that curve. **Action #3 (wire the Tier-B ballast overlay) SHI
 OWN ballast dial measured (ledger 16AX; the 16AN/AR dials were the union book): already-defensive STEADY
 still benefits — a modest G-sec/gold sleeve ~HALVES MaxDD (−19% → −9 to −13%) for ~1–2pp CAGR, every mix
 beats the index; the STEADY-25 page now carries a "🛟 Survivability overlay" dial (80/10/10 balanced
-default). **Action #4 (stage Tier C — union head as "graduating candidate, funds only after 2026-10-03")
-remains**, owner-ratified before shipping.
+default). **Action #4 (stage Tier C) SHIPPED** — the model-portfolios page now carries a "🎓 Graduating
+candidate — not yet investable" card for COMPOSITE-30 (sealed, forward-testing; honest fwd ~21.6% not the
+26.4% in-sample; participation-cost/capacity UNVERIFIED, personal-scale; links the Union Ladder compendium).
+
+**✅ PHASE 4 COMPLETE (all four actions shipped + live on `/dash/model-portfolios`):** #1 Tier-D relabel ·
+#2 pin+promote STEADY-25 (Fundable Core) · #3 Tier-B ballast overlay · #4 Tier-C staging. The model
+portfolio is now organized by honest status: one fundable core + a survivability overlay + a clearly-fenced
+graduating candidate + relabelled demonstration lenses. Remaining program work is the §7 execution tail
+(governance ratification §6, and the family-by-family review depth) — not a model-portfolio-page change.
 
 **The honest headline (say it first, above the structure):** the portfolio you can *actually run today* is
 **modest** — a defensive low-vol-momentum core (~16–18% net, capacity ~₹100cr) plus bond/gold ballast for

@@ -450,6 +450,17 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
         + ballast_html
         + "<h3>Churn — automatic, every rebalance</h3>" + churn_html
         + _STORY
+        + ("<div style='margin:14px 0;padding:10px 12px;border:1px solid #d29922;"
+           "background:rgba(210,153,34,.06);border-radius:6px'>"
+           "<h3 style='margin:0 0 4px'>🎓 Graduating candidate — not yet investable (Tier C)</h3>"
+           "<p style='font-size:.85em;color:#8b97a7;margin:.3em 0'>The estate's highest-potential book, "
+           "<b>COMPOSITE-30</b> (the \"union\" momentum-selection family), is <b>sealed and forward-testing</b>"
+           " — it does <b>NOT fund real money</b> until it clears its pre-registered <b>2026-10-03 forward "
+           "test</b>. Honest forward expectation (deflation-adjusted): <b>~21.6%/yr</b> — its 26.4% in-sample "
+           "CAGR is selection-inflated, not a promise. ⚠ Its realistic participation-cost and capacity are "
+           "<b>UNVERIFIED</b> (early-era small/mid-cap tilt) — likely personal-scale only. Full record: "
+           "<a href='/dash/strategy-ref?p=union-ladder'>Union Ladder compendium →</a>. Descriptive; not advice.</p>"
+           "</div>")
         + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — all four runners are public, bookish families (provenance map: <code>docs/strategies/origins.md</code>); none is proprietary. Ramana-original and house-proprietary strategies live on <a href='/dash/strategist'>Strategist</a>.</div>"
         + "<div class='honesty'>NAV is <b>flat-cost</b> (0.3%/side on the churned fraction, "
         "labeled) and marked at rebalance dates. <b>STEADY-25 is the ONLY book fundable net of "
