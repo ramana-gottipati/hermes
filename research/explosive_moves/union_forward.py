@@ -135,7 +135,11 @@ GATE_SEAL["A1"] = (25.6, 100.43)
 #   16AU (2026-07-17, post the 117-event orphan-cliff heal, audit_orphan_cliffs.py): the
 #     un-quarantined names shift selections — base books dilute ~2% of terminal wealth
 #     (U/B14/C40 down), K30 +2.6%; ladder order unchanged; seal-time records untouched.
-GATE = {"U": 19.81, "B14": 25.45, "C40": 40.51, "A1": 87.64, "A2": 86.87, "K30": 103.71}
+#   16AW (2026-07-17, post the S187 official-archive resolution of the 64 AMBIGUOUS — 44
+#     healed incl. ITC F=15/RUCHINFRA F=40): K30's headline lands back at 115.66x vs the
+#     seal-time 115.69x (the 16AU drift and the S187 heals nearly cancel); PM_ANCHORS in
+#     portfolio_mix.py cross-check EQUAL for K30/A2 (independent engine lineage).
+GATE = {"U": 19.62, "B14": 25.14, "C40": 39.75, "A1": 87.75, "A2": 86.59, "K30": 100.73}
 # sealed-era TR records (informational §5 anchors): K30 16AF / A2 16AO, seal-time archive
 TR_REC = {"K30": (27.3, 131.80), "A2": (26.3, 113.65)}
 

@@ -778,7 +778,7 @@ print("=" * 118)
 print("PORTFOLIO LAYER v0 — fixed-mix book + G-sec 10Yr. Descriptive allocation study; design in docstring.")
 print("=" * 118)
 
-# ---- load gate (S186 policy port of the 16AS loop; ledger 16AV) ----
+# ---- load gate (S186 policy port of the 16AS loop; ledger 16AW) ----
 # GATE2_SEAL = the SEAL-TIME full-period numbers (16AN's evidence chain) — printed as
 # provenance with drift disclosed, never hard-gated: the archive legitimately moved under
 # the RECORDED repairs 16AQ (gold-ETF splits) + 16AU (117-event orphan-cliff heal) + the
@@ -789,11 +789,11 @@ print("=" * 118)
 # Values must equal union_forward.py's GATE for K30/A2 (same engine lineage — the equality
 # is itself a recorded cross-check). Re-derivation loop for any future RECORDED repair:
 # PM_DERIVE=1 python portfolio_mix.py -> record a ledger entry -> embed here same-commit.
-# ANCHOR HISTORY: 16AV (2026-07-17, post the S185+chip-session corp-actions heals) = first
+# ANCHOR HISTORY: 16AW (2026-07-17, post the S185+chip-session corp-actions heals) = first
 # bounded set for this module; the pre-16AV gate was full-period 26.4/115.69 · 25.5/99.03.
 GATE2_SEAL = {"K30": (26.4, 115.69), "A2": (25.5, 99.03)}
 PM_GATE_END = "2026-04-01"
-PM_ANCHORS = {"K30": None, "A2": None}   # embedded by the 16AV derivation (PM_DERIVE=1 run)
+PM_ANCHORS = {"K30": 100.73, "A2": 86.59}   # 16AW derivation 2026-07-17 (== union_forward GATE, cross-checked)
 PM_DERIVE = _os.environ.get("PM_DERIVE") == "1"
 BOOK_CFG = {"K30": dict(fmode="pf1", topn=30, rf_cash=True, weights="drift"),
             "A2":  dict(fmode="pf1", topn=40, rf_cash=True)}
@@ -813,7 +813,7 @@ for k, cfg in BOOK_CFG.items():
         g_m = PM_ANCHORS[k]
         s_c, s_m = GATE2_SEAL[k]
         if g_m is None:
-            print("  gate %-4s ANCHORS NOT EMBEDDED — run PM_DERIVE=1, record the ledger entry, embed (16AV loop)" % k)
+            print("  gate %-4s ANCHORS NOT EMBEDDED — run PM_DERIVE=1, record the ledger entry, embed (16AW loop)" % k)
             sys.exit(1)
         ok = abs(gm - g_m) < 0.006
         print("  gate %-4s <=%s mult %8.2fx (anchor %.2f — see ANCHOR HISTORY; latest ledger entry governs)  %s"
