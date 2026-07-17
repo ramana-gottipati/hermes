@@ -778,23 +778,57 @@ print("=" * 118)
 print("PORTFOLIO LAYER v0 — fixed-mix book + G-sec 10Yr. Descriptive allocation study; design in docstring.")
 print("=" * 118)
 
-GATE2 = {"K30": (26.4, 115.69), "A2": (25.5, 99.03)}
+# ---- load gate (S186 policy port of the 16AS loop; ledger 16AV) ----
+# GATE2_SEAL = the SEAL-TIME full-period numbers (16AN's evidence chain) — printed as
+# provenance with drift disclosed, never hard-gated: the archive legitimately moved under
+# the RECORDED repairs 16AQ (gold-ETF splits) + 16AU (117-event orphan-cliff heal) + the
+# chip-session archive follow-up, and full-period numbers also move with plain data arrival
+# (new legs + isdead()'s 60-session forward window at the boundary — the pre-16AS defect).
+# PM_ANCHORS = the drift-proof hard gate: Rs1Cr MULT only (window-exact, convention-free,
+# ±0.006 ≈ bp of terminal wealth) over legs ending <= PM_GATE_END (2026-04-01, input-closed).
+# Values must equal union_forward.py's GATE for K30/A2 (same engine lineage — the equality
+# is itself a recorded cross-check). Re-derivation loop for any future RECORDED repair:
+# PM_DERIVE=1 python portfolio_mix.py -> record a ledger entry -> embed here same-commit.
+# ANCHOR HISTORY: 16AV (2026-07-17, post the S185+chip-session corp-actions heals) = first
+# bounded set for this module; the pre-16AV gate was full-period 26.4/115.69 · 25.5/99.03.
+GATE2_SEAL = {"K30": (26.4, 115.69), "A2": (25.5, 99.03)}
+PM_GATE_END = "2026-04-01"
+PM_ANCHORS = {"K30": None, "A2": None}   # embedded by the 16AV derivation (PM_DERIVE=1 run)
+PM_DERIVE = _os.environ.get("PM_DERIVE") == "1"
 BOOK_CFG = {"K30": dict(fmode="pf1", topn=30, rf_cash=True, weights="drift"),
             "A2":  dict(fmode="pf1", topn=40, rf_cash=True)}
 RB = list(rebal_all)
+_jg = max(i for i in range(len(RB) - 1) if RB[i + 1] <= PM_GATE_END)
 book_rets, bench_rets = {}, None
 for k, cfg in BOOK_CFG.items():
     o = run5(**cfg)
     navs = o["navs"]
     book_rets[k] = [navs[i]/navs[i-1]-1 for i in range(1, len(navs))]
     s = stat(navs, o["bnavs"])
-    g_c, g_m = GATE2[k]
-    ok = abs(s["cagr"]*100 - g_c) < 0.05 and abs(s["mult"] - g_m) < 0.05
-    print("  repro %-4s CAGR %5.1f%% (gate %.1f) %s" % (k, s["cagr"]*100, g_c, "OK" if ok else "FAIL"), flush=True)
-    if not ok: sys.exit(1)
+    gm = navs[_jg]                       # legs are prefix-deterministic: exact bounded mult
+    if PM_DERIVE:
+        print("  derive %-4s gate(<=%s) mult %8.2fx   | full-period now %5.1f%%/%7.2fx"
+              % (k, PM_GATE_END, gm, s["cagr"]*100, s["mult"]), flush=True)
+    else:
+        g_m = PM_ANCHORS[k]
+        s_c, s_m = GATE2_SEAL[k]
+        if g_m is None:
+            print("  gate %-4s ANCHORS NOT EMBEDDED — run PM_DERIVE=1, record the ledger entry, embed (16AV loop)" % k)
+            sys.exit(1)
+        ok = abs(gm - g_m) < 0.006
+        print("  gate %-4s <=%s mult %8.2fx (anchor %.2f — see ANCHOR HISTORY; latest ledger entry governs)  %s"
+              " | seal-time full-period %.1f/%.2f -> now %.1f/%.2f (drift disclosed: recorded repairs + data arrival)"
+              % (k, PM_GATE_END, gm, g_m, "OK" if ok else "FAIL", s_c, s_m, s["cagr"]*100, s["mult"]), flush=True)
+        if not ok:
+            print("PORTFOLIO GATE FAILED — STOP. Legs through %s are input-closed: a miss means the engine"
+                  " or archive was EDITED. Recorded repair -> PM_DERIVE=1 + ledger entry; else investigate." % PM_GATE_END)
+            sys.exit(1)
     if bench_rets is None:
         bnavs = o["bnavs"]
         bench_rets = [bnavs[i]/bnavs[i-1]-1 for i in range(1, len(bnavs))]
+if PM_DERIVE:
+    print("derivation complete — embed PM_ANCHORS with a ledger entry, same commit.")
+    sys.exit(0)
 
 # quarterly G-sec returns on the same grid (rf-proxy fallback pre-2011, per the frozen convention)
 gsec_rets, gsec_native = [], []
