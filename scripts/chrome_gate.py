@@ -18,7 +18,10 @@ This gate closes that gap. It builds the app IN-PROCESS from the current checkou
 scripts/wire_v2_surfaces.py applies to the VPS's main.py), renders the actual
 pages through TestClient, and asserts the HTML carries the chrome markers:
 
-    uk-skin     body.uk-skin  → shell_skin reskin applied to a legacy page
+    uk-skin     body.uk-skin  → shell_skin reskin applied to a legacy page (asserted as a
+                                CLASS TOKEN on <body>, not an exact attribute string — the
+                                S122 left-rail middleware merges `has-rail` into the same
+                                class attribute on rail-bearing pages, see _UK_SKIN_RE)
     uk-top      .uk-top       → the NATIVE single-row topbar rendered (Lane M1: legacy
                                 pages now render the same uk-top as the native pages,
                                 replacing the old two-row .v2bar header)
@@ -42,6 +45,7 @@ fix or revert before committing (same contract as regression_sweep.sh).
 from __future__ import annotations
 
 import os
+import re
 import sys
 
 # Run from the repo root regardless of CWD so `import src.*` resolves.
@@ -73,13 +77,24 @@ LEGACY_PAGES = [
 # render and expose the shared Trust + Wire destinations in their own nav.
 NATIVE_PAGES = ["/dash/coverage", "/dash/screen2", "/dash/strategist", "/dash/_ui"]
 
-# marker label → (substring, must_be_present)
+# S122 left rail (src/web/left_rail.py, db70db8): the rail middleware MERGES `has-rail`
+# (+ data-alt/data-wide) into the existing <body> class on every rail-bearing page, so the
+# served attribute is `class="uk-skin has-rail"` — locally through TestClient AND on the
+# live box (curl-verified 2026-07-17, byte-identical). An exact-attribute needle
+# 'class="uk-skin"' therefore false-failed 10/11 legacy pages while the chrome was fully
+# intact (only /dash/stock passed — the dossier claims no altitude, so the rail skips it).
+# Assert the CLASS TOKEN on the <body> tag instead: still fails when the skin is truly
+# gone, indifferent to whatever other classes share the attribute.
+_UK_SKIN_RE = re.compile(r'<body[^>]*\bclass="[^"]*\buk-skin\b')
+
+# marker label → (needle, must_be_present); a needle is a plain substring or a compiled
+# regex (regex needles are matched with .search).
 # Lane M1 (header unification): legacy pages render the NATIVE single-row `uk-top` topbar
 # (the same one the native pages use) instead of the legacy two-row `.v2bar` header. So
 # `uk-top` MUST be present and the old `.v2bar` MUST be absent — that pair locks the
 # unification (a silent revert to the two-row header now FAILS the gate).
 _LEGACY_MARKERS = [
-    ("uk-skin", 'class="uk-skin"', True),
+    ("uk-skin", _UK_SKIN_RE, True),
     ("uk-top", 'class="uk-top"', True),
     ("no .v2bar (header unified)", 'class="v2bar"', False),
     ("Trust", ">Trust<", True),
@@ -148,7 +163,10 @@ def _check(client, path: str, markers) -> list[str]:
     body = html[lo:hi] if (lo != -1 and hi != -1 and hi > lo) else html
     for label, needle, must_be_present in markers:
         haystack = body if must_be_present else html
-        present = needle in haystack
+        if isinstance(needle, re.Pattern):
+            present = needle.search(haystack) is not None
+        else:
+            present = needle in haystack
         if present != must_be_present:
             verb = "missing" if must_be_present else "leaked (should be gone)"
             fails.append(f"{path} -> chrome marker {verb}: {label}")
