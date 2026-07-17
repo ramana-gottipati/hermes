@@ -14,9 +14,15 @@ refresh the TRI/G-sec CSVs via `niftyindices_hist.py` (manifest `indexes_tri`,
 pull-on-demand) — this runner warns if they look stale but does not fetch.
 
 WHAT IT PRINTS, in order:
-  1. REPRODUCTION GATE (mandatory): all SIX ladder rows re-run full-period and matched
-     to their recorded numbers to the digit (U/B14/C40/A2/K30 per the 16AL gate +
-     A1-composite per union-ladder.md §4). Any miss -> STOP, exactly like the val runner.
+  1. REPRODUCTION GATE (mandatory): all SIX ladder rows re-run and gated TO THE DIGIT on
+     the 16AS drift-proof anchors — computed over legs ending <= GATE_END (2026-04-01),
+     the input-closed prefix that data arrival cannot move (isdead()'s 60-session forward
+     window past the 2026-07-01 boundary leg stays open until ~late Sep 2026). The
+     seal-time full-period headlines (16AL gate + lab4's A1) are printed BESIDE with the
+     known drift disclosed (the 16AQ corporate-actions repair moved the adjusted archive;
+     16AR). Any anchor miss -> STOP: legs in the gate window only move if the engine or
+     the archive was EDITED. Recorded-repair loop: --derive-anchors -> ledger entry ->
+     embed same-commit (S183 policy, ledger 16AS).
   2. THE FORWARD WINDOW: every completed engine leg from the 2026-07 quarter onward
      (see BOUNDARY below), per-leg returns for each book beside Nifty 500 PR, Next 50 PR,
      and the TRI twins; cumulative + annualized when >=4 legs; alpha/beta vs N500 PR and
@@ -69,8 +75,9 @@ Descriptive research on paper portfolios; not advice; nothing here deploys anyth
 """
 import os as _os, sys
 
-# ---- CLI: [DB] [--asof YYYY-MM-DD]; strip --asof before the engine reads sys.argv ----
+# ---- CLI: [DB] [--asof YYYY-MM-DD] [--derive-anchors]; strip flags before the engine reads sys.argv ----
 ASOF = None
+DERIVE = False
 _argv = [sys.argv[0]]
 _it = iter(sys.argv[1:])
 for _a in _it:
@@ -78,6 +85,8 @@ for _a in _it:
         ASOF = next(_it, None)
     elif _a.startswith("--asof="):
         ASOF = _a.split("=", 1)[1]
+    elif _a == "--derive-anchors":
+        DERIVE = True
     else:
         _argv.append(_a)
 sys.argv = _argv
@@ -95,12 +104,36 @@ SEALS = {"U": "a9a14058", "B14": "08b46199", "C40": "0715a0d9", "K30": "07ef2ef9
 DEFLATED = {"U": 15.7, "B14": 16.6, "C40": 18.1, "A2": 21.0, "K30": 21.6}   # 16AL C3
 ERA_FLOOR_ROWS = ("A1", "A2", "K30")
 
-# the sixth ladder row (union-ladder.md §4; recorded 16AE, unregistered) + its gate
+# the sixth ladder row (union-ladder.md §4; recorded 16AE, unregistered)
 BOOKS = dict(BOOKS)
 BOOKS["A1"] = dict(fmode="pf", topn=40, rf_cash=True)
-GATE = dict(GATE)
-GATE["A1"] = (25.6, 100.43)
 ORDER = ["U", "B14", "C40", "A1", "A2", "K30"]
+
+# ---- anchors & gate policy (S183, ledger 16AS) ----
+# GATE_SEAL = the SEAL-TIME archive's full-period numbers (ledger 16U..16AH; A1 from lab4 via
+# union-ladder.md §4). The 16AQ corporate-actions repair (14 gold-ETF unit subdivisions
+# backfilled — the sealed universe SELECTS gold ETFs, 16AR, owner task task_7a70ad77) plus
+# normal data arrival legitimately moved the adjusted archive, so these seal-time values are
+# PRINTED as provenance with the drift disclosed — never hard-gated.
+# GATE = the drift-proof anchors (ledger 16AS): re-derived on the repaired archive over legs
+# ending <= GATE_END. GATE_END sits one leg EARLIER than the seal boundary because isdead()
+# reads 60 sessions past a leg's end — the (2026-04-01 -> 2026-07-01) boundary leg's dead-name
+# window stays open until ~late Sep 2026 and can move with data arrival until then; legs
+# through 2026-04-01 are input-closed and can only move if the archive itself is EDITED —
+# exactly what a hard gate exists to catch. Re-derivation loop for any future RECORDED archive
+# repair: run --derive-anchors, record a new ledger entry, embed the values here same-commit.
+GATE_END = "2026-04-01"
+GATE_SEAL = dict(GATE)
+GATE_SEAL["A1"] = (25.6, 100.43)
+# The gate compares the Rs1Cr MULTIPLE only: it is window-exact and convention-free (CAGR
+# annualization conventions differ across the estate's printers), and at ~100x a 0.006
+# tolerance is basis-point-of-terminal-wealth sensitivity. CAGR prints informationally in
+# stat()'s convention. Derived 2026-07-18 on the post-16AQ archive (ledger 16AS); the base
+# books' seal-window mults reproduced EXACTLY there (26.04/28.84/47.29) — the 16AQ repair
+# moved only the era-floor books (gold ETFs live under their lower ADV floor).
+GATE = {"U": 20.15, "B14": 26.01, "C40": 41.26, "A1": 87.70, "A2": 86.59, "K30": 101.06}
+# sealed-era TR records (informational §5 anchors): K30 16AF / A2 16AO, seal-time archive
+TR_REC = {"K30": (27.3, 131.80), "A2": (26.3, 113.65)}
 
 if ASOF is None:
     ASOF = cal[-1]
@@ -126,27 +159,55 @@ for _nm, _sd in (("TRI500", TRI500), ("TRIN50", TRIN50), ("GSEC", GSEC)):
     elif not _sd:
         print("!! %s CSV missing — TRI columns will be blank" % _nm, flush=True)
 
-# ---- 1. reproduction gate (six rows, to the digit, else STOP — the 16AL discipline) ----
+# ---- 1. reproduction gate (sliced anchors; to the digit on the 16AS set, else STOP) ----
 print("")
-print("### 1. REPRODUCTION GATE (full period; must match the recorded ladder before anything forward is read)")
+print("### 1. REPRODUCTION GATE (legs <= %s vs the 16AS drift-proof anchors; seal-time headline printed as provenance)" % GATE_END)
+rb_all = list(rebal_all)
+j_gate = max(i for i in range(len(rb_all) - 1) if rb_all[i + 1] <= GATE_END)
+j_head = max(i for i in range(len(rb_all) - 1) if rb_all[i + 1] <= REG)
+
+def slice_cm(navs, j):
+    """CAGR/mult over legs 0..j — the exact prefix of the run (legs are prefix-deterministic).
+    CAGR uses stat()'s convention (y = (len(navs)-1)/4 = j/4) so prints compare to the ledger."""
+    mult = navs[j]
+    y = j / 4.0
+    return ((mult ** (1 / y) - 1) * 100 if j else 0.0), mult
+
 RUNS = {}
 for k in ORDER:
     o = run5(**BOOKS[k])
     RUNS[k] = o
-    s = stat(o["navs"], o["bnavs"])
-    g_c, g_m = GATE[k]
-    ok = abs(s["cagr"] * 100 - g_c) < 0.05 and abs(s["mult"] - g_m) < 0.05
-    # A1 is SOFT-gated: its recorded row (union-ladder.md §4) came from union_lab4.py, a
-    # different harness never reproduced through this engine — a divergence is flagged
-    # loudly for reconciliation but does not invalidate the five 16AL-gated books.
-    soft = (k == "A1")
-    print("  repro %-4s CAGR %5.1f%% (gate %.1f)  Rs1Cr->%7.2fx (gate %.2f)  %s"
-          % (k, s["cagr"] * 100, g_c, s["mult"], g_m,
-             ("OK" if ok else ("DIVERGES from the lab4 record — reconcile before quoting A1; sealed rows unaffected"
-                               if soft else "FAIL"))), flush=True)
-    if not ok and not soft:
-        print("REPRODUCTION GATE FAILED — STOP (fix the archive/engine drift before reading any forward number)")
+    gc, gm = slice_cm(o["navs"], j_gate)
+    hc, hm = slice_cm(o["navs"], j_head)
+    if DERIVE:
+        print("  derive %-4s gate(<=%s) CAGR %6.2f%%  mult %8.2fx   | headline(<=%s) %6.2f%% / %8.2fx"
+              % (k, GATE_END, gc, gm, REG, hc, hm), flush=True)
+        continue
+    g_m = GATE[k]
+    ok = abs(gm - g_m) < 0.006
+    s_c, s_m = GATE_SEAL[k]
+    print("  gate %-4s <=%s mult %8.2fx (16AS anchor %.2f)  %s  [CAGR %5.2f%%] | seal-time headline %.1f/%.2f -> now %.1f/%.2f (drift disclosed: 16AQ repair)"
+          % (k, GATE_END, gm, g_m, "OK" if ok else "FAIL", gc, s_c, s_m, hc, hm), flush=True)
+    if not ok:
+        print("REPRODUCTION GATE FAILED — STOP. Legs through %s are input-closed: a miss means the ENGINE"
+              " or the ARCHIVE was edited. If the edit is a RECORDED repair (16AQ-class), re-derive via"
+              " --derive-anchors + a new ledger entry; otherwise investigate before reading any forward number." % GATE_END)
         sys.exit(1)
+print("  universe note (16AR): the sealed selection universe (all EQ/BE/BZ series) includes gold ETFs —")
+print("  12 selection-quarters in the sealed history; spec question with the owner (task_7a70ad77);")
+print("  the frozen rule runs AS SEALED here, so forward selections may include them too.")
+
+if DERIVE:
+    print("")
+    print("### derive: sealed-era TR pair (end=%s)" % REG)
+    for k in ("K30", "A2"):
+        o = run5(tr=True, end=REG, **BOOKS[k])
+        s = stat(o["navs"], o["bnavs"])
+        print("  derive %-4s TR CAGR %6.2f%%  mult %8.2fx  div %d  MaxDD %6.2f%%  aPR %+6.2f/bPR %5.3f"
+              % (k, s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100, s["alpha"] * 100, s["beta"]), flush=True)
+    print("")
+    print("derivation complete — embed GATE (and refresh the §5 TR print's current-archive context) with a ledger entry, same commit.")
+    sys.exit(0)
 
 # ---- the boundary ----
 rb = list(rebal_all)
@@ -334,19 +395,16 @@ if fwd_pre:
     print("  (policy point = Ramana's pick on the measured 16AN curve; design default 80/20 per"
           " docs/portfolio-layer-design.md §4; the sealed specs themselves stay 100/0)")
 
-# ---- 5. the owed TR prints (full period; cross-check anchored) ----
+# ---- 5. the TR prints (sealed era, end=REG; recorded values printed beside, informational) ----
 print("")
-print("### 5. TOTAL-RETURN prints (16AD accrual, lower bound; full period)")
-o = run5(tr=True, **BOOKS["K30"])
-s = stat(o["navs"], o["bnavs"])
-anchor_ok = abs(s["cagr"] * 100 - 27.3) < 0.1
-print("  K30 TR %5.1f%% (Rs1Cr->%7.2fx, div %d, MaxDD %5.1f%%, aPR %+5.1f/bPR %4.2f)  [16AF anchor 27.3%% -> %s]"
-      % (s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100, s["alpha"] * 100, s["beta"],
-         "OK" if anchor_ok else "MISMATCH — investigate before trusting the A2 line"), flush=True)
-o = run5(tr=True, **BOOKS["A2"])
-s = stat(o["navs"], o["bnavs"])
-print("  A2 CLEAN-TR %5.1f%% (Rs1Cr->%7.2fx, div %d, MaxDD %5.1f%%, aPR %+5.1f/bPR %4.2f)  << the owed print: union-ladder.md §5 'FULL TR' row"
-      % (s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100, s["alpha"] * 100, s["beta"]), flush=True)
+print("### 5. TOTAL-RETURN prints (16AD accrual, lower bound; sealed era end=%s; records = seal-time archive)" % REG)
+for k in ("K30", "A2"):
+    o = run5(tr=True, end=REG, **BOOKS[k])
+    s = stat(o["navs"], o["bnavs"])
+    r_c, r_m = TR_REC[k]
+    print("  %s TR %5.1f%% (Rs1Cr->%7.2fx, div %d, MaxDD %5.1f%%, aPR %+5.1f/bPR %4.2f)  [recorded %s: %.1f/%.2f on the seal-time archive; delta = 16AQ repair + boundary-leg dead-window, disclosed]"
+          % (k, s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100, s["alpha"] * 100, s["beta"],
+             "16AF" if k == "K30" else "16AO", r_c, r_m), flush=True)
 
 # ---- 6. full-period median pick-ADV (the other owed print; per book, all rebalances) ----
 print("")

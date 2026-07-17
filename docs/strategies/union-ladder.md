@@ -8,6 +8,17 @@
 > convenience only — the sealed prereg files are definitional.
 > **Status flags:** 🔒 SEALED (pre-registered, forward-tested 2026-10-03+) · 📋 RECORDED (full
 > record, unregistered; registration-ready on Ramana's word) · ❌ REJECTED (walls; catalog §G).
+>
+> **⚠ Archive provenance (S183, ledger 16AS):** the numbers below describe the archive AS IT WAS
+> AT SEAL TIME. The 16AQ corporate-actions repair (14 gold-ETF unit subdivisions backfilled; the
+> sealed universe SELECTS gold ETFs — 16AR, owner task `task_7a70ad77`) moved the adjusted
+> history of the ERA-FLOOR books only: bounded at the seal date, U/B14/C40 reproduce their seals
+> EXACTLY (26.04/28.84/47.29×) while A1 100.43→100.51 · A2 99.03→99.25 · K30 115.69→116.04
+> (TR: K30 131.80→132.21 · A2 113.65→113.89; α/β unchanged). Re-verified values + the
+> drift-proof forward-gate anchors are ledger 16AS; `union_forward.py` gates on the 16AS
+> closed-window set and prints the seal-time headlines beside, drift disclosed. Whether headline
+> rows are ever RESTATED (and whether gold ETFs stay in the universe) is an owner decision tied
+> to `task_7a70ad77` — until then the seal-time records stand.
 
 **Shared machinery (every member, verbatim across the family):** NSE bhavcopy EQ+BE+BZ,
 corporate-action adjusted (`adjust.py`), split-ratio quarantine (`quarantine.py`), PIT sector

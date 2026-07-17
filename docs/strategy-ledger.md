@@ -3217,3 +3217,40 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **THE GRID (gold-ETF-excluded clean book: K30 26.6% / A2 25.7%; native 2011+; DIAL, descriptive, return/vol NOT a Sharpe).** Edges reproduce the two-asset dials (16AN G-sec + 16AP gold). K30 rows — 100/0/0 25.1%/1.12/−18.1 · 80/20/0 (gsec) 21.6/1.19/−15.3 · 80/0/20 (gold) 23.1/1.27/−13.5 · **80/10/10 22.4/1.24/−14.4** · 70/10/20 21.3/1.34/−12.0 · **max ret/vol 60/0/40 20.7/1.47/−9.0**. corr(clean-K30,gold) −0.18 · (,G-sec) −0.04 · corr(gold,G-sec) −0.12.
 - **THE HEADLINE, HONEST:** the in-sample optimum **degenerates to book+gold, ZERO G-sec** — gold's **regime-specific +11.9%** (2020-26 surge) strictly dominates G-sec's structural 6.5% at similar corr. **This is the in-sample-optimization trap, NOT a forward allocation** (gold's return isn't forecastable; G-sec's low-risk role is understated by one gold-bull window). Both legs are genuine ~uncorrelated diversifiers. **Robust use: a MODEST gold sleeve alongside G-sec (80/10/10 · 70/10/20), weights by risk appetite — never this window's optimizer (40% gold).**
 - **Provenance:** `portfolio_mix.py` (unchanged) + `/tmp/portfolio_3asset_clean.py`; box read-only, no deploy. Design doc §7d + §10 items 2/5/6 updated same-commit.
+
+### 2026-07-16AS — S183: THE FORWARD GATE MADE DRIFT-PROOF after 16AQ moved the archive — anchors re-derived on the repaired data; the clean decomposition: bounded at the seal date, U/B14/C40 reproduce EXACTLY; only the ERA-FLOOR books moved (the gold ETFs live under their lower floor)
+
+- **Verdict: INSTRUMENTATION + MEASUREMENT (no verdict moved, no spec touched, no deploy of services).**
+  Fixes two S181 gate defects exposed by 16AQ/16AR and hardens the 2026-10-03 instrument.
+- **The two defects (mine, S181):** (1) the repro gate ran UNBOUNDED full-history — on Oct-3 the new
+  forward legs would shift the full-period numbers and false-STOP the gate even on a pristine archive;
+  (2) after the 16AQ corporate-actions repair the seal-time anchors no longer describe the current
+  archive at all. Found before they could bite (16AR's repro-gate break was the tell).
+- **The fix (`union_forward.py`, S183):** the hard gate now compares the ₹1Cr MULTIPLE (window-exact,
+  convention-free; 0.006 tolerance ≈ basis-points of terminal wealth) over legs ending ≤ **GATE_END
+  2026-04-01** — one leg EARLIER than the seal boundary because `isdead()` reads 60 sessions past a
+  leg's end, so the (04-01→07-01) boundary leg stays data-arrival-sensitive until ~late Sep 2026;
+  legs through 04-01 are input-closed TODAY and can only move if the engine or archive is EDITED —
+  exactly what a hard gate exists to catch. Seal-time headlines print BESIDE with the drift disclosed.
+  `--derive-anchors` is the recorded re-derivation loop for any future 16AQ-class repair.
+- **THE 16AS ANCHORS (derived 2026-07-18 on the post-16AQ box archive, legs ≤ 2026-04-01, mult):**
+  U **20.15×** · B14 **26.01×** · C40 **41.26×** · A1 **87.70×** · A2 **86.59×** · K30 **101.06×**.
+  Cross-process determinism: the embedding run must reproduce these to 2dp (verified in the same
+  session's full run).
+- **THE CLEAN DECOMPOSITION (sharper than 16AR's, because bounded at the seal date):** headline slice
+  ≤ 2026-07-16 on the repaired archive — **U 26.04× · B14 28.84× · C40 47.29× = EXACT seal
+  reproduction; A1 100.43→100.51 · A2 99.03→99.25 · K30 115.69→116.04.** The 16AQ repair moved ONLY
+  the era-floor books — the gold ETFs trade under their lower ADV floors (16AR's 12 selection-quarters)
+  and never entered the base books' ₹5cr universe. 16AR's "+0.3pp non-CA data" component reflects its
+  probe's unbounded window/different harness, not a seal-window archive change. **Sealed-era TR on the
+  repaired archive: K30 27.28% / 132.21× (α+15.81/β0.816) · A2 26.34% / 113.89× (α+14.96/β0.821)** —
+  the 16AF/16AO records (27.3/131.80 · 26.3/113.65) stay as seal-time facts; α/β unchanged to 2dp.
+- **⚠ Convention caught mid-derivation:** the first slice printer annualized over legs/4 while the
+  estate's `stat()` uses (legs−1)/4 — a −0.3pp cosmetic CAGR skew that would have read as drift. The
+  gate therefore compares MULT only; CAGR prints in stat-convention, informationally.
+- **Open with the owner (unchanged, `task_7a70ad77`):** whether gold ETFs stay in the sealed universe,
+  and whether headline rows are ever restated (26.5-with-ETF-splits vs 26.7-ETF-excluded class
+  numbers, 16AR) — the seal-time records stand until that call. The compendium carries the
+  provenance banner.
+- **Provenance:** derive log `/tmp/union_forward_s183_derive.log` · full verification run same session ·
+  commits this lane. Box read-only throughout.
