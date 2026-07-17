@@ -2,7 +2,7 @@
 
 Answers "explain the Wolfe methodology / how does CPR work / what's the DVPT idea / how does
 the reversal strategy work" with a plain-language summary sourced from the canonical
-docs/strategies/<slug>.md pages (the 13 served at /dash/strategy-ref) + a link. This grounds
+docs/strategies/<slug>.md pages served at /dash/strategy-ref + a link. This grounds
 Pat's explain corpus on METHODOLOGY, not just term definitions (the glossary 'explain' flow):
 the glossary says WHAT a metric is; this says HOW a strategy works, in the desk's own words.
 
@@ -38,6 +38,10 @@ _SLUG_HOOKS: list[tuple[str, tuple[str, ...]]] = [
     ("patearn",           ("14-pattern", "14 pattern", "fundamental quality", "patearn")),
     ("classic-screens",   ("classic screen", "magic formula", "canslim", "piotroski", "coffee can",
                            "greenblatt", "graham screen")),
+    ("union-ladder",      ("union ladder", "union-ladder", "family ladder", "union family")),
+    ("union",             ("the union", "union")),
+    ("sector-rotation",   ("sector rotation", "sector-rotation")),
+    ("rule-lab",          ("rule lab", "rule-lab", "rule composer")),
     ("reversal-context",  ("reversal context", "stream band", "fractal floor", "reversal")),
     ("momentum-riskadj",  ("risk-adjusted momentum", "riskadj", "ranked rotation", "rotation engine",
                            "momentum ensemble", "momentum strategy", "momentum methodology")),
@@ -129,6 +133,11 @@ def _selftest() -> int:
     assert parse_methodology("how does the momentum strategy work")["params"]["slug"] == "momentum-riskadj"
     assert parse_methodology("walk me through harmonic patterns")["params"]["slug"] == "harmonic"
     assert parse_methodology("how does the CCI methodology work")["params"]["slug"] == "cci"
+    assert parse_methodology("explain the union strategy")["params"]["slug"] == "union"
+    assert parse_methodology("what's the union ladder concept")["params"]["slug"] == "union-ladder"
+    assert parse_methodology("how does sector rotation work")["params"]["slug"] == "sector-rotation"
+    assert parse_methodology("explain the rule lab idea")["params"]["slug"] == "rule-lab"
+    assert parse_methodology("how does the rotation engine work")["params"]["slug"] == "momentum-riskadj"
     # yields — no methodology cue (bare glossary explain), or no known strategy
     assert parse_methodology("what is DVPT") is None, "bare term → glossary explain, not us"
     assert parse_methodology("any wolfe setups") is None, "data flow, not methodology"
@@ -142,12 +151,13 @@ def _selftest() -> int:
     for banned in ("Ramana", "Governing decision", "do not archive"):
         assert banned not in s["plain"], f"leaked: {banned}"
     assert not re.search(r"\bS\d{2,3}\b|\bD\d{2,3}\b", s["plain"]), "leaked a session/decision id"
-    for sl in ("cpr", "dvpt", "mep", "cci", "harmonic", "momentum-riskadj", "relative-strength"):
+    for sl in ("cpr", "dvpt", "mep", "cci", "harmonic", "momentum-riskadj", "relative-strength",
+               "union", "union-ladder", "sector-rotation", "rule-lab"):
         assert summary(sl) and len(summary(sl)["plain"]) > 40, sl
     assert summary("nonexistent") is None
-    print("methodology_flow selftest OK — recognition (methodology cue + strategy name; yields on "
-          "bare term / data ask / unknown) + sanitized plain-language summary from every "
-          "docs/strategies page (no governance/ID leakage).")
+    print("methodology_flow selftest OK v2 — recognition incl. union/ladder/sector-rotation/rule-lab "
+          "(methodology cue + strategy name; yields on bare term / data ask / unknown) + sanitized "
+          "plain-language summary from every docs/strategies page (no governance/ID leakage).")
     return 0
 
 

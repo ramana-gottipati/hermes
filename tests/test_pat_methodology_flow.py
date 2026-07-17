@@ -25,6 +25,22 @@ def test_recognizes_methodology_asks():
     assert MF.parse_methodology("what's the DVPT idea")["params"]["slug"] == "dvpt"
     assert MF.parse_methodology("explain the reversal strategy")["params"]["slug"] == "reversal-context"
     assert MF.parse_methodology("walk me through harmonic patterns")["params"]["slug"] == "harmonic"
+    assert MF.parse_methodology("explain the union strategy")["params"]["slug"] == "union"
+    assert MF.parse_methodology("what's the union ladder concept")["params"]["slug"] == "union-ladder"
+    assert MF.parse_methodology("how does sector rotation work")["params"]["slug"] == "sector-rotation"
+    assert MF.parse_methodology("explain the rule lab idea")["params"]["slug"] == "rule-lab"
+    # bare "rotation" stays with the momentum engine hooks, not the sector page
+    assert MF.parse_methodology("how does the rotation engine work")["params"]["slug"] == "momentum-riskadj"
+
+
+def test_every_served_page_is_reachable_by_a_methodology_ask():
+    """Every methodology page must have at least one recognizer hook — a summary nobody
+    can ask for is dead knowledge (the union/ladder/sector-rotation/rule-lab gap, S188)."""
+    hooked = {slug for slug, _hooks in MF._SLUG_HOOKS}
+    for slug in SV._PAGES:
+        if slug in ("origins",):
+            continue
+        assert slug in hooked, f"{slug} has a served page but no _SLUG_HOOKS entry"
 
 
 def test_does_not_steal_glossary_or_data_asks():
@@ -52,6 +68,9 @@ def test_summary_is_plain_and_sanitized_for_every_page():
         for b in banned:
             assert b not in s["plain"], f"{slug} leaked {b!r}"
         assert not re.search(r"\b[SD]\d{2,3}[a-z]?\b", s["plain"]), f"{slug} leaked a session/decision id"
+        # the extractor is line-anchored: a WRAPPED one-liner ships a mid-sentence fragment
+        # (the union page, S188) — every summary must read as a complete sentence
+        assert s["plain"].rstrip().endswith((".", "…", ")")), f"{slug} summary is a fragment: …{s['plain'][-60:]!r}"
 
 
 def test_wolfe_methodology_answers_in_plain_words():

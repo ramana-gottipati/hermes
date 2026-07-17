@@ -24,10 +24,7 @@
 > union) · `cash_6b.py` (6b book) · `dim6.py`/`dim6g.py` (the reversal battery that isolated 6b). This page
 > states the RULESET (definitional) and links the rest.
 
-**One-line definition:** a long-only, stock-level book that holds every liquid Indian stock which is EITHER
-recovering from an oversold relative-strength dip (the *turn*) OR showing confirmed, persistent relative
-strength (the *trend*) — top 60 equal-weighted, idle capital parked in a Nifty Next 50 sleeve while the market
-is healthy, each name closed on a −20% trailing stop, rebalanced quarterly.
+**One-line definition:** a long-only, stock-level book that holds every liquid Indian stock which is EITHER recovering from an oversold relative-strength dip (the *turn*) OR showing confirmed, persistent relative strength (the *trend*) — top 60 equal-weighted, idle capital parked in a Nifty Next 50 sleeve while the market is healthy, each name closed on a −20% trailing stop, rebalanced quarterly.
 
 ---
 
