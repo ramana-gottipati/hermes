@@ -98,3 +98,55 @@ def test_shareholding_xbrl_freshness_clean_when_recent_and_safe_when_absent():
     assert dq.chk_shareholding_xbrl_freshness(_shp([(fresh, "NSE SHP XBRL")]))["severity"] == dq.SEV_OK
     assert dq.chk_shareholding_xbrl_freshness(None)["severity"] == dq.SEV_OK        # research.db absent → OK
     assert dq.chk_shareholding_xbrl_freshness(_conn())["severity"] == dq.SEV_OK     # table absent → OK
+
+
+# ── chk_split_cliffs (S184: the 16AQ-recurrence guard) ──────────────────────────
+
+
+def _bhav_tape(cliff_covered: bool | None):
+    """A bhavcopy_rows tape ending today with a 100:1-subdivision-shaped cliff 10 days ago.
+    cliff_covered: None = no cliff at all; False = orphan cliff; True = cliff + CA row."""
+    c = _conn()
+    c.execute("CREATE TABLE bhavcopy_rows (symbol TEXT, series TEXT, trade_date TEXT, "
+              "close REAL, value REAL)")
+    c.execute("CREATE TABLE corporate_actions (symbol TEXT, action_type TEXT, ex_date TEXT, "
+              "details TEXT)")
+    today = date.today()
+    px = 3359.6
+    for i in range(60, -1, -1):
+        d = (today - timedelta(days=i)).isoformat()
+        if cliff_covered is not None and i < 10:
+            px_day = 33.55 + (10 - i) * 0.01          # post-split level
+        else:
+            px_day = px + i                            # pre-split level
+        c.execute("INSERT INTO bhavcopy_rows VALUES ('GOLDBEES','EQ',?,?,?)", (d, px_day, 5e7))
+    if cliff_covered:
+        c.execute("INSERT INTO corporate_actions VALUES ('GOLDBEES','SPLIT',?,?)",
+                  ((today - timedelta(days=9)).isoformat(), "Subdivision 100:1"))
+    c.commit()
+    return c
+
+
+def test_split_cliffs_flags_an_orphan_cliff():
+    res = dq.chk_split_cliffs(_bhav_tape(cliff_covered=False))
+    assert res["severity"] == dq.SEV_CRIT and "GOLDBEES@" in res["message"]
+
+
+def test_split_cliffs_passes_a_covered_cliff_and_a_quiet_tape():
+    assert dq.chk_split_cliffs(_bhav_tape(cliff_covered=True))["severity"] == dq.SEV_OK
+    assert dq.chk_split_cliffs(_bhav_tape(cliff_covered=None))["severity"] == dq.SEV_OK
+
+
+def test_split_cliffs_absent_tables_and_penny_moves_are_safe():
+    assert dq.chk_split_cliffs(_conn())["severity"] == dq.SEV_OK   # no tables → fail-safe OK
+    c = _conn()
+    c.execute("CREATE TABLE bhavcopy_rows (symbol TEXT, series TEXT, trade_date TEXT, "
+              "close REAL, value REAL)")
+    c.execute("CREATE TABLE corporate_actions (symbol TEXT, action_type TEXT, ex_date TEXT, "
+              "details TEXT)")
+    today = date.today()
+    for i, px in ((2, 40.0), (1, 9.0), (0, 8.5)):      # a Rs40 penny crash — below the Rs100 floor
+        c.execute("INSERT INTO bhavcopy_rows VALUES ('PENNY','EQ',?,?,?)",
+                  ((today - timedelta(days=i)).isoformat(), px, 1e6))
+    c.commit()
+    assert dq.chk_split_cliffs(c)["severity"] == dq.SEV_OK

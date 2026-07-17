@@ -10,7 +10,18 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## ⛏ 2026-07-17 — CLAIM (S184, active): gold-feed formalisation — feed_manifest entry + recurring ETF-split DQ guard (manifest+DQ+tests) — IN PROGRESS in lane s184-goldfeed; do not double-build; verify_etf_splits.py (S182, uncommitted in the shared tree) is NOT touched by this lane
+## ✅ 2026-07-17 — S184: the GOLD FEED is FORMALISED (design-doc §7 feed-protocol step CLOSED) — manifest row `gold_etf` + the `chk_split_cliffs` nightly 16AQ-recurrence guard — do NOT redo; kickstart-pick-verify
+- **`feed_manifest.py:gold_etf`:** the portfolio layer's gold-ETF use (13 names, 16AP/16AR/16AS) declared
+  as a public-archive feed riding the bhavcopy nightly (no new fetcher); the 16AQ CA-omission hazard +
+  heal/proof scripts + the 16AR universe question (`task_7a70ad77`) documented in the row.
+- **`data_quality.py:chk_split_cliffs` (23rd check):** rolling ~120d scan for a CA-shaped cliff
+  (close ≤ 25% of a ≥₹100 prior close, traded value both days) with NO `corporate_actions` row within
+  ±5d → CRITICAL. Catches future ETF subdivisions AND missed equity splits — the whole silent-corruption
+  class, all symbols. 3 liveness tests; 25/25 green; box-verified live.
+- **Division of labor with S182 (claim marker `01498ae` was pushed first — contested area):** their
+  `verify_etf_splits.py` = full-HISTORY proof of the 14 healed events; this check = the rolling FORWARD
+  guard. The gold-leg queue's remaining item is the three-asset work already recorded (16AR) + the owner
+  calls (`task_7a70ad77`, policy point). D143 families framework: owner-gated, untouched.
 
 ## ✅ 2026-07-18 — S183: the FORWARD GATE is DRIFT-PROOF (ledger 16AS) — 16AQ's repair had invalidated the S181 anchors AND the unbounded gate would have false-STOPPED on Oct-3; both fixed, anchors re-derived, box-verified — do NOT redo; kickstart-pick-verify
 - **The two S181 defects (mine, found via 16AR's repro-gate break):** the gate ran UNBOUNDED (new

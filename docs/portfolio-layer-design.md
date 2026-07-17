@@ -329,8 +329,9 @@ the forward test judges the *book*; the portfolio layer just shows the book at t
 2. **Gold-leg** (§7) — ✅ DONE end-to-end: data validated + corr (S180 `16AP`) → DQ split fix (S182
    `16AQ`) → **three-asset grid (S180 cont. `16AR`, §7d)**. Result: gold clears the gate but the
    in-sample optimum degenerates to book+gold (regime-inflated) — robust use is a modest gold sleeve
-   *alongside* G-sec. **Remaining (optional):** formalise GOLDBEES via the feed protocol if the gold leg
-   is ever to be a live reporting column (research need is met from bhavcopy).
+   *alongside* G-sec. ~~**Remaining (optional):** formalise GOLDBEES via the feed protocol~~ — ✅ DONE
+   S184: manifest row `gold_etf` (rides the bhavcopy nightly, no new fetcher) + the `chk_split_cliffs`
+   nightly DQ guard (the 16AQ-recurrence detector, all symbols).
 3. ~~**Fold the policy point into forward reporting** (§9)~~ — ✅ DONE S181 (`union_forward.py` §4
    prints the dial each checkpoint; only the `<< POLICY` marker awaits Ramana's pick).
 4. **(Optional ratchet)** add this doc to `tests/test_retvol_label_gate.py`'s scanned set so the honest

@@ -604,6 +604,53 @@ def chk_shareholding_xbrl_freshness(r) -> dict:
                   f"newest XBRL shareholding broadcast {mx} ok ({age}d ago)")
 
 
+def chk_split_cliffs(c) -> dict:
+    """16AQ recurrence guard (S184): a corporate-action-shaped price cliff with NO matching
+    corporate_actions row is SILENT adjustment corruption. Root cause on record: the NSE equities
+    CA feed omits the ETF instrument class — 14 gold-ETF unit subdivisions were missing until
+    S182 backfilled them (scripts/backfill_etf_splits.py; proof scripts/verify_etf_splits.py).
+    History is healed; this check watches the ROLLING window so the class cannot recur silently —
+    for gold ETFs (the portfolio layer consumes them, 16AP/16AR) and for any other symbol.
+    Shape: within ~120d of the tape's own max date, a one-day close drop to <= 25% of a >= Rs100
+    prior close, traded value on BOTH days (subdivisions keep trading; junk rows don't), and no
+    corporate_actions row within +/-5 days of the cliff -> CRITICAL. Fail-safe: tables absent -> OK."""
+    try:
+        rows = c.execute(
+            "SELECT symbol, trade_date, close, value FROM bhavcopy_rows "
+            "WHERE series IN ('EQ','BE','BZ') AND close > 0 "
+            "AND trade_date >= date((SELECT MAX(trade_date) FROM bhavcopy_rows), '-120 day') "
+            "ORDER BY symbol, trade_date").fetchall()
+    except sqlite3.Error:
+        return _check("split_cliffs", SEV_OK, 0, "bhavcopy_rows absent — nothing to scan")
+    orphans, prev = [], {}
+    for sym, d, close, val in rows:
+        p = prev.get(sym)
+        prev[sym] = (d, close, val or 0)
+        if not p:
+            continue
+        _pd, pc, pv = p
+        if pc >= 100 and close <= 0.25 * pc and pv > 0 and (val or 0) > 0:
+            try:
+                covered = c.execute(
+                    "SELECT 1 FROM corporate_actions WHERE symbol=? "
+                    "AND ex_date BETWEEN date(?, '-5 day') AND date(?, '+5 day') LIMIT 1",
+                    (sym, d, d)).fetchone()
+            except sqlite3.Error:
+                covered = None
+            if not covered:
+                orphans.append(f"{sym}@{d} ({pc:.0f}->{close:.2f})")
+    if orphans:
+        return _check("split_cliffs", SEV_CRIT, len(orphans),
+                      "corporate-action-shaped cliff(s) with NO corporate_actions row — adjusted "
+                      "prices are silently corrupt for every consumer (the 16AQ class): "
+                      + "; ".join(orphans[:5])
+                      + (" …" if len(orphans) > 5 else "")
+                      + " — heal via scripts/backfill_etf_splits.py-style CA insert, then re-verify",
+                      sample=orphans[:10])
+    return _check("split_cliffs", SEV_OK, 0,
+                  f"no orphan split-shaped cliffs in the ~120d window ({len(prev)} symbols scanned)")
+
+
 # ── run all ───────────────────────────────────────────────────────────────────
 def run(conn=None, *, persist: bool = True) -> dict:
     """Run the full battery. Returns {status, n_critical, n_warn, checks:[...]}.
@@ -635,6 +682,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_table_census, (c,)), (chk_action_tape_agreement, (c,)),
             (chk_restatement_spike, (r,)),
             (chk_shareholding_xbrl_freshness, (r,)),
+            (chk_split_cliffs, (c,)),
         ]
         for fn, fargs in plan:
             try:

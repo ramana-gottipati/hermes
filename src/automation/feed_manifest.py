@@ -156,6 +156,24 @@ FEEDS: dict = {
         tables=("bhavcopy_rows", "bhavcopy_dates"),
         notes="Primary sec_bhavdata_full (has DELIV_QTY/PER); UDIFF + legacy fallbacks carry no delivery.",
     ),
+    "gold_etf": Feed(
+        key="gold_etf",
+        module="src/automation/bhavcopy.py",
+        source_org="NSE (nsearchives; ETF instrument class inside the equities bhavcopy)",
+        cadence="daily — rides the bhavcopy nightly; no separate fetch",
+        licence_class="public-archive",
+        knowable_rule="EOD publish same trading day (a bhavcopy row); knowable at publish",
+        fence_status="raw-archive",
+        tables=("bhavcopy_rows", "corporate_actions"),
+        notes="Formalises the PORTFOLIO-LAYER use of NSE gold ETFs (GOLDBEES primary; 13 tracked "
+              "names, ledger 16AP/16AR/16AS) already carried by the bhavcopy feed — declared per "
+              "design-doc §7 so the asset leg has its own manifest+DQ story. ⚠ CA hazard on record "
+              "(16AQ): the NSE equities corporate-actions feed OMITS the ETF class — 14 unit "
+              "subdivisions were backfilled (scripts/backfill_etf_splits.py; proof "
+              "scripts/verify_etf_splits.py); the nightly chk_split_cliffs guard watches for "
+              "recurrence. Gold ETFs are also SELECTABLE by the sealed union universe "
+              "(16AR; owner task task_7a70ad77).",
+    ),
     "indexes": Feed(
         key="indexes",
         module="src/automation/indexes.py",
