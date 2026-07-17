@@ -72,7 +72,12 @@ Rules (binding for every redesign module):
 
 | Module | Status | Evidence |
 |---|---|---|
-| M0 preview toggle | BUILT — this lane | `src/web/v3_preview.py`; gates + live walk logged in PROJECT_STATE session entry |
-| M1 theme layer | BUILT — this lane | `src/web/ui_tokens_v3.py` · `shell_v3.py` · `ui_components_v3.py` · `ui_showcase_v3.py` (`/dash/_ui3`) |
-| M2 term chips | BUILT — this lane | `src/web/term_chip.py` + `docs/metric-verdicts.md` + `tests/test_v3_isolation.py` |
+| M0 preview toggle | **DEPLOYED (VPS, 2026-07-18 ~04:15 UTC)** | `/dash/preview` public 200; POST toggle 303+cookie, GET 405; home byte-identical pre/post (146,792B); 0 v3 markers on legacy pages; 0 preview links in default chrome |
+| M1 theme layer | **DEPLOYED (VPS)** | `/dash/_ui3` public 200; all 6 module selftests green ON the box; anchored insert into forked `v2_surfaces.py` (backup `.bak-s189`; box md5 was `c81715d9`, drift cosmetic) |
+| M2 term chips | **DEPLOYED (VPS)** | `term_chip` selftest on the box: 10 seed chips resolve against the box's real glossary + sidecar |
 | M3–M8 | NOT APPROVED | await owner |
+
+Deploy record (S189-b): callees pushed BEFORE the caller patch (S158 rule), all 7 files md5-matched
+both sides, writer-check empty, restart at ~04:12 UTC (far from the 14:01 bhavcopy window),
+health 200, public walk via Caddy (`srv1704897.hstgr.cloud`). Revert = restore
+`v2_surfaces.py.bak-s189` + restart (the 6 new modules are inert without the mounts).
