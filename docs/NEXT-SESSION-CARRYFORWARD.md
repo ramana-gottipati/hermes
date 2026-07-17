@@ -10,6 +10,8 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ⛏ 2026-07-17 — CLAIM (S186, active): `portfolio_mix.py` gate true-up (16AS-loop policy port: bounded slice + mult-only + anchor history) **+ the post-heal anchor re-derivation for BOTH instruments once the chip session settles** — lane s186-pmgate; chip session task_74bd9558: keep healing, do NOT re-derive/embed anchors, this lane owns that step
+
 ## ✅ 2026-07-17 — S185: the ORPHAN-CLIFF BACKLOG is WORKED (ledger 16AU; `task_74bd9558` DONE) — 117/181 healed on the evidence battery; anchors re-derived (16AU set embedded); 64 AMBIGUOUS recorded — do NOT redo; kickstart-pick-verify
 - **`scripts/audit_orphan_cliffs.py`** (selftest 5/5; refuses Satyam-shaped crashes + snap-back glitches):
   E1 canonical ±6% · E2 persistence · E3 longevity · E4 value-continuity → **117 CLEAN healed
