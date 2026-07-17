@@ -128,10 +128,14 @@ GATE_SEAL["A1"] = (25.6, 100.43)
 # The gate compares the Rs1Cr MULTIPLE only: it is window-exact and convention-free (CAGR
 # annualization conventions differ across the estate's printers), and at ~100x a 0.006
 # tolerance is basis-point-of-terminal-wealth sensitivity. CAGR prints informationally in
-# stat()'s convention. Derived 2026-07-18 on the post-16AQ archive (ledger 16AS); the base
-# books' seal-window mults reproduced EXACTLY there (26.04/28.84/47.29) — the 16AQ repair
-# moved only the era-floor books (gold ETFs live under their lower ADV floor).
-GATE = {"U": 20.15, "B14": 26.01, "C40": 41.26, "A1": 87.70, "A2": 86.59, "K30": 101.06}
+# stat()'s convention.
+# ANCHOR HISTORY (each set = a recorded archive repair; the re-derivation loop in action):
+#   16AS (2026-07-17, post-16AQ gold-ETF splits): U 20.15 B14 26.01 C40 41.26 A1 87.70
+#     A2 86.59 K30 101.06 — base books' seal-window mults reproduced EXACTLY then.
+#   16AU (2026-07-17, post the 117-event orphan-cliff heal, audit_orphan_cliffs.py): the
+#     un-quarantined names shift selections — base books dilute ~2% of terminal wealth
+#     (U/B14/C40 down), K30 +2.6%; ladder order unchanged; seal-time records untouched.
+GATE = {"U": 19.81, "B14": 25.45, "C40": 40.51, "A1": 87.64, "A2": 86.87, "K30": 103.71}
 # sealed-era TR records (informational §5 anchors): K30 16AF / A2 16AO, seal-time archive
 TR_REC = {"K30": (27.3, 131.80), "A2": (26.3, 113.65)}
 

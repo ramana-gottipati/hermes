@@ -3285,3 +3285,41 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   window will NOT self-surface this backlog.
 - **Provenance:** commits this lane (`d45381b` + the heal-script commit) · box logs in-session ·
   DQ battery live-run persist=False. Box writes: the 3 idempotent CA inserts only (S182 precedent).
+
+### 2026-07-16AU — S185: THE ORPHAN-CLIFF BACKLOG WORKED — 117 of 181 healed on a four-test evidence battery (64 AMBIGUOUS left untouched, by design); the sealed-ladder anchors re-derived (the 16AS loop's second firing); portfolio_mix's load gates flagged stale
+
+- **Verdict: DATA REPAIR + INSTRUMENT RE-CALIBRATION (no verdict moved; ladder order unchanged;
+  seal-time records untouched).** Executes `task_74bd9558` (16AT). Tool: `scripts/audit_orphan_cliffs.py`
+  (committed; offline selftest 5/5 incl. a Satyam-shaped crash and a snap-back glitch both refused).
+- **The evidence battery (all four must pass to heal):** E1 canonical-ratio fit ±6% of
+  {4,5,8,10,20,25,50,100} · E2 persistence (median of next-5 closes within 0.85–1.15× the cliff close) ·
+  E3 longevity (≥20 further sessions) · E4 value-continuity (cliff-day traded value ≤5× the trailing-10
+  median — a subdivision multiplies UNITS, not rupee value; crashes spike 10–30×). Tape-derived per the
+  accepted S182 basis (the bhavcopy IS the primary source); idempotent inserts via the canonical
+  `store_actions` path, frozen details text, SOURCE_TAG `nse-bhav-derived-split-audit`.
+- **The result: 117 CLEAN healed (26,916 → 27,033 CA rows)** — old-equity splits 2004-2017 (ABANLOYD,
+  ADANIEXPO, …) + the modern index-ETF class 2020-2026 (AUTOIETF, FMCGIETF, ALPL30IETF, …). **64 AMBIGUOUS
+  reported, not healed** (each carries its failed-evidence tags; CSV `/tmp/orphan_cliffs_s185.csv`,
+  regenerate any time): includes likely-real events that need STRONGER evidence — e.g. the same-day
+  2021-11-25 ABSL ETF cohort (E4 spikes 5–22×: subdivision-day retail bursts overlap the crash band) and
+  BERGEPAINT 2004 (E2 1.44×: post-event rally) — per-event official-archive verification is their path,
+  never a loosened threshold. Post-heal: nightly `chk_split_cliffs` OK (2,768 symbols) · re-audit 0 CLEAN.
+- **THE 16AS LOOP, SECOND FIRING (this is what the drift-proof gate exists for):** the heal changes
+  adjusted history + un-quarantines names → selections shift → `--derive-anchors` re-run. **16AU anchors
+  (legs ≤ 2026-04-01, mult): U 19.81 · B14 25.45 · C40 40.51 · A1 87.64 · A2 86.87 · K30 103.71** (from
+  16AS: base books dilute ~2% of terminal wealth on the widened universe; K30 +2.6%; A1/A2 ±0.3%).
+  Headline slice ≤ seal date: U 25.60 · B14 28.22 · C40 46.43 · A1 100.45 · A2 99.57 · **K30 119.08**
+  (seal-time 115.69) — drift printed beside the gate, seal-time GATE_SEAL untouched. Sealed-era TR now:
+  K30 27.44/135.65 (α+15.86/β0.817) · A2 26.37/114.44 (α+14.94/β0.818); the 16AF/16AO records stand as
+  seal-time facts. Magnitudes: every move ≤ ~3% of 20-year terminal wealth ≈ ≤ ~0.15pp CAGR — the ladder
+  ORDER and every recorded verdict are unchanged.
+- **⚠ FLAGGED STALE, routed to the owning lane (S180/portfolio):** `portfolio_mix.py`'s load gates
+  (`GATE`/`GATE2`: K30 26.4/115.69 · A2 25.5/99.03) now fail on the current archive (16AQ+16AU repairs) —
+  AND they are full-period/unbounded, the same defect class 16AS fixed in the forward runner. Any future
+  portfolio-layer run must first apply the 16AS-loop treatment there (its constants are part of the
+  16AN/16AR evidence chain — not edited by this lane).
+- **Residue (recorded):** the 64 AMBIGUOUS events · sub-4:1 ratio events (2:1/2.5:1 splits) are BELOW this
+  audit's cliff threshold entirely — quarantine still absorbs those; a lower-threshold pass would need a
+  different discriminator (canonical fit alone is too weak at 2:1 vs a −50% crash).
+- **Provenance:** audit+heal logs in-session (box) · derive log `/tmp/union_forward_s185_derive.log` ·
+  full-run verification same session · commits this lane. Box writes: the 117 idempotent CA inserts only.

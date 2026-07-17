@@ -10,7 +10,19 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
-## ⛏ 2026-07-17 — CLAIM (S185, active): the ~184-event orphan-cliff backlog (`task_74bd9558`) — audit harness + CLEAN-only heal + 16AS anchor re-derivation, in lane s185-cliffbacklog; a sibling's uncommitted `corp_actions.py`/`adjust.py` edits in the shared tree are NOT touched by this lane; do not double-heal
+## ✅ 2026-07-17 — S185: the ORPHAN-CLIFF BACKLOG is WORKED (ledger 16AU; `task_74bd9558` DONE) — 117/181 healed on the evidence battery; anchors re-derived (16AU set embedded); 64 AMBIGUOUS recorded — do NOT redo; kickstart-pick-verify
+- **`scripts/audit_orphan_cliffs.py`** (selftest 5/5; refuses Satyam-shaped crashes + snap-back glitches):
+  E1 canonical ±6% · E2 persistence · E3 longevity · E4 value-continuity → **117 CLEAN healed
+  (26,916→27,033 CA rows) · 64 AMBIGUOUS report-only (tags + CSV; official-archive path owed) · re-audit
+  0 CLEAN · nightly guard OK.** Sub-4:1 events are below the threshold by design (quarantine absorbs).
+- **16AU anchors embedded in `union_forward.py`** (2nd firing of the 16AS loop): U 19.81 · B14 25.45 ·
+  C40 40.51 · A1 87.64 · A2 86.87 · K30 103.71; headline K30 119.08× vs seal-time 115.69 (≈ +0.15pp CAGR
+  class); **ladder order + all verdicts unchanged; seal-time records stand.** Full-run 6/6 verified.
+- **⚠ OWED to the S180/portfolio lane:** `portfolio_mix.py` load gates are now STALE (26.4/115.69 ·
+  25.5/99.03 fail on the repaired archive) and UNBOUNDED (the pre-16AS defect) — apply the 16AS-loop
+  treatment there before any portfolio-layer rerun.
+- A sibling's uncommitted `corp_actions.py`/`adjust.py` edits (production-side 16AQ residual?) were in the
+  shared tree during this lane — untouched here; that lane wraps its own record.
 
 ## ✅ 2026-07-17 — S184: the GOLD FEED is FORMALISED (design-doc §7 feed-protocol step CLOSED) — manifest row `gold_etf` + the `chk_split_cliffs` nightly 16AQ-recurrence guard — do NOT redo; kickstart-pick-verify
 - **`feed_manifest.py:gold_etf`:** the portfolio layer's gold-ETF use (13 names, 16AP/16AR/16AS) declared
