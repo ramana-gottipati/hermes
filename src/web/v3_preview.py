@@ -32,7 +32,7 @@ def is_on(request: Request) -> bool:
 
 
 @router.get("/dash/preview", response_class=HTMLResponse, include_in_schema=False)
-def preview_landing(request: Request) -> HTMLResponse:
+def preview_landing(request: Request, ch: str = "wire", sym: str = "") -> HTMLResponse:
     on = is_on(request)
     state = ("ON — v3-aware pages will render the new look for this browser."
              if on else "OFF — the classic site is untouched everywhere.")
@@ -52,12 +52,15 @@ def preview_landing(request: Request) -> HTMLResponse:
                  "Try a chip: " + term_chip.chip("dvpt") + " · " + term_chip.chip("conviction")
                  + "</p>")
     )
-    rail = C.card("Status", "<p>Approved: M0 preview gate · M1 theme layer · M2 term chips.<br>"
-                  "Pending owner approval: news/flow dock, the recomposed stock page, Today, "
+    rail = C.card("Status", "<p>Approved: M0 preview gate · M1 theme layer · M2 term chips · "
+                  "M3 news/flow dock (below).<br>"
+                  "Pending owner approval: the recomposed stock page, Today, "
                   "the guided journey.</p>"
                   "<p>" + C.evidence_link("/dash", "Back to the classic site") + "</p>")
-    head = C.css() + term_chip.assets()
-    return HTMLResponse(shell_v3.shell("Preview", focus, rail, extra_head=head))
+    from src.web import news_dock
+    dock = news_dock.dock_html(ch=ch, sym=sym, base="/dash/preview")
+    head = C.css() + term_chip.assets() + news_dock.css()
+    return HTMLResponse(shell_v3.shell("Preview", focus, rail, extra_head=head, dock_html=dock))
 
 
 @router.post("/dash/preview/toggle", include_in_schema=False)

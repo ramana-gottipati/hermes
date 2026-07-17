@@ -36,6 +36,7 @@ _SHELL_CSS = """<style>
 .pv3-rail{min-width:0;display:flex;flex-direction:column;gap:var(--s-3)}
 .pv3-foot{margin:var(--s-6) 0 var(--s-4);padding:var(--s-3) var(--gutter);
   border-top:1px solid var(--line);color:var(--ink-3);font-size:var(--t-xs);text-align:center}
+.pv3-dockwrap{max-width:1480px;margin:var(--s-4) auto 0;padding:0}
 @media (max-width:640px){
   .pv3-top{flex-wrap:wrap;row-gap:6px}
   .pv3-brand small{display:none}
@@ -56,11 +57,15 @@ _FENCE_FOOT = ("patearn preview — everything here describes the past from prim
                "it is never investment advice or a recommendation.")
 
 
-def shell(title: str, focus_html: str, rail_html: str = "", extra_head: str = "") -> str:
-    """A complete v3 document. `rail_html` empty => single-column Focus layout."""
+def shell(title: str, focus_html: str, rail_html: str = "", extra_head: str = "",
+          dock_html: str = "") -> str:
+    """A complete v3 document. `rail_html` empty => single-column Focus layout;
+    `dock_html` (M3) renders the persistent News/Flow dock region below the grid."""
     t = _html.escape(str(title))
     rail_cls = " has-rail" if rail_html else ""
     rail = ('<aside class="pv3-rail" aria-label="Context">' + rail_html + "</aside>") if rail_html else ""
+    dock = ('<section class="pv3-dockwrap" aria-label="News and flow">' + dock_html
+            + "</section>") if dock_html else ""
     return ("<!doctype html><html lang=\"en\" data-ui-v3><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             "<meta name=\"robots\" content=\"noindex\">"
@@ -74,7 +79,8 @@ def shell(title: str, focus_html: str, rail_html: str = "", extra_head: str = ""
             "<a class=\"pv3-btn\" href=\"/dash\">Classic site</a>"
             "</header>"
             "<main class=\"pv3-wrap\"><div class=\"pv3-grid" + rail_cls + "\">"
-            "<div class=\"pv3-focus\">" + focus_html + "</div>" + rail + "</div></main>"
+            "<div class=\"pv3-focus\">" + focus_html + "</div>" + rail + "</div>"
+            + dock + "</main>"
             "<footer class=\"pv3-foot\">" + _FENCE_FOOT + "</footer>"
             + _THEME_JS + "</body></html>")
 
@@ -88,6 +94,9 @@ def _selftest() -> int:
     assert "never investment advice" in doc
     solo = shell("T", "<p>x</p>")
     assert 'pv3-grid has-rail' not in solo and "<aside" not in solo  # CSS strings remain; markup must not
+    docked = shell("T", "<p>x</p>", dock_html="<p>dockbody</p>")
+    assert "pv3-dockwrap" in docked and "dockbody" in docked
+    assert "<section" not in solo  # no dock markup without dock_html
     print("shell_v3 selftest OK — grid, themes, no legacy markers")
     return 0
 

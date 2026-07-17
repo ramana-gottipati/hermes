@@ -253,7 +253,8 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
   `src/web/ui_components_v3.py` (tiles/cards/fence — fence copy single-sourced from
   `infographics.fence`) · `src/web/term_chip.py` (self-teaching term chips over
   `glossary.lookup()` + the `docs/metric-verdicts.md` sidecar) ·
-  `src/web/ui_showcase_v3.py` (`/dash/_ui3`) · gate `tests/test_v3_isolation.py`.
+  `src/web/ui_showcase_v3.py` (`/dash/_ui3`) · `src/web/news_dock.py` (M3 — the 6-channel
+  News/Flow dock over existing reads, URL-state `?ch=&sym=`) · gate `tests/test_v3_isolation.py`.
   Plan `docs/redesign-plan-2026-07-17.md`; approvals/verdicts `docs/redesign-coordination.md`.
 - `src/web/symbol_search.py` — NEW leaf module: the ONE shared name→ticker lookup (UX audit S-D). Ranked `search()` over `security_master` (exact symbol > symbol prefix > name prefix > word-boundary > substring; listed before delisted; `nse_equity_list` fallback for thin checkouts) + `GET /dash/api/symbol-search` (JSON typeahead feed, always-200, mounted via `v2_surfaces._ROUTER_SPECS`) + `did_you_mean_html()` (the stock-miss strip) + `TYPEAHEAD_JS` (the one idempotent JS attach both the ⌘K bar and the home box share). Read-only, degrades to no-suggestions on any error. `tests/test_symbol_search.py` = 17 hermetic tests.
 
@@ -1908,12 +1909,12 @@ Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry
 
 ## What's NOT yet built / open items
 
-- **Redesign M3–M8 (D144, plan `docs/redesign-plan-2026-07-17.md` §6) — NOT approved yet:**
-  news/flow dock · v3 stock Focus page · Today v3 · guided journey · cluster consolidations ·
-  screener v3. Owner approves per-module via `docs/redesign-coordination.md`. (M0–M2 preview
-  DEPLOYED to the VPS, S189-b — live at `/dash/preview`.) Also open: the four §7.3 owner
-  decisions (sidecar-vs-glossary fold · Trust→"Proof" · Conviction name · preview URL shape —
-  defaults recorded in the coordination doc §2).
+- **Redesign M4–M8 (D144, plan `docs/redesign-plan-2026-07-17.md` §6) — NOT approved yet:**
+  v3 stock Focus page · Today v3 · guided journey · cluster consolidations · screener v3.
+  Owner approves per-module via `docs/redesign-coordination.md`. (M0–M2 preview DEPLOYED
+  S189-b; **M3 dock BUILT S189-c, approved for deploy** — live at `/dash/preview`.) Also open:
+  the four §7.3 owner decisions (sidecar-vs-glossary fold · Trust→"Proof" · Conviction name ·
+  preview URL shape — defaults recorded in the coordination doc §2).
 - **Signal-event bus — remaining faces + lenses (S101; producer itself is WIRED, D105):**
   (a) **dvpt lens** — no banded dvpt state column exists to diff (which horizon, what bands =
   its own design); **quality/cpr lenses** likewise not emitting (LENSES vocabulary reserves
@@ -2203,6 +2204,7 @@ Boot: STRONG tier (Fable 5). Lane worktree `v3-preview` (shared tree hot: a sibl
 - **Gates:** suite **710 passed** (+8-test NEW `tests/test_v3_isolation.py`: no legacy module imports v3 · zero v3 markers on legacy pages · POST-only toggle · route-gate registration · chip→glossary→Pat round-trip · no action verbs in epistemic copy) · route-gate + Pat + education + nav-integrity green · live-walked on :8123 (chip card opens, themes flip, **375px overflow found+fixed** — top bar now wraps; body horizontal scroll = 0 at 375/1280).
 - **Pre-existing breakage found on pristine origin/main, NOT this lane (stash-verified):** the pat-methodology test FAIL (healed in parallel by S188 below — my task chip dismissed on merge) + `chrome_gate.py` 10 regressions (task chip stands); also allowlisted the missing `/dash/api/peers` nav-gate row (pre-existing one-liner, attributed in-file). Screenshots timed out pane-side (page healthy, zero console errors) — walk proof = a11y tree + computed styles + overflow scans.
 - Docs: DOC_INDEX +4 (plan · coordination · metric-verdicts · codex record) · AGENTS.md pointer · NEW GEMINI.md. Open: M3–M8 unapproved + the §7.3 owner decisions.
+- **✅ S189-c — M3 NEWS/FLOW DOCK BUILT (Ramana approved M3 + its deploy):** NEW `src/web/news_dock.py` — the persistent dock, 6 channels over EXISTING reads (Wire `_recent_market_news`/`news_for_symbol` · Filings `filings_flow` + bounded insider/ratings tape queries · Results `upcoming_results` · Corp-actions `CA.upcoming` · Deals `bulk_block_deals` direct [the one mapped gap — deals.py has no read helper] + `fii_stance` · Alerts `active_alerts`, strings humanized); URL state `?ch=&sym=` on `/dash/preview` (playbook 8b); `sym=` links only; wire = title/source/link (copyright). Dock slot added to `shell_v3.shell(dock_html=)`. **Codex POST-BUILD pass: APPROVE-WITH-CHANGES — both BLOCKING fixed** (B1 `javascript:` hrefs → `news_view._safe_url` + regression test · B2 SAST/holdings-only symbols read as empty → bundle now fully rendered). Suite **715 passed**; nav gate green; walked all 6 channels on :8124; 375px overflow-free (dock included).
 - **✅ S189-b — VPS DEPLOY DONE (same session, on Ramana's go):** 7 files scp'd LF-clean + md5-matched · forked `v2_surfaces.py` fork-checked (box md5 `c81715d9`, cosmetic drift) → anchored insert of ONLY the 2 mount lines (backup `.bak-s189`) · all 6 selftests green ON the box (term_chip resolved 10/10 against the box's real glossary) · writer-check empty · restart ~04:12 UTC · health 200 · public walk via Caddy: `/dash/preview` + `/dash/_ui3` 200, POST toggle 303+cookie / GET 405, **home byte-identical pre/post deploy (146,792B)**, 0 v3 markers on legacy pages, 0 preview links in default chrome. Full record: `docs/redesign-coordination.md` §5.
 
 ### Session 188 — 2026-07-17 — Pat methodology-flow gate healed: union-ladder gets its One-line definition

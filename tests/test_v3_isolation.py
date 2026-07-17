@@ -113,6 +113,53 @@ def test_chip_degrades_never_breaks():
     assert term_chip.chip("no-such-chip") == "no-such-chip"
 
 
+# ── 3b. the news/flow dock (M3) ───────────────────────────────────────────────────
+
+def test_dock_all_channels_render_with_url_state():
+    from src.web import news_dock
+    client = TestClient(_app())
+    for key, _label in news_dock.CHANNELS:
+        r = client.get("/dash/preview", params={"ch": key, "sym": "TCS"})
+        assert r.status_code == 200, key
+        assert "pv3-dock" in r.text and 'class="on"' in r.text, key
+        assert "?ch=" + key in r.text and "sym=TCS" in r.text, key  # URL-addressable state
+        assert "?symbol=" not in r.text, key  # the P0-1 bug class stays dead
+
+
+def test_dock_reads_are_defensive():
+    """Every channel renderer must return HTML (rows or an honest empty state) even on a
+    connection that has NO tables at all."""
+    import sqlite3
+    from src.web import news_dock
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    for key, fn in news_dock._RENDER.items():
+        out = fn(conn, "")
+        assert isinstance(out, str) and out, key
+        assert ("pv3-dock-rows" in out) or ("pv3-dock-empty" in out), key
+
+
+def test_dock_wire_neutralizes_unsafe_url_schemes():
+    """Codex M3 B1: feed URLs are attacker-influenced — javascript:/data: must never reach href."""
+    import sqlite3
+    from src.web import news_dock
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE sent_news(id INTEGER PRIMARY KEY, source TEXT, url TEXT, "
+                 "title TEXT, sent_at TEXT)")
+    conn.execute("INSERT INTO sent_news(source,url,title,sent_at) VALUES "
+                 "('x','javascript:alert(1)','evil','2026-07-17 09:00')")
+    out = news_dock._ch_wire(conn, "")
+    assert "javascript:" not in out and 'href="#"' in out
+
+
+def test_dock_absent_from_legacy_and_from_showcase_head():
+    client = TestClient(_app())
+    for path in ("/dash/glossary", "/dash/coverage"):
+        r = client.get(path, follow_redirects=True)
+        assert "pv3-dock" not in r.text, path
+
+
 # ── 4. fence discipline ───────────────────────────────────────────────────────────
 
 def test_epistemic_copy_carries_no_action_verbs():

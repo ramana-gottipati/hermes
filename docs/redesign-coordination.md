@@ -45,6 +45,8 @@ Rules (binding for every redesign module):
 | 2026-07-17 | Codex | `VERDICT: APPROVE-WITH-CHANGES` — 5 BLOCKING + 3 ADVISORY (§3). Full text: `docs/codex-review/REDESIGN-M0M2-CODEX.md`. |
 | 2026-07-17 | Gemini | `VERDICT: APPROVE-WITH-CHANGES` — 2 BLOCKING + 3 ADVISORY + 5 chip-spec improvements (§4). |
 | 2026-07-17 | Claude | §7.3 decisions defaulted pending owner: (a) verdict lines → **sidecar** `docs/metric-verdicts.md` (also satisfies Gemini B2); (b) Trust→"Proof" rename **deferred** (M5+ scope); (c) Conviction name **kept**, chip renders plain-label-first ("Composite rank ·CONVICTION·") so no rename is needed for honesty; (d) preview URL = **`/dash/preview`** path form. |
+| 2026-07-18 | Ramana | **APPROVED M3** (news/flow dock) + its VPS deploy once built and verified. |
+| 2026-07-18 | Codex | M3 POST-BUILD diff review: `VERDICT: APPROVE-WITH-CHANGES` — B1 unsafe URL schemes in wire hrefs (FIXED: reuses `news_view._safe_url` + regression test) · B2 filings channel dropped SAST/holdings the bundle reported (FIXED: renders both, `has_any` now matches output) · A3 `fii_stance` reuse is empty-safe but not SQL-bounded (NOTED in the module docstring; upstream tightening is that helper's owner's call). Gemini not re-run for M3: per §1.4 preview-only modules deploy after gates + live walk; its plan-level verdict covered the dock design. |
 
 ## 3. Codex findings → dispositions (all 5 BLOCKING accepted)
 
@@ -75,7 +77,8 @@ Rules (binding for every redesign module):
 | M0 preview toggle | **DEPLOYED (VPS, 2026-07-18 ~04:15 UTC)** | `/dash/preview` public 200; POST toggle 303+cookie, GET 405; home byte-identical pre/post (146,792B); 0 v3 markers on legacy pages; 0 preview links in default chrome |
 | M1 theme layer | **DEPLOYED (VPS)** | `/dash/_ui3` public 200; all 6 module selftests green ON the box; anchored insert into forked `v2_surfaces.py` (backup `.bak-s189`; box md5 was `c81715d9`, drift cosmetic) |
 | M2 term chips | **DEPLOYED (VPS)** | `term_chip` selftest on the box: 10 seed chips resolve against the box's real glossary + sidecar |
-| M3–M8 | NOT APPROVED | await owner |
+| M3 news/flow dock | **BUILT (S189-c)** — deploy record appended below on landing | `src/web/news_dock.py` — 6 channels (Wire · Filings · Results · Corp actions · Deals/FII · Alerts) over existing reads; URL state `?ch=&sym=`; suite 715 passed; 375px overflow-free |
+| M4–M8 | NOT APPROVED | await owner |
 
 Deploy record (S189-b): callees pushed BEFORE the caller patch (S158 rule), all 7 files md5-matched
 both sides, writer-check empty, restart at ~04:12 UTC (far from the 14:01 bhavcopy window),
