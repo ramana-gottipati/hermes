@@ -397,6 +397,31 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
           f"<a href='/dash/model-portfolios?p={pname}&fmt=csv"
           + (f"&asof={asof}" if asof else "") + "'>CSV</a></div>")
 
+    # Tier B (D143 §8 action #3): the survivability overlay — pair the FUNDABLE CORE with ~zero-corr
+    # ballast (G-sec / gold) to cut drawdown. Measured on STEADY-25's own quarterly NAV (ledger 16AX,
+    # steady_ballast.py); descriptive. Only shown on the core (it's the only fundable book).
+    ballast_html = ""
+    if pname == "STEADY-25":
+        _br = ("<tr><td>{}</td><td>{}</td><td>{}</td><td style='color:#3fb950'>{}</td></tr>")
+        ballast_html = (
+            "<div style='margin:14px 0;padding:10px 12px;border:1px solid #30363d;border-radius:6px'>"
+            "<h3 style='margin:0 0 4px'>🛟 Survivability overlay — pair the core with ballast (descriptive)</h3>"
+            "<p style='font-size:.85em;color:#8b97a7;margin:.3em 0 .6em'>STEADY-25 is already defensive, but "
+            "pairing it with a ~zero-correlation sleeve — <b>G-sec bonds</b> (corr +0.08) or <b>gold</b> "
+            "(corr −0.24) — roughly <b>halves the drawdown</b> for ~1–2pp of CAGR, and every mix still beats "
+            "the index (13.4% this window). Native 2012+, 57 quarters (ledger 16AX). Descriptive, primary-source; "
+            "return/vol is not a Sharpe; gold's return is regime-loaded (2012–26 bull) — not a forward promise. "
+            "The dial is the design layer of <code>docs/portfolio-layer-design.md</code>; weights are the owner's "
+            "risk-appetite choice, not an optimiser's.</p>"
+            "<table class='pt' style='font-size:.9em'><tr><th style='text-align:left'>mix — core / G-sec / gold</th>"
+            "<th>CAGR</th><th>ret/vol</th><th>MaxDD</th></tr>"
+            + _br.format("100 / 0 / 0 — core alone", "17.1%", "1.09", "−19.1%")
+            + _br.format("80 / 20 / 0 — + G-sec", "15.1%", "1.18", "−14.7%")
+            + _br.format("80 / 0 / 20 — + gold", "16.2%", "1.30", "−11.6%")
+            + _br.format("<b>80 / 10 / 10 — balanced</b>", "<b>15.7%</b>", "<b>1.25</b>", "<b>−13.1%</b>")
+            + _br.format("70 / 10 / 20 — survivability-tilted", "15.2%", "1.39", "−9.4%")
+            + "</table></div>")
+
     body = (
         "<div class='mpf'>" + _CSS + ifx.readability_css()
         + "<h2>Model portfolios — automated, since June 2012</h2>"
@@ -422,6 +447,7 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
         "<th title='engine target weight, re-equalized each rebalance'>Target W</th>"
         "<th title='drifted weight at the latest close'>W now</th>"
         "<th>Since rebal</th></tr></thead><tbody>" + tr + "</tbody></table>"
+        + ballast_html
         + "<h3>Churn — automatic, every rebalance</h3>" + churn_html
         + _STORY
         + "<div class='bar'><b>Origin: 📚 CLASSIC</b> — all four runners are public, bookish families (provenance map: <code>docs/strategies/origins.md</code>); none is proprietary. Ramana-original and house-proprietary strategies live on <a href='/dash/strategist'>Strategist</a>.</div>"

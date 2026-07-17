@@ -222,8 +222,12 @@ gross→net evidence (35.6%→−1.4%), and STEADY-25 is labelled the ONLY funda
 promote STEADY-25) SHIPPED** — net CAGR PINNED (freshly re-verified 2026-07-17 via `cost_participation.py`,
 reproduces 16AE/#602 to the digit): capacity-tiered **19.2% @₹25cr · 18.1% @₹50cr · 16.5% @₹100cr (index
 15.3%), ceiling ~₹150cr** — the 13.3% crude-cost figure is dead. STEADY-25 now shows a green **FUNDABLE
-CORE** banner with that curve. Actions #3–#4 (wire Tier B ballast overlay · stage Tier C) remain,
-each owner-ratified before shipping.
+CORE** banner with that curve. **Action #3 (wire the Tier-B ballast overlay) SHIPPED** — STEADY-25's
+OWN ballast dial measured (ledger 16AX; the 16AN/AR dials were the union book): already-defensive STEADY
+still benefits — a modest G-sec/gold sleeve ~HALVES MaxDD (−19% → −9 to −13%) for ~1–2pp CAGR, every mix
+beats the index; the STEADY-25 page now carries a "🛟 Survivability overlay" dial (80/10/10 balanced
+default). **Action #4 (stage Tier C — union head as "graduating candidate, funds only after 2026-10-03")
+remains**, owner-ratified before shipping.
 
 **The honest headline (say it first, above the structure):** the portfolio you can *actually run today* is
 **modest** — a defensive low-vol-momentum core (~16–18% net, capacity ~₹100cr) plus bond/gold ballast for
