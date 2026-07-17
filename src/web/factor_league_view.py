@@ -70,6 +70,10 @@ _LEAGUE = [
     ("STEADY-25", "Low-volatility momentum · quarterly large-cap (LOWVOL_MOM)",
      1.10, 18.5, -26.0, "the ONLY family that beats the index NET of real costs: "
      "1.02 @₹50cr, capacity ~₹100-150cr", "champion", "steady"),
+    ("LOWVOL", "Low volatility, pure — the defensive HALF of the champion",
+     0.96, 12.7, -21.3, "net of cost (16BA): shallowest drawdown of any factor (−21%), but ALONE it "
+     "fails the index (−2.6%). Its calm is exactly what makes LOWVOL_MOM the champion once blended "
+     "with momentum — the basket shows the defensive names", "filter", "lowvol"),
     ("PACER-25", "Risk-adjusted momentum (RISKADJ = 6-mo return ÷ 3-mo vol)",
      1.13, 28.6, -33.1, "best flat-cost return/vol of all 32 signals; NET fails at scale "
      "on its monthly clock — a gross selection lens", "gross", "pacer"),
@@ -78,6 +82,9 @@ _LEAGUE = [
      "since 2012", "gross", "craftsman"),
     ("SPRINTER-25", "Classic 12-month momentum (MOM12)",
      1.06, 30.0, -43.0, "highest CAGR, brutal drawdowns; gross lens", "gross", "sprinter"),
+    ("MOM6", "6-month momentum, pure (MOM6)",
+     0.60, 14.1, -46.9, "net of cost (16BA): a shorter, wilder SPRINTER — FAILS the index alone "
+     "(−1.2%) with −47% drawdowns; the momentum half before it is tamed by low-vol", "fail", "mom6"),
     ("—", "Delivery momentum (DELIV_MOM)",
      0.85, None, -45.0, "delivery % added no standalone edge", "fail", None),
     ("—", "Quality standalone (pt14)",
@@ -166,7 +173,7 @@ def _churn_html(con):
 def factor_league_page(family: str = "", fmt: str = ""):
     con = _ro(HDB)
     roster, churn, steady, as_of = [], "", "", ""
-    fam_key = family.strip().lower() if family.strip().lower() in ("pacer", "sprinter") else ""
+    fam_key = family.strip().lower() if family.strip().lower() in ("pacer", "sprinter", "mom6", "lowvol") else ""
     if con is not None:
         con.row_factory = sqlite3.Row
         try:
@@ -212,8 +219,10 @@ def factor_league_page(family: str = "", fmt: str = ""):
 
     roster_html = ""
     if fam_key and roster:
-        pname = "PACER-25 (risk-adjusted momentum)" if fam_key == "pacer" \
-            else "SPRINTER-25 (12-month momentum)"
+        pname = {"pacer": "PACER-25 (risk-adjusted momentum)",
+                 "sprinter": "SPRINTER-25 (12-month momentum)",
+                 "mom6": "MOM6 basket (6-month momentum — research, not fundable)",
+                 "lowvol": "LOWVOL basket (pure low volatility — research, not fundable)"}[fam_key]
         rt = ""
         for r in roster:
             m12 = r["mom12"]

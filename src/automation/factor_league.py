@@ -45,7 +45,9 @@ except Exception:  # pragma: no cover - import-path fallback
 TOPN = 25
 MIN_TURN_CR = 5.0            # the recorded leaderboard's ₹5cr universe
 CHURN_KEEP_DAYS = 120
-FAMILIES = ("PACER", "SPRINTER")     # STEADY's canonical roster = slow_rotation anchor
+FAMILIES = ("PACER", "SPRINTER", "MOM6", "LOWVOL")   # STEADY's canonical roster = slow_rotation anchor;
+#                                                      MOM6/LOWVOL = the two drawdown-lever components
+#                                                      that lacked a basket (D143 16BA) — research/demonstration
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS factor_league (
@@ -82,6 +84,14 @@ def rosters(rows):
     spr.sort(key=lambda r: -r["mom12"])
     out["SPRINTER"] = [(r["symbol"], i + 1, round(float(r["mom12"]), 4))
                        for i, r in enumerate(spr[:TOPN])]
+    m6 = [r for r in ok if r["mom6"] is not None]
+    m6.sort(key=lambda r: -r["mom6"])                            # highest 6-mo momentum
+    out["MOM6"] = [(r["symbol"], i + 1, round(float(r["mom6"]), 4))
+                   for i, r in enumerate(m6[:TOPN])]
+    lv = [r for r in ok if r["vol_66"] is not None and r["vol_66"] > 0]
+    lv.sort(key=lambda r: r["vol_66"])                          # lowest volatility (the defensive half)
+    out["LOWVOL"] = [(r["symbol"], i + 1, round(float(r["vol_66"]), 4))
+                     for i, r in enumerate(lv[:TOPN])]
     return out
 
 
