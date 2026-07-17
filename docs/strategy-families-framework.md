@@ -210,3 +210,45 @@ blocks, with the portfolio-allocation layer (book + G-sec + gold) on top — nev
 
 Nothing in steps 2–4 changes a sealed strategy; any strategy/portfolio change is a separate,
 owner-ratified step.
+
+---
+
+## §8 Phase 4 — the RE-ORGANIZED MODEL PORTFOLIO (DRAFT proposal, awaiting ratification)
+
+**Status: a DESIGN proposal built from the §3a inventory. It changes NOTHING live yet** — the model-book
+estate (`auto_portfolios.py`, `/dash/model-portfolios`) is untouched until Ramana ratifies; then a
+separate session implements it through `docs/SURFACE-PLAYBOOK.md`.
+
+**The honest headline (say it first, above the structure):** the portfolio you can *actually run today* is
+**modest** — a defensive low-vol-momentum core (~16–18% net, capacity ~₹100cr) plus bond/gold ballast for
+survivability. The exciting high-CAGR books are either **forward-pending** (the union family, verdict
+2026-10-03) or **gross-lens paper** (the factor books). The real edge here is **survivability engineering
+(uncorrelated ballast) + PIT-data rigor**, NOT high-octane alpha. Scale matters: this is a **personal /
+small-scale** portfolio (fits Ramana's own capital) — at personal scale the union family's small/mid-cap
+tilt is executable; at institutional scale it is not (capacity "presumed poor, untested", `16AE`).
+
+**The proposed structure — four tiers by STATUS, not by CAGR:**
+
+| tier | contents | role | can real money go here? |
+|---|---|---|---|
+| **A — FUNDABLE CORE** | **STEADY-25 / LOWVOL_MOM** (net 1.02 @₹50cr / 1.19 rule-lab #602 vs index 0.89; net CAGR 16–18%; DD −21 to −27%; cap ~₹100cr) | the one book that survives realistic cost | **YES — today** |
+| **B — SURVIVABILITY LAYER** | the allocation dial (`portfolio-layer-design.md`): equity-core + **G-sec** ballast (± a modest **gold** sleeve). e.g. **80/20** core/G-sec, or **80/10/10** core/G-sec/gold | cut drawdown via ~zero-corr assets; owner picks the risk point | YES (primary-source, descriptive dial) |
+| **C — SEALED, FORWARD-PENDING** | the **union head COMPOSITE-30** (+ β14/C40RA/A2 siblings); deflated fwd ~21.6% | high-potential satellite, **shown not funded** until it clears the 2026-10-03 forward test | **NOT until Oct-3** — and ⚠ its realistic-participation cost/capacity is UNVERIFIED (only slippage-stressed); personal-scale only |
+| **D — GROSS-LENS / DEMONSTRATION** | **PACER-25** (RISKADJ) · **SPRINTER-25** (MOM12) · **CRAFTSMAN-25** (QUAL_MOM) | educational lenses — "what raw momentum/quality look like GROSS" | **NO — relabel as demonstration, never presented as investable** |
+
+**Retired to the wall (nothing deleted):** BOOK_YIELD (hard-reject β1.54/DD−82%) · the two-step
+sector→stock (D141) · throttles · inverse-vol · ML rankers · the reversal family — all FALSIFIED with numbers.
+
+**The concrete re-org actions (each owner-ratified before it ships):**
+1. **Relabel Tier D** (PACER/SPRINTER/CRAFTSMAN) on `/dash/model-portfolios` as "gross-lens demonstration —
+   not fundable net of cost," with the `cost_realism` net number shown beside each gross CAGR. *(The single
+   highest-integrity change: it stops three paper books from reading as investable.)*
+2. **Promote Tier A** (STEADY-25) to the labelled FUNDABLE CORE, with its one pinned net CAGR (review
+   action (i) — resolve 16.5 vs 18.1 to a single agreed figure first).
+3. **Wire Tier B** as an optional overlay on the core (the 80/20 or 80/10/10 dial), descriptive.
+4. **Stage Tier C** as "graduating candidate — funds only after 2026-10-03," with the participation-cost
+   caveat visible.
+
+**What this does NOT do without a further prereg:** register the union head as fundable before its forward
+test; fund any Tier-C/D book; add dynamic/timed weights to Tier B (the §8 hard bar of the portfolio-layer
+design still binds). The model portfolio is organized by *honesty of status*, and the owner disposes.
