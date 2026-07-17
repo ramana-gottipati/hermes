@@ -190,7 +190,7 @@ for k in ORDER:
     g_m = GATE[k]
     ok = abs(gm - g_m) < 0.006
     s_c, s_m = GATE_SEAL[k]
-    print("  gate %-4s <=%s mult %8.2fx (16AS anchor %.2f)  %s  [CAGR %5.2f%%] | seal-time headline %.1f/%.2f -> now %.1f/%.2f (drift disclosed: 16AQ repair)"
+    print("  gate %-4s <=%s mult %8.2fx (anchor %.2f — see ANCHOR HISTORY above; latest ledger entry governs)  %s  [CAGR %5.2f%%] | seal-time headline %.1f/%.2f -> now %.1f/%.2f (drift disclosed: recorded archive repairs)"
           % (k, GATE_END, gm, g_m, "OK" if ok else "FAIL", gc, s_c, s_m, hc, hm), flush=True)
     if not ok:
         print("REPRODUCTION GATE FAILED — STOP. Legs through %s are input-closed: a miss means the ENGINE"
