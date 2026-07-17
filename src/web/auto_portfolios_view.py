@@ -64,6 +64,14 @@ _NET_NOTE = {
     "CRAFTSMAN-25": "Flat-cost quality-momentum lens; net of participation cost this family collapses like PACER (RISKADJ 35.6%→−1.4%). Not fundable.",
 }
 
+# Tier A (D143 §8, action #2 — Ramana-ratified): STEADY-25 is the FUNDABLE CORE — the one book that
+# beats the index NET of realistic participation cost. Net CAGR is capacity-tiered (pinned + freshly
+# re-verified 2026-07-17 via cost_participation.py; reproduces the recorded 16AE/#602 numbers to the digit).
+FUNDABLE = {"STEADY-25"}
+_FUND_NOTE = ("net of realistic participation cost it BEATS the index at investable size — "
+              "net CAGR 19.2% @₹25cr · 18.1% @₹50cr · 16.5% @₹100cr (index 15.3%); "
+              "capacity ceiling ~₹150cr, beyond which it no longer beats buy-and-hold.")
+
 # The inspiration story (Ramana, S132h-b): the lineage behind the three runners,
 # told plainly — century-old effects, honest names, admitted only after re-proving
 # themselves on OUR data. Collapsible so the working screen stays clean.
@@ -309,6 +317,11 @@ def model_portfolios_page(p: str = "STEADY-25", asof: str = "", fmt: str = "",
                       "background:rgba(248,81,73,.08);color:#f85149;font-size:.85em;border-radius:4px'>"
                       "⚠ <b>GROSS-LENS DEMONSTRATION</b> — the CAGR above is <b>flat-cost</b>; this book "
                       "is <b>NOT fundable</b> net of participation cost. " + _NET_NOTE[pname] + "</div>")
+        if pname in FUNDABLE:
+            stats += ("<div style='margin-top:6px;padding:6px 10px;border-left:3px solid #3fb950;"
+                      "background:rgba(63,185,80,.08);color:#3fb950;font-size:.85em;border-radius:4px'>"
+                      "✅ <b>FUNDABLE CORE</b> — the ONLY book that survives realistic cost: " + _FUND_NOTE
+                      + "</div>")
 
     since_chips = " · ".join(
         ("<b>" if (since or "2012") == (y or "2012") else "")

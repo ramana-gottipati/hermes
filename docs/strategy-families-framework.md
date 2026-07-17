@@ -218,8 +218,12 @@ owner-ratified step.
 **Status: TIER STRUCTURE RATIFIED by Ramana (2026-07-17). Action #1 (relabel Tier D) SHIPPED** — the
 three gross-lens books (PACER-25 · SPRINTER-25 · CRAFTSMAN-25) on the live `/dash/model-portfolios` now
 carry an explicit "GROSS-LENS DEMONSTRATION — not fundable net of participation cost" banner + the RISKADJ
-gross→net evidence (35.6%→−1.4%), and STEADY-25 is labelled the ONLY fundable book. Actions #2–#4 (pin
-STEADY net CAGR · wire Tier B ballast overlay · stage Tier C) remain, each owner-ratified before shipping.
+gross→net evidence (35.6%→−1.4%), and STEADY-25 is labelled the ONLY fundable book. **Action #2 (pin +
+promote STEADY-25) SHIPPED** — net CAGR PINNED (freshly re-verified 2026-07-17 via `cost_participation.py`,
+reproduces 16AE/#602 to the digit): capacity-tiered **19.2% @₹25cr · 18.1% @₹50cr · 16.5% @₹100cr (index
+15.3%), ceiling ~₹150cr** — the 13.3% crude-cost figure is dead. STEADY-25 now shows a green **FUNDABLE
+CORE** banner with that curve. Actions #3–#4 (wire Tier B ballast overlay · stage Tier C) remain,
+each owner-ratified before shipping.
 
 **The honest headline (say it first, above the structure):** the portfolio you can *actually run today* is
 **modest** — a defensive low-vol-momentum core (~16–18% net, capacity ~₹100cr) plus bond/gold ballast for
