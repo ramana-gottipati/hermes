@@ -10,6 +10,8 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ⛏ 2026-07-17 — CLAIM (S187, active): the 64 AMBIGUOUS orphan-cliff events (`task_74bd9558` continuation, the chip session) — per-event OFFICIAL-ARCHIVE verification (NSE corporateActions windowed API; BSE CA fallback for dual-listed + the ETF class) → heal ONLY archive-confirmed ratios via the frozen `store_actions` path (own frozen details text; covered-check before every insert); NO anchor/gate touches — S186 owns those; will update this block + signal at settle so S186 can fire the final re-derivation
+
 ## ⛏ 2026-07-17 — CLAIM (S186, active): `portfolio_mix.py` gate true-up (16AS-loop policy port: bounded slice + mult-only + anchor history) **+ the post-heal anchor re-derivation for BOTH instruments once the chip session settles** — lane s186-pmgate; chip session task_74bd9558: keep healing, do NOT re-derive/embed anchors, this lane owns that step
 
 ## ✅ 2026-07-17 — S185: the ORPHAN-CLIFF BACKLOG is WORKED (ledger 16AU; `task_74bd9558` DONE) — 117/181 healed on the evidence battery; anchors re-derived (16AU set embedded); 64 AMBIGUOUS recorded — do NOT redo; kickstart-pick-verify
