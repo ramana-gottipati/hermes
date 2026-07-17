@@ -239,10 +239,45 @@ structural, gold's is not, and the correlation advantage is within noise. **Robu
 G-sec are BOTH ~uncorrelated diversifiers worth combining; gold's weight should be modest and its return
 never extrapolated from this window.**
 
-**Next (per the §2 gating discipline):** fix the split DQ → ingest GOLDBEES via the estate's **feed
-protocol** (manifest + licence/DQ gate + pull-on-demand freshness, exactly as the TRI/G-sec series were,
-`16AK`) → then a proper **three-asset** book/G-sec/gold grid (the legs are mutually independent at −0.12).
-Provenance: `research/explosive_moves/portfolio_mix.py` (unchanged) + the S180 gold probe; box read-only.
+**§7d — the three-asset grid (ledger `16AR`, S180 cont., on the S182-corrected data).** Built after the
+DQ fix landed. It surfaced a finding that reshaped the whole study:
+
+> **🔴 THE SEALED EQUITY BOOK SELECTS GOLD ETFs.** The union book's universe is *all* series EQ/BE/BZ
+> names — and gold ETFs trade in series EQ. With ~zero beta (they pass the ≤1.4 cap trivially) and
+> top-tier risk-adjusted momentum during gold rallies, they rank into the top-30 and get held: **GOLDBEES
+> ×7, SETFGOLD ×2, KOTAKGOLD/HDFCMFGETF/ICICIGOLD/HDFCGOLD/GOLDIETF — 12 of 82 rebalances**, 3.3% each,
+> concentrated in the gold-rally years (2020, 2023, 2025). Consequences: (a) **a gold leg on top
+> DOUBLE-COUNTS gold** — so the meaningful three-asset grid must use a **gold-ETF-excluded** equity book;
+> (b) the sealed backtests embed gold-ETF exposure computed on the *unadjusted* prices S182 just fixed;
+> (c) it is a **universe-hygiene issue in the sealed strategy itself** (an "equity" book holding a
+> commodity), affecting every union sibling and the 2026-10-03 forward runner. **Flagged as a separate
+> task; NOT changed here — a sealed-spec universe change is the owner's / union lane's call.**
+
+The grid therefore uses the equity book with **gold ETFs removed from selection** (backfilled with the
+next-ranked stocks; clean-book CAGR K30 26.6% / A2 25.7% — near the sealed values, so the exclusion is
+minor). Gold enters *only* via the explicit leg. **The grid is a DIAL (relative), not an anchored level**
+— the sealed book's absolute repro also drifted ~+0.3pp from box-data changes (an anchor-reverify owed to
+the union lane); the dial is robust to that (design §2).
+
+**K30 three-asset dial (native 2011+; descriptive; return/vol is a ratio, not a Sharpe):**
+
+| equity/G-sec/gold | CAGR | ret/vol | MaxDD |
+|---|---|---|---|
+| 100 / 0 / 0 | 25.1% | 1.12 | −18.1% |
+| 80 / 20 / 0 (G-sec only) | 21.6% | 1.19 | −15.3% |
+| 80 / 0 / 20 (gold only) | 23.1% | 1.27 | −13.5% |
+| 80 / 10 / 10 (balanced) | 22.4% | 1.24 | −14.4% |
+| 70 / 10 / 20 | 21.3% | 1.34 | −12.0% |
+| **60 / 0 / 40** (in-sample max ret/vol) | 20.7% | **1.47** | **−9.0%** |
+
+**The headline, honestly framed:** the in-sample optimum **degenerates to book + gold with ZERO G-sec**
+(max ret/vol at 60/0/40) — because gold's **regime-specific +11.9%** return strictly dominates G-sec's
+structural 6.5% on 2011-26, at similar correlation. **This is the in-sample-optimization trap, not a
+forward allocation:** gold's return is not forecastable and G-sec's low-risk contribution is understated
+by this one gold-bull window. Both legs are genuine ~uncorrelated diversifiers (corr with book −0.18 /
+−0.04; with each other −0.12). **Robust use: a MODEST gold sleeve *alongside* G-sec (e.g. 80/10/10 or
+70/10/20), weights set by risk appetite — never by this window's optimizer, which would put 40% in gold.**
+Provenance: `portfolio_mix.py` (unchanged) + the S180 three-asset probe; box read-only.
 
 ---
 
@@ -291,18 +326,24 @@ the forward test judges the *book*; the portfolio layer just shows the book at t
 
 1. **Rebalance-band measurement** (§6) — turnover + risk deltas vs calendar quarterly, on
    `portfolio_mix.py`'s grid, on the box. Until then calendar quarterly is the reported policy.
-2. **Gold-leg** (§7) — ✅ data validated + preliminary corr measured (S180, `16AP`): GOLDBEES 2007+,
-   corr(book, gold) −0.18/−0.21 native → clears the 0.83 bar. **Remaining:** (a) 🔴 fix the GOLDBEES
-   100:1 (2019-12-19) split DQ — it is missing from `corporate_actions` so `adjust.py` silently
-   corrupts it; audit peer gold ETFs for the same gap (spawned as a separate DQ task); (b) formalise
-   GOLDBEES via the feed protocol; (c) then a proper **three-asset** book/G-sec/gold grid (legs
-   mutually independent at −0.12). The prelim dial is regime-loaded (gold's +11.9% native return is not
-   forecastable) — do not quote it as a forward result.
+2. **Gold-leg** (§7) — ✅ DONE end-to-end: data validated + corr (S180 `16AP`) → DQ split fix (S182
+   `16AQ`) → **three-asset grid (S180 cont. `16AR`, §7d)**. Result: gold clears the gate but the
+   in-sample optimum degenerates to book+gold (regime-inflated) — robust use is a modest gold sleeve
+   *alongside* G-sec. **Remaining (optional):** formalise GOLDBEES via the feed protocol if the gold leg
+   is ever to be a live reporting column (research need is met from bhavcopy).
 3. ~~**Fold the policy point into forward reporting** (§9)~~ — ✅ DONE S181 (`union_forward.py` §4
    prints the dial each checkpoint; only the `<< POLICY` marker awaits Ramana's pick).
 4. **(Optional ratchet)** add this doc to `tests/test_retvol_label_gate.py`'s scanned set so the honest
    labels are machine-enforced (tightening only; not done now to avoid touching the gate's deliberate
    scope mid-program).
+5. **🔴 NEW (S180 cont., §7d) — the sealed equity book selects gold ETFs** (GOLDBEES ×7 etc., 12/82
+   rebalances). A universe-hygiene issue in the sealed strategy: an "equity" book holding a commodity,
+   on unadjusted prices at seal time. Affects every union sibling + the 2026-10-03 forward runner.
+   **Owner/union-lane decision** (changes sealed numbers → careful): exclude ETFs (or at least gold
+   ETFs) from the union selection universe. Spawned as a separate task.
+6. **Anchor re-verify (union lane)** — the sealed book's absolute repro drifted ~+0.3pp (26.4→26.7
+   etf-excluded) from box-data changes since the S180 probe; the *dial* is unaffected, but the sealed
+   headline should be re-confirmed on a stable snapshot.
 
 ## §11 Provenance & labels
 
