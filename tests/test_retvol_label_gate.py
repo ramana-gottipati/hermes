@@ -111,6 +111,13 @@ _DISCLOSURE = (
     "true-Sharpe",                          # the queued rf re-cut, hyphenated (docs vocabulary)
     "true excess",                          # 'true excess-return Sharpes are ~0.51' — naming the honest number
     "really a RETURN/VOL RATIO",            # sector-rotation.md's own disclosure-block heading
+    # S190/16AY: the D142 rf RE-CUT landed — research/explosive_moves ratio sites now genuinely
+    # subtract rf (excess basis), so a "Sharpe" mention that CITES the re-cut basis is the
+    # honest label, not the old defect. The citation is mandatory: a bare "Sharpe" without a
+    # disown or a 16AY/excess-basis citation still fails. The gate's purpose (no RAW ratio
+    # sold as a Sharpe) is unchanged — pre-16AY surfaces and docs keep the old rules.
+    "16AY",                                 # the re-cut ledger citation carried at every cut site
+    "excess-basis",                         # the basis statement itself ('EXCESS-basis true Sharpe…')
 )
 _WINDOW = 2   # lines of context each side — enough to span a wrapped disclosure
 
@@ -217,13 +224,17 @@ def test_scan_set_is_real():
 
 
 def test_disclosure_markers_are_disowning():
-    """Every marker must contain a negation (or the honest rename) — a marker that merely
-    says 'Sharpe' would turn this gate into a rubber stamp."""
+    """Every marker must contain a negation, the honest rename, or — since the S190/16AY
+    rf re-cut — the BASIS CITATION for a genuinely rf-subtracted Sharpe ('16AY' /
+    'excess-basis'). A marker that merely said 'Sharpe' would turn this gate into a rubber
+    stamp; a citation marker is different: it pins the claim to the ledger entry where the
+    subtraction is recorded, which is exactly the evidence the gate exists to demand."""
     for d in _DISCLOSURE:
         assert any(w in d.lower() for w in ("not", "never", "textbook", "labelled",
                                             "against", "no risk-free", "true sharpe",
                                             "true-sharpe", "true excess",
-                                            "really a return/vol")), d
+                                            "really a return/vol",
+                                            "16ay", "excess-basis")), d
 
 
 def test_the_ledger_banner_disowns_the_label():
