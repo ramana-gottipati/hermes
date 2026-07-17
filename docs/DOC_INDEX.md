@@ -55,7 +55,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/patearn-charter.md` | CEO-mode operating doctrine + NOW roadmap (amended by the Decision log). |
 | `docs/patearn-analytics-company-plan.md` | Company-level plan (D134): analytics-company posture + validated regulatory boundaries + adaptable layers L0–L8 + structured cost model + the rated component roadmap. |
 
-## B. DESIGN(live) — design-of-record, keep (25)
+## B. DESIGN(live) — design-of-record, keep (26)
 
 | Doc | Note |
 |---|---|
@@ -86,6 +86,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/rs-momentum-divergence-roadmap.md` | Living master plan: RSI-of-RS + divergence + recovery ecosystem. |
 | `docs/ux-journey-audit-2026-07-13.md` | Joint Claude+Codex UX/IA audit of record + S-A…S-H program tracker. |
 | `docs/portfolio-layer-design.md` | DoR for the portfolio-construction layer (16AN): fixed-mix book+G-sec weights policy on the measured dial, rebalance band, gold leg pending primary data, drawdown-target-as-policy-not-signal. Descriptive; no registration. |
+| `docs/strategy-families-framework.md` | DoR for organizing the >15% CAGR corpus into governed families (Ramana directive 2026-07-17): the register, status labels (fundable/sealed/candidate/paper/falsified), families by lever-lineage, promote/retire/responsibility governance. Meta-org only; no strategy changed. Awaiting owner ratification. |
 
 ## C. DESIGN(stale) — keep, trim superseded sections later (6)
 
