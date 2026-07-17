@@ -72,6 +72,78 @@ Sources to sweep: `docs/strategy-ledger.md` (the 15x/16x tags), `docs/strategies
 the factor zoo (`out/factor_zoo.csv`), the model-portfolios estate, `docs/strategies/union-ladder.md`
 (the union family compendium already complete).
 
+### §3a THE REGISTER — inventory v1 (2026-07-17, 3-agent read-only sweep of ledger + 17 pages + factor zoo)
+
+**Status tally (distinct strategies, sweep-batches consolidated):** FUNDABLE **1** · SEALED **4** ·
+CANDIDATE **3** · PAPER **~20** · FALSIFIED **many** (whole families walled). **The headline of the whole
+sweep: exactly ONE strategy is fundable net-of-cost, and its net CAGR is modest (~13–18%). Every CAGR
+above ~24% is either in-sample-and-forward-untested (union family) or flat-cost PAPER that dies at
+participation cost.** This is the §2 principle, confirmed across the entire corpus.
+
+**FAMILY 1 — Momentum-selection (Union)** · head: **COMPOSITE-30** (sealed lead), A2 (lower-DD alt)
+
+| strategy | tag | CAGR (PR / TR) | honest fwd | status | key lever added |
+|---|---|---|---|---|---|
+| Union | 16V | 17.5 / 18.1 | 15.7 (deflated) | SEALED `a9a14058` | 6b-recovery ∪ RSI-trend, top-60 EW |
+| β14 | 16Y | 18.1 / 18.7 | 16.6 | SEALED `08b46199` | + trailing-β≤1.4 at selection (fixes 2012-17) |
+| C40RA | 16AB | 21.0 / 21.8 | 18.1 | SEALED `0715a0d9` | + RISKADJ-rank + top-40 |
+| **COMPOSITE-30 (K30)** | 16AF | **26.4 / 27.3** | **21.6** | SEALED `07ef2ef9` | + era-floor + top-30 + let-winners-run (PBO 0.043) |
+| A2-composite | 16AE | 25.5 / 26.3 | 21.0 | CANDIDATE (reg-ready) | era-floor clamped; lower DD (−27.2); small/mid tilt |
+| A1-composite | 16AE | 25.6 / 26.4 | — | CANDIDATE (dominated by A2) | raw floor, no clamp |
+| B1 rf-cash | 16AE | 21.4 | — | CANDIDATE (measurement) | idle earns rf; reporting-only |
+
+*Falsified/paper tail (all with numbers): inverse-vol sizing · throttles (16W) · 16Z reject batch ×10
+(15.9–17.3) · 16AC reject batch ×7 · ML rankers M1/M2 (prereg-rejected, β = #1 feature 3×) · monthly
+cadence (cadence law, 4 confirmations) · component engines RSI+consist70 15.6 / 6b-recovery 15.4.*
+Forward test fires **2026-10-03**; adjudication graduates ≤1.
+
+**FAMILY 2 — Sector-rotation** · head: V21 (live) / V24 (designated) — ⚠ **HALF-BUILT: picks SECTORS not stocks**
+
+| strategy | tag | CAGR | status | note |
+|---|---|---|---|---|
+| V21 | 15d | 16.57 | PAPER (LIVE `/dash/sector-rotation`) | index-only; flat-cost-optimistic |
+| V24 | 15f | ~17.2 | PAPER (designated carry-fwd) | best DD; statistically ≈ V21 (D139) |
+| two-step sector→stock | 15l (D141) | 16.7 net | **FALSIFIED** | the stock build — loses to V24 at realistic cost |
+| V32 + Round-4 rejects | 15f/15i | 15.1–17.9 | FALSIFIED | V32 retired (≈ V24, more complex); rest worse DD |
+
+⚠ ~⅜ of sectors have no liquid ETF → the number may be untradeable. Upper bound on a paper portfolio.
+
+**FAMILY 3 — Low-vol / risk-adjusted momentum** · head: **LOWVOL_MOM** (the one fundable corner)
+
+| strategy | tag | CAGR | status | note |
+|---|---|---|---|---|
+| **LOWVOL_MOM / STEADY-25** | Tier-1 / #602 | flat 18.5 · **net ~13–18% (AUM-dependent)** | **FUNDABLE** (rule-lab prereg `31d4fe11`, S163-signed) | net return/vol 1.19 @₹75cr — the ONLY participation-fundable book; capacity ~₹50–100cr; net CAGR modest ⚠ needs one clean number |
+| RISKADJ engine | Tier-1 | 28.6–35.4 flat · **−1.4 net** | PAPER (internal 0.89 benchmark) | dies at participation cost (~36%/yr); beta not skill |
+
+**FAMILY 4 — Factor-books (the factor zoo)** · head: none fundable (all PAPER/FALSIFIED, flat-cost)
+
+RISKADJ 35.4 · MOM12 37.6 · RESID_MOM 30.2 · MOM6 30.0 · VAL_MOM 24.4 · HI52 24.2 · QUAL_MOM 23.5 ·
+QMV 20.4 · EARN_YIELD 17.5 — **all flat-cost PAPER; every headline collapses net of participation cost**
+(`cost_realism.csv`). C-BLEND (ret/vol 1.32) flat-cost champion, not fundable. **BOOK_YIELD 16.2 =
+FALSIFIED** (β1.54, MaxDD −82%, α<0 — the ledger's hard-reject wall). VAL_MOM/QMV fail walk-forward.
+
+**FAMILY 5 — Relative-strength** · descriptive lens suite (RRG · RS-band · rotation · Mansfield): PAPER,
+never trades as a book ("no RS lens is fundable alpha") — it is selection/context input to Family 1.
+
+**FAMILY 6 — Portfolio-allocation (the layer above)** · head: the allocation dial + **STEADY-25**
+
+- Descriptive dials: book+G-sec (16AN) · book+gold (16AP) · three-asset (16AR) — PAPER, the survivability dial.
+- **The LIVE "modern model portfolio" (`src/automation/auto_portfolios.py`): PACER-25 (wraps RISKADJ) ·
+  SPRINTER-25 (MOM12) · CRAFTSMAN-25 (QUAL_MOM) — all admitted GROSS-LENS PAPER; STEADY-25 (wraps
+  LOWVOL_MOM) — the one resting on a fundable config.** *This is the estate the directive wants organized.*
+
+**FAMILY 7 — Other (descriptive / veto-only, no fundable book):** CCI (factor falsified → veto-only) ·
+MEP (descriptor-only, DSR-failed) · DVPT (picker refuted, within-stock only) · patearn (risk-filter, not
+a ranker) · classic-screens (value/book-yield hard-rejected) · CPR / harmonic / wolfe (descriptive
+charting; wolfe/harmonic BULL show a modest selection edge, never trade) · reversal-context (falsified at
+all 4 levels) · rule-lab (an evidence TOOL, not a strategy).
+
+**Provenance:** 3-agent sweep — ledger (all 3,258 lines) + 17 strategy pages + `factor_zoo.csv` /
+`strategy_leaderboard.csv` / `cost_realism.csv` + `auto_portfolios.py`. Numbers are as-recorded; all
+Union-family CAGRs are IN-SAMPLE (read against the deflated fwd column). Review actions surfaced: (i) pin
+LOWVOL_MOM's single net CAGR; (ii) the model-portfolio estate is 3/4 gross-lens — the §6-governed
+re-organization should build from FUNDABLE/SEALED heads only.
+
 ---
 
 ## §4 Status labels — the honesty spine (a strategy carries exactly one)
