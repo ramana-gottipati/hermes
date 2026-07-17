@@ -204,7 +204,7 @@ decision window (pre-2007 would need the hybrid treatment, same as G-sec). It is
 liquid of 11 gold ETFs in the archive (~15M units/day), so it is the leading candidate; SGB / an
 official gold benchmark remain secondary fallbacks.
 
-**§7c — 🔴 a real DATA-QUALITY blocker (the adjustment concern, now realised).** GOLDBEES underwent a
+**§7c — ✅ DATA-QUALITY blocker — FIXED S182 (ledger `16AQ`).** The split + **13 peer gold-ETF gaps** are now in `corporate_actions` via `scripts/backfill_etf_splits.py` (idempotent, NSE-bhavcopy-derived); the research `adjust.py`/`load_factors` path now prints native **+11.9%** (verified on box). Root cause: the NSE `index=equities` CA feed omits the ETF instrument class. *(Original finding, for the record:)* GOLDBEES underwent a
 **100:1 unit subdivision on 2019-12-19** (raw close 3359.6 → 33.55, ratio 0.01) that is **NOT in
 `corporate_actions`**, so `adjust.py` — built for equity splits/bonuses — silently left it unadjusted.
 The uncorrected series prints **native CAGR −16.9%, vol 29.5%** (one fake −99% quarter; impossible for
