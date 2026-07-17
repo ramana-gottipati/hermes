@@ -3111,6 +3111,16 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **This CONFIRMS 16AL and adds no new verdict** — the C40→K30 gate PASS and the A2→K30 / β-cap nulls all
   reproduce independently; the graduation input in 16AL stands, now with second-implementation backing.
   Nothing re-tuned; no seal touched; box read-only. Runner committed for reproducibility.
+- **C2 also reproduced** (`research/explosive_moves/union_ladder_c23.py`): C2a rolling-3y stability EXACT —
+  U 4/7 · B14 7/7 · C40 6/7 · A2 7/7 · K30 7/7 (== 16AL); C2b era-floor period-sensitivity EXACT —
+  P_full 0.450 → **P_train(2018) 0.268** (== 16AL), and the as-sealed 2019+ slices reproduce to the digit
+  (U 24.2/α12.0 · B14 23.8/11.7 · C40 30.4/17.2 · A2 34.1/21.2 · K30 34.6/22.0). Independently confirms the
+  era-floor is the highest window-fit-risk rung.
+- **C3 also reproduced**: Deflated Sharpe (Bailey-LdP, `attribution.py:314`, N=69) =
+  0.898/0.938/0.980/0.998/0.998 vs 16AL's 0.897/.938/.980/.998/.998 — match to 3dp, robust to N=50/100
+  (K30 stays 0.997–0.999). Confirms the family clears 69-trial deflation. **SCOPE:** reproduces C2b's
+  DETERMINISTIC anchors (P_train + the 2019+ slices) and C3's DSR statistic — not S176's full TRAIN-replay
+  "survival 1.01" (replay lever-selection choices) nor the φ→CAGR band mapping; those stand as recorded in 16AL.
 
 ### 2026-07-16AN — S179 (Ramana: "build the strategies that can build the strongest portfolios"): THE PORTFOLIO LAYER OPENS. Fixed-mix book + long-G-sec is the estate's FIRST genuine diversifier — corr ≈ 0.00, return/vol rises monotonically with the G-sec weight. A clean CAGR↔survivability dial, quantified.
 
@@ -3146,17 +3156,6 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   policy point into the forward-test day's reporting.
 - **Provenance:** `research/explosive_moves/portfolio_mix.py` (design + disclosures in docstring; lands with
   this commit) · G-sec/rf series per 16AI/16AK · box read-only.
-
-- **C2 also reproduced** (`research/explosive_moves/union_ladder_c23.py`): C2a rolling-3y stability EXACT —
-  U 4/7 · B14 7/7 · C40 6/7 · A2 7/7 · K30 7/7 (== 16AL); C2b era-floor period-sensitivity EXACT —
-  P_full 0.450 → **P_train(2018) 0.268** (== 16AL), and the as-sealed 2019+ slices reproduce to the digit
-  (U 24.2/α12.0 · B14 23.8/11.7 · C40 30.4/17.2 · A2 34.1/21.2 · K30 34.6/22.0). Independently confirms the
-  era-floor is the highest window-fit-risk rung.
-- **C3 also reproduced**: Deflated Sharpe (Bailey-LdP, `attribution.py:314`, N=69) =
-  0.898/0.938/0.980/0.998/0.998 vs 16AL's 0.897/.938/.980/.998/.998 — match to 3dp, robust to N=50/100
-  (K30 stays 0.997–0.999). Confirms the family clears 69-trial deflation. **SCOPE:** reproduces C2b's
-  DETERMINISTIC anchors (P_train + the 2019+ slices) and C3's DSR statistic — not S176's full TRAIN-replay
-  "survival 1.01" (replay lever-selection choices) nor the φ→CAGR band mapping; those stand as recorded in 16AL.
 
 ### 2026-07-16AO — S181: THE FORWARD-TEST DAY IS ONE COMMAND. `union_forward.py` built + box-verified (repro gate 6/6 to the digit, A1 now cross-lineage-reproduced); the two owed prints land — A2-composite CLEAN-TR 26.3% and the median-pick-ADV table (the small-cap character is EARLY/MID-ERA: recent selections are ₹52–58cr liquid)
 
