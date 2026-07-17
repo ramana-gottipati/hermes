@@ -41,8 +41,11 @@ def eqstats(rets):
     peak = np.maximum.accumulate(eq); dd = eq / peak - 1
     yrs = len(eq) / TD_Y
     cagr = eq[-1] ** (1 / max(yrs, 1e-9)) - 1
-    sd = rets.std()
-    return {"cagr": cagr, "maxdd": float(dd.min()), "retvol": rets.mean() / sd * np.sqrt(TD_Y) if sd > 0 else 0,
+    # D142 rf RE-CUT (S190, 16AY): excess-basis ratio — per-period rf (flat 6.5%/yr estate
+    # proxy) subtracted before the ratio; this is the estate's highest-fan-out ratio site.
+    ex = rets - (1.065 ** (1.0 / TD_Y) - 1.0)
+    sd = ex.std()
+    return {"cagr": cagr, "maxdd": float(dd.min()), "retvol": ex.mean() / sd * np.sqrt(TD_Y) if sd > 0 else 0,
             "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0, "totx": float(eq[-1])}
 
 

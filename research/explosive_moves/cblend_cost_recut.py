@@ -80,7 +80,10 @@ PPY_M = 12                                              # books a/b are MONTHLY
 AUM_LIST_CR = [25, 50, 100, 200, 500]
 
 # Nifty-500 buy-&-hold hurdle (from the ledger; CP uses the same)
-BENCH_RETVOL = CP.BENCH_RETVOL                          # 0.89
+BENCH_RETVOL = CP.BENCH_RETVOL                          # 0.89 (raw ledger basis, provenance)
+# D142 re-cut (S190, 16AY): the rf-adjusted hurdle on the same monthly bench basis, measured
+# in-run by factor_zoo 2026-07-17 (RAW 0.899 -> EX 0.528; flat 6.5%/yr estate rf proxy).
+BENCH_RETVOL_EX = 0.528
 BENCH_CAGR = CP.BENCH_CAGR                              # 0.153
 
 H1_END = "2018-12-31"
@@ -172,7 +175,7 @@ def _metrics_row(tag, aum_cr, rets, dates, diag):
         "ann_cost_pct": diag["ann_cost_pct"], "turn": diag["turn"],
         "med_part_pct": med_part, "med_days_fill": diag["med_days_fill"],
         "cap_med_cr": cap_med_cr,
-        "beats_index": bool(sh > BENCH_RETVOL and cg > BENCH_CAGR),
+        "beats_index": bool(sh > BENCH_RETVOL_EX and cg > BENCH_CAGR),   # 16AY: excess bar (books are excess-basis via eqstats)
     }
 
 
@@ -208,7 +211,7 @@ def main():
     print("COST-REALITY RE-CUT of the C-BLEND champion (participation-impact cost)")
     print(f"  k={CP.K_IMPACT} POV_CAP={CP.POV_CAP:.0%} delay_k={CP.DELAY_K}  "
           f"impact=k*sigma*sqrt(order/ADV), cap {CP.POV_CAP:.0%} ADV/day")
-    print(f"  hurdle = Nifty-500 B&H: return/vol {BENCH_RETVOL}, CAGR {BENCH_CAGR*100:.1f}%")
+    print(f"  hurdle = Nifty-500 B&H: rf-adj {BENCH_RETVOL_EX} (raw ledger {BENCH_RETVOL}), CAGR {BENCH_CAGR*100:.1f}%  [16AY excess basis]")
     print("=" * 78, flush=True)
 
     # --- (1) build the champion tables ONCE (monthly, rel-gate) + attach PIT C ---

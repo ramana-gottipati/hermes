@@ -38,11 +38,17 @@ def equity_stats(dates, equity) -> dict:
     yrs = _years(dates[0], dates[-1])
     total = float(eq[-1] / eq[0] - 1.0)
     cagr = float((eq[-1] / eq[0]) ** (1.0 / yrs) - 1.0)
-    sd = float(ret.std())
-    dn = ret[ret < 0]
-    dsd = float(dn.std()) if len(dn) else np.nan
-    retvol = float(ret.mean() / sd * np.sqrt(TD)) if sd > 0 else 0.0
-    sortino = float(ret.mean() / dsd * np.sqrt(TD)) if dsd and dsd > 0 else 0.0
+    # D142 rf RE-CUT (S190, ledger 16AY): ratios are now EXCESS-basis true Sharpe/Sortino —
+    # per-day rf subtracted (flat 6.5%/yr estate proxy, RF convention per attribution.py) BEFORE
+    # the ratio. Sortino denominator also corrected to the textbook downside deviation
+    # sqrt(mean(min(ex,0)^2)) over ALL observations (the S167 finding; MAR = rf), landed in the
+    # same cut per plan §5.5 — both corrections move the same numbers once, together.
+    rf_d = 1.065 ** (1.0 / TD) - 1.0
+    ex = ret - rf_d
+    sd = float(ex.std())
+    dsd = float(np.sqrt(np.mean(np.minimum(ex, 0.0) ** 2)))
+    retvol = float(ex.mean() / sd * np.sqrt(TD)) if sd > 0 else 0.0
+    sortino = float(ex.mean() / dsd * np.sqrt(TD)) if dsd > 0 else 0.0
     return {"cagr": cagr, "maxdd": maxdd, "calmar": cagr / abs(maxdd) if maxdd < 0 else 0.0,
             "retvol": retvol, "sortino": sortino, "total_ret": total, "ndays": len(eq),
             "years": yrs}

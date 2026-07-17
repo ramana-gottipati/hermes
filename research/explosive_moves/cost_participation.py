@@ -101,6 +101,8 @@ TOPN = 25                    # long-only, equal-weight
 BAND = 35                    # WIDE hold-band (keep a name until it drops out of top-35)
 GATE_PCTL = 0.80             # LARGE-CAP = top-quintile liquidity
 PPY = 4                      # quarterly periods per year
+RF_PP = 1.065 ** (1.0 / PPY) - 1.0   # D142 re-cut (16AY): per-period rf, flat 6.5%/yr estate proxy
+BENCH_RETVOL_EX = None               # set in main() from the in-run excess-basis bench (16AY)
 
 # --- participation-impact parameters (STATE THESE) ---
 K_IMPACT = 0.6               # sqrt-law impact coefficient (VWAP/POV calibration)
@@ -247,7 +249,7 @@ def run(tables, aum, scorekey="lowvolmom_sc", band=True):
     eq = np.cumprod(1 + rets)
     dd_eq = eq / np.maximum.accumulate(eq) - 1
     cagr = eq[-1] ** (PPY / len(rets)) - 1 if len(rets) else 0.0
-    retvol = rets.mean() / rets.std() * np.sqrt(PPY) if rets.std() > 0 else 0.0
+    retvol = (rets - RF_PP).mean() / (rets - RF_PP).std() * np.sqrt(PPY) if rets.std() > 0 else 0.0  # 16AY excess
 
     adv_med = float(np.median(adv_of_picks)) if adv_of_picks else 0.0
     # capacity: AUM at which the MEDIAN pick's clip = 10% of its ADV.
@@ -263,7 +265,7 @@ def run(tables, aum, scorekey="lowvolmom_sc", band=True):
         "cap_med_cr": cap_med_cr,
         "med_part_pct": med_part * 100,
         "med_days_fill": float(np.median(days)) if days else 1.0,
-        "beats_index": bool(retvol > BENCH_RETVOL and cagr > BENCH_CAGR),
+        "beats_index": bool(retvol > (BENCH_RETVOL_EX if BENCH_RETVOL_EX is not None else BENCH_RETVOL) and cagr > BENCH_CAGR),  # 16AY
     }
 
 
@@ -284,7 +286,7 @@ def bench_buyhold(tables):
     eq = np.cumprod(1 + rets)
     dd = eq / np.maximum.accumulate(eq) - 1
     cagr = eq[-1] ** (PPY / len(rets)) - 1
-    return {"retvol": rets.mean() / rets.std() * np.sqrt(PPY) if rets.std() > 0 else 0,
+    return {"retvol": (rets - RF_PP).mean() / (rets - RF_PP).std() * np.sqrt(PPY) if rets.std() > 0 else 0,  # 16AY excess
             "cagr": cagr, "maxdd": float(dd.min()), "ann_cost_pct": 0.0,
             "turn": 0.0, "cap_med_cr": float("inf"), "med_part_pct": 0.0,
             "med_days_fill": 0.0, "beats_index": None}
@@ -298,7 +300,7 @@ def capacity_breakpoint(tables):
     first_fail = None
     for cr_aum in grid:
         s = run(tables, cr_aum * CR)
-        ok = s["retvol"] > BENCH_RETVOL and s["cagr"] > BENCH_CAGR
+        ok = s["retvol"] > (BENCH_RETVOL_EX if BENCH_RETVOL_EX is not None else BENCH_RETVOL) and s["cagr"] > BENCH_CAGR  # 16AY
         if ok:
             last_ok = (cr_aum, s["retvol"], s["cagr"])
         elif first_fail is None:
@@ -315,6 +317,9 @@ def main():
     print(f"  {len(tbl)} quarterly rebalances\n", flush=True)
 
     bench = bench_buyhold(tbl)
+    global BENCH_RETVOL_EX
+    BENCH_RETVOL_EX = bench["retvol"]   # 16AY: the rf-adjusted hurdle, same in-run basis as the books
+    print(f"  [bar] excess-basis bench hurdle (in-run) = {BENCH_RETVOL_EX:.3f}  (raw ledger bar {BENCH_RETVOL})", flush=True)
 
     rows = []
     for tag, aum in AUM_SCENARIOS:

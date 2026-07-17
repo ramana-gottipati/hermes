@@ -27,11 +27,11 @@ Risk-free: monthly return of the Nifty 1D Rate Index (overnight TR index) where 
 rates averaged ~6.5-8% then). RF enters only the intercept, so the gap-proxy cannot distort
 the beta estimates.
 
-RATIO BASIS (D142) — read this before quoting any ratio out of this file. The ALPHA
-regressions above are genuinely risk-free-subtracted (they consume `strat_ex = strat - rf`).
-The RATIOS are not: retvol_ann() and deflated_sharpe() are both handed RAW `strat`, so what
-they report is mean/sd annualised with NO rf removed — a return/vol ratio, not a Sharpe. It
-reads high against a textbook Sharpe.
+RATIO BASIS (D142 → re-cut S190, ledger 16AY) — the ALPHA regressions were always
+risk-free-subtracted (`strat_ex = strat - rf`), and since the 16AY re-cut the RATIOS are too:
+retvol_ann() and deflated_sharpe() are handed `strat_ex`, so what they report is a genuine
+excess-basis Sharpe (rf = Nifty 1D Rate Index, flat 6.5%/yr proxy pre-2016). Pre-16AY records
+in the ledger are the RAW return/vol basis — compare like with like.
 
 This file is therefore the ONE place in the estate where the true-Sharpe re-cut needs NO new
 data: rf is already computed at line ~431 from a primary source (Guardrail #8-clean), and
@@ -463,7 +463,7 @@ def main():
     print("=" * 92)
     bench_ex = mkt  # already excess
     for n in strat:
-        s_ann = retvol_ann(strat[n])
+        s_ann = retvol_ann(strat_ex[n])            # 16AY: EXCESS basis — a true Sharpe now
         a1, b1 = simple_alpha(strat[n], mkt + rf)  # single-factor vs Nifty500 total (factor_zoo style)
         print(f"  {n:8} ret/vol(ann)={s_ann:5.2f}  single-factor alpha_vs_Nifty500={a1*100:+6.1f}% "
               f"beta={b1:4.2f}  n={np.isfinite(strat[n]).sum()}")
@@ -503,8 +503,8 @@ def main():
     print("\n" + "=" * 92)
     print("(4) DEFLATED SHARPE (Bailey/Lopez de Prado, N=15 trials) + PBO (CSCV)")
     print("=" * 92)
-    dsr, sr0_ann, srhat_ann, sr0_pp = deflated_sharpe(strat["RISKADJ"])
-    r = strat["RISKADJ"][np.isfinite(strat["RISKADJ"])]
+    dsr, sr0_ann, srhat_ann, sr0_pp = deflated_sharpe(strat_ex["RISKADJ"])   # 16AY: true-Sharpe DSR
+    r = strat_ex["RISKADJ"][np.isfinite(strat_ex["RISKADJ"])]
     print(f"  RISKADJ  observed ret/vol(ann) = {srhat_ann:5.2f}   T = {len(r)}   "
           f"skew = {sstats.skew(r):+.2f}  kurt = {sstats.kurtosis(r, fisher=False):.2f}")
     print(f"  expected max-ratio under null(N=15), annualised SR0 = {sr0_ann:5.2f}")
@@ -540,8 +540,8 @@ def main():
     tables_bt, _ = build_panel(cache, book_terminal=True)
     rf2 = rf_monthly(tables_bt)
     strat_bt = strategy_returns(tables_bt, lambda x: x["riskadj"])
-    s_surv = retvol_ann(strat["RISKADJ"]); a_surv, b_surv = simple_alpha(strat["RISKADJ"], mkt + rf)
-    s_bt = retvol_ann(strat_bt)
+    s_surv = retvol_ann(strat_ex["RISKADJ"]); a_surv, b_surv = simple_alpha(strat["RISKADJ"], mkt + rf)
+    s_bt = retvol_ann(strat_bt - rf2)               # 16AY: same excess basis as the survivor leg
     a_bt, b_bt = simple_alpha(strat_bt, (mkt_excess(tables_bt, rf2) + rf2))
     print(f"  SURVIVOR-only (factor_zoo): RISKADJ ret/vol={s_surv:5.2f}  alpha_vs_Nifty500={a_surv*100:+6.1f}%  beta={b_surv:4.2f}")
     print(f"  TERMINAL-booked          : RISKADJ ret/vol={s_bt:5.2f}  alpha_vs_Nifty500={a_bt*100:+6.1f}%  beta={b_bt:4.2f}")

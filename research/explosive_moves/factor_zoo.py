@@ -206,6 +206,17 @@ def main():
                        if (t["d0"] in bclose and t["d1"] in bclose and bclose[t["d0"]] > 0) else np.nan)
                       for t in tables])
     SQ = np.sqrt(12.0)
+    # D142 rf RE-CUT (S190, 16AY): all zoo ratios are EXCESS-basis (per-month rf, flat 6.5%/yr
+    # estate proxy) — and the survivor bar is now computed IN-RUN from the same bench series on
+    # the same basis (the old hardcoded 0.89 was the RAW-basis bench ratio measured once; the
+    # low-vol hurdle absorbs the biggest rf penalty, so the bar drops the most — plan §3).
+    RF_M = 1.065 ** (1.0 / 12.0) - 1.0
+    _bf = bench[np.isfinite(bench)]
+    BAR_RAW = float(_bf.mean() / _bf.std() * SQ) if _bf.std() > 0 else 0.89
+    _bx = _bf - RF_M
+    BAR_EX = float(_bx.mean() / _bx.std() * SQ) if _bx.std() > 0 else 0.0
+    print(f"[bar] bench return/vol RAW {BAR_RAW:.3f} (ledger 0.89) -> rf-adjusted BAR_EX {BAR_EX:.3f}"
+          f"  (rf 6.5%/yr flat proxy, compounded per month)", flush=True)
 
     def run(scorefn):
         rets, turns, allpf, allmfe, allmae, dates, held = [], [], [], [], [], [], set()
@@ -235,7 +246,7 @@ def main():
         else:
             beta = alpha = float("nan")
         h1 = np.array([d <= "2018-12-31" for d in dates]); h2 = np.array([d >= "2019-01-01" for d in dates])
-        sh = lambda r: (r.mean() / r.std() * SQ) if r.std() > 0 else 0.0
+        sh = lambda r: ((r - RF_M).mean() / (r - RF_M).std() * SQ) if (r - RF_M).std() > 0 else 0.0
         s1, s2 = sh(rets[h1]), sh(rets[h2])
         # trade-quality: peak move available (MFE), worst dip (MAE), and % of the peak we kept
         mfe_f = np.isfinite(allmfe); mae_f = np.isfinite(allmae)
@@ -249,7 +260,11 @@ def main():
         wcapture = float(np.mean(np.clip(allpf[wm] / allmfe[wm], 0, 1))) if wm.any() else float("nan")
         edge = (avg_mfe / abs(avg_mae)) if (np.isfinite(avg_mae) and avg_mae < 0) else float("nan")
         return {
-            "retvol": sh(rets), "sortino": (rets.mean() / dsd * SQ) if dsd > 0 else 0.0,
+            "retvol": sh(rets),
+            # sortino: excess-basis + textbook downside deviation over ALL obs (S167 fix, 16AY)
+            "sortino": (float((rets - RF_M).mean()
+                              / np.sqrt(np.mean(np.minimum(rets - RF_M, 0.0) ** 2)) * SQ)
+                        if np.any((rets - RF_M) < 0) else 0.0),
             "cagr": cagr, "vol": sd * SQ, "maxdd": maxdd, "calmar": cagr / abs(maxdd) if maxdd < 0 else 0.0,
             "win": len(pos) / n, "pf": (pos.sum() / abs(neg.sum())) if neg.sum() != 0 else float("inf"),
             "payoff": (pos.mean() / abs(neg.mean())) if (len(pos) and len(neg)) else float("nan"),
@@ -259,7 +274,7 @@ def main():
             "beta": beta, "alpha": alpha, "best": float(rets.max()), "worst": float(rets.min()),
             "turn": float(np.mean(turns)), "h1": s1, "h2": s2,
             "mfe": avg_mfe, "mae": avg_mae, "capture": capture, "wcapture": wcapture, "edge": edge,
-            "surv": bool(s1 > 0.89 and s2 > 0.89)}
+            "surv": bool(s1 > BAR_EX and s2 > BAR_EX)}   # 16AY: in-run rf-adjusted bar (was 0.89 raw)
 
     rows = []
     for name, fn in FACTORS.items():

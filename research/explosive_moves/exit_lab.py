@@ -288,12 +288,17 @@ def run():
     if cands:
         wnm, wt = max(cands, key=lambda x: x[1]["book"]["h1"]["retvol"])
         h2s = wt["book"]["h2"]["retvol"] if wt["book"]["h2"] else None
-        g_better = bool(h2s is not None and h2s >= 0.79)
+        # D142 re-cut (S190, 16AY): book ratios are excess-basis via factory.eqstats, so the
+        # bars follow. BAR_FULL_EX measured in-run by factor_zoo (RAW 0.899 -> 0.528; flat
+        # 6.5%/yr rf); the 0.79 companion is shifted by the SAME measured penalty (0.371) —
+        # an approximation (its own sigma basis was never separately recorded), descriptive lab.
+        BAR_FULL_EX, BAR_079_EX = 0.528, 0.79 - 0.371
+        g_better = bool(h2s is not None and h2s >= BAR_079_EX)
         g_fund = bool(wt["book"]["h1"] and wt["book"]["h2"]
-                      and wt["book"]["h1"]["retvol"] > 0.89 and wt["book"]["h2"]["retvol"] > 0.89)
+                      and wt["book"]["h1"]["retvol"] > BAR_FULL_EX and wt["book"]["h2"]["retvol"] > BAR_FULL_EX)
         out["WINNER"] = {"engine": wnm, "chosen_on": "h1 return/vol (hold>=8 guard)",
                          "h1_retvol": wt["book"]["h1"]["retvol"], "oos_h2_retvol": h2s,
-                         "G_BETTER_vs_0.79": g_better, "G_FUNDABLE_0.89": g_fund}
+                         "G_BETTER_vs_0.419ex": g_better, "G_FUNDABLE_0.528ex": g_fund}
         out["VERDICT"] = ("BETTER-EXIT-FOUND" if g_better else "NO-BETTER-EXIT") + \
                          (" + FUNDABLE" if g_fund else " (not fundable)")
     else:

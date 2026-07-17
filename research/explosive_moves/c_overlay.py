@@ -12,9 +12,10 @@ walk-forward halves, Nifty500 return/vol-0.89 survival hurdle — results are
 directly comparable to the recorded table. D66: C is a veto/filter/overlay
 candidate, never a ranker — variants cover veto, filter, blend, and the
 quality+C stack, head-to-head against the prior quality-blend winner.
-Ratios are mean/sd annualised with NO risk-free rate subtracted — return/vol, not
-Sharpe, so they read high vs a textbook Sharpe; the 0.89 hurdle is on the SAME
-basis, so the survival verdicts hold (D142).
+RATIO BASIS: since the D142 re-cut (S190, 16AY) the ratios inherited from the shared
+eqstats path are EXCESS-basis true Sharpes (flat 6.5%/yr rf proxy); the rf-adjusted
+hurdle is 0.528 (measured; raw ledger basis was 0.89). Rows recorded before 16AY are
+raw-basis — compare like with like.
 Read-only (never writes production tables); writes out/c_overlay.csv.
 
 Run (VPS):

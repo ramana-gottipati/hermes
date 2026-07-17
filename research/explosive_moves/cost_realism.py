@@ -106,7 +106,8 @@ def bench_buyhold(tables, ppy):
     rets = np.array(rets)
     eq = np.cumprod(1 + rets); dd = eq / np.maximum.accumulate(eq) - 1
     cagr = eq[-1] ** (ppy / len(rets)) - 1
-    return {"retvol": rets.mean() / rets.std() * np.sqrt(ppy) if rets.std() > 0 else 0,
+    _rf = 1.065 ** (1.0 / ppy) - 1.0   # 16AY excess basis
+    return {"retvol": (rets - _rf).mean() / (rets - _rf).std() * np.sqrt(ppy) if rets.std() > 0 else 0,
             "cagr": cagr, "maxdd": float(dd.min()),
             "calmar": cagr / abs(dd.min()) if dd.min() < 0 else 0, "ann_cost_pct": 0.0,
             "turn": 0.0, "h1": 0, "h2": 0, "cap_p25_cr": float("inf"), "cap_med_cr": float("inf")}
@@ -141,7 +142,8 @@ def run(tables, scorekey, cost="real", band=False, ppy=12):
     rets = np.array(rets)
     eq = np.cumprod(1 + rets); dd = eq / np.maximum.accumulate(eq) - 1
     cagr = eq[-1] ** (ppy / len(rets)) - 1
-    sh = lambda r: (r.mean() / r.std() * np.sqrt(ppy)) if r.std() > 0 else 0.0
+    _rf = 1.065 ** (1.0 / ppy) - 1.0   # 16AY excess basis
+    sh = lambda r: ((r - _rf).mean() / (r - _rf).std() * np.sqrt(ppy)) if r.std() > 0 else 0.0
     dates = [t["d0"] for t in tables]
     h1 = np.array([d <= "2018-12-31" for d in dates]); h2 = np.array([d >= "2019-01-01" for d in dates])
     cap_arr = np.array(sorted(caps))
