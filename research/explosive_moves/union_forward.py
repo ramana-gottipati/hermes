@@ -257,6 +257,13 @@ def _etf_kind(s):
     if "silver" in a: return "silver"
     if "government" in a or s.startswith("LIQUID"): return "liquid/gilt"
     return "equity-index/other"
+def _is_gold(s):
+    a = (_ETF.get(s) or "").lower()
+    return ("gold" in a and "silver" not in a) or s in _GOLD_ORPHAN
+def _sel_nogold(qq, d, i, topn):   # rank as sealed, then drop gold ETFs (backfilled by run5's [:topn])
+    return [s for s in sel_a2c(qq, d, i, topn) if not _is_gold(s)]
+def _sel_noetf(qq, d, i, topn):    # rank as sealed, then drop ALL ETFs
+    return [s for s in sel_a2c(qq, d, i, topn) if not _is_etf(s)]
 _jlive = max(i for i in range(len(rb)) if rb[i] <= ASOF)
 _dlive = rb[_jlive]
 print("  ETF-in-selection check @ latest rebalance %s (frozen rule as-sealed; ratify+document):" % _dlive)
@@ -445,6 +452,13 @@ for k in ("K30", "A2"):
     print("  %s TR %5.1f%% (Rs1Cr->%7.2fx, div %d, MaxDD %5.1f%%, aPR %+5.1f/bPR %4.2f)  [recorded %s: %.1f/%.2f on the seal-time archive; delta = 16AQ repair + boundary-leg dead-window, disclosed]"
           % (k, s["cagr"] * 100, s["mult"], o["ndiv"], s["dd"] * 100, s["alpha"] * 100, s["beta"],
              "16AF" if k == "K30" else "16AO", r_c, r_m), flush=True)
+    # ETF-excluded companions on the SAME TR basis (universe-hygiene; DECIDED ratify+document,
+    # task_7a70ad77; sealed rows above are unchanged; effect <0.5pp, no verdict move; design §7d(repro))
+    for _hlab, _hk in (("gold-ETF-excl", _sel_nogold), ("all-ETF-excl", _sel_noetf)):
+        _oc = run5(tr=True, end=REG, hook=_hk, **BOOKS[k])
+        _sc = stat(_oc["navs"], _oc["bnavs"])
+        print("       %-4s companion %-13s TR %5.1f%% (Rs1Cr->%7.2fx, MaxDD %5.1f%%)  [hygiene; descriptive; sealed row unchanged]"
+              % (k, _hlab, _sc["cagr"] * 100, _sc["mult"], _sc["dd"] * 100), flush=True)
 
 # ---- 6. full-period median pick-ADV (the other owed print; per book, all rebalances) ----
 print("")
