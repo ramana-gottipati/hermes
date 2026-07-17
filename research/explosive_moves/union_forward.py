@@ -193,9 +193,11 @@ for k in ORDER:
               " or the ARCHIVE was edited. If the edit is a RECORDED repair (16AQ-class), re-derive via"
               " --derive-anchors + a new ledger entry; otherwise investigate before reading any forward number." % GATE_END)
         sys.exit(1)
-print("  universe note (16AR): the sealed selection universe (all EQ/BE/BZ series) includes gold ETFs —")
-print("  12 selection-quarters in the sealed history; spec question with the owner (task_7a70ad77);")
-print("  the frozen rule runs AS SEALED here, so forward selections may include them too.")
+print("  universe note (16AR): the sealed universe (all EQ/BE/BZ series) selects ETFs, not just gold —")
+print("  any-ETF 34/82(K30)/38/82(A2) rebals (NIFTYBEES x13-15 biggest, gold 9/10); DECIDED 2026-07-17")
+print("  (task_7a70ad77): RATIFY seals + document (option b) — the frozen rule runs AS SEALED here, so a")
+print("  forward selection MAY be an ETF; any ETF pick is flagged below. Exclusion effect <0.5pp (design")
+print("  §7d(repro)); a clean-universe book, if ever wanted, is a NEW pre-registered sibling, not a seal edit.")
 
 if DERIVE:
     print("")
@@ -232,6 +234,40 @@ if not fwd_pre:
         elapsed = ci.get(ASOF, N - 1) - ci[rb[j_pre]] if ASOF in ci else (N - 1) - ci[rb[j_pre]]
         print("  boundary leg IN PROGRESS: started %s, ~%d of %d trading days elapsed — first checkpoint lands when the engine's next rebalance enters the data (~%d more sessions)"
               % (rb[j_pre], elapsed, QTR, max(0, QTR - elapsed)))
+
+# ---- ETF-in-selection flag (16AR finding; owner-DECIDED 2026-07-17 ratify+document, task_7a70ad77) ----
+# The frozen rule runs AS SEALED, so a live selection MAY include an ETF (a fund, not a stock). Surface it
+# every checkpoint so the forward-test day never silently holds an index/commodity/liquid ETF. Reporting
+# only — reuses the frozen selection line, adds NO selection logic. Identification: nse_etf_list + verified
+# historical gold-ETF orphans (design §7d(repro)).
+import sqlite3 as _sq
+_qc = _sq.connect("file:%s?mode=ro" % DB, uri=True)
+_ETF = {s: (a or "") for s, a in _qc.execute("SELECT symbol, assets FROM nse_etf_list")}
+_qc.close()
+_GOLD_ORPHAN = {"KOTAKGOLD", "HDFCMFGETF", "ICICIGOLD", "RELGOLD", "SBIGETS"}
+def _is_etf(s):
+    return (s in _ETF) or (s in _GOLD_ORPHAN)
+def _etf_kind(s):
+    a = (_ETF.get(s) or "").lower()
+    if ("gold" in a and "silver" not in a) or s in _GOLD_ORPHAN: return "gold"
+    if "silver" in a: return "silver"
+    if "government" in a or s.startswith("LIQUID"): return "liquid/gilt"
+    return "equity-index/other"
+_jlive = max(i for i in range(len(rb)) if rb[i] <= ASOF)
+_dlive = rb[_jlive]
+print("  ETF-in-selection check @ latest rebalance %s (frozen rule as-sealed; ratify+document):" % _dlive)
+_any_etf = False
+for _k in ORDER:
+    _cfg = BOOKS[_k]
+    _hook = _cfg.get("hook") or sel_a2c
+    _sel = _hook(QUAL[_cfg["fmode"]][_dlive], _dlive, ci[_dlive], _cfg["topn"])[:_cfg["topn"]]
+    _etfs = [(s, _etf_kind(s)) for s in _sel if _is_etf(s)]
+    if _etfs:
+        _any_etf = True
+        print("    !! %-4s holds %d ETF(s): %s"
+              % (_k, len(_etfs), ", ".join("%s[%s]" % (s, kd) for s, kd in _etfs)))
+if not _any_etf:
+    print("    OK — no ETF in any book's latest selection.")
 
 def _near(sd, d):
     return series_near(sd, d) if sd else None

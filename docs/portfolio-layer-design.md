@@ -279,6 +279,33 @@ by this one gold-bull window. Both legs are genuine ~uncorrelated diversifiers (
 70/10/20), weights set by risk appetite — never by this window's optimizer, which would put 40% in gold.**
 Provenance: `portfolio_mix.py` (unchanged) + the S180 three-asset probe; box read-only.
 
+**§7d(repro) — reproduced read-only + owner decision (2026-07-17, task `task_7a70ad77`).** The finding was
+re-confirmed on the current post-`16AQ` archive, and the ETF contamination is **broader than gold**:
+
+- **Any-ETF selection touches 34/82 (K30) · 38/82 (A2) rebalances.** The single biggest holder is
+  **NIFTYBEES ×13–15** (the Nifty-50 *benchmark* ETF — a stock-selection book buying the index), then
+  GOLDBEES ×7–9, LIQUIDBEES ×6–7, SETFNIF50/CPSEETF ×4–5, plus silver/international ETFs. **Gold-ETF-only
+  is 9/82 (K30) · 10/82 (A2)** (GOLDBEES ×7, RELGOLD ×2, SETFGOLD ×2, GOLDIETF ×2, then
+  KOTAKGOLD/HDFCMFGETF/ICICIGOLD/HDFCGOLD ×1; concentrated 2011/2018–20/2023/2025). The `16AR` note's "12"
+  was the **pre-repair S180 count** — the S182 price fix shifts the gold-ETF momentum ranks, and the note's
+  symbol list omitted the historical orphans RELGOLD/SBIGETS. Identification: `nse_etf_list.assets`
+  (∋ 'Gold', ∌ 'Silver') ∪ verified historical orphans (probe `/tmp/diag_etf_selection.py`, box read-only).
+- **Exclusion impact is small at every breadth, and no verdict/ranking moves** (sealed rule reproduces
+  as-is; drift disclosed by the `16AS` gate):
+
+  | variant | K30 | A2 |
+  |---|---|---|
+  | as-sealed (holds ETFs) | 26.46% / 116.04× | 25.49% / 99.25× |
+  | gold-ETF excluded | 26.67% / 120.02× | 25.97% / 107.20× |
+  | all-ETF excluded | 26.72% / 120.92× | 25.76% / 103.77× |
+
+- **Owner decision (Ramana, 2026-07-17): RATIFY S183 + document — option (b).** Keep the hash-frozen seals
+  as-is; the forward runner keeps running the frozen rule **as-sealed** and *flags* any ETF it selects;
+  the ETF-excluded companion numbers above stand beside the headline for transparency. Re-sealing
+  (options a/c) is **rejected** — the <0.5pp effect and zero verdict change do not justify voiding a
+  pre-registration. A clean-universe book, if ever wanted, is a **new pre-registered sibling** (§8), never
+  an edit to these seals nor a selection hack in the reporting layer.
+
 ---
 
 ## §8 What this program will NOT do without a fresh pre-registration
@@ -337,14 +364,17 @@ the forward test judges the *book*; the portfolio layer just shows the book at t
 4. **(Optional ratchet)** add this doc to `tests/test_retvol_label_gate.py`'s scanned set so the honest
    labels are machine-enforced (tightening only; not done now to avoid touching the gate's deliberate
    scope mid-program).
-5. **🔴 NEW (S180 cont., §7d) — the sealed equity book selects gold ETFs** (GOLDBEES ×7 etc., 12/82
-   rebalances). A universe-hygiene issue in the sealed strategy: an "equity" book holding a commodity,
-   on unadjusted prices at seal time. Affects every union sibling + the 2026-10-03 forward runner.
-   **Owner/union-lane decision** (changes sealed numbers → careful): exclude ETFs (or at least gold
-   ETFs) from the union selection universe. Spawned as a separate task.
-6. **Anchor re-verify (union lane)** — the sealed book's absolute repro drifted ~+0.3pp (26.4→26.7
-   etf-excluded) from box-data changes since the S180 probe; the *dial* is unaffected, but the sealed
-   headline should be re-confirmed on a stable snapshot.
+5. ~~**🔴 NEW (S180 cont., §7d) — the sealed equity book selects gold ETFs**~~ — ✅ **REPRODUCED +
+   DECIDED (2026-07-17, `task_7a70ad77`, §7d(repro)).** Re-confirmed read-only; the contamination is
+   broader than gold (any-ETF 34/38 of 82; NIFTYBEES ×13–15 the biggest, gold 9/10). **Owner decision:
+   RATIFY S183 + document (option b)** — seals kept as-sealed, forward runs the frozen rule + flags ETF
+   picks, ETF-excluded companion numbers recorded beside the headline. Exclusion effect <0.5pp, no verdict
+   moves; re-sealing rejected. A clean-universe book, if ever wanted, is a new pre-registered sibling (§8).
+6. ~~**Anchor re-verify (union lane)**~~ — ✅ **RESOLVED.** The "~+0.3pp" was the *exclusion* effect
+   (etf-excluded 26.7), not data drift. The **unmodified** sealed rule reproduces at K30 26.46%/116.04×
+   (seal 26.4/115.69, +0.35× mult) · A2 25.49%/99.25× (+0.22×) — drift **localized to the gold-ETF-holding
+   books** (A1/A2/K30; U/B14/C40 reproduce to the digit), caused by S182's `16AQ` repair. S183's `16AS`
+   drift-proof gate (mult anchors on input-closed legs ≤2026-04-01) already handles it and passes.
 
 ## §11 Provenance & labels
 
