@@ -18,6 +18,9 @@ PROJECT_STATE entries are enough.**
 - `corp_actions.py`: every mode pulls equities THEN mf; mf rows tagged `nse-ca-api-mf`; `_drop_covered`
   drops SPLIT/BONUS twins ±5d (the 16AV rule, machine-enforced); selftest + AUD-14 green; manifest rows
   trued. The arc 16AQ→16AT→16AU→16AV→16AW→**16AX** is complete; `chk_split_cliffs` = the backstop.
+- **First live run: 30 seen → 26 covered-dropped (the healed events, refused — the rule bit on first
+  contact) → 4 inserted, all non-factor (bond-ETF maturity redemptions) → NO anchor consequence; the
+  16AW set stands.** Box deployed (md5==HEAD, .bak-s189); the nightly carries mf from tonight.
 
 ## ✅ 2026-07-17 — S186: BOTH repro instruments RE-ANCHORED on the fully-repaired archive (ledger 16AW; the 16AS loop's 3rd firing) — PM gate ported to the bounded policy; PM==UF cross-check EQUAL; K30's headline lands BACK at the seal (115.66× vs 115.69×) — do NOT redo; kickstart-pick-verify
 - **Sequencing held across 3 concurrent lanes:** S185 healed the 117 tape-CLEAN (16AU) → S187 (the chip

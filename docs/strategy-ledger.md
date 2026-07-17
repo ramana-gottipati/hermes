@@ -3434,3 +3434,10 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   adjusted history moves → the 16AS loop fires; that is the designed lifecycle, not an incident).
 - **Provenance:** manifest rows `corp_actions` + `gold_etf` trued-up same-commit; tests
   test_feed_manifest 11/11 · test_data_quality_liveness 14/14 · test_aud14 5/5 · module selftest OK.
+
+- **FIRST LIVE RUN (same session, box, trailing 400d): 30 mf rows seen → 26 DROPPED by the
+  covered-check (the S184/S185/S187-healed events arriving from the official feed and being refused —
+  the rule bit live, first contact) → 4 inserted, ALL non-factor (OTHER "Redemption On Account Of
+  Maturity", target-maturity bond ETFs AXISBPSETF/SDL26BEES) → corporate_actions 27,137 → 27,141;
+  NO adjusted-price change; the 16AW anchors stand un-fired.** Deploy: box md5 == HEAD both files
+  (.bak-s189 backups); box selftest OK; timers pick the mf class up on the next nightly.
