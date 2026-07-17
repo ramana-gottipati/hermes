@@ -5880,9 +5880,25 @@ window.__bootRS = function(){
 """
 
 
-# Compare-picker universe (all indices + all equities) for the stock page's
+def _picker_equities(conn):
+    """Compare-picker symbol universe: NSE equities (``nse_equity_list``) + NSE ETFs
+    (``nse_etf_list``), as (symbol, label) tuples A→Z, plus the validation set. ETFs
+    trade in the EQ series and their splits are corp-action/tape-adjusted (S182), so
+    they are valid compare symbols; labelled ``(ETF)``. Returns (equities, symbol_set)."""
+    equities = [(row["symbol"], row["company_name"] or "") for row in conn.execute(
+        "SELECT symbol, company_name FROM nse_equity_list ORDER BY symbol").fetchall()]
+    syms = {s for s, _ in equities}
+    for row in conn.execute("SELECT symbol, name FROM nse_etf_list"):
+        if row["symbol"] not in syms:
+            equities.append((row["symbol"], (row["name"] or row["symbol"]) + " (ETF)"))
+            syms.add(row["symbol"])
+    equities.sort(key=lambda t: t[0])
+    return equities, syms
+
+
+# Compare-picker universe (all indices + all equities + ETFs) for the stock page's
 # "+ Add" type-ahead. Identical on every stock page; changes only on the nightly
-# equity/index refresh — so build the list + its JSON ONCE per data date and
+# equity/index/ETF refresh — so build the list + its JSON ONCE per data date and
 # reuse, instead of a ~4000-row query + json.dumps on EVERY stock-page load.
 _CMP_PICKER = {"date": None, "valid_set": None, "equity_set": None, "items_json": None}
 
@@ -5891,13 +5907,12 @@ def _cmp_picker(conn, date_key):
     if _CMP_PICKER["date"] != date_key or _CMP_PICKER["items_json"] is None:
         valid_set = {row["index_name"] for row in conn.execute(
             "SELECT DISTINCT index_name FROM index_rows").fetchall()}
-        equities = [(row["symbol"], row["company_name"] or "") for row in conn.execute(
-            "SELECT symbol, company_name FROM nse_equity_list ORDER BY symbol").fetchall()]
+        equities, eqset = _picker_equities(conn)
         items_json = json.dumps(
             [{"v": n, "t": "idx"} for n in sorted(valid_set)]
             + [{"v": s, "t": "stk", "n": nm} for s, nm in equities])
         _CMP_PICKER.update(date=date_key, valid_set=valid_set,
-                           equity_set={s for s, _ in equities}, items_json=items_json)
+                           equity_set=eqset, items_json=items_json)
     return _CMP_PICKER
 
 
@@ -7933,10 +7948,9 @@ def dash_compare(idx: list[str] = Query(default=[]),
         valid = [row["index_name"] for row in conn.execute(
             "SELECT DISTINCT index_name FROM index_rows ORDER BY index_name").fetchall()]
         valid_set = set(valid)
-        # Picker universe also needs the full NSE equity list (symbol + name).
-        equities = [(row["symbol"], row["company_name"] or "") for row in conn.execute(
-            "SELECT symbol, company_name FROM nse_equity_list ORDER BY symbol").fetchall()]
-        equity_set = {s for s, _ in equities}
+        # Picker universe: NSE equities + ETFs (S182 — ETFs trade in the EQ series
+        # and their splits are tape-adjusted, so they are valid compare symbols).
+        equities, equity_set = _picker_equities(conn)
         # Title-case gotcha: strip + drop unknowns, never case-munge. Cap, dedup.
         sel, seen = [], set()
         for n in idx:
