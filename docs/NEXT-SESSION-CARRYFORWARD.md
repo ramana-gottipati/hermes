@@ -10,6 +10,8 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ⛏ 2026-07-17 — CLAIM (S184, active): gold-feed formalisation — feed_manifest entry + recurring ETF-split DQ guard (manifest+DQ+tests) — IN PROGRESS in lane s184-goldfeed; do not double-build; verify_etf_splits.py (S182, uncommitted in the shared tree) is NOT touched by this lane
+
 ## ✅ 2026-07-18 — S183: the FORWARD GATE is DRIFT-PROOF (ledger 16AS) — 16AQ's repair had invalidated the S181 anchors AND the unbounded gate would have false-STOPPED on Oct-3; both fixed, anchors re-derived, box-verified — do NOT redo; kickstart-pick-verify
 - **The two S181 defects (mine, found via 16AR's repro-gate break):** the gate ran UNBOUNDED (new
   forward legs would shift full-period numbers → false STOP on the day) and its anchors predate the
