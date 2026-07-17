@@ -206,6 +206,18 @@ def normalize_api_row(r: dict) -> Optional[dict]:
         action_type = "OTHER"
     ex_date = _normalize_date(r.get("exDate") or r.get("exdate") or r.get("EX DATE"))
     record_date = _normalize_date(r.get("recDate") or r.get("recordDate") or r.get("RECORD DATE"))
+    # S192: a dateless OTHER row (mf redemptions arrive from the feed with exDate '-' →
+    # ex_date NULL) slips past the UNIQUE(symbol,action_type,ex_date,details) idempotency
+    # key — SQLite compares NULLs as DISTINCT, so ON CONFLICT never fires and every nightly
+    # mf pull re-inserts it (2 identical AXISBPSETF|OTHER rows were observed on the box).
+    # OTHER rows carry no factor (load_factors reads SPLIT/BONUS only), so coalesce ex_date
+    # to the record date — the row becomes DATED and idempotent (both observed redemptions
+    # carry one) with nothing discarded; drop it only when truly dateless (no ex AND no
+    # record date = nothing to key on and nothing we consume).
+    if action_type == "OTHER" and ex_date is None:
+        if record_date is None:
+            return None
+        ex_date = record_date
     ratio_from, ratio_to = _parse_ratio(action_type, purpose)
     return {"symbol": symbol, "action_type": action_type, "ex_date": ex_date,
             "record_date": record_date, "ratio_from": ratio_from, "ratio_to": ratio_to,
@@ -648,6 +660,22 @@ def _selftest() -> int:
     check("mf covered-check drops the ±1d split twin only",
           ndrop == 1 and {r["symbol"] + r["action_type"] for r in kept}
           == {"FRESHETFSPLIT", "HEALTHADDDIVIDEND"})
+
+    # S192: dateless mf redemption rows (feed exDate '-' → NULL) must NOT slip past the
+    # UNIQUE idempotency key. normalize coalesces ex_date to the record date; a row with
+    # neither date is dropped. Verify both + store idempotency on the coalesced row (the
+    # AXISBPSETF|OTHER nightly re-insert defect this fix closes).
+    redemp = normalize_api_row({"symbol": "AXISBPSETF",
+                                "subject": "Redemption On Account Of Maturity",
+                                "exDate": "-", "recDate": "29-Apr-2026"})
+    check("S192 dateless OTHER coalesces ex_date to the record date",
+          redemp is not None and redemp["action_type"] == "OTHER"
+          and redemp["ex_date"] == "2026-04-29")
+    check("S192 truly-dateless OTHER (no ex, no record) is dropped",
+          normalize_api_row({"symbol": "X", "subject": "Redemption", "exDate": "-"}) is None)
+    r1 = store_actions([redemp], conn=con)
+    r2 = store_actions([redemp], conn=con)               # the nightly re-pull
+    check("S192 coalesced redemption is idempotent (1 insert then 0)", r1 == 1 and r2 == 0)
     con.close()
 
     print("corp_actions selftest:", "OK" if ok else "FAILED")

@@ -18,7 +18,7 @@ PROJECT_STATE entries are enough.**
 
 ## ⚠ 2026-07-17 — FLAG (S187, cross-lane): the LEDGER holds TWO live tag collisions — `16AX` ×2 (D143 STEADY-25-ballast @~3409 vs S189 mf-wire @~3417) and `16AY` ×2 (D143 dd-levers @~3446 vs S190 rf-recut @~3464) — plus one small observed S189 defect; S189's mf-wire itself is VERIFIED GOOD
 - **The collisions (both pairs already in `docs/strategy-ledger.md` on origin):** inbound citations make one side of each pair expensive to move — S190's `16AY` is cited by the label-gate's new basis-citation category (`c062299`) and S189's `16AX` is the arc-closer cited as 16AQ→…→16AX. **Recommend: renumber the two D143 entries** (STEADY-25 ballast + dd-levers → the next free tags) in ONE atomic commit that also fixes their inbound refs, then add a **tag-uniqueness assertion to `scripts/doc_hygiene_gate.py`** so a duplicate `### 2026-…` heading fails every commit — this is the tag-race's 2nd+3rd recorded firing after the 16AO precedent; the gate is the durable fix.
-- **S189 defect (small, observed on the box):** dateless mf redemption rows (feed `exDate '-'` → `ex_date` NULL) bypass the UNIQUE key (SQLite NULLs compare distinct) — 2 IDENTICAL `AXISBPSETF|OTHER` rows exist after ≤2 manual runs and every nightly mf pull will re-insert them. Harmless to factors (`load_factors` reads SPLIT/BONUS only) but junk accumulates nightly. Fix shape: skip or date-coalesce dateless OTHER rows in the mf class.
+- ~~**S189 defect (small, observed on the box):** dateless mf redemption rows (feed `exDate '-'` → `ex_date` NULL) bypass the UNIQUE key…~~ **✅ FIXED S192 (`normalize_api_row`): dateless OTHER rows coalesce `ex_date`→`record_date` (dated + idempotent, nothing discarded); truly-dateless (no ex AND no record) are dropped.** Box: code deployed (md5==HEAD, selftest OK), the 3 orphan rows cleaned in one backed-up txn (dup `AXISBPSETF` dropped, `SDL26BEES` NULL-dup of its dated twin dropped, `AXISBPSETF` survivor dated → **0 dateless rows**), and the live re-pull proof `normalize→store` = **0 inserts**. Factor path untouched. Tag-collision flag below is SEPARATE and still open.
 - **The S189 wire VERIFIED (this session, Ramana-tasked, on the box):** deploy md5 == HEAD · the double-adjust query (same symbol+type SPLIT/BONUS within ±5d) = **0 pairs across all 27,141 rows** · factor invariance ITC 2 rows/15× · RUCHINFRA 2/40× · ABSLBANETF 1/10× · GOLDBEES 1/100× · `chk_split_cliffs` OK · `/dash/stock?sym=ABSLBANETF` 200 · the 4 live mf rows are OTHER/redemptions → **no anchor consequence owed** (S189's own lifecycle note). `_drop_covered` implements the 16AV ±5d rule faithfully, incl. the HEALTHADD ±1d twin selftest.
 
 ## ✅ 2026-07-17 — S187 SETTLED (was the ⛏ claim): the 64 AMBIGUOUS orphan-cliffs are RESOLVED per-event against the OFFICIAL archives (ledger 16AV) — **44 healed (46 CA rows, 27,091→27,137) · 4 VERIFIED-NON-SPLIT (MAJESCO ₹974 dividend, FRL/FRLDVR/NXTDIGITAL spin-offs) · 4 CONFLICT · 12 no-archive (incl. SATYAMCOMP)** — do NOT redo; kickstart-pick-verify
@@ -53,9 +53,11 @@ PROJECT_STATE entries are enough.**
   rounding (K30 115.66× vs 115.69×; TR 131.69 vs 131.80) — the 16AU un-quarantine drift and the 16AV
   official heals net ~zero on the sealed window. Base books settle ~2–3% of terminal wealth lower
   (widened universe); ladder order unchanged throughout.
-- **➡ QUEUED (durable upstream fix):** wire NSE's `?index=mf` ETF-class CA archive (16AV discovery)
-  into the nightly `corp_actions.py` fetcher so future ETF corporate actions arrive without
-  tape-derivation — the root-cause close of the 16AQ hole. 20 AMBIGUOUS stay honestly unresolved (16AV).
+- **✅ DONE — S189 (`52a06ae`, ledger 16AX) + verified S187 + the redemption-defect closed S192:** NSE's
+  `?index=mf` ETF-class CA archive (16AV discovery) is wired into the nightly `corp_actions.py` fetcher
+  (`classes=("equities","mf")` every mode) with the ±5d covered-check — the root-cause close of the 16AQ
+  hole. First live pull recorded (26 covered-dropped, non-factor inserts, no anchor consequence). Do NOT
+  re-do; kickstart-pick-verify. 20 AMBIGUOUS stay honestly unresolved (16AV).
 
 ## ✅ 2026-07-17 — S185: the ORPHAN-CLIFF BACKLOG is WORKED (ledger 16AU; `task_74bd9558` DONE) — 117/181 healed on the evidence battery; anchors re-derived (16AU set embedded); 64 AMBIGUOUS recorded — do NOT redo; kickstart-pick-verify
 - **`scripts/audit_orphan_cliffs.py`** (selftest 5/5; refuses Satyam-shaped crashes + snap-back glitches):
