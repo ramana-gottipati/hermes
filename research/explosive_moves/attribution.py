@@ -508,7 +508,7 @@ def main():
     print(f"  RISKADJ  observed ret/vol(ann) = {srhat_ann:5.2f}   T = {len(r)}   "
           f"skew = {sstats.skew(r):+.2f}  kurt = {sstats.kurtosis(r, fisher=False):.2f}")
     print(f"  expected max-ratio under null(N=15), annualised SR0 = {sr0_ann:5.2f}")
-    print("  DEFLATED SHARPE on a return/vol input -> LENIENT, an upper bound (D142)")
+    print("  DEFLATED SHARPE on the EXCESS-basis input (16AY re-cut) -> a genuine DSR, no longer an upper bound")
     print(f"  DSR (prob ratio>0 after MT haircut) = {dsr:.3f}")
     # PBO over the 15-factor family (the actual multiple-testing set)
     zoo = {

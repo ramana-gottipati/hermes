@@ -106,10 +106,7 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 
 **Docs (30):** `docs/parallel-lane-prompts-D134.md` (paste-ready lane prompts + relay protocol
 for the analytics-company plan; retire when all lanes LANDED) · `docs/time-machine-audit.md`
-(LANE-F as-of capability audit, 67 lenses; retire → fold into plan §4-F) ·
-`docs/d142-rf-recut-plan.md` (S170 — the executable pre-registered plan for D142's deferred
-rf re-cut: site inventory + the rf/σ first-order result + verdict watch-list; retire when the
-re-cut LANDS and folds into strategy-ledger.md + strategies/*) ·`docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
+(LANE-F as-of capability audit, 67 lenses; retire → fold into plan §4-F) ·`docs/concall-intelligence-NEXT-SESSION.md` · `docs/wolfe-NEXT-SESSION.md`
 · `docs/mep-NEXT-SESSION.md` · `docs/next-session-handoff.md` ·
 `docs/dashboard-deepen-NEXT-SESSION.md` · `docs/rrg-rotation-NEXT-SESSION.md` ·
 `docs/ui-redesign-EXECUTE.md` · `docs/ui-cockpit-NEXT-SESSION.md` ·
@@ -170,7 +167,6 @@ keep while the bridge is in use (gitignore-able).
 | `docs/prereg/union-ml2-prereg.md` | Pre-registered walk-forward ML ranker v2 over the ERA-FLOOR capped qualifiers (GBM primary per 16AA's declared succession; frozen 5-criterion bar incl. slip-2 stress; SHA-256 sealed BEFORE the run). |
 | `docs/prereg/union-composite30-prereg.md` | Pre-registered FOURTH sibling: COMPOSITE-30, the Ramana-confirmed lead (family reopened by owner decision 2026-07-16; full self-contained spec + 4-way adjudication; SHA-256 sealed); ledger 2026-07-16AH. |
 | `docs/prereg/union-ladder-validation-prereg.md` | Pre-registered VALIDATION protocol (NOT a strategy registration / not a 5th sibling): three frozen checks on the existing union ladder — C1 D139 paired-significance of the increments, C2 interim ≤2018-frozen / 2019-26-held OOS, C3 deflated forward-CAGR per CL-RES-07; SHA-256 sealed `37c28824…`; coordination session, 2026-07-16. |
-| `docs/prereg/d142-rf-recut-prereg.md` | Pre-registered PREDICTED verdict-diff for the D142 rf re-cut (plan §3 direction hash-frozen BEFORE the box run: the low-vol 0.89 hurdle absorbs the biggest penalty so most higher-vol books WIDEN, LOWVOL_MOM neutral so the S163 signed canon is safe, QMV the one fail→pass crossing, no DSR flip; falsification criteria + §1 inventory re-verified; SHA-256 `44fe16d8…`). Retire with `d142-rf-recut-plan.md` once the re-cut lands. |
 | `docs/strategies/union-ladder.md` | LIVING compendium: every union-family configuration IN FULL (complete specs + all recorded numbers incl. stress ladders) — sealed, recorded, and walled members; Ramana's record-in-full directive (S173). |
 | `docs/codex-review/rs-strategy-brief-2026-07-15.md` | The full-day RS-strategy brief sent to Codex for independent review (every config, number and bug); its verdict is ledger 2026-07-15R. |
 | `docs/codex-review/UX-CODEX-INDEPENDENT.md` | Codex's independent UX/web-estate review findings. |

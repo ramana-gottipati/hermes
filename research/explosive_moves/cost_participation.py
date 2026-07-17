@@ -329,7 +329,7 @@ def main():
            f"{'annCost%':>10}{'turn':>7}{'medFill(d)':>11}{'medPart%':>10}"
            f"{'capMedCr':>10}{'>index?':>9}")
     print("=" * len(hdr))
-    print("AUM x METRICS  (index hurdle: return/vol 0.89 / CAGR ~15.3%, Nifty500 B&H)")
+    print(f"AUM x METRICS  (index hurdle: rf-adj {BENCH_RETVOL_EX:.3f} in-run [raw ledger 0.89] / CAGR ~15.3%, Nifty500 B&H)  [16AY]")
     print("=" * len(hdr))
     print(hdr)
     for tag, s in rows:

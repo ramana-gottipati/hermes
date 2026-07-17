@@ -14,7 +14,13 @@ PROJECT_STATE entries are enough.**
 - Tool `scripts/resolve_ambiguous_cliffs.py` (selftest 17/17; idempotency demonstrated: 2nd `--apply` = 0). Sources: NSE `?index=mf` (the 16AQ ETF hole HAS an official archive — current-symbol keyed via `symbolchange.csv`, ±1d ex-date skew) + BSE CA per scrip (ISIN-chained). Verified on box: re-audit 0 CLEAN / 20 AMBIGUOUS · `load_factors` compounds ITC 15 / RUCHINFRA 40 · adjusted steps 0.92–1.20 · nightly guard OK.
 - **→ ARC CLOSED same morning:** the settle signal fired and S186 executed the final re-derivation (16AW block below: PM==UF cross-check EQUAL, K30 headline back at the seal 115.66×/115.69×). `task_74bd9558` is fully dispositioned: 161/181 healed across S185+S187, 20 documented refusals (report `/tmp/resolve_s187.csv`, regenerate via the tool). The durable upstream fix (wire `?index=mf` into the nightly fetcher) is CLAIMED by lane s189-mfwire (`00916b0`) — do not duplicate.
 
-## ⛏ 2026-07-17 — CLAIM (S190, active): the D142 rf RE-CUT (docs/d142-rf-recut-plan.md §5, sealed prereg 44fe16d8…) — ALL §1 sites in ONE commit + box re-runs + verdict-diff; lane s190-rfcut; research/explosive_moves metrics/factory/attribution etc. are HOT for this lane — do not touch
+## ✅ 2026-07-17 — S190: THE D142 RF RE-CUT LANDED (ledger 16AY) — genuine excess-basis Sharpes estate-wide; prereg CONFIRMED 4/4; ZERO verdicts move — do NOT redo; kickstart-pick-verify
+- **Bar 0.899 raw → 0.528 rf-adj (measured in-run); RISKADJ 1.05 (first-order EXACT) · LOWVOL_MOM 0.72
+  (#602 SAFE, margin +0.19) · QMV 0.64 = the predicted crossing on the full ratio BUT both-halves surv
+  stays NO → zero leaderboard changes · DSR 0.923 genuine, no flip · LOWVOL_MOM capacity ~₹100cr (was
+  ~75cr raw) · cost-rejections rf-invariant.** 9 sites one commit (`5115963`) + S167 sortino fix + the
+  label gate's 16AY citation category. Plan + prereg RETIRED (folded into 16AY). Pre-16AY ledger rows
+  are RAW-basis — compare like with like.
 
 ## ✅ 2026-07-17 — S189: the 16AQ hole CLOSED UPSTREAM (ledger 16AX) — the nightly corp-actions ingest pulls `?index=mf` with the 16AV ±5d covered-check — do NOT redo; kickstart-pick-verify
 - `corp_actions.py`: every mode pulls equities THEN mf; mf rows tagged `nse-ca-api-mf`; `_drop_covered`

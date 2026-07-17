@@ -3460,3 +3460,43 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **Finding 2 — the drawdown lever, isolated (only the score changes):** raw momentum **−50.7%** → risk-adjust (÷vol) **−30.8%** (nearly halves the crash, keeps the return) → pure low-vol **−21.3%** (shallowest but return falls below index) → **LOWVOL_MOM blend = the free-lunch corner: keeps the top net return (18.0%, ≈ RISKADJ's 18.2%) AT the shallow low-vol drawdown (−21.8%), best ret/vol 1.02.** THIS is why LOWVOL_MOM/STEADY-25 is the fundable core.
 - **Finding 3 — the full stack:** raw −51% → risk-adjust −31% → low-vol blend −22% → **+ Tier-B ballast (16AX) −9 to −13%**, all while holding ~18% net. Answer to "keep CAGR, cut DD": blend low-vol into momentum, then add ~zero-corr ballast. You can't keep the fictional 35%; you CAN keep a real ~18% at a −10% drawdown.
 - **Note:** quality-overlay lever not in this price-only harness (its flat-cost DD-control −42→−28.7, `overlay_experiment.py`, was never re-measured net of participation — a remaining gap). return/vol ≠ Sharpe. Provenance: `/tmp/dd_levers.py`.
+
+### 2026-07-16AY — S190: THE D142 RF RE-CUT IS LANDED — every research ratio/DSR is now a genuine excess-basis Sharpe; the hurdle re-measured 0.899 raw → 0.528 rf-adjusted; the sealed prereg (44fe16d8…) judged CONFIRMED on all four claims; ZERO signed or leaderboard verdicts move
+
+- **Verdict: MEASUREMENT BASIS CHANGE, verdict-neutral (the sealed prereg's central claim, now proven).**
+  Executed per `docs/d142-rf-recut-plan.md` §5 (S170) against the hash-frozen prediction
+  `docs/prereg/d142-rf-recut-prereg.md` (SHA-256 `44fe16d8…`, verified intact pre-run). Both docs now
+  RETIRE per their recorded lifecycle (this entry is the fold; hashes live in git history).
+- **The cut (ONE commit, `5115963`):** 9 research sites — `metrics.equity_stats` · `factory.eqstats`
+  (highest fan-out) · `factor_zoo` (+ in-run bar) · `attribution` (retvol_ann/DSR → `strat_ex`) ·
+  `cost_realism` · `cost_participation` (+ in-run quarterly bar) · `cblend_cost_recut` · `exit_lab` ·
+  `c_overlay` (docstring) — all subtract the estate rf (flat 6.5%/yr proxy, compounded per period;
+  attribution uses its dated 1D-Rate series). **The S167 textbook downside-deviation fix
+  (sqrt(mean(min(ex,0)²)) over ALL obs) landed in the same cut** (plan §5.5). Label gate extended with
+  the 16AY basis-citation category (a "Sharpe" mention must cite the re-cut or disown; bare still fails).
+- **THE HURDLE (measured in-run, zoo monthly basis): RAW 0.899 (ledger 0.89 reproduced) → EX 0.528**
+  (penalty 0.371; first-order §3 said ~0.40 → confirmed). cost_participation's quarterly in-run bar: 0.544.
+- **THE VERDICT TABLE (zoo, excess retvol vs bar 0.528 | first-order predicted):** RISKADJ **1.05**
+  (predicted 1.05 EXACT, margin +0.40→+0.52 widens) · MOM12 0.99 · HI52 0.81 · QUAL_MOM 0.75 (0.76) ·
+  **LOWVOL_MOM 0.72 (0.73) — margin +0.19: the SIGNED #602 verdict is SAFE**; honest nuance: the margin
+  TIGHTENED 0.04 where the first-order said +0.01 — magnitude class right, sign off by a hair, recorded
+  as measured · **QMV 0.64 (0.61) — THE ONE PREDICTED CROSSING CONFIRMED on the full-period ratio
+  (−0.03 → +0.11), BUT the stricter both-halves survivor flag stays NO** (uneven halves) → **zero
+  leaderboard-survivor changes** · DEFENSIVE 0.44 · LOWVOL 0.31 · LOWBETA 0.22 (rejects fail harder ✓).
+- **DSR: 0.923 on the genuine excess input — no DSR flip (prereg claim 4 ✓);** the old "LENIENT upper
+  bound" caveat retires (banner updated). PBO (attribution N=15 CSCV) 0.343 as measured.
+- **Cost estates:** C-BLEND/RISKADJ AUM-grid rejections UNCHANGED (rf-invariant, prereg §4.5 ✓).
+  **LOWVOL_MOM: YES at ₹50cr (0.67 vs 0.544); highest AUM still beating ≈ ₹100cr (0.60/16.5%)** — the
+  capacity read LOOSENS from the raw-basis ~₹75cr (the hurdle absorbs the bigger penalty). The signed
+  #602 record (raw 1.19 @₹75cr) stands as a seal-time raw-basis fact; the excess-basis pair is
+  0.72 @25cr-class vs 0.528/0.544 — substance intact.
+- **Deliberate non-regenerations:** `exit_lab`/`c_overlay` historical out-CSVs stay as recorded
+  raw-basis lab artifacts (their WALLS cite raw numbers); the code cut governs future runs — exit_lab's
+  0.79 companion bar shifted by the measured penalty (approximation, flagged in-file). DB `sharpe`/
+  `sortino` column names + rule_lab BLOCKING quotes keep legacy names (D142 carve-outs, unchanged).
+- **⚖ RAMANA-AWARENESS (no decision needed):** nothing signed/user-facing flips. Disclosed: QMV's
+  sub-flag crossing · the ~₹100cr capacity loosening · pre-16AY ledger rows are raw-basis — compare
+  like with like (every future print carries its basis).
+- **Provenance:** commits `5115963` (the cut) + `c062299` (gate) + this wrap; runs `/tmp/zoo_s190.log` +
+  `/tmp/recut_s190.log` (0 tracebacks); artifacts `out/factor_zoo.csv`, `out/cost_realism.csv`,
+  `out/cblend_cost_recut.csv` regenerated on the excess basis, committed. Box read-only re DB.
