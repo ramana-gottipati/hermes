@@ -178,6 +178,12 @@ _ROUTER_SPECS = [
     # S-D search & entry (UX audit §8): the name→ticker typeahead feed behind the ⌘K
     # palette, the home search box, and the stock-miss "Did you mean" strip. JSON-only.
     ("symbol-search", "src.web.symbol_search", "/dash/api/symbol-search"),
+    # Redesign M0-M2 (docs/redesign-plan-2026-07-17.md; approvals + reviewer dispositions in
+    # docs/redesign-coordination.md): the OPT-IN v3 preview gate + the v3 design-system/term-chip
+    # showcase. Direct-URL only — deliberately unlinked from all chrome (Codex B2: default
+    # rendered bytes provably unchanged); remove these two lines to revert the entire preview.
+    ("v3-preview", "src.web.v3_preview", "/dash/preview"),
+    ("ui-showcase-v3", "src.web.ui_showcase_v3", "/dash/_ui3"),
 ]
 
 # ── the canonical site IA — GENERATED from the single lens registry ──────────

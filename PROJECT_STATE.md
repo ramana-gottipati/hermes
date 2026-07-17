@@ -245,6 +245,16 @@ Hermes is a personal AI agent running 24/7 on a Hostinger VPS in Mumbai. It does
 - `src/pat/nav_flow.py` — NEW Pat-owned flow: the "where do I see X" page-finder (UX audit S-E Phase 1). `parse_navigate()` (conservative, self-limiting recognition — a ₹0 first-pass at engine.route `(a-1c)`, after seasonal/overdue) + `resolve(topic)` (ranks the 66 routed lenses from `src.web.lens_registry` — a new lens is covered the day it's registered) + a curated `_BLURB` one-liner map with LABEL fallback + `_HOOKS` (natural-language topic synonyms kept HERE, not in the forked registry — S-B1/item-11 owns registry one-liners later). Render = `web.py:_navigate_flow`. Wired: `navigate` in engine `_VALID`, dispatch in `_free_text` + `render_pat`, `_FLOW_LABEL["navigate"]`. `tests/test_pat_nav_flow.py` = 41 contracts (named-topic resolution · locational asks route to navigate · data/explain/entity asks NOT stolen · every routed lens resolvable+described · render). Descriptive/SEBI-safe (points at a page; no data, no ranking).
 
 **S-D search & entry (S140) — new:**
+- **The v3 preview estate (redesign M0–M2, D144, S189 — all OPT-IN, direct-URL only, additive):**
+  `src/web/v3_preview.py` (`/dash/preview` landing + POST `/dash/preview/toggle` `pv3` cookie gate) ·
+  `src/web/ui_tokens_v3.py` (v3 tokens, dark+light, scoped `:root[data-ui-v3]`) ·
+  `src/web/shell_v3.py` (v3 document shell — Focus+Context grid; deliberately carries NO
+  `.uk-sub`/`#uk-main` markers so left_rail/shell_skin can never reshape it) ·
+  `src/web/ui_components_v3.py` (tiles/cards/fence — fence copy single-sourced from
+  `infographics.fence`) · `src/web/term_chip.py` (self-teaching term chips over
+  `glossary.lookup()` + the `docs/metric-verdicts.md` sidecar) ·
+  `src/web/ui_showcase_v3.py` (`/dash/_ui3`) · gate `tests/test_v3_isolation.py`.
+  Plan `docs/redesign-plan-2026-07-17.md`; approvals/verdicts `docs/redesign-coordination.md`.
 - `src/web/symbol_search.py` — NEW leaf module: the ONE shared name→ticker lookup (UX audit S-D). Ranked `search()` over `security_master` (exact symbol > symbol prefix > name prefix > word-boundary > substring; listed before delisted; `nse_equity_list` fallback for thin checkouts) + `GET /dash/api/symbol-search` (JSON typeahead feed, always-200, mounted via `v2_surfaces._ROUTER_SPECS`) + `did_you_mean_html()` (the stock-miss strip) + `TYPEAHEAD_JS` (the one idempotent JS attach both the ⌘K bar and the home box share). Read-only, degrades to no-suggestions on any error. `tests/test_symbol_search.py` = 17 hermetic tests.
 
 **Signal-bus owner-DM pager (S138) — new:**
@@ -590,6 +600,23 @@ Read-only **except the D54 action-loop POSTs** (`/dash/track*` — the dashboard
 ---
 
 ## Decision log (the big ones)
+
+### D144 — the WEB-EXPERIENCE REDESIGN program: plan ratified in part (M0–M2), multi-agent approval protocol installed (2026-07-17)
+Ramana approved M0+M1+M2 of `docs/redesign-plan-2026-07-17.md` (the Focus+Rails redesign: opt-in
+preview gate · v3 theme layer · self-teaching term chips) and directed that every executing plan
+obtain **Codex approval**, be **recorded in both the Codex and Google (Gemini) CLIs**, with an
+unambiguous communication system. Installed: `docs/redesign-coordination.md` = THE single approval
+record + binding verdict grammar (`VERDICT: APPROVE / APPROVE-WITH-CHANGES / OBJECT` + numbered
+BLOCKING/ADVISORY findings with file:line); context-file pointers in `AGENTS.md` (Codex) and NEW
+`GEMINI.md` (Gemini CLI) — pointers only, never content, so the record cannot fork. Both reviewers
+returned APPROVE-WITH-CHANGES on the plan; all 7 BLOCKING findings accepted and built (route-gate
+registration same-commit · preview reachable by direct URL only so default bytes are provably
+unchanged · chips on `glossary.lookup()` · dedicated chip↔glossary↔Pat round-trip test · alias
+map for non-verbatim labels · byte-identity isolation test · verdict lines in a sidecar the legacy
+parser never reads). **WHY:** the S177 revert made opt-in-first structural; this decision makes
+external review structural too. M3–M8 remain unapproved. Gemini CLI auth caveat: interactive
+OAuth tier deprecated (Antigravity migration = owner action); API-key path works and is recorded
+in the coordination doc.
 
 ### D143 — the STRATEGY-FAMILIES FRAMEWORK: organize the >15% CAGR corpus into governed families (Ramana directive, 2026-07-17; RECORDED, framework awaiting ratification)
 Ramana: *"include the highest-CAGR components we discussed… across all sessions and threads. For any strategy that achieved a CAGR above 15%, we need to conduct a thorough review… group similar tweaks into families… decide when to move, when to remove, and how to assign responsibilities… Now we have a modern model portfolio that needs to be organized. Please record my intent accurately before we proceed with any changes."*
@@ -1881,6 +1908,12 @@ Never full-file-scp the co-edited nav files (dashboard/v2_surfaces/lens_registry
 
 ## What's NOT yet built / open items
 
+- **Redesign M3–M8 (D144, plan `docs/redesign-plan-2026-07-17.md` §6) — NOT approved yet:**
+  news/flow dock · v3 stock Focus page · Today v3 · guided journey · cluster consolidations ·
+  screener v3. Owner approves per-module via `docs/redesign-coordination.md`. Also open: VPS
+  deploy of the shipped M0–M2 preview (local-verified S185; anchored-insert `v2_surfaces.py`,
+  fork-check first) + the four §7.3 owner decisions (sidecar-vs-glossary fold · Trust→"Proof" ·
+  Conviction name · preview URL shape — defaults recorded in the coordination doc §2).
 - **Signal-event bus — remaining faces + lenses (S101; producer itself is WIRED, D105):**
   (a) **dvpt lens** — no banded dvpt state column exists to diff (which horizon, what bands =
   its own design); **quality/cpr lenses** likewise not emitting (LENSES vocabulary reserves
@@ -2132,6 +2165,13 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 ---
 
 ## Session log (reverse chronological — newest at top)
+
+### Session 189 — 2026-07-17 — REDESIGN M0–M2 SHIPPED (v3 preview gate · theme layer · term chips) after a two-reviewer approval loop; the redesign plan + coordination protocol installed (D144)
+Boot: STRONG tier (Fable 5). Lane worktree `v3-preview` (shared tree hot: a sibling held uncommitted `dashboard.py`/`adjust.py`/`corp_actions.py` all session). Renumbered S185→S189 on push contact (the S162 rule; origin had taken S185 and S188 meanwhile). Two phases: (1) the PLAN — four parallel Explore agents swept the REAL estate (registry: 73 Lens records = 71 routed + 2 overlay-only; dossier 10 tabs; glossary 248 entries; verdict ledger; news/nav/chrome) → `docs/redesign-plan-2026-07-17.md` (6 sections: inventory verdicts KEEP 37 · MERGE 24 · DEMOTE 6 · CUT 1 · EXAMINE 3 → 6 destinations; term-chip spec; Focus+Rails layout; IA+journey; visual system; M0–M8 rollout). (2) Ramana approved M0–M2 + directed Codex/Gemini approval with an unambiguous record → D144 protocol; Codex `APPROVE-WITH-CHANGES` (5 BLOCKING, all accepted — incl. two factual corrections to my own plan: the `_INDEX` API claim and the overstated Pat-gate coverage) · Gemini `APPROVE-WITH-CHANGES` (2 BLOCKING accepted; chip-spec improvements adopted: mono badge, two-tap mobile, symbol-aware Ask Pat, scoped CSS).
+- **Shipped (all additive; 2 `_ROUTER_SPECS` lines = the whole revert):** `/dash/preview` (+POST toggle, `pv3` cookie) · `/dash/_ui3` showcase · `ui_tokens_v3`/`shell_v3`/`ui_components_v3` (dark+light, `:root[data-ui-v3]`-scoped, fence copy single-sourced) · `term_chip.py` — 10 seed chips (DVPT · ×Power · key-price · MEP · RS band · CCI · Conviction · pt14 · CPR · return/vol), each = plain label + mono badge + one-liner + teach card (glossary body + **Verdict** + **How it could improve — what would change the read** + origin 🧑/🏠/📚 + Glossary/Methodology/Ask-Pat/Validation links) from the NEW `docs/metric-verdicts.md` sidecar (legacy glossary parser never reads it).
+- **Gates:** suite **710 passed** (+8-test NEW `tests/test_v3_isolation.py`: no legacy module imports v3 · zero v3 markers on legacy pages · POST-only toggle · route-gate registration · chip→glossary→Pat round-trip · no action verbs in epistemic copy) · route-gate + Pat + education + nav-integrity green · live-walked on :8123 (chip card opens, themes flip, **375px overflow found+fixed** — top bar now wraps; body horizontal scroll = 0 at 375/1280).
+- **Pre-existing breakage found on pristine origin/main, NOT this lane (stash-verified):** the pat-methodology test FAIL (healed in parallel by S188 below — my task chip dismissed on merge) + `chrome_gate.py` 10 regressions (task chip stands); also allowlisted the missing `/dash/api/peers` nav-gate row (pre-existing one-liner, attributed in-file). Screenshots timed out pane-side (page healthy, zero console errors) — walk proof = a11y tree + computed styles + overflow scans.
+- Docs: DOC_INDEX +4 (plan · coordination · metric-verdicts · codex record) · AGENTS.md pointer · NEW GEMINI.md. Open: M3–M8 unapproved; VPS deploy of the preview NOT done this session (local-verified only — deploy is the next lane's first pick; anchored-insert for `v2_surfaces.py`, fork-check first).
 
 ### Session 188 — 2026-07-17 — Pat methodology-flow gate healed: union-ladder gets its One-line definition
 Boot: worktree lane (`affectionate-thompson-34c34b`), single-file fix. `tests/test_pat_methodology_flow.py::test_summary_is_plain_and_sanitized_for_every_page` failed on pristine origin/main: `summary("union-ladder")` → None. Root cause was NOT the D143 strategy-families commits (those touch only `docs/strategy-families-framework.md`, an unserved doc) — it was `6f8e574` registering `union-ladder.md` in `_PAGES` without the template-mandated `**One-line definition:**` line, and the compendium's `## 1.` heading ("🔒 THE UNION") never matches the `## 1. What it is` fallback. Fix: added the one-liner (single physical line — the extractor is line-anchored, wrapped one-liners truncate mid-sentence) to `docs/strategies/union-ladder.md`. Sanitizer untouched. Full suite 703 passed / 1 skipped.

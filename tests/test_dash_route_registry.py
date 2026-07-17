@@ -93,6 +93,12 @@ NESTED_CHILDREN: dict[str, tuple[str, str]] = {
 INTERNAL_DEV: dict[str, tuple[str, str]] = {
     "/dash/_ui":     ("ui-kit", "ui_kit design-system showcase — dev-only, deliberately unlinked"),
     "/dash/offline": ("pwa", "PWA offline fallback page — served by the service worker, never a tab"),
+    # redesign M0-M2 preview surfaces (docs/redesign-coordination.md; Codex B1) — OPT-IN,
+    # direct-URL only, deliberately unlinked until cut-over ratification promotes them to lenses.
+    "/dash/preview": ("v3-preview", "v3 preview landing + opt-in gate — additive preview program, "
+                                    "never linked from default chrome (byte-identity rule)"),
+    "/dash/_ui3":    ("v3-preview", "v3 design-system + term-chip showcase — dev/preview-only, "
+                                    "deliberately unlinked"),
 }
 
 # legacy-alias 307 redirects whose handler name is NOT compat_*-prefixed and whose flat

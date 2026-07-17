@@ -195,3 +195,12 @@ Claude Code and Codex (and sometimes parallel sessions of each) operate on
 Ubuntu 22.04 VPS @ `187.127.173.149` · systemd (not Docker) · Python 3.11 venv at
 `/opt/hermes/.venv/` · FastAPI + uvicorn :8000 · python-telegram-bot 21.7 ·
 SQLite at `/opt/hermes/data/hermes.db` · config via `.env` + pydantic-settings.
+
+## Redesign program (2026-07-17 →)
+
+Plan of record: `docs/redesign-plan-2026-07-17.md`. **All approvals, review verdicts (Codex +
+Gemini), dispositions, and the binding verdict grammar live in `docs/redesign-coordination.md`**
+— the single source of truth for redesign-program communication; point there, never restate.
+Codex channel records file under `docs/codex-review/REDESIGN-*.md`. M0–M2 approved + built
+(preview toggle · v3 theme layer · term chips — all opt-in, additive, default look untouched);
+M3–M8 await owner approval.

@@ -87,6 +87,10 @@ methodology / external / catalog · `ARCHIVE?` candidate, **deferred** (verify +
 | `docs/ux-journey-audit-2026-07-13.md` | Joint Claude+Codex UX/IA audit of record + S-A…S-H program tracker. |
 | `docs/portfolio-layer-design.md` | DoR for the portfolio-construction layer (16AN): fixed-mix book+G-sec weights policy on the measured dial, rebalance band, gold leg pending primary data, drawdown-target-as-policy-not-signal. Descriptive; no registration. |
 | `docs/strategy-families-framework.md` | DoR for organizing the >15% CAGR corpus into governed families (Ramana directive 2026-07-17): the register, status labels (fundable/sealed/candidate/paper/falsified), families by lever-lineage, promote/retire/responsibility governance. Meta-org only; no strategy changed. Awaiting owner ratification. |
+| `docs/redesign-plan-2026-07-17.md` | The web-experience redesign plan of record (Focus + Rails, term chips, 6 destinations, M0–M8). M0–M2 owner-approved + built; M3–M8 pending. TRANSIENT — folds into SURFACE-PLAYBOOK + PROJECT_STATE on full ratification/rejection. |
+| `docs/redesign-coordination.md` | Redesign approval + communication record — verdict grammar, Codex/Gemini verdicts + dispositions, module status. THE single source for redesign-program approvals. |
+| `docs/metric-verdicts.md` | Term-chip sidecar: per-metric Verdict · How-it-could-improve · Origin lines (parsed only by `src/web/term_chip.py`; definitions stay in `docs/metrics-glossary.md`). |
+| `docs/codex-review/REDESIGN-M0M2-CODEX.md` | Codex channel record: redesign plan review verdict (M0–M2 focus), verbatim. |
 
 ## C. DESIGN(stale) — keep, trim superseded sections later (6)
 
