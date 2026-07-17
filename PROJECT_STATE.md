@@ -2133,6 +2133,26 @@ Boot: STRONG tier (Fable 5), kernel confirmed. Lane `s183-gate`. kickstart-pick-
 - Docs: ledger 16AS · union-ladder.md archive-provenance banner (whether rows are ever RESTATED + the gold-ETF universe = owner call, `task_7a70ad77`) · carryforward re-topped. Box: 2 read-only runs (derive + full verify), md5 box==origin `c1fb928d…`, no service touch. Gates green.
 - **Harness TIL:** log-marker `until`-greps (grep -q 'done\.|Traceback') as background waiters beat pgrep loops — `pgrep -f` over ssh matches the calling shell's own cmdline (S181's waiters never fired because of exactly that).
 
+### Coordination session — 2026-07-17 — union-ladder VALIDATION independently CROSS-CHECKED (C1/C2/C3) + compendium published/linked live
+Paralleled the union CAGR lane (Codex coordination). Re-analyzed the ladder, sealed the validation protocol
+as a prereg, then independently reproduced S176's `16AL` to the digit/3dp from a SECOND harness set (no shared
+engine code), and wired the compendium into the live site.
+- **Sealed the validation prereg** `docs/prereg/union-ladder-validation-prereg.md` (sha256 `37c28824…`) — C1
+  D139 paired-significance · C2 ≤2018-frozen interim OOS · C3 selection-deflation; DOC_INDEX'd (`7dd90d1`).
+  S176 then executed it exactly as frozen (`16AL`); that authorship is credited in the Session-176 entry below.
+- **Independent cross-check** (ledger `2026-07-17` cross-check entry): NEW `research/explosive_moves/union_ladder_c1.py`
+  (C1) + `union_ladder_c23.py` (C2/C3), both exec-loading `union_lab5.py`'s engine byte-for-byte — a SEPARATE
+  implementation from `union_ladder_val.py`, so agreement rules out an implementation artifact. Reproduced `16AL`
+  EXACTLY: repro gate 5/5; C1 C40→K30 [+0.4,+10.4] p0.02 · A2→K30 ns p0.22 · C2a 7/7 stability · C2b P_train
+  0.268 + the 2019+ slices · C3 DSR 0.898…0.998 (Bailey-LdP N=69). Box READ-ONLY. Commits `ef8929e` (C1) · `7752ec5` (C2/C3).
+- **Compendium published + linked:** the §9 independent-cross-check note added to `union-ladder.md` (`d5f2b7a`);
+  a prominent human-readable link from `union.md` §4 → the compendium (`cc8b89f`, deployed by anchored `.md`
+  patch, no restart). The strategy-ref `_PAGES` publish of `union-ladder` itself was completed by the S181 lane;
+  **live-walked `/dash/strategy-ref?p=union-ladder`** — §1–§9 render, tables/callout link resolve, sanitizer holds.
+- Deploy class: docs/research only; box read-only for all runs + one anchored `.md` patch for the union link;
+  no service touch, no restart, no timer. Gates green (doc-hygiene · retvol-label · strategy-docs-coverage).
+  Multi-session: staged own paths only every commit; left ≥5 sibling mid-flight files (strategies_view/ui_*/shell_skin) untouched.
+
 ### Session 180 (cont.) — 2026-07-17 — THE THREE-ASSET GRID + the sealed book selects gold ETFs (ledger `16AR`)
 Ran after S182's `16AQ` DQ fix landed (my watcher detected the GOLDBEES split in `corporate_actions`; the idempotent probe confirmed `adjust.py` now gives +11.9% native). Box read-only; `/tmp/portfolio_3asset_clean.py` imports `portfolio_mix.py`, reuses its book/G-sec/grid.
 - **🔴 THE FINDING (surfaced by the DQ fix + repro-gate break): the sealed union book SELECTS gold ETFs.** Universe = all series EQ/BE/BZ → gold ETFs (traded EQ, ~0 beta, top risk-adj momentum in rallies) rank top-30. Measured (`sel_a2c`, 82 rebalances): **GOLDBEES ×7, SETFGOLD ×2, KOTAKGOLD/HDFCMFGETF/ICICIGOLD/HDFCGOLD/GOLDIETF — 12 selection-quarters**, 3.3% each. Consequences: gold-leg DOUBLE-COUNT · sealed backtests embed gold on unadjusted prices · universe-hygiene issue in the SEALED strategy + `union_forward.py`. **This confirms + quantifies the "ETF-in-EQ-series pollution" flagged as a remaining defect in the earlier data-perfection era.** NOT changed here (sealed-spec change = owner call); spawned as task `task_7a70ad77`.
