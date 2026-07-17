@@ -22,6 +22,15 @@ PROJECT_STATE entries are enough.**
   `verify_etf_splits.py` = full-HISTORY proof of the 14 healed events; this check = the rolling FORWARD
   guard. The gold-leg queue's remaining item is the three-asset work already recorded (16AR) + the owner
   calls (`task_7a70ad77`, policy point). D143 families framework: owner-gated, untouched.
+- **🔴 FIRST-RUN CATCH + HEAL (same session, ledger 16AT):** the guard fired CRITICAL on its first live
+  run — **3 index-ETF 10:1 subdivisions missing from `corporate_actions`** (HEALTHADD+MIDQ50ADD
+  @2026-07-03 · PSUBANK @2026-07-10), tape-verified and healed via `scripts/backfill_index_etf_splits.py`
+  (idempotent, 26,913→26,916 rows; guard now OK over 2,768 symbols; adjusted ex-day steps 1.026/0.998/1.037).
+  **A one-time full-history sweep then quantified ~184 orphan cliffs** (ETF-class + old-equity splits
+  predating CA coverage; `quarantine.py` has been silently excluding many) → **spawned `task_74bd9558`**
+  with the binding constraint: any bulk heal changes adjusted history → re-derive the sealed-ladder
+  anchors via `union_forward.py --derive-anchors` (the 16AS loop). Box `data_quality.py`/`feed_manifest.py`
+  were CLEAN-PAST (S169(b)(c) + S175 `indexes_tri` had never deployed) — trued up to HEAD with backups.
 
 ## ✅ 2026-07-18 — S183: the FORWARD GATE is DRIFT-PROOF (ledger 16AS) — 16AQ's repair had invalidated the S181 anchors AND the unbounded gate would have false-STOPPED on Oct-3; both fixed, anchors re-derived, box-verified — do NOT redo; kickstart-pick-verify
 - **The two S181 defects (mine, found via 16AR's repro-gate break):** the gate ran UNBOUNDED (new

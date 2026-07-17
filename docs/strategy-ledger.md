@@ -3254,3 +3254,33 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   provenance banner.
 - **Provenance:** derive log `/tmp/union_forward_s183_derive.log` · full verification run same session ·
   commits this lane. Box read-only throughout.
+
+### 2026-07-16AT — S184: the GOLD FEED FORMALISED (manifest `gold_etf` + the `chk_split_cliffs` nightly guard) — and the guard FIRED ON ITS FIRST LIVE RUN: 3 index-ETF subdivisions healed same-session; a ~184-event full-history orphan-cliff BACKLOG quantified and spawned
+
+- **Verdict: OPS/DQ (no strategy number moved). Design-doc §7's feed-protocol step is CLOSED.**
+- **The formalisation:** `feed_manifest.py:gold_etf` (public-archive; rides the bhavcopy nightly, no new
+  fetcher; the 16AQ hazard + heal/proof scripts + the 16AR universe question documented in the row) +
+  `data_quality.py:chk_split_cliffs` (23rd check): within ~120d of the tape's own max date, a one-day
+  close drop to ≤25% of a ≥₹100 prior close, traded value both days, and NO `corporate_actions` row
+  within ±5d → CRITICAL. All symbols, not just gold — the whole silent-corruption class. 3 liveness
+  tests; deploy trued the box's stale `data_quality.py`/`feed_manifest.py` up to HEAD (they were
+  clean-past: the S169(b)(c) guards and the S175 `indexes_tri` row had never shipped to the box).
+- **FIRST-RUN CATCH (the guard's design case, live):** HEALTHADD 2026-07-03 162.94→16.72 ·
+  MIDQ50ADD 2026-07-03 247.99→24.76 · PSUBANK 2026-07-10 822.75→85.31 — three INDEX-ETF 10:1 unit
+  subdivisions, tape-verified (persistent new level, genuine traded value, zero CA rows ever), missing
+  from `corporate_actions`. **The 16AQ class recurring beyond gold, caught within days instead of years.**
+  Healed via `scripts/backfill_index_etf_splits.py` (sibling of the S182 tool; reuses its frozen
+  `_details()`/`store_actions` idempotency path; 26,913→26,916 rows). Verified: `chk_split_cliffs` → OK
+  (2,768 symbols scanned) and the research adjust path now steps 1.026/0.998/1.037 across the ex-days
+  (market-normal; was ÷10 cliffs).
+- **THE BACKLOG (one-time full-history sweep, read-only): ~184 orphan cliffs total** — (a) modern
+  index-ETF subdivisions 2020-26 (ABSLBANETF · BANKBEES · AUTOIETF · BANKNIFTY1/CONS@2026-02-27 …, the
+  ETF-class hole) + (b) OLD EQUITY splits predating CA-feed coverage (BERGEPAINT 2004 · CROMPGREAV 2006 ·
+  CADILAHC 2015 …). `quarantine.py` has been silently EXCLUDING many of these names, so the cost has been
+  lost universe as much as corruption. **Spawned as `task_74bd9558`** with the hard constraints: per-event
+  ratio verification (wrong ratio > missing one) · prefer NSE's official historical CA archive for the old
+  equities · **any bulk heal changes adjusted history → the sealed-ladder anchors MUST be re-derived via
+  `union_forward.py --derive-anchors` + a new ledger entry (the 16AS loop)**. The nightly guard's 120d
+  window will NOT self-surface this backlog.
+- **Provenance:** commits this lane (`d45381b` + the heal-script commit) · box logs in-session ·
+  DQ battery live-run persist=False. Box writes: the 3 idempotent CA inserts only (S182 precedent).
