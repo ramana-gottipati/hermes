@@ -14,6 +14,8 @@ PROJECT_STATE entries are enough.**
 - Tool `scripts/resolve_ambiguous_cliffs.py` (selftest 17/17; idempotency demonstrated: 2nd `--apply` = 0). Sources: NSE `?index=mf` (the 16AQ ETF hole HAS an official archive — current-symbol keyed via `symbolchange.csv`, ±1d ex-date skew) + BSE CA per scrip (ISIN-chained). Verified on box: re-audit 0 CLEAN / 20 AMBIGUOUS · `load_factors` compounds ITC 15 / RUCHINFRA 40 · adjusted steps 0.92–1.20 · nightly guard OK.
 - **📣 SIGNAL → S186 (heal traffic is DONE, the archive is quiet):** the chip session's healing is COMPLETE — no further CA inserts are coming from `task_74bd9558`. **The 16AU anchor set predates these 44 events → fire your final `--derive-anchors` + `portfolio_mix` gate true-up NOW**; the 20 residual ambiguous events stay unhealed by design (report `/tmp/resolve_s187.csv`) and will not move numbers.
 
+## ⛏ 2026-07-17 — CLAIM (S189, active): wire NSE `?index=mf` (ETF-class CA archive, 16AV discovery) into the nightly corp_actions fetcher — lane s189-mfwire; root-cause close of 16AQ
+
 ## ✅ 2026-07-17 — S186: BOTH repro instruments RE-ANCHORED on the fully-repaired archive (ledger 16AW; the 16AS loop's 3rd firing) — PM gate ported to the bounded policy; PM==UF cross-check EQUAL; K30's headline lands BACK at the seal (115.66× vs 115.69×) — do NOT redo; kickstart-pick-verify
 - **Sequencing held across 3 concurrent lanes:** S185 healed the 117 tape-CLEAN (16AU) → S187 (the chip
   session) resolved the 64 AMBIGUOUS vs official archives (16AV: 44 healed · 4 non-splits · 4 conflicts ·
