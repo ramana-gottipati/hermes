@@ -10,6 +10,25 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ✅ 2026-07-18 — S183: the FORWARD GATE is DRIFT-PROOF (ledger 16AS) — 16AQ's repair had invalidated the S181 anchors AND the unbounded gate would have false-STOPPED on Oct-3; both fixed, anchors re-derived, box-verified — do NOT redo; kickstart-pick-verify
+- **The two S181 defects (mine, found via 16AR's repro-gate break):** the gate ran UNBOUNDED (new
+  forward legs would shift full-period numbers → false STOP on the day) and its anchors predate the
+  16AQ corporate-actions repair. **Fix (`union_forward.py` @ `50a7f49`):** hard gate = ₹1Cr MULT only
+  (window-exact, convention-free; ±0.006) over legs ≤ **GATE_END 2026-04-01** — input-closed TODAY
+  (`isdead()` reads 60 sessions forward, so the 07-01 boundary leg stays data-sensitive until ~late
+  Sep); seal-time headlines print BESIDE, drift disclosed; `--derive-anchors` = the recorded
+  re-derivation loop for any future 16AQ-class repair.
+- **16AS anchors (post-16AQ archive, ≤ 04-01): U 20.15× · B14 26.01× · C40 41.26× · A1 87.70× ·
+  A2 86.59× · K30 101.06×.** **The clean decomposition: bounded at the seal date, U/B14/C40 reproduce
+  their seals EXACTLY (26.04/28.84/47.29×) — the 16AQ repair moved ONLY the era-floor books**
+  (A1 +0.08 · A2 +0.22 · K30 +0.35 mult; gold ETFs live under their lower ADV floor). Sealed-era TR on
+  the repaired archive: K30 27.28/132.21 (α+15.81/β0.816) · A2 26.34/113.89 (α+14.96/β0.821) — the
+  16AF/16AO records stand as seal-time facts. ⚠ A convention skew (legs/4 vs stat()'s (legs−1)/4) was
+  caught mid-derivation — CAGR deltas in derive prints were cosmetic; hence mult-only gating.
+- **⚖ WITH THE OWNER (`task_7a70ad77`, unchanged):** gold ETFs in the sealed universe + whether
+  headline rows are ever restated (26.5-with-splits vs 26.7-ETF-excluded class, 16AR). The compendium
+  now carries an archive-provenance banner; seal-time records stand until that call.
+
 ## ✅ 2026-07-17 — S180 (cont.): the GOLD LEG is data-validated + preliminarily measured (ledger 16AP) — gold CLEARS the diversification gate BUT a real DATA-QUALITY blocker was found + spawned as a task — do NOT redo; kickstart-pick-verify
 - **`8223fd1` on origin** (reconciled onto S181's `447211a` after a push race — ledger tag renumbered 16AO→16AP since S181 took 16AO first; backup branch `backup-s180-gold`). Advances design-doc §7/§10.2, read-only on the box (`/tmp/portfolio_gold_probe.py` imports `portfolio_mix.py`, reproduces the sealed K30 26.4/A2 25.5 gates on load, reuses its EXACT book returns + grid; box load 0.01, no deploy).
 - **GOLDBEES (NSE bhavcopy EQ, G#8-clean): 4,771 days 2007-03-19→2026-07-16** — covers the 2011+ native window; deepest/most-liquid of 11 gold ETFs. **Go/no-go (split-adjusted native): corr(K30,gold) −0.18 · corr(A2,gold) −0.21 (SE≈0.13 at n≈62 → "~uncorrelated") · corr(gold,G-sec) −0.12 → gold CLEARS the 0.83 gate; the two legs diversify each other.** Prelim K30 dial 80/20 22.9%/1.27/−13.5 · 70/30 21.8%/1.36/−11.1 — dominates the G-sec dial on 2011-26 **BUT that edge is gold's regime-specific +11.9% native return (2020-26 surge), NOT forecastable** (G-sec's 6.5% is structural). Robust: both ~uncorrelated diversifiers; gold weight modest, return never extrapolated.
