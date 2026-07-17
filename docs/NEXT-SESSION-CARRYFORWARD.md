@@ -10,6 +10,8 @@ at wrap (CLAUDE.md #0-bis), never a cue to ask.** Keep guardrails
 (esp. #8 primary-sources). Do NOT burn the context window re-reading history — this file + the top
 PROJECT_STATE entries are enough.**
 
+## ⛏ 2026-07-17 — CLAIM (S185, active): the ~184-event orphan-cliff backlog (`task_74bd9558`) — audit harness + CLEAN-only heal + 16AS anchor re-derivation, in lane s185-cliffbacklog; a sibling's uncommitted `corp_actions.py`/`adjust.py` edits in the shared tree are NOT touched by this lane; do not double-heal
+
 ## ✅ 2026-07-17 — S184: the GOLD FEED is FORMALISED (design-doc §7 feed-protocol step CLOSED) — manifest row `gold_etf` + the `chk_split_cliffs` nightly 16AQ-recurrence guard — do NOT redo; kickstart-pick-verify
 - **`feed_manifest.py:gold_etf`:** the portfolio layer's gold-ETF use (13 names, 16AP/16AR/16AS) declared
   as a public-archive feed riding the bhavcopy nightly (no new fetcher); the 16AQ CA-omission hazard +
