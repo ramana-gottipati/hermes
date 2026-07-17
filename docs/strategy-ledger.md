@@ -3441,3 +3441,21 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
   Maturity", target-maturity bond ETFs AXISBPSETF/SDL26BEES) → corporate_actions 27,137 → 27,141;
   NO adjusted-price change; the 16AW anchors stand un-fired.** Deploy: box md5 == HEAD both files
   (.bak-s189 backups); box selftest OK; timers pick the mf class up on the next nightly.
+
+### 2026-07-16AY — D143 (Ramana "run F — measure the drawdown levers net of cost"): the CONTROLLED lever experiment. Same cadence/universe/cost/AUM; vary ONLY the score. Answer: you CANNOT keep the 35% flat CAGR (it's cost illusion, honest net ~17-18%), and the LOW-VOL BLEND is the lever that keeps the top net return at the shallowest drawdown.
+
+- **Verdict: DESCRIPTIVE controlled measurement.** Reuses `cost_participation.py`'s participation-impact engine verbatim (quarterly · large-cap top-quintile · Rs50cr fixed); `/tmp/dd_levers.py` adds score components (mom12/riskadj/mom6/lowvol) to the tables and pushes each through the SAME `run()`. Box read-only.
+- **THE TABLE (net of participation cost @Rs50cr; index Nifty500 15.3%/−29.2%):**
+
+| lever (score) | net CAGR | MaxDD | ret/vol | > index? |
+|---|---|---|---|---|
+| MOM12 (raw 12-mo momentum) | 16.9% | −50.7% | 0.66 | yes (return) — brutal DD |
+| RISKADJ (6-mo mom ÷ vol) | 18.2% | −30.8% | 0.82 | yes |
+| MOM6 | 14.1% | −46.9% | 0.60 | no |
+| LOWVOL (low-vol only) | 12.7% | −21.3% | 0.96 | no |
+| **LOWVOL_MOM (blend = STEADY)** | **18.0%** | **−21.8%** | **1.02** | **yes** |
+
+- **Finding 1 — the flat-cost illusion, quantified:** MOM12 flat **37.6% → net 16.9%**; RISKADJ flat **35.4% → net 18.2%**. Over HALF the headline CAGR was cost + monthly-cadence + all-cap illusion. The honest net ceiling for this family is ~18%, not 35%.
+- **Finding 2 — the drawdown lever, isolated (only the score changes):** raw momentum **−50.7%** → risk-adjust (÷vol) **−30.8%** (nearly halves the crash, keeps the return) → pure low-vol **−21.3%** (shallowest but return falls below index) → **LOWVOL_MOM blend = the free-lunch corner: keeps the top net return (18.0%, ≈ RISKADJ's 18.2%) AT the shallow low-vol drawdown (−21.8%), best ret/vol 1.02.** THIS is why LOWVOL_MOM/STEADY-25 is the fundable core.
+- **Finding 3 — the full stack:** raw −51% → risk-adjust −31% → low-vol blend −22% → **+ Tier-B ballast (16AX) −9 to −13%**, all while holding ~18% net. Answer to "keep CAGR, cut DD": blend low-vol into momentum, then add ~zero-corr ballast. You can't keep the fictional 35%; you CAN keep a real ~18% at a −10% drawdown.
+- **Note:** quality-overlay lever not in this price-only harness (its flat-cost DD-control −42→−28.7, `overlay_experiment.py`, was never re-measured net of participation — a remaining gap). return/vol ≠ Sharpe. Provenance: `/tmp/dd_levers.py`.
