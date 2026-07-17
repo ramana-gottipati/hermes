@@ -3412,3 +3412,25 @@ Provenance: env=em_cache, module=explosive_moves.rule_lab_executor, n_rebal=52, 
 - **The finding — STEADY is ALREADY defensive, but ballast still helps (less dramatically than the higher-vol union book):** STEADY alone **17.1% CAGR / vol 15.8% / ret/vol 1.09 / MaxDD −19.1%** (Nifty500 this window 13.4%). corr(STEADY,G-sec) **+0.08** · corr(STEADY,gold) **−0.24** · corr(gold,G-sec) −0.12 — both genuine diversifiers. **G-sec dial:** 100/0 17.1/1.09/−19.1 → 80/20 15.1/1.18/−14.7 → 70/30 14.1/1.25/−12.4. **Gold dial:** 80/0/20 16.2/1.30/−11.6 → 70/0/30 15.7/1.42/−9.6. **Three-asset:** **80/10/10 15.7/1.25/−13.1** · 70/10/20 15.2/1.39/−9.4. **A modest sleeve roughly HALVES MaxDD (−19→−9 to −13) for ~1-2pp CAGR; every mix still beats the index.**
 - **Honesty:** gold's edge is regime-loaded (2012-26 bull) — G-sec is the structural ballast; return/vol ≠ Sharpe; the STEADY NAV is the deployed flat-cost model book (its standalone 17.1% differs ~1pp from the participation-net pin 18.1% @₹50cr — two implementations of LOWVOL_MOM qtr large-cap; the DIAL is the transferable object).
 - **Provenance:** `/tmp/steady_ballast.py` (box); design-doc §8 + this entry. No deploy of services by the measurement; the overlay ships as an additive `auto_portfolios_view.py` section (D143 #3).
+
+### 2026-07-16AX — S189: THE 16AQ HOLE CLOSED UPSTREAM — the nightly corp-actions ingest now pulls the OFFICIAL ETF-class archive (`?index=mf`, the 16AV discovery) with the binding ±5d covered-check; future ETF corporate actions arrive without tape-derivation
+
+- **Verdict: FEED/OPS (root-cause remediation; no strategy number moved by the code change itself).**
+- **The wire (`src/automation/corp_actions.py`):** `fetch_window`/`ingest_range` parameterised by
+  instrument class; **every ingest mode (nightly trailing-400d · --window · --backfill) now pulls
+  `?index=equities` THEN `?index=mf`** (`--mf-only` for manual runs). mf rows ride the SAME
+  `normalize_api_row` parser (official FV-split text → typed ratios) and are source-tagged
+  `nse-ca-api-mf`. **The 16AV binding rule is machine-enforced:** factor-bearing mf rows (SPLIT/BONUS)
+  are dropped when ANY same-type row for the symbol sits within ±5 days (`_drop_covered`; mf ex-dates
+  sit ±1d off the tape and the S184/S185/S187 heals stored tape-dated rows). Dividends/others keep the
+  plain UNIQUE-key idempotency. Module selftest extended (the ±1d split twin drops, the fresh-symbol
+  split and the same-symbol dividend pass); AUD-14 retry/breaker suite 5/5 unaffected.
+- **Why this ends the arc:** 16AQ (gold-ETF splits missing) → 16AT (3 more caught live) → 16AU (117
+  tape-CLEAN healed) → 16AV (44 archive-verified + the mf-archive discovery) → 16AW (instruments
+  re-anchored) → **16AX: the class of defect can no longer accumulate — the official feed now covers
+  ETFs going forward, and the nightly `chk_split_cliffs` guard stays as the independent backstop.**
+- **First live run + anchor consequence recorded separately below if any factor-bearing rows land**
+  (a fresh mf pull over the trailing window may insert official split rows the heals didn't cover →
+  adjusted history moves → the 16AS loop fires; that is the designed lifecycle, not an incident).
+- **Provenance:** manifest rows `corp_actions` + `gold_etf` trued-up same-commit; tests
+  test_feed_manifest 11/11 · test_data_quality_liveness 14/14 · test_aud14 5/5 · module selftest OK.

@@ -176,7 +176,9 @@ FEEDS: dict = {
               "officially — corporateActions ?index=mf (current-symbol keyed; ex-date can sit "
               "±1d off the NSE tape) — any future mf ingest MUST covered-check ±5d against "
               "existing corporate_actions rows or it double-adjusts "
-              "(resolver: scripts/resolve_ambiguous_cliffs.py).",
+              "(resolver: scripts/resolve_ambiguous_cliffs.py). ✅ S189 (16AX): the nightly "
+              "corp_actions ingest now pulls ?index=mf with exactly that covered-check — future "
+              "ETF corporate actions arrive from the official archive, no tape-derivation needed.",
     ),
     "indexes": Feed(
         key="indexes",
@@ -222,7 +224,12 @@ FEEDS: dict = {
         knowable_rule="exchange announcement rows served windowed; ex_date drives adjustment semantics",
         fence_status="raw-archive (feeds security_events continuity spine + adjust.py cross-validation)",
         tables=("corporate_actions",),
-        notes="Resurrected 2026-07-06 after the legacy CSVs 404'd; liveness now watched by data_quality.",
+        notes="Resurrected 2026-07-06 after the legacy CSVs 404'd; liveness now watched by "
+              "data_quality. S189 (16AX): every ingest mode now pulls BOTH instrument classes — "
+              "?index=equities THEN ?index=mf (the ETF class the equities feed structurally omits; "
+              "the 16AQ root cause closed upstream). mf rows are source-tagged nse-ca-api-mf and "
+              "SPLIT/BONUS rows are covered-checked ±5d per the 16AV rule (mf ex-dates sit ±1d off "
+              "the tape; the S184/S185/S187 heals stored tape-dated rows).",
     ),
     "equity_list": Feed(
         key="equity_list",

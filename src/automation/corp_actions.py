@@ -349,7 +349,7 @@ def _nse_session():
 
 
 def fetch_window(from_iso: str, to_iso: str, *, session=None, headers=None,
-                 retries: int = 3) -> Optional[list]:
+                 retries: int = 3, index: str = "equities") -> Optional[list]:
     """Raw API rows for [from_iso, to_iso]. None = FETCH FAILURE (feeds the breaker);
     [] = a genuine 200-but-empty window.
 
@@ -365,8 +365,8 @@ def fetch_window(from_iso: str, to_iso: str, *, session=None, headers=None,
         y, m, d = str(iso)[:10].split("-")
         return "%s-%s-%s" % (d, m, y)
 
-    url = "%s?index=equities&from_date=%s&to_date=%s" % (
-        _NSE_API, ddmmyyyy(from_iso), ddmmyyyy(to_iso))
+    url = "%s?index=%s&from_date=%s&to_date=%s" % (
+        _NSE_API, index, ddmmyyyy(from_iso), ddmmyyyy(to_iso))
     last_block = None
     for attempt in range(retries):
         try:
@@ -395,18 +395,41 @@ def fetch_window(from_iso: str, to_iso: str, *, session=None, headers=None,
     return None
 
 
-def ingest_range(from_iso: str, to_iso: str) -> dict:
+def _drop_covered(rows: list, conn) -> tuple[list, int]:
+    """S187's binding rule for any mf-class ingest (16AV): mf ex-dates can sit ±1 day off
+    the NSE tape, and the S184/S185/S187 heals stored TAPE-dated rows — so factor-bearing
+    mf rows (SPLIT/BONUS) must be dropped when ANY same-type row for the symbol already
+    sits within ±5 days. Dividends/others keep the plain UNIQUE-key idempotency."""
+    kept, dropped = [], 0
+    for r in rows:
+        if r["action_type"] in ("SPLIT", "BONUS") and r["ex_date"]:
+            hit = conn.execute(
+                "SELECT 1 FROM corporate_actions WHERE symbol=? AND action_type=? "
+                "AND ex_date BETWEEN date(?, '-5 day') AND date(?, '+5 day') LIMIT 1",
+                (r["symbol"], r["action_type"], r["ex_date"], r["ex_date"])).fetchone()
+            if hit:
+                dropped += 1
+                continue
+        kept.append(r)
+    return kept, dropped
+
+
+def ingest_range(from_iso: str, to_iso: str, index: str = "equities") -> dict:
     """Windowed fetch+store over [from_iso, to_iso]. Per-window commits; breaker on
-    consecutive FAILURES (empty windows are legitimate and do not trip it)."""
+    consecutive FAILURES (empty windows are legitimate and do not trip it).
+    index="mf" = the ETF instrument class (16AV: the equities feed structurally omits it —
+    the 16AQ root cause); mf rows are source-tagged and covered-checked per _drop_covered."""
     session, headers = _nse_session()
     stats = {"windows": 0, "rows_seen": 0, "inserted": 0, "skipped_meetings_or_blank": 0,
-             "failed_windows": 0, "aborted_breaker": False}
+             "failed_windows": 0, "aborted_breaker": False, "index": index,
+             "skipped_covered_pm5d": 0}
     fails = 0
     lo = date.fromisoformat(from_iso[:10])
     hi = date.fromisoformat(to_iso[:10])
     while lo <= hi:
         wend = min(lo + timedelta(days=WINDOW_DAYS - 1), hi)
-        raw = fetch_window(lo.isoformat(), wend.isoformat(), session=session, headers=headers)
+        raw = fetch_window(lo.isoformat(), wend.isoformat(), session=session, headers=headers,
+                           index=index)
         stats["windows"] += 1
         if raw is None:
             stats["failed_windows"] += 1
@@ -423,8 +446,14 @@ def ingest_range(from_iso: str, to_iso: str) -> dict:
                 if n is None:
                     stats["skipped_meetings_or_blank"] += 1
                 else:
+                    if index != "equities":
+                        n["source"] = "nse-ca-api-%s" % index
                     rows.append(n)
             stats["rows_seen"] += len(raw)
+            if index != "equities" and rows:
+                with get_conn() as _rc:
+                    rows, ndrop = _drop_covered(rows, _rc)
+                stats["skipped_covered_pm5d"] += ndrop
             stats["inserted"] += store_actions(rows)     # short txn AFTER the network call
         lo = wend + timedelta(days=1)
         time.sleep(REQUEST_PAUSE)
@@ -603,6 +632,22 @@ def _selftest() -> int:
     check("S97 from-less split text recovered (0.2 × 2/3 = 0.1333)",
           abs(pr4["2026-09-12"] - (0.2 * 2 / 3)) < 1e-9)
     check("S97 abbreviated Bonus Deb excluded", price_ratios(con, "DEB2") == {})
+
+    # S189: the mf-class covered-check (16AV rule — mf ex-dates sit ±1d off the tape)
+    con.execute("INSERT INTO corporate_actions (symbol, action_type, ex_date, record_date, "
+                "ratio_from, ratio_to, details, source) VALUES "
+                "('HEALTHADD','SPLIT','2026-07-03',NULL,10,1,'tape-dated heal row','x')")
+    mf_dup = {"symbol": "HEALTHADD", "action_type": "SPLIT", "ex_date": "2026-07-02",
+              "record_date": None, "ratio_from": 10.0, "ratio_to": 1.0,
+              "details": "Face Value Split - From Rs 10 To Re 1", "source": "nse-ca-api-mf"}
+    mf_new = dict(mf_dup, symbol="FRESHETF", ex_date="2026-07-02")
+    mf_div = {"symbol": "HEALTHADD", "action_type": "DIVIDEND", "ex_date": "2026-07-02",
+              "record_date": None, "ratio_from": None, "ratio_to": None,
+              "details": "Dividend - Rs 1 Per Unit", "source": "nse-ca-api-mf"}
+    kept, ndrop = _drop_covered([mf_dup, mf_new, mf_div], con)
+    check("mf covered-check drops the ±1d split twin only",
+          ndrop == 1 and {r["symbol"] + r["action_type"] for r in kept}
+          == {"FRESHETFSPLIT", "HEALTHADDDIVIDEND"})
     con.close()
 
     print("corp_actions selftest:", "OK" if ok else "FAILED")
@@ -621,6 +666,8 @@ def main() -> None:
     p.add_argument("--stats", action="store_true")
     p.add_argument("--reconcile", metavar="SINCE", nargs="?", const="2004-01-01",
                    help="adjust-vs-tape reconciliation audit from SINCE (default: full history)")
+    p.add_argument("--mf-only", action="store_true",
+                   help="ingest only the mf/ETF class (default: equities THEN mf)")
     p.add_argument("--selftest", action="store_true")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -639,12 +686,18 @@ def main() -> None:
                 print("  %s (%d): %s" % (k, len(rec["detail"][k]), rec["detail"][k][:12]))
         return
     today = date.today().isoformat()
+    classes = ("mf",) if args.mf_only else ("equities", "mf")
+    # the mf class rides every mode since S189 (16AV discovery: the equities feed
+    # structurally omits ETF corporate actions — the 16AQ root cause, closed upstream here)
     if args.window:
-        ingest_range(args.window[0], args.window[1])
+        for ix in classes:
+            ingest_range(args.window[0], args.window[1], index=ix)
     elif args.backfill:
-        ingest_range("%d-01-01" % args.from_year, today)
+        for ix in classes:
+            ingest_range("%d-01-01" % args.from_year, today, index=ix)
     else:                                               # bare call == --fetch (full-backfill.sh compat)
-        ingest_range((date.today() - timedelta(days=args.days)).isoformat(), today)
+        for ix in classes:
+            ingest_range((date.today() - timedelta(days=args.days)).isoformat(), today, index=ix)
     log.info("corporate_actions: %s", table_stats())
 
 
