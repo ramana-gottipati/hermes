@@ -20,6 +20,8 @@
 > rows are ever RESTATED (and whether gold ETFs stay in the universe) is an owner decision tied
 > to `task_7a70ad77` — until then the seal-time records stand.
 
+**One-line definition:** the Union Ladder is the full-record compendium of every union-family configuration — sealed, recorded, and rejected alike — with each member's complete ruleset and every recorded result number standing in one place, so the whole family can be read side by side without chasing deltas across ledger entries.
+
 **Shared machinery (every member, verbatim across the family):** NSE bhavcopy EQ+BE+BZ,
 corporate-action adjusted (`adjust.py`), split-ratio quarantine (`quarantine.py`), PIT sector
 assignment by trailing-500d excess-correlation to the 16 NSE sector indices (yearly refresh),
