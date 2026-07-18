@@ -343,7 +343,7 @@ def _public(text: str) -> str:
     text = re.sub(r"`[0-9a-f]{7,40}`", "", text)                          # commit hashes
     text = re.sub(r"\(\s*(?:[SD]\d{1,3}[a-z]?[\s,/·]*)+\)", "", text)      # "(D111, S109)" refs
     text = re.sub(r"\b[SD]\d{1,3}[a-z]?\b", "", text)                     # residual bare S###/D### ids
-    text = re.sub(r"\b(20\d{2}-\d{2}-\d{2})[a-z]\b", r"\1", text)          # ledger ids "2026-07-15i" → date
+    text = re.sub(r"\b(20\d{2}-\d{2}-\d{2})[A-Za-z]{1,3}\b", r"\1", text)  # ledger ids "2026-07-15i" / "2026-07-16BB" → date (16-block uses UPPERCASE 1–3-letter suffixes)
     text = re.sub(r"[ \t]{2,}", " ", text)                               # collapse double spaces
     text = re.sub(r" *\(\s*\) *", " ", text)                             # empty parens
     text = re.sub(r" +([,.;·)])", r"\1", text)                           # space before punctuation
