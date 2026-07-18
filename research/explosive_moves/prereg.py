@@ -7,6 +7,13 @@ post-hoc gate edit. First registration wins — legitimately amending a gate mea
 NEW study module (or `--force`, which records the override note, which is itself
 the audit trail). The spec-sheets Trust page renders the hash chips.
 
+`--verify` covers exactly the STUDIES modules (its own docstring-hash scheme). Rows
+registered by ANOTHER tool into this shared table — the seasonal_tape frozen family,
+which hashes a param-JSON via frozen_family_hash() and lives in src.automation — are
+SKIPPED here and verified by their own `seasonal_tape --verify`; verifying them here
+would compare the wrong hash. So a clean `--verify` exit 0 means every STUDIES seal
+holds; the seasonal seals are a separate, adjacent check.
+
 Honesty note baked into the data: the five studies that predate this registry
 (pead, footprint, insider_drift, filing_latency, concall_intent) are registered
 retroactively — their gates were written before their runs (verifiable in git
@@ -84,6 +91,14 @@ def verify(db_path: str = RDB) -> int:
     bad = 0
     for name, stored, at, note in con.execute(
             "SELECT module, gate_sha256, registered_at, note FROM prereg_registry ORDER BY 1"):
+        if name not in STUDIES:
+            # Foreign registrant sharing this table: the seasonal_tape frozen family hashes a
+            # canonical param-JSON (frozen_family_hash), NOT this module's docstring, and lives
+            # in src.automation — outside explosive_moves. Importing it here would both fail
+            # (wrong package) AND compare the wrong hash. It is verified by its OWN tool
+            # (`python -m src.automation.seasonal_tape --verify`). Skip; never count as bad.
+            print(f".. {name:<16} skipped (foreign registrant — verified by its own --verify)")
+            continue
         try:
             mod = importlib.import_module(f"explosive_moves.{name}")
             cur = gate_hash(mod.__doc__)
