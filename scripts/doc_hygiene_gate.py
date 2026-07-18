@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """doc_hygiene_gate.py — the documentation-governance backstop (S128 audit follow-up).
 
-Four independent checks, each a RATCHET (like scripts/color_gate.py): the current
+Five independent checks, each a RATCHET (like scripts/color_gate.py): the current
 backlog is grandfathered so the gate lands GREEN today, but any NEW drift fails it.
 Grandfather floors may only SHRINK — never add a name back.
 
@@ -23,6 +23,12 @@ Grandfather floors may only SHRINK — never add a name back.
                        inbound `[16AX]` citation — the tag-race. The 16AO/16AX/16AY
                        firings (S180/S187) are its recorded history; this is the durable
                        L4 fix the S187 flag asked for (a dup heading fails the commit).
+  E. DECISION UNIQ   — every `### D<n>` Decision-log heading in PROJECT_STATE.md mints a
+                       UNIQUE id (`D143`; suffixed variants like `D142-RECONCILE` stay
+                       distinct). Same tag-race, higher blast radius — D-numbers are cited
+                       ~78× across docs AND code. Its recorded history: the D110/D111/D113
+                       renumbers and the still-live `D68` collision (strategic-review flags
+                       "D68/D79-D80 numbering collisions").
 
 Pure stdlib, no app import → safe to run in a git pre-commit hook and offline.
 Run:   python scripts/doc_hygiene_gate.py
@@ -43,6 +49,7 @@ DOC_INDEX = DOCS / "DOC_INDEX.md"
 CLAUDE_MD = ROOT / "CLAUDE.md"
 AGENTS_MD = ROOT / "AGENTS.md"
 STRATEGY_LEDGER = DOCS / "strategy-ledger.md"
+PROJECT_STATE = ROOT / "PROJECT_STATE.md"
 
 # Docs that are intentionally NOT catalogued in DOC_INDEX.md (the index itself; and
 # the strategy pages, which have their own coverage gate: test_strategy_docs_coverage).
@@ -64,6 +71,15 @@ LIFECYCLE = re.compile(r"Lifecycle:\s*(TRANSIENT|LIVING|PERMANENT|RETIRE)", re.I
 # Match the tag token only (require a following space/EOL so plain-date headings like
 # `### 2026-07-17 — COORDINATION`, which carry no letter-suffix, are correctly ignored).
 LEDGER_TAG = re.compile(r"###\s+(20\d{2}-\d{2}-\d{1,2}[A-Za-z]{1,3})(?=\s|$)")
+
+# A Decision-log entry in PROJECT_STATE.md is `### D143 — <desc>`; the id (`D143`, or a suffixed
+# variant like `D142-RECONCILE` / `D33-web` / `D49g`) is cited estate-wide across docs AND code
+# (`D134` ~78×). Two distinct decisions minting the same id is the same tag-race as the ledger — but
+# higher-blast-radius. The `[A-Za-z-]*` keeps suffixed variants DISTINCT (they are deliberate); the
+# digit after `D` skips the `### D. <doctrine>` / `### A.`-style lettered subsections. Scoped to
+# PROJECT_STATE.md only (the canonical Decision log; codex-review + explosive-move use their own
+# `### D<n>` namespaces).
+DECISION_ID = re.compile(r"###\s+(D[0-9]+[A-Za-z-]*)(?=\s|$)")
 
 # Canonical rules that MUST appear (case-insensitively) in BOTH CLAUDE.md and AGENTS.md.
 # Keep these as short, stable substrings of the actual rule text.
@@ -90,6 +106,13 @@ GRANDFATHERED_UNBANNERED: set[str] = set()  # empty — all transient docs carry
 # genuinely-ambiguous inbound refs (work from other sessions), so it is grandfathered as documented
 # debt, NOT healed here. The gate blocks every NEW collision (the 16AX/16AY class it was built for).
 GRANDFATHERED_DUP_TAGS: set[str] = {"2026-07-15i"}
+# ONE pre-existing Decision-log collision (acknowledged in docs/strategic-review-2026-07-07.md as
+# "D68/D79-D80 numbering collisions"): `D68` names TWO distinct decisions — the GLM-5.2 headless code
+# reviewer (session 39) and the rotation-vocabulary unification / mini_rrg (session 38). BOTH are
+# load-bearing and cited across docs AND live code (relative-strength.md ×5, cockpit.py, dashboard.py,
+# mini_rrg.py vs. the code_review file-tree + AUD-28), so renumbering would churn other sessions' work
+# for a cosmetic id fix — grandfathered as documented debt. The gate blocks every NEW D-collision.
+GRANDFATHERED_DUP_DECISIONS: set[str] = {"D68"}
 # ─────────────────────────────────────────────────────────────────────────────────────
 
 
@@ -180,6 +203,22 @@ def _ledger_dup_tags() -> list[str]:
     return sorted(tag for tag, n in counts.items() if n > 1)
 
 
+def _decision_dup_ids() -> list[str]:
+    """Decision-log ids that appear on more than one `### D<n>` heading in PROJECT_STATE.md — the
+    same collision class as the ledger tag-race, at higher blast radius (D-numbers are cited across
+    docs AND code). Suffixed variants (`D142-RECONCILE`, `D33-web`, `D49g`) are distinct ids and do
+    NOT collide. Returns the bare duplicate ids, sorted; grep the id in PROJECT_STATE.md for lines."""
+    if not PROJECT_STATE.exists():
+        return []
+    text = PROJECT_STATE.read_text(encoding="utf-8", errors="replace")
+    counts: dict[str, int] = {}
+    for line in text.splitlines():
+        m = DECISION_ID.match(line)
+        if m:
+            counts[m.group(1)] = counts.get(m.group(1), 0) + 1
+    return sorted(did for did, n in counts.items() if n > 1)
+
+
 def _ratchet(name: str, current: list[str], floor: set[str]) -> int:
     new = [x for x in current if x not in floor]
     cleared = sorted(floor - set(current))
@@ -211,6 +250,10 @@ def main() -> int:
         for x in _ledger_dup_tags():
             print(f"    {x!r},")
         print("}")
+        print("GRANDFATHERED_DUP_DECISIONS = {")
+        for x in _decision_dup_ids():
+            print(f"    {x!r},")
+        print("}")
         return 0
 
     fail = 0
@@ -228,6 +271,7 @@ def main() -> int:
         print(f"  clean - all {len(TWIN_INVARIANTS)} canonical rules present in both twins.")
 
     fail |= _ratchet("D. strategy-ledger tag uniqueness", _ledger_dup_tags(), GRANDFATHERED_DUP_TAGS)
+    fail |= _ratchet("E. Decision-log D-number uniqueness", _decision_dup_ids(), GRANDFATHERED_DUP_DECISIONS)
 
     print("PASS - doc hygiene held (backlog only shrank)." if not fail
           else "FAIL - new documentation drift. Fix, or add to the ratchet floor only with a reason.")

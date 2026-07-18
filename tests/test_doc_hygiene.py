@@ -56,9 +56,23 @@ def test_ledger_tags_are_unique() -> None:
     )
 
 
+def test_decision_log_ids_are_unique() -> None:
+    """Every `### D<n>` Decision-log id in PROJECT_STATE.md is unique (the tag-race, code-cited).
+
+    Two distinct decisions sharing an id (`D68` today) breaks ~78×-cited inbound refs across docs and
+    code. Suffixed variants (`D142-RECONCILE`) stay distinct. The ONE grandfathered pre-existing dup
+    (`D68`) is excused; any NEW collision fails."""
+    extra = sorted(set(gate._decision_dup_ids()) - gate.GRANDFATHERED_DUP_DECISIONS)
+    assert not extra, (
+        "duplicate Decision-log id(s) — two decisions minting the same D-number breaks every inbound "
+        f"citation (docs + code); renumber the later entry to the next free D-number: {extra}"
+    )
+
+
 if __name__ == "__main__":  # allow a bare run outside pytest
     test_every_doc_is_indexed()
     test_transient_docs_carry_a_lifecycle_banner()
     test_claude_agents_twins_in_sync()
     test_ledger_tags_are_unique()
-    print("doc-hygiene pytest checks OK — index coverage / transient banners / twin-sync / ledger-tags all clean")
+    test_decision_log_ids_are_unique()
+    print("doc-hygiene pytest checks OK — index / transient / twin-sync / ledger-tags / decision-ids all clean")
