@@ -30,7 +30,9 @@ import json
 import logging
 import os
 import sqlite3
+import subprocess
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Optional
 
 from src.automation import provenance
@@ -651,6 +653,41 @@ def chk_split_cliffs(c) -> dict:
                   f"no orphan split-shaped cliffs in the ~120d window ({len(prev)} symbols scanned)")
 
 
+def chk_prereg_seals() -> dict:
+    """The pre-registration DOCSTRING seals hold (tamper-evidence for study gates, S194e).
+
+    `prereg --verify` recomputes sha256(gate docstring) for every STUDIES module, and
+    `seasonal_tape --verify` recomputes the frozen-family param-JSON hash, both vs
+    research.db.prereg_registry. They run ONLY under the research venv (they import the
+    study modules), so this shells out to it — data_quality itself runs under the prod venv.
+    A broken seal = a pre-registered gate was edited AFTER sealing without re-registering:
+    it may be a legitimate relabel (then `prereg --register-all --force --note …`) OR a
+    silent post-hoc gate edit — either way a human must look, so it is a WARN, not a CRIT
+    (no kill-switch coupling). Research venv/db absent (laptop/CI) → OK 'skipped', like the
+    table-absent checks. This closes the gap where the exit_lab seal broke unnoticed (S194d).
+    """
+    root = Path(__file__).resolve().parents[2]           # repo root (== /opt/hermes on the box)
+    rpy = root / ".venv-research" / "bin" / "python"
+    if not (rpy.exists() and (root / "data" / "research.db").exists()):
+        return _check("prereg.seal_integrity", SEV_OK, 0, "research venv/db absent — skipped (box-only)")
+    fails = []
+    for label, cmd, cwd in (
+        ("studies", [str(rpy), "-m", "explosive_moves.prereg", "--verify"], root / "research"),
+        ("seasonal", [str(rpy), "-m", "src.automation.seasonal_tape", "--verify"], root),
+    ):
+        try:
+            p = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, timeout=300)
+            if p.returncode != 0:
+                tail = " | ".join((p.stdout + p.stderr).strip().splitlines()[-3:])
+                fails.append(f"{label} --verify exit {p.returncode}: {tail}")
+        except Exception as e:  # noqa: BLE001 — a probe failure is itself a WARN, never aborts the run
+            fails.append(f"{label} probe errored: {type(e).__name__}: {e}")
+    if fails:
+        return _check("prereg.seal_integrity", SEV_WARN, len(fails),
+                      "; ".join(fails) + " — re-register if the gate edit was legitimate, else investigate")
+    return _check("prereg.seal_integrity", SEV_OK, 0, "all study + frozen-family gate seals intact")
+
+
 # ── run all ───────────────────────────────────────────────────────────────────
 def run(conn=None, *, persist: bool = True) -> dict:
     """Run the full battery. Returns {status, n_critical, n_warn, checks:[...]}.
@@ -683,6 +720,7 @@ def run(conn=None, *, persist: bool = True) -> dict:
             (chk_restatement_spike, (r,)),
             (chk_shareholding_xbrl_freshness, (r,)),
             (chk_split_cliffs, (c,)),
+            (chk_prereg_seals, ()),
         ]
         for fn, fargs in plan:
             try:
