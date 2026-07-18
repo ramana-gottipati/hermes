@@ -2167,6 +2167,15 @@ L. **MCP server on VPS** — would let claude.ai query Hermes data directly via 
 
 ## Session log (reverse chronological — newest at top)
 
+### Session 198 — 2026-07-18 — THE FOLDER IS PATEARN: D:\Hermes → D:\patearn rename executed by Ramana; rewire checklist run GREEN end-to-end; runbook retired (§Q-3)
+The blocker was Google Drive desktop sync (registered the folder by path, re-grabbed it after every reboot) — resolved by detaching the folder from Drive's "My Laptop" sync, quitting Drive, closing all sessions, renaming, then re-adding `D:\patearn` (advice recorded: exclude `.git` from Drive sync — Drive-vs-git lock contention caused the stuck-folder class). Rewire per `REWIRE-AFTER-RENAME.md` (05b3826), all 7 items verified:
+- **Git:** repo fine under `D:\patearn` (fetch/log/status). Main tree found on a DETACHED HEAD at `e1be99c` — pre-existing sibling artifact, verified CONTAINED in origin/main (parked, safe), left untouched per multi-session-safety; noted for the next lane that boots there. Sibling dirt preserved.
+- **Worktrees:** `git worktree repair` fixed the broken `.git` pointers (v3-preview + 2 old scratchpad trees); `D:/Hermes.worktrees/v3-preview` clean on `lane/v3-preview`. The worktrees FOLDER keeps its old name (optional rename deferred; `new-lane.sh` derives from `git rev-parse`, unaffected).
+- **Memory:** new slug `D--patearn` loaded with the pre-copied 82 files (MEMORY.md present in-session). Old `D--Hermes` copy retained ≥1 week per the runbook.
+- **Scheduled tasks:** `union-forward-test-q3-2026` enabled, fires 2026-10-03, prompt carries `D:\patearn` + fallback; `banknifty-post-earnings-rerun` (07-21) + `claude-til-daily` enabled, no repo paths.
+- **Battery:** suite **734 passed / 1 skip** from `D:\patearn` · nav gate PASS · VPS untouched by design (`hermes-api` active, live 200 — infra codenames stay frozen per the naming law) · this commit's push = the content-verified push proof.
+- Retired: `REWIRE-AFTER-RENAME.md` (fold-then-delete, this commit). Remaining rebrand items stay owner-gated: GitHub repo name (optional), `D:/Hermes.worktrees` folder name (optional), frozen infra codenames (deliberate).
+
 ### Session 197 — 2026-07-18 — the pre-registered event-study battery is under CI for the first time: `tests/test_research_selftests.py` wires 16 orphaned `research/explosive_moves` selftests into pytest (718 → 734 passed)
 Boot: STRONG tier (Opus 4.8), FABLE kernel confirmed. Queue ① owner-gated (D143 governance, union ETF-exclusion) + ② time-gated (Aug-1, Oct-3) → not actionable; landed a ③ verified-open pick surfaced by an Explore survey and confirmed by my own probe.
 - **The gap:** ~17 modules under `research/explosive_moves/` (the charter's E-02/03/04/11/12/14 event studies + PEAD/footprint + rating/dividend/insider/rebrand drift + SHP/reclaim/fractal selection) each ship a hermetic pure-compute `selftest()`, but they ran only via a manual box `--selftest` with ZERO pytest coverage — a refactor could break the evidence machine silently.
